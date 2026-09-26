@@ -57,6 +57,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `lean-runtime-check.js` | Squad-plan stability + resolver + tactical route with no extra modules |
 | `macro-command-toggle-check.js` | Macro OFF suppresses Force Command while downstream hooks still run |
 | `map-pipeline-check.js` | Scenario regeneration publishes the same geometry as a page load (benchmarks once ran 10-70x slow on 4x the hedges) |
+| `sight-query-check.js` | Pruned geometry queries answer exactly as unpruned: `sightBlocked` (crossed cells, first hit) vs nearest-hit `sightBlocker`, and `movementClear` with vs without wall bounding boxes, on real scenarios |
 | `impact-fx-check.js` | Impact materials, blood placement, FX budgets, restart cleanup (render stub) |
 | `world-debug-check.js` | World Debug overlay UI handlers (DOM stub) |
 | `extension-order-check.js` | No module replaces `SquadAI.tryFire`/`areaFire`/`updateSoldier`/`updateSquad` or `BattleEngagement.updateSoldier`; the declared fire order (ammunition → ballistics range → trigger-time LOS) holds; undeclared extensions throw |
@@ -165,7 +166,10 @@ exported under `macroCommand`.
 an objective's allowance) stops a side piling onto one objective; the frontage limit stops it spreading
 over all of them. A side attacks at most `maxEfforts` (2) objectives it does not hold at once; opening
 another costs `frontageCost` (140), so the next squad reinforces an open effort. Taking an objective
-closes its effort. Defending owned objectives doesn't count. Both are scores, never vetoes.
+closes its effort. Defending owned objectives doesn't count. A strategic-stall wake closes the
+efforts its stalled capture briefs were on: each costs `stallCost` (150) and no longer fills the
+frontage, so the side masses on new objectives (`commander-ai.js` `stalledEfforts`; outcomes under
+`macroCommand.state.stallOutcomes`). All three are scores, never vetoes.
 
 **Reconstitution** (`commander-ai.js` `reconstitute`, Macro only). A retreating squad's Squad Leader
 walks it home (`_assembly` `to-base`); home and out of contact it is `at-base`. Only `at-base` squads
@@ -307,8 +311,22 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
     (`battle-sim.js` `spawnSide`, `modules/10-infantry-squad.js`), ignoring their slot, then cross each
     other to sort out. Placing each man at his fireteam position at spawn is its own change, and it
     changes the seeded start, so benchmark it paired on GitHub.
-- Strategic-stall wakes mostly re-pick the same objective, because doctrine has no alternative.
-- Hot path is now navigation replans (~3.3 s) and `sightBlocked` (~3.5 s) per ~13.7 s battle.
+- Strategic-stall wakes used to re-pick the same objective (77% of 111 wakes over 10 local replays);
+  a stall now closes the stalled efforts (see Main effort), which cut repeats to 46% (local, before
+  the merge with the frontage limit). GitHub standard benchmark, main run 15 vs branch run 14 (same
+  100 seeds): no measurable outcome effect. Wins US/GE 31/29 → 33/27 meeting (Fisher p=0.85), 18/2 →
+  20/0 US-defend and 0/20 → 2/18 GE-defend (p=0.49), captures 2.99 → 2.92, mean longest no-progress
+  283 → 277 s, meeting spread 2.33 → 2.46 objectives per side, same winner on 88/100 seeds. Open:
+  the benchmark doesn't export `stallOutcomes`, so the post-merge repeat rate is unmeasured. Add it
+  to the benchmark export, find what the remaining repeats are (no other objective left, or
+  `stallCost` too low against distance), and only claim a win effect from a 300-battle run.
+- Hot path: `sightBlocked` and navigation replans were ~half a battle's wall time; exact pruning
+  (crossed-cell first-hit LOS, wall bounding boxes, lazy `planLocal` edges) halved it. Standard
+  benchmark median wall time per battle 29.1 → 13.5 s (meeting 29.1 → 13.2, US-defend 31.3 → 16.3,
+  GE-defend 33.1 → 13.9), main run 15 vs branch run 14. Hot-path profile on
+  `standard-benchmark-meeting-s1-b0001-0001` (300 s): `sightBlocked` 7.3 → 2.1 µs/call, physical
+  replan 360 → 42 µs, `findPath` 564 → 83 µs, `movementClear` 5.5 → 1.75 µs. `engagement.updateSoldier`
+  and the movement resolver now lead the profile; they are the next optimisation target.
 - Movement Progress ignores retreat by design; `movementStopReason` is the observable.
 - Next architecture steps: a versioned `SquadIntent` + one intent resolver (leases, with priority, progress tests and a graph view, now exist), a real Squad Leader local planner, then
   platoon/company command, fallback/counterattack and combined arms. Capture Zone and
