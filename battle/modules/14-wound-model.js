@@ -13,7 +13,9 @@
 
    A casualty is a man out of the fight, dead or incapacitated alike: both go through killSoldier.
    The zone's drop chance scales with the cartridge (`power` on the weapon: .30-06 and 7.92 mm 1.0,
-   .30 Carbine ~.6, pistol-calibre SMG and sidearm ~.5). Bleeding eases off as the man gets pressure
+   .30 Carbine ~.6, pistol-calibre SMG and sidearm ~.5). A round that went through one man first
+   (14-z-ballistic-raycast over-penetration) reports what it has left: hit.energy scales the wound
+   and hit.power the drop chance. Bleeding eases off as the man gets pressure
    on it (BLEED_TAU), and a man who loses enough collapses before his hit points reach zero.
 
    Owner: the SquadAI `woundModel` slot. Draws two combat-RNG numbers per hit (severity and drop)
@@ -46,6 +48,9 @@
     MIN_SPEED = 0.35,
     MAX_SIGMA = 2.2;
 
+  function clamp(n, a, b) {
+    return Math.max(a, Math.min(b, n));
+  }
   function rand(b) {
     return b && typeof b.random === 'function' ? b.random() : Math.random();
   }
@@ -76,9 +81,11 @@
     var stats = shooter.weapon.stats,
       zone = (hit && ZONES[hit.zone] && hit.zone) || rollZone(battle),
       z = ZONES[zone],
-      power = isFinite(+stats.power) ? +stats.power : 1,
+      /* A round that already went through a man arrives with only part of its energy (hit.energy). */
+      energy = hit && isFinite(+hit.energy) ? clamp(+hit.energy, 0, 1) : 1,
+      power = hit && isFinite(+hit.power) ? +hit.power : isFinite(+stats.power) ? +stats.power : 1,
       scale = 0.5 + 0.5 * power,
-      damage = stats.damage * z.damage * (0.85 + rand(battle) * 0.3),
+      damage = stats.damage * z.damage * energy * (0.85 + rand(battle) * 0.3),
       dropped = rand(battle) < z.drop * scale,
       st = state(battle);
     st.stats.hits++;

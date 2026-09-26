@@ -199,4 +199,47 @@ test('drop odds match the zone table and scale with the cartridge', () => {
   const smgChest = rate('chest', 'sergeant');
   assert.ok(smgChest < chest - 0.08, 'a pistol-calibre SMG drops fewer men with a chest hit: ' + smgChest.toFixed(2));
 });
+test('a full-power round can go through one man and hit the man behind him', () => {
+  const r = H.bootstrap();
+  r.BattleModules.unitsFor = () => [];
+  load(r, 'battle/modules/14-z-ballistic-raycast.js');
+  function line(stats) {
+    const b = H.makeBattle(r, { seed: 3 });
+    b.random = () => 0.5;
+    let meta = null;
+    b.onShot = (a, t, hit, d, m) => (meta = m);
+    const man = (x, faction) => ({
+      id: x,
+      faction,
+      hp: 100,
+      root: { position: { x, y: 0, z: 0 }, rotation: { y: 0 } }
+    });
+    const shooter = man(0, 'us'),
+      front = man(20, 'ge'),
+      back = man(21.5, 'ge');
+    shooter.weapon = {
+      stats: Object.assign({ range: 300, falloffStart: 300, combatSigmaAt100: 0.0001, damage: 55 }, stats)
+    };
+    b._roster.ge.push(front, back);
+    b.factions.ge.alive = 2;
+    r.BattleBallistics.resolve(shooter, front, b);
+    return { meta, front, back };
+  }
+  const rifle = line({ power: 1 });
+  assert.equal(rifle.meta.passes.length, 2, 'the rifle round went through into the man behind');
+  assert.ok(rifle.meta.passes[0].exit, 'an exit point on the first man');
+  assert.ok(rifle.meta.passes[1].energy < 1, 'arrives with less energy');
+  assert.ok(rifle.back.hp < 100, 'the second man is wounded');
+  assert.ok(
+    100 - rifle.back.hp < rifle.front.wounds.length * 55 * 1.5 * 0.9,
+    'with a lighter wound than a fresh round'
+  );
+  const d0 = rifle.meta.passes[0].direction,
+    d1 = rifle.meta.passes[1].direction;
+  assert.ok(Math.hypot(d0.x - d1.x, d0.y - d1.y, d0.z - d1.z) > 1e-3, 'deflected leaving the body');
+  const pistol = line({ power: 0.5 });
+  assert.equal(pistol.meta.passes.length, 1, 'a pistol-calibre round stops in the first man');
+  assert.equal(pistol.back.hp, 100);
+  assert.equal(pistol.meta.final, null);
+});
 console.log(n + ' weapon and wound checks passed');

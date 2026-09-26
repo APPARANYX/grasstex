@@ -62,26 +62,35 @@ const uv=fx.cellUV('holes',2,3);assert.deepEqual([uv.u0,uv.u1,uv.v0,uv.v1],[.75,
 assert.ok(cells().every(c=>/effects\/decals\/(blood|bullet-holes)\.png$/.test(c.mesh.material.diffuseTexture.url)));
 console.log('PASS sheet cells are grid-addressed and load from Assets/effects/decals');
 
-/* A body hit: a wound decal on the bone that was hit, a splash under him and, for a full-power
-   round through the torso, an exit spray on the ground behind him. */
-const head={getAbsolutePosition:()=>new Vector3(5,1.6,0),computeWorldMatrix(){},isDisposed:()=>false};
-const chest={getAbsolutePosition:()=>new Vector3(5,1.3,0),computeWorldMatrix(){},isDisposed:()=>false};
-const victim={root:{position:{x:5,y:0,z:0}},rig:{head,chest}};
-const rifleman={weapon:{stats:{power:1}}},pistol={weapon:{stats:{power:.5}}};
-function bodyShot(zone,shooter){return{mode:'raycast',stoppedBy:'soldier',surface:'blood',victim,zone,impact:{x:4.7,y:1.35,z:0},normal:{x:-1,y:0,z:0},direction:{x:1,y:0,z:0},delay:0,_shooter:shooter};}
+/* A body hit: a wound decal on the bone that was hit and a splash under him. A round that went
+   through (shot.passes[i].exit) adds an exit wound on the far side and a spray along its path, and
+   strikes the next man and then whatever stopped it (shot.final). */
+const bone=(x,y)=>({getAbsolutePosition:()=>new Vector3(x,y,0),computeWorldMatrix(){},isDisposed:()=>false});
+const head=bone(5,1.6),chest=bone(5,1.3),chest2=bone(7,1.3);
+const victim={root:{position:{x:5,y:0,z:0}},rig:{head,chest}},behind={root:{position:{x:7,y:0,z:0}},rig:{chest:chest2}};
+const X={x:1,y:0,z:0};
+function pass(v,zone,x,exit){return{victim:v,zone,entry:{x:x-.3,y:1.35,z:0},exit:exit?{x:x+.3,y:1.35,z:0}:null,direction:X,exitDirection:exit?X:undefined};}
+function bodyShot(passes,final){return{mode:'raycast',stoppedBy:'soldier',surface:'blood',victim:passes[0].victim,zone:passes[0].zone,impact:passes[0].entry,normal:{x:-1,y:0,z:0},direction:X,delay:0,passes,final:final||null};}
 fx.clear(sim);
-sim.onShot(rifleman,victim,true,10,bodyShot('chest',rifleman));fx.tick(sim);
+sim.onShot(null,victim,true,10,bodyShot([pass(victim,'chest',5,false)]));fx.tick(sim);
 assert.equal(sim._impactFx.body.length,1);assert.equal(sim._impactFx.body[0].mesh.parent,chest,'wound rides the chest bone');
-assert.ok(sim._impactFx.body[0].mesh.position.x<5,'wound decal is on the side facing the shooter');
+assert.ok(sim._impactFx.body[0].mesh.position.x<5,'entry wound is on the side facing the shooter');
 assert.equal(instances('blood',SH.blood.rows.pool),1,'splash under the hit');
-assert.equal(instances('blood',SH.blood.rows.spray),1,'a rifle round through the chest leaves an exit spray');
-const spray=byKind('spray');assert.ok(spray[12]>4.7,'exit spray lands behind him');
-sim.onShot(pistol,victim,true,10,bodyShot('head',pistol));fx.tick(sim);
-assert.equal(sim._impactFx.body[1].mesh.parent,head,'a head hit rides the head');
-assert.equal(instances('blood',SH.blood.rows.spray),1,'a pistol round does not throw an exit spray');
-for(let i=0;i<10;i++)sim.onShot(rifleman,victim,true,10,bodyShot('chest',rifleman));
-assert.equal(sim._impactFx.body.length,6,'wound decals per soldier are capped');
-console.log('PASS wound decals ride the hit bone; ground splash and exit spray');
+assert.equal(instances('blood',SH.blood.rows.spray),0,'a round that stopped in him throws no exit spray');
+fx.clear(sim);
+const wallEnd={impact:{x:9,y:1.3,z:0},stoppedBy:'environment',blocker:'wall',surface:'cement',normal:{x:-1,y:0,z:0},direction:X};
+sim.onShot(null,victim,true,10,bodyShot([pass(victim,'chest',5,true),pass(behind,'chest',7,false)]));
+sim.onShot(null,victim,true,10,bodyShot([pass(victim,'head',5,true)],wallEnd));fx.tick(sim);
+const exits=sim._impactFx.body.filter(b=>b.exit);
+assert.equal(exits.length,2,'an exit wound for each round that came out');
+assert.ok(exits.every(b=>b.mesh.position.x>5),'exit wounds are on the far side');
+assert.ok(sim._impactFx.body.some(b=>b.mesh.parent===chest2),'the man behind is wounded too');
+assert.equal(instances('blood',SH.blood.rows.spray),2,'exit sprays');
+assert.ok(sim._impactFx.decals.filter(d=>d.kind==='spray').every(d=>d.matrix[12]>5),'sprays land beyond the exit');
+assert.equal(instances('holes',SH.holes.rows.masonry),1,'the spent round holes the wall behind');
+for(let i=0;i<10;i++)sim.onShot(null,victim,true,10,bodyShot([pass(victim,'chest',5,true)]));
+assert.equal(sim._impactFx.body.filter(b=>b.soldier===victim).length,6,'wound decals per soldier are capped');
+console.log('PASS entry and exit wounds ride the hit bone; the next man; splash, exit spray and the final strike');
 
 /* Budgets, expiry, restart. */
 const texture=sim._impactFx.texture;
