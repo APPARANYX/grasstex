@@ -14,7 +14,8 @@ original docs (roadmaps, lab notes, measurements) are in git history at `1a5b0cf
 - **Stay in scope.** Don't touch audio, assets or animation unless asked. Unnamed uploads: ask
   what they are and where they belong.
 - `main` deploys to production on every push. Put anything visual on a `work/**` or `preview/**`
-  branch first (that publishes a preview; see Deploy).
+  branch first (that publishes a preview; see Deploy), or open any branch in the live preview
+  launcher (`https://test.ivandpopov.com/grasstex/preview.php?ref=<branch|PR#>`).
 
 ## What's here
 
@@ -122,6 +123,7 @@ bash scripts/normalize_audio.sh Assets/audio && git diff --quiet -- Assets/audio
 | `ci.yml` | PR, push to main | Syntax (JS/PHP/Py/sh/JSON), audio library, sim regressions (all harness checks + 8 seeds), deploy plan + deploy safety |
 | `deploy-50webs-php.yml` | push to main | Stamps `build-v<N>`, reruns checks and the deploy-safety check, uploads by content hash to production |
 | `deploy-50webs-preview.yml` | push `work/**`, `preview/**` | `https://test.ivandpopov.com/grasstex/preview/<slug>/battle_sim.php`; never touches prod, makes no telemetry/learning writes; its `mirror --delete` skips JSON and lab files |
+| `preview.php` (on the host, not a workflow) | `?ref=<branch>`, `#47`, or a GitHub branch/PR URL | Stages that commit's `battle/` runtime from GitHub into `preview/ref-<sha12>/` with the host's own loader and opens it (same preview contract, no writes). Only this repo's branches and same-repo PRs; keeps the 12 most recent. A branch that changes `battle_sim_local.php` or ships new FBX still needs the Actions preview. Optional `state/github-token.php` (`<?php return '<token>';`) lifts the 60/h API limit. |
 | `battle-benchmark-standard.yml` | tag `standard-benchmark-*` or dispatch | 10 workers × 10 = **100 battles**: the routine 60 meeting / 20 US-defend / 20 GE-defend checkpoint |
 | `battle-benchmark.yml` | tag `benchmark-*` or dispatch (source must be on main) | 30 workers × 10 = **300 battles**, 100 per type. Major milestones only. |
 | `battle-hotpath-profile.yml` | dispatch (type/seed/seconds) | Hot-path profile on one seed |
