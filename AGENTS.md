@@ -11,6 +11,11 @@ original docs (roadmaps, lab notes, measurements) are in git history at `1a5b0cf
   contract or rule actually changes. Findings go in the commit message or PR body.
 - **State success criteria up front, prove them with a harness below, report the output.**
   Never claim visual/browser validation that wasn't performed.
+- **Don't throw away probes.** A probe, screenshot rig or measurement script written to answer a
+  question gets committed (`scripts/probe_*`, `scripts/*_<topic>.cjs`, or a harness check if it
+  asserts something) with a header saying what it measures, how to run it and its env knobs, plus a
+  row in the tables below. Before writing a new one, look there for an existing one to extend.
+  Scratchpad-only probes get rebuilt from scratch every time.
 - **Stay in scope.** Don't touch audio, assets or animation unless asked. Unnamed uploads: ask
   what they are and where they belong.
 - `main` deploys to production on every push. Put anything visual on a `work/**` or `preview/**`
@@ -102,6 +107,8 @@ Hosted textures 404 when served locally, so the ground renders red. That's expec
 | `order-ingress-`, `physical-point-`, `movement-goal-transition-`, `resolver-order-mutation-profiler.cjs` | Inject-only observers: who proposes orders, destination provenance, goal transitions, resolver mutations. They never change behaviour. |
 | `scripts/battle-benchmark-intent.cjs` | Shared benchmark predicates (targetless/route-active) |
 | `scripts/closeup_damage_fx.cjs` | Close-ups of the damage FX in the real page: newest wound and exit-wound decal on a soldier, blood splash and exit spray, masonry/wood/dirt/metal holes, one `<kind>.png` each plus `summary.json` (wounds by zone, decals by kind); fails on page errors. `CLOSEUP_OUT` (default `closeups/`, gitignored), `CLOSEUP_SEED`, `CLOSEUP_SHOTS`, `CLOSEUP_SIM`, `CLOSEUP_BODY`, `CLOSEUP_DIST`. 5-10 min under software WebGL. |
+| `scripts/probe_penetration_rates.cjs` | Headless (harness + shipping ballistics), seconds: over N 10v10 fights, the share of body hits that go through, strike a second man, or fly on, by zone. `PEN_SEEDS`, `PEN_SECONDS`. The harness packs men tighter than the game, so second-body is an upper bound. |
+| `scripts/preview_decal_sheets.cjs` | Contact sheet of `Assets/effects/decals/*.png` over surface-like backgrounds with the 4 x 4 grid and row names; check a regenerated or painted sheet before it ships. No server. `DECAL_PREVIEW_OUT`. |
 | `scripts/probe_pistol_cup.cjs` | Motion Lab pistol support cup at a fixed 60 Hz: cup gap (cm), degrees the left arm is bent off the clip, and hand jerk (deg/frame², solved vs the clip's own) per clip. `CUP_SIDECAR=<model>.fbx.json` (a server sidecar; they are never committed), `CUP_CLIPS`, `CUP_SERIES=1`. |
 
 **Repo-wide checks** (match CI):
