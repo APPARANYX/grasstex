@@ -101,6 +101,7 @@ Hosted textures 404 when served locally, so the ground renders red. That's expec
 | `scripts/profile_meso_churn.mjs` (+ `meso-churn-profiler.cjs`) | Meso fireteam order churn attribution |
 | `order-ingress-`, `physical-point-`, `movement-goal-transition-`, `resolver-order-mutation-profiler.cjs` | Inject-only observers: who proposes orders, destination provenance, goal transitions, resolver mutations. They never change behaviour. |
 | `scripts/battle-benchmark-intent.cjs` | Shared benchmark predicates (targetless/route-active) |
+| `scripts/closeup_damage_fx.cjs` | Close-ups of the damage FX in the real page: newest wound and exit-wound decal on a soldier, blood splash and exit spray, masonry/wood/dirt/metal holes, one `<kind>.png` each plus `summary.json` (wounds by zone, decals by kind); fails on page errors. `CLOSEUP_OUT` (default `closeups/`, gitignored), `CLOSEUP_SEED`, `CLOSEUP_SHOTS`, `CLOSEUP_SIM`, `CLOSEUP_BODY`, `CLOSEUP_DIST`. 5-10 min under software WebGL. |
 | `scripts/probe_pistol_cup.cjs` | Motion Lab pistol support cup at a fixed 60 Hz: cup gap (cm), degrees the left arm is bent off the clip, and hand jerk (deg/frame², solved vs the clip's own) per clip. `CUP_SIDECAR=<model>.fbx.json` (a server sidecar; they are never committed), `CUP_CLIPS`, `CUP_SERIES=1`. |
 
 **Repo-wide checks** (match CI):

@@ -52,14 +52,28 @@
     metal: { color: [1, 0.69, 0.24], count: 7, size: 0.055, power: 3.5, life: 0.25 },
     vegetation: { color: [0.3, 0.43, 0.13], count: 8, size: 0.095, power: 1.5, life: 0.48 }
   };
-  /* Where a wound decal rides: bone (FBX canonical name / procedural rig part) and how far out
-     from the bone the skin is, toward the shooter. */
+  /* Where a wound decal rides: bone (FBX canonical name / procedural rig part), how far out from
+     the limb's axis the skin is toward the shooter, and the band [below, above] the joint the part
+     occupies. The decal sits at the height the round struck, clamped into that band: a thigh or an
+     arm hangs below its joint, the head sits above the neck joint. */
   var BODY = {
-    head: { fbx: ['head'], rig: ['head'], out: 0.1 },
-    chest: { fbx: ['spine2'], rig: ['chest'], out: 0.15 },
-    abdomen: { fbx: ['spine0', 'spine1'], rig: ['spine'], out: 0.14 },
-    arm: { fbx: ['leftarm', 'rightarm'], rig: ['upperArmL', 'upperArmR'], out: 0.05, sided: true },
-    leg: { fbx: ['leftupleg', 'rightupleg'], rig: ['thighL', 'thighR'], out: 0.08, sided: true }
+    head: { fbx: ['head'], rig: ['head'], out: 0.13, band: [0.06, 0.12] },
+    chest: { fbx: ['spine2'], rig: ['chest'], out: 0.16, band: [-0.05, 0.3] },
+    abdomen: { fbx: ['spine0', 'spine1'], rig: ['spine'], out: 0.15, band: [-0.05, 0.25] },
+    arm: {
+      fbx: ['leftarm', 'rightarm'],
+      rig: ['upperArmL', 'upperArmR'],
+      out: 0.08,
+      band: [-0.5, -0.05],
+      sided: true
+    },
+    leg: {
+      fbx: ['leftupleg', 'rightupleg'],
+      rig: ['thighL', 'thighR'],
+      out: 0.11,
+      band: [-0.8, -0.1],
+      sided: true
+    }
   };
 
   function material(shot) {
@@ -369,7 +383,8 @@
     var anchor = node.getAbsolutePosition(),
       sign = exit ? 1 : -1,
       out = norm({ x: dir.x * sign, y: 0, z: dir.z * sign }),
-      lift = zone === 'chest' || zone === 'abdomen' ? Math.max(-0.1, Math.min(0.1, at3.y - anchor.y)) : 0,
+      band = BODY[zone].band,
+      lift = Math.max(band[0], Math.min(band[1], at3.y - anchor.y)),
       kind = exit || rng() < 0.35 ? 'soak' : 'wound',
       cellAt = pick('blood', kind, rng),
       p = { x: anchor.x + out.x * BODY[zone].out, y: anchor.y + lift, z: anchor.z + out.z * BODY[zone].out },
