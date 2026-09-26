@@ -82,7 +82,7 @@
      SHOOTER+WEAPON combat grouping, not mechanical test-bench MOA.  With two independent Gaussian
      axes, a 90% circular group diameter is ~4.292 * sigma * distance.  Weapons without the newer
      metadata retain the old accuracy-derived fallback so extension modules remain compatible. */
-  function dispersionSigma(shooter, stats, d, battle) {
+  function dispersionSigma(shooter, stats, d, battle, round) {
     var legacy = 0.28 + (1 - clamp(+stats.accuracy || 0.5, 0.05, 0.98)) * 1.7;
     var sigmaAt100 = isFinite(+stats.combatSigmaAt100) ? Math.max(0.01, +stats.combatSigmaAt100) : legacy;
     var sigma = sigmaAt100 / 100;
@@ -93,6 +93,11 @@
     if (shooter.moving) sigma *= 1.55;
     if (shooter.suppressedUntil > battle.time) sigma *= 1.65;
     if (shooter.role === 'gunner' && shooter.setUp) sigma *= 0.72;
+    /* A wounded man shoots worse (the wound model sets it: an arm hit most of all). */
+    if (shooter.woundSigma > 1) sigma *= shooter.woundSigma;
+    /* Muzzle climb: each later round of a burst lands wider; a bipod on the ground holds half of it. */
+    if (round > 0 && stats.burstClimb > 0)
+      sigma *= 1 + round * stats.burstClimb * (shooter.setUp || shooter.prone ? 0.5 : 1);
     if (d > stats.falloffStart) {
       var f = (d - stats.falloffStart) / Math.max(1, stats.range - stats.falloffStart);
       var extra = isFinite(+stats.rangeDispersion) ? Math.max(0, +stats.rangeDispersion) : 0.9;
@@ -103,7 +108,7 @@
   function groupDiameter90(shooter, stats, d, battle) {
     return GROUP90 * dispersionSigma(shooter, stats, d, battle) * d;
   }
-  function shotDirection(shooter, target, stats, battle) {
+  function shotDirection(shooter, target, stats, battle, round) {
     var sp = shooter.root.position,
       origin = { x: sp.x, y: battle.heightAt(sp.x, sp.z) + eyeHeight(shooter), z: sp.z },
       aim = targetCenter(target, battle);
@@ -112,7 +117,7 @@
     var right = { x: base.z / flat, y: 0, z: -base.x / flat };
     var up = norm({ x: -right.z * base.y, y: right.z * base.x - right.x * base.z, z: right.x * base.y });
     var distance = Math.hypot(aim.x - origin.x, aim.y - origin.y, aim.z - origin.z),
-      sigma = dispersionSigma(shooter, stats, distance, battle);
+      sigma = dispersionSigma(shooter, stats, distance, battle, round);
     var gx = gaussian(battle) * sigma,
       gy = gaussian(battle) * sigma;
     return {
@@ -217,16 +222,48 @@
         bestT = t;
       }
     }
-    return best ? { soldier: best, t: bestT } : null;
+    return best ? { soldier: best, t: bestT, shape: bodyShape(best, battle) } : null;
   }
-  function resolveRay(shooter, target, battle) {
+  /* Which part of the man the round struck, from where it met his body volume. Standing and
+     crouched, by height (legs below the belt, head the top ~13%) and by how far off his centre line
+     it passed (arms at the edge of the torso); prone, by distance along the body from the feet. */
+  function hitZone(shape, p, d, stanceName) {
+    var dx = p.x - shape.cx,
+      dz = p.z - shape.cz;
+    if (stanceName === 'prone') {
+      var c = Math.cos(shape.yaw || 0),
+        s = Math.sin(shape.yaw || 0),
+        side = Math.abs(dx * c - dz * s) / shape.rx,
+        along = (dx * s + dz * c) / shape.rz;
+      if (along > 0.74) return 'head';
+      if (along > 0.2 && side > 0.78) return 'arm';
+      if (along > 0.3) return 'chest';
+      if (along > -0.05) return 'abdomen';
+      return 'leg';
+    }
+    var h = (p.y - (shape.cy - shape.ry)) / (2 * shape.ry),
+      flat = Math.hypot(d.x, d.z) || 1,
+      lateral = Math.abs(dx * d.z - dz * d.x) / flat / shape.rx,
+      crouch = stanceName === 'crouch';
+    if (h > (crouch ? 0.82 : 0.87)) return 'head';
+    if (h > (crouch ? 0.4 : 0.5) && lateral > 0.72) return 'arm';
+    if (h > (crouch ? 0.56 : 0.62)) return 'chest';
+    if (h > (crouch ? 0.4 : 0.5)) return 'abdomen';
+    return 'leg';
+  }
+  function flatDamage(shooter, victim, battle) {
+    victim.hp -= shooter.weapon.stats.damage * (0.85 + rand(battle) * 0.3);
+    if (victim.hp <= 0) battle.killSoldier(victim, shooter);
+    return null;
+  }
+  function resolveRay(shooter, target, battle, round, delay) {
     if (!shooter || !target || target.dead || !shooter.weapon) return null;
     var stats = shooter.weapon.stats,
       sp = shooter.root.position,
       tp = target.root.position,
       d2 = S.dist2 ? S.dist2(sp.x, sp.z, tp.x, tp.z) : Math.hypot(sp.x - tp.x, sp.z - tp.z);
     if (d2 > stats.range) return null;
-    var shot = shotDirection(shooter, target, stats, battle),
+    var shot = shotDirection(shooter, target, stats, battle, round || 0),
       maxT = stats.range,
       environment = environmentStop(shot.origin, shot.dir, maxT, battle),
       stop = environment.travel,
@@ -237,10 +274,18 @@
       impact = pointAt(shot.origin, shot.dir, t),
       surface = impactSurface(environment, impact, shot.dir, battle);
     if (stats.suppressive) target.suppressedUntil = Math.max(target.suppressedUntil || 0, battle.time + 1.3);
-    if (victim) {
-      victim.hp -= stats.damage * (0.85 + rand(battle) * 0.3);
-      if (victim.hp <= 0) battle.killSoldier(victim, shooter);
-    }
+    var zone = victim ? hitZone(body.shape, impact, shot.dir, stance(victim)) : null,
+      wound = !victim
+        ? null
+        : !S.applyHit
+          ? flatDamage(shooter, victim, battle)
+          : S.applyHit(shooter, victim, battle, {
+              zone: zone,
+              point: impact,
+              direction: shot.dir,
+              distance: t,
+              round: round || 0
+            });
     var meta = {
       mode: 'raycast',
       origin: shot.origin,
@@ -251,9 +296,22 @@
       dispersionRad: shot.sigma,
       travel: t,
       stoppedBy: hit ? 'soldier' : stop < maxT - 0.1 ? 'environment' : 'range',
+      blocker: hit
+        ? 'soldier'
+        : environment.ground
+          ? 'ground'
+          : environment.wall
+            ? 'wall'
+            : environment.obstacle
+              ? 'obstacle'
+              : null,
       surface: hit ? 'blood' : surface.surface,
       normal: hit ? { x: -shot.dir.x, y: -shot.dir.y, z: -shot.dir.z } : surface.normal,
-      direction: shot.dir
+      direction: shot.dir,
+      zone: zone,
+      wound: wound,
+      round: round || 0,
+      delay: delay || 0
     };
     battle.onShot && battle.onShot(shooter, target, hit, d2, meta);
     shooter._lastBallisticShot = meta;
@@ -282,6 +340,7 @@
     dispersionSigma: dispersionSigma,
     groupDiameter90: groupDiameter90,
     bodyShape: bodyShape,
+    hitZone: hitZone,
     rayEllipsoid: rayEllipsoid
   };
   if (typeof console !== 'undefined')

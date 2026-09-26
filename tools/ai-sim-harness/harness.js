@@ -64,6 +64,8 @@ function bootstrap(opts){
     root.BattleModules={registerSystem(){},registerUnitType(){},registerObjectiveType(){},runHook(){},unitsFor(){return[];}};
     /* One squad-command owner replaces the old stability/plan/command-lock/regroup stack. */
     load(root,'battle/modules/16-squad-plan-stability.js');
+    /* The wound model owns what a hit does (hit zone, incapacitation, bleeding). */
+    load(root,'battle/modules/14-wound-model.js');
   }
   return root;
 }
