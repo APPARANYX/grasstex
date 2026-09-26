@@ -11,8 +11,9 @@
    Trust: only branches of this repository (and PRs whose head is one) are accepted. Never a bare
    sha, since GitHub resolves commits from any fork through the parent repo. The PHP loader is never
    taken from the branch: the host's own loader is copied in, so a branch can only change JS/HTML.
-   A branch that changes the loader itself, or ships new FBX assets, still needs the Actions preview
-   (push to work/** or preview/**); the page says when the loader differs.
+   The branch's soldier models, clips, weapons and effect sprites come too (stage_assets: unchanged
+   files are hard links to production, new ones are downloaded). A branch that changes the loader
+   itself still needs the Actions preview (push to work/** or preview/**); the page says so.
 
    ?ref=<branch> always resolves the branch's current head, so that URL is a stable link to share.
    Staged commits are immutable and reused; the oldest are pruned past KEEP. */
@@ -23,6 +24,7 @@ $previewRoot = $root . '/preview';
 $cacheFile = $previewRoot . '/.ref-cache.json';
 const KEEP = 12;
 const MARKER = '.ref-preview';
+const MAX_ASSET_DOWNLOAD = 314572800; /* 300 MB of new or changed assets per commit */
 
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('X-Robots-Tag: noindex');
@@ -156,55 +158,133 @@ function prune($previewRoot, $keepSlug) {
     foreach ((array)glob($previewRoot . '/.staging-*', GLOB_ONLYDIR) as $d) if (time() - filemtime($d) > 600) rrmdir($d);
 }
 
+/* Download paths of commit $sha from GitHub into $dir, 10 at a time, streaming to disk. */
+function fetch_files($sha, $paths, $dir) {
+    $failed = array();
+    $mh = curl_multi_init();
+    foreach (array_chunk($paths, 10) as $batch) {
+        $handles = array();
+        foreach ($batch as $path) {
+            $target = $dir . '/' . $path;
+            if (!is_dir(dirname($target))) @mkdir(dirname($target), 0775, true);
+            $fp = @fopen($target, 'wb');
+            if (!$fp) { $failed[] = $path; continue; }
+            $ch = curl_handle('https://raw.githubusercontent.com/' . $GLOBALS['repo'] . '/' . $sha . '/' . implode('/', array_map('rawurlencode', explode('/', $path))));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
+            curl_setopt($ch, CURLOPT_FILE, $fp);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 150);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$path] = array($ch, $fp);
+        }
+        do { $status = curl_multi_exec($mh, $running); if ($running) curl_multi_select($mh, 1.0); } while ($running && $status === CURLM_OK);
+        foreach ($handles as $path => $pair) {
+            $code = curl_getinfo($pair[0], CURLINFO_HTTP_CODE);
+            curl_multi_remove_handle($mh, $pair[0]);
+            curl_close($pair[0]);
+            fclose($pair[1]);
+            if ($code !== 200) { $failed[] = $path; @unlink($dir . '/' . $path); }
+        }
+    }
+    curl_multi_close($mh);
+    return $failed;
+}
+
+/* Git blob id of a host file, cached by size and mtime (hashing ~500 MB of FBX takes seconds). */
+function blob_sha($file, &$cache) {
+    $size = filesize($file); $mtime = filemtime($file);
+    if (isset($cache[$file]) && $cache[$file][0] === $size && $cache[$file][1] === $mtime) return $cache[$file][2];
+    $ctx = hash_init('sha1');
+    hash_update($ctx, 'blob ' . $size . "\0");
+    hash_update_file($ctx, $file);
+    $sha = hash_final($ctx);
+    $cache[$file] = array($size, $mtime, $sha);
+    return $sha;
+}
+
+/* Soldier models, clips, weapons and effect sprites. The runtime reads them all from one base
+   (BATTLE_SOLDIER_ASSET_BASE), which is the preview's own Assets/ once it has Assets/soldiers, so a
+   preview carries the full set: files identical to production are hard links to the production
+   copy (no extra disk), new or changed ones are downloaded from the branch. Production's
+   server-owned sidecar JSON beside them is linked too, so hand contacts match production.
+   Returns a status string; on any gap the staged Assets/ is removed and production assets serve. */
+function stage_assets($sha, $treeEntries, $root, $tmp, $previewRoot) {
+    $hashFile = $previewRoot . '/.asset-hash.json';
+    $hashes = read_cache($hashFile);
+    $download = array(); $downloadBytes = 0; $linked = 0; $copied = 0; $problem = null;
+    foreach ($treeEntries as $e) {
+        $path = $e['path'];
+        $prod = $root . '/' . $path;
+        if (is_file($prod) && blob_sha($prod, $hashes) === $e['sha']) {
+            if (!is_dir(dirname($tmp . '/' . $path))) @mkdir(dirname($tmp . '/' . $path), 0775, true);
+            if (@link($prod, $tmp . '/' . $path)) $linked++;
+            elseif (filesize($prod) < 4194304 && @copy($prod, $tmp . '/' . $path)) $copied++;
+            else { $problem = 'cannot hard-link production assets on this host'; break; }
+        } else {
+            $download[] = $path; $downloadBytes += isset($e['size']) ? $e['size'] : 0;
+        }
+    }
+    write_cache($hashFile, $hashes);
+    if (!$problem && $downloadBytes > MAX_ASSET_DOWNLOAD) $problem = round($downloadBytes / 1048576) . ' MB of new assets (limit ' . (MAX_ASSET_DOWNLOAD / 1048576) . ' MB); use the Actions preview';
+    if (!$problem && $download) {
+        $failed = fetch_files($sha, $download, $tmp);
+        if ($failed) $problem = 'asset download failed for ' . implode(', ', array_slice($failed, 0, 3));
+    }
+    if (!$problem) {
+        foreach (array('soldiers', 'animations', 'weapons') as $d) {
+            foreach ((array)glob($root . '/Assets/' . $d . '/*.json') as $json) {
+                $to = $tmp . '/Assets/' . $d . '/' . basename($json);
+                if (!is_file($to) && is_dir(dirname($to)) && !@link($json, $to)) @copy($json, $to);
+            }
+        }
+        return array(true, count($download) . ' from branch (' . round($downloadBytes / 1048576, 1) . ' MB), ' . ($linked + $copied) . ' from production');
+    }
+    rrmdir($tmp . '/Assets');
+    return array(false, $problem);
+}
+
+/* A preview staged before assets were staged (no assetsStaged key) is restaged once. */
+function staged_current($dest) {
+    $d = json_decode(@file_get_contents($dest . '/preview.json'), true);
+    return is_array($d) && array_key_exists('assetsStaged', $d);
+}
+
 /* Download the commit's runtime into preview/ref-<sha12>/ unless it is already there. */
 function stage($branch, $sha, $root, $previewRoot, &$error) {
     $slug = 'ref-' . substr($sha, 0, 12);
     $dest = $previewRoot . '/' . $slug;
-    if (is_file($dest . '/' . MARKER)) { @touch($dest . '/' . MARKER); return $slug; }
+    if (is_file($dest . '/' . MARKER) && staged_current($dest)) { @touch($dest . '/' . MARKER); return $slug; }
     $loader = host_loader($root);
     if ($loader === null) { $error = 'the host has no preview-capable battle loader'; return null; }
     if (!is_dir($previewRoot) && !@mkdir($previewRoot, 0775, true)) { $error = 'cannot create the preview directory'; return null; }
     $lock = fopen($previewRoot . '/.ref-lock', 'c');
     if ($lock) flock($lock, LOCK_EX);
-    if (is_file($dest . '/' . MARKER)) { if ($lock) fclose($lock); return $slug; }
+    if (is_file($dest . '/' . MARKER) && staged_current($dest)) { if ($lock) fclose($lock); return $slug; }
+    if (is_file($dest . '/' . MARKER)) rrmdir($dest);
 
     $tree = gh_json('git/trees/' . $sha . '?recursive=1', $error);
     if (!$tree || !isset($tree['tree'])) { $error = 'commit tree: ' . $error; if ($lock) fclose($lock); return null; }
-    $files = array(); $branchLoaderSha = null;
+    $files = array(); $assets = array(); $branchLoaderSha = null;
     foreach ($tree['tree'] as $e) {
-        if (!isset($e['type'], $e['path']) || $e['type'] !== 'blob') continue;
-        if ($e['path'] === 'battle_sim_local.php') $branchLoaderSha = $e['sha'];
-        if (preg_match('#^battle/(battle_sim\.html|[A-Za-z0-9._-]+\.js|modules/[A-Za-z0-9._-]+\.js)$#', $e['path'])) $files[] = $e['path'];
+        if (!isset($e['type'], $e['path'], $e['sha']) || $e['type'] !== 'blob') continue;
+        $path = $e['path'];
+        if ($path === 'battle_sim_local.php') $branchLoaderSha = $e['sha'];
+        if (preg_match('#^battle/(battle_sim\.html|[A-Za-z0-9._-]+\.js|modules/[A-Za-z0-9._-]+\.js)$#', $path)) $files[] = $path;
+        elseif (preg_match('#^Assets/((soldiers|animations|weapons)/[^/]+\.fbx|effects/.+\.png)$#', $path)
+            && strpos($path, '..') === false && strpos($path, '/.') === false && preg_match('#^[A-Za-z0-9 ._()/-]+$#', $path)) $assets[] = $e;
     }
     if (!in_array('battle/battle_sim.html', $files, true)) { $error = 'this commit has no battle/battle_sim.html'; if ($lock) fclose($lock); return null; }
 
     $tmp = $previewRoot . '/.staging-' . substr($sha, 0, 12) . '-' . getmypid();
     rrmdir($tmp);
     @mkdir($tmp . '/battle/modules', 0775, true);
-    $mh = curl_multi_init();
-    $failed = array();
-    foreach (array_chunk($files, 10) as $batch) {
-        $handles = array();
-        foreach ($batch as $path) {
-            $ch = curl_handle('https://raw.githubusercontent.com/' . $GLOBALS['repo'] . '/' . $sha . '/' . $path);
-            curl_multi_add_handle($mh, $ch);
-            $handles[$path] = $ch;
-        }
-        do { $status = curl_multi_exec($mh, $running); if ($running) curl_multi_select($mh, 1.0); } while ($running && $status === CURLM_OK);
-        foreach ($handles as $path => $ch) {
-            $body = curl_multi_getcontent($ch);
-            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_multi_remove_handle($mh, $ch);
-            curl_close($ch);
-            if ($code !== 200 || !is_string($body) || @file_put_contents($tmp . '/' . $path, $body) === false) $failed[] = $path;
-        }
-    }
-    curl_multi_close($mh);
+    $failed = fetch_files($sha, $files, $tmp);
     if ($failed) { rrmdir($tmp); $error = 'download failed for ' . implode(', ', array_slice($failed, 0, 5)); if ($lock) fclose($lock); return null; }
+    list($assetsStaged, $assetNote) = stage_assets($sha, $assets, $root, $tmp, $previewRoot);
 
     $hostLoaderSha = sha1('blob ' . strlen($loader) . "\0" . $loader);
     $meta = array('ref' => $branch, 'sha' => $sha, 'deployedAt' => gmdate('Y-m-d\TH:i:s\Z'), 'source' => 'preview.php',
-                  'files' => count($files), 'loaderMatchesBranch' => $branchLoaderSha === null || $branchLoaderSha === $hostLoaderSha);
+                  'files' => count($files), 'loaderMatchesBranch' => $branchLoaderSha === null || $branchLoaderSha === $hostLoaderSha,
+                  'assetsStaged' => $assetsStaged, 'assets' => $assetNote);
     file_put_contents($tmp . '/battle_sim.php', $loader);
     file_put_contents($tmp . '/preview.json', json_encode($meta));
     file_put_contents($tmp . '/' . MARKER, $sha);
@@ -300,12 +380,13 @@ a{color:var(--accent)}code{font-size:13px;color:var(--muted)}.tag{font-size:11px
     <div style="flex:0 0 auto"><button type="submit">Launch</button></div>
   </div>
 </form>
-<p class="sub" style="margin-top:12px;font-size:13px">A link like <code>preview.php?ref=work/my-change</code> always opens that branch's latest commit. The first open of a commit takes a few seconds to copy its runtime. Branches that change <code>battle_sim_local.php</code> or ship new FBX assets need the Actions preview (push to <code>work/**</code>).</p>
+<p class="sub" style="margin-top:12px;font-size:13px">A link like <code>preview.php?ref=work/my-change</code> always opens that branch's latest commit. The first open of a commit takes a few seconds to copy its runtime. The branch's own models, clips, weapons and effect sprites come with it (unchanged files are linked from production). Branches that change <code>battle_sim_local.php</code> need the Actions preview (push to <code>work/**</code>).</p>
 <?php if ($recent): ?>
 <h2>Recent previews</h2>
 <table><?php foreach ($recent as $r): ?>
 <tr><td><a href="preview/<?= h(rawurlencode($r['slug'])) ?>/battle_sim.php"><?= h(isset($r['ref']) ? $r['ref'] : $r['slug']) ?></a>
-  <?php if (isset($r['loaderMatchesBranch']) && !$r['loaderMatchesBranch']): ?><div class="warn">This branch changes the loader; served with the host's loader.</div><?php endif; ?></td>
+  <?php if (isset($r['loaderMatchesBranch']) && !$r['loaderMatchesBranch']): ?><div class="warn">This branch changes the loader; served with the host's loader.</div><?php endif; ?>
+  <?php if (isset($r['assetsStaged']) && !$r['assetsStaged']): ?><div class="warn">Production assets: <?= h($r['assets']) ?></div><?php endif; ?></td>
 <td><code><?= h(substr($r['sha'], 0, 7)) ?></code></td>
 <td><span class="tag"><?= $r['kind'] === 'launcher' ? 'launcher' : 'actions' ?></span></td>
 <td><code><?= h(gmdate('M j H:i', $r['mtime'])) ?> UTC</code></td></tr>
