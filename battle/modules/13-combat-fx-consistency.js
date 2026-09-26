@@ -87,7 +87,9 @@
       /* Ballistic shots get their tracer here; the shot is marked so the core's legacy tracer
          skips it, but the event still travels down the chain (hit reactions listen there). */
       if(shot&&shot.mode==='raycast'&&shot.impact&&from){
-        var impact=vec3(shot.impact);if(hit)hitTracer(sim.scene,from,impact);else missTracer(sim.scene,from,impact);
+        /* A later round of a burst flies when its muzzle flash shows, not when the tick resolved it. */
+        var impact=vec3(shot.impact),draw=function(){var f=muzzleWorld(shooter)||from;if(hit)hitTracer(sim.scene,f,impact);else missTracer(sim.scene,f,impact);};
+        if(shot.delay>0&&sim.presentAfter)sim.presentAfter(shot.delay,draw);else draw();
         shot.tracerDrawn=true;if(oldShot)oldShot.apply(sim,arguments);return;
       }
       if(oldShot)oldShot.apply(sim,arguments);
