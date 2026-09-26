@@ -101,6 +101,7 @@ Hosted textures 404 when served locally, so the ground renders red. That's expec
 | `scripts/profile_meso_churn.mjs` (+ `meso-churn-profiler.cjs`) | Meso fireteam order churn attribution |
 | `order-ingress-`, `physical-point-`, `movement-goal-transition-`, `resolver-order-mutation-profiler.cjs` | Inject-only observers: who proposes orders, destination provenance, goal transitions, resolver mutations. They never change behaviour. |
 | `scripts/battle-benchmark-intent.cjs` | Shared benchmark predicates (targetless/route-active) |
+| `scripts/probe_pistol_cup.cjs` | Motion Lab pistol support cup at a fixed 60 Hz: cup gap (cm), degrees the left arm is bent off the clip, and hand jerk (deg/frame², solved vs the clip's own) per clip. `CUP_SIDECAR=<model>.fbx.json` (a server sidecar; they are never committed), `CUP_CLIPS`, `CUP_SERIES=1`. |
 
 **Repo-wide checks** (match CI):
 
@@ -281,10 +282,32 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   benchmark `regroups`): 9.4 regroups per battle in meeting, 7.3 in US-defend and 5.9 in GE-defend,
   with 15, 2 and 4 timeouts over 60/20/20 battles. Defend scenarios regroup no more often than
   meetings, so there is no defend-specific rise left to chase.
-- Window/ingress crowding: claim collisions swing 23 to 3,838 on the same seed. Reservation
-  and physical occupancy haven't been separated yet.
-- Personal-space corrections rose slightly (15.7k → 17.4k per battle). Find the converging
-  producer first.
+- Window crowding (closed 2026-09-25): bodies at firing stations don't stack. A probe on 6 full standard
+  seeds found 1 sample in ~20k occupied-station samples with two men on one station, and a non-holder
+  on a held window in one battle only. The old "claim collisions 23 → 3,838" swing was `select()`
+  counting every held window it passed over; that is now `reservedStationsSkipped`, and
+  `claimCollisionsPrevented` counts only real claim-time collisions.
+- Personal-space corrections (~8-10k per battle on the GitHub standard benchmark) are mostly same-squad
+  men crossing on the move, not fights: pairs still overlapping 1 s later are rare (5-20 per battle).
+  In order: (1) two men both on formation slots crossing. 75-83% of those are between different
+  fireteams, and the rate is ~7× higher in the 6 s after a formation or facing change. (2) Bounding men
+  walking through men holding. (3) Engagement `hold` endpoints within 0.9 m of each other. Hold isn't a
+  physically allocated kind in `51` `DEST_KINDS`.
+  - **Fireteam frontage (preview, awaiting a movement-feel review):** branch `work/fireteam-frontage`,
+    https://test.ivandpopov.com/grasstex/preview/fireteam-frontage/battle_sim.php. Team anchors were
+    averages of per-man slots that alternate sides by `slotIndex`, while team membership also comes
+    from `slotIndex`, so every team sat in the middle (alpha and bravo 1.2 m apart in line). The Squad
+    Leader (`16` `desiredAnchor`) now gives each fireteam its own offset in the squad frame; new
+    `fireteam-frontage-check.js` (main fails it). GitHub standard benchmark, main run 17 vs branch
+    run 16: corrections −12% meeting, −2% US-defend, −12% GE-defend; destination conflicts −13 to −44%;
+    wins within noise (meeting US 31 → 25 of 60, p=0.36); median wall 26.7 → 28.6 s; movement stalls
+    40 → 49 (the worst is a straggler stopping in `alert` while catching up, a pattern main also shows).
+    Open the PR if the preview reads right, else revert as a unit.
+  - **Next: spawn men near their formation slots.** Cross-team crossings barely changed with frontage,
+    and about half come in the first minute: men spawn in a random cluster around the lane
+    (`battle-sim.js` `spawnSide`, `modules/10-infantry-squad.js`), ignoring their slot, then cross each
+    other to sort out. Placing each man at his fireteam position at spawn is its own change, and it
+    changes the seeded start, so benchmark it paired on GitHub.
 - Strategic-stall wakes mostly re-pick the same objective, because doctrine has no alternative.
 - Hot path is now navigation replans (~3.3 s) and `sightBlocked` (~3.5 s) per ~13.7 s battle.
 - Movement Progress ignores retreat by design; `movementStopReason` is the observable.
@@ -301,6 +324,16 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   needs an Engagement rule for when to switch: primary empty or jammed with a target inside pistol
   range. The pistol hold, the `m1911a1`/`p38` models and the pistol clips already exist. Presentation
   stays off the combat RNG.
+- **Any soldier, any weapon (pending).** Weapons are still dealt by role: `ROLES.<role>.weapon`
+  sets the kind and its rules, and `WEAPON_MODELS` picks the model per faction. The goal is a
+  per-soldier loadout, a primary plus the secondary above, where any class can carry any weapon.
+  Shot stats and ammunition already follow `soldier.weapon`. Two things are still tied to the role:
+  `battle-sim.js` deals the weapon from `ROLES[role].weapon`, and Engagement ties the MG behaviour
+  (emplacement, never bounding) and reaction times to `role === 'gunner'`. Both would move to the
+  weapon kind.
+  The art side is mostly there: every model's sidecar can hold a seat for each weapon
+  (`us-captain.fbx.json` already has all 12), but other models need their seats measured in the
+  Motion Lab. Loadout changes range, damage and fire rate, so ship it with a paired benchmark.
 - **General concentration of effort.** Done as a frontage limit in `chooseObjective` (see Main effort).
   GitHub standard benchmark, main run 12 vs PR #37 run 11 (same seeds, live policy rev 14): meeting
   spread fell 2.75/2.60 → 2.33/2.33 objectives per side with captures unchanged (4.53). Wins were
@@ -333,8 +366,11 @@ never decides tactics, ammo, hits or paths.
   them; the backend fetches it on load (`BattleFbxSoldier.sidecars()` lists what loaded). Measure in
   `labs/fbx-animation-lab.html` (pick model, clip and weapon, click the contact vertices, **Seat
   weapon**, then **Per-model sidecar** → Save), which posts to `labs/save-calibration.php` (validated
-  numbers, existing soldier FBX names only). Sidecars are server-owned: never committed, never
-  deployed or deleted.
+  numbers, existing soldier FBX names only). Saving needs the lab password, asked once per browser;
+  its hash lives only on the host in `state/lab-key.php` (`<?php return '<sha256 hex>';`, from
+  `printf '%s' 'password' | shasum -a 256`), and without that file saving is off. Pistol slots
+  never carry fore points (one-hand hold, in the lab and the game). Sidecars are server-owned:
+  never committed, never deployed or deleted.
 - Clips are retargeted at load (rest pose, units, hip height). Looping clips have hip drift removed,
   and that drift becomes their natural ground speed. Playback rate is ground speed ÷ clip speed.
   The upper-body overlay (aim/fire/reload) sits on the lower locomotion layer. The weapon grip snaps
