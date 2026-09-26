@@ -293,8 +293,7 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   fireteams, and the rate is ~7× higher in the 6 s after a formation or facing change. (2) Bounding men
   walking through men holding. (3) Engagement `hold` endpoints within 0.9 m of each other. Hold isn't a
   physically allocated kind in `51` `DEST_KINDS`.
-  - **Fireteam frontage (preview, awaiting a movement-feel review):** branch `work/fireteam-frontage`,
-    https://test.ivandpopov.com/grasstex/preview/fireteam-frontage/battle_sim.php. Team anchors were
+  - **Fireteam frontage (shipped 2026-09-26).** Team anchors were
     averages of per-man slots that alternate sides by `slotIndex`, while team membership also comes
     from `slotIndex`, so every team sat in the middle (alpha and bravo 1.2 m apart in line). The Squad
     Leader (`16` `desiredAnchor`) now gives each fireteam its own offset in the squad frame; new
@@ -302,7 +301,7 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
     run 16: corrections −12% meeting, −2% US-defend, −12% GE-defend; destination conflicts −13 to −44%;
     wins within noise (meeting US 31 → 25 of 60, p=0.36); median wall 26.7 → 28.6 s; movement stalls
     40 → 49 (the worst is a straggler stopping in `alert` while catching up, a pattern main also shows).
-    Open the PR if the preview reads right, else revert as a unit.
+    If it regresses movement feel, revert it as a unit.
   - **Next: spawn men near their formation slots.** Cross-team crossings barely changed with frontage,
     and about half come in the first minute: men spawn in a random cluster around the lane
     (`battle-sim.js` `spawnSide`, `modules/10-infantry-squad.js`), ignoring their slot, then cross each
