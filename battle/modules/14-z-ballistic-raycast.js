@@ -46,7 +46,7 @@
     if (st === 'crouch') return { cx: p.x, cy: ground + 0.57, cz: p.z, rx: 0.34, ry: 0.54, rz: 0.34, yaw: 0 };
     return { cx: p.x, cy: ground + 0.88, cz: p.z, rx: 0.31, ry: 0.84, rz: 0.31, yaw: 0 };
   }
-  function rayEllipsoid(o, d, e) {
+  function rayEllipsoid(o, d, e, span) {
     var dx = o.x - e.cx,
       dy = o.y - e.cy,
       dz = o.z - e.cz,
@@ -71,6 +71,8 @@
       t1 = (-B - q) / (2 * A),
       t2 = (-B + q) / (2 * A),
       t = t1 > EPS ? t1 : t2 > EPS ? t2 : null;
+    /* span: also where the ray leaves the body (the exit wound of a round that goes through). */
+    if (span) return t == null ? null : { t: t, out: Math.max(t, t2) };
     return t;
   }
   function targetCenter(target, battle) {
@@ -209,20 +211,44 @@
     if (n.x * d.x + n.y * d.y + n.z * d.z > 0) n = { x: -n.x, y: -n.y, z: -n.z };
     return { surface: surface, normal: n };
   }
-  function firstEnemyHit(shooter, o, d, maxT, battle) {
+  function firstEnemyHit(shooter, o, d, maxT, battle, skip) {
     var enemies = battle.rosterOf ? battle.rosterOf(shooter.faction === 'us' ? 'ge' : 'us') : [],
       best = null,
-      bestT = maxT + 1;
+      bestSpan = null;
     for (var i = 0; i < enemies.length; i++) {
       var e = enemies[i];
-      if (!e || e.dead || !e.root) continue;
-      var t = rayEllipsoid(o, d, bodyShape(e, battle));
-      if (t != null && t < bestT && t <= maxT) {
+      if (!e || e.dead || !e.root || (skip && skip.indexOf(e) >= 0)) continue;
+      var span = rayEllipsoid(o, d, bodyShape(e, battle), true);
+      if (span && span.t <= maxT && (!bestSpan || span.t < bestSpan.t)) {
         best = e;
-        bestT = t;
+        bestSpan = span;
       }
     }
-    return best ? { soldier: best, t: bestT, shape: bodyShape(best, battle) } : null;
+    return best ? { soldier: best, t: bestSpan.t, out: bestSpan.out, shape: bodyShape(best, battle) } : null;
+  }
+
+  /* Over-penetration. A full-power rifle or MG round (.30-06, 7.92 mm) often goes clean through a
+     man, through a limb nearly always; pistol-calibre rounds seldom do. A round that exits keeps
+     part of its energy (less after bone and a torso than after a limb), leaves the body deflected,
+     having yawed in tissue, and flies on: it can strike a second man behind the first, with a wound
+     scaled by what it has left. `penetration` on the weapon (0..1) is how readily its round exits;
+     without it, from the cartridge power. */
+  var THROUGH = { head: 0.75, chest: 0.7, abdomen: 0.75, arm: 0.95, leg: 0.85 },
+    RETAIN = { head: 0.5, chest: 0.45, abdomen: 0.55, arm: 0.75, leg: 0.6 },
+    DEFLECT = 0.12,
+    MAX_BODIES = 3,
+    MIN_ENERGY = 0.15;
+  function penetration(stats) {
+    if (isFinite(+stats.penetration)) return clamp(+stats.penetration, 0, 1);
+    var power = isFinite(+stats.power) ? +stats.power : 1;
+    return power >= 0.9 ? 1 : clamp(power * 0.45, 0, 1);
+  }
+  function deflect(d, battle) {
+    var flat = Math.hypot(d.x, d.z) || 1,
+      right = { x: d.z / flat, y: 0, z: -d.x / flat },
+      gx = gaussian(battle) * DEFLECT,
+      gy = gaussian(battle) * DEFLECT;
+    return norm({ x: d.x + right.x * gx, y: d.y + gy, z: d.z + right.z * gx });
   }
   /* Which part of the man the round struck, from where it met his body volume. Standing and
      crouched, by height (legs below the belt, head the top ~13%) and by how far off his centre line
@@ -256,6 +282,20 @@
     if (victim.hp <= 0) battle.killSoldier(victim, shooter);
     return null;
   }
+  function wound(shooter, victim, battle, hit) {
+    return S.applyHit ? S.applyHit(shooter, victim, battle, hit) : flatDamage(shooter, victim, battle);
+  }
+  function blockerOf(environment) {
+    return environment.ground
+      ? 'ground'
+      : environment.wall
+        ? 'wall'
+        : environment.obstacle
+          ? 'obstacle'
+          : null;
+  }
+  /* One round from the muzzle: through each body it passes (passes[], at most MAX_BODIES) to where
+     it stops, in a body, the environment, or at the end of its range. */
   function resolveRay(shooter, target, battle, round, delay) {
     if (!shooter || !target || target.dead || !shooter.weapon) return null;
     var stats = shooter.weapon.stats,
@@ -264,58 +304,113 @@
       d2 = S.dist2 ? S.dist2(sp.x, sp.z, tp.x, tp.z) : Math.hypot(sp.x - tp.x, sp.z - tp.z);
     if (d2 > stats.range) return null;
     var shot = shotDirection(shooter, target, stats, battle, round || 0),
-      maxT = stats.range,
-      environment = environmentStop(shot.origin, shot.dir, maxT, battle),
-      stop = environment.travel,
-      body = firstEnemyHit(shooter, shot.origin, shot.dir, Math.min(stop, maxT), battle);
-    var hit = !!body,
-      t = hit ? body.t : stop,
-      victim = hit ? body.soldier : null,
-      impact = pointAt(shot.origin, shot.dir, t),
-      surface = impactSurface(environment, impact, shot.dir, battle);
+      power = isFinite(+stats.power) ? +stats.power : 1,
+      pen = penetration(stats),
+      o = shot.origin,
+      dir = shot.dir,
+      left = stats.range,
+      travelled = 0,
+      energy = 1,
+      passes = [],
+      skip = [],
+      end = null;
     if (stats.suppressive) target.suppressedUntil = Math.max(target.suppressedUntil || 0, battle.time + 1.3);
-    var zone = victim ? hitZone(body.shape, impact, shot.dir, stance(victim)) : null,
-      wound = !victim
-        ? null
-        : !S.applyHit
-          ? flatDamage(shooter, victim, battle)
-          : S.applyHit(shooter, victim, battle, {
-              zone: zone,
-              point: impact,
-              direction: shot.dir,
-              distance: t,
-              round: round || 0
-            });
+    while (!end) {
+      var environment = environmentStop(o, dir, left, battle),
+        body = firstEnemyHit(shooter, o, dir, Math.min(environment.travel, left), battle, skip);
+      if (!body) {
+        var at = pointAt(o, dir, environment.travel),
+          surface = impactSurface(environment, at, dir, battle);
+        end = {
+          impact: at,
+          travel: travelled + environment.travel,
+          stoppedBy: environment.travel < left - 0.1 ? 'environment' : 'range',
+          blocker: blockerOf(environment),
+          surface: surface.surface,
+          normal: surface.normal,
+          direction: dir
+        };
+        break;
+      }
+      var victim = body.soldier,
+        entry = pointAt(o, dir, body.t),
+        exit = pointAt(o, dir, body.out),
+        zone = hitZone(body.shape, entry, dir, stance(victim)),
+        pass = {
+          victim: victim,
+          zone: zone,
+          entry: entry,
+          exit: null,
+          direction: dir,
+          energy: energy,
+          wound: wound(shooter, victim, battle, {
+            zone: zone,
+            point: entry,
+            direction: dir,
+            distance: travelled + body.t,
+            round: round || 0,
+            energy: energy,
+            power: power * energy,
+            body: passes.length
+          })
+        };
+      passes.push(pass);
+      skip.push(victim);
+      /* Does it come out the far side? */
+      var through = pen * THROUGH[zone] * energy;
+      if (passes.length >= MAX_BODIES || !(rand(battle) < through)) {
+        end = {
+          impact: entry,
+          travel: travelled + body.t,
+          stoppedBy: 'soldier',
+          blocker: 'soldier',
+          direction: dir
+        };
+        break;
+      }
+      pass.exit = exit;
+      energy *= RETAIN[zone];
+      travelled += body.out;
+      left = (left - body.out) * RETAIN[zone];
+      o = exit;
+      dir = deflect(dir, battle);
+      pass.exitDirection = dir;
+      if (energy < MIN_ENERGY || left < 1) {
+        end = { impact: exit, travel: travelled, stoppedBy: 'spent', blocker: null, direction: dir };
+        break;
+      }
+    }
+    var first = passes[0] || null,
+      hit = !!first;
+    /* The shot as the first thing it struck (what every consumer reads), plus the full path. */
     var meta = {
       mode: 'raycast',
       origin: shot.origin,
       aim: shot.aim,
-      impact: impact,
-      victim: victim,
+      impact: first ? first.entry : end.impact,
+      victim: first ? first.victim : null,
       intendedTarget: target,
       dispersionRad: shot.sigma,
-      travel: t,
-      stoppedBy: hit ? 'soldier' : stop < maxT - 0.1 ? 'environment' : 'range',
-      blocker: hit
-        ? 'soldier'
-        : environment.ground
-          ? 'ground'
-          : environment.wall
-            ? 'wall'
-            : environment.obstacle
-              ? 'obstacle'
-              : null,
-      surface: hit ? 'blood' : surface.surface,
-      normal: hit ? { x: -shot.dir.x, y: -shot.dir.y, z: -shot.dir.z } : surface.normal,
+      travel: first ? pointDistance(shot.origin, first.entry) : end.travel,
+      stoppedBy: first ? 'soldier' : end.stoppedBy,
+      blocker: first ? 'soldier' : end.blocker,
+      surface: first ? 'blood' : end.surface,
+      normal: first ? { x: -shot.dir.x, y: -shot.dir.y, z: -shot.dir.z } : end.normal,
       direction: shot.dir,
-      zone: zone,
-      wound: wound,
+      zone: first ? first.zone : null,
+      wound: first ? first.wound : null,
+      passes: passes,
+      /* Where the round finally went after the last body it left (null if it stopped in one). */
+      final: first && end.stoppedBy !== 'soldier' ? end : null,
       round: round || 0,
       delay: delay || 0
     };
     battle.onShot && battle.onShot(shooter, target, hit, d2, meta);
     shooter._lastBallisticShot = meta;
     return hit;
+  }
+  function pointDistance(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
   }
   /* SquadAI fireGate slot, after the ammunition gate and before trigger-time LOS: a round is only
      launched at a live target inside the weapon's range, and a weapon still cycling does not count. */
@@ -341,6 +436,9 @@
     groupDiameter90: groupDiameter90,
     bodyShape: bodyShape,
     hitZone: hitZone,
+    penetration: penetration,
+    THROUGH: THROUGH,
+    RETAIN: RETAIN,
     rayEllipsoid: rayEllipsoid
   };
   if (typeof console !== 'undefined')

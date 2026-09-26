@@ -4,9 +4,11 @@
    casts another damage ray or draws from the battle RNG. Every decal has a hard budget, and restart
    clears them all.
 
-     body hit       blood burst; a wound decal riding the bone that was hit (head, chest, belly, arm
-                    or leg) and, where the round went through, an exit spray on the ground behind him;
-                    a splash on the ground under the hit
+     body hit       for every man on the round's path (shot.passes): blood burst and a wound decal
+                    riding the bone that was hit (head, chest, belly, arm or leg), a splash on the
+                    ground under him and, where the round came out, a larger exit wound on the far
+                    side, a burst at the exit and a spray on the ground along its path; then the
+                    hole where the spent round finally struck (shot.final)
      wall / stone   masonry hole with spall; timber gets a splintered hole; metal a bright dent
      ground         dirt strike; suppressive bursts kick a few up around the point they are laid on
      hedge / grass  a burst of leaves, no hole
@@ -347,11 +349,15 @@
     if (!node && victim.rig) node = victim.rig[spec.rig[Math.min(side, spec.rig.length - 1)]] || null;
     return node && !(node.isDisposed && node.isDisposed()) ? node : null;
   }
-  function woundDecal(sim, st, shot, rng) {
-    var victim = shot.victim,
-      zone = shot.zone || 'chest',
-      node = bodyNode(victim, zone, shot);
-    if (!node || !node.getAbsolutePosition || !shot.direction) return;
+  /* A wound decal on the bone the round struck: at the entry, on the side facing the shooter, or,
+     for a round that went through, at the exit on the far side (larger and ragged). */
+  function woundDecal(sim, st, pass, rng, exit) {
+    var victim = pass.victim,
+      zone = pass.zone || 'chest',
+      at3 = exit ? pass.exit : pass.entry,
+      dir = exit ? pass.exitDirection || pass.direction : pass.direction,
+      node = bodyNode(victim, zone, { direction: pass.direction, impact: pass.entry });
+    if (!node || !node.getAbsolutePosition || !dir || !at3) return;
     var mine = 0;
     for (var i = 0; i < st.body.length; i++) if (st.body[i].soldier === victim) mine++;
     if (mine >= MAX_PER_SOLDIER) return;
@@ -361,15 +367,15 @@
     }
     if (node.computeWorldMatrix) node.computeWorldMatrix(true);
     var anchor = node.getAbsolutePosition(),
-      out = norm({ x: -shot.direction.x, y: 0, z: -shot.direction.z }),
-      lift =
-        zone === 'chest' || zone === 'abdomen' ? Math.max(-0.1, Math.min(0.1, shot.impact.y - anchor.y)) : 0,
-      kind = rng() < 0.35 ? 'soak' : 'wound',
-      at = pick('blood', kind, rng),
+      sign = exit ? 1 : -1,
+      out = norm({ x: dir.x * sign, y: 0, z: dir.z * sign }),
+      lift = zone === 'chest' || zone === 'abdomen' ? Math.max(-0.1, Math.min(0.1, at3.y - anchor.y)) : 0,
+      kind = exit || rng() < 0.35 ? 'soak' : 'wound',
+      cellAt = pick('blood', kind, rng),
       p = { x: anchor.x + out.x * BODY[zone].out, y: anchor.y + lift, z: anchor.z + out.z * BODY[zone].out },
       b = basis(out, null, rng() * 0.6 - 0.3),
-      s = size(kind, rng) * (zone === 'arm' || zone === 'head' ? 0.75 : 1);
-    var mesh = quad(sim, 'wound-' + zone, cellUV('blood', at.row, at.col));
+      s = size(kind, rng) * (zone === 'arm' || zone === 'head' ? 0.75 : 1) * (exit ? 1.35 : 1);
+    var mesh = quad(sim, (exit ? 'exit-wound-' : 'wound-') + zone, cellUV('blood', cellAt.row, cellAt.col));
     mesh.material = sheetMaterial(sim, st, 'blood');
     var m = B.Matrix.FromArray(composeInto(new Float32Array(16), 0, b, p, s)),
       scale = new B.Vector3(),
@@ -380,29 +386,26 @@
     mesh.rotationQuaternion = rot;
     mesh.position.copyFrom(pos);
     mesh.setParent(node);
-    st.body.push({ mesh: mesh, soldier: victim, at: sim.time });
+    st.body.push({ mesh: mesh, soldier: victim, at: sim.time, exit: !!exit });
   }
-  function bloodOnGround(sim, st, shooter, shot, rng) {
-    var p = shot.impact,
-      d = shot.direction || { x: 0, y: 0, z: 1 },
-      flat = norm({ x: d.x, y: 0, z: d.z }),
-      gy = groundHeight(sim, p.x, p.z);
-    /* The splash under the hit. */
+  /* The splash on the ground under a hit and, where the round came out, the exit spray thrown
+     forward along its path from the exit point. */
+  function bloodOnGround(sim, st, pass, rng) {
+    var p = pass.entry;
     worldDecal(
       sim,
       st,
       'blood',
       'pool',
-      { x: p.x + (rng() - 0.5) * 0.2, y: gy, z: p.z + (rng() - 0.5) * 0.2 },
+      { x: p.x + (rng() - 0.5) * 0.2, y: groundHeight(sim, p.x, p.z), z: p.z + (rng() - 0.5) * 0.2 },
       groundNormal(sim, p.x, p.z),
       rng
     );
-    /* A full-power round through the body throws an exit spray on the ground behind him. */
-    var stats = shooter && shooter.weapon && shooter.weapon.stats,
-      through = shot.zone && shot.zone !== 'arm' && shot.zone !== 'leg' && (!stats || !(stats.power < 0.9));
-    if (!through) return;
-    var reach = 0.5 + rng() * 0.6,
-      q = { x: p.x + flat.x * reach, z: p.z + flat.z * reach };
+    if (!pass.exit) return;
+    var d = pass.exitDirection || pass.direction,
+      flat = norm({ x: d.x, y: 0, z: d.z }),
+      reach = 0.4 + rng() * 0.6,
+      q = { x: pass.exit.x + flat.x * reach, z: pass.exit.z + flat.z * reach };
     worldDecal(
       sim,
       st,
@@ -437,11 +440,44 @@
     var st = state(sim),
       kind = material(shot),
       rng = randomFor(((++st.serial * 73856093) ^ Math.floor(sim.time * 1000)) | 1);
-    burst(sim, shot, kind, st);
-    if (kind === 'blood') {
-      woundDecal(sim, st, shot, rng);
-      bloodOnGround(sim, st, shooter, shot, rng);
-    } else hole(sim, st, shot, kind, rng);
+    if (kind !== 'blood') {
+      burst(sim, shot, kind, st);
+      hole(sim, st, shot, kind, rng);
+      return;
+    }
+    /* Every body on the round's path: entry wound, splash, and exit wound + spray where it came out. */
+    var passes =
+      shot.passes && shot.passes.length
+        ? shot.passes
+        : [
+            {
+              victim: shot.victim,
+              zone: shot.zone,
+              entry: shot.impact,
+              direction: shot.direction,
+              exit: null
+            }
+          ];
+    for (var i = 0; i < passes.length; i++) {
+      var pass = passes[i];
+      burst(sim, { impact: pass.entry, normal: neg(pass.direction) }, 'blood', st);
+      woundDecal(sim, st, pass, rng, false);
+      bloodOnGround(sim, st, pass, rng);
+      if (pass.exit) {
+        burst(sim, { impact: pass.exit, normal: pass.exitDirection || pass.direction }, 'blood', st);
+        woundDecal(sim, st, pass, rng, true);
+      }
+    }
+    /* A round that came out of the last man flies on to strike whatever is behind him. */
+    var end = shot.final;
+    if (end && end.stoppedBy === 'environment' && end.impact && isFinite(end.impact.x)) {
+      var endKind = material(end);
+      burst(sim, end, endKind, st);
+      hole(sim, st, end, endKind, rng);
+    }
+  }
+  function neg(v) {
+    return v ? { x: -v.x, y: -v.y, z: -v.z } : { x: 0, y: 1, z: 0 };
   }
   /* Area fire has no rays: kick up a few strikes in the ground around the point it is laid on. */
   function suppressionStrikes(sim, shooter, point, rounds) {

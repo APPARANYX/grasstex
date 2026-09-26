@@ -57,7 +57,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `macro-command-toggle-check.js` | Macro OFF suppresses Force Command while downstream hooks still run |
 | `map-pipeline-check.js` | Scenario regeneration publishes the same geometry as a page load (benchmarks once ran 10-70x slow on 4x the hedges) |
 | `impact-fx-check.js` | Impact materials, hole kind per surface, decals on terrain/wall face, wound decals on the hit bone, exit spray, sheet-cell UVs, FX budgets, restart cleanup (render stub) |
-| `weapon-wound-check.js` | Side-specific weapons (Garand/Kar98k, M1919A6/MG42, Thompson/MP40), bursts at the cyclic rate, sustained rates, a burst stops when the belt runs dry, hit zones from the ray, head/chest/leg/arm wound outcomes, bleed-out, drop odds per zone and cartridge |
+| `weapon-wound-check.js` | Side-specific weapons (Garand/Kar98k, M1919A6/MG42, Thompson/MP40), bursts at the cyclic rate, sustained rates, a burst stops when the belt runs dry, hit zones from the ray, head/chest/leg/arm wound outcomes, bleed-out, drop odds per zone and cartridge, a rifle round through one man into the next (less energy, deflected) and a pistol round stopping |
 | `world-debug-check.js` | World Debug overlay UI handlers (DOM stub) |
 | `extension-order-check.js` | No module replaces `SquadAI.tryFire`/`areaFire`/`updateSoldier`/`updateSquad` or `BattleEngagement.updateSoldier`; the declared fire order (ammunition → ballistics range → trigger-time LOS) holds; undeclared extensions throw |
 | `lease-check.js` | `BattleLeases` primitive, tactical-plan and regroup lease lifecycles, regroup re-forms on the rally point |
@@ -237,7 +237,12 @@ fires the whole burst on one AI tick (0.15 s, slower than an MG42 cycles); each 
 `woundModel` (`modules/14-wound-model.js`, `BattleWounds`): the ray's hit zone (head, chest, abdomen,
 arm, leg; `BattleBallistics.hitZone`), a drop chance per zone scaled by the cartridge's `power`,
 bleeding that eases with time, leg wounds slowing (`woundSpeed`, applied in `11-soldier-individuality`)
-and arm/torso wounds widening the shot group (`woundSigma`). Incapacitated and killed both go through
+and arm/torso wounds widening the shot group (`woundSigma`). A round can go through a man
+(`14-z-ballistic-raycast.js` over-penetration: chance from the weapon's `penetration`, else full-power
+cartridges only, times the zone; it keeps part of its energy, deflects ~7° and flies on) and strike
+the next enemy behind him with a wound scaled by `hit.energy`/`hit.power`. The shot reports every
+body in `shot.passes` (entry, exit, zone, energy) and where the spent round ended in `shot.final`;
+`shot.victim`/`impact`/`zone` stay the first body. Incapacitated and killed both go through
 `killSoldier` (`soldier.casualty` says which and where).
 
 **Decals.** Sprite sheets in `Assets/effects/decals/` (`blood.png`, `bullet-holes.png`) are a fixed
@@ -245,7 +250,8 @@ and arm/torso wounds widening the shot group (`woundSigma`). Incapacitated and k
 [--cell 256]`. `15-bullet-impact-fx.js` (`DECAL_SHEETS`) addresses cells by grid position, so a sheet
 can be regenerated larger or replaced by a painted one of any resolution that keeps the grid. World
 decals (holes, blood on the ground) are thin instances per cell; wound decals are quads parented to
-the hit bone (`BattleFbxSoldier.boneNode`, or the procedural `soldier.rig`).
+the hit bone (`BattleFbxSoldier.boneNode`, or the procedural `soldier.rig`), with a larger exit wound
+on the far side and an exit spray on the ground wherever a round came out.
 
 **Presentation never touches the combat RNG.** Voice, FX and audio must not draw from
 `battle.random`; the same seed must simulate the same battle with or without assets
