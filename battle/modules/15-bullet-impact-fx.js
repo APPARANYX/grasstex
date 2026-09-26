@@ -213,6 +213,9 @@
     tex.hasAlpha = true;
     mat.diffuseTexture = tex;
     mat.useAlphaFromDiffuseTexture = true;
+    /* A little of the sheet unlit, so blood stays red and holes stay readable in shade. */
+    mat.emissiveTexture = tex;
+    mat.emissiveColor = new B.Color3(0.3, 0.3, 0.3);
     mat.specularColor = B.Color3.Black();
     mat.backFaceCulling = false;
     mat.zOffset = -2;
@@ -223,7 +226,8 @@
     var mesh = new B.Mesh(name, sim.scene),
       data = new B.VertexData();
     data.positions = [-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0];
-    data.normals = [0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1];
+    /* +Z is the surface normal the quad is laid along (see basis), so it is lit from the front. */
+    data.normals = [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1];
     data.uvs = [uv.u0, uv.v0, uv.u1, uv.v0, uv.u1, uv.v1, uv.u0, uv.v1];
     data.indices = [0, 2, 1, 0, 3, 2];
     data.applyToMesh(mesh);
