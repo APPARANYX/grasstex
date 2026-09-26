@@ -10,6 +10,8 @@ STATIC_FILES = [
     ("battle_policy.php", "battle_policy.php"),
     ("battle_learning.php", "battle_learning.php"),
     ("battle_metrics.php", "battle_metrics.php"),
+    # Branch preview launcher: stages a branch's runtime into preview/ref-<sha>/ on request.
+    ("preview.php", "preview.php"),
 ]
 # The repo's FBX Motion Lab (labs/): workbench, asset inventory and the endpoint that saves
 # per-model sidecar calibrations (Assets/soldiers/<model>.json) the game reads at load. These
