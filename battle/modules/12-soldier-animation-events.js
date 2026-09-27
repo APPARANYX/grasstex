@@ -68,7 +68,7 @@
   root.BattleSim.start = function (scene, opts) {
     var sim = oldStart(scene, opts),
       oldFire = sim.onFire;
-    sim.onFire = function (soldier) {
+    sim.onFire = function (soldier, delay) {
       if (soldier && soldier.weapon) {
         /* BattleAmmunition consumes the round after a successful trigger. Do not double-decrement it
          here; this callback is now an animation/event bridge only. */
@@ -79,7 +79,8 @@
           );
         root.BattleSoldierModel.triggerAnimation(soldier, T.fire, {
           weapon: soldier.weapon.kind,
-          ammo: soldier.weapon.ammo
+          ammo: soldier.weapon.ammo,
+          delay: +delay || 0
         });
       }
       if (oldFire) oldFire.apply(sim, arguments);
