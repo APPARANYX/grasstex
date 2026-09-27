@@ -277,7 +277,7 @@ function poseReset(){
   POSE.layerMs={};POSE.layerRuns={};POSE.layerFrame={};POSE.layerCur={};
   POSE_LAYERS.forEach(function(k){POSE.layerMs[k]=0;POSE.layerRuns[k]=0;POSE.layerFrame[k]=new Float32Array(POSE_RING);POSE.layerCur[k]=0;});
   POSE.inputs={base:poseCounter(),aim:poseCounter(),weapon:poseCounter(),support:poseCounter()};
-  POSE.dead=0;POSE.offscreen=0;POSE.frustumKnown=0;POSE.dist=[0,0,0,0];POSE.lod={posed:0,static:0,offscreen:0,interval:0};
+  POSE.dead=0;POSE.offscreen=0;POSE.frustumKnown=0;POSE.dist=[0,0,0,0];POSE.lod={posed:0,static:0,offscreen:0,interval:0,shadowKept:0};
 }
 /* A layer may be timed in more than one segment of one applyPose; `runs` counts soldier-frames. */
 function poseLayer(k,ms){POSE.layerMs[k]+=ms;POSE.layerCur[k]+=ms;if(!(POSE.seen&POSE_BIT[k])){POSE.seen|=POSE_BIT[k];POSE.layerRuns[k]++;}}
@@ -379,7 +379,7 @@ function poseSnapshot(){
   var L=POSE.lod,lt=L.posed+L.static+L.offscreen+L.interval;
   return{enabled:POSE.on,frames:POSE.frames,soldierFrames:POSE.samples,
     lod:{enabled:LOD.on,near:LOD.near,mid:LOD.mid,midHz:LOD.midHz,farHz:LOD.farHz,offscreen:LOD.offscreen,
-      posedShare:lt?perfRound(L.posed/lt,4):null,heldStatic:L.static,heldOffscreen:L.offscreen,heldInterval:L.interval,posed:L.posed},wallMs:perfRound(perfNow()-POSE.startedAt,0),
+      posedShare:lt?perfRound(L.posed/lt,4):null,shadowKept:L.shadowKept,heldStatic:L.static,heldOffscreen:L.offscreen,heldInterval:L.interval,posed:L.posed},wallMs:perfRound(perfNow()-POSE.startedAt,0),
     timerResolutionUs:POSE.resolutionUs,
     posedPerFrame:{mean:frames?perfRound(posedSum/frames,2):null,stats:perfStats(POSE.framePosed,frames)},
     frameMs:perfStats(POSE.frameMs,frames),perSoldierUs:perSoldier,layers:layers,inputs:inputs,
@@ -1377,7 +1377,9 @@ function handChain(path,chain,from){
      - near the camera (< near m): every frame;
      - medium (< mid m): about midHz; beyond: about farHz, each soldier on his own phase so the
        far group does not pose on the same frame;
-     - outside the view frustum: not re-posed until he is back in view;
+     - outside the view frustum: not re-posed until he is back in view. A soldier whose meshes cast
+       shadows (in any shadow generator's caster list) counts as in view while his shadow could be:
+       he is held only when both his body and the ground his shadow falls on are outside the view;
      - static (clip state, weapon and hold unchanged since his last pose, not aiming; e.g. a
        finished death clip or a paused sim): posed once, then held.
    A soldier is always posed the first time. Clip clocks stay on simulation time in update(); this
@@ -1393,6 +1395,48 @@ function lodCamera(scene){
   cam.getViewMatrix().multiplyToRef(cam.getProjectionMatrix(),lodVP);BABYLON.Frustum.GetPlanesToRef(lodVP,lodPlanes);
   lodEye.copyFrom(cam.globalPosition||cam.position);return true;
 }
+/* Shadow-casting lights this frame: every enabled light with a shadow generator. A soldier casts if
+   one of his meshes is in a generator's render list (or the generator selects casters with a
+   predicate, which we cannot see into, so every soldier counts). Caster sets are rebuilt only when a
+   render list changes length. */
+var lodShadowMaps=[],lodShadowDir=new V3(),LOD_SHADOW_HEIGHT=2,LOD_SHADOW_MAX=40;
+function lodShadows(scene){
+  lodShadowMaps.length=0;
+  var lights=scene.lights||[];
+  for(var i=0;i<lights.length;i++){
+    var light=lights[i];if(!light.isEnabled()||!light.getShadowGenerators)continue;
+    var gens=light.getShadowGenerators();if(!gens||!gens.size)continue;
+    gens.forEach(function(g){
+      var sm=g&&g.getShadowMap&&g.getShadowMap();if(!sm)return;
+      var list=sm.renderList||[];
+      if(!sm._lodCasters||sm._lodCastersFrom!==list||sm._lodCastersLen!==list.length){sm._lodCasters=new Set(list);sm._lodCastersFrom=list;sm._lodCastersLen=list.length;}
+      lodShadowMaps.push({light:light,map:sm,all:!!sm.renderListPredicate});
+    });
+  }
+  return lodShadowMaps.length>0;
+}
+function lodCasts(fx,entry){
+  if(entry.all)return true;
+  for(var i=0;i<fx.meshes.length;i++)if(entry.map._lodCasters.has(fx.meshes[i]))return true;
+  return false;
+}
+function lodSphereOut(x,y,z,r){
+  for(var i=0;i<6;i++){var pl=lodPlanes[i];if(pl.normal.x*x+pl.normal.y*y+pl.normal.z*z+pl.d< -r)return true;}
+  return false;
+}
+/* Could this soldier's shadow from this light be in view? The shadow of a body LOD_SHADOW_HEIGHT m
+   tall falls along the light's horizontal direction; test a sphere around that ground strip. A
+   grazing light (very long shadows) always counts as in view. */
+function lodShadowInView(fx,entry){
+  var light=entry.light,p=fx.root.position;
+  var directional=light.getTypeID?light.getTypeID()===BABYLON.Light.LIGHTTYPEID_DIRECTIONALLIGHT:!!light.direction;
+  if(directional)lodShadowDir.copyFrom(light.direction); /* point and spot lights: from the light through his head */
+  else{var lp=light.getAbsolutePosition?light.getAbsolutePosition():light.position;if(!lp)return true;lodShadowDir.set(p.x-lp.x,p.y+LOD_SHADOW_HEIGHT-lp.y,p.z-lp.z);}
+  var len=lodShadowDir.length();if(!(len>1e-6))return true;
+  var dx=lodShadowDir.x/len,dy=lodShadowDir.y/len,dz=lodShadowDir.z/len;if(dy>-.05)return true;
+  var k=(LOD_SHADOW_HEIGHT/2)/-dy,half=Math.sqrt(dx*dx+dz*dz)*k;if(half>LOD_SHADOW_MAX)return true;
+  return!lodSphereOut(p.x+dx*k,p.y,p.z+dz*k,half+LOD.radius);
+}
 function lodSig(fx){
   if(fx.aim>.01)return null; /* the aim twist follows a moving world target */
   var h=poseMix(poseClipSig(fx,false),poseWeaponSig(fx));
@@ -1400,14 +1444,20 @@ function lodSig(fx){
   return poseMix(h,Math.round((fx.cupReach==null?1:fx.cupReach)*1e3));
 }
 /* Why this soldier is not re-posed this frame, or null to pose him. */
-function lodHold(fx,now,cam){
+function lodHold(fx,now,cam,shadows){
   /* Signature of the inputs this pose would use, taken before posing: a pose that still moved an
      eased value (the pistol cup) leaves a different signature for the next frame, so it re-poses. */
   var sig=fx._lodNext=lodSig(fx);if(fx._lodAt==null)return null;
   if(sig!==null&&sig===fx._lodSig)return'static';
   if(!cam)return null;
   var p=fx.root.position,x=p.x,y=p.y+.9,z=p.z;
-  if(LOD.offscreen)for(var i=0;i<6;i++){var pl=lodPlanes[i];if(pl.normal.x*x+pl.normal.y*y+pl.normal.z*z+pl.d< -LOD.radius)return'offscreen';}
+  fx._lodShadowKept=false;
+  if(LOD.offscreen&&lodSphereOut(x,y,z,LOD.radius)){
+    var kept=false;
+    if(shadows)for(var i=0;i<lodShadowMaps.length&&!kept;i++){var e=lodShadowMaps[i];if(lodCasts(fx,e)&&lodShadowInView(fx,e))kept=true;}
+    if(!kept)return'offscreen';
+    fx._lodShadowKept=true; /* body out of view, shadow maybe in view: schedule by distance */
+  }
   var dx=lodEye.x-x,dy=lodEye.y-y,dz=lodEye.z-z,d=Math.sqrt(dx*dx+dy*dy+dz*dz);
   if(d<LOD.near){fx._lodEvery=0;return null;}
   var every=fx._lodEvery=1000/(d<LOD.mid?LOD.midHz:LOD.farHz);
@@ -1428,13 +1478,14 @@ function lodPosed(fx,now){
 function hookRender(scene,st){
   if(st.hooked)return;st.hooked=true;
   scene.onBeforeRenderObservable.add(function(){
-    var list=st.active,on=POSE.on,t0=on?perfNow():0,posed=0,lod=LOD.on,now=lod?(LOD.clock?LOD.clock():perfNow()):0,cam=lod&&lodCamera(scene);
+    var list=st.active,on=POSE.on,t0=on?perfNow():0,posed=0,lod=LOD.on,now=lod?(LOD.clock?LOD.clock():perfNow()):0,cam=lod&&lodCamera(scene),shadows=lod&&cam&&LOD.offscreen&&lodShadows(scene);
     for(var i=list.length-1;i>=0;i--){
       var fx=list[i];
       if(fx.holder.isDisposed()){list.splice(i,1);continue;}
       if(!fx.root.isEnabled())continue;
       if(lod){
-        var hold=lodHold(fx,now,cam);
+        var hold=fx._lodHold=lodHold(fx,now,cam,shadows);
+        if(on&&fx._lodShadowKept)POSE.lod.shadowKept++;
         if(hold){if(on)POSE.lod[hold]++;continue;}
         fx._poseDt=fx._lodAt==null?null:(now-fx._lodAt)/1000;
       }
@@ -1499,6 +1550,8 @@ root.BattleFbxSoldier={
 root.BattleAssetTimings={enabled:ASSET.on,snapshot:assetSnapshot};
 /* Animation LOD thresholds, live-tunable for visual checks (BattleFbxSoldier.lod.farHz=5, .on=false...). */
 root.BattleFbxSoldier.lod=LOD;
+/* Read-only: this soldier's last LOD decision (null = posed), and whether his shadow kept him scheduled. */
+root.BattleFbxSoldier.lodState=function(soldier){var fx=soldier&&soldier._fbx;return fx?{hold:fx._lodHold||null,shadowKept:!!fx._lodShadowKept,lastPoseAt:fx._lodAt==null?null:fx._lodAt}:null;};
 root.BattlePoseTimings={enable:poseEnable,disable:function(){POSE.on=false;return false;},reset:function(){if(POSE.on)poseReset();},
   enabled:function(){return POSE.on;},snapshot:poseSnapshot,layers:POSE_LAYERS.slice()};
 console.log('[ANIM] FBX soldier backend installed (models + clips load with the battle)');
