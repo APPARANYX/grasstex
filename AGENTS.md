@@ -467,6 +467,41 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
 - **Page-load hiccup (watch).** One local probe run logged `ReferenceError: BABYLON is not defined`
   from an inline script (line 95 of the page `battle_sim_local.php` serves) on the GE-defend battle; the battle still
   ran and reported. Seen once; if it recurs, make that inline script wait for Babylon.
+- **Forward movement: no backward orders while the squad advances (open).** A man should not be sent
+  behind the squad's firing line unless the squad is retreating or withdrawing; a short lateral or
+  backward step to adjacent cover is fine, but nothing that walks him back while the rest of the squad
+  moves forward. Today only one guard exists: `44-combat-urgency.js` `allowCover` rejects cover less
+  than `MIN_COVER_FORWARD` (1.5 m) forward along the objective axis, and only in the `assault` phase
+  and only when not suppressed. Engagement's own `findCover` searches up to `COVER_RANGE_UNDER_FIRE`
+  (42 m) and uses `squadForward` only as a scoring hint, so a cover slot well behind the line can win.
+  Owner: the line belongs to the Squad Leader (it knows the order anchor and phase), the choice to the
+  producer that picks the point (Engagement cover, 44 urgency, 52 survival routes), so publish the
+  line once (e.g. the fireteam's order anchor projected on the objective axis) and have each producer
+  score or refuse points behind it, with an allowance (a few metres) for adjacent cover and none of it
+  in retreat or withdraw. Don't add the guard in the resolver. Measure first: a probe counting
+  destinations that go behind the line while the squad advances, by producer (the order-provenance
+  observers already tag writers).
+- **Stance churn and firing mid-change (open).** Still seen: stand-crouch-stand loops, a man going
+  prone to fire one round, standing, going prone again, and firing while changing stance. Engagement
+  owns stance (`commitStance` holds it `STANCE_HOLD` 4 s / `PRONE_HOLD` 5.5 s and pushes
+  `fireReadyAt` by `AIM_SETTLE` 0.4 s), but three other writers bypass that hold: `44-combat-urgency.js`
+  sets `s.prone`/`s.tacticalCrouch` directly in its drills, `12-soldier-animation-events.js` sets
+  `tacticalCrouch` on every reload (a presentation module writing sim state), and `stepMovement`
+  (`battle-sim.js`, mirrored in `harness.js`) derives `crouching` each frame from `tacticalCrouch`,
+  suppression and "target and near the destination". Two writers is itself the bug (see the workflow
+  above), so first make every stance change go through Engagement (`commitStance`, or a request
+  Engagement arbitrates), which also makes `AIM_SETTLE` cover every change so nobody fires mid-change.
+  Whether the commitment is a lease: `BattleLeases` is for holds that block another layer's intent,
+  and stance should stay inside one owner, so a per-man stance commitment on `eng` (stance, since,
+  until, reason) is enough once there is one writer; make it a lease only if another layer still has
+  to ask to break it. Stance by distance, as a starting rule: prone at long range, crouch at medium,
+  standing only close or to fire over cover that a lower stance can't see past; commit to it until
+  ordered to move, suppressed, or the cover at hand changes. Today `fightingStance` goes prone past
+  `max(70, 0.55 × engageRange)` (247 m for a rifle now that range is the weapon's 450 m), only for
+  riflemen and gunners (`PRONE_ROLES`); scouts and leaders always crouch. Measure first with a probe:
+  stance changes per man-minute and per writer, rounds fired within `AIM_SETTLE` of a change, and
+  prone episodes shorter than `PRONE_HOLD`; `run.js` already asserts "no stance churn", so find why
+  it misses these (likely it runs without module 44 and without the reload hook).
 - **Snipers (pending).** Scoped rifles (M1903A4, Kar98k with ZF39) are a separate role, not the
   scouts; they need weapon models and their own aiming rules.
 - **Secondary weapons (pending).** A soldier carries a sidearm only where it was historically
