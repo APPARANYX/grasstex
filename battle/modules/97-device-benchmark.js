@@ -59,7 +59,7 @@ var KINDS=[
   ['hedges',function(m,n){return/hedge/i.test(n);}],
   ['terrain, roads & sky',function(m,n){return/^(battleField|battleSkyDome|scenario-road)/.test(n);}],
   ['objectives',function(m,n){return/^objective-/.test(n);}],
-  ['decals & effects',function(m,n){return/decal|impact|blood|muzzle|flash|tracer|spray|hole|smoke|dust/i.test(n);}],
+  ['decals & effects',function(m,n){return/decal|wound|impact|blood|muzzle|flash|tracer|spray|hole|smoke|dust/i.test(n);}],
   ['cover & scatter',function(m,n){return/log|rock|tree|stub|crate|sandbag|wire|roadblock|scatter|trunk|bush|fence|cart/i.test(n);}]
 ];
 function meshCensus(scene,acc){
