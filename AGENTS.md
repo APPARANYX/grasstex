@@ -19,7 +19,8 @@ original docs (roadmaps, lab notes, measurements) are in git history at `1a5b0cf
 - **Stay in scope.** Don't touch audio, assets or animation unless asked. Unnamed uploads: ask
   what they are and where they belong.
 - `main` deploys to production on every push. Put anything visual on a `work/**` or `preview/**`
-  branch first (that publishes a preview; see Deploy).
+  branch first (that publishes a preview; see Deploy), or open any branch in the live preview
+  launcher (`https://test.ivandpopov.com/grasstex/preview.php?ref=<branch|PR#>`).
 
 ## What's here
 
@@ -56,11 +57,13 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `tactical-positions-check.js` | Window/hardpoint reservation ownership, ingress routes, release reasons, diagnostics |
 | `cover-positions-check.js` | Cover-slot selection against obstacles and physical footprints |
 | `personal-space-check.js` | Physical endpoint allocation and body separation |
+| `fireteam-frontage-check.js` | Each fireteam holds its own ground: published fireteam anchors stay ≥5 m apart while squads march, deploy and fight |
 | `movement-recovery-check.js` | Recovery episode state machine, goal resets, unreachable criteria, retreat override |
 | `movement-state-check.js` | Resolver/movement-progress state for bounds and assault |
 | `lean-runtime-check.js` | Squad-plan stability + resolver + tactical route with no extra modules |
 | `macro-command-toggle-check.js` | Macro OFF suppresses Force Command while downstream hooks still run |
 | `map-pipeline-check.js` | Scenario regeneration publishes the same geometry as a page load (benchmarks once ran 10-70x slow on 4x the hedges) |
+| `sight-query-check.js` | Pruned geometry queries answer exactly as unpruned: `sightBlocked` (crossed cells, first hit) vs nearest-hit `sightBlocker`, and `movementClear` with vs without wall bounding boxes, on real scenarios |
 | `impact-fx-check.js` | Impact materials, hole kind per surface, decals on terrain/wall face, wound decals on the hit bone, exit spray, sheet-cell UVs, FX budgets, restart cleanup (render stub) |
 | `weapon-wound-check.js` | Side-specific weapons (Garand/Kar98k, M1919A6/MG42, Thompson/MP40), bursts at the cyclic rate, sustained rates, a burst stops when the belt runs dry, hit zones from the ray, head/chest/leg/arm wound outcomes, bleed-out, drop odds per zone and cartridge, a rifle round through one man into the next (less energy, deflected) and a pistol round stopping |
 | `world-debug-check.js` | World Debug overlay UI handlers (DOM stub) |
@@ -96,6 +99,35 @@ node scripts/smoke_battle_page.cjs          # SMOKE_SEED, SMOKE_SECONDS, SMOKE_O
 
 Hosted textures 404 when served locally, so the ground renders red. That's expected.
 
+**Visual checks: keep these, don't rewrite them.** Look at a change on the live host rather than a
+local red-ground page, and reuse these harnesses instead of writing one-off probes:
+
+- **Open any branch live:** `https://test.ivandpopov.com/grasstex/preview.php?ref=<branch|#PR|GitHub URL>`
+  (see CI and workflows). The link follows the branch head. It carries the branch's own models, clips,
+  weapons and effect sprites, so new decals or FBX show up.
+- **Close-ups in a real fight:** `scripts/closeup_battle.cjs` runs a battle in fixed 0.15 s steps
+  until a soldier matches `CLOSEUP_TARGET` (`casualty`, `wounded`, `any`, `role:ge/gunner`, `id:<n>`),
+  pauses, renders so clips play out, and photographs him from `CLOSEUP_VIEWS`
+  (`front,left,back,top,right,wide`). Output is `<view>-<id>.png` plus `summary.json` (hp, wounds,
+  casualty zone, weapon, FBX or not). It blocks telemetry, learning and policy writes, so it's safe
+  against production and previews. Env: `CLOSEUP_URL`, `CLOSEUP_SEED`, `CLOSEUP_COUNT`,
+  `CLOSEUP_AFTER` (sim seconds after the match, default 1.5), `CLOSEUP_DIST`, `CLOSEUP_WAIT`,
+  `CLOSEUP_OUT`, `CLOSEUP_UI=1`.
+  ```bash
+  CLOSEUP_URL='https://test.ivandpopov.com/grasstex/preview.php?ref=<branch>' CLOSEUP_TARGET=wounded \
+    CLOSEUP_OUT=out/closeup node scripts/closeup_battle.cjs
+  ```
+- **Damage decals themselves:** `scripts/closeup_damage_fx.cjs` shoots the newest decal of each kind
+  (wound, exit, pool, spray, masonry, wood, dirt, metal) along its surface normal, plus a
+  `summary.json` of wounds by zone and decals by kind; works against a `preview.php?ref=` URL.
+  `scripts/preview_decal_sheets.cjs` checks the sprite sheets themselves (no server).
+- **Every model with its weapon, plus the Motion Lab poses:** `scripts/fbx-soldier-lineup.cjs`
+  (see Soldiers, weapons, animation).
+- **Pistol support hand numbers:** `scripts/probe_pistol_cup.cjs` (see the replay table below).
+
+In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certificate-errors`
+(these scripts do). Otherwise Babylon never loads from the CDN and `__battle__` never appears.
+
 **Deterministic replay / profilers** (Playwright, against the local server above):
 
 | Script | Use |
@@ -129,6 +161,7 @@ bash scripts/normalize_audio.sh Assets/audio && git diff --quiet -- Assets/audio
 | `ci.yml` | PR, push to main | Syntax (JS/PHP/Py/sh/JSON), audio library, sim regressions (all harness checks + 8 seeds), deploy plan + deploy safety |
 | `deploy-50webs-php.yml` | push to main | Stamps `build-v<N>`, reruns checks and the deploy-safety check, uploads by content hash to production |
 | `deploy-50webs-preview.yml` | push `work/**`, `preview/**` | `https://test.ivandpopov.com/grasstex/preview/<slug>/battle_sim.php`; never touches prod, makes no telemetry/learning writes; its `mirror --delete` skips JSON and lab files |
+| `preview.php` (on the host, not a workflow) | `?ref=<branch>`, `#47`, or a GitHub branch/PR URL | Stages that commit's `battle/` runtime from GitHub into `preview/ref-<sha12>/` with the host's own loader and opens it (same preview contract, no writes). Only this repo's branches and same-repo PRs (a PR uses its head commit, so merged ones still open); keeps the 12 most recent. Branch FBX, clips, weapons and `Assets/effects` PNGs come too: files identical to production are hard links, and new ones download (≤300 MB). A branch that changes `battle_sim_local.php` still needs the Actions preview. Optional `state/github-token.php` (`<?php return '<token>';`) lifts the 60/h API limit. |
 | `battle-benchmark-standard.yml` | tag `standard-benchmark-*` or dispatch | 10 workers × 10 = **100 battles**: the routine 60 meeting / 20 US-defend / 20 GE-defend checkpoint |
 | `battle-benchmark.yml` | tag `benchmark-*` or dispatch (source must be on main) | 30 workers × 10 = **300 battles**, 100 per type. Major milestones only. |
 | `battle-hotpath-profile.yml` | dispatch (type/seed/seconds) | Hot-path profile on one seed |
@@ -173,7 +206,10 @@ exported under `macroCommand`.
 an objective's allowance) stops a side piling onto one objective; the frontage limit stops it spreading
 over all of them. A side attacks at most `maxEfforts` (2) objectives it does not hold at once; opening
 another costs `frontageCost` (140), so the next squad reinforces an open effort. Taking an objective
-closes its effort. Defending owned objectives doesn't count. Both are scores, never vetoes.
+closes its effort. Defending owned objectives doesn't count. A strategic-stall wake closes the
+efforts its stalled capture briefs were on: each costs `stallCost` (150) and no longer fills the
+frontage, so the side masses on new objectives (`commander-ai.js` `stalledEfforts`; outcomes under
+`macroCommand.state.stallOutcomes`). All three are scores, never vetoes.
 
 **Reconstitution** (`commander-ai.js` `reconstitute`, Macro only). A retreating squad's Squad Leader
 walks it home (`_assembly` `to-base`); home and out of contact it is `at-base`. Only `at-base` squads
@@ -316,12 +352,47 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   benchmark `regroups`): 9.4 regroups per battle in meeting, 7.3 in US-defend and 5.9 in GE-defend,
   with 15, 2 and 4 timeouts over 60/20/20 battles. Defend scenarios regroup no more often than
   meetings, so there is no defend-specific rise left to chase.
-- Window/ingress crowding: claim collisions swing 23 to 3,838 on the same seed. Reservation
-  and physical occupancy haven't been separated yet.
-- Personal-space corrections rose slightly (15.7k → 17.4k per battle). Find the converging
-  producer first.
-- Strategic-stall wakes mostly re-pick the same objective, because doctrine has no alternative.
-- Hot path is now navigation replans (~3.3 s) and `sightBlocked` (~3.5 s) per ~13.7 s battle.
+- Window crowding (closed 2026-09-25): bodies at firing stations don't stack. A probe on 6 full standard
+  seeds found 1 sample in ~20k occupied-station samples with two men on one station, and a non-holder
+  on a held window in one battle only. The old "claim collisions 23 → 3,838" swing was `select()`
+  counting every held window it passed over; that is now `reservedStationsSkipped`, and
+  `claimCollisionsPrevented` counts only real claim-time collisions.
+- Personal-space corrections (~8-10k per battle on the GitHub standard benchmark) are mostly same-squad
+  men crossing on the move, not fights: pairs still overlapping 1 s later are rare (5-20 per battle).
+  In order: (1) two men both on formation slots crossing. 75-83% of those are between different
+  fireteams, and the rate is ~7× higher in the 6 s after a formation or facing change. (2) Bounding men
+  walking through men holding. (3) Engagement `hold` endpoints within 0.9 m of each other. Hold isn't a
+  physically allocated kind in `51` `DEST_KINDS`.
+  - **Fireteam frontage (shipped 2026-09-26).** Team anchors were
+    averages of per-man slots that alternate sides by `slotIndex`, while team membership also comes
+    from `slotIndex`, so every team sat in the middle (alpha and bravo 1.2 m apart in line). The Squad
+    Leader (`16` `desiredAnchor`) now gives each fireteam its own offset in the squad frame; new
+    `fireteam-frontage-check.js` (main fails it). GitHub standard benchmark, main run 17 vs branch
+    run 16: corrections −12% meeting, −2% US-defend, −12% GE-defend; destination conflicts −13 to −44%;
+    wins within noise (meeting US 31 → 25 of 60, p=0.36); median wall 26.7 → 28.6 s; movement stalls
+    40 → 49 (the worst is a straggler stopping in `alert` while catching up, a pattern main also shows).
+    If it regresses movement feel, revert it as a unit.
+  - **Next: spawn men near their formation slots.** Cross-team crossings barely changed with frontage,
+    and about half come in the first minute: men spawn in a random cluster around the lane
+    (`battle-sim.js` `spawnSide`, `modules/10-infantry-squad.js`), ignoring their slot, then cross each
+    other to sort out. Placing each man at his fireteam position at spawn is its own change, and it
+    changes the seeded start, so benchmark it paired on GitHub.
+- Strategic-stall wakes used to re-pick the same objective (77% of 111 wakes over 10 local replays);
+  a stall now closes the stalled efforts (see Main effort), which cut repeats to 46% (local, before
+  the merge with the frontage limit). GitHub standard benchmark, main run 15 vs branch run 14 (same
+  100 seeds): no measurable outcome effect. Wins US/GE 31/29 → 33/27 meeting (Fisher p=0.85), 18/2 →
+  20/0 US-defend and 0/20 → 2/18 GE-defend (p=0.49), captures 2.99 → 2.92, mean longest no-progress
+  283 → 277 s, meeting spread 2.33 → 2.46 objectives per side, same winner on 88/100 seeds. Open:
+  the benchmark doesn't export `stallOutcomes`, so the post-merge repeat rate is unmeasured. Add it
+  to the benchmark export, find what the remaining repeats are (no other objective left, or
+  `stallCost` too low against distance), and only claim a win effect from a 300-battle run.
+- Hot path: `sightBlocked` and navigation replans were ~half a battle's wall time; exact pruning
+  (crossed-cell first-hit LOS, wall bounding boxes, lazy `planLocal` edges) halved it. Standard
+  benchmark median wall time per battle 29.1 → 13.5 s (meeting 29.1 → 13.2, US-defend 31.3 → 16.3,
+  GE-defend 33.1 → 13.9), main run 15 vs branch run 14. Hot-path profile on
+  `standard-benchmark-meeting-s1-b0001-0001` (300 s): `sightBlocked` 7.3 → 2.1 µs/call, physical
+  replan 360 → 42 µs, `findPath` 564 → 83 µs, `movementClear` 5.5 → 1.75 µs. `engagement.updateSoldier`
+  and the movement resolver now lead the profile; they are the next optimisation target.
 - Movement Progress ignores retreat by design; `movementStopReason` is the observable.
 - Next architecture steps: a versioned `SquadIntent` + one intent resolver (leases, with priority, progress tests and a graph view, now exist), a real Squad Leader local planner, then
   platoon/company command, fallback/counterattack and combined arms. Capture Zone and

@@ -20,9 +20,13 @@
      CLOSEUP_DIST      camera distance in metres from a body decal (default 0.9; world decals 1.6x)
      CLOSEUP_FBX_WAIT  seconds to wait for the FBX soldiers before starting (default 180; 0 = don't);
                        without them the wounds land on the procedural box rig
-     CLOSEUP_URL       page URL (default the local server above)
-   Software WebGL is slow: a run takes 5-10 minutes, and the page occasionally takes minutes to boot,
-   so boot is retried once. Hosted textures 404 locally, so the ground renders red; that is expected. */
+     CLOSEUP_URL       page URL (default the local server above; preview.php?ref= links work)
+   Point CLOSEUP_URL at a live preview to see real textures and FBX soldiers:
+     CLOSEUP_URL='https://test.ivandpopov.com/grasstex/preview.php?ref=<branch>' node scripts/closeup_damage_fx.cjs
+   For a particular soldier (who, from which side, after how long) use scripts/closeup_battle.cjs;
+   this one is for the decals themselves, on bodies, walls and ground.
+   Software WebGL is slow: a run takes 5-10 minutes. A failed boot is retried once. Locally hosted
+   textures 404, so the ground renders red; that is expected. */
 const fs = require('node:fs');
 const path = require('node:path');
 const { execSync } = require('node:child_process');
@@ -67,7 +71,8 @@ async function boot(browser, errors) {
   fs.mkdirSync(out, { recursive: true });
   const { chromium } = loadPlaywright();
   const browser = await chromium.launch({
-    args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist']
+    /* The sandbox proxy re-signs HTTPS: without this Babylon never loads from the CDN. */
+    args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--ignore-certificate-errors']
   });
   const errors = [];
   try {

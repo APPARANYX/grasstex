@@ -24,7 +24,7 @@ const output = path.resolve(process.env.SMOKE_OUTPUT || 'smoke.png');
 
 (async () => {
   const { chromium } = loadPlaywright();
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] });
+  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--ignore-certificate-errors'] });
   try {
     // ignoreHTTPSErrors: sandboxed environments proxy the CDN with their own CA.
     const page = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 720 } });
