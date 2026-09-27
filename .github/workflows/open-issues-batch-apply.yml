@@ -1,0 +1,90 @@
+name: Apply open-issues batch
+
+on:
+  push:
+    branches:
+      - claude/open-issues-batch-xvkkbr
+    paths:
+      - .github/workflows/open-issues-batch-apply.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/open-issues-batch-xvkkbr
+          fetch-depth: 0
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Fix FG42 automatic fire presentation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('battle/modules/53-fbx-soldier-backend.js')
+          s=p.read_text()
+          replacements=[
+            ("var pistol=fx.weaponKind==='pistol',clip,rate=1;", "var pistol=fx.weaponKind==='pistol',automatic=!!(soldier.weapon&&soldier.weapon.stats&&soldier.weapon.stats.cyclic),clip,rate=1;"),
+            ("restart=fx.weaponKind!=='lmg'&&fx.weaponKind!=='smg'&&!pistol;", "restart=!automatic&&!pistol;"),
+            ("var auto=fx.weaponKind==='lmg'||fx.weaponKind==='smg';", "var auto=automatic;")
+          ]
+          for old,new in replacements:
+              if s.count(old)!=1: raise SystemExit(f'expected exactly one occurrence: {old}')
+              s=s.replace(old,new)
+          p.write_text(s)
+          PY
+          node --check battle/modules/53-fbx-soldier-backend.js
+          git add battle/modules/53-fbx-soldier-backend.js
+          git commit -m "Keep FG42 automatic fire animation continuous"
+      - name: Export strategic stall outcomes from benchmarks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/run_battle_benchmark.mjs')
+          s=p.read_text()
+          old="""          reconstitution: reconstitutionSummary(), regroups: regroupSummary(), coordinationHealth: coordinationHealth(), objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates"""
+          new="""          reconstitution: reconstitutionSummary(), regroups: regroupSummary(),
+          stallOutcomes: (() => { const o = root.BattleCommanderAI?.missionState?.(sim)?.stallOutcomes; return o ? { wakes: +o.wakes || 0, repeats: +o.repeats || 0, switches: +o.switches || 0, other: +o.other || 0 } : null; })(),
+          coordinationHealth: coordinationHealth(), objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates"""
+          if s.count(old)!=1: raise SystemExit('record insertion anchor changed')
+          s=s.replace(old,new)
+          old="""    avgRegroupEntries: +mean(battles.map(b => b.regroups?.entries || 0)).toFixed(2), regroupTimeouts: sum(battles, b => b.regroups?.timeouts), regroupContactExits: sum(battles, b => b.regroups?.contactExits),"""
+          new="""    avgRegroupEntries: +mean(battles.map(b => b.regroups?.entries || 0)).toFixed(2), regroupTimeouts: sum(battles, b => b.regroups?.timeouts), regroupContactExits: sum(battles, b => b.regroups?.contactExits),
+    strategicStallWakes: sum(battles, b => b.stallOutcomes?.wakes), strategicStallRepeats: sum(battles, b => b.stallOutcomes?.repeats), strategicStallSwitches: sum(battles, b => b.stallOutcomes?.switches), strategicStallOther: sum(battles, b => b.stallOutcomes?.other),
+    strategicStallRepeatRate: +rate(sum(battles, b => b.stallOutcomes?.repeats), sum(battles, b => b.stallOutcomes?.wakes)).toFixed(4),"""
+          if s.count(old)!=1: raise SystemExit('summary insertion anchor changed')
+          s=s.replace(old,new)
+          old="""  const headers = ['index','seed','winner','winReason','simulatedSeconds','timeoutReached','usAlive','geAlive','captures','neutralizations','objectiveCount','objectivesNeverOwned','objectivesNeverContested','usSquadSpread','geSquadSpread','healthOverall','firstContactSeconds','firstFireSeconds','firstCaptureSeconds','maxNoObjectiveProgressSeconds','vacantObjectiveStalls','movementStalls','routeStalls','targetlessStalls','longRegroups','writerConflicts','strategicWriterConflicts','loopAlerts','idleUnderOrdersRate','overCohesionRate','shots','hits','hitRate','losBlockedFireAttempts','movementResolverChanges'];"""
+          new="""  const headers = ['index','seed','winner','winReason','simulatedSeconds','timeoutReached','usAlive','geAlive','captures','neutralizations','objectiveCount','objectivesNeverOwned','objectivesNeverContested','usSquadSpread','geSquadSpread','healthOverall','firstContactSeconds','firstFireSeconds','firstCaptureSeconds','maxNoObjectiveProgressSeconds','vacantObjectiveStalls','movementStalls','routeStalls','targetlessStalls','longRegroups','writerConflicts','strategicWriterConflicts','loopAlerts','stallWakes','stallRepeats','stallSwitches','idleUnderOrdersRate','overCohesionRate','shots','hits','hitRate','losBlockedFireAttempts','movementResolverChanges'];"""
+          if s.count(old)!=1: raise SystemExit('CSV header anchor changed')
+          s=s.replace(old,new)
+          old="""      targetlessStalls: b.targetlessStalls?.length || 0, longRegroups: b.longRegroups?.length || 0, loopAlerts: b.loopAlerts?.length || 0,
+      idleUnderOrdersRate:"""
+          new="""      targetlessStalls: b.targetlessStalls?.length || 0, longRegroups: b.longRegroups?.length || 0, loopAlerts: b.loopAlerts?.length || 0,
+      stallWakes: b.stallOutcomes?.wakes || 0, stallRepeats: b.stallOutcomes?.repeats || 0, stallSwitches: b.stallOutcomes?.switches || 0,
+      idleUnderOrdersRate:"""
+          if s.count(old)!=1: raise SystemExit('CSV row anchor changed')
+          s=s.replace(old,new)
+          p.write_text(s)
+          PY
+          node --check scripts/run_battle_benchmark.mjs
+          git add scripts/run_battle_benchmark.mjs
+          git commit -m "Export strategic stall outcomes from benchmarks"
+      - name: Run Node regression suite
+        run: |
+          set -euo pipefail
+          node --check scripts/probes/backward-orders.js
+          node --check scripts/probes/stance-churn.js
+          node --check tools/ai-sim-harness/regroup-axis-check.js
+          for c in tools/ai-sim-harness/*-check.js; do node "$c"; done
+          for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run.js >/dev/null; done
+      - name: Remove one-shot workflow and push
+        run: |
+          git rm .github/workflows/open-issues-batch-apply.yml
+          git commit -m "Remove one-shot batch workflow"
+          git push origin HEAD:claude/open-issues-batch-xvkkbr
