@@ -178,6 +178,7 @@ bash scripts/normalize_audio.sh Assets/audio && git diff --quiet -- Assets/audio
 | `battle-benchmark-standard.yml` | tag `standard-benchmark-*` or dispatch | 10 workers × 10 = **100 battles**: the routine 60 meeting / 20 US-defend / 20 GE-defend checkpoint |
 | `battle-benchmark.yml` | tag `benchmark-*` or dispatch (source must be on main) | 30 workers × 10 = **300 battles**, 100 per type. Major milestones only. |
 | `battle-hotpath-profile.yml` | dispatch (type/seed/seconds) | Hot-path profile on one seed |
+| `branch-housekeeping.yml` | PR merged; Mondays; dispatch (`dry_run`, default on) | Deletes a merged PR's head branch unless it moved past the merged commit or another open PR uses it; the sweep deletes branches with every commit already in `main` (`git cherry`), no open PR and a tip ≥7 days old. Never `main`/`benchmark-results`; unmerged branches are only listed in the run summary. |
 | `tripo-model-sync.yml` | dispatch | Tripo FBX export via `scripts/tripo_models.py` (needs the `TRIP_API` secret) |
 
 Benchmark battles are 600 simulated seconds at a fixed 0.15 s step. Results go to the
@@ -381,6 +382,20 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   benchmark `regroups`): 9.4 regroups per battle in meeting, 7.3 in US-defend and 5.9 in GE-defend,
   with 15, 2 and 4 timeouts over 60/20/20 battles. Defend scenarios regroup no more often than
   meetings, so there is no defend-specific rise left to chase.
+  - **Next: end a regroup on a result, never on a clock** (from the unmerged
+    `claude/codebase-roadmap-review-lihw91`, 2026-09-19, measured on the pre-lease code). A timeout
+    releases a squad that is still scattered straight back into the condition that opened the
+    regroup, which reopens it after the cooldown: churn. There, removing the expiry raised regroups
+    that ended closed up from 19% to 53% and cut entries 35%, over 10 matched 600 s seeds. Two
+    parts, one change: (1) drop `REGROUP_MAX` and `REGROUP_BYPASS` so the `regroup` lease ends only
+    on `cohesion restored` or an outside factor (contact, a live engagement plan); (2) add the
+    outside factors it now needs. Retreat must end the lease (today `updateCohesion` returns early
+    on retreat and the lease just runs out), and so must a new General brief, since a regroup holds
+    mission execution (`_missionHold`) and without a clock a brief issued during one would never
+    be picked up. Removing the clock there also exposed a squad pinned in a regroup for 510 s: the
+    straggler/outrunner axis came from `sq.objective`, which the regroup overwrites with its own
+    anchor. `main` falls back to `_formationForward` in that case; add a check that a man behind
+    the anchor is never scored as an outrunner before removing the expiry. Benchmark it paired.
 - Window crowding (closed 2026-09-25): bodies at firing stations don't stack. A probe on 6 full standard
   seeds found 1 sample in ~20k occupied-station samples with two men on one station, and a non-holder
   on a held window in one battle only. The old "claim collisions 23 → 3,838" swing was `select()`
