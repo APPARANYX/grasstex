@@ -63,22 +63,37 @@ const SHOW_UI = process.env.CLOSEUP_UI === '1';
     const page = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 800 } });
     const pageErrors = [];
     page.on('pageerror', e => pageErrors.push(String(e && e.stack || e).slice(0, 400)));
+    // Presentation draws Math.random (death clip choice, FX variants); seed it so the same seed
+    // gives the same photo and branch/main close-ups can be compared. Combat has its own seeded RNG.
+    await page.addInitScript(seed => {
+      let h = 1779033703 ^ seed.length;
+      for (let i = 0; i < seed.length; i++) { h = Math.imul(h ^ seed.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+      let a = h >>> 0;
+      Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    }, 'closeup:' + SEED);
     // A harness run is not a real battle: never send telemetry, learning or policy writes.
     await page.route('**/*', route => {
       const req = route.request();
       if (req.method() === 'POST' || /battle_(policy|learning|log|metrics)[^/]*\.php/.test(req.url())) return route.fulfill({ json: {} });
       return route.continue();
     });
+    // Wall time per phase, so a slow run says where it went (download, FBX parse, sim or render).
+    const timings = {}; let lastMark = Date.now();
+    const mark = name => { const now = Date.now(); timings[name] = +((now - lastMark) / 1000).toFixed(1); lastMark = now; };
     const url = URL_ + (URL_.includes('?') ? '&' : '?') + 'seed=' + encodeURIComponent(SEED);
     await page.goto(url, { waitUntil: 'load', timeout: 180000 });
+    mark('pageLoad');
     const finalUrl = page.url();
     await page.waitForFunction(() => window.__battle__, null, { timeout: 180000 });
+    mark('battleBuilt');
     const info = await page.evaluate(() => ({ build: window.BATTLE_BUILD_DEPLOYED || null, preview: window.BATTLE_PREVIEW || null }));
     // Let imported soldiers bind before the fight starts (the backend logs when it is done).
     await page.waitForFunction(() => {
       const r = window.__battle__ && window.__battle__._roster;
       return r && [...r.us, ...r.ge].some(s => s._fbx) || (window.BattleFbxSoldier && window.BattleFbxSoldier.failed);
     }, null, { timeout: 60000 }).catch(() => {});
+    mark('soldiersBound');
     await page.getByText('Start battle').first().click().catch(() => {});
     // Fast-forward like scripts/run_m3c_replay.cjs: no render loop, fixed 0.15 s steps with the
     // commander ticked alongside; frames are rendered only for the photos.
@@ -110,6 +125,7 @@ const SHOW_UI = process.env.CLOSEUP_UI === '1';
       return { time: b.time, winner: b.winner, ids: all.filter(test).slice(0, count).map(s => s.id) };
     }, { target: TARGET, count: COUNT });
 
+    mark('start');
     let found = null;
     for (;;) {
       const r = await pick();
@@ -118,11 +134,22 @@ const SHOW_UI = process.env.CLOSEUP_UI === '1';
       if (r.time > WAIT || r.winner) { fail.push(`no soldier matched ${TARGET} by sim ${r.time.toFixed(1)} s`); break; }
       await advance(3);
     }
+    mark('simToMatch');
     const shots = [];
     if (found) {
       if (AFTER > 0) await advance(AFTER);
-      // Sim paused; render real frames so clips (a death fall, a flinch) play out on screen.
-      await page.evaluate(() => { const b = window.__battle__; b.pause(); for (let i = 0; i < 40; i++) b.scene.render(); });
+      // Burst rounds after the first are presented on wall-clock timers (BattleSim.presentAfter,
+      // up to ~1 s); fast-forwarding outruns them, so let them land before photographing.
+      await page.waitForTimeout(1500);
+      // Clips run on sim time (soldier.js passes the step's dt to the backend), so the fast-forward
+      // already played the fall; frames only apply the pose. A few settle the per-frame blends (the
+      // support hand letting go). Each frame costs ~1.6 s without a GPU, so render no more than that.
+      const frameMs = await page.evaluate(() => {
+        const b = window.__battle__, t0 = performance.now(); b.pause();
+        for (let i = 0; i < 6; i++) b.scene.render();
+        return (performance.now() - t0) / 6;
+      });
+      timings.frameMs = Math.round(frameMs);
       if (!SHOW_UI) await page.addStyleTag({ content: '*{visibility:hidden !important} canvas{visibility:visible !important}' });
       for (const id of found.ids) {
         for (const view of VIEWS) {
@@ -147,7 +174,7 @@ const SHOW_UI = process.env.CLOSEUP_UI === '1';
               weapon: s.weapon && (s.weapon.model || s.weapon.kind), time: +b.time.toFixed(2) };
           }, { id, view, dist: DIST });
           if (state.err) { fail.push(`id ${id} ${view}: ${state.err}`); continue; }
-          await page.evaluate(() => { const sc = window.__battle__.scene; for (let i = 0; i < 3; i++) sc.render(); });
+          await page.evaluate(() => { const sc = window.__battle__.scene; sc.render(); });
           const file = `${view}-${id}.png`;
           await page.screenshot({ path: path.join(OUT, file), timeout: 120000 });
           shots.push({ file, view, ...state });
@@ -155,11 +182,16 @@ const SHOW_UI = process.env.CLOSEUP_UI === '1';
       }
     }
     if (pageErrors.length) fail.push(...pageErrors.slice(0, 5).map(e => 'pageerror: ' + e));
-    const summary = { url: finalUrl, seed: SEED, target: TARGET, ...info, found, shots, fail, ok: !fail.length };
+    mark('photos');
+    const net = await page.evaluate(() => performance.getEntriesByType('resource').reduce((a, e) => {
+      a.files++; a.mb += (e.transferSize || e.encodedBodySize || 0) / 1048576; return a; }, { files: 0, mb: 0 }));
+    timings.downloadedMB = +net.mb.toFixed(1); timings.resources = net.files;
+    const summary = { url: finalUrl, seed: SEED, target: TARGET, ...info, timings, found, shots, fail, ok: !fail.length };
     fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify(summary, null, 2));
     console.log('OUT ' + OUT + '  (' + finalUrl + ', build ' + info.build + ')');
     for (const s of shots) console.log(`SHOT ${s.file} ${s.faction}/${s.role} id=${s.id} hp=${s.hp}/${s.maxHp} alive=${s.alive} ` +
       `casualty=${s.casualty ? JSON.stringify(s.casualty) : '-'} wounds=${s.wounds.map(w => w.zone).join('+') || '-'} t=${s.time}`);
+    console.log('TIMINGS ' + JSON.stringify(timings) + (found ? `  (sim ${found.time.toFixed(0)} s to the match)` : ''));
     console.log(fail.length ? 'FAIL\n- ' + fail.join('\n- ') : 'OK: close-ups captured for review');
     if (fail.length) process.exitCode = 1;
   } finally { await Promise.race([browser.close(), new Promise(r => setTimeout(r, 5000))]); }
