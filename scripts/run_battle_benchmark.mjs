@@ -449,7 +449,8 @@ try {
     avgNoObjectiveProgressSeconds: +mean(battles.map(b => b.maxNoObjectiveProgressSeconds || 0)).toFixed(1),
     avgObjectivesPerBattle: +mean(battles.map(b => b.objectiveCount || 0)).toFixed(2),
     avgRegroupEntries: +mean(battles.map(b => b.regroups?.entries || 0)).toFixed(2), regroupTimeouts: sum(battles, b => b.regroups?.timeouts), regroupContactExits: sum(battles, b => b.regroups?.contactExits),
-    stallWakes: sum(battles, b => b.stallOutcomes?.wakes), stallRepeats: sum(battles, b => b.stallOutcomes?.repeats), stallSwitches: sum(battles, b => b.stallOutcomes?.switches),
+    strategicStallWakes: sum(battles, b => b.stallOutcomes?.wakes), strategicStallRepeats: sum(battles, b => b.stallOutcomes?.repeats), strategicStallSwitches: sum(battles, b => b.stallOutcomes?.switches), strategicStallOther: sum(battles, b => b.stallOutcomes?.other),
+    strategicStallRepeatRate: +rate(sum(battles, b => b.stallOutcomes?.repeats), sum(battles, b => b.stallOutcomes?.wakes)).toFixed(4),
     objectivesNeverOwned: sum(battles, b => b.objectivesNeverOwned),
     objectivesNeverOwnedRate: pct(sum(battles, b => b.objectivesNeverOwned), sum(battles, b => b.objectiveCount)),
     objectivesNeverContested: sum(battles, b => b.objectivesNeverContested),
@@ -468,12 +469,13 @@ try {
   const payload = { summary, policy, runtimeErrors: dedupe(runtimeErrors), assetLoadNoiseExamples: dedupe(browserErrors.filter(e => assetNoisePattern.test(String(e))), 20), browserWarnings: dedupe(browserWarnings, 100), battles };
   fs.writeFileSync(path.join(outputDir, 'battle-benchmark.json'), JSON.stringify(payload, null, 2));
 
-  const headers = ['index','seed','winner','winReason','simulatedSeconds','timeoutReached','usAlive','geAlive','captures','neutralizations','objectiveCount','objectivesNeverOwned','objectivesNeverContested','usSquadSpread','geSquadSpread','healthOverall','firstContactSeconds','firstFireSeconds','firstCaptureSeconds','maxNoObjectiveProgressSeconds','vacantObjectiveStalls','movementStalls','routeStalls','targetlessStalls','longRegroups','writerConflicts','strategicWriterConflicts','loopAlerts','idleUnderOrdersRate','overCohesionRate','shots','hits','hitRate','losBlockedFireAttempts','movementResolverChanges'];
+  const headers = ['index','seed','winner','winReason','simulatedSeconds','timeoutReached','usAlive','geAlive','captures','neutralizations','objectiveCount','objectivesNeverOwned','objectivesNeverContested','usSquadSpread','geSquadSpread','healthOverall','firstContactSeconds','firstFireSeconds','firstCaptureSeconds','maxNoObjectiveProgressSeconds','vacantObjectiveStalls','movementStalls','routeStalls','targetlessStalls','longRegroups','writerConflicts','strategicWriterConflicts','loopAlerts','stallWakes','stallRepeats','stallSwitches','idleUnderOrdersRate','overCohesionRate','shots','hits','hitRate','losBlockedFireAttempts','movementResolverChanges'];
   const csvLines = [headers.join(',')];
   for (const b of battles) {
     const row = {
       ...b, healthOverall: b.health.overall, vacantObjectiveStalls: b.vacantObjectiveStalls?.length || 0, movementStalls: b.movementStalls?.length || 0, routeStalls: b.routeStalls?.length || 0,
       targetlessStalls: b.targetlessStalls?.length || 0, longRegroups: b.longRegroups?.length || 0, loopAlerts: b.loopAlerts?.length || 0,
+      stallWakes: b.stallOutcomes?.wakes || 0, stallRepeats: b.stallOutcomes?.repeats || 0, stallSwitches: b.stallOutcomes?.switches || 0,
       idleUnderOrdersRate: rate(b.idleOrderedSamples, b.orderedMoveSamples).toFixed(4), overCohesionRate: rate(b.overCohesionSamples, b.squadSamples).toFixed(4),
       shots: b.fire?.total || 0, hits: b.fire?.hits || 0, hitRate: rate(b.fire?.hits || 0, b.fire?.direct || 0).toFixed(4), movementResolverChanges: b.movementResolver?.changes || 0,
       usSquadSpread: b.squadObjectiveSpread?.us ?? 0, geSquadSpread: b.squadObjectiveSpread?.ge ?? 0
