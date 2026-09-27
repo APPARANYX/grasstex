@@ -1,5 +1,5 @@
 /* Who pulls the trigger, and what stops the rest. Per role: trigger pulls (sim.onFire, one per
-   round), rounds by weapon kind, samples holding a live target, and for each such sample the first
+   round), rounds by weapon kind and by profile (M1 Carbine vs FG 42), samples holding a live target, and for each such sample the first
    fire condition that fails, in the order Engagement and SquadAI check them (no target → reloading
    → fireReadyAt → moving → crawling → facing → gunner emplacement → engageRange → weapon range →
    trigger-time LOS → cooldown). `clear` means every condition held, so the man should be firing.
@@ -51,7 +51,7 @@
   (root.BattleProbes = root.BattleProbes || {})['fire-gates'] = {
     every: 0,
     start: function (sim) {
-      c = { byRole: {}, roundsByKind: {} };
+      c = { byRole: {}, roundsByKind: {}, roundsByProfile: {} };
       var old = sim.onFire;
       sim.onFire = function (s, delay) {
         if (old) old.apply(sim, arguments);
@@ -60,6 +60,8 @@
         if (!delay) b.pulls++;
         var k = (s.weapon && s.weapon.kind) || '?';
         c.roundsByKind[k] = (c.roundsByKind[k] || 0) + 1;
+        var pr = (s.weapon && s.weapon.profile) || k;
+        c.roundsByProfile[pr] = (c.roundsByProfile[pr] || 0) + 1;
       };
     },
     sample: function (sim) {

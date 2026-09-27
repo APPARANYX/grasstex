@@ -152,11 +152,17 @@ section('suppression pins men flat');
   H.run(root,battle,3);
   const man=rifleman(us);
   man.suppressedUntil=battle.time+6;
-  H.run(root,battle,2);
-  const e=root.BattleEngagement.stateOf(man);
-  check('a suppressed rifleman in the open is pinned',e.state==='pinned'||man.prone,'state='+e.state+' prone='+man.prone);
-  check('a pinned man holds his ground',Math.hypot(man.destination.x-man.root.position.x,man.destination.z-man.root.position.z)<1.5,
-    'destination is '+Math.hypot(man.destination.x-man.root.position.x,man.destination.z-man.root.position.z).toFixed(1)+'m away');
+  /* A squad withdrawal outranks every individual drill, and whether the squad breaks inside the
+     window is the dice; the pin is judged while the squad still holds (at least a second of it). */
+  const t0=battle.time;let held=0,state='',prone=false,away=0;
+  H.run(root,battle,2,()=>{
+    if(us.state==='retreat'||man.dead)return;
+    held=battle.time-t0;state=root.BattleEngagement.stateOf(man).state;prone=man.prone;
+    away=Math.hypot(man.destination.x-man.root.position.x,man.destination.z-man.root.position.z);
+  });
+  check('the squad holds long enough to judge the pin',held>=1,'held '+held.toFixed(2)+'s');
+  check('a suppressed rifleman in the open is pinned',state==='pinned'||prone,'state='+state+' prone='+prone);
+  check('a pinned man holds his ground',away<1.5,'destination is '+away.toFixed(1)+'m away');
 }
 
 section('stance does not churn');

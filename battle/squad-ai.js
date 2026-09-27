@@ -426,17 +426,22 @@
      fires a burst at its cyclic rate. The AI ticks every 0.15 s, far slower than an MG42 cycles
      (0.05 s a round), so the whole burst is resolved on this tick and each round carries its
      offset in seconds for presentation to play it at the cyclic rate. */
-  function burstLength(stats, battle) {
-    if (!(stats.cyclic > 0) || !stats.burst) return 1;
+  /* An automatic fires bursts; one with a selector (`autoWithin`, the FG 42) only inside that
+     distance, and single aimed rounds beyond it. */
+  function automatic(stats, d) {
+    return stats.cyclic > 0 && !!stats.burst && !(stats.autoWithin > 0 && d > stats.autoWithin);
+  }
+  function burstLength(stats, battle, d) {
+    if (!automatic(stats, d)) return 1;
     var lo = Math.max(1, stats.burst[0] | 0),
       hi = Math.max(lo, stats.burst[1] | 0);
     return lo + Math.floor(rand(battle) * (hi - lo + 1));
   }
   /* Seconds until the next trigger pull: the burst itself plus the pause to re-lay the gun, or the
      aimed rate of a semi-automatic weapon. */
-  function triggerCooldown(stats, rounds, battle, factor) {
+  function triggerCooldown(stats, rounds, battle, factor, d) {
     var jitter = 0.85 + rand(battle) * 0.3;
-    if (stats.cyclic > 0 && stats.burst)
+    if (automatic(stats, d))
       return rounds / stats.cyclic + (stats.burstPause || 0.8) * factor * jitter;
     return (1 / stats.rof) * factor * jitter;
   }
@@ -473,8 +478,8 @@
       e.suppressedUntil = Math.max(e.suppressedUntil || 0, battle.time + hold);
       hit++;
     }
-    var rounds = discharge(shooter, battle, burstLength(stats, battle), function () {});
-    shooter.fireCooldown = triggerCooldown(stats, rounds, battle, AREA_FIRE_RATE);
+    var rounds = discharge(shooter, battle, burstLength(stats, battle, d), function () {});
+    shooter.fireCooldown = triggerCooldown(stats, rounds, battle, AREA_FIRE_RATE, d);
     battle.onSuppressiveShot && battle.onSuppressiveShot(shooter, point, hit, rounds);
     return hit;
   }
@@ -857,7 +862,7 @@
         if (!soldier.setUpSince) soldier.setUpSince = battle.time;
         soldier.setUp = battle.time - soldier.setUpSince > GUNNER_SETUP_TIME;
       }
-      if (d <= role.engageRange) tryFire(soldier, battle);
+      if (d <= engageRange(soldier)) tryFire(soldier, battle);
       return;
     }
     soldier.prone = false;
@@ -876,17 +881,28 @@
   function shot(shooter, target, battle, round, delay) {
     return EXT.first('shotModel', resolveFire)(shooter, target, battle, round || 0, delay || 0);
   }
+  /* How far a man opens aimed fire: his role's doctrine, but never past what the weapon he carries
+     can reach (a US scout's M1 Carbine and a German scout's FG 42 share the role, not the range). */
+  function engageRange(soldier) {
+    var role = ROLES[soldier.role] || {},
+      range = soldier.weapon && soldier.weapon.stats && soldier.weapon.stats.range,
+      cap = role.engageRange;
+    if (!(range > 0)) return cap;
+    return cap > 0 ? Math.min(cap, range) : range;
+  }
   function tryFire(soldier, battle) {
     if (!EXT.pass('fireGate', soldier, battle)) return false;
     if (soldier.fireCooldown > 0) return false;
     var stats = soldier.weapon.stats,
-      target = soldier.target;
+      target = soldier.target,
+      p = soldier.root.position,
+      d = dist2(p.x, p.z, target.root.position.x, target.root.position.z);
     /* The burst stays on the man it was laid on; once he is down the gunner lets go. */
-    var rounds = discharge(soldier, battle, burstLength(stats, battle), function (round, delay) {
+    var rounds = discharge(soldier, battle, burstLength(stats, battle, d), function (round, delay) {
       if (target.dead) return false;
       shot(soldier, target, battle, round, delay);
     });
-    soldier.fireCooldown = triggerCooldown(stats, rounds, battle, 1);
+    soldier.fireCooldown = triggerCooldown(stats, rounds, battle, 1, d);
     return true;
   }
 
@@ -914,6 +930,7 @@
     hasLineOfSight: hasLineOfSight,
     detectionRange: detectionRange,
     findTarget: findTarget,
+    engageRange: engageRange,
     tryFire: tryFire,
     resolveFire: shot,
     applyHit: applyHit,
