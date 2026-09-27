@@ -4,9 +4,11 @@
    heat/fouling pressure and a short stoppage-clearing action.
 
    Combat loads are deliberately conservative abstractions rather than claims about one exact
-   historical unit's issue: rifle 80 rds, carbine 75, SMG 180, generic LMG 180, sidearm 32. The current
-   shared weapon set is not faction-specific, so reliability values describe weapon classes rather
-   than pretending the same generic mesh is a particular US or German model. */
+   historical unit's issue: rifle 80 rds, carbine 75, SMG 180, sidearm 32, and 750 for a machine gun
+   (three 250-round belts: the gun team's boxes, since the assistant gunner is not modelled).
+   Magazine sizes come from the side's weapon (BattleWeapons.PROFILES); reliability and heat describe
+   weapon classes. Heat and stoppage chances are per round, so an automatic's are small: a belt-fed
+   gun heats over a couple of hundred rounds of sustained fire, not over one burst. */
 (function (root) {
   'use strict';
   if (!root.BattleModules || !root.SquadAI || root.BattleAmmunition) return;
@@ -34,19 +36,19 @@
     smg: {
       total: 180,
       low: 60,
-      baseStop: 0.001,
-      heatStop: 0.0015,
-      heatPerShot: 0.03,
-      cool: 0.16,
+      baseStop: 0.0006,
+      heatStop: 0.001,
+      heatPerShot: 0.006,
+      cool: 0.05,
       clear: 1.65
     },
     lmg: {
-      total: 180,
-      low: 60,
-      baseStop: 0.0015,
-      heatStop: 0.0035,
-      heatPerShot: 0.07,
-      cool: 0.13,
+      total: 750,
+      low: 150,
+      baseStop: 0.0003,
+      heatStop: 0.0012,
+      heatPerShot: 0.004,
+      cool: 0.012,
       clear: 2.35
     },
     pistol: {
@@ -242,6 +244,10 @@
   }
   root.SquadAI.extend('fireGate', 'ammunition', ready);
   root.SquadAI.extend('areaFireGate', 'ammunition', ready);
+  /* Inside a burst: the next round needs a loaded, running gun; afterShot already started any reload. */
+  root.SquadAI.extend('roundGate', 'ammunition', function (s) {
+    return !!(s && s.weapon && !s.reloading && !s.clearingStoppage && !s.weapon.jammed && +s.weapon.ammo > 0);
+  });
   root.SquadAI.extend('afterShot', 'ammunition', afterShot);
 
   function tick(sim, payload) {
