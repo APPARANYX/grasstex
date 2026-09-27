@@ -101,10 +101,13 @@ local red-ground page, and reuse these harnesses instead of writing one-off prob
   weapons and effect sprites, so new decals or FBX show up.
 - **Close-ups in a real fight:** `scripts/closeup_battle.cjs` runs a battle in fixed 0.15 s steps
   until a soldier matches `CLOSEUP_TARGET` (`casualty`, `wounded`, `any`, `role:ge/gunner`, `id:<n>`),
-  pauses, renders so clips play out, and photographs him from `CLOSEUP_VIEWS`
-  (`front,left,back,top,right,wide`). Output is `<view>-<id>.png` plus `summary.json` (hp, wounds,
-  casualty zone, weapon, FBX or not). It blocks telemetry, learning and policy writes, so it's safe
-  against production and previews. Env: `CLOSEUP_URL`, `CLOSEUP_SEED`, `CLOSEUP_COUNT`,
+  pauses, and photographs him from `CLOSEUP_VIEWS` (`front,left,back,top,right,wide`). Output is
+  `<view>-<id>.png` plus `summary.json` (hp, wounds, casualty zone, weapon, FBX or not, and `timings`
+  per phase). It blocks telemetry, learning and policy writes, so it's safe against production and
+  previews. A live run takes ~1 min. Page build is ~20 s, the sim fast-forward is ~5 s for two minutes
+  of battle, and software rendering is ~0.3-0.6 s a frame. Clips run on sim time, so it renders only
+  6 settle frames and 1 per view. `Math.random` is seeded from the seed, so the same seed gives the
+  same man, pose, wounds and camera. Decal variants drawn on async timers can still differ. Env: `CLOSEUP_URL`, `CLOSEUP_SEED`, `CLOSEUP_COUNT`,
   `CLOSEUP_AFTER` (sim seconds after the match, default 1.5), `CLOSEUP_DIST`, `CLOSEUP_WAIT`,
   `CLOSEUP_OUT`, `CLOSEUP_UI=1`.
   ```bash
