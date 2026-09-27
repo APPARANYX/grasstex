@@ -27,6 +27,10 @@
  *   FF_VIEWPORT   WIDTHxHEIGHT (default 1280x720)
  *   FF_GPU=1      launch Chromium with its own GPU settings instead of SwiftShader software WebGL
  *   FF_CHROME     Chromium/Chrome executable
+ *   FF_CADENCE=<hz> drive frames on a virtual clock at this rate instead of the render loop: each frame
+ *                 steps the sim 1/hz s x FF_TIMESCALE, then renders; animation LOD schedules on that
+ *                 clock. Pose/CPU per frame then describe a device at <hz> FPS; wall frame interval does not.
+ *   FF_QUERY      extra page query, e.g. animLod=0 for a same-build before/after (kept across redirects)
  *   FF_ISOLATE=0  don't serve the page cross-origin isolated (then performance.now() is clamped to 100 us)
  *   FF_OUT        output dir (default $TMPDIR/full-fidelity)
  * The page's default overview camera is used (what a player sees on load). Exits non-zero on page
@@ -51,6 +55,8 @@ const TIMESCALE = Math.max(.1, Number(process.env.FF_TIMESCALE || 4));
 const [VW, VH] = (process.env.FF_VIEWPORT || '1280x720').split('x').map(Number);
 const GPU = process.env.FF_GPU === '1';
 const ISOLATE = process.env.FF_ISOLATE !== '0';
+const CADENCE = Math.max(0, Number(process.env.FF_CADENCE || 0));
+const QUERY = (process.env.FF_QUERY || '').replace(/^[?&]/, '');
 const OUT = path.resolve(process.env.FF_OUT || path.join(os.tmpdir(), 'full-fidelity'));
 
 function stats(values) {
@@ -96,7 +102,7 @@ const pct = v => v == null ? '—' : (100 * v).toFixed(1) + '%';
       }
       return route.continue();
     });
-    let url = URL_ + (URL_.includes('?') ? '&' : '?') + 'seed=' + encodeURIComponent(SEED) + '&perfTimings=1';
+    let url = URL_ + (URL_.includes('?') ? '&' : '?') + 'seed=' + encodeURIComponent(SEED) + '&perfTimings=1' + (QUERY ? '&' + QUERY : '');
     // Playwright does not route the follow-up of a redirect, so resolve preview.php's redirect to the
     // staged page here; the isolation headers are then added to the page that actually runs.
     for (let hop = 0; hop < 5; hop++) {
@@ -105,6 +111,7 @@ const pct = v => v == null ? '—' : (100 * v).toFixed(1) + '%';
       if (!loc) break;
       url = new URL(loc, url).href;
       if (!/[?&]perfTimings=/.test(url)) url += (url.includes('?') ? '&' : '?') + 'perfTimings=1';
+      if (QUERY && !url.includes(QUERY)) url += '&' + QUERY;
     }
     await page.goto(url, { waitUntil: 'load', timeout: 300000 });
     await page.waitForFunction(() => window.__battle__ && window.BattleLoading && BattleLoading.timings && BattleLoading.timings().finishedAt != null,
@@ -146,7 +153,7 @@ const pct = v => v == null ? '—' : (100 * v).toFixed(1) + '%';
       return { simTime: b.time, wallMs: performance.now() - t0, winner: b.winner || null };
     }, { warmup: WARMUP });
 
-    await page.evaluate(({ timeScale }) => {
+    await page.evaluate(({ timeScale, cadence }) => {
       const b = window.__battle__, scene = b.scene, engine = scene.getEngine();
       const rec = window.__ff = { frames: [], begin: null, lastBegin: null, sim: 0, simTime0: b.time };
       const si = new BABYLON.SceneInstrumentation(scene);
@@ -170,8 +177,23 @@ const pct = v => v == null ? '—' : (100 * v).toFixed(1) + '%';
       });
       window.BattlePoseTimings.reset();
       b.timeScale = timeScale; b.paused = false; rec.on = true; rec.wall0 = performance.now();
-      engine.runRenderLoop(window.__battleRenderLoop__ || (() => scene.render()));
-    }, { timeScale: TIMESCALE });
+      if (!cadence) { engine.runRenderLoop(window.__battleRenderLoop__ || (() => scene.render())); return; }
+      // Cadence mode: a virtual clock at `cadence` Hz. Step the sim by one frame of it, then render
+      // with the sim paused so the render cannot step it again with the wall-clock delta.
+      const lod = window.BattleFbxSoldier && BattleFbxSoldier.lod; window.__ffClock = performance.now(); // continue the clock the last poses were stamped with
+      if (lod) lod.clock = () => window.__ffClock;
+      const frame = () => {
+        if (!rec.on) return;
+        window.__ffClock += 1000 / cadence;
+        engine.beginFrame();
+        if (!b.winner) b._frame(timeScale / cadence);
+        b.paused = true; try { scene.render(); } finally { b.paused = false; }
+        engine.endFrame();
+        rec.virtualFrames = (rec.virtualFrames || 0) + 1;
+        setTimeout(frame, 0);
+      };
+      frame();
+    }, { timeScale: TIMESCALE, cadence: CADENCE });
 
     await page.waitForTimeout(SECONDS * 1000);
 
@@ -194,7 +216,7 @@ const pct = v => v == null ? '—' : (100 * v).toFixed(1) + '%';
     const software = !GPU || /swiftshader|llvmpipe|software/i.test(JSON.stringify(boot.renderer || ''));
     const result = {
       kind: 'full-fidelity-browser-benchmark', version: 1, when: new Date().toISOString(),
-      url: URL_, seed: SEED, seconds: SECONDS, warmup: WARMUP, timeScale: TIMESCALE, viewport: { width: VW, height: VH },
+      url: URL_, query: QUERY || null, cadenceHz: CADENCE || null, seed: SEED, seconds: SECONDS, warmup: WARMUP, timeScale: TIMESCALE, viewport: { width: VW, height: VH },
       rendererClass: software ? 'software (SwiftShader) - CPU-only baseline, not a device result' : 'hardware GPU',
       boot, loadWallS: +loadWallS.toFixed(1), startup, warm,
       frames: {
@@ -222,6 +244,7 @@ function markdown(r) {
   L.push(`# Full-fidelity benchmark: ${r.seed}`, '');
   L.push(`- Page: ${r.boot.href}`, `- Build: ${r.boot.build}`, `- Renderer: ${r.rendererClass}${r.boot.renderer ? ` (${r.boot.renderer.renderer})` : ''}`);
   L.push(`- Soldiers: ${r.boot.soldiers}, FBX ${r.boot.fbx}; viewport ${r.viewport.width}x${r.viewport.height}; warm-up ${r.warm.simTime.toFixed(1)} sim s; measured ${(f.wallMs / 1000).toFixed(1)} s wall, ${f.simAdvanced} sim s at ${r.timeScale}x`);
+  if (r.cadenceHz) L.push(`- Cadence mode: frames driven on a virtual ${r.cadenceHz} Hz clock (sim ${r.timeScale}/${r.cadenceHz} s per frame); pose and CPU per frame describe that cadence, wall frame interval and FPS do not.`);
   L.push(`- Result: ${r.ok ? 'OK' : 'FAIL: ' + r.fail.join('; ')}`, '');
   L.push('## Frames', '', '| metric | mean | median | p95 | p99 | max |', '| --- | --- | --- | --- | --- | --- |');
   const row = (name, st) => st && L.push(`| ${name} | ${r2(st.mean)} | ${r2(st.p50)} | ${r2(st.p95)} | ${r2(st.p99)} | ${r2(st.max)} |`);
@@ -230,6 +253,7 @@ function markdown(r) {
   row('active meshes', f.activeMeshes); row('draw calls', f.drawCalls); row('GPU frame (ms)', f.gpuMs);
   if (f.fps) L.push('', `FPS: mean ${f.fps.mean}, median ${f.fps.median}, p95-low ${f.fps.p95Low}, p99-low ${f.fps.p99Low} over ${f.count} frames. GPU timing: ${f.gpuTiming}.`);
   if (p.frames) {
+    if (p.lod) L.push('', `Animation LOD: ${p.lod.enabled ? `on (every frame < ${p.lod.near} m, ${p.lod.midHz} Hz < ${p.lod.mid} m, ${p.lod.farHz} Hz beyond, off-screen held: ${p.lod.offscreen})` : 'off (every soldier every frame)'}; posed ${pct(p.lod.posedShare)} of soldier-frames; held: static ${p.lod.heldStatic}, off-screen ${p.lod.heldOffscreen}, interval ${p.lod.heldInterval}.`);
     L.push('', '## Pose (applyPose)', '', `${p.frames} frames, ${r2(p.posedPerFrame.mean)} soldiers posed per frame; per soldier ${r1(p.perSoldierUs.mean)} µs mean, ${r1(p.perSoldierUs.p95)} µs p95 (timer resolution ~${p.timerResolutionUs} µs).`,
       `Posed soldiers: ${pct(p.posed.deadShare)} dead, ${pct(p.posed.offscreenShare)} outside the view frustum; camera distance <25 m ${pct(p.posed.cameraDistance.under25m)}, 25-60 m ${pct(p.posed.cameraDistance.m25to60)}, 60-150 m ${pct(p.posed.cameraDistance.m60to150)}, >150 m ${pct(p.posed.cameraDistance.over150m)}.`, '',
       '| layer | share | µs per soldier-frame | µs per run | ms per frame (mean / p95) |', '| --- | --- | --- | --- | --- |');
