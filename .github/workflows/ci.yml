@@ -57,6 +57,9 @@ jobs:
           done < <(git ls-files '*.php')
           echo "Linted $count PHP files."
 
+      - name: Preview launcher
+        run: python3 scripts/check-preview-launcher.py
+
       - name: Python
         run: |
           set -euo pipefail

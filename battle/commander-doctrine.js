@@ -193,14 +193,14 @@
      opens a new effort. */
   var MAX_EFFORTS = 2,
     FRONTAGE_COST = 140;
-  function openEfforts(sim, sq) {
+  function openEfforts(sim, sq, stalled) {
     var squads = (sim && sim.factions && sim.factions[sq.faction] && sim.factions[sq.faction].squads) || [],
       open = {},
       n = 0;
     for (var i = 0; i < squads.length; i++) {
       var other = squads[i],
         id = other && other.targetObjective;
-      if (!id || other === sq || other.state === 'retreat' || open[id]) continue;
+      if (!id || other === sq || other.state === 'retreat' || open[id] || (stalled && stalled[id])) continue;
       if ((other.aliveCount != null ? +other.aliveCount : aliveMembers(other).length) <= 0) continue;
       var obj = root.BattleObjectiveSystem && root.BattleObjectiveSystem.get(sim, id),
         status = obj ? objectiveStatus(sim, obj) || {} : {};
@@ -211,14 +211,25 @@
     return { ids: open, count: n };
   }
 
-  function chooseObjective(sim, sq, wantOwned) {
+  /* Stalled efforts.
+     The General's strategic-stall wake (commander-ai.js) used to re-pick the objective the side had
+     just spent 120 s failing to take: the squad sits beside it, so distance alone keeps it the best
+     score (seed 1 replay: 5 stall wakes, 5 repeats). The wake passes the objectives its stalled
+     capture briefs were attacking; each costs STALL_COST, enough to move the effort to another
+     objective the side does not hold. A stall wake closes those efforts, so they no longer fill the
+     frontage (openEfforts): the side masses again on at most MAX_EFFORTS new objectives instead of
+     paying FRONTAGE_COST to leave a stalled one. Like saturation it is a score, never a veto: when
+     every remaining objective is stalled, the relative order is unchanged and the squad keeps its
+     effort. */
+  var STALL_COST = 150;
+  function chooseObjective(sim, sq, wantOwned, stalled) {
     var objectives = sim._objectives || [],
       p = avgPos(sq),
       cfg = policy(sim, sq.faction),
       doc = doctrine(sim, sq.faction),
       best = null,
       bestScore = -Infinity,
-      efforts = wantOwned ? null : openEfforts(sim, sq);
+      efforts = wantOwned ? null : openEfforts(sim, sq, stalled);
     var ordered = objectives.slice();
     if (doc.objectiveStrategy === 'sequential' && sq.faction === 'ge') ordered.reverse();
     for (var i = 0; i < ordered.length; i++) {
@@ -244,6 +255,8 @@
       var assigned = squadsTargeting(sim, sq, obj.id),
         crowd = Math.max(0, assigned - (saturationAllowance(status, owner) - 1));
       score -= crowd * SATURATION_COST;
+      var stall = stalled && stalled[obj.id] ? STALL_COST : 0;
+      score -= stall;
       var frontage =
         efforts && owner !== sq.faction && !efforts.ids[obj.id] && efforts.count >= MAX_EFFORTS
           ? FRONTAGE_COST
@@ -258,6 +271,7 @@
           score: score,
           assignedSquads: assigned,
           crowdPenalty: crowd * SATURATION_COST,
+          stallPenalty: stall,
           frontagePenalty: frontage,
           openEfforts: efforts ? efforts.count : null
         };
@@ -330,6 +344,7 @@
     flankPoint: flankPoint,
     squadsTargeting: squadsTargeting,
     saturationCost: SATURATION_COST,
+    stallCost: STALL_COST,
     openEfforts: openEfforts,
     maxEfforts: MAX_EFFORTS,
     frontageCost: FRONTAGE_COST
