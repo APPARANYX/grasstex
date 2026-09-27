@@ -479,7 +479,7 @@ function strideSpeed(lib,clip,bones){
   var feet=[BONE.leftFoot,BONE.rightFoot].map(function(name){var chain=[],node=lib.nodes[name];while(node&&node!==hipsNode){chain.unshift(node);node=node.parent;}return node?chain:null;});
   if(!feet[0]||!feet[1])return 0;
   function localOf(node,frame,out){
-    var i=index[node.name],ch=i!=null?clip.channels[i]:null,r=ch&&ch.rot,a=frame*4;
+    var i=index[canon(node.name,lib.scheme)],ch=i!=null?clip.channels[i]:null,r=ch&&ch.rot,a=frame*4;
     if(r)skQ.set(r[a],r[a+1],r[a+2],r[a+3]);else skQ.copyFrom(node.rotationQuaternion||Q.FromEulerVector(node.rotation));
     MX.ComposeToRef(skOne,skQ,node.position,out);return out;
   }
