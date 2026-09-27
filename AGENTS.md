@@ -165,7 +165,9 @@ In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certif
 `?bench=1` on any phone or computer, tap **Start benchmark**, keep the tab in front. It fast-forwards
 `benchWarmup` (60) sim seconds to contact, then plays `benchSeconds` (60) with the normal render loop
 and shows FPS (median, mean, 5%/1% lows), frame/CPU/render/sim/pose time, draw calls, GPU time where
-the browser has a timer query, device and renderer, and the load breakdown; **Copy results** /
+the browser has a timer query, device and renderer, the load breakdown, and where `scene.render` goes
+(before/after-render hooks by name, Babylon animations, the camera pass split into active-mesh
+evaluation with `Skeleton.prepare` broken out, draw and the rest, and what is left unattributed); **Copy results** /
 **Download JSON** (nothing is uploaded; also `window.__deviceBench`). `benchCam=close` frames the
 biggest group from 90 m, `benchAuto=1` starts without the tap, `animLod=0` gives the LOD before/after.
 This is how real devices are measured; `benchmark_full_fidelity.cjs` is the scripted equivalent.
