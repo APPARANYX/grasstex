@@ -359,6 +359,12 @@ try {
             merged: r.ended.filter(g => g.status === 'merged').map(g => ({ faction: g.faction, formedAt: g.formedAt, mergedAt: g.endedAt, assemblySeconds: span(g), size: g.size, promoted: !!g.promoted, objectiveId: g.objectiveId || null })),
             dissolvedLifetimes: r.ended.filter(g => g.status === 'dissolved').map(span) };
         };
+        /* Strategic-stall wakes (commander-ai.js recordStallOutcome): repeats re-picked the stalled
+           objective, switches opened a new capture effort; null on builds without the counter. */
+        const stallSummary = () => {
+          const o = root.BattleCommanderAI?.missionState?.(sim)?.stallOutcomes;
+          return o ? { wakes: +o.wakes || 0, repeats: +o.repeats || 0, switches: +o.switches || 0, other: +o.other || 0 } : null;
+        };
         /* Squad Leader regroups (16-squad-plan-stability.js cohesion counters): how often squads stop
            to re-form, and how each regroup ended. Counters are observe-only. */
         const regroupSummary = () => {
@@ -392,10 +398,10 @@ try {
           orderedMoveSamples: diag.orderedMoveSamples, idleOrderedSamples: diag.idleOrderedSamples, phaseSamples: diag.phaseSamples, engagementStateSamples: diag.engagementStateSamples,
           writerConflicts: conflicts.length, strategicWriterConflicts: strategicConflicts, writerConflictDetails: conflicts.slice(0, 20), loopAlerts: loops.slice(0, 20), loopKinds,
           movementResolver: movementResolverSummary(), losBlockedFireAttempts: losBlockedAttempts(), fire: activeCombat,
-          reconstitution: reconstitutionSummary(), regroups: regroupSummary(), coordinationHealth: coordinationHealth(), objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates
+          reconstitution: reconstitutionSummary(), regroups: regroupSummary(), stallOutcomes: stallSummary(), coordinationHealth: coordinationHealth(), objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates
         };
         battles.push(record);
-        console.log(`[BENCH] ${index + 1}/${count} ${seed} winner=${record.winner} captures=${record.captures}/${record.objectiveCount} neverOwned=${record.objectivesNeverOwned} spread=${record.squadObjectiveSpread.us}/${record.squadObjectiveSpread.ge} vacant=${record.vacantObjectiveStalls.length} route=${record.routeStalls.length} move=${record.movementStalls.length} loops=${record.loopAlerts.length} conflicts=${record.writerConflicts} regroups=${record.regroups.entries}/${record.regroups.timeouts} wall=${record.wallSeconds}s`);
+        console.log(`[BENCH] ${index + 1}/${count} ${seed} winner=${record.winner} captures=${record.captures}/${record.objectiveCount} neverOwned=${record.objectivesNeverOwned} spread=${record.squadObjectiveSpread.us}/${record.squadObjectiveSpread.ge} vacant=${record.vacantObjectiveStalls.length} route=${record.routeStalls.length} move=${record.movementStalls.length} loops=${record.loopAlerts.length} conflicts=${record.writerConflicts} regroups=${record.regroups.entries}/${record.regroups.timeouts} stalls=${record.stallOutcomes?.repeats ?? '-'}/${record.stallOutcomes?.wakes ?? '-'} wall=${record.wallSeconds}s`);
         activeCombat = null; cleanup(); if ((index + 1) % 5 === 0) await new Promise(resolve => setTimeout(resolve, 0));
       }
     } finally {
@@ -443,6 +449,7 @@ try {
     avgNoObjectiveProgressSeconds: +mean(battles.map(b => b.maxNoObjectiveProgressSeconds || 0)).toFixed(1),
     avgObjectivesPerBattle: +mean(battles.map(b => b.objectiveCount || 0)).toFixed(2),
     avgRegroupEntries: +mean(battles.map(b => b.regroups?.entries || 0)).toFixed(2), regroupTimeouts: sum(battles, b => b.regroups?.timeouts), regroupContactExits: sum(battles, b => b.regroups?.contactExits),
+    stallWakes: sum(battles, b => b.stallOutcomes?.wakes), stallRepeats: sum(battles, b => b.stallOutcomes?.repeats), stallSwitches: sum(battles, b => b.stallOutcomes?.switches),
     objectivesNeverOwned: sum(battles, b => b.objectivesNeverOwned),
     objectivesNeverOwnedRate: pct(sum(battles, b => b.objectivesNeverOwned), sum(battles, b => b.objectiveCount)),
     objectivesNeverContested: sum(battles, b => b.objectivesNeverContested),
