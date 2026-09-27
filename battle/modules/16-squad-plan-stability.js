@@ -167,10 +167,14 @@
       dx = (+g.x || 0) - (+a.x || 0),
       dz = (+g.z || 0) - (+a.z || 0),
       l = Math.hypot(dx, dz);
-    if (l < 0.1 && sq._formationForward) {
-      var f = sq._formationForward,
-        fl = Math.hypot(+f.x || 0, +f.z || 0) || 1;
-      return { x: (+f.x || 0) / fl, z: (+f.z || 0) / fl };
+    if (l < 0.1) {
+      /* A regroup points sq.objective at its own anchor, so the objective axis collapses; the regroup
+         keeps the direction the squad was marching when it opened. `_formationForward` is only set
+         by SquadAI.formationSlot (men with no order destination), so it is usually absent. */
+      var rg = L.get(sq, 'regroup'),
+        f = (rg && rg.data && rg.data.forward) || sq._formationForward,
+        fl = f ? Math.hypot(+f.x || 0, +f.z || 0) : 0;
+      if (fl > 1e-6) return { x: (+f.x || 0) / fl, z: (+f.z || 0) / fl };
     }
     return { x: dx / (l || 1), z: dz / (l || 1) };
   }
@@ -552,7 +556,8 @@
       st.suppressed++;
       return;
     }
-    var anchor = copy(ca.center);
+    var anchor = copy(ca.center),
+      marching = commandForward(sq);
     L.grant(
       sq,
       'regroup',
@@ -561,7 +566,11 @@
       t + REGROUP_MAX,
       'squad dispersed',
       'core spread back inside ' + Math.round(release) + ' m after ' + REGROUP_MIN + ' s, contact, or ' + REGROUP_MAX + ' s',
-      { anchor: anchor, startSpread: ca.coreSpread }
+      {
+        anchor: anchor,
+        startSpread: ca.coreSpread,
+        forward: Math.hypot(marching.x, marching.z) > 1e-6 ? marching : null
+      }
     );
     st.entries++;
     sq._regroupRecovery = {
