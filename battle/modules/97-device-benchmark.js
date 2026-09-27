@@ -50,6 +50,28 @@ function device(engine){
   info.timerQuery=!!(engine.getCaps&&engine.getCaps().timerQuery);
   return info;
 }
+/* What the active meshes are, by kind (names from terrain-features, the scenario and the FBX
+   backend). Draw calls are estimated per mesh as its sub-mesh count (thin instances draw once). */
+var KINDS=[
+  ['soldiers',function(m){return!!m.skeleton;}],
+  ['weapons',function(m,n){return/^weapon\./.test(n);}],
+  ['building walls & floors',function(m,n,p){return/^(wall|floor|roof|door|window)-/.test(n)||/^building/.test(p);}],
+  ['hedges',function(m,n){return/hedge/i.test(n);}],
+  ['terrain, roads & sky',function(m,n){return/^(battleField|battleSkyDome|scenario-road)/.test(n);}],
+  ['objectives',function(m,n){return/^objective-/.test(n);}],
+  ['decals & effects',function(m,n){return/decal|wound|impact|blood|muzzle|flash|tracer|spray|hole|smoke|dust/i.test(n);}],
+  ['cover & scatter',function(m,n){return/log|rock|tree|stub|crate|sandbag|wire|roadblock|scatter|trunk|bush|fence|cart/i.test(n);}]
+];
+function meshCensus(scene,acc){
+  var act=scene.getActiveMeshes();acc.samples++;
+  for(var i=0;i<act.length;i++){
+    var m=act.data[i],n=String(m.name||''),p=m.parent&&m.parent.name?String(m.parent.name):'',kind='other';
+    for(var k=0;k<KINDS.length;k++)if(KINDS[k][1](m,n,p)){kind=KINDS[k][0];break;}
+    var c=acc.kinds[kind]||(acc.kinds[kind]={meshes:0,draws:0}),d=m.subMeshes&&m.subMeshes.length?m.subMeshes.length:1;
+    c.meshes++;c.draws+=d;
+    if(kind==='other'){var raw=n.replace(/[0-9]+/g,'#');acc.other[raw]=(acc.other[raw]||0)+1;}
+  }
+}
 function closeCamera(b){
   var cam=b.scene.activeCamera,all=b._roster.us.concat(b._roster.ge).filter(function(s){return!s.dead;});if(!cam||!all.length)return;
   /* Centre on the living soldier with the most living soldiers within 60 m. */
@@ -78,7 +100,7 @@ function run(){
   function measure(warmMs){
     state='measuring';
     if(CAM==='close')closeCamera(b);
-    var frames=[],rec={on:true,begin:0,last:null,interval:null,sim:0,scene:0,skel:0,skelN:0,hooksBefore:0,hooksAfter:0,hidden:0},si=new BABYLON.SceneInstrumentation(scene),ei=null;
+    var census={samples:0,kinds:{},other:{}},frames=[],rec={on:true,begin:0,last:null,interval:null,sim:0,scene:0,skel:0,skelN:0,hooksBefore:0,hooksAfter:0,hidden:0},si=new BABYLON.SceneInstrumentation(scene),ei=null;
     si.captureRenderTime=true;si.captureActiveMeshesEvaluationTime=true;si.captureCameraRenderTime=true;si.captureAnimationsTime=true;
     try{ei=new BABYLON.EngineInstrumentation(engine);ei.captureGPUFrameTime=true;}catch(_){ei=null;}
     var orig=b._frame;b._frame=function(){var t0=performance.now();try{return orig.apply(this,arguments);}finally{rec.sim+=performance.now()-t0;}};
@@ -109,6 +131,7 @@ function run(){
     var o1=engine.onBeginFrameObservable.add(function(){var n=performance.now();rec.interval=rec.last==null?null:n-rec.last;rec.last=rec.begin=n;rec.sim=rec.scene=rec.skel=rec.skelN=rec.hooksBefore=rec.hooksAfter=0;}),
         o4=engine.onEndFrameObservable.add(function(){
           if(!rec.on)return;if(document.hidden)rec.hidden++;
+          if(frames.length%15===0)meshCensus(scene,census);
           var g=ei&&ei.gpuFrameTimeCounter?ei.gpuFrameTimeCounter.current:0;
           var cam=si.cameraRenderTimeCounter.current,am=si.activeMeshesEvaluationTimeCounter.current,draw=si.renderTimeCounter.current,anim=si.animationsTimeCounter.current;
           frames.push({interval:rec.interval,cpu:performance.now()-rec.begin,scene:rec.scene,sim:rec.sim,render:draw,
@@ -128,7 +151,7 @@ function run(){
       engine.onBeginFrameObservable.remove(o1);engine.onEndFrameObservable.remove(o4);
       wrapped.forEach(function(w){w[0].callback=w[1];});scene.render=origRender;if(origPrepare)SP.prepare=origPrepare;
       b._frame=orig;si.dispose();if(ei)ei.dispose();
-      finish(frames.slice(1),{hooks:hooks,warmMs:warmMs,warmSim:t,sim0:sim0,wallMs:performance.now()-wall0,simAdvanced:b.time-sim0,hiddenFrames:rec.hidden});
+      finish(frames.slice(1),{census:census,hooks:hooks,warmMs:warmMs,warmSim:t,sim0:sim0,wallMs:performance.now()-wall0,simAdvanced:b.time-sim0,hiddenFrames:rec.hidden});
     },500);
   }
   function finish(frames,run){
@@ -136,13 +159,17 @@ function run(){
     var pose=root.BattlePoseTimings?root.BattlePoseTimings.snapshot():null,asset=root.BattleAssetTimings?root.BattleAssetTimings.snapshot():null;
     var roster=b._roster.us.concat(b._roster.ge),fbx=roster.filter(function(s){return s._fbx&&s.rig===null;}).length;
     result=round({
-      kind:'device-benchmark',version:2,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
+      kind:'device-benchmark',version:3,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
       device:device(engine),camera:CAM,animLod:!(root.BattleFbxSoldier&&root.BattleFbxSoldier.lod&&root.BattleFbxSoldier.lod.on===false),
       soldiers:{total:roster.length,fbx:fbx,alive:b.factions.us.alive+b.factions.ge.alive},
       run:{seconds:SECONDS,warmupSim:run.warmSim,warmupWallMs:run.warmMs,wallMs:run.wallMs,simAdvanced:run.simAdvanced,timeScale:speed,frames:frames.length,hiddenFrames:run.hiddenFrames},
       fps:iv?{mean:1000/iv.mean,median:1000/iv.p50,low5:1000/iv.p95,low1:1000/iv.p99}:null,
       frameMs:iv,cpuMs:stats(col('cpu')),sceneMs:stats(col('scene')),renderMs:stats(col('render')),simMs:stats(col('sim')),
       activeMeshes:stats(col('meshes')),drawCalls:stats(col('draws')),gpuMs:stats(col('gpu')),
+      meshKinds:(function(c){var n=Math.max(1,c.samples),tot=0,out=[];Object.keys(c.kinds).forEach(function(k){tot+=c.kinds[k].draws;});
+        Object.keys(c.kinds).forEach(function(k){out.push({kind:k,meshes:c.kinds[k].meshes/n,draws:c.kinds[k].draws/n,share:tot?c.kinds[k].draws/tot:null});});
+        out.sort(function(a,b){return b.draws-a.draws;});
+        return{samples:c.samples,kinds:out,otherNames:Object.keys(c.other).sort(function(a,b){return c.other[b]-c.other[a];}).slice(0,8).map(function(k){return{name:k,meshes:c.other[k]/n};})};})(run.census),
       /* Where scene.render's time goes, per frame. camera = Babylon's camera pass, which holds the
          active-mesh evaluation (culling, world matrices, skeleton prepare) and the draw. */
       breakdown:{sceneRender:stats(col('scene')),hooksBefore:stats(col('hooksBefore')),animations:stats(col('animations')),
@@ -180,6 +207,8 @@ function show(r){
     h+='<div style="margin-top:6px;font-weight:700">Hooks (mean ms per frame)</div><table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums">'+
       B.hooks.slice(0,8).map(function(x){return'<tr><td style="word-break:break-all">'+esc(x.name)+'</td><td style="text-align:right">'+f(x.msPerFrame,2)+'</td></tr>';}).join('')+'</table>';
   }
+  if(r.meshKinds&&r.meshKinds.kinds.length)h+='<div style="margin-top:8px;font-weight:700">Draw calls by kind (mean per frame)</div><table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums">'+
+    r.meshKinds.kinds.map(function(x){return'<tr><td>'+esc(x.kind)+'</td><td style="text-align:right">'+f(x.draws,0)+'</td><td style="text-align:right;color:#9aa088">'+f(100*(x.share||0),0)+'%</td></tr>';}).join('')+'</table>';
   if(p.lod)h+='<div style="margin-top:6px">Soldiers posed per frame: '+f(p.posedPerFrame,1)+' ('+f(100*(p.lod.posedShare||0),0)+'%)</div>';
   if(!r.gpuMs)h+='<div style="color:#9aa088">GPU timing not available in this browser.</div>';
   if(s.page)h+='<div style="margin-top:6px">Load: '+f(s.page.finishedAt/1000)+' s total, soldiers '+f(soldiers&&soldiers.ms/1000)+' s (FBX parse '+f(s.totals.parse/1000)+' s, retarget '+f(s.totals.retarget/1000)+' s, '+f(s.totals.bytes/1048576,0)+' MiB)</div>';
