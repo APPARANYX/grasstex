@@ -19,6 +19,10 @@ original docs (roadmaps, lab notes, measurements) are in git history at `1a5b0cf
 - `main` deploys to production on every push. Put anything visual on a `work/**` or `preview/**`
   branch first (that publishes a preview; see Deploy), or open any branch in the live preview
   launcher (`https://test.ivandpopov.com/grasstex/preview.php?ref=<branch|PR#>`).
+- **After a branch you worked on merges, read the run summaries** before calling it done:
+  **Branch housekeeping** (deleted, or kept and why: commits pushed after the merge never reached
+  `main`, so open a PR for them) and **Deploy Battle Runtime to 50webs** (the `build-v<N>` it shipped, and
+  that it passed). Report both. Push further work to a fresh branch from `main`, not the merged one.
 
 ## What's here
 
