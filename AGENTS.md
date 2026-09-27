@@ -38,7 +38,7 @@ In the page: a load overlay (`BattleLoading`, in `battle_sim.html`) shows each b
 scripts, scenario, terrain, soldiers/weapons/clips, cover, navigation and squads); the FBX backend
 reports per-file progress to it. **Start Battle** unpauses and unlocks audio (iOS needs the gesture).
 `window.__battle__` is the live `BattleSim`. HUD buttons: World Debug, AI Graph, Motion Lab.
-URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`.
+URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?perfTimings=1`.
 
 ## Test harnesses
 
@@ -148,7 +148,7 @@ In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certif
 | Script | Use |
 | --- | --- |
 | `scripts/run_m3c_replay.cjs` | One seed, fixed step, full diagnostic JSON. `M3C_SEED`, `M3C_URL`, `M3C_OUTPUT`, `M3C_MACRO=off`. Use for paired before/after comparisons. `M3C_RENDER_EVERY=<n>` renders a frame (sim paused) every n steps so the FBX pose code runs; `M3C_PERF=on\|off` sets the timing switch below. An on/off pair must end identically. |
-| `scripts/benchmark_full_fidelity.cjs` | Full-fidelity browser benchmark: real FBX soldiers, weapons, clips and Babylon rendering; fails on a failed FBX load or any procedural soldier. Records startup phases and per-file asset timings, then `FF_SECONDS` (60) of rendered battle after `FF_WARMUP` (90) fast-forwarded sim seconds: frame interval/FPS, CPU per frame, render, sim step, pose time per layer and how often each layer's inputs changed, active meshes, draw calls, GPU time where supported. Writes `full-fidelity.json` + `.md` to `FF_OUT`. `FF_URL` (local default, or `preview.php?ref=<branch>`), `FF_SEED`, `FF_TIMESCALE` (4), `FF_VIEWPORT`, `FF_GPU=1` (real GPU instead of SwiftShader), `FF_ISOLATE=0`. It serves the page cross-origin isolated so `performance.now()` has 5 µs resolution, not 100 µs. SwiftShader numbers are a CPU-only baseline, not a device result. The headless benchmark stays the AI regression benchmark. |
+| `scripts/benchmark_full_fidelity.cjs` | Full-fidelity browser benchmark: real FBX soldiers, weapons, clips and Babylon rendering; fails on a failed FBX load or any procedural soldier. Records startup phases and per-file asset timings, then `FF_SECONDS` (60) of rendered battle after `FF_WARMUP` (90) fast-forwarded sim seconds: frame interval/FPS, CPU per frame, render, sim step, pose time per layer and how often each layer's inputs changed, active meshes, draw calls, GPU time where supported. Writes `full-fidelity.json` + `.md` to `FF_OUT`. `FF_URL` (local default, or `preview.php?ref=<branch>`), `FF_SEED`, `FF_TIMESCALE` (4), `FF_VIEWPORT`, `FF_GPU=1` (real GPU instead of SwiftShader), `FF_ISOLATE=0`, `FF_QUERY` (extra page query, e.g. `animLod=0` for a same-build before/after), `FF_CADENCE=60` (drive frames on a virtual 60 Hz clock so pose/CPU per frame describe a 60 FPS device even on SwiftShader; wall FPS is then meaningless). It serves the page cross-origin isolated so `performance.now()` has 5 µs resolution, not 100 µs. SwiftShader numbers are a CPU-only baseline, not a device result. The headless benchmark stays the AI regression benchmark. |
 | `scripts/run_battle_benchmark.mjs` | N headless battles. `BATTLE_BENCHMARK_COUNT/SEED/URL/STEP/TIME_LIMIT/OUTPUT`. `merge_battle_benchmarks.mjs` merges shards. |
 | `scripts/profile_battle_hotpaths.mjs` (+ `battle-hotpath-profiler.cjs`) | Inclusive wall time per hot function. `BATTLE_PROFILE_SEED/TYPE/SECONDS`. |
 | `scripts/profile_meso_churn.mjs` (+ `meso-churn-profiler.cjs`) | Meso fireteam order churn attribution |
@@ -711,6 +711,11 @@ never decides tactics, ammo, hits or paths.
 - Fallback: the procedural rig in `battle/soldier.js` is used while the FBX loads (25 s cap), and the
   trainer and headless benchmark always use it (`setImportedEnabled(scene,false)`). Procedural soldiers
   keep their `rig` object; FBX soldiers have `rig===null` and a `_fbx` binding.
+- **Animation LOD** (`53-fbx-soldier-backend.js`, `BattleFbxSoldier.lod`, presentation only): the
+  render hook re-poses a soldier every frame within 35 m of the camera, at ~30 Hz within 100 m and
+  ~10 Hz beyond (each on his own phase), never while he is outside the view frustum, and only once
+  while his pose inputs are static (a finished death clip, a paused sim). Clip clocks stay on sim
+  time. `?animLod=0` turns it off. Thresholds are tuned from close-ups, never tied to gameplay.
 - Wired beyond the basics: turn-in-place (standing, crouch, prone), death pools, hit reactions
   (`combat.hit`), idle variants and suppression flinches. Still unused: prone roll right (a left roll
   needs mirroring) and the kneel set. Jump clips need a nav vault edge.
