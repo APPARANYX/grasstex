@@ -140,12 +140,16 @@ test('scouts: US M1 Carbine, GE FG 42 on the full-power round with the rifle rea
     role(ge, 'rifleman').weapon.stats.range,
     'FG 42 reaches as far as the Kar98k'
   );
-  /* One role, two reaches: the weapon caps the doctrine range, and nobody else's range moves. */
+  /* One role, two reaches: a man opens fire as far as his own weapon carries. */
   assert.equal(r.SquadAI.engageRange(carbine), 250);
   assert.equal(r.SquadAI.engageRange(fg), 450);
-  ['sergeant', 'rifleman', 'gunner'].forEach(rl =>
-    assert.equal(r.SquadAI.engageRange(role(us, rl)), r.SquadAI.ROLES[rl].engageRange, rl)
-  );
+  assert.equal(r.SquadAI.engageRange(role(us, 'sergeant')), 150, 'Thompson');
+  assert.equal(r.SquadAI.engageRange(role(ge, 'rifleman')), 450, 'Kar98k');
+  assert.equal(r.SquadAI.engageRange(role(ge, 'gunner')), 500, 'MG42');
+  /* A role that is not there to fight can still cap it (the defending engineer). */
+  r.SquadAI.ROLES.rifleman.engageRange = 130;
+  assert.equal(r.SquadAI.engageRange(role(ge, 'rifleman')), 130, 'role cap');
+  delete r.SquadAI.ROLES.rifleman.engageRange;
 });
 
 test('the FG 42 fires bursts up close and single aimed rounds at range', () => {

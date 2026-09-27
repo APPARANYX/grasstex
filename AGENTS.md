@@ -286,9 +286,11 @@ record), the garrison request (a standing constraint), and execution timing insi
 **Weapons and wounds.** `BattleWeapons.STATS` holds each kind's numbers and `PROFILES` each side's
 weapon for it (Garand/Kar98k, M1919A6/MG42, Thompson/MP40, M1 Carbine/FG42, M1911A1/P38);
 `SquadAI.createSoldier` issues it (`weapon.profile`, `magSize`, and `carried` where the load differs
-from the kind's). A man opens aimed fire out to `SquadAI.engageRange(s)`: his role's range capped by
-his weapon's, so the US scout stops at the carbine's 250 m and the German scout reaches 450 m with the
-FG42's rifle cartridge. A selective-fire weapon (`autoWithin`, the FG42: 50 m) bursts only inside
+from the kind's). A man opens aimed fire out to `SquadAI.engageRange(s)`: his weapon's range (roles no longer carry one,
+except as a cap where the job is not the firefight: the defending engineer's 130 m), so the US scout
+stops at the carbine's 250 m and the German scout reaches 450 m with the FG42's rifle cartridge. The
+FBX backend draws the model the profile names (`PROFILES.<side>.<kind>.model` + `.fbx`), so what a man
+carries and how it shoots cannot disagree. A selective-fire weapon (`autoWithin`, the FG42: 50 m) bursts only inside
 that distance and fires single aimed rounds beyond it. `rof` is the aimed rate of a semi-auto or bolt action; an
 automatic has `cyclic` (rounds/s), `burst` [min, max], `burstPause` and `burstClimb`. One trigger pull
 fires the whole burst on one AI tick (0.15 s, slower than an MG42 cycles); each round goes through
@@ -414,7 +416,7 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   platoon/company command, fallback/counterattack and combined arms. Capture Zone and
   Prepared Defense already publish *requests* that Force Command accepts; follow that pattern.
 - Meeting engagements deliberately get no runtime engineer fortification (`engineerTick` exits early).
-- **Sergeant weapons.** Squad leaders carry the `smg` kind: US Thompson, GE MP40 (`WEAPON_MODELS`).
+- **Sergeant weapons.** Squad leaders carry the `smg` kind: US Thompson, GE MP40 (`BattleWeapons.PROFILES`).
   Their grips use the generic `WEAPON_POINTS`; set per-model sidecars in the Motion Lab.
 - **Snipers (pending).** Scoped rifles (M1903A4, Kar98k with ZF39) are a separate role, not the
   scouts; they need weapon models and their own aiming rules.
@@ -426,10 +428,11 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   range. The pistol hold, the `m1911a1`/`p38` models and the pistol clips already exist. Presentation
   stays off the combat RNG.
 - **Any soldier, any weapon (pending).** Weapons are still dealt by role: `ROLES.<role>.weapon`
-  sets the kind and its rules, and `WEAPON_MODELS` picks the model per faction. The goal is a
+  sets the kind and its rules, and `PROFILES` picks the model and numbers per faction. The goal is a
   per-soldier loadout, a primary plus the secondary above, where any class can carry any weapon.
-  Shot stats and ammunition already follow `soldier.weapon`. Two things are still tied to the role:
-  `battle-sim.js` deals the weapon from `ROLES[role].weapon`, and Engagement ties the MG behaviour
+  Shot stats, ammunition, engagement range and the rendered model already follow `soldier.weapon`.
+  Two things are still tied to the role: `battle-sim.js` deals the weapon from `ROLES[role].weapon`,
+  and Engagement ties the MG behaviour
   (emplacement, never bounding) and reaction times to `role === 'gunner'`. Both would move to the
   weapon kind.
   The art side is mostly there: every model's sidecar can hold a seat for each weapon
@@ -458,7 +461,7 @@ never decides tactics, ammo, hits or paths.
   (`BattleFbxClips`, data only). The battle fetches only those files, and the lab loads the same table
   for its **Show all animation clips** toggle (off: only in-game clips; on: all, in-game marked ●).
   Bone names are canonicalised at load, so `mixamorig:` and older rigs bind the same clips.
-- Weapons (`WEAPON_MODELS`, dealt per role, a list in turn): rifle Garand / Kar98k, LMG M1919A6 /
+- Weapons (the model `BattleWeapons.PROFILES` names per side and kind): rifle Garand / Kar98k, LMG M1919A6 /
   MG42 (folded-bipod carry variants), scouts M1 Carbine / FG42, sergeants Thompson / MP40
   (the M1911A1 / P38 models are for the pending sidearm slot). Babylon is pinned to `babylonjs@9.27.1`.
 - **Weapon seats and sidecars.** Hand contacts and weapon points default to `SOLDIER_CONTACTS`,
