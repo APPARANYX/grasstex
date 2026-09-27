@@ -464,6 +464,25 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   air fly on), so benchmark it paired. Not a decal-shader job: a projected or UV-space decal only
   draws on real geometry, so it would hide the wrong impact point, not fix it; consider UV-space decals
   later only for curved surfaces if flat quads still look wrong once impacts sit on the real shape.
+- **Wound decals should be drawn on the skin, not as floating sprites (open).** Today
+  `15-bullet-impact-fx.js` `woundDecal` places a flat quad at the hit bone's position plus a fixed
+  radius per zone (`BODY[zone].out`: head 0.13 m, chest 0.16, abdomen 0.15, arm 0.08, leg 0.11) toward
+  the shooter, clamped into a height band, and parents it to that one bone. It never meets the real
+  mesh, so it floats off a slim torso, sinks into a bulky one, stays flat on a curved limb and slides
+  as skin deforms across joints. Proposal, presentation only: a material plugin on the soldier's
+  skinned material (Babylon `MaterialPluginBase`) that draws wounds in the fragment shader. Each wound
+  is stored as a point in the mesh's bind pose (the unskinned vertex space, found from the ray hit on
+  the skinned mesh), with a radius, a blood-sheet cell and entry/exit kind, in a small per-soldier
+  uniform array (`MAX_PER_SOLDIER`); the shader compares the bind-pose position it passes through as
+  a varying, so the wound sits on the surface and moves with the skin. Soldiers of one model share a
+  material, so a wounded man gets his own material clone (or a per-instance data texture) on his
+  first wound. Alternative: Babylon's UV-space decal maps (`MeshUVSpaceRenderer` / `decalMap`), at a
+  texture per wounded soldier. The procedural rig (`rig===null` soldiers, benchmarks) keeps quads or
+  gets the same plugin on its part materials. Keep it off the combat RNG, update `impact-fx-check.js`
+  (it asserts wound decals on the hit bone) and prove it with `scripts/closeup_damage_fx.cjs` /
+  `closeup_battle.cjs CLOSEUP_TARGET=wounded` against a preview. The world decals (holes, ground
+  blood) stay thin-instanced quads; see the floating bullet-hole item above for why those are an
+  impact-point bug, not a rendering one.
 - **Page-load hiccup (watch).** One local probe run logged `ReferenceError: BABYLON is not defined`
   from an inline script (line 95 of the page `battle_sim_local.php` serves) on the GE-defend battle; the battle still
   ran and reported. Seen once; if it recurs, make that inline script wait for Babylon.
