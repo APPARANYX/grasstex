@@ -145,10 +145,11 @@ function applySidecarData(file,data){
 function loadSidecars(base,files){
   if(typeof fetch==='undefined')return Promise.resolve();
   return Promise.all((files||[]).map(function(file){
+    var t0=ASSET.on?perfNow():0;
     return fetch(base+'soldiers/'+encodeURIComponent(file)+'.json',{cache:'no-store'}).then(function(res){
       if(!res.ok)return;
       return res.json().then(function(data){applySidecarData(file,data);}).catch(function(){});
-    }).catch(function(){});
+    }).catch(function(){}).then(function(){assetAdd('model',file,'sidecar',perfNow()-t0);});
   })).then(function(){});
 }
 function pointsFor(file,kind){
@@ -177,6 +178,219 @@ function leftGripFor(modelFile,weaponFile){
 var SOLDIER_CONTACTS={
 };
 var SMOOTH_NORMALS=!(typeof location!=='undefined'&&/[?&]smooth=0\b/.test(location.search||''));
+
+/* ---- performance instrumentation (observe only) --------------------------------------------
+   Timers for the runtime/animation audit (AGENTS.md, open issues). They read performance.now()
+   and fields this backend already keeps; they never write soldier or simulation state and never
+   draw a random number. Two switches, both read once at install:
+     startup timing (BattleAssetTimings): on by default, a few hundred clock reads per page load;
+       `?perfTimings=0` or window.BATTLE_PERF_TIMINGS=false turns it off.
+     pose timing (BattlePoseTimings): off by default and then measures nothing; `?perfTimings=1`,
+       window.BATTLE_PERF_TIMINGS=true or BattlePoseTimings.enable() turns it on. */
+var PERF_FLAG=(function(){
+  var m=typeof location!=='undefined'&&/[?&]perfTimings=([01])\b/.exec(location.search||'');if(m)return m[1]==='1';
+  var g=root.BATTLE_PERF_TIMINGS;return g==null?null:!!g;
+})();
+function perfNow(){return root.performance&&root.performance.now?root.performance.now():Date.now();}
+function perfStats(arr,n){
+  n=Math.min(n,arr.length);if(!n)return{n:0,mean:null,p50:null,p95:null,p99:null,max:null};
+  var a=Array.prototype.slice.call(arr,0,n).sort(function(x,y){return x-y;}),sum=0;for(var i=0;i<n;i++)sum+=a[i];
+  var q=function(p){return+a[Math.min(n-1,Math.floor(p*(n-1)+.5))].toFixed(4);};
+  return{n:n,mean:+(sum/n).toFixed(4),p50:q(.5),p95:q(.95),p99:q(.99),max:+a[n-1].toFixed(4)};
+}
+function perfRound(v,d){return v==null?null:+(+v).toFixed(d==null?2:d);}
+
+/* Startup: per FBX file download (Resource Timing), Babylon parse/import (the FBX plugin parses and
+   builds synchronously inside loadAssetContainerAsync, so timing that call is its CPU time), the
+   queue wait between them, then this backend's own work per file: model prepare (materials,
+   normals, palm anchors), weapon prepare, clip conversion (canonicalise, filter, 30 Hz resample,
+   root travel/turn removal), retarget per model, grip solve, sidecar fetch; and per soldier bind. */
+var ASSET={on:PERF_FLAG!==false,files:{},parse:{},marks:{},binds:{count:0,ms:0,max:0,first:null,last:null}};
+if(ASSET.on&&root.performance&&root.performance.setResourceTimingBufferSize){try{root.performance.setResourceTimingBufferSize(4000);}catch(_){}}
+function assetMark(name){if(ASSET.on&&ASSET.marks[name]==null)ASSET.marks[name]=perfNow();}
+function assetEntry(kind,file){var k=kind+':'+file;return ASSET.files[k]||(ASSET.files[k]={kind:kind,file:file});}
+function assetAdd(kind,file,field,ms){if(!ASSET.on)return;var e=assetEntry(kind,file);e[field]=(e[field]||0)+ms;}
+function assetBaseName(s){s=String(s||'');try{s=decodeURIComponent(s);}catch(_){}s=s.split('?')[0];return s.slice(s.lastIndexOf('/')+1);}
+function assetResource(url){
+  try{var list=root.performance.getEntriesByName(new URL(url,document.baseURI).href);return list.length?list[list.length-1]:null;}catch(_){return null;}
+}
+function wrapFbxParse(){
+  var L=BABYLON.FBXFileLoader,p=L&&L.prototype;if(!ASSET.on||!p||!p.loadAssetContainerAsync||p._battleTimed)return;
+  var orig=p.loadAssetContainerAsync;p._battleTimed=true;
+  p.loadAssetContainerAsync=function(scene,data,rootUrl,onProgress,fileName){
+    var t0=perfNow();
+    try{return orig.apply(this,arguments);}
+    finally{ASSET.parse[assetBaseName(String(rootUrl||'')+(typeof fileName==='string'?fileName:''))]={at:t0,ms:perfNow()-t0,bytes:data&&data.byteLength||null};}
+  };
+}
+function assetLoaded(kind,file,url,t0){
+  var t1=perfNow(),e=assetEntry(kind,file),parse=ASSET.parse[assetBaseName(url)],res=assetResource(url);
+  e.requestAt=t0;e.loadedAt=t1;e.loadMs=t1-t0;
+  if(res){
+    /* stall: queued in the browser (connection limit) before the request went out; transfer: request to last byte. */
+    e.download=res.responseEnd-res.startTime;e.bytes=res.encodedBodySize||res.transferSize||null;
+    if(res.requestStart>0){e.stall=res.requestStart-res.startTime;e.transfer=res.responseEnd-res.requestStart;}
+  }
+  if(parse){e.parse=parse.ms;if(!e.bytes)e.bytes=parse.bytes;if(res)e.wait=Math.max(0,parse.at-res.responseEnd);}
+  e.downloadSource=res?'resource-timing':'derived';
+  if(e.download==null)e.download=Math.max(0,e.loadMs-(e.parse||0));
+}
+var ASSET_WORK=['parse','prepare','convert','retarget','grips'];
+function assetSnapshot(){
+  var files=Object.keys(ASSET.files).map(function(k){return ASSET.files[k];}),totals={files:files.length,bytes:0},byKind={};
+  var fields=['download','stall','transfer','wait','parse','prepare','normals','palms','convert','dispose','retarget','grips','sidecar'];
+  fields.forEach(function(f){totals[f]=0;});
+  var rows=files.map(function(e){
+    var row={kind:e.kind,file:e.file,bytes:e.bytes||null,downloadSource:e.downloadSource||null};
+    fields.forEach(function(f){if(e[f]!=null){row[f]=perfRound(e[f]);totals[f]+=e[f];}});
+    row.workMs=perfRound(ASSET_WORK.reduce(function(s,f){return s+(e[f]||0);},0));
+    row.totalMs=perfRound((e.download||0)+(e.wait||0)+row.workMs);
+    if(e.requestAt!=null)row.requestAt=perfRound(e.requestAt,1);if(e.loadedAt!=null)row.loadedAt=perfRound(e.loadedAt,1);
+    totals.bytes+=e.bytes||0;
+    var k=byKind[e.kind]||(byKind[e.kind]={files:0,bytes:0});k.files++;k.bytes+=e.bytes||0;
+    fields.concat(['workMs']).forEach(function(f){if(row[f]!=null)k[f]=perfRound((k[f]||0)+row[f]);});
+    return row;
+  });
+  fields.forEach(function(f){totals[f]=perfRound(totals[f]);});
+  var L=root.BattleLoading,marks={};Object.keys(ASSET.marks).forEach(function(k){marks[k]=perfRound(ASSET.marks[k],1);});
+  var b=ASSET.binds;
+  return{
+    enabled:ASSET.on,clock:'performance.now() ms since navigation start',
+    page:L&&L.timings?L.timings():null,
+    library:{marks:marks,wallMs:ASSET.marks.ready!=null&&ASSET.marks.start!=null?perfRound(ASSET.marks.ready-ASSET.marks.start):null,
+      loaderScriptMs:perfRound(ASSET.loaderScriptMs),bindClipsMs:perfRound(ASSET.bindClipsMs)},
+    binds:{count:b.count,totalMs:perfRound(b.ms),meanMs:b.count?perfRound(b.ms/b.count,3):null,maxMs:perfRound(b.max,3),firstAt:perfRound(b.first,1),lastAt:perfRound(b.last,1)},
+    totals:totals,byKind:byKind,
+    slowest:rows.slice().sort(function(a,c){return c.totalMs-a.totalMs;}).slice(0,10),
+    files:rows
+  };
+}
+
+/* Pose: applyPose per soldier per rendered frame, split into its layers, plus how often each
+   expensive layer's inputs actually changed since that layer last ran (exactly, and at the clip's
+   own 30 Hz sample rate). Only while POSE.on; the render hook reads the flag once per frame. */
+var POSE_LAYERS=['setup','base','overlay','dials','weapon','aim','support'],POSE_RING=1<<16,POSE_SOLDIER_RING=1<<19;
+var POSE={on:false,gen:0,holdSupport:0,seen:0},POSE_BIT={};POSE_LAYERS.forEach(function(k,i){POSE_BIT[k]=1<<i;});
+function poseCounter(){return{recomputed:0,changed:0,changedAtClipRate:0,layerInputsChanged:0};}
+function poseReset(){
+  POSE.gen++;POSE.frames=0;POSE.samples=0;POSE.startedAt=perfNow();
+  POSE.frameMs=new Float64Array(POSE_RING);POSE.framePosed=new Uint16Array(POSE_RING);POSE.soldierMs=new Float32Array(POSE_SOLDIER_RING);
+  POSE.layerMs={};POSE.layerRuns={};POSE.layerFrame={};POSE.layerCur={};
+  POSE_LAYERS.forEach(function(k){POSE.layerMs[k]=0;POSE.layerRuns[k]=0;POSE.layerFrame[k]=new Float32Array(POSE_RING);POSE.layerCur[k]=0;});
+  POSE.inputs={base:poseCounter(),aim:poseCounter(),weapon:poseCounter(),support:poseCounter()};
+  POSE.dead=0;POSE.offscreen=0;POSE.frustumKnown=0;POSE.dist=[0,0,0,0];POSE.lod={posed:0,static:0,offscreen:0,interval:0,shadowKept:0};
+}
+/* A layer may be timed in more than one segment of one applyPose; `runs` counts soldier-frames. */
+function poseLayer(k,ms){POSE.layerMs[k]+=ms;POSE.layerCur[k]+=ms;if(!(POSE.seen&POSE_BIT[k])){POSE.seen|=POSE_BIT[k];POSE.layerRuns[k]++;}}
+var poseClipSeq=0,poseStrSeq={};
+function poseMix(h,v){return(Math.imul(h,31)+(v|0))|0;}
+function poseStr(s){s=String(s);return poseStrSeq[s]||(poseStrSeq[s]=Object.keys(poseStrSeq).length+1);}
+/* The base pose: every clip entry that contributes (clip, time, weight) plus the overlay weight.
+   `rate` quantises clip time to the clip's 30 Hz frames and weights to 1/32. */
+function poseClipSig(fx,rate){
+  var h=17,layers=fx.overlay>.001?[fx.lower,fx.upper]:[fx.lower];
+  for(var l=0;l<layers.length;l++){var es=layers[l].entries;h=poseMix(h,es.length);
+    for(var i=0;i<es.length;i++){var e=es[i],c=e.clip;h=poseMix(h,c._perfId||(c._perfId=++poseClipSeq));
+      h=poseMix(h,rate?Math.floor(e.t*FPS):Math.round(e.t*1e4));h=poseMix(h,rate?Math.round(e.w*32):Math.round(e.w*1e4));}}
+  return poseMix(h,rate?Math.round(fx.overlay*32):Math.round(fx.overlay*1e4));
+}
+function poseRootSig(fx){
+  var h=3,r=fx.root,p=r.position,pr=fx.holder.parent;
+  h=poseMix(h,Math.round(p.x*1e3));h=poseMix(h,Math.round(p.y*1e3));h=poseMix(h,Math.round(p.z*1e3));h=poseMix(h,Math.round((r.rotation.y||0)*1e4));
+  if(pr){h=poseMix(h,Math.round(pr.position.x*1e3));h=poseMix(h,Math.round(pr.position.y*1e3));h=poseMix(h,Math.round(pr.position.z*1e3));
+    h=poseMix(h,Math.round(pr.rotation.x*1e4));h=poseMix(h,Math.round(pr.rotation.z*1e4));}
+  return h;
+}
+function poseWeaponSig(fx){
+  var h=poseMix(5,poseStr(fx.weaponModel||fx.weaponKind));
+  return poseMix(poseMix(poseMix(poseMix(h,fx.bipod?1:0),fx.supportReleased?1:0),fx.death?1:0),fx.transition?1:0);
+}
+function poseCount(c,prev,key,sig,sigQ,layerSig){
+  var p=prev[key];c.recomputed++;
+  if(!p||p[0]!==sig)c.changed++;
+  if(!p||p[1]!==sigQ)c.changedAtClipRate++;
+  if(!p||p[2]!==layerSig)c.layerInputsChanged++;
+  if(p){p[0]=sig;p[1]=sigQ;p[2]=layerSig;}else prev[key]=[sig,sigQ,layerSig];
+}
+/* Called after applyPose with what ran. Aim and support read the base pose (the hand chains), so
+   their inputs are the base pose plus their own: aim weight, target and the root transform (aim is
+   solved in world space); weapon and hold-release flags; the pistol cup's release weight. */
+function poseInputs(fx,ran){
+  var prev=fx._perfPrev;if(!prev||prev.gen!==POSE.gen)prev=fx._perfPrev={gen:POSE.gen};
+  var clip=poseClipSig(fx,false),clipQ=poseClipSig(fx,true),I=POSE.inputs;
+  poseCount(I.base,prev,'base',clip,clipQ,0);
+  if(!ran.weapon)return;
+  var w=poseWeaponSig(fx);
+  poseCount(I.weapon,prev,'weapon',poseMix(clip,w),poseMix(clipQ,w),w);
+  if(ran.aim){
+    var a=poseRootSig(fx),t=fx.aimAt;a=poseMix(a,Math.round(fx.aim*1e4));
+    if(t){a=poseMix(a,Math.round(t.x*100));a=poseMix(a,Math.round((t.y||0)*100));a=poseMix(a,Math.round(t.z*100));}
+    poseCount(I.aim,prev,'aim',poseMix(clip,a),poseMix(clipQ,a),a);
+  }
+  if(ran.support){
+    var s=poseMix(poseMix(w,Math.round((fx.cupW==null?1:fx.cupW)*1e3)),fx.cupClipKey?poseStr(fx.cupClipKey):0);
+    if(ran.aim)s=poseMix(s,Math.round(fx.aim*1e4));
+    poseCount(I.support,prev,'support',poseMix(clip,s),poseMix(clipQ,s),s);
+  }
+}
+var poseEye=new V3();
+function poseSoldier(fx,ms,scene){
+  POSE.soldierMs[POSE.samples++%POSE_SOLDIER_RING]=ms;
+  if(fx.death)POSE.dead++;
+  var cam=scene.activeCamera,p=fx.root.position;
+  if(cam){
+    cam.globalPosition?poseEye.copyFrom(cam.globalPosition):poseEye.copyFrom(cam.position);
+    var d=Math.sqrt((poseEye.x-p.x)*(poseEye.x-p.x)+(poseEye.y-p.y)*(poseEye.y-p.y)+(poseEye.z-p.z)*(poseEye.z-p.z));
+    POSE.dist[d<25?0:(d<60?1:(d<150?2:3))]++;
+  }
+  var planes=scene.frustumPlanes;
+  if(planes&&planes.length){
+    POSE.frustumKnown++;
+    for(var i=0;i<planes.length;i++){var pl=planes[i];if(pl.normal.x*p.x+pl.normal.y*(p.y+.9)+pl.normal.z*p.z+pl.d< -1.2){POSE.offscreen++;break;}}
+  }
+}
+function poseFrame(ms,posed){
+  var i=POSE.frames%POSE_RING;POSE.frameMs[i]=ms;POSE.framePosed[i]=posed;
+  for(var k=0;k<POSE_LAYERS.length;k++){var L=POSE_LAYERS[k];POSE.layerFrame[L][i]=POSE.layerCur[L];POSE.layerCur[L]=0;}
+  POSE.frames++;
+}
+function poseTimerResolution(){
+  var min=Infinity,last=perfNow();for(var i=0;i<20000&&min>1e-6;i++){var t=perfNow();if(t>last){min=Math.min(min,t-last);last=t;}}
+  return isFinite(min)?perfRound(min*1000,3):null;
+}
+function poseSnapshot(){
+  if(!POSE.frameMs)return{enabled:POSE.on,frames:0};
+  var frames=Math.min(POSE.frames,POSE_RING),samples=Math.min(POSE.samples,POSE_SOLDIER_RING),total=0,posedSum=0,layers={},inputs={};
+  for(var i=0;i<frames;i++)posedSum+=POSE.framePosed[i];
+  POSE_LAYERS.forEach(function(k){total+=POSE.layerMs[k];});
+  POSE_LAYERS.forEach(function(k){
+    var ms=POSE.layerMs[k],runs=POSE.layerRuns[k],pf=perfStats(POSE.layerFrame[k],frames);
+    layers[k]={totalMs:perfRound(ms),runs:runs,usPerRun:runs?perfRound(ms*1000/runs,2):null,
+      usPerSoldierFrame:POSE.samples?perfRound(ms*1000/POSE.samples,2):null,share:total?perfRound(ms/total,4):null,msPerFrame:{mean:pf.mean,p95:pf.p95}};
+  });
+  Object.keys(POSE.inputs).forEach(function(k){
+    var c=POSE.inputs[k],r=c.recomputed||0;
+    inputs[k]={recomputed:r,changed:c.changed,unchangedShare:r?perfRound(1-c.changed/r,4):null,
+      changedAtClipRate:c.changedAtClipRate,unchangedShareAtClipRate:r?perfRound(1-c.changedAtClipRate/r,4):null,
+      layerInputsChanged:c.layerInputsChanged,layerInputsUnchangedShare:r?perfRound(1-c.layerInputsChanged/r,4):null};
+  });
+  var perSoldier=perfStats(POSE.soldierMs,samples);
+  ['mean','p50','p95','p99','max'].forEach(function(k){if(perSoldier[k]!=null)perSoldier[k]=perfRound(perSoldier[k]*1000,2);});
+  var n=POSE.samples||1;
+  var L=POSE.lod,lt=L.posed+L.static+L.offscreen+L.interval;
+  return{enabled:POSE.on,frames:POSE.frames,soldierFrames:POSE.samples,
+    lod:{enabled:LOD.on,near:LOD.near,mid:LOD.mid,midHz:LOD.midHz,farHz:LOD.farHz,offscreen:LOD.offscreen,
+      posedShare:lt?perfRound(L.posed/lt,4):null,shadowKept:L.shadowKept,heldStatic:L.static,heldOffscreen:L.offscreen,heldInterval:L.interval,posed:L.posed},wallMs:perfRound(perfNow()-POSE.startedAt,0),
+    timerResolutionUs:POSE.resolutionUs,
+    posedPerFrame:{mean:frames?perfRound(posedSum/frames,2):null,stats:perfStats(POSE.framePosed,frames)},
+    frameMs:perfStats(POSE.frameMs,frames),perSoldierUs:perSoldier,layers:layers,inputs:inputs,
+    posed:{deadShare:perfRound(POSE.dead/n,4),offscreenShare:POSE.frustumKnown?perfRound(POSE.offscreen/POSE.frustumKnown,4):null,
+      cameraDistance:{under25m:perfRound(POSE.dist[0]/n,4),m25to60:perfRound(POSE.dist[1]/n,4),m60to150:perfRound(POSE.dist[2]/n,4),over150m:perfRound(POSE.dist[3]/n,4)}}};
+}
+function poseEnable(on){
+  on=on!==false;if(on&&!POSE.on){poseReset();POSE.resolutionUs=poseTimerResolution();}POSE.on=on;return POSE.on;
+}
+if(PERF_FLAG===true)poseEnable(true);
 
 /* Rigs differ in bone naming: the clips use Mixamo names ("mixamorig:Spine/Spine1/Spine2"), the
    older characters use "Spine02/Spine01/Spine" for the same three bones, and Mixamo's leaf bones
@@ -227,7 +441,10 @@ function ensureLoader(){
   });
   return loaderPromise;
 }
-function loadContainer(scene,url){return BABYLON.LoadAssetContainerAsync(url,scene,{pluginExtension:'.fbx'});}
+function loadContainer(scene,url,kind,file){
+  var p=BABYLON.LoadAssetContainerAsync(url,scene,{pluginExtension:'.fbx'});if(!ASSET.on||!kind)return p;
+  var t0=perfNow();return p.then(function(c){assetLoaded(kind,file,url,t0);return c;});
+}
 
 /* ---- import + conversion ------------------------------------------------------------------ */
 
@@ -292,8 +509,10 @@ function prepareModel(container){
        checks once the import-time adjustments above are complete. */
     if(m.freeze)m.freeze();
   });
+  var tn=ASSET.on?perfNow():0;
   if(SMOOTH_NORMALS)meshes.forEach(smoothNormals);
-  var palms=palmAnchors(meshes,nodes,scheme);
+  var tp=ASSET.on?perfNow():0,palms=palmAnchors(meshes,nodes,scheme);
+  if(ASSET.on&&container._battleFile){assetAdd('model',container._battleFile,'normals',tp-tn);assetAdd('model',container._battleFile,'palms',perfNow()-tp);}
   var scale=(M.BODY&&M.BODY.heightM||1.7)/(hi-lo);
   if(!nodes.hips)throw new Error('model FBX has no hips bone');
   return{container:container,top:top,nodes:nodes,height:hi-lo,scale:scale,
@@ -560,14 +779,14 @@ function loadWeapons(scene,st,base){
     files[file]=kind==='pistol'?PISTOL_BUTT:WEAPON_BUTT;if(WEAPON_BIPOD[file])files[WEAPON_BIPOD[file]]=WEAPON_BUTT;});});});
   var total=Object.keys(files).length,done=0;loadProgress('weapons',0,total,'weapons');
   return Promise.all(Object.keys(files).map(function(file){
-    return loadContainer(scene,base+'weapons/'+file).then(function(c){st.weapons[file]=prepareWeapon(c,file,files[file]);})
+    return loadContainer(scene,base+'weapons/'+file,'weapon',file).then(function(c){var t0=ASSET.on?perfNow():0;st.weapons[file]=prepareWeapon(c,file,files[file]);assetAdd('weapon',file,'prepare',perfNow()-t0);})
       .catch(function(e){console.warn('[ANIM] weapon model '+file+' unavailable; box weapon stays',e);})
       .then(function(){loadProgress('weapons',++done,total,'weapons');});
   }));
 }
 function loadLibrary(scene){
   var st=sceneState(scene);if(st.loading)return st.loading;
-  var base=assetBase(),started=Date.now();
+  var base=assetBase(),started=Date.now();assetMark('start');
   /* Each clip file loads once, however many keys use it. */
   var byFile={};Object.keys(CLIPS).forEach(function(key){(byFile[CLIPS[key][0]]||(byFile[CLIPS[key][0]]=[])).push(key);});
   var clipTotal=Object.keys(byFile).length,clipsDone=0;
@@ -575,16 +794,23 @@ function loadLibrary(scene){
   var modelTotal=Object.keys(files).length,modelsDone=0;
   loadProgress('models',0,modelTotal,'models');
   st.loading=ensureLoader().then(function(){
+    assetMark('loaderReady');if(ASSET.on)ASSET.loaderScriptMs=ASSET.marks.loaderReady-ASSET.marks.start;wrapFbxParse();
     return Promise.all(Object.keys(files).map(function(file){
-      return loadContainer(scene,base+'soldiers/'+file).then(function(c){st.libs[file]=prepareModel(c);st.libs[file].file=file;loadProgress('models',++modelsDone,modelTotal,'models');});
+      return loadContainer(scene,base+'soldiers/'+file,'model',file).then(function(c){
+        var t0=ASSET.on?perfNow():0;c._battleFile=file;st.libs[file]=prepareModel(c);st.libs[file].file=file;assetAdd('model',file,'prepare',perfNow()-t0);
+        loadProgress('models',++modelsDone,modelTotal,'models');});
     }).concat([loadWeapons(scene,st,base)]));
   }).then(function(){
     /* Sidecars (per-model Motion Lab calibrations) load alongside the clips; both must finish
        before retarget/solve. */
+    assetMark('modelsWeaponsDone');
     loadProgress('clips',0,clipTotal,'clips');
     var clipWork=Promise.all(Object.keys(byFile).map(function(file){
-      return loadContainer(scene,base+'animations/'+encodeURIComponent(file)+'.fbx').then(function(c){
-        try{if(!st.src){st.src=sourceRig(c);st.bones=st.src.bones;}return byFile[file].map(function(key){return convertClip(c,key,CLIPS[key],st.bones);});}finally{c.dispose();loadProgress('clips',++clipsDone,clipTotal,'clips');}
+      return loadContainer(scene,base+'animations/'+encodeURIComponent(file)+'.fbx','clip',file+'.fbx').then(function(c){
+        var t0=ASSET.on?perfNow():0,t1=0;
+        try{if(!st.src){st.src=sourceRig(c);st.bones=st.src.bones;}var out=byFile[file].map(function(key){return convertClip(c,key,CLIPS[key],st.bones);});t1=ASSET.on?perfNow():0;return out;}
+        finally{if(ASSET.on&&!t1)t1=perfNow();c.dispose();if(ASSET.on){assetAdd('clip',file+'.fbx','convert',t1-t0);assetAdd('clip',file+'.fbx','dispose',perfNow()-t1);}
+          loadProgress('clips',++clipsDone,clipTotal,'clips');}
       });
     })).then(function(groups){return[].concat.apply([],groups);});
     var sideWork=loadSidecars(base,Object.keys(st.libs||{})).then(function(){return null;});
@@ -594,8 +820,9 @@ function loadLibrary(scene){
     var L=root.BattleLoading;if(!L||!L.frame)return list;
     L.note('soldiers','binding clips to models…');return L.frame().then(function(){return list;});
   }).then(function(list){
+    assetMark('bindClipsStart');
     st.clips={};list.forEach(function(clip){st.clips[clip.key]=clip;});
-    Object.keys(st.libs).forEach(function(f){retargetClips(st.libs[f],st.src,st.clips,st.bones);});
+    Object.keys(st.libs).forEach(function(f){var t0=ASSET.on?perfNow():0;retargetClips(st.libs[f],st.src,st.clips,st.bones);assetAdd('model',f,'retarget',perfNow()-t0);});
     st.animated=[];st.upper=[];st.hips=st.bones.indexOf(BONE.hips);st.spineRoot=st.bones.indexOf(BONE.spine0);
     st.bones.forEach(function(name,i){
       if(list.some(function(c){return!!c.channels[i];}))st.animated.push(i);
@@ -610,14 +837,16 @@ function loadLibrary(scene){
         lib.palms[BONE.rightHand+'Source']=measured.right?'stored':lib.palms[BONE.rightHand+'Source'];
         lib.palms[BONE.leftHand+'Source']=measured.left?'stored':lib.palms[BONE.leftHand+'Source'];
       }
-      var pistols=['pistol'].concat(weaponFiles('us','pistol'),weaponFiles('ge','pistol'));
+      var pistols=['pistol'].concat(weaponFiles('us','pistol'),weaponFiles('ge','pistol')),tg=ASSET.on?perfNow():0;
       solveGrips(lib,lib.clips.aim,st.bones,Object.keys(WEAPON_POINTS).filter(function(k){return pistols.indexOf(k)<0;}));
       solveGrips(lib,lib.clips.pistolIdle,st.bones,pistols);
+      assetAdd('model',f,'grips',perfNow()-tg);
       console.log('[ANIM] hand sockets '+f+': R='+lib.palms[BONE.rightHand+'Source']
         +' L='+lib.palms[BONE.leftHand+'Source']
         +' Rverts='+lib.palms[BONE.rightHand+'Vertices']+' Lverts='+lib.palms[BONE.leftHand+'Vertices']);
     });
     hookRender(scene,st);st.ready=true;
+    assetMark('ready');if(ASSET.on)ASSET.bindClipsMs=ASSET.marks.ready-ASSET.marks.bindClipsStart;
     console.log('[ANIM] FBX soldiers ready: '+MODEL_SET+' '+Object.keys(st.libs).map(function(f){return f.replace('.fbx','')+(st.libs[f].retargeted?'*':'');}).join(' ')+', weapons '+Object.keys(st.weapons||{}).join(' ')+', '+list.length+' clips, '+st.animated.length+' animated bones, '+(Date.now()-started)+' ms'+(SMOOTH_NORMALS?', smoothed normals':''));
     return true;
   }).catch(function(error){
@@ -647,6 +876,21 @@ function bind(soldier,scene,st,lib,faction){
     }
   });
   holder.onDisposeObservable.add(function(){inst.skeletons.forEach(function(k){k.dispose();});});
+  /* Babylon's Skeleton.prepare copies every linked bone node into its bone each frame, which marks
+     the bones dirty and rebuilds and re-uploads all bone matrices even when nothing moved. Our bone
+     nodes only change when applyPose runs, so a soldier's skeletons prepare once per pose (poseSerial,
+     bumped by the render hook) and otherwise keep the matrices of the pose on screen: the animation
+     LOD's held soldiers (far, off-screen, static) cost no skeleton work. `lod.skeletons=false` or
+     `?animLod=0` prepares every frame as before; `prepare(true)` (a forced prepare) always runs. */
+  var fxRef={serial:1};
+  inst.skeletons.forEach(function(k){
+    k._fbxPrepared=0;
+    k.prepare=function(force){
+      if(!force&&LOD.on&&LOD.skeletons&&k._fbxPrepared===fxRef.serial)return;
+      k._fbxPrepared=fxRef.serial;
+      return BABYLON.Skeleton.prototype.prepare.apply(this,arguments);
+    };
+  });
 
   /* Retire the primitive body. The weapon socket leaves the chest first: it now follows the hand
      but stays parented to the soldier root, so it inherits neither model scale nor handedness. */
@@ -662,7 +906,7 @@ function bind(soldier,scene,st,lib,faction){
   var nodes=st.bones.map(function(name){var node=byName[name]||null;if(node&&!node.rotationQuaternion)node.rotationQuaternion=new Q();return node;});
   var fx={lib:lib,st:st,nodes:nodes,holder:holder,meshes:meshes,root:soldier.root,socket:socket,hand:hand,path:path,chain:path.map(function(){return new MX();}),spineAt:path.indexOf(byName[BONE.spine2]),
     pathL:pathL,chainL:pathL.map(function(){return new MX();}),spineAtL:pathL.indexOf(byName[BONE.spine2]),
-    weaponModel:null,twoHand:0,yawRate:0,lastYaw:null,turning:false,weaponKind:'rifle',
+    poseRef:fxRef,weaponModel:null,twoHand:0,yawRate:0,lastYaw:null,turning:false,weaponKind:'rifle',
     lower:{entries:[]},upper:{entries:[]},overlay:0,overlayTarget:0,stance:null,transition:null,sector:0,family:null,moving:false,
     vx:0,vz:0,speed:0,lastX:null,lastZ:null,aim:0,aimWanted:false,aimAt:null,spine:byName[BONE.spine2]||null,fireHold:0,fireShot:0,fireSeen:0,reloadShot:0,reloadSeen:0,reloadDuration:2.5,death:null};
   soldier._fbx=fx;
@@ -697,7 +941,9 @@ function topEntry(layer){return layer.entries[layer.entries.length-1]||null;}
 
 function play(tag,data,soldier){
   var fx=soldier&&soldier._fbx;if(!fx)return;
-  if(tag===TAGS.fire)fx.fireShot++;
+  /* Every round of one trigger pull arrives on the same AI tick; a round after the first (delay>0)
+     marks the pull as a burst, whatever the weapon kind (the FG 42 bursts only inside autoWithin). */
+  if(tag===TAGS.fire){fx.fireShot++;fx.fireBurst=+(data&&data.delay)>0;}
   else if(tag===TAGS.hit)fx.hitShot=(fx.hitShot||0)+1;
   else if(tag===TAGS.reload){fx.reloadShot++;fx.reloadDuration=+(data&&data.duration)||(soldier.weapon&&soldier.weapon.stats&&soldier.weapon.stats.reloadTime)||2.5;}
 }
@@ -797,7 +1043,7 @@ function update(soldier,state,dt){
 
   var over=null,orate=1,restart=false;
   fx.fireHold=Math.max(0,fx.fireHold-dt);fx.hitHold=Math.max(0,(fx.hitHold||0)-dt);
-  if(fx.fireShot!==fx.fireSeen){fx.fireSeen=fx.fireShot;fx.fireHold=.9;restart=fx.weaponKind!=='lmg'&&fx.weaponKind!=='smg'&&!pistol;}
+  if(fx.fireShot!==fx.fireSeen){fx.fireSeen=fx.fireShot;fx.fireHold=.9;restart=!fx.fireBurst&&!pistol;}
   if(fx.reloadShot!==fx.reloadSeen){fx.reloadSeen=fx.reloadShot;restart=true;}
   var hitKey=stance==='prone'?'hitProne':(stance==='crouch'?'hitCrouch':(pistol?'pistolHit':(fx.speed>2.4?'hitRun':'hit')));
   var HIT_RATE={hit:1,hitCrouch:1.6,hitProne:1.2,hitRun:1,pistolHit:2.2};
@@ -817,7 +1063,7 @@ function update(soldier,state,dt){
     over=stance==='prone'?'reloadProne':(stance==='crouch'?'reloadCrouch':'reload');
     orate=clips[over].duration/Math.max(.5,fx.reloadDuration);
   }else if(fx.fireHold>0){
-    var auto=fx.weaponKind==='lmg'||fx.weaponKind==='smg';
+    var auto=!!fx.fireBurst;
     if(pistol&&stance!=='prone'){over=stance==='crouch'?'pistolKneel':'pistolIdle';restart=false;}
     else{over=stance==='prone'?(auto?'fireAutoProne':'fireProne'):(auto?'fireAuto':(stance==='crouch'?'fireCrouch':'fire'));orate=auto?1:1.3;}
   }else if(soldier.target&&stance!=='prone'){over=pistol?(stance==='crouch'?'pistolKneel':'pistolIdle'):(stance==='crouch'?'crouchAim':'aim');restart=false;}
@@ -890,7 +1136,11 @@ function dialQuat(deg,w){
 var CUP={reachFull:.20,reachNone:.30,soft:.03,releaseSec:.25,recaptureSec:.30,reachOutSec:.15,reachInSec:.30,speedOn:.75,lag:.06};
 function cupSmooth(x){x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);}
 function cupEase(cur,goal,dt,outSec,inSec){return goal<cur?Math.max(goal,cur-dt/outSec):Math.min(goal,cur+dt/inSec);}
-function cupDt(fx){var engine=fx.holder.getScene().getEngine();return Math.max(1/240,Math.min(.05,(engine.getDeltaTime()/1000)||1/60));}
+function cupDt(fx){
+  /* With animation LOD a soldier may be posed every few frames: ease over the time since his last pose. */
+  if(LOD.on&&fx._poseDt>0)return Math.max(1/240,Math.min(.25,fx._poseDt));
+  var engine=fx.holder.getScene().getEngine();return Math.max(1/240,Math.min(.05,(engine.getDeltaTime()/1000)||1/60));
+}
 function cupChainWorld(node){var up=[];for(var n=node;n;n=n.parent)up.push(n);for(var k=up.length-1;k>=0;k--)up[k].computeWorldMatrix(true);}
 /* Once per model and clip: pose the library skeleton at every clip frame and record how fast
    contact B moves in the right hand's frame (metres per second). */
@@ -965,7 +1215,9 @@ function applyPistolCup(fx,targetLocal,release){
   fx.cupMode=release<1?(release>0?'releasing':'released'):(reach<1?'out-of-reach':'tracking');
   return{error:finalError,guarded:reach<1,released:release<1,weight:w};
 }
+var poseGot=[],poseRan={weapon:false,aim:false,support:false};
 function applyPose(fx){
+  var on=POSE.on,t=on?perfNow():0,t1=0;POSE.seen=0;
   showBipod(fx);
   var st=fx.st,nodes=fx.nodes,animated=st.animated,overlay=fx.overlay>.001&&fx.upper.entries.length;
   var dialKey=fx.weaponModel||fx.weaponKind;
@@ -974,7 +1226,9 @@ function applyPose(fx){
   var dialPistol=dialKey==='pistol'||/m1911a1|p38/i.test(dialKey||'');
   var dials=dialPistol?armDegFor(fx.lib.file,dialKey):null;
   var leftGrip=dialPistol?leftGripFor(fx.lib.file,dialKey):null;
+  if(on){t1=perfNow();poseLayer('setup',t1-t);t=t1;}
   var cupW=dials||leftGrip?cupReleaseWeight(fx):1;
+  if(on){t1=perfNow();if(dials||leftGrip)poseLayer('support',t1-t);t=t1;}
   var wrDial=wristRFor(fx.lib.file,dialKey),wrNode=null;
   if(wrDial){
     var ri=st.bones?st.bones.indexOf(BONE.rightHand):-1;
@@ -993,59 +1247,77 @@ function applyPose(fx){
       if(!shoulderNode&&si>=0)shoulderNode=nodes[si]||null;
     }
   }
-  for(var n=0;n<animated.length;n++){
-    var i=animated[n],node=nodes[i];if(!node)continue;
-    var got=sampleLayer(fx.lower,i,qa,pa);
-    if(i===st.hips&&got)hipsLower.copyFrom(qa);
-    if(overlay&&st.upper[i]){
-      var up=sampleLayer(fx.upper,i,qb,pb);
+  if(on){t1=perfNow();poseLayer('setup',t1-t);t=t1;}
+  /* Base pass: the lower (stance/locomotion) layer for every animated bone. */
+  var n,i,node,got=poseGot;
+  for(n=0;n<animated.length;n++){
+    i=animated[n];node=nodes[i];got[n]=0;if(!node)continue;
+    var g=sampleLayer(fx.lower,i,qa,pa);got[n]=g;if(!g)continue;
+    if(i===st.hips)hipsLower.copyFrom(qa);
+    node.rotationQuaternion.copyFrom(qa);
+    if(g===2)node.position.copyFrom(pa);
+  }
+  if(on){t1=perfNow();poseLayer('base',t1-t);t=t1;}
+  /* Overlay pass: aim, fire or reload on the upper body, blended over the base by fx.overlay. */
+  if(overlay){
+    for(n=0;n<animated.length;n++){
+      i=animated[n];node=nodes[i];if(!node||!st.upper[i])continue;
+      var up=sampleLayer(fx.upper,i,qb,pb);if(!up)continue;
       /* The overlay's torso keeps the orientation it has in its own clip, re-expressed under the
          hips the legs are playing. Copying the spine's hips-local rotation instead would inherit
          the locomotion hips' twist and lean, and the rifle would stop pointing at the target. */
-      if(up&&i===st.spineRoot&&sampleLayer(fx.upper,st.hips,qc,pb)){qc.multiplyToRef(qb,qd);Q.InverseToRef(hipsLower,qc);qc.multiplyToRef(qd,qb);}
-      if(up){if(!got){qa.copyFrom(qb);got=1;}else{if(Q.Dot(qa,qb)<0)qb.scaleInPlace(-1);Q.SlerpToRef(qa,qb,fx.overlay,qa);}}
+      if(i===st.spineRoot&&sampleLayer(fx.upper,st.hips,qc,pb)){qc.multiplyToRef(qb,qd);Q.InverseToRef(hipsLower,qc);qc.multiplyToRef(qd,qb);}
+      if(!got[n]){node.rotationQuaternion.copyFrom(qb);got[n]=1;}
+      else{qa.copyFrom(node.rotationQuaternion);if(Q.Dot(qa,qb)<0)qb.scaleInPlace(-1);Q.SlerpToRef(qa,qb,fx.overlay,qa);node.rotationQuaternion.copyFrom(qa);}
     }
-    if(!got)continue;
-    node.rotationQuaternion.copyFrom(qa);
-    if(dials){
-      var dd=null;
-      if(node===wristNode)dd=dials.wrist;
-      else if(node===elbowNode)dd=dials.elbow;
-      else if(node===shoulderNode)dd=dials.shoulder;
-      if(dd&&(dd[0]||dd[1]||dd[2])){
-        if(!node.rotationQuaternion)node.rotationQuaternion=new Q();
-        node.rotationQuaternion.multiplyInPlace(dialQuat(dd,node===wristNode?1:cupW));
-      }
-    }
-    /* Right-wrist dial for straight stocks: same yaw/pitch/roll order as the lab's
-       R wrist dial, applied ahead of the hand chains so the grip anchor (and the
-       finger) rides in the corrected hand. Ungated by weapon: the lab previews it
-       identically, so parity holds by construction. */
-    if(wrNode&&node===wrNode&&wrDial){
-      if(!node.rotationQuaternion)node.rotationQuaternion=new Q();
-      node.rotationQuaternion.multiplyInPlace(dialQuat(wrDial));
-    }
-    if(got===2)node.position.copyFrom(pa);
+    if(on){t1=perfNow();poseLayer('overlay',t1-t);t=t1;}
   }
+  /* Sidecar dials on the clean clip pose: the pistol cup's left-arm offsets and the right-wrist
+     dial for straight stocks (same yaw/pitch/roll order as the lab's R wrist dial, applied ahead
+     of the hand chains so the grip anchor, and the finger, rides in the corrected hand; ungated
+     by weapon, as the lab previews it). */
+  if(dials||(wrDial&&wrNode)){
+    for(n=0;n<animated.length;n++){
+      if(!got[n])continue;node=nodes[animated[n]];
+      if(dials){
+        var dd=null;
+        if(node===wristNode)dd=dials.wrist;
+        else if(node===elbowNode)dd=dials.elbow;
+        else if(node===shoulderNode)dd=dials.shoulder;
+        if(dd&&(dd[0]||dd[1]||dd[2]))node.rotationQuaternion.multiplyInPlace(dialQuat(dd,node===wristNode?1:cupW));
+      }
+      if(wrNode&&node===wrNode&&wrDial)node.rotationQuaternion.multiplyInPlace(dialQuat(wrDial));
+    }
+    if(on){t1=perfNow();poseLayer('dials',t1-t);t=t1;}
+  }
+  var ran=poseRan;ran.weapon=ran.aim=ran.support=false;
   /* Weapon follows the hands: the rigid right-web socket is the base; the support hold then
      swings long guns so the fore-end line passes through the left web (pistols have no fore
      line and keep the rigid hold). Socket world is expressed under the soldier root. */
   var key=fx.weaponModel&&fx.lib.grips&&fx.lib.grips[fx.weaponModel]?fx.weaponModel:fx.weaponKind;
-  var grip=fx.lib.grips&&(fx.lib.grips[key]||fx.lib.grips.rifle),points=pointsFor(fx.lib.file,key)||WEAPON_POINTS.rifle;if(!grip||!fx.hand)return;
-  fx.leftGripErrorCm=null;
+  var grip=fx.lib.grips&&(fx.lib.grips[key]||fx.lib.grips.rifle),points=pointsFor(fx.lib.file,key)||WEAPON_POINTS.rifle;
+  if(!grip||!fx.hand){if(on)poseInputs(fx,ran);return;}
+  ran.weapon=true;
+  fx.leftGripErrorCm=null;POSE.holdSupport=0;
   handChain(fx.path,fx.chain,0);if(fx.chainL.length)handChain(fx.pathL,fx.chainL,0);holdWeapon(fx,grip,points);
-  if(fx.aim>.01&&fx.spineAt>0&&aimSpine(fx)){
-    handChain(fx.path,fx.chain,fx.spineAt);if(fx.chainL.length&&fx.spineAtL>0)handChain(fx.pathL,fx.chainL,fx.spineAtL);holdWeapon(fx,grip,points);
+  if(on){t1=perfNow();poseLayer('weapon',t1-t-POSE.holdSupport);poseLayer('support',POSE.holdSupport);POSE.holdSupport=0;t=t1;}
+  ran.support=fx.supportReason!=='one-hand'&&fx.supportReason!=='released';
+  if(fx.aim>.01&&fx.spineAt>0){
+    ran.aim=true;
+    if(aimSpine(fx)){handChain(fx.path,fx.chain,fx.spineAt);if(fx.chainL.length&&fx.spineAtL>0)handChain(fx.pathL,fx.chainL,fx.spineAtL);holdWeapon(fx,grip,points);}
+    if(on){t1=perfNow();poseLayer('aim',t1-t-POSE.holdSupport);if(POSE.holdSupport)poseLayer('support',POSE.holdSupport);POSE.holdSupport=0;t=t1;}
   }
   var leftSnap=leftGrip?applyPistolCup(fx,leftGrip,cupW):null;
   if(leftSnap){
     fx.leftGripErrorCm=leftSnap.error*100;
     if(fx.chainL.length)handChain(fx.pathL,fx.chainL,fx.spineAtL>0?fx.spineAtL:0);
   }else{fx.cupMode=leftGrip?'unavailable':'off';}
+  if(leftGrip){ran.support=true;if(on){t1=perfNow();poseLayer('support',t1-t);t=t1;}}
   /* Body-shape and role scaling must not stretch the rifle: keep it at world scale 1. */
   socketWorld.decompose(sScale,sRot,sPos);MX.ComposeToRef(ONE,sRot,sPos,socketWorld);
   fx.chain[0].invertToRef(rootInv);socketWorld.multiplyToRef(rootInv,socketWorld);
   socketWorld.decompose(sScale,fx.socket.rotationQuaternion,fx.socket.position);fx.socket.scaling.copyFrom(sScale);
+  if(on){poseLayer('weapon',perfNow()-t);poseInputs(fx,ran);}
 }
 /* Two-hand hold. The right web and left web are the two attachment points. Pick the point within
    the weapon's fore-end range whose distance from the grip equals the posed hand spacing, then
@@ -1054,6 +1326,9 @@ function applyPose(fx){
 var hR=new V3(),hL=new V3(),hV=new V3(),hA=new V3(),hUp=new V3(),hX=new V3(),hY=new V3(),hDir=new V3(),hG=new V3(),hFore=new V3(),hS=new V3(),hP=new V3(),hQ=new Q(),hQw=new Q(),hQl=new Q(),hLa=new V3(),hLy=new V3(),hLx=new V3();
 function holdWeapon(fx,grip,points){
   grip.multiplyToRef(fx.chain[fx.chain.length-1],socketWorld);
+  if(POSE.on){var t=perfNow();supportHold(fx,points);POSE.holdSupport+=perfNow()-t;}else supportHold(fx,points);
+}
+function supportHold(fx,points){
   var palms=fx.lib.palms,f=points&&points.fore,g=points&&points.grip;fx.twoHand=0;fx.supportErrorCm=null;
   fx.supportHandM=fx.supportNearM=fx.supportFarM=null;
   /* Pistols are a one-hand hold, as in the Motion Lab: fore points a sidecar pistol slot may still
@@ -1121,15 +1396,132 @@ function handChain(path,chain,from){
     if(i)chainLocal.multiplyToRef(chain[i-1],chain[i]);else chain[i].copyFrom(chainLocal);
   }
 }
+/* ---- animation detail by distance (presentation only) ---------------------------------------
+   applyPose is most of a soldier's per-frame cost, and at the default overview camera every man is
+   hundreds of metres away. The render hook therefore re-poses each soldier on a schedule and
+   otherwise leaves the last pose on the bones (it rides the soldier root, which the sim still moves
+   every frame):
+     - near the camera (< near m): every frame;
+     - medium (< mid m): about midHz; beyond: about farHz, each soldier on his own phase so the
+       far group does not pose on the same frame;
+     - outside the view frustum: not re-posed until he is back in view. A soldier whose meshes cast
+       shadows (in any shadow generator's caster list) counts as in view while his shadow could be:
+       he is held only when both his body and the ground his shadow falls on are outside the view;
+     - static (clip state, weapon and hold unchanged since his last pose, not aiming; e.g. a
+       finished death clip or a paused sim): posed once, then held.
+   A soldier is always posed the first time. Clip clocks stay on simulation time in update(); this
+   only decides how often the result is written. Distances are presentation thresholds, tuned from
+   close-ups, never gameplay. `?animLod=0` poses every soldier every frame (the previous behaviour). */
+/* `clock` (ms) defaults to performance.now(); the full-fidelity benchmark's cadence mode swaps in a
+   virtual frame clock so a slow software renderer is scheduled as a 60 FPS device would be. */
+var LOD={on:!(typeof location!=='undefined'&&/[?&]animLod=0\b/.test(location.search||'')),near:35,mid:100,midHz:30,farHz:10,offscreen:true,radius:1.6,clock:null,skeletons:true};
+var lodVP=new MX(),lodPlanes=[0,1,2,3,4,5].map(function(){return new BABYLON.Plane(0,0,0,0);}),lodEye=new V3(),lodSeq=0;
+function lodCamera(scene){
+  var cam=scene.activeCamera;if(!cam)return false;
+  /* The camera as it is now: the scene's own planes are last frame's and lag a camera jump. */
+  cam.getViewMatrix().multiplyToRef(cam.getProjectionMatrix(),lodVP);BABYLON.Frustum.GetPlanesToRef(lodVP,lodPlanes);
+  lodEye.copyFrom(cam.globalPosition||cam.position);return true;
+}
+/* Shadow-casting lights this frame: every enabled light with a shadow generator. A soldier casts if
+   one of his meshes is in a generator's render list (or the generator selects casters with a
+   predicate, which we cannot see into, so every soldier counts). Caster sets are rebuilt only when a
+   render list changes length. */
+var lodShadowMaps=[],lodShadowDir=new V3(),LOD_SHADOW_HEIGHT=2,LOD_SHADOW_MAX=40;
+function lodShadows(scene){
+  lodShadowMaps.length=0;
+  var lights=scene.lights||[];
+  for(var i=0;i<lights.length;i++){
+    var light=lights[i];if(!light.isEnabled()||!light.getShadowGenerators)continue;
+    var gens=light.getShadowGenerators();if(!gens||!gens.size)continue;
+    gens.forEach(function(g){
+      var sm=g&&g.getShadowMap&&g.getShadowMap();if(!sm)return;
+      var list=sm.renderList||[];
+      if(!sm._lodCasters||sm._lodCastersFrom!==list||sm._lodCastersLen!==list.length){sm._lodCasters=new Set(list);sm._lodCastersFrom=list;sm._lodCastersLen=list.length;}
+      lodShadowMaps.push({light:light,map:sm,all:!!sm.renderListPredicate});
+    });
+  }
+  return lodShadowMaps.length>0;
+}
+function lodCasts(fx,entry){
+  if(entry.all)return true;
+  for(var i=0;i<fx.meshes.length;i++)if(entry.map._lodCasters.has(fx.meshes[i]))return true;
+  return false;
+}
+function lodSphereOut(x,y,z,r){
+  for(var i=0;i<6;i++){var pl=lodPlanes[i];if(pl.normal.x*x+pl.normal.y*y+pl.normal.z*z+pl.d< -r)return true;}
+  return false;
+}
+/* Could this soldier's shadow from this light be in view? The shadow of a body LOD_SHADOW_HEIGHT m
+   tall falls along the light's horizontal direction; test a sphere around that ground strip. A
+   grazing light (very long shadows) always counts as in view. */
+function lodShadowInView(fx,entry){
+  var light=entry.light,p=fx.root.position;
+  var directional=light.getTypeID?light.getTypeID()===BABYLON.Light.LIGHTTYPEID_DIRECTIONALLIGHT:!!light.direction;
+  if(directional)lodShadowDir.copyFrom(light.direction); /* point and spot lights: from the light through his head */
+  else{var lp=light.getAbsolutePosition?light.getAbsolutePosition():light.position;if(!lp)return true;lodShadowDir.set(p.x-lp.x,p.y+LOD_SHADOW_HEIGHT-lp.y,p.z-lp.z);}
+  var len=lodShadowDir.length();if(!(len>1e-6))return true;
+  var dx=lodShadowDir.x/len,dy=lodShadowDir.y/len,dz=lodShadowDir.z/len;if(dy>-.05)return true;
+  var k=(LOD_SHADOW_HEIGHT/2)/-dy,half=Math.sqrt(dx*dx+dz*dz)*k;if(half>LOD_SHADOW_MAX)return true;
+  return!lodSphereOut(p.x+dx*k,p.y,p.z+dz*k,half+LOD.radius);
+}
+function lodSig(fx){
+  if(fx.aim>.01)return null; /* the aim twist follows a moving world target */
+  var h=poseMix(poseClipSig(fx,false),poseWeaponSig(fx));
+  h=poseMix(h,Math.round((fx.cupW==null?1:fx.cupW)*1e3));h=poseMix(h,Math.round((fx.cupRamp==null?1:fx.cupRamp)*1e3));
+  return poseMix(h,Math.round((fx.cupReach==null?1:fx.cupReach)*1e3));
+}
+/* Why this soldier is not re-posed this frame, or null to pose him. */
+function lodHold(fx,now,cam,shadows){
+  /* Signature of the inputs this pose would use, taken before posing: a pose that still moved an
+     eased value (the pistol cup) leaves a different signature for the next frame, so it re-poses. */
+  var sig=fx._lodNext=lodSig(fx);if(fx._lodAt==null)return null;
+  if(sig!==null&&sig===fx._lodSig)return'static';
+  if(!cam)return null;
+  var p=fx.root.position,x=p.x,y=p.y+.9,z=p.z;
+  fx._lodShadowKept=false;
+  if(LOD.offscreen&&lodSphereOut(x,y,z,LOD.radius)){
+    var kept=false;
+    if(shadows)for(var i=0;i<lodShadowMaps.length&&!kept;i++){var e=lodShadowMaps[i];if(lodCasts(fx,e)&&lodShadowInView(fx,e))kept=true;}
+    if(!kept)return'offscreen';
+    fx._lodShadowKept=true; /* body out of view, shadow maybe in view: schedule by distance */
+  }
+  var dx=lodEye.x-x,dy=lodEye.y-y,dz=lodEye.z-z,d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+  if(d<LOD.near){fx._lodEvery=0;return null;}
+  var every=fx._lodEvery=1000/(d<LOD.mid?LOD.midHz:LOD.farHz);
+  return now-fx._lodAt>=every?null:'interval';
+}
+function lodPosed(fx,now){
+  /* Each soldier keeps his own phase: first poses are spread over a far interval (golden-ratio
+     phase per soldier), and later stamps advance by whole intervals, so soldiers that all came due
+     at once (after a pause, a hidden tab or a fast-forward) do not stay in lockstep. */
+  var every=fx._lodEvery||0;
+  if(fx._lodAt==null)fx._lodAt=now-((lodSeq++*.618034)%1)*(1000/LOD.farHz);
+  else if(every>0&&now-fx._lodAt<every*8)fx._lodAt+=every*Math.floor((now-fx._lodAt)/every);
+  else if(every>0)fx._lodAt=now-((lodSeq++*.618034)%1)*every;
+  else fx._lodAt=now;
+  fx._lodSig=fx._lodNext;
+}
+
 function hookRender(scene,st){
   if(st.hooked)return;st.hooked=true;
   scene.onBeforeRenderObservable.add(function(){
-    var list=st.active;
+    var list=st.active,on=POSE.on,t0=on?perfNow():0,posed=0,lod=LOD.on,now=lod?(LOD.clock?LOD.clock():perfNow()):0,cam=lod&&lodCamera(scene),shadows=lod&&cam&&LOD.offscreen&&lodShadows(scene);
     for(var i=list.length-1;i>=0;i--){
       var fx=list[i];
       if(fx.holder.isDisposed()){list.splice(i,1);continue;}
-      if(fx.root.isEnabled())applyPose(fx);
+      if(!fx.root.isEnabled())continue;
+      if(lod){
+        var hold=fx._lodHold=lodHold(fx,now,cam,shadows);
+        if(on&&fx._lodShadowKept)POSE.lod.shadowKept++;
+        if(hold){if(on)POSE.lod[hold]++;continue;}
+        fx._poseDt=fx._lodAt==null?null:(now-fx._lodAt)/1000;
+      }
+      if(on){var a=perfNow();applyPose(fx);poseSoldier(fx,perfNow()-a,scene);posed++;POSE.lod.posed++;}
+      else applyPose(fx);
+      fx.poseRef.serial++; /* the bones moved: his skeletons prepare once this frame */
+      if(lod)lodPosed(fx,now);
     }
+    if(on)poseFrame(perfNow()-t0,posed);
   });
 }
 
@@ -1151,7 +1543,11 @@ if(oldAttach)Weapons.attachWeapon=function(scene,socket,kind){
 var oldCreate=M.createSoldier,oldPreload=M.preload,oldSetEnabled=M.setImportedEnabled;
 M.createSoldier=function(scene,faction,role){
   var soldier=oldCreate.apply(this,arguments),st=sceneState(scene),lib=st.ready&&st.enabled&&modelFor(st,faction,role);
-  if(lib){try{bind(soldier,scene,st,lib,faction==='ge'?'ge':'us');}catch(e){console.warn('[ANIM] FBX soldier bind failed; keeping procedural rig',e);}}
+  if(lib){
+    var t0=ASSET.on?perfNow():0;
+    try{bind(soldier,scene,st,lib,faction==='ge'?'ge':'us');}catch(e){console.warn('[ANIM] FBX soldier bind failed; keeping procedural rig',e);}
+    if(ASSET.on){var t1=perfNow(),b=ASSET.binds;b.count++;b.ms+=t1-t0;b.max=Math.max(b.max,t1-t0);if(b.first==null)b.first=t0;b.last=t1;}
+  }
   return soldier;
 };
 M.preload=function(scene){
@@ -1178,5 +1574,13 @@ root.BattleFbxSoldier={
   speeds:function(scene,file){var st=sceneState(scene),lib=st.libs[file]||st.libs[Object.keys(st.libs)[0]],out={};if(!lib||!lib.clips)return out;
     Object.keys(lib.clips).forEach(function(k){var c=lib.clips[k];out[k]={turnRate:+(c.turnRate||0).toFixed(2),speed:+(c.speed||0).toFixed(2),stride:c.stride!=null?+c.stride.toFixed(2):null,travel:+((c.travel||0)*lib.speedScale).toFixed(2),duration:+c.duration.toFixed(2),loop:c.loop};});return out;}
 };
+/* Read-only diagnostics for the runtime/animation audit (see the instrumentation block above). */
+root.BattleAssetTimings={enabled:ASSET.on,snapshot:assetSnapshot};
+/* Animation LOD thresholds, live-tunable for visual checks (BattleFbxSoldier.lod.farHz=5, .on=false...). */
+root.BattleFbxSoldier.lod=LOD;
+/* Read-only: this soldier's last LOD decision (null = posed), and whether his shadow kept him scheduled. */
+root.BattleFbxSoldier.lodState=function(soldier){var fx=soldier&&soldier._fbx;return fx?{hold:fx._lodHold||null,shadowKept:!!fx._lodShadowKept,lastPoseAt:fx._lodAt==null?null:fx._lodAt}:null;};
+root.BattlePoseTimings={enable:poseEnable,disable:function(){POSE.on=false;return false;},reset:function(){if(POSE.on)poseReset();},
+  enabled:function(){return POSE.on;},snapshot:poseSnapshot,layers:POSE_LAYERS.slice()};
 console.log('[ANIM] FBX soldier backend installed (models + clips load with the battle)');
 })(typeof window!=='undefined'?window:globalThis);
