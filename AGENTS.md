@@ -405,8 +405,13 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
     regroup lease records the direction the squad was marching when it opened (`data.forward`) and
     `commandForward` uses it; `regroup-axis-check.js` guards it. Same probe after the fix (standard
     s1 seeds, 600 s): regroup samples scoring a man behind as an outrunner 89/121 → 13/61 meeting,
-    91/145 → 7/64 US-defend, and half as many regroup ticks. This changes when regroups release, so
-    it needs its own paired standard benchmark; then remove the expiry. Benchmark that paired too.
+    91/145 → 7/64 US-defend, and half as many regroup ticks. GitHub standard benchmark, main run 23
+    vs branch run 22 (PR #61, same seeds): regroup timeouts 124/9/16 → 58/1/12 (meeting/US-defend/
+    GE-defend), movement stalls 45 → 34, wins within noise (meeting US 23 → 26 of 60, p=0.71;
+    US-defend 16 → 14, GE-defend 1 → 2), captures 4.93/0.75/0.45 → 4.80/1.05/0.65, median wall
+    10.9-13.4 → 12.0-12.9 s. Writer ping-pong on `sq.rally` (squad-orders vs the Squad Leader's
+    regroup) rose 38 → 74 events per 100 battles: two writers of `rally` is the next thing to fix
+    before removing the expiry. Then remove the expiry and benchmark that paired too.
 - Window crowding (closed 2026-09-25): bodies at firing stations don't stack. A probe on 6 full standard
   seeds found 1 sample in ~20k occupied-station samples with two men on one station, and a non-holder
   on a held window in one battle only. The old "claim collisions 23 → 3,838" swing was `select()`
