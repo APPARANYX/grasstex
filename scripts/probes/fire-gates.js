@@ -32,7 +32,7 @@
     if (s.crawling) return 'crawling';
     if (facingError(s, q) > AIM_CONE) return 'facing';
     if (s.role === 'gunner' && !s.setUp && e.state === 'engage') return 'emplacing';
-    if (d > role.engageRange) return 'engageRange';
+    if (d > (root.SquadAI.engageRange ? root.SquadAI.engageRange(s) : role.engageRange)) return 'engageRange';
     if (w.stats && d > w.stats.range) return 'weaponRange';
     if (root.BattleDirectFireLOSGate && root.BattleDirectFireLOSGate.blocked(s, sim)) return 'los';
     if (s.fireCooldown > 0) return 'cooldown';

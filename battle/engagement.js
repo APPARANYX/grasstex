@@ -72,7 +72,7 @@
   }
   function roleOf(s) {
     var roles = SA() && SA().ROLES;
-    return (roles && roles[s.role]) || { speed: 2.9, visionRange: 140, engageRange: 130 };
+    return (roles && roles[s.role]) || { speed: 2.9, visionRange: 140 };
   }
   function jitter(s, scale) {
     return ((+s.id || 0) % 7) * scale;

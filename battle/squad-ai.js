@@ -10,10 +10,10 @@
   var ROLES = {
     /* Squad leaders carried a submachine gun (US Thompson, GE MP40), not a pistol: a sidearm left
        the leader out of every fight past 25 m. */
-    sergeant: { weapon: 'smg', speed: 3.0, visionRange: 150, engageRange: 90, hp: 110 },
-    rifleman: { weapon: 'rifle', speed: 2.9, visionRange: 140, engageRange: 135, hp: 100 },
-    gunner: { weapon: 'lmg', speed: 2.2, visionRange: 150, engageRange: 160, hp: 100 },
-    scout: { weapon: 'carbine', speed: 3.8, visionRange: 175, engageRange: 105, hp: 90 }
+    sergeant: { weapon: 'smg', speed: 3.0, visionRange: 150, hp: 110 },
+    rifleman: { weapon: 'rifle', speed: 2.9, visionRange: 140, hp: 100 },
+    gunner: { weapon: 'lmg', speed: 2.2, visionRange: 150, hp: 100 },
+    scout: { weapon: 'carbine', speed: 3.8, visionRange: 175, hp: 90 }
   };
   var COMPOSITION = [
     'sergeant',
@@ -881,8 +881,9 @@
   function shot(shooter, target, battle, round, delay) {
     return EXT.first('shotModel', resolveFire)(shooter, target, battle, round || 0, delay || 0);
   }
-  /* How far a man opens aimed fire: his role's doctrine, but never past what the weapon he carries
-     can reach (a US scout's M1 Carbine and a German scout's FG 42 share the role, not the range). */
+  /* How far a man opens aimed fire: as far as the weapon he carries reaches (a US scout's M1 Carbine
+     and a German scout's FG 42 share the role, not the range). A role may still cap it where its
+     job is not the firefight (`engageRange`, the defending engineer). */
   function engageRange(soldier) {
     var role = ROLES[soldier.role] || {},
       range = soldier.weapon && soldier.weapon.stats && soldier.weapon.stats.range,
