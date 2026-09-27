@@ -46,7 +46,7 @@
     if (st === 'crouch') return { cx: p.x, cy: ground + 0.57, cz: p.z, rx: 0.34, ry: 0.54, rz: 0.34, yaw: 0 };
     return { cx: p.x, cy: ground + 0.88, cz: p.z, rx: 0.31, ry: 0.84, rz: 0.31, yaw: 0 };
   }
-  function rayEllipsoid(o, d, e) {
+  function rayEllipsoid(o, d, e, span) {
     var dx = o.x - e.cx,
       dy = o.y - e.cy,
       dz = o.z - e.cz,
@@ -71,6 +71,8 @@
       t1 = (-B - q) / (2 * A),
       t2 = (-B + q) / (2 * A),
       t = t1 > EPS ? t1 : t2 > EPS ? t2 : null;
+    /* span: also where the ray leaves the body (the exit wound of a round that goes through). */
+    if (span) return t == null ? null : { t: t, out: Math.max(t, t2) };
     return t;
   }
   function targetCenter(target, battle) {
@@ -82,7 +84,7 @@
      SHOOTER+WEAPON combat grouping, not mechanical test-bench MOA.  With two independent Gaussian
      axes, a 90% circular group diameter is ~4.292 * sigma * distance.  Weapons without the newer
      metadata retain the old accuracy-derived fallback so extension modules remain compatible. */
-  function dispersionSigma(shooter, stats, d, battle) {
+  function dispersionSigma(shooter, stats, d, battle, round) {
     var legacy = 0.28 + (1 - clamp(+stats.accuracy || 0.5, 0.05, 0.98)) * 1.7;
     var sigmaAt100 = isFinite(+stats.combatSigmaAt100) ? Math.max(0.01, +stats.combatSigmaAt100) : legacy;
     var sigma = sigmaAt100 / 100;
@@ -93,6 +95,11 @@
     if (shooter.moving) sigma *= 1.55;
     if (shooter.suppressedUntil > battle.time) sigma *= 1.65;
     if (shooter.role === 'gunner' && shooter.setUp) sigma *= 0.72;
+    /* A wounded man shoots worse (the wound model sets it: an arm hit most of all). */
+    if (shooter.woundSigma > 1) sigma *= shooter.woundSigma;
+    /* Muzzle climb: each later round of a burst lands wider; a bipod on the ground holds half of it. */
+    if (round > 0 && stats.burstClimb > 0)
+      sigma *= 1 + round * stats.burstClimb * (shooter.setUp || shooter.prone ? 0.5 : 1);
     if (d > stats.falloffStart) {
       var f = (d - stats.falloffStart) / Math.max(1, stats.range - stats.falloffStart);
       var extra = isFinite(+stats.rangeDispersion) ? Math.max(0, +stats.rangeDispersion) : 0.9;
@@ -103,7 +110,7 @@
   function groupDiameter90(shooter, stats, d, battle) {
     return GROUP90 * dispersionSigma(shooter, stats, d, battle) * d;
   }
-  function shotDirection(shooter, target, stats, battle) {
+  function shotDirection(shooter, target, stats, battle, round) {
     var sp = shooter.root.position,
       origin = { x: sp.x, y: battle.heightAt(sp.x, sp.z) + eyeHeight(shooter), z: sp.z },
       aim = targetCenter(target, battle);
@@ -112,7 +119,7 @@
     var right = { x: base.z / flat, y: 0, z: -base.x / flat };
     var up = norm({ x: -right.z * base.y, y: right.z * base.x - right.x * base.z, z: right.x * base.y });
     var distance = Math.hypot(aim.x - origin.x, aim.y - origin.y, aim.z - origin.z),
-      sigma = dispersionSigma(shooter, stats, distance, battle);
+      sigma = dispersionSigma(shooter, stats, distance, battle, round);
     var gx = gaussian(battle) * sigma,
       gy = gaussian(battle) * sigma;
     return {
@@ -204,60 +211,206 @@
     if (n.x * d.x + n.y * d.y + n.z * d.z > 0) n = { x: -n.x, y: -n.y, z: -n.z };
     return { surface: surface, normal: n };
   }
-  function firstEnemyHit(shooter, o, d, maxT, battle) {
+  function firstEnemyHit(shooter, o, d, maxT, battle, skip) {
     var enemies = battle.rosterOf ? battle.rosterOf(shooter.faction === 'us' ? 'ge' : 'us') : [],
       best = null,
-      bestT = maxT + 1;
+      bestSpan = null;
     for (var i = 0; i < enemies.length; i++) {
       var e = enemies[i];
-      if (!e || e.dead || !e.root) continue;
-      var t = rayEllipsoid(o, d, bodyShape(e, battle));
-      if (t != null && t < bestT && t <= maxT) {
+      if (!e || e.dead || !e.root || (skip && skip.indexOf(e) >= 0)) continue;
+      var span = rayEllipsoid(o, d, bodyShape(e, battle), true);
+      if (span && span.t <= maxT && (!bestSpan || span.t < bestSpan.t)) {
         best = e;
-        bestT = t;
+        bestSpan = span;
       }
     }
-    return best ? { soldier: best, t: bestT } : null;
+    return best ? { soldier: best, t: bestSpan.t, out: bestSpan.out, shape: bodyShape(best, battle) } : null;
   }
-  function resolveRay(shooter, target, battle) {
+
+  /* Over-penetration. A full-power rifle or MG round (.30-06, 7.92 mm) often goes clean through a
+     man, through a limb nearly always; pistol-calibre rounds seldom do. A round that exits keeps
+     part of its energy (less after bone and a torso than after a limb), leaves the body deflected,
+     having yawed in tissue, and flies on: it can strike a second man behind the first, with a wound
+     scaled by what it has left. `penetration` on the weapon (0..1) is how readily its round exits;
+     without it, from the cartridge power. */
+  var THROUGH = { head: 0.75, chest: 0.7, abdomen: 0.75, arm: 0.95, leg: 0.85 },
+    RETAIN = { head: 0.5, chest: 0.45, abdomen: 0.55, arm: 0.75, leg: 0.6 },
+    DEFLECT = 0.12,
+    MAX_BODIES = 3,
+    MIN_ENERGY = 0.15;
+  function penetration(stats) {
+    if (isFinite(+stats.penetration)) return clamp(+stats.penetration, 0, 1);
+    var power = isFinite(+stats.power) ? +stats.power : 1;
+    return power >= 0.9 ? 1 : clamp(power * 0.45, 0, 1);
+  }
+  function deflect(d, battle) {
+    var flat = Math.hypot(d.x, d.z) || 1,
+      right = { x: d.z / flat, y: 0, z: -d.x / flat },
+      gx = gaussian(battle) * DEFLECT,
+      gy = gaussian(battle) * DEFLECT;
+    return norm({ x: d.x + right.x * gx, y: d.y + gy, z: d.z + right.z * gx });
+  }
+  /* Which part of the man the round struck, from where it met his body volume. Standing and
+     crouched, by height (legs below the belt, head the top ~13%) and by how far off his centre line
+     it passed (arms at the edge of the torso); prone, by distance along the body from the feet. */
+  function hitZone(shape, p, d, stanceName) {
+    var dx = p.x - shape.cx,
+      dz = p.z - shape.cz;
+    if (stanceName === 'prone') {
+      var c = Math.cos(shape.yaw || 0),
+        s = Math.sin(shape.yaw || 0),
+        side = Math.abs(dx * c - dz * s) / shape.rx,
+        along = (dx * s + dz * c) / shape.rz;
+      if (along > 0.74) return 'head';
+      if (along > 0.2 && side > 0.78) return 'arm';
+      if (along > 0.3) return 'chest';
+      if (along > -0.05) return 'abdomen';
+      return 'leg';
+    }
+    var h = (p.y - (shape.cy - shape.ry)) / (2 * shape.ry),
+      flat = Math.hypot(d.x, d.z) || 1,
+      lateral = Math.abs(dx * d.z - dz * d.x) / flat / shape.rx,
+      crouch = stanceName === 'crouch';
+    if (h > (crouch ? 0.82 : 0.87)) return 'head';
+    if (h > (crouch ? 0.4 : 0.5) && lateral > 0.72) return 'arm';
+    if (h > (crouch ? 0.56 : 0.62)) return 'chest';
+    if (h > (crouch ? 0.4 : 0.5)) return 'abdomen';
+    return 'leg';
+  }
+  function flatDamage(shooter, victim, battle) {
+    victim.hp -= shooter.weapon.stats.damage * (0.85 + rand(battle) * 0.3);
+    if (victim.hp <= 0) battle.killSoldier(victim, shooter);
+    return null;
+  }
+  function wound(shooter, victim, battle, hit) {
+    return S.applyHit ? S.applyHit(shooter, victim, battle, hit) : flatDamage(shooter, victim, battle);
+  }
+  function blockerOf(environment) {
+    return environment.ground
+      ? 'ground'
+      : environment.wall
+        ? 'wall'
+        : environment.obstacle
+          ? 'obstacle'
+          : null;
+  }
+  /* One round from the muzzle: through each body it passes (passes[], at most MAX_BODIES) to where
+     it stops, in a body, the environment, or at the end of its range. */
+  function resolveRay(shooter, target, battle, round, delay) {
     if (!shooter || !target || target.dead || !shooter.weapon) return null;
     var stats = shooter.weapon.stats,
       sp = shooter.root.position,
       tp = target.root.position,
       d2 = S.dist2 ? S.dist2(sp.x, sp.z, tp.x, tp.z) : Math.hypot(sp.x - tp.x, sp.z - tp.z);
     if (d2 > stats.range) return null;
-    var shot = shotDirection(shooter, target, stats, battle),
-      maxT = stats.range,
-      environment = environmentStop(shot.origin, shot.dir, maxT, battle),
-      stop = environment.travel,
-      body = firstEnemyHit(shooter, shot.origin, shot.dir, Math.min(stop, maxT), battle);
-    var hit = !!body,
-      t = hit ? body.t : stop,
-      victim = hit ? body.soldier : null,
-      impact = pointAt(shot.origin, shot.dir, t),
-      surface = impactSurface(environment, impact, shot.dir, battle);
+    var shot = shotDirection(shooter, target, stats, battle, round || 0),
+      power = isFinite(+stats.power) ? +stats.power : 1,
+      pen = penetration(stats),
+      o = shot.origin,
+      dir = shot.dir,
+      left = stats.range,
+      travelled = 0,
+      energy = 1,
+      passes = [],
+      skip = [],
+      end = null;
     if (stats.suppressive) target.suppressedUntil = Math.max(target.suppressedUntil || 0, battle.time + 1.3);
-    if (victim) {
-      victim.hp -= stats.damage * (0.85 + rand(battle) * 0.3);
-      if (victim.hp <= 0) battle.killSoldier(victim, shooter);
+    while (!end) {
+      var environment = environmentStop(o, dir, left, battle),
+        body = firstEnemyHit(shooter, o, dir, Math.min(environment.travel, left), battle, skip);
+      if (!body) {
+        var at = pointAt(o, dir, environment.travel),
+          surface = impactSurface(environment, at, dir, battle);
+        end = {
+          impact: at,
+          travel: travelled + environment.travel,
+          stoppedBy: environment.travel < left - 0.1 ? 'environment' : 'range',
+          blocker: blockerOf(environment),
+          surface: surface.surface,
+          normal: surface.normal,
+          direction: dir
+        };
+        break;
+      }
+      var victim = body.soldier,
+        entry = pointAt(o, dir, body.t),
+        exit = pointAt(o, dir, body.out),
+        zone = hitZone(body.shape, entry, dir, stance(victim)),
+        pass = {
+          victim: victim,
+          zone: zone,
+          entry: entry,
+          exit: null,
+          direction: dir,
+          energy: energy,
+          wound: wound(shooter, victim, battle, {
+            zone: zone,
+            point: entry,
+            direction: dir,
+            distance: travelled + body.t,
+            round: round || 0,
+            energy: energy,
+            power: power * energy,
+            body: passes.length
+          })
+        };
+      passes.push(pass);
+      skip.push(victim);
+      /* Does it come out the far side? */
+      var through = pen * THROUGH[zone] * energy;
+      if (passes.length >= MAX_BODIES || !(rand(battle) < through)) {
+        end = {
+          impact: entry,
+          travel: travelled + body.t,
+          stoppedBy: 'soldier',
+          blocker: 'soldier',
+          direction: dir
+        };
+        break;
+      }
+      pass.exit = exit;
+      energy *= RETAIN[zone];
+      travelled += body.out;
+      left = (left - body.out) * RETAIN[zone];
+      o = exit;
+      dir = deflect(dir, battle);
+      pass.exitDirection = dir;
+      if (energy < MIN_ENERGY || left < 1) {
+        end = { impact: exit, travel: travelled, stoppedBy: 'spent', blocker: null, direction: dir };
+        break;
+      }
     }
+    var first = passes[0] || null,
+      hit = !!first;
+    /* The shot as the first thing it struck (what every consumer reads), plus the full path. */
     var meta = {
       mode: 'raycast',
       origin: shot.origin,
       aim: shot.aim,
-      impact: impact,
-      victim: victim,
+      impact: first ? first.entry : end.impact,
+      victim: first ? first.victim : null,
       intendedTarget: target,
       dispersionRad: shot.sigma,
-      travel: t,
-      stoppedBy: hit ? 'soldier' : stop < maxT - 0.1 ? 'environment' : 'range',
-      surface: hit ? 'blood' : surface.surface,
-      normal: hit ? { x: -shot.dir.x, y: -shot.dir.y, z: -shot.dir.z } : surface.normal,
-      direction: shot.dir
+      travel: first ? pointDistance(shot.origin, first.entry) : end.travel,
+      stoppedBy: first ? 'soldier' : end.stoppedBy,
+      blocker: first ? 'soldier' : end.blocker,
+      surface: first ? 'blood' : end.surface,
+      normal: first ? { x: -shot.dir.x, y: -shot.dir.y, z: -shot.dir.z } : end.normal,
+      direction: shot.dir,
+      zone: first ? first.zone : null,
+      wound: first ? first.wound : null,
+      passes: passes,
+      /* Where the round finally went after the last body it left (null if it stopped in one). */
+      final: first && end.stoppedBy !== 'soldier' ? end : null,
+      round: round || 0,
+      delay: delay || 0
     };
     battle.onShot && battle.onShot(shooter, target, hit, d2, meta);
     shooter._lastBallisticShot = meta;
     return hit;
+  }
+  function pointDistance(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
   }
   /* SquadAI fireGate slot, after the ammunition gate and before trigger-time LOS: a round is only
      launched at a live target inside the weapon's range, and a weapon still cycling does not count. */
@@ -282,6 +435,10 @@
     dispersionSigma: dispersionSigma,
     groupDiameter90: groupDiameter90,
     bodyShape: bodyShape,
+    hitZone: hitZone,
+    penetration: penetration,
+    THROUGH: THROUGH,
+    RETAIN: RETAIN,
     rayEllipsoid: rayEllipsoid
   };
   if (typeof console !== 'undefined')

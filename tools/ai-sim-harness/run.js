@@ -380,7 +380,8 @@ section('full fight still resolves');
   const {root,battle,us,ge}=duel({gap:90,obstacles});
   H.run(root,battle,180);
   const usAlive=us.members.filter(s=>!s.dead).length,geAlive=ge.members.filter(s=>!s.dead).length;
-  check('shots were fired',battle.events.fired>50,'fired='+battle.events.fired);
+  /* Rifle and MG hits now drop men (14-wound-model.js), so a lopsided fight is over in fewer rounds. */
+  check('shots were fired',battle.events.fired>30,'fired='+battle.events.fired);
   check('the firefight produced casualties',battle.events.kills>0,'kills='+battle.events.kills);
   check('it is not a mutual wipe in 3 minutes',usAlive>0||geAlive>0,'us='+usAlive+' ge='+geAlive);
   console.log('        (us '+usAlive+'/10, ge '+geAlive+'/10, '+battle.events.fired+' shots, '+battle.events.hits+' hits, '+battle.events.kills+' killed)');

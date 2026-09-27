@@ -62,7 +62,8 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `macro-command-toggle-check.js` | Macro OFF suppresses Force Command while downstream hooks still run |
 | `map-pipeline-check.js` | Scenario regeneration publishes the same geometry as a page load (benchmarks once ran 10-70x slow on 4x the hedges) |
 | `sight-query-check.js` | Pruned geometry queries answer exactly as unpruned: `sightBlocked` (crossed cells, first hit) vs nearest-hit `sightBlocker`, and `movementClear` with vs without wall bounding boxes, on real scenarios |
-| `impact-fx-check.js` | Impact materials, blood placement, FX budgets, restart cleanup (render stub) |
+| `impact-fx-check.js` | Impact materials, hole kind per surface, decals on terrain/wall face, wound decals on the hit bone, exit spray, sheet-cell UVs, FX budgets, restart cleanup (render stub) |
+| `weapon-wound-check.js` | Side-specific weapons (Garand/Kar98k, M1919A6/MG42, Thompson/MP40), bursts at the cyclic rate, sustained rates, a burst stops when the belt runs dry, hit zones from the ray, head/chest/leg/arm wound outcomes, bleed-out, drop odds per zone and cartridge, a rifle round through one man into the next (less energy, deflected) and a pistol round stopping |
 | `world-debug-check.js` | World Debug overlay UI handlers (DOM stub) |
 | `extension-order-check.js` | No module replaces `SquadAI.tryFire`/`areaFire`/`updateSoldier`/`updateSquad` or `BattleEngagement.updateSoldier`; the declared fire order (ammunition → ballistics range → trigger-time LOS) holds; undeclared extensions throw |
 | `lease-check.js` | `BattleLeases` primitive, tactical-plan and regroup lease lifecycles, regroup re-forms on the rally point |
@@ -125,6 +126,10 @@ local red-ground page, and reuse these harnesses instead of writing one-off prob
   gives the same frames, death clips included. Env: `CLOSEUP_SOLDIERS`, `CLOSEUP_POSES`, `CLOSEUP_TIMES`,
   `CLOSEUP_VIEWS`, `CLOSEUP_FRAMING`, `CLOSEUP_SIDECAR`, `CLOSEUP_OUT`, `CLOSEUP_URL`. Writes PNGs and
   `summary.json` (clips, two-hand state, support error).
+- **Damage decals themselves:** `scripts/closeup_damage_fx.cjs` shoots the newest decal of each kind
+  (wound, exit, pool, spray, masonry, wood, dirt, metal) along its surface normal, plus a
+  `summary.json` of wounds by zone and decals by kind; works against a `preview.php?ref=` URL.
+  `scripts/preview_decal_sheets.cjs` checks the sprite sheets themselves (no server).
 - **Every model with its weapon, plus the Motion Lab poses:** `scripts/fbx-soldier-lineup.cjs`
   (see Soldiers, weapons, animation).
 - **Pistol support hand numbers:** `scripts/probe_pistol_cup.cjs` (see the replay table below).
@@ -142,8 +147,10 @@ In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certif
 | `scripts/profile_meso_churn.mjs` (+ `meso-churn-profiler.cjs`) | Meso fireteam order churn attribution |
 | `order-ingress-`, `physical-point-`, `movement-goal-transition-`, `resolver-order-mutation-profiler.cjs` | Inject-only observers: who proposes orders, destination provenance, goal transitions, resolver mutations. They never change behaviour. |
 | `scripts/battle-benchmark-intent.cjs` | Shared benchmark predicates (targetless/route-active) |
+| `scripts/closeup_damage_fx.cjs` | Close-ups of the damage FX in the real page: newest wound and exit-wound decal on a soldier, blood splash and exit spray, masonry/wood/dirt/metal holes, one `<kind>.png` each plus `summary.json` (wounds by zone, decals by kind); fails on page errors. `CLOSEUP_OUT` (default `closeups/`, gitignored), `CLOSEUP_SEED`, `CLOSEUP_SHOTS`, `CLOSEUP_SIM`, `CLOSEUP_BODY`, `CLOSEUP_DIST`. 5-10 min under software WebGL. |
+| `scripts/preview_decal_sheets.cjs` | Contact sheet of `Assets/effects/decals/*.png` over surface-like backgrounds with the 4 x 4 grid and row names; check a regenerated or painted sheet before it ships. No server. `DECAL_PREVIEW_OUT`. |
 | `scripts/probe_pistol_cup.cjs` | Motion Lab pistol support cup at a fixed 60 Hz: cup gap (cm), degrees the left arm is bent off the clip, and hand jerk (deg/frame², solved vs the clip's own) per clip. `CUP_SIDECAR=<model>.fbx.json` (a server sidecar; they are never committed), `CUP_CLIPS`, `CUP_SERIES=1`. |
-| `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open). |
+| `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on). |
 
 **Preview launcher:** `python3 scripts/check-preview-launcher.py` runs offline with PHP/cURL and a concurrent local HTTP fixture. Checks runtime reuse, the rolling download queue, integrity failures and publication. `preview.json` records `runtimeReused` and `runtimeDownloaded`; only changed runtime files download, with matching copies taken from production or earlier launcher previews.
 
@@ -257,7 +264,7 @@ Engagement constants live at the top of `engagement.js` (`BattleEngagement.tunin
 per stance (`obstacle-field.js`), so going prone genuinely helps.
 
 **Extend through declared slots, never by replacing a function.** `SquadAI` declares `fireGate`,
-`shotModel`, `areaFireGate`, `afterShot`, `squadCommand`, `beforeSoldier`, `afterSoldier`;
+`shotModel`, `woundModel`, `areaFireGate`, `roundGate`, `afterShot`, `squadCommand`, `beforeSoldier`, `afterSoldier`;
 `BattleEngagement` declares `afterDrill`. Add the id to the declared order and attach with
 `extend(stage, id, fn)`; reassigning `tryFire`/`updateSoldier`/`updateSquad` makes behaviour depend
 on module file order (`14-z-ballistic-raycast.js` once silently discarded the LOS gate that way).
@@ -274,6 +281,32 @@ a read-only "is this hold getting anywhere?" test. The session export lists each
 recently ended leases and `missionHeldBy`, and the AI Graph **Leases** panel (`modules/37-lease-panel.js`)
 shows them live. Don't add a new `...Until` field for a hold. Deliberately not leases: fireteam order renewal (on the order
 record), the garrison request (a standing constraint), and execution timing inside one owner.
+
+**Weapons and wounds.** `BattleWeapons.STATS` holds each kind's numbers and `PROFILES` each side's
+weapon for it (Garand/Kar98k, M1919A6/MG42, Thompson/MP40, M1911A1/P38); `SquadAI.createSoldier`
+issues it (`weapon.profile`, `magSize`). `rof` is the aimed rate of a semi-auto or bolt action; an
+automatic has `cyclic` (rounds/s), `burst` [min, max], `burstPause` and `burstClimb`. One trigger pull
+fires the whole burst on one AI tick (0.15 s, slower than an MG42 cycles); each round goes through
+`roundGate`, `shotModel(…, round, delay)` and `afterShot`, and `onFire(soldier, delay)` / the shot's
+`delay` let presentation play it at the cyclic rate (`BattleSim.presentAfter`). What a hit does is the
+`woundModel` (`modules/14-wound-model.js`, `BattleWounds`): the ray's hit zone (head, chest, abdomen,
+arm, leg; `BattleBallistics.hitZone`), a drop chance per zone scaled by the cartridge's `power`,
+bleeding that eases with time, leg wounds slowing (`woundSpeed`, applied in `11-soldier-individuality`)
+and arm/torso wounds widening the shot group (`woundSigma`). A round can go through a man
+(`14-z-ballistic-raycast.js` over-penetration: chance from the weapon's `penetration`, else full-power
+cartridges only, times the zone; it keeps part of its energy, deflects ~7° and flies on) and strike
+the next enemy behind him with a wound scaled by `hit.energy`/`hit.power`. The shot reports every
+body in `shot.passes` (entry, exit, zone, energy) and where the spent round ended in `shot.final`;
+`shot.victim`/`impact`/`zone` stay the first body. Incapacitated and killed both go through
+`killSoldier` (`soldier.casualty` says which and where).
+
+**Decals.** Sprite sheets in `Assets/effects/decals/` (`blood.png`, `bullet-holes.png`) are a fixed
+4 x 4 grid, one kind per row and four variants per row, generated by `node tools/generate-decal-atlas.js
+[--cell 256]`. `15-bullet-impact-fx.js` (`DECAL_SHEETS`) addresses cells by grid position, so a sheet
+can be regenerated larger or replaced by a painted one of any resolution that keeps the grid. World
+decals (holes, blood on the ground) are thin instances per cell; wound decals are quads parented to
+the hit bone (`BattleFbxSoldier.boneNode`, or the procedural `soldier.rig`), with a larger exit wound
+on the far side and an exit spray on the ground wherever a round came out.
 
 **Presentation never touches the combat RNG.** Voice, FX and audio must not draw from
 `battle.random`; the same seed must simulate the same battle with or without assets
