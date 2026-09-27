@@ -11,6 +11,8 @@ original docs (roadmaps, lab notes, measurements) are in git history at `1a5b0cf
   contract or rule actually changes. Findings go in the commit message or PR body.
 - **State success criteria up front, prove them with a harness below, report the output.**
   Never claim visual/browser validation that wasn't performed.
+- **Keep probes.** A one-off measurement script is a probe: commit it as `scripts/probes/<name>.js`
+  (run with `scripts/run_probe.cjs`) or extend `scripts/closeup.cjs`, never leave it in `/tmp`.
 - **Stay in scope.** Don't touch audio, assets or animation unless asked. Unnamed uploads: ask
   what they are and where they belong.
 - `main` deploys to production on every push. Put anything visual on a `work/**` or `preview/**`
@@ -103,6 +105,8 @@ Hosted textures 404 when served locally, so the ground renders red. That's expec
 | `order-ingress-`, `physical-point-`, `movement-goal-transition-`, `resolver-order-mutation-profiler.cjs` | Inject-only observers: who proposes orders, destination provenance, goal transitions, resolver mutations. They never change behaviour. |
 | `scripts/battle-benchmark-intent.cjs` | Shared benchmark predicates (targetless/route-active) |
 | `scripts/probe_pistol_cup.cjs` | Motion Lab pistol support cup at a fixed 60 Hz: cup gap (cm), degrees the left arm is bent off the clip, and hand jerk (deg/frame², solved vs the clip's own) per clip. `CUP_SIDECAR=<model>.fbx.json` (a server sidecar; they are never committed), `CUP_CLIPS`, `CUP_SERIES=1`. |
+| `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open). |
+| `scripts/closeup.cjs` | Close-ups of any `faction/role[/weapon.fbx]` in any Motion Lab pose at any time, from `front`/`side`/`back`/`left`/`three-quarter`/`top`, framed on `body`/`hands`/`weapon`, through the game's own FBX backend at a fixed 30 Hz. `CLOSEUP_SOLDIERS`, `CLOSEUP_POSES`, `CLOSEUP_TIMES`, `CLOSEUP_VIEWS`, `CLOSEUP_FRAMING`, `CLOSEUP_SIDECAR`, `CLOSEUP_OUT`. Writes PNGs and `summary.json` (clips, two-hand state, support error). |
 
 **Repo-wide checks** (match CI):
 
