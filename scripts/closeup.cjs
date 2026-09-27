@@ -2,10 +2,12 @@
  *
  * The lineup (fbx-soldier-lineup.cjs) is the fixed regression set; this is the one to reach for when
  * a change needs pictures of one hold ("the GE sergeant's P38 in walk-aim at 0.4 s, side and hands").
+ * For what a fight does to a body (wounds, a death fall, stance under fire) use closeup_battle.cjs.
  * It opens the battle page, builds its own one-soldier scene next to the battle (the in-page Motion
  * Lab's recipe: BattleSoldierModel.createSoldier + BattleWeapons.attachWeapon, so the real FBX
  * backend, clip table, default grips and any served sidecar), and steps each pose at a fixed 30 Hz to
- * each requested time, so the same env always gives the same frames. Writes one PNG per
+ * each requested time with Math.random seeded (the backend draws death and idle variants from it),
+ * so the same env always gives the same frames. Writes one PNG per
  * soldier x pose x time x framing x view, plus summary.json with the backend's hold state per shot.
  *
  * Run (serve the repo first, see AGENTS.md "Browser smoke"):
@@ -19,7 +21,8 @@
  *                     crouch-aim crouch-walk prone prone-aim prone-crawl stand>prone prone>stand
  *                     stand>crouch death.front death.back death.side (default aim)
  *   CLOSEUP_TIMES     seconds into the pose, comma-separated (default 1.5)
- *   CLOSEUP_VIEWS     front, side, back, left, three-quarter, top (default front,side)
+ *   CLOSEUP_VIEWS     front, side (or right, as closeup_battle.cjs calls it), back, left,
+ *                     three-quarter, top (default front,side)
  *   CLOSEUP_FRAMING   body, hands, weapon (default body,hands)
  *   CLOSEUP_SIDECAR   a <model>.fbx.json served for every soldier model (sidecars are server-owned,
  *                     never committed); without it the page's defaults are used
@@ -44,7 +47,7 @@ const VIEWS = list(process.env.CLOSEUP_VIEWS || 'front,side');
 const FRAMING = list(process.env.CLOSEUP_FRAMING || 'body,hands');
 const OUT = path.resolve(process.env.CLOSEUP_OUT || path.join(os.tmpdir(), 'closeups'));
 const [W, H] = String(process.env.CLOSEUP_SIZE || '900x900').split('x').map(Number);
-const ALPHA = { front: -Math.PI / 2, side: 0, back: Math.PI / 2, left: Math.PI, 'three-quarter': -Math.PI / 4, top: -Math.PI / 2 };
+const ALPHA = { front: -Math.PI / 2, side: 0, right: 0, back: Math.PI / 2, left: Math.PI, 'three-quarter': -Math.PI / 4, top: -Math.PI / 2 };
 const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
 
 (async () => {
@@ -55,6 +58,15 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
   const page = await browser.newPage({ viewport: { width: W, height: H }, ignoreHTTPSErrors: true });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e && e.stack || e).slice(0, 400)));
+  // Presentation draws Math.random (death clip in its pool, idle variant); seed it as
+  // closeup_battle.cjs does so a pose renders the same frames every run.
+  await page.addInitScript(seed => {
+    let h = 1779033703 ^ seed.length;
+    for (let i = 0; i < seed.length; i++) { h = Math.imul(h ^ seed.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+    let a = h >>> 0;
+    Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }, 'closeup');
   if (process.env.CLOSEUP_SIDECAR) {
     const body = fs.readFileSync(process.env.CLOSEUP_SIDECAR, 'utf8');
     await page.route('**/Assets/soldiers/*.fbx.json', r => r.fulfill({ status: 200, contentType: 'application/json', body }));
