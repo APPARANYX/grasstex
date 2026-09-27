@@ -69,6 +69,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `lease-check.js` | `BattleLeases` primitive, tactical-plan and regroup lease lifecycles, regroup re-forms on the rally point |
 | `reconstitution-check.js` | Retreated squads home and out of contact reaching 10 survivors group (fewest squads; none planned en route), march to the rally point, merge under one leader (promotion never picks the gunner), get re-tasked; below-strength groups dissolve; Macro OFF does nothing |
 | `succession-check.js` | A killed leader is replaced by the most senior survivor after the 6 s `succession` lease, never more than one leader, the gunner only as the last man, successors replaced in turn, no lease on a led or wiped-out squad, seniority order |
+| `perception-check.js` | View cones (120° focus at full range, ±100° periphery shorter, behind only within 10 m), head turn toward the squad's known threat, contact relayed to a friendly squad within 50 m (first-hand only, keeps its age), enemy gunfire heard within 120 m with a distance-scaled position error, own sightings outrank both, no combat-RNG draws |
 | `voice-determinism-check.js` | Voice callouts never draw from the combat RNG: a battle is identical with and without voice |
 
 `harness.js` mirrors `stepMovement()` from `battle/battle-sim.js`. **If that function changes,
@@ -200,7 +201,7 @@ Intent flows down and status flows up. No layer rewrites another's state.
 | Macro: Force Command | `commander-ai.js`, `commander-doctrine.js`, `commander-routes.js` | `_macroMission` brief {intent, action, objectiveId, point, flank leg, status}, `targetObjective`, `commandRole`, force allocation, reserves | write `commandPhase`/`objective`/route legs, cover, slots or soldier destinations |
 | Meso: Squad Leader / Squad Command | `modules/16-squad-plan-stability.js` (`executeMission`, `fireAndMovement`; SquadAI's `squadCommand` owner) | stable squad plan: fireteams, formation, order anchor, fire and movement (assault authorisation, bound cycle and team), corner pauses, defensive posts, regroup, objective phase; the only writer of `commandPhase` (setup states it through `initialPhase`) | do obstacle avoidance; republish orders every tick |
 | Micro: Engagement | `engagement.js` (+ `modules/44-combat-urgency.js` drills on its `afterDrill` slot) | per-soldier state machine, stance (`prone`/`crawling`/`tacticalCrouch`), permission to fire, combat proposals to the resolver, the squad contact report (`inContact`, base of fire, pinned) | write final destination; pick objectives; decide squad bounds |
-| Perception + shared primitives | `squad-ai.js` | who sees whom, shot resolution, shared `squad.contact`, `areaFire` suppression; hosts the declared extension points (`SquadAI.extend`) and `BattleLeases`; a status-only squad update when no `squadCommand` owner is loaded | set stance/destination in combat |
+| Perception + shared primitives | `squad-ai.js` | who sees whom (view cones), what a squad hears and is told (`squadSenses`), shot resolution, shared `squad.contact`, `areaFire` suppression; hosts the declared extension points (`SquadAI.extend`) and `BattleLeases`; a status-only squad update when no `squadCommand` owner is loaded | set stance/destination in combat |
 | Tactical positions | `modules/20-building-hardpoints.js` (`BattleTacticalPositions`: `claim`/`current`/`station`/`release`) | window/hardpoint reservations `assigned→ingress→occupying→holding→released`, committed ingress route | |
 | Tactical routing | `modules/52-survival-tactical-route.js` | safe ingress, suppressed cover detours | resurrect an obsolete objective |
 | Movement Resolver | `movement-resolver.js` | **sole normal-runtime writer of `soldier.destination`**; coalesces Engagement's per-tick combat requests and arbitrates Meso vs Micro proposals | act as a garbage collector for redundant producers |
@@ -251,6 +252,16 @@ exported data uses them: the policy keys `captainlessCohesion`, `cornerNoCaptain
 `captainWindowAssignments` and `captainlessSamples`, the module file and system id
 `13-captain-command-throttle`, and the trait seed in `11-soldier-individuality.js` (it still hashes
 `captain` so existing seeds replay the same battle).
+
+**Perception** (`squad-ai.js`, `SquadAI.PERCEPTION`). A man spots at his full stance-scaled range
+inside ±60° of where he looks, at 35% of it out to ±100° (55% for a moving man), and behind that only
+within 10 m; he looks where his body faces, or at the squad's known threat if a ≤70° head turn reaches
+it. Tracking a man he already has is not cone-limited. `squad.contact` is the squad's picture: its own
+men's sightings, else a friendly squad's first-hand sighting within 50 m (`relayedFrom`, keeping the
+sighting's `at`, never chained), else enemy gunfire within 120 m (`heard`, the shooter's position off
+by up to 8% of the range, deterministically). Own sightings always replace heard or relayed ones.
+Engagement already turns men and assigns suppressors from `squad.contact`, so both cues bring the
+squad's eyes and rifles onto the threat.
 
 **Engagement states:** `advance → orient → (decide) → bound → engage`, then
 `pinned`, `assault`, `alert`, `withdraw`, `station`. `orient` never fires (REACT 0.45 s scout to
