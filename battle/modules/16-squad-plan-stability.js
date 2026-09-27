@@ -178,6 +178,72 @@
     }
     return { x: dx / (l || 1), z: dz / (l || 1) };
   }
+  /* The forward line: where the forward majority of a group of men actually is along the advance
+     axis, not their average. Each man is projected on the axis; the front-most half (rounded up) is
+     the forward group, and any man within COVER_BAND behind the rearmost of them joins it, since men
+     taking different cover along one line stand a few metres apart in depth. The line sits at the
+     group's mean, so stragglers behind cannot drag it back and one man out front cannot pull it all
+     the way forward: two men up front, one just behind them and two far back put it between the
+     front pair and the middle man, two thirds of the way to the front. {at: distance along the axis
+     (position . axis), point: the group's mean position, men, of}. */
+  var COVER_BAND = 5;
+  function forwardMajority(men, axis) {
+    var rows = [],
+      i;
+    for (i = 0; i < men.length; i++) {
+      var p = men[i].root.position,
+        x = +p.x || 0,
+        z = +p.z || 0;
+      rows.push({ at: x * axis.x + z * axis.z, x: x, z: z, id: +men[i].id || 0 });
+    }
+    if (!rows.length) return null;
+    rows.sort(function (a, b) {
+      return b.at - a.at || a.id - b.id;
+    });
+    var k = Math.ceil(rows.length / 2),
+      floor = rows[k - 1].at - COVER_BAND;
+    while (k < rows.length && rows[k].at >= floor) k++;
+    var at = 0,
+      mx = 0,
+      mz = 0;
+    for (i = 0; i < k; i++) {
+      at += rows[i].at;
+      mx += rows[i].x;
+      mz += rows[i].z;
+    }
+    return { at: at / k, point: { x: mx / k, z: mz / k }, men: k, of: rows.length };
+  }
+  /* Published each command tick for the squad and each fireteam (sq._forwardLine); cleared in retreat,
+     where backward is the order. The regroup rally point is the squad's forward-majority point. */
+  function publishForwardLine(sq, battle) {
+    var men = alive(sq);
+    if (sq.state === 'retreat' || !men.length) {
+      sq._forwardLine = null;
+      return;
+    }
+    var axis = commandForward(sq),
+      line = forwardMajority(men, axis);
+    if (!line) {
+      sq._forwardLine = null;
+      return;
+    }
+    var groups = {},
+      i;
+    for (i = 0; i < men.length; i++) {
+      var key = men[i]._fireteamKey || teamKeyFor(men[i]);
+      (groups[key] = groups[key] || []).push(men[i]);
+    }
+    line.axis = { x: axis.x, z: axis.z };
+    line.band = COVER_BAND;
+    line.t = battle ? battle.time : 0;
+    line.teams = {};
+    Object.keys(groups)
+      .sort()
+      .forEach(function (key) {
+        line.teams[key] = forwardMajority(groups[key], axis);
+      });
+    sq._forwardLine = line;
+  }
   function publishStats(battle) {
     return (
       battle._squadCommandPublishStats ||
@@ -556,8 +622,11 @@
       st.suppressed++;
       return;
     }
-    var anchor = copy(ca.center),
-      marching = commandForward(sq);
+    /* Re-form on the forward majority, not the average: the men behind come up to where most of the
+       squad already is, instead of the leading men being pulled back to the middle. */
+    var marching = commandForward(sq),
+      fwd = forwardMajority(alive(sq), marching),
+      anchor = copy(fwd ? fwd.point : ca.center);
     L.grant(
       sq,
       'regroup',
@@ -565,7 +634,13 @@
       t,
       t + REGROUP_MAX,
       'squad dispersed',
-      'core spread back inside ' + Math.round(release) + ' m after ' + REGROUP_MIN + ' s, contact, or ' + REGROUP_MAX + ' s',
+      'core spread back inside ' +
+        Math.round(release) +
+        ' m after ' +
+        REGROUP_MIN +
+        ' s, contact, or ' +
+        REGROUP_MAX +
+        ' s',
       {
         anchor: anchor,
         startSpread: ca.coreSpread,
@@ -1005,6 +1080,7 @@
     if (!battle) return;
     advanceSquadAnchor(sq, battle);
     updateFireteams(sq, battle);
+    publishForwardLine(sq, battle);
   });
 
   function inTown(town, p) {
