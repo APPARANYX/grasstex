@@ -382,6 +382,81 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
 
 ### Open issues (as of 2026-09-27)
 
+- **Runtime / animation performance audit (2026-09-27; approved direction).** Treat this as the
+  current performance action queue for the full-fidelity 50v50 battle. Performance target at 100
+  soldiers: **mobile 30 FPS floor / 60 FPS target; desktop 60 FPS target**. Preserve deterministic
+  gameplay behaviour while changing presentation/runtime cost; measure before and after each item.
+  1. **Animation/pose runtime cost is the first action item.** Imported soldiers currently run
+     `applyPose` once per rendered frame while enabled, including locomotion/overlay blending,
+     aiming, weapon hold, spine and support-hand work. Instrument pose time first, then keep animation
+     clocks on simulation time while using shared cached base clip samples, cheap per-soldier sampling
+     and dirty dynamic overrides. Recompute expensive aim/weapon/support-hand layers when their inputs
+     change or while a transition is active, rather than deriving the same result every frame. Add
+     automatic animation LOD: near soldiers update every frame; medium distance approximately
+     20-30 Hz; distant soldiers approximately 5-10 Hz; offscreen soldiers hold the last pose until
+     visible/dirty. Distances are presentation thresholds and must be tuned from visual tests, not
+     tied to gameplay AI or ballistics.
+  2. **Instrument the real asset/startup path before changing it.** The loading overlay currently
+     reports real per-file counts for models, weapons and clips, but work inside a file is opaque.
+     Add timings for download, Babylon FBX parse/import, clip conversion/resampling, rig/bone mapping
+     or retargeting, sidecar/setup work, and final bind/ready time. Publish totals and slowest files
+     in a browser-readable diagnostic payload and include them in the full-fidelity benchmark below.
+     This instrumentation must not change simulation state or combat RNG.
+  3. **Remove the 25 s imported-soldier timeout and the normal-game procedural fallback.** Today
+     `BattleSoldierModel.preload` races `loadLibrary(scene)` against a 25 s timer; losing the race
+     does not cancel `loadLibrary`, so a slow device can fall back visually while FBX parse/convert
+     work keeps consuming CPU and memory. Approved target: normal gameplay is FBX/preprocessed-
+     asset-only, waits for its required runtime assets, and surfaces a real load failure instead of
+     silently substituting procedural soldiers. Remove the procedural *visual* soldier generator and
+     its fallback plumbing from the normal runtime once callers are migrated. Keep only
+     renderer-free/plain simulation representations that the trainer or headless harness actually
+     require; Git history is the archive for deleted visual fallback code.
+  4. **Make FBX an ingress/source format only; preprocess runtime animation offline.** Current startup
+     parses FBX and converts clips in the browser: channels are canonicalised, filtered, resampled at
+     30 Hz, looping root travel is removed/measured, and rigs may need mapping/retarget setup. Move
+     those deterministic transformations into the asset/build pipeline. Source assets may remain FBX,
+     but the browser should consume a game-ready artifact (GLB/glTF or a more compact custom pose/clip
+     package, chosen from measurements) plus prepared metadata. Precompute rig maps, clip samples,
+     root-motion/natural-speed metadata and any invariant calibration possible. Measured audit
+     baseline: 92 live clip FBXs are ~35.6 MiB and the ten current paratrooper model FBXs are ~17.5
+     MiB, ~53 MiB of raw FBX before weapons/textures/sidecars; reduce both startup CPU and transferred
+     runtime bytes where the prepared format allows it.
+  5. **Add a full-fidelity FBX/preprocessed-asset benchmark; keep the existing headless sim
+     benchmark.** The existing benchmark intentionally isolates AI/simulation and uses abstract
+     stance/body volumes, so it remains the fast deterministic regression benchmark. Add a separate
+     browser benchmark that loads the real runtime assets with real soldiers, weapons,
+     animation/pose work and Babylon rendering, with **no procedural fallback**. Record startup phase
+     timings, steady-state frame time/FPS, render time, animation/pose time, draw calls/active meshes,
+     and GPU timing where supported. Use representative desktop and mobile runs; start manual, then
+     add a stable reduced case to CI if runtime and variance are acceptable.
+  6. **Add render-side culling/LOD only after instrumentation says rendering is still material.**
+     Use safe/precomputed animated bounds for frustum/offscreen culling and distance-based rendering
+     detail. Do not hand-author lower-poly soldier variants first; generate/simplify far geometry in
+     the asset pipeline only if GPU/draw-call measurements justify it. Also validate whether
+     `preserveDrawingBuffer:true` is still required by screenshots/close-up tools and whether
+     `renderEvenInBackground=true` is desirable on mobile; disable either only after proving its
+     dependent workflows.
+  7. **Re-profile simulation CPU after presentation work.** Exact LOS/nav pruning moved the headless
+     hot path: `engagement.updateSoldier` and the movement resolver now lead the profile. Instrument
+     their current call counts, allocations and inclusive time, then remove redundant calculations or
+     allocation churn only with paired deterministic benchmarks and existing ownership checks. Do not
+     trade AI behaviour for benchmark speed.
+  8. **Safe audit cleanup is already staged separately in PR #62.** That draft fixes stale repository
+     refs in launchers, improves the non-production GitHub-mirroring loader's local module discovery
+     and excludes source ZIPs from mirroring, disables unused battle-scene stencil/pointer-move
+     picking, freezes immutable imported/procedural materials, and suppresses redundant bounds sync on
+     presentation-only meshes. Keep those low-risk presentation/loader changes separate from the
+     behaviour-changing pipeline work above until visually validated.
+  9. **Do not migrate engines to solve these findings.** The measured problems are asset preparation,
+     skeletal update frequency, rendering work and simulation hot paths, not Babylon-specific
+     architectural blockers. Optimize and benchmark Babylon first; reconsider Babylon Editor,
+     PlayCanvas or a larger engine migration only if the measured target remains unreachable after
+     the pipeline/LOD work.
+  - **Dead-code/formatting conclusion from the sweep:** do not do a repo-wide Prettier rewrite or
+    broad fallback purge. Prettier is intentionally scoped to the M3C behaviour files. The major code
+    path newly designated obsolete is the procedural *visual soldier fallback* in normal gameplay;
+    remove it deliberately with its callers/tests rather than deleting unrelated compatibility paths.
+
 - Regroups: half used to time out at 18 s because the order anchor stayed with the leading men;
   fixed (timeouts 76 → 6 over 30 seeds). GitHub standard benchmark run 11 (PR #37, 2026-09-25,
   benchmark `regroups`): 9.4 regroups per battle in meeting, 7.3 in US-defend and 5.9 in GE-defend,
@@ -633,6 +708,13 @@ never decides tactics, ammo, hits or paths.
 
 **Asset pipeline.** Use the Blender app bundle `/Applications/Blender.app/Contents/MacOS/Blender`, not the
 broken `blender` on PATH. Use lowercase filenames, since the host is case-sensitive (`git mv` to rename).
+
+**Approved runtime-format direction (2026-09-27):** FBX is the authoring/ingress format, not the
+long-term browser runtime format. The pipeline should convert FBX soldiers/clips/weapons as needed
+into measured game-ready artifacts (GLB/glTF or a compact custom representation) and ship those
+prepared outputs. Keep raw/source FBX for regeneration and Motion Lab/source workflows where needed;
+do not make production clients repeat deterministic parsing, resampling or rig-preparation work that
+can be done once offline.
 
 ```bash
 Blender -b --factory-startup --python tools/fix-soldier-model.py -- --input raw.fbx --output Assets/soldiers/<fac>-<name>.fbx --texture-name <fac>-<name>-albedo [--fit-skin]
