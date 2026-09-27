@@ -44,21 +44,24 @@ window.BattleLoading=(function(){
   var PHASES=[['scripts','Runtime scripts',12],['scenario','Scenario & engine',3],['terrain','Terrain & sky',8],
     ['soldiers','Soldiers, weapons & clips',50],['cover','Cover, hedges & buildings',15],['battle','Navigation, squads & objectives',12]];
   var root=document.getElementById('loading'),list=document.getElementById('loadPhases'),bar=root.querySelector('#loadBar i'),pct=document.getElementById('loadPct'),state={},finished=false,current=null;
+  /* Phase wall times (performance.now() ms) for BattleAssetTimings and the full-fidelity benchmark. */
+  var times={},finishedAt=null;function now(){return performance.now();}function stamp(id,k){var t=times[id]||(times[id]={});if(t[k]==null)t[k]=now();}
   PHASES.forEach(function(p){var li=document.createElement('li');li.innerHTML='<b>○</b><span></span><small></small>';li.querySelector('span').textContent=p[1];list.appendChild(li);state[p[0]]={li:li,weight:p[2],frac:0,items:{}};});
   function render(){var sum=0,total=0;PHASES.forEach(function(p){var s=state[p[0]];sum+=s.weight*s.frac;total+=s.weight;});var v=Math.round(100*sum/total);bar.style.width=v+'%';pct.textContent=v+'%';}
   function mark(id,cls,glyph,detail){var s=state[id];if(!s)return null;s.li.className=cls;s.li.querySelector('b').textContent=glyph;if(detail!=null)s.li.querySelector('small').textContent=detail;return s;}
   var api={
-    start:function(id,detail){if(finished)return;current=id;mark(id,'active','›',detail||'');render();},
+    start:function(id,detail){if(finished)return;current=id;if(state[id])stamp(id,'start');mark(id,'active','›',detail||'');render();},
     /* Named sub-counts (e.g. models/weapons/clips) make the phase fraction and its detail line. */
-    progress:function(id,item,done,total,label){if(finished||!state[id]||state[id].frac===1)return;var s=state[id];if(!s.li.className)api.start(id);s.items[item]={done:done,total:total,label:label||item};
+    progress:function(id,item,done,total,label){if(finished||!state[id]||state[id].frac===1)return;var s=state[id];if(!s.li.className)api.start(id);s.items[item]={done:done,total:total,label:label||item};stamp(id,'start');
       var d=0,t=0,parts=[];Object.keys(s.items).forEach(function(k){var it=s.items[k];d+=it.done;t+=it.total||0;parts.push(it.label+' '+it.done+(it.total?'/'+it.total:''));});
       s.frac=t?Math.min(.99,d/t):s.frac;mark(id,'active','›',parts.join(' · '));render();},
     note:function(id,detail){if(finished||!state[id])return;mark(id,state[id].li.className||'active',state[id].li.querySelector('b').textContent==='○'?'›':state[id].li.querySelector('b').textContent,detail);},
-    done:function(id,detail){if(finished||!state[id])return;var s=state[id];s.frac=1;
+    done:function(id,detail){if(finished||!state[id])return;var s=state[id];s.frac=1;stamp(id,'start');stamp(id,'done');
       if(detail==null&&Object.keys(s.items).length)detail=Object.keys(s.items).map(function(k){var it=s.items[k];return it.label+' '+it.done;}).join(' · ');
       mark(id,'ok','✓',detail);render();},
     fail:function(error){var id=current||'scripts';mark(id,'fail','✕');document.getElementById('loadError').textContent=String(error&&(error.stack||error.message)||error);},
-    finish:function(){if(finished)return;PHASES.forEach(function(p){state[p[0]].frac=1;});render();finished=true;root.classList.add('done');setTimeout(function(){root.hidden=true;},600);},
+    timings:function(){var out={phases:[],finishedAt:finishedAt==null?null:+finishedAt.toFixed(1)};PHASES.forEach(function(p){var t=times[p[0]]||{};out.phases.push({id:p[0],label:p[1],start:t.start==null?null:+t.start.toFixed(1),done:t.done==null?null:+t.done.toFixed(1),ms:t.start!=null&&t.done!=null?+(t.done-t.start).toFixed(1):null});});return out;},
+    finish:function(){if(finished)return;finishedAt=now();PHASES.forEach(function(p){state[p[0]].frac=1;});render();finished=true;root.classList.add('done');setTimeout(function(){root.hidden=true;},600);},
     /* Resolve after the browser has had a chance to paint (a timer backs up rAF in background tabs). */
     frame:function(){return new Promise(function(resolve){var fired=false;function go(){if(!fired){fired=true;setTimeout(resolve,0);}}requestAnimationFrame(go);setTimeout(go,60);});}
   };
