@@ -374,7 +374,7 @@ four-run swing. Live-browser runs at `timeScale` 8 aren't deterministic, so use 
 for controlled pairs, and serve both arms the same way: `battle_sim_local.php` in preview mode (a
 `preview.json` beside it) reads `state/` and the audio manifest two directories up.
 
-### Open issues (as of v160 / 2026-09-24)
+### Open issues (as of 2026-09-27)
 
 - Regroups: half used to time out at 18 s because the order anchor stayed with the leading men;
   fixed (timeouts 76 → 6 over 30 seeds). GitHub standard benchmark run 11 (PR #37, 2026-09-25,
@@ -428,7 +428,99 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   Prepared Defense already publish *requests* that Force Command accepts; follow that pattern.
 - Meeting engagements deliberately get no runtime engineer fortification (`engineerTick` exits early).
 - **Sergeant weapons.** Squad leaders carry the `smg` kind: US Thompson, GE MP40 (`BattleWeapons.PROFILES`).
-  Their grips use the generic `WEAPON_POINTS`; set per-model sidecars in the Motion Lab.
+  Their grips use the generic `WEAPON_POINTS`; set per-model sidecars in the Motion Lab. They rarely
+  fire, and that is range, not a gate bug: the `fire-gates` probe (standard s1 seeds, 600 s) found 0
+  rounds in meeting and US-defend, where the target a leader holds is 350 m+ away in >85% of samples
+  and the SMG reaches 150 m; in GE-defend, when attackers close, 69 trigger pulls (276 rounds). If
+  leaders should shoot more, it is the Squad Leader closing to assault range more often (a tactics
+  change, benchmark it), or a rifle for US leaders (many carried the Garand), not a looser gate.
+- **Scout balance after the FG 42 (PR #55, merged as is, to tweak).** Scouts carry US M1 Carbine
+  (250 m) / GE FG 42 (full-power round, 450 m, bursts only inside 50 m). The paired standard benchmark
+  (main run 21 vs branch run 20, same seeds, with the view cones below also in the branch) moved meeting
+  wins US/GE 37/23 → 23/37 (Fisher p=0.017; 44/60 same winner), meeting kills US/GE 29.7/25.6 →
+  26.6/30.9, US-defend 19/1 → 16/4 (p=0.34), GE-defend unchanged 1/19. Not yet attributed: benchmark
+  the scout change without perception (and the reverse) before tuning. Levers, smallest first: German
+  scouts on the Kar98k (the regular infantry issue; the FG 42 was a Fallschirmjäger weapon, ~7,000
+  made), a shorter FG 42 practical range, or a wider FG 42 group at range. Presentation gaps left for
+  the FG 42: it plays the carbine sound (audio is out of scope without an ask), and the FBX backend
+  restarts the fire clip each round of a burst because it treats only `lmg`/`smg` kinds as automatic
+  (`53-fbx-soldier-backend.js`, `weaponKind`); key those on the weapon's `cyclic` instead.
+- **Perception follow-ups.** View cones cut sightings of an enemy behind the man from 6-13% of fresh
+  acquisitions to <1% (`perception` probe, standard s1 seeds). Relay and hearing gave a squad its
+  first contact once in 29 squads: sight (450-575 m) outruns hearing (120 m) in open battles. The
+  probe records only first contact; count how often heard/relayed word re-acquires a squad that lost
+  sight mid-fight before tuning `HEAR_RANGE`/`RELAY_RANGE`. Relay distance is squad centre to squad
+  centre (50 m); the other reading of the request, enemies within 50 m of the unaware squad, is a
+  one-line change in `squadSenses`. Defenders facing one way have no sector scan: a sweep for a man
+  holding still with no contact is the next step if flanks go unseen.
+- **Bullet holes float in front of scatter cover (open, fix proposed).** `14-z-ballistic-raycast.js`
+  `obstacleStop` stops the ray at the obstacle field's tactical cover circle, not the rendered object
+  (`terrain-features.js` `scatter`): a log is a 0.55 m cylinder but its circle is `len*0.42`
+  (1.1-2.0 m), a tree trunk `0.11*scale` vs `1.15*scale`, a rock box vs `size*1.1`, a wall stub
+  0.5 m thick vs a 1.6 m circle set off the wall. The hole and its radial normal land where the round
+  stopped in the air. Fix at the ballistics owner: when the ray crosses a cover circle, intersect the
+  linked `physicalId` footprint (OBB or circle, with its height) and let the round fly on if it misses;
+  sight and cover abstractions stay as they are. It changes combat (rounds that used to stop in the
+  air fly on), so benchmark it paired. Not a decal-shader job: a projected or UV-space decal only
+  draws on real geometry, so it would hide the wrong impact point, not fix it; consider UV-space decals
+  later only for curved surfaces if flat quads still look wrong once impacts sit on the real shape.
+- **Wound decals should be drawn on the skin, not as floating sprites (open).** Today
+  `15-bullet-impact-fx.js` `woundDecal` places a flat quad at the hit bone's position plus a fixed
+  radius per zone (`BODY[zone].out`: head 0.13 m, chest 0.16, abdomen 0.15, arm 0.08, leg 0.11) toward
+  the shooter, clamped into a height band, and parents it to that one bone. It never meets the real
+  mesh, so it floats off a slim torso, sinks into a bulky one, stays flat on a curved limb and slides
+  as skin deforms across joints. Proposal, presentation only: a material plugin on the soldier's
+  skinned material (Babylon `MaterialPluginBase`) that draws wounds in the fragment shader. Each wound
+  is stored as a point in the mesh's bind pose (the unskinned vertex space, found from the ray hit on
+  the skinned mesh), with a radius, a blood-sheet cell and entry/exit kind, in a small per-soldier
+  uniform array (`MAX_PER_SOLDIER`); the shader compares the bind-pose position it passes through as
+  a varying, so the wound sits on the surface and moves with the skin. Soldiers of one model share a
+  material, so a wounded man gets his own material clone (or a per-instance data texture) on his
+  first wound. Alternative: Babylon's UV-space decal maps (`MeshUVSpaceRenderer` / `decalMap`), at a
+  texture per wounded soldier. The procedural rig (`rig===null` soldiers, benchmarks) keeps quads or
+  gets the same plugin on its part materials. Keep it off the combat RNG, update `impact-fx-check.js`
+  (it asserts wound decals on the hit bone) and prove it with `scripts/closeup_damage_fx.cjs` /
+  `closeup_battle.cjs CLOSEUP_TARGET=wounded` against a preview. The world decals (holes, ground
+  blood) stay thin-instanced quads; see the floating bullet-hole item above for why those are an
+  impact-point bug, not a rendering one.
+- **Page-load hiccup (watch).** One local probe run logged `ReferenceError: BABYLON is not defined`
+  from an inline script (line 95 of the page `battle_sim_local.php` serves) on the GE-defend battle; the battle still
+  ran and reported. Seen once; if it recurs, make that inline script wait for Babylon.
+- **Forward movement: no backward orders while the squad advances (open).** A man should not be sent
+  behind the squad's firing line unless the squad is retreating or withdrawing; a short lateral or
+  backward step to adjacent cover is fine, but nothing that walks him back while the rest of the squad
+  moves forward. Today only one guard exists: `44-combat-urgency.js` `allowCover` rejects cover less
+  than `MIN_COVER_FORWARD` (1.5 m) forward along the objective axis, and only in the `assault` phase
+  and only when not suppressed. Engagement's own `findCover` searches up to `COVER_RANGE_UNDER_FIRE`
+  (42 m) and uses `squadForward` only as a scoring hint, so a cover slot well behind the line can win.
+  Owner: the line belongs to the Squad Leader (it knows the order anchor and phase), the choice to the
+  producer that picks the point (Engagement cover, 44 urgency, 52 survival routes), so publish the
+  line once (e.g. the fireteam's order anchor projected on the objective axis) and have each producer
+  score or refuse points behind it, with an allowance (a few metres) for adjacent cover and none of it
+  in retreat or withdraw. Don't add the guard in the resolver. Measure first: a probe counting
+  destinations that go behind the line while the squad advances, by producer (the order-provenance
+  observers already tag writers).
+- **Stance churn and firing mid-change (open).** Still seen: stand-crouch-stand loops, a man going
+  prone to fire one round, standing, going prone again, and firing while changing stance. Engagement
+  owns stance (`commitStance` holds it `STANCE_HOLD` 4 s / `PRONE_HOLD` 5.5 s and pushes
+  `fireReadyAt` by `AIM_SETTLE` 0.4 s), but three other writers bypass that hold: `44-combat-urgency.js`
+  sets `s.prone`/`s.tacticalCrouch` directly in its drills, `12-soldier-animation-events.js` sets
+  `tacticalCrouch` on every reload (a presentation module writing sim state), and `stepMovement`
+  (`battle-sim.js`, mirrored in `harness.js`) derives `crouching` each frame from `tacticalCrouch`,
+  suppression and "target and near the destination". Two writers is itself the bug (see the workflow
+  above), so first make every stance change go through Engagement (`commitStance`, or a request
+  Engagement arbitrates), which also makes `AIM_SETTLE` cover every change so nobody fires mid-change.
+  Whether the commitment is a lease: `BattleLeases` is for holds that block another layer's intent,
+  and stance should stay inside one owner, so a per-man stance commitment on `eng` (stance, since,
+  until, reason) is enough once there is one writer; make it a lease only if another layer still has
+  to ask to break it. Stance by distance, as a starting rule: prone at long range, crouch at medium,
+  standing only close or to fire over cover that a lower stance can't see past; commit to it until
+  ordered to move, suppressed, or the cover at hand changes. Today `fightingStance` goes prone past
+  `max(70, 0.55 × engageRange)` (247 m for a rifle now that range is the weapon's 450 m), only for
+  riflemen and gunners (`PRONE_ROLES`); scouts and leaders always crouch. Measure first with a probe:
+  stance changes per man-minute and per writer, rounds fired within `AIM_SETTLE` of a change, and
+  prone episodes shorter than `PRONE_HOLD`; `run.js` already asserts "no stance churn", so find why
+  it misses these (likely it runs without module 44 and without the reload hook).
 - **Snipers (pending).** Scoped rifles (M1903A4, Kar98k with ZF39) are a separate role, not the
   scouts; they need weapon models and their own aiming rules.
 - **Secondary weapons (pending).** A soldier carries a sidearm only where it was historically
