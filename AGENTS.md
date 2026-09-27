@@ -374,7 +374,7 @@ four-run swing. Live-browser runs at `timeScale` 8 aren't deterministic, so use 
 for controlled pairs, and serve both arms the same way: `battle_sim_local.php` in preview mode (a
 `preview.json` beside it) reads `state/` and the audio manifest two directories up.
 
-### Open issues (as of v160 / 2026-09-24)
+### Open issues (as of 2026-09-27)
 
 - Regroups: half used to time out at 18 s because the order anchor stayed with the leading men;
   fixed (timeouts 76 → 6 over 30 seeds). GitHub standard benchmark run 11 (PR #37, 2026-09-25,
@@ -428,7 +428,45 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   Prepared Defense already publish *requests* that Force Command accepts; follow that pattern.
 - Meeting engagements deliberately get no runtime engineer fortification (`engineerTick` exits early).
 - **Sergeant weapons.** Squad leaders carry the `smg` kind: US Thompson, GE MP40 (`BattleWeapons.PROFILES`).
-  Their grips use the generic `WEAPON_POINTS`; set per-model sidecars in the Motion Lab.
+  Their grips use the generic `WEAPON_POINTS`; set per-model sidecars in the Motion Lab. They rarely
+  fire, and that is range, not a gate bug: the `fire-gates` probe (standard s1 seeds, 600 s) found 0
+  rounds in meeting and US-defend, where the target a leader holds is 350 m+ away in >85% of samples
+  and the SMG reaches 150 m; in GE-defend, when attackers close, 69 trigger pulls (276 rounds). If
+  leaders should shoot more, it is the Squad Leader closing to assault range more often (a tactics
+  change, benchmark it), or a rifle for US leaders (many carried the Garand), not a looser gate.
+- **Scout balance after the FG 42 (PR #55, merged as is, to tweak).** Scouts carry US M1 Carbine
+  (250 m) / GE FG 42 (full-power round, 450 m, bursts only inside 50 m). The paired standard benchmark
+  (main run 21 vs branch run 20, same seeds, with the view cones below also in the branch) moved meeting
+  wins US/GE 37/23 → 23/37 (Fisher p=0.017; 44/60 same winner), meeting kills US/GE 29.7/25.6 →
+  26.6/30.9, US-defend 19/1 → 16/4 (p=0.34), GE-defend unchanged 1/19. Not yet attributed: benchmark
+  the scout change without perception (and the reverse) before tuning. Levers, smallest first: German
+  scouts on the Kar98k (the regular infantry issue; the FG 42 was a Fallschirmjäger weapon, ~7,000
+  made), a shorter FG 42 practical range, or a wider FG 42 group at range. Presentation gaps left for
+  the FG 42: it plays the carbine sound (audio is out of scope without an ask), and the FBX backend
+  restarts the fire clip each round of a burst because it treats only `lmg`/`smg` kinds as automatic
+  (`53-fbx-soldier-backend.js`, `weaponKind`); key those on the weapon's `cyclic` instead.
+- **Perception follow-ups.** View cones cut sightings of an enemy behind the man from 6-13% of fresh
+  acquisitions to <1% (`perception` probe, standard s1 seeds). Relay and hearing gave a squad its
+  first contact once in 29 squads: sight (450-575 m) outruns hearing (120 m) in open battles. The
+  probe records only first contact; count how often heard/relayed word re-acquires a squad that lost
+  sight mid-fight before tuning `HEAR_RANGE`/`RELAY_RANGE`. Relay distance is squad centre to squad
+  centre (50 m); the other reading of the request, enemies within 50 m of the unaware squad, is a
+  one-line change in `squadSenses`. Defenders facing one way have no sector scan: a sweep for a man
+  holding still with no contact is the next step if flanks go unseen.
+- **Bullet holes float in front of scatter cover (open, fix proposed).** `14-z-ballistic-raycast.js`
+  `obstacleStop` stops the ray at the obstacle field's tactical cover circle, not the rendered object
+  (`terrain-features.js` `scatter`): a log is a 0.55 m cylinder but its circle is `len*0.42`
+  (1.1-2.0 m), a tree trunk `0.11*scale` vs `1.15*scale`, a rock box vs `size*1.1`, a wall stub
+  0.5 m thick vs a 1.6 m circle set off the wall. The hole and its radial normal land where the round
+  stopped in the air. Fix at the ballistics owner: when the ray crosses a cover circle, intersect the
+  linked `physicalId` footprint (OBB or circle, with its height) and let the round fly on if it misses;
+  sight and cover abstractions stay as they are. It changes combat (rounds that used to stop in the
+  air fly on), so benchmark it paired. Not a decal-shader job: a projected or UV-space decal only
+  draws on real geometry, so it would hide the wrong impact point, not fix it; consider UV-space decals
+  later only for curved surfaces if flat quads still look wrong once impacts sit on the real shape.
+- **Page-load hiccup (watch).** One local probe run logged `ReferenceError: BABYLON is not defined`
+  from an inline script (line 95 of the page `battle_sim_local.php` serves) on the GE-defend battle; the battle still
+  ran and reported. Seen once; if it recurs, make that inline script wait for Babylon.
 - **Snipers (pending).** Scoped rifles (M1903A4, Kar98k with ZF39) are a separate role, not the
   scouts; they need weapon models and their own aiming rules.
 - **Secondary weapons (pending).** A soldier carries a sidearm only where it was historically
