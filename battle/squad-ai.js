@@ -45,6 +45,26 @@
      which is what gives the engagement pipeline something to gain by getting down. */
   var VISIBILITY = { stand: 1, crouch: 0.72, prone: 0.45 },
     MOVING_VISIBILITY_BONUS = 0.22;
+  /* View cone. A man spots at full range inside FOCUS_HALF of where he is looking, at a fraction of
+     it in his peripheral vision (more if the enemy is moving, which is what catches the eye), and
+     behind him only a man right on top of him. He looks where his body faces, or, when his squad
+     knows where the enemy is and that is within HEAD_TURN of his body, that way. Tracking a man he
+     already has is not cone-limited: he is looking at him. */
+  var FOCUS_HALF = Math.PI / 3, // 60 deg: a 120 deg cone
+    PERIPHERAL_HALF = (100 * Math.PI) / 180,
+    PERIPHERAL_RANGE = 0.35,
+    PERIPHERAL_MOVING = 0.55,
+    BEHIND_RANGE = 10,
+    HEAD_TURN = (70 * Math.PI) / 180;
+  /* Word of the enemy that does not come through a man's own eyes. Gunfire: an enemy trigger pull
+     within HEAR_RANGE of a squad that knows of nobody tells it roughly where the shooter is (the
+     error grows with distance: HEAR_ERROR of the range). Relay: a squad whose men can see the enemy
+     passes it to a friendly squad within RELAY_RANGE that cannot. Only first-hand sightings are
+     relayed, and a relayed contact keeps the sighting's age, so word never outlives the sighting. */
+  var HEAR_RANGE = 120,
+    HEAR_MEMORY = 1.5,
+    HEAR_ERROR = 0.08,
+    RELAY_RANGE = 50;
   /* How long a squad keeps acting on a last-known enemy position after nobody can see him. */
   var CONTACT_MEMORY = 12;
   /* Suppressing fire lands in a cone, not on a point: the further out, the looser the group. */
@@ -152,16 +172,42 @@
      visible one turns a full O(enemies) sight sweep into one or two sight tests, which matters now
      that sight tests consult a few thousand obstacles. */
   var scanBuffer = [];
-  function findTarget(soldier, enemies, heightAt, obstacles) {
+  function angleBetween(a, b) {
+    var diff = a - b;
+    return Math.abs(Math.atan2(Math.sin(diff), Math.cos(diff)));
+  }
+  /* Where the man is looking: his body's facing, or the squad's known threat if a head turn reaches it. */
+  function lookYaw(soldier, battle) {
+    var body = soldier.root.rotation.y || 0,
+      c = battle && squadContact(soldier.squad, battle),
+      p = soldier.root.position;
+    if (!c) return body;
+    var toThreat = Math.atan2(c.x - p.x, c.z - p.z);
+    return angleBetween(toThreat, body) <= HEAD_TURN ? toThreat : body;
+  }
+  /* The share of his spotting range a man has in that direction (1 in his focus). */
+  function viewReach(off, target) {
+    if (off <= FOCUS_HALF) return 1;
+    if (off <= PERIPHERAL_HALF) return target.moving ? PERIPHERAL_MOVING : PERIPHERAL_RANGE;
+    return 0;
+  }
+  function findTarget(soldier, enemies, heightAt, obstacles, battle) {
     var role = ROLES[soldier.role],
       p = soldier.root.position,
+      look = lookYaw(soldier, battle),
       i;
     scanBuffer.length = 0;
     for (i = 0; i < enemies.length; i++) {
       var e = enemies[i];
       if (e.dead) continue;
-      var d = dist2(p.x, p.z, e.root.position.x, e.root.position.z);
+      var ex = e.root.position.x,
+        ez = e.root.position.z,
+        d = dist2(p.x, p.z, ex, ez);
       if (d > detectionRange(role, e)) continue;
+      if (d > BEHIND_RANGE) {
+        var reach = viewReach(angleBetween(Math.atan2(ex - p.x, ez - p.z), look), e);
+        if (!reach || d > detectionRange(role, e) * reach) continue;
+      }
       scanBuffer.push({ unit: e, d: d });
     }
     scanBuffer.sort(function (a, b) {
@@ -199,9 +245,12 @@
     var p = t.root.position,
       anchor = sq.orderAnchor || sq.rally || p,
       held = sq.contact;
+    /* Heard or relayed word gives way to the squad's own eyes. */
     if (
       held &&
       !held.unit.dead &&
+      !held.heard &&
+      !held.relayedFrom &&
       battle.time - held.at <= CONTACT_REFRESH &&
       held.unit !== t &&
       dist2(anchor.x, anchor.z, held.x, held.z) <= dist2(anchor.x, anchor.z, p.x, p.z)
@@ -209,6 +258,96 @@
       return held;
     sq.contact = { unit: t, x: p.x, z: p.z, at: battle.time, seenBy: soldier.id, stance: stanceOf(t) };
     return sq.contact;
+  }
+  /* A trigger pull is heard: one report per pull, kept HEAR_MEMORY seconds. */
+  function reportGunfire(shooter, battle) {
+    var list = battle._gunfire || (battle._gunfire = []),
+      p = shooter.root.position;
+    list.push({ x: p.x, z: p.z, faction: shooter.faction, unit: shooter, at: battle.time });
+  }
+  function squadCentre(sq, battle) {
+    if (sq._centreAt === battle.time) return sq._centre;
+    var x = 0,
+      z = 0,
+      n = 0;
+    for (var i = 0; i < sq.members.length; i++) {
+      var s = sq.members[i];
+      if (s.dead) continue;
+      x += s.root.position.x;
+      z += s.root.position.z;
+      n++;
+    }
+    sq._centreAt = battle.time;
+    sq._centre = n ? { x: x / n, z: z / n } : null;
+    return sq._centre;
+  }
+  function firstHand(c, battle) {
+    return !!(c && !c.heard && !c.relayedFrom && battle.time - c.at <= CONTACT_REFRESH);
+  }
+  /* What a squad learns without its own eyes: word from a neighbour squad within RELAY_RANGE that
+     can see the enemy, else enemy gunfire within HEAR_RANGE. Once per squad per tick, and only
+     while it has no current sighting of its own; neither ever replaces one. */
+  function squadSenses(sq, battle) {
+    if (!sq || sq._sensedAt === battle.time) return;
+    sq._sensedAt = battle.time;
+    var held = squadContact(sq, battle);
+    if (firstHand(held, battle)) return;
+    var here = squadCentre(sq, battle);
+    if (!here) return;
+    var side = battle.factions && battle.factions[sq.faction],
+      squads = (side && side.squads) || [],
+      best = null,
+      bestD = RELAY_RANGE,
+      i;
+    for (i = 0; i < squads.length; i++) {
+      var o = squads[i];
+      if (o === sq || o.disbanded || !firstHand(o.contact, battle) || o.contact.unit.dead) continue;
+      var there = squadCentre(o, battle),
+        d = there ? dist2(here.x, here.z, there.x, there.z) : Infinity;
+      if (d <= bestD) {
+        bestD = d;
+        best = o;
+      }
+    }
+    if (best && (!held || held.heard || best.contact.at > held.at)) {
+      var c = best.contact;
+      sq.contact = { unit: c.unit, x: c.x, z: c.z, at: c.at, seenBy: null, stance: c.stance, relayedFrom: best.id };
+      return;
+    }
+    if (held && !held.heard) return;
+    var shots = battle._gunfire;
+    if (!shots || !shots.length) return;
+    if (battle._gunfirePrunedAt !== battle.time) {
+      battle._gunfirePrunedAt = battle.time;
+      var keep = 0;
+      for (i = 0; i < shots.length; i++) if (battle.time - shots[i].at <= HEAR_MEMORY) shots[keep++] = shots[i];
+      shots.length = keep;
+    }
+    var heard = null,
+      heardD = HEAR_RANGE;
+    for (i = 0; i < shots.length; i++) {
+      var s = shots[i];
+      if (s.faction === sq.faction || s.unit.dead) continue;
+      var ds = dist2(here.x, here.z, s.x, s.z);
+      if (ds <= heardD) {
+        heardD = ds;
+        heard = s;
+      }
+    }
+    if (!heard || (held && held.at >= heard.at)) return;
+    /* Deterministic, not the combat RNG: the error's direction comes from who fired and when. */
+    var k = (((+heard.unit.id || 0) * 73856093) ^ Math.floor(heard.at * 7)) >>> 0,
+      ang = ((k % 360) * Math.PI) / 180,
+      err = heardD * HEAR_ERROR * (0.5 + ((k >>> 9) % 50) / 100);
+    sq.contact = {
+      unit: heard.unit,
+      x: heard.x + Math.sin(ang) * err,
+      z: heard.z + Math.cos(ang) * err,
+      at: heard.at,
+      seenBy: null,
+      stance: stanceOf(heard.unit),
+      heard: true
+    };
   }
   function squadContact(squad, battle) {
     var c = squad && squad.contact;
@@ -454,6 +593,7 @@
       if (i && !EXT.pass('roundGate', shooter, battle)) break;
       var delay = stats.cyclic > 0 ? i / stats.cyclic : 0;
       if (fire(i, delay) === false) break;
+      if (!fired) reportGunfire(shooter, battle);
       fired++;
       battle.onFire && battle.onFire(shooter, delay);
       EXT.run('afterShot', shooter, battle);
@@ -790,10 +930,12 @@
         soldier,
         battle.rosterOf(soldier.faction === 'us' ? 'ge' : 'us'),
         heightAt,
-        obstacles
+        obstacles,
+        battle
       );
     }
     if (soldier.target) shareContact(soldier, battle);
+    squadSenses(soldier.squad, battle);
     if (!had && soldier.target) callout(soldier, battle, 'contact');
     if (soldier.lastSquadState !== soldier.squad.state) {
       if (isLeader(soldier))
@@ -931,6 +1073,19 @@
     hasLineOfSight: hasLineOfSight,
     detectionRange: detectionRange,
     findTarget: findTarget,
+    lookYaw: lookYaw,
+    squadSenses: squadSenses,
+    PERCEPTION: {
+      FOCUS_HALF: FOCUS_HALF,
+      PERIPHERAL_HALF: PERIPHERAL_HALF,
+      PERIPHERAL_RANGE: PERIPHERAL_RANGE,
+      PERIPHERAL_MOVING: PERIPHERAL_MOVING,
+      BEHIND_RANGE: BEHIND_RANGE,
+      HEAD_TURN: HEAD_TURN,
+      HEAR_RANGE: HEAR_RANGE,
+      HEAR_MEMORY: HEAR_MEMORY,
+      RELAY_RANGE: RELAY_RANGE
+    },
     engageRange: engageRange,
     tryFire: tryFire,
     resolveFire: shot,
