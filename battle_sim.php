@@ -64,7 +64,10 @@ function atomic_write($dest, $bytes) {
 }
 
 function asset_path_safe($path) {
-    return strpos($path, 'Assets/') === 0 && strpos($path, '..') === false && strpos($path, "\0") === false;
+    if (strpos($path, 'Assets/') !== 0 || strpos($path, '..') !== false || strpos($path, "\0") !== false) return false;
+    /* Source archives are kept in the repository for asset provenance, but the runtime consumes
+       prepared FBX/PNG/audio outputs only. Never spend live-sync bandwidth or host storage on ZIPs. */
+    return !preg_match('/\\.zip$/i', $path);
 }
 
 /* Resolve the selected ref once. In normal mode that ref is always main. */
