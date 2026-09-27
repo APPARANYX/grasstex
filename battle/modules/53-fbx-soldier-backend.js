@@ -1,8 +1,9 @@
 /* Imported FBX soldier backend.
    Soldiers render as the rigged FBX character (Assets/soldiers) driven by the shared Mixamo rifle
    clips (Assets/animations). Both are read with Babylon's FBX loader, the same import path as the
-   FBX Motion Lab. Model and clips share one rig, so clip channels bind to bones by name; nothing
-   is retargeted.
+   FBX Motion Lab. Clip channels bind to canonical bone names. Models whose imported rest pose
+   differs from the source animation rig are retargeted once per model at page load; matching rigs
+   reuse the converted clip data directly.
 
    Conversion happens once per page load (convertClip): each clip keeps only channels for bones
    the model has (the loader's `__fbx_inheritScale` helper nodes duplicate their parent and are
