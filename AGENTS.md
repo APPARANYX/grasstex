@@ -11,10 +11,14 @@ original docs (roadmaps, lab notes, measurements) are in git history at `1a5b0cf
   contract or rule actually changes. Findings go in the commit message or PR body.
 - **State success criteria up front, prove them with a harness below, report the output.**
   Never claim visual/browser validation that wasn't performed.
+- **Keep probes.** A one-off measurement script is a probe: commit it as `scripts/probes/<name>.js`
+  (run with `scripts/run_probe.cjs`) or extend a close-up tool (`closeup.cjs` for a posed soldier,
+  `closeup_battle.cjs` for one in a fight), never leave it in `/tmp`.
 - **Stay in scope.** Don't touch audio, assets or animation unless asked. Unnamed uploads: ask
   what they are and where they belong.
 - `main` deploys to production on every push. Put anything visual on a `work/**` or `preview/**`
-  branch first (that publishes a preview; see Deploy).
+  branch first (that publishes a preview; see Deploy), or open any branch in the live preview
+  launcher (`https://test.ivandpopov.com/grasstex/preview.php?ref=<branch|PR#>`).
 
 ## What's here
 
@@ -51,17 +55,21 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `tactical-positions-check.js` | Window/hardpoint reservation ownership, ingress routes, release reasons, diagnostics |
 | `cover-positions-check.js` | Cover-slot selection against obstacles and physical footprints |
 | `personal-space-check.js` | Physical endpoint allocation and body separation |
+| `fireteam-frontage-check.js` | Each fireteam holds its own ground: published fireteam anchors stay ≥5 m apart while squads march, deploy and fight |
 | `movement-recovery-check.js` | Recovery episode state machine, goal resets, unreachable criteria, retreat override |
 | `movement-state-check.js` | Resolver/movement-progress state for bounds and assault |
 | `lean-runtime-check.js` | Squad-plan stability + resolver + tactical route with no extra modules |
 | `macro-command-toggle-check.js` | Macro OFF suppresses Force Command while downstream hooks still run |
 | `map-pipeline-check.js` | Scenario regeneration publishes the same geometry as a page load (benchmarks once ran 10-70x slow on 4x the hedges) |
-| `impact-fx-check.js` | Impact materials, blood placement, FX budgets, restart cleanup (render stub) |
+| `sight-query-check.js` | Pruned geometry queries answer exactly as unpruned: `sightBlocked` (crossed cells, first hit) vs nearest-hit `sightBlocker`, and `movementClear` with vs without wall bounding boxes, on real scenarios |
+| `impact-fx-check.js` | Impact materials, hole kind per surface, decals on terrain/wall face, wound decals on the hit bone, exit spray, sheet-cell UVs, FX budgets, restart cleanup (render stub) |
+| `weapon-wound-check.js` | Side-specific weapons (Garand/Kar98k, M1919A6/MG42, Thompson/MP40, M1 Carbine/FG42 with the scout's reach following his weapon), bursts at the cyclic rate, the FG42 automatic only inside `autoWithin`, sustained rates, a burst stops when the belt runs dry, hit zones from the ray, head/chest/leg/arm wound outcomes, bleed-out, drop odds per zone and cartridge, a rifle round through one man into the next (less energy, deflected) and a pistol round stopping |
 | `world-debug-check.js` | World Debug overlay UI handlers (DOM stub) |
 | `extension-order-check.js` | No module replaces `SquadAI.tryFire`/`areaFire`/`updateSoldier`/`updateSquad` or `BattleEngagement.updateSoldier`; the declared fire order (ammunition → ballistics range → trigger-time LOS) holds; undeclared extensions throw |
 | `lease-check.js` | `BattleLeases` primitive, tactical-plan and regroup lease lifecycles, regroup re-forms on the rally point |
 | `reconstitution-check.js` | Retreated squads home and out of contact reaching 10 survivors group (fewest squads; none planned en route), march to the rally point, merge under one leader (promotion never picks the gunner), get re-tasked; below-strength groups dissolve; Macro OFF does nothing |
 | `succession-check.js` | A killed leader is replaced by the most senior survivor after the 6 s `succession` lease, never more than one leader, the gunner only as the last man, successors replaced in turn, no lease on a led or wiped-out squad, seniority order |
+| `perception-check.js` | View cones (120° focus at full range, ±100° periphery shorter, behind only within 10 m), head turn toward the squad's known threat, contact relayed to a friendly squad within 50 m (first-hand only, keeps its age), enemy gunfire heard within 120 m with a distance-scaled position error, own sightings outrank both, no combat-RNG draws |
 | `voice-determinism-check.js` | Voice callouts never draw from the combat RNG: a battle is identical with and without voice |
 
 `harness.js` mirrors `stepMovement()` from `battle/battle-sim.js`. **If that function changes,
@@ -90,6 +98,46 @@ node scripts/smoke_battle_page.cjs          # SMOKE_SEED, SMOKE_SECONDS, SMOKE_O
 
 Hosted textures 404 when served locally, so the ground renders red. That's expected.
 
+**Visual checks: keep these, don't rewrite them.** Look at a change on the live host rather than a
+local red-ground page, and reuse these harnesses instead of writing one-off probes:
+
+- **Open any branch live:** `https://test.ivandpopov.com/grasstex/preview.php?ref=<branch|#PR|GitHub URL>`
+  (see CI and workflows). The link follows the branch head. It carries the branch's own models, clips,
+  weapons and effect sprites, so new decals or FBX show up.
+- **Close-ups in a real fight:** `scripts/closeup_battle.cjs` runs a battle in fixed 0.15 s steps
+  until a soldier matches `CLOSEUP_TARGET` (`casualty`, `wounded`, `any`, `role:ge/gunner`, `id:<n>`),
+  pauses, and photographs him from `CLOSEUP_VIEWS` (`front,left,back,top,right,wide`). Output is
+  `<view>-<id>.png` plus `summary.json` (hp, wounds, casualty zone, weapon, FBX or not, and `timings`
+  per phase). It blocks telemetry, learning and policy writes, so it's safe against production and
+  previews. A live run takes ~1 min. Page build is ~20 s, the sim fast-forward is ~5 s for two minutes
+  of battle, and software rendering is ~0.3-0.6 s a frame. Clips run on sim time, so it renders only
+  6 settle frames and 1 per view. `Math.random` is seeded from the seed, so the same seed gives the
+  same man, pose, wounds and camera. Decal variants drawn on async timers can still differ. Env: `CLOSEUP_URL`, `CLOSEUP_SEED`, `CLOSEUP_COUNT`,
+  `CLOSEUP_AFTER` (sim seconds after the match, default 1.5), `CLOSEUP_DIST`, `CLOSEUP_WAIT`,
+  `CLOSEUP_OUT`, `CLOSEUP_UI=1`.
+  ```bash
+  CLOSEUP_URL='https://test.ivandpopov.com/grasstex/preview.php?ref=<branch>' CLOSEUP_TARGET=wounded \
+    CLOSEUP_OUT=out/closeup node scripts/closeup_battle.cjs
+  ```
+- **Close-ups of one posed soldier:** `scripts/closeup.cjs` puts any `faction/role[/weapon.fbx]` in
+  any Motion Lab pose at any time, alone in its own scene, through the game's FBX backend at a fixed
+  30 Hz, from `front`/`side` (or `right`)/`back`/`left`/`three-quarter`/`top`, framed on
+  `body`/`hands`/`weapon`. Use it for a hold or a clip. Use `closeup_battle.cjs` for anything the
+  fight itself causes (wounds, death falls, stance under fire). `Math.random` is seeded, so the same env
+  gives the same frames, death clips included. Env: `CLOSEUP_SOLDIERS`, `CLOSEUP_POSES`, `CLOSEUP_TIMES`,
+  `CLOSEUP_VIEWS`, `CLOSEUP_FRAMING`, `CLOSEUP_SIDECAR`, `CLOSEUP_OUT`, `CLOSEUP_URL`. Writes PNGs and
+  `summary.json` (clips, two-hand state, support error).
+- **Damage decals themselves:** `scripts/closeup_damage_fx.cjs` shoots the newest decal of each kind
+  (wound, exit, pool, spray, masonry, wood, dirt, metal) along its surface normal, plus a
+  `summary.json` of wounds by zone and decals by kind; works against a `preview.php?ref=` URL.
+  `scripts/preview_decal_sheets.cjs` checks the sprite sheets themselves (no server).
+- **Every model with its weapon, plus the Motion Lab poses:** `scripts/fbx-soldier-lineup.cjs`
+  (see Soldiers, weapons, animation).
+- **Pistol support hand numbers:** `scripts/probe_pistol_cup.cjs` (see the replay table below).
+
+In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certificate-errors`
+(these scripts do). Otherwise Babylon never loads from the CDN and `__battle__` never appears.
+
 **Deterministic replay / profilers** (Playwright, against the local server above):
 
 | Script | Use |
@@ -100,7 +148,13 @@ Hosted textures 404 when served locally, so the ground renders red. That's expec
 | `scripts/profile_meso_churn.mjs` (+ `meso-churn-profiler.cjs`) | Meso fireteam order churn attribution |
 | `order-ingress-`, `physical-point-`, `movement-goal-transition-`, `resolver-order-mutation-profiler.cjs` | Inject-only observers: who proposes orders, destination provenance, goal transitions, resolver mutations. They never change behaviour. |
 | `scripts/battle-benchmark-intent.cjs` | Shared benchmark predicates (targetless/route-active) |
+| `scripts/closeup_damage_fx.cjs` | Close-ups of the damage FX in the real page: newest wound and exit-wound decal on a soldier, blood splash and exit spray, masonry/wood/dirt/metal holes, one `<kind>.png` each plus `summary.json` (wounds by zone, decals by kind); fails on page errors. `CLOSEUP_OUT` (default `closeups/`, gitignored), `CLOSEUP_SEED`, `CLOSEUP_SHOTS`, `CLOSEUP_SIM`, `CLOSEUP_BODY`, `CLOSEUP_DIST`. 5-10 min under software WebGL. |
+| `scripts/preview_decal_sheets.cjs` | Contact sheet of `Assets/effects/decals/*.png` over surface-like backgrounds with the 4 x 4 grid and row names; check a regenerated or painted sheet before it ships. No server. `DECAL_PREVIEW_OUT`. |
 | `scripts/probe_pistol_cup.cjs` | Motion Lab pistol support cup at a fixed 60 Hz: cup gap (cm), degrees the left arm is bent off the clip, and hand jerk (deg/frame², solved vs the clip's own) per clip. `CUP_SIDECAR=<model>.fbx.json` (a server sidecar; they are never committed), `CUP_CLIPS`, `CUP_SERIES=1`. |
+| `scripts/probe_gait_clips.cjs` | Which FBX locomotion family (walk/run/sprint/crouch/crouchRun) each sim gait actually plays, at what rate, plus each model's natural clip speeds (in-place clips: foot stride). `GAIT_URL` (default production), `GAIT_SEED`, `GAIT_SECONDS`, `GAIT_OUT`. |
+| `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on), `fire-gates` (per role: trigger pulls, target distance bands, and the first fire condition that fails while a man holds a target). |
+
+**Preview launcher:** `python3 scripts/check-preview-launcher.py` runs offline with PHP/cURL and a concurrent local HTTP fixture. Checks runtime reuse, the rolling download queue, integrity failures and publication. `preview.json` records `runtimeReused` and `runtimeDownloaded`; only changed runtime files download, with matching copies taken from production or earlier launcher previews.
 
 **Repo-wide checks** (match CI):
 
@@ -120,6 +174,7 @@ bash scripts/normalize_audio.sh Assets/audio && git diff --quiet -- Assets/audio
 | `ci.yml` | PR, push to main | Syntax (JS/PHP/Py/sh/JSON), audio library, sim regressions (all harness checks + 8 seeds), deploy plan + deploy safety |
 | `deploy-50webs-php.yml` | push to main | Stamps `build-v<N>`, reruns checks and the deploy-safety check, uploads by content hash to production |
 | `deploy-50webs-preview.yml` | push `work/**`, `preview/**` | `https://test.ivandpopov.com/grasstex/preview/<slug>/battle_sim.php`; never touches prod, makes no telemetry/learning writes; its `mirror --delete` skips JSON and lab files |
+| `preview.php` (on the host, not a workflow) | `?ref=<branch>`, `#47`, or a GitHub branch/PR URL | Stages that commit's `battle/` runtime from GitHub into `preview/ref-<sha12>/` with the host's own loader and opens it (same preview contract, no writes). Only this repo's branches and same-repo PRs (a PR uses its head commit, so merged ones still open); keeps the 12 most recent. Branch FBX, clips, weapons and `Assets/effects` PNGs come too: files identical to production are hard links, and new ones download (≤300 MB). A branch that changes `battle_sim_local.php` still needs the Actions preview. Optional `state/github-token.php` (`<?php return '<token>';`) lifts the 60/h API limit. |
 | `battle-benchmark-standard.yml` | tag `standard-benchmark-*` or dispatch | 10 workers × 10 = **100 battles**: the routine 60 meeting / 20 US-defend / 20 GE-defend checkpoint |
 | `battle-benchmark.yml` | tag `benchmark-*` or dispatch (source must be on main) | 30 workers × 10 = **300 battles**, 100 per type. Major milestones only. |
 | `battle-hotpath-profile.yml` | dispatch (type/seed/seconds) | Hot-path profile on one seed |
@@ -146,7 +201,7 @@ Intent flows down and status flows up. No layer rewrites another's state.
 | Macro: Force Command | `commander-ai.js`, `commander-doctrine.js`, `commander-routes.js` | `_macroMission` brief {intent, action, objectiveId, point, flank leg, status}, `targetObjective`, `commandRole`, force allocation, reserves | write `commandPhase`/`objective`/route legs, cover, slots or soldier destinations |
 | Meso: Squad Leader / Squad Command | `modules/16-squad-plan-stability.js` (`executeMission`, `fireAndMovement`; SquadAI's `squadCommand` owner) | stable squad plan: fireteams, formation, order anchor, fire and movement (assault authorisation, bound cycle and team), corner pauses, defensive posts, regroup, objective phase; the only writer of `commandPhase` (setup states it through `initialPhase`) | do obstacle avoidance; republish orders every tick |
 | Micro: Engagement | `engagement.js` (+ `modules/44-combat-urgency.js` drills on its `afterDrill` slot) | per-soldier state machine, stance (`prone`/`crawling`/`tacticalCrouch`), permission to fire, combat proposals to the resolver, the squad contact report (`inContact`, base of fire, pinned) | write final destination; pick objectives; decide squad bounds |
-| Perception + shared primitives | `squad-ai.js` | who sees whom, shot resolution, shared `squad.contact`, `areaFire` suppression; hosts the declared extension points (`SquadAI.extend`) and `BattleLeases`; a status-only squad update when no `squadCommand` owner is loaded | set stance/destination in combat |
+| Perception + shared primitives | `squad-ai.js` | who sees whom (view cones), what a squad hears and is told (`squadSenses`), shot resolution, shared `squad.contact`, `areaFire` suppression; hosts the declared extension points (`SquadAI.extend`) and `BattleLeases`; a status-only squad update when no `squadCommand` owner is loaded | set stance/destination in combat |
 | Tactical positions | `modules/20-building-hardpoints.js` (`BattleTacticalPositions`: `claim`/`current`/`station`/`release`) | window/hardpoint reservations `assigned→ingress→occupying→holding→released`, committed ingress route | |
 | Tactical routing | `modules/52-survival-tactical-route.js` | safe ingress, suppressed cover detours | resurrect an obsolete objective |
 | Movement Resolver | `movement-resolver.js` | **sole normal-runtime writer of `soldier.destination`**; coalesces Engagement's per-tick combat requests and arbitrates Meso vs Micro proposals | act as a garbage collector for redundant producers |
@@ -164,7 +219,10 @@ exported under `macroCommand`.
 an objective's allowance) stops a side piling onto one objective; the frontage limit stops it spreading
 over all of them. A side attacks at most `maxEfforts` (2) objectives it does not hold at once; opening
 another costs `frontageCost` (140), so the next squad reinforces an open effort. Taking an objective
-closes its effort. Defending owned objectives doesn't count. Both are scores, never vetoes.
+closes its effort. Defending owned objectives doesn't count. A strategic-stall wake closes the
+efforts its stalled capture briefs were on: each costs `stallCost` (150) and no longer fills the
+frontage, so the side masses on new objectives (`commander-ai.js` `stalledEfforts`; outcomes under
+`macroCommand.state.stallOutcomes`). All three are scores, never vetoes.
 
 **Reconstitution** (`commander-ai.js` `reconstitute`, Macro only). A retreating squad's Squad Leader
 walks it home (`_assembly` `to-base`); home and out of contact it is `at-base`. Only `at-base` squads
@@ -195,6 +253,16 @@ exported data uses them: the policy keys `captainlessCohesion`, `cornerNoCaptain
 `13-captain-command-throttle`, and the trait seed in `11-soldier-individuality.js` (it still hashes
 `captain` so existing seeds replay the same battle).
 
+**Perception** (`squad-ai.js`, `SquadAI.PERCEPTION`). A man spots at his full stance-scaled range
+inside ±60° of where he looks, at 35% of it out to ±100° (55% for a moving man), and behind that only
+within 10 m; he looks where his body faces, or at the squad's known threat if a ≤70° head turn reaches
+it. Tracking a man he already has is not cone-limited. `squad.contact` is the squad's picture: its own
+men's sightings, else a friendly squad's first-hand sighting within 50 m (`relayedFrom`, keeping the
+sighting's `at`, never chained), else enemy gunfire within 120 m (`heard`, the shooter's position off
+by up to 8% of the range, deterministically). Own sightings always replace heard or relayed ones.
+Engagement already turns men and assigns suppressors from `squad.contact`, so both cues bring the
+squad's eyes and rifles onto the threat.
+
 **Engagement states:** `advance → orient → (decide) → bound → engage`, then
 `pinned`, `assault`, `alert`, `withdraw`, `station`. `orient` never fires (REACT 0.45 s scout to
 0.85 s gunner). `engage` pins position and commits stance. `alert` holds the sector for
@@ -208,7 +276,7 @@ Engagement constants live at the top of `engagement.js` (`BattleEngagement.tunin
 per stance (`obstacle-field.js`), so going prone genuinely helps.
 
 **Extend through declared slots, never by replacing a function.** `SquadAI` declares `fireGate`,
-`shotModel`, `areaFireGate`, `afterShot`, `squadCommand`, `beforeSoldier`, `afterSoldier`;
+`shotModel`, `woundModel`, `areaFireGate`, `roundGate`, `afterShot`, `squadCommand`, `beforeSoldier`, `afterSoldier`;
 `BattleEngagement` declares `afterDrill`. Add the id to the declared order and attach with
 `extend(stage, id, fn)`; reassigning `tryFire`/`updateSoldier`/`updateSquad` makes behaviour depend
 on module file order (`14-z-ballistic-raycast.js` once silently discarded the LOS gate that way).
@@ -225,6 +293,38 @@ a read-only "is this hold getting anywhere?" test. The session export lists each
 recently ended leases and `missionHeldBy`, and the AI Graph **Leases** panel (`modules/37-lease-panel.js`)
 shows them live. Don't add a new `...Until` field for a hold. Deliberately not leases: fireteam order renewal (on the order
 record), the garrison request (a standing constraint), and execution timing inside one owner.
+
+**Weapons and wounds.** `BattleWeapons.STATS` holds each kind's numbers and `PROFILES` each side's
+weapon for it (Garand/Kar98k, M1919A6/MG42, Thompson/MP40, M1 Carbine/FG42, M1911A1/P38);
+`SquadAI.createSoldier` issues it (`weapon.profile`, `magSize`, and `carried` where the load differs
+from the kind's). A man opens aimed fire out to `SquadAI.engageRange(s)`: his weapon's range (roles no longer carry one,
+except as a cap where the job is not the firefight: the defending engineer's 130 m), so the US scout
+stops at the carbine's 250 m and the German scout reaches 450 m with the FG42's rifle cartridge. The
+FBX backend draws the model the profile names (`PROFILES.<side>.<kind>.model` + `.fbx`), so what a man
+carries and how it shoots cannot disagree. A selective-fire weapon (`autoWithin`, the FG42: 50 m) bursts only inside
+that distance and fires single aimed rounds beyond it. `rof` is the aimed rate of a semi-auto or bolt action; an
+automatic has `cyclic` (rounds/s), `burst` [min, max], `burstPause` and `burstClimb`. One trigger pull
+fires the whole burst on one AI tick (0.15 s, slower than an MG42 cycles); each round goes through
+`roundGate`, `shotModel(…, round, delay)` and `afterShot`, and `onFire(soldier, delay)` / the shot's
+`delay` let presentation play it at the cyclic rate (`BattleSim.presentAfter`). What a hit does is the
+`woundModel` (`modules/14-wound-model.js`, `BattleWounds`): the ray's hit zone (head, chest, abdomen,
+arm, leg; `BattleBallistics.hitZone`), a drop chance per zone scaled by the cartridge's `power`,
+bleeding that eases with time, leg wounds slowing (`woundSpeed`, applied in `11-soldier-individuality`)
+and arm/torso wounds widening the shot group (`woundSigma`). A round can go through a man
+(`14-z-ballistic-raycast.js` over-penetration: chance from the weapon's `penetration`, else full-power
+cartridges only, times the zone; it keeps part of its energy, deflects ~7° and flies on) and strike
+the next enemy behind him with a wound scaled by `hit.energy`/`hit.power`. The shot reports every
+body in `shot.passes` (entry, exit, zone, energy) and where the spent round ended in `shot.final`;
+`shot.victim`/`impact`/`zone` stay the first body. Incapacitated and killed both go through
+`killSoldier` (`soldier.casualty` says which and where).
+
+**Decals.** Sprite sheets in `Assets/effects/decals/` (`blood.png`, `bullet-holes.png`) are a fixed
+4 x 4 grid, one kind per row and four variants per row, generated by `node tools/generate-decal-atlas.js
+[--cell 256]`. `15-bullet-impact-fx.js` (`DECAL_SHEETS`) addresses cells by grid position, so a sheet
+can be regenerated larger or replaced by a painted one of any resolution that keeps the grid. World
+decals (holes, blood on the ground) are thin instances per cell; wound decals are quads parented to
+the hit bone (`BattleFbxSoldier.boneNode`, or the procedural `soldier.rig`), with a larger exit wound
+on the far side and an exit spray on the ground wherever a round came out.
 
 **Presentation never touches the combat RNG.** Voice, FX and audio must not draw from
 `battle.random`; the same seed must simulate the same battle with or without assets
@@ -274,26 +374,155 @@ four-run swing. Live-browser runs at `timeScale` 8 aren't deterministic, so use 
 for controlled pairs, and serve both arms the same way: `battle_sim_local.php` in preview mode (a
 `preview.json` beside it) reads `state/` and the audio manifest two directories up.
 
-### Open issues (as of v160 / 2026-09-24)
+### Open issues (as of 2026-09-27)
 
 - Regroups: half used to time out at 18 s because the order anchor stayed with the leading men;
   fixed (timeouts 76 → 6 over 30 seeds). GitHub standard benchmark run 11 (PR #37, 2026-09-25,
   benchmark `regroups`): 9.4 regroups per battle in meeting, 7.3 in US-defend and 5.9 in GE-defend,
   with 15, 2 and 4 timeouts over 60/20/20 battles. Defend scenarios regroup no more often than
   meetings, so there is no defend-specific rise left to chase.
-- Window/ingress crowding: claim collisions swing 23 to 3,838 on the same seed. Reservation
-  and physical occupancy haven't been separated yet.
-- Personal-space corrections rose slightly (15.7k → 17.4k per battle). Find the converging
-  producer first.
-- Strategic-stall wakes mostly re-pick the same objective, because doctrine has no alternative.
-- Hot path is now navigation replans (~3.3 s) and `sightBlocked` (~3.5 s) per ~13.7 s battle.
+- Window crowding (closed 2026-09-25): bodies at firing stations don't stack. A probe on 6 full standard
+  seeds found 1 sample in ~20k occupied-station samples with two men on one station, and a non-holder
+  on a held window in one battle only. The old "claim collisions 23 → 3,838" swing was `select()`
+  counting every held window it passed over; that is now `reservedStationsSkipped`, and
+  `claimCollisionsPrevented` counts only real claim-time collisions.
+- Personal-space corrections (~8-10k per battle on the GitHub standard benchmark) are mostly same-squad
+  men crossing on the move, not fights: pairs still overlapping 1 s later are rare (5-20 per battle).
+  In order: (1) two men both on formation slots crossing. 75-83% of those are between different
+  fireteams, and the rate is ~7× higher in the 6 s after a formation or facing change. (2) Bounding men
+  walking through men holding. (3) Engagement `hold` endpoints within 0.9 m of each other. Hold isn't a
+  physically allocated kind in `51` `DEST_KINDS`.
+  - **Fireteam frontage (shipped 2026-09-26).** Team anchors were
+    averages of per-man slots that alternate sides by `slotIndex`, while team membership also comes
+    from `slotIndex`, so every team sat in the middle (alpha and bravo 1.2 m apart in line). The Squad
+    Leader (`16` `desiredAnchor`) now gives each fireteam its own offset in the squad frame; new
+    `fireteam-frontage-check.js` (main fails it). GitHub standard benchmark, main run 17 vs branch
+    run 16: corrections −12% meeting, −2% US-defend, −12% GE-defend; destination conflicts −13 to −44%;
+    wins within noise (meeting US 31 → 25 of 60, p=0.36); median wall 26.7 → 28.6 s; movement stalls
+    40 → 49 (the worst is a straggler stopping in `alert` while catching up, a pattern main also shows).
+    If it regresses movement feel, revert it as a unit.
+  - **Next: spawn men near their formation slots.** Cross-team crossings barely changed with frontage,
+    and about half come in the first minute: men spawn in a random cluster around the lane
+    (`battle-sim.js` `spawnSide`, `modules/10-infantry-squad.js`), ignoring their slot, then cross each
+    other to sort out. Placing each man at his fireteam position at spawn is its own change, and it
+    changes the seeded start, so benchmark it paired on GitHub.
+- Strategic-stall wakes used to re-pick the same objective (77% of 111 wakes over 10 local replays);
+  a stall now closes the stalled efforts (see Main effort), which cut repeats to 46% (local, before
+  the merge with the frontage limit). GitHub standard benchmark, main run 15 vs branch run 14 (same
+  100 seeds): no measurable outcome effect. Wins US/GE 31/29 → 33/27 meeting (Fisher p=0.85), 18/2 →
+  20/0 US-defend and 0/20 → 2/18 GE-defend (p=0.49), captures 2.99 → 2.92, mean longest no-progress
+  283 → 277 s, meeting spread 2.33 → 2.46 objectives per side, same winner on 88/100 seeds. Open:
+  the benchmark doesn't export `stallOutcomes`, so the post-merge repeat rate is unmeasured. Add it
+  to the benchmark export, find what the remaining repeats are (no other objective left, or
+  `stallCost` too low against distance), and only claim a win effect from a 300-battle run.
+- Hot path: `sightBlocked` and navigation replans were ~half a battle's wall time; exact pruning
+  (crossed-cell first-hit LOS, wall bounding boxes, lazy `planLocal` edges) halved it. Standard
+  benchmark median wall time per battle 29.1 → 13.5 s (meeting 29.1 → 13.2, US-defend 31.3 → 16.3,
+  GE-defend 33.1 → 13.9), main run 15 vs branch run 14. Hot-path profile on
+  `standard-benchmark-meeting-s1-b0001-0001` (300 s): `sightBlocked` 7.3 → 2.1 µs/call, physical
+  replan 360 → 42 µs, `findPath` 564 → 83 µs, `movementClear` 5.5 → 1.75 µs. `engagement.updateSoldier`
+  and the movement resolver now lead the profile; they are the next optimisation target.
 - Movement Progress ignores retreat by design; `movementStopReason` is the observable.
 - Next architecture steps: a versioned `SquadIntent` + one intent resolver (leases, with priority, progress tests and a graph view, now exist), a real Squad Leader local planner, then
   platoon/company command, fallback/counterattack and combined arms. Capture Zone and
   Prepared Defense already publish *requests* that Force Command accepts; follow that pattern.
 - Meeting engagements deliberately get no runtime engineer fortification (`engineerTick` exits early).
-- **Sergeant weapons.** Squad leaders carry the `smg` kind: US Thompson, GE MP40 (`WEAPON_MODELS`).
-  Their grips use the generic `WEAPON_POINTS`; set per-model sidecars in the Motion Lab.
+- **Sergeant weapons.** Squad leaders carry the `smg` kind: US Thompson, GE MP40 (`BattleWeapons.PROFILES`).
+  Their grips use the generic `WEAPON_POINTS`; set per-model sidecars in the Motion Lab. They rarely
+  fire, and that is range, not a gate bug: the `fire-gates` probe (standard s1 seeds, 600 s) found 0
+  rounds in meeting and US-defend, where the target a leader holds is 350 m+ away in >85% of samples
+  and the SMG reaches 150 m; in GE-defend, when attackers close, 69 trigger pulls (276 rounds). If
+  leaders should shoot more, it is the Squad Leader closing to assault range more often (a tactics
+  change, benchmark it), or a rifle for US leaders (many carried the Garand), not a looser gate.
+- **Scout balance after the FG 42 (PR #55, merged as is, to tweak).** Scouts carry US M1 Carbine
+  (250 m) / GE FG 42 (full-power round, 450 m, bursts only inside 50 m). The paired standard benchmark
+  (main run 21 vs branch run 20, same seeds, with the view cones below also in the branch) moved meeting
+  wins US/GE 37/23 → 23/37 (Fisher p=0.017; 44/60 same winner), meeting kills US/GE 29.7/25.6 →
+  26.6/30.9, US-defend 19/1 → 16/4 (p=0.34), GE-defend unchanged 1/19. Not yet attributed: benchmark
+  the scout change without perception (and the reverse) before tuning. Levers, smallest first: German
+  scouts on the Kar98k (the regular infantry issue; the FG 42 was a Fallschirmjäger weapon, ~7,000
+  made), a shorter FG 42 practical range, or a wider FG 42 group at range. Presentation gaps left for
+  the FG 42: it plays the carbine sound (audio is out of scope without an ask), and the FBX backend
+  restarts the fire clip each round of a burst because it treats only `lmg`/`smg` kinds as automatic
+  (`53-fbx-soldier-backend.js`, `weaponKind`); key those on the weapon's `cyclic` instead.
+- **Perception follow-ups.** View cones cut sightings of an enemy behind the man from 6-13% of fresh
+  acquisitions to <1% (`perception` probe, standard s1 seeds). Relay and hearing gave a squad its
+  first contact once in 29 squads: sight (450-575 m) outruns hearing (120 m) in open battles. The
+  probe records only first contact; count how often heard/relayed word re-acquires a squad that lost
+  sight mid-fight before tuning `HEAR_RANGE`/`RELAY_RANGE`. Relay distance is squad centre to squad
+  centre (50 m); the other reading of the request, enemies within 50 m of the unaware squad, is a
+  one-line change in `squadSenses`. Defenders facing one way have no sector scan: a sweep for a man
+  holding still with no contact is the next step if flanks go unseen.
+- **Bullet holes float in front of scatter cover (open, fix proposed).** `14-z-ballistic-raycast.js`
+  `obstacleStop` stops the ray at the obstacle field's tactical cover circle, not the rendered object
+  (`terrain-features.js` `scatter`): a log is a 0.55 m cylinder but its circle is `len*0.42`
+  (1.1-2.0 m), a tree trunk `0.11*scale` vs `1.15*scale`, a rock box vs `size*1.1`, a wall stub
+  0.5 m thick vs a 1.6 m circle set off the wall. The hole and its radial normal land where the round
+  stopped in the air. Fix at the ballistics owner: when the ray crosses a cover circle, intersect the
+  linked `physicalId` footprint (OBB or circle, with its height) and let the round fly on if it misses;
+  sight and cover abstractions stay as they are. It changes combat (rounds that used to stop in the
+  air fly on), so benchmark it paired. Not a decal-shader job: a projected or UV-space decal only
+  draws on real geometry, so it would hide the wrong impact point, not fix it; consider UV-space decals
+  later only for curved surfaces if flat quads still look wrong once impacts sit on the real shape.
+- **Wound decals should be drawn on the skin, not as floating sprites (open).** Today
+  `15-bullet-impact-fx.js` `woundDecal` places a flat quad at the hit bone's position plus a fixed
+  radius per zone (`BODY[zone].out`: head 0.13 m, chest 0.16, abdomen 0.15, arm 0.08, leg 0.11) toward
+  the shooter, clamped into a height band, and parents it to that one bone. It never meets the real
+  mesh, so it floats off a slim torso, sinks into a bulky one, stays flat on a curved limb and slides
+  as skin deforms across joints. Proposal, presentation only: a material plugin on the soldier's
+  skinned material (Babylon `MaterialPluginBase`) that draws wounds in the fragment shader. Each wound
+  is stored as a point in the mesh's bind pose (the unskinned vertex space, found from the ray hit on
+  the skinned mesh), with a radius, a blood-sheet cell and entry/exit kind, in a small per-soldier
+  uniform array (`MAX_PER_SOLDIER`); the shader compares the bind-pose position it passes through as
+  a varying, so the wound sits on the surface and moves with the skin. Soldiers of one model share a
+  material, so a wounded man gets his own material clone (or a per-instance data texture) on his
+  first wound. Alternative: Babylon's UV-space decal maps (`MeshUVSpaceRenderer` / `decalMap`), at a
+  texture per wounded soldier. The procedural rig (`rig===null` soldiers, benchmarks) keeps quads or
+  gets the same plugin on its part materials. Keep it off the combat RNG, update `impact-fx-check.js`
+  (it asserts wound decals on the hit bone) and prove it with `scripts/closeup_damage_fx.cjs` /
+  `closeup_battle.cjs CLOSEUP_TARGET=wounded` against a preview. The world decals (holes, ground
+  blood) stay thin-instanced quads; see the floating bullet-hole item above for why those are an
+  impact-point bug, not a rendering one.
+- **Page-load hiccup (watch).** One local probe run logged `ReferenceError: BABYLON is not defined`
+  from an inline script (line 95 of the page `battle_sim_local.php` serves) on the GE-defend battle; the battle still
+  ran and reported. Seen once; if it recurs, make that inline script wait for Babylon.
+- **Forward movement: no backward orders while the squad advances (open).** A man should not be sent
+  behind the squad's firing line unless the squad is retreating or withdrawing; a short lateral or
+  backward step to adjacent cover is fine, but nothing that walks him back while the rest of the squad
+  moves forward. Today only one guard exists: `44-combat-urgency.js` `allowCover` rejects cover less
+  than `MIN_COVER_FORWARD` (1.5 m) forward along the objective axis, and only in the `assault` phase
+  and only when not suppressed. Engagement's own `findCover` searches up to `COVER_RANGE_UNDER_FIRE`
+  (42 m) and uses `squadForward` only as a scoring hint, so a cover slot well behind the line can win.
+  Owner: the line belongs to the Squad Leader (it knows the order anchor and phase), the choice to the
+  producer that picks the point (Engagement cover, 44 urgency, 52 survival routes), so publish the
+  line once (e.g. the fireteam's order anchor projected on the objective axis) and have each producer
+  score or refuse points behind it, with an allowance (a few metres) for adjacent cover and none of it
+  in retreat or withdraw. Don't add the guard in the resolver. Measure first: a probe counting
+  destinations that go behind the line while the squad advances, by producer (the order-provenance
+  observers already tag writers).
+- **Stance churn and firing mid-change (open).** Still seen: stand-crouch-stand loops, a man going
+  prone to fire one round, standing, going prone again, and firing while changing stance. Engagement
+  owns stance (`commitStance` holds it `STANCE_HOLD` 4 s / `PRONE_HOLD` 5.5 s and pushes
+  `fireReadyAt` by `AIM_SETTLE` 0.4 s), but three other writers bypass that hold: `44-combat-urgency.js`
+  sets `s.prone`/`s.tacticalCrouch` directly in its drills, `12-soldier-animation-events.js` sets
+  `tacticalCrouch` on every reload (a presentation module writing sim state), and `stepMovement`
+  (`battle-sim.js`, mirrored in `harness.js`) derives `crouching` each frame from `tacticalCrouch`,
+  suppression and "target and near the destination". Two writers is itself the bug (see the workflow
+  above), so first make every stance change go through Engagement (`commitStance`, or a request
+  Engagement arbitrates), which also makes `AIM_SETTLE` cover every change so nobody fires mid-change.
+  Whether the commitment is a lease: `BattleLeases` is for holds that block another layer's intent,
+  and stance should stay inside one owner, so a per-man stance commitment on `eng` (stance, since,
+  until, reason) is enough once there is one writer; make it a lease only if another layer still has
+  to ask to break it. Stance by distance, as a starting rule: prone at long range, crouch at medium,
+  standing only close or to fire over cover that a lower stance can't see past; commit to it until
+  ordered to move, suppressed, or the cover at hand changes. Today `fightingStance` goes prone past
+  `max(70, 0.55 × engageRange)` (247 m for a rifle now that range is the weapon's 450 m), only for
+  riflemen and gunners (`PRONE_ROLES`); scouts and leaders always crouch. Measure first with a probe:
+  stance changes per man-minute and per writer, rounds fired within `AIM_SETTLE` of a change, and
+  prone episodes shorter than `PRONE_HOLD`; `run.js` already asserts "no stance churn", so find why
+  it misses these (likely it runs without module 44 and without the reload hook).
+- **Snipers (pending).** Scoped rifles (M1903A4, Kar98k with ZF39) are a separate role, not the
+  scouts; they need weapon models and their own aiming rules.
 - **Secondary weapons (pending).** A soldier carries a sidearm only where it was historically
   issued. In a German squad the MG gunner (Schütze 1, P38/P08) did. In the US squad the M1919 gunner
   (M1911A1) did, and so did paratroopers more widely. Riflemen generally didn't. It needs a
@@ -302,10 +531,11 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   range. The pistol hold, the `m1911a1`/`p38` models and the pistol clips already exist. Presentation
   stays off the combat RNG.
 - **Any soldier, any weapon (pending).** Weapons are still dealt by role: `ROLES.<role>.weapon`
-  sets the kind and its rules, and `WEAPON_MODELS` picks the model per faction. The goal is a
+  sets the kind and its rules, and `PROFILES` picks the model and numbers per faction. The goal is a
   per-soldier loadout, a primary plus the secondary above, where any class can carry any weapon.
-  Shot stats and ammunition already follow `soldier.weapon`. Two things are still tied to the role:
-  `battle-sim.js` deals the weapon from `ROLES[role].weapon`, and Engagement ties the MG behaviour
+  Shot stats, ammunition, engagement range and the rendered model already follow `soldier.weapon`.
+  Two things are still tied to the role: `battle-sim.js` deals the weapon from `ROLES[role].weapon`,
+  and Engagement ties the MG behaviour
   (emplacement, never bounding) and reaction times to `role === 'gunner'`. Both would move to the
   weapon kind.
   The art side is mostly there: every model's sidecar can hold a seat for each weapon
@@ -334,9 +564,9 @@ never decides tactics, ammo, hits or paths.
   (`BattleFbxClips`, data only). The battle fetches only those files, and the lab loads the same table
   for its **Show all animation clips** toggle (off: only in-game clips; on: all, in-game marked ●).
   Bone names are canonicalised at load, so `mixamorig:` and older rigs bind the same clips.
-- Weapons (`WEAPON_MODELS`, dealt per role, a list in turn): rifle Garand / Kar98k, LMG M1919A6 /
-  MG42 (folded-bipod carry variants), scouts M1 Carbine + Thompson / FG42 + MP40, sergeants
-  M1911A1 / P38. Babylon is pinned to `babylonjs@9.27.1`.
+- Weapons (the model `BattleWeapons.PROFILES` names per side and kind): rifle Garand / Kar98k, LMG M1919A6 /
+  MG42 (folded-bipod carry variants), scouts M1 Carbine / FG42, sergeants Thompson / MP40
+  (the M1911A1 / P38 models are for the pending sidearm slot). Babylon is pinned to `babylonjs@9.27.1`.
 - **Weapon seats and sidecars.** Hand contacts and weapon points default to `SOLDIER_CONTACTS`,
   `WEAPON_POINTS` and `WEAPON_MODEL_POINTS`. A per-model sidecar `Assets/soldiers/<model>.fbx.json`
   (contacts, one slot per weapon: grip / fore-near / fore-far, pistol arm and wrist dials) overrides

@@ -22,3 +22,5 @@ Assets/soldiers/new/*.zip
 
 # Lab save password hash (placed by hand on the server; see labs/save-calibration.php)
 state/lab-key.php
+closeups/
+decal-sheets.png

@@ -72,7 +72,7 @@
   }
   function roleOf(s) {
     var roles = SA() && SA().ROLES;
-    return (roles && roles[s.role]) || { speed: 2.9, visionRange: 140, engageRange: 130 };
+    return (roles && roles[s.role]) || { speed: 2.9, visionRange: 140 };
   }
   function jitter(s, scale) {
     return ((+s.id || 0) % 7) * scale;
@@ -182,11 +182,10 @@
   /* Prone is only useful where it is survivable and the soldier can still shoot: long shots,
      real suppression, or cover low enough that crouching leaves him showing. */
   function fightingStance(s, battle, distanceToTarget, coverValue) {
-    var role = roleOf(s),
-      suppressed = s.suppressedUntil > battle.time;
+    var suppressed = s.suppressedUntil > battle.time;
     if (!PRONE_ROLES[s.role]) return 'crouch';
     if (suppressed) return 'prone';
-    if (distanceToTarget > Math.max(70, role.engageRange * 0.55)) return 'prone';
+    if (distanceToTarget > Math.max(70, SA().engageRange(s) * 0.55)) return 'prone';
     if (coverValue > USEFUL_COVER) return 'prone'; // no cover at all: go to ground
     return 'crouch';
   }
@@ -680,7 +679,7 @@
   function tryFire(s, battle) {
     if (!fireAllowed(s, battle)) return false;
     var d = dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z);
-    if (d > roleOf(s).engageRange) return false;
+    if (d > SA().engageRange(s)) return false;
     SA().tryFire(s, battle);
     return true;
   }
