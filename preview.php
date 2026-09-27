@@ -18,7 +18,7 @@
    ?ref=<branch> always resolves the branch's current head, so that URL is a stable link to share.
    Staged commits are immutable and reused; the oldest are pruned past KEEP. */
 
-$repo = 'Teethree89/grasstex';
+$repo = 'APPARANYX/grasstex';
 $root = dirname(__FILE__);
 $previewRoot = $root . '/preview';
 $cacheFile = $previewRoot . '/.ref-cache.json';
@@ -86,8 +86,12 @@ function valid_branch($name) {
 /* Branch, "#47", "pr/47", "47", github.com/<repo>/tree/<branch>, github.com/<repo>/pull/47. */
 function parse_ref_input($input, &$error) {
     $input = trim((string)$input);
-    $prefix = 'github.com/' . $GLOBALS['repo'] . '/';
-    $pos = stripos($input, $prefix);
+    $pos = false;
+    foreach (array($GLOBALS['repo'], 'Teethree89/grasstex') as $repoName) {
+        $prefix = 'github.com/' . $repoName . '/';
+        $pos = stripos($input, $prefix);
+        if ($pos !== false) break;
+    }
     if ($pos !== false) {
         $rest = preg_replace('/[?#].*$/', '', substr($input, $pos + strlen($prefix)));
         if (preg_match('#^pull/(\d+)#', $rest, $m)) return array('pr', $m[1]);
@@ -158,13 +162,14 @@ function prune($previewRoot, $keepSlug) {
     foreach ((array)glob($previewRoot . '/.staging-*', GLOB_ONLYDIR) as $d) if (time() - filemtime($d) > 600) rrmdir($d);
 }
 
-/* Download paths of commit $sha from GitHub into $dir, 10 at a time, streaming to disk. */
-function fetch_files($sha, $paths, $dir) {
-    $failed = array();
+/* Keep ten transfers busy, refilling immediately instead of waiting for an entire batch.
+   A 200 response can still be truncated: require a successful transfer and the Git blob id. */
+function fetch_files($sha, $paths, $dir, $expected = array()) {
+    $failed = array(); $handles = array(); $next = 0;
     $mh = curl_multi_init();
-    foreach (array_chunk($paths, 10) as $batch) {
-        $handles = array();
-        foreach ($batch as $path) {
+    do {
+        while (count($handles) < 10 && $next < count($paths)) {
+            $path = $paths[$next++];
             $target = $dir . '/' . $path;
             if (!is_dir(dirname($target))) @mkdir(dirname($target), 0775, true);
             $fp = @fopen($target, 'wb');
@@ -176,21 +181,68 @@ function fetch_files($sha, $paths, $dir) {
             curl_multi_add_handle($mh, $ch);
             $handles[$path] = array($ch, $fp);
         }
-        do { $status = curl_multi_exec($mh, $running); if ($running) curl_multi_select($mh, 1.0); } while ($running && $status === CURLM_OK);
-        foreach ($handles as $path => $pair) {
-            $code = curl_getinfo($pair[0], CURLINFO_HTTP_CODE);
-            curl_multi_remove_handle($mh, $pair[0]);
-            curl_close($pair[0]);
-            fclose($pair[1]);
-            if ($code !== 200) { $failed[] = $path; @unlink($dir . '/' . $path); }
+        do { $status = curl_multi_exec($mh, $running); } while ($status === CURLM_CALL_MULTI_PERFORM);
+        while ($done = curl_multi_info_read($mh)) {
+            foreach ($handles as $path => $pair) {
+                if ($pair[0] !== $done['handle']) continue;
+                $ok = $done['result'] === CURLE_OK && curl_getinfo($pair[0], CURLINFO_HTTP_CODE) === 200;
+                curl_multi_remove_handle($mh, $pair[0]);
+                curl_close($pair[0]);
+                fclose($pair[1]);
+                $fresh = array();
+                if ($ok && isset($expected[$path])) $ok = blob_sha($dir . '/' . $path, $fresh) === $expected[$path];
+                if (!$ok) { $failed[] = $path; @unlink($dir . '/' . $path); }
+                unset($handles[$path]);
+                break;
+            }
         }
-    }
+        if ($status !== CURLM_OK) {
+            foreach ($handles as $path => $pair) {
+                curl_multi_remove_handle($mh, $pair[0]); curl_close($pair[0]); fclose($pair[1]);
+                $failed[] = $path; @unlink($dir . '/' . $path);
+            }
+            $handles = array();
+            $failed = array_merge($failed, array_slice($paths, $next));
+            break;
+        }
+        if ($handles && (count($handles) === 10 || $next === count($paths))) {
+            if (curl_multi_select($mh, 1.0) === -1) usleep(1000);
+        }
+    } while ($handles || $next < count($paths));
     curl_multi_close($mh);
     return $failed;
 }
 
+/* Scripts are small: copy and verify the destination so later production deploys cannot
+   mutate an immutable preview through a hard link. Older previews need no new manifest. */
+function stage_runtime($sha, $entries, $root, $tmp, $previewRoot, &$reused) {
+    $sources = array($root);
+    foreach ((array)glob($previewRoot . '/ref-*', GLOB_ONLYDIR) as $d) {
+        if (!is_link($d) && is_file($d . '/' . MARKER)) $sources[] = $d;
+    }
+    $download = array(); $expected = array(); $reused = 0;
+    foreach ($entries as $e) {
+        $path = $e['path']; $expected[$path] = $e['sha'];
+        $target = $tmp . '/' . $path;
+        if (!is_dir(dirname($target))) @mkdir(dirname($target), 0775, true);
+        $found = false;
+        foreach ($sources as $source) {
+            $file = $source . '/' . $path;
+            if (!is_file($file) || (isset($e['size']) && filesize($file) !== $e['size'])) continue;
+            $fresh = array();
+            if (blob_sha($file, $fresh) !== $e['sha'] || !@copy($file, $target)) continue;
+            $fresh = array(); clearstatcache(true, $target);
+            if (blob_sha($target, $fresh) === $e['sha']) { $found = true; $reused++; break; }
+            @unlink($target);
+        }
+        if (!$found) $download[] = $path;
+    }
+    return fetch_files($sha, $download, $tmp, $expected);
+}
+
 /* Git blob id of a host file, cached by size and mtime (hashing ~500 MB of FBX takes seconds). */
 function blob_sha($file, &$cache) {
+    clearstatcache(true, $file);
     $size = filesize($file); $mtime = filemtime($file);
     if (isset($cache[$file]) && $cache[$file][0] === $size && $cache[$file][1] === $mtime) return $cache[$file][2];
     $ctx = hash_init('sha1');
@@ -210,7 +262,7 @@ function blob_sha($file, &$cache) {
 function stage_assets($sha, $treeEntries, $root, $tmp, $previewRoot) {
     $hashFile = $previewRoot . '/.asset-hash.json';
     $hashes = read_cache($hashFile);
-    $download = array(); $downloadBytes = 0; $linked = 0; $copied = 0; $problem = null;
+    $download = array(); $expected = array(); $downloadBytes = 0; $linked = 0; $copied = 0; $problem = null;
     foreach ($treeEntries as $e) {
         $path = $e['path'];
         $prod = $root . '/' . $path;
@@ -220,13 +272,13 @@ function stage_assets($sha, $treeEntries, $root, $tmp, $previewRoot) {
             elseif (filesize($prod) < 4194304 && @copy($prod, $tmp . '/' . $path)) $copied++;
             else { $problem = 'cannot hard-link production assets on this host'; break; }
         } else {
-            $download[] = $path; $downloadBytes += isset($e['size']) ? $e['size'] : 0;
+            $download[] = $path; $expected[$path] = $e['sha']; $downloadBytes += isset($e['size']) ? $e['size'] : 0;
         }
     }
     write_cache($hashFile, $hashes);
     if (!$problem && $downloadBytes > MAX_ASSET_DOWNLOAD) $problem = round($downloadBytes / 1048576) . ' MB of new assets (limit ' . (MAX_ASSET_DOWNLOAD / 1048576) . ' MB); use the Actions preview';
     if (!$problem && $download) {
-        $failed = fetch_files($sha, $download, $tmp);
+        $failed = fetch_files($sha, $download, $tmp, $expected);
         if ($failed) $problem = 'asset download failed for ' . implode(', ', array_slice($failed, 0, 3));
     }
     if (!$problem) {
@@ -262,28 +314,29 @@ function stage($branch, $sha, $root, $previewRoot, &$error) {
     if (is_file($dest . '/' . MARKER)) rrmdir($dest);
 
     $tree = gh_json('git/trees/' . $sha . '?recursive=1', $error);
-    if (!$tree || !isset($tree['tree'])) { $error = 'commit tree: ' . $error; if ($lock) fclose($lock); return null; }
+    if (!$tree || !isset($tree['tree']) || !empty($tree['truncated'])) { $error = 'commit tree: ' . ($error ?: 'incomplete GitHub tree'); if ($lock) fclose($lock); return null; }
     $files = array(); $assets = array(); $branchLoaderSha = null;
     foreach ($tree['tree'] as $e) {
         if (!isset($e['type'], $e['path'], $e['sha']) || $e['type'] !== 'blob') continue;
         $path = $e['path'];
         if ($path === 'battle_sim_local.php') $branchLoaderSha = $e['sha'];
-        if (preg_match('#^battle/(battle_sim\.html|[A-Za-z0-9._-]+\.js|modules/[A-Za-z0-9._-]+\.js)$#', $path)) $files[] = $path;
+        if (preg_match('#^battle/(battle_sim\.html|[A-Za-z0-9._-]+\.js|modules/[A-Za-z0-9._-]+\.js)$#', $path)) $files[$path] = $e;
         elseif (preg_match('#^Assets/((soldiers|animations|weapons)/[^/]+\.fbx|effects/.+\.png)$#', $path)
             && strpos($path, '..') === false && strpos($path, '/.') === false && preg_match('#^[A-Za-z0-9 ._()/-]+$#', $path)) $assets[] = $e;
     }
-    if (!in_array('battle/battle_sim.html', $files, true)) { $error = 'this commit has no battle/battle_sim.html'; if ($lock) fclose($lock); return null; }
+    if (!isset($files['battle/battle_sim.html'])) { $error = 'this commit has no battle/battle_sim.html'; if ($lock) fclose($lock); return null; }
 
     $tmp = $previewRoot . '/.staging-' . substr($sha, 0, 12) . '-' . getmypid();
     rrmdir($tmp);
     @mkdir($tmp . '/battle/modules', 0775, true);
-    $failed = fetch_files($sha, $files, $tmp);
+    $runtimeReused = 0;
+    $failed = stage_runtime($sha, $files, $root, $tmp, $previewRoot, $runtimeReused);
     if ($failed) { rrmdir($tmp); $error = 'download failed for ' . implode(', ', array_slice($failed, 0, 5)); if ($lock) fclose($lock); return null; }
     list($assetsStaged, $assetNote) = stage_assets($sha, $assets, $root, $tmp, $previewRoot);
 
     $hostLoaderSha = sha1('blob ' . strlen($loader) . "\0" . $loader);
     $meta = array('ref' => $branch, 'sha' => $sha, 'deployedAt' => gmdate('Y-m-d\TH:i:s\Z'), 'source' => 'preview.php',
-                  'files' => count($files), 'loaderMatchesBranch' => $branchLoaderSha === null || $branchLoaderSha === $hostLoaderSha,
+                  'files' => count($files), 'runtimeReused' => $runtimeReused, 'runtimeDownloaded' => count($files) - $runtimeReused, 'loaderMatchesBranch' => $branchLoaderSha === null || $branchLoaderSha === $hostLoaderSha,
                   'assetsStaged' => $assetsStaged, 'assets' => $assetNote);
     file_put_contents($tmp . '/battle_sim.php', $loader);
     file_put_contents($tmp . '/preview.json', json_encode($meta));
