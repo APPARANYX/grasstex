@@ -38,7 +38,7 @@ In the page: a load overlay (`BattleLoading`, in `battle_sim.html`) shows each b
 scripts, scenario, terrain, soldiers/weapons/clips, cover, navigation and squads); the FBX backend
 reports per-file progress to it. **Start Battle** unpauses and unlocks audio (iOS needs the gesture).
 `window.__battle__` is the live `BattleSim`. HUD buttons: World Debug, AI Graph, Motion Lab.
-URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`.
+URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?perfTimings=1`, `?bench=1` (device benchmark, below).
 
 ## Test harnesses
 
@@ -72,6 +72,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `extension-order-check.js` | No module replaces `SquadAI.tryFire`/`areaFire`/`updateSoldier`/`updateSquad` or `BattleEngagement.updateSoldier`; the declared fire order (ammunition → ballistics range → trigger-time LOS) holds; undeclared extensions throw |
 | `lease-check.js` | `BattleLeases` primitive, tactical-plan and regroup lease lifecycles, regroup re-forms on the rally point |
 | `reconstitution-check.js` | Retreated squads home and out of contact reaching 10 survivors group (fewest squads; none planned en route), march to the rally point, merge under one leader (promotion never picks the gunner), get re-tasked; below-strength groups dissolve; Macro OFF does nothing |
+| `regroup-axis-check.js` | A man behind the regroup anchor is a trimmable straggler, never an outrunner (the regroup keeps the direction the squad was marching), men ahead or to the side still block, and a regroup whose only scattered man is behind ends on `cohesion restored`, not on the clock; swept over march directions (main fails it) |
 | `succession-check.js` | A killed leader is replaced by the most senior survivor after the 6 s `succession` lease, never more than one leader, the gunner only as the last man, successors replaced in turn, no lease on a led or wiped-out squad, seniority order |
 | `perception-check.js` | View cones (120° focus at full range, ±100° periphery shorter, behind only within 10 m), head turn toward the squad's known threat, contact relayed to a friendly squad within 50 m (first-hand only, keeps its age), enemy gunfire heard within 120 m with a distance-scaled position error, own sightings outrank both, no combat-RNG draws |
 | `voice-determinism-check.js` | Voice callouts never draw from the combat RNG: a battle is identical with and without voice |
@@ -146,7 +147,8 @@ In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certif
 
 | Script | Use |
 | --- | --- |
-| `scripts/run_m3c_replay.cjs` | One seed, fixed step, full diagnostic JSON. `M3C_SEED`, `M3C_URL`, `M3C_OUTPUT`, `M3C_MACRO=off`. Use for paired before/after comparisons. |
+| `scripts/run_m3c_replay.cjs` | One seed, fixed step, full diagnostic JSON. `M3C_SEED`, `M3C_URL`, `M3C_OUTPUT`, `M3C_MACRO=off`. Use for paired before/after comparisons. `M3C_RENDER_EVERY=<n>` renders a frame (sim paused) every n steps so the FBX pose code runs; `M3C_PERF=on\|off` sets the timing switch below. An on/off pair must end identically. |
+| `scripts/benchmark_full_fidelity.cjs` | Full-fidelity browser benchmark: real FBX soldiers, weapons, clips and Babylon rendering; fails on a failed FBX load or any procedural soldier. Records startup phases and per-file asset timings, then `FF_SECONDS` (60) of rendered battle after `FF_WARMUP` (90) fast-forwarded sim seconds: frame interval/FPS, CPU per frame, render, sim step, pose time per layer and how often each layer's inputs changed, active meshes, draw calls, GPU time where supported. Writes `full-fidelity.json` + `.md` to `FF_OUT`. `FF_URL` (local default, or `preview.php?ref=<branch>`), `FF_SEED`, `FF_TIMESCALE` (4), `FF_VIEWPORT`, `FF_GPU=1` (real GPU instead of SwiftShader), `FF_ISOLATE=0`, `FF_QUERY` (extra page query, e.g. `animLod=0` for a same-build before/after), `FF_CADENCE=60` (drive frames on a virtual 60 Hz clock so pose/CPU per frame describe a 60 FPS device even on SwiftShader; wall FPS is then meaningless). It serves the page cross-origin isolated so `performance.now()` has 5 µs resolution, not 100 µs. SwiftShader numbers are a CPU-only baseline, not a device result. The headless benchmark stays the AI regression benchmark. |
 | `scripts/run_battle_benchmark.mjs` | N headless battles. `BATTLE_BENCHMARK_COUNT/SEED/URL/STEP/TIME_LIMIT/OUTPUT`. `merge_battle_benchmarks.mjs` merges shards. |
 | `scripts/profile_battle_hotpaths.mjs` (+ `battle-hotpath-profiler.cjs`) | Inclusive wall time per hot function. `BATTLE_PROFILE_SEED/TYPE/SECONDS`. |
 | `scripts/profile_meso_churn.mjs` (+ `meso-churn-profiler.cjs`) | Meso fireteam order churn attribution |
@@ -155,8 +157,30 @@ In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certif
 | `scripts/closeup_damage_fx.cjs` | Close-ups of the damage FX in the real page: newest wound and exit-wound decal on a soldier, blood splash and exit spray, masonry/wood/dirt/metal holes, one `<kind>.png` each plus `summary.json` (wounds by zone, decals by kind); fails on page errors. `CLOSEUP_OUT` (default `closeups/`, gitignored), `CLOSEUP_SEED`, `CLOSEUP_SHOTS`, `CLOSEUP_SIM`, `CLOSEUP_BODY`, `CLOSEUP_DIST`. 5-10 min under software WebGL. |
 | `scripts/preview_decal_sheets.cjs` | Contact sheet of `Assets/effects/decals/*.png` over surface-like backgrounds with the 4 x 4 grid and row names; check a regenerated or painted sheet before it ships. No server. `DECAL_PREVIEW_OUT`. |
 | `scripts/probe_pistol_cup.cjs` | Motion Lab pistol support cup at a fixed 60 Hz: cup gap (cm), degrees the left arm is bent off the clip, and hand jerk (deg/frame², solved vs the clip's own) per clip. `CUP_SIDECAR=<model>.fbx.json` (a server sidecar; they are never committed), `CUP_CLIPS`, `CUP_SERIES=1`. |
+| `scripts/probe_lod_shadows.cjs` | Animation LOD vs shadows: adds a directional light and ShadowGenerator, aims a narrow camera at one soldier's shadow with him out of view, and checks he is held with no caster, posed as a caster, held when the shadow falls away, posed under a caster predicate. `LODSHADOW_URL`. |
 | `scripts/probe_gait_clips.cjs` | Which FBX locomotion family (walk/run/sprint/crouch/crouchRun) each sim gait actually plays, at what rate, plus each model's natural clip speeds (in-place clips: foot stride). `GAIT_URL` (default production), `GAIT_SEED`, `GAIT_SECONDS`, `GAIT_OUT`. |
-| `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on), `fire-gates` (per role: trigger pulls, target distance bands, and the first fire condition that fails while a man holds a target). |
+| `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on), `fire-gates` (per role: trigger pulls, target distance bands, and the first fire condition that fails while a man holds a target), `backward-orders` (new destinations behind the man's fireteam line or behind the man himself while the squad advances, by producer and phase), `stance-churn` (shown stance changes per man-minute by writing file, A→B→A bounces under 1 s, trigger pulls within `AIM_SETTLE` of a change, prone spells shorter than `PRONE_HOLD`), `regroup-axis` (regroup ticks whose forward axis collapsed, and men behind the anchor scored as outrunners). |
+
+**Device benchmark** (`modules/97-device-benchmark.js`, inert without the flag): open the page with
+`?bench=1` on any phone or computer, tap **Start benchmark**, keep the tab in front. It fast-forwards
+`benchWarmup` (60) sim seconds to contact, then plays `benchSeconds` (60) with the normal render loop
+and shows FPS (median, mean, 5%/1% lows), frame/CPU/render/sim/pose time, draw calls, GPU time where
+the browser has a timer query, device and renderer, the load breakdown, and where `scene.render` goes
+(before/after-render hooks by name, Babylon animations, the camera pass split into active-mesh
+evaluation with `Skeleton.prepare` broken out, draw and the rest, and what is left unattributed), and
+draw calls by kind (soldiers, weapons, building walls, hedges, terrain, objectives, decals, cover); **Copy results** /
+**Download JSON** (nothing is uploaded; also `window.__deviceBench`). `benchCam=close` frames the
+biggest group from 90 m, `benchAuto=1` starts without the tap, `animLod=0` gives the LOD before/after.
+This is how real devices are measured; `benchmark_full_fidelity.cjs` is the scripted equivalent.
+
+**Runtime timing switch** (`modules/53-fbx-soldier-backend.js`, observe only, no sim writes or RNG draws):
+`BattleAssetTimings.snapshot()` gives the load overlay's phase times, and per FBX file the download
+(browser stall and transfer), queue wait, Babylon parse, prepare, clip conversion, retarget, grip solve
+and sidecar fetch, plus per-soldier bind, totals and the 10 slowest files. It is on by default.
+`BattlePoseTimings` times `applyPose` per frame and per soldier, split into setup, base, overlay,
+dials, weapon, aim and support layers, and counts how often each layer's inputs changed since it last
+ran. It is off by default and measures nothing until turned on. `?perfTimings=1` or
+`window.BATTLE_PERF_TIMINGS=true` turns both on; `=0`/`false` turns both off.
 
 **Preview launcher:** `python3 scripts/check-preview-launcher.py` runs offline with PHP/cURL and a concurrent local HTTP fixture. Checks runtime reuse, the rolling download queue, integrity failures and publication. `preview.json` records `runtimeReused` and `runtimeDownloaded`; only changed runtime files download, with matching copies taken from production or earlier launcher previews.
 
@@ -381,6 +405,81 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
 
 ### Open issues (as of 2026-09-27)
 
+- **Runtime / animation performance audit (2026-09-27; approved direction).** Treat this as the
+  current performance action queue for the full-fidelity 50v50 battle. Performance target at 100
+  soldiers: **mobile 30 FPS floor / 60 FPS target; desktop 60 FPS target**. Preserve deterministic
+  gameplay behaviour while changing presentation/runtime cost; measure before and after each item.
+  1. **Animation/pose runtime cost is the first action item.** Imported soldiers currently run
+     `applyPose` once per rendered frame while enabled, including locomotion/overlay blending,
+     aiming, weapon hold, spine and support-hand work. Instrument pose time first, then keep animation
+     clocks on simulation time while using shared cached base clip samples, cheap per-soldier sampling
+     and dirty dynamic overrides. Recompute expensive aim/weapon/support-hand layers when their inputs
+     change or while a transition is active, rather than deriving the same result every frame. Add
+     automatic animation LOD: near soldiers update every frame; medium distance approximately
+     20-30 Hz; distant soldiers approximately 5-10 Hz; offscreen soldiers hold the last pose until
+     visible/dirty. Distances are presentation thresholds and must be tuned from visual tests, not
+     tied to gameplay AI or ballistics.
+  2. **Instrument the real asset/startup path before changing it.** The loading overlay currently
+     reports real per-file counts for models, weapons and clips, but work inside a file is opaque.
+     Add timings for download, Babylon FBX parse/import, clip conversion/resampling, rig/bone mapping
+     or retargeting, sidecar/setup work, and final bind/ready time. Publish totals and slowest files
+     in a browser-readable diagnostic payload and include them in the full-fidelity benchmark below.
+     This instrumentation must not change simulation state or combat RNG.
+  3. **Remove the 25 s imported-soldier timeout and the normal-game procedural fallback.** Today
+     `BattleSoldierModel.preload` races `loadLibrary(scene)` against a 25 s timer; losing the race
+     does not cancel `loadLibrary`, so a slow device can fall back visually while FBX parse/convert
+     work keeps consuming CPU and memory. Approved target: normal gameplay is FBX/preprocessed-
+     asset-only, waits for its required runtime assets, and surfaces a real load failure instead of
+     silently substituting procedural soldiers. Remove the procedural *visual* soldier generator and
+     its fallback plumbing from the normal runtime once callers are migrated. Keep only
+     renderer-free/plain simulation representations that the trainer or headless harness actually
+     require; Git history is the archive for deleted visual fallback code.
+  4. **Make FBX an ingress/source format only; preprocess runtime animation offline.** Current startup
+     parses FBX and converts clips in the browser: channels are canonicalised, filtered, resampled at
+     30 Hz, looping root travel is removed/measured, and rigs may need mapping/retarget setup. Move
+     those deterministic transformations into the asset/build pipeline. Source assets may remain FBX,
+     but the browser should consume a game-ready artifact (GLB/glTF or a more compact custom pose/clip
+     package, chosen from measurements) plus prepared metadata. Precompute rig maps, clip samples,
+     root-motion/natural-speed metadata and any invariant calibration possible. Measured audit
+     baseline: 92 live clip FBXs are ~35.6 MiB and the ten current paratrooper model FBXs are ~17.5
+     MiB, ~53 MiB of raw FBX before weapons/textures/sidecars; reduce both startup CPU and transferred
+     runtime bytes where the prepared format allows it.
+  5. **Add a full-fidelity FBX/preprocessed-asset benchmark; keep the existing headless sim
+     benchmark.** The existing benchmark intentionally isolates AI/simulation and uses abstract
+     stance/body volumes, so it remains the fast deterministic regression benchmark. Add a separate
+     browser benchmark that loads the real runtime assets with real soldiers, weapons,
+     animation/pose work and Babylon rendering, with **no procedural fallback**. Record startup phase
+     timings, steady-state frame time/FPS, render time, animation/pose time, draw calls/active meshes,
+     and GPU timing where supported. Use representative desktop and mobile runs; start manual, then
+     add a stable reduced case to CI if runtime and variance are acceptable.
+  6. **Add render-side culling/LOD only after instrumentation says rendering is still material.**
+     Use safe/precomputed animated bounds for frustum/offscreen culling and distance-based rendering
+     detail. Do not hand-author lower-poly soldier variants first; generate/simplify far geometry in
+     the asset pipeline only if GPU/draw-call measurements justify it. Also validate whether
+     `preserveDrawingBuffer:true` is still required by screenshots/close-up tools and whether
+     `renderEvenInBackground=true` is desirable on mobile; disable either only after proving its
+     dependent workflows.
+  7. **Re-profile simulation CPU after presentation work.** Exact LOS/nav pruning moved the headless
+     hot path: `engagement.updateSoldier` and the movement resolver now lead the profile. Instrument
+     their current call counts, allocations and inclusive time, then remove redundant calculations or
+     allocation churn only with paired deterministic benchmarks and existing ownership checks. Do not
+     trade AI behaviour for benchmark speed.
+  8. **Safe audit cleanup is already staged separately in PR #62.** That draft fixes stale repository
+     refs in launchers, improves the non-production GitHub-mirroring loader's local module discovery
+     and excludes source ZIPs from mirroring, disables unused battle-scene stencil/pointer-move
+     picking, freezes immutable imported/procedural materials, and suppresses redundant bounds sync on
+     presentation-only meshes. Keep those low-risk presentation/loader changes separate from the
+     behaviour-changing pipeline work above until visually validated.
+  9. **Do not migrate engines to solve these findings.** The measured problems are asset preparation,
+     skeletal update frequency, rendering work and simulation hot paths, not Babylon-specific
+     architectural blockers. Optimize and benchmark Babylon first; reconsider Babylon Editor,
+     PlayCanvas or a larger engine migration only if the measured target remains unreachable after
+     the pipeline/LOD work.
+  - **Dead-code/formatting conclusion from the sweep:** do not do a repo-wide Prettier rewrite or
+    broad fallback purge. Prettier is intentionally scoped to the M3C behaviour files. The major code
+    path newly designated obsolete is the procedural *visual soldier fallback* in normal gameplay;
+    remove it deliberately with its callers/tests rather than deleting unrelated compatibility paths.
+
 - Regroups: half used to time out at 18 s because the order anchor stayed with the leading men;
   fixed (timeouts 76 → 6 over 30 seeds). GitHub standard benchmark run 11 (PR #37, 2026-09-25,
   benchmark `regroups`): 9.4 regroups per battle in meeting, 7.3 in US-defend and 5.9 in GE-defend,
@@ -398,8 +497,19 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
     mission execution (`_missionHold`) and without a clock a brief issued during one would never
     be picked up. Removing the clock there also exposed a squad pinned in a regroup for 510 s: the
     straggler/outrunner axis came from `sq.objective`, which the regroup overwrites with its own
-    anchor. `main` falls back to `_formationForward` in that case; add a check that a man behind
-    the anchor is never scored as an outrunner before removing the expiry. Benchmark it paired.
+    anchor. The `_formationForward` fallback almost never existed (SquadAI sets it only for men with
+    no order destination): the `regroup-axis` probe found the axis collapsed on every regroup tick
+    and a man behind the anchor scored as an outrunner on 60-75% of them. Fixed (2026-09-27): the
+    regroup lease records the direction the squad was marching when it opened (`data.forward`) and
+    `commandForward` uses it; `regroup-axis-check.js` guards it. Same probe after the fix (standard
+    s1 seeds, 600 s): regroup samples scoring a man behind as an outrunner 89/121 → 13/61 meeting,
+    91/145 → 7/64 US-defend, and half as many regroup ticks. GitHub standard benchmark, main run 23
+    vs branch run 22 (PR #61, same seeds): regroup timeouts 124/9/16 → 58/1/12 (meeting/US-defend/
+    GE-defend), movement stalls 45 → 34, wins within noise (meeting US 23 → 26 of 60, p=0.71;
+    US-defend 16 → 14, GE-defend 1 → 2), captures 4.93/0.75/0.45 → 4.80/1.05/0.65, median wall
+    10.9-13.4 → 12.0-12.9 s. Writer ping-pong on `sq.rally` (squad-orders vs the Squad Leader's
+    regroup) rose 38 → 74 events per 100 battles: two writers of `rally` is the next thing to fix
+    before removing the expiry. Then remove the expiry and benchmark that paired too.
 - Window crowding (closed 2026-09-25): bodies at firing stations don't stack. A probe on 6 full standard
   seeds found 1 sample in ~20k occupied-station samples with two men on one station, and a non-holder
   on a held window in one battle only. The old "claim collisions 23 → 3,838" swing was `select()`
@@ -431,9 +541,10 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   100 seeds): no measurable outcome effect. Wins US/GE 31/29 → 33/27 meeting (Fisher p=0.85), 18/2 →
   20/0 US-defend and 0/20 → 2/18 GE-defend (p=0.49), captures 2.99 → 2.92, mean longest no-progress
   283 → 277 s, meeting spread 2.33 → 2.46 objectives per side, same winner on 88/100 seeds. Open:
-  the benchmark doesn't export `stallOutcomes`, so the post-merge repeat rate is unmeasured. Add it
-  to the benchmark export, find what the remaining repeats are (no other objective left, or
-  `stallCost` too low against distance), and only claim a win effect from a 300-battle run.
+  the benchmark now exports `stallOutcomes` per battle and a "Stall repeats/wakes" column per type;
+  read the post-merge repeat rate from the next standard run, find what the remaining repeats are
+  (`stall-wakes` probe: no other objective left, or `stallCost` too low against distance), and only
+  claim a win effect from a 300-battle run.
 - Hot path: `sightBlocked` and navigation replans were ~half a battle's wall time; exact pruning
   (crossed-cell first-hit LOS, wall bounding boxes, lazy `planLocal` edges) halved it. Standard
   benchmark median wall time per battle 29.1 → 13.5 s (meeting 29.1 → 13.2, US-defend 31.3 → 16.3,
@@ -461,9 +572,9 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   the scout change without perception (and the reverse) before tuning. Levers, smallest first: German
   scouts on the Kar98k (the regular infantry issue; the FG 42 was a Fallschirmjäger weapon, ~7,000
   made), a shorter FG 42 practical range, or a wider FG 42 group at range. Presentation gaps left for
-  the FG 42: it plays the carbine sound (audio is out of scope without an ask), and the FBX backend
-  restarts the fire clip each round of a burst because it treats only `lmg`/`smg` kinds as automatic
-  (`53-fbx-soldier-backend.js`, `weaponKind`); key those on the weapon's `cyclic` instead.
+  the FG 42: it plays the carbine sound (audio is out of scope without an ask). The FBX backend now
+  picks the burst fire clip from the trigger pull itself (a round with a burst `delay` marks it), so
+  FG 42 bursts no longer restart the clip each round and its single aimed rounds play the rifle clip.
 - **Perception follow-ups.** View cones cut sightings of an enemy behind the man from 6-13% of fresh
   acquisitions to <1% (`perception` probe, standard s1 seeds). Relay and hearing gave a squad its
   first contact once in 29 squads: sight (450-575 m) outruns hearing (120 m) in open battles. The
@@ -516,9 +627,13 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   producer that picks the point (Engagement cover, 44 urgency, 52 survival routes), so publish the
   line once (e.g. the fireteam's order anchor projected on the objective axis) and have each producer
   score or refuse points behind it, with an allowance (a few metres) for adjacent cover and none of it
-  in retreat or withdraw. Don't add the guard in the resolver. Measure first: a probe counting
-  destinations that go behind the line while the squad advances, by producer (the order-provenance
-  observers already tag writers).
+  in retreat or withdraw. Don't add the guard in the resolver. Measured with the `backward-orders`
+  probe (main, standard s1 seeds, meeting 300 s / GE-defend 240 s): 27%/29% of new destinations lie >3 m
+  behind the man's fireteam line, but almost all are men already behind it told to hold or react in
+  place (`engagement/hold`, `contact-reaction`). Destinations that are both behind the line and a
+  step back from the man are rare (11 of 1,819 in GE-defend: firing stations 6, cover bounds 4,
+  formation 1). Plain backward steps (119 / 68) are mostly `squad-stability/formation` slots. Sweep
+  more seeds before deciding a guard is worth it.
 - **Stance churn and firing mid-change (open).** Still seen: stand-crouch-stand loops, a man going
   prone to fire one round, standing, going prone again, and firing while changing stance. Engagement
   owns stance (`commitStance` holds it `STANCE_HOLD` 4 s / `PRONE_HOLD` 5.5 s and pushes
@@ -536,10 +651,15 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   standing only close or to fire over cover that a lower stance can't see past; commit to it until
   ordered to move, suppressed, or the cover at hand changes. Today `fightingStance` goes prone past
   `max(70, 0.55 × engageRange)` (247 m for a rifle now that range is the weapon's 450 m), only for
-  riflemen and gunners (`PRONE_ROLES`); scouts and leaders always crouch. Measure first with a probe:
-  stance changes per man-minute and per writer, rounds fired within `AIM_SETTLE` of a change, and
-  prone episodes shorter than `PRONE_HOLD`; `run.js` already asserts "no stance churn", so find why
-  it misses these (likely it runs without module 44 and without the reload hook).
+  riflemen and gunners (`PRONE_ROLES`); scouts and leaders always crouch. Measured with the
+  `stance-churn` probe (standard s1 meeting, 300 s): 4.4 shown stance changes per man-minute (3.2
+  committed by Engagement) and 436 A→B→A bounces under 1 s. `stepMovement` (`battle-sim.js`,
+  deriving `crouching`) makes 70% of shown changes, and nearly all bounces are Engagement setting
+  `tacticalCrouch` then `stepMovement` undoing it, or `stepMovement` against itself. The reload hook
+  flips `tacticalCrouch` 562 times and 44 184. Firing mid-change is rare (5 of 644 pulls); prone
+  spells shorter than `PRONE_HOLD` are common (88 of 188, all ended by Engagement). `run.js` misses
+  it because it reads Engagement's committed `eng.stance` on one man in a 30 s duel, without
+  module 44 or the reload hook.
 - **Snipers (pending).** Scoped rifles (M1903A4, Kar98k with ZF39) are a separate role, not the
   scouts; they need weapon models and their own aiming rules.
 - **Secondary weapons (pending).** A soldier carries a sidearm only where it was historically
@@ -602,8 +722,19 @@ never decides tactics, ammo, hits or paths.
   The upper-body overlay (aim/fire/reload) sits on the lower locomotion layer. The weapon grip snaps
   to a right-palm anchor, the fore-end runs through the left palm, and aim uses a capped spine twist (≤40°).
 - Fallback: the procedural rig in `battle/soldier.js` is used while the FBX loads (25 s cap), and the
-  trainer and headless benchmark always use it (`setImportedEnabled(scene,false)`). Such soldiers have
-  `rig===null`.
+  trainer and headless benchmark always use it (`setImportedEnabled(scene,false)`). Procedural soldiers
+  keep their `rig` object; FBX soldiers have `rig===null` and a `_fbx` binding.
+- **Animation LOD** (`53-fbx-soldier-backend.js`, `BattleFbxSoldier.lod`, presentation only): the
+  render hook re-poses a soldier every frame within 35 m of the camera, at ~30 Hz within 100 m and
+  ~10 Hz beyond (each on his own phase), never while he is outside the view frustum, and only once
+  while his pose inputs are static (a finished death clip, a paused sim). Shadow-aware: a soldier
+  whose meshes cast shadows (in any shadow generator's caster list, or any generator with a
+  `renderListPredicate`) is held off-screen only when the ground his shadow falls on is out of view
+  too; `scripts/probe_lod_shadows.cjs` proves it with positive and negative controls. Add soldier
+  shadow casters through a ShadowGenerator and the LOD follows, with nothing to register. Clip clocks stay on sim
+  time. A held soldier's skeletons are not re-prepared either: Babylon's `Skeleton.prepare` would copy
+  every linked bone node and rebuild and re-upload the bone matrices each frame, so each soldier's
+  skeletons prepare once per pose (`lod.skeletons`). `?animLod=0` turns both off. Thresholds are tuned from close-ups, never tied to gameplay.
 - Wired beyond the basics: turn-in-place (standing, crouch, prone), death pools, hit reactions
   (`combat.hit`), idle variants and suppression flinches. Still unused: prone roll right (a left roll
   needs mirroring) and the kneel set. Jump clips need a nav vault edge.
@@ -611,6 +742,13 @@ never decides tactics, ammo, hits or paths.
 
 **Asset pipeline.** Use the Blender app bundle `/Applications/Blender.app/Contents/MacOS/Blender`, not the
 broken `blender` on PATH. Use lowercase filenames, since the host is case-sensitive (`git mv` to rename).
+
+**Approved runtime-format direction (2026-09-27):** FBX is the authoring/ingress format, not the
+long-term browser runtime format. The pipeline should convert FBX soldiers/clips/weapons as needed
+into measured game-ready artifacts (GLB/glTF or a compact custom representation) and ship those
+prepared outputs. Keep raw/source FBX for regeneration and Motion Lab/source workflows where needed;
+do not make production clients repeat deterministic parsing, resampling or rig-preparation work that
+can be done once offline.
 
 ```bash
 Blender -b --factory-startup --python tools/fix-soldier-model.py -- --input raw.fbx --output Assets/soldiers/<fac>-<name>.fbx --texture-name <fac>-<name>-albedo [--fit-skin]
