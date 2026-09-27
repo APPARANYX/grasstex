@@ -11,11 +11,9 @@ original docs (roadmaps, lab notes, measurements) are in git history at `1a5b0cf
   contract or rule actually changes. Findings go in the commit message or PR body.
 - **State success criteria up front, prove them with a harness below, report the output.**
   Never claim visual/browser validation that wasn't performed.
-- **Don't throw away probes.** A probe, screenshot rig or measurement script written to answer a
-  question gets committed (`scripts/probe_*`, `scripts/*_<topic>.cjs`, or a harness check if it
-  asserts something) with a header saying what it measures, how to run it and its env knobs, plus a
-  row in the tables below. Before writing a new one, look there for an existing one to extend.
-  Scratchpad-only probes get rebuilt from scratch every time.
+- **Keep probes.** A one-off measurement script is a probe: commit it as `scripts/probes/<name>.js`
+  (run with `scripts/run_probe.cjs`) or extend a close-up tool (`closeup.cjs` for a posed soldier,
+  `closeup_battle.cjs` for one in a fight), never leave it in `/tmp`.
 - **Stay in scope.** Don't touch audio, assets or animation unless asked. Unnamed uploads: ask
   what they are and where they belong.
 - `main` deploys to production on every push. Put anything visual on a `work/**` or `preview/**`
@@ -107,16 +105,27 @@ local red-ground page, and reuse these harnesses instead of writing one-off prob
   weapons and effect sprites, so new decals or FBX show up.
 - **Close-ups in a real fight:** `scripts/closeup_battle.cjs` runs a battle in fixed 0.15 s steps
   until a soldier matches `CLOSEUP_TARGET` (`casualty`, `wounded`, `any`, `role:ge/gunner`, `id:<n>`),
-  pauses, renders so clips play out, and photographs him from `CLOSEUP_VIEWS`
-  (`front,left,back,top,right,wide`). Output is `<view>-<id>.png` plus `summary.json` (hp, wounds,
-  casualty zone, weapon, FBX or not). It blocks telemetry, learning and policy writes, so it's safe
-  against production and previews. Env: `CLOSEUP_URL`, `CLOSEUP_SEED`, `CLOSEUP_COUNT`,
+  pauses, and photographs him from `CLOSEUP_VIEWS` (`front,left,back,top,right,wide`). Output is
+  `<view>-<id>.png` plus `summary.json` (hp, wounds, casualty zone, weapon, FBX or not, and `timings`
+  per phase). It blocks telemetry, learning and policy writes, so it's safe against production and
+  previews. A live run takes ~1 min. Page build is ~20 s, the sim fast-forward is ~5 s for two minutes
+  of battle, and software rendering is ~0.3-0.6 s a frame. Clips run on sim time, so it renders only
+  6 settle frames and 1 per view. `Math.random` is seeded from the seed, so the same seed gives the
+  same man, pose, wounds and camera. Decal variants drawn on async timers can still differ. Env: `CLOSEUP_URL`, `CLOSEUP_SEED`, `CLOSEUP_COUNT`,
   `CLOSEUP_AFTER` (sim seconds after the match, default 1.5), `CLOSEUP_DIST`, `CLOSEUP_WAIT`,
   `CLOSEUP_OUT`, `CLOSEUP_UI=1`.
   ```bash
   CLOSEUP_URL='https://test.ivandpopov.com/grasstex/preview.php?ref=<branch>' CLOSEUP_TARGET=wounded \
     CLOSEUP_OUT=out/closeup node scripts/closeup_battle.cjs
   ```
+- **Close-ups of one posed soldier:** `scripts/closeup.cjs` puts any `faction/role[/weapon.fbx]` in
+  any Motion Lab pose at any time, alone in its own scene, through the game's FBX backend at a fixed
+  30 Hz, from `front`/`side` (or `right`)/`back`/`left`/`three-quarter`/`top`, framed on
+  `body`/`hands`/`weapon`. Use it for a hold or a clip. Use `closeup_battle.cjs` for anything the
+  fight itself causes (wounds, death falls, stance under fire). `Math.random` is seeded, so the same env
+  gives the same frames, death clips included. Env: `CLOSEUP_SOLDIERS`, `CLOSEUP_POSES`, `CLOSEUP_TIMES`,
+  `CLOSEUP_VIEWS`, `CLOSEUP_FRAMING`, `CLOSEUP_SIDECAR`, `CLOSEUP_OUT`, `CLOSEUP_URL`. Writes PNGs and
+  `summary.json` (clips, two-hand state, support error).
 - **Damage decals themselves:** `scripts/closeup_damage_fx.cjs` shoots the newest decal of each kind
   (wound, exit, pool, spray, masonry, wood, dirt, metal) along its surface normal, plus a
   `summary.json` of wounds by zone and decals by kind; works against a `preview.php?ref=` URL.
@@ -139,9 +148,11 @@ In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certif
 | `order-ingress-`, `physical-point-`, `movement-goal-transition-`, `resolver-order-mutation-profiler.cjs` | Inject-only observers: who proposes orders, destination provenance, goal transitions, resolver mutations. They never change behaviour. |
 | `scripts/battle-benchmark-intent.cjs` | Shared benchmark predicates (targetless/route-active) |
 | `scripts/closeup_damage_fx.cjs` | Close-ups of the damage FX in the real page: newest wound and exit-wound decal on a soldier, blood splash and exit spray, masonry/wood/dirt/metal holes, one `<kind>.png` each plus `summary.json` (wounds by zone, decals by kind); fails on page errors. `CLOSEUP_OUT` (default `closeups/`, gitignored), `CLOSEUP_SEED`, `CLOSEUP_SHOTS`, `CLOSEUP_SIM`, `CLOSEUP_BODY`, `CLOSEUP_DIST`. 5-10 min under software WebGL. |
-| `scripts/probe_penetration_rates.cjs` | Headless (harness + shipping ballistics), seconds: over N 10v10 fights, the share of body hits that go through, strike a second man, or fly on, by zone. `PEN_SEEDS`, `PEN_SECONDS`. The harness packs men tighter than the game, so second-body is an upper bound. |
 | `scripts/preview_decal_sheets.cjs` | Contact sheet of `Assets/effects/decals/*.png` over surface-like backgrounds with the 4 x 4 grid and row names; check a regenerated or painted sheet before it ships. No server. `DECAL_PREVIEW_OUT`. |
 | `scripts/probe_pistol_cup.cjs` | Motion Lab pistol support cup at a fixed 60 Hz: cup gap (cm), degrees the left arm is bent off the clip, and hand jerk (deg/frame², solved vs the clip's own) per clip. `CUP_SIDECAR=<model>.fbx.json` (a server sidecar; they are never committed), `CUP_CLIPS`, `CUP_SERIES=1`. |
+| `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on). |
+
+**Preview launcher:** `python3 scripts/check-preview-launcher.py` runs offline with PHP/cURL and a concurrent local HTTP fixture. Checks runtime reuse, the rolling download queue, integrity failures and publication. `preview.json` records `runtimeReused` and `runtimeDownloaded`; only changed runtime files download, with matching copies taken from production or earlier launcher previews.
 
 **Repo-wide checks** (match CI):
 
