@@ -6,7 +6,8 @@
    Combat loads are deliberately conservative abstractions rather than claims about one exact
    historical unit's issue: rifle 80 rds, carbine 75, SMG 180, sidearm 32, and 750 for a machine gun
    (three 250-round belts: the gun team's boxes, since the assistant gunner is not modelled).
-   Magazine sizes come from the side's weapon (BattleWeapons.PROFILES); reliability and heat describe
+   Magazine sizes come from the side's weapon (BattleWeapons.PROFILES), as does the load where it
+   differs from its kind's (FG 42: eight 20-round magazines); reliability and heat describe
    weapon classes. Heat and stoppage chances are per round, so an automatic's are small: a belt-fed
    gun heats over a couple of hundred rounds of sustained fire, not over one burst. */
 (function (root) {
@@ -124,7 +125,7 @@
     if (!s || !s.weapon) return;
     var c = cfg(s),
       mag = Math.max(1, +s.weapon.magSize || (+s.weapon.stats && +s.weapon.stats.magazine) || 8),
-      total = Math.max(mag, c.total || mag);
+      total = Math.max(mag, (s.weapon.stats && +s.weapon.stats.carried) || c.total || mag);
     s.weapon.magSize = mag;
     s.weapon.ammo = mag;
     s.weapon.reserveAmmo = total - mag;

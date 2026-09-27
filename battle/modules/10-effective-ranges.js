@@ -21,10 +21,11 @@ var EFFECTIVE={
   grenade:{range:35,falloffStart:35}
 };
 var ROLE={
-  sergeant:{visionRange:450,engageRange:150},
-  rifleman:{visionRange:500,engageRange:450},
-  gunner:{visionRange:525,engageRange:500},
-  scout:{visionRange:575,engageRange:250}
+  /* Spotting only: how far a man opens fire is his weapon's range (SquadAI.engageRange). */
+  sergeant:{visionRange:450},
+  rifleman:{visionRange:500},
+  gunner:{visionRange:525},
+  scout:{visionRange:575}
 };
 
 Object.keys(EFFECTIVE).forEach(function(kind){
@@ -36,7 +37,7 @@ Object.keys(EFFECTIVE).forEach(function(kind){
 });
 Object.keys(ROLE).forEach(function(role){
   var r=root.SquadAI.ROLES&&root.SquadAI.ROLES[role],cfg=ROLE[role];if(!r)return;
-  r.visionRange=cfg.visionRange;r.engageRange=cfg.engageRange;
+  r.visionRange=cfg.visionRange;
 });
 
 root.BattleEffectiveRanges={version:'1.1-combat-groups',weapons:EFFECTIVE,roles:ROLE};
