@@ -2,7 +2,10 @@
    Compare arms served the same way. battle_sim_local.php in preview mode (a preview.json next to it)
    reads the audio manifest and state/ two directories up, so a copy served that way can run with a
    different asset/state set than the main checkout. Voice no longer draws from the combat RNG
-   (tools/ai-sim-harness/voice-determinism-check.js), but policy/memory state still changes battles. */
+   (tools/ai-sim-harness/voice-determinism-check.js), but policy/memory state still changes battles.
+   M3C_PERF=on|off sets window.BATTLE_PERF_TIMINGS (startup + pose timing on, or both off) and
+   M3C_RENDER_EVERY=<n> renders a frame (sim paused) every n steps so the FBX pose code runs; a pair of
+   runs differing only in M3C_PERF must end in the same state (instrumentation is observe-only). */
 const { chromium } = require('playwright');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -12,9 +15,11 @@ const path = require('node:path');
   const url = process.env.M3C_URL || 'http://127.0.0.1:8877/grasstex/battle_sim_local.php';
   const output = path.resolve(process.env.M3C_OUTPUT || '/private/tmp/m3c-evidence/replay.json');
   const macro = process.env.M3C_MACRO !== 'off';
-  const browser = await chromium.launch({ headless: true, executablePath: process.env.M3C_CHROME || undefined, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] });
+  const perf = process.env.M3C_PERF, renderEvery = Math.max(0, Number(process.env.M3C_RENDER_EVERY || 0));
+  const browser = await chromium.launch({ headless: true, executablePath: process.env.M3C_CHROME || undefined, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--ignore-certificate-errors'] });
   try {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, ignoreHTTPSErrors: true });
+    if (perf) await page.addInitScript(on => { window.BATTLE_PERF_TIMINGS = on; }, perf === 'on');
     const errors = [];
     page.on('pageerror', e => errors.push(String(e.stack || e)));
     // Pin initialization randomness as well as the battle's own seeded generator.
@@ -78,12 +83,14 @@ const path = require('node:path');
     }, { macro, TRACE: !!process.env.M3C_TRACE, PROFILE_SRC: process.env.M3C_PROFILE ? fs.readFileSync(path.join(__dirname, 'battle-hotpath-profiler.cjs'), 'utf8') : null });
     let done = false;const wallStart = Date.now();
     while (!done) {
-      const status = await page.evaluate((CHUNK) => {
+      const status = await page.evaluate(({ CHUNK, renderEvery }) => {
         const sim = __battle__, st = __m3cReplay, tick = BattleCommanderAI.commandTick || .45;
         for (let i = 0; i < CHUNK && !sim.winner && sim.time < 600; i++) {
           sim._trainerStepActive = true;
           try { sim.step(.15); } finally { sim._trainerStepActive = false; }
           st.commandAccum += .15;
+          // Presentation only: render with the sim paused so the frame cannot step it.
+          if (renderEvery && (st.steps = (st.steps || 0) + 1) % renderEvery === 0) { sim.paused = true; try { sim.scene.render(); } finally { sim.paused = false; } }
           if (st.trace) { const t = Math.round(sim.time * 100); if (t % 100 === 0) { let h = 0; for (const s of [...sim._roster.us, ...sim._roster.ge]) h = (h * 31 + Math.round(s.root.position.x * 1000) + Math.round(s.root.position.z * 7)) | 0; st.trace.push([+(sim.time.toFixed(2)), window.__m3cDraws, h, sim._rngState ?? null]); } }
           while (st.commandAccum + 1e-9 >= tick && !sim.winner) { st.commandAccum -= tick; BattleCommanderAI.update(sim, sim.scene.metadata.battleScenario, tick); }
         }
@@ -104,7 +111,7 @@ const path = require('node:path');
         }
         st.samples.push({ squads: squadRows, time:sim.time, us:sim.factions.us.alive, ge:sim.factions.ge.alive, captures:sim.objectiveStats?.captures, stationary });
         return { time:sim.time,winner:sim.winner,shots:st.shots,changes:st.destinationChanges };
-      }, Number(process.env.M3C_CHUNK || 5000));
+      }, { CHUNK: Number(process.env.M3C_CHUNK || (renderEvery ? 400 : 5000)), renderEvery });
       console.log(JSON.stringify(status));
       done = !!status.winner || status.time >= 600;
     }
@@ -138,6 +145,8 @@ const path = require('node:path');
     }, !!process.env.M3C_DUMP_NAV);
     result.stats.wallSeconds = (Date.now() - wallStart) / 1000;
     result.seed = seed; result.macro = macro; result.errors = errors;
+    result.perf = perf || null; result.renderEvery = renderEvery;
+    result.poseTimings = await page.evaluate(() => window.BattlePoseTimings ? { enabled: BattlePoseTimings.enabled(), frames: BattlePoseTimings.snapshot().frames } : null);
     fs.mkdirSync(path.dirname(output), { recursive:true }); fs.writeFileSync(output, JSON.stringify(result, null, 2));
     await page.evaluate(() => __battle__.scene.render());
     await page.screenshot({ path:output.replace(/\.json$/, '.png') });
