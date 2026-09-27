@@ -78,19 +78,45 @@ function run(){
   function measure(warmMs){
     state='measuring';
     if(CAM==='close')closeCamera(b);
-    var frames=[],rec={on:true,begin:0,last:null,interval:null,sim:0,rs:0,re:0,hidden:0},si=new BABYLON.SceneInstrumentation(scene),ei=null;
-    si.captureRenderTime=true;si.captureActiveMeshesEvaluationTime=true;
+    var frames=[],rec={on:true,begin:0,last:null,interval:null,sim:0,scene:0,skel:0,skelN:0,hooksBefore:0,hooksAfter:0,hidden:0},si=new BABYLON.SceneInstrumentation(scene),ei=null;
+    si.captureRenderTime=true;si.captureActiveMeshesEvaluationTime=true;si.captureCameraRenderTime=true;si.captureAnimationsTime=true;
     try{ei=new BABYLON.EngineInstrumentation(engine);ei.captureGPUFrameTime=true;}catch(_){ei=null;}
     var orig=b._frame;b._frame=function(){var t0=performance.now();try{return orig.apply(this,arguments);}finally{rec.sim+=performance.now()-t0;}};
-    var o1=engine.onBeginFrameObservable.add(function(){var n=performance.now();rec.interval=rec.last==null?null:n-rec.last;rec.last=rec.begin=n;rec.sim=0;}),
-        o2=scene.onBeforeRenderObservable.add(function(){rec.rs=performance.now();},undefined,true),
-        o3=scene.onAfterRenderObservable.add(function(){rec.re=performance.now();}),
+    /* The whole scene.render (Babylon's animation and camera-update steps run before the first hook). */
+    var origRender=scene.render;scene.render=function(){var t0=performance.now();try{return origRender.apply(this,arguments);}finally{rec.scene+=performance.now()-t0;}};
+    /* Skeleton.prepare copies every linked bone node into its bone and rebuilds the bone matrices; it
+       runs inside Babylon's active-mesh evaluation, so it is reported as part of that step. */
+    var SP=BABYLON.Skeleton&&BABYLON.Skeleton.prototype,origPrepare=SP&&SP.prepare;
+    if(origPrepare)SP.prepare=function(){var t0=performance.now();try{return origPrepare.apply(this,arguments);}finally{rec.skel+=performance.now()-t0;rec.skelN++;}};
+    /* Every before/after-render hook, timed under a name taken from its code. */
+    var hooks={},wrapped=[];
+    function hookName(fn,i,phase){
+      var src=String(fn);
+      if(/_frame\(/.test(src))return'sim step';
+      if(/lodCamera|applyPose/.test(src))return'FBX pose (LOD + applyPose)';
+      if(/cameraKeys/.test(src))return'camera keys';
+      return phase+' #'+i+': '+src.replace(/\s+/g,' ').replace(/^function\s*\([^)]*\)\s*\{/,'').slice(0,70);
+    }
+    function wrapHooks(obs,phase,field){
+      obs.observers.forEach(function(o,i){
+        if(!o||typeof o.callback!=='function')return;
+        var fn=o.callback,name=hookName(fn,i,phase),h=hooks[name]||(hooks[name]={phase:phase,ms:0});
+        o.callback=function(){var t0=performance.now();try{return fn.apply(this,arguments);}finally{var d=performance.now()-t0;h.ms+=d;rec[field]+=d;}};
+        wrapped.push([o,fn]);
+      });
+    }
+    wrapHooks(scene.onBeforeRenderObservable,'before','hooksBefore');wrapHooks(scene.onAfterRenderObservable,'after','hooksAfter');
+    var o1=engine.onBeginFrameObservable.add(function(){var n=performance.now();rec.interval=rec.last==null?null:n-rec.last;rec.last=rec.begin=n;rec.sim=rec.scene=rec.skel=rec.skelN=rec.hooksBefore=rec.hooksAfter=0;}),
         o4=engine.onEndFrameObservable.add(function(){
           if(!rec.on)return;if(document.hidden)rec.hidden++;
           var g=ei&&ei.gpuFrameTimeCounter?ei.gpuFrameTimeCounter.current:0;
-          frames.push({interval:rec.interval,cpu:performance.now()-rec.begin,scene:rec.re-rec.rs,sim:rec.sim,render:si.renderTimeCounter.current,
+          var cam=si.cameraRenderTimeCounter.current,am=si.activeMeshesEvaluationTimeCounter.current,draw=si.renderTimeCounter.current,anim=si.animationsTimeCounter.current;
+          frames.push({interval:rec.interval,cpu:performance.now()-rec.begin,scene:rec.scene,sim:rec.sim,render:draw,
+            hooksBefore:rec.hooksBefore,hooksAfter:rec.hooksAfter,animations:anim,camera:cam,activeEval:am,skeletons:rec.skel,skeletonCount:rec.skelN,
+            cameraOther:Math.max(0,cam-am-draw),unattributed:rec.scene-rec.hooksBefore-rec.hooksAfter-anim-cam,
             meshes:scene.getActiveMeshes().length,draws:si.drawCallsCounter?si.drawCallsCounter.current:null,gpu:g>0?g/1e6:null});
         });
+
     if(root.BattlePoseTimings){root.BattlePoseTimings.enable();root.BattlePoseTimings.reset();}
     var sim0=b.time,wall0=performance.now();b.timeScale=speed;b.paused=false;
     engine.runRenderLoop(root.__battleRenderLoop__||function(){scene.render();});
@@ -99,9 +125,10 @@ function run(){
       say('Measuring: '+Math.max(0,Math.ceil(left))+' s left · '+frames.length+' frames. Keep this tab in front.');
       if(left>0)return;
       clearInterval(timer);rec.on=false;
-      engine.onBeginFrameObservable.remove(o1);scene.onBeforeRenderObservable.remove(o2);scene.onAfterRenderObservable.remove(o3);engine.onEndFrameObservable.remove(o4);
+      engine.onBeginFrameObservable.remove(o1);engine.onEndFrameObservable.remove(o4);
+      wrapped.forEach(function(w){w[0].callback=w[1];});scene.render=origRender;if(origPrepare)SP.prepare=origPrepare;
       b._frame=orig;si.dispose();if(ei)ei.dispose();
-      finish(frames.slice(1),{warmMs:warmMs,warmSim:t,sim0:sim0,wallMs:performance.now()-wall0,simAdvanced:b.time-sim0,hiddenFrames:rec.hidden});
+      finish(frames.slice(1),{hooks:hooks,warmMs:warmMs,warmSim:t,sim0:sim0,wallMs:performance.now()-wall0,simAdvanced:b.time-sim0,hiddenFrames:rec.hidden});
     },500);
   }
   function finish(frames,run){
@@ -109,13 +136,20 @@ function run(){
     var pose=root.BattlePoseTimings?root.BattlePoseTimings.snapshot():null,asset=root.BattleAssetTimings?root.BattleAssetTimings.snapshot():null;
     var roster=b._roster.us.concat(b._roster.ge),fbx=roster.filter(function(s){return s._fbx&&s.rig===null;}).length;
     result=round({
-      kind:'device-benchmark',version:1,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
+      kind:'device-benchmark',version:2,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
       device:device(engine),camera:CAM,animLod:!(root.BattleFbxSoldier&&root.BattleFbxSoldier.lod&&root.BattleFbxSoldier.lod.on===false),
       soldiers:{total:roster.length,fbx:fbx,alive:b.factions.us.alive+b.factions.ge.alive},
       run:{seconds:SECONDS,warmupSim:run.warmSim,warmupWallMs:run.warmMs,wallMs:run.wallMs,simAdvanced:run.simAdvanced,timeScale:speed,frames:frames.length,hiddenFrames:run.hiddenFrames},
       fps:iv?{mean:1000/iv.mean,median:1000/iv.p50,low5:1000/iv.p95,low1:1000/iv.p99}:null,
       frameMs:iv,cpuMs:stats(col('cpu')),sceneMs:stats(col('scene')),renderMs:stats(col('render')),simMs:stats(col('sim')),
       activeMeshes:stats(col('meshes')),drawCalls:stats(col('draws')),gpuMs:stats(col('gpu')),
+      /* Where scene.render's time goes, per frame. camera = Babylon's camera pass, which holds the
+         active-mesh evaluation (culling, world matrices, skeleton prepare) and the draw. */
+      breakdown:{sceneRender:stats(col('scene')),hooksBefore:stats(col('hooksBefore')),animations:stats(col('animations')),
+        cameraPass:stats(col('camera')),activeMeshEval:stats(col('activeEval')),skeletonPrepare:stats(col('skeletons')),skeletonsPerFrame:stats(col('skeletonCount')),
+        draw:stats(col('render')),cameraOther:stats(col('cameraOther')),hooksAfter:stats(col('hooksAfter')),unattributed:stats(col('unattributed')),
+        hooks:Object.keys(run.hooks).map(function(k){return{name:k,phase:run.hooks[k].phase,msPerFrame:frames.length?run.hooks[k].ms/frames.length:null};})
+          .sort(function(a,c){return c.msPerFrame-a.msPerFrame;})},
       pose:pose&&{frameMs:pose.frameMs,perSoldierUs:pose.perSoldierUs,posedPerFrame:pose.posedPerFrame&&pose.posedPerFrame.mean,lod:pose.lod,
         layers:pose.layers,posed:pose.posed,timerResolutionUs:pose.timerResolutionUs},
       startup:asset&&{page:asset.page,library:asset.library,totals:asset.totals,binds:asset.binds,slowest:asset.slowest.slice(0,5)}
@@ -135,6 +169,17 @@ function show(r){
   h+='<table style="width:100%;border-collapse:collapse;margin-top:8px;font-variant-numeric:tabular-nums"><tr style="color:#9aa088"><td></td><td>median</td><td>p95</td><td>p99</td><td></td></tr>'+
     row('Frame time',r.frameMs)+row('CPU in frame',r.cpuMs)+row('Scene render',r.sceneMs)+row('Babylon render',r.renderMs)+row('Sim step',r.simMs)+
     row('Pose (all soldiers)',p.frameMs)+row('GPU frame',r.gpuMs)+row('Draw calls',r.drawCalls,'')+row('Active meshes',r.activeMeshes,'')+'</table>';
+  var B=r.breakdown;
+  if(B){
+    var mean=function(st){return st?st.mean:null;};
+    h+='<div style="margin-top:8px;font-weight:700">Where scene.render goes (mean ms per frame)</div><table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums">'+
+      [['scene.render total',B.sceneRender],['before-render hooks',B.hooksBefore],['Babylon animations',B.animations],['camera pass',B.cameraPass],
+       ['· active-mesh evaluation',B.activeMeshEval],['·· skeleton prepare ('+f(mean(B.skeletonsPerFrame),0)+'/frame)',B.skeletonPrepare],['· draw',B.draw],['· rest of camera pass',B.cameraOther],
+       ['after-render hooks',B.hooksAfter],['unattributed',B.unattributed]]
+      .map(function(x){return'<tr><td>'+esc(x[0])+'</td><td style="text-align:right">'+f(mean(x[1]),2)+'</td></tr>';}).join('')+'</table>';
+    h+='<div style="margin-top:6px;font-weight:700">Hooks (mean ms per frame)</div><table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums">'+
+      B.hooks.slice(0,8).map(function(x){return'<tr><td style="word-break:break-all">'+esc(x.name)+'</td><td style="text-align:right">'+f(x.msPerFrame,2)+'</td></tr>';}).join('')+'</table>';
+  }
   if(p.lod)h+='<div style="margin-top:6px">Soldiers posed per frame: '+f(p.posedPerFrame,1)+' ('+f(100*(p.lod.posedShare||0),0)+'%)</div>';
   if(!r.gpuMs)h+='<div style="color:#9aa088">GPU timing not available in this browser.</div>';
   if(s.page)h+='<div style="margin-top:6px">Load: '+f(s.page.finishedAt/1000)+' s total, soldiers '+f(soldiers&&soldiers.ms/1000)+' s (FBX parse '+f(s.totals.parse/1000)+' s, retarget '+f(s.totals.retarget/1000)+' s, '+f(s.totals.bytes/1048576,0)+' MiB)</div>';
