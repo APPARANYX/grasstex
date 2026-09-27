@@ -147,7 +147,8 @@ In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certif
 
 | Script | Use |
 | --- | --- |
-| `scripts/run_m3c_replay.cjs` | One seed, fixed step, full diagnostic JSON. `M3C_SEED`, `M3C_URL`, `M3C_OUTPUT`, `M3C_MACRO=off`. Use for paired before/after comparisons. |
+| `scripts/run_m3c_replay.cjs` | One seed, fixed step, full diagnostic JSON. `M3C_SEED`, `M3C_URL`, `M3C_OUTPUT`, `M3C_MACRO=off`. Use for paired before/after comparisons. `M3C_RENDER_EVERY=<n>` renders a frame (sim paused) every n steps so the FBX pose code runs; `M3C_PERF=on\|off` sets the timing switch below. An on/off pair must end identically. |
+| `scripts/benchmark_full_fidelity.cjs` | Full-fidelity browser benchmark: real FBX soldiers, weapons, clips and Babylon rendering; fails on a failed FBX load or any procedural soldier. Records startup phases and per-file asset timings, then `FF_SECONDS` (60) of rendered battle after `FF_WARMUP` (90) fast-forwarded sim seconds: frame interval/FPS, CPU per frame, render, sim step, pose time per layer and how often each layer's inputs changed, active meshes, draw calls, GPU time where supported. Writes `full-fidelity.json` + `.md` to `FF_OUT`. `FF_URL` (local default, or `preview.php?ref=<branch>`), `FF_SEED`, `FF_TIMESCALE` (4), `FF_VIEWPORT`, `FF_GPU=1` (real GPU instead of SwiftShader), `FF_ISOLATE=0`. It serves the page cross-origin isolated so `performance.now()` has 5 µs resolution, not 100 µs. SwiftShader numbers are a CPU-only baseline, not a device result. The headless benchmark stays the AI regression benchmark. |
 | `scripts/run_battle_benchmark.mjs` | N headless battles. `BATTLE_BENCHMARK_COUNT/SEED/URL/STEP/TIME_LIMIT/OUTPUT`. `merge_battle_benchmarks.mjs` merges shards. |
 | `scripts/profile_battle_hotpaths.mjs` (+ `battle-hotpath-profiler.cjs`) | Inclusive wall time per hot function. `BATTLE_PROFILE_SEED/TYPE/SECONDS`. |
 | `scripts/profile_meso_churn.mjs` (+ `meso-churn-profiler.cjs`) | Meso fireteam order churn attribution |
@@ -158,6 +159,15 @@ In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certif
 | `scripts/probe_pistol_cup.cjs` | Motion Lab pistol support cup at a fixed 60 Hz: cup gap (cm), degrees the left arm is bent off the clip, and hand jerk (deg/frame², solved vs the clip's own) per clip. `CUP_SIDECAR=<model>.fbx.json` (a server sidecar; they are never committed), `CUP_CLIPS`, `CUP_SERIES=1`. |
 | `scripts/probe_gait_clips.cjs` | Which FBX locomotion family (walk/run/sprint/crouch/crouchRun) each sim gait actually plays, at what rate, plus each model's natural clip speeds (in-place clips: foot stride). `GAIT_URL` (default production), `GAIT_SEED`, `GAIT_SECONDS`, `GAIT_OUT`. |
 | `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on), `fire-gates` (per role: trigger pulls, target distance bands, and the first fire condition that fails while a man holds a target), `backward-orders` (new destinations behind the man's fireteam line or behind the man himself while the squad advances, by producer and phase), `stance-churn` (shown stance changes per man-minute by writing file, A→B→A bounces under 1 s, trigger pulls within `AIM_SETTLE` of a change, prone spells shorter than `PRONE_HOLD`), `regroup-axis` (regroup ticks whose forward axis collapsed, and men behind the anchor scored as outrunners). |
+
+**Runtime timing switch** (`modules/53-fbx-soldier-backend.js`, observe only, no sim writes or RNG draws):
+`BattleAssetTimings.snapshot()` gives the load overlay's phase times, and per FBX file the download
+(browser stall and transfer), queue wait, Babylon parse, prepare, clip conversion, retarget, grip solve
+and sidecar fetch, plus per-soldier bind, totals and the 10 slowest files. It is on by default.
+`BattlePoseTimings` times `applyPose` per frame and per soldier, split into setup, base, overlay,
+dials, weapon, aim and support layers, and counts how often each layer's inputs changed since it last
+ran. It is off by default and measures nothing until turned on. `?perfTimings=1` or
+`window.BATTLE_PERF_TIMINGS=true` turns both on; `=0`/`false` turns both off.
 
 **Preview launcher:** `python3 scripts/check-preview-launcher.py` runs offline with PHP/cURL and a concurrent local HTTP fixture. Checks runtime reuse, the rolling download queue, integrity failures and publication. `preview.json` records `runtimeReused` and `runtimeDownloaded`; only changed runtime files download, with matching copies taken from production or earlier launcher previews.
 
@@ -699,8 +709,8 @@ never decides tactics, ammo, hits or paths.
   The upper-body overlay (aim/fire/reload) sits on the lower locomotion layer. The weapon grip snaps
   to a right-palm anchor, the fore-end runs through the left palm, and aim uses a capped spine twist (≤40°).
 - Fallback: the procedural rig in `battle/soldier.js` is used while the FBX loads (25 s cap), and the
-  trainer and headless benchmark always use it (`setImportedEnabled(scene,false)`). Such soldiers have
-  `rig===null`.
+  trainer and headless benchmark always use it (`setImportedEnabled(scene,false)`). Procedural soldiers
+  keep their `rig` object; FBX soldiers have `rig===null` and a `_fbx` binding.
 - Wired beyond the basics: turn-in-place (standing, crouch, prone), death pools, hit reactions
   (`combat.hit`), idle variants and suppression flinches. Still unused: prone roll right (a left roll
   needs mirroring) and the kneel set. Jump clips need a nav vault edge.
