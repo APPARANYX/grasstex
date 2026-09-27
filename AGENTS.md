@@ -16,7 +16,8 @@ original docs (roadmaps, lab notes, measurements) are in git history at `1a5b0cf
 - **Stay in scope.** Don't touch audio, assets or animation unless asked. Unnamed uploads: ask
   what they are and where they belong.
 - `main` deploys to production on every push. Put anything visual on a `work/**` or `preview/**`
-  branch first (that publishes a preview; see Deploy).
+  branch first (that publishes a preview; see Deploy), or open any branch in the live preview
+  launcher (`https://test.ivandpopov.com/grasstex/preview.php?ref=<branch|PR#>`).
 
 ## What's here
 
@@ -94,6 +95,31 @@ node scripts/smoke_battle_page.cjs          # SMOKE_SEED, SMOKE_SECONDS, SMOKE_O
 
 Hosted textures 404 when served locally, so the ground renders red. That's expected.
 
+**Visual checks: keep these, don't rewrite them.** Look at a change on the live host rather than a
+local red-ground page, and reuse these harnesses instead of writing one-off probes:
+
+- **Open any branch live:** `https://test.ivandpopov.com/grasstex/preview.php?ref=<branch|#PR|GitHub URL>`
+  (see CI and workflows). The link follows the branch head. It carries the branch's own models, clips,
+  weapons and effect sprites, so new decals or FBX show up.
+- **Close-ups in a real fight:** `scripts/closeup_battle.cjs` runs a battle in fixed 0.15 s steps
+  until a soldier matches `CLOSEUP_TARGET` (`casualty`, `wounded`, `any`, `role:ge/gunner`, `id:<n>`),
+  pauses, renders so clips play out, and photographs him from `CLOSEUP_VIEWS`
+  (`front,left,back,top,right,wide`). Output is `<view>-<id>.png` plus `summary.json` (hp, wounds,
+  casualty zone, weapon, FBX or not). It blocks telemetry, learning and policy writes, so it's safe
+  against production and previews. Env: `CLOSEUP_URL`, `CLOSEUP_SEED`, `CLOSEUP_COUNT`,
+  `CLOSEUP_AFTER` (sim seconds after the match, default 1.5), `CLOSEUP_DIST`, `CLOSEUP_WAIT`,
+  `CLOSEUP_OUT`, `CLOSEUP_UI=1`.
+  ```bash
+  CLOSEUP_URL='https://test.ivandpopov.com/grasstex/preview.php?ref=<branch>' CLOSEUP_TARGET=wounded \
+    CLOSEUP_OUT=out/closeup node scripts/closeup_battle.cjs
+  ```
+- **Every model with its weapon, plus the Motion Lab poses:** `scripts/fbx-soldier-lineup.cjs`
+  (see Soldiers, weapons, animation).
+- **Pistol support hand numbers:** `scripts/probe_pistol_cup.cjs` (see the replay table below).
+
+In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certificate-errors`
+(these scripts do). Otherwise Babylon never loads from the CDN and `__battle__` never appears.
+
 **Deterministic replay / profilers** (Playwright, against the local server above):
 
 | Script | Use |
@@ -107,6 +133,8 @@ Hosted textures 404 when served locally, so the ground renders red. That's expec
 | `scripts/probe_pistol_cup.cjs` | Motion Lab pistol support cup at a fixed 60 Hz: cup gap (cm), degrees the left arm is bent off the clip, and hand jerk (deg/frame², solved vs the clip's own) per clip. `CUP_SIDECAR=<model>.fbx.json` (a server sidecar; they are never committed), `CUP_CLIPS`, `CUP_SERIES=1`. |
 | `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open). |
 | `scripts/closeup.cjs` | Close-ups of any `faction/role[/weapon.fbx]` in any Motion Lab pose at any time, from `front`/`side`/`back`/`left`/`three-quarter`/`top`, framed on `body`/`hands`/`weapon`, through the game's own FBX backend at a fixed 30 Hz. `CLOSEUP_SOLDIERS`, `CLOSEUP_POSES`, `CLOSEUP_TIMES`, `CLOSEUP_VIEWS`, `CLOSEUP_FRAMING`, `CLOSEUP_SIDECAR`, `CLOSEUP_OUT`. Writes PNGs and `summary.json` (clips, two-hand state, support error). |
+
+**Preview launcher:** `python3 scripts/check-preview-launcher.py` runs offline with PHP/cURL and a concurrent local HTTP fixture. Checks runtime reuse, the rolling download queue, integrity failures and publication. `preview.json` records `runtimeReused` and `runtimeDownloaded`; only changed runtime files download, with matching copies taken from production or earlier launcher previews.
 
 **Repo-wide checks** (match CI):
 
@@ -126,6 +154,7 @@ bash scripts/normalize_audio.sh Assets/audio && git diff --quiet -- Assets/audio
 | `ci.yml` | PR, push to main | Syntax (JS/PHP/Py/sh/JSON), audio library, sim regressions (all harness checks + 8 seeds), deploy plan + deploy safety |
 | `deploy-50webs-php.yml` | push to main | Stamps `build-v<N>`, reruns checks and the deploy-safety check, uploads by content hash to production |
 | `deploy-50webs-preview.yml` | push `work/**`, `preview/**` | `https://test.ivandpopov.com/grasstex/preview/<slug>/battle_sim.php`; never touches prod, makes no telemetry/learning writes; its `mirror --delete` skips JSON and lab files |
+| `preview.php` (on the host, not a workflow) | `?ref=<branch>`, `#47`, or a GitHub branch/PR URL | Stages that commit's `battle/` runtime from GitHub into `preview/ref-<sha12>/` with the host's own loader and opens it (same preview contract, no writes). Only this repo's branches and same-repo PRs (a PR uses its head commit, so merged ones still open); keeps the 12 most recent. Branch FBX, clips, weapons and `Assets/effects` PNGs come too: files identical to production are hard links, and new ones download (≤300 MB). A branch that changes `battle_sim_local.php` still needs the Actions preview. Optional `state/github-token.php` (`<?php return '<token>';`) lifts the 60/h API limit. |
 | `battle-benchmark-standard.yml` | tag `standard-benchmark-*` or dispatch | 10 workers × 10 = **100 battles**: the routine 60 meeting / 20 US-defend / 20 GE-defend checkpoint |
 | `battle-benchmark.yml` | tag `benchmark-*` or dispatch (source must be on main) | 30 workers × 10 = **300 battles**, 100 per type. Major milestones only. |
 | `battle-hotpath-profile.yml` | dispatch (type/seed/seconds) | Hot-path profile on one seed |
