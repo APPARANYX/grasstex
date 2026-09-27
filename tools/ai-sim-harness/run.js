@@ -57,19 +57,25 @@ section('a soldier in the open goes to ground rather than standing');
   const {root,battle,us}=duel({gap:120});
   /* Read the squad at the last moment it is still fighting (by 14 s at the latest): a squad that
      has already won the firefight has nobody in contact left to judge. */
-  let fighting=[];
+  let fighting=[],longRifle=0,longRifleProne=0;
   H.run(root,battle,14,()=>{
     /* A withdrawing man is upright on purpose, and a man still in orient has not chosen a stance
        yet, so neither is evidence about taking cover. */
     const now=us.members.filter(s=>!s.dead&&s.target&&s.squad.state!=='retreat'&&root.BattleEngagement.stateOf(s).state!=='orient');
     if(now.length&&battle.time>=6)fighting=now.map(s=>({prone:!!s.prone,crouching:!!s.crouching}));
+    /* Prone is judged on riflemen at long range over the whole fight, not only at its last moment:
+       by then the only men still with a target can be the scouts, whose eyes reach furthest. */
+    if(battle.time>=6)now.forEach(s=>{
+      if(s.role!=='rifleman')return;
+      const t=s.target.root.position,d=Math.hypot(t.x-s.root.position.x,t.z-s.root.position.z);
+      if(d>100){longRifle++;if(s.prone)longRifleProne++;}
+    });
   });
   const down=fighting.filter(s=>s.prone||s.crouching).length;
   const engaged=fighting.length;
   const standing=fighting.filter(s=>!s.prone&&!s.crouching).length;
   check('men in contact are crouched or prone',engaged>0&&down===engaged,'engaged='+engaged+' down='+down+' standing='+standing);
-  const prone=fighting.filter(s=>s.prone).length;
-  check('long-range contact puts riflemen prone',prone>0,'prone='+prone);
+  check('long-range contact puts riflemen prone',longRifle>0&&longRifleProne>longRifle/2,'prone '+longRifleProne+' of '+longRifle+' rifleman samples past 100 m');
 }
 
 section('cover is used when it is there');
@@ -152,11 +158,17 @@ section('suppression pins men flat');
   H.run(root,battle,3);
   const man=rifleman(us);
   man.suppressedUntil=battle.time+6;
-  H.run(root,battle,2);
-  const e=root.BattleEngagement.stateOf(man);
-  check('a suppressed rifleman in the open is pinned',e.state==='pinned'||man.prone,'state='+e.state+' prone='+man.prone);
-  check('a pinned man holds his ground',Math.hypot(man.destination.x-man.root.position.x,man.destination.z-man.root.position.z)<1.5,
-    'destination is '+Math.hypot(man.destination.x-man.root.position.x,man.destination.z-man.root.position.z).toFixed(1)+'m away');
+  /* A squad withdrawal outranks every individual drill, and whether the squad breaks inside the
+     window is the dice; the pin is judged while the squad still holds (at least a second of it). */
+  const t0=battle.time;let held=0,state='',prone=false,away=0;
+  H.run(root,battle,2,()=>{
+    if(us.state==='retreat'||man.dead)return;
+    held=battle.time-t0;state=root.BattleEngagement.stateOf(man).state;prone=man.prone;
+    away=Math.hypot(man.destination.x-man.root.position.x,man.destination.z-man.root.position.z);
+  });
+  check('the squad holds long enough to judge the pin',held>=1,'held '+held.toFixed(2)+'s');
+  check('a suppressed rifleman in the open is pinned',state==='pinned'||prone,'state='+state+' prone='+prone);
+  check('a pinned man holds his ground',away<1.5,'destination is '+away.toFixed(1)+'m away');
 }
 
 section('stance does not churn');

@@ -38,16 +38,13 @@ var MODEL_SETS={
 var MODEL_SET=(typeof location!=='undefined'&&/[?&]soldiers=rifleman\b/.test(location.search||''))?'rifleman':'paratrooper';
 var MODELS=MODEL_SETS[MODEL_SET];
 /* Faction weapons (Assets/weapons, prepared by tools/prepare-weapon-model.py) replace the box
-   weapons per role: riflemen get the faction rifle, gunners the faction machine gun (M1919A6 /
-   MG42, bipods folded for carrying), sergeants the faction pistol. A list is dealt out in turn, so
-   a squad's two scouts carry one of each: M1 Carbine and Thompson, FG42 and MP40. The prepared
-   layout puts the butt plate WEAPON_BUTT metres behind the grip origin (pistols: the back of the
-   frame, PISTOL_BUTT), barrel along +Z, so the hand calibration holds. */
-var WEAPON_MODELS={
-  us:{rifle:'m1-garand.fbx',carbine:['m1-carbine.fbx','thompson.fbx'],smg:'thompson.fbx',lmg:'m1919a6.fbx',pistol:'m1911a1.fbx'},
-  ge:{rifle:'kar98k.fbx',carbine:['fg42.fbx','mp40.fbx'],smg:'mp40.fbx',lmg:'mg42.fbx',pistol:'p38.fbx'}
-},WEAPON_BUTT=.40,PISTOL_BUTT=.06;
-function weaponFiles(f,kind){var v=WEAPON_MODELS[f]&&WEAPON_MODELS[f][kind];return v?[].concat(v):[];}
+   weapons. The model is the one whose numbers the soldier fires with: BattleWeapons.PROFILES
+   names it per side and kind (`model`, the FBX basename), so what he carries and how it shoots
+   cannot disagree. The prepared layout puts the butt plate WEAPON_BUTT metres behind the grip
+   origin (pistols: the back of the frame, PISTOL_BUTT), barrel along +Z, so the hand calibration holds. */
+var WEAPON_BUTT=.40,PISTOL_BUTT=.06;
+function weaponProfiles(){return (root.BattleWeapons&&root.BattleWeapons.PROFILES)||{};}
+function weaponFiles(f,kind){var p=weaponProfiles()[f],m=p&&p[kind]&&p[kind].model;return m?[m+'.fbx']:[];}
 /* Machine guns also come with the bipod deployed; that copy replaces the folded one while the gunner
    is settled prone. Same layout (grip, fore-end, muzzle), only the legs differ. */
 var WEAPON_BIPOD={'m1919a6.fbx':'m1919a6-bipod.fbx','mg42.fbx':'mg42-bipod.fbx'};
@@ -555,7 +552,7 @@ function prepareWeapon(container,name,butt){
 function loadProgress(item,done,total,label){var L=root.BattleLoading;if(L&&L.progress)L.progress('soldiers',item,done,total,label);}
 function loadWeapons(scene,st,base){
   st.weapons={};var files={};
-  Object.keys(WEAPON_MODELS).forEach(function(f){Object.keys(WEAPON_MODELS[f]).forEach(function(kind){weaponFiles(f,kind).forEach(function(file){
+  var P=weaponProfiles();Object.keys(P).forEach(function(f){Object.keys(P[f]).forEach(function(kind){weaponFiles(f,kind).forEach(function(file){
     files[file]=kind==='pistol'?PISTOL_BUTT:WEAPON_BUTT;if(WEAPON_BIPOD[file])files[WEAPON_BIPOD[file]]=WEAPON_BUTT;});});});
   var total=Object.keys(files).length,done=0;loadProgress('weapons',0,total,'weapons');
   return Promise.all(Object.keys(files).map(function(file){
