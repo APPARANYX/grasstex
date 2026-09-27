@@ -59,6 +59,22 @@ def main() -> None:
     if not (REPO / "battle/modules").is_dir():
         raise SystemExit("battle/modules is missing")
 
+    # The live PHP loader must not regress to its small emergency module list when GitHub's
+    # contents API is unavailable. A deployed checkout already contains the authoritative modules.
+    live_loader = (REPO / "battle_sim.php").read_text(encoding="utf-8")
+    required_fallback_bits = (
+        "$localModuleDir = $root . '/battle/modules';",
+        "@scandir($localModuleDir)",
+        "$moduleSource = 'local';",
+        "$moduleSource = 'emergency';",
+    )
+    missing_fallback = [bit for bit in required_fallback_bits if bit not in live_loader]
+    if missing_fallback:
+        raise SystemExit(
+            "battle_sim.php no longer discovers locally deployed modules before its emergency "
+            "fallback: " + ", ".join(missing_fallback)
+        )
+
 
 if __name__ == "__main__":
     sys.exit(main())
