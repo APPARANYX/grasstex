@@ -1,0 +1,119 @@
+name: Branch housekeeping
+
+# Deletes branches whose work is already in main, so the branch list only shows live work.
+#
+# On merge: the PR's head branch goes, unless it moved past the merged commit (a commit pushed
+# after the merge would be lost: claude/pistol-animation-jitter-gmq2st had one) or another open
+# PR still uses it (#56 was opened on the branch #55 had just merged from). A later push simply
+# recreates the branch.
+#
+# Weekly sweep: any branch with no commit missing from main (git cherry, so squash-merged and
+# cherry-picked work counts as merged), no open PR, and a tip at least MIN_AGE_DAYS old. Branches
+# with unmerged commits are never deleted, only listed in the run summary for a human to judge.
+
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'List what would be deleted without deleting it'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: read
+
+env:
+  # Never deleted: the default branch and the benchmark results store.
+  KEEP: main benchmark-results
+  MIN_AGE_DAYS: 7
+
+jobs:
+  merged-head:
+    name: Delete merged PR branch
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete head branch if nothing else needs it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          MERGED_SHA: ${{ github.event.pull_request.head.sha }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          for k in $KEEP; do
+            if [ "$BRANCH" = "$k" ]; then echo "$BRANCH is kept by policy"; exit 0; fi
+          done
+          tip=$(gh api "repos/$REPO/git/ref/heads/$BRANCH" --jq .object.sha 2>/dev/null || true)
+          if [ -z "$tip" ]; then echo "$BRANCH is already gone"; exit 0; fi
+          if [ "$tip" != "$MERGED_SHA" ]; then
+            echo "::notice::Kept $BRANCH: it moved past the merged commit ($MERGED_SHA -> $tip)"
+            exit 0
+          fi
+          open=$(gh api "repos/$REPO/pulls?state=open&head=${REPO%%/*}:$BRANCH" --jq 'length')
+          if [ "$open" != "0" ]; then
+            echo "::notice::Kept $BRANCH: $open other open PR(s) use it"
+            exit 0
+          fi
+          gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH"
+          echo "Deleted $BRANCH (merged in #$PR)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  sweep:
+    name: Sweep merged branches
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete branches fully contained in main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+          open_heads=$(gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
+            --jq '.[] | select(.head.repo.full_name == env.REPO) | .head.ref')
+          now=$(date +%s)
+          deleted=() kept=()
+          for ref in $(git for-each-ref --format='%(refname:strip=3)' refs/remotes/origin); do
+            [ "$ref" = HEAD ] && continue
+            skip=
+            for k in $KEEP; do [ "$ref" = "$k" ] && skip=1; done
+            [ -n "$skip" ] && continue
+            if printf '%s\n' "$open_heads" | grep -qxF "$ref"; then
+              kept+=("$ref: open PR"); continue
+            fi
+            unmerged=$(git cherry origin/main "origin/$ref" | grep -c '^+' || true)
+            age=$(( (now - $(git log -1 --format=%ct "origin/$ref")) / 86400 ))
+            if [ "$unmerged" != 0 ]; then
+              kept+=("$ref: $unmerged unmerged commit(s), tip ${age}d old"); continue
+            fi
+            if [ "$age" -lt "$MIN_AGE_DAYS" ]; then
+              kept+=("$ref: merged, tip only ${age}d old"); continue
+            fi
+            if [ "$DRY_RUN" = true ]; then
+              deleted+=("$ref (dry run)")
+            else
+              gh api -X DELETE "repos/$REPO/git/refs/heads/$ref" >/dev/null
+              deleted+=("$ref")
+            fi
+          done
+          {
+            echo "### Deleted (all commits already in main)"
+            if [ ${#deleted[@]} -eq 0 ]; then echo "- none"; else printf -- '- %s\n' "${deleted[@]}"; fi
+            echo "### Kept"
+            if [ ${#kept[@]} -eq 0 ]; then echo "- none"; else printf -- '- %s\n' "${kept[@]}"; fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
