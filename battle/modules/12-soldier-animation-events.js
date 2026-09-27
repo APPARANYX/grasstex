@@ -88,10 +88,20 @@
     var oldShot = sim.onShot;
     sim.onShot = function (shooter, target, hit, d, shot) {
       if (oldShot) oldShot.apply(sim, arguments);
-      /* Ballistic shots report who was actually struck, which need not be the intended target. */
-      var victim = shot && shot.mode === 'raycast' ? shot.victim : target;
-      if (hit && victim && !victim.dead)
-        root.BattleSoldierModel.triggerAnimation(victim, T.hit, { from: shooter && shooter.id });
+      /* Ballistic shots report who was actually struck, which need not be the intended target, and
+         a round that went through one man can strike another behind him (shot.passes). */
+      var struck =
+        shot && shot.mode === 'raycast'
+          ? (shot.passes || []).map(function (p) {
+              return p.victim;
+            })
+          : [target];
+      if (shot && shot.mode === 'raycast' && !struck.length && shot.victim) struck = [shot.victim];
+      if (hit)
+        struck.forEach(function (victim) {
+          if (victim && !victim.dead)
+            root.BattleSoldierModel.triggerAnimation(victim, T.hit, { from: shooter && shooter.id });
+        });
     };
     return sim;
   };

@@ -1,45 +1,117 @@
 #!/usr/bin/env node
 'use strict';
+/* Impact FX: material bursts, decal sheets (world decals thin-instanced per sheet cell, wound decals
+   parented to the bone that was hit), budgets, expiry and restart cleanup, and that none of it
+   touches the combat RNG. Babylon is stubbed down to what the module calls. */
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const repo=path.resolve(__dirname,'../..'),hooks={};
-class Vector3{constructor(x=0,y=0,z=0){Object.assign(this,{x,y,z});}}
+class Vector3{constructor(x=0,y=0,z=0){Object.assign(this,{x,y,z});}copyFrom(v){this.x=v.x;this.y=v.y;this.z=v.z;return this;}}
+class Quaternion{constructor(x=0,y=0,z=0,w=1){Object.assign(this,{x,y,z,w});}}
 class Color3{constructor(r,g,b){Object.assign(this,{r,g,b});}static Black(){return new Color3(0,0,0);}}
 class Color4 extends Color3{constructor(r,g,b,a){super(r,g,b);this.a=a;}}
-class Resource{constructor(name){this.name=name;}dispose(){this.disposed=true;}}
+class Resource{constructor(name){this.name=name;}dispose(){this.disposed=true;}isDisposed(){return!!this.disposed;}}
 class ParticleSystem extends Resource{dispose(disposeTexture=true){super.dispose();if(disposeTexture)this.particleTexture.dispose();}start(){this.started=true;}}
-class VertexData{static ComputeNormals(p,i,n){n.push(...p.map(()=>0));}applyToMesh(mesh){mesh.vertices=this.positions;}}
-const B={Vector3,Color3,Color4,ParticleSystem,VertexData,Mesh:Resource,StandardMaterial:Resource,
-  Texture:{BILINEAR_SAMPLINGMODE:2},RawTexture:{CreateRGBATexture(){return new Resource('particle texture');}}};
+class Mesh extends Resource{
+  constructor(name){super(name);this.enabled=true;this.position=new Vector3();this.scaling=new Vector3(1,1,1);this.parent=null;this.instances=0;}
+  setEnabled(v){this.enabled=v;}thinInstanceSetBuffer(kind,buf,stride){this.instances=buf?buf.length/stride:0;this.buffer=buf;}
+  setParent(node){this.parent=node;}
+}
+class VertexData{applyToMesh(mesh){mesh.uvs=this.uvs;mesh.vertices=this.positions;}}
+class Matrix{static FromArray(a){const m=new Matrix();m.m=a;return m;}decompose(s,q,p){s.x=Math.hypot(this.m[0],this.m[1],this.m[2]);s.y=Math.hypot(this.m[4],this.m[5],this.m[6]);s.z=1;p.x=this.m[12];p.y=this.m[13];p.z=this.m[14];}}
+const B={Vector3,Quaternion,Color3,Color4,ParticleSystem,VertexData,Mesh,Matrix,StandardMaterial:Resource,
+  Texture:class extends Resource{constructor(url){super(url);this.url=url;}},
+  RawTexture:{CreateRGBATexture(){return new Resource('particle texture');}}};
+B.Texture.BILINEAR_SAMPLINGMODE=2;
 const r={console:{log(){},warn(){}},BABYLON:B,BattleModules:{registerSystem(id,h){hooks[id]=h;}},BattleSim:{start(){}}};r.window=r;vm.createContext(r);
 function load(file){vm.runInContext(fs.readFileSync(path.join(repo,file),'utf8'),r,{filename:file});}
 load('battle/modules/15-bullet-impact-fx.js');
 const fx=r.BattleImpactFx,observable=()=>({add(){return{};},addOnce(){},remove(){}});
 const sim={time:0,scene:{metadata:{},onBeforeRenderObservable:observable(),onDisposeObservable:observable()},heightAt:(x,z)=>x*.03+z*.02,random(){throw Error('Effects consumed the battle RNG');}};
 let callbacks=0;sim.onShot=()=>callbacks++;fx.install(sim);fx.install(sim);
-function shot(surface,body=false){return{mode:'raycast',surface,stoppedBy:body?'soldier':'environment',impact:{x:2,y:1,z:3},normal:{x:0,y:1,z:0}};}
-for(const surface of ['dirt','wall','steel','hedge'])sim.onShot(null,null,false,10,shot(surface));
-sim.onShot(null,null,true,10,shot('blood',true));
+function shot(surface,blocker){return{mode:'raycast',surface,blocker,stoppedBy:'environment',impact:{x:2,y:1,z:3},normal:{x:-1,y:0,z:0},direction:{x:1,y:0,z:0}};}
+function cells(){return Object.values(sim._impactFx.cells);}
+function instances(sheet,row){return cells().filter(c=>c.sheet===sheet&&(row==null||c.row===row)).reduce((a,c)=>a+c.mesh.instances,0);}
+const SH=fx.sheets;
+
+sim.onShot(null,null,false,10,shot('dirt','ground'));
+sim.onShot(null,null,false,10,shot('cement','wall'));
+sim.onShot(null,null,false,10,shot('steel','obstacle'));
+sim.onShot(null,null,false,10,shot('hedge','obstacle'));
+sim.onShot(null,null,false,10,shot('tree','obstacle'));
 assert.equal(callbacks,5,'shot callbacks chain exactly once');
-assert.equal(sim._impactFx.bursts.length,5);
-assert.deepEqual(Array.from(sim._impactFx.bursts,b=>b.system.name),['impact-dirt','impact-cement','impact-metal','impact-vegetation','impact-blood']);
-assert.equal(sim._impactFx.decals.length,1,'only body hits leave blood');
-const vertices=sim._impactFx.decals[0].mesh.vertices;
-for(let i=0;i<vertices.length;i+=3)assert.ok(Math.abs(vertices[i+1]-sim.heightAt(vertices[i],vertices[i+2])-.018)<1e-7,'decal follows sloping terrain');
-fx.impact(sim,{...shot('dirt'),stoppedBy:'range'});assert.equal(sim._impactFx.bursts.length,5,'range exhaustion is not an impact');
+fx.tick(sim);
+assert.deepEqual(Array.from(sim._impactFx.bursts,b=>b.system.name),['impact-dirt','impact-cement','impact-metal','impact-vegetation','impact-vegetation']);
+assert.equal(instances('holes',SH.holes.rows.dirt),1,'ground strike leaves a dirt hole');
+assert.equal(instances('holes',SH.holes.rows.masonry),1,'wall strike leaves a masonry hole');
+assert.equal(instances('holes',SH.holes.rows.metal),1,'metal strike leaves a dent');
+assert.equal(instances('holes',SH.holes.rows.wood),1,'a tree takes a splintered hole, a hedge none');
+assert.equal(sim._impactFx.decals.length,4);
+console.log('PASS impact materials and hole kinds per surface; hedges leave no hole');
+
+/* Decals sit on the surface: ground ones on the terrain under the strike, wall ones on the wall
+   face (half the wall's thickness out from the navigation centre line), both facing out. */
+const byKind=k=>sim._impactFx.decals.filter(d=>d.kind===k)[0].matrix;
+const dirt=byKind('dirt');assert.ok(Math.abs(dirt[13]-sim.heightAt(dirt[12],dirt[14]))<.03,'ground decal sits on the sloped terrain');
+assert.ok(dirt[9]>.99,'ground decal faces up the terrain normal');
+const masonry=byKind('masonry');assert.ok(Math.abs(masonry[12]-(2-.165-.012))<1e-6,'wall decal is on the wall face');
+assert.ok(Math.abs(masonry[8]+1)<1e-6,'wall decal faces the shooter');
+console.log('PASS decals follow terrain and sit on the wall face');
+
+/* Cells address the sheet by grid position, independent of the image resolution. */
+const uv=fx.cellUV('holes',2,3);assert.deepEqual([uv.u0,uv.u1,uv.v0,uv.v1],[.75,1,.25,.5]);
+assert.ok(cells().every(c=>/effects\/decals\/(blood|bullet-holes)\.png$/.test(c.mesh.material.diffuseTexture.url)));
+console.log('PASS sheet cells are grid-addressed and load from Assets/effects/decals');
+
+/* A body hit: a wound decal on the bone that was hit and a splash under him. A round that went
+   through (shot.passes[i].exit) adds an exit wound on the far side and a spray along its path, and
+   strikes the next man and then whatever stopped it (shot.final). */
+const bone=(x,y)=>({getAbsolutePosition:()=>new Vector3(x,y,0),computeWorldMatrix(){},isDisposed:()=>false});
+const head=bone(5,1.6),chest=bone(5,1.3),chest2=bone(7,1.3);
+const victim={root:{position:{x:5,y:0,z:0}},rig:{head,chest}},behind={root:{position:{x:7,y:0,z:0}},rig:{chest:chest2}};
+const X={x:1,y:0,z:0};
+function pass(v,zone,x,exit){return{victim:v,zone,entry:{x:x-.3,y:1.35,z:0},exit:exit?{x:x+.3,y:1.35,z:0}:null,direction:X,exitDirection:exit?X:undefined};}
+function bodyShot(passes,final){return{mode:'raycast',stoppedBy:'soldier',surface:'blood',victim:passes[0].victim,zone:passes[0].zone,impact:passes[0].entry,normal:{x:-1,y:0,z:0},direction:X,delay:0,passes,final:final||null};}
+fx.clear(sim);
+sim.onShot(null,victim,true,10,bodyShot([pass(victim,'chest',5,false)]));fx.tick(sim);
+assert.equal(sim._impactFx.body.length,1);assert.equal(sim._impactFx.body[0].mesh.parent,chest,'wound rides the chest bone');
+assert.ok(sim._impactFx.body[0].mesh.position.x<5,'entry wound is on the side facing the shooter');
+assert.equal(instances('blood',SH.blood.rows.pool),1,'splash under the hit');
+assert.equal(instances('blood',SH.blood.rows.spray),0,'a round that stopped in him throws no exit spray');
+fx.clear(sim);
+const wallEnd={impact:{x:9,y:1.3,z:0},stoppedBy:'environment',blocker:'wall',surface:'cement',normal:{x:-1,y:0,z:0},direction:X};
+sim.onShot(null,victim,true,10,bodyShot([pass(victim,'chest',5,true),pass(behind,'chest',7,false)]));
+sim.onShot(null,victim,true,10,bodyShot([pass(victim,'head',5,true)],wallEnd));fx.tick(sim);
+const exits=sim._impactFx.body.filter(b=>b.exit);
+assert.equal(exits.length,2,'an exit wound for each round that came out');
+assert.ok(exits.every(b=>b.mesh.position.x>5),'exit wounds are on the far side');
+assert.ok(sim._impactFx.body.some(b=>b.mesh.parent===chest2),'the man behind is wounded too');
+assert.equal(instances('blood',SH.blood.rows.spray),2,'exit sprays');
+assert.ok(sim._impactFx.decals.filter(d=>d.kind==='spray').every(d=>d.matrix[12]>5),'sprays land beyond the exit');
+assert.equal(instances('holes',SH.holes.rows.masonry),1,'the spent round holes the wall behind');
+for(let i=0;i<10;i++)sim.onShot(null,victim,true,10,bodyShot([pass(victim,'chest',5,true)]));
+assert.equal(sim._impactFx.body.filter(b=>b.soldier===victim).length,6,'wound decals per soldier are capped');
+console.log('PASS entry and exit wounds ride the hit bone; the next man; splash, exit spray and the final strike');
+
+/* Budgets, expiry, restart. */
 const texture=sim._impactFx.texture;
-for(let i=0;i<150;i++)fx.impact(sim,shot('blood',true));
+for(let i=0;i<500;i++)fx.impact(sim,shot('cement','wall'));
+fx.tick(sim);
 assert.equal(sim._impactFx.bursts.length,fx.maxBursts);assert.equal(sim._impactFx.decals.length,fx.maxDecals);
+assert.equal(cells().reduce((a,c)=>a+c.mesh.instances,0),fx.maxDecals,'thin instances match the live decals');
 assert.ok(!texture.disposed,'eviction preserves shared particle texture');
-sim.time=80;fx.tick(sim);assert.equal(sim._impactFx.bursts.length,0);assert.ok(sim._impactFx.decals[0].mesh.visibility<1);
-sim.time=91;fx.tick(sim);assert.equal(sim._impactFx.decals.length,0,'old decals expire');
+sim.time=fx.decalLife+1;fx.tick(sim);assert.equal(sim._impactFx.bursts.length,0);assert.equal(sim._impactFx.decals.length,0,'old decals expire');
+assert.equal(cells().reduce((a,c)=>a+c.mesh.instances,0),0);
 sim.scene.metadata.battleScenario={buildings:[{x:2,z:3,w:10,d:10,rot:.4}]};
-fx.impact(sim,shot('blood',true));
-const indoor=sim._impactFx.decals[0].mesh.vertices;
-for(let i=1;i<indoor.length;i+=3)assert.ok(indoor[i]>=sim.heightAt(2,3)+.098-1e-7,'indoor blood sits above the floor slab');
-const liveBurst=sim._impactFx.bursts[0].system,liveDecal=sim._impactFx.decals[0].mesh;
+fx.impact(sim,shot('dirt','ground'));
+assert.ok(sim._impactFx.decals[0].matrix[13]>=sim.heightAt(2,3)+.08,'indoor strikes sit on the floor slab');
+sim.onSuppressiveShot(null,{x:30,z:30},1,6);
+assert.ok(sim._impactFx.decals.length>1,'suppressive bursts kick up dirt strikes');
+const liveBurst=sim._impactFx.bursts[0].system,liveBody=sim._impactFx.body[0].mesh;
 hooks['bullet-impact-fx'].beforeBattleRestart(sim);
-assert.ok(liveBurst.disposed&&liveDecal.disposed);assert.equal(sim._impactFx.bursts.length+sim._impactFx.decals.length,0);
-console.log('PASS impact materials, callback chaining, terrain/floor decals, resource budgets, fading and restart cleanup');
+assert.ok(liveBurst.disposed&&liveBody.disposed);
+assert.equal(sim._impactFx.bursts.length+sim._impactFx.decals.length+sim._impactFx.body.length,0);
+assert.equal(cells().reduce((a,c)=>a+c.mesh.instances,0),0,'restart clears every thin instance');
+console.log('PASS resource budgets, expiry, floor slabs, suppression strikes and restart cleanup');
 
 // The ballistic result supplies the actual victim and blocking material; FX never guess from
 // the intended target. Zero angular dispersion makes these geometry checks deterministic.

@@ -413,12 +413,48 @@
   var EXT = extensionPoints({
     fireGate: ['ammunition', 'ballistics', 'direct-fire-los'], // before an aimed shot: weapon ready, target in range, trigger-time LOS
     shotModel: ['ballistics'], // where an aimed round goes (default: resolveFire accuracy roll)
+    woundModel: ['wounds'], // what a round that struck a man does to him (default: flat hp damage)
     areaFireGate: ['ammunition'], // before a suppressive shot
+    roundGate: ['ammunition'], // before each further round of an automatic burst: still loaded, not stopped
     afterShot: ['ammunition'], // a round left the weapon: ammo, heat, stoppages
     squadCommand: ['squad-leader'], // the squad's command owner; without one a squad only reports status
     beforeSoldier: ['weapon-cycle'], // each soldier AI tick, before perception
     afterSoldier: ['weapon-cycle'] // after engagement and movement resolution
   });
+
+  /* One trigger pull. Semi-automatic and bolt-action weapons fire one round; an automatic weapon
+     fires a burst at its cyclic rate. The AI ticks every 0.15 s, far slower than an MG42 cycles
+     (0.05 s a round), so the whole burst is resolved on this tick and each round carries its
+     offset in seconds for presentation to play it at the cyclic rate. */
+  function burstLength(stats, battle) {
+    if (!(stats.cyclic > 0) || !stats.burst) return 1;
+    var lo = Math.max(1, stats.burst[0] | 0),
+      hi = Math.max(lo, stats.burst[1] | 0);
+    return lo + Math.floor(rand(battle) * (hi - lo + 1));
+  }
+  /* Seconds until the next trigger pull: the burst itself plus the pause to re-lay the gun, or the
+     aimed rate of a semi-automatic weapon. */
+  function triggerCooldown(stats, rounds, battle, factor) {
+    var jitter = 0.85 + rand(battle) * 0.3;
+    if (stats.cyclic > 0 && stats.burst)
+      return rounds / stats.cyclic + (stats.burstPause || 0.8) * factor * jitter;
+    return (1 / stats.rof) * factor * jitter;
+  }
+  /* Fires the rounds of one trigger pull through fire(round, delay); stops early if the weapon
+     runs dry or stops, or fire() returns false. Returns the rounds that left the weapon. */
+  function discharge(shooter, battle, rounds, fire) {
+    var stats = shooter.weapon.stats,
+      fired = 0;
+    for (var i = 0; i < rounds; i++) {
+      if (i && !EXT.pass('roundGate', shooter, battle)) break;
+      var delay = stats.cyclic > 0 ? i / stats.cyclic : 0;
+      if (fire(i, delay) === false) break;
+      fired++;
+      battle.onFire && battle.onFire(shooter, delay);
+      EXT.run('afterShot', shooter, battle);
+    }
+    return fired;
+  }
 
   function areaFire(shooter, point, battle) {
     if (!EXT.pass('areaFireGate', shooter, battle, point)) return 0;
@@ -437,10 +473,9 @@
       e.suppressedUntil = Math.max(e.suppressedUntil || 0, battle.time + hold);
       hit++;
     }
-    shooter.fireCooldown = (1 / stats.rof) * AREA_FIRE_RATE * (0.85 + rand(battle) * 0.3);
-    battle.onFire && battle.onFire(shooter);
-    battle.onSuppressiveShot && battle.onSuppressiveShot(shooter, point, hit);
-    EXT.run('afterShot', shooter, battle);
+    var rounds = discharge(shooter, battle, burstLength(stats, battle), function () {});
+    shooter.fireCooldown = triggerCooldown(stats, rounds, battle, AREA_FIRE_RATE);
+    battle.onSuppressiveShot && battle.onSuppressiveShot(shooter, point, hit, rounds);
     return hit;
   }
 
@@ -476,12 +511,21 @@
     acc = clamp(acc, 0.02, 0.95);
     var hit = rand(battle) < acc;
     if (stats.suppressive) target.suppressedUntil = battle.time + SUPPRESSION_TIME;
-    if (hit) {
-      target.hp -= stats.damage * (0.85 + rand(battle) * 0.3);
-      if (target.hp <= 0) battle.killSoldier(target, shooter);
-    }
+    if (hit) applyHit(shooter, target, battle, null);
     battle.onShot && battle.onShot(shooter, target, hit, d);
     return hit;
+  }
+
+  /* A round struck a man. hit carries where, when the shot model knows ({zone, point, direction,
+     shape, round, delay}); the wound model decides what it does. Without one, flat damage. */
+  function flatDamage(shooter, victim, battle) {
+    victim.hp -= shooter.weapon.stats.damage * (0.85 + rand(battle) * 0.3);
+    if (victim.hp <= 0) battle.killSoldier(victim, shooter);
+    return null;
+  }
+  function applyHit(shooter, victim, battle, hit) {
+    if (!victim || victim.dead) return null;
+    return EXT.first('woundModel', flatDamage)(shooter, victim, battle, hit);
   }
 
   function createSquad(id, faction, homePoint, objective) {
@@ -651,6 +695,9 @@
 
   function createSoldier(opts) {
     var role = ROLES[opts.role];
+    /* Each side carries its own weapon for the kind (Garand or Kar98k, M1919A6 or MG42...). */
+    if (opts.weapon && root.BattleWeapons && root.BattleWeapons.issue)
+      root.BattleWeapons.issue(opts.weapon, opts.faction);
     return Object.assign({}, opts.model, {
       id: opts.id,
       faction: opts.faction,
@@ -826,17 +873,20 @@
     );
   }
 
-  function shot(shooter, target, battle) {
-    return EXT.first('shotModel', resolveFire)(shooter, target, battle);
+  function shot(shooter, target, battle, round, delay) {
+    return EXT.first('shotModel', resolveFire)(shooter, target, battle, round || 0, delay || 0);
   }
   function tryFire(soldier, battle) {
     if (!EXT.pass('fireGate', soldier, battle)) return false;
     if (soldier.fireCooldown > 0) return false;
-    var stats = soldier.weapon.stats;
-    shot(soldier, soldier.target, battle);
-    soldier.fireCooldown = (1 / stats.rof) * (0.85 + rand(battle) * 0.3);
-    battle.onFire && battle.onFire(soldier);
-    EXT.run('afterShot', soldier, battle);
+    var stats = soldier.weapon.stats,
+      target = soldier.target;
+    /* The burst stays on the man it was laid on; once he is down the gunner lets go. */
+    var rounds = discharge(soldier, battle, burstLength(stats, battle), function (round, delay) {
+      if (target.dead) return false;
+      shot(soldier, target, battle, round, delay);
+    });
+    soldier.fireCooldown = triggerCooldown(stats, rounds, battle, 1);
     return true;
   }
 
@@ -866,6 +916,7 @@
     findTarget: findTarget,
     tryFire: tryFire,
     resolveFire: shot,
+    applyHit: applyHit,
     areaFire: areaFire,
     canSuppress: canSuppress,
     shareContact: shareContact,

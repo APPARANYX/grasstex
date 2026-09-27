@@ -11,13 +11,59 @@
   function buildLmg(scene){var parts=[box(scene,[.09,.11,.55],WOOD,[0,0,.10]),cyl(scene,.05,.72,METAL,[0,.02,.55],[Math.PI/2,0,0]),box(scene,[.10,.16,.14],METAL_L,[0,-.02,.30]),box(scene,[.02,.22,.02],METAL,[.05,-.14,.82]),box(scene,[.02,.22,.02],METAL,[-.05,-.14,.82])],mesh=BABYLON.Mesh.MergeMeshes(parts,true,true,undefined,false,false);mesh.material=weaponMaterial(scene);mesh.isPickable=false;return{mesh:mesh,muzzle:[0,.02,.91]};}
   function buildPistol(scene){var parts=[box(scene,[.05,.12,.05],METAL,[0,-.02,.02]),box(scene,[.045,.06,.16],METAL_L,[0,.03,.11])],mesh=BABYLON.Mesh.MergeMeshes(parts,true,true,undefined,false,false);mesh.material=weaponMaterial(scene);mesh.isPickable=false;return{mesh:mesh,muzzle:[0,.03,.19]};}
   var BUILDERS={rifle:function(s){return buildRifle(s,false);},carbine:function(s){return buildRifle(s,true);},smg:function(s){return buildRifle(s,true);},lmg:buildLmg,pistol:buildPistol};
+  /* Per weapon kind, the generic numbers every soldier with that kind starts from.
+     rof      aimed trigger pulls per second for semi-automatic and bolt-action fire;
+     cyclic   rounds per second while the trigger is held (automatic weapons only). An automatic
+              trigger pull is a burst of burst[0]..burst[1] rounds at the cyclic rate, then
+              burstPause seconds to re-lay the gun; burstClimb widens each later round's group.
+     damage   wound severity of a hit on the torso (hp); the wound model scales it by hit zone.
+     power    cartridge energy class (full-power rifle 1.0): how likely a hit is to drop a man
+              outright rather than wound him. */
   var STATS={
-    rifle:{label:'M1-pattern rifle',damage:34,rof:.95,range:140,falloffStart:85,accuracy:.80,suppressive:false,magazine:8,reloadTime:2.6},
-    carbine:{label:'carbine',damage:26,rof:1.35,range:110,falloffStart:65,accuracy:.76,suppressive:false,magazine:15,reloadTime:2.25},
-    smg:{label:'submachine gun',damage:24,rof:2.4,range:90,falloffStart:45,accuracy:.62,suppressive:false,magazine:30,reloadTime:2.4},
-    lmg:{label:'light machine gun',damage:20,rof:3.4,range:165,falloffStart:100,accuracy:.52,suppressive:true,magazine:30,reloadTime:4.4},
-    pistol:{label:'sidearm',damage:30,rof:1.6,range:55,falloffStart:28,accuracy:.64,suppressive:false,magazine:8,reloadTime:2.0}
+    rifle:{label:'M1-pattern rifle',damage:55,power:1,rof:.95,range:140,falloffStart:85,accuracy:.80,suppressive:false,magazine:8,reloadTime:2.6},
+    carbine:{label:'carbine',damage:38,power:.62,rof:1.35,range:110,falloffStart:65,accuracy:.76,suppressive:false,magazine:15,reloadTime:2.25},
+    smg:{label:'submachine gun',damage:32,power:.55,rof:2.4,cyclic:10,burst:[3,5],burstPause:.75,burstClimb:.12,range:90,falloffStart:45,accuracy:.62,suppressive:false,magazine:30,reloadTime:2.6},
+    lmg:{label:'light machine gun',damage:55,power:1,rof:3.4,cyclic:10,burst:[4,7],burstPause:.95,burstClimb:.09,range:165,falloffStart:100,accuracy:.52,suppressive:true,magazine:250,reloadTime:6.5},
+    pistol:{label:'sidearm',damage:28,power:.5,rof:1.6,range:55,falloffStart:28,accuracy:.64,suppressive:false,magazine:8,reloadTime:2.0}
   };
+  /* The weapon each side actually issued for a kind. A profile inherits the kind's numbers (so the
+     practical ranges set in 10-effective-ranges.js apply to both) and overrides what differed.
+     Sources: FM 23-5/23-45/23-55 and the German Merkblatt/H.Dv. figures for cyclic rates, capacity
+     and feed; aimed rates are practical combat rates, not mechanical maximums.
+       M1 Garand    .30-06, 8-rd en-bloc clip, semi-auto, ~30-40 aimed rpm
+       Kar98k       7.92 mm, 5-rd stripper clip, bolt action, ~15-25 aimed rpm
+       Thompson     .45 ACP, 30-rd box, ~700 rpm (M1A1)
+       MP40         9 mm, 32-rd box, ~500-550 rpm
+       M1919A6      .30-06, 250-rd belt, ~450-500 rpm, bursts of 4-6
+       MG42         7.92 mm, 50/250-rd belt, ~1,200 rpm, bursts of 5-7 (climbs hard)
+       M1911A1      .45 ACP, 7 rds; P38 9 mm, 8 rds */
+  var PROFILES={
+    us:{
+      rifle:{model:'m1-garand',label:'M1 Garand',magazine:8,rof:.95,reloadTime:2.4},
+      smg:{model:'thompson',label:'Thompson M1A1',magazine:30,cyclic:11.7,burst:[3,5],burstClimb:.14,damage:34,power:.6},
+      lmg:{model:'m1919a6',label:'Browning M1919A6',magazine:250,cyclic:8,burst:[4,6],burstPause:.95,burstClimb:.07,reloadTime:7.5},
+      carbine:{model:'m1-carbine',label:'M1 Carbine',magazine:15},
+      pistol:{model:'m1911a1',label:'M1911A1',magazine:7,damage:30,power:.55}
+    },
+    ge:{
+      rifle:{model:'kar98k',label:'Karabiner 98k',magazine:5,rof:.5,reloadTime:3.2},
+      smg:{model:'mp40',label:'MP 40',magazine:32,cyclic:9.2,burst:[3,6],burstClimb:.08,damage:30,power:.5},
+      lmg:{model:'mg42',label:'MG 42',magazine:250,cyclic:20,burst:[5,8],burstPause:1.0,burstClimb:.12,reloadTime:6.0},
+      carbine:{label:'carbine'},
+      pistol:{model:'p38',label:'Walther P38',magazine:8,damage:28,power:.5}
+    }
+  };
+  function profileStats(kind,faction){
+    var base=STATS[kind]||STATS.rifle,over=PROFILES[faction]&&PROFILES[faction][kind];
+    if(!over)return base;
+    var stats=Object.create(base);for(var k in over)stats[k]=over[k];return stats;
+  }
+  /* Deal the side's own weapon to a soldier: its numbers and a full magazine. */
+  function issue(weapon,faction){
+    if(!weapon)return weapon;var stats=profileStats(weapon.kind,faction);
+    weapon.stats=stats;weapon.profile=stats.model||weapon.kind;weapon.magSize=stats.magazine||8;weapon.ammo=weapon.magSize;
+    return weapon;
+  }
   function attachWeapon(scene,socket,kind){var build=(BUILDERS[kind]||BUILDERS.rifle)(scene),stats=STATS[kind]||STATS.rifle;build.mesh.parent=socket;build.mesh.position.set(0,0,0);return{kind:kind,mesh:build.mesh,muzzleLocal:build.muzzle,stats:stats,socket:socket,magSize:stats.magazine||8,ammo:stats.magazine||8};}
-  root.BattleWeapons={STATS:STATS,attachWeapon:attachWeapon};
+  root.BattleWeapons={STATS:STATS,PROFILES:PROFILES,profileStats:profileStats,issue:issue,attachWeapon:attachWeapon};
 })(typeof window!=='undefined'?window:globalThis);
