@@ -864,6 +864,21 @@ function bind(soldier,scene,st,lib,faction){
     if(n.getTotalVertices&&n.getTotalVertices()>0){n.isPickable=false;n.alwaysSelectAsActiveMesh=true;meshes.push(n);}
   });
   holder.onDisposeObservable.add(function(){inst.skeletons.forEach(function(k){k.dispose();});});
+  /* Babylon's Skeleton.prepare copies every linked bone node into its bone each frame, which marks
+     the bones dirty and rebuilds and re-uploads all bone matrices even when nothing moved. Our bone
+     nodes only change when applyPose runs, so a soldier's skeletons prepare once per pose (poseSerial,
+     bumped by the render hook) and otherwise keep the matrices of the pose on screen: the animation
+     LOD's held soldiers (far, off-screen, static) cost no skeleton work. `lod.skeletons=false` or
+     `?animLod=0` prepares every frame as before; `prepare(true)` (a forced prepare) always runs. */
+  var fxRef={serial:1};
+  inst.skeletons.forEach(function(k){
+    k._fbxPrepared=0;
+    k.prepare=function(force){
+      if(!force&&LOD.on&&LOD.skeletons&&k._fbxPrepared===fxRef.serial)return;
+      k._fbxPrepared=fxRef.serial;
+      return BABYLON.Skeleton.prototype.prepare.apply(this,arguments);
+    };
+  });
 
   /* Retire the primitive body. The weapon socket leaves the chest first: it now follows the hand
      but stays parented to the soldier root, so it inherits neither model scale nor handedness. */
@@ -879,7 +894,7 @@ function bind(soldier,scene,st,lib,faction){
   var nodes=st.bones.map(function(name){var node=byName[name]||null;if(node&&!node.rotationQuaternion)node.rotationQuaternion=new Q();return node;});
   var fx={lib:lib,st:st,nodes:nodes,holder:holder,meshes:meshes,root:soldier.root,socket:socket,hand:hand,path:path,chain:path.map(function(){return new MX();}),spineAt:path.indexOf(byName[BONE.spine2]),
     pathL:pathL,chainL:pathL.map(function(){return new MX();}),spineAtL:pathL.indexOf(byName[BONE.spine2]),
-    weaponModel:null,twoHand:0,yawRate:0,lastYaw:null,turning:false,weaponKind:'rifle',
+    poseRef:fxRef,weaponModel:null,twoHand:0,yawRate:0,lastYaw:null,turning:false,weaponKind:'rifle',
     lower:{entries:[]},upper:{entries:[]},overlay:0,overlayTarget:0,stance:null,transition:null,sector:0,family:null,moving:false,
     vx:0,vz:0,speed:0,lastX:null,lastZ:null,aim:0,aimWanted:false,aimAt:null,spine:byName[BONE.spine2]||null,fireHold:0,fireShot:0,fireSeen:0,reloadShot:0,reloadSeen:0,reloadDuration:2.5,death:null};
   soldier._fbx=fx;
@@ -1387,7 +1402,7 @@ function handChain(path,chain,from){
    close-ups, never gameplay. `?animLod=0` poses every soldier every frame (the previous behaviour). */
 /* `clock` (ms) defaults to performance.now(); the full-fidelity benchmark's cadence mode swaps in a
    virtual frame clock so a slow software renderer is scheduled as a 60 FPS device would be. */
-var LOD={on:!(typeof location!=='undefined'&&/[?&]animLod=0\b/.test(location.search||'')),near:35,mid:100,midHz:30,farHz:10,offscreen:true,radius:1.6,clock:null};
+var LOD={on:!(typeof location!=='undefined'&&/[?&]animLod=0\b/.test(location.search||'')),near:35,mid:100,midHz:30,farHz:10,offscreen:true,radius:1.6,clock:null,skeletons:true};
 var lodVP=new MX(),lodPlanes=[0,1,2,3,4,5].map(function(){return new BABYLON.Plane(0,0,0,0);}),lodEye=new V3(),lodSeq=0;
 function lodCamera(scene){
   var cam=scene.activeCamera;if(!cam)return false;
@@ -1491,6 +1506,7 @@ function hookRender(scene,st){
       }
       if(on){var a=perfNow();applyPose(fx);poseSoldier(fx,perfNow()-a,scene);posed++;POSE.lod.posed++;}
       else applyPose(fx);
+      fx.poseRef.serial++; /* the bones moved: his skeletons prepare once this frame */
       if(lod)lodPosed(fx,now);
     }
     if(on)poseFrame(perfNow()-t0,posed);
