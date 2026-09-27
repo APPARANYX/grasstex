@@ -96,7 +96,16 @@ const pct = v => v == null ? '—' : (100 * v).toFixed(1) + '%';
       }
       return route.continue();
     });
-    const url = URL_ + (URL_.includes('?') ? '&' : '?') + 'seed=' + encodeURIComponent(SEED) + '&perfTimings=1';
+    let url = URL_ + (URL_.includes('?') ? '&' : '?') + 'seed=' + encodeURIComponent(SEED) + '&perfTimings=1';
+    // Playwright does not route the follow-up of a redirect, so resolve preview.php's redirect to the
+    // staged page here; the isolation headers are then added to the page that actually runs.
+    for (let hop = 0; hop < 5; hop++) {
+      const res = await page.request.fetch(url, { maxRedirects: 0, timeout: 300000 }).catch(() => null);
+      const loc = res && res.status() >= 300 && res.status() < 400 && res.headers().location;
+      if (!loc) break;
+      url = new URL(loc, url).href;
+      if (!/[?&]perfTimings=/.test(url)) url += (url.includes('?') ? '&' : '?') + 'perfTimings=1';
+    }
     await page.goto(url, { waitUntil: 'load', timeout: 300000 });
     await page.waitForFunction(() => window.__battle__ && window.BattleLoading && BattleLoading.timings && BattleLoading.timings().finishedAt != null,
       null, { timeout: 300000, polling: 250 });
