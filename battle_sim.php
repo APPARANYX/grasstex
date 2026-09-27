@@ -6,7 +6,7 @@
    explicitly opts into diagnostic pinning with ?pin=1&ref=<ref>. This prevents stale ref
    query strings from freezing normal play on an old build. */
 
-$repo = 'Teethree89/grasstex';
+$repo = 'APPARANYX/grasstex';
 $pinRequested = isset($_GET['pin']) && $_GET['pin'] === '1';
 $requestedRef = ($pinRequested && isset($_GET['ref']) && $_GET['ref'] !== '') ? $_GET['ref'] : 'main';
 $root = dirname(__FILE__);
@@ -195,7 +195,29 @@ if (isset($state['modules_ref'], $state['modules']) && $state['modules_ref'] ===
         }
     }
 }
-if (!$moduleFiles) { $moduleFiles = $moduleFallback; $moduleSource = 'fallback'; }
+if (!$moduleFiles) {
+    /* GitHub can be unavailable while the deployed runtime is perfectly healthy. Prefer the
+       deployed module directory over the tiny emergency list so an API hiccup cannot silently
+       boot a partial ruleset. The deploy owns battle/modules/*.js and prunes retired modules. */
+    $localModuleDir = $root . '/battle/modules';
+    $localFound = array();
+    if (is_dir($localModuleDir) && is_readable($localModuleDir)) {
+        $localEntries = @scandir($localModuleDir);
+        if (is_array($localEntries)) {
+            foreach ($localEntries as $name) {
+                if (!preg_match('/^[0-9A-Za-z._-]+\\.js$/', $name)) continue;
+                if (!is_file($localModuleDir . '/' . $name)) continue;
+                $localFound[] = $name;
+            }
+        }
+    }
+    if (count($localFound)) {
+        sort($localFound, SORT_STRING);
+        $moduleFiles = $localFound;
+        $moduleSource = 'local';
+    }
+}
+if (!$moduleFiles) { $moduleFiles = $moduleFallback; $moduleSource = 'emergency'; }
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
