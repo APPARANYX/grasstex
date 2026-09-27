@@ -137,7 +137,10 @@ async function boot(browser, errors) {
             cam = b.scene.activeCamera;
           let p, n, far;
           if (kind === 'wound' || kind === 'exit') {
-            const e = fx.body.filter(x => !!x.exit === (kind === 'exit') && !x.mesh.isDisposed()).slice(-1)[0];
+            /* The newest on a man still up: on the dead the decal has turned with the fall and its
+               normal often points into the ground. */
+            const pool = fx.body.filter(x => !!x.exit === (kind === 'exit') && !x.mesh.isDisposed()),
+              e = pool.filter(x => x.soldier && !x.soldier.dead).slice(-1)[0] || pool.slice(-1)[0];
             if (!e) return null;
             const m = e.mesh.getWorldMatrix().m;
             p = e.mesh.getAbsolutePosition();
@@ -153,11 +156,10 @@ async function boot(browser, errors) {
           const l = Math.hypot(n.x, n.y, n.z) || 1,
             P = new BABYLON.Vector3(p.x, p.y, p.z);
           /* Along the normal, lifted a little so a ground decal is seen from above at an angle. */
-          cam.position = new BABYLON.Vector3(
-            p.x + (n.x / l) * far + 0.25 * far,
-            p.y + (n.y / l) * far + 0.3 * far,
-            p.z + (n.z / l) * far
-          );
+          const cx = p.x + (n.x / l) * far + 0.25 * far,
+            cz = p.z + (n.z / l) * far;
+          /* Never below the ground (a fallen man's decal can face down). */
+          cam.position = new BABYLON.Vector3(cx, Math.max(p.y + (n.y / l) * far + 0.3 * far, b.heightAt(cx, cz) + 0.35), cz);
           cam.minZ = 0.02;
           if (cam.setTarget) cam.setTarget(P);
           return { x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2) };
