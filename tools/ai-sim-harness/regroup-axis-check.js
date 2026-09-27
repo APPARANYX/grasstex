@@ -78,4 +78,15 @@ test('a regroup whose only scattered man is behind ends on cohesion, not on the 
     assert.equal(end.endReason,'cohesion restored','heading '+h.toFixed(2)+': ended on "'+end.endReason+'"');
   }
 });
+test('with no regroup lease, the remembered formation frame still orients the assessment',()=>{
+  /* A collapsed objective axis outside a regroup falls back to `_formationForward` when it exists. */
+  const {r}=root(),b=H.makeBattle(r),q=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:100,z:0}});
+  q.commandPhase='regroup';q.orderAnchor={x:0,z:0};q.rally={x:0,z:0};q.objective={x:0,z:0};q._formationForward={x:1,z:0};
+  q.members.forEach((s,i)=>{s.root.position.x=(i-4)*.6;s.root.position.z=(i%2)*.5;});
+  const behind=q.members[8],ahead=q.members[9];behind.root.position.x=-75;ahead.root.position.x=75;
+  const ca=r.BattleRegroupHysteresis.assessment(q,LIMIT);
+  assert.ok(ca.stragglers.includes(String(behind.id))&&!ca.outrunners.includes(String(behind.id)),'the man behind is a straggler');
+  assert.ok(ca.outrunners.includes(String(ahead.id)),'the man ahead is an outrunner');
+  assert.equal(ca.dispersed,true);
+});
 console.log('PASS '+n+' regroup axis checks');
