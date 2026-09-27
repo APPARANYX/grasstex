@@ -24,7 +24,8 @@ var ROLE={
   sergeant:{visionRange:450,engageRange:150},
   rifleman:{visionRange:500,engageRange:450},
   gunner:{visionRange:525,engageRange:500},
-  scout:{visionRange:575,engageRange:250}
+  /* The scout's reach is his weapon's: M1 Carbine 250 m, FG 42 450 m (SquadAI.engageRange). */
+  scout:{visionRange:575,engageRange:450}
 };
 
 Object.keys(EFFECTIVE).forEach(function(kind){

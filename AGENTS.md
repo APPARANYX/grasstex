@@ -63,7 +63,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `map-pipeline-check.js` | Scenario regeneration publishes the same geometry as a page load (benchmarks once ran 10-70x slow on 4x the hedges) |
 | `sight-query-check.js` | Pruned geometry queries answer exactly as unpruned: `sightBlocked` (crossed cells, first hit) vs nearest-hit `sightBlocker`, and `movementClear` with vs without wall bounding boxes, on real scenarios |
 | `impact-fx-check.js` | Impact materials, hole kind per surface, decals on terrain/wall face, wound decals on the hit bone, exit spray, sheet-cell UVs, FX budgets, restart cleanup (render stub) |
-| `weapon-wound-check.js` | Side-specific weapons (Garand/Kar98k, M1919A6/MG42, Thompson/MP40), bursts at the cyclic rate, sustained rates, a burst stops when the belt runs dry, hit zones from the ray, head/chest/leg/arm wound outcomes, bleed-out, drop odds per zone and cartridge, a rifle round through one man into the next (less energy, deflected) and a pistol round stopping |
+| `weapon-wound-check.js` | Side-specific weapons (Garand/Kar98k, M1919A6/MG42, Thompson/MP40, M1 Carbine/FG42 with the scout's reach following his weapon), bursts at the cyclic rate, the FG42 automatic only inside `autoWithin`, sustained rates, a burst stops when the belt runs dry, hit zones from the ray, head/chest/leg/arm wound outcomes, bleed-out, drop odds per zone and cartridge, a rifle round through one man into the next (less energy, deflected) and a pistol round stopping |
 | `world-debug-check.js` | World Debug overlay UI handlers (DOM stub) |
 | `extension-order-check.js` | No module replaces `SquadAI.tryFire`/`areaFire`/`updateSoldier`/`updateSquad` or `BattleEngagement.updateSoldier`; the declared fire order (ammunition → ballistics range → trigger-time LOS) holds; undeclared extensions throw |
 | `lease-check.js` | `BattleLeases` primitive, tactical-plan and regroup lease lifecycles, regroup re-forms on the rally point |
@@ -284,8 +284,12 @@ shows them live. Don't add a new `...Until` field for a hold. Deliberately not l
 record), the garrison request (a standing constraint), and execution timing inside one owner.
 
 **Weapons and wounds.** `BattleWeapons.STATS` holds each kind's numbers and `PROFILES` each side's
-weapon for it (Garand/Kar98k, M1919A6/MG42, Thompson/MP40, M1911A1/P38); `SquadAI.createSoldier`
-issues it (`weapon.profile`, `magSize`). `rof` is the aimed rate of a semi-auto or bolt action; an
+weapon for it (Garand/Kar98k, M1919A6/MG42, Thompson/MP40, M1 Carbine/FG42, M1911A1/P38);
+`SquadAI.createSoldier` issues it (`weapon.profile`, `magSize`, and `carried` where the load differs
+from the kind's). A man opens aimed fire out to `SquadAI.engageRange(s)`: his role's range capped by
+his weapon's, so the US scout stops at the carbine's 250 m and the German scout reaches 450 m with the
+FG42's rifle cartridge. A selective-fire weapon (`autoWithin`, the FG42: 50 m) bursts only inside
+that distance and fires single aimed rounds beyond it. `rof` is the aimed rate of a semi-auto or bolt action; an
 automatic has `cyclic` (rounds/s), `burst` [min, max], `burstPause` and `burstClimb`. One trigger pull
 fires the whole burst on one AI tick (0.15 s, slower than an MG42 cycles); each round goes through
 `roundGate`, `shotModel(…, round, delay)` and `afterShot`, and `onFire(soldier, delay)` / the shot's
@@ -412,6 +416,8 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
 - Meeting engagements deliberately get no runtime engineer fortification (`engineerTick` exits early).
 - **Sergeant weapons.** Squad leaders carry the `smg` kind: US Thompson, GE MP40 (`WEAPON_MODELS`).
   Their grips use the generic `WEAPON_POINTS`; set per-model sidecars in the Motion Lab.
+- **Snipers (pending).** Scoped rifles (M1903A4, Kar98k with ZF39) are a separate role, not the
+  scouts; they need weapon models and their own aiming rules.
 - **Secondary weapons (pending).** A soldier carries a sidearm only where it was historically
   issued. In a German squad the MG gunner (Schütze 1, P38/P08) did. In the US squad the M1919 gunner
   (M1911A1) did, and so did paratroopers more widely. Riflemen generally didn't. It needs a
@@ -453,8 +459,8 @@ never decides tactics, ammo, hits or paths.
   for its **Show all animation clips** toggle (off: only in-game clips; on: all, in-game marked ●).
   Bone names are canonicalised at load, so `mixamorig:` and older rigs bind the same clips.
 - Weapons (`WEAPON_MODELS`, dealt per role, a list in turn): rifle Garand / Kar98k, LMG M1919A6 /
-  MG42 (folded-bipod carry variants), scouts M1 Carbine + Thompson / FG42 + MP40, sergeants
-  M1911A1 / P38. Babylon is pinned to `babylonjs@9.27.1`.
+  MG42 (folded-bipod carry variants), scouts M1 Carbine / FG42, sergeants Thompson / MP40
+  (the M1911A1 / P38 models are for the pending sidearm slot). Babylon is pinned to `babylonjs@9.27.1`.
 - **Weapon seats and sidecars.** Hand contacts and weapon points default to `SOLDIER_CONTACTS`,
   `WEAPON_POINTS` and `WEAPON_MODEL_POINTS`. A per-model sidecar `Assets/soldiers/<model>.fbx.json`
   (contacts, one slot per weapon: grip / fore-near / fore-far, pistol arm and wrist dials) overrides

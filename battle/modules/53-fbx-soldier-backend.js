@@ -39,13 +39,13 @@ var MODEL_SET=(typeof location!=='undefined'&&/[?&]soldiers=rifleman\b/.test(loc
 var MODELS=MODEL_SETS[MODEL_SET];
 /* Faction weapons (Assets/weapons, prepared by tools/prepare-weapon-model.py) replace the box
    weapons per role: riflemen get the faction rifle, gunners the faction machine gun (M1919A6 /
-   MG42, bipods folded for carrying), sergeants the faction pistol. A list is dealt out in turn, so
-   a squad's two scouts carry one of each: M1 Carbine and Thompson, FG42 and MP40. The prepared
+   MG42, bipods folded for carrying), sergeants the faction SMG (Thompson / MP40), scouts the M1
+   Carbine / FG42 that their numbers describe (BattleWeapons.PROFILES). A list is dealt out in turn. The prepared
    layout puts the butt plate WEAPON_BUTT metres behind the grip origin (pistols: the back of the
    frame, PISTOL_BUTT), barrel along +Z, so the hand calibration holds. */
 var WEAPON_MODELS={
-  us:{rifle:'m1-garand.fbx',carbine:['m1-carbine.fbx','thompson.fbx'],smg:'thompson.fbx',lmg:'m1919a6.fbx',pistol:'m1911a1.fbx'},
-  ge:{rifle:'kar98k.fbx',carbine:['fg42.fbx','mp40.fbx'],smg:'mp40.fbx',lmg:'mg42.fbx',pistol:'p38.fbx'}
+  us:{rifle:'m1-garand.fbx',carbine:'m1-carbine.fbx',smg:'thompson.fbx',lmg:'m1919a6.fbx',pistol:'m1911a1.fbx'},
+  ge:{rifle:'kar98k.fbx',carbine:'fg42.fbx',smg:'mp40.fbx',lmg:'mg42.fbx',pistol:'p38.fbx'}
 },WEAPON_BUTT=.40,PISTOL_BUTT=.06;
 function weaponFiles(f,kind){var v=WEAPON_MODELS[f]&&WEAPON_MODELS[f][kind];return v?[].concat(v):[];}
 /* Machine guns also come with the bipod deployed; that copy replaces the folded one while the gunner

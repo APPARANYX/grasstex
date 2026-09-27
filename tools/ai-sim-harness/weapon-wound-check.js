@@ -35,6 +35,7 @@ function setup(opts) {
   const r = H.bootstrap();
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
   if (opts.ammo) load(r, 'battle/modules/46-ammunition-stoppages.js');
+  if (opts.ranges) load(r, 'battle/modules/10-effective-ranges.js');
   /* Every round misses: cadence is about the trigger, not the dice. */
   if (opts.miss) r.SquadAI.extend('shotModel', 'ballistics', () => false);
   const b = H.makeBattle(r, { seed: opts.seed || 99 });
@@ -81,8 +82,13 @@ test('an automatic trigger pull is a burst at the cyclic rate', () => {
   r.SquadAI.tryFire(mg, b);
   const burst = fired.filter(f => f.id === mg.id);
   assert.ok(burst.length >= st.burst[0] && burst.length <= st.burst[1], 'burst of ' + burst.length);
-  burst.forEach((f, i) => assert.ok(Math.abs(f.delay - i / st.cyclic) < 1e-9, 'round ' + i + ' at the cyclic rate'));
-  assert.ok(mg.fireCooldown >= burst.length / st.cyclic + st.burstPause * 0.85 - 1e-9, 're-lay pause follows the burst');
+  burst.forEach((f, i) =>
+    assert.ok(Math.abs(f.delay - i / st.cyclic) < 1e-9, 'round ' + i + ' at the cyclic rate')
+  );
+  assert.ok(
+    mg.fireCooldown >= burst.length / st.cyclic + st.burstPause * 0.85 - 1e-9,
+    're-lay pause follows the burst'
+  );
 });
 
 test('sustained rates follow each weapon: MG42 > M1919A6, Garand > Kar98k', () => {
@@ -118,6 +124,68 @@ test('a burst stops when the belt runs dry and the gun reloads', () => {
   assert.equal(r.SquadAI.tryFire(mg, b), true);
   assert.equal(fired.filter(f => f.id === mg.id).length, 2, 'only the rounds left in the belt');
   assert.equal(mg.reloading, true);
+});
+
+test('scouts: US M1 Carbine, GE FG 42 on the full-power round with the rifle reach', () => {
+  const { r, us, ge } = setup({ ranges: true });
+  const carbine = role(us, 'scout'),
+    fg = role(ge, 'scout');
+  assert.equal(carbine.weapon.profile, 'm1-carbine');
+  assert.equal(fg.weapon.profile, 'fg42');
+  assert.equal(fg.weapon.magSize, 20, 'FG 42: 20-round box');
+  assert.equal(fg.weapon.stats.power, role(ge, 'rifleman').weapon.stats.power, 'the Kar98k cartridge');
+  assert.equal(carbine.weapon.stats.range, 250, 'M1 Carbine ~180-270 m');
+  assert.equal(
+    fg.weapon.stats.range,
+    role(ge, 'rifleman').weapon.stats.range,
+    'FG 42 reaches as far as the Kar98k'
+  );
+  /* One role, two reaches: the weapon caps the doctrine range, and nobody else's range moves. */
+  assert.equal(r.SquadAI.engageRange(carbine), 250);
+  assert.equal(r.SquadAI.engageRange(fg), 450);
+  ['sergeant', 'rifleman', 'gunner'].forEach(rl =>
+    assert.equal(r.SquadAI.engageRange(role(us, rl)), r.SquadAI.ROLES[rl].engageRange, rl)
+  );
+});
+
+test('the FG 42 fires bursts up close and single aimed rounds at range', () => {
+  const { r, b, ge, us, fired } = setup({ miss: true });
+  const fg = role(ge, 'scout'),
+    st = fg.weapon.stats,
+    near = role(us, 'rifleman');
+  fg.fireCooldown = 0;
+  near.root.position.z = fg.root.position.z - 40; // inside autoWithin
+  fg.target = near;
+  r.SquadAI.tryFire(fg, b);
+  const burst = fired.filter(f => f.id === fg.id);
+  assert.ok(
+    burst.length >= st.burst[0] && burst.length <= st.burst[1],
+    'burst of ' + burst.length + ' at 40 m'
+  );
+  burst.forEach((f, i) =>
+    assert.ok(Math.abs(f.delay - i / st.cyclic) < 1e-9, 'round ' + i + ' at the cyclic rate')
+  );
+  fired.length = 0;
+  near.root.position.z = fg.root.position.z - 250; // well past autoWithin
+  fg.fireCooldown = 0;
+  r.SquadAI.tryFire(fg, b);
+  assert.equal(fired.filter(f => f.id === fg.id).length, 1, 'one aimed round at 250 m');
+  assert.ok(fg.fireCooldown >= (1 / st.rof) * 0.85 - 1e-9, 'at the aimed rate');
+  /* Sustained at range: semi-automatic, about the Garand's aimed rate, well under a burst weapon's. */
+  fired.length = 0;
+  hold(r, b, fg, near, 60);
+  const rate = fired.filter(f => f.id === fg.id).length / 60;
+  assert.ok(rate > 0.6 && rate < 1.1, 'FG 42 at range ' + rate.toFixed(2) + ' aimed rds/s');
+});
+
+test('the FG 42 carries eight magazines, not the carbine load', () => {
+  const { r, b, ge, us } = setup({ ammo: true });
+  const fg = role(ge, 'scout'),
+    carbine = role(us, 'scout');
+  r.BattleAmmunition.initialize(fg, b);
+  r.BattleAmmunition.initialize(carbine, b);
+  assert.equal(fg.weapon.ammo + fg.weapon.reserveAmmo, 160);
+  assert.equal(carbine.weapon.ammo + carbine.weapon.reserveAmmo, 75);
 });
 
 test('hit zones come from where the ray met the body', () => {
@@ -197,7 +265,10 @@ test('drop odds match the zone table and scale with the cartridge', () => {
   assert.ok(chest >= Z.chest.drop - 0.04 && chest <= Z.chest.drop + 0.12, 'rifle chest ' + chest.toFixed(2));
   assert.ok(rate('head') > 0.95, 'head');
   const smgChest = rate('chest', 'sergeant');
-  assert.ok(smgChest < chest - 0.08, 'a pistol-calibre SMG drops fewer men with a chest hit: ' + smgChest.toFixed(2));
+  assert.ok(
+    smgChest < chest - 0.08,
+    'a pistol-calibre SMG drops fewer men with a chest hit: ' + smgChest.toFixed(2)
+  );
 });
 test('a full-power round can go through one man and hit the man behind him', () => {
   const r = H.bootstrap();

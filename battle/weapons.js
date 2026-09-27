@@ -36,7 +36,13 @@
        MP40         9 mm, 32-rd box, ~500-550 rpm
        M1919A6      .30-06, 250-rd belt, ~450-500 rpm, bursts of 4-6
        MG42         7.92 mm, 50/250-rd belt, ~1,200 rpm, bursts of 5-7 (climbs hard)
-       M1911A1      .45 ACP, 7 rds; P38 9 mm, 8 rds */
+       M1911A1      .45 ACP, 7 rds; P38 9 mm, 8 rds
+       M1 Carbine   .30 Carbine, 15-rd box, semi-auto; practical range ~180-270 m
+       FG 42        7.92 mm (the rifle cartridge), 20-rd box, ~750 rpm; ~600 m maximum effective,
+                    used at 100-400 m on semi-auto, since its recoil made automatic fire at range
+                    wasted rounds. `autoWithin` is the distance inside which a trigger pull is a burst;
+                    beyond it the weapon fires single aimed rounds at `rof`. `carried` overrides the
+                    kind's combat load (46-ammunition-stoppages). */
   var PROFILES={
     us:{
       rifle:{model:'m1-garand',label:'M1 Garand',magazine:8,rof:.95,reloadTime:2.4},
@@ -49,7 +55,8 @@
       rifle:{model:'kar98k',label:'Karabiner 98k',magazine:5,rof:.5,reloadTime:3.2},
       smg:{model:'mp40',label:'MP 40',magazine:32,cyclic:9.2,burst:[3,6],burstClimb:.08,damage:30,power:.5},
       lmg:{model:'mg42',label:'MG 42',magazine:250,cyclic:20,burst:[5,8],burstPause:1.0,burstClimb:.12,reloadTime:6.0},
-      carbine:{label:'carbine'},
+      carbine:{model:'fg42',label:'FG 42',damage:55,power:1,magazine:20,carried:160,rof:.9,cyclic:12.5,burst:[3,5],burstPause:.9,burstClimb:.2,autoWithin:50,
+        range:450,falloffStart:300,accuracy:.78,combatSigmaAt100:.11,rangeDispersion:.45,reloadTime:2.6},
       pistol:{model:'p38',label:'Walther P38',magazine:8,damage:28,power:.5}
     }
   };
