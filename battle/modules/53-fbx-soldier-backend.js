@@ -758,7 +758,7 @@ function update(soldier,state,dt){
   var dyaw=Math.atan2(Math.sin(yaw-fx.lastYaw),Math.cos(yaw-fx.lastYaw));fx.lastYaw=yaw;
   fx.yawRate+=((dt>0?dyaw/dt:0)-fx.yawRate)*k;
   var turning=!moving&&Math.abs(fx.yawRate)>(fx.turning?.35:.6);fx.turning=turning;
-  var pistol=fx.weaponKind==='pistol',clip,rate=1;
+  var pistol=fx.weaponKind==='pistol',automatic=!!(soldier.weapon&&soldier.weapon.stats&&soldier.weapon.stats.cyclic),clip,rate=1;
   if(turning){
     /* Positive yaw turns toward +X, i.e. to the soldier's right. */
     var side=fx.yawRate>0?'Right':'Left',key=stance==='prone'?'proneTurn'+side:(stance==='crouch'?'crouchTurn'+side:'turn'+side);
@@ -785,7 +785,7 @@ function update(soldier,state,dt){
 
   var over=null,orate=1,restart=false;
   fx.fireHold=Math.max(0,fx.fireHold-dt);fx.hitHold=Math.max(0,(fx.hitHold||0)-dt);
-  if(fx.fireShot!==fx.fireSeen){fx.fireSeen=fx.fireShot;fx.fireHold=.9;restart=fx.weaponKind!=='lmg'&&fx.weaponKind!=='smg'&&!pistol;}
+  if(fx.fireShot!==fx.fireSeen){fx.fireSeen=fx.fireShot;fx.fireHold=.9;restart=!automatic&&!pistol;}
   if(fx.reloadShot!==fx.reloadSeen){fx.reloadSeen=fx.reloadShot;restart=true;}
   var hitKey=stance==='prone'?'hitProne':(stance==='crouch'?'hitCrouch':(pistol?'pistolHit':(fx.speed>2.4?'hitRun':'hit')));
   var HIT_RATE={hit:1,hitCrouch:1.6,hitProne:1.2,hitRun:1,pistolHit:2.2};
@@ -805,7 +805,7 @@ function update(soldier,state,dt){
     over=stance==='prone'?'reloadProne':(stance==='crouch'?'reloadCrouch':'reload');
     orate=clips[over].duration/Math.max(.5,fx.reloadDuration);
   }else if(fx.fireHold>0){
-    var auto=fx.weaponKind==='lmg'||fx.weaponKind==='smg';
+    var auto=automatic;
     if(pistol&&stance!=='prone'){over=stance==='crouch'?'pistolKneel':'pistolIdle';restart=false;}
     else{over=stance==='prone'?(auto?'fireAutoProne':'fireProne'):(auto?'fireAuto':(stance==='crouch'?'fireCrouch':'fire'));orate=auto?1:1.3;}
   }else if(soldier.target&&stance!=='prone'){over=pistol?(stance==='crouch'?'pistolKneel':'pistolIdle'):(stance==='crouch'?'crouchAim':'aim');restart=false;}
