@@ -685,7 +685,9 @@ function topEntry(layer){return layer.entries[layer.entries.length-1]||null;}
 
 function play(tag,data,soldier){
   var fx=soldier&&soldier._fbx;if(!fx)return;
-  if(tag===TAGS.fire)fx.fireShot++;
+  /* Every round of one trigger pull arrives on the same AI tick; a round after the first (delay>0)
+     marks the pull as a burst, whatever the weapon kind (the FG 42 bursts only inside autoWithin). */
+  if(tag===TAGS.fire){fx.fireShot++;fx.fireBurst=+(data&&data.delay)>0;}
   else if(tag===TAGS.hit)fx.hitShot=(fx.hitShot||0)+1;
   else if(tag===TAGS.reload){fx.reloadShot++;fx.reloadDuration=+(data&&data.duration)||(soldier.weapon&&soldier.weapon.stats&&soldier.weapon.stats.reloadTime)||2.5;}
 }
@@ -785,7 +787,7 @@ function update(soldier,state,dt){
 
   var over=null,orate=1,restart=false;
   fx.fireHold=Math.max(0,fx.fireHold-dt);fx.hitHold=Math.max(0,(fx.hitHold||0)-dt);
-  if(fx.fireShot!==fx.fireSeen){fx.fireSeen=fx.fireShot;fx.fireHold=.9;restart=fx.weaponKind!=='lmg'&&fx.weaponKind!=='smg'&&!pistol;}
+  if(fx.fireShot!==fx.fireSeen){fx.fireSeen=fx.fireShot;fx.fireHold=.9;restart=!fx.fireBurst&&!pistol;}
   if(fx.reloadShot!==fx.reloadSeen){fx.reloadSeen=fx.reloadShot;restart=true;}
   var hitKey=stance==='prone'?'hitProne':(stance==='crouch'?'hitCrouch':(pistol?'pistolHit':(fx.speed>2.4?'hitRun':'hit')));
   var HIT_RATE={hit:1,hitCrouch:1.6,hitProne:1.2,hitRun:1,pistolHit:2.2};
@@ -805,7 +807,7 @@ function update(soldier,state,dt){
     over=stance==='prone'?'reloadProne':(stance==='crouch'?'reloadCrouch':'reload');
     orate=clips[over].duration/Math.max(.5,fx.reloadDuration);
   }else if(fx.fireHold>0){
-    var auto=fx.weaponKind==='lmg'||fx.weaponKind==='smg';
+    var auto=!!fx.fireBurst;
     if(pistol&&stance!=='prone'){over=stance==='crouch'?'pistolKneel':'pistolIdle';restart=false;}
     else{over=stance==='prone'?(auto?'fireAutoProne':'fireProne'):(auto?'fireAuto':(stance==='crouch'?'fireCrouch':'fire'));orate=auto?1:1.3;}
   }else if(soldier.target&&stance!=='prone'){over=pistol?(stance==='crouch'?'pistolKneel':'pistolIdle'):(stance==='crouch'?'crouchAim':'aim');restart=false;}

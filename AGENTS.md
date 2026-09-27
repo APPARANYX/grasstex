@@ -72,6 +72,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `extension-order-check.js` | No module replaces `SquadAI.tryFire`/`areaFire`/`updateSoldier`/`updateSquad` or `BattleEngagement.updateSoldier`; the declared fire order (ammunition → ballistics range → trigger-time LOS) holds; undeclared extensions throw |
 | `lease-check.js` | `BattleLeases` primitive, tactical-plan and regroup lease lifecycles, regroup re-forms on the rally point |
 | `reconstitution-check.js` | Retreated squads home and out of contact reaching 10 survivors group (fewest squads; none planned en route), march to the rally point, merge under one leader (promotion never picks the gunner), get re-tasked; below-strength groups dissolve; Macro OFF does nothing |
+| `regroup-axis-check.js` | A man behind the regroup anchor is a trimmable straggler, never an outrunner (the regroup keeps the direction the squad was marching), men ahead or to the side still block, and a regroup whose only scattered man is behind ends on `cohesion restored`, not on the clock; swept over march directions (main fails it) |
 | `succession-check.js` | A killed leader is replaced by the most senior survivor after the 6 s `succession` lease, never more than one leader, the gunner only as the last man, successors replaced in turn, no lease on a led or wiped-out squad, seniority order |
 | `perception-check.js` | View cones (120° focus at full range, ±100° periphery shorter, behind only within 10 m), head turn toward the squad's known threat, contact relayed to a friendly squad within 50 m (first-hand only, keeps its age), enemy gunfire heard within 120 m with a distance-scaled position error, own sightings outrank both, no combat-RNG draws |
 | `voice-determinism-check.js` | Voice callouts never draw from the combat RNG: a battle is identical with and without voice |
@@ -156,7 +157,7 @@ In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certif
 | `scripts/preview_decal_sheets.cjs` | Contact sheet of `Assets/effects/decals/*.png` over surface-like backgrounds with the 4 x 4 grid and row names; check a regenerated or painted sheet before it ships. No server. `DECAL_PREVIEW_OUT`. |
 | `scripts/probe_pistol_cup.cjs` | Motion Lab pistol support cup at a fixed 60 Hz: cup gap (cm), degrees the left arm is bent off the clip, and hand jerk (deg/frame², solved vs the clip's own) per clip. `CUP_SIDECAR=<model>.fbx.json` (a server sidecar; they are never committed), `CUP_CLIPS`, `CUP_SERIES=1`. |
 | `scripts/probe_gait_clips.cjs` | Which FBX locomotion family (walk/run/sprint/crouch/crouchRun) each sim gait actually plays, at what rate, plus each model's natural clip speeds (in-place clips: foot stride). `GAIT_URL` (default production), `GAIT_SEED`, `GAIT_SECONDS`, `GAIT_OUT`. |
-| `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on), `fire-gates` (per role: trigger pulls, target distance bands, and the first fire condition that fails while a man holds a target). |
+| `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on), `fire-gates` (per role: trigger pulls, target distance bands, and the first fire condition that fails while a man holds a target), `backward-orders` (new destinations behind the man's fireteam line or behind the man himself while the squad advances, by producer and phase), `stance-churn` (shown stance changes per man-minute by writing file, A→B→A bounces under 1 s, trigger pulls within `AIM_SETTLE` of a change, prone spells shorter than `PRONE_HOLD`), `regroup-axis` (regroup ticks whose forward axis collapsed, and men behind the anchor scored as outrunners). |
 
 **Preview launcher:** `python3 scripts/check-preview-launcher.py` runs offline with PHP/cURL and a concurrent local HTTP fixture. Checks runtime reuse, the rolling download queue, integrity failures and publication. `preview.json` records `runtimeReused` and `runtimeDownloaded`; only changed runtime files download, with matching copies taken from production or earlier launcher previews.
 
@@ -398,8 +399,19 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
     mission execution (`_missionHold`) and without a clock a brief issued during one would never
     be picked up. Removing the clock there also exposed a squad pinned in a regroup for 510 s: the
     straggler/outrunner axis came from `sq.objective`, which the regroup overwrites with its own
-    anchor. `main` falls back to `_formationForward` in that case; add a check that a man behind
-    the anchor is never scored as an outrunner before removing the expiry. Benchmark it paired.
+    anchor. The `_formationForward` fallback almost never existed (SquadAI sets it only for men with
+    no order destination): the `regroup-axis` probe found the axis collapsed on every regroup tick
+    and a man behind the anchor scored as an outrunner on 60-75% of them. Fixed (2026-09-27): the
+    regroup lease records the direction the squad was marching when it opened (`data.forward`) and
+    `commandForward` uses it; `regroup-axis-check.js` guards it. Same probe after the fix (standard
+    s1 seeds, 600 s): regroup samples scoring a man behind as an outrunner 89/121 → 13/61 meeting,
+    91/145 → 7/64 US-defend, and half as many regroup ticks. GitHub standard benchmark, main run 23
+    vs branch run 22 (PR #61, same seeds): regroup timeouts 124/9/16 → 58/1/12 (meeting/US-defend/
+    GE-defend), movement stalls 45 → 34, wins within noise (meeting US 23 → 26 of 60, p=0.71;
+    US-defend 16 → 14, GE-defend 1 → 2), captures 4.93/0.75/0.45 → 4.80/1.05/0.65, median wall
+    10.9-13.4 → 12.0-12.9 s. Writer ping-pong on `sq.rally` (squad-orders vs the Squad Leader's
+    regroup) rose 38 → 74 events per 100 battles: two writers of `rally` is the next thing to fix
+    before removing the expiry. Then remove the expiry and benchmark that paired too.
 - Window crowding (closed 2026-09-25): bodies at firing stations don't stack. A probe on 6 full standard
   seeds found 1 sample in ~20k occupied-station samples with two men on one station, and a non-holder
   on a held window in one battle only. The old "claim collisions 23 → 3,838" swing was `select()`
@@ -431,9 +443,10 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   100 seeds): no measurable outcome effect. Wins US/GE 31/29 → 33/27 meeting (Fisher p=0.85), 18/2 →
   20/0 US-defend and 0/20 → 2/18 GE-defend (p=0.49), captures 2.99 → 2.92, mean longest no-progress
   283 → 277 s, meeting spread 2.33 → 2.46 objectives per side, same winner on 88/100 seeds. Open:
-  the benchmark doesn't export `stallOutcomes`, so the post-merge repeat rate is unmeasured. Add it
-  to the benchmark export, find what the remaining repeats are (no other objective left, or
-  `stallCost` too low against distance), and only claim a win effect from a 300-battle run.
+  the benchmark now exports `stallOutcomes` per battle and a "Stall repeats/wakes" column per type;
+  read the post-merge repeat rate from the next standard run, find what the remaining repeats are
+  (`stall-wakes` probe: no other objective left, or `stallCost` too low against distance), and only
+  claim a win effect from a 300-battle run.
 - Hot path: `sightBlocked` and navigation replans were ~half a battle's wall time; exact pruning
   (crossed-cell first-hit LOS, wall bounding boxes, lazy `planLocal` edges) halved it. Standard
   benchmark median wall time per battle 29.1 → 13.5 s (meeting 29.1 → 13.2, US-defend 31.3 → 16.3,
@@ -461,9 +474,9 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   the scout change without perception (and the reverse) before tuning. Levers, smallest first: German
   scouts on the Kar98k (the regular infantry issue; the FG 42 was a Fallschirmjäger weapon, ~7,000
   made), a shorter FG 42 practical range, or a wider FG 42 group at range. Presentation gaps left for
-  the FG 42: it plays the carbine sound (audio is out of scope without an ask), and the FBX backend
-  restarts the fire clip each round of a burst because it treats only `lmg`/`smg` kinds as automatic
-  (`53-fbx-soldier-backend.js`, `weaponKind`); key those on the weapon's `cyclic` instead.
+  the FG 42: it plays the carbine sound (audio is out of scope without an ask). The FBX backend now
+  picks the burst fire clip from the trigger pull itself (a round with a burst `delay` marks it), so
+  FG 42 bursts no longer restart the clip each round and its single aimed rounds play the rifle clip.
 - **Perception follow-ups.** View cones cut sightings of an enemy behind the man from 6-13% of fresh
   acquisitions to <1% (`perception` probe, standard s1 seeds). Relay and hearing gave a squad its
   first contact once in 29 squads: sight (450-575 m) outruns hearing (120 m) in open battles. The
@@ -516,9 +529,13 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   producer that picks the point (Engagement cover, 44 urgency, 52 survival routes), so publish the
   line once (e.g. the fireteam's order anchor projected on the objective axis) and have each producer
   score or refuse points behind it, with an allowance (a few metres) for adjacent cover and none of it
-  in retreat or withdraw. Don't add the guard in the resolver. Measure first: a probe counting
-  destinations that go behind the line while the squad advances, by producer (the order-provenance
-  observers already tag writers).
+  in retreat or withdraw. Don't add the guard in the resolver. Measured with the `backward-orders`
+  probe (main, standard s1 seeds, meeting 300 s / GE-defend 240 s): 27%/29% of new destinations lie >3 m
+  behind the man's fireteam line, but almost all are men already behind it told to hold or react in
+  place (`engagement/hold`, `contact-reaction`). Destinations that are both behind the line and a
+  step back from the man are rare (11 of 1,819 in GE-defend: firing stations 6, cover bounds 4,
+  formation 1). Plain backward steps (119 / 68) are mostly `squad-stability/formation` slots. Sweep
+  more seeds before deciding a guard is worth it.
 - **Stance churn and firing mid-change (open).** Still seen: stand-crouch-stand loops, a man going
   prone to fire one round, standing, going prone again, and firing while changing stance. Engagement
   owns stance (`commitStance` holds it `STANCE_HOLD` 4 s / `PRONE_HOLD` 5.5 s and pushes
@@ -536,10 +553,15 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   standing only close or to fire over cover that a lower stance can't see past; commit to it until
   ordered to move, suppressed, or the cover at hand changes. Today `fightingStance` goes prone past
   `max(70, 0.55 × engageRange)` (247 m for a rifle now that range is the weapon's 450 m), only for
-  riflemen and gunners (`PRONE_ROLES`); scouts and leaders always crouch. Measure first with a probe:
-  stance changes per man-minute and per writer, rounds fired within `AIM_SETTLE` of a change, and
-  prone episodes shorter than `PRONE_HOLD`; `run.js` already asserts "no stance churn", so find why
-  it misses these (likely it runs without module 44 and without the reload hook).
+  riflemen and gunners (`PRONE_ROLES`); scouts and leaders always crouch. Measured with the
+  `stance-churn` probe (standard s1 meeting, 300 s): 4.4 shown stance changes per man-minute (3.2
+  committed by Engagement) and 436 A→B→A bounces under 1 s. `stepMovement` (`battle-sim.js`,
+  deriving `crouching`) makes 70% of shown changes, and nearly all bounces are Engagement setting
+  `tacticalCrouch` then `stepMovement` undoing it, or `stepMovement` against itself. The reload hook
+  flips `tacticalCrouch` 562 times and 44 184. Firing mid-change is rare (5 of 644 pulls); prone
+  spells shorter than `PRONE_HOLD` are common (88 of 188, all ended by Engagement). `run.js` misses
+  it because it reads Engagement's committed `eng.stance` on one man in a 30 s duel, without
+  module 44 or the reload hook.
 - **Snipers (pending).** Scoped rifles (M1903A4, Kar98k with ZF39) are a separate role, not the
   scouts; they need weapon models and their own aiming rules.
 - **Secondary weapons (pending).** A soldier carries a sidearm only where it was historically
