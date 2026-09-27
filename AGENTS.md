@@ -167,7 +167,8 @@ In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certif
 and shows FPS (median, mean, 5%/1% lows), frame/CPU/render/sim/pose time, draw calls, GPU time where
 the browser has a timer query, device and renderer, the load breakdown, and where `scene.render` goes
 (before/after-render hooks by name, Babylon animations, the camera pass split into active-mesh
-evaluation with `Skeleton.prepare` broken out, draw and the rest, and what is left unattributed); **Copy results** /
+evaluation with `Skeleton.prepare` broken out, draw and the rest, and what is left unattributed), and
+draw calls by kind (soldiers, weapons, building walls, hedges, terrain, objectives, decals, cover); **Copy results** /
 **Download JSON** (nothing is uploaded; also `window.__deviceBench`). `benchCam=close` frames the
 biggest group from 90 m, `benchAuto=1` starts without the tap, `animLod=0` gives the LOD before/after.
 This is how real devices are measured; `benchmark_full_fidelity.cjs` is the scripted equivalent.
@@ -731,7 +732,9 @@ never decides tactics, ammo, hits or paths.
   `renderListPredicate`) is held off-screen only when the ground his shadow falls on is out of view
   too; `scripts/probe_lod_shadows.cjs` proves it with positive and negative controls. Add soldier
   shadow casters through a ShadowGenerator and the LOD follows, with nothing to register. Clip clocks stay on sim
-  time. `?animLod=0` turns it off. Thresholds are tuned from close-ups, never tied to gameplay.
+  time. A held soldier's skeletons are not re-prepared either: Babylon's `Skeleton.prepare` would copy
+  every linked bone node and rebuild and re-upload the bone matrices each frame, so each soldier's
+  skeletons prepare once per pose (`lod.skeletons`). `?animLod=0` turns both off. Thresholds are tuned from close-ups, never tied to gameplay.
 - Wired beyond the basics: turn-in-place (standing, crouch, prone), death pools, hit reactions
   (`combat.hit`), idle variants and suppression flinches. Still unused: prone roll right (a left roll
   needs mirroring) and the kneel set. Jump clips need a nav vault edge.
