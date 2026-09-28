@@ -171,6 +171,17 @@
       battle.time + (seconds == null ? (stance === 'prone' ? PRONE_HOLD : STANCE_HOLD) : seconds);
     applyStance(s, stance);
   }
+  /* Another layer asking for a stance (a reload, a drill). Engagement is the only owner of
+     stance, so a request goes through the same commitment: it may only take a man lower
+     (stand -> crouch -> prone/crawl), never stand up a man Engagement put down, and it restarts
+     no hold on a stance he already has. */
+  var STANCE_HEIGHT = { prone: 0, crawl: 0, crouch: 1, stand: 2 };
+  function requestStance(s, battle, stance, seconds) {
+    var e = state(s);
+    if (STANCE_HEIGHT[stance] >= STANCE_HEIGHT[e.stance]) return false;
+    commitStance(s, battle, stance, seconds);
+    return true;
+  }
   function holdStance(s, battle) {
     var e = state(s);
     if (battle.time < e.stanceUntil) {
@@ -711,6 +722,7 @@
       e.since = battle.time;
       e.moveReason = why || next;
       if (next !== 'assault') e.assaultGoal = null;
+      e.urgentBound = false;
       if (why)
         telemetry(battle, 'decision-engagement', {
           soldier: s.id,
@@ -893,7 +905,10 @@
       enter(s, battle, 'orient', reactTime(s, battle), 'contact');
       return orient(s, battle);
     }
-    if (!holdStance(s, battle)) commitStance(s, battle, 'stand', 1.0);
+    /* Upright only on a quiet march: under fire, or while the squad is still in contact, he moves
+       crouched rather than standing for the beat between two contacts. */
+    var low = s.suppressedUntil > battle.time || !!(s.squad && s.squad.inContact);
+    if (!holdStance(s, battle)) commitStance(s, battle, low ? 'crouch' : 'stand', 1.0);
     followOrders(s, battle, false);
   }
 
@@ -1000,7 +1015,8 @@
       return engage(s, battle);
     }
     var suppressed = s.suppressedUntil > battle.time,
-      crawl = suppressed && d < 14 && PRONE_ROLES[s.role];
+      /* An urgent cover move (module 44's drill) is a crouched run, never a crawl. */
+      crawl = suppressed && d < 14 && PRONE_ROLES[s.role] && !e.urgentBound;
     commitStance(s, battle, crawl ? 'crawl' : 'crouch', Math.max(1, e.until - battle.time));
     move(s, battle, { x: cover.x, z: cover.z }, 'cover-bound');
   }
@@ -1132,7 +1148,7 @@
     s.state = 'retreat';
     s.setUp = false;
     e.cover = null;
-    commitStance(s, battle, 'stand', 0.5);
+    commitStance(s, battle, s.suppressedUntil > battle.time ? 'crouch' : 'stand', 0.5);
     followOrders(s, battle, true);
     if (s.target && dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z) < 35)
       tryFire(s, battle);
@@ -1364,6 +1380,7 @@
     facingError: facingError,
     fireAllowed: fireAllowed,
     commitStance: commitStance,
+    requestStance: requestStance,
     applyStance: applyStance,
     resetSoldier: resetSoldier,
     resetSquad: resetSquad,
