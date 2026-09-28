@@ -38,7 +38,8 @@ async function arm(browser, [width, height]) {
   await page.addStyleTag({ content: 'body *{visibility:hidden!important} canvas{visibility:visible!important}' });
   const res = await page.evaluate(async (WARMUP) => {
     const b = window.__battle__, scene = b.scene, engine = scene.getEngine(), C = window.BattleCommanderAI, F = window.BattleFbxSoldier, sb = document.getElementById('startBtn');
-    if (sb && !sb.hidden) sb.click();
+    // Start awaits the audio unlock and then resumes the battle, so let it finish before pausing.
+    if (sb && !sb.hidden) { sb.click(); for (let i = 0; i < 100 && !sb.hidden; i++) await new Promise(r => setTimeout(r, 50)); }
     engine.stopRenderLoop(); b.paused = false;
     let acc = 0;
     for (let t = 0; t < WARMUP && !b.winner; t += .15) { b.step(.15); acc += .15; while (C && acc >= C.commandTick) { acc -= C.commandTick; C.update(b, scene.metadata.battleScenario, C.commandTick); } }
