@@ -542,9 +542,54 @@
     flush(st);
     st.serial = 0;
   }
+  /* Warm-up (see 13-combat-fx-consistency.js): the decal sheets, every sheet cell and the particle
+     texture are built, and their shaders compiled (the thin-instanced variant too), when the battle is
+     set up rather than on the first hit. Presentation only; `?fxPrewarm=0` leaves them lazy. */
+  var FX_PREWARM = !(typeof location !== 'undefined' && /[?&]fxPrewarm=0\b/.test(location.search || ''));
+  function prewarm(sim) {
+    if (!FX_PREWARM || !sim || !sim.scene) return;
+    try {
+      var st = state(sim),
+        one = new Float32Array(B.Matrix.Identity().m);
+      texture(sim, st);
+      Object.keys(DECAL_SHEETS).forEach(function (sheet) {
+        var g = DECAL_SHEETS[sheet].grid,
+          first = null;
+        for (var r = 0; r < g[1]; r++)
+          for (var c = 0; c < g[0]; c++) {
+            var made = cell(sim, st, sheet, r, c);
+            if (!first) first = made;
+          }
+        var mat = sheetMaterial(sim, st, sheet);
+        if (!mat.forceCompilation || !first) return;
+        /* The wound quad (plain) and the world decal cell (thin-instanced) are two shader variants. */
+        var plain = quad(sim, 'decal-prewarm-' + sheet, cellUV(sheet, 0, 0));
+        plain.material = mat;
+        plain.setEnabled(false);
+        var drop = function () {
+          if (!plain.isDisposed()) plain.dispose();
+        };
+        mat.forceCompilation(plain, drop);
+        setTimeout(drop, 15000); /* never left behind if the sheet fails to load */
+        first.mesh.thinInstanceSetBuffer('matrix', one, 16, true);
+        mat.forceCompilation(first.mesh, function () {
+          if (!first.count) first.mesh.thinInstanceSetBuffer('matrix', null, 16, false);
+        });
+      });
+      if (B.ParticleSystem) {
+        var ps = new B.ParticleSystem('impact-prewarm', 1, sim.scene);
+        ps.particleTexture = st.texture;
+        if (ps.isReady) ps.isReady();
+        setTimeout(function () {
+          ps.dispose(false);
+        }, 2000);
+      }
+    } catch (_) {}
+  }
   function install(sim) {
     if (!sim || sim._impactFxInstalled) return sim;
     sim._impactFxInstalled = true;
+    prewarm(sim);
     var oldShot = sim.onShot,
       oldSuppressive = sim.onSuppressiveShot;
     sim.onShot = function (shooter, target, hit, d, shot) {
