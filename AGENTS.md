@@ -164,6 +164,7 @@ In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certif
 | `scripts/probe_weapon_instances.cjs` | Weapon instancing: draw calls with and without `?weaponInstances=0` over the armies, and inside the instanced page each weapon's world matrix and a close-up against a temporary clone on the same socket (same frame, so exact). `WI_URL`, `WI_SEED`, `WI_OUT`, `WI_MAXDIFF`. |
 | `scripts/probe_clip_pack.cjs` | Loads the page with `?clipPack=0` and as shipped, each in a fresh context: every converted and every model's retargeted clip must be bit-identical, and the shipped load must fetch no clip FBX. Reports the soldiers phase, FBX parse and clip bytes each way. `CLIPPACK_URL`, `CLIPPACK_OUT`. |
 | `scripts/probe_retarget.cjs` | Quaternion retarget vs `?fastRetarget=0` (matrix), each load in a fresh context: worst difference in every model's rotation and position samples, clip speeds and strides, and solved grips, plus retarget time each way. Fails above `RT_MAX_ROT`/`RT_MAX_POS` (1e-5). `RT_URL`. |
+| `scripts/probe_soldier_load.cjs` | Per URL, a fresh load: soldiers that wear their FBX model vs procedural, body build and bind time, and the load phases. `SL_FAIL=<asset path fragment>` aborts that request: the page must show its load error and build no procedural soldiers. `SL_URLS` (comma-separated, for a before/after), `SL_WAIT`. |
 | `scripts/probe_gait_clips.cjs` | Which FBX locomotion family (walk/run/sprint/crouch/crouchRun) each sim gait actually plays, at what rate, plus each model's natural clip speeds (in-place clips: foot stride). `GAIT_URL` (default production), `GAIT_SEED`, `GAIT_SECONDS`, `GAIT_OUT`. |
 | `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on), `fire-gates` (per role: trigger pulls, target distance bands, and the first fire condition that fails while a man holds a target), `backward-orders` (new destinations behind the man's fireteam line or behind the man himself while the squad advances, by producer and phase), `stance-churn` (shown stance changes per man-minute by writing file, A→B→A bounces under 1 s, trigger pulls within `AIM_SETTLE` of a change, prone spells shorter than `PRONE_HOLD`), `regroup-axis` (regroup ticks whose forward axis collapsed, and men behind the anchor scored as outrunners). |
 
@@ -462,11 +463,11 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
      load 5.4 s (soldiers 2.2 s, retarget 3.16 → 0.23 s); MacBook load 3.6 s. The largest item
      now is binding the 100 soldiers (13.8 ms each, 1.4 s of the 2.0 s navigation-and-squads
      phase on the iPhone), then the 10 model FBX (~1 s) and the far-LOD lists.
-     (a) Remove the 25 s imported-soldier timeout and the procedural *visual* fallback in normal
-     gameplay: `BattleSoldierModel.preload` races `loadLibrary` against a timer, and losing does
-     not cancel the load. Normal gameplay waits for its assets and shows a real failure; keep only
-     the renderer-free representations the trainer and headless harness use, and remove the
-     fallback with its callers, not as a broad purge.
+     (a) Done: the 25 s timeout and the procedural stand-in are gone from the game (see Soldiers);
+     each FBX soldier starts from a bare body instead of building and disposing a procedural one
+     (locally the navigation-and-squads phase 2.87 → 2.34 s). The trainer and headless benchmark
+     keep the procedural rig; making their body renderer-free changes what module 45 animates, so
+     it needs a paired benchmark.
      (b) Finish FBX-as-ingress for the 10 soldier models. The **runtime far mesh LOD is already
      implemented and shipped** (#74): each model gets a simplified triangle list and soldiers
      switch to it beyond the far threshold. What is still pending is moving deterministic startup
@@ -631,9 +632,13 @@ never decides tactics, ammo, hits or paths.
   and that drift becomes their natural ground speed. Playback rate is ground speed ÷ clip speed.
   The upper-body overlay (aim/fire/reload) sits on the lower locomotion layer. The weapon grip snaps
   to a right-palm anchor, the fore-end runs through the left palm, and aim uses a capped spine twist (≤40°).
-- Fallback: the procedural rig in `battle/soldier.js` is used while the FBX loads (25 s cap), and the
-  trainer and headless benchmark always use it (`setImportedEnabled(scene,false)`). Procedural soldiers
-  keep their `rig` object; FBX soldiers have `rig===null` and a `_fbx` binding.
+- No fallback in the game: the page waits for the FBX soldiers however long they take, and a failed
+  load shows the load error (`BattleSoldierModel.preload` rejects). Each soldier is a bare body
+  (`BattleSoldierModel.createBody`: root, pose root, weapon socket, no meshes) wearing his model,
+  with `rig===null` and a `_fbx` binding. The procedural rig in `battle/soldier.js` is only the body
+  the trainer and headless benchmark use (`setImportedEnabled(scene,false)`); those soldiers keep
+  their `rig` object. `scripts/probe_soldier_load.cjs` checks both the normal load and a blocked
+  asset.
 - **Animation LOD** (`53-fbx-soldier-backend.js`, `BattleFbxSoldier.lod`, presentation only): the
   render hook re-poses a soldier every frame within 35 m of the camera, at ~30 Hz within 100 m and
   ~10 Hz beyond (each on his own phase), never while he is outside the view frustum, and only once

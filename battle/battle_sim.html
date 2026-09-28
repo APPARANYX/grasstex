@@ -231,7 +231,8 @@ window.BattleLoading=(function(){
   loading.done('terrain');loading.start('soldiers');await loading.frame();
   var soldierPreload=BattleSoldierModel&&BattleSoldierModel.preload?BattleSoldierModel.preload(scene):null;
   if(soldierPreload&&typeof soldierPreload.then==='function')await soldierPreload;
-  loading.done('soldiers',window.BattleFbxSoldier?null:'procedural rig');
+  if(!window.BattleFbxSoldier)throw new Error('the FBX soldier backend did not load');
+  loading.done('soldiers');
   await initializeBattle();
   loading.finish();
 })().catch(function(error){window.BattleLoading.fail(error);console.error('[LOAD] battle failed to initialise',error);});
