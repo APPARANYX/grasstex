@@ -18,8 +18,9 @@
    reload on top. Both cross-fade. Clip clocks advance on simulation time in update(); poses are
    written once per rendered frame, so a paused or headless sim pays nothing for them.
 
-   The procedural rig in soldier.js remains the fallback: while assets load, if they fail, and
-   whenever imported animation is disabled (trainer and benchmark matches). */
+   In the game every soldier wears his FBX model on a bare body (BattleSoldierModel.createBody), and
+   the page waits for the assets or reports a load failure. The procedural rig in soldier.js is only
+   the body used while imported animation is disabled (trainer and headless benchmark matches). */
 (function(root){
 'use strict';
 if(typeof BABYLON==='undefined'||!root.BattleSoldierModel||!root.BattleFbxClips||root.BattleFbxSoldier)return;
@@ -206,7 +207,7 @@ function perfRound(v,d){return v==null?null:+(+v).toFixed(d==null?2:d);}
    queue wait between them, then this backend's own work per file: model prepare (materials,
    normals, palm anchors), weapon prepare, clip conversion (canonicalise, filter, 30 Hz resample,
    root travel/turn removal), retarget per model, grip solve, sidecar fetch; and per soldier bind. */
-var ASSET={on:PERF_FLAG!==false,files:{},parse:{},marks:{},binds:{count:0,ms:0,max:0,first:null,last:null}};
+var ASSET={on:PERF_FLAG!==false,files:{},parse:{},marks:{},binds:{count:0,ms:0,bodyMs:0,max:0,first:null,last:null}};
 if(ASSET.on&&root.performance&&root.performance.setResourceTimingBufferSize){try{root.performance.setResourceTimingBufferSize(4000);}catch(_){}}
 function assetMark(name){if(ASSET.on&&ASSET.marks[name]==null)ASSET.marks[name]=perfNow();}
 function assetEntry(kind,file){var k=kind+':'+file;return ASSET.files[k]||(ASSET.files[k]={kind:kind,file:file});}
@@ -260,7 +261,7 @@ function assetSnapshot(){
     page:L&&L.timings?L.timings():null,
     library:{marks:marks,wallMs:ASSET.marks.ready!=null&&ASSET.marks.start!=null?perfRound(ASSET.marks.ready-ASSET.marks.start):null,
       loaderScriptMs:perfRound(ASSET.loaderScriptMs),bindClipsMs:perfRound(ASSET.bindClipsMs)},
-    binds:{count:b.count,totalMs:perfRound(b.ms),meanMs:b.count?perfRound(b.ms/b.count,3):null,maxMs:perfRound(b.max,3),firstAt:perfRound(b.first,1),lastAt:perfRound(b.last,1)},
+    binds:{count:b.count,totalMs:perfRound(b.ms),bodyMs:perfRound(b.bodyMs),meanMs:b.count?perfRound(b.ms/b.count,3):null,maxMs:perfRound(b.max,3),firstAt:perfRound(b.first,1),lastAt:perfRound(b.last,1)},
     totals:totals,byKind:byKind,
     slowest:rows.slice().sort(function(a,c){return c.totalMs-a.totalMs;}).slice(0,10),
     files:rows
@@ -1065,15 +1066,28 @@ function loadLibrary(scene){
     console.log('[ANIM] FBX soldiers ready: '+MODEL_SET+' '+Object.keys(st.libs).map(function(f){return f.replace('.fbx','')+(st.libs[f].retargeted?'*':'');}).join(' ')+', weapons '+Object.keys(st.weapons||{}).join(' ')+', '+list.length+' clips, '+st.animated.length+' animated bones, '+(Date.now()-started)+' ms'+(SMOOTH_NORMALS?', smoothed normals':''));
     return true;
   }).catch(function(error){
-    st.error=error;console.warn('[ANIM] FBX soldiers unavailable; procedural rig stays active',error);return false;
+    st.error=error;console.error('[ANIM] FBX soldiers failed to load',error);return false;
   });
   return st.loading;
 }
 
 /* ---- binding a soldier -------------------------------------------------------------------- */
 
+/* Babylon's Mesh clone refreshes a skinned mesh's bounding box by skinning every vertex through its
+   bones (~22k vertices, ~14 ms a soldier, nearly all of a bind). Nothing reads a soldier mesh's
+   bounds: bind makes them always active and never re-syncs them, and the animation and mesh LODs
+   use the soldier's own sphere. So while the model is cloned (synchronously), a clone that already
+   has bounds keeps its geometry's bind-pose box. `?cloneBounds=1` clones as Babylon does. */
+var CLONE_BOUNDS=typeof location!=='undefined'&&/[?&]cloneBounds=1\b/.test(location.search||'');
+function cloneModel(lib){
+  var clone=function(){return lib.container.instantiateModelsToScene(function(name){return name;},false,{doNotInstantiate:true});};
+  if(CLONE_BOUNDS)return clone();
+  var P=BABYLON.Mesh.prototype,own=Object.prototype.hasOwnProperty.call(P,'refreshBoundingInfo'),refresh=P.refreshBoundingInfo;
+  P.refreshBoundingInfo=function(){return this.hasBoundingInfo?this:refresh.apply(this,arguments);};
+  try{return clone();}finally{if(own)P.refreshBoundingInfo=refresh;else delete P.refreshBoundingInfo;}
+}
 function bind(soldier,scene,st,lib,faction){
-  var inst=lib.container.instantiateModelsToScene(function(name){return name;},false,{doNotInstantiate:true});
+  var inst=cloneModel(lib);
   var holder=new BABYLON.TransformNode('fbxSoldier',scene);holder.parent=soldier.poseRoot;holder.scaling.setAll(lib.scale);
   inst.rootNodes.forEach(function(n){n.parent=holder;});
   inst.animationGroups.forEach(function(g){g.stop();g.dispose();});
@@ -1107,12 +1121,10 @@ function bind(soldier,scene,st,lib,faction){
     };
   });
 
-  /* Retire the primitive body. The weapon socket leaves the chest first: it now follows the hand
-     but stays parented to the soldier root, so it inherits neither model scale nor handedness. */
+  /* The weapon socket follows the hand but stays parented to the soldier root, so it inherits
+     neither model scale nor handedness. */
   var socket=soldier.weaponSocket;socket.parent=soldier.root;if(!socket.rotationQuaternion)socket.rotationQuaternion=new Q();
   socket._fbxFaction=faction;
-  var hips=soldier.rig&&soldier.rig.hips;if(hips&&!hips.isDisposed())hips.dispose();
-  soldier.rig=null;
 
   /* Soldier root -> each hand. The render pass composes these chains itself (see handChain);
      the left chain exists so the support hold can read the left web each frame. */
@@ -1781,20 +1793,25 @@ if(oldAttach)Weapons.attachWeapon=function(scene,socket,kind){
   return weapon;
 };
 var oldCreate=M.createSoldier,oldPreload=M.preload,oldSetEnabled=M.setImportedEnabled;
-M.createSoldier=function(scene,faction,role){
-  var soldier=oldCreate.apply(this,arguments),st=sceneState(scene),lib=st.ready&&st.enabled&&modelFor(st,faction,role);
-  if(lib){
-    var t0=ASSET.on?perfNow():0;
-    try{bind(soldier,scene,st,lib,faction==='ge'?'ge':'us');}catch(e){console.warn('[ANIM] FBX soldier bind failed; keeping procedural rig',e);}
-    if(ASSET.on){var t1=perfNow(),b=ASSET.binds;b.count++;b.ms+=t1-t0;b.max=Math.max(b.max,t1-t0);if(b.first==null)b.first=t0;b.last=t1;}
-  }
+/* With the library loaded, a soldier is a bare body (no procedural meshes) wearing his FBX model;
+   a failed bind is a bug and throws. With imported animation disabled (trainer, headless
+   benchmark) he keeps the procedural rig. */
+M.createSoldier=function(scene,faction,role,parent){
+  var st=sceneState(scene),lib=st.ready&&st.enabled&&modelFor(st,faction,role);
+  if(!lib||!M.createBody)return oldCreate.apply(this,arguments);
+  var t0=ASSET.on?perfNow():0,soldier=M.createBody(scene,faction,role,parent),tb=ASSET.on?perfNow():0;
+  bind(soldier,scene,st,lib,faction==='ge'?'ge':'us');
+  if(ASSET.on){var t1=perfNow(),b=ASSET.binds;b.count++;b.ms+=t1-tb;b.bodyMs+=tb-t0;b.max=Math.max(b.max,t1-tb);if(b.first==null)b.first=t0;b.last=t1;}
   return soldier;
 };
+/* Normal gameplay waits for its soldiers however long the assets take; a failed load rejects, so
+   the page reports it (BattleLoading.fail) instead of swapping in procedural soldiers. */
 M.preload=function(scene){
   var before=oldPreload?Promise.resolve(oldPreload.apply(this,arguments)):Promise.resolve(true);
-  /* Never hold the battle hostage to an asset host: fall back to the procedural rig after 25 s. */
-  var timeout=new Promise(function(ok){setTimeout(function(){ok(false);},25000);});
-  return before.then(function(){return Promise.race([loadLibrary(scene),timeout]);});
+  return before.then(function(){return loadLibrary(scene);}).then(function(ok){
+    if(!ok){var e=sceneState(scene).error;throw e instanceof Error?e:new Error('FBX soldiers failed to load: '+(e||'unknown'));}
+    return true;
+  });
 };
 M.setImportedEnabled=function(scene,enabled){
   if(oldSetEnabled)oldSetEnabled.apply(this,arguments);

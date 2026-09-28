@@ -19,10 +19,10 @@
     stand:'stance.stand',crouch:'stance.crouch',prone:'stance.prone',
     deathFront:'death.front',deathBack:'death.back',deathSide:'death.side'
   };
-  /* Imported skeletal motion lives in battle/modules/53-fbx-soldier-backend.js, which replaces this
-     primitive body with the rigged FBX soldier once its assets load. This file keeps the
-     procedural rig: the fallback while assets load or fail, and the cheap body the trainer and
-     benchmark use with imported animation disabled. */
+  /* Imported skeletal motion lives in battle/modules/53-fbx-soldier-backend.js: in the game every
+     soldier is the rigged FBX character on a bare body (createBody), and the page waits for those
+     assets or reports a load failure. This file keeps the procedural rig only as the cheap body the
+     trainer and the headless benchmark use with imported animation disabled. */
   var Q=BABYLON.Quaternion,V3=BABYLON.Vector3;
   function preloadImported(){return Promise.resolve(true);}
   function setImportedEnabled(){}
@@ -89,6 +89,15 @@
     return soldier;
   }
   function createSoldier(scene,faction,role,parent){return buildPrimitiveRig(scene,faction,role,parent);}
+  /* The soldier without a procedural body, for a backend that draws its own (the FBX soldier):
+     the same root, pose root and role scale, the weapon socket at the offset it has on the rig's
+     chest (the backend moves it onto the hand), and the same fields, with rig null. */
+  function createBody(scene,faction,role,parent){
+    var build=ROLE_BUILD[role]||ROLE_BUILD.rifleman,world=node(scene,'soldier',parent||null),pose=node(scene,'soldierPose',world);world.scaling.setAll(build.scale);
+    var weaponSocket=node(scene,'socket.weapon',world,[.055,.055,.30]);
+    return{faction:faction,role:role,root:world,poseRoot:pose,weaponSocket:weaponSocket,dead:false,rig:null,
+      animationBinding:{backend:'none',tags:TAGS},walkPhase:Math.random()*Math.PI*2,stanceBlend:0,_animFireKick:0,_animReloadClock:0,deathClock:0};
+  }
 
   function damp(a,b,k){return a+(b-a)*k;}
   function rot(node_,x,y,z,k){node_.rotation.x=damp(node_.rotation.x,x,k);node_.rotation.y=damp(node_.rotation.y,y||0,k);node_.rotation.z=damp(node_.rotation.z,z||0,k);}
@@ -299,6 +308,6 @@
   function setProne(soldier,v){if(!soldier||soldier.dead)return;soldier.prone=!!v;if(v)soldier.crouching=false;}
   function kill(soldier){if(!soldier||soldier.dead)return;soldier.dead=true;soldier.crawling=false;soldier.reloading=false;soldier.deathClock=0;var r=Math.random();soldier.deathVariant=r<.34?'front':(r<.67?'back':'side');soldier.deathSide=Math.random()<.5?-1:1;soldier.deathTag=soldier.deathVariant==='front'?TAGS.deathFront:(soldier.deathVariant==='back'?TAGS.deathBack:TAGS.deathSide);trigger(soldier,soldier.deathTag,{variant:soldier.deathVariant});}
 
-  root.BattleSoldierModel={FACTIONS:FACTIONS,BODY:BODY,TAGS:TAGS,createSoldier:createSoldier,preload:preloadImported,setImportedEnabled:setImportedEnabled,animateWalk:animateWalk,setCrouch:setCrouch,setProne:setProne,kill:kill,triggerAnimation:trigger,bindAnimationBackend:bindAnimationBackend};
+  root.BattleSoldierModel={FACTIONS:FACTIONS,BODY:BODY,TAGS:TAGS,createSoldier:createSoldier,createBody:createBody,preload:preloadImported,setImportedEnabled:setImportedEnabled,animateWalk:animateWalk,setCrouch:setCrouch,setProne:setProne,kill:kill,triggerAnimation:trigger,bindAnimationBackend:bindAnimationBackend};
   console.log('[ANIM] anatomical procedural rig loaded (fallback for the imported FBX soldier)');
 })(typeof window!=='undefined'?window:globalThis);
