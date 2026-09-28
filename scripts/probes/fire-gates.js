@@ -2,7 +2,7 @@
    round), rounds by weapon kind and by profile (M1 Carbine vs FG 42), samples holding a live target, and for each such sample the first
    fire condition that fails, in the order Engagement and SquadAI check them (no target → reloading
    → fireReadyAt → moving → crawling → facing → gunner emplacement → engageRange → weapon range →
-   trigger-time LOS → cooldown). `clear` means every condition held, so the man should be firing.
+   trigger-time LOS (`los` sight, `crest` the round's line into the ground) → cooldown). `clear` means every condition held, so the man should be firing.
    `targetRange` bands the distance to the target he holds (samples).
    Observe only: chains sim.onFire (presentation callback) and reads state. */
 (function (root) {
@@ -34,7 +34,8 @@
     if (s.role === 'gunner' && !s.setUp && e.state === 'engage') return 'emplacing';
     if (d > (root.SquadAI.engageRange ? root.SquadAI.engageRange(s) : role.engageRange)) return 'engageRange';
     if (w.stats && d > w.stats.range) return 'weaponRange';
-    if (root.BattleDirectFireLOSGate && root.BattleDirectFireLOSGate.blocked(s, sim)) return 'los';
+    var G = root.BattleDirectFireLOSGate;
+    if (G && G.blocked(s, sim)) return (G.blockReason && G.blockReason(s, sim)) || 'los';
     if (s.fireCooldown > 0) return 'cooldown';
     return 'clear';
   }
