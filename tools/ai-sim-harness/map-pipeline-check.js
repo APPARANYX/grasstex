@@ -71,8 +71,18 @@ for(const seed of SEEDS){
   check('bocage runtime volumes stay in the mature 2.8-4.57 m range',heights.length>0&&minH>=2.8-1e-6&&maxH<=4.57+1e-6,'min='+minH+' max='+maxH);
   check('bocage height varies by generated hedge run',maxH-minH>.75,'min='+minH+' max='+maxH);
   check('tall bocage reaches roughly 15 ft where appropriate',maxH>4.4,'max='+maxH);
-  check('hedge combat height includes only the buried skirt beyond visible height',hedges.every(f=>Math.abs((+f.height)-(+f.visibleHeight)-.25)<.6),
-    'sample='+(hedges[0]&&JSON.stringify({height:hedges[0].height,visibleHeight:hedges[0].visibleHeight,envelope:hedges[0].terrainEnvelope})));
+  check('coalesced hedge height is visible height + buried skirt + terrain envelope',hedges.every(f=>{
+    const e=f.terrainEnvelope||{down:0,up:0};
+    return Math.abs((+f.height)-(+f.visibleHeight)-.25-(+e.down||0)-(+e.up||0))<1e-6;
+  }),'sample='+(hedges[0]&&JSON.stringify({height:hedges[0].height,visibleHeight:hedges[0].visibleHeight,envelope:hedges[0].terrainEnvelope})));
+  const tall=hedges.reduce((a,f)=>!a||(+f.visibleHeight)>(+a.visibleHeight)?f:a,null);
+  if(tall){
+    const side=+tall.hz+2,eye=1.55,a={x:tall.x+tall.vx*side,y:(+tall.y)+eye,z:tall.z+tall.vz*side},
+      b={x:tall.x-tall.vx*side,y:(+tall.y)+eye,z:tall.z-tall.vz*side};
+    check('standing eye/muzzle line is blocked by the generated tall hedge',
+      page.root.BattleObstacleField.sightBlocked(pageBase.obstacles,a,b),
+      JSON.stringify({visibleHeight:tall.visibleHeight,height:tall.height,eye}));
+  }
 
   /* Benchmark path: bootstrap page on another seed, then regenerate the benchmark seed. */
   const bench=world(),sim={obstacles:null};
