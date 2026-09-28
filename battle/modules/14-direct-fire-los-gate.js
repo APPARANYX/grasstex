@@ -8,10 +8,23 @@
 
   if (typeof root.SquadAI.extend !== 'function' || typeof root.SquadAI.hasLineOfSight !== 'function') return;
 
+  /* Sight runs eye to eye, but the round flies eye to body centre, ~0.7 m lower on a standing man.
+     Over a crest the first can clear while the ground takes the second, so the gate also asks the
+     ballistics owner whether the round's own line reaches the body. Spotting is unchanged: he
+     still sees the head, he just does not fire into the slope. */
+  function crestBlocked(s, battle) {
+    var B = root.BattleBallistics;
+    return !!(B && typeof B.fireLineBlocked === 'function' && B.fireLineBlocked(s, s.target, battle));
+  }
   function blocked(s, battle) {
     if (!s || !battle || !s.target || s.target.dead || !s.root || !s.target.root) return true;
     try {
-      return !root.SquadAI.hasLineOfSight(s, s.target, battle.heightAt, battle.obstacles);
+      if (!root.SquadAI.hasLineOfSight(s, s.target, battle.heightAt, battle.obstacles)) return true;
+      if (crestBlocked(s, battle)) {
+        s._crestBlockedFire = (s._crestBlockedFire || 0) + 1;
+        return true;
+      }
+      return false;
     } catch (_) {
       return false;
     }
@@ -29,7 +42,7 @@
   });
 
   root.BattleDirectFireLOSGate = {
-    version: '65-trigger-los',
+    version: '66-trigger-los-fire-line',
     blocked: blocked,
     blockedCount: function (s) {
       return (s && s._losBlockedFire) || 0;
