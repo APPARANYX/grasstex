@@ -170,7 +170,7 @@ and shows FPS (median, mean, 5%/1% lows), frame/CPU/render/sim/pose time, draw c
 the browser has a timer query, device and renderer, the load breakdown, and where `scene.render` goes
 (before/after-render hooks by name, Babylon animations, the camera pass split into active-mesh
 evaluation with `Skeleton.prepare` broken out, draw and the rest, and what is left unattributed), and
-draw calls by kind (soldiers, weapons, building walls, hedges, terrain, objectives, decals, cover); frame pacing (the display refresh, the share of frames taking 1, 2, 3… refreshes and their mean CPU, and how often CPU alone exceeded one refresh); **Copy results** /
+draw calls by kind (soldiers, weapons, building walls, hedges, terrain, objectives, decals, cover); frame pacing (the display refresh from the median of the fastest group of frames, the share of frames taking 1, 2, 3… refreshes and their mean CPU, and how often CPU alone exceeded one refresh); the 10 worst frames with their breakdown and how many meshes were created just before each (result v6); **Copy results** /
 **Download JSON** (nothing is uploaded; also `window.__deviceBench`). `benchCam=close` frames the
 biggest group from 90 m, `benchHide=soldiers[,weapons,decals,hedges,terrain,objectives,walls,cover]` stops drawing those kinds for the run while everything else keeps running (their frame cost on a device with no GPU timer: run with and without), `benchAuto=1` starts without the tap, `animLod=0` gives the LOD before/after.
 This is how real devices are measured; `benchmark_full_fidelity.cjs` is the scripted equivalent.

@@ -52,13 +52,16 @@ function stats(values){
    If 2R frames are the ones whose CPU exceeded R, CPU is what misses the refresh. */
 function pacing(frames){
   var iv=frames.map(function(x){return x.interval;}).filter(function(v){return v>0&&isFinite(v);}).sort(function(a,b){return a-b;});if(iv.length<10)return null;
-  var fast=iv[Math.floor(iv.length*.05)],R=null;
+  /* The display's refresh: the median of the fastest group of frames (up to 1.5x the 10th percentile),
+     snapped to a real rate. The fastest 5% alone was fooled by timer jitter: an iPhone at 60 Hz whose
+     frames alternate ~13/~20 ms read as 90 Hz. */
+  var p10=iv[Math.floor(iv.length*.1)],group=iv.filter(function(v){return v<=p10*1.5;}),fast=group[Math.floor(group.length/2)],R=null;
   /* Real display rates only. A run whose fastest frames never reach one 60 Hz refresh is slower than
      every display, so 60 Hz is the honest floor (it once snapped to 48 Hz on an iPhone). */
   [144,120,90,60].forEach(function(hz){var r=1000/hz;if(R===null||Math.abs(r-fast)<Math.abs(R-fast))R=r;});
   var buckets={},over=0,n=0;
   frames.forEach(function(x){if(!(x.interval>0))return;n++;var k=Math.max(1,Math.round(x.interval/R)),key=k>=5?'5+':String(k),b=buckets[key]||(buckets[key]={frames:0,cpu:0});b.frames++;b.cpu+=x.cpu||0;if(x.cpu>R)over++;});
-  var out={refreshMs:R,hz:1000/R,fastestMs:fast,cpuOverRefresh:n?over/n:null,refreshes:{}};
+  var out={refreshMs:R,hz:1000/R,fastestMs:iv[0],fastGroupMs:fast,cpuOverRefresh:n?over/n:null,refreshes:{}};
   ['1','2','3','4','5+'].forEach(function(k){var b=buckets[k];out.refreshes[k]=b?{share:b.frames/n,cpuMs:b.cpu/b.frames}:{share:0,cpuMs:null};});
   return out;
 }
@@ -126,6 +129,7 @@ function run(){
     if(CAM==='close')closeCamera(b);
     /* benchHide: meshes of the named kinds are kept invisible (re-applied each frame, since effects
        toggle their own visibility) and made visible again when the run ends. */
+    var created=0,oCreated=scene.onNewMeshAddedObservable.add(function(){created++;});
     var hidden=[],hideOf=function(m){var n=String(m.name||''),p=m.parent&&m.parent.name?String(m.parent.name):'';
       for(var k=0;k<KINDS.length;k++)if(KINDS[k][1](m,n,p))return HIDE.indexOf(KINDS[k][0])>=0;return false;},
       track=function(m){if(m&&m.isVisible!==undefined&&hidden.indexOf(m)<0&&hideOf(m)){m._benchWasVisible=m.isVisible;hidden.push(m);}};
@@ -165,10 +169,11 @@ function run(){
           if(frames.length%15===0)meshCensus(scene,census);
           var g=ei&&ei.gpuFrameTimeCounter?ei.gpuFrameTimeCounter.current:0;
           var cam=si.cameraRenderTimeCounter.current,am=si.activeMeshesEvaluationTimeCounter.current,draw=si.renderTimeCounter.current,anim=si.animationsTimeCounter.current;
-          frames.push({interval:rec.interval,cpu:performance.now()-rec.begin,scene:rec.scene,sim:rec.sim,render:draw,
+          frames.push({at:rec.begin-wall0,simT:b.time,created:created,interval:rec.interval,cpu:performance.now()-rec.begin,scene:rec.scene,sim:rec.sim,render:draw,
             hooksBefore:rec.hooksBefore,hooksAfter:rec.hooksAfter,animations:anim,camera:cam,activeEval:am,skeletons:rec.skel,skeletonCount:rec.skelN,
             cameraOther:Math.max(0,cam-am-draw),unattributed:rec.scene-rec.hooksBefore-rec.hooksAfter-anim-cam,
             meshes:scene.getActiveMeshes().length,draws:si.drawCallsCounter?si.drawCallsCounter.current:null,gpu:g>0?g/1e6:null});
+          created=0;
         });
 
     if(root.BattlePoseTimings){root.BattlePoseTimings.enable();root.BattlePoseTimings.reset();}
@@ -180,7 +185,7 @@ function run(){
       if(left>0)return;
       clearInterval(timer);rec.on=false;
       engine.onBeginFrameObservable.remove(o1);engine.onEndFrameObservable.remove(o4);
-      if(oAdd)scene.onNewMeshAddedObservable.remove(oAdd);hidden.forEach(function(m){if(!m.isDisposed()&&m._benchWasVisible)m.isVisible=true;});
+      if(oAdd)scene.onNewMeshAddedObservable.remove(oAdd);scene.onNewMeshAddedObservable.remove(oCreated);hidden.forEach(function(m){if(!m.isDisposed()&&m._benchWasVisible)m.isVisible=true;});
       wrapped.forEach(function(w){w[0].callback=w[1];});scene.render=origRender;if(origPrepare)SP.prepare=origPrepare;
       b._frame=orig;si.dispose();if(ei)ei.dispose();
       finish(frames.slice(1),{census:census,hooks:hooks,warmMs:warmMs,warmSim:t,sim0:sim0,wallMs:performance.now()-wall0,simAdvanced:b.time-sim0,hiddenFrames:rec.hidden,hiddenKinds:HIDE,hiddenMeshes:hidden.length});
@@ -191,7 +196,7 @@ function run(){
     var pose=root.BattlePoseTimings?root.BattlePoseTimings.snapshot():null,asset=root.BattleAssetTimings?root.BattleAssetTimings.snapshot():null;
     var roster=b._roster.us.concat(b._roster.ge),fbx=roster.filter(function(s){return s._fbx&&s.rig===null;}).length;
     result=round({
-      kind:'device-benchmark',version:5,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
+      kind:'device-benchmark',version:6,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
       device:device(engine),camera:CAM,hide:run.hiddenKinds.length?{kinds:run.hiddenKinds,meshes:run.hiddenMeshes}:null,animLod:!(root.BattleFbxSoldier&&root.BattleFbxSoldier.lod&&root.BattleFbxSoldier.lod.on===false),
       soldiers:{total:roster.length,fbx:fbx,alive:b.factions.us.alive+b.factions.ge.alive},
       run:{seconds:SECONDS,warmupSim:run.warmSim,warmupWallMs:run.warmMs,wallMs:run.wallMs,simAdvanced:run.simAdvanced,timeScale:speed,frames:frames.length,hiddenFrames:run.hiddenFrames},
@@ -199,6 +204,12 @@ function run(){
       frameMs:iv,cpuMs:stats(col('cpu')),sceneMs:stats(col('scene')),renderMs:stats(col('render')),simMs:stats(col('sim')),
       activeMeshes:stats(col('meshes')),drawCalls:stats(col('draws')),gpuMs:stats(col('gpu')),
       pacing:pacing(frames),
+      /* The 10 longest frames with their breakdown and how many meshes were created just before each:
+         hitches are single frames, invisible in medians and means. */
+      worstFrames:frames.slice().sort(function(a,c){return(c.interval||0)-(a.interval||0);}).slice(0,10).map(function(x){
+        return{atS:x.at/1000,simT:x.simT,intervalMs:x.interval,cpuMs:x.cpu,simMs:x.sim,hooksBeforeMs:x.hooksBefore,activeEvalMs:x.activeEval,skeletonMs:x.skeletons,
+          drawMs:x.render,unattributedMs:x.unattributed,meshesCreated:x.created,draws:x.draws,beyondCpuMs:x.interval!=null?x.interval-x.cpu:null};}),
+      meshesCreatedPerFrame:stats(col('created')),
       meshKinds:(function(c){var n=Math.max(1,c.samples),tot=0,out=[];Object.keys(c.kinds).forEach(function(k){tot+=c.kinds[k].draws;});
         Object.keys(c.kinds).forEach(function(k){out.push({kind:k,meshes:c.kinds[k].meshes/n,draws:c.kinds[k].draws/n,share:tot?c.kinds[k].draws/tot:null});});
         out.sort(function(a,b){return b.draws-a.draws;});
@@ -250,6 +261,8 @@ function show(r){
   if(r.meshKinds&&r.meshKinds.kinds.length)h+='<div style="margin-top:8px;font-weight:700">Draw calls by kind (mean per frame)</div><table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums">'+
     r.meshKinds.kinds.map(function(x){return'<tr><td>'+esc(x.kind)+'</td><td style="text-align:right">'+f(x.draws,0)+'</td><td style="text-align:right;color:#9aa088">'+f(100*(x.share||0),0)+'%</td></tr>';}).join('')+'</table>';
   if(p.lod)h+='<div style="margin-top:6px">Soldiers posed per frame: '+f(p.posedPerFrame,1)+' ('+f(100*(p.lod.posedShare||0),0)+'%)</div>';
+  if(r.worstFrames&&r.worstFrames.length)h+='<div style="margin-top:8px;font-weight:700">Worst frames (ms)</div><table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums"><tr style="color:#9aa088"><td>at s</td><td>frame</td><td>CPU</td><td>sim</td><td>eval</td><td>draw</td><td>new</td></tr>'+
+    r.worstFrames.map(function(x){return'<tr><td>'+f(x.atS,1)+'</td><td>'+f(x.intervalMs,0)+'</td><td>'+f(x.cpuMs,0)+'</td><td>'+f(x.simMs,0)+'</td><td>'+f(x.activeEvalMs,0)+'</td><td>'+f(x.drawMs,0)+'</td><td>'+f(x.meshesCreated,0)+'</td></tr>';}).join('')+'</table>';
   if(!r.gpuMs)h+='<div style="color:#9aa088">GPU timing not available in this browser.</div>';
   if(s.page)h+='<div style="margin-top:6px">Load: '+f(s.page.finishedAt/1000)+' s total, soldiers '+f(soldiers&&soldiers.ms/1000)+' s (FBX parse '+f(s.totals.parse/1000)+' s, retarget '+f(s.totals.retarget/1000)+' s, '+f(s.totals.bytes/1048576,0)+' MiB)</div>';
   h+='</details>';
