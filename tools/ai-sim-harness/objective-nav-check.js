@@ -218,7 +218,7 @@ section('a single assigned squad can reach and capture an outer objective');
   check('the formation supplies at least the two required capture weights',peakPresence>=2,'peak='+peakPresence);
   console.log('  probe: first capture '+(first===null?'none':first.toFixed(1)+'s')+', peak presence '+peakPresence+', obsolete-goal frames '+wrongGoal);
 }
-section('a stranded soldier cannot override the Squad Leader regroup timeout');
+section('regroup waits for cohesion, then returns to its mission');
 {
   const {r,sq,sim,town}=commandFixture();
   r.BattleTelemetry={record(){}};
@@ -227,12 +227,15 @@ section('a stranded soldier cannot override the Squad Leader regroup timeout');
   sq.members[3].root.position.x=-100;
   sq.commandPhase='regroup';sq.objective={x:20,z:0};
   sq._regroupHysteresis={overSince:sim.time-20,lastForward:null,entries:1,exits:0,suppressed:0,stragglerSuppressions:0,regroupRequests:1};
-  r.BattleLeases.grant(sq,'regroup','squad-leader',sim.time-19,sim.time-1,'test','test',{anchor:{x:20,z:0}});
+  r.BattleLeases.grant(sq,'regroup','squad-leader',sim.time-19,sim.time-1,'test','test',{anchor:{x:20,z:0},missionVersion:sq._macroMission.version,forward:{x:1,z:0}});
   commandTick(r,sim,town);
-  check('the Squad Leader releases a timed-out regroup straight back into its mission',sq.commandPhase!=='regroup'&&sq.objective.x===120);
+  check('elapsed time alone does not release a dispersed regroup',sq.commandPhase==='regroup');
+  sq.members[3].root.position.x=65;
+  commandTick(r,sim,town);
+  check('the Squad Leader releases restored cohesion straight back into its mission',sq.commandPhase!=='regroup'&&sq.objective.x===120);
   let held=0;
   for(let i=0;i<25;i++){commandTick(r,sim,town);if(sq.commandPhase==='regroup'||sq.objective.x!==120)held++;}
-  check('the entire bypass survives subsequent commander and Squad Leader ticks',held===0,'held ticks='+held);
+  check('the restored squad stays on its mission',held===0,'held ticks='+held);
 }
 section('benchmark alerts distinguish approach intent from absent orders');
 {
