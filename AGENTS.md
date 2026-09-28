@@ -535,6 +535,19 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
   them; real bocage was a bank plus growth, 0.9-4.6 m. It needs an explicit lift of the freeze
   for height only, the volume staying the one source for rendering, nav, sight and ballistics.
   Benchmark paired and check stance behaviour. Terrain generation belongs to `ww2fps`.
+- **Soldiers on or below hills fire into the ground (open, seen 2026-09-28).** Men with a clear view
+  over a crest put their rounds into the slope. The fire gate and the round test different lines:
+  sight (`squad-ai.js` `hasLineOfSight`: target scan, tracking and the `14-direct-fire-los-gate.js`
+  gate) runs eye to the **target's eye** (1.55/1.05/0.42 m) and samples the terrain at only
+  `LOS_SAMPLES` (8) points with 0.15 m clearance, while the round (`14-z-ballistic-raycast.js`) flies
+  eye to the **target's body centre** (`targetCenter`: 0.88/0.57/0.27 m) plus dispersion and tests the
+  terrain continuously. A man who sees a head over the crest may fire, and his round, ~0.7 m lower,
+  hits the ground; at 400 m the 8 samples are 50 m apart, so a narrow crest can fall between them.
+  The round also starts at eye height over the root, not the muzzle, so the drawn tracer disagrees.
+  Owner: permission to fire (Perception/Engagement). The gate should test the line the round will fly,
+  at the ballistics' resolution (or with its terrain test); a man who sees only a head holds or moves.
+  Keep spotting separate from permission to fire. Add a deterministic crest check (sight clear, fire
+  line blocked, no trigger pull) and benchmark paired; the tracer origin is a separate, smaller fix.
 - **Bullet holes float in front of scatter cover (fix proposed).** `14-z-ballistic-raycast.js`
   `obstacleStop` stops rounds at the tactical cover circle (a log's is `len*0.42`, its mesh a
   0.55 m cylinder), not the rendered object. Fix at the ballistics owner: intersect the linked
