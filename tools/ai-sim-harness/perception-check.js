@@ -5,6 +5,7 @@
    - A man spots at full range inside his 120 deg focus, at a fraction of it out to +-100 deg (more
      for a moving man), and behind him only a man within BEHIND_RANGE.
    - When his squad knows where the enemy is and a head turn reaches it, he looks that way.
+   - Holding still with no known threat he scans his sector (SCAN_SWEEP either side, SCAN_PERIOD).
    - A squad with no sighting of its own takes a neighbour squad's first-hand contact within
      RELAY_RANGE (keeping its age; relays never chain), else hears enemy gunfire within HEAR_RANGE
      (position off by a distance-scaled error). Neither ever outranks the squad's own eyes.
@@ -55,6 +56,7 @@ test('view cone: focus at full range, periphery shorter, behind only within arm 
     foe = lone(ctx.out[1]);
   me.root.position.x = me.root.position.z = 0;
   me.root.rotation.y = 0;
+  me.moving = true; // on the move he looks where his body faces (standing still he scans: below)
   const range = ctx.S.detectionRange(ctx.S.ROLES[me.role], foe);
   place(foe, 0, range * 0.9);
   assert.ok(sees(ctx, me, foe), 'straight ahead near full range');
@@ -83,6 +85,7 @@ test('he looks toward the known threat of his squad when a head turn reaches it'
     foe = lone(ctx.out[1]);
   me.root.position.x = me.root.position.z = 0;
   me.root.rotation.y = 0;
+  me.moving = true;
   const range = ctx.S.detectionRange(ctx.S.ROLES[me.role], foe);
   place(foe, 110, range * 0.8);
   assert.ok(!sees(ctx, me, foe), 'unwarned: 110 deg off is outside his cone');
@@ -92,6 +95,49 @@ test('he looks toward the known threat of his squad when a head turn reaches it'
   const behind = Math.PI;
   me.squad.contact = { unit: foe, x: Math.sin(behind) * 50, z: Math.cos(behind) * 50, at: ctx.b.time, seenBy: null };
   assert.equal(ctx.S.lookYaw(me, ctx.b), 0, 'a threat behind him needs the body to turn, not the head');
+});
+
+test('a man holding still with no known threat scans his sector; on the move or warned he does not', () => {
+  const ctx = setup([
+    { id: 'us-0', faction: 'us', x: 0, z: 0 },
+    { id: 'ge-0', faction: 'ge', x: 0, z: 300 }
+  ]);
+  const me = lone(ctx.out[0]),
+    foe = lone(ctx.out[1]),
+    { P, S, b } = ctx,
+    deg = r => (r * 180) / Math.PI;
+  me.root.position.x = me.root.position.z = 0;
+  me.root.rotation.y = 0;
+  me.moving = false;
+  const range = S.detectionRange(S.ROLES[me.role], foe);
+  place(foe, 90, range * 0.8);
+  let lo = Infinity,
+    hi = -Infinity,
+    seen = 0,
+    steps = 0;
+  for (b.time = 0; b.time < P.SCAN_PERIOD; b.time += H.AI_TICK, steps++) {
+    const y = S.lookYaw(me, b);
+    lo = Math.min(lo, y);
+    hi = Math.max(hi, y);
+    if (sees(ctx, me, foe)) seen++;
+  }
+  const sweep = deg(P.SCAN_SWEEP);
+  assert.ok(deg(hi) > sweep - 3 && deg(lo) < -sweep + 3, 'one period sweeps both sides: ' + deg(lo).toFixed(0) + '..' + deg(hi).toFixed(0));
+  assert.ok(deg(hi) <= sweep + 1e-9 && deg(lo) >= -sweep - 1e-9, 'never past SCAN_SWEEP');
+  assert.ok(sweep < deg(P.FOCUS_HALF), 'the sweep keeps his front inside his focus');
+  assert.ok(seen > 0 && seen < steps, 'a man 90 deg off at range is caught while the scan faces him, not all the time');
+  place(foe, 0, range * 0.9);
+  for (b.time = 0; b.time < P.SCAN_PERIOD; b.time += H.AI_TICK)
+    assert.ok(sees(ctx, me, foe), 'the man straight ahead is never lost to the scan (t=' + b.time.toFixed(2) + ')');
+  b.time = 1.3;
+  const y1 = S.lookYaw(me, b);
+  assert.equal(S.lookYaw(me, b), y1, 'the same instant gives the same look (clock, not dice)');
+  me.moving = true;
+  assert.equal(S.lookYaw(me, b), 0, 'on the move he looks where he is going');
+  me.moving = false;
+  const a = (40 * Math.PI) / 180;
+  me.squad.contact = { unit: foe, x: Math.sin(a) * 50, z: Math.cos(a) * 50, at: b.time, seenBy: null };
+  assert.ok(Math.abs(deg(S.lookYaw(me, b)) - 40) < 1e-6, 'a known threat ends the scan: he looks at it');
 });
 
 test('a sighting by a neighbour squad is relayed within 50 m, with its age, and never chained', () => {
