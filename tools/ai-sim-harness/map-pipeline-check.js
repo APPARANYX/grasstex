@@ -42,7 +42,9 @@ const quiet={log(){},warn(){},error(){}};
 function load(root,rel){const c=fs.readFileSync(path.join(REPO,rel),'utf8');new Function('window','globalThis','console','BABYLON',c+'\n//# sourceURL='+rel)(root,root,quiet,root.BABYLON);}
 function world(){
   const root={console:quiet,BABYLON:stub()};root.window=root;
-  /* Same relative order as battle_sim_local.php: core terrain, pre-commander runtime, then modules. */
+  /* Same relative order as battle_sim_local.php: shared obstacle field, core terrain,
+     pre-commander runtime, then modules. */
+  load(root,'battle/obstacle-field.js');
   load(root,'battle/terrain-features.js');
   load(root,'battle/scenario-generator.js');
   load(root,'battle/battle-navigation.js');
