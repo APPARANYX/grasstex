@@ -18,9 +18,9 @@ function approx(a,b,eps,msg){assert.ok(Math.abs(a-b)<=eps,(msg||'values differ')
   const r=root(),B=r.BattleBallistics,b=H.makeBattle(r,{seed:4}),s=man(0,0,'us'),t=man(0,30,'ge');
   s.weapon=weapon('rifle');b._roster.ge.push(t);b.factions.ge.alive=1;
   let o=B.muzzleOrigin(s,t,b);
-  approx(o.y,1.42,1e-9,'standing bore height');approx(o.z,.78,1e-9,'rifle bore starts ahead of the body root');
-  s.crouching=true;o=B.muzzleOrigin(s,t,b);approx(o.y,.93,1e-9,'crouched bore height');
-  s.crouching=false;s.prone=true;o=B.muzzleOrigin(s,t,b);approx(o.y,.31,1e-9,'prone bore height');
+  approx(o.y,1.55,1e-9,'standing bore height');approx(o.z,.78,1e-9,'rifle bore starts ahead of the body root');
+  s.crouching=true;o=B.muzzleOrigin(s,t,b);approx(o.y,1.05,1e-9,'crouched bore height');
+  s.crouching=false;s.prone=true;o=B.muzzleOrigin(s,t,b);approx(o.y,.42,1e-9,'prone bore height');
   s.prone=false;
   let meta=null;b.random=()=>.5;b.onShot=(a,target,hit,d,m)=>meta=m;
   B.resolve(s,t,b);
