@@ -8,7 +8,11 @@
 
    Flags: bench=1, benchSeconds=60, benchWarmup=60, benchCam=overview|close (close: 90 m from the
    biggest group of living soldiers), benchAuto=1 (start without the tap; for scripts). Combine with
-   animLod=0 for the before/after of the animation LOD. The result is also window.__deviceBench.
+   animLod=0 for the before/after of the animation LOD. benchHide=<kind>[,<kind>] (soldiers, weapons,
+   decals, hedges, terrain, objectives, walls, cover) stops drawing those meshes for the measured run
+   while the battle, poses and everything else keep running, so the frame time they cost can be read
+   off on a device with no GPU timer (Safari): run once with and once without. The result is also
+   window.__deviceBench.
 
    Without ?bench=1 this module does nothing. With it, it observes only: it reads clocks and counters,
    never draws a random number, and drives the sim only as the page itself does (the warm-up steps
@@ -19,7 +23,10 @@ if(typeof document==='undefined'||typeof location==='undefined'||root.BattleDevi
 var q=new URLSearchParams(location.search||'');
 if(q.get('bench')!=='1'){root.BattleDeviceBenchmark={active:false};return;}
 var SECONDS=Math.max(5,+q.get('benchSeconds')||60),WARMUP=Math.max(0,q.get('benchWarmup')==null?60:+q.get('benchWarmup')||0),
-    CAM=q.get('benchCam')==='close'?'close':'overview',AUTO=q.get('benchAuto')==='1';
+    CAM=q.get('benchCam')==='close'?'close':'overview',AUTO=q.get('benchAuto')==='1',
+    HIDE_ALIAS={soldiers:'soldiers',weapons:'weapons',decals:'decals & effects',effects:'decals & effects',hedges:'hedges',
+      terrain:'terrain, roads & sky',objectives:'objectives',walls:'building walls & floors',buildings:'building walls & floors',cover:'cover & scatter'},
+    HIDE=(q.get('benchHide')||'').split(',').map(function(k){return HIDE_ALIAS[k.trim().toLowerCase()];}).filter(Boolean);
 
 var panel=null,body=null,state='loading',result=null;
 function el(tag,css,text){var e=document.createElement(tag);if(css)e.style.cssText=css;if(text!=null)e.textContent=text;return e;}
@@ -40,12 +47,15 @@ function stats(values){
 }
 /* Frame pacing: the display refreshes every R ms and a frame not ready in time waits for the next
    refresh, so frame intervals cluster at 1R, 2R, 3R. R is the fastest frames' interval (5th
-   percentile) snapped to a common refresh rate. For each cluster: its share of frames and the mean
+   percentile) snapped to 60/90/120/144 Hz. For each cluster: its share of frames and the mean
    CPU time of the frames in it; plus the share of frames whose CPU work alone exceeded one refresh.
    If 2R frames are the ones whose CPU exceeded R, CPU is what misses the refresh. */
 function pacing(frames){
   var iv=frames.map(function(x){return x.interval;}).filter(function(v){return v>0&&isFinite(v);}).sort(function(a,b){return a-b;});if(iv.length<10)return null;
-  var fast=iv[Math.floor(iv.length*.05)],R=null;[120,90,60,48,30].forEach(function(hz){var r=1000/hz;if(R===null||Math.abs(r-fast)<Math.abs(R-fast))R=r;});
+  var fast=iv[Math.floor(iv.length*.05)],R=null;
+  /* Real display rates only. A run whose fastest frames never reach one 60 Hz refresh is slower than
+     every display, so 60 Hz is the honest floor (it once snapped to 48 Hz on an iPhone). */
+  [144,120,90,60].forEach(function(hz){var r=1000/hz;if(R===null||Math.abs(r-fast)<Math.abs(R-fast))R=r;});
   var buckets={},over=0,n=0;
   frames.forEach(function(x){if(!(x.interval>0))return;n++;var k=Math.max(1,Math.round(x.interval/R)),key=k>=5?'5+':String(k),b=buckets[key]||(buckets[key]={frames:0,cpu:0});b.frames++;b.cpu+=x.cpu||0;if(x.cpu>R)over++;});
   var out={refreshMs:R,hz:1000/R,fastestMs:fast,cpuOverRefresh:n?over/n:null,refreshes:{}};
@@ -114,6 +124,13 @@ function run(){
   function measure(warmMs){
     state='measuring';
     if(CAM==='close')closeCamera(b);
+    /* benchHide: meshes of the named kinds are kept invisible (re-applied each frame, since effects
+       toggle their own visibility) and made visible again when the run ends. */
+    var hidden=[],hideOf=function(m){var n=String(m.name||''),p=m.parent&&m.parent.name?String(m.parent.name):'';
+      for(var k=0;k<KINDS.length;k++)if(KINDS[k][1](m,n,p))return HIDE.indexOf(KINDS[k][0])>=0;return false;},
+      track=function(m){if(m&&m.isVisible!==undefined&&hidden.indexOf(m)<0&&hideOf(m)){m._benchWasVisible=m.isVisible;hidden.push(m);}};
+    if(HIDE.length){scene.meshes.forEach(track);}
+    var oAdd=HIDE.length?scene.onNewMeshAddedObservable.add(function(m){setTimeout(function(){if(!m.isDisposed())track(m);},0);}):null;
     var census={samples:0,kinds:{},other:{}},frames=[],rec={on:true,begin:0,last:null,interval:null,sim:0,scene:0,skel:0,skelN:0,hooksBefore:0,hooksAfter:0,hidden:0},si=new BABYLON.SceneInstrumentation(scene),ei=null;
     si.captureRenderTime=true;si.captureActiveMeshesEvaluationTime=true;si.captureCameraRenderTime=true;si.captureAnimationsTime=true;
     try{ei=new BABYLON.EngineInstrumentation(engine);ei.captureGPUFrameTime=true;}catch(_){ei=null;}
@@ -142,7 +159,7 @@ function run(){
       });
     }
     wrapHooks(scene.onBeforeRenderObservable,'before','hooksBefore');wrapHooks(scene.onAfterRenderObservable,'after','hooksAfter');
-    var o1=engine.onBeginFrameObservable.add(function(){var n=performance.now();rec.interval=rec.last==null?null:n-rec.last;rec.last=rec.begin=n;rec.sim=rec.scene=rec.skel=rec.skelN=rec.hooksBefore=rec.hooksAfter=0;}),
+    var o1=engine.onBeginFrameObservable.add(function(){for(var h=0;h<hidden.length;h++)hidden[h].isVisible=false;var n=performance.now();rec.interval=rec.last==null?null:n-rec.last;rec.last=rec.begin=n;rec.sim=rec.scene=rec.skel=rec.skelN=rec.hooksBefore=rec.hooksAfter=0;}),
         o4=engine.onEndFrameObservable.add(function(){
           if(!rec.on)return;if(document.hidden)rec.hidden++;
           if(frames.length%15===0)meshCensus(scene,census);
@@ -163,9 +180,10 @@ function run(){
       if(left>0)return;
       clearInterval(timer);rec.on=false;
       engine.onBeginFrameObservable.remove(o1);engine.onEndFrameObservable.remove(o4);
+      if(oAdd)scene.onNewMeshAddedObservable.remove(oAdd);hidden.forEach(function(m){if(!m.isDisposed()&&m._benchWasVisible)m.isVisible=true;});
       wrapped.forEach(function(w){w[0].callback=w[1];});scene.render=origRender;if(origPrepare)SP.prepare=origPrepare;
       b._frame=orig;si.dispose();if(ei)ei.dispose();
-      finish(frames.slice(1),{census:census,hooks:hooks,warmMs:warmMs,warmSim:t,sim0:sim0,wallMs:performance.now()-wall0,simAdvanced:b.time-sim0,hiddenFrames:rec.hidden});
+      finish(frames.slice(1),{census:census,hooks:hooks,warmMs:warmMs,warmSim:t,sim0:sim0,wallMs:performance.now()-wall0,simAdvanced:b.time-sim0,hiddenFrames:rec.hidden,hiddenKinds:HIDE,hiddenMeshes:hidden.length});
     },500);
   }
   function finish(frames,run){
@@ -173,8 +191,8 @@ function run(){
     var pose=root.BattlePoseTimings?root.BattlePoseTimings.snapshot():null,asset=root.BattleAssetTimings?root.BattleAssetTimings.snapshot():null;
     var roster=b._roster.us.concat(b._roster.ge),fbx=roster.filter(function(s){return s._fbx&&s.rig===null;}).length;
     result=round({
-      kind:'device-benchmark',version:4,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
-      device:device(engine),camera:CAM,animLod:!(root.BattleFbxSoldier&&root.BattleFbxSoldier.lod&&root.BattleFbxSoldier.lod.on===false),
+      kind:'device-benchmark',version:5,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
+      device:device(engine),camera:CAM,hide:run.hiddenKinds.length?{kinds:run.hiddenKinds,meshes:run.hiddenMeshes}:null,animLod:!(root.BattleFbxSoldier&&root.BattleFbxSoldier.lod&&root.BattleFbxSoldier.lod.on===false),
       soldiers:{total:roster.length,fbx:fbx,alive:b.factions.us.alive+b.factions.ge.alive},
       run:{seconds:SECONDS,warmupSim:run.warmSim,warmupWallMs:run.warmMs,wallMs:run.wallMs,simAdvanced:run.simAdvanced,timeScale:speed,frames:frames.length,hiddenFrames:run.hiddenFrames},
       fps:iv?{mean:1000/iv.mean,median:1000/iv.p50,low5:1000/iv.p95,low1:1000/iv.p99}:null,
@@ -203,6 +221,7 @@ function row(label,st,unit){return st?'<tr><td>'+esc(label)+'</td><td>'+f(st.p50
 function show(r){
   var d=r.device,p=r.pose||{},s=r.startup||{},soldiers=s.page&&s.page.phases.filter(function(x){return x.id==='soldiers';})[0];
   var warn=[];if(r.soldiers.fbx!==r.soldiers.total)warn.push(r.soldiers.total-r.soldiers.fbx+' soldiers on the procedural rig: not a full-fidelity run');
+  if(r.hide)warn.push('not drawn this run: '+r.hide.kinds.join(', ')+' ('+r.hide.meshes+' meshes)');
   if(r.run.hiddenFrames)warn.push('the tab was hidden for '+r.run.hiddenFrames+' frames');
   var h='<div style="color:#b9c49a">'+esc(d.renderer)+'<br>'+esc(d.canvas.width+'×'+d.canvas.height)+' canvas · DPR '+f(d.devicePixelRatio,2)+' · '+esc(d.cores)+' cores · build '+esc(r.build)+' · LOD '+(r.animLod?'on':'off')+' · camera '+esc(r.camera)+'</div>';
   if(warn.length)h+='<div style="color:#f1b4b4;margin-top:6px">'+warn.map(esc).join('<br>')+'</div>';
