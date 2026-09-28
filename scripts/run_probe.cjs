@@ -112,7 +112,7 @@ async function battle(browser, { type, seed }, probes) {
   if (!NAMES.length) throw new Error('PROBE=<name>[,<name>] is required; probes: ' +
     fs.readdirSync(path.join(__dirname, 'probes')).filter(f => f.endsWith('.js')).map(f => f.slice(0, -3)).join(', '));
   const browser = await chromium.launch({ headless: true,
-    args: ['--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'] });
+    args: ['--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--ignore-certificate-errors'] });
   const out = { probes: NAMES, step: STEP, seconds: SECONDS, url: URL, battles: [] };
   try {
     for (const b of BATTLES) {
