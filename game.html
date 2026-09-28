@@ -6,10 +6,10 @@
    leave terrain-demo.js in place and the game runs exactly as it did in v64. That
    fallback is the point - this file can merge to main before the assets are uploaded
    without taking the live demo down. Check the console line to see which path ran. */
-const REPO='https://raw.githubusercontent.com/Teethree89/grasstex/';
+const REPO='https://raw.githubusercontent.com/APPARANYX/grasstex/';
 const PINNED='237c02bc54ed48774d10207e602b08a2d31f2419';
-/* TODO flip to 'main' once this branch is merged. ?ref= overrides for testing. */
-const REF=new URLSearchParams(location.search).get('ref')||'claude/grass-terrain-placement-2qy4c4';
+/* ?ref= can pin another branch for testing; normal play follows main. */
+const REF=new URLSearchParams(location.search).get('ref')||'main';
 const ASSETS='https://test.ivandpopov.com/grasstex/Assets/terrain/';
 const BAKED=['tools/terrain-bake/tile.js','tools/terrain-bake/lod.js','tools/terrain-bake/stream.js','terrain-baked.js'];
 const OLD_TERRAIN="const terrain=await grab('"+REPO+"main/terrain-demo.js?ts='+Date.now());";
