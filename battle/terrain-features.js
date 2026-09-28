@@ -49,6 +49,7 @@
     if(sharedMat&&sharedMat.getScene()===scene)return sharedMat;
     sharedMat=new BABYLON.StandardMaterial('terrainFeatureMat',scene);
     sharedMat.specularColor=BABYLON.Color3.Black();sharedMat.ambientColor=new BABYLON.Color3(1,1,1);
+    if(sharedMat.freeze)sharedMat.freeze();
     return sharedMat;
   }
 
