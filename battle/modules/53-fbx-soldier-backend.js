@@ -1882,6 +1882,11 @@ function skinVertexLocal(raw,idx,wt,mats,vi,out){
 }
 function skinAnchor(soldier,point){
   var fx=soldier&&soldier._fbx;if(!fx||!point)return null;
+  /* A ballistic event can land between rendered frames (and the visual probes intentionally
+     fast-forward without rendering). Bring this one soldier to his current animation state before
+     locating the wound. This is paid only on a wound event, not per frame. Bumping poseRef makes
+     Skeleton.prepare recompute the matrices we just changed instead of reusing the last render. */
+  try{applyPose(fx);fx.poseRef.serial++;}catch(_){}
   var best=null,bestD=Infinity,VB=BABYLON.VertexBuffer;
   for(var mi=0;mi<fx.meshes.length;mi++){
     var mesh=fx.meshes[mi],sk=mesh&&mesh.skeleton;
