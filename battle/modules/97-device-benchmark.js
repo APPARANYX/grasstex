@@ -32,7 +32,7 @@ var panel=null,body=null,state='loading',result=null;
 function el(tag,css,text){var e=document.createElement(tag);if(css)e.style.cssText=css;if(text!=null)e.textContent=text;return e;}
 function ensurePanel(){
   if(panel)return;
-  panel=el('div','position:fixed;right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));z-index:90;width:min(420px,calc(100vw - 20px));max-height:calc(100vh - 20px);overflow:auto;padding:12px 14px;border:1px solid rgba(255,255,255,.2);border-radius:10px;background:rgba(14,17,12,.94);color:#eceee2;font:12px/1.4 -apple-system,Segoe UI,Arial,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.4)');
+  panel=el('div','position:fixed;right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));z-index:90;width:min(420px,calc(100vw - 20px));max-height:calc(100vh - 20px);overflow:auto;box-sizing:border-box;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:12px 14px;border:1px solid rgba(255,255,255,.2);border-radius:10px;background:rgba(14,17,12,.94);color:#eceee2;font:12px/1.4 -apple-system,Segoe UI,Arial,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.4)');
   panel.id='deviceBenchmark';
   panel.appendChild(el('div','font-weight:700;font-size:13px;margin-bottom:6px','Device benchmark'));
   body=el('div');panel.appendChild(body);document.body.appendChild(panel);
@@ -228,6 +228,11 @@ function show(r){
   h+='<div style="font-size:20px;font-weight:700;margin:8px 0 2px">'+f(r.fps&&r.fps.median)+' FPS <span style="font-size:12px;font-weight:400">median · mean '+f(r.fps&&r.fps.mean)+' · 5% low '+f(r.fps&&r.fps.low5)+' · 1% low '+f(r.fps&&r.fps.low1)+'</span></div>';
   var P=r.pacing;if(P)h+='<div>Pacing at '+f(P.hz,0)+' Hz: '+['1','2','3','4','5+'].map(function(k){return k+'× '+f(P.refreshes[k].share*100,0)+'%';}).join(' · ')+' of frames; CPU over one refresh in '+f(P.cpuOverRefresh*100,0)+'%</div>';
   h+='<div>'+r.run.frames+' frames in '+f(r.run.wallMs/1000,0)+' s, '+f(r.soldiers.alive,0)+' of '+r.soldiers.total+' soldiers alive</div>';
+  /* Controls first: on a phone the readouts below run past the screen, and reaching a button at the
+     bottom could drag the page into a reload. The readouts are folded under Details. */
+  h+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button id="benchCopy">Copy results</button><button id="benchSave">Download JSON</button><button id="benchClose">Close</button></div>'+
+    '<div style="color:#9aa088;margin-top:6px">Send the copied results back to compare runs. Nothing is uploaded.</div>';
+  h+='<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:700;padding:4px 0">Details</summary>';
   h+='<table style="width:100%;border-collapse:collapse;margin-top:8px;font-variant-numeric:tabular-nums"><tr style="color:#9aa088"><td></td><td>median</td><td>p95</td><td>p99</td><td></td></tr>'+
     row('Frame time',r.frameMs)+row('CPU in frame',r.cpuMs)+row('Scene render',r.sceneMs)+row('Babylon render',r.renderMs)+row('Sim step',r.simMs)+
     row('Pose (all soldiers)',p.frameMs)+row('GPU frame',r.gpuMs)+row('Draw calls',r.drawCalls,'')+row('Active meshes',r.activeMeshes,'')+'</table>';
@@ -247,8 +252,7 @@ function show(r){
   if(p.lod)h+='<div style="margin-top:6px">Soldiers posed per frame: '+f(p.posedPerFrame,1)+' ('+f(100*(p.lod.posedShare||0),0)+'%)</div>';
   if(!r.gpuMs)h+='<div style="color:#9aa088">GPU timing not available in this browser.</div>';
   if(s.page)h+='<div style="margin-top:6px">Load: '+f(s.page.finishedAt/1000)+' s total, soldiers '+f(soldiers&&soldiers.ms/1000)+' s (FBX parse '+f(s.totals.parse/1000)+' s, retarget '+f(s.totals.retarget/1000)+' s, '+f(s.totals.bytes/1048576,0)+' MiB)</div>';
-  h+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button id="benchCopy">Copy results</button><button id="benchSave">Download JSON</button><button id="benchClose">Close</button></div>'+
-    '<div style="color:#9aa088;margin-top:6px">Send the copied results back to compare runs. Nothing is uploaded.</div>';
+  h+='</details>';
   say(h);
   var btn='padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:#2b3223;color:#eceee2;font:inherit';
   ['benchCopy','benchSave','benchClose'].forEach(function(id){document.getElementById(id).style.cssText=btn;});
