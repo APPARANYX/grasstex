@@ -38,6 +38,20 @@ function stats(values){
   var qn=function(p){return a[Math.min(a.length-1,Math.floor(p*(a.length-1)+.5))];},sum=0;a.forEach(function(v){sum+=v;});
   return{n:a.length,mean:sum/a.length,p50:qn(.5),p95:qn(.95),p99:qn(.99),max:a[a.length-1]};
 }
+/* Frame pacing: the display refreshes every R ms and a frame not ready in time waits for the next
+   refresh, so frame intervals cluster at 1R, 2R, 3R. R is the fastest frames' interval (5th
+   percentile) snapped to a common refresh rate. For each cluster: its share of frames and the mean
+   CPU time of the frames in it; plus the share of frames whose CPU work alone exceeded one refresh.
+   If 2R frames are the ones whose CPU exceeded R, CPU is what misses the refresh. */
+function pacing(frames){
+  var iv=frames.map(function(x){return x.interval;}).filter(function(v){return v>0&&isFinite(v);}).sort(function(a,b){return a-b;});if(iv.length<10)return null;
+  var fast=iv[Math.floor(iv.length*.05)],R=null;[120,90,60,48,30].forEach(function(hz){var r=1000/hz;if(R===null||Math.abs(r-fast)<Math.abs(R-fast))R=r;});
+  var buckets={},over=0,n=0;
+  frames.forEach(function(x){if(!(x.interval>0))return;n++;var k=Math.max(1,Math.round(x.interval/R)),key=k>=5?'5+':String(k),b=buckets[key]||(buckets[key]={frames:0,cpu:0});b.frames++;b.cpu+=x.cpu||0;if(x.cpu>R)over++;});
+  var out={refreshMs:R,hz:1000/R,fastestMs:fast,cpuOverRefresh:n?over/n:null,refreshes:{}};
+  ['1','2','3','4','5+'].forEach(function(k){var b=buckets[k];out.refreshes[k]=b?{share:b.frames/n,cpuMs:b.cpu/b.frames}:{share:0,cpuMs:null};});
+  return out;
+}
 function round(o){return JSON.parse(JSON.stringify(o,function(k,v){return typeof v==='number'?+v.toFixed(3):v;}));}
 function device(engine){
   var gl=engine._gl,info={};
@@ -159,13 +173,14 @@ function run(){
     var pose=root.BattlePoseTimings?root.BattlePoseTimings.snapshot():null,asset=root.BattleAssetTimings?root.BattleAssetTimings.snapshot():null;
     var roster=b._roster.us.concat(b._roster.ge),fbx=roster.filter(function(s){return s._fbx&&s.rig===null;}).length;
     result=round({
-      kind:'device-benchmark',version:3,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
+      kind:'device-benchmark',version:4,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
       device:device(engine),camera:CAM,animLod:!(root.BattleFbxSoldier&&root.BattleFbxSoldier.lod&&root.BattleFbxSoldier.lod.on===false),
       soldiers:{total:roster.length,fbx:fbx,alive:b.factions.us.alive+b.factions.ge.alive},
       run:{seconds:SECONDS,warmupSim:run.warmSim,warmupWallMs:run.warmMs,wallMs:run.wallMs,simAdvanced:run.simAdvanced,timeScale:speed,frames:frames.length,hiddenFrames:run.hiddenFrames},
       fps:iv?{mean:1000/iv.mean,median:1000/iv.p50,low5:1000/iv.p95,low1:1000/iv.p99}:null,
       frameMs:iv,cpuMs:stats(col('cpu')),sceneMs:stats(col('scene')),renderMs:stats(col('render')),simMs:stats(col('sim')),
       activeMeshes:stats(col('meshes')),drawCalls:stats(col('draws')),gpuMs:stats(col('gpu')),
+      pacing:pacing(frames),
       meshKinds:(function(c){var n=Math.max(1,c.samples),tot=0,out=[];Object.keys(c.kinds).forEach(function(k){tot+=c.kinds[k].draws;});
         Object.keys(c.kinds).forEach(function(k){out.push({kind:k,meshes:c.kinds[k].meshes/n,draws:c.kinds[k].draws/n,share:tot?c.kinds[k].draws/tot:null});});
         out.sort(function(a,b){return b.draws-a.draws;});
@@ -192,6 +207,7 @@ function show(r){
   var h='<div style="color:#b9c49a">'+esc(d.renderer)+'<br>'+esc(d.canvas.width+'×'+d.canvas.height)+' canvas · DPR '+f(d.devicePixelRatio,2)+' · '+esc(d.cores)+' cores · build '+esc(r.build)+' · LOD '+(r.animLod?'on':'off')+' · camera '+esc(r.camera)+'</div>';
   if(warn.length)h+='<div style="color:#f1b4b4;margin-top:6px">'+warn.map(esc).join('<br>')+'</div>';
   h+='<div style="font-size:20px;font-weight:700;margin:8px 0 2px">'+f(r.fps&&r.fps.median)+' FPS <span style="font-size:12px;font-weight:400">median · mean '+f(r.fps&&r.fps.mean)+' · 5% low '+f(r.fps&&r.fps.low5)+' · 1% low '+f(r.fps&&r.fps.low1)+'</span></div>';
+  var P=r.pacing;if(P)h+='<div>Pacing at '+f(P.hz,0)+' Hz: '+['1','2','3','4','5+'].map(function(k){return k+'× '+f(P.refreshes[k].share*100,0)+'%';}).join(' · ')+' of frames; CPU over one refresh in '+f(P.cpuOverRefresh*100,0)+'%</div>';
   h+='<div>'+r.run.frames+' frames in '+f(r.run.wallMs/1000,0)+' s, '+f(r.soldiers.alive,0)+' of '+r.soldiers.total+' soldiers alive</div>';
   h+='<table style="width:100%;border-collapse:collapse;margin-top:8px;font-variant-numeric:tabular-nums"><tr style="color:#9aa088"><td></td><td>median</td><td>p95</td><td>p99</td><td></td></tr>'+
     row('Frame time',r.frameMs)+row('CPU in frame',r.cpuMs)+row('Scene render',r.sceneMs)+row('Babylon render',r.renderMs)+row('Sim step',r.simMs)+
