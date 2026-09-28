@@ -1861,26 +1861,46 @@ M.setImportedEnabled=function(scene,enabled){
    vertex's bone weights each render. The anchor therefore follows the same skin deformation as
    the soldier without CPU-skinning the whole mesh every frame. */
 var skinTmp=new V3();
+function skinVertexLocal(raw,idx,wt,mats,vi,out){
+  var x=raw[vi*3],y=raw[vi*3+1],z=raw[vi*3+2],px=0,py=0,pz=0,total=0;
+  if(mats){
+    for(var set=0;set<2;set++){
+      if(!idx[set]||!wt[set])continue;
+      for(var j=0;j<4;j++){
+        var w=+wt[set][vi*4+j]||0,bi=idx[set][vi*4+j]|0,o=bi*16;
+        if(!(w>1e-5)||o+15>=mats.length)continue;
+        px+=w*(x*mats[o]+y*mats[o+4]+z*mats[o+8]+mats[o+12]);
+        py+=w*(x*mats[o+1]+y*mats[o+5]+z*mats[o+9]+mats[o+13]);
+        pz+=w*(x*mats[o+2]+y*mats[o+6]+z*mats[o+10]+mats[o+14]);
+        total+=w;
+      }
+    }
+  }
+  if(total<1e-5){out.x=x;out.y=y;out.z=z;}
+  else{out.x=px/total;out.y=py/total;out.z=pz/total;}
+  return out;
+}
 function skinAnchor(soldier,point){
   var fx=soldier&&soldier._fbx;if(!fx||!point)return null;
   var best=null,bestD=Infinity,VB=BABYLON.VertexBuffer;
   for(var mi=0;mi<fx.meshes.length;mi++){
     var mesh=fx.meshes[mi],sk=mesh&&mesh.skeleton;
-    if(!sk||!mesh.getPositionData||!mesh.getVerticesData)continue;
-    var posed=null;
-    try{sk.prepare();posed=mesh.getPositionData(true);}catch(_){posed=null;}
-    if(!posed||!posed.length)continue;
+    if(!sk||!mesh.getVerticesData)continue;
+    var raw=mesh.getVerticesData(VB.PositionKind);
+    if(!raw||!raw.length)continue;
+    var idx=[mesh.getVerticesData(VB.MatricesIndicesKind),mesh.getVerticesData(VB.MatricesIndicesExtraKind)],
+      wt=[mesh.getVerticesData(VB.MatricesWeightsKind),mesh.getVerticesData(VB.MatricesWeightsExtraKind)],
+      normal=mesh.getVerticesData(VB.NormalKind),mats=null;
+    try{sk.prepare();mats=sk.getTransformMatrices&&sk.getTransformMatrices(mesh);}catch(_){mats=null;}
     var world=mesh.getWorldMatrix(),vi=-1;
-    for(var v=0;v<posed.length;v+=3){
-      V3.TransformCoordinatesFromFloatsToRef(posed[v],posed[v+1],posed[v+2],world,skinTmp);
+    for(var v=0,nv=raw.length/3;v<nv;v++){
+      skinVertexLocal(raw,idx,wt,mats,v,skinTmp);
+      V3.TransformCoordinatesToRef(skinTmp,world,skinTmp);
       var dx=skinTmp.x-point.x,dy=skinTmp.y-point.y,dz=skinTmp.z-point.z,d=dx*dx+dy*dy+dz*dz;
-      if(d<bestD){bestD=d;vi=v/3;}
+      if(d<bestD){bestD=d;vi=v;}
     }
     if(vi<0)continue;
-    var raw=mesh.getVerticesData(VB.PositionKind),normal=mesh.getVerticesData(VB.NormalKind),
-      idx=[mesh.getVerticesData(VB.MatricesIndicesKind),mesh.getVerticesData(VB.MatricesIndicesExtraKind)],
-      wt=[mesh.getVerticesData(VB.MatricesWeightsKind),mesh.getVerticesData(VB.MatricesWeightsExtraKind)],
-      indices=[],weights=[];
+    var indices=[],weights=[];
     for(var set=0;set<2;set++){
       if(!idx[set]||!wt[set])continue;
       for(var j=0;j<4;j++){
