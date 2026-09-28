@@ -114,7 +114,12 @@
   function scatter(scene,heightAt,opts){
     opts=opts||{};
     var fieldW=opts.fieldW||360,fieldD=opts.fieldD||(opts.keepoutZ?opts.keepoutZ*2.2:190),keepoutZ=opts.keepoutZ||fieldD*.46;
-    var rng=mulberry32(opts.seed||1337),halfW=fieldW*.46,entries=[],obstacles=[],physical=[],area=(halfW*2)*(keepoutZ*2),physicalSeq=0;
+    var terrainSeed=opts.seed==null?1337:(+opts.seed||0),
+      rng=mulberry32(terrainSeed),
+      /* Height owns a separate deterministic stream so changing bocage scale cannot shift the
+         existing X/Z hedge layout or any later clutter draws from the terrain RNG. */
+      hedgeHeightRng=mulberry32((terrainSeed^0x6b6f6361)>>>0),
+      halfW=fieldW*.46,entries=[],obstacles=[],physical=[],area=(halfW*2)*(keepoutZ*2),physicalSeq=0;
     var scenario=opts.scenario||(root.BattleScenarioGenerator&&root.BattleScenarioGenerator.current?root.BattleScenarioGenerator.current():null);
     var buildings=scenario&&scenario.buildings||[],BUILDING_KEEP=opts.buildingKeepout==null?2.2:+opts.buildingKeepout;
 
@@ -169,7 +174,7 @@
         var jag=(rng()-.5)*7,ax=horizontal?cursor:fixed,az=horizontal?fixed+jag:cursor,bx=horizontal?cursor+segLen:fixed-jag,bz=horizontal?fixed-jag:cursor+segLen;
         if(!segmentBlockedByBuilding(ax,az,bx,bz,HEDGE_WIDTH)){
           var pieces=Math.max(1,Math.ceil(segLen/HEDGE_CHUNK)),
-            runHeight=HEDGE_HEIGHT_MIN+rng()*(HEDGE_HEIGHT_MAX-HEDGE_HEIGHT_MIN);
+            runHeight=HEDGE_HEIGHT_MIN+hedgeHeightRng()*(HEDGE_HEIGHT_MAX-HEDGE_HEIGHT_MIN);
           for(var h=0;h<pieces;h++){
             var u0=h/pieces,u1=(h+1)/pieces,pax=ax+(bx-ax)*u0,paz=az+(bz-az)*u0,pbx=ax+(bx-ax)*u1,pbz=az+(bz-az)*u1;
             var fp=addHedgeVolume(pax,paz,pbx,pbz,runHeight);place(buildHedgePrism(scene,fp),fp.x,fp.z);
