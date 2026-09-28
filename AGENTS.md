@@ -180,6 +180,7 @@ needs the flag in `chromium.launch` args; `ignoreHTTPSErrors` on the page alone 
 | `scripts/probe_lod_shadows.cjs` | Animation LOD vs shadows: adds a directional light and ShadowGenerator, aims a narrow camera at one soldier's shadow with him out of view, and checks he is held with no caster, posed as a caster, held when the shadow falls away, posed under a caster predicate. `LODSHADOW_URL`. |
 | `scripts/probe_merged_walls.cjs` | Merged building walls: loads one seed with and without `?mergeWalls=0` and checks building meshes and draw calls, total vertices, world bounds, and a town screenshot from one camera with the HUD hidden (fails above `MW_MAXDIFF`, 0.2% of pixels). `MW_URL`, `MW_SEED`, `MW_OUT`. |
 | `scripts/probe_soldier_mesh_lod.cjs` | Soldier mesh LOD: each model's full and far triangle/vertex counts, and one posed soldier (after ~20 s of battle) shot at full detail and on the far list from `SMLOD_DIST` metres at the iPhone canvas size, side by side (`d<m>m.png`, full \| far) with the share of differing pixels. Tune `meshLod.far` from these. `SMLOD_URL`, `SMLOD_SEED`, `SMLOD_VIEW`, `SMLOD_OUT`. |
+| `scripts/probe_bench_census.cjs` | Device benchmark's draw-calls-by-kind census vs Babylon's measured draw calls, with weapon instances on and off (`?weaponInstances=0`): instanced weapons must count once per source mesh. `BC_URL`, `BC_SEED`, `BC_SECONDS`, `BC_WARMUP`, `BC_TOL`. |
 | `scripts/probe_weapon_instances.cjs` | Weapon instancing: draw calls with and without `?weaponInstances=0` over the armies, and inside the instanced page each weapon's world matrix and a close-up against a temporary clone on the same socket (same frame, so exact). `WI_URL`, `WI_SEED`, `WI_OUT`, `WI_MAXDIFF`. |
 | `scripts/probe_clip_pack.cjs` | Loads the page with `?clipPack=0` and as shipped, each in a fresh context: every converted and every model's retargeted clip must be bit-identical, and the shipped load must fetch no clip FBX. Reports the soldiers phase, FBX parse and clip bytes each way. `CLIPPACK_URL`, `CLIPPACK_OUT`. |
 | `scripts/probe_retarget.cjs` | Quaternion retarget vs `?fastRetarget=0` (matrix), each load in a fresh context: worst difference in every model's rotation and position samples, clip speeds and strides, and solved grips, plus retarget time each way. Fails above `RT_MAX_ROT`/`RT_MAX_POS` (1e-5). `RT_URL`. |
@@ -190,7 +191,7 @@ needs the flag in `chromium.launch` args; `ignoreHTTPSErrors` on the page alone 
 **Device benchmark** (`modules/97-device-benchmark.js`, inert without the flag): open the page with
 `?bench=1` on any phone or computer, tap **Start benchmark** and keep the tab in front. It
 fast-forwards `benchWarmup` (60) sim seconds to contact, plays `benchSeconds` (60) with the normal
-render loop and reports (result v6): FPS (median, mean, 5%/1% lows); frame, CPU, render, sim and
+render loop and reports (result v7): FPS (median, mean, 5%/1% lows); frame, CPU, render, sim and
 pose time; GPU time where the browser has a timer query; device and renderer; the load breakdown;
 where `scene.render` goes (hooks by name, active-mesh evaluation, `Skeleton.prepare`, draw,
 unattributed); draw calls by kind; frame pacing (refresh rate, share of frames taking 1, 2, 3…
@@ -508,13 +509,19 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
      on the per-frame bone-texture updates of ~20 re-posed soldiers. Frames in one refresh, 844 wide:
      77.6% default → 91.9% `farHz=5` → **96.0% bone uniforms** (at the full 10 Hz). Bone matrices
      now go as uniforms wherever `maxVertexUniformVectors ≥ 4 × (bones + 1) + 128`, else textures
-     (never CPU skinning; checked with the limit capped at 256). Effects were about a third of
+     (never CPU skinning; checked with the limit capped at 256). Shipped as the default (v218): 97.1%
+     in one refresh, 57.9 / 62.5 FPS, 1% low 28.6, `bones.uniforms` 100 with limit 1024; most worst
+     frames fell in the first 0.8 s after the fast-forward (the benchmark's own warm-up). Effects were about a third of
      the stall (`benchHide=decals`). The lab's 4× default is harsher (a sim step every other frame).
      Compare device runs in one app, one rotation (797 vs 844 canvas), 1×, with the phone cool.
   3. **Sim CPU:** `squad.updateSoldier` (Engagement, sight) and the movement resolver lead
      the hot-path profile. Remove redundant work or allocation churn only with paired
      deterministic benchmarks and the ownership checks; never trade behaviour for speed.
-  4. The benchmark's draw-call census counts weapon instances as separate draws; fix it.
+     **Deferred (2026-09-28)** until `ww2fps` decides whether it takes the squad AI files as they
+     are (vehicles, armour and artillery come first there): tune them here only if it will.
+  4. Done: the benchmark's draw-call census counts instanced weapons once per source mesh
+     (result v7; locally census 141 vs measured 141 with instances, 168.5 vs 169.2 with clones,
+     `probe_bench_census.cjs`).
   5. The close camera (under 45 m, soldiers at full detail) is unmeasured.
   6. Check that `preserveDrawingBuffer:true` (screenshot tools) and `renderEvenInBackground`
      are still needed on mobile before turning either off.
