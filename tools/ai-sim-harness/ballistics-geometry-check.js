@@ -48,7 +48,7 @@ function resolveLine(r,s,t,obstacles,enemies){
   console.log('PASS tactical cover radius no longer catches a round that misses the physical log');
 }
 {
-  const r=root(),s=man(15,-10,'us'),t=man(15,10,'ge');s.weapon=weapon('rifle');
+  const r=root(),s=man(15,-10,'us'),t=man(15,10,'ge');s.weapon=weapon('rifle');s.prone=true;t.prone=true;
   const shot=resolveLine(r,s,t,logField(15,0),[]);
   assert.equal(shot.stoppedBy,'environment');assert.equal(shot.surface,'log');
   assert.ok(shot.impact.z>-0.34&&shot.impact.z<-0.22,'impact is on the 0.275 m physical log face, not the 2.1 m tactical circle: '+shot.impact.z);
