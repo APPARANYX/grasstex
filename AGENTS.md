@@ -468,6 +468,7 @@ iPhone Safari, portrait 390×645, `?bench=1&seed=bench1`, overview camera:
 | v206 (#79 effects warm-up), two runs | 59.3 / 58.8 and 46.6 / 58.8 | 38.5 and 19.6 | 8.4-9.9 ms | 180-189 |
 | v210 (#81 clip pack, #83 retarget; canvas 390×797) | 56.8 / 58.8 | 21.3 | 9.0 ms | 173 |
 | v215 (#86 bind; home-screen app, 390×797) | 55.0 / 58.8 | 20 | 8.9 ms | 188 |
+| v221 (#92 soldier culling; 390×797, combat `benchWarmup=150`) | 59.6 / 58.8 (99.2% in one refresh) | 43.5 | 6.4 ms | 126 |
 
 Home-screen app, landscape 844×797, v206: 52.2 / 58.8, 1% low 23.3, CPU 11.5 ms. The wider
 view poses and draws more (13 soldiers posed per frame, 208 draw calls), and its two-refresh
@@ -537,12 +538,14 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
   4. Done: the benchmark's draw-call census counts instanced weapons once per source mesh
      (result v7; locally census 141 vs measured 141 with instances, 168.5 vs 169.2 with clones,
      `probe_bench_census.cjs`).
-  5. **Close camera** (under 45 m, soldiers at full detail; `benchCam=close` stops at 90 m, so use
-     `?bench=1&seed=bench1&benchCam=follow&benchWarmup=150`). iPhone landscape (844), 1×, v220:
-     54.5 / 58.8 FPS, 93.1% in one refresh, 1% low 22.7, CPU 7.3 ms, 145 draw calls of which 100 were
-     soldiers with ~8% in view: the slow frames were beyond CPU. Off-screen soldier culling followed
-     (locally, same frames byte-identical: mean draws 167 → 102 landscape, 131 → 46 portrait over
-     `probe_soldier_cull.cjs`'s cameras); rerun the follow benchmark on the phone to confirm.
+  5. **Close camera: fixed (soldier culling, #92).** Measure it with the follow camera
+     (`?bench=1&seed=bench1&benchCam=follow&benchWarmup=150`; `benchCam=close` stops at 90 m). iPhone
+     landscape, 1×: v220 54.5 / 58.8 FPS, 93.1% in one refresh, 1% low 22.7, CPU 7.3 ms, 145 draw
+     calls of which 100 were soldiers with ~8% in view (the slow frames were beyond CPU) → v221
+     59.3 / 58.8, **98.9%**, 1% low 37.0, CPU 5.4 ms, 65 draws (18 soldiers). Portrait overview in
+     combat, v221: see the table. A run whose canvas is neither 390 nor 844 wide (844×797 seen once,
+     70% in one refresh) is a phone rotated after the page loaded: the canvas kept its old width, so
+     reload in the orientation you measure.
   6. Check that `preserveDrawingBuffer:true` (screenshot tools) and `renderEvenInBackground`
      are still needed on mobile before turning either off.
 - Don't do a repo-wide Prettier rewrite: Prettier is scoped to the M3C behaviour files.
