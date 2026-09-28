@@ -39,7 +39,7 @@ In the page: a load overlay (`BattleLoading`, in `battle_sim.html`) shows each b
 scripts, scenario, terrain, soldiers/weapons/clips, cover, navigation and squads); the FBX backend
 reports per-file progress to it. **Start Battle** unpauses and unlocks audio (iOS needs the gesture).
 `window.__battle__` is the live `BattleSim`. HUD buttons: World Debug, AI Graph, Motion Lab.
-URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?clipPack=0` (parse every clip from its FBX instead of the prepared pack), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?tracerPool=0` (a new line mesh per tracer, as before the pool), `?fxPrewarm=0` (build muzzle flashes, tracer lines and decals on first use, as before), `?perfTimings=1`, `?bench=1` (device benchmark, below).
+URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?clipPack=0` (parse every clip from its FBX instead of the prepared pack), `?fastRetarget=0` (retarget clips with the old matrix loop), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?tracerPool=0` (a new line mesh per tracer, as before the pool), `?fxPrewarm=0` (build muzzle flashes, tracer lines and decals on first use, as before), `?perfTimings=1`, `?bench=1` (device benchmark, below).
 
 ## Test harnesses
 
@@ -163,6 +163,7 @@ In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certif
 | `scripts/probe_soldier_mesh_lod.cjs` | Soldier mesh LOD: each model's full and far triangle/vertex counts, and one posed soldier (after ~20 s of battle) shot at full detail and on the far list from `SMLOD_DIST` metres at the iPhone canvas size, side by side (`d<m>m.png`, full \| far) with the share of differing pixels. Tune `meshLod.far` from these. `SMLOD_URL`, `SMLOD_SEED`, `SMLOD_VIEW`, `SMLOD_OUT`. |
 | `scripts/probe_weapon_instances.cjs` | Weapon instancing: draw calls with and without `?weaponInstances=0` over the armies, and inside the instanced page each weapon's world matrix and a close-up against a temporary clone on the same socket (same frame, so exact). `WI_URL`, `WI_SEED`, `WI_OUT`, `WI_MAXDIFF`. |
 | `scripts/probe_clip_pack.cjs` | Loads the page with `?clipPack=0` and as shipped, each in a fresh context: every converted and every model's retargeted clip must be bit-identical, and the shipped load must fetch no clip FBX. Reports the soldiers phase, FBX parse and clip bytes each way. `CLIPPACK_URL`, `CLIPPACK_OUT`. |
+| `scripts/probe_retarget.cjs` | Quaternion retarget vs `?fastRetarget=0` (matrix), each load in a fresh context: worst difference in every model's rotation and position samples, clip speeds and strides, and solved grips, plus retarget time each way. Fails above `RT_MAX_ROT`/`RT_MAX_POS` (1e-5). `RT_URL`. |
 | `scripts/probe_gait_clips.cjs` | Which FBX locomotion family (walk/run/sprint/crouch/crouchRun) each sim gait actually plays, at what rate, plus each model's natural clip speeds (in-place clips: foot stride). `GAIT_URL` (default production), `GAIT_SEED`, `GAIT_SECONDS`, `GAIT_OUT`. |
 | `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on), `fire-gates` (per role: trigger pulls, target distance bands, and the first fire condition that fails while a man holds a target), `backward-orders` (new destinations behind the man's fireteam line or behind the man himself while the squad advances, by producer and phase), `stance-churn` (shown stance changes per man-minute by writing file, A→B→A bounces under 1 s, trigger pulls within `AIM_SETTLE` of a change, prone spells shorter than `PRONE_HOLD`), `regroup-axis` (regroup ticks whose forward axis collapsed, and men behind the anchor scored as outrunners). |
 
@@ -453,8 +454,10 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound).
   1. **Startup.** Clips now load from the prepared pack: locally the soldiers phase went from
      17.9 to 5.9 s and FBX parse from 13.5 to 2.1 s, bit-identical clips (`probe_clip_pack.cjs`).
      iPhone Safari (v208): whole load 20.7-23.9 → 8.3 s, soldiers phase 17.5-19.7 → 5.0 s, FBX
-     parse 0.9 s. What is left: retargeting onto 10 models (3.2 s on the iPhone, now the largest;
-     could be packed per model), the 10 model FBX, and the far-LOD index lists.
+     parse 0.9 s. Retargeting onto the 10 models (3.2 s on the iPhone) now runs in quaternions:
+     locally 1.88 → 0.56 s, within 1.3e-6 of the matrix loop (`probe_retarget.cjs`); a pack of
+     retargeted clips would be ~45 MiB (every model differs), so it stays at load. Sidecars are
+     fetched from the start of the load. What is left: the 10 model FBX and the far-LOD lists.
      (a) Remove the 25 s imported-soldier timeout and the procedural *visual* fallback in normal
      gameplay: `BattleSoldierModel.preload` races `loadLibrary` against a timer, and losing does
      not cancel the load. Normal gameplay waits for its assets and shows a real failure; keep only
@@ -596,7 +599,7 @@ never decides tactics, ammo, hits or paths.
   `printf '%s' 'password' | shasum -a 256`), and without that file saving is off. Pistol slots
   never carry fore points (one-hand hold, in the lab and the game). Sidecars are server-owned:
   never committed, never deployed or deleted.
-- Clips are retargeted at load (rest pose, units, hip height). Looping clips have hip drift removed,
+- Clips are retargeted at load (rest pose, units, hip height), in quaternions (`retargetRotations`). Looping clips have hip drift removed,
   and that drift becomes their natural ground speed. Playback rate is ground speed ÷ clip speed.
   The upper-body overlay (aim/fire/reload) sits on the lower locomotion layer. The weapon grip snaps
   to a right-palm anchor, the fore-end runs through the left palm, and aim uses a capped spine twist (≤40°).
