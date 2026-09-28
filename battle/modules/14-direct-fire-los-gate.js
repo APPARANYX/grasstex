@@ -16,25 +16,28 @@
     var B = root.BattleBallistics;
     return !!(B && typeof B.fireLineBlocked === 'function' && B.fireLineBlocked(s, s.target, battle));
   }
-  function blocked(s, battle) {
-    if (!s || !battle || !s.target || s.target.dead || !s.root || !s.target.root) return true;
+  /* Why a shot is refused now: 'los' (no sight of him), 'crest' (sight, but the round's line meets
+     the ground first) or '' (clear). */
+  function blockReason(s, battle) {
+    if (!s || !battle || !s.target || s.target.dead || !s.root || !s.target.root) return 'los';
     try {
-      if (!root.SquadAI.hasLineOfSight(s, s.target, battle.heightAt, battle.obstacles)) return true;
-      if (crestBlocked(s, battle)) {
-        s._crestBlockedFire = (s._crestBlockedFire || 0) + 1;
-        return true;
-      }
-      return false;
+      if (!root.SquadAI.hasLineOfSight(s, s.target, battle.heightAt, battle.obstacles)) return 'los';
+      return crestBlocked(s, battle) ? 'crest' : '';
     } catch (_) {
-      return false;
+      return '';
     }
+  }
+  function blocked(s, battle) {
+    return !!blockReason(s, battle);
   }
 
   /* SquadAI's fireGate slot runs this after the ammunition gate, immediately before the shot. */
   root.SquadAI.extend('fireGate', 'direct-fire-los', function (s, battle) {
     if (!s || !battle || !s.target || s.target.dead) return false;
-    if (blocked(s, battle)) {
+    var why = blockReason(s, battle);
+    if (why) {
       s._losBlockedFire = (s._losBlockedFire || 0) + 1;
+      if (why === 'crest') s._crestBlockedFire = (s._crestBlockedFire || 0) + 1;
       s._losBlockedFireAt = +battle.time || 0;
       return false;
     }
@@ -44,6 +47,7 @@
   root.BattleDirectFireLOSGate = {
     version: '66-trigger-los-fire-line',
     blocked: blocked,
+    blockReason: blockReason,
     blockedCount: function (s) {
       return (s && s._losBlockedFire) || 0;
     }
