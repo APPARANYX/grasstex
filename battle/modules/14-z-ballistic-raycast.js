@@ -8,6 +8,7 @@
 
   var S = root.SquadAI;
   var EPS = 0.08,
+    FIRE_LINE_BODY = 0.5, // a fire line that reaches this close to the body centre reaches the body
     GROUND_STEPS = 24,
     REFINE_STEPS = 9,
     GROUP90 = 4.291932052578694;
@@ -409,6 +410,19 @@
     shooter._lastBallisticShot = meta;
     return hit;
   }
+  /* The line the round will fly before dispersion: from the shooter's eye to the target's body
+     centre, tested against the ground exactly as a round is (groundStop). The trigger-time gate
+     asks this, so a man who sees a head over a crest does not fire a round that the crest takes. */
+  function fireLineBlocked(shooter, target, battle) {
+    if (!shooter || !target || !shooter.root || !target.root || !battle || !battle.heightAt) return false;
+    var sp = shooter.root.position,
+      o = { x: sp.x, y: battle.heightAt(sp.x, sp.z) + eyeHeight(shooter), z: sp.z },
+      aim = targetCenter(target, battle),
+      span = Math.hypot(aim.x - o.x, aim.y - o.y, aim.z - o.z);
+    if (!(span > FIRE_LINE_BODY)) return false;
+    var d = { x: (aim.x - o.x) / span, y: (aim.y - o.y) / span, z: (aim.z - o.z) / span };
+    return groundStop(o, d, span, battle) < span - FIRE_LINE_BODY;
+  }
   function pointDistance(a, b) {
     return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
   }
@@ -439,7 +453,8 @@
     penetration: penetration,
     THROUGH: THROUGH,
     RETAIN: RETAIN,
-    rayEllipsoid: rayEllipsoid
+    rayEllipsoid: rayEllipsoid,
+    fireLineBlocked: fireLineBlocked
   };
   if (typeof console !== 'undefined')
     console.log('[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts');
