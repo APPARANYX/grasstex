@@ -38,7 +38,7 @@ In the page: a load overlay (`BattleLoading`, in `battle_sim.html`) shows each b
 scripts, scenario, terrain, soldiers/weapons/clips, cover, navigation and squads); the FBX backend
 reports per-file progress to it. **Start Battle** unpauses and unlocks audio (iOS needs the gesture).
 `window.__battle__` is the live `BattleSim`. HUD buttons: World Debug, AI Graph, Motion Lab.
-URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?perfTimings=1`, `?bench=1` (device benchmark, below).
+URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?tracerPool=0` (a new line mesh per tracer, as before the pool), `?perfTimings=1`, `?bench=1` (device benchmark, below).
 
 ## Test harnesses
 

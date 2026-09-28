@@ -67,15 +67,45 @@
     var a=hash01(seed)*Math.PI*2,spread=Math.min(3.2,.55+(+d||0)*.014),vertical=(hash01(seed^0x5bd1e995)-.5)*spread*.65;
     aim.x+=Math.cos(a)*spread;aim.z+=Math.sin(a)*spread;aim.y+=vertical;return aim;
   }
-  function tracer(scene,name,from,to,color,alpha,lifetime){
-    if(!scene||!from||!to)return;
-    var opts={points:[from,to]},useVertexAlpha=typeof BABYLON.Color4==='function';
-    if(useVertexAlpha){opts.colors=[new BABYLON.Color4(color.r,color.g,color.b,alpha),new BABYLON.Color4(color.r,color.g,color.b,alpha)];opts.useVertexAlpha=true;}
+  /* Tracers: a shot's line shows for ~0.1 s. Each used to be a new LinesMesh created and disposed per
+     shot (~20 a second at 4x speed on the device benchmark: GPU buffers, a mesh object and garbage
+     every shot, and a likely source of frame hitches). They now come from a per-scene, per-style
+     pool of updatable lines: a shot moves a free line's two points, shows it and hides it when its
+     time is up. A style's pool grows to TRACER_MAX lines; past that the oldest showing line is reused
+     (it would have faded within ~0.1 s anyway). Presentation only: no
+     combat RNG, nothing the sim reads. `?tracerPool=0` creates and disposes per shot as before. */
+  var TRACER_POOL=!(typeof location!=='undefined'&&/[?&]tracerPool=0\b/.test(location.search||''));
+  var TRACER_MAX=48,tracerState=typeof WeakMap!=='undefined'?new WeakMap():null,tracerStats={created:0,reused:0};
+  function tracerLine(scene,name,from,to,color,alpha,updatable,instance){
+    var opts={points:[from,to],updatable:!!updatable},useVertexAlpha=alpha!=null&&typeof BABYLON.Color4==='function';
+    if(instance)opts.instance=instance;
+    if(useVertexAlpha&&!instance){opts.colors=[new BABYLON.Color4(color.r,color.g,color.b,alpha),new BABYLON.Color4(color.r,color.g,color.b,alpha)];opts.useVertexAlpha=true;}
     var l=BABYLON.MeshBuilder.CreateLines(name,opts,scene);
-    l.color=new BABYLON.Color3(color.r,color.g,color.b);if(!useVertexAlpha)l.alpha=alpha;
-    l.isPickable=false;l.renderingGroupId=3;
-    setTimeout(function(){try{l.dispose();}catch(_){}},lifetime);
+    if(!instance){l.color=new BABYLON.Color3(color.r,color.g,color.b);if(alpha!=null&&!useVertexAlpha)l.alpha=alpha;l.isPickable=false;}
+    return l;
   }
+  function showTracer(scene,name,from,to,color,alpha,lifetime,group){
+    if(!scene||!from||!to)return;
+    if(!TRACER_POOL){
+      var once=tracerLine(scene,name,from,to,color,alpha,false,null);if(group!=null)once.renderingGroupId=group;tracerStats.created++;
+      setTimeout(function(){try{once.dispose();}catch(_){}},lifetime);return;
+    }
+    var st=tracerState?tracerState.get(scene):scene._battleTracers;
+    if(!st){st={};if(tracerState)tracerState.set(scene,st);else scene._battleTracers=st;}
+    var pool=st[name]||(st[name]=[]),l=null;
+    for(var i=0;i<pool.length;i++)if(!pool[i]._tracerOn&&!pool[i].isDisposed()){l=pool[i];break;}
+    if(!l&&pool.length>=TRACER_MAX){for(i=0;i<pool.length;i++)if(!l||pool[i]._tracerAt<l._tracerAt)l=pool[i];tracerStats.stolen=(tracerStats.stolen||0)+1;}
+    if(l){tracerLine(scene,name,from,to,color,alpha,true,l);tracerStats.reused++;}
+    else{
+      l=tracerLine(scene,name,from,to,color,alpha,true,null);if(group!=null)l.renderingGroupId=group;
+      /* The two points move every use; skip culling rather than refresh its bounds each time. */
+      l.alwaysSelectAsActiveMesh=true;l.doNotSyncBoundingInfo=true;pool.push(l);tracerStats.created++;
+    }
+    var gen=l._tracerGen=(l._tracerGen||0)+1;l._tracerOn=true;l._tracerAt=performance.now();l.setEnabled(true);
+    setTimeout(function(){if(l._tracerGen!==gen)return;l._tracerOn=false;if(!l.isDisposed())l.setEnabled(false);},lifetime);
+  }
+  root.BattleTracers={on:TRACER_POOL,show:showTracer,stats:function(){return{pool:TRACER_POOL,created:tracerStats.created,reused:tracerStats.reused,stolen:tracerStats.stolen||0,max:TRACER_MAX};}};
+  function tracer(scene,name,from,to,color,alpha,lifetime){showTracer(scene,name,from,to,color,alpha,lifetime,3);}
   function hitTracer(scene,from,to){tracer(scene,'tracer-hit',from,to,{r:1,g:.95,b:.7},.50,90);}
   function missTracer(scene,from,to){tracer(scene,'tracer-miss',from,to,{r:1,g:1,b:1},.15,135);}
   function install(sim){
