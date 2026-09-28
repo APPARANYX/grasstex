@@ -15,6 +15,12 @@ original docs (roadmaps, lab notes, measurements) are in git history at `1a5b0cf
 - **Keep probes.** A one-off measurement script is a probe: commit it as `scripts/probes/<name>.js`
   (run with `scripts/run_probe.cjs`) or extend a close-up tool (`closeup.cjs` for a posed soldier,
   `closeup_battle.cjs` for one in a fight), never leave it in `/tmp`.
+- **Browser probes run against the preview, not a local server.** Push the branch and point the
+  script's URL variable (`CLOSEUP_URL`, `CULL_URL`, `BF_URL`, …) at
+  `https://test.ivandpopov.com/grasstex/preview.php?ref=<branch>` (query flags pass through). It has
+  the real textures and hosting and loads far faster than `php -S` under SwiftShader, where the ground
+  renders red. Use the local server only for what the preview can't serve: an unpushed tree, a
+  `git worktree` A/B, or a change to `battle_sim_local.php`.
 - **Stay in scope.** Don't touch audio, assets or animation unless asked. Unnamed uploads: ask
   what they are and where they belong.
 - `main` deploys to production on every push. Put anything visual on a `work/**` or `preview/**`
@@ -102,7 +108,8 @@ php -S 127.0.0.1:8765 -t /tmp/www >/tmp/php.log 2>&1 &
 node scripts/smoke_battle_page.cjs          # SMOKE_SEED, SMOKE_SECONDS, SMOKE_OUTPUT=shot.png
 ```
 
-Hosted textures 404 when served locally, so the ground renders red. That's expected.
+Hosted textures 404 when served locally, so the ground renders red. That's expected. Scripts below
+default to this local URL; run them against the branch preview instead (see Working rules).
 
 **Visual checks: keep these, don't rewrite them.** Look at a change on the live host rather than a
 local red-ground page, and reuse these harnesses instead of writing one-off probes:
@@ -162,8 +169,12 @@ needs the flag in `chromium.launch` args; `ignoreHTTPSErrors` on the page alone 
 - **Compare with `scripts/compare_screenshots.cjs <dirA> <dirB>`** (byte-identical, else the share
   and box of differing pixels; decodes in Chromium, as there is no Python imaging library here).
 - Keep a run small (a few soldiers, poses and views): each image renders under SwiftShader.
+- **A script that pauses the battle must wait for Start first:** its click handler awaits the audio
+  unlock and then calls `battle.resume()`, so a pause set right after `startBtn.click()` is undone
+  a moment later (wait until `startBtn.hidden`). Let the first few renders after a fast-forward play
+  out too: effects the steps queued on wall-clock timers keep appearing (`probe_soldier_cull.cjs`).
 
-**Deterministic replay / profilers** (Playwright, against the local server above):
+**Deterministic replay / profilers** (Playwright; each takes a URL variable, point it at the branch preview):
 
 | Script | Use |
 | --- | --- |
