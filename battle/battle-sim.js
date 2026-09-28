@@ -88,7 +88,7 @@
     if(!recovery&&!normalDesired&&root.BattleNavigation)desired=root.BattleNavigation.nextWaypoint(self,soldier,desired)||desired;
     // Record the actual integration gate, not an inference from the last command or stuck detector.
     var observedWaypoint=soldier._movementWaypoint||(soldier._movementWaypoint={x:0,z:0});observedWaypoint.x=desired.x;observedWaypoint.z=desired.z;soldier._movementStopReason=null;
-    var dx=desired.x-soldier.root.position.x,dz=desired.z-soldier.root.position.z,d=Math.hypot(dx,dz),crawl=!!(soldier.prone&&soldier.crawling),wantCrouch=!soldier.prone&&(soldier.tacticalCrouch||(soldier.suppressedUntil>self.time)||(!!soldier.target&&d<=.6));
+    var dx=desired.x-soldier.root.position.x,dz=desired.z-soldier.root.position.z,d=Math.hypot(dx,dz),crawl=!!(soldier.prone&&soldier.crawling),wantCrouch=!soldier.prone&&!!soldier.tacticalCrouch;
     var desiredSpeed=d>.35?soldier.speed*(crawl?.23:(wantCrouch?.58:1)):0,cur=soldier.moveSpeed||0,rate=desiredSpeed>cur?(crawl?1.2:4.2):(crawl?2.0:6.5);soldier.moveSpeed=Math.max(0,cur+Math.max(-rate*dt,Math.min(rate*dt,desiredSpeed-cur)));
     // Ease the remaining angle over time, keeping the existing stance-dependent turn limit.
     function turnToward(yaw){var diff=Math.atan2(Math.sin(yaw-soldier.root.rotation.y),Math.cos(yaw-soldier.root.rotation.y)),maxTurn=(soldier.prone?1.25:2.8)*dt,eased=diff*(1-Math.exp(-8*dt));soldier.root.rotation.y+=Math.max(-maxTurn,Math.min(maxTurn,eased));}
