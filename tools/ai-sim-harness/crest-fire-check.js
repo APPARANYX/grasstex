@@ -83,6 +83,7 @@ test('a crest that shows the head but takes the round: sight clear, no trigger p
   assert.equal(pulls(ctx), false, 'no trigger pull');
   assert.equal(ctx.shots.length, 0, 'no round launched into the slope');
   assert.ok(ctx.shooter._crestBlockedFire > 0, 'the refusal is counted as a crest block');
+  assert.ok(!ctx.shooter._losBlockedFire, 'and not as a sight block (the benchmark scores those)');
   assert.equal(ctx.shooter.target, ctx.target, 'he keeps the man he sees');
 });
 
