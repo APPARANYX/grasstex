@@ -36,8 +36,11 @@
     if (!s || !battle || !s.target || s.target.dead) return false;
     var why = blockReason(s, battle);
     if (why) {
-      s._losBlockedFire = (s._losBlockedFire || 0) + 1;
+      /* Two counters: a man pressing the trigger with no sight of the target is a defect the
+         benchmark scores; a man holding fire because the crest would take the round is the gate
+         doing its job, reported on its own. */
       if (why === 'crest') s._crestBlockedFire = (s._crestBlockedFire || 0) + 1;
+      else s._losBlockedFire = (s._losBlockedFire || 0) + 1;
       s._losBlockedFireAt = +battle.time || 0;
       return false;
     }
