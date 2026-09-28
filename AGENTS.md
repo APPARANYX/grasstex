@@ -181,6 +181,7 @@ needs the flag in `chromium.launch` args; `ignoreHTTPSErrors` on the page alone 
 | `scripts/probe_merged_walls.cjs` | Merged building walls: loads one seed with and without `?mergeWalls=0` and checks building meshes and draw calls, total vertices, world bounds, and a town screenshot from one camera with the HUD hidden (fails above `MW_MAXDIFF`, 0.2% of pixels). `MW_URL`, `MW_SEED`, `MW_OUT`. |
 | `scripts/probe_soldier_mesh_lod.cjs` | Soldier mesh LOD: each model's full and far triangle/vertex counts, and one posed soldier (after ~20 s of battle) shot at full detail and on the far list from `SMLOD_DIST` metres at the iPhone canvas size, side by side (`d<m>m.png`, full \| far) with the share of differing pixels. Tune `meshLod.far` from these. `SMLOD_URL`, `SMLOD_SEED`, `SMLOD_VIEW`, `SMLOD_OUT`. |
 | `scripts/probe_bench_census.cjs` | Device benchmark's draw-calls-by-kind census vs Babylon's measured draw calls, with weapon instances on and off (`?weaponInstances=0`): instanced weapons must count once per source mesh. `BC_URL`, `BC_SEED`, `BC_SECONDS`, `BC_WARMUP`, `BC_TOL`. |
+| `scripts/probe_bench_follow.cjs` | Device benchmark `benchCam=follow`: samples the chase camera while it measures (active camera, distance to its target, living soldiers within 45 m of the eye), screenshots it, and checks the page camera comes back. `BF_URL`, `BF_SEED`, `BF_SECONDS`, `BF_WARMUP`, `BF_DIST`, `BF_OUT`. |
 | `scripts/probe_weapon_instances.cjs` | Weapon instancing: draw calls with and without `?weaponInstances=0` over the armies, and inside the instanced page each weapon's world matrix and a close-up against a temporary clone on the same socket (same frame, so exact). `WI_URL`, `WI_SEED`, `WI_OUT`, `WI_MAXDIFF`. |
 | `scripts/probe_clip_pack.cjs` | Loads the page with `?clipPack=0` and as shipped, each in a fresh context: every converted and every model's retargeted clip must be bit-identical, and the shipped load must fetch no clip FBX. Reports the soldiers phase, FBX parse and clip bytes each way. `CLIPPACK_URL`, `CLIPPACK_OUT`. |
 | `scripts/probe_retarget.cjs` | Quaternion retarget vs `?fastRetarget=0` (matrix), each load in a fresh context: worst difference in every model's rotation and position samples, clip speeds and strides, and solved grips, plus retarget time each way. Fails above `RT_MAX_ROT`/`RT_MAX_POS` (1e-5). `RT_URL`. |
@@ -197,7 +198,9 @@ where `scene.render` goes (hooks by name, active-mesh evaluation, `Skeleton.prep
 unattributed); draw calls by kind; frame pacing (refresh rate, share of frames taking 1, 2, 3…
 refreshes); and the 10 worst frames, with the meshes created just before each. **Copy results** /
 **Download JSON** (nothing is uploaded; also `window.__deviceBench`). Flags: `benchCam=close` (the
-biggest group from 90 m), `benchHide=soldiers[,weapons,decals,hedges,terrain,objectives,walls,cover]`
+biggest group from 90 m, the touch camera's limit), `benchCam=follow` (a chase camera `benchFollow`
+(25) m from a man in the biggest group, onto the nearest living man 3 s after he falls; the result
+records who and how many switches), `benchHide=soldiers[,weapons,decals,hedges,terrain,objectives,walls,cover]`
 (stop drawing those kinds, to cost them on a device with no GPU timer), `benchAuto=1` (no tap),
 `animLod=0` (LOD before/after). This is how real devices are measured; `benchmark_full_fidelity.cjs`
 is the scripted equivalent.
@@ -522,7 +525,9 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
   4. Done: the benchmark's draw-call census counts instanced weapons once per source mesh
      (result v7; locally census 141 vs measured 141 with instances, 168.5 vs 169.2 with clones,
      `probe_bench_census.cjs`).
-  5. The close camera (under 45 m, soldiers at full detail) is unmeasured.
+  5. The close camera (under 45 m, soldiers at full detail) is unmeasured: `benchCam=close` stops at
+     90 m. Measure it with `?bench=1&seed=bench1&benchCam=follow&benchWarmup=150`
+     (`probe_bench_follow.cjs` checks the camera locally).
   6. Check that `preserveDrawingBuffer:true` (screenshot tools) and `renderEvenInBackground`
      are still needed on mobile before turning either off.
 - Don't do a repo-wide Prettier rewrite: Prettier is scoped to the M3C behaviour files.
