@@ -466,8 +466,15 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
      gameplay: `BattleSoldierModel.preload` races `loadLibrary` against a timer, and losing does
      not cancel the load. Normal gameplay waits for its assets and shows a real failure; keep only
      the renderer-free representations the trainer and headless harness use, and remove the
-     fallback with its callers, not as a broad purge. (b) The rest of FBX-as-ingress: models,
-     retargeted clips and far-LOD lists prepared offline the same way (10 models ~17.5 MiB).
+     fallback with its callers, not as a broad purge.
+     (b) Finish FBX-as-ingress for the 10 soldier models. The **runtime far mesh LOD is already
+     implemented and shipped** (#74): each model gets a simplified triangle list and soldiers
+     switch to it beyond the far threshold. What is still pending is moving deterministic startup
+     work out of the browser: prepare the soldier models, their per-model retargeted clip data where
+     it is actually size-efficient, and the **already-designed far-LOD geometry** offline in a
+     browser-ready runtime format. Do not treat "build far LOD offline" as unfinished LOD behavior;
+     the remaining task is pre-baking its data so startup no longer has to build it. The 10 source
+     model FBXs are still loaded at runtime today (~17.5 MiB total directionally noted here).
   2. **Landscape CPU:** what the extra posed soldiers, weapons and decals cost per frame.
   3. **Sim CPU:** `squad.updateSoldier` (Engagement, sight) and the movement resolver lead
      the hot-path profile. Remove redundant work or allocation churn only with paired
