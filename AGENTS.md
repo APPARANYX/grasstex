@@ -190,7 +190,7 @@ needs the flag in `chromium.launch` args; `ignoreHTTPSErrors` on the page alone 
 **Device benchmark** (`modules/97-device-benchmark.js`, inert without the flag): open the page with
 `?bench=1` on any phone or computer, tap **Start benchmark** and keep the tab in front. It
 fast-forwards `benchWarmup` (60) sim seconds to contact, plays `benchSeconds` (60) with the normal
-render loop and reports (result v6): FPS (median, mean, 5%/1% lows); frame, CPU, render, sim and
+render loop and reports (result v7): FPS (median, mean, 5%/1% lows); frame, CPU, render, sim and
 pose time; GPU time where the browser has a timer query; device and renderer; the load breakdown;
 where `scene.render` goes (hooks by name, active-mesh evaluation, `Skeleton.prepare`, draw,
 unattributed); draw calls by kind; frame pacing (refresh rate, share of frames taking 1, 2, 3…
@@ -516,6 +516,8 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
   3. **Sim CPU:** `squad.updateSoldier` (Engagement, sight) and the movement resolver lead
      the hot-path profile. Remove redundant work or allocation churn only with paired
      deterministic benchmarks and the ownership checks; never trade behaviour for speed.
+     **Deferred (2026-09-28)** until `ww2fps` decides whether it takes the squad AI files as they
+     are (vehicles, armour and artillery come first there): tune them here only if it will.
   4. The benchmark's draw-call census counts weapon instances as separate draws; fix it.
   5. The close camera (under 45 m, soldiers at full detail) is unmeasured.
   6. Check that `preserveDrawingBuffer:true` (screenshot tools) and `renderEvenInBackground`
