@@ -54,7 +54,7 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
   for (const v of VIEWS) if (!(v in ALPHA)) throw new Error(`unknown view ${v}; use ${Object.keys(ALPHA).join(', ')}`);
   for (const f of FRAMING) if (!['body', 'hands', 'weapon'].includes(f)) throw new Error(`unknown framing ${f}; use body, hands, weapon`);
   fs.mkdirSync(OUT, { recursive: true });
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'] });
+  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--ignore-certificate-errors'] });
   const page = await browser.newPage({ viewport: { width: W, height: H }, ignoreHTTPSErrors: true });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e && e.stack || e).slice(0, 400)));
