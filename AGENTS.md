@@ -228,7 +228,7 @@ Intent flows down and status flows up. No layer rewrites another's state.
 | Layer | Owner (file) | Owns | Must not |
 | --- | --- | --- | --- |
 | Macro: Force Command | `commander-ai.js`, `commander-doctrine.js`, `commander-routes.js` | `_macroMission` brief {intent, action, objectiveId, point, flank leg, status}, `targetObjective`, `commandRole`, force allocation, reserves | write `commandPhase`/`objective`/route legs, cover, slots or soldier destinations |
-| Meso: Squad Leader / Squad Command | `modules/16-squad-plan-stability.js` (`executeMission`, `fireAndMovement`; SquadAI's `squadCommand` owner) | stable squad plan: fireteams, formation, order anchor, fire and movement (assault authorisation, bound cycle and team), corner pauses, defensive posts, regroup, objective phase; the only writer of `commandPhase` (setup states it through `initialPhase`) | do obstacle avoidance; republish orders every tick |
+| Meso: Squad Leader / Squad Command | `modules/16-squad-plan-stability.js` (`executeMission`, `fireAndMovement`; SquadAI's `squadCommand` owner) | stable squad plan: fireteams, formation, order anchor, fire and movement (assault authorisation, bound cycle and team), corner pauses, defensive posts, regroup, the forward line (`sq._forwardLine`), objective phase; the only writer of `commandPhase` (setup states it through `initialPhase`) | do obstacle avoidance; republish orders every tick |
 | Micro: Engagement | `engagement.js` (+ `modules/44-combat-urgency.js` drills on its `afterDrill` slot) | per-soldier state machine, stance (`prone`/`crawling`/`tacticalCrouch`), permission to fire, combat proposals to the resolver, the squad contact report (`inContact`, base of fire, pinned) | write final destination; pick objectives; decide squad bounds |
 | Perception + shared primitives | `squad-ai.js` | who sees whom (view cones), what a squad hears and is told (`squadSenses`), shot resolution, shared `squad.contact`, `areaFire` suppression; hosts the declared extension points (`SquadAI.extend`) and `BattleLeases`; a status-only squad update when no `squadCommand` owner is loaded | set stance/destination in combat |
 | Tactical positions | `modules/20-building-hardpoints.js` (`BattleTacticalPositions`: `claim`/`current`/`station`/`release`) | window/hardpoint reservations `assigned→ingress→occupying→holding→released`, committed ingress route | |
@@ -409,6 +409,26 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   current performance action queue for the full-fidelity 50v50 battle. Performance target at 100
   soldiers: **mobile 30 FPS floor / 60 FPS target; desktop 60 FPS target**. Preserve deterministic
   gameplay behaviour while changing presentation/runtime cost; measure before and after each item.
+  - **Status (2026-09-28).** Done:
+    - instrumentation, startup timings and the scripted full-fidelity benchmark (#64);
+    - animation LOD (#65);
+    - the in-page device benchmark `?bench=1` with a `scene.render` breakdown (#66);
+    - held soldiers skip `Skeleton.prepare`, and the benchmark counts draw calls by kind (#68);
+    - PR #62's cleanup, merged.
+
+    Device results at v193 → #68 (iPhone Safari 390×635; MacBook M1 Chrome 3440×1323):
+
+    | | iPhone | MacBook |
+    | --- | --- | --- |
+    | FPS, median / 1% low | 20 / 11 → **25** / 14 | 115 → **123** |
+    | CPU per frame | 33 → 25 ms | 9.4 → 7.3 ms |
+    | skeletons rebuilt per frame | 100 → 17 | 100 → 7 |
+    | `Skeleton.prepare` | 4.5 → 0.7 ms | 4.5 → 0.4 ms |
+
+    - **Pose caching on unchanged inputs was dropped:** a living soldier's inputs change every frame, and the LOD already holds finished poses.
+    - **Where the iPhone frame still goes:** draw 11.5 ms, active-mesh culling ~5.6 ms, sim 4.9 ms, pose 1.6 ms. A further ~15 ms per frame is spent beyond CPU work, probably GPU (Safari exposes no GPU timer).
+    - **The Mac is now GPU-bound** (GPU 10.2 ms > CPU 7.3 ms).
+    - **The next lever is item 6** (building walls, below). Items 3 and 4 remain the startup lever: FBX parse is 5-14 s of a 7-18 s soldiers phase.
   1. **Animation/pose runtime cost is the first action item.** Imported soldiers currently run
      `applyPose` once per rendered frame while enabled, including locomotion/overlay blending,
      aiming, weapon hold, spine and support-hand work. Instrument pose time first, then keep animation
@@ -459,17 +479,28 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
      `preserveDrawingBuffer:true` is still required by screenshots/close-up tools and whether
      `renderEvenInBackground=true` is desirable on mobile; disable either only after proving its
      dependent workflows.
+     **Measured (#68, `?bench=1` draw calls by kind):** building walls and floors are 52-80% of all
+     draw calls (iPhone 499 of ~727, MacBook 325 of ~631, local 727 of ~909). The cause is that
+     `town-objectives.js` draws each building as ~30 separate wall pieces. Soldiers are 100 (one each),
+     weapons 40-90, hedges 16-29, wound decals 15-40. Next: merge each building's static walls
+     and floors per material, or instance them. Before that, check that nothing reads individual wall
+     meshes: sight and ballistics should use the obstacle field, not meshes, and the damage decals
+     and World Debug overlay must be checked. Prove it with `closeup_battle.cjs` and a device run.
   7. **Re-profile simulation CPU after presentation work.** Exact LOS/nav pruning moved the headless
      hot path: `engagement.updateSoldier` and the movement resolver now lead the profile. Instrument
      their current call counts, allocations and inclusive time, then remove redundant calculations or
      allocation churn only with paired deterministic benchmarks and existing ownership checks. Do not
      trade AI behaviour for benchmark speed.
-  8. **Safe audit cleanup is already staged separately in PR #62.** That draft fixes stale repository
-     refs in launchers, improves the non-production GitHub-mirroring loader's local module discovery
-     and excludes source ZIPs from mirroring, disables unused battle-scene stencil/pointer-move
-     picking, freezes immutable imported/procedural materials, and suppresses redundant bounds sync on
-     presentation-only meshes. Keep those low-risk presentation/loader changes separate from the
-     behaviour-changing pipeline work above until visually validated.
+  8. **Safe audit cleanup (PR #62, merged 2026-09-28).** It:
+     - fixed stale repository refs in the launchers;
+     - improved the non-production GitHub-mirroring loader's local module discovery and excluded
+       source ZIPs from mirroring;
+     - disabled the unused battle-scene stencil and pointer-move picking;
+     - froze immutable imported/procedural materials;
+     - stopped bounds sync on presentation-only meshes.
+     Before merging it was checked against current `main`: nothing changes those materials at
+     runtime (the capture-zone markers have their own), and nothing uses the stencil or scene
+     hover-picking (the AI Graph's pointer handlers are DOM).
   9. **Do not migrate engines to solve these findings.** The measured problems are asset preparation,
      skeletal update frequency, rendering work and simulation hot paths, not Babylon-specific
      architectural blockers. Optimize and benchmark Babylon first; reconsider Babylon Editor,
@@ -583,6 +614,20 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
   centre (50 m); the other reading of the request, enemies within 50 m of the unaware squad, is a
   one-line change in `squadSenses`. Defenders facing one way have no sector scan: a sweep for a man
   holding still with no contact is the next step if flanks go unseen.
+- **Bocage hedgerows are too short (open, GitHub issue #60; needs a decision on the Frozen rule).**
+  Hedges are one 2.2 m volume (`terrain-features.js` `HEDGE_HEIGHT`), so a standing soldier's head
+  and muzzle sit at or above the top. He looks as if he stands over the hedge, and he can see and
+  shoot over it. Normandy bocage was a bank plus vegetation, roughly 3-15 ft (0.9-4.6 m). The
+  issue asks for:
+  - taller, varied hedges (up to ~4.6 m where appropriate) with a bank-and-growth silhouette;
+  - sight, line of fire and collision that match the visual height;
+  - a standing soldier's eye and muzzle line blocked unless there is a real gap or a low section.
+  Hedge geometry is **Frozen** (see above: one authoritative volume for rendering, nav, sight
+  and ballistics). So this needs an explicit decision to lift the freeze for hedge height only, with
+  the volume kept as the single source for all four. It changes who can see and shoot whom: benchmark
+  it paired (standard 100, then 300 for a claim), and check stance behaviour, since prone and crouch
+  sight already rely on the hedge volume. Scope is Grasstex visual and combat scale only; terrain and
+  world generation belong to `ww2fps`.
 - **Bullet holes float in front of scatter cover (open, fix proposed).** `14-z-ballistic-raycast.js`
   `obstacleStop` stops the ray at the obstacle field's tactical cover circle, not the rendered object
   (`terrain-features.js` `scatter`): a log is a 0.55 m cylinder but its circle is `len*0.42`
@@ -616,6 +661,21 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
 - **Page-load hiccup (watch).** One local probe run logged `ReferenceError: BABYLON is not defined`
   from an inline script (line 95 of the page `battle_sim_local.php` serves) on the GE-defend battle; the battle still
   ran and reported. Seen once; if it recurs, make that inline script wait for Babylon.
+- **Forward line (shipped 2026-09-28, #67).** The Squad Leader publishes `sq._forwardLine` each tick
+  for the squad and each fireteam. It is the mean of the front-most half of the living men along the
+  advance axis, plus anyone within a 5 m cover band behind the rearmost of them: men in different
+  cover along one line stand a few metres apart in depth. So stragglers can't drag it back, and one
+  man out front can't pull it all the way forward. It is cleared in retreat.
+  - Regroups re-form on the forward-majority point, not the core centroid.
+  - The `backward-orders` probe measures against the forward line.
+  - `forward-line-check.js` guards all of this.
+  - Paired standard benchmark (main run 25 vs branch run 24, seed `forward-line`):
+    - regroup timeouts 89 → 73;
+    - long regroups 3 → 0;
+    - strategic writer conflicts 93 → 64;
+    - wins within noise (meeting US 31 → 25 of 60, p=0.36);
+    - median wall ±10%.
+  - Producers do not read the forward line yet; see the next item.
 - **Forward movement: no backward orders while the squad advances (open).** A man should not be sent
   behind the squad's firing line unless the squad is retreating or withdrawing; a short lateral or
   backward step to adjacent cover is fine, but nothing that walks him back while the rest of the squad
