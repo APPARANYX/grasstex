@@ -430,11 +430,13 @@ iPhone Safari, portrait 390×645, `?bench=1&seed=bench1`, overview camera:
 | v201 (#74 mesh LOD) | 47 / 56 | 13 | 14.4 ms | 224 |
 | v205 (#76 tracer pool, #77 weapon instances) | 58.8 / 58.8 | 34.5 | 8.9 ms | 180 |
 | v206 (#79 effects warm-up), two runs | 59.3 / 58.8 and 46.6 / 58.8 | 38.5 and 19.6 | 8.4-9.9 ms | 180-189 |
+| v210 (#81 clip pack, #83 retarget; canvas 390×797) | 56.8 / 58.8 | 21.3 | 9.0 ms | 173 |
 
 Home-screen app, landscape 844×797, v206: 52.2 / 58.8, 1% low 23.3, CPU 11.5 ms. The wider
 view poses and draws more (13 soldiers posed per frame, 208 draw calls), and its two-refresh
 frames average 16 ms of CPU, so landscape is CPU-bound. MacBook M1 Chrome (#68): 123 FPS median,
-CPU 7.3 ms, GPU 10.2 ms (GPU-bound).
+CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparable): 154 FPS median,
+1% low 101, GPU 7.1 ms, 99.6% of frames within one 144 Hz refresh.
 
 - **Done:** instrumentation and the full-fidelity benchmark (#64), animation LOD (#65), device
   benchmark (#66; pacing #71, `benchHide` #72, worst frames #78), held soldiers skip
@@ -454,10 +456,12 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound).
   1. **Startup.** Clips now load from the prepared pack: locally the soldiers phase went from
      17.9 to 5.9 s and FBX parse from 13.5 to 2.1 s, bit-identical clips (`probe_clip_pack.cjs`).
      iPhone Safari (v208): whole load 20.7-23.9 → 8.3 s, soldiers phase 17.5-19.7 → 5.0 s, FBX
-     parse 0.9 s. Retargeting onto the 10 models (3.2 s on the iPhone) now runs in quaternions:
-     locally 1.88 → 0.56 s, within 1.3e-6 of the matrix loop (`probe_retarget.cjs`); a pack of
-     retargeted clips would be ~45 MiB (every model differs), so it stays at load. Sidecars are
-     fetched from the start of the load. What is left: the 10 model FBX and the far-LOD lists.
+     parse 0.9 s. Retargeting onto the 10 models now runs in quaternions, within 1.3e-6 of the
+     matrix loop (`probe_retarget.cjs`); a pack of retargeted clips would be ~45 MiB (every model
+     differs), so it stays at load. Sidecars are fetched from the start of the load. v210: iPhone
+     load 5.4 s (soldiers 2.2 s, retarget 3.16 → 0.23 s); MacBook load 3.6 s. The largest item
+     now is binding the 100 soldiers (13.8 ms each, 1.4 s of the 2.0 s navigation-and-squads
+     phase on the iPhone), then the 10 model FBX (~1 s) and the far-LOD lists.
      (a) Remove the 25 s imported-soldier timeout and the procedural *visual* fallback in normal
      gameplay: `BattleSoldierModel.preload` races `loadLibrary` against a timer, and losing does
      not cancel the load. Normal gameplay waits for its assets and shows a real failure; keep only
