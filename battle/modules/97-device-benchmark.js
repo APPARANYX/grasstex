@@ -78,7 +78,8 @@ function device(engine){
   return info;
 }
 /* What the active meshes are, by kind (names from terrain-features, the scenario and the FBX
-   backend). Draw calls are estimated per mesh as its sub-mesh count (thin instances draw once). */
+   backend). Draw calls are estimated per mesh as its sub-mesh count (thin instances draw once), and
+   the GPU instances of one source mesh (weapons) as that count once per frame, however many are active. */
 var KINDS=[
   ['soldiers',function(m){return!!m.skeleton;}],
   ['weapons',function(m,n){return/^weapon\./.test(n);}],
@@ -90,11 +91,13 @@ var KINDS=[
   ['cover & scatter',function(m,n){return/log|rock|tree|stub|crate|sandbag|wire|roadblock|scatter|trunk|bush|fence|cart/i.test(n);}]
 ];
 function meshCensus(scene,acc){
-  var act=scene.getActiveMeshes();acc.samples++;
+  var act=scene.getActiveMeshes(),sources=[];acc.samples++;
   for(var i=0;i<act.length;i++){
     var m=act.data[i],n=String(m.name||''),p=m.parent&&m.parent.name?String(m.parent.name):'',kind='other';
     for(var k=0;k<KINDS.length;k++)if(KINDS[k][1](m,n,p)){kind=KINDS[k][0];break;}
-    var c=acc.kinds[kind]||(acc.kinds[kind]={meshes:0,draws:0}),d=m.subMeshes&&m.subMeshes.length?m.subMeshes.length:1;
+    var src=m.sourceMesh,mesh=src||m,d=mesh.subMeshes&&mesh.subMeshes.length?mesh.subMeshes.length:1;
+    if(src){if(sources.indexOf(src)>=0)d=0;else sources.push(src);}
+    var c=acc.kinds[kind]||(acc.kinds[kind]={meshes:0,draws:0});
     c.meshes++;c.draws+=d;
     if(kind==='other'){var raw=n.replace(/[0-9]+/g,'#');acc.other[raw]=(acc.other[raw]||0)+1;}
   }
@@ -196,7 +199,7 @@ function run(){
     var pose=root.BattlePoseTimings?root.BattlePoseTimings.snapshot():null,asset=root.BattleAssetTimings?root.BattleAssetTimings.snapshot():null;
     var roster=b._roster.us.concat(b._roster.ge),fbx=roster.filter(function(s){return s._fbx&&s.rig===null;}).length;
     result=round({
-      kind:'device-benchmark',version:6,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
+      kind:'device-benchmark',version:7,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
       device:device(engine),camera:CAM,hide:run.hiddenKinds.length?{kinds:run.hiddenKinds,meshes:run.hiddenMeshes}:null,animLod:!(root.BattleFbxSoldier&&root.BattleFbxSoldier.lod&&root.BattleFbxSoldier.lod.on===false),
       soldiers:{total:roster.length,fbx:fbx,alive:b.factions.us.alive+b.factions.ge.alive},
       bones:root.BattleFbxSoldier&&root.BattleFbxSoldier.bones?root.BattleFbxSoldier.bones():null,
