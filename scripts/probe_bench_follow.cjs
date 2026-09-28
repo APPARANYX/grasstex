@@ -28,7 +28,8 @@ const DIST = process.env.BF_DIST || '', OUT = process.env.BF_OUT || 'closeups/be
     '--ignore-gpu-blocklist', '--ignore-certificate-errors', '--no-sandbox'] });
   const page = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 645 } });
   const errors = [];
-  page.on('pageerror', e => errors.push(String(e)));
+  // Voice pitch variants are built at deploy, so they 404 on a local server.
+  page.on('pageerror', e => { if (!/\.pitch-(high|low)\.mp3/.test(String(e))) errors.push(String(e)); });
   await page.route('**/*', route => {
     const req = route.request();
     if (req.method() === 'POST' || /battle_(policy|learning|log|metrics)[^/]*\.php/.test(req.url())) return route.fulfill({ json: {} });
@@ -49,7 +50,11 @@ const DIST = process.env.BF_DIST || '', OUT = process.env.BF_OUT || 'closeups/be
     });
     if (!s) break;
     samples.push(s);
-    if (shots < 3 && samples.length % 3 === 1) await page.screenshot({ path: path.join(OUT, 'follow-' + (shots++) + '.png') });
+    if (shots < 3 && samples.length % 3 === 1) {
+      const hud = await page.addStyleTag({ content: 'body *{visibility:hidden!important} canvas{visibility:visible!important}' });
+      await page.screenshot({ path: path.join(OUT, 'follow-' + (shots++) + '.png') });
+      await hud.evaluate(n => n.remove());
+    }
     await page.waitForTimeout(2000);
   }
   const res = await page.evaluate(() => ({ camera: __deviceBench.camera, follow: __deviceBench.follow, build: __deviceBench.build,
