@@ -39,7 +39,8 @@
   }
   /* Gameplay cannot depend on a skinned weapon mesh: animation LOD and headless benchmarks do not
      have the same presentation state. Use one semantic muzzle for the trigger gate and the round,
-     projected forward on the firing axis from the calibrated stance eye/bore line. Shoulder-fired\n     bores stay near the eye line; moving them lower changed the established combat grouping. Tracers read shot.origin,
+     projected forward on the firing axis from the calibrated stance eye/bore line. Shoulder-fired
+     bores stay near the eye line; moving them lower changed the established combat grouping. Tracers read shot.origin,
      so the visible line starts where the simulated round did. */
   var MUZZLE_HEIGHT = { stand: 1.55, crouch: 1.05, prone: 0.42 },
     MUZZLE_FORWARD = { rifle: 0.78, carbine: 0.68, smg: 0.62, lmg: 0.82, pistol: 0.45 };
