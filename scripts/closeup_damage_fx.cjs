@@ -111,7 +111,9 @@ async function boot(browser, errors) {
         fx = b._impactFx || { decals: [], body: [] },
         kinds = {};
       fx.decals.forEach(d => (kinds[d.kind] = (kinds[d.kind] || 0) + 1));
-      const F = window.BattleFbxSoldier, skinAdherence = [];
+      const F = window.BattleFbxSoldier, skinAdherence = [],
+        fbxBodies = fx.body.filter(e => e.soldier && e.soldier._fbx),
+        fbxFallbackWounds = fbxBodies.filter(e => !e.skin).length;
       if (F && F.skinSample && window.BABYLON) {
         if (window.BattleImpactFx && window.BattleImpactFx.refreshBody) window.BattleImpactFx.refreshBody(b);
         fx.body.forEach(e => {
@@ -139,6 +141,8 @@ async function boot(browser, errors) {
         woundDecals: fx.body.filter(e => !e.exit).length,
         exitWoundDecals: fx.body.filter(e => e.exit).length,
         fbxSoldiers: b._roster.us.some(s => s._fbx),
+        fbxWoundDecals: fbxBodies.length,
+        fbxFallbackWounds,
         skinAdherence
       };
     });
@@ -208,8 +212,12 @@ async function boot(browser, errors) {
       console.error('skin wound drift:\n  ' + JSON.stringify(badSkin, null, 2));
       process.exitCode = 1;
     }
-    if (summary.fbxSoldiers && summary.woundDecals && !(summary.skinAdherence || []).length) {
-      console.error('FBX wounds existed but no skin-anchor adherence sample was available');
+    if (summary.fbxFallbackWounds) {
+      console.error(summary.fbxFallbackWounds + ' FBX wound decal(s) fell back to the bone path');
+      process.exitCode = 1;
+    }
+    if (summary.fbxWoundDecals && !(summary.skinAdherence || []).length) {
+      console.error('FBX wound decals existed but no skin-anchor adherence sample was available');
       process.exitCode = 1;
     }
     if (errors.length) {
