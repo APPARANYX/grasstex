@@ -117,8 +117,9 @@ local red-ground page, and reuse these harnesses instead of writing one-off prob
   per phase). It blocks telemetry, learning and policy writes, so it's safe against production and
   previews. A live run takes ~1 min. Page build is ~20 s, the sim fast-forward is ~5 s for two minutes
   of battle, and software rendering is ~0.3-0.6 s a frame. Clips run on sim time, so it renders only
-  6 settle frames and 1 per view. `Math.random` is seeded from the seed, so the same seed gives the
-  same man, pose, wounds and camera. Decal variants drawn on async timers can still differ. Env: `CLOSEUP_URL`, `CLOSEUP_SEED`, `CLOSEUP_COUNT`,
+  6 settle frames and 1 per view. `Math.random` is seeded from the seed, but a rerun can still match a
+  different man at a different time (seen 2026-09-28), and decal variants drawn on async timers
+  differ, so it is for looking, not for before/after comparisons (see Before/after pictures). Env: `CLOSEUP_URL`, `CLOSEUP_SEED`, `CLOSEUP_COUNT`,
   `CLOSEUP_AFTER` (sim seconds after the match, default 1.5), `CLOSEUP_DIST`, `CLOSEUP_WAIT`,
   `CLOSEUP_OUT`, `CLOSEUP_UI=1`.
   ```bash
@@ -142,7 +143,25 @@ local red-ground page, and reuse these harnesses instead of writing one-off prob
 - **Pistol support hand numbers:** `scripts/probe_pistol_cup.cjs` (see the replay table below).
 
 In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certificate-errors`
-(these scripts do). Otherwise Babylon never loads from the CDN and `__battle__` never appears.
+(these scripts do). Otherwise Babylon never loads from the CDN and `__battle__` never appears:
+the symptom is a `waitForFunction` timeout after 180 s, not an error. A new Playwright script
+needs the flag in `chromium.launch` args; `ignoreHTTPSErrors` on the page alone is not enough.
+
+**Before/after pictures (pixel A/B of a presentation change).** Learned the slow way (PR #86):
+- **Use `closeup.cjs` (posed soldier), not `closeup_battle.cjs`.** The fight close-up is not
+  deterministic across page loads here: the same build and seed matched a different soldier at a
+  different sim time on a rerun, so its differences prove nothing either way. `closeup.cjs` is
+  seeded and steps at a fixed 30 Hz, so the same env gives the same bytes.
+- **Put the old and new code behind a URL flag** (as `?cloneBounds=1`, `?fastRetarget=0`,
+  `?soldierLod=0` do) and run the same tool against both URLs from one checkout. Comparing two
+  trees also works: serve a `git worktree` of `main` at `/tmp/www/<name>` and drop a
+  `preview.json` in its root (and one in yours), or `battle_sim_local.php` serves `/grasstex/`'s
+  runtime for both. Never commit those `preview.json` files.
+- **Run a control first:** the same URL twice. If the control differs, the tool is not
+  deterministic for that case and an A/B means nothing.
+- **Compare with `scripts/compare_screenshots.cjs <dirA> <dirB>`** (byte-identical, else the share
+  and box of differing pixels; decodes in Chromium, as there is no Python imaging library here).
+- Keep a run small (a few soldiers, poses and views): each image renders under SwiftShader.
 
 **Deterministic replay / profilers** (Playwright, against the local server above):
 
