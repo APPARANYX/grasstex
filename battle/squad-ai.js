@@ -65,6 +65,10 @@
     HEAR_MEMORY = 1.5,
     HEAR_ERROR = 0.08,
     RELAY_RANGE = 50;
+  /* `?perception=0`: the perception before PR #55, for A/B benchmarks only (the scout-balance
+     question: the FG 42 and the view cones shipped together). No view cone, no sector scan, nothing
+     heard or relayed: a man sees every enemy in range and line of sight, whichever way he faces. */
+  var PERCEPTION_ON = !(typeof location !== 'undefined' && /[?&]perception=0\b/.test(location.search || ''));
   /* How long a squad keeps acting on a last-known enemy position after nobody can see him. */
   var CONTACT_MEMORY = 12;
   /* Suppressing fire lands in a cone, not on a point: the further out, the looser the group. */
@@ -218,7 +222,7 @@
         ez = e.root.position.z,
         d = dist2(p.x, p.z, ex, ez);
       if (d > detectionRange(role, e)) continue;
-      if (d > BEHIND_RANGE) {
+      if (PERCEPTION_ON && d > BEHIND_RANGE) {
         var reach = viewReach(angleBetween(Math.atan2(ex - p.x, ez - p.z), look), e);
         if (!reach || d > detectionRange(role, e) * reach) continue;
       }
@@ -302,7 +306,7 @@
      can see the enemy, else enemy gunfire within HEAR_RANGE. Once per squad per tick, and only
      while it has no current sighting of its own; neither ever replaces one. */
   function squadSenses(sq, battle) {
-    if (!sq || sq._sensedAt === battle.time) return;
+    if (!PERCEPTION_ON || !sq || sq._sensedAt === battle.time) return;
     sq._sensedAt = battle.time;
     var held = squadContact(sq, battle);
     if (firstHand(held, battle)) return;
