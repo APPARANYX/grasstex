@@ -1,0 +1,72 @@
+name: Wound + Bocage Visual Validation
+
+on:
+  push:
+    branches:
+      - 'work/wound-bocage-closeout'
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Wait for this commit's branch preview
+        env:
+          PREVIEW_JSON: https://test.ivandpopov.com/grasstex/preview/wound-bocage-closeout/preview.json
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 90); do
+            body="$(curl -fsS "$PREVIEW_JSON" || true)"
+            if grep -q "$EXPECTED_SHA" <<<"$body"; then
+              echo "Preview is serving $EXPECTED_SHA"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Preview never reached $EXPECTED_SHA" >&2
+          curl -fsS "$PREVIEW_JSON" || true
+          exit 1
+
+      - name: Validate live bocage height and occlusion
+        env:
+          BOCAGE_URL: https://test.ivandpopov.com/grasstex/preview/wound-bocage-closeout/battle_sim.php
+          BOCAGE_SEED: wound-bocage-preview
+          BOCAGE_OUT: validation/bocage
+        run: node scripts/probe_bocage_preview.cjs
+
+      - name: Photograph a live wounded FBX soldier
+        env:
+          CLOSEUP_URL: https://test.ivandpopov.com/grasstex/preview/wound-bocage-closeout/battle_sim.php
+          CLOSEUP_SEED: wound-skin-preview
+          CLOSEUP_TARGET: wounded
+          CLOSEUP_COUNT: '1'
+          CLOSEUP_AFTER: '3'
+          CLOSEUP_VIEWS: front,left,right,back,top
+          CLOSEUP_DIST: '1.2'
+          CLOSEUP_WAIT: '360'
+          CLOSEUP_OUT: validation/wound
+        run: node scripts/closeup_battle.cjs
+
+      - name: Upload validation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wound-bocage-visual-${{ github.run_number }}
+          path: validation/
+          if-no-files-found: warn
+          retention-days: 14
