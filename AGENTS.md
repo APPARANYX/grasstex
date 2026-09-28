@@ -39,7 +39,7 @@ In the page: a load overlay (`BattleLoading`, in `battle_sim.html`) shows each b
 scripts, scenario, terrain, soldiers/weapons/clips, cover, navigation and squads); the FBX backend
 reports per-file progress to it. **Start Battle** unpauses and unlocks audio (iOS needs the gesture).
 `window.__battle__` is the live `BattleSim`. HUD buttons: World Debug, AI Graph, Motion Lab.
-URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?clipPack=0` (parse every clip from its FBX instead of the prepared pack), `?fastRetarget=0` (retarget clips with the old matrix loop), `?cloneBounds=1` (Babylon's skinned bounds when cloning a soldier), `?farHz=<n>` (re-pose soldiers beyond 100 m at n Hz, default 10), `?boneTextures=0` (bone matrices as shader uniforms instead of a texture per skeleton), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?tracerPool=0` (a new line mesh per tracer, as before the pool), `?fxPrewarm=0` (build muzzle flashes, tracer lines and decals on first use, as before), `?perfTimings=1`, `?bench=1` (device benchmark, below).
+URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?clipPack=0` (parse every clip from its FBX instead of the prepared pack), `?fastRetarget=0` (retarget clips with the old matrix loop), `?cloneBounds=1` (Babylon's skinned bounds when cloning a soldier), `?farHz=<n>` (re-pose soldiers beyond 100 m at n Hz, default 10), `?boneTextures=1` / `=0` (force bone matrices through a texture per skeleton / shader uniforms; default: uniforms where the GPU has room), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?tracerPool=0` (a new line mesh per tracer, as before the pool), `?fxPrewarm=0` (build muzzle flashes, tracer lines and decals on first use, as before), `?perfTimings=1`, `?bench=1` (device benchmark, below).
 
 ## Test harnesses
 
@@ -503,15 +503,14 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
      offline" as unfinished LOD behavior; the remaining task is pre-baking its data so startup no
      longer has to build it. The 10 source model FBXs are still loaded at runtime today (~17.5 MiB
      total directionally noted here).
-  2. **Landscape in combat (iPhone home-screen app, 1×, `benchWarmup=150`).** Not CPU: about 1 frame
-     in 5 takes 50 ms while our CPU work is ~13 ms (77.6% of frames in one refresh; calm landscape
-     99.7%, combat portrait ~94%). It needs combat and all 100 soldiers on screen together.
-     `benchHide=decals` cut the 50 ms frames 19% → 12%, so effects are about a third; the rest
-     comes with the soldiers (~20 re-poses and bone uploads per frame). Next: the same run with
-     `&farHz=5` and with `&boneTextures=0` (both presentation-only; close-ups match within
-     rounding). The lab's default 4× speed makes it worse (sim steps on every other frame).
-     Compare runs in one app (Safari and Chrome home-screen apps lay out differently) with the
-     phone cool (a warm phone loaded in 7.3 s instead of 4 s and stuttered more).
+  2. **Landscape in combat: fixed (bone uniforms, #89).** In the iPhone home-screen app, landscape,
+     1×, combat (`benchWarmup=150`), 1 frame in 5 took 50 ms while CPU work was ~13 ms: Safari stalled
+     on the per-frame bone-texture updates of ~20 re-posed soldiers. Frames in one refresh, 844 wide:
+     77.6% default → 91.9% `farHz=5` → **96.0% bone uniforms** (at the full 10 Hz). Bone matrices
+     now go as uniforms wherever `maxVertexUniformVectors ≥ 4 × (bones + 1) + 128`, else textures
+     (never CPU skinning; checked with the limit capped at 256). Effects were about a third of
+     the stall (`benchHide=decals`). The lab's 4× default is harsher (a sim step every other frame).
+     Compare device runs in one app, one rotation (797 vs 844 canvas), 1×, with the phone cool.
   3. **Sim CPU:** `squad.updateSoldier` (Engagement, sight) and the movement resolver lead
      the hot-path profile. Remove redundant work or allocation churn only with paired
      deterministic benchmarks and the ownership checks; never trade behaviour for speed.
