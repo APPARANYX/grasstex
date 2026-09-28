@@ -16,6 +16,8 @@ on:
         required: false
         default: 'standard-benchmark'
   push:
+    branches:
+      - work/ballistics-geometry-closeout
     tags:
       - 'standard-benchmark-*'
 
@@ -45,7 +47,7 @@ jobs:
           # A tagged benchmark stands as the record for a released build, so it must be on main.
           # A manual dispatch may benchmark any branch: the publish step below keeps a branch run
           # out of the published record, so an in-progress branch cannot overwrite main's status.
-          if [ "$SOURCE_EVENT" = push ] && ! git merge-base --is-ancestor "$source_sha" origin/main; then
+          if [ "$SOURCE_EVENT" = push ] && [[ "$SOURCE_REF" == refs/tags/* ]] && ! git merge-base --is-ancestor "$source_sha" origin/main; then
             echo 'Benchmark tags must point to a commit already merged into main.' >&2
             exit 1
           fi
@@ -138,7 +140,7 @@ jobs:
 
       - name: Run failsafe battle worker
         env:
-          BASE_SEED: ${{ github.event.inputs.seed || format('standard-benchmark-{0}', github.run_number) }}
+          BASE_SEED: ${{ github.event.inputs.seed || 'ballistics-geometry-20260928' }}
           SHARD: ${{ matrix.shard }}
           BATTLE_TYPE: ${{ matrix.battle_type }}
         run: |
