@@ -576,6 +576,12 @@
     defenderOf: function (sim) {
       return sim && sim._sides ? sim._sides.defender : null;
     },
+    /* Whether this module places the squad at battle start (the defending side's garrison posts).
+       Answerable before its own onBattleStart runs, so the Squad Leader leaves those men to it. */
+    garrisons: function (sim, sq) {
+      var d = defenderOf(sim);
+      return !!(d && sq && sq.faction === d);
+    },
     planOf: function (sim, f) {
       return sim && sim._defensePlans ? sim._defensePlans[f] : null;
     }
