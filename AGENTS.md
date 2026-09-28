@@ -422,8 +422,8 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
 
     | | iPhone | MacBook |
     | --- | --- | --- |
-    | FPS, median / 1% low | 20 / 11 → 25 / 14 → **40** / 9 (v197) | 115 → **123** |
-    | CPU per frame | 33 → 25 → **15** ms | 9.4 → 7.3 ms |
+    | FPS, median / 1% low | 20 / 11 → 25 / 14 → 40 / 9 (v197) → **56** / 13 (#74) | 115 → **123** |
+    | CPU per frame | 33 → 25 → 15 → **14** ms | 9.4 → 7.3 ms |
     | draw calls | ~727 → **226** (v197) | ~631 |
     | skeletons rebuilt per frame | 100 → 17 | 100 → 7 |
     | `Skeleton.prepare` | 4.5 → 0.7 ms | 4.5 → 0.4 ms |
@@ -433,6 +433,12 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
     - **Home-screen web app (same phone, same night, a different random seed):** landscape 844×797 (2.7× the pixels), and it kept the full 4× sim rate (240 sim s vs Safari's 155). Mean FPS 30 vs 33, median 31 vs 40, but 1% low 16 vs 9 and worst frame 115 vs 631 ms. Frame minus CPU stayed ~15 ms at 2.7× the pixels, so the gap is not pixel fill. The working guess is refresh pacing: the median frame is 32 ms (two 60 Hz refreshes) and CPU is 11-18 ms, just past the 16.7 ms budget. The benchmark now records pacing (result v4; v5 snaps to real refresh rates only, after two iPhone runs snapped to 48 Hz) to test it; for a fair Safari vs home-screen pair pass the same `seed=` and orientation.
     - **The Mac is now GPU-bound** (GPU 10.2 ms > CPU 7.3 ms).
     - **Building walls are merged (#70, item 6):** 362-727 wall draw calls → 3. The standard benchmark on main after it (run 26, seed `forward-line`) matched the forward-line branch run 24 on all 100 battles, so #68, #62 and #70 changed presentation only. Items 3 and 4 remain the startup lever: FBX parse is 5-14 s of a 7-18 s soldiers phase.
+    - **Soldier vertex skinning was the GPU cost; mesh LOD (#74, v201) took most of it.** The device benchmark gained frame pacing (#71, result v4) and `benchHide` (#72, v5), and its panel keeps its controls on top (#73). iPhone Safari, portrait, seed `bench1`:
+      - `benchHide=soldiers` (v200): frame time beyond CPU work 16.2 → 7.5 ms, so the soldiers were ~9 ms of GPU work (100 × ~22k vertices, 6-7 bone weights each, all at full detail from 150 m).
+      - Mesh LOD, same preview build, off vs on: FPS mean 29.6 → **46.9**, median 35.7 → **55.6**, 5% low 13 → 29; frame time beyond CPU 15.0 → **6.9** ms; frames within one 60 Hz refresh 37% → **84%**.
+      - Where the frame goes now (21.3 ms mean): CPU 14.4 ms (sim 4.5 at 4× speed, draw submission 3.9 for ~224 draw calls, choosing what to draw 3.6, pose 1.4, skeletons 0.5); 6.9 ms beyond CPU, not yet attributed (weapons ~50 draws and 0.29 M vertices, decals ~37).
+      - Next, in order: hitches (1% low 13 FPS, p99 77 ms, worst 563 ms; log the worst frames first), weapons (one draw per model, far LOD), startup (items 3-4: ~15 s of the ~20 s soldiers phase is FBX parse), sim (item 7; ~1.1 ms at 1× speed).
+      - Safari runs need a fresh tab: one run in a long-lived tab ran every stage 1.5-2.5× slower than a home-screen app run minutes later.
   1. **Animation/pose runtime cost is the first action item.** Imported soldiers currently run
      `applyPose` once per rendered frame while enabled, including locomotion/overlay blending,
      aiming, weapon hold, spine and support-hand work. Instrument pose time first, then keep animation
