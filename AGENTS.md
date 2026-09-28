@@ -39,7 +39,7 @@ In the page: a load overlay (`BattleLoading`, in `battle_sim.html`) shows each b
 scripts, scenario, terrain, soldiers/weapons/clips, cover, navigation and squads); the FBX backend
 reports per-file progress to it. **Start Battle** unpauses and unlocks audio (iOS needs the gesture).
 `window.__battle__` is the live `BattleSim`. HUD buttons: World Debug, AI Graph, Motion Lab.
-URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?tracerPool=0` (a new line mesh per tracer, as before the pool), `?fxPrewarm=0` (build muzzle flashes, tracer lines and decals on first use, as before), `?perfTimings=1`, `?bench=1` (device benchmark, below).
+URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?clipPack=0` (parse every clip from its FBX instead of the prepared pack), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?tracerPool=0` (a new line mesh per tracer, as before the pool), `?fxPrewarm=0` (build muzzle flashes, tracer lines and decals on first use, as before), `?perfTimings=1`, `?bench=1` (device benchmark, below).
 
 ## Test harnesses
 
@@ -162,6 +162,7 @@ In a cloud sandbox Chromium sees the proxy's CA, so launch with `--ignore-certif
 | `scripts/probe_merged_walls.cjs` | Merged building walls: loads one seed with and without `?mergeWalls=0` and checks building meshes and draw calls, total vertices, world bounds, and a town screenshot from one camera with the HUD hidden (fails above `MW_MAXDIFF`, 0.2% of pixels). `MW_URL`, `MW_SEED`, `MW_OUT`. |
 | `scripts/probe_soldier_mesh_lod.cjs` | Soldier mesh LOD: each model's full and far triangle/vertex counts, and one posed soldier (after ~20 s of battle) shot at full detail and on the far list from `SMLOD_DIST` metres at the iPhone canvas size, side by side (`d<m>m.png`, full \| far) with the share of differing pixels. Tune `meshLod.far` from these. `SMLOD_URL`, `SMLOD_SEED`, `SMLOD_VIEW`, `SMLOD_OUT`. |
 | `scripts/probe_weapon_instances.cjs` | Weapon instancing: draw calls with and without `?weaponInstances=0` over the armies, and inside the instanced page each weapon's world matrix and a close-up against a temporary clone on the same socket (same frame, so exact). `WI_URL`, `WI_SEED`, `WI_OUT`, `WI_MAXDIFF`. |
+| `scripts/probe_clip_pack.cjs` | Loads the page with `?clipPack=0` and as shipped, each in a fresh context: every converted and every model's retargeted clip must be bit-identical, and the shipped load must fetch no clip FBX. Reports the soldiers phase, FBX parse and clip bytes each way. `CLIPPACK_URL`, `CLIPPACK_OUT`. |
 | `scripts/probe_gait_clips.cjs` | Which FBX locomotion family (walk/run/sprint/crouch/crouchRun) each sim gait actually plays, at what rate, plus each model's natural clip speeds (in-place clips: foot stride). `GAIT_URL` (default production), `GAIT_SEED`, `GAIT_SECONDS`, `GAIT_OUT`. |
 | `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on), `fire-gates` (per role: trigger pulls, target distance bands, and the first fire condition that fails while a man holds a target), `backward-orders` (new destinations behind the man's fireteam line or behind the man himself while the squad advances, by producer and phase), `stance-churn` (shown stance changes per man-minute by writing file, A→B→A bounces under 1 s, trigger pulls within `AIM_SETTLE` of a change, prone spells shorter than `PRONE_HOLD`), `regroup-axis` (regroup ticks whose forward axis collapsed, and men behind the anchor scored as outrunners). |
 
@@ -197,6 +198,7 @@ python3 scripts/validate_voice_manifest.py     # voice manifest resolves
 python3 scripts/check_audio_manifest.py        # every clip referenced and present
 python3 scripts/check_deploy_coverage.py       # deploy plan covers every page runtime
 python3 scripts/check_deploy_safety.py         # deploy never deletes/overwrites sidecar JSON, lab or unmanaged server files
+node scripts/check_clip_pack.cjs               # prepared-clips.bin matches the clip FBX, CLIPS and the converter
 for r in scripts/recipes/*.json; do python3 scripts/slice_weapon_shots.py "$r" --check-only; done
 bash scripts/normalize_audio.sh Assets/audio && git diff --quiet -- Assets/audio   # needs ffmpeg
 ```
@@ -205,7 +207,7 @@ bash scripts/normalize_audio.sh Assets/audio && git diff --quiet -- Assets/audio
 
 | Workflow | Trigger | Does |
 | --- | --- | --- |
-| `ci.yml` | PR, push to main | Syntax (JS/PHP/Py/sh/JSON), audio library, sim regressions (all harness checks + 8 seeds), deploy plan + deploy safety |
+| `ci.yml` | PR, push to main | Syntax (JS/PHP/Py/sh/JSON), audio library, sim regressions (all harness checks + 8 seeds), deploy plan + deploy safety + prepared clips current |
 | `deploy-50webs-php.yml` | push to main | Stamps `build-v<N>`, reruns checks and the deploy-safety check, uploads by content hash to production |
 | `deploy-50webs-preview.yml` | push `work/**`, `preview/**` | `https://test.ivandpopov.com/grasstex/preview/<slug>/battle_sim.php`; never touches prod, makes no telemetry/learning writes; its `mirror --delete` skips JSON and lab files |
 | `preview.php` (on the host, not a workflow) | `?ref=<branch>`, `#47`, or a GitHub branch/PR URL | Stages that commit's `battle/` runtime from GitHub into `preview/ref-<sha12>/` with the host's own loader and opens it (same preview contract, no writes). Only this repo's branches and same-repo PRs (a PR uses its head commit, so merged ones still open); keeps the 12 most recent. Branch FBX, clips, weapons and `Assets/effects` PNGs come too: files identical to production are hard links, and new ones download (≤300 MB). A branch that changes `battle_sim_local.php` still needs the Actions preview. Optional `state/github-token.php` (`<?php return '<token>';`) lifts the 60/h API limit. |
@@ -446,15 +448,16 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound).
   browser or OS pauses. Safari has no GPU timer: cost a kind by running with and without
   `benchHide`. A 113 s load in one run was download time; normal is ~21-24 s.
 - **Next, in order:**
-  1. **Startup.** Soldiers are ~17-20 s of the load, ~13-15 s of it FBX parse.
+  1. **Startup.** Clips now load from the prepared pack: locally the soldiers phase went from
+     17.9 to 5.9 s and FBX parse from 13.5 to 2.1 s, bit-identical clips (`probe_clip_pack.cjs`).
+     Measure it on the iPhone. What is left: retargeting onto 10 models (~3 s, could be packed
+     per model), the 10 model FBX (~2 s parse), and the far-LOD index lists.
      (a) Remove the 25 s imported-soldier timeout and the procedural *visual* fallback in normal
      gameplay: `BattleSoldierModel.preload` races `loadLibrary` against a timer, and losing does
      not cancel the load. Normal gameplay waits for its assets and shows a real failure; keep only
      the renderer-free representations the trainer and headless harness use, and remove the
-     fallback with its callers, not as a broad purge. (b) FBX becomes an ingress format: move
-     clip preparation (canonicalise, filter, 30 Hz resample, root-motion removal and natural
-     speed), rig maps and the far-LOD index lists offline into a measured runtime format
-     (GLB/glTF or a compact custom package). Baseline: 92 clip FBX ~35.6 MiB, 10 models ~17.5 MiB.
+     fallback with its callers, not as a broad purge. (b) The rest of FBX-as-ingress: models,
+     retargeted clips and far-LOD lists prepared offline the same way (10 models ~17.5 MiB).
   2. **Landscape CPU:** what the extra posed soldiers, weapons and decals cost per frame.
   3. **Sim CPU:** `squad.updateSoldier` (Engagement, sight) and the movement resolver lead
      the hot-path profile. Remove redundant work or allocation churn only with paired
@@ -568,6 +571,14 @@ never decides tactics, ammo, hits or paths.
   (`BattleFbxClips`, data only). The battle fetches only those files, and the lab loads the same table
   for its **Show all animation clips** toggle (off: only in-game clips; on: all, in-game marked ●).
   Bone names are canonicalised at load, so `mixamorig:` and older rigs bind the same clips.
+- **Prepared clips.** The battle loads every `CLIPS` entry from one file,
+  `Assets/animations/prepared-clips.bin` (~4.5 MiB instead of ~36 MiB of clip FBX), already through
+  `sourceRig` + `convertClip`; retargeting onto each model still runs at load. A clip whose spec no
+  longer matches `CLIPS` loads from its FBX. **After changing a clip FBX, `CLIPS` or the conversion
+  code, rebuild it** with the repo served: `NODE_PATH=$(npm root -g) node scripts/build_clip_pack.cjs`
+  (the backend's own code in headless Chromium; byte-for-byte repeatable). `check_clip_pack.cjs`
+  fails CI and the deploy until then. Changing the pack's layout or meaning means bumping
+  `CLIP_PACK_FORMAT`. The Motion Lab still reads FBX.
 - Weapons (the model `BattleWeapons.PROFILES` names per side and kind): rifle Garand / Kar98k, LMG M1919A6 /
   MG42 (folded-bipod carry variants), scouts M1 Carbine / FG42, sergeants Thompson / MP40
   (the M1911A1 / P38 models are for the pending sidearm slot). Babylon is pinned to `babylonjs@9.27.1`.

@@ -53,6 +53,7 @@ jobs:
           php -l battle_learning.php
           php -l battle_metrics.php
           test -s battle/battle_sim.html
+          node scripts/check_clip_pack.cjs
 
           for f in \
             battle/soldier.js \
