@@ -12,11 +12,11 @@
 
   function c3(hex){hex=hex.replace('#','');return new BABYLON.Color3(parseInt(hex.slice(0,2),16)/255,parseInt(hex.slice(2,4),16)/255,parseInt(hex.slice(4,6),16)/255);}
   var LEAF=[c3('3d5a2c'),c3('466233'),c3('35502a')],TRUNK=c3('4a3624'),HEDGE=c3('3f5a2e'),ROCK=c3('6d6a61'),STONE=c3('7a7568');
-  /* Typical Normandy bocage is a bank/root mass with dense woody growth above it. A 2.2 m opaque
-     combat volume is deliberately conservative: a standing 1.55 m eye cannot casually see over it,
-     while gaps and hedge ends remain the natural places to see and move through. Short chunks let
-     the base follow rolling terrain instead of floating a 50 m box from one midpoint sample. */
-  var HEDGE_WIDTH=2.2,HEDGE_HEIGHT=2.2,HEDGE_CHUNK=3.0,HEDGE_BURY=.25;
+  /* Mature Normandy bocage ranges from tall bank-and-growth masses to roughly 15 ft / 4.57 m.
+     Height varies once per generated hedge run; every 3 m terrain-following render chunk in that
+     run gets the same height so the runtime coalescer's one LOS/nav/ballistic volume stays exactly
+     coherent with what is drawn. Existing hedge gaps remain the intentional ways to see/move through. */
+  var HEDGE_WIDTH=2.2,HEDGE_HEIGHT_MIN=2.8,HEDGE_HEIGHT_MAX=4.57,HEDGE_CHUNK=3.0,HEDGE_BURY=.25;
 
   function paint(mesh,color){
     var n=mesh.getTotalVertices(),data=new Float32Array(n*4);
@@ -114,7 +114,12 @@
   function scatter(scene,heightAt,opts){
     opts=opts||{};
     var fieldW=opts.fieldW||360,fieldD=opts.fieldD||(opts.keepoutZ?opts.keepoutZ*2.2:190),keepoutZ=opts.keepoutZ||fieldD*.46;
-    var rng=mulberry32(opts.seed||1337),halfW=fieldW*.46,entries=[],obstacles=[],physical=[],area=(halfW*2)*(keepoutZ*2),physicalSeq=0;
+    var terrainSeed=opts.seed==null?1337:(+opts.seed||0),
+      rng=mulberry32(terrainSeed),
+      /* Height owns a separate deterministic stream so changing bocage scale cannot shift the
+         existing X/Z hedge layout or any later clutter draws from the terrain RNG. */
+      hedgeHeightRng=mulberry32((terrainSeed^0x6b6f6361)>>>0),
+      halfW=fieldW*.46,entries=[],obstacles=[],physical=[],area=(halfW*2)*(keepoutZ*2),physicalSeq=0;
     var scenario=opts.scenario||(root.BattleScenarioGenerator&&root.BattleScenarioGenerator.current?root.BattleScenarioGenerator.current():null);
     var buildings=scenario&&scenario.buildings||[],BUILDING_KEEP=opts.buildingKeepout==null?2.2:+opts.buildingKeepout;
 
@@ -123,12 +128,13 @@
     function axes(rot){var c=Math.cos(rot||0),s=Math.sin(rot||0);return{ux:c,uz:-s,vx:s,vz:c};}
     function addObb(x,z,hx,hz,rot,type,id){var a=axes(rot),fp={id:id||('physical-'+physicalSeq++),type:type,shape:'obb',x:x,z:z,hx:hx,hz:hz,ux:a.ux,uz:a.uz,vx:a.vx,vz:a.vz};physical.push(fp);return fp;}
     function addCircle(x,z,radius,type,id){var fp={id:id||('physical-'+physicalSeq++),type:type,shape:'circle',x:x,z:z,radius:radius};physical.push(fp);return fp;}
-    function addHedgeVolume(ax,az,bx,bz){
+    function addHedgeVolume(ax,az,bx,bz,visibleHeight){
       var dx=bx-ax,dz=bz-az,len=Math.hypot(dx,dz)||.001,ux=dx/len,uz=dz/len,vx=-uz,vz=ux;
+      visibleHeight=Math.max(HEDGE_HEIGHT_MIN,Math.min(HEDGE_HEIGHT_MAX,+visibleHeight||HEDGE_HEIGHT_MIN));
       var y0=heightAt(ax,az)-HEDGE_BURY,y1=heightAt(bx,bz)-HEDGE_BURY,id='hedge-'+physicalSeq++;
       var fp={id:id,physicalId:id,type:'hedge',shape:'obb',volume:'terrain-prism',x:(ax+bx)/2,z:(az+bz)/2,
         hx:len/2,hz:HEDGE_WIDTH/2,ux:ux,uz:uz,vx:vx,vz:vz,y:(y0+y1)/2,y0:y0,y1:y1,
-        height:HEDGE_HEIGHT+HEDGE_BURY,visibleHeight:HEDGE_HEIGHT,radius:HEDGE_WIDTH/2,cover:.62};
+        height:visibleHeight+HEDGE_BURY,visibleHeight:visibleHeight,radius:HEDGE_WIDTH/2,cover:.62};
       /* The SAME object is published to tactical and physical consumers. */
       physical.push(fp);obstacles.push(fp);return fp;
     }
@@ -167,10 +173,11 @@
         var segLen=26+rng()*34,gap=14+rng()*26;if(cursor+segLen>span/2)segLen=span/2-cursor;if(segLen<10)break;
         var jag=(rng()-.5)*7,ax=horizontal?cursor:fixed,az=horizontal?fixed+jag:cursor,bx=horizontal?cursor+segLen:fixed-jag,bz=horizontal?fixed-jag:cursor+segLen;
         if(!segmentBlockedByBuilding(ax,az,bx,bz,HEDGE_WIDTH)){
-          var pieces=Math.max(1,Math.ceil(segLen/HEDGE_CHUNK));
+          var pieces=Math.max(1,Math.ceil(segLen/HEDGE_CHUNK)),
+            runHeight=HEDGE_HEIGHT_MIN+hedgeHeightRng()*(HEDGE_HEIGHT_MAX-HEDGE_HEIGHT_MIN);
           for(var h=0;h<pieces;h++){
             var u0=h/pieces,u1=(h+1)/pieces,pax=ax+(bx-ax)*u0,paz=az+(bz-az)*u0,pbx=ax+(bx-ax)*u1,pbz=az+(bz-az)*u1;
-            var fp=addHedgeVolume(pax,paz,pbx,pbz);place(buildHedgePrism(scene,fp),fp.x,fp.z);
+            var fp=addHedgeVolume(pax,paz,pbx,pbz,runHeight);place(buildHedgePrism(scene,fp),fp.x,fp.z);
           }
         }
         cursor+=segLen+gap;
@@ -221,5 +228,5 @@
     return{obstacles:obstacles,physicalFootprints:physical,dispose:function(){for(var i=0;i<meshes.length;i++){try{meshes[i].dispose();}catch(_){}}meshes.length=0;}};
   }
 
-  root.BattleTerrainFeatures={scatter:scatter,hedgeWidth:HEDGE_WIDTH,hedgeHeight:HEDGE_HEIGHT,hedgeChunk:HEDGE_CHUNK};
+  root.BattleTerrainFeatures={scatter:scatter,hedgeWidth:HEDGE_WIDTH,hedgeHeight:HEDGE_HEIGHT_MAX,hedgeHeightMin:HEDGE_HEIGHT_MIN,hedgeHeightMax:HEDGE_HEIGHT_MAX,hedgeChunk:HEDGE_CHUNK};
 })(typeof window!=='undefined'?window:globalThis);
