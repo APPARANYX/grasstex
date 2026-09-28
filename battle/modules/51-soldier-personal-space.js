@@ -97,6 +97,7 @@ function resolveDestination(sim,s,goal,kind,routed){
 }
 function move(sim,s,from,dx,dz){var to={x:from.x+dx,z:from.z+dz};if(!clear(from,to)){stats(sim).blockedCorrections++;return false;}s.root.position.x=to.x;s.root.position.z=to.z;if(sim.heightAt)s.root.position.y=sim.heightAt(to.x,to.z);return true;}
 function separate(sim,a,b){
+  if(a._regroupUnstick||b._regroupUnstick)return;
   var pa=point(a),pb=point(b);if(!pa||!pb)return;var dx=pb.x-pa.x,dz=pb.z-pa.z,d=Math.hypot(dx,dz);if(d>=MIN)return;
   var st=stats(sim),penetration=MIN-d;st.maxPenetration=Math.max(st.maxPenetration,penetration);if(d<1e-5){var seed=((+a.id||0)*73856093^(+b.id||0)*19349663)>>>0,ang=(seed%6283)/1000;dx=Math.cos(ang);dz=Math.sin(ang);d=1;st.exactOverlaps++;}else{dx/=d;dz/=d;}
   var fa=fixed(a),fb=fixed(b);if(fa&&fb)return;var push=Math.min(MAX_PUSH,penetration*(fa||fb?1:.5)),moved=false;

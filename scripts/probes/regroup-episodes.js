@@ -6,7 +6,7 @@
    The 18 s timeouts were men walking to an order anchor 105-160 m from the rally point. Observe only. */
 (function (root) {
   var MOVING = 0.05;
-  var eps, open, last;
+  var eps, open, last, recovering, recoveries;
   function d(a, b) {
     return a && b ? Math.hypot(a.x - b.x, a.z - b.z) : null;
   }
@@ -24,6 +24,8 @@
       eps = [];
       open = {};
       last = {};
+      recovering = {};
+      recoveries = 0;
     },
     sample: function (sim) {
       var L = root.BattleLeases,
@@ -38,6 +40,8 @@
               q = last[s.id];
             moving[s.id] = !!q && Math.hypot(p.x - q.x, p.z - q.z) > MOVING;
             last[s.id] = { x: p.x, z: p.z };
+            if (s._regroupUnstick && !recovering[s.id]) recoveries++;
+            recovering[s.id] = !!s._regroupUnstick;
           });
           if (lease && (!ep || ep.since !== lease.since)) {
             var rally = lease.data && lease.data.anchor;
@@ -73,6 +77,7 @@
         episodes: eps.length,
         byEnd: by,
         stillOpen: Object.keys(open).length,
+        recoveries: recoveries,
         timedOut: {
           count: timedOut.length,
           orderAnchorFromRally: stats(timedOut.map(function (e) { return e.orderAnchorFromRallyAtEnd; })),

@@ -66,6 +66,50 @@ test('a regroup is a Squad Leader lease; contact ends it and starts the re-entry
   assert.ok(L.holds(q,'regroup-cooldown',b.time),'re-entry cooldown is its own named lease');
   assert.ok(L.holds(q,'regroup-bypass',b.time));
 });
+for (const interruption of ['retreat', 'new mission', 'no survivors']) test('regroup ends on '+interruption,()=>{
+  const {r,leader}=root(),L=r.BattleLeases,{b,q}=squad(r);
+  q.commandPhase='approach';
+  q.members.forEach((s,i)=>{s.root.position.x=(i%2?-1:1)*(20+i*6);s.root.position.z=(i%3)*25;});
+  for(let i=0;i<8&&!L.get(q,'regroup');i++)tick(leader,b);
+  assert.ok(L.get(q,'regroup'));
+  if(interruption==='retreat')q.state='retreat';
+  if(interruption==='new mission')q._macroMission={version:7,intent:'hold',action:'hold',point:{x:150,z:0},status:'issued'};
+  if(interruption==='no survivors')q.members.forEach(s=>s.dead=true);
+  tick(leader,b);
+  assert.equal(L.get(q,'regroup'),null);
+  assert.equal(q._leases.ended.filter(l=>l.kind==='regroup').at(-1).endReason,interruption);
+  assert.notEqual(q._missionHold,'regroup');
+  if(interruption==='new mission')assert.equal(q._macroMission.status,'executing');
+});
+test('a dispersed regroup stays committed past 18 seconds and ends when cohesion is restored',()=>{
+  const {r,leader}=root(),L=r.BattleLeases,{b,q}=squad(r);
+  q.commandPhase='approach';
+  q.members.forEach((s,i)=>{s.root.position.x=(i%2?-1:1)*(20+i*6);s.root.position.z=(i%3)*25;});
+  for(let i=0;i<8&&!L.get(q,'regroup');i++)tick(leader,b);
+  const lease=L.get(q,'regroup'),anchor={...q.orderAnchor};
+  tick(leader,b,60);
+  assert.equal(L.get(q,'regroup'),lease);
+  assert.equal(L.holds(q,'regroup',b.time),true);
+  assert.deepEqual(q.orderAnchor,anchor);
+  q.members.forEach((s,i)=>{s.root.position.x=anchor.x+i;s.root.position.z=anchor.z;});
+  tick(leader,b);
+  assert.equal(L.get(q,'regroup'),null);
+  assert.equal(q._leases.ended.filter(l=>l.kind==='regroup').at(-1).endReason,'cohesion restored');
+});
+test('the leader authorizes only confirmed regroup stalls and clears them on release',()=>{
+  const {r,leader}=root(),L=r.BattleLeases,{b,q}=squad(r);
+  q.commandPhase='approach';
+  q.members.forEach((s,i)=>{s.root.position.x=(i%2?-1:1)*(20+i*6);s.root.position.z=(i%3)*25;});
+  for(let i=0;i<8&&!L.get(q,'regroup');i++)tick(leader,b);
+  q.members[0]._movementProgress={stuck:true,kind:'regroup'};
+  q.members[1]._movementProgress={stuck:false,kind:'regroup'};
+  q.members[2]._movementProgress={stuck:true,kind:'formation'};
+  tick(leader,b);
+  assert.deepEqual(q.members[0]._regroupUnstick,{since:L.get(q,'regroup').since});
+  assert.ok(!q.members[1]._regroupUnstick);assert.ok(!q.members[2]._regroupUnstick);
+  q.inContact=true;tick(leader,b);
+  assert.ok(q.members.every(s=>!s._regroupUnstick));
+});
 test('prune ends only expired pure-timer leases; state-bearing leases survive expiry',()=>{
   const {r}=root(),L=r.BattleLeases,q={};
   L.grant(q,'bound','squad-leader',0,3,'t');L.grant(q,'regroup-bypass','squad-leader',0,2,'t');

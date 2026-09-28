@@ -34,6 +34,53 @@ function tickCombat(M,s,b,pt,kind){
   M.proposeCombat(s,pt,b,kind||'cover-bound');M.resolve(s,b);
 }
 
+test('regroup movement reports a confirmed stuck man instead of suppressing progress',()=>{
+  const {b,q,s,M}=bareFixture();q.state='advance';q.commandPhase='regroup';q.inContact=false;s.target=null;
+  M.proposeOrder(s,{x:30,z:0},b,true);
+  for(let i=0;i<40;i++){b.time+=.5;M.resolve(s,b);}
+  assert.equal(s._movementProgress.stuck,true);
+  assert.equal(s._movementProgress.kind,'regroup');
+});
+test('authorized regroup recovery walks on terrain and restores collision at legal placement',()=>{
+  const {r,b,q,s}=bareFixture();q.state='advance';q.commandPhase='regroup';q.inContact=false;s.target=null;
+  b.heightAt=(x,z)=>x*.2+z*.1;b._movementRoot=r;
+  r.BattleLeases.grant(q,'regroup','squad-leader',0,Infinity,'test','test',{missionVersion:0});
+  s._regroupUnstick={since:0};s._movementResolver={goal:{kind:'regroup',point:{x:10,z:0}}};
+  s.destination={x:10,z:0};s.prone=false;s.tacticalCrouch=false;
+  let normal=0;
+  r.BattleNavigation={nextWaypoint(){normal++;return s.root.position.x>=2?s.destination:{x:s.root.position.x,z:s.root.position.z};},movementClear(a,to){return a.x>=2&&to.x>=2;}};
+  for(let i=0;i<60&&s._regroupUnstick;i++){
+    const old=s.root.position.x;H.stepMovement(b,s,.15);
+    assert.ok(s.root.position.x-old<=s.speed*.15+1e-9,'no teleport or speed boost');
+    assert.equal(s.root.position.y,b.heightAt(s.root.position.x,s.root.position.z));
+  }
+  assert.equal(s._regroupUnstick,null);assert.ok(s.root.position.x>=2);assert.ok(normal>0);
+  assert.equal(s._physicalPath,null);assert.equal(s._navCache,null);
+  s.root.position.x=0;s.destination={x:10,z:0};s.moveSpeed=0;normal=0;
+  H.stepMovement(b,s,.15);assert.equal(s.root.position.x,0,'unflagged soldiers still obey navigation');assert.equal(normal,1);
+});
+test('regroup recovery keeps body collisions off until the man clears another body',()=>{
+  const {r,b,q,s}=bareFixture();q.state='advance';q.inContact=false;s.target=null;b._movementRoot=r;
+  r.BattleLeases.grant(q,'regroup','squad-leader',0,Infinity,'test','test',{missionVersion:0});
+  s._regroupUnstick={since:0};s._movementResolver={goal:{kind:'regroup',point:{x:10,z:0}}};
+  s.destination={x:10,z:0};s.prone=false;
+  const other={root:{position:{x:0,z:0}}};b._roster.ge.push(other);
+  r.BattleSoldierPersonalSpace={minSeparation:.9};
+  r.BattleNavigation={nextWaypoint(){return s.destination;},movementClear(){return true;}};
+  H.stepMovement(b,s,.15);assert.ok(s._regroupUnstick,'static clearance alone must not cancel body escape');
+  for(let i=0;i<30&&s._regroupUnstick;i++)H.stepMovement(b,s,.15);
+  assert.equal(s._regroupUnstick,null);assert.ok(s.root.position.x>=.9);
+});
+for(const reason of ['retreat','contact','ended','dead','reload'])test('regroup recovery clears on '+reason,()=>{
+  const {r,b,q,s}=bareFixture();q.state='advance';q.inContact=false;s.target=null;b._movementRoot=r;
+  r.BattleLeases.grant(q,'regroup','squad-leader',0,Infinity,'test','test',{missionVersion:0});
+  s._regroupUnstick={since:0};s._movementResolver={goal:{kind:'regroup',point:{x:10,z:0}}};
+  if(reason==='retreat')q.state='retreat';if(reason==='contact')q.inContact=true;
+  if(reason==='ended')r.BattleLeases.end(q,'regroup',0,'test');if(reason==='dead')s.dead=true;
+  if(reason==='reload')s.reloading=true;
+  r.BattleNavigation={nextWaypoint(){return s.root.position;},movementClear(){return false;}};
+  H.stepMovement(b,s,.15);assert.equal(s._regroupUnstick,null);
+});
 test('goal change resets old stuck evidence',()=>{
   const{b,s,M,P}=bareFixture();
   M.proposeOrder(s,{x:0,z:0},b,true);tickCombat(M,s,b,{x:0,z:20});
