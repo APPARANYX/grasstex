@@ -106,10 +106,30 @@
   }
   root.BattleTracers={on:TRACER_POOL,show:showTracer,stats:function(){return{pool:TRACER_POOL,created:tracerStats.created,reused:tracerStats.reused,stolen:tracerStats.stolen||0,max:TRACER_MAX};}};
   function tracer(scene,name,from,to,color,alpha,lifetime){showTracer(scene,name,from,to,color,alpha,lifetime,3);}
+  /* Effects warm-up. The first shots of a battle used to build the muzzle-flash pool (99 meshes, 13
+     textures) and compile the flash, tracer and decal shaders mid-frame: a 94 ms hitch on an iPhone
+     (device benchmark worstFrames). They are built and compiled when the battle is set up instead.
+     Presentation only, no combat RNG. `?fxPrewarm=0` leaves them lazy. */
+  var FX_PREWARM=!(typeof location!=='undefined'&&/[?&]fxPrewarm=0\b/.test(location.search||''));
+  function compileFor(mat,mesh){try{if(mat&&mesh&&mat.forceCompilation)mat.forceCompilation(mesh);}catch(_){}}
+  function prewarm(scene){
+    if(!FX_PREWARM||!scene||scene._battleFxPrewarmed)return;scene._battleFxPrewarmed=true;
+    try{var st=flashAssets(scene),q=st.pool[0]&&st.pool[0].quads[0];if(q)st.materials.forEach(function(m){compileFor(m,q);});}catch(_){}
+    if(!TRACER_POOL)return;
+    var V=BABYLON.Vector3,a=new V(0,-1000,0),b=new V(0,-999,0),styles=[['tracer-hit',{r:1,g:.95,b:.7},.50,3],['tracer-miss',{r:1,g:1,b:1},.15,3],['tracer',{r:1,g:.95,b:.7},null,null]];
+    styles.forEach(function(sy){
+      for(var i=0;i<4;i++)showTracer(scene,sy[0],a,b,sy[1],sy[2],0,sy[3]);
+      var pool=(tracerState?tracerState.get(scene):scene._battleTracers)||{};
+      (pool[sy[0]]||[]).forEach(function(l){l._tracerGen++;l._tracerOn=false;l.setEnabled(false);compileFor(l.material,l);});
+    });
+    tracerStats.created=tracerStats.reused=0;
+  }
+  root.BattleTracers.prewarm=prewarm;
   function hitTracer(scene,from,to){tracer(scene,'tracer-hit',from,to,{r:1,g:.95,b:.7},.50,90);}
   function missTracer(scene,from,to){tracer(scene,'tracer-miss',from,to,{r:1,g:1,b:1},.15,135);}
   function install(sim){
     if(!sim||sim._combatFxConsistencyInstalled)return sim;sim._combatFxConsistencyInstalled=true;
+    prewarm(sim.scene);
     var oldShot=sim.onShot;
     /* The muzzle flash itself is drawn by the core onFire through BattleMuzzleFlash.show. */
     sim.onShot=function(shooter,target,hit,d,shot){

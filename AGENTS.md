@@ -38,7 +38,7 @@ In the page: a load overlay (`BattleLoading`, in `battle_sim.html`) shows each b
 scripts, scenario, terrain, soldiers/weapons/clips, cover, navigation and squads); the FBX backend
 reports per-file progress to it. **Start Battle** unpauses and unlocks audio (iOS needs the gesture).
 `window.__battle__` is the live `BattleSim`. HUD buttons: World Debug, AI Graph, Motion Lab.
-URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?tracerPool=0` (a new line mesh per tracer, as before the pool), `?perfTimings=1`, `?bench=1` (device benchmark, below).
+URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?tracerPool=0` (a new line mesh per tracer, as before the pool), `?fxPrewarm=0` (build muzzle flashes, tracer lines and decals on first use, as before), `?perfTimings=1`, `?bench=1` (device benchmark, below).
 
 ## Test harnesses
 
@@ -423,8 +423,8 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
 
     | | iPhone | MacBook |
     | --- | --- | --- |
-    | FPS, median / 1% low | 20 / 11 → 25 / 14 → 40 / 9 (v197) → **56** / 13 (#74) | 115 → **123** |
-    | CPU per frame | 33 → 25 → 15 → **14** ms | 9.4 → 7.3 ms |
+    | FPS, median / 1% low | 20 / 11 → 25 / 14 → 40 / 9 (v197) → 56 / 13 (#74) → **59** / 34 (v205) | 115 → **123** |
+    | CPU per frame | 33 → 25 → 15 → 14 → **8.9** ms | 9.4 → 7.3 ms |
     | draw calls | ~727 → **226** (v197) | ~631 |
     | skeletons rebuilt per frame | 100 → 17 | 100 → 7 |
     | `Skeleton.prepare` | 4.5 → 0.7 ms | 4.5 → 0.4 ms |
@@ -439,6 +439,7 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
       - Mesh LOD, same preview build, off vs on: FPS mean 29.6 → **46.9**, median 35.7 → **55.6**, 5% low 13 → 29; frame time beyond CPU 15.0 → **6.9** ms; frames within one 60 Hz refresh 37% → **84%**.
       - Where the frame goes now (21.3 ms mean): CPU 14.4 ms (sim 4.5 at 4× speed, draw submission 3.9 for ~224 draw calls, choosing what to draw 3.6, pose 1.4, skeletons 0.5); 6.9 ms beyond CPU, not yet attributed (weapons ~50 draws and 0.29 M vertices, decals ~37).
       - Next, in order: hitches (1% low 13 FPS, p99 77 ms, worst 563 ms; log the worst frames first), weapons (one draw per model, far LOD), startup (items 3-4: ~15 s of the ~20 s soldiers phase is FBX parse), sim (item 7; ~1.1 ms at 1× speed).
+      - **Weapons and effects (v205: #76 tracer pool, #77 weapon instances, #78 worst-frame log):** `benchHide=weapons,decals` had cut CPU 14.4 → 8.0 ms; the effects were churn (a line mesh created and disposed per tracer, ~20/s at 4×) and the weapons 100 clones. After both: iPhone overview FPS mean/median **58.8 / 58.8**, 5% / 1% low 50 / 34.5, CPU 8.9 ms, draw calls 180, 98% of frames within one 60 Hz refresh, worst frame 138 ms. The worst frames were the first shots: 99 meshes created in one 94 ms frame (the muzzle-flash pool built on first use) and a 41 ms sim step on the next (first contact). Effects are now built and their shaders compiled when the battle is set up (`fxPrewarm`, #79); the first-contact sim spike is item 7.
       - Safari runs need a fresh tab: one run in a long-lived tab ran every stage 1.5-2.5× slower than a home-screen app run minutes later.
   1. **Animation/pose runtime cost is the first action item.** Imported soldiers currently run
      `applyPose` once per rendered frame while enabled, including locomotion/overlay blending,
