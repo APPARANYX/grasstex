@@ -1623,15 +1623,33 @@ function hookRender(scene,st){
 /* ---- BattleSoldierModel integration ------------------------------------------------------- */
 
 var Weapons=root.BattleWeapons,oldAttach=Weapons&&Weapons.attachWeapon;
+/* Weapons are GPU instances of one hidden source mesh per weapon model and scene, so every soldier's
+   rifle of one model draws in one call (a clone per soldier was ~50 draw calls a frame on the device
+   benchmark). Nothing edits a weapon apart from its model: callers read its world matrix (muzzle,
+   flash, grip) and toggle it for the bipod swap, both of which instances support. The source stays
+   enabled but invisible: Babylon renders instances through it. `?weaponInstances=0` clones as before. */
+var WEAPON_INSTANCES=!(typeof location!=='undefined'&&/[?&]weaponInstances=0\b/.test(location.search||''));
+function weaponMesh(scene,model,name,socket){
+  var m;
+  if(WEAPON_INSTANCES){
+    var src=model._instanceSource;
+    if(!src||src.isDisposed()||src.getScene()!==scene){
+      src=model._instanceSource=model.mesh.clone('weapon-source.'+model.name,null);
+      src.isVisible=false;src.isPickable=false;src.position.set(0,0,0);src.alwaysSelectAsActiveMesh=false;
+    }
+    m=src.createInstance(name);m.parent=socket;
+  }else m=model.mesh.clone(name,socket);
+  m.position.set(0,0,0);m.isPickable=false;return m;
+}
 if(oldAttach)Weapons.attachWeapon=function(scene,socket,kind){
   var weapon=oldAttach.apply(this,arguments),faction=socket&&socket._fbxFaction,st=faction&&sceneState(scene);
   var files=faction?weaponFiles(faction,kind):[],file=null,model=null;
   if(files.length&&st.weapons){var turn=st.weaponTurn||(st.weaponTurn={}),n=turn[faction+kind]||0;turn[faction+kind]=n+1;file=files[n%files.length];model=st.weapons[file];}
   if(model){
-    var mesh=model.mesh.clone('weapon.'+faction,socket);mesh.position.set(0,0,0);mesh.isPickable=false;
+    var mesh=weaponMesh(scene,model,'weapon.'+faction,socket);
     weapon.mesh.dispose();weapon.mesh=mesh;weapon.muzzleLocal=model.muzzle.slice();weapon.model=model.name;
     var bipod=WEAPON_BIPOD[file]&&st.weapons[WEAPON_BIPOD[file]];
-    if(bipod){weapon.bipodMesh=bipod.mesh.clone('weapon.'+faction+'.bipod',socket);weapon.bipodMesh.position.set(0,0,0);weapon.bipodMesh.isPickable=false;weapon.bipodMesh.setEnabled(false);}
+    if(bipod){weapon.bipodMesh=weaponMesh(scene,bipod,'weapon.'+faction+'.bipod',socket);weapon.bipodMesh.setEnabled(false);}
   }
   return weapon;
 };
