@@ -4,12 +4,14 @@
  * a directional light + ShadowGenerator itself and aims a narrow top-down camera at the ground
  * where one soldier's shadow falls, with the soldier himself outside the frustum.
  *
- * Cases (the soldier is stepped between them so his pose is never static):
- *   no-caster        light and generator exist, soldier not a caster        -> held 'offscreen'
- *   caster-toward    soldier is a caster, shadow falls into the view        -> posed (shadow kept)
- *   caster-away      same caster, light flipped so the shadow falls away     -> held 'offscreen'
+ * Cases (the soldier is stepped between them so his pose is never static). Off-screen culling
+ * (`BattleFbxSoldier.cull`) follows the same rule: his meshes are disabled exactly when he is held
+ * 'offscreen' here, and drawn while his shadow could be in view.
+ *   no-caster        light and generator exist, soldier not a caster        -> held 'offscreen', culled
+ *   caster-toward    soldier is a caster, shadow falls into the view        -> posed (shadow kept), drawn
+ *   caster-away      same caster, light flipped so the shadow falls away     -> held 'offscreen', culled
  *   predicate        no listed casters, but the generator selects casters by a predicate the LOD
- *                    cannot see into, shadow toward the view                  -> posed
+ *                    cannot see into, shadow toward the view                  -> posed, drawn
  *
  *   node scripts/probe_lod_shadows.cjs          # local server (see AGENTS.md); LODSHADOW_URL for another page
  * Exits non-zero if any case disagrees or the page never binds FBX soldiers. */
@@ -59,21 +61,22 @@ const URL_ = process.env.LODSHADOW_URL || 'http://127.0.0.1:8765/grasstex/battle
         const tip = new BABYLON.Vector3(p.x + Math.abs(d.x) * k, p.y, p.z);
         cam.position.set(tip.x, p.y + 20, tip.z + .001); cam.setTarget(tip);
         scene.render();
-        const st = F.lodState(s), ok = expect === 'posed' ? st.hold === null : st.hold === expect;
-        out.push({ name, expect, hold: st.hold, shadowKept: st.shadowKept, ok });
+        const st = F.lodState(s), culled = expect !== 'posed', enabled = meshes.every(m => m.isEnabled(false));
+        const ok = (expect === 'posed' ? st.hold === null : st.hold === expect) && (!F.cull.on || (st.culled === culled && enabled === !culled));
+        out.push({ name, expect, hold: st.hold, shadowKept: st.shadowKept, culled: st.culled, meshesEnabled: enabled, ok });
       };
       run('no-caster', 1, () => {}, 'offscreen');
       run('caster-toward', 1, () => meshes.forEach(m => gen.addShadowCaster(m, false)), 'posed');
       run('caster-away', -1, () => {}, 'offscreen');
       run('predicate', 1, () => { meshes.forEach(m => gen.removeShadowCaster(m, false)); gen.getShadowMap().renderListPredicate = () => true; }, 'posed');
       gen.dispose(); sun.dispose();
-      return { soldier: s.id, casters: meshes.length, lod: F.lod.on, out };
+      return { soldier: s.id, casters: meshes.length, lod: F.lod.on, cull: F.cull.on, out };
     });
     console.log(JSON.stringify(results, null, 2));
     const bad = results.out.filter(r => !r.ok);
     if (!results.lod) bad.push({ name: 'LOD is off on this page' });
     if (errors.length) bad.push(...errors.map(e => ({ name: 'pageerror ' + e })));
-    console.log(bad.length ? 'FAIL ' + bad.map(r => r.name).join(', ') : 'OK: shadow-casting soldiers stay posed while their shadow is in view');
+    console.log(bad.length ? 'FAIL ' + bad.map(r => r.name).join(', ') : 'OK: shadow-casting soldiers stay posed and drawn while their shadow is in view');
     if (bad.length) process.exitCode = 1;
   } finally { await Promise.race([browser.close(), new Promise(r => setTimeout(r, 5000))]); }
 })().catch(e => { console.error('LOD SHADOW PROBE FAIL', e && e.stack || e); process.exit(1); });
