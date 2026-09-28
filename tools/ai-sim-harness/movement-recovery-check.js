@@ -48,7 +48,7 @@ test('authorized regroup recovery walks on terrain and restores collision at leg
   s._regroupUnstick={since:0};s._movementResolver={goal:{kind:'regroup',point:{x:10,z:0}}};
   s.destination={x:10,z:0};s.prone=false;s.tacticalCrouch=false;
   let normal=0;
-  r.BattleNavigation={nextWaypoint(){normal++;return {x:s.root.position.x,z:s.root.position.z};},movementClear(a,to){return a.x>=2&&to.x>=2;}};
+  r.BattleNavigation={nextWaypoint(){normal++;return s.root.position.x>=2?s.destination:{x:s.root.position.x,z:s.root.position.z};},movementClear(a,to){return a.x>=2&&to.x>=2;}};
   for(let i=0;i<60&&s._regroupUnstick;i++){
     const old=s.root.position.x;H.stepMovement(b,s,.15);
     assert.ok(s.root.position.x-old<=s.speed*.15+1e-9,'no teleport or speed boost');

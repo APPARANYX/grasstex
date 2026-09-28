@@ -351,6 +351,23 @@ section('physical wayfinding respects body clearance through hedgerows');
   N.nextWaypoint(enclosure,boxed,outside);
   check('no-path results hold safely and retry on a timer',hold.x===0&&hold.z===0&&blockedPlan.blocked&&boxed._physicalPath===blockedPlan);
 
+  // A legal current position can still be trapped: normal navigation offers no forward step.
+  r.BattleLeases=require('./harness').bootstrap({modules:false}).BattleLeases;
+  const regroupSquad={state:'advance',commandPhase:'regroup'},
+    escape={id:'regroup-escape',squad:regroupSquad,root:{position:{x:0,y:0,z:0},rotation:{y:0}},
+      destination:outside,speed:2.9,fireCooldown:0,_regroupUnstick:{since:0},
+      _movementResolver:{goal:{kind:'regroup',point:outside}}};
+  r.BattleLeases.grant(regroupSquad,'regroup','squad-leader',0,Infinity,'test','test',{missionVersion:0});
+  enclosure.heightAt=(x,z)=>x*.1;
+  let maxEscapeStep=0;
+  for(let i=0;i<180&&escape._regroupUnstick;i++){
+    const before={...escape.root.position};enclosure.time+=.15;r.stepMovementProbe(enclosure,escape,.15);
+    maxEscapeStep=Math.max(maxEscapeStep,Math.hypot(before.x-escape.root.position.x,before.z-escape.root.position.z));
+  }
+  check('confirmed regroup recovery escapes a closed hedge enclosure before restoring navigation',escape.root.position.x>6.8+P.navMargin&&!escape._regroupUnstick,JSON.stringify(escape.root.position));
+  check('regroup recovery uses normal speed and the real terrain height',maxEscapeStep<=escape.speed*.15+1e-8&&escape.root.position.y===enclosure.heightAt(escape.root.position.x,escape.root.position.z));
+  check('recovery restores collision only at legal body placement',N.movementClear(escape.root.position,escape.root.position));
+
   function walkPhysical(sim,start,dest,seconds){
     const man={id:'probe',root:{position:{...start},rotation:{y:0}},destination:{...dest},speed:2.9,fireCooldown:0};let illegal=0;
     for(let i=0;i<seconds/.15;i++){

@@ -61,20 +61,24 @@
         !goal||goal.kind!=='regroup'||soldier.reloading||soldier.clearingStoppage||soldier.suppressedUntil>self.time))
       recovery=soldier._regroupUnstick=null;
     var desired=recovery?goal.point:soldier.destination;
+    var normalDesired=null;
     if(recovery){
-      var at={x:soldier.root.position.x,z:soldier.root.position.z},
-        rx=desired.x-at.x,rz=desired.z-at.z,rd=Math.hypot(rx,rz),
+      var at={x:soldier.root.position.x,z:soldier.root.position.z};
+      normalDesired=(root.BattleNavigation&&root.BattleNavigation.nextWaypoint(self,soldier,soldier.destination))||soldier.destination;
+      var rx=normalDesired.x-at.x,rz=normalDesired.z-at.z,rd=Math.hypot(rx,rz),
         stride=Math.min(rd,soldier.speed*dt),
-        next=rd?{x:at.x+rx/rd*stride,z:at.z+rz/rd*stride}:at;
-      // The zero-length query checks placement too: an outward step may be legal inside a buffer.
-      if(!root.BattleNavigation||(root.BattleNavigation.movementClear(at,at)&&
-          root.BattleNavigation.movementClear(at,next))){
+        next=rd?{x:at.x+rx/rd*stride,z:at.z+rz/rd*stride}:at,
+        arrived=Math.hypot(goal.point.x-at.x,goal.point.z-at.z)<=.35;
+      // Navigation must offer actual travel, not a no-path hold inside an enclosure.
+      // Check placement too: an outward step can be legal while still inside a body buffer.
+      if((rd>.35||arrived)&&(!root.BattleNavigation||
+          (root.BattleNavigation.movementClear(at,at)&&root.BattleNavigation.movementClear(at,next)))){
         recovery=soldier._regroupUnstick=null;
         soldier._navCache=null;soldier._physicalPath=null;
-        desired=soldier.destination;
+        desired=normalDesired;
       }
     }
-    if(!recovery&&root.BattleNavigation)desired=root.BattleNavigation.nextWaypoint(self,soldier,desired)||desired;
+    if(!recovery&&!normalDesired&&root.BattleNavigation)desired=root.BattleNavigation.nextWaypoint(self,soldier,desired)||desired;
     // Record the actual integration gate, not an inference from the last command or stuck detector.
     var observedWaypoint=soldier._movementWaypoint||(soldier._movementWaypoint={x:0,z:0});observedWaypoint.x=desired.x;observedWaypoint.z=desired.z;soldier._movementStopReason=null;
     var dx=desired.x-soldier.root.position.x,dz=desired.z-soldier.root.position.z,d=Math.hypot(dx,dz),crawl=!!(soldier.prone&&soldier.crawling),wantCrouch=!soldier.prone&&(soldier.tacticalCrouch||(soldier.suppressedUntil>self.time)||(!!soldier.target&&d<=.6));

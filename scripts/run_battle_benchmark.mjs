@@ -368,11 +368,15 @@ try {
         /* Squad Leader regroups (16-squad-plan-stability.js cohesion counters): how often squads stop
            to re-form, and how each regroup ended. Counters are observe-only. */
         const regroupSummary = () => {
-          const out = { entries: 0, timeouts: 0, contactExits: 0, byFaction: {} };
+          const out = { entries: 0, timeouts: 0, contactExits: 0, byFaction: {}, byEnd: {}, recoveries: 0, activeAtEnd: 0, longestActiveSeconds: 0 };
           for (const f of ['us', 'ge']) {
             const side = out.byFaction[f] = { entries: 0, timeouts: 0, contactExits: 0 };
             for (const sq of sim.factions?.[f]?.squads || []) {
               const h = sq?._regroupHysteresis; if (!h) continue;
+              for (const [reason, count] of Object.entries(h.byEnd || {})) out.byEnd[reason] = (out.byEnd[reason] || 0) + count;
+              out.recoveries += +h.recoveries || 0;
+              const lease = root.BattleLeases?.get(sq, 'regroup');
+              if (lease) { out.activeAtEnd++; out.longestActiveSeconds = Math.max(out.longestActiveSeconds, sim.time - lease.since); }
               side.entries += +h.entries || 0; side.timeouts += +h.timeouts || 0; side.contactExits += +h.contactExits || 0;
             }
             out.entries += side.entries; out.timeouts += side.timeouts; out.contactExits += side.contactExits;
