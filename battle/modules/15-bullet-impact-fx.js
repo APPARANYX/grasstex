@@ -15,8 +15,9 @@
 
    Sheets: a fixed 4 x 4 grid (tools/generate-decal-atlas.js writes them). DECAL_SHEETS addresses
    cells by row and column only, so a sheet can be replaced at any resolution that keeps the grid.
-   World decals are thin instances of one quad per cell (one draw call per used cell); wound decals
-   are small quads parented to the soldier's bone so they follow the animation. */
+   World decals are thin instances of one quad per cell (one draw call per used cell). FBX wound
+   decals lock to the nearest actual skinned vertex and resample that vertex's bone weights each
+   render; the procedural fallback remains a small bone-parented quad. */
 (function (root) {
   'use strict';
   if (!root.BattleSim || !root.BattleModules || typeof BABYLON === 'undefined' || root.BattleImpactFx) return;
@@ -363,15 +364,46 @@
     if (!node && victim.rig) node = victim.rig[spec.rig[Math.min(side, spec.rig.length - 1)]] || null;
     return node && !(node.isDisposed && node.isDisposed()) ? node : null;
   }
-  /* A wound decal on the bone the round struck: at the entry, on the side facing the shooter, or,
-     for a round that went through, at the exit on the far side (larger and ragged). */
+  function placeSkinWound(body) {
+    var F = root.BattleFbxSoldier;
+    if (!body || !body.skin || !F || !F.skinSample || !F.skinSample(body.skin, body.skinPos, body.skinNormal))
+      return false;
+    var n = body.skinNormal,
+      out = body.out;
+    if (out && n.x * out.x + n.y * out.y + n.z * out.z < 0) {
+      n.x = -n.x;
+      n.y = -n.y;
+      n.z = -n.z;
+    }
+    var p = {
+        x: body.skinPos.x + n.x * LIFT,
+        y: body.skinPos.y + n.y * LIFT,
+        z: body.skinPos.z + n.z * LIFT
+      },
+      b = basis(n, null, body.roll),
+      m = B.Matrix.FromArray(composeInto(body.matrix, 0, b, p, body.size));
+    m.decompose(body.scale, body.rot, body.pos);
+    body.mesh.scaling.copyFrom(body.scale);
+    body.mesh.rotationQuaternion = body.rot;
+    body.mesh.position.copyFrom(body.pos);
+    return true;
+  }
+  function refreshBody(sim) {
+    var st = sim && sim._impactFx;
+    if (!st) return;
+    for (var i = st.body.length - 1; i >= 0; i--) {
+      var body = st.body[i];
+      if (body.skin && !placeSkinWound(body) && (!body.mesh.isDisposed || !body.mesh.isDisposed())) body.mesh.dispose();
+    }
+  }
+  /* FBX wounds lock to the nearest actual skinned vertex at the entry/exit point, then follow that
+     vertex's bone weights. Procedural soldiers keep the old bone-local fallback. */
   function woundDecal(sim, st, pass, rng, exit) {
     var victim = pass.victim,
       zone = pass.zone || 'chest',
       at3 = exit ? pass.exit : pass.entry,
-      dir = exit ? pass.exitDirection || pass.direction : pass.direction,
-      node = bodyNode(victim, zone, { direction: pass.direction, impact: pass.entry });
-    if (!node || !node.getAbsolutePosition || !dir || !at3) return;
+      dir = exit ? pass.exitDirection || pass.direction : pass.direction;
+    if (!victim || !dir || !at3) return;
     var mine = 0;
     for (var i = 0; i < st.body.length; i++) if (st.body[i].soldier === victim) mine++;
     if (mine >= MAX_PER_SOLDIER) return;
@@ -379,20 +411,52 @@
       var old = st.body.shift();
       if (!old.mesh.isDisposed || !old.mesh.isDisposed()) old.mesh.dispose();
     }
-    if (node.computeWorldMatrix) node.computeWorldMatrix(true);
-    var anchor = node.getAbsolutePosition(),
-      sign = exit ? 1 : -1,
+    var sign = exit ? 1 : -1,
       out = norm({ x: dir.x * sign, y: 0, z: dir.z * sign }),
-      band = BODY[zone].band,
-      lift = Math.max(band[0], Math.min(band[1], at3.y - anchor.y)),
       kind = exit || rng() < 0.35 ? 'soak' : 'wound',
       cellAt = pick('blood', kind, rng),
-      p = { x: anchor.x + out.x * BODY[zone].out, y: anchor.y + lift, z: anchor.z + out.z * BODY[zone].out },
-      b = basis(out, null, rng() * 0.6 - 0.3),
-      s = size(kind, rng) * (zone === 'arm' || zone === 'head' ? 0.75 : 1) * (exit ? 1.35 : 1);
-    var mesh = quad(sim, (exit ? 'exit-wound-' : 'wound-') + zone, cellUV('blood', cellAt.row, cellAt.col));
+      roll = rng() * 0.6 - 0.3,
+      s = size(kind, rng) * (zone === 'arm' || zone === 'head' ? 0.75 : 1) * (exit ? 1.35 : 1),
+      mesh = quad(sim, (exit ? 'exit-wound-' : 'wound-') + zone, cellUV('blood', cellAt.row, cellAt.col)),
+      F = root.BattleFbxSoldier,
+      skin = F && F.skinAnchor ? F.skinAnchor(victim, at3) : null;
     mesh.material = sheetMaterial(sim, st, 'blood');
-    var m = B.Matrix.FromArray(composeInto(new Float32Array(16), 0, b, p, s)),
+    if (skin) {
+      var body = {
+        mesh: mesh,
+        soldier: victim,
+        at: sim.time,
+        exit: !!exit,
+        skin: skin,
+        skinPos: new B.Vector3(),
+        skinNormal: new B.Vector3(0, 1, 0),
+        out: out,
+        roll: roll,
+        size: s,
+        matrix: new Float32Array(16),
+        scale: new B.Vector3(),
+        rot: new B.Quaternion(),
+        pos: new B.Vector3()
+      };
+      if (!placeSkinWound(body)) {
+        mesh.dispose();
+        return;
+      }
+      st.body.push(body);
+      return;
+    }
+    var node = bodyNode(victim, zone, { direction: pass.direction, impact: pass.entry });
+    if (!node || !node.getAbsolutePosition) {
+      mesh.dispose();
+      return;
+    }
+    if (node.computeWorldMatrix) node.computeWorldMatrix(true);
+    var anchor = node.getAbsolutePosition(),
+      band = BODY[zone].band,
+      lift = Math.max(band[0], Math.min(band[1], at3.y - anchor.y)),
+      p = { x: anchor.x + out.x * BODY[zone].out, y: anchor.y + lift, z: anchor.z + out.z * BODY[zone].out },
+      b = basis(out, null, roll),
+      m = B.Matrix.FromArray(composeInto(new Float32Array(16), 0, b, p, s)),
       scale = new B.Vector3(),
       rot = new B.Quaternion(),
       pos = new B.Vector3();
@@ -616,6 +680,7 @@
       st.bursts.forEach(function (b) {
         b.system.updateSpeed = speed;
       });
+      refreshBody(sim);
       flush(st);
     });
     sim.scene.onDisposeObservable.addOnce(function () {
@@ -640,12 +705,12 @@
     return install(oldStart(scene, opts));
   };
   root.BattleModules.registerSystem('bullet-impact-fx', {
-    version: '2.0',
+    version: '2.1-skin-wounds',
     onSimulationStep: tick,
     beforeBattleRestart: clear
   });
   root.BattleImpactFx = {
-    version: '2.0-decal-sheets',
+    version: '2.1-skin-wounds',
     install: install,
     impact: impact,
     suppressionStrikes: suppressionStrikes,
@@ -655,6 +720,7 @@
     sheets: DECAL_SHEETS,
     clear: clear,
     tick: tick,
+    refreshBody: refreshBody,
     maxBursts: MAX_BURSTS,
     maxDecals: MAX_DECALS,
     maxBodyDecals: MAX_BODY_DECALS,
