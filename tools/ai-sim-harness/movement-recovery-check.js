@@ -59,6 +59,18 @@ test('authorized regroup recovery walks on terrain and restores collision at leg
   s.root.position.x=0;s.destination={x:10,z:0};s.moveSpeed=0;normal=0;
   H.stepMovement(b,s,.15);assert.equal(s.root.position.x,0,'unflagged soldiers still obey navigation');assert.equal(normal,1);
 });
+test('regroup recovery keeps body collisions off until the man clears another body',()=>{
+  const {r,b,q,s}=bareFixture();q.state='advance';q.inContact=false;s.target=null;b._movementRoot=r;
+  r.BattleLeases.grant(q,'regroup','squad-leader',0,Infinity,'test','test',{missionVersion:0});
+  s._regroupUnstick={since:0};s._movementResolver={goal:{kind:'regroup',point:{x:10,z:0}}};
+  s.destination={x:10,z:0};s.prone=false;
+  const other={root:{position:{x:0,z:0}}};b._roster.ge.push(other);
+  r.BattleSoldierPersonalSpace={minSeparation:.9};
+  r.BattleNavigation={nextWaypoint(){return s.destination;},movementClear(){return true;}};
+  H.stepMovement(b,s,.15);assert.ok(s._regroupUnstick,'static clearance alone must not cancel body escape');
+  for(let i=0;i<30&&s._regroupUnstick;i++)H.stepMovement(b,s,.15);
+  assert.equal(s._regroupUnstick,null);assert.ok(s.root.position.x>=.9);
+});
 for(const reason of ['retreat','contact','ended','dead','reload'])test('regroup recovery clears on '+reason,()=>{
   const {r,b,q,s}=bareFixture();q.state='advance';q.inContact=false;s.target=null;b._movementRoot=r;
   r.BattleLeases.grant(q,'regroup','squad-leader',0,Infinity,'test','test',{missionVersion:0});

@@ -68,10 +68,17 @@
       var rx=normalDesired.x-at.x,rz=normalDesired.z-at.z,rd=Math.hypot(rx,rz),
         stride=Math.min(rd,soldier.speed*dt),
         next=rd?{x:at.x+rx/rd*stride,z:at.z+rz/rd*stride}:at,
-        arrived=Math.hypot(goal.point.x-at.x,goal.point.z-at.z)<=.35;
+        arrived=Math.hypot(goal.point.x-at.x,goal.point.z-at.z)<=.35,
+        spacing=root.BattleSoldierPersonalSpace,bodyClear=true;
+      if(spacing&&self._roster){
+        bodyClear=['us','ge'].every(function(f){return (self._roster[f]||[]).every(function(other){
+          return other===soldier||other.dead||!other.root||
+            Math.hypot(other.root.position.x-at.x,other.root.position.z-at.z)>=spacing.minSeparation;
+        });});
+      }
       // Navigation must offer actual travel, not a no-path hold inside an enclosure.
       // Check placement too: an outward step can be legal while still inside a body buffer.
-      if((rd>.35||arrived)&&(!root.BattleNavigation||
+      if(bodyClear&&(rd>.35||arrived)&&(!root.BattleNavigation||
           (root.BattleNavigation.movementClear(at,at)&&root.BattleNavigation.movementClear(at,next)))){
         recovery=soldier._regroupUnstick=null;
         soldier._navCache=null;soldier._physicalPath=null;
