@@ -189,6 +189,7 @@ try {
       return out;
     }
     function losBlockedAttempts() { let n = 0; for (const s of allUnits()) n += +s._losBlockedFire || 0; return n; }
+    function crestBlockedAttempts() { let n = 0; for (const s of allUnits()) n += +s._crestBlockedFire || 0; return n; }
 
     const SAMPLE_SECONDS = 2.5;
     function sampleDiagnostics(state) {
@@ -401,7 +402,7 @@ try {
           stablePlanSamples: diag.stablePlanSamples, blockedFireteamSamples: diag.blockedFireteamSamples, regroupSamples: diag.regroupSamples, supportHoldSamples: diag.supportHoldSamples, retreatSamples: diag.retreatSamples,
           orderedMoveSamples: diag.orderedMoveSamples, idleOrderedSamples: diag.idleOrderedSamples, phaseSamples: diag.phaseSamples, engagementStateSamples: diag.engagementStateSamples,
           writerConflicts: conflicts.length, strategicWriterConflicts: strategicConflicts, writerConflictDetails: conflicts.slice(0, 20), loopAlerts: loops.slice(0, 20), loopKinds,
-          movementResolver: movementResolverSummary(), losBlockedFireAttempts: losBlockedAttempts(), fire: activeCombat,
+          movementResolver: movementResolverSummary(), losBlockedFireAttempts: losBlockedAttempts(), crestBlockedFireAttempts: crestBlockedAttempts(), fire: activeCombat,
           reconstitution: reconstitutionSummary(), regroups: regroupSummary(), stallOutcomes: stallSummary(), coordinationHealth: coordinationHealth(), objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates
         };
         battles.push(record);
@@ -430,7 +431,8 @@ try {
     vacantObjectiveStalls: sum(battles, b => b.vacantObjectiveStalls?.length), movementStalls: sum(battles, b => b.movementStalls?.length),
     routeStalls: sum(battles, b => b.routeStalls?.length), targetlessStalls: sum(battles, b => b.targetlessStalls?.length), longRegroups: sum(battles, b => b.longRegroups?.length),
     writerConflicts: sum(battles, b => b.writerConflicts), strategicWriterConflicts: sum(battles, b => b.strategicWriterConflicts), loopAlerts: sum(battles, b => b.loopAlerts?.length),
-    losBlockedFireAttempts: sum(battles, b => b.losBlockedFireAttempts)
+    losBlockedFireAttempts: sum(battles, b => b.losBlockedFireAttempts),
+    crestBlockedFireAttempts: sum(battles, b => b.crestBlockedFireAttempts)
   };
   const aggregateHealth = {
     overall: +mean(battles.map(b => b.health.overall)).toFixed(1), strategic: +mean(battles.map(b => b.health.strategic)).toFixed(1), movement: +mean(battles.map(b => b.health.movement)).toFixed(1),
@@ -473,7 +475,7 @@ try {
   const payload = { summary, policy, runtimeErrors: dedupe(runtimeErrors), assetLoadNoiseExamples: dedupe(browserErrors.filter(e => assetNoisePattern.test(String(e))), 20), browserWarnings: dedupe(browserWarnings, 100), battles };
   fs.writeFileSync(path.join(outputDir, 'battle-benchmark.json'), JSON.stringify(payload, null, 2));
 
-  const headers = ['index','seed','winner','winReason','simulatedSeconds','timeoutReached','usAlive','geAlive','captures','neutralizations','objectiveCount','objectivesNeverOwned','objectivesNeverContested','usSquadSpread','geSquadSpread','healthOverall','firstContactSeconds','firstFireSeconds','firstCaptureSeconds','maxNoObjectiveProgressSeconds','vacantObjectiveStalls','movementStalls','routeStalls','targetlessStalls','longRegroups','writerConflicts','strategicWriterConflicts','loopAlerts','stallWakes','stallRepeats','stallSwitches','idleUnderOrdersRate','overCohesionRate','shots','hits','hitRate','losBlockedFireAttempts','movementResolverChanges'];
+  const headers = ['index','seed','winner','winReason','simulatedSeconds','timeoutReached','usAlive','geAlive','captures','neutralizations','objectiveCount','objectivesNeverOwned','objectivesNeverContested','usSquadSpread','geSquadSpread','healthOverall','firstContactSeconds','firstFireSeconds','firstCaptureSeconds','maxNoObjectiveProgressSeconds','vacantObjectiveStalls','movementStalls','routeStalls','targetlessStalls','longRegroups','writerConflicts','strategicWriterConflicts','loopAlerts','stallWakes','stallRepeats','stallSwitches','idleUnderOrdersRate','overCohesionRate','shots','hits','hitRate','losBlockedFireAttempts','crestBlockedFireAttempts','movementResolverChanges'];
   const csvLines = [headers.join(',')];
   for (const b of battles) {
     const row = {
@@ -499,7 +501,7 @@ try {
     `- Health: **${summary.health.overall}/100 overall** · strategic ${summary.health.strategic} · movement ${summary.health.movement} · cohesion ${summary.health.cohesion} · combat ${summary.health.combat} · objective ${summary.health.objective}`,
     `- Stalls: vacant objective **${issue.vacantObjectiveStalls}** · route **${issue.routeStalls}** · soldier movement **${issue.movementStalls}** · targetless command **${issue.targetlessStalls}** · long regroup **${issue.longRegroups}**`,
     `- Coordination: writer conflicts **${issue.writerConflicts}** (${issue.strategicWriterConflicts} strategic) · loop alerts **${issue.loopAlerts}** · idle-under-orders ${(summary.idleUnderOrdersRate * 100).toFixed(1)}% · over-cohesion ${(summary.overCohesionRate * 100).toFixed(1)}%`,
-    `- Combat: **${summary.shots}** discharges · **${summary.directShots}** direct · **${summary.hits}** hits (${(summary.hitRate * 100).toFixed(1)}%) · **${issue.losBlockedFireAttempts}** trigger-time LOS blocks`,
+    `- Combat: **${summary.shots}** discharges · **${summary.directShots}** direct · **${summary.hits}** hits (${(summary.hitRate * 100).toFixed(1)}%) · **${issue.losBlockedFireAttempts}** trigger-time LOS blocks · **${issue.crestBlockedFireAttempts || 0}** held over a crest`,
     `- Runtime: **${summary.runtimeErrors} probable JS/runtime errors** · **${summary.assetLoadNoise} asset/CORS noise** · ${summary.browserWarnings} warnings`,
     '', '## Most problematic runs', '',
     '| Seed | Winner | Health | Captures | Never owned | Spread us/ge | Route stalls | Move stalls | Targetless | Vacant | Regroup | Conflicts | Loops | Max no-progress |',

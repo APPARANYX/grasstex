@@ -82,6 +82,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `regroup-axis-check.js` | A man behind the regroup anchor is a trimmable straggler, never an outrunner (the regroup keeps the direction the squad was marching), men ahead or to the side still block, and a regroup whose only scattered man is behind ends on `cohesion restored`, not on the clock; swept over march directions (main fails it) |
 | `succession-check.js` | A killed leader is replaced by the most senior survivor after the 6 s `succession` lease, never more than one leader, the gunner only as the last man, successors replaced in turn, no lease on a led or wiped-out squad, seniority order |
 | `perception-check.js` | View cones (120° focus at full range, ±100° periphery shorter, behind only within 10 m), head turn toward the squad's known threat, contact relayed to a friendly squad within 50 m (first-hand only, keeps its age), enemy gunfire heard within 120 m with a distance-scaled position error, own sightings outrank both, no combat-RNG draws |
+| `crest-fire-check.js` | Permission to fire tests the round's own line: over a crest that shows the head but would take the round (or a narrow crest between sight samples) he still sees the man but pulls no trigger; on open ground or over a lower crest he fires; the gate draws no combat RNG |
 | `voice-determinism-check.js` | Voice callouts never draw from the combat RNG: a battle is identical with and without voice |
 
 `harness.js` loads the shipping `stepMovement()` from `battle/battle-sim.js` with render stubs.
@@ -593,19 +594,18 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
   them; real bocage was a bank plus growth, 0.9-4.6 m. It needs an explicit lift of the freeze
   for height only, the volume staying the one source for rendering, nav, sight and ballistics.
   Benchmark paired and check stance behaviour. Terrain generation belongs to `ww2fps`.
-- **Soldiers on or below hills fire into the ground (open, seen 2026-09-28).** Men with a clear view
-  over a crest put their rounds into the slope. The fire gate and the round test different lines:
-  sight (`squad-ai.js` `hasLineOfSight`: target scan, tracking and the `14-direct-fire-los-gate.js`
-  gate) runs eye to the **target's eye** (1.55/1.05/0.42 m) and samples the terrain at only
-  `LOS_SAMPLES` (8) points with 0.15 m clearance, while the round (`14-z-ballistic-raycast.js`) flies
-  eye to the **target's body centre** (`targetCenter`: 0.88/0.57/0.27 m) plus dispersion and tests the
-  terrain continuously. A man who sees a head over the crest may fire, and his round, ~0.7 m lower,
-  hits the ground; at 400 m the 8 samples are 50 m apart, so a narrow crest can fall between them.
-  The round also starts at eye height over the root, not the muzzle, so the drawn tracer disagrees.
-  Owner: permission to fire (Perception/Engagement). The gate should test the line the round will fly,
-  at the ballistics' resolution (or with its terrain test); a man who sees only a head holds or moves.
-  Keep spotting separate from permission to fire. Add a deterministic crest check (sight clear, fire
-  line blocked, no trigger pull) and benchmark paired; the tracer origin is a separate, smaller fix.
+- **Soldiers on or below hills fired into the ground: fixed (fire line, 2026-09-28).** Sight
+  (`hasLineOfSight`) runs eye to the target's eye at `LOS_SAMPLES` (8) terrain points; the round flies
+  eye to the body centre (~0.7 m lower) and tests the ground every 1/24 of the range. The trigger-time
+  gate (`14-direct-fire-los-gate.js`) now also asks `BattleBallistics.fireLineBlocked` (the undispersed
+  round line through the ballistics' own `groundStop`) and holds fire when the crest would take the
+  round; spotting and tracking are unchanged, and obstacles are not part of it (firing at a man
+  behind low cover is as before). Counted apart from sight blocks (`_crestBlockedFire`, the
+  benchmark's "held over a crest"). Paired standard benchmark (seed `crest-pair`): direct rounds
+  76,756 → 44,567, hits 8,418 → 8,803 (11.0% → 19.8%), wins US/GE 41/59 → 45/55 (p=0.67); the
+  `fire-gates` probe puts crest holds at 2-5% of target-holding samples (riflemen most).
+  `crest-fire-check.js`. Still open: the round (and tracer) starts at eye height over the root, not
+  the muzzle.
 - **Bullet holes float in front of scatter cover (fix proposed).** `14-z-ballistic-raycast.js`
   `obstacleStop` stops rounds at the tactical cover circle (a log's is `len*0.42`, its mesh a
   0.55 m cylinder), not the rendered object. Fix at the ballistics owner: intersect the linked

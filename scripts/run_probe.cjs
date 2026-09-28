@@ -50,9 +50,10 @@ async function battle(browser, { type, seed }, probes) {
   const errors = [];
   page.on('pageerror', e => errors.push(String(e && e.stack || e).slice(0, 400)));
   page.setDefaultTimeout(180000);
-  // Probe battles use the procedural rig (as the benchmark does), so skip the FBX downloads: on the
-  // single-threaded PHP dev server they queue ahead of the page's own scripts.
-  await page.route('**/*', r => ['media', 'font'].includes(r.request().resourceType()) || /\.fbx(\?|$)/i.test(r.request().url()) ? r.abort() : r.continue());
+  // Probe battles use the procedural rig (as the benchmark does). The page itself waits for its FBX
+  // soldiers (no fallback since #86), so let them load; on a local PHP dev server that is slow, but
+  // aborting them leaves the page on its load error. Media and fonts are never needed.
+  await page.route('**/*', r => ['media', 'font'].includes(r.request().resourceType()) ? r.abort() : r.continue());
   const q = new URLSearchParams({ seed });
   if (DEFENDER[type]) q.set('defender', DEFENDER[type]);
   // The single-threaded PHP dev server can stall a load behind another page's asset downloads.
@@ -112,7 +113,7 @@ async function battle(browser, { type, seed }, probes) {
   if (!NAMES.length) throw new Error('PROBE=<name>[,<name>] is required; probes: ' +
     fs.readdirSync(path.join(__dirname, 'probes')).filter(f => f.endsWith('.js')).map(f => f.slice(0, -3)).join(', '));
   const browser = await chromium.launch({ headless: true,
-    args: ['--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'] });
+    args: ['--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--ignore-certificate-errors'] });
   const out = { probes: NAMES, step: STEP, seconds: SECONDS, url: URL, battles: [] };
   try {
     for (const b of BATTLES) {
