@@ -6,8 +6,10 @@
    GPU time (where the browser exposes a timer query) and the load breakdown, with Copy / Download
    buttons for the JSON. Nothing is uploaded anywhere.
 
-   Flags: bench=1, benchSeconds=60, benchWarmup=60, benchCam=overview|close (close: 90 m from the
-   biggest group of living soldiers), benchAuto=1 (start without the tap; for scripts). Combine with
+   Flags: bench=1, benchSeconds=60, benchWarmup=60, benchCam=overview|close|follow (close: 90 m from
+   the biggest group of living soldiers; follow: a chase camera benchFollow=25 m from a soldier in the
+   biggest group, so the men around him draw at full detail, moving to the nearest living man 3 sim
+   seconds after he falls), benchAuto=1 (start without the tap; for scripts). Combine with
    animLod=0 for the before/after of the animation LOD. benchHide=<kind>[,<kind>] (soldiers, weapons,
    decals, hedges, terrain, objectives, walls, cover) stops drawing those meshes for the measured run
    while the battle, poses and everything else keep running, so the frame time they cost can be read
@@ -23,7 +25,8 @@ if(typeof document==='undefined'||typeof location==='undefined'||root.BattleDevi
 var q=new URLSearchParams(location.search||'');
 if(q.get('bench')!=='1'){root.BattleDeviceBenchmark={active:false};return;}
 var SECONDS=Math.max(5,+q.get('benchSeconds')||60),WARMUP=Math.max(0,q.get('benchWarmup')==null?60:+q.get('benchWarmup')||0),
-    CAM=q.get('benchCam')==='close'?'close':'overview',AUTO=q.get('benchAuto')==='1',
+    CAM=/^(close|follow)$/.test(q.get('benchCam')||'')?q.get('benchCam'):'overview',
+    FOLLOW_DIST=Math.max(3,+q.get('benchFollow')||25),AUTO=q.get('benchAuto')==='1',
     HIDE_ALIAS={soldiers:'soldiers',weapons:'weapons',decals:'decals & effects',effects:'decals & effects',hedges:'hedges',
       terrain:'terrain, roads & sky',objectives:'objectives',walls:'building walls & floors',buildings:'building walls & floors',cover:'cover & scatter'},
     HIDE=(q.get('benchHide')||'').split(',').map(function(k){return HIDE_ALIAS[k.trim().toLowerCase()];}).filter(Boolean);
@@ -102,11 +105,37 @@ function meshCensus(scene,acc){
     if(kind==='other'){var raw=n.replace(/[0-9]+/g,'#');acc.other[raw]=(acc.other[raw]||0)+1;}
   }
 }
-function closeCamera(b){
-  var cam=b.scene.activeCamera,all=b._roster.us.concat(b._roster.ge).filter(function(s){return!s.dead;});if(!cam||!all.length)return;
-  /* Centre on the living soldier with the most living soldiers within 60 m. */
+function living(b){return b._roster.us.concat(b._roster.ge).filter(function(s){return!s.dead;});}
+/* The living soldier with the most living soldiers within 60 m. */
+function busiest(all){
   var best=null,bestN=-1;all.forEach(function(s){var n=0,p=s.root.position;all.forEach(function(o){var d=o.root.position;if((d.x-p.x)*(d.x-p.x)+(d.z-p.z)*(d.z-p.z)<3600)n++;});if(n>bestN){bestN=n;best=s;}});
-  var p=best.root.position;if(cam.setTarget)cam.setTarget(new BABYLON.Vector3(p.x,p.y+1,p.z));if('radius' in cam)cam.radius=90;
+  return best;
+}
+function closeCamera(b){
+  var cam=b.scene.activeCamera,all=living(b);if(!cam||!all.length)return;
+  var p=busiest(all).root.position;if(cam.setTarget)cam.setTarget(new BABYLON.Vector3(p.x,p.y+1,p.z));if('radius' in cam)cam.radius=90;
+}
+/* benchCam=follow: its own ArcRotateCamera (the page's touch camera stops at 90 m and the desktop fly
+   camera steers itself), made the active camera for the run and removed after it. It eases toward the
+   followed man's chest from a fixed bearing; 3 sim seconds after he falls it moves to the living
+   soldier nearest him. Presentation only: it reads positions and never touches the sim. */
+function followCamera(b){
+  var scene=b.scene,prev=scene.activeCamera,all=living(b);if(!all.length)return null;
+  var man=busiest(all),p=man.root.position,alpha=prev&&typeof prev.alpha==='number'?prev.alpha:-Math.PI/2;
+  var cam=new BABYLON.ArcRotateCamera('benchFollowCam',alpha,1.2,FOLLOW_DIST,new BABYLON.Vector3(p.x,p.y+1,p.z),scene);
+  cam.minZ=.25;cam.maxZ=prev&&prev.maxZ?prev.maxZ:2600;scene.activeCamera=cam;
+  var info={distance:FOLLOW_DIST,followed:[man.id],switches:0},deadAt=null;
+  var obs=scene.onBeforeRenderObservable.add(function benchFollow(){
+    if(man.dead){
+      if(deadAt==null)deadAt=b.time;
+      if(b.time-deadAt>=3){var all=living(b),q=man.root.position,next=null,nd=Infinity;
+        all.forEach(function(s){var d=s.root.position,dd=(d.x-q.x)*(d.x-q.x)+(d.z-q.z)*(d.z-q.z);if(dd<nd){nd=dd;next=s;}});
+        if(next){man=next;deadAt=null;info.switches++;if(info.followed.length<50)info.followed.push(man.id);}}
+    }
+    var t=man.root.position,k=Math.min(1,scene.getEngine().getDeltaTime()/250);
+    cam.target.x+=(t.x-cam.target.x)*k;cam.target.y+=(t.y+1-cam.target.y)*k;cam.target.z+=(t.z-cam.target.z)*k;
+  });
+  return{info:info,stop:function(){scene.onBeforeRenderObservable.remove(obs);if(prev)scene.activeCamera=prev;cam.dispose();}};
 }
 
 function run(){
@@ -130,6 +159,7 @@ function run(){
   function measure(warmMs){
     state='measuring';
     if(CAM==='close')closeCamera(b);
+    var follow=CAM==='follow'?followCamera(b):null;
     /* benchHide: meshes of the named kinds are kept invisible (re-applied each frame, since effects
        toggle their own visibility) and made visible again when the run ends. */
     var created=0,oCreated=scene.onNewMeshAddedObservable.add(function(){created++;});
@@ -155,6 +185,7 @@ function run(){
       if(/_frame\(/.test(src))return'sim step';
       if(/lodCamera|applyPose/.test(src))return'FBX pose (LOD + applyPose)';
       if(/cameraKeys/.test(src))return'camera keys';
+      if(/benchFollow/.test(src))return'bench follow camera';
       return phase+' #'+i+': '+src.replace(/\s+/g,' ').replace(/^function\s*\([^)]*\)\s*\{/,'').slice(0,70);
     }
     function wrapHooks(obs,phase,field){
@@ -190,8 +221,8 @@ function run(){
       engine.onBeginFrameObservable.remove(o1);engine.onEndFrameObservable.remove(o4);
       if(oAdd)scene.onNewMeshAddedObservable.remove(oAdd);scene.onNewMeshAddedObservable.remove(oCreated);hidden.forEach(function(m){if(!m.isDisposed()&&m._benchWasVisible)m.isVisible=true;});
       wrapped.forEach(function(w){w[0].callback=w[1];});scene.render=origRender;if(origPrepare)SP.prepare=origPrepare;
-      b._frame=orig;si.dispose();if(ei)ei.dispose();
-      finish(frames.slice(1),{census:census,hooks:hooks,warmMs:warmMs,warmSim:t,sim0:sim0,wallMs:performance.now()-wall0,simAdvanced:b.time-sim0,hiddenFrames:rec.hidden,hiddenKinds:HIDE,hiddenMeshes:hidden.length});
+      b._frame=orig;si.dispose();if(ei)ei.dispose();if(follow)follow.stop();
+      finish(frames.slice(1),{census:census,hooks:hooks,warmMs:warmMs,warmSim:t,sim0:sim0,wallMs:performance.now()-wall0,simAdvanced:b.time-sim0,hiddenFrames:rec.hidden,hiddenKinds:HIDE,hiddenMeshes:hidden.length,follow:follow&&follow.info});
     },500);
   }
   function finish(frames,run){
@@ -200,7 +231,7 @@ function run(){
     var roster=b._roster.us.concat(b._roster.ge),fbx=roster.filter(function(s){return s._fbx&&s.rig===null;}).length;
     result=round({
       kind:'device-benchmark',version:7,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
-      device:device(engine),camera:CAM,hide:run.hiddenKinds.length?{kinds:run.hiddenKinds,meshes:run.hiddenMeshes}:null,animLod:!(root.BattleFbxSoldier&&root.BattleFbxSoldier.lod&&root.BattleFbxSoldier.lod.on===false),
+      device:device(engine),camera:CAM,follow:run.follow||null,hide:run.hiddenKinds.length?{kinds:run.hiddenKinds,meshes:run.hiddenMeshes}:null,animLod:!(root.BattleFbxSoldier&&root.BattleFbxSoldier.lod&&root.BattleFbxSoldier.lod.on===false),
       soldiers:{total:roster.length,fbx:fbx,alive:b.factions.us.alive+b.factions.ge.alive},
       bones:root.BattleFbxSoldier&&root.BattleFbxSoldier.bones?root.BattleFbxSoldier.bones():null,
       run:{seconds:SECONDS,warmupSim:run.warmSim,warmupWallMs:run.warmMs,wallMs:run.wallMs,simAdvanced:run.simAdvanced,timeScale:speed,frames:frames.length,hiddenFrames:run.hiddenFrames},
@@ -238,7 +269,7 @@ function show(r){
   var warn=[];if(r.soldiers.fbx!==r.soldiers.total)warn.push(r.soldiers.total-r.soldiers.fbx+' soldiers on the procedural rig: not a full-fidelity run');
   if(r.hide)warn.push('not drawn this run: '+r.hide.kinds.join(', ')+' ('+r.hide.meshes+' meshes)');
   if(r.run.hiddenFrames)warn.push('the tab was hidden for '+r.run.hiddenFrames+' frames');
-  var h='<div style="color:#b9c49a">'+esc(d.renderer)+'<br>'+esc(d.canvas.width+'×'+d.canvas.height)+' canvas · DPR '+f(d.devicePixelRatio,2)+' · '+esc(d.cores)+' cores · build '+esc(r.build)+' · LOD '+(r.animLod?'on':'off')+' · camera '+esc(r.camera)+'</div>';
+  var h='<div style="color:#b9c49a">'+esc(d.renderer)+'<br>'+esc(d.canvas.width+'×'+d.canvas.height)+' canvas · DPR '+f(d.devicePixelRatio,2)+' · '+esc(d.cores)+' cores · build '+esc(r.build)+' · LOD '+(r.animLod?'on':'off')+' · camera '+esc(r.camera)+(r.follow?' '+esc(r.follow.distance)+' m, '+esc(r.follow.switches)+' switches':'')+'</div>';
   if(warn.length)h+='<div style="color:#f1b4b4;margin-top:6px">'+warn.map(esc).join('<br>')+'</div>';
   h+='<div style="font-size:20px;font-weight:700;margin:8px 0 2px">'+f(r.fps&&r.fps.median)+' FPS <span style="font-size:12px;font-weight:400">median · mean '+f(r.fps&&r.fps.mean)+' · 5% low '+f(r.fps&&r.fps.low5)+' · 1% low '+f(r.fps&&r.fps.low1)+'</span></div>';
   var P=r.pacing;if(P)h+='<div>Pacing at '+f(P.hz,0)+' Hz: '+['1','2','3','4','5+'].map(function(k){return k+'× '+f(P.refreshes[k].share*100,0)+'%';}).join(' · ')+' of frames; CPU over one refresh in '+f(P.cpuOverRefresh*100,0)+'%</div>';
