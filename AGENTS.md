@@ -169,7 +169,7 @@ and shows FPS (median, mean, 5%/1% lows), frame/CPU/render/sim/pose time, draw c
 the browser has a timer query, device and renderer, the load breakdown, and where `scene.render` goes
 (before/after-render hooks by name, Babylon animations, the camera pass split into active-mesh
 evaluation with `Skeleton.prepare` broken out, draw and the rest, and what is left unattributed), and
-draw calls by kind (soldiers, weapons, building walls, hedges, terrain, objectives, decals, cover); **Copy results** /
+draw calls by kind (soldiers, weapons, building walls, hedges, terrain, objectives, decals, cover); frame pacing (the display refresh, the share of frames taking 1, 2, 3… refreshes and their mean CPU, and how often CPU alone exceeded one refresh); **Copy results** /
 **Download JSON** (nothing is uploaded; also `window.__deviceBench`). `benchCam=close` frames the
 biggest group from 90 m, `benchAuto=1` starts without the tap, `animLod=0` gives the LOD before/after.
 This is how real devices are measured; `benchmark_full_fidelity.cjs` is the scripted equivalent.
@@ -421,15 +421,17 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
 
     | | iPhone | MacBook |
     | --- | --- | --- |
-    | FPS, median / 1% low | 20 / 11 → **25** / 14 | 115 → **123** |
-    | CPU per frame | 33 → 25 ms | 9.4 → 7.3 ms |
+    | FPS, median / 1% low | 20 / 11 → 25 / 14 → **40** / 9 (v197) | 115 → **123** |
+    | CPU per frame | 33 → 25 → **15** ms | 9.4 → 7.3 ms |
+    | draw calls | ~727 → **226** (v197) | ~631 |
     | skeletons rebuilt per frame | 100 → 17 | 100 → 7 |
     | `Skeleton.prepare` | 4.5 → 0.7 ms | 4.5 → 0.4 ms |
 
     - **Pose caching on unchanged inputs was dropped:** a living soldier's inputs change every frame, and the LOD already holds finished poses.
-    - **Where the iPhone frame still goes:** draw 11.5 ms, active-mesh culling ~5.6 ms, sim 4.9 ms, pose 1.6 ms. A further ~15 ms per frame is spent beyond CPU work, probably GPU (Safari exposes no GPU timer).
+    - **Where the iPhone frame goes at v197** (one run, 390×645): draw 4.3 ms (11.5 at #68), active-mesh culling 4.1 ms, sim 4.2 ms, pose 1.9 ms; a further ~15 ms per frame is still spent beyond CPU work (frame 30.6 ms mean vs CPU 15.1), probably GPU or compositing (Safari exposes no GPU timer). Draw calls are now soldiers 100, weapons 60, decals 24, hedges 13, objectives 12, walls 3. The 1% low fell to 9 FPS (p99 frame 112 ms): hitches, not the steady frame; find what spikes (sim p99 27 ms, before-render hooks p99 42 ms) before tuning more.
+    - **Home-screen web app (same phone, same night, a different random seed):** landscape 844×797 (2.7× the pixels), and it kept the full 4× sim rate (240 sim s vs Safari's 155). Mean FPS 30 vs 33, median 31 vs 40, but 1% low 16 vs 9 and worst frame 115 vs 631 ms. Frame minus CPU stayed ~15 ms at 2.7× the pixels, so the gap is not pixel fill. The working guess is refresh pacing: the median frame is 32 ms (two 60 Hz refreshes) and CPU is 11-18 ms, just past the 16.7 ms budget. The benchmark now records pacing (result v4) to test it; for a fair Safari vs home-screen pair pass the same `seed=` and orientation.
     - **The Mac is now GPU-bound** (GPU 10.2 ms > CPU 7.3 ms).
-    - **Building walls are merged (#70, item 6):** re-run `?bench=1` on devices for the effect. Items 3 and 4 remain the startup lever: FBX parse is 5-14 s of a 7-18 s soldiers phase.
+    - **Building walls are merged (#70, item 6):** 362-727 wall draw calls → 3. The standard benchmark on main after it (run 26, seed `forward-line`) matched the forward-line branch run 24 on all 100 battles, so #68, #62 and #70 changed presentation only. Items 3 and 4 remain the startup lever: FBX parse is 5-14 s of a 7-18 s soldiers phase.
   1. **Animation/pose runtime cost is the first action item.** Imported soldiers currently run
      `applyPose` once per rendered frame while enabled, including locomotion/overlay blending,
      aiming, weapon hold, spine and support-hand work. Instrument pose time first, then keep animation
