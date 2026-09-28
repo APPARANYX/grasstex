@@ -60,6 +60,10 @@
       pistol:{model:'p38',label:'Walther P38',magazine:8,damage:28,power:.5}
     }
   };
+  /* `?geScout=carbine`: the German scout's weapon before PR #55 (the generic carbine, 250 m), for
+     A/B benchmarks only: the FG 42 and the view cones shipped together and the swing in meeting
+     wins is not yet attributed. The FBX backend still draws the FG 42. */
+  if(typeof location!=='undefined'&&/[?&]geScout=carbine\b/.test(location.search||''))PROFILES.ge.carbine={model:'fg42',label:'carbine (pre-FG 42)'};
   function profileStats(kind,faction){
     var base=STATS[kind]||STATS.rifle,over=PROFILES[faction]&&PROFILES[faction][kind];
     if(!over)return base;
