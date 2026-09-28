@@ -2,8 +2,11 @@
  * of soldiers outside the view must change nothing on screen. Fast-forwards a battle to combat, pauses
  * it, and for a set of cameras (the page's overview, and chase cameras at 12, 25 and 45 m from men in
  * the fight at eight bearings, some looking along the ground) renders the same frame four times:
- * cull on, cull on again (control), cull off, cull on. Every image must equal the first, byte for byte,
- * and the draw calls and culled soldiers are reported for on vs off. Runs once per viewport.
+ * cull on, cull on again, cull off, cull on. The two cull-on shots either side of cull off are the
+ * control (a frame that changes by itself proves nothing), and every image must equal the first, byte
+ * for byte; the draw calls and culled soldiers are reported for on vs off. Presentation the fast-forward
+ * queued on wall-clock timers (delayed muzzle flashes, tracers) plays out before the first shot. Runs
+ * once per viewport.
  *
  *   node scripts/probe_soldier_cull.cjs      # local server (see AGENTS.md)
  * Env: CULL_URL, CULL_SEED (bench1), CULL_WARMUP (150 sim s), CULL_VIEWPORTS (844x343,390x645). */
@@ -53,6 +56,7 @@ async function arm(browser, [width, height]) {
       c.minZ = .25; c.maxZ = pageCam.maxZ || 2600;
       cams.push({ name: (s.dead ? 'dead' : 'man') + s.id + '-' + r + 'm-' + (k ? 'low' : 'high'), cam: c });
     })));
+    for (let i = 0; i < 4; i++) { scene.render(); await new Promise(r => setTimeout(r, 1000)); }
     const si = new BABYLON.SceneInstrumentation(scene), w = engine.getRenderWidth(), h = engine.getRenderHeight();
     const shot = async (on) => {
       F.cull.on = on; scene.render(); scene.render();
@@ -87,7 +91,7 @@ async function arm(browser, [width, height]) {
     res.out.forEach(r => {
       console.log('  ' + r.name.padEnd(22) + ' draws ' + String(r.drawsOn).padStart(4) + ' vs ' + String(r.drawsOff).padStart(4) + ' off, culled ' + String(r.culledOn).padStart(3) +
         ', differing pixels: control ' + r.control + ', off ' + r.off + ', back on ' + r.back);
-      if (r.control) bad.push(res.size + ' ' + r.name + ': control differs (' + r.control + ' px), the A/B means nothing');
+      if (r.control || (r.back && r.back === r.off)) bad.push(res.size + ' ' + r.name + ': the frame changed by itself (' + Math.max(r.control, r.back) + ' px), the A/B means nothing');
       else if (r.off || r.back) bad.push(res.size + ' ' + r.name + ': culling changed ' + Math.max(r.off, r.back) + ' px');
       if (r.culledOff) bad.push(res.size + ' ' + r.name + ': soldiers culled with cull off');
     });
