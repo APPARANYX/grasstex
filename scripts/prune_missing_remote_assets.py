@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Forget recorded uploads of FBX assets the server no longer has, so the deploy re-uploads them.
+"""Forget recorded uploads of FBX assets (and the prepared clip pack) the server no longer has, so the deploy re-uploads them.
 
 The deploy uploads by content hash against the state it published last run
 (.battle-deploy.sha256.tsv). That state only says what was uploaded, not what is still there:
@@ -36,7 +36,7 @@ def main() -> int:
     for raw in state_path.read_text(encoding="utf-8").splitlines(keepends=True):
         parts = raw.rstrip("\n").split("\t", 1)
         remote = parts[1].strip() if len(parts) == 2 else ""
-        managed = remote.lower().endswith(".fbx") and any(remote.startswith(f"Assets/{d}/") for d in DIRS)
+        managed = remote.lower().endswith((".fbx", ".bin")) and any(remote.startswith(f"Assets/{d}/") for d in DIRS)
         (dropped if managed and remote not in present else kept).append(remote if managed and remote not in present else raw)
     state_path.write_text("".join(kept), encoding="utf-8")
     by_dir = {d: sum(1 for r in dropped if r.startswith(f"Assets/{d}/")) for d in DIRS}
