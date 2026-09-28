@@ -280,7 +280,7 @@ function poseReset(){
   POSE.layerMs={};POSE.layerRuns={};POSE.layerFrame={};POSE.layerCur={};
   POSE_LAYERS.forEach(function(k){POSE.layerMs[k]=0;POSE.layerRuns[k]=0;POSE.layerFrame[k]=new Float32Array(POSE_RING);POSE.layerCur[k]=0;});
   POSE.inputs={base:poseCounter(),aim:poseCounter(),weapon:poseCounter(),support:poseCounter()};
-  POSE.dead=0;POSE.offscreen=0;POSE.frustumKnown=0;POSE.dist=[0,0,0,0];POSE.lod={posed:0,static:0,offscreen:0,interval:0,shadowKept:0};
+  POSE.dead=0;POSE.offscreen=0;POSE.frustumKnown=0;POSE.dist=[0,0,0,0];POSE.lod={posed:0,static:0,offscreen:0,interval:0,shadowKept:0,culled:0};
 }
 /* A layer may be timed in more than one segment of one applyPose; `runs` counts soldier-frames. */
 function poseLayer(k,ms){POSE.layerMs[k]+=ms;POSE.layerCur[k]+=ms;if(!(POSE.seen&POSE_BIT[k])){POSE.seen|=POSE_BIT[k];POSE.layerRuns[k]++;}}
@@ -382,7 +382,7 @@ function poseSnapshot(){
   var L=POSE.lod,lt=L.posed+L.static+L.offscreen+L.interval;
   return{enabled:POSE.on,frames:POSE.frames,soldierFrames:POSE.samples,
     lod:{enabled:LOD.on,near:LOD.near,mid:LOD.mid,midHz:LOD.midHz,farHz:LOD.farHz,offscreen:LOD.offscreen,
-      posedShare:lt?perfRound(L.posed/lt,4):null,shadowKept:L.shadowKept,heldStatic:L.static,heldOffscreen:L.offscreen,heldInterval:L.interval,posed:L.posed},wallMs:perfRound(perfNow()-POSE.startedAt,0),
+      posedShare:lt?perfRound(L.posed/lt,4):null,shadowKept:L.shadowKept,culled:L.culled,cull:CULL.on,heldStatic:L.static,heldOffscreen:L.offscreen,heldInterval:L.interval,posed:L.posed},wallMs:perfRound(perfNow()-POSE.startedAt,0),
     timerResolutionUs:POSE.resolutionUs,
     posedPerFrame:{mean:frames?perfRound(posedSum/frames,2):null,stats:perfStats(POSE.framePosed,frames)},
     frameMs:perfStats(POSE.frameMs,frames),perSoldierUs:perSoldier,layers:layers,inputs:inputs,
@@ -1660,6 +1660,15 @@ function handChain(path,chain,from){
 var LOD={on:!(typeof location!=='undefined'&&/[?&]animLod=0\b/.test(location.search||'')),near:35,mid:100,midHz:30,farHz:10,offscreen:true,radius:1.6,clock:null,skeletons:true};
 /* `?farHz=<n>` re-poses soldiers beyond `mid` at n Hz instead of 10 (a device test knob). */
 (function(){var m=typeof location!=='undefined'&&/[?&]farHz=([0-9.]+)/.exec(location.search||'');if(m&&+m[1]>0)LOD.farHz=+m[1];})();
+/* Off-screen culling of soldier meshes. Bind makes each soldier's skinned meshes always active (their
+   bounds are the bind pose and never re-synced), so Babylon never culls them and the GPU skinned all
+   100 every frame, wherever the camera looked (device benchmark, follow camera: 100 of ~145 draws with
+   ~8% of soldiers in view). The render hook disables a soldier's meshes while a sphere of `radius` m
+   around him (wider than the animation LOD's, so a lying or falling body stays whole) is outside the
+   view and no shadow of his could be in it, and enables them again before the frame that brings him
+   back. Weapons and wound decals are culled by Babylon as before. Presentation only. `?soldierCull=0`
+   draws every soldier every frame (the previous behaviour). */
+var CULL={on:!(typeof location!=='undefined'&&/[?&]soldierCull=0\b/.test(location.search||'')),radius:3};
 var lodVP=new MX(),lodPlanes=[0,1,2,3,4,5].map(function(){return new BABYLON.Plane(0,0,0,0);}),lodEye=new V3(),lodSeq=0;
 function lodCamera(scene){
   var cam=scene.activeCamera;if(!cam)return false;
@@ -1709,6 +1718,16 @@ function lodShadowInView(fx,entry){
   var k=(LOD_SHADOW_HEIGHT/2)/-dy,half=Math.sqrt(dx*dx+dz*dz)*k;if(half>LOD_SHADOW_MAX)return true;
   return!lodSphereOut(p.x+dx*k,p.y,p.z+dz*k,half+LOD.radius);
 }
+/* Is this soldier's body (a sphere of r m around his waist) out of view with no shadow of his in view? */
+function lodOut(fx,shadows,r){
+  var p=fx.root.position;if(!lodSphereOut(p.x,p.y+.9,p.z,r))return false;
+  if(shadows)for(var i=0;i<lodShadowMaps.length;i++){var e=lodShadowMaps[i];if(lodCasts(fx,e)&&lodShadowInView(fx,e))return false;}
+  return true;
+}
+function cullApply(fx,out){
+  if(!!fx._culled===out)return;fx._culled=out;
+  for(var i=0;i<fx.meshes.length;i++)fx.meshes[i].setEnabled(!out);
+}
 function lodSig(fx){
   if(fx.aim>.01)return null; /* the aim twist follows a moving world target */
   var h=poseMix(poseClipSig(fx,false),poseWeaponSig(fx));
@@ -1750,12 +1769,14 @@ function lodPosed(fx,now){
 function hookRender(scene,st){
   if(st.hooked)return;st.hooked=true;
   scene.onBeforeRenderObservable.add(function(){
-    var list=st.active,on=POSE.on,t0=on?perfNow():0,posed=0,lod=LOD.on,now=lod?(LOD.clock?LOD.clock():perfNow()):0,cam=lod&&lodCamera(scene),shadows=lod&&cam&&LOD.offscreen&&lodShadows(scene);
+    var list=st.active,on=POSE.on,t0=on?perfNow():0,posed=0,lod=LOD.on,cull=CULL.on,now=lod?(LOD.clock?LOD.clock():perfNow()):0,cam=(lod||cull)&&lodCamera(scene),shadows=cam&&(cull||LOD.offscreen)&&lodShadows(scene);
     var ac=scene.activeCamera,eye=ac&&(ac.globalPosition||ac.position),mf=MESH_LOD.far,mb=MESH_LOD.band;
     for(var i=list.length-1;i>=0;i--){
       var fx=list[i];
       if(fx.holder.isDisposed()){list.splice(i,1);continue;}
       if(!fx.root.isEnabled())continue;
+      cullApply(fx,!!(cull&&cam&&lodOut(fx,shadows,CULL.radius)));
+      if(on&&fx._culled)POSE.lod.culled++;
       /* Mesh LOD: full detail within `far` (with a `band` of hysteresis), the simplified list beyond. */
       if(fx.meshLod){
         if(!MESH_LOD.on||!eye)meshLodApply(fx,false);
@@ -1877,12 +1898,14 @@ root.BattleFbxSoldier={
 root.BattleAssetTimings={enabled:ASSET.on,snapshot:assetSnapshot};
 /* Animation LOD thresholds, live-tunable for visual checks (BattleFbxSoldier.lod.farHz=5, .on=false...). */
 root.BattleFbxSoldier.lod=LOD;
+/* Off-screen soldier culling, live-tunable (`.on`, `.radius` m); `lodState(s).culled` per soldier. */
+root.BattleFbxSoldier.cull=CULL;
 /* Soldier mesh LOD: live-tunable (`.far` metres, `.on`); `.models` lists each model's full and far
    triangle and vertex counts, `.failed` why it is off if meshoptimizer never loaded. */
 root.BattleFbxSoldier.meshLod=MESH_LOD;
 root.BattleFbxSoldier.meshLodState=function(soldier){var fx=soldier&&soldier._fbx;return fx?{far:!!fx._meshFar,meshes:fx.meshLod?fx.meshLod.length:0}:null;};
 /* Read-only: this soldier's last LOD decision (null = posed), and whether his shadow kept him scheduled. */
-root.BattleFbxSoldier.lodState=function(soldier){var fx=soldier&&soldier._fbx;return fx?{hold:fx._lodHold||null,shadowKept:!!fx._lodShadowKept,lastPoseAt:fx._lodAt==null?null:fx._lodAt}:null;};
+root.BattleFbxSoldier.lodState=function(soldier){var fx=soldier&&soldier._fbx;return fx?{hold:fx._lodHold||null,shadowKept:!!fx._lodShadowKept,culled:!!fx._culled,lastPoseAt:fx._lodAt==null?null:fx._lodAt}:null;};
 root.BattlePoseTimings={enable:poseEnable,disable:function(){POSE.on=false;return false;},reset:function(){if(POSE.on)poseReset();},
   enabled:function(){return POSE.on;},snapshot:poseSnapshot,layers:POSE_LAYERS.slice()};
 console.log('[ANIM] FBX soldier backend installed (models + clips load with the battle)');
