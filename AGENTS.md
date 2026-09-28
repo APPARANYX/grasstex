@@ -441,7 +441,9 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound).
   tracer pool (#76), weapon instancing (#77), effects warm-up (#79). Pose caching on unchanged
   inputs was dropped: a living soldier's inputs change every frame. The "first-contact sim spike"
   was the muzzle-flash pool, built inside `onFire` during the sim step; gone since #79 (hot-path
-  profile, same battle: worst step 78.5 → 21.1 ms).
+  profile, same battle: worst step 78.5 → 21.1 ms). On the iPhone (v208) no worst frame creates a
+  mesh and the first-contact sim step is 8 ms; the remaining worst frames are time beyond CPU
+  (GPU or compositor), spread through the battle.
 - **Reading device runs:** the 1% low varies more between runs than recent changes moved it, so
   compare lows over several runs per build, same seed and orientation, fresh Safari tab (a
   long-lived tab ran 1.5-2.5× slower), phone cool. Worst frames slow in every stage at once are
@@ -450,8 +452,9 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound).
 - **Next, in order:**
   1. **Startup.** Clips now load from the prepared pack: locally the soldiers phase went from
      17.9 to 5.9 s and FBX parse from 13.5 to 2.1 s, bit-identical clips (`probe_clip_pack.cjs`).
-     Measure it on the iPhone. What is left: retargeting onto 10 models (~3 s, could be packed
-     per model), the 10 model FBX (~2 s parse), and the far-LOD index lists.
+     iPhone Safari (v208): whole load 20.7-23.9 → 8.3 s, soldiers phase 17.5-19.7 → 5.0 s, FBX
+     parse 0.9 s. What is left: retargeting onto 10 models (3.2 s on the iPhone, now the largest;
+     could be packed per model), the 10 model FBX, and the far-LOD index lists.
      (a) Remove the 25 s imported-soldier timeout and the procedural *visual* fallback in normal
      gameplay: `BattleSoldierModel.preload` races `loadLibrary` against a timer, and losing does
      not cancel the load. Normal gameplay waits for its assets and shows a real failure; keep only
