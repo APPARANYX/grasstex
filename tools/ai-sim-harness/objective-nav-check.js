@@ -218,7 +218,7 @@ section('a single assigned squad can reach and capture an outer objective');
   check('the formation supplies at least the two required capture weights',peakPresence>=2,'peak='+peakPresence);
   console.log('  probe: first capture '+(first===null?'none':first.toFixed(1)+'s')+', peak presence '+peakPresence+', obsolete-goal frames '+wrongGoal);
 }
-section('a stranded soldier cannot override the Squad Leader regroup timeout');
+section('regroup waits for cohesion, then returns to its mission');
 {
   const {r,sq,sim,town}=commandFixture();
   r.BattleTelemetry={record(){}};
@@ -227,12 +227,15 @@ section('a stranded soldier cannot override the Squad Leader regroup timeout');
   sq.members[3].root.position.x=-100;
   sq.commandPhase='regroup';sq.objective={x:20,z:0};
   sq._regroupHysteresis={overSince:sim.time-20,lastForward:null,entries:1,exits:0,suppressed:0,stragglerSuppressions:0,regroupRequests:1};
-  r.BattleLeases.grant(sq,'regroup','squad-leader',sim.time-19,sim.time-1,'test','test',{anchor:{x:20,z:0}});
+  r.BattleLeases.grant(sq,'regroup','squad-leader',sim.time-19,sim.time-1,'test','test',{anchor:{x:20,z:0},missionVersion:sq._macroMission.version,forward:{x:1,z:0}});
   commandTick(r,sim,town);
-  check('the Squad Leader releases a timed-out regroup straight back into its mission',sq.commandPhase!=='regroup'&&sq.objective.x===120);
+  check('elapsed time alone does not release a dispersed regroup',sq.commandPhase==='regroup');
+  sq.members[3].root.position.x=65;
+  commandTick(r,sim,town);
+  check('the Squad Leader releases restored cohesion straight back into its mission',sq.commandPhase!=='regroup'&&sq.objective.x===120);
   let held=0;
   for(let i=0;i<25;i++){commandTick(r,sim,town);if(sq.commandPhase==='regroup'||sq.objective.x!==120)held++;}
-  check('the entire bypass survives subsequent commander and Squad Leader ticks',held===0,'held ticks='+held);
+  check('the restored squad stays on its mission',held===0,'held ticks='+held);
 }
 section('benchmark alerts distinguish approach intent from absent orders');
 {
@@ -347,6 +350,23 @@ section('physical wayfinding respects body clearance through hedgerows');
   const hold=N.nextWaypoint(enclosure,boxed,outside),blockedPlan=boxed._physicalPath;enclosure.time+=.15;
   N.nextWaypoint(enclosure,boxed,outside);
   check('no-path results hold safely and retry on a timer',hold.x===0&&hold.z===0&&blockedPlan.blocked&&boxed._physicalPath===blockedPlan);
+
+  // A legal current position can still be trapped: normal navigation offers no forward step.
+  r.BattleLeases=require('./harness').bootstrap({modules:false}).BattleLeases;
+  const regroupSquad={state:'advance',commandPhase:'regroup'},
+    escape={id:'regroup-escape',squad:regroupSquad,root:{position:{x:0,y:0,z:0},rotation:{y:0}},
+      destination:outside,speed:2.9,fireCooldown:0,_regroupUnstick:{since:0},
+      _movementResolver:{goal:{kind:'regroup',point:outside}}};
+  r.BattleLeases.grant(regroupSquad,'regroup','squad-leader',0,Infinity,'test','test',{missionVersion:0});
+  enclosure.heightAt=(x,z)=>x*.1;
+  let maxEscapeStep=0;
+  for(let i=0;i<180&&escape._regroupUnstick;i++){
+    const before={...escape.root.position};enclosure.time+=.15;r.stepMovementProbe(enclosure,escape,.15);
+    maxEscapeStep=Math.max(maxEscapeStep,Math.hypot(before.x-escape.root.position.x,before.z-escape.root.position.z));
+  }
+  check('confirmed regroup recovery escapes a closed hedge enclosure before restoring navigation',escape.root.position.x>6.8+P.navMargin&&!escape._regroupUnstick,JSON.stringify(escape.root.position));
+  check('regroup recovery uses normal speed and the real terrain height',maxEscapeStep<=escape.speed*.15+1e-8&&escape.root.position.y===enclosure.heightAt(escape.root.position.x,escape.root.position.z));
+  check('recovery restores collision only at legal body placement',N.movementClear(escape.root.position,escape.root.position));
 
   function walkPhysical(sim,start,dest,seconds){
     const man={id:'probe',root:{position:{...start},rotation:{y:0}},destination:{...dest},speed:2.9,fireCooldown:0};let illegal=0;

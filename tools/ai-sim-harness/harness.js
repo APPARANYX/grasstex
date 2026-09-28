@@ -104,19 +104,16 @@ function addSquad(root,battle,opts){
 
 function setCrouch(s,v){if(s.dead)return;s.crouching=!!v;if(v)s.prone=false;}
 function setProne(s,v){if(s.dead)return;s.prone=!!v;if(v)s.crouching=false;}
+// Keep execution identical to battle-sim.js; tests can supply navigation via battle._movementRoot.
+const movementSource=fs.readFileSync(path.join(REPO,'battle/battle-sim.js'),'utf8');
+const movementBody=movementSource.slice(movementSource.indexOf('  function stepMovement('),movementSource.indexOf('  BattleSim.prototype._frame='));
+const movementFactory=new Function('root','BattleSoldierModel','steerAroundObstacles','NAV_REPLAN_HOLD',movementBody+';return stepMovement;');
+const movementModel={setCrouch,setProne,animateWalk(){}};
+const defaultMovementRoot={}, movementCache=new WeakMap();
 function stepMovement(battle,s,dt){
-  if(s.dead)return;s.fireCooldown=Math.max(0,s.fireCooldown-dt);
-  const desired=s.destination,dx=desired.x-s.root.position.x,dz=desired.z-s.root.position.z,d=Math.hypot(dx,dz),crawl=!!(s.prone&&s.crawling);
-  const wantCrouch=!s.prone&&(s.tacticalCrouch||(s.suppressedUntil>battle.time)||(!!s.target&&d<=.6));
-  const desiredSpeed=d>.35?s.speed*(crawl?.23:(wantCrouch?.58:1)):0,cur=s.moveSpeed||0,rate=desiredSpeed>cur?(crawl?1.2:4.2):(crawl?2.0:6.5);
-  s.moveSpeed=Math.max(0,cur+Math.max(-rate*dt,Math.min(rate*dt,desiredSpeed-cur)));
-  function turnToward(yaw){const diff=Math.atan2(Math.sin(yaw-s.root.rotation.y),Math.cos(yaw-s.root.rotation.y)),maxTurn=(s.prone?1.25:2.8)*dt,eased=diff*(1-Math.exp(-8*dt));s.root.rotation.y+=Math.max(-maxTurn,Math.min(maxTurn,eased));}
-  if(d>.35&&s.moveSpeed>.025&&(!s.prone||crawl)){
-    const dirx=dx/d,dirz=dz/d,step=Math.min(d,s.moveSpeed*dt);s.root.position.x+=dirx*step;s.root.position.z+=dirz*step;s.root.position.y=battle.heightAt(s.root.position.x,s.root.position.z);turnToward(Math.atan2(dirx,dirz));s.moving=true;
-  }else{
-    s.moving=false;const face=s.target?s.target.root.position:s._faceHint;if(face){const tx=face.x-s.root.position.x,tz=face.z-s.root.position.z;if(Math.abs(tx)+Math.abs(tz)>1e-4)turnToward(Math.atan2(tx,tz));}
-  }
-  if(wantCrouch!==s.crouching)setCrouch(s,wantCrouch);setProne(s,!!s.prone);
+  const root=battle._movementRoot||defaultMovementRoot;
+  if(!movementCache.has(root))movementCache.set(root,movementFactory(root,movementModel,()=>null,1.5));
+  movementCache.get(root)(battle,s,dt);
 }
 
 const AI_TICK=.15;

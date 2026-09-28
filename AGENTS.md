@@ -85,8 +85,8 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `crest-fire-check.js` | Permission to fire tests the round's own line: over a crest that shows the head but would take the round (or a narrow crest between sight samples) he still sees the man but pulls no trigger; on open ground or over a lower crest he fires; the gate draws no combat RNG |
 | `voice-determinism-check.js` | Voice callouts never draw from the combat RNG: a battle is identical with and without voice |
 
-`harness.js` mirrors `stepMovement()` from `battle/battle-sim.js`. **If that function changes,
-change the mirror too.** `bootstrap()` returns the loaded globals for throwaway probes. Write
+`harness.js` loads the shipping `stepMovement()` from `battle/battle-sim.js` with render stubs.
+Navigation is optional via the harness battle's `_movementRoot`; ordinary combat checks omit it. `bootstrap()` returns the loaded globals for throwaway probes. Write
 assertions about mechanism, not dice outcomes, and sweep `HARNESS_SEED=1..40` before trusting a
 new check.
 
@@ -536,13 +536,16 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
 
 **Behaviour**
 
-- **Regroups: end on a result, not a clock (next).** The regroup lease keeps the direction the
-  squad was marching (`data.forward`, `regroup-axis-check.js`) and re-forms on the forward line;
-  timeouts fell 124/9/16 → 58/1/12 (#61) and 89 → 73 (#67). Before removing `REGROUP_MAX` and
-  `REGROUP_BYPASS`, fix the two writers of `sq.rally` (squad-orders vs the Squad Leader's regroup;
-  ping-pong 38 → 74 per 100 battles), then make retreat and a new General brief end the lease (on retreat
-  `updateCohesion` returns early and the lease just runs out; a regroup holds `_missionHold`). Without the clock, an older branch measured regroups ending closed
-  up 19% → 53% and 35% fewer entries. Benchmark paired.
+- **Regroups end on a result.** The Squad Leader holds the rally/order anchor and marching axis
+  until core cohesion is restored (after the 2.4 s settling minimum), contact, retreat, a new General
+  mission or no survivors. There is no maximum-duration exit or timeout bypass. Movement Progress
+  observes regroup travel; the leader authorizes a confirmed stuck man's ground-only recovery.
+  Execution walks toward the resolver's regroup goal at normal stance-dependent speed, bypassing
+  obstacle steering/navigation and body separation only until both his placement and next step are
+  legal. Contact, retreat, death, reloading, suppression, a changed mission or lease release cancel
+  recovery. This is the narrow exception to Frozen path clearance requested for regroup recovery;
+  geometry and ordinary movement clearance remain unchanged. `lease-check.js` and
+  `movement-recovery-check.js` cover the lifecycle and execution contract.
 - **Personal-space corrections** (~8-10k per battle; pairs still overlapping 1 s later are rare,
   5-20). Mostly same-squad men crossing on the move: formation-slot crossings between fireteams
   (~7× more often in the 6 s after a formation or facing change), bounding men through holding
