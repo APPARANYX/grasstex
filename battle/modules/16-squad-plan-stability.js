@@ -66,8 +66,6 @@
   var REGROUP_ENTER = 1.35,
     REGROUP_RELEASE = 0.78,
     REGROUP_MIN = 2.4,
-    REGROUP_MAX = 18,
-    REGROUP_BYPASS = 14,
     REENTRY = 4;
   var STRAGGLER_BYPASS = 2.8,
     URBAN_ARRIVAL_COHESION = 0.5;
@@ -411,7 +409,8 @@
           closePlan(sim, sq, 'contact clear');
           requestReview(sim, sq, 'contact clear');
           p = null;
-        } else L.extend(sq, 'regroup-bypass', 'squad-leader', sim.time, sim.time + 1.25, 'firefight going quiet');
+        } else
+          L.extend(sq, 'regroup-bypass', 'squad-leader', sim.time, sim.time + 1.25, 'firefight going quiet');
       }
       if (p && p.status === 'staged' && sig !== p.signature) {
         closePlan(sim, sq, 'intent replaced');
@@ -546,8 +545,32 @@
       s._destinationCommitUntil = 0;
     }
   }
+  function endRegroup(sim, sq, reason) {
+    if (!L.end(sq, 'regroup', sim.time, reason)) return false;
+    cohesionState(sq).exits++;
+    cohesionState(sq).overSince = null;
+    (sq.members || []).forEach(function (s) {
+      s._regroupUnstick = null;
+    });
+    L.end(sq, 'corner-hold', sim.time, 'regroup released');
+    L.grant(sq, 'regroup-cooldown', 'squad-leader', sim.time, sim.time + REENTRY, reason);
+    return true;
+  }
   function updateCohesion(sim, sq) {
-    if (!sq || sq.state === 'retreat') return;
+    if (!sq) return;
+    var current = L.get(sq, 'regroup'),
+      interrupted =
+        sq.state === 'retreat'
+          ? 'retreat'
+          : !alive(sq).length
+            ? 'no survivors'
+            : current && current.data.missionVersion !== missionVersion(sq)
+              ? 'new mission'
+              : null;
+    if (interrupted) {
+      endRegroup(sim, sq, interrupted);
+      return;
+    }
     var c = cfg(sim, sq),
       limit = +(leaderAlive(sq) ? c.cohesionRadius : c.captainlessCohesion) || 34,
       release = limit * REGROUP_RELEASE,
@@ -566,10 +589,8 @@
       combatPlan = p && (p.status === 'active' || p.status === 'quiet');
     if (sq.inContact || combatPlan) {
       st.overSince = null;
-      if (L.end(sq, 'regroup', t, 'contact')) {
-        st.exits++;
+      if (endRegroup(sim, sq, 'contact')) {
         st.contactExits++;
-        L.grant(sq, 'regroup-cooldown', 'squad-leader', t, t + REENTRY, 'regroup broken by contact');
       }
       L.extend(sq, 'regroup-bypass', 'squad-leader', t, t + 1.25, 'firefight in progress');
       return;
@@ -578,23 +599,23 @@
     var regroup = L.get(sq, 'regroup');
     if (regroup) {
       var age = t - regroup.since;
-      if ((age >= REGROUP_MIN && ca.coreSpread <= release) || age >= REGROUP_MAX) {
-        var timedOut = age >= REGROUP_MAX;
-        L.end(sq, 'regroup', t, timedOut ? 'maximum regroup time' : 'cohesion restored');
-        st.exits++;
-        if (timedOut) st.timeouts++;
-        L.grant(sq, 'regroup-cooldown', 'squad-leader', t, t + REENTRY, 'regroup just released');
-        L.extend(
-          sq,
-          'regroup-bypass',
-          'squad-leader',
-          t,
-          t + (timedOut ? REGROUP_BYPASS : REENTRY),
-          timedOut ? 'regroup timed out' : 'regroup just released'
-        );
-        L.end(sq, 'corner-hold', t, 'regroup released');
+      if (age >= REGROUP_MIN && ca.coreSpread <= release) {
+        endRegroup(sim, sq, 'cohesion restored');
         return;
       }
+      /* Progress belongs to movement; only the leader authorizes the regroup escape. */
+      alive(sq).forEach(function (s) {
+        var progress = s._movementProgress;
+        if (
+          progress &&
+          progress.stuck &&
+          progress.kind === 'regroup' &&
+          !s.reloading &&
+          !s.clearingStoppage &&
+          !(s.suppressedUntil > t)
+        )
+          s._regroupUnstick = { since: regroup.since };
+      });
       sq.commandPhase = 'regroup';
       sq.objective = copy(regroup.data.anchor || ca.center);
       return;
@@ -632,17 +653,16 @@
       'regroup',
       'squad-leader',
       t,
-      t + REGROUP_MAX,
+      Infinity,
       'squad dispersed',
       'core spread back inside ' +
         Math.round(release) +
         ' m after ' +
         REGROUP_MIN +
-        ' s, contact, or ' +
-        REGROUP_MAX +
-        ' s',
+        ' s, contact, retreat, new mission or no survivors',
       {
         anchor: anchor,
+        missionVersion: missionVersion(sq),
         startSpread: ca.coreSpread,
         forward: Math.hypot(marching.x, marching.z) > 1e-6 ? marching : null
       }
@@ -951,10 +971,27 @@
     if (!(movers.length && holding >= 2)) turn = first;
     sq._boundTurn = turn;
     if (movers.length && holding >= 2) {
-      L.grant(sq, 'bound', 'squad-leader', t, t + BOUND_DURATION, 'fireteam ' + team + ' bounds', 'window expiry or contact broken', {
-        team: team
-      });
-      L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'after bound by ' + team, 'cycle expiry');
+      L.grant(
+        sq,
+        'bound',
+        'squad-leader',
+        t,
+        t + BOUND_DURATION,
+        'fireteam ' + team + ' bounds',
+        'window expiry or contact broken',
+        {
+          team: team
+        }
+      );
+      L.grant(
+        sq,
+        'bound-cycle',
+        'squad-leader',
+        t,
+        t + BOUND_CYCLE,
+        'after bound by ' + team,
+        'cycle expiry'
+      );
       E.orderBound(movers);
       telemetry(battle, 'decision-bound', {
         faction: sq.faction,
@@ -1034,11 +1071,7 @@
     }
     var t = battle.time,
       m = sq._macroMission,
-      briefed = !!(
-        m &&
-        m.intent === 'reconstitute' &&
-        (m.status === 'issued' || m.status === 'executing')
-      ),
+      briefed = !!(m && m.intent === 'reconstitute' && (m.status === 'issued' || m.status === 'executing')),
       a = sq._assembly || (sq._assembly = { phase: 'to-base', since: t, missionVersion: null });
     if (a.phase === 'to-rally' && !(briefed && m.version === a.missionVersion)) {
       a.phase = 'at-base';
@@ -1300,6 +1333,7 @@
         q._boundTurn = null;
         q._assaultAuthorized = false;
         (q.members || []).forEach(function (s) {
+          s._regroupUnstick = null;
           s._fireteamDestination = null;
           s._fireteamPublishKey = null;
           s._fireteamKey = null;

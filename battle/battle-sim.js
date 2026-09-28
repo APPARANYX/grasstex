@@ -51,7 +51,30 @@
     return len>1e-4?{x:nx/len,z:nz/len}:null;
   }
   function stepMovement(self,soldier,dt){
-    if(soldier.dead){soldier._movementStopReason='dead';BattleSoldierModel.animateWalk(soldier,dt,0);return;}soldier.fireCooldown=Math.max(0,soldier.fireCooldown-dt);var desired=soldier.destination;if(root.BattleNavigation)desired=root.BattleNavigation.nextWaypoint(self,soldier,desired)||desired;
+    if(soldier.dead){soldier._regroupUnstick=null;soldier._movementStopReason='dead';BattleSoldierModel.animateWalk(soldier,dt,0);return;}
+    soldier.fireCooldown=Math.max(0,soldier.fireCooldown-dt);
+    var recovery=soldier._regroupUnstick, sq=soldier.squad,
+      lease=recovery&&sq&&root.BattleLeases&&root.BattleLeases.get(sq,'regroup'),
+      goal=soldier._movementResolver&&soldier._movementResolver.goal;
+    if(recovery&&(!lease||lease.since!==recovery.since||sq.state==='retreat'||sq.inContact||
+        lease.data.missionVersion!==((sq._macroMission&&+sq._macroMission.version)||0)||
+        !goal||goal.kind!=='regroup'||soldier.reloading||soldier.clearingStoppage||soldier.suppressedUntil>self.time))
+      recovery=soldier._regroupUnstick=null;
+    var desired=recovery?goal.point:soldier.destination;
+    if(recovery){
+      var at={x:soldier.root.position.x,z:soldier.root.position.z},
+        rx=desired.x-at.x,rz=desired.z-at.z,rd=Math.hypot(rx,rz),
+        stride=Math.min(rd,soldier.speed*dt),
+        next=rd?{x:at.x+rx/rd*stride,z:at.z+rz/rd*stride}:at;
+      // The zero-length query checks placement too: an outward step may be legal inside a buffer.
+      if(!root.BattleNavigation||(root.BattleNavigation.movementClear(at,at)&&
+          root.BattleNavigation.movementClear(at,next))){
+        recovery=soldier._regroupUnstick=null;
+        soldier._navCache=null;soldier._physicalPath=null;
+        desired=soldier.destination;
+      }
+    }
+    if(!recovery&&root.BattleNavigation)desired=root.BattleNavigation.nextWaypoint(self,soldier,desired)||desired;
     // Record the actual integration gate, not an inference from the last command or stuck detector.
     var observedWaypoint=soldier._movementWaypoint||(soldier._movementWaypoint={x:0,z:0});observedWaypoint.x=desired.x;observedWaypoint.z=desired.z;soldier._movementStopReason=null;
     var dx=desired.x-soldier.root.position.x,dz=desired.z-soldier.root.position.z,d=Math.hypot(dx,dz),crawl=!!(soldier.prone&&soldier.crawling),wantCrouch=!soldier.prone&&(soldier.tacticalCrouch||(soldier.suppressedUntil>self.time)||(!!soldier.target&&d<=.6));
@@ -60,9 +83,9 @@
     function turnToward(yaw){var diff=Math.atan2(Math.sin(yaw-soldier.root.rotation.y),Math.cos(yaw-soldier.root.rotation.y)),maxTurn=(soldier.prone?1.25:2.8)*dt,eased=diff*(1-Math.exp(-8*dt));soldier.root.rotation.y+=Math.max(-maxTurn,Math.min(maxTurn,eased));}
     if(d>.35&&soldier.moveSpeed>.025&&(!soldier.prone||crawl)){
       var here={x:soldier.root.position.x,z:soldier.root.position.z};
-      var dirx=dx/d,dirz=dz/d,steered=steerAroundObstacles(self.obstacles,here.x,here.z,dirx,dirz);if(steered){dirx=steered.x;dirz=steered.z;}
+      var dirx=dx/d,dirz=dz/d,steered=!recovery&&steerAroundObstacles(self.obstacles,here.x,here.z,dirx,dirz);if(steered){dirx=steered.x;dirz=steered.z;}
       var step=Math.min(d,soldier.moveSpeed*dt),nx=here.x+dirx*step,nz=here.z+dirz*step;
-      if(root.BattleNavigation&&!root.BattleNavigation.movementClear(here,{x:nx,z:nz})){
+      if(!recovery&&root.BattleNavigation&&!root.BattleNavigation.movementClear(here,{x:nx,z:nz})){
         /* Cover steering pushed him into a wall: the plain heading to the waypoint comes first. */
         dirx=dx/d;dirz=dz/d;nx=here.x+dirx*step;nz=here.z+dirz*step;
         if(!root.BattleNavigation.movementClear(here,{x:nx,z:nz})){

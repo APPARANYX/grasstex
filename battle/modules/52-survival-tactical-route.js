@@ -363,8 +363,7 @@
     'reload-hold': 1,
     'firing-station': 1,
     'contact-reaction': 1,
-    retreat: 1,
-    regroup: 1
+    retreat: 1
   };
   var GATED = { 'cover-bound': 1, 'assault-rush': 1 };
   function freshProgress() {
@@ -481,13 +480,7 @@
       (+s.suppressedUntil || 0) > b.time
     )
       return false;
-    if (
-      s.squad &&
-      (s.squad.state === 'retreat' ||
-        s.squad.commandPhase === 'regroup' ||
-        s.squad.commandPhase === 'retreat')
-    )
-      return false;
+    if (s.squad && (s.squad.state === 'retreat' || s.squad.commandPhase === 'retreat')) return false;
     if (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) return false;
     if ((s._movementYieldUntil || 0) > b.time || (s._separatedAt || 0) > b.time - 1) return false;
     return true;
