@@ -321,7 +321,7 @@ function stage($branch, $sha, $root, $previewRoot, &$error) {
         $path = $e['path'];
         if ($path === 'battle_sim_local.php') $branchLoaderSha = $e['sha'];
         if (preg_match('#^battle/(battle_sim\.html|[A-Za-z0-9._-]+\.js|modules/[A-Za-z0-9._-]+\.js)$#', $path)) $files[$path] = $e;
-        elseif (preg_match('#^Assets/((soldiers|animations|weapons)/[^/]+\.fbx|effects/.+\.png)$#', $path)
+        elseif (preg_match('#^Assets/((soldiers|animations|weapons)/[^/]+\.fbx|animations/[^/]+\.bin|effects/.+\.png)$#', $path)
             && strpos($path, '..') === false && strpos($path, '/.') === false && preg_match('#^[A-Za-z0-9 ._()/-]+$#', $path)) $assets[] = $e;
     }
     if (!isset($files['battle/battle_sim.html'])) { $error = 'this commit has no battle/battle_sim.html'; if ($lock) fclose($lock); return null; }
@@ -377,7 +377,7 @@ function branch_list($cacheFile) {
 
 /* Game flags passed through to the preview page (keep in step with the URL flags in AGENTS.md). */
 $pass = array();
-foreach (array('seed', 'defender', 'soldiers', 'smooth', 'grass', 'animLod', 'soldierLod', 'fxPrewarm', 'weaponInstances', 'tracerPool', 'mergeWalls', 'perfTimings', 'bench', 'benchSeconds', 'benchWarmup', 'benchCam', 'benchAuto', 'benchHide') as $k) {
+foreach (array('seed', 'defender', 'soldiers', 'smooth', 'grass', 'animLod', 'soldierLod', 'clipPack', 'fxPrewarm', 'weaponInstances', 'tracerPool', 'mergeWalls', 'perfTimings', 'bench', 'benchSeconds', 'benchWarmup', 'benchCam', 'benchAuto', 'benchHide') as $k) {
     if (isset($_GET[$k]) && $_GET[$k] !== '' && preg_match('/^[A-Za-z0-9_.-]{1,100}$/', $_GET[$k])) $pass[$k] = $_GET[$k];
 }
 
