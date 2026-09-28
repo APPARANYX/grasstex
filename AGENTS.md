@@ -526,9 +526,12 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
   4. Done: the benchmark's draw-call census counts instanced weapons once per source mesh
      (result v7; locally census 141 vs measured 141 with instances, 168.5 vs 169.2 with clones,
      `probe_bench_census.cjs`).
-  5. The close camera (under 45 m, soldiers at full detail) is unmeasured: `benchCam=close` stops at
-     90 m. Measure it with `?bench=1&seed=bench1&benchCam=follow&benchWarmup=150`
-     (`probe_bench_follow.cjs` checks the camera locally).
+  5. **Close camera** (under 45 m, soldiers at full detail; `benchCam=close` stops at 90 m, so use
+     `?bench=1&seed=bench1&benchCam=follow&benchWarmup=150`). iPhone landscape (844), 1×, v220:
+     54.5 / 58.8 FPS, 93.1% in one refresh, 1% low 22.7, CPU 7.3 ms, 145 draw calls of which 100 were
+     soldiers with ~8% in view: the slow frames were beyond CPU. Off-screen soldier culling followed
+     (locally, same frames byte-identical: mean draws 167 → 102 landscape, 131 → 46 portrait over
+     `probe_soldier_cull.cjs`'s cameras); rerun the follow benchmark on the phone to confirm.
   6. Check that `preserveDrawingBuffer:true` (screenshot tools) and `renderEvenInBackground`
      are still needed on mobile before turning either off.
 - Don't do a repo-wide Prettier rewrite: Prettier is scoped to the M3C behaviour files.
