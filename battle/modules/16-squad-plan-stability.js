@@ -725,10 +725,10 @@
       l = Math.hypot(dx, dz);
     return l < 0.1 ? commandForward(sq) : { x: dx / l, z: dz / l };
   }
-  function desiredAnchor(sq, key) {
+  function desiredAnchor(sq, key, formation) {
     var a = sq.orderAnchor || sq.rally;
     if (!a) return null;
-    var form = TEAM_OFFSETS[sq.formation || root.SquadAI.formationFor(sq)] || TEAM_OFFSETS.wedge,
+    var form = TEAM_OFFSETS[formation || sq.formation || root.SquadAI.formationFor(sq)] || TEAM_OFFSETS.wedge,
       o = form[key] || [0, 0],
       f = teamFrame(sq),
       r = { x: -f.z, z: f.x };
@@ -773,6 +773,74 @@
     }
     return { x: a.x + r.x * lat + f.x * fw, z: a.z + r.z * lat + f.z * fw };
   }
+  /* Men start on their fireteam slots. They used to appear scattered up to 4 m around the lane point
+   with no regard for their team, so the first order sent them across each other's teams to reach
+   their slots: about half of all cross-team body crossings happened in the first minute. This runs
+   once when a squad enters the battle, after Force Command has given it its objective, so the first
+   order is the ground each man already stands on. What is left of the spawn scatter (a tenth) keeps
+   the men from standing on exact geometric points. A defending garrison is module 21's to place: it
+   hands out prepared posts nearest-first by where each man stands, so moving him first would only
+   reshuffle that (in the defend battles it doubled the defenders' first-minute crossings). */
+  var SPAWN_SCATTER_KEPT = 0.1;
+  /* Before its first brief (Force Command's first tick, 0.45 s in) a squad's objective is its own
+     home, so its axis collapses and every fireteam slot falls on the anchor. Until the brief turns it,
+     the squad faces the battle: the scenario centre (where spawn pointed it), else the enemy's side. */
+  function spawnForward(sim, sq, home) {
+    var sc =
+        sim.scene &&
+        sim.scene.metadata &&
+        (sim.scene.metadata.battleScenario || sim.scene.metadata.battleTown),
+      c = (sc && sc.center) || { x: home.x, z: 0 },
+      dx = (+c.x || 0) - home.x,
+      dz = (+c.z || 0) - home.z,
+      l = Math.hypot(dx, dz);
+    if (l > 1) return { x: dx / l, z: dz / l };
+    return { x: 0, z: sq.faction === 'ge' ? -1 : 1 };
+  }
+  function placeAtSlots(sim, sq) {
+    var home = sq.orderAnchor || sq.rally || sq.home,
+      DW = root.BattleDefenseWorks;
+    if (!home || !sim || (DW && DW.garrisons && DW.garrisons(sim, sq))) return;
+    var f = forward(sq);
+    if (Math.hypot(f.x, f.z) < 0.5) f = sq._formationForward = spawnForward(sim, sq, home);
+    /* The formation the Squad Leader adopts on his first tick (advanceSquadAnchor), not the
+       squad's default from createSquad: a wedge laid out and marched as a line moves every team. */
+    var form = root.SquadAI.formationFor(sq);
+    ['command', 'alpha', 'bravo', 'charlie'].forEach(function (key) {
+      var m = aliveTeam(sq, key),
+        a = desiredAnchor(sq, key, form);
+      if (!a) return;
+      for (var i = 0; i < m.length; i++) {
+        var s = m[i],
+          p = s.root && s.root.position;
+        if (!p) continue;
+        var slot = teamSlot(sq, key, s, i, m.length, a, f),
+          x = slot.x + (p.x - home.x) * SPAWN_SCATTER_KEPT,
+          z = slot.z + (p.z - home.z) * SPAWN_SCATTER_KEPT,
+          N = root.BattleNavigation;
+        /* A slot across a hedge or wall from the lane point is not his ground: keep the old spawn. */
+        if (N && N.movementClear && !N.movementClear({ x: home.x, z: home.z }, { x: x, z: z })) continue;
+        p.x = x;
+        p.z = z;
+        p.y = sim.heightAt ? sim.heightAt(x, z) : p.y;
+        s.root.rotation.y = Math.atan2(f.x, f.z);
+        s.destination = { x: x, z: z };
+        s._navCache = null;
+      }
+    });
+  }
+  function placeForce(sim) {
+    if (!sim || +sim.time > 0) return;
+    ['us', 'ge'].forEach(function (f) {
+      var a = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
+      for (var i = 0; i < a.length; i++) placeAtSlots(sim, a[i]);
+    });
+  }
+  function start(sim) {
+    reset(sim);
+    placeForce(sim);
+  }
+
   /* A defensive post belongs to the Squad Leader's command intent, not to a contact serial. Once a man has
    settled into his post, target acquisition/loss must not throw him back into formation and then
    recreate the same post a second later. It is released only when the defensive command signature
@@ -1369,9 +1437,9 @@
 
   root.BattleModules.registerSystem('squad-command', {
     version: '1.5-m3c-mission-execution',
-    onBattleStart: reset,
+    onBattleStart: start,
     beforeBattleRestart: reset,
-    onBattleRestart: reset,
+    onBattleRestart: start,
     onCommanderTick: commanderTick
   });
   root.BattleSquadStability = {
@@ -1383,6 +1451,7 @@
     fireAndMovement: fireAndMovement,
     initialPhase: initialPhase,
     teamKeyFor: teamKeyFor,
+    placeAtSlots: placeAtSlots,
     executeMission: executeMission
   };
   root.BattleEngagementPlans = {
