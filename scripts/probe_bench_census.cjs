@@ -38,7 +38,7 @@ async function arm(browser, on) {
     const r = window.__deviceBench, k = r.meshKinds.kinds, w = k.find(x => x.kind === 'weapons') || { meshes: 0, draws: 0 };
     const sources = window.__battle__.scene.meshes.filter(m => /^weapon-source\./.test(m.name) && m.instances && m.instances.length).length;
     return { build: r.build, samples: r.meshKinds.samples, census: k.reduce((a, x) => a + x.draws, 0), weaponMeshes: w.meshes, weaponDraws: w.draws,
-      sources, drawCalls: r.drawCalls && r.drawCalls.median, drawCallsMean: r.drawCalls && r.drawCalls.mean };
+      sources, drawCalls: r.drawCalls && r.drawCalls.p50, drawCallsMean: r.drawCalls && r.drawCalls.mean };
   });
   await page.close();
   return { res, errors };
