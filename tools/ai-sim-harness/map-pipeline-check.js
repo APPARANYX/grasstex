@@ -42,7 +42,9 @@ const quiet={log(){},warn(){},error(){}};
 function load(root,rel){const c=fs.readFileSync(path.join(REPO,rel),'utf8');new Function('window','globalThis','console','BABYLON',c+'\n//# sourceURL='+rel)(root,root,quiet,root.BABYLON);}
 function world(){
   const root={console:quiet,BABYLON:stub()};root.window=root;
-  /* Same relative order as battle_sim_local.php: core terrain, pre-commander runtime, then modules. */
+  /* Same relative order as battle_sim_local.php: shared obstacle field, core terrain,
+     pre-commander runtime, then modules. */
+  load(root,'battle/obstacle-field.js');
   load(root,'battle/terrain-features.js');
   load(root,'battle/scenario-generator.js');
   load(root,'battle/battle-navigation.js');
@@ -52,7 +54,7 @@ function world(){
   const heightAt=(x,z)=>Math.sin(x*.013)*1.7+Math.cos(z*.011)*1.3;
   return{root,scene,heightAt};
 }
-function signature(list){return(list||[]).map(f=>[f.id,f.type,f.shape,(+f.x).toFixed(3),(+f.z).toFixed(3)].join(':')).join('|');}
+function signature(list){return(list||[]).map(f=>[f.id,f.type,f.shape,(+f.x).toFixed(3),(+f.z).toFixed(3),f.visibleHeight==null?'':(+f.visibleHeight).toFixed(3),f.height==null?'':(+f.height).toFixed(3)].join(':')).join('|');}
 function geometry(obstacles){
   const physical=obstacles&&obstacles.__physicalFootprints||[];
   return{obstacles:obstacles?obstacles.length:0,physical:physical.length,physicalSig:signature(physical),tacticalSig:signature(obstacles)};
@@ -65,6 +67,24 @@ for(const seed of SEEDS){
   const pageBase=page.root.BattleTerrainFeatures.scatter(page.scene,page.heightAt,{fieldW:2000,fieldD:1200,scenarioSeed:seed});
   const pageGeo=geometry(pageBase.obstacles);
   const pageStats=page.root.BattleHedgeVolumeCoalescer.stats();
+  const hedges=pageBase.physicalFootprints.filter(f=>f.type==='hedge');
+  const heights=hedges.map(f=>+f.visibleHeight).filter(Number.isFinite);
+  const minH=Math.min(...heights),maxH=Math.max(...heights);
+  check('bocage runtime volumes stay in the mature 2.8-4.57 m range',heights.length>0&&minH>=2.8-1e-6&&maxH<=4.57+1e-6,'min='+minH+' max='+maxH);
+  check('bocage height varies by generated hedge run',maxH-minH>.75,'min='+minH+' max='+maxH);
+  check('tall bocage reaches roughly 15 ft where appropriate',maxH>4.4,'max='+maxH);
+  check('coalesced hedge height is visible height + buried skirt + terrain envelope',hedges.every(f=>{
+    const e=f.terrainEnvelope||{down:0,up:0};
+    return Math.abs((+f.height)-(+f.visibleHeight)-.25-(+e.down||0)-(+e.up||0))<1e-6;
+  }),'sample='+(hedges[0]&&JSON.stringify({height:hedges[0].height,visibleHeight:hedges[0].visibleHeight,envelope:hedges[0].terrainEnvelope})));
+  const tall=hedges.reduce((a,f)=>!a||(+f.visibleHeight)>(+a.visibleHeight)?f:a,null);
+  if(tall){
+    const side=+tall.hz+2,eye=1.55,a={x:tall.x+tall.vx*side,y:(+tall.y)+eye,z:tall.z+tall.vz*side},
+      b={x:tall.x-tall.vx*side,y:(+tall.y)+eye,z:tall.z-tall.vz*side};
+    check('standing eye/muzzle line is blocked by the generated tall hedge',
+      page.root.BattleObstacleField.sightBlocked(pageBase.obstacles,a,b),
+      JSON.stringify({visibleHeight:tall.visibleHeight,height:tall.height,eye}));
+  }
 
   /* Benchmark path: bootstrap page on another seed, then regenerate the benchmark seed. */
   const bench=world(),sim={obstacles:null};
