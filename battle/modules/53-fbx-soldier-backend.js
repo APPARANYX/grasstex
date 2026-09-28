@@ -1073,10 +1073,20 @@ function loadLibrary(scene){
 
 /* ---- binding a soldier -------------------------------------------------------------------- */
 
-/* `?boneTextures=0` sends each soldier's bone matrices as shader uniforms instead of updating a
-   small float texture per skeleton, a device test for whether many per-frame texture updates
-   stall the GPU (Safari). Set before a soldier first renders, so his shader is compiled for it. */
-var BONE_TEXTURES=!(typeof location!=='undefined'&&/[?&]boneTextures=0\b/.test(location.search||''));
+/* Bone matrices go to the GPU as shader uniforms, not a float texture per skeleton: on the iPhone
+   the per-frame texture updates of ~20 re-posed soldiers stalled the GPU (landscape combat, 1x:
+   frames in one refresh 77.6% -> 96.0%; close-ups match within rounding). Uniforms need
+   4 x (bones + 1) vertex uniform vectors, and Babylon moves skinning to the CPU when they do not
+   fit, so a device keeps bone textures unless it has that plus 128 to spare (66 bones: 396; most
+   GPUs have 1024+, some older phones 256). `?boneTextures=1` always uses textures, `=0` always
+   uniforms. Decided before a soldier first renders, so his shader is compiled for it. */
+var BONE_MODE=(function(){var m=typeof location!=='undefined'&&/[?&]boneTextures=([01])\b/.exec(location.search||'');return m?(m[1]==='0'?'uniforms':'textures'):'auto';})();
+var BONES={mode:BONE_MODE,maxVertexUniformVectors:null,uniforms:0,textures:0};
+function boneUniforms(scene,k){
+  var v=scene.getEngine().getCaps().maxVertexUniformVectors||0;BONES.maxVertexUniformVectors=v;
+  var use=BONE_MODE==='uniforms'||(BONE_MODE==='auto'&&v>=4*(k.bones.length+1)+128);
+  if(use)BONES.uniforms++;else BONES.textures++;return use;
+}
 /* Babylon's Mesh clone refreshes a skinned mesh's bounding box by skinning every vertex through its
    bones (~22k vertices, ~14 ms a soldier, nearly all of a bind). Nothing reads a soldier mesh's
    bounds: bind makes them always active and never re-syncs them, and the animation and mesh LODs
@@ -1117,7 +1127,7 @@ function bind(soldier,scene,st,lib,faction){
      `?animLod=0` prepares every frame as before; `prepare(true)` (a forced prepare) always runs. */
   var fxRef={serial:1};
   inst.skeletons.forEach(function(k){
-    if(!BONE_TEXTURES)k.useTextureToStoreBoneMatrices=false;
+    if(boneUniforms(scene,k))k.useTextureToStoreBoneMatrices=false;
     k._fbxPrepared=0;
     k.prepare=function(force){
       if(!force&&LOD.on&&LOD.skeletons&&k._fbxPrepared===fxRef.serial)return;
@@ -1837,6 +1847,9 @@ root.BattleFbxSoldier={
   /* Read-only: a model's retargeted clip ('us-paratrooper.fbx', 'aim'), and its solved grips. */
   modelClip:function(scene,file,key){var lib=sceneState(scene).libs[file];return lib&&lib.clips&&lib.clips[key]||null;},
   grips:function(scene,file){var lib=sceneState(scene).libs[file];return lib&&lib.grips||null;},
+  /* Read-only: how bone matrices reach the GPU (mode, the device's vertex uniform vectors, and how
+     many skeletons use uniforms vs textures). */
+  bones:function(){return{mode:BONES.mode,maxVertexUniformVectors:BONES.maxVertexUniformVectors,uniforms:BONES.uniforms,textures:BONES.textures};},
   /* Prepared clips: format/file, what this load took from the pack (`state`), the builder
      scripts/build_clip_pack.cjs calls, and the decoder its checks use. */
   clipPack:{format:CLIP_PACK_FORMAT,file:CLIP_PACK_FILE,build:buildClipPack,decode:decodeClipPack,
