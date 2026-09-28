@@ -37,6 +37,28 @@
   function eyeHeight(s) {
     return S.eyeHeight ? S.eyeHeight(s) : s.prone ? 0.42 : s.crouching ? 1.05 : 1.55;
   }
+  /* Gameplay cannot depend on a skinned weapon mesh: animation LOD and headless benchmarks do not
+     have the same presentation state. Use one semantic muzzle for the trigger gate and the round,
+     projected forward on the firing axis from the calibrated stance eye/bore line. Shoulder-fired
+     bores stay near the eye line; moving them lower changed the established combat grouping. Tracers read shot.origin,
+     so the visible line starts where the simulated round did. */
+  var MUZZLE_HEIGHT = { stand: 1.55, crouch: 1.05, prone: 0.42 },
+    MUZZLE_FORWARD = { rifle: 0.78, carbine: 0.68, smg: 0.62, lmg: 0.82, pistol: 0.45 };
+  function muzzleOrigin(shooter, target, battle) {
+    var p = shooter.root.position,
+      st = stance(shooter),
+      h = MUZZLE_HEIGHT[st] == null ? MUZZLE_HEIGHT.stand : MUZZLE_HEIGHT[st],
+      kind = (shooter.weapon && shooter.weapon.kind) || 'rifle',
+      forward = MUZZLE_FORWARD[kind] == null ? MUZZLE_FORWARD.rifle : MUZZLE_FORWARD[kind],
+      tp = target && target.root && target.root.position,
+      dx = tp ? tp.x - p.x : 0,
+      dz = tp ? tp.z - p.z : 0,
+      flat = Math.hypot(dx, dz),
+      yaw = (shooter.root.rotation && +shooter.root.rotation.y) || 0,
+      fx = flat > 1e-6 ? dx / flat : Math.sin(yaw),
+      fz = flat > 1e-6 ? dz / flat : Math.cos(yaw);
+    return { x: p.x + fx * forward, y: battle.heightAt(p.x, p.z) + h, z: p.z + fz * forward };
+  }
   function bodyShape(s, battle) {
     var p = s.root.position,
       st = stance(s),
@@ -112,8 +134,7 @@
     return GROUP90 * dispersionSigma(shooter, stats, d, battle) * d;
   }
   function shotDirection(shooter, target, stats, battle, round) {
-    var sp = shooter.root.position,
-      origin = { x: sp.x, y: battle.heightAt(sp.x, sp.z) + eyeHeight(shooter), z: sp.z },
+    var origin = muzzleOrigin(shooter, target, battle),
       aim = targetCenter(target, battle);
     var base = norm({ x: aim.x - origin.x, y: aim.y - origin.y, z: aim.z - origin.z }),
       flat = Math.hypot(base.x, base.z) || 1;
@@ -135,12 +156,60 @@
       distance: distance
     };
   }
+  function ballisticObstacles(obstacles) {
+    if (!obstacles || !obstacles.length || !obstacles.__physicalFootprints || !obstacles.__physicalFootprints.length)
+      return obstacles;
+    var version = obstacles.__physicalVersion || 0,
+      footprints = obstacles.__physicalFootprints,
+      cached = obstacles.__ballisticObstacles;
+    if (cached && cached.version === version && cached.count === obstacles.length && cached.footprints === footprints)
+      return cached.list;
+    var byId = Object.create(null),
+      seen = Object.create(null),
+      out = [],
+      i,
+      k;
+    for (i = 0; i < footprints.length; i++) {
+      var fp = footprints[i];
+      if (fp && fp.id != null) byId[String(fp.id)] = fp;
+    }
+    for (i = 0; i < obstacles.length; i++) {
+      var ob = obstacles[i],
+        id = ob && ob.physicalId != null ? String(ob.physicalId) : '',
+        physical = id && byId[id];
+      if (!physical || physical === ob) {
+        out.push(ob);
+        continue;
+      }
+      if (seen[id]) continue;
+      seen[id] = true;
+      var exact = {};
+      for (k in physical) if (Object.prototype.hasOwnProperty.call(physical, k)) exact[k] = physical[k];
+      exact.type = ob.type || exact.type;
+      exact.y = isFinite(+exact.y) ? +exact.y : isFinite(+ob.y) ? +ob.y : 0;
+      exact.height = isFinite(+exact.height) ? +exact.height : isFinite(+ob.height) ? +ob.height : 1.6;
+      exact.cover = ob.cover;
+      exact.impactMaterial = ob.impactMaterial;
+      exact.materialType = ob.materialType;
+      exact.physicalId = id;
+      out.push(exact);
+    }
+    out.__physicalVersion = version;
+    obstacles.__ballisticObstacles = {
+      version: version,
+      count: obstacles.length,
+      footprints: footprints,
+      list: out
+    };
+    return out;
+  }
   function segmentBlocked(o, d, t, battle) {
     var p = pointAt(o, d, t),
       F = root.BattleObstacleField;
     try {
       if (F) {
-        var ob = (F.sightBlocker || F.sightBlocked).call(F, battle.obstacles, o, p);
+        var obs = ballisticObstacles(battle.obstacles),
+          ob = (F.sightBlocker || F.sightBlocked).call(F, obs, o, p);
         if (ob) return { obstacle: ob };
       }
     } catch (_) {}
@@ -191,6 +260,27 @@
       ground = groundStop(o, d, maxT, battle);
     return ground < ob.travel ? { travel: ground, ground: true } : ob;
   }
+  function obbNormal(ob, p) {
+    var ux = isFinite(+ob.ux) ? +ob.ux : 1,
+      uz = isFinite(+ob.uz) ? +ob.uz : 0,
+      ul = Math.hypot(ux, uz) || 1;
+    ux /= ul;
+    uz /= ul;
+    var vx = isFinite(+ob.vx) ? +ob.vx : -uz,
+      vz = isFinite(+ob.vz) ? +ob.vz : ux,
+      vl = Math.hypot(vx, vz) || 1;
+    vx /= vl;
+    vz /= vl;
+    var dx = p.x - (+ob.x || 0),
+      dz = p.z - (+ob.z || 0),
+      u = dx * ux + dz * uz,
+      v = dx * vx + dz * vz,
+      hx = Math.max(0.01, +ob.hx || 0.5),
+      hz = Math.max(0.01, +ob.hz || 0.5);
+    if (Math.abs(Math.abs(u) - hx) <= Math.abs(Math.abs(v) - hz))
+      return { x: (u < 0 ? -1 : 1) * ux, y: 0, z: (u < 0 ? -1 : 1) * uz };
+    return { x: (v < 0 ? -1 : 1) * vx, y: 0, z: (v < 0 ? -1 : 1) * vz };
+  }
   function impactSurface(stop, p, d, battle) {
     var ob = stop.obstacle,
       w = stop.wall,
@@ -207,7 +297,8 @@
       n = norm({ x: w.b.z - w.a.z, y: 0, z: w.a.x - w.b.x });
     } else if (ob) {
       surface = ob.impactMaterial || ob.materialType || ob.type || 'cement';
-      if (isFinite(ob.x) && isFinite(ob.z)) n = norm({ x: p.x - ob.x, y: 0.15, z: p.z - ob.z });
+      if (ob.shape === 'obb') n = obbNormal(ob, p);
+      else if (isFinite(ob.x) && isFinite(ob.z)) n = norm({ x: p.x - ob.x, y: 0.15, z: p.z - ob.z });
     }
     if (n.x * d.x + n.y * d.y + n.z * d.z > 0) n = { x: -n.x, y: -n.y, z: -n.z };
     return { surface: surface, normal: n };
@@ -410,13 +501,13 @@
     shooter._lastBallisticShot = meta;
     return hit;
   }
-  /* The line the round will fly before dispersion: from the shooter's eye to the target's body
-     centre, tested against the ground exactly as a round is (groundStop). The trigger-time gate
-     asks this, so a man who sees a head over a crest does not fire a round that the crest takes. */
+  /* The line the round will fly before dispersion: from the same simulation muzzle used by the
+     shot to the target's body centre, tested against the ground exactly as a round is (groundStop).
+     The trigger-time gate asks this, so a man who sees a head over a crest does not fire a round
+     that the crest takes. */
   function fireLineBlocked(shooter, target, battle) {
     if (!shooter || !target || !shooter.root || !target.root || !battle || !battle.heightAt) return false;
-    var sp = shooter.root.position,
-      o = { x: sp.x, y: battle.heightAt(sp.x, sp.z) + eyeHeight(shooter), z: sp.z },
+    var o = muzzleOrigin(shooter, target, battle),
       aim = targetCenter(target, battle),
       span = Math.hypot(aim.x - o.x, aim.y - o.y, aim.z - o.z);
     if (!(span > FIRE_LINE_BODY)) return false;
@@ -444,7 +535,7 @@
     S.extend('shotModel', 'ballistics', resolveRay);
   }
   root.BattleBallistics = {
-    version: '71-combat-group-calibration',
+    version: '98-muzzle-physical-cover',
     resolve: resolveRay,
     dispersionSigma: dispersionSigma,
     groupDiameter90: groupDiameter90,
@@ -454,6 +545,8 @@
     THROUGH: THROUGH,
     RETAIN: RETAIN,
     rayEllipsoid: rayEllipsoid,
+    muzzleOrigin: muzzleOrigin,
+    ballisticObstacles: ballisticObstacles,
     fireLineBlocked: fireLineBlocked
   };
   if (typeof console !== 'undefined')

@@ -594,23 +594,26 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
   them; real bocage was a bank plus growth, 0.9-4.6 m. It needs an explicit lift of the freeze
   for height only, the volume staying the one source for rendering, nav, sight and ballistics.
   Benchmark paired and check stance behaviour. Terrain generation belongs to `ww2fps`.
-- **Soldiers on or below hills fired into the ground: fixed (fire line, 2026-09-28).** Sight
-  (`hasLineOfSight`) runs eye to the target's eye at `LOS_SAMPLES` (8) terrain points; the round flies
-  eye to the body centre (~0.7 m lower) and tests the ground every 1/24 of the range. The trigger-time
-  gate (`14-direct-fire-los-gate.js`) now also asks `BattleBallistics.fireLineBlocked` (the undispersed
-  round line through the ballistics' own `groundStop`) and holds fire when the crest would take the
-  round; spotting and tracking are unchanged, and obstacles are not part of it (firing at a man
-  behind low cover is as before). Counted apart from sight blocks (`_crestBlockedFire`, the
-  benchmark's "held over a crest"). Paired standard benchmark (seed `crest-pair`): direct rounds
-  76,756 → 44,567, hits 8,418 → 8,803 (11.0% → 19.8%), wins US/GE 41/59 → 45/55 (p=0.67); the
-  `fire-gates` probe puts crest holds at 2-5% of target-holding samples (riflemen most).
-  `crest-fire-check.js`. Still open: the round (and tracer) starts at eye height over the root, not
-  the muzzle.
-- **Bullet holes float in front of scatter cover (fix proposed).** `14-z-ballistic-raycast.js`
-  `obstacleStop` stops rounds at the tactical cover circle (a log's is `len*0.42`, its mesh a
-  0.55 m cylinder), not the rendered object. Fix at the ballistics owner: intersect the linked
-  `physicalId` footprint and let a miss fly on. It changes combat, so benchmark it paired. A decal
-  shader can't fix it: the impact point itself is wrong.
+- **Direct-fire geometry closeout: fixed (2026-09-28).** Sight (`hasLineOfSight`) still runs
+  eye to the target's eye at `LOS_SAMPLES` (8) terrain points. The trigger-time crest gate asks
+  `BattleBallistics.fireLineBlocked`, which now uses the same semantic muzzle and `groundStop` as
+  the round. The semantic muzzle keeps the calibrated stance eye/bore heights (stand 1.55 m,
+  crouch 1.05 m, prone 0.42 m) and moves the origin forward by weapon kind (rifle 0.78 m, carbine
+  0.68 m, SMG 0.62 m, LMG 0.82 m, pistol 0.45 m), so gameplay stays deterministic/headless-safe
+  without depending on an animated FBX transform. Ballistic tracers use `shot.origin`, so the
+  visible line starts where the simulated round did.
+  Scatter-cover rounds also stop on the linked `physicalId` footprint instead of the larger
+  tactical cover circle; linked OBBs return their struck face normal for impact decals, duplicate
+  tactical samples of one physical wall are collapsed, and legacy obstacles without physical
+  geometry retain their old cylinder collision. Tactical LOS/cover volumes are unchanged.
+  `ballistics-geometry-check.js` covers shared muzzle/crest origin, a miss through the tactical
+  circle but outside a rendered log, a physical log-face hit/normal, and legacy fallback.
+  Exact paired standard benchmark (seed `ballistics-geometry-20260928`, 100 battles each):
+  baseline 47,060 direct / 9,127 hits (19.4%), candidate 46,448 / 9,520 (20.5%); wins US/GE
+  44/56 → 42/58 with symmetric paired flips (14 GE→US, 16 US→GE; exact p≈0.86), time-limit
+  73 → 76 with balanced flips (12 newly timed out, 9 no longer timed out; p≈0.66), health
+  80.6 → 80.2, runtime errors 0 → 0. The earlier lower-bore trial was rejected because it
+  inflated low-value crouched fire; keep the calibrated bore heights unless re-benchmarked.
 - **Wound decals should sit on the skin (open).** `15-bullet-impact-fx.js` `woundDecal` places a
   flat quad at the hit bone plus a per-zone radius, so it floats or sinks and slides as skin
   deforms. Proposal (presentation only): a `MaterialPluginBase` plugin on the skinned material
