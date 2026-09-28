@@ -508,7 +508,9 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
      on the per-frame bone-texture updates of ~20 re-posed soldiers. Frames in one refresh, 844 wide:
      77.6% default → 91.9% `farHz=5` → **96.0% bone uniforms** (at the full 10 Hz). Bone matrices
      now go as uniforms wherever `maxVertexUniformVectors ≥ 4 × (bones + 1) + 128`, else textures
-     (never CPU skinning; checked with the limit capped at 256). Effects were about a third of
+     (never CPU skinning; checked with the limit capped at 256). Shipped as the default (v218): 97.1%
+     in one refresh, 57.9 / 62.5 FPS, 1% low 28.6, `bones.uniforms` 100 with limit 1024; most worst
+     frames fell in the first 0.8 s after the fast-forward (the benchmark's own warm-up). Effects were about a third of
      the stall (`benchHide=decals`). The lab's 4× default is harsher (a sim step every other frame).
      Compare device runs in one app, one rotation (797 vs 844 canvas), 1×, with the phone cool.
   3. **Sim CPU:** `squad.updateSoldier` (Engagement, sight) and the movement resolver lead
