@@ -467,7 +467,7 @@
     mesh.setParent(node);
     st.body.push({ mesh: mesh, soldier: victim, at: sim.time, exit: !!exit });
   }
-  /* The splash on the ground under a hit and, where the round came out, the exit spray thrown  /* The splash on the ground under a hit and, where the round came out, the exit spray thrown
+  /* The splash on the ground under a hit and, where the round came out, the exit spray thrown
      forward along its path from the exit point. */
   function bloodOnGround(sim, st, pass, rng) {
     var p = pass.entry;
