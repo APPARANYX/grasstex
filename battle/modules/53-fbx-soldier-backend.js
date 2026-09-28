@@ -1073,8 +1073,21 @@ function loadLibrary(scene){
 
 /* ---- binding a soldier -------------------------------------------------------------------- */
 
+/* Babylon's Mesh clone refreshes a skinned mesh's bounding box by skinning every vertex through its
+   bones (~22k vertices, ~14 ms a soldier, nearly all of a bind). Nothing reads a soldier mesh's
+   bounds: bind makes them always active and never re-syncs them, and the animation and mesh LODs
+   use the soldier's own sphere. So while the model is cloned (synchronously), a clone that already
+   has bounds keeps its geometry's bind-pose box. `?cloneBounds=1` clones as Babylon does. */
+var CLONE_BOUNDS=typeof location!=='undefined'&&/[?&]cloneBounds=1\b/.test(location.search||'');
+function cloneModel(lib){
+  var clone=function(){return lib.container.instantiateModelsToScene(function(name){return name;},false,{doNotInstantiate:true});};
+  if(CLONE_BOUNDS)return clone();
+  var P=BABYLON.Mesh.prototype,own=Object.prototype.hasOwnProperty.call(P,'refreshBoundingInfo'),refresh=P.refreshBoundingInfo;
+  P.refreshBoundingInfo=function(){return this.hasBoundingInfo?this:refresh.apply(this,arguments);};
+  try{return clone();}finally{if(own)P.refreshBoundingInfo=refresh;else delete P.refreshBoundingInfo;}
+}
 function bind(soldier,scene,st,lib,faction){
-  var inst=lib.container.instantiateModelsToScene(function(name){return name;},false,{doNotInstantiate:true});
+  var inst=cloneModel(lib);
   var holder=new BABYLON.TransformNode('fbxSoldier',scene);holder.parent=soldier.poseRoot;holder.scaling.setAll(lib.scale);
   inst.rootNodes.forEach(function(n){n.parent=holder;});
   inst.animationGroups.forEach(function(g){g.stop();g.dispose();});
