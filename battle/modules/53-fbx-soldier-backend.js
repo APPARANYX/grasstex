@@ -699,6 +699,34 @@ function buildClipPack(scene,extra){
    already matches keep the clips as they are. */
 var rtA=new MX(),rtB=new MX(),rtC=new MX(),rtQ=new Q(),Z_UP=new V3(0,0,1);
 function quatMatrix(x,y,z,w,out){rtQ.set(x,y,z,w);rtQ.toRotationMatrix(out);return out;}
+/* The same retarget in quaternions on plain arrays, ~5x cheaper than the matrix loop below and
+   equal to it within float32 rounding (Babylon's row-vector M(a)×M(b) is the product b⊗a, a
+   transpose is a conjugate): Ws = Ws_parent⊗q, Wt = Ws⊗K with K = conj(S0)⊗T0 fixed per bone,
+   local = conj(Wt_parent)⊗Wt; a bone the model does not animate follows its rest pose.
+   `?fastRetarget=0` runs the matrix loop instead (scripts/probe_retarget.cjs compares them). */
+var FAST_RETARGET=!(typeof location!=='undefined'&&/[?&]fastRetarget=0\b/.test(location.search||''));
+function hamilton(o,oi,a,ai,b,bi){
+  var ax=a[ai],ay=a[ai+1],az=a[ai+2],aw=a[ai+3],bx=b[bi],by=b[bi+1],bz=b[bi+2],bw=b[bi+3];
+  o[oi]=ax*bw+ay*bz-az*by+aw*bx;o[oi+1]=-ax*bz+ay*bw+az*bx+aw*by;o[oi+2]=ax*by-ay*bx+az*bw+aw*bz;o[oi+3]=-ax*bx-ay*by-az*bz+aw*bw;
+}
+function retargetRotations(frames,n,order,parent,K,rS,rT,src,dst){
+  var Ws=new Float64Array(n*4),Wt=new Float64Array(n*4),L=new Float64Array(4),C=new Float64Array(4),j;
+  for(var fr=0;fr<frames;fr++){
+    var a=fr*4;
+    for(var o=0;o<n;o++){
+      var i=order[o],p=parent[i],i4=i*4,s=src[i],d=dst[i];
+      if(s){if(p>=0)hamilton(Ws,i4,Ws,p*4,s,a);else for(j=0;j<4;j++)Ws[i4+j]=s[a+j];}
+      else if(p>=0)hamilton(Ws,i4,Ws,p*4,rS,i4);else for(j=0;j<4;j++)Ws[i4+j]=rS[i4+j];
+      if(!d){if(p>=0)hamilton(Wt,i4,Wt,p*4,rT,i4);else for(j=0;j<4;j++)Wt[i4+j]=rT[i4+j];continue;}
+      hamilton(Wt,i4,Ws,i4,K,i4);
+      if(p>=0){var p4=p*4;C[0]=-Wt[p4];C[1]=-Wt[p4+1];C[2]=-Wt[p4+2];C[3]=Wt[p4+3];hamilton(L,0,C,0,Wt,i4);}
+      else for(j=0;j<4;j++)L[j]=Wt[i4+j];
+      /* Keep neighbouring samples in one hemisphere, as convertClip does. */
+      if(fr&&L[0]*d[a-4]+L[1]*d[a-3]+L[2]*d[a-2]+L[3]*d[a-1]<0)for(j=0;j<4;j++)L[j]=-L[j];
+      d[a]=L[0];d[a+1]=L[1];d[a+2]=L[2];d[a+3]=L[3];
+    }
+  }
+}
 function retargetClips(lib,src,clips,bones){
   var n=bones.length,parent=new Int32Array(n),restS=[],restT=[],i;
   var nodes=bones.map(function(name){return lib.nodes[name]||null;});
@@ -712,12 +740,34 @@ function retargetClips(lib,src,clips,bones){
   var worst=0;for(i=0;i<n;i++)if(nodes[i])worst=Math.max(worst,1-Math.abs(Q.Dot(restS[i],restT[i])));
   var hipsS=src.rest.hips.p,hipsT=lib.nodes.hips.position,k=hipsT.length()/Math.max(1e-6,hipsS.length());
   lib.speedScale=lib.hipsHeight/Math.max(1e-6,hipsS.z);
+  /* Quaternion form (the default): per bone, K = conj(S0)⊗T0 once per model. */
+  var rS=new Float64Array(n*4),rT=new Float64Array(n*4),K=new Float64Array(n*4),S0q=new Float64Array(n*4),T0q=new Float64Array(n*4),cq=new Float64Array(4);
+  for(i=0;i<n;i++){var qs=restS[i],qt=restT[i];rS[i*4]=qs.x;rS[i*4+1]=qs.y;rS[i*4+2]=qs.z;rS[i*4+3]=qs.w;rT[i*4]=qt.x;rT[i*4+1]=qt.y;rT[i*4+2]=qt.z;rT[i*4+3]=qt.w;}
+  for(var oq=0;oq<n;oq++){
+    var iq=order[oq],pq=parent[iq],i4=iq*4;
+    if(pq>=0){hamilton(S0q,i4,S0q,pq*4,rS,i4);hamilton(T0q,i4,T0q,pq*4,rT,i4);}
+    else for(var j4=0;j4<4;j4++){S0q[i4+j4]=rS[i4+j4];T0q[i4+j4]=rT[i4+j4];}
+    cq[0]=-S0q[i4];cq[1]=-S0q[i4+1];cq[2]=-S0q[i4+2];cq[3]=S0q[i4+3];hamilton(K,i4,cq,0,T0q,i4);
+  }
   var out={};
   Object.keys(clips).forEach(function(key){
     var clip=clips[key],copy={};for(var f in clip)copy[f]=clip[f];copy.speed=clip.travel*lib.speedScale;
     out[key]=copy;
     if(worst<1e-4&&Math.abs(k-1)<1e-3)return;
     var frames=clip.frames,chans=new Array(n),S0=[],T0=[],Ws=[],Wt=[];
+    if(FAST_RETARGET){
+      var srcRot=new Array(n),dstRot=new Array(n);
+      for(i=0;i<n;i++){
+        var ch0=clip.channels[i];srcRot[i]=ch0&&ch0.rot||null;dstRot[i]=null;
+        if(!ch0||!nodes[i])continue;
+        chans[i]={rot:ch0.rot?(dstRot[i]=new Float32Array(frames*4)):null,pos:null};
+        if(ch0.pos){var pos0=new Float32Array(ch0.pos.length),rs0=src.rest[bones[i]].p,rt0=nodes[i].position;
+          for(var j0=0;j0<frames;j0++){var b0=j0*3;pos0[b0]=rt0.x+(ch0.pos[b0]-rs0.x)*k;pos0[b0+1]=rt0.y+(ch0.pos[b0+1]-rs0.y)*k;pos0[b0+2]=rt0.z+(ch0.pos[b0+2]-rs0.z)*k;}
+          chans[i].pos=pos0;}
+      }
+      retargetRotations(frames,n,order,parent,K,rS,rT,srcRot,dstRot);
+      copy.channels=chans;return;
+    }
     for(i=0;i<n;i++){S0[i]=new MX();T0[i]=new MX();Ws[i]=new MX();Wt[i]=new MX();}
     for(var o=0;o<n;o++){
       i=order[o];var ps=parent[i];
@@ -951,6 +1001,9 @@ function loadLibrary(scene){
   var packWork=fetchClipPack(base); /* likewise: the prepared clips download while the models parse */
   var files={};Object.keys(MODELS).forEach(function(f){Object.keys(MODELS[f]).forEach(function(role){files[MODELS[f][role]]=1;});});
   var modelTotal=Object.keys(files).length,modelsDone=0;
+  /* Sidecars (per-model Motion Lab calibrations) only need the file names: fetched from the start,
+     applied before the grip solve that reads them. */
+  var sideWork=loadSidecars(base,Object.keys(files)).then(function(){return null;});
   loadProgress('models',0,modelTotal,'models');
   st.loading=ensureLoader().then(function(){
     assetMark('loaderReady');if(ASSET.on)ASSET.loaderScriptMs=ASSET.marks.loaderReady-ASSET.marks.start;wrapFbxParse();
@@ -960,10 +1013,8 @@ function loadLibrary(scene){
         loadProgress('models',++modelsDone,modelTotal,'models');});
     }).concat([loadWeapons(scene,st,base)]));
   }).then(function(){
-    /* Sidecars (per-model Motion Lab calibrations) load alongside the clips; both must finish
-       before retarget/solve. */
+    /* The sidecars (fetched since the start) and the clips must both be in before retarget/solve. */
     assetMark('modelsWeaponsDone');
-    var sideWork=loadSidecars(base,Object.keys(st.libs||{})).then(function(){return null;});
     var clipWork=packWork.then(function(pack){
       /* Prepared clips whose spec still matches CLIPS; each other clip file loads once, however
          many keys use it. The pack's source rig names the bones either way. */
@@ -1759,6 +1810,9 @@ root.BattleFbxSoldier={
   sidecars:function(){return{contacts:Object.keys(SIDE_CONTACTS),points:Object.keys(SIDE_MODEL_POINTS),arms:Object.keys(SIDE_ARM),wrists:Object.keys(SIDE_WRISTR),leftGrips:Object.keys(SIDE_LEFT_GRIP)};},
   status:function(scene){var st=sceneState(scene),sockets={};Object.keys(st.libs||{}).forEach(function(f){var lib=st.libs[f],p=lib.palms||{};sockets[f]={right:p[BONE.rightHand+'Source']||null,left:p[BONE.leftHand+'Source']||null,aimHandSpacingM:lib.supportHand&&lib.supportHand.along||0,sidecar:!!SIDE_CONTACTS[f],sideWeapons:SIDE_MODEL_POINTS[f]?Object.keys(SIDE_MODEL_POINTS[f]):[],sideArms:SIDE_ARM[f]?Object.keys(SIDE_ARM[f]):[],sideWrists:SIDE_WRISTR[f]?Object.keys(SIDE_WRISTR[f]):[],sideLeftGrips:SIDE_LEFT_GRIP[f]?Object.keys(SIDE_LEFT_GRIP[f]):[]};});return{ready:st.ready,enabled:st.enabled,error:st.error?String(st.error.message||st.error):null,active:st.active.length,clips:st.clips?Object.keys(st.clips).length:0,bones:st.bones?st.bones.length:0,sockets:sockets,sidecars:Object.keys(SIDE_CONTACTS)};},
   clip:function(scene,key){var st=sceneState(scene);return st.clips&&st.clips[key]||null;},
+  /* Read-only: a model's retargeted clip ('us-paratrooper.fbx', 'aim'), and its solved grips. */
+  modelClip:function(scene,file,key){var lib=sceneState(scene).libs[file];return lib&&lib.clips&&lib.clips[key]||null;},
+  grips:function(scene,file){var lib=sceneState(scene).libs[file];return lib&&lib.grips||null;},
   /* Prepared clips: format/file, what this load took from the pack (`state`), the builder
      scripts/build_clip_pack.cjs calls, and the decoder its checks use. */
   clipPack:{format:CLIP_PACK_FORMAT,file:CLIP_PACK_FILE,build:buildClipPack,decode:decodeClipPack,
