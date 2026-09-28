@@ -377,7 +377,7 @@ function branch_list($cacheFile) {
 
 /* Game flags passed through to the preview page (keep in step with the URL flags in AGENTS.md). */
 $pass = array();
-foreach (array('seed', 'defender', 'soldiers', 'smooth', 'grass', 'animLod', 'perfTimings', 'bench', 'benchSeconds', 'benchWarmup', 'benchCam', 'benchAuto') as $k) {
+foreach (array('seed', 'defender', 'soldiers', 'smooth', 'grass', 'animLod', 'mergeWalls', 'perfTimings', 'bench', 'benchSeconds', 'benchWarmup', 'benchCam', 'benchAuto') as $k) {
     if (isset($_GET[$k]) && $_GET[$k] !== '' && preg_match('/^[A-Za-z0-9_.-]{1,100}$/', $_GET[$k])) $pass[$k] = $_GET[$k];
 }
 

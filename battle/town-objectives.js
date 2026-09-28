@@ -19,7 +19,28 @@
   }
   function disposeRender(){if(currentRender&&currentRender.dispose)currentRender.dispose();currentRender=null;}
   function activateTerrain(scenario){root.BattleScenarioGenerator.setActive(scenario);if(root.BattleSim&&root.BattleSim.applyScenarioTerrain)root.BattleSim.applyScenarioTerrain(scenario);}
-  function renderScenario(scene,heightAt,scenario){disposeRender();activateTerrain(scenario);var meshes=[],mats=renderMaterials(scene,scenario.id||Date.now());for(var r=0;r<(scenario.roads||[]).length;r++)buildRoad(scene,heightAt,scenario.roads[r],r,meshes,mats);for(var i=0;i<(scenario.buildings||[]).length;i++)buildBuilding(scene,heightAt,scenario.buildings[i],i,meshes,mats);scenario.meshes=meshes;scenario.sectors=scenario.objectives;scenario.center=scenario.center||{x:scenario.settlement.cx,z:scenario.settlement.cz};scenario.radius=scenario.radius||Math.max(scenario.settlement.spanX,scenario.settlement.spanZ)*.62;scenario.dispose=function(){for(var j=meshes.length-1;j>=0;j--)try{meshes[j].dispose();}catch(_){}meshes.length=0;disposeMaterials(mats);};scene.metadata=scene.metadata||{};scene.metadata.battleScenario=scenario;scene.metadata.battleTown=scenario;if(root.BattleNavigation)root.BattleNavigation.installScenario(scenario);currentRender=scenario;console.log('[TOWN] scenario '+scenario.id+' seed='+scenario.seed+' buildings='+scenario.buildings.length+' objectives='+scenario.objectives.length+' roadSplats='+(scenario.roads||[]).length);return scenario;}
+  /* Draw calls: a building is ~30 wall pieces (openings split each wall), so a town was 500-700 draw
+     calls, over half of a frame's (device benchmark, #68). Nothing reads the pieces: sight, cover,
+     ballistics, bullet holes and World Debug all use the scenario data and obstacle field. So once the
+     town is built its pieces are baked into one static mesh per material (walls, alternate walls,
+     floors). `?mergeWalls=0` keeps the separate pieces (before/after on one build). */
+  var MERGE=!(typeof location!=='undefined'&&/[?&]mergeWalls=0\b/.test(location.search||''));
+  function mergeBuildings(meshes,mats){
+    if(!MERGE||!BABYLON.Mesh.MergeMeshes)return;
+    var keep=[],groups={},nodes=[];
+    meshes.forEach(function(m){if(!(m instanceof BABYLON.Mesh)&&m.computeWorldMatrix){m.computeWorldMatrix(true);nodes.push(m);}});
+    meshes.forEach(function(m){
+      var k=m instanceof BABYLON.Mesh&&m.material&&(m.material===mats.wall?'wall':m.material===mats.wall2?'wall2':m.material===mats.floor?'floor':null);
+      if(k)(groups[k]||(groups[k]=[])).push(m);else keep.push(m);
+    });
+    Object.keys(groups).forEach(function(k){
+      var merged=BABYLON.Mesh.MergeMeshes(groups[k],true,true);if(!merged){keep.push.apply(keep,groups[k]);return;}
+      merged.name=(k==='floor'?'floor-':'wall-')+'merged-'+k;merged.material=mats[k];merged.isPickable=false;merged.freezeWorldMatrix();keep.push(merged);
+    });
+    nodes.forEach(function(n){if(!n.getChildren().length){try{n.dispose();}catch(_){}keep.splice(keep.indexOf(n),1);}});
+    meshes.length=0;Array.prototype.push.apply(meshes,keep);
+  }
+  function renderScenario(scene,heightAt,scenario){disposeRender();activateTerrain(scenario);var meshes=[],mats=renderMaterials(scene,scenario.id||Date.now());for(var r=0;r<(scenario.roads||[]).length;r++)buildRoad(scene,heightAt,scenario.roads[r],r,meshes,mats);for(var i=0;i<(scenario.buildings||[]).length;i++)buildBuilding(scene,heightAt,scenario.buildings[i],i,meshes,mats);mergeBuildings(meshes,mats);scenario.meshes=meshes;scenario.sectors=scenario.objectives;scenario.center=scenario.center||{x:scenario.settlement.cx,z:scenario.settlement.cz};scenario.radius=scenario.radius||Math.max(scenario.settlement.spanX,scenario.settlement.spanZ)*.62;scenario.dispose=function(){for(var j=meshes.length-1;j>=0;j--)try{meshes[j].dispose();}catch(_){}meshes.length=0;disposeMaterials(mats);};scene.metadata=scene.metadata||{};scene.metadata.battleScenario=scenario;scene.metadata.battleTown=scenario;if(root.BattleNavigation)root.BattleNavigation.installScenario(scenario);currentRender=scenario;console.log('[TOWN] scenario '+scenario.id+' seed='+scenario.seed+' buildings='+scenario.buildings.length+' objectives='+scenario.objectives.length+' roadSplats='+(scenario.roads||[]).length);return scenario;}
   /* Cover density is derived from the field area inside terrain-features.js. Passing fixed clump
      and row counts here is what used to leave a 2000x1200 m map with a hundred trees, so only the
      seed and the footprint are supplied. */
