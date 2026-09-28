@@ -491,36 +491,17 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
   long-lived tab ran 1.5-2.5× slower), phone cool. Worst frames slow in every stage at once are
   browser or OS pauses. Safari has no GPU timer: cost a kind by running with and without
   `benchHide`. A 113 s load in one run was download time; normal is ~21-24 s.
-- **Next, in order:**
-  1. **Startup.** Clips now load from the prepared pack: locally the soldiers phase went from
-     17.9 to 5.9 s and FBX parse from 13.5 to 2.1 s, bit-identical clips (`probe_clip_pack.cjs`).
-     iPhone Safari (v208): whole load 20.7-23.9 → 8.3 s, soldiers phase 17.5-19.7 → 5.0 s, FBX
-     parse 0.9 s. Retargeting onto the 10 models now runs in quaternions, within 1.3e-6 of the
-     matrix loop (`probe_retarget.cjs`); a pack of retargeted clips would be ~45 MiB (every model
-     differs), so it stays at load. Sidecars are fetched from the start of the load. v210: iPhone
-     load 5.4 s (soldiers 2.2 s, retarget 3.16 → 0.23 s); MacBook load 3.6 s. The largest item
-     now is binding the 100 soldiers (13.8 ms each, 1.4 s of the 2.0 s navigation-and-squads
-     phase on the iPhone), then the 10 model FBX (~1 s) and the far-LOD lists.
-     (a) Done: the 25 s timeout and the procedural stand-in are gone from the game (see Soldiers);
-     each FBX soldier starts from a bare body instead of building and disposing a procedural one
-     (locally the navigation-and-squads phase 2.87 → 2.34 s), and bind skips Babylon's skinned
-     bounding refresh (#86). iPhone home-screen app, v215: load 3.9 s (v210 5.4, v206 20.7-23.9),
-     bind 13.8 → 1.6 ms per soldier, navigation-and-squads 2.0 → 0.5 s; the soldiers phase (1.9 s)
-     is now mostly download. The trainer and headless benchmark
-     keep the procedural rig; making their body renderer-free changes what module 45 animates, so
-     it needs a paired benchmark.
-     (b) Finish FBX-as-ingress for the 10 soldier models. The **runtime far mesh LOD is already
-     implemented and shipped** (#74): each model gets a simplified triangle list and soldiers
-     switch to it beyond the far threshold. What is still pending is moving deterministic startup
-     work out of the browser where the payload tradeoff is favorable: prepare the soldier models
-     and the **already-designed far-LOD geometry** offline in a browser-ready runtime format. Do
-     **not** prepackage the fully retargeted clips for all 10 models under the current measurements:
-     that package was ~45 MiB and would likely cost more to download than the old ~3.2 s retarget
-     step; after #83, quaternion retargeting is only ~0.23 s on the iPhone, so retargeting stays at
-     runtime unless new measurements materially change that tradeoff. Do not treat "build far LOD
-     offline" as unfinished LOD behavior; the remaining task is pre-baking its data so startup no
-     longer has to build it. The 10 source model FBXs are still loaded at runtime today (~17.5 MiB
-     total directionally noted here).
+- **State (2026-09-28): every target is met; what is left is deferred.**
+  1. **Startup: deferred until load time matters again.** Clips load from the prepared pack
+     (`probe_clip_pack.cjs`, bit-identical), retargeting runs in quaternions (`probe_retarget.cjs`,
+     within 1.3e-6 of the matrix loop; iPhone 3.16 → 0.23 s), sidecars are fetched from the start,
+     each FBX soldier starts from a bare body and bind skips Babylon's skinned bounding refresh (#86).
+     iPhone load 20.7-23.9 s (v206) → 3.9 s (v215, home-screen app; bind 13.8 → 1.6 ms per soldier);
+     the soldiers phase is now mostly download. Prebaking the 10 model FBX and the far-LOD lists
+     (#74's runtime LOD is shipped; only its data would move offline) would save at most ~1 s.
+     Retargeted clips stay at runtime: a pack would be ~45 MiB (every model differs). The trainer and
+     headless benchmark keep the procedural rig, also deferred: making their body renderer-free
+     changes what module 45 animates, so it needs a paired benchmark.
   2. **Landscape in combat: fixed (bone uniforms, #89).** In the iPhone home-screen app, landscape,
      1×, combat (`benchWarmup=150`), 1 frame in 5 took 50 ms while CPU work was ~13 ms: Safari stalled
      on the per-frame bone-texture updates of ~20 re-posed soldiers. Frames in one refresh, 844 wide:
@@ -544,11 +525,12 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
      landscape, 1×: v220 54.5 / 58.8 FPS, 93.1% in one refresh, 1% low 22.7, CPU 7.3 ms, 145 draw
      calls of which 100 were soldiers with ~8% in view (the slow frames were beyond CPU) → v221
      59.3 / 58.8, **98.9%**, 1% low 37.0, CPU 5.4 ms, 65 draws (18 soldiers). Portrait overview in
-     combat, v221: see the table. A run whose canvas is neither 390 nor 844 wide (844×797 seen once,
-     70% in one refresh) is a phone rotated after the page loaded: the canvas kept its old width, so
-     reload in the orientation you measure.
-  6. Check that `preserveDrawingBuffer:true` (screenshot tools) and `renderEvenInBackground`
-     are still needed on mobile before turning either off.
+     combat, v221: see the table. Rotating after load once left the canvas at its old width (844×797
+     in portrait, 70% in one refresh); the page now resizes again once a rotation settles (#94,
+     `probe_rotation.cjs`). iPhone Safari tab, loaded in landscape and rotated to portrait, 1×,
+     combat: canvas 390×645, 58.3 / 58.8 FPS, 97.8% in one refresh, 1% low 25, CPU 6.1 ms.
+  6. Closed: `preserveDrawingBuffer:true` (screenshot tools) and `renderEvenInBackground` stay;
+     with every target met they have no measured cost left to chase.
 - Don't do a repo-wide Prettier rewrite: Prettier is scoped to the M3C behaviour files.
 
 **Behaviour**
