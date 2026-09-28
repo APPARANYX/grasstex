@@ -535,7 +535,9 @@
         contactExits: 0,
         suppressed: 0,
         stragglerSuppressions: 0,
-        regroupRequests: 0
+        regroupRequests: 0,
+        byEnd: {},
+        recoveries: 0
       })
     );
   }
@@ -547,8 +549,11 @@
   }
   function endRegroup(sim, sq, reason) {
     if (!L.end(sq, 'regroup', sim.time, reason)) return false;
-    cohesionState(sq).exits++;
-    cohesionState(sq).overSince = null;
+    var st = cohesionState(sq);
+    st.exits++;
+    st.overSince = null;
+    st.byEnd = st.byEnd || {};
+    st.byEnd[reason] = (st.byEnd[reason] || 0) + 1;
     (sq.members || []).forEach(function (s) {
       s._regroupUnstick = null;
     });
@@ -612,9 +617,12 @@
           progress.kind === 'regroup' &&
           !s.reloading &&
           !s.clearingStoppage &&
-          !(s.suppressedUntil > t)
-        )
+          !(s.suppressedUntil > t) &&
+          !s._regroupUnstick
+        ) {
           s._regroupUnstick = { since: regroup.since };
+          st.recoveries = (st.recoveries || 0) + 1;
+        }
       });
       sq.commandPhase = 'regroup';
       sq.objective = copy(regroup.data.anchor || ca.center);
