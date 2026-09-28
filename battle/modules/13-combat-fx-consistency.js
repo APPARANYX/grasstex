@@ -133,13 +133,14 @@
     var oldShot=sim.onShot;
     /* The muzzle flash itself is drawn by the core onFire through BattleMuzzleFlash.show. */
     sim.onShot=function(shooter,target,hit,d,shot){
-      var from=muzzleWorld(shooter);
+      var ballisticFrom=shot&&shot.mode==='raycast'&&shot.origin?vec3(shot.origin):null,
+        from=ballisticFrom||muzzleWorld(shooter);
       /* Ballistic shots get their tracer here; the shot is marked so the core's legacy tracer
          skips it, but the event still travels down the chain (hit reactions listen there). */
       if(shot&&shot.mode==='raycast'&&shot.impact&&from){
         /* A later round of a burst flies when its muzzle flash shows, not when the tick resolved it. */
         /* To where the round really ended: past a man it went through, into whatever stopped it. */
-        var impact=vec3(shot.final&&shot.final.impact||shot.impact),draw=function(){var f=muzzleWorld(shooter)||from;if(hit)hitTracer(sim.scene,f,impact);else missTracer(sim.scene,f,impact);};
+        var impact=vec3(shot.final&&shot.final.impact||shot.impact),draw=function(){var f=ballisticFrom||muzzleWorld(shooter)||from;if(hit)hitTracer(sim.scene,f,impact);else missTracer(sim.scene,f,impact);};
         if(shot.delay>0&&sim.presentAfter)sim.presentAfter(shot.delay,draw);else draw();
         shot.tracerDrawn=true;if(oldShot)oldShot.apply(sim,arguments);return;
       }
@@ -150,6 +151,6 @@
     return sim;
   }
   root.BattleSim.start=function(scene,opts){return install(oldStart(scene,opts));};
-  root.BattleCombatFxConsistency={version:'72-balanced-tracer-opacity',install:install};
+  root.BattleCombatFxConsistency={version:'98-ballistic-origin-tracers',install:install};
   if(typeof console!=='undefined')console.log('[FX] ballistic hit tracers use 50% vertex alpha; miss tracers use 15% vertex alpha');
 })(typeof window!=='undefined'?window:globalThis);
