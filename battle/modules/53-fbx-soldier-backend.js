@@ -1856,12 +1856,81 @@ M.setImportedEnabled=function(scene,enabled){
   if(scene)sceneState(scene).enabled=!!enabled;
 };
 
+/* A presentation anchor on the actual skinned body. Wounds use this instead of a fixed
+   per-zone radius: choose the nearest currently skinned vertex once, then resample only that
+   vertex's bone weights each render. The anchor therefore follows the same skin deformation as
+   the soldier without CPU-skinning the whole mesh every frame. */
+var skinTmp=new V3();
+function skinAnchor(soldier,point){
+  var fx=soldier&&soldier._fbx;if(!fx||!point)return null;
+  var best=null,bestD=Infinity,VB=BABYLON.VertexBuffer;
+  for(var mi=0;mi<fx.meshes.length;mi++){
+    var mesh=fx.meshes[mi],sk=mesh&&mesh.skeleton;
+    if(!sk||!mesh.getPositionData||!mesh.getVerticesData)continue;
+    var posed=null;
+    try{sk.prepare();posed=mesh.getPositionData(true);}catch(_){posed=null;}
+    if(!posed||!posed.length)continue;
+    var world=mesh.getWorldMatrix(),vi=-1;
+    for(var v=0;v<posed.length;v+=3){
+      V3.TransformCoordinatesFromFloatsToRef(posed[v],posed[v+1],posed[v+2],world,skinTmp);
+      var dx=skinTmp.x-point.x,dy=skinTmp.y-point.y,dz=skinTmp.z-point.z,d=dx*dx+dy*dy+dz*dz;
+      if(d<bestD){bestD=d;vi=v/3;}
+    }
+    if(vi<0)continue;
+    var raw=mesh.getVerticesData(VB.PositionKind),normal=mesh.getVerticesData(VB.NormalKind),
+      idx=[mesh.getVerticesData(VB.MatricesIndicesKind),mesh.getVerticesData(VB.MatricesIndicesExtraKind)],
+      wt=[mesh.getVerticesData(VB.MatricesWeightsKind),mesh.getVerticesData(VB.MatricesWeightsExtraKind)],
+      indices=[],weights=[];
+    for(var set=0;set<2;set++){
+      if(!idx[set]||!wt[set])continue;
+      for(var j=0;j<4;j++){
+        var w=+wt[set][vi*4+j]||0;
+        if(w>1e-5){indices.push(idx[set][vi*4+j]|0);weights.push(w);}
+      }
+    }
+    best={mesh:mesh,vertex:vi,position:[raw[vi*3],raw[vi*3+1],raw[vi*3+2]],
+      normal:normal?[normal[vi*3],normal[vi*3+1],normal[vi*3+2]]:[0,1,0],
+      indices:indices,weights:weights,soldier:soldier,distance:Math.sqrt(bestD)};
+  }
+  /* Gameplay's hit ellipsoid is deliberately simple, so allow a modest model/ellipsoid gap but
+     never jump a wound across the body to unrelated geometry. */
+  return best&&best.distance<=.55?best:null;
+}
+function skinSample(anchor,outPos,outNormal){
+  var mesh=anchor&&anchor.mesh,sk=mesh&&mesh.skeleton;
+  if(!mesh||!sk||(mesh.isDisposed&&mesh.isDisposed()))return false;
+  try{sk.prepare();}catch(_){}
+  var mats=sk.getTransformMatrices&&sk.getTransformMatrices(mesh),p=anchor.position,n=anchor.normal,
+    px=0,py=0,pz=0,nx=0,ny=0,nz=0,total=0;
+  if(mats&&anchor.indices.length){
+    for(var i=0;i<anchor.indices.length;i++){
+      var w=anchor.weights[i],o=anchor.indices[i]*16;if(!(w>0)||o+15>=mats.length)continue;
+      px+=w*(p[0]*mats[o]+p[1]*mats[o+4]+p[2]*mats[o+8]+mats[o+12]);
+      py+=w*(p[0]*mats[o+1]+p[1]*mats[o+5]+p[2]*mats[o+9]+mats[o+13]);
+      pz+=w*(p[0]*mats[o+2]+p[1]*mats[o+6]+p[2]*mats[o+10]+mats[o+14]);
+      nx+=w*(n[0]*mats[o]+n[1]*mats[o+4]+n[2]*mats[o+8]);
+      ny+=w*(n[0]*mats[o+1]+n[1]*mats[o+5]+n[2]*mats[o+9]);
+      nz+=w*(n[0]*mats[o+2]+n[1]*mats[o+6]+n[2]*mats[o+10]);total+=w;
+    }
+  }
+  if(total<1e-5){px=p[0];py=p[1];pz=p[2];nx=n[0];ny=n[1];nz=n[2];total=1;}
+  else if(Math.abs(total-1)>.001){px/=total;py/=total;pz/=total;nx/=total;ny/=total;nz/=total;}
+  var wm=mesh.getWorldMatrix().m,x=px*wm[0]+py*wm[4]+pz*wm[8]+wm[12],
+    y=px*wm[1]+py*wm[5]+pz*wm[9]+wm[13],z=px*wm[2]+py*wm[6]+pz*wm[10]+wm[14],
+    wx=nx*wm[0]+ny*wm[4]+nz*wm[8],wy=nx*wm[1]+ny*wm[5]+nz*wm[9],wz=nx*wm[2]+ny*wm[6]+nz*wm[10],
+    nl=Math.hypot(wx,wy,wz)||1;
+  outPos.x=x;outPos.y=y;outPos.z=z;outNormal.x=wx/nl;outNormal.y=wy/nl;outNormal.z=wz/nl;
+  return true;
+}
+
 root.BattleFbxSoldier={
-  version:'1.3',backend:BACKEND,clips:CLIPS,models:MODELS,modelSet:MODEL_SET,
+  version:'1.4-skin-anchors',backend:BACKEND,clips:CLIPS,models:MODELS,modelSet:MODEL_SET,
   load:loadLibrary,
   /* Read-only: the soldier's bone node by canonical name ('head', 'spine2', 'leftupleg'...), for
      presentation that rides the body (wound decals). Null on the procedural rig. */
   boneNode:function(soldier,name){var fx=soldier&&soldier._fbx,i=fx&&fx.st&&fx.st.bones?fx.st.bones.indexOf(name):-1;return i>=0&&fx.nodes[i]||null;},
+  skinAnchor:skinAnchor,
+  skinSample:skinSample,
   sidecars:function(){return{contacts:Object.keys(SIDE_CONTACTS),points:Object.keys(SIDE_MODEL_POINTS),arms:Object.keys(SIDE_ARM),wrists:Object.keys(SIDE_WRISTR),leftGrips:Object.keys(SIDE_LEFT_GRIP)};},
   status:function(scene){var st=sceneState(scene),sockets={};Object.keys(st.libs||{}).forEach(function(f){var lib=st.libs[f],p=lib.palms||{};sockets[f]={right:p[BONE.rightHand+'Source']||null,left:p[BONE.leftHand+'Source']||null,aimHandSpacingM:lib.supportHand&&lib.supportHand.along||0,sidecar:!!SIDE_CONTACTS[f],sideWeapons:SIDE_MODEL_POINTS[f]?Object.keys(SIDE_MODEL_POINTS[f]):[],sideArms:SIDE_ARM[f]?Object.keys(SIDE_ARM[f]):[],sideWrists:SIDE_WRISTR[f]?Object.keys(SIDE_WRISTR[f]):[],sideLeftGrips:SIDE_LEFT_GRIP[f]?Object.keys(SIDE_LEFT_GRIP[f]):[]};});return{ready:st.ready,enabled:st.enabled,error:st.error?String(st.error.message||st.error):null,active:st.active.length,clips:st.clips?Object.keys(st.clips).length:0,bones:st.bones?st.bones.length:0,sockets:sockets,sidecars:Object.keys(SIDE_CONTACTS)};},
   clip:function(scene,key){var st=sceneState(scene);return st.clips&&st.clips[key]||null;},
