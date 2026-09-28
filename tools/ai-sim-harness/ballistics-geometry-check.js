@@ -56,7 +56,7 @@ function resolveLine(r,s,t,obstacles,enemies){
   console.log('PASS scatter-cover impact and decal normal land on the physical face');
 }
 {
-  const r=root(),s=man(15,-10,'us'),t=man(15,10,'ge');s.weapon=weapon('rifle');
+  const r=root(),s=man(15,-10,'us'),t=man(15,10,'ge');s.weapon=weapon('rifle');s.prone=true;t.prone=true;
   const tactical=[{x:15,z:0,y:0,height:.62,radius:2.1,cover:.60,type:'log'}];
   const shot=resolveLine(r,s,t,tactical,[]);
   assert.ok(shot.impact.z<-1.5,'legacy/no-footprint obstacles retain their old cylinder collision');
