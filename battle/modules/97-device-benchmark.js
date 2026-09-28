@@ -199,6 +199,7 @@ function run(){
       kind:'device-benchmark',version:6,when:new Date().toISOString(),page:location.href,build:root.BATTLE_BUILD||null,
       device:device(engine),camera:CAM,hide:run.hiddenKinds.length?{kinds:run.hiddenKinds,meshes:run.hiddenMeshes}:null,animLod:!(root.BattleFbxSoldier&&root.BattleFbxSoldier.lod&&root.BattleFbxSoldier.lod.on===false),
       soldiers:{total:roster.length,fbx:fbx,alive:b.factions.us.alive+b.factions.ge.alive},
+      bones:root.BattleFbxSoldier&&root.BattleFbxSoldier.bones?root.BattleFbxSoldier.bones():null,
       run:{seconds:SECONDS,warmupSim:run.warmSim,warmupWallMs:run.warmMs,wallMs:run.wallMs,simAdvanced:run.simAdvanced,timeScale:speed,frames:frames.length,hiddenFrames:run.hiddenFrames},
       fps:iv?{mean:1000/iv.mean,median:1000/iv.p50,low5:1000/iv.p95,low1:1000/iv.p99}:null,
       frameMs:iv,cpuMs:stats(col('cpu')),sceneMs:stats(col('scene')),renderMs:stats(col('render')),simMs:stats(col('sim')),
