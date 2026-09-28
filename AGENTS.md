@@ -451,6 +451,7 @@ iPhone Safari, portrait 390×645, `?bench=1&seed=bench1`, overview camera:
 | v205 (#76 tracer pool, #77 weapon instances) | 58.8 / 58.8 | 34.5 | 8.9 ms | 180 |
 | v206 (#79 effects warm-up), two runs | 59.3 / 58.8 and 46.6 / 58.8 | 38.5 and 19.6 | 8.4-9.9 ms | 180-189 |
 | v210 (#81 clip pack, #83 retarget; canvas 390×797) | 56.8 / 58.8 | 21.3 | 9.0 ms | 173 |
+| v215 (#86 bind; home-screen app, 390×797) | 55.0 / 58.8 | 20 | 8.9 ms | 188 |
 
 Home-screen app, landscape 844×797, v206: 52.2 / 58.8, 1% low 23.3, CPU 11.5 ms. The wider
 view poses and draws more (13 soldiers posed per frame, 208 draw calls), and its two-refresh
@@ -484,7 +485,10 @@ CPU 7.3 ms, GPU 10.2 ms (GPU-bound). v210 (1× sim speed, so CPU is not comparab
      phase on the iPhone), then the 10 model FBX (~1 s) and the far-LOD lists.
      (a) Done: the 25 s timeout and the procedural stand-in are gone from the game (see Soldiers);
      each FBX soldier starts from a bare body instead of building and disposing a procedural one
-     (locally the navigation-and-squads phase 2.87 → 2.34 s). The trainer and headless benchmark
+     (locally the navigation-and-squads phase 2.87 → 2.34 s), and bind skips Babylon's skinned
+     bounding refresh (#86). iPhone home-screen app, v215: load 3.9 s (v210 5.4, v206 20.7-23.9),
+     bind 13.8 → 1.6 ms per soldier, navigation-and-squads 2.0 → 0.5 s; the soldiers phase (1.9 s)
+     is now mostly download. The trainer and headless benchmark
      keep the procedural rig; making their body renderer-free changes what module 45 animates, so
      it needs a paired benchmark.
      (b) Finish FBX-as-ingress for the 10 soldier models. The **runtime far mesh LOD is already
