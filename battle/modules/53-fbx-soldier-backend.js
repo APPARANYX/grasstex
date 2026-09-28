@@ -1897,6 +1897,7 @@ function skinAnchor(soldier,point){
       wt=[mesh.getVerticesData(VB.MatricesWeightsKind),mesh.getVerticesData(VB.MatricesWeightsExtraKind)],
       normal=mesh.getVerticesData(VB.NormalKind),mats=null;
     try{sk.prepare();mats=sk.getTransformMatrices&&sk.getTransformMatrices(mesh);}catch(_){mats=null;}
+    if(mesh.computeWorldMatrix)mesh.computeWorldMatrix(true);
     var world=mesh.getWorldMatrix(),vi=-1;
     for(var v=0,nv=raw.length/3;v<nv;v++){
       skinVertexLocal(raw,idx,wt,mats,v,skinTmp);
@@ -1925,6 +1926,7 @@ function skinSample(anchor,outPos,outNormal){
   var mesh=anchor&&anchor.mesh,sk=mesh&&mesh.skeleton;
   if(!mesh||!sk||(mesh.isDisposed&&mesh.isDisposed()))return false;
   try{sk.prepare();}catch(_){}
+  if(mesh.computeWorldMatrix)mesh.computeWorldMatrix(true);
   var mats=sk.getTransformMatrices&&sk.getTransformMatrices(mesh),p=anchor.position,n=anchor.normal,
     px=0,py=0,pz=0,nx=0,ny=0,nz=0,total=0;
   if(mats&&anchor.indices.length){
