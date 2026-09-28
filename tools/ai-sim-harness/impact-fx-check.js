@@ -91,6 +91,26 @@ assert.equal(instances('holes',SH.holes.rows.masonry),1,'the spent round holes t
 for(let i=0;i<10;i++)sim.onShot(null,victim,true,10,bodyShot([pass(victim,'chest',5,true)]));
 assert.equal(sim._impactFx.body.filter(b=>b.soldier===victim).length,6,'wound decals per soldier are capped');
 console.log('PASS entry and exit wounds ride the hit bone; the next man; splash, exit spray and the final strike');
+/* FBX path: wound centre is the actual skin anchor, not a zone-radius guess, and it moves when
+   the skinned vertex moves without becoming a child of a bone. */
+fx.clear(sim);
+let skinX=5,skinSamples=0;
+r.BattleFbxSoldier={
+  skinAnchor(v,p){return{victim:v,hit:{x:p.x,y:p.y,z:p.z}};},
+  skinSample(a,p,n){skinSamples++;p.x=skinX;p.y=1.31;p.z=.04;n.x=-1;n.y=0;n.z=0;return true;},
+  boneNode(){throw Error('skin anchor should win over the bone fallback');}
+};
+sim.onShot(null,victim,true,10,bodyShot([pass(victim,'chest',5,false)]));fx.tick(sim);
+const skinned=sim._impactFx.body[0];
+assert.ok(skinned.skin,'FBX wound stores a skin anchor');
+assert.equal(skinned.mesh.parent,null,'skinned wound is not bone-parented');
+assert.ok(Math.abs(skinned.mesh.position.x-(skinX-.012))<1e-6,'wound sits just outside the sampled skin');
+skinX=5.18;fx.refreshBody(sim);
+assert.ok(Math.abs(skinned.mesh.position.x-(skinX-.012))<1e-6,'wound follows the same skin vertex after deformation');
+assert.ok(skinSamples>=2,'skin anchor is resampled after creation');
+delete r.BattleFbxSoldier;
+console.log('PASS FBX wound decals lock to and follow the sampled skinned surface');
+
 
 /* Budgets, expiry, restart. */
 const texture=sim._impactFx.texture;
