@@ -5,7 +5,8 @@
    differs from the source animation rig are retargeted once per model at page load; matching rigs
    reuse the converted clip data directly.
 
-   Conversion happens once per page load (convertClip): each clip keeps only channels for bones
+   Conversion (convertClip) runs offline into the prepared clip pack, and at load only for a clip
+   the pack lacks (see "prepared clips" below): each clip keeps only channels for bones
    the model has (the loader's `__fbx_inheritScale` helper nodes duplicate their parent and are
    dropped), is resampled at 30 fps, and looping clips have their horizontal hips travel removed so
    navigation stays the sole owner of world position. The removed travel becomes the clip's natural
@@ -616,6 +617,79 @@ function convertClip(container,key,spec,bones){
   return{key:key,file:spec[0],loop:loop,frames:frames,duration:duration,travel:travel,speed:0,turnRate:turnRate,channels:channels};
 }
 
+/* ---- prepared clips ----------------------------------------------------------------------- */
+/* Assets/animations/prepared-clips.bin holds every CLIPS entry already through sourceRig and
+   convertClip, so a page load reads one file instead of parsing ~90 clip FBX. It is written by
+   scripts/build_clip_pack.cjs, which runs these same functions in a browser; CI
+   (scripts/check_clip_pack.cjs) fails when a clip FBX, CLIPS or the conversion code changes
+   without it. The runtime takes each clip whose spec still matches CLIPS; a missing or changed
+   one, or every clip if the format differs, loads from its FBX as before. `?clipPack=0` loads
+   every clip from FBX. Layout: 'GCP1', uint32 header length, the JSON header padded to 4 bytes,
+   then the Float32 channel data the header indexes ([bone, rot offset, pos offset], -1 = none). */
+var CLIP_PACK_FILE='prepared-clips.bin',CLIP_PACK_FORMAT=1;
+var CLIP_PACK_ON=!(typeof location!=='undefined'&&/[?&]clipPack=0\b/.test(location.search||''));
+function encodeClipPack(src,clips,extra){
+  var rest={},total=0,list=[];
+  src.bones.forEach(function(b){var r=src.rest[b];rest[b]={q:[r.q.x,r.q.y,r.q.z,r.q.w],p:[r.p.x,r.p.y,r.p.z]};});
+  clips.forEach(function(c){c.channels.forEach(function(ch){if(ch)total+=(ch.rot?ch.rot.length:0)+(ch.pos?ch.pos.length:0);});});
+  var data=new Float32Array(total),at=0,put=function(a){if(!a)return-1;data.set(a,at);at+=a.length;return at-a.length;};
+  clips.forEach(function(c){
+    var channels=[];c.channels.forEach(function(ch,i){if(ch)channels.push([i,put(ch.rot),put(ch.pos)]);});
+    list.push({key:c.key,spec:CLIPS[c.key],loop:c.loop,frames:c.frames,duration:c.duration,travel:c.travel,turnRate:c.turnRate,channels:channels});
+  });
+  var head={format:CLIP_PACK_FORMAT,fps:FPS,src:{scheme:src.scheme,bones:src.bones,rest:rest},clips:list};
+  Object.keys(extra||{}).forEach(function(k){head[k]=extra[k];});
+  var json=new TextEncoder().encode(JSON.stringify(head)),pad=(4-json.length%4)%4,out=new Uint8Array(8+json.length+pad+data.byteLength);
+  out.set([71,67,80,49]);new DataView(out.buffer).setUint32(4,json.length+pad,true);out.set(json,8);out.fill(32,8+json.length,8+json.length+pad);
+  out.set(new Uint8Array(data.buffer),8+json.length+pad);
+  return out;
+}
+function decodeClipPack(buf){
+  var bytes=new Uint8Array(buf),len=buf.byteLength>=8?new DataView(buf).getUint32(4,true):0;
+  if(!len||String.fromCharCode(bytes[0],bytes[1],bytes[2],bytes[3])!=='GCP1'||len%4)throw new Error('not a clip pack');
+  var head=JSON.parse(new TextDecoder().decode(bytes.subarray(8,8+len)));
+  if(head.format!==CLIP_PACK_FORMAT||head.fps!==FPS)throw new Error('clip pack format '+head.format+' at '+head.fps+' fps, runtime wants '+CLIP_PACK_FORMAT+' at '+FPS);
+  var data=new Float32Array(buf,8+len,(buf.byteLength-8-len)>>2),rest={},clips={};
+  Object.keys(head.src.rest).forEach(function(b){var r=head.src.rest[b];rest[b]={q:new Q(r.q[0],r.q[1],r.q[2],r.q[3]),p:new V3(r.p[0],r.p[1],r.p[2])};});
+  head.clips.forEach(function(c){
+    var channels=new Array(head.src.bones.length);
+    c.channels.forEach(function(e){channels[e[0]]={rot:e[1]<0?null:data.subarray(e[1],e[1]+c.frames*4),pos:e[2]<0?null:data.subarray(e[2],e[2]+c.frames*3)};});
+    clips[c.key]={spec:c.spec,clip:{key:c.key,file:c.spec[0],loop:c.loop,frames:c.frames,duration:c.duration,travel:c.travel,speed:0,turnRate:c.turnRate,channels:channels}};
+  });
+  return{src:{bones:head.src.bones,rest:rest,scheme:head.src.scheme},clips:clips,sources:head.sources||null};
+}
+function fetchClipPack(base){
+  if(!CLIP_PACK_ON||typeof fetch!=='function')return Promise.resolve(null);
+  /* no-cache revalidates: an unchanged pack costs one 304, a regenerated one is never served stale. */
+  var url=base+'animations/'+CLIP_PACK_FILE,t0=perfNow();
+  return fetch(url,{cache:'no-cache'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();}).then(function(buf){
+    if(ASSET.on)assetLoaded('pack',CLIP_PACK_FILE,url,t0);
+    var t1=perfNow(),pack=decodeClipPack(buf);assetAdd('pack',CLIP_PACK_FILE,'convert',perfNow()-t1);
+    if(ASSET.on&&!assetEntry('pack',CLIP_PACK_FILE).bytes)assetEntry('pack',CLIP_PACK_FILE).bytes=buf.byteLength;
+    return pack;
+  }).catch(function(error){console.warn('[ANIM] prepared clips unavailable, clips load from FBX:',error&&error.message||error);return null;});
+}
+/* Load and convert clip FBX files ({file: [keys]}); resolves to the converted clips. */
+function loadClipFiles(scene,st,base,byFile,progress){
+  return Promise.all(Object.keys(byFile).map(function(file){
+    return loadContainer(scene,base+'animations/'+encodeURIComponent(file)+'.fbx','clip',file+'.fbx').then(function(c){
+      var t0=ASSET.on?perfNow():0,t1=0;
+      try{if(!st.src){st.src=sourceRig(c);st.bones=st.src.bones;}var out=byFile[file].map(function(key){return convertClip(c,key,CLIPS[key],st.bones);});t1=ASSET.on?perfNow():0;return out;}
+      finally{if(ASSET.on&&!t1)t1=perfNow();c.dispose();if(ASSET.on){assetAdd('clip',file+'.fbx','convert',t1-t0);assetAdd('clip',file+'.fbx','dispose',perfNow()-t1);}
+        if(progress)progress();}
+    });
+  })).then(function(groups){return[].concat.apply([],groups);});
+}
+function clipsByFile(keys){var byFile={};keys.forEach(function(key){(byFile[CLIPS[key][0]]||(byFile[CLIPS[key][0]]=[])).push(key);});return byFile;}
+/* For scripts/build_clip_pack.cjs: every CLIPS entry converted from its FBX, encoded as a pack.
+   Runs on its own state, so a live battle's library is untouched. */
+function buildClipPack(scene,extra){
+  var st={src:null,bones:null};
+  return ensureLoader().then(function(){return loadClipFiles(scene,st,assetBase(),clipsByFile(Object.keys(CLIPS)));})
+    .then(function(list){var order={};Object.keys(CLIPS).forEach(function(k,i){order[k]=i;});list.sort(function(a,b){return order[a.key]-order[b.key];});
+      return encodeClipPack(st.src,list,extra);});
+}
+
 /* Clips are authored on one skeleton; a model may share its bone names and hierarchy but not its
    rest orientations or units (the paratroopers differ by up to ~180 degrees per bone and use
    metres, not centimetres). Retarget each clip onto the model once: for every bone, the clip's
@@ -874,9 +948,7 @@ function loadLibrary(scene){
   var st=sceneState(scene);if(st.loading)return st.loading;
   var base=assetBase(),started=Date.now();assetMark('start');
   var meshopt=meshoptReady(); /* fetched alongside the models; the far lists are built once it and the models are in */
-  /* Each clip file loads once, however many keys use it. */
-  var byFile={};Object.keys(CLIPS).forEach(function(key){(byFile[CLIPS[key][0]]||(byFile[CLIPS[key][0]]=[])).push(key);});
-  var clipTotal=Object.keys(byFile).length,clipsDone=0;
+  var packWork=fetchClipPack(base); /* likewise: the prepared clips download while the models parse */
   var files={};Object.keys(MODELS).forEach(function(f){Object.keys(MODELS[f]).forEach(function(role){files[MODELS[f][role]]=1;});});
   var modelTotal=Object.keys(files).length,modelsDone=0;
   loadProgress('models',0,modelTotal,'models');
@@ -891,16 +963,20 @@ function loadLibrary(scene){
     /* Sidecars (per-model Motion Lab calibrations) load alongside the clips; both must finish
        before retarget/solve. */
     assetMark('modelsWeaponsDone');
-    loadProgress('clips',0,clipTotal,'clips');
-    var clipWork=Promise.all(Object.keys(byFile).map(function(file){
-      return loadContainer(scene,base+'animations/'+encodeURIComponent(file)+'.fbx','clip',file+'.fbx').then(function(c){
-        var t0=ASSET.on?perfNow():0,t1=0;
-        try{if(!st.src){st.src=sourceRig(c);st.bones=st.src.bones;}var out=byFile[file].map(function(key){return convertClip(c,key,CLIPS[key],st.bones);});t1=ASSET.on?perfNow():0;return out;}
-        finally{if(ASSET.on&&!t1)t1=perfNow();c.dispose();if(ASSET.on){assetAdd('clip',file+'.fbx','convert',t1-t0);assetAdd('clip',file+'.fbx','dispose',perfNow()-t1);}
-          loadProgress('clips',++clipsDone,clipTotal,'clips');}
-      });
-    })).then(function(groups){return[].concat.apply([],groups);});
     var sideWork=loadSidecars(base,Object.keys(st.libs||{})).then(function(){return null;});
+    var clipWork=packWork.then(function(pack){
+      /* Prepared clips whose spec still matches CLIPS; each other clip file loads once, however
+         many keys use it. The pack's source rig names the bones either way. */
+      var fromPack=[],missing=[];
+      if(pack){st.src=pack.src;st.bones=pack.src.bones;}
+      Object.keys(CLIPS).forEach(function(key){var p=pack&&pack.clips[key];if(p&&JSON.stringify(p.spec)===JSON.stringify(CLIPS[key]))fromPack.push(p.clip);else missing.push(key);});
+      var byFile=clipsByFile(missing),files=Object.keys(byFile);
+      st.clipPack={on:CLIP_PACK_ON,loaded:!!pack,fromPack:fromPack.length,fromFbx:missing.length,fbxFiles:files.length};
+      if(pack&&missing.length)console.warn('[ANIM] prepared clips miss '+missing.length+' clip(s) ('+missing.slice(0,5).join(', ')+'); they load from FBX. Rebuild with scripts/build_clip_pack.cjs.');
+      var done=0,total=files.length+(pack?1:0);if(pack)done=1;
+      loadProgress('clips',done,total,'clips');
+      return loadClipFiles(scene,st,base,byFile,function(){loadProgress('clips',++done,total,'clips');}).then(function(list){return fromPack.concat(list);});
+    });
     return Promise.all([clipWork,sideWork]).then(function(parts){return parts[0];});
   }).then(function(list){
     /* Binding is one synchronous pass: let the load bar paint that it has started. */
@@ -1683,6 +1759,25 @@ root.BattleFbxSoldier={
   sidecars:function(){return{contacts:Object.keys(SIDE_CONTACTS),points:Object.keys(SIDE_MODEL_POINTS),arms:Object.keys(SIDE_ARM),wrists:Object.keys(SIDE_WRISTR),leftGrips:Object.keys(SIDE_LEFT_GRIP)};},
   status:function(scene){var st=sceneState(scene),sockets={};Object.keys(st.libs||{}).forEach(function(f){var lib=st.libs[f],p=lib.palms||{};sockets[f]={right:p[BONE.rightHand+'Source']||null,left:p[BONE.leftHand+'Source']||null,aimHandSpacingM:lib.supportHand&&lib.supportHand.along||0,sidecar:!!SIDE_CONTACTS[f],sideWeapons:SIDE_MODEL_POINTS[f]?Object.keys(SIDE_MODEL_POINTS[f]):[],sideArms:SIDE_ARM[f]?Object.keys(SIDE_ARM[f]):[],sideWrists:SIDE_WRISTR[f]?Object.keys(SIDE_WRISTR[f]):[],sideLeftGrips:SIDE_LEFT_GRIP[f]?Object.keys(SIDE_LEFT_GRIP[f]):[]};});return{ready:st.ready,enabled:st.enabled,error:st.error?String(st.error.message||st.error):null,active:st.active.length,clips:st.clips?Object.keys(st.clips).length:0,bones:st.bones?st.bones.length:0,sockets:sockets,sidecars:Object.keys(SIDE_CONTACTS)};},
   clip:function(scene,key){var st=sceneState(scene);return st.clips&&st.clips[key]||null;},
+  /* Prepared clips: format/file, what this load took from the pack (`state`), the builder
+     scripts/build_clip_pack.cjs calls, and the decoder its checks use. */
+  clipPack:{format:CLIP_PACK_FORMAT,file:CLIP_PACK_FILE,build:buildClipPack,decode:decodeClipPack,
+    state:function(scene){return sceneState(scene).clipPack||null;},
+    /* Read-only: a hash per clip of its metadata and every sample's bits, for the converted clips
+       and each model's retargeted ones (scripts/probe_clip_pack.cjs compares pack vs FBX loads). */
+    digest:function(scene){
+      var st=sceneState(scene);if(!st.ready)return null;
+      var hash=function(c){
+        var h=0x811c9dc5,mix=function(v){h=Math.imul(h^v,16777619)>>>0;},num=function(x){var f=new Float64Array([x]),u=new Uint32Array(f.buffer);mix(u[0]);mix(u[1]);};
+        [c.frames,c.duration,c.travel,c.turnRate,c.speed,c.stride==null?-1:c.stride,c.loop?1:0].forEach(num);
+        c.channels.forEach(function(ch,i){if(!ch)return;mix(i);[ch.rot,ch.pos].forEach(function(a,k){mix(a?a.length+k:k-9);if(a){var u=new Uint32Array(a.buffer,a.byteOffset,a.length);for(var j=0;j<u.length;j++)mix(u[j]);}});});
+        return h.toString(16);
+      };
+      var out={bones:st.bones.join(','),clips:{},models:{}};
+      Object.keys(st.clips).forEach(function(k){out.clips[k]=hash(st.clips[k]);});
+      Object.keys(st.libs).forEach(function(f){var m=out.models[f]={};Object.keys(st.libs[f].clips||{}).forEach(function(k){m[k]=hash(st.libs[f].clips[k]);});});
+      return out;
+    }},
   /* Per-model clip timing: natural speed (m/s), stride estimate, duration, loop. */
   speeds:function(scene,file){var st=sceneState(scene),lib=st.libs[file]||st.libs[Object.keys(st.libs)[0]],out={};if(!lib||!lib.clips)return out;
     Object.keys(lib.clips).forEach(function(k){var c=lib.clips[k];out[k]={turnRate:+(c.turnRate||0).toFixed(2),speed:+(c.speed||0).toFixed(2),stride:c.stride!=null?+c.stride.toFixed(2):null,travel:+((c.travel||0)*lib.speedScale).toFixed(2),duration:+c.duration.toFixed(2),loop:c.loop};});return out;}

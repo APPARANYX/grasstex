@@ -193,6 +193,10 @@ jobs:
       - name: Every runtime the page loads is covered
         run: python3 scripts/check_deploy_coverage.py
 
+      # The runtime loads clips from this pack; it must match the clip FBX, CLIPS and the converter.
+      - name: Prepared clips match their sources
+        run: node scripts/check_clip_pack.cjs
+
       # prepare_incremental_deploy.py fails on any managed file that is missing or empty,
       # so building the plan is itself the check: it proves a real deploy would find
       # everything it intends to upload, including the audio the manifest points at.
