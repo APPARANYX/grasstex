@@ -1073,6 +1073,10 @@ function loadLibrary(scene){
 
 /* ---- binding a soldier -------------------------------------------------------------------- */
 
+/* `?boneTextures=0` sends each soldier's bone matrices as shader uniforms instead of updating a
+   small float texture per skeleton, a device test for whether many per-frame texture updates
+   stall the GPU (Safari). Set before a soldier first renders, so his shader is compiled for it. */
+var BONE_TEXTURES=!(typeof location!=='undefined'&&/[?&]boneTextures=0\b/.test(location.search||''));
 /* Babylon's Mesh clone refreshes a skinned mesh's bounding box by skinning every vertex through its
    bones (~22k vertices, ~14 ms a soldier, nearly all of a bind). Nothing reads a soldier mesh's
    bounds: bind makes them always active and never re-syncs them, and the animation and mesh LODs
@@ -1113,6 +1117,7 @@ function bind(soldier,scene,st,lib,faction){
      `?animLod=0` prepares every frame as before; `prepare(true)` (a forced prepare) always runs. */
   var fxRef={serial:1};
   inst.skeletons.forEach(function(k){
+    if(!BONE_TEXTURES)k.useTextureToStoreBoneMatrices=false;
     k._fbxPrepared=0;
     k.prepare=function(force){
       if(!force&&LOD.on&&LOD.skeletons&&k._fbxPrepared===fxRef.serial)return;
@@ -1643,6 +1648,8 @@ function handChain(path,chain,from){
 /* `clock` (ms) defaults to performance.now(); the full-fidelity benchmark's cadence mode swaps in a
    virtual frame clock so a slow software renderer is scheduled as a 60 FPS device would be. */
 var LOD={on:!(typeof location!=='undefined'&&/[?&]animLod=0\b/.test(location.search||'')),near:35,mid:100,midHz:30,farHz:10,offscreen:true,radius:1.6,clock:null,skeletons:true};
+/* `?farHz=<n>` re-poses soldiers beyond `mid` at n Hz instead of 10 (a device test knob). */
+(function(){var m=typeof location!=='undefined'&&/[?&]farHz=([0-9.]+)/.exec(location.search||'');if(m&&+m[1]>0)LOD.farHz=+m[1];})();
 var lodVP=new MX(),lodPlanes=[0,1,2,3,4,5].map(function(){return new BABYLON.Plane(0,0,0,0);}),lodEye=new V3(),lodSeq=0;
 function lodCamera(scene){
   var cam=scene.activeCamera;if(!cam)return false;
