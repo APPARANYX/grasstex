@@ -151,11 +151,12 @@
     });
     if (!cover) return false;
     e.cover = cover;
-    e.state = 'bound';
-    e.since = b.time;
-    e.until =
-      b.time +
-      Math.max(2, cover.distance / Math.max(2.4, +s.crouchRunSpeed || +s.runSpeed || +s.speed || 3) + 1);
+    root.BattleEngagement.requestState(
+      s,
+      b,
+      'urgent-cover',
+      Math.max(2, cover.distance / Math.max(2.4, +s.crouchRunSpeed || +s.runSpeed || +s.speed || 3) + 1)
+    );
     e._urgentCover = true;
     e.urgentBound = true;
     s._combatUrgentUntil = b.time + URGENT_TTL;
@@ -209,9 +210,7 @@
     e._sharedContactAware = true;
     e._sharedContactSector = sec;
     e._sharedContactReactedAt = b.time;
-    e.state = 'alert';
-    e.since = b.time;
-    e.until = b.time + SHARED_HOLD;
+    root.BattleEngagement.requestState(s, b, 'shared-contact', SHARED_HOLD);
     e.lastSeen = aim;
     e.lastSeenAt = Math.max(+e.lastSeenAt || -999, +c.at || b.time);
     s._faceHint = aim;
