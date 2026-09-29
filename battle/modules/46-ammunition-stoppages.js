@@ -129,7 +129,7 @@
   }
   function markFireReady(s, battle, delay) {
     try {
-      if (s.eng) s.eng.fireReadyAt = Math.max(+s.eng.fireReadyAt || 0, (+battle.time || 0) + (delay || 0.15));
+      if (root.BattleEngagement) root.BattleEngagement.delayFire(s, (+battle.time || 0) + (delay || 0.15));
     } catch (_) {}
   }
 
@@ -191,7 +191,7 @@
     var seconds = Math.max(0.8, +w.stats.reloadTime || 2.5);
     s.reloading = true;
     s.reloadUntil = (+battle.time || 0) + seconds;
-    s.setUp = false;
+    if (root.BattleEngagement) root.BattleEngagement.interruptGun(s);
     var a =
       s._ammoState ||
       (s._ammoState = { reloads: 0, stoppages: 0, shots: 0, lowCalled: false, dryCounted: false });
@@ -210,7 +210,7 @@
     s.weapon.jammed = true;
     s.clearingStoppage = true;
     s.stoppageUntil = (+battle.time || 0) + clear;
-    s.setUp = false;
+    if (root.BattleEngagement) root.BattleEngagement.interruptGun(s);
     a.stoppages++;
     bump(battle, s, 'stoppages');
     animateReload(s, clear);
@@ -347,8 +347,23 @@
     onSimulationStep: tick,
     onCommanderTick: publish
   });
+  /* A man changed weapons (module 47's sidearm draw and return): the reload or stoppage he was in is
+     abandoned, not carried onto the other gun, and the dry flag follows the gun now in his hands. */
+  function weaponChanged(s) {
+    s.reloading = false;
+    s.reloadUntil = 0;
+    s.clearingStoppage = false;
+    s.stoppageUntil = 0;
+    s.outOfAmmo = carried(s) <= 0;
+  }
+  // The primary comes back with its jam cleared (the caller charges the time).
+  function clearJam(s) {
+    s.weapon.jammed = false;
+  }
   root.BattleAmmunition = {
     version: '1.1',
+    weaponChanged: weaponChanged,
+    clearJam: clearJam,
     loadouts: LOADOUT,
     initialize: initialize,
     startReload: startReload,

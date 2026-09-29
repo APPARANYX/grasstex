@@ -50,7 +50,7 @@
   });
   root.SquadAI.extend('afterSoldier', 'weapon-cycle', function (s, battle) {
     if (s && s.reloading) {
-      s.setUp = false;
+      if (root.BattleEngagement) root.BattleEngagement.interruptGun(s);
       /* Stance is Engagement's: a standing man asks to kneel for the reload, a prone one stays down. */
       if (root.BattleEngagement)
         root.BattleEngagement.requestStance(

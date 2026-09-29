@@ -128,7 +128,7 @@
     s._navCache = null;
     s._physicalPath = null;
     s._faceHint = null;
-    s.setUp = false;
+    root.BattleEngagement.interruptGun(s);
     if (s._movementResolver) s._movementResolver.combat = null;
     if (s.eng && s.eng.state === 'station') {
       root.BattleEngagement.requestState(s, sim, 'station-release');

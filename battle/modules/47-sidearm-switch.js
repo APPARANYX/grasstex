@@ -14,7 +14,14 @@
    stays jammed until it comes back, then is cleared at the cost of CLEAR seconds. */
 (function (root) {
   'use strict';
-  if (!root.SquadAI || !root.BattleWeapons || !root.BattleEngagement || root.BattleSidearm) return;
+  if (
+    !root.SquadAI ||
+    !root.BattleWeapons ||
+    !root.BattleEngagement ||
+    !root.BattleAmmunition ||
+    root.BattleSidearm
+  )
+    return;
 
   var T = { DRAW: 0.7, CLEAR: 1.2, NEAR: 20, CLOSE: 8, HOLD: 3, LEAVE: 35 },
     CLUMSY = { lmg: 1, rifle: 1, carbine: 1 };
@@ -34,16 +41,9 @@
   }
   function swap(s, battle, cost) {
     root.BattleWeapons.equip(s, s.secondary);
-    s.reloading = false;
-    s.reloadUntil = 0;
-    s.clearingStoppage = false;
-    s.stoppageUntil = 0;
-    s.setUp = false;
-    s.outOfAmmo = rounds(s.weapon) <= 0;
-    var e = root.BattleEngagement.stateOf(s),
-      ready = battle.time + cost;
-    e.setUpSince = 0;
-    e.fireReadyAt = Math.max(+e.fireReadyAt || 0, ready);
+    root.BattleAmmunition.weaponChanged(s);
+    root.BattleEngagement.unemplaceGun(s);
+    root.BattleEngagement.delayFire(s, battle.time + cost);
     s.fireCooldown = Math.max(+s.fireCooldown || 0, cost);
   }
   function draw(s, battle, why) {
@@ -58,10 +58,9 @@
     s._sidearmSince = null;
     var cost = T.DRAW;
     if (s.weapon.jammed) {
-      s.weapon.jammed = false;
+      root.BattleAmmunition.clearJam(s);
       cost += T.CLEAR;
-      var e = root.BattleEngagement.stateOf(s);
-      e.fireReadyAt = Math.max(+e.fireReadyAt || 0, battle.time + cost);
+      root.BattleEngagement.delayFire(s, battle.time + cost);
       s.fireCooldown = Math.max(+s.fireCooldown || 0, cost);
     }
     var st = stats(battle);

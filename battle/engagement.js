@@ -181,6 +181,26 @@
     s._combatUrgentUntil = 0;
   }
 
+  /* ---- the gun ---------------------------------------------------------------------------------
+     The emplaced-gun flag (`setUp`, `eng.setUpSince`) and the readiness floor (`eng.fireReadyAt`) are
+     Engagement's. Other layers that interrupt the gun (a reload or stoppage, a sidearm draw, a
+     released firing station) say so through these calls, never by writing the fields. */
+  // The gun is not set up any more: the emplacing clock is kept, as a reload or a stoppage leaves it.
+  function interruptGun(s) {
+    s.setUp = false;
+  }
+  // The gun is taken off its mount: set-up and the emplacing clock both restart (a sidearm draw).
+  function unemplaceGun(s) {
+    s.setUp = false;
+    state(s).setUpSince = 0;
+  }
+  // No shot before `until` (sim seconds); never brings the floor forward.
+  function delayFire(s, until) {
+    var e = s.eng; // a man Engagement has not met yet has no floor to raise
+    if (!e) return;
+    e.fireReadyAt = Math.max(+e.fireReadyAt || 0, until);
+  }
+
   /* ---- stance ------------------------------------------------------------------------------- */
 
   function applyStance(s, stance) {
@@ -1590,6 +1610,9 @@
     requestStance: requestStance,
     markUrgent: markUrgent,
     clearUrgent: clearUrgent,
+    interruptGun: interruptGun,
+    unemplaceGun: unemplaceGun,
+    delayFire: delayFire,
     applyStance: applyStance,
     resetSoldier: resetSoldier,
     resetSquad: resetSquad,
