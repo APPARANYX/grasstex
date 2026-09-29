@@ -418,7 +418,7 @@ try {
       if (telemetry && telemetrySaved) Object.assign(telemetry, telemetrySaved);
       if (telemetryConsole !== null && telemetry?.setConsoleLogging) telemetry.setConsoleLogging(telemetryConsole);
     }
-    return { build: root.BATTLE_BUILD || null, policyRevision: suppliedPolicy?.revision || root.BattleAIPolicy.revision || 0, policySource: suppliedPolicy?.source || 'runtime-default', fixedDt, timeLimit, sampleSeconds: SAMPLE_SECONDS, battles };
+    return { build: root.BATTLE_BUILD || null, policyRevision: root.BattleAIPolicy.stashed ? 0 : suppliedPolicy?.revision || root.BattleAIPolicy.revision || 0, policySource: root.BattleAIPolicy.stashed ? 'stashed-defaults' : suppliedPolicy?.source || 'runtime-default', fixedDt, timeLimit, sampleSeconds: SAMPLE_SECONDS, battles };
   }, { count, seedPrefix, fixedDt, timeLimit, suppliedPolicy: policy });
 
   const wallSeconds = (Date.now() - startedWall) / 1000, battles = result.battles || [];
@@ -443,7 +443,7 @@ try {
     for (const [k, v] of Object.entries(b.engagementStateSamples || {})) engagementStateSamples[k] = (engagementStateSamples[k] || 0) + v;
   }
   const summary = {
-    generatedAt: new Date().toISOString(), commit, build: result.build, policySource: result.policySource, policyRevision: result.policyRevision, policyWarning: policy.warning || null,
+    generatedAt: new Date().toISOString(), commit, build: result.build, policySource: result.policySource, policyRevision: result.policyRevision, policyWarning: result.policySource === 'stashed-defaults' ? null : policy.warning || null,
     requestedBattles: count, completedBattles: battles.length, seedPrefix, fixedDt, sampleSeconds: result.sampleSeconds, timeLimit,
     wallSeconds: +wallSeconds.toFixed(2), simulatedSeconds: +simulatedTotal.toFixed(2), realtimeMultiplier: wallSeconds > 0 ? +(simulatedTotal / wallSeconds).toFixed(1) : 0, battlesPerMinute: wallSeconds > 0 ? +(battles.length / wallSeconds * 60).toFixed(2) : 0,
     winners, usWinRate: pct(winners.us || 0, battles.length), geWinRate: pct(winners.ge || 0, battles.length), drawRate: pct((winners.draw || 0) + (winners.none || 0), battles.length),

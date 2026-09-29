@@ -4,6 +4,13 @@
    arbitrary generated code. Scenario memory blends successful genomes from similar maps. */
 (function(root){
   'use strict';
+  /* STASHED 2026-09-29, with the AI Graph, until the UI pass: the genome is the code defaults. It ignores the
+     server's BATTLE_AI_POLICY and BATTLE_AI_MEMORY, per-match genomes and scenario blending, and set,
+     setMatchPolicies, refresh, persist and remember do nothing, so it cannot be changed or written and its
+     revision reads 0. Every consumer (Force Command, the Squad Leader's tuning numbers) then runs one
+     baseline in every environment. This is the one switch: the AI Graph editor and the genome trainer read
+     BattleAIPolicy.stashed. Set it to false to bring the live genome back. */
+  var STASHED=true;
 
   var API_BASE=root.BATTLE_API_BASE||'/grasstex/',ENDPOINT=API_BASE+'battle_policy.php',LEARNING=API_BASE+'battle_learning.php';
   var DEFAULT_PARAMETERS={
@@ -52,10 +59,10 @@
     return{version:2,parameters:parameters,doctrine:doctrine,rules:rules};
   }
 
-  var persisted=root.BATTLE_AI_POLICY||null,current=normalize(persisted&&persisted.genome?persisted.genome:(persisted&&persisted.policy?persisted.policy:persisted)),revision=persisted&&persisted.revision||0;
-  var memory=root.BATTLE_AI_MEMORY&&Array.isArray(root.BATTLE_AI_MEMORY.experiences)?root.BATTLE_AI_MEMORY.experiences.slice():[],adaptCache=Object.create(null);
+  var persisted=STASHED?null:root.BATTLE_AI_POLICY||null,current=normalize(persisted&&persisted.genome?persisted.genome:(persisted&&persisted.policy?persisted.policy:persisted)),revision=persisted&&persisted.revision||0;
+  var memory=!STASHED&&root.BATTLE_AI_MEMORY&&Array.isArray(root.BATTLE_AI_MEMORY.experiences)?root.BATTLE_AI_MEMORY.experiences.slice():[],adaptCache=Object.create(null);
   function get(){return clone(current);}
-  function set(next,meta){current=normalize(next);adaptCache=Object.create(null);if(meta&&meta.revision!=null)revision=+meta.revision||0;return get();}
+  function set(next,meta){if(STASHED)return get();current=normalize(next);adaptCache=Object.create(null);if(meta&&meta.revision!=null)revision=+meta.revision||0;return get();}
 
   function mutate(base,strength){
     var out=normalize(base),s=strength==null?.16:+strength;
@@ -91,16 +98,16 @@
     return{genome:normalize(out),sources:sources.map(function(s){return{seed:s.experience.seed||null,scenarioId:s.experience.scenarioId||null,similarity:+s.similarity.toFixed(3),score:s.score,revision:s.experience.revision||null};})};
   }
   function adaptedForScenario(scenario){if(!scenario)return{genome:get(),sources:[]};var key=scenario.id+'|r'+revision;if(adaptCache[key])return clone(adaptCache[key]);var result=blend(current,recall(scenario,3));adaptCache[key]=result;return clone(result);}
-  function genomeFor(sim,faction){if(sim&&sim.aiGenomes&&sim.aiGenomes[faction])return sim.aiGenomes[faction];var sc=sim&&sim.scene&&sim.scene.metadata&&sim.scene.metadata.battleScenario;return adaptedForScenario(sc).genome;}
+  function genomeFor(sim,faction){if(!STASHED&&sim&&sim.aiGenomes&&sim.aiGenomes[faction])return sim.aiGenomes[faction];var sc=sim&&sim.scene&&sim.scene.metadata&&sim.scene.metadata.battleScenario;return adaptedForScenario(sc).genome;}
   function policyFor(sim,faction){return genomeFor(sim,faction).parameters;}
-  function setMatchPolicies(sim,us,ge){sim.aiGenomes={us:normalize(us||current),ge:normalize(ge||current)};return sim.aiGenomes;}
+  function setMatchPolicies(sim,us,ge){if(STASHED)return null;sim.aiGenomes={us:normalize(us||current),ge:normalize(ge||current)};return sim.aiGenomes;}
   function clearMatchPolicies(sim){if(sim)sim.aiGenomes=null;}
 
-  function persist(next,meta){if(root.BATTLE_PREVIEW)return Promise.resolve({ok:false,preview:true,revision:revision}); /* branch previews never write production policy */var payload={genome:normalize(next),meta:meta||{},baseRevision:revision};return fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),cache:'no-store'}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j&&j.error||('policy save HTTP '+r.status));return j;});}).then(function(j){if(!j||!j.ok)throw new Error(j&&j.error||'policy save failed');current=normalize(j.genome||j.policy||payload.genome);revision=j.revision||revision;root.BATTLE_AI_POLICY=j;adaptCache=Object.create(null);console.log('[POLICY] Genome v2 persisted revision '+revision);return j;});}
-  function refresh(){return fetch(ENDPOINT+'?ts='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){if(j&&j.ok&&(j.genome||j.policy)){current=normalize(j.genome||j.policy);revision=j.revision||revision;root.BATTLE_AI_POLICY=j;adaptCache=Object.create(null);}return{genome:get(),revision:revision};});}
-  function remember(experience){if(root.BATTLE_PREVIEW)return Promise.resolve({ok:false,preview:true});experience=experience||{};return fetch(LEARNING,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'experience',experience:experience}),cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){if(j&&j.ok&&j.experience){memory.push(j.experience);if(memory.length>240)memory=memory.slice(-240);adaptCache=Object.create(null);}return j;}).catch(function(){return null;});}
+  function persist(next,meta){if(STASHED)return Promise.resolve({ok:false,stashed:true,revision:revision});if(root.BATTLE_PREVIEW)return Promise.resolve({ok:false,preview:true,revision:revision}); /* branch previews never write production policy */var payload={genome:normalize(next),meta:meta||{},baseRevision:revision};return fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),cache:'no-store'}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j&&j.error||('policy save HTTP '+r.status));return j;});}).then(function(j){if(!j||!j.ok)throw new Error(j&&j.error||'policy save failed');current=normalize(j.genome||j.policy||payload.genome);revision=j.revision||revision;root.BATTLE_AI_POLICY=j;adaptCache=Object.create(null);console.log('[POLICY] Genome v2 persisted revision '+revision);return j;});}
+  function refresh(){if(STASHED)return Promise.resolve({genome:get(),revision:revision,stashed:true});return fetch(ENDPOINT+'?ts='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){if(j&&j.ok&&(j.genome||j.policy)){current=normalize(j.genome||j.policy);revision=j.revision||revision;root.BATTLE_AI_POLICY=j;adaptCache=Object.create(null);}return{genome:get(),revision:revision};});}
+  function remember(experience){if(STASHED)return Promise.resolve({ok:false,stashed:true});if(root.BATTLE_PREVIEW)return Promise.resolve({ok:false,preview:true});experience=experience||{};return fetch(LEARNING,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'experience',experience:experience}),cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){if(j&&j.ok&&j.experience){memory.push(j.experience);if(memory.length>240)memory=memory.slice(-240);adaptCache=Object.create(null);}return j;}).catch(function(){return null;});}
   function memoryList(){return clone(memory);}
 
-  root.BattleAIPolicy={version:2,defaults:normalize({version:2,parameters:DEFAULT_PARAMETERS,doctrine:DEFAULT_DOCTRINE,rules:DEFAULT_RULES}),ranges:clone(RANGES),tunable:TUNABLE.slice(),conditions:CONDITIONS.slice(),actions:ACTIONS.slice(),strategies:STRATEGIES.slice(),normalize:normalize,get:get,set:set,genomeFor:genomeFor,policyFor:policyFor,setMatchPolicies:setMatchPolicies,clearMatchPolicies:clearMatchPolicies,mutate:mutate,crossover:crossover,distance:distance,decide:decide,recall:recall,blend:blend,adaptedForScenario:adaptedForScenario,persist:persist,refresh:refresh,remember:remember,memory:memoryList,get revision(){return revision;}};
+  root.BattleAIPolicy={version:2,stashed:STASHED,defaults:normalize({version:2,parameters:DEFAULT_PARAMETERS,doctrine:DEFAULT_DOCTRINE,rules:DEFAULT_RULES}),ranges:clone(RANGES),tunable:TUNABLE.slice(),conditions:CONDITIONS.slice(),actions:ACTIONS.slice(),strategies:STRATEGIES.slice(),normalize:normalize,get:get,set:set,genomeFor:genomeFor,policyFor:policyFor,setMatchPolicies:setMatchPolicies,clearMatchPolicies:clearMatchPolicies,mutate:mutate,crossover:crossover,distance:distance,decide:decide,recall:recall,blend:blend,adaptedForScenario:adaptedForScenario,persist:persist,refresh:refresh,remember:remember,memory:memoryList,get revision(){return revision;}};
   console.log('[POLICY] Genome v2 runtime loaded; revision='+revision+' memories='+memory.length);
 })(typeof window!=='undefined'?window:globalThis);

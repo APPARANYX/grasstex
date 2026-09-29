@@ -3,7 +3,7 @@
    resolved at click time because that module loads later. No simulation hooks. */
 (function(root){
 'use strict';
-if(typeof document==='undefined'||root.BattleAIDiagnosticsExport)return;
+if(typeof document==='undefined'||!root.BattleAIGraphEditor||root.BattleAIDiagnosticsExport)return;
 
 var tries=0;
 function exporter(kind){

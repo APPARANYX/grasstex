@@ -38,13 +38,34 @@ original docs (roadmaps, lab notes, measurements) are in git history at `1a5b0cf
 | **Battle Sim** (WW2 squad-AI lab, 50v50 US vs GE) | `battle_sim.php` → `battle/battle_sim.html`; runtime in `battle/*.js`, `battle/modules/NN-*.js` (auto-discovered, load in numeric order) | Active. Proving ground for systems that later move to `ww2fps`. |
 | Grass renderer | `game.html`, `grass-api.js`, `grass-streaming.js`, `grass-realism.js`, `grass-effects.js`, `terrain-demo.js`, `terrain-baked.js` | Ported to `ww2fps`; grass is **off** unless `?grass=1` or `window.GRASS_SIM_ENABLED=true`. |
 | Terrain bake | `tools/terrain-bake/` | Prototype. |
-| Learning/telemetry backend | `battle_learning.php`, `battle_policy.php`, `battle_log*.php`, `battle_metrics.php` ("What We Learned" page) | Active. |
+| Learning/telemetry backend | `battle_learning.php`, `battle_policy.php`, `battle_log*.php`, `battle_metrics.php` ("What We Learned" page) | Active. The page no longer reads or writes the policy and learning endpoints: the genome is stashed (below). |
 | FBX Motion Lab | `labs/fbx-animation-lab.html` (calibration workbench), in-page **Motion Lab** button | Previews clips; measures hand/weapon contacts and saves per-model sidecars the game loads. |
 
 In the page: a load overlay (`BattleLoading`, in `battle_sim.html`) shows each boot phase (runtime
 scripts, scenario, terrain, soldiers/weapons/clips, cover, navigation and squads); the FBX backend
 reports per-file progress to it. **Start Battle** unpauses and unlocks audio (iOS needs the gesture).
-`window.__battle__` is the live `BattleSim`. HUD buttons: World Debug, AI Graph, Motion Lab.
+`window.__battle__` is the live `BattleSim`. HUD buttons: World Debug, Motion Lab. **The AI Graph workbench
+is stashed** (modules 30-38, until the UI pass): it does not define `BattleAIGraphEditor`, the gate every
+graph module checks, so there is no AI Graph button, Macro ON/OFF button, Leases panel, Loop Watch / Order
+Trace panel or export button, and `?editor=ai` / `#ai-graph` open nothing. What sat behind them still runs:
+`BattleCommanderAI.setMacroEnabled`, `BattleLeases`, Loop Watch and `BattleOrderProvenance` collection, and
+`BattleDiagnosticsExport.snapshot(kind)`. It comes back once the whole AI system is complete, and then it
+should mirror the layers and their mapping visually (the layer table under M3C: who owns what, what flows
+down and up), not the old policy-node view alone.
+**The policy genome is stashed with it**, on the same switch (`STASHED` in `ai-policy.js`; the editor, the
+trainer and the Genome v2 Training button read `BattleAIPolicy.stashed`). Force Command's doctrine and IF/THEN
+rules and the Squad Leader's eight tuning numbers (`cfg()` in module 16, through
+`BattleCommanderDoctrine.policyFor`) run on the code defaults in every environment, whatever
+`state/ai-policy.json`, the scenario memory or a match's own genome says: the revision reads 0, and `set`,
+`setMatchPolicies`, `refresh`, `persist` and `remember` do nothing and never touch the network. Until then a
+battle depended on data outside the repo (the live genome, r14 on 2026-09-29, differed from the defaults in
+22 of 28 values and in its rules), so no phase of the AI rewrite had one baseline to measure against.
+Benchmarks label the policy `stashed-defaults`. Edges: the Node harness does not load `ai-policy.js`, so its
+doctrine runs the `FALLBACK` tables (the same numbers, but `rules: []`, so a brief there is always `assault`);
+`objectiveHoldWin` is a genome value nothing reads; the "Training review" link stays.
+**Once the whole AI system rewrite is finished, rewrite the genome** (what it parameterises, what it should
+leave to the layers, one owner per number) before flipping the switch back; do not revive the old one as it
+stands.
 URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?soldierCull=0` (draw soldiers outside the view too), `?clipPack=0` (parse every clip from its FBX instead of the prepared pack), `?fastRetarget=0` (retarget clips with the old matrix loop), `?cloneBounds=1` (Babylon's skinned bounds when cloning a soldier), `?farHz=<n>` (re-pose soldiers beyond 100 m at n Hz, default 10), `?boneTextures=1` / `=0` (force bone matrices through a texture per skeleton / shader uniforms; default: uniforms where the GPU has room), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?tracerPool=0` (a new line mesh per tracer, as before the pool), `?fxPrewarm=0` (build muzzle flashes, tracer lines and decals on first use, as before), `?perfTimings=1`, `?bench=1` (device benchmark, below). Behaviour A/B flags (they change the battle; for paired benchmarks only, via the standard benchmark's `query` input): `?perception=0` (perception before #55: no view cone or sector scan, nothing heard or relayed), `?geScout=carbine` (German scouts on the generic 250 m carbine instead of the FG 42), `?mind=0` / `?mind=observe` / `?mind=react,aim,hesitate,shock` (soldier condition, module 17: off; state kept but nothing reads it; only the levers named; default all).
 
 ## Test harnesses
@@ -85,6 +106,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `weapon-wound-check.js` | Side-specific weapons (Garand/Kar98k, M1919A6/MG42, Thompson/MP40, M1 Carbine/FG42 with the scout's reach following his weapon), bursts at the cyclic rate, the FG42 automatic only inside `autoWithin`, sustained rates, a burst stops when the belt runs dry, hit zones from the ray, head/chest/leg/arm wound outcomes, bleed-out, drop odds per zone and cartridge, a rifle round through one man into the next (less energy, deflected) and a pistol round stopping |
 | `world-debug-check.js` | World Debug overlay UI handlers (DOM stub) |
 | `extension-order-check.js` | No module replaces `SquadAI.tryFire`/`areaFire`/`updateSoldier`/`updateSquad` or `BattleEngagement.updateSoldier`; the declared fire order (ammunition → ballistics range → trigger-time LOS) holds; undeclared extensions throw |
+| `genome-gate-check.js` | The stashed genome is the code defaults: a hostile server genome, scenario memory or per-match genome changes nothing (revision 0; Force Command's doctrine and the Squad Leader's tuning numbers read the defaults); `set`, `setMatchPolicies`, `refresh`, `persist` and `remember` do nothing and never call `fetch`; the trainer does not load; only `ai-policy.js` reads `BATTLE_AI_POLICY`, `BATTLE_AI_MEMORY` or `.aiGenomes`; the genome's defaults and the doctrine module's `FALLBACK` agree (bar the unread `objectiveHoldWin`); with the switch flipped the same inputs DO take effect (the control). |
 | `lease-check.js` | `BattleLeases` primitive, tactical-plan and regroup lease lifecycles, regroup re-forms on the rally point |
 | `reconstitution-check.js` | Retreated squads home and out of contact reaching 10 survivors group (fewest squads; none planned en route), march to the rally point, merge under one leader (promotion never picks the gunner), get re-tasked; below-strength groups dissolve; Macro OFF does nothing |
 | `regroup-axis-check.js` | A man behind the regroup anchor is a trimmable straggler, never an outrunner (the regroup keeps the direction the squad was marching), men ahead or to the side still block, and a regroup whose only scattered man is behind ends on `cohesion restored`, not on the clock; swept over march directions (main fails it) |
@@ -235,6 +257,9 @@ needs the flag in `chromium.launch` args; `ignoreHTTPSErrors` on the page alone 
 | `scripts/probe_retarget.cjs` | Quaternion retarget vs `?fastRetarget=0` (matrix), each load in a fresh context: worst difference in every model's rotation and position samples, clip speeds and strides, and solved grips, plus retarget time each way. Fails above `RT_MAX_ROT`/`RT_MAX_POS` (1e-5). `RT_URL`. |
 | `scripts/probe_soldier_load.cjs` | Per URL, a fresh load: soldiers that wear their FBX model vs procedural, body build and bind time, and the load phases. `SL_FAIL=<asset path fragment>` aborts that request: the page must show its load error and build no procedural soldiers. `SL_URLS` (comma-separated, for a before/after), `SL_WAIT`. |
 | `scripts/probe_gait_clips.cjs` | Which FBX locomotion family (walk/run/sprint/crouch/crouchRun) each sim gait actually plays, at what rate, plus each model's natural clip speeds (in-place clips: foot stride). `GAIT_URL` (default production), `GAIT_SEED`, `GAIT_SECONDS`, `GAIT_OUT`. |
+| `scripts/probe_ai_graph_stash.cjs` | Are the AI Graph and the genome really stashed: loads the page under test, and optionally a control page that still has them (`STASH_CONTROL_URL`), and reads the DOM (`aiGraph*` / `ag*` ids, the AI Graph button, the Genome v2 Training button), the eight graph globals, the HUD buttons (World Debug and Motion Lab must stay) and the runtime under the graph (Macro switch API, `BattleLeases`, `BattleOrderProvenance`, `BattleDiagnosticsExport.snapshot`). The page under test also loads with `?editor=ai` and `#ai-graph` and runs a few seconds of battle, then (last, on a page about to close) tries a hostile `BattleAIPolicy.set()` and `setMatchPolicies()`: while stashed the genome must read revision 0, be the defaults, and leave `policyFor` at the default 34 m cohesion radius. The control makes the negatives mean something: it must have the graph, its `?editor=ai` must open the panel, and the same hostile calls must take effect. `STASH_URL`, `STASH_CONTROL_URL`, `STASH_EXPECT=present` for when the graph and genome return, `STASH_SEED`, `STASH_SECONDS`, `STASH_OUT`. |
+| `scripts/probe_genome_gate_mutants.cjs` | Mutation test of `genome-gate-check.js`: 15 mutants in a private temp copy of `battle/` (the server genome, the scenario memory, a per-match genome, `set`, `refresh`, `persist`, `remember`, the exported flag, the switch itself, the trainer loading, two second doors around `ai-policy.js`, the two copies of the defaults drifting), each of which must make the check fail. A missing anchor means the source text changed: update the anchor, never drop the mutant. About 5 s. |
+| `scripts/probe_genome_gate_battle.cjs` | Does a hostile server genome change a whole battle while the genome is stashed: plays the fixed-step benchmark battle (`run_probe.cjs`, `state-fingerprint`) in four arms on two served worktrees (as shipped, and with only `var STASHED=true;` flipped), each with and without a hostile `state/ai-policy.json` (every tuning number at an extreme, and a rule that holds on every neutral objective). Stashed with the hostile genome must be the same battle as stashed without it; with the switch flipped it must differ (the control), and with the switch flipped but no data it must be the same. Setup in the script header. `GG_STASHED_URL`, `GG_LIVE_URL`, `GG_STATE_DIR`, `GG_BATTLES`, `GG_SECONDS`, `GG_OUT`. |
 | `scripts/probe_wire_map_recall.cjs` | Recall of the wire-map scanner against a TypeScript AST scan of `battle/`: every write found from the AST and classified by the scanner's own vocabulary, compared per file and field (exit 1 on any difference), plus the vocabulary gaps (receivers the scanner does not list that write a tracked field). Static and offline; TypeScript is only the measuring instrument, so CI does not run it: `NODE_PATH=$(npm root -g) node scripts/probe_wire_map_recall.cjs`. |
 | `scripts/probe_wire_map_mutants.cjs` | Mutation test of the ratchet: 21 tree and baseline mutants (a new writer file, a stale or shrunken entry, an excluded file that writes, every way the baseline can be malformed) and 66 one-edit mutants of `wire-map.js` (write forms, chain and receiver rules, tokeniser, file list), each in a private temp copy; every one must make `wire-map-check.js` fail. A missing anchor means the scanner text changed: update the anchor, never drop the mutant. `ratchet` or `scanner` runs one family (~10 s in all). |
 | `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes; `crossTeamFormation` classes each different-fireteam `formation+formation` onset by time, formation, gap between the two slots, lateral order and on/off slot: colliding slots are an allocation problem, men >3 m off their slots are in transit), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on), `fire-gates` (per role: trigger pulls, target distance bands, and the first fire condition that fails while a man holds a target), `backward-orders` (new destinations behind the man's fireteam line or behind the man himself while the squad advances, by producer and phase, and `behindAndBackBy` producer | reason | suppressed; for formation orders `formationCause` (team anchor moved or unchanged, man ahead of or on his team line), `formationKind` (formation vs prepared post) and `formationExamples` with the anchor's and the man's offset from the team line; a producer label can lag the resolver's final destination, so check `publishedToDestM` before blaming formation), `move-stalls` (the standard benchmark's soldier-movement stall, with `_movementStopReason` and the order kind), `bound-episodes` (every Engagement `bound`: duration, how it ended, distance to its cover at the end; bounds that never arrive), `spawn-slots` (per squad, the first minute: frame turn from the first fireteam order to 3 s, contact onsets and how many cross fireteams), `stance-churn` (shown stance changes per man-minute by writing file, A→B→A bounces under 1 s, trigger pulls within `AIM_SETTLE` of a change, prone spells shorter than `PRONE_HOLD`), `regroup-axis` (regroup ticks whose forward axis collapsed, and men behind the anchor scored as outrunners), `sidearm` (draws and returns by reason, rounds by weapon kind, men with the sidearm in hand), `perception` (acquisitions by angle band and by what the squad already knew; first contact per squad by source; mid-fight re-acquisitions: a squad blind ≥5 s that regains contact, by source and gap; acquisitions by a man standing still whose squad knew of nobody), `experience` (what a man lives through: aimed rounds by range, suppression spells, comrades falling within 12/25 m, leader distance, isolation, cover), `mind` (soldier condition on real battles: band shares overall, per role and faction and for men in contact, who reached which band, what added the stress, shocks and hesitations, stress percentiles). Arms from `git worktree`s: serve each at `/tmp/www/<name>` with a `preview.json` (`{"ref":"local"}`; an empty object reads as no marker) or its page silently runs `/grasstex/`'s runtime, and set `PROBE_URL=http://127.0.0.1:8765/<name>/battle_sim_local.php`; compare worktree arms with each other, not with `/grasstex/` (preview mode reads state from two directories up). |
@@ -466,8 +491,8 @@ orders live leases (`active()`, `top()`); `timer: true` marks a pure clock that 
 `expired` once its time is up (the Squad Leader prunes each command tick); kinds whose expired record
 still means something (`objective-security`, `succession`, `regroup`) are never timers; `progress` is
 a read-only "is this hold getting anywhere?" test. The session export lists each squad's live and
-recently ended leases and `missionHeldBy`, and the AI Graph **Leases** panel (`modules/37-lease-panel.js`)
-shows them live. Don't add a new `...Until` field for a hold. Deliberately not leases: fireteam order renewal (on the order
+recently ended leases and `missionHeldBy`; the AI Graph **Leases** panel (`modules/37-lease-panel.js`, stashed
+with the graph) shows them live when the graph is on. Don't add a new `...Until` field for a hold. Deliberately not leases: fireteam order renewal (on the order
 record), the garrison request (a standing constraint), and execution timing inside one owner.
 
 **Loadouts and sidearms.** What a man is issued is `SquadAI.LOADOUTS` by role (`loadoutFor(role, faction)`
@@ -634,6 +659,34 @@ before any effect is claimed.
   stronger local Squad Leader planner. Add platoon/company command, fallback/counterattack and
   combined arms only when force size/vehicle work makes those layers useful; ~5 squads per side
   does not justify a platoon layer yet.
+- **Genome rewrite and AI Graph return.** Both are stashed (see the top of this file), so the genome is the
+  code defaults. When the whole AI system rewrite is finished, rewrite the genome against the finished layers
+  (what it parameterises, what the layers own, one owner per number, the unread `objectiveHoldWin` and the
+  Node harness's missing default rules settled), bring the graph back to mirror the layers and their mapping,
+  then flip `STASHED` in `ai-policy.js` and run `probe_ai_graph_stash.cjs` with `STASH_EXPECT=present` and a
+  paired benchmark against the defaults baseline. Not before. It must settle two things, and one direction is
+  recorded:
+  - **One default parameter surface.** The machines' numbers live in five places today: `BattleEngagement.tuning`,
+    module 16's bound timing and `cfg()` defaults, `BattleSoldierMind.tuning`, `commander-doctrine.js`
+    `FALLBACK`/`FALLBACK_DOCTRINE` and the genome's `DEFAULT_PARAMETERS`/`DEFAULT_DOCTRINE`. Make it one declared
+    table (name, owner layer, default, range, unit, the states that read it) that the genome, the harness and the
+    graph all read, so the duplicated defaults and `genome-gate-check.js`'s agreement test go away.
+  - **The genome tunes, it never rewires.** It may change the numbers and scoring weights the declared states read
+    (thresholds, holds, wake times, weights, inside their ranges) and pick among declared actions by weighted
+    score with a deterministic tiebreak. States, legal transitions and owners stay code (the Phase 1 tables), so
+    the ownership checks hold whatever a genome says: a genome cannot add a transition or a writer.
+  - **Direction, not committed: the genome as the basis for a very light LLM planner.** It would compose a
+    standing order from the declared vocabulary, e.g. "we need to retreat; base is reachable but the route
+    crosses enemy ground, so retreat to the last known safe location, wait there for reinforcement or another
+    retreating squad, and hold at the rally point to the last man until then". Its limits: it runs only on the
+    General's and Squad Leader's declared wakes (never per soldier or per tick); its output is data checked
+    against the vocabulary and executed through the existing owners (`transitionMission`, leases, the resolver),
+    so a bad output is rejected, not obeyed; it is deterministic (decisions recorded with the seed and replayed,
+    no live model call in a benchmark or fingerprint run, no combat-RNG draw). The example needs pieces that do not
+    exist yet, each a code state or action first, with the model only choosing among them: a per-side memory of
+    safe points ("last known safe location"), an assessment of a route through enemy ground, a hold with an exit
+    condition ("until reinforced or joined by a retreating squad"; today a retreating squad walks `to-base` and
+    reconstitution groups the `at-base` survivors at a rally point), and a hold-to-the-last-man terminal.
 
 **Watch only**
 

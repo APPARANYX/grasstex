@@ -3,7 +3,7 @@
    24 deterministic matches per generation. Every match is checkpointed to the server and its
    disposable scene resources are torn down before the next match begins. */
 (function(root){
-'use strict';if(!root.BattleAIPolicy||!root.BattleCommanderAI||!root.BattleScenarioGenerator||!root.BattleTownObjectives)return;
+'use strict';if(!root.BattleAIPolicy||root.BattleAIPolicy.stashed||!root.BattleCommanderAI||!root.BattleScenarioGenerator||!root.BattleTownObjectives)return;
 function telemetry(sim,type,data){if(root.BattleTelemetry)root.BattleTelemetry.record(type,data,sim);}function other(f){return f==='us'?'ge':'us';}
 function yieldToBrowser(headless){return new Promise(function(resolve){var visible=!root.document||!root.document.hidden;if(!headless&&visible&&root.requestAnimationFrame){root.requestAnimationFrame(function(){resolve();});}else setTimeout(resolve,0);});}
 function reportProgress(runOpts,detail){try{if(runOpts&&typeof runOpts.onProgress==='function')runOpts.onProgress(detail);}catch(_){}}
