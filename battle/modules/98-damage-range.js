@@ -10,7 +10,7 @@
 
    URL controls: damageRange=1, rangeTarget=0..9, rangeZone=head|chest|abdomen|arm|leg,
    rangeExit=0|1, rangeAuto=0|1, rangeInterval=seconds, rangeOrbit=0|1, rangeDist=metres,
-   rangeUi=full|compact. Xbox controls work in both manual and auto range modes. */
+   rangeUi=full|compact, rangeFps=0|1. Xbox controls work in both manual and auto range modes. */
 (function(root){
   'use strict';
   if(!root.BattleSim||!root.BattleModules||typeof BABYLON==='undefined'||typeof document==='undefined')return;
@@ -18,7 +18,7 @@
   if(q.get('damageRange')!=='1'){root.BattleDamageRange={active:false};return;}
   var oldStart=root.BattleSim.start,ROLES=['rifleman','sergeant','scout','gunner','engineer'],
     ZONES=['head','chest','abdomen','arm','leg'],
-    api={active:true,ready:false,version:'1.1-gamepad-ui'};
+    api={active:true,ready:false,version:'1.2-fps-aim'};
   root.BattleDamageRange=api;
 
   function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
@@ -87,6 +87,7 @@
       orbit=q.get('rangeOrbit')==='1',interval=num('rangeInterval',1.25,.35,8),
       distance=num('rangeDist',5.4,2.5,14),serial=0,autoTimer=null,
       panelCollapsed=q.get('rangeUi')==='compact'||(auto&&q.get('rangeUi')!=='full'),
+      fps=q.get('rangeFps')==='1',fpsYaw=0,fpsPitch=0,pointerAim=null,
       padButtons={},padId=null;
 
     /* A dedicated selected-target orbit camera is more useful here than following the busiest squad. */
@@ -97,6 +98,8 @@
     cam.minZ=.04;cam.maxZ=500;cam.lowerRadiusLimit=2.5;cam.upperRadiusLimit=18;
     cam.lowerBetaLimit=.35;cam.upperBetaLimit=1.48;cam.wheelPrecision=18;cam.panningSensibility=0;
     cam.attachControl(canvas,true);scene.activeCamera=cam;
+    var fpsCam=new BABYLON.UniversalCamera('damageRangeFpsCam',new BABYLON.Vector3(center.x,baseY+1.52,shooterZ+.28),scene);
+    fpsCam.inputs.clear();fpsCam.minZ=.025;fpsCam.maxZ=500;fpsCam.fov=.92;
 
     function selected(){return targets[rangeIndex];}
     function alignShooter(){
@@ -105,6 +108,24 @@
       shooter.root.rotation.y=0;shooter.target=t;shooter._faceHint=t.root.position;
       if(shooter.root.computeWorldMatrix)shooter.root.computeWorldMatrix(true);
     }
+    function fpsEye(){return new BABYLON.Vector3(shooter.root.position.x,shooter.root.position.y+1.52,shooter.root.position.z+.28);}
+    function placeFpsCamera(recenter){
+      var eye=fpsEye();fpsCam.position.copyFrom(eye);
+      if(recenter){
+        var p=zonePoint(selected(),zone);fpsCam.setTarget(new BABYLON.Vector3(p.x,p.y,p.z));
+        fpsYaw=fpsCam.rotation.y;fpsPitch=fpsCam.rotation.x;
+      }else{fpsCam.rotation.y=fpsYaw;fpsCam.rotation.x=fpsPitch;}
+    }
+    function setFps(on){
+      fps=!!on;
+      if(fps){
+        try{cam.detachControl(canvas);}catch(_){}placeFpsCamera(true);scene.activeCamera=fpsCam;
+      }else{
+        scene.activeCamera=cam;try{cam.detachControl(canvas);}catch(_){}try{cam.attachControl(canvas,true);}catch(_){}
+      }
+      var r=document.getElementById('rangeReticle');if(r)r.style.display=fps?'block':'none';
+      updateUi();return fps;
+    }
     alignShooter();
 
     function zonePoint(t,z){
@@ -112,13 +133,13 @@
         side=(serial&1)?1:-1,xoff=z==='arm'?.28*side:z==='leg'?.13*side:0;
       return{x:t.root.position.x+xoff,y:t.root.position.y+y,z:t.root.position.z};
     }
-    function makeShot(t){
-      var p=zonePoint(t,zone),dir={x:0,y:0,z:1},entry={x:p.x,y:p.y,z:p.z-.22},
-        leave=exit?{x:p.x,y:p.y,z:p.z+.22}:null,pass={
-          victim:t,zone:zone,entry:entry,exit:leave,direction:dir,exitDirection:leave?dir:undefined
+    function makeShot(t,z,p,dir){
+      z=z||zone;p=p||zonePoint(t,z);dir=dir||{x:0,y:0,z:1};
+      var entry={x:p.x,y:p.y,z:p.z-.22},leave=exit?{x:p.x,y:p.y,z:p.z+.22}:null,pass={
+          victim:t,zone:z,entry:entry,exit:leave,direction:dir,exitDirection:leave?dir:undefined
         };
       return{
-        mode:'raycast',stoppedBy:'soldier',surface:'blood',victim:t,zone:zone,
+        mode:'raycast',stoppedBy:'soldier',surface:'blood',victim:t,zone:z,
         impact:entry,normal:{x:0,y:0,z:-1},direction:dir,delay:0,passes:[pass],
         final:leave?{
           stoppedBy:'environment',surface:'cement',blocker:'wall',
@@ -126,11 +147,32 @@
         }:null
       };
     }
+    function aimAtTargetPlane(){
+      var ray=fpsCam.getForwardRay(100),d=ray.direction,o=ray.origin||fpsCam.position;
+      if(!d||Math.abs(d.z)<1e-5)return null;
+      var tt=(rowZ-o.z)/d.z;if(tt<=0)return null;
+      return{point:{x:o.x+d.x*tt,y:o.y+d.y*tt,z:rowZ},dir:{x:d.x,y:d.y,z:d.z}};
+    }
+    function aimedBody(){
+      var a=aimAtTargetPlane();if(!a)return null;var best=null,bestDx=Infinity;
+      targets.forEach(function(t){
+        if(!t||!t.root||t.dead)return;var relY=a.point.y-t.root.position.y,dx=Math.abs(a.point.x-t.root.position.x);
+        if(dx>.48||relY<.24||relY>1.92||dx>=bestDx)return;
+        var z=relY>=1.53?'head':(dx>.23&&relY>=.98&&relY<1.53?'arm':(relY>=1.18?'chest':(relY>=.88?'abdomen':'leg')));
+        best={target:t,zone:z,point:a.point,dir:a.dir};bestDx=dx;
+      });
+      return best;
+    }
+    function aimMissShot(){
+      var ray=fpsCam.getForwardRay(100),d=ray.direction,o=ray.origin||fpsCam.position,tt=d&&Math.abs(d.z)>1e-5?(backZ-.14-o.z)/d.z:-1;
+      var p=tt>0?{x:o.x+d.x*tt,y:o.y+d.y*tt,z:backZ-.14}:{x:o.x+d.x*40,y:o.y+d.y*40,z:o.z+d.z*40};
+      return{mode:'raycast',stoppedBy:'environment',surface:'cement',blocker:'wall',impact:p,normal:{x:0,y:0,z:-1},direction:{x:d.x,y:d.y,z:d.z},delay:0,passes:[]};
+    }
     function status(){
       var st=sim._impactFx||{},body=st.body||[],uv=body.filter(function(e){return e.uv;}).length,
         maps=(st.surfaceMaps||[]).length,t=selected();
       return{
-        ready:true,target:rangeIndex,label:label(t),zone:zone,exit:exit,auto:auto,orbit:orbit,
+        ready:true,target:rangeIndex,label:label(t),zone:zone,exit:exit,auto:auto,orbit:orbit,fps:fps,
         camera:scene.activeCamera&&scene.activeCamera.name,targets:targets.map(label),
         wounds:body.length,uvWounds:uv,surfaceMaps:maps,shooter:label(shooter),baseY:baseY,
         enabledSoldiers:all.filter(function(s){return s.root&&s.root.isEnabled&&s.root.isEnabled();}).length
@@ -143,27 +185,30 @@
       var ex=api.panel.querySelector('#rangeExit');if(ex)ex.checked=exit;
       var au=api.panel.querySelector('#rangeAuto');if(au)au.checked=auto;
       var or=api.panel.querySelector('#rangeOrbit');if(or)or.checked=orbit;
+      var fp=api.panel.querySelector('#rangeFps');if(fp)fp.checked=fps;
       var read=api.panel.querySelector('#rangeReadout'),st=status(),compact=api.panel.classList.contains('rangeCollapsed');
       if(read)read.textContent=compact?
-        st.label+' · '+st.zone+(st.auto?' · AUTO':''):
-        st.label+' · '+st.zone+(st.exit?' · through-shot':' · stopped')+
+        st.label+' · '+st.zone+(st.fps?' · AIM':'')+(st.auto?' · AUTO':''):
+        st.label+' · '+st.zone+(st.fps?' · FPS AIM':'')+(st.exit?' · through-shot':' · stopped')+
           ' · wounds '+st.wounds+' (UV '+st.uvWounds+') · maps '+st.surfaceMaps;
     }
     function choose(i){
       rangeIndex=(i+targets.length)%targets.length;alignShooter();
       cam.target.set(selected().root.position.x,selected().root.position.y+1.05,selected().root.position.z);
-      updateUi();return selected();
+      if(fps)placeFpsCamera(true);updateUi();return selected();
     }
-    function setZone(z){if(ZONES.indexOf(z)>=0)zone=z;updateUi();}
+    function setZone(z){if(ZONES.indexOf(z)>=0)zone=z;if(fps)placeFpsCamera(true);updateUi();}
     function fire(){
-      var t=selected();if(!t)return null;serial++;alignShooter();
+      var t=selected();if(!t)return null;serial++;alignShooter();if(fps)placeFpsCamera(false);
       if(shooter.weapon){
         var cap=shooter.weapon.magSize||(shooter.weapon.stats&&shooter.weapon.stats.magazine)||8;
         shooter.weapon.ammo=cap;
       }
       try{if(sim.onFire)sim.onFire(shooter,0);}catch(e){console.warn('[RANGE] onFire',e);}
-      var shot=makeShot(t),d=Math.hypot(t.root.position.x-shooter.root.position.x,t.root.position.z-shooter.root.position.z);
-      try{if(sim.onShot)sim.onShot(shooter,t,true,d,shot);}catch(e){console.error('[RANGE] onShot failed',e);}
+      var aimed=fps?aimedBody():null,hit=!fps||!!aimed,victim=aimed?aimed.target:t,
+        shot=aimed?makeShot(aimed.target,aimed.zone,aimed.point,aimed.dir):(fps?aimMissShot():makeShot(t)),
+        end=shot.final&&shot.final.impact||shot.impact,d=Math.hypot((end&&end.x||t.root.position.x)-shooter.root.position.x,(end&&end.z||t.root.position.z)-shooter.root.position.z);
+      try{if(sim.onShot)sim.onShot(shooter,victim,hit,d,shot);}catch(e){console.error('[RANGE] onShot failed',e);}
       if(shooter.weapon)shooter.weapon.ammo=shooter.weapon.magSize||(shooter.weapon.stats&&shooter.weapon.stats.magazine)||8;
       setTimeout(updateUi,80);return shot;
     }
@@ -179,7 +224,7 @@
       auto=!!on;if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
       if(auto)autoTimer=setInterval(function(){
         fire();var zi=(ZONES.indexOf(zone)+1)%ZONES.length;zone=ZONES[zi];
-        if(zi===0)choose(rangeIndex+1);else updateUi();
+        if(zi===0)choose(rangeIndex+1);else{if(fps)placeFpsCamera(true);updateUi();}
       },interval*1000);
       updateUi();
     }
@@ -209,17 +254,24 @@
       if(!pad){padId=null;padButtons={};return;}
       if(pad.id!==padId){padId=pad.id||'gamepad';padButtons={};console.log('[RANGE] gamepad active: '+padId);}
       var axes=pad.axes||[],lookX=shapedAxis(axes[2]),lookY=shapedAxis(axes[3]);
-      if(lookX)cam.alpha+=lookX*2.25*dt;
-      if(lookY)cam.beta=clamp(cam.beta+lookY*1.7*dt,cam.lowerBetaLimit,cam.upperBetaLimit);
-      var zoom=buttonValue(pad,6)-buttonValue(pad,7);
-      if(zoom)cam.radius=clamp(cam.radius+zoom*7*dt,cam.lowerRadiusLimit,cam.upperRadiusLimit);
+      if(fps){
+        fpsYaw+=lookX*2.25*dt;fpsPitch=clamp(fpsPitch+lookY*1.7*dt,-1.32,1.32);
+        fpsCam.rotation.y=fpsYaw;fpsCam.rotation.x=fpsPitch;fpsCam.fov=.92-.30*buttonValue(pad,6);
+      }else{
+        if(lookX)cam.alpha+=lookX*2.25*dt;
+        if(lookY)cam.beta=clamp(cam.beta+lookY*1.7*dt,cam.lowerBetaLimit,cam.upperBetaLimit);
+        var zoom=buttonValue(pad,6)-buttonValue(pad,7);
+        if(zoom)cam.radius=clamp(cam.radius+zoom*7*dt,cam.lowerRadiusLimit,cam.upperRadiusLimit);
+      }
       if(padOnce(pad,0))fire();
+      if(fps&&padOnce(pad,7))fire();
       if(padOnce(pad,1))clear();
       if(padOnce(pad,2))burst3();
       if(padOnce(pad,3))setAuto(!auto);
       if(padOnce(pad,4)){exit=!exit;updateUi();}
       if(padOnce(pad,5)){orbit=!orbit;updateUi();}
       if(padOnce(pad,8))setPanelCollapsed(!panelCollapsed);
+      if(padOnce(pad,9))setFps(!fps);
       if(padOnce(pad,11))kill();
       if(padOnce(pad,12))setZone(ZONES[(ZONES.indexOf(zone)+ZONES.length-1)%ZONES.length]);
       if(padOnce(pad,13))setZone(ZONES[(ZONES.indexOf(zone)+1)%ZONES.length]);
@@ -239,11 +291,11 @@
         try{root.BattleSoldierModel.animateWalk(s,dt,0);}catch(_){}
       });
       if(root.BattleImpactFx&&root.BattleImpactFx.tick)root.BattleImpactFx.tick(sim);
-      stepGamepad(dt);
+      stepGamepad(dt);if(fps)placeFpsCamera(false);
       var t=selected();
       if(t&&t.root){
         cam.target.set(t.root.position.x,t.root.position.y+1.05,t.root.position.z);
-        if(orbit)cam.alpha+=dt*.32;
+        if(!fps&&orbit)cam.alpha+=dt*.32;
       }
     });
 
@@ -262,20 +314,26 @@
         '#damageRangePanel label{display:flex;gap:4px;align-items:center}#damageRangePanel small{opacity:.72}'+
         '#damageRangePanel.rangeCollapsed{width:min(430px,calc(100vw - 24px));padding:8px 10px}'+
         '#damageRangePanel.rangeCollapsed #rangeControls{display:none}'+
+        '#rangeReticle{display:none;position:fixed;left:50%;top:50%;width:24px;height:24px;transform:translate(-50%,-50%);z-index:2147482998;pointer-events:none}'+
+        '#rangeReticle:before,#rangeReticle:after{content:"";position:absolute;background:rgba(255,255,255,.92);box-shadow:0 0 2px rgba(0,0,0,.9)}'+
+        '#rangeReticle:before{left:11px;top:2px;width:2px;height:20px}#rangeReticle:after{left:2px;top:11px;width:20px;height:2px}'+
+        '#rangeReticle i{position:absolute;left:9px;top:9px;width:6px;height:6px;border:1px solid rgba(255,255,255,.95);border-radius:50%;box-sizing:border-box}'+
         '@media (max-width:900px) and (orientation:landscape){#damageRangePanel{left:10px;bottom:10px;width:min(400px,calc(100vw - 20px));font-size:12px;padding:8px 9px}'+
         '#damageRangePanel.rangeCollapsed{width:min(360px,calc(100vw - 20px))}#damageRangePanel button,#damageRangePanel select{padding:5px 7px}}';
       document.head.appendChild(style);
+      var ret=document.createElement('div');ret.id='rangeReticle';ret.setAttribute('aria-hidden','true');ret.innerHTML='<i></i>';document.body.appendChild(ret);
       var p=document.createElement('div');p.id='damageRangePanel';p.innerHTML=
         '<div class="rangeHeader"><h2>DAMAGE RANGE</h2><span id="rangeReadout"></span><button id="rangeCollapse" type="button" aria-label="Toggle range controls">▾</button></div>'+
         '<div id="rangeControls">'+
         '<div class="rangeRow"><button id="rangePrev">◀</button><select id="rangeTarget"></select><button id="rangeNext">▶</button>'+
         '<select id="rangeZone"><option>head</option><option>chest</option><option>abdomen</option><option>arm</option><option>leg</option></select>'+
         '<label><input id="rangeExit" type="checkbox"> exit</label><label><input id="rangeOrbit" type="checkbox"> orbit</label>'+
-        '<label><input id="rangeAuto" type="checkbox"> auto</label></div>'+
+        '<label><input id="rangeAuto" type="checkbox"> auto</label><label><input id="rangeFps" type="checkbox"> FPS aim</label></div>'+
         '<div class="rangeRow"><button class="rangeFire" id="rangeFire">FIRE</button><button id="rangeBurst">3-shot</button>'+
         '<button id="rangeKill">Kill</button><button id="rangeClear">Clear blood</button><button id="rangeReset">Reset range</button></div>'+
-        '<div class="rangeRow"><small>Keyboard: Space fire · ←/→ target · 1–5 zone · E exit · O orbit · A auto · C clear</small></div>'+
-        '<div class="rangeRow"><small>Xbox: A fire · X 3-shot · D-pad target/zone · Y auto · B clear · LB exit · RB orbit · RS orbit · LT/RT zoom · R3 kill · View UI</small></div>'+
+        '<div class="rangeRow"><small>Keyboard: Space fire · ←/→ target · 1–5 zone · F FPS aim · E exit · O orbit · A auto · C clear</small></div>'+
+        '<div class="rangeRow"><small>FPS aim: drag/mouse to aim · centered reticle · shots follow the reticle</small></div>'+
+        '<div class="rangeRow"><small>Xbox: A/RT fire in FPS · X 3-shot · D-pad target/zone · Menu FPS · Y auto · B clear · LB exit · RB orbit · RS aim/orbit · LT ADS · R3 kill · View UI</small></div>'+
         '</div>';
       document.body.appendChild(p);api.panel=p;
       var ts=p.querySelector('#rangeTarget');targets.forEach(function(s,i){var o=document.createElement('option');o.value=i;o.textContent=(i+1)+'. '+label(s);ts.appendChild(o);});
@@ -287,6 +345,7 @@
       p.querySelector('#rangeExit').onchange=function(){exit=this.checked;updateUi();};
       p.querySelector('#rangeOrbit').onchange=function(){orbit=this.checked;updateUi();};
       p.querySelector('#rangeAuto').onchange=function(){setAuto(this.checked);};
+      p.querySelector('#rangeFps').onchange=function(){setFps(this.checked);};
       p.querySelector('#rangeFire').onclick=fire;p.querySelector('#rangeBurst').onclick=burst3;
       p.querySelector('#rangeKill').onclick=kill;p.querySelector('#rangeClear').onclick=clear;
       p.querySelector('#rangeReset').onclick=function(){location.reload();};
@@ -299,9 +358,21 @@
         else if(e.key.toLowerCase()==='e'){exit=!exit;updateUi();}
         else if(e.key.toLowerCase()==='o'){orbit=!orbit;updateUi();}
         else if(e.key.toLowerCase()==='a')setAuto(!auto);
+        else if(e.key.toLowerCase()==='f')setFps(!fps);
         else if(e.key.toLowerCase()==='c')clear();
       });
-      setPanelCollapsed(panelCollapsed);
+      canvas.addEventListener('pointerdown',function(e){
+        if(!fps)return;pointerAim={id:e.pointerId,x:e.clientX,y:e.clientY};try{canvas.setPointerCapture(e.pointerId);}catch(_){}e.preventDefault();
+      },{passive:false});
+      canvas.addEventListener('pointermove',function(e){
+        if(!fps||!pointerAim||pointerAim.id!==e.pointerId)return;
+        var dx=e.clientX-pointerAim.x,dy=e.clientY-pointerAim.y;pointerAim.x=e.clientX;pointerAim.y=e.clientY;
+        fpsYaw+=dx*.0032;fpsPitch=clamp(fpsPitch+dy*.0027,-1.32,1.32);fpsCam.rotation.y=fpsYaw;fpsCam.rotation.x=fpsPitch;e.preventDefault();
+      },{passive:false});
+      function endAim(e){if(pointerAim&&pointerAim.id===e.pointerId)pointerAim=null;}
+      canvas.addEventListener('pointerup',endAim);canvas.addEventListener('pointercancel',endAim);
+      canvas.addEventListener('wheel',function(e){if(!fps)return;e.preventDefault();fpsCam.fov=clamp(fpsCam.fov+e.deltaY*.0007,.52,1.12);},{passive:false});
+      setPanelCollapsed(panelCollapsed);setFps(fps);
     }
     makePanel();
 
@@ -312,13 +383,13 @@
 
     api.ready=true;api.sim=sim;api.targets=targets;api.shooter=shooter;api.camera=cam;
     api.state=status;api.fire=fire;api.burst3=burst3;api.kill=kill;api.clear=clear;api.choose=choose;
-    api.setZone=setZone;api.setAuto=setAuto;api.setPanelCollapsed=setPanelCollapsed;
-    api.gamepadMap={A:'fire',B:'clear',X:'3-shot',Y:'auto',LB:'exit',RB:'orbit',DPad:'target/zone',RS:'camera orbit',LT_RT:'zoom',R3:'kill',View:'toggle UI'};
+    api.setZone=setZone;api.setAuto=setAuto;api.setPanelCollapsed=setPanelCollapsed;api.setFps=setFps;
+    api.gamepadMap={A:'fire',RT:'fire in FPS',B:'clear',X:'3-shot',Y:'auto',LB:'exit',RB:'orbit',DPad:'target/zone',RS:'aim/orbit',LT:'ADS in FPS',R3:'kill',View:'toggle UI',Menu:'toggle FPS'};
     updateUi();if(auto)setAuto(true);
     console.log('[RANGE] ready: '+targets.map(label).join(', ')+' · deckY='+baseY);
     return sim;
   }
 
   root.BattleSim.start=function(scene,opts){return setup(oldStart(scene,opts));};
-  root.BattleModules.registerSystem('damage-range',{version:'1.1-gamepad-ui'});
+  root.BattleModules.registerSystem('damage-range',{version:'1.2-fps-aim'});
 })(typeof window!=='undefined'?window:globalThis);
