@@ -606,7 +606,7 @@
     roundGate: ['ammunition'], // before each further round of an automatic burst: still loaded, not stopped
     afterShot: ['ammunition'], // a round left the weapon: ammo, heat, stoppages
     squadCommand: ['squad-leader'], // the squad's command owner; without one a squad only reports status
-    beforeSoldier: ['weapon-cycle'], // each soldier AI tick, before perception
+    beforeSoldier: ['sidearm', 'weapon-cycle'], // each soldier AI tick, before perception
     afterSoldier: ['weapon-cycle'] // after engagement and movement resolution
   });
 

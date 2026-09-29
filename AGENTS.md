@@ -76,6 +76,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `sight-query-check.js` | Pruned geometry queries answer exactly as unpruned: `sightBlocked` (crossed cells, first hit) vs nearest-hit `sightBlocker`, and `movementClear` with vs without wall bounding boxes, on real scenarios |
 | `impact-fx-check.js` | Impact materials, hole kind per surface, decals on terrain/wall face, wound decals on the hit bone, exit spray, sheet-cell UVs, FX budgets, restart cleanup (render stub) |
 | `loadout-check.js` | `ROLES` carries no weapon, `SquadAI.loadoutFor(role, faction)` is the only place a role picks one and returns a copy, the default table deals what the roles carried before (a battle is unchanged), a dealt squad wears the loadout's kind and the side's profile |
+| `sidearm-check.js` | Module 47: a man with a holstered sidearm draws it inside `NEAR` when his primary is jammed, reloading or empty, or inside `CLOSE` when it is a long gun (an SMG is not clumsy), takes the primary back after `HOLD` past `LEAVE` or when the pistol is dry; the draw costs `DRAW` before the next shot and unemplaces an MG, a jam survives the draw and is cleared at a cost on return, no combat-RNG draw, no stance write, no sidearm means no change |
 | `weapon-wound-check.js` | Side-specific weapons (Garand/Kar98k, M1919A6/MG42, Thompson/MP40, M1 Carbine/FG42 with the scout's reach following his weapon), bursts at the cyclic rate, the FG42 automatic only inside `autoWithin`, sustained rates, a burst stops when the belt runs dry, hit zones from the ray, head/chest/leg/arm wound outcomes, bleed-out, drop odds per zone and cartridge, a rifle round through one man into the next (less energy, deflected) and a pistol round stopping |
 | `world-debug-check.js` | World Debug overlay UI handlers (DOM stub) |
 | `extension-order-check.js` | No module replaces `SquadAI.tryFire`/`areaFire`/`updateSoldier`/`updateSquad` or `BattleEngagement.updateSoldier`; the declared fire order (ammunition → ballistics range → trigger-time LOS) holds; undeclared extensions throw |
@@ -227,7 +228,7 @@ needs the flag in `chromium.launch` args; `ignoreHTTPSErrors` on the page alone 
 | `scripts/probe_retarget.cjs` | Quaternion retarget vs `?fastRetarget=0` (matrix), each load in a fresh context: worst difference in every model's rotation and position samples, clip speeds and strides, and solved grips, plus retarget time each way. Fails above `RT_MAX_ROT`/`RT_MAX_POS` (1e-5). `RT_URL`. |
 | `scripts/probe_soldier_load.cjs` | Per URL, a fresh load: soldiers that wear their FBX model vs procedural, body build and bind time, and the load phases. `SL_FAIL=<asset path fragment>` aborts that request: the page must show its load error and build no procedural soldiers. `SL_URLS` (comma-separated, for a before/after), `SL_WAIT`. |
 | `scripts/probe_gait_clips.cjs` | Which FBX locomotion family (walk/run/sprint/crouch/crouchRun) each sim gait actually plays, at what rate, plus each model's natural clip speeds (in-place clips: foot stride). `GAIT_URL` (default production), `GAIT_SEED`, `GAIT_SECONDS`, `GAIT_OUT`. |
-| `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on), `fire-gates` (per role: trigger pulls, target distance bands, and the first fire condition that fails while a man holds a target), `backward-orders` (new destinations behind the man's fireteam line or behind the man himself while the squad advances, by producer and phase, and `behindAndBackBy` producer | reason | suppressed), `move-stalls` (the standard benchmark's soldier-movement stall, with `_movementStopReason` and the order kind), `bound-episodes` (every Engagement `bound`: duration, how it ended, distance to its cover at the end; bounds that never arrive), `spawn-slots` (per squad, the first minute: frame turn from the first fireteam order to 3 s, contact onsets and how many cross fireteams), `stance-churn` (shown stance changes per man-minute by writing file, A→B→A bounces under 1 s, trigger pulls within `AIM_SETTLE` of a change, prone spells shorter than `PRONE_HOLD`), `regroup-axis` (regroup ticks whose forward axis collapsed, and men behind the anchor scored as outrunners), `perception` (acquisitions by angle band and by what the squad already knew; first contact per squad by source; mid-fight re-acquisitions: a squad blind ≥5 s that regains contact, by source and gap; acquisitions by a man standing still whose squad knew of nobody). Arms from `git worktree`s: serve each at `/tmp/www/<name>` with a `preview.json` (`{"ref":"local"}`; an empty object reads as no marker) or its page silently runs `/grasstex/`'s runtime, and set `PROBE_URL=http://127.0.0.1:8765/<name>/battle_sim_local.php`; compare worktree arms with each other, not with `/grasstex/` (preview mode reads state from two directories up). |
+| `scripts/run_probe.cjs` + `scripts/probes/*.js` | Observe-only probes on full benchmark battles (0.15 s step, procedural rig). `PROBE=<name>[,<name>]`, `PROBE_BATTLES=<type>:<seed>,…` (default one standard seed per type), `PROBE_SECONDS`, `PROBE_OUTPUT`, `PROBE_CONTROL=1` (also runs each battle without probes and fails if the end state differs). Serve with `PHP_CLI_SERVER_WORKERS=4 php -S …` or page loads stall. Probes: `station-occupancy` (bodies vs reservations at firing stations), `close-pairs` (who the <0.9 m pairs are, and the rate after formation/facing changes), `regroup-episodes` (every `regroup` lease: end reason, order anchor and destinations vs the rally point), `stall-wakes` (each strategic-stall wake: repeat, and whether another objective was open), `damage` (rounds by weapon, wounds by zone and outcome, and of body hits the share that went through, struck a second man or flew on), `fire-gates` (per role: trigger pulls, target distance bands, and the first fire condition that fails while a man holds a target), `backward-orders` (new destinations behind the man's fireteam line or behind the man himself while the squad advances, by producer and phase, and `behindAndBackBy` producer | reason | suppressed), `move-stalls` (the standard benchmark's soldier-movement stall, with `_movementStopReason` and the order kind), `bound-episodes` (every Engagement `bound`: duration, how it ended, distance to its cover at the end; bounds that never arrive), `spawn-slots` (per squad, the first minute: frame turn from the first fireteam order to 3 s, contact onsets and how many cross fireteams), `stance-churn` (shown stance changes per man-minute by writing file, A→B→A bounces under 1 s, trigger pulls within `AIM_SETTLE` of a change, prone spells shorter than `PRONE_HOLD`), `regroup-axis` (regroup ticks whose forward axis collapsed, and men behind the anchor scored as outrunners), `sidearm` (draws and returns by reason, rounds by weapon kind, men with the sidearm in hand), `perception` (acquisitions by angle band and by what the squad already knew; first contact per squad by source; mid-fight re-acquisitions: a squad blind ≥5 s that regains contact, by source and gap; acquisitions by a man standing still whose squad knew of nobody). Arms from `git worktree`s: serve each at `/tmp/www/<name>` with a `preview.json` (`{"ref":"local"}`; an empty object reads as no marker) or its page silently runs `/grasstex/`'s runtime, and set `PROBE_URL=http://127.0.0.1:8765/<name>/battle_sim_local.php`; compare worktree arms with each other, not with `/grasstex/` (preview mode reads state from two directories up). |
 
 **Persistent visual-QA camera** (`battle/camera-controls.js`, presentation only): normal battle/preview URLs may use
 `?follow=1` for a close ArcRotate chase camera (default `followDist=10` m). `?orbit=1` implies follow
@@ -400,7 +401,7 @@ per stance (`obstacle-field.js`), so going prone genuinely helps.
 
 **Extend through declared slots, never by replacing a function.** `SquadAI` declares `fireGate`,
 `shotModel`, `woundModel`, `areaFireGate`, `roundGate`, `afterShot`, `squadCommand`, `beforeSoldier`, `afterSoldier`;
-`BattleEngagement` declares `afterDrill`. Add the id to the declared order and attach with
+`BattleEngagement` declares `afterDrill`. Sidearm switching (module 47) is the `beforeSoldier` extension `sidearm`. Add the id to the declared order and attach with
 `extend(stage, id, fn)`; reassigning `tryFire`/`updateSoldier`/`updateSquad` makes behaviour depend
 on module file order (`14-z-ballistic-raycast.js` once silently discarded the LOS gate that way).
 
@@ -416,6 +417,19 @@ a read-only "is this hold getting anywhere?" test. The session export lists each
 recently ended leases and `missionHeldBy`, and the AI Graph **Leases** panel (`modules/37-lease-panel.js`)
 shows them live. Don't add a new `...Until` field for a hold. Deliberately not leases: fireteam order renewal (on the order
 record), the garrison request (a standing constraint), and execution timing inside one owner.
+
+**Loadouts and sidearms.** What a man is issued is `SquadAI.LOADOUTS` by role (`loadoutFor(role, faction)`
+is the one place a role picks a weapon; `ROLES` carries none): a `primary` kind and an optional `secondary`.
+`dealLoadout` builds both through `attachWeapon` (the side's own model and numbers); the sidearm is
+holstered (`soldier.secondary`, mesh hidden, its own magazine and reserve from the ammunition module).
+`BattleWeapons.equip` swaps `soldier.weapon` (what he shoots; the pose, grip and ranges follow it) and
+holsters the other. Machine-gun behaviour (emplacing, setUp accuracy, first suppressor, never bounds,
+firing-station range) follows `SquadAI.isMachineGun(s)` (`weapon.kind === 'lmg'`), not the role; slots and
+hardpoint eligibility stay role jobs. Module 47 (`BattleSidearm`, tuning `DRAW/CLEAR/NEAR/CLOSE/HOLD/LEAVE`)
+draws the sidearm when the primary is out of action inside 20 m, or a long gun is at arm's length (8 m),
+and puts it away after 3 s once the target is past 35 m or the pistol is dry. At the standard seeds it
+never fires (2026-09-29, `sidearm` probe, seeds 1-4, 12 battles: 0 draws): contacts are at 150 m or more and
+no gun runs dry in 600 s. It matters for close fights (buildings, hedges) and future ammunition pressure.
 
 **Weapons and wounds.** `BattleWeapons.STATS` holds each kind's numbers and `PROFILES` each side's
 weapon for it (Garand/Kar98k, M1919A6/MG42, Thompson/MP40, M1 Carbine/FG42, M1911A1/P38);
@@ -523,13 +537,10 @@ pseudo-backlog. Long-form historical notes remain in git history
   numbers in the commit that added it). What is left in the `backward-orders` probe is garrison posts
   (module 21 `prepared`, by design), regroup and firing stations, and producer labels that lag the
   resolver's final destination. Re-run the probe before treating any of it as a defect.
-- **Per-soldier weapons/loadouts.** The runtime still deals the primary from
-  `ROLES[role].weapon`. Remaining feature work: sniper roles (M1903A4 / Kar98k ZF39), a
-  `secondary` slot for historically issued sidearms, Engagement switching to a sidearm when the
-  primary is empty/jammed or the target is in pistol range, and MG behaviour/reaction keyed on the
-  equipped weapon kind rather than `role === 'gunner'`. Models and pistol clips already exist;
-  remaining model/weapon seats must be measured in Motion Lab. This changes combat, so benchmark it
-  paired.
+- **Sniper roles.** Loadouts, MG-by-kind and the sidearm switch are shipped (see Loadouts and
+  sidearms). Left: sniper roles (M1903A4 / Kar98k ZF39). They need a model and a weapon seat measured in
+  Motion Lab, so they wait for that; the sidearm's pose and grip on the sergeant and gunner models is
+  also worth a Motion Lab look once a close fight shows it. Any new role changes combat: benchmark it paired.
 - **Personal-space crossings between fireteams.** Measured 2026-09-29 (`close-pairs`, 3 standard seeds,
   300 s): 2,392 onsets, 2,238 same-squad, 61 persistent (>1 s). Crossings are **not** elevated after a
   formation or facing change (3.7% of same-squad onsets in 3.4% of squad time; the old ~7x predates
@@ -605,8 +616,8 @@ never decides tactics, ammo, hits or paths.
   fails CI and the deploy until then. Changing the pack's layout or meaning means bumping
   `CLIP_PACK_FORMAT`. The Motion Lab still reads FBX.
 - Weapons (the model `BattleWeapons.PROFILES` names per side and kind): rifle Garand / Kar98k, LMG M1919A6 /
-  MG42 (folded-bipod carry variants), scouts M1 Carbine / FG42, sergeants Thompson / MP40
-  (the M1911A1 / P38 models are for the pending sidearm slot). Babylon is pinned to `babylonjs@9.27.1`.
+  MG42 (folded-bipod carry variants), scouts M1 Carbine / FG42, sergeants Thompson / MP40,
+  sidearms M1911A1 / P38 (sergeants and gunners carry one holstered). Babylon is pinned to `babylonjs@9.27.1`.
 - **Weapon seats and sidecars.** Hand contacts and weapon points default to `SOLDIER_CONTACTS`,
   `WEAPON_POINTS` and `WEAPON_MODEL_POINTS`. A per-model sidecar `Assets/soldiers/<model>.fbx.json`
   (contacts, one slot per weapon: grip / fore-near / fore-far, pistol arm and wrist dials) overrides
