@@ -21,6 +21,7 @@ WORK="${AB_WORK:-/tmp/www}"
 OUT="${AB_OUT:-out/ab}"
 ARMS="${AB_ARMS:-- mind=0 stats=0}"
 ROOT="$(git rev-parse --show-toplevel)"
+status=0
 case "$OUT" in /*) ;; *) OUT="$ROOT/$OUT" ;; esac
 mkdir -p "$WORK" "$OUT"
 BASE_DIR="$WORK/ab-base-src"
@@ -45,14 +46,18 @@ run() {  # run <port> <query> <outfile>
     PROBE_URL="http://127.0.0.1:$1/grasstex/battle_sim_local.php${q:+?$q}" \
     NODE_PATH="$(npm root -g)" node "$ROOT/scripts/run_probe.cjs" >/dev/null
 }
-status=0
 for arm in $ARMS; do
   tag="${arm//[^a-zA-Z0-9]/_}"
   if [ "$CONTROL" = 1 ]; then
-    run "$PORT" "$arm" "$OUT/control-a-$tag.json"; run "$PORT" "$arm" "$OUT/control-b-$tag.json"
+    run "$PORT" "$arm" "$OUT/control-a-$tag.json" >/dev/null & pa=$!
+    run "$PORT" "$arm" "$OUT/control-b-$tag.json" >/dev/null & pc=$!
+    wait $pa || status=1; wait $pc || status=1
     echo "== control $arm"; node "$ROOT/scripts/compare_battle_fingerprints.cjs" "$OUT/control-a-$tag.json" "$OUT/control-b-$tag.json" | head -12 || status=1
   fi
-  run "$PORT" "$arm" "$OUT/base-$tag.json"; run "$((PORT+1))" "$arm" "$OUT/head-$tag.json"
+  # The two trees are independent servers: play them side by side (wall time only; the sim is deterministic).
+  run "$PORT" "$arm" "$OUT/base-$tag.json" >/dev/null & pb=$!
+  run "$((PORT+1))" "$arm" "$OUT/head-$tag.json" >/dev/null & ph=$!
+  wait $pb || status=1; wait $ph || status=1
   echo "== arm '$arm': base $BASE_REF vs head"
   node "$ROOT/scripts/compare_battle_fingerprints.cjs" "$OUT/base-$tag.json" "$OUT/head-$tag.json" | head -30 || status=1
 done
