@@ -738,8 +738,111 @@
 
   /* ---- transitions ------------------------------------------------------------------------- */
 
-  function enter(s, battle, next, seconds, why) {
-    var e = state(s);
+  /* All states evaluate on the fixed 0.15 s soldier tick; deadlines below remain sim time.
+     Withdrawal and an occupied station override any drill. `decide` is a synchronous branch,
+     not a stored state; the public decide API can select alert/pinned/engage/bound from any state.
+     A released withdrawal/station still runs advance's handler until the
+     next actual transition (the legacy state record deliberately remains readable meanwhile). */
+  var STATES = {
+    advance: {
+      meaning: 'Follow the squad order, upright only on a quiet march',
+      enteredBy: 'initialisation, alert sector clear, station release',
+      exits: 'target -> orient; authorised bound -> bound/assault; shared contact -> alert',
+      rate: '0.15 s',
+      next: ['orient', 'bound', 'assault', 'alert', 'pinned', 'engage', 'withdraw', 'station']
+    },
+    orient: {
+      meaning: 'Halt and recognise the target before firing',
+      enteredBy: 'contact acquisition or a changed threat sector',
+      exits: 'target lost -> alert; until elapsed -> decide; urgent cover -> bound',
+      rate: '0.15 s',
+      next: ['alert', 'pinned', 'engage', 'bound', 'withdraw', 'station']
+    },
+    bound: {
+      meaning: 'Move to chosen cover within its travel window',
+      enteredBy: 'cover decision, authorised fireteam bound, urgent-cover request',
+      exits: 'arrival -> engage; missing/unreachable/overdue cover -> decide',
+      rate: '0.15 s',
+      next: ['bound', 'alert', 'pinned', 'engage', 'withdraw', 'station']
+    },
+    engage: {
+      meaning: 'Hold position and stance, aim and fire',
+      enteredBy: 'decide, cover arrival, assault end',
+      exits: 'target lost -> alert; suppression -> pinned; review -> decide; order -> bound/assault',
+      rate: '0.15 s; cover review every ENGAGE_REVIEW + id jitter',
+      next: ['engage', 'orient', 'bound', 'assault', 'alert', 'pinned', 'withdraw', 'station']
+    },
+    pinned: {
+      meaning: 'Stay low and still under suppression',
+      enteredBy: 'suppressed in the open during decide/engage',
+      exits: 'suppression lifted -> decide/alert; changed sector -> orient; urgent cover -> bound',
+      rate: '0.15 s',
+      next: ['pinned', 'orient', 'alert', 'engage', 'bound', 'withdraw', 'station']
+    },
+    assault: {
+      meaning: 'Complete one authorised short rush',
+      enteredBy: 'ordered bound without cover',
+      exits: 'arrival/close target/deadline/unreachable -> engage; no goal/target -> alert',
+      rate: '0.15 s',
+      next: ['alert', 'engage', 'bound', 'pinned', 'withdraw', 'station']
+    },
+    alert: {
+      meaning: 'Hold and watch the last known threat sector',
+      enteredBy: 'target lost, shared-contact request',
+      exits: 'reacquired -> orient; order -> bound/assault; expired quiet sector -> advance',
+      rate: '0.15 s; suppressor renews until by SUPPRESS_HOLD',
+      next: ['orient', 'bound', 'assault', 'advance', 'alert', 'engage', 'pinned', 'withdraw', 'station']
+    },
+    withdraw: {
+      meaning: 'Yield combat movement to the squad retreat',
+      enteredBy: 'squad retreat override',
+      exits: 'retreat ends -> advance handler; station claim -> station',
+      rate: '0.15 s',
+      next: ['withdraw', 'station', 'orient', 'bound', 'assault', 'alert', 'engage', 'pinned']
+    },
+    station: {
+      meaning: 'Use the claimed building firing station',
+      enteredBy: 'tactical-position override',
+      exits: 'station release -> advance; squad retreat -> withdraw',
+      rate: '0.15 s',
+      next: ['station', 'withdraw', 'advance', 'orient', 'bound', 'assault', 'alert', 'engage', 'pinned']
+    }
+  };
+  /* External requests have explicit entry effects. They formerly bypassed enter(), so applying
+     normal drill resets here would change the fight. Keep their clocks and incidental fields
+     exactly as before; the transition record adds provenance without changing moveReason. */
+  var REQUESTS = {
+    'urgent-cover': { from: ['pinned', 'engage', 'orient'], next: 'bound', reason: 'suppressed cover move' },
+    'shared-contact': { from: ['advance'], next: 'alert', reason: 'new shared threat' },
+    'station-release': { from: ['station'], next: 'advance', reason: 'firing station released' }
+  };
+  function requestState(s, battle, request, seconds) {
+    var rule = REQUESTS[request],
+      e = state(s);
+    if (!rule) throw new Error('Unknown Engagement state request: ' + request);
+    if (rule.from.indexOf(e.state) < 0)
+      throw new Error('Illegal Engagement request transition: ' + e.state + ' / ' + request);
+    transition(s, battle, rule.next, seconds, rule.reason, request);
+  }
+  function transition(s, battle, next, seconds, why, entry) {
+    var e = state(s),
+      from = e.state;
+    entry = entry || 'drill';
+    if (!STATES[from] || !STATES[next] || STATES[from].next.indexOf(next) < 0)
+      throw new Error('Illegal Engagement transition: ' + from + ' -> ' + next);
+    if (from !== next || entry !== 'drill')
+      e.transition = { from: from, to: next, at: battle.time, reason: why || next, entry: entry };
+    if (entry !== 'drill') {
+      e.state = next;
+      if (entry === 'station-release') {
+        e.cover = null;
+        e.setUpSince = 0;
+      } else {
+        e.since = battle.time;
+        e.until = battle.time + seconds;
+      }
+      return;
+    }
     if (e.state !== next) {
       /* A gun that leaves its firing position has to be emplaced again before it counts as set up. */
       if (next !== 'engage' && next !== 'station') e.setUpSince = 0;
@@ -855,7 +958,7 @@
       });
     if (cover) {
       e.cover = cover;
-      enter(
+      transition(
         s,
         battle,
         'bound',
@@ -875,7 +978,7 @@
       next = { x: p.x + (dx / len) * step, z: p.z + (dz / len) * step };
     if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, next))
       return false;
-    enter(
+    transition(
       s,
       battle,
       'assault',
@@ -914,20 +1017,20 @@
         /* A threat from a materially different direction is a fresh problem: re-orient. */
         e.fireReadyAt = Math.max(e.fireReadyAt, now + AIM_SETTLE);
         if (e.state === 'engage' || e.state === 'pinned')
-          enter(s, battle, 'orient', recognition(s), 'new threat sector');
+          transition(s, battle, 'orient', recognition(s), 'new threat sector');
       }
       e.threatSector = sector;
     }
 
     /* Squad withdrawal and claimed building stations outrank every individual drill. Both go
-       through enter() so the state is honest: the squad counters and the operator readout read it,
+       through transition() so the state is honest: the squad counters and the operator readout read it,
        and a man coming off a retreat re-decides instead of resuming a stale firefight state. */
     if (s.squad && s.squad.state === 'retreat') {
-      enter(s, battle, 'withdraw', 0, 'squad withdrawing');
+      transition(s, battle, 'withdraw', 0, 'squad withdrawing');
       return withdraw(s, battle);
     }
     if (root.BattleTacticalPositions && root.BattleTacticalPositions.update(s, battle)) {
-      enter(s, battle, 'station', 0, 'firing station');
+      transition(s, battle, 'station', 0, 'firing station');
       return station(s, battle);
     }
 
@@ -955,7 +1058,7 @@
     s.setUp = false;
     if (orderedBound(s, battle)) return;
     if (s.target) {
-      enter(s, battle, 'orient', reactTime(s, battle), 'contact');
+      transition(s, battle, 'orient', reactTime(s, battle), 'contact');
       return orient(s, battle);
     }
     /* Frozen by what he just saw (a friend down beside him, the leader falling): still and down on one
@@ -979,7 +1082,7 @@
     var e = state(s);
     s.state = 'engage';
     if (!s.target) {
-      enter(s, battle, 'alert', ALERT_HOLD, 'target lost');
+      transition(s, battle, 'alert', ALERT_HOLD, 'target lost');
       return alert(s, battle);
     }
     holdPosition(s, battle);
@@ -995,7 +1098,7 @@
       p = posOf(s),
       target = s.target;
     if (!target) {
-      enter(s, battle, 'alert', ALERT_HOLD, 'no target');
+      transition(s, battle, 'alert', ALERT_HOLD, 'no target');
       return;
     }
     var d = dist(p.x, p.z, posOf(target).x, posOf(target).z),
@@ -1004,11 +1107,11 @@
     var suppressed = s.suppressedUntil > battle.time;
 
     if (suppressed && here > OPEN_COVER && PRONE_ROLES[s.role]) {
-      enter(s, battle, 'pinned', 0, 'pinned in the open');
+      transition(s, battle, 'pinned', 0, 'pinned in the open');
       return pinned(s, battle);
     }
     if (here <= USEFUL_COVER) {
-      enter(s, battle, 'engage', 0, why + ': cover here');
+      transition(s, battle, 'engage', 0, why + ': cover here');
       return engage(s, battle);
     }
 
@@ -1022,7 +1125,7 @@
     });
     if (cover) {
       e.cover = cover;
-      enter(
+      transition(
         s,
         battle,
         'bound',
@@ -1043,7 +1146,7 @@
     }
     /* Nothing to hide behind. Closing the distance is only sane with an order to do it; otherwise
        go to ground and shoot from where he is. */
-    enter(s, battle, 'engage', 0, why + ': fight from the open');
+    transition(s, battle, 'engage', 0, why + ': fight from the open');
     return engage(s, battle);
   }
 
@@ -1079,7 +1182,7 @@
     if (d <= (cover.slotId ? 0.35 : COVER_ARRIVED)) {
       if (root.BattleMovementProgress) root.BattleMovementProgress.clearFailuresNear(s, battle, cover);
       holdPosition(s, battle);
-      enter(s, battle, 'engage', 0, 'reached cover');
+      transition(s, battle, 'engage', 0, 'reached cover');
       return engage(s, battle);
     }
     /* A bound is a dash with its own window (enter: distance over speed plus slack). One that
@@ -1106,14 +1209,14 @@
     s.state = 'engage';
     if (orderedBound(s, battle)) return;
     if (!s.target) {
-      enter(s, battle, 'alert', ALERT_HOLD, 'target lost');
+      transition(s, battle, 'alert', ALERT_HOLD, 'target lost');
       return alert(s, battle);
     }
     var suppressed = s.suppressedUntil > battle.time,
       F = field(),
       here = F ? F.coverPotentialAt(battle.obstacles, p.x, p.z) : 1;
     if (suppressed && here > OPEN_COVER && PRONE_ROLES[s.role]) {
-      enter(s, battle, 'pinned', 0, 'pinned');
+      transition(s, battle, 'pinned', 0, 'pinned');
       return pinned(s, battle);
     }
 
@@ -1141,7 +1244,7 @@
     if (s.suppressedUntil - battle.time < 0.4) tryFire(s, battle);
     if (s.suppressedUntil <= battle.time) {
       if (!s.target) {
-        enter(s, battle, 'alert', ALERT_HOLD, 'suppression lifted, no target');
+        transition(s, battle, 'alert', ALERT_HOLD, 'suppression lifted, no target');
         return alert(s, battle);
       }
       decide(s, battle, 'suppression lifted');
@@ -1157,14 +1260,14 @@
        the window lapses, or recovery reports it unreachable. Only a rush that never had a
        live target/goal falls back to alert. */
     if ((!s.target || s.target.dead) && !e.assaultGoal) {
-      enter(s, battle, 'alert', ALERT_HOLD, 'target lost before rush');
+      transition(s, battle, 'alert', ALERT_HOLD, 'target lost before rush');
       return alert(s, battle);
     }
     if (s._movementGoalUnreachable) {
       s._movementGoalUnreachable = false;
       if (root.BattleMovementProgress && e.assaultGoal)
         root.BattleMovementProgress.noteFailure(s, battle, e.assaultGoal, 'assault-unreachable');
-      enter(s, battle, 'engage', 0, 'assault unreachable');
+      transition(s, battle, 'engage', 0, 'assault unreachable');
       return engage(s, battle);
     }
     var p = posOf(s),
@@ -1174,14 +1277,14 @@
     commitStance(s, battle, 'crouch', Math.max(1, e.until - battle.time));
     if (!e.assaultGoal) {
       if (!t) {
-        enter(s, battle, 'alert', ALERT_HOLD, 'assault target unavailable');
+        transition(s, battle, 'alert', ALERT_HOLD, 'assault target unavailable');
         return alert(s, battle);
       }
       e.assaultGoal = { x: p.x + (t.x - p.x) * 0.55, z: p.z + (t.z - p.z) * 0.55 };
     }
     var arrived = Math.hypot(p.x - e.assaultGoal.x, p.z - e.assaultGoal.z) <= BOUND_ARRIVED;
     if (arrived || d < 12 || battle.time >= e.until) {
-      enter(s, battle, 'engage', 0, 'assault complete');
+      transition(s, battle, 'engage', 0, 'assault complete');
       return engage(s, battle);
     }
     s._combatUrgentUntil = battle.time + 0.5;
@@ -1197,7 +1300,7 @@
     s.setUp = false;
     if (orderedBound(s, battle)) return;
     if (s.target) {
-      enter(s, battle, 'orient', reactTime(s, battle) * 0.6, 're-acquired');
+      transition(s, battle, 'orient', reactTime(s, battle) * 0.6, 're-acquired');
       return orient(s, battle);
     }
     holdPosition(s, battle);
@@ -1218,7 +1321,7 @@
       e.threatSector = null;
       s._faceHint = null;
       e.suppressOrder = false;
-      enter(s, battle, 'advance', 0, 'sector clear');
+      transition(s, battle, 'advance', 0, 'sector clear');
     }
   }
 
@@ -1446,6 +1549,9 @@
   };
 
   root.BattleEngagement = {
+    states: STATES,
+    stateRequests: REQUESTS,
+    requestState: requestState,
     extend: EXT.attach,
     extensionOrder: EXT.order,
     updateSoldier: updateSoldier,

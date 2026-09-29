@@ -131,9 +131,7 @@
     s.setUp = false;
     if (s._movementResolver) s._movementResolver.combat = null;
     if (s.eng && s.eng.state === 'station') {
-      s.eng.state = 'advance';
-      s.eng.cover = null;
-      s.eng.setUpSince = 0;
+      root.BattleEngagement.requestState(s, sim, 'station-release');
     }
     emit(sim, 'released', t, { reason: reason, lifetime: t.lifetime });
     return true;
