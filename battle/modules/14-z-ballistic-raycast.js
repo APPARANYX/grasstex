@@ -120,6 +120,8 @@
     if (root.SquadAI.isMachineGun(shooter) && shooter.setUp) sigma *= 0.72;
     /* A wounded man shoots worse (the wound model sets it: an arm hit most of all). */
     if (shooter.woundSigma > 1) sigma *= shooter.woundSigma;
+    /* A frightened man shoots wider too (soldier condition, module 17). */
+    if (root.BattleSoldierMind) sigma *= root.BattleSoldierMind.aimSigma(shooter);
     /* Muzzle climb: each later round of a burst lands wider; a bipod on the ground holds half of it. */
     if (round > 0 && stats.burstClimb > 0)
       sigma *= 1 + round * stats.burstClimb * (shooter.setUp || shooter.prone ? 0.5 : 1);

@@ -606,8 +606,9 @@
     roundGate: ['ammunition'], // before each further round of an automatic burst: still loaded, not stopped
     afterShot: ['ammunition'], // a round left the weapon: ammo, heat, stoppages
     squadCommand: ['squad-leader'], // the squad's command owner; without one a squad only reports status
-    beforeSoldier: ['sidearm', 'weapon-cycle'], // each soldier AI tick, before perception
-    afterSoldier: ['weapon-cycle'] // after engagement and movement resolution
+    beforeSoldier: ['soldier-mind', 'sidearm', 'weapon-cycle'], // each soldier AI tick, before perception
+    afterSoldier: ['weapon-cycle'], // after engagement and movement resolution
+    aimedAt: ['soldier-mind'] // a trigger pull had this man as its target: (victim, battle, {from, rounds, d})
   });
 
   /* One trigger pull. Semi-automatic and bolt-action weapons fire one round; an automatic weapon
@@ -1098,6 +1099,8 @@
       shot(soldier, target, battle, round, delay);
     });
     soldier.fireCooldown = triggerCooldown(stats, rounds, battle, 1, d);
+    /* The man on the receiving end is told after the burst, so nothing here can change what the burst did. */
+    if (rounds > 0) EXT.run('aimedAt', target, battle, { from: soldier, rounds: rounds, d: d });
     return true;
   }
 
