@@ -649,8 +649,7 @@
   }
   function markCatchup(ca, t) {
     for (var i = 0; i < ca.members.length; i++) {
-      var s = ca.members[i];
-      s._destinationCommitUntil = 0;
+      if (root.BattleMovementResolver) root.BattleMovementResolver.releaseCommit(ca.members[i]);
     }
   }
   function endRegroup(sim, sq, reason) {
@@ -1329,6 +1328,10 @@
     sq.aliveCount = 0;
     sq.leaderId = null;
   }
+  // A man's regroup-unstick record ends (stepMovement: he recovered, the lease ended or he died).
+  function endUnstick(s) {
+    s._regroupUnstick = null;
+  }
   // The General has re-selected a brief: the request that woke it is answered.
   function acknowledgeRequest(sq) {
     sq._macroMissionRequest = null;
@@ -1641,6 +1644,7 @@
     reform: reform,
     disband: disband,
     acknowledgeRequest: acknowledgeRequest,
+    endUnstick: endUnstick,
     teamKeyFor: teamKeyFor,
     placeAtSlots: placeAtSlots,
     executeMission: executeMission

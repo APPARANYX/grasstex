@@ -7,7 +7,6 @@
     "restart-reset": "Restart: BattleSim.restart sweeps every soldier and squad through the module reset hooks.",
     "nav-invalidate": "Invalidates Navigation's cached path by hand after moving a soldier or his destination. Each cache records its goal and world version, so the reader that uses it could reject a stale entry itself.",
     "resolver-fallback": "Only when BattleMovementResolver is absent (isolated unit harness); production loads the resolver before any AI tick.",
-    "station-claim-reset": "Claiming or releasing a firing station wipes the soldier's Engagement record by hand. requestState('station-release') already exists for the release; the claim has no Engagement call.",
     "engagement-fallback": "no-Engagement fallback (fallbackBehavior): only runs when engagement.js failed to load, so a broken deployment still fights.",
     "squad-status-fallback": "Status-only squadStatus: runs only when no squadCommand owner is attached; the Squad Leader replaces it."
   },
@@ -216,11 +215,6 @@
           "as": "owner",
           "why": "resolve stamps the commit window (ORDER_COMMIT) whenever it writes the destination."
         },
-        "modules/16-squad-plan-stability.js": {
-          "as": "debt",
-          "why": "markCatchup zeroes the resolver's commit window; proposeOrder already takes an urgent flag for that.",
-          "fix": "unscheduled"
-        },
         "squad-ai.js": {
           "as": "fallback",
           "why": "resolver-fallback"
@@ -233,11 +227,6 @@
         "engagement.js": {
           "as": "owner",
           "why": "alert, station and resetSoldier set and clear the look direction."
-        },
-        "modules/20-building-hardpoints.js": {
-          "as": "debt",
-          "why": "station-claim-reset",
-          "fix": "unscheduled"
         },
         "modules/44-combat-urgency.js": {
           "as": "slot",
@@ -255,44 +244,6 @@
         "modules/21-defender-engineers.js": {
           "as": "setup",
           "why": "garrison-setup"
-        }
-      }
-    },
-    "soldier._movementGoalUnreachable": {
-      "owner": "modules/52-survival-tactical-route.js",
-      "writers": {
-        "modules/52-survival-tactical-route.js": {
-          "as": "owner",
-          "why": "observe raises it when recovery judges the goal unreachable; resetEpisode and the sweep clear it."
-        },
-        "engagement.js": {
-          "as": "debt",
-          "why": "bound and assault read the flag and clear it. A recovery episode id compared by the reader would leave one writer.",
-          "fix": "unscheduled"
-        },
-        "modules/20-building-hardpoints.js": {
-          "as": "debt",
-          "why": "update reads the flag and clears it (same handshake).",
-          "fix": "unscheduled"
-        },
-        "movement-resolver.js": {
-          "as": "debt",
-          "why": "resolve clears it when it falls back to a formation pick (same handshake).",
-          "fix": "unscheduled"
-        }
-      }
-    },
-    "soldier._movementResolver": {
-      "owner": "movement-resolver.js",
-      "writers": {
-        "movement-resolver.js": {
-          "as": "owner",
-          "why": "The resolver's per-soldier record."
-        },
-        "modules/20-building-hardpoints.js": {
-          "as": "debt",
-          "why": "A station claim or release nulls the resolver's combat proposal directly. A clearCombat(s) call on the resolver would keep the writes in one file.",
-          "fix": "unscheduled"
         }
       }
     },
@@ -365,20 +316,6 @@
         "movement-resolver.js": {
           "as": "debt",
           "why": "nav-invalidate",
-          "fix": "unscheduled"
-        }
-      }
-    },
-    "soldier._regroupUnstick": {
-      "owner": "modules/16-squad-plan-stability.js",
-      "writers": {
-        "modules/16-squad-plan-stability.js": {
-          "as": "owner",
-          "why": "updateCohesion creates the record; endRegroup and reset clear it."
-        },
-        "battle-sim.js": {
-          "as": "debt",
-          "why": "stepMovement clears the Squad Leader's regroup-unstick record when it ends recovery or the man dies.",
           "fix": "unscheduled"
         }
       }
@@ -717,31 +654,12 @@
         }
       }
     },
-    "eng.boundOrder": {
-      "owner": "engagement.js",
-      "writers": {
-        "engagement.js": {
-          "as": "owner",
-          "why": "orderedBound / orderBound."
-        },
-        "modules/20-building-hardpoints.js": {
-          "as": "debt",
-          "why": "station-claim-reset",
-          "fix": "unscheduled"
-        }
-      }
-    },
     "eng.cover": {
       "owner": "engagement.js",
       "writers": {
         "engagement.js": {
           "as": "owner",
           "why": "decide, orderedBound, alert, withdraw and the station-release transition."
-        },
-        "modules/20-building-hardpoints.js": {
-          "as": "debt",
-          "why": "station-claim-reset",
-          "fix": "unscheduled"
         },
         "modules/44-combat-urgency.js": {
           "as": "slot",
@@ -772,20 +690,6 @@
         "modules/44-combat-urgency.js": {
           "as": "slot",
           "why": "reactShared (afterDrill slot)."
-        }
-      }
-    },
-    "eng.suppressOrder": {
-      "owner": "engagement.js",
-      "writers": {
-        "engagement.js": {
-          "as": "owner",
-          "why": "alert and orderBound."
-        },
-        "modules/20-building-hardpoints.js": {
-          "as": "debt",
-          "why": "station-claim-reset",
-          "fix": "unscheduled"
         }
       }
     },

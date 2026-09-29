@@ -377,6 +377,7 @@ section('physical wayfinding respects body clearance through hedgerows');
 
   // A legal current position can still be trapped: normal navigation offers no forward step.
   r.BattleLeases=require('./harness').bootstrap({modules:false}).BattleLeases;
+  r.BattleSquadStability={endUnstick(s){s._regroupUnstick=null;}}; // the Squad Leader's word for ending the record
   const regroupSquad={state:'advance',commandPhase:'regroup'},
     escape={id:'regroup-escape',squad:regroupSquad,root:{position:{x:0,y:0,z:0},rotation:{y:0}},
       destination:outside,speed:2.9,fireCooldown:0,_regroupUnstick:{since:0},

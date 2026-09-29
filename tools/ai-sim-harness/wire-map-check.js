@@ -202,9 +202,9 @@ const writers = (kind, field) => (tree[kind][field] || []).slice();
 test('real recall anchors: chained, hopped, deleted and indexed writes are seen', () => {
   const at = (kind, field, file) =>
     assert.ok(writers(kind, field).includes(file), kind + '.' + field + ' must list ' + file);
-  at('eng', 'cover', 'modules/20-building-hardpoints.js');
+  at('eng', 'cover', 'modules/44-combat-urgency.js');
   at('eng', 'fireReadyAt', 'engagement.js');
-  at('soldier', '_movementResolver', 'modules/20-building-hardpoints.js');
+  at('soldier', '_movementResolver', 'movement-resolver.js');
   at('squad', 'captainAlive', 'modules/16-squad-plan-stability.js');
   at('squad', 'aliveCount', 'squad-ai.js');
   at('soldier', '_personalSpaceDestination', 'movement-resolver.js');
