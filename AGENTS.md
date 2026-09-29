@@ -373,7 +373,10 @@ the combat RNG. The sweep stays inside the 60° focus, so his front is never out
 lost the man straight ahead: `run.js` seeds 6 and 23). Tracking a man he already has is not cone-limited. `squad.contact` is the squad's picture: its own
 men's sightings, else a friendly squad's first-hand sighting within 50 m (`relayedFrom`, keeping the
 sighting's `at`, never chained), else enemy gunfire within 120 m (`heard`, the shooter's position off
-by up to 8% of the range, deterministically). Own sightings always replace heard or relayed ones.
+by up to 8% of the range, deterministically). Own sightings always replace heard or relayed ones. Measured 2026-09-29 (`perception` probe, standard seeds 1-4, three types, 600 s): 127 mid-fight
+re-acquisitions, 113 seen, 13 relayed, 1 heard; 81 of 14,844 acquisitions were by a still man whose squad
+knew of nobody (65 front, 13 side, 3 behind). No defect, so `HEAR_RANGE`/`RELAY_RANGE` stay: hearing (120 m)
+sits inside every role's sight range, so it can rarely be the first cue.
 Engagement already turns men and assigns suppressors from `squad.contact`, so both cues bring the
 squad's eyes and rifles onto the threat.
 
@@ -529,10 +532,6 @@ pseudo-backlog. Long-form historical notes remain in git history
   off their slots, slots 4-12 m apart, all `line`), not colliding slots (10 of ~990). No slot-producer
   defect found, so nothing to fix in module 16; a further cut is path/allocation work in module 51 or
   the navigation funnels, and worth doing only against a measured stuck or persistent case.
-- **Perception follow-ups.** Count (`perception` probe) how often heard/relayed word re-acquires a
-  squad that lost sight mid-fight before tuning `HEAR_RANGE`/`RELAY_RANGE`; relay distance is squad
-  centre to squad centre (50 m). Defenders facing one way scan only while holding still with no
-  contact; check whether flanks still go unseen.
 
 **Measured tuning questions — not broken systems**
 
