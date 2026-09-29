@@ -521,9 +521,13 @@ pseudo-backlog. Long-form historical notes remain in git history
   equipped weapon kind rather than `role === 'gunner'`. Models and pistol clips already exist;
   remaining model/weapon seats must be measured in Motion Lab. This changes combat, so benchmark it
   paired.
-- **Personal-space crossings between fireteams.** Corrections are mostly two men on formation slots
-  crossing (75-83% between different fireteams, ~7x more often in the 6 s after a formation or facing
-  change); the `close-pairs` probe measures it. Fix at the Squad Leader that publishes the slots.
+- **Personal-space crossings between fireteams.** Measured 2026-09-29 (`close-pairs`, 3 standard seeds,
+  300 s): 2,392 onsets, 2,238 same-squad, 61 persistent (>1 s). Crossings are **not** elevated after a
+  formation or facing change (3.7% of same-squad onsets in 3.4% of squad time; the old ~7x predates
+  fireteam frontage). Different-fireteam `formation+formation` crossings are men in transit (both >3 m
+  off their slots, slots 4-12 m apart, all `line`), not colliding slots (10 of ~990). No slot-producer
+  defect found, so nothing to fix in module 16; a further cut is path/allocation work in module 51 or
+  the navigation funnels, and worth doing only against a measured stuck or persistent case.
 - **Perception follow-ups.** Count (`perception` probe) how often heard/relayed word re-acquires a
   squad that lost sight mid-fight before tuning `HEAR_RANGE`/`RELAY_RANGE`; relay distance is squad
   centre to squad centre (50 m). Defenders facing one way scan only while holding still with no
