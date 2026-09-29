@@ -31,12 +31,13 @@
     if(!s||!s.root)return;
     try{s.root.setEnabled(!!on);}catch(_){}
   }
-  function neutral(s){
+  function neutral(s,sim){
     if(!s)return;
     s.destination=null;s.target=null;s._faceHint=null;s.moveSpeed=0;s.moving=false;
-    s.reloading=false;s.reloadUntil=0;s.crawling=false;s.prone=false;s.crouching=false;
-    try{if(root.BattleSoldierModel.setProne)root.BattleSoldierModel.setProne(s,false);}catch(_){}
-    try{if(root.BattleSoldierModel.setCrouch)root.BattleSoldierModel.setCrouch(s,false);}catch(_){}
+    s.reloading=false;s.reloadUntil=0;
+    /* Even this presentation-only range respects the shipped stance ownership contract: Engagement
+       is the only writer. The huge hold is harmless because normal AI is disabled in range mode. */
+    try{if(root.BattleEngagement&&root.BattleEngagement.commitStance)root.BattleEngagement.commitStance(s,sim,'stand',1e9);}catch(_){}
   }
   function setup(sim){
     var scene=sim.scene,canvas=scene.getEngine().getRenderingCanvas(),scenario=scene.metadata&&scene.metadata.battleScenario||{},
@@ -54,7 +55,7 @@
     if(!shooter||targets.length<2){console.error('[RANGE] lineup unavailable');return sim;}
 
     var keep=targets.concat([shooter]),all=(sim._roster.us||[]).concat(sim._roster.ge||[]);
-    all.forEach(function(s){setEnabled(s,keep.indexOf(s)>=0);neutral(s);});
+    all.forEach(function(s){setEnabled(s,keep.indexOf(s)>=0);neutral(s,sim);});
     targets.forEach(function(s,i){
       var x=center.x-span/2+(targets.length===1?span/2:i*span/(targets.length-1));
       s.root.position.set(x,baseY,rowZ);s.root.rotation.y=Math.PI;setEnabled(s,true);
