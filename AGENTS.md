@@ -533,13 +533,19 @@ pseudo-backlog. Long-form historical notes remain in git history
 
 **Concrete sim work**
 
+None open. The loadout, sidearm, perception and weapon-seat work shipped (see Loadouts and sidearms and
+Perception); everything left is deferred below, by decision on 2026-09-29.
+
+**Deferred / future — not V1 blockers**
+
+Deferred 2026-09-29, none is a broken system. The first five were open items: sniper roles is a feature
+that waits for models, the next four are measured tuning questions that each need a paired benchmark
+before any effect is claimed.
+
 - **Sniper roles.** Loadouts, MG-by-kind and the sidearm switch are shipped (see Loadouts and
   sidearms). Left: sniper roles (M1903A4 / Kar98k ZF39). They need a model and a weapon seat measured in
   Motion Lab, so they wait for that; the sidearm's pose and grip on the sergeant and gunner models is
   also worth a Motion Lab look once a close fight shows it. Any new role changes combat: benchmark it paired.
-
-**Measured tuning questions — not broken systems**
-
 - **FG 42 balance.** The four-arm benchmark attributed the scout balance shift to the FG 42, not
   the perception cones. Test one lever at a time: Kar98k assignment, shorter practical FG 42 range,
   or wider dispersion/grouping at range. Use the existing `perception=0` / `geScout=carbine`
@@ -555,9 +561,6 @@ pseudo-backlog. Long-form historical notes remain in git history
 - **Movement tolerance audit.** Cover-bound deadlock: fixed, see `bound-episodes`. Movement Progress still uses a
   3 m arrival band while some destinations require tighter placement; cover has its own bound
   window now. Audit another destination kind only if a real stuck case appears.
-
-**Deferred / future — not V1 blockers**
-
 - **Performance:** the 100-soldier targets are met. Do not restart the audit without a measured
   regression. Startup prebaking of the 10 model FBXs / far-LOD lists is worth at most ~1 s;
   retargeted clip prebaking stays rejected at ~45 MiB. Sim CPU work (Engagement/sight and movement
