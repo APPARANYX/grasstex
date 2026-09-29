@@ -20,7 +20,7 @@ const env = process.env, url = env.WS_URL || 'http://127.0.0.1:8765/grasstex/bat
     const F = window.BattleFbxSoldier, a = F.skinAnchor, p = F.paintSurfaceWound;
     const rec = id => (window.__ws[id] = window.__ws[id] || { events: 0, nullAnchor: 0, painted: 0, paintNull: 0 });
     F.skinAnchor = function (s, pt) { const r = a.apply(this, arguments); const e = rec(s.id); e.events++; if (!r) { e.nullAnchor++; (window.__nulls = window.__nulls || []).push({ id: s.id, dead: !!s.dead, prone: !!s.prone, crawl: !!s.crawling, crouch: !!(s.crouching || s.tacticalCrouch), dy: +(pt.y - (s.position ? s.position.y : 0)).toFixed(2), dh: s.position ? +Math.hypot(pt.x - s.position.x, pt.z - s.position.z).toFixed(2) : null, t: +window.__battle__.time.toFixed(1), hp: s.health }); } return r; };
-    F.paintSurfaceWound = function (an, st, out, dia, ang) { (window.__last = window.__last || {})[an.soldier.id] = [an, st, out, dia, ang]; const t0 = performance.now();  const on = an.mesh.isEnabled(); const r = p.apply(this, arguments); const e = rec(an.soldier.id); e.readyAtPaint = an.mesh._battleSurfaceDamage.renderer.isReady(); e.pending = !!(r && r.pending); if (r) { e.painted++; if (!on) e.paintedWhileCulled = (e.paintedWhileCulled || 0) + 1; } else e.paintNull++; return r; };
+    F.paintSurfaceWound = function (an, st, out, dia, ang) { (window.__last = window.__last || {})[an.soldier.id] = [an, st, out, dia, ang]; const t0 = performance.now();  const on = an.mesh.isEnabled(); const r = p.apply(this, arguments); const e = rec(an.soldier.id); e.readyAtPaint = an.mesh._battleSurfaceDamage.renderer.isReady(); e.pending = !!(r && r.pending); if (r) { const mesh = an.mesh, tk = window.__battle__.time, sid = an.soldier.id, rd = window.__inkRead || (window.__inkRead = []); (window.__seq = window.__seq || []).push({ sid, tk, n: e.painted + 1, pending: !!r.pending, ink: (async () => { const t = mesh._battleSurfaceDamage.renderer.texture; if (!t) return -1; const px = await t.readPixels(); let c = 0; for (let i = 3; i < px.length; i += 4) if (px[i] > 8) c++; return c; })() }); e.painted++; if (!on) e.paintedWhileCulled = (e.paintedWhileCulled || 0) + 1; } else e.paintNull++; return r; };
   });
   await page.getByText('Start battle').first().click().catch(() => {});
   for (;;) {
@@ -42,6 +42,48 @@ const env = process.env, url = env.WS_URL || 'http://127.0.0.1:8765/grasstex/bat
   console.log('nulls', JSON.stringify(await page.evaluate(() => window.__nulls), null, 0));
   const dead = rows.filter(r => r.dead);
   console.log('paints total', rows.reduce((n, r) => n + r.painted, 0), 'while culled', rows.reduce((n, r) => n + r.paintedWhileCulled, 0), 'soldiers with every paint culled', rows.filter(r => r.painted && r.paintedWhileCulled === r.painted).length, 'of', rows.filter(r => r.painted).length);
+  await page.waitForTimeout(1500); console.log('rendertrace', JSON.stringify(await page.evaluate(() => { const bySid = {}; (window.__pt || []).forEach(x => (bySid[x.sid] = bySid[x.sid] || []).push((x.dead ? 'D' : 'a') + x.idx + ':' + (x.ink == null ? '?' : x.ink) + (x.ink2 != null ? '>' + x.ink2 : ''))); return Object.values(bySid).slice(0, 25); })));
+  console.log('trace', JSON.stringify(await page.evaluate(() => { const c = {}; (window.__pt || []).forEach(x => c[x.st] = (c[x.st] || 0) + 1); return c; })));
+  if (env.WS_LOOK) {
+    /* A man out of view is painted once he is drawn again, so look at each casualty, then read his map. */
+    let seen = 0, inked = 0, still = [];
+    for (const r of rows.filter(r => r.dead && r.painted)) {
+      await page.evaluate(id => {
+        const b = window.__battle__, s = b._roster.us.concat(b._roster.ge).find(x => x.id === id), cam = b.scene.activeCamera, p = s.root.getAbsolutePosition();
+        cam.setTarget && cam.setTarget(new BABYLON.Vector3(p.x, 0.2, p.z)); if ('alpha' in cam) { cam.beta = 0.35; cam.radius = 6; }
+      }, r.id);
+      await page.waitForTimeout(+(env.WS_LOOK_MS || 500));
+      const ink = await page.evaluate(async id => {
+        const b = window.__battle__, s = b._roster.us.concat(b._roster.ge).find(x => x.id === id); let n = 0;
+        for (const m of s._fbx.meshes) { const d = m._battleSurfaceDamage, t = d && d.renderer && d.renderer.texture; if (!t) continue; const px = await t.readPixels(); for (let i = 3; i < px.length; i += 4) if (px[i] > 8) n++; }
+        return n;
+      }, r.id);
+      seen++; if (ink) inked++; else still.push(r.id);
+    }
+    console.log('after looking at each casualty: with ink', inked, 'of', seen, 'still empty', JSON.stringify(still), JSON.stringify(rows.filter(r => still.includes(r.id))));
+  }
+  if (env.WS_SEQ) {
+    const seq = await page.evaluate(async () => Promise.all(window.__seq.map(async q => ({ sid: q.sid, t: +q.tk.toFixed(1), n: q.n, pending: q.pending, inkRightAfter: await q.ink }))));
+    const bySold = {}; seq.forEach(q => (bySold[q.sid] = bySold[q.sid] || []).push(q));
+    console.log('seq', JSON.stringify(Object.values(bySold).slice(0, 12).map(a => a.map(q => q.n + (q.pending ? 'P' : 's') + ':' + q.inkRightAfter).join(' '))));
+    console.log('paints immediate', seq.filter(q => !q.pending).length, 'deferred', seq.filter(q => q.pending).length, 'immediate with zero ink', seq.filter(q => !q.pending && !q.inkRightAfter).length);
+  }
+  if (env.WS_RETRY) {
+    const res = await page.evaluate(async () => {
+      const F = window.BattleFbxSoldier, out = [];
+      const ink = async m => { const t = m._battleSurfaceDamage.renderer.texture, px = await t.readPixels(); let n = 0; for (let i = 3; i < px.length; i += 4) if (px[i] > 8) n++; return n; };
+      for (const id of Object.keys(window.__last)) {
+        const [an, st, o, dia, ang] = window.__last[id];
+        const before = await ink(an.mesh);
+        if (before) continue;
+        const r0 = F.paintSurfaceWound(an, st, o, dia, ang);
+        await new Promise(r => setTimeout(r, 400));
+        out.push({ id, before, afterRetry: await ink(an.mesh), ready: an.mesh._battleSurfaceDamage.renderer.isReady(), enabled: an.mesh.isEnabled(), dia, pendingRetry: !!(r0 && r0.pending) });
+      }
+      return out;
+    });
+    console.log('retry', JSON.stringify(res));
+  }
   if (env.WS_RETRY) {
     const res = await page.evaluate(async () => {
       const F = window.BattleFbxSoldier, out = [];
@@ -60,7 +102,7 @@ const env = process.env, url = env.WS_URL || 'http://127.0.0.1:8765/grasstex/bat
   }
   const dead0 = rows.filter(r => r.dead);
   console.log('dead with paints but no ink in the map', dead0.filter(r => r.painted && !r.ink).length, 'of', dead0.filter(r => r.painted).length, ' max marks on one man', Math.max(0, ...rows.map(r => r.painted)));
-  console.log('dead', dead.length, 'dead with 0 painted', dead.filter(r => !r.painted).length, 'max painted', Math.max(0, ...rows.map(r => r.painted)));
+  console.log('dead-unpainted', JSON.stringify(dead.filter(r => !r.painted).map(r => ({ id: r.id, role: r.role, events: r.events, nullAnchor: r.nullAnchor, casualty: r.casualty })))); console.log('dead', dead.length, 'dead with 0 painted', dead.filter(r => !r.painted).length, 'max painted', Math.max(0, ...rows.map(r => r.painted)));
   await page.evaluate(() => { window.__battle__.paused = true; document.querySelectorAll('div').forEach(d => { if (/AI LAB/.test(d.textContent) && d.children.length > 5) d.style.display = 'none'; }); });
   for (const r of dead.slice(0, +(env.WS_SHOTS || 6))) {
     await page.evaluate(id => {
