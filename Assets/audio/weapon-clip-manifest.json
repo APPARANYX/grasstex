@@ -10,7 +10,10 @@
     "loudness": "Shots and flybys level on the loudest 100 ms window per MASTERING.md; foley uses the foley target.",
     "keying": "Runtime keys by weapon model (faction + model), not by sim kind, so a Thompson and an M1 Carbine sound different.",
     "voices": "Voice pool per weapon >= ceil(cyclicRpm/60 * maxDurationS) + 2 so a fast MG never steals a playing round.",
-    "format": "48 kHz mono source masters kept outside the repo; ship mono MP3, 128 kbps, no leading silence."
+    "format": "48 kHz mono source masters kept outside the repo; ship mono MP3, 128 kbps, no leading silence.",
+    "generation": "Each clip's \"prompt\" is fed to ElevenLabs Sound Effects (scripts/generate_weapon_sfx.py) one variation at a time; never pitch-shift one generation into several variations. Route stays fetch (into gitignored .runtime/) -> normalize_audio.sh -> register in manifest.json -> commit the MP3s only, same as Assets/audio's existing route.",
+    "impacts": "Impact material keys (impactFlesh/Dirt/Masonry/Wood/Metal/Vegetation) match 15-bullet-impact-fx.js's material()/holeKind() surface classification 1:1, so the runtime can key impact audio off the same decal the hit already picked.",
+    "pathLayout": "Shot/tail clips: weapons/<model>/<action>-NN.mp3 (mastering's smallArms -16 dBFS target, already matched by normalize_audio.sh's */weapons/*.mp3 catch-all). Every other per-weapon action (reload stages, bolt cycle, clip ping, stoppage click/clear, bipod): weapons/foley/<model>-<action>-NN.mp3, same subfolder the existing Sonniss foley pool used, so it keeps the -26 dBFS foley target with no mastering-table change. Shared flyby/impact clips: weapons/shared/<action>-NN.mp3 (-22 dBFS, see normalize_audio.sh)."
   },
   "weapons": {
     "m1-garand": {
@@ -35,7 +38,8 @@
             "weapons/m1-garand/fire-04.mp3",
             "weapons/m1-garand/fire-05.mp3",
             "weapons/m1-garand/fire-06.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII M1 Garand gunshot (.30-06 semi-auto, 8-rd en bloc), close-miked outdoors: one discharge only, no burst, sharp muzzle crack and report, minimal natural room tone, no added echo."
         },
         "fireDistant": {
           "priority": "P1",
@@ -49,7 +53,8 @@
             "weapons/m1-garand/fireDistant-02.mp3",
             "weapons/m1-garand/fireDistant-03.mp3",
             "weapons/m1-garand/fireDistant-04.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII M1 Garand gunshot (.30-06 semi-auto, 8-rd en bloc) heard from roughly 250 meters across open farmland: one discharge only, no burst, attenuated crack-and-thump with natural distance and air absorption, no synthetic reverb added."
         },
         "clipPing": {
           "priority": "P0",
@@ -59,10 +64,11 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1-garand/clipPing-01.mp3",
-            "weapons/m1-garand/clipPing-02.mp3",
-            "weapons/m1-garand/clipPing-03.mp3"
-          ]
+            "weapons/foley/m1-garand-clipPing-01.mp3",
+            "weapons/foley/m1-garand-clipPing-02.mp3",
+            "weapons/foley/m1-garand-clipPing-03.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII M1 Garand: last round of the clip fired (ammo reaches 0): en bloc ejects."
         },
         "reloadClipInsert": {
           "priority": "P0",
@@ -72,10 +78,11 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1-garand/reloadClipInsert-01.mp3",
-            "weapons/m1-garand/reloadClipInsert-02.mp3",
-            "weapons/m1-garand/reloadClipInsert-03.mp3"
-          ]
+            "weapons/foley/m1-garand-reloadClipInsert-01.mp3",
+            "weapons/foley/m1-garand-reloadClipInsert-02.mp3",
+            "weapons/foley/m1-garand-reloadClipInsert-03.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII M1 Garand: reload cycle (2.6s sim reloadTime); stages placed on the reload animation timeline: clip thumbed into the receiver."
         },
         "reloadBoltRelease": {
           "priority": "P0",
@@ -85,10 +92,11 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1-garand/reloadBoltRelease-01.mp3",
-            "weapons/m1-garand/reloadBoltRelease-02.mp3",
-            "weapons/m1-garand/reloadBoltRelease-03.mp3"
-          ]
+            "weapons/foley/m1-garand-reloadBoltRelease-01.mp3",
+            "weapons/foley/m1-garand-reloadBoltRelease-02.mp3",
+            "weapons/foley/m1-garand-reloadBoltRelease-03.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII M1 Garand: end of reload: operating rod slams home."
         },
         "stoppageClick": {
           "priority": "P1",
@@ -98,9 +106,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1-garand/stoppageClick-01.mp3",
-            "weapons/m1-garand/stoppageClick-02.mp3"
-          ]
+            "weapons/foley/m1-garand-stoppageClick-01.mp3",
+            "weapons/foley/m1-garand-stoppageClick-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII M1 Garand: stoppage starts (startStoppage): hammer/striker falls, no bang."
         },
         "stoppageClear": {
           "priority": "P1",
@@ -110,9 +119,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1-garand/stoppageClear-01.mp3",
-            "weapons/m1-garand/stoppageClear-02.mp3"
-          ]
+            "weapons/foley/m1-garand-stoppageClear-01.mp3",
+            "weapons/foley/m1-garand-stoppageClear-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII M1 Garand: stoppage cleared (finishStoppage): op-rod racked."
         }
       }
     },
@@ -138,7 +148,8 @@
             "weapons/kar98k/fire-04.mp3",
             "weapons/kar98k/fire-05.mp3",
             "weapons/kar98k/fire-06.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII Karabiner 98k gunshot (7.92 bolt-action, 5-rd stripper clip), close-miked outdoors: one discharge only, no burst, sharp muzzle crack and report, minimal natural room tone, no added echo."
         },
         "fireDistant": {
           "priority": "P1",
@@ -152,7 +163,8 @@
             "weapons/kar98k/fireDistant-02.mp3",
             "weapons/kar98k/fireDistant-03.mp3",
             "weapons/kar98k/fireDistant-04.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII Karabiner 98k gunshot (7.92 bolt-action, 5-rd stripper clip) heard from roughly 250 meters across open farmland: one discharge only, no burst, attenuated crack-and-thump with natural distance and air absorption, no synthetic reverb added."
         },
         "boltCycle": {
           "priority": "P0",
@@ -162,11 +174,12 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/kar98k/boltCycle-01.mp3",
-            "weapons/kar98k/boltCycle-02.mp3",
-            "weapons/kar98k/boltCycle-03.mp3",
-            "weapons/kar98k/boltCycle-04.mp3"
-          ]
+            "weapons/foley/kar98k-boltCycle-01.mp3",
+            "weapons/foley/kar98k-boltCycle-02.mp3",
+            "weapons/foley/kar98k-boltCycle-03.mp3",
+            "weapons/foley/kar98k-boltCycle-04.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Karabiner 98k: after every shot that leaves ammo > 0, ~0.35 s after fire: bolt up-back-forward-down."
         },
         "reloadBoltOpen": {
           "priority": "P0",
@@ -176,9 +189,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/kar98k/reloadBoltOpen-01.mp3",
-            "weapons/kar98k/reloadBoltOpen-02.mp3"
-          ]
+            "weapons/foley/kar98k-reloadBoltOpen-01.mp3",
+            "weapons/foley/kar98k-reloadBoltOpen-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Karabiner 98k: reload cycle (2.6s sim reloadTime); stages placed on the reload animation timeline: bolt up and back."
         },
         "reloadStripperClip": {
           "priority": "P0",
@@ -188,10 +202,11 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/kar98k/reloadStripperClip-01.mp3",
-            "weapons/kar98k/reloadStripperClip-02.mp3",
-            "weapons/kar98k/reloadStripperClip-03.mp3"
-          ]
+            "weapons/foley/kar98k-reloadStripperClip-01.mp3",
+            "weapons/foley/kar98k-reloadStripperClip-02.mp3",
+            "weapons/foley/kar98k-reloadStripperClip-03.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Karabiner 98k: stripper clip seated and 5 rounds thumbed down."
         },
         "reloadBoltClose": {
           "priority": "P0",
@@ -201,9 +216,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/kar98k/reloadBoltClose-01.mp3",
-            "weapons/kar98k/reloadBoltClose-02.mp3"
-          ]
+            "weapons/foley/kar98k-reloadBoltClose-01.mp3",
+            "weapons/foley/kar98k-reloadBoltClose-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Karabiner 98k: end of reload: bolt forward/down, clip flicks out."
         },
         "stoppageClick": {
           "priority": "P1",
@@ -213,9 +229,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/kar98k/stoppageClick-01.mp3",
-            "weapons/kar98k/stoppageClick-02.mp3"
-          ]
+            "weapons/foley/kar98k-stoppageClick-01.mp3",
+            "weapons/foley/kar98k-stoppageClick-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Karabiner 98k: stoppage starts (startStoppage): hammer/striker falls, no bang."
         },
         "stoppageClear": {
           "priority": "P1",
@@ -225,9 +242,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/kar98k/stoppageClear-01.mp3",
-            "weapons/kar98k/stoppageClear-02.mp3"
-          ]
+            "weapons/foley/kar98k-stoppageClear-01.mp3",
+            "weapons/foley/kar98k-stoppageClear-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Karabiner 98k: stoppage cleared: bolt worked hard (may reuse a slower boltCycle take)."
         }
       }
     },
@@ -253,7 +271,8 @@
             "weapons/m1-carbine/fire-04.mp3",
             "weapons/m1-carbine/fire-05.mp3",
             "weapons/m1-carbine/fire-06.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII M1 Carbine gunshot (.30 Carbine semi-auto, 15-rd box), close-miked outdoors: one discharge only, no burst, sharp muzzle crack and report, minimal natural room tone, no added echo."
         },
         "fireDistant": {
           "priority": "P1",
@@ -267,7 +286,8 @@
             "weapons/m1-carbine/fireDistant-02.mp3",
             "weapons/m1-carbine/fireDistant-03.mp3",
             "weapons/m1-carbine/fireDistant-04.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII M1 Carbine gunshot (.30 Carbine semi-auto, 15-rd box) heard from roughly 250 meters across open farmland: one discharge only, no burst, attenuated crack-and-thump with natural distance and air absorption, no synthetic reverb added."
         },
         "reloadMagOut": {
           "priority": "P0",
@@ -277,9 +297,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1-carbine/reloadMagOut-01.mp3",
-            "weapons/m1-carbine/reloadMagOut-02.mp3"
-          ]
+            "weapons/foley/m1-carbine-reloadMagOut-01.mp3",
+            "weapons/foley/m1-carbine-reloadMagOut-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII M1 Carbine: reload cycle (2.25s sim reloadTime); stages placed on the reload animation timeline: mag release + mag out."
         },
         "reloadMagIn": {
           "priority": "P0",
@@ -289,10 +310,11 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1-carbine/reloadMagIn-01.mp3",
-            "weapons/m1-carbine/reloadMagIn-02.mp3",
-            "weapons/m1-carbine/reloadMagIn-03.mp3"
-          ]
+            "weapons/foley/m1-carbine-reloadMagIn-01.mp3",
+            "weapons/foley/m1-carbine-reloadMagIn-02.mp3",
+            "weapons/foley/m1-carbine-reloadMagIn-03.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII M1 Carbine: new magazine seated."
         },
         "reloadCharge": {
           "priority": "P0",
@@ -302,9 +324,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1-carbine/reloadCharge-01.mp3",
-            "weapons/m1-carbine/reloadCharge-02.mp3"
-          ]
+            "weapons/foley/m1-carbine-reloadCharge-01.mp3",
+            "weapons/foley/m1-carbine-reloadCharge-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII M1 Carbine: end of reload: operating slide pulled and released."
         },
         "stoppageClick": {
           "priority": "P1",
@@ -314,9 +337,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1-carbine/stoppageClick-01.mp3",
-            "weapons/m1-carbine/stoppageClick-02.mp3"
-          ]
+            "weapons/foley/m1-carbine-stoppageClick-01.mp3",
+            "weapons/foley/m1-carbine-stoppageClick-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII M1 Carbine: stoppage starts (startStoppage): hammer/striker falls, no bang."
         },
         "stoppageClear": {
           "priority": "P1",
@@ -326,9 +350,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1-carbine/stoppageClear-01.mp3",
-            "weapons/m1-carbine/stoppageClear-02.mp3"
-          ]
+            "weapons/foley/m1-carbine-stoppageClear-01.mp3",
+            "weapons/foley/m1-carbine-stoppageClear-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII M1 Carbine: stoppage cleared: slide racked."
         }
       }
     },
@@ -356,7 +381,8 @@
             "weapons/thompson/fire-06.mp3",
             "weapons/thompson/fire-07.mp3",
             "weapons/thompson/fire-08.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII Thompson M1A1 gunshot (.45 ACP SMG, 20/30-rd box, open bolt), close-miked outdoors: one discharge only, no burst, sharp muzzle crack and report, minimal natural room tone, no added echo."
         },
         "fireDistant": {
           "priority": "P1",
@@ -370,7 +396,8 @@
             "weapons/thompson/fireDistant-02.mp3",
             "weapons/thompson/fireDistant-03.mp3",
             "weapons/thompson/fireDistant-04.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII Thompson M1A1 gunshot (.45 ACP SMG, 20/30-rd box, open bolt) heard from roughly 250 meters across open farmland: one discharge only, no burst, attenuated crack-and-thump with natural distance and air absorption, no synthetic reverb added."
         },
         "fireTail": {
           "priority": "P1",
@@ -384,7 +411,8 @@
             "weapons/thompson/fireTail-01.mp3",
             "weapons/thompson/fireTail-02.mp3",
             "weapons/thompson/fireTail-03.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. The trailing open-field echo and decay only of a WWII Thompson M1A1 gunshot report, no attack transient, natural reverberation rolling off across farmland and low hills."
         },
         "reloadMagOut": {
           "priority": "P0",
@@ -394,9 +422,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/thompson/reloadMagOut-01.mp3",
-            "weapons/thompson/reloadMagOut-02.mp3"
-          ]
+            "weapons/foley/thompson-reloadMagOut-01.mp3",
+            "weapons/foley/thompson-reloadMagOut-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Thompson M1A1: reload cycle (2.25s sim reloadTime); stages placed on the reload animation timeline: mag release + stick mag out."
         },
         "reloadMagIn": {
           "priority": "P0",
@@ -406,10 +435,11 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/thompson/reloadMagIn-01.mp3",
-            "weapons/thompson/reloadMagIn-02.mp3",
-            "weapons/thompson/reloadMagIn-03.mp3"
-          ]
+            "weapons/foley/thompson-reloadMagIn-01.mp3",
+            "weapons/foley/thompson-reloadMagIn-02.mp3",
+            "weapons/foley/thompson-reloadMagIn-03.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Thompson M1A1: stick magazine seated."
         },
         "reloadCharge": {
           "priority": "P0",
@@ -419,9 +449,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/thompson/reloadCharge-01.mp3",
-            "weapons/thompson/reloadCharge-02.mp3"
-          ]
+            "weapons/foley/thompson-reloadCharge-01.mp3",
+            "weapons/foley/thompson-reloadCharge-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Thompson M1A1: end of reload: cocking knob pulled back."
         },
         "stoppageClick": {
           "priority": "P1",
@@ -431,9 +462,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/thompson/stoppageClick-01.mp3",
-            "weapons/thompson/stoppageClick-02.mp3"
-          ]
+            "weapons/foley/thompson-stoppageClick-01.mp3",
+            "weapons/foley/thompson-stoppageClick-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Thompson M1A1: stoppage starts (startStoppage): hammer/striker falls, no bang."
         },
         "stoppageClear": {
           "priority": "P1",
@@ -443,9 +475,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/thompson/stoppageClear-01.mp3",
-            "weapons/thompson/stoppageClear-02.mp3"
-          ]
+            "weapons/foley/thompson-stoppageClear-01.mp3",
+            "weapons/foley/thompson-stoppageClear-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Thompson M1A1: stoppage cleared: bolt pulled back."
         }
       }
     },
@@ -473,7 +506,8 @@
             "weapons/fg42/fire-06.mp3",
             "weapons/fg42/fire-07.mp3",
             "weapons/fg42/fire-08.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII FG 42 gunshot (7.92 select-fire, 20-rd side mag), close-miked outdoors: one discharge only, no burst, sharp muzzle crack and report, minimal natural room tone, no added echo."
         },
         "fireDistant": {
           "priority": "P1",
@@ -487,7 +521,8 @@
             "weapons/fg42/fireDistant-02.mp3",
             "weapons/fg42/fireDistant-03.mp3",
             "weapons/fg42/fireDistant-04.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII FG 42 gunshot (7.92 select-fire, 20-rd side mag) heard from roughly 250 meters across open farmland: one discharge only, no burst, attenuated crack-and-thump with natural distance and air absorption, no synthetic reverb added."
         },
         "fireTail": {
           "priority": "P1",
@@ -501,7 +536,8 @@
             "weapons/fg42/fireTail-01.mp3",
             "weapons/fg42/fireTail-02.mp3",
             "weapons/fg42/fireTail-03.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. The trailing open-field echo and decay only of a WWII FG 42 gunshot report, no attack transient, natural reverberation rolling off across farmland and low hills."
         },
         "reloadMagOut": {
           "priority": "P0",
@@ -511,9 +547,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/fg42/reloadMagOut-01.mp3",
-            "weapons/fg42/reloadMagOut-02.mp3"
-          ]
+            "weapons/foley/fg42-reloadMagOut-01.mp3",
+            "weapons/foley/fg42-reloadMagOut-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII FG 42: reload cycle (2.25s sim reloadTime); stages placed on the reload animation timeline: side magazine out."
         },
         "reloadMagIn": {
           "priority": "P0",
@@ -523,10 +560,11 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/fg42/reloadMagIn-01.mp3",
-            "weapons/fg42/reloadMagIn-02.mp3",
-            "weapons/fg42/reloadMagIn-03.mp3"
-          ]
+            "weapons/foley/fg42-reloadMagIn-01.mp3",
+            "weapons/foley/fg42-reloadMagIn-02.mp3",
+            "weapons/foley/fg42-reloadMagIn-03.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII FG 42: side magazine seated."
         },
         "reloadCharge": {
           "priority": "P0",
@@ -536,9 +574,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/fg42/reloadCharge-01.mp3",
-            "weapons/fg42/reloadCharge-02.mp3"
-          ]
+            "weapons/foley/fg42-reloadCharge-01.mp3",
+            "weapons/foley/fg42-reloadCharge-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII FG 42: end of reload: charging handle back."
         },
         "stoppageClick": {
           "priority": "P1",
@@ -548,9 +587,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/fg42/stoppageClick-01.mp3",
-            "weapons/fg42/stoppageClick-02.mp3"
-          ]
+            "weapons/foley/fg42-stoppageClick-01.mp3",
+            "weapons/foley/fg42-stoppageClick-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII FG 42: stoppage starts (startStoppage): hammer/striker falls, no bang."
         },
         "stoppageClear": {
           "priority": "P1",
@@ -560,9 +600,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/fg42/stoppageClear-01.mp3",
-            "weapons/fg42/stoppageClear-02.mp3"
-          ]
+            "weapons/foley/fg42-stoppageClear-01.mp3",
+            "weapons/foley/fg42-stoppageClear-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII FG 42: stoppage cleared: bolt pulled back."
         }
       }
     },
@@ -590,7 +631,8 @@
             "weapons/mp40/fire-06.mp3",
             "weapons/mp40/fire-07.mp3",
             "weapons/mp40/fire-08.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII MP 40 gunshot (9 mm SMG, 32-rd stick, open bolt), close-miked outdoors: one discharge only, no burst, sharp muzzle crack and report, minimal natural room tone, no added echo."
         },
         "fireDistant": {
           "priority": "P1",
@@ -604,7 +646,8 @@
             "weapons/mp40/fireDistant-02.mp3",
             "weapons/mp40/fireDistant-03.mp3",
             "weapons/mp40/fireDistant-04.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII MP 40 gunshot (9 mm SMG, 32-rd stick, open bolt) heard from roughly 250 meters across open farmland: one discharge only, no burst, attenuated crack-and-thump with natural distance and air absorption, no synthetic reverb added."
         },
         "fireTail": {
           "priority": "P1",
@@ -618,7 +661,8 @@
             "weapons/mp40/fireTail-01.mp3",
             "weapons/mp40/fireTail-02.mp3",
             "weapons/mp40/fireTail-03.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. The trailing open-field echo and decay only of a WWII MP 40 gunshot report, no attack transient, natural reverberation rolling off across farmland and low hills."
         },
         "reloadMagOut": {
           "priority": "P0",
@@ -628,9 +672,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mp40/reloadMagOut-01.mp3",
-            "weapons/mp40/reloadMagOut-02.mp3"
-          ]
+            "weapons/foley/mp40-reloadMagOut-01.mp3",
+            "weapons/foley/mp40-reloadMagOut-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MP 40: reload cycle (2.25s sim reloadTime); stages placed on the reload animation timeline: stick magazine out."
         },
         "reloadMagIn": {
           "priority": "P0",
@@ -640,10 +685,11 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mp40/reloadMagIn-01.mp3",
-            "weapons/mp40/reloadMagIn-02.mp3",
-            "weapons/mp40/reloadMagIn-03.mp3"
-          ]
+            "weapons/foley/mp40-reloadMagIn-01.mp3",
+            "weapons/foley/mp40-reloadMagIn-02.mp3",
+            "weapons/foley/mp40-reloadMagIn-03.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MP 40: stick magazine seated."
         },
         "reloadCharge": {
           "priority": "P0",
@@ -653,9 +699,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mp40/reloadCharge-01.mp3",
-            "weapons/mp40/reloadCharge-02.mp3"
-          ]
+            "weapons/foley/mp40-reloadCharge-01.mp3",
+            "weapons/foley/mp40-reloadCharge-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MP 40: end of reload: bolt handle back into safety notch."
         },
         "stoppageClick": {
           "priority": "P1",
@@ -665,9 +712,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mp40/stoppageClick-01.mp3",
-            "weapons/mp40/stoppageClick-02.mp3"
-          ]
+            "weapons/foley/mp40-stoppageClick-01.mp3",
+            "weapons/foley/mp40-stoppageClick-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MP 40: stoppage starts (startStoppage): hammer/striker falls, no bang."
         },
         "stoppageClear": {
           "priority": "P1",
@@ -677,9 +725,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mp40/stoppageClear-01.mp3",
-            "weapons/mp40/stoppageClear-02.mp3"
-          ]
+            "weapons/foley/mp40-stoppageClear-01.mp3",
+            "weapons/foley/mp40-stoppageClear-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MP 40: stoppage cleared: bolt pulled back."
         }
       }
     },
@@ -709,7 +758,8 @@
             "weapons/m1919a6/fire-08.mp3",
             "weapons/m1919a6/fire-09.mp3",
             "weapons/m1919a6/fire-10.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII Browning M1919A6 gunshot (.30-06 belt-fed LMG, closed bolt), close-miked outdoors: one discharge only, no burst, sharp muzzle crack and report, minimal natural room tone, no added echo."
         },
         "fireDistant": {
           "priority": "P1",
@@ -723,7 +773,8 @@
             "weapons/m1919a6/fireDistant-02.mp3",
             "weapons/m1919a6/fireDistant-03.mp3",
             "weapons/m1919a6/fireDistant-04.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII Browning M1919A6 gunshot (.30-06 belt-fed LMG, closed bolt) heard from roughly 250 meters across open farmland: one discharge only, no burst, attenuated crack-and-thump with natural distance and air absorption, no synthetic reverb added."
         },
         "fireTail": {
           "priority": "P1",
@@ -737,7 +788,8 @@
             "weapons/m1919a6/fireTail-01.mp3",
             "weapons/m1919a6/fireTail-02.mp3",
             "weapons/m1919a6/fireTail-03.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. The trailing open-field echo and decay only of a WWII Browning M1919A6 gunshot report, no attack transient, natural reverberation rolling off across farmland and low hills."
         },
         "reloadCoverOpen": {
           "priority": "P0",
@@ -747,9 +799,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1919a6/reloadCoverOpen-01.mp3",
-            "weapons/m1919a6/reloadCoverOpen-02.mp3"
-          ]
+            "weapons/foley/m1919a6-reloadCoverOpen-01.mp3",
+            "weapons/foley/m1919a6-reloadCoverOpen-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Browning M1919A6: reload cycle (4.4s sim reloadTime); stages placed on the reload animation timeline: feed cover opened."
         },
         "reloadBeltLay": {
           "priority": "P0",
@@ -759,9 +812,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1919a6/reloadBeltLay-01.mp3",
-            "weapons/m1919a6/reloadBeltLay-02.mp3"
-          ]
+            "weapons/foley/m1919a6-reloadBeltLay-01.mp3",
+            "weapons/foley/m1919a6-reloadBeltLay-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Browning M1919A6: belt laid on the feed tray (links rattle)."
         },
         "reloadCoverClose": {
           "priority": "P0",
@@ -771,9 +825,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1919a6/reloadCoverClose-01.mp3",
-            "weapons/m1919a6/reloadCoverClose-02.mp3"
-          ]
+            "weapons/foley/m1919a6-reloadCoverClose-01.mp3",
+            "weapons/foley/m1919a6-reloadCoverClose-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Browning M1919A6: feed cover slammed shut."
         },
         "reloadCharge": {
           "priority": "P0",
@@ -783,9 +838,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1919a6/reloadCharge-01.mp3",
-            "weapons/m1919a6/reloadCharge-02.mp3"
-          ]
+            "weapons/foley/m1919a6-reloadCharge-01.mp3",
+            "weapons/foley/m1919a6-reloadCharge-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Browning M1919A6: end of reload: charging handle cycled."
         },
         "bipodDeploy": {
           "priority": "P1",
@@ -795,9 +851,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1919a6/bipodDeploy-01.mp3",
-            "weapons/m1919a6/bipodDeploy-02.mp3"
-          ]
+            "weapons/foley/m1919a6-bipodDeploy-01.mp3",
+            "weapons/foley/m1919a6-bipodDeploy-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Browning M1919A6: gunner settles prone (backend fx.bipod false -> true)."
         },
         "bipodFold": {
           "priority": "P1",
@@ -807,9 +864,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1919a6/bipodFold-01.mp3",
-            "weapons/m1919a6/bipodFold-02.mp3"
-          ]
+            "weapons/foley/m1919a6-bipodFold-01.mp3",
+            "weapons/foley/m1919a6-bipodFold-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Browning M1919A6: gunner leaves prone (fx.bipod true -> false)."
         },
         "stoppageClick": {
           "priority": "P1",
@@ -819,9 +877,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1919a6/stoppageClick-01.mp3",
-            "weapons/m1919a6/stoppageClick-02.mp3"
-          ]
+            "weapons/foley/m1919a6-stoppageClick-01.mp3",
+            "weapons/foley/m1919a6-stoppageClick-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Browning M1919A6: stoppage starts (startStoppage): hammer/striker falls, no bang."
         },
         "stoppageClear": {
           "priority": "P1",
@@ -831,9 +890,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1919a6/stoppageClear-01.mp3",
-            "weapons/m1919a6/stoppageClear-02.mp3"
-          ]
+            "weapons/foley/m1919a6-stoppageClear-01.mp3",
+            "weapons/foley/m1919a6-stoppageClear-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Browning M1919A6: stoppage cleared: charging handle yanked."
         }
       }
     },
@@ -865,7 +925,8 @@
             "weapons/mg42/fire-10.mp3",
             "weapons/mg42/fire-11.mp3",
             "weapons/mg42/fire-12.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII MG 42 gunshot (7.92 belt-fed GPMG, open bolt), close-miked outdoors: one discharge only, no burst, sharp muzzle crack and report, minimal natural room tone, no added echo."
         },
         "fireDistant": {
           "priority": "P1",
@@ -879,7 +940,8 @@
             "weapons/mg42/fireDistant-02.mp3",
             "weapons/mg42/fireDistant-03.mp3",
             "weapons/mg42/fireDistant-04.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII MG 42 gunshot (7.92 belt-fed GPMG, open bolt) heard from roughly 250 meters across open farmland: one discharge only, no burst, attenuated crack-and-thump with natural distance and air absorption, no synthetic reverb added."
         },
         "fireTail": {
           "priority": "P1",
@@ -893,7 +955,8 @@
             "weapons/mg42/fireTail-01.mp3",
             "weapons/mg42/fireTail-02.mp3",
             "weapons/mg42/fireTail-03.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. The trailing open-field echo and decay only of a WWII MG 42 gunshot report, no attack transient, natural reverberation rolling off across farmland and low hills."
         },
         "reloadCoverOpen": {
           "priority": "P0",
@@ -903,9 +966,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mg42/reloadCoverOpen-01.mp3",
-            "weapons/mg42/reloadCoverOpen-02.mp3"
-          ]
+            "weapons/foley/mg42-reloadCoverOpen-01.mp3",
+            "weapons/foley/mg42-reloadCoverOpen-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MG 42: reload cycle (4.4s sim reloadTime); stages placed on the reload animation timeline: feed cover opened."
         },
         "reloadBeltLay": {
           "priority": "P0",
@@ -915,9 +979,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mg42/reloadBeltLay-01.mp3",
-            "weapons/mg42/reloadBeltLay-02.mp3"
-          ]
+            "weapons/foley/mg42-reloadBeltLay-01.mp3",
+            "weapons/foley/mg42-reloadBeltLay-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MG 42: belt laid on the feed tray (links rattle)."
         },
         "reloadCoverClose": {
           "priority": "P0",
@@ -927,9 +992,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mg42/reloadCoverClose-01.mp3",
-            "weapons/mg42/reloadCoverClose-02.mp3"
-          ]
+            "weapons/foley/mg42-reloadCoverClose-01.mp3",
+            "weapons/foley/mg42-reloadCoverClose-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MG 42: feed cover slammed shut."
         },
         "reloadCharge": {
           "priority": "P0",
@@ -939,9 +1005,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mg42/reloadCharge-01.mp3",
-            "weapons/mg42/reloadCharge-02.mp3"
-          ]
+            "weapons/foley/mg42-reloadCharge-01.mp3",
+            "weapons/foley/mg42-reloadCharge-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MG 42: end of reload: charging handle cycled."
         },
         "bipodDeploy": {
           "priority": "P1",
@@ -951,9 +1018,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mg42/bipodDeploy-01.mp3",
-            "weapons/mg42/bipodDeploy-02.mp3"
-          ]
+            "weapons/foley/mg42-bipodDeploy-01.mp3",
+            "weapons/foley/mg42-bipodDeploy-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MG 42: gunner settles prone (backend fx.bipod false -> true)."
         },
         "bipodFold": {
           "priority": "P1",
@@ -963,9 +1031,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mg42/bipodFold-01.mp3",
-            "weapons/mg42/bipodFold-02.mp3"
-          ]
+            "weapons/foley/mg42-bipodFold-01.mp3",
+            "weapons/foley/mg42-bipodFold-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MG 42: gunner leaves prone (fx.bipod true -> false)."
         },
         "stoppageClick": {
           "priority": "P1",
@@ -975,9 +1044,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mg42/stoppageClick-01.mp3",
-            "weapons/mg42/stoppageClick-02.mp3"
-          ]
+            "weapons/foley/mg42-stoppageClick-01.mp3",
+            "weapons/foley/mg42-stoppageClick-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MG 42: stoppage starts (startStoppage): hammer/striker falls, no bang."
         },
         "stoppageClear": {
           "priority": "P1",
@@ -987,9 +1057,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mg42/stoppageClear-01.mp3",
-            "weapons/mg42/stoppageClear-02.mp3"
-          ]
+            "weapons/foley/mg42-stoppageClear-01.mp3",
+            "weapons/foley/mg42-stoppageClear-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MG 42: stoppage cleared: charging handle yanked."
         },
         "barrelChange": {
           "priority": "P2",
@@ -999,9 +1070,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/mg42/barrelChange-01.mp3",
-            "weapons/mg42/barrelChange-02.mp3"
-          ]
+            "weapons/foley/mg42-barrelChange-01.mp3",
+            "weapons/foley/mg42-barrelChange-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII MG 42: optional: barrel swap if heat model ever triggers one (not wired today)."
         }
       }
     },
@@ -1027,7 +1099,8 @@
             "weapons/m1911a1/fire-04.mp3",
             "weapons/m1911a1/fire-05.mp3",
             "weapons/m1911a1/fire-06.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII Colt M1911A1 gunshot (.45 ACP pistol, 7-rd mag), close-miked outdoors: one discharge only, no burst, sharp muzzle crack and report, minimal natural room tone, no added echo."
         },
         "fireDistant": {
           "priority": "P1",
@@ -1040,7 +1113,8 @@
             "weapons/m1911a1/fireDistant-01.mp3",
             "weapons/m1911a1/fireDistant-02.mp3",
             "weapons/m1911a1/fireDistant-03.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII Colt M1911A1 gunshot (.45 ACP pistol, 7-rd mag) heard from roughly 250 meters across open farmland: one discharge only, no burst, attenuated crack-and-thump with natural distance and air absorption, no synthetic reverb added."
         },
         "reloadMagOut": {
           "priority": "P0",
@@ -1050,9 +1124,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1911a1/reloadMagOut-01.mp3",
-            "weapons/m1911a1/reloadMagOut-02.mp3"
-          ]
+            "weapons/foley/m1911a1-reloadMagOut-01.mp3",
+            "weapons/foley/m1911a1-reloadMagOut-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Colt M1911A1: reload cycle (2.0s sim reloadTime); stages placed on the reload animation timeline: mag release + mag out."
         },
         "reloadMagIn": {
           "priority": "P0",
@@ -1062,10 +1137,11 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1911a1/reloadMagIn-01.mp3",
-            "weapons/m1911a1/reloadMagIn-02.mp3",
-            "weapons/m1911a1/reloadMagIn-03.mp3"
-          ]
+            "weapons/foley/m1911a1-reloadMagIn-01.mp3",
+            "weapons/foley/m1911a1-reloadMagIn-02.mp3",
+            "weapons/foley/m1911a1-reloadMagIn-03.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Colt M1911A1: magazine seated."
         },
         "reloadSlideRelease": {
           "priority": "P0",
@@ -1075,9 +1151,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1911a1/reloadSlideRelease-01.mp3",
-            "weapons/m1911a1/reloadSlideRelease-02.mp3"
-          ]
+            "weapons/foley/m1911a1-reloadSlideRelease-01.mp3",
+            "weapons/foley/m1911a1-reloadSlideRelease-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Colt M1911A1: end of reload: slide drops home."
         },
         "stoppageClick": {
           "priority": "P1",
@@ -1087,9 +1164,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1911a1/stoppageClick-01.mp3",
-            "weapons/m1911a1/stoppageClick-02.mp3"
-          ]
+            "weapons/foley/m1911a1-stoppageClick-01.mp3",
+            "weapons/foley/m1911a1-stoppageClick-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Colt M1911A1: stoppage starts (startStoppage): hammer/striker falls, no bang."
         },
         "stoppageClear": {
           "priority": "P1",
@@ -1099,9 +1177,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/m1911a1/stoppageClear-01.mp3",
-            "weapons/m1911a1/stoppageClear-02.mp3"
-          ]
+            "weapons/foley/m1911a1-stoppageClear-01.mp3",
+            "weapons/foley/m1911a1-stoppageClear-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Colt M1911A1: stoppage cleared: slide racked."
         }
       }
     },
@@ -1127,7 +1206,8 @@
             "weapons/p38/fire-04.mp3",
             "weapons/p38/fire-05.mp3",
             "weapons/p38/fire-06.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII Walther P38 gunshot (9 mm pistol, 8-rd mag), close-miked outdoors: one discharge only, no burst, sharp muzzle crack and report, minimal natural room tone, no added echo."
         },
         "fireDistant": {
           "priority": "P1",
@@ -1140,7 +1220,8 @@
             "weapons/p38/fireDistant-01.mp3",
             "weapons/p38/fireDistant-02.mp3",
             "weapons/p38/fireDistant-03.mp3"
-          ]
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A single WWII Walther P38 gunshot (9 mm pistol, 8-rd mag) heard from roughly 250 meters across open farmland: one discharge only, no burst, attenuated crack-and-thump with natural distance and air absorption, no synthetic reverb added."
         },
         "reloadMagOut": {
           "priority": "P0",
@@ -1150,9 +1231,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/p38/reloadMagOut-01.mp3",
-            "weapons/p38/reloadMagOut-02.mp3"
-          ]
+            "weapons/foley/p38-reloadMagOut-01.mp3",
+            "weapons/foley/p38-reloadMagOut-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Walther P38: reload cycle (2.0s sim reloadTime); stages placed on the reload animation timeline: mag release + mag out."
         },
         "reloadMagIn": {
           "priority": "P0",
@@ -1162,10 +1244,11 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/p38/reloadMagIn-01.mp3",
-            "weapons/p38/reloadMagIn-02.mp3",
-            "weapons/p38/reloadMagIn-03.mp3"
-          ]
+            "weapons/foley/p38-reloadMagIn-01.mp3",
+            "weapons/foley/p38-reloadMagIn-02.mp3",
+            "weapons/foley/p38-reloadMagIn-03.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Walther P38: magazine seated."
         },
         "reloadSlideRelease": {
           "priority": "P0",
@@ -1175,9 +1258,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/p38/reloadSlideRelease-01.mp3",
-            "weapons/p38/reloadSlideRelease-02.mp3"
-          ]
+            "weapons/foley/p38-reloadSlideRelease-01.mp3",
+            "weapons/foley/p38-reloadSlideRelease-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Walther P38: end of reload: slide drops home."
         },
         "stoppageClick": {
           "priority": "P1",
@@ -1187,9 +1271,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/p38/stoppageClick-01.mp3",
-            "weapons/p38/stoppageClick-02.mp3"
-          ]
+            "weapons/foley/p38-stoppageClick-01.mp3",
+            "weapons/foley/p38-stoppageClick-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Walther P38: stoppage starts (startStoppage): hammer/striker falls, no bang."
         },
         "stoppageClear": {
           "priority": "P1",
@@ -1199,9 +1284,10 @@
           "role": "foley",
           "singleShot": false,
           "files": [
-            "weapons/p38/stoppageClear-01.mp3",
-            "weapons/p38/stoppageClear-02.mp3"
-          ]
+            "weapons/foley/p38-stoppageClear-01.mp3",
+            "weapons/foley/p38-stoppageClear-02.mp3"
+          ],
+          "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII Walther P38: stoppage cleared: slide racked."
         }
       }
     }
@@ -1224,7 +1310,8 @@
         "weapons/shared/casingRifle-02.mp3",
         "weapons/shared/casingRifle-03.mp3",
         "weapons/shared/casingRifle-04.mp3"
-      ]
+      ],
+      "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII rifle-calibre brass: per round from rifle-calibre weapons within 25 m of listener, 0.3-0.6 s after fire."
     },
     "casingPistol": {
       "priority": "P1",
@@ -1245,7 +1332,8 @@
         "weapons/shared/casingPistol-02.mp3",
         "weapons/shared/casingPistol-03.mp3",
         "weapons/shared/casingPistol-04.mp3"
-      ]
+      ],
+      "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII pistol-calibre brass: per round from pistol-calibre weapons within 25 m."
     },
     "casingBeltLink": {
       "priority": "P1",
@@ -1263,7 +1351,8 @@
         "weapons/shared/casingBeltLink-02.mp3",
         "weapons/shared/casingBeltLink-03.mp3",
         "weapons/shared/casingBeltLink-04.mp3"
-      ]
+      ],
+      "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. WWII belt-fed brass and disintegrating link: per round from belt-fed weapons within 25 m (brass + link)."
     },
     "crackSupersonic": {
       "priority": "P1",
@@ -1279,7 +1368,8 @@
         "weapons/shared/crackSupersonic-04.mp3",
         "weapons/shared/crackSupersonic-05.mp3",
         "weapons/shared/crackSupersonic-06.mp3"
-      ]
+      ],
+      "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. Supersonic round passes within 8 m of listener (all rifle-calibre + 9 mm), recorded from the listener's position, no gunshot report itself."
     },
     "whizSubsonic": {
       "priority": "P1",
@@ -1293,16 +1383,121 @@
         "weapons/shared/whizSubsonic-02.mp3",
         "weapons/shared/whizSubsonic-03.mp3",
         "weapons/shared/whizSubsonic-04.mp3"
-      ]
+      ],
+      "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. .45 ACP round passes within 5 m of listener, recorded from the listener's position, no gunshot report itself."
     }
   },
   "totals": {
     "byPriority": {
       "P0": 154,
-      "P1": 123,
+      "P1": 153,
       "P2": 2
     },
-    "all": 279,
-    "singleShotClips": 124
+    "all": 309,
+    "singleShotClips": 154
+  },
+  "impacts": {
+    "impactFlesh": {
+      "priority": "P1",
+      "variations": 6,
+      "trigger": "A rifle-calibre bullet striking a body: wet, meaty impact thud, no scream or voice reaction, no gunshot report itself.",
+      "maxDurationS": 0.6,
+      "role": "impact",
+      "singleShot": true,
+      "material": "blood",
+      "files": [
+        "weapons/shared/impactFlesh-01.mp3",
+        "weapons/shared/impactFlesh-02.mp3",
+        "weapons/shared/impactFlesh-03.mp3",
+        "weapons/shared/impactFlesh-04.mp3",
+        "weapons/shared/impactFlesh-05.mp3",
+        "weapons/shared/impactFlesh-06.mp3"
+      ],
+      "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A rifle-calibre bullet striking a body: wet, meaty impact thud, no scream or voice reaction, no gunshot report itself, single strike only, no bystander reaction."
+    },
+    "impactDirt": {
+      "priority": "P1",
+      "variations": 5,
+      "trigger": "A rifle-calibre bullet striking packed dirt or a sandbag: dull thump with a burst of dry soil/grit spray, no gunshot report itself.",
+      "maxDurationS": 0.6,
+      "role": "impact",
+      "singleShot": true,
+      "material": "dirt",
+      "files": [
+        "weapons/shared/impactDirt-01.mp3",
+        "weapons/shared/impactDirt-02.mp3",
+        "weapons/shared/impactDirt-03.mp3",
+        "weapons/shared/impactDirt-04.mp3",
+        "weapons/shared/impactDirt-05.mp3"
+      ],
+      "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A rifle-calibre bullet striking packed dirt or a sandbag: dull thump with a burst of dry soil/grit spray, no gunshot report itself, single strike only, no bystander reaction."
+    },
+    "impactMasonry": {
+      "priority": "P1",
+      "variations": 5,
+      "trigger": "A rifle-calibre bullet striking stone, brick or plaster: sharp crack with a spray of masonry chips and dust, no gunshot report itself.",
+      "maxDurationS": 0.6,
+      "role": "impact",
+      "singleShot": true,
+      "material": "masonry",
+      "files": [
+        "weapons/shared/impactMasonry-01.mp3",
+        "weapons/shared/impactMasonry-02.mp3",
+        "weapons/shared/impactMasonry-03.mp3",
+        "weapons/shared/impactMasonry-04.mp3",
+        "weapons/shared/impactMasonry-05.mp3"
+      ],
+      "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A rifle-calibre bullet striking stone, brick or plaster: sharp crack with a spray of masonry chips and dust, no gunshot report itself, single strike only, no bystander reaction."
+    },
+    "impactWood": {
+      "priority": "P1",
+      "variations": 5,
+      "trigger": "A rifle-calibre bullet striking a wooden door, plank or log: sharp splintering thock, no gunshot report itself.",
+      "maxDurationS": 0.6,
+      "role": "impact",
+      "singleShot": true,
+      "material": "wood",
+      "files": [
+        "weapons/shared/impactWood-01.mp3",
+        "weapons/shared/impactWood-02.mp3",
+        "weapons/shared/impactWood-03.mp3",
+        "weapons/shared/impactWood-04.mp3",
+        "weapons/shared/impactWood-05.mp3"
+      ],
+      "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A rifle-calibre bullet striking a wooden door, plank or log: sharp splintering thock, no gunshot report itself, single strike only, no bystander reaction."
+    },
+    "impactMetal": {
+      "priority": "P1",
+      "variations": 5,
+      "trigger": "A rifle-calibre bullet striking sheet steel or armor plate: bright metallic whang/ricochet ring, no gunshot report itself.",
+      "maxDurationS": 0.6,
+      "role": "impact",
+      "singleShot": true,
+      "material": "metal",
+      "files": [
+        "weapons/shared/impactMetal-01.mp3",
+        "weapons/shared/impactMetal-02.mp3",
+        "weapons/shared/impactMetal-03.mp3",
+        "weapons/shared/impactMetal-04.mp3",
+        "weapons/shared/impactMetal-05.mp3"
+      ],
+      "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A rifle-calibre bullet striking sheet steel or armor plate: bright metallic whang/ricochet ring, no gunshot report itself, single strike only, no bystander reaction."
+    },
+    "impactVegetation": {
+      "priority": "P1",
+      "variations": 4,
+      "trigger": "A rifle-calibre bullet passing through hedge or leaf cover: soft rustling snap through foliage, no gunshot report itself.",
+      "maxDurationS": 0.6,
+      "role": "impact",
+      "singleShot": true,
+      "material": "vegetation",
+      "files": [
+        "weapons/shared/impactVegetation-01.mp3",
+        "weapons/shared/impactVegetation-02.mp3",
+        "weapons/shared/impactVegetation-03.mp3",
+        "weapons/shared/impactVegetation-04.mp3"
+      ],
+      "prompt": "Photorealistic field-recorded Foley, no music, no voices, no electronic or gamey tones. A rifle-calibre bullet passing through hedge or leaf cover: soft rustling snap through foliage, no gunshot report itself, single strike only, no bystander reaction."
+    }
   }
 }
