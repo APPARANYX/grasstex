@@ -131,6 +131,16 @@
     s.weapon.reserveAmmo = total - mag;
     s.weapon.heat = 0;
     s.weapon.jammed = false;
+    if (s.secondary) {
+      var sec = s.secondary,
+        smag = Math.max(1, +sec.magSize || (+sec.stats && +sec.stats.magazine) || 8),
+        stotal = Math.max(smag, (sec.stats && +sec.stats.carried) || LOADOUT.pistol.total);
+      sec.magSize = smag;
+      sec.ammo = smag;
+      sec.reserveAmmo = stotal - smag;
+      sec.heat = 0;
+      sec.jammed = false;
+    }
     s.reloading = false;
     s.reloadUntil = 0;
     s.clearingStoppage = false;

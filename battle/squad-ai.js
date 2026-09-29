@@ -8,13 +8,44 @@
   'use strict';
 
   var ROLES = {
-    /* Squad leaders carried a submachine gun (US Thompson, GE MP40), not a pistol: a sidearm left
-       the leader out of every fight past 25 m. */
-    sergeant: { weapon: 'smg', speed: 3.0, visionRange: 150, hp: 110 },
-    rifleman: { weapon: 'rifle', speed: 2.9, visionRange: 140, hp: 100 },
-    gunner: { weapon: 'lmg', speed: 2.2, visionRange: 150, hp: 100 },
-    scout: { weapon: 'carbine', speed: 3.8, visionRange: 175, hp: 90 }
+    sergeant: { speed: 3.0, visionRange: 150, hp: 110 },
+    rifleman: { speed: 2.9, visionRange: 140, hp: 100 },
+    gunner: { speed: 2.2, visionRange: 150, hp: 100 },
+    scout: { speed: 3.8, visionRange: 175, hp: 90 }
   };
+  /* What a man is issued, kept apart from what he does (ROLES). A loadout names the weapon kind of
+     each slot; `BattleWeapons.issue` turns the kind into the side's own weapon (profile, magSize,
+     carried). Squad leaders carry a submachine gun (US Thompson, GE MP40), not a pistol: a sidearm
+     left the leader out of every fight past 25 m. `loadoutFor` is the only place a role picks a
+     weapon, so a per-man variation (sniper, sidearm) is a new loadout, not a new code path. */
+  var LOADOUTS = {
+    sergeant: { primary: 'smg', secondary: 'pistol' },
+    rifleman: { primary: 'rifle' },
+    gunner: { primary: 'lmg', secondary: 'pistol' },
+    scout: { primary: 'carbine' },
+    engineer: { primary: 'rifle' }
+  };
+  /* A light machine gun is emplaced, fires from a base of fire and takes the suppression job first:
+     what the man carries decides it, not his role. */
+  function isMachineGun(soldier) {
+    return !!(soldier && soldier.weapon && soldier.weapon.kind === 'lmg');
+  }
+  function loadoutFor(role, faction) {
+    var l = LOADOUTS[role] || LOADOUTS.rifleman;
+    return { primary: l.primary, secondary: l.secondary || null };
+  }
+  /* Build a man's weapons from his loadout: the primary he carries out, and a sidearm holstered
+     (hidden, ready for `BattleWeapons.equip`). Both are the side's own weapon for the kind. */
+  function dealLoadout(scene, socket, role, faction) {
+    var l = loadoutFor(role, faction),
+      W = root.BattleWeapons,
+      out = { weapon: W.attachWeapon(scene, socket, l.primary), secondary: null };
+    if (l.secondary) {
+      out.secondary = W.attachWeapon(scene, socket, l.secondary);
+      W.holster(out.secondary);
+    }
+    return out;
+  }
   var COMPOSITION = [
     'sergeant',
     'gunner',
@@ -575,7 +606,7 @@
     roundGate: ['ammunition'], // before each further round of an automatic burst: still loaded, not stopped
     afterShot: ['ammunition'], // a round left the weapon: ammo, heat, stoppages
     squadCommand: ['squad-leader'], // the squad's command owner; without one a squad only reports status
-    beforeSoldier: ['weapon-cycle'], // each soldier AI tick, before perception
+    beforeSoldier: ['sidearm', 'weapon-cycle'], // each soldier AI tick, before perception
     afterSoldier: ['weapon-cycle'] // after engagement and movement resolution
   });
 
@@ -659,7 +690,7 @@
     if (target.prone) acc *= 0.34;
     else if (target.crouching) acc *= 0.6;
     if (target.suppressedUntil > battle.time) acc *= 0.55;
-    if (shooter.role === 'gunner' && shooter.setUp) acc *= 1.25;
+    if (isMachineGun(shooter) && shooter.setUp) acc *= 1.25;
     if (shooter.prone) acc *= 1.12;
     if (shooter.moving) acc *= 0.82;
     var targetPosition = root.BattleTacticalPositions && root.BattleTacticalPositions.current(target);
@@ -861,6 +892,8 @@
     /* Each side carries its own weapon for the kind (Garand or Kar98k, M1919A6 or MG42...). */
     if (opts.weapon && root.BattleWeapons && root.BattleWeapons.issue)
       root.BattleWeapons.issue(opts.weapon, opts.faction);
+    if (opts.secondary && root.BattleWeapons && root.BattleWeapons.issue)
+      root.BattleWeapons.issue(opts.secondary, opts.faction);
     return Object.assign({}, opts.model, {
       id: opts.id,
       faction: opts.faction,
@@ -868,6 +901,7 @@
       squad: opts.squad,
       slotIndex: opts.slotIndex,
       weapon: opts.weapon,
+      secondary: opts.secondary || null,
       hp: role.hp,
       maxHp: role.hp,
       state: 'advance',
@@ -1018,7 +1052,7 @@
       soldier.prone =
         (soldier.role === 'rifleman' || soldier.role === 'gunner') &&
         (d > 80 || soldier.suppressedUntil > battle.time);
-      if (soldier.role === 'gunner') {
+      if (isMachineGun(soldier)) {
         if (!soldier.setUpSince) soldier.setUpSince = battle.time;
         soldier.setUp = battle.time - soldier.setUpSince > GUNNER_SETUP_TIME;
       }
@@ -1073,6 +1107,10 @@
     extend: EXT.attach,
     extensionOrder: EXT.order,
     ROLES: ROLES,
+    LOADOUTS: LOADOUTS,
+    loadoutFor: loadoutFor,
+    dealLoadout: dealLoadout,
+    isMachineGun: isMachineGun,
     COMPOSITION: COMPOSITION,
     createSquad: createSquad,
     createSoldier: createSoldier,

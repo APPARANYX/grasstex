@@ -40,7 +40,6 @@
   function ensureEngineer() {
     if (!root.SquadAI.ROLES.engineer)
       root.SquadAI.ROLES.engineer = {
-        weapon: 'rifle',
         speed: 2.65,
         visionRange: 140,
         engageRange: 130,
