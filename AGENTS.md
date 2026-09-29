@@ -406,7 +406,12 @@ and `mind` probes, six 600 s battles, 216,000 man-seconds, no constants tuned): 
 250 m or more, so they add under 1% of the stress; it comes from friends down 31%, wounds 20%, isolation 15%,
 leader down 13%, suppression 10%, contagion 6%, no leader 4%. Man-time is 95.9% steady, 2.9% shaken, 0.8% rattled,
 0.4% broken; for men whose squad is in contact 92.6 / 5.3 / 1.5 / 0.7. Constants are `BattleSoldierMind.tuning`,
-outside the policy genome.
+outside the policy genome. Paired standard benchmark (seed `soldier-mind-20260929`, one commit, flags `mind=0` /
+`mind=observe` / none, 100 battles each): `observe` is identical to `mind=0` in all 100; all levers on against
+off moved 30 winners both ways (16 GE to US, 14 US to GE, exact McNemar p = 0.86; US wins 43 to 45), time-limit
+battles 52 to 51, no-capture 14 to 14, captures 3.81 to 3.73, health 82.7 to 82.1, no runtime errors: no measurable
+effect on mission outcomes. The World Debug **Composure** layer draws it (a ring per shaken/rattled/broken man, a
+cross on a frozen one), and `closeup_battle.cjs` takes `CLOSEUP_TARGET=stressed` and `CLOSEUP_OVERLAY=composure`.
 **Engagement states:** `advance → orient → (decide) → bound → engage`, then
 `pinned`, `assault`, `alert`, `withdraw`, `station`. `orient` never fires (REACT 0.45 s scout to
 0.85 s gunner). `engage` pins position and commits stance. `alert` holds the sector for
