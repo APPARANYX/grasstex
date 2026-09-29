@@ -1291,16 +1291,9 @@
     a.phase = 'to-rally';
     a.since = t;
     a.missionVersion = m.version;
-    m.status = 'executing';
-    m.acceptedAt = t;
-    telemetry(battle, 'decision-mission-accepted', {
-      faction: sq.faction,
-      squad: sq.id,
-      version: m.version,
-      intent: m.intent,
-      action: m.action,
-      objectiveId: null
-    });
+    if (!root.BattleCommanderAI || !root.BattleCommanderAI.acceptMission)
+      throw new Error('Squad Leader cannot accept a brief without its Macro lifecycle owner');
+    root.BattleCommanderAI.acceptMission(battle, sq, true);
     telemetry(battle, 'decision-assembly-rally', {
       faction: sq.faction,
       squad: sq.id,
@@ -1362,16 +1355,9 @@
         L.end(sq, 'corner-hold', t, 'new mission');
       }
       if (m && m.status === 'issued') {
-        m.status = 'executing';
-        m.acceptedAt = t;
-        telemetry(sim, 'decision-mission-accepted', {
-          faction: sq.faction,
-          squad: sq.id,
-          version: m.version,
-          intent: m.intent,
-          action: m.action,
-          objectiveId: m.objectiveId
-        });
+        if (!root.BattleCommanderAI || !root.BattleCommanderAI.acceptMission)
+          throw new Error('Squad Leader cannot accept a brief without its Macro lifecycle owner');
+        root.BattleCommanderAI.acceptMission(sim, sq, false);
       }
     }
     /* A firefight under this brief is a commitment: contact never advances legs or rewrites phase. */
