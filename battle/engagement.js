@@ -148,7 +148,7 @@
     return M ? M.reactScale(s) : 1;
   }
   function recognition(s) {
-    return (REACT[s.role] || 0.7) * stretch(s);
+    return (REACT[s.role] || 0.7) * stretch(s) * statScale(s, 'recognition');
   }
   /* Until when what he just saw has him frozen: no aimed fire, and no march if he was only advancing. */
   function shockUntil(s) {
@@ -157,7 +157,7 @@
   }
   /* Recognition time, shortened when the squad has already called the contact. */
   function reactTime(s, battle) {
-    var base = ((REACT[s.role] || 0.7) + jitter(s, 0.06)) * stretch(s),
+    var base = ((REACT[s.role] || 0.7) + jitter(s, 0.06)) * stretch(s) * statScale(s, 'recognition'),
       contact = squadContact(s, battle);
     return contact && contact.seenBy !== s.id ? base * PREWARNED_REACT : base;
   }
