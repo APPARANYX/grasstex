@@ -39,10 +39,49 @@
     objectiveStrategy: 'balanced'
   };
 
+  /* The rules Force Command decides a brief by (which action a squad's situation calls for, checked against the
+     conditions buildContext reports). They are the same four rules as ai-policy.js's DEFAULT_RULES; genome-gate-check
+     holds the two copies equal. */
+  var FALLBACK_RULES = [
+    { id: 'press-neutral', when: ['objectiveNeutral', 'notOutnumbered'], action: 'assault', weight: 0.78 },
+    { id: 'defend-pressure', when: ['objectiveOwned', 'underPressure'], action: 'defend', weight: 0.74 },
+    { id: 'flank-strongpoint', when: ['objectiveEnemy', 'outnumbered'], action: 'flank', weight: 0.69 },
+    { id: 'regroup-leaderless', when: ['outnumbered', 'captainDead'], action: 'regroup', weight: 0.64 }
+  ];
+
+  /* The genome is off when its module is absent (the Node harness never loads it) or stashed (BattleAIPolicy.stashed:
+     the AI Graph and the genome wait for the UI pass). Off, the code defaults above are the whole policy: the numbers,
+     the doctrine and the rules, read from this file whatever ai-policy.js, the server or a match's own genome holds. */
+  function genomeOff() {
+    return !root.BattleAIPolicy || !!root.BattleAIPolicy.stashed;
+  }
   function genome(sim, faction) {
-    return root.BattleAIPolicy
-      ? root.BattleAIPolicy.genomeFor(sim, faction)
-      : { version: 2, parameters: FALLBACK, doctrine: FALLBACK_DOCTRINE, rules: [] };
+    return genomeOff()
+      ? { version: 2, parameters: FALLBACK, doctrine: FALLBACK_DOCTRINE, rules: FALLBACK_RULES }
+      : root.BattleAIPolicy.genomeFor(sim, faction);
+  }
+  /* The highest-weight rule whose conditions all hold (the first of equals), or null. Same reading of a condition as
+     ai-policy.js's decide: `notOutnumbered` is the negation of `outnumbered`, anything else is the context's flag. */
+  function decideRule(rules, context) {
+    var best = null;
+    for (var i = 0; i < rules.length; i++) {
+      var r = rules[i],
+        ok = true;
+      for (var j = 0; j < r.when.length; j++) {
+        var c = r.when[j];
+        if (c === 'notOutnumbered' ? context.outnumbered : !context[c]) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok && (!best || r.weight > best.weight)) best = r;
+    }
+    return best ? { id: best.id, when: best.when.slice(), action: best.action, weight: best.weight } : null;
+  }
+  function ruleFor(sim, faction, context) {
+    return genomeOff()
+      ? decideRule(FALLBACK_RULES, context)
+      : root.BattleAIPolicy.decide(genome(sim, faction), context);
   }
   function policy(sim, faction) {
     var g = genome(sim, faction);
@@ -322,6 +361,10 @@
   root.BattleCommanderDoctrine = {
     FALLBACK: FALLBACK,
     FALLBACK_DOCTRINE: FALLBACK_DOCTRINE,
+    FALLBACK_RULES: FALLBACK_RULES,
+    genomeOff: genomeOff,
+    decideRule: decideRule,
+    ruleFor: ruleFor,
     genomeFor: genome,
     policyFor: policy,
     doctrineFor: doctrine,

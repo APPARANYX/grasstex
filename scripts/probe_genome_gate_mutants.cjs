@@ -6,7 +6,9 @@
 
    The mutants: each place the stashed genome could leak (the server genome, the scenario memory, a
    per-match genome, set, refresh, persist, remember, the exported flag, the switch itself), the trainer
-   loading while stashed, a second door around ai-policy.js, and the two copies of the defaults drifting.
+   loading while stashed, a second door around ai-policy.js, the two copies of the defaults drifting (the
+   default rules included), the default rules misreading a condition, the genome never being off, and Force
+   Command deciding a brief through the genome module itself.
 
    An edit whose anchor is missing means the source text changed: update the anchor, never drop the
    mutant. Usage: node scripts/probe_genome_gate_mutants.cjs (about 5 s). */
@@ -104,6 +106,42 @@ const mutants = [
     'the genome defaults drift from the doctrine fallback',
     () =>
       edit(P, 'DEFAULT_PARAMETERS={\n    cohesionRadius:34,', 'DEFAULT_PARAMETERS={\n    cohesionRadius:40,')
+  ],
+  [
+    'a default rule drifts from the genome defaults',
+    () =>
+      edit(
+        'commander-doctrine.js',
+        "id: 'press-neutral', when: ['objectiveNeutral', 'notOutnumbered'], action: 'assault'",
+        "id: 'press-neutral', when: ['objectiveNeutral', 'notOutnumbered'], action: 'hold'"
+      )
+  ],
+  [
+    'the default rules read a condition the wrong way round',
+    () =>
+      edit(
+        'commander-doctrine.js',
+        "c === 'notOutnumbered' ? context.outnumbered : !context[c]",
+        "c === 'notOutnumbered' ? !context.outnumbered : !context[c]"
+      )
+  ],
+  [
+    'the genome is never off: Force Command always asks the genome module',
+    () =>
+      edit(
+        'commander-doctrine.js',
+        'return !root.BattleAIPolicy || !!root.BattleAIPolicy.stashed;',
+        'return false;'
+      )
+  ],
+  [
+    'a second door: Force Command decides a brief through the genome module itself',
+    () =>
+      edit(
+        'commander-ai.js',
+        'rule = D.ruleFor(sim, sq.faction, context);',
+        'rule = root.BattleAIPolicy ? root.BattleAIPolicy.decide(genome(sim, sq.faction), context) : null;'
+      )
   ]
 ];
 
