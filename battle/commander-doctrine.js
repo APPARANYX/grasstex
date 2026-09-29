@@ -272,6 +272,68 @@
     if (!wantOwned && owner === sq.faction && doc.defenseCommitment < 0.58) return null;
     return { obj: obj, index: index, status: status, owner: owner, point: point };
   }
+  /* Squad fit.
+     What a squad is good at pulls it toward the objective that suits it. The squad's mean stats
+     (BattleSoldierStats.profile: composites ranked against the side's own living squads, since the mean of
+     ten men barely moves off 0.5 and only the ranking says "really fast") supply numbers; the General decides
+     what they are worth. Above the median only, and only for an attack:
+       pace     (PHY, AGI)  the first objective: the candidate nearest the squad's home, seized before the enemy
+       grit     (FOR)       the furthest: the candidate furthest from home, the deepest and most exposed
+       support  (TEC, MKM)  the safest: near home, far from the nearest enemy, not held by the enemy, the ground
+                            forward squads fall back on
+     At the top of the side a composite is worth SQUAD_FIT points; the median and below get nothing and the score
+     decides. Like saturation it is a score, never a veto, and it sits below SATURATION_COST, so deconfliction
+     and the main effort still win. The soldier-level uses of awareness (recognition, sight) have no Macro
+     counterpart yet: the flank side is chosen by role and squad id, which no stat improves. */
+  var SQUAD_FIT = 30;
+  function spreadOf(xs) {
+    var lo = Math.min.apply(null, xs),
+      hi = Math.max.apply(null, xs);
+    return function (x) {
+      return hi - lo < 1 ? 0.5 : (x - lo) / (hi - lo);
+    };
+  }
+  function squadFit(sim, sq, pool) {
+    var stats = root.BattleSoldierStats,
+      profile = stats && stats.profile ? stats.profile(sim, sq) : null;
+    if (!profile || pool.length < 2) return null;
+    function above(rank) {
+      return Math.max(0, 2 * (rank - 0.5));
+    }
+    var pace = above(profile.pace),
+      grit = above(profile.grit),
+      support = above(profile.support);
+    if (!pace && !grit && !support) return null;
+    var home = sq.home || avgPos(sq),
+      foes = forceUnits(sim, enemyFaction(sq.faction)),
+      away = pool.map(function (c) {
+        return dist(home.x, home.z, c.point.x, c.point.z);
+      }),
+      threat = pool.map(function (c) {
+        var d = Infinity;
+        for (var i = 0; i < foes.length; i++)
+          d = Math.min(d, dist(foes[i].root.position.x, foes[i].root.position.z, c.point.x, c.point.z));
+        return d;
+      }),
+      out = {},
+      far = spreadOf(away),
+      apart = spreadOf(
+        threat.map(function (d) {
+          return isFinite(d) ? d : 0;
+        })
+      );
+    pool.forEach(function (c, i) {
+      var remote = far(away[i]),
+        safe =
+          (1 -
+            remote +
+            apart(isFinite(threat[i]) ? threat[i] : 0) +
+            (c.owner === sq.faction ? 1 : c.owner === 'neutral' ? 0.5 : 0)) /
+          3;
+      out[c.obj.id] = SQUAD_FIT * (pace * (1 - remote) + grit * remote + support * safe);
+    });
+    return out;
+  }
   function chooseObjective(sim, sq, wantOwned, stalled) {
     var objectives = sim._objectives || [],
       p = avgPos(sq),
@@ -287,6 +349,7 @@
       var c = candidate(sim, sq, ordered[k], k, wantOwned, doc);
       if (c) pool.push(c);
     }
+    var fit = wantOwned ? null : squadFit(sim, sq, pool);
     for (var j = 0; j < pool.length; j++) {
       var obj = pool[j].obj,
         i = pool[j].index,
@@ -306,6 +369,7 @@
         score = 200 - i * 35 - d * 0.1 + (owner === sq.faction ? -150 : 0);
       if (obj.handler && typeof obj.handler.commandScore === 'function')
         score = obj.handler.commandScore(obj, sim, sq, score, cfg);
+      if (fit) score += fit[obj.id] || 0;
       var assigned = squadsTargeting(sim, sq, obj.id),
         crowd = Math.max(0, assigned - (saturationAllowance(status, owner) - 1));
       score -= crowd * SATURATION_COST;
@@ -327,6 +391,7 @@
           crowdPenalty: crowd * SATURATION_COST,
           stallPenalty: stall,
           frontagePenalty: frontage,
+          squadFit: fit ? fit[obj.id] || 0 : 0,
           openEfforts: efforts ? efforts.count : null
         };
       }
@@ -374,6 +439,13 @@
   }
 
   root.BattleCommanderDoctrine = {
+    tuning: {
+      SATURATION_COST: SATURATION_COST,
+      MAX_EFFORTS: MAX_EFFORTS,
+      FRONTAGE_COST: FRONTAGE_COST,
+      STALL_COST: STALL_COST,
+      SQUAD_FIT: SQUAD_FIT
+    },
     FALLBACK: FALLBACK,
     FALLBACK_DOCTRINE: FALLBACK_DOCTRINE,
     FALLBACK_RULES: FALLBACK_RULES,
