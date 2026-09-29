@@ -150,15 +150,120 @@
       return {};
     }
   }
-  /* Battle setup (route assignment, garrison placement) states the starting phase through here, so the
-   Squad Leader stays the only writer of commandPhase. No telemetry: nothing has been decided yet. */
+  /* Command-phase machine. The Squad Leader owns every live entry. Mission execution and cohesion
+     evaluate on the 0.45 s commander tick; initial placement enters through initialPhase before it.
+     These are execution phases, not the squad's advance/engaged/retreat combat status. Retreat stays
+     in sq.state and suspends execution without assigning a new commandPhase.
+
+     A replacement brief can select any mission phase, and cohesion can interrupt any of them.
+     Thus every declared phase can reach every other one: the guards are the mission/route/lease
+     facts in executeMission and updateCohesion, not the previous phase. A phase alone cannot tell
+     whether a new mission has arrived. The data records that full adjacency explicitly rather than
+     inventing restrictions on the existing execution logic. Same-phase calls change nothing. */
+  var PHASE_NAMES = [
+    'approach',
+    'reserve',
+    'hold',
+    'support-hold',
+    'corner-check',
+    'assault',
+    'capture',
+    'defend',
+    'flank',
+    'clear-town',
+    'regroup'
+  ];
+  function phaseDefinition(meaning, enteredBy, exits) {
+    return {
+      meaning: meaning,
+      enteredBy: enteredBy,
+      exits: exits,
+      rate: '0.45 s commander tick; setup may enter before the first tick',
+      next: PHASE_NAMES.slice()
+    };
+  }
+  var PHASE_STATES = {
+    approach: phaseDefinition(
+      'Follow the approach route',
+      'mission execution or route setup',
+      'route/area progress, new brief or regroup'
+    ),
+    reserve: phaseDefinition(
+      'Hold the reserve route endpoint',
+      'reserve brief, role or route setup',
+      'reserve commitment/new brief or regroup'
+    ),
+    hold: phaseDefinition(
+      'Hold the mission endpoint or accepted hold point',
+      'hold brief or doctrine hold/regroup action',
+      'doctrine review/new brief or regroup'
+    ),
+    'support-hold': phaseDefinition(
+      'Hold while supporting the assault',
+      'support delay or doctrine support action',
+      'assault commitment, support delay expiry, new brief or regroup'
+    ),
+    'corner-check': phaseDefinition(
+      'Pause after an urban route leg',
+      'mission execution at an urban corner',
+      'corner-hold lease expiry, new brief or regroup'
+    ),
+    assault: phaseDefinition(
+      'Approach the assigned objective',
+      'mission execution outside the commit radius',
+      'capture/defend radius reached, new brief or regroup'
+    ),
+    capture: phaseDefinition(
+      'Commit inside the capture area',
+      'capture brief inside its commit radius',
+      'leaving the commit radius, objective completion/new brief or regroup'
+    ),
+    defend: phaseDefinition(
+      'Defend the assigned objective',
+      'defend brief inside its radius or with a defense request; garrison setup',
+      'leaving the radius without a request, changed control/new brief or regroup'
+    ),
+    flank: phaseDefinition(
+      'Complete the flank approach leg',
+      'flank action at the approach-axis endpoint',
+      'route progress, new brief or regroup'
+    ),
+    'clear-town': phaseDefinition(
+      'Execute an approach route inside the town',
+      'mission execution inside the town area',
+      'leaving the area, route progress, new brief or regroup'
+    ),
+    regroup: phaseDefinition(
+      'Re-form on the committed rally point',
+      'Squad Leader cohesion assessment',
+      'cohesion restored after REGROUP_MIN, contact, retreat, new mission or no survivors'
+    )
+  };
+  function transitionPhase(sim, sq, next, why, entry) {
+    if (!sq || sq.commandPhase === next) return;
+    var from = sq.commandPhase || null;
+    entry = entry || 'mission';
+    if (!PHASE_STATES[next] || (PHASE_STATES[from] && PHASE_STATES[from].next.indexOf(next) < 0))
+      throw new Error('Illegal Squad Leader phase transition: ' + from + ' -> ' + next);
+    if (['mission', 'setup', 'regroup'].indexOf(entry) < 0)
+      throw new Error('Unknown Squad Leader phase entry: ' + entry);
+    sq.commandPhase = next;
+    sq._commandPhaseTransition = {
+      from: from,
+      to: next,
+      at: sim && isFinite(+sim.time) ? +sim.time : null,
+      reason: why || '',
+      entry: entry
+    };
+    if (entry === 'mission')
+      telemetry(sim, 'decision-phase', { faction: sq.faction, squad: sq.id, phase: next, why: why || '' });
+  }
+  /* Setup and regroup were silent phase writes; preserve their existing distinct telemetry. */
   function initialPhase(sq, phase) {
-    if (sq) sq.commandPhase = phase;
+    transitionPhase(null, sq, phase, 'initial placement', 'setup');
   }
   function setPhase(sim, sq, next, why) {
-    if (!sq || sq.commandPhase === next) return;
-    sq.commandPhase = next;
-    telemetry(sim, 'decision-phase', { faction: sq.faction, squad: sq.id, phase: next, why: why || '' });
+    transitionPhase(sim, sq, next, why);
   }
   function commandForward(sq) {
     var a = sq.orderAnchor || sq.rally || { x: 0, z: 0 },
@@ -625,7 +730,7 @@
           st.recoveries = (st.recoveries || 0) + 1;
         }
       });
-      sq.commandPhase = 'regroup';
+      transitionPhase(sim, sq, 'regroup', 'regroup lease active', 'regroup');
       sq.objective = copy(regroup.data.anchor || ca.center);
       return;
     }
@@ -690,7 +795,7 @@
        squad re-formed around that instead - or ran out the 18 s regroup lease walking to it. */
     sq.orderAnchor = copy(anchor);
     sq.rally = copy(anchor);
-    sq.commandPhase = 'regroup';
+    transitionPhase(sim, sq, 'regroup', 'squad dispersed', 'regroup');
     telemetry(sim, 'decision-regroup-commit', {
       faction: sq.faction,
       squad: sq.id,
@@ -1051,7 +1156,10 @@
         s = members[i];
         if (s.dead || s.suppressedUntil > battle.time || s.reloading || s.clearingStoppage || s.outOfAmmo)
           continue;
-        if (root.SquadAI.isMachineGun(s) || (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)))
+        if (
+          root.SquadAI.isMachineGun(s) ||
+          (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s))
+        )
           continue; // positional tasks hold the base of fire
         if (s._fireteamKey && s._fireteamKey !== team) continue;
         movers.push(s);
@@ -1466,6 +1574,8 @@
     boundCycle: BOUND_CYCLE,
     boundDuration: BOUND_DURATION,
     fireAndMovement: fireAndMovement,
+    states: PHASE_STATES,
+    transitionPhase: transitionPhase,
     initialPhase: initialPhase,
     teamKeyFor: teamKeyFor,
     placeAtSlots: placeAtSlots,
