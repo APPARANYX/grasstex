@@ -117,7 +117,7 @@
     else if (shooter.crouching) sigma *= 0.88;
     if (shooter.moving) sigma *= 1.55;
     if (shooter.suppressedUntil > battle.time) sigma *= 1.65;
-    if (shooter.role === 'gunner' && shooter.setUp) sigma *= 0.72;
+    if (root.SquadAI.isMachineGun(shooter) && shooter.setUp) sigma *= 0.72;
     /* A wounded man shoots worse (the wound model sets it: an arm hit most of all). */
     if (shooter.woundSigma > 1) sigma *= shooter.woundSigma;
     /* Muzzle climb: each later round of a burst lands wider; a bipod on the ground holds half of it. */

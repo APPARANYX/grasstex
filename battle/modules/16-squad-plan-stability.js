@@ -1051,7 +1051,7 @@
         s = members[i];
         if (s.dead || s.suppressedUntil > battle.time || s.reloading || s.clearingStoppage || s.outOfAmmo)
           continue;
-        if (s.role === 'gunner' || (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)))
+        if (root.SquadAI.isMachineGun(s) || (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)))
           continue; // positional tasks hold the base of fire
         if (s._fireteamKey && s._fireteamKey !== team) continue;
         movers.push(s);
