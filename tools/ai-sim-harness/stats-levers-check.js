@@ -4,7 +4,15 @@
    reading layer decides what they are worth). One section per stat. Every lever is neutral when the module
    is absent or `?stats=0`: the same input gives the same output as the flat constants. Mechanism, not dice. */
 const assert = require('node:assert/strict'),
+  fs = require('node:fs'),
+  path = require('node:path'),
   H = require('./harness');
+function loadInto(r, file) {
+  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(r, r, {
+    log() {},
+    warn() {}
+  });
+}
 const log = console.log;
 console.log = (...a) => (typeof a[0] === 'string' && a[0][0] === '[' ? undefined : log(...a));
 let n = 0;
@@ -107,6 +115,94 @@ test('FOR: the same wound costs a shakier man more stress than a steadier one, i
   assert.ok(M.stress(steady) < M.stress(shaky), 'the same wound costs the shakier man more stress');
   const ratio = M.stress(shaky) / M.stress(steady);
   near(ratio, 1.24 / 0.76, 0.05, 'in proportion to nerve');
+});
+
+/* ---- AGI: how fast he settles his aim, looks for cover, and sprints -------------------------- */
+
+test('AGI: a nimbler man settles his aim sooner after a stance change; the average man in exactly 0.4 s', () => {
+  const { b, r, St, us } = world();
+  const E = r.BattleEngagement;
+  const nimble = set(St, rifleman(us, 0), { agi: 1 }),
+    mid = set(St, rifleman(us, 1), { agi: 0.5 }),
+    clumsy = set(St, rifleman(us, 2), { agi: 0 });
+  for (const s of [nimble, mid, clumsy]) {
+    E.stateOf(s).fireReadyAt = 0;
+    E.commitStance(s, b, 'crouch');
+  }
+  near(E.stateOf(nimble).fireReadyAt - b.time, 0.4 * 0.6, 1e-9, 'agility 1');
+  near(E.stateOf(mid).fireReadyAt - b.time, 0.4, 1e-9, 'agility 0.5');
+  near(E.stateOf(clumsy).fireReadyAt - b.time, 0.4 * 1.4, 1e-9, 'agility 0');
+  const flat = world({ stats: false }),
+    f = rifleman(flat.us, 0);
+  flat.r.BattleEngagement.commitStance(f, flat.b, 'crouch');
+  near(flat.r.BattleEngagement.stateOf(f).fireReadyAt - flat.b.time, 0.4, 1e-9, 'without the module');
+});
+
+test('AGI: a nimbler pinned man looks for cover again sooner (0.9 s for an average man)', () => {
+  const w = world(),
+    { r, b, St, us, ge } = w;
+  r.BattleModules.registerSystem = () => {};
+  for (const file of ['battle/movement-resolver.js', 'battle/modules/44-combat-urgency.js'])
+    loadInto(r, file);
+  const E = r.BattleEngagement;
+  const search = agi => {
+    const s = set(St, rifleman(us, agi === 1 ? 0 : agi === 0 ? 1 : 2), { agi });
+    s.target = rifleman(ge, 0);
+    s.root.position.x = 0;
+    s.root.position.z = 0;
+    s.target.root.position.z = 80;
+    s.suppressedUntil = b.time + 5;
+    E.stateOf(s).state = 'pinned';
+    E.stateOf(s)._urgentCoverSearchAt = 0;
+    b.time += 0.15;
+    r.SquadAI.updateSoldier(s, b);
+    return E.stateOf(s)._urgentCoverSearchAt - b.time;
+  };
+  const fast = search(1),
+    slow = search(0),
+    mid = search(0.5);
+  assert.ok(fast > 0 && slow > 0, 'both looked for cover');
+  near(fast, 0.9 * 0.6, 0.16, 'agility 1');
+  near(mid, 0.9, 0.16, 'agility 0.5');
+  near(slow, 0.9 * 1.4, 0.16, 'agility 0');
+  assert.ok(fast < mid && mid < slow);
+});
+
+test('AGI: the two fast gaits follow agility, inside their historical bands; walking does not', () => {
+  const { r, St } = world();
+  loadInto(r, 'battle/modules/11-soldier-individuality.js');
+  const I = r.BattleSoldierIndividuality;
+  const clone = agi => {
+    const s = { faction: 'us', id: 41, role: 'rifleman' };
+    set(St, s, { agi, phy: 0.5 });
+    return I.phenotype(s);
+  };
+  const fast = clone(1),
+    slow = clone(0);
+  assert.ok(fast.gaits.sprint > slow.gaits.sprint && fast.gaits.crouchRun > slow.gaits.crouchRun);
+  for (const gait of ['walk', 'run', 'crouchWalk', 'proneNormal', 'proneFast'])
+    assert.equal(fast.gaits[gait], slow.gaits[gait], gait + ' is not agility');
+  for (const p of [fast, slow]) {
+    assert.ok(p.gaits.sprint >= I.gaitLimits.sprint[0] && p.gaits.sprint <= I.gaitLimits.sprint[1]);
+    assert.ok(
+      p.gaits.crouchRun >= I.gaitLimits.crouchRun[0] && p.gaits.crouchRun <= I.gaitLimits.crouchRun[1]
+    );
+  }
+  const off = world({ search: '?stats=0' });
+  loadInto(off.r, 'battle/modules/11-soldier-individuality.js');
+  const o1 = off.r.BattleSoldierIndividuality.phenotype({
+      faction: 'us',
+      id: 41,
+      role: 'rifleman',
+      stats: { agi: 1 }
+    }),
+    o2 = off.r.BattleSoldierIndividuality.phenotype({
+      faction: 'us',
+      id: 41,
+      role: 'rifleman',
+      stats: { agi: 0 }
+    });
+  assert.deepEqual(o1.gaits, o2.gaits, 'with ?stats=0 agility changes nothing');
 });
 
 console.log('stats-levers-check: ' + n + ' passed');
