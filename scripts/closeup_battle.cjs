@@ -161,14 +161,20 @@ const OVERLAY = (process.env.CLOSEUP_OVERLAY || '').split(',').map(v => v.trim()
           if (!W) return null;
           names.forEach(n => W.set(n, true));
           window.__battle__.scene.render();
-          // Composure marks ride on their soldier's root: measure how far each ring's centre is from his feet.
-          const marks = window.__battle__.scene.meshes.filter(m => /^wd-mark-ring-/.test(m.name) && m.parent);
-          let off = 0;
-          marks.forEach(m => { const a = m.getAbsolutePosition(), p = m.parent.getAbsolutePosition(); off = Math.max(off, Math.hypot(a.x - p.x, a.z - p.z)); });
-          return { on: names.filter(n => W.settings[n]), marks: marks.length, maxOffsetM: +off.toFixed(3) };
+          // Composure discs ride on their soldier's root and float above his head: measure how far each disc's
+          // centre is from him sideways, its height, and that it has geometry at all (an empty mesh draws nothing).
+          const b = window.__battle__, marks = b.scene.meshes.filter(m => /^wd-mark-dot-/.test(m.name) && m.parent);
+          let off = 0, empty = 0, low = 0;
+          marks.forEach(m => {
+            const a = m.getAbsolutePosition(), p = m.parent.getAbsolutePosition();
+            off = Math.max(off, Math.hypot(a.x - p.x, a.z - p.z));
+            if (m.getTotalVertices() === 0) empty++;
+            if (a.y - p.y < 1.5) low++;
+          });
+          return { on: names.filter(n => W.settings[n]), marks: marks.length, maxOffsetM: +off.toFixed(3), empty, low };
         }, OVERLAY);
         if (!on || on.on.length !== OVERLAY.length) fail.push('World Debug layers not enabled: ' + OVERLAY.join(','));
-        else if (on.maxOffsetM > 0.05) fail.push('composure ring off its soldier by ' + on.maxOffsetM + ' m');
+        else if (!on.marks || on.empty || on.low || on.maxOffsetM > 0.05) fail.push('composure discs wrong: ' + JSON.stringify(on));
         else console.log('OVERLAY ' + JSON.stringify(on));
       }
       if (!SHOW_UI) await page.addStyleTag({ content: '*{visibility:hidden !important} canvas{visibility:visible !important}' });
