@@ -287,4 +287,70 @@ test('MKM: a better marksman shoots a tighter group; the average man exactly the
   near(off.r.BattleBallistics.dispersionSigma(o, o.weapon.stats, 100, off.b, 0) / mid, 1, 1e-12, '?stats=0');
 });
 
+/* ---- PHY: how fast he moves, and how long a heavy weapon takes to emplace --------------------- */
+
+test('PHY: a stronger man is faster on every gait (his fitness), inside the historical bands', () => {
+  const { r, St } = world();
+  loadInto(r, 'battle/modules/11-soldier-individuality.js');
+  const I = r.BattleSoldierIndividuality;
+  const gaits = phy => {
+    const s = { faction: 'us', id: 41, role: 'rifleman' };
+    set(St, s, { phy, agi: 0.5 });
+    return I.phenotype(s);
+  };
+  const strong = gaits(1),
+    weak = gaits(0);
+  for (const gait of Object.keys(I.gaitLimits)) {
+    assert.ok(strong.gaits[gait] >= weak.gaits[gait], gait + ' is not slower for the stronger man');
+    const [lo, hi] = I.gaitLimits[gait];
+    assert.ok(
+      strong.gaits[gait] >= lo && strong.gaits[gait] <= hi && weak.gaits[gait] >= lo && weak.gaits[gait] <= hi
+    );
+  }
+  assert.ok(
+    strong.gaits.run > weak.gaits.run && strong.gaits.walk > weak.gaits.walk,
+    'the everyday gaits move'
+  );
+  near(strong.fitness, 1.08, 1e-9, 'physical 1');
+  near(weak.fitness, 0.92, 1e-9, 'physical 0');
+  const off = world({ search: '?stats=0' });
+  loadInto(off.r, 'battle/modules/11-soldier-individuality.js');
+  const o = phy =>
+    off.r.BattleSoldierIndividuality.phenotype({ faction: 'us', id: 41, role: 'rifleman', stats: { phy } })
+      .fitness;
+  assert.equal(o(1), o(0), 'with ?stats=0 the old hash fitness is back, whatever his PHY');
+});
+
+test('PHY: a stronger gunner emplaces the machine gun sooner (1.4 s for an average man)', () => {
+  const delay = phy => {
+    const w = world(),
+      { b, r, St, us, ge } = w;
+    const g = set(
+      St,
+      us.members.find(s => s.role === 'gunner'),
+      { phy }
+    );
+    g.root.position.x = 0;
+    g.root.position.z = 0;
+    g.root.rotation.y = 0;
+    const foe = ge.members.find(s => s.role === 'rifleman');
+    foe.root.position.x = 0;
+    foe.root.position.z = 110;
+    for (let i = 0; i < 80; i++) {
+      b.time += H.AI_TICK;
+      r.SquadAI.updateSoldier(g, b);
+      if (g.setUp) return b.time - r.BattleEngagement.stateOf(g).setUpSince;
+    }
+    return null;
+  };
+  const strong = delay(1),
+    mid = delay(0.5),
+    weak = delay(0);
+  assert.ok(strong && mid && weak, 'the gun was emplaced in all three');
+  near(strong, 1.4 * 0.7, 0.16, 'physical 1');
+  near(mid, 1.4, 0.16, 'physical 0.5');
+  near(weak, 1.4 * 1.3, 0.16, 'physical 0');
+  assert.ok(strong < mid && mid < weak);
+});
+
 console.log('stats-levers-check: ' + n + ' passed');

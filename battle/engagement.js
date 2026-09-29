@@ -1243,7 +1243,7 @@
     if (!holdStance(s, battle)) commitStance(s, battle, fightingStance(s, battle, d, here));
     if (SA().isMachineGun(s)) {
       if (!e.setUpSince) e.setUpSince = battle.time;
-      s.setUp = battle.time - e.setUpSince > GUNNER_SETUP;
+      s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
     } else s.setUp = false;
     tryFire(s, battle);
     if (battle.time >= (e.reviewAt || 0)) {
@@ -1369,7 +1369,7 @@
     if (d <= 0.35) {
       if (SA().isMachineGun(s)) {
         if (!e.setUpSince) e.setUpSince = battle.time;
-        s.setUp = battle.time - e.setUpSince > GUNNER_SETUP;
+        s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
       }
       if (s.target) {
         var tp = posOf(s.target),
