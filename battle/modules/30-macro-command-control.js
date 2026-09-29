@@ -3,7 +3,7 @@
    OFF preserves the force intent seeded at battle start and prevents further Force Command rewrites. */
 (function(root){
 'use strict';
-if(typeof document==='undefined'||root.BattleMacroCommandControl)return;
+if(typeof document==='undefined'||!root.BattleAIGraphEditor||root.BattleMacroCommandControl)return;
 
 var BUTTON_ID='agMacroCommand';
 var timer=null;
