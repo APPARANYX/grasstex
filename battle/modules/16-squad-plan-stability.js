@@ -1276,6 +1276,63 @@
       leaderlessSeconds: +(t - held.since).toFixed(2)
     });
   }
+  /* The Squad Leader's word on who commands and where each man stands. Other layers report the event
+     and this layer rewrites its own state: a leader killed (`leaderDown`, called from killSoldier), a
+     reconstitution merge (`reform` for the squad that survives, `disband` for one absorbed) and the
+     General's acknowledgement that it read a request (`acknowledgeRequest`). */
+  function leaderDown(sq) {
+    sq.captainAlive = false;
+    sq.accuracyMultiplier = 0.8;
+  }
+  /* Slot 0 is the leader, 1 the squad's gun, 2-3 its scouts; every other man - a second gunner, a third
+     scout, a former leader - takes a rifleman slot from 4 up (`slotRole`, SquadAI.formationSlot). */
+  function assignSlots(men, leader) {
+    var gun = false,
+      scouts = 0,
+      next = 4;
+    leader.slotIndex = 0;
+    leader.slotRole = null;
+    for (var i = 0; i < men.length; i++) {
+      var s = men[i];
+      if (s === leader) continue;
+      s.slotRole = null;
+      if (s.role === 'gunner' && !gun) {
+        gun = true;
+        s.slotIndex = 1;
+      } else if (s.role === 'scout' && scouts < 2) s.slotIndex = 2 + scouts++;
+      else {
+        s.slotIndex = next++;
+        if (s.role !== 'rifleman') s.slotRole = 'rifleman';
+      }
+    }
+  }
+  /* A reconstitution merge: `men` (already members of `survivor`) form one squad under `leader`, anchored
+     on the group's rally point, with no plan, post, task or fireteam carried over from their old squads. */
+  function reform(survivor, men, leader, rally, establishment) {
+    assignSlots(men, leader);
+    men.forEach(function (s) {
+      s._fireteamKey = null;
+      s._defensePost = null;
+      s._engagementTask = null;
+      s._engagementPlanSerial = null;
+    });
+    survivor.members = men;
+    survivor.leaderId = leader.id;
+    survivor.establishment = establishment;
+    survivor.aliveCount = men.length;
+    survivor.captainAlive = true;
+    survivor.accuracyMultiplier = 1; // the leader-death penalty (killSoldier) ends with a leader
+    publishAnchor(survivor, rally);
+  }
+  // A squad absorbed by a merge reads like a destroyed one: nobody living and nobody in command.
+  function disband(sq) {
+    sq.aliveCount = 0;
+    sq.leaderId = null;
+  }
+  // The General has re-selected a brief: the request that woke it is answered.
+  function acknowledgeRequest(sq) {
+    sq._macroMissionRequest = null;
+  }
   /* Retreat and reconstitution march. A retreating squad heads home (`to-base`); once home and out of
      contact it is `at-base`, the only state in which the General will group it. A `reconstitute` brief
      then sends it to the rally point (`to-rally`), where the General merges it. If the brief ends without
@@ -1580,6 +1637,10 @@
     transitionPhase: transitionPhase,
     initialPhase: initialPhase,
     publishAnchor: publishAnchor,
+    leaderDown: leaderDown,
+    reform: reform,
+    disband: disband,
+    acknowledgeRequest: acknowledgeRequest,
     teamKeyFor: teamKeyFor,
     placeAtSlots: placeAtSlots,
     executeMission: executeMission

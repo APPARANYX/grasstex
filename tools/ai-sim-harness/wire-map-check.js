@@ -205,8 +205,8 @@ test('real recall anchors: chained, hopped, deleted and indexed writes are seen'
   at('eng', 'cover', 'modules/20-building-hardpoints.js');
   at('eng', 'fireReadyAt', 'engagement.js');
   at('soldier', '_movementResolver', 'modules/20-building-hardpoints.js');
-  at('squad', 'captainAlive', 'battle-sim.js');
-  at('squad', 'aliveCount', 'commander-ai.js');
+  at('squad', 'captainAlive', 'modules/16-squad-plan-stability.js');
+  at('squad', 'aliveCount', 'squad-ai.js');
   at('soldier', '_personalSpaceDestination', 'movement-resolver.js');
   at('soldier', '_physicalPath', 'modules/39-navigation-physicality-debug.js');
   at('soldier', '_tacticalRoute', 'movement-resolver.js');
