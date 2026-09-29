@@ -408,7 +408,7 @@
       passes = [],
       skip = [],
       end = null;
-    if (stats.suppressive) target.suppressedUntil = Math.max(target.suppressedUntil || 0, battle.time + 1.3);
+    if (stats.suppressive) root.SquadAI.pin(target, battle, root.SquadAI.SUPPRESSION_TIME);
     while (!end) {
       var environment = environmentStop(o, dir, left, battle),
         body = firstEnemyHit(shooter, o, dir, Math.min(environment.travel, left), battle, skip);

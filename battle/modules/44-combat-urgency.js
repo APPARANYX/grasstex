@@ -159,7 +159,7 @@
     );
     e._urgentCover = true;
     e.urgentBound = true;
-    s._combatUrgentUntil = b.time + URGENT_TTL;
+    root.BattleEngagement.markUrgent(s, b, URGENT_TTL);
     root.BattleEngagement.commitStance(s, b, 'crouch', e.until - b.time);
     s.setUp = false;
     request(s, cover, b, 'cover-bound', 0.8, 'suppressed cover move');
@@ -171,16 +171,16 @@
     var d = dist(pos(s), e.cover);
     if (d <= COVER_ARRIVED) {
       e._urgentCover = false;
-      s._combatUrgentUntil = 0;
+      root.BattleEngagement.clearUrgent(s);
       bump(b, 'urgentCoverArrivals');
       return false;
     }
     if (!safeToMove(s, b) || e.state !== 'bound') {
       e._urgentCover = false;
-      s._combatUrgentUntil = 0;
+      root.BattleEngagement.clearUrgent(s);
       return false;
     }
-    s._combatUrgentUntil = b.time + URGENT_TTL;
+    root.BattleEngagement.markUrgent(s, b, URGENT_TTL);
     request(s, e.cover, b, 'cover-bound', 0.8, 'suppressed cover move');
     return true;
   }
@@ -242,7 +242,7 @@
     sim._combatUrgencySummary = null;
     var a = root.BattleModules.unitsFor(sim);
     for (var i = 0; i < a.length; i++) {
-      a[i]._combatUrgentUntil = 0;
+      root.BattleEngagement.clearUrgent(a[i]);
       if (a[i].eng) {
         a[i].eng._urgentCover = false;
         a[i].eng._urgentCoverSearchAt = 0;
