@@ -8,13 +8,27 @@
   'use strict';
 
   var ROLES = {
-    /* Squad leaders carried a submachine gun (US Thompson, GE MP40), not a pistol: a sidearm left
-       the leader out of every fight past 25 m. */
-    sergeant: { weapon: 'smg', speed: 3.0, visionRange: 150, hp: 110 },
-    rifleman: { weapon: 'rifle', speed: 2.9, visionRange: 140, hp: 100 },
-    gunner: { weapon: 'lmg', speed: 2.2, visionRange: 150, hp: 100 },
-    scout: { weapon: 'carbine', speed: 3.8, visionRange: 175, hp: 90 }
+    sergeant: { speed: 3.0, visionRange: 150, hp: 110 },
+    rifleman: { speed: 2.9, visionRange: 140, hp: 100 },
+    gunner: { speed: 2.2, visionRange: 150, hp: 100 },
+    scout: { speed: 3.8, visionRange: 175, hp: 90 }
   };
+  /* What a man is issued, kept apart from what he does (ROLES). A loadout names the weapon kind of
+     each slot; `BattleWeapons.issue` turns the kind into the side's own weapon (profile, magSize,
+     carried). Squad leaders carry a submachine gun (US Thompson, GE MP40), not a pistol: a sidearm
+     left the leader out of every fight past 25 m. `loadoutFor` is the only place a role picks a
+     weapon, so a per-man variation (sniper, sidearm) is a new loadout, not a new code path. */
+  var LOADOUTS = {
+    sergeant: { primary: 'smg' },
+    rifleman: { primary: 'rifle' },
+    gunner: { primary: 'lmg' },
+    scout: { primary: 'carbine' },
+    engineer: { primary: 'rifle' }
+  };
+  function loadoutFor(role, faction) {
+    var l = LOADOUTS[role] || LOADOUTS.rifleman;
+    return { primary: l.primary };
+  }
   var COMPOSITION = [
     'sergeant',
     'gunner',
@@ -1073,6 +1087,8 @@
     extend: EXT.attach,
     extensionOrder: EXT.order,
     ROLES: ROLES,
+    LOADOUTS: LOADOUTS,
+    loadoutFor: loadoutFor,
     COMPOSITION: COMPOSITION,
     createSquad: createSquad,
     createSoldier: createSoldier,
