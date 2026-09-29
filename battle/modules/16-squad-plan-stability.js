@@ -78,7 +78,8 @@
   var ORDER_STRIDE = 13,
     ORDER_ARRIVAL_RADIUS = 8,
     ORDER_COHESION = 0.55,
-    ORDER_PUBLISH_EPS = 0.05;
+    ORDER_PUBLISH_EPS = 0.05,
+    FOLLOW_LAG = 2;
   var TACTICAL = {
     assault: 1,
     flank: 1,
@@ -918,6 +919,21 @@
     }
     sq.rally = { x: anchor.x, z: anchor.z };
   }
+  /* A fireteam's slots are laid round its anchor, and the squad anchor only advances once enough men
+     have arrived on their orders. Men who rush on (cover bounds, assault rushes) leave it behind, so
+     the next renewal, or a teammate falling, dealt their slots back behind them: the largest producer
+     in the `backward-orders` probe. While the squad advances the team's anchor never trails the team's
+     forward line (the same forward-majority point `_forwardLine` publishes, taken from the men now,
+     since the published line is a tick old and cleared in retreat) by more than FOLLOW_LAG: it is
+     carried forward along the advance axis to where the team actually is. */
+  function followTeamForward(sq, men, cur) {
+    var axis = commandForward(sq),
+      t = forwardMajority(men, axis);
+    if (!t) return;
+    var lag = t.at - (cur.anchor.x * axis.x + cur.anchor.z * axis.z);
+    if (lag <= FOLLOW_LAG) return;
+    cur.anchor = { x: cur.anchor.x + axis.x * lag, z: cur.anchor.z + axis.z * lag };
+  }
   function updateFireteams(sq, battle) {
     sq._fireteamOrders = sq._fireteamOrders || {};
     var defensive = !!DEFENSIVE[sq.commandPhase],
@@ -956,6 +972,7 @@
           };
         else cur.until = battle.time + TEAM_LEASE;
       }
+      if (!defensive && !regroup && !urgent) followTeamForward(sq, m, cur);
       for (var i = 0; i < m.length; i++) {
         var s = m[i],
           d = teamSlot(sq, key, s, i, m.length, cur.anchor, cur.forward),
