@@ -11,7 +11,10 @@
    - Nothing can change or write it: set, setMatchPolicies, refresh, persist and remember do nothing
      and never touch the network, and the genome trainer does not load.
    - It has one door: no other runtime file reads the raw policy, the memory or the per-match genomes.
-   - The two copies of the defaults (the genome's and the doctrine module's fallback) agree.
+   - Genome off (stashed, or its module absent as in the Node harness) means the code defaults in
+     commander-doctrine.js: the numbers, the doctrine and the four default rules, read from there and not from
+     ai-policy.js, so a page or a harness without the genome module decides briefs by the same rules.
+   - The two copies of the defaults (the genome's and the doctrine module's fallback) agree, rules included.
    - The control: with the switch flipped the same hostile inputs DO take effect, so the tests above can
      fail and the live genome still works when it comes back. */
 const assert = require('node:assert/strict');
@@ -141,12 +144,16 @@ test('the consumers read the defaults: Force Command doctrine and the Squad Lead
     P = root.BattleAIPolicy,
     sim = { scene: { metadata: { battleScenario: SCENARIO } } };
   for (const f of ['us', 'ge']) {
-    same(
-      D.policyFor(sim, f),
-      P.defaults.parameters,
-      f + ' tuning numbers (module 16 reads these through policyFor)'
-    );
+    assert.equal(D.genomeOff(), true, 'genome off while stashed');
+    for (const k of Object.keys(P.defaults.parameters))
+      if (k !== 'objectiveHoldWin')
+        assert.equal(
+          D.policyFor(sim, f)[k],
+          P.defaults.parameters[k],
+          f + ' tuning number ' + k + ' (module 16 reads these through policyFor)'
+        );
     same(D.doctrineFor(sim, f), P.defaults.doctrine, f + ' doctrine');
+    same(D.genomeFor(sim, f).rules, P.defaults.rules, f + ' rules');
     assert.equal(D.policyFor(sim, f).cohesionRadius, 34);
     assert.equal(D.doctrineFor(sim, f).riskTolerance, 0.56);
   }
@@ -216,6 +223,84 @@ test('the two copies of the defaults agree (the genome, and the doctrine module 
   for (const k of Object.keys(D.FALLBACK))
     assert.ok(k in defaults.parameters, 'the fallback has a parameter the genome does not: ' + k);
   same(D.FALLBACK_DOCTRINE, defaults.doctrine, 'doctrine numbers');
+  same(D.FALLBACK_RULES, defaults.rules, 'rules');
+});
+
+/* Every situation the brief's context can describe: the nine flags buildContext sets (notOutnumbered is
+   derived from outnumbered). */
+const FLAGS = [
+  'objectiveNeutral',
+  'objectiveEnemy',
+  'objectiveOwned',
+  'enemyNear',
+  'outnumbered',
+  'captainDead',
+  'supportRole',
+  'insideObjective',
+  'underPressure'
+];
+function doctrineOn(root) {
+  new Function('window', 'globalThis', 'console', read('battle/commander-doctrine.js'))(root, root, {
+    log() {},
+    warn() {}
+  });
+  return root.BattleCommanderDoctrine;
+}
+
+test('genome off, a brief is decided by the same default rules with or without the genome module', () => {
+  const stashed = policyRoot({ stashed: true, fetchLog: [] }),
+    P = stashed.BattleAIPolicy,
+    withModule = doctrineOn(stashed),
+    bare = doctrineOn({}),
+    sim = { scene: { metadata: { battleScenario: SCENARIO } } };
+  assert.equal(bare.genomeOff(), true, 'no genome module: off');
+  let decided = 0;
+  for (let mask = 0; mask < 1 << FLAGS.length; mask++) {
+    const context = {};
+    FLAGS.forEach((f, i) => (context[f] = !!(mask & (1 << i))));
+    const expected = P.decide(P.defaults, context);
+    same(withModule.ruleFor(sim, 'us', context), expected, 'stashed module, hostile server data: ' + mask);
+    same(bare.ruleFor(sim, 'ge', context), expected, 'no module: ' + mask);
+    if (expected) decided++;
+  }
+  assert.ok(decided > 0 && decided < 1 << FLAGS.length, 'some situations match a rule and some do not');
+  assert.equal(
+    bare.ruleFor(sim, 'us', { objectiveNeutral: true, outnumbered: false }).id,
+    'press-neutral',
+    'a neutral objective, not outnumbered: press'
+  );
+  assert.equal(
+    bare.ruleFor(sim, 'us', { objectiveEnemy: true, outnumbered: true }).action,
+    'flank',
+    'an enemy strongpoint, outnumbered: flank'
+  );
+  assert.equal(
+    bare.ruleFor(sim, 'us', { objectiveOwned: true, underPressure: true }).action,
+    'defend',
+    'an owned objective under pressure: defend'
+  );
+  assert.equal(bare.ruleFor(sim, 'us', {}), null, 'nothing holds: no rule, the brief assaults');
+});
+
+test('control: with the genome on, Force Command decides by the genome, not the code defaults', () => {
+  const root = policyRoot({ stashed: false, fetchLog: [] }),
+    D = doctrineOn(root),
+    sim = { scene: { metadata: { battleScenario: SCENARIO } } };
+  assert.equal(D.genomeOff(), false);
+  assert.equal(
+    D.ruleFor(sim, 'us', { objectiveNeutral: true, outnumbered: false }).id,
+    'always-hold',
+    'the server genome decides'
+  );
+  assert.notEqual(D.policyFor(sim, 'us').cohesionRadius, D.FALLBACK.cohesionRadius);
+});
+
+test('Force Command asks the doctrine module for a rule, never the genome module around it', () => {
+  assert.equal(
+    /BattleAIPolicy\s*\.\s*decide/.test(read('battle/commander-ai.js')),
+    false,
+    'commander-ai.js decides through BattleCommanderDoctrine.ruleFor'
+  );
 });
 
 test('control: with the switch flipped the same hostile inputs take effect', async () => {

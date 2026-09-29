@@ -22,6 +22,14 @@ function fixture(){
   function tick(){sim.time+=.45;r.BattleCommanderAI.update(sim,town,.45);} // Squad Leader executes from its own onCommanderTick hook
   return{r,sq,sim,town,events,tick,systems,get decisions(){return decisions;},set action(v){action=v;}};
 }
+test('genome off and its module absent, a brief is decided by the code-default rules (the Node harness runs them too)',()=>{
+  const f=fixture();delete f.r.BattleAIPolicy;f.sq.targetObjective=null;f.sq.routeIndex=0;
+  for(let i=0;i<5;i++){const m={id:'r'+i,role:'rifleman',dead:false,faction:'us',root:{position:{x:0,z:0}}};f.sq.members.push(m);f.sim._roster.us.push(m);}
+  f.tick();
+  const d=f.events.find(e=>e.type==='decision-doctrine');
+  assert.ok(d,'a rule decided the brief: with an empty rule list nothing would have');assert.equal(d.data.rule,'press-neutral');assert.equal(d.data.action,'assault');
+  assert.deepEqual(d.data.conditions,['objectiveNeutral','notOutnumbered']);
+});
 test('accepted objective survives local doctrine/contact noise without strategic reevaluation',()=>{
   const f=fixture();f.tick();const point=JSON.stringify(f.sq.objective),decisions=f.decisions;f.action='hold';
   for(let i=0;i<30;i++){f.sq.inContact=!!(i%2);f.tick();}

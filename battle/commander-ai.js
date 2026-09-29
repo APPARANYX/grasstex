@@ -425,7 +425,7 @@
     var p = D.avgPos(sq),
       enemy = D.nearestEnemyToSquad(sim, sq),
       context = D.buildContext(sim, sq, chosen, enemy, p),
-      rule = root.BattleAIPolicy ? root.BattleAIPolicy.decide(genome(sim, sq.faction), context) : null;
+      rule = D.ruleFor(sim, sq.faction, context);
     var action = (rule && rule.action) || 'assault',
       axis = [];
     var vacant = root.BattleVacantObjectiveAssault;
