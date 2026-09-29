@@ -793,8 +793,7 @@
        fireteam slots (and so every man's movement order) are built around it. The anchor is frozen
        during a regroup; left where it was it had usually run ahead with the leading men, and the
        squad re-formed around that instead - or ran out the 18 s regroup lease walking to it. */
-    sq.orderAnchor = copy(anchor);
-    sq.rally = copy(anchor);
+    publishAnchor(sq, anchor);
     transitionPhase(sim, sq, 'regroup', 'squad dispersed', 'regroup');
     telemetry(sim, 'decision-regroup-commit', {
       faction: sq.faction,
@@ -981,12 +980,29 @@
     }
     return arrived / living.length >= ORDER_COHESION;
   }
+  /* The one publisher of the squad's anchor. `orderAnchor` is where the fireteam slots are laid; `rally` is
+     the same point for the readers that only know a rally point (the doctrine's empty-squad fallback, the
+     resolver's last resort, the exports). Every move of either goes through here: the per-step advance
+     below, the regroup commit (updateCohesion), the General's reconstitution merge and the garrison setup,
+     which call it as BattleSquadStability.publishAnchor. Nothing else assigns the pair
+     (state-ownership-check.js holds this to the function), so the two cannot disagree and a move is never
+     labelled by whichever path happened to write it: the advance (the squadCommand slot) and the regroup
+     (this module's commander hook) used to assign it separately, and the provenance log read one owner
+     reached by two paths as squad-orders, squad-stability, squad-orders: a writer-ping-pong. Both fields
+     are replaced with fresh copies, so a held reference never moves under its holder. */
+  function publishAnchor(sq, point) {
+    sq.orderAnchor = { x: point.x, z: point.z };
+    sq.rally = { x: point.x, z: point.z };
+    return sq.orderAnchor;
+  }
   /* The legacy SquadAI issueOrders() both advanced the Squad Leader's anchor AND published an individual
    formation point for every soldier every squad tick. M3C keeps the useful anchor cadence here and
    deletes that redundant individual producer entirely: only committed fireteam slots publish Meso
    locomotion. */
   function advanceSquadAnchor(sq, battle) {
-    var anchor = sq.orderAnchor || (sq.orderAnchor = { x: sq.rally.x, z: sq.rally.z }),
+    var anchor = sq.orderAnchor || publishAnchor(sq, sq.rally),
+      x = anchor.x,
+      z = anchor.z,
       goal = sq.state === 'retreat' ? root.SquadAI.retreatGoal(sq) : sq.objective || sq.home,
       goalChanged = !sq._orderGoal || dist(goal, sq._orderGoal) > 3;
     var form = root.SquadAI.formationFor(sq),
@@ -1004,8 +1020,8 @@
     }
     var bounding = L.holds(sq, 'bound', battle.time),
       held = !!sq.inContact && !bounding,
-      dx = goal.x - anchor.x,
-      dz = goal.z - anchor.z,
+      dx = goal.x - x,
+      dz = goal.z - z,
       len = Math.hypot(dx, dz),
       mayAdvance = !hold && !held && (sq.state === 'advance' || sq.state === 'engaged');
     if ((force || orderCanAdvance(sq)) && mayAdvance && len > 2) {
@@ -1014,15 +1030,15 @@
         : sq.state === 'engaged'
           ? ORDER_STRIDE * 0.62
           : ORDER_STRIDE;
-      anchor.x += (dx / len) * Math.min(stride, len);
-      anchor.z += (dz / len) * Math.min(stride, len);
+      x += (dx / len) * Math.min(stride, len);
+      z += (dz / len) * Math.min(stride, len);
       sq._orderVersion = (+sq._orderVersion || 0) + 1;
     } else if (sq.state === 'retreat' && len > 2) {
-      anchor.x += (dx / len) * Math.min(ORDER_STRIDE, len);
-      anchor.z += (dz / len) * Math.min(ORDER_STRIDE, len);
+      x += (dx / len) * Math.min(ORDER_STRIDE, len);
+      z += (dz / len) * Math.min(ORDER_STRIDE, len);
       sq._orderVersion = (+sq._orderVersion || 0) + 1;
     }
-    sq.rally = { x: anchor.x, z: anchor.z };
+    publishAnchor(sq, { x: x, z: z });
   }
   /* A fireteam's slots are laid round its anchor, and the squad anchor only advances once enough men
      have arrived on their orders. Men who rush on (cover bounds, assault rushes) leave it behind, so
@@ -1563,6 +1579,7 @@
     states: PHASE_STATES,
     transitionPhase: transitionPhase,
     initialPhase: initialPhase,
+    publishAnchor: publishAnchor,
     teamKeyFor: teamKeyFor,
     placeAtSlots: placeAtSlots,
     executeMission: executeMission

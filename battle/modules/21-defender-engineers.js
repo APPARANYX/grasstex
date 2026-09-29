@@ -289,8 +289,7 @@
       sq.home = root.BattleSides.offsetPoint(point, frame, sector.radius * 2.4, 0);
       sq.route = [copy(center)];
       sq.routeIndex = 0;
-      sq.orderAnchor = copy(center);
-      sq.rally = copy(center);
+      if (root.BattleSquadStability) root.BattleSquadStability.publishAnchor(sq, center);
       sq._orderGoal = null;
       sq._formationForward = { x: frame.front.x, z: frame.front.z };
       sq._stablePlan = null;
