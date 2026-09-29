@@ -4,6 +4,9 @@
    follow local aliases, helper returns/arguments and literal bracket keys; reject direct
    writes, record replacement and standard Object/Reflect mutation APIs. Generic state,
    status and timer fields are not protected. No parser dependency is needed in CI.
+   Phase 2a: the squad's anchor pair (`orderAnchor`, `rally`) has an owner FUNCTION as well as an owner
+   file: only `publishAnchor` in the Squad Leader may assign either, so the Squad Leader cannot split its
+   own publisher again (two sites in one file were the writer-ping-pong).
    GRASSTEX_SOURCE_ROOT lets this same check demonstrate the pre-refactor failures. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -19,8 +22,13 @@ const owners = {
   eng: 'engagement.js',
   '_macroMission.status': 'commander-ai.js',
   _macroMission: 'commander-ai.js',
-  commandPhase: 'modules/16-squad-plan-stability.js'
+  commandPhase: 'modules/16-squad-plan-stability.js',
+  orderAnchor: 'modules/16-squad-plan-stability.js',
+  rally: 'modules/16-squad-plan-stability.js'
 };
+// Fields whose owner is one function in the owner file, not the whole file.
+const ownerFunction = { orderAnchor: 'publishAnchor', rally: 'publishAnchor' };
+const ownerName = field => owners[field] + (ownerFunction[field] ? ':' + ownerFunction[field] + '()' : '');
 
 function tokens(src) {
   const out = [];
@@ -297,14 +305,18 @@ function scan(src, file) {
     const m = explicitKey === undefined ? member(a, b) : { a, b, key: explicitKey };
     if (!m) return;
     const k = kind(m.a, m.b);
-    const field = ['commandPhase', 'eng', '_macroMission'].includes(m.key)
+    const field = ['commandPhase', 'eng', '_macroMission', 'orderAnchor', 'rally'].includes(m.key)
       ? m.key
       : k & ENG && ['state', 'since', 'until'].includes(m.key)
         ? 'eng.' + m.key
         : k & MISSION && m.key === 'status'
           ? '_macroMission.status'
           : null;
-    if (field && owners[field] !== file) found.push({ file, line: t[at].line, field, at });
+    if (!field) return;
+    // The innermost function the write sits in; a nested helper is not its enclosing owner function.
+    const inside = t[at].scope && t[at].scope.name;
+    if (owners[field] !== file || (ownerFunction[field] && inside !== ownerFunction[field]))
+      found.push({ file, line: t[at].line, field, at });
   }
   for (let i = 0; i < t.length; i++) {
     if (t[i].string) continue;
@@ -392,7 +404,12 @@ function selfTest() {
     ["sq['_macroMission'] = {};", '_macroMission'],
     ["const s = {eng: {state: 'advance'}};", 'eng'],
     ["const sq = {_macroMission: {status: 'issued'}};", '_macroMission'],
-    ["q['commandPhase'] = 'defend';", 'commandPhase']
+    ["q['commandPhase'] = 'defend';", 'commandPhase'],
+    ['sq.rally = { x: 1, z: 2 };', 'rally'],
+    ['survivor["orderAnchor"] = p; ++survivor.rally.x;', 'orderAnchor'],
+    ['Object.assign(sq, { rally: p });', 'rally'],
+    ["Object.defineProperty(sq, 'orderAnchor', { value: p });", 'orderAnchor'],
+    ['delete sq.rally;', 'rally']
   ];
   for (const [source, field] of bad)
     assert.ok(
@@ -417,9 +434,48 @@ function selfTest() {
           ? 'sq._macroMission = {};'
           : field === 'commandPhase'
             ? 'sq.commandPhase = "hold";'
-            : 's.' + field + ' = 1;';
+            : ownerFunction[field]
+              ? 'function ' + ownerFunction[field] + '(sq, p) { sq.' + field + ' = p; }'
+              : 's.' + field + ' = 1;';
     assert.deepEqual(scan(source, owner), [], 'owner rejected: ' + field);
   }
+  // The anchor pair has an owner function inside the owner file: the same file, anywhere else, is a second publisher.
+  const squadLeader = owners.rally;
+  const publish =
+    'function publishAnchor(sq, p) { sq.orderAnchor = { x: p.x, z: p.z }; sq.rally = { x: p.x, z: p.z }; }';
+  assert.deepEqual(scan(publish, squadLeader), [], 'the publisher may assign both');
+  for (const [source, field, why] of [
+    [
+      'function advanceSquadAnchor(sq) { sq.rally = { x: 1, z: 2 }; }',
+      'rally',
+      'another function in the owner file'
+    ],
+    [
+      'function updateCohesion(sq, a) { sq.orderAnchor = a; sq.rally = a; }',
+      'orderAnchor',
+      'the regroup assigning it itself'
+    ],
+    ['sq.rally = p;', 'rally', 'top level of the owner file'],
+    [
+      'function publishAnchor(sq, p) { function later() { sq.rally = p; } later(); }',
+      'rally',
+      'a helper nested in the publisher'
+    ],
+    [
+      'var publishAnchor = function (sq, p) { sq.rally = p; };',
+      'rally',
+      'an anonymous function bound to the name'
+    ]
+  ])
+    assert.ok(
+      scan(source, squadLeader).some(x => x.field === field),
+      'second publisher accepted: ' + why
+    );
+  assert.deepEqual(
+    scan('function other(sq) { const rally = sq.rally; return rally.x + sq.orderAnchor.z; }', squadLeader),
+    [],
+    'reading the pair is not publishing it'
+  );
   for (const [file, phase] of [
     ['commander-routes.js', 'phase'],
     ['modules/21-defender-engineers.js', "'defend'"]
@@ -437,7 +493,7 @@ function selfTest() {
       'setup exemption escaped its branch'
     );
   }
-  return bad.length + clean.length + Object.keys(owners).length + 6;
+  return bad.length + clean.length + Object.keys(owners).length + 6 + 7;
 }
 
 const n = selfTest();
@@ -462,7 +518,7 @@ const violations = files.flatMap(file => {
 if (violations.length) {
   for (const v of violations)
     console.error(
-      'FAIL ' + v.file + ':' + v.line + ' writes ' + v.field + ' (owner: ' + owners[v.field] + ')'
+      'FAIL ' + v.file + ':' + v.line + ' writes ' + v.field + ' (owner: ' + ownerName(v.field) + ')'
     );
   process.exitCode = 1;
 } else

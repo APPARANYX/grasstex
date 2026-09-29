@@ -218,42 +218,6 @@
         }
       }
     },
-    "squad.orderAnchor": {
-      "owner": "modules/16-squad-plan-stability.js",
-      "writers": {
-        "modules/16-squad-plan-stability.js": {
-          "as": "owner",
-          "why": "advanceSquadAnchor and regroup publish the order anchor (with rally)."
-        },
-        "commander-ai.js": {
-          "as": "debt",
-          "why": "The merge sets the anchor with the rally point; part of rally's single-publisher question.",
-          "fix": "phase 2a"
-        },
-        "modules/21-defender-engineers.js": {
-          "as": "setup",
-          "why": "garrison-setup"
-        }
-      }
-    },
-    "squad.rally": {
-      "owner": "modules/16-squad-plan-stability.js",
-      "writers": {
-        "modules/16-squad-plan-stability.js": {
-          "as": "owner",
-          "why": "Two sites: advanceSquadAnchor and the regroup in updateCohesion (provenance labels them squad-stability and squad-orders; the writer-ping-pong)."
-        },
-        "commander-ai.js": {
-          "as": "debt",
-          "why": "The reconstitution merge is a third publisher of rally.",
-          "fix": "phase 2a"
-        },
-        "modules/21-defender-engineers.js": {
-          "as": "setup",
-          "why": "garrison-setup"
-        }
-      }
-    },
     "squad.route": {
       "owner": "modules/16-squad-plan-stability.js",
       "writers": {
