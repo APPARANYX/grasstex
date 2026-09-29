@@ -616,7 +616,7 @@
     squadCommand: ['squad-leader'], // the squad's command owner; without one a squad only reports status
     beforeSoldier: ['soldier-mind', 'sidearm', 'weapon-cycle'], // each soldier AI tick, before perception
     afterSoldier: ['weapon-cycle'], // after engagement and movement resolution
-    aimedAt: ['soldier-mind'] // a trigger pull had this man as its target: (victim, battle, {from, rounds, d})
+    aimedAt: ['soldier-events'] // a trigger pull had this man as its target: (victim, battle, {from, rounds, d})
   });
 
   /* One trigger pull. Semi-automatic and bolt-action weapons fire one round; an automatic weapon
@@ -669,6 +669,12 @@
     var stats = root.BattleSoldierStats;
     if (stats) seconds *= stats.scale(target, 'hold');
     target.suppressedUntil = Math.max(target.suppressedUntil || 0, battle.time + seconds);
+    // The queue carries what this writer computed (the hold after the fortitude scale), never a recomputation.
+    if (root.BattleSoldierEvents)
+      root.BattleSoldierEvents.post(target, battle, 'suppressed', {
+        until: target.suppressedUntil,
+        seconds: seconds
+      });
   }
 
   function areaFire(shooter, point, battle) {

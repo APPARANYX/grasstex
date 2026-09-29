@@ -100,7 +100,7 @@ const felt = (M, s) => M.stress(s) * M.of(s).nerve;
 test('the mind hooks the soldier tick and the aimed-fire slot, and is off cleanly with ?mind=0', () => {
   const ctx = world();
   assert.equal(ctx.S.extensionOrder.beforeSoldier[0], 'soldier-mind');
-  assert.deepEqual(ctx.S.extensionOrder.aimedAt, ['soldier-mind']);
+  assert.deepEqual(ctx.S.extensionOrder.aimedAt, ['soldier-events']); // the queue's producer; the mind drains it
   const s = man(ctx.us, 'rifleman');
   ctx.b.time += H.AI_TICK;
   ctx.S.updateSoldier(s, ctx.b);
@@ -128,11 +128,10 @@ test('a spell of suppression adds stress at its rate, and it decays back with no
   const ctx = world(),
     s = man(ctx.us, 'rifleman');
   run(ctx, s, 0.15); // his first tick only starts the clock
-  s.suppressedUntil = ctx.b.time + 99;
+  ctx.S.pin(s, ctx.b, 3.1); // the pin the wound model and the ballistics module call
   run(ctx, s, 3);
   const peak = ctx.M.stress(s);
   near(felt(ctx.M, s), 0.05 * 3, 0.03, 'three seconds suppressed');
-  s.suppressedUntil = 0;
   let last = peak;
   for (let i = 0; i < 44; i++) {
     run(ctx, s, 1.5);
@@ -234,6 +233,7 @@ test('a wound and aimed rounds add stress; range decides how much a round counts
     shooter = man(ctx.ge, 'rifleman', 0);
   run(ctx, s, 0.15);
   s.wounds = [{ zone: 'arm', at: ctx.b.time, by: shooter.id }];
+  ctx.r.BattleSoldierEvents.post(s, ctx.b, 'wound', { count: 1 }); // what the wound model posts
   run(ctx, s, 0.15);
   near(felt(ctx.M, s), ctx.M.tuning.WOUNDED, 0.005, 'one wound');
   run(ctx, s, 0.15);
@@ -450,6 +450,7 @@ test('a squad with no living man is rolled up over nobody, not left holding the 
     registerSystem: (id, s) => (systems[id] = s),
     unitsFor: b => (b._roster.us || []).concat(b._roster.ge || [])
   };
+  load(r, 'battle/modules/08-soldier-events.js');
   load(r, 'battle/modules/17-soldier-mind.js');
   const M = r.BattleSoldierMind,
     hook = systems['soldier-mind'],
@@ -499,6 +500,7 @@ test('a squad with no living man is rolled up over nobody, not left holding the 
 
   const off = H.bootstrap({ modules: false });
   off.BattleModules = { registerSystem() {}, unitsFor: () => [] };
+  load(off, 'battle/modules/08-soldier-events.js');
   load(off, 'battle/modules/17-soldier-mind.js');
   off.BattleSoldierMind.configure('?mind=0');
   const stale = { members: [], mind: { n: 4, at: 1 } };
@@ -514,7 +516,7 @@ test('the module writes only `mind`: stance, destination, target and suppression
   put(e, 3, 0);
   s.destination = { x: 9, z: 9 };
   s.target = man(ctx.ge, 'rifleman', 0);
-  s.suppressedUntil = ctx.b.time + 5;
+  ctx.S.pin(s, ctx.b, 5);
   s.prone = true;
   const keep = () =>
     JSON.stringify([
@@ -533,6 +535,7 @@ test('the module writes only `mind`: stance, destination, target and suppression
   run(ctx, s, 0.15);
   ctx.b.killSoldier(e);
   s.wounds = [{ zone: 'chest', at: ctx.b.time }];
+  ctx.r.BattleSoldierEvents.post(s, ctx.b, 'wound', { count: 1 });
   run(ctx, s, 3);
   assert.equal(keep(), before);
   assert.ok(ctx.M.stress(s) > 0.2, 'and it did register the events');
@@ -544,10 +547,12 @@ test('reset wipes every mind and the battle log', () => {
   run(ctx, s, 0.15);
   ctx.b.killSoldier(man(ctx.us, 'rifleman', 1));
   run(ctx, s, 0.15);
-  assert.ok(s.mind && ctx.b._mind.log.length === 1);
+  assert.ok(s.mind && ctx.b._soldierEvents.log.length === 1);
   ctx.M.reset(ctx.b);
+  ctx.r.BattleSoldierEvents.reset(ctx.b);
   assert.equal(s.mind, null);
-  assert.equal(ctx.b._mind, null);
+  assert.equal(ctx.b._soldierEvents, null);
+  assert.equal(s._eventQueue, null);
 });
 
 /* A whole 10 v 10 firefight, once per mode: the module observing must not move a single thing the battle

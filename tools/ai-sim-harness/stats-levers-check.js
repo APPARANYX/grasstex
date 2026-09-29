@@ -109,6 +109,7 @@ test('FOR: the same wound costs a shakier man more stress than a steadier one, i
     b.time = 10;
     M.tick(s, b);
     s.wounds = [{ zone: 'arm', at: b.time }];
+    w.r.BattleSoldierEvents.post(s, b, 'wound', { count: 1 });
     b.time += 0.15;
     M.tick(s, b);
   }
