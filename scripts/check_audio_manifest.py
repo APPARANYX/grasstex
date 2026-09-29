@@ -19,7 +19,7 @@ ROOT = 'Assets/audio'
 PLACEHOLDERS = os.path.join(ROOT, '.manifest-placeholders.txt')
 # Directories whose clips are wired up through the manifest. voices/ is validated by
 # scripts/validate_voice_manifest.py instead, which understands the callout event map.
-MANAGED = ('weapons', 'vehicles', 'ambience', 'grenades', 'aircraft')
+MANAGED = ('weapons', 'vehicles', 'ambience', 'grenades', 'aircraft', 'footsteps')
 
 
 def load_placeholders():

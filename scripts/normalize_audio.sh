@@ -43,6 +43,9 @@ method_for() {
     # off, a tank round, a bomb. They have the same crest factor and the same long tail as
     # a rifle crack, so R128 mis-measures them the same way.
     */grenades/*.mp3) echo "transient" ;;
+    # A footstep is a ~1.2 s clip built around one foot-strike transient, same shape as
+    # weapon foley.
+    */footsteps/*.mp3) echo "transient" ;;
     */vehicles/tank-cannon-*.mp3|*/vehicles/tank-impact-*.mp3|*/vehicles/tank-destroyed-*.mp3) echo "transient" ;;
     */aircraft/bomb-explosion-*.mp3) echo "transient" ;;
     *) echo "integrated" ;;
@@ -55,6 +58,10 @@ transient_target_for() {
     */weapons/foley/*.mp3) echo "-26.0" ;;
     # Handling a grenade is quiet mechanical foley; the detonation is not.
     */grenades/pin-*.mp3|*/grenades/throw-*.mp3|*/grenades/bounce-*.mp3) echo "-26.0" ;;
+    */footsteps/*.mp3) echo "-26.0" ;;
+    # Bullet flybys/impacts: quieter and more distant than the shot itself, louder than
+    # handling foley.
+    */weapons/shared/*.mp3) echo "-22.0" ;;
     */weapons/cannon-*.mp3|*/vehicles/tank-cannon-*.mp3) echo "-13.0" ;;
     */grenades/explosion-*.mp3|*/aircraft/bomb-explosion-*.mp3|*/vehicles/tank-destroyed-*.mp3) echo "-14.0" ;;
     *) echo "-16.0" ;;

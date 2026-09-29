@@ -725,6 +725,47 @@ factions textured differently, weapon on the hands). Keep weapon source `.zip` p
   redistribution as a library**) or Freesound CC0. The M1 Garand clips are Freesound 385785, 386842,
   505204, 460855 and 505206. Provenance per weapon: `git show 1a5b0cf:Assets/audio/WW2_SOURCES.md`.
 
+**Weapon/impact/flyby SFX (`Assets/audio/weapon-clip-manifest.json`, planned - no audio recorded
+yet).** Replaces `manifest.json`'s Sonniss-derived `categories.weapons`/`weaponFoley` pools, which
+are keyed by sim kind (`rifle`/`carbine`/`lmg`/`pistol`) rather than the actual model a soldier
+carries, and whose automatic-weapon "shots" are recorded bursts (an onset check found 2+ shots in
+37 of 62 clips: MG42 takes had 21-65). The new manifest is keyed one entry per `battle/weapons.js`
+`PROFILES[faction][kind].model` (10 weapons: Garand, Kar98k, M1 Carbine, Thompson, FG42, MP40,
+M1919A6, MG42, M1911A1, P38), one action per sim event (fire, distant fire, burst tail, reload
+stages by mechanism, stoppage click/clear, bipod deploy/fold, plus the Garand's clip ping and the
+Kar98k's bolt cycle) - 309 clips total (154 baseline P0). It adds `shared` bullet flyby
+(`crackSupersonic`/`whizSubsonic`, 10 clips) and casing foley, and `impacts` keyed 1:1 with
+`15-bullet-impact-fx.js`'s `material()` surface classes (`impactFlesh/Dirt/Masonry/Wood/Metal/Vegetation`,
+30 clips). Every clip marked `singleShot:true` must hold exactly one discharge (one onset, attack
+within 10 ms, no second transient within 18 dB of peak); automatic fire is built at runtime by
+retriggering `fire` at the weapon's `cyclicRpm`, never by playing a recorded burst.
+`scripts/check_weapon_clips.py` checks the manifest against the live `PROFILES` roster and
+(`--audio`) onset-checks every clip that exists; `--shots f.mp3 …` vets a candidate recording
+before import. File layout keys the existing mastering targets: `weapons/<model>/<action>-NN.mp3`
+(smallArms -16 dBFS) for shot/tail clips, `weapons/foley/<model>-<action>-NN.mp3` (-26 dBFS,
+matching the Sonniss foley pool's subfolder) for handling foley, `weapons/shared/<action>-NN.mp3`
+(-22 dBFS) for flyby/impacts. Each clip carries a `prompt` for **ElevenLabs Sound Effects**
+(`POST /v1/sound-generation`, distinct from the TTS voice route above):
+`scripts/generate_weapon_sfx.py [--priority P0] [--only <weapon-id>…] [--force [action]] [--dry-run]`
+fetches into gitignored `.runtime/weapon-sfx/`; run `check_weapon_clips.py --shots` and
+`normalize_audio.sh` over that directory before copying the mastered files into `Assets/audio/`
+and committing only the MP3s, same route as everything else here. Not yet done: wiring these into
+`manifest.json`/the runtime (today only one pooled file per sim kind plays, via `battle-sim.js`
+`weaponFiles`/`buildWeaponAudio`), and expanding each sim shot of an automatic into several
+`fire` triggers at the real cyclic rate (the sim's `rof`/`cyclic` stay the abstract AI/ballistics
+rate; this would be audio-only presentation).
+
+**Footsteps (`categories.footsteps` in `manifest.json`, real files, nothing plays them yet).**
+Ported directly from the sibling project `Teethree89/ww2fps`'s ElevenLabs-generated battlefield
+sound library (its `sound-manifest.json` concepts `001_pasture_grass`, `004_cobbled_street`,
+`009_rubble`; 6 walk + 6 run takes each) rather than regenerated, so both projects sound
+consistent underfoot. Converted from its 48 kHz/24-bit stereo WAV to this project's mono MP3 and
+mastered under the foley target (-26 dBFS). `AUDIO_ASSET_GLOBS` in `prepare_incremental_deploy.py`
+has one entry per surface folder (a flat, non-recursive glob per directory, same as
+`weapons/foley`). Not yet done: which surface plays under a soldier's feet needs a terrain/zone
+signal Battle Sim doesn't have yet (its splat/terrain data is host-only), and a footfall-cadence
+hook into the animation/movement system - both real engineering, out of scope here.
+
 ## Deploy and assets
 
 - Production `/grasstex/battle_sim.php` is `battle_sim_local.php`, uploaded under that name by the
