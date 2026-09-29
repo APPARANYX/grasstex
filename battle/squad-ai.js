@@ -65,6 +65,10 @@
     HEAR_MEMORY = 1.5,
     HEAR_ERROR = 0.08,
     RELAY_RANGE = 50;
+  /* `?perception=0`: the perception before PR #55, for A/B benchmarks only (the scout-balance
+     question: the FG 42 and the view cones shipped together). No view cone, no sector scan, nothing
+     heard or relayed: a man sees every enemy in range and line of sight, whichever way he faces. */
+  var PERCEPTION_ON = !(typeof location !== 'undefined' && /[?&]perception=0\b/.test(location.search || ''));
   /* How long a squad keeps acting on a last-known enemy position after nobody can see him. */
   var CONTACT_MEMORY = 12;
   /* Suppressing fire lands in a cone, not on a point: the further out, the looser the group. */
@@ -176,12 +180,26 @@
     var diff = a - b;
     return Math.abs(Math.atan2(Math.sin(diff), Math.cos(diff)));
   }
-  /* Where the man is looking: his body's facing, or the squad's known threat if a head turn reaches it. */
+  /* A man holding still with no known threat scans his sector: his head sweeps SCAN_SWEEP either side
+     of where his body faces and back every SCAN_PERIOD seconds, each man on his own phase so a
+     line of them covers the arc between them. The sweep stays inside FOCUS_HALF, so his front is
+     always in focus and the scan only widens what he sees (full range out to ±100°); a 70° sweep
+     looked away from the enemy straight ahead (run.js seeds 6 and 23 lost their first target). A
+     man on the move looks where he is going. The clock is sim time and his id, never the combat RNG. */
+  var SCAN_SWEEP = (40 * Math.PI) / 180,
+    SCAN_PERIOD = 8;
+  function scanOffset(soldier, battle) {
+    var u = ((battle.time || 0) / SCAN_PERIOD + (((+soldier.id || 0) * 0.618) % 1)) % 1,
+      tri = u < 0.5 ? 4 * u - 1 : 3 - 4 * u;
+    return SCAN_SWEEP * tri;
+  }
+  /* Where the man is looking: his body's facing, or the squad's known threat if a head turn reaches it;
+     with no known threat and standing still, his scan across the sector. */
   function lookYaw(soldier, battle) {
     var body = soldier.root.rotation.y || 0,
       c = battle && squadContact(soldier.squad, battle),
       p = soldier.root.position;
-    if (!c) return body;
+    if (!c) return battle && !soldier.moving ? body + scanOffset(soldier, battle) : body;
     var toThreat = Math.atan2(c.x - p.x, c.z - p.z);
     return angleBetween(toThreat, body) <= HEAD_TURN ? toThreat : body;
   }
@@ -204,7 +222,7 @@
         ez = e.root.position.z,
         d = dist2(p.x, p.z, ex, ez);
       if (d > detectionRange(role, e)) continue;
-      if (d > BEHIND_RANGE) {
+      if (PERCEPTION_ON && d > BEHIND_RANGE) {
         var reach = viewReach(angleBetween(Math.atan2(ex - p.x, ez - p.z), look), e);
         if (!reach || d > detectionRange(role, e) * reach) continue;
       }
@@ -288,7 +306,7 @@
      can see the enemy, else enemy gunfire within HEAR_RANGE. Once per squad per tick, and only
      while it has no current sighting of its own; neither ever replaces one. */
   function squadSenses(sq, battle) {
-    if (!sq || sq._sensedAt === battle.time) return;
+    if (!PERCEPTION_ON || !sq || sq._sensedAt === battle.time) return;
     sq._sensedAt = battle.time;
     var held = squadContact(sq, battle);
     if (firstHand(held, battle)) return;
@@ -1082,6 +1100,8 @@
       PERIPHERAL_MOVING: PERIPHERAL_MOVING,
       BEHIND_RANGE: BEHIND_RANGE,
       HEAD_TURN: HEAD_TURN,
+      SCAN_SWEEP: SCAN_SWEEP,
+      SCAN_PERIOD: SCAN_PERIOD,
       HEAR_RANGE: HEAR_RANGE,
       HEAR_MEMORY: HEAR_MEMORY,
       RELAY_RANGE: RELAY_RANGE

@@ -56,4 +56,58 @@ test('a terrain hedge\'s approximating circles do not erase the hedge\'s own slo
   const h=hedge(),circles=[-10,-5,0,5,10].map(x=>({x,z:0,y:0,radius:3.4,cover:.62,height:1.5,type:'hedge',physicalId:'hedge'})),f=fixture([h].concat(circles),[h]);
   assert.ok(f.C.snapshot(f.b).length>=20,'hedge lost its slots');
 });
+/* A Squad Leader's bound is a move forward. 44's forward guard covers only the `assault` phase and
+   bounds are also ordered in `capture` and `clear-town`: there the ordered bound took the best cover
+   even behind the man (backward-orders probe). Only cover behind: he rushes toward the objective. */
+function orderBound(f,phase){
+  const L=f.r.BattleLeases;L.define('bound',{priority:1});
+  f.q.commandPhase=phase;f.q._assaultAuthorized=true;L.grant(f.q,'bound','squad-leader',0,10,'test bound','expiry');
+  f.s.eng=null;const e=f.E.stateOf(f.s);e.state='engage';e.boundOrder=true;
+  f.E.updateSoldier(f.s,f.b);return e;
+}
+test('an ordered bound never takes cover behind the man, whatever the phase',()=>{
+  for(const phase of ['assault','capture','clear-town']){
+    const f=fixture([{type:'rock',x:0,z:-16,y:0,radius:1.3,height:1,cover:.55}]),e=orderBound(f,phase);
+    assert.notEqual(e.state,'bound',phase+': bounded back to cover 8 m behind him');
+    assert.equal(e.state,'assault',phase+': no cover ahead, so he rushes');
+    assert.ok(e.assaultGoal&&e.assaultGoal.z>-8,phase+': toward the objective, not back');
+  }
+});
+test('an ordered bound still takes cover ahead of him',()=>{
+  const f=fixture([{type:'rock',x:0,z:0,y:0,radius:1.3,height:1,cover:.55}]),e=orderBound(f,'capture');
+  assert.equal(e.state,'bound');assert.ok(e.cover&&e.cover.z>-8,'cover ahead: '+JSON.stringify(e.cover));
+});
+/* Same rule for the man who has just spotted the enemy (Engagement `decide`): while his squad
+   advances and he is not under fire he takes cover ahead or beside him, not behind. */
+function decideWith(phase,suppressed){
+  const f=fixture([{type:'rock',x:0,z:-16,y:0,radius:1.3,height:1,cover:.55}]);
+  f.q.commandPhase=phase;f.s.suppressedUntil=suppressed?f.b.time+5:0;f.s.eng=null;f.E.stateOf(f.s);
+  f.E.decide(f.s,f.b,'oriented');return f.E.stateOf(f.s);
+}
+test('an advancing man not under fire does not go back to cover; under fire or defending he may',()=>{
+  for(const phase of ['approach','assault','capture','clear-town','flank']){
+    const e=decideWith(phase,false);
+    assert.notEqual(e.state,'bound',phase+': went back to cover 8 m behind him');
+    assert.equal(e.state,'engage',phase+': fights from where he is');
+  }
+  const pinned=decideWith('assault',true);
+  assert.ok(pinned.state==='bound'||pinned.state==='pinned','under fire any cover is survival: '+pinned.state);
+  assert.equal(decideWith('defend',false).state,'bound','a defender may still take cover behind him');
+});
+/* A bound is a dash with its own window. A live battle held men in `bound` for minutes, 0.4-2 m
+   short of a slot they could not reach (inside movement progress's 3 m near band, so never
+   flagged): past its window he re-decides, and that cover is marked failed so he does not take it
+   straight back. Inside the window he keeps going. */
+test('a bound that overruns its window re-decides and does not retake the same cover',()=>{
+  const f=fixture([{type:'rock',x:0,z:0,y:0,radius:1.3,height:1,cover:.55}]);
+  f.q.commandPhase='defend';f.b.time=10;
+  const e=f.E.stateOf(f.s),cover=f.E.findCover(f.s,f.b);assert.ok(cover,'fixture cover');
+  e.state='bound';e.since=2;e.cover=cover;e.until=f.b.time+3;
+  f.E.updateSoldier(f.s,f.b);
+  assert.equal(e.state,'bound','inside its window the bound goes on');assert.equal(e.cover.x,cover.x);
+  f.b.time=14;f.E.updateSoldier(f.s,f.b);
+  const same=e.state==='bound'&&e.cover&&Math.hypot(e.cover.x-cover.x,e.cover.z-cover.z)<.5;
+  assert.ok(!same,'still bounding to the cover he overran: '+e.state);
+  assert.equal(f.r.BattleMovementProgress.candidateAllowed(f.s,f.b,cover),false,'the overrun cover is marked failed');
+});
 console.log(checks+' cover checks passed; '+failures+' failed.');if(failures)process.exitCode=1;

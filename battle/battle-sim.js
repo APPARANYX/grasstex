@@ -41,11 +41,19 @@
     if(root.BattleObstacleField)return root.BattleObstacleField.nearby(obstacles,lookX,lookZ,AVOID_QUERY);
     return obstacles;
   }
-  function steerAroundObstacles(obstacles,x,z,dirx,dirz){
+  /* Soft local avoidance of the tactical cover circles; physical navigation (movementClear /
+     resolveStep below) is what keeps a body out of a real footprint. A circle whose avoidance ring
+     holds the man's destination (not the waypoint on the way to it) is where he is going, so it does
+     not push him. Men bounding to a wall's cover slot jittered in place 2 m short of it for minutes,
+     never arriving and never flagged stuck: a thin wall is sampled as 1.6 m circles every ~2.4 m, its
+     slot sits ~1.9 m from two of them, and their pushes turned him round every other frame. (Dropping
+     every reversing push instead stranded men on blocked formation waypoints: the push is also what
+     backs a man off one.) */
+  function steerAroundObstacles(obstacles,x,z,dirx,dirz,goal){
     var lookX=x+dirx*AVOID_LOOKAHEAD,lookZ=z+dirz*AVOID_LOOKAHEAD,near=avoidanceCandidates(obstacles,lookX,lookZ);
     if(!near||!near.length)return null;
     var pushX=0,pushZ=0,any=false;
-    for(var i=0;i<near.length;i++){var ob=near[i],dxo=lookX-ob.x,dzo=lookZ-ob.z,r=ob.radius+AVOID_MARGIN,dSq=dxo*dxo+dzo*dzo;if(dSq>=r*r)continue;any=true;var d=Math.sqrt(dSq)||.001;pushX+=dxo/d;pushZ+=dzo/d;}
+    for(var i=0;i<near.length;i++){var ob=near[i],dxo=lookX-ob.x,dzo=lookZ-ob.z,r=ob.radius+AVOID_MARGIN,dSq=dxo*dxo+dzo*dzo;if(dSq>=r*r)continue;if(goal&&Math.hypot(goal.x-ob.x,goal.z-ob.z)<r)continue;any=true;var d=Math.sqrt(dSq)||.001;pushX+=dxo/d;pushZ+=dzo/d;}
     if(!any)return null;
     var nx=dirx+pushX*.9,nz=dirz+pushZ*.9,len=Math.hypot(nx,nz);
     return len>1e-4?{x:nx/len,z:nz/len}:null;
@@ -88,13 +96,13 @@
     if(!recovery&&!normalDesired&&root.BattleNavigation)desired=root.BattleNavigation.nextWaypoint(self,soldier,desired)||desired;
     // Record the actual integration gate, not an inference from the last command or stuck detector.
     var observedWaypoint=soldier._movementWaypoint||(soldier._movementWaypoint={x:0,z:0});observedWaypoint.x=desired.x;observedWaypoint.z=desired.z;soldier._movementStopReason=null;
-    var dx=desired.x-soldier.root.position.x,dz=desired.z-soldier.root.position.z,d=Math.hypot(dx,dz),crawl=!!(soldier.prone&&soldier.crawling),wantCrouch=!soldier.prone&&(soldier.tacticalCrouch||(soldier.suppressedUntil>self.time)||(!!soldier.target&&d<=.6));
+    var dx=desired.x-soldier.root.position.x,dz=desired.z-soldier.root.position.z,d=Math.hypot(dx,dz),crawl=!!(soldier.prone&&soldier.crawling),wantCrouch=!soldier.prone&&!!soldier.tacticalCrouch;
     var desiredSpeed=d>.35?soldier.speed*(crawl?.23:(wantCrouch?.58:1)):0,cur=soldier.moveSpeed||0,rate=desiredSpeed>cur?(crawl?1.2:4.2):(crawl?2.0:6.5);soldier.moveSpeed=Math.max(0,cur+Math.max(-rate*dt,Math.min(rate*dt,desiredSpeed-cur)));
     // Ease the remaining angle over time, keeping the existing stance-dependent turn limit.
     function turnToward(yaw){var diff=Math.atan2(Math.sin(yaw-soldier.root.rotation.y),Math.cos(yaw-soldier.root.rotation.y)),maxTurn=(soldier.prone?1.25:2.8)*dt,eased=diff*(1-Math.exp(-8*dt));soldier.root.rotation.y+=Math.max(-maxTurn,Math.min(maxTurn,eased));}
     if(d>.35&&soldier.moveSpeed>.025&&(!soldier.prone||crawl)){
       var here={x:soldier.root.position.x,z:soldier.root.position.z};
-      var dirx=dx/d,dirz=dz/d,steered=!recovery&&steerAroundObstacles(self.obstacles,here.x,here.z,dirx,dirz);if(steered){dirx=steered.x;dirz=steered.z;}
+      var dirx=dx/d,dirz=dz/d,steered=!recovery&&steerAroundObstacles(self.obstacles,here.x,here.z,dirx,dirz,soldier.destination);if(steered){dirx=steered.x;dirz=steered.z;}
       var step=Math.min(d,soldier.moveSpeed*dt),nx=here.x+dirx*step,nz=here.z+dirz*step;
       if(!recovery&&root.BattleNavigation&&!root.BattleNavigation.movementClear(here,{x:nx,z:nz})){
         /* Cover steering pushed him into a wall: the plain heading to the waypoint comes first. */

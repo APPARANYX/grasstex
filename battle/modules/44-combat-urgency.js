@@ -157,10 +157,9 @@
       b.time +
       Math.max(2, cover.distance / Math.max(2.4, +s.crouchRunSpeed || +s.runSpeed || +s.speed || 3) + 1);
     e._urgentCover = true;
+    e.urgentBound = true;
     s._combatUrgentUntil = b.time + URGENT_TTL;
-    s.prone = false;
-    s.crawling = false;
-    s.tacticalCrouch = true;
+    root.BattleEngagement.commitStance(s, b, 'crouch', e.until - b.time);
     s.setUp = false;
     request(s, cover, b, 'cover-bound', 0.8, 'suppressed cover move');
     bump(b, 'urgentCoverStarts');
@@ -181,9 +180,6 @@
       return false;
     }
     s._combatUrgentUntil = b.time + URGENT_TTL;
-    s.prone = false;
-    s.crawling = false;
-    s.tacticalCrouch = true;
     request(s, e.cover, b, 'cover-bound', 0.8, 'suppressed cover move');
     return true;
   }
@@ -219,7 +215,7 @@
     e.lastSeen = aim;
     e.lastSeenAt = Math.max(+e.lastSeenAt || -999, +c.at || b.time);
     s._faceHint = aim;
-    s.tacticalCrouch = true;
+    root.BattleEngagement.requestStance(s, b, 'crouch', SHARED_HOLD);
     request(s, h, b, 'contact-reaction', Math.min(0.8, SHARED_HOLD), 'new shared threat');
     bump(b, 'sharedContactReactions');
   }
@@ -240,11 +236,6 @@
     for (var i = 0; i < a.length; i++) {
       var s = a[i];
       if (!s || s.dead || t >= (+s._combatUrgentUntil || 0)) continue;
-      if (s.prone) {
-        s.prone = false;
-        s.crawling = false;
-      }
-      s.tacticalCrouch = true;
       bump(sim, 'urgentFrames');
     }
   }

@@ -119,8 +119,9 @@ section('a squad in contact stops marching (base of fire)');
        them pinned, which is the dice talking. What must always hold is that a squad which COULD
        bound did: every precondition satisfied and still no bound is the regression that stopped
        squads advancing. fireAndMovement authorises on the same tick the conditions are met, so from
-       out here this should never be observable. */
-    if(us.inContact&&us._assaultAuthorized&&(us.effectiveCount||0)>=2&&(us.pinnedCount||0)<(us.effectiveCount||0)&&
+       out here this should never be observable. A squad that breaks this tick is not one: the
+       counts were taken before its men turned to withdraw, and a retreat outranks a bound. */
+    if(us.inContact&&us.state!=='retreat'&&us._assaultAuthorized&&(us.effectiveCount||0)>=2&&(us.pinnedCount||0)<(us.effectiveCount||0)&&
        !L.holds(us,'bound-cycle',battle.time)&&!bounding())missedBounds++;
   });
   check('the squad spends the fight in contact',contactSeconds>10,'contact seconds='+contactSeconds.toFixed(1));
