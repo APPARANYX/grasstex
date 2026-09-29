@@ -657,6 +657,9 @@
      the hold for an average man; a hold only ever extends. (Not BattleEngagement.suppress, which is a
      soldier firing suppressive bursts.) */
   function pin(target, battle, seconds) {
+    /* His fortitude decides how long it holds him (BattleSoldierStats, 1 for an average man or with it off). */
+    var stats = root.BattleSoldierStats;
+    if (stats) seconds *= stats.scale(target, 'hold');
     target.suppressedUntil = Math.max(target.suppressedUntil || 0, battle.time + seconds);
   }
 
