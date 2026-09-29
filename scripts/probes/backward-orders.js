@@ -15,7 +15,8 @@
 (function (root) {
   var ALLOW = 3,
     c,
-    seen;
+    seen,
+    anchors;
   function axis(sq) {
     var fl = sq._forwardLine;
     if (fl && fl.axis) return fl.axis;
@@ -55,7 +56,8 @@
     every: 0,
     start: function () {
       seen = new Map();
-      c = { changes: 0, excluded: 0, behindLine: 0, backStep: 0, behindAndBack: 0, byProducer: {}, byPhase: {}, behindAndBackBy: {}, examples: [], lineSource: { 'forward-majority': 0, 'order-anchor': 0 } };
+      anchors = new Map();
+      c = { changes: 0, excluded: 0, behindLine: 0, backStep: 0, behindAndBack: 0, byProducer: {}, byPhase: {}, behindAndBackBy: {}, formationCause: {}, formationKind: {}, formationExamples: [], examples: [], lineSource: { 'forward-majority': 0, 'order-anchor': 0 } };
     },
     sample: function (sim) {
       var men = root.BattleModules.unitsFor(sim);
@@ -104,6 +106,38 @@
             /* Why the producer sent him back: its stated reason, and whether he was under fire. */
             var why = producer + ' | ' + (last.reason || '?') + (s.suppressedUntil > sim.time ? ' | suppressed' : '');
             c.behindAndBackBy[why] = (c.behindAndBackBy[why] || 0) + 1;
+            /* A formation order sent him back: did his team's anchor just move (a new lease), or is
+               the anchor unchanged (the slot alone changed) and is the man himself already past his
+               team's line (he ran ahead of a held anchor)? */
+            if (producer === 'squad-stability/formation') {
+              var o = sq._fireteamOrders && s._fireteamKey && sq._fireteamOrders[s._fireteamKey],
+                ak = sq.id + '|' + s._fireteamKey,
+                pa = anchors.get(ak),
+                moved = !!(o && o.anchor && (!pa || pa.x !== o.anchor.x || pa.z !== o.anchor.z)),
+                manVsLine = (p.x - l.x) * f.x + (p.z - l.z) * f.z,
+                cause = (moved ? 'anchor-moved' : 'same-anchor') + (manVsLine > ALLOW ? ' | man ahead of line' : ' | man on line');
+              c.formationCause[cause] = (c.formationCause[cause] || 0) + 1;
+              var pk = String(s._fireteamPublishKey || '').split('|'),
+                anchorVsLine = o && o.anchor ? (o.anchor.x - l.x) * f.x + (o.anchor.z - l.z) * f.z : null,
+                fx = c.formationExamples;
+              c.formationKind[pk[pk.length - 1] || '?'] = (c.formationKind[pk[pk.length - 1] || '?'] || 0) + 1;
+              if (fx.length < 25)
+                fx.push({
+                  t: +sim.time.toFixed(2), soldier: s.id, squad: sq.id, team: s._fireteamKey, phase: phase,
+                  state: sq.state, inContact: !!sq.inContact, eng: e.state || null, kind: pk[pk.length - 1],
+                  anchorVsLineM: anchorVsLine == null ? null : +anchorVsLine.toFixed(1),
+                  publishedVsLineM: s._fireteamDestination
+                    ? +((s._fireteamDestination.x - l.x) * f.x + (s._fireteamDestination.z - l.z) * f.z).toFixed(1)
+                    : null,
+                  publishedToDestM: s._fireteamDestination
+                    ? +Math.hypot(s._fireteamDestination.x - d.x, s._fireteamDestination.z - d.z).toFixed(1)
+                    : null,
+                  lineAge: sq._forwardLine ? +(sim.time - sq._forwardLine.t).toFixed(2) : null,
+                  hasTeamLine: !!(sq._forwardLine && sq._forwardLine.teams && sq._forwardLine.teams[s._fireteamKey]),
+                  manVsLineM: +manVsLine.toFixed(1), leaseLeft: o ? +(o.until - sim.time).toFixed(1) : null,
+                  teamSize: sq.members.filter(function (m) { return !m.dead && m._fireteamKey === s._fireteamKey; }).length
+                });
+            }
           }
         }
         if (hit && c.examples.length < 25)
@@ -112,6 +146,12 @@
             producer: producer, reason: last.reason || null, eng: e.state || null,
             behindLineM: +(-vsLine).toFixed(1), behindManM: +(-vsMan).toFixed(1)
           });
+      }
+      /* After the pass, so the next sample compares against this one. */
+      for (i = 0; i < men.length; i++) {
+        var q = men[i] && men[i].squad,
+          fo = q && q._fireteamOrders && men[i]._fireteamKey && q._fireteamOrders[men[i]._fireteamKey];
+        if (fo && fo.anchor) anchors.set(q.id + '|' + men[i]._fireteamKey, { x: fo.anchor.x, z: fo.anchor.z });
       }
     },
     report: function () {
@@ -135,6 +175,9 @@
         byProducer: round(c.byProducer),
         byPhase: round(c.byPhase),
         behindAndBackBy: c.behindAndBackBy,
+        formationCause: c.formationCause,
+        formationKind: c.formationKind,
+        formationExamples: c.formationExamples,
         examples: c.examples
       };
     }
