@@ -62,6 +62,10 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | Check | Asserts |
 | --- | --- |
 | `run.js` | Engagement contract: orient before firing, cover used, get down in contact, a squad in contact stops marching, suppression pins, no stance churn, 10v10 resolves. `HARNESS_SEED=<n>` swaps the battle. |
+| `engagement-state-check.js` | Engagement declares every stored state and legal transition, preserves the distinct legacy effects of drill, urgent-cover, shared-contact and station-release entries, and rejects illegal requests. |
+| `squad-phase-check.js` | Squad Leader command phases are declared as data behind one transition function; setup/regroup remain silent, mission changes retain their telemetry, and mutations cannot add another writer. |
+| `macro-state-check.js` | Macro brief lifecycle (`issued → executing → terminal`) has one owner; ordinary and repeated assembly acceptance keep their legacy clocks/events, and terminal records stay immutable. |
+| `state-ownership-check.js` | Static ownership ratchet for Engagement state/clocks, Squad Leader `commandPhase`, and Macro brief/status, including alias/bracket/mutation APIs and only the two guarded setup fallbacks. |
 | `objective-nav-check.js` | Real worst-seed defects: never permanently refused a step at a building, no all-squads-one-objective, a side attacks at most 2 objectives at once yet every objective is attacked once the efforts before it fall, capture progress survives an interrupted hold, door/window routing, `stepMovement` aim smoothing |
 | `tactical-positions-check.js` | Window/hardpoint reservation ownership, ingress routes, release reasons, diagnostics |
 | `cover-positions-check.js` | Cover-slot selection against obstacles and physical footprints |
@@ -324,11 +328,18 @@ Intent flows down and status flows up. No layer rewrites another's state.
 | Navigation | `battle-navigation.js`, `modules/39-navigation-physicality-debug.js` | doors, stations, pathfinding, 0.45 m body legality | assign or release tasks |
 | Personal space | `modules/51-soldier-personal-space.js` | local physical correction | own commands |
 
+The Squad Leader declares its 11 execution phases in `BattleSquadStability.states`; setup,
+mission execution and regroup all enter through `transitionPhase`. A replacement brief may select
+any phase, so legality comes from the mission/route/lease guards rather than a restrictive phase-only
+adjacency. Retreat remains `sq.state`, not a `commandPhase`.
+
 Brief lifecycle: `issued → executing → completed | invalid | failed | superseded`. The General
 wakes only on: initial brief, mission complete or invalid, reserve due, a defence request that
 changes the task, an objective vacated or changing control on a defend brief, a 120 s strategic
 stall, a Squad Leader `doctrine-review` escalation, or a merge (`squad-reconstituted`). Wakes are
-exported under `macroCommand`.
+exported under `macroCommand`. `commander-ai.js` declares the lifecycle as `missionStates`; every
+write, including a Squad Leader acceptance request, goes through `transitionMission`/`acceptMission`.
+Terminal records cannot reopen; a new issue creates a new brief object.
 
 **Main effort** (`commander-doctrine.js` `chooseObjective`, Macro only). Saturation (55 per squad past
 an objective's allowance) stops a side piling onto one objective; the frontage limit stops it spreading
@@ -420,6 +431,10 @@ not crawling, within `AIM_CONE` (~12.6°), and gunner emplaced. `squad.inContact
 `contactCount>0 || suppressors>0`. Suppression deals no damage, only pins. There are at most
 `MAX_SUPPRESSORS` suppressors, the MG first. The Squad Leader (`fireAndMovement`) sends one fireteam
 forward every `BOUND_CYCLE` if ≥2 are shooting, only in an assault phase, and the MG never moves.
+`engagement.js` declares each stored state's meaning, entries, exits, update rate and legal next
+states in `BattleEngagement.states`; its transition function is the only state/clock writer.
+Combat urgency and firing-station release request their legacy entry semantics through
+`BattleEngagement.requestState`, so those modules do not write `eng.state/since/until`.
 **Stance has one writer: Engagement** (`commitStance`, with `STANCE_HOLD`/`PRONE_HOLD` holds and
 `AIM_SETTLE` after a change). `stepMovement` only shows the committed stance; another layer (the
 reload hook, module 44's drills) asks through `BattleEngagement.requestStance`, which only takes a man

@@ -13,7 +13,7 @@
  *     report(sim) { return {...} }  // JSON-able result for this battle
  *   };
  * A probe that changes the battle is a bug in the probe. `sameBattle` in the output compares
- * the end state (winner, survivors, positions, health) with a probe-free control when PROBE_CONTROL=1.
+ * the end state with a probe-free control when PROBE_CONTROL=1.
  *
  * Run (serve the repo first, see AGENTS.md "Browser smoke"; start php with PHP_CLI_SERVER_WORKERS=4,
  * or a page load can queue behind the previous battle's downloads and stall until the 180 s retry):
@@ -27,10 +27,12 @@
  *   PROBE_URL      page (default http://127.0.0.1:8765/grasstex/battle_sim_local.php)
  *   PROBE_OUTPUT   JSON path for the full report (default: stdout only)
  *   PROBE_CONTROL  1 = also run each battle with no probe and report whether it matched
+ *   PROBE_BROWSER  optional Chromium/Chrome executable (uses Playwright's browser by default)
  */
 const { chromium } = require('playwright');
 const fs = require('node:fs');
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 
 const NAMES = String(process.env.PROBE || '').split(',').map(s => s.trim()).filter(Boolean);
 const BATTLES = (process.env.PROBE_BATTLES ||
@@ -64,7 +66,9 @@ async function battle(browser, { type, seed }, probes) {
       break;
     } catch (e) { if (attempt >= 3) throw e; console.error(`${type} ${seed}: retrying load after ${String(e.message).split('\n')[0]}`); }
   }
-  for (const name of probes) await page.addScriptTag({ path: path.join(__dirname, 'probes', name + '.js') });
+  // The read-only snapshot helper is also present in the probe-free control arm.
+  for (const name of new Set(['state-fingerprint', ...probes]))
+    await page.addScriptTag({ path: path.join(__dirname, 'probes', name + '.js') });
   const result = await page.evaluate(async ({ names, STEP, SECONDS }) => {
     const root = window, sim = root.__battle__, engine = sim.scene && sim.scene.getEngine && sim.scene.getEngine();
     if (engine && root.__battleRenderLoop__) engine.stopRenderLoop(root.__battleRenderLoop__);
@@ -94,17 +98,16 @@ async function battle(browser, { type, seed }, probes) {
       for (const q of probes) if (q.p.sample && sim.time + 1e-9 >= q.next) { q.p.sample(sim); q.next = sim.time + (+q.p.every || 0); }
     }
     if (!sim.winner && sim._checkWinner) sim._checkWinner();
-    // Read-only fingerprint of the end state: who is alive, where, with how much health.
-    const men = (sim._roster.us || []).concat(sim._roster.ge || []);
-    const print = men.reduce((a, s) => a + (s.dead ? 0 : 1) + (+s.hp || 0) * 1e-3 + (s.root ? s.root.position.x * 1e-4 + s.root.position.z * 1e-5 : 0), 0);
+    const fingerprint = JSON.stringify(root.BattleStateFingerprint.snapshot(sim));
     const reports = {};
     for (const q of probes) reports[q.n] = q.p.report ? q.p.report(sim) : null;
     return {
       simSeconds: +(+sim.time).toFixed(2), wallSeconds: +((performance.now() - wall) / 1000).toFixed(1), steps,
-      winner: sim.winner || null, fingerprint: JSON.stringify([sim.winner || null, +(+sim.time).toFixed(2), men.filter(s => !s.dead).length, print.toFixed(6)]),
-      reports
+      winner: sim.winner || null, fingerprint, reports
     };
   }, { names: probes, STEP, SECONDS });
+  result._endState = JSON.parse(result.fingerprint);
+  result.fingerprint = createHash('sha256').update(result.fingerprint).digest('hex');
   await page.close();
   return { type, seed, ...result, errors };
 }
@@ -112,7 +115,7 @@ async function battle(browser, { type, seed }, probes) {
 (async () => {
   if (!NAMES.length) throw new Error('PROBE=<name>[,<name>] is required; probes: ' +
     fs.readdirSync(path.join(__dirname, 'probes')).filter(f => f.endsWith('.js')).map(f => f.slice(0, -3)).join(', '));
-  const browser = await chromium.launch({ headless: true,
+  const browser = await chromium.launch({ headless: true, executablePath: process.env.PROBE_BROWSER || undefined,
     args: ['--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--ignore-certificate-errors'] });
   const out = { probes: NAMES, step: STEP, seconds: SECONDS, url: URL, battles: [] };
   try {
@@ -121,7 +124,10 @@ async function battle(browser, { type, seed }, probes) {
       if (process.env.PROBE_CONTROL === '1') {
         const c = await battle(browser, b, []);
         r.sameBattle = c.fingerprint === r.fingerprint;
+        r.controlFingerprint = c.fingerprint;
+        if (!r.sameBattle) { r.controlState = c._endState; r.probeState = r._endState; }
       }
+      delete r._endState;
       out.battles.push(r);
       console.error(`${b.type} ${b.seed}: ${r.simSeconds}s sim in ${r.wallSeconds}s, winner ${r.winner}` +
         (r.sameBattle == null ? '' : `, same battle as control: ${r.sameBattle}`) + (r.errors.length ? `, ${r.errors.length} page errors` : ''));

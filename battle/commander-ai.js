@@ -118,28 +118,105 @@
       catalog: catalogKey(sim)
     };
   }
-  function finishMission(sim, sq, status, reason) {
+  /* Brief lifecycle. Macro is the sole writer, including acceptance requested by the Squad
+     Leader. Evaluated on event-driven wakes inside the 0.45 s commander tick; assembly acceptance
+     is requested from the 0.15 s squad tick. Terminal records never reopen: issue creates a new
+     brief. Re-accepting an executing assembly brief deliberately refreshes acceptedAt. */
+  var MISSION_STATES = {
+    issued: {
+      meaning: 'The General has published a new brief',
+      enteredBy: 'Macro issueMission only',
+      exits: 'Squad Leader acceptance, completion, invalidation, failure or replacement',
+      rate: 'event-driven; commander 0.45 s, assembly 0.15 s',
+      next: ['executing', 'completed', 'invalid', 'failed', 'superseded']
+    },
+    executing: {
+      meaning: 'The Squad Leader has accepted the brief',
+      enteredBy: 'Squad Leader acceptance request to Macro',
+      exits: 'completion, invalidation, failure or replacement; assembly may re-accept',
+      rate: 'event-driven; commander 0.45 s, assembly 0.15 s',
+      next: ['executing', 'completed', 'invalid', 'failed', 'superseded']
+    },
+    completed: {
+      meaning: 'Objective fulfilled, reserve committed or reconstitution finished',
+      enteredBy: 'Macro mission wake or reconstitution',
+      exits: 'none; the next issue creates a different brief',
+      rate: 'terminal',
+      next: []
+    },
+    invalid: {
+      meaning: 'The objective no longer exists',
+      enteredBy: 'Macro mission-invalid wake',
+      exits: 'none; the next issue creates a different brief',
+      rate: 'terminal',
+      next: []
+    },
+    failed: {
+      meaning: 'Squad retreated, was destroyed or lost its reconstitution group',
+      enteredBy: 'Macro retreat/destruction/group lifecycle',
+      exits: 'none; the next issue creates a different brief',
+      rate: 'terminal',
+      next: []
+    },
+    superseded: {
+      meaning: 'A changed brief replaced this one',
+      enteredBy: 'Macro issueMission',
+      exits: 'none; the next issue creates a different brief',
+      rate: 'terminal',
+      next: []
+    }
+  };
+  function transitionMission(sim, sq, next, reason, assembly) {
     var m = sq._macroMission;
-    if (
-      !m ||
-      m.status === 'completed' ||
-      m.status === 'invalid' ||
-      m.status === 'failed' ||
-      m.status === 'superseded'
-    )
-      return;
-    m.status = status;
-    m.endedAt = +sim.time || 0;
-    m.endReason = reason;
-    sq._lastMacroMission = m;
-    telemetry(sim, 'decision-mission-end', {
-      faction: sq.faction,
-      squad: sq.id,
-      version: m.version,
-      status: status,
-      reason: reason,
-      objectiveId: m.objectiveId
-    });
+    if (!m) return;
+    var from = m.status,
+      rule = MISSION_STATES[from];
+    if (!MISSION_STATES[next]) throw new Error('Unknown Macro mission state: ' + next);
+    if (rule && !rule.next.length) return;
+    if (from == null ? next !== 'issued' : !rule || rule.next.indexOf(next) < 0)
+      throw new Error('Illegal Macro mission transition: ' + from + ' -> ' + next);
+    m.status = next;
+    m.transition = { from: from || null, to: next, at: +sim.time || 0, reason: reason };
+    if (next === 'issued') {
+      m.issuedAt = +sim.time || 0;
+      m.acceptedAt = null;
+    } else if (next === 'executing') {
+      m.acceptedAt = sim.time;
+      telemetry(sim, 'decision-mission-accepted', {
+        faction: sq.faction,
+        squad: sq.id,
+        version: m.version,
+        intent: m.intent,
+        action: m.action,
+        objectiveId: assembly ? null : m.objectiveId
+      });
+    } else {
+      m.endedAt = +sim.time || 0;
+      m.endReason = reason;
+      sq._lastMacroMission = m;
+      telemetry(sim, 'decision-mission-end', {
+        faction: sq.faction,
+        squad: sq.id,
+        version: m.version,
+        status: next,
+        reason: reason,
+        objectiveId: m.objectiveId
+      });
+    }
+  }
+  function acceptMission(sim, sq, assembly) {
+    var m = sq._macroMission;
+    if (!m || (m.status !== 'issued' && !(assembly && m.status === 'executing'))) return;
+    transitionMission(
+      sim,
+      sq,
+      'executing',
+      assembly ? 'assembly accepted' : 'Squad Leader accepted',
+      assembly
+    );
+  }
+  function finishMission(sim, sq, status, reason) {
+    transitionMission(sim, sq, status, reason);
   }
   function briefKey(spec) {
     return JSON.stringify([
@@ -174,13 +251,11 @@
       role: spec.role,
       requestKey: spec.requestKey || null,
       plannedObjectiveId: spec.plannedObjectiveId || null,
-      issuedAt: +sim.time || 0,
-      acceptedAt: null,
-      status: 'issued',
       reason: reason,
       key: key
     };
     sq._macroMission = m;
+    transitionMission(sim, sq, 'issued', reason);
     sq._macroMissionObservation = missionObservation(sim, sq, m);
     sq.targetObjective = m.objectiveId;
     sq.commandRole = m.role;
@@ -890,6 +965,9 @@
   };
 
   root.BattleCommanderAI = {
+    missionStates: MISSION_STATES,
+    transitionMission: transitionMission,
+    acceptMission: acceptMission,
     update: updateCommander,
     assignSquad: R.assignSquad,
     ensureAssignments: R.ensureAssignments,
