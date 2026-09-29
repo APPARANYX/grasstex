@@ -261,6 +261,17 @@
      every remaining objective is stalled, the relative order is unchanged and the squad keeps its
      effort. */
   var STALL_COST = 150;
+  /* The objective as this squad could take it, or null when this call does not consider it (an attack
+     never looks at what the side already holds unless its doctrine commits to defence, a defence only at
+     what it holds). One place for the filter: the score and the squad-fit terms both read the pool. */
+  function candidate(sim, sq, obj, index, wantOwned, doc) {
+    var status = objectiveStatus(sim, obj) || {},
+      owner = status.owner || 'neutral',
+      point = objectivePoint(obj, sim, sq);
+    if (wantOwned && owner !== sq.faction) return null;
+    if (!wantOwned && owner === sq.faction && doc.defenseCommitment < 0.58) return null;
+    return { obj: obj, index: index, status: status, owner: owner, point: point };
+  }
   function chooseObjective(sim, sq, wantOwned, stalled) {
     var objectives = sim._objectives || [],
       p = avgPos(sq),
@@ -271,15 +282,19 @@
       efforts = wantOwned ? null : openEfforts(sim, sq, stalled);
     var ordered = objectives.slice();
     if (doc.objectiveStrategy === 'sequential' && sq.faction === 'ge') ordered.reverse();
-    for (var i = 0; i < ordered.length; i++) {
-      var obj = ordered[i],
-        status = objectiveStatus(sim, obj) || {},
-        owner = status.owner || 'neutral',
-        point = objectivePoint(obj, sim, sq),
+    var pool = [];
+    for (var k = 0; k < ordered.length; k++) {
+      var c = candidate(sim, sq, ordered[k], k, wantOwned, doc);
+      if (c) pool.push(c);
+    }
+    for (var j = 0; j < pool.length; j++) {
+      var obj = pool[j].obj,
+        i = pool[j].index,
+        status = pool[j].status,
+        owner = pool[j].owner,
+        point = pool[j].point,
         d = dist(p.x, p.z, point.x, point.z),
         value = +obj.def.value || 1;
-      if (wantOwned && owner !== sq.faction) continue;
-      if (!wantOwned && owner === sq.faction && doc.defenseCommitment < 0.58) continue;
       var need = owner === sq.faction ? 0 : owner === 'neutral' ? cfg.sectorNeutralNeed : cfg.sectorEnemyNeed,
         active = status.active === sq.faction ? cfg.sectorActiveBonus : 0,
         score = (need + active) * value - d * cfg.sectorDistanceWeight;
