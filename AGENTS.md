@@ -424,7 +424,12 @@ from the kind's). A man opens aimed fire out to `SquadAI.engageRange(s)`: his we
 except as a cap where the job is not the firefight: the defending engineer's 130 m), so the US scout
 stops at the carbine's 250 m and the German scout reaches 450 m with the FG42's rifle cartridge. The
 FBX backend draws the model the profile names (`PROFILES.<side>.<kind>.model` + `.fbx`), so what a man
-carries and how it shoots cannot disagree. A selective-fire weapon (`autoWithin`, the FG42: 50 m) bursts only inside
+carries and how it shoots cannot disagree. The squad leader keeps his SMG on purpose: he
+commands, and his fire is close defence (measured 2026-09-29, `fire-gates`, three standard battles: he
+held a target for ~10,000 samples, 98% of them at 150 m or more, `engageRange` stopped him in ~90% of
+them, and he fired 0/94/0 rounds against 280-422 for a rifleman; the gate is right, the contacts are far).
+A rifle for leaders would be a loadout change (`LOADOUTS`) needing the Garand/Kar98k seat checked on the
+captain models in Motion Lab. A selective-fire weapon (`autoWithin`, the FG42: 50 m) bursts only inside
 that distance and fires single aimed rounds beyond it. `rof` is the aimed rate of a semi-auto or bolt action; an
 automatic has `cyclic` (rounds/s), `burst` [min, max], `burstPause` and `burstClimb`. One trigger pull
 fires the whole burst on one AI tick (0.15 s, slower than an MG42 cycles); each round goes through
@@ -547,10 +552,6 @@ pseudo-backlog. Long-form historical notes remain in git history
   repeat the same effort because distance can outweigh `stallCost`. If revisited, tune score
   weighting with the existing `stallOutcomes`/ `stall-wakes` evidence and a paired benchmark;
   claim outcome effects only from the large benchmark.
-- **Sergeant engagement.** Thompson/MP40 leaders rarely fire because contacts are often well beyond
-  SMG range; the fire gate itself is not broken. Any change is either doctrine (close leaders more)
-  or loadout (for example a rifle), so fold it into the loadout/tactics work rather than loosening
-  the gate.
 - **Movement tolerance audit.** Cover-bound deadlock: fixed, see `bound-episodes`. Movement Progress still uses a
   3 m arrival band while some destinations require tighter placement; cover has its own bound
   window now. Audit another destination kind only if a real stuck case appears.
