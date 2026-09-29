@@ -444,7 +444,9 @@
       var g = groups[key],
         count = state.counts[key] || 0;
       if (count >= MAX_RUNTIME) return;
-      state.progress[key] = (state.progress[key] || 0) + dt;
+      /* The engineer's technical skill (module 10) is his building rate: x1.4 at technical 1, x0.6 at 0. */
+      var stats = root.BattleSoldierStats;
+      state.progress[key] = (state.progress[key] || 0) + dt * (stats ? stats.scale(g.engineer, 'build') : 1);
       if (state.progress[key] < BUILD_SECONDS) return;
       state.progress[key] = 0;
       var type = count % 2 ? 'foxholes' : 'sandbags',

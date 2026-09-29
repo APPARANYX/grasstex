@@ -353,4 +353,43 @@ test('PHY: a stronger gunner emplaces the machine gun sooner (1.4 s for an avera
   assert.ok(strong < mid && mid < weak);
 });
 
+/* ---- TEC: how often his gun jams and how fast he clears it ----------------------------------- */
+
+test('TEC: a more technical man jams less often and clears faster; the average man exactly the flat numbers', () => {
+  const shot = (tec, u, opts) => {
+    const w = world(opts);
+    loadInto(w.r, 'battle/modules/46-ammunition-stoppages.js');
+    w.r.SquadAI.extend('shotModel', 'ballistics', () => false);
+    const s = rifleman(w.us, 0),
+      foe = rifleman(w.ge, 0);
+    if (w.St) set(w.St, s, { tec });
+    foe.root.position.x = 0;
+    foe.root.position.z = 60;
+    s.target = foe;
+    s.fireCooldown = 0;
+    w.b.random = () => u;
+    w.r.SquadAI.tryFire(s, w.b);
+    return { jammed: !!s.clearingStoppage, clear: s.stoppageUntil - w.b.time };
+  };
+  // One Garand round heats the rifle to 0.045: the chance is 0.000645 flat, 0.000387 at technical 1, 0.000903 at 0.
+  assert.deepEqual(
+    [shot(1, 0.0005).jammed, shot(0.5, 0.0005).jammed, shot(0, 0.0005).jammed],
+    [false, true, true]
+  );
+  assert.deepEqual(
+    [shot(1, 0.0007).jammed, shot(0.5, 0.0007).jammed, shot(0, 0.0007).jammed],
+    [false, false, true]
+  );
+  near(shot(1, 0.0001).clear, 1.45 * 0.6, 1e-9, 'technical 1 clears in');
+  near(shot(0.5, 0.0001).clear, 1.45, 1e-9, 'technical 0.5 clears in');
+  near(shot(0, 0.0001).clear, 1.45 * 1.4, 1e-9, 'technical 0 clears in');
+  const flat = shot(0.5, 0.0001, { stats: false });
+  near(flat.clear, 1.45, 1e-9, 'without the module');
+  assert.equal(
+    shot(1, 0.0005, { search: '?stats=0' }).jammed,
+    true,
+    'with ?stats=0 technical changes nothing'
+  );
+});
+
 console.log('stats-levers-check: ' + n + ' passed');
