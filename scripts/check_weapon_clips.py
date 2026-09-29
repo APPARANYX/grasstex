@@ -16,7 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "Assets/audio/weapon-clip-manifest.json"
-BACKEND = ROOT / "battle/modules/53-fbx-soldier-backend.js"
+WEAPONS_JS = ROOT / "battle/weapons.js"
 
 BASE = {"fire", "fireDistant", "stoppageClick", "stoppageClear"}
 BY_KIND = {
@@ -30,12 +30,17 @@ BY_MODEL = {
     "kar98k": {"boltCycle", "reloadBoltOpen", "reloadStripperClip", "reloadBoltClose"},
 }
 SHARED = {"casingRifle", "casingPistol", "casingBeltLink", "crackSupersonic", "whizSubsonic"}
+# 15-bullet-impact-fx.js material()/holeKind() surface classification.
+IMPACTS = {"impactFlesh", "impactDirt", "impactMasonry", "impactWood", "impactMetal", "impactVegetation"}
 
 
 def fielded_models():
-    src = BACKEND.read_text()
-    block = re.search(r"var WEAPON_MODELS=\{(.*?)\},WEAPON_BUTT", src, re.S).group(1)
-    return sorted({m[:-4] for m in re.findall(r"'([\w-]+\.fbx)'", block)})
+    # battle/weapons.js PROFILES[faction][kind].model names the roster; the FBX backend draws
+    # PROFILES.<side>.<kind>.model + '.fbx' (AGENTS.md "Weapons and wounds"), so this is the same
+    # roster the game actually fields, not a duplicate list to drift out of sync.
+    src = WEAPONS_JS.read_text()
+    block = re.search(r"var PROFILES=\{(.*?)\n  \};", src, re.S).group(1)
+    return sorted(set(re.findall(r"model:'([\w-]+)'", block)))
 
 
 def completeness(man):
@@ -57,6 +62,13 @@ def completeness(man):
         errs.append(f"shared: missing {a}")
     for cid, c in man["shared"].items():
         errs += clip_errors(f"shared.{cid}", c)
+    for a in sorted(IMPACTS - set(man.get("impacts", {}))):
+        errs.append(f"impacts: missing {a}")
+    for cid, c in man.get("impacts", {}).items():
+        errs += clip_errors(f"impacts.{cid}", c)
+    for name, c in all_clips(man):
+        if not c.get("prompt"):
+            errs.append(f"{name}: missing generation prompt")
     seen = {}
     for name, c in all_clips(man):
         for f in c["files"]:
@@ -81,6 +93,8 @@ def all_clips(man):
             yield f"{wid}.{cid}", c
     for cid, c in man["shared"].items():
         yield f"shared.{cid}", c
+    for cid, c in man.get("impacts", {}).items():
+        yield f"impacts.{cid}", c
 
 
 def onsets(path, rate=22050, win=0.004):
