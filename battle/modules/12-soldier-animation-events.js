@@ -51,7 +51,14 @@
   root.SquadAI.extend('afterSoldier', 'weapon-cycle', function (s, battle) {
     if (s && s.reloading) {
       s.setUp = false;
-      s.tacticalCrouch = true;
+      /* Stance is Engagement's: a standing man asks to kneel for the reload, a prone one stays down. */
+      if (root.BattleEngagement)
+        root.BattleEngagement.requestStance(
+          s,
+          battle,
+          'crouch',
+          Math.max(0.5, (+s.reloadUntil || battle.time) - battle.time)
+        );
       if (s.target && root.BattleMovementResolver) {
         root.BattleMovementResolver.proposeCombat(
           s,

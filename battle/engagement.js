@@ -40,7 +40,10 @@
     USEFUL_COVER = 0.88;
   var PRONE_ROLES = { rifleman: 1, gunner: 1 };
   var BOUND_METERS = 6.5,
-    BOUND_ARRIVED = 1.25;
+    BOUND_ARRIVED = 1.25,
+    BOUND_BACK_ALLOW = 2;
+  /* Command phases in which the squad is moving on the enemy (16-squad-plan-stability.js). */
+  var ADVANCING = { approach: 1, assault: 1, capture: 1, 'clear-town': 1, flank: 1 };
   /* Suppressing a known position. Capped per squad so it reads as suppressing fire rather than
      everyone emptying magazines into a hedge, and fired in short bursts so the sound of a
      firefight has a rhythm. */
@@ -170,6 +173,17 @@
     e.stanceUntil =
       battle.time + (seconds == null ? (stance === 'prone' ? PRONE_HOLD : STANCE_HOLD) : seconds);
     applyStance(s, stance);
+  }
+  /* Another layer asking for a stance (a reload, a drill). Engagement is the only owner of
+     stance, so a request goes through the same commitment: it may only take a man lower
+     (stand -> crouch -> prone/crawl), never stand up a man Engagement put down, and it restarts
+     no hold on a stance he already has. */
+  var STANCE_HEIGHT = { prone: 0, crawl: 0, crouch: 1, stand: 2 };
+  function requestStance(s, battle, stance, seconds) {
+    var e = state(s);
+    if (STANCE_HEIGHT[stance] >= STANCE_HEIGHT[e.stance]) return false;
+    commitStance(s, battle, stance, seconds);
+    return true;
   }
   function holdStance(s, battle) {
     var e = state(s);
@@ -639,6 +653,8 @@
       var anchor = s.orderDestination || (s.squad && s.squad.orderAnchor);
       if (leads && anchor && dist(pt.x, pt.z, anchor.x, anchor.z) > 18) continue;
       if (dist(pt.x, pt.z, posOf(target).x, posOf(target).z) < (opts.minEnemyDistance || 12)) continue;
+      var back = opts.notBehind;
+      if (back && (pt.x - p.x) * back.axis.x + (pt.z - p.z) * back.axis.z < -back.allow) continue;
       var score = (1 - pt.quality) * 40 - moveD;
       if (forward) score += ((pt.x - p.x) * forward.x + (pt.z - p.z) * forward.z) * 0.9;
       if (score <= bestScore || !reachable(p, pt)) continue;
@@ -711,6 +727,7 @@
       e.since = battle.time;
       e.moveReason = why || next;
       if (next !== 'assault') e.assaultGoal = null;
+      e.urgentBound = false;
       if (why)
         telemetry(battle, 'decision-engagement', {
           soldier: s.id,
@@ -763,6 +780,14 @@
       len = Math.hypot(dx, dz);
     return len > 0.1 ? { x: dx / len, z: dz / len } : null;
   }
+  /* The squad's advance axis for a bound: the one its forward line is measured on (the Squad Leader
+     publishes it; it keeps its direction when the anchor sits on the objective), else anchor to goal. */
+  function boundForward(s) {
+    var fl = s.squad && s.squad._forwardLine,
+      a = fl && fl.axis;
+    if (a && Math.hypot(a.x, a.z) > 0.5) return { x: a.x, z: a.z };
+    return squadForward(s);
+  }
 
   /* One Squad Leader permission produces one displacement. Cover and a no-cover rush use the same
      engagement lifecycle, so target flicker cannot create a second, invisible movement drill. */
@@ -783,11 +808,17 @@
     var threat = s.target,
       known = knownThreat(s, battle);
     if (!threat && known) threat = { root: { position: known } };
-    var cover = findCover(s, battle, {
-      maxRange: COVER_RANGE_UNDER_FIRE,
-      forward: squadForward(s),
-      threat: threat
-    });
+    /* A bound is a move forward: its cover may sit a little to the side or behind (BOUND_BACK_ALLOW)
+       but never walk him back behind where he is. 44's forward guard only covers the `assault`
+       phase, and bounds are also ordered in `capture` and `clear-town` (backward-orders probe: most
+       backward authorized bounds). With no cover ahead he rushes toward the objective instead. */
+    var fwd = boundForward(s),
+      cover = findCover(s, battle, {
+        maxRange: COVER_RANGE_UNDER_FIRE,
+        forward: fwd,
+        notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null,
+        threat: threat
+      });
     if (cover) {
       e.cover = cover;
       enter(
@@ -893,7 +924,10 @@
       enter(s, battle, 'orient', reactTime(s, battle), 'contact');
       return orient(s, battle);
     }
-    if (!holdStance(s, battle)) commitStance(s, battle, 'stand', 1.0);
+    /* Upright only on a quiet march: under fire, or while the squad is still in contact, he moves
+       crouched rather than standing for the beat between two contacts. */
+    var low = s.suppressedUntil > battle.time || !!(s.squad && s.squad.inContact);
+    if (!holdStance(s, battle)) commitStance(s, battle, low ? 'crouch' : 'stand', 1.0);
     followOrders(s, battle, false);
   }
 
@@ -936,7 +970,14 @@
       return engage(s, battle);
     }
 
-    var cover = findCover(s, battle, { maxRange: suppressed ? COVER_RANGE_UNDER_FIRE : COVER_RANGE });
+    /* A man whose squad is advancing and who is not under fire takes cover ahead of him or beside
+       him, not behind (backward-orders probe: "oriented: moving to cover" was the Micro producer
+       that walked men back behind their fireteam's line). Under fire any cover is survival. */
+    var fwd = !suppressed && ADVANCING[(s.squad && s.squad.commandPhase) || ''] ? boundForward(s) : null;
+    var cover = findCover(s, battle, {
+      maxRange: suppressed ? COVER_RANGE_UNDER_FIRE : COVER_RANGE,
+      notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null
+    });
     if (cover) {
       e.cover = cover;
       enter(
@@ -999,8 +1040,20 @@
       enter(s, battle, 'engage', 0, 'reached cover');
       return engage(s, battle);
     }
+    /* A bound is a dash with its own window (enter: distance over speed plus slack). One that
+       overruns it without arriving is not getting there - blocked short of the slot by another
+       body, a push, or a stronger order in the resolver - and movement progress cannot see it
+       inside its 3 m near band. Treat it as the unreachable case above: mark this cover failed for
+       a while and re-decide from where he stands (a live battle held men in `bound` for minutes). */
+    if (battle.time >= e.until) {
+      if (root.BattleMovementProgress)
+        root.BattleMovementProgress.noteFailure(s, battle, cover, 'bound-overran');
+      decide(s, battle, 'bound overran');
+      return;
+    }
     var suppressed = s.suppressedUntil > battle.time,
-      crawl = suppressed && d < 14 && PRONE_ROLES[s.role];
+      /* An urgent cover move (module 44's drill) is a crouched run, never a crawl. */
+      crawl = suppressed && d < 14 && PRONE_ROLES[s.role] && !e.urgentBound;
     commitStance(s, battle, crawl ? 'crawl' : 'crouch', Math.max(1, e.until - battle.time));
     move(s, battle, { x: cover.x, z: cover.z }, 'cover-bound');
   }
@@ -1132,7 +1185,7 @@
     s.state = 'retreat';
     s.setUp = false;
     e.cover = null;
-    commitStance(s, battle, 'stand', 0.5);
+    commitStance(s, battle, s.suppressedUntil > battle.time ? 'crouch' : 'stand', 0.5);
     followOrders(s, battle, true);
     if (s.target && dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z) < 35)
       tryFire(s, battle);
@@ -1364,6 +1417,7 @@
     facingError: facingError,
     fireAllowed: fireAllowed,
     commitStance: commitStance,
+    requestStance: requestStance,
     applyStance: applyStance,
     resetSoldier: resetSoldier,
     resetSquad: resetSquad,

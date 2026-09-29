@@ -13,7 +13,7 @@
       var weapon=root.BattleWeapons.attachWeapon(sim.scene,model.weaponSocket,root.SquadAI.ROLES[role].weapon),soldier=root.SquadAI.createSoldier({id:nextId++,faction:faction,role:role,squad:sq,slotIndex:si,model:model,weapon:weapon});soldier.fireCooldown=rand(sim)*.5;soldier.unitType='infantry';soldier.captureWeight=1;soldier.scoreValue=1;
       sq.members.push(soldier);sim._roster[faction].push(soldier);sim.factions[faction].alive++;units.push(soldier);root.BattleModules.addUnit(sim,soldier,{unitType:'infantry',captureWeight:1});
     }
-    sim.factions[faction].squads.push(sq);if(scenario&&root.BattleCommanderAI&&root.BattleCommanderAI.assignSquad)root.BattleCommanderAI.assignSquad(sim,sq,scenario,index);return{squad:sq,units:units,count:units.length};
+    sim.factions[faction].squads.push(sq);if(scenario&&root.BattleCommanderAI&&root.BattleCommanderAI.assignSquad)root.BattleCommanderAI.assignSquad(sim,sq,scenario,index);if(root.BattleSquadStability&&root.BattleSquadStability.placeAtSlots)root.BattleSquadStability.placeAtSlots(sim,sq);return{squad:sq,units:units,count:units.length};
   }
   root.BattleModules.registerUnitType('infantry-squad',{version:'20',label:'Infantry squad',category:'infantry',capabilities:['capture','direct-fire','screen','defend'],operatorSpawn:true,spawnCount:10,buttonLabel:'Infantry',captureWeight:1,spawn:spawn});
 })(typeof window!=='undefined'?window:globalThis);

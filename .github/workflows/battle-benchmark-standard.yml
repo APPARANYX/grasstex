@@ -15,6 +15,10 @@ on:
         description: Deterministic seed prefix
         required: false
         default: 'standard-benchmark'
+      query:
+        description: Extra page flags for every battle (e.g. viewCones=0&geScout=carbine), to run A/B arms on one commit with one seed. A run with flags is never published as the record.
+        required: false
+        default: ''
   push:
     tags:
       - 'standard-benchmark-*'
@@ -38,6 +42,7 @@ jobs:
         env:
           SOURCE_REF: ${{ github.ref }}
           SOURCE_EVENT: ${{ github.event_name }}
+          EXTRA_QUERY: ${{ github.event.inputs.query || '' }}
         run: |
           set -euo pipefail
           git fetch origin main
@@ -54,6 +59,11 @@ jobs:
           else
             is_main=false
             echo "::notice title=Branch benchmark::${SOURCE_REF} at ${source_sha:0:7} is not on main. The report is uploaded as an artifact and written to the run summary; the published benchmark record is left untouched."
+          fi
+          # A run with extra page flags is an experiment arm, not the build's record.
+          if [ -n "$EXTRA_QUERY" ]; then
+            is_main=false
+            echo "::notice title=Flagged benchmark::page flags '${EXTRA_QUERY}': report is an artifact and run summary only; the published benchmark record is left untouched."
           fi
           echo "sha=$source_sha" >> "$GITHUB_OUTPUT"
           echo "is_main=$is_main" >> "$GITHUB_OUTPUT"
@@ -141,6 +151,7 @@ jobs:
           BASE_SEED: ${{ github.event.inputs.seed || format('standard-benchmark-{0}', github.run_number) }}
           SHARD: ${{ matrix.shard }}
           BATTLE_TYPE: ${{ matrix.battle_type }}
+          EXTRA_QUERY: ${{ github.event.inputs.query || '' }}
         run: |
           set -euo pipefail
           case "$BATTLE_TYPE" in
@@ -149,6 +160,10 @@ jobs:
             ge-defend) defender_query='?defender=ge' ;;
             *) echo "Unknown battle type: $BATTLE_TYPE" >&2; exit 2 ;;
           esac
+          extra="${EXTRA_QUERY#[?&]}"
+          if [ -n "$extra" ]; then
+            if [ -n "$defender_query" ]; then defender_query="${defender_query}&${extra}"; else defender_query="?${extra}"; fi
+          fi
           export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php${defender_query}"
           export BATTLE_BENCHMARK_SEED="${BASE_SEED}-${BATTLE_TYPE}-s${SHARD}"
           echo "Running ${BATTLE_TYPE} worker ${SHARD}: ${BATTLE_BENCHMARK_COUNT} requested battles, ${BATTLE_BENCHMARK_WORKER_MINUTES} minute cap"
@@ -282,7 +297,10 @@ jobs:
 
       - name: Publish benchmark summary
         if: always()
+        env:
+          EXTRA_QUERY: ${{ github.event.inputs.query || '' }}
         run: |
+          if [ -n "$EXTRA_QUERY" ]; then echo "**Page flags:** \`${EXTRA_QUERY}\`" >> "$GITHUB_STEP_SUMMARY"; echo >> "$GITHUB_STEP_SUMMARY"; fi
           if [ -f reports/battle-benchmark.md ]; then
             cat reports/battle-benchmark.md >> "$GITHUB_STEP_SUMMARY"
           else

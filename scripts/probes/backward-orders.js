@@ -55,7 +55,7 @@
     every: 0,
     start: function () {
       seen = new Map();
-      c = { changes: 0, excluded: 0, behindLine: 0, backStep: 0, behindAndBack: 0, byProducer: {}, byPhase: {}, examples: [], lineSource: { 'forward-majority': 0, 'order-anchor': 0 } };
+      c = { changes: 0, excluded: 0, behindLine: 0, backStep: 0, behindAndBack: 0, byProducer: {}, byPhase: {}, behindAndBackBy: {}, examples: [], lineSource: { 'forward-majority': 0, 'order-anchor': 0 } };
     },
     sample: function (sim) {
       var men = root.BattleModules.unitsFor(sim);
@@ -101,6 +101,9 @@
             c.behindAndBack++;
             c.byProducer[producer].behindAndBack++;
             c.byPhase[phase].behindAndBack++;
+            /* Why the producer sent him back: its stated reason, and whether he was under fire. */
+            var why = producer + ' | ' + (last.reason || '?') + (s.suppressedUntil > sim.time ? ' | suppressed' : '');
+            c.behindAndBackBy[why] = (c.behindAndBackBy[why] || 0) + 1;
           }
         }
         if (hit && c.examples.length < 25)
@@ -131,6 +134,7 @@
         behindAndBack: c.behindAndBack,
         byProducer: round(c.byProducer),
         byPhase: round(c.byPhase),
+        behindAndBackBy: c.behindAndBackBy,
         examples: c.examples
       };
     }
