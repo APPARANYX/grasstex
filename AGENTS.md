@@ -573,8 +573,10 @@ pseudo-backlog. Long-form historical notes remain in git history
 
 **Watch only**
 
-- One local run logged `ReferenceError: BABYLON is not defined` from an inline script served by
-  `battle_sim_local.php`. If it recurs, make that script wait for Babylon before running.
+- `ReferenceError: BABYLON is not defined` from `battle_sim_local.php` did not reproduce (2026-09-29: 15
+  page loads, 0 page errors). Every inline script that uses `BABYLON` follows the synchronous
+  jsDelivr tag, so the only way to see it is that request failing (blocked or dropped CDN), which
+  fails the whole boot anyway. No waiting shim needed; if it recurs, check the CDN request first.
 - By design: Movement Progress ignores retreat (`movementStopReason` is the observable), and
   meeting engagements get no runtime engineer fortification (`engineerTick` exits early).
 
