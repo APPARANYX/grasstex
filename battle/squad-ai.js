@@ -240,10 +240,17 @@
     if (off <= PERIPHERAL_HALF) return target.moving ? PERIPHERAL_MOVING : PERIPHERAL_RANGE;
     return 0;
   }
+  /* His awareness (module 10, BattleSoldierStats) stretches or shortens how far he spots: 1 for an average
+     man, and when the module is absent or that lever is off. */
+  function sightScale(soldier) {
+    var stats = root.BattleSoldierStats;
+    return stats ? stats.scale(soldier, 'sight') : 1;
+  }
   function findTarget(soldier, enemies, heightAt, obstacles, battle) {
     var role = ROLES[soldier.role],
       p = soldier.root.position,
       look = lookYaw(soldier, battle),
+      sight = sightScale(soldier),
       i;
     scanBuffer.length = 0;
     for (i = 0; i < enemies.length; i++) {
@@ -252,10 +259,10 @@
       var ex = e.root.position.x,
         ez = e.root.position.z,
         d = dist2(p.x, p.z, ex, ez);
-      if (d > detectionRange(role, e)) continue;
+      if (d > detectionRange(role, e) * sight) continue;
       if (PERCEPTION_ON && d > BEHIND_RANGE) {
         var reach = viewReach(angleBetween(Math.atan2(ex - p.x, ez - p.z), look), e);
-        if (!reach || d > detectionRange(role, e) * reach) continue;
+        if (!reach || d > detectionRange(role, e) * reach * sight) continue;
       }
       scanBuffer.push({ unit: e, d: d });
     }
@@ -272,7 +279,8 @@
     if (!t || t.dead) return false;
     var role = ROLES[soldier.role],
       p = soldier.root.position;
-    if (dist2(p.x, p.z, t.root.position.x, t.root.position.z) > role.visionRange * TRACK_MARGIN) return false;
+    if (dist2(p.x, p.z, t.root.position.x, t.root.position.z) > role.visionRange * TRACK_MARGIN * sightScale(soldier))
+      return false;
     return hasLineOfSight(soldier, t, heightAt, obstacles);
   }
 
@@ -657,6 +665,9 @@
      the hold for an average man; a hold only ever extends. (Not BattleEngagement.suppress, which is a
      soldier firing suppressive bursts.) */
   function pin(target, battle, seconds) {
+    /* His fortitude decides how long it holds him (BattleSoldierStats, 1 for an average man or with it off). */
+    var stats = root.BattleSoldierStats;
+    if (stats) seconds *= stats.scale(target, 'hold');
     target.suppressedUntil = Math.max(target.suppressedUntil || 0, battle.time + seconds);
   }
 

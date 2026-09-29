@@ -279,6 +279,30 @@ section('meeting engagements do not enter prepared-defender construction');
   error=null;try{for(let i=0;i<3;i++)r.BattleModules.getSystem('defender-engineers').onCommanderTick(sim,{dt:11});}catch(e){error=e.message;}
   check('prepared-defender runtime construction still works and respects its two-work limit',!error&&sim._engineerBuild.counts['us|outer']===2,error);
 }
+section('an engineer\'s technical skill is his building rate');
+{
+  /* dt 4 s per tick against the 10 s BUILD_SECONDS: x1.4 builds on the 2nd tick, x1 on the 3rd, x0.6 on the 5th. */
+  const ticksToFirstWork = tec => {
+    const {r,sq,sim}=commandFixture();
+    load(r,'battle/modules/00-battle-sides.js');
+    load(r,'battle/modules/00-defense-plan.js');
+    sim.obstacles=[];sim.scene=null;
+    sim._defensePlans={us:r.BattleDefensePlan.empty('us'),ge:r.BattleDefensePlan.empty('ge')};
+    load(r,'battle/modules/10-soldier-stats.js');
+    load(r,'battle/modules/21-defender-engineers.js');
+    sim._sides=r.BattleSides.build({center:{x:0,z:0},objectives:[sim._objectives[0].def]},{defender:'us'});
+    sim._objectives[0].state.owner='us';sq.members[0].role='engineer';sq.members[0].root.position={x:120,z:0};
+    if(tec!=null)r.BattleSoldierStats.of(sq.members[0]).tec=tec;
+    for(let tick=1;tick<=12;tick++){
+      r.BattleModules.getSystem('defender-engineers').onCommanderTick(sim,{dt:4});
+      if(sim._engineerBuild&&sim._engineerBuild.counts['us|outer'])return tick;
+    }
+    return null;
+  };
+  check('technical 1 builds on the 2nd tick',ticksToFirstWork(1)===2,ticksToFirstWork(1));
+  check('technical 0.5 builds on the 3rd tick, the flat 10 s',ticksToFirstWork(0.5)===3,ticksToFirstWork(0.5));
+  check('technical 0 builds on the 5th tick',ticksToFirstWork(0)===5,ticksToFirstWork(0));
+}
 section('provenance distinguishes real competing writers from sampling noise');
 {
   const {r,sq,sim}=commandFixture();

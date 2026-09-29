@@ -143,7 +143,9 @@
     var threat = threatFor(s, b);
     if (!threat || !root.BattleEngagement.findCover) return false;
     if (e._urgentCoverSearchAt && b.time < e._urgentCoverSearchAt) return false;
-    e._urgentCoverSearchAt = b.time + 0.9;
+    /* How soon he looks again for cover is his agility (module 10; 0.9 s for an average man). */
+    var stats = root.BattleSoldierStats;
+    e._urgentCoverSearchAt = b.time + 0.9 * (stats ? stats.scale(s, 'coverSearch') : 1);
     var cover = root.BattleEngagement.findCover(s, b, {
       maxRange: COVER_SEARCH,
       threat: threat,

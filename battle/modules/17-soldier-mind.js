@@ -117,8 +117,13 @@
     h ^= h << 5;
     return (h >>> 0) / 4294967295;
   }
+  /* A man's nerve divides every stress gain. It is his fortitude when the stats module has it on (module 10:
+     the same +-12% swing the hash gave, now a stat other layers read too); a sergeant is steadier still. */
   function nerveOf(s) {
-    return (1 + (unit(s, 'nerve') - 0.5) * 0.24) * (s.role === 'sergeant' ? 1.15 : 1);
+    var stats = root.BattleSoldierStats,
+      rank = s.role === 'sergeant' ? 1.15 : 1;
+    if (stats && stats.on('for')) return stats.scale(s, 'nerve') * rank;
+    return (1 + (unit(s, 'nerve') - 0.5) * 0.24) * rank;
   }
 
   function fresh(s) {
