@@ -1,12 +1,12 @@
-/* Close-up screenshots of the damage FX in the real page: wound and exit-wound decals on
-   soldiers, blood on the ground (splash, exit spray), and bullet holes (masonry, wood, dirt, metal).
+/* Close-up screenshots of the damage FX in the real page: UV-painted wound and exit-wound marks
+   on FBX soldiers (quad fallback/procedural rig also supported), blood on the ground (splash, exit spray), and bullet holes (masonry, wood, dirt, metal).
 
    Boots battle_sim_local.php in headless Chromium, starts the battle and steps the sim at a fixed
    0.15 s (fast, rendering only when screenshotting) until enough hits have landed, then pauses and,
    for each requested decal kind, puts the camera in front of the newest one along its surface
    normal and saves <kind>.png. Also writes summary.json (wound stats by zone, decal counts by kind,
-   rounds that went through a body, and FBX skin-anchor adherence) and fails on any page error or
-   skinned wound that has drifted materially off its sampled surface.
+   rounds that went through a body, UV-map usage, and FBX skin-anchor diagnostics) and fails on any
+   page error or FBX wound that fell back from the UV paint path.
 
    Serve the repo first (see AGENTS.md, Browser smoke):
      mkdir -p /tmp/www && ln -sfn "$PWD" /tmp/www/grasstex && php -S 127.0.0.1:8765 -t /tmp/www &
@@ -113,17 +113,30 @@ async function boot(browser, errors) {
       fx.decals.forEach(d => (kinds[d.kind] = (kinds[d.kind] || 0) + 1));
       const F = window.BattleFbxSoldier, skinAdherence = [],
         fbxBodies = fx.body.filter(e => e.soldier && e.soldier._fbx),
-        fbxFallbackWounds = fbxBodies.filter(e => !e.skin).length;
+        uvBodies = fbxBodies.filter(e => e.uv),
+        fbxFallbackWounds = fbxBodies.filter(e => !e.uv).length;
       if (F && F.skinSample && window.BABYLON) {
         if (window.BattleImpactFx && window.BattleImpactFx.refreshBody) window.BattleImpactFx.refreshBody(b);
         fx.body.forEach(e => {
           if (!e.skin || !e.mesh || (e.mesh.isDisposed && e.mesh.isDisposed())) return;
           const p = new BABYLON.Vector3(), n = new BABYLON.Vector3();
           if (!F.skinSample(e.skin, p, n)) return;
+          if (e.uv) {
+            skinAdherence.push({
+              mode: 'uv',
+              soldier: e.soldier && e.soldier.id,
+              exit: !!e.exit,
+              anchorDistance: +(e.skin.distance || 0).toFixed(4),
+              resolution: e.resolution || null,
+              mesh: e.mesh.name || null
+            });
+            return;
+          }
           const q = e.mesh.getAbsolutePosition(), dx = q.x - p.x, dy = q.y - p.y, dz = q.z - p.z,
             distance = Math.hypot(dx, dy, dz), normalGap = dx * n.x + dy * n.y + dz * n.z,
             tangentGap = Math.sqrt(Math.max(0, distance * distance - normalGap * normalGap));
           skinAdherence.push({
+            mode: 'quad-fallback',
             soldier: e.soldier && e.soldier.id,
             exit: !!e.exit,
             anchorDistance: +(e.skin.distance || 0).toFixed(4),
@@ -142,6 +155,8 @@ async function boot(browser, errors) {
         exitWoundDecals: fx.body.filter(e => e.exit).length,
         fbxSoldiers: b._roster.us.some(s => s._fbx),
         fbxWoundDecals: fbxBodies.length,
+        uvWoundDecals: uvBodies.length,
+        surfaceMaps: new Set(uvBodies.map(e => e.renderer)).size,
         fbxFallbackWounds,
         skinAdherence
       };
@@ -165,12 +180,20 @@ async function boot(browser, errors) {
           if (kind === 'wound' || kind === 'exit') {
             /* The newest on a man still up: on the dead the decal has turned with the fall and its
                normal often points into the ground. */
-            const pool = fx.body.filter(x => !!x.exit === (kind === 'exit') && !x.mesh.isDisposed()),
+            const pool = fx.body.filter(x =>
+                !!x.exit === (kind === 'exit') && x.mesh && !(x.mesh.isDisposed && x.mesh.isDisposed())),
               e = pool.filter(x => x.soldier && !x.soldier.dead).slice(-1)[0] || pool.slice(-1)[0];
             if (!e) return null;
-            const m = e.mesh.getWorldMatrix().m;
-            p = e.mesh.getAbsolutePosition();
-            n = { x: m[8], y: m[9], z: m[10] };
+            if (e.uv && window.BattleFbxSoldier && window.BattleFbxSoldier.skinSample && e.skin) {
+              const q = new BABYLON.Vector3(), sn = new BABYLON.Vector3();
+              if (!window.BattleFbxSoldier.skinSample(e.skin, q, sn)) return null;
+              p = { x: q.x, y: q.y, z: q.z };
+              n = { x: sn.x, y: sn.y, z: sn.z };
+            } else {
+              const m = e.mesh.getWorldMatrix().m;
+              p = e.mesh.getAbsolutePosition();
+              n = { x: m[8], y: m[9], z: m[10] };
+            }
             far = dist;
           } else {
             const e = fx.decals.filter(d => d.kind === kind).slice(-1)[0];
@@ -207,17 +230,21 @@ async function boot(browser, errors) {
     fs.writeFileSync(path.join(out, 'summary.json'), JSON.stringify(summary, null, 2));
     console.log(JSON.stringify({ wounds: summary.wounds && summary.wounds.byZone, worldDecals: summary.worldDecals }));
     const badSkin = (summary.skinAdherence || []).filter(x =>
-      Math.abs(x.distance - 0.012) > 0.006 || x.tangentGap > 0.004);
+      x.mode === 'quad-fallback' && (Math.abs(x.distance - 0.012) > 0.006 || x.tangentGap > 0.004));
     if (badSkin.length) {
-      console.error('skin wound drift:\n  ' + JSON.stringify(badSkin, null, 2));
+      console.error('fallback skin wound drift:\n  ' + JSON.stringify(badSkin, null, 2));
       process.exitCode = 1;
     }
     if (summary.fbxFallbackWounds) {
-      console.error(summary.fbxFallbackWounds + ' FBX wound decal(s) fell back to the bone path');
+      console.error(summary.fbxFallbackWounds + ' FBX wound(s) fell back from UV paint');
       process.exitCode = 1;
     }
-    if (summary.fbxWoundDecals && !(summary.skinAdherence || []).length) {
-      console.error('FBX wound decals existed but no skin-anchor adherence sample was available');
+    if (summary.fbxWoundDecals && summary.uvWoundDecals !== summary.fbxWoundDecals) {
+      console.error('not every FBX wound used the per-soldier UV map');
+      process.exitCode = 1;
+    }
+    if (summary.uvWoundDecals && !(summary.skinAdherence || []).some(x => x.mode === 'uv')) {
+      console.error('UV wounds existed but no skin-anchor diagnostic was available');
       process.exitCode = 1;
     }
     if (errors.length) {
