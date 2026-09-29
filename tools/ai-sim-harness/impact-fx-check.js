@@ -166,7 +166,7 @@ console.log('PASS resource budgets, expiry, floor slabs, suppression strikes and
 
 // The ballistic result supplies the actual victim and blocking material; FX never guess from
 // the intended target. Zero angular dispersion makes these geometry checks deterministic.
-r.SquadAI={stanceOf:()=> 'stand',eyeHeight:()=>1.55};
+r.SquadAI={stanceOf:()=> 'stand',eyeHeight:()=>1.55,isMachineGun:s=>!!(s&&s.weapon&&s.weapon.kind==='lmg')};
 load('battle/obstacle-field.js');load('battle/modules/14-z-ballistic-raycast.js');
 function unit(x){return{root:{position:{x,y:0,z:0},rotation:{y:0}},hp:100,faction:'ge'};}
 const shooter=unit(0);shooter.faction='us';shooter.weapon={stats:{range:90,accuracy:.98,falloffStart:90,damage:10}};

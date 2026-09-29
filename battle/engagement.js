@@ -689,7 +689,7 @@
     if (battle.time < e.fireReadyAt) return false;
     if (movingTooFast(s) || s.crawling) return false;
     if (facingError(s, posOf(s.target)) > AIM_CONE) return false;
-    if (s.role === 'gunner' && !s.setUp && e.state === 'engage') return false; // the gun gets emplaced first
+    if (SA().isMachineGun(s) && !s.setUp && e.state === 'engage') return false; // the gun gets emplaced first
     return true;
   }
   function tryFire(s, battle) {
@@ -797,7 +797,7 @@
     if (!e.boundOrder || !sq || !sq._assaultAuthorized || !root.BattleLeases.holds(sq, 'bound', battle.time))
       return false;
     if (
-      s.role === 'gunner' ||
+      SA().isMachineGun(s) ||
       s.reloading ||
       s.clearingStoppage ||
       s.outOfAmmo ||
@@ -1078,7 +1078,7 @@
     var d = dist(p.x, p.z, posOf(s.target).x, posOf(s.target).z);
     holdPosition(s, battle);
     if (!holdStance(s, battle)) commitStance(s, battle, fightingStance(s, battle, d, here));
-    if (s.role === 'gunner') {
+    if (SA().isMachineGun(s)) {
       if (!e.setUpSince) e.setUpSince = battle.time;
       s.setUp = battle.time - e.setUpSince > GUNNER_SETUP;
     } else s.setUp = false;
@@ -1204,7 +1204,7 @@
     // to formation when engagement updates are staggered.
     move(s, battle, { x: st.x, z: st.z }, 'firing-station');
     if (d <= 0.35) {
-      if (s.role === 'gunner') {
+      if (SA().isMachineGun(s)) {
         if (!e.setUpSince) e.setUpSince = battle.time;
         s.setUp = battle.time - e.setUpSince > GUNNER_SETUP;
       }
@@ -1263,8 +1263,8 @@
         candidates.push(s);
       }
       candidates.sort(function (a, b) {
-        var ga = a.role === 'gunner' ? 0 : 1,
-          gb = b.role === 'gunner' ? 0 : 1;
+        var ga = SA().isMachineGun(a) ? 0 : 1,
+          gb = SA().isMachineGun(b) ? 0 : 1;
         if (ga !== gb) return ga - gb;
         var sa = state(a).suppressOrder ? 0 : 1,
           sb = state(b).suppressOrder ? 0 : 1;

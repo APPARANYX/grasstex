@@ -76,5 +76,22 @@
     return weapon;
   }
   function attachWeapon(scene,socket,kind){var build=(BUILDERS[kind]||BUILDERS.rifle)(scene),stats=STATS[kind]||STATS.rifle;build.mesh.parent=socket;build.mesh.position.set(0,0,0);return{kind:kind,mesh:build.mesh,muzzleLocal:build.muzzle,stats:stats,socket:socket,magSize:stats.magazine||8,ammo:stats.magazine||8};}
-  root.BattleWeapons={STATS:STATS,PROFILES:PROFILES,profileStats:profileStats,issue:issue,attachWeapon:attachWeapon};
+  /* A holstered weapon is carried but not drawn: its mesh (and bipod) are hidden. */
+  function show(weapon,on){
+    if(!weapon)return;
+    if(weapon.mesh&&weapon.mesh.setEnabled)weapon.mesh.setEnabled(!!on);
+    if(weapon.bipodMesh&&weapon.bipodMesh.setEnabled&&!on)weapon.bipodMesh.setEnabled(false);
+  }
+  function holster(weapon){show(weapon,false);return weapon;}
+  /* Bring the soldier's other weapon to hand: it becomes `weapon` (what he shoots and what the pose
+     follows) and the one he had is holstered as `secondary`. */
+  function equip(soldier,next){
+    if(!soldier||!next)return false;
+    var old=soldier.weapon;
+    if(next===old)return false;
+    soldier.weapon=next;soldier.secondary=old||null;
+    show(old,false);show(next,true);
+    return true;
+  }
+  root.BattleWeapons={STATS:STATS,PROFILES:PROFILES,profileStats:profileStats,issue:issue,attachWeapon:attachWeapon,holster:holster,equip:equip};
 })(typeof window!=='undefined'?window:globalThis);

@@ -108,7 +108,7 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
   for (const who of SOLDIERS) for (const pose of POSES) for (const t of TIMES) {
     const state = await page.evaluate(({ who, pose, t }) => {
       const { scene } = window.__closeup, M = BattleSoldierModel, FPS = 30;
-      const kind = SquadAI.ROLES[who.role] && SquadAI.ROLES[who.role].weapon;
+      const kind = SquadAI.LOADOUTS[who.role] && SquadAI.loadoutFor(who.role, who.faction).primary;
       if (!kind) return { error: 'unknown role ' + who.role };
       if (window.__closeup.soldier) window.__closeup.soldier.root.dispose();
       const s = M.createSoldier(scene, who.faction, who.role, null);
