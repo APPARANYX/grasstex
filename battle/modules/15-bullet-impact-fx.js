@@ -15,9 +15,9 @@
 
    Sheets: a fixed 4 x 4 grid (tools/generate-decal-atlas.js writes them). DECAL_SHEETS addresses
    cells by row and column only, so a sheet can be replaced at any resolution that keeps the grid.
-   World decals are thin instances of one quad per cell (one draw call per used cell). FBX wound
-   decals lock to the nearest actual skinned vertex and resample that vertex's bone weights each
-   render; the procedural fallback remains a small bone-parented quad. */
+   World decals are thin instances of one quad per cell (one draw call per used cell). FBX body wounds paint into a private per-soldier UV damage map on first hit; the map deforms with
+   the skinned mesh at no per-frame wound cost. Unsupported UV/material cases retain the skinned-
+   vertex quad fallback; the procedural rig keeps its bone-parented fallback. */
 (function (root) {
   'use strict';
   if (!root.BattleSim || !root.BattleModules || typeof BABYLON === 'undefined' || root.BattleImpactFx) return;
@@ -189,6 +189,8 @@
         body: [],
         cells: {},
         materials: {},
+        surfaceMaps: [],
+        surfaceStamps: {},
         texture: null,
         serial: 0
       })
@@ -216,6 +218,67 @@
     );
     st.texture.hasAlpha = true;
     return st.texture;
+  }
+  /* Small procedural blood stamps for the UV-space body layer. World blood still uses the painted
+     atlas. Keeping these as tiny shared RawTextures avoids a unique source texture per soldier:
+     only each wounded soldier's destination UV render target is private. */
+  function surfaceStamp(sim, st, kind, variant) {
+    variant = variant & 3;
+    var key = kind + ':' + variant;
+    if (st.surfaceStamps[key]) return st.surfaceStamps[key];
+    var n = 96,
+      data = new Uint8Array(n * n * 4),
+      seed = (variant + 1) * 0x45d9f3b + (kind === 'soak' ? 0x51ed270b : 0x119de1f3);
+    function hash(x, y, k) {
+      var q = (Math.imul(x + 17, 374761393) ^ Math.imul(y + 31, 668265263) ^ Math.imul(seed + k * 101, 2246822519)) | 0;
+      q = Math.imul(q ^ (q >>> 13), 1274126177);
+      return ((q ^ (q >>> 16)) >>> 0) / 4294967296;
+    }
+    var drops = [];
+    for (var d = 0; d < 4; d++) {
+      var a = hash(d, 3, 7) * Math.PI * 2,
+        rr = 0.48 + hash(d, 9, 11) * 0.34;
+      drops.push({
+        x: Math.cos(a) * rr,
+        y: Math.sin(a) * rr,
+        r: (kind === 'soak' ? 0.055 : 0.04) + hash(d, 13, 17) * 0.045
+      });
+    }
+    for (var y = 0; y < n; y++)
+      for (var x = 0; x < n; x++) {
+        var nx = ((x + 0.5) / n - 0.5) * 2,
+          ny = ((y + 0.5) / n - 0.5) * 2,
+          r = Math.hypot(nx, ny),
+          ang = Math.atan2(ny, nx),
+          edge =
+            (kind === 'soak' ? 0.78 : 0.62) +
+            0.075 * Math.sin(ang * (5 + variant) + variant * 1.7) +
+            0.04 * Math.sin(ang * (9 - variant) - 0.8) +
+            (hash(x >> 2, y >> 2, 23) - 0.5) * 0.07,
+          alpha = Math.max(0, Math.min(1, (edge - r) / 0.14));
+        for (var k = 0; k < drops.length; k++) {
+          var dr = Math.hypot(nx - drops[k].x, ny - drops[k].y),
+            da = Math.max(0, Math.min(1, (drops[k].r - dr) / 0.025));
+          alpha = Math.max(alpha, da * 0.9);
+        }
+        /* Dark centre, slightly brighter wet edge; alpha stays straight (not premultiplied). */
+        var core = Math.max(0, 1 - r / Math.max(0.001, edge)),
+          noise = hash(x, y, 37),
+          red = Math.round(72 + 46 * (1 - core) + noise * 14),
+          green = Math.round(2 + noise * 4),
+          blue = Math.round(5 + noise * 5),
+          i = (x + y * n) * 4;
+        data[i] = red;
+        data[i + 1] = green;
+        data[i + 2] = blue;
+        data[i + 3] = Math.round(alpha * (kind === 'soak' ? 205 : 235));
+      }
+    var tex = B.RawTexture.CreateRGBATexture(data, n, n, sim.scene, false, false, B.Texture.BILINEAR_SAMPLINGMODE);
+    tex.hasAlpha = true;
+    tex.gammaSpace = true;
+    if (B.Texture.CLAMP_ADDRESSMODE != null) tex.wrapU = tex.wrapV = B.Texture.CLAMP_ADDRESSMODE;
+    st.surfaceStamps[key] = tex;
+    return tex;
   }
   function decalBase() {
     return (
@@ -393,11 +456,24 @@
     if (!st) return;
     for (var i = st.body.length - 1; i >= 0; i--) {
       var body = st.body[i];
+      /* UV wounds already live in the mesh's texture space and need no per-frame transform work. */
+      if (body.uv) continue;
       if (body.skin && !placeSkinWound(body) && (!body.mesh.isDisposed || !body.mesh.isDisposed())) body.mesh.dispose();
     }
   }
-  /* FBX wounds lock to the nearest actual skinned vertex at the entry/exit point, then follow that
-     vertex's bone weights. Procedural soldiers keep the old bone-local fallback. */
+  function disposeBodyEntry(body) {
+    if (!body || body.uv || !body.mesh) return;
+    if (!body.mesh.isDisposed || !body.mesh.isDisposed()) body.mesh.dispose();
+  }
+  function rememberSurfaceMap(st, renderer, soldier) {
+    if (!renderer) return;
+    for (var i = 0; i < st.surfaceMaps.length; i++) if (st.surfaceMaps[i].renderer === renderer) return;
+    st.surfaceMaps.push({ renderer: renderer, soldier: soldier || null });
+  }
+  /* FBX wounds first paint into that soldier mesh's private UV damage layer. Babylon skins the
+     projection pass, so the texture-space mark bends with every later pose and costs no wound mesh
+     draw or per-frame resampling. The just-shipped skinned quad remains the safety fallback; the
+     procedural rig keeps its old bone-local path. */
   function woundDecal(sim, st, pass, rng, exit) {
     var victim = pass.victim,
       zone = pass.zone || 'chest',
@@ -407,19 +483,41 @@
     var mine = 0;
     for (var i = 0; i < st.body.length; i++) if (st.body[i].soldier === victim) mine++;
     if (mine >= MAX_PER_SOLDIER) return;
-    while (st.body.length >= MAX_BODY_DECALS) {
-      var old = st.body.shift();
-      if (!old.mesh.isDisposed || !old.mesh.isDisposed()) old.mesh.dispose();
-    }
+    while (st.body.length >= MAX_BODY_DECALS) disposeBodyEntry(st.body.shift());
+
     var sign = exit ? 1 : -1,
       out = norm({ x: dir.x * sign, y: 0, z: dir.z * sign }),
       kind = exit || rng() < 0.35 ? 'soak' : 'wound',
       cellAt = pick('blood', kind, rng),
       roll = rng() * 0.6 - 0.3,
       s = size(kind, rng) * (zone === 'arm' || zone === 'head' ? 0.75 : 1) * (exit ? 1.35 : 1),
-      mesh = quad(sim, (exit ? 'exit-wound-' : 'wound-') + zone, cellUV('blood', cellAt.row, cellAt.col)),
       F = root.BattleFbxSoldier,
       skin = F && F.skinAnchor ? F.skinAnchor(victim, at3) : null;
+
+    /* Preferred FBX path: project a shared blood stamp into a destination texture that belongs only
+       to this soldier mesh. No material clone: the uniform material is still shared by the model. */
+    if (skin && F && F.paintSurfaceWound) {
+      var painted = F.paintSurfaceWound(skin, surfaceStamp(sim, st, kind, cellAt.col), out, s, roll);
+      if (painted) {
+        rememberSurfaceMap(st, painted.renderer, victim);
+        st.body.push({
+          uv: true,
+          mesh: painted.mesh,
+          renderer: painted.renderer,
+          soldier: victim,
+          at: sim.time,
+          exit: !!exit,
+          skin: skin,
+          position: painted.position,
+          normal: painted.normal,
+          resolution: painted.resolution
+        });
+        return;
+      }
+    }
+
+    /* Safety fallback for unsupported UVs/materials or projection failure. */
+    var mesh = quad(sim, (exit ? 'exit-wound-' : 'wound-') + zone, cellUV('blood', cellAt.row, cellAt.col));
     mesh.material = sheetMaterial(sim, st, 'blood');
     if (skin) {
       var body = {
@@ -445,6 +543,7 @@
       st.body.push(body);
       return;
     }
+
     var node = bodyNode(victim, zone, { direction: pass.direction, impact: pass.entry });
     if (!node || !node.getAbsolutePosition) {
       mesh.dispose();
@@ -584,8 +683,10 @@
         st.bursts.splice(i, 1);
       }
     while (st.decals.length && sim.time - st.decals[0].at >= DECAL_LIFE) st.decals.shift().cell.dirty = true;
-    for (i = st.body.length - 1; i >= 0; i--)
-      if (st.body[i].mesh.isDisposed && st.body[i].mesh.isDisposed()) st.body.splice(i, 1);
+    for (i = st.body.length - 1; i >= 0; i--) {
+      var body = st.body[i];
+      if (body.mesh && body.mesh.isDisposed && body.mesh.isDisposed()) st.body.splice(i, 1);
+    }
     flush(st);
   }
   function clear(sim) {
@@ -594,9 +695,18 @@
     st.bursts.forEach(function (b) {
       b.system.dispose(false);
     });
-    st.body.forEach(function (b) {
-      if (!b.mesh.isDisposed || !b.mesh.isDisposed()) b.mesh.dispose();
+    st.body.forEach(disposeBodyEntry);
+    /* UV marks are persistent by design, so explicitly wipe every private map touched this battle. */
+    var F = root.BattleFbxSoldier, clearedSoldiers = [];
+    st.surfaceMaps.forEach(function (entry) {
+      try {
+        if (entry && entry.soldier && F && F.clearSurfaceDamage && clearedSoldiers.indexOf(entry.soldier) < 0) {
+          clearedSoldiers.push(entry.soldier);
+          F.clearSurfaceDamage(entry.soldier);
+        } else if (entry && entry.renderer && entry.renderer.clear) entry.renderer.clear();
+      } catch (_) {}
     });
+    st.surfaceMaps = [];
     st.bursts = [];
     st.body = [];
     st.decals.forEach(function (d) {
@@ -696,6 +806,9 @@
           if (st.materials[k].diffuseTexture) st.materials[k].diffuseTexture.dispose();
           st.materials[k].dispose();
         });
+        Object.keys(st.surfaceStamps || {}).forEach(function (k) {
+          if (st.surfaceStamps[k] && st.surfaceStamps[k].dispose) st.surfaceStamps[k].dispose();
+        });
       }
       delete sim._impactFx;
     });
@@ -705,12 +818,12 @@
     return install(oldStart(scene, opts));
   };
   root.BattleModules.registerSystem('bullet-impact-fx', {
-    version: '2.1-skin-wounds',
+    version: '2.2-uv-surface-wounds',
     onSimulationStep: tick,
     beforeBattleRestart: clear
   });
   root.BattleImpactFx = {
-    version: '2.1-skin-wounds',
+    version: '2.2-uv-surface-wounds',
     install: install,
     impact: impact,
     suppressionStrikes: suppressionStrikes,

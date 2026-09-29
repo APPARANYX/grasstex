@@ -109,7 +109,36 @@ skinX=5.18;fx.refreshBody(sim);
 assert.ok(Math.abs(skinned.mesh.position.x-(skinX-.012))<1e-6,'wound follows the same skin vertex after deformation');
 assert.ok(skinSamples>=2,'skin anchor is resampled after creation');
 delete r.BattleFbxSoldier;
-console.log('PASS FBX wound decals lock to and follow the sampled skinned surface');
+console.log('PASS FBX skinned-quad fallback locks to and follows the sampled surface');
+
+/* Preferred FBX path: a body hit paints the soldier mesh's private UV map and creates no wound
+   quad. Multiple marks reuse one renderer, and restart clears that map without disposing the body. */
+fx.clear(sim);
+const uvMesh=new Mesh('fbx-body'),uvRenderer={clears:0,clear(){this.clears++;}},painted=[];
+r.BattleFbxSoldier={
+  skinAnchor(v,p){return{victim:v,mesh:uvMesh,hit:{x:p.x,y:p.y,z:p.z}};},
+  paintSurfaceWound(anchor,stamp,out,size,roll){
+    painted.push({anchor,stamp,out,size,roll});
+    return{mesh:uvMesh,renderer:uvRenderer,position:new Vector3(5,1.31,.04),normal:new Vector3(-1,0,0),resolution:512};
+  },
+  boneNode(){throw Error('UV paint should win over every quad/bone fallback');}
+};
+sim.onShot(null,victim,true,10,bodyShot([pass(victim,'chest',5,false)]));fx.tick(sim);
+let uvWound=sim._impactFx.body[0];
+assert.equal(painted.length,1,'body hit paints once into UV space');
+assert.equal(uvWound.uv,true,'wound event records UV mode');
+assert.equal(uvWound.mesh,uvMesh,'UV wound belongs to the actual soldier mesh');
+assert.equal(uvWound.renderer,uvRenderer,'UV wound records the private map');
+assert.equal(uvWound.resolution,512,'UV map resolution is reported');
+assert.equal(sim._impactFx.surfaceMaps.length,1,'private map is tracked once for cleanup');
+sim.onShot(null,victim,true,10,bodyShot([pass(victim,'chest',5,true)]));fx.tick(sim);
+assert.equal(painted.length,3,'entry plus exit accumulate into the same soldier map');
+assert.equal(sim._impactFx.surfaceMaps.length,1,'repeated wounds reuse one tracked renderer');
+fx.clear(sim);
+assert.equal(uvRenderer.clears,1,'restart/clear wipes persistent UV paint');
+assert.ok(!uvMesh.disposed,'clearing damage never disposes the soldier body mesh');
+delete r.BattleFbxSoldier;
+console.log('PASS FBX body wounds accumulate in one private UV map and clear without body disposal');
 
 
 /* Budgets, expiry, restart. */
@@ -126,6 +155,8 @@ fx.impact(sim,shot('dirt','ground'));
 assert.ok(sim._impactFx.decals[0].matrix[13]>=sim.heightAt(2,3)+.08,'indoor strikes sit on the floor slab');
 sim.onSuppressiveShot(null,{x:30,z:30},1,6);
 assert.ok(sim._impactFx.decals.length>1,'suppressive bursts kick up dirt strikes');
+/* Restart cleanup owns its own body fixture; do not depend on a wound leaked by an earlier test. */
+sim.onShot(null,victim,true,10,bodyShot([pass(victim,'chest',5,false)]));fx.tick(sim);
 const liveBurst=sim._impactFx.bursts[0].system,liveBody=sim._impactFx.body[0].mesh;
 hooks['bullet-impact-fx'].beforeBattleRestart(sim);
 assert.ok(liveBurst.disposed&&liveBody.disposed);
