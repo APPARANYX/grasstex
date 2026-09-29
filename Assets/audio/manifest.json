@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "base": "Assets/audio/",
   "format": "mp3",
   "runtime": {
@@ -8,7 +8,8 @@
     "voiceMaxDistance": 95,
     "vehicleMaxDistance": 260,
     "aircraftMaxDistance": 420,
-    "ambienceSpatial": false
+    "ambienceSpatial": false,
+    "footstepMaxDistance": 40
   },
   "categories": {
     "weapons": {
@@ -224,6 +225,56 @@
       "safety": [
         "weapons/foley/m1-garand-safety-01.mp3",
         "weapons/foley/m1-garand-safety-02.mp3"
+      ]
+    },
+    "footsteps": {
+      "pastureGrassWalk": [
+        "footsteps/001-pasture-grass/walk-01.mp3",
+        "footsteps/001-pasture-grass/walk-02.mp3",
+        "footsteps/001-pasture-grass/walk-03.mp3",
+        "footsteps/001-pasture-grass/walk-04.mp3",
+        "footsteps/001-pasture-grass/walk-05.mp3",
+        "footsteps/001-pasture-grass/walk-06.mp3"
+      ],
+      "pastureGrassRun": [
+        "footsteps/001-pasture-grass/run-01.mp3",
+        "footsteps/001-pasture-grass/run-02.mp3",
+        "footsteps/001-pasture-grass/run-03.mp3",
+        "footsteps/001-pasture-grass/run-04.mp3",
+        "footsteps/001-pasture-grass/run-05.mp3",
+        "footsteps/001-pasture-grass/run-06.mp3"
+      ],
+      "cobbledStreetWalk": [
+        "footsteps/004-cobbled-street/walk-01.mp3",
+        "footsteps/004-cobbled-street/walk-02.mp3",
+        "footsteps/004-cobbled-street/walk-03.mp3",
+        "footsteps/004-cobbled-street/walk-04.mp3",
+        "footsteps/004-cobbled-street/walk-05.mp3",
+        "footsteps/004-cobbled-street/walk-06.mp3"
+      ],
+      "cobbledStreetRun": [
+        "footsteps/004-cobbled-street/run-01.mp3",
+        "footsteps/004-cobbled-street/run-02.mp3",
+        "footsteps/004-cobbled-street/run-03.mp3",
+        "footsteps/004-cobbled-street/run-04.mp3",
+        "footsteps/004-cobbled-street/run-05.mp3",
+        "footsteps/004-cobbled-street/run-06.mp3"
+      ],
+      "rubbleWalk": [
+        "footsteps/009-rubble/walk-01.mp3",
+        "footsteps/009-rubble/walk-02.mp3",
+        "footsteps/009-rubble/walk-03.mp3",
+        "footsteps/009-rubble/walk-04.mp3",
+        "footsteps/009-rubble/walk-05.mp3",
+        "footsteps/009-rubble/walk-06.mp3"
+      ],
+      "rubbleRun": [
+        "footsteps/009-rubble/run-01.mp3",
+        "footsteps/009-rubble/run-02.mp3",
+        "footsteps/009-rubble/run-03.mp3",
+        "footsteps/009-rubble/run-04.mp3",
+        "footsteps/009-rubble/run-05.mp3",
+        "footsteps/009-rubble/run-06.mp3"
       ]
     }
   },
@@ -1150,7 +1201,7 @@
         {
           "event": "advance",
           "file": "voices/ge/vorwaerts-01.mp3",
-          "text": "Vorwärts!"
+          "text": "Vorw\u00e4rts!"
         },
         {
           "event": "advance",
@@ -1180,12 +1231,12 @@
         {
           "event": "retreat",
           "file": "voices/ge/zurueck-01.mp3",
-          "text": "Zurück!"
+          "text": "Zur\u00fcck!"
         },
         {
           "event": "retreat",
           "file": "voices/ge/zurueck-02.mp3",
-          "text": "Rückzug!"
+          "text": "R\u00fcckzug!"
         },
         {
           "event": "takeCover",
@@ -1205,7 +1256,7 @@
         {
           "event": "takeCover",
           "file": "voices/ge/runter-02.mp3",
-          "text": "Köpfe runter!"
+          "text": "K\u00f6pfe runter!"
         },
         {
           "event": "reload",
@@ -1419,7 +1470,7 @@
         {
           "event": "enemyFlanking",
           "file": "voices/ge/feind-flanke-02.mp3",
-          "text": "Sie kommen über die Flanke!",
+          "text": "Sie kommen \u00fcber die Flanke!",
           "delivery": "observation"
         },
         {
@@ -1479,7 +1530,7 @@
         {
           "event": "coverSet",
           "file": "voices/ge/stellung-bereit-02.mp3",
-          "text": "Ich bin bereit! Vorwärts!",
+          "text": "Ich bin bereit! Vorw\u00e4rts!",
           "delivery": "combat"
         },
         {
@@ -1491,7 +1542,7 @@
         {
           "event": "regroup",
           "file": "voices/ge/sammeln-02.mp3",
-          "text": "Zusammenrücken! Hier sammeln!",
+          "text": "Zusammenr\u00fccken! Hier sammeln!",
           "delivery": "command"
         },
         {
@@ -1509,7 +1560,7 @@
         {
           "event": "objectiveTaken",
           "file": "voices/ge/stellung-genommen-01.mp3",
-          "text": "Die Stellung gehört uns! Halten!",
+          "text": "Die Stellung geh\u00f6rt uns! Halten!",
           "delivery": "command"
         },
         {
@@ -1527,7 +1578,7 @@
         {
           "event": "objectiveLost",
           "file": "voices/ge/stellung-verloren-02.mp3",
-          "text": "Sie haben die Stellung! Zurück und sammeln!",
+          "text": "Sie haben die Stellung! Zur\u00fcck und sammeln!",
           "delivery": "combat"
         },
         {
@@ -1539,7 +1590,7 @@
         {
           "event": "pushNow",
           "file": "voices/ge/nachsetzen-02.mp3",
-          "text": "Vorwärts! Lasst sie nicht zur Ruhe kommen!",
+          "text": "Vorw\u00e4rts! Lasst sie nicht zur Ruhe kommen!",
           "delivery": "command"
         },
         {
@@ -1551,7 +1602,7 @@
         {
           "event": "idleQuip",
           "file": "voices/ge/ruhe-spruch-02.mp3",
-          "text": "Für einen heißen Kaffee würde ich fast mein Gewehr tauschen. Fast.",
+          "text": "F\u00fcr einen hei\u00dfen Kaffee w\u00fcrde ich fast mein Gewehr tauschen. Fast.",
           "delivery": "idle"
         },
         {
@@ -1563,43 +1614,43 @@
         {
           "event": "idleQuip",
           "file": "voices/ge/ruhe-spruch-04.mp3",
-          "text": "Der Nächste, der 'kurzer Marsch' sagt, trägt meinen Rucksack.",
+          "text": "Der N\u00e4chste, der 'kurzer Marsch' sagt, tr\u00e4gt meinen Rucksack.",
           "delivery": "idle"
         },
         {
           "event": "idleQuip",
           "file": "voices/ge/ruhe-spruch-05.mp3",
-          "text": "Ich schwöre, der Helm wird mit jedem Kilometer schwerer.",
+          "text": "Ich schw\u00f6re, der Helm wird mit jedem Kilometer schwerer.",
           "delivery": "idle"
         },
         {
           "event": "idleStory",
           "file": "voices/ge/ruhe-geschichte-01.mp3",
-          "text": "Zu Hause hat mein Bruder meine guten Stiefel für einen Tanz geliehen. Er kam barfuß zurück und schwor, ein Hund hätte sie gestohlen. Der Hund muss genau seine Größe gehabt haben.",
+          "text": "Zu Hause hat mein Bruder meine guten Stiefel f\u00fcr einen Tanz geliehen. Er kam barfu\u00df zur\u00fcck und schwor, ein Hund h\u00e4tte sie gestohlen. Der Hund muss genau seine Gr\u00f6\u00dfe gehabt haben.",
           "delivery": "story"
         },
         {
           "event": "idleStory",
           "file": "voices/ge/ruhe-geschichte-02.mp3",
-          "text": "Mein Vater sagte, beim Militär werde aus mir ein Mann. In der ersten Woche schälte ich zwei Stunden Kartoffeln. Offenbar braucht man dafür ein Schälmesser.",
+          "text": "Mein Vater sagte, beim Milit\u00e4r werde aus mir ein Mann. In der ersten Woche sch\u00e4lte ich zwei Stunden Kartoffeln. Offenbar braucht man daf\u00fcr ein Sch\u00e4lmesser.",
           "delivery": "story"
         },
         {
           "event": "idleStory",
           "file": "voices/ge/ruhe-geschichte-03.mp3",
-          "text": "Unser Koch schwor, der Eintopf sei Rind. Ich fragte, welcher Teil der Kuh beim Umrühren klappert. Er fand das nicht lustig.",
+          "text": "Unser Koch schwor, der Eintopf sei Rind. Ich fragte, welcher Teil der Kuh beim Umr\u00fchren klappert. Er fand das nicht lustig.",
           "delivery": "story"
         },
         {
           "event": "idleStory",
           "file": "voices/ge/ruhe-geschichte-04.mp3",
-          "text": "Ein Kamerad von mir hat im Morgengrauen eine Vogelscheuche gegrüßt. Zu seiner Verteidigung: Sie stand gerader als unser Leutnant.",
+          "text": "Ein Kamerad von mir hat im Morgengrauen eine Vogelscheuche gegr\u00fc\u00dft. Zu seiner Verteidigung: Sie stand gerader als unser Leutnant.",
           "delivery": "story"
         },
         {
           "event": "idleStory",
           "file": "voices/ge/ruhe-geschichte-05.mp3",
-          "text": "Ich schrieb meiner Verlobten, ich käme mit Orden nach Hause. Sie schrieb zurück, ihr reiche es, wenn ich mit allen Zähnen zurückkomme. Guter Handel, finde ich.",
+          "text": "Ich schrieb meiner Verlobten, ich k\u00e4me mit Orden nach Hause. Sie schrieb zur\u00fcck, ihr reiche es, wenn ich mit allen Z\u00e4hnen zur\u00fcckkomme. Guter Handel, finde ich.",
           "delivery": "story"
         },
         {
@@ -1617,7 +1668,7 @@
         {
           "event": "idleLaugh",
           "file": "voices/ge/ruhe-lachen-03.mp3",
-          "text": "Ha! Du erzählst doch Märchen!",
+          "text": "Ha! Du erz\u00e4hlst doch M\u00e4rchen!",
           "delivery": "laugh"
         },
         {
@@ -1629,19 +1680,19 @@
         {
           "event": "idleLaugh",
           "file": "voices/ge/ruhe-lachen-05.mp3",
-          "text": "Heh! Lass das bloß nicht den Leutnant hören.",
+          "text": "Heh! Lass das blo\u00df nicht den Leutnant h\u00f6ren.",
           "delivery": "laugh"
         },
         {
           "event": "idleGroan",
           "file": "voices/ge/ruhe-stoehnen-01.mp3",
-          "text": "Ach komm. Den hast du schon dreimal erzählt.",
+          "text": "Ach komm. Den hast du schon dreimal erz\u00e4hlt.",
           "delivery": "idle"
         },
         {
           "event": "idleGroan",
           "file": "voices/ge/ruhe-stoehnen-02.mp3",
-          "text": "Der ist furchtbar. Erzähl ihn nochmal.",
+          "text": "Der ist furchtbar. Erz\u00e4hl ihn nochmal.",
           "delivery": "idle"
         }
       ]
@@ -1696,7 +1747,8 @@
   },
   "notes": [
     "WW2 weapon, vehicle and artillery clips are cut from the Sonniss GDC Game Audio Bundles (Pole Position Production, Super Thump, FLYSOUND, Fascinated Sound, Airborne Sound), pulled with scripts/fetch_sonniss_ww2.py and sliced with scripts/slice_weapon_shots.py against scripts/recipes/ww2-sonniss.json. Royalty-free for commercial use, no attribution required; the bundle licence forbids using the audio to train AI models.",
-    "The M1 Garand does not appear in any of the nine Sonniss GDC bundles. Its shots and handling foley come from Freesound instead, all dedicated to the public domain under CC0 1.0, pulled with scripts/fetch_freesound_cc0.py against scripts/recipes/ww2-freesound.json."
+    "The M1 Garand does not appear in any of the nine Sonniss GDC bundles. Its shots and handling foley come from Freesound instead, all dedicated to the public domain under CC0 1.0, pulled with scripts/fetch_freesound_cc0.py against scripts/recipes/ww2-freesound.json.",
+    "footsteps/ is ported directly from the ww2fps sibling project's ElevenLabs-generated battlefield sound library (Teethree89/ww2fps sound-manifest.json concepts 001/004/009, 6 walk + 6 run takes each) so both projects sound consistent underfoot; converted to this project's mono 48kHz MP3 source format and mastered under MASTERING.md's foley target. Nothing plays these yet - see AGENTS.md Audio for the surface each is meant for and the runtime hookup that still needs to be built."
   ],
   "voiceSequences": {
     "idleStory": {
