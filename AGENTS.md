@@ -148,6 +148,15 @@ local red-ground page, and reuse these harnesses instead of writing one-off prob
   (wound, exit, pool, spray, masonry, wood, dirt, metal) along its surface normal, plus a
   `summary.json` of wounds by zone and decals by kind; works against a `preview.php?ref=` URL.
   `scripts/preview_decal_sheets.cjs` checks the sprite sheets themselves (no server).
+- **Interactive damage range:** add `?damageRange=1` to a normal battle/preview URL. It freezes combat
+  AI and lays out one US shooter plus US/GE rifleman, sergeant, scout, gunner and engineer targets on
+  a raised inspection deck. The range uses the shipping FBX models, weapon presentation, hit/death
+  animation bridge and impact/UV-wound system; Fire itself does not alter HP, while **Kill** is
+  explicit so wounds can accumulate before a death pose is inspected. Controls in the page select
+  target and zone, entry-only vs through-shot, single/3-shot, auto cycling, orbit, clear and reset.
+  Keyboard: Space fire, arrows target, 1-5 zone, E exit, O orbit, A auto, C clear. URL setup:
+  `rangeTarget=0..9`, `rangeZone=head|chest|abdomen|arm|leg`, `rangeExit=0|1`,
+  `rangeAuto=0|1`, `rangeInterval=<seconds>`, `rangeOrbit=0|1`, `rangeDist=<metres>`.
 - **Every model with its weapon, plus the Motion Lab poses:** `scripts/fbx-soldier-lineup.cjs`
   (see Soldiers, weapons, animation).
 - **Pistol support hand numbers:** `scripts/probe_pistol_cup.cjs` (see the replay table below).
@@ -198,6 +207,7 @@ needs the flag in `chromium.launch` args; `ignoreHTTPSErrors` on the page alone 
 | `scripts/probe_bench_census.cjs` | Device benchmark's draw-calls-by-kind census vs Babylon's measured draw calls, with weapon instances on and off (`?weaponInstances=0`): instanced weapons must count once per source mesh. `BC_URL`, `BC_SEED`, `BC_SECONDS`, `BC_WARMUP`, `BC_TOL`. |
 | `scripts/probe_bench_follow.cjs` | Device benchmark `benchCam=follow`: samples the chase camera while it measures (active camera, distance to its target, living soldiers within 45 m of the eye), screenshots it, and checks the page camera comes back. `BF_URL`, `BF_SEED`, `BF_SECONDS`, `BF_WARMUP`, `BF_DIST`, `BF_OUT`. |
 | `scripts/probe_follow_camera.cjs` | Normal-play persistent visual-QA camera: verifies `?follow=1` holds a fixed close bearing and `?orbit=1` implies follow + auto-orbit, while tracking a living soldier at the requested `followDist`. `PFC_URL`, `PFC_SEED`, `PFC_DIST`, `PFC_SPEED`, `PFC_OUT`. |
+| `scripts/probe_damage_range.cjs` | Interactive damage-range regression: boots `?damageRange=1`, verifies the stationary 10-man role lineup + selected-target camera, fires the shipping FX path, requires UV-only 512² wound accumulation with one private map per wounded soldier, checks Clear, then explicit death. `DR_URL`, `DR_SEED`, `DR_OUT`. |
 | `scripts/probe_soldier_cull.cjs` | Off-screen soldier culling: a paused combat frame from the overview and chase cameras (12/25/45 m, 8 bearings, high and ground-level) rendered cull on, on again (control), off, on; every image must be byte-identical. Reports draw calls on vs off. `CULL_URL`, `CULL_SEED`, `CULL_WARMUP`, `CULL_VIEWPORTS`. |
 | `scripts/probe_rotation.cjs` | Rotating the phone after load: fires `resize`/`orientationchange` before the viewport rotates and swallows the late real `resize` (the iOS order), then checks the canvas drawing buffer matches its box, portrait → landscape → portrait. `main` before the fix stays stale (the negative control). `ROT_URL`, `ROT_SEED`, `ROT_PORTRAIT`, `ROT_LANDSCAPE`, `ROT_SETTLE`. |
 | `scripts/probe_weapon_instances.cjs` | Weapon instancing: draw calls with and without `?weaponInstances=0` over the armies, and inside the instanced page each weapon's world matrix and a close-up against a temporary clone on the same socket (same frame, so exact). `WI_URL`, `WI_SEED`, `WI_OUT`, `WI_MAXDIFF`. |
