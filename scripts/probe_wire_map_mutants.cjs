@@ -69,8 +69,8 @@ const W21 = 'modules/21-defender-engineers.js';
 const ratchet = [
   [
     'new writer file on an existing multi-writer field',
-    () => append(battle('modules/13-captain-command-throttle.js'), 'function m(sq) { sq.rally = null; }'),
-    /NEW writer .*squad\.rally/
+    () => append(battle('modules/13-captain-command-throttle.js'), 'function m(sq) { sq.leaderId = null; }'),
+    /NEW writer .*squad\.leaderId/
   ],
   [
     'single-writer field gains a second writer',
@@ -89,7 +89,7 @@ const ratchet = [
   ],
   [
     'listed writer stops writing (stale entry)',
-    () => edit(battle(W21), '      sq.rally = copy(center);\n', ''),
+    () => edit(battle(W21), '      sq.commandRole = \'garrison\';\n', ''),
     /no longer writes/
   ],
   [
@@ -116,7 +116,7 @@ const ratchet = [
     'baseline: unknown role',
     () =>
       baseline(j => {
-        j.fields['squad.rally'].writers[W21].as = 'setupp';
+        j.fields['squad._orderGoal'].writers[W21].as = 'setupp';
       }),
     /is not one of/
   ],
@@ -124,7 +124,7 @@ const ratchet = [
     'baseline: missing reason',
     () =>
       baseline(j => {
-        delete j.fields['squad.rally'].writers[W21].why;
+        delete j.fields['squad._orderGoal'].writers[W21].why;
       }),
     /a reason is required/
   ],
@@ -132,7 +132,7 @@ const ratchet = [
     'baseline: debt without fix',
     () =>
       baseline(j => {
-        delete j.fields['squad.rally'].writers['commander-ai.js'].fix;
+        delete j.fields['squad.leaderId'].writers['commander-ai.js'].fix;
       }),
     /debt needs fix/
   ],
@@ -140,7 +140,7 @@ const ratchet = [
     'baseline: fix on a non-debt entry',
     () =>
       baseline(j => {
-        j.fields['squad.rally'].writers[W21].fix = 'phase 5';
+        j.fields['squad._orderGoal'].writers[W21].fix = 'phase 5';
       }),
     /only debt carries a fix/
   ],
@@ -148,7 +148,7 @@ const ratchet = [
     'baseline: owner role on a non-owner file',
     () =>
       baseline(j => {
-        j.fields['squad.rally'].writers[W21].as = 'owner';
+        j.fields['squad._orderGoal'].writers[W21].as = 'owner';
       }),
     /owner role belongs to the owner file only/
   ],
@@ -156,7 +156,7 @@ const ratchet = [
     'baseline: owner file does not write the field',
     () =>
       baseline(j => {
-        j.fields['squad.rally'].owner = 'engagement.js';
+        j.fields['squad._orderGoal'].owner = 'engagement.js';
       }),
     /is not among the writers|owner role belongs/
   ],
@@ -164,7 +164,7 @@ const ratchet = [
     'baseline: reason key that does not exist',
     () =>
       baseline(j => {
-        j.fields['squad.rally'].writers[W21].why = 'no-such-reason';
+        j.fields['squad._orderGoal'].writers[W21].why = 'no-such-reason';
       }),
     /looks like a reason key that does not exist/
   ],
@@ -180,7 +180,7 @@ const ratchet = [
     'baseline: entry with one writer',
     () =>
       baseline(j => {
-        delete j.fields['squad.rally'].writers[W21];
+        delete j.fields['squad._orderGoal'].writers[W21];
       }),
     /needs two or more writers|no longer|NEW writer/
   ],
@@ -188,15 +188,15 @@ const ratchet = [
     'baseline: multi-writer field left out',
     () =>
       baseline(j => {
-        delete j.fields['squad.rally'];
+        delete j.fields['squad._orderGoal'];
       }),
-    /NEW multi-writer field squad\.rally/
+    /NEW multi-writer field squad\._orderGoal/
   ],
   [
     'baseline: writer file that does not exist',
     () =>
       baseline(j => {
-        j.fields['squad.rally'].writers['modules/99-nope.js'] = { as: 'setup', why: 'x' };
+        j.fields['squad._orderGoal'].writers['modules/99-nope.js'] = { as: 'setup', why: 'x' };
       }),
     /does not exist/
   ],
@@ -204,7 +204,7 @@ const ratchet = [
     'baseline: debt with a phase that is not one',
     () =>
       baseline(j => {
-        j.fields['squad.rally'].writers['commander-ai.js'].fix = 'phase 9';
+        j.fields['squad.leaderId'].writers['commander-ai.js'].fix = 'phase 9';
       }),
     /debt needs fix/
   ]

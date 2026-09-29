@@ -22,6 +22,14 @@ function fixture(){
   function tick(){sim.time+=.45;r.BattleCommanderAI.update(sim,town,.45);} // Squad Leader executes from its own onCommanderTick hook
   return{r,sq,sim,town,events,tick,systems,get decisions(){return decisions;},set action(v){action=v;}};
 }
+test('genome off and its module absent, a brief is decided by the code-default rules (the Node harness runs them too)',()=>{
+  const f=fixture();delete f.r.BattleAIPolicy;f.sq.targetObjective=null;f.sq.routeIndex=0;
+  for(let i=0;i<5;i++){const m={id:'r'+i,role:'rifleman',dead:false,faction:'us',root:{position:{x:0,z:0}}};f.sq.members.push(m);f.sim._roster.us.push(m);}
+  f.tick();
+  const d=f.events.find(e=>e.type==='decision-doctrine');
+  assert.ok(d,'a rule decided the brief: with an empty rule list nothing would have');assert.equal(d.data.rule,'press-neutral');assert.equal(d.data.action,'assault');
+  assert.deepEqual(d.data.conditions,['objectiveNeutral','notOutnumbered']);
+});
 test('accepted objective survives local doctrine/contact noise without strategic reevaluation',()=>{
   const f=fixture();f.tick();const point=JSON.stringify(f.sq.objective),decisions=f.decisions;f.action='hold';
   for(let i=0;i<30;i++){f.sq.inContact=!!(i%2);f.tick();}
@@ -47,10 +55,18 @@ test('removed objective invalidates the mission without resurrecting its route',
   const f=fixture();f.tick();const old=f.sq._macroMission;assert.ok(old);f.sim._objectives.shift();f.tick();assert.equal(old.status,'invalid');assert.equal(f.sq._macroMission.objectiveId,'b');assert.equal(f.sq.objective.x,200);
 });
 test('prolonged stall wakes once per strategic interval and can recur without progress',()=>{
-  const f=fixture();f.tick();f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121,replanDue:true}}};f.sim.time=121;f.tick();
+  const f=fixture();f.tick();f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
   const first=f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length;assert.equal(first,1);
   for(let i=0;i<10;i++)f.tick();assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length,1);
   f.sim._coordinationHealth.sides.us.objectiveStallSeconds=241;f.sim.time=241;f.tick();assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length,2);
+});
+test('the strategic-stall wake reads the stall seconds, never the replanDue flag',()=>{
+  const f=fixture();f.tick();
+  const wakes=()=>f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length;
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:60,replanDue:true,replanReasons:['objective-stalled']}}};f.sim.time=60;f.tick();
+  assert.equal(wakes(),0,'a replan flag at 60 s of stall wakes nobody');
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121,replanDue:false}}};f.sim.time=121;f.tick();
+  assert.equal(wakes(),1,'121 s of stall wakes the General whatever the flag says');
 });
 test('reserve commitment is one strategic event and does not revive reserve status',()=>{
   const f=fixture();f.sq.commandRole='reserve';f.sq.targetObjective=null;f.tick();assert.equal(f.sq._macroMission?.intent,'reserve');

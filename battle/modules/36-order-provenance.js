@@ -70,7 +70,7 @@ function withOwner(owner,reason,fn,key){activeContext.push({owner:owner,reason:r
 function source(target,kind,field){
   if(activeContext.length){var c=activeContext[activeContext.length-1];return{owner:c.owner,key:c.key||graphKey(c.owner),site:c.reason||'execution context'};}
   var owner='unknown';
-  if(kind==='squad')owner=(field==='orderAnchor'||field==='rally')?'squad-orders':'force-command';
+  if(kind==='squad')owner=(field==='orderAnchor'||field==='rally')?'squad-stability':'force-command';
   else if(field==='_preparedDefensePost')owner='prepared-defense';
   else if(field==='_defensePost')owner='squad-stability';
   else if(field==='_fireteamDestination')owner=target._preparedDefensePost?'prepared-defense':'squad-stability';

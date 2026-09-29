@@ -31,6 +31,7 @@
   var STRATEGIES=['balanced','nearest','highest-value','weakest-pressure','sequential'];
   var CONDITIONS=['objectiveNeutral','objectiveEnemy','objectiveOwned','enemyNear','outnumbered','notOutnumbered','captainDead','supportRole','insideObjective','underPressure'];
   var ACTIONS=['assault','flank','defend','hold','regroup','support'];
+  /* commander-doctrine.js FALLBACK_RULES is the code-default copy of these four rules (used while the genome is off); genome-gate-check holds them equal. */
   var DEFAULT_RULES=[
     {id:'press-neutral',when:['objectiveNeutral','notOutnumbered'],action:'assault',weight:.78},
     {id:'defend-pressure',when:['objectiveOwned','underPressure'],action:'defend',weight:.74},

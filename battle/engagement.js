@@ -163,6 +163,18 @@
     return e.lastSeen || null;
   }
 
+  /* ---- urgency ------------------------------------------------------------------------------ */
+
+  /* The one writer of `_combatUrgentUntil`, until when a man moves with urgency (sprint pace, module 11).
+     Engagement's assault rush and the urgent-cover drill (module 44, on the afterDrill slot) come through
+     here. */
+  function markUrgent(s, battle, seconds) {
+    s._combatUrgentUntil = battle.time + seconds;
+  }
+  function clearUrgent(s) {
+    s._combatUrgentUntil = 0;
+  }
+
   /* ---- stance ------------------------------------------------------------------------------- */
 
   function applyStance(s, stance) {
@@ -1287,7 +1299,7 @@
       transition(s, battle, 'engage', 0, 'assault complete');
       return engage(s, battle);
     }
-    s._combatUrgentUntil = battle.time + 0.5;
+    markUrgent(s, battle, 0.5);
     move(s, battle, e.assaultGoal, 'assault-rush');
     if (hasTarget) tryFire(s, battle);
   }
@@ -1570,6 +1582,8 @@
     fireAllowed: fireAllowed,
     commitStance: commitStance,
     requestStance: requestStance,
+    markUrgent: markUrgent,
+    clearUrgent: clearUrgent,
     applyStance: applyStance,
     resetSoldier: resetSoldier,
     resetSquad: resetSquad,
