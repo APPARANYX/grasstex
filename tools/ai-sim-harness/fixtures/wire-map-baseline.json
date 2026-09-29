@@ -7,7 +7,6 @@
     "merge-rewrites-squad": "Reconstitution merge (commander-ai mergeGroup) rewrites the surviving squad directly. The Squad Leader owns this state; one adopt() call on it would leave a single writer.",
     "restart-reset": "Restart: BattleSim.restart sweeps every soldier and squad through the module reset hooks.",
     "nav-invalidate": "Invalidates Navigation's cached path by hand after moving a soldier or his destination. Each cache records its goal and world version, so the reader that uses it could reject a stale entry itself.",
-    "peer-ammo": "The sidearm draw or holster (47) resets the primary's reload and stoppage state, which the ammunition module (46) owns. 46 could expose one cancel call.",
     "resolver-fallback": "Only when BattleMovementResolver is absent (isolated unit harness); production loads the resolver before any AI tick.",
     "station-claim-reset": "Claiming or releasing a firing station wipes the soldier's Engagement record by hand. requestState('station-release') already exists for the release; the claim has no Engagement call.",
     "engagement-fallback": "no-Engagement fallback (fallbackBehavior): only runs when engagement.js failed to load, so a broken deployment still fights.",
@@ -542,20 +541,6 @@
         }
       }
     },
-    "soldier.clearingStoppage": {
-      "owner": "modules/46-ammunition-stoppages.js",
-      "writers": {
-        "modules/46-ammunition-stoppages.js": {
-          "as": "owner",
-          "why": "startStoppage and finishStoppage."
-        },
-        "modules/47-sidearm-switch.js": {
-          "as": "debt",
-          "why": "peer-ammo",
-          "fix": "unscheduled"
-        }
-      }
-    },
     "soldier.crawling": {
       "owner": "engagement.js",
       "writers": {
@@ -667,20 +652,6 @@
         }
       }
     },
-    "soldier.outOfAmmo": {
-      "owner": "modules/46-ammunition-stoppages.js",
-      "writers": {
-        "modules/46-ammunition-stoppages.js": {
-          "as": "owner",
-          "why": "initialize, finishReload, unavailable."
-        },
-        "modules/47-sidearm-switch.js": {
-          "as": "debt",
-          "why": "peer-ammo",
-          "fix": "unscheduled"
-        }
-      }
-    },
     "soldier.prone": {
       "owner": "engagement.js",
       "writers": {
@@ -709,11 +680,6 @@
           "as": "fallback+setup",
           "why": "Legacy reload when there is no ammunition module; restart clears it."
         },
-        "modules/47-sidearm-switch.js": {
-          "as": "debt",
-          "why": "peer-ammo",
-          "fix": "unscheduled"
-        },
         "soldier.js": {
           "as": "body",
           "why": "kill() clears it when the soldier dies."
@@ -730,11 +696,6 @@
         "modules/12-soldier-animation-events.js": {
           "as": "fallback+setup",
           "why": "Legacy reload when there is no ammunition module; restart clears it."
-        },
-        "modules/47-sidearm-switch.js": {
-          "as": "debt",
-          "why": "peer-ammo",
-          "fix": "unscheduled"
         }
       }
     },
@@ -796,29 +757,9 @@
           "as": "owner",
           "why": "The emplaced-gun flag, set and cleared through the states."
         },
-        "modules/12-soldier-animation-events.js": {
-          "as": "debt",
-          "why": "afterSoldier drops the set-up while reloading. Engagement has no call for an interrupted gun.",
-          "fix": "unscheduled"
-        },
-        "modules/20-building-hardpoints.js": {
-          "as": "debt",
-          "why": "station-claim-reset",
-          "fix": "unscheduled"
-        },
         "modules/44-combat-urgency.js": {
           "as": "slot",
           "why": "The urgent-cover drill runs on Engagement's afterDrill slot."
-        },
-        "modules/46-ammunition-stoppages.js": {
-          "as": "debt",
-          "why": "startReload and startStoppage drop the set-up. Engagement has no call for an interrupted gun.",
-          "fix": "unscheduled"
-        },
-        "modules/47-sidearm-switch.js": {
-          "as": "debt",
-          "why": "A sidearm draw unemplaces the gun. Engagement has no call for an interrupted gun.",
-          "fix": "unscheduled"
         },
         "squad-ai.js": {
           "as": "fallback",
@@ -864,20 +805,6 @@
         "squad-ai.js": {
           "as": "fallback",
           "why": "engagement-fallback"
-        }
-      }
-    },
-    "soldier.stoppageUntil": {
-      "owner": "modules/46-ammunition-stoppages.js",
-      "writers": {
-        "modules/46-ammunition-stoppages.js": {
-          "as": "owner",
-          "why": "startStoppage and finishStoppage."
-        },
-        "modules/47-sidearm-switch.js": {
-          "as": "debt",
-          "why": "peer-ammo",
-          "fix": "unscheduled"
         }
       }
     },
@@ -943,11 +870,6 @@
         "modules/12-soldier-animation-events.js": {
           "as": "fallback+setup",
           "why": "Legacy magazine when there is no ammunition module; restart refills it."
-        },
-        "modules/47-sidearm-switch.js": {
-          "as": "debt",
-          "why": "Returning to the primary clears its jam (peer-ammo).",
-          "fix": "unscheduled"
         }
       }
     },
@@ -983,25 +905,6 @@
         }
       }
     },
-    "eng.fireReadyAt": {
-      "owner": "engagement.js",
-      "writers": {
-        "engagement.js": {
-          "as": "owner",
-          "why": "commitStance, runDrill, orient."
-        },
-        "modules/46-ammunition-stoppages.js": {
-          "as": "debt",
-          "why": "markFireReady raises the readiness floor after a reload or stoppage. A BattleEngagement.delayFire(s, until) beside requestStance would keep the write in Engagement.",
-          "fix": "unscheduled"
-        },
-        "modules/47-sidearm-switch.js": {
-          "as": "debt",
-          "why": "A sidearm draw or holster raises the readiness floor (same call).",
-          "fix": "unscheduled"
-        }
-      }
-    },
     "eng.lastSeen": {
       "owner": "engagement.js",
       "writers": {
@@ -1025,20 +928,6 @@
         "modules/44-combat-urgency.js": {
           "as": "slot",
           "why": "reactShared (afterDrill slot)."
-        }
-      }
-    },
-    "eng.setUpSince": {
-      "owner": "engagement.js",
-      "writers": {
-        "engagement.js": {
-          "as": "owner",
-          "why": "transition, engage and station."
-        },
-        "modules/47-sidearm-switch.js": {
-          "as": "debt",
-          "why": "A sidearm draw unemplaces the gun by zeroing it. Engagement has no call for an interrupted gun.",
-          "fix": "unscheduled"
         }
       }
     },
