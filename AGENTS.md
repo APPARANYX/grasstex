@@ -500,7 +500,7 @@ four-run swing. Live-browser runs at `timeScale` 8 aren't deterministic, so use 
 for controlled pairs, and serve both arms the same way: `battle_sim_local.php` in preview mode (a
 `preview.json` beside it) reads `state/` and the audio manifest two directories up.
 
-### Open issues (as of 2026-09-28)
+### Open issues (as of 2026-09-29)
 
 Keep this section to **work that is genuinely still open**. Completed investigations and shipped
 fixes belong in their subsystem sections, commit messages and PRs; do not leave them here as a
@@ -522,6 +522,13 @@ pseudo-backlog. Long-form historical notes remain in git history
   equipped weapon kind rather than `role === 'gunner'`. Models and pistol clips already exist;
   remaining model/weapon seats must be measured in Motion Lab. This changes combat, so benchmark it
   paired.
+- **Personal-space crossings between fireteams.** Corrections are mostly two men on formation slots
+  crossing (75-83% between different fireteams, ~7x more often in the 6 s after a formation or facing
+  change); the `close-pairs` probe measures it. Fix at the Squad Leader that publishes the slots.
+- **Perception follow-ups.** Count (`perception` probe) how often heard/relayed word re-acquires a
+  squad that lost sight mid-fight before tuning `HEAR_RANGE`/`RELAY_RANGE`; relay distance is squad
+  centre to squad centre (50 m). Defenders facing one way scan only while holding still with no
+  contact; check whether flanks still go unseen.
 
 **Measured tuning questions — not broken systems**
 
@@ -541,7 +548,7 @@ pseudo-backlog. Long-form historical notes remain in git history
   SMG range; the fire gate itself is not broken. Any change is either doctrine (close leaders more)
   or loadout (for example a rifle), so fold it into the loadout/tactics work rather than loosening
   the gate.
-- **Movement tolerance audit.** The cover-bound deadlock is fixed. Movement Progress still uses a
+- **Movement tolerance audit.** Cover-bound deadlock: fixed, see `bound-episodes`. Movement Progress still uses a
   3 m arrival band while some destinations require tighter placement; cover has its own bound
   window now. Audit another destination kind only if a real stuck case appears.
 
