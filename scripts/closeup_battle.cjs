@@ -161,9 +161,15 @@ const OVERLAY = (process.env.CLOSEUP_OVERLAY || '').split(',').map(v => v.trim()
           if (!W) return null;
           names.forEach(n => W.set(n, true));
           window.__battle__.scene.render();
-          return names.filter(n => W.settings[n]);
+          // Composure marks ride on their soldier's root: measure how far each ring's centre is from his feet.
+          const marks = window.__battle__.scene.meshes.filter(m => /^wd-mark-ring-/.test(m.name) && m.parent);
+          let off = 0;
+          marks.forEach(m => { const a = m.getAbsolutePosition(), p = m.parent.getAbsolutePosition(); off = Math.max(off, Math.hypot(a.x - p.x, a.z - p.z)); });
+          return { on: names.filter(n => W.settings[n]), marks: marks.length, maxOffsetM: +off.toFixed(3) };
         }, OVERLAY);
-        if (!on || on.length !== OVERLAY.length) fail.push('World Debug layers not enabled: ' + OVERLAY.join(','));
+        if (!on || on.on.length !== OVERLAY.length) fail.push('World Debug layers not enabled: ' + OVERLAY.join(','));
+        else if (on.maxOffsetM > 0.05) fail.push('composure ring off its soldier by ' + on.maxOffsetM + ' m');
+        else console.log('OVERLAY ' + JSON.stringify(on));
       }
       if (!SHOW_UI) await page.addStyleTag({ content: '*{visibility:hidden !important} canvas{visibility:visible !important}' });
       for (const id of found.ids) {

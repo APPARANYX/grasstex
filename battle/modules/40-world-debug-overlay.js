@@ -110,23 +110,42 @@ function rebuildCoverSlots(sim){
   makeLines('wd-dyn-cover-slots-reserved',lines.reserved,COLORS.waypoint,.98);
   makeLines('wd-dyn-cover-slots-occupied',lines.occupied,COLORS.ge,.98);
 }
+/* Composure marks are meshes parented to each man's root, so they move with him every frame: the layers
+   above are rebuilt every 180 ms and would trail a running man. One is made when a man enters a band above
+   steady (a ring on the ground under him, wider as stress rises) or is frozen (a cross), and dropped when
+   he leaves it; a rebuild only updates scale and colour. */
+function unitRing(){var l=[];for(var i=0;i<=16;i++){var a=Math.PI*2*i/16;l.push(new BABYLON.Vector3(Math.cos(a),0,Math.sin(a)));}return l;}
+function unitCross(){return[[new BABYLON.Vector3(-1,0,0),new BABYLON.Vector3(1,0,0)],[new BABYLON.Vector3(0,0,-1),new BABYLON.Vector3(0,0,1)]];}
+function setMark(sim,s,kind,on,lines,color,size){
+  var name='wd-mark-'+kind+'-'+s.faction+'-'+s.id,m=layers[name];
+  if(!on){if(m)disposeLayer(name);return;}
+  if(!m){m=BABYLON.MeshBuilder.CreateLineSystem(name,{lines:lines(),updatable:false},sim.scene);m.parent=s.root;m.position=new BABYLON.Vector3(0,.14,0);m.isPickable=false;m.renderingGroupId=3;m.alwaysSelectAsActiveMesh=true;m.alpha=.95;layers[name]=m;}
+  m.color=color3(color);m.scaling=new BABYLON.Vector3(size,1,size);
+}
+function updateComposure(sim){
+  var Mind=root.BattleSoldierMind,t=+sim.time||0,bands=[null,COLORS.shaken,COLORS.rattled,COLORS.broken];
+  ['us','ge'].forEach(function(f){(sim._roster[f]||[]).forEach(function(s){
+    var live=includedSoldier(s)&&s.root&&s.mind,band=live?s.mind.band:0;
+    setMark(sim,s,'ring',band>0,unitRing,bands[band]||COLORS.shaken,live?.55+.6*s.mind.stress:1);
+    setMark(sim,s,'cross',!!(live&&Mind&&Mind.shockUntil(s)>t),unitCross,COLORS.shock,.5);
+  });});
+}
 function rebuildDynamic(){
-  disposePrefix('wd-dyn-');var sim=currentSim();if(!sim||typeof BABYLON==='undefined'||!anyDynamic())return;
+  disposePrefix('wd-dyn-');if(!settings.composure)disposePrefix('wd-mark-');var sim=currentSim();if(!sim||typeof BABYLON==='undefined'||!anyDynamic())return;
   if(settings.coverSlots)rebuildCoverSlots(sim);
-  var path={us:[],ge:[]},way=[],dest=[],order=[],fireteam=[],detour=[],comp=[null,[],[],[]],frozen=[],Mind=root.BattleSoldierMind;
+  var path={us:[],ge:[]},way=[],dest=[],order=[],fireteam=[],detour=[];
   ['us','ge'].forEach(function(f){(sim._roster[f]||[]).forEach(function(s){
     if(!includedSoldier(s)||!s.root)return;var here={x:+s.root.position.x,z:+s.root.position.z},nav=remainingPath(s),resolved=point(s.destination);
     if(settings.paths){var pts=[v3(sim,here.x,here.z,.18)],last=here;for(var i=0;i<nav.length;i++){if(distance2(last,nav[i])>.04){pts.push(v3(sim,nav[i].x,nav[i].z,.18));last=nav[i];}}if(pts.length>1)path[f].push(pts);}
     if(settings.waypoints){for(var w=0;w<nav.length;w++)cross(way,sim,nav[w],w===0?.72:.36,.23);}
     if(settings.destinations){if(resolved)ring(dest,sim,resolved,bodyRadius(),.20);var od=point(s.orderDestination);if(od)cross(order,sim,od,.42,.21);var ft=point(s._fireteamDestination);if(ft)cross(fireteam,sim,ft,.34,.22);}
-    if(settings.composure&&s.mind){if(s.mind.band>0)ring(comp[s.mind.band],sim,here,.55+.6*s.mind.stress,2.35);if(Mind&&Mind.shockUntil(s)>(+sim.time||0))cross(frozen,sim,here,.5,2.35);}
     if(settings.detours&&s._physicalPath&&nav.length){var first=nav[0],fg={x:+s._physicalPath.finalGoalX,z:+s._physicalPath.finalGoalZ};if(first&&isFinite(fg.x)&&isFinite(fg.z)&&distance2(first,fg)>1){detour.push([v3(sim,here.x,here.z,.28),v3(sim,first.x,first.z,.28)]);cross(detour,sim,first,.78,.29);}}
   });});
   if(settings.paths){makeLines('wd-dyn-path-us',path.us,COLORS.us,.84);makeLines('wd-dyn-path-ge',path.ge,COLORS.ge,.84);}
   if(settings.waypoints)makeLines('wd-dyn-waypoints',way,COLORS.waypoint,.98);
   if(settings.destinations){makeLines('wd-dyn-destination',dest,COLORS.destination,.90);makeLines('wd-dyn-order',order,COLORS.order,.82);makeLines('wd-dyn-fireteam',fireteam,COLORS.fireteam,.86);}
   if(settings.detours)makeLines('wd-dyn-detours',detour,COLORS.detour,.98);
-  if(settings.composure){makeLines('wd-dyn-composure-1',comp[1],COLORS.shaken,.9);makeLines('wd-dyn-composure-2',comp[2],COLORS.rattled,.95);makeLines('wd-dyn-composure-3',comp[3],COLORS.broken,1);makeLines('wd-dyn-composure-shock',frozen,COLORS.shock,1);}
+  if(settings.composure)updateComposure(sim);
   updateStatus();
 }
 
@@ -177,7 +196,7 @@ function installUi(){
   var none=document.createElement('button');none.type='button';none.className='wd-select-none';none.textContent='Select none';none.onclick=function(){setAll(false);};actions.appendChild(none);
   p.insertBefore(actions,grid);syncChecks();applyWindowSetting();updateStatus();
 }
-function clearAll(){disposePrefix('wd-static-');disposePrefix('wd-dyn-');staticSig='';coverCounts={occupied:0,reserved:0,total:0};}
+function clearAll(){disposePrefix('wd-static-');disposePrefix('wd-dyn-');disposePrefix('wd-mark-');staticSig='';coverCounts={occupied:0,reserved:0,total:0};}
 function attach(sim){simRef=sim;staticSig='';nextDynamicAt=0;nextStaticCheckAt=0;applyWindowSetting();if(anyStatic())rebuildStatic(true);if(anyDynamic())rebuildDynamic();updateStatus();}
 
 root.BattleModules.registerSystem('world-debug-overlay',{
