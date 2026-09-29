@@ -25,6 +25,11 @@
     scout: { primary: 'carbine' },
     engineer: { primary: 'rifle' }
   };
+  /* A light machine gun is emplaced, fires from a base of fire and takes the suppression job first:
+     what the man carries decides it, not his role. */
+  function isMachineGun(soldier) {
+    return !!(soldier && soldier.weapon && soldier.weapon.kind === 'lmg');
+  }
   function loadoutFor(role, faction) {
     var l = LOADOUTS[role] || LOADOUTS.rifleman;
     return { primary: l.primary };
@@ -673,7 +678,7 @@
     if (target.prone) acc *= 0.34;
     else if (target.crouching) acc *= 0.6;
     if (target.suppressedUntil > battle.time) acc *= 0.55;
-    if (shooter.role === 'gunner' && shooter.setUp) acc *= 1.25;
+    if (isMachineGun(shooter) && shooter.setUp) acc *= 1.25;
     if (shooter.prone) acc *= 1.12;
     if (shooter.moving) acc *= 0.82;
     var targetPosition = root.BattleTacticalPositions && root.BattleTacticalPositions.current(target);
@@ -1032,7 +1037,7 @@
       soldier.prone =
         (soldier.role === 'rifleman' || soldier.role === 'gunner') &&
         (d > 80 || soldier.suppressedUntil > battle.time);
-      if (soldier.role === 'gunner') {
+      if (isMachineGun(soldier)) {
         if (!soldier.setUpSince) soldier.setUpSince = battle.time;
         soldier.setUp = battle.time - soldier.setUpSince > GUNNER_SETUP_TIME;
       }
@@ -1089,6 +1094,7 @@
     ROLES: ROLES,
     LOADOUTS: LOADOUTS,
     loadoutFor: loadoutFor,
+    isMachineGun: isMachineGun,
     COMPOSITION: COMPOSITION,
     createSquad: createSquad,
     createSoldier: createSoldier,

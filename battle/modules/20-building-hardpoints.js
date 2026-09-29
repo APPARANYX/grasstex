@@ -270,7 +270,7 @@
   function select(s, sim, threat) {
     var c = context(sim),
       here = s.root.position,
-      range = s.role === 'gunner' ? 78 : 62;
+      range = root.SquadAI.isMachineGun(s) ? 78 : 62;
     var candidates = N.firingStations.filter(function (st) {
       if (distance(here, st) > range) return false;
       var dx = threat.x - st.windowX,
@@ -310,7 +310,7 @@
         }).length;
         if (count >= MAX_PER_SQUAD) return;
         var members = sq.members.slice().sort(function (a, b) {
-          return (a.role === 'gunner' ? 0 : 1) - (b.role === 'gunner' ? 0 : 1);
+          return (root.SquadAI.isMachineGun(a) ? 0 : 1) - (root.SquadAI.isMachineGun(b) ? 0 : 1);
         });
         for (var i = 0; i < members.length; i++) {
           var s = members[i];
