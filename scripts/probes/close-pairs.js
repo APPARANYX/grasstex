@@ -24,6 +24,32 @@
     for (var k in o) if (o[k] && o[k].forward) return Math.atan2(o[k].forward.x, o[k].forward.z);
     return null;
   }
+  /* Two men of different fireteams on formation slots meet. Are their slots themselves closer than
+     CLOSE (an allocation problem), or are they crossing on the way (slots >= CLOSE apart, but in the
+     opposite lateral order to where the men now stand: the frame or the team assignment turned under
+     them)? Also when in the battle, since the first minute is the deployment. */
+  function crossClass(a, b, t) {
+    var da = a._fireteamDestination,
+      db = b._fireteamDestination,
+      o = a.squad && a.squad._fireteamOrders && a.squad._fireteamOrders[a._fireteamKey],
+      f = o && o.forward;
+    var when = t < 10 ? 'first10s' : t < 60 ? 'to60s' : 'later';
+    if (!da || !db || !f) return when + ' | no-slot';
+    var gap = Math.hypot(da.x - db.x, da.z - db.z),
+      pa = a.root.position,
+      pb = b.root.position,
+      lat = function (p) {
+        return p.x * -f.z + p.z * f.x;
+      },
+      swapped = (lat(pa) - lat(pb)) * (lat(da) - lat(db)) < 0;
+    var far = function (m, d) {
+      return Math.hypot(m.root.position.x - d.x, m.root.position.z - d.z) > 3 ? 'off-slot' : 'on-slot';
+    };
+    return (
+      when + ' | ' + (a.squad.formation || '?') + ' | slots ' + (gap < CLOSE ? 'collide' : gap < 4 ? '<4 m' : gap < 12 ? '4-12 m' : '>=12 m') + ' | ' +
+      (swapped ? 'lateral order swapped' : 'same order') + ' | ' + [far(a, da), far(b, db)].sort().join('+')
+    );
+  }
   function trackSquads(sim) {
     var t = sim.time;
     ['us', 'ge'].forEach(function (f) {
@@ -45,7 +71,7 @@
   (root.BattleProbes = root.BattleProbes || {})['close-pairs'] = {
     every: 0,
     start: function () {
-      c = { onsets: 0, persistent: 0, maxPersistentAtOnce: 0, relation: {}, fireteams: {}, kinds: {}, moving: {}, persistentKinds: {}, onsetsAfterChange: 0, formationOrFacingChanges: 0, squadSamples: 0, squadSamplesAfterChange: 0, firstMinute: 0 };
+      c = { onsets: 0, persistent: 0, maxPersistentAtOnce: 0, relation: {}, fireteams: {}, kinds: {}, moving: {}, persistentKinds: {}, onsetsAfterChange: 0, formationOrFacingChanges: 0, squadSamples: 0, squadSamplesAfterChange: 0, firstMinute: 0, crossTeamFormation: {} };
       live = {};
       last = {};
       squads = {};
@@ -80,6 +106,8 @@
           inc(c.relation, rel);
           if (rel === 'same-squad') inc(c.fireteams, a._fireteamKey === b._fireteamKey ? 'same-fireteam' : 'different-fireteam');
           inc(c.kinds, now[key].kinds);
+          if (rel === 'same-squad' && a._fireteamKey !== b._fireteamKey && now[key].kinds === 'formation+formation')
+            inc(c.crossTeamFormation, crossClass(a, b, t));
           inc(c.moving, moved[a.id] && moved[b.id] ? 'both' : moved[a.id] || moved[b.id] ? 'one' : 'neither');
           var st = a.squad && squads[a.squad.id];
           if (rel === 'same-squad' && st && t - st.changedAt < AFTER_CHANGE) c.onsetsAfterChange++;

@@ -67,6 +67,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `cover-positions-check.js` | Cover-slot selection against obstacles and physical footprints |
 | `personal-space-check.js` | Physical endpoint allocation and body separation |
 | `fireteam-frontage-check.js` | Each fireteam holds its own ground: published fireteam anchors stay ≥5 m apart while squads march, deploy and fight |
+| `formation-backward-check.js` | While a squad advances, no formation destination lies >3 m behind both the man and his fireteam's forward line: a team's anchor follows the team forward when its men ran ahead of a held squad anchor, at fireteam renewal and when a teammate falls |
 | `movement-recovery-check.js` | Recovery episode state machine, goal resets, unreachable criteria, retreat override |
 | `movement-state-check.js` | Resolver/movement-progress state for bounds and assault |
 | `lean-runtime-check.js` | Squad-plan stability + resolver + tactical route with no extra modules |
@@ -500,7 +501,7 @@ four-run swing. Live-browser runs at `timeScale` 8 aren't deterministic, so use 
 for controlled pairs, and serve both arms the same way: `battle_sim_local.php` in preview mode (a
 `preview.json` beside it) reads `state/` and the audio manifest two directories up.
 
-### Open issues (as of 2026-09-28)
+### Open issues (as of 2026-09-29)
 
 Keep this section to **work that is genuinely still open**. Completed investigations and shipped
 fixes belong in their subsystem sections, commit messages and PRs; do not leave them here as a
@@ -509,12 +510,10 @@ pseudo-backlog. Long-form historical notes remain in git history
 
 **Concrete sim work**
 
-- **Formation orders that walk advancing men backward.** This is the remaining large producer in
-  the `backward-orders` probe. Engagement cover already has the forward guard; regroup and firing
-  stations may move backward by design. The unresolved case is Squad Leader formation slots behind
-  men who ran ahead of a held anchor (~1,800 of ~2,500 measured backward orders in the sweep).
-  Fix it at the owner in module 16 against `sq._forwardLine`, never by adding a resolver veto.
-  Re-run `backward-orders`, movement ownership checks and the paired deterministic benchmark.
+- **Backward orders: remainder.** Formation slots no longer walk men back (`formation-backward-check.js`;
+  numbers in the commit that added it). What is left in the `backward-orders` probe is garrison posts
+  (module 21 `prepared`, by design), regroup and firing stations, and producer labels that lag the
+  resolver's final destination. Re-run the probe before treating any of it as a defect.
 - **Per-soldier weapons/loadouts.** The runtime still deals the primary from
   `ROLES[role].weapon`. Remaining feature work: sniper roles (M1903A4 / Kar98k ZF39), a
   `secondary` slot for historically issued sidearms, Engagement switching to a sidearm when the
@@ -522,6 +521,17 @@ pseudo-backlog. Long-form historical notes remain in git history
   equipped weapon kind rather than `role === 'gunner'`. Models and pistol clips already exist;
   remaining model/weapon seats must be measured in Motion Lab. This changes combat, so benchmark it
   paired.
+- **Personal-space crossings between fireteams.** Measured 2026-09-29 (`close-pairs`, 3 standard seeds,
+  300 s): 2,392 onsets, 2,238 same-squad, 61 persistent (>1 s). Crossings are **not** elevated after a
+  formation or facing change (3.7% of same-squad onsets in 3.4% of squad time; the old ~7x predates
+  fireteam frontage). Different-fireteam `formation+formation` crossings are men in transit (both >3 m
+  off their slots, slots 4-12 m apart, all `line`), not colliding slots (10 of ~990). No slot-producer
+  defect found, so nothing to fix in module 16; a further cut is path/allocation work in module 51 or
+  the navigation funnels, and worth doing only against a measured stuck or persistent case.
+- **Perception follow-ups.** Count (`perception` probe) how often heard/relayed word re-acquires a
+  squad that lost sight mid-fight before tuning `HEAR_RANGE`/`RELAY_RANGE`; relay distance is squad
+  centre to squad centre (50 m). Defenders facing one way scan only while holding still with no
+  contact; check whether flanks still go unseen.
 
 **Measured tuning questions — not broken systems**
 
@@ -541,7 +551,7 @@ pseudo-backlog. Long-form historical notes remain in git history
   SMG range; the fire gate itself is not broken. Any change is either doctrine (close leaders more)
   or loadout (for example a rifle), so fold it into the loadout/tactics work rather than loosening
   the gate.
-- **Movement tolerance audit.** The cover-bound deadlock is fixed. Movement Progress still uses a
+- **Movement tolerance audit.** Cover-bound deadlock: fixed, see `bound-episodes`. Movement Progress still uses a
   3 m arrival band while some destinations require tighter placement; cover has its own bound
   window now. Audit another destination kind only if a real stuck case appears.
 
@@ -563,8 +573,10 @@ pseudo-backlog. Long-form historical notes remain in git history
 
 **Watch only**
 
-- One local run logged `ReferenceError: BABYLON is not defined` from an inline script served by
-  `battle_sim_local.php`. If it recurs, make that script wait for Babylon before running.
+- `ReferenceError: BABYLON is not defined` from `battle_sim_local.php` did not reproduce (2026-09-29: 15
+  page loads, 0 page errors). Every inline script that uses `BABYLON` follows the synchronous
+  jsDelivr tag, so the only way to see it is that request failing (blocked or dropped CDN), which
+  fails the whole boot anyway. No waiting shim needed; if it recurs, check the CDN request first.
 - By design: Movement Progress ignores retreat (`movementStopReason` is the observable), and
   meeting engagements get no runtime engineer fortification (`engineerTick` exits early).
 
