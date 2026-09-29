@@ -1,0 +1,1144 @@
+{
+  "about": "Baseline for wire-map-check.js. Every squad / soldier / eng field that more than one source file writes, with each writer's role. A field can gain a writer file only by an edit here, which a reviewer sees; a listed writer that stops writing must be removed (the ratchet only tightens). Roles: owner (the layer AGENTS.md names for the field), layer (a documented sibling layer whose remit includes it), setup (spawn, initial placement or restart), fallback (runs only when the owner is absent), slot (written from a slot the owner declares), body (the soldier body's own mechanics), debt (crosses layers; needs fix). A writer may combine roles with +. fix is a phase of the AI layers polish (phase 2a, 2c, 3a, 5) or unscheduled. why is free text or a key of reasons.",
+  "reasons": {
+    "garrison-setup": "Deployment: garrison() rewrites the defender squad inside `if (teleport)`, called once from deploy() at battle start before any AI tick. The runtime call only publishes request and post constraints.",
+    "route-setup": "Initial route allocation (assignSquad, from initForce and from ensureAssignments for squads with no route yet) before the Squad Leader executes any mission.",
+    "spawn-stamp": "Spawn: stamps a fresh unit when it is created (battle-sim spawnAll at battle start, module 10 for operator reinforcements, module-registry addUnit defaults).",
+    "merge-rewrites-squad": "Reconstitution merge (commander-ai mergeGroup) rewrites the surviving squad directly. The Squad Leader owns this state; one adopt() call on it would leave a single writer.",
+    "restart-reset": "Restart: BattleSim.restart sweeps every soldier and squad through the module reset hooks.",
+    "nav-invalidate": "Invalidates Navigation's cached path by hand after moving a soldier or his destination. Each cache records its goal and world version, so the reader that uses it could reject a stale entry itself.",
+    "peer-ammo": "The sidearm draw or holster (47) resets the primary's reload and stoppage state, which the ammunition module (46) owns. 46 could expose one cancel call.",
+    "resolver-fallback": "Only when BattleMovementResolver is absent (isolated unit harness); production loads the resolver before any AI tick.",
+    "station-claim-reset": "Claiming or releasing a firing station wipes the soldier's Engagement record by hand. requestState('station-release') already exists for the release; the claim has no Engagement call.",
+    "engagement-fallback": "no-Engagement fallback (fallbackBehavior): only runs when engagement.js failed to load, so a broken deployment still fights.",
+    "squad-status-fallback": "Status-only squadStatus: runs only when no squadCommand owner is attached; the Squad Leader replaces it."
+  },
+  "fields": {
+    "squad._fireteamOrders": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "Fireteam order records, renewed in updateFireteams."
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        }
+      }
+    },
+    "squad._formationForward": {
+      "owner": "squad-ai.js",
+      "writers": {
+        "squad-ai.js": {
+          "as": "owner",
+          "why": "formationDirection caches the forward vector the formation slots are laid out on."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "placeAtSlots seeds it from the spawn direction: initial placement, from placeForce at battle start and from module 10 for a reinforcement squad."
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        }
+      }
+    },
+    "squad._macroMissionRequest": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "requestReview posts the Squad Leader's escalation to Force Command; reset clears it."
+        },
+        "commander-ai.js": {
+          "as": "debt",
+          "why": "reconsiderMission clears the request after it re-selects the mission. An acknowledgement by request serial would leave one writer.",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "squad._orderGoal": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "advanceSquadAnchor publishes the goal the anchor is moving toward."
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        }
+      }
+    },
+    "squad._stablePlan": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "The staged / closed squad plan (stagePlan, updatePlan, closePlan, reset)."
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        }
+      }
+    },
+    "squad.accuracyMultiplier": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "updateSuccession ends the leaderless penalty when a successor takes command."
+        },
+        "battle-sim.js": {
+          "as": "debt",
+          "why": "killSoldier applies the 0.8 leader-death penalty on the squad; the Squad Leader owns succession and ends it. A casualty-log reader in the Squad Leader would apply it where it ends it.",
+          "fix": "unscheduled"
+        },
+        "commander-ai.js": {
+          "as": "debt",
+          "why": "merge-rewrites-squad",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "squad.aliveCount": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "updateSquadState counts the living each command tick."
+        },
+        "squad-ai.js": {
+          "as": "fallback",
+          "why": "squad-status-fallback"
+        },
+        "commander-ai.js": {
+          "as": "debt",
+          "why": "merge-rewrites-squad",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "squad.captainAlive": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "updateSuccession restores it when a successor takes command."
+        },
+        "battle-sim.js": {
+          "as": "debt",
+          "why": "killSoldier clears it when the leader dies (see squad.accuracyMultiplier).",
+          "fix": "unscheduled"
+        },
+        "commander-ai.js": {
+          "as": "debt",
+          "why": "merge-rewrites-squad",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "squad.commandPhase": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "transitionPhase is the one transition function."
+        },
+        "commander-routes.js": {
+          "as": "setup+fallback",
+          "why": "Setup states the starting phase through BattleSquadStability.initialPhase; `else sq.commandPhase = phase` runs only when the Squad Leader is absent. state-ownership-check.js proves the guard."
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup+fallback",
+          "why": "Same guarded setup fallback inside the garrison-setup block. state-ownership-check.js proves the guard."
+        }
+      }
+    },
+    "squad.commandRole": {
+      "owner": "commander-ai.js",
+      "writers": {
+        "commander-ai.js": {
+          "as": "owner",
+          "why": "issueMission stamps the brief's role (Force Command)."
+        },
+        "commander-routes.js": {
+          "as": "setup",
+          "why": "route-setup"
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        }
+      }
+    },
+    "squad.contact": {
+      "owner": "squad-ai.js",
+      "writers": {
+        "squad-ai.js": {
+          "as": "owner",
+          "why": "The squad picture: shareContact, squadSenses, squadContact."
+        },
+        "engagement.js": {
+          "as": "setup",
+          "why": "restart-reset"
+        }
+      }
+    },
+    "squad.leaderId": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "updateSuccession names the new leader."
+        },
+        "commander-ai.js": {
+          "as": "debt",
+          "why": "merge-rewrites-squad",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "squad.objective": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "executeMission and updateCohesion publish the squad's current objective point."
+        },
+        "commander-routes.js": {
+          "as": "setup",
+          "why": "route-setup"
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        }
+      }
+    },
+    "squad.orderAnchor": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "advanceSquadAnchor and regroup publish the order anchor (with rally)."
+        },
+        "commander-ai.js": {
+          "as": "debt",
+          "why": "The merge sets the anchor with the rally point; part of rally's single-publisher question.",
+          "fix": "phase 2a"
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        }
+      }
+    },
+    "squad.rally": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "Two sites: advanceSquadAnchor and the regroup in updateCohesion (provenance labels them squad-stability and squad-orders; the writer-ping-pong)."
+        },
+        "commander-ai.js": {
+          "as": "debt",
+          "why": "The reconstitution merge is a third publisher of rally.",
+          "fix": "phase 2a"
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        }
+      }
+    },
+    "squad.route": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "executeMission replaces the route with the brief's legs."
+        },
+        "commander-routes.js": {
+          "as": "setup",
+          "why": "route-setup"
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        }
+      }
+    },
+    "squad.routeIndex": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "executeMission advances the leg index."
+        },
+        "commander-routes.js": {
+          "as": "setup",
+          "why": "route-setup"
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        }
+      }
+    },
+    "squad.state": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "updateSquadState: retreat / engaged / advance."
+        },
+        "squad-ai.js": {
+          "as": "fallback",
+          "why": "squad-status-fallback"
+        }
+      }
+    },
+    "squad.targetObjective": {
+      "owner": "commander-ai.js",
+      "writers": {
+        "commander-ai.js": {
+          "as": "owner",
+          "why": "issueMission stamps the brief's objective (Force Command)."
+        },
+        "commander-routes.js": {
+          "as": "setup",
+          "why": "route-setup"
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        }
+      }
+    },
+    "soldier._combatUrgentUntil": {
+      "owner": null,
+      "writers": {
+        "engagement.js": {
+          "as": "debt",
+          "why": "assault marks a rush urgent for 0.5 s. Cross-layer timer: 11-soldier-individuality reads it. Phase 2c decides its home.",
+          "fix": "phase 2c"
+        },
+        "modules/44-combat-urgency.js": {
+          "as": "debt",
+          "why": "The urgent-cover drill sets and clears the same window. Phase 2c decides its home.",
+          "fix": "phase 2c"
+        }
+      }
+    },
+    "soldier._defensePost": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "holdPost, updateFireteams and reset."
+        },
+        "commander-ai.js": {
+          "as": "debt",
+          "why": "merge-rewrites-squad",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier._destinationCommitUntil": {
+      "owner": "movement-resolver.js",
+      "writers": {
+        "movement-resolver.js": {
+          "as": "owner",
+          "why": "resolve stamps the commit window (ORDER_COMMIT) whenever it writes the destination."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "debt",
+          "why": "markCatchup zeroes the resolver's commit window; proposeOrder already takes an urgent flag for that.",
+          "fix": "unscheduled"
+        },
+        "squad-ai.js": {
+          "as": "fallback",
+          "why": "resolver-fallback"
+        }
+      }
+    },
+    "soldier._engagementPlanSerial": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "syncTasks."
+        },
+        "commander-ai.js": {
+          "as": "debt",
+          "why": "merge-rewrites-squad",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier._engagementTask": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "syncTasks and reset."
+        },
+        "commander-ai.js": {
+          "as": "debt",
+          "why": "merge-rewrites-squad",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier._faceHint": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "alert, station and resetSoldier set and clear the look direction."
+        },
+        "modules/20-building-hardpoints.js": {
+          "as": "debt",
+          "why": "station-claim-reset",
+          "fix": "unscheduled"
+        },
+        "modules/44-combat-urgency.js": {
+          "as": "slot",
+          "why": "reactShared turns the man toward a shared contact from Engagement's afterDrill slot."
+        }
+      }
+    },
+    "soldier._fireteamDestination": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "updateFireteams publishes it; reset clears it."
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        }
+      }
+    },
+    "soldier._fireteamKey": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "updateFireteams, updateSuccession and reset."
+        },
+        "commander-ai.js": {
+          "as": "debt",
+          "why": "merge-rewrites-squad",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier._movementGoalUnreachable": {
+      "owner": "modules/52-survival-tactical-route.js",
+      "writers": {
+        "modules/52-survival-tactical-route.js": {
+          "as": "owner",
+          "why": "observe raises it when recovery judges the goal unreachable; resetEpisode and the sweep clear it."
+        },
+        "engagement.js": {
+          "as": "debt",
+          "why": "bound and assault read the flag and clear it. A recovery episode id compared by the reader would leave one writer.",
+          "fix": "unscheduled"
+        },
+        "modules/20-building-hardpoints.js": {
+          "as": "debt",
+          "why": "update reads the flag and clears it (same handshake).",
+          "fix": "unscheduled"
+        },
+        "movement-resolver.js": {
+          "as": "debt",
+          "why": "resolve clears it when it falls back to a formation pick (same handshake).",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier._movementResolver": {
+      "owner": "movement-resolver.js",
+      "writers": {
+        "movement-resolver.js": {
+          "as": "owner",
+          "why": "The resolver's per-soldier record."
+        },
+        "modules/20-building-hardpoints.js": {
+          "as": "debt",
+          "why": "A station claim or release nulls the resolver's combat proposal directly. A clearCombat(s) call on the resolver would keep the writes in one file.",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier._navCache": {
+      "owner": "battle-navigation.js",
+      "writers": {
+        "battle-navigation.js": {
+          "as": "owner",
+          "why": "nextWaypoint stores the path it computed."
+        },
+        "battle-sim.js": {
+          "as": "debt",
+          "why": "nav-invalidate",
+          "fix": "unscheduled"
+        },
+        "engagement.js": {
+          "as": "fallback",
+          "why": "resolver-fallback"
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "placeAtSlots teleports a fresh squad onto its slots (battle start, and module 10 reinforcements)."
+        },
+        "modules/20-building-hardpoints.js": {
+          "as": "debt",
+          "why": "nav-invalidate",
+          "fix": "unscheduled"
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        },
+        "movement-resolver.js": {
+          "as": "debt",
+          "why": "nav-invalidate",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier._personalSpaceDestination": {
+      "owner": "modules/51-soldier-personal-space.js",
+      "writers": {
+        "modules/51-soldier-personal-space.js": {
+          "as": "owner",
+          "why": "The personal-space reservation record."
+        },
+        "movement-resolver.js": {
+          "as": "setup",
+          "why": "restart-reset"
+        }
+      }
+    },
+    "soldier._physicalPath": {
+      "owner": "modules/39-navigation-physicality-debug.js",
+      "writers": {
+        "modules/39-navigation-physicality-debug.js": {
+          "as": "owner",
+          "why": "buildRollingPlan builds the physical path (module 39 is Navigation, not only an overlay); restart deletes it."
+        },
+        "battle-sim.js": {
+          "as": "debt",
+          "why": "nav-invalidate",
+          "fix": "unscheduled"
+        },
+        "modules/20-building-hardpoints.js": {
+          "as": "debt",
+          "why": "nav-invalidate",
+          "fix": "unscheduled"
+        },
+        "movement-resolver.js": {
+          "as": "debt",
+          "why": "nav-invalidate",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier._regroupUnstick": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "updateCohesion creates the record; endRegroup and reset clear it."
+        },
+        "battle-sim.js": {
+          "as": "debt",
+          "why": "stepMovement clears the Squad Leader's regroup-unstick record when it ends recovery or the man dies.",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier._tacticalRoute": {
+      "owner": "modules/52-survival-tactical-route.js",
+      "writers": {
+        "modules/52-survival-tactical-route.js": {
+          "as": "owner",
+          "why": "beginPlan, clearPlan and advancePlan."
+        },
+        "movement-resolver.js": {
+          "as": "setup",
+          "why": "restart-reset"
+        }
+      }
+    },
+    "soldier.captureWeight": {
+      "owner": null,
+      "writers": {
+        "battle-sim.js": {
+          "as": "setup",
+          "why": "spawn-stamp"
+        },
+        "module-registry.js": {
+          "as": "setup",
+          "why": "spawn-stamp"
+        },
+        "modules/10-infantry-squad.js": {
+          "as": "setup",
+          "why": "spawn-stamp"
+        }
+      }
+    },
+    "soldier.clearingStoppage": {
+      "owner": "modules/46-ammunition-stoppages.js",
+      "writers": {
+        "modules/46-ammunition-stoppages.js": {
+          "as": "owner",
+          "why": "startStoppage and finishStoppage."
+        },
+        "modules/47-sidearm-switch.js": {
+          "as": "debt",
+          "why": "peer-ammo",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier.crawling": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "applyStance commits crawl."
+        },
+        "soldier.js": {
+          "as": "body",
+          "why": "kill() clears it when the soldier dies (the body's own mechanics; stance-ownership-check.js allows it)."
+        }
+      }
+    },
+    "soldier.destination": {
+      "owner": "movement-resolver.js",
+      "writers": {
+        "movement-resolver.js": {
+          "as": "owner",
+          "why": "The sole normal-runtime writer (AGENTS.md, Movement Resolver)."
+        },
+        "engagement.js": {
+          "as": "fallback",
+          "why": "resolver-fallback"
+        },
+        "modules/12-soldier-animation-events.js": {
+          "as": "fallback",
+          "why": "resolver-fallback"
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "placeAtSlots: initial placement (battle start and module 10 reinforcements)."
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        },
+        "squad-ai.js": {
+          "as": "fallback",
+          "why": "setDestination without a resolver, and the no-Engagement fallbackBehavior."
+        }
+      }
+    },
+    "soldier.fireCooldown": {
+      "owner": "squad-ai.js",
+      "writers": {
+        "squad-ai.js": {
+          "as": "owner",
+          "why": "tryFire and areaFire set it after a trigger pull."
+        },
+        "battle-sim.js": {
+          "as": "debt+setup",
+          "why": "Spawn gives the man a random first cooldown. stepMovement then counts the cooldown down while the fire pipeline sets it: one clock, two layers.",
+          "fix": "unscheduled"
+        },
+        "modules/10-infantry-squad.js": {
+          "as": "setup",
+          "why": "spawn-stamp"
+        },
+        "modules/12-soldier-animation-events.js": {
+          "as": "fallback+slot",
+          "why": "Legacy reload cooldown when there is no ammunition module; the beforeSoldier weapon-cycle extension also holds fire while reloading."
+        },
+        "modules/47-sidearm-switch.js": {
+          "as": "slot",
+          "why": "The sidearm draw cost delays the next shot from SquadAI's beforeSoldier slot."
+        }
+      }
+    },
+    "soldier.hp": {
+      "owner": "modules/14-wound-model.js",
+      "writers": {
+        "modules/14-wound-model.js": {
+          "as": "owner",
+          "why": "wound and bleed (the woundModel slot)."
+        },
+        "battle-sim.js": {
+          "as": "body",
+          "why": "killSoldier pins hp to 0 as the soldier dies."
+        },
+        "modules/14-z-ballistic-raycast.js": {
+          "as": "debt",
+          "why": "flatDamage is a dead copy of SquadAI's default (`S.applyHit ? S.applyHit(...) : flatDamage(...)`; applyHit always exists).",
+          "fix": "phase 5"
+        },
+        "squad-ai.js": {
+          "as": "fallback",
+          "why": "flatDamage is the default of the woundModel slot when no wound model is attached."
+        }
+      }
+    },
+    "soldier.orderDestination": {
+      "owner": "movement-resolver.js",
+      "writers": {
+        "movement-resolver.js": {
+          "as": "owner",
+          "why": "proposeOrder records the order point."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "fallback",
+          "why": "resolver-fallback"
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        },
+        "squad-ai.js": {
+          "as": "fallback",
+          "why": "resolver-fallback"
+        }
+      }
+    },
+    "soldier.outOfAmmo": {
+      "owner": "modules/46-ammunition-stoppages.js",
+      "writers": {
+        "modules/46-ammunition-stoppages.js": {
+          "as": "owner",
+          "why": "initialize, finishReload, unavailable."
+        },
+        "modules/47-sidearm-switch.js": {
+          "as": "debt",
+          "why": "peer-ammo",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier.prone": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "applyStance and resetSoldier: Engagement is the one stance writer."
+        },
+        "soldier.js": {
+          "as": "body",
+          "why": "setCrouch / setProne are the body's own mechanics; stance-ownership-check.js allows them."
+        },
+        "squad-ai.js": {
+          "as": "fallback",
+          "why": "engagement-fallback"
+        }
+      }
+    },
+    "soldier.reloading": {
+      "owner": "modules/46-ammunition-stoppages.js",
+      "writers": {
+        "modules/46-ammunition-stoppages.js": {
+          "as": "owner",
+          "why": "startReload and finishReload."
+        },
+        "modules/12-soldier-animation-events.js": {
+          "as": "fallback+setup",
+          "why": "Legacy reload when there is no ammunition module; restart clears it."
+        },
+        "modules/47-sidearm-switch.js": {
+          "as": "debt",
+          "why": "peer-ammo",
+          "fix": "unscheduled"
+        },
+        "soldier.js": {
+          "as": "body",
+          "why": "kill() clears it when the soldier dies."
+        }
+      }
+    },
+    "soldier.reloadUntil": {
+      "owner": "modules/46-ammunition-stoppages.js",
+      "writers": {
+        "modules/46-ammunition-stoppages.js": {
+          "as": "owner",
+          "why": "startReload and finishReload."
+        },
+        "modules/12-soldier-animation-events.js": {
+          "as": "fallback+setup",
+          "why": "Legacy reload when there is no ammunition module; restart clears it."
+        },
+        "modules/47-sidearm-switch.js": {
+          "as": "debt",
+          "why": "peer-ammo",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier.root.position": {
+      "owner": "battle-sim.js",
+      "writers": {
+        "battle-sim.js": {
+          "as": "owner",
+          "why": "stepMovement is Movement Execution: the per-frame position write."
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        },
+        "modules/46-macro-relief.js": {
+          "as": "setup",
+          "why": "settleUnits re-grounds every soldier when the relief deformation is applied."
+        },
+        "modules/51-soldier-personal-space.js": {
+          "as": "layer",
+          "why": "AGENTS.md: Personal space owns local physical correction (0.45 m body separation)."
+        }
+      }
+    },
+    "soldier.root.rotation": {
+      "owner": "battle-sim.js",
+      "writers": {
+        "battle-sim.js": {
+          "as": "owner",
+          "why": "turnToward in stepMovement."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "placeAtSlots: initial placement (battle start and module 10 reinforcements)."
+        },
+        "modules/21-defender-engineers.js": {
+          "as": "setup",
+          "why": "garrison-setup"
+        }
+      }
+    },
+    "soldier.scoreValue": {
+      "owner": null,
+      "writers": {
+        "battle-sim.js": {
+          "as": "setup",
+          "why": "spawn-stamp"
+        },
+        "modules/10-infantry-squad.js": {
+          "as": "setup",
+          "why": "spawn-stamp"
+        }
+      }
+    },
+    "soldier.setUp": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "The emplaced-gun flag, set and cleared through the states."
+        },
+        "modules/12-soldier-animation-events.js": {
+          "as": "debt",
+          "why": "afterSoldier drops the set-up while reloading. Engagement has no call for an interrupted gun.",
+          "fix": "unscheduled"
+        },
+        "modules/20-building-hardpoints.js": {
+          "as": "debt",
+          "why": "station-claim-reset",
+          "fix": "unscheduled"
+        },
+        "modules/44-combat-urgency.js": {
+          "as": "slot",
+          "why": "The urgent-cover drill runs on Engagement's afterDrill slot."
+        },
+        "modules/46-ammunition-stoppages.js": {
+          "as": "debt",
+          "why": "startReload and startStoppage drop the set-up. Engagement has no call for an interrupted gun.",
+          "fix": "unscheduled"
+        },
+        "modules/47-sidearm-switch.js": {
+          "as": "debt",
+          "why": "A sidearm draw unemplaces the gun. Engagement has no call for an interrupted gun.",
+          "fix": "unscheduled"
+        },
+        "squad-ai.js": {
+          "as": "fallback",
+          "why": "engagement-fallback"
+        }
+      }
+    },
+    "soldier.slotIndex": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "updateSuccession puts the new leader in slot 0."
+        },
+        "commander-ai.js": {
+          "as": "debt",
+          "why": "assignSlots at the reconstitution merge re-slots the survivors.",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier.slotRole": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "updateSuccession."
+        },
+        "commander-ai.js": {
+          "as": "debt",
+          "why": "assignSlots at the reconstitution merge.",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier.state": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "The legacy status label the states mirror (advance / engage / pinned / assault / alert / suppress / retreat / hardpoint). It is a second copy of eng.state, written outside transition()."
+        },
+        "squad-ai.js": {
+          "as": "fallback",
+          "why": "engagement-fallback"
+        }
+      }
+    },
+    "soldier.stoppageUntil": {
+      "owner": "modules/46-ammunition-stoppages.js",
+      "writers": {
+        "modules/46-ammunition-stoppages.js": {
+          "as": "owner",
+          "why": "startStoppage and finishStoppage."
+        },
+        "modules/47-sidearm-switch.js": {
+          "as": "debt",
+          "why": "peer-ammo",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier.suppressedUntil": {
+      "owner": null,
+      "writers": {
+        "modules/14-wound-model.js": {
+          "as": "debt",
+          "why": "A wound shocks the victim (SHOCK). Cross-layer timer read by Engagement and the mind. Phase 2c decides its home; phase 3a makes these events.",
+          "fix": "phase 2c"
+        },
+        "modules/14-z-ballistic-raycast.js": {
+          "as": "debt",
+          "why": "A suppressive round passing sets 1.3 s. Same timer; phase 2c.",
+          "fix": "phase 2c"
+        },
+        "squad-ai.js": {
+          "as": "debt",
+          "why": "areaFire and resolveFire set it (the fire pipeline is the natural producer). Same timer; phase 2c.",
+          "fix": "phase 2c"
+        }
+      }
+    },
+    "soldier.tacticalCrouch": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "applyStance: Engagement is the one stance writer."
+        },
+        "squad-ai.js": {
+          "as": "fallback",
+          "why": "engagement-fallback"
+        }
+      }
+    },
+    "soldier.target": {
+      "owner": "squad-ai.js",
+      "writers": {
+        "squad-ai.js": {
+          "as": "owner",
+          "why": "perceive selects and drops the target."
+        },
+        "battle-sim.js": {
+          "as": "body",
+          "why": "killSoldier clears the dead soldier's target."
+        },
+        "modules/52-combat-posture-visual.js": {
+          "as": "debt",
+          "why": "animateWalk swaps a stand-in target while it animates and restores it in a finally block. Presentation writing a sim field; an aim-point argument would avoid it.",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "soldier.unitType": {
+      "owner": null,
+      "writers": {
+        "battle-sim.js": {
+          "as": "setup",
+          "why": "spawn-stamp"
+        },
+        "module-registry.js": {
+          "as": "setup",
+          "why": "spawn-stamp"
+        },
+        "modules/10-infantry-squad.js": {
+          "as": "setup",
+          "why": "spawn-stamp"
+        }
+      }
+    },
+    "soldier.weapon": {
+      "owner": "weapons.js",
+      "writers": {
+        "weapons.js": {
+          "as": "owner",
+          "why": "BattleWeapons.equip swaps which weapon the man holds."
+        },
+        "modules/46-ammunition-stoppages.js": {
+          "as": "layer",
+          "why": "The ammunition module owns magazines, reserve, heat and stoppages (module 12's header: 'Ammunition ownership lives in BattleAmmunition')."
+        },
+        "modules/12-soldier-animation-events.js": {
+          "as": "fallback+setup",
+          "why": "Legacy magazine when there is no ammunition module; restart refills it."
+        },
+        "modules/47-sidearm-switch.js": {
+          "as": "debt",
+          "why": "Returning to the primary clears its jam (peer-ammo).",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "eng.boundOrder": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "orderedBound / orderBound."
+        },
+        "modules/20-building-hardpoints.js": {
+          "as": "debt",
+          "why": "station-claim-reset",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "eng.cover": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "decide, orderedBound, alert, withdraw and the station-release transition."
+        },
+        "modules/20-building-hardpoints.js": {
+          "as": "debt",
+          "why": "station-claim-reset",
+          "fix": "unscheduled"
+        },
+        "modules/44-combat-urgency.js": {
+          "as": "slot",
+          "why": "startUrgent records the cover it chose from Engagement's afterDrill slot."
+        }
+      }
+    },
+    "eng.fireReadyAt": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "commitStance, runDrill, orient."
+        },
+        "modules/46-ammunition-stoppages.js": {
+          "as": "debt",
+          "why": "markFireReady raises the readiness floor after a reload or stoppage. A BattleEngagement.delayFire(s, until) beside requestStance would keep the write in Engagement.",
+          "fix": "unscheduled"
+        },
+        "modules/47-sidearm-switch.js": {
+          "as": "debt",
+          "why": "A sidearm draw or holster raises the readiness floor (same call).",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "eng.lastSeen": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "runDrill."
+        },
+        "modules/44-combat-urgency.js": {
+          "as": "slot",
+          "why": "reactShared records the contact it turned to (afterDrill slot)."
+        }
+      }
+    },
+    "eng.lastSeenAt": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "runDrill."
+        },
+        "modules/44-combat-urgency.js": {
+          "as": "slot",
+          "why": "reactShared (afterDrill slot)."
+        }
+      }
+    },
+    "eng.setUpSince": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "transition, engage and station."
+        },
+        "modules/47-sidearm-switch.js": {
+          "as": "debt",
+          "why": "A sidearm draw unemplaces the gun by zeroing it. Engagement has no call for an interrupted gun.",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "eng.suppressOrder": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "alert and orderBound."
+        },
+        "modules/20-building-hardpoints.js": {
+          "as": "debt",
+          "why": "station-claim-reset",
+          "fix": "unscheduled"
+        }
+      }
+    },
+    "eng.urgentBound": {
+      "owner": "engagement.js",
+      "writers": {
+        "engagement.js": {
+          "as": "owner",
+          "why": "transition clears it on every regular entry."
+        },
+        "modules/44-combat-urgency.js": {
+          "as": "slot",
+          "why": "startUrgent sets it right after requestState('urgent-cover'), from the afterDrill slot."
+        }
+      }
+    }
+  }
+}
