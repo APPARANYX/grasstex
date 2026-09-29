@@ -4,7 +4,6 @@
     "garrison-setup": "Deployment: garrison() rewrites the defender squad inside `if (teleport)`, called once from deploy() at battle start before any AI tick. The runtime call only publishes request and post constraints.",
     "route-setup": "Initial route allocation (assignSquad, from initForce and from ensureAssignments for squads with no route yet) before the Squad Leader executes any mission.",
     "spawn-stamp": "Spawn: stamps a fresh unit when it is created (battle-sim spawnAll at battle start, module 10 for operator reinforcements, module-registry addUnit defaults).",
-    "merge-rewrites-squad": "Reconstitution merge (commander-ai mergeGroup) rewrites the surviving squad directly. The Squad Leader owns this state; one adopt() call on it would leave a single writer.",
     "restart-reset": "Restart: BattleSim.restart sweeps every soldier and squad through the module reset hooks.",
     "nav-invalidate": "Invalidates Navigation's cached path by hand after moving a soldier or his destination. Each cache records its goal and world version, so the reader that uses it could reject a stale entry itself.",
     "resolver-fallback": "Only when BattleMovementResolver is absent (isolated unit harness); production loads the resolver before any AI tick.",
@@ -43,20 +42,6 @@
         }
       }
     },
-    "squad._macroMissionRequest": {
-      "owner": "modules/16-squad-plan-stability.js",
-      "writers": {
-        "modules/16-squad-plan-stability.js": {
-          "as": "owner",
-          "why": "requestReview posts the Squad Leader's escalation to Force Command; reset clears it."
-        },
-        "commander-ai.js": {
-          "as": "debt",
-          "why": "reconsiderMission clears the request after it re-selects the mission. An acknowledgement by request serial would leave one writer.",
-          "fix": "unscheduled"
-        }
-      }
-    },
     "squad._orderGoal": {
       "owner": "modules/16-squad-plan-stability.js",
       "writers": {
@@ -83,25 +68,6 @@
         }
       }
     },
-    "squad.accuracyMultiplier": {
-      "owner": "modules/16-squad-plan-stability.js",
-      "writers": {
-        "modules/16-squad-plan-stability.js": {
-          "as": "owner",
-          "why": "updateSuccession ends the leaderless penalty when a successor takes command."
-        },
-        "battle-sim.js": {
-          "as": "debt",
-          "why": "killSoldier applies the 0.8 leader-death penalty on the squad; the Squad Leader owns succession and ends it. A casualty-log reader in the Squad Leader would apply it where it ends it.",
-          "fix": "unscheduled"
-        },
-        "commander-ai.js": {
-          "as": "debt",
-          "why": "merge-rewrites-squad",
-          "fix": "unscheduled"
-        }
-      }
-    },
     "squad.aliveCount": {
       "owner": "modules/16-squad-plan-stability.js",
       "writers": {
@@ -112,30 +78,6 @@
         "squad-ai.js": {
           "as": "fallback",
           "why": "squad-status-fallback"
-        },
-        "commander-ai.js": {
-          "as": "debt",
-          "why": "merge-rewrites-squad",
-          "fix": "unscheduled"
-        }
-      }
-    },
-    "squad.captainAlive": {
-      "owner": "modules/16-squad-plan-stability.js",
-      "writers": {
-        "modules/16-squad-plan-stability.js": {
-          "as": "owner",
-          "why": "updateSuccession restores it when a successor takes command."
-        },
-        "battle-sim.js": {
-          "as": "debt",
-          "why": "killSoldier clears it when the leader dies (see squad.accuracyMultiplier).",
-          "fix": "unscheduled"
-        },
-        "commander-ai.js": {
-          "as": "debt",
-          "why": "merge-rewrites-squad",
-          "fix": "unscheduled"
         }
       }
     },
@@ -183,20 +125,6 @@
         "engagement.js": {
           "as": "setup",
           "why": "restart-reset"
-        }
-      }
-    },
-    "squad.leaderId": {
-      "owner": "modules/16-squad-plan-stability.js",
-      "writers": {
-        "modules/16-squad-plan-stability.js": {
-          "as": "owner",
-          "why": "updateSuccession names the new leader."
-        },
-        "commander-ai.js": {
-          "as": "debt",
-          "why": "merge-rewrites-squad",
-          "fix": "unscheduled"
         }
       }
     },
@@ -281,20 +209,6 @@
         }
       }
     },
-    "soldier._defensePost": {
-      "owner": "modules/16-squad-plan-stability.js",
-      "writers": {
-        "modules/16-squad-plan-stability.js": {
-          "as": "owner",
-          "why": "holdPost, updateFireteams and reset."
-        },
-        "commander-ai.js": {
-          "as": "debt",
-          "why": "merge-rewrites-squad",
-          "fix": "unscheduled"
-        }
-      }
-    },
     "soldier._destinationCommitUntil": {
       "owner": "movement-resolver.js",
       "writers": {
@@ -310,34 +224,6 @@
         "squad-ai.js": {
           "as": "fallback",
           "why": "resolver-fallback"
-        }
-      }
-    },
-    "soldier._engagementPlanSerial": {
-      "owner": "modules/16-squad-plan-stability.js",
-      "writers": {
-        "modules/16-squad-plan-stability.js": {
-          "as": "owner",
-          "why": "syncTasks."
-        },
-        "commander-ai.js": {
-          "as": "debt",
-          "why": "merge-rewrites-squad",
-          "fix": "unscheduled"
-        }
-      }
-    },
-    "soldier._engagementTask": {
-      "owner": "modules/16-squad-plan-stability.js",
-      "writers": {
-        "modules/16-squad-plan-stability.js": {
-          "as": "owner",
-          "why": "syncTasks and reset."
-        },
-        "commander-ai.js": {
-          "as": "debt",
-          "why": "merge-rewrites-squad",
-          "fix": "unscheduled"
         }
       }
     },
@@ -369,20 +255,6 @@
         "modules/21-defender-engineers.js": {
           "as": "setup",
           "why": "garrison-setup"
-        }
-      }
-    },
-    "soldier._fireteamKey": {
-      "owner": "modules/16-squad-plan-stability.js",
-      "writers": {
-        "modules/16-squad-plan-stability.js": {
-          "as": "owner",
-          "why": "updateFireteams, updateSuccession and reset."
-        },
-        "commander-ai.js": {
-          "as": "debt",
-          "why": "merge-rewrites-squad",
-          "fix": "unscheduled"
         }
       }
     },
@@ -764,34 +636,6 @@
         "squad-ai.js": {
           "as": "fallback",
           "why": "engagement-fallback"
-        }
-      }
-    },
-    "soldier.slotIndex": {
-      "owner": "modules/16-squad-plan-stability.js",
-      "writers": {
-        "modules/16-squad-plan-stability.js": {
-          "as": "owner",
-          "why": "updateSuccession puts the new leader in slot 0."
-        },
-        "commander-ai.js": {
-          "as": "debt",
-          "why": "assignSlots at the reconstitution merge re-slots the survivors.",
-          "fix": "unscheduled"
-        }
-      }
-    },
-    "soldier.slotRole": {
-      "owner": "modules/16-squad-plan-stability.js",
-      "writers": {
-        "modules/16-squad-plan-stability.js": {
-          "as": "owner",
-          "why": "updateSuccession."
-        },
-        "commander-ai.js": {
-          "as": "debt",
-          "why": "assignSlots at the reconstitution merge.",
-          "fix": "unscheduled"
         }
       }
     },

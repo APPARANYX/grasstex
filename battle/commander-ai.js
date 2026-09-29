@@ -474,7 +474,7 @@
     if (reason === 'mission-complete') finishMission(sim, sq, 'completed', reason);
     else if (reason === 'mission-invalid') finishMission(sim, sq, 'invalid', reason);
     selectMission(sim, sq, town, reason, reason === 'strategic-stall' ? stalled : null);
-    sq._macroMissionRequest = null;
+    root.BattleSquadStability.acknowledgeRequest(sq);
     if (reason === 'strategic-stall') recordStallOutcome(sim, before, sq._macroMission);
   }
   /* Did a strategic-stall wake change the effort? `repeats` re-picked the stalled objective. */
@@ -616,28 +616,6 @@
     endGroup(st, g, 'dissolved', reason, +sim.time || 0);
     telemetry(sim, 'decision-reconstitute-dissolved', { faction: g.faction, group: g.id, reason: reason });
   }
-  /* Slot 0 is the leader, 1 the squad's gun, 2-3 its scouts; every other man - a second gunner, a third
-     scout, a former leader - takes a rifleman slot from 4 up (`slotRole`, SquadAI.formationSlot). */
-  function assignSlots(men, leader) {
-    var gun = false,
-      scouts = 0,
-      next = 4;
-    leader.slotIndex = 0;
-    leader.slotRole = null;
-    for (var i = 0; i < men.length; i++) {
-      var s = men[i];
-      if (s === leader) continue;
-      s.slotRole = null;
-      if (s.role === 'gunner' && !gun) {
-        gun = true;
-        s.slotIndex = 1;
-      } else if (s.role === 'scout' && scouts < 2) s.slotIndex = 2 + scouts++;
-      else {
-        s.slotIndex = next++;
-        if (s.role !== 'rifleman') s.slotRole = 'rifleman';
-      }
-    }
-  }
   function mergeGroup(sim, g, squads) {
     var st = reconState(sim),
       t = +sim.time || 0,
@@ -670,23 +648,12 @@
     var leader = root.SquadAI.leaderOf(survivor),
       promoted = !leader;
     if (promoted) leader = root.SquadAI.mostSenior(men);
-    assignSlots(men, leader);
     men.forEach(function (s) {
       if (root.BattleTacticalPositions) root.BattleTacticalPositions.release(s, sim, 'reconstituted');
       s.squad = survivor;
-      s._fireteamKey = null;
-      s._defensePost = null;
-      s._engagementTask = null;
-      s._engagementPlanSerial = null;
     });
-    survivor.members = men;
-    survivor.leaderId = leader.id;
-    survivor.establishment = RECON_STRENGTH;
-    survivor.aliveCount = men.length;
-    survivor.captainAlive = true;
-    survivor.accuracyMultiplier = 1; // the leader-death penalty (BattleSim.killSoldier) ends with a leader
-    /* The re-formed squad is anchored on the group's rally point. The anchor is the Squad Leader's to publish. */
-    if (root.BattleSquadStability) root.BattleSquadStability.publishAnchor(survivor, g.rally);
+    /* The Squad Leader re-forms the squad on the group's rally point: slots, plan state, leader, anchor. */
+    root.BattleSquadStability.reform(survivor, men, leader, g.rally, RECON_STRENGTH);
     survivor._reconGroup = null;
     survivor.reconstitutedFrom = g.squads.slice();
     finishMission(sim, survivor, 'completed', 'reconstituted');
@@ -695,8 +662,7 @@
       /* An absorbed squad reads like a destroyed one: no living men, full strength missing. */
       sq.members = [];
       sq.establishment = RECON_STRENGTH;
-      sq.aliveCount = 0;
-      sq.leaderId = null;
+      root.BattleSquadStability.disband(sq);
       sq.disbanded = true;
       sq.mergedInto = survivor.id;
       sq._reconGroup = null;
