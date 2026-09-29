@@ -67,6 +67,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `cover-positions-check.js` | Cover-slot selection against obstacles and physical footprints |
 | `personal-space-check.js` | Physical endpoint allocation and body separation |
 | `fireteam-frontage-check.js` | Each fireteam holds its own ground: published fireteam anchors stay ≥5 m apart while squads march, deploy and fight |
+| `formation-backward-check.js` | While a squad advances, no formation destination lies >3 m behind both the man and his fireteam's forward line: a team's anchor follows the team forward when its men ran ahead of a held squad anchor, at fireteam renewal and when a teammate falls |
 | `movement-recovery-check.js` | Recovery episode state machine, goal resets, unreachable criteria, retreat override |
 | `movement-state-check.js` | Resolver/movement-progress state for bounds and assault |
 | `lean-runtime-check.js` | Squad-plan stability + resolver + tactical route with no extra modules |
@@ -509,12 +510,10 @@ pseudo-backlog. Long-form historical notes remain in git history
 
 **Concrete sim work**
 
-- **Formation orders that walk advancing men backward.** This is the remaining large producer in
-  the `backward-orders` probe. Engagement cover already has the forward guard; regroup and firing
-  stations may move backward by design. The unresolved case is Squad Leader formation slots behind
-  men who ran ahead of a held anchor (~1,800 of ~2,500 measured backward orders in the sweep).
-  Fix it at the owner in module 16 against `sq._forwardLine`, never by adding a resolver veto.
-  Re-run `backward-orders`, movement ownership checks and the paired deterministic benchmark.
+- **Backward orders: remainder.** Formation slots no longer walk men back (`formation-backward-check.js`;
+  numbers in the commit that added it). What is left in the `backward-orders` probe is garrison posts
+  (module 21 `prepared`, by design), regroup and firing stations, and producer labels that lag the
+  resolver's final destination. Re-run the probe before treating any of it as a defect.
 - **Per-soldier weapons/loadouts.** The runtime still deals the primary from
   `ROLES[role].weapon`. Remaining feature work: sniper roles (M1903A4 / Kar98k ZF39), a
   `secondary` slot for historically issued sidearms, Engagement switching to a sidearm when the
