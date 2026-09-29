@@ -38,7 +38,9 @@
     if(!s)return null;if(s.phenotype&&s.phenotype.version==='68-gaits')return s.phenotype;
     var height=.94+unitRand(s,'height')*.12,width=.88+unitRand(s,'width')*.24,depth=.92+unitRand(s,'depth')*.18,fitness=.92+unitRand(s,'fitness')*.16;
     var buildPenalty=1-(width-1)*.18,heightEffect=1+(height-1)*.06,speedFactor=clamp(fitness*buildPenalty*heightEffect,.86,1.14),base=ROLE[s.role]||ROLE.rifleman;
-    var g={};Object.keys(LIMITS).forEach(function(name){g[name]=gaitValue(base,speedFactor,name);});
+    /* His agility (module 10) quickens or slows the two fast gaits only; the bands still clamp them. */
+    var St=root.BattleSoldierStats,pace=St?St.scale(s,'pace'):1;
+    var g={};Object.keys(LIMITS).forEach(function(name){g[name]=gaitValue(base,speedFactor*(name==='sprint'||name==='crouchRun'?pace:1),name);});
     var p={version:'68-gaits',heightScale:+height.toFixed(3),widthScale:+width.toFixed(3),depthScale:+depth.toFixed(3),fitness:+fitness.toFixed(3),speedFactor:+speedFactor.toFixed(3),gaits:g,
       walkSpeed:g.walk,runSpeed:g.run,sprintSpeed:g.sprint,crouchWalkSpeed:g.crouchWalk,crouchRunSpeed:g.crouchRun,proneNormalSpeed:g.proneNormal,proneFastSpeed:g.proneFast};
     s.phenotype=p;s.walkSpeed=g.walk;s.runSpeed=g.run;s.sprintSpeed=g.sprint;s.crouchWalkSpeed=g.crouchWalk;s.crouchRunSpeed=g.crouchRun;s.proneNormalSpeed=g.proneNormal;s.proneFastSpeed=g.proneFast;s.speed=g.run;

@@ -136,6 +136,12 @@
   function mind() {
     return root.BattleSoldierMind;
   }
+  /* What his own stats are worth (module 10, `BattleSoldierStats`): a multiplier around 1, exactly 1 for an
+     average man and when the module is absent or that stat's lever is off. */
+  function statScale(s, effect) {
+    var St = root.BattleSoldierStats;
+    return St ? St.scale(s, effect) : 1;
+  }
   /* Recognition takes this many times as long (1 for a steady man or with the lever off). */
   function stretch(s) {
     var M = mind();
@@ -198,7 +204,7 @@
   function commitStance(s, battle, stance, seconds) {
     var e = state(s);
     if (e.stance !== stance) {
-      e.fireReadyAt = Math.max(e.fireReadyAt, battle.time + AIM_SETTLE);
+      e.fireReadyAt = Math.max(e.fireReadyAt, battle.time + AIM_SETTLE * statScale(s, 'settle'));
       e.stance = stance;
     }
     e.stanceUntil =
@@ -1027,7 +1033,7 @@
       var sector = threatSector(s, s.target);
       if (e.threatSector != null && sectorDistance(e.threatSector, sector) > 1) {
         /* A threat from a materially different direction is a fresh problem: re-orient. */
-        e.fireReadyAt = Math.max(e.fireReadyAt, now + AIM_SETTLE);
+        e.fireReadyAt = Math.max(e.fireReadyAt, now + AIM_SETTLE * statScale(s, 'settle'));
         if (e.state === 'engage' || e.state === 'pinned')
           transition(s, battle, 'orient', recognition(s), 'new threat sector');
       }
