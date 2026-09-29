@@ -56,18 +56,26 @@ assert.equal(api.settings.paths,true);assert.equal(api.settings.windows,false);a
 const reloaded=boot(env.storage);assert.equal(reloaded.context.BattleWorldDebug.settings.paths,true);assert.equal(reloaded.context.BattleWorldDebug.settings.windows,false);
 all.onclick();env.hooks['world-debug-overlay'].beforeBattleRestart();assert.ok(env.meshes.every(mesh=>mesh.disposed));
 env.hooks['world-debug-overlay'].onBattleRestart(sim);assert.ok(env.meshes.some(mesh=>!mesh.disposed),'selected layers restore after restart');
-// Composure layer (module 17): a ring per shaken/rattled/broken man by band, a cross on a man who is frozen, nothing else.
+// Composure marks (module 17): a ring per shaken/rattled/broken man, a cross on a frozen one, nothing else; each is
+// parented to its man's root so it moves with him between the timed rebuilds.
 {
   const e2=boot();e2.context.BattleSoldierMind={shockUntil:s=>s.mind.shock};
-  const man=(x,z,mind,faction='us')=>({faction,root:{position:{x,z}},mind});
-  const sim2={scene:{},time:5,heightAt:()=>0,obstacles:[],_roster:{us:[man(0,0,{band:2,stress:.6,shock:0}),man(5,0,{band:0,stress:.1,shock:6}),man(9,0,{band:0,stress:0,shock:0})],ge:[man(0,9,{band:3,stress:.9,shock:0},'ge')]}};
+  const man=(x,z,mind,faction='us')=>({faction,id:x+':'+z,root:{position:{x,z}},mind});
+  const a=man(0,0,{band:2,stress:.6,shock:0}),b=man(5,0,{band:0,stress:.1,shock:6}),c=man(9,0,{band:0,stress:0,shock:0}),d=man(0,9,{band:3,stress:.9,shock:0},'ge');
+  const sim2={scene:{},time:5,heightAt:()=>0,obstacles:[],_roster:{us:[a,b,c],ge:[d]}};
   e2.hooks['world-debug-overlay'].onBattleStart(sim2);e2.context.BattleWorldDebug.set('composure',true);
-  const act=name=>e2.meshes.findLast(mesh=>mesh.name===name&&!mesh.disposed);
-  assert.equal(act('wd-dyn-composure-2').lines.length,1,'one rattled man, one ring');
-  assert.equal(act('wd-dyn-composure-3').lines.length,1,'one broken man, one ring');
-  assert.ok(!act('wd-dyn-composure-1'),'nobody is merely shaken, so no shaken layer');
-  assert.equal(act('wd-dyn-composure-shock').lines.length,2,'a cross is two strokes, on the frozen man only');
-  assert.ok(act('wd-dyn-composure-2').lines[0].every(v=>v.y>2),'rings sit above the head');
-  e2.context.BattleWorldDebug.set('composure',false);assert.ok(e2.meshes.every(mesh=>mesh.disposed),'switching it off removes every composure mesh');
+  const live=name=>e2.meshes.findLast(mesh=>mesh.name===name&&!mesh.disposed);
+  const ring=m=>live('wd-mark-ring-'+m.faction+'-'+m.id),cross=m=>live('wd-mark-cross-'+m.faction+'-'+m.id);
+  assert.ok(ring(a)&&ring(d),'a rattled and a broken man each have a ring');
+  assert.ok(!ring(b)&&!ring(c),'steady men have none');
+  assert.ok(cross(b)&&!cross(a)&&!cross(c)&&!cross(d),'only the frozen man has a cross');
+  assert.equal(ring(a).parent,a.root,'the ring is parented to the man, so it cannot trail him');
+  assert.ok(ring(a).position.y<.5,'and sits on the ground under his feet');
+  assert.ok(ring(d).scaling.x>ring(a).scaling.x,'wider for a man who is worse off');
+  const first=ring(a);a.mind.stress=.7;e2.context.BattleWorldDebug.refresh();
+  assert.equal(ring(a),first,'a rebuild updates the mark, it does not remake it');
+  a.mind.band=0;e2.context.BattleWorldDebug.refresh();assert.ok(!ring(a),'a man back to steady loses his ring');
+  d.dead=true;e2.context.BattleWorldDebug.refresh();assert.ok(!ring(d),'a dead man loses it');
+  e2.context.BattleWorldDebug.set('composure',false);assert.ok(e2.meshes.every(mesh=>mesh.disposed),'switching it off removes every mark');
 }
 console.log('PASS world debug bulk controls, batching, mesh cleanup, window sync, persistence, individual changes and restart; authoritative cover slot geometry, claims, faction filter and lazy snapshots');
