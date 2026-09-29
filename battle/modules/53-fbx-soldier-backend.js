@@ -144,6 +144,17 @@ function applySidecarData(file,data){
     }
   });
 }
+/* Weapon seats measured on the US sergeant (us-captain.fbx.json, Motion Lab), the only model with a
+   sidecar: the fallback for every model that has none, so a man holding a weapon another model was
+   never seated for gets a measured grip, fore-end, wrist and pistol-cup seat instead of the generic
+   point. A model's own sidecar slot wins, so does a WEAPON_MODEL_POINTS exception, and contacts stay
+   per model (hand-web offsets belong to one body). Never overwrites a sidecar that loaded. */
+var DEFAULT_SEATS={"kar98k.fbx":{"grip":[-0.011,-0.034,-0.107],"foreNear":[0.013,-0.0237,-0.147],"foreFar":[0.013,-0.0237,0.6189],"trigger":[-0.0098,-0.0607,-0.0585],"armDeg":{"shoulder":[0,0,0],"elbow":[0,0,0],"wrist":[0,0,0]},"wristR":[-1,-17,18]},"m1-carbine.fbx":{"grip":[-0.011,-0.018,-0.125],"foreNear":[0.017,-0.035,-0.147],"foreFar":[0.017,-0.035,0.6189],"trigger":null,"armDeg":{"shoulder":[0,0,0],"elbow":[0,0,0],"wrist":[0,0,0]},"wristR":[-11,-17,14]},"m1919a6.fbx":{"grip":[0.0196,-0.104,0.0049],"foreNear":[0.017,-0.1,-0.147],"foreFar":[0.017,-0.1,0.6189],"armDeg":{"shoulder":[0,0,0],"elbow":[0,0,0],"wrist":[0,0,0]}},"fg42.fbx":{"grip":[-0.011,-0.075,-0.115],"foreNear":[0.017,-0.058,-0.147],"foreFar":[0.017,-0.058,0.6189],"trigger":null,"armDeg":{"shoulder":[0,0,0],"elbow":[0,0,0],"wrist":[0,0,0]},"wristR":[0,0,3]},"m1-garand.fbx":{"grip":[-0.011,-0.046,-0.076],"foreNear":[0.017,-0.035,-0.147],"foreFar":[0.017,-0.035,0.6189],"trigger":null,"armDeg":{"shoulder":[0,0,0],"elbow":[0,0,0],"wrist":[0,0,0]},"wristR":[-1,-17,18]},"m1919a6-bipod.fbx":{"grip":[0.0196,-0.104,0.0049],"foreNear":[0.017,-0.1,-0.147],"foreFar":[0.017,-0.1,0.6189],"armDeg":{"shoulder":[0,0,0],"elbow":[0,0,0],"wrist":[0,0,0]}},"m1911a1.fbx":{"grip":[0.0045,-0.0217,-0.027],"foreNear":null,"foreFar":null,"leftGripR":[-0.0138,0.0844,-0.0208],"armDeg":{"shoulder":[0,0,-8],"elbow":[0,-60,20],"wrist":[-23,-34,0]},"wristR":[0,0,3]},"mg42-bipod.fbx":{"grip":[0.0196,-0.066,-0.094],"foreNear":[0.017,-0.029,-0.147],"foreFar":[0.017,-0.029,0.6189],"armDeg":{"shoulder":[0,0,0],"elbow":[0,0,0],"wrist":[0,0,0]}},"mg42.fbx":{"grip":[0.0196,-0.066,-0.094],"foreNear":[0.017,-0.029,-0.147],"foreFar":[0.017,-0.029,0.6189],"armDeg":{"shoulder":[0,0,0],"elbow":[0,0,0],"wrist":[0,0,0]}},"mp40.fbx":{"grip":[0.006,-0.067,-0.125],"foreNear":[0.017,-0.029,-0.147],"foreFar":[0.017,-0.029,0.6189],"trigger":null,"armDeg":{"shoulder":[0,0,0],"elbow":[0,0,0],"wrist":[0,0,0]},"wristR":[0,0,3]},"p38.fbx":{"grip":[0.0065,-0.0222,-0.027],"foreNear":null,"foreFar":null,"armDeg":{"shoulder":[0,0,0],"elbow":[0,0,0],"wrist":[0,0,0]},"wristR":[0,0,3]},"thompson.fbx":{"grip":[0.0196,-0.077,-0.076],"foreNear":[0.017,-0.029,-0.147],"foreFar":[0.017,-0.029,0.6189],"armDeg":{"shoulder":[0,0,0],"elbow":[0,0,0],"wrist":[0,0,0]}}};
+function applyDefaultSeats(file){
+  var have=SIDE_MODEL_POINTS[file]||{},mine=WEAPON_MODEL_POINTS[file]||{},pick={};
+  Object.keys(DEFAULT_SEATS).forEach(function(w){if(!have[w]&&!mine[w])pick[w]=DEFAULT_SEATS[w];});
+  applySidecarData(file,{weapons:pick});
+}
 function loadSidecars(base,files){
   if(typeof fetch==='undefined')return Promise.resolve();
   return Promise.all((files||[]).map(function(file){
@@ -151,7 +162,7 @@ function loadSidecars(base,files){
     return fetch(base+'soldiers/'+encodeURIComponent(file)+'.json',{cache:'no-store'}).then(function(res){
       if(!res.ok)return;
       return res.json().then(function(data){applySidecarData(file,data);}).catch(function(){});
-    }).catch(function(){}).then(function(){assetAdd('model',file,'sidecar',perfNow()-t0);});
+    }).catch(function(){}).then(function(){applyDefaultSeats(file);assetAdd('model',file,'sidecar',perfNow()-t0);});
   })).then(function(){});
 }
 function pointsFor(file,kind){

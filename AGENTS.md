@@ -627,7 +627,9 @@ never decides tactics, ammo, hits or paths.
   numbers, existing soldier FBX names only). Saving needs the lab password, asked once per browser;
   its hash lives only on the host in `state/lab-key.php` (`<?php return '<sha256 hex>';`, from
   `printf '%s' 'password' | shasum -a 256`), and without that file saving is off. Pistol slots
-  never carry fore points (one-hand hold, in the lab and the game). Sidecars are server-owned:
+  never carry fore points (one-hand hold, in the lab and the game). Only `us-captain` has one on the host. Its weapon slots are embedded in the backend as `DEFAULT_SEATS`
+  and fill every model's missing slots (a model's own sidecar and a `WEAPON_MODEL_POINTS` exception win;
+  contacts stay per model). Sidecars are server-owned:
   never committed, never deployed or deleted.
 - Clips are retargeted at load (rest pose, units, hip height), in quaternions (`retargetRotations`). Looping clips have hip drift removed,
   and that drift becomes their natural ground speed. Playback rate is ground speed ÷ clip speed.
