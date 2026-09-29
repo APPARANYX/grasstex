@@ -1,0 +1,57 @@
+name: Damage Range Preview Validation
+
+on:
+  push:
+    branches:
+      - 'work/damage-range'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: damage-range-preview-validation
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax
+        run: |
+          set -euo pipefail
+          node --check battle/modules/98-damage-range.js
+          node --check scripts/probe_damage_range.cjs
+      - name: Wait for exact live preview
+        env:
+          PREVIEW_URL: https://test.ivandpopov.com/grasstex/preview/damage-range/battle_sim.php
+        run: |
+          set -euo pipefail
+          short="${GITHUB_SHA:0:7}"
+          for i in $(seq 1 60); do
+            body="$(curl -fsS "$PREVIEW_URL" 2>/dev/null || true)"
+            if grep -q "preview-$short" <<<"$body"; then exit 0; fi
+            sleep 10
+          done
+          exit 1
+      - name: Install Chromium
+        run: |
+          set -euo pipefail
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Probe damage range
+        env:
+          DR_URL: https://test.ivandpopov.com/grasstex/preview/damage-range/battle_sim.php
+          DR_SEED: damage-range-final-20260928
+          DR_OUT: out/damage-range
+        run: |
+          set -euo pipefail
+          node scripts/probe_damage_range.cjs
+      - name: Upload proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: damage-range-preview-final
+          path: out/damage-range
+          if-no-files-found: warn
