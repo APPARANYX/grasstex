@@ -154,9 +154,13 @@ local red-ground page, and reuse these harnesses instead of writing one-off prob
   animation bridge and impact/UV-wound system; Fire itself does not alter HP, while **Kill** is
   explicit so wounds can accumulate before a death pose is inspected. Controls in the page select
   target and zone, entry-only vs through-shot, single/3-shot, auto cycling, orbit, clear and reset.
-  Keyboard: Space fire, arrows target, 1-5 zone, E exit, O orbit, A auto, C clear. URL setup:
-  `rangeTarget=0..9`, `rangeZone=head|chest|abdomen|arm|leg`, `rangeExit=0|1`,
-  `rangeAuto=0|1`, `rangeInterval=<seconds>`, `rangeOrbit=0|1`, `rangeDist=<metres>`.
+  The panel is docked off-center and collapsible; `rangeAuto=1` starts with the compact panel unless
+  `rangeUi=full` is supplied (`rangeUi=compact` forces compact mode). Keyboard: Space fire, arrows
+  target, 1-5 zone, E exit, O orbit, A auto, C clear. Xbox/standard gamepad: A fire, X 3-shot,
+  D-pad left/right target, D-pad up/down zone, Y auto, B clear, LB exit, RB orbit, right stick orbit,
+  LT/RT zoom, R3 kill, View toggles the panel. URL setup: `rangeTarget=0..9`,
+  `rangeZone=head|chest|abdomen|arm|leg`, `rangeExit=0|1`, `rangeAuto=0|1`,
+  `rangeInterval=<seconds>`, `rangeOrbit=0|1`, `rangeDist=<metres>`, `rangeUi=full|compact`.
 - **Every model with its weapon, plus the Motion Lab poses:** `scripts/fbx-soldier-lineup.cjs`
   (see Soldiers, weapons, animation).
 - **Pistol support hand numbers:** `scripts/probe_pistol_cup.cjs` (see the replay table below).
