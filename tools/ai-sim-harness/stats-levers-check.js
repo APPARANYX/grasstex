@@ -205,4 +205,48 @@ test('AGI: the two fast gaits follow agility, inside their historical bands; wal
   assert.deepEqual(o1.gaits, o2.gaits, 'with ?stats=0 agility changes nothing');
 });
 
+/* ---- TAC: how fast he recognises a contact and how far he spots ------------------------------ */
+
+test('TAC: a more aware man recognises a contact sooner; the average man in exactly the role time', () => {
+  const { b, r, St, us } = world();
+  const E = r.BattleEngagement;
+  const mk = tac => set(St, rifleman(us, 0), { tac });
+  const base = E.reactTime(mk(0.5), b),
+    sharp = E.reactTime(mk(1), b),
+    dull = E.reactTime(mk(0), b);
+  near(sharp / base, 0.6, 1e-9, 'awareness 1');
+  near(dull / base, 1.4, 1e-9, 'awareness 0');
+  const flat = world({ stats: false });
+  near(
+    flat.r.BattleEngagement.reactTime(rifleman(flat.us, 0), flat.b),
+    base,
+    1e-12,
+    'the average man is the flat time'
+  );
+  const off = world({ search: '?stats=0' }),
+    o = set(off.St, rifleman(off.us, 0), { tac: 1 });
+  near(off.r.BattleEngagement.reactTime(o, off.b), base, 1e-12, 'with ?stats=0 awareness changes nothing');
+});
+
+test('TAC: a more aware man spots an enemy 150 m ahead that an average man (140 m) cannot see', () => {
+  const { b, r, St, us, ge } = world();
+  const S = r.SquadAI,
+    enemy = ge.members[0];
+  enemy.root.position.x = 0;
+  enemy.root.position.z = 150;
+  const seen = tac => {
+    const s = set(St, rifleman(us, 0), { tac });
+    s.root.position.x = 0;
+    s.root.position.z = 0;
+    s.root.rotation.y = 0;
+    return S.findTarget(s, [enemy], b.heightAt, b.obstacles, b) === enemy;
+  };
+  assert.equal(seen(0.5), false, 'average awareness: 140 m of rifleman vision');
+  assert.equal(seen(1), true, 'awareness 1: 161 m');
+  assert.equal(seen(0), false, 'awareness 0: 119 m');
+  enemy.root.position.z = 125;
+  assert.equal(seen(0.5), true, 'at 125 m the average man sees him');
+  assert.equal(seen(0), false, 'and the dullest cannot: 119 m');
+});
+
 console.log('stats-levers-check: ' + n + ' passed');
