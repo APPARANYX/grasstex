@@ -66,6 +66,12 @@
   function cfg(s) {
     return LOADOUT[s && s.weapon && s.weapon.kind] || LOADOUT.rifle;
   }
+  /* His technical skill (module 10, BattleSoldierStats): how often his gun jams and how long he takes to
+     clear it, x0.6 at technical 1 and x1.4 at 0; 1 for an average man and when the module or lever is off. */
+  function skill(s, effect) {
+    var stats = root.BattleSoldierStats;
+    return stats ? stats.scale(s, effect) : 1;
+  }
   function rand(b) {
     return b && typeof b.random === 'function' ? b.random() : Math.random();
   }
@@ -86,7 +92,13 @@
       ranDry: 0,
       lowAmmoCalls: 0,
       roundsLoaded: 0,
-      byWeapon: { rifle: freshBucket(), carbine: freshBucket(), smg: freshBucket(), lmg: freshBucket(), pistol: freshBucket() }
+      byWeapon: {
+        rifle: freshBucket(),
+        carbine: freshBucket(),
+        smg: freshBucket(),
+        lmg: freshBucket(),
+        pistol: freshBucket()
+      }
     };
   }
   function stats(sim) {
@@ -194,13 +206,14 @@
     if (!s || !s.weapon || s.clearingStoppage || s.reloading) return false;
     var c = cfg(s),
       a = s._ammoState;
+    var clear = c.clear * skill(s, 'clear');
     s.weapon.jammed = true;
     s.clearingStoppage = true;
-    s.stoppageUntil = (+battle.time || 0) + c.clear;
+    s.stoppageUntil = (+battle.time || 0) + clear;
     s.setUp = false;
     a.stoppages++;
     bump(battle, s, 'stoppages');
-    animateReload(s, c.clear);
+    animateReload(s, clear);
     return true;
   }
   function finishStoppage(s, battle) {
@@ -244,7 +257,7 @@
       else unavailable(s, battle);
       return;
     }
-    var stopChance = c.baseStop + c.heatStop * (+w.heat || 0);
+    var stopChance = (c.baseStop + c.heatStop * (+w.heat || 0)) * skill(s, 'stoppage');
     if (rand(battle) < stopChance) startStoppage(s, battle);
   }
 
