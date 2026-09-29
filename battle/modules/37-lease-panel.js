@@ -3,7 +3,7 @@
    UI only: no simulation hooks, it only reads BattleLeases while the panel is open. */
 (function (root) {
   'use strict';
-  if (typeof document === 'undefined' || root.BattleLeasePanel) return;
+  if (typeof document === 'undefined' || !root.BattleAIGraphEditor || root.BattleLeasePanel) return;
 
   var REFRESH_MS = 500,
     ui = { panel: null, button: null, list: null, timer: null, tries: 0 };

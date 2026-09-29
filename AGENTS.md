@@ -44,7 +44,14 @@ original docs (roadmaps, lab notes, measurements) are in git history at `1a5b0cf
 In the page: a load overlay (`BattleLoading`, in `battle_sim.html`) shows each boot phase (runtime
 scripts, scenario, terrain, soldiers/weapons/clips, cover, navigation and squads); the FBX backend
 reports per-file progress to it. **Start Battle** unpauses and unlocks audio (iOS needs the gesture).
-`window.__battle__` is the live `BattleSim`. HUD buttons: World Debug, AI Graph, Motion Lab.
+`window.__battle__` is the live `BattleSim`. HUD buttons: World Debug, Motion Lab. **The AI Graph workbench
+is stashed** (modules 30-38, until the UI pass): `STASHED` in `modules/30-ai-graph-editor.js` keeps it from
+defining `BattleAIGraphEditor`, the gate every graph module checks, so there is no AI Graph button, Macro
+ON/OFF button, Leases panel, Loop Watch / Order Trace panel or export button, and `?editor=ai` / `#ai-graph`
+open nothing. What sat behind them still runs: `BattleCommanderAI.setMacroEnabled`, `BattleLeases`, Loop Watch
+and `BattleOrderProvenance` collection, and `BattleDiagnosticsExport.snapshot(kind)`. It comes back once the
+whole AI system is complete, and then it should mirror the layers and their mapping visually (the layer
+table under M3C: who owns what, what flows down and up), not the old policy-node view alone.
 URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?soldierCull=0` (draw soldiers outside the view too), `?clipPack=0` (parse every clip from its FBX instead of the prepared pack), `?fastRetarget=0` (retarget clips with the old matrix loop), `?cloneBounds=1` (Babylon's skinned bounds when cloning a soldier), `?farHz=<n>` (re-pose soldiers beyond 100 m at n Hz, default 10), `?boneTextures=1` / `=0` (force bone matrices through a texture per skeleton / shader uniforms; default: uniforms where the GPU has room), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?tracerPool=0` (a new line mesh per tracer, as before the pool), `?fxPrewarm=0` (build muzzle flashes, tracer lines and decals on first use, as before), `?perfTimings=1`, `?bench=1` (device benchmark, below). Behaviour A/B flags (they change the battle; for paired benchmarks only, via the standard benchmark's `query` input): `?perception=0` (perception before #55: no view cone or sector scan, nothing heard or relayed), `?geScout=carbine` (German scouts on the generic 250 m carbine instead of the FG 42), `?mind=0` / `?mind=observe` / `?mind=react,aim,hesitate,shock` (soldier condition, module 17: off; state kept but nothing reads it; only the levers named; default all).
 
 ## Test harnesses
@@ -460,8 +467,8 @@ orders live leases (`active()`, `top()`); `timer: true` marks a pure clock that 
 `expired` once its time is up (the Squad Leader prunes each command tick); kinds whose expired record
 still means something (`objective-security`, `succession`, `regroup`) are never timers; `progress` is
 a read-only "is this hold getting anywhere?" test. The session export lists each squad's live and
-recently ended leases and `missionHeldBy`, and the AI Graph **Leases** panel (`modules/37-lease-panel.js`)
-shows them live. Don't add a new `...Until` field for a hold. Deliberately not leases: fireteam order renewal (on the order
+recently ended leases and `missionHeldBy`; the AI Graph **Leases** panel (`modules/37-lease-panel.js`, stashed
+with the graph) shows them live when the graph is on. Don't add a new `...Until` field for a hold. Deliberately not leases: fireteam order renewal (on the order
 record), the garrison request (a standing constraint), and execution timing inside one owner.
 
 **Loadouts and sidearms.** What a man is issued is `SquadAI.LOADOUTS` by role (`loadoutFor(role, faction)`
