@@ -2,15 +2,26 @@
 
    This is deliberately observational. It records whether a side has made objective progress and
    whether its squads still carry role/target intent; Force Command remains responsible for the
-   eventual replan policy. Keeping the signal separate makes a stalled plan visible before we
-   teach the commander to react to it automatically.
+   replan policy and reads two numbers from here: `objectiveStallSeconds` and `lastObjectiveProgressAt`
+   (its strategic-stall wake, commander-ai.js). `replanDue` and `replanReasons` are diagnostics for
+   readers of the export; nothing in the runtime consumes them.
+
+   One clock. A stall is "due" for a replan at the moment the General wakes on it, so the threshold is
+   the General's own, BattleCommanderAI.strategicStallReplan (120 s), read when it is used. This module
+   used to carry a second constant, 12 s, that flagged `objective-stalled` ten times earlier than
+   anything acted on it, so the export said a replan was due for 108 s in which the General did nothing.
+   With no General loaded nobody replans, so no stall is ever due.
 */
 (function (root) {
   'use strict';
   if (!root.BattleModules || root.BattleAICoordinationHealth) return;
 
-  var SAMPLE_SECONDS = 2,
-    REPLAN_AFTER = 12;
+  var SAMPLE_SECONDS = 2;
+  function replanAfter() {
+    var command = root.BattleCommanderAI,
+      seconds = command ? +command.strategicStallReplan : 0;
+    return seconds > 0 ? seconds : Infinity;
+  }
   function now(sim) {
     return sim && isFinite(+sim.time) ? +sim.time : 0;
   }
@@ -58,7 +69,7 @@
       reasons = [];
     if (missingRoles) reasons.push('missing-role');
     if (missingTargets) reasons.push('missing-target');
-    if (assaulting > 0 && stalled >= REPLAN_AFTER) reasons.push('objective-stalled');
+    if (assaulting > 0 && stalled >= replanAfter()) reasons.push('objective-stalled');
     return {
       activeSquads: active,
       assignedRoles: assignedRole,
@@ -83,15 +94,15 @@
       lastSample: t,
       lastObjectiveProgressAt: t,
       objectiveSignature: objectiveSignature(sim),
-      replanAfter: REPLAN_AFTER,
+      replanAfter: replanAfter(),
       sides: { us: sideHealth(sim, 'us', t), ge: sideHealth(sim, 'ge', t) }
     };
   }
-  /* Not gated on trainingMode. Force Command consumes `replanDue` from this sampler, so skipping
-   it under training/benchmark runs did not disable a diagnostic - it froze one the commander
-   reads at its t=0 value (every squad targetless, so permanently "replan due", and
-   objectiveStallSeconds permanently 0) for the whole battle, and made the benchmark exercise
-   different recovery logic from live play. */
+  /* Not gated on trainingMode. Force Command reads `objectiveStallSeconds` and `lastObjectiveProgressAt`
+   from this sampler, so skipping it under training/benchmark runs did not disable a diagnostic - it
+   froze one the commander reads at its t=0 value (objectiveStallSeconds permanently 0, so the
+   strategic-stall wake never came) for the whole battle, and made the benchmark exercise different
+   recovery logic from live play. */
   function sample(sim) {
     if (!sim || sim.winner) return;
     var h = sim._coordinationHealth;
@@ -129,7 +140,9 @@
   });
   root.BattleAICoordinationHealth = {
     version: '1.0',
-    replanAfter: REPLAN_AFTER,
+    get replanAfter() {
+      return replanAfter();
+    },
     reset: reset,
     sample: sample,
     summary: function (sim) {

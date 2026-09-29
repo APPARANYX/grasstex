@@ -651,6 +651,15 @@
     return fired;
   }
 
+  /* The one writer of `suppressedUntil`, until when a man is pinned by fire (Engagement's `pinned` state and
+     the mind read it). Everything that pins a man comes through here: area fire on his position, a
+     suppressive round passing him (14-z) and a wound that did not drop him (14-wound-model). `seconds` is
+     the hold for an average man; a hold only ever extends. (Not BattleEngagement.suppress, which is a
+     soldier firing suppressive bursts.) */
+  function pin(target, battle, seconds) {
+    target.suppressedUntil = Math.max(target.suppressedUntil || 0, battle.time + seconds);
+  }
+
   function areaFire(shooter, point, battle) {
     if (!EXT.pass('areaFireGate', shooter, battle, point)) return 0;
     if (shooter.fireCooldown > 0 || !canSuppress(shooter, point, battle)) return 0;
@@ -665,7 +674,7 @@
       var e = enemies[i];
       if (e.dead) continue;
       if (dist2(e.root.position.x, e.root.position.z, point.x, point.z) > spread) continue;
-      e.suppressedUntil = Math.max(e.suppressedUntil || 0, battle.time + hold);
+      pin(e, battle, hold);
       hit++;
     }
     var rounds = discharge(shooter, battle, burstLength(stats, battle, d), function () {});
@@ -705,7 +714,7 @@
     );
     acc = clamp(acc, 0.02, 0.95);
     var hit = rand(battle) < acc;
-    if (stats.suppressive) target.suppressedUntil = battle.time + SUPPRESSION_TIME;
+    if (stats.suppressive) pin(target, battle, SUPPRESSION_TIME);
     if (hit) applyHit(shooter, target, battle, null);
     battle.onShot && battle.onShot(shooter, target, hit, d);
     return hit;
@@ -1152,6 +1161,8 @@
     resolveFire: shot,
     applyHit: applyHit,
     areaFire: areaFire,
+    pin: pin,
+    SUPPRESSION_TIME: SUPPRESSION_TIME,
     canSuppress: canSuppress,
     shareContact: shareContact,
     squadContact: squadContact,

@@ -425,7 +425,7 @@
     var p = D.avgPos(sq),
       enemy = D.nearestEnemyToSquad(sim, sq),
       context = D.buildContext(sim, sq, chosen, enemy, p),
-      rule = root.BattleAIPolicy ? root.BattleAIPolicy.decide(genome(sim, sq.faction), context) : null;
+      rule = D.ruleFor(sim, sq.faction, context);
     var action = (rule && rule.action) || 'assault',
       axis = [];
     var vacant = root.BattleVacantObjectiveAssault;
@@ -685,8 +685,8 @@
     survivor.aliveCount = men.length;
     survivor.captainAlive = true;
     survivor.accuracyMultiplier = 1; // the leader-death penalty (BattleSim.killSoldier) ends with a leader
-    survivor.orderAnchor = { x: g.rally.x, z: g.rally.z };
-    survivor.rally = { x: g.rally.x, z: g.rally.z };
+    /* The re-formed squad is anchored on the group's rally point. The anchor is the Squad Leader's to publish. */
+    if (root.BattleSquadStability) root.BattleSquadStability.publishAnchor(survivor, g.rally);
     survivor._reconGroup = null;
     survivor.reconstitutedFrom = g.squads.slice();
     finishMission(sim, survivor, 'completed', 'reconstituted');

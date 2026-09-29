@@ -105,7 +105,7 @@
     if (z.speed) victim.woundSpeed = Math.max(MIN_SPEED, (victim.woundSpeed || 1) * z.speed);
     if (z.sigma) victim.woundSigma = Math.min(MAX_SIGMA, (victim.woundSigma || 1) * z.sigma);
     /* Being hit and staying up still puts a man down behind whatever he has for a moment. */
-    victim.suppressedUntil = Math.max(victim.suppressedUntil || 0, (+battle.time || 0) + SHOCK);
+    root.SquadAI.pin(victim, battle, SHOCK);
     return { zone: zone, outcome: 'wounded', damage: damage };
   }
 

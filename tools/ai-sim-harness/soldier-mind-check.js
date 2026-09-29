@@ -14,7 +14,15 @@
    - It draws nothing from the combat RNG: a battle with it observing is the same battle as one without.
    Mechanism, not dice: every check here is a deterministic consequence of the rules above. */
 const assert = require('node:assert/strict'),
+  fs = require('node:fs'),
+  path = require('node:path'),
   H = require('./harness');
+function load(r, file) {
+  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(r, r, {
+    log() {},
+    warn() {}
+  });
+}
 const log = console.log;
 console.log = (...a) => (typeof a[0] === 'string' && a[0][0] === '[' ? undefined : log(...a));
 let n = 0;
@@ -430,6 +438,72 @@ test('the squad aggregate counts men by band', () => {
   assert.equal(q.n, 5);
   assert.equal(q.shaken + q.rattled + q.broken >= 2, true);
   assert.ok(q.max >= 0.7 && q.mean > 0.2 && q.mean < 0.7);
+});
+
+/* The Squad Leader reads `squad.mind` next, so it must not report men who are gone. A squad with no living
+   man ticks nobody, so the roll-up that ran on a man's tick never ran for it again. */
+test('a squad with no living man is rolled up over nobody, not left holding the men who are gone', () => {
+  H.resetIds();
+  const r = H.bootstrap({ modules: false }),
+    systems = {};
+  r.BattleModules = {
+    registerSystem: (id, s) => (systems[id] = s),
+    unitsFor: b => (b._roster.us || []).concat(b._roster.ge || [])
+  };
+  load(r, 'battle/modules/17-soldier-mind.js');
+  const M = r.BattleSoldierMind,
+    hook = systems['soldier-mind'],
+    b = H.makeBattle(r, { seed: SEED }),
+    squad = (id, x, seed) =>
+      H.addSquad(r, b, { id, faction: 'us', x, z: 0, objective: { x, z: 100 }, facing: 0, seed }),
+    wiped = squad('us-0', 0, SEED),
+    absorbed = squad('us-1', 200, SEED + 2),
+    held = squad('us-2', 400, SEED + 3);
+  [wiped, absorbed, held].forEach(q =>
+    q.members.forEach((s, i) => {
+      put(s, q.rally.x + 0.5 * i, 20);
+    })
+  );
+  b.time = 10;
+  for (let i = 0; i < 2; i++) {
+    b.time += H.AI_TICK;
+    [wiped, absorbed, held].forEach(q => q.members.forEach(s => M.tick(s, b)));
+  }
+  for (const q of [wiped, absorbed, held]) assert.equal(q.mind.n, 10, q.id + ' is rolled up over its men');
+  [0.2, 0.5, 0.9].forEach((v, i) => (wiped.members[i].mind.stress = v));
+
+  wiped.members.forEach(s => b.killSoldier(s, null)); // wiped out
+  absorbed.members = []; // absorbed by a reconstitution merge (commander-ai mergeGroup empties the list)
+  held.members.slice(1).forEach(s => b.killSoldier(s, null)); // one man left standing
+  b.time += H.AI_TICK;
+  hook.onSimulationStep(b);
+
+  for (const q of [wiped, absorbed]) {
+    const m = q.mind;
+    assert.deepEqual(
+      [m.n, m.mean, m.max, m.shaken, m.rattled, m.broken],
+      [0, 0, 0, 0, 0, 0],
+      q.id + ' has no one, so its roll-up says so'
+    );
+    assert.equal(m.at, b.time, q.id + ' is stamped with when it was found empty');
+  }
+  const at = wiped.mind.at;
+  b.time += 3;
+  hook.onSimulationStep(b);
+  assert.equal(wiped.mind.at, at, 'settled once: the empty roll-up is not rewritten every step');
+
+  assert.equal(held.mind.n, 10, 'a squad with a man standing is left to his own tick');
+  b.time += H.AI_TICK;
+  M.tick(held.members[0], b);
+  assert.equal(held.mind.n, 1, 'and his next tick rolls it up over the one man');
+
+  const off = H.bootstrap({ modules: false });
+  off.BattleModules = { registerSystem() {}, unitsFor: () => [] };
+  load(off, 'battle/modules/17-soldier-mind.js');
+  off.BattleSoldierMind.configure('?mind=0');
+  const stale = { members: [], mind: { n: 4, at: 1 } };
+  off.BattleSoldierMind.settle({ time: 9, factions: { us: { squads: [stale] }, ge: { squads: [] } } });
+  assert.equal(stale.mind.n, 4, 'with ?mind=0 the module touches nothing');
 });
 
 test('the module writes only `mind`: stance, destination, target and suppression are untouched', () => {
