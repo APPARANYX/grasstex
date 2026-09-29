@@ -37,7 +37,7 @@ Keep one owner per decision class. The existing hierarchy remains the foundation
 ```
 Force Command: mission, objective, priority, commitment
         ↓
-Captain Local Plan: approach, local axis, fire/support positions, task allocation
+Squad Leader Local Plan: approach, local axis, fire/support positions, task allocation
         ↓
 Squad Plan: formation, fireteam anchors, order slots, bounded plan lease
         ↓
@@ -59,7 +59,7 @@ ideas to WWII-era roles, weapons, and communications rather than copy their cont
 | AI layer | Primary sources | Use in this simulation |
 |---|---|---|
 | Force Command | MCDP 1-3; MCWP 3-01 | Decisive point, main effort, reserve, offensive/defensive transition, success exploitation |
-| Captain / platoon coordinator | MCTP 12-10B; MCRP 3-10A.3; MCWP 3-01 | Local mission plan, squad cooperation, control measures, support allocation, handoff and consolidation |
+| Squad Leader / platoon coordinator | MCTP 12-10B; MCRP 3-10A.3; MCWP 3-01 | Local mission plan, squad cooperation, control measures, support allocation, handoff and consolidation |
 | Squad / fireteam | MCRP 3-10A.4; MCWP 3-35.3 | Fireteam organization, local formation, support/security/assault tasks, contact response, patrol and urban task structure |
 | Scout / information input | MCTP 3-01A | Observation, route confidence, contact reports, information aging, patrol/recon task state |
 | Automatic-weapon specialist | MCTP 3-01C | Sustainable support state, sector coverage, position suitability, ammunition and heat/readiness abstraction |
@@ -86,7 +86,7 @@ second commander and not a movement writer.
 ```
 Force Command ── declares main effort, priority, and desired effect
         │
-        ├── Captain Local Plan ── requests/coordinates local support
+        ├── Squad Leader Local Plan ── requests/coordinates local support
         │
         └── CombinedArmsCoordinator ── validates capacity, timing, constraints, and acknowledgement
                  ├── Armor AI ───────── vehicle route, position, direct-fire task, self-preservation
@@ -100,7 +100,7 @@ Squad Plan → Movement Resolver → Engagement
 
 - **Force Command** chooses which objective and effort receives scarce support. A main-effort shift
   is invalid unless its support and reserve commitments change with it.
-- **Captain Local Plan** asks for a bounded effect at a named location and time window; it never
+- **Squad Leader Local Plan** asks for a bounded effect at a named location and time window; it never
   drives a tank, aircraft, or artillery piece by writing infantry destinations.
 - **Asset controllers** own their asset's route, position, readiness, and execution. They can refuse
   an impossible request and must expose why.
@@ -209,7 +209,7 @@ Supported effect cards:
   latency and availability.
 - **shape:** scheduled support that creates a time window for the already-declared main effort.
 
-The Fires Controller owns effect scheduling and cancellation. Captain Local Plan decides whether a
+The Fires Controller owns effect scheduling and cancellation. Squad Leader Local Plan decides whether a
 returned window is still useful; Squad Plan and Engagement respond to the resulting observed state.
 No fire-support module changes a squad's movement intent or claims a capture outcome.
 
@@ -281,7 +281,7 @@ The AI graph needs a visible companion branch, linked to but separate from the i
 chain:
 
 ```
-Force Intent → Captain Plan → Support Request → Asset Controller → Effect Window → Observed Result
+Force Intent → Squad Leader Plan → Support Request → Asset Controller → Effect Window → Observed Result
        │              │                                                        │
        └──────────────┴────── reassessment / next intent ──────────────────────┘
 ```
@@ -387,13 +387,13 @@ contain confidence as well as observations; unknown is a valid value, not a zero
 |---|---|---|
 | Decisive point | Objective, route junction, building, or corridor whose control changes the local balance | Force Command |
 | Main effort | The squad/task given the current priority and commitment budget | Force Command |
-| Supporting effort | Squad that protects a route, fixes pressure, holds ground, or enables the main effort | Captain / Force Command |
-| Local advantage | Friendly/enemy strength, cover, LOS, cohesion, position, and initiative score with confidence | Captain |
-| Control | Observed occupancy and line-of-sight influence over a structure, street segment, or objective sector | Captain / Objective system |
+| Supporting effort | Squad that protects a route, fixes pressure, holds ground, or enables the main effort | Squad Leader / Force Command |
+| Local advantage | Friendly/enemy strength, cover, LOS, cohesion, position, and initiative score with confidence | Squad Leader |
+| Control | Observed occupancy and line-of-sight influence over a structure, street segment, or objective sector | Squad Leader / Objective system |
 | Tempo | Time from contact or opportunity to a coherent, valid plan—not raw walking speed | All layers |
 | Commitment | A named lease with owner, expiry, release conditions, and progress test | Intent resolver |
 | Success | A threshold event: objective captured, route opened, enemy displaced, or pressure broken | Force Command |
-| Enemy hypothesis | Likely next enemy action and its confidence, derived from recent observations | Force / Captain |
+| Enemy hypothesis | Likely next enemy action and its confidence, derived from recent observations | Force / Squad Leader |
 
 Every decision records `reason`, `confidence`, `expectedProgress`, `reassessAt`, and `abortConditions`.
 That makes tactical behavior inspectable and prevents a score from looking like certainty.
@@ -487,7 +487,7 @@ reconnoiter → isolate → foothold → systematic control → reorganize/conso
 - **handoff or exploit:** transfer a verified building picture to its holder, or use the controlled
   structure to enable the next decisive point.
 
-For every building plan, Captain Local Plan allocates three **intent roles**: `assault` (advances the
+For every building plan, Squad Leader Local Plan allocates three **intent roles**: `assault` (advances the
 control plan), `support` (enables the plan from a compatible position), and `security` (guards graph
 connections and the local rear/flanks). These are task assignments, not competing destination
 writers. Squad Orders turns them into formation/order proposals; Movement Resolver and Engagement
@@ -525,7 +525,7 @@ retain their existing physical-movement ownership.
 }
 ```
 
-The future `Captain Local Plan` owns this data. `engagement.js` still owns each soldier’s cover,
+The future `Squad Leader Local Plan` owns this data. `engagement.js` still owns each soldier’s cover,
 stance, firing decision, and final combat movement.
 
 ## Street and route-control model
@@ -538,11 +538,11 @@ plan, not as a generic formation move.
 observe route → establish local support → transition → confirm far-side control → continue or hold
 ```
 
-The captain assigns maneuver, support, and local-security roles at fireteam granularity. The active
+The Squad Leader assigns maneuver, support, and local-security roles at fireteam granularity. The active
 movement team receives a short progress-bound lease; support holds a sector until a release condition
 is met; local security maintains route/connection observation. Rotate the active role only after a
 valid transition or a measured readiness/exposure reason. If the transition cannot progress, the
-captain should choose `reroute`, `regroup`, or `request-support`—not repeatedly reissue the same
+Squad Leader should choose `reroute`, `regroup`, or `request-support`—not repeatedly reissue the same
 point.
 
 Useful route-control signals:
@@ -615,7 +615,7 @@ Replace a single capture-circle mindset with **sectors and responsibilities**.
    and a successor/adjacent force can cover the exposed route.
 
 The existing capture-zone module can remain the win-state authority. A new tactical-security module
-should submit sector constraints to the Captain plan rather than overwrite `commandPhase` or
+should submit sector constraints to the Squad Leader plan rather than overwrite `commandPhase` or
 `objective` itself.
 
 ## Contact, adaptation, and tempo
@@ -627,7 +627,7 @@ plan → execute → contact/constraint → assess → adapt → execute
                     └→ abort/recover → replan
 ```
 
-Contact does not automatically mean retreat or a whole-squad regroup. The captain evaluates local
+Contact does not automatically mean retreat or a whole-squad regroup. The Squad Leader evaluates local
 advantage and chooses one bounded response: hold, gain cover, shift approach, request support,
 continue under a valid plan, or recover. Force Command changes the mission only when the tactical
 change affects the objective decision.
@@ -667,7 +667,7 @@ local opportunity within the parent intent; it cannot silently replace the strat
   subsurface nodes, street segments, building cells, sector visibility, and confidence decay.
 - Add enemy hypotheses and opportunity records with evidence, confidence, expected effect, and
   expiry; expose both confirmed facts and inferences distinctly.
-- Extend diagnostics export and AI graph with: urban operation state; Force Intent → Captain Plan →
+- Extend diagnostics export and AI graph with: urban operation state; Force Intent → Squad Leader Plan →
   Squad Plan → Movement Resolver → Engagement; selected approach/route; active lease; progress;
   abort reason; confidence.
 - Add counters for plan churn, no-progress transitions, cell-control confidence, secure handoffs, and
@@ -684,15 +684,15 @@ local opportunity within the parent intent; it cannot silently replace the strat
 
 **Done when:** conflict telemetry reports zero strategic-field ownership conflicts in a normal match.
 
-### Phase C — Captain local planner
+### Phase C — Squad Leader local planner
 
-- Create a `captain-local-plan` module that consumes Force Intent plus `TacticalSituation`.
+- Create a `squad-leader-local-plan` module that consumes Force Intent plus `TacticalSituation`.
 - Implement local tasks: approach, support, route-transition, structure-control, objective-security,
   recover, and handoff.
-- Degrade predictably when the captain is unavailable: retain the current valid plan, then use a
+- Degrade predictably when the Squad Leader is unavailable: retain the current valid plan, then use a
   conservative squad fallback.
 
-**Done when:** Force Command selects *what* to seize/secure and Captain selects *how locally*
+**Done when:** Force Command selects *what* to seize/secure and Squad Leader selects *how locally*
 without changing the strategic objective.
 
 ### Phase D — Streets and structures
@@ -719,7 +719,7 @@ the next decisive point.
 
 - Build deterministic scenario tests: open-ground objective, contested intersection, blocked street,
   single structure, multi-structure objective, hidden upper/lower route, counterattack, loss of
-  captain, and post-capture exploitation.
+  Squad Leader, and post-capture exploitation.
 - Score mission completion, casualties, time, plan churn, invalid movement ownership, and objective
   security; do not optimize only for kills or walking speed.
 - Keep a replay corpus and compare policy revisions against the same seeds.
@@ -746,7 +746,7 @@ was denied or delayed, and that no asset controller changed an infantry destinat
   fuel/readiness bands, and `VehicleTask` leases.
 - Introduce one direct-support armor profile and one anti-armor profile before expanding the roster.
   Validate approach, reserve, withdrawal/recovery, and route-denial behavior against fixed seeds.
-- Teach Captain Local Plan to request a vehicle effect/position window, never to command a vehicle
+- Teach Squad Leader Local Plan to request a vehicle effect/position window, never to command a vehicle
   path or use vehicle proximity as proof of objective control.
 
 **Done when:** vehicles support or constrain a local plan without colliding with infantry movement
