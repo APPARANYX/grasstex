@@ -66,6 +66,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `squad-phase-check.js` | Squad Leader command phases are declared as data behind one transition function; setup/regroup remain silent, mission changes retain their telemetry, and mutations cannot add another writer. |
 | `macro-state-check.js` | Macro brief lifecycle (`issued → executing → terminal`) has one owner; ordinary and repeated assembly acceptance keep their legacy clocks/events, and terminal records stay immutable. |
 | `state-ownership-check.js` | Static ownership ratchet for Engagement state/clocks, Squad Leader `commandPhase`, and Macro brief/status, including alias/bracket/mutation APIs and only the two guarded setup fallbacks. |
+| `wire-map-check.js` | Writer-file ratchet over every squad, soldier, Engagement-record (`soldier.eng`) and mind field (`wire-map.js`: a dependency-free scan of `battle/`; chains, `delete`, prefix `++`, indexed receivers and per-file aliases). Each field that more than one file writes is in `fixtures/wire-map-baseline.json` with a role per writer (owner, layer, setup, fallback, slot, body, debt) and a reason; debt names its phase or `unscheduled`. A new writer file, or a new field with two, fails until the baseline says why; a listed writer that stopped writing fails until its entry is removed, so the list only shrinks. Also: scanner fixtures (what it finds and what it ignores), real recall anchors, agreement with `state-ownership-check.js`, and an excluded file may write only what `EXCLUDED_WRITES` declares. |
 | `objective-nav-check.js` | Real worst-seed defects: never permanently refused a step at a building, no all-squads-one-objective, a side attacks at most 2 objectives at once yet every objective is attacked once the efforts before it fall, capture progress survives an interrupted hold, door/window routing, `stepMovement` aim smoothing |
 | `tactical-positions-check.js` | Window/hardpoint reservation ownership, ingress routes, release reasons, diagnostics |
 | `cover-positions-check.js` | Cover-slot selection against obstacles and physical footprints |
@@ -309,7 +310,10 @@ artifact and the run summary. Local Playwright runs are for probes and single-se
 
 **Prime rule: one owner per responsibility.** Fix a bad behaviour at the layer that owns it. Don't
 stack cooldowns, blockers, retries or extra movement writers to make one counter improve. A fix is
-good if the system is easier to explain afterwards.
+good if the system is easier to explain afterwards. `wire-map-check.js` holds the rule: every squad,
+soldier or Engagement-record field that more than one file writes is listed, with a role and a reason,
+in `tools/ai-sim-harness/fixtures/wire-map-baseline.json`, and the list only shrinks. A new writer
+file needs an entry there, which a reviewer sees; a fix that removes a writer must remove its entry.
 
 `General (Macro) → Squad Leader (Meso) → Engagement → Movement Resolver → Movement Execution → Navigation`.
 Intent flows down and status flows up. No layer rewrites another's state.
