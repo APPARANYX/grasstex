@@ -422,8 +422,23 @@ function isUpper(canonName){
 var scenes=typeof WeakMap!=='undefined'?new WeakMap():null;
 function sceneState(scene){
   var st=scenes?scenes.get(scene):scene._battleFbxSoldier;
-  if(!st){st={enabled:true,libs:{},clips:null,bones:null,loading:null,ready:false,active:[],error:null};if(scenes)scenes.set(scene,st);else scene._battleFbxSoldier=st;}
+  if(!st){st={enabled:true,libs:{},clips:null,bones:null,loading:null,ready:false,active:[],error:null,surfaceBlank:null};if(scenes)scenes.set(scene,st);else scene._battleFbxSoldier=st;}
   return st;
+}
+/* All imported soldier materials are frozen after load. A material can only switch to a mesh-owned
+   decal texture later if its shader was compiled with the decal path from the start, so every
+   soldier mesh initially points at this one shared transparent pixel. It costs no per-soldier RTT;
+   a private 512² UV map replaces it only on that mesh's first wound. */
+function surfaceBlankMap(scene){
+  var st=sceneState(scene);
+  if(st.surfaceBlank)return st.surfaceBlank.map;
+  var tex=BABYLON.RawTexture.CreateRGBATexture(new Uint8Array([0,0,0,0]),1,1,scene,false,false,BABYLON.Texture.NEAREST_SAMPLINGMODE);
+  tex.hasAlpha=true;tex.gammaSpace=false;
+  if(BABYLON.Texture.CLAMP_ADDRESSMODE!=null)tex.wrapU=tex.wrapV=BABYLON.Texture.CLAMP_ADDRESSMODE;
+  var map={texture:tex,isReady:function(){return true;}};
+  st.surfaceBlank={texture:tex,map:map};
+  scene.onDisposeObservable.addOnce(function(){try{tex.dispose();}catch(_){}st.surfaceBlank=null;});
+  return map;
 }
 /* Soldier assets can live beside a branch preview's runtime; everything else is shared. */
 function assetBase(){return String(root.BATTLE_SOLDIER_ASSET_BASE||root.BATTLE_ASSET_BASE||'../Assets/').replace(/\/?$/,'/');}
@@ -507,6 +522,11 @@ function prepareModel(container){
        soldier is posed, turning those triangles away from the camera. Culled, they read as holes;
        draw both sides, lit from whichever side faces the viewer. */
     m.backFaceCulling=false;if('twoSidedLighting' in m)m.twoSidedLighting=true;
+    /* Surface damage is mesh-owned (mesh.decalMap), while this material remains shared by every
+       clone of the model. Babylon implements decal maps as a material plugin, and that plugin must
+       exist before the material's first render. Enable the capability now, before freeze; no per-
+       soldier render target is allocated until that particular mesh is actually wounded. */
+    try{if(m.decalMap){m.decalMap.isEnabled=true;m.decalMap.smoothAlpha=true;}}catch(_){}
     /* Imported soldier materials never change after preparation. Freeze shader/material dirty
        checks once the import-time adjustments above are complete. */
     if(m.freeze)m.freeze();
@@ -1115,10 +1135,24 @@ function bind(soldier,scene,st,lib,faction){
          authoritative obstacle/soldier data, and body picking is disabled. Because they are
          always active, synchronizing bounding info every frame cannot affect visibility either. */
       n.doNotSyncBoundingInfo=true;
+      /* Compile the shared/frozen material in decal-capable mode with a shared transparent pixel.
+         surfaceDamageMap() swaps only this mesh to a private RTT when it is first wounded. */
+      try{n.decalMap=surfaceBlankMap(scene);}catch(_){}
       meshes.push(n);
     }
   });
-  holder.onDisposeObservable.add(function(){inst.skeletons.forEach(function(k){k.dispose();});});
+  holder.onDisposeObservable.add(function(){
+    /* A wounded mesh lazily owns its UV-space damage renderer. It is not part of the shared
+       material, so dispose it with this soldier only. */
+    meshes.forEach(function(m){
+      var d=m._battleSurfaceDamage;
+      if(!d)return;
+      try{if(d.renderer)d.renderer.dispose();}catch(_){}
+      try{m.decalMap=null;}catch(_){}
+      m._battleSurfaceDamage=null;
+    });
+    inst.skeletons.forEach(function(k){k.dispose();});
+  });
   /* Babylon's Skeleton.prepare copies every linked bone node into its bone each frame, which marks
      the bones dirty and rebuilds and re-uploads all bone matrices even when nothing moved. Our bone
      nodes only change when applyPose runs, so a soldier's skeletons prepare once per pose (poseSerial,
@@ -1950,14 +1984,92 @@ function skinSample(anchor,outPos,outNormal){
   return true;
 }
 
+
+/* ---- Per-soldier UV-space surface damage ---------------------------------------------------
+   V1 deliberately works with today's monolithic soldier meshes. The imported material and its
+   base uniform/skin textures stay shared across every clone; only a wounded mesh gets a private
+   512x512 transparent decal map. Babylon's UV-space projection shader includes bone skinning, so
+   projecting at the live skin-anchor position writes into the correct UV island and the mark then
+   deforms for free with later poses. Rigid/segmented helmet and gear meshes can use the same path
+   later without changing this contract. */
+var SURFACE_DAMAGE_SIZE=512;
+function surfaceDamageMap(mesh){
+  if(!mesh||!BABYLON.MeshUVSpaceRenderer||!mesh.getScene||!mesh.getVerticesData)return null;
+  if(mesh.isDisposed&&mesh.isDisposed())return null;
+  var uv=mesh.getVerticesData(BABYLON.VertexBuffer.UVKind);
+  if(!uv||uv.length<2)return null;
+  var d=mesh._battleSurfaceDamage;
+  if(d&&d.renderer)return d;
+  try{
+    var renderer=new BABYLON.MeshUVSpaceRenderer(mesh,mesh.getScene(),{
+      width:SURFACE_DAMAGE_SIZE,height:SURFACE_DAMAGE_SIZE,generateMipMaps:true,
+      optimizeUVAllocation:true,uvEdgeBlending:true
+    });
+    renderer.clearColor=new BABYLON.Color4(0,0,0,0);
+    mesh.decalMap=renderer;
+    d=mesh._battleSurfaceDamage={renderer:renderer,resolution:SURFACE_DAMAGE_SIZE,wounds:0,epoch:0};
+    return d;
+  }catch(e){
+    console.warn('[ANIM] UV surface-damage map unavailable on '+(mesh.name||'soldier mesh'),e);
+    return null;
+  }
+}
+function paintSurfaceWound(anchor,stamp,out,diameter,angle){
+  var mesh=anchor&&anchor.mesh;if(!mesh||!stamp)return null;
+  var p=new V3(),n=new V3();
+  if(!skinSample(anchor,p,n))return null;
+  if(out&&n.x*out.x+n.y*out.y+n.z*out.z<0)n.scaleInPlace(-1);
+  var d=surfaceDamageMap(mesh);if(!d)return null;
+  var size=Math.max(.025,+diameter||.1),depth=Math.max(.06,Math.min(.28,size*1.5)),
+    epoch=d.epoch,woundNo=++d.wounds,scene=mesh.getScene(),timer=(scene&&scene.getEngine)?root.setTimeout:setTimeout;
+  function project(){
+    /* First-use shader/RTT creation can finish after the hit event. Re-sample the live anchor at
+       the actual draw moment so animation/fast-forward cannot make the projection miss the body. */
+    if(!mesh._battleSurfaceDamage||mesh._battleSurfaceDamage!==d||d.epoch!==epoch||(mesh.isDisposed&&mesh.isDisposed()))return;
+    try{
+      if(d.renderer.isReady&&!d.renderer.isReady()){
+        timer(project,16);
+        return;
+      }
+      var q=new V3(),sn=new V3();
+      if(!skinSample(anchor,q,sn))return;
+      if(out&&sn.x*out.x+sn.y*out.y+sn.z*out.z<0)sn.scaleInPlace(-1);
+      d.renderer.renderTexture(stamp,q,sn,new V3(size,size,depth),angle||0,false);
+    }catch(e){
+      console.warn('[ANIM] delayed UV wound projection failed',e);
+    }
+  }
+  try{
+    if(d.renderer.isReady&&!d.renderer.isReady())timer(project,16);
+    else d.renderer.renderTexture(stamp,p,n,new V3(size,size,depth),angle||0,false);
+    return{mesh:mesh,renderer:d.renderer,position:p,normal:n,resolution:d.resolution,wounds:woundNo,pending:!!(d.renderer.isReady&&!d.renderer.isReady())};
+  }catch(e){
+    d.wounds=Math.max(0,d.wounds-1);
+    console.warn('[ANIM] UV wound projection failed; body FX will use its skinned-quad fallback',e);
+    return null;
+  }
+}
+function clearSurfaceDamage(soldier){
+  var fx=soldier&&soldier._fbx;if(!fx)return 0,n=0;
+  fx.meshes.forEach(function(mesh){
+    var d=mesh._battleSurfaceDamage;if(!d||!d.renderer)return;
+    d.epoch++;
+    try{d.renderer.clear();d.wounds=0;n++;}catch(_){}
+  });
+  return n;
+}
+
 root.BattleFbxSoldier={
-  version:'1.4-skin-anchors',backend:BACKEND,clips:CLIPS,models:MODELS,modelSet:MODEL_SET,
+  version:'1.5-uv-surface-damage',backend:BACKEND,clips:CLIPS,models:MODELS,modelSet:MODEL_SET,
   load:loadLibrary,
   /* Read-only: the soldier's bone node by canonical name ('head', 'spine2', 'leftupleg'...), for
      presentation that rides the body (wound decals). Null on the procedural rig. */
   boneNode:function(soldier,name){var fx=soldier&&soldier._fbx,i=fx&&fx.st&&fx.st.bones?fx.st.bones.indexOf(name):-1;return i>=0&&fx.nodes[i]||null;},
   skinAnchor:skinAnchor,
   skinSample:skinSample,
+  paintSurfaceWound:paintSurfaceWound,
+  clearSurfaceDamage:clearSurfaceDamage,
+  surfaceDamageResolution:SURFACE_DAMAGE_SIZE,
   sidecars:function(){return{contacts:Object.keys(SIDE_CONTACTS),points:Object.keys(SIDE_MODEL_POINTS),arms:Object.keys(SIDE_ARM),wrists:Object.keys(SIDE_WRISTR),leftGrips:Object.keys(SIDE_LEFT_GRIP)};},
   status:function(scene){var st=sceneState(scene),sockets={};Object.keys(st.libs||{}).forEach(function(f){var lib=st.libs[f],p=lib.palms||{};sockets[f]={right:p[BONE.rightHand+'Source']||null,left:p[BONE.leftHand+'Source']||null,aimHandSpacingM:lib.supportHand&&lib.supportHand.along||0,sidecar:!!SIDE_CONTACTS[f],sideWeapons:SIDE_MODEL_POINTS[f]?Object.keys(SIDE_MODEL_POINTS[f]):[],sideArms:SIDE_ARM[f]?Object.keys(SIDE_ARM[f]):[],sideWrists:SIDE_WRISTR[f]?Object.keys(SIDE_WRISTR[f]):[],sideLeftGrips:SIDE_LEFT_GRIP[f]?Object.keys(SIDE_LEFT_GRIP[f]):[]};});return{ready:st.ready,enabled:st.enabled,error:st.error?String(st.error.message||st.error):null,active:st.active.length,clips:st.clips?Object.keys(st.clips).length:0,bones:st.bones?st.bones.length:0,sockets:sockets,sidecars:Object.keys(SIDE_CONTACTS)};},
   clip:function(scene,key){var st=sceneState(scene);return st.clips&&st.clips[key]||null;},
