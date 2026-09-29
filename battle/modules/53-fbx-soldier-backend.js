@@ -2025,6 +2025,16 @@ function surfaceDamageMap(mesh){
     return null;
   }
 }
+/* The UV projection is an ordinary render-target pass, and Babylon skips a disabled mesh in it. The
+   off-screen cull (cullApply) disables a soldier's meshes, so a wound landing on a man out of view
+   painted nothing and the permanent map never got the mark: those soldiers stayed clean while the
+   ones on screen collected every decal. Draw the pass with the mesh enabled, then put it back. */
+function projectNow(mesh,renderer,stamp,p,n,size,depth,angle){
+  var was=mesh.isEnabled();
+  if(!was)mesh.setEnabled(true);
+  try{renderer.renderTexture(stamp,p,n,new V3(size,size,depth),angle||0,false);}
+  finally{if(!was)mesh.setEnabled(false);}
+}
 function paintSurfaceWound(anchor,stamp,out,diameter,angle){
   var mesh=anchor&&anchor.mesh;if(!mesh||!stamp)return null;
   var p=new V3(),n=new V3();
@@ -2045,14 +2055,14 @@ function paintSurfaceWound(anchor,stamp,out,diameter,angle){
       var q=new V3(),sn=new V3();
       if(!skinSample(anchor,q,sn))return;
       if(out&&sn.x*out.x+sn.y*out.y+sn.z*out.z<0)sn.scaleInPlace(-1);
-      d.renderer.renderTexture(stamp,q,sn,new V3(size,size,depth),angle||0,false);
+      projectNow(mesh,d.renderer,stamp,q,sn,size,depth,angle);
     }catch(e){
       console.warn('[ANIM] delayed UV wound projection failed',e);
     }
   }
   try{
     if(d.renderer.isReady&&!d.renderer.isReady())timer(project,16);
-    else d.renderer.renderTexture(stamp,p,n,new V3(size,size,depth),angle||0,false);
+    else projectNow(mesh,d.renderer,stamp,p,n,size,depth,angle);
     return{mesh:mesh,renderer:d.renderer,position:p,normal:n,resolution:d.resolution,wounds:woundNo,pending:!!(d.renderer.isReady&&!d.renderer.isReady())};
   }catch(e){
     d.wounds=Math.max(0,d.wounds-1);

@@ -480,8 +480,10 @@
       at3 = exit ? pass.exit : pass.entry,
       dir = exit ? pass.exitDirection || pass.direction : pass.direction;
     if (!victim || !dir || !at3) return;
-    var mine = 0;
-    for (var i = 0; i < st.body.length; i++) if (st.body[i].soldier === victim) mine++;
+    /* UV marks are permanent but st.body is a FIFO of MAX_BODY_DECALS, so once it turns over the list
+       forgets a man's old marks: count them on the man too, or a body shot again keeps collecting blood. */
+    var mine = victim._uvWoundMarks || 0;
+    for (var i = 0; i < st.body.length; i++) if (!st.body[i].uv && st.body[i].soldier === victim) mine++;
     if (mine >= MAX_PER_SOLDIER) return;
     while (st.body.length >= MAX_BODY_DECALS) disposeBodyEntry(st.body.shift());
 
@@ -499,6 +501,7 @@
     if (skin && F && F.paintSurfaceWound) {
       var painted = F.paintSurfaceWound(skin, surfaceStamp(sim, st, kind, cellAt.col), out, s, roll);
       if (painted) {
+        victim._uvWoundMarks = (victim._uvWoundMarks || 0) + 1;
         rememberSurfaceMap(st, painted.renderer, victim);
         st.body.push({
           uv: true,
