@@ -249,4 +249,42 @@ test('TAC: a more aware man spots an enemy 150 m ahead that an average man (140 
   assert.equal(seen(0), false, 'and the dullest cannot: 119 m');
 });
 
+/* ---- MKM: how wide his shot group is ---------------------------------------------------------- */
+
+test('MKM: a better marksman shoots a tighter group; the average man exactly the flat sigma', () => {
+  const build = opts => {
+    const w = world(opts);
+    loadInto(w.r, 'battle/modules/14-z-ballistic-raycast.js');
+    return w;
+  };
+  const w = build(),
+    { b, r, St, us } = w;
+  const B = r.BattleBallistics,
+    shooter = rifleman(us, 0),
+    stats = shooter.weapon.stats;
+  const sigma = mkm => {
+    set(St, shooter, { mkm });
+    return B.dispersionSigma(shooter, stats, 100, b, 0);
+  };
+  const mid = sigma(0.5);
+  near(sigma(1) / mid, 0.6, 1e-9, 'marksmanship 1');
+  near(sigma(0) / mid, 1.4, 1e-9, 'marksmanship 0');
+  const flat = build({ stats: false });
+  near(
+    flat.r.BattleBallistics.dispersionSigma(
+      rifleman(flat.us, 0),
+      rifleman(flat.us, 0).weapon.stats,
+      100,
+      flat.b,
+      0
+    ) / mid,
+    1,
+    1e-12,
+    'the average man is the flat sigma'
+  );
+  const off = build({ search: '?stats=0' }),
+    o = set(off.St, rifleman(off.us, 0), { mkm: 1 });
+  near(off.r.BattleBallistics.dispersionSigma(o, o.weapon.stats, 100, off.b, 0) / mid, 1, 1e-12, '?stats=0');
+});
+
 console.log('stats-levers-check: ' + n + ' passed');
