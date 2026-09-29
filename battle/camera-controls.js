@@ -1,6 +1,7 @@
 (function(global){
   'use strict';
   var FLY_SPEED=68,FLY_SPRINT=175,THROTTLE_MIN=.01,THROTTLE_PER_PIXEL=.00288,DELTA_UNIT_PX=[1,16,400];
+  var FOLLOW_DEFAULT=10,FOLLOW_MIN=3,FOLLOW_MAX=90,FOLLOW_BETA=1.18,FOLLOW_HEIGHT=1.05,ORBIT_SPEED=.22;
   var LOOK_X=.0022,LOOK_Y=.0018,PITCH_LIMIT=Math.PI*.46,MAX_HEIGHT=420,GROUND_CLEARANCE=2;
   var PAD_DEADZONE=.16,PAD_LOOK_RATE=2.35,PAD_PRECISION=.28,PAD_THROTTLE_STEP=1.35;
   var KEY_HINT='Camera: click to look · WASD move · wheel speed · Q/E up/down · Shift sprint · Esc releases';
@@ -10,6 +11,30 @@
   function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
   function desktopPointer(){return !!(global.matchMedia&&global.matchMedia('(pointer:fine)').matches);}
   function hasGamepadAPI(){return !!(global.navigator&&typeof global.navigator.getGamepads==='function');}
+  function queryParams(){try{return new URLSearchParams(global.location&&global.location.search||'');}catch(_){return new URLSearchParams();}}
+  function queryNumber(q,key,fallback,min,max){
+    if(!q.has(key))return fallback;
+    var n=+q.get(key);if(!isFinite(n))return fallback;
+    return clamp(n,min,max);
+  }
+  function livingSoldiers(b){
+    if(!b||!b._roster)return[];
+    return (b._roster.us||[]).concat(b._roster.ge||[]).filter(function(s){return s&&s.root&&!s.dead;});
+  }
+  function busiestSoldier(all){
+    var best=null,bestN=-1;
+    all.forEach(function(s){
+      var n=0,p=s.root.position;
+      all.forEach(function(o){var d=o.root.position,dx=d.x-p.x,dz=d.z-p.z;if(dx*dx+dz*dz<3600)n++;});
+      if(n>bestN){bestN=n;best=s;}
+    });
+    return best;
+  }
+  function nearestLiving(all,from){
+    var best=null,bestD=Infinity;
+    all.forEach(function(s){var p=s.root.position,dx=p.x-from.x,dz=p.z-from.z,d=dx*dx+dz*dz;if(d<bestD){bestD=d;best=s;}});
+    return best;
+  }
   function initialPosition(target,radius,alpha,beta){
     return new BABYLON.Vector3(
       target.x+radius*Math.cos(alpha)*Math.sin(beta),
@@ -122,8 +147,75 @@
     updateHint(activeGamepad());
     return {camera:camera,desktop:true,hint:KEY_HINT+(activeGamepad()?' · '+PAD_HINT:'')};
   }
+  /* Normal-play presentation camera for visual testing. `?follow=1` follows the busiest living soldier from a close, persistent ArcRotate camera.
+     `?orbit=1` implies follow and slowly circles him. The camera never writes simulation state;
+     it only reads the roster/root transforms, and three sim seconds after the followed man dies it
+     transfers to the nearest survivor. `followDist` and `orbitSpeed` are intentionally URL-driven so
+     screenshots and visual QA are reproducible without touching benchmark-only camera code. */
+  function createPersistentFollow(options,target,q){
+    var scene=options.scene,canvas=options.canvas,engine=options.engine,
+      orbit=q.get('orbit')==='1',
+      distance=queryNumber(q,'followDist',FOLLOW_DEFAULT,FOLLOW_MIN,FOLLOW_MAX),
+      orbitSpeed=queryNumber(q,'orbitSpeed',ORBIT_SPEED,-1.5,1.5),
+      height=queryNumber(q,'followHeight',FOLLOW_HEIGHT,.2,3),
+      beta=queryNumber(q,'followBeta',FOLLOW_BETA,.4,1.48),
+      alpha=queryNumber(q,'followAlpha',-Math.PI/2,-Math.PI*4,Math.PI*4),
+      cam=new BABYLON.ArcRotateCamera('followCam',alpha,beta,distance,target.clone?target.clone():target,scene);
+    cam.minZ=.08;cam.maxZ=2600;cam.lowerRadiusLimit=FOLLOW_MIN;cam.upperRadiusLimit=FOLLOW_MAX;
+    cam.lowerBetaLimit=.35;cam.upperBetaLimit=1.5;cam.wheelPrecision=18;cam.panningSensibility=0;
+    cam.attachControl(canvas,true);scene.activeCamera=cam;
+    var man=null,deadAt=null,lastWall=global.performance&&performance.now?performance.now():Date.now(),info={
+      mode:'follow',distance:distance,orbit:orbit,orbitSpeed:orbitSpeed,height:height,
+      current:null,followed:[],switches:0
+    };
+    var obs=scene.onBeforeRenderObservable.add(function persistentFollowCamera(){
+      var wallNow=global.performance&&performance.now?performance.now():Date.now(),
+        orbitDt=Math.min(2,Math.max(0,(wallNow-lastWall)/1000));lastWall=wallNow;
+      var b=global.__battle__;if(!b||!b._roster)return;
+      var roster=(b._roster.us||[]).concat(b._roster.ge||[]);
+      if(man&&roster.indexOf(man)<0){man=null;deadAt=null;}
+      var all=livingSoldiers(b);
+      if(!man&&all.length){
+        man=busiestSoldier(all);deadAt=null;
+        if(man){
+          info.current=man.id;if(info.followed.length<100)info.followed.push(man.id);
+          /* First acquisition should open on the soldier, not spend a second flying in from the
+             scenario centre. Later motion stays smoothed. */
+          var first=man.root.position;
+          cam.target.set(first.x,first.y+height,first.z);
+        }
+      }
+      if(!man)return;
+      if(man.dead){
+        if(deadAt==null)deadAt=b.time;
+        if(b.time-deadAt>=3&&all.length){
+          var next=nearestLiving(all,man.root.position);
+          if(next){man=next;deadAt=null;info.current=man.id;info.switches++;if(info.followed.length<100)info.followed.push(man.id);}
+        }
+      }else deadAt=null;
+      if(!man.root)return;
+      var t=man.root.position,rawDt=Math.max(0,engine.getDeltaTime()/1000),
+        smoothDt=Math.min(.05,rawDt),k=1-Math.exp(-smoothDt*12);
+      cam.target.x+=(t.x-cam.target.x)*k;
+      cam.target.y+=(t.y+height-cam.target.y)*k;
+      cam.target.z+=(t.z-cam.target.z)*k;
+      /* Orbit is a real-time inspection speed, not a per-frame speed. Do not apply the follow
+         smoothing clamp here or low-FPS devices/headless validation orbit in slow motion. */
+      if(orbit)cam.alpha+=orbitSpeed*orbitDt;
+      info.current=man.id;info.radius=cam.radius;info.alpha=cam.alpha;info.beta=cam.beta;
+    });
+    var hint=(orbit?'Follow orbit':'Follow camera')+': '+distance.toFixed(distance%1?1:0)+' m · drag to orbit · wheel zoom'+
+      (orbit?' · auto '+orbitSpeed.toFixed(2)+' rad/s':'')+' · switches on death';
+    return{
+      camera:cam,desktop:false,hint:hint,mode:'follow',follow:info,
+      stop:function(){scene.onBeforeRenderObservable.remove(obs);try{cam.detachControl(canvas);}catch(_){}}
+    };
+  }
+
   function createAdaptive(options,target){
-    var scene=options.scene,canvas=options.canvas,engine=options.engine,battleSim=options.battleSim;
+    var scene=options.scene,canvas=options.canvas,engine=options.engine,battleSim=options.battleSim,
+      q=queryParams(),followRequested=q.get('follow')==='1'||q.get('orbit')==='1';
+    if(followRequested)return createPersistentFollow(options,target,q);
     var initialPad=activeGamepad();
     var initial=(desktopPointer()||initialPad)?createDesktopFly(scene,canvas,target,engine,battleSim):createTouchOrbit(scene,canvas,target);
     var state={camera:initial.camera,desktop:initial.desktop,hint:initial.hint};
@@ -150,10 +242,16 @@
     return state;
   }
   global.BattleDesktopCamera={
+    current:null,
     create:function(options){
       var target=new BABYLON.Vector3(options.scenario.center.x,4,options.scenario.center.z);
       var result=createAdaptive(options,target);
-      console.log('[CAMERA] '+(result.desktop?'ww2fps Model Lab desktop/gamepad fly controls':'touch orbit controls; waiting for gamepad wake')+' active');
+      global.BattleDesktopCamera.current=result;
+      if(result.mode==='follow'){
+        console.log('[CAMERA] persistent follow active · distance='+result.follow.distance+'m · orbit='+(result.follow.orbit?'on':'off')+' · orbitSpeed='+result.follow.orbitSpeed);
+      }else{
+        console.log('[CAMERA] '+(result.desktop?'ww2fps Model Lab desktop/gamepad fly controls':'touch orbit controls; waiting for gamepad wake')+' active');
+      }
       return result;
     }
   };
