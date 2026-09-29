@@ -94,4 +94,20 @@ test('an advancing man not under fire does not go back to cover; under fire or d
   assert.ok(pinned.state==='bound'||pinned.state==='pinned','under fire any cover is survival: '+pinned.state);
   assert.equal(decideWith('defend',false).state,'bound','a defender may still take cover behind him');
 });
+/* A bound is a dash with its own window. A live battle held men in `bound` for minutes, 0.4-2 m
+   short of a slot they could not reach (inside movement progress's 3 m near band, so never
+   flagged): past its window he re-decides, and that cover is marked failed so he does not take it
+   straight back. Inside the window he keeps going. */
+test('a bound that overruns its window re-decides and does not retake the same cover',()=>{
+  const f=fixture([{type:'rock',x:0,z:0,y:0,radius:1.3,height:1,cover:.55}]);
+  f.q.commandPhase='defend';f.b.time=10;
+  const e=f.E.stateOf(f.s),cover=f.E.findCover(f.s,f.b);assert.ok(cover,'fixture cover');
+  e.state='bound';e.since=2;e.cover=cover;e.until=f.b.time+3;
+  f.E.updateSoldier(f.s,f.b);
+  assert.equal(e.state,'bound','inside its window the bound goes on');assert.equal(e.cover.x,cover.x);
+  f.b.time=14;f.E.updateSoldier(f.s,f.b);
+  const same=e.state==='bound'&&e.cover&&Math.hypot(e.cover.x-cover.x,e.cover.z-cover.z)<.5;
+  assert.ok(!same,'still bounding to the cover he overran: '+e.state);
+  assert.equal(f.r.BattleMovementProgress.candidateAllowed(f.s,f.b,cover),false,'the overrun cover is marked failed');
+});
 console.log(checks+' cover checks passed; '+failures+' failed.');if(failures)process.exitCode=1;

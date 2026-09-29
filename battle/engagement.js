@@ -1040,6 +1040,17 @@
       enter(s, battle, 'engage', 0, 'reached cover');
       return engage(s, battle);
     }
+    /* A bound is a dash with its own window (enter: distance over speed plus slack). One that
+       overruns it without arriving is not getting there - blocked short of the slot by another
+       body, a push, or a stronger order in the resolver - and movement progress cannot see it
+       inside its 3 m near band. Treat it as the unreachable case above: mark this cover failed for
+       a while and re-decide from where he stands (a live battle held men in `bound` for minutes). */
+    if (battle.time >= e.until) {
+      if (root.BattleMovementProgress)
+        root.BattleMovementProgress.noteFailure(s, battle, cover, 'bound-overran');
+      decide(s, battle, 'bound overran');
+      return;
+    }
     var suppressed = s.suppressedUntil > battle.time,
       /* An urgent cover move (module 44's drill) is a crouched run, never a crawl. */
       crawl = suppressed && d < 14 && PRONE_ROLES[s.role] && !e.urgentBound;
