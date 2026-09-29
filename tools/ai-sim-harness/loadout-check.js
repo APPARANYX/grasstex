@@ -23,6 +23,7 @@ function test(name, fn) {
 H.resetIds();
 const r = H.bootstrap(),
   S = r.SquadAI;
+const SECONDARY = { sergeant: 'pistol', gunner: 'pistol' };
 const BEFORE = { sergeant: 'smg', rifleman: 'rifle', gunner: 'lmg', scout: 'carbine', engineer: 'rifle' };
 
 test('roles carry no weapon', () => {
@@ -31,6 +32,17 @@ test('roles carry no weapon', () => {
 test('default loadouts deal what the roles carried', () => {
   for (const f of ['us', 'ge'])
     for (const [role, kind] of Object.entries(BEFORE)) assert.equal(S.loadoutFor(role, f).primary, kind, f + '/' + role);
+});
+test('sergeants and gunners carry a holstered sidearm, the side\'s own', () => {
+  const b = H.makeBattle(r, { seed: 6 });
+  for (const f of ['us', 'ge']) {
+    const sq = H.addSquad(r, b, { id: f + '-s', faction: f, x: 0, z: 0, objective: { x: 0, z: 100 } });
+    for (const s of sq.members) {
+      const want = SECONDARY[s.role] || null;
+      assert.equal(s.secondary && s.secondary.kind, want, f + '/' + s.role);
+      if (want) assert.equal(s.secondary.profile, f === 'us' ? 'm1911a1' : 'p38');
+    }
+  }
 });
 test('the composition needs no other kind', () => {
   for (const role of S.COMPOSITION) assert.ok(S.LOADOUTS[role], role);

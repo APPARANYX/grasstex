@@ -94,8 +94,8 @@ function addSquad(root,battle,opts){
     composition.forEach(function(role,slot){
       const jx=opts.x+((slot%5)-2)*2.5,jz=opts.z+(Math.floor(slot/5)-1)*2.5;
       const model={root:{position:vec(jx,battle.heightAt(jx,jz),jz),rotation:{x:0,y:opts.facing==null?0:opts.facing,z:0}}};
-      const weapon=root.BattleWeapons.attachWeapon(null,{},SquadAI.loadoutFor(role,opts.faction).primary);
-      const soldier=SquadAI.createSoldier({id:nextId++,faction:opts.faction,role:role,squad:squad,slotIndex:slot,model:model,weapon:weapon});
+      const deal=SquadAI.dealLoadout(null,{},role,opts.faction);
+      const soldier=SquadAI.createSoldier({id:nextId++,faction:opts.faction,role:role,squad:squad,slotIndex:slot,model:model,weapon:deal.weapon,secondary:deal.secondary});
       soldier.fireCooldown=0;squad.members.push(soldier);battle._roster[opts.faction].push(soldier);battle.factions[opts.faction].alive++;
     });
   });

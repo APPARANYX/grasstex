@@ -19,9 +19,9 @@
      left the leader out of every fight past 25 m. `loadoutFor` is the only place a role picks a
      weapon, so a per-man variation (sniper, sidearm) is a new loadout, not a new code path. */
   var LOADOUTS = {
-    sergeant: { primary: 'smg' },
+    sergeant: { primary: 'smg', secondary: 'pistol' },
     rifleman: { primary: 'rifle' },
-    gunner: { primary: 'lmg' },
+    gunner: { primary: 'lmg', secondary: 'pistol' },
     scout: { primary: 'carbine' },
     engineer: { primary: 'rifle' }
   };
@@ -32,7 +32,19 @@
   }
   function loadoutFor(role, faction) {
     var l = LOADOUTS[role] || LOADOUTS.rifleman;
-    return { primary: l.primary };
+    return { primary: l.primary, secondary: l.secondary || null };
+  }
+  /* Build a man's weapons from his loadout: the primary he carries out, and a sidearm holstered
+     (hidden, ready for `BattleWeapons.equip`). Both are the side's own weapon for the kind. */
+  function dealLoadout(scene, socket, role, faction) {
+    var l = loadoutFor(role, faction),
+      W = root.BattleWeapons,
+      out = { weapon: W.attachWeapon(scene, socket, l.primary), secondary: null };
+    if (l.secondary) {
+      out.secondary = W.attachWeapon(scene, socket, l.secondary);
+      W.holster(out.secondary);
+    }
+    return out;
   }
   var COMPOSITION = [
     'sergeant',
@@ -880,6 +892,8 @@
     /* Each side carries its own weapon for the kind (Garand or Kar98k, M1919A6 or MG42...). */
     if (opts.weapon && root.BattleWeapons && root.BattleWeapons.issue)
       root.BattleWeapons.issue(opts.weapon, opts.faction);
+    if (opts.secondary && root.BattleWeapons && root.BattleWeapons.issue)
+      root.BattleWeapons.issue(opts.secondary, opts.faction);
     return Object.assign({}, opts.model, {
       id: opts.id,
       faction: opts.faction,
@@ -887,6 +901,7 @@
       squad: opts.squad,
       slotIndex: opts.slotIndex,
       weapon: opts.weapon,
+      secondary: opts.secondary || null,
       hp: role.hp,
       maxHp: role.hp,
       state: 'advance',
@@ -1094,6 +1109,7 @@
     ROLES: ROLES,
     LOADOUTS: LOADOUTS,
     loadoutFor: loadoutFor,
+    dealLoadout: dealLoadout,
     isMachineGun: isMachineGun,
     COMPOSITION: COMPOSITION,
     createSquad: createSquad,
