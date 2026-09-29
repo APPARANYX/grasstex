@@ -153,14 +153,18 @@ local red-ground page, and reuse these harnesses instead of writing one-off prob
   a raised inspection deck. The range uses the shipping FBX models, weapon presentation, hit/death
   animation bridge and impact/UV-wound system; Fire itself does not alter HP, while **Kill** is
   explicit so wounds can accumulate before a death pose is inspected. Controls in the page select
-  target and zone, entry-only vs through-shot, single/3-shot, auto cycling, orbit, clear and reset.
+  target and zone, entry-only vs through-shot, single/3-shot, auto cycling, orbit, FPS aim, clear and reset.
+  FPS aim puts a UniversalCamera just in front of the shooter's face/chest line, shows a centered reticle,
+  and sends shots through the reticle: body hits are classified into head/chest/abdomen/arm/leg while a
+  miss paints the backstop. Drag/touch or the right stick aims; changing target/zone recenters the reticle.
   The panel is docked off-center and collapsible; `rangeAuto=1` starts with the compact panel unless
   `rangeUi=full` is supplied (`rangeUi=compact` forces compact mode). Keyboard: Space fire, arrows
-  target, 1-5 zone, E exit, O orbit, A auto, C clear. Xbox/standard gamepad: A fire, X 3-shot,
-  D-pad left/right target, D-pad up/down zone, Y auto, B clear, LB exit, RB orbit, right stick orbit,
-  LT/RT zoom, R3 kill, View toggles the panel. URL setup: `rangeTarget=0..9`,
-  `rangeZone=head|chest|abdomen|arm|leg`, `rangeExit=0|1`, `rangeAuto=0|1`,
-  `rangeInterval=<seconds>`, `rangeOrbit=0|1`, `rangeDist=<metres>`, `rangeUi=full|compact`.
+  target, 1-5 zone, F FPS aim, E exit, O orbit, A auto, C clear. Xbox/standard gamepad: A fire,
+  RT also fires in FPS aim, X 3-shot, D-pad left/right target, D-pad up/down zone, Menu toggles FPS,
+  Y auto, B clear, LB exit, RB orbit, right stick aim/orbit, LT ADS in FPS, R3 kill, View toggles the panel.
+  URL setup: `rangeTarget=0..9`, `rangeZone=head|chest|abdomen|arm|leg`, `rangeExit=0|1`,
+  `rangeAuto=0|1`, `rangeInterval=<seconds>`, `rangeOrbit=0|1`, `rangeDist=<metres>`,
+  `rangeUi=full|compact`, `rangeFps=0|1`.
 - **Every model with its weapon, plus the Motion Lab poses:** `scripts/fbx-soldier-lineup.cjs`
   (see Soldiers, weapons, animation).
 - **Pistol support hand numbers:** `scripts/probe_pistol_cup.cjs` (see the replay table below).
