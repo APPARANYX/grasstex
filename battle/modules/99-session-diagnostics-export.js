@@ -189,6 +189,7 @@ function soldier(s){
     clearingStoppage:!!(s&&s.clearingStoppage),stoppageUntil:finite(+(s&&s.stoppageUntil)),outOfAmmo:!!(s&&s.outOfAmmo),
     weapon:{kind:w.kind||null,ammo:finite(+w.ammo),reserveAmmo:finite(+w.reserveAmmo),magSize:finite(+w.magSize),heat:finite(+w.heat),jammed:!!w.jammed},
     ammoState:safePlain(s&&s._ammoState,3),engagement:engagement(s),
+    mind:root.BattleSoldierMind?root.BattleSoldierMind.snapshot(s):null,
     movement:safePlain(s&&s._movementResolver?{last:s._movementResolver.last,changes:s._movementResolver.changes,requests:s._movementResolver.requests,history:(s._movementResolver.history||[]).slice(-6)}:null,5),
     movementProgress:safePlain(s&&s._movementProgress?{stuck:!!s._movementProgress.stuck,recoveries:s._movementProgress.recoveries||0,goalUnreachable:!!s._movementGoalUnreachable}:null,3),
     positionalTask:root.BattleTacticalPositions?safePlain(root.BattleTacticalPositions.current(s),7):null
@@ -204,6 +205,7 @@ function squad(sq,sim){
     /* Macro brief (General-owned) vs Squad Leader execution (Meso-owned): the two halves of the mission contract. */
     mission:safePlain(sq._macroMission?Object.assign({},sq._macroMission,{key:undefined}):null,4),lastMission:safePlain(sq._lastMacroMission?Object.assign({},sq._lastMacroMission,{key:undefined}):null,4),
     captainRequest:safePlain(sq._macroMissionRequest,3),
+    mind:safePlain(sq.mind,3),
     /* Owned commitments (BattleLeases): what is live, who owns it, why, what releases it, and which one holds the mission now. */
     leases:root.BattleLeases?safePlain(root.BattleLeases.active(sq,sq._battleSim?+sq._battleSim.time||0:0),4):null,
     recentLeases:safePlain(sq._leases&&sq._leases.ended,4),missionHeldBy:sq._missionHold||null,
