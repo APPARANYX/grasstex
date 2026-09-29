@@ -17,7 +17,8 @@
  * Env:
  *   CLOSEUP_URL     page URL (default local)
  *   CLOSEUP_SEED    battle seed (default closeup)
- *   CLOSEUP_TARGET  casualty (first man down), wounded (alive with a wound or lost hp), any,
+ *   CLOSEUP_TARGET  casualty (first man down), wounded (alive with a wound or lost hp), stressed (alive and
+ *                   rattled or worse, soldier condition), any,
  *                   role:<us|ge>/<role> (e.g. role:ge/gunner), id:<n>. Default casualty.
  *   CLOSEUP_COUNT   how many matching soldiers to photograph (default 1)
  *   CLOSEUP_AFTER   sim seconds to keep running after the first match, e.g. to let a death clip
@@ -27,6 +28,8 @@
  *   CLOSEUP_WAIT    give up after this many sim seconds (default 240)
  *   CLOSEUP_OUT     output dir (default $TMPDIR/closeup); writes <view>-<id>.png + summary.json
  *   CLOSEUP_UI=1    keep the HUD in the shots (hidden by default)
+ *   CLOSEUP_OVERLAY comma list of World Debug layers to switch on before the photos (e.g. composure:
+ *                   a ring over every shaken, rattled or broken man, a cross on a frozen one)
  * Exits non-zero if the page throws, never builds a battle, or no soldier matches in time.
  */
 const fs = require('node:fs');
@@ -50,6 +53,7 @@ const DIST = Number(process.env.CLOSEUP_DIST || 2.4);
 const WAIT = Number(process.env.CLOSEUP_WAIT || 240);
 const OUT = path.resolve(process.env.CLOSEUP_OUT || path.join(os.tmpdir(), 'closeup'));
 const SHOW_UI = process.env.CLOSEUP_UI === '1';
+const OVERLAY = (process.env.CLOSEUP_OVERLAY || '').split(',').map(v => v.trim()).filter(Boolean);
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -118,6 +122,7 @@ const SHOW_UI = process.env.CLOSEUP_UI === '1';
       let test;
       if (target === 'casualty') test = down;
       else if (target === 'wounded') test = s => !down(s) && ((s.wounds && s.wounds.length) || s.hp < s.maxHp);
+      else if (target === 'stressed') test = s => !down(s) && !!s.mind && s.mind.band >= 2;
       else if (target === 'any') test = s => !down(s);
       else if (target.startsWith('role:')) { const [f, r] = target.slice(5).split('/'); test = s => s.faction === f && s.role === r && !down(s); }
       else if (target.startsWith('id:')) test = s => s.id === +target.slice(3);
@@ -150,6 +155,28 @@ const SHOW_UI = process.env.CLOSEUP_UI === '1';
         return (performance.now() - t0) / 6;
       });
       timings.frameMs = Math.round(frameMs);
+      if (OVERLAY.length) {
+        const on = await page.evaluate(names => {
+          const W = window.BattleWorldDebug;
+          if (!W) return null;
+          names.forEach(n => W.set(n, true));
+          window.__battle__.scene.render();
+          // Composure discs ride on their soldier's root and float above his head: measure how far each disc's
+          // centre is from him sideways, its height, and that it has geometry at all (an empty mesh draws nothing).
+          const b = window.__battle__, marks = b.scene.meshes.filter(m => /^wd-mark-dot-/.test(m.name) && m.parent);
+          let off = 0, empty = 0, low = 0;
+          marks.forEach(m => {
+            const a = m.getAbsolutePosition(), p = m.parent.getAbsolutePosition();
+            off = Math.max(off, Math.hypot(a.x - p.x, a.z - p.z));
+            if (m.getTotalVertices() === 0) empty++;
+            if (a.y - p.y < 1.5) low++;
+          });
+          return { on: names.filter(n => W.settings[n]), marks: marks.length, maxOffsetM: +off.toFixed(3), empty, low };
+        }, OVERLAY);
+        if (!on || on.on.length !== OVERLAY.length) fail.push('World Debug layers not enabled: ' + OVERLAY.join(','));
+        else if (!on.marks || on.empty || on.low || on.maxOffsetM > 0.05) fail.push('composure discs wrong: ' + JSON.stringify(on));
+        else console.log('OVERLAY ' + JSON.stringify(on));
+      }
       if (!SHOW_UI) await page.addStyleTag({ content: '*{visibility:hidden !important} canvas{visibility:visible !important}' });
       for (const id of found.ids) {
         for (const view of VIEWS) {
