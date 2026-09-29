@@ -66,6 +66,8 @@ function bootstrap(opts){
     load(root,'battle/modules/16-squad-plan-stability.js');
     /* The wound model owns what a hit does (hit zone, incapacitation, bleeding). */
     load(root,'battle/modules/14-wound-model.js');
+    /* Soldier condition: stress from fire, wounds and casualties, read by Engagement and the shot model. */
+    load(root,'battle/modules/17-soldier-mind.js');
   }
   return root;
 }
