@@ -657,7 +657,29 @@ before any effect is claimed.
   (what it parameterises, what the layers own, one owner per number, the unread `objectiveHoldWin` and the
   Node harness's missing default rules settled), bring the graph back to mirror the layers and their mapping,
   then flip `STASHED` in `ai-policy.js` and run `probe_ai_graph_stash.cjs` with `STASH_EXPECT=present` and a
-  paired benchmark against the defaults baseline. Not before.
+  paired benchmark against the defaults baseline. Not before. It must settle two things, and one direction is
+  recorded:
+  - **One default parameter surface.** The machines' numbers live in five places today: `BattleEngagement.tuning`,
+    module 16's bound timing and `cfg()` defaults, `BattleSoldierMind.tuning`, `commander-doctrine.js`
+    `FALLBACK`/`FALLBACK_DOCTRINE` and the genome's `DEFAULT_PARAMETERS`/`DEFAULT_DOCTRINE`. Make it one declared
+    table (name, owner layer, default, range, unit, the states that read it) that the genome, the harness and the
+    graph all read, so the duplicated defaults and `genome-gate-check.js`'s agreement test go away.
+  - **The genome tunes, it never rewires.** It may change the numbers and scoring weights the declared states read
+    (thresholds, holds, wake times, weights, inside their ranges) and pick among declared actions by weighted
+    score with a deterministic tiebreak. States, legal transitions and owners stay code (the Phase 1 tables), so
+    the ownership checks hold whatever a genome says: a genome cannot add a transition or a writer.
+  - **Direction, not committed: the genome as the basis for a very light LLM planner.** It would compose a
+    standing order from the declared vocabulary, e.g. "we need to retreat; base is reachable but the route
+    crosses enemy ground, so retreat to the last known safe location, wait there for reinforcement or another
+    retreating squad, and hold at the rally point to the last man until then". Its limits: it runs only on the
+    General's and Squad Leader's declared wakes (never per soldier or per tick); its output is data checked
+    against the vocabulary and executed through the existing owners (`transitionMission`, leases, the resolver),
+    so a bad output is rejected, not obeyed; it is deterministic (decisions recorded with the seed and replayed,
+    no live model call in a benchmark or fingerprint run, no combat-RNG draw). The example needs pieces that do not
+    exist yet, each a code state or action first, with the model only choosing among them: a per-side memory of
+    safe points ("last known safe location"), an assessment of a route through enemy ground, a hold with an exit
+    condition ("until reinforced or joined by a retreating squad"; today a retreating squad walks `to-base` and
+    reconstitution groups the `at-base` survivors at a rally point), and a hold-to-the-last-man terminal.
 
 **Watch only**
 
