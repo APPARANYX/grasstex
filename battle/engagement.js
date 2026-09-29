@@ -136,13 +136,19 @@
   function mind() {
     return root.BattleSoldierMind;
   }
+  /* What his own stats are worth (module 10, `BattleSoldierStats`): a multiplier around 1, exactly 1 for an
+     average man and when the module is absent or that stat's lever is off. */
+  function statScale(s, effect) {
+    var St = root.BattleSoldierStats;
+    return St ? St.scale(s, effect) : 1;
+  }
   /* Recognition takes this many times as long (1 for a steady man or with the lever off). */
   function stretch(s) {
     var M = mind();
     return M ? M.reactScale(s) : 1;
   }
   function recognition(s) {
-    return (REACT[s.role] || 0.7) * stretch(s);
+    return (REACT[s.role] || 0.7) * stretch(s) * statScale(s, 'recognition');
   }
   /* Until when what he just saw has him frozen: no aimed fire, and no march if he was only advancing. */
   function shockUntil(s) {
@@ -151,7 +157,7 @@
   }
   /* Recognition time, shortened when the squad has already called the contact. */
   function reactTime(s, battle) {
-    var base = ((REACT[s.role] || 0.7) + jitter(s, 0.06)) * stretch(s),
+    var base = ((REACT[s.role] || 0.7) + jitter(s, 0.06)) * stretch(s) * statScale(s, 'recognition'),
       contact = squadContact(s, battle);
     return contact && contact.seenBy !== s.id ? base * PREWARNED_REACT : base;
   }
@@ -198,7 +204,7 @@
   function commitStance(s, battle, stance, seconds) {
     var e = state(s);
     if (e.stance !== stance) {
-      e.fireReadyAt = Math.max(e.fireReadyAt, battle.time + AIM_SETTLE);
+      e.fireReadyAt = Math.max(e.fireReadyAt, battle.time + AIM_SETTLE * statScale(s, 'settle'));
       e.stance = stance;
     }
     e.stanceUntil =
@@ -1027,7 +1033,7 @@
       var sector = threatSector(s, s.target);
       if (e.threatSector != null && sectorDistance(e.threatSector, sector) > 1) {
         /* A threat from a materially different direction is a fresh problem: re-orient. */
-        e.fireReadyAt = Math.max(e.fireReadyAt, now + AIM_SETTLE);
+        e.fireReadyAt = Math.max(e.fireReadyAt, now + AIM_SETTLE * statScale(s, 'settle'));
         if (e.state === 'engage' || e.state === 'pinned')
           transition(s, battle, 'orient', recognition(s), 'new threat sector');
       }
@@ -1237,7 +1243,7 @@
     if (!holdStance(s, battle)) commitStance(s, battle, fightingStance(s, battle, d, here));
     if (SA().isMachineGun(s)) {
       if (!e.setUpSince) e.setUpSince = battle.time;
-      s.setUp = battle.time - e.setUpSince > GUNNER_SETUP;
+      s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
     } else s.setUp = false;
     tryFire(s, battle);
     if (battle.time >= (e.reviewAt || 0)) {
@@ -1363,7 +1369,7 @@
     if (d <= 0.35) {
       if (SA().isMachineGun(s)) {
         if (!e.setUpSince) e.setUpSince = battle.time;
-        s.setUp = battle.time - e.setUpSince > GUNNER_SETUP;
+        s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
       }
       if (s.target) {
         var tp = posOf(s.target),

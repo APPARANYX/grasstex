@@ -62,6 +62,8 @@ function bootstrap(opts){
   load(root,'battle/weapons.js');load(root,'battle/obstacle-field.js');load(root,'battle/squad-ai.js');load(root,'battle/engagement.js');
   if(opts.modules!==false){
     root.BattleModules={registerSystem(){},registerUnitType(){},registerObjectiveType(){},runHook(){},unitsFor(){return[];}};
+    /* Soldier stats (module 10) are opt-in here: {stats:true}. Absent, every reader gets 1 and the checks keep testing the flat constants. */
+    if(opts.stats)load(root,'battle/modules/10-soldier-stats.js');
     /* One squad-command owner replaces the old stability/plan/command-lock/regroup stack. */
     load(root,'battle/modules/16-squad-plan-stability.js');
     /* The wound model owns what a hit does (hit zone, incapacitation, bleeding). */
