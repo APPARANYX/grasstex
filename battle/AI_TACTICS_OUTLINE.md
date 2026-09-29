@@ -601,6 +601,27 @@ It may protect itself or react to immediate contact, but it cannot silently chan
 squad objective, or Force Intent. This preserves decentralized initiative without reintroducing the
 writer conflicts already fixed in the simulator.
 
+#### The soldier as a small stack
+
+Read as layers, the soldier is *sense → appraise → decide → act → report*. Sense is perception (view cones,
+what he is told or hears), decide is Engagement, act is the Movement Resolver and execution. **Appraise** was
+the missing layer: what the fight has done to him. It is now `soldier.mind` (`modules/17-soldier-mind.js`):
+
+- **condition** (shipped): `stress` 0..1 in four bands (steady, shaken, rattled, broken), raised by
+  suppression, wounds, friends falling near him, the leader falling, aimed rounds (by range), isolation and a
+  neighbour who is worse off, and eased by time, the leader, cover and steady company. It changes what he
+  costs himself, through four levers Engagement and the shot model read: slower recognition, a wider shot group,
+  hesitation before an ordered bound, a brief freeze after a comrade falls beside him. It is the source of
+  `readiness.suppression` in the fireteam contract above and rolls up per squad as `squad.mind` (status upward;
+  the Squad Leader does not read it yet).
+- **beliefs** (not yet): today a squad shares one `squad.contact`. The outline's "shared, time-stamped facts"
+  and "unknown is a valid value" need each man to hold what he saw, was told or heard, with age and confidence.
+- **buddy and callouts** (not yet): cooperation as messages that change the listener's state, after a delay and
+  sometimes not at all; pairs that cover and move for each other.
+
+The boundary above holds for all of it: the mind supplies numbers, Engagement decides what they cost, and no
+layer writes another's state (the mind writes only `mind`; Engagement stays the only stance writer).
+
 ## Objective security and defense
 
 Replace a single capture-circle mindset with **sectors and responsibilities**.

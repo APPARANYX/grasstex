@@ -98,6 +98,7 @@
         reviewAt: 0,
         setUpSince: 0,
         boundOrder: false,
+        boundWaitFrom: 0,
         suppressOrder: false,
         burstLeft: SUPPRESS_BURST,
         burstPauseUntil: 0
@@ -130,9 +131,27 @@
     var api = SA();
     return api && api.squadContact ? api.squadContact(s.squad, battle) : null;
   }
+  /* What the fight has done to a man (module 17, `BattleSoldierMind`): numbers only. Engagement decides
+     what they cost him, so stance and movement keep their one owner. Absent or off, every one is neutral. */
+  function mind() {
+    return root.BattleSoldierMind;
+  }
+  /* Recognition takes this many times as long (1 for a steady man or with the lever off). */
+  function stretch(s) {
+    var M = mind();
+    return M ? M.reactScale(s) : 1;
+  }
+  function recognition(s) {
+    return (REACT[s.role] || 0.7) * stretch(s);
+  }
+  /* Until when what he just saw has him frozen: no aimed fire, and no march if he was only advancing. */
+  function shockUntil(s) {
+    var M = mind();
+    return M ? M.shockUntil(s) : 0;
+  }
   /* Recognition time, shortened when the squad has already called the contact. */
   function reactTime(s, battle) {
-    var base = (REACT[s.role] || 0.7) + jitter(s, 0.06),
+    var base = ((REACT[s.role] || 0.7) + jitter(s, 0.06)) * stretch(s),
       contact = squadContact(s, battle);
     return contact && contact.seenBy !== s.id ? base * PREWARNED_REACT : base;
   }
@@ -686,7 +705,7 @@
   function fireAllowed(s, battle) {
     var e = state(s);
     if (!s.target || s.target.dead || s.reloading) return false;
-    if (battle.time < e.fireReadyAt) return false;
+    if (battle.time < e.fireReadyAt || battle.time < shockUntil(s)) return false;
     if (movingTooFast(s) || s.crawling) return false;
     if (facingError(s, posOf(s.target)) > AIM_CONE) return false;
     if (SA().isMachineGun(s) && !s.setUp && e.state === 'engage') return false; // the gun gets emplaced first
@@ -705,7 +724,8 @@
   function suppress(s, battle, point) {
     var e = state(s);
     if (!point || s.reloading || movingTooFast(s) || s.crawling) return false;
-    if (battle.time < e.burstPauseUntil || battle.time < e.fireReadyAt) return false;
+    if (battle.time < e.burstPauseUntil || battle.time < e.fireReadyAt || battle.time < shockUntil(s))
+      return false;
     if (facingError(s, point) > AIM_CONE) return false;
     if (!SA().areaFire(s, point, battle)) return false;
     e.burstLeft = (e.burstLeft || SUPPRESS_BURST) - 1;
@@ -804,6 +824,20 @@
       s.suppressedUntil > battle.time
     )
       return false;
+    /* A man who has been through it takes a moment before he goes. The order stands meanwhile: the wait
+       is capped under the Squad Leader's bound window, so he still moves, later and raggedly, which is
+       how a shaken fireteam bounds. A man frozen by what he just saw does not start one at all. */
+    if (battle.time < shockUntil(s)) return false;
+    var M = mind(),
+      wait = M ? M.hesitation(s) : 0;
+    if (wait > 0) {
+      if (!e.boundWaitFrom) {
+        e.boundWaitFrom = battle.time;
+        M.noteHesitation(s);
+      }
+      if (battle.time - e.boundWaitFrom < wait) return false;
+    }
+    e.boundWaitFrom = 0;
     e.boundOrder = false;
     var threat = s.target,
       known = knownThreat(s, battle);
@@ -880,7 +914,7 @@
         /* A threat from a materially different direction is a fresh problem: re-orient. */
         e.fireReadyAt = Math.max(e.fireReadyAt, now + AIM_SETTLE);
         if (e.state === 'engage' || e.state === 'pinned')
-          enter(s, battle, 'orient', REACT[s.role] || 0.7, 'new threat sector');
+          enter(s, battle, 'orient', recognition(s), 'new threat sector');
       }
       e.threatSector = sector;
     }
@@ -924,6 +958,14 @@
       enter(s, battle, 'orient', reactTime(s, battle), 'contact');
       return orient(s, battle);
     }
+    /* Frozen by what he just saw (a friend down beside him, the leader falling): still and down on one
+       knee for the moment it lasts. The hold is renewed each tick and lapses with the shock. */
+    if (battle.time < shockUntil(s)) {
+      var here = posOf(s);
+      move(s, battle, { x: here.x, z: here.z }, 'hold', 0.25);
+      commitStance(s, battle, 'crouch', Math.max(0.5, shockUntil(s) - battle.time));
+      return;
+    }
     /* Upright only on a quiet march: under fire, or while the squad is still in contact, he moves
        crouched rather than standing for the beat between two contacts. */
     var low = s.suppressedUntil > battle.time || !!(s.squad && s.squad.inContact);
@@ -942,7 +984,7 @@
     }
     holdPosition(s, battle);
     commitStance(s, battle, 'crouch', Math.max(0.8, e.until - battle.time));
-    e.fireReadyAt = Math.max(e.fireReadyAt, e.since + (REACT[s.role] || 0.7));
+    e.fireReadyAt = Math.max(e.fireReadyAt, e.since + recognition(s));
     if (battle.time >= e.until) decide(s, battle, 'oriented');
   }
 
@@ -1366,7 +1408,11 @@
   }
   function clearBoundOrders(sq) {
     var a = (sq && sq.members) || [];
-    for (var i = 0; i < a.length; i++) if (!a[i].dead) state(a[i]).boundOrder = false;
+    for (var i = 0; i < a.length; i++)
+      if (!a[i].dead) {
+        state(a[i]).boundOrder = false;
+        state(a[i]).boundWaitFrom = 0; // a wait belongs to the order it was made for
+      }
   }
 
   function resetSoldier(s) {
