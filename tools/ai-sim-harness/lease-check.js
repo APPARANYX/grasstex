@@ -9,6 +9,7 @@ function root(){
   const r=H.bootstrap({modules:false}),systems={};
   r.BattleModules={registerSystem(id,s){systems[id]=s;},getSystem(id){return systems[id];},unitsFor:b=>(b._roster.us||[]).concat(b._roster.ge||[])};
   r.BattleCommanderDoctrine={policyFor(){return{cohesionRadius:34,captainlessCohesion:26,routeArrivalRadius:8,captureCommitRatio:.82};}};
+  r.BattleCommanderAI={acceptMission(sim,sq){const m=sq._macroMission;if(m&&m.status==='issued'){m.status='executing';m.acceptedAt=sim.time;}}};
   load(r,'battle/movement-resolver.js');load(r,'battle/modules/16-squad-plan-stability.js');
   return{r,leader:systems['squad-command']};
 }
