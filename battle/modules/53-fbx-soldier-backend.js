@@ -2025,16 +2025,24 @@ function surfaceDamageMap(mesh){
     return null;
   }
 }
-/* The UV projection is an ordinary render-target pass, and Babylon skips a disabled mesh in it. The
-   off-screen cull (cullApply) disables a soldier's meshes, so a wound landing on a man out of view
-   painted nothing and the permanent map never got the mark: those soldiers stayed clean while the
-   ones on screen collected every decal. Draw the pass with the mesh enabled, then put it back. */
-function projectNow(mesh,renderer,stamp,p,n,size,depth,angle){
-  var was=mesh.isEnabled();
-  if(!was)mesh.setEnabled(true);
-  try{renderer.renderTexture(stamp,p,n,new V3(size,size,depth),angle||0,false);}
-  finally{if(!was)mesh.setEnabled(false);}
+/* MeshUVSpaceRenderer.isReady() turns true before its first pass can draw: a projection made in the
+   tick the map becomes ready (or the same tick it is created) leaves it empty, and only one made at
+   least a scene frame later lands (measured: 7 of 7 fresh maps ink after one frame, none in the
+   same tick). Every man's first wound hit that window, so the first mark on most bodies never
+   appeared. Treat the map as ready once a frame has rendered since isReady() first said so. */
+function surfaceReady(d,scene){
+  if(!d.renderer.isReady||!d.renderer.isReady())return false;
+  var f=scene&&scene.getFrameId?scene.getFrameId():0;
+  if(d.readyFrame==null)d.readyFrame=f;
+  return f>d.readyFrame;
 }
+/* The projection is an ordinary render-target pass, and Babylon skips a disabled mesh in it. The
+   off-screen cull (cullApply) disables a soldier's meshes, so a wound landing on a man out of view
+   used to paint nothing into his permanent map: those men stayed clean while the ones on screen
+   collected every decal. A culled man's wound waits (slow poll, no map or render target made for
+   him yet) and paints once his meshes draw again; its anchor is a skin vertex, so it lands on the
+   same spot of the body whatever pose he is in by then. */
+function surfaceDrawable(d,scene,mesh){return mesh.isEnabled()&&surfaceReady(d,scene);}
 function paintSurfaceWound(anchor,stamp,out,diameter,angle){
   var mesh=anchor&&anchor.mesh;if(!mesh||!stamp)return null;
   var p=new V3(),n=new V3();
@@ -2048,22 +2056,23 @@ function paintSurfaceWound(anchor,stamp,out,diameter,angle){
        the actual draw moment so animation/fast-forward cannot make the projection miss the body. */
     if(!mesh._battleSurfaceDamage||mesh._battleSurfaceDamage!==d||d.epoch!==epoch||(mesh.isDisposed&&mesh.isDisposed()))return;
     try{
-      if(d.renderer.isReady&&!d.renderer.isReady()){
-        timer(project,16);
+      if(!surfaceDrawable(d,scene,mesh)){
+        timer(project,mesh.isEnabled()?16:250);
         return;
       }
       var q=new V3(),sn=new V3();
       if(!skinSample(anchor,q,sn))return;
       if(out&&sn.x*out.x+sn.y*out.y+sn.z*out.z<0)sn.scaleInPlace(-1);
-      projectNow(mesh,d.renderer,stamp,q,sn,size,depth,angle);
+      d.renderer.renderTexture(stamp,q,sn,new V3(size,size,depth),angle||0,false);
     }catch(e){
       console.warn('[ANIM] delayed UV wound projection failed',e);
     }
   }
   try{
-    if(d.renderer.isReady&&!d.renderer.isReady())timer(project,16);
-    else projectNow(mesh,d.renderer,stamp,p,n,size,depth,angle);
-    return{mesh:mesh,renderer:d.renderer,position:p,normal:n,resolution:d.resolution,wounds:woundNo,pending:!!(d.renderer.isReady&&!d.renderer.isReady())};
+    var ready=surfaceDrawable(d,scene,mesh);
+    if(!ready)timer(project,mesh.isEnabled()?16:250);
+    else d.renderer.renderTexture(stamp,p,n,new V3(size,size,depth),angle||0,false);
+    return{mesh:mesh,renderer:d.renderer,position:p,normal:n,resolution:d.resolution,wounds:woundNo,pending:!ready};
   }catch(e){
     d.wounds=Math.max(0,d.wounds-1);
     console.warn('[ANIM] UV wound projection failed; body FX will use its skinned-quad fallback',e);
