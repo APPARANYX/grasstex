@@ -356,6 +356,25 @@
       broken: bands[3]
     };
   }
+  /* A squad with no living man ticks nobody, so `aggregate` never ran for it again: its roll-up kept the
+     last picture of men who are gone (n above 0, a mean and a max that nobody holds any more), whether
+     the squad was wiped out or absorbed by a merge. The Squad Leader reads that roll-up next, so a squad
+     left with no one is rolled up once more, over nobody (n 0, stamped with that time), and stays so. */
+  function anyLiving(sq) {
+    var mates = sq.members || [];
+    for (var i = 0; i < mates.length; i++) if (mates[i] && !mates[i].dead) return true;
+    return false;
+  }
+  function settle(sim, now) {
+    var sides = ['us', 'ge'];
+    for (var f = 0; f < sides.length; f++) {
+      var squads = (sim.factions && sim.factions[sides[f]] && sim.factions[sides[f]].squads) || [];
+      for (var i = 0; i < squads.length; i++) {
+        var sq = squads[i];
+        if (sq && sq.mind && sq.mind.n > 0 && !anyLiving(sq)) aggregate(sq, now);
+      }
+    }
+  }
   /* A trigger pull had this man as its target. */
   function aimedAt(victim, battle, info) {
     if (!MODE.on || !victim || victim.dead || !victim.squad || !info) return;
@@ -479,6 +498,7 @@
     onSimulationStep: function (sim) {
       if (!MODE.on) return;
       var t = +sim.time || 0;
+      settle(sim, t);
       if (t - (sim._mindSummaryAt || 0) >= 5) {
         sim._mindSummaryAt = t;
         sim._mindSummary = summary(sim);
@@ -515,6 +535,9 @@
     },
     of: of,
     tick: tick,
+    settle: function (sim) {
+      if (MODE.on && sim) settle(sim, +sim.time || 0);
+    },
     stress: stressOf,
     band: bandName,
     reactScale: reactScale,
