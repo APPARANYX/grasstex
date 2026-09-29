@@ -282,21 +282,6 @@
         }
       }
     },
-    "soldier._combatUrgentUntil": {
-      "owner": null,
-      "writers": {
-        "engagement.js": {
-          "as": "debt",
-          "why": "assault marks a rush urgent for 0.5 s. Cross-layer timer: 11-soldier-individuality reads it. Phase 2c decides its home.",
-          "fix": "phase 2c"
-        },
-        "modules/44-combat-urgency.js": {
-          "as": "debt",
-          "why": "The urgent-cover drill sets and clears the same window. Phase 2c decides its home.",
-          "fix": "phase 2c"
-        }
-      }
-    },
     "soldier._defensePost": {
       "owner": "modules/16-squad-plan-stability.js",
       "writers": {
@@ -893,26 +878,6 @@
           "as": "debt",
           "why": "peer-ammo",
           "fix": "unscheduled"
-        }
-      }
-    },
-    "soldier.suppressedUntil": {
-      "owner": null,
-      "writers": {
-        "modules/14-wound-model.js": {
-          "as": "debt",
-          "why": "A wound shocks the victim (SHOCK). Cross-layer timer read by Engagement and the mind. Phase 2c decides its home; phase 3a makes these events.",
-          "fix": "phase 2c"
-        },
-        "modules/14-z-ballistic-raycast.js": {
-          "as": "debt",
-          "why": "A suppressive round passing sets 1.3 s. Same timer; phase 2c.",
-          "fix": "phase 2c"
-        },
-        "squad-ai.js": {
-          "as": "debt",
-          "why": "areaFire and resolveFire set it (the fire pipeline is the natural producer). Same timer; phase 2c.",
-          "fix": "phase 2c"
         }
       }
     },

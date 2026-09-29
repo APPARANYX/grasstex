@@ -24,11 +24,19 @@ const owners = {
   _macroMission: 'commander-ai.js',
   commandPhase: 'modules/16-squad-plan-stability.js',
   orderAnchor: 'modules/16-squad-plan-stability.js',
-  rally: 'modules/16-squad-plan-stability.js'
+  rally: 'modules/16-squad-plan-stability.js',
+  suppressedUntil: 'squad-ai.js',
+  _combatUrgentUntil: 'engagement.js'
 };
 // Fields whose owner is one function in the owner file, not the whole file.
-const ownerFunction = { orderAnchor: 'publishAnchor', rally: 'publishAnchor' };
-const ownerName = field => owners[field] + (ownerFunction[field] ? ':' + ownerFunction[field] + '()' : '');
+const ownerFunction = {
+  orderAnchor: ['publishAnchor'],
+  rally: ['publishAnchor'],
+  suppressedUntil: ['pin', 'createSoldier'], // createSoldier stamps a fresh man's 0
+  _combatUrgentUntil: ['markUrgent', 'clearUrgent']
+};
+const ownerName = field =>
+  owners[field] + (ownerFunction[field] ? ':' + ownerFunction[field].join('/') + '()' : '');
 
 function tokens(src) {
   const out = [];
@@ -305,7 +313,15 @@ function scan(src, file) {
     const m = explicitKey === undefined ? member(a, b) : { a, b, key: explicitKey };
     if (!m) return;
     const k = kind(m.a, m.b);
-    const field = ['commandPhase', 'eng', '_macroMission', 'orderAnchor', 'rally'].includes(m.key)
+    const field = [
+      'commandPhase',
+      'eng',
+      '_macroMission',
+      'orderAnchor',
+      'rally',
+      'suppressedUntil',
+      '_combatUrgentUntil'
+    ].includes(m.key)
       ? m.key
       : k & ENG && ['state', 'since', 'until'].includes(m.key)
         ? 'eng.' + m.key
@@ -315,7 +331,7 @@ function scan(src, file) {
     if (!field) return;
     // The innermost function the write sits in; a nested helper is not its enclosing owner function.
     const inside = t[at].scope && t[at].scope.name;
-    if (owners[field] !== file || (ownerFunction[field] && inside !== ownerFunction[field]))
+    if (owners[field] !== file || (ownerFunction[field] && !ownerFunction[field].includes(inside)))
       found.push({ file, line: t[at].line, field, at });
   }
   for (let i = 0; i < t.length; i++) {
@@ -409,7 +425,10 @@ function selfTest() {
     ['survivor["orderAnchor"] = p; ++survivor.rally.x;', 'orderAnchor'],
     ['Object.assign(sq, { rally: p });', 'rally'],
     ["Object.defineProperty(sq, 'orderAnchor', { value: p });", 'orderAnchor'],
-    ['delete sq.rally;', 'rally']
+    ['delete sq.rally;', 'rally'],
+    ['t.suppressedUntil = Math.max(t.suppressedUntil || 0, now + 1.3);', 'suppressedUntil'],
+    ['s._combatUrgentUntil = b.time + 0.5;', '_combatUrgentUntil'],
+    ['Object.assign(s, { suppressedUntil: 9 });', 'suppressedUntil']
   ];
   for (const [source, field] of bad)
     assert.ok(
@@ -435,7 +454,7 @@ function selfTest() {
           : field === 'commandPhase'
             ? 'sq.commandPhase = "hold";'
             : ownerFunction[field]
-              ? 'function ' + ownerFunction[field] + '(sq, p) { sq.' + field + ' = p; }'
+              ? 'function ' + ownerFunction[field][0] + '(sq, p) { sq.' + field + ' = p; }'
               : 's.' + field + ' = 1;';
     assert.deepEqual(scan(source, owner), [], 'owner rejected: ' + field);
   }
