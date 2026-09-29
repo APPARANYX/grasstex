@@ -58,6 +58,23 @@ const OUT=path.resolve(process.env.DR_OUT||'closeups/damage-range');
     if(!b||Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)>.002)fail.push('target root moved while AI should be frozen: '+a.id);
   }
 
+  // FPS aim should activate the first-person camera + reticle and still land a reticle-centered body hit.
+  const fpsCheck=await page.evaluate(()=>{
+    BattleDamageRange.setFps(true);
+    const ret=document.getElementById('rangeReticle');
+    return {state:BattleDamageRange.state(),reticle:ret&&getComputedStyle(ret).display};
+  });
+  if(fpsCheck.state.camera!=='damageRangeFpsCam'||!fpsCheck.state.fps)fail.push('FPS aim camera did not activate');
+  if(fpsCheck.reticle==='none'||!fpsCheck.reticle)fail.push('FPS aim reticle is not visible');
+  await page.evaluate(()=>BattleDamageRange.fire());
+  await page.waitForTimeout(700);
+  const fpsHit=await snap();
+  if(fpsHit.wounds<2||fpsHit.uvWounds<2)fail.push('FPS reticle-centered shot did not create UV entry + exit wounds');
+  await page.evaluate(()=>{BattleDamageRange.clear();BattleDamageRange.setFps(false);});
+  await page.waitForTimeout(200);
+  const orbitAgain=await snap();
+  if(orbitAgain.camera!=='damageRangeCam'||orbitAgain.fps)fail.push('leaving FPS aim did not restore orbit camera');
+
   // One through-shot should paint entry + exit into one private map, no fallback.
   await page.evaluate(()=>BattleDamageRange.fire());
   await page.waitForTimeout(1100);
