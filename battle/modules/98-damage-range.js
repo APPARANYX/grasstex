@@ -9,7 +9,8 @@
    without the target dropping after one random combat result.
 
    URL controls: damageRange=1, rangeTarget=0..9, rangeZone=head|chest|abdomen|arm|leg,
-   rangeExit=0|1, rangeAuto=0|1, rangeInterval=seconds, rangeOrbit=0|1, rangeDist=metres. */
+   rangeExit=0|1, rangeAuto=0|1, rangeInterval=seconds, rangeOrbit=0|1, rangeDist=metres,
+   rangeUi=full|compact. Xbox controls work in both manual and auto range modes. */
 (function(root){
   'use strict';
   if(!root.BattleSim||!root.BattleModules||typeof BABYLON==='undefined'||typeof document==='undefined')return;
@@ -17,7 +18,7 @@
   if(q.get('damageRange')!=='1'){root.BattleDamageRange={active:false};return;}
   var oldStart=root.BattleSim.start,ROLES=['rifleman','sergeant','scout','gunner','engineer'],
     ZONES=['head','chest','abdomen','arm','leg'],
-    api={active:true,ready:false,version:'1.0-lineup'};
+    api={active:true,ready:false,version:'1.1-gamepad-ui'};
   root.BattleDamageRange=api;
 
   function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
@@ -84,7 +85,9 @@
       zone=ZONES.indexOf(q.get('rangeZone'))>=0?q.get('rangeZone'):'chest',
       exit=q.get('rangeExit')!=='0',auto=q.get('rangeAuto')==='1',
       orbit=q.get('rangeOrbit')==='1',interval=num('rangeInterval',1.25,.35,8),
-      distance=num('rangeDist',5.4,2.5,14),serial=0,autoTimer=null;
+      distance=num('rangeDist',5.4,2.5,14),serial=0,autoTimer=null,
+      panelCollapsed=q.get('rangeUi')==='compact'||(auto&&q.get('rangeUi')!=='full'),
+      padButtons={},padId=null;
 
     /* A dedicated selected-target orbit camera is more useful here than following the busiest squad. */
     var previous=scene.activeCamera;
@@ -140,9 +143,11 @@
       var ex=api.panel.querySelector('#rangeExit');if(ex)ex.checked=exit;
       var au=api.panel.querySelector('#rangeAuto');if(au)au.checked=auto;
       var or=api.panel.querySelector('#rangeOrbit');if(or)or.checked=orbit;
-      var read=api.panel.querySelector('#rangeReadout'),st=status();
-      if(read)read.textContent=st.label+' · '+st.zone+(st.exit?' · through-shot':' · stopped')+
-        ' · wounds '+st.wounds+' (UV '+st.uvWounds+') · maps '+st.surfaceMaps;
+      var read=api.panel.querySelector('#rangeReadout'),st=status(),compact=api.panel.classList.contains('rangeCollapsed');
+      if(read)read.textContent=compact?
+        st.label+' · '+st.zone+(st.auto?' · AUTO':''):
+        st.label+' · '+st.zone+(st.exit?' · through-shot':' · stopped')+
+          ' · wounds '+st.wounds+' (UV '+st.uvWounds+') · maps '+st.surfaceMaps;
     }
     function choose(i){
       rangeIndex=(i+targets.length)%targets.length;alignShooter();
@@ -178,6 +183,50 @@
       },interval*1000);
       updateUi();
     }
+    function setPanelCollapsed(on){
+      panelCollapsed=!!on;if(!api.panel)return;
+      api.panel.classList.toggle('rangeCollapsed',panelCollapsed);
+      var b=api.panel.querySelector('#rangeCollapse');
+      if(b){b.textContent=panelCollapsed?'▴':'▾';b.title=panelCollapsed?'Show range controls':'Hide range controls';b.setAttribute('aria-expanded',panelCollapsed?'false':'true');}
+      updateUi();
+    }
+    function shapedAxis(v){
+      v=isFinite(+v)?+v:0;var a=Math.abs(v),dead=.18;if(a<=dead)return 0;
+      return Math.sign(v)*(a-dead)/(1-dead);
+    }
+    function buttonValue(pad,index){var b=pad&&pad.buttons&&pad.buttons[index];return b?Math.max(b.pressed?1:0,+b.value||0):0;}
+    function activePad(){
+      try{
+        if(!root.navigator||typeof root.navigator.getGamepads!=='function')return null;
+        var pads=root.navigator.getGamepads()||[],fallback=null;
+        for(var i=0;i<pads.length;i++){var p=pads[i];if(!p||p.connected===false)continue;if(!fallback)fallback=p;if(p.mapping==='standard')return p;}
+        return fallback;
+      }catch(_){return null;}
+    }
+    function padOnce(pad,index){var down=buttonValue(pad,index)>.5,was=!!padButtons[index];padButtons[index]=down;return down&&!was;}
+    function stepGamepad(dt){
+      var pad=activePad();
+      if(!pad){padId=null;padButtons={};return;}
+      if(pad.id!==padId){padId=pad.id||'gamepad';padButtons={};console.log('[RANGE] gamepad active: '+padId);}
+      var axes=pad.axes||[],lookX=shapedAxis(axes[2]),lookY=shapedAxis(axes[3]);
+      if(lookX)cam.alpha+=lookX*2.25*dt;
+      if(lookY)cam.beta=clamp(cam.beta+lookY*1.7*dt,cam.lowerBetaLimit,cam.upperBetaLimit);
+      var zoom=buttonValue(pad,6)-buttonValue(pad,7);
+      if(zoom)cam.radius=clamp(cam.radius+zoom*7*dt,cam.lowerRadiusLimit,cam.upperRadiusLimit);
+      if(padOnce(pad,0))fire();
+      if(padOnce(pad,1))clear();
+      if(padOnce(pad,2))burst3();
+      if(padOnce(pad,3))setAuto(!auto);
+      if(padOnce(pad,4)){exit=!exit;updateUi();}
+      if(padOnce(pad,5)){orbit=!orbit;updateUi();}
+      if(padOnce(pad,8))setPanelCollapsed(!panelCollapsed);
+      if(padOnce(pad,11))kill();
+      if(padOnce(pad,12))setZone(ZONES[(ZONES.indexOf(zone)+ZONES.length-1)%ZONES.length]);
+      if(padOnce(pad,13))setZone(ZONES[(ZONES.indexOf(zone)+1)%ZONES.length]);
+      if(padOnce(pad,14))choose(rangeIndex-1);
+      if(padOnce(pad,15))choose(rangeIndex+1);
+      for(var i=0;i<=16;i++)padButtons[i]=buttonValue(pad,i)>.5;
+    }
 
     /* Keep particles, hit/death animation and decal expiry alive without ever stepping combat AI. */
     sim.paused=false;sim.winner=null;sim._damageRangeActive=true;
@@ -190,6 +239,7 @@
         try{root.BattleSoldierModel.animateWalk(s,dt,0);}catch(_){}
       });
       if(root.BattleImpactFx&&root.BattleImpactFx.tick)root.BattleImpactFx.tick(sim);
+      stepGamepad(dt);
       var t=selected();
       if(t&&t.root){
         cam.target.set(t.root.position.x,t.root.position.y+1.05,t.root.position.z);
@@ -199,26 +249,37 @@
 
     function makePanel(){
       var style=document.createElement('style');style.textContent=
-        '#damageRangePanel{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:2147483000;'+
+        '#damageRangePanel{position:fixed;left:12px;bottom:12px;z-index:2147483000;box-sizing:border-box;width:min(560px,calc(100vw - 24px));'+
         'font:13px/1.25 system-ui,-apple-system,sans-serif;background:rgba(18,18,18,.88);color:#fff;padding:10px 12px;'+
-        'border:1px solid rgba(255,255,255,.2);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.35);max-width:94vw}'+
+        'border:1px solid rgba(255,255,255,.2);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.35)}'+
+        '#damageRangePanel .rangeHeader{display:flex;gap:8px;align-items:center;min-width:0}'+
+        '#damageRangePanel .rangeHeader h2{font-size:14px;margin:0;letter-spacing:.03em;white-space:nowrap}'+
+        '#rangeReadout{opacity:.82;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}'+
+        '#rangeCollapse{margin-left:auto;padding:3px 8px!important;line-height:1.1}'+
         '#damageRangePanel .rangeRow{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:7px}'+
         '#damageRangePanel button,#damageRangePanel select{font:inherit;padding:6px 9px}'+
         '#damageRangePanel button.rangeFire{font-weight:700;padding-left:18px;padding-right:18px}'+
-        '#damageRangePanel label{display:flex;gap:4px;align-items:center}#damageRangePanel small{opacity:.7}'+
-        '#damageRangePanel h2{font-size:14px;margin:0;letter-spacing:.03em}#rangeReadout{opacity:.82;margin-left:8px}';
+        '#damageRangePanel label{display:flex;gap:4px;align-items:center}#damageRangePanel small{opacity:.72}'+
+        '#damageRangePanel.rangeCollapsed{width:min(430px,calc(100vw - 24px));padding:8px 10px}'+
+        '#damageRangePanel.rangeCollapsed #rangeControls{display:none}'+
+        '@media (max-width:900px) and (orientation:landscape){#damageRangePanel{left:10px;bottom:10px;width:min(400px,calc(100vw - 20px));font-size:12px;padding:8px 9px}'+
+        '#damageRangePanel.rangeCollapsed{width:min(360px,calc(100vw - 20px))}#damageRangePanel button,#damageRangePanel select{padding:5px 7px}}';
       document.head.appendChild(style);
       var p=document.createElement('div');p.id='damageRangePanel';p.innerHTML=
-        '<h2>DAMAGE RANGE <span id="rangeReadout"></span></h2>'+
+        '<div class="rangeHeader"><h2>DAMAGE RANGE</h2><span id="rangeReadout"></span><button id="rangeCollapse" type="button" aria-label="Toggle range controls">▾</button></div>'+
+        '<div id="rangeControls">'+
         '<div class="rangeRow"><button id="rangePrev">◀</button><select id="rangeTarget"></select><button id="rangeNext">▶</button>'+
         '<select id="rangeZone"><option>head</option><option>chest</option><option>abdomen</option><option>arm</option><option>leg</option></select>'+
         '<label><input id="rangeExit" type="checkbox"> exit</label><label><input id="rangeOrbit" type="checkbox"> orbit</label>'+
         '<label><input id="rangeAuto" type="checkbox"> auto</label></div>'+
         '<div class="rangeRow"><button class="rangeFire" id="rangeFire">FIRE</button><button id="rangeBurst">3-shot</button>'+
         '<button id="rangeKill">Kill</button><button id="rangeClear">Clear blood</button><button id="rangeReset">Reset range</button></div>'+
-        '<div class="rangeRow"><small>Space fire · ←/→ target · 1–5 zone · E exit · O orbit · A auto · C clear</small></div>';
+        '<div class="rangeRow"><small>Keyboard: Space fire · ←/→ target · 1–5 zone · E exit · O orbit · A auto · C clear</small></div>'+
+        '<div class="rangeRow"><small>Xbox: A fire · X 3-shot · D-pad target/zone · Y auto · B clear · LB exit · RB orbit · RS orbit · LT/RT zoom · R3 kill · View UI</small></div>'+
+        '</div>';
       document.body.appendChild(p);api.panel=p;
       var ts=p.querySelector('#rangeTarget');targets.forEach(function(s,i){var o=document.createElement('option');o.value=i;o.textContent=(i+1)+'. '+label(s);ts.appendChild(o);});
+      p.querySelector('#rangeCollapse').onclick=function(){setPanelCollapsed(!panelCollapsed);};
       p.querySelector('#rangePrev').onclick=function(){choose(rangeIndex-1);};
       p.querySelector('#rangeNext').onclick=function(){choose(rangeIndex+1);};
       ts.onchange=function(){choose(+ts.value||0);};
@@ -240,7 +301,7 @@
         else if(e.key.toLowerCase()==='a')setAuto(!auto);
         else if(e.key.toLowerCase()==='c')clear();
       });
-      updateUi();
+      setPanelCollapsed(panelCollapsed);
     }
     makePanel();
 
@@ -251,12 +312,13 @@
 
     api.ready=true;api.sim=sim;api.targets=targets;api.shooter=shooter;api.camera=cam;
     api.state=status;api.fire=fire;api.burst3=burst3;api.kill=kill;api.clear=clear;api.choose=choose;
-    api.setZone=setZone;api.setAuto=setAuto;
+    api.setZone=setZone;api.setAuto=setAuto;api.setPanelCollapsed=setPanelCollapsed;
+    api.gamepadMap={A:'fire',B:'clear',X:'3-shot',Y:'auto',LB:'exit',RB:'orbit',DPad:'target/zone',RS:'camera orbit',LT_RT:'zoom',R3:'kill',View:'toggle UI'};
     updateUi();if(auto)setAuto(true);
     console.log('[RANGE] ready: '+targets.map(label).join(', ')+' · deckY='+baseY);
     return sim;
   }
 
   root.BattleSim.start=function(scene,opts){return setup(oldStart(scene,opts));};
-  root.BattleModules.registerSystem('damage-range',{version:'1.0-lineup'});
+  root.BattleModules.registerSystem('damage-range',{version:'1.1-gamepad-ui'});
 })(typeof window!=='undefined'?window:globalThis);
