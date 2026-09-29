@@ -165,6 +165,8 @@ local red-ground page, and reuse these harnesses instead of writing one-off prob
   URL setup: `rangeTarget=0..9`, `rangeZone=head|chest|abdomen|arm|leg`, `rangeExit=0|1`,
   `rangeAuto=0|1`, `rangeInterval=<seconds>`, `rangeOrbit=0|1`, `rangeDist=<metres>`,
   `rangeUi=full|compact`, `rangeFps=0|1`.
+  **V1 closeout:** PR #103 adds the off-centre/collapsible UI, Xbox controls, FPS aim/reticle and
+  preview-launcher pass-through for every range flag.
 - **Every model with its weapon, plus the Motion Lab poses:** `scripts/fbx-soldier-lineup.cjs`
   (see Soldiers, weapons, animation).
 - **Pistol support hand numbers:** `scripts/probe_pistol_cup.cjs` (see the replay table below).
@@ -504,15 +506,6 @@ Keep this section to **work that is genuinely still open**. Completed investigat
 fixes belong in their subsystem sections, commit messages and PRs; do not leave them here as a
 pseudo-backlog. Long-form historical notes remain in git history
 (`git show 3972d3b:AGENTS.md`).
-
-**Current branch closeout**
-
-- **Damage Range polish (`fix/damage-range-ui-gamepad`).** The base Damage Range shipped in PR
-  #102. This branch adds the off-centre/collapsible panel, Xbox controls and FPS aim/reticle. Before
-  merging: validate the current branch live/device path, keep `scripts/probe_damage_range.cjs`
-  green, and make `preview.php` forward the range flags instead of stripping them:
-  `damageRange`, `rangeTarget`, `rangeZone`, `rangeExit`, `rangeAuto`, `rangeInterval`,
-  `rangeOrbit`, `rangeDist`, `rangeUi`, `rangeFps`.
 
 **Concrete sim work**
 
