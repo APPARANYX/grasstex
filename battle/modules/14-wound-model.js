@@ -106,6 +106,7 @@
     if (z.sigma) victim.woundSigma = Math.min(MAX_SIGMA, (victim.woundSigma || 1) * z.sigma);
     /* Being hit and staying up still puts a man down behind whatever he has for a moment. */
     root.SquadAI.pin(victim, battle, SHOCK);
+    if (root.BattleSoldierEvents) root.BattleSoldierEvents.post(victim, battle, 'wound', { count: 1 });
     return { zone: zone, outcome: 'wounded', damage: damage };
   }
 
