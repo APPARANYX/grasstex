@@ -119,6 +119,11 @@ echo json_encode(array('warmRuntimeMs' => round($warmMs, 2), 'runtimeFiles' => 2
 
 
 def main():
+    source = (ROOT / 'preview.php').read_text()
+    pass_segment = source[source.index('/* Game flags passed through'):source.index('$error = null;')]
+    required = ['damageRange', 'rangeTarget', 'rangeZone', 'rangeExit', 'rangeAuto', 'rangeInterval', 'rangeOrbit', 'rangeDist', 'rangeUi', 'rangeFps']
+    missing = [name for name in required if ("'" + name + "'") not in pass_segment]
+    assert not missing, 'damage-range preview flags missing: ' + ', '.join(missing)
     server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -134,7 +139,7 @@ def main():
             starts = [name for name, event, _ in events if event == 'start']
             assert starts.count('queue-1.js') == 1, 'unchanged/previous runtime re-downloaded'
             assert starts.count('new.js') == 2, 'delta/full stage downloaded unexpected files'
-            print('PASS: rolling queue; exact local reuse; immutable scripts; delta downloads; failed transfers; atomic publication; org URL')
+            print('PASS: rolling queue; exact local reuse; immutable scripts; delta downloads; failed transfers; atomic publication; org URL; damage-range flags')
             print(result.stdout.strip())
     finally:
         server.shutdown()
