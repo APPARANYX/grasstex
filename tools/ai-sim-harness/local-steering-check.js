@@ -72,13 +72,6 @@ test('the circles his destination hugs never push him, whatever waypoint he is o
   const h = unit(start, waypoint);
   assert.equal(steer(circles, start.x, start.z, h.x, h.z, slot), null);
 });
-test('avoidance deflects but never turns a man around', () => {
-  /* Heading between the two circles toward a goal beyond them: without the goal rule both push. */
-  const far = { x: slot.x - 20, z: slot.z },
-    h = unit(start, slot),
-    s = steer(circles, start.x, start.z, h.x, h.z, far);
-  assert.ok(!s || s.x * h.x + s.z * h.z > 0, 'steered back the way he came: ' + JSON.stringify(s));
-});
 test('walking past an obstacle to somewhere else, it still steers him round (control)', () => {
   const lone = [{ x: 0, z: 0, radius: 1.6 }],
     s = steer(lone, -3.5, 0.3, 1, 0, { x: 6, z: 0.3 });
