@@ -2,7 +2,8 @@
    Compare arms served the same way. battle_sim_local.php in preview mode (a preview.json next to it)
    reads the audio manifest and state/ two directories up, so a copy served that way can run with a
    different asset/state set than the main checkout. Voice no longer draws from the combat RNG
-   (tools/ai-sim-harness/voice-determinism-check.js), but policy/memory state still changes battles.
+   (tools/ai-sim-harness/voice-determinism-check.js). Policy/memory state changes battles unless the genome is stashed
+   (BattleAIPolicy.stashed, the default: then it is the code defaults in every environment).
    M3C_PERF=on|off sets window.BATTLE_PERF_TIMINGS (startup + pose timing on, or both off) and
    M3C_RENDER_EVERY=<n> renders a frame (sim paused) every n steps so the FBX pose code runs; a pair of
    runs differing only in M3C_PERF must end in the same state (instrumentation is observe-only). */
