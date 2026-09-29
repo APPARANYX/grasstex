@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
-/* Is the AI Graph workbench really unreachable? Loads the page under test, and optionally a control
-   page that still has the graph, and reads what is actually in the page.
+/* Are the AI Graph workbench and the policy genome really stashed? Loads the page under test, and
+   optionally a control page that still has them, and reads what is actually in the page.
 
    Per page it records the AI Graph DOM (`aiGraph*` and `ag*` ids), the graph globals, the HUD buttons,
    and whether the runtime the graph used to sit on is still there (Macro switch, leases, provenance,
@@ -9,8 +9,16 @@
    two ways the editor used to open itself, and runs a few seconds of battle to show the sim still
    advances and nothing threw.
 
+   The genome is stashed with the graph (`STASHED` in ai-policy.js): the page must report
+   `BattleAIPolicy.stashed`, revision 0, the code defaults as its genome and no Genome v2 Training button,
+   and a hostile `set()` and `setMatchPolicies()` (a cohesion radius of 45 m against the default 34) must
+   change neither the genome nor what Force Command's `policyFor` returns. That poke runs last, on a page
+   that is about to close, so it never touches a battle being measured.
+
    The control makes the negatives mean something: on a page with the graph the same probe must find
-   the DOM, the globals, the button, and the entry points must open the panel. Exits 1 on any mismatch.
+   the DOM, the globals, the button, the entry points must open the panel, and the same hostile calls
+   must take effect. Exits 1 on any mismatch. The two switches are separate lines (`STASHED` in ai-policy.js
+   and the gate in modules/30-ai-graph-editor.js), so a page with only one flipped fails here.
 
    Point it at the branch preview (AGENTS.md), and at production or a `main` preview as the control:
      STASH_URL='https://test.ivandpopov.com/grasstex/preview.php?ref=<branch>' \
@@ -68,7 +76,13 @@ async function read(page) {
       snapshot = 'threw: ' + e.message;
     }
     const ai = window.BattleCommanderAI;
+    const P = window.BattleAIPolicy;
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     return {
+      genome: P
+        ? { stashed: P.stashed === true, revision: P.revision, isDefaults: same(P.get(), P.defaults) }
+        : null,
+      trainButton: !!document.getElementById('trainAiBtn'),
       ids,
       panelOpen: !!panel && !panel.hidden,
       button: !!document.getElementById('aiGraphToggle'),
@@ -87,6 +101,33 @@ async function read(page) {
       simTime: sim ? sim.time : null
     };
   }, GRAPH_GLOBALS);
+}
+
+/* Try to change the genome the way the graph, the trainer and a match once did, and report what stuck.
+   Destroys the page's genome, so only call it on a page that is about to close. */
+async function poke(page) {
+  return page.evaluate(() => {
+    const P = window.BattleAIPolicy;
+    const D = window.BattleCommanderDoctrine;
+    const sim = window.__battle__;
+    if (!P || !D || !sim) return null;
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const hostile = JSON.parse(JSON.stringify(P.defaults));
+    hostile.parameters.cohesionRadius = 45;
+    hostile.rules = [{ id: 'probe-hold', when: ['objectiveNeutral'], action: 'hold', weight: 1 }];
+    const radius = () => D.policyFor(sim, 'us').cohesionRadius;
+    const out = { radiusBefore: radius(), revisionBefore: P.revision };
+    P.set(hostile, { revision: 777 });
+    out.getRadiusAfterSet = P.get().parameters.cohesionRadius;
+    out.radiusAfterSet = radius();
+    out.revisionAfterSet = P.revision;
+    out.isDefaultsAfterSet = same(P.get(), P.defaults);
+    P.setMatchPolicies(sim, hostile, hostile);
+    out.matchGenome = !!sim.aiGenomes;
+    out.radiusAfterMatch = radius();
+    out.ruleAfterMatch = P.decide(P.genomeFor(sim, 'us'), { objectiveNeutral: true }).id;
+    return out;
+  });
 }
 
 async function load(browser, target, { start }) {
@@ -120,8 +161,9 @@ async function load(browser, target, { start }) {
     await page.waitForTimeout(seconds * 1000);
     after = await read(page);
   }
+  const poked = await poke(page);
   await page.close();
-  return { ...after, startTime: before.simTime, errors };
+  return { ...after, poked, startTime: before.simTime, errors };
 }
 
 const problems = [];
@@ -131,6 +173,42 @@ function expect(label, ok, detail) {
 
 function judge(name, r, want, { start }) {
   const graph = want === 'present';
+  expect(name + ' has the policy runtime', !!r.genome);
+  if (r.genome && r.poked) {
+    if (graph) {
+      expect(name + ' has a live genome', !r.genome.stashed);
+      expect(name + ' has the Genome v2 Training button', r.trainButton);
+      expect(
+        name + ' takes a hostile set()',
+        r.poked.getRadiusAfterSet === 45 && r.poked.revisionAfterSet === 777,
+        JSON.stringify(r.poked)
+      );
+      expect(
+        name + ' takes a per-match genome',
+        r.poked.matchGenome && r.poked.ruleAfterMatch === 'probe-hold',
+        JSON.stringify(r.poked)
+      );
+    } else {
+      expect(name + ' reports its genome stashed', r.genome.stashed);
+      expect(name + ' reads revision 0', r.genome.revision === 0, 'revision ' + r.genome.revision);
+      expect(name + ' runs the code defaults', r.genome.isDefaults);
+      expect(name + ' has no Genome v2 Training button', !r.trainButton);
+      expect(
+        name + ' ignores a hostile set()',
+        r.poked.getRadiusAfterSet === 34 &&
+          r.poked.radiusAfterSet === r.poked.radiusBefore &&
+          r.poked.radiusBefore === 34 &&
+          r.poked.revisionAfterSet === 0 &&
+          r.poked.isDefaultsAfterSet,
+        JSON.stringify(r.poked)
+      );
+      expect(
+        name + ' ignores a per-match genome',
+        !r.poked.matchGenome && r.poked.radiusAfterMatch === 34 && r.poked.ruleAfterMatch === 'press-neutral',
+        JSON.stringify(r.poked)
+      );
+    }
+  }
   if (graph) {
     expect(name + ' has the AI Graph button', r.button);
     expect(name + ' has AI Graph DOM', r.ids.length >= 10, r.ids.length + ' ids');
@@ -196,6 +274,7 @@ function judge(name, r, want, { start }) {
     'panelOpen ' + r.panelOpen,
     'worldDebug ' + r.worldDebug,
     'motionLab ' + r.motionLab,
+    'genome ' + (r.genome ? (r.genome.stashed ? 'stashed' : 'live r' + r.genome.revision) : 'none'),
     'sim ' + r.simTime
   ]);
   for (const row of rows) console.log(row.join('  |  '));
@@ -211,7 +290,7 @@ function judge(name, r, want, { start }) {
   console.log(
     '\nPASS: page under test is ' +
       expectUnderTest +
-      (control ? ', control has the graph' : '') +
+      (control ? ', control has the graph and a live genome' : '') +
       '; runtime under the graph intact'
   );
 })().catch(e => {

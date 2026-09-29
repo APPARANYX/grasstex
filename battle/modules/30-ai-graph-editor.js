@@ -3,12 +3,12 @@
    arbitrary graph-authored code. Runtime pipeline nodes are intentionally descriptive/read-only. */
 (function(root){
 'use strict';
-/* STASHED 2026-09-29: the workbench is shelved until the UI pass. While STASHED is true this module builds
-   no button or panel, opens nothing on `?editor=ai` or `#ai-graph`, and never defines BattleAIGraphEditor,
-   which closes the gate every graph module checks (`!root.BattleAIGraphEditor`: 31 33 34 35, the Macro
-   toggle, Loop Watch's graph UI, Order Trace, Leases, export buttons). Set it to false to bring it all back. */
-var STASHED=true;
-if(STASHED||!root.BattleAIPolicy||typeof document==='undefined'||root.BattleAIGraphEditor)return;
+/* STASHED 2026-09-29: the workbench is shelved with the genome it edits, until the UI pass. The switch is
+   BattleAIPolicy.stashed (ai-policy.js). While it is true this module builds no button or panel, opens nothing
+   on `?editor=ai` or `#ai-graph`, and never defines BattleAIGraphEditor, which closes the gate every graph
+   module checks (`!root.BattleAIGraphEditor`: 31 33 34 35, the Macro toggle, Loop Watch's graph UI, Order
+   Trace, Leases, export buttons). */
+if(!root.BattleAIPolicy||root.BattleAIPolicy.stashed||typeof document==='undefined'||root.BattleAIGraphEditor)return;
 
 var A=root.BattleAIPolicy;
 var CONDITIONS=A.conditions.slice(),ACTIONS=A.actions.slice();
