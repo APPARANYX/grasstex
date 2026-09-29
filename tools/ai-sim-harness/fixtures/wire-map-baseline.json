@@ -6,7 +6,7 @@
     "spawn-stamp": "Spawn: stamps a fresh unit when it is created (battle-sim spawnAll at battle start, module 10 for operator reinforcements, module-registry addUnit defaults).",
     "merge-rewrites-squad": "Reconstitution merge (commander-ai mergeGroup) rewrites the surviving squad directly. The Squad Leader owns this state; one adopt() call on it would leave a single writer.",
     "restart-reset": "Restart: BattleSim.restart sweeps every soldier and squad through the module reset hooks.",
-    "nav-invalidate": "Invalidates Navigation's cache by hand after moving a soldier or his destination. The cache carries its destination and world version, so nextWaypoint could reject a stale entry itself.",
+    "nav-invalidate": "Invalidates Navigation's cached path by hand after moving a soldier or his destination. Each cache records its goal and world version, so the reader that uses it could reject a stale entry itself.",
     "peer-ammo": "The sidearm draw or holster (47) resets the primary's reload and stoppage state, which the ammunition module (46) owns. 46 could expose one cancel call.",
     "resolver-fallback": "Only when BattleMovementResolver is absent (isolated unit harness); production loads the resolver before any AI tick.",
     "station-claim-reset": "Claiming or releasing a firing station wipes the soldier's Engagement record by hand. requestState('station-release') already exists for the release; the claim has no Engagement call.",
@@ -53,7 +53,7 @@
         },
         "commander-ai.js": {
           "as": "debt",
-          "why": "The General clears the request it read (reconsiderMission). An acknowledgement by request serial would leave one writer.",
+          "why": "reconsiderMission clears the request after it re-selects the mission. An acknowledgement by request serial would leave one writer.",
           "fix": "unscheduled"
         }
       }
@@ -352,7 +352,7 @@
       "writers": {
         "movement-resolver.js": {
           "as": "owner",
-          "why": "proposeOrder opens the commit window (ORDER_COMMIT)."
+          "why": "resolve stamps the commit window (ORDER_COMMIT) whenever it writes the destination."
         },
         "modules/16-squad-plan-stability.js": {
           "as": "debt",
@@ -657,8 +657,8 @@
           "why": "tryFire and areaFire set it after a trigger pull."
         },
         "battle-sim.js": {
-          "as": "debt",
-          "why": "stepMovement counts the cooldown down; the fire pipeline sets it. One clock, two layers.",
+          "as": "debt+setup",
+          "why": "Spawn gives the man a random first cooldown. stepMovement then counts the cooldown down while the fire pipeline sets it: one clock, two layers.",
           "fix": "unscheduled"
         },
         "modules/10-infantry-squad.js": {
@@ -1009,7 +1009,7 @@
         },
         "modules/46-ammunition-stoppages.js": {
           "as": "layer",
-          "why": "AGENTS.md (Loadouts and sidearms): the ammunition module owns magazines, reserve, heat and jam state."
+          "why": "The ammunition module owns magazines, reserve, heat and stoppages (module 12's header: 'Ammunition ownership lives in BattleAmmunition')."
         },
         "modules/12-soldier-animation-events.js": {
           "as": "fallback+setup",
@@ -1041,7 +1041,7 @@
       "writers": {
         "engagement.js": {
           "as": "owner",
-          "why": "decide, orderedBound, alert, withdraw."
+          "why": "decide, orderedBound, alert, withdraw and the station-release transition."
         },
         "modules/20-building-hardpoints.js": {
           "as": "debt",
@@ -1104,7 +1104,7 @@
       "writers": {
         "engagement.js": {
           "as": "owner",
-          "why": "enter, engage, station."
+          "why": "transition, engage and station."
         },
         "modules/47-sidearm-switch.js": {
           "as": "debt",
