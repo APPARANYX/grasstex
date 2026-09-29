@@ -56,4 +56,18 @@ assert.equal(api.settings.paths,true);assert.equal(api.settings.windows,false);a
 const reloaded=boot(env.storage);assert.equal(reloaded.context.BattleWorldDebug.settings.paths,true);assert.equal(reloaded.context.BattleWorldDebug.settings.windows,false);
 all.onclick();env.hooks['world-debug-overlay'].beforeBattleRestart();assert.ok(env.meshes.every(mesh=>mesh.disposed));
 env.hooks['world-debug-overlay'].onBattleRestart(sim);assert.ok(env.meshes.some(mesh=>!mesh.disposed),'selected layers restore after restart');
+// Composure layer (module 17): a ring per shaken/rattled/broken man by band, a cross on a man who is frozen, nothing else.
+{
+  const e2=boot();e2.context.BattleSoldierMind={shockUntil:s=>s.mind.shock};
+  const man=(x,z,mind,faction='us')=>({faction,root:{position:{x,z}},mind});
+  const sim2={scene:{},time:5,heightAt:()=>0,obstacles:[],_roster:{us:[man(0,0,{band:2,stress:.6,shock:0}),man(5,0,{band:0,stress:.1,shock:6}),man(9,0,{band:0,stress:0,shock:0})],ge:[man(0,9,{band:3,stress:.9,shock:0},'ge')]}};
+  e2.hooks['world-debug-overlay'].onBattleStart(sim2);e2.context.BattleWorldDebug.set('composure',true);
+  const act=name=>e2.meshes.findLast(mesh=>mesh.name===name&&!mesh.disposed);
+  assert.equal(act('wd-dyn-composure-2').lines.length,1,'one rattled man, one ring');
+  assert.equal(act('wd-dyn-composure-3').lines.length,1,'one broken man, one ring');
+  assert.ok(!act('wd-dyn-composure-1'),'nobody is merely shaken, so no shaken layer');
+  assert.equal(act('wd-dyn-composure-shock').lines.length,2,'a cross is two strokes, on the frozen man only');
+  assert.ok(act('wd-dyn-composure-2').lines[0].every(v=>v.y>2),'rings sit above the head');
+  e2.context.BattleWorldDebug.set('composure',false);assert.ok(e2.meshes.every(mesh=>mesh.disposed),'switching it off removes every composure mesh');
+}
 console.log('PASS world debug bulk controls, batching, mesh cleanup, window sync, persistence, individual changes and restart; authoritative cover slot geometry, claims, faction filter and lazy snapshots');

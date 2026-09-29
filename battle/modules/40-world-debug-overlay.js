@@ -12,18 +12,18 @@ if(!root.BattleModules||!root.BattleNavigation||root.BattleWorldDebug)return;
 var N=root.BattleNavigation,P=root.BattleNavigationPhysicality||null;
 var STORAGE='battleWorldDebugV1',COVER_PAD=1.5;
 var simRef=null,nextDynamicAt=0,nextStaticCheckAt=0;
-var settings={windows:false,buildings:false,obstacles:false,hedges:false,cover:false,coverSlots:false,paths:false,waypoints:false,destinations:false,detours:false};
+var settings={windows:false,buildings:false,obstacles:false,hedges:false,cover:false,coverSlots:false,paths:false,waypoints:false,destinations:false,detours:false,composure:false};
 var ui={button:null,panel:null,status:null,filter:null,checks:{}};
 var layers=Object.create(null),staticSig='';
 var coverCounts={occupied:0,reserved:0,total:0};
-var COLORS={building:[.92,.95,.98],door:[.30,1,.48],window:[.20,.82,1],obstacle:[1,.27,.20],hedge:[.35,1,.38],cover:[.18,.66,1],us:[.18,.74,1],ge:[1,.49,.20],waypoint:[1,.88,.15],destination:[1,.20,.78],order:[.26,1,.90],fireteam:[.70,.38,1],detour:[1,.26,1]};
+var COLORS={building:[.92,.95,.98],door:[.30,1,.48],window:[.20,.82,1],obstacle:[1,.27,.20],hedge:[.35,1,.38],cover:[.18,.66,1],us:[.18,.74,1],ge:[1,.49,.20],waypoint:[1,.88,.15],destination:[1,.20,.78],order:[.26,1,.90],fireteam:[.70,.38,1],detour:[1,.26,1],shaken:[1,.86,.2],rattled:[1,.5,.1],broken:[1,.15,.15],shock:[1,1,1]};
 
 function nowMs(){return typeof performance!=='undefined'&&performance.now?performance.now():Date.now();}
 function currentSim(){var b=simRef||root.__battle__;return b&&b.scene?b:null;}
 function save(){try{localStorage.setItem(STORAGE,JSON.stringify(settings));}catch(_){} }
 function load(){try{var v=JSON.parse(localStorage.getItem(STORAGE)||'null');if(v)Object.keys(settings).forEach(function(k){if(typeof v[k]==='boolean')settings[k]=v[k];});}catch(_){}try{if(localStorage.getItem('battleWindowSlotsVisible')==='1')settings.windows=true;}catch(_){} }
 function anyStatic(){return settings.buildings||settings.obstacles||settings.hedges||settings.cover;}
-function anyDynamic(){return settings.coverSlots||settings.paths||settings.waypoints||settings.destinations||settings.detours;}
+function anyDynamic(){return settings.coverSlots||settings.paths||settings.waypoints||settings.destinations||settings.detours||settings.composure;}
 function color3(c){return new BABYLON.Color3(c[0],c[1],c[2]);}
 function yAt(sim,x,z,lift){return sim.heightAt(x,z)+(lift==null?.10:lift);}
 function v3(sim,x,z,lift){return new BABYLON.Vector3(x,yAt(sim,x,z,lift),z);}
@@ -113,18 +113,20 @@ function rebuildCoverSlots(sim){
 function rebuildDynamic(){
   disposePrefix('wd-dyn-');var sim=currentSim();if(!sim||typeof BABYLON==='undefined'||!anyDynamic())return;
   if(settings.coverSlots)rebuildCoverSlots(sim);
-  var path={us:[],ge:[]},way=[],dest=[],order=[],fireteam=[],detour=[];
+  var path={us:[],ge:[]},way=[],dest=[],order=[],fireteam=[],detour=[],comp=[null,[],[],[]],frozen=[],Mind=root.BattleSoldierMind;
   ['us','ge'].forEach(function(f){(sim._roster[f]||[]).forEach(function(s){
     if(!includedSoldier(s)||!s.root)return;var here={x:+s.root.position.x,z:+s.root.position.z},nav=remainingPath(s),resolved=point(s.destination);
     if(settings.paths){var pts=[v3(sim,here.x,here.z,.18)],last=here;for(var i=0;i<nav.length;i++){if(distance2(last,nav[i])>.04){pts.push(v3(sim,nav[i].x,nav[i].z,.18));last=nav[i];}}if(pts.length>1)path[f].push(pts);}
     if(settings.waypoints){for(var w=0;w<nav.length;w++)cross(way,sim,nav[w],w===0?.72:.36,.23);}
     if(settings.destinations){if(resolved)ring(dest,sim,resolved,bodyRadius(),.20);var od=point(s.orderDestination);if(od)cross(order,sim,od,.42,.21);var ft=point(s._fireteamDestination);if(ft)cross(fireteam,sim,ft,.34,.22);}
+    if(settings.composure&&s.mind){if(s.mind.band>0)ring(comp[s.mind.band],sim,here,.55+.6*s.mind.stress,2.35);if(Mind&&Mind.shockUntil(s)>(+sim.time||0))cross(frozen,sim,here,.5,2.35);}
     if(settings.detours&&s._physicalPath&&nav.length){var first=nav[0],fg={x:+s._physicalPath.finalGoalX,z:+s._physicalPath.finalGoalZ};if(first&&isFinite(fg.x)&&isFinite(fg.z)&&distance2(first,fg)>1){detour.push([v3(sim,here.x,here.z,.28),v3(sim,first.x,first.z,.28)]);cross(detour,sim,first,.78,.29);}}
   });});
   if(settings.paths){makeLines('wd-dyn-path-us',path.us,COLORS.us,.84);makeLines('wd-dyn-path-ge',path.ge,COLORS.ge,.84);}
   if(settings.waypoints)makeLines('wd-dyn-waypoints',way,COLORS.waypoint,.98);
   if(settings.destinations){makeLines('wd-dyn-destination',dest,COLORS.destination,.90);makeLines('wd-dyn-order',order,COLORS.order,.82);makeLines('wd-dyn-fireteam',fireteam,COLORS.fireteam,.86);}
   if(settings.detours)makeLines('wd-dyn-detours',detour,COLORS.detour,.98);
+  if(settings.composure){makeLines('wd-dyn-composure-1',comp[1],COLORS.shaken,.9);makeLines('wd-dyn-composure-2',comp[2],COLORS.rattled,.95);makeLines('wd-dyn-composure-3',comp[3],COLORS.broken,1);makeLines('wd-dyn-composure-shock',frozen,COLORS.shock,1);}
   updateStatus();
 }
 
@@ -168,6 +170,7 @@ function installUi(){
   checkboxRow(grid,'paths','Soldier paths','Rolling committed route queue the soldier is actually following');
   checkboxRow(grid,'waypoints','Waypoints','Future queued route points; active/current is larger');
   checkboxRow(grid,'destinations','Destinations','Final legalized soldier-body ring plus raw squad/fireteam intent crosses');
+  checkboxRow(grid,'composure','Composure','Soldier stress (module 17): a ring over each man, yellow shaken, orange rattled, red broken, wider as it rises; a white cross marks a man frozen by what he just saw')
   checkboxRow(grid,'detours','Avoidance leg','Highlight immediate physical route leg when it differs from the final goal');
   var actions=document.createElement('div');actions.className='wd-actions';
   var all=document.createElement('button');all.type='button';all.className='wd-select-all';all.textContent='Select all';all.onclick=function(){setAll(true);};actions.appendChild(all);
