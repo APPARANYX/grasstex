@@ -471,8 +471,11 @@
       var TR = root.BattleTacticalRoute;
       if (TR && TR.cancel) TR.cancel(soldier, battle);
     }
-    if (soldier._movementGoalUnreachable && pick.kind === 'formation') {
-      soldier._movementGoalUnreachable = false;
+    if (
+      pick.kind === 'formation' &&
+      root.BattleMovementProgress &&
+      root.BattleMovementProgress.takeUnreachable(soldier)
+    ) {
       soldier._navCache = null;
       soldier._physicalPath = null;
     }
@@ -644,6 +647,14 @@
     intentRefresh: INTENT_REFRESH,
     proposeOrder: proposeOrder,
     proposeCombat: proposeCombat,
+    // A firing-station claim or release withdraws the combat proposal the man had.
+    clearCombat: function (s) {
+      if (s._movementResolver) s._movementResolver.combat = null;
+    },
+    // The Squad Leader's straggler catch-up ends the commit window on the man's current destination.
+    releaseCommit: function (s) {
+      s._destinationCommitUntil = 0;
+    },
     resolve: resolve,
     resetSoldier: resetSoldier,
     summary: summary

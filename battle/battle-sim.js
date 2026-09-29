@@ -59,7 +59,7 @@
     return len>1e-4?{x:nx/len,z:nz/len}:null;
   }
   function stepMovement(self,soldier,dt){
-    if(soldier.dead){soldier._regroupUnstick=null;soldier._movementStopReason='dead';BattleSoldierModel.animateWalk(soldier,dt,0);return;}
+    if(soldier.dead){if(root.BattleSquadStability)root.BattleSquadStability.endUnstick(soldier);soldier._movementStopReason='dead';BattleSoldierModel.animateWalk(soldier,dt,0);return;}
     soldier.fireCooldown=Math.max(0,soldier.fireCooldown-dt);
     var recovery=soldier._regroupUnstick, sq=soldier.squad,
       lease=recovery&&sq&&root.BattleLeases&&root.BattleLeases.get(sq,'regroup'),
@@ -67,7 +67,7 @@
     if(recovery&&(!lease||lease.since!==recovery.since||sq.state==='retreat'||sq.inContact||
         lease.data.missionVersion!==((sq._macroMission&&+sq._macroMission.version)||0)||
         !goal||goal.kind!=='regroup'||soldier.reloading||soldier.clearingStoppage||soldier.suppressedUntil>self.time))
-      recovery=soldier._regroupUnstick=null;
+      {recovery=null;if(root.BattleSquadStability)root.BattleSquadStability.endUnstick(soldier);}
     var desired=recovery?goal.point:soldier.destination;
     var normalDesired=null;
     if(recovery){
@@ -88,7 +88,7 @@
       // Check placement too: an outward step can be legal while still inside a body buffer.
       if(bodyClear&&(rd>.35||arrived)&&(!root.BattleNavigation||
           (root.BattleNavigation.movementClear(at,at)&&root.BattleNavigation.movementClear(at,next)))){
-        recovery=soldier._regroupUnstick=null;
+        recovery=null;if(root.BattleSquadStability)root.BattleSquadStability.endUnstick(soldier);
         soldier._navCache=null;soldier._physicalPath=null;
         desired=normalDesired;
       }

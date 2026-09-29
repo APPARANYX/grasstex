@@ -194,6 +194,19 @@
     s.setUp = false;
     state(s).setUpSince = 0;
   }
+  /* ---- firing stations (module 20 claims and releases them) ---------------------------------------- */
+  // A firing station was claimed: the cover and bound/suppress orders he held are dropped.
+  function stationClaimed(s) {
+    if (!s.eng) return;
+    s.eng.cover = null;
+    s.eng.boundOrder = false;
+    s.eng.suppressOrder = false;
+  }
+  // A firing station was released: the look direction it set goes, and the gun is no longer set up.
+  function stationLeft(s) {
+    s._faceHint = null;
+    s.setUp = false;
+  }
   // No shot before `until` (sim seconds); never brings the floor forward.
   function delayFire(s, until) {
     var e = s.eng; // a man Engagement has not met yet has no floor to raise
@@ -1200,10 +1213,8 @@
     /* Structured recovery consumed here: repeated no-progress against this cover flags it
        unreachable, so abandon the bound and re-decide (alternate cover or fight from here)
        instead of cycling the same destination forever. */
-    if (s._movementGoalUnreachable) {
-      s._movementGoalUnreachable = false;
-      if (root.BattleMovementProgress)
-        root.BattleMovementProgress.noteFailure(s, battle, cover, 'bound-unreachable');
+    if (root.BattleMovementProgress && root.BattleMovementProgress.takeUnreachable(s)) {
+      root.BattleMovementProgress.noteFailure(s, battle, cover, 'bound-unreachable');
       decide(s, battle, 'bound unreachable');
       return;
     }
@@ -1301,9 +1312,8 @@
       transition(s, battle, 'alert', ALERT_HOLD, 'target lost before rush');
       return alert(s, battle);
     }
-    if (s._movementGoalUnreachable) {
-      s._movementGoalUnreachable = false;
-      if (root.BattleMovementProgress && e.assaultGoal)
+    if (root.BattleMovementProgress && root.BattleMovementProgress.takeUnreachable(s)) {
+      if (e.assaultGoal)
         root.BattleMovementProgress.noteFailure(s, battle, e.assaultGoal, 'assault-unreachable');
       transition(s, battle, 'engage', 0, 'assault unreachable');
       return engage(s, battle);
@@ -1611,6 +1621,8 @@
     markUrgent: markUrgent,
     clearUrgent: clearUrgent,
     interruptGun: interruptGun,
+    stationClaimed: stationClaimed,
+    stationLeft: stationLeft,
     unemplaceGun: unemplaceGun,
     delayFire: delayFire,
     applyStance: applyStance,
