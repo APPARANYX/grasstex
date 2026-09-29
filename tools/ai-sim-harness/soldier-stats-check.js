@@ -103,7 +103,7 @@ test('the effect table is the whole vocabulary: every effect names a stat, every
       Object.values(S.EFFECTS).some(e => e.stat === stat),
       stat + ' is worth something'
     );
-  assert.deepEqual(S.LEVERS, [...S.STATS, 'squad']);
+  assert.deepEqual(S.LEVERS, [...S.STATS, 'squad', 'deal']);
 });
 
 test('an average man is exactly 1; a high stat moves each effect the way the table says, never past its span', () => {
@@ -164,6 +164,19 @@ test('?stats=0 is the module absent; ?stats=for switches on only fortitude; the 
   assert.equal(world('?stats=all').S.on('squad'), true);
   assert.equal(world('').S.mode().flag, 'default');
   assert.equal(world('?stats=tac,squad').S.on('squad'), true);
+  assert.equal(
+    world('?stats=all').S.on('deal'),
+    false,
+    'dealing changes who a squad is made of: asked for by name'
+  );
+  assert.equal(world('').S.on('deal'), false);
+  assert.equal(world('?stats=all,deal').S.on('deal'), true);
+  assert.equal(
+    world('?stats=all,deal').S.on('for'),
+    true,
+    'and the rest of the default set stays on with it'
+  );
+  assert.equal(world('?stats=deal').S.on('for'), false, 'a list is only what it names');
 });
 
 test('nothing here draws from the combat RNG or Math.random', () => {
@@ -273,6 +286,67 @@ test('ranks: the highest composite is 1, the lowest 0, ties by squad id, thin an
   const w2 = { ...world1, time: 6 };
   fast.members.forEach(s => (s.dead = true));
   assert.equal(S.profile(w2, mid).pace, 1, 'and against the living: a squad that lost its men drops out');
+});
+
+test("deal: a permutation of the squad's ten ids, each command slot to the best of what is left, off unless asked", () => {
+  const H2 = require('./harness'),
+    roles = H2.bootstrap({ modules: false }).SquadAI.COMPOSITION;
+  const { S } = world('?stats=all,deal'),
+    stat = (f, id) => S.of({ faction: f, id });
+  const dealt = S.deal('us', 40, roles);
+  assert.equal(dealt.length, roles.length);
+  assert.deepEqual(
+    dealt.slice().sort((x, y) => x - y),
+    roles.map((_, i) => 40 + i),
+    'the same ten ids, so the id counter and every hash keyed on an id see the same set'
+  );
+  const score = (id, keys) => keys.reduce((a, k) => a + stat('us', id)[k], 0);
+  const pool = new Set(dealt);
+  const best = (keys, from) => Math.max(...[...from].map(id => score(id, keys)));
+  const sgt = dealt[roles.indexOf('sergeant')];
+  assert.equal(
+    score(sgt, ['for', 'tac']),
+    best(['for', 'tac'], pool),
+    'the sergeant is the steadiest, most alert man'
+  );
+  pool.delete(sgt);
+  const gun = dealt[roles.indexOf('gunner')];
+  assert.equal(
+    score(gun, ['phy', 'tec']),
+    best(['phy', 'tec'], pool),
+    'the gunner is the strongest technician left'
+  );
+  pool.delete(gun);
+  const scouts = roles.map((r, i) => (r === 'scout' ? dealt[i] : null)).filter(v => v != null);
+  assert.equal(scouts.length, 2);
+  const first = Math.max(...[...pool].map(id => score(id, ['agi', 'mkm'])));
+  assert.equal(score(scouts[0], ['agi', 'mkm']), first, 'the first scout is the quickest good shot left');
+  pool.delete(scouts[0]);
+  assert.equal(score(scouts[1], ['agi', 'mkm']), best(['agi', 'mkm'], pool), 'and the second the next');
+  pool.delete(scouts[1]);
+  const rifles = roles.map((r, i) => (r === 'rifleman' ? dealt[i] : null)).filter(v => v != null);
+  assert.deepEqual(
+    rifles,
+    [...pool].sort((x, y) => x - y),
+    'riflemen are whoever is left, in id order'
+  );
+  assert.deepEqual(S.deal('us', 40, roles), dealt, 'a pure function of the ids');
+  assert.notDeepEqual(S.deal('ge', 40, roles), dealt, 'and of the faction');
+  // Over many squads the command slots are held by men who score higher than the id-ordered deal gives.
+  let dealtSgt = 0,
+    plainSgt = 0;
+  for (let q = 0; q < 200; q++) {
+    dealtSgt += score(S.deal('us', q * 10, roles)[0], ['for', 'tac']);
+    plainSgt += score(q * 10, ['for', 'tac']);
+  }
+  assert.ok(
+    dealtSgt > plainSgt * 1.2,
+    'the sergeants dealt beat the sergeants by id: ' + dealtSgt + ' vs ' + plainSgt
+  );
+  for (const search of ['?stats=0', '?stats=all', ''])
+    assert.equal(world(search).S.deal('us', 40, roles), null, search);
+  assert.equal(S.deal('us', 40, []), null);
+  assert.equal(S.deal('us', 40, ['rifleman', 'rifleman']).join(), '40,41', 'no command slot, no change');
 });
 
 test('the module writes only `stats`: nothing else on a man or a squad changes', () => {

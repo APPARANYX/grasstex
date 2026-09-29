@@ -26,27 +26,29 @@
 
    Levers, for paired benchmarks: `?stats=0` (module off: no state kept, every scale 1),
    `?stats=for,tac,...` (only those stats' effects, `squad` for the General's use of squad means),
-   default all of them. */
+   default all of them but `deal`, which changes who a squad is made of and so is asked for by name:
+   `?stats=all,deal` deals each squad's roles, and so weapons, from its ten men's stats at spawn. */
 (function (root) {
   'use strict';
   if (!root.BattleModules || root.BattleSoldierStats) return;
 
   var STATS = ['phy', 'mkm', 'for', 'tac', 'agi', 'tec'];
-  var LEVERS = STATS.concat(['squad']);
+  var LEVERS = STATS.concat(['squad', 'deal']);
+  var DEFAULT_LEVERS = STATS.concat(['squad']);
   function parse(search) {
     var m = /[?&]stats=([^&#]*)/.exec(search || ''),
       out = { on: true, flag: 'default', levers: {} },
       i;
     var v = m ? decodeURIComponent(m[1]).toLowerCase() : '';
     if (!m || v === '1' || v === 'on' || v === 'all' || v === '') {
-      for (i = 0; i < LEVERS.length; i++) out.levers[LEVERS[i]] = true;
+      for (i = 0; i < DEFAULT_LEVERS.length; i++) out.levers[DEFAULT_LEVERS[i]] = true;
     } else if (v === '0' || v === 'off' || v === 'false') {
       out.on = false;
       out.flag = 'off';
     } else {
       v.split(',').forEach(function (k) {
         if (k === 'all')
-          LEVERS.forEach(function (l) {
+          DEFAULT_LEVERS.forEach(function (l) {
             out.levers[l] = true;
           });
         else if (LEVERS.indexOf(k) >= 0) out.levers[k] = true;
@@ -210,6 +212,56 @@
     return neutral;
   }
 
+  /* ---- spawn (lever `deal`) ------------------------------------------------------------------ */
+
+  /* Which of a squad's ten ids fills which slot. The ten ids are fixed (firstId .. firstId + n - 1, so the id
+     counter, the combat RNG and every hash keyed on an id see the same set); only the slot each stands in is
+     dealt, and the slot's role is what issues the weapon (SquadAI.loadoutFor). Greedy in command order, ties to
+     the lowest id, so it is a pure function of the ids:
+       sergeant  FOR + TAC   holds the squad together and sees what is coming
+       gunner    PHY + TEC   carries and works the heavy gun
+       scout     AGI + MKM   moves first and shoots at range with a lighter weapon
+     the riflemen are whoever is left, in id order. Returns the id for each slot, or null when the lever is off. */
+  var DEAL = { sergeant: ['for', 'tac'], gunner: ['phy', 'tec'], scout: ['agi', 'mkm'] };
+  var DEAL_ORDER = ['sergeant', 'gunner', 'scout'];
+  function deal(faction, firstId, roles) {
+    if (!on('deal') || !roles || !roles.length) return null;
+    var pool = [],
+      out = new Array(roles.length),
+      i,
+      r;
+    for (i = 0; i < roles.length; i++) {
+      var man = { faction: faction, id: firstId + i };
+      pool.push({ id: firstId + i, stats: fresh(man) });
+    }
+    for (r = 0; r < DEAL_ORDER.length; r++) {
+      var keys = DEAL[DEAL_ORDER[r]];
+      for (i = 0; i < roles.length; i++) {
+        if (roles[i] !== DEAL_ORDER[r]) continue;
+        var best = -1,
+          bestScore = -Infinity;
+        for (var p = 0; p < pool.length; p++) {
+          var score = 0;
+          for (var k = 0; k < keys.length; k++) score += pool[p].stats[keys[k]];
+          if (
+            score > bestScore + 1e-12 ||
+            (Math.abs(score - bestScore) <= 1e-12 && pool[p].id < pool[best].id)
+          ) {
+            best = p;
+            bestScore = score;
+          }
+        }
+        out[i] = pool[best].id;
+        pool.splice(best, 1);
+      }
+    }
+    pool.sort(function (a, b) {
+      return a.id - b.id;
+    });
+    for (i = 0; i < roles.length; i++) if (out[i] === undefined) out[i] = pool.shift().id;
+    return out;
+  }
+
   function reset(sim) {
     if (!MODE.on) return;
     var units = root.BattleModules.unitsFor ? root.BattleModules.unitsFor(sim) : [];
@@ -245,6 +297,7 @@
     scale: scale,
     squad: squadStats,
     profile: profile,
+    deal: deal,
     reset: reset
   };
   if (typeof console !== 'undefined')
