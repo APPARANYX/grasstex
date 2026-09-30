@@ -266,7 +266,7 @@
             0.075 * Math.sin(ang * (5 + variant) + variant * 1.7) +
             0.04 * Math.sin(ang * (9 - variant) - 0.8) +
             (hash(x >> 2, y >> 2, 23) - 0.5) * 0.07,
-          alpha = Math.max(0, Math.min(1, (edge - r) / 0.14));
+          alpha = Math.max(0, Math.min(1, (edge - r) / (edge * 0.5)));
         for (var k = 0; k < drops.length; k++) {
           var dr = Math.hypot(nx - drops[k].x, ny - drops[k].y),
             da = Math.max(0, Math.min(1, (drops[k].r - dr) / 0.025));
