@@ -2138,8 +2138,10 @@ function paintSphereWound(anchor,diameter){
       if(!rt||!rt.renderList||!rt.setMaterialForRendering)return;
       var mat=sphereWoundMaterial(scene);
       /* Shader compilation is async; if it is not ready yet, retry soon instead of baking
-         nothing (which would leave the wound to the billboard fallback). */
-      try{if(mat.isReady&&!mat.isReady()){timer(bake,64);return;}}catch(_){}
+         nothing (which would leave the wound to the billboard fallback). Give up after ~2s
+         so a broken shader cannot spin forever. */
+      try{if(mat.isReady&&!mat.isReady()){if((d.sphereTries=(d.sphereTries||0)+1)>30){SPHERE_FAILED=true;return;}timer(bake,64);return;}}catch(_){}
+      d.sphereTries=0;
       mat.setVector3('uCenter',q);
       mat.setFloat('uRadius',radius);
       rt.setMaterialForRendering(mesh,mat);
