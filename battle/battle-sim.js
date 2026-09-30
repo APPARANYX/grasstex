@@ -30,6 +30,8 @@
   BattleSim.prototype.restart=function(){if(root.BattleModules)root.BattleModules.runHook('beforeBattleRestart',this,{});var all=this._roster.us.concat(this._roster.ge),i;if(root.BattleEngagement){for(i=0;i<all.length;i++)root.BattleEngagement.resetSoldier(all[i]);['us','ge'].forEach(function(f){(this.factions[f].squads||[]).forEach(root.BattleEngagement.resetSquad);},this);}for(i=0;i<all.length;i++){if(root.BattleTacticalPositions)root.BattleTacticalPositions.release(all[i],this,'battle-reset');all[i].root.dispose();}this.spawnAll();};
   BattleSim.prototype.setTimeScale=function(v){this.timeScale=Math.max(0,+v||0);};BattleSim.prototype.pause=function(){this.paused=true;};BattleSim.prototype.resume=function(){this.paused=false;};
   var AVOID_LOOKAHEAD=1.8,AVOID_MARGIN=.5,AVOID_QUERY=8;
+  /* `?steerLeg=0`: steering as before (look 1.8 m ahead past the leg, only the destination's circles exempt), for a paired A/B. */
+  var STEER_LEG=!(typeof location!=='undefined'&&/[?&]steerLeg=0\b/.test(location.search||''));
   /* A man who is genuinely boxed in re-plans on a timer rather than once per frame. Clearing
      the nav cache every blocked frame just recomputed the same unusable path 7 times a second. */
   var NAV_REPLAN_HOLD=1.5;
@@ -42,18 +44,21 @@
     return obstacles;
   }
   /* Soft local avoidance of the tactical cover circles; physical navigation (movementClear /
-     resolveStep below) is what keeps a body out of a real footprint. A circle whose avoidance ring
-     holds the man's destination (not the waypoint on the way to it) is where he is going, so it does
-     not push him. Men bounding to a wall's cover slot jittered in place 2 m short of it for minutes,
-     never arriving and never flagged stuck: a thin wall is sampled as 1.6 m circles every ~2.4 m, its
-     slot sits ~1.9 m from two of them, and their pushes turned him round every other frame. (Dropping
-     every reversing push instead stranded men on blocked formation waypoints: the push is also what
-     backs a man off one.) */
-  function steerAroundObstacles(obstacles,x,z,dirx,dirz,goal){
-    var lookX=x+dirx*AVOID_LOOKAHEAD,lookZ=z+dirz*AVOID_LOOKAHEAD,near=avoidanceCandidates(obstacles,lookX,lookZ);
+     resolveStep below) is what keeps a body out of a real footprint, and the path it hands him is legal by
+     construction. Steering is a nudge along a leg, so it looks no further than the end of that leg and never
+     pushes against where the leg goes: a circle whose avoidance ring holds the man's destination or the
+     waypoint he is walking to is where he is going, and does not push him. Without that, men bounding to
+     cover jittered ("the Matrix dodge"): the look-ahead point lay 1.8 m ahead, past the slot or waypoint,
+     inside the ring of the next circle along a wall (a thin wall is sampled as 1.6 m circles every ~2.4 m
+     and its slot sits ~1.9 m from two of them and ~2.3 m from the third), whose full-strength push turned
+     him round; the next step the point was outside it and the push was gone. (Dropping every reversing
+     push instead stranded men on blocked formation waypoints: the push is also what backs a man off one.)
+     `leg` (the waypoint) and `reach` (the distance to it) are optional. */
+  function steerAroundObstacles(obstacles,x,z,dirx,dirz,goal,leg,reach){
+    var ahead=reach>0?Math.min(AVOID_LOOKAHEAD,reach):AVOID_LOOKAHEAD,lookX=x+dirx*ahead,lookZ=z+dirz*ahead,near=avoidanceCandidates(obstacles,lookX,lookZ);
     if(!near||!near.length)return null;
     var pushX=0,pushZ=0,any=false;
-    for(var i=0;i<near.length;i++){var ob=near[i],dxo=lookX-ob.x,dzo=lookZ-ob.z,r=ob.radius+AVOID_MARGIN,dSq=dxo*dxo+dzo*dzo;if(dSq>=r*r)continue;if(goal&&Math.hypot(goal.x-ob.x,goal.z-ob.z)<r)continue;any=true;var d=Math.sqrt(dSq)||.001;pushX+=dxo/d;pushZ+=dzo/d;}
+    for(var i=0;i<near.length;i++){var ob=near[i],dxo=lookX-ob.x,dzo=lookZ-ob.z,r=ob.radius+AVOID_MARGIN,dSq=dxo*dxo+dzo*dzo;if(dSq>=r*r)continue;if(goal&&Math.hypot(goal.x-ob.x,goal.z-ob.z)<r)continue;if(leg&&Math.hypot(leg.x-ob.x,leg.z-ob.z)<r)continue;any=true;var d=Math.sqrt(dSq)||.001;pushX+=dxo/d;pushZ+=dzo/d;}
     if(!any)return null;
     var nx=dirx+pushX*.9,nz=dirz+pushZ*.9,len=Math.hypot(nx,nz);
     return len>1e-4?{x:nx/len,z:nz/len}:null;
@@ -102,7 +107,7 @@
     function turnToward(yaw){var diff=Math.atan2(Math.sin(yaw-soldier.root.rotation.y),Math.cos(yaw-soldier.root.rotation.y)),maxTurn=(soldier.prone?1.25:2.8)*dt,eased=diff*(1-Math.exp(-8*dt));soldier.root.rotation.y+=Math.max(-maxTurn,Math.min(maxTurn,eased));}
     if(d>.35&&soldier.moveSpeed>.025&&(!soldier.prone||crawl)){
       var here={x:soldier.root.position.x,z:soldier.root.position.z};
-      var dirx=dx/d,dirz=dz/d,steered=!recovery&&steerAroundObstacles(self.obstacles,here.x,here.z,dirx,dirz,soldier.destination);if(steered){dirx=steered.x;dirz=steered.z;}
+      var dirx=dx/d,dirz=dz/d,steered=!recovery&&steerAroundObstacles(self.obstacles,here.x,here.z,dirx,dirz,soldier.destination,STEER_LEG?desired:null,STEER_LEG?d:0);if(steered){dirx=steered.x;dirz=steered.z;}
       var step=Math.min(d,soldier.moveSpeed*dt),nx=here.x+dirx*step,nz=here.z+dirz*step;
       if(!recovery&&root.BattleNavigation&&!root.BattleNavigation.movementClear(here,{x:nx,z:nz})){
         /* Cover steering pushed him into a wall: the plain heading to the waypoint comes first. */
