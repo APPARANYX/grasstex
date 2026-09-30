@@ -46,6 +46,17 @@
     dirt: [0.14, 0.24],
     metal: [0.07, 0.1]
   };
+  /* UV body-wound fit per zone: the stamp is projected in 3D, so a stamp wider than the part
+     reads as a band around the limb, and a projection deeper than the part paints whatever is
+     behind it (arm -> torso). size scales the stamp, max caps it (exits run large), depth caps
+     the projection box. All metres. */
+  var WOUND_FIT = {
+    head:    { size: 0.60, max: 0.14, depth: 0.10 },
+    arm:     { size: 0.55, max: 0.14, depth: 0.06 },
+    leg:     { size: 0.70, max: 0.18, depth: 0.10 },
+    abdomen: { size: 0.85, max: 0.22, depth: 0.15 },
+    chest:   { size: 1.00, max: 0.26, depth: 0.18 }
+  };
   var STYLES = {
     blood: { color: [0.48, 0.025, 0.035], count: 9, size: 0.075, power: 1.6, life: 0.42 },
     dirt: { color: [0.42, 0.29, 0.16], count: 9, size: 0.16, power: 1.5, life: 0.55 },
@@ -492,14 +503,15 @@
       kind = exit || rng() < 0.35 ? 'soak' : 'wound',
       cellAt = pick('blood', kind, rng),
       roll = rng() * 0.6 - 0.3,
-      s = size(kind, rng) * (zone === 'arm' || zone === 'head' ? 0.75 : 1) * (exit ? 1.35 : 1),
+      fit = WOUND_FIT[zone] || WOUND_FIT.chest,
+      s = Math.min(size(kind, rng) * fit.size * (exit ? 1.35 : 1), fit.max),
       F = root.BattleFbxSoldier,
       skin = F && F.skinAnchor ? F.skinAnchor(victim, at3) : null;
 
     /* Preferred FBX path: project a shared blood stamp into a destination texture that belongs only
        to this soldier mesh. No material clone: the uniform material is still shared by the model. */
     if (skin && F && F.paintSurfaceWound) {
-      var painted = F.paintSurfaceWound(skin, surfaceStamp(sim, st, kind, cellAt.col), out, s, roll);
+      var painted = F.paintSurfaceWound(skin, surfaceStamp(sim, st, kind, cellAt.col), out, s, roll, fit.depth);
       if (painted) {
         victim._uvWoundMarks = (victim._uvWoundMarks || 0) + 1;
         rememberSurfaceMap(st, painted.renderer, victim);
