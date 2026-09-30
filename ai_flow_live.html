@@ -264,7 +264,7 @@ function layoutCFG(cfg){
 
 const stateFocus={};
 let cfgHistory=[],brainFocus=null;
-const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:false,focus:null,scene:null};
+const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:false,focus:null,scene:null,detailScene:null};
 let sources={}, current='brain', graphBounds={x:0,y:0,w:1800,h:1600};
 let camera={x:0,y:0,w:1800,h:1600},dragging=false,dragPointer=null,lastPointer=null,spaceDown=false,cameraAnim=0;
 const svg=document.getElementById('graph'), viewport=document.getElementById('viewport'), status=document.getElementById('status'), workspace=document.getElementById('workspace');
@@ -294,7 +294,7 @@ function parseRequests(){const obj=extractObject(sources.engagement||'','REQUEST
 function extractFunction(key,name){const src=sources[key]||'',re=new RegExp('function\\s+'+escRx(name)+'\\s*\\('),m=re.exec(src);if(!m)return null;const a=src.indexOf('{',m.index),b=findBalanced(src,a);return b<0?null:{text:src.slice(m.index,b+1),line:src.slice(0,m.index).split('\n').length,ref:{file:FILES[key],line:src.slice(0,m.index).split('\n').length,needle:'function '+name}}}
 function priorityMap(){const f=extractFunction('resolver','priority');if(!f)return [];const out=[];for(const m of f.text.matchAll(/kind\s*===\s*['"]([^'"]+)['"]\s*\?\s*(\d+)/g))out.push({kind:m[1],priority:+m[2]});if(/e\.state\s*===\s*['"]pinned['"]\s*\?\s*85/.test(f.text))out.push({kind:'hold (pinned)',priority:85});out.push({kind:'formation',priority:0});return out.sort((a,b)=>b.priority-a.priority)}
 async function sha12(t){try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return Array.from(new Uint8Array(b)).slice(0,6).map(x=>x.toString(16).padStart(2,'0')).join('')}catch(_){return String(t.length)}}
-async function load(){status.textContent='Loading AI source from this checkout…';const errs=[];const origins={};await Promise.all(Object.entries(FILES).map(async([k,localUrl])=>{const attempts=[['checkout',localUrl],['GitHub main',RAW+PATHS[k]]];let last='';for(const [origin,url] of attempts){try{const r=await fetch(url+(url.includes('?')?'&':'?')+'flow='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error(r.status+' '+r.statusText);sources[k]=await r.text();origins[k]=origin;return}catch(e){last=origin+': '+e.message}}try{const api='https://api.github.com/repos/APPARANYX/grasstex/contents/battle/'+PATHS[k]+'?ref=main';const r=await fetch(api,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error(r.status+' '+r.statusText);const j=await r.json();sources[k]=j.encoding==='base64'?decodeURIComponent(escape(atob(String(j.content||'').replace(/\s/g,'')))):String(j.content||'');origins[k]='GitHub API main'}catch(e2){sources[k]='';errs.push(`${PATHS[k]} (${last}; API: ${e2.message})`)}}));window.__flowOrigins=origins;const hashes={};for(const [k,v] of Object.entries(sources))if(v)hashes[k]=await sha12(v);window.__flowHashes=hashes;renderTabs();render();const ok=Object.values(sources).filter(Boolean).length,local=Object.values(origins).filter(x=>x==='checkout').length;document.getElementById('healthDot').className='dot '+(errs.length?(ok?'warn':'bad'):'ok');document.getElementById('healthText').textContent=errs.length?`${ok}/${Object.keys(FILES).length} files loaded`:(local===Object.keys(FILES).length?'live checkout loaded':`${ok} source files loaded`);if(errs.length){showError(ok?`${ok}/${Object.keys(FILES).length} source files loaded. Missing: ${errs.map(x=>x.split(' (')[0]).join(', ')}.`:`No source files could be fetched in this preview. Serve this page from the Grasstex repo (for example: python3 -m http.server 8000) and it will read the checkout directly.`)}else hideError()}
+async function load(){status.textContent='Loading AI source from this checkout…';const errs=[];const origins={};await Promise.all(Object.entries(FILES).map(async([k,localUrl])=>{const attempts=[['checkout',localUrl],['GitHub main',RAW+PATHS[k]]];let last='';for(const [origin,url] of attempts){try{const r=await fetch(url+(url.includes('?')?'&':'?')+'flow='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error(r.status+' '+r.statusText);sources[k]=await r.text();origins[k]=origin;return}catch(e){last=origin+': '+e.message}}try{const api='https://api.github.com/repos/APPARANYX/grasstex/contents/battle/'+PATHS[k]+'?ref=main';const r=await fetch(api,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error(r.status+' '+r.statusText);const j=await r.json();sources[k]=j.encoding==='base64'?decodeURIComponent(escape(atob(String(j.content||'').replace(/\s/g,'')))):String(j.content||'');origins[k]='GitHub API main'}catch(e2){sources[k]='';errs.push(`${PATHS[k]} (${last}; API: ${e2.message})`)}}));window.__flowOrigins=origins;brain3D.scene=null;brain3D.detailScene=null;const hashes={};for(const [k,v] of Object.entries(sources))if(v)hashes[k]=await sha12(v);window.__flowHashes=hashes;renderTabs();render();const ok=Object.values(sources).filter(Boolean).length,local=Object.values(origins).filter(x=>x==='checkout').length;document.getElementById('healthDot').className='dot '+(errs.length?(ok?'warn':'bad'):'ok');document.getElementById('healthText').textContent=errs.length?`${ok}/${Object.keys(FILES).length} files loaded`:(local===Object.keys(FILES).length?'live checkout loaded':`${ok} source files loaded`);if(errs.length){showError(ok?`${ok}/${Object.keys(FILES).length} source files loaded. Missing: ${errs.map(x=>x.split(' (')[0]).join(', ')}.`:`No source files could be fetched in this preview. Serve this page from the Grasstex repo (for example: python3 -m http.server 8000) and it will read the checkout directly.`)}else hideError()}
 function renderTabs(){
   const t=document.getElementById('tabs');t.innerHTML='';
   VIEWS.forEach(([id,label])=>{const b=document.createElement('button');b.className='btn'+(id===current?' active':'');b.textContent=label;b.onclick=()=>{current=id;renderTabs();render();fit()};t.appendChild(b)});
@@ -656,15 +656,154 @@ function brain3DProject(p){
 }
 
 function brain3DReset(){
-  brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;
+  brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.detailScene=null;
   const b=document.getElementById('brain3dExplodeBtn');if(b)b.textContent='Explode slices';
   const iy=document.getElementById('brain3dInvertYBtn');if(iy){iy.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');iy.classList.toggle('active',brain3D.invertY)}
   if(current==='brain3d')renderBrain3DScene();
 }
 
+
+function renderBrain3DDetailScene(){
+  if(current!=='brain3d'||brain3D.mode!=='detail')return;
+  const model=brain3D.detailScene||brain3DDetailModel();brain3D.detailScene=model;
+  viewport.innerHTML='';graphBounds={x:0,y:0,w:1800,h:1300};svg.setAttribute('viewBox','0 0 1800 1300');
+  const g=viewport,orders=model.slices.map(s=>s.order),minOrder=Math.min(...orders),maxOrder=Math.max(...orders),center=(minOrder+maxOrder)/2;
+  const gap=175;
+  const sliceZ=s=>(center-s.order)*gap;
+  const worldNodes=Object.fromEntries(model.nodes.map(n=>{
+    const s=model.sliceById[n.slice],z=s?sliceZ(s):0;
+    return [n.id,Object.assign({},n,{z})];
+  }));
+  const projected=Object.fromEntries(Object.entries(worldNodes).map(([id,n])=>[id,brain3DProject(n)]));
+
+  function cornersFor(slice){
+    const z=sliceZ(slice),w=model.planeW,h=model.planeH;
+    return [[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]].map(([x,y])=>brain3DProject({x,y,z}));
+  }
+  function poly(points,cls){return el('polygon',{points:points.map(p=>p.x+','+p.y).join(' '),class:cls})}
+
+  // Render every parent/detail plane. Parent planes are slightly stronger; CFG planes are thinner.
+  model.slices.map(s=>{
+    const corners=cornersFor(s),depth=corners.reduce((a,p)=>a+p.z,0)/4;
+    return {s,corners,depth};
+  }).sort((a,b)=>a.depth-b.depth).forEach(item=>{
+    const s=item.s,c=item.corners;
+    const plane=poly(c,'brain3dPlane'+(s.kind==='cfg'?' detailFace':''));
+    if(s.kind==='cfg')plane.setAttribute('opacity','.72');
+    g.appendChild(plane);
+
+    const a=c[0],b=c[1],d=c[3],e=c[2];
+    [.25,.5,.75].forEach(t=>g.appendChild(el('line',{
+      x1:a.x+(b.x-a.x)*t,y1:a.y+(b.y-a.y)*t,
+      x2:d.x+(e.x-d.x)*t,y2:d.y+(e.y-d.y)*t,class:'brain3dGrid'
+    })));
+
+    const tp=brain3DProject({x:-model.planeW/2+28,y:-model.planeH/2+34,z:sliceZ(s)});
+    const title=(s.kind==='cfg'?'DETAIL · ':'')+s.title;
+    g.appendChild(el('text',{x:tp.x,y:tp.y,class:s.kind==='cfg'?'brain3dDetailTitle':'brain3dSliceTitle'},title));
+    g.appendChild(el('text',{x:tp.x,y:tp.y+15,class:s.kind==='cfg'?'brain3dDetailMeta':'brain3dSliceSub'},s.sub||''));
+  });
+
+  const linked=new Set();
+  if(brain3D.focus){
+    linked.add(brain3D.focus);
+    model.edges.forEach(e=>{if(e.from===brain3D.focus)linked.add(e.to);if(e.to===brain3D.focus)linked.add(e.from)});
+  }
+
+  // Edges behind nodes. Calls and returns explicitly traverse slice boundary ports.
+  model.edges.forEach(e=>{
+    const a=projected[e.from],b=projected[e.to];if(!a||!b)return;
+    const on=!brain3D.focus||e.from===brain3D.focus||e.to===brain3D.focus;
+    let cls='brain3dEdge '+(e.kind||'detailFlow');
+    if(brain3D.focus)cls+=on?' focus':' dim';
+    const p=el('path',{d:'M'+a.x+','+a.y+' L'+b.x+','+b.y,class:cls});
+    g.appendChild(p);
+  });
+
+  function nodeClass(n){
+    if(n.type==='port')return 'brain3dPort '+n.portType;
+    if(n.type==='cfg'){
+      if(n.cfgType==='decision')return 'brain3dNode cfgDecision '+n.layer;
+      if(n.cfgType==='short')return 'brain3dNode cfgShort '+n.layer;
+      if(n.cfgType==='merge')return 'brain3dNode cfgMerge '+n.layer;
+      return 'brain3dNode cfgProcess '+n.layer;
+    }
+    return 'brain3dNode '+(n.type||'function')+' '+n.layer;
+  }
+
+  function renderDetailNode(n){
+    const p=projected[n.id];if(!p)return;
+    const on=!brain3D.focus||linked.has(n.id);
+    const depthScale=Math.max(.52,Math.min(1.18,p.scale*3.25));
+    let gr,shape,w,h;
+
+    if(n.type==='port'){
+      w=n.portType==='callout'||n.portType==='returnin'?168:120;h=32;
+      gr=el('g',{class:nodeClass(n)+(brain3D.focus?(n.id===brain3D.focus?' focus':on?'':' dim'):''),
+        'data-id':n.id,transform:'translate('+p.x+','+p.y+') scale('+depthScale+')'});
+      gr.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:9}));
+      const label=String(n.label||'PORT');
+      gr.appendChild(el('text',{x:0,y:4,'text-anchor':'middle'},label.length>28?label.slice(0,27)+'…':label));
+    }else if(n.type==='cfg'){
+      const t=n.cfgType;
+      w=t==='decision'?170:t==='merge'?95:t==='short'?150:185;
+      h=t==='decision'?72:t==='merge'?40:t==='short'?58:56;
+      gr=el('g',{class:nodeClass(n)+(brain3D.focus?(n.id===brain3D.focus?' focus':on?'':' dim'):''),
+        'data-id':n.id,transform:'translate('+p.x+','+p.y+') scale('+depthScale+')'});
+      if(t==='decision'){
+        gr.appendChild(el('polygon',{points:'0,'+(-h/2)+' '+(w/2)+',0 0,'+(h/2)+' '+(-w/2)+',0'}));
+      }else if(t==='short'){
+        gr.appendChild(el('ellipse',{cx:0,cy:0,rx:w/2,ry:h/2}));
+      }else{
+        gr.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:t==='merge'?14:9}));
+      }
+      const max=t==='decision'?28:34,parts=wrap(String(n.label||''),max).slice(0,3),lineH=11,first=-(parts.length-1)*lineH/2+4;
+      parts.forEach((txt,i)=>gr.appendChild(el('text',{
+        x:0,y:first+i*lineH,'text-anchor':'middle','font-size':t==='merge'?8:9,'font-weight':'800'
+      },txt)));
+    }else{
+      w=n.type==='priority'?148:190;h=n.type==='priority'?44:54;
+      gr=el('g',{class:nodeClass(n)+(brain3D.focus?(n.id===brain3D.focus?' focus':on?'':' dim'):''),
+        'data-id':n.id,transform:'translate('+p.x+','+p.y+') scale('+depthScale+')'});
+      gr.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:10}));
+      const parts=wrap(String(n.label||n.id),27).slice(0,2),first=parts.length>1?-4:4;
+      parts.forEach((txt,i)=>gr.appendChild(el('text',{x:0,y:first+i*13,'text-anchor':'middle','font-size':10,'font-weight':'800'},txt)));
+    }
+
+    gr.appendChild(el('title',{},n.fullLabel||n.label||n.id));
+    gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===n.id?null:n.id;renderBrain3DDetailScene()});
+    gr.addEventListener('dblclick',ev=>{
+      ev.stopPropagation();
+      if(n.ref)openSource(n.ref,n.fullLabel||n.label);
+      else if(n.cfg){cfgHistory=[];jumpToCfg(n.cfg,false)}
+    });
+    g.appendChild(gr);
+  }
+
+  // Painter-sort nodes by projected depth.
+  model.nodes.slice().sort((a,b)=>(projected[a.id]?.z||0)-(projected[b.id]?.z||0)).forEach(renderDetailNode);
+
+  const hud=el('g',{transform:'translate(22,22)'});
+  hud.appendChild(el('rect',{width:480,height:104,rx:12,class:'brain3dHud'}));
+  hud.appendChild(el('text',{x:14,y:22,class:'brain3dHudText'},'SHOW DETAIL · every mapped function owns a dedicated CFG slice'));
+  hud.appendChild(el('text',{x:14,y:42,class:'brain3dHudText'},'ENTRY → literal CFG → EXIT / SHORT EXIT · calls cross through CALL → / ← RETURN ports'));
+  hud.appendChild(el('text',{x:14,y:62,class:'brain3dHudText'},'click any CFG node/port to isolate its route · double-click opens source'));
+  hud.appendChild(el('text',{x:14,y:82,class:'brain3dHudText'},'Macro is nearest · drag rotates · wheel zooms · Invert Y '+(brain3D.invertY?'ON':'OFF')));
+  hud.appendChild(el('text',{x:14,y:98,class:'brain3dHudText'},model.slices.length+' slices · '+model.nodes.length+' nodes · '+model.edges.length+' explicit connections'));
+  g.appendChild(hud);
+
+  if(brain3D.focus){
+    const n=model.nodes.find(x=>x.id===brain3D.focus),inc=model.edges.filter(e=>e.to===brain3D.focus).length,out=model.edges.filter(e=>e.from===brain3D.focus).length;
+    status.textContent='3D detail · '+(n?(n.fullLabel||n.label):brain3D.focus)+' · '+inc+' incoming · '+out+' outgoing.';
+  }else{
+    status.textContent='3D Show Detail · parent sections plus one literal CFG slice per mapped function, with explicit entry/exit/call/return boundary ports.';
+  }
+}
+
 function renderBrain3DScene(){
   if(current!=='brain3d')return;
   const model=brain3D.scene||brain3DModel();brain3D.scene=model;
+  if(brain3D.mode==='detail'){renderBrain3DDetailScene();return}
   viewport.innerHTML='';graphBounds={x:0,y:0,w:1800,h:1300};svg.setAttribute('viewBox','0 0 1800 1300');
   const g=viewport,center=(model.slices.length-1)/2;
   const detail=brain3D.mode==='detail',exploded=brain3D.mode==='exploded';
@@ -762,7 +901,7 @@ function renderBrain3DScene(){
 }
 
 function brain3DView(){
-  clear();brain3D.scene=brain3DModel();graphBounds={x:0,y:0,w:1800,h:1300};camera={x:0,y:0,w:1800,h:1300};renderBrain3DScene();
+  clear();brain3D.scene=brain3DModel();brain3D.detailScene=null;graphBounds={x:0,y:0,w:1800,h:1300};camera={x:0,y:0,w:1800,h:1300};renderBrain3DScene();
 }
 
 function brainView(){
