@@ -266,7 +266,7 @@ const stateFocus={};
 let cfgHistory=[],brainFocus=null;
 const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:true,textSnap:true,focus:null,scene:null,detailScene:null,raf:0,fast:false,restoreTimer:0,panX:0,panY:0,pivotX:0,pivotY:0,pivotZ:0,focusAnim:0};
 let sources={}, current='brain', graphBounds={x:0,y:0,w:1800,h:1600};
-let camera={x:0,y:0,w:1800,h:1600},dragging=false,dragPointer=null,lastPointer=null,spaceDown=false,cameraAnim=0;
+let camera={x:0,y:0,w:1800,h:1600},dragging=false,dragPointer=null,lastPointer=null,dragMode='none',spaceDown=false,cameraAnim=0;
 const svg=document.getElementById('graph'), viewport=document.getElementById('viewport'), status=document.getElementById('status'), workspace=document.getElementById('workspace');
 const NS='http://www.w3.org/2000/svg';
 const el=(tag,attrs={},text)=>{const n=document.createElementNS(NS,tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));if(text!=null)n.textContent=text;return n};
@@ -596,6 +596,19 @@ function brain3DProjectDetail(p){
   return {x:900+brain3D.panX+x1*scale,y:650+brain3D.panY+y2*scale,z:z2,scale};
 }
 
+function panBrain3DCameraPlane(dx,dy){
+  const yaw=brain3D.yaw,pitch=brain3D.pitch,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+  // Camera-local +X (screen right) and +Y (screen down) expressed in world coordinates.
+  const right={x:cy,y:0,z:sy};
+  const down={x:sy*sp,y:cp,z:-cy*sp};
+  const screenScale=brain3D.mode==='detail'?.36*brain3D.zoom:(1500/6400)*brain3D.zoom;
+  const worldPerPixel=1/Math.max(.0001,screenScale);
+  // Grab-style pan: drag right/down moves the scene right/down, so the camera pivot moves opposite.
+  brain3D.pivotX-=dx*worldPerPixel*right.x+dy*worldPerPixel*down.x;
+  brain3D.pivotY-=dx*worldPerPixel*right.y+dy*worldPerPixel*down.y;
+  brain3D.pivotZ-=dx*worldPerPixel*right.z+dy*worldPerPixel*down.z;
+}
+
 function focusBrain3DWorld(target,duration=320){
   if(!target||![target.x,target.y,target.z].every(Number.isFinite))return;
   cancelAnimationFrame(brain3D.focusAnim);
@@ -688,6 +701,24 @@ function renderBrain3DDetailScene(fast=false){
     return [[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]].map(([x,y])=>P({x,y,z}));
   }
   function poly(points,cls){return el('polygon',{points:points.map(p=>p.x+','+p.y).join(' '),class:cls})}
+  function drawSpineLabel(title,sub,corners,offset=24){
+    if(!corners||!corners.length)return;
+    const minX=Math.min(...corners.map(p=>p.x)),midY=corners.reduce((a,p)=>a+p.y,0)/corners.length;
+    const x=minX-offset;
+    const gg=el('g',{class:'brain3dSpineLabel'});
+    gg.appendChild(el('text',{
+      x,y:midY,'text-anchor':'middle',class:'brain3dSliceTitle',
+      transform:'rotate(-90 '+x+' '+midY+')'
+    },title));
+    if(sub){
+      const sx=x+17;
+      gg.appendChild(el('text',{
+        x:sx,y:midY,'text-anchor':'middle',class:'brain3dSliceSub',
+        transform:'rotate(-90 '+sx+' '+midY+')'
+      },sub));
+    }
+    g.appendChild(gg);
+  }
   const childrenByParent={};
   model.slices.filter(s=>s.kind==='cfg').forEach(s=>(childrenByParent[s.parentId]||(childrenByParent[s.parentId]=[])).push(s));
   const isFunctionGroup=s=>s.kind==='parent'&&(childrenByParent[s.id]||[]).length>0;
@@ -745,10 +776,8 @@ function renderBrain3DDetailScene(fast=false){
     const q=box.corners,edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
     const gg=el('g',{class:'brain3dGroupBox'});
     edges.forEach(([a,b])=>gg.appendChild(el('line',{x1:q[a].x,y1:q[a].y,x2:q[b].x,y2:q[b].y,class:'brain3dGrid'})));
-    const label=P({x:0,y:-box.maxH/2-75,z:box.zFront});
-    gg.appendChild(el('text',{x:label.x,y:label.y,'text-anchor':'middle',class:'brain3dSliceTitle'},parent.title));
-    gg.appendChild(el('text',{x:label.x,y:label.y+17,'text-anchor':'middle',class:'brain3dSliceSub'},parent.sub||''));
     g.appendChild(gg);
+    drawSpineLabel(parent.title,parent.sub||'',q,28);
   }
   function portById(s,id){return (s.ports||[]).find(p=>p.id===id)||null}
   function overviewById(s,id){return (s.overview||[]).find(n=>n.id===id)||null}
@@ -801,8 +830,7 @@ function renderBrain3DDetailScene(fast=false){
     const layout=stateGridLayout(s),board=el('g',{class:'detailStateBoard','data-slice':s.id,transform:parentTransform(s)});
     const w=s.width||model.planeW,h=s.height||model.planeH;
 
-    board.appendChild(el('text',{x:-w/2+55,y:-h/2+65,'font-size':30,'font-weight':900,fill:'#fff'},s.title));
-    board.appendChild(el('text',{x:-w/2+55,y:-h/2+92,class:'mini'},s.sub||''));
+
 
     // Draw only relationships whose endpoints both belong to this board.
     model.crossEdges.forEach(e=>{
@@ -842,6 +870,7 @@ function renderBrain3DDetailScene(fast=false){
 
     snapPlanarText(board,s);
     g.appendChild(board);
+    drawSpineLabel(s.title,s.sub||'',parentCorners(s),24);
   });
 
   // Literal function pages: renderCfgLayout() is the SAME renderer used by Deep Branch CFG.
@@ -960,10 +989,17 @@ function renderBrain3DScene(){
       g.appendChild(el('line',{x1:a.x+(b.x-a.x)*t,y1:a.y+(b.y-a.y)*t,x2:d.x+(e.x-d.x)*t,y2:d.y+(e.y-d.y)*t,class:'brain3dGrid'}));
     });
 
-    const labelScale=detail?1.18:1;
-    const tp=brain3DProject({x:-model.planeW*.5*labelScale+30,y:-model.planeH*.5*labelScale+35,z:p.frontZ});
-    g.appendChild(el('text',{x:tp.x,y:tp.y,class:'brain3dSliceTitle'},p.slice.title));
-    g.appendChild(el('text',{x:tp.x,y:tp.y+15,class:'brain3dSliceSub'},p.slice.sub+(detail?' · detailed slab':'') ));
+    const minX=Math.min(...p.front.map(q=>q.x)),midY=p.front.reduce((a,q)=>a+q.y,0)/p.front.length;
+    const tx=minX-24;
+    g.appendChild(el('text',{
+      x:tx,y:midY,'text-anchor':'middle',class:'brain3dSliceTitle',
+      transform:'rotate(-90 '+tx+' '+midY+')'
+    },p.slice.title));
+    const sx=tx+17;
+    g.appendChild(el('text',{
+      x:sx,y:midY,'text-anchor':'middle',class:'brain3dSliceSub',
+      transform:'rotate(-90 '+sx+' '+midY+')'
+    },p.slice.sub+(detail?' · detailed slab':'')));
   });
 
   const linked=new Set();
@@ -1423,9 +1459,9 @@ function fullView(){
  document.getElementById('cfgBackBtn').onclick=()=>{if(!cfgHistory.length)return;cfgChoice=cfgHistory.pop();const sel=document.getElementById('cfgSelect');if(sel)sel.value=cfgChoice;renderTabs();render();fit()};
  svg.addEventListener('wheel',e=>{e.preventDefault();const factor=Math.exp(-e.deltaY*0.00135);if(current==='brain3d'){brain3D.zoom=clamp(brain3D.zoom*factor,.08,4);scheduleBrain3DRender(brain3D.mode==='detail');clearTimeout(brain3D.restoreTimer);if(brain3D.mode==='detail')brain3D.restoreTimer=setTimeout(()=>{brain3D.fast=false;renderBrain3DDetailScene(false)},140);return}zoomAt(factor,e.clientX,e.clientY,false)},{passive:false});
  svg.addEventListener('dblclick',e=>{if(e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.brain3dPort,.callPort'))return;e.preventDefault();if(current==='brain3d'){brain3DReset();return}zoomAt(e.shiftKey?1/1.65:1.65,e.clientX,e.clientY,true)});
- svg.addEventListener('pointerdown',e=>{const overNode=e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.brain3dPort,.callPort');const forcePan=spaceDown||e.button===1;if(overNode&&!forcePan)return;if(e.button!==0&&e.button!==1)return;e.preventDefault();dragging=true;dragPointer=e.pointerId;lastPointer={x:e.clientX,y:e.clientY};document.getElementById('stage').classList.add('panning');svg.setPointerCapture(e.pointerId)});
- svg.addEventListener('pointermove',e=>{if(!dragging||e.pointerId!==dragPointer)return;const dx=e.clientX-lastPointer.x,dy=e.clientY-lastPointer.y;lastPointer={x:e.clientX,y:e.clientY};if(current==='brain3d'){brain3D.yaw+=dx*.008;brain3D.pitch=clamp(brain3D.pitch+dy*.006*(brain3D.invertY?-1:1),-1.18,1.18);scheduleBrain3DRender(brain3D.mode==='detail');return}panByScreen(dx,dy)});
- function endDrag(e){if(!dragging)return;if(e&&dragPointer!=null&&e.pointerId!==dragPointer)return;dragging=false;dragPointer=null;lastPointer=null;document.getElementById('stage').classList.remove('panning');if(current==='brain3d'&&brain3D.mode==='detail'){cancelAnimationFrame(brain3D.raf);brain3D.raf=0;brain3D.fast=false;renderBrain3DDetailScene(false)}}
+ svg.addEventListener('pointerdown',e=>{const overNode=e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.brain3dPort,.callPort');const forcePan=spaceDown||e.button===1;if(overNode&&!forcePan)return;if(e.button!==0&&e.button!==1)return;e.preventDefault();dragging=true;dragPointer=e.pointerId;lastPointer={x:e.clientX,y:e.clientY};dragMode=current==='brain3d'?(forcePan?'pan3d':'rotate3d'):'pan2d';document.getElementById('stage').classList.add('panning');svg.setPointerCapture(e.pointerId)});
+ svg.addEventListener('pointermove',e=>{if(!dragging||e.pointerId!==dragPointer)return;const dx=e.clientX-lastPointer.x,dy=e.clientY-lastPointer.y;lastPointer={x:e.clientX,y:e.clientY};if(current==='brain3d'){if(dragMode==='pan3d')panBrain3DCameraPlane(dx,dy);else{brain3D.yaw+=dx*.008;brain3D.pitch=clamp(brain3D.pitch+dy*.006*(brain3D.invertY?-1:1),-1.18,1.18)}scheduleBrain3DRender(brain3D.mode==='detail');return}panByScreen(dx,dy)});
+ function endDrag(e){if(!dragging)return;if(e&&dragPointer!=null&&e.pointerId!==dragPointer)return;dragging=false;dragPointer=null;lastPointer=null;dragMode='none';document.getElementById('stage').classList.remove('panning');if(current==='brain3d'&&brain3D.mode==='detail'){cancelAnimationFrame(brain3D.raf);brain3D.raf=0;brain3D.fast=false;renderBrain3DDetailScene(false)}}
  svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);svg.addEventListener('lostpointercapture',endDrag);
  window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes((e.target&&e.target.tagName)||''))return;if(e.code==='Space'){spaceDown=true;e.preventDefault();return}if(e.key==='+'||e.key==='='){zoomCenter(1.28);e.preventDefault()}else if(e.key==='-'){zoomCenter(1/1.28);e.preventDefault()}else if(e.key==='0'){actualSize();e.preventDefault()}else if(e.key.toLowerCase()==='f'){fit();e.preventDefault()}else if(e.key==='ArrowLeft'){if(current==='brain3d'){brain3D.yaw-=.12;renderBrain3DScene()}else panByScreen(80,0);e.preventDefault()}else if(e.key==='ArrowRight'){if(current==='brain3d'){brain3D.yaw+=.12;renderBrain3DScene()}else panByScreen(-80,0);e.preventDefault()}else if(e.key==='ArrowUp'){if(current==='brain3d'){brain3D.pitch=clamp(brain3D.pitch-.1*(brain3D.invertY?-1:1),-1.18,1.18);renderBrain3DScene()}else panByScreen(0,80);e.preventDefault()}else if(e.key==='ArrowDown'){if(current==='brain3d'){brain3D.pitch=clamp(brain3D.pitch+.1*(brain3D.invertY?-1:1),-1.18,1.18);renderBrain3DScene()}else panByScreen(0,-80);e.preventDefault()}else if(e.key==='Escape'){workspace.classList.remove('drawerOpen')}});
  window.addEventListener('keyup',e=>{if(e.code==='Space')spaceDown=false});window.addEventListener('blur',()=>{spaceDown=false;endDrag()});
