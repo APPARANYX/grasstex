@@ -76,19 +76,11 @@
     }
     return null;
   }
-  var LOS_CACHE_WINDOW = 500, losCache = {};
   function losBlocked(a,b,ay,by){
-    // Phase 4: LOS cache per (observer, target) for a short time window.
-    // Keyed by rounded coordinates (1m precision); entries expire after LOS_CACHE_WINDOW ms.
-    // Uses wall-clock for expiry (cache is a perf optimization, not sim state).
-    var now = Date.now();
-    var key = Math.round(a.x) + ',' + Math.round(a.z) + ',' + Math.round(b.x) + ',' + Math.round(b.z);
-    var entry = losCache[key];
-    if (entry && (now - entry.t) < LOS_CACHE_WINDOW) return entry.r;
-    var result = blocked(a,b,'los',ay,by);
-    losCache[key] = { r: result, t: now };
-    if (Object.keys(losCache).length > 1000) losCache = {};
-    return result;
+    // Phase 4 LOS cache removed: the coordinate-keyed cache added per-call overhead
+    // (string key construction, Date.now(), O(n) Object.keys scan on miss) while rarely
+    // hitting, since soldiers move continuously. Direct call is faster and always correct.
+    return blocked(a,b,'los',ay,by);
   }
   function addNode(p,kind,meta){var n={id:nodes.length,x:p.x,z:p.z,kind:kind||'nav',meta:meta||null};nodes.push(n);edges.push([]);return n;}
   function link(a,b){var d=Math.hypot(a.x-b.x,a.z-b.z);edges[a.id].push({to:b.id,cost:d});edges[b.id].push({to:a.id,cost:d});}
