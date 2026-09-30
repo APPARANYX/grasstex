@@ -12,6 +12,13 @@
    - trigger pulls within AIM_SETTLE of a shown stance change (firing mid-change), by writer;
    - prone episodes shorter than PRONE_HOLD, by who stood him up;
    - Engagement's own committed changes (`eng.stance`) for comparison.
+   - `byCaller`: for Engagement's own writes, the function that asked (`orient`, `bound`, `advance`...),
+     so a churn source is a name, not a file;
+   - `excursions`: stand -> down (crouch/prone/crawl) -> stand spells by length, and `loops`: a man who
+     makes three of them inside 30 s (the stand -> crouch -> prone -> stand cycle a player sees), with
+     the chain of callers for the first examples.
+   `battle-sim.js` writes `crouching` only to mirror `tacticalCrouch` (stepMovement shows the committed
+   stance), so its flips double-count Engagement's; `byWriter` keeps them apart for that reason.
    Observe only: the setters store and return the same values; `onFire` is chained. */
 (function (root) {
   var FLAGS = ['prone', 'tacticalCrouch', 'crouching'],
@@ -20,12 +27,24 @@
     WRAPPERS = { 'battle/soldier.js': 1, 'battle/modules/45-stance-transition-crawl.js': 1 },
     c,
     men;
+  /* Frames that only forward a request: the caller that matters is the next one out. */
+  var FORWARDERS = { applyStance: 1, commitStance: 1, requestStance: 1, holdStance: 1, setCrouch: 1, setProne: 1 };
   function writer() {
     var st = String(new Error().stack || ''),
       m;
     FILE.lastIndex = 0;
-    while ((m = FILE.exec(st))) if (!WRAPPERS[m[1]]) return m[1].replace(/^battle\//, '');
-    return 'unknown';
+    while ((m = FILE.exec(st))) if (!WRAPPERS[m[1]]) break;
+    if (!m) return { file: 'unknown', caller: 'unknown' };
+    var file = m[1].replace(/^battle\//, ''),
+      lines = st.split('\n'),
+      caller = file;
+    for (var i = 0; i < lines.length; i++) {
+      var f = /at (?:Object\.)?([\w$.]+) \(.*\/(battle\/(?:modules\/)?[\w.-]+\.js)/.exec(lines[i]);
+      if (!f || FORWARDERS[f[1]] || WRAPPERS[f[2]]) continue;
+      caller = f[2].replace(/^battle\//, '') + ':' + f[1];
+      break;
+    }
+    return { file: file, caller: caller };
   }
   function watch(s) {
     if (s.__stanceProbe) return;
@@ -41,9 +60,12 @@
         },
         set: function (v) {
           if (!!v !== !!box[k]) {
-            var w = writer();
+            var wr = writer(),
+              w = wr.file;
             rec.last[k] = w;
             rec.lastWriter = w;
+            /* stepMovement's mirror of tacticalCrouch must not hide who asked: keep Engagement's caller. */
+            if (w !== 'battle-sim.js') rec.lastCaller = wr.caller;
             var f = (c.flagFlips[k] = c.flagFlips[k] || {});
             f[w] = (f[w] || 0) + 1;
           }
@@ -66,6 +88,7 @@
       c = {
         AIM_SETTLE: T.AIM_SETTLE || 0.4, PRONE_HOLD: T.PRONE_HOLD || 5.5,
         manSeconds: 0, changes: 0, byWriter: {}, byTransition: {}, flagFlips: {},
+        byCaller: {}, excursions: { '<2s': 0, '2-5s': 0, '5-10s': 0 }, loops: 0, loopExamples: [],
         bounces: 0, bouncesByWriter: {}, pulls: 0, pullsMidChange: 0, midChangeByWriter: {},
         proneEpisodes: 0, shortProne: 0, shortProneEndedBy: {}, committedChanges: 0, examples: []
       };
@@ -113,8 +136,27 @@
         c.changes++;
         bump(c.byWriter, w);
         bump(c.byTransition, m.stance + '->' + now);
-        m.changes.push({ t: sim.time, from: m.stance, to: now, writer: w });
-        if (m.changes.length > 3) m.changes.shift();
+        var caller = s.__stanceProbe.lastCaller || w;
+        bump(c.byCaller, m.stance + '->' + now + ' by ' + caller);
+        m.changes.push({ t: sim.time, from: m.stance, to: now, writer: w, caller: caller });
+        if (m.changes.length > 8) m.changes.shift();
+        /* An excursion opens when he leaves stand and closes when he is back on it. */
+        var step = m.stance + '->' + now + ' (' + caller + ')';
+        if (m.stance === 'stand') m.exc = { t: sim.time, chain: [step] };
+        else if (m.exc) m.exc.chain.push(step);
+        if (now === 'stand' && m.exc) {
+          var len = sim.time - m.exc.t;
+          bump(c.excursions, len < 2 ? '<2s' : len < 5 ? '2-5s' : len < 10 ? '5-10s' : '>=10s');
+          m.recent = (m.recent || []).filter(function (x) { return sim.time - x.at < 30; });
+          m.recent.push({ at: +sim.time.toFixed(1), len: +len.toFixed(1), chain: m.exc.chain });
+          m.exc = null;
+          if (m.recent.length >= 3) {
+            c.loops++;
+            if (c.loopExamples.length < 6)
+              c.loopExamples.push({ soldier: s.id, role: s.role, excursions: m.recent });
+            m.recent = [];
+          }
+        }
         var n = m.changes.length;
         if (n >= 2) {
           var a = m.changes[n - 2], b = m.changes[n - 1];
@@ -147,6 +189,10 @@
         committedChangesPerManMinute: mm ? +(c.committedChanges / mm).toFixed(2) : 0,
         byWriter: c.byWriter,
         byTransition: c.byTransition,
+        byCaller: c.byCaller,
+        excursions: c.excursions,
+        loopsOf3In30s: c.loops,
+        loopExamples: c.loopExamples,
         flagFlips: c.flagFlips,
         bouncesUnder1s: c.bounces,
         bouncesByWriter: c.bouncesByWriter,
