@@ -72,6 +72,10 @@
      squad from acquiring the same target on the same frame. */
   var SCAN_INTERVAL = 0.3,
     TRACK_MARGIN = 1.15;
+  /* Phase 4: perception budget - max findTarget scans per AI tick across all soldiers.
+     When exceeded, soldiers keep their current target (or none) until the next tick.
+     This bounds the O(n^2) perception cost in large battles. */
+  var PERCEPTION_BUDGET = 40;
   /* How much of a man each stance leaves visible. Going prone is a real way to avoid being seen,
      which is what gives the engagement pipeline something to gain by getting down. */
   var VISIBILITY = { stand: 1, crouch: 0.72, prone: 0.45 },
@@ -1005,13 +1009,21 @@
     if (had && !stillTracking(soldier, heightAt, obstacles)) soldier.target = null;
     if (!soldier.target && battle.time >= (soldier._scanAt || 0)) {
       soldier._scanAt = battle.time + SCAN_INTERVAL + ((+soldier.id || 0) % 5) * 0.04;
-      soldier.target = findTarget(
+      // Phase 4: perception budget - reset counter each tick, skip scan if budget exceeded
+      if (battle._perceptionTick !== battle.time) {
+        battle._perceptionTick = battle.time;
+        battle._perceptionCount = 0;
+      }
+      if ((battle._perceptionCount || 0) < PERCEPTION_BUDGET) {
+        battle._perceptionCount = (battle._perceptionCount || 0) + 1;
+        soldier.target = findTarget(
         soldier,
         battle.rosterOf(soldier.faction === 'us' ? 'ge' : 'us'),
         heightAt,
         obstacles,
         battle
-      );
+        );
+      }
     }
     if (soldier.target) shareContact(soldier, battle);
     squadSenses(soldier.squad, battle);
