@@ -177,10 +177,14 @@ function coa(arm) {
   return out;
 }
 
+/* An audio file the host refused under load (HTTP 50x on an .mp3) is presentation, not a simulation error:
+   it is counted apart, and only other page errors fail the run. */
+const audio = e => /HTTP 50\d loading '[^']*\.mp3'/.test(e);
 const report = arms.map(a => ({
   arm: a.label,
   battles: a.battles.length,
-  errors: sum(a.battles, b => (b.errors || []).length),
+  errors: sum(a.battles, b => (b.errors || []).filter(e => !audio(e)).length),
+  audioLoadErrors: sum(a.battles, b => (b.errors || []).filter(audio).length),
   sameBattleFalse: a.battles.filter(b => b.sameBattle === false).length,
   winners: a.battles.reduce((o, b) => ((o[b.winner || 'none'] = (o[b.winner || 'none'] || 0) + 1), o), {}),
   wallSecondsMedian: pct(a.battles.map(b => b.wallSeconds).sort((x, y) => x - y), 0.5),
@@ -190,7 +194,7 @@ const report = arms.map(a => ({
 if (JSON_OUT) console.log(JSON.stringify(report, null, 1));
 else
   for (const x of report) {
-    console.log('==== ' + x.arm + ': ' + x.battles + ' battles, page errors ' + x.errors + ', control mismatches ' + x.sameBattleFalse + ', winners ' + JSON.stringify(x.winners) + ', median wall ' + x.wallSecondsMedian + ' s');
+    console.log('==== ' + x.arm + ': ' + x.battles + ' battles, page errors ' + x.errors + ' (+' + x.audioLoadErrors + ' audio 50x),  control mismatches ' + x.sameBattleFalse + ', winners ' + JSON.stringify(x.winners) + ', median wall ' + x.wallSecondsMedian + ' s');
     if (x.morale) console.log('-- morale-decisions\n' + JSON.stringify(x.morale, null, 1));
     if (x.coa) console.log('-- coa-decisions\n' + JSON.stringify(x.coa, null, 1));
   }
