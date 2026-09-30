@@ -26,7 +26,7 @@ svg text{user-select:none}.laneLabel{font-size:13px;font-weight:800;fill:#8ea0b8
         <span class="badge zoomReadout" id="zoomReadout">100%</span>
         <button class="btn" id="zoomInBtn" title="Zoom in (+)">+</button>
         <button class="btn" id="resetBtn" title="1 SVG unit = 1 screen pixel (0)">100%</button>
-        <button class="btn threeDOnly" id="brain3dResetBtn" hidden title="Reset 3D rotation and zoom">Reset 3D</button><button class="btn threeDOnly active" id="brain3dInvertYBtn" hidden title="Invert vertical drag rotation">Invert Y: On</button><button class="btn threeDOnly" id="brain3dBillboardBtn" hidden title="Keep detail CFG pages facing the camera">Billboard: Off</button><button class="btn threeDOnly" id="brain3dExplodeBtn" hidden title="Cycle slice presentation: compact, exploded, detailed">Explode slices</button><button class="btn navBack" id="cfgBackBtn" hidden title="Return to the previous function">← Back</button><select class="btn" id="cfgSelect" hidden title="Choose a function to parse into a control-flow graph"></select>
+        <button class="btn threeDOnly" id="brain3dResetBtn" hidden title="Reset 3D rotation and zoom">Reset 3D</button><button class="btn threeDOnly active" id="brain3dInvertYBtn" hidden title="Invert vertical drag rotation">Invert Y: On</button><button class="btn threeDOnly active" id="brain3dTextSnapBtn" hidden title="Flip detail text 180° when viewing the back of a slice">Text snap: On</button><button class="btn threeDOnly" id="brain3dExplodeBtn" hidden title="Cycle slice presentation: compact, exploded, detailed">Explode slices</button><button class="btn navBack" id="cfgBackBtn" hidden title="Return to the previous function">← Back</button><select class="btn" id="cfgSelect" hidden title="Choose a function to parse into a control-flow graph"></select>
         <span class="navHint" id="navHint">wheel = zoom · drag = pan · Space+drag anywhere · dbl-click = zoom</span>
       </div>
     </div>
@@ -264,7 +264,7 @@ function layoutCFG(cfg){
 
 const stateFocus={};
 let cfgHistory=[],brainFocus=null;
-const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:true,billboard:false,focus:null,scene:null,detailScene:null,raf:0,fast:false,restoreTimer:0};
+const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:true,textSnap:true,focus:null,scene:null,detailScene:null,raf:0,fast:false,restoreTimer:0};
 let sources={}, current='brain', graphBounds={x:0,y:0,w:1800,h:1600};
 let camera={x:0,y:0,w:1800,h:1600},dragging=false,dragPointer=null,lastPointer=null,spaceDown=false,cameraAnim=0;
 const svg=document.getElementById('graph'), viewport=document.getElementById('viewport'), status=document.getElementById('status'), workspace=document.getElementById('workspace');
@@ -590,14 +590,14 @@ function brain3DProjectDetail(p){
   const yaw=brain3D.yaw,pitch=brain3D.pitch,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
   const x1=p.x*cy+p.z*sy,z1=-p.x*sy+p.z*cy,y1=p.y;
   const y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;
-  const scale=.72*brain3D.zoom;
+  const scale=.36*brain3D.zoom;
   return {x:900+x1*scale,y:650+y2*scale,z:z2,scale};
 }
 
 function brain3DReset(){
   cancelAnimationFrame(brain3D.raf);brain3D.raf=0;clearTimeout(brain3D.restoreTimer);brain3D.restoreTimer=0;brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.detailScene=null;
   const b=document.getElementById('brain3dExplodeBtn');if(b)b.textContent='Explode slices';
-  const iy=document.getElementById('brain3dInvertYBtn');if(iy){iy.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');iy.classList.toggle('active',brain3D.invertY)}const bb=document.getElementById('brain3dBillboardBtn');if(bb){bb.textContent='Billboard: '+(brain3D.billboard?'On':'Off');bb.classList.toggle('active',brain3D.billboard)}
+  const iy=document.getElementById('brain3dInvertYBtn');if(iy){iy.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');iy.classList.toggle('active',brain3D.invertY)}const ts=document.getElementById('brain3dTextSnapBtn');if(ts){ts.textContent='Text snap: '+(brain3D.textSnap?'On':'Off');ts.classList.toggle('active',brain3D.textSnap)}
   if(current==='brain3d')renderBrain3DScene();
 }
 
@@ -608,26 +608,36 @@ function renderBrain3DDetailScene(fast=false){
   const model=brain3D.detailScene||brain3DDetailModel();brain3D.detailScene=model;
   viewport.innerHTML='';graphBounds={x:0,y:0,w:1800,h:1300};svg.setAttribute('viewBox','0 0 1800 1300');
   const g=viewport,orders=model.slices.map(s=>s.order),minOrder=Math.min(...orders),maxOrder=Math.max(...orders),center=(minOrder+maxOrder)/2;
-  const gap=420,sliceZ=s=>(center-s.order)*gap,P=brain3DProjectDetail;
+  const gap=840,sliceZ=s=>(center-s.order)*gap,P=brain3DProjectDetail;
 
   function pageWorld(s,x,y){
     return {x:(x-s.pageCX)*s.worldScale,y:(y-s.pageCY)*s.worldScale,z:sliceZ(s)};
   }
   function pagePoint(s,x,y){
-    if(brain3D.billboard){
-      const cp=P({x:0,y:0,z:sliceZ(s)}),k=cp.scale*s.worldScale;
-      return {x:cp.x+(x-s.pageCX)*k,y:cp.y+(y-s.pageCY)*k,z:cp.z,scale:k};
-    }
     return P(pageWorld(s,x,y));
   }
   function pageTransform(s){
-    if(brain3D.billboard){
-      const cp=P({x:0,y:0,z:sliceZ(s)}),k=cp.scale*s.worldScale;
-      return 'translate('+cp.x+','+cp.y+') scale('+k+') translate('+(-s.pageCX)+','+(-s.pageCY)+')';
-    }
     const p0=pagePoint(s,0,0),px=pagePoint(s,1,0),py=pagePoint(s,0,1);
     const a=px.x-p0.x,b=px.y-p0.y,cc=py.x-p0.x,d=py.y-p0.y;
     return 'matrix('+a+' '+b+' '+cc+' '+d+' '+p0.x+' '+p0.y+')';
+  }
+  function sliceBackFacing(s){
+    const c0=pagePoint(s,s.pageCX,s.pageCY);
+    const px=pagePoint(s,s.pageCX+1,s.pageCY);
+    const py=pagePoint(s,s.pageCX,s.pageCY+1);
+    const ax=px.x-c0.x,ay=px.y-c0.y,bx=py.x-c0.x,by=py.y-c0.y;
+    return ax*by-ay*bx<0;
+  }
+  function snapPageText(page,s){
+    if(!brain3D.textSnap||!sliceBackFacing(s))return;
+    page.querySelectorAll('text').forEach(t=>{
+      const x=parseFloat(t.getAttribute('x')||'0'),y=parseFloat(t.getAttribute('y')||'0');
+      const prior=t.getAttribute('transform')||'';
+      t.setAttribute('transform',(prior?prior+' ':'')+'rotate(180 '+x+' '+y+')');
+      const anchor=t.getAttribute('text-anchor');
+      if(!anchor||anchor==='start')t.setAttribute('text-anchor','end');
+      else if(anchor==='end')t.setAttribute('text-anchor','start');
+    });
   }
   function cfgCorners(s){
     const b=s.cfg.bounds;
@@ -707,7 +717,7 @@ function renderBrain3DDetailScene(fast=false){
 
     // Page title lives in the same 2D coordinate system as the Deep CFG.
     page.appendChild(el('text',{x:s.cfg.bounds.x+50,y:48,'font-size':25,'font-weight':800,fill:'#fff'},s.title));
-    page.appendChild(el('text',{x:s.cfg.bounds.x+50,y:75,class:'mini'},s.sub+' · Billboard '+(brain3D.billboard?'ON':'OFF')));
+    page.appendChild(el('text',{x:s.cfg.bounds.x+50,y:75,class:'mini'},s.sub+' · text snap '+(brain3D.textSnap?'ON':'OFF')));
 
     const rendered=renderCfgLayout(page,s.cfg,{
       cloneNode:n=>Object.assign({},n,{
@@ -750,6 +760,7 @@ function renderBrain3DDetailScene(fast=false){
       page.appendChild(pg);
     });
 
+    snapPageText(page,s);
     g.appendChild(page);
   });
 
@@ -758,11 +769,11 @@ function renderBrain3DDetailScene(fast=false){
   hud.appendChild(el('text',{x:14,y:22,class:'brain3dHudText'},'SHOW DETAIL · literal Deep Branch CFG pages stacked in 3D'));
   hud.appendChild(el('text',{x:14,y:42,class:'brain3dHudText'},'same layoutCFG() coordinates, node sizes and edge routing as the 2D detail page'));
   hud.appendChild(el('text',{x:14,y:62,class:'brain3dHudText'},'ENTRY / EXIT / SHORT EXIT + CALL / RETURN ports connect pages across depth'));
-  hud.appendChild(el('text',{x:14,y:82,class:'brain3dHudText'},'Billboard '+(brain3D.billboard?'ON':'OFF')+' · Invert Y '+(brain3D.invertY?'ON':'OFF')+' · orthographic detail projection'));
+  hud.appendChild(el('text',{x:14,y:82,class:'brain3dHudText'},'Text snap '+(brain3D.textSnap?'ON':'OFF')+' · Invert Y '+(brain3D.invertY?'ON':'OFF')+' · no geometry billboard'));
   hud.appendChild(el('text',{x:14,y:102,class:'brain3dHudText'},model.slices.length+' slices · Macro nearest · drag rotates · wheel zooms'));
   g.appendChild(hud);
 
-  status.textContent='3D Show Detail · exact Deep CFG layouts reused as 3D slices. Billboard '+(brain3D.billboard?'ON':'OFF')+'.';
+  status.textContent='3D Show Detail · exact Deep CFG layouts reused as 3D slices. Text snap '+(brain3D.textSnap?'ON':'OFF')+'; geometry remains on the slice plane.';
 }
 
 function renderBrain3DScene(){
@@ -1258,7 +1269,7 @@ function fullView(){
      target={x:wx-u*nw,y:wy-v*nh,w:nw,h:nh};
    if(animate)animateCamera(target,140);else{camera=target;applyCamera()}
  }
- function zoomCenter(factor){if(current==='brain3d'){brain3D.zoom=clamp(brain3D.zoom*factor,.32,2.6);renderBrain3DScene();return}const r=stageRect();zoomAt(factor,r.left+r.width/2,r.top+r.height/2,true)}
+ function zoomCenter(factor){if(current==='brain3d'){brain3D.zoom=clamp(brain3D.zoom*factor,.08,4);renderBrain3DScene();return}const r=stageRect();zoomAt(factor,r.left+r.width/2,r.top+r.height/2,true)}
  function panByScreen(dx,dy){
    const r=stageRect();
    if(!(r.width>0&&r.height>0)||!cameraValid(camera))return;
@@ -1268,7 +1279,7 @@ function fullView(){
  document.getElementById('refreshBtn').onclick=()=>load().then(()=>requestAnimationFrame(fit));document.getElementById('fitBtn').onclick=fit;document.getElementById('resetBtn').onclick=actualSize;document.getElementById('zoomInBtn').onclick=()=>zoomCenter(1.28);document.getElementById('zoomOutBtn').onclick=()=>zoomCenter(1/1.28);document.getElementById('closeDrawer').onclick=()=>workspace.classList.remove('drawerOpen');
  document.getElementById('brain3dResetBtn').onclick=brain3DReset;
  document.getElementById('brain3dInvertYBtn').onclick=()=>{brain3D.invertY=!brain3D.invertY;const b=document.getElementById('brain3dInvertYBtn');b.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');b.classList.toggle('active',brain3D.invertY);if(current==='brain3d')renderBrain3DScene()};
- document.getElementById('brain3dBillboardBtn').onclick=()=>{brain3D.billboard=!brain3D.billboard;const b=document.getElementById('brain3dBillboardBtn');b.textContent='Billboard: '+(brain3D.billboard?'On':'Off');b.classList.toggle('active',brain3D.billboard);if(current==='brain3d'&&brain3D.mode==='detail')renderBrain3DDetailScene(false)};
+ document.getElementById('brain3dTextSnapBtn').onclick=()=>{brain3D.textSnap=!brain3D.textSnap;const b=document.getElementById('brain3dTextSnapBtn');b.textContent='Text snap: '+(brain3D.textSnap?'On':'Off');b.classList.toggle('active',brain3D.textSnap);if(current==='brain3d'&&brain3D.mode==='detail')renderBrain3DDetailScene(false)};
  document.getElementById('brain3dExplodeBtn').onclick=()=>{
    const b=document.getElementById('brain3dExplodeBtn');
    if(brain3D.mode==='compact'){brain3D.mode='exploded';b.textContent='Show detail'}
@@ -1277,9 +1288,9 @@ function fullView(){
    if(current==='brain3d')renderBrain3DScene()
  };
  document.getElementById('cfgBackBtn').onclick=()=>{if(!cfgHistory.length)return;cfgChoice=cfgHistory.pop();const sel=document.getElementById('cfgSelect');if(sel)sel.value=cfgChoice;renderTabs();render();fit()};
- svg.addEventListener('wheel',e=>{e.preventDefault();const factor=Math.exp(-e.deltaY*0.00135);if(current==='brain3d'){brain3D.zoom=clamp(brain3D.zoom*factor,.32,2.6);scheduleBrain3DRender(brain3D.mode==='detail');clearTimeout(brain3D.restoreTimer);if(brain3D.mode==='detail')brain3D.restoreTimer=setTimeout(()=>{brain3D.fast=false;renderBrain3DDetailScene(false)},140);return}zoomAt(factor,e.clientX,e.clientY,false)},{passive:false});
+ svg.addEventListener('wheel',e=>{e.preventDefault();const factor=Math.exp(-e.deltaY*0.00135);if(current==='brain3d'){brain3D.zoom=clamp(brain3D.zoom*factor,.08,4);scheduleBrain3DRender(brain3D.mode==='detail');clearTimeout(brain3D.restoreTimer);if(brain3D.mode==='detail')brain3D.restoreTimer=setTimeout(()=>{brain3D.fast=false;renderBrain3DDetailScene(false)},140);return}zoomAt(factor,e.clientX,e.clientY,false)},{passive:false});
  svg.addEventListener('dblclick',e=>{if(e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.brain3dPort,.callPort'))return;e.preventDefault();if(current==='brain3d'){brain3DReset();return}zoomAt(e.shiftKey?1/1.65:1.65,e.clientX,e.clientY,true)});
- svg.addEventListener('pointerdown',e=>{const overNode=e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.callPort');const forcePan=spaceDown||e.button===1;if(overNode&&!forcePan)return;if(e.button!==0&&e.button!==1)return;e.preventDefault();dragging=true;dragPointer=e.pointerId;lastPointer={x:e.clientX,y:e.clientY};document.getElementById('stage').classList.add('panning');svg.setPointerCapture(e.pointerId)});
+ svg.addEventListener('pointerdown',e=>{const overNode=e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.brain3dPort,.callPort');const forcePan=spaceDown||e.button===1;if(overNode&&!forcePan)return;if(e.button!==0&&e.button!==1)return;e.preventDefault();dragging=true;dragPointer=e.pointerId;lastPointer={x:e.clientX,y:e.clientY};document.getElementById('stage').classList.add('panning');svg.setPointerCapture(e.pointerId)});
  svg.addEventListener('pointermove',e=>{if(!dragging||e.pointerId!==dragPointer)return;const dx=e.clientX-lastPointer.x,dy=e.clientY-lastPointer.y;lastPointer={x:e.clientX,y:e.clientY};if(current==='brain3d'){brain3D.yaw+=dx*.008;brain3D.pitch=clamp(brain3D.pitch+dy*.006*(brain3D.invertY?-1:1),-1.18,1.18);scheduleBrain3DRender(brain3D.mode==='detail');return}panByScreen(dx,dy)});
  function endDrag(e){if(!dragging)return;if(e&&dragPointer!=null&&e.pointerId!==dragPointer)return;dragging=false;dragPointer=null;lastPointer=null;document.getElementById('stage').classList.remove('panning');if(current==='brain3d'&&brain3D.mode==='detail'){cancelAnimationFrame(brain3D.raf);brain3D.raf=0;brain3D.fast=false;renderBrain3DDetailScene(false)}}
  svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);svg.addEventListener('lostpointercapture',endDrag);
