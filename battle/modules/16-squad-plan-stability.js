@@ -106,12 +106,14 @@
     return stress < MORALE_TUNING.rallyStress && casualtyFrac < moraleBreakAt(stress) - MORALE_TUNING.rallyGap;
   }
   /* 3c: course of action on contact. Behind ?coa=1. The Squad Leader (the one COA owner) scores the
-     declared COAs against declared inputs on every tick the squad is in contact and keeps the one it holds
-     (sq.coa) until the other leads by switchMargin, so a contact that blinks does not re-decide and a change
-     in the squad's situation inside a contact does. Scoring is deterministic: weighted sum, no RNG; a first
-     choice or a tie goes by COA name order, so the choice is a pure function of squad state and the COA it
-     holds. The COA gates bounding through fireAndMovement: defend holds (no bounds), assault bounds if the
-     phase allows. COAs only restrict, never expand. */
+     declared COAs against declared inputs on every tick the squad is in contact and keeps the winner as
+     sq.coa, so a squad whose casualties, stress or leader change inside a contact changes its COA inside it,
+     and a contact that blinks is not a new decision. Scoring is deterministic: weighted sum, no RNG; ties
+     break by COA name order, so the choice is a pure function of squad state at that tick. There is no
+     margin or latch: a margin was measured (Part B of the 3b/3c work) and, because casualties never heal and
+     stress only falls, it latched squads in defend (fewer bounds, more battles still open at 600 s). The
+     COA gates bounding through fireAndMovement: defend holds (no bounds), assault bounds if the phase
+     allows. COAs only restrict, never expand. */
   var COA_ON = typeof location !== 'undefined' && /[?&]coa=1\b/.test(location.search || '');
   var COAS = {
     assault: { label: 'assault', bounds: true },
@@ -134,9 +136,7 @@
     assault: { base: 1.0, casualtyFrac: -2.0, stress: -1.0, leaderDown: -1.5 },
     defend: { base: 0.0, casualtyFrac: 0.5, stress: 0.5, leaderDown: 0.5 }
   };
-  /* switchMargin: the score one man of a ten-man squad is worth between the two COAs (2.5 per unit of casualty
-     fraction x 0.1), so the COA changes when a man's worth of loss tips the squad the other way, not before. */
-  var COA_TUNING = { weights: COA_WEIGHTS, switchMargin: 0.25 };
+  var COA_TUNING = { weights: COA_WEIGHTS };
   /* The declared inputs, read off a squad once; the scores and the choice are then pure functions of
      that record (the same arithmetic in the same order as before, so the probes and checks can score
      recorded inputs with the shipping tables instead of a copy). */
@@ -161,16 +161,10 @@
     }
     return best;
   }
-  /* The COA the squad holds after this tick: its first choice, or the incumbent unless the other leads by
-     switchMargin. Called each tick the squad is in contact, never out of it. */
+  /* The COA the squad holds after this tick: the better score on its inputs now. Called each tick the squad is
+     in contact, never out of it. */
   function updateCOA(sq) {
-    var inputs = coaInputsOf(sq),
-      best = decideCOA(inputs),
-      held = sq.coa;
-    if (!held || !COAS[held]) sq.coa = best;
-    else if (best !== held && coaScore(best, inputs) - coaScore(held, inputs) >= COA_TUNING.switchMargin)
-      sq.coa = best;
-    return sq.coa;
+    return (sq.coa = decideCOA(coaInputsOf(sq)));
   }
   var TACTICAL = {
     assault: 1,
