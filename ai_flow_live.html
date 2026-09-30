@@ -9,7 +9,7 @@
 *{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:14px/1.35 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;overflow:hidden}
 button,select,input{font:inherit}.app{height:100%;display:grid;grid-template-rows:auto 1fr}.top{padding:14px 16px 10px;border-bottom:1px solid #263549;background:#0d141e;box-shadow:0 3px 16px #0006;z-index:5}.titleRow{display:flex;align-items:flex-start;gap:18px}.title{font-size:22px;font-weight:800;letter-spacing:.2px}.sub{color:var(--muted);font-size:12px;margin-top:3px}.grow{flex:1}.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.btn{border:1px solid #3b4d65;background:#172333;color:#dce6f4;border-radius:8px;padding:7px 10px;cursor:pointer}.btn:hover{background:#203047}.btn.active{border-color:#7b96b9;background:#29415d;color:white}.badge{display:inline-flex;gap:6px;align-items:center;border:1px solid #33465f;border-radius:999px;padding:5px 9px;color:#b9c6d8;background:#121c29;font-size:11px}.dot{width:8px;height:8px;border-radius:50%;background:#6b7d94}.dot.ok{background:#59a574}.dot.warn{background:#d2a24d}.dot.bad{background:#d66a72}.tabs{display:flex;gap:6px;margin-top:10px;overflow:auto;padding-bottom:1px}.workspace{display:grid;grid-template-columns:1fr 0;min-height:0}.workspace.drawerOpen{grid-template-columns:minmax(0,1fr) 460px}.stage{position:relative;overflow:hidden;background:radial-gradient(circle at 20% 10%,#142237 0,#0b1119 42%,#091019 100%);cursor:grab}.stage.panning{cursor:grabbing}#graph{width:100%;height:100%;display:block;touch-action:none}.node,.stateNode{cursor:pointer}.navHint{color:#879bb5;font-size:11px;white-space:nowrap}.zoomReadout{min-width:56px;justify-content:center;font-variant-numeric:tabular-nums}.drawer{border-left:1px solid #2d3c51;background:#0f1722;overflow:auto;display:none}.drawerOpen .drawer{display:block}.drawerHead{position:sticky;top:0;background:#131e2b;padding:12px 14px;border-bottom:1px solid #2b3b50;z-index:2}.drawerTitle{font-weight:800}.drawerMeta{font-size:11px;color:#93a6be;margin-top:3px}.close{float:right}.source{white-space:pre-wrap;margin:0;padding:14px;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#d2dbea}.source .hit{background:#4f3d1f;color:#fff3c8}.status{position:absolute;left:12px;bottom:12px;background:#101924e8;border:1px solid #2b3e57;border-radius:10px;padding:8px 10px;color:#aebed2;font-size:11px;pointer-events:none;max-width:520px}.legend{position:absolute;right:12px;bottom:12px;background:#101924e8;border:1px solid #2b3e57;border-radius:10px;padding:8px 10px;display:flex;gap:10px;flex-wrap:wrap;max-width:520px;font-size:11px}.key{display:flex;gap:5px;align-items:center}.sw{width:11px;height:11px;border-radius:3px}.errorBox{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:#311b20;border:1px solid #7f424b;padding:8px 12px;border-radius:8px;color:#ffd6da;display:none;z-index:3}
 svg text{user-select:none}.laneLabel{font-size:13px;font-weight:800;fill:#8ea0b8;letter-spacing:.8px}.node rect,.node polygon{stroke-width:1.6;filter:drop-shadow(0 4px 7px #0006)}.node text{fill:#f3f6fb}.node .small{fill:#c0cad8;font-size:11px}.node.process rect{fill:#1c2a3a;stroke:#56718f}.node.merge rect{fill:#121b27;stroke:#8396ae;stroke-dasharray:4 3}.node.macro rect{fill:#392b52;stroke:#78629c}.node.meso rect{fill:#1e4667;stroke:#5e87aa}.node.micro rect{fill:#1f4a37;stroke:#609176}.node.move rect{fill:#5a3d1c;stroke:#9b6d34}.node.support rect{fill:#283746;stroke:#607487}.node.terminal rect{fill:#29323d;stroke:#6b7686}.node.short ellipse{fill:#421d24;stroke:#ef7c86;stroke-width:3.5;filter:drop-shadow(0 4px 8px #0008)}.node.short .shortRing{fill:none;stroke:#ef7c86;stroke-width:1.2;stroke-dasharray:4 3}.node.jump ellipse{fill:#3b3019;stroke:#d8aa54;stroke-width:3;filter:drop-shadow(0 4px 8px #0008)}.node.decision polygon{fill:#162335;stroke:#8196b4}.node:hover rect,.node:hover polygon{stroke:#c3d5ef;stroke-width:2.4}.edge{fill:none;stroke:var(--line);stroke-width:2;marker-end:url(#arrow)}.edge.loop{stroke-dasharray:6 5}.edge.yes{stroke:var(--yes)}.edge.no{stroke:var(--no)}.edgeLabel{font-size:11px;font-weight:700;paint-order:stroke;stroke:#0b1119;stroke-width:4px;stroke-linejoin:round}.edgeLabel.yes{fill:#8bd7a7}.edgeLabel.no{fill:#e6a0a5}.edgeLabel.normal{fill:#b7c5d7}.groupBox{fill:none;stroke:#2d4057;stroke-width:1.4;stroke-dasharray:7 5}.groupTitle{fill:#6f849f;font-size:13px;font-weight:800;letter-spacing:.5px}.stateEdge{fill:none;stroke:#657993;stroke-width:1.8;marker-end:url(#arrow)}.stateEdge.self{stroke-dasharray:5 4}.stateLabel{fill:#aebed3;font-size:10px;paint-order:stroke;stroke:#0b1119;stroke-width:3px}.stateNode rect{stroke-width:1.6}.stateNode.macro rect{fill:#38294f;stroke:#755e98}.stateNode.meso rect{fill:#1d4566;stroke:#5d85a7}.stateNode.micro rect{fill:#1f4a37;stroke:#609176}.stateNode.move rect{fill:#5b3c1c;stroke:#a06e32}.stateNode text{fill:#f2f6fb}.stateNode:hover rect{stroke:#c7d7ec;stroke-width:2.2}.stateNode .desc{fill:#bbc7d6;font-size:10px}.warnText{fill:#e0a958;font-size:12px;font-weight:700}.sourceChip{fill:#0f1824;stroke:#31465f;stroke-width:1}.sourceChipText{fill:#8fa5c0;font-size:10px}.mini{font-size:10px;fill:#aab9cc}.brainLane{fill:#0f1824;fill-opacity:.56;stroke:#31445c;stroke-width:1.5}.brainLaneTitle{font-size:18px;font-weight:900;fill:#dce6f4;letter-spacing:.6px}.brainLaneSub{font-size:10px;fill:#8397b1}.brainNode rect{stroke-width:1.7;filter:drop-shadow(0 4px 7px #0005)}.brainNode text{fill:#f2f6fb}.brainNode .meta{fill:#a9b8cb;font-size:10px}.brainNode.macro rect{fill:#392b52;stroke:#78629c}.brainNode.meso rect{fill:#1e4667;stroke:#5e87aa}.brainNode.micro rect{fill:#1f4a37;stroke:#609176}.brainNode.move rect{fill:#5a3d1c;stroke:#9b6d34}.brainNode.focus rect{stroke:#fff;stroke-width:3}.brainNode.dim{opacity:.28}.brainEdge{fill:none;stroke:#7d91ab;stroke-width:1.8;marker-end:url(#arrow);opacity:.34;transition:opacity .12s ease,stroke-width .12s ease}.brainEdge.api{stroke-dasharray:8 5}.brainEdge.hook{stroke-dasharray:2 6;stroke-width:2.2}.brainEdge.extension{stroke-dasharray:11 4 2 4}.brainEdge.focus{opacity:.95;stroke-width:3}.brainEdge.dim{opacity:.055}.brainEdgeLabel{font-size:9px;font-weight:800;fill:#9fb1c7;paint-order:stroke;stroke:#0b1119;stroke-width:4px}.callPort rect{fill:#101b29;stroke:#6e88aa;stroke-width:1.2}.callPort text{fill:#cfe0f5;font-size:10px;font-weight:800}.callPort:hover rect{stroke:#fff;stroke-width:2}.navBack[hidden]{display:none}
-.brain3dPlane{fill:#101b28;fill-opacity:.22;stroke:#536982;stroke-width:1.5}.brain3dBack{fill:#0c151f;fill-opacity:.18;stroke:#42566d;stroke-width:1}.brain3dSide{fill:#162434;fill-opacity:.42;stroke:#536982;stroke-width:1.15}.brain3dPlane.detailFace{fill-opacity:.34;stroke-width:2}.brain3dGrid{fill:none;stroke:#34475d;stroke-width:.8;opacity:.45}.brain3dSliceTitle{font-size:16px;font-weight:900;fill:#f2f6fb;paint-order:stroke;stroke:#0b1119;stroke-width:5px}.brain3dSliceSub{font-size:9px;fill:#a9b9cc;paint-order:stroke;stroke:#0b1119;stroke-width:3px}.brain3dEdge{fill:none;stroke:#8095ad;stroke-width:1.4;opacity:.32}.brain3dEdge.call{stroke:#8ba3c0}.brain3dEdge.state{stroke:#6f8e7e;stroke-dasharray:5 4}.brain3dEdge.bridge{stroke:#c19d64;stroke-dasharray:9 5}.brain3dEdge.focus{opacity:.98;stroke-width:3}.brain3dEdge.dim{opacity:.035}.brain3dNode rect,.brain3dNode circle{stroke-width:1.5;filter:drop-shadow(0 3px 5px #0007)}.brain3dNode text{fill:#f3f7fb;paint-order:stroke;stroke:#091019;stroke-width:3px}.brain3dNode .sub{fill:#aab9ca;font-size:8px;stroke-width:2px}.brain3dNode.function.macro rect,.brain3dNode.state.macro rect{fill:#392b52;stroke:#7a629d}.brain3dNode.function.meso rect,.brain3dNode.state.meso rect{fill:#1f486a;stroke:#5f89ac}.brain3dNode.function.micro rect,.brain3dNode.state.micro rect{fill:#20503b;stroke:#63957a}.brain3dNode.function.move rect,.brain3dNode.state.move rect,.brain3dNode.priority rect{fill:#5d401f;stroke:#a5743b}.brain3dNode.focus rect{stroke:#fff;stroke-width:3}.brain3dNode.dim{opacity:.16}.brain3dHud{fill:#0c1520;fill-opacity:.9;stroke:#31465f;stroke-width:1}.brain3dHudText{fill:#c6d3e3;font-size:10px}.brain3dNode{cursor:pointer}.threeDOnly[hidden]{display:none}
+.brain3dPlane{fill:#101b28;fill-opacity:.22;stroke:#536982;stroke-width:1.5}.brain3dBack{fill:#0c151f;fill-opacity:.18;stroke:#42566d;stroke-width:1}.brain3dSide{fill:#162434;fill-opacity:.42;stroke:#536982;stroke-width:1.15}.brain3dPlane.detailFace{fill-opacity:.34;stroke-width:2}.brain3dGrid{fill:none;stroke:#34475d;stroke-width:.8;opacity:.45}.brain3dSliceTitle{font-size:16px;font-weight:900;fill:#f2f6fb;paint-order:stroke;stroke:#0b1119;stroke-width:5px}.brain3dSliceSub{font-size:9px;fill:#a9b9cc;paint-order:stroke;stroke:#0b1119;stroke-width:3px}.brain3dEdge{fill:none;stroke:#8095ad;stroke-width:1.4;opacity:.32}.brain3dEdge.call{stroke:#8ba3c0}.brain3dEdge.state{stroke:#6f8e7e;stroke-dasharray:5 4}.brain3dEdge.bridge{stroke:#c19d64;stroke-dasharray:9 5}.brain3dEdge.focus{opacity:.98;stroke-width:3}.brain3dEdge.dim{opacity:.035}.brain3dNode rect,.brain3dNode circle{stroke-width:1.5;filter:drop-shadow(0 3px 5px #0007)}.brain3dNode text{fill:#f3f7fb;paint-order:stroke;stroke:#091019;stroke-width:3px}.brain3dNode .sub{fill:#aab9ca;font-size:8px;stroke-width:2px}.brain3dNode.function.macro rect,.brain3dNode.state.macro rect{fill:#392b52;stroke:#7a629d}.brain3dNode.function.meso rect,.brain3dNode.state.meso rect{fill:#1f486a;stroke:#5f89ac}.brain3dNode.function.micro rect,.brain3dNode.state.micro rect{fill:#20503b;stroke:#63957a}.brain3dNode.function.move rect,.brain3dNode.state.move rect,.brain3dNode.priority rect{fill:#5d401f;stroke:#a5743b}.brain3dNode.focus rect{stroke:#fff;stroke-width:3}.brain3dNode.dim{opacity:.16}.brain3dHud{fill:#0c1520;fill-opacity:.9;stroke:#31465f;stroke-width:1}.brain3dHudText{fill:#c6d3e3;font-size:10px}.brain3dNode{cursor:pointer}.brain3dNode.cfgDecision polygon{fill:#162335;stroke:#8ba2c0;stroke-width:1.6}.brain3dNode.cfgShort ellipse{fill:#421d24;stroke:#ef7c86;stroke-width:2.5}.brain3dNode.cfgMerge rect{fill:#121b27;stroke:#8396ae;stroke-dasharray:4 3}.brain3dNode.cfgProcess rect{fill:#1a2938;stroke:#627c9b}.brain3dPort rect{stroke-width:2.2;filter:drop-shadow(0 3px 6px #0008)}.brain3dPort text{font-size:9px;font-weight:900;fill:#fff;paint-order:stroke;stroke:#091019;stroke-width:2px}.brain3dPort.entry rect{fill:#173f4a;stroke:#6fc5d5}.brain3dPort.exit rect{fill:#214b37;stroke:#79c794}.brain3dPort.shortExit rect{fill:#4a2027;stroke:#ef7c86}.brain3dPort.controlExit rect{fill:#493b1e;stroke:#d8aa54}.brain3dPort.callout rect{fill:#5a3e1e;stroke:#e1b266}.brain3dPort.returnin rect{fill:#243d59;stroke:#7fa7d4}.brain3dEdge.detailFlow{stroke:#91a7c1;stroke-width:1.35;opacity:.5;marker-end:url(#arrow)}.brain3dEdge.callFlow{stroke:#d3aa68;stroke-width:1.75;opacity:.65;marker-end:url(#arrow)}.brain3dEdge.returnFlow{stroke:#79a7d2;stroke-width:1.5;opacity:.55;marker-end:url(#arrow)}.brain3dEdge.parentFlow{stroke:#ae8ed0;stroke-width:1.5;stroke-dasharray:5 4;opacity:.5;marker-end:url(#arrow)}.brain3dDetailTitle{font-size:14px;font-weight:900;fill:#fff;paint-order:stroke;stroke:#081019;stroke-width:4px}.brain3dDetailMeta{font-size:8px;fill:#a9b9ca;paint-order:stroke;stroke:#081019;stroke-width:3px}.threeDOnly[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -425,6 +425,226 @@ function brain3DModel(){
     list.forEach((n,i)=>{const col=i%cols,row=Math.floor(i/cols);n.x=-planeW/2+mx+(cols===1?0:col*dx);n.y=-planeH/2+my+(rows===1?0:row*dy);n.sliceIndex=si[slice.id]});
   });
   return {slices,nodes,edges,planeW,planeH};
+}
+
+
+function detailCfgSnippet(n){
+  let snippet=n.label||'';
+  if(n.stmt){
+    if(n.stmt.type==='if'||n.stmt.type==='loop')snippet=n.stmt.cond||snippet;
+    else if(n.stmt.type==='switch')snippet=n.stmt.expr||snippet;
+    else if(n.stmt.text)snippet=n.stmt.text;
+  }
+  return snippet;
+}
+
+function brain3DDetailModel(){
+  const base=brain3D.scene||brain3DModel(),slices=[],nodes=[],edges=[],sliceById={};
+  const planeW=1480,planeH=920;
+  let order=0;
+
+  function addSlice(s){
+    const out=Object.assign({order:order++},s);
+    slices.push(out);sliceById[out.id]=out;return out;
+  }
+  function addNode(n){nodes.push(n);return n}
+  function hasNode(id){return nodes.some(n=>n.id===id)}
+  function addEdge(from,to,kind='detailFlow',label=''){
+    if(hasNode(from)&&hasNode(to))edges.push({from,to,kind,label});
+  }
+
+  const baseSlices=base.slices;
+  const baseNodesBySlice={};
+  base.nodes.forEach(n=>(baseNodesBySlice[n.slice]||(baseNodesBySlice[n.slice]=[])).push(n));
+
+  // First pass: parent section/state slices, then one child CFG slice per mapped function
+  // immediately behind the parent section that owns it.
+  baseSlices.forEach(parent=>{
+    const ps=addSlice({
+      id:'parent:'+parent.id,
+      parentId:null,
+      kind:'parent',
+      title:parent.title,
+      sub:parent.sub+' · parent object layer',
+      layer:parent.layer,
+      sourceSlice:parent.id
+    });
+    const plist=baseNodesBySlice[parent.id]||[];
+    plist.forEach(n=>addNode(Object.assign({},n,{
+      id:'overview:'+n.id,
+      originalId:n.id,
+      slice:ps.id,
+      sliceOrder:ps.order,
+      detailKind:'overview'
+    })));
+
+    // Child function slices only for function objects owned by this parent.
+    plist.filter(n=>n.type==='function'&&n.cfg).forEach(fn=>{
+      const [key,name]=fn.cfg.split(':'),ast=parseFunctionAST(key,name);
+      if(!ast)return;
+      const raw=buildCFG(ast),laid=layoutCFG(raw);
+      const child=addSlice({
+        id:'detail:'+fn.cfg,
+        parentId:ps.id,
+        parentObjectId:'overview:'+fn.id,
+        kind:'cfg',
+        title:fn.fullLabel||fn.label,
+        sub:PATHS[key]+' · line '+ast.f.line+' · literal CFG slice',
+        layer:fn.layer,
+        cfg:fn.cfg,
+        key,name,
+        ref:ast.f.ref
+      });
+
+      // Normalize the existing roomy 2D CFG layout into this 3D slice.
+      const minX=Math.min(...laid.nodes.map(n=>n.x)),maxX=Math.max(...laid.nodes.map(n=>n.x+(n.w||120)));
+      const minY=Math.min(...laid.nodes.map(n=>n.y)),maxY=Math.max(...laid.nodes.map(n=>n.y+(n.h||70)));
+      const sx=(planeW-360)/Math.max(1,maxX-minX),sy=(planeH-250)/Math.max(1,maxY-minY),scale=Math.min(sx,sy);
+      const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
+      const cfgId=id=>'cfg:'+fn.cfg+':'+id;
+      const cfgNodeMap={};
+
+      laid.nodes.forEach(n=>{
+        const nn={
+          id:cfgId(n.id),originalCfgId:n.id,label:n.label,fullLabel:n.sub||n.label,
+          type:'cfg',cfgType:n.type,slice:child.id,sliceOrder:child.order,layer:fn.layer,
+          x:(n.x+(n.w||120)/2-cx)*scale,y:(n.y+(n.h||70)/2-cy)*scale,
+          ref:n.ref,stmt:n.stmt,entry:!!n.entry,parentFunction:fn.cfg
+        };
+        cfgNodeMap[n.id]=nn;addNode(nn);
+      });
+
+      const entryCfg=laid.nodes.find(n=>n.entry)||laid.nodes[0];
+      const normalEnds=laid.nodes.filter(n=>n.type==='terminal'&&!n.entry);
+      const shortEnds=laid.nodes.filter(n=>n.type==='short');
+      const controlEnds=laid.nodes.filter(n=>n.type==='jump');
+
+      const entryPort=addNode({
+        id:'port:entry:'+fn.cfg,label:'ENTRY',fullLabel:'ENTRY · '+fn.label,
+        type:'port',portType:'entry',slice:child.id,sliceOrder:child.order,layer:fn.layer,
+        x:-planeW/2+70,y:0,parentFunction:fn.cfg,ref:fn.ref
+      });
+      const exitPort=addNode({
+        id:'port:exit:'+fn.cfg,label:'EXIT',fullLabel:'NORMAL EXIT · '+fn.label,
+        type:'port',portType:'exit',slice:child.id,sliceOrder:child.order,layer:fn.layer,
+        x:planeW/2-70,y:-70,parentFunction:fn.cfg,ref:fn.ref
+      });
+      const shortPort=shortEnds.length?addNode({
+        id:'port:short:'+fn.cfg,label:'SHORT EXIT',fullLabel:'SHORT-CIRCUIT EXIT · '+fn.label,
+        type:'port',portType:'shortExit',slice:child.id,sliceOrder:child.order,layer:fn.layer,
+        x:planeW/2-70,y:35,parentFunction:fn.cfg,ref:fn.ref
+      }):null;
+      const controlPort=controlEnds.length?addNode({
+        id:'port:control:'+fn.cfg,label:'CONTROL EXIT',fullLabel:'BREAK / CONTINUE control exit · '+fn.label,
+        type:'port',portType:'controlExit',slice:child.id,sliceOrder:child.order,layer:fn.layer,
+        x:planeW/2-70,y:140,parentFunction:fn.cfg,ref:fn.ref
+      }):null;
+
+      if(entryCfg)addEdge(entryPort.id,cfgId(entryCfg.id),'detailFlow','entry');
+      normalEnds.forEach(n=>addEdge(cfgId(n.id),exitPort.id,'detailFlow','return'));
+      shortEnds.forEach(n=>addEdge(cfgId(n.id),shortPort.id,'detailFlow','short'));
+      controlEnds.forEach(n=>addEdge(cfgId(n.id),controlPort.id,'detailFlow','control'));
+
+      // Identify mapped function calls per CFG node. Calls are ordered by source order and
+      // become explicit CALL OUT / RETURN IN port pairs on the boundary.
+      const callsByNode={};
+      laid.nodes.forEach(n=>{
+        const calls=findMappedCalls(key,name,detailCfgSnippet(n));
+        if(calls.length)callsByNode[n.id]=calls;
+      });
+
+      // Internal edges whose source contains mapped calls are deferred until the call chain
+      // returns through its RETURN IN port. All other CFG edges remain literal.
+      laid.edges.forEach(e=>{
+        if(callsByNode[e.from]&&callsByNode[e.from].length)return;
+        addEdge(cfgId(e.from),cfgId(e.to),'detailFlow',e.label||'');
+      });
+
+      let portOrdinal=0;
+      Object.entries(callsByNode).forEach(([sourceId,calls])=>{
+        const source=cfgNodeMap[sourceId];
+        if(!source)return;
+        const successors=laid.edges.filter(e=>e.from===sourceId).map(e=>e.to);
+        let previous=source.id;
+        calls.forEach((call,ci)=>{
+          const py=Math.max(-planeH/2+105,Math.min(planeH/2-105,source.y+(portOrdinal++-2)*38));
+          const suffix=sourceId+':'+ci+':'+call.to;
+          const out=addNode({
+            id:'port:call:'+fn.cfg+':'+suffix,label:'CALL → '+(funcSpec(call.to)?.[1]||call.to),
+            fullLabel:'CALL OUT · '+fn.cfg+' → '+call.to,type:'port',portType:'callout',
+            slice:child.id,sliceOrder:child.order,layer:fn.layer,x:planeW/2-105,y:py,
+            parentFunction:fn.cfg,targetFunction:call.to,ref:source.ref
+          });
+          const ret=addNode({
+            id:'port:returnin:'+fn.cfg+':'+suffix,label:'← RETURN '+(funcSpec(call.to)?.[1]||call.to),
+            fullLabel:'RETURN IN · '+call.to+' → '+fn.cfg,type:'port',portType:'returnin',
+            slice:child.id,sliceOrder:child.order,layer:fn.layer,x:planeW/2-105,y:py+28,
+            parentFunction:fn.cfg,targetFunction:call.to,ref:source.ref
+          });
+          addEdge(previous,out.id,'callFlow','call');
+          // Cross-slice target/return wiring is added after every detail slice exists.
+          out.callTarget=call.to;ret.returnTarget=call.to;ret.callSourceNode=sourceId;
+          previous=ret.id;
+        });
+        successors.forEach(to=>addEdge(previous,cfgId(to),'returnFlow','continue'));
+      });
+
+      child.entryPortId=entryPort.id;
+      child.exitPortId=exitPort.id;
+      child.shortPortId=shortPort&&shortPort.id;
+      child.controlPortId=controlPort&&controlPort.id;
+      child.parentFunction=fn.cfg;
+    });
+
+    // Add a little physical separation between major parent systems.
+    order+=.7;
+  });
+
+  // Re-layout parent overview nodes within their parent slice.
+  slices.filter(s=>s.kind==='parent').forEach(s=>{
+    const list=nodes.filter(n=>n.slice===s.id&&n.detailKind==='overview'),count=list.length;
+    const cols=Math.max(2,Math.ceil(Math.sqrt(Math.max(1,count)*1.55))),rows=Math.max(1,Math.ceil(count/cols));
+    const dx=(planeW-300)/Math.max(1,cols-1),dy=(planeH-280)/Math.max(1,rows-1);
+    list.forEach((n,i)=>{
+      const col=i%cols,row=Math.floor(i/cols);
+      n.x=-planeW/2+150+(cols===1?0:col*dx);
+      n.y=-planeH/2+150+(rows===1?0:row*dy);
+    });
+  });
+
+  // Parent overview → detail ENTRY for each function.
+  slices.filter(s=>s.kind==='cfg').forEach(s=>{
+    if(s.parentObjectId&&s.entryPortId)addEdge(s.parentObjectId,s.entryPortId,'parentFlow','expand');
+  });
+
+  // Preserve high-level overview connections on parent slices.
+  base.edges.forEach(e=>{
+    const a='overview:'+e.from,b='overview:'+e.to;
+    if(hasNode(a)&&hasNode(b))addEdge(a,b,e.kind==='state'?'state':'parentFlow',e.label||'');
+  });
+
+  // Map function ID → detail slice for call/return boundary wiring.
+  const detailByFunction=Object.fromEntries(slices.filter(s=>s.kind==='cfg').map(s=>[s.parentFunction,s]));
+  nodes.filter(n=>n.type==='port'&&n.portType==='callout').forEach(out=>{
+    const callee=detailByFunction[out.callTarget];
+    if(!callee||!callee.entryPortId)return;
+    addEdge(out.id,callee.entryPortId,'callFlow','enter');
+
+    // Pair this callout to its return-in port.
+    const callPrefix=out.id.replace('port:call:','port:returnin:');
+    const ret=nodes.find(n=>n.id===callPrefix);
+    if(!ret)return;
+    if(callee.exitPortId)addEdge(callee.exitPortId,ret.id,'returnFlow','return');
+    if(callee.shortPortId)addEdge(callee.shortPortId,ret.id,'returnFlow','short return');
+  });
+
+  // Port metadata for interaction/status.
+  nodes.forEach(n=>{
+    const s=sliceById[n.slice];
+    n.sliceTitle=s?s.title:n.slice;
+  });
+
+  return {slices,nodes,edges,planeW,planeH,sliceById,detailByFunction};
 }
 
 function brain3DProject(p){
