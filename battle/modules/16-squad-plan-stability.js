@@ -80,6 +80,19 @@
     ORDER_COHESION = 0.55,
     ORDER_PUBLISH_EPS = 0.05,
     FOLLOW_LAG = 2;
+  /* 3b: group morale. Behind ?morale=1. Replaces the flat 60% casualty retreat with a
+     squad-level break/rally model driven by the squad.mind roll-up (module 17). The break
+     threshold is breakBase for calm men (the flat 60% rule) and moves down by breakSlope per
+     unit of mean stress, never below breakMin. A retreating squad rallies only once its men
+     are calm (mean stress < rallyStress) and it is not too depleted. */
+  var MORALE_ON = typeof location !== 'undefined' && /[?&]morale=1\b/.test(location.search || '');
+  var MORALE_TUNING = {
+    breakBase: 0.6,
+    breakSlope: 0.3,
+    breakMin: 0.25,
+    rallyStress: 0.15,
+    rallyCasualty: 0.5
+  };
   var TACTICAL = {
     assault: 1,
     flank: 1,
@@ -1228,7 +1241,23 @@
     }
     sq.aliveCount = living;
     var casualtyFrac = 1 - living / root.SquadAI.establishment(sq);
-    if (casualtyFrac >= 0.6) sq.state = 'retreat';
+    if (MORALE_ON) {
+      var stress = (sq.mind && sq.mind.mean) || 0;
+      if (sq.state === 'retreat') {
+        /* Rally: a retreating squad reforms only once calm and not too depleted; otherwise
+           it stays retreating. Casualties do not heal, so a squad broken at high loss keeps
+           falling back. */
+        if (stress < MORALE_TUNING.rallyStress && casualtyFrac < MORALE_TUNING.rallyCasualty)
+          sq.state = anyEngaged ? 'engaged' : 'advance';
+      } else {
+        /* Break: stress lowers the casualty threshold. At zero stress this is exactly the
+           flat 60% rule. */
+        var breakAt = Math.max(MORALE_TUNING.breakMin,
+          MORALE_TUNING.breakBase - MORALE_TUNING.breakSlope * stress);
+        if (casualtyFrac >= breakAt) sq.state = 'retreat';
+        else sq.state = anyEngaged ? 'engaged' : 'advance';
+      }
+    } else if (casualtyFrac >= 0.6) sq.state = 'retreat';
     else sq.state = anyEngaged ? 'engaged' : 'advance';
     if (battle) updateSuccession(sq, battle);
     if (battle) updateAssembly(sq, battle);
@@ -1635,6 +1664,8 @@
     teamOrderSeconds: TEAM_LEASE,
     boundCycle: BOUND_CYCLE,
     boundDuration: BOUND_DURATION,
+    tuning: { morale: MORALE_TUNING },
+    moraleOn: function () { return MORALE_ON; },
     fireAndMovement: fireAndMovement,
     states: PHASE_STATES,
     transitionPhase: transitionPhase,
