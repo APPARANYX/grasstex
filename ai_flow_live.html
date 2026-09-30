@@ -26,7 +26,7 @@ svg text{user-select:none}.laneLabel{font-size:13px;font-weight:800;fill:#8ea0b8
         <span class="badge zoomReadout" id="zoomReadout">100%</span>
         <button class="btn" id="zoomInBtn" title="Zoom in (+)">+</button>
         <button class="btn" id="resetBtn" title="1 SVG unit = 1 screen pixel (0)">100%</button>
-        <button class="btn threeDOnly" id="brain3dResetBtn" hidden title="Reset 3D rotation and zoom">Reset 3D</button><button class="btn threeDOnly" id="brain3dInvertYBtn" hidden title="Invert vertical drag rotation">Invert Y: Off</button><button class="btn threeDOnly" id="brain3dExplodeBtn" hidden title="Cycle slice presentation: compact, exploded, detailed">Explode slices</button><button class="btn navBack" id="cfgBackBtn" hidden title="Return to the previous function">← Back</button><select class="btn" id="cfgSelect" hidden title="Choose a function to parse into a control-flow graph"></select>
+        <button class="btn threeDOnly" id="brain3dResetBtn" hidden title="Reset 3D rotation and zoom">Reset 3D</button><button class="btn threeDOnly" id="brain3dInvertYBtn" hidden title="Invert vertical drag rotation">Invert Y: On</button><button class="btn threeDOnly" id="brain3dBillboardBtn" hidden title="Keep detail CFG pages facing the camera">Billboard: Off</button><button class="btn threeDOnly" id="brain3dExplodeBtn" hidden title="Cycle slice presentation: compact, exploded, detailed">Explode slices</button><button class="btn navBack" id="cfgBackBtn" hidden title="Return to the previous function">← Back</button><select class="btn" id="cfgSelect" hidden title="Choose a function to parse into a control-flow graph"></select>
         <span class="navHint" id="navHint">wheel = zoom · drag = pan · Space+drag anywhere · dbl-click = zoom</span>
       </div>
     </div>
@@ -264,7 +264,7 @@ function layoutCFG(cfg){
 
 const stateFocus={};
 let cfgHistory=[],brainFocus=null;
-const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:false,focus:null,scene:null,detailScene:null,raf:0,fast:false,restoreTimer:0};
+const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:true,billboard:false,focus:null,scene:null,detailScene:null,raf:0,fast:false,restoreTimer:0};
 let sources={}, current='brain', graphBounds={x:0,y:0,w:1800,h:1600};
 let camera={x:0,y:0,w:1800,h:1600},dragging=false,dragPointer=null,lastPointer=null,spaceDown=false,cameraAnim=0;
 const svg=document.getElementById('graph'), viewport=document.getElementById('viewport'), status=document.getElementById('status'), workspace=document.getElementById('workspace');
@@ -676,7 +676,7 @@ function brain3DProject(p){
 function brain3DReset(){
   cancelAnimationFrame(brain3D.raf);brain3D.raf=0;clearTimeout(brain3D.restoreTimer);brain3D.restoreTimer=0;brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.detailScene=null;
   const b=document.getElementById('brain3dExplodeBtn');if(b)b.textContent='Explode slices';
-  const iy=document.getElementById('brain3dInvertYBtn');if(iy){iy.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');iy.classList.toggle('active',brain3D.invertY)}
+  const iy=document.getElementById('brain3dInvertYBtn');if(iy){iy.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');iy.classList.toggle('active',brain3D.invertY)}const bb=document.getElementById('brain3dBillboardBtn');if(bb){bb.textContent='Billboard: '+(brain3D.billboard?'On':'Off');bb.classList.toggle('active',brain3D.billboard)}
   if(current==='brain3d')renderBrain3DScene();
 }
 
@@ -1175,6 +1175,21 @@ function fullView(){
    const p=el('path',{d,class:'edge '+(opt.kind||'')+(opt.loop?' loop':'')});g.insertBefore(p,g.firstChild);
    if(opt.label){const y=from[1]+28,x=from[0]+(to[0]>from[0]?64:to[0]<from[0]?-64:0);g.appendChild(el('text',{x,y,class:'edgeLabel '+(opt.kind||'normal'),'text-anchor':'middle'},opt.label))}
  }
+ function renderCfgLayout(g,cfg,opt={}){
+   const by=Object.fromEntries(cfg.nodes.map(n=>[n.id,n])),groups={};
+   cfg.nodes.forEach(n=>{
+     const nn=opt.cloneNode?opt.cloneNode(n):n;
+     const gr=node(g,nn);groups[n.id]=gr;
+     if(opt.onNode)opt.onNode(gr,n,nn);
+   });
+   cfg.edges.forEach(e=>{
+     if(opt.edgeFilter&&!opt.edgeFilter(e,by[e.from],by[e.to]))return;
+     const a=by[e.from],b=by[e.to];
+     if(a&&b)cfgEdge(g,a,b,e);
+   });
+   return {by,groups};
+ }
+
  function cfgView(){
    clear();
    const [key,name]=cfgChoice.split(':'),spec=CFG_FUNCS.find(x=>x[0]===key&&x[1]===name),ast=parseFunctionAST(key,name);
@@ -1184,7 +1199,7 @@ function fullView(){
    graphBounds=cfg.bounds;svg.setAttribute('viewBox',`0 0 ${cfg.bounds.w} ${cfg.bounds.h}`);const g=viewport,by=Object.fromEntries(cfg.nodes.map(n=>[n.id,n]));
    g.appendChild(el('text',{x:50,y:45,'font-size':25,'font-weight':800,fill:'#fff'},(spec&&spec[2])||(`${key} · ${name}`)));
    g.appendChild(el('text',{x:50,y:73,class:'mini'},`Parsed directly from if / else / return / for / while / switch structure in ${PATHS[key]} · function starts at line ${ast.f.line}. ↳ function ports jump into called mapped functions; Back returns here.`));
-   cfg.nodes.forEach(n=>node(g,n));cfg.edges.forEach(e=>{const a=by[e.from],b=by[e.to];if(a&&b)cfgEdge(g,a,b,e)});
+   renderCfgLayout(g,cfg);
    status.textContent=`Function CFG: ${PATHS[key]} :: ${name}(). Green/red branches are literal YES/NO paths. Ringed RETURN nodes terminate that path. ↳ ports follow real mapped function calls.`;
  }
 
@@ -1317,6 +1332,7 @@ function fullView(){
  document.getElementById('refreshBtn').onclick=()=>load().then(()=>requestAnimationFrame(fit));document.getElementById('fitBtn').onclick=fit;document.getElementById('resetBtn').onclick=actualSize;document.getElementById('zoomInBtn').onclick=()=>zoomCenter(1.28);document.getElementById('zoomOutBtn').onclick=()=>zoomCenter(1/1.28);document.getElementById('closeDrawer').onclick=()=>workspace.classList.remove('drawerOpen');
  document.getElementById('brain3dResetBtn').onclick=brain3DReset;
  document.getElementById('brain3dInvertYBtn').onclick=()=>{brain3D.invertY=!brain3D.invertY;const b=document.getElementById('brain3dInvertYBtn');b.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');b.classList.toggle('active',brain3D.invertY);if(current==='brain3d')renderBrain3DScene()};
+ document.getElementById('brain3dBillboardBtn').onclick=()=>{brain3D.billboard=!brain3D.billboard;const b=document.getElementById('brain3dBillboardBtn');b.textContent='Billboard: '+(brain3D.billboard?'On':'Off');b.classList.toggle('active',brain3D.billboard);if(current==='brain3d'&&brain3D.mode==='detail')renderBrain3DDetailScene(false)};
  document.getElementById('brain3dExplodeBtn').onclick=()=>{
    const b=document.getElementById('brain3dExplodeBtn');
    if(brain3D.mode==='compact'){brain3D.mode='exploded';b.textContent='Show detail'}
