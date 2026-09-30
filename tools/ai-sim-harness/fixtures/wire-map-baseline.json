@@ -402,7 +402,7 @@
         "battle-sim.js": {
           "as": "debt+setup",
           "why": "Spawn gives the man a random first cooldown. stepMovement then counts the cooldown down while the fire pipeline sets it: one clock, two layers.",
-          "fix": "unscheduled"
+          "fix": "phase 3"
         },
         "modules/10-infantry-squad.js": {
           "as": "setup",
