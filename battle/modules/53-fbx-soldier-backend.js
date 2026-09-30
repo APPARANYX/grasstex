@@ -2043,7 +2043,125 @@ function surfaceReady(d,scene){
    him yet) and paints once his meshes draw again; its anchor is a skin vertex, so it lands on the
    same spot of the body whatever pose he is in by then. */
 function surfaceDrawable(d,scene,mesh){return mesh.isEnabled()&&surfaceReady(d,scene);}
+/* ---- Sphere wound projection (prototype, ?sphereWounds=1) ----
+   An alternative to the box projector in paintSurfaceWound for the "entire sections
+   overpainted, fading hidden" problem. Instead of projecting a 2D stamp through an
+   orthographic box, this bakes a true 3D distance test into the same per-soldier UV damage
+   map: a fragment keeps the wound only if distance(skinnedWorldPos, woundCenter) <= radius,
+   with a smooth radial alpha falloff defined in 3D. Because the fade lives in world space
+   rather than in a 2D stamp, it cannot compress into a hard edge on curved body parts or
+   hide when the stamp is larger than the part.
+   Everything else is reused: the per-mesh render target (and its one-time clear, so wounds
+   accumulate), the decalMap binding, and the ready/retry contract. Only the material used
+   for the RTT pass is swapped via setMaterialForRendering, exactly how MeshUVSpaceRenderer
+   itself installs its projection shader. */
+var SPHERE_WOUNDS=typeof location!=='undefined'&&/[?&]sphereWounds=1\b/.test(location.search||'');
+var SPHERE_WOUND_MAT=null,SPHERE_FAILED=false;
+function sphereWoundMaterial(scene){
+  if(SPHERE_WOUND_MAT&&!SPHERE_WOUND_MAT.isDisposed())return SPHERE_WOUND_MAT;
+  var vs=[
+    'precision highp float;',
+    'attribute vec3 position;',
+    'attribute vec3 normal;',
+    'attribute vec2 uv;',
+    'varying vec3 vWorldPos;',
+    'varying vec3 vNormalW;',
+    '#include<bonesDeclaration>',
+    '#include<bakedVertexAnimationDeclaration>',
+    '#include<morphTargetsVertexGlobalDeclaration>',
+    '#include<morphTargetsVertexDeclaration>[0..maxSimultaneousMorphTargets]',
+    '#include<instancesDeclaration>',
+    'void main(void){',
+    '  vec3 positionUpdated=position;',
+    '  vec3 normalUpdated=normal;',
+    '  #include<morphTargetsVertexGlobal>',
+    '  #include<morphTargetsVertex>[0..maxSimultaneousMorphTargets]',
+    '  #include<instancesVertex>',
+    '  #include<bonesVertex>',
+    '  #include<bakedVertexAnimation>',
+    '  vec4 worldPos=finalWorld*vec4(positionUpdated,1.0);',
+    '  vWorldPos=worldPos.xyz;',
+    '  vNormalW=normalize(mat3(finalWorld)*normalUpdated);',
+    '  gl_Position=vec4(uv*2.0-1.0,0.0,1.0);',
+    '}'
+  ].join('\n');
+  var fs=[
+    'precision highp float;',
+    'varying vec3 vWorldPos;',
+    'varying vec3 vNormalW;',
+    'uniform vec3 uCenter;',
+    'uniform float uRadius;',
+    'uniform vec3 uColor;',
+    'uniform float uAlpha;',
+    'void main(void){',
+    '  vec3 toFrag=vWorldPos-uCenter;',
+    '  float dist=length(toFrag);',
+    '  if(dist>uRadius)discard;',
+    '  vec3 nrm=normalize(vNormalW);',
+    '  vec3 toCenter=dist>1e-6?(-toFrag/dist):nrm;',
+    '  float facing=dot(nrm,toCenter);',
+    '  if(facing<=0.02)discard;',
+    '  float fade=1.0-smoothstep(uRadius*0.55,uRadius,dist);',
+    '  float a=uAlpha*fade*clamp(facing*1.6,0.0,1.0);',
+    '  if(a<=0.004)discard;',
+    '  gl_FragColor=vec4(uColor,a);',
+    '}'
+  ].join('\n');
+  var m=new BABYLON.ShaderMaterial('battleSphereWound',scene,{vertexSource:vs,fragmentSource:fs},{
+    attributes:['position','normal','uv'],
+    uniforms:['world','uCenter','uRadius','uColor','uAlpha'],
+    needAlphaBlending:true
+  });
+  m.backFaceCulling=false;
+  m.alphaMode=BABYLON.Engine.ALPHA_COMBINE;
+  /* Dried-blood red, same hue family as the stamp. */
+  m.setColor3('uColor',new BABYLON.Color3(0.60,0.09,0.09));
+  m.setFloat('uAlpha',0.92);
+  SPHERE_WOUND_MAT=m;
+  return m;
+}
+function paintSphereWound(anchor,diameter){
+  var mesh=anchor&&anchor.mesh;if(!mesh||SPHERE_FAILED)return null;
+  var p=new V3(),n=new V3();
+  if(!skinSample(anchor,p,n))return null;
+  var d=surfaceDamageMap(mesh);if(!d)return null;
+  var radius=Math.max(.02,(+diameter||.1)*0.5),
+    epoch=d.epoch,woundNo=++d.wounds,scene=mesh.getScene(),
+    timer=(scene&&scene.getEngine)?root.setTimeout:setTimeout;
+  function bake(){
+    /* Same staleness/ready contract as the box projector: re-sample the live anchor at the
+       actual draw moment so the sphere is centered on the body wherever the pose is now. */
+    if(!mesh._battleSurfaceDamage||mesh._battleSurfaceDamage!==d||d.epoch!==epoch||(mesh.isDisposed&&mesh.isDisposed()))return;
+    try{
+      if(!surfaceDrawable(d,scene,mesh)){timer(bake,mesh.isEnabled()?16:250);return;}
+      var q=new V3();
+      if(!skinSample(anchor,q,new V3()))return;
+      var rt=d.renderer&&d.renderer.texture;
+      if(!rt||!rt.renderList||!rt.setMaterialForRendering)return;
+      var mat=sphereWoundMaterial(scene);
+      mat.setVector3('uCenter',q);
+      mat.setFloat('uRadius',radius);
+      rt.setMaterialForRendering(mesh,mat);
+      rt.render();
+    }catch(e){
+      SPHERE_FAILED=true;
+      console.warn('[ANIM] sphere wound bake failed; body FX will use its skinned-quad fallback',e);
+    }
+  }
+  try{
+    var ready=surfaceDrawable(d,scene,mesh);
+    if(!ready)timer(bake,mesh.isEnabled()?16:250);
+    else bake();
+    return{mesh:mesh,renderer:d.renderer,position:p,normal:n,resolution:d.resolution,wounds:woundNo,pending:!ready};
+  }catch(e){
+    d.wounds=Math.max(0,d.wounds-1);
+    SPHERE_FAILED=true;
+    console.warn('[ANIM] sphere wound bake failed; body FX will use its skinned-quad fallback',e);
+    return null;
+  }
+}
 function paintSurfaceWound(anchor,stamp,out,diameter,angle,depthCap){
+  if(SPHERE_WOUNDS)return paintSphereWound(anchor,diameter);
   var mesh=anchor&&anchor.mesh;if(!mesh||!stamp)return null;
   var p=new V3(),n=new V3();
   if(!skinSample(anchor,p,n))return null;
