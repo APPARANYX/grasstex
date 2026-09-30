@@ -985,7 +985,7 @@
         p.y = sim.heightAt ? sim.heightAt(x, z) : p.y;
         s.root.rotation.y = Math.atan2(f.x, f.z);
         s.destination = { x: x, z: z };
-        root.BattleNavigation.invalidateNavCache(s);
+        if (root.BattleNavigation) root.BattleNavigation.invalidateNavCache(s);
       }
     });
   }

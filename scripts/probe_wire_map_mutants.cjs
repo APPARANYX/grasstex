@@ -65,12 +65,20 @@ function baseline(fn) {
   fs.writeFileSync(baselinePath(), JSON.stringify(j, null, 2));
 }
 const W21 = 'modules/21-defender-engineers.js';
+// The first debt entry in the baseline. Debt is paid off phase by phase, so a mutant must not name
+// one entry (squad.leaderId went in 3a and two mutants pointed at nothing for weeks).
+function firstDebt(j) {
+  for (const f of Object.keys(j.fields))
+    for (const w of Object.keys(j.fields[f].writers))
+      if (j.fields[f].writers[w].as.split('+').includes('debt')) return j.fields[f].writers[w];
+  throw new Error('the baseline has no debt entry left: pick another way to reach the debt rules');
+}
 
 const ratchet = [
   [
     'new writer file on an existing multi-writer field',
-    () => append(battle('modules/13-captain-command-throttle.js'), 'function m(sq) { sq.leaderId = null; }'),
-    /NEW writer .*squad\.leaderId/
+    () => append(battle('modules/13-captain-command-throttle.js'), 'function m(sq) { sq.route = null; }'),
+    /NEW writer .*squad\.route/
   ],
   [
     'single-writer field gains a second writer',
@@ -132,7 +140,7 @@ const ratchet = [
     'baseline: debt without fix',
     () =>
       baseline(j => {
-        delete j.fields['squad.leaderId'].writers['commander-ai.js'].fix;
+        delete firstDebt(j).fix;
       }),
     /debt needs fix/
   ],
@@ -204,7 +212,7 @@ const ratchet = [
     'baseline: debt with a phase that is not one',
     () =>
       baseline(j => {
-        j.fields['squad.leaderId'].writers['commander-ai.js'].fix = 'phase 9';
+        firstDebt(j).fix = 'phase 9';
       }),
     /debt needs fix/
   ]
