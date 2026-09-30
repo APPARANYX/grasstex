@@ -6,7 +6,8 @@
    `resolve` tests a round over the weapon's whole range, so 24 steps of a 450 m rifle are one sample every
    18.75 m: a rise a dozen metres wide between two samples stops nothing. The trigger gate
    (`fireLineBlocked`) tests only the span to the target, so it is finer, with the same blind spot at the
-   same ratio. `?groundSteps=<n>` (12 to 96, default 24) sets the count, read once at load.
+   same ratio. `?groundSteps=<n>` (12 to 96, default 48; 24 is the sampling before) sets the count, read
+   once at load.
 
    The module is loaded from its shipping source with a stub `location`, so nothing here is a copy.
 
@@ -35,14 +36,14 @@ function load(search) {
   vm.runInContext(SRC, r, { filename: 'battle/modules/14-z-ballistic-raycast.js' });
   return r;
 }
-const coarse = load(null), fine = load('?groundSteps=48');
+const coarse = load('?groundSteps=24'), fine = load('?groundSteps=48'), shipped = load('');
 
-/* 0. The flag: 24 unless a count from 12 to 96 is asked for. */
-const parsed = ['', '?seed=1', '?groundSteps=48', '?x=1&groundSteps=36', '?groundSteps=96', '?groundSteps=7', '?groundSteps=200', '?groundSteps=abc', '?groundSteps=']
+/* 0. The flag: 48 unless a count from 12 to 96 is asked for; 24 is the sampling before. */
+const parsed = ['', '?seed=1', '?groundSteps=48', '?x=1&groundSteps=36', '?groundSteps=96', '?groundSteps=24', '?groundSteps=7', '?groundSteps=200', '?groundSteps=abc', '?groundSteps=']
   .map(q => load(q).BattleBallistics.groundSteps());
-assert.deepEqual(parsed, [24, 24, 48, 36, 96, 24, 24, 24, 24]);
-assert.equal(coarse.BattleBallistics.groundSteps(), 24, 'with no location the default is 24');
-console.log('PASS ?groundSteps=<n> is 12 to 96 and defaults to 24: ' + JSON.stringify(parsed));
+assert.deepEqual(parsed, [48, 48, 48, 36, 96, 24, 48, 48, 48, 48]);
+assert.equal(load(null).BattleBallistics.groundSteps(), 48, 'with no location the default is 48');
+console.log('PASS ?groundSteps=<n> is 12 to 96 and defaults to 48: ' + JSON.stringify(parsed));
 
 function unit(x, z, stance) {
   return { root: { position: { x, y: 0, z }, rotation: { y: 0 } }, hp: 100, faction: 'ge', stance };
@@ -68,6 +69,7 @@ function ridgeShot(r) { return shoot(r, shooterAt(0, 0, 'stand', 450), unit(100,
 const through = ridgeShot(coarse), stopped = ridgeShot(fine);
 assert.equal(through.stoppedBy, 'soldier', '24 steps step over the ridge: the round reaches the man');
 assert.equal(stopped.blocker, 'ground', '48 steps stop the round at the ridge');
+assert.deepEqual(ridgeShot(shipped), stopped, 'the shipped default is the 48-step scan');
 assert.ok(Math.abs(stopped.travel - 37.72) < 0.2, 'at the ridge face: 38.5 m out less the 0.78 m muzzle offset (' + stopped.travel + ' m)');
 console.log('PASS a ridge between two 24-step samples: 24 steps ' + JSON.stringify(through) + ', 48 steps ' + JSON.stringify(stopped));
 
