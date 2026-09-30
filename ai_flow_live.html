@@ -745,9 +745,9 @@ function renderBrain3DDetailScene(fast=false){
   function layerColor(layer){
     return layer==='macro'?'#8d73b8':layer==='meso'?'#68a0cd':layer==='micro'?'#6aa382':layer==='move'?'#b27d3f':'#7f94ad';
   }
-  function queueGroupLabel(title,sub,layer,centerPoint,connectPoint){
+  function queueGroupLabel(title,sub,layer,centerPoint,connectPoint,sliceId,opacity=1){
     if(!centerPoint||!connectPoint)return;
-    groupLabels.push({title,sub:sub||'',layer,color:layerColor(layer),centerPoint,connectPoint});
+    groupLabels.push({title,sub:sub||'',layer,color:layerColor(layer),centerPoint,connectPoint,sliceId,opacity});
   }
   function renderGroupLabels(){
     if(!groupLabels.length)return;
@@ -756,7 +756,7 @@ function renderBrain3DDetailScene(fast=false){
     const baselineY=Math.max(86,highest-74);
     groupLabels.forEach(l=>{
       const x=l.centerPoint.x,y=baselineY,color=l.color;
-      const gg=el('g',{class:'brain3dSpineLabel'});
+      const gg=el('g',{class:'brain3dSpineLabel',opacity:l.opacity==null?1:l.opacity});
       // Thin leader from the shared baseline down to the group's own centered top point.
       gg.appendChild(el('path',{
         d:'M'+x+','+(y+8)+' L'+x+','+Math.max(y+18,l.connectPoint.y-10)+' L'+l.connectPoint.x+','+l.connectPoint.y,
@@ -780,6 +780,29 @@ function renderBrain3DDetailScene(fast=false){
   const childrenByParent={};
   model.slices.filter(s=>s.kind==='cfg').forEach(s=>(childrenByParent[s.parentId]||(childrenByParent[s.parentId]=[])).push(s));
   const isFunctionGroup=s=>s.kind==='parent'&&(childrenByParent[s.id]||[]).length>0;
+  function detailSliceChain(){
+    if(!brain3D.focusSlice)return null;
+    const active=new Set([brain3D.focusSlice]),adj={};
+    const link=(a,b)=>{if(!a||!b||a===b)return;(adj[a]||(adj[a]=new Set())).add(b);(adj[b]||(adj[b]=new Set())).add(a)};
+    // Call/return edges define the executable chain. Parent overview edges are intentionally
+    // excluded so a focus does not accidentally light the entire architecture.
+    model.crossEdges.forEach(e=>{
+      if(e.kind!=='callFlow'&&e.kind!=='returnFlow')return;
+      link(e.from.slice,e.to.slice);
+    });
+    const q=[brain3D.focusSlice];
+    while(q.length){
+      const a=q.shift();
+      for(const b of adj[a]||[]){if(!active.has(b)){active.add(b);q.push(b)}}
+    }
+    // Keep owning group boxes visible for any active child CFG slice.
+    [...active].forEach(id=>{const s=model.sliceById[id];if(s&&s.parentId)active.add(s.parentId)});
+    return active;
+  }
+  const activeSlices=detailSliceChain();
+  const sliceActive=id=>!activeSlices||activeSlices.has(id);
+  const sliceOpacity=id=>sliceActive(id)?1:.10;
+  const functionGroupActive=s=>!activeSlices||(childrenByParent[s.id]||[]).some(k=>activeSlices.has(k.id))||activeSlices.has(s.id);
   const stateGridCache={};
   function parentPoint(s,x,y){return P({x,y,z:sliceZ(s)})}
   function parentTransform(s){
@@ -831,8 +854,8 @@ function renderBrain3DDetailScene(fast=false){
   }
   function drawGroupBox(parent){
     const box=boxCorners(parent);if(!box)return;
-    const q=box.corners,edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]],color=layerColor(parent.layer);
-    const gg=el('g',{class:'brain3dGroupBox'});
+    const q=box.corners,edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]],color=layerColor(parent.layer),active=functionGroupActive(parent),op=active?1:.10;
+    const gg=el('g',{class:'brain3dGroupBox',opacity:op});
     edges.forEach(([a,b])=>gg.appendChild(el('line',{
       x1:q[a].x,y1:q[a].y,x2:q[b].x,y2:q[b].y,
       stroke:color,'stroke-width':1.15,opacity:.58
@@ -842,7 +865,7 @@ function renderBrain3DDetailScene(fast=false){
     // Center in the group's X/Z footprint; leader terminates at the centered top edge.
     const center=P({x:0,y:0,z:zCenter});
     const top=P({x:0,y:-box.maxH/2,z:zCenter});
-    queueGroupLabel(parent.title,parent.sub||'',parent.layer,center,top);
+    queueGroupLabel(parent.title,parent.sub||'',parent.layer,center,top,parent.id,op);
   }
   function portById(s,id){return (s.ports||[]).find(p=>p.id===id)||null}
   function overviewById(s,id){return (s.overview||[]).find(n=>n.id===id)||null}
@@ -863,12 +886,11 @@ function renderBrain3DDetailScene(fast=false){
   }).sort((a,b)=>a.depth-b.depth).forEach(item=>{
     const s=item.s,corners=item.corners;
     const plane=poly(corners,'brain3dPlane'+(s.kind==='cfg'?' detailFace':''));
-    if(s.kind==='cfg')plane.setAttribute('opacity','.58');
-    else{
-      plane.setAttribute('stroke',layerColor(s.layer));
-      plane.setAttribute('stroke-width','1.5');
-      plane.setAttribute('stroke-opacity','.72');
-    }
+    const active=sliceActive(s.id),selected=brain3D.focusSlice===s.id,op=active?1:.10;
+    plane.setAttribute('opacity',s.kind==='cfg'?String(.58*op):String(op));
+    plane.setAttribute('stroke',selected?'#ffffff':layerColor(s.layer));
+    plane.setAttribute('stroke-width',selected?'3.2':'1.5');
+    plane.setAttribute('stroke-opacity',active?(selected?'1':'.72'):'.10');
     g.appendChild(plane);
 
   });
@@ -890,16 +912,17 @@ function renderBrain3DDetailScene(fast=false){
   model.crossEdges.forEach(e=>{
     if(e.from.slice===e.to.slice&&e.from.overviewId&&e.to.overviewId)return;
     const a=endpoint(e.from),b=endpoint(e.to);if(!a||!b)return;
-    const focused=!brain3D.focus||brain3D.focus===e.from.portId||brain3D.focus===e.to.portId||brain3D.focus===e.from.overviewId||brain3D.focus===e.to.overviewId;
-    let cls='brain3dEdge '+(e.kind||'parentFlow');
-    if(brain3D.focus)cls+=focused?' focus':' dim';
+    const chainOn=!activeSlices||(activeSlices.has(e.from.slice)&&activeSlices.has(e.to.slice));
     const mx=(a.x+b.x)/2;
-    g.appendChild(el('path',{d:'M'+a.x+','+a.y+' C'+mx+','+a.y+' '+mx+','+b.y+' '+b.x+','+b.y,class:cls}));
+    g.appendChild(el('path',{
+      d:'M'+a.x+','+a.y+' C'+mx+','+a.y+' '+mx+','+b.y+' '+b.x+','+b.y,
+      class:'brain3dEdge '+(e.kind||'parentFlow'),opacity:chainOn?1:.10
+    }));
   });
 
   // State/priority parent slices are real planar boards: grid cards + on-slice wiring.
   model.slices.filter(s=>s.kind==='parent'&&!isFunctionGroup(s)).forEach(s=>{
-    const layout=stateGridLayout(s),board=el('g',{class:'detailStateBoard','data-slice':s.id,transform:parentTransform(s)});
+    const layout=stateGridLayout(s),board=el('g',{class:'detailStateBoard','data-slice':s.id,transform:parentTransform(s),opacity:sliceOpacity(s.id)});
     const w=s.width||model.planeW,h=s.height||model.planeH;
 
 
@@ -932,7 +955,9 @@ function renderBrain3DDetailScene(fast=false){
       gr.appendChild(el('title',{},n.fullLabel||n.label||n.id));
       gr.addEventListener('click',ev=>{
         ev.stopPropagation();
-        brain3D.focus=brain3D.focus===n.id?null:n.id;
+        brain3D.focus=n.id;brain3D.focusSlice=s.id;
+        const cfgId=(s.sourceSlice==='engagement-state'&&funcSpec('engagement:'+n.label))?'engagement:'+n.label:null;
+        if(n.ref)openSource(n.ref,n.fullLabel||n.label,{cfgId});
         const target={x:cell.x,y:cell.y,z:sliceZ(s)};
         focusBrain3DWorld(target);
       });
@@ -944,12 +969,12 @@ function renderBrain3DDetailScene(fast=false){
     g.appendChild(board);
     const sh=s.height||model.planeH;
     const center=parentPoint(s,0,0),top=parentPoint(s,0,-sh/2);
-    queueGroupLabel(s.title,s.sub||'',s.layer,center,top);
+    queueGroupLabel(s.title,s.sub||'',s.layer,center,top,s.id,sliceOpacity(s.id));
   });
 
   // Literal function pages: renderCfgLayout() is the SAME renderer used by Deep Branch CFG.
   model.slices.filter(s=>s.kind==='cfg').sort((a,b)=>sliceZ(a)-sliceZ(b)).forEach(s=>{
-    const page=el('g',{class:'detailCfgPage','data-slice':s.id,transform:pageTransform(s)});
+    const page=el('g',{class:'detailCfgPage','data-slice':s.id,transform:pageTransform(s),opacity:sliceOpacity(s.id)});
 
     // Page title lives in the same 2D coordinate system as the Deep CFG.
     page.appendChild(el('text',{x:s.cfg.bounds.x+50,y:48,'font-size':25,'font-weight':800,fill:'#fff'},s.title));
@@ -963,8 +988,8 @@ function renderBrain3DDetailScene(fast=false){
       onNode:(gr,n)=>{
         const focusId='cfgnode:'+s.parentFunction+':'+n.id;
         gr.setAttribute('data-brain-focus',focusId);
-        gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===focusId?null:focusId;const target=pageWorld(s,n.x+(n.w||250)/2,n.y+(n.h||82)/2);focusBrain3DWorld(target);status.textContent='3D detail · '+s.title+' · '+n.label});
-        gr.addEventListener('dblclick',ev=>{ev.stopPropagation();if(n.ref)openSource(n.ref,n.label)});
+        gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=focusId;brain3D.focusSlice=s.id;if(n.ref)openSource(n.ref,s.title+' · '+n.label,{cfgId:s.parentFunction});const target=pageWorld(s,n.x+(n.w||250)/2,n.y+(n.h||82)/2);focusBrain3DWorld(target);status.textContent='3D detail · '+s.title+' · '+n.label});
+        gr.addEventListener('dblclick',ev=>{ev.stopPropagation();enterDeepCfg(s.parentFunction)});
       }
     });
 
@@ -991,7 +1016,7 @@ function renderBrain3DDetailScene(fast=false){
       pg.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:9}));
       pg.appendChild(el('text',{x:0,y:4,'text-anchor':'middle'},String(p.label).length>31?String(p.label).slice(0,30)+'…':p.label));
       pg.appendChild(el('title',{},p.label));
-      pg.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===p.id?null:p.id;const target=pageWorld(s,p.x,p.y);focusBrain3DWorld(target)});
+      pg.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=p.id;brain3D.focusSlice=s.id;if(p.ref||s.ref)openSource(p.ref||s.ref,s.title+' · '+p.label,{cfgId:s.parentFunction});const target=pageWorld(s,p.x,p.y);focusBrain3DWorld(target)});
       if(p.ref)pg.addEventListener('dblclick',ev=>{ev.stopPropagation();openSource(p.ref,p.label)});
       page.appendChild(pg);
     });
@@ -1009,7 +1034,7 @@ function renderBrain3DDetailScene(fast=false){
   hud.appendChild(el('text',{x:14,y:102,class:'brain3dHudText'},model.slices.length+' slices · Macro nearest · drag rotates · wheel zooms'));
   g.appendChild(hud);
 
-  status.textContent='3D Show Detail · exact Deep CFG layouts reused as 3D slices. Text snap '+(brain3D.textSnap?'ON':'OFF')+'; geometry remains on the slice plane.';
+  status.textContent=brain3D.focusSlice?'3D Show Detail · selected slice chain highlighted; unrelated slices and wires are at 10% opacity.':'3D Show Detail · exact Deep CFG layouts reused as 3D slices. Text snap '+(brain3D.textSnap?'ON':'OFF')+'; geometry remains on the slice plane.';
 }
 
 function renderBrain3DScene(){
@@ -1029,6 +1054,18 @@ function renderBrain3DScene(){
     x:n.x*xyScale,y:n.y*xyScale,z:sliceZ(n.sliceIndex)
   })]));
   const pp=Object.fromEntries(Object.entries(wn).map(([id,n])=>[id,brain3DProject(n)]));
+  const stdNodeById=Object.fromEntries(model.nodes.map(n=>[n.id,n]));
+  function standardChain(){
+    if(!brain3D.focusSlice)return null;
+    const active=new Set([brain3D.focusSlice]);
+    model.edges.forEach(e=>{
+      const a=stdNodeById[e.from],b=stdNodeById[e.to];if(!a||!b||a.slice===b.slice)return;
+      if(a.slice===brain3D.focusSlice)active.add(b.slice);
+      if(b.slice===brain3D.focusSlice)active.add(a.slice);
+    });
+    return active;
+  }
+  const stdActive=standardChain(),stdSliceActive=id=>!stdActive||stdActive.has(id),stdSliceOpacity=id=>stdSliceActive(id)?1:.10;
 
   function cornersAt(z,scale=1){
     const w=model.planeW*scale,h=model.planeH*scale;
@@ -1058,8 +1095,8 @@ function renderBrain3DScene(){
       sides.forEach(side=>g.appendChild(poly(side,'brain3dSide')));
       g.appendChild(poly(p.front,'brain3dPlane detailFace'));
     }else{
-      const face=poly(p.front,'brain3dPlane'),color=standardLayerColor(p.slice.layer);
-      face.setAttribute('stroke',color);face.setAttribute('stroke-width','1.5');face.setAttribute('stroke-opacity','.72');
+      const face=poly(p.front,'brain3dPlane'),color=standardLayerColor(p.slice.layer),active=stdSliceActive(p.slice.id),selected=brain3D.focusSlice===p.slice.id;
+      face.setAttribute('stroke',selected?'#ffffff':color);face.setAttribute('stroke-width',selected?'3.2':'1.5');face.setAttribute('stroke-opacity',active?(selected?'1':'.72'):'.10');face.setAttribute('opacity',stdSliceOpacity(p.slice.id));
       g.appendChild(face);
     }
 
@@ -1085,16 +1122,16 @@ function renderBrain3DScene(){
   if(brain3D.focus){linked.add(brain3D.focus);model.edges.forEach(e=>{if(e.from===brain3D.focus)linked.add(e.to);if(e.to===brain3D.focus)linked.add(e.from)})}
   model.edges.forEach(e=>{
     const a=pp[e.from],b=pp[e.to];if(!a||!b)return;
-    const on=!brain3D.focus||e.from===brain3D.focus||e.to===brain3D.focus;
-    g.appendChild(el('path',{d:'M'+a.x+','+a.y+' L'+b.x+','+b.y,class:'brain3dEdge '+(e.kind||'call')+(brain3D.focus?(on?' focus':' dim'):'')}));
+    const na=stdNodeById[e.from],nb=stdNodeById[e.to],on=!stdActive||(na&&nb&&stdActive.has(na.slice)&&stdActive.has(nb.slice));
+    g.appendChild(el('path',{d:'M'+a.x+','+a.y+' L'+b.x+','+b.y,class:'brain3dEdge '+(e.kind||'call'),opacity:on?1:.10}));
   });
 
   model.nodes.slice().sort((a,b)=>pp[a.id].z-pp[b.id].z).forEach(n=>{
-    const p=pp[n.id],on=!brain3D.focus||linked.has(n.id);
+    const p=pp[n.id],on=stdSliceActive(n.slice);
     const baseScale=detail?3.65:3.1,s=Math.max(detail?.72:.62,Math.min(detail?1.34:1.12,p.scale*baseScale));
     const w=n.type==='priority'?(detail?170:142):(detail?215:176),h=n.type==='priority'?(detail?50:42):(detail?64:50);
-    const cls='brain3dNode '+n.type+' '+n.layer+(brain3D.focus?(n.id===brain3D.focus?' focus':on?'':' dim'):'');
-    const gr=el('g',{class:cls,'data-id':n.id,transform:'translate('+p.x+','+p.y+') scale('+s+')'});
+    const cls='brain3dNode '+n.type+' '+n.layer+(brain3D.focus===n.id?' focus':'');
+    const gr=el('g',{class:cls,'data-id':n.id,transform:'translate('+p.x+','+p.y+') scale('+s+')',opacity:on?1:.10});
     gr.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:detail?12:10}));
     const parts=wrap(String(n.label||n.id),detail?30:24).slice(0,detail?3:2);
     const first=parts.length===3?-10:parts.length>1?-4:4;
@@ -1105,8 +1142,8 @@ function renderBrain3DScene(){
       gr.appendChild(el('text',{x:0,y:h/2-5,'text-anchor':'middle',class:'sub'},String(n.priority)));
     }
     gr.appendChild(el('title',{},n.fullLabel||n.label));
-    gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===n.id?null:n.id;focusBrain3DWorld({x:wn[n.id].x,y:wn[n.id].y,z:wn[n.id].z})});
-    gr.addEventListener('dblclick',ev=>{ev.stopPropagation();if(n.cfg){cfgHistory=[];jumpToCfg(n.cfg,false)}else if(n.ref)openSource(n.ref,n.fullLabel||n.label)});
+    gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=n.id;brain3D.focusSlice=n.slice;if(n.ref)openSource(n.ref,n.fullLabel||n.label,{cfgId:n.cfg||null});focusBrain3DWorld({x:wn[n.id].x,y:wn[n.id].y,z:wn[n.id].z})});
+    gr.addEventListener('dblclick',ev=>{ev.stopPropagation();if(n.cfg)enterDeepCfg(n.cfg);else if(n.ref)openSource(n.ref,n.fullLabel||n.label)});
     g.appendChild(gr);
   });
 
