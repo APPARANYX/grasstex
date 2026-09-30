@@ -806,6 +806,10 @@ a man does, and that it accumulates.
 - **Stress does not recover on the spot.** It is added to by being hit, a squad member nearby going down, the leader lost (and by what
   module 17 already counts: suppression, isolation, contagion), and inside a fight it does not drain on a timer. It recovers after
   the fight or engagement is over (the squad out of contact for a declared time), not during it.
+- **Recovery is bounded by health.** The share of his stress a man can shed is his health (`hp / maxHp`): at full health all of it can
+  go, so a man at 50% stress recovers to 0%; at half health he can only ever lose half of his stress (50% stress settles no lower
+  than 25%). Nothing heals a man today (bleeding eases, `hp` never comes back) so a wounded man stays shaken for the rest of the
+  battle, until there are medics: restoring his health is what lifts the cap.
 - **Relief inside a fight comes from events:** reaching cover while under fire, killing an enemy, taking an objective, and being
   shot at without result ("Nothing in life is so exhilarating as to be shot at without result", Churchill: a man who has been
   under fire and is unhurt steadies; today a round aimed at him only adds stress, so exposure without a hit has to become relief
