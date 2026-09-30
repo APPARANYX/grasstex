@@ -26,7 +26,7 @@ svg text{user-select:none}.laneLabel{font-size:13px;font-weight:800;fill:#8ea0b8
         <span class="badge zoomReadout" id="zoomReadout">100%</span>
         <button class="btn" id="zoomInBtn" title="Zoom in (+)">+</button>
         <button class="btn" id="resetBtn" title="1 SVG unit = 1 screen pixel (0)">100%</button>
-        <button class="btn threeDOnly" id="brain3dResetBtn" hidden title="Reset 3D rotation and zoom">Reset 3D</button><button class="btn threeDOnly" id="brain3dInvertYBtn" hidden title="Invert vertical drag rotation">Invert Y: On</button><button class="btn threeDOnly" id="brain3dBillboardBtn" hidden title="Keep detail CFG pages facing the camera">Billboard: Off</button><button class="btn threeDOnly" id="brain3dExplodeBtn" hidden title="Cycle slice presentation: compact, exploded, detailed">Explode slices</button><button class="btn navBack" id="cfgBackBtn" hidden title="Return to the previous function">← Back</button><select class="btn" id="cfgSelect" hidden title="Choose a function to parse into a control-flow graph"></select>
+        <button class="btn threeDOnly" id="brain3dResetBtn" hidden title="Reset 3D rotation and zoom">Reset 3D</button><button class="btn threeDOnly active" id="brain3dInvertYBtn" hidden title="Invert vertical drag rotation">Invert Y: On</button><button class="btn threeDOnly" id="brain3dBillboardBtn" hidden title="Keep detail CFG pages facing the camera">Billboard: Off</button><button class="btn threeDOnly" id="brain3dExplodeBtn" hidden title="Cycle slice presentation: compact, exploded, detailed">Explode slices</button><button class="btn navBack" id="cfgBackBtn" hidden title="Return to the previous function">← Back</button><select class="btn" id="cfgSelect" hidden title="Choose a function to parse into a control-flow graph"></select>
         <span class="navHint" id="navHint">wheel = zoom · drag = pan · Space+drag anywhere · dbl-click = zoom</span>
       </div>
     </div>
@@ -441,7 +441,7 @@ function detailCfgSnippet(n){
 
 function brain3DDetailModel(){
   const base=brain3D.scene||brain3DModel(),slices=[],sliceById={},crossEdges=[];
-  const parentW=1480,parentH=920,worldScale=.52;
+  const parentW=1480,parentH=920,worldScale=.62;
   let order=0;
 
   function addSlice(data){
@@ -590,7 +590,7 @@ function brain3DProjectDetail(p){
   const yaw=brain3D.yaw,pitch=brain3D.pitch,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
   const x1=p.x*cy+p.z*sy,z1=-p.x*sy+p.z*cy,y1=p.y;
   const y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;
-  const scale=.42*brain3D.zoom;
+  const scale=.72*brain3D.zoom;
   return {x:900+x1*scale,y:650+y2*scale,z:z2,scale};
 }
 
@@ -1272,13 +1272,13 @@ function fullView(){
  document.getElementById('brain3dExplodeBtn').onclick=()=>{
    const b=document.getElementById('brain3dExplodeBtn');
    if(brain3D.mode==='compact'){brain3D.mode='exploded';b.textContent='Show detail'}
-   else if(brain3D.mode==='exploded'){brain3D.mode='detail';brain3D.yaw=-.88;brain3D.pitch=.10;brain3D.zoom=.72;brain3D.focus=null;b.textContent='Compact slices'}
+   else if(brain3D.mode==='exploded'){brain3D.mode='detail';brain3D.yaw=-.88;brain3D.pitch=.10;brain3D.zoom=1.05;brain3D.focus=null;b.textContent='Compact slices'}
    else{brain3D.mode='compact';b.textContent='Explode slices'}
    if(current==='brain3d')renderBrain3DScene()
  };
  document.getElementById('cfgBackBtn').onclick=()=>{if(!cfgHistory.length)return;cfgChoice=cfgHistory.pop();const sel=document.getElementById('cfgSelect');if(sel)sel.value=cfgChoice;renderTabs();render();fit()};
  svg.addEventListener('wheel',e=>{e.preventDefault();const factor=Math.exp(-e.deltaY*0.00135);if(current==='brain3d'){brain3D.zoom=clamp(brain3D.zoom*factor,.32,2.6);scheduleBrain3DRender(brain3D.mode==='detail');clearTimeout(brain3D.restoreTimer);if(brain3D.mode==='detail')brain3D.restoreTimer=setTimeout(()=>{brain3D.fast=false;renderBrain3DDetailScene(false)},140);return}zoomAt(factor,e.clientX,e.clientY,false)},{passive:false});
- svg.addEventListener('dblclick',e=>{if(e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.callPort'))return;e.preventDefault();if(current==='brain3d'){brain3DReset();return}zoomAt(e.shiftKey?1/1.65:1.65,e.clientX,e.clientY,true)});
+ svg.addEventListener('dblclick',e=>{if(e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.brain3dPort,.callPort'))return;e.preventDefault();if(current==='brain3d'){brain3DReset();return}zoomAt(e.shiftKey?1/1.65:1.65,e.clientX,e.clientY,true)});
  svg.addEventListener('pointerdown',e=>{const overNode=e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.callPort');const forcePan=spaceDown||e.button===1;if(overNode&&!forcePan)return;if(e.button!==0&&e.button!==1)return;e.preventDefault();dragging=true;dragPointer=e.pointerId;lastPointer={x:e.clientX,y:e.clientY};document.getElementById('stage').classList.add('panning');svg.setPointerCapture(e.pointerId)});
  svg.addEventListener('pointermove',e=>{if(!dragging||e.pointerId!==dragPointer)return;const dx=e.clientX-lastPointer.x,dy=e.clientY-lastPointer.y;lastPointer={x:e.clientX,y:e.clientY};if(current==='brain3d'){brain3D.yaw+=dx*.008;brain3D.pitch=clamp(brain3D.pitch+dy*.006*(brain3D.invertY?-1:1),-1.18,1.18);scheduleBrain3DRender(brain3D.mode==='detail');return}panByScreen(dx,dy)});
  function endDrag(e){if(!dragging)return;if(e&&dragPointer!=null&&e.pointerId!==dragPointer)return;dragging=false;dragPointer=null;lastPointer=null;document.getElementById('stage').classList.remove('panning');if(current==='brain3d'&&brain3D.mode==='detail'){cancelAnimationFrame(brain3D.raf);brain3D.raf=0;brain3D.fast=false;renderBrain3DDetailScene(false)}}
