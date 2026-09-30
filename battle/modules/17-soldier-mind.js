@@ -737,7 +737,8 @@
       'aim',
       'hesitate',
       'shock',
-      'shocks'
+      'shocks',
+      'contact'
     ],
     DOSE_SQUAD_MEAN = 1 / 3, // a squad at or above this mean stress is counted "over": where ?morale=1 first differs from the flat rule
     DOSE_SQUAD_MEN = 3, // and "over with a say" when it has this many living: the mean of two men is noise (module 10's MIN_MEN)
@@ -757,6 +758,7 @@
       lastT: null,
       state: {},
       state3: {},
+      contactBand: { us: [0, 0, 0, 0], ge: [0, 0, 0, 0] },
       squads: { us: squads(), ge: squads() },
       markers: [],
       dropped: 0
@@ -768,11 +770,11 @@
   function sample(sim, t, ser) {
     var acc = {},
       units = root.BattleModules.unitsFor(sim),
+      dt = ser.lastT == null ? 0 : t - ser.lastT,
       i,
-      k,
-      f;
+      k;
     SIDES.forEach(function (side) {
-      acc[side] = { n: 0, sum: 0, max: 0, band: [0, 0, 0, 0], shocks: 0, changed: [0, 0, 0, 0] };
+      acc[side] = { n: 0, sum: 0, max: 0, band: [0, 0, 0, 0], shocks: 0, changed: [0, 0, 0, 0], contact: 0 };
     });
     for (i = 0; i < units.length; i++) {
       var u = units[i],
@@ -786,8 +788,13 @@
       a.sum += m.stress;
       if (m.stress > a.max) a.max = m.stress;
       a.band[m.band]++;
+      /* Where the levers act: a man whose squad is in contact (the benchmark's own `inContact`). Seconds are
+         the sample's state held over the gap since the last sample, like the squad seconds below. */
+      if (u.squad && u.squad.inContact) {
+        a.contact++;
+        ser.contactBand[u.faction][m.band] += dt;
+      }
     }
-    var dt = ser.lastT == null ? 0 : t - ser.lastT;
     SIDES.forEach(function (side) {
       var squads = (sim.factions && sim.factions[side] && sim.factions[side].squads) || [],
         st = ser.squads[side],
@@ -848,7 +855,8 @@
         a2.changed[1],
         a2.changed[2],
         a2.changed[3],
-        a2.shocks
+        a2.shocks,
+        a2.contact
       ]);
     });
     ser.t.push(+t.toFixed(2));
@@ -994,7 +1002,19 @@
       addTotals(all, per[side]);
     });
     var out = totalsOut(all),
-      squads = { overMean: r3(DOSE_SQUAD_MEAN), minMen: DOSE_SQUAD_MEN };
+      squads = { overMean: r3(DOSE_SQUAD_MEAN), minMen: DOSE_SQUAD_MEN },
+      inContact = function (sides) {
+        return bands(
+          [0, 1, 2, 3].map(function (b) {
+            return +sides
+              .reduce(function (n, side) {
+                return n + ser.contactBand[side][b];
+              }, 0)
+              .toFixed(1);
+          })
+        );
+      };
+    out.contactBandSeconds = inContact(SIDES);
     out.manSeconds = base.manSeconds;
     out.bandShare = base.bandShare;
     out.casualtiesSeen = base.casualtiesSeen;
@@ -1003,6 +1023,7 @@
     SIDES.forEach(function (side) {
       squads[side] = squadOut(ser, side);
       out.bySide[side] = totalsOut(per[side]);
+      out.bySide[side].contactBandSeconds = inContact([side]);
     });
     out.squads = squads;
     out.series = { columns: COLUMNS.slice(), t: ser.t, us: ser.us, ge: ser.ge };
