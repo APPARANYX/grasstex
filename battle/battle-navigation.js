@@ -152,8 +152,19 @@
     return c.path[Math.min(c.index,c.path.length-1)]||dest;
   }
 
+  /* Phase 4: single invalidation point for the nav cache. Replaces the six direct
+     _navCache/_physicalPath null assignments across the codebase. Behavior-neutral:
+     same fields nulled, just through one call. */
+  function invalidateNavCache(soldier) {
+    if (soldier) soldier._navCache = null;
+  }
+  function invalidateNavPath(soldier) {
+    if (soldier) { soldier._navCache = null; soldier._physicalPath = null; }
+  }
+
   root.BattleNavigation={
     installScenario:buildScenarioGeometry,movementClear:movementClear,resolveStep:resolveStep,lineOfSightBlocked:losBlocked,findPath:findPath,nextWaypoint:nextWaypoint,
+    invalidateNavCache: invalidateNavCache, invalidateNavPath: invalidateNavPath,
     get scenario(){return scenario;},get version(){return version;},get walls(){return walls.slice();},get doorPortals(){return doorPortals.slice();},
     get firingStations(){return firingStations.slice();},get windowSlots(){return firingStations.slice();},get doorPad(){return DOOR_PAD;},get doorClearance(){return DOOR_CLEARANCE;},get startSkin(){return START_SKIN;}
   };

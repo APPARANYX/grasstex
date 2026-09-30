@@ -315,7 +315,7 @@
         s.root.position.y = sim.heightAt(post.x, post.z);
         s.root.rotation.y = post.yaw == null ? frame.facingYaw : post.yaw;
         s.destination = { x: post.x, z: post.z };
-        s._navCache = null;
+        root.BattleNavigation.invalidateNavCache(s);
         if (root.BattleEngagement) root.BattleEngagement.resetSoldier(s);
       }
     }
