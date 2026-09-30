@@ -8,6 +8,13 @@ lists every tunable number by layer; it is Phase 5's inventory, not a guide.
 
 ## Working rules
 
+- **A/B WORK IS DONE WITH THE GITHUB STANDARD BENCHMARK, NOT LOCALLY. NO LOCAL PROBE ARMS. NO FINGERPRINT COMPARISONS
+  (`ab_fingerprints.sh`, `state-fingerprint`, `PROBE_CONTROL=1` on many battles). THEY TAKE HOURS AND THE BENCHMARK DOES
+  THE SAME JOB.** THE BENCHMARK TAKES PARAMETERS: DISPATCH `battle-benchmark-standard.yml` WITH `seed` (THE SAME PREFIX FOR
+  EVERY ARM) AND `query` (THE PAGE FLAGS FOR THIS ARM, E.G. `morale=1`; A NEUTRAL `x=1` FOR A CONTROL ON `main`, SO IT IS
+  NOT PUBLISHED AS THE RECORD), ONE ARM PER RUN, TWO ARMS PER WAVE. COMPARE WITH `compare_benchmark_arms.cjs` (`--count <path>`
+  PAIRS ANY RECORD FIELD). IDENTICAL RECORDS ON `main` AND ON A BRANCH ARE THE PROOF THAT A CHANGE IS INERT. A PROBE IS FOR
+  ONE SEED AND A FEW MINUTES, NEVER FOR AN ARM OF TWENTY SEEDS. (Said three times by the owner, 2026-09-30.)
 - **Don't create new plan/roadmap/summary `.md` files.** The one exception is `TUNABLES.md`, the
   inventory of every tunable number by layer (Phase 5, the input to the genome rewrite). Update this
   file only when a command, contract or rule actually changes. Findings go in the commit message or PR body. Open issues
