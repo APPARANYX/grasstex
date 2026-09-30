@@ -669,14 +669,15 @@ two seed prefixes (`ai-layers-20260929`, `ai-layers-b-20260929`), reported with 
 | 1 | Engagement, the Squad Leader's `commandPhase` and the Macro brief as explicit state machines | merged (#110) |
 | stash | AI Graph and genome stashed (`STASHED` in `ai-policy.js`); genome off means the code defaults | merged (#112) |
 | 2 | One publisher of `orderAnchor` + `rally`, one stall clock, one writer per status timer (#113); soldier stats and the General's `squad` lever (#114) | merged |
-| 3a | Debt adoption (45 → 9 wire-map debt entries: gun state to Engagement/ammunition, merge and leader-down to the Squad Leader, station claims, the unreachable handshake) and the per-soldier event queue (`modules/08-soldier-events.js`) | code on `work/ai-layers-phase-3`; identity proof pending |
+| 3a | Debt adoption (45 → 9 wire-map debt entries, `fireCooldown` still to do: gun state to Engagement/ammunition, merge and leader-down to the Squad Leader, station claims, the unreachable handshake) and the per-soldier event queue (`modules/08-soldier-events.js`) | code on `work/ai-layers-phase-3`; identity proof pending |
 | 3b | Group morale (squad level, break and rally thresholds) replacing the flat 60% casualty retreat, behind `?morale=`; `squad.mind` becomes a reader. It must reduce to the 60% rule when the men are calm; stress only moves the threshold, by declared numbers (`retreat-episodes` probe: every retreat enters at 60%, mean squad stress 0.22) | not started |
 | 3c | Group course of action on contact behind a flag: deterministic weighted scoring, tiebreak by squad id, executed through `fireAndMovement` and the bound leases, the Squad Leader the one COA owner; COAs, morale states and inputs declared as data. No planner, no safe-point memory, no route-through-enemy assessment, no hold-until-reinforced | not started |
 | 4 | Efficiency, no behaviour change: states return wake times staggered by an id hash; LOS cached per (observer, target) for a short sim-time window; perception budget; the 6 nav-cache invalidations (`_navCache`, `_physicalPath`) become one call on Navigation. Each proved identical before the next; median wall time against the 25% gate | not started |
 | 5 | Read-through: a top-of-file contract for every layer file, dead code out (`flatDamage` in 14-z, the unread `objectiveHoldWin`, the `soldier.target` swap in module 52), every tunable number listed by layer in the PR body as the input to the genome rewrite, then a fresh reader explains each layer from its file alone | not started |
 
-Wire-map debt still open after 3a (8 entries, all scheduled): the 6 nav-cache entries (phase 4), `soldier.target`
-in module 52 and the dead `soldier.hp` copy in 14-z (phase 5).
+Wire-map debt still open after 3a (9 entries, all scheduled): `soldier.fireCooldown` (spawn stagger in `spawnAll`
+against the fire pipeline's own clock; phase 3, not yet done), the 6 nav-cache entries (phase 4), `soldier.target` in
+module 52 and the dead `soldier.hp` copy in 14-z (phase 5).
 
 **The soldier layer, in slices** (the tactics outline's soldier contract; each slice is a tactics change behind a
 lever and a paired benchmark). Shipped: condition, i.e. stress, bands and four levers (see Soldier condition).
