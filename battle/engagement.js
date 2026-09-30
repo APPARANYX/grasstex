@@ -924,7 +924,7 @@
       });
     /* Isolated unit harness fallback: production loads the resolver before any AI tick. */
     s.destination = { x: p.x, z: p.z };
-    s._navCache = null;
+    root.BattleNavigation.invalidateNavCache(s);
     return null;
   }
   function holdPosition(s, battle) {

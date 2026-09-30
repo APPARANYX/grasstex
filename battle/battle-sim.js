@@ -89,7 +89,7 @@
       if(bodyClear&&(rd>.35||arrived)&&(!root.BattleNavigation||
           (root.BattleNavigation.movementClear(at,at)&&root.BattleNavigation.movementClear(at,next)))){
         recovery=null;if(root.BattleSquadStability)root.BattleSquadStability.endUnstick(soldier);
-        soldier._navCache=null;soldier._physicalPath=null;
+        root.BattleNavigation.invalidateNavPath(soldier);
         desired=normalDesired;
       }
     }
@@ -114,7 +114,7 @@
           var slid=root.BattleNavigation.resolveStep?root.BattleNavigation.resolveStep(here,{x:nx,z:nz}):null;
           if(slid){nx=slid.x;nz=slid.z;dirx=(nx-here.x)/step;dirz=(nz-here.z)/step;}
           else{
-            if(!(self.time<(soldier._navReplanHold||0))){soldier._navCache=null;soldier._navReplanHold=self.time+NAV_REPLAN_HOLD;}
+            if(!(self.time<(soldier._navReplanHold||0))){root.BattleNavigation.invalidateNavCache(soldier);soldier._navReplanHold=self.time+NAV_REPLAN_HOLD;}
             soldier.moveSpeed=0;soldier.moving=false;soldier._movementStopReason='step-blocked';BattleSoldierModel.animateWalk(soldier,dt,0);return;
           }
         }
