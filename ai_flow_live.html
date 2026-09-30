@@ -300,7 +300,7 @@ function renderTabs(){
   sel.hidden=current!=='cfg';
   back.hidden=current!=='cfg'||!cfgHistory.length;
 }function initCfgSelect(){const sel=document.getElementById('cfgSelect');sel.innerHTML='';CFG_FUNCS.forEach(([k,n,label])=>{const o=document.createElement('option');o.value=k+':'+n;o.textContent=label;if(o.value===cfgChoice)o.selected=true;sel.appendChild(o)});sel.onchange=()=>{cfgHistory=[];cfgChoice=sel.value;renderTabs();if(current==='cfg'){render();fit()}}}
-function clear(){viewport.innerHTML='';viewport.removeAttribute('transform');}
+function clear(){cancelAnimationFrame(cameraAnim);cameraAnim=0;viewport.innerHTML='';viewport.removeAttribute('transform');}
 function node(g,n){
   const cls='node '+(n.type||'process')+' '+(n.layer||'process');
   const group=el('g',{class:cls,'data-id':n.id,transform:`translate(${n.x},${n.y})`});
@@ -639,32 +639,114 @@ function fullView(){
  function openSource(ref,title){if(!ref||!ref.file)return;const key=Object.keys(FILES).find(k=>FILES[k]===ref.file),srcText=(key&&sources[key])||'';workspace.classList.add('drawerOpen');document.getElementById('drawerTitle').textContent=title||ref.label||ref.file;document.getElementById('drawerMeta').textContent=`${ref.file}${ref.line?' · line '+ref.line:''}`;const lines=srcText.split('\n'),ln=ref.line||1,a=Math.max(1,ln-14),b=Math.min(lines.length,ln+24);document.getElementById('sourceText').textContent=lines.slice(a-1,b).map((s,i)=>String(a+i).padStart(4,' ')+'  '+s).join('\n')}
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  function stageRect(){return document.getElementById('stage').getBoundingClientRect()}
- function zoomLevel(){const r=stageRect();return r.width>0?r.width/camera.w:1}
- function updateZoomReadout(){const z=zoomLevel();document.getElementById('zoomReadout').textContent=Math.round(z*100)+'%'}
- function clampCamera(){
-   const px=camera.w*.55,py=camera.h*.55,minX=graphBounds.x-px,maxX=graphBounds.x+graphBounds.w-camera.w+px,minY=graphBounds.y-py,maxY=graphBounds.y+graphBounds.h-camera.h+py;
-   if(maxX>=minX)camera.x=clamp(camera.x,minX,maxX);if(maxY>=minY)camera.y=clamp(camera.y,minY,maxY);
+ function finiteNum(v){return Number.isFinite(+v)}
+ function cameraValid(v){
+   return !!v&&finiteNum(v.x)&&finiteNum(v.y)&&finiteNum(v.w)&&finiteNum(v.h)&&v.w>0.5&&v.h>0.5
  }
- function applyCamera(){cancelAnimationFrame(cameraAnim);clampCamera();svg.setAttribute('viewBox',`${camera.x} ${camera.y} ${camera.w} ${camera.h}`);updateZoomReadout()}
- function animateCamera(target,duration=180){
-   cancelAnimationFrame(cameraAnim);const from={...camera},t0=performance.now();
-   const step=t=>{const q=Math.min(1,(t-t0)/duration),e=1-Math.pow(1-q,3);camera={x:from.x+(target.x-from.x)*e,y:from.y+(target.y-from.y)*e,w:from.w+(target.w-from.w)*e,h:from.h+(target.h-from.h)*e};svg.setAttribute('viewBox',`${camera.x} ${camera.y} ${camera.w} ${camera.h}`);updateZoomReadout();if(q<1)cameraAnim=requestAnimationFrame(step)};cameraAnim=requestAnimationFrame(step)
+ function safeBounds(){
+   const b=graphBounds||{};
+   return {
+     x:finiteNum(b.x)?+b.x:0,
+     y:finiteNum(b.y)?+b.y:0,
+     w:finiteNum(b.w)&&b.w>0?+b.w:1800,
+     h:finiteNum(b.h)&&b.h>0?+b.h:1600
+   }
+ }
+ function targetCamera(v){
+   const b=safeBounds();
+   const out={
+     x:finiteNum(v&&v.x)?+v.x:b.x,
+     y:finiteNum(v&&v.y)?+v.y:b.y,
+     w:finiteNum(v&&v.w)&&+v.w>0.5?+v.w:b.w,
+     h:finiteNum(v&&v.h)&&+v.h>0.5?+v.h:b.h
+   };
+   return out
+ }
+ function zoomLevel(){
+   const r=stageRect();
+   if(!(r.width>0)||!cameraValid(camera))return 1;
+   return r.width/camera.w
+ }
+ function updateZoomReadout(){
+   const z=zoomLevel();
+   document.getElementById('zoomReadout').textContent=(Number.isFinite(z)&&z>0?Math.round(z*100):100)+'%'
+ }
+ function clampCamera(){
+   if(!cameraValid(camera))camera=targetCamera(null);
+   const b=safeBounds(),px=camera.w*.55,py=camera.h*.55,
+     minX=b.x-px,maxX=b.x+b.w-camera.w+px,
+     minY=b.y-py,maxY=b.y+b.h-camera.h+py;
+   if(maxX>=minX)camera.x=clamp(camera.x,minX,maxX);
+   if(maxY>=minY)camera.y=clamp(camera.y,minY,maxY)
+ }
+ function applyCamera(){
+   cancelAnimationFrame(cameraAnim);
+   camera=targetCamera(camera);
+   clampCamera();
+   svg.setAttribute('viewBox',`${camera.x} ${camera.y} ${camera.w} ${camera.h}`);
+   updateZoomReadout()
+ }
+ function animateCamera(rawTarget,duration=180){
+   cancelAnimationFrame(cameraAnim);
+   const target=targetCamera(rawTarget);
+   // Never interpolate from a corrupt camera. Snap to a known-good target instead.
+   if(!cameraValid(camera)){
+     camera=target;
+     applyCamera();
+     return
+   }
+   const from=targetCamera(camera),t0=performance.now();
+   const step=t=>{
+     const q=Math.max(0,Math.min(1,(t-t0)/Math.max(1,duration))),ease=1-Math.pow(1-q,3);
+     camera={
+       x:from.x+(target.x-from.x)*ease,
+       y:from.y+(target.y-from.y)*ease,
+       w:Math.max(.5,from.w+(target.w-from.w)*ease),
+       h:Math.max(.5,from.h+(target.h-from.h)*ease)
+     };
+     if(!cameraValid(camera)){camera=target}
+     svg.setAttribute('viewBox',`${camera.x} ${camera.y} ${camera.w} ${camera.h}`);
+     updateZoomReadout();
+     if(q<1)cameraAnim=requestAnimationFrame(step)
+   };
+   cameraAnim=requestAnimationFrame(step)
  }
  function fit(){
-   const r=stageRect();if(!(r.width>0&&r.height>0))return;const pad=130,bw=Math.max(1,graphBounds.w+pad*2),bh=Math.max(1,graphBounds.h+pad*2),aspect=r.width/r.height;let w=bw,h=bh;if(w/h<aspect)w=h*aspect;else h=w/aspect;animateCamera({x:graphBounds.x+graphBounds.w/2-w/2,y:graphBounds.y+graphBounds.h/2-h/2,w,h})
+   const r=stageRect();if(!(r.width>0&&r.height>0))return;
+   const b=safeBounds(),pad=130,bw=Math.max(1,b.w+pad*2),bh=Math.max(1,b.h+pad*2),aspect=r.width/r.height;
+   let w=bw,h=bh;
+   if(w/h<aspect)w=h*aspect;else h=w/aspect;
+   const target={x:b.x+b.w/2-w/2,y:b.y+b.h/2-h/2,w,h};
+   if(!cameraValid(camera)){camera=target;applyCamera();return}
+   animateCamera(target)
  }
- function actualSize(){const r=stageRect();if(!(r.width>0&&r.height>0))return;const w=r.width,h=r.height;animateCamera({x:graphBounds.x+graphBounds.w/2-w/2,y:graphBounds.y+graphBounds.h/2-h/2,w,h})}
+ function actualSize(){
+   const r=stageRect();if(!(r.width>0&&r.height>0))return;
+   const b=safeBounds(),w=Math.max(1,r.width),h=Math.max(1,r.height);
+   animateCamera({x:b.x+b.w/2-w/2,y:b.y+b.h/2-h/2,w,h})
+ }
  function zoomAt(factor,clientX,clientY,animate=false){
-   const r=stageRect();if(!(r.width>0&&r.height>0))return;const u=clamp((clientX-r.left)/r.width,0,1),v=clamp((clientY-r.top)/r.height,0,1),wx=camera.x+u*camera.w,wy=camera.y+v*camera.h,current=zoomLevel(),next=clamp(current*factor,.06,5),nw=r.width/next,nh=r.height/next,target={x:wx-u*nw,y:wy-v*nh,w:nw,h:nh};if(animate)animateCamera(target,140);else{camera=target;applyCamera()}
+   const r=stageRect();if(!(r.width>0&&r.height>0))return;
+   if(!cameraValid(camera)){fit();return}
+   factor=Number.isFinite(+factor)&&+factor>0?+factor:1;
+   const u=clamp((clientX-r.left)/r.width,0,1),v=clamp((clientY-r.top)/r.height,0,1),
+     wx=camera.x+u*camera.w,wy=camera.y+v*camera.h,current=zoomLevel(),
+     next=clamp(current*factor,.06,5),nw=Math.max(.5,r.width/next),nh=Math.max(.5,r.height/next),
+     target={x:wx-u*nw,y:wy-v*nh,w:nw,h:nh};
+   if(animate)animateCamera(target,140);else{camera=target;applyCamera()}
  }
  function zoomCenter(factor){const r=stageRect();zoomAt(factor,r.left+r.width/2,r.top+r.height/2,true)}
- function panByScreen(dx,dy){const r=stageRect();camera.x-=dx*camera.w/r.width;camera.y-=dy*camera.h/r.height;applyCamera()}
+ function panByScreen(dx,dy){
+   const r=stageRect();
+   if(!(r.width>0&&r.height>0)||!cameraValid(camera))return;
+   camera.x-=dx*camera.w/r.width;camera.y-=dy*camera.h/r.height;applyCamera()
+ }
  function showError(msg){const e=document.getElementById('errorBox');e.style.display='block';e.textContent=msg}function hideError(){document.getElementById('errorBox').style.display='none'}
  document.getElementById('refreshBtn').onclick=()=>load().then(()=>requestAnimationFrame(fit));document.getElementById('fitBtn').onclick=fit;document.getElementById('resetBtn').onclick=actualSize;document.getElementById('zoomInBtn').onclick=()=>zoomCenter(1.28);document.getElementById('zoomOutBtn').onclick=()=>zoomCenter(1/1.28);document.getElementById('closeDrawer').onclick=()=>workspace.classList.remove('drawerOpen');
  document.getElementById('cfgBackBtn').onclick=()=>{if(!cfgHistory.length)return;cfgChoice=cfgHistory.pop();const sel=document.getElementById('cfgSelect');if(sel)sel.value=cfgChoice;renderTabs();render();fit()};
  svg.addEventListener('wheel',e=>{e.preventDefault();const factor=Math.exp(-e.deltaY*0.00135);zoomAt(factor,e.clientX,e.clientY,false)},{passive:false});
- svg.addEventListener('dblclick',e=>{if(e.target.closest&&e.target.closest('.node,.stateNode'))return;e.preventDefault();zoomAt(e.shiftKey?1/1.65:1.65,e.clientX,e.clientY,true)});
- svg.addEventListener('pointerdown',e=>{const overNode=e.target.closest&&e.target.closest('.node,.stateNode');const forcePan=spaceDown||e.button===1;if(overNode&&!forcePan)return;if(e.button!==0&&e.button!==1)return;e.preventDefault();dragging=true;dragPointer=e.pointerId;lastPointer={x:e.clientX,y:e.clientY};document.getElementById('stage').classList.add('panning');svg.setPointerCapture(e.pointerId)});
+ svg.addEventListener('dblclick',e=>{if(e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.callPort'))return;e.preventDefault();zoomAt(e.shiftKey?1/1.65:1.65,e.clientX,e.clientY,true)});
+ svg.addEventListener('pointerdown',e=>{const overNode=e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.callPort');const forcePan=spaceDown||e.button===1;if(overNode&&!forcePan)return;if(e.button!==0&&e.button!==1)return;e.preventDefault();dragging=true;dragPointer=e.pointerId;lastPointer={x:e.clientX,y:e.clientY};document.getElementById('stage').classList.add('panning');svg.setPointerCapture(e.pointerId)});
  svg.addEventListener('pointermove',e=>{if(!dragging||e.pointerId!==dragPointer)return;const dx=e.clientX-lastPointer.x,dy=e.clientY-lastPointer.y;lastPointer={x:e.clientX,y:e.clientY};panByScreen(dx,dy)});
  function endDrag(e){if(!dragging)return;if(e&&dragPointer!=null&&e.pointerId!==dragPointer)return;dragging=false;dragPointer=null;lastPointer=null;document.getElementById('stage').classList.remove('panning')}
  svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);svg.addEventListener('lostpointercapture',endDrag);
