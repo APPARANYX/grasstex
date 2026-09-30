@@ -465,6 +465,27 @@ section('physical wayfinding respects body clearance through hedgerows');
   check('aim across the angle wrap takes the short turn',aim.root.rotation.y>Math.PI-.01&&aim.root.rotation.y<Math.PI+.01);
 
 
+
+  /* A man standing on his corner (0.33 m, inside stepMovement's 0.35 m arrival) whose edge onward is not
+     clear from his foot. Real battle: ai-layers-b-20260929-meeting-s2-b0010-0001, soldier 90 held
+     (618.2, 414.6) for 500 s, a tree 1.8 m ahead (3.6 here: clear of the first edge), eight points queued and every replan returning the
+     same first one. `?navCorner=0` is the old rule (the control). */
+  function standingOnCorner(flagOff){
+    const rr=bootstrap(),NN=rr.BattleNavigation,src=fs.readFileSync(path.join(REPO,'battle/modules/39-navigation-physicality-debug.js'),'utf8');
+    new Function('window','globalThis','console','BABYLON','location',src)(rr,rr,quiet,rr.BABYLON,flagOff?{search:'?navCorner=0'}:{search:''});
+    const PP=rr.BattleNavigationPhysicality,scenario={buildings:[]},sim={time:0,heightAt:()=>0,obstacles:[],_roster:{us:[],ge:[]},scene:{metadata:{battleScenario:scenario}}};
+    sim.obstacles.__physicalFootprints=[{id:'tree',type:'tree',shape:'circle',x:3.6,z:0,radius:1.06}];NN.installScenario(scenario);
+    rr.BattleModules.getSystem('navigation-physicality-debug').onBattleStart(sim);
+    const man={id:'corner',root:{position:{x:0,z:0}}},goal={x:60,z:0};
+    NN.nextWaypoint(sim,man,goal);
+    const c=man._physicalPath;c.replanAt=1e9;c.points=[{x:.33,z:0},{x:9,z:0},{x:18,z:0}];
+    return{wp:NN.nextWaypoint(sim,man,goal),man,PP};
+  }
+  {
+    const on=standingOnCorner(false),off=standingOnCorner(true);
+    check('the old rule holds a corner he stands on (control: ?navCorner=0)',Math.hypot(off.wp.x-off.man.root.position.x,off.wp.z-off.man.root.position.z)<=.35,JSON.stringify(off.wp));
+    check('a corner he stands on within the 0.35 m arrival is consumed, the next point is the waypoint',Math.hypot(on.wp.x-on.man.root.position.x,on.wp.z-on.man.root.position.z)>.85,JSON.stringify(on.wp));
+  }
 }
 
 console.log('\n'+(failures?failures+' of '+checks+' checks FAILED':'all '+checks+' checks passed'));
