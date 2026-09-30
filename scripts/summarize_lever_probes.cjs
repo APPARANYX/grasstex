@@ -110,6 +110,38 @@ function morale(arm) {
   out.mergeReleaseLagSeconds = { n: lag.length, p50: pct(lag, 0.5), p90: pct(lag, 0.9), max: lag.length ? lag[lag.length - 1] : null };
   const mergeStress = rs.flatMap(x => x.merges).map(m => m.meanStress).sort((a, b) => a - b);
   out.merges = { n: mergeStress.length, per100SquadBattles: per(mergeStress.length), meanStressP50: pct(mergeStress, 0.5), meanStressP90: pct(mergeStress, 0.9), shareAtOrAboveRallyStress: r(mergeStress.filter(s => s >= rs[0].tuning.rallyStress).length / Math.max(1, mergeStress.length), 3) };
+  /* How much earlier morale retreats the squads it touches, on a flag-off page: per squad-battle that has an
+     early-break run, the first run's start against the squad's flat retreat (an entry at 60%). No flat entry
+     after it means morale would have retreated a squad the flat rule never retreats. */
+  if (rs.some(x => x.earlyBreakRuns)) {
+    const lead = [],
+      neverFlat = [],
+      ends = {};
+    for (const x of rs) {
+      const bySquad = {};
+      for (const run of x.earlyBreakRuns || []) {
+        (bySquad[run.squad] = bySquad[run.squad] || []).push(run);
+        ends[run.end] = (ends[run.end] || 0) + 1;
+      }
+      for (const id of Object.keys(bySquad)) {
+        const t0 = Math.min(...bySquad[id].map(u => u.t0)),
+          flat = x.entries.filter(e => e.squad === id && e.cause === 'flat' && e.t >= t0 - 0.2).map(e => e.t).sort((a, b) => a - b)[0];
+        if (flat == null) neverFlat.push({ t0, peak: Math.max(...bySquad[id].map(u => u.peakStress)), seconds: sum(bySquad[id], u => u.seconds) });
+        else lead.push(+(flat - t0).toFixed(1));
+      }
+    }
+    lead.sort((a, b) => a - b);
+    out.earlyBreak = {
+      runs: sum(Object.values(ends)),
+      runsEndedBy: ends,
+      squadBattlesTouched: lead.length + neverFlat.length,
+      squadBattlesTouchedPer100: per(lead.length + neverFlat.length),
+      ofWhichOnlyEarlier: lead.length,
+      ofWhichRetreatTheFlatRuleNeverMakes: neverFlat.length,
+      leadSeconds: { n: lead.length, p10: pct(lead, 0.1), p50: pct(lead, 0.5), p90: pct(lead, 0.9), max: lead.length ? lead[lead.length - 1] : null, mean: lead.length ? r(sum(lead) / lead.length, 1) : null },
+      neverFlatRetreatingSecondsPerSquadBattleTouched: neverFlat.length ? r(sum(neverFlat, u => u.seconds) / neverFlat.length, 1) : null
+    };
+  }
   const groups = rs.flatMap(x => x.groups);
   out.groups = { formed: groups.length, singleton: groups.filter(g => g.singleton).length, singletonRecentlyMerged: groups.filter(g => g.singleton && g.recentlyMerged).length };
   return out;
