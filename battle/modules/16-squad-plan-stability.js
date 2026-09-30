@@ -93,6 +93,49 @@
     rallyStress: 0.15,
     rallyCasualty: 0.5
   };
+  /* 3c: course of action on contact. Behind ?coa=1. On contact the Squad Leader (the one COA
+     owner) scores the declared COAs against declared inputs and stores the winner as sq.coa.
+     Scoring is deterministic: weighted sum, no RNG; ties break by COA name order, so the choice
+     is a pure function of squad state. The COA gates bounding through fireAndMovement: defend
+     holds (no bounds), assault bounds if the phase allows. COAs only restrict, never expand. */
+  var COA_ON = typeof location !== 'undefined' && /[?&]coa=1\b/.test(location.search || '');
+  var COAS = {
+    assault: { label: 'assault', bounds: true },
+    defend: { label: 'defend', bounds: false }
+  };
+  var COA_INPUTS = {
+    casualtyFrac: function (sq) {
+      var living = 0, m = sq.members || [];
+      for (var i = 0; i < m.length; i++) if (m[i] && !m[i].dead) living++;
+      return 1 - living / root.SquadAI.establishment(sq);
+    },
+    stress: function (sq) {
+      return (sq.mind && sq.mind.mean) || 0;
+    },
+    leaderDown: function (sq) {
+      return root.SquadAI.leaderOf(sq) ? 0 : 1;
+    }
+  };
+  var COA_WEIGHTS = {
+    assault: { base: 1.0, casualtyFrac: -2.0, stress: -1.0, leaderDown: -1.5 },
+    defend: { base: 0.0, casualtyFrac: 0.5, stress: 0.5, leaderDown: 0.5 }
+  };
+  function coaScore(coa, sq) {
+    var w = COA_WEIGHTS[coa], s = w.base || 0, v;
+    for (var k in COA_INPUTS) {
+      v = w[k] || 0;
+      if (v) s += v * COA_INPUTS[k](sq);
+    }
+    return s;
+  }
+  function selectCOA(sq) {
+    var names = Object.keys(COAS).sort(), best = names[0], bestScore = -Infinity, s;
+    for (var i = 0; i < names.length; i++) {
+      s = coaScore(names[i], sq);
+      if (s > bestScore + 1e-9) { bestScore = s; best = names[i]; }
+    }
+    return best;
+  }
   var TACTICAL = {
     assault: 1,
     flank: 1,
@@ -1153,6 +1196,7 @@
     if (r.contactStarted) {
       L.end(sq, 'bound', t, 'contact started');
       L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'contact started', 'cycle expiry');
+      if (COA_ON) sq.coa = selectCOA(sq);
     }
     if (!sq.inContact) {
       L.end(sq, 'bound', t, 'contact broken');
@@ -1160,6 +1204,9 @@
       return;
     }
     sq._assaultAuthorized = !!ASSAULT_PHASES[sq.commandPhase || ''];
+    /* 3c: the COA gates bounding. Defend holds position (no bounds); assault bounds only if the
+       phase also allows. The flag-off path never sets sq.coa, so this is a no-op there. */
+    if (COA_ON && sq.coa && COAS[sq.coa] && !COAS[sq.coa].bounds) sq._assaultAuthorized = false;
     /* A bound needs a base of fire: somebody has to be shooting while somebody else moves. */
     if (
       !sq._assaultAuthorized ||
@@ -1666,6 +1713,8 @@
     boundDuration: BOUND_DURATION,
     tuning: { morale: MORALE_TUNING },
     moraleOn: function () { return MORALE_ON; },
+    coaOn: function () { return COA_ON; },
+    coas: function () { return Object.keys(COAS); },
     fireAndMovement: fireAndMovement,
     states: PHASE_STATES,
     transitionPhase: transitionPhase,
