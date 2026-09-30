@@ -264,7 +264,7 @@ function layoutCFG(cfg){
 
 const stateFocus={};
 let cfgHistory=[],brainFocus=null;
-const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:true,textSnap:true,focus:null,scene:null,detailScene:null,raf:0,fast:false,restoreTimer:0,panX:0,panY:0};
+const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:true,textSnap:true,focus:null,scene:null,detailScene:null,raf:0,fast:false,restoreTimer:0,panX:0,panY:0,pivotX:0,pivotY:0,pivotZ:0,focusAnim:0};
 let sources={}, current='brain', graphBounds={x:0,y:0,w:1800,h:1600};
 let camera={x:0,y:0,w:1800,h:1600},dragging=false,dragPointer=null,lastPointer=null,spaceDown=false,cameraAnim=0;
 const svg=document.getElementById('graph'), viewport=document.getElementById('viewport'), status=document.getElementById('status'), workspace=document.getElementById('workspace');
@@ -580,7 +580,8 @@ function scheduleBrain3DRender(fast=false){
 
 function brain3DProject(p){
   const yaw=brain3D.yaw,pitch=brain3D.pitch,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
-  const x1=p.x*cy+p.z*sy,z1=-p.x*sy+p.z*cy,y1=p.y;
+  const rx=p.x-brain3D.pivotX,ry=p.y-brain3D.pivotY,rz=p.z-brain3D.pivotZ;
+  const x1=rx*cy+rz*sy,z1=-rx*sy+rz*cy,y1=ry;
   const y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;
   const den=Math.max(900,6400-z2),scale=(1500/den)*brain3D.zoom;
   return {x:900+brain3D.panX+x1*scale,y:650+brain3D.panY+y2*scale,z:z2,scale};
@@ -588,24 +589,48 @@ function brain3DProject(p){
 
 function brain3DProjectDetail(p){
   const yaw=brain3D.yaw,pitch=brain3D.pitch,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
-  const x1=p.x*cy+p.z*sy,z1=-p.x*sy+p.z*cy,y1=p.y;
+  const rx=p.x-brain3D.pivotX,ry=p.y-brain3D.pivotY,rz=p.z-brain3D.pivotZ;
+  const x1=rx*cy+rz*sy,z1=-rx*sy+rz*cy,y1=ry;
   const y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;
   const scale=.36*brain3D.zoom;
   return {x:900+brain3D.panX+x1*scale,y:650+brain3D.panY+y2*scale,z:z2,scale};
 }
 
+function focusBrain3DWorld(target,duration=320){
+  if(!target||![target.x,target.y,target.z].every(Number.isFinite))return;
+  cancelAnimationFrame(brain3D.focusAnim);
+  const from={x:brain3D.pivotX,y:brain3D.pivotY,z:brain3D.pivotZ,px:brain3D.panX,py:brain3D.panY};
+  const to={x:target.x,y:target.y,z:target.z,px:0,py:0},t0=performance.now();
+  const tick=t=>{
+    const q=Math.max(0,Math.min(1,(t-t0)/Math.max(1,duration))),e=1-Math.pow(1-q,3);
+    brain3D.pivotX=from.x+(to.x-from.x)*e;
+    brain3D.pivotY=from.y+(to.y-from.y)*e;
+    brain3D.pivotZ=from.z+(to.z-from.z)*e;
+    brain3D.panX=from.px+(to.px-from.px)*e;
+    brain3D.panY=from.py+(to.py-from.py)*e;
+    if(current==='brain3d'){
+      if(brain3D.mode==='detail')renderBrain3DDetailScene(q<1);
+      else renderBrain3DScene();
+    }
+    if(q<1)brain3D.focusAnim=requestAnimationFrame(tick);
+    else{
+      brain3D.focusAnim=0;brain3D.fast=false;
+      if(current==='brain3d'&&brain3D.mode==='detail')renderBrain3DDetailScene(false);
+    }
+  };
+  brain3D.focusAnim=requestAnimationFrame(tick);
+}
+
 function centerBrain3DOn(p,rerender=true){
+  // Legacy screen-space centering path retained for compatibility; new clicks use
+  // focusBrain3DWorld() so the selected object becomes the actual orbit/reference pivot.
   if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.y))return;
-  brain3D.panX+=900-p.x;
-  brain3D.panY+=650-p.y;
-  if(rerender){
-    if(brain3D.mode==='detail')renderBrain3DDetailScene(false);
-    else renderBrain3DScene();
-  }
+  brain3D.panX+=900-p.x;brain3D.panY+=650-p.y;
+  if(rerender){if(brain3D.mode==='detail')renderBrain3DDetailScene(false);else renderBrain3DScene()}
 }
 
 function brain3DReset(){
-  cancelAnimationFrame(brain3D.raf);brain3D.raf=0;clearTimeout(brain3D.restoreTimer);brain3D.restoreTimer=0;brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.detailScene=null;brain3D.panX=0;brain3D.panY=0;
+  cancelAnimationFrame(brain3D.raf);brain3D.raf=0;cancelAnimationFrame(brain3D.focusAnim);brain3D.focusAnim=0;clearTimeout(brain3D.restoreTimer);brain3D.restoreTimer=0;brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.detailScene=null;brain3D.panX=0;brain3D.panY=0;brain3D.pivotX=0;brain3D.pivotY=0;brain3D.pivotZ=0;
   const b=document.getElementById('brain3dExplodeBtn');if(b)b.textContent='Explode slices';
   const iy=document.getElementById('brain3dInvertYBtn');if(iy){iy.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');iy.classList.toggle('active',brain3D.invertY)}const ts=document.getElementById('brain3dTextSnapBtn');if(ts){ts.textContent='Text snap: '+(brain3D.textSnap?'On':'Off');ts.classList.toggle('active',brain3D.textSnap)}
   if(current==='brain3d')renderBrain3DScene();
@@ -808,9 +833,8 @@ function renderBrain3DDetailScene(fast=false){
       gr.addEventListener('click',ev=>{
         ev.stopPropagation();
         brain3D.focus=brain3D.focus===n.id?null:n.id;
-        const cp=parentPoint(s,cell.x,cell.y);
-        centerBrain3DOn(cp,false);
-        renderBrain3DDetailScene(false);
+        const target={x:cell.x,y:cell.y,z:sliceZ(s)};
+        focusBrain3DWorld(target);
       });
       if(n.ref)gr.addEventListener('dblclick',ev=>{ev.stopPropagation();openSource(n.ref,n.fullLabel||n.label)});
       board.appendChild(gr);
@@ -836,7 +860,7 @@ function renderBrain3DDetailScene(fast=false){
       onNode:(gr,n)=>{
         const focusId='cfgnode:'+s.parentFunction+':'+n.id;
         gr.setAttribute('data-brain-focus',focusId);
-        gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===focusId?null:focusId;const cp=pagePoint(s,n.x+(n.w||250)/2,n.y+(n.h||82)/2);centerBrain3DOn(cp,false);renderBrain3DDetailScene(false);status.textContent='3D detail · '+s.title+' · '+n.label});
+        gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===focusId?null:focusId;const target=pageWorld(s,n.x+(n.w||250)/2,n.y+(n.h||82)/2);focusBrain3DWorld(target);status.textContent='3D detail · '+s.title+' · '+n.label});
         gr.addEventListener('dblclick',ev=>{ev.stopPropagation();if(n.ref)openSource(n.ref,n.label)});
       }
     });
@@ -864,7 +888,7 @@ function renderBrain3DDetailScene(fast=false){
       pg.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:9}));
       pg.appendChild(el('text',{x:0,y:4,'text-anchor':'middle'},String(p.label).length>31?String(p.label).slice(0,30)+'…':p.label));
       pg.appendChild(el('title',{},p.label));
-      pg.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===p.id?null:p.id;const cp=pagePoint(s,p.x,p.y);centerBrain3DOn(cp,false);renderBrain3DDetailScene(false)});
+      pg.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===p.id?null:p.id;const target=pageWorld(s,p.x,p.y);focusBrain3DWorld(target)});
       if(p.ref)pg.addEventListener('dblclick',ev=>{ev.stopPropagation();openSource(p.ref,p.label)});
       page.appendChild(pg);
     });
@@ -966,7 +990,7 @@ function renderBrain3DScene(){
       gr.appendChild(el('text',{x:0,y:h/2-5,'text-anchor':'middle',class:'sub'},String(n.priority)));
     }
     gr.appendChild(el('title',{},n.fullLabel||n.label));
-    gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===n.id?null:n.id;centerBrain3DOn(p,false);renderBrain3DScene()});
+    gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===n.id?null:n.id;focusBrain3DWorld({x:wn[n.id].x,y:wn[n.id].y,z:wn[n.id].z})});
     gr.addEventListener('dblclick',ev=>{ev.stopPropagation();if(n.cfg){cfgHistory=[];jumpToCfg(n.cfg,false)}else if(n.ref)openSource(n.ref,n.fullLabel||n.label)});
     g.appendChild(gr);
   });
@@ -1392,7 +1416,7 @@ function fullView(){
  document.getElementById('brain3dExplodeBtn').onclick=()=>{
    const b=document.getElementById('brain3dExplodeBtn');
    if(brain3D.mode==='compact'){brain3D.mode='exploded';b.textContent='Show detail'}
-   else if(brain3D.mode==='exploded'){brain3D.mode='detail';brain3D.yaw=-.88;brain3D.pitch=.10;brain3D.zoom=1.05;brain3D.focus=null;brain3D.panX=0;brain3D.panY=0;b.textContent='Compact slices'}
+   else if(brain3D.mode==='exploded'){brain3D.mode='detail';brain3D.yaw=-.88;brain3D.pitch=.10;brain3D.zoom=1.05;brain3D.focus=null;brain3D.panX=0;brain3D.panY=0;brain3D.pivotX=0;brain3D.pivotY=0;brain3D.pivotZ=0;b.textContent='Compact slices'}
    else{brain3D.mode='compact';b.textContent='Explode slices'}
    if(current==='brain3d')renderBrain3DScene()
  };
