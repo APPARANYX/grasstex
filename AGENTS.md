@@ -246,7 +246,7 @@ needs the flag in `chromium.launch` args; `ignoreHTTPSErrors` on the page alone 
 | --- | --- |
 | `scripts/run_m3c_replay.cjs` | One seed, fixed step, full diagnostic JSON. `M3C_SEED`, `M3C_URL`, `M3C_OUTPUT`, `M3C_MACRO=off`. Use for paired before/after comparisons. `M3C_RENDER_EVERY=<n>` renders a frame (sim paused) every n steps so the FBX pose code runs; `M3C_PERF=on\|off` sets the timing switch below. An on/off pair must end identically. |
 | `scripts/benchmark_full_fidelity.cjs` | Full-fidelity browser benchmark: real FBX soldiers, weapons, clips and rendering; fails on a failed FBX load or any procedural soldier. Startup phases and per-file timings, then `FF_SECONDS` (60) rendered after `FF_WARMUP` (90) fast-forwarded sim seconds: FPS, CPU, render, sim, pose per layer, draw calls, GPU where supported. Writes `full-fidelity.json` + `.md` to `FF_OUT`. `FF_URL`, `FF_SEED`, `FF_TIMESCALE` (4), `FF_VIEWPORT`, `FF_GPU=1`, `FF_ISOLATE=0`, `FF_QUERY` (e.g. `animLod=0`), `FF_CADENCE=60` (a virtual 60 Hz clock so per-frame numbers describe a 60 FPS device; wall FPS is then meaningless). Served cross-origin isolated for 5 µs timers. SwiftShader numbers are a CPU-only baseline; the headless benchmark stays the AI regression benchmark. |
-| `scripts/ab_fingerprints.sh [--control] [ref]` | Neutral-refactor proof: serves a `git worktree` of `ref` (default origin/main) and this checkout, runs `run_probe.cjs` `PROBE=state-fingerprint` on both for each arm (`AB_ARMS`, default default / `mind=0` / `stats=0`; `AB_PER_TYPE`, `AB_OUT`) and compares with `compare_battle_fingerprints.cjs`. `--control` first runs the base against itself. Exit 1 on any difference. |
+| `scripts/ab_fingerprints.sh [--control] [ref]` | Identical-end-state proof (optional; see the phase map): serves a `git worktree` of `ref` (default origin/main) and this checkout, runs `run_probe.cjs` `PROBE=state-fingerprint` on both for each arm (`AB_ARMS`, default default / `mind=0` / `stats=0`; `AB_PER_TYPE`, `AB_OUT`) and compares with `compare_battle_fingerprints.cjs`. `--control` first runs the base against itself. Exit 1 on any difference. |
 | `scripts/compare_benchmark_arms.cjs A.json[,..] B.json[,..]` | Paired report of two standard-benchmark arms (a comma list pools seed prefixes): identical battles, exact McNemar on winner / time-limit / no-capture, captures, movement stalls, runtime errors, median wall time against the 25% gate; `--count <path>` adds a per-battle counter. Exit 1 on a runtime error or a slowdown above 25%. |
 | `scripts/run_battle_benchmark.mjs` | N headless battles. `BATTLE_BENCHMARK_COUNT/SEED/URL/STEP/TIME_LIMIT/OUTPUT`. `merge_battle_benchmarks.mjs` merges shards. |
 | `scripts/profile_battle_hotpaths.mjs` (+ `battle-hotpath-profiler.cjs`) | Inclusive wall time per hot function. `BATTLE_PROFILE_SEED/TYPE/SECONDS`. |
@@ -677,9 +677,14 @@ pseudo-backlog. Long-form historical notes remain in git history
 (`work/ai-layers-phase-<n>`), PR titles start with `CHECKPOINT:`; stop after each phase and report what was
 proved and what was not. The genome and the AI Graph stay stashed throughout (see the top of this file); new
 tunable numbers go in the owning layer's `tuning` object (or `BattleSoldierStats.EFFECTS`), never the genome.
-Per 2026-09-29 decision (Ivan): skip `ab_fingerprints.sh` — behavioural changes are expected when fixing
-ownership. Each phase gets a single benchmark run; compare to the previous phase's benchmark with
-`compare_benchmark_arms.cjs`.
+**What a change must show: neutral or better.** A change does not have to leave a battle the same as before, and
+should not be bent to. The aim is a leaner, more readable AI that is easy to debug and fights better, so less noise
+(stalls, loops, churn, wasted orders) or better outcomes is what a good change looks like. Prove it with the full
+harness suite and the paired GitHub benchmark on two seed prefixes (`ai-layers-20260929`, `ai-layers-b-20260929`),
+reported with `compare_benchmark_arms.cjs`: say what moved and which way, and a regression (outcomes, stalls,
+loops, runtime errors, wall time past the 25% gate) needs a reason. Behaviour changes sit behind a flag while they
+are measured. `ab_fingerprints.sh` (identical end states) is not required; use it when "the same battle" is exactly
+what a change should show. Owner decision, 2026-09-30.
 
 | Phase | What | Status |
 | --- | --- | --- |
