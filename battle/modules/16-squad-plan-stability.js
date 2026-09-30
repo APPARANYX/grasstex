@@ -83,25 +83,35 @@
   /* 3b: group morale. Behind ?morale=1. Replaces the flat 60% casualty retreat with a
      squad-level break/rally model driven by the squad.mind roll-up (module 17). The break
      threshold is breakBase for calm men (the flat 60% rule) and moves down by breakSlope per
-     unit of mean stress, never below breakMin. A retreating squad rallies only once its men
-     are calm (mean stress < rallyStress) and it is not too depleted. */
+     unit of mean stress, never below breakMin. A retreating squad rallies once its men are calm
+     (mean stress < rallyStress) and it sits rallyGap of a casualty fraction below where it would
+     break at that stress, so a squad that broke early on stress can come back, one the flat rule
+     breaks (60%) never can, and none can break again on the next tick. */
   var MORALE_ON = typeof location !== 'undefined' && /[?&]morale=1\b/.test(location.search || '');
   var MORALE_TUNING = {
     breakBase: 0.6,
     breakSlope: 0.3,
     breakMin: 0.25,
     rallyStress: 0.15,
-    rallyCasualty: 0.5
+    rallyGap: 0.05
   };
   /* The casualty fraction at which a squad under this mean stress breaks (the flat 60% rule at zero). */
   function moraleBreakAt(stress) {
     return Math.max(MORALE_TUNING.breakMin, MORALE_TUNING.breakBase - MORALE_TUNING.breakSlope * stress);
   }
-  /* 3c: course of action on contact. Behind ?coa=1. On contact the Squad Leader (the one COA
-     owner) scores the declared COAs against declared inputs and stores the winner as sq.coa.
-     Scoring is deterministic: weighted sum, no RNG; ties break by COA name order, so the choice
-     is a pure function of squad state. The COA gates bounding through fireAndMovement: defend
-     holds (no bounds), assault bounds if the phase allows. COAs only restrict, never expand. */
+  /* Whether a retreating squad rallies. The ceiling on casualties is not a number of its own: it is the break
+     threshold at the present stress less rallyGap, which is what makes break and rally a hysteresis by
+     construction (casualtyFrac < breakAt - gap means the break test on the same inputs is false). */
+  function moraleRallies(casualtyFrac, stress) {
+    return stress < MORALE_TUNING.rallyStress && casualtyFrac < moraleBreakAt(stress) - MORALE_TUNING.rallyGap;
+  }
+  /* 3c: course of action on contact. Behind ?coa=1. The Squad Leader (the one COA owner) scores the
+     declared COAs against declared inputs on every tick the squad is in contact and keeps the one it holds
+     (sq.coa) until the other leads by switchMargin, so a contact that blinks does not re-decide and a change
+     in the squad's situation inside a contact does. Scoring is deterministic: weighted sum, no RNG; a first
+     choice or a tie goes by COA name order, so the choice is a pure function of squad state and the COA it
+     holds. The COA gates bounding through fireAndMovement: defend holds (no bounds), assault bounds if the
+     phase allows. COAs only restrict, never expand. */
   var COA_ON = typeof location !== 'undefined' && /[?&]coa=1\b/.test(location.search || '');
   var COAS = {
     assault: { label: 'assault', bounds: true },
@@ -124,6 +134,9 @@
     assault: { base: 1.0, casualtyFrac: -2.0, stress: -1.0, leaderDown: -1.5 },
     defend: { base: 0.0, casualtyFrac: 0.5, stress: 0.5, leaderDown: 0.5 }
   };
+  /* switchMargin: the score one man of a ten-man squad is worth between the two COAs (2.5 per unit of casualty
+     fraction x 0.1), so the COA changes when a man's worth of loss tips the squad the other way, not before. */
+  var COA_TUNING = { weights: COA_WEIGHTS, switchMargin: 0.25 };
   /* The declared inputs, read off a squad once; the scores and the choice are then pure functions of
      that record (the same arithmetic in the same order as before, so the probes and checks can score
      recorded inputs with the shipping tables instead of a copy). */
@@ -148,8 +161,16 @@
     }
     return best;
   }
-  function selectCOA(sq) {
-    return decideCOA(coaInputsOf(sq));
+  /* The COA the squad holds after this tick: its first choice, or the incumbent unless the other leads by
+     switchMargin. Called each tick the squad is in contact, never out of it. */
+  function updateCOA(sq) {
+    var inputs = coaInputsOf(sq),
+      best = decideCOA(inputs),
+      held = sq.coa;
+    if (!held || !COAS[held]) sq.coa = best;
+    else if (best !== held && coaScore(best, inputs) - coaScore(held, inputs) >= COA_TUNING.switchMargin)
+      sq.coa = best;
+    return sq.coa;
   }
   var TACTICAL = {
     assault: 1,
@@ -1211,13 +1232,13 @@
     if (r.contactStarted) {
       L.end(sq, 'bound', t, 'contact started');
       L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'contact started', 'cycle expiry');
-      if (COA_ON) sq.coa = selectCOA(sq);
     }
     if (!sq.inContact) {
       L.end(sq, 'bound', t, 'contact broken');
       sq._assaultAuthorized = false;
       return;
     }
+    if (COA_ON) updateCOA(sq);
     sq._assaultAuthorized = !!ASSAULT_PHASES[sq.commandPhase || ''];
     /* 3c: the COA gates bounding. Defend holds position (no bounds); assault bounds only if the
        phase also allows. The flag-off path never sets sq.coa, so this is a no-op there. */
@@ -1306,11 +1327,9 @@
     if (MORALE_ON) {
       var stress = (sq.mind && sq.mind.mean) || 0;
       if (sq.state === 'retreat') {
-        /* Rally: a retreating squad reforms only once calm and not too depleted; otherwise
-           it stays retreating. Casualties do not heal, so a squad broken at high loss keeps
-           falling back. */
-        if (stress < MORALE_TUNING.rallyStress && casualtyFrac < MORALE_TUNING.rallyCasualty)
-          sq.state = anyEngaged ? 'engaged' : 'advance';
+        /* Rally: a retreating squad reforms once calm and clear of its break threshold. Casualties do
+           not heal, so a squad the flat rule broke (60%) keeps falling back until a merge restores it. */
+        if (moraleRallies(casualtyFrac, stress)) sq.state = anyEngaged ? 'engaged' : 'advance';
       } else {
         /* Break: stress lowers the casualty threshold. At zero stress this is exactly the
            flat 60% rule. */
@@ -1724,12 +1743,13 @@
     teamOrderSeconds: TEAM_LEASE,
     boundCycle: BOUND_CYCLE,
     boundDuration: BOUND_DURATION,
-    tuning: { morale: MORALE_TUNING, coa: { weights: COA_WEIGHTS } },
+    tuning: { morale: MORALE_TUNING, coa: COA_TUNING },
     moraleOn: function () { return MORALE_ON; },
     coaOn: function () { return COA_ON; },
     coas: function () { return Object.keys(COAS); },
     /* Read-only views of the two decisions, for the checks and the probes (nothing in the runtime calls them). */
     moraleBreakAt: moraleBreakAt,
+    moraleRallies: moraleRallies,
     coaInputs: coaInputsOf,
     coaDecide: function (inputs) {
       var scores = {};

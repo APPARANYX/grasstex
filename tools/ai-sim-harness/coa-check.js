@@ -3,15 +3,18 @@
 /* Course of action on contact (phase 3c, `?coa=1`, module 16 `fireAndMovement`): the flag-on path, which no
    check exercised.
 
-   When Engagement reports a contact starting the Squad Leader scores the declared COAs (`assault`, `defend`)
-   against declared inputs (casualty fraction, mean stress, leader down) with declared weights and stores the
-   winner as `sq.coa`. `defend` holds the bounds; `assault` changes nothing. This file pins:
+   On every tick the squad is in contact the Squad Leader scores the declared COAs (`assault`, `defend`)
+   against declared inputs (casualty fraction, mean stress, leader down) with declared weights and keeps the one
+   it holds (`sq.coa`) until the other leads by `switchMargin`. `defend` holds the bounds; `assault` changes
+   nothing. This file pins:
 
      - the flag is read once at load from `location.search` (`?coa=1` only) and is off by default;
      - the scores are the declared tables: `assault` wins while 2.5 x casualties + 1.5 x stress + 2 x leaderDown
        <= 1, a tie goes to `assault` (first by name), a leader down is `defend` on its own;
-     - the choice is made at each contact START (a contact that breaks and returns is scored again) and never
-       inside a contact: casualties, stress or a new leader mid-fight change nothing until the next start;
+     - the first choice is the better score (a tie is `assault`); after that the held COA stays until the other
+       leads by `switchMargin` (a man's worth of loss), inside a contact as well as across a blink: a contact
+       that breaks and returns does not re-decide, and a squad whose situation changes materially mid-fight
+       does;
      - the COA only gates: `assault` authorises bounds in exactly the phases that did before
        (`boundPhases()`: assault, capture, clear-town), `defend` authorises none, and in every other phase the
        two are identical (a contact that starts on the approach is not gated by either);
@@ -166,31 +169,59 @@ test('the inputs are read off the squad: casualties over its establishment, the 
   near(w.S.coaInputs(a).casualtyFrac, 1 - 7 / 5);
 });
 
-test('scored at contact start and only there: a contact that starts fresh stays assault as casualties mount', () => {
+test('the first choice is the better score; the held COA then stays inside the margin, in a contact and across a blink', () => {
   const w = world('?coa=1'),
     sq = squad(w, { phase: 'assault' });
   calm(w, sq, 1);
-  assert.equal(sq.coa, undefined, 'nothing is scored before a contact');
-  contact(w, sq, 0.15);
-  assert.equal(sq.coa, 'assault');
-  for (let i = 0; i < 6; i++) sq.members[9 - i].dead = true; /* six down, mid-contact */
-  sq.members[0].dead = true;
-  const auth = contact(w, sq, 12);
-  assert.equal(sq.coa, 'assault', 'the choice is not revisited inside a contact');
-  assert.ok(auth.every(Boolean), 'and the bounds stay authorised for it');
+  assert.equal(sq.coa, undefined, 'nothing is chosen before a contact');
+  contact(w, sq, 0.3);
+  assert.equal(sq.coa, 'assault', 'a fresh squad: assault');
+  for (let i = 0; i < 4; i++) sq.members[9 - i].dead = true; /* four down: a tie (casualties 0.4) */
+  sq.mind = { mean: 0.1, n: 6 }; /* and shaken: defend now leads by 0.15, inside the 0.25 margin */
+  let auth = contact(w, sq, 12);
+  assert.equal(sq.coa, 'assault', 'inside the margin the held COA stays');
+  assert.ok(auth.every(Boolean));
+  calm(w, sq, 0.3);
+  contact(w, sq, 0.3);
+  assert.equal(sq.coa, 'assault', 'and a blink does not re-decide it (Part A: it was re-scored at every contact start)');
+  const fresh = squad(w, { phase: 'assault', dead: 4 });
+  fresh.mind = { mean: 0.1, n: 6 };
+  contact(w, fresh, 0.3);
+  assert.equal(fresh.coa, 'defend', 'the same squad with nothing held takes the better score, so the margin is hysteresis and not a bias');
 });
 
-test('scored again at every contact start: defend with the leader down, assault once a leader is back', () => {
+test('a material change switches the COA inside a contact, in both directions, and the bounds follow', () => {
   const w = world('?coa=1'),
-    sq = squad(w, { phase: 'assault', leaderDown: true });
-  contact(w, sq, 0.15);
-  assert.equal(sq.coa, 'defend');
-  sq.members[0].dead = false; /* a leader takes command */
-  contact(w, sq, 5);
-  assert.equal(sq.coa, 'defend', 'still the old choice inside the contact');
-  calm(w, sq, 0.3);
-  contact(w, sq, 0.15);
-  assert.equal(sq.coa, 'assault', 'a new contact start scores the squad again');
+    sq = squad(w, { phase: 'assault' });
+  contact(w, sq, 0.3);
+  assert.equal(sq.coa, 'assault');
+  for (let i = 0; i < 6; i++) sq.members[9 - i].dead = true; /* six down, mid-contact */
+  let auth = contact(w, sq, 3);
+  assert.equal(sq.coa, 'defend', 'six of ten: defend leads by 0.5, past the margin');
+  assert.ok(!auth.at(-1), 'and the bounds are held from then on');
+  for (let i = 0; i < 6; i++) sq.members[9 - i].dead = false; /* a merge restores the squad */
+  auth = contact(w, sq, 3);
+  assert.equal(sq.coa, 'assault', 'restored: assault leads by 1, past the margin');
+  assert.ok(auth.at(-1));
+  const d = world('?coa=1'),
+    sd = squad(d, { phase: 'assault', leaderDown: true });
+  contact(d, sd, 0.3);
+  assert.equal(sd.coa, 'defend', 'a leader down is defend on its own');
+  sd.members[0].dead = false; /* a leader takes command: assault now leads by 1 */
+  contact(d, sd, 0.3);
+  assert.equal(sd.coa, 'assault', 'and it switches back inside the same contact (Part A: it stayed defend until the next contact start)');
+});
+
+test('the switch margin is the layer tuning, read live, and a zero margin is the old argmax', () => {
+  const w = world('?coa=1');
+  assert.equal(w.S.tuning.coa.switchMargin, 0.25);
+  w.S.tuning.coa.switchMargin = 0;
+  const sq = squad(w, { phase: 'assault' });
+  contact(w, sq, 0.3);
+  for (let i = 0; i < 4; i++) sq.members[9 - i].dead = true;
+  sq.mind = { mean: 0.1, n: 6 };
+  contact(w, sq, 0.3);
+  assert.equal(sq.coa, 'defend', 'no margin: the better score wins at once');
 });
 
 test('the COA gates bounds only in the bounding phases; outside them assault and defend are the same squad', () => {
