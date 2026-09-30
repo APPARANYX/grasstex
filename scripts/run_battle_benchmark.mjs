@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import { summarizeStress, stressMarkdown } from './lib/stress-summary.mjs';
 
 const count = Math.max(1, Number.parseInt(process.env.BATTLE_BENCHMARK_COUNT || '100', 10) || 100);
 const seedPrefix = String(process.env.BATTLE_BENCHMARK_SEED || `benchmark-${(process.env.GITHUB_SHA || 'local').slice(0, 12)}`);
@@ -404,7 +405,10 @@ try {
           writerConflicts: conflicts.length, strategicWriterConflicts: strategicConflicts, writerConflictDetails: conflicts.slice(0, 20), loopAlerts: loops.slice(0, 20), loopKinds,
           movementResolver: movementResolverSummary(), losBlockedFireAttempts: losBlockedAttempts(), crestBlockedFireAttempts: crestBlockedAttempts(), fire: activeCombat,
           reconstitution: reconstitutionSummary(), regroups: regroupSummary(), stallOutcomes: stallSummary(), coordinationHealth: coordinationHealth(), objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates,
-          timeline: root.BattleAITimeline?.snapshot?.(sim) || null
+          timeline: root.BattleAITimeline?.snapshot?.(sim) || null,
+          /* Soldier condition (module 17): where the man-seconds went, the squads above mean 1/3, and how often each
+             soldier lever changed a decision, with a one-second series in simulated time (AGENTS.md, stress). */
+          stress: root.BattleSoldierMind?.telemetry?.(sim) || null
         };
         battles.push(record);
         console.log(`[BENCH] ${index + 1}/${count} ${seed} winner=${record.winner} captures=${record.captures}/${record.objectiveCount} neverOwned=${record.objectivesNeverOwned} spread=${record.squadObjectiveSpread.us}/${record.squadObjectiveSpread.ge} vacant=${record.vacantObjectiveStalls.length} route=${record.routeStalls.length} move=${record.movementStalls.length} loops=${record.loopAlerts.length} conflicts=${record.writerConflicts} regroups=${record.regroups.entries}/${record.regroups.timeouts} stalls=${record.stallOutcomes?.repeats ?? '-'}/${record.stallOutcomes?.wakes ?? '-'} wall=${record.wallSeconds}s`);
@@ -468,7 +472,8 @@ try {
     targetlessSquadRate: +rate(sum(battles, b => b.targetlessSamples), sum(battles, b => b.squadSamples)).toFixed(4),
     shots: sum(battles, b => b.fire?.total), directShots: sum(battles, b => b.fire?.direct), hits: sum(battles, b => b.fire?.hits), suppressiveShots: sum(battles, b => b.fire?.suppressive),
     hitRate: +rate(sum(battles, b => b.fire?.hits), sum(battles, b => b.fire?.direct)).toFixed(4),
-    movementResolverChanges: sum(battles, b => b.movementResolver?.changes), browserErrors: browserErrors.length, runtimeErrors: runtimeErrors.length, assetLoadNoise, browserWarnings: browserWarnings.length
+    movementResolverChanges: sum(battles, b => b.movementResolver?.changes), browserErrors: browserErrors.length, runtimeErrors: runtimeErrors.length, assetLoadNoise, browserWarnings: browserWarnings.length,
+    stress: summarizeStress(battles)
   };
 
   const score = b => (100 - b.health.overall) * 10 + (b.strategicWriterConflicts || 0) * 80 + (b.routeStalls?.length || 0) * 45 + (b.targetlessStalls?.length || 0) * 40 + (b.vacantObjectiveStalls?.length || 0) * 50 + (b.longRegroups?.length || 0) * 35 + (b.loopAlerts?.length || 0) * 25 + (b.captures === 0 ? 80 : 0) + (b.objectivesNeverOwned || 0) * 60 + (b.maxNoObjectiveProgressSeconds || 0) * .25;
@@ -503,6 +508,7 @@ try {
     `- Stalls: vacant objective **${issue.vacantObjectiveStalls}** · route **${issue.routeStalls}** · soldier movement **${issue.movementStalls}** · targetless command **${issue.targetlessStalls}** · long regroup **${issue.longRegroups}**`,
     `- Coordination: writer conflicts **${issue.writerConflicts}** (${issue.strategicWriterConflicts} strategic) · loop alerts **${issue.loopAlerts}** · idle-under-orders ${(summary.idleUnderOrdersRate * 100).toFixed(1)}% · over-cohesion ${(summary.overCohesionRate * 100).toFixed(1)}%`,
     `- Combat: **${summary.shots}** discharges · **${summary.directShots}** direct · **${summary.hits}** hits (${(summary.hitRate * 100).toFixed(1)}%) · **${issue.losBlockedFireAttempts}** trigger-time LOS blocks · **${issue.crestBlockedFireAttempts || 0}** held over a crest`,
+    ...stressMarkdown(summary.stress),
     `- Runtime: **${summary.runtimeErrors} probable JS/runtime errors** · **${summary.assetLoadNoise} asset/CORS noise** · ${summary.browserWarnings} warnings`,
     '', '## Most problematic runs', '',
     '| Seed | Winner | Health | Captures | Never owned | Spread us/ge | Route stalls | Move stalls | Targetless | Vacant | Regroup | Conflicts | Loops | Max no-progress |',
