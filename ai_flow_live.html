@@ -363,6 +363,44 @@ function anchor(n,side){const w=n.w||250,h=n.h||82;if(n.type==='decision'){if(si
 function edge(g,a,b,opt={}){const from=anchor(a,opt.from||'bottom'),to=anchor(b,opt.to||'top');let d;if(opt.points)d='M'+from[0]+','+from[1]+' '+opt.points.map(p=>'L'+p[0]+','+p[1]).join(' ')+' L'+to[0]+','+to[1];else if((opt.from==='right'&&opt.to==='left')||(opt.from==='left'&&opt.to==='right')){const mx=(from[0]+to[0])/2;d=`M${from[0]},${from[1]} L${mx},${from[1]} L${mx},${to[1]} L${to[0]},${to[1]}`}else{const my=(from[1]+to[1])/2;d=`M${from[0]},${from[1]} L${from[0]},${my} L${to[0]},${my} L${to[0]},${to[1]}`};const p=el('path',{d,class:'edge '+(opt.kind||'')+(opt.loop?' loop':'')});g.insertBefore(p,g.firstChild);if(opt.label){const lx=opt.lx!=null?opt.lx:(from[0]+to[0])/2,ly=opt.ly!=null?opt.ly:(from[1]+to[1])/2-5;g.appendChild(el('text',{x:lx,y:ly,class:'edgeLabel '+(opt.kind||'normal'),'text-anchor':'middle'},opt.label))}}
 function groupBox(g,x,y,w,h,title){g.appendChild(el('rect',{x,y,width:w,height:h,rx:18,class:'groupBox'}));g.appendChild(el('text',{x:x+16,y:y+25,class:'groupTitle'},title))}
 function src(key,needle,label){return sourceRef(key,needle,label)}
+function brainView(){
+  clear();
+  const graph=brainCallGraph(),g=viewport;
+  const lanes=[
+    {id:'macro',title:'MACRO / GENERAL',sub:'mission selection + lifecycle · 0.45 s commander clock',x:60,w:790},
+    {id:'meso',title:'MESO / SQUAD LEADER',sub:'mission execution + cohesion + squad command',x:960,w:790},
+    {id:'micro',title:'SOLDIER / MICRO',sub:'perception + engagement finite-state control',x:1860,w:790},
+    {id:'move',title:'MOVEMENT EXECUTION',sub:'intent arbitration + tactical routing + progress recovery',x:2760,w:790}
+  ];
+  const laneBy=Object.fromEntries(lanes.map(x=>[x.id,x]));
+  const groupOrder={macro:['commander'],meso:['meso'],micro:['squad','engagement','mind','events'],move:['resolver','route']};
+  const nodeW=570,nodeH=76,gapY=38,top=180,groupGap=58,placed={},laneIndex={macro:0,meso:1,micro:2,move:3};
+  let maxBottom=0;
+  lanes.forEach(lane=>{let y=top;(groupOrder[lane.id]||[]).forEach(key=>{const list=graph.nodes.filter(n=>n.key===key);if(!list.length)return;y+=28;list.forEach(n=>{placed[n.id]=Object.assign({},n,{x:lane.x+80,y,w:nodeW,h:nodeH,type:'process'});y+=nodeH+gapY});y+=groupGap});maxBottom=Math.max(maxBottom,y)});
+  const H=maxBottom+170;graphBounds={x:0,y:0,w:3620,h:H};svg.setAttribute('viewBox',`0 0 ${graphBounds.w} ${graphBounds.h}`);
+  g.appendChild(el('text',{x:60,y:54,'font-size':30,'font-weight':900,fill:'#fff'},'Grasstex AI — Full Brain Map'));
+  g.appendChild(el('text',{x:60,y:88,class:'mini'},`Source-derived control graph · ${graph.nodes.length} mapped functions · ${graph.edges.length} connections · solid=direct call · dashed=API · dotted=hook · dash-dot=extension dispatch`));
+  g.appendChild(el('text',{x:60,y:112,class:'mini'},'Click a function to isolate its neighborhood. Double-click any function to open its literal Deep Branch CFG.'));
+  lanes.forEach(lane=>{g.appendChild(el('rect',{x:lane.x,y:128,width:lane.w,height:H-160,rx:24,class:'brainLane'}));g.appendChild(el('text',{x:lane.x+24,y:160,class:'brainLaneTitle'},lane.title));g.appendChild(el('text',{x:lane.x+24,y:179,class:'brainLaneSub'},lane.sub))});
+  const edgeLayer=el('g'),nodeLayer=el('g');g.appendChild(edgeLayer);g.appendChild(nodeLayer);const sameLaneRail={macro:0,meso:0,micro:0,move:0};
+  graph.edges.forEach(e=>{const a=placed[e.from],b=placed[e.to];if(!a||!b)return;const al=laneIndex[a.layer],bl=laneIndex[b.layer];let d,labelX,labelY;
+    if(al===bl){const lane=laneBy[a.layer],rail=lane.x+lane.w-42-(sameLaneRail[a.layer]++%10)*12,sy=a.y+a.h/2,ty=b.y+b.h/2;d=`M${a.x+a.w},${sy} L${rail},${sy} L${rail},${ty} L${b.x+b.w},${ty}`;labelX=rail-8;labelY=(sy+ty)/2}
+    else if(al<bl){const sx=a.x+a.w,sy=a.y+a.h/2,tx=b.x,ty=b.y+b.h/2,mid=(laneBy[a.layer].x+laneBy[a.layer].w+laneBy[b.layer].x)/2;d=`M${sx},${sy} L${mid},${sy} L${mid},${ty} L${tx},${ty}`;labelX=mid+5;labelY=(sy+ty)/2}
+    else{const sx=a.x,sy=a.y+a.h/2,tx=b.x+b.w,ty=b.y+b.h/2,mid=(laneBy[b.layer].x+laneBy[b.layer].w+laneBy[a.layer].x)/2;d=`M${sx},${sy} L${mid},${sy} L${mid},${ty} L${tx},${ty}`;labelX=mid+5;labelY=(sy+ty)/2}
+    edgeLayer.appendChild(el('path',{d,class:'brainEdge '+e.kind,'data-from':e.from,'data-to':e.to}));
+    if(e.kind!=='direct'){const lbl=e.kind==='api'?'API':e.kind==='hook'?'HOOK':'EXTENSION';edgeLayer.appendChild(el('text',{x:labelX,y:labelY,class:'brainEdgeLabel','data-from':e.from,'data-to':e.to},lbl))}
+  });
+  function applyBrainFocus(){const nodes=nodeLayer.querySelectorAll('.brainNode'),edges=edgeLayer.querySelectorAll('.brainEdge'),labels=edgeLayer.querySelectorAll('.brainEdgeLabel'),linked=new Set();
+    if(brainFocus){linked.add(brainFocus);graph.edges.forEach(e=>{if(e.from===brainFocus)linked.add(e.to);if(e.to===brainFocus)linked.add(e.from)})}
+    nodes.forEach(n=>{const id=n.getAttribute('data-id');n.classList.toggle('focus',!!brainFocus&&id===brainFocus);n.classList.toggle('dim',!!brainFocus&&!linked.has(id))});
+    edges.forEach(p=>{const on=brainFocus&&(p.getAttribute('data-from')===brainFocus||p.getAttribute('data-to')===brainFocus);p.classList.toggle('focus',!!on);p.classList.toggle('dim',!!brainFocus&&!on)});
+    labels.forEach(t=>{const on=brainFocus&&(t.getAttribute('data-from')===brainFocus||t.getAttribute('data-to')===brainFocus);t.style.opacity=brainFocus?(on?'1':'.05'):'.8'});
+    if(brainFocus){const incoming=graph.edges.filter(e=>e.to===brainFocus).length,outgoing=graph.edges.filter(e=>e.from===brainFocus).length;status.textContent=`${funcLabel(brainFocus)} · ${incoming} incoming · ${outgoing} outgoing. Double-click to open its source-parsed CFG; click again to clear focus.`}
+    else status.textContent='Full Brain Map: all source-derived mapped control connections are visible. Click a function to isolate its immediate neighborhood; double-click to enter its CFG.';
+  }
+  graph.nodes.forEach(n=>{const p=placed[n.id];if(!p)return;const gr=el('g',{class:'brainNode '+p.layer,'data-id':p.id,transform:`translate(${p.x},${p.y})`});gr.appendChild(el('rect',{width:nodeW,height:nodeH,rx:14}));gr.appendChild(el('text',{x:18,y:28,'font-size':15,'font-weight':900},p.label));gr.appendChild(el('text',{x:18,y:51,class:'meta'},PATHS[p.key]+' · double-click → Deep CFG'));gr.style.cursor='pointer';gr.addEventListener('click',ev=>{ev.stopPropagation();brainFocus=brainFocus===p.id?null:p.id;applyBrainFocus()});gr.addEventListener('dblclick',ev=>{ev.stopPropagation();cfgHistory=[];jumpToCfg(p.id,false)});nodeLayer.appendChild(gr)});
+  applyBrainFocus();
+}
 function fullView(){
   clear();graphBounds={x:0,y:0,w:2500,h:3000};svg.setAttribute('viewBox','0 0 2500 3000');const g=viewport,N={};
   groupBox(g,35,35,2430,355,'RENDER FRAME — the simulation and commander clocks are separate frame observers');
@@ -568,12 +606,16 @@ function fullView(){
    if(opt.label){const y=from[1]+28,x=from[0]+(to[0]>from[0]?64:to[0]<from[0]?-64:0);g.appendChild(el('text',{x,y,class:'edgeLabel '+(opt.kind||'normal'),'text-anchor':'middle'},opt.label))}
  }
  function cfgView(){
-   clear();const [key,name]=cfgChoice.split(':'),spec=CFG_FUNCS.find(x=>x[0]===key&&x[1]===name),ast=parseFunctionAST(key,name);if(!ast){showError(`Could not parse function ${key}:${name} from the loaded source.`);return}
-   const cfg=layoutCFG(buildCFG(ast));graphBounds=cfg.bounds;svg.setAttribute('viewBox',`0 0 ${cfg.bounds.w} ${cfg.bounds.h}`);const g=viewport,by=Object.fromEntries(cfg.nodes.map(n=>[n.id,n]));
+   clear();
+   const [key,name]=cfgChoice.split(':'),spec=CFG_FUNCS.find(x=>x[0]===key&&x[1]===name),ast=parseFunctionAST(key,name);
+   if(!ast){showError(`Could not parse function ${key}:${name} from the loaded source.`);return}
+   const cfg=layoutCFG(buildCFG(ast));
+   cfg.nodes.forEach(n=>{let snippet=n.label||'';if(n.stmt){if(n.stmt.type==='if'||n.stmt.type==='loop')snippet=n.stmt.cond||snippet;else if(n.stmt.type==='switch')snippet=n.stmt.expr||snippet;else if(n.stmt.text)snippet=n.stmt.text}n.calls=findMappedCalls(key,name,snippet)});
+   graphBounds=cfg.bounds;svg.setAttribute('viewBox',`0 0 ${cfg.bounds.w} ${cfg.bounds.h}`);const g=viewport,by=Object.fromEntries(cfg.nodes.map(n=>[n.id,n]));
    g.appendChild(el('text',{x:50,y:45,'font-size':25,'font-weight':800,fill:'#fff'},(spec&&spec[2])||(`${key} · ${name}`)));
-   g.appendChild(el('text',{x:50,y:73,class:'mini'},`Parsed directly from if / else / return / for / while / switch structure in ${PATHS[key]} · function starts at line ${ast.f.line}. No hand-authored YES/NO shortcuts in this view. Early returns are ringed SHORT-CIRCUIT nodes and never rejoin.`));
+   g.appendChild(el('text',{x:50,y:73,class:'mini'},`Parsed directly from if / else / return / for / while / switch structure in ${PATHS[key]} · function starts at line ${ast.f.line}. ↳ function ports jump into called mapped functions; Back returns here.`));
    cfg.nodes.forEach(n=>node(g,n));cfg.edges.forEach(e=>{const a=by[e.from],b=by[e.to];if(a&&b)cfgEdge(g,a,b,e)});
-   status.textContent=`Function CFG: ${PATHS[key]} :: ${name}(). Green/red branches are literal YES/NO paths. Ringed red RETURN nodes are true short-circuits and terminate that path. Only branches that actually fall through may enter an explicit REJOIN node.`;
+   status.textContent=`Function CFG: ${PATHS[key]} :: ${name}(). Green/red branches are literal YES/NO paths. Ringed RETURN nodes terminate that path. ↳ ports follow real mapped function calls.`;
  }
 
  function moveView(){
@@ -593,7 +635,7 @@ function fullView(){
  }
 
  function healthView(){clear();svg.setAttribute('viewBox','0 0 1800 1200');graphBounds={x:0,y:0,w:1800,h:1200};const g=viewport;g.appendChild(el('text',{x:60,y:55,'font-size':26,'font-weight':800,fill:'#fff'},'Parser / source health'));g.appendChild(el('text',{x:60,y:82,class:'mini'},'Every reload prefers same-origin repo files, then GitHub main fallbacks. Hashes are computed in the browser.'));let y=130;Object.entries(FILES).forEach(([k,f])=>{const ok=!!sources[k],hash=(window.__flowHashes||{})[k]||'—';const gr=el('g',{class:'stateNode support',transform:`translate(60,${y})`});gr.appendChild(el('rect',{width:820,height:72,rx:12}));gr.appendChild(el('text',{x:18,y:27,'font-size':14,'font-weight':800},f));gr.appendChild(el('text',{x:18,y:51,class:'desc'},`${ok?'loaded':'FAILED'} · ${(window.__flowOrigins||{})[k]||'—'} · sha256 ${hash} · ${sources[k]?sources[k].split('\n').length:0} lines`));gr.style.cursor='pointer';gr.onclick=()=>openSource({file:f,line:1,needle:''},f);g.appendChild(gr);y+=88});const checks=[['MISSION_STATES',parseStates('commander','MISSION_STATES').states.length],['PHASE_STATES',parseStates('meso','PHASE_STATES').states.length],['Engagement STATES',parseStates('engagement','STATES').states.length],['Engagement REQUESTS',parseRequests().length],['Resolver priorities',priorityMap().length]];let cy=150;checks.forEach(([n,c])=>{g.appendChild(el('text',{x:980,y:cy,'font-size':16,'font-weight':800,fill:c?'#8bd2a4':'#e08086'},`${c?'✓':'✕'} ${n}: ${c}`));cy+=40});g.appendChild(el('text',{x:980,y:400,class:'warnText'},'If an explicit state object is renamed or removed, this page shows a parser warning instead of silently drawing the old map.'));status.textContent='Source health: use this view after AI refactors to see whether the live map parsers still recognize the current contracts.'}
- function render(){hideError();if(current==='full')fullView();else if(current==='cfg')cfgView();else if(current==='move')moveView();else if(current==='health')healthView();else stateView(current)}
+ function render(){hideError();if(current==='brain')brainView();else if(current==='full')fullView();else if(current==='cfg')cfgView();else if(current==='move')moveView();else if(current==='health')healthView();else stateView(current)}
  function openSource(ref,title){if(!ref||!ref.file)return;const key=Object.keys(FILES).find(k=>FILES[k]===ref.file),srcText=(key&&sources[key])||'';workspace.classList.add('drawerOpen');document.getElementById('drawerTitle').textContent=title||ref.label||ref.file;document.getElementById('drawerMeta').textContent=`${ref.file}${ref.line?' · line '+ref.line:''}`;const lines=srcText.split('\n'),ln=ref.line||1,a=Math.max(1,ln-14),b=Math.min(lines.length,ln+24);document.getElementById('sourceText').textContent=lines.slice(a-1,b).map((s,i)=>String(a+i).padStart(4,' ')+'  '+s).join('\n')}
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  function stageRect(){return document.getElementById('stage').getBoundingClientRect()}
