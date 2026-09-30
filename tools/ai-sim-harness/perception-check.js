@@ -40,7 +40,7 @@ function place(s, deg, d, moving) {
   s.root.position.x = Math.sin(a) * d;
   s.root.position.z = Math.cos(a) * d;
   s.moving = !!moving;
-  s.prone = s.crouching = false;
+  s.prone = s.tacticalCrouch = false;
 }
 function sees(ctx, observer, enemy) {
   const { S, b } = ctx;
