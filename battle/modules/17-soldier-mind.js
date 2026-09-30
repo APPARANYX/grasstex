@@ -15,9 +15,17 @@
      - time (it decays), faster with the leader within 12 m, in useful cover and among steady men,
        and much slower while under fire.
 
-   Owner: this module writes `soldier.mind` and `squad.mind`, nothing else. It never writes stance,
+   Owner: this module writes `soldier.mind` and `squad.mind`, nothing else of the simulation (and its own
+   observe-only telemetry on the sim: `_mindSummary`, `_mindSeries`). It never writes stance,
    destination, target or any timer another layer owns; Engagement and the shot model *read* the
    modifiers below and decide what to do with them, so one owner per responsibility still holds.
+
+   Who reads stress is declared below as data (`READERS`: layer, file, reader, what stress becomes there).
+   mind-read-map-check.js scans the source and fails on a reader that is not in the table, so stress
+   cannot be read from a new place without an edit a reviewer sees. What each lever changed is counted
+   where the decision is made (`noteReact`, `noteAim`, `noteBound`, `noteLapse`, `noteShock`: one more
+   number on the man's own `mind`, never a write to anything a layer decides with) and `telemetry(sim)`
+   turns it, with a one-second series of the bands, into the benchmark record's `stress` block.
    It runs on SquadAI's declared `beforeSoldier` slot (inside the fixed 0.15 s AI tick) and drains its
    kinds from the man's event queue (modules/08-soldier-events.js: a friend down, a wound, a suppression,
    the fire aimed at him, in that priority order); it draws nothing from the combat RNG (a man's nerve is a hash of his faction and id), so a
@@ -49,6 +57,211 @@
     return out;
   }
   var MODE = parse(typeof location !== 'undefined' ? location.search : '');
+
+  /* ---- who reads stress, declared ------------------------------------------------------------
+     One row per reader. `reads` is what it touches in `file` and how many times: a `BattleSoldierMind`
+     function by name (`reactScale`), or `mind` / `mind.<field>` for a read of `soldier.mind` or
+     `squad.mind` (`mind` alone is the object or a test that it exists; whose it is follows from the
+     reader). Rows of one file add up: mind-read-map-check.js counts the same reads in the source and
+     fails on any difference, and on a file or member that reads stress and is not listed here. Kinds:
+     `lever` (what a man or squad decides is changed by it), `status` (a layer above reads the roll-up),
+     `telemetry` (a decision site reports what a lever did to it), `display` and `export` (observe only),
+     `tooling` (scripts; `reads` null, any number of reads; a `*` file covers a directory). `lever` names
+     the `?mind=` lever for lever and telemetry rows; `unit` is what stress becomes there; `flag` says when
+     the row runs. */
+  var READERS = [
+    {
+      kind: 'lever',
+      lever: 'react',
+      layer: 'Micro (Engagement)',
+      file: 'engagement.js',
+      reader: 'stretch: reactTime, recognition',
+      reads: { reactScale: 1 },
+      unit: 'x recognition time, 1 + 0.6 stress^1.5 (up to 1.6)',
+      flag: '?mind= (default on)'
+    },
+    {
+      kind: 'telemetry',
+      lever: 'react',
+      layer: 'Micro (Engagement)',
+      file: 'engagement.js',
+      reader: 'noteRecognition (reactTime, the new-threat re-orient)',
+      reads: { noteReact: 1 },
+      unit: 'count of recognitions, those stretched, seconds added',
+      flag: 'always'
+    },
+    {
+      kind: 'lever',
+      lever: 'aim',
+      layer: 'Micro (shot model)',
+      file: 'modules/14-z-ballistic-raycast.js',
+      reader: 'dispersionSigma',
+      reads: { aimSigma: 1 },
+      unit: 'x shot group sigma, 1 + 0.8 stress^1.5 (up to 1.8)',
+      flag: '?mind= (default on)'
+    },
+    {
+      kind: 'telemetry',
+      lever: 'aim',
+      layer: 'Micro (shot model)',
+      file: 'modules/14-z-ballistic-raycast.js',
+      reader: 'shotDirection (one call per round)',
+      reads: { noteAim: 1 },
+      unit: 'count of rounds, those with a widened group, sigma added',
+      flag: 'always'
+    },
+    {
+      kind: 'lever',
+      lever: 'hesitate',
+      layer: 'Micro (Engagement)',
+      file: 'engagement.js',
+      reader: 'orderedBound',
+      reads: { hesitation: 1 },
+      unit: 'seconds an ordered bound waits, 2.2 per unit of stress over 0.35 (at most 2)',
+      flag: '?mind= (default on)'
+    },
+    {
+      kind: 'telemetry',
+      lever: 'hesitate',
+      layer: 'Micro (Engagement)',
+      file: 'engagement.js',
+      reader: 'orderedBound (a wait begins)',
+      reads: { noteHesitation: 1 },
+      unit: 'count of waits begun',
+      flag: 'always'
+    },
+    {
+      kind: 'telemetry',
+      lever: 'hesitate',
+      layer: 'Micro (Engagement)',
+      file: 'engagement.js',
+      reader: 'orderedBound (a bound starts)',
+      reads: { noteBound: 1 },
+      unit: 'count of bound starts, those that waited, seconds waited',
+      flag: 'always'
+    },
+    {
+      kind: 'telemetry',
+      lever: 'hesitate',
+      layer: 'Micro (Engagement)',
+      file: 'engagement.js',
+      reader: 'clearBoundOrders (the order went while he waited)',
+      reads: { noteLapse: 1 },
+      unit: 'count of waits whose order ended before the bound began',
+      flag: 'always'
+    },
+    {
+      kind: 'lever',
+      lever: 'shock',
+      layer: 'Micro (Engagement)',
+      file: 'engagement.js',
+      reader: 'shockUntil: fireAllowed, suppress, orderedBound, advance',
+      reads: { shockUntil: 1 },
+      unit: 'until when he is frozen: no aimed fire, no bound start, no march (at most 1 s)',
+      flag: '?mind= (default on)'
+    },
+    {
+      kind: 'telemetry',
+      lever: 'shock',
+      layer: 'Micro (Engagement)',
+      file: 'engagement.js',
+      reader: 'noteShock: fireAllowed, suppress, orderedBound, advance',
+      reads: { noteShock: 1 },
+      unit: 'count of decisions the freeze blocked, by which decision',
+      flag: 'always'
+    },
+    {
+      kind: 'status',
+      lever: null,
+      layer: 'Meso (Squad Leader)',
+      file: 'modules/16-squad-plan-stability.js',
+      reader: 'COA_INPUTS.stress (course of action on contact)',
+      reads: { 'mind.mean': 1, mind: 1 },
+      unit: 'squad mean stress, weight -1.0 on assault and +0.5 on defend',
+      flag: '?coa=1 (off by default)'
+    },
+    {
+      kind: 'status',
+      lever: null,
+      layer: 'Meso (Squad Leader)',
+      file: 'modules/16-squad-plan-stability.js',
+      reader: 'updateSquadState (group break and rally)',
+      reads: { 'mind.mean': 1, mind: 1 },
+      unit: 'squad mean stress: the break point falls 0.3 per unit, rally under 0.15',
+      flag: '?morale=1 (off by default)'
+    },
+    {
+      kind: 'display',
+      lever: null,
+      layer: 'World Debug',
+      file: 'modules/40-world-debug-overlay.js',
+      reader: 'updateComposure (a ring on every man)',
+      reads: { mind: 1, 'mind.band': 1, 'mind.stress': 1 },
+      unit: 'ring colour by band, ring size by stress',
+      flag: 'World Debug, Composure layer'
+    },
+    {
+      kind: 'display',
+      lever: 'shock',
+      layer: 'World Debug',
+      file: 'modules/40-world-debug-overlay.js',
+      reader: 'updateComposure (a cross on a frozen man)',
+      reads: { shockUntil: 1 },
+      unit: 'whether he is frozen now',
+      flag: 'World Debug, Composure layer'
+    },
+    {
+      kind: 'export',
+      lever: null,
+      layer: 'Diagnostics',
+      file: 'modules/99-session-diagnostics-export.js',
+      reader: 'soldier (per-man export)',
+      reads: { snapshot: 1 },
+      unit: "the man's stress, band, peak, shocks, hesitations",
+      flag: 'diagnostics export'
+    },
+    {
+      kind: 'export',
+      lever: null,
+      layer: 'Diagnostics',
+      file: 'modules/99-session-diagnostics-export.js',
+      reader: 'squad (per-squad export)',
+      reads: { mind: 1 },
+      unit: 'the squad roll-up as it stands',
+      flag: 'diagnostics export'
+    },
+    {
+      kind: 'tooling',
+      lever: null,
+      layer: 'Tooling',
+      file: 'scripts/run_battle_benchmark.mjs',
+      reader: "the benchmark record's stress block",
+      reads: null,
+      unit: 'the dose map and the one-second series of every battle',
+      flag: 'every benchmark battle'
+    },
+    {
+      kind: 'tooling',
+      lever: null,
+      layer: 'Tooling',
+      file: 'scripts/closeup_battle.cjs',
+      reader: 'CLOSEUP_TARGET=stressed',
+      reads: null,
+      unit: 'which man to photograph',
+      flag: 'close-up tool'
+    },
+    {
+      kind: 'tooling',
+      lever: null,
+      layer: 'Tooling',
+      file: 'scripts/probes/*.js',
+      reader:
+        'the observe-only probes (mind, experience, retreat-episodes, morale-decisions, state-fingerprint)',
+      reads: null,
+      unit: 'whatever the probe measures',
+      flag: 'run_probe.cjs'
+    }
+  ];
 
   /* Gains are stress added (0..1 scale); rates are per second. */
   var TAU = 22, // seconds for stress to fall to 1/e with nothing helping
@@ -127,6 +340,14 @@
     return (1 + (unit(s, 'nerve') - 0.5) * 0.24) * rank;
   }
 
+  /* What one lever did to the decisions it reads, kept on the man it was done to: `total` decisions it
+     could have changed, `changed` those where its answer was not neutral, `byBand` the changed ones by the
+     band he was in (band 0 is stress above nothing and under 0.30: a change too small to see), `mag` what
+     it cost in its own unit, `at` when it first changed one (his last condition tick: the AI time of the
+     decision, since the condition ticks first). */
+  function dose() {
+    return { total: 0, changed: 0, byBand: [0, 0, 0, 0], mag: 0, at: -1 };
+  }
   function fresh(s) {
     return {
       v: 1,
@@ -157,7 +378,10 @@
         isolated: 0,
         contagion: 0
       },
-      hesitations: 0
+      hesitations: 0,
+      decided: { react: dose(), aim: dose(), hesitate: dose(), shock: dose() },
+      lapsed: 0,
+      shockKinds: { fire: 0, suppress: 0, bound: 0, advance: 0 }
     };
   }
   function of(s) {
@@ -450,8 +674,346 @@
     out.manSeconds = +out.manSeconds.toFixed(1);
     return out;
   }
+  /* ---- what the levers changed: counted where the decision is made --------------------------- */
+
+  function decided(s, lever, changed, mag) {
+    var m = MODE.on && s && s.mind;
+    if (!m) return;
+    var d = m.decided[lever];
+    d.total++;
+    if (!changed) return;
+    d.changed++;
+    d.byBand[m.band]++;
+    d.mag += mag;
+    if (d.at < 0) d.at = m.at;
+  }
+  /* A recognition began and takes `secs` (Engagement.reactTime, the new-threat re-orient). */
+  function noteReact(s, secs) {
+    var k = reactScale(s);
+    decided(s, 'react', k > 1, secs - secs / k);
+  }
+  /* A round left the muzzle (the shot model's shotDirection, once per round). */
+  function noteAim(s) {
+    var k = aimSigma(s);
+    decided(s, 'aim', k > 1, k - 1);
+  }
+  /* An ordered bound started, after `waited` seconds of hesitation (0 if he went at once). */
+  function noteBound(s, waited) {
+    decided(s, 'hesitate', waited > 0, waited);
+  }
+  /* The order ended while he was still hesitating: that bound never began. */
+  function noteLapse(s) {
+    if (MODE.on && s && s.mind) s.mind.lapsed++;
+  }
+  /* The freeze blocked a decision that was otherwise his to make; `kind` says which one. The shock has no
+     denominator: nothing is counted for a decision it did not touch. */
+  function noteShock(s, kind) {
+    var m = MODE.on && s && s.mind;
+    if (!m) return;
+    var d = m.decided.shock;
+    d.changed++;
+    d.byBand[m.band]++;
+    if (d.at < 0) d.at = m.at;
+    if (m.shockKinds[kind] != null) m.shockKinds[kind]++;
+  }
+
+  /* ---- the benchmark record's stress block ----------------------------------------------------
+     `telemetry(sim)` is the one thing the benchmark reads. Every number is sim time or a count: `t` is
+     simulated seconds (the timeline contract in AGENTS.md: paired arms align on it), one row per side per
+     simulated second, columns as named in `series.columns`, cumulative counts for the decisions and the
+     shocks. Nothing here feeds back into the battle. */
+  var FORMAT = 'grasstex-stress-v1',
+    SIDES = ['us', 'ge'],
+    COLUMNS = [
+      'men',
+      'mean',
+      'max',
+      'shaken',
+      'rattled',
+      'broken',
+      'squadsOver',
+      'squads',
+      'react',
+      'aim',
+      'hesitate',
+      'shock',
+      'shocks'
+    ],
+    DOSE_SQUAD_MEAN = 1 / 3, // a squad at or above this mean stress is counted "over": where ?morale=1 first differs from the flat rule
+    DOSE_SQUAD_MEN = 3, // and "over with a say" when it has this many living: the mean of two men is noise (module 10's MIN_MEN)
+    SERIES_EVERY = 1,
+    MARKER_CAP = 200;
+
+  function seriesOf(sim) {
+    if (sim._mindSeries) return sim._mindSeries;
+    var squads = function () {
+      return { ever: {}, over: {}, seconds: 0, entries: 0, peak: 0, over3: {}, seconds3: 0, entries3: 0 };
+    };
+    return (sim._mindSeries = {
+      t: [],
+      us: [],
+      ge: [],
+      nextAt: 0,
+      lastT: null,
+      state: {},
+      state3: {},
+      squads: { us: squads(), ge: squads() },
+      markers: [],
+      dropped: 0
+    });
+  }
+  function r3(n) {
+    return +n.toFixed(3);
+  }
+  function sample(sim, t, ser) {
+    var acc = {},
+      units = root.BattleModules.unitsFor(sim),
+      i,
+      k,
+      f;
+    SIDES.forEach(function (side) {
+      acc[side] = { n: 0, sum: 0, max: 0, band: [0, 0, 0, 0], shocks: 0, changed: [0, 0, 0, 0] };
+    });
+    for (i = 0; i < units.length; i++) {
+      var u = units[i],
+        m = u && u.mind,
+        a = m && acc[u.faction];
+      if (!a) continue;
+      a.shocks += m.shocks;
+      for (k = 0; k < LEVERS.length; k++) a.changed[k] += m.decided[LEVERS[k]].changed;
+      if (u.dead) continue;
+      a.n++;
+      a.sum += m.stress;
+      if (m.stress > a.max) a.max = m.stress;
+      a.band[m.band]++;
+    }
+    var dt = ser.lastT == null ? 0 : t - ser.lastT;
+    SIDES.forEach(function (side) {
+      var squads = (sim.factions && sim.factions[side] && sim.factions[side].squads) || [],
+        st = ser.squads[side],
+        live = 0,
+        over = 0,
+        over3 = 0;
+      for (var j = 0; j < squads.length; j++) {
+        var q = squads[j];
+        if (!q) continue;
+        var key = side + ':' + q.id,
+          roll = q.mind,
+          has = !!roll && roll.n > 0,
+          above = has && roll.mean >= DOSE_SQUAD_MEAN,
+          say = above && roll.n >= DOSE_SQUAD_MEN;
+        if (has) {
+          live++;
+          st.ever[q.id] = true;
+          if (roll.mean > st.peak) st.peak = roll.mean;
+        }
+        if (above) {
+          over++;
+          st.over[q.id] = true;
+          if (!ser.state[key]) {
+            st.entries++;
+            if (ser.markers.length < MARKER_CAP)
+              ser.markers.push({
+                t: +t.toFixed(2),
+                kind: 'squad-stress-over',
+                side: side,
+                squad: q.id,
+                mean: r3(roll.mean),
+                n: roll.n
+              });
+            else ser.dropped++;
+          }
+        }
+        if (say) {
+          over3++;
+          st.over3[q.id] = true;
+          if (!ser.state3[key]) st.entries3++;
+        }
+        ser.state[key] = above;
+        ser.state3[key] = say;
+      }
+      st.seconds += over * dt;
+      st.seconds3 += over3 * dt;
+      var a2 = acc[side];
+      ser[side].push([
+        a2.n,
+        r3(a2.n ? a2.sum / a2.n : 0),
+        r3(a2.max),
+        a2.band[1],
+        a2.band[2],
+        a2.band[3],
+        over,
+        live,
+        a2.changed[0],
+        a2.changed[1],
+        a2.changed[2],
+        a2.changed[3],
+        a2.shocks
+      ]);
+    });
+    ser.t.push(+t.toFixed(2));
+    ser.lastT = t;
+  }
+  /* The simulation step's half of the module: roll a wiped-out squad up once, refresh the 5 s summary the
+     export reads, and take a series row on each simulated second. */
+  function step(sim) {
+    if (!MODE.on) return;
+    var t = +sim.time || 0;
+    settle(sim, t);
+    if (t - (sim._mindSummaryAt || 0) >= 5) {
+      sim._mindSummaryAt = t;
+      sim._mindSummary = summary(sim);
+    }
+    var ser = seriesOf(sim);
+    if (t + 1e-9 >= ser.nextAt) {
+      sample(sim, t, ser);
+      ser.nextAt = (Math.floor((t + 1e-9) / SERIES_EVERY) + 1) * SERIES_EVERY; // 18.999999999999996 is 19
+    }
+  }
+
+  function bands(a) {
+    return { steady: a[0], shaken: a[1], rattled: a[2], broken: a[3] };
+  }
+  function sideTotals() {
+    return {
+      men: 0,
+      bandSeconds: [0, 0, 0, 0],
+      peakBand: [0, 0, 0, 0],
+      shocks: 0,
+      hesitations: 0,
+      lapsed: 0,
+      kinds: { fire: 0, suppress: 0, bound: 0, advance: 0 },
+      decided: { react: dose(), aim: dose(), hesitate: dose(), shock: dose() }
+    };
+  }
+  function addTotals(to, from) {
+    var k, b;
+    to.men += from.men;
+    for (b = 0; b < 4; b++) {
+      to.bandSeconds[b] += from.bandSeconds[b];
+      to.peakBand[b] += from.peakBand[b];
+    }
+    to.shocks += from.shocks;
+    to.hesitations += from.hesitations;
+    to.lapsed += from.lapsed;
+    for (k in to.kinds) to.kinds[k] += from.kinds[k];
+    for (k in to.decided) {
+      var x = to.decided[k],
+        y = from.decided[k];
+      x.total += y.total;
+      x.changed += y.changed;
+      x.mag += y.mag;
+      for (b = 0; b < 4; b++) x.byBand[b] += y.byBand[b];
+      if (y.at >= 0 && (x.at < 0 || y.at < x.at)) x.at = y.at;
+    }
+  }
+  function totalsOut(t) {
+    var decisions = {};
+    LEVERS.forEach(function (k) {
+      var d = t.decided[k];
+      decisions[k] = {
+        total: k === 'shock' ? null : d.total,
+        changed: d.changed,
+        byBand: d.byBand.slice(),
+        mag: r3(d.mag),
+        firstAt: d.at < 0 ? null : r3(d.at)
+      };
+    });
+    decisions.hesitate.lapsed = t.lapsed;
+    decisions.shock.kinds = t.kinds;
+    return {
+      men: t.men,
+      bandSeconds: bands(
+        t.bandSeconds.map(function (n) {
+          return +n.toFixed(1);
+        })
+      ),
+      peakBand: bands(t.peakBand),
+      shocks: t.shocks,
+      hesitations: t.hesitations,
+      decisions: decisions
+    };
+  }
+  /* One man as totals, sharing his own counters (addTotals only reads what it adds from). */
+  function manTotals(m) {
+    var peak = [0, 0, 0, 0],
+      pk = 0;
+    while (pk < 3 && m.peak >= UP[pk]) pk++;
+    peak[pk] = 1;
+    return {
+      men: 1,
+      bandSeconds: m.time,
+      peakBand: peak,
+      shocks: m.shocks,
+      hesitations: m.hesitations,
+      lapsed: m.lapsed,
+      kinds: m.shockKinds,
+      decided: m.decided
+    };
+  }
+  function squadOut(ser, side) {
+    var st = ser.squads[side];
+    return {
+      squads: Object.keys(st.ever).length,
+      over: Object.keys(st.over).length,
+      overSeconds: +st.seconds.toFixed(1),
+      entries: st.entries,
+      peakMean: r3(st.peak),
+      with3: {
+        over: Object.keys(st.over3).length,
+        overSeconds: +st.seconds3.toFixed(1),
+        entries: st.entries3
+      }
+    };
+  }
+  /* One battle's stress block for the benchmark record. Off (`?mind=0`) there is nothing to report. */
+  function telemetry(sim) {
+    var head = {
+      format: FORMAT,
+      mode: MODE.flag,
+      levers: Object.keys(MODE.levers),
+      sampleSeconds: SERIES_EVERY
+    };
+    if (!MODE.on || !sim) {
+      head.off = true;
+      return head;
+    }
+    var now = +sim.time || 0,
+      ser = seriesOf(sim);
+    settle(sim, now);
+    if (ser.lastT == null || Math.abs(ser.lastT - now) > 0.51) sample(sim, now, ser);
+    var units = root.BattleModules.unitsFor(sim),
+      per = { us: sideTotals(), ge: sideTotals() },
+      all = sideTotals(),
+      base = summary(sim);
+    for (var i = 0; i < units.length; i++) {
+      var m = units[i] && units[i].mind;
+      if (m && per[units[i].faction]) addTotals(per[units[i].faction], manTotals(m));
+    }
+    SIDES.forEach(function (side) {
+      addTotals(all, per[side]);
+    });
+    var out = totalsOut(all),
+      squads = { overMean: r3(DOSE_SQUAD_MEAN), minMen: DOSE_SQUAD_MEN };
+    out.manSeconds = base.manSeconds;
+    out.bandShare = base.bandShare;
+    out.casualtiesSeen = base.casualtiesSeen;
+    out.gained = base.gained;
+    out.bySide = {};
+    SIDES.forEach(function (side) {
+      squads[side] = squadOut(ser, side);
+      out.bySide[side] = totalsOut(per[side]);
+    });
+    out.squads = squads;
+    out.series = { columns: COLUMNS.slice(), t: ser.t, us: ser.us, ge: ser.ge };
+    out.markers = ser.markers;
+    out.markersDropped = ser.dropped;
+    return Object.assign(head, out);
+  }
+
   function reset(sim) {
     sim._mindSummary = null;
+    sim._mindSeries = null;
     var units = root.BattleModules.unitsFor(sim);
     for (var i = 0; i < units.length; i++) {
       units[i].mind = null;
@@ -468,16 +1030,7 @@
     version: '1.0',
     onBattleStart: reset,
     onBattleRestart: reset,
-    /* The export and the benchmark read a summary off the sim; refresh it a few times a minute. */
-    onSimulationStep: function (sim) {
-      if (!MODE.on) return;
-      var t = +sim.time || 0;
-      settle(sim, t);
-      if (t - (sim._mindSummaryAt || 0) >= 5) {
-        sim._mindSummaryAt = t;
-        sim._mindSummary = summary(sim);
-      }
-    }
+    onSimulationStep: step
   });
   root.BattleSoldierMind = {
     version: '1.0',
@@ -498,8 +1051,11 @@
       AIM_GAIN: AIM_GAIN,
       MAX_HESITATION: MAX_HESITATION,
       SHOCK_MAX: SHOCK_MAX,
-      SHOCK_REFRACTORY: SHOCK_REFRACTORY
+      SHOCK_REFRACTORY: SHOCK_REFRACTORY,
+      DOSE_SQUAD_MEAN: DOSE_SQUAD_MEAN,
+      DOSE_SQUAD_MEN: DOSE_SQUAD_MEN
     },
+    READERS: READERS,
     mode: function () {
       return MODE;
     },
@@ -522,8 +1078,15 @@
     noteHesitation: function (s) {
       if (s && s.mind) s.mind.hesitations++;
     },
+    noteReact: noteReact,
+    noteAim: noteAim,
+    noteBound: noteBound,
+    noteLapse: noteLapse,
+    noteShock: noteShock,
     snapshot: snapshot,
     summary: summary,
+    telemetry: telemetry,
+    step: step,
     reset: reset
   };
   if (typeof console !== 'undefined')
