@@ -32,6 +32,12 @@ lists every tunable number by layer; it is Phase 5's inventory, not a guide.
   **Branch housekeeping** (deleted, or kept and why: commits pushed after the merge never reached
   `main`, so open a PR for them) and **Deploy Battle Runtime to 50webs** (the `build-v<N>` it shipped, and
   that it passed). Report both. Push further work to a fresh branch from `main`, not the merged one.
+- **A PR merges only after its own CI has finished green on its head.** Never merge while CI is still running or
+  was cancelled, and merge stacked PRs one at a time, each after CI and the deploy on `main` for the one before
+  have finished (phases 3b to 5 merged within 13 seconds, CI on two was cancelled, and `main` stayed red until
+  #123). Branch housekeeping deletes a merged PR's head branch even when other open PRs are based on it (it only
+  looks for open PRs whose *head* is that branch), so retarget stacked PRs to `main` right after the merge. Nothing
+  in GitHub enforces any of this; it is written down.
 
 ## What's here
 
