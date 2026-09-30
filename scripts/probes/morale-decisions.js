@@ -69,6 +69,23 @@
   function counter() {
     return { ticks: 0, sec: 0, episodes: 0 };
   }
+  /* An early-break run: consecutive squad-ticks in which morale would break a squad the flat rule keeps. On a
+     flag-off page its length is how much earlier morale would have retreated the squad (when it ends in the
+     flat retreat) or how long it would have been retreating a squad the flat rule never retreats (when the
+     men calm down first). `end`: flat-retreat | calmed | retreated (flag on: morale took the break) | wiped | open. */
+  function closeRun(a, now, how) {
+    if (!a.eb) return;
+    st.earlyBreakRuns.push({
+      squad: a.id,
+      side: a.side,
+      t0: round(a.eb.t0, 2),
+      seconds: round(now - a.eb.t0, 2),
+      casualtyFrac: round(a.eb.cf),
+      peakStress: round(a.eb.peak),
+      end: how
+    });
+    a.eb = null;
+  }
   function perSquad(sq, side) {
     return {
       id: sq.id,
@@ -97,7 +114,8 @@
         merges: [],
         groups: [],
         squadSec: 0,
-        stillRetreating: []
+        stillRetreating: [],
+        earlyBreakRuns: []
       };
     },
     sample: function (sim) {
@@ -119,6 +137,7 @@
           a.prev = cur;
           if (!p || cur.n === 0 || p.n === 0) {
             if (p && p.n > 0 && cur.n === 0) a.retreatSince = null;
+            if (cur.n === 0) closeRun(a, now, 'wiped');
             return;
           }
           st.squadSec += dt;
@@ -143,6 +162,10 @@
             if (sq.reconstitutedFrom) kinds.heldRetreatPostMerge = true;
           }
           if (retreating && !moraleRetreat && flatRetreat) kinds.earlyRally = true;
+          if (kinds.earlyBreak) {
+            if (!a.eb) a.eb = { t0: now, cf: p.cf, peak: p.stress };
+            else if (p.stress > a.eb.peak) a.eb.peak = p.stress;
+          } else if (a.eb) closeRun(a, now, retreating || actual ? (flatRetreat ? 'flat-retreat' : 'retreated') : 'calmed');
           Object.keys(st.disagree).forEach(function (k) {
             var c = st.disagree[k];
             if (kinds[k]) {
@@ -245,6 +268,7 @@
         stillRetreating = [];
       st.squads.forEach(function (a, sq) {
         squads++;
+        closeRun(a, +sim.time || 0, 'open');
         if (a.retreatSince != null && living(sq) > 0)
           stillRetreating.push({ squad: sq.id, since: round(a.retreatSince, 1), postMerge: !!sq.reconstitutedFrom, meanStress: round((sq.mind && sq.mind.mean) || 0) });
       });
@@ -264,6 +288,7 @@
         merges: st.merges,
         groups: st.groups,
         stillRetreatingAtEnd: stillRetreating,
+        earlyBreakRuns: st.earlyBreakRuns,
         reconstitution: rc ? { groupsFormed: rc.groupsFormed, groupsDissolved: rc.groupsDissolved, merges: rc.merges, promotions: rc.promotions } : null
       };
     }
