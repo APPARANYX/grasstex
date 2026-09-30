@@ -9,9 +9,19 @@
   var S = root.SquadAI;
   var EPS = 0.08,
     FIRE_LINE_BODY = 0.5, // a fire line that reaches this close to the body centre reaches the body
-    GROUND_STEPS = 48, // finer steps so a shot cannot skip over a narrow rise
+    GROUND_STEPS = groundSteps(),
     REFINE_STEPS = 9,
     GROUP90 = 4.291932052578694;
+
+  /* ?groundSteps=<n>, 12 to 96 (default 24): how many samples groundStop takes along a round's line, read
+     once at load. A round is tested over the weapon's whole range, so 24 samples of a 450 m rifle are 18.75 m
+     apart and a rise narrower than that can sit between two of them; more samples stop it (and cost more per
+     shot). ground-stop-check.js holds both sides. */
+  function groundSteps() {
+    var m = typeof location !== 'undefined' && /[?&]groundSteps=(\d+)\b/.exec(location.search || ''),
+      n = m ? +m[1] : 24;
+    return n >= 12 && n <= 96 ? n : 24;
+  }
 
   function clamp(n, a, b) {
     return Math.max(a, Math.min(b, n));
@@ -546,7 +556,10 @@
     rayEllipsoid: rayEllipsoid,
     muzzleOrigin: muzzleOrigin,
     ballisticObstacles: ballisticObstacles,
-    fireLineBlocked: fireLineBlocked
+    fireLineBlocked: fireLineBlocked,
+    groundSteps: function () {
+      return GROUND_STEPS;
+    }
   };
   if (typeof console !== 'undefined')
     console.log('[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts');

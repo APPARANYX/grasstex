@@ -2,19 +2,16 @@
 'use strict';
 /* Ground stop: a round is stopped by a rise it would fly into, not only by one it happens to be sampled on.
 
-   `groundStop` (14-z) walks the round's line in GROUND_STEPS steps and asks the terrain at each. A
-   round is tested over the weapon's whole range (`resolve`), so 24 steps of a 450 m rifle are one
-   sample every 18.75 m: a rise a dozen metres wide between two samples stopped nothing. The trigger
-   gate (`fireLineBlocked`) tests only the span to the target, so it is finer, but the same blind spot
-   exists at the same ratio.
+   `groundStop` (14-z) walks the round's line in GROUND_STEPS steps and asks the terrain at each.
+   `resolve` tests a round over the weapon's whole range, so 24 steps of a 450 m rifle are one sample every
+   18.75 m: a rise a dozen metres wide between two samples stops nothing. The trigger gate
+   (`fireLineBlocked`) tests only the span to the target, so it is finer, with the same blind spot at the
+   same ratio. `?groundSteps=<n>` (12 to 96, default 24) sets the count, read once at load.
 
-   The file also holds the fast path (12 coarse samples; if the round is more than 5 m above the ground
-   at every one, skip the fine scan) to account: it must answer exactly as the full scan, and
-   `--measure` says how often it fires at all and what each variant costs. The module is loaded from
-   its shipping source; the variants are that source with one edit each, so nothing here is a copy.
+   The module is loaded from its shipping source with a stub `location`, so nothing here is a copy.
 
      node tools/ai-sim-harness/ground-stop-check.js            assertions
-     node tools/ai-sim-harness/ground-stop-check.js --measure  also: early-return rate, disagreements, timings */
+     node tools/ai-sim-harness/ground-stop-check.js --measure  also: how many rounds 48 steps change, and the cost */
 const assert = require('node:assert/strict'),
   fs = require('node:fs'),
   path = require('node:path'),
@@ -23,21 +20,10 @@ const repo = path.resolve(__dirname, '../..'),
   MEASURE = process.argv.includes('--measure'),
   SRC = fs.readFileSync(path.join(repo, 'battle/modules/14-z-ballistic-raycast.js'), 'utf8'),
   FIELD = fs.readFileSync(path.join(repo, 'battle/obstacle-field.js'), 'utf8');
-const FAST = /var clear = true;[\s\S]*?if \(clear\) return maxT;/;
-const variants = {
-  shipped: SRC,
-  // the same source with the sampling that shipped before this check (24 steps), if it is 48 now
-  steps24: SRC.replace(/GROUND_STEPS = \d+/, 'GROUND_STEPS = 24'),
-  // the same source with the fast path cut out (a no-op if there is none)
-  noFast: SRC.replace(FAST, ''),
-  // the shipped source counting groundStop calls and fast-path early returns
-  counting: SRC.replace('function groundStop(o, d, maxT, battle) {',
-    'function groundStop(o, d, maxT, battle) { root.__calls = (root.__calls || 0) + 1;')
-    .replace('if (clear) return maxT;', 'if (clear) { root.__fast = (root.__fast || 0) + 1; return maxT; }')
-};
-function load(source) {
+function load(search) {
   const r = { console: { log() {}, warn() {} } };
   r.window = r;
+  if (search != null) r.location = { search };
   r.SquadAI = {
     applyHit() { return null; },
     stanceOf: s => s.stance || 'stand',
@@ -46,10 +32,18 @@ function load(source) {
   };
   vm.createContext(r);
   vm.runInContext(FIELD, r, { filename: 'battle/obstacle-field.js' });
-  vm.runInContext(source, r, { filename: 'battle/modules/14-z-ballistic-raycast.js' });
+  vm.runInContext(SRC, r, { filename: 'battle/modules/14-z-ballistic-raycast.js' });
   return r;
 }
-const built = Object.fromEntries(Object.entries(variants).map(([k, v]) => [k, load(v)]));
+const coarse = load(null), fine = load('?groundSteps=48');
+
+/* 0. The flag: 24 unless a count from 12 to 96 is asked for. */
+const parsed = ['', '?seed=1', '?groundSteps=48', '?x=1&groundSteps=36', '?groundSteps=96', '?groundSteps=7', '?groundSteps=200', '?groundSteps=abc', '?groundSteps=']
+  .map(q => load(q).BattleBallistics.groundSteps());
+assert.deepEqual(parsed, [24, 24, 48, 36, 96, 24, 24, 24, 24]);
+assert.equal(coarse.BattleBallistics.groundSteps(), 24, 'with no location the default is 24');
+console.log('PASS ?groundSteps=<n> is 12 to 96 and defaults to 24: ' + JSON.stringify(parsed));
+
 function unit(x, z, stance) {
   return { root: { position: { x, y: 0, z }, rotation: { y: 0 } }, hp: 100, faction: 'ge', stance };
 }
@@ -59,36 +53,32 @@ function shooterAt(x, z, stance, range) {
   s.weapon = { kind: 'rifle', stats: { range, accuracy: 0.98, falloffStart: range, damage: 10 } };
   return s;
 }
-function battleOf(ground, target) {
-  const out = {};
-  return { out, b: { time: 1, obstacles: [], heightAt: ground, random: () => 0.25, rosterOf: () => [target],
-    onShot(a, b, hit, d, meta) { out.meta = meta; }, killSoldier() {} } };
-}
 function shoot(r, shooter, target, ground) {
-  const { out, b } = battleOf(ground, target);
-  r.BattleBallistics.resolve(shooter, target, b);
+  const out = {};
+  r.BattleBallistics.resolve(shooter, target, { time: 1, obstacles: [], heightAt: ground, random: () => 0.25, rosterOf: () => [target],
+    onShot(a, b, hit, d, meta) { out.meta = meta; }, killSoldier() {} });
   const m = out.meta;
   return m && { stoppedBy: m.stoppedBy, blocker: m.blocker, travel: +m.travel.toFixed(2) };
 }
 
-/* 1. A ridge that sits between two 24-step samples of a 450 m rifle, 40 to 50 m out on a 100 m shot. */
+/* 1. A ridge that sits between two 24-step samples of a 450 m rifle, 38.5 to 50.5 m out on a 100 m shot
+      (samples at 37.5 and 56.25 m; at 48 steps there is one at 46.9 m). */
 const ridge = (x, z) => (x >= 38.5 && x <= 50.5 ? 4 : 0);
 function ridgeShot(r) { return shoot(r, shooterAt(0, 0, 'stand', 450), unit(100, 0), ridge); }
-const old = ridgeShot(built.steps24), now = ridgeShot(built.shipped);
-assert.notEqual(old.blocker, 'ground', 'test geometry: 24 samples must step over this ridge (samples at 37.5 and 56.25 m)');
-assert.equal(old.stoppedBy, 'soldier', 'at 24 steps the round flies through the ridge into the man');
-assert.equal(now.blocker, 'ground', 'the shipped sampling stops the round at the ridge');
-assert.ok(Math.abs(now.travel - 37.72) < 0.2, 'and stops it at the ridge face: 38.5 m out less the 0.78 m muzzle offset (' + now.travel + ' m)');
-console.log('PASS a ridge between two 24-step samples stops the round: ' + JSON.stringify(now));
+const through = ridgeShot(coarse), stopped = ridgeShot(fine);
+assert.equal(through.stoppedBy, 'soldier', '24 steps step over the ridge: the round reaches the man');
+assert.equal(stopped.blocker, 'ground', '48 steps stop the round at the ridge');
+assert.ok(Math.abs(stopped.travel - 37.72) < 0.2, 'at the ridge face: 38.5 m out less the 0.78 m muzzle offset (' + stopped.travel + ' m)');
+console.log('PASS a ridge between two 24-step samples: 24 steps ' + JSON.stringify(through) + ', 48 steps ' + JSON.stringify(stopped));
 
 /* 2. The trigger gate over the same kind of ridge: span 99.2 m from the muzzle, samples 4.13 m (24) or 2.07 m (48) apart. */
 const thin = (x, z) => (x >= 46.7 && x <= 49.9 ? 4 : 0);
-function gate(r) { return r.BattleBallistics.fireLineBlocked(shooterAt(0, 0, 'stand', 450), unit(100, 0), { heightAt: thin, obstacles: [] }); }
-assert.equal(gate(built.steps24), false, 'test geometry: 24 samples over 100 m step over a 3.5 m ridge');
-assert.equal(gate(built.shipped), true, 'the trigger gate sees the 3.5 m ridge at the shipped sampling');
-console.log('PASS the trigger gate refuses a shot the 3.5 m ridge would take');
+const gate = r => r.BattleBallistics.fireLineBlocked(shooterAt(0, 0, 'stand', 450), unit(100, 0), { heightAt: thin, obstacles: [] });
+assert.equal(gate(coarse), false, '24 steps let the man fire across a 3.2 m ridge');
+assert.equal(gate(fine), true, '48 steps refuse the shot');
+console.log('PASS the trigger gate: 24 steps let a 3.2 m ridge through, 48 refuse the shot');
 
-/* 3. The fast path answers exactly as the full scan, on rolling ground with hills and from high ground. */
+/* 3. Every 24-step sample is also a 48-step sample, so a finer scan only ever stops more rounds. */
 function rng(seed) { let a = seed | 0; return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 function terrain(rand) {
   const hills = [];
@@ -99,35 +89,35 @@ function terrain(rand) {
     return y;
   };
 }
-const SHOTS = MEASURE ? 6000 : 500, rand = rng(20260930), ground = terrain(rand), stances = ['stand', 'crouch', 'prone'];
-const set = [];
+const SHOTS = MEASURE ? 6000 : 500, rand = rng(20260930), ground = terrain(rand), stances = ['stand', 'crouch', 'prone'], set = [];
 for (let i = 0; i < SHOTS; i++) {
   const x = (rand() - 0.5) * 600, z = (rand() - 0.5) * 600, a = rand() * Math.PI * 2, d = 30 + rand() * 390;
   set.push({ s: shooterAt(x, z, stances[(rand() * 3) | 0], 450), t: unit(x + Math.cos(a) * d, z + Math.sin(a) * d) });
 }
-let differ = 0, blockedByGround = 0, first = null;
+let groundCoarse = 0, groundFine = 0, lost = 0, otherBlocker = 0, moved = 0;
 for (const { s, t } of set) {
-  const a = shoot(built.shipped, s, t, ground), b = shoot(built.noFast, s, t, ground);
-  if (a && a.blocker === 'ground') blockedByGround++;
-  if (JSON.stringify(a) !== JSON.stringify(b)) { differ++; first = first || { fast: a, full: b }; }
+  const a = shoot(coarse, s, t, ground), b = shoot(fine, s, t, ground);
+  if (a.blocker === 'ground') groundCoarse++;
+  if (b.blocker === 'ground') groundFine++;
+  if (a.blocker === 'ground' && b.blocker !== 'ground') lost++;
+  if (a.blocker !== b.blocker) otherBlocker++;
+  else if (Math.abs(a.travel - b.travel) > 1) moved++;
 }
-assert.equal(differ, 0, differ + ' of ' + SHOTS + ' shots differ between the fast path and the full scan, e.g. ' + JSON.stringify(first));
-assert.ok(blockedByGround > SHOTS * 0.05, 'test geometry: the terrain must take some rounds (' + blockedByGround + ' of ' + SHOTS + ')');
-console.log('PASS the fast path gives the full scan\'s answer on ' + SHOTS + ' rolling-ground shots (' + blockedByGround + ' stopped by ground)');
+assert.equal(lost, 0, lost + ' rounds stopped by the ground at 24 steps were not at 48');
+assert.ok(groundFine > groundCoarse, 'test geometry: the finer scan must take some rounds the coarse one misses (' + groundCoarse + ' against ' + groundFine + ')');
+console.log('PASS on ' + SHOTS + ' rolling-ground shots the finer scan stops every round the coarse one does (' + groundCoarse + ' by ground at 24 steps, ' + groundFine + ' at 48)');
 
 if (MEASURE) {
-  for (const { s, t } of set) shoot(built.counting, s, t, ground);
-  const c = built.counting, calls = c.__calls || 0, fast = c.__fast || 0;
-  console.log('\nMEASURE groundStop calls ' + calls + ', fast-path early returns ' + fast + ' (' + (calls ? ((100 * fast) / calls).toFixed(2) : 0) + '%)');
-  // Variants are timed in turn over several rounds (the first one timed pays the JIT warm-up), median of the rounds.
-  const names = ['steps24', 'noFast', 'shipped'], rounds = { steps24: [], noFast: [], shipped: [] };
+  console.log('\nMEASURE of ' + SHOTS + ' shots, ' + otherBlocker + ' (' + (100 * otherBlocker / SHOTS).toFixed(2) + '%) are stopped by something else at 48 steps than at 24; ' + moved + ' more stop more than 1 m earlier or later');
+  // timed in turn over several rounds (the first one timed pays the JIT warm-up); median of the rounds
+  const names = ['coarse', 'fine'], rounds = { coarse: [], fine: [] }, r = { coarse, fine };
   for (let round = 0; round < 9; round++)
     for (const name of names) {
       const t0 = process.hrtime.bigint();
-      for (const { s, t } of set) shoot(built[name], s, t, ground);
+      for (const { s, t } of set) shoot(r[name], s, t, ground);
       rounds[name].push(Number(process.hrtime.bigint() - t0) / 1e3 / set.length);
     }
   const median = a => a.slice(1).sort((x, y) => x - y)[(a.length - 1) >> 1];
-  for (const name of names) console.log('MEASURE ' + name.padEnd(8) + ' ' + median(rounds[name]).toFixed(1) + ' us per shot (median of 8 rounds after a warm-up round)');
+  for (const name of names) console.log('MEASURE ' + (name === 'coarse' ? '24 steps' : '48 steps') + ' ' + median(rounds[name]).toFixed(1) + ' us per shot (median of 8 rounds after a warm-up round)');
 }
 console.log('ground-stop-check: passed');
