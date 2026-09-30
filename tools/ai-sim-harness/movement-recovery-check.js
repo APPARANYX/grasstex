@@ -49,7 +49,7 @@ test('authorized regroup recovery walks on terrain and restores collision at leg
   s._regroupUnstick={since:0};s._movementResolver={goal:{kind:'regroup',point:{x:10,z:0}}};
   s.destination={x:10,z:0};s.prone=false;s.tacticalCrouch=false;
   let normal=0;
-  r.BattleNavigation={nextWaypoint(){normal++;return s.root.position.x>=2?s.destination:{x:s.root.position.x,z:s.root.position.z};},movementClear(a,to){return a.x>=2&&to.x>=2;}};
+  r.BattleNavigation={invalidateNavPath(s){s._navCache=null;s._physicalPath=null;},invalidateNavCache(s){s._navCache=null;},nextWaypoint(){normal++;return s.root.position.x>=2?s.destination:{x:s.root.position.x,z:s.root.position.z};},movementClear(a,to){return a.x>=2&&to.x>=2;}};
   for(let i=0;i<60&&s._regroupUnstick;i++){
     const old=s.root.position.x;H.stepMovement(b,s,.15);
     assert.ok(s.root.position.x-old<=s.speed*.15+1e-9,'no teleport or speed boost');
@@ -67,7 +67,7 @@ test('regroup recovery keeps body collisions off until the man clears another bo
   s.destination={x:10,z:0};s.prone=false;
   const other={root:{position:{x:0,z:0}}};b._roster.ge.push(other);
   r.BattleSoldierPersonalSpace={minSeparation:.9};
-  r.BattleNavigation={nextWaypoint(){return s.destination;},movementClear(){return true;}};
+  r.BattleNavigation={invalidateNavPath(s){s._navCache=null;s._physicalPath=null;},invalidateNavCache(s){s._navCache=null;},nextWaypoint(){return s.destination;},movementClear(){return true;}};
   H.stepMovement(b,s,.15);assert.ok(s._regroupUnstick,'static clearance alone must not cancel body escape');
   for(let i=0;i<30&&s._regroupUnstick;i++)H.stepMovement(b,s,.15);
   assert.equal(s._regroupUnstick,null);assert.ok(s.root.position.x>=.9);
@@ -79,7 +79,7 @@ for(const reason of ['retreat','contact','ended','dead','reload'])test('regroup 
   if(reason==='retreat')q.state='retreat';if(reason==='contact')q.inContact=true;
   if(reason==='ended')r.BattleLeases.end(q,'regroup',0,'test');if(reason==='dead')s.dead=true;
   if(reason==='reload')s.reloading=true;
-  r.BattleNavigation={nextWaypoint(){return s.root.position;},movementClear(){return false;}};
+  r.BattleNavigation={invalidateNavPath(s){s._navCache=null;s._physicalPath=null;},invalidateNavCache(s){s._navCache=null;},nextWaypoint(){return s.root.position;},movementClear(){return false;}};
   H.stepMovement(b,s,.15);assert.equal(s._regroupUnstick,null);
 });
 test('goal change resets old stuck evidence',()=>{
