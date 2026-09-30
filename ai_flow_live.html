@@ -1,0 +1,1589 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Grasstex AI — Live Control-Flow Explorer</title>
+<style>
+:root{--bg:#0b1119;--panel:#111a26;--panel2:#162130;--text:#eaf0f8;--muted:#92a3bb;--line:#6f829f;--macro:#59427d;--meso:#285d86;--micro:#286044;--move:#805621;--support:#34465b;--danger:#9b4e56;--yes:#5da377;--no:#b56666}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:14px/1.35 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;overflow:hidden}
+button,select,input{font:inherit}.app{height:100%;display:grid;grid-template-rows:auto 1fr}.top{padding:14px 16px 10px;border-bottom:1px solid #263549;background:#0d141e;box-shadow:0 3px 16px #0006;z-index:5}.titleRow{display:flex;align-items:flex-start;gap:18px}.title{font-size:22px;font-weight:800;letter-spacing:.2px}.sub{color:var(--muted);font-size:12px;margin-top:3px}.grow{flex:1}.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.btn{border:1px solid #3b4d65;background:#172333;color:#dce6f4;border-radius:8px;padding:7px 10px;cursor:pointer}.btn:hover{background:#203047}.btn.active{border-color:#7b96b9;background:#29415d;color:white}.badge{display:inline-flex;gap:6px;align-items:center;border:1px solid #33465f;border-radius:999px;padding:5px 9px;color:#b9c6d8;background:#121c29;font-size:11px}.dot{width:8px;height:8px;border-radius:50%;background:#6b7d94}.dot.ok{background:#59a574}.dot.warn{background:#d2a24d}.dot.bad{background:#d66a72}.tabs{display:flex;gap:6px;margin-top:10px;overflow:auto;padding-bottom:1px}.workspace{display:grid;grid-template-columns:1fr 0;min-height:0}.workspace.drawerOpen{grid-template-columns:minmax(0,1fr) 460px}.stage{position:relative;overflow:hidden;background:radial-gradient(circle at 20% 10%,#142237 0,#0b1119 42%,#091019 100%);cursor:grab}.stage.panning{cursor:grabbing}#graph{width:100%;height:100%;display:block;touch-action:none}.node,.stateNode{cursor:pointer}.navHint{color:#879bb5;font-size:11px;white-space:nowrap}.zoomReadout{min-width:56px;justify-content:center;font-variant-numeric:tabular-nums}.drawer{border-left:1px solid #2d3c51;background:#0f1722;overflow:auto;display:none}.drawerOpen .drawer{display:block}.drawerHead{position:sticky;top:0;background:#131e2b;padding:12px 14px;border-bottom:1px solid #2b3b50;z-index:2}.drawerTitle{font-weight:800}.drawerMeta{font-size:11px;color:#93a6be;margin-top:3px}.drawerActions{margin-top:10px;display:flex;gap:8px}.drawerActions .btn{width:100%;justify-content:center}.close{float:right}.source{white-space:pre-wrap;margin:0;padding:14px;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#d2dbea}.source .hit{background:#4f3d1f;color:#fff3c8}.status{position:absolute;left:12px;bottom:12px;background:#101924e8;border:1px solid #2b3e57;border-radius:10px;padding:8px 10px;color:#aebed2;font-size:11px;pointer-events:none;max-width:520px}.legend{position:absolute;right:12px;bottom:12px;background:#101924e8;border:1px solid #2b3e57;border-radius:10px;padding:8px 10px;display:flex;gap:10px;flex-wrap:wrap;max-width:520px;font-size:11px}.key{display:flex;gap:5px;align-items:center}.sw{width:11px;height:11px;border-radius:3px}.errorBox{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:#311b20;border:1px solid #7f424b;padding:8px 12px;border-radius:8px;color:#ffd6da;display:none;z-index:3}
+svg text{user-select:none}.laneLabel{font-size:13px;font-weight:800;fill:#8ea0b8;letter-spacing:.8px}.node rect,.node polygon{stroke-width:1.6;filter:drop-shadow(0 4px 7px #0006)}.node text{fill:#f3f6fb}.node .small{fill:#c0cad8;font-size:11px}.node.process rect{fill:#1c2a3a;stroke:#56718f}.node.merge rect{fill:#121b27;stroke:#8396ae;stroke-dasharray:4 3}.node.macro rect{fill:#392b52;stroke:#78629c}.node.meso rect{fill:#1e4667;stroke:#5e87aa}.node.micro rect{fill:#1f4a37;stroke:#609176}.node.move rect{fill:#5a3d1c;stroke:#9b6d34}.node.support rect{fill:#283746;stroke:#607487}.node.terminal rect{fill:#29323d;stroke:#6b7686}.node.short ellipse{fill:#421d24;stroke:#ef7c86;stroke-width:3.5;filter:drop-shadow(0 4px 8px #0008)}.node.short .shortRing{fill:none;stroke:#ef7c86;stroke-width:1.2;stroke-dasharray:4 3}.node.jump ellipse{fill:#3b3019;stroke:#d8aa54;stroke-width:3;filter:drop-shadow(0 4px 8px #0008)}.node.decision polygon{fill:#162335;stroke:#8196b4}.node:hover rect,.node:hover polygon{stroke:#c3d5ef;stroke-width:2.4}.edge{fill:none;stroke:var(--line);stroke-width:2;marker-end:url(#arrow)}.edge.loop{stroke-dasharray:6 5}.edge.yes{stroke:var(--yes)}.edge.no{stroke:var(--no)}.edgeLabel{font-size:11px;font-weight:700;paint-order:stroke;stroke:#0b1119;stroke-width:4px;stroke-linejoin:round}.edgeLabel.yes{fill:#8bd7a7}.edgeLabel.no{fill:#e6a0a5}.edgeLabel.normal{fill:#b7c5d7}.groupBox{fill:none;stroke:#2d4057;stroke-width:1.4;stroke-dasharray:7 5}.groupTitle{fill:#6f849f;font-size:13px;font-weight:800;letter-spacing:.5px}.stateEdge{fill:none;stroke:#657993;stroke-width:1.8;marker-end:url(#arrow)}.stateEdge.self{stroke-dasharray:5 4}.stateLabel{fill:#aebed3;font-size:10px;paint-order:stroke;stroke:#0b1119;stroke-width:3px}.stateNode rect{stroke-width:1.6}.stateNode.macro rect{fill:#38294f;stroke:#755e98}.stateNode.meso rect{fill:#1d4566;stroke:#5d85a7}.stateNode.micro rect{fill:#1f4a37;stroke:#609176}.stateNode.move rect{fill:#5b3c1c;stroke:#a06e32}.stateNode text{fill:#f2f6fb}.stateNode:hover rect{stroke:#c7d7ec;stroke-width:2.2}.stateNode .desc{fill:#bbc7d6;font-size:10px}.warnText{fill:#e0a958;font-size:12px;font-weight:700}.sourceChip{fill:#0f1824;stroke:#31465f;stroke-width:1}.sourceChipText{fill:#8fa5c0;font-size:10px}.mini{font-size:10px;fill:#aab9cc}.brainLane{fill:#0f1824;fill-opacity:.56;stroke:#31445c;stroke-width:1.5}.brainLaneTitle{font-size:18px;font-weight:900;fill:#dce6f4;letter-spacing:.6px}.brainLaneSub{font-size:10px;fill:#8397b1}.brainNode rect{stroke-width:1.7;filter:drop-shadow(0 4px 7px #0005)}.brainNode text{fill:#f2f6fb}.brainNode .meta{fill:#a9b8cb;font-size:10px}.brainNode.macro rect{fill:#392b52;stroke:#78629c}.brainNode.meso rect{fill:#1e4667;stroke:#5e87aa}.brainNode.micro rect{fill:#1f4a37;stroke:#609176}.brainNode.move rect{fill:#5a3d1c;stroke:#9b6d34}.brainNode.focus rect{stroke:#fff;stroke-width:3}.brainNode.dim{opacity:.28}.brainEdge{fill:none;stroke:#7d91ab;stroke-width:1.8;marker-end:url(#arrow);opacity:.34;transition:opacity .12s ease,stroke-width .12s ease}.brainEdge.api{stroke-dasharray:8 5}.brainEdge.hook{stroke-dasharray:2 6;stroke-width:2.2}.brainEdge.extension{stroke-dasharray:11 4 2 4}.brainEdge.focus{opacity:.95;stroke-width:3}.brainEdge.dim{opacity:.055}.brainEdgeLabel{font-size:9px;font-weight:800;fill:#9fb1c7;paint-order:stroke;stroke:#0b1119;stroke-width:4px}.callPort rect{fill:#101b29;stroke:#6e88aa;stroke-width:1.2}.callPort text{fill:#cfe0f5;font-size:10px;font-weight:800}.callPort:hover rect{stroke:#fff;stroke-width:2}.navBack[hidden]{display:none}
+.brain3dPlane{fill:#101b28;fill-opacity:.22;stroke:#536982;stroke-width:1.5}.brain3dBack{fill:#0c151f;fill-opacity:.18;stroke:#42566d;stroke-width:1}.brain3dSide{fill:#162434;fill-opacity:.42;stroke:#536982;stroke-width:1.15}.brain3dPlane.detailFace{fill-opacity:.34;stroke-width:2}.brain3dGrid{fill:none;stroke:#34475d;stroke-width:.8;opacity:.45}.brain3dSliceTitle{font-size:16px;font-weight:900;fill:#f2f6fb;paint-order:stroke;stroke:#0b1119;stroke-width:5px}.brain3dSliceSub{font-size:9px;fill:#a9b9cc;paint-order:stroke;stroke:#0b1119;stroke-width:3px}.brain3dEdge{fill:none;stroke:#8095ad;stroke-width:1.4;opacity:.32}.brain3dEdge.call{stroke:#8ba3c0}.brain3dEdge.state{stroke:#6f8e7e;stroke-dasharray:5 4}.brain3dEdge.bridge{stroke:#c19d64;stroke-dasharray:9 5}.brain3dEdge.focus{opacity:.98;stroke-width:3}.brain3dEdge.dim{opacity:.035}.brain3dNode rect,.brain3dNode circle{stroke-width:1.5;filter:drop-shadow(0 3px 5px #0007)}.brain3dNode text{fill:#f3f7fb;paint-order:stroke;stroke:#091019;stroke-width:3px}.brain3dNode .sub{fill:#aab9ca;font-size:8px;stroke-width:2px}.brain3dNode.function.macro rect,.brain3dNode.state.macro rect{fill:#392b52;stroke:#7a629d}.brain3dNode.function.meso rect,.brain3dNode.state.meso rect{fill:#1f486a;stroke:#5f89ac}.brain3dNode.function.micro rect,.brain3dNode.state.micro rect{fill:#20503b;stroke:#63957a}.brain3dNode.function.move rect,.brain3dNode.state.move rect,.brain3dNode.priority rect{fill:#5d401f;stroke:#a5743b}.brain3dNode.focus rect{stroke:#fff;stroke-width:3}.brain3dNode.dim{opacity:.16}.brain3dHud{fill:#0c1520;fill-opacity:.9;stroke:#31465f;stroke-width:1}.brain3dHudText{fill:#c6d3e3;font-size:10px}.brain3dNode{cursor:pointer}.brain3dNode.cfgDecision polygon{fill:#162335;stroke:#8ba2c0;stroke-width:1.6}.brain3dNode.cfgShort ellipse{fill:#421d24;stroke:#ef7c86;stroke-width:2.5}.brain3dNode.cfgMerge rect{fill:#121b27;stroke:#8396ae;stroke-dasharray:4 3}.brain3dNode.cfgProcess rect{fill:#1a2938;stroke:#627c9b}.brain3dPort rect{stroke-width:2.2;filter:drop-shadow(0 3px 6px #0008)}.brain3dPort text{font-size:9px;font-weight:900;fill:#fff;paint-order:stroke;stroke:#091019;stroke-width:2px}.brain3dPort.entry rect{fill:#173f4a;stroke:#6fc5d5}.brain3dPort.exit rect{fill:#214b37;stroke:#79c794}.brain3dPort.shortExit rect{fill:#4a2027;stroke:#ef7c86}.brain3dPort.controlExit rect{fill:#493b1e;stroke:#d8aa54}.brain3dPort.callout rect{fill:#5a3e1e;stroke:#e1b266}.brain3dPort.returnin rect{fill:#243d59;stroke:#7fa7d4}.brain3dEdge.detailFlow{stroke:#91a7c1;stroke-width:1.35;opacity:.5;marker-end:url(#arrow)}.brain3dEdge.callFlow{stroke:#d3aa68;stroke-width:1.75;opacity:.65;marker-end:url(#arrow)}.brain3dEdge.returnFlow{stroke:#79a7d2;stroke-width:1.5;opacity:.55;marker-end:url(#arrow)}.brain3dEdge.parentFlow{stroke:#ae8ed0;stroke-width:1.5;stroke-dasharray:5 4;opacity:.5;marker-end:url(#arrow)}.brain3dDetailTitle{font-size:14px;font-weight:900;fill:#fff;paint-order:stroke;stroke:#081019;stroke-width:4px}.brain3dDetailMeta{font-size:8px;fill:#a9b9ca;paint-order:stroke;stroke:#081019;stroke-width:3px}.threeDOnly[hidden]{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="titleRow">
+      <div><div class="title">Grasstex AI — Live Control-Flow Explorer</div><div class="sub">Reads the current Grasstex AI source and renders source-derived control flow. Explicit decisions split into separate branches. Early returns are circled as SHORT-CIRCUITS; only true fall-through paths are allowed to REJOIN.</div></div>
+      <div class="grow"></div>
+      <div class="controls">
+        <span class="badge"><span id="healthDot" class="dot"></span><span id="healthText">loading source…</span></span>
+        <button class="btn" id="refreshBtn">Refresh code</button>
+        <button class="btn" id="fitBtn" title="Fit the whole graph (F)">Fit</button>
+        <button class="btn" id="zoomOutBtn" title="Zoom out (-)">−</button>
+        <span class="badge zoomReadout" id="zoomReadout">100%</span>
+        <button class="btn" id="zoomInBtn" title="Zoom in (+)">+</button>
+        <button class="btn" id="resetBtn" title="1 SVG unit = 1 screen pixel (0)">100%</button>
+        <button class="btn threeDOnly" id="brain3dResetBtn" hidden title="Reset 3D rotation and zoom">Reset 3D</button><button class="btn threeDOnly active" id="brain3dInvertYBtn" hidden title="Invert vertical drag rotation">Invert Y: On</button><button class="btn threeDOnly active" id="brain3dTextSnapBtn" hidden title="Flip detail text 180° when viewing the back of a slice">Text snap: On</button><button class="btn threeDOnly" id="brain3dExplodeBtn" hidden title="Cycle slice presentation: compact, exploded, detailed">Explode slices</button><button class="btn navBack" id="cfgBackBtn" hidden title="Return to the previous function">← Back</button><select class="btn" id="cfgSelect" hidden title="Choose a function to parse into a control-flow graph"></select>
+        <span class="navHint" id="navHint">wheel = zoom · drag = pan · Space+drag anywhere · dbl-click = zoom</span>
+      </div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+  <div class="workspace" id="workspace">
+    <div class="stage" id="stage">
+      <div class="errorBox" id="errorBox"></div>
+      <svg id="graph" viewBox="0 0 1800 1600" aria-label="Grasstex AI source flowchart">
+        <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 z" fill="#7c90aa"/></marker></defs>
+        <g id="viewport"></g>
+      </svg>
+      <div class="status" id="status">Loading…</div>
+      <div class="legend"><span class="key"><span class="sw" style="background:var(--macro)"></span>Macro</span><span class="key"><span class="sw" style="background:var(--meso)"></span>Squad/Meso</span><span class="key"><span class="sw" style="background:var(--micro)"></span>Soldier/Micro</span><span class="key"><span class="sw" style="background:var(--move)"></span>Movement</span><span class="key">◇ decision</span><span class="key">◎ early return / short-circuit</span><span class="key">click node → source</span></div>
+    </div>
+    <aside class="drawer" id="drawer"><div class="drawerHead"><button class="btn close" id="closeDrawer">Close</button><div class="drawerTitle" id="drawerTitle">Source</div><div class="drawerMeta" id="drawerMeta"></div><div class="drawerActions"><button class="btn" id="drawerCfgBtn" hidden>Open Deep Branch CFG</button></div></div><pre class="source" id="sourceText"></pre></aside>
+  </div>
+</div>
+<script>
+(() => {
+'use strict';
+const RAW='https://raw.githubusercontent.com/APPARANYX/grasstex/main/battle/';
+const IN_BATTLE=/\/battle\/[^/]+\.html$/.test(location.pathname||'');
+const LOCAL_BASE=IN_BATTLE?'./':'./battle/';
+const PATHS={sim:'battle-sim.js',commander:'commander-ai.js',squad:'squad-ai.js',engagement:'engagement.js',resolver:'movement-resolver.js',meso:'modules/16-squad-plan-stability.js',route:'modules/52-survival-tactical-route.js',mind:'modules/17-soldier-mind.js',events:'modules/08-soldier-events.js'};
+const FILES=Object.fromEntries(Object.entries(PATHS).map(([k,p])=>[k,LOCAL_BASE+p]));
+const VIEWS=[['brain3d','3D brain'],['brain','Full brain map'],['full','Execution spine'],['cfg','Deep branch CFG'],['macro','Macro states'],['meso','Squad states'],['micro','Engagement states'],['move','Resolver overview'],['health','Parser / source health']];
+const CFG_FUNCS=[
+  ['commander','updateCommander','Macro · updateCommander'],
+  ['commander','wakeReason','Macro · wakeReason'],
+  ['commander','reconsiderMission','Macro · reconsiderMission'],
+  ['commander','selectMission','Macro · selectMission'],
+  ['commander','issueMission','Macro · issueMission'],
+  ['commander','acceptMission','Macro · acceptMission'],
+  ['commander','finishMission','Macro · finishMission'],
+  ['meso','commanderTick','Meso · commanderTick'],
+  ['meso','updateCohesion','Meso · updateCohesion'],
+  ['meso','executeMission','Meso · executeMission'],
+  ['meso','updatePlan','Meso · updatePlan'],
+  ['meso','fireAndMovement','Meso · fireAndMovement'],
+  ['meso','updateSquadState','Meso · updateSquadState'],
+  ['meso','advanceSquadAnchor','Meso · advanceSquadAnchor'],
+  ['meso','updateFireteams','Meso · updateFireteams'],
+  ['squad','updateSquad','Soldier · updateSquad dispatch'],
+  ['squad','perceive','Soldier · perceive'],
+  ['squad','updateSoldier','Soldier · updateSoldier'],
+  ['engagement','updateSquad','Micro · updateSquad contact'],
+  ['engagement','updateSoldier','Micro · updateSoldier dispatch'],
+  ['engagement','runDrill','Micro · runDrill'],
+  ['engagement','advance','Micro · advance'],
+  ['engagement','orient','Micro · orient'],
+  ['engagement','decide','Micro · decide'],
+  ['engagement','bound','Micro · bound'],
+  ['engagement','engage','Micro · engage'],
+  ['engagement','pinned','Micro · pinned'],
+  ['engagement','assault','Micro · assault'],
+  ['engagement','alert','Micro · alert'],
+  ['engagement','orderBound','Micro · orderBound'],
+  ['engagement','move','Micro · publish move intent'],
+  ['resolver','proposeCombat','Movement · proposeCombat'],
+  ['resolver','resolve','Movement · resolve'],
+  ['resolver','tacticalWaypoint','Movement · tacticalWaypoint'],
+  ['route','resolveRoute','Movement · resolveRoute'],
+  ['route','observe','Movement · progress observe']
+]
+let cfgChoice='meso:executeMission';
+
+function skipTrivia(s,p,end=s.length){
+  while(p<end){
+    if(/\s/.test(s[p])){p++;continue}
+    if(s[p]==='/'&&s[p+1]==='/'){p+=2;while(p<end&&s[p]!=='\n')p++;continue}
+    if(s[p]==='/'&&s[p+1]==='*'){const e=s.indexOf('*/',p+2);p=e<0?end:e+2;continue}
+    break
+  }
+  return p
+}
+function wordAt(s,p,w){return s.slice(p,p+w.length)===w&&!/[A-Za-z0-9_$]/.test(s[p-1]||'')&&!/[A-Za-z0-9_$]/.test(s[p+w.length]||'')}
+function balancedEnd(s,p,open,close){
+  let depth=0,quote=null,esc=false,line=false,block=false;
+  for(let i=p;i<s.length;i++){
+    const c=s[i],n=s[i+1];
+    if(line){if(c==='\n')line=false;continue}
+    if(block){if(c==='*'&&n==='/'){block=false;i++}continue}
+    if(quote){if(esc){esc=false;continue}if(c==='\\'){esc=true;continue}if(c===quote)quote=null;continue}
+    if(c==='/'&&n==='/'){line=true;i++;continue}
+    if(c==='/'&&n==='*'){block=true;i++;continue}
+    if(c==='"'||c==="'"||c==='`'){quote=c;continue}
+    if(c===open)depth++;else if(c===close){depth--;if(depth===0)return i}
+  }
+  return -1
+}
+function scanSemi(s,p,end){
+  let par=0,br=0,cur=0,quote=null,esc=false,line=false,block=false;
+  for(let i=p;i<end;i++){
+    const c=s[i],n=s[i+1];
+    if(line){if(c==='\n')line=false;continue}
+    if(block){if(c==='*'&&n==='/'){block=false;i++}continue}
+    if(quote){if(esc){esc=false;continue}if(c==='\\'){esc=true;continue}if(c===quote)quote=null;continue}
+    if(c==='/'&&n==='/'){line=true;i++;continue}
+    if(c==='/'&&n==='*'){block=true;i++;continue}
+    if(c==='"'||c==="'"||c==='`'){quote=c;continue}
+    if(c==='(')par++;else if(c===')')par--;else if(c==='[')br++;else if(c===']')br--;else if(c==='{')cur++;else if(c==='}'){
+      if(cur===0)return i;cur--
+    }
+    if(c===';'&&par===0&&br===0&&cur===0)return i+1
+  }
+  return end
+}
+function collapseCode(s,max=118){
+  const x=String(s||'').replace(/\/\*[\s\S]*?\*\//g,' ').replace(/\/\/[^\n]*/g,' ').replace(/\s+/g,' ').trim().replace(/;$/,'');
+  return x.length>max?x.slice(0,max-1)+'…':x
+}
+function parseSwitchCases(s,bodyStart,bodyEnd){
+  const marks=[];let depth=0,quote=null,esc=false,line=false,block=false;
+  for(let i=bodyStart;i<bodyEnd;i++){
+    const c=s[i],n=s[i+1];
+    if(line){if(c==='\n')line=false;continue}if(block){if(c==='*'&&n==='/'){block=false;i++}continue}
+    if(quote){if(esc){esc=false;continue}if(c==='\\'){esc=true;continue}if(c===quote)quote=null;continue}
+    if(c==='/'&&n==='/'){line=true;i++;continue}if(c==='/'&&n==='*'){block=true;i++;continue}if(c==='"'||c==="'"||c==='`'){quote=c;continue}
+    if(c==='{')depth++;else if(c==='}')depth--;
+    if(depth!==0)continue;
+    let kind=null;if(wordAt(s,i,'case'))kind='case';else if(wordAt(s,i,'default'))kind='default';if(!kind)continue;
+    let q=i+(kind==='case'?4:7),colon=q,par=0,br=0;
+    while(colon<bodyEnd){const d=s[colon];if(d==='(')par++;else if(d===')')par--;else if(d==='[')br++;else if(d===']')br--;if(d===':'&&par===0&&br===0)break;colon++}
+    const label=kind==='default'?'default':collapseCode(s.slice(q,colon),50);marks.push({start:i,body:colon+1,label});i=colon
+  }
+  return marks.map((m,i)=>({label:m.label,stmts:parseCodeBlock(s,m.body,i+1<marks.length?marks[i+1].start:bodyEnd)}))
+}
+function parseControlled(s,p,end){
+  p=skipTrivia(s,p,end);if(p>=end)return {stmts:[],end:p};
+  if(s[p]==='{'){const e=balancedEnd(s,p,'{','}');return {stmts:parseCodeBlock(s,p+1,e),end:e+1}}
+  const one=parseOneStatement(s,p,end);return {stmts:one.node?[one.node]:[],end:one.end}
+}
+function parseOneStatement(s,p,end){
+  p=skipTrivia(s,p,end);if(p>=end)return {node:null,end:p};const start=p;
+  if(wordAt(s,p,'if')){
+    let q=skipTrivia(s,p+2,end);if(s[q]!=='(')return {node:null,end:p+2};const pe=balancedEnd(s,q,'(',')');const cond=collapseCode(s.slice(q+1,pe),150);let cons=parseControlled(s,pe+1,end);q=skipTrivia(s,cons.end,end);let alt=null,finish=cons.end;
+    if(wordAt(s,q,'else')){const a=parseControlled(s,q+4,end);alt=a.stmts;finish=a.end}
+    return {node:{type:'if',cond,then:cons.stmts,else:alt,start,end:finish},end:finish}
+  }
+  if(wordAt(s,p,'for')||wordAt(s,p,'while')){
+    const kind=wordAt(s,p,'for')?'for':'while',kw=kind.length;let q=skipTrivia(s,p+kw,end);if(s[q]!=='(')return {node:null,end:p+kw};const pe=balancedEnd(s,q,'(',')');const head=collapseCode(s.slice(q+1,pe),150),body=parseControlled(s,pe+1,end);return {node:{type:'loop',kind,cond:head,body:body.stmts,start,end:body.end},end:body.end}
+  }
+  if(wordAt(s,p,'switch')){
+    let q=skipTrivia(s,p+6,end);if(s[q]!=='(')return {node:null,end:p+6};const pe=balancedEnd(s,q,'(',')'),expr=collapseCode(s.slice(q+1,pe),100);q=skipTrivia(s,pe+1,end);if(s[q]!=='{')return {node:null,end:q};const be=balancedEnd(s,q,'{','}');return {node:{type:'switch',expr,cases:parseSwitchCases(s,q+1,be),start,end:be+1},end:be+1}
+  }
+  if(wordAt(s,p,'return')){const e=scanSemi(s,p,end);return {node:{type:'return',text:collapseCode(s.slice(p,e),130),start,end:e},end:e}}
+  if(wordAt(s,p,'break')||wordAt(s,p,'continue')){const e=scanSemi(s,p,end);return {node:{type:'jump',text:collapseCode(s.slice(p,e),80),start,end:e},end:e}}
+  if(wordAt(s,p,'throw')){const e=scanSemi(s,p,end);return {node:{type:'return',text:collapseCode(s.slice(p,e),130),start,end:e},end:e}}
+  if(s[p]==='{'){const be=balancedEnd(s,p,'{','}');return {node:{type:'block',stmts:parseCodeBlock(s,p+1,be),start,end:be+1},end:be+1}}
+  const e=scanSemi(s,p,end),raw=collapseCode(s.slice(p,e),135);return {node:raw?{type:'process',text:raw,start,end:e}:null,end:Math.max(e,p+1)}
+}
+function parseCodeBlock(s,start,end){const out=[];let p=start;while(p<end){p=skipTrivia(s,p,end);if(p>=end)break;const r=parseOneStatement(s,p,end);if(r.node){if(r.node.type==='block')out.push(...r.node.stmts);else out.push(r.node)}if(r.end<=p){p++}else p=r.end}return out}
+function parseFunctionAST(key,name){const f=extractFunction(key,name);if(!f)return null;const a=f.text.indexOf('{'),b=findBalanced(f.text,a);if(a<0||b<0)return null;return {key,name,f,stmts:parseCodeBlock(f.text,a+1,b)}}
+function astLine(ast,pos){return ast.f.line+(ast.f.text.slice(0,pos||0).match(/\n/g)||[]).length}
+function layerForKey(k){return k==='commander'?'macro':k==='meso'?'meso':k==='engagement'||k==='squad'||k==='mind'||k==='events'?'micro':k==='resolver'||k==='route'?'move':'process'}
+function funcId(k,n){return k+':'+n}
+function funcSpec(id){return CFG_FUNCS.find(x=>funcId(x[0],x[1])===id)||null}
+function funcLabel(id){const s=funcSpec(id);return s?s[2]:id}
+const API_CALL_PATTERNS={
+  'commander:acceptMission':[/BattleCommanderAI\.acceptMission\s*\(/g],
+  'engagement:updateSoldier':[/BattleEngagement\.updateSoldier\s*\(/g],
+  'engagement:updateSquad':[/BattleEngagement\.updateSquad\s*\(/g,/\bE\.updateSquad\s*\(/g],
+  'engagement:orderBound':[/BattleEngagement\.orderBound\s*\(/g,/\bE\.orderBound\s*\(/g],
+  'resolver:proposeCombat':[/BattleMovementResolver\.proposeCombat\s*\(/g],
+  'resolver:resolve':[/BattleMovementResolver\.resolve\s*\(/g],
+  'route:resolveRoute':[/BattleTacticalRoute\.resolve\s*\(/g,/\bT\.resolve\s*\(/g],
+  'route:observe':[/BattleMovementProgress\.observe\s*\(/g,/\bMP\.observe\s*\(/g]
+};
+function findMappedCalls(sourceKey,sourceName,text){
+  const out=[],seen=new Set(),body=String(text||'');
+  function hit(target,kind,index){const id=funcId(target[0],target[1]),key=id+'|'+kind;if(id===funcId(sourceKey,sourceName)&&kind!=='direct')return;if(seen.has(key))return;seen.add(key);out.push({to:id,kind,index:index==null?0:index})}
+  CFG_FUNCS.forEach(target=>{
+    const id=funcId(target[0],target[1]);
+    if(target[0]===sourceKey){const re=new RegExp('(^|[^.$A-Za-z0-9_])'+escRx(target[1])+'\\s*\\(','g'),m=re.exec(body);if(m)hit(target,'direct',m.index)}
+    const pats=API_CALL_PATTERNS[id]||[];for(const rx of pats){rx.lastIndex=0;const m=rx.exec(body);if(m){hit(target,'api',m.index);break}}
+  });
+  if(sourceKey==='commander'&&sourceName==='updateCommander'&&/runHook\(\s*['"]onCommanderTick['"]/.test(body)){const target=funcSpec('meso:commanderTick'),ms=sources.meso||'';if(target&&/onCommanderTick\s*:\s*commanderTick/.test(ms))hit(target,'hook',body.indexOf('runHook'))}
+  if(sourceKey==='squad'&&sourceName==='updateSquad'&&/EXT\.first\(\s*['"]squadCommand['"]/.test(body)){const target=funcSpec('meso:updateSquadState'),ms=sources.meso||'';if(target&&/SquadAI\.extend\(\s*['"]squadCommand['"]/.test(ms))hit(target,'extension',body.indexOf('EXT.first'))}
+  return out.sort((a,b)=>a.index-b.index)
+}
+function brainCallGraph(){
+  const nodes=[],edges=[],seen=new Set();
+  CFG_FUNCS.forEach(([key,name,label])=>{const f=extractFunction(key,name);if(!f)return;const bs=f.text.indexOf('{')+1,body=f.text.slice(bs,-1);nodes.push({id:funcId(key,name),key,name,label,layer:layerForKey(key),ref:f.ref});findMappedCalls(key,name,body).forEach(call=>{const ek=funcId(key,name)+'>'+call.to+'|'+call.kind;if(seen.has(ek))return;seen.add(ek);edges.push({from:funcId(key,name),to:call.to,kind:call.kind})})});
+  return {nodes,edges}
+}
+function snapshotBrain3DState(){
+  return {
+    yaw:brain3D.yaw,pitch:brain3D.pitch,zoom:brain3D.zoom,mode:brain3D.mode,
+    invertY:brain3D.invertY,textSnap:brain3D.textSnap,focus:brain3D.focus,focusSlice:brain3D.focusSlice,
+    panX:brain3D.panX,panY:brain3D.panY,pivotX:brain3D.pivotX,pivotY:brain3D.pivotY,pivotZ:brain3D.pivotZ
+  };
+}
+function restoreBrain3DState(s){
+  if(!s)return;
+  Object.assign(brain3D,s);
+  brain3D.scene=null;brain3D.detailScene=null;brain3D.fast=false;
+}
+function enterDeepCfg(id){
+  if(!funcSpec(id))return;
+  if(current==='brain3d'){
+    cfgReturn3D={
+      brain:snapshotBrain3DState(),
+      drawerCfgChoice,drawerSourceRef,drawerSourceTitle
+    };
+  }
+  cfgHistory=[];
+  jumpToCfg(id,false);
+}
+function returnTo3DFromCfg(){
+  if(!cfgReturn3D)return false;
+  const ret=cfgReturn3D;cfgReturn3D=null;
+  restoreBrain3DState(ret.brain);
+  drawerCfgChoice=ret.drawerCfgChoice||null;
+  drawerSourceRef=ret.drawerSourceRef||null;
+  drawerSourceTitle=ret.drawerSourceTitle||'';
+  current='brain3d';
+  renderTabs();render();
+  if(drawerSourceRef)openSource(drawerSourceRef,drawerSourceTitle,{cfgId:drawerCfgChoice});
+  return true;
+}
+function jumpToCfg(id,push=true){const spec=funcSpec(id);if(!spec)return;if(push&&cfgChoice!==id)cfgHistory.push(cfgChoice);cfgChoice=id;const sel=document.getElementById('cfgSelect');if(sel)sel.value=id;current='cfg';renderTabs();render();fit()}
+function buildCFG(ast){
+  let seq=0;const nodes=[],edges=[];const layer=layerForKey(ast.key);
+  function add(type,label,stmt,lane,sub){const id='c'+(++seq);nodes.push({id,type,label,layer,lane:lane||0,sub:sub||'',ref:{file:FILES[ast.key],line:astLine(ast,stmt&&stmt.start),needle:label},stmt});return id}
+  function connect(ins,to){for(const e of ins||[])edges.push({from:e.from,to,label:e.label||'',kind:e.kind||'',loop:!!e.loop})}
+  function mergeIncoming(ins,lane){if(!ins||ins.length<=1)return ins||[];const id=add('merge','REJOIN',{start:0},lane,'explicit CFG merge');connect(ins,id);return [{from:id}]}
+  function compileList(list,incoming,lane){let ins=incoming||[];for(const st of list||[]){if(!ins.length)break;ins=mergeIncoming(ins,lane);ins=compile(st,ins,lane)}return ins}
+  function compile(st,ins,lane){
+    if(st.type==='process'){const id=add('process',st.text,st,lane);connect(ins,id);return [{from:id}]}
+    if(st.type==='return'){const id=add('short','RETURN / SHORT-CIRCUIT',st,lane,st.text);connect(ins,id);return []}
+    if(st.type==='jump'){const id=add('jump',st.text.toUpperCase(),st,lane,'control exits this block');connect(ins,id);return []}
+    if(st.type==='block')return compileList(st.stmts,ins,lane)
+    if(st.type==='if'){
+      const id=add('decision',st.cond+' ?',st,lane);connect(ins,id);
+      const yes=compileList(st.then,[{from:id,label:'YES',kind:'yes'}],lane+1);
+      const no=st.else?compileList(st.else,[{from:id,label:'NO',kind:'no'}],lane-1):[{from:id,label:'NO',kind:'no'}];
+      return yes.concat(no)
+    }
+    if(st.type==='loop'){
+      const id=add('decision',st.kind.toUpperCase()+': '+st.cond+' ?',st,lane);connect(ins,id);
+      const body=compileList(st.body,[{from:id,label:'ENTER',kind:'yes'}],lane+1);body.forEach(e=>edges.push({from:e.from,to:id,label:'LOOP',kind:'',loop:true}));
+      return [{from:id,label:'EXIT',kind:'no'}]
+    }
+    if(st.type==='switch'){
+      const id=add('decision','SWITCH '+st.expr,st,lane);connect(ins,id);let exits=[];const n=st.cases.length||1;
+      st.cases.forEach((c,i)=>{const offset=i-(n-1)/2;exits=exits.concat(compileList(c.stmts,[{from:id,label:c.label,kind:''}],lane+offset))});
+      return exits
+    }
+    return ins
+  }
+  const start=add('terminal',ast.name+'()', {start:0},0,'function entry');nodes[nodes.length-1].entry=true;
+  let exits=compileList(ast.stmts,[{from:start}],0);
+  exits=mergeIncoming(exits,0);if(exits.length){const done=add('terminal','implicit return / function end',{start:ast.f.text.length-1},0);connect(exits,done)}
+  return {nodes,edges,ast}
+}
+function layoutCFG(cfg){
+  const byId=Object.fromEntries(cfg.nodes.map(n=>[n.id,n]));const rank={};const entry=cfg.nodes.find(n=>n.entry)||cfg.nodes[0];rank[entry.id]=0;
+  for(let k=0;k<cfg.nodes.length+4;k++)for(const e of cfg.edges){if(e.loop)continue;if(rank[e.from]==null)continue;rank[e.to]=Math.max(rank[e.to]??0,rank[e.from]+1)}
+  cfg.nodes.forEach((n,i)=>{n.rank=rank[n.id]??i});
+  const ranks={};cfg.nodes.forEach(n=>(ranks[n.rank]||(ranks[n.rank]=[])).push(n));
+  /* Intentionally roomy: branch diagrams are for tracing, not packing. Leave enough air for
+     edge labels, loop rails and short-circuit rings without visually touching another object. */
+  let minX=Infinity,maxX=-Infinity,maxY=0;const center=1600,laneGap=590,rowGap=255;
+  Object.entries(ranks).forEach(([r,a])=>{
+    a.sort((x,y)=>x.lane-y.lane);const seen={};a.forEach(n=>{let lane=n.lane;const key=lane.toFixed(2);const c=seen[key]||0;seen[key]=c+1;if(c)lane+=c*0.92*(c%2?1:-1);n.w=n.type==='decision'?390:n.type==='merge'?125:n.type==='short'?270:n.type==='jump'?250:430;n.h=n.type==='decision'?132:n.type==='merge'?58:n.type==='short'?148:n.type==='jump'?126:104;n.x=center+lane*laneGap-n.w/2;n.y=150+(+r)*rowGap;minX=Math.min(minX,n.x);maxX=Math.max(maxX,n.x+n.w);maxY=Math.max(maxY,n.y+n.h)})
+  });
+  const shift=minX<130?130-minX:0;if(shift)cfg.nodes.forEach(n=>n.x+=shift);maxX+=shift;cfg.bounds={x:0,y:0,w:Math.max(2400,maxX+320),h:maxY+230};return cfg
+}
+
+const stateFocus={};
+let cfgHistory=[],brainFocus=null,cfgReturn3D=null,drawerCfgChoice=null,drawerSourceRef=null,drawerSourceTitle='';
+const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:true,textSnap:true,focus:null,scene:null,detailScene:null,raf:0,fast:false,restoreTimer:0,panX:0,panY:0,pivotX:0,pivotY:0,pivotZ:0,focusAnim:0,focusSlice:null};
+let sources={}, current='brain', graphBounds={x:0,y:0,w:1800,h:1600};
+let camera={x:0,y:0,w:1800,h:1600},dragging=false,dragPointer=null,lastPointer=null,dragMode='none',spaceDown=false,cameraAnim=0;
+const svg=document.getElementById('graph'), viewport=document.getElementById('viewport'), status=document.getElementById('status'), workspace=document.getElementById('workspace');
+const NS='http://www.w3.org/2000/svg';
+const el=(tag,attrs={},text)=>{const n=document.createElementNS(NS,tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));if(text!=null)n.textContent=text;return n};
+function lineNo(src,needle){const i=src.indexOf(needle);return i<0?null:src.slice(0,i).split('\n').length}
+function sourceRef(key,needle,label){const src=sources[key]||'';const ln=lineNo(src,needle);return {file:FILES[key],line:ln,needle,label:label||needle}}
+function escRx(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
+function findBalanced(src,startChar,open='{',close='}'){
+ let depth=0, quote=null, esc=false, line=false, block=false;
+ for(let i=startChar;i<src.length;i++){const c=src[i],n=src[i+1];if(line){if(c==='\n')line=false;continue}if(block){if(c==='*'&&n==='/'){block=false;i++}continue}if(quote){if(esc){esc=false;continue}if(c==='\\'){esc=true;continue}if(c===quote)quote=null;continue}if(c==='/'&&n==='/'){line=true;i++;continue}if(c==='/'&&n==='*'){block=true;i++;continue}if(c==='"'||c==="'"||c==='`'){quote=c;continue}if(c===open)depth++;else if(c===close){depth--;if(depth===0)return i}}
+ return -1;
+}
+function extractObject(src,name){const re=new RegExp('(?:var|const|let)\\s+'+escRx(name)+'\\s*=\\s*\\{');const m=re.exec(src);if(!m)return null;const a=src.indexOf('{',m.index),b=findBalanced(src,a);return b<0?null:{text:src.slice(a,b+1),start:m.index,line:src.slice(0,m.index).split('\n').length}}
+function topProps(obj){const s=obj.text,out=[];let depth=1,quote=null,esc=false,line=false,block=false,tokenStart=-1;
+ for(let i=1;i<s.length-1;i++){const c=s[i],n=s[i+1];if(line){if(c==='\n')line=false;continue}if(block){if(c==='*'&&n==='/'){block=false;i++}continue}if(quote){if(esc){esc=false;continue}if(c==='\\'){esc=true;continue}if(c===quote)quote=null;continue}if(c==='/'&&n==='/'){line=true;i++;continue}if(c==='/'&&n==='*'){block=true;i++;continue}if(c==='"'||c==="'"||c==='`'){quote=c;continue}if(c==='{')depth++;else if(c==='}')depth--;if(depth!==1)continue;
+   if(tokenStart<0 && /[A-Za-z_'"-]/.test(c)) tokenStart=i;
+   if(tokenStart>=0 && c===':'){let raw=s.slice(tokenStart,i).trim();let name=raw.replace(/^['"]|['"]$/g,'');let j=i+1;while(/\s/.test(s[j]))j++;if(s[j]==='{'){const e=findBalanced(s,j);if(e>j){out.push({name,raw,body:s.slice(j,e+1),offset:j});i=e;tokenStart=-1;continue}}tokenStart=-1}
+   if(c===',')tokenStart=-1;
+ }
+ return out;
+}
+function strField(body,name){const m=new RegExp(name+'\\s*:\\s*([\'\"])(.*?)\\1','s').exec(body);return m?m[2]:''}
+function arrField(body,name){const m=new RegExp(name+'\\s*:\\s*\\[([^\\]]*)\\]','s').exec(body);return m?Array.from(m[1].matchAll(/[\'\"]([^\'\"]+)[\'\"]/g),x=>x[1]):[]}
+function parseStates(key,name){const src=sources[key]||'',obj=extractObject(src,name);if(!obj)return {states:[],error:`${name} not found`,ref:sourceRef(key,name)};const props=topProps(obj);return {states:props.map(p=>({name:p.name,meaning:strField(p.body,'meaning'),enteredBy:strField(p.body,'enteredBy'),exits:strField(p.body,'exits'),rate:strField(p.body,'rate'),next:arrField(p.body,'next'),ref:{file:FILES[key],line:obj.line+(p.offset?obj.text.slice(0,p.offset).split('\n').length-1:0),needle:p.raw}})),ref:{file:FILES[key],line:obj.line,needle:name}}}
+function parseRequests(){const obj=extractObject(sources.engagement||'','REQUESTS');if(!obj)return [];return topProps(obj).map(p=>{const from=arrField(p.body,'from');const next=(/next\s*:\s*['"]([^'"]+)/.exec(p.body)||[])[1]||'';const reason=(/reason\s*:\s*['"]([^'"]+)/.exec(p.body)||[])[1]||'';return {name:p.name,from,next,reason}})}
+function extractFunction(key,name){const src=sources[key]||'',re=new RegExp('function\\s+'+escRx(name)+'\\s*\\('),m=re.exec(src);if(!m)return null;const a=src.indexOf('{',m.index),b=findBalanced(src,a);return b<0?null:{text:src.slice(m.index,b+1),line:src.slice(0,m.index).split('\n').length,ref:{file:FILES[key],line:src.slice(0,m.index).split('\n').length,needle:'function '+name}}}
+function priorityMap(){const f=extractFunction('resolver','priority');if(!f)return [];const out=[];for(const m of f.text.matchAll(/kind\s*===\s*['"]([^'"]+)['"]\s*\?\s*(\d+)/g))out.push({kind:m[1],priority:+m[2]});if(/e\.state\s*===\s*['"]pinned['"]\s*\?\s*85/.test(f.text))out.push({kind:'hold (pinned)',priority:85});out.push({kind:'formation',priority:0});return out.sort((a,b)=>b.priority-a.priority)}
+async function sha12(t){try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return Array.from(new Uint8Array(b)).slice(0,6).map(x=>x.toString(16).padStart(2,'0')).join('')}catch(_){return String(t.length)}}
+async function load(){status.textContent='Loading AI source from this checkout…';const errs=[];const origins={};await Promise.all(Object.entries(FILES).map(async([k,localUrl])=>{const attempts=[['checkout',localUrl],['GitHub main',RAW+PATHS[k]]];let last='';for(const [origin,url] of attempts){try{const r=await fetch(url+(url.includes('?')?'&':'?')+'flow='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error(r.status+' '+r.statusText);sources[k]=await r.text();origins[k]=origin;return}catch(e){last=origin+': '+e.message}}try{const api='https://api.github.com/repos/APPARANYX/grasstex/contents/battle/'+PATHS[k]+'?ref=main';const r=await fetch(api,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error(r.status+' '+r.statusText);const j=await r.json();sources[k]=j.encoding==='base64'?decodeURIComponent(escape(atob(String(j.content||'').replace(/\s/g,'')))):String(j.content||'');origins[k]='GitHub API main'}catch(e2){sources[k]='';errs.push(`${PATHS[k]} (${last}; API: ${e2.message})`)}}));window.__flowOrigins=origins;brain3D.scene=null;brain3D.detailScene=null;const hashes={};for(const [k,v] of Object.entries(sources))if(v)hashes[k]=await sha12(v);window.__flowHashes=hashes;renderTabs();render();const ok=Object.values(sources).filter(Boolean).length,local=Object.values(origins).filter(x=>x==='checkout').length;document.getElementById('healthDot').className='dot '+(errs.length?(ok?'warn':'bad'):'ok');document.getElementById('healthText').textContent=errs.length?`${ok}/${Object.keys(FILES).length} files loaded`:(local===Object.keys(FILES).length?'live checkout loaded':`${ok} source files loaded`);if(errs.length){showError(ok?`${ok}/${Object.keys(FILES).length} source files loaded. Missing: ${errs.map(x=>x.split(' (')[0]).join(', ')}.`:`No source files could be fetched in this preview. Serve this page from the Grasstex repo (for example: python3 -m http.server 8000) and it will read the checkout directly.`)}else hideError()}
+function renderTabs(){
+  const t=document.getElementById('tabs');t.innerHTML='';
+  VIEWS.forEach(([id,label])=>{const b=document.createElement('button');b.className='btn'+(id===current?' active':'');b.textContent=label;b.onclick=()=>{current=id;renderTabs();render();fit()};t.appendChild(b)});
+  const sel=document.getElementById('cfgSelect'),back=document.getElementById('cfgBackBtn'),is3d=current==='brain3d';
+  sel.hidden=current!=='cfg';
+  back.hidden=current!=='cfg'||(!cfgReturn3D&&!cfgHistory.length);
+  back.textContent=cfgReturn3D?'← Back to 3D':'← Back';
+  document.querySelectorAll('.threeDOnly').forEach(x=>x.hidden=!is3d);
+  const deep=document.getElementById('drawerCfgBtn');
+  if(deep)deep.hidden=current==='cfg'||!drawerCfgChoice;
+  const hint=document.getElementById('navHint');
+  if(hint)hint.textContent=is3d?'left drag = orbit · middle drag = pan · wheel = zoom · click = focus':'wheel = zoom · drag = pan · Space+drag anywhere · dbl-click = zoom';
+}function initCfgSelect(){const sel=document.getElementById('cfgSelect');sel.innerHTML='';CFG_FUNCS.forEach(([k,n,label])=>{const o=document.createElement('option');o.value=k+':'+n;o.textContent=label;if(o.value===cfgChoice)o.selected=true;sel.appendChild(o)});sel.onchange=()=>{cfgHistory=[];cfgChoice=sel.value;renderTabs();if(current==='cfg'){render();fit()}}}
+function clear(){cancelAnimationFrame(cameraAnim);cameraAnim=0;viewport.innerHTML='';viewport.removeAttribute('transform');}
+function node(g,n){
+  const cls='node '+(n.type||'process')+' '+(n.layer||'process');
+  const group=el('g',{class:cls,'data-id':n.id,transform:`translate(${n.x},${n.y})`});
+  const w=n.w||250,h=n.h||82;
+  if(n.type==='decision'){
+    group.appendChild(el('polygon',{points:`${w/2},0 ${w},${h/2} ${w/2},${h} 0,${h/2}`}));
+  }else if(n.type==='short'||n.type==='jump'){
+    group.appendChild(el('ellipse',{cx:w/2,cy:h/2,rx:w/2-8,ry:h/2-8}));
+    if(n.type==='short')group.appendChild(el('ellipse',{cx:w/2,cy:h/2,rx:w/2-17,ry:h/2-17,class:'shortRing'}));
+  }else{
+    group.appendChild(el('rect',{width:w,height:h,rx:n.type==='merge'?18:14}));
+  }
+
+  const lines=wrap(n.label,n.type==='decision'?30:n.type==='merge'?16:n.type==='short'?24:42);
+  const lineH=18;
+  let firstY;
+  if(n.type==='decision'||n.type==='short'||n.type==='jump'){
+    const blockH=(lines.length-1)*lineH;
+    firstY=h/2-blockH/2+5;
+  }else{
+    firstY=n.type==='merge'?31:29;
+  }
+  lines.forEach((s,i)=>group.appendChild(el('text',{
+    x:w/2,y:firstY+i*lineH,'text-anchor':'middle',
+    'font-size':n.type==='merge'?11:(i?12:14),'font-weight':'800'
+  },s)));
+
+  if(n.sub){
+    const subLines=wrap(n.sub,n.type==='short'?29:48).slice(0,n.type==='short'?2:1);
+    subLines.forEach((s,i)=>group.appendChild(el('text',{
+      x:w/2,y:(n.type==='short'?82:h-12)+i*15,'text-anchor':'middle',class:'small'
+    },s)));
+  }
+  if(n.ref){
+    group.style.cursor='pointer';
+    group.addEventListener('click',ev=>{ev.stopPropagation();openSource(n.ref,n.label,{cfgId:n.cfg||null})});
+  }
+  if(n.cfg){
+    group.addEventListener('dblclick',ev=>{
+      ev.stopPropagation();cfgChoice=n.cfg;
+      const sel=document.getElementById('cfgSelect');if(sel)sel.value=cfgChoice;
+      current='cfg';renderTabs();render();fit();
+    });
+  }
+    if(n.calls&&n.calls.length){
+    n.calls.slice(0,3).forEach((call,i)=>{
+      const port=el('g',{class:'callPort',transform:`translate(${w+12},${8+i*30})`}),pw=176,ph=24;
+      port.appendChild(el('rect',{width:pw,height:ph,rx:8}));
+      const sp=funcSpec(call.to),short=sp?(sp[2].split(' · ')[0]+' ↳ '+sp[1]):('↳ '+call.to);
+      port.appendChild(el('text',{x:10,y:16},short));
+      port.style.cursor='pointer';
+      port.addEventListener('click',ev=>{ev.stopPropagation();jumpToCfg(call.to,true)});
+      group.appendChild(port);
+    });
+  }
+g.appendChild(group);return group
+}
+function wrap(s,max){const words=String(s).split(/\s+/),lines=[],cur=[];for(const w of words){if((cur.join(' ')+' '+w).trim().length>max&&cur.length){lines.push(cur.join(' '));cur.length=0}cur.push(w)}if(cur.length)lines.push(cur.join(' '));return lines.slice(0,3)}
+function anchor(n,side){const w=n.w||250,h=n.h||82;if(n.type==='decision'){if(side==='left')return[n.x,n.y+h/2];if(side==='right')return[n.x+w,n.y+h/2];if(side==='top')return[n.x+w/2,n.y];return[n.x+w/2,n.y+h]}if(side==='left')return[n.x,n.y+h/2];if(side==='right')return[n.x+w,n.y+h/2];if(side==='top')return[n.x+w/2,n.y];return[n.x+w/2,n.y+h]}
+function edge(g,a,b,opt={}){const from=anchor(a,opt.from||'bottom'),to=anchor(b,opt.to||'top');let d;if(opt.points)d='M'+from[0]+','+from[1]+' '+opt.points.map(p=>'L'+p[0]+','+p[1]).join(' ')+' L'+to[0]+','+to[1];else if((opt.from==='right'&&opt.to==='left')||(opt.from==='left'&&opt.to==='right')){const mx=(from[0]+to[0])/2;d=`M${from[0]},${from[1]} L${mx},${from[1]} L${mx},${to[1]} L${to[0]},${to[1]}`}else{const my=(from[1]+to[1])/2;d=`M${from[0]},${from[1]} L${from[0]},${my} L${to[0]},${my} L${to[0]},${to[1]}`};const p=el('path',{d,class:'edge '+(opt.kind||'')+(opt.loop?' loop':'')});g.insertBefore(p,g.firstChild);if(opt.label){const lx=opt.lx!=null?opt.lx:(from[0]+to[0])/2,ly=opt.ly!=null?opt.ly:(from[1]+to[1])/2-5;g.appendChild(el('text',{x:lx,y:ly,class:'edgeLabel '+(opt.kind||'normal'),'text-anchor':'middle'},opt.label))}}
+function groupBox(g,x,y,w,h,title){g.appendChild(el('rect',{x,y,width:w,height:h,rx:18,class:'groupBox'}));g.appendChild(el('text',{x:x+16,y:y+25,class:'groupTitle'},title))}
+function src(key,needle,label){return sourceRef(key,needle,label)}
+
+function brain3DModel(){
+  const cg=brainCallGraph(),nodes=[],edges=[];
+  const slices=[
+    {id:'macro-fn',title:'01 · MACRO FUNCTIONS',sub:'General / commander decisions',layer:'macro'},
+    {id:'mission-state',title:'02 · MISSION LIFECYCLE',sub:'MISSION_STATES',layer:'macro'},
+    {id:'meso-fn',title:'03 · MESO FUNCTIONS',sub:'Squad Leader mission execution',layer:'meso'},
+    {id:'phase-state',title:'04 · COMMAND PHASES',sub:'PHASE_STATES',layer:'meso'},
+    {id:'soldier-fn',title:'05 · SOLDIER DISPATCH',sub:'Squad tick + perception',layer:'micro'},
+    {id:'engagement-fn',title:'06 · ENGAGEMENT CONTROL',sub:'Micro combat functions',layer:'micro'},
+    {id:'engagement-state',title:'07 · ENGAGEMENT FSM',sub:'STATES + legal transitions',layer:'micro'},
+    {id:'move-priority',title:'08 · MOVEMENT INTENTS',sub:'Resolver priority ladder',layer:'move'},
+    {id:'resolver-fn',title:'09 · MOVEMENT RESOLVER',sub:'Intent arbitration',layer:'move'},
+    {id:'route-fn',title:'10 · TACTICAL ROUTE / PROGRESS',sub:'Survival-aware waypoint + progress',layer:'move'}
+  ];
+  const si=Object.fromEntries(slices.map((s,i)=>[s.id,i]));
+  const add=n=>(nodes.push(n),n),has=id=>nodes.some(n=>n.id===id);
+  const edge=(from,to,kind='call',label='')=>{if(has(from)&&has(to))edges.push({from,to,kind,label})};
+
+  cg.nodes.forEach(n=>{
+    const slice=n.key==='commander'?'macro-fn':n.key==='meso'?'meso-fn':n.key==='squad'?'soldier-fn':n.key==='engagement'?'engagement-fn':n.key==='resolver'?'resolver-fn':'route-fn';
+    add({id:n.id,label:n.name,fullLabel:n.label,type:'function',slice,layer:n.layer,key:n.key,name:n.name,ref:n.ref,cfg:n.id});
+  });
+  cg.edges.forEach(e=>edge(e.from,e.to,'call',e.kind));
+
+  const groups=[
+    ['mission:',parseStates('commander','MISSION_STATES').states||[],'mission-state','macro'],
+    ['phase:',parseStates('meso','PHASE_STATES').states||[],'phase-state','meso'],
+    ['estate:',parseStates('engagement','STATES').states||[],'engagement-state','micro']
+  ];
+  groups.forEach(([prefix,list,slice,layer])=>{
+    list.forEach(s=>add({id:prefix+s.name,label:s.name,fullLabel:s.meaning||s.name,type:'state',slice,layer,ref:s.ref,state:s}));
+    list.forEach(s=>s.next.forEach(to=>edge(prefix+s.name,prefix+to,'state','state')));
+  });
+
+  const priorities=priorityMap();
+  priorities.forEach(p=>add({id:'priority:'+p.kind,label:p.kind,fullLabel:'movement priority '+p.priority,type:'priority',slice:'move-priority',layer:'move',priority:p.priority,ref:sourceRef('resolver','function priority','priority(kind,s)')}));
+
+  edge('commander:issueMission','mission:issued','bridge','writes mission state');
+  edge('commander:acceptMission','mission:executing','bridge','accepts brief');
+  ['completed','invalid','failed','superseded'].forEach(s=>edge('commander:finishMission','mission:'+s,'bridge','finishes mission'));
+  edge('mission:executing','meso:commanderTick','bridge','brief consumed');
+  (groups[1][1]||[]).forEach(s=>edge('meso:executeMission','phase:'+s.name,'bridge','phase ownership'));
+  ['approach','assault','contact'].forEach(s=>edge('phase:'+s,'squad:updateSquad','bridge','sim tick consumes phase'));
+  (groups[2][1]||[]).forEach(s=>{
+    edge('engagement:runDrill','estate:'+s.name,'bridge','dispatch by state');
+    if(funcSpec('engagement:'+s.name))edge('estate:'+s.name,'engagement:'+s.name,'bridge','state handler');
+  });
+  priorities.forEach(p=>edge('priority:'+p.kind,'resolver:resolve','bridge','priority arbitration'));
+
+  const planeW=1260,planeH=720,mx=120,my=125;
+  slices.forEach(slice=>{
+    const list=nodes.filter(n=>n.slice===slice.id),count=list.length,cols=Math.max(2,Math.ceil(Math.sqrt(Math.max(1,count)*1.55))),rows=Math.max(1,Math.ceil(count/cols));
+    const dx=(planeW-mx*2)/Math.max(1,cols-1),dy=(planeH-my*2)/Math.max(1,rows-1);
+    list.forEach((n,i)=>{const col=i%cols,row=Math.floor(i/cols);n.x=-planeW/2+mx+(cols===1?0:col*dx);n.y=-planeH/2+my+(rows===1?0:row*dy);n.sliceIndex=si[slice.id]});
+  });
+  return {slices,nodes,edges,planeW,planeH};
+}
+
+
+function detailCfgSnippet(n){
+  let snippet=n.label||'';
+  if(n.stmt){
+    if(n.stmt.type==='if'||n.stmt.type==='loop')snippet=n.stmt.cond||snippet;
+    else if(n.stmt.type==='switch')snippet=n.stmt.expr||snippet;
+    else if(n.stmt.text)snippet=n.stmt.text;
+  }
+  return snippet;
+}
+
+
+function brain3DDetailModel(){
+  const base=brain3D.scene||brain3DModel(),slices=[],sliceById={},crossEdges=[];
+  const parentW=1480,parentH=920,worldScale=.62;
+  let order=0;
+
+  function addSlice(data){
+    const out=Object.assign({order:order++},data);
+    slices.push(out);sliceById[out.id]=out;return out;
+  }
+  function port(id,label,type,x,y,ref=null){
+    return {id,label,type,x,y,ref};
+  }
+
+  const baseNodesBySlice={};
+  base.nodes.forEach(n=>(baseNodesBySlice[n.slice]||(baseNodesBySlice[n.slice]=[])).push(n));
+
+  // Parent system/state slices remain as orientation landmarks. Function detail itself lives
+  // on child pages generated by the exact same layoutCFG() used by Deep Branch CFG.
+  base.slices.forEach(parent=>{
+    const ps=addSlice({
+      id:'parent:'+parent.id,kind:'parent',parentId:null,title:parent.title,
+      sub:parent.sub+' · parent layer',layer:parent.layer,width:parentW,height:parentH,
+      overview:(baseNodesBySlice[parent.id]||[]).map(n=>Object.assign({},n))
+    });
+
+    (baseNodesBySlice[parent.id]||[]).filter(n=>n.type==='function'&&n.cfg).forEach(fn=>{
+      const [key,name]=fn.cfg.split(':'),ast=parseFunctionAST(key,name);
+      if(!ast)return;
+      const cfg=layoutCFG(buildCFG(ast));
+      cfg.nodes.forEach(n=>n.calls=findMappedCalls(key,name,detailCfgSnippet(n)));
+
+      const b=cfg.bounds,pageW=b.w,pageH=b.h,pageCX=b.x+pageW/2,pageCY=b.y+pageH/2;
+      const child=addSlice({
+        id:'detail:'+fn.cfg,kind:'cfg',parentId:ps.id,parentFunction:fn.cfg,
+        title:fn.fullLabel||fn.label,sub:PATHS[key]+' · line '+ast.f.line+' · exact Deep Branch CFG layout',
+        layer:fn.layer,key,name,ref:ast.f.ref,cfg,
+        pageW,pageH,pageCX,pageCY,width:pageW*worldScale,height:pageH*worldScale,worldScale,
+        ports:[],localEdges:[],callPorts:[]
+      });
+
+      const first=cfg.nodes.find(n=>n.entry)||cfg.nodes[0];
+      const terminals=cfg.nodes.filter(n=>n.type==='terminal'&&!n.entry);
+      const shorts=cfg.nodes.filter(n=>n.type==='short');
+      const jumps=cfg.nodes.filter(n=>n.type==='jump');
+      const left=b.x+56,right=b.x+b.w-72,midY=b.y+b.h/2;
+
+      child.entryPort=port('entry:'+fn.cfg,'ENTRY','entry',left,midY,fn.ref);
+      child.exitPort=port('exit:'+fn.cfg,'EXIT','exit',right,midY-70,fn.ref);
+      child.shortPort=shorts.length?port('short:'+fn.cfg,'SHORT EXIT','shortExit',right,midY+25,fn.ref):null;
+      child.controlPort=jumps.length?port('control:'+fn.cfg,'CONTROL EXIT','controlExit',right,midY+120,fn.ref):null;
+      child.ports.push(child.entryPort,child.exitPort);
+      if(child.shortPort)child.ports.push(child.shortPort);
+      if(child.controlPort)child.ports.push(child.controlPort);
+
+      if(first)child.localEdges.push({fromPort:child.entryPort,toNode:first.id,kind:'detailFlow',label:'entry'});
+      terminals.forEach(n=>child.localEdges.push({fromNode:n.id,toPort:child.exitPort,kind:'detailFlow',label:'return'}));
+      shorts.forEach(n=>child.localEdges.push({fromNode:n.id,toPort:child.shortPort,kind:'detailFlow',label:'short'}));
+      jumps.forEach(n=>child.localEdges.push({fromNode:n.id,toPort:child.controlPort,kind:'detailFlow',label:'control'}));
+
+      // Explicit CALL/RETURN boundary ports. Internal CFG geometry stays untouched.
+      let ordinal=0;
+      cfg.nodes.forEach(n=>{
+        (n.calls||[]).forEach((call,ci)=>{
+          const cy=n.y+(n.h||82)/2,py=Math.max(b.y+110,Math.min(b.y+b.h-130,cy+(ordinal++-2)*42));
+          const suffix=n.id+':'+ci+':'+call.to;
+          const callPort=port('call:'+fn.cfg+':'+suffix,'CALL → '+(funcSpec(call.to)?.[1]||call.to),'callout',right-25,py,n.ref);
+          const returnPort=port('return:'+fn.cfg+':'+suffix,'← RETURN '+(funcSpec(call.to)?.[1]||call.to),'returnin',right-25,py+30,n.ref);
+          callPort.targetFunction=call.to;returnPort.targetFunction=call.to;
+          child.ports.push(callPort,returnPort);
+          child.callPorts.push({sourceNode:n.id,targetFunction:call.to,callPort,returnPort});
+          child.localEdges.push({fromNode:n.id,toPort:callPort,kind:'callFlow',label:'call'});
+          child.localEdges.push({fromPort:returnPort,toNode:n.id,kind:'returnFlow',label:'return'});
+        });
+      });
+
+      // Parent function object points into its literal child page entry.
+      crossEdges.push({
+        kind:'parentFlow',
+        from:{slice:ps.id,overviewId:fn.id},
+        to:{slice:child.id,portId:child.entryPort.id},
+        label:'detail'
+      });
+    });
+
+    order+=.65;
+  });
+
+  const detailByFunction=Object.fromEntries(slices.filter(s=>s.kind==='cfg').map(s=>[s.parentFunction,s]));
+  slices.filter(s=>s.kind==='cfg').forEach(caller=>{
+    caller.callPorts.forEach(cp=>{
+      const callee=detailByFunction[cp.targetFunction];
+      if(!callee)return;
+      crossEdges.push({
+        kind:'callFlow',
+        from:{slice:caller.id,portId:cp.callPort.id},
+        to:{slice:callee.id,portId:callee.entryPort.id},
+        label:'call'
+      });
+      crossEdges.push({
+        kind:'returnFlow',
+        from:{slice:callee.id,portId:callee.exitPort.id},
+        to:{slice:caller.id,portId:cp.returnPort.id},
+        label:'return'
+      });
+      if(callee.shortPort)crossEdges.push({
+        kind:'returnFlow',
+        from:{slice:callee.id,portId:callee.shortPort.id},
+        to:{slice:caller.id,portId:cp.returnPort.id},
+        label:'short return'
+      });
+    });
+  });
+
+  // Preserve high-level non-function relationships between parent landmarks.
+  base.edges.forEach(e=>{
+    const a=base.nodes.find(n=>n.id===e.from),b=base.nodes.find(n=>n.id===e.to);
+    if(!a||!b)return;
+    crossEdges.push({
+      kind:e.kind==='state'?'state':'parentFlow',
+      from:{slice:'parent:'+a.slice,overviewId:a.id},
+      to:{slice:'parent:'+b.slice,overviewId:b.id},
+      label:e.label||''
+    });
+  });
+
+  return {slices,sliceById,crossEdges,detailByFunction,planeW:parentW,planeH:parentH,worldScale};
+}
+
+function scheduleBrain3DRender(fast=false){
+  brain3D.fast=!!fast;
+  if(brain3D.raf)return;
+  brain3D.raf=requestAnimationFrame(()=>{
+    brain3D.raf=0;
+    if(current!=='brain3d')return;
+    if(brain3D.mode==='detail')renderBrain3DDetailScene(brain3D.fast);
+    else renderBrain3DScene();
+  });
+}
+
+function brain3DProject(p){
+  const yaw=brain3D.yaw,pitch=brain3D.pitch,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+  const rx=p.x-brain3D.pivotX,ry=p.y-brain3D.pivotY,rz=p.z-brain3D.pivotZ;
+  const x1=rx*cy+rz*sy,z1=-rx*sy+rz*cy,y1=ry;
+  const y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;
+  const den=Math.max(900,6400-z2),scale=(1500/den)*brain3D.zoom;
+  return {x:900+brain3D.panX+x1*scale,y:650+brain3D.panY+y2*scale,z:z2,scale};
+}
+
+function brain3DProjectDetail(p){
+  const yaw=brain3D.yaw,pitch=brain3D.pitch,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+  const rx=p.x-brain3D.pivotX,ry=p.y-brain3D.pivotY,rz=p.z-brain3D.pivotZ;
+  const x1=rx*cy+rz*sy,z1=-rx*sy+rz*cy,y1=ry;
+  const y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;
+  const scale=.36*brain3D.zoom;
+  return {x:900+brain3D.panX+x1*scale,y:650+brain3D.panY+y2*scale,z:z2,scale};
+}
+
+function panBrain3DCameraPlane(dx,dy){
+  const yaw=brain3D.yaw,pitch=brain3D.pitch,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+  // Camera-local +X (screen right) and +Y (screen down) expressed in world coordinates.
+  const right={x:cy,y:0,z:sy};
+  const down={x:sy*sp,y:cp,z:-cy*sp};
+  const screenScale=brain3D.mode==='detail'?.36*brain3D.zoom:(1500/6400)*brain3D.zoom;
+  const worldPerPixel=1/Math.max(.0001,screenScale);
+  // Grab-style pan: drag right/down moves the scene right/down, so the camera pivot moves opposite.
+  brain3D.pivotX-=dx*worldPerPixel*right.x+dy*worldPerPixel*down.x;
+  brain3D.pivotY-=dx*worldPerPixel*right.y+dy*worldPerPixel*down.y;
+  brain3D.pivotZ-=dx*worldPerPixel*right.z+dy*worldPerPixel*down.z;
+}
+
+function focusBrain3DWorld(target,duration=360,zoomTarget=null){
+  if(!target||![target.x,target.y,target.z].every(Number.isFinite))return;
+  cancelAnimationFrame(brain3D.focusAnim);
+  const from={x:brain3D.pivotX,y:brain3D.pivotY,z:brain3D.pivotZ,px:brain3D.panX,py:brain3D.panY,zoom:brain3D.zoom};
+  const desired=zoomTarget==null?Math.min(4,Math.max(brain3D.zoom,brain3D.mode==='detail'?1.65:1.45)):clamp(zoomTarget,.08,4);
+  const to={x:target.x,y:target.y,z:target.z,px:0,py:0,zoom:desired},t0=performance.now();
+  const tick=t=>{
+    const q=Math.max(0,Math.min(1,(t-t0)/Math.max(1,duration))),e=1-Math.pow(1-q,3);
+    brain3D.pivotX=from.x+(to.x-from.x)*e;
+    brain3D.pivotY=from.y+(to.y-from.y)*e;
+    brain3D.pivotZ=from.z+(to.z-from.z)*e;
+    brain3D.panX=from.px+(to.px-from.px)*e;
+    brain3D.panY=from.py+(to.py-from.py)*e;
+    brain3D.zoom=from.zoom+(to.zoom-from.zoom)*e;
+    if(current==='brain3d'){
+      if(brain3D.mode==='detail')renderBrain3DDetailScene(q<1);
+      else renderBrain3DScene();
+    }
+    if(q<1)brain3D.focusAnim=requestAnimationFrame(tick);
+    else{
+      brain3D.focusAnim=0;brain3D.fast=false;
+      if(current==='brain3d'&&brain3D.mode==='detail')renderBrain3DDetailScene(false);
+    }
+  };
+  brain3D.focusAnim=requestAnimationFrame(tick);
+}
+
+function centerBrain3DOn(p,rerender=true){
+  // Legacy screen-space centering path retained for compatibility; new clicks use
+  // focusBrain3DWorld() so the selected object becomes the actual orbit/reference pivot.
+  if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.y))return;
+  brain3D.panX+=900-p.x;brain3D.panY+=650-p.y;
+  if(rerender){if(brain3D.mode==='detail')renderBrain3DDetailScene(false);else renderBrain3DScene()}
+}
+
+function brain3DReset(){
+  cancelAnimationFrame(brain3D.raf);brain3D.raf=0;cancelAnimationFrame(brain3D.focusAnim);brain3D.focusAnim=0;clearTimeout(brain3D.restoreTimer);brain3D.restoreTimer=0;brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.focusSlice=null;brain3D.detailScene=null;brain3D.panX=0;brain3D.panY=0;brain3D.pivotX=0;brain3D.pivotY=0;brain3D.pivotZ=0;
+  const b=document.getElementById('brain3dExplodeBtn');if(b)b.textContent='Explode slices';
+  const iy=document.getElementById('brain3dInvertYBtn');if(iy){iy.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');iy.classList.toggle('active',brain3D.invertY)}const ts=document.getElementById('brain3dTextSnapBtn');if(ts){ts.textContent='Text snap: '+(brain3D.textSnap?'On':'Off');ts.classList.toggle('active',brain3D.textSnap)}
+  if(current==='brain3d')renderBrain3DScene();
+}
+
+
+
+function renderBrain3DDetailScene(fast=false){
+  if(current!=='brain3d'||brain3D.mode!=='detail')return;
+  const model=brain3D.detailScene||brain3DDetailModel();brain3D.detailScene=model;
+  viewport.innerHTML='';graphBounds={x:0,y:0,w:1800,h:1300};svg.setAttribute('viewBox','0 0 1800 1300');
+  const g=viewport,orders=model.slices.map(s=>s.order),minOrder=Math.min(...orders),maxOrder=Math.max(...orders),center=(minOrder+maxOrder)/2;
+  const gap=840,sliceZ=s=>(center-s.order)*gap,P=brain3DProjectDetail;
+
+  function pageWorld(s,x,y){
+    return {x:(x-s.pageCX)*s.worldScale,y:(y-s.pageCY)*s.worldScale,z:sliceZ(s)};
+  }
+  function pagePoint(s,x,y){
+    return P(pageWorld(s,x,y));
+  }
+  function pageTransform(s){
+    const p0=pagePoint(s,0,0),px=pagePoint(s,1,0),py=pagePoint(s,0,1);
+    const a=px.x-p0.x,b=px.y-p0.y,cc=py.x-p0.x,d=py.y-p0.y;
+    return 'matrix('+a+' '+b+' '+cc+' '+d+' '+p0.x+' '+p0.y+')';
+  }
+  function sliceBackFacing(s){
+    const c0=pagePoint(s,s.pageCX,s.pageCY);
+    const px=pagePoint(s,s.pageCX+1,s.pageCY);
+    const py=pagePoint(s,s.pageCX,s.pageCY+1);
+    const ax=px.x-c0.x,ay=px.y-c0.y,bx=py.x-c0.x,by=py.y-c0.y;
+    return ax*by-ay*bx<0;
+  }
+  function snapPageText(page,s){
+    if(!brain3D.textSnap||!sliceBackFacing(s))return;
+    // The projected page changes handedness on its back side. Undo that with ONE
+    // local-axis reflection. A 180° rotation preserves handedness and was the wrong correction.
+    page.querySelectorAll('text').forEach(t=>{
+      const x=parseFloat(t.getAttribute('x')||'0'),y=parseFloat(t.getAttribute('y')||'0');
+      const prior=t.getAttribute('transform')||'';
+      t.setAttribute('transform',(prior?prior+' ':'')+'translate('+(2*x)+' 0) scale(-1 1)');
+      const anchor=t.getAttribute('text-anchor');
+      if(!anchor||anchor==='start')t.setAttribute('text-anchor','end');
+      else if(anchor==='end')t.setAttribute('text-anchor','start');
+    });
+  }
+  function cfgCorners(s){
+    const b=s.cfg.bounds;
+    return [
+      pagePoint(s,b.x,b.y),pagePoint(s,b.x+b.w,b.y),
+      pagePoint(s,b.x+b.w,b.y+b.h),pagePoint(s,b.x,b.y+b.h)
+    ];
+  }
+  function parentCorners(s){
+    const z=sliceZ(s),w=s.width||model.planeW,h=s.height||model.planeH;
+    return [[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]].map(([x,y])=>P({x,y,z}));
+  }
+  function poly(points,cls){return el('polygon',{points:points.map(p=>p.x+','+p.y).join(' '),class:cls})}
+  const groupLabels=[];
+  function layerColor(layer){
+    return layer==='macro'?'#8d73b8':layer==='meso'?'#68a0cd':layer==='micro'?'#6aa382':layer==='move'?'#b27d3f':'#7f94ad';
+  }
+  function queueGroupLabel(title,sub,layer,centerPoint,connectPoint,sliceId,opacity=1){
+    if(!centerPoint||!connectPoint)return;
+    groupLabels.push({title,sub:sub||'',layer,color:layerColor(layer),centerPoint,connectPoint,sliceId,opacity});
+  }
+  function renderGroupLabels(){
+    if(!groupLabels.length)return;
+    const highest=Math.min(...groupLabels.map(l=>l.connectPoint.y));
+    // One shared screen-space Y baseline above every group.
+    const baselineY=Math.max(86,highest-74);
+    groupLabels.forEach(l=>{
+      const x=l.centerPoint.x,y=baselineY,color=l.color;
+      const gg=el('g',{class:'brain3dSpineLabel',opacity:l.opacity==null?1:l.opacity});
+      // Thin leader from the shared baseline down to the group's own centered top point.
+      gg.appendChild(el('path',{
+        d:'M'+x+','+(y+8)+' L'+x+','+Math.max(y+18,l.connectPoint.y-10)+' L'+l.connectPoint.x+','+l.connectPoint.y,
+        fill:'none',stroke:color,'stroke-width':1.15,opacity:.9
+      }));
+      gg.appendChild(el('circle',{cx:l.connectPoint.x,cy:l.connectPoint.y,r:2.2,fill:color,opacity:.95}));
+      gg.appendChild(el('text',{
+        x,y,'text-anchor':'middle',class:'brain3dSliceTitle',
+        transform:'rotate(-90 '+x+' '+y+')'
+      },l.title));
+      if(l.sub){
+        const sx=x+17;
+        gg.appendChild(el('text',{
+          x:sx,y,'text-anchor':'middle',class:'brain3dSliceSub',
+          transform:'rotate(-90 '+sx+' '+y+')'
+        },l.sub));
+      }
+      g.appendChild(gg);
+    });
+  }
+  const childrenByParent={};
+  model.slices.filter(s=>s.kind==='cfg').forEach(s=>(childrenByParent[s.parentId]||(childrenByParent[s.parentId]=[])).push(s));
+  const isFunctionGroup=s=>s.kind==='parent'&&(childrenByParent[s.id]||[]).length>0;
+  function detailSliceChain(){
+    if(!brain3D.focusSlice)return null;
+    const active=new Set([brain3D.focusSlice]),adj={};
+    const link=(a,b)=>{if(!a||!b||a===b)return;(adj[a]||(adj[a]=new Set())).add(b);(adj[b]||(adj[b]=new Set())).add(a)};
+    // Call/return edges define the executable chain. Parent overview edges are intentionally
+    // excluded so a focus does not accidentally light the entire architecture.
+    model.crossEdges.forEach(e=>{
+      if(e.kind!=='callFlow'&&e.kind!=='returnFlow')return;
+      link(e.from.slice,e.to.slice);
+    });
+    const q=[brain3D.focusSlice];
+    while(q.length){
+      const a=q.shift();
+      for(const b of adj[a]||[]){if(!active.has(b)){active.add(b);q.push(b)}}
+    }
+    // Keep owning group boxes visible for any active child CFG slice.
+    [...active].forEach(id=>{const s=model.sliceById[id];if(s&&s.parentId)active.add(s.parentId)});
+    return active;
+  }
+  const activeSlices=detailSliceChain();
+  const sliceActive=id=>!activeSlices||activeSlices.has(id);
+  const sliceOpacity=id=>sliceActive(id)?1:.10;
+  const functionGroupActive=s=>!activeSlices||(childrenByParent[s.id]||[]).some(k=>activeSlices.has(k.id))||activeSlices.has(s.id);
+  const stateGridCache={};
+  function parentPoint(s,x,y){return P({x,y,z:sliceZ(s)})}
+  function parentTransform(s){
+    const p0=parentPoint(s,0,0),px=parentPoint(s,1,0),py=parentPoint(s,0,1);
+    const a=px.x-p0.x,b=px.y-p0.y,cc=py.x-p0.x,d=py.y-p0.y;
+    return 'matrix('+a+' '+b+' '+cc+' '+d+' '+p0.x+' '+p0.y+')';
+  }
+  function parentBackFacing(s){
+    const c0=parentPoint(s,0,0),px=parentPoint(s,1,0),py=parentPoint(s,0,1);
+    const ax=px.x-c0.x,ay=px.y-c0.y,bx=py.x-c0.x,by=py.y-c0.y;
+    return ax*by-ay*bx<0;
+  }
+  function snapPlanarText(group,s){
+    if(!brain3D.textSnap||!parentBackFacing(s))return;
+    group.querySelectorAll('text').forEach(t=>{
+      const x=parseFloat(t.getAttribute('x')||'0'),y=parseFloat(t.getAttribute('y')||'0');
+      const prior=t.getAttribute('transform')||'';
+      t.setAttribute('transform',(prior?prior+' ':'')+'translate('+(2*x)+' 0) scale(-1 1)');
+      const anchor=t.getAttribute('text-anchor');
+      if(!anchor||anchor==='start')t.setAttribute('text-anchor','end');
+      else if(anchor==='end')t.setAttribute('text-anchor','start');
+    });
+  }
+  function stateGridLayout(s){
+    if(stateGridCache[s.id])return stateGridCache[s.id];
+    const list=s.overview||[],w=s.width||model.planeW,h=s.height||model.planeH;
+    const count=Math.max(1,list.length),cols=Math.max(1,Math.ceil(Math.sqrt(count*1.45))),rows=Math.max(1,Math.ceil(count/cols));
+    const cardW=Math.min(250,(w-280)/Math.max(1,cols)),cardH=78;
+    const usableW=w-300,usableH=h-310;
+    const dx=cols>1?usableW/(cols-1):0,dy=rows>1?Math.min(150,usableH/(rows-1)):0;
+    const startX=cols>1?-usableW/2:0,startY=rows>1?-((rows-1)*dy)/2:0;
+    const byId={};
+    list.forEach((n,i)=>{
+      const col=i%cols,row=Math.floor(i/cols);
+      byId[n.id]={x:startX+col*dx,y:startY+row*dy,w:cardW,h:cardH,node:n};
+    });
+    return stateGridCache[s.id]={byId,cols,rows,cardW,cardH};
+  }
+  function boxCorners(parent){
+    const kids=childrenByParent[parent.id]||[];
+    if(!kids.length)return null;
+    const maxW=Math.max(...kids.map(s=>s.width||model.planeW))+180;
+    const maxH=Math.max(...kids.map(s=>s.height||model.planeH))+180;
+    const zs=kids.map(sliceZ),zFront=Math.max(...zs)+130,zBack=Math.min(...zs)-130;
+    const corners=[];
+    [[-maxW/2,-maxH/2],[maxW/2,-maxH/2],[maxW/2,maxH/2],[-maxW/2,maxH/2]].forEach(([x,y])=>corners.push(P({x,y,z:zFront})));
+    [[-maxW/2,-maxH/2],[maxW/2,-maxH/2],[maxW/2,maxH/2],[-maxW/2,maxH/2]].forEach(([x,y])=>corners.push(P({x,y,z:zBack})));
+    return {corners,maxW,maxH,zFront,zBack};
+  }
+  function drawGroupBox(parent){
+    const box=boxCorners(parent);if(!box)return;
+    const q=box.corners,edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]],color=layerColor(parent.layer),active=functionGroupActive(parent),op=active?1:.10;
+    const gg=el('g',{class:'brain3dGroupBox',opacity:op});
+    edges.forEach(([a,b])=>gg.appendChild(el('line',{
+      x1:q[a].x,y1:q[a].y,x2:q[b].x,y2:q[b].y,
+      stroke:color,'stroke-width':1.15,opacity:.58
+    })));
+    g.appendChild(gg);
+    const zCenter=(box.zFront+box.zBack)/2;
+    // Center in the group's X/Z footprint; leader terminates at the centered top edge.
+    const center=P({x:0,y:0,z:zCenter});
+    const top=P({x:0,y:-box.maxH/2,z:zCenter});
+    queueGroupLabel(parent.title,parent.sub||'',parent.layer,center,top,parent.id,op);
+  }
+  function portById(s,id){return (s.ports||[]).find(p=>p.id===id)||null}
+  function overviewById(s,id){return (s.overview||[]).find(n=>n.id===id)||null}
+  function endpoint(ep){
+    const s=model.sliceById[ep.slice];if(!s)return null;
+    if(s.kind==='cfg'){
+      const p=portById(s,ep.portId);return p?pagePoint(s,p.x,p.y):null;
+    }
+    if(isFunctionGroup(s))return null;
+    const cell=stateGridLayout(s).byId[ep.overviewId];
+    return cell?parentPoint(s,cell.x,cell.y):null;
+  }
+
+  // Slice planes first. Exact CFG bounds define each detail card's physical dimensions.
+  model.slices.filter(s=>!isFunctionGroup(s)).map(s=>{
+    const corners=s.kind==='cfg'?cfgCorners(s):parentCorners(s);
+    return {s,corners,depth:corners.reduce((a,p)=>a+p.z,0)/4};
+  }).sort((a,b)=>a.depth-b.depth).forEach(item=>{
+    const s=item.s,corners=item.corners;
+    const plane=poly(corners,'brain3dPlane'+(s.kind==='cfg'?' detailFace':''));
+    const active=sliceActive(s.id),selected=brain3D.focusSlice===s.id,op=active?1:.10;
+    plane.setAttribute('opacity',s.kind==='cfg'?String(.58*op):String(op));
+    plane.setAttribute('stroke',selected?'#ffffff':layerColor(s.layer));
+    plane.setAttribute('stroke-width',selected?'3.2':'1.5');
+    plane.setAttribute('stroke-opacity',active?(selected?'1':'.72'):'.10');
+    g.appendChild(plane);
+
+  });
+
+  model.slices.filter(isFunctionGroup).forEach(drawGroupBox);
+
+  if(fast){
+    renderGroupLabels();
+
+  const hud=el('g',{transform:'translate(22,22)'});
+    hud.appendChild(el('rect',{width:410,height:54,rx:12,class:'brain3dHud'}));
+    hud.appendChild(el('text',{x:14,y:22,class:'brain3dHudText'},'ROTATE PREVIEW · exact CFG card geometry'));
+    hud.appendChild(el('text',{x:14,y:42,class:'brain3dHudText'},'release mouse to restore nodes, ports and connections'));
+    g.appendChild(hud);
+    return;
+  }
+
+  // Cross-slice connections are drawn behind the embedded CFG pages.
+  model.crossEdges.forEach(e=>{
+    if(e.from.slice===e.to.slice&&e.from.overviewId&&e.to.overviewId)return;
+    const a=endpoint(e.from),b=endpoint(e.to);if(!a||!b)return;
+    const chainOn=!activeSlices||(activeSlices.has(e.from.slice)&&activeSlices.has(e.to.slice));
+    const mx=(a.x+b.x)/2;
+    g.appendChild(el('path',{
+      d:'M'+a.x+','+a.y+' C'+mx+','+a.y+' '+mx+','+b.y+' '+b.x+','+b.y,
+      class:'brain3dEdge '+(e.kind||'parentFlow'),opacity:chainOn?1:.10
+    }));
+  });
+
+  // State/priority parent slices are real planar boards: grid cards + on-slice wiring.
+  model.slices.filter(s=>s.kind==='parent'&&!isFunctionGroup(s)).forEach(s=>{
+    const layout=stateGridLayout(s),board=el('g',{class:'detailStateBoard','data-slice':s.id,transform:parentTransform(s),opacity:sliceOpacity(s.id)});
+    const w=s.width||model.planeW,h=s.height||model.planeH;
+
+
+
+    // Draw only relationships whose endpoints both belong to this board.
+    model.crossEdges.forEach(e=>{
+      if(e.from.slice!==s.id||e.to.slice!==s.id||!e.from.overviewId||!e.to.overviewId)return;
+      const a=layout.byId[e.from.overviewId],b=layout.byId[e.to.overviewId];if(!a||!b)return;
+      const mx=(a.x+b.x)/2;
+      board.appendChild(el('path',{
+        d:'M'+a.x+','+a.y+' L'+mx+','+a.y+' L'+mx+','+b.y+' L'+b.x+','+b.y,
+        class:'brain3dEdge '+(e.kind==='state'?'state':'parentFlow')
+      }));
+    });
+
+    (s.overview||[]).forEach(n=>{
+      const cell=layout.byId[n.id];if(!cell)return;
+      const gr=el('g',{
+        class:'brain3dNode '+(n.type||'state')+' '+n.layer,
+        'data-id':n.id,transform:'translate('+cell.x+','+cell.y+')'
+      });
+      gr.appendChild(el('rect',{x:-cell.w/2,y:-cell.h/2,width:cell.w,height:cell.h,rx:13}));
+      const parts=wrap(String(n.label||n.id),30).slice(0,2),first=parts.length>1?-3:5;
+      parts.forEach((txt,i)=>gr.appendChild(el('text',{
+        x:0,y:first+i*16,'text-anchor':'middle','font-size':13,'font-weight':'850'
+      },txt)));
+      if(n.type==='priority'&&n.priority!=null){
+        gr.appendChild(el('text',{x:0,y:cell.h/2-10,'text-anchor':'middle',class:'sub'},String(n.priority)));
+      }
+      gr.appendChild(el('title',{},n.fullLabel||n.label||n.id));
+      gr.addEventListener('click',ev=>{
+        ev.stopPropagation();
+        brain3D.focus=n.id;brain3D.focusSlice=s.id;
+        const cfgId=(s.sourceSlice==='engagement-state'&&funcSpec('engagement:'+n.label))?'engagement:'+n.label:null;
+        if(n.ref)openSource(n.ref,n.fullLabel||n.label,{cfgId});
+        const target={x:cell.x,y:cell.y,z:sliceZ(s)};
+        focusBrain3DWorld(target);
+      });
+      if(n.ref)gr.addEventListener('dblclick',ev=>{ev.stopPropagation();openSource(n.ref,n.fullLabel||n.label)});
+      board.appendChild(gr);
+    });
+
+    snapPlanarText(board,s);
+    g.appendChild(board);
+    const sh=s.height||model.planeH;
+    const center=parentPoint(s,0,0),top=parentPoint(s,0,-sh/2);
+    queueGroupLabel(s.title,s.sub||'',s.layer,center,top,s.id,sliceOpacity(s.id));
+  });
+
+  // Literal function pages: renderCfgLayout() is the SAME renderer used by Deep Branch CFG.
+  model.slices.filter(s=>s.kind==='cfg').sort((a,b)=>sliceZ(a)-sliceZ(b)).forEach(s=>{
+    const page=el('g',{class:'detailCfgPage','data-slice':s.id,transform:pageTransform(s),opacity:sliceOpacity(s.id)});
+
+    // Page title lives in the same 2D coordinate system as the Deep CFG.
+    page.appendChild(el('text',{x:s.cfg.bounds.x+50,y:48,'font-size':25,'font-weight':800,fill:'#fff'},s.title));
+    page.appendChild(el('text',{x:s.cfg.bounds.x+50,y:75,class:'mini'},s.sub+' · text snap '+(brain3D.textSnap?'ON':'OFF')));
+
+    const rendered=renderCfgLayout(page,s.cfg,{
+      cloneNode:n=>Object.assign({},n,{
+        id:'3d:'+s.parentFunction+':'+n.id,
+        layer:s.layer,ref:null,calls:null
+      }),
+      onNode:(gr,n)=>{
+        const focusId='cfgnode:'+s.parentFunction+':'+n.id;
+        gr.setAttribute('data-brain-focus',focusId);
+        gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=focusId;brain3D.focusSlice=s.id;if(n.ref)openSource(n.ref,s.title+' · '+n.label,{cfgId:s.parentFunction});const target=pageWorld(s,n.x+(n.w||250)/2,n.y+(n.h||82)/2);focusBrain3DWorld(target);status.textContent='3D detail · '+s.title+' · '+n.label});
+        gr.addEventListener('dblclick',ev=>{ev.stopPropagation();enterDeepCfg(s.parentFunction)});
+      }
+    });
+
+    // Explicit slice boundary ports and local links.
+    const nodeById=Object.fromEntries(s.cfg.nodes.map(n=>[n.id,n]));
+    const centerOf=n=>[n.x+(n.w||250)/2,n.y+(n.h||82)/2];
+    const portCenter=p=>[p.x,p.y];
+    const edgeLayer=el('g',{class:'detailPortEdges'});
+    s.localEdges.forEach(le=>{
+      let a,b;
+      if(le.fromNode&&nodeById[le.fromNode])a=centerOf(nodeById[le.fromNode]);
+      else if(le.fromPort)a=portCenter(le.fromPort);
+      if(le.toNode&&nodeById[le.toNode])b=centerOf(nodeById[le.toNode]);
+      else if(le.toPort)b=portCenter(le.toPort);
+      if(!a||!b)return;
+      const mx=(a[0]+b[0])/2;
+      edgeLayer.appendChild(el('path',{d:'M'+a[0]+','+a[1]+' L'+mx+','+a[1]+' L'+mx+','+b[1]+' L'+b[0]+','+b[1],class:'brain3dEdge '+(le.kind||'detailFlow')}));
+    });
+    page.insertBefore(edgeLayer,page.firstChild);
+
+    (s.ports||[]).forEach(p=>{
+      const w=p.type==='callout'||p.type==='returnin'?190:132,h=34;
+      const pg=el('g',{class:'brain3dPort '+p.type,transform:'translate('+p.x+','+p.y+')','data-port':p.id});
+      pg.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:9}));
+      pg.appendChild(el('text',{x:0,y:4,'text-anchor':'middle'},String(p.label).length>31?String(p.label).slice(0,30)+'…':p.label));
+      pg.appendChild(el('title',{},p.label));
+      pg.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=p.id;brain3D.focusSlice=s.id;if(p.ref||s.ref)openSource(p.ref||s.ref,s.title+' · '+p.label,{cfgId:s.parentFunction});const target=pageWorld(s,p.x,p.y);focusBrain3DWorld(target)});
+      if(p.ref)pg.addEventListener('dblclick',ev=>{ev.stopPropagation();openSource(p.ref,p.label)});
+      page.appendChild(pg);
+    });
+
+    snapPageText(page,s);
+    g.appendChild(page);
+  });
+
+  const hud=el('g',{transform:'translate(22,22)'});
+  hud.appendChild(el('rect',{width:535,height:112,rx:12,class:'brain3dHud'}));
+  hud.appendChild(el('text',{x:14,y:22,class:'brain3dHudText'},'SHOW DETAIL · literal Deep Branch CFG pages stacked in 3D'));
+  hud.appendChild(el('text',{x:14,y:42,class:'brain3dHudText'},'same layoutCFG() coordinates, node sizes and edge routing as the 2D detail page'));
+  hud.appendChild(el('text',{x:14,y:62,class:'brain3dHudText'},'ENTRY / EXIT / SHORT EXIT + CALL / RETURN ports connect pages across depth'));
+  hud.appendChild(el('text',{x:14,y:82,class:'brain3dHudText'},'Text snap '+(brain3D.textSnap?'ON':'OFF')+' · Invert Y '+(brain3D.invertY?'ON':'OFF')+' · no geometry billboard'));
+  hud.appendChild(el('text',{x:14,y:102,class:'brain3dHudText'},model.slices.length+' slices · Macro nearest · drag rotates · wheel zooms'));
+  g.appendChild(hud);
+
+  status.textContent=brain3D.focusSlice?'3D Show Detail · selected slice chain highlighted; unrelated slices and wires are at 10% opacity.':'3D Show Detail · exact Deep CFG layouts reused as 3D slices. Text snap '+(brain3D.textSnap?'ON':'OFF')+'; geometry remains on the slice plane.';
+}
+
+function renderBrain3DScene(){
+  if(current!=='brain3d')return;
+  const model=brain3D.scene||brain3DModel();brain3D.scene=model;
+  if(brain3D.mode==='detail'){renderBrain3DDetailScene();return}
+  viewport.innerHTML='';graphBounds={x:0,y:0,w:1800,h:1300};svg.setAttribute('viewBox','0 0 1800 1300');
+  const g=viewport,center=(model.slices.length-1)/2;
+  const detail=brain3D.mode==='detail',exploded=brain3D.mode==='exploded';
+  const gap=detail?760:exploded?610:430;
+  const slabDepth=detail?150:0;
+  const xyScale=detail?1.22:1;
+
+  // Reverse Z ordering: slice 0 (Macro) is now nearest by default; Movement recedes.
+  const sliceZ=i=>(center-i)*gap;
+  const wn=Object.fromEntries(model.nodes.map(n=>[n.id,Object.assign({},n,{
+    x:n.x*xyScale,y:n.y*xyScale,z:sliceZ(n.sliceIndex)
+  })]));
+  const pp=Object.fromEntries(Object.entries(wn).map(([id,n])=>[id,brain3DProject(n)]));
+  const stdNodeById=Object.fromEntries(model.nodes.map(n=>[n.id,n]));
+  function standardChain(){
+    if(!brain3D.focusSlice)return null;
+    const active=new Set([brain3D.focusSlice]);
+    model.edges.forEach(e=>{
+      const a=stdNodeById[e.from],b=stdNodeById[e.to];if(!a||!b||a.slice===b.slice)return;
+      if(a.slice===brain3D.focusSlice)active.add(b.slice);
+      if(b.slice===brain3D.focusSlice)active.add(a.slice);
+    });
+    return active;
+  }
+  const stdActive=standardChain(),stdSliceActive=id=>!stdActive||stdActive.has(id),stdSliceOpacity=id=>stdSliceActive(id)?1:.10;
+
+  function cornersAt(z,scale=1){
+    const w=model.planeW*scale,h=model.planeH*scale;
+    return [[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]].map(([x,y])=>brain3DProject({x,y,z}));
+  }
+  function poly(points,cls){
+    return el('polygon',{points:points.map(q=>q.x+','+q.y).join(' '),class:cls});
+  }
+  function standardLayerColor(layer){
+    return layer==='macro'?'#8d73b8':layer==='meso'?'#68a0cd':layer==='micro'?'#6aa382':layer==='move'?'#b27d3f':'#7f94ad';
+  }
+
+  // Build slice slabs/planes and painter-sort them.
+  model.slices.map((s,i)=>{
+    const z=sliceZ(i),frontZ=z+slabDepth/2,backZ=z-slabDepth/2;
+    const front=cornersAt(frontZ,detail?1.18:1),back=cornersAt(backZ,detail?1.18:1);
+    return {slice:s,z,frontZ,backZ,front,back,depth:front.concat(back).reduce((a,p)=>a+p.z,0)/8};
+  }).sort((a,b)=>a.depth-b.depth).forEach(p=>{
+    if(detail){
+      g.appendChild(poly(p.back,'brain3dBack'));
+      const sides=[
+        [p.back[0],p.back[1],p.front[1],p.front[0]],
+        [p.back[1],p.back[2],p.front[2],p.front[1]],
+        [p.back[2],p.back[3],p.front[3],p.front[2]],
+        [p.back[3],p.back[0],p.front[0],p.front[3]]
+      ];
+      sides.forEach(side=>g.appendChild(poly(side,'brain3dSide')));
+      g.appendChild(poly(p.front,'brain3dPlane detailFace'));
+    }else{
+      const face=poly(p.front,'brain3dPlane'),color=standardLayerColor(p.slice.layer),active=stdSliceActive(p.slice.id),selected=brain3D.focusSlice===p.slice.id;
+      face.setAttribute('stroke',selected?'#ffffff':color);face.setAttribute('stroke-width',selected?'3.2':'1.5');face.setAttribute('stroke-opacity',active?(selected?'1':'.72'):'.10');face.setAttribute('opacity',stdSliceOpacity(p.slice.id));
+      g.appendChild(face);
+    }
+
+    const face=p.front,a=face[0],b=face[1],d=face[3],e=face[2];
+    [.25,.5,.75].forEach(t=>{
+      g.appendChild(el('line',{x1:a.x+(b.x-a.x)*t,y1:a.y+(b.y-a.y)*t,x2:d.x+(e.x-d.x)*t,y2:d.y+(e.y-d.y)*t,class:'brain3dGrid'}));
+    });
+
+    const minX=Math.min(...p.front.map(q=>q.x)),midY=p.front.reduce((a,q)=>a+q.y,0)/p.front.length;
+    const tx=minX-24;
+    g.appendChild(el('text',{
+      x:tx,y:midY,'text-anchor':'middle',class:'brain3dSliceTitle',
+      transform:'rotate(-90 '+tx+' '+midY+')'
+    },p.slice.title));
+    const sx=tx+17;
+    g.appendChild(el('text',{
+      x:sx,y:midY,'text-anchor':'middle',class:'brain3dSliceSub',
+      transform:'rotate(-90 '+sx+' '+midY+')'
+    },p.slice.sub+(detail?' · detailed slab':'')));
+  });
+
+  const linked=new Set();
+  if(brain3D.focus){linked.add(brain3D.focus);model.edges.forEach(e=>{if(e.from===brain3D.focus)linked.add(e.to);if(e.to===brain3D.focus)linked.add(e.from)})}
+  model.edges.forEach(e=>{
+    const a=pp[e.from],b=pp[e.to];if(!a||!b)return;
+    const na=stdNodeById[e.from],nb=stdNodeById[e.to],on=!stdActive||(na&&nb&&stdActive.has(na.slice)&&stdActive.has(nb.slice));
+    g.appendChild(el('path',{d:'M'+a.x+','+a.y+' L'+b.x+','+b.y,class:'brain3dEdge '+(e.kind||'call'),opacity:on?1:.10}));
+  });
+
+  model.nodes.slice().sort((a,b)=>pp[a.id].z-pp[b.id].z).forEach(n=>{
+    const p=pp[n.id],on=stdSliceActive(n.slice);
+    const baseScale=detail?3.65:3.1,s=Math.max(detail?.72:.62,Math.min(detail?1.34:1.12,p.scale*baseScale));
+    const w=n.type==='priority'?(detail?170:142):(detail?215:176),h=n.type==='priority'?(detail?50:42):(detail?64:50);
+    const cls='brain3dNode '+n.type+' '+n.layer+(brain3D.focus===n.id?' focus':'');
+    const gr=el('g',{class:cls,'data-id':n.id,transform:'translate('+p.x+','+p.y+') scale('+s+')',opacity:on?1:.10});
+    gr.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:detail?12:10}));
+    const parts=wrap(String(n.label||n.id),detail?30:24).slice(0,detail?3:2);
+    const first=parts.length===3?-10:parts.length>1?-4:4;
+    parts.forEach((t,i)=>gr.appendChild(el('text',{x:0,y:first+i*14,'text-anchor':'middle','font-size':detail?12:11,'font-weight':800},t)));
+    if(detail&&n.type==='function'){
+      gr.appendChild(el('text',{x:0,y:h/2-7,'text-anchor':'middle',class:'sub'},n.key+' · function'));
+    }else if(n.type==='priority'){
+      gr.appendChild(el('text',{x:0,y:h/2-5,'text-anchor':'middle',class:'sub'},String(n.priority)));
+    }
+    gr.appendChild(el('title',{},n.fullLabel||n.label));
+    gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=n.id;brain3D.focusSlice=n.slice;if(n.ref)openSource(n.ref,n.fullLabel||n.label,{cfgId:n.cfg||null});focusBrain3DWorld({x:wn[n.id].x,y:wn[n.id].y,z:wn[n.id].z})});
+    gr.addEventListener('dblclick',ev=>{ev.stopPropagation();if(n.cfg)enterDeepCfg(n.cfg);else if(n.ref)openSource(n.ref,n.fullLabel||n.label)});
+    g.appendChild(gr);
+  });
+
+  const hud=el('g',{transform:'translate(22,22)'});
+  hud.appendChild(el('rect',{width:400,height:88,rx:12,class:'brain3dHud'}));
+  hud.appendChild(el('text',{x:14,y:22,class:'brain3dHudText'},'3D BRAIN · drag to rotate · wheel to zoom'));
+  hud.appendChild(el('text',{x:14,y:42,class:'brain3dHudText'},'click = isolate · double-click = Deep CFG/source'));
+  hud.appendChild(el('text',{x:14,y:60,class:'brain3dHudText'},'solid = calls · dashed = state · gold = ownership bridge'));
+  hud.appendChild(el('text',{x:14,y:78,class:'brain3dHudText'},'slice mode: '+brain3D.mode+' · Macro is nearest · Invert Y '+(brain3D.invertY?'ON':'OFF')));
+  g.appendChild(hud);
+
+  if(brain3D.focus){
+    const n=model.nodes.find(x=>x.id===brain3D.focus),inc=model.edges.filter(e=>e.to===brain3D.focus).length,out=model.edges.filter(e=>e.from===brain3D.focus).length;
+    status.textContent='3D brain · '+(n?(n.fullLabel||n.label):brain3D.focus)+' · '+inc+' incoming · '+out+' outgoing · click again to clear focus.';
+  }else status.textContent='3D brain · '+model.slices.length+' slices · '+model.nodes.length+' detailed nodes · '+model.edges.length+' control/state/ownership connections · '+brain3D.mode+' mode.';
+}
+
+function brain3DView(){
+  clear();brain3D.scene=brain3DModel();brain3D.detailScene=null;graphBounds={x:0,y:0,w:1800,h:1300};camera={x:0,y:0,w:1800,h:1300};renderBrain3DScene();
+}
+
+function brainView(){
+  clear();
+  const graph=brainCallGraph(),g=viewport;
+  const lanes=[
+    {id:'macro',title:'MACRO / GENERAL',sub:'mission selection + lifecycle · 0.45 s commander clock',x:60,w:790},
+    {id:'meso',title:'MESO / SQUAD LEADER',sub:'mission execution + cohesion + squad command',x:960,w:790},
+    {id:'micro',title:'SOLDIER / MICRO',sub:'perception + engagement finite-state control',x:1860,w:790},
+    {id:'move',title:'MOVEMENT EXECUTION',sub:'intent arbitration + tactical routing + progress recovery',x:2760,w:790}
+  ];
+  const laneBy=Object.fromEntries(lanes.map(x=>[x.id,x]));
+  const groupOrder={macro:['commander'],meso:['meso'],micro:['squad','engagement','mind','events'],move:['resolver','route']};
+  const nodeW=570,nodeH=76,gapY=38,top=180,groupGap=58,placed={},laneIndex={macro:0,meso:1,micro:2,move:3};
+  let maxBottom=0;
+  lanes.forEach(lane=>{let y=top;(groupOrder[lane.id]||[]).forEach(key=>{const list=graph.nodes.filter(n=>n.key===key);if(!list.length)return;y+=28;list.forEach(n=>{placed[n.id]=Object.assign({},n,{x:lane.x+80,y,w:nodeW,h:nodeH,type:'process'});y+=nodeH+gapY});y+=groupGap});maxBottom=Math.max(maxBottom,y)});
+  const H=maxBottom+170;graphBounds={x:0,y:0,w:3620,h:H};svg.setAttribute('viewBox',`0 0 ${graphBounds.w} ${graphBounds.h}`);
+  g.appendChild(el('text',{x:60,y:54,'font-size':30,'font-weight':900,fill:'#fff'},'Grasstex AI — Full Brain Map'));
+  g.appendChild(el('text',{x:60,y:88,class:'mini'},`Source-derived control graph · ${graph.nodes.length} mapped functions · ${graph.edges.length} connections · solid=direct call · dashed=API · dotted=hook · dash-dot=extension dispatch`));
+  g.appendChild(el('text',{x:60,y:112,class:'mini'},'Click a function to isolate its neighborhood. Double-click any function to open its literal Deep Branch CFG.'));
+  lanes.forEach(lane=>{g.appendChild(el('rect',{x:lane.x,y:128,width:lane.w,height:H-160,rx:24,class:'brainLane'}));g.appendChild(el('text',{x:lane.x+24,y:160,class:'brainLaneTitle'},lane.title));g.appendChild(el('text',{x:lane.x+24,y:179,class:'brainLaneSub'},lane.sub))});
+  const edgeLayer=el('g'),nodeLayer=el('g');g.appendChild(edgeLayer);g.appendChild(nodeLayer);const sameLaneRail={macro:0,meso:0,micro:0,move:0};
+  graph.edges.forEach(e=>{const a=placed[e.from],b=placed[e.to];if(!a||!b)return;const al=laneIndex[a.layer],bl=laneIndex[b.layer];let d,labelX,labelY;
+    if(al===bl){const lane=laneBy[a.layer],rail=lane.x+lane.w-42-(sameLaneRail[a.layer]++%10)*12,sy=a.y+a.h/2,ty=b.y+b.h/2;d=`M${a.x+a.w},${sy} L${rail},${sy} L${rail},${ty} L${b.x+b.w},${ty}`;labelX=rail-8;labelY=(sy+ty)/2}
+    else if(al<bl){const sx=a.x+a.w,sy=a.y+a.h/2,tx=b.x,ty=b.y+b.h/2,mid=(laneBy[a.layer].x+laneBy[a.layer].w+laneBy[b.layer].x)/2;d=`M${sx},${sy} L${mid},${sy} L${mid},${ty} L${tx},${ty}`;labelX=mid+5;labelY=(sy+ty)/2}
+    else{const sx=a.x,sy=a.y+a.h/2,tx=b.x+b.w,ty=b.y+b.h/2,mid=(laneBy[b.layer].x+laneBy[b.layer].w+laneBy[a.layer].x)/2;d=`M${sx},${sy} L${mid},${sy} L${mid},${ty} L${tx},${ty}`;labelX=mid+5;labelY=(sy+ty)/2}
+    edgeLayer.appendChild(el('path',{d,class:'brainEdge '+e.kind,'data-from':e.from,'data-to':e.to}));
+    if(e.kind!=='direct'){const lbl=e.kind==='api'?'API':e.kind==='hook'?'HOOK':'EXTENSION';edgeLayer.appendChild(el('text',{x:labelX,y:labelY,class:'brainEdgeLabel','data-from':e.from,'data-to':e.to},lbl))}
+  });
+  function applyBrainFocus(){const nodes=nodeLayer.querySelectorAll('.brainNode'),edges=edgeLayer.querySelectorAll('.brainEdge'),labels=edgeLayer.querySelectorAll('.brainEdgeLabel'),linked=new Set();
+    if(brainFocus){linked.add(brainFocus);graph.edges.forEach(e=>{if(e.from===brainFocus)linked.add(e.to);if(e.to===brainFocus)linked.add(e.from)})}
+    nodes.forEach(n=>{const id=n.getAttribute('data-id');n.classList.toggle('focus',!!brainFocus&&id===brainFocus);n.classList.toggle('dim',!!brainFocus&&!linked.has(id))});
+    edges.forEach(p=>{const on=brainFocus&&(p.getAttribute('data-from')===brainFocus||p.getAttribute('data-to')===brainFocus);p.classList.toggle('focus',!!on);p.classList.toggle('dim',!!brainFocus&&!on)});
+    labels.forEach(t=>{const on=brainFocus&&(t.getAttribute('data-from')===brainFocus||t.getAttribute('data-to')===brainFocus);t.style.opacity=brainFocus?(on?'1':'.05'):'.8'});
+    if(brainFocus){const incoming=graph.edges.filter(e=>e.to===brainFocus).length,outgoing=graph.edges.filter(e=>e.from===brainFocus).length;status.textContent=`${funcLabel(brainFocus)} · ${incoming} incoming · ${outgoing} outgoing. Double-click to open its source-parsed CFG; click again to clear focus.`}
+    else status.textContent='Full Brain Map: all source-derived mapped control connections are visible. Click a function to isolate its immediate neighborhood; double-click to enter its CFG.';
+  }
+  graph.nodes.forEach(n=>{const p=placed[n.id];if(!p)return;const gr=el('g',{class:'brainNode '+p.layer,'data-id':p.id,transform:`translate(${p.x},${p.y})`});gr.appendChild(el('rect',{width:nodeW,height:nodeH,rx:14}));gr.appendChild(el('text',{x:18,y:28,'font-size':15,'font-weight':900},p.label));gr.appendChild(el('text',{x:18,y:51,class:'meta'},PATHS[p.key]+' · double-click → Deep CFG'));gr.style.cursor='pointer';gr.addEventListener('click',ev=>{ev.stopPropagation();brainFocus=brainFocus===p.id?null:p.id;applyBrainFocus()});gr.addEventListener('dblclick',ev=>{ev.stopPropagation();cfgHistory=[];jumpToCfg(p.id,false)});nodeLayer.appendChild(gr)});
+  applyBrainFocus();
+}
+function fullView(){
+  clear();graphBounds={x:0,y:0,w:2500,h:3000};svg.setAttribute('viewBox','0 0 2500 3000');const g=viewport,N={};
+  groupBox(g,35,35,2430,355,'RENDER FRAME — the simulation and commander clocks are separate frame observers');
+  groupBox(g,35,430,1165,2450,'0.15 s SIMULATION AI — update squads, then soldiers, then loop while accumulator remains');
+  groupBox(g,1230,430,1235,2450,'0.45 s COMMANDER AI — event-driven Macro, then onCommanderTick systems');
+  const defs=[
+    ['frame','Browser / engine render frame',1085,85,'process','process',src('sim','BattleSim.prototype._frame','BattleSim._frame'),null],
+    ['simframe','BattleSim._frame(dt)',260,220,'process','process',src('sim','BattleSim.prototype._frame','BattleSim._frame'),'sim:_frame'],
+    ['cmdframe','Commander frame observer',1510,220,'process','macro',src('commander','scene.onBeforeRenderObservable.add','commander render observer'),null],
+
+    ['step','stepMovement × every soldier',130,500,'process','support',src('sim','stepMovement(this','stepMovement loop'),null],
+    ['accum','_aiAccum += dt',130,630,'process','process',src('sim','this._aiAccum+=dt','AI accumulator'),null],
+    ['aitick','_aiAccum ≥ AI_TICK (0.15 s)?',130,770,'decision','process',src('sim','while(this._aiAccum>=AI_TICK','AI while gate'),null],
+    ['squads','FOR EACH SQUAD → updateSquad()',130,940,'process','meso',src('sim','SquadAI.updateSquad','squad loop'),'squad:updateSquad'],
+    ['sqstate','Squad Leader: updateSquadState()',130,1080,'process','meso',src('meso','updateSquadState(sq, battle)','updateSquadState call'),'meso:updateSquadState'],
+    ['firemove','fireAndMovement()',130,1215,'process','meso',src('meso','fireAndMovement(sq, battle)','fireAndMovement call'),'meso:fireAndMovement'],
+    ['publish','advance anchor → fireteam orders → forward line',130,1350,'process','meso',src('meso','advanceSquadAnchor(sq, battle)','squad publishing'),null],
+    ['nextsq','More squads?',130,1490,'decision','meso',src('sim','for(i=0;i<squadsUs.length','squad loop'),null],
+    ['soldiers','FOR EACH SOLDIER → updateSoldier()',130,1660,'process','micro',src('squad','function updateSoldier','updateSoldier'),'squad:updateSoldier'],
+    ['before','beforeSoldier hooks',130,1795,'process','micro',src('squad',"EXT.run('beforeSoldier'",'beforeSoldier hooks'),null],
+    ['alive','Soldier alive?',130,1930,'decision','micro',src('squad','if (!soldier.dead)','alive gate'),null],
+    ['perceive','perceive(): target tracking / scan / contact sharing',130,2095,'process','micro',src('squad','function perceive','perceive'),'squad:perceive'],
+    ['engage','Engagement.updateSoldier → runDrill → afterDrill',130,2235,'process','micro',src('engagement','function updateSoldier','Engagement.updateSoldier'),'engagement:runDrill'],
+    ['resolve','MovementResolver.resolve()',130,2375,'process','move',src('resolver','function resolve(soldier, battle)','MovementResolver.resolve'),'resolver:resolve'],
+    ['after','afterSoldier hooks',130,2515,'process','micro',src('squad',"EXT.run('afterSoldier'",'afterSoldier hooks'),null],
+    ['nextsoldier','More soldiers?',130,2650,'decision','micro',src('sim','for(i=0;i<us.length;i++)SquadAI.updateSoldier','soldier loop'),null],
+    ['winner','_checkWinner + onUpdate',560,2655,'process','process',src('sim','this._checkWinner();','winner check'),null],
+    ['moreai','Accumulator still ≥ 0.15 s?',850,2490,'decision','process',src('sim','while(this._aiAccum>=AI_TICK','AI while repeat'),null],
+    ['simdone','Simulation frame path done',850,2700,'terminal','process',src('sim',"runHook('onSimulationStep'",'simulation-step hook'),null],
+
+    ['cmdacc','_commandAccum += dt',1350,510,'process','macro',src('commander','sim._commandAccum += dt','commander accumulator'),null],
+    ['cmdtick','_commandAccum ≥ COMMAND_TICK (0.45 s)?',1350,650,'decision','macro',src('commander','while (sim._commandAccum >= COMMAND_TICK','commander while gate'),null],
+    ['updatecmd','updateCommander()',1350,820,'process','macro',src('commander','function updateCommander','updateCommander'),'commander:updateCommander'],
+    ['macro1','Macro enabled?',1350,960,'decision','macro',src('commander','if (macro) R.ensureAssignments','macro assignment gate'),null],
+    ['assign','ensureAssignments()',1690,1060,'process','macro',src('commander','R.ensureAssignments(sim, town)','ensureAssignments'),null],
+    ['merge1','REJOIN',1350,1135,'merge','macro',src('commander','BattleObjectiveSystem.tick','rejoin before objective tick'),null],
+    ['objtick','ObjectiveSystem.tick()',1350,1245,'process','macro',src('commander','BattleObjectiveSystem.tick(sim, dt)','objective tick'),null],
+    ['macro2','Macro enabled for faction work?',1350,1385,'decision','macro',src('commander',"if (macro)",'macro faction gate'),null],
+    ['faction','FOR EACH FACTION: stall sample + reconstitute()',1690,1535,'process','macro',src('commander','reconstitute(sim, f)','reconstitute'),null],
+    ['wakes','FOR EACH SQUAD → wakeReason()',1690,1675,'process','macro',src('commander','reason = wakeReason','wakeReason call'),'commander:wakeReason'],
+    ['reason','Wake reason returned?',1690,1815,'decision','macro',src('commander','if (!reason) continue','wake reason gate'),null],
+    ['reconsider','reconsiderMission()',2030,1945,'process','macro',src('commander','reconsiderMission(sim','reconsiderMission'),'commander:reconsiderMission'],
+    ['nextwake','More squads / factions?',1690,2085,'decision','macro',src('commander','for (var i = 0; i < squads.length; i++)','macro squad loop'),null],
+    ['hooks','BattleModules.onCommanderTick',1350,2220,'process','support',src('commander',"runHook('onCommanderTick'",'onCommanderTick hook'),null],
+    ['sqhook','squad-command hook: FOR EACH SQUAD',1350,2355,'process','meso',src('meso','function commanderTick','squad-command commanderTick'),'meso:commanderTick'],
+    ['cohesion','updateCohesion()',1350,2490,'process','meso',src('meso','updateCohesion(sim, q)','updateCohesion'),'meso:updateCohesion'],
+    ['execute','executeMission()',1690,2490,'process','meso',src('meso','executeMission(sim, q, town)','executeMission'),'meso:executeMission'],
+    ['plan','updatePlan() → lease prune',2030,2490,'process','meso',src('meso','updatePlan(sim, q)','updatePlan'),null],
+    ['snapshot','decision snapshot + objective-hold victory',1350,2660,'process','macro',src('commander','decision-snapshot','snapshot / victory'),null],
+    ['morecmd','Accumulator still ≥ 0.45 s?',1690,2670,'decision','macro',src('commander','while (sim._commandAccum >= COMMAND_TICK','commander while repeat'),null],
+    ['cmddone','Commander frame path done',2030,2680,'terminal','macro',src('commander','return sim;','commander observer end'),null],
+    ['nextframe','NEXT RENDER FRAME',1085,2880,'terminal','process',src('sim','scene.onBeforeRenderObservable','next frame'),null]
+  ];
+  defs.forEach(d=>N[d[0]]={id:d[0],label:d[1],x:d[2],y:d[3],type:d[4],layer:d[5],ref:d[6],cfg:d[7],w:d[4]==='decision'?300:d[4]==='merge'?110:330,h:d[4]==='decision'?112:d[4]==='merge'?52:92,sub:d[7]?'double-click → function CFG':''});
+  Object.values(N).forEach(n=>node(g,n));
+  edge(g,N.frame,N.simframe,{from:'left',to:'top',label:'simulation path'});edge(g,N.frame,N.cmdframe,{from:'right',to:'top',label:'commander observer'});
+  edge(g,N.simframe,N.step);edge(g,N.step,N.accum);edge(g,N.accum,N.aitick);edge(g,N.aitick,N.squads,{kind:'yes',label:'YES / enter AI tick'});edge(g,N.aitick,N.simdone,{from:'right',to:'top',kind:'no',label:'NO'});
+  edge(g,N.squads,N.sqstate);edge(g,N.sqstate,N.firemove);edge(g,N.firemove,N.publish);edge(g,N.publish,N.nextsq);edge(g,N.nextsq,N.squads,{from:'left',to:'left',kind:'yes',label:'YES',loop:true,points:[[65,1546],[65,985]],lx:80,ly:1260});edge(g,N.nextsq,N.soldiers,{kind:'no',label:'NO'});
+  edge(g,N.soldiers,N.before);edge(g,N.before,N.alive);edge(g,N.alive,N.perceive,{kind:'yes',label:'YES'});edge(g,N.alive,N.after,{from:'right',to:'right',kind:'no',label:'NO / skip AI',points:[[500,1986],[500,2561]],lx:520,ly:2280});edge(g,N.perceive,N.engage);edge(g,N.engage,N.resolve);edge(g,N.resolve,N.after);edge(g,N.after,N.nextsoldier);edge(g,N.nextsoldier,N.soldiers,{from:'left',to:'left',kind:'yes',label:'YES',loop:true,points:[[65,2706],[65,1706]],lx:80,ly:2200});edge(g,N.nextsoldier,N.winner,{from:'right',to:'left',kind:'no',label:'NO'});edge(g,N.winner,N.moreai,{from:'right',to:'left'});edge(g,N.moreai,N.squads,{from:'left',to:'right',kind:'yes',label:'YES / another 0.15 s tick',loop:true,points:[[760,2546],[760,985],[460,985]],lx:780,ly:1770});edge(g,N.moreai,N.simdone,{kind:'no',label:'NO'});edge(g,N.simdone,N.nextframe,{from:'bottom',to:'left'});
+
+  edge(g,N.cmdframe,N.cmdacc);edge(g,N.cmdacc,N.cmdtick);edge(g,N.cmdtick,N.updatecmd,{kind:'yes',label:'YES'});edge(g,N.cmdtick,N.cmddone,{from:'right',to:'top',kind:'no',label:'NO',points:[[2360,706],[2360,2726]],lx:2370,ly:1700});edge(g,N.updatecmd,N.macro1);edge(g,N.macro1,N.assign,{from:'right',to:'left',kind:'yes',label:'YES'});edge(g,N.assign,N.merge1,{from:'bottom',to:'right'});edge(g,N.macro1,N.merge1,{kind:'no',label:'NO'});edge(g,N.merge1,N.objtick);edge(g,N.objtick,N.macro2);edge(g,N.macro2,N.faction,{from:'right',to:'left',kind:'yes',label:'YES'});edge(g,N.macro2,N.hooks,{kind:'no',label:'NO / skip Macro faction work',points:[[1500,1497],[1500,2266]],lx:1520,ly:1880});edge(g,N.faction,N.wakes);edge(g,N.wakes,N.reason);edge(g,N.reason,N.reconsider,{from:'right',to:'left',kind:'yes',label:'YES'});edge(g,N.reason,N.nextwake,{kind:'no',label:'NO / continue'});edge(g,N.reconsider,N.nextwake,{from:'bottom',to:'right'});edge(g,N.nextwake,N.wakes,{from:'left',to:'left',kind:'yes',label:'YES',loop:true,points:[[1600,2141],[1600,1721]],lx:1610,ly:1930});edge(g,N.nextwake,N.hooks,{from:'left',to:'right',kind:'no',label:'NO / faction work complete'});edge(g,N.hooks,N.sqhook);edge(g,N.sqhook,N.cohesion);edge(g,N.cohesion,N.execute,{from:'right',to:'left'});edge(g,N.execute,N.plan,{from:'right',to:'left'});edge(g,N.plan,N.snapshot,{from:'bottom',to:'right'});edge(g,N.snapshot,N.morecmd,{from:'right',to:'left'});edge(g,N.morecmd,N.updatecmd,{from:'left',to:'right',kind:'yes',label:'YES / another 0.45 s tick',loop:true,points:[[1270,2726],[1270,866]],lx:1285,ly:1780});edge(g,N.morecmd,N.cmddone,{from:'right',to:'left',kind:'no',label:'NO'});edge(g,N.cmddone,N.nextframe,{from:'bottom',to:'right'});edge(g,N.nextframe,N.frame,{from:'top',to:'top',loop:true,label:'frame loop',points:[[1210,2850],[2420,2850],[2420,45],[1250,45]],lx:2310,ly:80});
+  status.textContent='Deep execution chain: only explicit caller branches are shown here. Double-click a function node for its source-parsed CFG; branch reconvergence is shown with REJOIN nodes instead of YES/NO arrows landing ambiguously on the same box.';
+}
+ function stateView(kind){
+  clear();
+  const map={
+    macro:['commander','MISSION_STATES','Macro mission lifecycle','macro'],
+    meso:['meso','PHASE_STATES','Squad Leader command phases','meso'],
+    micro:['engagement','STATES','Soldier Engagement FSM','micro']
+  }[kind],
+  data=parseStates(map[0],map[1]),g=viewport;
+  if(data.error){showError(data.error);return}
+
+  const states=data.states;
+  if(!states.length){showError('No states parsed from '+map[1]);return}
+  if(!stateFocus[kind] || !states.some(s=>s.name===stateFocus[kind])) stateFocus[kind]=states[0].name;
+
+  const focus=states.find(s=>s.name===stateFocus[kind])||states[0];
+  const outgoing=focus.next.map(name=>states.find(s=>s.name===name)).filter(Boolean);
+  const incoming=states.filter(s=>s.next.indexOf(focus.name)>=0);
+
+  const leftX=70, focusX=620, outX=1420;
+  const topY=155, indexW=420, focusW=600, focusH=290, outW=440, outH=94, outGap=128;
+  const outgoingHeight=Math.max(1,outgoing.length)*outGap;
+  const requestExtra=kind==='micro'?230:0;
+  const bottomBase=Math.max(topY+470,topY+outgoingHeight+100);
+  graphBounds={x:0,y:0,w:1980,h:bottomBase+300+requestExtra};
+  svg.setAttribute('viewBox',`0 0 ${graphBounds.w} ${graphBounds.h}`);
+
+  g.appendChild(el('text',{x:70,y:58,'font-size':28,'font-weight':800,fill:'#fff'},map[2]));
+  g.appendChild(el('text',{x:70,y:90,class:'mini'},
+    `Parsed live from ${data.ref.file} · ${map[1]} · select a state to inspect only its outgoing transitions`));
+
+  // Left: state index. No arrows here; it is navigation.
+  g.appendChild(el('text',{x:leftX,y:132,'font-size':14,'font-weight':800,fill:'#91a6c0'},'STATES — click to focus'));
+  const indexCols=2,indexCellW=195,indexCellH=64;
+  states.forEach((s,i)=>{
+    const col=i%indexCols,row=Math.floor(i/indexCols),x=leftX+col*(indexCellW+14),y=topY+row*(indexCellH+12);
+    const selected=s.name===focus.name;
+    const gr=el('g',{class:'stateNode '+map[3],transform:`translate(${x},${y})`});
+    const rr=el('rect',{width:indexCellW,height:indexCellH,rx:13});
+    if(selected){rr.setAttribute('stroke','#ffffff');rr.setAttribute('stroke-width','3');}
+    gr.appendChild(rr);
+    gr.appendChild(el('text',{x:16,y:27,'font-size':15,'font-weight':800},s.name));
+    gr.appendChild(el('text',{x:16,y:48,class:'desc'},s.next.length?`${s.next.length} outgoing`:'terminal'));
+    gr.style.cursor='pointer';
+    gr.onclick=ev=>{ev.stopPropagation();stateFocus[kind]=s.name;stateView(kind);fit();};
+    g.appendChild(gr);
+  });
+
+  // Center: the selected state and its source-described meaning/exits.
+  g.appendChild(el('text',{x:focusX,y:132,'font-size':14,'font-weight':800,fill:'#91a6c0'},'FOCUSED STATE'));
+  const fg=el('g',{class:'stateNode '+map[3],transform:`translate(${focusX},${topY})`});
+  fg.appendChild(el('rect',{width:focusW,height:focusH,rx:22,stroke:'#ffffff','stroke-width':2.5}));
+  fg.appendChild(el('text',{x:26,y:40,'font-size':24,'font-weight':800},focus.name));
+  wrap(focus.meaning||'',68).slice(0,4).forEach((t,j)=>fg.appendChild(el('text',{x:26,y:76+j*20,class:'desc'},t)));
+  fg.appendChild(el('text',{x:26,y:176,'font-size':11,'font-weight':800,fill:'#9fb0c7'},'SOURCE EXIT DESCRIPTION'));
+  wrap(focus.exits||'—',72).slice(0,4).forEach((t,j)=>fg.appendChild(el('text',{x:26,y:200+j*19,class:'desc'},t)));
+  fg.style.cursor='pointer';
+  fg.onclick=()=>openSource(focus.ref,`${map[2]}: ${focus.name}`);
+  g.appendChild(fg);
+
+  // Right: ONLY outgoing transitions from the selected state.
+  g.appendChild(el('text',{x:outX,y:132,'font-size':14,'font-weight':800,fill:'#91a6c0'},
+    outgoing.length?'OUTGOING TRANSITIONS':'OUTGOING TRANSITIONS — NONE'));
+  if(!outgoing.length){
+    const term={id:'terminal-'+focus.name,label:'TERMINAL — path ends',x:outX,y:topY+55,w:390,h:120,type:'short',layer:map[3],ref:focus.ref};
+    node(g,term);
+    const a={x:focusX,y:topY,w:focusW,h:focusH,type:'process'};
+    edge(g,a,term,{from:'right',to:'left',label:'no legal next state'});
+  }else{
+    outgoing.forEach((s,i)=>{
+      const y=topY+i*outGap;
+      const gr=el('g',{class:'stateNode '+map[3],transform:`translate(${outX},${y})`});
+      gr.appendChild(el('rect',{width:outW,height:outH,rx:16}));
+      gr.appendChild(el('text',{x:20,y:31,'font-size':17,'font-weight':800},s.name));
+      const desc=s.name===focus.name?'SELF LOOP — remain in current state':(s.meaning||'');
+      wrap(desc,50).slice(0,2).forEach((t,j)=>gr.appendChild(el('text',{x:20,y:56+j*17,class:'desc'},t)));
+      gr.style.cursor='pointer';
+      gr.onclick=ev=>{ev.stopPropagation();stateFocus[kind]=s.name;stateView(kind);fit();};
+      g.appendChild(gr);
+
+      const sx=focusX+focusW, sy=topY+focusH/2;
+      const tx=outX, ty=y+outH/2;
+      if(s.name===focus.name){
+        const rail=focusX+focusW+95;
+        const p=el('path',{
+          d:`M${sx},${topY+focusH*.70} L${rail},${topY+focusH*.70} L${rail},${topY+focusH*.30} L${sx},${topY+focusH*.30}`,
+          class:'stateEdge self'
+        });
+        g.insertBefore(p,g.firstChild);
+        g.appendChild(el('text',{x:rail+12,y:topY+focusH/2,class:'stateLabel'},'SELF LOOP'));
+      }else{
+        const mid=focusX+focusW+90+i*22;
+        const p=el('path',{d:`M${sx},${sy} L${mid},${sy} L${mid},${ty} L${tx},${ty}`,class:'stateEdge'});
+        g.insertBefore(p,g.firstChild);
+      }
+    });
+  }
+
+  // Incoming transitions: list only. Drawing them would recreate the spaghetti problem.
+  const incomingY=Math.max(topY+focusH+105,topY+Math.max(1,outgoing.length)*outGap+35);
+  g.appendChild(el('text',{x:focusX,y:incomingY,'font-size':14,'font-weight':800,fill:'#91a6c0'},'CAN ENTER THIS STATE FROM'));
+  if(!incoming.length){
+    g.appendChild(el('text',{x:focusX,y:incomingY+32,class:'mini'},'No declared incoming state transition.'));
+  }else{
+    incoming.forEach((s,i)=>{
+      const x=focusX+(i%3)*205,y=incomingY+20+Math.floor(i/3)*62;
+      const gr=el('g',{class:'stateNode '+map[3],transform:`translate(${x},${y})`});
+      gr.appendChild(el('rect',{width:185,height:46,rx:12,opacity:.72}));
+      gr.appendChild(el('text',{x:92.5,y:29,'text-anchor':'middle','font-size':13,'font-weight':800},s.name));
+      gr.style.cursor='pointer';
+      gr.onclick=ev=>{ev.stopPropagation();stateFocus[kind]=s.name;stateView(kind);fit();};
+      g.appendChild(gr);
+    });
+  }
+
+  if(kind==='micro'){
+    const req=parseRequests(), y=bottomBase+70;
+    g.appendChild(el('text',{x:70,y,'font-size':16,'font-weight':800,fill:'#9fb0c7'},'EXTERNAL ENGAGEMENT REQUESTS — separate entry paths'));
+    req.forEach((r,i)=>{
+      const yy=y+36+i*42;
+      const active=r.next===focus.name || r.from.indexOf(focus.name)>=0;
+      g.appendChild(el('text',{x:70,y:yy,class:'mini',fill:active?'#e8f2ff':'#93a6be'},
+        `${r.name}: ${r.from.join(' / ')} → ${r.next} — ${r.reason}`));
+    });
+  }
+
+  if(kind==='meso'){
+    const y=bottomBase+55;
+    g.appendChild(el('text',{x:70,y,class:'warnText'},
+      'PHASE_STATES declares broad legal adjacency. For actual guard logic, use Deep branch CFG → executeMission() / updateCohesion().'));
+  }
+
+  status.textContent=`${map[2]} — focused on "${focus.name}". Only this state's outgoing arrows are drawn. Incoming states are listed without crossing lines. Click any state to refocus.`;
+ }
+
+ function cfgEdge(g,a,b,opt={}){
+   const from=anchor(a,'bottom'),to=anchor(b,'top');let d;
+   if(opt.loop){const left=Math.min(from[0],to[0])-190;d=`M${from[0]},${from[1]} L${left},${from[1]} L${left},${to[1]} L${to[0]},${to[1]}`}
+   else{const my=(from[1]+to[1])/2;d=`M${from[0]},${from[1]} L${from[0]},${my} L${to[0]},${my} L${to[0]},${to[1]}`}
+   const p=el('path',{d,class:'edge '+(opt.kind||'')+(opt.loop?' loop':'')});g.insertBefore(p,g.firstChild);
+   if(opt.label){const y=from[1]+28,x=from[0]+(to[0]>from[0]?64:to[0]<from[0]?-64:0);g.appendChild(el('text',{x,y,class:'edgeLabel '+(opt.kind||'normal'),'text-anchor':'middle'},opt.label))}
+ }
+ function renderCfgLayout(g,cfg,opt={}){
+   const by=Object.fromEntries(cfg.nodes.map(n=>[n.id,n])),groups={};
+   cfg.nodes.forEach(n=>{
+     const nn=opt.cloneNode?opt.cloneNode(n):n;
+     const gr=node(g,nn);groups[n.id]=gr;
+     if(opt.onNode)opt.onNode(gr,n,nn);
+   });
+   cfg.edges.forEach(e=>{
+     if(opt.edgeFilter&&!opt.edgeFilter(e,by[e.from],by[e.to]))return;
+     const a=by[e.from],b=by[e.to];
+     if(a&&b)cfgEdge(g,a,b,e);
+   });
+   return {by,groups};
+ }
+
+ function cfgView(){
+   clear();
+   const [key,name]=cfgChoice.split(':'),spec=CFG_FUNCS.find(x=>x[0]===key&&x[1]===name),ast=parseFunctionAST(key,name);
+   if(!ast){showError(`Could not parse function ${key}:${name} from the loaded source.`);return}
+   const cfg=layoutCFG(buildCFG(ast));
+   cfg.nodes.forEach(n=>{let snippet=n.label||'';if(n.stmt){if(n.stmt.type==='if'||n.stmt.type==='loop')snippet=n.stmt.cond||snippet;else if(n.stmt.type==='switch')snippet=n.stmt.expr||snippet;else if(n.stmt.text)snippet=n.stmt.text}n.calls=findMappedCalls(key,name,snippet)});
+   graphBounds=cfg.bounds;svg.setAttribute('viewBox',`0 0 ${cfg.bounds.w} ${cfg.bounds.h}`);const g=viewport,by=Object.fromEntries(cfg.nodes.map(n=>[n.id,n]));
+   g.appendChild(el('text',{x:50,y:45,'font-size':25,'font-weight':800,fill:'#fff'},(spec&&spec[2])||(`${key} · ${name}`)));
+   g.appendChild(el('text',{x:50,y:73,class:'mini'},`Parsed directly from if / else / return / for / while / switch structure in ${PATHS[key]} · function starts at line ${ast.f.line}. ↳ function ports jump into called mapped functions; Back returns here.`));
+   renderCfgLayout(g,cfg);
+   status.textContent=`Function CFG: ${PATHS[key]} :: ${name}(). Green/red branches are literal YES/NO paths. Ringed RETURN nodes terminate that path. ↳ ports follow real mapped function calls.`;
+ }
+
+ function moveView(){
+ clear();graphBounds={x:0,y:0,w:2450,h:1850};svg.setAttribute('viewBox',`0 0 ${graphBounds.w} ${graphBounds.h}`);const g=viewport,p=priorityMap();
+ g.appendChild(el('text',{x:70,y:62,'font-size':28,'font-weight':800,fill:'#fff'},'Movement Resolver — live arbitration flow'));
+ g.appendChild(el('text',{x:70,y:94,class:'mini'},'Priority values parsed from movement-resolver.js priority(kind, s) · enlarged routing gutters keep decision branches visually distinct'));
+ const N={};const defs=[
+ ['start','resolve(soldier,battle)',100,170,'process'],['choose','choose highest live order/combat intent',510,170,'process'],['any','pick exists?',950,155,'decision'],['stable','same kind / signature / point?',1390,155,'decision'],
+ ['progress','MovementProgress.observe',1390,390,'process'],['rebuild','rebuild advised?',1810,375,'decision'],['route','tacticalWaypoint()',1390,650,'process'],['project','project blocked final point',1390,850,'process'],['space','personal-space correction',1390,1050,'process'],['change','changed && canChange?',1390,1250,'decision'],['write','write soldier.destination',1840,1265,'move'],['return','return winning goal',1390,1530,'terminal']];
+ defs.forEach(d=>N[d[0]]={id:d[0],label:d[1],x:d[2],y:d[3],type:d[4],layer:'move',w:d[4]==='decision'?310:340,h:d[4]==='decision'?126:96,ref:src('resolver',d[1].split('(')[0].replace('resolve','function resolve')||'resolve')});Object.values(N).forEach(n=>node(g,n));
+ edge(g,N.start,N.choose,{from:'right',to:'left'});edge(g,N.choose,N.any,{from:'right',to:'left'});edge(g,N.any,N.stable,{from:'right',to:'left',kind:'yes',label:'YES'});edge(g,N.any,N.return,{kind:'no',label:'NO → null',points:[[1120,300],[1120,1580],[1390,1580]],lx:1080,ly:925});
+ edge(g,N.stable,N.progress,{kind:'yes',label:'YES → retain issuedAt'});edge(g,N.stable,N.progress,{kind:'no',label:'NO → replace goal',points:[[1550,310],[1550,390]],lx:1690,ly:350});edge(g,N.progress,N.rebuild,{from:'right',to:'left'});edge(g,N.rebuild,N.route,{from:'left',to:'right',kind:'no',label:'NO',points:[[1720,438],[1720,700]],lx:1690,ly:565});edge(g,N.rebuild,N.route,{kind:'yes',label:'YES → invalidate nav + cancel tactical route',points:[[1980,540],[1980,700],[1730,700]],lx:2000,ly:610});
+ edge(g,N.route,N.project);edge(g,N.project,N.space);edge(g,N.space,N.change);edge(g,N.change,N.write,{from:'right',to:'left',kind:'yes',label:'YES'});edge(g,N.change,N.return,{kind:'no',label:'NO → keep destination'});edge(g,N.write,N.return);
+ p.forEach((q,i)=>{const x=90+(i%4)*250,y=520+Math.floor(i/4)*120;const gr=el('g',{class:'stateNode move',transform:`translate(${x},${y})`});gr.appendChild(el('rect',{width:210,height:76,rx:12}));gr.appendChild(el('text',{x:105,y:31,'text-anchor':'middle','font-size':14,'font-weight':800},q.kind));gr.appendChild(el('text',{x:105,y:56,'text-anchor':'middle',class:'desc'},String(q.priority)));gr.onclick=()=>openSource(sourceRef('resolver','function priority','priority(kind,s)'),`priority: ${q.kind}`);g.appendChild(gr)});
+ g.appendChild(el('text',{x:90,y:470,'font-size':16,'font-weight':800,fill:'#d4b27a'},'Parsed priority ladder'));
+ status.textContent='Movement Resolver: enlarged layout separates arbitration decisions, alternate paths and the priority ladder. Wheel zooms at the pointer; drag the background to pan.';
+ }
+
+ function healthView(){clear();svg.setAttribute('viewBox','0 0 1800 1200');graphBounds={x:0,y:0,w:1800,h:1200};const g=viewport;g.appendChild(el('text',{x:60,y:55,'font-size':26,'font-weight':800,fill:'#fff'},'Parser / source health'));g.appendChild(el('text',{x:60,y:82,class:'mini'},'Every reload prefers same-origin repo files, then GitHub main fallbacks. Hashes are computed in the browser.'));let y=130;Object.entries(FILES).forEach(([k,f])=>{const ok=!!sources[k],hash=(window.__flowHashes||{})[k]||'—';const gr=el('g',{class:'stateNode support',transform:`translate(60,${y})`});gr.appendChild(el('rect',{width:820,height:72,rx:12}));gr.appendChild(el('text',{x:18,y:27,'font-size':14,'font-weight':800},f));gr.appendChild(el('text',{x:18,y:51,class:'desc'},`${ok?'loaded':'FAILED'} · ${(window.__flowOrigins||{})[k]||'—'} · sha256 ${hash} · ${sources[k]?sources[k].split('\n').length:0} lines`));gr.style.cursor='pointer';gr.onclick=()=>openSource({file:f,line:1,needle:''},f);g.appendChild(gr);y+=88});const checks=[['MISSION_STATES',parseStates('commander','MISSION_STATES').states.length],['PHASE_STATES',parseStates('meso','PHASE_STATES').states.length],['Engagement STATES',parseStates('engagement','STATES').states.length],['Engagement REQUESTS',parseRequests().length],['Resolver priorities',priorityMap().length]];let cy=150;checks.forEach(([n,c])=>{g.appendChild(el('text',{x:980,y:cy,'font-size':16,'font-weight':800,fill:c?'#8bd2a4':'#e08086'},`${c?'✓':'✕'} ${n}: ${c}`));cy+=40});g.appendChild(el('text',{x:980,y:400,class:'warnText'},'If an explicit state object is renamed or removed, this page shows a parser warning instead of silently drawing the old map.'));status.textContent='Source health: use this view after AI refactors to see whether the live map parsers still recognize the current contracts.'}
+ function render(){hideError();if(current==='brain3d')brain3DView();else if(current==='brain')brainView();else if(current==='full')fullView();else if(current==='cfg')cfgView();else if(current==='move')moveView();else if(current==='health')healthView();else stateView(current)}
+ function openSource(ref,title,opt={}){if(!ref||!ref.file)return;drawerSourceRef=ref;drawerSourceTitle=title||ref.label||ref.file;drawerCfgChoice=opt.cfgId||null;const key=Object.keys(FILES).find(k=>FILES[k]===ref.file),srcText=(key&&sources[key])||'';workspace.classList.add('drawerOpen');document.getElementById('drawerTitle').textContent=drawerSourceTitle;document.getElementById('drawerMeta').textContent=`${ref.file}${ref.line?' · line '+ref.line:''}`;const lines=srcText.split('\n'),ln=ref.line||1,a=Math.max(1,ln-14),b=Math.min(lines.length,ln+24);document.getElementById('sourceText').textContent=lines.slice(a-1,b).map((s,i)=>String(a+i).padStart(4,' ')+'  '+s).join('\n');const deep=document.getElementById('drawerCfgBtn');if(deep)deep.hidden=current==='cfg'||!drawerCfgChoice}
+ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+ function stageRect(){return document.getElementById('stage').getBoundingClientRect()}
+ function finiteNum(v){return Number.isFinite(+v)}
+ function cameraValid(v){
+   return !!v&&finiteNum(v.x)&&finiteNum(v.y)&&finiteNum(v.w)&&finiteNum(v.h)&&v.w>0.5&&v.h>0.5
+ }
+ function safeBounds(){
+   const b=graphBounds||{};
+   return {
+     x:finiteNum(b.x)?+b.x:0,
+     y:finiteNum(b.y)?+b.y:0,
+     w:finiteNum(b.w)&&b.w>0?+b.w:1800,
+     h:finiteNum(b.h)&&b.h>0?+b.h:1600
+   }
+ }
+ function targetCamera(v){
+   const b=safeBounds();
+   const out={
+     x:finiteNum(v&&v.x)?+v.x:b.x,
+     y:finiteNum(v&&v.y)?+v.y:b.y,
+     w:finiteNum(v&&v.w)&&+v.w>0.5?+v.w:b.w,
+     h:finiteNum(v&&v.h)&&+v.h>0.5?+v.h:b.h
+   };
+   return out
+ }
+ function zoomLevel(){
+   const r=stageRect();
+   if(!(r.width>0)||!cameraValid(camera))return 1;
+   return r.width/camera.w
+ }
+ function updateZoomReadout(){
+   const z=zoomLevel();
+   document.getElementById('zoomReadout').textContent=(Number.isFinite(z)&&z>0?Math.round(z*100):100)+'%'
+ }
+ function clampCamera(){
+   if(!cameraValid(camera))camera=targetCamera(null);
+   const b=safeBounds(),px=camera.w*.55,py=camera.h*.55,
+     minX=b.x-px,maxX=b.x+b.w-camera.w+px,
+     minY=b.y-py,maxY=b.y+b.h-camera.h+py;
+   if(maxX>=minX)camera.x=clamp(camera.x,minX,maxX);
+   if(maxY>=minY)camera.y=clamp(camera.y,minY,maxY)
+ }
+ function applyCamera(){
+   cancelAnimationFrame(cameraAnim);
+   camera=targetCamera(camera);
+   clampCamera();
+   svg.setAttribute('viewBox',`${camera.x} ${camera.y} ${camera.w} ${camera.h}`);
+   updateZoomReadout()
+ }
+ function animateCamera(rawTarget,duration=180){
+   cancelAnimationFrame(cameraAnim);
+   const target=targetCamera(rawTarget);
+   // Never interpolate from a corrupt camera. Snap to a known-good target instead.
+   if(!cameraValid(camera)){
+     camera=target;
+     applyCamera();
+     return
+   }
+   const from=targetCamera(camera),t0=performance.now();
+   const step=t=>{
+     const q=Math.max(0,Math.min(1,(t-t0)/Math.max(1,duration))),ease=1-Math.pow(1-q,3);
+     camera={
+       x:from.x+(target.x-from.x)*ease,
+       y:from.y+(target.y-from.y)*ease,
+       w:Math.max(.5,from.w+(target.w-from.w)*ease),
+       h:Math.max(.5,from.h+(target.h-from.h)*ease)
+     };
+     if(!cameraValid(camera)){camera=target}
+     svg.setAttribute('viewBox',`${camera.x} ${camera.y} ${camera.w} ${camera.h}`);
+     updateZoomReadout();
+     if(q<1)cameraAnim=requestAnimationFrame(step)
+   };
+   cameraAnim=requestAnimationFrame(step)
+ }
+ function fit(){
+   if(current==='brain3d'){brain3D.zoom=1;renderBrain3DScene();return}
+   const r=stageRect();if(!(r.width>0&&r.height>0))return;
+   const b=safeBounds(),pad=130,bw=Math.max(1,b.w+pad*2),bh=Math.max(1,b.h+pad*2),aspect=r.width/r.height;
+   let w=bw,h=bh;
+   if(w/h<aspect)w=h*aspect;else h=w/aspect;
+   const target={x:b.x+b.w/2-w/2,y:b.y+b.h/2-h/2,w,h};
+   if(!cameraValid(camera)){camera=target;applyCamera();return}
+   animateCamera(target)
+ }
+ function actualSize(){
+   if(current==='brain3d'){brain3DReset();return}
+   const r=stageRect();if(!(r.width>0&&r.height>0))return;
+   const b=safeBounds(),w=Math.max(1,r.width),h=Math.max(1,r.height);
+   animateCamera({x:b.x+b.w/2-w/2,y:b.y+b.h/2-h/2,w,h})
+ }
+ function zoomAt(factor,clientX,clientY,animate=false){
+   const r=stageRect();if(!(r.width>0&&r.height>0))return;
+   if(!cameraValid(camera)){fit();return}
+   factor=Number.isFinite(+factor)&&+factor>0?+factor:1;
+   const u=clamp((clientX-r.left)/r.width,0,1),v=clamp((clientY-r.top)/r.height,0,1),
+     wx=camera.x+u*camera.w,wy=camera.y+v*camera.h,current=zoomLevel(),
+     next=clamp(current*factor,.06,5),nw=Math.max(.5,r.width/next),nh=Math.max(.5,r.height/next),
+     target={x:wx-u*nw,y:wy-v*nh,w:nw,h:nh};
+   if(animate)animateCamera(target,140);else{camera=target;applyCamera()}
+ }
+ function zoomCenter(factor){if(current==='brain3d'){brain3D.zoom=clamp(brain3D.zoom*factor,.08,4);renderBrain3DScene();return}const r=stageRect();zoomAt(factor,r.left+r.width/2,r.top+r.height/2,true)}
+ function panByScreen(dx,dy){
+   const r=stageRect();
+   if(!(r.width>0&&r.height>0)||!cameraValid(camera))return;
+   camera.x-=dx*camera.w/r.width;camera.y-=dy*camera.h/r.height;applyCamera()
+ }
+ function showError(msg){const e=document.getElementById('errorBox');e.style.display='block';e.textContent=msg}function hideError(){document.getElementById('errorBox').style.display='none'}
+ document.getElementById('refreshBtn').onclick=()=>load().then(()=>requestAnimationFrame(fit));document.getElementById('fitBtn').onclick=fit;document.getElementById('resetBtn').onclick=actualSize;document.getElementById('zoomInBtn').onclick=()=>zoomCenter(1.28);document.getElementById('zoomOutBtn').onclick=()=>zoomCenter(1/1.28);document.getElementById('closeDrawer').onclick=()=>workspace.classList.remove('drawerOpen');document.getElementById('drawerCfgBtn').onclick=()=>{if(drawerCfgChoice)enterDeepCfg(drawerCfgChoice)};
+ document.getElementById('brain3dResetBtn').onclick=brain3DReset;
+ document.getElementById('brain3dInvertYBtn').onclick=()=>{brain3D.invertY=!brain3D.invertY;const b=document.getElementById('brain3dInvertYBtn');b.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');b.classList.toggle('active',brain3D.invertY);if(current==='brain3d')renderBrain3DScene()};
+ document.getElementById('brain3dTextSnapBtn').onclick=()=>{brain3D.textSnap=!brain3D.textSnap;const b=document.getElementById('brain3dTextSnapBtn');b.textContent='Text snap: '+(brain3D.textSnap?'On':'Off');b.classList.toggle('active',brain3D.textSnap);if(current==='brain3d'&&brain3D.mode==='detail')renderBrain3DDetailScene(false)};
+ document.getElementById('brain3dExplodeBtn').onclick=()=>{
+   const b=document.getElementById('brain3dExplodeBtn');
+   if(brain3D.mode==='compact'){brain3D.mode='exploded';b.textContent='Show detail'}
+   else if(brain3D.mode==='exploded'){brain3D.mode='detail';brain3D.yaw=-.88;brain3D.pitch=.10;brain3D.zoom=1.05;brain3D.focus=null;brain3D.focusSlice=null;brain3D.panX=0;brain3D.panY=0;brain3D.pivotX=0;brain3D.pivotY=0;brain3D.pivotZ=0;b.textContent='Compact slices'}
+   else{brain3D.mode='compact';b.textContent='Explode slices'}
+   if(current==='brain3d')renderBrain3DScene()
+ };
+ document.getElementById('cfgBackBtn').onclick=()=>{if(cfgReturn3D){returnTo3DFromCfg();return}if(!cfgHistory.length)return;cfgChoice=cfgHistory.pop();const sel=document.getElementById('cfgSelect');if(sel)sel.value=cfgChoice;renderTabs();render();fit()};
+ svg.addEventListener('wheel',e=>{e.preventDefault();const factor=Math.exp(-e.deltaY*0.00135);if(current==='brain3d'){brain3D.zoom=clamp(brain3D.zoom*factor,.08,4);scheduleBrain3DRender(brain3D.mode==='detail');clearTimeout(brain3D.restoreTimer);if(brain3D.mode==='detail')brain3D.restoreTimer=setTimeout(()=>{brain3D.fast=false;renderBrain3DDetailScene(false)},140);return}zoomAt(factor,e.clientX,e.clientY,false)},{passive:false});
+ svg.addEventListener('dblclick',e=>{if(e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.brain3dPort,.callPort'))return;e.preventDefault();if(current==='brain3d'){brain3DReset();return}zoomAt(e.shiftKey?1/1.65:1.65,e.clientX,e.clientY,true)});
+ svg.addEventListener('pointerdown',e=>{const overNode=e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.brain3dPort,.callPort');const forcePan=spaceDown||e.button===1;if(overNode&&!forcePan)return;if(e.button!==0&&e.button!==1)return;e.preventDefault();dragging=true;dragPointer=e.pointerId;lastPointer={x:e.clientX,y:e.clientY};dragMode=current==='brain3d'?(forcePan?'pan3d':'rotate3d'):'pan2d';document.getElementById('stage').classList.add('panning');svg.setPointerCapture(e.pointerId)});
+ svg.addEventListener('pointermove',e=>{if(!dragging||e.pointerId!==dragPointer)return;const dx=e.clientX-lastPointer.x,dy=e.clientY-lastPointer.y;lastPointer={x:e.clientX,y:e.clientY};if(current==='brain3d'){if(dragMode==='pan3d')panBrain3DCameraPlane(dx,dy);else{brain3D.yaw+=dx*.008;brain3D.pitch=clamp(brain3D.pitch+dy*.006*(brain3D.invertY?-1:1),-1.18,1.18)}scheduleBrain3DRender(brain3D.mode==='detail');return}panByScreen(dx,dy)});
+ function endDrag(e){if(!dragging)return;if(e&&dragPointer!=null&&e.pointerId!==dragPointer)return;dragging=false;dragPointer=null;lastPointer=null;dragMode='none';document.getElementById('stage').classList.remove('panning');if(current==='brain3d'&&brain3D.mode==='detail'){cancelAnimationFrame(brain3D.raf);brain3D.raf=0;brain3D.fast=false;renderBrain3DDetailScene(false)}}
+ svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);svg.addEventListener('lostpointercapture',endDrag);
+ window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes((e.target&&e.target.tagName)||''))return;if(e.code==='Space'){spaceDown=true;e.preventDefault();return}if(e.key==='+'||e.key==='='){zoomCenter(1.28);e.preventDefault()}else if(e.key==='-'){zoomCenter(1/1.28);e.preventDefault()}else if(e.key==='0'){actualSize();e.preventDefault()}else if(e.key.toLowerCase()==='f'){fit();e.preventDefault()}else if(e.key==='ArrowLeft'){if(current==='brain3d'){brain3D.yaw-=.12;renderBrain3DScene()}else panByScreen(80,0);e.preventDefault()}else if(e.key==='ArrowRight'){if(current==='brain3d'){brain3D.yaw+=.12;renderBrain3DScene()}else panByScreen(-80,0);e.preventDefault()}else if(e.key==='ArrowUp'){if(current==='brain3d'){brain3D.pitch=clamp(brain3D.pitch-.1*(brain3D.invertY?-1:1),-1.18,1.18);renderBrain3DScene()}else panByScreen(0,80);e.preventDefault()}else if(e.key==='ArrowDown'){if(current==='brain3d'){brain3D.pitch=clamp(brain3D.pitch+.1*(brain3D.invertY?-1:1),-1.18,1.18);renderBrain3DScene()}else panByScreen(0,-80);e.preventDefault()}else if(e.key==='Escape'){workspace.classList.remove('drawerOpen')}});
+ window.addEventListener('keyup',e=>{if(e.code==='Space')spaceDown=false});window.addEventListener('blur',()=>{spaceDown=false;endDrag()});
+ new ResizeObserver(()=>{updateZoomReadout()}).observe(document.getElementById('stage'));
+ initCfgSelect();renderTabs();load().then(()=>setTimeout(fit,30));
+})();
+</script>
+</body>
+</html>
