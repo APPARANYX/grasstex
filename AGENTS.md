@@ -3,12 +3,14 @@
 The single working guide for this repo. Every other doc was folded in here except
 `battle/AI_TACTICS_OUTLINE.md` (tactical doctrine from MCDP 1-3 / MCTP 12-10B / MCWP 3-35.3),
 which is design reference; read it when the task is about tactics, not plumbing. The full
-original docs (roadmaps, lab notes, measurements) are in git history at `1a5b0cf`.
+original docs (roadmaps, lab notes, measurements) are in git history at `1a5b0cf`. `TUNABLES.md`
+lists every tunable number by layer; it is Phase 5's inventory, not a guide.
 
 ## Working rules
 
-- **Don't create new plan/roadmap/summary `.md` files.** Update this file only when a command,
-  contract or rule actually changes. Findings go in the commit message or PR body. Open issues
+- **Don't create new plan/roadmap/summary `.md` files.** The one exception is `TUNABLES.md`, the
+  inventory of every tunable number by layer (Phase 5, the input to the genome rewrite). Update this
+  file only when a command, contract or rule actually changes. Findings go in the commit message or PR body. Open issues
   hold the current state and the next step, not run-by-run logs: cite the PR that has the numbers.
 - **State success criteria up front, prove them with a harness below, report the output.**
   Never claim visual/browser validation that wasn't performed.
@@ -689,7 +691,7 @@ two seed prefixes (`ai-layers-20260929`, `ai-layers-b-20260929`), reported with 
 | 3b | Group morale (squad level, break and rally thresholds) replacing the flat 60% casualty retreat, behind `?morale=`; `squad.mind` becomes a reader. It must reduce to the 60% rule when the men are calm; stress only moves the threshold, by declared numbers (`retreat-episodes` probe: every retreat enters at 60%, mean squad stress 0.22) | merged (#118), off unless `?morale=1`. Paired standard benchmark (commit `e0e4642`, two seed prefixes, 100 battles per arm, numbers in #124): 188 of 200 battles change, and no detectable effect on winners (US wins 81 to 91 of 200, exact McNemar p = 0.18), time-limit battles (108 to 111, p = 0.79), no-capture battles (28 to 28) or captures; 0 runtime errors, wall time x1.05. Flag-on has no check or probe; the report's `retreatSamples` rose 1.9% and the resolver's retreat orders 9.8%, so it moves retreating, modestly. Morale states are not declared as data (only the `MORALE_TUNING` numbers) |
 | 3c | Group course of action on contact behind a flag: deterministic weighted scoring, tiebreak by squad id, executed through `fireAndMovement` and the bound leases, the Squad Leader the one COA owner; COAs, morale states and inputs declared as data. No planner, no safe-point memory, no route-through-enemy assessment, no hold-until-reinforced | merged (#119), off unless `?coa=1`. Same benchmark (numbers in #124): 164 of 200 battles change, winners 81 to 80 (p = 1), time-limit battles 108 to 100 (p = 0.23), no-capture 28 to 27, 0 runtime errors, wall time x1.01; `sq.coa` is not exported, so how often `defend` was chosen is not counted; `retreatSamples` fell 4.2%. Ties go to the first COA by name, not by squad id (a squad's scores are compared, not squads) |
 | 4 | Efficiency, no behaviour change: states return wake times staggered by an id hash; LOS cached per (observer, target) for a short sim-time window; perception budget; the 6 nav-cache invalidations (`_navCache`, `_physicalPath`) become one call on Navigation. Each proved identical before the next; median wall time against the 25% gate | partly merged: the nav-cache invalidations are one call on Navigation (#120; optional-safe since #123). Wake staggering, the LOS cache and the perception budget are not on `main` |
-| 5 | Read-through: a top-of-file contract for every layer file, dead code out (`flatDamage` in 14-z, the unread `objectiveHoldWin`, the `soldier.target` swap in module 52), every tunable number listed by layer in the PR body as the input to the genome rewrite, then a fresh reader explains each layer from its file alone | partly merged: `flatDamage` in 14-z is gone (#121). Not done: the top-of-file contracts, `objectiveHoldWin`, the `soldier.target` swap in module 52, the tunable inventory, the fresh-reader test |
+| 5 | Read-through: a top-of-file contract for every layer file, dead code out (`flatDamage` in 14-z, the unread `objectiveHoldWin`, the `soldier.target` swap in module 52), every tunable number listed by layer in `TUNABLES.md` as the input to the genome rewrite, then a fresh reader explains each layer from its file alone | partly merged: `flatDamage` in 14-z is gone (#121). Not done: the top-of-file contracts, `objectiveHoldWin`, the `soldier.target` swap in module 52, the fresh-reader test. The inventory is `TUNABLES.md` (#129): its 67 names exist in the files they are listed under and its 52 plain-number values equal the code (checked 2026-09-30, by script, not in CI); its 15 compound entries and its completeness are unchecked |
 
 Wire-map debt still open (2 entries, both scheduled): `soldier.fireCooldown` (spawn stagger in `spawnAll` against the
 fire pipeline's own clock; phase 3, not yet done) and `soldier.target` in module 52 (phase 5). The 6 nav-cache entries and
