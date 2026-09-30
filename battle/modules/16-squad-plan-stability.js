@@ -93,6 +93,10 @@
     rallyStress: 0.15,
     rallyCasualty: 0.5
   };
+  /* The casualty fraction at which a squad under this mean stress breaks (the flat 60% rule at zero). */
+  function moraleBreakAt(stress) {
+    return Math.max(MORALE_TUNING.breakMin, MORALE_TUNING.breakBase - MORALE_TUNING.breakSlope * stress);
+  }
   /* 3c: course of action on contact. Behind ?coa=1. On contact the Squad Leader (the one COA
      owner) scores the declared COAs against declared inputs and stores the winner as sq.coa.
      Scoring is deterministic: weighted sum, no RNG; ties break by COA name order, so the choice
@@ -120,21 +124,32 @@
     assault: { base: 1.0, casualtyFrac: -2.0, stress: -1.0, leaderDown: -1.5 },
     defend: { base: 0.0, casualtyFrac: 0.5, stress: 0.5, leaderDown: 0.5 }
   };
-  function coaScore(coa, sq) {
+  /* The declared inputs, read off a squad once; the scores and the choice are then pure functions of
+     that record (the same arithmetic in the same order as before, so the probes and checks can score
+     recorded inputs with the shipping tables instead of a copy). */
+  function coaInputsOf(sq) {
+    var out = {};
+    for (var k in COA_INPUTS) out[k] = COA_INPUTS[k](sq);
+    return out;
+  }
+  function coaScore(coa, inputs) {
     var w = COA_WEIGHTS[coa], s = w.base || 0, v;
     for (var k in COA_INPUTS) {
       v = w[k] || 0;
-      if (v) s += v * COA_INPUTS[k](sq);
+      if (v) s += v * inputs[k];
     }
     return s;
   }
-  function selectCOA(sq) {
+  function decideCOA(inputs) {
     var names = Object.keys(COAS).sort(), best = names[0], bestScore = -Infinity, s;
     for (var i = 0; i < names.length; i++) {
-      s = coaScore(names[i], sq);
+      s = coaScore(names[i], inputs);
       if (s > bestScore + 1e-9) { bestScore = s; best = names[i]; }
     }
     return best;
+  }
+  function selectCOA(sq) {
+    return decideCOA(coaInputsOf(sq));
   }
   var TACTICAL = {
     assault: 1,
@@ -1299,9 +1314,7 @@
       } else {
         /* Break: stress lowers the casualty threshold. At zero stress this is exactly the
            flat 60% rule. */
-        var breakAt = Math.max(MORALE_TUNING.breakMin,
-          MORALE_TUNING.breakBase - MORALE_TUNING.breakSlope * stress);
-        if (casualtyFrac >= breakAt) sq.state = 'retreat';
+        if (casualtyFrac >= moraleBreakAt(stress)) sq.state = 'retreat';
         else sq.state = anyEngaged ? 'engaged' : 'advance';
       }
     } else if (casualtyFrac >= 0.6) sq.state = 'retreat';
@@ -1711,10 +1724,21 @@
     teamOrderSeconds: TEAM_LEASE,
     boundCycle: BOUND_CYCLE,
     boundDuration: BOUND_DURATION,
-    tuning: { morale: MORALE_TUNING },
+    tuning: { morale: MORALE_TUNING, coa: { weights: COA_WEIGHTS } },
     moraleOn: function () { return MORALE_ON; },
     coaOn: function () { return COA_ON; },
     coas: function () { return Object.keys(COAS); },
+    /* Read-only views of the two decisions, for the checks and the probes (nothing in the runtime calls them). */
+    moraleBreakAt: moraleBreakAt,
+    coaInputs: coaInputsOf,
+    coaDecide: function (inputs) {
+      var scores = {};
+      Object.keys(COAS).forEach(function (n) {
+        scores[n] = coaScore(n, inputs);
+      });
+      return { winner: decideCOA(inputs), scores: scores };
+    },
+    boundPhases: function () { return Object.keys(ASSAULT_PHASES); },
     fireAndMovement: fireAndMovement,
     states: PHASE_STATES,
     transitionPhase: transitionPhase,
