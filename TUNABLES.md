@@ -3,6 +3,12 @@
 **Phase 5 work-in-progress.** Every tunable number by layer, for the future genome rewrite.
 Generated 2026-09-29 from the merged `main` branch (post #118-#121).
 
+**Checked 2026-09-30, once, by script (nothing in CI enforces it):** all 67 entries name a constant that
+exists in the file they are listed under, and all 52 plain-number values equal the code. The 15 compound
+entries (objects, several numbers on one line) were not compared, and completeness was not checked. Known
+gap: the Squad Leader's retreat threshold is a bare `0.6` in `updateSquadState` (`modules/16`), not a named
+constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad with no Squad Leader module.
+
 ## Core
 
 ### battle/squad-ai.js
