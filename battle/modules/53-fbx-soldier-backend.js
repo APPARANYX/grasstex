@@ -2043,13 +2043,13 @@ function surfaceReady(d,scene){
    him yet) and paints once his meshes draw again; its anchor is a skin vertex, so it lands on the
    same spot of the body whatever pose he is in by then. */
 function surfaceDrawable(d,scene,mesh){return mesh.isEnabled()&&surfaceReady(d,scene);}
-function paintSurfaceWound(anchor,stamp,out,diameter,angle){
+function paintSurfaceWound(anchor,stamp,out,diameter,angle,depthCap){
   var mesh=anchor&&anchor.mesh;if(!mesh||!stamp)return null;
   var p=new V3(),n=new V3();
   if(!skinSample(anchor,p,n))return null;
   if(out&&n.x*out.x+n.y*out.y+n.z*out.z<0)n.scaleInPlace(-1);
   var d=surfaceDamageMap(mesh);if(!d)return null;
-  var size=Math.max(.025,+diameter||.1),depth=Math.max(.06,Math.min(.28,size*1.5)),
+  var size=Math.max(.025,+diameter||.1),depth=Math.min(depthCap||.28,Math.max(.06,size*1.5)),
     epoch=d.epoch,woundNo=++d.wounds,scene=mesh.getScene(),timer=(scene&&scene.getEngine)?root.setTimeout:setTimeout;
   function project(){
     /* First-use shader/RTT creation can finish after the hit event. Re-sample the live anchor at
