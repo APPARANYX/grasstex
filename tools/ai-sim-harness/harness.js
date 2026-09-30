@@ -110,12 +110,12 @@ function addSquad(root,battle,opts){
 // Keep execution identical to battle-sim.js; tests can supply navigation via battle._movementRoot.
 const movementSource=fs.readFileSync(path.join(REPO,'battle/battle-sim.js'),'utf8');
 const movementBody=movementSource.slice(movementSource.indexOf('  function stepMovement('),movementSource.indexOf('  BattleSim.prototype._frame='));
-const movementFactory=new Function('root','BattleSoldierModel','steerAroundObstacles','NAV_REPLAN_HOLD',movementBody+';return stepMovement;');
+const movementFactory=new Function('root','BattleSoldierModel','steerAroundObstacles','NAV_REPLAN_HOLD','STEER_LEG',movementBody+';return stepMovement;');
 const movementModel={animateWalk(){}};
 const defaultMovementRoot={}, movementCache=new WeakMap();
 function stepMovement(battle,s,dt){
   const root=battle._movementRoot||defaultMovementRoot;
-  if(!movementCache.has(root))movementCache.set(root,movementFactory(root,movementModel,()=>null,1.5));
+  if(!movementCache.has(root))movementCache.set(root,movementFactory(root,movementModel,()=>null,1.5,true));
   movementCache.get(root)(battle,s,dt);
 }
 
