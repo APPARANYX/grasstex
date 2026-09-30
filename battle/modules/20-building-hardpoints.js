@@ -125,7 +125,7 @@
     c.history.push(snapshot(t));
     if (c.history.length > 80) c.history.shift();
     s._nextStationClaimAt = sim.time + CLAIM_RETRY;
-    root.BattleNavigation.invalidateNavPath(s);
+    if (root.BattleNavigation) root.BattleNavigation.invalidateNavPath(s);
     root.BattleEngagement.stationLeft(s);
     if (root.BattleMovementResolver) root.BattleMovementResolver.clearCombat(s);
     if (s.eng && s.eng.state === 'station') {
@@ -239,7 +239,7 @@
     s._positionAssignments = (s._positionAssignments || 0) + 1;
     c.stats.assignmentsByRole[s.role] = (c.stats.assignmentsByRole[s.role] || 0) + 1;
     if (s.role === 'sergeant') c.stats.captainWindowAssignments++;
-    root.BattleNavigation.invalidateNavPath(s);
+    if (root.BattleNavigation) root.BattleNavigation.invalidateNavPath(s);
     s._nextStationClaimAt = 0;
     if (root.BattleMovementResolver) root.BattleMovementResolver.clearCombat(s);
     root.BattleEngagement.stationClaimed(s);

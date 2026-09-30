@@ -5,7 +5,6 @@
     "route-setup": "Initial route allocation (assignSquad, from initForce and from ensureAssignments for squads with no route yet) before the Squad Leader executes any mission.",
     "spawn-stamp": "Spawn: stamps a fresh unit when it is created (battle-sim spawnAll at battle start, module 10 for operator reinforcements, module-registry addUnit defaults).",
     "restart-reset": "Restart: BattleSim.restart sweeps every soldier and squad through the module reset hooks.",
-    "nav-invalidate": "Invalidates Navigation's cached path by hand after moving a soldier or his destination. Each cache records its goal and world version, so the reader that uses it could reject a stale entry itself.",
     "resolver-fallback": "Only when BattleMovementResolver is absent (isolated unit harness); production loads the resolver before any AI tick.",
     "engagement-fallback": "no-Engagement fallback (fallbackBehavior): only runs when engagement.js failed to load, so a broken deployment still fights.",
     "squad-status-fallback": "Status-only squadStatus: runs only when no squadCommand owner is attached; the Squad Leader replaces it."
@@ -247,42 +246,6 @@
         }
       }
     },
-    "soldier._navCache": {
-      "owner": "battle-navigation.js",
-      "writers": {
-        "battle-navigation.js": {
-          "as": "owner",
-          "why": "nextWaypoint stores the path it computed."
-        },
-        "battle-sim.js": {
-          "as": "debt",
-          "why": "nav-invalidate",
-          "fix": "phase 4"
-        },
-        "engagement.js": {
-          "as": "fallback",
-          "why": "resolver-fallback"
-        },
-        "modules/16-squad-plan-stability.js": {
-          "as": "setup",
-          "why": "placeAtSlots teleports a fresh squad onto its slots (battle start, and module 10 reinforcements)."
-        },
-        "modules/20-building-hardpoints.js": {
-          "as": "debt",
-          "why": "nav-invalidate",
-          "fix": "phase 4"
-        },
-        "modules/21-defender-engineers.js": {
-          "as": "setup",
-          "why": "garrison-setup"
-        },
-        "movement-resolver.js": {
-          "as": "debt",
-          "why": "nav-invalidate",
-          "fix": "phase 4"
-        }
-      }
-    },
     "soldier._personalSpaceDestination": {
       "owner": "modules/51-soldier-personal-space.js",
       "writers": {
@@ -303,20 +266,9 @@
           "as": "owner",
           "why": "buildRollingPlan builds the physical path (module 39 is Navigation, not only an overlay); restart deletes it."
         },
-        "battle-sim.js": {
-          "as": "debt",
-          "why": "nav-invalidate",
-          "fix": "phase 4"
-        },
-        "modules/20-building-hardpoints.js": {
-          "as": "debt",
-          "why": "nav-invalidate",
-          "fix": "phase 4"
-        },
-        "movement-resolver.js": {
-          "as": "debt",
-          "why": "nav-invalidate",
-          "fix": "phase 4"
+        "battle-navigation.js": {
+          "as": "layer",
+          "why": "invalidateNavPath is the one call every other layer uses to drop the cached route and path."
         }
       }
     },
@@ -428,11 +380,6 @@
         "battle-sim.js": {
           "as": "body",
           "why": "killSoldier pins hp to 0 as the soldier dies."
-        },
-        "modules/14-z-ballistic-raycast.js": {
-          "as": "debt",
-          "why": "flatDamage is a dead copy of SquadAI's default (`S.applyHit ? S.applyHit(...) : flatDamage(...)`; applyHit always exists).",
-          "fix": "phase 5"
         },
         "squad-ai.js": {
           "as": "fallback",
