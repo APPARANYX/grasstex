@@ -701,23 +701,41 @@ function renderBrain3DDetailScene(fast=false){
     return [[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]].map(([x,y])=>P({x,y,z}));
   }
   function poly(points,cls){return el('polygon',{points:points.map(p=>p.x+','+p.y).join(' '),class:cls})}
-  function drawSpineLabel(title,sub,corners,offset=24){
-    if(!corners||!corners.length)return;
-    const minX=Math.min(...corners.map(p=>p.x)),midY=corners.reduce((a,p)=>a+p.y,0)/corners.length;
-    const x=minX-offset;
-    const gg=el('g',{class:'brain3dSpineLabel'});
-    gg.appendChild(el('text',{
-      x,y:midY,'text-anchor':'middle',class:'brain3dSliceTitle',
-      transform:'rotate(-90 '+x+' '+midY+')'
-    },title));
-    if(sub){
-      const sx=x+17;
+  const groupLabels=[];
+  function layerColor(layer){
+    return layer==='macro'?'#8d73b8':layer==='meso'?'#68a0cd':layer==='micro'?'#6aa382':layer==='move'?'#b27d3f':'#7f94ad';
+  }
+  function queueGroupLabel(title,sub,layer,centerPoint,connectPoint){
+    if(!centerPoint||!connectPoint)return;
+    groupLabels.push({title,sub:sub||'',layer,color:layerColor(layer),centerPoint,connectPoint});
+  }
+  function renderGroupLabels(){
+    if(!groupLabels.length)return;
+    const highest=Math.min(...groupLabels.map(l=>l.connectPoint.y));
+    // One shared screen-space Y baseline above every group.
+    const baselineY=Math.max(86,highest-74);
+    groupLabels.forEach(l=>{
+      const x=l.centerPoint.x,y=baselineY,color=l.color;
+      const gg=el('g',{class:'brain3dSpineLabel'});
+      // Thin leader from the shared baseline down to the group's own centered top point.
+      gg.appendChild(el('path',{
+        d:'M'+x+','+(y+8)+' L'+x+','+Math.max(y+18,l.connectPoint.y-10)+' L'+l.connectPoint.x+','+l.connectPoint.y,
+        fill:'none',stroke:color,'stroke-width':1.15,opacity:.9
+      }));
+      gg.appendChild(el('circle',{cx:l.connectPoint.x,cy:l.connectPoint.y,r:2.2,fill:color,opacity:.95}));
       gg.appendChild(el('text',{
-        x:sx,y:midY,'text-anchor':'middle',class:'brain3dSliceSub',
-        transform:'rotate(-90 '+sx+' '+midY+')'
-      },sub));
-    }
-    g.appendChild(gg);
+        x,y,'text-anchor':'middle',class:'brain3dSliceTitle',
+        transform:'rotate(-90 '+x+' '+y+')'
+      },l.title));
+      if(l.sub){
+        const sx=x+17;
+        gg.appendChild(el('text',{
+          x:sx,y,'text-anchor':'middle',class:'brain3dSliceSub',
+          transform:'rotate(-90 '+sx+' '+y+')'
+        },l.sub));
+      }
+      g.appendChild(gg);
+    });
   }
   const childrenByParent={};
   model.slices.filter(s=>s.kind==='cfg').forEach(s=>(childrenByParent[s.parentId]||(childrenByParent[s.parentId]=[])).push(s));
@@ -773,11 +791,18 @@ function renderBrain3DDetailScene(fast=false){
   }
   function drawGroupBox(parent){
     const box=boxCorners(parent);if(!box)return;
-    const q=box.corners,edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+    const q=box.corners,edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]],color=layerColor(parent.layer);
     const gg=el('g',{class:'brain3dGroupBox'});
-    edges.forEach(([a,b])=>gg.appendChild(el('line',{x1:q[a].x,y1:q[a].y,x2:q[b].x,y2:q[b].y,class:'brain3dGrid'})));
+    edges.forEach(([a,b])=>gg.appendChild(el('line',{
+      x1:q[a].x,y1:q[a].y,x2:q[b].x,y2:q[b].y,
+      stroke:color,'stroke-width':1.15,opacity:.58
+    })));
     g.appendChild(gg);
-    drawSpineLabel(parent.title,parent.sub||'',q,28);
+    const zCenter=(box.zFront+box.zBack)/2;
+    // Center in the group's X/Z footprint; leader terminates at the centered top edge.
+    const center=P({x:0,y:0,z:zCenter});
+    const top=P({x:0,y:-box.maxH/2,z:zCenter});
+    queueGroupLabel(parent.title,parent.sub||'',parent.layer,center,top);
   }
   function portById(s,id){return (s.ports||[]).find(p=>p.id===id)||null}
   function overviewById(s,id){return (s.overview||[]).find(n=>n.id===id)||null}
@@ -799,6 +824,11 @@ function renderBrain3DDetailScene(fast=false){
     const s=item.s,corners=item.corners;
     const plane=poly(corners,'brain3dPlane'+(s.kind==='cfg'?' detailFace':''));
     if(s.kind==='cfg')plane.setAttribute('opacity','.58');
+    else{
+      plane.setAttribute('stroke',layerColor(s.layer));
+      plane.setAttribute('stroke-width','1.5');
+      plane.setAttribute('stroke-opacity','.72');
+    }
     g.appendChild(plane);
 
   });
@@ -806,7 +836,9 @@ function renderBrain3DDetailScene(fast=false){
   model.slices.filter(isFunctionGroup).forEach(drawGroupBox);
 
   if(fast){
-    const hud=el('g',{transform:'translate(22,22)'});
+    renderGroupLabels();
+
+  const hud=el('g',{transform:'translate(22,22)'});
     hud.appendChild(el('rect',{width:410,height:54,rx:12,class:'brain3dHud'}));
     hud.appendChild(el('text',{x:14,y:22,class:'brain3dHudText'},'ROTATE PREVIEW · exact CFG card geometry'));
     hud.appendChild(el('text',{x:14,y:42,class:'brain3dHudText'},'release mouse to restore nodes, ports and connections'));
@@ -870,7 +902,9 @@ function renderBrain3DDetailScene(fast=false){
 
     snapPlanarText(board,s);
     g.appendChild(board);
-    drawSpineLabel(s.title,s.sub||'',parentCorners(s),24);
+    const sh=s.height||model.planeH;
+    const center=parentPoint(s,0,0),top=parentPoint(s,0,-sh/2);
+    queueGroupLabel(s.title,s.sub||'',s.layer,center,top);
   });
 
   // Literal function pages: renderCfgLayout() is the SAME renderer used by Deep Branch CFG.
@@ -963,6 +997,9 @@ function renderBrain3DScene(){
   function poly(points,cls){
     return el('polygon',{points:points.map(q=>q.x+','+q.y).join(' '),class:cls});
   }
+  function standardLayerColor(layer){
+    return layer==='macro'?'#8d73b8':layer==='meso'?'#68a0cd':layer==='micro'?'#6aa382':layer==='move'?'#b27d3f':'#7f94ad';
+  }
 
   // Build slice slabs/planes and painter-sort them.
   model.slices.map((s,i)=>{
@@ -981,7 +1018,9 @@ function renderBrain3DScene(){
       sides.forEach(side=>g.appendChild(poly(side,'brain3dSide')));
       g.appendChild(poly(p.front,'brain3dPlane detailFace'));
     }else{
-      g.appendChild(poly(p.front,'brain3dPlane'));
+      const face=poly(p.front,'brain3dPlane'),color=standardLayerColor(p.slice.layer);
+      face.setAttribute('stroke',color);face.setAttribute('stroke-width','1.5');face.setAttribute('stroke-opacity','.72');
+      g.appendChild(face);
     }
 
     const face=p.front,a=face[0],b=face[1],d=face[3],e=face[2];
