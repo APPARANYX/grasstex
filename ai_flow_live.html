@@ -666,6 +666,44 @@ function renderBrain3DDetailScene(fast=false){
   const childrenByParent={};
   model.slices.filter(s=>s.kind==='cfg').forEach(s=>(childrenByParent[s.parentId]||(childrenByParent[s.parentId]=[])).push(s));
   const isFunctionGroup=s=>s.kind==='parent'&&(childrenByParent[s.id]||[]).length>0;
+  const stateGridCache={};
+  function parentPoint(s,x,y){return P({x,y,z:sliceZ(s)})}
+  function parentTransform(s){
+    const p0=parentPoint(s,0,0),px=parentPoint(s,1,0),py=parentPoint(s,0,1);
+    const a=px.x-p0.x,b=px.y-p0.y,cc=py.x-p0.x,d=py.y-p0.y;
+    return 'matrix('+a+' '+b+' '+cc+' '+d+' '+p0.x+' '+p0.y+')';
+  }
+  function parentBackFacing(s){
+    const c0=parentPoint(s,0,0),px=parentPoint(s,1,0),py=parentPoint(s,0,1);
+    const ax=px.x-c0.x,ay=px.y-c0.y,bx=py.x-c0.x,by=py.y-c0.y;
+    return ax*by-ay*bx<0;
+  }
+  function snapPlanarText(group,s){
+    if(!brain3D.textSnap||!parentBackFacing(s))return;
+    group.querySelectorAll('text').forEach(t=>{
+      const x=parseFloat(t.getAttribute('x')||'0'),y=parseFloat(t.getAttribute('y')||'0');
+      const prior=t.getAttribute('transform')||'';
+      t.setAttribute('transform',(prior?prior+' ':'')+'translate('+(2*x)+' 0) scale(-1 1)');
+      const anchor=t.getAttribute('text-anchor');
+      if(!anchor||anchor==='start')t.setAttribute('text-anchor','end');
+      else if(anchor==='end')t.setAttribute('text-anchor','start');
+    });
+  }
+  function stateGridLayout(s){
+    if(stateGridCache[s.id])return stateGridCache[s.id];
+    const list=s.overview||[],w=s.width||model.planeW,h=s.height||model.planeH;
+    const count=Math.max(1,list.length),cols=Math.max(1,Math.ceil(Math.sqrt(count*1.45))),rows=Math.max(1,Math.ceil(count/cols));
+    const cardW=Math.min(250,(w-280)/Math.max(1,cols)),cardH=78;
+    const usableW=w-300,usableH=h-310;
+    const dx=cols>1?usableW/(cols-1):0,dy=rows>1?Math.min(150,usableH/(rows-1)):0;
+    const startX=cols>1?-usableW/2:0,startY=rows>1?-((rows-1)*dy)/2:0;
+    const byId={};
+    list.forEach((n,i)=>{
+      const col=i%cols,row=Math.floor(i/cols);
+      byId[n.id]={x:startX+col*dx,y:startY+row*dy,w:cardW,h:cardH,node:n};
+    });
+    return stateGridCache[s.id]={byId,cols,rows,cardW,cardH};
+  }
   function boxCorners(parent){
     const kids=childrenByParent[parent.id]||[];
     if(!kids.length)return null;
@@ -695,8 +733,8 @@ function renderBrain3DDetailScene(fast=false){
       const p=portById(s,ep.portId);return p?pagePoint(s,p.x,p.y):null;
     }
     if(isFunctionGroup(s))return null;
-    const n=overviewById(s,ep.overviewId);if(!n)return null;
-    return P({x:n.x,y:n.y,z:sliceZ(s)});
+    const cell=stateGridLayout(s).byId[ep.overviewId];
+    return cell?parentPoint(s,cell.x,cell.y):null;
   }
 
   // Slice planes first. Exact CFG bounds define each detail card's physical dimensions.
@@ -708,11 +746,7 @@ function renderBrain3DDetailScene(fast=false){
     const plane=poly(corners,'brain3dPlane'+(s.kind==='cfg'?' detailFace':''));
     if(s.kind==='cfg')plane.setAttribute('opacity','.58');
     g.appendChild(plane);
-    if(s.kind==='parent'){
-      const p=corners[0];
-      g.appendChild(el('text',{x:p.x+8,y:p.y+18,class:'brain3dSliceTitle'},s.title));
-      g.appendChild(el('text',{x:p.x+8,y:p.y+34,class:'brain3dSliceSub'},s.sub||''));
-    }
+
   });
 
   model.slices.filter(isFunctionGroup).forEach(drawGroupBox);
@@ -728,6 +762,7 @@ function renderBrain3DDetailScene(fast=false){
 
   // Cross-slice connections are drawn behind the embedded CFG pages.
   model.crossEdges.forEach(e=>{
+    if(e.from.slice===e.to.slice&&e.from.overviewId&&e.to.overviewId)return;
     const a=endpoint(e.from),b=endpoint(e.to);if(!a||!b)return;
     const focused=!brain3D.focus||brain3D.focus===e.from.portId||brain3D.focus===e.to.portId||brain3D.focus===e.from.overviewId||brain3D.focus===e.to.overviewId;
     let cls='brain3dEdge '+(e.kind||'parentFlow');
@@ -736,18 +771,53 @@ function renderBrain3DDetailScene(fast=false){
     g.appendChild(el('path',{d:'M'+a.x+','+a.y+' C'+mx+','+a.y+' '+mx+','+b.y+' '+b.x+','+b.y,class:cls}));
   });
 
-  // Parent landmarks: function/state objects remain small orientation points.
+  // State/priority parent slices are real planar boards: grid cards + on-slice wiring.
   model.slices.filter(s=>s.kind==='parent'&&!isFunctionGroup(s)).forEach(s=>{
-    (s.overview||[]).forEach(n=>{
-      const p=P({x:n.x,y:n.y,z:sliceZ(s)}),w=n.type==='priority'?118:150,h=42;
-      const gr=el('g',{class:'brain3dNode '+(n.type||'function')+' '+n.layer,transform:'translate('+p.x+','+p.y+') scale('+Math.max(.55,p.scale*.9)+')'});
-      gr.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:9}));
-      gr.appendChild(el('text',{x:0,y:4,'text-anchor':'middle','font-size':10,'font-weight':'800'},String(n.label||n.id)));
-      gr.appendChild(el('title',{},n.fullLabel||n.label||n.id));
-      gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===n.id?null:n.id;centerBrain3DOn(p,false);renderBrain3DDetailScene(false)});
-      if(n.cfg)gr.addEventListener('dblclick',ev=>{ev.stopPropagation();cfgHistory=[];jumpToCfg(n.cfg,false)});
-      g.appendChild(gr);
+    const layout=stateGridLayout(s),board=el('g',{class:'detailStateBoard','data-slice':s.id,transform:parentTransform(s)});
+    const w=s.width||model.planeW,h=s.height||model.planeH;
+
+    board.appendChild(el('text',{x:-w/2+55,y:-h/2+65,'font-size':30,'font-weight':900,fill:'#fff'},s.title));
+    board.appendChild(el('text',{x:-w/2+55,y:-h/2+92,class:'mini'},s.sub||''));
+
+    // Draw only relationships whose endpoints both belong to this board.
+    model.crossEdges.forEach(e=>{
+      if(e.from.slice!==s.id||e.to.slice!==s.id||!e.from.overviewId||!e.to.overviewId)return;
+      const a=layout.byId[e.from.overviewId],b=layout.byId[e.to.overviewId];if(!a||!b)return;
+      const mx=(a.x+b.x)/2;
+      board.appendChild(el('path',{
+        d:'M'+a.x+','+a.y+' L'+mx+','+a.y+' L'+mx+','+b.y+' L'+b.x+','+b.y,
+        class:'brain3dEdge '+(e.kind==='state'?'state':'parentFlow')
+      }));
     });
+
+    (s.overview||[]).forEach(n=>{
+      const cell=layout.byId[n.id];if(!cell)return;
+      const gr=el('g',{
+        class:'brain3dNode '+(n.type||'state')+' '+n.layer,
+        'data-id':n.id,transform:'translate('+cell.x+','+cell.y+')'
+      });
+      gr.appendChild(el('rect',{x:-cell.w/2,y:-cell.h/2,width:cell.w,height:cell.h,rx:13}));
+      const parts=wrap(String(n.label||n.id),30).slice(0,2),first=parts.length>1?-3:5;
+      parts.forEach((txt,i)=>gr.appendChild(el('text',{
+        x:0,y:first+i*16,'text-anchor':'middle','font-size':13,'font-weight':'850'
+      },txt)));
+      if(n.type==='priority'&&n.priority!=null){
+        gr.appendChild(el('text',{x:0,y:cell.h/2-10,'text-anchor':'middle',class:'sub'},String(n.priority)));
+      }
+      gr.appendChild(el('title',{},n.fullLabel||n.label||n.id));
+      gr.addEventListener('click',ev=>{
+        ev.stopPropagation();
+        brain3D.focus=brain3D.focus===n.id?null:n.id;
+        const cp=parentPoint(s,cell.x,cell.y);
+        centerBrain3DOn(cp,false);
+        renderBrain3DDetailScene(false);
+      });
+      if(n.ref)gr.addEventListener('dblclick',ev=>{ev.stopPropagation();openSource(n.ref,n.fullLabel||n.label)});
+      board.appendChild(gr);
+    });
+
+    snapPlanarText(board,s);
+    g.appendChild(board);
   });
 
   // Literal function pages: renderCfgLayout() is the SAME renderer used by Deep Branch CFG.
