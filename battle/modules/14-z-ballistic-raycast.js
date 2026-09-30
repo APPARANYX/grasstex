@@ -373,13 +373,8 @@
     if (h > (crouch ? 0.4 : 0.5)) return 'abdomen';
     return 'leg';
   }
-  function flatDamage(shooter, victim, battle) {
-    victim.hp -= shooter.weapon.stats.damage * (0.85 + rand(battle) * 0.3);
-    if (victim.hp <= 0) battle.killSoldier(victim, shooter);
-    return null;
-  }
   function wound(shooter, victim, battle, hit) {
-    return S.applyHit ? S.applyHit(shooter, victim, battle, hit) : flatDamage(shooter, victim, battle);
+    return S.applyHit(shooter, victim, battle, hit);
   }
   function blockerOf(environment) {
     return environment.ground
