@@ -127,9 +127,8 @@
     s._nextStationClaimAt = sim.time + CLAIM_RETRY;
     s._navCache = null;
     s._physicalPath = null;
-    s._faceHint = null;
-    s.setUp = false;
-    if (s._movementResolver) s._movementResolver.combat = null;
+    root.BattleEngagement.stationLeft(s);
+    if (root.BattleMovementResolver) root.BattleMovementResolver.clearCombat(s);
     if (s.eng && s.eng.state === 'station') {
       root.BattleEngagement.requestState(s, sim, 'station-release');
     }
@@ -163,8 +162,7 @@
     }
     /* Genuinely unable to reach the station after graduated recovery: release so the position can
      be reassigned. Temporarily delayed soldiers never set this flag, so their assignments stay. */
-    if (s._movementGoalUnreachable) {
-      s._movementGoalUnreachable = false;
+    if (root.BattleMovementProgress && root.BattleMovementProgress.takeUnreachable(s)) {
       release(s, sim, 'station-unreachable');
       return null;
     }
@@ -245,12 +243,8 @@
     s._navCache = null;
     s._physicalPath = null;
     s._nextStationClaimAt = 0;
-    if (s._movementResolver) s._movementResolver.combat = null;
-    if (s.eng) {
-      s.eng.cover = null;
-      s.eng.boundOrder = false;
-      s.eng.suppressOrder = false;
-    }
+    if (root.BattleMovementResolver) root.BattleMovementResolver.clearCombat(s);
+    root.BattleEngagement.stationClaimed(s);
     if (root.BattleTacticalRoute) root.BattleTacticalRoute.cancel(s, sim);
     emit(sim, 'assigned', t);
     var R = root.BattleTacticalRoute;
