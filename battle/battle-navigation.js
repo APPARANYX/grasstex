@@ -102,7 +102,7 @@
           addNode(inside,'door-in',{building:b.id,opening:o.id});
           doorPortals.push({id:o.id,building:b.id,x:p.x,z:p.z,normalX:n.x,normalZ:n.z,width:(+o.width||1.35)+DOOR_CLEARANCE*2,depth:DOOR_PAD*2,outside:outside,inside:inside});
         }else if(o.type==='window'){
-          firingStations.push({id:'station-'+o.id,windowId:o.id,building:b.id,x:p.x-n.x*STATION_INSET,z:p.z-n.z*STATION_INSET,windowX:p.x,windowZ:p.z,normalX:n.x,normalZ:n.z,yBottom:o.bottom,yTop:o.top,stance:'crouch'});
+          firingStations.push({id:'station-'+o.id,windowId:o.id,building:b.id,x:p.x-n.x*STATION_INSET,z:p.z-n.z*STATION_INSET,windowX:p.x,windowZ:p.z,normalX:n.x,normalZ:n.z,yBottom:o.bottom,yTop:o.top,stance:'stand'});
         }
       });
     });
