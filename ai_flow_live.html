@@ -264,7 +264,7 @@ function layoutCFG(cfg){
 
 const stateFocus={};
 let cfgHistory=[],brainFocus=null;
-const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:false,focus:null,scene:null,detailScene:null,raf:0,fast:false};
+const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:false,focus:null,scene:null,detailScene:null,raf:0,fast:false,restoreTimer:0};
 let sources={}, current='brain', graphBounds={x:0,y:0,w:1800,h:1600};
 let camera={x:0,y:0,w:1800,h:1600},dragging=false,dragPointer=null,lastPointer=null,spaceDown=false,cameraAnim=0;
 const svg=document.getElementById('graph'), viewport=document.getElementById('viewport'), status=document.getElementById('status'), workspace=document.getElementById('workspace');
@@ -674,7 +674,7 @@ function brain3DProject(p){
 }
 
 function brain3DReset(){
-  cancelAnimationFrame(brain3D.raf);brain3D.raf=0;brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.detailScene=null;
+  cancelAnimationFrame(brain3D.raf);brain3D.raf=0;clearTimeout(brain3D.restoreTimer);brain3D.restoreTimer=0;brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.detailScene=null;
   const b=document.getElementById('brain3dExplodeBtn');if(b)b.textContent='Explode slices';
   const iy=document.getElementById('brain3dInvertYBtn');if(iy){iy.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');iy.classList.toggle('active',brain3D.invertY)}
   if(current==='brain3d')renderBrain3DScene();
@@ -1325,7 +1325,7 @@ function fullView(){
    if(current==='brain3d')renderBrain3DScene()
  };
  document.getElementById('cfgBackBtn').onclick=()=>{if(!cfgHistory.length)return;cfgChoice=cfgHistory.pop();const sel=document.getElementById('cfgSelect');if(sel)sel.value=cfgChoice;renderTabs();render();fit()};
- svg.addEventListener('wheel',e=>{e.preventDefault();const factor=Math.exp(-e.deltaY*0.00135);if(current==='brain3d'){brain3D.zoom=clamp(brain3D.zoom*factor,.32,2.6);scheduleBrain3DRender(brain3D.mode==='detail');return}zoomAt(factor,e.clientX,e.clientY,false)},{passive:false});
+ svg.addEventListener('wheel',e=>{e.preventDefault();const factor=Math.exp(-e.deltaY*0.00135);if(current==='brain3d'){brain3D.zoom=clamp(brain3D.zoom*factor,.32,2.6);scheduleBrain3DRender(brain3D.mode==='detail');clearTimeout(brain3D.restoreTimer);if(brain3D.mode==='detail')brain3D.restoreTimer=setTimeout(()=>{brain3D.fast=false;renderBrain3DDetailScene(false)},140);return}zoomAt(factor,e.clientX,e.clientY,false)},{passive:false});
  svg.addEventListener('dblclick',e=>{if(e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.callPort'))return;e.preventDefault();if(current==='brain3d'){brain3DReset();return}zoomAt(e.shiftKey?1/1.65:1.65,e.clientX,e.clientY,true)});
  svg.addEventListener('pointerdown',e=>{const overNode=e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.callPort');const forcePan=spaceDown||e.button===1;if(overNode&&!forcePan)return;if(e.button!==0&&e.button!==1)return;e.preventDefault();dragging=true;dragPointer=e.pointerId;lastPointer={x:e.clientX,y:e.clientY};document.getElementById('stage').classList.add('panning');svg.setPointerCapture(e.pointerId)});
  svg.addEventListener('pointermove',e=>{if(!dragging||e.pointerId!==dragPointer)return;const dx=e.clientX-lastPointer.x,dy=e.clientY-lastPointer.y;lastPointer={x:e.clientX,y:e.clientY};if(current==='brain3d'){brain3D.yaw+=dx*.008;brain3D.pitch=clamp(brain3D.pitch+dy*.006*(brain3D.invertY?-1:1),-1.18,1.18);scheduleBrain3DRender(brain3D.mode==='detail');return}panByScreen(dx,dy)});
