@@ -88,6 +88,18 @@
               dest: +d.toFixed(1),
               kind: last.kind || null,
               history: prior.hist,
+              /* Navigation's rolling queue: a first point inside the man's own 0.35 m arrival with more
+                 behind it is a waypoint he will never walk to (stepMovement calls it `arrived`). */
+              path: s._physicalPath
+                ? {
+                    blocked: !!s._physicalPath.blocked,
+                    replanIn: +(s._physicalPath.replanAt - now).toFixed(1),
+                    points: (s._physicalPath.points || []).slice(0, 3).map(function (q) {
+                      return { x: +q.x.toFixed(1), z: +q.z.toFixed(1), away: +Math.hypot(q.x - p.x, q.z - p.z).toFixed(2) };
+                    }),
+                    queue: (s._physicalPath.points || []).length
+                  }
+                : null,
               near: root.BattleObstacleField
                 ? root.BattleObstacleField.nearby(sim.obstacles, p.x, p.z, 5).map(function (o) {
                     return { kind: o.kind || o.type || null, dx: +(o.x - p.x).toFixed(1), dz: +(o.z - p.z).toFixed(1), r: +(+o.radius).toFixed(2), phys: o.physicalId != null };
