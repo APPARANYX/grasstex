@@ -264,7 +264,7 @@ function layoutCFG(cfg){
 
 const stateFocus={};
 let cfgHistory=[],brainFocus=null;
-const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:false,focus:null,scene:null,detailScene:null};
+const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:false,focus:null,scene:null,detailScene:null,raf:0,fast:false};
 let sources={}, current='brain', graphBounds={x:0,y:0,w:1800,h:1600};
 let camera={x:0,y:0,w:1800,h:1600},dragging=false,dragPointer=null,lastPointer=null,spaceDown=false,cameraAnim=0;
 const svg=document.getElementById('graph'), viewport=document.getElementById('viewport'), status=document.getElementById('status'), workspace=document.getElementById('workspace');
@@ -440,7 +440,7 @@ function detailCfgSnippet(n){
 
 function brain3DDetailModel(){
   const base=brain3D.scene||brain3DModel(),slices=[],nodes=[],edges=[],sliceById={};
-  const planeW=1480,planeH=920;
+  const parentW=1480,parentH=920,detailScale=.60;
   let order=0;
 
   function addSlice(s){
@@ -467,7 +467,8 @@ function brain3DDetailModel(){
       title:parent.title,
       sub:parent.sub+' · parent object layer',
       layer:parent.layer,
-      sourceSlice:parent.id
+      sourceSlice:parent.id,
+      width:parentW,height:parentH
     });
     const plist=baseNodesBySlice[parent.id]||[];
     plist.forEach(n=>addNode(Object.assign({},n,{
@@ -483,23 +484,29 @@ function brain3DDetailModel(){
       const [key,name]=fn.cfg.split(':'),ast=parseFunctionAST(key,name);
       if(!ast)return;
       const raw=buildCFG(ast),laid=layoutCFG(raw);
+
+      // Preserve each Deep CFG's own proportions instead of crushing every function into
+      // one fixed postcard. Long branch-heavy functions therefore get genuinely taller slices.
+      const minX=Math.min(...laid.nodes.map(n=>n.x)),maxX=Math.max(...laid.nodes.map(n=>n.x+(n.w||120)));
+      const minY=Math.min(...laid.nodes.map(n=>n.y)),maxY=Math.max(...laid.nodes.map(n=>n.y+(n.h||70)));
+      const contentW=Math.max(1,maxX-minX),contentH=Math.max(1,maxY-minY);
+      const childW=Math.max(1350,Math.min(3600,contentW*detailScale+520));
+      const childH=Math.max(780,Math.min(5200,contentH*detailScale+360));
       const child=addSlice({
         id:'detail:'+fn.cfg,
         parentId:ps.id,
         parentObjectId:'overview:'+fn.id,
         kind:'cfg',
         title:fn.fullLabel||fn.label,
-        sub:PATHS[key]+' · line '+ast.f.line+' · literal CFG slice',
+        sub:PATHS[key]+' · line '+ast.f.line+' · literal CFG slice · '+Math.round(childW)+'×'+Math.round(childH),
         layer:fn.layer,
         cfg:fn.cfg,
         key,name,
-        ref:ast.f.ref
+        ref:ast.f.ref,
+        width:childW,height:childH,
+        sourceWidth:laid.bounds.w,sourceHeight:laid.bounds.h,
+        layoutScale:detailScale
       });
-
-      // Normalize the existing roomy 2D CFG layout into this 3D slice.
-      const minX=Math.min(...laid.nodes.map(n=>n.x)),maxX=Math.max(...laid.nodes.map(n=>n.x+(n.w||120)));
-      const minY=Math.min(...laid.nodes.map(n=>n.y)),maxY=Math.max(...laid.nodes.map(n=>n.y+(n.h||70)));
-      const sx=(planeW-360)/Math.max(1,maxX-minX),sy=(planeH-250)/Math.max(1,maxY-minY),scale=Math.min(sx,sy);
       const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
       const cfgId=id=>'cfg:'+fn.cfg+':'+id;
       const cfgNodeMap={};
@@ -508,7 +515,7 @@ function brain3DDetailModel(){
         const nn={
           id:cfgId(n.id),originalCfgId:n.id,label:n.label,fullLabel:n.sub||n.label,
           type:'cfg',cfgType:n.type,slice:child.id,sliceOrder:child.order,layer:fn.layer,
-          x:(n.x+(n.w||120)/2-cx)*scale,y:(n.y+(n.h||70)/2-cy)*scale,
+          x:(n.x+(n.w||120)/2-cx)*detailScale,y:(n.y+(n.h||70)/2-cy)*detailScale,
           ref:n.ref,stmt:n.stmt,entry:!!n.entry,parentFunction:fn.cfg
         };
         cfgNodeMap[n.id]=nn;addNode(nn);
@@ -522,22 +529,22 @@ function brain3DDetailModel(){
       const entryPort=addNode({
         id:'port:entry:'+fn.cfg,label:'ENTRY',fullLabel:'ENTRY · '+fn.label,
         type:'port',portType:'entry',slice:child.id,sliceOrder:child.order,layer:fn.layer,
-        x:-planeW/2+70,y:0,parentFunction:fn.cfg,ref:fn.ref
+        x:-childW/2+85,y:0,parentFunction:fn.cfg,ref:fn.ref
       });
       const exitPort=addNode({
         id:'port:exit:'+fn.cfg,label:'EXIT',fullLabel:'NORMAL EXIT · '+fn.label,
         type:'port',portType:'exit',slice:child.id,sliceOrder:child.order,layer:fn.layer,
-        x:planeW/2-70,y:-70,parentFunction:fn.cfg,ref:fn.ref
+        x:childW/2-85,y:-70,parentFunction:fn.cfg,ref:fn.ref
       });
       const shortPort=shortEnds.length?addNode({
         id:'port:short:'+fn.cfg,label:'SHORT EXIT',fullLabel:'SHORT-CIRCUIT EXIT · '+fn.label,
         type:'port',portType:'shortExit',slice:child.id,sliceOrder:child.order,layer:fn.layer,
-        x:planeW/2-70,y:35,parentFunction:fn.cfg,ref:fn.ref
+        x:childW/2-85,y:35,parentFunction:fn.cfg,ref:fn.ref
       }):null;
       const controlPort=controlEnds.length?addNode({
         id:'port:control:'+fn.cfg,label:'CONTROL EXIT',fullLabel:'BREAK / CONTINUE control exit · '+fn.label,
         type:'port',portType:'controlExit',slice:child.id,sliceOrder:child.order,layer:fn.layer,
-        x:planeW/2-70,y:140,parentFunction:fn.cfg,ref:fn.ref
+        x:childW/2-85,y:140,parentFunction:fn.cfg,ref:fn.ref
       }):null;
 
       if(entryCfg)addEdge(entryPort.id,cfgId(entryCfg.id),'detailFlow','entry');
@@ -567,18 +574,18 @@ function brain3DDetailModel(){
         const successors=laid.edges.filter(e=>e.from===sourceId).map(e=>e.to);
         let previous=source.id;
         calls.forEach((call,ci)=>{
-          const py=Math.max(-planeH/2+105,Math.min(planeH/2-105,source.y+(portOrdinal++-2)*38));
+          const py=Math.max(-childH/2+125,Math.min(childH/2-125,source.y+(portOrdinal++-2)*44));
           const suffix=sourceId+':'+ci+':'+call.to;
           const out=addNode({
             id:'port:call:'+fn.cfg+':'+suffix,label:'CALL → '+(funcSpec(call.to)?.[1]||call.to),
             fullLabel:'CALL OUT · '+fn.cfg+' → '+call.to,type:'port',portType:'callout',
-            slice:child.id,sliceOrder:child.order,layer:fn.layer,x:planeW/2-105,y:py,
+            slice:child.id,sliceOrder:child.order,layer:fn.layer,x:childW/2-125,y:py,
             parentFunction:fn.cfg,targetFunction:call.to,ref:source.ref
           });
           const ret=addNode({
             id:'port:returnin:'+fn.cfg+':'+suffix,label:'← RETURN '+(funcSpec(call.to)?.[1]||call.to),
             fullLabel:'RETURN IN · '+call.to+' → '+fn.cfg,type:'port',portType:'returnin',
-            slice:child.id,sliceOrder:child.order,layer:fn.layer,x:planeW/2-105,y:py+28,
+            slice:child.id,sliceOrder:child.order,layer:fn.layer,x:childW/2-125,y:py+32,
             parentFunction:fn.cfg,targetFunction:call.to,ref:source.ref
           });
           addEdge(previous,out.id,'callFlow','call');
@@ -604,11 +611,11 @@ function brain3DDetailModel(){
   slices.filter(s=>s.kind==='parent').forEach(s=>{
     const list=nodes.filter(n=>n.slice===s.id&&n.detailKind==='overview'),count=list.length;
     const cols=Math.max(2,Math.ceil(Math.sqrt(Math.max(1,count)*1.55))),rows=Math.max(1,Math.ceil(count/cols));
-    const dx=(planeW-300)/Math.max(1,cols-1),dy=(planeH-280)/Math.max(1,rows-1);
+    const pw=s.width||parentW,ph=s.height||parentH,dx=(pw-300)/Math.max(1,cols-1),dy=(ph-280)/Math.max(1,rows-1);
     list.forEach((n,i)=>{
       const col=i%cols,row=Math.floor(i/cols);
-      n.x=-planeW/2+150+(cols===1?0:col*dx);
-      n.y=-planeH/2+150+(rows===1?0:row*dy);
+      n.x=-pw/2+150+(cols===1?0:col*dx);
+      n.y=-ph/2+150+(rows===1?0:row*dy);
     });
   });
 
@@ -644,7 +651,18 @@ function brain3DDetailModel(){
     n.sliceTitle=s?s.title:n.slice;
   });
 
-  return {slices,nodes,edges,planeW,planeH,sliceById,detailByFunction};
+  return {slices,nodes,edges,planeW:parentW,planeH:parentH,sliceById,detailByFunction};
+}
+
+function scheduleBrain3DRender(fast=false){
+  brain3D.fast=!!fast;
+  if(brain3D.raf)return;
+  brain3D.raf=requestAnimationFrame(()=>{
+    brain3D.raf=0;
+    if(current!=='brain3d')return;
+    if(brain3D.mode==='detail')renderBrain3DDetailScene(brain3D.fast);
+    else renderBrain3DScene();
+  });
 }
 
 function brain3DProject(p){
@@ -656,19 +674,19 @@ function brain3DProject(p){
 }
 
 function brain3DReset(){
-  brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.detailScene=null;
+  cancelAnimationFrame(brain3D.raf);brain3D.raf=0;brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.detailScene=null;
   const b=document.getElementById('brain3dExplodeBtn');if(b)b.textContent='Explode slices';
   const iy=document.getElementById('brain3dInvertYBtn');if(iy){iy.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');iy.classList.toggle('active',brain3D.invertY)}
   if(current==='brain3d')renderBrain3DScene();
 }
 
 
-function renderBrain3DDetailScene(){
+function renderBrain3DDetailScene(fast=false){
   if(current!=='brain3d'||brain3D.mode!=='detail')return;
   const model=brain3D.detailScene||brain3DDetailModel();brain3D.detailScene=model;
   viewport.innerHTML='';graphBounds={x:0,y:0,w:1800,h:1300};svg.setAttribute('viewBox','0 0 1800 1300');
   const g=viewport,orders=model.slices.map(s=>s.order),minOrder=Math.min(...orders),maxOrder=Math.max(...orders),center=(minOrder+maxOrder)/2;
-  const gap=175;
+  const gap=235;
   const sliceZ=s=>(center-s.order)*gap;
   const worldNodes=Object.fromEntries(model.nodes.map(n=>{
     const s=model.sliceById[n.slice],z=s?sliceZ(s):0;
@@ -677,7 +695,7 @@ function renderBrain3DDetailScene(){
   const projected=Object.fromEntries(Object.entries(worldNodes).map(([id,n])=>[id,brain3DProject(n)]));
 
   function cornersFor(slice){
-    const z=sliceZ(slice),w=model.planeW,h=model.planeH;
+    const z=sliceZ(slice),w=slice.width||model.planeW,h=slice.height||model.planeH;
     return [[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]].map(([x,y])=>brain3DProject({x,y,z}));
   }
   function poly(points,cls){return el('polygon',{points:points.map(p=>p.x+','+p.y).join(' '),class:cls})}
@@ -692,17 +710,28 @@ function renderBrain3DDetailScene(){
     if(s.kind==='cfg')plane.setAttribute('opacity','.72');
     g.appendChild(plane);
 
-    const a=c[0],b=c[1],d=c[3],e=c[2];
-    [.25,.5,.75].forEach(t=>g.appendChild(el('line',{
-      x1:a.x+(b.x-a.x)*t,y1:a.y+(b.y-a.y)*t,
-      x2:d.x+(e.x-d.x)*t,y2:d.y+(e.y-d.y)*t,class:'brain3dGrid'
-    })));
+    if(!fast){
+      const a=c[0],b=c[1],d=c[3],e=c[2];
+      [.25,.5,.75].forEach(t=>g.appendChild(el('line',{
+        x1:a.x+(b.x-a.x)*t,y1:a.y+(b.y-a.y)*t,
+        x2:d.x+(e.x-d.x)*t,y2:d.y+(e.y-d.y)*t,class:'brain3dGrid'
+      })));
+    }
 
-    const tp=brain3DProject({x:-model.planeW/2+28,y:-model.planeH/2+34,z:sliceZ(s)});
+    const sw=s.width||model.planeW,sh=s.height||model.planeH,tp=brain3DProject({x:-sw/2+28,y:-sh/2+34,z:sliceZ(s)});
     const title=(s.kind==='cfg'?'DETAIL · ':'')+s.title;
     g.appendChild(el('text',{x:tp.x,y:tp.y,class:s.kind==='cfg'?'brain3dDetailTitle':'brain3dSliceTitle'},title));
     g.appendChild(el('text',{x:tp.x,y:tp.y+15,class:s.kind==='cfg'?'brain3dDetailMeta':'brain3dSliceSub'},s.sub||''));
   });
+
+  if(fast){
+    const hud=el('g',{transform:'translate(22,22)'});
+    hud.appendChild(el('rect',{width:365,height:54,rx:12,class:'brain3dHud'}));
+    hud.appendChild(el('text',{x:14,y:22,class:'brain3dHudText'},'ROTATE PREVIEW · slice geometry only'));
+    hud.appendChild(el('text',{x:14,y:42,class:'brain3dHudText'},'release mouse to restore full CFG nodes + connections'));
+    g.appendChild(hud);
+    return;
+  }
 
   const linked=new Set();
   if(brain3D.focus){
@@ -1296,11 +1325,11 @@ function fullView(){
    if(current==='brain3d')renderBrain3DScene()
  };
  document.getElementById('cfgBackBtn').onclick=()=>{if(!cfgHistory.length)return;cfgChoice=cfgHistory.pop();const sel=document.getElementById('cfgSelect');if(sel)sel.value=cfgChoice;renderTabs();render();fit()};
- svg.addEventListener('wheel',e=>{e.preventDefault();const factor=Math.exp(-e.deltaY*0.00135);if(current==='brain3d'){brain3D.zoom=clamp(brain3D.zoom*factor,.32,2.6);renderBrain3DScene();return}zoomAt(factor,e.clientX,e.clientY,false)},{passive:false});
+ svg.addEventListener('wheel',e=>{e.preventDefault();const factor=Math.exp(-e.deltaY*0.00135);if(current==='brain3d'){brain3D.zoom=clamp(brain3D.zoom*factor,.32,2.6);scheduleBrain3DRender(brain3D.mode==='detail');return}zoomAt(factor,e.clientX,e.clientY,false)},{passive:false});
  svg.addEventListener('dblclick',e=>{if(e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.callPort'))return;e.preventDefault();if(current==='brain3d'){brain3DReset();return}zoomAt(e.shiftKey?1/1.65:1.65,e.clientX,e.clientY,true)});
  svg.addEventListener('pointerdown',e=>{const overNode=e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.callPort');const forcePan=spaceDown||e.button===1;if(overNode&&!forcePan)return;if(e.button!==0&&e.button!==1)return;e.preventDefault();dragging=true;dragPointer=e.pointerId;lastPointer={x:e.clientX,y:e.clientY};document.getElementById('stage').classList.add('panning');svg.setPointerCapture(e.pointerId)});
- svg.addEventListener('pointermove',e=>{if(!dragging||e.pointerId!==dragPointer)return;const dx=e.clientX-lastPointer.x,dy=e.clientY-lastPointer.y;lastPointer={x:e.clientX,y:e.clientY};if(current==='brain3d'){brain3D.yaw+=dx*.008;brain3D.pitch=clamp(brain3D.pitch+dy*.006*(brain3D.invertY?-1:1),-1.18,1.18);renderBrain3DScene();return}panByScreen(dx,dy)});
- function endDrag(e){if(!dragging)return;if(e&&dragPointer!=null&&e.pointerId!==dragPointer)return;dragging=false;dragPointer=null;lastPointer=null;document.getElementById('stage').classList.remove('panning')}
+ svg.addEventListener('pointermove',e=>{if(!dragging||e.pointerId!==dragPointer)return;const dx=e.clientX-lastPointer.x,dy=e.clientY-lastPointer.y;lastPointer={x:e.clientX,y:e.clientY};if(current==='brain3d'){brain3D.yaw+=dx*.008;brain3D.pitch=clamp(brain3D.pitch+dy*.006*(brain3D.invertY?-1:1),-1.18,1.18);scheduleBrain3DRender(brain3D.mode==='detail');return}panByScreen(dx,dy)});
+ function endDrag(e){if(!dragging)return;if(e&&dragPointer!=null&&e.pointerId!==dragPointer)return;dragging=false;dragPointer=null;lastPointer=null;document.getElementById('stage').classList.remove('panning');if(current==='brain3d'&&brain3D.mode==='detail'){cancelAnimationFrame(brain3D.raf);brain3D.raf=0;brain3D.fast=false;renderBrain3DDetailScene(false)}}
  svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);svg.addEventListener('lostpointercapture',endDrag);
  window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes((e.target&&e.target.tagName)||''))return;if(e.code==='Space'){spaceDown=true;e.preventDefault();return}if(e.key==='+'||e.key==='='){zoomCenter(1.28);e.preventDefault()}else if(e.key==='-'){zoomCenter(1/1.28);e.preventDefault()}else if(e.key==='0'){actualSize();e.preventDefault()}else if(e.key.toLowerCase()==='f'){fit();e.preventDefault()}else if(e.key==='ArrowLeft'){if(current==='brain3d'){brain3D.yaw-=.12;renderBrain3DScene()}else panByScreen(80,0);e.preventDefault()}else if(e.key==='ArrowRight'){if(current==='brain3d'){brain3D.yaw+=.12;renderBrain3DScene()}else panByScreen(-80,0);e.preventDefault()}else if(e.key==='ArrowUp'){if(current==='brain3d'){brain3D.pitch=clamp(brain3D.pitch-.1*(brain3D.invertY?-1:1),-1.18,1.18);renderBrain3DScene()}else panByScreen(0,80);e.preventDefault()}else if(e.key==='ArrowDown'){if(current==='brain3d'){brain3D.pitch=clamp(brain3D.pitch+.1*(brain3D.invertY?-1:1),-1.18,1.18);renderBrain3DScene()}else panByScreen(0,-80);e.preventDefault()}else if(e.key==='Escape'){workspace.classList.remove('drawerOpen')}});
  window.addEventListener('keyup',e=>{if(e.code==='Space')spaceDown=false});window.addEventListener('blur',()=>{spaceDown=false;endDrag()});
