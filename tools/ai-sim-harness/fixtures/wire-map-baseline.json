@@ -257,7 +257,7 @@
         "battle-sim.js": {
           "as": "debt",
           "why": "nav-invalidate",
-          "fix": "unscheduled"
+          "fix": "phase 4"
         },
         "engagement.js": {
           "as": "fallback",
@@ -270,7 +270,7 @@
         "modules/20-building-hardpoints.js": {
           "as": "debt",
           "why": "nav-invalidate",
-          "fix": "unscheduled"
+          "fix": "phase 4"
         },
         "modules/21-defender-engineers.js": {
           "as": "setup",
@@ -279,7 +279,7 @@
         "movement-resolver.js": {
           "as": "debt",
           "why": "nav-invalidate",
-          "fix": "unscheduled"
+          "fix": "phase 4"
         }
       }
     },
@@ -306,17 +306,17 @@
         "battle-sim.js": {
           "as": "debt",
           "why": "nav-invalidate",
-          "fix": "unscheduled"
+          "fix": "phase 4"
         },
         "modules/20-building-hardpoints.js": {
           "as": "debt",
           "why": "nav-invalidate",
-          "fix": "unscheduled"
+          "fix": "phase 4"
         },
         "movement-resolver.js": {
           "as": "debt",
           "why": "nav-invalidate",
-          "fix": "unscheduled"
+          "fix": "phase 4"
         }
       }
     },
@@ -616,7 +616,7 @@
         "modules/52-combat-posture-visual.js": {
           "as": "debt",
           "why": "animateWalk swaps a stand-in target while it animates and restores it in a finally block. Presentation writing a sim field; an aim-point argument would avoid it.",
-          "fix": "unscheduled"
+          "fix": "phase 5"
         }
       }
     },
