@@ -161,4 +161,21 @@ test('reaching cover ends the run\'s crouch: engage picks the stance he fights i
   assert.equal(w.e.state,'engage','arrived');
   assert.equal(w.e.stance,'stand','the 5 s crouch of the run did not hold him under the wall');
 });
+/* A crawl is for cover he can crawl to inside the bound's window, from a standing start. The window is sized for a run
+   and a crawl covers 0.23 of it: `d < 14` sent men to ground at 3 m/s for cover that took 20 s to crawl to in a 10 s
+   window (bound-motion probe: the dive-and-slide, then 'bound overran'). */
+function boundTo(dist,speed,flagOff){
+  if(flagOff)globalThis.location={search:'?crawlFit=0'};
+  let f;try{f=fixture([{type:'rock',x:0,z:0,y:0,radius:1.3,height:1,cover:.55}]);}finally{delete globalThis.location;}
+  const s=f.s,e=(s.eng=null,f.E.stateOf(s));
+  s.suppressedUntil=f.b.time+9;s.moveSpeed=speed;
+  e.state='bound';e.cover={x:s.root.position.x,z:s.root.position.z+dist};e.until=f.b.time+Math.max(3,dist/(s.speed*.6)+2.5);
+  f.E.updateSoldier(s,f.b);return e.stance;
+}
+test('he crawls only to cover he can crawl to in the window, and only from a standing start',()=>{
+  assert.equal(boundTo(10,0),'crouch','10 m takes ~14 s to crawl, the window is ~7 s: he runs, crouched');
+  assert.equal(boundTo(1.5,0),'crawl','1.5 m from rest: a crawl fits');
+  assert.equal(boundTo(1.5,3),'crouch','already running: no dive at a run');
+  assert.equal(boundTo(10,0,true),'crawl','?crawlFit=0 is the old d < 14 rule');
+});
 console.log(checks+' cover checks passed; '+failures+' failed.');if(failures)process.exitCode=1;

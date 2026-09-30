@@ -231,6 +231,18 @@
     return !!known && battle.time - known.at <= ALERT_HOLD;
   }
 
+  var CRAWL_FIT = !(typeof location !== 'undefined' && /[?&]crawlFit=0\b/.test(location.search || ''));
+  // How much of his running pace a crawl covers (module 11's gait table), 0.23 without it.
+  function crawlPace() {
+    var I = root.BattleSoldierIndividuality;
+    return (I && I.crawlFactor) || 0.23;
+  }
+
+  function canCrawlTo(s, battle, d) {
+    var crawl = crawlPace() * Math.max(0.6, s.speed || 1);
+    return d <= crawl * (state(s).until - battle.time) && (s.moveSpeed || 0) <= 2 * crawl;
+  }
+
   /* ---- sight from a place and a stance --------------------------------------------------------- */
 
   /* Cover and stance are for fighting from, unless he is evading fire. `coverCandidates` keeps only slots whose
@@ -1303,8 +1315,15 @@
       return;
     }
     var suppressed = s.suppressedUntil > battle.time,
-      /* An urgent cover move (module 44's drill) is a crouched run, never a crawl. */
-      crawl = suppressed && d < 14 && PRONE_ROLES[s.role] && !e.urgentBound;
+      /* An urgent cover move (module 44's drill) is a crouched run, never a crawl. A crawl is only for cover he
+         crawl to inside this bound's window, and only from a standing start: the window is sized for a run, a
+         crawl covers 0.23 of it, and the old `d < 14` sent men to ground at a run (the dive and slide) for
+         cover that took 20 s to crawl to in a 10 s window ('bound overran'). `?crawlFit=0` is the old rule. */
+      crawl =
+        suppressed &&
+        PRONE_ROLES[s.role] &&
+        !e.urgentBound &&
+        (CRAWL_FIT ? canCrawlTo(s, battle, d) : d < 14);
     commitStance(s, battle, crawl ? 'crawl' : 'crouch', Math.max(1, e.until - battle.time));
     move(s, battle, { x: cover.x, z: cover.z }, 'cover-bound');
   }
@@ -1705,6 +1724,7 @@
       PRONE_HOLD: PRONE_HOLD,
       AIM_SETTLE: AIM_SETTLE,
       COVER_FIRE: COVER_FIRE,
+      CRAWL_FIT: CRAWL_FIT,
       CONTACT_STANCE: CONTACT_STANCE
     }
   };
