@@ -262,6 +262,7 @@ function buildPayload(sim){
       ge:{alive:sim.factions&&sim.factions.ge&&sim.factions.ge.alive,kills:sim.factions&&sim.factions.ge&&sim.factions.ge.kills,squads:(sim.factions&&sim.factions.ge&&sim.factions.ge.squads||[]).map(function(q){return squad(q,sim);})}
     },
     runtimeDiagnostics:diagnosticFields(sim),
+    timeline:root.BattleAITimeline&&root.BattleAITimeline.snapshot?root.BattleAITimeline.snapshot(sim):null,
     coordinationHealth:ai.coordinationHealth,diagnosticMetrics:ai.diagnosticMetrics,movementResolver:ai.movementResolver,
     loopWatch:ai.loopWatch,orderProvenance:ai.orderProvenance,leases:ai.leases,
     console:consoleDump()
@@ -283,7 +284,7 @@ function snapshot(kind,sim){
   var ai=aiSections(sim),squads=[];
   ['us','ge'].forEach(function(f){(sim.factions&&sim.factions[f]&&sim.factions[f].squads||[]).forEach(function(q){squads.push({id:q.id,faction:f,commandPhase:q.commandPhase||null,state:q.state||null,analysis:squadAnalysis(sim,q)});});});
   var out={type:kind==='loops'?'battle-ai-loop-trace':'battle-ai-order-trace',format:'grasstex-battle-full-diagnostics-v1',exportedAt:new Date().toISOString(),build:root.BATTLE_BUILD||root.BATTLE_BUILD_DEPLOYED||'dev',
-    battle:{time:finite(+sim.time),winner:sim.winner||null},scenario:{seed:(sim.scene&&sim.scene.metadata&&sim.scene.metadata.battleScenario&&sim.scene.metadata.battleScenario.seed)||sim.seed||null},squads:squads,coordinationHealth:ai.coordinationHealth,diagnosticMetrics:ai.diagnosticMetrics,movementResolver:ai.movementResolver,leases:ai.leases};
+    battle:{time:finite(+sim.time),winner:sim.winner||null},scenario:{seed:(sim.scene&&sim.scene.metadata&&sim.scene.metadata.battleScenario&&sim.scene.metadata.battleScenario.seed)||sim.seed||null},squads:squads,timeline:root.BattleAITimeline&&root.BattleAITimeline.snapshot?root.BattleAITimeline.snapshot(sim):null,coordinationHealth:ai.coordinationHealth,diagnosticMetrics:ai.diagnosticMetrics,movementResolver:ai.movementResolver,leases:ai.leases};
   if(kind==='loops')out.loopWatch=ai.loopWatch;else out.orderProvenance=ai.orderProvenance;
   return out;
 }
