@@ -34,6 +34,10 @@ export function summarizeStress(battles) {
   const n = rows.length;
   const bandSeconds = Object.fromEntries(BANDS.map(k => [k, round(sum(rows, b => b.stress.bandSeconds[k]))]));
   const manSeconds = round(sum(rows, b => b.stress.manSeconds));
+  const contactBandSeconds = Object.fromEntries(
+    BANDS.map(k => [k, round(sum(rows, b => b.stress.contactBandSeconds?.[k]))])
+  );
+  const contactSeconds = round(Object.values(contactBandSeconds).reduce((a, x) => a + x, 0));
   const peak = Object.fromEntries(BANDS.map(k => [k, sum(rows, b => b.stress.peakBand?.[k])]));
   const reaching = k => rows.filter(b => (b.stress.peakBand?.[k] || 0) > 0).length;
   const decisions = {};
@@ -115,6 +119,11 @@ export function summarizeStress(battles) {
     bandShare: Object.fromEntries(
       BANDS.map(k => [k, manSeconds ? round(bandSeconds[k] / manSeconds, 4) : 0])
     ),
+    contactBandSeconds,
+    contactBandShare: Object.fromEntries(
+      BANDS.map(k => [k, contactSeconds ? round(contactBandSeconds[k] / contactSeconds, 4) : 0])
+    ),
+    contactSeconds,
     peakBand: peak,
     battlesReaching: { shaken: reaching('shaken'), rattled: reaching('rattled'), broken: reaching('broken') },
     shocks: sum(rows, b => b.stress.shocks),
@@ -164,6 +173,7 @@ export function stressMarkdown(s) {
     rate = l => (d[l].total ? ` of ${d[l].total} (${pct(d[l].changed / d[l].total)})` : '');
   const lines = [
     `- Stress (${s.battles} battles, ${s.manSeconds} man-seconds): steady **${pct(s.bandShare.steady)}** · shaken **${pct(s.bandShare.shaken)}** · rattled **${pct(s.bandShare.rattled)}** · broken **${pct(s.bandShare.broken)}** · battles reaching shaken/rattled/broken **${s.battlesReaching.shaken}/${s.battlesReaching.rattled}/${s.battlesReaching.broken}** · men by peak band ${BANDS.map(k => s.peakBand[k]).join('/')} · shocks **${s.shocks}** · hesitations **${s.hesitations}**`,
+    `- Men whose squad is in contact (${s.contactSeconds} man-seconds): steady **${pct(s.contactBandShare.steady)}** · shaken **${pct(s.contactBandShare.shaken)}** · rattled **${pct(s.contactBandShare.rattled)}** · broken **${pct(s.contactBandShare.broken)}**`,
     `- Squads at mean stress ≥ ${s.squads.overMean}: **${s.squads.over}** of ${s.squads.squads} squad-battles, **${s.squads.overSeconds}** squad-seconds, ${s.squads.entries} entries, in **${s.squads.battlesWithAny}/${s.battles}** battles · with ${s.squads.minMen}+ living men: **${s.squads.with3.over}** squad-battles, **${s.squads.with3.overSeconds}** squad-seconds, ${s.squads.with3.entries} entries, in **${s.squads.with3.battlesWithAny}/${s.battles}** battles · peak squad mean ${s.squads.peakMean}`,
     `- Soldier levers, decisions changed (by band steady/shaken/rattled/broken): react **${d.react.changed}**${rate('react')} [${by('react')}] · aim **${d.aim.changed}**${rate('aim')} [${by('aim')}] · hesitate **${d.hesitate.changed}**${rate('hesitate')} [${by('hesitate')}], ${d.hesitate.lapsed} lapsed · shock **${d.shock.changed}** blocked [${by('shock')}] (fire ${d.shock.kinds.fire}, suppress ${d.shock.kinds.suppress}, bound ${d.shock.kinds.bound}, advance ${d.shock.kinds.advance})`,
     `- Per battle (p50 / p90 / max): shaken-or-worse man-time ${s.perBattle.shakenPlusPercent.p50}% / ${s.perBattle.shakenPlusPercent.p90}% / ${s.perBattle.shakenPlusPercent.max}% · squad-seconds over ${s.perBattle.squadSecondsOver.p50} / ${s.perBattle.squadSecondsOver.p90} / ${s.perBattle.squadSecondsOver.max} · shocks ${s.perBattle.shocks.p50} / ${s.perBattle.shocks.p90} / ${s.perBattle.shocks.max}`

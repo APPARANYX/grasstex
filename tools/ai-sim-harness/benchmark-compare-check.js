@@ -151,6 +151,7 @@ const run = (a, b, extra) => {
           levers: ['react', 'aim', 'hesitate', 'shock'],
           manSeconds: 100,
           bandSeconds: { steady: 90, shaken: 6, rattled: 3, broken: 1 },
+          contactBandSeconds: { steady: 30, shaken: 6, rattled: 3, broken: 1 },
           peakBand: { steady: 70, shaken: 20, rattled: 8, broken: 2 },
           shocks: 4 * k,
           hesitations: 2,
@@ -225,6 +226,9 @@ const run = (a, b, extra) => {
     assert.equal(s.manSeconds, 200);
     assert.deepEqual(s.bandSeconds, { steady: 180, shaken: 12, rattled: 6, broken: 2 });
     assert.deepEqual(s.bandShare, { steady: 0.9, shaken: 0.06, rattled: 0.03, broken: 0.01 });
+    assert.deepEqual(s.contactBandSeconds, { steady: 60, shaken: 12, rattled: 6, broken: 2 });
+    assert.equal(s.contactSeconds, 80);
+    assert.deepEqual(s.contactBandShare, { steady: 0.75, shaken: 0.15, rattled: 0.075, broken: 0.025 });
     assert.deepEqual(s.battlesReaching, { shaken: 2, rattled: 2, broken: 2 });
     assert.equal(s.shocks, 12);
     assert.deepEqual(s.squads, {
@@ -258,6 +262,7 @@ const run = (a, b, extra) => {
       '200 man-seconds',
       'steady **90.0%**',
       'shaken **6.0%**',
+      'Men whose squad is in contact (80 man-seconds): steady **75.0%**',
       'Squads at mean stress ≥ 0.333',
       'with 3+ living men',
       'react **80**',

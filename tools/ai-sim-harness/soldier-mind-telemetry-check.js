@@ -550,7 +550,8 @@ test('the series takes one row per side per simulated second, in the declared co
     'aim',
     'hesitate',
     'shock',
-    'shocks'
+    'shocks',
+    'contact'
   ]);
   for (const row of ser.us.concat(ser.ge)) assert.equal(row.length, ser.columns.length);
   const last = ser.us[ser.us.length - 1];
@@ -562,6 +563,45 @@ test('the series takes one row per side per simulated second, in the declared co
   assert.deepEqual([geLast[0], geLast[3], geLast[4], geLast[5]], [10, 0, 0, 0]);
   near(geLast[1], 0.1, 1e-9, 'the side mean');
   assert.equal(out.sampleSeconds, 1);
+});
+
+test('men whose squad is in contact are counted apart: a column a second, and their seconds by band', () => {
+  const ctx = world('?mind=1');
+  condition(ctx, ctx.us0, 0.6);
+  condition(ctx, ctx.ge0, 0.1);
+  advance(ctx, 5);
+  let out = ctx.M.telemetry(ctx.b);
+  assert.deepEqual(
+    out.contactBandSeconds,
+    { steady: 0, shaken: 0, rattled: 0, broken: 0 },
+    'nobody in contact yet'
+  );
+  assert.equal(out.series.us.slice(-1)[0][13], 0);
+  ctx.us0.inContact = true;
+  advance(ctx, 10);
+  out = ctx.M.telemetry(ctx.b);
+  assert.equal(out.series.us.slice(-1)[0][13], 10, 'ten men in a squad in contact');
+  assert.equal(out.series.ge.slice(-1)[0][13], 0);
+  near(out.contactBandSeconds.rattled, 100, 12, 'ten men for about ten seconds, rattled');
+  assert.equal(
+    out.contactBandSeconds.steady + out.contactBandSeconds.shaken + out.contactBandSeconds.broken,
+    0
+  );
+  assert.deepEqual(out.bySide.ge.contactBandSeconds, { steady: 0, shaken: 0, rattled: 0, broken: 0 });
+  assert.equal(out.bySide.us.contactBandSeconds.rattled, out.contactBandSeconds.rattled);
+  ctx.us0.inContact = false;
+  advance(ctx, 5);
+  const after = ctx.M.telemetry(ctx.b);
+  assert.equal(
+    after.contactBandSeconds.rattled,
+    out.contactBandSeconds.rattled,
+    'out of contact, nothing more is added'
+  );
+  const dead = ctx.us0.members[0];
+  ctx.us0.inContact = true;
+  ctx.b.killSoldier(dead, null);
+  advance(ctx, 2);
+  assert.equal(ctx.M.telemetry(ctx.b).series.us.slice(-1)[0][13], 9, 'the dead are not in contact');
 });
 
 test('the dead are out of the men and the bands, but the shocks they had stay in the count', () => {
