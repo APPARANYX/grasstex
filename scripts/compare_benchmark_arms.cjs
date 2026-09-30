@@ -6,6 +6,7 @@
  *   - exact two-sided McNemar (binomial on the discordant pairs) for the winner (US vs GE flips),
  *     the time-limit battles and the no-capture battles;
  *   - captures, movement stalls, runtime errors, wall time (median per battle, and the 25% gate).
+ *   (`--count` also gives the per-battle sign test: battles with more, with fewer, and the exact two-sided p.)
  * `--count a.b.c` adds a per-battle numeric counter read by path (e.g. `regroups.entries`), summed
  * and paired by mean difference; repeat the flag for more.
  * Exit 1 on any runtime error or a median wall-time slowdown above 25%. Nothing is tuned here:
@@ -107,7 +108,14 @@ function compare(aList, bList, counters = []) {
       a: va.reduce((s, x) => s + x, 0),
       b: vb.reduce((s, x) => s + x, 0),
       meanDiff: +mean(vb.map((x, i) => x - va[i])).toFixed(4),
-      battlesChanged: va.filter((x, i) => x !== vb[i]).length
+      battlesChanged: va.filter((x, i) => x !== vb[i]).length,
+      /* Per-battle sign test: how many battles had more (B above A) and fewer of it, ties dropped, exact two-sided p. */
+      more: va.filter((x, i) => vb[i] > x).length,
+      fewer: va.filter((x, i) => vb[i] < x).length,
+      signP: +binomTwoSided(
+        va.filter((x, i) => vb[i] > x).length,
+        va.filter((x, i) => vb[i] !== x).length
+      ).toFixed(4)
     };
   }
   out.pass = !out.runtimeErrors.a && !out.runtimeErrors.b && ratio <= GATE;
