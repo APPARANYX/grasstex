@@ -1,7 +1,13 @@
 name: Deploy Battle Runtime to 50webs
 
+# Production publishes only after CI has completed successfully for the exact main commit.
+# Manual dispatch remains available as an explicit operator override.
 on:
-  push:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
     branches:
       - main
   workflow_dispatch:
@@ -15,18 +21,94 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: Upload Battle Sim AI lab
+  gate:
+    name: Require successful current-main CI
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    outputs:
+      should_deploy: ${{ steps.resolve.outputs.should_deploy }}
+      target_sha: ${{ steps.resolve.outputs.target_sha }}
+      reason: ${{ steps.resolve.outputs.reason }}
 
     steps:
       - name: Checkout current main
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 1
+
+      - name: Resolve CI-gated commit
+        id: resolve
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CI_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          CI_EVENT: ${{ github.event.workflow_run.event }}
+          CI_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          current_sha="$(git rev-parse HEAD)"
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "target_sha=$current_sha" >> "$GITHUB_OUTPUT"
+            echo "reason=manual dispatch of current main" >> "$GITHUB_OUTPUT"
+            echo "Manual deploy selected main@$current_sha"
+            exit 0
+          fi
+
+          if [[ "$CI_EVENT" != "push" ]]; then
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "target_sha=$CI_SHA" >> "$GITHUB_OUTPUT"
+            echo "reason=CI run was not triggered by a push" >> "$GITHUB_OUTPUT"
+            echo "Skipping deploy: CI event was '$CI_EVENT', not push."
+            exit 0
+          fi
+
+          if [[ "$CI_CONCLUSION" != "success" ]]; then
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "target_sha=$CI_SHA" >> "$GITHUB_OUTPUT"
+            echo "reason=CI conclusion was $CI_CONCLUSION" >> "$GITHUB_OUTPUT"
+            echo "Skipping deploy: CI conclusion was '$CI_CONCLUSION'."
+            exit 0
+          fi
+
+          if [[ "$CI_SHA" != "$current_sha" ]]; then
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "target_sha=$CI_SHA" >> "$GITHUB_OUTPUT"
+            echo "reason=CI passed an older main commit" >> "$GITHUB_OUTPUT"
+            echo "Skipping stale deploy: CI passed $CI_SHA but current main is $current_sha."
+            exit 0
+          fi
+
+          echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          echo "target_sha=$CI_SHA" >> "$GITHUB_OUTPUT"
+          echo "reason=successful CI for current main" >> "$GITHUB_OUTPUT"
+          echo "CI gate passed for main@$CI_SHA"
+
+  deploy:
+    name: Upload Battle Sim AI lab
+    needs:
+      - gate
+    if: needs.gate.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout CI-tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.target_sha }}
           # Full history and tags: the build number is derived from the highest build-v<N> tag.
           fetch-depth: 0
+
+      - name: Confirm exact deploy source
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ needs.gate.outputs.target_sha }}"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected"
+          echo "Deploy source pinned to CI-tested commit: $actual"
 
       - name: Resolve and stamp build version
         id: version
@@ -321,7 +403,7 @@ jobs:
           # Only reached when every upload step above succeeded, so the tag means "this is live".
           # A failed or cancelled run skips a version number rather than reusing one.
           python3 scripts/build_version.py tag \
-            --message "Battle runtime ${{ steps.version.outputs.version }} deployed from ${{ github.sha }} (run ${{ github.run_id }})"
+            --message "Battle runtime ${{ steps.version.outputs.version }} deployed from $(git rev-parse HEAD) (run ${{ github.run_id }})"
           echo "Published tag: build-${{ steps.version.outputs.version }}"
 
       - name: Deployment summary
