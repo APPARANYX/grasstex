@@ -1392,7 +1392,9 @@
     s._faceHint = t.threatSector;
     var p = posOf(s),
       d = dist(p.x, p.z, st.x, st.z);
-    commitStance(s, battle, 'crouch', 2.0);
+    // Post on the windowsill (stand) so the soldier can see/shoot over the sill,
+    // instead of sitting low (crouch) behind the wall where the sill blocks LOS.
+    commitStance(s, battle, 'stand', 2.0);
     // Keep the station intent even when occupied; a short-lived hold proposal cannot return him
     // to formation when engagement updates are staggered.
     move(s, battle, { x: st.x, z: st.z }, 'firing-station');

@@ -9,7 +9,7 @@
   var S = root.SquadAI;
   var EPS = 0.08,
     FIRE_LINE_BODY = 0.5, // a fire line that reaches this close to the body centre reaches the body
-    GROUND_STEPS = 24,
+    GROUND_STEPS = 48, // Phase 4 fix: finer steps to avoid shooting through terrain
     REFINE_STEPS = 9,
     GROUP90 = 4.291932052578694;
 
