@@ -177,8 +177,8 @@ function extractTimelineRuns(payload,fileName='runtime.json'){
 }
 function activeRuntimeRun(slot){
   const data=runtimeOverlay[slot];if(!data||!data.runs.length)return null;
-  const sel=document.getElementById('timelineRun'+slot),i=sel&&!sel.hidden?Math.max(0,+sel.value||0):0;
-  return data.runs[Math.min(data.runs.length-1,i)]||data.runs[0];
+  const i=Math.max(0,Math.min(data.runs.length-1,+data.selected||0));
+  return data.runs[i]||data.runs[0];
 }
 function timelineSampleAt(tl,t){
   const a=tl&&tl.samples||[];if(!a.length||t<+a[0].t)return null;
@@ -220,21 +220,20 @@ function runtimeRunLabel(r,prefix){
   const t=r.timeline.samples[r.timeline.samples.length-1].t;
   return prefix+' · '+(r.type||'battle')+' · '+(r.seed||'no seed')+(r.winner?' · '+r.winner:'')+' · '+(+t).toFixed(0)+'s';
 }
+function pairRuntimeBToA(){
+  const a=activeRuntimeRun('A'),bdata=runtimeOverlay.B;if(!a||!bdata)return;
+  const i=bdata.runs.findIndex(r=>r.seed===a.seed&&(!a.type||!r.type||r.type===a.type));
+  if(i>=0)bdata.selected=i;
+}
 function refreshRuntimeSelectors(){
   for(const slot of ['A','B']){
     const data=runtimeOverlay[slot],sel=document.getElementById('timelineRun'+slot);
     sel.innerHTML='';
     if(data){
       data.runs.forEach((r,i)=>{const o=document.createElement('option');o.value=i;o.textContent=runtimeRunLabel(r,slot);sel.appendChild(o)});
-      sel.hidden=false;
+      sel.value=String(Math.max(0,Math.min(data.runs.length-1,+data.selected||0)));sel.hidden=false;
     }else sel.hidden=true;
     document.getElementById('runtimeImport'+slot).classList.toggle('active',!!data);
-  }
-  // Pair B to the same seed/type as A whenever possible.
-  const a=activeRuntimeRun('A'),bdata=runtimeOverlay.B,bsel=document.getElementById('timelineRunB');
-  if(a&&bdata){
-    const i=bdata.runs.findIndex(r=>r.seed===a.seed&&(!a.type||!r.type||r.type===a.type));
-    if(i>=0)bsel.value=String(i);
   }
   const has=!!(runtimeOverlay.A||runtimeOverlay.B);
   document.getElementById('timelinePanel').hidden=!has;document.getElementById('runtimeClearBtn').hidden=!has;
@@ -245,7 +244,7 @@ async function importRuntimeFile(slot,file){
   try{
     const payload=JSON.parse(await file.text()),runs=extractTimelineRuns(payload,file.name);
     if(!runs.length)throw new Error('No timeline or supported diagnostics/benchmark battle records found');
-    runtimeOverlay[slot]={name:file.name,runs};runtimeOverlay.time=runtimeMinTime();
+    runtimeOverlay[slot]={name:file.name,runs,selected:0};if(runtimeOverlay.A&&runtimeOverlay.B)pairRuntimeBToA();runtimeOverlay.time=runtimeMinTime();
     refreshRuntimeSelectors();runtimeOverlay.time=runtimeMinTime();document.getElementById('timelineScrub').value=String(runtimeOverlay.time);rerenderRuntimeOverlay();
   }catch(err){
     const box=document.getElementById('errorBox');box.style.display='block';box.textContent='Runtime import failed: '+err.message;
@@ -1810,8 +1809,8 @@ function fullView(){
  document.getElementById('timelineMetric').onchange=drawRuntimeTimeline;
  document.getElementById('timelineScrub').oninput=e=>setRuntimeTime(+e.target.value,true);
  document.getElementById('timelinePlayBtn').onclick=toggleRuntimePlayback;
- document.getElementById('timelineRunA').onchange=()=>{runtimeOverlay.time=runtimeMinTime();refreshRuntimeSelectors();runtimeOverlay.time=runtimeMinTime();rerenderRuntimeOverlay()};
- document.getElementById('timelineRunB').onchange=()=>{runtimeOverlay.time=runtimeMinTime();refreshRuntimeSelectors();runtimeOverlay.time=runtimeMinTime();rerenderRuntimeOverlay()};
+ document.getElementById('timelineRunA').onchange=e=>{if(runtimeOverlay.A)runtimeOverlay.A.selected=+e.target.value||0;pairRuntimeBToA();runtimeOverlay.time=runtimeMinTime();refreshRuntimeSelectors();runtimeOverlay.time=runtimeMinTime();rerenderRuntimeOverlay()};
+ document.getElementById('timelineRunB').onchange=e=>{if(runtimeOverlay.B)runtimeOverlay.B.selected=+e.target.value||0;runtimeOverlay.time=runtimeMinTime();refreshRuntimeSelectors();runtimeOverlay.time=runtimeMinTime();rerenderRuntimeOverlay()};
  document.getElementById('brain3dResetBtn').onclick=brain3DReset;
  document.getElementById('brain3dInvertYBtn').onclick=()=>{brain3D.invertY=!brain3D.invertY;const b=document.getElementById('brain3dInvertYBtn');b.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');b.classList.toggle('active',brain3D.invertY);if(current==='brain3d')renderBrain3DScene()};
  document.getElementById('brain3dTextSnapBtn').onclick=()=>{brain3D.textSnap=!brain3D.textSnap;const b=document.getElementById('brain3dTextSnapBtn');b.textContent='Text snap: '+(brain3D.textSnap?'On':'Off');b.classList.toggle('active',brain3D.textSnap);if(current==='brain3d'&&brain3D.mode==='detail')renderBrain3DDetailScene(false)};
