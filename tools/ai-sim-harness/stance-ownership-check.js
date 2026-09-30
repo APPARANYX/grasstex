@@ -12,6 +12,10 @@
    - stepMovement shows the committed stance and derives nothing: suppressed, holding a target and
      standing still, a man Engagement has standing stays standing.
    - Other layers go through BattleEngagement.requestStance, which only takes a man lower.
+   - An advancing man moves crouched while his squad is on the enemy's heels: `inContact` now, or eyes on him within
+     ALERT_HOLD by the squad's own picture (`squad.contact`, Perception's record with its age). `inContact` is fire
+     control and blinks with every gap in a hedge; read raw it stood a squad up and knelt it again on each blink.
+     `?contactStance=0` is the raw rule.
    - The stance a man shows IS the stance Engagement committed: `crouching` is derived from `prone` and
      `tacticalCrouch` on the soldier, not a copy that stepMovement refreshes. As a copy it lagged one frame
      behind every AI tick, and the FBX pose (which runs right after the tick) read a man raised from prone
@@ -54,6 +58,34 @@ function oneMan(){
     s=q.members.find(m=>m.role==='rifleman');
   return{r,b,s,enemy:e.members[0]};
 }
+
+test('an advancing man stays low while the squad has eyes on the enemy, whatever inContact blinks; then stands',()=>{
+  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement,H_=E.tuning.ALERT_HOLD,TICK=.15;
+  assert.equal(E.tuning.CONTACT_STANCE,true);
+  s.target=null;s.eng=null;E.stateOf(s).stanceUntil=0;
+  const seen=b.time;s.squad.contact={unit:enemy,x:enemy.root.position.x,z:enemy.root.position.z,at:seen,seenBy:1};
+  const tick=()=>{b.time+=TICK;s.squad.inContact=false;E.updateSoldier(s,b);return s.eng.stance;};
+  const shown=new Set();
+  while(b.time-seen<H_-.5)shown.add(tick());
+  assert.deepEqual([...shown],['crouch'],'inContact is off and the picture is fresh: he stays low');
+  const later=[];
+  while(b.time-seen<H_+2.5)later.push(tick());
+  assert.equal(later[later.length-1],'stand','the picture is older than ALERT_HOLD: he is up');
+  assert.equal(later.filter((v,i)=>i&&v!==later[i-1]).length,1,'one change, not a flutter');
+});
+
+test('?contactStance=0: the raw signal, he stands the moment inContact clears',()=>{
+  globalThis.location={search:'?contactStance=0'};
+  let raw;try{raw=H.bootstrap();}finally{delete globalThis.location;}
+  const E=raw.BattleEngagement;assert.equal(E.tuning.CONTACT_STANCE,false);
+  H.resetIds();
+  const b=H.makeBattle(raw),q=H.addSquad(raw,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:200}}),s=q.members[0];
+  s.eng=null;s.target=null;E.stateOf(s).stanceUntil=0;
+  q.contact={unit:{root:{position:{x:0,z:100}}},x:0,z:100,at:b.time,seenBy:1};
+  q.inContact=true;E.updateSoldier(s,b);assert.equal(s.eng.stance,'crouch');
+  b.time+=1.2;q.inContact=false;q.contact.at=b.time;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'stand','with the flag off the fresh picture is ignored');
+});
 
 test('the stance a man shows is the stance Engagement committed, at once, with no copy to refresh',()=>{
   const {r,b,s}=oneMan(),E=r.BattleEngagement;

@@ -214,6 +214,23 @@
     e.fireReadyAt = Math.max(+e.fireReadyAt || 0, until);
   }
 
+  /* Is the squad on the enemy's heels: shooting at him now (`inContact`, fire control, which blinks with every gap in
+     a hedge) or had eyes on him within the time a man holds his sector after losing sight (ALERT_HOLD), by the
+     squad's own picture (Perception's record, with its age). An advancing man moves crouched while it is true.
+     Read raw, `inContact` stood a whole squad up and knelt it again on every blink; with the reaction to a shared
+     contact that was half of the stance changes left once cover was fixed. `?contactStance=0` is the raw rule,
+     for a paired A/B. */
+  var CONTACT_STANCE = !(
+    typeof location !== 'undefined' && /[?&]contactStance=0\b/.test(location.search || '')
+  );
+  function squadOnHeels(s, battle) {
+    var q = s.squad;
+    if (!q) return false;
+    if (q.inContact) return true;
+    var known = CONTACT_STANCE && squadContact(s, battle);
+    return !!known && battle.time - known.at <= ALERT_HOLD;
+  }
+
   /* ---- sight from a place and a stance --------------------------------------------------------- */
 
   /* Cover and stance are for fighting from, unless he is evading fire. `coverCandidates` keeps only slots whose
@@ -1158,9 +1175,9 @@
       commitStance(s, battle, 'crouch', Math.max(0.5, shockUntil(s) - battle.time));
       return;
     }
-    /* Upright only on a quiet march: under fire, or while the squad is still in contact, he moves
+    /* Upright only on a quiet march: under fire, or while the squad is on the enemy's heels, he moves
        crouched rather than standing for the beat between two contacts. */
-    var low = s.suppressedUntil > battle.time || !!(s.squad && s.squad.inContact);
+    var low = s.suppressedUntil > battle.time || squadOnHeels(s, battle);
     if (!holdStance(s, battle)) commitStance(s, battle, low ? 'crouch' : 'stand', 1.0);
     followOrders(s, battle, false);
   }
@@ -1687,7 +1704,8 @@
       STANCE_HOLD: STANCE_HOLD,
       PRONE_HOLD: PRONE_HOLD,
       AIM_SETTLE: AIM_SETTLE,
-      COVER_FIRE: COVER_FIRE
+      COVER_FIRE: COVER_FIRE,
+      CONTACT_STANCE: CONTACT_STANCE
     }
   };
   if (typeof console !== 'undefined')
