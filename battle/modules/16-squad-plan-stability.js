@@ -97,11 +97,15 @@
   function moraleBreakAt(stress) {
     return Math.max(MORALE_TUNING.breakMin, MORALE_TUNING.breakBase - MORALE_TUNING.breakSlope * stress);
   }
-  /* 3c: course of action on contact. Behind ?coa=1. On contact the Squad Leader (the one COA
-     owner) scores the declared COAs against declared inputs and stores the winner as sq.coa.
-     Scoring is deterministic: weighted sum, no RNG; ties break by COA name order, so the choice
-     is a pure function of squad state. The COA gates bounding through fireAndMovement: defend
-     holds (no bounds), assault bounds if the phase allows. COAs only restrict, never expand. */
+  /* 3c: course of action on contact. Behind ?coa=1. The Squad Leader (the one COA owner) scores the
+     declared COAs against declared inputs on every tick the squad is in contact and keeps the winner as
+     sq.coa, so a squad whose casualties, stress or leader change inside a contact changes its COA inside it,
+     and a contact that blinks is not a new decision. Scoring is deterministic: weighted sum, no RNG; ties
+     break by COA name order, so the choice is a pure function of squad state at that tick. There is no
+     margin or latch: a margin was measured (Part B of the 3b/3c work) and, because casualties never heal and
+     stress only falls, it latched squads in defend (fewer bounds, more battles still open at 600 s). The
+     COA gates bounding through fireAndMovement: defend holds (no bounds), assault bounds if the phase
+     allows. COAs only restrict, never expand. */
   var COA_ON = typeof location !== 'undefined' && /[?&]coa=1\b/.test(location.search || '');
   var COAS = {
     assault: { label: 'assault', bounds: true },
@@ -124,6 +128,7 @@
     assault: { base: 1.0, casualtyFrac: -2.0, stress: -1.0, leaderDown: -1.5 },
     defend: { base: 0.0, casualtyFrac: 0.5, stress: 0.5, leaderDown: 0.5 }
   };
+  var COA_TUNING = { weights: COA_WEIGHTS };
   /* The declared inputs, read off a squad once; the scores and the choice are then pure functions of
      that record (the same arithmetic in the same order as before, so the probes and checks can score
      recorded inputs with the shipping tables instead of a copy). */
@@ -148,8 +153,10 @@
     }
     return best;
   }
-  function selectCOA(sq) {
-    return decideCOA(coaInputsOf(sq));
+  /* The COA the squad holds after this tick: the better score on its inputs now. Called each tick the squad is
+     in contact, never out of it. */
+  function updateCOA(sq) {
+    return (sq.coa = decideCOA(coaInputsOf(sq)));
   }
   var TACTICAL = {
     assault: 1,
@@ -1211,13 +1218,13 @@
     if (r.contactStarted) {
       L.end(sq, 'bound', t, 'contact started');
       L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'contact started', 'cycle expiry');
-      if (COA_ON) sq.coa = selectCOA(sq);
     }
     if (!sq.inContact) {
       L.end(sq, 'bound', t, 'contact broken');
       sq._assaultAuthorized = false;
       return;
     }
+    if (COA_ON) updateCOA(sq);
     sq._assaultAuthorized = !!ASSAULT_PHASES[sq.commandPhase || ''];
     /* 3c: the COA gates bounding. Defend holds position (no bounds); assault bounds only if the
        phase also allows. The flag-off path never sets sq.coa, so this is a no-op there. */
@@ -1724,7 +1731,7 @@
     teamOrderSeconds: TEAM_LEASE,
     boundCycle: BOUND_CYCLE,
     boundDuration: BOUND_DURATION,
-    tuning: { morale: MORALE_TUNING, coa: { weights: COA_WEIGHTS } },
+    tuning: { morale: MORALE_TUNING, coa: COA_TUNING },
     moraleOn: function () { return MORALE_ON; },
     coaOn: function () { return COA_ON; },
     coas: function () { return Object.keys(COAS); },
