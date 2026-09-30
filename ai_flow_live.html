@@ -365,6 +365,140 @@ function anchor(n,side){const w=n.w||250,h=n.h||82;if(n.type==='decision'){if(si
 function edge(g,a,b,opt={}){const from=anchor(a,opt.from||'bottom'),to=anchor(b,opt.to||'top');let d;if(opt.points)d='M'+from[0]+','+from[1]+' '+opt.points.map(p=>'L'+p[0]+','+p[1]).join(' ')+' L'+to[0]+','+to[1];else if((opt.from==='right'&&opt.to==='left')||(opt.from==='left'&&opt.to==='right')){const mx=(from[0]+to[0])/2;d=`M${from[0]},${from[1]} L${mx},${from[1]} L${mx},${to[1]} L${to[0]},${to[1]}`}else{const my=(from[1]+to[1])/2;d=`M${from[0]},${from[1]} L${from[0]},${my} L${to[0]},${my} L${to[0]},${to[1]}`};const p=el('path',{d,class:'edge '+(opt.kind||'')+(opt.loop?' loop':'')});g.insertBefore(p,g.firstChild);if(opt.label){const lx=opt.lx!=null?opt.lx:(from[0]+to[0])/2,ly=opt.ly!=null?opt.ly:(from[1]+to[1])/2-5;g.appendChild(el('text',{x:lx,y:ly,class:'edgeLabel '+(opt.kind||'normal'),'text-anchor':'middle'},opt.label))}}
 function groupBox(g,x,y,w,h,title){g.appendChild(el('rect',{x,y,width:w,height:h,rx:18,class:'groupBox'}));g.appendChild(el('text',{x:x+16,y:y+25,class:'groupTitle'},title))}
 function src(key,needle,label){return sourceRef(key,needle,label)}
+
+function brain3DModel(){
+  const cg=brainCallGraph(),nodes=[],edges=[];
+  const slices=[
+    {id:'macro-fn',title:'01 · MACRO FUNCTIONS',sub:'General / commander decisions',layer:'macro'},
+    {id:'mission-state',title:'02 · MISSION LIFECYCLE',sub:'MISSION_STATES',layer:'macro'},
+    {id:'meso-fn',title:'03 · MESO FUNCTIONS',sub:'Squad Leader mission execution',layer:'meso'},
+    {id:'phase-state',title:'04 · COMMAND PHASES',sub:'PHASE_STATES',layer:'meso'},
+    {id:'soldier-fn',title:'05 · SOLDIER DISPATCH',sub:'Squad tick + perception',layer:'micro'},
+    {id:'engagement-fn',title:'06 · ENGAGEMENT CONTROL',sub:'Micro combat functions',layer:'micro'},
+    {id:'engagement-state',title:'07 · ENGAGEMENT FSM',sub:'STATES + legal transitions',layer:'micro'},
+    {id:'move-priority',title:'08 · MOVEMENT INTENTS',sub:'Resolver priority ladder',layer:'move'},
+    {id:'resolver-fn',title:'09 · MOVEMENT RESOLVER',sub:'Intent arbitration',layer:'move'},
+    {id:'route-fn',title:'10 · TACTICAL ROUTE / PROGRESS',sub:'Survival-aware waypoint + progress',layer:'move'}
+  ];
+  const si=Object.fromEntries(slices.map((s,i)=>[s.id,i]));
+  const add=n=>(nodes.push(n),n),has=id=>nodes.some(n=>n.id===id);
+  const edge=(from,to,kind='call',label='')=>{if(has(from)&&has(to))edges.push({from,to,kind,label})};
+
+  cg.nodes.forEach(n=>{
+    const slice=n.key==='commander'?'macro-fn':n.key==='meso'?'meso-fn':n.key==='squad'?'soldier-fn':n.key==='engagement'?'engagement-fn':n.key==='resolver'?'resolver-fn':'route-fn';
+    add({id:n.id,label:n.name,fullLabel:n.label,type:'function',slice,layer:n.layer,key:n.key,name:n.name,ref:n.ref,cfg:n.id});
+  });
+  cg.edges.forEach(e=>edge(e.from,e.to,'call',e.kind));
+
+  const groups=[
+    ['mission:',parseStates('commander','MISSION_STATES').states||[],'mission-state','macro'],
+    ['phase:',parseStates('meso','PHASE_STATES').states||[],'phase-state','meso'],
+    ['estate:',parseStates('engagement','STATES').states||[],'engagement-state','micro']
+  ];
+  groups.forEach(([prefix,list,slice,layer])=>{
+    list.forEach(s=>add({id:prefix+s.name,label:s.name,fullLabel:s.meaning||s.name,type:'state',slice,layer,ref:s.ref,state:s}));
+    list.forEach(s=>s.next.forEach(to=>edge(prefix+s.name,prefix+to,'state','state')));
+  });
+
+  const priorities=priorityMap();
+  priorities.forEach(p=>add({id:'priority:'+p.kind,label:p.kind,fullLabel:'movement priority '+p.priority,type:'priority',slice:'move-priority',layer:'move',priority:p.priority,ref:sourceRef('resolver','function priority','priority(kind,s)')}));
+
+  edge('commander:issueMission','mission:issued','bridge','writes mission state');
+  edge('commander:acceptMission','mission:executing','bridge','accepts brief');
+  ['completed','invalid','failed','superseded'].forEach(s=>edge('commander:finishMission','mission:'+s,'bridge','finishes mission'));
+  edge('mission:executing','meso:commanderTick','bridge','brief consumed');
+  (groups[1][1]||[]).forEach(s=>edge('meso:executeMission','phase:'+s.name,'bridge','phase ownership'));
+  ['approach','assault','contact'].forEach(s=>edge('phase:'+s,'squad:updateSquad','bridge','sim tick consumes phase'));
+  (groups[2][1]||[]).forEach(s=>{
+    edge('engagement:runDrill','estate:'+s.name,'bridge','dispatch by state');
+    if(funcSpec('engagement:'+s.name))edge('estate:'+s.name,'engagement:'+s.name,'bridge','state handler');
+  });
+  priorities.forEach(p=>edge('priority:'+p.kind,'resolver:resolve','bridge','priority arbitration'));
+
+  const planeW=1260,planeH=720,mx=120,my=125;
+  slices.forEach(slice=>{
+    const list=nodes.filter(n=>n.slice===slice.id),count=list.length,cols=Math.max(2,Math.ceil(Math.sqrt(Math.max(1,count)*1.55))),rows=Math.max(1,Math.ceil(count/cols));
+    const dx=(planeW-mx*2)/Math.max(1,cols-1),dy=(planeH-my*2)/Math.max(1,rows-1);
+    list.forEach((n,i)=>{const col=i%cols,row=Math.floor(i/cols);n.x=-planeW/2+mx+(cols===1?0:col*dx);n.y=-planeH/2+my+(rows===1?0:row*dy);n.sliceIndex=si[slice.id]});
+  });
+  return {slices,nodes,edges,planeW,planeH};
+}
+
+function brain3DProject(p){
+  const yaw=brain3D.yaw,pitch=brain3D.pitch,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+  const x1=p.x*cy+p.z*sy,z1=-p.x*sy+p.z*cy,y1=p.y;
+  const y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;
+  const den=Math.max(900,6400-z2),scale=(1500/den)*brain3D.zoom;
+  return {x:900+x1*scale,y:650+y2*scale,z:z2,scale};
+}
+
+function brain3DReset(){
+  brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.explode=1;brain3D.focus=null;
+  const b=document.getElementById('brain3dExplodeBtn');if(b)b.textContent='Explode slices';
+  if(current==='brain3d')renderBrain3DScene();
+}
+
+function renderBrain3DScene(){
+  if(current!=='brain3d')return;
+  const model=brain3D.scene||brain3DModel();brain3D.scene=model;
+  viewport.innerHTML='';graphBounds={x:0,y:0,w:1800,h:1300};svg.setAttribute('viewBox','0 0 1800 1300');
+  const g=viewport,center=(model.slices.length-1)/2,gap=brain3D.explode>1?610:430;
+  const wn=Object.fromEntries(model.nodes.map(n=>[n.id,Object.assign({},n,{z:(n.sliceIndex-center)*gap})]));
+  const pp=Object.fromEntries(Object.entries(wn).map(([id,n])=>[id,brain3DProject(n)]));
+
+  model.slices.map((s,i)=>{
+    const z=(i-center)*gap,c=[[-model.planeW/2,-model.planeH/2],[model.planeW/2,-model.planeH/2],[model.planeW/2,model.planeH/2],[-model.planeW/2,model.planeH/2]].map(([x,y])=>brain3DProject({x,y,z}));
+    return {slice:s,z,c,depth:c.reduce((a,p)=>a+p.z,0)/4};
+  }).sort((a,b)=>a.depth-b.depth).forEach(p=>{
+    g.appendChild(el('polygon',{points:p.c.map(q=>q.x+','+q.y).join(' '),class:'brain3dPlane'}));
+    const a=p.c[0],b=p.c[1],d=p.c[3],e=p.c[2];
+    [.25,.5,.75].forEach(t=>{
+      g.appendChild(el('line',{x1:a.x+(b.x-a.x)*t,y1:a.y+(b.y-a.y)*t,x2:d.x+(e.x-d.x)*t,y2:d.y+(e.y-d.y)*t,class:'brain3dGrid'}));
+    });
+    const tp=brain3DProject({x:-model.planeW/2+30,y:-model.planeH/2+35,z:p.z});
+    g.appendChild(el('text',{x:tp.x,y:tp.y,class:'brain3dSliceTitle'},p.slice.title));
+    g.appendChild(el('text',{x:tp.x,y:tp.y+15,class:'brain3dSliceSub'},p.slice.sub));
+  });
+
+  const linked=new Set();
+  if(brain3D.focus){linked.add(brain3D.focus);model.edges.forEach(e=>{if(e.from===brain3D.focus)linked.add(e.to);if(e.to===brain3D.focus)linked.add(e.from)})}
+  model.edges.forEach(e=>{
+    const a=pp[e.from],b=pp[e.to];if(!a||!b)return;
+    const on=!brain3D.focus||e.from===brain3D.focus||e.to===brain3D.focus;
+    g.appendChild(el('path',{d:'M'+a.x+','+a.y+' L'+b.x+','+b.y,class:'brain3dEdge '+(e.kind||'call')+(brain3D.focus?(on?' focus':' dim'):'')}));
+  });
+
+  model.nodes.slice().sort((a,b)=>pp[a.id].z-pp[b.id].z).forEach(n=>{
+    const p=pp[n.id],on=!brain3D.focus||linked.has(n.id),s=Math.max(.62,Math.min(1.12,p.scale*3.1)),w=n.type==='priority'?142:176,h=n.type==='priority'?42:50;
+    const cls='brain3dNode '+n.type+' '+n.layer+(brain3D.focus?(n.id===brain3D.focus?' focus':on?'':' dim'):'');
+    const gr=el('g',{class:cls,'data-id':n.id,transform:'translate('+p.x+','+p.y+') scale('+s+')'});
+    gr.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:10}));
+    const parts=wrap(String(n.label||n.id),24).slice(0,2),first=parts.length>1?-4:4;
+    parts.forEach((t,i)=>gr.appendChild(el('text',{x:0,y:first+i*14,'text-anchor':'middle','font-size':11,'font-weight':800},t)));
+    if(n.type==='priority')gr.appendChild(el('text',{x:0,y:17,'text-anchor':'middle',class:'sub'},String(n.priority)));
+    gr.appendChild(el('title',{},n.fullLabel||n.label));
+    gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===n.id?null:n.id;renderBrain3DScene()});
+    gr.addEventListener('dblclick',ev=>{ev.stopPropagation();if(n.cfg){cfgHistory=[];jumpToCfg(n.cfg,false)}else if(n.ref)openSource(n.ref,n.fullLabel||n.label)});
+    g.appendChild(gr);
+  });
+
+  const hud=el('g',{transform:'translate(22,22)'});
+  hud.appendChild(el('rect',{width:335,height:70,rx:12,class:'brain3dHud'}));
+  hud.appendChild(el('text',{x:14,y:22,class:'brain3dHudText'},'3D BRAIN · drag to rotate · wheel to zoom'));
+  hud.appendChild(el('text',{x:14,y:42,class:'brain3dHudText'},'click = isolate · double-click = Deep CFG/source'));
+  hud.appendChild(el('text',{x:14,y:60,class:'brain3dHudText'},'solid = calls · dashed = state · gold = ownership bridge'));
+  g.appendChild(hud);
+
+  if(brain3D.focus){
+    const n=model.nodes.find(x=>x.id===brain3D.focus),inc=model.edges.filter(e=>e.to===brain3D.focus).length,out=model.edges.filter(e=>e.from===brain3D.focus).length;
+    status.textContent='3D brain · '+(n?(n.fullLabel||n.label):brain3D.focus)+' · '+inc+' incoming · '+out+' outgoing · click again to clear focus.';
+  }else status.textContent='3D brain · '+model.slices.length+' slices · '+model.nodes.length+' detailed nodes · '+model.edges.length+' control/state/ownership connections. Drag empty space to rotate.';
+}
+
+function brain3DView(){
+  clear();brain3D.scene=brain3DModel();graphBounds={x:0,y:0,w:1800,h:1300};camera={x:0,y:0,w:1800,h:1300};renderBrain3DScene();
+}
+
 function brainView(){
   clear();
   const graph=brainCallGraph(),g=viewport;
