@@ -69,7 +69,7 @@ is a genome value nothing reads; the "Training review" link stays.
 **Once the whole AI system rewrite is finished, rewrite the genome** (what it parameterises, what it should
 leave to the layers, one owner per number) before flipping the switch back; do not revive the old one as it
 stands.
-URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?soldierCull=0` (draw soldiers outside the view too), `?clipPack=0` (parse every clip from its FBX instead of the prepared pack), `?fastRetarget=0` (retarget clips with the old matrix loop), `?cloneBounds=1` (Babylon's skinned bounds when cloning a soldier), `?farHz=<n>` (re-pose soldiers beyond 100 m at n Hz, default 10), `?boneTextures=1` / `=0` (force bone matrices through a texture per skeleton / shader uniforms; default: uniforms where the GPU has room), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?tracerPool=0` (a new line mesh per tracer, as before the pool), `?fxPrewarm=0` (build muzzle flashes, tracer lines and decals on first use, as before), `?perfTimings=1`, `?bench=1` (device benchmark, below). Behaviour A/B flags (they change the battle; for paired benchmarks only, via the standard benchmark's `query` input): `?perception=0` (perception before #55: no view cone or sector scan, nothing heard or relayed), `?geScout=carbine` (German scouts on the generic 250 m carbine instead of the FG 42), `?mind=0` / `?mind=observe` / `?mind=react,aim,hesitate,shock` (soldier condition, module 17: off; state kept but nothing reads it; only the levers named; default all), `?stats=0` / `?stats=for,tac,...` / `?stats=all,deal` (soldier stats, module 10: off; only the stats named, `squad` for the General's use of squad means; default every stat and `squad`; `deal` is opt-in and deals each squad's roles from its men's stats at spawn).
+URL flags: `?seed=`, `?defender=us|ge`, `?soldiers=rifleman`, `?smooth=0`, `?animLod=0` (pose every soldier every frame), `?mergeWalls=0` (draw each building wall piece separately), `?soldierLod=0` (every soldier at full mesh detail), `?soldierCull=0` (draw soldiers outside the view too), `?clipPack=0` (parse every clip from its FBX instead of the prepared pack), `?fastRetarget=0` (retarget clips with the old matrix loop), `?cloneBounds=1` (Babylon's skinned bounds when cloning a soldier), `?farHz=<n>` (re-pose soldiers beyond 100 m at n Hz, default 10), `?boneTextures=1` / `=0` (force bone matrices through a texture per skeleton / shader uniforms; default: uniforms where the GPU has room), `?weaponInstances=0` (a cloned weapon mesh per soldier), `?tracerPool=0` (a new line mesh per tracer, as before the pool), `?fxPrewarm=0` (build muzzle flashes, tracer lines and decals on first use, as before), `?perfTimings=1`, `?bench=1` (device benchmark, below). Behaviour A/B flags (they change the battle; for paired benchmarks only, via the standard benchmark's `query` input): `?perception=0` (perception before #55: no view cone or sector scan, nothing heard or relayed), `?geScout=carbine` (German scouts on the generic 250 m carbine instead of the FG 42), `?mind=0` / `?mind=observe` / `?mind=react,aim,hesitate,shock` (soldier condition, module 17: off; state kept but nothing reads it; only the levers named; default all), `?stats=0` / `?stats=for,tac,...` / `?stats=all,deal` (soldier stats, module 10: off; only the stats named, `squad` for the General's use of squad means; default every stat and `squad`; `deal` is opt-in and deals each squad's roles from its men's stats at spawn), `?morale=1` (group morale: the Squad Leader's break and rally replace the flat 60% casualty retreat; off by default) and `?coa=1` (course of action on contact: `assault` or `defend` gates the bounds; off by default), both in module 16 and described under Group morale and course of action.
 
 ## Test harnesses
 
@@ -413,6 +413,22 @@ Command is `SquadAI.leaderOf`/`isLeader`, never a role check. **Succession** (Sq
 scout, gunner last; lowest id breaks ties) takes command and slot 0 and the penalty ends. At a merge
 the most senior surviving leader commands.
 
+**Group morale and course of action** (`modules/16-squad-plan-stability.js`, the Squad Leader; both are off unless the
+flag is in the page URL, read once at load from `location.search`). `?morale=1` replaces the flat 60% casualty retreat in
+`updateSquadState`: a squad breaks (`sq.state = 'retreat'`) at `breakBase` (0.6) minus `breakSlope` (0.3) per unit of
+`squad.mind.mean` stress, never below `breakMin` (0.25), so calm men break exactly where they did before; a retreating
+squad goes back to `engaged`/`advance` only when mean stress is under `rallyStress` (0.15) and casualties under
+`rallyCasualty` (0.5). Casualties do not heal, so a squad that broke at 60% rallies only if a merge restores its strength.
+The numbers are `BattleSquadStability.tuning.morale`. `?coa=1`: when Engagement reports a contact starting
+(`contactStarted`) the Squad Leader scores the declared COAs (`COAS`: `assault`, `defend`) against declared inputs
+(`COA_INPUTS`: casualty fraction, mean stress, leader down) with declared weights (`COA_WEIGHTS`), stores the winner as
+`sq.coa` and draws no random number; a tie goes to the first name, `assault`. `defend` clears `_assaultAuthorized`, which
+holds the bounds in `fireAndMovement`; `assault` changes nothing else. With the shipped weights `assault` wins while
+`2.5 x casualties + 1.5 x stress + 2 x leaderDown <= 1`: a squad without a leader when contact starts defends for that
+contact, and calm men defend from 5 casualties of 10. `sq.coa` is set only at contact start, is never cleared and is not
+in the diagnostics export. **No check exercises either flag-on path**: the Node harness has no `location`, so it cannot
+set them, and neither shipped with a probe. What is known is that the flag-off code is the old code (by reading the diff);
+what the flags do to a battle is known only from the paired benchmark (see the phase map).
 **Ranks.** The squad leader is the `sergeant` role (US Staff Sergeant, GE Unteroffizier); the Meso
 layer is the Squad Leader (`squad-leader`: `squadCommand` owner and lease owner). "Captain" is only
 the company echelon in `00-battle-sides.js`. Names that stay `captain*` on purpose, because stored or
@@ -456,7 +472,7 @@ the wait is cleared with the order) and `shock` (a friend down within 10 m, or t
 trigger for 0.35 s plus 2 s per unit of stress it added, at most 1 s, and stops him if he is only advancing; not
 again within 3 s). `?mind=0` is off, `?mind=observe` keeps the state and reads none of it (identical to off:
 `soldier-mind-check.js` and a control on six full battles), `?mind=react,aim,...` only those levers. `squad.mind`
-(mean, max, men per band) is Micro status upward; nothing reads it yet but the export. A squad with nobody living is rolled up over nobody (`n` 0, everything 0) and settled once by the module (`settle`), so a wiped-out squad does not keep its last living reading. Measured 2026-09-29 (`experience`
+(mean, max, men per band) is Micro status upward; the export reads it and, behind `?morale=1` and `?coa=1`, so does the Squad Leader (see Group morale and course of action). A squad with nobody living is rolled up over nobody (`n` 0, everything 0) and settled once by the module (`settle`), so a wiped-out squad does not keep its last living reading. Measured 2026-09-29 (`experience`
 and `mind` probes, six 600 s battles, 216,000 man-seconds, no constants tuned): 88% of aimed rounds arrive from
 250 m or more, so they add under 1% of the stress; it comes from friends down 31%, wounds 20%, isolation 15%,
 leader down 13%, suppression 10%, contagion 6%, no leader 4%. Man-time is 95.9% steady, 2.9% shaken, 0.8% rattled,
@@ -646,7 +662,7 @@ four-run swing. Live-browser runs at `timeScale` 8 aren't deterministic, so use 
 for controlled pairs, and serve both arms the same way: `battle_sim_local.php` in preview mode (a
 `preview.json` beside it) reads `state/` and the audio manifest two directories up.
 
-### Open issues (as of 2026-09-29)
+### Open issues (as of 2026-09-30)
 
 Keep this section to **work that is genuinely still open**. Completed investigations and shipped
 fixes belong in their subsystem sections, commit messages and PRs; do not leave them here as a
@@ -669,15 +685,15 @@ two seed prefixes (`ai-layers-20260929`, `ai-layers-b-20260929`), reported with 
 | 1 | Engagement, the Squad Leader's `commandPhase` and the Macro brief as explicit state machines | merged (#110) |
 | stash | AI Graph and genome stashed (`STASHED` in `ai-policy.js`); genome off means the code defaults | merged (#112) |
 | 2 | One publisher of `orderAnchor` + `rally`, one stall clock, one writer per status timer (#113); soldier stats and the General's `squad` lever (#114) | merged |
-| 3a | Debt adoption (45 → 9 wire-map debt entries, `fireCooldown` still to do: gun state to Engagement/ammunition, merge and leader-down to the Squad Leader, station claims, the unreachable handshake) and the per-soldier event queue (`modules/08-soldier-events.js`) | code on `work/ai-layers-phase-3`; identity proof pending |
-| 3b | Group morale (squad level, break and rally thresholds) replacing the flat 60% casualty retreat, behind `?morale=`; `squad.mind` becomes a reader. It must reduce to the 60% rule when the men are calm; stress only moves the threshold, by declared numbers (`retreat-episodes` probe: every retreat enters at 60%, mean squad stress 0.22) | not started |
-| 3c | Group course of action on contact behind a flag: deterministic weighted scoring, tiebreak by squad id, executed through `fireAndMovement` and the bound leases, the Squad Leader the one COA owner; COAs, morale states and inputs declared as data. No planner, no safe-point memory, no route-through-enemy assessment, no hold-until-reinforced | not started |
-| 4 | Efficiency, no behaviour change: states return wake times staggered by an id hash; LOS cached per (observer, target) for a short sim-time window; perception budget; the 6 nav-cache invalidations (`_navCache`, `_physicalPath`) become one call on Navigation. Each proved identical before the next; median wall time against the 25% gate | not started |
-| 5 | Read-through: a top-of-file contract for every layer file, dead code out (`flatDamage` in 14-z, the unread `objectiveHoldWin`, the `soldier.target` swap in module 52), every tunable number listed by layer in the PR body as the input to the genome rewrite, then a fresh reader explains each layer from its file alone | not started |
+| 3a | Debt adoption (45 → 9 wire-map debt entries, `fireCooldown` still to do: gun state to Engagement/ammunition, merge and leader-down to the Squad Leader, station claims, the unreachable handshake) and the per-soldier event queue (`modules/08-soldier-events.js`) | merged (#117). Neutral by the standard benchmark (100/100 identical records in each of default, `mind=0`, `stats=0`) and by the full-state fingerprint on the default arm, seeds 1-9 only (36/36); the fingerprint was not run on the `mind=0` and `stats=0` arms |
+| 3b | Group morale (squad level, break and rally thresholds) replacing the flat 60% casualty retreat, behind `?morale=`; `squad.mind` becomes a reader. It must reduce to the 60% rule when the men are calm; stress only moves the threshold, by declared numbers (`retreat-episodes` probe: every retreat enters at 60%, mean squad stress 0.22) | merged (#118), off unless `?morale=1`. Flag-on has no check, no probe and no paired benchmark yet. Morale states are not declared as data (only the `MORALE_TUNING` numbers) |
+| 3c | Group course of action on contact behind a flag: deterministic weighted scoring, tiebreak by squad id, executed through `fireAndMovement` and the bound leases, the Squad Leader the one COA owner; COAs, morale states and inputs declared as data. No planner, no safe-point memory, no route-through-enemy assessment, no hold-until-reinforced | merged (#119), off unless `?coa=1`; the evidence gap of 3b. Ties go to the first COA by name, not by squad id (a squad's scores are compared, not squads) |
+| 4 | Efficiency, no behaviour change: states return wake times staggered by an id hash; LOS cached per (observer, target) for a short sim-time window; perception budget; the 6 nav-cache invalidations (`_navCache`, `_physicalPath`) become one call on Navigation. Each proved identical before the next; median wall time against the 25% gate | partly merged: the nav-cache invalidations are one call on Navigation (#120; optional-safe since #123). Wake staggering, the LOS cache and the perception budget are not on `main` |
+| 5 | Read-through: a top-of-file contract for every layer file, dead code out (`flatDamage` in 14-z, the unread `objectiveHoldWin`, the `soldier.target` swap in module 52), every tunable number listed by layer in the PR body as the input to the genome rewrite, then a fresh reader explains each layer from its file alone | partly merged: `flatDamage` in 14-z is gone (#121). Not done: the top-of-file contracts, `objectiveHoldWin`, the `soldier.target` swap in module 52, the tunable inventory, the fresh-reader test |
 
-Wire-map debt still open after 3a (9 entries, all scheduled): `soldier.fireCooldown` (spawn stagger in `spawnAll`
-against the fire pipeline's own clock; phase 3, not yet done), the 6 nav-cache entries (phase 4), `soldier.target` in
-module 52 and the dead `soldier.hp` copy in 14-z (phase 5).
+Wire-map debt still open (2 entries, both scheduled): `soldier.fireCooldown` (spawn stagger in `spawnAll` against the
+fire pipeline's own clock; phase 3, not yet done) and `soldier.target` in module 52 (phase 5). The 6 nav-cache entries and
+the dead `soldier.hp` copy in 14-z are gone (#120, #121, #123).
 
 **The soldier layer, in slices** (the tactics outline's soldier contract; each slice is a tactics change behind a
 lever and a paired benchmark). Shipped: condition, i.e. stress, bands and four levers (see Soldier condition).
