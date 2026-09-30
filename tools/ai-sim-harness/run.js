@@ -107,6 +107,18 @@ section('a squad in contact stops marching (base of fire)');
   us.commandPhase='assault';
   H.run(root,battle,3);
   const L=root.BattleLeases,boundUntil=()=>L.until(us,'bound'),bounding=()=>L.holds(us,'bound',battle.time);
+  /* The Squad Leader's own rule (fireAndMovement): some fireteam has a man free to move (not suppressed, reloading, on a
+     gun or short of ammunition) while at least two others keep shooting. A squad cut to five with two men pinned has
+     three shooters and no team that can leave without stripping the base of fire: it cannot bound, and that is
+     right. (Found by sweeping seeds 1..40 with cover chosen to be fought from: 15, 27 and 29 reached that state and
+     the weaker precondition below called it a missed bound.) */
+  const TEAMS=['alpha','bravo','charlie'],SQ=root.SquadAI;
+  const free=m=>!m.dead&&!(m.suppressedUntil>battle.time)&&!m.reloading&&!m.clearingStoppage&&!m.outOfAmmo&&!SQ.isMachineGun(m);
+  const shooting=m=>!m.dead&&m.eng&&m.eng.state==='engage'&&!(m.suppressedUntil>battle.time)&&!m.reloading;
+  const aTeamCouldGo=()=>TEAMS.some(t=>{
+    const movers=us.members.filter(m=>free(m)&&(!m._fireteamKey||m._fireteamKey===t));
+    return movers.length>0&&us.members.filter(m=>shooting(m)&&movers.indexOf(m)<0).length>=2;
+  });
   let boundSeconds=0,contactSeconds=0,missedBounds=0,creepInContact=0,last={x:us.orderAnchor.x,z:us.orderAnchor.z,contact:us.inContact,bound:bounding()};
   H.run(root,battle,40,()=>{
     /* In contact the anchor advances only during an authorised bound (Squad Leader advanceSquadAnchor);
@@ -122,7 +134,7 @@ section('a squad in contact stops marching (base of fire)');
        out here this should never be observable. A squad that breaks this tick is not one: the
        counts were taken before its men turned to withdraw, and a retreat outranks a bound. */
     if(us.inContact&&us.state!=='retreat'&&us._assaultAuthorized&&(us.effectiveCount||0)>=2&&(us.pinnedCount||0)<(us.effectiveCount||0)&&
-       !L.holds(us,'bound-cycle',battle.time)&&!bounding())missedBounds++;
+       !L.holds(us,'bound-cycle',battle.time)&&!bounding()&&aTeamCouldGo())missedBounds++;
   });
   check('the squad spends the fight in contact',contactSeconds>10,'contact seconds='+contactSeconds.toFixed(1));
   check('a squad that could bound, did',missedBounds===0,missedBounds+' ticks with a base of fire and no bound');
