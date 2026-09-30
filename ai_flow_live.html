@@ -264,7 +264,7 @@ function layoutCFG(cfg){
 
 const stateFocus={};
 let cfgHistory=[],brainFocus=null;
-const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:true,textSnap:true,focus:null,scene:null,detailScene:null,raf:0,fast:false,restoreTimer:0};
+const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:true,textSnap:true,focus:null,scene:null,detailScene:null,raf:0,fast:false,restoreTimer:0,panX:0,panY:0};
 let sources={}, current='brain', graphBounds={x:0,y:0,w:1800,h:1600};
 let camera={x:0,y:0,w:1800,h:1600},dragging=false,dragPointer=null,lastPointer=null,spaceDown=false,cameraAnim=0;
 const svg=document.getElementById('graph'), viewport=document.getElementById('viewport'), status=document.getElementById('status'), workspace=document.getElementById('workspace');
@@ -583,7 +583,7 @@ function brain3DProject(p){
   const x1=p.x*cy+p.z*sy,z1=-p.x*sy+p.z*cy,y1=p.y;
   const y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;
   const den=Math.max(900,6400-z2),scale=(1500/den)*brain3D.zoom;
-  return {x:900+x1*scale,y:650+y2*scale,z:z2,scale};
+  return {x:900+brain3D.panX+x1*scale,y:650+brain3D.panY+y2*scale,z:z2,scale};
 }
 
 function brain3DProjectDetail(p){
@@ -591,11 +591,21 @@ function brain3DProjectDetail(p){
   const x1=p.x*cy+p.z*sy,z1=-p.x*sy+p.z*cy,y1=p.y;
   const y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;
   const scale=.36*brain3D.zoom;
-  return {x:900+x1*scale,y:650+y2*scale,z:z2,scale};
+  return {x:900+brain3D.panX+x1*scale,y:650+brain3D.panY+y2*scale,z:z2,scale};
+}
+
+function centerBrain3DOn(p,rerender=true){
+  if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.y))return;
+  brain3D.panX+=900-p.x;
+  brain3D.panY+=650-p.y;
+  if(rerender){
+    if(brain3D.mode==='detail')renderBrain3DDetailScene(false);
+    else renderBrain3DScene();
+  }
 }
 
 function brain3DReset(){
-  cancelAnimationFrame(brain3D.raf);brain3D.raf=0;clearTimeout(brain3D.restoreTimer);brain3D.restoreTimer=0;brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.detailScene=null;
+  cancelAnimationFrame(brain3D.raf);brain3D.raf=0;clearTimeout(brain3D.restoreTimer);brain3D.restoreTimer=0;brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.detailScene=null;brain3D.panX=0;brain3D.panY=0;
   const b=document.getElementById('brain3dExplodeBtn');if(b)b.textContent='Explode slices';
   const iy=document.getElementById('brain3dInvertYBtn');if(iy){iy.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');iy.classList.toggle('active',brain3D.invertY)}const ts=document.getElementById('brain3dTextSnapBtn');if(ts){ts.textContent='Text snap: '+(brain3D.textSnap?'On':'Off');ts.classList.toggle('active',brain3D.textSnap)}
   if(current==='brain3d')renderBrain3DScene();
@@ -630,10 +640,12 @@ function renderBrain3DDetailScene(fast=false){
   }
   function snapPageText(page,s){
     if(!brain3D.textSnap||!sliceBackFacing(s))return;
+    // The projected page changes handedness on its back side. Undo that with ONE
+    // local-axis reflection. A 180° rotation preserves handedness and was the wrong correction.
     page.querySelectorAll('text').forEach(t=>{
       const x=parseFloat(t.getAttribute('x')||'0'),y=parseFloat(t.getAttribute('y')||'0');
       const prior=t.getAttribute('transform')||'';
-      t.setAttribute('transform',(prior?prior+' ':'')+'rotate(180 '+x+' '+y+')');
+      t.setAttribute('transform',(prior?prior+' ':'')+'translate('+(2*x)+' 0) scale(-1 1)');
       const anchor=t.getAttribute('text-anchor');
       if(!anchor||anchor==='start')t.setAttribute('text-anchor','end');
       else if(anchor==='end')t.setAttribute('text-anchor','start');
@@ -651,6 +663,30 @@ function renderBrain3DDetailScene(fast=false){
     return [[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]].map(([x,y])=>P({x,y,z}));
   }
   function poly(points,cls){return el('polygon',{points:points.map(p=>p.x+','+p.y).join(' '),class:cls})}
+  const childrenByParent={};
+  model.slices.filter(s=>s.kind==='cfg').forEach(s=>(childrenByParent[s.parentId]||(childrenByParent[s.parentId]=[])).push(s));
+  const isFunctionGroup=s=>s.kind==='parent'&&(childrenByParent[s.id]||[]).length>0;
+  function boxCorners(parent){
+    const kids=childrenByParent[parent.id]||[];
+    if(!kids.length)return null;
+    const maxW=Math.max(...kids.map(s=>s.width||model.planeW))+180;
+    const maxH=Math.max(...kids.map(s=>s.height||model.planeH))+180;
+    const zs=kids.map(sliceZ),zFront=Math.max(...zs)+130,zBack=Math.min(...zs)-130;
+    const corners=[];
+    [[-maxW/2,-maxH/2],[maxW/2,-maxH/2],[maxW/2,maxH/2],[-maxW/2,maxH/2]].forEach(([x,y])=>corners.push(P({x,y,z:zFront})));
+    [[-maxW/2,-maxH/2],[maxW/2,-maxH/2],[maxW/2,maxH/2],[-maxW/2,maxH/2]].forEach(([x,y])=>corners.push(P({x,y,z:zBack})));
+    return {corners,maxW,maxH,zFront,zBack};
+  }
+  function drawGroupBox(parent){
+    const box=boxCorners(parent);if(!box)return;
+    const q=box.corners,edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+    const gg=el('g',{class:'brain3dGroupBox'});
+    edges.forEach(([a,b])=>gg.appendChild(el('line',{x1:q[a].x,y1:q[a].y,x2:q[b].x,y2:q[b].y,class:'brain3dGrid'})));
+    const label=P({x:0,y:-box.maxH/2-75,z:box.zFront});
+    gg.appendChild(el('text',{x:label.x,y:label.y,'text-anchor':'middle',class:'brain3dSliceTitle'},parent.title));
+    gg.appendChild(el('text',{x:label.x,y:label.y+17,'text-anchor':'middle',class:'brain3dSliceSub'},parent.sub||''));
+    g.appendChild(gg);
+  }
   function portById(s,id){return (s.ports||[]).find(p=>p.id===id)||null}
   function overviewById(s,id){return (s.overview||[]).find(n=>n.id===id)||null}
   function endpoint(ep){
@@ -658,12 +694,13 @@ function renderBrain3DDetailScene(fast=false){
     if(s.kind==='cfg'){
       const p=portById(s,ep.portId);return p?pagePoint(s,p.x,p.y):null;
     }
+    if(isFunctionGroup(s))return null;
     const n=overviewById(s,ep.overviewId);if(!n)return null;
     return P({x:n.x,y:n.y,z:sliceZ(s)});
   }
 
   // Slice planes first. Exact CFG bounds define each detail card's physical dimensions.
-  model.slices.map(s=>{
+  model.slices.filter(s=>!isFunctionGroup(s)).map(s=>{
     const corners=s.kind==='cfg'?cfgCorners(s):parentCorners(s);
     return {s,corners,depth:corners.reduce((a,p)=>a+p.z,0)/4};
   }).sort((a,b)=>a.depth-b.depth).forEach(item=>{
@@ -677,6 +714,8 @@ function renderBrain3DDetailScene(fast=false){
       g.appendChild(el('text',{x:p.x+8,y:p.y+34,class:'brain3dSliceSub'},s.sub||''));
     }
   });
+
+  model.slices.filter(isFunctionGroup).forEach(drawGroupBox);
 
   if(fast){
     const hud=el('g',{transform:'translate(22,22)'});
@@ -698,14 +737,14 @@ function renderBrain3DDetailScene(fast=false){
   });
 
   // Parent landmarks: function/state objects remain small orientation points.
-  model.slices.filter(s=>s.kind==='parent').forEach(s=>{
+  model.slices.filter(s=>s.kind==='parent'&&!isFunctionGroup(s)).forEach(s=>{
     (s.overview||[]).forEach(n=>{
       const p=P({x:n.x,y:n.y,z:sliceZ(s)}),w=n.type==='priority'?118:150,h=42;
       const gr=el('g',{class:'brain3dNode '+(n.type||'function')+' '+n.layer,transform:'translate('+p.x+','+p.y+') scale('+Math.max(.55,p.scale*.9)+')'});
       gr.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:9}));
       gr.appendChild(el('text',{x:0,y:4,'text-anchor':'middle','font-size':10,'font-weight':'800'},String(n.label||n.id)));
       gr.appendChild(el('title',{},n.fullLabel||n.label||n.id));
-      gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===n.id?null:n.id;renderBrain3DDetailScene(false)});
+      gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===n.id?null:n.id;centerBrain3DOn(p,false);renderBrain3DDetailScene(false)});
       if(n.cfg)gr.addEventListener('dblclick',ev=>{ev.stopPropagation();cfgHistory=[];jumpToCfg(n.cfg,false)});
       g.appendChild(gr);
     });
@@ -727,7 +766,7 @@ function renderBrain3DDetailScene(fast=false){
       onNode:(gr,n)=>{
         const focusId='cfgnode:'+s.parentFunction+':'+n.id;
         gr.setAttribute('data-brain-focus',focusId);
-        gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===focusId?null:focusId;status.textContent='3D detail · '+s.title+' · '+n.label});
+        gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===focusId?null:focusId;const cp=pagePoint(s,n.x+(n.w||250)/2,n.y+(n.h||82)/2);centerBrain3DOn(cp,false);renderBrain3DDetailScene(false);status.textContent='3D detail · '+s.title+' · '+n.label});
         gr.addEventListener('dblclick',ev=>{ev.stopPropagation();if(n.ref)openSource(n.ref,n.label)});
       }
     });
@@ -755,7 +794,7 @@ function renderBrain3DDetailScene(fast=false){
       pg.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:9}));
       pg.appendChild(el('text',{x:0,y:4,'text-anchor':'middle'},String(p.label).length>31?String(p.label).slice(0,30)+'…':p.label));
       pg.appendChild(el('title',{},p.label));
-      pg.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===p.id?null:p.id;renderBrain3DDetailScene(false)});
+      pg.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===p.id?null:p.id;const cp=pagePoint(s,p.x,p.y);centerBrain3DOn(cp,false);renderBrain3DDetailScene(false)});
       if(p.ref)pg.addEventListener('dblclick',ev=>{ev.stopPropagation();openSource(p.ref,p.label)});
       page.appendChild(pg);
     });
@@ -857,7 +896,7 @@ function renderBrain3DScene(){
       gr.appendChild(el('text',{x:0,y:h/2-5,'text-anchor':'middle',class:'sub'},String(n.priority)));
     }
     gr.appendChild(el('title',{},n.fullLabel||n.label));
-    gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===n.id?null:n.id;renderBrain3DScene()});
+    gr.addEventListener('click',ev=>{ev.stopPropagation();brain3D.focus=brain3D.focus===n.id?null:n.id;centerBrain3DOn(p,false);renderBrain3DScene()});
     gr.addEventListener('dblclick',ev=>{ev.stopPropagation();if(n.cfg){cfgHistory=[];jumpToCfg(n.cfg,false)}else if(n.ref)openSource(n.ref,n.fullLabel||n.label)});
     g.appendChild(gr);
   });
@@ -1283,7 +1322,7 @@ function fullView(){
  document.getElementById('brain3dExplodeBtn').onclick=()=>{
    const b=document.getElementById('brain3dExplodeBtn');
    if(brain3D.mode==='compact'){brain3D.mode='exploded';b.textContent='Show detail'}
-   else if(brain3D.mode==='exploded'){brain3D.mode='detail';brain3D.yaw=-.88;brain3D.pitch=.10;brain3D.zoom=1.05;brain3D.focus=null;b.textContent='Compact slices'}
+   else if(brain3D.mode==='exploded'){brain3D.mode='detail';brain3D.yaw=-.88;brain3D.pitch=.10;brain3D.zoom=1.05;brain3D.focus=null;brain3D.panX=0;brain3D.panY=0;b.textContent='Compact slices'}
    else{brain3D.mode='compact';b.textContent='Explode slices'}
    if(current==='brain3d')renderBrain3DScene()
  };
