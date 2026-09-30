@@ -312,13 +312,18 @@ function needsReplan(soldier,sim,dest,start){
   if(sim.time>=c.replanAt)return true;
   return false;
 }
+/* stepMovement calls a waypoint reached inside GOAL_ARRIVAL and stops walking to it, so a corner he stands
+   on is consumed whether or not the edge onward is clear from his foot: he cannot get any closer, and
+   holding it left a man 0.33 m from his corner for the rest of the battle (every replan returned it).
+   `?navCorner=0` is the old rule, for a paired A/B. */
+var NAV_CORNER=!(typeof location!=='undefined'&&/[?&]navCorner=0\b/.test(location.search||''));
 function consumeReached(c,start,sim,soldier){
   if(!c||!c.points)return;
   while(c.points.length){
     var next=c.points[1],arrival=next?PATH_ARRIVAL:GOAL_ARRIVAL;
     if(dist(start,c.points[0])>arrival)break;
     // Reaching the corner's radius is not permission to cut through the corner itself.
-    if(next&&!edgeClear(sim,start,next,routeFootprints(sim,start,next,soldier),ROUTE_MARGIN))break;
+    if(next&&!(NAV_CORNER&&dist(start,c.points[0])<=GOAL_ARRIVAL)&&!edgeClear(sim,start,next,routeFootprints(sim,start,next,soldier),ROUTE_MARGIN))break;
     c.points.shift();
   }
   c.index=0;
