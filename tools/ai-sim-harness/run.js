@@ -119,7 +119,9 @@ section('a squad in contact stops marching (base of fire)');
     const movers=us.members.filter(m=>free(m)&&(!m._fireteamKey||m._fireteamKey===t));
     return movers.length>0&&us.members.filter(m=>shooting(m)&&movers.indexOf(m)<0).length>=2;
   });
-  let boundSeconds=0,contactSeconds=0,missedBounds=0,creepInContact=0,last={x:us.orderAnchor.x,z:us.orderAnchor.z,contact:us.inContact,bound:bounding()};
+  /* Men change state after the Leader's command tick, so a team that could go this tick goes the next: a miss is the
+     condition holding on two ticks running (a leader that never grants misses every one). */
+  let couldStreak=0,boundSeconds=0,contactSeconds=0,missedBounds=0,creepInContact=0,last={x:us.orderAnchor.x,z:us.orderAnchor.z,contact:us.inContact,bound:bounding()};
   H.run(root,battle,40,()=>{
     /* In contact the anchor advances only during an authorised bound (Squad Leader advanceSquadAnchor);
        once contact breaks it may march. Total distance is the dice, creeping outside a bound is not. */
@@ -134,7 +136,7 @@ section('a squad in contact stops marching (base of fire)');
        out here this should never be observable. A squad that breaks this tick is not one: the
        counts were taken before its men turned to withdraw, and a retreat outranks a bound. */
     if(us.inContact&&us.state!=='retreat'&&us._assaultAuthorized&&(us.effectiveCount||0)>=2&&(us.pinnedCount||0)<(us.effectiveCount||0)&&
-       !L.holds(us,'bound-cycle',battle.time)&&!bounding()&&aTeamCouldGo())missedBounds++;
+       !L.holds(us,'bound-cycle',battle.time)&&!bounding()&&aTeamCouldGo()){if(++couldStreak>=2)missedBounds++;}else couldStreak=0;
   });
   check('the squad spends the fight in contact',contactSeconds>10,'contact seconds='+contactSeconds.toFixed(1));
   check('a squad that could bound, did',missedBounds===0,missedBounds+' ticks with a base of fire and no bound');
