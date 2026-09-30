@@ -17,7 +17,8 @@
     '_animReloadClock',
     '_stanceSupport',
     // The event queue's own bookkeeping (modules/08-soldier-events.js), absent before it existed.
-    '_casualtyLogged'
+    '_casualtyLogged',
+    '_eventQueue'
   ]);
   /* Bookkeeping of the soldier-condition module that depends on WHEN an event is read, not on what
      happened: the log cursor and logged flag went with the queue; the fields below mirror what the
