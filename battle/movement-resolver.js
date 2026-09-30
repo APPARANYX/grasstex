@@ -466,8 +466,7 @@
     var MP = root.BattleMovementProgress,
       advice = MP && MP.observe ? MP.observe(soldier, battle, pick.point, pick) : null;
     if (advice && advice.rebuild) {
-      soldier._navCache = null;
-      soldier._physicalPath = null;
+      root.BattleNavigation.invalidateNavPath(soldier);
       var TR = root.BattleTacticalRoute;
       if (TR && TR.cancel) TR.cancel(soldier, battle);
     }
@@ -476,8 +475,7 @@
       root.BattleMovementProgress &&
       root.BattleMovementProgress.takeUnreachable(soldier)
     ) {
-      soldier._navCache = null;
-      soldier._physicalPath = null;
+      root.BattleNavigation.invalidateNavPath(soldier);
     }
 
     var routed = tacticalWaypoint(soldier, battle, pick),
@@ -553,7 +551,7 @@
       soldier._movementProposalOwner = pick.owner;
       soldier._movementTacticalReason = (routed && routed.reason) || null;
       soldier.destination = { x: physical.x, z: physical.z };
-      soldier._navCache = null;
+      root.BattleNavigation.invalidateNavCache(soldier);
       soldier._destinationCommitUntil = now(battle) + ORDER_COMMIT + (soldier.slotIndex % 3) * 0.22;
       st.changes++;
     }
