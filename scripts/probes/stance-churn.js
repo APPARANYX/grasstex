@@ -1,11 +1,11 @@
 /* Stance churn and firing mid-change (AGENTS.md open issue "Stance churn and firing mid-change").
-   Measure before fixing. Engagement owns stance (`commitStance`), but `44-combat-urgency.js`, the
-   reload hook in `12-soldier-animation-events.js` and `stepMovement` (`crouching`) also write it.
-   Per man, the stance he actually shows (prone / crawl / crouch / stand, from `prone`, `crawling`,
-   `crouching`) is sampled every step. Reported:
+   Measure before fixing. Engagement owns stance (`commitStance`); `44-combat-urgency.js` and the reload
+   hook in `12-soldier-animation-events.js` ask it through `requestStance`.
+   Per man, the stance he actually shows (prone / crawl / crouch / stand, from `prone`, `crawling` and
+   the derived `crouching`) is sampled every step. Reported:
    - changes per man-minute, attributed to the writer of the flag that flipped (a property setter
-     on `prone`, `tacticalCrouch` and `crouching` that reads the calling file from the stack, only
-     when the value changes), plus flips of each flag per writer;
+     on `prone` and `tacticalCrouch` that reads the calling file from the stack, only when the value
+     changes), plus flips of each flag per writer;
    - A->B->A bounces in under 1 s (the pattern `run.js` asserts against, but there on one man in a
      30 s duel, reading Engagement's committed `eng.stance`, without module 44 or the reload hook:
      that is why it never sees these);
@@ -17,11 +17,12 @@
    - `excursions`: stand -> down (crouch/prone/crawl) -> stand spells by length, and `loops`: a man who
      makes three of them inside 30 s (the stand -> crouch -> prone -> stand cycle a player sees), with
      the chain of callers for the first examples.
-   `battle-sim.js` writes `crouching` only to mirror `tacticalCrouch` (stepMovement shows the committed
-   stance), so its flips double-count Engagement's; `byWriter` keeps them apart for that reason.
+   - `advanceLowShare`: the share of time in Engagement `advance` spent crouched or lower (the speed a stance
+     rule costs: a crouched man walks at 58%).
    Observe only: the setters store and return the same values; `onFire` is chained. */
 (function (root) {
-  var FLAGS = ['prone', 'tacticalCrouch', 'crouching'],
+  /* `crouching` is derived from these two on the sim soldier, so watching it would replace its getter. */
+  var FLAGS = ['prone', 'tacticalCrouch'],
     FILE = /\/(battle\/(?:modules\/)?[\w.-]+\.js)/g,
     /* setCrouch/setProne and 45's visual wrapper around them: report who called them. */
     WRAPPERS = { 'battle/soldier.js': 1, 'battle/modules/45-stance-transition-crawl.js': 1 },
@@ -64,8 +65,7 @@
               w = wr.file;
             rec.last[k] = w;
             rec.lastWriter = w;
-            /* stepMovement's mirror of tacticalCrouch must not hide who asked: keep Engagement's caller. */
-            if (w !== 'battle-sim.js') rec.lastCaller = wr.caller;
+            rec.lastCaller = wr.caller;
             var f = (c.flagFlips[k] = c.flagFlips[k] || {});
             f[w] = (f[w] || 0) + 1;
           }
@@ -88,7 +88,7 @@
       c = {
         AIM_SETTLE: T.AIM_SETTLE || 0.4, PRONE_HOLD: T.PRONE_HOLD || 5.5,
         manSeconds: 0, changes: 0, byWriter: {}, byTransition: {}, flagFlips: {},
-        byCaller: {}, excursions: { '<2s': 0, '2-5s': 0, '5-10s': 0 }, loops: 0, loopExamples: [],
+        advSeconds: 0, advLowSeconds: 0, byCaller: {}, excursions: { '<2s': 0, '2-5s': 0, '5-10s': 0 }, loops: 0, loopExamples: [],
         bounces: 0, bouncesByWriter: {}, pulls: 0, pullsMidChange: 0, midChangeByWriter: {},
         proneEpisodes: 0, shortProne: 0, shortProneEndedBy: {}, committedChanges: 0, examples: []
       };
@@ -121,7 +121,12 @@
         c.manSeconds += dt;
         var now = shown(s),
           m = men.get(s),
+          adv = !!(s.eng && s.eng.state === 'advance'),
           committed = s.eng && s.eng.stance;
+        if (adv) {
+          c.advSeconds += dt;
+          if (now !== 'stand') c.advLowSeconds += dt;
+        }
         if (!m) {
           men.set(s, { stance: now, committed: committed, changes: [], proneAt: now === 'prone' || now === 'crawl' ? sim.time : null });
           continue;
@@ -191,6 +196,8 @@
         byTransition: c.byTransition,
         byCaller: c.byCaller,
         excursions: c.excursions,
+        advanceSeconds: +c.advSeconds.toFixed(0),
+        advanceLowShare: c.advSeconds ? +(c.advLowSeconds / c.advSeconds).toFixed(3) : 0,
         loopsOf3In30s: c.loops,
         loopExamples: c.loopExamples,
         flagFlips: c.flagFlips,

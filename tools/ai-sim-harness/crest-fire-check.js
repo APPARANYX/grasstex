@@ -51,7 +51,7 @@ function setup(heightAt) {
     target = ge.members.find(s => s.role === 'rifleman');
   for (const s of [shooter, target]) {
     s.root.position.x = 0;
-    s.prone = s.crouching = s.tacticalCrouch = false;
+    s.prone = s.tacticalCrouch = false;
   }
   shooter.root.position.z = 0;
   target.root.position.z = RANGE;

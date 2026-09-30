@@ -921,7 +921,7 @@
       root.BattleWeapons.issue(opts.weapon, opts.faction);
     if (opts.secondary && root.BattleWeapons && root.BattleWeapons.issue)
       root.BattleWeapons.issue(opts.secondary, opts.faction);
-    return Object.assign({}, opts.model, {
+    var soldier = Object.assign({}, opts.model, {
       id: opts.id,
       faction: opts.faction,
       role: opts.role,
@@ -939,7 +939,6 @@
       _scanAt: 0,
       fireCooldown: Math.random() * 0.5,
       moving: false,
-      crouching: false,
       prone: false,
       crawling: false,
       tacticalCrouch: false,
@@ -951,6 +950,19 @@
       voiceCooldown: Math.random() * 2,
       lastSquadState: 'advance'
     });
+    /* Derived, never stored: the stance he shows is the one Engagement committed (`prone`, `tacticalCrouch`).
+       It used to be a copy that stepMovement refreshed each frame, so after every AI tick it was a frame
+       behind and the pose read a man raised from prone to crouch as standing. Read-only on purpose: a write
+       is a second owner of stance and throws. (Defined here, not in the literal above: Object.assign would
+       copy the getter's value once as a plain field.) */
+    Object.defineProperty(soldier, 'crouching', {
+      enumerable: true,
+      configurable: true,
+      get: function () {
+        return !this.prone && !!this.tacticalCrouch;
+      }
+    });
+    return soldier;
   }
 
   function setDestination(soldier, next, battle, urgent) {
