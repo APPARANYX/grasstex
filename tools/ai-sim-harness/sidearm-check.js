@@ -157,7 +157,7 @@ test('switching draws no combat RNG and writes no stance', () => {
     return rnd.call(b);
   };
   mg.prone = true;
-  mg.crouching = false;
+  mg.tacticalCrouch = false;
   aim(mg, role(ge, 'rifleman'), 5);
   tick(r, b, mg);
   aim(mg, role(ge, 'rifleman'), 60);

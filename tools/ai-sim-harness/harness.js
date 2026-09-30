@@ -107,13 +107,11 @@ function addSquad(root,battle,opts){
   battle.factions[opts.faction].squads.push(squad);return squad;
 }
 
-function setCrouch(s,v){if(s.dead)return;s.crouching=!!v;if(v)s.prone=false;}
-function setProne(s,v){if(s.dead)return;s.prone=!!v;if(v)s.crouching=false;}
 // Keep execution identical to battle-sim.js; tests can supply navigation via battle._movementRoot.
 const movementSource=fs.readFileSync(path.join(REPO,'battle/battle-sim.js'),'utf8');
 const movementBody=movementSource.slice(movementSource.indexOf('  function stepMovement('),movementSource.indexOf('  BattleSim.prototype._frame='));
 const movementFactory=new Function('root','BattleSoldierModel','steerAroundObstacles','NAV_REPLAN_HOLD',movementBody+';return stepMovement;');
-const movementModel={setCrouch,setProne,animateWalk(){}};
+const movementModel={animateWalk(){}};
 const defaultMovementRoot={}, movementCache=new WeakMap();
 function stepMovement(battle,s,dt){
   const root=battle._movementRoot||defaultMovementRoot;

@@ -11,7 +11,12 @@
      soldier model's own setCrouch/setProne and SquadAI's no-Engagement fallback.
    - stepMovement shows the committed stance and derives nothing: suppressed, holding a target and
      standing still, a man Engagement has standing stays standing.
-   - Other layers go through BattleEngagement.requestStance, which only takes a man lower. */
+   - Other layers go through BattleEngagement.requestStance, which only takes a man lower.
+   - The stance a man shows IS the stance Engagement committed: `crouching` is derived from `prone` and
+     `tacticalCrouch` on the soldier, not a copy that stepMovement refreshes. As a copy it lagged one frame
+     behind every AI tick, and the FBX pose (which runs right after the tick) read a man raised from prone
+     to crouch as standing: proneToCrouch, then standToCrouch a frame later, so he rose to his feet and
+     knelt again. */
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),H=require('./harness');
 let n=0;function test(name,fn){fn();n++;console.log('PASS '+name);}
 
@@ -28,6 +33,14 @@ test('only Engagement writes stance flags',()=>{
     while((m=WRITE.exec(src)))offenders.push(f+':'+(src.slice(0,m.index).split('\n').length)+' .'+m[1]);
   }
   assert.deepEqual(offenders,[],'stance written outside Engagement');
+  /* `crouching` is derived on the sim soldier; only soldier.js (its own posed lab body) still assigns one. */
+  const stray=[];
+  for(const f of files){
+    if(f==='soldier.js')continue;
+    const src=fs.readFileSync(path.join(dir,f),'utf8'),re=/\.crouching\s*=(?!=)/g;let m;
+    while((m=re.exec(src)))stray.push(f+':'+(src.slice(0,m.index).split('\n').length));
+  }
+  assert.deepEqual(stray,[],'crouching assigned outside the lab body');
   const fallback=fs.readFileSync(path.join(dir,'squad-ai.js'),'utf8'),start=fallback.indexOf('function fallbackBehavior(');
   const outside=fallback.slice(0,start)+fallback.slice(fallback.indexOf('\n  }\n',start));
   assert.ok(!WRITE.test(outside),'squad-ai.js writes stance only in fallbackBehavior');
@@ -42,16 +55,27 @@ function oneMan(){
   return{r,b,s,enemy:e.members[0]};
 }
 
+test('the stance a man shows is the stance Engagement committed, at once, with no copy to refresh',()=>{
+  const {r,b,s}=oneMan(),E=r.BattleEngagement;
+  E.commitStance(s,b,'prone');
+  assert.equal(s.prone,true);assert.equal(!!s.crouching,false,'prone is not crouched');
+  /* the defect: raised from prone to crouch by an AI tick, read before any stepMovement */
+  E.commitStance(s,b,'crouch');
+  assert.equal(s.prone,false);assert.equal(!!s.crouching,true,'crouch reads as crouch the moment it is committed (it read as standing)');
+  E.commitStance(s,b,'stand');
+  assert.equal(!!s.crouching,false);
+  E.commitStance(s,b,'crawl');
+  assert.equal(!!s.crouching,false,'a crawl is prone, not crouched');
+  assert.throws(()=>{s.crouching=true;},TypeError,'a write would be a second owner of stance');
+});
+
 test('stepMovement shows the committed stance and derives none of its own',()=>{
   const {b,s,enemy}=oneMan();
   s.destination={x:s.root.position.x,z:s.root.position.z};
   s.target=enemy;s.suppressedUntil=b.time+5;s.tacticalCrouch=false;s.prone=false;
   for(let i=0;i<10;i++)H.stepMovement(b,s,H.AI_TICK);
   assert.equal(!!s.crouching,false,'suppressed, with a target, standing still: still standing because Engagement has him standing');
-  s.tacticalCrouch=true;H.stepMovement(b,s,H.AI_TICK);
-  assert.equal(!!s.crouching,true,'Engagement commits crouch: he crouches');
-  s.prone=true;H.stepMovement(b,s,H.AI_TICK);
-  assert.equal(!!s.crouching,false,'prone outranks crouch');
+  assert.equal(s.tacticalCrouch,false,'and stepMovement wrote no stance of its own');
 });
 
 test('requestStance only takes a man lower and goes through the commitment',()=>{
