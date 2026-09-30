@@ -2061,6 +2061,8 @@ var SPHERE_WOUNDS=true;
 var SPHERE_WOUND_MAT=null,SPHERE_FAILED=false;
 function sphereWoundMaterial(scene){
   if(SPHERE_WOUND_MAT&&!SPHERE_WOUND_MAT.isDisposed())return SPHERE_WOUND_MAT;
+  /* Minimal includes: only bones + instances (for finalWorld). Morph/baked chunks are omitted
+     to avoid shader-preprocessor risk on the custom source path. */
   var vs=[
     'precision highp float;',
     'attribute vec3 position;',
@@ -2069,18 +2071,12 @@ function sphereWoundMaterial(scene){
     'varying vec3 vWorldPos;',
     'varying vec3 vNormalW;',
     '#include<bonesDeclaration>',
-    '#include<bakedVertexAnimationDeclaration>',
-    '#include<morphTargetsVertexGlobalDeclaration>',
-    '#include<morphTargetsVertexDeclaration>[0..maxSimultaneousMorphTargets]',
     '#include<instancesDeclaration>',
     'void main(void){',
     '  vec3 positionUpdated=position;',
     '  vec3 normalUpdated=normal;',
-    '  #include<morphTargetsVertexGlobal>',
-    '  #include<morphTargetsVertex>[0..maxSimultaneousMorphTargets]',
     '  #include<instancesVertex>',
     '  #include<bonesVertex>',
-    '  #include<bakedVertexAnimation>',
     '  vec4 worldPos=finalWorld*vec4(positionUpdated,1.0);',
     '  vWorldPos=worldPos.xyz;',
     '  vNormalW=normalize(mat3(finalWorld)*normalUpdated);',
@@ -2141,6 +2137,9 @@ function paintSphereWound(anchor,diameter){
       var rt=d.renderer&&d.renderer.texture;
       if(!rt||!rt.renderList||!rt.setMaterialForRendering)return;
       var mat=sphereWoundMaterial(scene);
+      /* Shader compilation is async; if it is not ready yet, retry soon instead of baking
+         nothing (which would leave the wound to the billboard fallback). */
+      try{if(mat.isReady&&!mat.isReady()){timer(bake,64);return;}}catch(_){}
       mat.setVector3('uCenter',q);
       mat.setFloat('uRadius',radius);
       rt.setMaterialForRendering(mesh,mat);
