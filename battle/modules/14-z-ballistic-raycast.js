@@ -239,16 +239,6 @@
     return block;
   }
   function groundStop(o, d, maxT, battle) {
-    // Phase 4 optimization: fast path for bullets clearly above terrain.
-    // Coarse 12-step check first; if bullet stays >5m above ground throughout,
-    // skip the fine 48-step scan. Only bullets near terrain pay the full cost.
-    var clear = true;
-    for (var c = 1; c <= 12; c++) {
-      var ct = (maxT * c) / 12,
-        cp = pointAt(o, d, ct);
-      if (cp.y <= battle.heightAt(cp.x, cp.z) + 5) { clear = false; break; }
-    }
-    if (clear) return maxT;
     var prev = EPS;
     for (var i = 1; i <= GROUND_STEPS; i++) {
       var t = (maxT * i) / GROUND_STEPS,
