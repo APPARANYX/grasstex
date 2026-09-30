@@ -470,7 +470,16 @@ by casualties and stress, 6% by a leader down). The gate is exact: under `defend
 against 4.5 per contact-minute under `assault`, and nothing set `_assaultAuthorized` again. It withholds about 6.5% of a
 battle's bounds (691 to 646 per 100 squad-battles) and holds the squad in contact (`advanceSquadAnchor`: held while
 `inContact` without a bound), so contacts run longer. Forcing `defend` everywhere (diagnostic only): 0 bounds, movement
-stalls 35 to 16 over 60 battles (10 battles fewer, 2 more). Win rates were not used for any of this.
+stalls 35 to 16 over 60 battles (10 battles fewer, 2 more). **Standard benchmark** (prefix `ai-layers-20260929`, 100
+battles per arm, branch on main `ee12d8c`, its own flags-off run as the baseline: identical to `main` in 100 of 100
+records, #133): `?morale=1` changes 95 of 100 battles and moves retreat, not outcomes: `withdraw` man-samples +31% (more
+in 67 battles, fewer in 28, sign p 0.0001), resolver changes +7.7% (65 to 30, p 0.0004), reconstitution groups formed
+42 to 65 (p 0.006), time-limit battles 35 to 49 (McNemar p 0.016), `low-forward-progress` loops 537 to 464 (25 to 47,
+p 0.013), movement stalls 40 to 42, 0 runtime errors: squads that break one casualty early leave the fight with a living
+man more and, with no reachable rally, for good. `?coa=1` changes 71 of 100 and moves no efficiency counter beyond noise
+(bound-state samples -3%, p 0.21; time-limit battles 35 to 39, p 0.42; 1 of 17 counters under p 0.05). Wall-time ratios
+between arms (1.26 and 1.21) are not readable: the two flags-off runs, identical in every record, read 0.85 under the same
+runner load. Win rates are reported and were not used for any of this.
 **Ranks.** The squad leader is the `sergeant` role (US Staff Sergeant, GE Unteroffizier); the Meso
 layer is the Squad Leader (`squad-leader`: `squadCommand` owner and lease owner). "Captain" is only
 the company echelon in `00-battle-sides.js`. Names that stay `captain*` on purpose, because stored or
