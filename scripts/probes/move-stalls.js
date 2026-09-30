@@ -3,7 +3,8 @@
    may advance, >= 8 m from his destination, who has not moved 1.5 m in 12 s and is below 0.35 m/s.
    Per stall: stepMovement's `_movementStopReason` at the moment it is reported (step-blocked,
    path-blocked, prone-hold, speed-settling, arrived...), and the destination kind that owned it.
-   Observe only. */
+   `examples` carry his last 12 s (position, waypoint, destination, stop reason every 1.5 s) and the
+   obstacles within 5 m, so a stall can be told from a man being pushed round a circle. Observe only. */
 (function (root) {
   var COMBAT = {
       orient: 1,
@@ -50,14 +51,27 @@
           continue;
         }
         if (!prior) {
-          track.set(s, { x: p.x, z: p.z, at: now, reported: false });
+          track.set(s, { x: p.x, z: p.z, at: now, reported: false, hist: [] });
           continue;
+        }
+        var wp = s._movementWaypoint;
+        if (!prior.hist.length || now - prior.hist[prior.hist.length - 1].t >= 1.5) {
+          prior.hist.push({
+            t: +now.toFixed(1),
+            at: [+p.x.toFixed(1), +p.z.toFixed(1)],
+            wp: wp ? [+wp.x.toFixed(1), +wp.z.toFixed(1)] : null,
+            dest: [+s.destination.x.toFixed(1), +s.destination.z.toFixed(1)],
+            stop: s._movementStopReason || null,
+            v: +(+s.moveSpeed || 0).toFixed(2)
+          });
+          if (prior.hist.length > 9) prior.hist.shift();
         }
         if (Math.hypot(p.x - prior.x, p.z - prior.z) >= 1.5) {
           prior.x = p.x;
           prior.z = p.z;
           prior.at = now;
           prior.reported = false;
+          prior.hist = [];
         } else if (!prior.reported && now - prior.at >= 12 && (+s.moveSpeed || 0) < 0.35) {
           prior.reported = true;
           c.stalls++;
@@ -72,7 +86,13 @@
               squad: s.squad && s.squad.id,
               stop: why,
               dest: +d.toFixed(1),
-              kind: last.kind || null
+              kind: last.kind || null,
+              history: prior.hist,
+              near: root.BattleObstacleField
+                ? root.BattleObstacleField.nearby(sim.obstacles, p.x, p.z, 5).map(function (o) {
+                    return { kind: o.kind || o.type || null, dx: +(o.x - p.x).toFixed(1), dz: +(o.z - p.z).toFixed(1), r: +(+o.radius).toFixed(2), phys: o.physicalId != null };
+                  })
+                : null
             });
         }
       }

@@ -149,6 +149,7 @@
     var cover = root.BattleEngagement.findCover(s, b, {
       maxRange: COVER_SEARCH,
       threat: threat,
+      evade: true, // suppressed: any cover that saves him
       minEnemyDistance: 10
     });
     if (!cover) return false;
