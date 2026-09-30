@@ -643,6 +643,12 @@
       return !!GATED[String(k || '')];
     },
     noteFailure: noteFailure,
+    // The reader consumes the "goal unreachable" flag `observe` raised: true once, then false.
+    takeUnreachable: function (s) {
+      if (!s._movementGoalUnreachable) return false;
+      s._movementGoalUnreachable = false;
+      return true;
+    },
     clearFailuresNear: clearFailuresNear,
     isStuck: isStuck,
     summary: progressSummary,

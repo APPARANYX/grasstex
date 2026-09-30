@@ -181,6 +181,39 @@
     s._combatUrgentUntil = 0;
   }
 
+  /* ---- the gun ---------------------------------------------------------------------------------
+     The emplaced-gun flag (`setUp`, `eng.setUpSince`) and the readiness floor (`eng.fireReadyAt`) are
+     Engagement's. Other layers that interrupt the gun (a reload or stoppage, a sidearm draw, a
+     released firing station) say so through these calls, never by writing the fields. */
+  // The gun is not set up any more: the emplacing clock is kept, as a reload or a stoppage leaves it.
+  function interruptGun(s) {
+    s.setUp = false;
+  }
+  // The gun is taken off its mount: set-up and the emplacing clock both restart (a sidearm draw).
+  function unemplaceGun(s) {
+    s.setUp = false;
+    state(s).setUpSince = 0;
+  }
+  /* ---- firing stations (module 20 claims and releases them) ---------------------------------------- */
+  // A firing station was claimed: the cover and bound/suppress orders he held are dropped.
+  function stationClaimed(s) {
+    if (!s.eng) return;
+    s.eng.cover = null;
+    s.eng.boundOrder = false;
+    s.eng.suppressOrder = false;
+  }
+  // A firing station was released: the look direction it set goes, and the gun is no longer set up.
+  function stationLeft(s) {
+    s._faceHint = null;
+    s.setUp = false;
+  }
+  // No shot before `until` (sim seconds); never brings the floor forward.
+  function delayFire(s, until) {
+    var e = s.eng; // a man Engagement has not met yet has no floor to raise
+    if (!e) return;
+    e.fireReadyAt = Math.max(+e.fireReadyAt || 0, until);
+  }
+
   /* ---- stance ------------------------------------------------------------------------------- */
 
   function applyStance(s, stance) {
@@ -1180,10 +1213,8 @@
     /* Structured recovery consumed here: repeated no-progress against this cover flags it
        unreachable, so abandon the bound and re-decide (alternate cover or fight from here)
        instead of cycling the same destination forever. */
-    if (s._movementGoalUnreachable) {
-      s._movementGoalUnreachable = false;
-      if (root.BattleMovementProgress)
-        root.BattleMovementProgress.noteFailure(s, battle, cover, 'bound-unreachable');
+    if (root.BattleMovementProgress && root.BattleMovementProgress.takeUnreachable(s)) {
+      root.BattleMovementProgress.noteFailure(s, battle, cover, 'bound-unreachable');
       decide(s, battle, 'bound unreachable');
       return;
     }
@@ -1281,9 +1312,8 @@
       transition(s, battle, 'alert', ALERT_HOLD, 'target lost before rush');
       return alert(s, battle);
     }
-    if (s._movementGoalUnreachable) {
-      s._movementGoalUnreachable = false;
-      if (root.BattleMovementProgress && e.assaultGoal)
+    if (root.BattleMovementProgress && root.BattleMovementProgress.takeUnreachable(s)) {
+      if (e.assaultGoal)
         root.BattleMovementProgress.noteFailure(s, battle, e.assaultGoal, 'assault-unreachable');
       transition(s, battle, 'engage', 0, 'assault unreachable');
       return engage(s, battle);
@@ -1590,6 +1620,11 @@
     requestStance: requestStance,
     markUrgent: markUrgent,
     clearUrgent: clearUrgent,
+    interruptGun: interruptGun,
+    stationClaimed: stationClaimed,
+    stationLeft: stationLeft,
+    unemplaceGun: unemplaceGun,
+    delayFire: delayFire,
     applyStance: applyStance,
     resetSoldier: resetSoldier,
     resetSquad: resetSquad,

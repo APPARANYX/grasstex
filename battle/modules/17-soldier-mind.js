@@ -18,15 +18,16 @@
    Owner: this module writes `soldier.mind` and `squad.mind`, nothing else. It never writes stance,
    destination, target or any timer another layer owns; Engagement and the shot model *read* the
    modifiers below and decide what to do with them, so one owner per responsibility still holds.
-   It runs on SquadAI's declared `beforeSoldier` slot (inside the fixed 0.15 s AI tick) and listens on
-   `aimedAt`; it draws nothing from the combat RNG (a man's nerve is a hash of his faction and id), so a
+   It runs on SquadAI's declared `beforeSoldier` slot (inside the fixed 0.15 s AI tick) and drains its
+   kinds from the man's event queue (modules/08-soldier-events.js: a friend down, a wound, a suppression,
+   the fire aimed at him, in that priority order); it draws nothing from the combat RNG (a man's nerve is a hash of his faction and id), so a
    battle with the module observing is the same battle as one without it (soldier-mind-check.js).
 
    Levers, for paired benchmarks: `?mind=0` (module off), `?mind=observe` (state kept, nothing reads it),
    `?mind=react,aim,hesitate,shock` (only those), default all. */
 (function (root) {
   'use strict';
-  if (!root.SquadAI || !root.BattleModules || root.BattleSoldierMind) return;
+  if (!root.SquadAI || !root.BattleModules || !root.BattleSoldierEvents || root.BattleSoldierMind) return;
 
   var LEVERS = ['react', 'aim', 'hesitate', 'shock'];
   function parse(search) {
@@ -136,8 +137,8 @@
       peak: 0,
       at: -1,
       nerve: nerveOf(s),
-      cursor: 0,
       wounds: 0,
+      pinnedUntil: 0,
       incoming: 0,
       incomingRounds: 0,
       lastIncomingAt: -99,
@@ -145,7 +146,6 @@
       shocks: 0,
       coverAt: -99,
       inCover: false,
-      logged: false,
       time: [0, 0, 0, 0],
       gained: {
         suppression: 0,
@@ -163,43 +163,11 @@
   function of(s) {
     return s.mind || (s.mind = fresh(s));
   }
-  function shared(battle) {
-    return battle._mind || (battle._mind = { log: [], scanAt: -1, casualties: 0 });
-  }
-
   /* ---- what happened to other people --------------------------------------------------------- */
 
   function wasLeader(s) {
     var q = s.squad;
     return !!q && (q.leaderId != null ? q.leaderId === s.id : s.role === 'sergeant');
-  }
-  /* One pass per AI time over the rosters: every man who has newly gone down (dead or incapacitated,
-     both go through killSoldier) is logged once, where he lies. Each living man reads the log from his
-     own cursor, so each casualty is witnessed once per man. */
-  function scan(battle, st, now) {
-    st.scanAt = now;
-    var factions = ['us', 'ge'];
-    for (var f = 0; f < factions.length; f++) {
-      var roster = (battle.rosterOf && battle.rosterOf(factions[f])) || [];
-      for (var i = 0; i < roster.length; i++) {
-        var s = roster[i];
-        if (!s || !s.dead || !s.root) continue;
-        var m = of(s);
-        if (m.logged) continue;
-        m.logged = true;
-        st.casualties++;
-        st.log.push({
-          id: s.id,
-          faction: s.faction,
-          squad: s.squad ? s.squad.id : null,
-          x: s.root.position.x,
-          z: s.root.position.z,
-          at: now,
-          leader: wasLeader(s),
-          unit: s
-        });
-      }
-    }
   }
   function shock(m, now, gain) {
     if (now < m.shockUntil + SHOCK_REFRACTORY) return;
@@ -247,8 +215,8 @@
       now = +battle.time || 0,
       sq = s.squad,
       p = s.root.position,
-      st = shared(battle);
-    if (st.scanAt !== now) scan(battle, st, now);
+      E = root.BattleSoldierEvents;
+    E.announceCasualties(battle, now);
     var dt = m.at < 0 ? 0 : clamp(now - m.at, 0, MAX_DT),
       gain = 0,
       g,
@@ -256,18 +224,27 @@
     m.at = now;
     m.pub = m.stress;
 
-    /* What happened around him since he last looked. */
-    for (; m.cursor < st.log.length; m.cursor++) gain += witness(s, m, st.log[m.cursor], battle, now);
-
-    /* What happened to him. */
-    var wounds = (s.wounds && s.wounds.length) || 0;
-    if (wounds > m.wounds) {
-      g = (WOUNDED * (wounds - m.wounds)) / m.nerve;
+    /* What happened around him and to him since he last looked, in the queue's fixed priority order:
+       a friend down, a wound, a suppression, then the fire on him. */
+    var woundsTaken = 0;
+    E.drain(s, 'soldier-mind', function (kind, d, at) {
+      if (kind === 'casualty') gain += witness(s, m, d, battle, now);
+      else if (kind === 'wound') woundsTaken += d.count;
+      else if (kind === 'suppressed') m.pinnedUntil = Math.max(m.pinnedUntil, d.until);
+      else if (kind === 'aimed') {
+        var near = clamp(1 - d.d / INCOMING_FAR, 0, 1);
+        m.lastIncomingAt = at;
+        m.incomingRounds += d.rounds;
+        m.incoming = Math.min(INCOMING_CAP, m.incoming + INCOMING_ROUND * near * near * d.rounds);
+      }
+    });
+    if (woundsTaken > 0) {
+      g = (WOUNDED * woundsTaken) / m.nerve;
       m.gained.wound += g;
       gain += g;
-      m.wounds = wounds;
+      m.wounds += woundsTaken;
     }
-    var suppressed = (+s.suppressedUntil || 0) > now;
+    var suppressed = m.pinnedUntil > now;
     if (suppressed) {
       g = (SUPPRESSED_RATE * dt) / m.nerve;
       m.gained.suppression += g;
@@ -380,16 +357,6 @@
       }
     }
   }
-  /* A trigger pull had this man as its target. */
-  function aimedAt(victim, battle, info) {
-    if (!MODE.on || !victim || victim.dead || !victim.squad || !info) return;
-    var m = of(victim),
-      near = clamp(1 - info.d / INCOMING_FAR, 0, 1);
-    m.lastIncomingAt = +battle.time || 0;
-    m.incomingRounds += info.rounds;
-    m.incoming = Math.min(INCOMING_CAP, m.incoming + INCOMING_ROUND * near * near * info.rounds);
-  }
-
   /* ---- what the rest of the soldier layer reads ---------------------------------------------- */
 
   function on(lever) {
@@ -452,7 +419,7 @@
       peakBand: { steady: 0, shaken: 0, rattled: 0, broken: 0 },
       shocks: 0,
       hesitations: 0,
-      casualtiesSeen: sim && sim._mind ? sim._mind.casualties : 0,
+      casualtiesSeen: sim && sim._soldierEvents ? sim._soldierEvents.casualties : 0,
       gained: {},
       men: 0
     };
@@ -484,7 +451,6 @@
     return out;
   }
   function reset(sim) {
-    sim._mind = null;
     sim._mindSummary = null;
     var units = root.BattleModules.unitsFor(sim);
     for (var i = 0; i < units.length; i++) {
@@ -493,8 +459,11 @@
     }
   }
 
+  function subscribe() {
+    root.BattleSoldierEvents.subscribe('soldier-mind', ['casualty', 'wound', 'suppressed', 'aimed']);
+  }
+  if (MODE.on) subscribe();
   root.SquadAI.extend('beforeSoldier', 'soldier-mind', tick);
-  root.SquadAI.extend('aimedAt', 'soldier-mind', aimedAt);
   root.BattleModules.registerSystem('soldier-mind', {
     version: '1.0',
     onBattleStart: reset,
@@ -536,6 +505,7 @@
     },
     configure: function (search) {
       MODE = parse(search);
+      if (MODE.on) subscribe();
       return MODE;
     },
     of: of,

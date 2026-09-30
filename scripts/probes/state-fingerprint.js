@@ -15,8 +15,24 @@
     'deathTag',
     '_animFireKick',
     '_animReloadClock',
-    '_stanceSupport'
+    '_stanceSupport',
+    // The event queue's own bookkeeping (modules/08-soldier-events.js), absent before it existed.
+    '_casualtyLogged',
+    '_eventQueue'
   ]);
+  /* Bookkeeping of the soldier-condition module that depends on WHEN an event is read, not on what
+     happened: the log cursor and logged flag went with the queue; the fields below mirror what the
+     queue holds until the man's next tick. What they cause (stress, gains, band time, shocks) is
+     compared exactly. */
+  var MIND_TIMING = [
+    'cursor',
+    'logged',
+    'pinnedUntil',
+    'incoming',
+    'incomingRounds',
+    'lastIncomingAt',
+    'wounds'
+  ];
   var SOLDIER_OBJECTS = [
     'eng',
     'mind',
@@ -90,6 +106,10 @@
     SOLDIER_OBJECTS.forEach(function (key) {
       if (Object.prototype.hasOwnProperty.call(s, key)) out[key] = plain(s[key], null, key);
     });
+    if (out.mind)
+      MIND_TIMING.forEach(function (key) {
+        delete out.mind[key];
+      });
     return out;
   }
   function squad(sq) {

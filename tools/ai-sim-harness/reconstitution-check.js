@@ -55,14 +55,14 @@ function merged(w){const m=w.b.factions.us.squads.filter(q=>q.reconstitutedFrom)
 test('three squads of four merge into one squad of twelve under one leader',()=>{
   const w=world();[0,1,2].forEach(l=>squad(w,l,4));
   let homeFirst=true;
-  /* The merge hands the survivor its anchor through the Squad Leader's one publisher. */
-  const published=[],S=w.r.BattleSquadStability,real=S.publishAnchor;
-  S.publishAnchor=function(sq,p){published.push({squad:sq.id,at:w.b.time,p:{x:p.x,z:p.z}});return real.apply(this,arguments);};
+  /* The Squad Leader re-forms the merged squad (`reform`) and publishes its anchor through the one publisher. */
+  const published=[],S=w.r.BattleSquadStability,real=S.reform;
+  S.reform=function(sq,men,leader,p){const out=real.apply(this,arguments);published.push({squad:sq.id,at:w.b.time,p:{x:p.x,z:p.z},anchor:{x:sq.orderAnchor.x,z:sq.orderAnchor.z},rally:{x:sq.rally.x,z:sq.rally.z}});return out;};
   run(w,420,b=>w.sq.forEach(q=>{if(q._assembly&&q._assembly.phase==='to-rally'&&!q._sawRally){q._sawRally=true;const p=w.r.BattleCommanderDoctrine.avgPos(q);if(Math.abs(p.z-HOME_Z)>20)homeFirst=false;}}));
   const st=recon(w),q=merged(w);
   const mergeEvent=w.events.find(e=>e.type==="decision-squad-merge"),rally=st.ended[0].rally;
-  const handed=published.filter(x=>x.squad===q.id&&Math.hypot(x.p.x-rally.x,x.p.z-rally.z)<1e-9);
-  assert.equal(handed.length,1,'the merge published the survivor\'s anchor on the group\'s rally point through publishAnchor, once');
+  const handed=published.filter(x=>x.squad===q.id&&Math.hypot(x.p.x-rally.x,x.p.z-rally.z)<1e-9&&Math.hypot(x.anchor.x-rally.x,x.anchor.z-rally.z)<1e-9&&Math.hypot(x.rally.x-rally.x,x.rally.z-rally.z)<1e-9);
+  assert.equal(handed.length,1,'the Squad Leader re-formed the survivor once and left its anchor pair on the group\'s rally point');
   assert.ok(mergeEvent&&handed[0].at>0,"and at the merge");
   assert.equal(st.groupsFormed,1);assert.equal(st.merges,1);
   assert.ok(homeFirst,'no squad turned for the rally point before it was home');

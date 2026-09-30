@@ -202,11 +202,11 @@ const writers = (kind, field) => (tree[kind][field] || []).slice();
 test('real recall anchors: chained, hopped, deleted and indexed writes are seen', () => {
   const at = (kind, field, file) =>
     assert.ok(writers(kind, field).includes(file), kind + '.' + field + ' must list ' + file);
-  at('eng', 'cover', 'modules/20-building-hardpoints.js');
-  at('eng', 'fireReadyAt', 'modules/46-ammunition-stoppages.js');
-  at('soldier', '_movementResolver', 'modules/20-building-hardpoints.js');
-  at('squad', 'captainAlive', 'battle-sim.js');
-  at('squad', 'aliveCount', 'commander-ai.js');
+  at('eng', 'cover', 'modules/44-combat-urgency.js');
+  at('eng', 'fireReadyAt', 'engagement.js');
+  at('soldier', '_movementResolver', 'movement-resolver.js');
+  at('squad', 'captainAlive', 'modules/16-squad-plan-stability.js');
+  at('squad', 'aliveCount', 'squad-ai.js');
   at('soldier', '_personalSpaceDestination', 'movement-resolver.js');
   at('soldier', '_physicalPath', 'modules/39-navigation-physicality-debug.js');
   at('soldier', '_tacticalRoute', 'movement-resolver.js');
@@ -216,7 +216,7 @@ test('real recall anchors: chained, hopped, deleted and indexed writes are seen'
   at('soldier', 'root.position', 'modules/51-soldier-personal-space.js');
   at('soldier', 'destination', 'movement-resolver.js');
   at('mind', 'stress', 'modules/17-soldier-mind.js');
-  at('soldier', 'weapon', 'modules/47-sidearm-switch.js');
+  at('soldier', 'weapon', 'modules/46-ammunition-stoppages.js');
 });
 
 test('agrees with state-ownership-check.js on the protected fields', () => {
