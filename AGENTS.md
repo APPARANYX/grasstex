@@ -659,9 +659,9 @@ pseudo-backlog. Long-form historical notes remain in git history
 (`work/ai-layers-phase-<n>`), PR titles start with `CHECKPOINT:`; stop after each phase and report what was
 proved and what was not. The genome and the AI Graph stay stashed throughout (see the top of this file); new
 tunable numbers go in the owning layer's `tuning` object (or `BattleSoldierStats.EFFECTS`), never the genome.
-Neutral refactors are proved by identical end states on real 600 s battles (`ab_fingerprints.sh`, all three arms:
-default, `mind=0`, `stats=0`); behaviour changes sit behind a flag and are proved by the paired GitHub benchmark on
-two seed prefixes (`ai-layers-20260929`, `ai-layers-b-20260929`), reported with `compare_benchmark_arms.cjs`.
+Per 2026-09-29 decision (Ivan): skip `ab_fingerprints.sh` — behavioural changes are expected when fixing
+ownership. Each phase gets a single benchmark run; compare to the previous phase's benchmark with
+`compare_benchmark_arms.cjs`.
 
 | Phase | What | Status |
 | --- | --- | --- |
