@@ -7,7 +7,7 @@
 <style>
 :root{--bg:#0b1119;--panel:#111a26;--panel2:#162130;--text:#eaf0f8;--muted:#92a3bb;--line:#6f829f;--macro:#59427d;--meso:#285d86;--micro:#286044;--move:#805621;--support:#34465b;--danger:#9b4e56;--yes:#5da377;--no:#b56666}
 *{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:14px/1.35 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;overflow:hidden}
-button,select,input{font:inherit}.app{height:100%;display:grid;grid-template-rows:auto 1fr}.top{padding:14px 16px 10px;border-bottom:1px solid #263549;background:#0d141e;box-shadow:0 3px 16px #0006;z-index:5}.titleRow{display:flex;align-items:flex-start;gap:18px}.title{font-size:22px;font-weight:800;letter-spacing:.2px}.sub{color:var(--muted);font-size:12px;margin-top:3px}.grow{flex:1}.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.btn{border:1px solid #3b4d65;background:#172333;color:#dce6f4;border-radius:8px;padding:7px 10px;cursor:pointer}.btn:hover{background:#203047}.btn.active{border-color:#7b96b9;background:#29415d;color:white}.badge{display:inline-flex;gap:6px;align-items:center;border:1px solid #33465f;border-radius:999px;padding:5px 9px;color:#b9c6d8;background:#121c29;font-size:11px}.dot{width:8px;height:8px;border-radius:50%;background:#6b7d94}.dot.ok{background:#59a574}.dot.warn{background:#d2a24d}.dot.bad{background:#d66a72}.tabs{display:flex;gap:6px;margin-top:10px;overflow:auto;padding-bottom:1px}.workspace{display:grid;grid-template-columns:1fr 0;min-height:0}.workspace.drawerOpen{grid-template-columns:minmax(0,1fr) 460px}.stage{position:relative;overflow:hidden;background:radial-gradient(circle at 20% 10%,#142237 0,#0b1119 42%,#091019 100%);cursor:grab}.stage.panning{cursor:grabbing}#graph{width:100%;height:100%;display:block;touch-action:none}.node,.stateNode{cursor:pointer}.navHint{color:#879bb5;font-size:11px;white-space:nowrap}.zoomReadout{min-width:56px;justify-content:center;font-variant-numeric:tabular-nums}.drawer{border-left:1px solid #2d3c51;background:#0f1722;overflow:auto;display:none}.drawerOpen .drawer{display:block}.drawerHead{position:sticky;top:0;background:#131e2b;padding:12px 14px;border-bottom:1px solid #2b3b50;z-index:2}.drawerTitle{font-weight:800}.drawerMeta{font-size:11px;color:#93a6be;margin-top:3px}.close{float:right}.source{white-space:pre-wrap;margin:0;padding:14px;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#d2dbea}.source .hit{background:#4f3d1f;color:#fff3c8}.status{position:absolute;left:12px;bottom:12px;background:#101924e8;border:1px solid #2b3e57;border-radius:10px;padding:8px 10px;color:#aebed2;font-size:11px;pointer-events:none;max-width:520px}.legend{position:absolute;right:12px;bottom:12px;background:#101924e8;border:1px solid #2b3e57;border-radius:10px;padding:8px 10px;display:flex;gap:10px;flex-wrap:wrap;max-width:520px;font-size:11px}.key{display:flex;gap:5px;align-items:center}.sw{width:11px;height:11px;border-radius:3px}.errorBox{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:#311b20;border:1px solid #7f424b;padding:8px 12px;border-radius:8px;color:#ffd6da;display:none;z-index:3}
+button,select,input{font:inherit}.app{height:100%;display:grid;grid-template-rows:auto 1fr}.top{padding:14px 16px 10px;border-bottom:1px solid #263549;background:#0d141e;box-shadow:0 3px 16px #0006;z-index:5}.titleRow{display:flex;align-items:flex-start;gap:18px}.title{font-size:22px;font-weight:800;letter-spacing:.2px}.sub{color:var(--muted);font-size:12px;margin-top:3px}.grow{flex:1}.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.btn{border:1px solid #3b4d65;background:#172333;color:#dce6f4;border-radius:8px;padding:7px 10px;cursor:pointer}.btn:hover{background:#203047}.btn.active{border-color:#7b96b9;background:#29415d;color:white}.badge{display:inline-flex;gap:6px;align-items:center;border:1px solid #33465f;border-radius:999px;padding:5px 9px;color:#b9c6d8;background:#121c29;font-size:11px}.dot{width:8px;height:8px;border-radius:50%;background:#6b7d94}.dot.ok{background:#59a574}.dot.warn{background:#d2a24d}.dot.bad{background:#d66a72}.tabs{display:flex;gap:6px;margin-top:10px;overflow:auto;padding-bottom:1px}.workspace{display:grid;grid-template-columns:1fr 0;min-height:0}.workspace.drawerOpen{grid-template-columns:minmax(0,1fr) 460px}.stage{position:relative;overflow:hidden;background:radial-gradient(circle at 20% 10%,#142237 0,#0b1119 42%,#091019 100%);cursor:grab}.stage.panning{cursor:grabbing}#graph{width:100%;height:100%;display:block;touch-action:none}.node,.stateNode{cursor:pointer}.navHint{color:#879bb5;font-size:11px;white-space:nowrap}.zoomReadout{min-width:56px;justify-content:center;font-variant-numeric:tabular-nums}.drawer{border-left:1px solid #2d3c51;background:#0f1722;overflow:auto;display:none}.drawerOpen .drawer{display:block}.drawerHead{position:sticky;top:0;background:#131e2b;padding:12px 14px;border-bottom:1px solid #2b3b50;z-index:2}.drawerTitle{font-weight:800}.drawerMeta{font-size:11px;color:#93a6be;margin-top:3px}.drawerActions{margin-top:10px;display:flex;gap:8px}.drawerActions .btn{width:100%;justify-content:center}.close{float:right}.source{white-space:pre-wrap;margin:0;padding:14px;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#d2dbea}.source .hit{background:#4f3d1f;color:#fff3c8}.status{position:absolute;left:12px;bottom:12px;background:#101924e8;border:1px solid #2b3e57;border-radius:10px;padding:8px 10px;color:#aebed2;font-size:11px;pointer-events:none;max-width:520px}.legend{position:absolute;right:12px;bottom:12px;background:#101924e8;border:1px solid #2b3e57;border-radius:10px;padding:8px 10px;display:flex;gap:10px;flex-wrap:wrap;max-width:520px;font-size:11px}.key{display:flex;gap:5px;align-items:center}.sw{width:11px;height:11px;border-radius:3px}.errorBox{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:#311b20;border:1px solid #7f424b;padding:8px 12px;border-radius:8px;color:#ffd6da;display:none;z-index:3}
 svg text{user-select:none}.laneLabel{font-size:13px;font-weight:800;fill:#8ea0b8;letter-spacing:.8px}.node rect,.node polygon{stroke-width:1.6;filter:drop-shadow(0 4px 7px #0006)}.node text{fill:#f3f6fb}.node .small{fill:#c0cad8;font-size:11px}.node.process rect{fill:#1c2a3a;stroke:#56718f}.node.merge rect{fill:#121b27;stroke:#8396ae;stroke-dasharray:4 3}.node.macro rect{fill:#392b52;stroke:#78629c}.node.meso rect{fill:#1e4667;stroke:#5e87aa}.node.micro rect{fill:#1f4a37;stroke:#609176}.node.move rect{fill:#5a3d1c;stroke:#9b6d34}.node.support rect{fill:#283746;stroke:#607487}.node.terminal rect{fill:#29323d;stroke:#6b7686}.node.short ellipse{fill:#421d24;stroke:#ef7c86;stroke-width:3.5;filter:drop-shadow(0 4px 8px #0008)}.node.short .shortRing{fill:none;stroke:#ef7c86;stroke-width:1.2;stroke-dasharray:4 3}.node.jump ellipse{fill:#3b3019;stroke:#d8aa54;stroke-width:3;filter:drop-shadow(0 4px 8px #0008)}.node.decision polygon{fill:#162335;stroke:#8196b4}.node:hover rect,.node:hover polygon{stroke:#c3d5ef;stroke-width:2.4}.edge{fill:none;stroke:var(--line);stroke-width:2;marker-end:url(#arrow)}.edge.loop{stroke-dasharray:6 5}.edge.yes{stroke:var(--yes)}.edge.no{stroke:var(--no)}.edgeLabel{font-size:11px;font-weight:700;paint-order:stroke;stroke:#0b1119;stroke-width:4px;stroke-linejoin:round}.edgeLabel.yes{fill:#8bd7a7}.edgeLabel.no{fill:#e6a0a5}.edgeLabel.normal{fill:#b7c5d7}.groupBox{fill:none;stroke:#2d4057;stroke-width:1.4;stroke-dasharray:7 5}.groupTitle{fill:#6f849f;font-size:13px;font-weight:800;letter-spacing:.5px}.stateEdge{fill:none;stroke:#657993;stroke-width:1.8;marker-end:url(#arrow)}.stateEdge.self{stroke-dasharray:5 4}.stateLabel{fill:#aebed3;font-size:10px;paint-order:stroke;stroke:#0b1119;stroke-width:3px}.stateNode rect{stroke-width:1.6}.stateNode.macro rect{fill:#38294f;stroke:#755e98}.stateNode.meso rect{fill:#1d4566;stroke:#5d85a7}.stateNode.micro rect{fill:#1f4a37;stroke:#609176}.stateNode.move rect{fill:#5b3c1c;stroke:#a06e32}.stateNode text{fill:#f2f6fb}.stateNode:hover rect{stroke:#c7d7ec;stroke-width:2.2}.stateNode .desc{fill:#bbc7d6;font-size:10px}.warnText{fill:#e0a958;font-size:12px;font-weight:700}.sourceChip{fill:#0f1824;stroke:#31465f;stroke-width:1}.sourceChipText{fill:#8fa5c0;font-size:10px}.mini{font-size:10px;fill:#aab9cc}.brainLane{fill:#0f1824;fill-opacity:.56;stroke:#31445c;stroke-width:1.5}.brainLaneTitle{font-size:18px;font-weight:900;fill:#dce6f4;letter-spacing:.6px}.brainLaneSub{font-size:10px;fill:#8397b1}.brainNode rect{stroke-width:1.7;filter:drop-shadow(0 4px 7px #0005)}.brainNode text{fill:#f2f6fb}.brainNode .meta{fill:#a9b8cb;font-size:10px}.brainNode.macro rect{fill:#392b52;stroke:#78629c}.brainNode.meso rect{fill:#1e4667;stroke:#5e87aa}.brainNode.micro rect{fill:#1f4a37;stroke:#609176}.brainNode.move rect{fill:#5a3d1c;stroke:#9b6d34}.brainNode.focus rect{stroke:#fff;stroke-width:3}.brainNode.dim{opacity:.28}.brainEdge{fill:none;stroke:#7d91ab;stroke-width:1.8;marker-end:url(#arrow);opacity:.34;transition:opacity .12s ease,stroke-width .12s ease}.brainEdge.api{stroke-dasharray:8 5}.brainEdge.hook{stroke-dasharray:2 6;stroke-width:2.2}.brainEdge.extension{stroke-dasharray:11 4 2 4}.brainEdge.focus{opacity:.95;stroke-width:3}.brainEdge.dim{opacity:.055}.brainEdgeLabel{font-size:9px;font-weight:800;fill:#9fb1c7;paint-order:stroke;stroke:#0b1119;stroke-width:4px}.callPort rect{fill:#101b29;stroke:#6e88aa;stroke-width:1.2}.callPort text{fill:#cfe0f5;font-size:10px;font-weight:800}.callPort:hover rect{stroke:#fff;stroke-width:2}.navBack[hidden]{display:none}
 .brain3dPlane{fill:#101b28;fill-opacity:.22;stroke:#536982;stroke-width:1.5}.brain3dBack{fill:#0c151f;fill-opacity:.18;stroke:#42566d;stroke-width:1}.brain3dSide{fill:#162434;fill-opacity:.42;stroke:#536982;stroke-width:1.15}.brain3dPlane.detailFace{fill-opacity:.34;stroke-width:2}.brain3dGrid{fill:none;stroke:#34475d;stroke-width:.8;opacity:.45}.brain3dSliceTitle{font-size:16px;font-weight:900;fill:#f2f6fb;paint-order:stroke;stroke:#0b1119;stroke-width:5px}.brain3dSliceSub{font-size:9px;fill:#a9b9cc;paint-order:stroke;stroke:#0b1119;stroke-width:3px}.brain3dEdge{fill:none;stroke:#8095ad;stroke-width:1.4;opacity:.32}.brain3dEdge.call{stroke:#8ba3c0}.brain3dEdge.state{stroke:#6f8e7e;stroke-dasharray:5 4}.brain3dEdge.bridge{stroke:#c19d64;stroke-dasharray:9 5}.brain3dEdge.focus{opacity:.98;stroke-width:3}.brain3dEdge.dim{opacity:.035}.brain3dNode rect,.brain3dNode circle{stroke-width:1.5;filter:drop-shadow(0 3px 5px #0007)}.brain3dNode text{fill:#f3f7fb;paint-order:stroke;stroke:#091019;stroke-width:3px}.brain3dNode .sub{fill:#aab9ca;font-size:8px;stroke-width:2px}.brain3dNode.function.macro rect,.brain3dNode.state.macro rect{fill:#392b52;stroke:#7a629d}.brain3dNode.function.meso rect,.brain3dNode.state.meso rect{fill:#1f486a;stroke:#5f89ac}.brain3dNode.function.micro rect,.brain3dNode.state.micro rect{fill:#20503b;stroke:#63957a}.brain3dNode.function.move rect,.brain3dNode.state.move rect,.brain3dNode.priority rect{fill:#5d401f;stroke:#a5743b}.brain3dNode.focus rect{stroke:#fff;stroke-width:3}.brain3dNode.dim{opacity:.16}.brain3dHud{fill:#0c1520;fill-opacity:.9;stroke:#31465f;stroke-width:1}.brain3dHudText{fill:#c6d3e3;font-size:10px}.brain3dNode{cursor:pointer}.brain3dNode.cfgDecision polygon{fill:#162335;stroke:#8ba2c0;stroke-width:1.6}.brain3dNode.cfgShort ellipse{fill:#421d24;stroke:#ef7c86;stroke-width:2.5}.brain3dNode.cfgMerge rect{fill:#121b27;stroke:#8396ae;stroke-dasharray:4 3}.brain3dNode.cfgProcess rect{fill:#1a2938;stroke:#627c9b}.brain3dPort rect{stroke-width:2.2;filter:drop-shadow(0 3px 6px #0008)}.brain3dPort text{font-size:9px;font-weight:900;fill:#fff;paint-order:stroke;stroke:#091019;stroke-width:2px}.brain3dPort.entry rect{fill:#173f4a;stroke:#6fc5d5}.brain3dPort.exit rect{fill:#214b37;stroke:#79c794}.brain3dPort.shortExit rect{fill:#4a2027;stroke:#ef7c86}.brain3dPort.controlExit rect{fill:#493b1e;stroke:#d8aa54}.brain3dPort.callout rect{fill:#5a3e1e;stroke:#e1b266}.brain3dPort.returnin rect{fill:#243d59;stroke:#7fa7d4}.brain3dEdge.detailFlow{stroke:#91a7c1;stroke-width:1.35;opacity:.5;marker-end:url(#arrow)}.brain3dEdge.callFlow{stroke:#d3aa68;stroke-width:1.75;opacity:.65;marker-end:url(#arrow)}.brain3dEdge.returnFlow{stroke:#79a7d2;stroke-width:1.5;opacity:.55;marker-end:url(#arrow)}.brain3dEdge.parentFlow{stroke:#ae8ed0;stroke-width:1.5;stroke-dasharray:5 4;opacity:.5;marker-end:url(#arrow)}.brain3dDetailTitle{font-size:14px;font-weight:900;fill:#fff;paint-order:stroke;stroke:#081019;stroke-width:4px}.brain3dDetailMeta{font-size:8px;fill:#a9b9ca;paint-order:stroke;stroke:#081019;stroke-width:3px}.threeDOnly[hidden]{display:none}
 </style>
@@ -42,7 +42,7 @@ svg text{user-select:none}.laneLabel{font-size:13px;font-weight:800;fill:#8ea0b8
       <div class="status" id="status">Loading…</div>
       <div class="legend"><span class="key"><span class="sw" style="background:var(--macro)"></span>Macro</span><span class="key"><span class="sw" style="background:var(--meso)"></span>Squad/Meso</span><span class="key"><span class="sw" style="background:var(--micro)"></span>Soldier/Micro</span><span class="key"><span class="sw" style="background:var(--move)"></span>Movement</span><span class="key">◇ decision</span><span class="key">◎ early return / short-circuit</span><span class="key">click node → source</span></div>
     </div>
-    <aside class="drawer" id="drawer"><div class="drawerHead"><button class="btn close" id="closeDrawer">Close</button><div class="drawerTitle" id="drawerTitle">Source</div><div class="drawerMeta" id="drawerMeta"></div></div><pre class="source" id="sourceText"></pre></aside>
+    <aside class="drawer" id="drawer"><div class="drawerHead"><button class="btn close" id="closeDrawer">Close</button><div class="drawerTitle" id="drawerTitle">Source</div><div class="drawerMeta" id="drawerMeta"></div><div class="drawerActions"><button class="btn" id="drawerCfgBtn" hidden>Open Deep Branch CFG</button></div></div><pre class="source" id="sourceText"></pre></aside>
   </div>
 </div>
 <script>
@@ -213,6 +213,41 @@ function brainCallGraph(){
   CFG_FUNCS.forEach(([key,name,label])=>{const f=extractFunction(key,name);if(!f)return;const bs=f.text.indexOf('{')+1,body=f.text.slice(bs,-1);nodes.push({id:funcId(key,name),key,name,label,layer:layerForKey(key),ref:f.ref});findMappedCalls(key,name,body).forEach(call=>{const ek=funcId(key,name)+'>'+call.to+'|'+call.kind;if(seen.has(ek))return;seen.add(ek);edges.push({from:funcId(key,name),to:call.to,kind:call.kind})})});
   return {nodes,edges}
 }
+function snapshotBrain3DState(){
+  return {
+    yaw:brain3D.yaw,pitch:brain3D.pitch,zoom:brain3D.zoom,mode:brain3D.mode,
+    invertY:brain3D.invertY,textSnap:brain3D.textSnap,focus:brain3D.focus,focusSlice:brain3D.focusSlice,
+    panX:brain3D.panX,panY:brain3D.panY,pivotX:brain3D.pivotX,pivotY:brain3D.pivotY,pivotZ:brain3D.pivotZ
+  };
+}
+function restoreBrain3DState(s){
+  if(!s)return;
+  Object.assign(brain3D,s);
+  brain3D.scene=null;brain3D.detailScene=null;brain3D.fast=false;
+}
+function enterDeepCfg(id){
+  if(!funcSpec(id))return;
+  if(current==='brain3d'){
+    cfgReturn3D={
+      brain:snapshotBrain3DState(),
+      drawerCfgChoice,drawerSourceRef,drawerSourceTitle
+    };
+  }
+  cfgHistory=[];
+  jumpToCfg(id,false);
+}
+function returnTo3DFromCfg(){
+  if(!cfgReturn3D)return false;
+  const ret=cfgReturn3D;cfgReturn3D=null;
+  restoreBrain3DState(ret.brain);
+  drawerCfgChoice=ret.drawerCfgChoice||null;
+  drawerSourceRef=ret.drawerSourceRef||null;
+  drawerSourceTitle=ret.drawerSourceTitle||'';
+  current='brain3d';
+  renderTabs();render();
+  if(drawerSourceRef)openSource(drawerSourceRef,drawerSourceTitle,{cfgId:drawerCfgChoice});
+  return true;
+}
 function jumpToCfg(id,push=true){const spec=funcSpec(id);if(!spec)return;if(push&&cfgChoice!==id)cfgHistory.push(cfgChoice);cfgChoice=id;const sel=document.getElementById('cfgSelect');if(sel)sel.value=id;current='cfg';renderTabs();render();fit()}
 function buildCFG(ast){
   let seq=0;const nodes=[],edges=[];const layer=layerForKey(ast.key);
@@ -263,8 +298,8 @@ function layoutCFG(cfg){
 }
 
 const stateFocus={};
-let cfgHistory=[],brainFocus=null;
-const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:true,textSnap:true,focus:null,scene:null,detailScene:null,raf:0,fast:false,restoreTimer:0,panX:0,panY:0,pivotX:0,pivotY:0,pivotZ:0,focusAnim:0};
+let cfgHistory=[],brainFocus=null,cfgReturn3D=null,drawerCfgChoice=null,drawerSourceRef=null,drawerSourceTitle='';
+const brain3D={yaw:-0.72,pitch:0.43,zoom:1,mode:'compact',invertY:true,textSnap:true,focus:null,scene:null,detailScene:null,raf:0,fast:false,restoreTimer:0,panX:0,panY:0,pivotX:0,pivotY:0,pivotZ:0,focusAnim:0,focusSlice:null};
 let sources={}, current='brain', graphBounds={x:0,y:0,w:1800,h:1600};
 let camera={x:0,y:0,w:1800,h:1600},dragging=false,dragPointer=null,lastPointer=null,dragMode='none',spaceDown=false,cameraAnim=0;
 const svg=document.getElementById('graph'), viewport=document.getElementById('viewport'), status=document.getElementById('status'), workspace=document.getElementById('workspace');
@@ -300,10 +335,13 @@ function renderTabs(){
   VIEWS.forEach(([id,label])=>{const b=document.createElement('button');b.className='btn'+(id===current?' active':'');b.textContent=label;b.onclick=()=>{current=id;renderTabs();render();fit()};t.appendChild(b)});
   const sel=document.getElementById('cfgSelect'),back=document.getElementById('cfgBackBtn'),is3d=current==='brain3d';
   sel.hidden=current!=='cfg';
-  back.hidden=current!=='cfg'||!cfgHistory.length;
+  back.hidden=current!=='cfg'||(!cfgReturn3D&&!cfgHistory.length);
+  back.textContent=cfgReturn3D?'← Back to 3D':'← Back';
   document.querySelectorAll('.threeDOnly').forEach(x=>x.hidden=!is3d);
+  const deep=document.getElementById('drawerCfgBtn');
+  if(deep)deep.hidden=current==='cfg'||!drawerCfgChoice;
   const hint=document.getElementById('navHint');
-  if(hint)hint.textContent=is3d?'drag = rotate · wheel = 3D zoom · click = isolate · dbl-click = detail':'wheel = zoom · drag = pan · Space+drag anywhere · dbl-click = zoom';
+  if(hint)hint.textContent=is3d?'left drag = orbit · middle drag = pan · wheel = zoom · click = focus':'wheel = zoom · drag = pan · Space+drag anywhere · dbl-click = zoom';
 }function initCfgSelect(){const sel=document.getElementById('cfgSelect');sel.innerHTML='';CFG_FUNCS.forEach(([k,n,label])=>{const o=document.createElement('option');o.value=k+':'+n;o.textContent=label;if(o.value===cfgChoice)o.selected=true;sel.appendChild(o)});sel.onchange=()=>{cfgHistory=[];cfgChoice=sel.value;renderTabs();if(current==='cfg'){render();fit()}}}
 function clear(){cancelAnimationFrame(cameraAnim);cameraAnim=0;viewport.innerHTML='';viewport.removeAttribute('transform');}
 function node(g,n){
@@ -341,7 +379,7 @@ function node(g,n){
   }
   if(n.ref){
     group.style.cursor='pointer';
-    group.addEventListener('click',ev=>{ev.stopPropagation();openSource(n.ref,n.label)});
+    group.addEventListener('click',ev=>{ev.stopPropagation();openSource(n.ref,n.label,{cfgId:n.cfg||null})});
   }
   if(n.cfg){
     group.addEventListener('dblclick',ev=>{
@@ -609,11 +647,12 @@ function panBrain3DCameraPlane(dx,dy){
   brain3D.pivotZ-=dx*worldPerPixel*right.z+dy*worldPerPixel*down.z;
 }
 
-function focusBrain3DWorld(target,duration=320){
+function focusBrain3DWorld(target,duration=360,zoomTarget=null){
   if(!target||![target.x,target.y,target.z].every(Number.isFinite))return;
   cancelAnimationFrame(brain3D.focusAnim);
-  const from={x:brain3D.pivotX,y:brain3D.pivotY,z:brain3D.pivotZ,px:brain3D.panX,py:brain3D.panY};
-  const to={x:target.x,y:target.y,z:target.z,px:0,py:0},t0=performance.now();
+  const from={x:brain3D.pivotX,y:brain3D.pivotY,z:brain3D.pivotZ,px:brain3D.panX,py:brain3D.panY,zoom:brain3D.zoom};
+  const desired=zoomTarget==null?Math.min(4,Math.max(brain3D.zoom,brain3D.mode==='detail'?1.65:1.45)):clamp(zoomTarget,.08,4);
+  const to={x:target.x,y:target.y,z:target.z,px:0,py:0,zoom:desired},t0=performance.now();
   const tick=t=>{
     const q=Math.max(0,Math.min(1,(t-t0)/Math.max(1,duration))),e=1-Math.pow(1-q,3);
     brain3D.pivotX=from.x+(to.x-from.x)*e;
@@ -621,6 +660,7 @@ function focusBrain3DWorld(target,duration=320){
     brain3D.pivotZ=from.z+(to.z-from.z)*e;
     brain3D.panX=from.px+(to.px-from.px)*e;
     brain3D.panY=from.py+(to.py-from.py)*e;
+    brain3D.zoom=from.zoom+(to.zoom-from.zoom)*e;
     if(current==='brain3d'){
       if(brain3D.mode==='detail')renderBrain3DDetailScene(q<1);
       else renderBrain3DScene();
@@ -643,7 +683,7 @@ function centerBrain3DOn(p,rerender=true){
 }
 
 function brain3DReset(){
-  cancelAnimationFrame(brain3D.raf);brain3D.raf=0;cancelAnimationFrame(brain3D.focusAnim);brain3D.focusAnim=0;clearTimeout(brain3D.restoreTimer);brain3D.restoreTimer=0;brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.detailScene=null;brain3D.panX=0;brain3D.panY=0;brain3D.pivotX=0;brain3D.pivotY=0;brain3D.pivotZ=0;
+  cancelAnimationFrame(brain3D.raf);brain3D.raf=0;cancelAnimationFrame(brain3D.focusAnim);brain3D.focusAnim=0;clearTimeout(brain3D.restoreTimer);brain3D.restoreTimer=0;brain3D.yaw=-.72;brain3D.pitch=.43;brain3D.zoom=1;brain3D.mode='compact';brain3D.focus=null;brain3D.focusSlice=null;brain3D.detailScene=null;brain3D.panX=0;brain3D.panY=0;brain3D.pivotX=0;brain3D.pivotY=0;brain3D.pivotZ=0;
   const b=document.getElementById('brain3dExplodeBtn');if(b)b.textContent='Explode slices';
   const iy=document.getElementById('brain3dInvertYBtn');if(iy){iy.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');iy.classList.toggle('active',brain3D.invertY)}const ts=document.getElementById('brain3dTextSnapBtn');if(ts){ts.textContent='Text snap: '+(brain3D.textSnap?'On':'Off');ts.classList.toggle('active',brain3D.textSnap)}
   if(current==='brain3d')renderBrain3DScene();
@@ -1376,7 +1416,7 @@ function fullView(){
 
  function healthView(){clear();svg.setAttribute('viewBox','0 0 1800 1200');graphBounds={x:0,y:0,w:1800,h:1200};const g=viewport;g.appendChild(el('text',{x:60,y:55,'font-size':26,'font-weight':800,fill:'#fff'},'Parser / source health'));g.appendChild(el('text',{x:60,y:82,class:'mini'},'Every reload prefers same-origin repo files, then GitHub main fallbacks. Hashes are computed in the browser.'));let y=130;Object.entries(FILES).forEach(([k,f])=>{const ok=!!sources[k],hash=(window.__flowHashes||{})[k]||'—';const gr=el('g',{class:'stateNode support',transform:`translate(60,${y})`});gr.appendChild(el('rect',{width:820,height:72,rx:12}));gr.appendChild(el('text',{x:18,y:27,'font-size':14,'font-weight':800},f));gr.appendChild(el('text',{x:18,y:51,class:'desc'},`${ok?'loaded':'FAILED'} · ${(window.__flowOrigins||{})[k]||'—'} · sha256 ${hash} · ${sources[k]?sources[k].split('\n').length:0} lines`));gr.style.cursor='pointer';gr.onclick=()=>openSource({file:f,line:1,needle:''},f);g.appendChild(gr);y+=88});const checks=[['MISSION_STATES',parseStates('commander','MISSION_STATES').states.length],['PHASE_STATES',parseStates('meso','PHASE_STATES').states.length],['Engagement STATES',parseStates('engagement','STATES').states.length],['Engagement REQUESTS',parseRequests().length],['Resolver priorities',priorityMap().length]];let cy=150;checks.forEach(([n,c])=>{g.appendChild(el('text',{x:980,y:cy,'font-size':16,'font-weight':800,fill:c?'#8bd2a4':'#e08086'},`${c?'✓':'✕'} ${n}: ${c}`));cy+=40});g.appendChild(el('text',{x:980,y:400,class:'warnText'},'If an explicit state object is renamed or removed, this page shows a parser warning instead of silently drawing the old map.'));status.textContent='Source health: use this view after AI refactors to see whether the live map parsers still recognize the current contracts.'}
  function render(){hideError();if(current==='brain3d')brain3DView();else if(current==='brain')brainView();else if(current==='full')fullView();else if(current==='cfg')cfgView();else if(current==='move')moveView();else if(current==='health')healthView();else stateView(current)}
- function openSource(ref,title){if(!ref||!ref.file)return;const key=Object.keys(FILES).find(k=>FILES[k]===ref.file),srcText=(key&&sources[key])||'';workspace.classList.add('drawerOpen');document.getElementById('drawerTitle').textContent=title||ref.label||ref.file;document.getElementById('drawerMeta').textContent=`${ref.file}${ref.line?' · line '+ref.line:''}`;const lines=srcText.split('\n'),ln=ref.line||1,a=Math.max(1,ln-14),b=Math.min(lines.length,ln+24);document.getElementById('sourceText').textContent=lines.slice(a-1,b).map((s,i)=>String(a+i).padStart(4,' ')+'  '+s).join('\n')}
+ function openSource(ref,title,opt={}){if(!ref||!ref.file)return;drawerSourceRef=ref;drawerSourceTitle=title||ref.label||ref.file;drawerCfgChoice=opt.cfgId||null;const key=Object.keys(FILES).find(k=>FILES[k]===ref.file),srcText=(key&&sources[key])||'';workspace.classList.add('drawerOpen');document.getElementById('drawerTitle').textContent=drawerSourceTitle;document.getElementById('drawerMeta').textContent=`${ref.file}${ref.line?' · line '+ref.line:''}`;const lines=srcText.split('\n'),ln=ref.line||1,a=Math.max(1,ln-14),b=Math.min(lines.length,ln+24);document.getElementById('sourceText').textContent=lines.slice(a-1,b).map((s,i)=>String(a+i).padStart(4,' ')+'  '+s).join('\n');const deep=document.getElementById('drawerCfgBtn');if(deep)deep.hidden=current==='cfg'||!drawerCfgChoice}
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  function stageRect(){return document.getElementById('stage').getBoundingClientRect()}
  function finiteNum(v){return Number.isFinite(+v)}
@@ -1484,18 +1524,18 @@ function fullView(){
    camera.x-=dx*camera.w/r.width;camera.y-=dy*camera.h/r.height;applyCamera()
  }
  function showError(msg){const e=document.getElementById('errorBox');e.style.display='block';e.textContent=msg}function hideError(){document.getElementById('errorBox').style.display='none'}
- document.getElementById('refreshBtn').onclick=()=>load().then(()=>requestAnimationFrame(fit));document.getElementById('fitBtn').onclick=fit;document.getElementById('resetBtn').onclick=actualSize;document.getElementById('zoomInBtn').onclick=()=>zoomCenter(1.28);document.getElementById('zoomOutBtn').onclick=()=>zoomCenter(1/1.28);document.getElementById('closeDrawer').onclick=()=>workspace.classList.remove('drawerOpen');
+ document.getElementById('refreshBtn').onclick=()=>load().then(()=>requestAnimationFrame(fit));document.getElementById('fitBtn').onclick=fit;document.getElementById('resetBtn').onclick=actualSize;document.getElementById('zoomInBtn').onclick=()=>zoomCenter(1.28);document.getElementById('zoomOutBtn').onclick=()=>zoomCenter(1/1.28);document.getElementById('closeDrawer').onclick=()=>workspace.classList.remove('drawerOpen');document.getElementById('drawerCfgBtn').onclick=()=>{if(drawerCfgChoice)enterDeepCfg(drawerCfgChoice)};
  document.getElementById('brain3dResetBtn').onclick=brain3DReset;
  document.getElementById('brain3dInvertYBtn').onclick=()=>{brain3D.invertY=!brain3D.invertY;const b=document.getElementById('brain3dInvertYBtn');b.textContent='Invert Y: '+(brain3D.invertY?'On':'Off');b.classList.toggle('active',brain3D.invertY);if(current==='brain3d')renderBrain3DScene()};
  document.getElementById('brain3dTextSnapBtn').onclick=()=>{brain3D.textSnap=!brain3D.textSnap;const b=document.getElementById('brain3dTextSnapBtn');b.textContent='Text snap: '+(brain3D.textSnap?'On':'Off');b.classList.toggle('active',brain3D.textSnap);if(current==='brain3d'&&brain3D.mode==='detail')renderBrain3DDetailScene(false)};
  document.getElementById('brain3dExplodeBtn').onclick=()=>{
    const b=document.getElementById('brain3dExplodeBtn');
    if(brain3D.mode==='compact'){brain3D.mode='exploded';b.textContent='Show detail'}
-   else if(brain3D.mode==='exploded'){brain3D.mode='detail';brain3D.yaw=-.88;brain3D.pitch=.10;brain3D.zoom=1.05;brain3D.focus=null;brain3D.panX=0;brain3D.panY=0;brain3D.pivotX=0;brain3D.pivotY=0;brain3D.pivotZ=0;b.textContent='Compact slices'}
+   else if(brain3D.mode==='exploded'){brain3D.mode='detail';brain3D.yaw=-.88;brain3D.pitch=.10;brain3D.zoom=1.05;brain3D.focus=null;brain3D.focusSlice=null;brain3D.panX=0;brain3D.panY=0;brain3D.pivotX=0;brain3D.pivotY=0;brain3D.pivotZ=0;b.textContent='Compact slices'}
    else{brain3D.mode='compact';b.textContent='Explode slices'}
    if(current==='brain3d')renderBrain3DScene()
  };
- document.getElementById('cfgBackBtn').onclick=()=>{if(!cfgHistory.length)return;cfgChoice=cfgHistory.pop();const sel=document.getElementById('cfgSelect');if(sel)sel.value=cfgChoice;renderTabs();render();fit()};
+ document.getElementById('cfgBackBtn').onclick=()=>{if(cfgReturn3D){returnTo3DFromCfg();return}if(!cfgHistory.length)return;cfgChoice=cfgHistory.pop();const sel=document.getElementById('cfgSelect');if(sel)sel.value=cfgChoice;renderTabs();render();fit()};
  svg.addEventListener('wheel',e=>{e.preventDefault();const factor=Math.exp(-e.deltaY*0.00135);if(current==='brain3d'){brain3D.zoom=clamp(brain3D.zoom*factor,.08,4);scheduleBrain3DRender(brain3D.mode==='detail');clearTimeout(brain3D.restoreTimer);if(brain3D.mode==='detail')brain3D.restoreTimer=setTimeout(()=>{brain3D.fast=false;renderBrain3DDetailScene(false)},140);return}zoomAt(factor,e.clientX,e.clientY,false)},{passive:false});
  svg.addEventListener('dblclick',e=>{if(e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.brain3dPort,.callPort'))return;e.preventDefault();if(current==='brain3d'){brain3DReset();return}zoomAt(e.shiftKey?1/1.65:1.65,e.clientX,e.clientY,true)});
  svg.addEventListener('pointerdown',e=>{const overNode=e.target.closest&&e.target.closest('.node,.stateNode,.brainNode,.brain3dNode,.brain3dPort,.callPort');const forcePan=spaceDown||e.button===1;if(overNode&&!forcePan)return;if(e.button!==0&&e.button!==1)return;e.preventDefault();dragging=true;dragPointer=e.pointerId;lastPointer={x:e.clientX,y:e.clientY};dragMode=current==='brain3d'?(forcePan?'pan3d':'rotate3d'):'pan2d';document.getElementById('stage').classList.add('panning');svg.setPointerCapture(e.pointerId)});
