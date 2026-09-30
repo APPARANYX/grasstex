@@ -2057,7 +2057,7 @@ function surfaceDrawable(d,scene,mesh){return mesh.isEnabled()&&surfaceReady(d,s
    itself installs its projection shader. */
 /* Sphere wounds are the default on this branch (prototype); the box projector remains on
    main and behind this flag's absence elsewhere. */
-var SPHERE_WOUNDS=true;
+var SPHERE_WOUNDS=false;
 var SPHERE_WOUND_MAT=null,SPHERE_FAILED=false;
 function sphereWoundMaterial(scene){
   if(SPHERE_WOUND_MAT&&!SPHERE_WOUND_MAT.isDisposed())return SPHERE_WOUND_MAT;
