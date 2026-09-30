@@ -4,6 +4,7 @@ import argparse, hashlib, json, os, re
 from pathlib import Path
 
 STATIC_FILES = [
+    ("ai_flow_live.html", "ai_flow_live.html"),
     ("battle_sim_local.php", "battle_sim.php"),
     ("battle_log.php", "battle_log.php"),
     ("battle_log_stats.php", "battle_log_stats.php"),

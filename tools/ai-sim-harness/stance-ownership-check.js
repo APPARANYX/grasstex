@@ -11,7 +11,16 @@
      soldier model's own setCrouch/setProne and SquadAI's no-Engagement fallback.
    - stepMovement shows the committed stance and derives nothing: suppressed, holding a target and
      standing still, a man Engagement has standing stays standing.
-   - Other layers go through BattleEngagement.requestStance, which only takes a man lower. */
+   - Other layers go through BattleEngagement.requestStance, which only takes a man lower.
+   - An advancing man moves crouched while his squad is on the enemy's heels: `inContact` now, or eyes on him within
+     ALERT_HOLD by the squad's own picture (`squad.contact`, Perception's record with its age). `inContact` is fire
+     control and blinks with every gap in a hedge; read raw it stood a squad up and knelt it again on each blink.
+     `?contactStance=0` is the raw rule.
+   - The stance a man shows IS the stance Engagement committed: `crouching` is derived from `prone` and
+     `tacticalCrouch` on the soldier, not a copy that stepMovement refreshes. As a copy it lagged one frame
+     behind every AI tick, and the FBX pose (which runs right after the tick) read a man raised from prone
+     to crouch as standing: proneToCrouch, then standToCrouch a frame later, so he rose to his feet and
+     knelt again. */
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),H=require('./harness');
 let n=0;function test(name,fn){fn();n++;console.log('PASS '+name);}
 
@@ -28,6 +37,14 @@ test('only Engagement writes stance flags',()=>{
     while((m=WRITE.exec(src)))offenders.push(f+':'+(src.slice(0,m.index).split('\n').length)+' .'+m[1]);
   }
   assert.deepEqual(offenders,[],'stance written outside Engagement');
+  /* `crouching` is derived on the sim soldier; only soldier.js (its own posed lab body) still assigns one. */
+  const stray=[];
+  for(const f of files){
+    if(f==='soldier.js')continue;
+    const src=fs.readFileSync(path.join(dir,f),'utf8'),re=/\.crouching\s*=(?!=)/g;let m;
+    while((m=re.exec(src)))stray.push(f+':'+(src.slice(0,m.index).split('\n').length));
+  }
+  assert.deepEqual(stray,[],'crouching assigned outside the lab body');
   const fallback=fs.readFileSync(path.join(dir,'squad-ai.js'),'utf8'),start=fallback.indexOf('function fallbackBehavior(');
   const outside=fallback.slice(0,start)+fallback.slice(fallback.indexOf('\n  }\n',start));
   assert.ok(!WRITE.test(outside),'squad-ai.js writes stance only in fallbackBehavior');
@@ -42,16 +59,55 @@ function oneMan(){
   return{r,b,s,enemy:e.members[0]};
 }
 
+test('an advancing man stays low while the squad has eyes on the enemy, whatever inContact blinks; then stands',()=>{
+  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement,H_=E.tuning.ALERT_HOLD,TICK=.15;
+  assert.equal(E.tuning.CONTACT_STANCE,true);
+  s.target=null;s.eng=null;E.stateOf(s).stanceUntil=0;
+  const seen=b.time;s.squad.contact={unit:enemy,x:enemy.root.position.x,z:enemy.root.position.z,at:seen,seenBy:1};
+  const tick=()=>{b.time+=TICK;s.squad.inContact=false;E.updateSoldier(s,b);return s.eng.stance;};
+  const shown=new Set();
+  while(b.time-seen<H_-.5)shown.add(tick());
+  assert.deepEqual([...shown],['crouch'],'inContact is off and the picture is fresh: he stays low');
+  const later=[];
+  while(b.time-seen<H_+2.5)later.push(tick());
+  assert.equal(later[later.length-1],'stand','the picture is older than ALERT_HOLD: he is up');
+  assert.equal(later.filter((v,i)=>i&&v!==later[i-1]).length,1,'one change, not a flutter');
+});
+
+test('?contactStance=0: the raw signal, he stands the moment inContact clears',()=>{
+  globalThis.location={search:'?contactStance=0'};
+  let raw;try{raw=H.bootstrap();}finally{delete globalThis.location;}
+  const E=raw.BattleEngagement;assert.equal(E.tuning.CONTACT_STANCE,false);
+  H.resetIds();
+  const b=H.makeBattle(raw),q=H.addSquad(raw,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:200}}),s=q.members[0];
+  s.eng=null;s.target=null;E.stateOf(s).stanceUntil=0;
+  q.contact={unit:{root:{position:{x:0,z:100}}},x:0,z:100,at:b.time,seenBy:1};
+  q.inContact=true;E.updateSoldier(s,b);assert.equal(s.eng.stance,'crouch');
+  b.time+=1.2;q.inContact=false;q.contact.at=b.time;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'stand','with the flag off the fresh picture is ignored');
+});
+
+test('the stance a man shows is the stance Engagement committed, at once, with no copy to refresh',()=>{
+  const {r,b,s}=oneMan(),E=r.BattleEngagement;
+  E.commitStance(s,b,'prone');
+  assert.equal(s.prone,true);assert.equal(!!s.crouching,false,'prone is not crouched');
+  /* the defect: raised from prone to crouch by an AI tick, read before any stepMovement */
+  E.commitStance(s,b,'crouch');
+  assert.equal(s.prone,false);assert.equal(!!s.crouching,true,'crouch reads as crouch the moment it is committed (it read as standing)');
+  E.commitStance(s,b,'stand');
+  assert.equal(!!s.crouching,false);
+  E.commitStance(s,b,'crawl');
+  assert.equal(!!s.crouching,false,'a crawl is prone, not crouched');
+  assert.throws(()=>{s.crouching=true;},TypeError,'a write would be a second owner of stance');
+});
+
 test('stepMovement shows the committed stance and derives none of its own',()=>{
   const {b,s,enemy}=oneMan();
   s.destination={x:s.root.position.x,z:s.root.position.z};
   s.target=enemy;s.suppressedUntil=b.time+5;s.tacticalCrouch=false;s.prone=false;
   for(let i=0;i<10;i++)H.stepMovement(b,s,H.AI_TICK);
   assert.equal(!!s.crouching,false,'suppressed, with a target, standing still: still standing because Engagement has him standing');
-  s.tacticalCrouch=true;H.stepMovement(b,s,H.AI_TICK);
-  assert.equal(!!s.crouching,true,'Engagement commits crouch: he crouches');
-  s.prone=true;H.stepMovement(b,s,H.AI_TICK);
-  assert.equal(!!s.crouching,false,'prone outranks crouch');
+  assert.equal(s.tacticalCrouch,false,'and stepMovement wrote no stance of its own');
 });
 
 test('requestStance only takes a man lower and goes through the commitment',()=>{

@@ -214,6 +214,69 @@
     e.fireReadyAt = Math.max(+e.fireReadyAt || 0, until);
   }
 
+  /* Is the squad on the enemy's heels: shooting at him now (`inContact`, fire control, which blinks with every gap in
+     a hedge) or had eyes on him within the time a man holds his sector after losing sight (ALERT_HOLD), by the
+     squad's own picture (Perception's record, with its age). An advancing man moves crouched while it is true.
+     Read raw, `inContact` stood a whole squad up and knelt it again on every blink; with the reaction to a shared
+     contact that was half of the stance changes left once cover was fixed. `?contactStance=0` is the raw rule,
+     for a paired A/B. */
+  var CONTACT_STANCE = !(
+    typeof location !== 'undefined' && /[?&]contactStance=0\b/.test(location.search || '')
+  );
+  function squadOnHeels(s, battle) {
+    var q = s.squad;
+    if (!q) return false;
+    if (q.inContact) return true;
+    var known = CONTACT_STANCE && squadContact(s, battle);
+    return !!known && battle.time - known.at <= ALERT_HOLD;
+  }
+
+  var CRAWL_FIT = !(typeof location !== 'undefined' && /[?&]crawlFit=0\b/.test(location.search || ''));
+  // How much of his running pace a crawl covers (module 11's gait table), 0.23 without it.
+  function crawlPace() {
+    var I = root.BattleSoldierIndividuality;
+    return (I && I.crawlFactor) || 0.23;
+  }
+
+  function canCrawlTo(s, battle, d) {
+    var crawl = crawlPace() * Math.max(0.6, s.speed || 1);
+    return d <= crawl * (state(s).until - battle.time) && (s.moveSpeed || 0) <= 2 * crawl;
+  }
+
+  /* ---- sight from a place and a stance --------------------------------------------------------- */
+
+  /* Cover and stance are for fighting from, unless he is evading fire. `coverCandidates` keeps only slots whose
+     shelter lies between the slot and the threat, so every one of them hides him from it; a slot that hides him
+     at every stance is a place to wait, not to fight (bound-motion probe: of the bounds that ended in "target
+     lost", 140 of 149 reached a slot from which he could not see where he had last seen the man, and the
+     hedges are 3 to 6 m). He ran there, lost the target, held the sector and marched on, and the next contact
+     sent him again: the stand -> crouch -> prone -> stand loop. So a slot must give him a line to the threat
+     from some stance, and the stance he takes must not blind him to the man he is shooting at. Under fire he
+     takes any cover and any stance that saves him. `?coverFire=0` is the old choice, for a paired A/B. */
+  var COVER_FIRE = !(typeof location !== 'undefined' && /[?&]coverFire=0\b/.test(location.search || ''));
+  var STANCE_ORDER = ['prone', 'crouch', 'stand'];
+  // Would a man at `pt` in `stance` see `target`? (Perception's own test: heights, hedges, ground.)
+  function seesFrom(pt, stance, target, battle) {
+    return SA().hasLineOfSight(
+      { root: { position: pt }, prone: stance === 'prone', crouching: stance === 'crouch' },
+      target,
+      battle.heightAt,
+      battle.obstacles
+    );
+  }
+  /* The lowest stance at or above `want` from which he still sees `at` (his target, else where the enemy was last
+     seen), so a man who wants to be low behind a wall rises far enough to look over it. Under fire, or with no one
+     to look at, `want` stands. */
+  function seeingStance(s, battle, want, at) {
+    var target = at || s.target;
+    if (!COVER_FIRE || !target || target.dead || want === 'stand' || s.suppressedUntil > battle.time)
+      return want;
+    var here = posOf(s);
+    for (var i = STANCE_ORDER.indexOf(want); i < STANCE_ORDER.length; i++)
+      if (seesFrom(here, STANCE_ORDER[i], target, battle)) return STANCE_ORDER[i];
+    return want; // he sees him from no stance: nothing to lose by staying low
+  }
+
   /* ---- stance ------------------------------------------------------------------------------- */
 
   function applyStance(s, stance) {
@@ -727,7 +790,10 @@
       if (back && (pt.x - p.x) * back.axis.x + (pt.z - p.z) * back.axis.z < -back.allow) continue;
       var score = (1 - pt.quality) * 40 - moveD;
       if (forward) score += ((pt.x - p.x) * forward.x + (pt.z - p.z) * forward.z) * 0.9;
-      if (score <= bestScore || !reachable(p, pt)) continue;
+      if (score <= bestScore) continue;
+      // Cover to fight from keeps a line to the threat (standing is the highest he can rise); evading takes any.
+      if (COVER_FIRE && !opts.evade && !seesFrom(pt, 'stand', target, battle)) continue;
+      if (!reachable(p, pt)) continue;
       bestScore = score;
       best = pt;
     }
@@ -1004,6 +1070,7 @@
       cover = findCover(s, battle, {
         maxRange: COVER_RANGE_UNDER_FIRE,
         forward: fwd,
+        evade: s.suppressedUntil > battle.time,
         notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null,
         threat: threat
       });
@@ -1120,9 +1187,9 @@
       commitStance(s, battle, 'crouch', Math.max(0.5, shockUntil(s) - battle.time));
       return;
     }
-    /* Upright only on a quiet march: under fire, or while the squad is still in contact, he moves
+    /* Upright only on a quiet march: under fire, or while the squad is on the enemy's heels, he moves
        crouched rather than standing for the beat between two contacts. */
-    var low = s.suppressedUntil > battle.time || !!(s.squad && s.squad.inContact);
+    var low = s.suppressedUntil > battle.time || squadOnHeels(s, battle);
     if (!holdStance(s, battle)) commitStance(s, battle, low ? 'crouch' : 'stand', 1.0);
     followOrders(s, battle, false);
   }
@@ -1137,7 +1204,7 @@
       return alert(s, battle);
     }
     holdPosition(s, battle);
-    commitStance(s, battle, 'crouch', Math.max(0.8, e.until - battle.time));
+    commitStance(s, battle, seeingStance(s, battle, 'crouch'), Math.max(0.8, e.until - battle.time));
     e.fireReadyAt = Math.max(e.fireReadyAt, e.since + recognition(s));
     if (battle.time >= e.until) decide(s, battle, 'oriented');
   }
@@ -1172,6 +1239,7 @@
     var fwd = !suppressed && ADVANCING[(s.squad && s.squad.commandPhase) || ''] ? boundForward(s) : null;
     var cover = findCover(s, battle, {
       maxRange: suppressed ? COVER_RANGE_UNDER_FIRE : COVER_RANGE,
+      evade: suppressed,
       notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null
     });
     if (cover) {
@@ -1231,6 +1299,7 @@
     if (d <= (cover.slotId ? 0.35 : COVER_ARRIVED)) {
       if (root.BattleMovementProgress) root.BattleMovementProgress.clearFailuresNear(s, battle, cover);
       holdPosition(s, battle);
+      e.stanceUntil = 0; // the run's crouch ends here; engage picks the stance he fights in
       transition(s, battle, 'engage', 0, 'reached cover');
       return engage(s, battle);
     }
@@ -1246,8 +1315,15 @@
       return;
     }
     var suppressed = s.suppressedUntil > battle.time,
-      /* An urgent cover move (module 44's drill) is a crouched run, never a crawl. */
-      crawl = suppressed && d < 14 && PRONE_ROLES[s.role] && !e.urgentBound;
+      /* An urgent cover move (module 44's drill) is a crouched run, never a crawl. A crawl is only for cover he
+         crawl to inside this bound's window, and only from a standing start: the window is sized for a run, a
+         crawl covers 0.23 of it, and the old `d < 14` sent men to ground at a run (the dive and slide) for
+         cover that took 20 s to crawl to in a 10 s window ('bound overran'). `?crawlFit=0` is the old rule. */
+      crawl =
+        suppressed &&
+        PRONE_ROLES[s.role] &&
+        !e.urgentBound &&
+        (CRAWL_FIT ? canCrawlTo(s, battle, d) : d < 14);
     commitStance(s, battle, crawl ? 'crawl' : 'crouch', Math.max(1, e.until - battle.time));
     move(s, battle, { x: cover.x, z: cover.z }, 'cover-bound');
   }
@@ -1271,7 +1347,8 @@
 
     var d = dist(p.x, p.z, posOf(s.target).x, posOf(s.target).z);
     holdPosition(s, battle);
-    if (!holdStance(s, battle)) commitStance(s, battle, fightingStance(s, battle, d, here));
+    if (!holdStance(s, battle))
+      commitStance(s, battle, seeingStance(s, battle, fightingStance(s, battle, d, here)));
     if (SA().isMachineGun(s)) {
       if (!e.setUpSince) e.setUpSince = battle.time;
       s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
@@ -1352,10 +1429,12 @@
       return orient(s, battle);
     }
     holdPosition(s, battle);
-    if (!holdStance(s, battle)) commitStance(s, battle, 'crouch', 2.0);
     /* The squad's shared contact outranks this man's own last sighting: somebody else may have
        eyes on right now. */
     var aim = knownThreat(s, battle);
+    /* Holding the sector he looks at where the enemy was: low, but not so low a wall hides it from him. */
+    if (!holdStance(s, battle))
+      commitStance(s, battle, seeingStance(s, battle, 'crouch', aim && { root: { position: aim } }), 2.0);
     s._faceHint = aim && facingError(s, aim) > AIM_CONE ? aim : null;
     if (e.suppressOrder && aim) {
       /* A designated suppressor holds the firing line for as long as the contact is current,
@@ -1640,7 +1719,13 @@
       MAX_SUPPRESSORS: MAX_SUPPRESSORS,
       SUPPRESS_BURST: SUPPRESS_BURST,
       SUPPRESS_PAUSE: SUPPRESS_PAUSE,
-      PREWARNED_REACT: PREWARNED_REACT
+      PREWARNED_REACT: PREWARNED_REACT,
+      STANCE_HOLD: STANCE_HOLD,
+      PRONE_HOLD: PRONE_HOLD,
+      AIM_SETTLE: AIM_SETTLE,
+      COVER_FIRE: COVER_FIRE,
+      CRAWL_FIT: CRAWL_FIT,
+      CONTACT_STANCE: CONTACT_STANCE
     }
   };
   if (typeof console !== 'undefined')

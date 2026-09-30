@@ -24,12 +24,13 @@ test('a held cover position is unavailable after the old fourteen-second lease e
   assert.ok(!next||Math.hypot(first.x-next.x,first.z-next.z)>=.9,'occupied cover was reassigned: '+JSON.stringify(next));
 });
 test('several soldiers can reserve distinct reachable slots along one long hedge',()=>{
-  const f=fixture([hedge()]),positions=f.q.members.map(s=>{const p=f.E.findCover(s,f.b);assert.ok(p,'long hedge should have room for each soldier');s.eng.state='bound';s.eng.cover=p;return p;});
+  /* slot allocation, not fighting: any cover (`evade`), the hedge is 2 m tall */
+  const f=fixture([hedge()]),positions=f.q.members.map(s=>{const p=f.E.findCover(s,f.b,{evade:true});assert.ok(p,'long hedge should have room for each soldier');s.eng.state='bound';s.eng.cover=p;return p;});
   for(let i=0;i<positions.length;i++)for(let j=i+1;j<positions.length;j++)assert.ok(Math.hypot(positions[i].x-positions[j].x,positions[i].z-positions[j].z)>=1.8-1e-6);
 });
 test('an end-on hedge threat cannot produce a point inside the hedgerow',()=>{
   const f=fixture([hedge()]);f.s.root.position.x=-18;f.s.root.position.z=0;f.s.target.root.position={x:60,y:0,z:0};
-  const p=f.E.findCover(f.s,f.b);assert.ok(p);assert.ok(f.r.BattleNavigation.movementClear(p,p),'cover point is inside the hedge');assert.ok(p.x<-14);
+  const p=f.E.findCover(f.s,f.b,{evade:true});assert.ok(p);assert.ok(f.r.BattleNavigation.movementClear(p,p),'cover point is inside the hedge');assert.ok(p.x<-14);
 });
 function crate(id,x,z){return{id,physicalId:id,type:'crate',x,z,y:0,radius:.8,height:1,cover:.55};}
 test('clustered cover yields no overlapping slots, keeping the newest obstacle\'s slots',()=>{
@@ -109,5 +110,72 @@ test('a bound that overruns its window re-decides and does not retake the same c
   const same=e.state==='bound'&&e.cover&&Math.hypot(e.cover.x-cover.x,e.cover.z-cover.z)<.5;
   assert.ok(!same,'still bounding to the cover he overran: '+e.state);
   assert.equal(f.r.BattleMovementProgress.candidateAllowed(f.s,f.b,cover),false,'the overrun cover is marked failed');
+});
+/* Cover is a place to fight from unless he is evading fire. coverCandidates keeps only slots whose shelter lies
+   between the slot and the threat, so every slot hides him from it; one that hides him at every stance is a place
+   to wait. bound-motion probe, meeting battles, 300 s: of the bounds that ended in "target lost" (83% of all) 140 of
+   149 reached a slot from which he could not see where he last saw the man, the hedges being 3 to 6 m. He ran there,
+   lost the target, held the sector and marched on, and the next contact sent him again. */
+const lowWall=()=>Object.assign(hedge(),{id:'wall',physicalId:'wall',type:'wall',height:1.1,cover:.5});
+test('cover he can fight from: a hedge no stance sees over is refused, a low wall he sees over is taken, and under fire either will do',()=>{
+  const tall=fixture([hedge()]),low=fixture([lowWall()]);
+  assert.equal(tall.E.findCover(tall.s,tall.b),null,'a 2 m hedge between him and the threat hides him at every stance');
+  assert.ok(tall.E.findCover(tall.other,tall.b,{evade:true}),'evading fire, any cover will do');
+  const p=low.E.findCover(low.s,low.b);
+  assert.ok(p,'a 1.1 m wall: standing, he sees over it and can fight from it');
+});
+test('?coverFire=0 is the old choice: any slot that shelters him',()=>{
+  globalThis.location={search:'?coverFire=0'};
+  let f;try{f=fixture([hedge()]);}finally{delete globalThis.location;}
+  assert.equal(f.E.tuning.COVER_FIRE,false);
+  assert.ok(f.E.findCover(f.s,f.b),'the hedge shelters him, and that was all that was asked');
+});
+test('a man who sees the enemy does not run for a hedge he could not fight from; under fire he does',()=>{
+  const calm=decideWith('approach',false),tall=fixture([hedge()]);
+  assert.equal(calm.state==='bound',false,'no fightable cover here');
+  /* a scout: a rifleman under fire in the open is pinned there (PRONE_ROLES), which never reaches cover selection */
+  tall.s.role='scout';tall.s.suppressedUntil=tall.b.time+5;tall.s.eng=null;tall.E.stateOf(tall.s);tall.E.decide(tall.s,tall.b,'oriented');
+  assert.equal(tall.E.stateOf(tall.s).state,'bound','under fire he takes the hedge to save himself');
+  const open=fixture([hedge()]);open.s.eng=null;open.E.stateOf(open.s);open.E.decide(open.s,open.b,'oriented');
+  assert.equal(open.E.stateOf(open.s).state,'engage','not under fire he fights from where he is');
+});
+/* A man at a wall slot with a live target: the stance he fights in is the lowest that still sees over it. */
+function atWall(height,suppressed){
+  const f=fixture([height===1.1?lowWall():hedge()]),cover=f.E.findCover(f.s,f.b,{evade:true});
+  assert.ok(cover);Object.assign(f.s.root.position,{x:cover.x,z:cover.z});
+  f.s.eng=null;const e=f.E.stateOf(f.s);e.state='engage';e.stanceUntil=0;f.s.suppressedUntil=suppressed?f.b.time+9:0;
+  return{f,e,cover};
+}
+test('at a low wall he rises far enough to see over it; behind a hedge nothing helps and he stays low; under fire he stays down',()=>{
+  const w=atWall(1.1,false);w.f.E.updateSoldier(w.f.s,w.f.b);
+  assert.equal(w.e.stance,'stand','crouched, his eye (1.05 m) is under the wall (1.1 m): he would lose the man he is shooting at');
+  const h=atWall(2,false);h.f.E.updateSoldier(h.f.s,h.f.b);
+  assert.notEqual(h.e.stance,'stand','no stance sees over a 2 m hedge: nothing to gain by standing');
+  const p=atWall(1.1,true);p.f.E.updateSoldier(p.f.s,p.f.b);
+  assert.notEqual(p.e.stance,'stand','under fire survival first: he does not stand up to look');
+});
+test('reaching cover ends the run\'s crouch: engage picks the stance he fights in',()=>{
+  const w=atWall(1.1,false);
+  w.e.state='bound';w.e.cover=w.cover;w.e.until=w.f.b.time+9;w.f.E.commitStance(w.f.s,w.f.b,'crouch',5);
+  w.f.E.updateSoldier(w.f.s,w.f.b);
+  assert.equal(w.e.state,'engage','arrived');
+  assert.equal(w.e.stance,'stand','the 5 s crouch of the run did not hold him under the wall');
+});
+/* A crawl is for cover he can crawl to inside the bound's window, from a standing start. The window is sized for a run
+   and a crawl covers 0.23 of it: `d < 14` sent men to ground at 3 m/s for cover that took 20 s to crawl to in a 10 s
+   window (bound-motion probe: the dive-and-slide, then 'bound overran'). */
+function boundTo(dist,speed,flagOff){
+  if(flagOff)globalThis.location={search:'?crawlFit=0'};
+  let f;try{f=fixture([{type:'rock',x:0,z:0,y:0,radius:1.3,height:1,cover:.55}]);}finally{delete globalThis.location;}
+  const s=f.s,e=(s.eng=null,f.E.stateOf(s));
+  s.suppressedUntil=f.b.time+9;s.moveSpeed=speed;
+  e.state='bound';e.cover={x:s.root.position.x,z:s.root.position.z+dist};e.until=f.b.time+Math.max(3,dist/(s.speed*.6)+2.5);
+  f.E.updateSoldier(s,f.b);return e.stance;
+}
+test('he crawls only to cover he can crawl to in the window, and only from a standing start',()=>{
+  assert.equal(boundTo(10,0),'crouch','10 m takes ~14 s to crawl, the window is ~7 s: he runs, crouched');
+  assert.equal(boundTo(1.5,0),'crawl','1.5 m from rest: a crawl fits');
+  assert.equal(boundTo(1.5,3),'crouch','already running: no dive at a run');
+  assert.equal(boundTo(10,0,true),'crawl','?crawlFit=0 is the old d < 14 rule');
 });
 console.log(checks+' cover checks passed; '+failures+' failed.');if(failures)process.exitCode=1;
