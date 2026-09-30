@@ -2055,7 +2055,9 @@ function surfaceDrawable(d,scene,mesh){return mesh.isEnabled()&&surfaceReady(d,s
    accumulate), the decalMap binding, and the ready/retry contract. Only the material used
    for the RTT pass is swapped via setMaterialForRendering, exactly how MeshUVSpaceRenderer
    itself installs its projection shader. */
-var SPHERE_WOUNDS=typeof location!=='undefined'&&/[?&]sphereWounds=1\b/.test(location.search||'');
+/* Sphere wounds are the default on this branch (prototype); the box projector remains on
+   main and behind this flag's absence elsewhere. */
+var SPHERE_WOUNDS=true;
 var SPHERE_WOUND_MAT=null,SPHERE_FAILED=false;
 function sphereWoundMaterial(scene){
   if(SPHERE_WOUND_MAT&&!SPHERE_WOUND_MAT.isDisposed())return SPHERE_WOUND_MAT;
@@ -2101,7 +2103,7 @@ function sphereWoundMaterial(scene){
     '  vec3 toCenter=dist>1e-6?(-toFrag/dist):nrm;',
     '  float facing=dot(nrm,toCenter);',
     '  if(facing<=0.02)discard;',
-    '  float fade=1.0-smoothstep(uRadius*0.55,uRadius,dist);',
+    '  float fade=1.0-smoothstep(uRadius*0.5,uRadius,dist);',
     '  float a=uAlpha*fade*clamp(facing*1.6,0.0,1.0);',
     '  if(a<=0.004)discard;',
     '  gl_FragColor=vec4(uColor,a);',
