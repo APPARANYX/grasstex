@@ -200,7 +200,7 @@ function findMappedCalls(sourceKey,sourceName,text){
   function hit(target,kind,index){const id=funcId(target[0],target[1]),key=id+'|'+kind;if(id===funcId(sourceKey,sourceName)&&kind!=='direct')return;if(seen.has(key))return;seen.add(key);out.push({to:id,kind,index:index==null?0:index})}
   CFG_FUNCS.forEach(target=>{
     const id=funcId(target[0],target[1]);
-    if(target[0]===sourceKey){const re=new RegExp('\\b'+escRx(target[1])+'\\s*\\(','g'),m=re.exec(body);if(m)hit(target,'direct',m.index)}
+    if(target[0]===sourceKey){const re=new RegExp('(^|[^.$A-Za-z0-9_])'+escRx(target[1])+'\\s*\\(','g'),m=re.exec(body);if(m)hit(target,'direct',m.index)}
     const pats=API_CALL_PATTERNS[id]||[];for(const rx of pats){rx.lastIndex=0;const m=rx.exec(body);if(m){hit(target,'api',m.index);break}}
   });
   if(sourceKey==='commander'&&sourceName==='updateCommander'&&/runHook\(\s*['"]onCommanderTick['"]/.test(body)){const target=funcSpec('meso:commanderTick'),ms=sources.meso||'';if(target&&/onCommanderTick\s*:\s*commanderTick/.test(ms))hit(target,'hook',body.indexOf('runHook'))}
@@ -258,7 +258,7 @@ function layoutCFG(cfg){
   Object.entries(ranks).forEach(([r,a])=>{
     a.sort((x,y)=>x.lane-y.lane);const seen={};a.forEach(n=>{let lane=n.lane;const key=lane.toFixed(2);const c=seen[key]||0;seen[key]=c+1;if(c)lane+=c*0.92*(c%2?1:-1);n.w=n.type==='decision'?390:n.type==='merge'?125:n.type==='short'?270:n.type==='jump'?250:430;n.h=n.type==='decision'?132:n.type==='merge'?58:n.type==='short'?148:n.type==='jump'?126:104;n.x=center+lane*laneGap-n.w/2;n.y=150+(+r)*rowGap;minX=Math.min(minX,n.x);maxX=Math.max(maxX,n.x+n.w);maxY=Math.max(maxY,n.y+n.h)})
   });
-  const shift=minX<130?130-minX:0;if(shift)cfg.nodes.forEach(n=>n.x+=shift);maxX+=shift;cfg.bounds={x:0,y:0,w:Math.max(2400,maxX+180),h:maxY+230};return cfg
+  const shift=minX<130?130-minX:0;if(shift)cfg.nodes.forEach(n=>n.x+=shift);maxX+=shift;cfg.bounds={x:0,y:0,w:Math.max(2400,maxX+320),h:maxY+230};return cfg
 }
 
 const stateFocus={};
