@@ -8,7 +8,7 @@
 :root{--bg:#0b1119;--panel:#111a26;--panel2:#162130;--text:#eaf0f8;--muted:#92a3bb;--line:#6f829f;--macro:#59427d;--meso:#285d86;--micro:#286044;--move:#805621;--support:#34465b;--danger:#9b4e56;--yes:#5da377;--no:#b56666}
 *{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:14px/1.35 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;overflow:hidden}
 button,select,input{font:inherit}.app{height:100%;display:grid;grid-template-rows:auto 1fr}.top{padding:14px 16px 10px;border-bottom:1px solid #263549;background:#0d141e;box-shadow:0 3px 16px #0006;z-index:5}.titleRow{display:flex;align-items:flex-start;gap:18px}.title{font-size:22px;font-weight:800;letter-spacing:.2px}.sub{color:var(--muted);font-size:12px;margin-top:3px}.grow{flex:1}.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.btn{border:1px solid #3b4d65;background:#172333;color:#dce6f4;border-radius:8px;padding:7px 10px;cursor:pointer}.btn:hover{background:#203047}.btn.active{border-color:#7b96b9;background:#29415d;color:white}.badge{display:inline-flex;gap:6px;align-items:center;border:1px solid #33465f;border-radius:999px;padding:5px 9px;color:#b9c6d8;background:#121c29;font-size:11px}.dot{width:8px;height:8px;border-radius:50%;background:#6b7d94}.dot.ok{background:#59a574}.dot.warn{background:#d2a24d}.dot.bad{background:#d66a72}.tabs{display:flex;gap:6px;margin-top:10px;overflow:auto;padding-bottom:1px}.workspace{display:grid;grid-template-columns:1fr 0;min-height:0}.workspace.drawerOpen{grid-template-columns:minmax(0,1fr) 460px}.stage{position:relative;overflow:hidden;background:radial-gradient(circle at 20% 10%,#142237 0,#0b1119 42%,#091019 100%);cursor:grab}.stage.panning{cursor:grabbing}#graph{width:100%;height:100%;display:block;touch-action:none}.node,.stateNode{cursor:pointer}.navHint{color:#879bb5;font-size:11px;white-space:nowrap}.zoomReadout{min-width:56px;justify-content:center;font-variant-numeric:tabular-nums}.drawer{border-left:1px solid #2d3c51;background:#0f1722;overflow:auto;display:none}.drawerOpen .drawer{display:block}.drawerHead{position:sticky;top:0;background:#131e2b;padding:12px 14px;border-bottom:1px solid #2b3b50;z-index:2}.drawerTitle{font-weight:800}.drawerMeta{font-size:11px;color:#93a6be;margin-top:3px}.close{float:right}.source{white-space:pre-wrap;margin:0;padding:14px;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#d2dbea}.source .hit{background:#4f3d1f;color:#fff3c8}.status{position:absolute;left:12px;bottom:12px;background:#101924e8;border:1px solid #2b3e57;border-radius:10px;padding:8px 10px;color:#aebed2;font-size:11px;pointer-events:none;max-width:520px}.legend{position:absolute;right:12px;bottom:12px;background:#101924e8;border:1px solid #2b3e57;border-radius:10px;padding:8px 10px;display:flex;gap:10px;flex-wrap:wrap;max-width:520px;font-size:11px}.key{display:flex;gap:5px;align-items:center}.sw{width:11px;height:11px;border-radius:3px}.errorBox{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:#311b20;border:1px solid #7f424b;padding:8px 12px;border-radius:8px;color:#ffd6da;display:none;z-index:3}
-svg text{user-select:none}.laneLabel{font-size:13px;font-weight:800;fill:#8ea0b8;letter-spacing:.8px}.node rect,.node polygon{stroke-width:1.6;filter:drop-shadow(0 4px 7px #0006)}.node text{fill:#f3f6fb}.node .small{fill:#c0cad8;font-size:11px}.node.process rect{fill:#1c2a3a;stroke:#56718f}.node.merge rect{fill:#121b27;stroke:#8396ae;stroke-dasharray:4 3}.node.macro rect{fill:#392b52;stroke:#78629c}.node.meso rect{fill:#1e4667;stroke:#5e87aa}.node.micro rect{fill:#1f4a37;stroke:#609176}.node.move rect{fill:#5a3d1c;stroke:#9b6d34}.node.support rect{fill:#283746;stroke:#607487}.node.terminal rect{fill:#29323d;stroke:#6b7686}.node.short ellipse{fill:#421d24;stroke:#ef7c86;stroke-width:3.5;filter:drop-shadow(0 4px 8px #0008)}.node.short .shortRing{fill:none;stroke:#ef7c86;stroke-width:1.2;stroke-dasharray:4 3}.node.jump ellipse{fill:#3b3019;stroke:#d8aa54;stroke-width:3;filter:drop-shadow(0 4px 8px #0008)}.node.decision polygon{fill:#162335;stroke:#8196b4}.node:hover rect,.node:hover polygon{stroke:#c3d5ef;stroke-width:2.4}.edge{fill:none;stroke:var(--line);stroke-width:2;marker-end:url(#arrow)}.edge.loop{stroke-dasharray:6 5}.edge.yes{stroke:var(--yes)}.edge.no{stroke:var(--no)}.edgeLabel{font-size:11px;font-weight:700;paint-order:stroke;stroke:#0b1119;stroke-width:4px;stroke-linejoin:round}.edgeLabel.yes{fill:#8bd7a7}.edgeLabel.no{fill:#e6a0a5}.edgeLabel.normal{fill:#b7c5d7}.groupBox{fill:none;stroke:#2d4057;stroke-width:1.4;stroke-dasharray:7 5}.groupTitle{fill:#6f849f;font-size:13px;font-weight:800;letter-spacing:.5px}.stateEdge{fill:none;stroke:#657993;stroke-width:1.8;marker-end:url(#arrow)}.stateEdge.self{stroke-dasharray:5 4}.stateLabel{fill:#aebed3;font-size:10px;paint-order:stroke;stroke:#0b1119;stroke-width:3px}.stateNode rect{stroke-width:1.6}.stateNode.macro rect{fill:#38294f;stroke:#755e98}.stateNode.meso rect{fill:#1d4566;stroke:#5d85a7}.stateNode.micro rect{fill:#1f4a37;stroke:#609176}.stateNode.move rect{fill:#5b3c1c;stroke:#a06e32}.stateNode text{fill:#f2f6fb}.stateNode .desc{fill:#bbc7d6;font-size:10px}.warnText{fill:#e0a958;font-size:12px;font-weight:700}.sourceChip{fill:#0f1824;stroke:#31465f;stroke-width:1}.sourceChipText{fill:#8fa5c0;font-size:10px}.mini{font-size:10px;fill:#aab9cc}
+svg text{user-select:none}.laneLabel{font-size:13px;font-weight:800;fill:#8ea0b8;letter-spacing:.8px}.node rect,.node polygon{stroke-width:1.6;filter:drop-shadow(0 4px 7px #0006)}.node text{fill:#f3f6fb}.node .small{fill:#c0cad8;font-size:11px}.node.process rect{fill:#1c2a3a;stroke:#56718f}.node.merge rect{fill:#121b27;stroke:#8396ae;stroke-dasharray:4 3}.node.macro rect{fill:#392b52;stroke:#78629c}.node.meso rect{fill:#1e4667;stroke:#5e87aa}.node.micro rect{fill:#1f4a37;stroke:#609176}.node.move rect{fill:#5a3d1c;stroke:#9b6d34}.node.support rect{fill:#283746;stroke:#607487}.node.terminal rect{fill:#29323d;stroke:#6b7686}.node.short ellipse{fill:#421d24;stroke:#ef7c86;stroke-width:3.5;filter:drop-shadow(0 4px 8px #0008)}.node.short .shortRing{fill:none;stroke:#ef7c86;stroke-width:1.2;stroke-dasharray:4 3}.node.jump ellipse{fill:#3b3019;stroke:#d8aa54;stroke-width:3;filter:drop-shadow(0 4px 8px #0008)}.node.decision polygon{fill:#162335;stroke:#8196b4}.node:hover rect,.node:hover polygon{stroke:#c3d5ef;stroke-width:2.4}.edge{fill:none;stroke:var(--line);stroke-width:2;marker-end:url(#arrow)}.edge.loop{stroke-dasharray:6 5}.edge.yes{stroke:var(--yes)}.edge.no{stroke:var(--no)}.edgeLabel{font-size:11px;font-weight:700;paint-order:stroke;stroke:#0b1119;stroke-width:4px;stroke-linejoin:round}.edgeLabel.yes{fill:#8bd7a7}.edgeLabel.no{fill:#e6a0a5}.edgeLabel.normal{fill:#b7c5d7}.groupBox{fill:none;stroke:#2d4057;stroke-width:1.4;stroke-dasharray:7 5}.groupTitle{fill:#6f849f;font-size:13px;font-weight:800;letter-spacing:.5px}.stateEdge{fill:none;stroke:#657993;stroke-width:1.8;marker-end:url(#arrow)}.stateEdge.self{stroke-dasharray:5 4}.stateLabel{fill:#aebed3;font-size:10px;paint-order:stroke;stroke:#0b1119;stroke-width:3px}.stateNode rect{stroke-width:1.6}.stateNode.macro rect{fill:#38294f;stroke:#755e98}.stateNode.meso rect{fill:#1d4566;stroke:#5d85a7}.stateNode.micro rect{fill:#1f4a37;stroke:#609176}.stateNode.move rect{fill:#5b3c1c;stroke:#a06e32}.stateNode text{fill:#f2f6fb}.stateNode:hover rect{stroke:#c7d7ec;stroke-width:2.2}.stateNode .desc{fill:#bbc7d6;font-size:10px}.warnText{fill:#e0a958;font-size:12px;font-weight:700}.sourceChip{fill:#0f1824;stroke:#31465f;stroke-width:1}.sourceChipText{fill:#8fa5c0;font-size:10px}.mini{font-size:10px;fill:#aab9cc}
 </style>
 </head>
 <body>
@@ -218,6 +218,7 @@ function layoutCFG(cfg){
   const shift=minX<130?130-minX:0;if(shift)cfg.nodes.forEach(n=>n.x+=shift);maxX+=shift;cfg.bounds={x:0,y:0,w:Math.max(2400,maxX+180),h:maxY+230};return cfg
 }
 
+const stateFocus={};
 let sources={}, current='cfg', graphBounds={x:0,y:0,w:1800,h:1600};
 let camera={x:0,y:0,w:1800,h:1600},dragging=false,dragPointer=null,lastPointer=null,spaceDown=false,cameraAnim=0;
 const svg=document.getElementById('graph'), viewport=document.getElementById('viewport'), status=document.getElementById('status'), workspace=document.getElementById('workspace');
@@ -251,7 +252,52 @@ async function load(){status.textContent='Loading AI source from this checkout�
 function renderTabs(){const t=document.getElementById('tabs');t.innerHTML='';VIEWS.forEach(([id,label])=>{const b=document.createElement('button');b.className='btn'+(id===current?' active':'');b.textContent=label;b.onclick=()=>{current=id;renderTabs();render();fit()};t.appendChild(b)});const sel=document.getElementById('cfgSelect');sel.hidden=current!=='cfg'}
 function initCfgSelect(){const sel=document.getElementById('cfgSelect');sel.innerHTML='';CFG_FUNCS.forEach(([k,n,label])=>{const o=document.createElement('option');o.value=k+':'+n;o.textContent=label;if(o.value===cfgChoice)o.selected=true;sel.appendChild(o)});sel.onchange=()=>{cfgChoice=sel.value;if(current==='cfg'){render();fit()}}}
 function clear(){viewport.innerHTML='';viewport.removeAttribute('transform');}
-function node(g,n){const cls='node '+(n.type||'process')+' '+(n.layer||'process');const group=el('g',{class:cls,'data-id':n.id,transform:`translate(${n.x},${n.y})`});const w=n.w||250,h=n.h||82;if(n.type==='decision'){group.appendChild(el('polygon',{points:`${w/2},0 ${w},${h/2} ${w/2},${h} 0,${h/2}`}))}else if(n.type==='short'||n.type==='jump'){group.appendChild(el('ellipse',{cx:w/2,cy:h/2,rx:w/2-8,ry:h/2-8}));if(n.type==='short')group.appendChild(el('ellipse',{cx:w/2,cy:h/2,rx:w/2-17,ry:h/2-17,class:'shortRing'}))}else group.appendChild(el('rect',{width:w,height:h,rx:n.type==='merge'?18:14}));const lines=wrap(n.label,n.type==='decision'?34:n.type==='merge'?16:n.type==='short'?24:42);const base=n.type==='short'||n.type==='jump'?44:(n.type==='merge'?31:29);lines.forEach((s,i)=>group.appendChild(el('text',{x:w/2,y:base+i*18,'text-anchor':'middle','font-size':n.type==='merge'?11:(i?12:14),'font-weight':'800'},s)));if(n.sub){const subLines=wrap(n.sub,n.type==='short'?29:48).slice(0,n.type==='short'?2:1);subLines.forEach((s,i)=>group.appendChild(el('text',{x:w/2,y:(n.type==='short'?82:h-12)+i*15,'text-anchor':'middle',class:'small'},s)))};if(n.ref){group.style.cursor='pointer';group.addEventListener('click',ev=>{ev.stopPropagation();openSource(n.ref,n.label)})}if(n.cfg){group.addEventListener('dblclick',ev=>{ev.stopPropagation();cfgChoice=n.cfg;const sel=document.getElementById('cfgSelect');if(sel)sel.value=cfgChoice;current='cfg';renderTabs();render();fit()})}g.appendChild(group);return group}
+function node(g,n){
+  const cls='node '+(n.type||'process')+' '+(n.layer||'process');
+  const group=el('g',{class:cls,'data-id':n.id,transform:`translate(${n.x},${n.y})`});
+  const w=n.w||250,h=n.h||82;
+  if(n.type==='decision'){
+    group.appendChild(el('polygon',{points:`${w/2},0 ${w},${h/2} ${w/2},${h} 0,${h/2}`}));
+  }else if(n.type==='short'||n.type==='jump'){
+    group.appendChild(el('ellipse',{cx:w/2,cy:h/2,rx:w/2-8,ry:h/2-8}));
+    if(n.type==='short')group.appendChild(el('ellipse',{cx:w/2,cy:h/2,rx:w/2-17,ry:h/2-17,class:'shortRing'}));
+  }else{
+    group.appendChild(el('rect',{width:w,height:h,rx:n.type==='merge'?18:14}));
+  }
+
+  const lines=wrap(n.label,n.type==='decision'?30:n.type==='merge'?16:n.type==='short'?24:42);
+  const lineH=18;
+  let firstY;
+  if(n.type==='decision'||n.type==='short'||n.type==='jump'){
+    const blockH=(lines.length-1)*lineH;
+    firstY=h/2-blockH/2+5;
+  }else{
+    firstY=n.type==='merge'?31:29;
+  }
+  lines.forEach((s,i)=>group.appendChild(el('text',{
+    x:w/2,y:firstY+i*lineH,'text-anchor':'middle',
+    'font-size':n.type==='merge'?11:(i?12:14),'font-weight':'800'
+  },s)));
+
+  if(n.sub){
+    const subLines=wrap(n.sub,n.type==='short'?29:48).slice(0,n.type==='short'?2:1);
+    subLines.forEach((s,i)=>group.appendChild(el('text',{
+      x:w/2,y:(n.type==='short'?82:h-12)+i*15,'text-anchor':'middle',class:'small'
+    },s)));
+  }
+  if(n.ref){
+    group.style.cursor='pointer';
+    group.addEventListener('click',ev=>{ev.stopPropagation();openSource(n.ref,n.label)});
+  }
+  if(n.cfg){
+    group.addEventListener('dblclick',ev=>{
+      ev.stopPropagation();cfgChoice=n.cfg;
+      const sel=document.getElementById('cfgSelect');if(sel)sel.value=cfgChoice;
+      current='cfg';renderTabs();render();fit();
+    });
+  }
+  g.appendChild(group);return group
+}
 function wrap(s,max){const words=String(s).split(/\s+/),lines=[],cur=[];for(const w of words){if((cur.join(' ')+' '+w).trim().length>max&&cur.length){lines.push(cur.join(' '));cur.length=0}cur.push(w)}if(cur.length)lines.push(cur.join(' '));return lines.slice(0,3)}
 function anchor(n,side){const w=n.w||250,h=n.h||82;if(n.type==='decision'){if(side==='left')return[n.x,n.y+h/2];if(side==='right')return[n.x+w,n.y+h/2];if(side==='top')return[n.x+w/2,n.y];return[n.x+w/2,n.y+h]}if(side==='left')return[n.x,n.y+h/2];if(side==='right')return[n.x+w,n.y+h/2];if(side==='top')return[n.x+w/2,n.y];return[n.x+w/2,n.y+h]}
 function edge(g,a,b,opt={}){const from=anchor(a,opt.from||'bottom'),to=anchor(b,opt.to||'top');let d;if(opt.points)d='M'+from[0]+','+from[1]+' '+opt.points.map(p=>'L'+p[0]+','+p[1]).join(' ')+' L'+to[0]+','+to[1];else if((opt.from==='right'&&opt.to==='left')||(opt.from==='left'&&opt.to==='right')){const mx=(from[0]+to[0])/2;d=`M${from[0]},${from[1]} L${mx},${from[1]} L${mx},${to[1]} L${to[0]},${to[1]}`}else{const my=(from[1]+to[1])/2;d=`M${from[0]},${from[1]} L${from[0]},${my} L${to[0]},${my} L${to[0]},${to[1]}`};const p=el('path',{d,class:'edge '+(opt.kind||'')+(opt.loop?' loop':'')});g.insertBefore(p,g.firstChild);if(opt.label){const lx=opt.lx!=null?opt.lx:(from[0]+to[0])/2,ly=opt.ly!=null?opt.ly:(from[1]+to[1])/2-5;g.appendChild(el('text',{x:lx,y:ly,class:'edgeLabel '+(opt.kind||'normal'),'text-anchor':'middle'},opt.label))}}
@@ -321,22 +367,137 @@ function fullView(){
   status.textContent='Deep execution chain: only explicit caller branches are shown here. Double-click a function node for its source-parsed CFG; branch reconvergence is shown with REJOIN nodes instead of YES/NO arrows landing ambiguously on the same box.';
 }
  function stateView(kind){
- clear();
- const map={macro:['commander','MISSION_STATES','Macro mission lifecycle','macro'],meso:['meso','PHASE_STATES','Squad Leader command phases','meso'],micro:['engagement','STATES','Soldier Engagement FSM','micro']}[kind],data=parseStates(map[0],map[1]),g=viewport;
- if(data.error){showError(data.error);return}
- const states=data.states,n=data.states.length,cols=3,cellW=720,cellH=390,ox=100,oy=150,nodeW=500,nodeH=220,rows=Math.max(1,Math.ceil(n/cols));
- const footerY=oy+rows*cellH+30,extra=kind==='micro'?230:kind==='meso'?150:70;
- graphBounds={x:0,y:0,w:ox*2+(cols-1)*cellW+nodeW+160,h:footerY+extra};
- svg.setAttribute('viewBox',`0 0 ${graphBounds.w} ${graphBounds.h}`);
- g.appendChild(el('text',{x:70,y:62,'font-size':28,'font-weight':800,fill:'#fff'},map[2]));
- g.appendChild(el('text',{x:70,y:94,class:'mini'},`Parsed live from ${data.ref.file} · ${map[1]} · ${n} states · roomy layout intentionally reserves routing space between objects`));
- const nodes={};
- states.forEach((s,i)=>{const c=i%cols,r=Math.floor(i/cols),x=ox+c*cellW,y=oy+r*cellH,w=nodeW,h=nodeH;const gr=el('g',{class:'stateNode '+map[3],transform:`translate(${x},${y})`});gr.appendChild(el('rect',{width:w,height:h,rx:18}));gr.appendChild(el('text',{x:20,y:34,'font-size':19,'font-weight':800},s.name));wrap(s.meaning||'',61).slice(0,3).forEach((t,j)=>gr.appendChild(el('text',{x:20,y:64+j*18,class:'desc'},t)));gr.appendChild(el('text',{x:20,y:126,class:'desc'},'EXITS'));wrap(s.exits||'—',65).slice(0,4).forEach((t,j)=>gr.appendChild(el('text',{x:20,y:148+j*16,class:'desc'},t)));gr.onclick=()=>openSource(s.ref,`${map[2]}: ${s.name}`);g.appendChild(gr);nodes[s.name]={x,y,w,h,state:s};});
- // Draw edges behind nodes. Large cell gaps are deliberate so dense full-adjacency maps remain traceable.
- const edgeLayer=el('g');g.insertBefore(edgeLayer,g.children[2]||null);states.forEach(s=>{const a=nodes[s.name];s.next.forEach((to,idx)=>{const b=nodes[to];if(!b)return;const self=s.name===to;let d;if(self)d=`M${a.x+a.w-36},${a.y+a.h-18} C${a.x+a.w+120},${a.y+a.h+90} ${a.x-95},${a.y+a.h+90} ${a.x+32},${a.y+a.h-8}`;else{const sx=a.x+a.w/2,sy=a.y+a.h,tx=b.x+b.w/2,ty=b.y;const bend=(sy+ty)/2;d=`M${sx},${sy} C${sx},${bend} ${tx},${bend} ${tx},${ty}`};edgeLayer.appendChild(el('path',{d,class:'stateEdge'+(self?' self':'')}))})});
- if(kind==='micro'){const req=parseRequests();g.appendChild(el('text',{x:70,y:footerY,'font-size':16,'font-weight':800,fill:'#9fb0c7'},'External Engagement requests parsed from REQUESTS'));req.forEach((r,i)=>g.appendChild(el('text',{x:70,y:footerY+32+i*25,class:'mini'},`${r.name}: ${r.from.join(' / ')} → ${r.next} — ${r.reason}`)))}
- if(kind==='meso')g.appendChild(el('text',{x:70,y:footerY,class:'warnText'},'PHASE_STATES deliberately declares full adjacency; the actual guards are visible in Deep branch CFG → executeMission() / updateCohesion().'));
- status.textContent=`${map[2]}: nodes and allowed transitions are parsed directly from ${map[1]}. The layout reserves large routing gutters so objects and arrow paths do not sit on top of one another.`;
+  clear();
+  const map={
+    macro:['commander','MISSION_STATES','Macro mission lifecycle','macro'],
+    meso:['meso','PHASE_STATES','Squad Leader command phases','meso'],
+    micro:['engagement','STATES','Soldier Engagement FSM','micro']
+  }[kind],
+  data=parseStates(map[0],map[1]),g=viewport;
+  if(data.error){showError(data.error);return}
+
+  const states=data.states;
+  if(!states.length){showError('No states parsed from '+map[1]);return}
+  if(!stateFocus[kind] || !states.some(s=>s.name===stateFocus[kind])) stateFocus[kind]=states[0].name;
+
+  const focus=states.find(s=>s.name===stateFocus[kind])||states[0];
+  const outgoing=focus.next.map(name=>states.find(s=>s.name===name)).filter(Boolean);
+  const incoming=states.filter(s=>s.next.indexOf(focus.name)>=0);
+
+  const leftX=70, focusX=620, outX=1420;
+  const topY=155, indexW=420, focusW=600, focusH=290, outW=440, outH=94, outGap=128;
+  const outgoingHeight=Math.max(1,outgoing.length)*outGap;
+  const requestExtra=kind==='micro'?230:0;
+  const bottomBase=Math.max(topY+470,topY+outgoingHeight+100);
+  graphBounds={x:0,y:0,w:1980,h:bottomBase+300+requestExtra};
+  svg.setAttribute('viewBox',`0 0 ${graphBounds.w} ${graphBounds.h}`);
+
+  g.appendChild(el('text',{x:70,y:58,'font-size':28,'font-weight':800,fill:'#fff'},map[2]));
+  g.appendChild(el('text',{x:70,y:90,class:'mini'},
+    `Parsed live from ${data.ref.file} · ${map[1]} · select a state to inspect only its outgoing transitions`));
+
+  // Left: state index. No arrows here; it is navigation.
+  g.appendChild(el('text',{x:leftX,y:132,'font-size':14,'font-weight':800,fill:'#91a6c0'},'STATES — click to focus'));
+  const indexCols=2,indexCellW=195,indexCellH=64;
+  states.forEach((s,i)=>{
+    const col=i%indexCols,row=Math.floor(i/indexCols),x=leftX+col*(indexCellW+14),y=topY+row*(indexCellH+12);
+    const selected=s.name===focus.name;
+    const gr=el('g',{class:'stateNode '+map[3],transform:`translate(${x},${y})`});
+    const rr=el('rect',{width:indexCellW,height:indexCellH,rx:13});
+    if(selected){rr.setAttribute('stroke','#ffffff');rr.setAttribute('stroke-width','3');}
+    gr.appendChild(rr);
+    gr.appendChild(el('text',{x:16,y:27,'font-size':15,'font-weight':800},s.name));
+    gr.appendChild(el('text',{x:16,y:48,class:'desc'},s.next.length?`${s.next.length} outgoing`:'terminal'));
+    gr.style.cursor='pointer';
+    gr.onclick=ev=>{ev.stopPropagation();stateFocus[kind]=s.name;stateView(kind);fit();};
+    g.appendChild(gr);
+  });
+
+  // Center: the selected state and its source-described meaning/exits.
+  g.appendChild(el('text',{x:focusX,y:132,'font-size':14,'font-weight':800,fill:'#91a6c0'},'FOCUSED STATE'));
+  const fg=el('g',{class:'stateNode '+map[3],transform:`translate(${focusX},${topY})`});
+  fg.appendChild(el('rect',{width:focusW,height:focusH,rx:22,stroke:'#ffffff','stroke-width':2.5}));
+  fg.appendChild(el('text',{x:26,y:40,'font-size':24,'font-weight':800},focus.name));
+  wrap(focus.meaning||'',68).slice(0,4).forEach((t,j)=>fg.appendChild(el('text',{x:26,y:76+j*20,class:'desc'},t)));
+  fg.appendChild(el('text',{x:26,y:176,'font-size':11,'font-weight':800,fill:'#9fb0c7'},'SOURCE EXIT DESCRIPTION'));
+  wrap(focus.exits||'—',72).slice(0,4).forEach((t,j)=>fg.appendChild(el('text',{x:26,y:200+j*19,class:'desc'},t)));
+  fg.style.cursor='pointer';
+  fg.onclick=()=>openSource(focus.ref,`${map[2]}: ${focus.name}`);
+  g.appendChild(fg);
+
+  // Right: ONLY outgoing transitions from the selected state.
+  g.appendChild(el('text',{x:outX,y:132,'font-size':14,'font-weight':800,fill:'#91a6c0'},
+    outgoing.length?'OUTGOING TRANSITIONS':'OUTGOING TRANSITIONS — NONE'));
+  if(!outgoing.length){
+    const term={id:'terminal-'+focus.name,label:'TERMINAL — path ends',x:outX,y:topY+55,w:390,h:120,type:'short',layer:map[3],ref:focus.ref};
+    node(g,term);
+    const a={x:focusX,y:topY,w:focusW,h:focusH,type:'process'};
+    edge(g,a,term,{from:'right',to:'left',label:'no legal next state'});
+  }else{
+    outgoing.forEach((s,i)=>{
+      const y=topY+i*outGap;
+      const gr=el('g',{class:'stateNode '+map[3],transform:`translate(${outX},${y})`});
+      gr.appendChild(el('rect',{width:outW,height:outH,rx:16}));
+      gr.appendChild(el('text',{x:20,y:31,'font-size':17,'font-weight':800},s.name));
+      const desc=s.name===focus.name?'SELF LOOP — remain in current state':(s.meaning||'');
+      wrap(desc,50).slice(0,2).forEach((t,j)=>gr.appendChild(el('text',{x:20,y:56+j*17,class:'desc'},t)));
+      gr.style.cursor='pointer';
+      gr.onclick=ev=>{ev.stopPropagation();stateFocus[kind]=s.name;stateView(kind);fit();};
+      g.appendChild(gr);
+
+      const sx=focusX+focusW, sy=topY+focusH/2;
+      const tx=outX, ty=y+outH/2;
+      if(s.name===focus.name){
+        const rail=focusX+focusW+95;
+        const p=el('path',{
+          d:`M${sx},${topY+focusH*.70} L${rail},${topY+focusH*.70} L${rail},${topY+focusH*.30} L${sx},${topY+focusH*.30}`,
+          class:'stateEdge self'
+        });
+        g.insertBefore(p,g.firstChild);
+        g.appendChild(el('text',{x:rail+12,y:topY+focusH/2,class:'stateLabel'},'SELF LOOP'));
+      }else{
+        const mid=focusX+focusW+90+i*22;
+        const p=el('path',{d:`M${sx},${sy} L${mid},${sy} L${mid},${ty} L${tx},${ty}`,class:'stateEdge'});
+        g.insertBefore(p,g.firstChild);
+      }
+    });
+  }
+
+  // Incoming transitions: list only. Drawing them would recreate the spaghetti problem.
+  const incomingY=Math.max(topY+focusH+105,topY+Math.max(1,outgoing.length)*outGap+35);
+  g.appendChild(el('text',{x:focusX,y:incomingY,'font-size':14,'font-weight':800,fill:'#91a6c0'},'CAN ENTER THIS STATE FROM'));
+  if(!incoming.length){
+    g.appendChild(el('text',{x:focusX,y:incomingY+32,class:'mini'},'No declared incoming state transition.'));
+  }else{
+    incoming.forEach((s,i)=>{
+      const x=focusX+(i%3)*205,y=incomingY+20+Math.floor(i/3)*62;
+      const gr=el('g',{class:'stateNode '+map[3],transform:`translate(${x},${y})`});
+      gr.appendChild(el('rect',{width:185,height:46,rx:12,opacity:.72}));
+      gr.appendChild(el('text',{x:92.5,y:29,'text-anchor':'middle','font-size':13,'font-weight':800},s.name));
+      gr.style.cursor='pointer';
+      gr.onclick=ev=>{ev.stopPropagation();stateFocus[kind]=s.name;stateView(kind);fit();};
+      g.appendChild(gr);
+    });
+  }
+
+  if(kind==='micro'){
+    const req=parseRequests(), y=bottomBase+70;
+    g.appendChild(el('text',{x:70,y,'font-size':16,'font-weight':800,fill:'#9fb0c7'},'EXTERNAL ENGAGEMENT REQUESTS — separate entry paths'));
+    req.forEach((r,i)=>{
+      const yy=y+36+i*42;
+      const active=r.next===focus.name || r.from.indexOf(focus.name)>=0;
+      g.appendChild(el('text',{x:70,y:yy,class:'mini',fill:active?'#e8f2ff':'#93a6be'},
+        `${r.name}: ${r.from.join(' / ')} → ${r.next} — ${r.reason}`));
+    });
+  }
+
+  if(kind==='meso'){
+    const y=bottomBase+55;
+    g.appendChild(el('text',{x:70,y,class:'warnText'},
+      'PHASE_STATES declares broad legal adjacency. For actual guard logic, use Deep branch CFG → executeMission() / updateCohesion().'));
+  }
+
+  status.textContent=`${map[2]} — focused on "${focus.name}". Only this state's outgoing arrows are drawn. Incoming states are listed without crossing lines. Click any state to refocus.`;
  }
 
  function cfgEdge(g,a,b,opt={}){
