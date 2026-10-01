@@ -1210,26 +1210,29 @@
     var c = SA().squadContact ? SA().squadContact(s.squad, battle) : null;
     return c && c.unit && !c.unit.dead ? c.unit : null;
   }
-  function proneProxy(s, pt, battle) {
+  function stanceProxy(s, pt, stance, battle) {
     return {
       root: {
         position: { x: pt.x, y: battle.heightAt(pt.x, pt.z), z: pt.z },
         rotation: { y: (s.root.rotation && +s.root.rotation.y) || 0 }
       },
-      prone: true,
-      crouching: false,
-      tacticalCrouch: false,
+      prone: stance === 'prone',
+      crouching: stance === 'crouch',
+      tacticalCrouch: stance === 'crouch',
       weapon: s.weapon,
       role: s.role,
       squad: s.squad
     };
   }
-  function proneLineClear(s, target, pt, battle) {
+  function firingLineClear(s, target, pt, stance, battle) {
     if (!s || !target || target.dead || !pt) return false;
-    var proxy = proneProxy(s, pt, battle);
+    var proxy = stanceProxy(s, pt, stance, battle);
     if (!SA().hasLineOfSight(proxy, target, battle.heightAt, battle.obstacles)) return false;
     var B = root.BattleBallistics;
     return !(B && B.fireLineBlocked && B.fireLineBlocked(proxy, target, battle));
+  }
+  function proneLineClear(s, target, pt, battle) {
+    return firingLineClear(s, target, pt, 'prone', battle);
   }
   /* A crest preparation is deliberately local. Sample only a few metres toward the observed man;
      the Movement Resolver still owns the legal physical step. This is not a new pathfinder. */
@@ -1253,15 +1256,15 @@
     return { x: p.x, z: p.z };
   }
   function fireControlReady(s, battle) {
-    if (!s || s.dead || !s.weapon || s.reloading || s.clearingStoppage || s.outOfAmmo || !s.prone || s.crawling)
-      return false;
+    if (!s || s.dead || !s.weapon || s.reloading || s.clearingStoppage || s.outOfAmmo || s.crawling) return false;
     if (s.moving && (s.moveSpeed || 0) > 0.16) return false;
     var target = fireControlTarget(s, battle);
     if (!target) return false;
     var p = posOf(s),
-      tp = posOf(target);
+      tp = posOf(target),
+      stance = s.prone ? 'prone' : s.tacticalCrouch || s.crouching ? 'crouch' : 'stand';
     if (dist(p.x, p.z, tp.x, tp.z) > SA().engageRange(s)) return false;
-    return proneLineClear(s, target, p, battle);
+    return firingLineClear(s, target, p, stance, battle);
   }
   function prepareFireControl(s, battle) {
     var target = fireControlTarget(s, battle),
@@ -2442,6 +2445,7 @@
     fireAuthorized: fireAuthorized,
     underFireNow: underFireNow,
     fireControlReady: fireControlReady,
+    firingLineClear: firingLineClear,
     crestPrepPoint: crestPrepPoint,
     commitStance: commitStance,
     requestStance: requestStance,
