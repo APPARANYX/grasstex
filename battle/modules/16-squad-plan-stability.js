@@ -348,6 +348,19 @@
         living: living
       });
 
+    /* A prone ambush posture is preferred, not a suicide pact with terrain. If the entire squad has
+       spent the preparation window with zero usable firing lines, the Squad Leader keeps HOLD FIRE but
+       releases the forced-prone drill so Engagement may seek fighting cover / a better local position.
+       Permission still stays closed; normal trigger and suppression paths remain gated. */
+    if (elapsed >= FIRE_CONTROL_TUNING.maxHold && ready === 0 && fc.state !== 'reposition')
+      return setFireControl(sq, battle, fc, 'reposition', 'no viable prone firing line', {
+        targetId: c.unit.id,
+        range: range,
+        strength: strength,
+        marksmanship: meanMkm,
+        ready: ready,
+        living: living
+      });
     /* Do not deadlock forever on one awkward crest. After a deliberate hold, two usable rifles are
        enough for the leader to accept the engagement even if the 70% preparation target was impossible. */
     if (elapsed >= FIRE_CONTROL_TUNING.maxHold && ready >= Math.min(2, living))
