@@ -750,8 +750,9 @@
      module off there is deliberately no remembered aimed-round status. */
   function recentIncoming(s, now, window) {
     if (!MODE.on || !s || !s.mind) return false;
-    var w = isFinite(+window) ? Math.max(0, +window) : UNDER_FIRE_WINDOW;
-    return (+now || 0) - (+s.mind.lastIncomingAt || -99) <= w;
+    var w = isFinite(+window) ? Math.max(0, +window) : UNDER_FIRE_WINDOW,
+      last = isFinite(+s.mind.lastIncomingAt) ? +s.mind.lastIncomingAt : -99;
+    return (+now || 0) - last <= w;
   }
   function bandName(s) {
     return BANDS[s && s.mind ? s.mind.band : 0];
