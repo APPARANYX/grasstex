@@ -245,9 +245,19 @@
   }
   /* Where the man is looking: his body's facing, or the squad's known threat if a head turn reaches it;
      with no known threat and standing still, his scan across the sector. */
+  function reactionState(soldier) {
+    var E = root.BattleEngagement;
+    return E && E.reactionState ? E.reactionState(soldier) : null;
+  }
+  function activeVisualThreat(soldier) {
+    /* Freeze is a temporary non-combatant presentation: enemies can still occupy the same world and
+       bullets already in flight still resolve, but Perception does not posture the squad around a dazed man. */
+    return !!soldier && !soldier.dead && reactionState(soldier) !== 'freeze';
+  }
   function lookYaw(soldier, battle) {
-    var body = soldier.root.rotation.y || 0,
-      c = battle && squadContact(soldier.squad, battle),
+    var body = soldier.root.rotation.y || 0;
+    if (reactionState(soldier) === 'freeze') return body;
+    var c = battle && squadContact(soldier.squad, battle),
       p = soldier.root.position;
     if (!c) return battle && !soldier.moving ? body + scanOffset(soldier, battle) : body;
     var toThreat = Math.atan2(c.x - p.x, c.z - p.z);
@@ -274,7 +284,7 @@
     scanBuffer.length = 0;
     for (i = 0; i < enemies.length; i++) {
       var e = enemies[i];
-      if (e.dead) continue;
+      if (!activeVisualThreat(e)) continue;
       var ex = e.root.position.x,
         ez = e.root.position.z,
         d = dist2(p.x, p.z, ex, ez);
@@ -295,7 +305,7 @@
   /* Eyes already on a man stay on him past the point where he could have been spotted cold. */
   function stillTracking(soldier, heightAt, obstacles) {
     var t = soldier.target;
-    if (!t || t.dead) return false;
+    if (!activeVisualThreat(t)) return false;
     var role = ROLES[soldier.role],
       p = soldier.root.position;
     if (dist2(p.x, p.z, t.root.position.x, t.root.position.z) > role.visionRange * TRACK_MARGIN * sightScale(soldier))
@@ -358,7 +368,13 @@
     return sq._centre;
   }
   function firstHand(c, battle) {
-    return !!(c && !c.heard && !c.relayedFrom && battle.time - c.at <= CONTACT_REFRESH);
+    return !!(
+      c &&
+      activeVisualThreat(c.unit) &&
+      !c.heard &&
+      !c.relayedFrom &&
+      battle.time - c.at <= CONTACT_REFRESH
+    );
   }
   /* What a squad learns without its own eyes: word from a neighbour squad within RELAY_RANGE that
      can see the enemy, else enemy gunfire within HEAR_RANGE. Once per squad per tick, and only
@@ -1039,6 +1055,13 @@
     var heightAt = battle.heightAt,
       obstacles = battle.obstacles,
       role = ROLES[soldier.role];
+    /* Frozen means dazed, not secretly scanning under the full-body clip. Clear both target and facing
+       input here, before the ordinary tracking/acquisition path can refresh squad contact. */
+    if (reactionState(soldier) === 'freeze') {
+      soldier.target = null;
+      soldier._faceHint = null;
+      return role;
+    }
     var had = soldier.target;
     if (had && !stillTracking(soldier, heightAt, obstacles)) soldier.target = null;
     if (!soldier.target && battle.time >= (soldier._scanAt || 0)) {
