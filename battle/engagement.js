@@ -1256,7 +1256,8 @@
     return { x: p.x, z: p.z };
   }
   function fireControlReady(s, battle) {
-    if (!s || s.dead || !s.weapon || s.reloading || s.clearingStoppage || s.outOfAmmo || s.crawling) return false;
+    if (!s || s.dead || !s.weapon || s.reloading || s.clearingStoppage || s.outOfAmmo || s.crawling)
+      return false;
     if (s.moving && (s.moveSpeed || 0) > 0.16) return false;
     var target = fireControlTarget(s, battle);
     if (!target) return false;
@@ -1404,6 +1405,11 @@
     return out;
   })();
   var ACTING = { cower: 1, flee: 1, freeze: 1, rage: 1 };
+  /* `?rageLock=1`: the charge measures the enemy the break measured. Off (the default while it is measured), the break
+     reads the squad's trouble and the charge his own target first, so a man whose target is past RAGE_REACH while the
+     squad's contact is inside RAGE_RANGE breaks into rage and gives it up on the same tick, every tick (and each break
+     renews the guard). On, the charge goes for the nearer of the two, so it cannot end on the tick it began. */
+  var RAGE_LOCK = /[?&]rageLock=1(?:&|#|$)/.test((typeof location !== 'undefined' && location.search) || '');
   var ACT_TUNING = {
     COWER_QUIET: 3, // cower: he stays down until the fire on him has been quiet this long
     REACT_MIN: 4, // a break lasts at least this long: nobody snaps out of it in a tick
@@ -1642,6 +1648,14 @@
       tg = s.target && !s.target.dead ? s.target : null,
       goal = tg ? posOf(tg) : th,
       d = goal ? dist(p.x, p.z, goal.x, goal.z) : Infinity;
+    if (RAGE_LOCK && th) {
+      var dTrouble = dist(p.x, p.z, th.x, th.z);
+      if (dTrouble < d) {
+        goal = th;
+        d = dTrouble;
+      }
+    }
+    var dTarget = tg ? dist(p.x, p.z, posOf(tg).x, posOf(tg).z) : Infinity;
     s.state = 'engage';
     s.setUp = false;
     if (d > ACT_TUNING.RAGE_REACH) return false; // nobody to charge: it is over
@@ -1651,7 +1665,7 @@
     else holdPosition(s, battle);
     if (tg) {
       fireOnTheMove(s, battle);
-      if (d <= ACT_TUNING.MELEE_RANGE) strike(s, battle, tg);
+      if (dTarget <= ACT_TUNING.MELEE_RANGE) strike(s, battle, tg);
     }
     return true;
   }
@@ -2480,6 +2494,7 @@
       CRAWL_FIT: CRAWL_FIT,
       CONTACT_STANCE: CONTACT_STANCE,
       ACT: ACT,
+      RAGE_LOCK: RAGE_LOCK,
       ACT_TUNING: ACT_TUNING
     }
   };
