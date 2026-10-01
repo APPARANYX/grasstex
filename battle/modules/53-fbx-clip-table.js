@@ -55,7 +55,18 @@ var CLIPS={
   idleLook:['Rifle Idle Looking Around - Rifle Idle',1],idleTwoHand:['Two Hand Rifle Idle - Rifle Idle',1],
   idleFidget:['Idle Holding A Rifle While Shaking Legs - Rifle Idle',1],
   /* Flinches when suppressive fire lands close. */
-  flinch:['Rifle Shielding Face From Debris - Rifle Shielding Face',0],flinchCrouch:['Duck And Look Around Apprehensively - Gunplay',0]
+  flinch:['Rifle Shielding Face From Debris - Rifle Shielding Face',0],flinchCrouch:['Duck And Look Around Apprehensively - Gunplay',0],
+  /* Stress reactions. Non-looping full-body clips are kept in place because navigation owns the
+     soldier root; the backend cross-fades them into their hold or locomotion clip. */
+  reactionCowerEnter:['Stand to Praying Kneeling',0,'inplace'],
+  reactionCowerHold:['Praying Idle Kneeling',1],
+  reactionCowerExit:['Praying Kneeling to Stand',0,'inplace'],
+  reactionFreezeEnter:['Stand to Terrified',0,'inplace'],
+  reactionFreezeStanding:['Praying Idle Standing',1],
+  reactionFreezeSitting:['Sitting Dazed',1],
+  reactionFreezeFallen:['Fallen Idle',0,'inplace'],
+  reactionFleeEnter:['Flee Start',0,'turn'],
+  reactionFleeRun:['Flee Running',1]
 };
 Object.keys(FAMILIES).forEach(function(f){var p=FAMILIES[f];DIRS.forEach(function(d,i){CLIPS[f+i]=[p[0]+d+p[1]+d,1];});});
 /* Four-way in-place families (forward, right, backward, left); diagonals use forward or backward. */
