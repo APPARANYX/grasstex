@@ -37,16 +37,19 @@
         now = sim.time;
       for (var i = 0; i < men.length; i++) {
         var s = men[i];
+        if (!s) continue;
+        /* A man who stops qualifying starts his clock again when he does (the benchmark runner and module 97 do the same). */
         if (
-          !s ||
           s.dead ||
           !s.root ||
           !s.destination ||
           s.target ||
-          !ADVANCE[(s.squad && s.squad.commandPhase) || '']
-        )
+          !ADVANCE[(s.squad && s.squad.commandPhase) || ''] ||
+          COMBAT[(s.eng && s.eng.state) || '']
+        ) {
+          track.delete(s);
           continue;
-        if (COMBAT[(s.eng && s.eng.state) || '']) continue;
+        }
         var p = s.root.position,
           d = Math.hypot(p.x - s.destination.x, p.z - s.destination.z),
           prior = track.get(s);
@@ -99,14 +102,24 @@
                     blocked: !!s._physicalPath.blocked,
                     replanIn: +(s._physicalPath.replanAt - now).toFixed(1),
                     points: (s._physicalPath.points || []).slice(0, 3).map(function (q) {
-                      return { x: +q.x.toFixed(1), z: +q.z.toFixed(1), away: +Math.hypot(q.x - p.x, q.z - p.z).toFixed(2) };
+                      return {
+                        x: +q.x.toFixed(1),
+                        z: +q.z.toFixed(1),
+                        away: +Math.hypot(q.x - p.x, q.z - p.z).toFixed(2)
+                      };
                     }),
                     queue: (s._physicalPath.points || []).length
                   }
                 : null,
               near: root.BattleObstacleField
                 ? root.BattleObstacleField.nearby(sim.obstacles, p.x, p.z, 5).map(function (o) {
-                    return { kind: o.kind || o.type || null, dx: +(o.x - p.x).toFixed(1), dz: +(o.z - p.z).toFixed(1), r: +(+o.radius).toFixed(2), phys: o.physicalId != null };
+                    return {
+                      kind: o.kind || o.type || null,
+                      dx: +(o.x - p.x).toFixed(1),
+                      dz: +(o.z - p.z).toFixed(1),
+                      r: +(+o.radius).toFixed(2),
+                      phys: o.physicalId != null
+                    };
                   })
                 : null
             });

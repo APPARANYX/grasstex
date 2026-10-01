@@ -38,6 +38,7 @@ function load(r, file) {
   });
 }
 const SEED = +(process.env.HARNESS_SEED || 12345);
+const load_tuning = () => H.bootstrap({ search: '' }).BattleEngagement.tuning.ACT_TUNING;
 
 /* One US squad at the origin facing +z, one GE squad far off. `q` is the page query. The men not under test are parked
    far enough that nobody is a neighbour. */
@@ -467,6 +468,55 @@ test("rage: charges the enemy, fires on the move, strikes at arm's length, and e
   far.s.eng.lastSeen = null;
   tick(far.ctx, far.s, 0.6);
   assert.notEqual(far.s.eng.state, 'rage', 'with no enemy in reach he stops');
+});
+
+test('rage: for RAGE_GUARD_SECONDS a hit does a quarter of its damage, of its chance to drop him and of its bleed; the same two draws', () => {
+  const T = load_tuning();
+  const ctx0 = broke('?stressAct=rage', [0, 0, 0.95], 50);
+  assert.equal(ctx0.s.eng.state, 'rage');
+  assert.ok(ctx0.s.eng.guardUntil > ctx0.ctx.b.time, 'the guard is up from the moment he breaks');
+  assert.ok(ctx0.s.eng.guardUntil <= ctx0.ctx.b.time + T.RAGE_GUARD_SECONDS + 1e-9, 'for RAGE_GUARD_SECONDS');
+  const W = ctx0.ctx.r.BattleWounds,
+    shooter = ctx0.g;
+  /* A man to compare him with: the same hit on a man who never broke. */
+  const ref = man(ctx0.ctx.us, 'rifleman', 1);
+  /* One hit with a fixed roll, counting the draws it takes. */
+  function hit(ctx, victim, zone, roll) {
+    let draws = 0;
+    ctx.b.random = () => (draws++, roll);
+    victim.hp = 1e6;
+    victim.bleedRate = 0;
+    victim.casualty = null;
+    victim.dead = false;
+    const res = W.wound(shooter, victim, ctx.b, { zone: zone, energy: 1, power: 1 });
+    return { res, draws, bleed: victim.bleedRate || 0, dead: !!victim.dead };
+  }
+  /* Damage and bleed: a leg hit that cannot drop him on this roll. */
+  const g1 = hit(ctx0.ctx, ctx0.s, 'leg', 0.5),
+    r1 = hit(ctx0.ctx, ref, 'leg', 0.5);
+  assert.ok(r1.res.damage > 0 && r1.bleed > 0);
+  assert.ok(Math.abs(g1.res.damage - r1.res.damage * T.RAGE_GUARD_SCALE) < 1e-9, 'a quarter of the damage');
+  assert.ok(Math.abs(g1.bleed - r1.bleed * T.RAGE_GUARD_SCALE) < 1e-9, 'a quarter of the bleed');
+  assert.equal(g1.draws, r1.draws, 'the same number of draws from the combat RNG, guarded or not');
+  /* The chance to drop him: a chest hit (0.55 to drop) on a roll of 0.2 drops an unguarded man and not a guarded one. */
+  const g2 = hit(ctx0.ctx, ctx0.s, 'chest', 0.2),
+    r2 = hit(ctx0.ctx, ref, 'chest', 0.2);
+  assert.equal(r2.res.outcome, 'dropped', 'unguarded: dropped');
+  assert.equal(g2.res.outcome, 'wounded', 'guarded: 0.2 is above a quarter of the chance');
+  /* What the guard saved is counted. */
+  const acts = ctx0.ctx.M.of(ctx0.s).acts.rage;
+  assert.equal(acts.guarded, 2);
+  assert.ok(acts.saved > 0, 'hp saved ' + acts.saved);
+  /* After RAGE_GUARD_SECONDS it is over: the whole hit. */
+  ctx0.ctx.b.time = ctx0.s.eng.guardUntil + 0.01;
+  const g3 = hit(ctx0.ctx, ctx0.s, 'leg', 0.5);
+  assert.ok(Math.abs(g3.res.damage - r1.res.damage) < 1e-9, 'the whole hit again');
+  assert.equal(acts.guarded, 2, 'and not counted');
+  /* Nobody else has it: not a cowering man, not a man who froze, not one who never broke. */
+  const c = broke('?stressAct=cower,freeze', [0, 0.9, 0.1], 100);
+  assert.ok(!(c.s.eng.guardUntil > 0), 'no guard but a berserk one');
+  assert.equal(c.ctx.E.guardOnHit(c.s, c.ctx.b, 1), 1);
+  assert.equal(c.ctx.E.guardOnHit(ref, c.ctx.b, 1), 1);
 });
 
 test('a break lasts at least REACT_MIN, ends once he is below broken, and he rejoins the fight', () => {
