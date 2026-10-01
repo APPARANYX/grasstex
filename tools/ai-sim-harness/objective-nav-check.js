@@ -431,7 +431,7 @@ section('physical wayfinding respects body clearance through hedgerows');
   const room={id:'room',x:0,z:0,w:12,d:12,rot:.4,openings:[{id:'door',type:'door',side:'south',offset:0,width:2},{id:'window',type:'window',side:'north',offset:0,width:1.25,bottom:.92,top:2.08}]};
   const roomWorld=world([]);roomWorld.scene.metadata.battleScenario={buildings:[room]};N.installScenario(roomWorld.scene.metadata.battleScenario);
   const station=N.firingStations[0];
-  check('window stations are inset by half the previous 1.55 metres',Math.abs(Math.hypot(station.x-station.windowX,station.z-station.windowZ)-.775)<1e-8);
+  check('a window station sits at its port inset (.45 m: just behind the wall\'s inner face; the old station was .775)',Math.abs(Math.hypot(station.x-station.windowX,station.z-station.windowZ)-station.port.inset)<1e-8&&station.port.inset===.45);
   const windowWalk=walkPhysical(roomWorld,{x:0,z:0},station,15);
   check('soldiers actually reach the closer window station',Math.hypot(windowWalk.man.root.position.x-station.x,windowWalk.man.root.position.z-station.z)<=.35&&windowWalk.illegal===0);
   const entering=walkPhysical(roomWorld,{x:-Math.sin(room.rot)*12,z:-Math.cos(room.rot)*12},station,25);

@@ -30,7 +30,10 @@
       ingressRoutesInvalidated: 0,
       releasedLifetime: 0,
       assignmentsByRole: {},
-      captainWindowAssignments: 0
+      captainWindowAssignments: 0,
+      portPoseAdjustments: 0,
+      portTicksBlocked: 0,
+      portTicksClear: 0
     };
   }
   function context(sim) {
@@ -48,6 +51,51 @@
   function station(s) {
     var t = current(s);
     return t ? t.position : null;
+  }
+  /* Where the man stands: the station's anchor, or the bounded local pose solved at the sill. */
+  function anchorOf(t) {
+    return t.pose ? { x: t.pose.x, z: t.pose.z } : { x: t.position.x, z: t.position.z };
+  }
+  function anchor(s) {
+    var t = current(s);
+    return t ? anchorOf(t) : null;
+  }
+  /* Local firing-pose correction (Engagement asks, this owner records it). Bounded to the port: lateral
+     along the sill within `maxLateral`, forward toward the wall within `maxForward`, and a stance the
+     port lists. It never changes the assignment, the reservation or the route. */
+  function adjustPose(s, sim, req) {
+    var t = current(s),
+      st = t && t.position,
+      port = st && st.port;
+    if (!port) return false;
+    var cur = t.pose || { lat: 0, fwd: 0, stance: port.stance },
+      lat = req.lat == null ? cur.lat : Math.max(-port.maxLateral, Math.min(port.maxLateral, req.lat)),
+      fwd = req.fwd == null ? cur.fwd : Math.max(0, Math.min(port.maxForward, req.fwd)),
+      stance = req.stance && port.stances.indexOf(req.stance) >= 0 ? req.stance : cur.stance;
+    if (lat === cur.lat && fwd === cur.fwd && stance === cur.stance) return false;
+    var tx = -st.normalZ,
+      tz = st.normalX;
+    t.pose = {
+      lat: lat,
+      fwd: fwd,
+      stance: stance,
+      x: st.x + tx * lat + st.normalX * fwd,
+      z: st.z + tz * lat + st.normalZ * fwd
+    };
+    context(sim).stats.portPoseAdjustments++;
+    return true;
+  }
+  /* Engagement reports what the aperture lets him do; this owner keeps it with the task for diagnostics. */
+  function noteAperture(s, sim, info) {
+    var t = current(s);
+    if (!t) return;
+    info.at = sim.time;
+    t.aperture = info;
+    var st = context(sim).stats;
+    if (info.target != null) {
+      if (info.eye && info.eye.ok && info.muzzle && info.muzzle.ok) st.portTicksClear++;
+      else st.portTicksBlocked++;
+    }
   }
   function eligible(s) {
     return !!(
@@ -183,7 +231,7 @@
       context(sim).stats.ingressRoutesCreated++;
       emit(sim, 'ingress', t, { door: t.route.door, reason: 'geometry-changed' });
     }
-    var ingressDist = distance(s.root.position, t.position);
+    var ingressDist = distance(s.root.position, anchorOf(t));
     if (t.lastIngressDist == null || ingressDist < t.lastIngressDist - 0.2) {
       t.lastIngressDist = ingressDist;
       t.lastIngressAt = sim.time;
@@ -274,6 +322,7 @@
         dz = threat.z - st.windowZ,
         len = Math.hypot(dx, dz) || 1;
       if ((dx * st.normalX + dz * st.normalZ) / len < 0.32) return false;
+      if (st.port && !N.inSector(st, threat)) return false;
       /* Passing over a window someone else holds is ordinary selection, not a collision: counting it
          as one made the collision figure swing 23 to 3,838 with how many men searched near taken
          windows, while bodies at stations never stacked. */
@@ -335,8 +384,9 @@
       N.movementClear(here, r.steps[r.index + 1])
     )
       r.index++;
+    var last = r.index >= r.steps.length - 1;
     return {
-      point: point(r.steps[r.index]),
+      point: last ? anchorOf(t) : point(r.steps[r.index]),
       reason: 'position-ingress',
       intent: point(t.position),
       step: r.index,
@@ -359,6 +409,7 @@
     out.currentLiveAssignments = live.length;
     out.live = live;
     out.recentReleases = c.history;
+    out.rejectedWindows = N.rejectedWindows || [];
     return snapshot(out);
   }
   function publish(sim) {
@@ -384,6 +435,9 @@
     },
     current: current,
     station: station,
+    anchor: anchor,
+    adjustPose: adjustPose,
+    noteAperture: noteAperture,
     eligible: eligible,
     claim: claim,
     release: release,
