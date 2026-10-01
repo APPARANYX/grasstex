@@ -438,7 +438,7 @@
         cower: { n: 0, sec: 0 },
         flee: { n: 0, sec: 0 },
         freeze: { n: 0, sec: 0 },
-        rage: { n: 0, sec: 0, strikes: 0, hits: 0 }
+        rage: { n: 0, sec: 0, strikes: 0, hits: 0, guarded: 0, saved: 0 }
       },
       fightAt: -99, // the last time his squad was in contact or he was under fire (lasting)
       held: 0, // seconds stress did not drain because the fight was still on (lasting)
@@ -844,6 +844,10 @@
     else if (what === 'time') a.sec += dt;
     else if (what === 'strike') a.strikes++;
     else if (what === 'hit') a.hits++;
+    else if (what === 'guard') {
+      a.guarded++;
+      a.saved += dt;
+    }
   }
   /* The freeze blocked a decision that was otherwise his to make; `kind` says which one. The shock has no
      denominator: nothing is counted for a decision it did not touch. */
@@ -1048,7 +1052,7 @@
         cower: { n: 0, sec: 0 },
         flee: { n: 0, sec: 0 },
         freeze: { n: 0, sec: 0 },
-        rage: { n: 0, sec: 0, strikes: 0, hits: 0 }
+        rage: { n: 0, sec: 0, strikes: 0, hits: 0, guarded: 0, saved: 0 }
       }
     };
   }
@@ -1088,6 +1092,8 @@
     }
     to.acts.rage.strikes += from.acts.rage.strikes;
     to.acts.rage.hits += from.acts.rage.hits;
+    to.acts.rage.guarded += from.acts.rage.guarded;
+    to.acts.rage.saved += from.acts.rage.saved;
   }
   function totalsOut(t) {
     var decisions = {};
@@ -1113,6 +1119,8 @@
     });
     acts.rage.strikes = t.acts.rage.strikes;
     acts.rage.hits = t.acts.rage.hits;
+    acts.rage.guarded = t.acts.rage.guarded;
+    acts.rage.savedHp = +t.acts.rage.saved.toFixed(2);
     return {
       acts: acts,
       memory: {

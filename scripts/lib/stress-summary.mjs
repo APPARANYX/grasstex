@@ -140,6 +140,8 @@ export function summarizeStress(battles) {
   );
   acts.rage.strikes = sum(rows, b => b.stress.acts?.rage?.strikes);
   acts.rage.hits = sum(rows, b => b.stress.acts?.rage?.hits);
+  acts.rage.guarded = sum(rows, b => b.stress.acts?.rage?.guarded);
+  acts.rage.savedHp = round(sum(rows, b => b.stress.acts?.rage?.savedHp));
   return {
     format: 'grasstex-stress-summary-v1',
     battles: n,
@@ -221,7 +223,7 @@ export function stressMarkdown(s) {
       : []),
     ...(s.acts && ACTS_LABELS.some(k => s.acts[k].n)
       ? [
-          `- Stress reactions: ${ACTS_LABELS.map(k => `${k} ${s.acts[k].n} (${s.acts[k].seconds} s)`).join(' · ')} · charge blows ${s.acts.rage.strikes} struck, ${s.acts.rage.hits} landed`
+          `- Stress reactions: ${ACTS_LABELS.map(k => `${k} ${s.acts[k].n} (${s.acts[k].seconds} s)`).join(' · ')} · charge blows ${s.acts.rage.strikes} struck, ${s.acts.rage.hits} landed${s.acts.rage.guarded ? ` · hits taken under the berserk guard ${s.acts.rage.guarded} (${s.acts.rage.savedHp} hp saved)` : ''}`
         ]
       : []),
     `- Per battle (p50 / p90 / max): shaken-or-worse man-time ${s.perBattle.shakenPlusPercent.p50}% / ${s.perBattle.shakenPlusPercent.p90}% / ${s.perBattle.shakenPlusPercent.max}% · squad-seconds over ${s.perBattle.squadSecondsOver.p50} / ${s.perBattle.squadSecondsOver.p90} / ${s.perBattle.squadSecondsOver.max} · shocks ${s.perBattle.shocks.p50} / ${s.perBattle.shocks.p90} / ${s.perBattle.shocks.max}`
