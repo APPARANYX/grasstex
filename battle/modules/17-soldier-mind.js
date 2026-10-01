@@ -40,9 +40,27 @@
   var LEVERS = ['react', 'aim', 'hesitate', 'shock', 'morale'];
   /* The levers a man's own decisions are counted for (the Squad Leader's `morale` is a squad decision, not a man's). */
   var DECIDED = ['react', 'aim', 'hesitate', 'shock'];
+  /* What a man carries from one moment of the fight to the next, each off unless named: `?stressMem=lasting,floor,relief`
+     (or `1`/`all` for the three). `lasting`: stress does not drain on its timer while the fight goes on, only once
+     the squad has been out of contact (and he out of fire) for CALM_AFTER. `floor`: a ratchet of how hurt he is
+     times how shaken he was; nothing takes his stress below it. `relief`: kills, a captured objective, reaching
+     cover under fire and a spell of fire survived take stress off, down to the floor and no further. */
+  var MEMORIES = ['lasting', 'floor', 'relief'];
+  function parseMemory(search) {
+    var m = /[?&]stressMem=([^&#]*)/.exec(search || ''),
+      out = {},
+      v = m ? decodeURIComponent(m[1]).toLowerCase() : '',
+      i;
+    if (v === '1' || v === 'on' || v === 'all') for (i = 0; i < MEMORIES.length; i++) out[MEMORIES[i]] = true;
+    else if (v && v !== '0' && v !== 'off')
+      v.split(',').forEach(function (k) {
+        if (MEMORIES.indexOf(k) >= 0) out[k] = true;
+      });
+    return out;
+  }
   function parse(search) {
     var m = /[?&]mind=([^&#]*)/.exec(search || ''),
-      out = { on: true, flag: 'default', levers: {} },
+      out = { on: true, flag: 'default', levers: {}, memory: parseMemory(search) },
       i;
     var v = m ? decodeURIComponent(m[1]).toLowerCase() : '';
     if (!m || v === '1' || v === 'on' || v === 'all' || v === '') {
@@ -286,6 +304,9 @@
     CONTAGION_RANGE = 8,
     ISOLATED_RANGE = 30,
     STEADY_NEIGHBOUR_RANGE = 8;
+  /* Stress that lasts (`?stressMem=`). Numbers are declared here and read nowhere else; none was tuned to an outcome. */
+  var CALM_AFTER = 12, // lasting: seconds out of contact and out of fire before stress starts to drain
+    RELIEF = { kill: 0.12, objective: 0.15, cover: 0.06, survived: 0.05 }; // relief: stress taken off (times his nerve) by each kind
   /* Calming multiplies TAU (smaller = faster). */
   var LEADER_CALM = 0.65,
     COVER_CALM = 0.8,
@@ -383,7 +404,17 @@
       hesitations: 0,
       decided: { react: dose(), aim: dose(), hesitate: dose(), shock: dose() },
       lapsed: 0,
-      shockKinds: { fire: 0, suppress: 0, bound: 0, advance: 0 }
+      shockKinds: { fire: 0, suppress: 0, bound: 0, advance: 0 },
+      fightAt: -99, // the last time his squad was in contact or he was under fire (lasting)
+      held: 0, // seconds stress did not drain because the fight was still on (lasting)
+      floor: 0, // the lowest stress can go (floor)
+      lost: 0, // the share of his health gone when the floor was last looked at
+      relieved: {
+        kill: { n: 0, amt: 0 },
+        objective: { n: 0, amt: 0 },
+        cover: { n: 0, amt: 0 },
+        survived: { n: 0, amt: 0 }
+      }
     };
   }
   function of(s) {
@@ -452,10 +483,12 @@
 
     /* What happened around him and to him since he last looked, in the queue's fixed priority order:
        a friend down, a wound, a suppression, then the fire on him. */
-    var woundsTaken = 0;
+    var woundsTaken = 0,
+      relief = null;
     E.drain(s, 'soldier-mind', function (kind, d, at) {
       if (kind === 'casualty') gain += witness(s, m, d, battle, now);
       else if (kind === 'wound') woundsTaken += d.count;
+      else if (RELIEF[kind] != null) (relief || (relief = [])).push(kind);
       else if (kind === 'suppressed') m.pinnedUntil = Math.max(m.pinnedUntil, d.until);
       else if (kind === 'aimed') {
         var near = clamp(1 - d.d / INCOMING_FAR, 0, 1);
@@ -523,7 +556,18 @@
     if (inCover(s, m, battle, now)) tau *= COVER_CALM;
     tau *= 1 - COMPANY_CALM * Math.min(3, steady);
     if (underFire) tau *= UNDER_FIRE_SLOW;
+    var mem = MODE.memory;
+    if (mem.lasting) {
+      /* The fight is on while his squad is in contact or he is under fire; it is over CALM_AFTER after both stop. */
+      if (sq.inContact || underFire) m.fightAt = now;
+      if (now - m.fightAt < CALM_AFTER) {
+        if (m.stress > 0) m.held += dt;
+        tau = Infinity;
+      }
+    }
     m.stress = clamp(m.stress * Math.exp(-dt / tau) + gain, 0, 1);
+    if (mem.floor) floorStress(s, m);
+    if (relief) for (i = 0; i < relief.length; i++) relieve(m, relief[i], mem.floor);
     if (m.stress > m.peak) m.peak = m.stress;
 
     var band = m.band;
@@ -535,6 +579,30 @@
     }
     m.time[band] += dt;
     aggregate(sq, now);
+  }
+  /* The floor (`?stressMem=floor`): whenever his health or his stress changes it becomes the larger of itself and
+     (share of health lost) x stress, so it only rises while he is hurt; nothing takes his stress below it. If he
+     is healed it falls by the share of his lost health that came back (floor x lost now / lost before): healed
+     to full it is gone. A man who was never hurt has none. Nothing heals a man yet, so the heal branch only
+     runs once there are medics. */
+  function lostShare(s) {
+    return s.maxHp > 0 ? clamp(1 - s.hp / s.maxHp, 0, 1) : 0;
+  }
+  function floorStress(s, m) {
+    var lost = lostShare(s);
+    if (lost < m.lost) m.floor = m.lost > 0 ? m.floor * (lost / m.lost) : 0;
+    m.lost = lost;
+    if (m.stress < m.floor) m.stress = m.floor;
+    m.floor = Math.max(m.floor, lost * m.stress);
+  }
+  /* Relief (`?stressMem=relief`): a kill, a captured objective, cover reached under fire, a spell of fire survived
+     take `RELIEF[kind]` x his nerve off his stress, never below his floor. `amt` is what it really took off. */
+  function relieve(m, kind, floored) {
+    var before = m.stress,
+      low = floored ? m.floor : 0;
+    m.stress = Math.max(low, m.stress - RELIEF[kind] * m.nerve);
+    m.relieved[kind].n++;
+    m.relieved[kind].amt += before - m.stress;
   }
   /* Squad status upward, once per AI time: read from the last tick, one tick behind the men who have
      not yet ticked. Nothing reads it yet but the diagnostics export (Slice 2 is the Squad Leader). */
@@ -622,7 +690,7 @@
     var r = function (n) {
       return +n.toFixed(3);
     };
-    return {
+    var out = {
       stress: r(m.stress),
       band: BANDS[m.band],
       peak: r(m.peak),
@@ -638,6 +706,8 @@
         broken: r(m.time[3])
       }
     };
+    if (Object.keys(MODE.memory).length) out.memory = { floor: r(m.floor), held: r(m.held) };
+    return out;
   }
   /* One battle's totals, for the export and the benchmark: where the man-seconds went, per faction, and
      what every source of stress added. */
@@ -645,6 +715,7 @@
     var out = {
       mode: MODE.flag,
       levers: Object.keys(MODE.levers),
+      memory: Object.keys(MODE.memory),
       manSeconds: 0,
       bandShare: { steady: 0, shaken: 0, rattled: 0, broken: 0 },
       peakBand: { steady: 0, shaken: 0, rattled: 0, broken: 0 },
@@ -898,7 +969,19 @@
       hesitations: 0,
       lapsed: 0,
       kinds: { fire: 0, suppress: 0, bound: 0, advance: 0 },
-      decided: { react: dose(), aim: dose(), hesitate: dose(), shock: dose() }
+      decided: { react: dose(), aim: dose(), hesitate: dose(), shock: dose() },
+      memory: {
+        held: 0,
+        floorMen: 0,
+        floorSum: 0,
+        floorMax: 0,
+        relief: {
+          kill: { n: 0, amt: 0 },
+          objective: { n: 0, amt: 0 },
+          cover: { n: 0, amt: 0 },
+          survived: { n: 0, amt: 0 }
+        }
+      }
     };
   }
   function addTotals(to, from) {
@@ -921,6 +1004,16 @@
       for (b = 0; b < 4; b++) x.byBand[b] += y.byBand[b];
       if (y.at >= 0 && (x.at < 0 || y.at < x.at)) x.at = y.at;
     }
+    var xm = to.memory,
+      ym = from.memory;
+    xm.held += ym.held;
+    xm.floorMen += ym.floorMen;
+    xm.floorSum += ym.floorSum;
+    if (ym.floorMax > xm.floorMax) xm.floorMax = ym.floorMax;
+    for (k in xm.relief) {
+      xm.relief[k].n += ym.relief[k].n;
+      xm.relief[k].amt += ym.relief[k].amt;
+    }
   }
   function totalsOut(t) {
     var decisions = {};
@@ -936,7 +1029,21 @@
     });
     decisions.hesitate.lapsed = t.lapsed;
     decisions.shock.kinds = t.kinds;
+    var relief = {};
+    Object.keys(t.memory.relief).forEach(function (k) {
+      relief[k] = { n: t.memory.relief[k].n, amount: r3(t.memory.relief[k].amt) };
+    });
     return {
+      memory: {
+        flags: Object.keys(MODE.memory),
+        heldSeconds: +t.memory.held.toFixed(1),
+        floor: {
+          men: t.memory.floorMen,
+          mean: r3(t.memory.floorMen ? t.memory.floorSum / t.memory.floorMen : 0),
+          max: r3(t.memory.floorMax)
+        },
+        relief: relief
+      },
       men: t.men,
       bandSeconds: bands(
         t.bandSeconds.map(function (n) {
@@ -963,7 +1070,14 @@
       hesitations: m.hesitations,
       lapsed: m.lapsed,
       kinds: m.shockKinds,
-      decided: m.decided
+      decided: m.decided,
+      memory: {
+        held: m.held,
+        floorMen: m.floor > 0 ? 1 : 0,
+        floorSum: m.floor,
+        floorMax: m.floor,
+        relief: m.relieved
+      }
     };
   }
   function squadOut(ser, side) {
@@ -1051,6 +1165,7 @@
 
   function subscribe() {
     root.BattleSoldierEvents.subscribe('soldier-mind', ['casualty', 'wound', 'suppressed', 'aimed']);
+    if (MODE.memory.relief) root.BattleSoldierEvents.subscribe('soldier-mind', Object.keys(RELIEF));
   }
   if (MODE.on) subscribe();
   root.SquadAI.extend('beforeSoldier', 'soldier-mind', tick);
@@ -1082,7 +1197,9 @@
       SHOCK_MAX: SHOCK_MAX,
       SHOCK_REFRACTORY: SHOCK_REFRACTORY,
       DOSE_SQUAD_MEAN: DOSE_SQUAD_MEAN,
-      DOSE_SQUAD_MEN: DOSE_SQUAD_MEN
+      DOSE_SQUAD_MEN: DOSE_SQUAD_MEN,
+      CALM_AFTER: CALM_AFTER,
+      RELIEF: RELIEF
     },
     READERS: READERS,
     mode: function () {
