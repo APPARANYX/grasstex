@@ -1,7 +1,8 @@
 /* Paired report for two standard-benchmark arms run on one seed prefix.
  *   node scripts/compare_benchmark_arms.cjs [--json] [--count path ...] A.json[,A2.json] B.json[,B2.json]
  * Each argument is a merged battle-benchmark.json (a comma list pools several seed prefixes; the two
- * lists must hold the same prefixes in the same order). Battles pair on `seed`. Reported:
+ * lists must hold the same prefixes in the same order). Battles pair on `seed`: a scripted run's records are one per
+ * measured window, `<seed>-contact` and `<seed>-t500`, so a window only one arm reached is `unpaired`. Reported:
  *   - per-battle identity (every field except wall time and run provenance) and how many battles changed at all,
  *     and, when the records carry a `timeline`, the simulated second at which the changed battles first diverge;
  *   - exact two-sided McNemar (binomial on the discordant pairs) for the winner (US vs GE flips),
@@ -24,7 +25,7 @@
 'use strict';
 const fs = require('node:fs');
 const GATE = 1.25;
-const NOT_STATE = new Set(['wallSeconds', 'index', 'cpuWallSeconds']);
+const NOT_STATE = new Set(['wallSeconds', 'windowWallSeconds', 'index', 'cpuWallSeconds']);
 /* Provenance that names the run and not the battle, left out of identity: the page's BATTLE_REF is
    `local-<mtime of the checkout>`, so the timeline's `ref` differs between any two runs of one commit. */
 const NOT_STATE_PATHS = ['timeline.ref', 'timeline.build'];

@@ -84,7 +84,7 @@ const run = (a, b, extra) => {
 (async () => {
   await test('a record is the same battle whatever the clock, the index and the run said', () => {
     const a = battle('s1'),
-      b = battle('s1', { index: 7, wallSeconds: 99, cpuWallSeconds: 5 });
+      b = battle('s1', { index: 7, wallSeconds: 99, windowWallSeconds: 41, cpuWallSeconds: 5 });
     b.timeline = Object.assign({}, b.timeline, { ref: 'local-2000', build: 'v30' });
     assert.equal(stateOf(a), stateOf(b));
     assert.notEqual(stateOf(a), stateOf(battle('s1', { captures: 3 })), 'a real field still counts');
@@ -92,6 +92,22 @@ const run = (a, b, extra) => {
     c.timeline = Object.assign({}, c.timeline, { samples: samples(30, 12) });
     assert.notEqual(stateOf(a), stateOf(c), 'and so does the timeline itself');
     assert.equal(a.timeline.ref, 'local-1000', 'the records are not edited to compare them');
+  });
+
+  await test('scripted windows pair on <seed>-<window>: a window one arm never reached is unpaired, not compared with another', () => {
+    const win = (label, over) =>
+      battle('scripted-1-' + label, Object.assign({ window: { label }, windowWallSeconds: 3 }, over || {}));
+    const off = [win('contact'), win('t500')],
+      on = [win('contact', { windowWallSeconds: 9 })];
+    const out = JSON.parse(run(off, on).stdout);
+    assert.deepEqual([out.pairs, out.unpaired.a, out.unpaired.b], [1, 1, 0], out.stdout);
+    assert.equal(out.identicalBattles, 1, 'the window that both arms reached is the same battle');
+    const moved = JSON.parse(run(off, [win('contact', { captures: 3 }), win('t500')]).stdout);
+    assert.deepEqual(
+      [moved.pairs, moved.identicalBattles],
+      [2, 1],
+      'a changed window is one changed battle, not two'
+    );
   });
 
   await test('--ignore leaves a field out of identity: a build that adds a field matches one that lacks it', () => {

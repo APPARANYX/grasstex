@@ -1,125 +1,58 @@
 name: M3C Standard Benchmark
 
+# One scripted scenario, two arms. The same seed is stepped unmeasured to first contact, measured for 60 simulated
+# seconds, stepped unmeasured to second 500 and measured for 60 more (`windows`), once with the flags of the OFF arm and
+# once with those of the ON arm. Both arms run one after the other on one runner, so wall time is comparable, and the
+# records are compared with scripts/compare_benchmark_arms.cjs. Every record carries all the benchmark's stats and
+# telemetry (health, stalls, loops, combat, `timeline`, `stress`), counted inside its window. Nothing is published to
+# the benchmark-results branch: the report is the run summary and the artifact.
+
 on:
   workflow_dispatch:
     inputs:
-      battles_per_worker:
-        description: Battles requested per worker (10 workers; 10 = 100 total)
-        required: false
-        default: '10'
-      worker_minutes_cutoff:
-        description: Wall-clock minutes per worker before preserving a partial report
-        required: false
-        default: '10'
       seed:
-        description: Deterministic seed prefix
+        description: Scenario seed, used exactly as given. The battle must last past second 500 or the second window never opens (it is reported, not hidden).
         required: false
-        default: 'standard-benchmark'
-      query:
-        description: Extra page flags for every battle (e.g. viewCones=0&geScout=carbine), to run A/B arms on one commit with one seed. A run with flags is never published as the record.
+        default: 'scripted-scout-0003'
+      query_off:
+        description: Page flags for the OFF arm (e.g. morale=0 for the flat retreat). Empty is the default battle.
         required: false
         default: ''
-  push:
-    tags:
-      - 'standard-benchmark-*'
+      query_on:
+        description: Page flags for the ON arm (e.g. coa=1). Empty for both is a control, and the two arms must be identical.
+        required: false
+        default: ''
+      battle_type:
+        description: meeting, us-defend or ge-defend
+        required: false
+        default: 'meeting'
+      windows:
+        description: Measured windows as <contact|second>+<seconds>, comma separated
+        required: false
+        default: 'contact+60,500+60'
 
 permissions:
   contents: read
 
 jobs:
-  validate-source:
-    name: Resolve benchmark source
-    runs-on: ubuntu-latest
-    outputs:
-      source_sha: ${{ steps.source.outputs.sha }}
-      is_main: ${{ steps.source.outputs.is_main }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Classify source commit
-        id: source
-        env:
-          SOURCE_REF: ${{ github.ref }}
-          SOURCE_EVENT: ${{ github.event_name }}
-          EXTRA_QUERY: ${{ github.event.inputs.query || '' }}
-        run: |
-          set -euo pipefail
-          git fetch origin main
-          source_sha="$(git rev-parse HEAD)"
-          # A tagged benchmark stands as the record for a released build, so it must be on main.
-          # A manual dispatch may benchmark any branch: the publish step below keeps a branch run
-          # out of the published record, so an in-progress branch cannot overwrite main's status.
-          if [ "$SOURCE_EVENT" = push ] && ! git merge-base --is-ancestor "$source_sha" origin/main; then
-            echo 'Benchmark tags must point to a commit already merged into main.' >&2
-            exit 1
-          fi
-          if git merge-base --is-ancestor "$source_sha" origin/main; then
-            is_main=true
-          else
-            is_main=false
-            echo "::notice title=Branch benchmark::${SOURCE_REF} at ${source_sha:0:7} is not on main. The report is uploaded as an artifact and written to the run summary; the published benchmark record is left untouched."
-          fi
-          # A run with extra page flags is an experiment arm, not the build's record.
-          if [ -n "$EXTRA_QUERY" ]; then
-            is_main=false
-            echo "::notice title=Flagged benchmark::page flags '${EXTRA_QUERY}': report is an artifact and run summary only; the published benchmark record is left untouched."
-          fi
-          echo "sha=$source_sha" >> "$GITHUB_OUTPUT"
-          echo "is_main=$is_main" >> "$GITHUB_OUTPUT"
-
   benchmark:
-    name: ${{ matrix.battle_type }} · worker ${{ matrix.shard }}/${{ matrix.shard_total }}
-    needs: validate-source
+    name: Scripted scenario, off vs on
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - battle_type: meeting
-            shard: 1
-            shard_total: 6
-          - battle_type: meeting
-            shard: 2
-            shard_total: 6
-          - battle_type: meeting
-            shard: 3
-            shard_total: 6
-          - battle_type: meeting
-            shard: 4
-            shard_total: 6
-          - battle_type: meeting
-            shard: 5
-            shard_total: 6
-          - battle_type: meeting
-            shard: 6
-            shard_total: 6
-          - battle_type: us-defend
-            shard: 1
-            shard_total: 2
-          - battle_type: us-defend
-            shard: 2
-            shard_total: 2
-          - battle_type: ge-defend
-            shard: 1
-            shard_total: 2
-          - battle_type: ge-defend
-            shard: 2
-            shard_total: 2
+    timeout-minutes: 30
     env:
-      BATTLE_BENCHMARK_SOURCE_SHA: ${{ needs.validate-source.outputs.source_sha }}
-      BATTLE_BENCHMARK_COUNT: ${{ github.event.inputs.battles_per_worker || '10' }}
-      BATTLE_BENCHMARK_WORKER_MINUTES: ${{ github.event.inputs.worker_minutes_cutoff || '10' }}
-      BATTLE_BENCHMARK_OUTPUT: reports
+      BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.sha }}
+      BATTLE_BENCHMARK_COUNT: '1'
       BATTLE_BENCHMARK_TIME_LIMIT: '600'
       BATTLE_BENCHMARK_STEP: '0.15'
+      BATTLE_BENCHMARK_WINDOWS: ${{ github.event.inputs.windows || 'contact+60,500+60' }}
+      BATTLE_BENCHMARK_SEED: ${{ github.event.inputs.seed || 'scripted-scout-0003' }}
+      BATTLE_TYPE: ${{ github.event.inputs.battle_type || 'meeting' }}
+      QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
+      QUERY_ON: ${{ github.event.inputs.query_on || '' }}
 
     steps:
-      - name: Checkout verified source
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.validate-source.outputs.source_sha }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -137,7 +70,7 @@ jobs:
           rm -rf /tmp/battle-www
           mkdir -p /tmp/battle-www
           ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
-          php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
           echo $! > /tmp/battle-php.pid
           for i in $(seq 1 30); do
             if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck" >/dev/null; then exit 0; fi
@@ -146,316 +79,117 @@ jobs:
           cat /tmp/battle-php.log
           exit 1
 
-      - name: Run failsafe battle worker
-        env:
-          BASE_SEED: ${{ github.event.inputs.seed || format('standard-benchmark-{0}', github.run_number) }}
-          SHARD: ${{ matrix.shard }}
-          BATTLE_TYPE: ${{ matrix.battle_type }}
-          EXTRA_QUERY: ${{ github.event.inputs.query || '' }}
+      - name: Run both arms
         run: |
           set -euo pipefail
           case "$BATTLE_TYPE" in
             meeting) defender_query='' ;;
-            us-defend) defender_query='?defender=us' ;;
-            ge-defend) defender_query='?defender=ge' ;;
+            us-defend) defender_query='defender=us' ;;
+            ge-defend) defender_query='defender=ge' ;;
             *) echo "Unknown battle type: $BATTLE_TYPE" >&2; exit 2 ;;
           esac
-          extra="${EXTRA_QUERY#[?&]}"
-          if [ -n "$extra" ]; then
-            if [ -n "$defender_query" ]; then defender_query="${defender_query}&${extra}"; else defender_query="?${extra}"; fi
-          fi
-          export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php${defender_query}"
-          export BATTLE_BENCHMARK_SEED="${BASE_SEED}-${BATTLE_TYPE}-s${SHARD}"
-          echo "Running ${BATTLE_TYPE} worker ${SHARD}: ${BATTLE_BENCHMARK_COUNT} requested battles, ${BATTLE_BENCHMARK_WORKER_MINUTES} minute cap"
-          bash scripts/run_battle_benchmark_worker.sh
+          for arm in off on; do
+            if [ "$arm" = off ]; then extra="$QUERY_OFF"; else extra="$QUERY_ON"; fi
+            extra="${extra#[?&]}"
+            query="$defender_query"
+            if [ -n "$extra" ]; then if [ -n "$query" ]; then query="${query}&${extra}"; else query="$extra"; fi; fi
+            export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php${query:+?$query}"
+            export BATTLE_BENCHMARK_OUTPUT="reports/$arm"
+            echo "::group::arm ${arm} (${query:-no flags}), seed ${BATTLE_BENCHMARK_SEED}, windows ${BATTLE_BENCHMARK_WINDOWS}"
+            node scripts/run_battle_benchmark.mjs
+            echo "::endgroup::"
+          done
 
-      - name: Upload worker report
+      - name: Compare the arms
+        run: |
+          set -uo pipefail
+          counters=(
+            usKills geKills fire.total fire.hits retreatSamples movementResolver.changes
+            movementStalls.length routeStalls.length targetlessStalls.length vacantObjectiveStalls.length loopAlerts.length writerConflicts
+            regroups.entries stallOutcomes.wakes stallOutcomes.repeats timeline.stalledOnsets timeline.stalledSamples
+          )
+          args=(); for c in "${counters[@]}"; do args+=(--count "$c"); done
+          set +e
+          node scripts/compare_benchmark_arms.cjs "${args[@]}" reports/off/battle-benchmark.json reports/on/battle-benchmark.json > reports/compare.json
+          rc=$?
+          set -e
+          echo "compare exit ${rc}"
+          echo "$rc" > reports/compare.rc
+          exit 0
+
+      - name: Publish run summary
+        if: always()
+        run: |
+          {
+            echo "## Scripted scenario: \`${BATTLE_BENCHMARK_SEED}\` (${BATTLE_TYPE}), windows \`${BATTLE_BENCHMARK_WINDOWS}\`"
+            echo
+            echo "- **OFF** arm flags: \`${QUERY_OFF:-none}\`"
+            echo "- **ON** arm flags: \`${QUERY_ON:-none}\`"
+            echo
+            if [ -f reports/compare.json ]; then
+              echo "### Paired comparison (a = off, b = on)"
+              echo
+              echo "Exit $(cat reports/compare.rc 2>/dev/null || echo '?') (1 means a runtime error or a median wall-time slowdown above 25%). \`unpaired\` counts windows only one arm reached: a flag that changes how long the battle lasts shows up there."
+              echo
+              echo '```json'
+              cat reports/compare.json
+              echo
+              echo '```'
+            fi
+            for arm in off on; do
+              if [ -f "reports/$arm/battle-benchmark.md" ]; then
+                echo
+                echo "<details><summary>${arm} arm report</summary>"
+                echo
+                cat "reports/$arm/battle-benchmark.md"
+                echo
+                echo "</details>"
+              else
+                echo
+                echo "**The ${arm} arm produced no report.**"
+              fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: standard-benchmark-${{ matrix.battle_type }}-shard-${{ matrix.shard }}-${{ github.run_number }}
+          name: scripted-benchmark-${{ github.run_number }}
           path: reports/
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Fail the run when the comparison failed its gate
+        run: |
+          rc="$(cat reports/compare.rc 2>/dev/null || echo 2)"
+          if [ "$rc" != 0 ]; then echo "compare_benchmark_arms.cjs exited ${rc}" >&2; exit 1; fi
 
       - name: Show server log on failure
         if: failure()
         run: tail -n 300 /tmp/battle-php.log || true
 
-  merge:
-    name: Merge standard benchmark report
-    needs: [validate-source, benchmark]
-    if: always() && !cancelled() && needs.validate-source.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      BATTLE_BENCHMARK_SOURCE_SHA: ${{ needs.validate-source.outputs.source_sha }}
-      BENCHMARK_RESULT: ${{ needs.benchmark.result }}
-      BATTLES_PER_WORKER: ${{ github.event.inputs.battles_per_worker || '10' }}
-      WORKER_MINUTES_CUTOFF: ${{ github.event.inputs.worker_minutes_cutoff || '10' }}
-      EXPECTED_SHARDS: '10'
-    permissions:
-      contents: write
-    concurrency:
-      group: battle-benchmark-results-publish
-      cancel-in-progress: false
-    steps:
-      - name: Checkout verified source
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ needs.validate-source.outputs.source_sha }}
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Download available worker reports
-        uses: actions/download-artifact@v4
-        with:
-          pattern: standard-benchmark-*-shard-*-${{ github.run_number }}
-          path: shard-reports
-
-      - name: Merge available benchmark reports
-        run: |
-          set -euo pipefail
-          reports="$(find shard-reports -name battle-benchmark.json -type f | wc -l | tr -d ' ')"
-          if [ "$reports" -lt 1 ]; then
-            echo 'No successful worker report is available to merge.' >&2
-            exit 1
-          fi
-          echo "Merging ${reports}/${EXPECTED_SHARDS} standard benchmark workers."
-          node scripts/merge_battle_benchmarks.mjs
-
-      - name: Stamp standard benchmark profile
-        if: success()
-        run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const jsonPath = 'reports/battle-benchmark.json';
-          const report = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-          const per = Number(process.env.BATTLES_PER_WORKER || 10);
-          const expected = per * 10;
-          const mix = { meeting: per * 6, 'us-defend': per * 2, 'ge-defend': per * 2 };
-          report.summary = report.summary || {};
-          report.summary.benchmarkProfile = 'standard-6-2-2';
-          report.summary.expectedShards = 10;
-          report.summary.expectedBattles = expected;
-          report.summary.battlesPerWorker = per;
-          report.summary.workerMinutesCutoff = Number(process.env.WORKER_MINUTES_CUTOFF || 10);
-          report.summary.scenarioMix = mix;
-          report.summary.missingBattles = Math.max(0, expected - Number(report.summary.completedBattles || 0));
-          fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2) + '\n');
-
-          const completed = Number(report.summary.completedBattles || 0);
-          let md = fs.readFileSync('reports/battle-benchmark.md', 'utf8');
-          md = md.replace('# M3C three-scenario headless benchmark', '# M3C standard benchmark');
-          md = md.replace(/- Scenario\/shards available: \*\*\d+\/30\*\*/, `- Scenario/workers available: **${report.summary.shardCount || 0}/10**`);
-          md = md.replace(/- Completed: \*\*\d+\/\d+\*\*/, `- Completed: **${completed}/${expected} expected**`);
-          md = md.replace('# M3C standard benchmark\n', `# M3C standard benchmark\n\n- Profile: **${mix.meeting} meeting / ${mix['us-defend']} US-defend / ${mix['ge-defend']} GE-defend**\n- Worker settings: **${per} battles/worker** · **${report.summary.workerMinutesCutoff} min cutoff**\n`);
-          fs.writeFileSync('reports/battle-benchmark.md', md);
-          NODE
-
-      - name: Prepare persistent report bundle
-        if: success()
-        run: |
-          set -euo pipefail
-          rm -rf persistent-result
-          mkdir -p persistent-result
-          cp reports/battle-benchmark.md persistent-result/
-          cp reports/battle-benchmark.csv persistent-result/
-          node <<'NODE'
-          const fs = require('fs');
-          const report = JSON.parse(fs.readFileSync('reports/battle-benchmark.json', 'utf8'));
-          const per = Number(process.env.BATTLES_PER_WORKER || 10);
-          const expectedBattles = per * 10;
-          const completedBattles = Number(report.summary && report.summary.completedBattles || 0);
-          const mix = { meeting: per * 6, 'us-defend': per * 2, 'ge-defend': per * 2 };
-          const compact = {
-            profile: 'standard-6-2-2',
-            scenarioMix: mix,
-            status: completedBattles >= expectedBattles ? 'complete' : 'partial',
-            runNumber: Number(process.env.GITHUB_RUN_NUMBER),
-            runId: Number(process.env.GITHUB_RUN_ID),
-            sourceSha: process.env.BATTLE_BENCHMARK_SOURCE_SHA,
-            expectedBattles,
-            completedBattles,
-            missingBattles: Math.max(0, expectedBattles - completedBattles),
-            battlesPerWorker: per,
-            workerMinutesCutoff: Number(process.env.WORKER_MINUTES_CUTOFF || 10),
-            actionsUrl: `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
-            summary: report.summary || {},
-            policy: report.policy ? {
-              source: report.policy.source || null,
-              revision: report.policy.revision ?? null,
-              genomeVersion: report.policy.genome && report.policy.genome.version || null
-            } : null
-          };
-          fs.writeFileSync('persistent-result/battle-benchmark-summary.json', JSON.stringify(compact, null, 2) + '\n');
-          NODE
-
-      - name: Publish benchmark summary
-        if: always()
-        env:
-          EXTRA_QUERY: ${{ github.event.inputs.query || '' }}
-        run: |
-          if [ -n "$EXTRA_QUERY" ]; then echo "**Page flags:** \`${EXTRA_QUERY}\`" >> "$GITHUB_STEP_SUMMARY"; echo >> "$GITHUB_STEP_SUMMARY"; fi
-          if [ -f reports/battle-benchmark.md ]; then
-            cat reports/battle-benchmark.md >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo '## Standard battle benchmark did not produce a merged report' >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Upload merged benchmark report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: standard-benchmark-merged-${{ github.run_number }}
-          path: reports/
-          if-no-files-found: warn
-          retention-days: 30
-
-      - name: Note that a branch run does not publish
-        if: success() && needs.validate-source.outputs.is_main != 'true'
-        run: |
-          echo "Source is not on main; leaving the published benchmark record untouched." >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Publish persistent standard benchmark result
-        if: success() && needs.validate-source.outputs.is_main == 'true'
-        env:
-          RESULTS_BRANCH: benchmark-results
-        run: |
-          set -euo pipefail
-          bundle="$(mktemp -d)"
-          cp -a persistent-result/. "$bundle/"
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-
-          if git ls-remote --exit-code --heads origin "$RESULTS_BRANCH" >/dev/null 2>&1; then
-            git fetch origin "$RESULTS_BRANCH:refs/remotes/origin/$RESULTS_BRANCH"
-            git switch -C "$RESULTS_BRANCH" "origin/$RESULTS_BRANCH"
-          else
-            git switch --orphan "$RESULTS_BRANCH"
-            git rm -rf . || true
-          fi
-
-          base_dir='benchmarks/results/standard'
-          run_dir="${base_dir}/runs/${GITHUB_RUN_NUMBER}"
-          mkdir -p "$run_dir"
-          cp -a "$bundle/." "$run_dir/"
-
-          existing=0
-          if [ -f "${base_dir}/status.json" ]; then
-            existing="$(node -e "try{const x=require('./${base_dir}/status.json');process.stdout.write(String(Number(x.runNumber)||0))}catch(e){process.stdout.write('0')}")"
-          fi
-
-          if [ "${GITHUB_RUN_NUMBER}" -ge "$existing" ]; then
-            rm -rf "${base_dir}/latest"
-            mkdir -p "${base_dir}/latest"
-            cp -a "$bundle/." "${base_dir}/latest/"
-            node <<'NODE'
-            const fs = require('fs');
-            const base = 'benchmarks/results/standard';
-            const compact = JSON.parse(fs.readFileSync(`${base}/latest/battle-benchmark-summary.json`, 'utf8'));
-            const s = compact.summary || {}, issues = s.issueCounts || {}, health = s.health || {};
-            const status = {
-              profile: compact.profile,
-              scenarioMix: compact.scenarioMix,
-              status: compact.status || 'partial',
-              runNumber: compact.runNumber,
-              runId: compact.runId,
-              sourceSha: compact.sourceSha,
-              completedAt: s.generatedAt || new Date().toISOString(),
-              expectedBattles: compact.expectedBattles,
-              completedBattles: s.completedBattles ?? compact.completedBattles ?? null,
-              missingBattles: compact.missingBattles ?? null,
-              battlesPerWorker: compact.battlesPerWorker ?? null,
-              workerMinutesCutoff: compact.workerMinutesCutoff ?? null,
-              usWins: s.winners && s.winners.us || 0,
-              geWins: s.winners && s.winners.ge || 0,
-              healthOverall: health.overall ?? null,
-              battleTypes: s.battleTypes || {},
-              objectivesNeverOwned: s.objectivesNeverOwned ?? null,
-              objectivesNeverOwnedRate: s.objectivesNeverOwnedRate ?? null,
-              avgSquadObjectiveSpread: s.avgSquadObjectiveSpread ?? null,
-              vacantObjectiveStalls: issues.vacantObjectiveStalls ?? s.vacantObjectiveStalls ?? null,
-              routeStalls: issues.routeStalls ?? null,
-              movementStalls: issues.movementStalls ?? s.movementStalls ?? null,
-              targetlessStalls: issues.targetlessStalls ?? null,
-              longRegroups: issues.longRegroups ?? null,
-              writerConflicts: issues.writerConflicts ?? null,
-              loopAlerts: issues.loopAlerts ?? null,
-              runtimeErrors: s.runtimeErrors ?? null,
-              actionsUrl: compact.actionsUrl,
-              markdownPath: `${base}/latest/battle-benchmark.md`,
-              csvPath: `${base}/latest/battle-benchmark.csv`,
-              summaryPath: `${base}/latest/battle-benchmark-summary.json`,
-              historyPath: `${base}/runs/${compact.runNumber}/`
-            };
-            fs.writeFileSync(`${base}/status.json`, JSON.stringify(status, null, 2) + '\n');
-          NODE
-          fi
-
-          git add "$base_dir"
-          if git diff --cached --quiet; then
-            echo 'No standard benchmark result changes to publish.'
-            exit 0
-          fi
-          git commit -m "Standard benchmark results #${GITHUB_RUN_NUMBER}"
-          git push origin "HEAD:${RESULTS_BRANCH}"
-
   notify:
-    name: Notify standard benchmark result
-    needs: [validate-source, benchmark, merge]
+    name: Notify benchmark result
+    needs: benchmark
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Send ntfy notification
         env:
-          VALIDATE_RESULT: ${{ needs.validate-source.result }}
-          BENCHMARK_RESULT: ${{ needs.benchmark.result }}
-          MERGE_RESULT: ${{ needs.merge.result }}
-          SOURCE_SHA: ${{ needs.validate-source.outputs.source_sha }}
+          RESULT: ${{ needs.benchmark.result }}
+          SEED: ${{ github.event.inputs.seed || 'scripted-scout-0003' }}
+          QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
+          QUERY_ON: ${{ github.event.inputs.query_on || '' }}
           SOURCE_REF: ${{ github.ref_name }}
-          IS_MAIN: ${{ needs.validate-source.outputs.is_main }}
-          BATTLES_PER_WORKER: ${{ github.event.inputs.battles_per_worker || '10' }}
-          WORKER_MINUTES_CUTOFF: ${{ github.event.inputs.worker_minutes_cutoff || '10' }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          if [ "$VALIDATE_RESULT" != success ]; then
-            status="FAILED during source validation"
-            tags="x,warning"
-            priority="high"
-          elif [ "$BENCHMARK_RESULT" != success ] && [ "$MERGE_RESULT" = success ]; then
-            status="PARTIAL · healthy worker data merged"
-            tags="warning,crossed_swords"
-            priority="default"
-          elif [ "$BENCHMARK_RESULT" != success ]; then
-            status="FAILED during battle workers"
-            tags="x,warning"
-            priority="high"
-          elif [ "$MERGE_RESULT" != success ]; then
-            status="FAILED while merging/publishing"
-            tags="x,warning"
-            priority="high"
-          else
-            status="COMPLETE/PARTIAL per report"
-            tags="white_check_mark,crossed_swords"
-            priority="default"
-          fi
-          short_sha="${SOURCE_SHA:-${GITHUB_SHA}}"
-          short_sha="${short_sha:0:7}"
-          if [ "$IS_MAIN" = true ]; then origin=''; else origin=' (branch, unpublished)'; fi
-          total="$((BATTLES_PER_WORKER * 10))"
-          meeting="$((BATTLES_PER_WORKER * 6))"
-          defend="$((BATTLES_PER_WORKER * 2))"
+          if [ "$RESULT" = success ]; then status='COMPLETE'; tags='white_check_mark,crossed_swords'; priority='default'; else status="FAILED (${RESULT})"; tags='x,warning'; priority='high'; fi
           curl -fsS \
-            -H "Title: M3C standard benchmark #${GITHUB_RUN_NUMBER}" \
+            -H "Title: M3C scripted benchmark #${GITHUB_RUN_NUMBER}" \
             -H "Priority: ${priority}" \
             -H "Tags: ${tags}" \
             -H "Click: ${RUN_URL}" \
-            -d "${status} · requested ${total}: ${meeting} meeting / ${defend} US-defend / ${defend} GE-defend · ${WORKER_MINUTES_CUTOFF}m cap · ${short_sha} · ${SOURCE_REF}${origin}" \
+            -d "${status} · ${SEED} · off [${QUERY_OFF:-none}] vs on [${QUERY_ON:-none}] · ${SOURCE_REF}" \
             https://ntfy.sh/ww2battlesim
