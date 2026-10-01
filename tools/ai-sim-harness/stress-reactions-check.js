@@ -637,7 +637,7 @@ test("rage: with ?rageGuard=1 the guard lasts the charge, past RAGE_GUARD_SECOND
 
 test('rage: with ?rageTrance=1 it is a trance: calm and retreat do not end it, guarded, faster, tighter, and the debt comes due', () => {
   const T = load_tuning();
-  const Q = '?stressAct=rage&rageLock=1&rageGuard=1&rageTrance=1';
+  const Q = '?stressAct=cower,rage&rageLock=1&rageGuard=1&rageTrance=1';
   /* Keep the enemy where the squad's picture says, as Perception would. */
   const keep = t => {
     t.ctx.us.contact = { x: t.g.root.position.x, z: t.g.root.position.z, at: t.ctx.b.time, seenBy: t.s.id };
@@ -671,6 +671,12 @@ test('rage: with ?rageTrance=1 it is a trance: calm and retreat do not end it, g
     tick(on.ctx, on.s, 1);
   }
   assert.equal(on.s.eng.state, 'rage', 'on: calm does not end the trance');
+  /* Rattled and under fire is the cower's ground, but a man in the trance stays in it. */
+  stressTo(on.ctx, on.s, 'rattled');
+  under(on.ctx, on.s, 2);
+  keep(on);
+  tick(on.ctx, on.s, 0.3);
+  assert.equal(on.s.eng.state, 'rage', 'on: rattled under fire, still the trance, not a cower');
   /* His squad's retreat does not take him back. */
   on.ctx.us.state = 'retreat';
   keep(on);
@@ -757,7 +763,7 @@ test('rage: with ?rageTrance=1 it is a trance: calm and retreat do not end it, g
   assert.equal(draws, 0, 'no draw from the combat RNG');
   assert.equal(die.ctx.M.of(die.s).acts.rage.succumbed, 1);
   /* Nobody else is entranced or owes anything. */
-  const c = broke(Q.replace('stressAct=rage', 'stressAct=cower,freeze'), [0, 0.9, 0.1], 100);
+  const c = broke(Q.replace('stressAct=cower,rage', 'stressAct=cower,freeze'), [0, 0.9, 0.1], 100);
   assert.equal(c.ctx.E.entranced(c.s), false);
   assert.equal(c.ctx.E.guardOnHit(c.s, c.ctx.b, 1), 1);
 });
