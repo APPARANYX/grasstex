@@ -436,7 +436,8 @@ test('freeze suspends perception and facing, and opposing perception does not po
   const yaw = s.root.rotation.y;
   ctx.S.perceive(s, ctx.b);
   assert.equal(s.target, null, 'no target tracking while frozen');
-  assert.equal(s._faceHint, null, 'no shared-contact facing hint while frozen');
+  ctx.E.updateSoldier(s, ctx.b);
+  assert.equal(s._faceHint, null, 'Engagement clears its own facing hint while frozen');
   assert.equal(ctx.S.lookYaw(s, ctx.b), yaw, 'no sector scan/head-turn source while frozen');
 
   /* Park every other US man outside spotting range so the German observer has exactly one possible
