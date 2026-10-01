@@ -332,7 +332,8 @@
     ISOLATED_RANGE = 30,
     STEADY_NEIGHBOUR_RANGE = 8;
   /* Stress that lasts (`?stressMem=`). Numbers are declared here and read nowhere else; none was tuned to an outcome. */
-  var CALM_AFTER = 12, // lasting: seconds out of contact and out of fire before stress starts to drain
+  var FLED_FLOOR = 0.2, // a man who has fled for good never calms below this (he can recover to it at base)
+    CALM_AFTER = 12, // lasting: seconds out of contact and out of fire before stress starts to drain
     RELIEF = { kill: 0.12, objective: 0.15, cover: 0.06, survived: 0.05 }; // relief: stress taken off (times his nerve) by each kind
   /* Calming multiplies TAU (smaller = faster). */
   var LEADER_CALM = 0.65,
@@ -436,12 +437,13 @@
       temper: null, // how he tends to break: three fixed unit hashes (temper())
       acts: {
         cower: { n: 0, sec: 0 },
-        flee: { n: 0, sec: 0 },
+        flee: { n: 0, sec: 0, waited: 0, waitSec: 0, enemy: 0, timeout: 0, pickup: 0, rearmed: 0 },
         freeze: { n: 0, sec: 0 },
         rage: { n: 0, sec: 0, strikes: 0, hits: 0, guarded: 0, saved: 0 }
       },
       fightAt: -99, // the last time his squad was in contact or he was under fire (lasting)
       held: 0, // seconds stress did not drain because the fight was still on (lasting)
+      fled: false, // he broke and ran for good: stress never drains below FLED_FLOOR
       floor: 0, // the lowest stress can go (floor)
       lost: 0, // the share of his health gone when the floor was last looked at
       relieved: {
@@ -525,6 +527,7 @@
       else if (kind === 'wound') woundsTaken += d.count;
       else if (RELIEF[kind] != null) (relief || (relief = [])).push(kind);
       else if (kind === 'suppressed') m.pinnedUntil = Math.max(m.pinnedUntil, d.until);
+      else if (kind === 'fled') m.fled = true;
       else if (kind === 'aimed') {
         var near = clamp(1 - d.d / INCOMING_FAR, 0, 1);
         m.lastIncomingAt = at;
@@ -603,6 +606,7 @@
     m.stress = clamp(m.stress * Math.exp(-dt / tau) + gain, 0, 1);
     if (mem.floor) floorStress(s, m);
     if (relief) for (i = 0; i < relief.length; i++) relieve(m, relief[i], mem.floor);
+    if (m.fled && m.stress < FLED_FLOOR) m.stress = FLED_FLOOR;
     if (m.stress > m.peak) m.peak = m.stress;
 
     var band = m.band;
@@ -847,7 +851,12 @@
     else if (what === 'guard') {
       a.guarded++;
       a.saved += dt;
-    }
+    } else if (what === 'wait') a.waited++;
+    else if (what === 'waiting') a.waitSec += dt;
+    else if (what === 'enemy') a.enemy++;
+    else if (what === 'timeout') a.timeout++;
+    else if (what === 'pickup') a.pickup++;
+    else if (what === 'rearmed') a.rearmed++;
   }
   /* The freeze blocked a decision that was otherwise his to make; `kind` says which one. The shock has no
      denominator: nothing is counted for a decision it did not touch. */
@@ -1050,7 +1059,7 @@
       },
       acts: {
         cower: { n: 0, sec: 0 },
-        flee: { n: 0, sec: 0 },
+        flee: { n: 0, sec: 0, waited: 0, waitSec: 0, enemy: 0, timeout: 0, pickup: 0, rearmed: 0 },
         freeze: { n: 0, sec: 0 },
         rage: { n: 0, sec: 0, strikes: 0, hits: 0, guarded: 0, saved: 0 }
       }
@@ -1094,6 +1103,9 @@
     to.acts.rage.hits += from.acts.rage.hits;
     to.acts.rage.guarded += from.acts.rage.guarded;
     to.acts.rage.saved += from.acts.rage.saved;
+    ['waited', 'waitSec', 'enemy', 'timeout', 'pickup', 'rearmed'].forEach(function (f) {
+      to.acts.flee[f] += from.acts.flee[f];
+    });
   }
   function totalsOut(t) {
     var decisions = {};
@@ -1121,6 +1133,12 @@
     acts.rage.hits = t.acts.rage.hits;
     acts.rage.guarded = t.acts.rage.guarded;
     acts.rage.savedHp = +t.acts.rage.saved.toFixed(2);
+    acts.flee.waited = t.acts.flee.waited;
+    acts.flee.waitSeconds = +t.acts.flee.waitSec.toFixed(1);
+    acts.flee.homeEnemy = t.acts.flee.enemy;
+    acts.flee.homeTimeout = t.acts.flee.timeout;
+    acts.flee.homePickup = t.acts.flee.pickup;
+    acts.flee.rearmed = t.acts.flee.rearmed;
     return {
       acts: acts,
       memory: {
@@ -1254,7 +1272,7 @@
   }
 
   function subscribe() {
-    root.BattleSoldierEvents.subscribe('soldier-mind', ['casualty', 'wound', 'suppressed', 'aimed']);
+    root.BattleSoldierEvents.subscribe('soldier-mind', ['casualty', 'wound', 'suppressed', 'aimed', 'fled']);
     if (MODE.memory.relief) root.BattleSoldierEvents.subscribe('soldier-mind', Object.keys(RELIEF));
   }
   if (MODE.on) subscribe();
@@ -1289,6 +1307,7 @@
       DOSE_SQUAD_MEAN: DOSE_SQUAD_MEAN,
       DOSE_SQUAD_MEN: DOSE_SQUAD_MEN,
       CALM_AFTER: CALM_AFTER,
+      FLED_FLOOR: FLED_FLOOR,
       RELIEF: RELIEF
     },
     READERS: READERS,

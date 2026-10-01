@@ -10,11 +10,12 @@
    - A broken man does one of three things by his temper (fixed unit hashes) weighed against the situation: flee needs
      something to run from, freeze fits being under fire, rage needs an enemy within RAGE_RANGE and a weapon; ties go
      flee, freeze, rage; nothing enabled or nothing with weight means no break.
-   - flee runs away from the threat (to cover behind him or a point further off), never fires, holds when it arrives,
-     and releases a firing station; freeze holds and does not fire; rage charges, fires on the move and strikes at arm's
-     length, and ends when nobody is within RAGE_REACH.
-   - A break lasts at least REACT_MIN and ends once he is below broken; a squad that is already retreating is not
-     reacted for.
+   - flee leaves his weapons, runs to his squad's last safe point (else its home), never fires, holds when it arrives
+     and releases a firing station (the whole of what follows, the wait, the pick-up and the weapon at base, is
+     fled-man-check.js); freeze holds and does not fire; rage charges, fires on the move and strikes at arm's length,
+     and ends when nobody is within RAGE_REACH.
+   - A freeze, cower or charge lasts at least REACT_MIN (cower: until the fire is quiet) and ends once he is below
+     broken; a flee does not end: he is done with the fight. A squad that is already retreating is not reacted for.
    - The squad report names the men reacting, they are neither base of fire nor movers, and no station is claimed for
      them.
    - The choice draws nothing from the combat RNG (a blow's roll and the wound do, and nothing else).
@@ -132,7 +133,14 @@ test('the four states are declared with their transitions, and every other state
   for (const k of ['cower', 'flee', 'freeze', 'rage']) {
     const def = E.states[k];
     assert.ok(def && def.meaning && def.enteredBy && def.exits && def.rate, k + ' is declared');
-    assert.ok(def.next.includes('advance') && def.next.includes('withdraw'), k + ' can end and can retreat');
+    assert.ok(def.next.includes('advance'), k + ' can end');
+    if (k !== 'flee') assert.ok(def.next.includes('withdraw'), k + ' can retreat');
+    else
+      assert.deepEqual(
+        def.next,
+        ['advance'],
+        'a fled man ends only at base, a man of a retreating squad again'
+      );
   }
   for (const [name, def] of Object.entries(E.states))
     if (!['cower', 'flee', 'freeze', 'rage'].includes(name))
@@ -240,6 +248,7 @@ function broke(q, tempers, d, opts) {
   opts = opts || {};
   const ctx = world(q),
     s = man(ctx.us, opts.role || 'rifleman');
+  if (opts.safe) ctx.us.safePoint = opts.safe;
   tick(ctx, s);
   temper(ctx, s, ...tempers);
   stressTo(ctx, s, 'broken');
@@ -296,16 +305,18 @@ test('a broken man chooses by temper and situation: flee needs trouble, freeze f
   assert.equal(u.E.reacting(us), false, 'no ammunition, no charge');
 });
 
-test('flee: runs away from the threat, never fires, holds when it gets there', () => {
-  const { ctx, s, g } = broke('?stressAct=flee', [0.9, 0, 0], 60);
+test("flee: he leaves his weapons, runs to the squad's last safe point, never fires and holds when he gets there", () => {
+  const safe = { x: 0, z: -40 }, // the quiet place behind him; the threat is ahead, at +z
+    { ctx, s, g } = broke('?stressAct=flee', [0.9, 0, 0], 60, { safe });
   assert.equal(s.eng.state, 'flee');
+  assert.equal(s.eng.fledPhase, 'run');
   assert.equal(s.state, 'retreat', 'shown as a man on the run (module 11 sprints him)');
+  assert.equal(s.weapon, null, 'the weapon stays where he stood');
+  assert.deepEqual(s.eng.refuge, safe);
   const p = here(s),
     threat = here(g);
-  assert.ok(
-    dist(s.destination, threat) > dist(p, threat) + 10,
-    `his goal is further from the threat than he is: ${dist(s.destination, threat)} vs ${dist(p, threat)}`
-  );
+  assert.ok(dist(s.destination, safe) < 1, 'his goal is the safe point');
+  assert.ok(dist(s.destination, threat) > dist(p, threat) + 10, 'further from the threat than he is');
   assert.ok(s._combatUrgentUntil > ctx.b.time, 'at a run');
   let shots = 0;
   const real = ctx.S.tryFire;
@@ -314,65 +325,60 @@ test('flee: runs away from the threat, never fires, holds when it gets there', (
   tick(ctx, s, 2);
   assert.equal(shots, 0, 'a man running does not fire');
   /* He gets there and holds. */
-  const goal = { x: s.destination.x, z: s.destination.z };
-  put(s, goal.x, goal.z);
+  put(s, safe.x, safe.z);
   tick(ctx, s, 0.6);
   assert.equal(s.eng.state, 'flee', 'still in it');
-  assert.ok(dist(s.destination, goal) < 0.5, 'holding at the refuge');
+  assert.equal(s.eng.fledPhase, 'wait', 'waiting for a squad');
+  assert.ok(dist(s.destination, safe) < 0.5, 'holding at the refuge');
   assert.equal(s.crouching || s.prone, true, 'down at the refuge');
 });
 
-test('flee: the goal stands until he is there, and he does not run after a threat that moves or off the map', () => {
-  const { ctx, s, g } = broke('?stressAct=flee', [0.9, 0, 0], 60);
-  assert.equal(s.eng.state, 'flee');
-  const goal = { x: s.eng.refuge.x, z: s.eng.refuge.z },
+test('flee: the goal stands until he is there, and a man who cannot get there waits where he is', () => {
+  const safe = { x: 0, z: -40 },
+    { ctx, s, g } = broke('?stressAct=flee', [0.9, 0, 0], 60, { safe }),
     T = ctx.E.tuning.ACT_TUNING;
-  /* The trouble moves a long way: his goal does not follow it. */
+  assert.equal(s.eng.state, 'flee');
+  /* The trouble moves a long way: his goal does not follow it. He makes headway, so no try is counted. */
   put(g, g.root.position.x + 300, g.root.position.z - 300);
   ctx.us.contact = { x: g.root.position.x, z: g.root.position.z, at: ctx.b.time, seenBy: s.id };
-  /* He makes headway (a step toward it each second), so no second look. */
   for (let i = 0; i < 10; i++) {
     put(
       s,
-      s.root.position.x + (goal.x - s.root.position.x) * 0.1,
-      s.root.position.z + (goal.z - s.root.position.z) * 0.1
+      s.root.position.x + (safe.x - s.root.position.x) * 0.1,
+      s.root.position.z + (safe.z - s.root.position.z) * 0.1
     );
-    s.mind.stress = 0.95; // still broken
+    s.mind.stress = 0.95;
     tick(ctx, s, 1);
   }
-  assert.deepEqual(s.eng.refuge, goal, 'the goal stood while he ran to it');
+  assert.deepEqual(s.eng.refuge, safe, 'the goal stood while he ran to it');
+  assert.equal(s.eng.refugeTries || 0, 0, 'headway, so no try');
   /* Stuck: no headway for FLEE_REPICK, FLEE_TRIES times over, and then he stays where he is. */
-  const stuck = broke('?stressAct=flee', [0.9, 0, 0], 60);
+  const stuck = broke('?stressAct=flee', [0.9, 0, 0], 100, { safe }); // the enemy is beyond FLED_ENEMY_NEAR
   const here0 = here(stuck.s);
   for (let i = 0; i < (T.FLEE_TRIES + 2) * (T.FLEE_REPICK + 1); i++) {
     stuck.s.mind.stress = 0.95;
     tick(stuck.ctx, stuck.s, 1);
   }
   assert.equal(stuck.s.eng.state, 'flee');
-  assert.ok(stuck.s.eng.refugeTries > T.FLEE_TRIES, 'he looked again FLEE_TRIES times');
-  assert.ok(
-    dist(stuck.s.eng.refuge, here0) < 1,
-    'and then his refuge is where he stands: ' + JSON.stringify(stuck.s.eng.refuge)
-  );
-  assert.equal(stuck.s.eng.refugeHere, true, 'holding there');
+  assert.ok(stuck.s.eng.refugeTries > T.FLEE_TRIES, 'FLEE_TRIES tries went by');
+  assert.equal(stuck.s.eng.fledPhase, 'wait', 'and he waits where he is');
+  assert.ok(dist(here(stuck.s), here0) < 1);
 });
 
-test('flee: cover behind him is where he goes, if there is any', () => {
-  /* A wall 12 m behind the man (away from the threat at +z): a slot on its far side from the threat. */
-  const wall = { x: 0, z: 8, y: 0, radius: 6, height: 3, cover: 0.2, type: 'wall' };
-  const ctx = world('?stressAct=flee', { obstacles: [wall] }),
-    s = man(ctx.us, 'rifleman');
-  put(s, 0, 20);
-  tick(ctx, s);
-  temper(ctx, s, 0.9, 0, 0);
-  stressTo(ctx, s, 'broken');
-  const g = foe(ctx, s, 80);
-  ctx.us.contact = { x: g.root.position.x, z: g.root.position.z, at: ctx.b.time, seenBy: s.id };
-  under(ctx, s);
-  tick(ctx, s, 0.3);
+test('flee does not end: calm, or the squad retreating, leaves a fled man a fled man', () => {
+  const { ctx, s } = broke('?stressAct=flee', [0.9, 0, 0], 60, { safe: { x: 0, z: -40 } });
   assert.equal(s.eng.state, 'flee');
-  const goal = s.destination;
-  assert.ok(goal.z < s.root.position.z, 'behind him, away from the threat: ' + goal.z);
+  const min = ctx.E.tuning.ACT_TUNING.REACT_MIN;
+  for (let i = 0; i < Math.ceil((min + 6) / H.AI_TICK); i++) {
+    ctx.M.of(s).stress = 0; // as calm as a man can be
+    tick(ctx, s);
+  }
+  assert.equal(s.eng.state, 'flee', 'nothing about calm ends it');
+  assert.equal(s.eng.fledPhase !== null, true);
+  ctx.us.state = 'retreat'; // his squad retreats: it does not take him
+  tick(ctx, s, 1);
+  assert.equal(s.eng.state, 'flee');
+  assert.equal(s.weapon, null);
 });
 
 test('flee releases a firing station, and nobody is claimed for a station while he reacts', () => {

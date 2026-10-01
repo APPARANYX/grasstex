@@ -93,12 +93,23 @@
     show(old,false);show(next,true);
     return true;
   }
-  /* A weapon abandoned in the world is no longer part of the soldier's loadout. Presentation owns
-     the already-detached mesh; this owner only removes the gameplay reference. */
-  function abandon(soldier,weapon){
-    if(!soldier||!weapon||soldier.weapon!==weapon)return false;
-    soldier.weapon=null;
+  /* He leaves his weapons behind (a fled man: Engagement decides, this owner removes the gameplay references).
+     The primary stays where it lies for presentation to draw as a prop; the holstered sidearm goes with it.
+     Returns the primary he left, or null if he carried none. */
+  function abandon(soldier){
+    if(!soldier||!soldier.weapon)return null;
+    var left=soldier.weapon,side=soldier.secondary,r=soldier.root;
+    /* Where it lies: presentation draws the prop there whenever it next poses him (he may be off screen now). */
+    if(r&&r.position)left.droppedAt={x:r.position.x,y:r.position.y||0,z:r.position.z,yaw:(r.rotation&&r.rotation.y)||0};
+    soldier.weapon=null;soldier.secondary=null;
+    if(side&&side.mesh&&typeof side.mesh.dispose==='function')side.mesh.dispose();
+    return left;
+  }
+  /* Issue a man a fresh loadout (a fled man at base): the weapon he shoots and the holstered one. */
+  function arm(soldier,weapon,secondary){
+    if(!soldier||!weapon||soldier.weapon)return false;
+    soldier.weapon=weapon;soldier.secondary=secondary||null;
     return true;
   }
-  root.BattleWeapons={STATS:STATS,PROFILES:PROFILES,profileStats:profileStats,issue:issue,attachWeapon:attachWeapon,holster:holster,equip:equip,abandon:abandon};
+  root.BattleWeapons={STATS:STATS,PROFILES:PROFILES,profileStats:profileStats,issue:issue,attachWeapon:attachWeapon,holster:holster,equip:equip,abandon:abandon,arm:arm};
 })(typeof window!=='undefined'?window:globalThis);

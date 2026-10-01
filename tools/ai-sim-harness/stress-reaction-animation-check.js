@@ -38,13 +38,17 @@ const backend = fs.readFileSync(backendFile, 'utf8');
 for (const anchor of [
   "holds:['reactionFreezeStanding','reactionFreezeSitting','reactionFreezeFallen']",
   "return k==='cower'||k==='flee'||k==='freeze'||k==='rage'?k:null",
+  "if(k==='flee'&&e.fledPhase==='wait')return 'freeze';",
   "reaction==='freeze'?freezeHoldOf(soldier):null",
-  "if(soldier.eng&&soldier.eng.refugeHere)return false",
-  "function reactionDropsWeapon(reaction){return reaction==='cower'||reaction==='freeze'||reaction==='flee';}",
-  "reactionWeapon(soldier,fx,reactionDropsWeapon(reaction)||fx.cowerExit,reaction==='flee');",
-  "W.abandon(soldier,old)",
+  "function reactionDropsWeapon(reaction){return reaction==='cower'||reaction==='freeze';}",
+  "reactionWeapon(soldier,fx,reactionDropsWeapon(reaction)||fx.cowerExit);",
+  "left.droppedAt||standAt(soldier)",
   "loop||spec[2]==='inplace'||spec[2]==='turn'"
 ]) if (!backend.includes(anchor)) throw new Error(`backend contract missing: ${anchor}`);
+/* Presentation draws what the sim says and never writes it: the weapon a fled man left is Engagement's decision
+   (BattleWeapons.abandon), the one he is issued at base is SquadAI.rearm's. */
+if (/\bsoldier\.weapon\s*=[^=]|\.abandon\s*\(|\.rearm\s*\(|\.secondary\s*=[^=]/.test(backend))
+  throw new Error('the backend must not write the soldier\'s weapons: abandoning and issuing are the sim\'s');
 
 const freezePick = backend.slice(backend.indexOf('function freezeHoldOf'), backend.indexOf('function reactionFullBody'));
 if (/Math\.random|battle\.random/.test(freezePick))
@@ -55,4 +59,4 @@ if (/reaction==='rage'/.test(lower))
 if (/reactionRageStrike|rageStrikeHold/.test(backend))
   throw new Error('rage must use its ordinary fighting clips; the broken bayonet overlay returned');
 
-console.log('stress reaction animation: cower/freeze/flee full-body blends drop the weapon; rage keeps ordinary fighting clips');
+console.log('stress reaction animation: cower/freeze put the weapon beside him, a fled man runs and waits as a freeze hold and leaves a weapon the sim took, rage keeps ordinary fighting clips');

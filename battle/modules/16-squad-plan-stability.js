@@ -218,6 +218,16 @@
       return s && !s.dead && s.root && s.root.position;
     });
   }
+  /* The men this squad commands: the living, bar one who has fled (Engagement `fledPhase`). A fled man is on his own
+     until he is at base, running to his refuge, waiting or going home, so where he is says nothing about whether the
+     squad is scattered, and a squad that took him in and rallied must not regroup, or wait to advance, on his account
+     (the regroup order outranks his flee: he was pulled back every ~10 s and never got home). */
+  function commanded(sq) {
+    var E = root.BattleEngagement;
+    return alive(sq).filter(function (s) {
+      return !(E && E.fledPhase && E.fledPhase(s));
+    });
+  }
   function average(sq) {
     var a = alive(sq),
       x = 0,
@@ -640,7 +650,7 @@
    straggler: he expands the core, forcing the Squad Leader to restore cohesion instead of allowing two
    scouts to sprint into the next fight alone. Lateral outliers are also non-trimmable. */
   function cohesionAssessment(sq, limit) {
-    var m = alive(sq),
+    var m = commanded(sq),
       n = m.length;
     if (!n)
       return {
@@ -1064,7 +1074,7 @@
     ].join('|');
   }
   function orderCanAdvance(sq) {
-    var living = alive(sq),
+    var living = commanded(sq),
       arrived = 0;
     if (!living.length) return true;
     for (var i = 0; i < living.length; i++) {
@@ -1225,6 +1235,7 @@
     if (!E || !sq || !battle) return;
     var r = E.updateSquad(sq, battle);
     if (!r) return;
+    if (r.fled && r.fled.length && sq.fledId == null) detachFled(sq, battle, r.fled);
     var members = sq.members || [],
       i,
       s;
@@ -1344,6 +1355,7 @@
     else sq.state = anyEngaged ? 'engaged' : 'advance';
     if (battle) updateSuccession(sq, battle);
     if (battle) updateAssembly(sq, battle);
+    noteSafePoint(sq, battle);
     fireAndMovement(sq, battle);
   }
   /* Succession. When the squad leader is killed nobody commands for SUCCESSION_DELAY seconds (the
@@ -1422,6 +1434,7 @@
   function reform(survivor, men, leader, rally, establishment) {
     assignSlots(men, leader);
     men.forEach(function (s) {
+      s.squad = survivor;
       s._fireteamKey = null;
       s._defensePost = null;
       s._engagementTask = null;
@@ -1437,8 +1450,91 @@
   }
   // A squad absorbed by a merge reads like a destroyed one: nobody living and nobody in command.
   function disband(sq) {
+    sq.members = [];
     sq.aliveCount = 0;
     sq.leaderId = null;
+  }
+  /* The last place the squad stood out of contact with nobody known near it: where a man who breaks and runs goes first
+     (Engagement `flee` reads `squad.safePoint`; `squad.rally` is the moving anchor, which is at the front). */
+  function noteSafePoint(sq, battle) {
+    if (!battle || sq.state === 'retreat' || sq.inContact) return;
+    if (root.SquadAI.squadContact ? root.SquadAI.squadContact(sq, battle) : sq.contact) return;
+    var p = average(sq);
+    if (p) sq.safePoint = { x: p.x, z: p.z };
+  }
+  /* Men who have broken for good (Engagement's report, `fled`) leave the squad and are not coming back to it: each
+     becomes a squad of one, retreating, a full squad's strength missing, on the squad's home. A leader who runs leaves
+     the squad leaderless (succession). The General may take a lone man into a retreating squad, or reconstitution
+     groups him at base. */
+  function detachFled(sq, battle, men) {
+    var list = battle.factions && battle.factions[sq.faction] && battle.factions[sq.faction].squads;
+    if (!list) return;
+    men
+      .filter(function (s) {
+        return s.squad === sq && !s.dead;
+      })
+      .sort(function (a, b) {
+        return a.id - b.id;
+      })
+      .forEach(function (s) {
+        var wasLeader = root.SquadAI.leaderOf(sq) === s;
+        sq.members = sq.members.filter(function (m) {
+          return m !== s;
+        });
+        if (wasLeader) leaderDown(sq);
+        var lone = root.SquadAI.createSquad(sq.id + '-fled-' + s.id, sq.faction, copy(sq.home), sq.objective);
+        lone.members.push(s);
+        lone.leaderId = s.id;
+        lone.establishment = root.SquadAI.COMPOSITION.length;
+        lone.fledId = s.id;
+        lone.fledFrom = sq.id;
+        lone.state = 'retreat';
+        lone.route = [];
+        lone.routeIndex = 0;
+        lone._battleSim = battle;
+        initialPhase(lone, 'approach');
+        assignSlots([s], s);
+        s.squad = lone;
+        s._fireteamKey = null;
+        s._defensePost = null;
+        s._engagementTask = null;
+        s._engagementPlanSerial = null;
+        list.push(lone);
+        telemetry(battle, 'decision-fled-detach', {
+          faction: sq.faction,
+          squad: sq.id,
+          lone: lone.id,
+          soldier: s.id,
+          role: s.role,
+          leader: wasLeader
+        });
+      });
+  }
+  /* A retreating squad takes in a lone fled man (the General decides, this layer rewrites its own roster): he joins the
+     squad's roster on the next rifleman slot and his own squad of one is gone, like a squad absorbed by a merge. */
+  function absorb(survivor, lone, battle) {
+    var s = lone && lone.members && lone.members[0];
+    if (!s || s.dead || !survivor || survivor === lone) return false;
+    var slot = 3;
+    survivor.members.forEach(function (m) {
+      if (m.slotIndex > slot) slot = m.slotIndex;
+    });
+    s.squad = survivor;
+    s.slotIndex = slot + 1;
+    s.slotRole = 'rifleman';
+    s._fireteamKey = null;
+    survivor.members.push(s);
+    lone.establishment = root.SquadAI.COMPOSITION.length;
+    disband(lone);
+    lone.disbanded = true;
+    lone.mergedInto = survivor.id;
+    telemetry(battle, 'decision-fled-absorbed', {
+      faction: survivor.faction,
+      squad: survivor.id,
+      lone: lone.id,
+      soldier: s.id
+    });
+    return true;
   }
   // A man's regroup-unstick record ends (stepMovement: he recovered, the lease ended or he died).
   function endUnstick(s) {
@@ -1771,6 +1867,8 @@
     leaderDown: leaderDown,
     reform: reform,
     disband: disband,
+    detachFled: detachFled,
+    absorb: absorb,
     acknowledgeRequest: acknowledgeRequest,
     endUnstick: endUnstick,
     teamKeyFor: teamKeyFor,
