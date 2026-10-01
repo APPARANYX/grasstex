@@ -110,6 +110,9 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 - `ARRIVE = 0.95` — arrival threshold
 - `SAMPLE_DT = 0.5` — route sampling interval (s)
 
+### 53-fbx-soldier-backend.js
+- `REACTION_ANIM = { fade: 0.32, cowerEnterRate: 3, cowerExitRate: 3, freezeEnterRate: 5, fleeEnterRate: 1, dropSide: 0.88, dropBack: 0.08, dropLift: 0.055, dropYaw: 0.35 }` — presentation-only stress-reaction cross-fade, authored-clip playback rates and discarded-weapon placement (m/rad); freeze holds are a deterministic visual choice, never an RNG draw
+
 ### 39-navigation-physicality-debug.js
 - `BODY_RADIUS = 0.45` — soldier body radius (m)
 - `LOOKAHEAD_DISTANCE = 105` — path lookahead (m)
