@@ -1427,6 +1427,47 @@
       }
     });
   }
+  /* Stress in local execution (`?slStress=pick,hold,review`, off by default; `1`/`all` is all three, a list exactly those
+     named). The Squad Leader reads its men's stress through the soldier condition's `lead` lever and changes only its own
+     decisions: `pick` sends the calmest fireteam that can bound instead of the next in rotation (a tie keeps the rotation);
+     `hold` skips a bound cycle when every team that could go is at the shaken band; `review` asks the General for a new
+     task (the existing doctrine-review request, on a hold/support/regroup brief) once the squad's mean has stayed at or
+     over reviewAt for reviewAfter seconds of contact with reviewMin or more living men. Deterministic, no RNG. */
+  var SL_STRESS_PARTS = ['pick', 'hold', 'review'];
+  function parseSlStress(search) {
+    var m = /[?&]slStress=([^&#]*)/.exec(search || ''),
+      out = {},
+      v = m ? decodeURIComponent(m[1]).toLowerCase() : '';
+    if (v === '1' || v === 'on' || v === 'all') SL_STRESS_PARTS.forEach(function (k) { out[k] = true; });
+    else if (v && v !== '0' && v !== 'off')
+      v.split(',').forEach(function (k) {
+        if (SL_STRESS_PARTS.indexOf(k) >= 0) out[k] = true;
+      });
+    return out;
+  }
+  var SL_STRESS = parseSlStress(typeof location !== 'undefined' ? location.search : '');
+  var LEAD_TUNING = { holdAt: 0.3, reviewAt: 1 / 3, reviewAfter: 10, reviewMin: 3 };
+  function teamStress(men) {
+    var M = root.BattleSoldierMind;
+    return M && M.teamStress ? M.teamStress(men) : 0;
+  }
+  function leadStress(sq) {
+    var M = root.BattleSoldierMind;
+    return M && M.leadStress ? M.leadStress(sq) : 0;
+  }
+  /* review: the squad has stayed shaken in contact long enough that its brief is worth a second look. */
+  function stressReview(sq, battle) {
+    if (!SL_STRESS.review) return;
+    var living = 0,
+      m = sq.members || [];
+    for (var i = 0; i < m.length; i++) if (m[i] && !m[i].dead) living++;
+    if (living < LEAD_TUNING.reviewMin || leadStress(sq) < LEAD_TUNING.reviewAt) {
+      sq._slStressSince = null;
+      return;
+    }
+    if (sq._slStressSince == null) sq._slStressSince = battle.time;
+    else if (battle.time - sq._slStressSince >= LEAD_TUNING.reviewAfter) requestReview(battle, sq, 'squad stress');
+  }
   /* Fire and movement. Engagement reports the squad's contact and base of fire; the Squad Leader decides
    whether the phase allows an assault and, every BOUND_CYCLE seconds, sends one fireteam forward
    for BOUND_DURATION while at least two men keep shooting. */
@@ -1449,9 +1490,11 @@
     if (!sq.inContact) {
       L.end(sq, 'bound', t, 'contact broken');
       sq._assaultAuthorized = false;
+      if (SL_STRESS.review) sq._slStressSince = null;
       if (FIRE_CONTROL_ON) clearFireControl(sq, battle, 'contact broken');
       return;
     }
+    stressReview(sq, battle);
     var fireControl = FIRE_CONTROL_ON ? updateFireControl(sq, battle, r) : null;
     /* Hold/precision fire control is a preparation, not a bound. The Squad Leader keeps the squad
        stationary until it opens the engagement; a designated long-range shooter is the one exception. */
@@ -1474,8 +1517,11 @@
     )
       return;
     /* Rotate teams, but skip a team whose departure would strip the base of fire: waiting a tick for
-     the rotation to reach a team that can go is a missed bound. */
+     the rotation to reach a team that can go is a missed bound. With `?slStress=pick` or `hold` every team
+     that can go is a candidate, in rotation order. */
     var first = sq._boundTurn == null ? 0 : sq._boundTurn + 1,
+      lead = SL_STRESS.pick || SL_STRESS.hold,
+      candidates = [],
       turn,
       team,
       movers,
@@ -1501,7 +1547,39 @@
       holding = r.fireSupport.filter(function (man) {
         return movers.indexOf(man) < 0;
       }).length;
-      if (movers.length && holding >= 2) break;
+      if (movers.length && holding >= 2) {
+        if (!lead) break;
+        candidates.push({ turn: turn, team: team, movers: movers, holding: holding, stress: teamStress(movers) });
+      }
+    }
+    var pickedBy = null,
+      rotation = null,
+      c;
+    if (lead && candidates.length) {
+      rotation = candidates[0];
+      c = rotation;
+      if (SL_STRESS.pick)
+        for (k = 1; k < candidates.length; k++) if (candidates[k].stress < c.stress) c = candidates[k];
+      if (c !== rotation) pickedBy = 'calmest';
+      if (
+        SL_STRESS.hold &&
+        candidates.every(function (x) {
+          return x.stress >= LEAD_TUNING.holdAt;
+        })
+      ) {
+        L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'bound held: every team shaken', 'cycle expiry');
+        telemetry(battle, 'decision-bound-held', {
+          faction: sq.faction,
+          squad: sq.id,
+          teams: candidates.length,
+          stress: +c.stress.toFixed(3)
+        });
+        return;
+      }
+      turn = c.turn;
+      team = c.team;
+      movers = c.movers;
+      holding = c.holding;
     }
     if (!(movers.length && holding >= 2)) turn = first;
     sq._boundTurn = turn;
@@ -1528,13 +1606,19 @@
         'cycle expiry'
       );
       E.orderBound(movers);
-      telemetry(battle, 'decision-bound', {
+      var info = {
         faction: sq.faction,
         squad: sq.id,
         team: team,
         movers: movers.length,
         holding: holding
-      });
+      };
+      if (lead) {
+        info.stress = +c.stress.toFixed(3);
+        info.rotation = rotation.team;
+        info.reason = pickedBy || 'rotation';
+      }
+      telemetry(battle, 'decision-bound', info);
     }
   }
   function updateSquadState(sq, battle) {
@@ -2052,7 +2136,9 @@
     teamOrderSeconds: TEAM_LEASE,
     boundCycle: BOUND_CYCLE,
     boundDuration: BOUND_DURATION,
-    tuning: { morale: MORALE_TUNING, coa: COA_TUNING, fireControl: FIRE_CONTROL_TUNING },
+    tuning: { morale: MORALE_TUNING, coa: COA_TUNING, fireControl: FIRE_CONTROL_TUNING, lead: LEAD_TUNING },
+    slStress: function () { return Object.assign({}, SL_STRESS); },
+    parseSlStress: parseSlStress,
     moraleOn: function () { return MORALE_ON; },
     fireControlOn: function () { return FIRE_CONTROL_ON; },
     fireControl: function (sq) { return sq && sq.fireControl ? Object.assign({}, sq.fireControl) : null; },

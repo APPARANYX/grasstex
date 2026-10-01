@@ -72,6 +72,7 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 - `COA_WEIGHTS` — deterministic COA scoring weights (COA on by default; `?coa=0` disables it)
 
 - `FIRE_CONTROL_TUNING = { prepMin: 1.2, readyFraction: 0.7, minReady: 3, longRange: 140, closeRange: 85, minStrength: 0.55, minMarksmanship: 0.42, precisionMarksmanship: 0.62, maxHold: 6, crestStep: 0.75, crestMax: 6, returnFireWindow: 3 }` — Squad Leader hold/prepare/reposition/open-fire decision, long-range designated marksman, local crest preparation, terrain-deadlock escape, and return-fire exception (`?fireControl=0` control).
+- `LEAD_TUNING = { holdAt: 0.3, reviewAt: 1/3, reviewAfter: 10, reviewMin: 3 }` — Squad Leader stress in local execution (`?slStress=pick,hold,review`, off by default): the shaken band at which every team that could bound holds the cycle, and the squad mean, seconds in contact and living men at which a hold/support/regroup brief asks for a doctrine review.
 
 ### 17-soldier-mind.js
 - `TAU = 22` — stress decay time constant (s)
