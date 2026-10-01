@@ -1204,7 +1204,7 @@ function bind(soldier,scene,st,lib,faction){
     poseRef:fxRef,weaponModel:null,twoHand:0,yawRate:0,lastYaw:null,turning:false,weaponKind:'rifle',
     lower:{entries:[]},upper:{entries:[]},overlay:0,overlayTarget:0,stance:null,transition:null,sector:0,family:null,moving:false,
     vx:0,vz:0,speed:0,lastX:null,lastZ:null,aim:0,aimWanted:false,aimAt:null,spine:byName[BONE.spine2]||null,fireHold:0,fireShot:0,fireSeen:0,reloadShot:0,reloadSeen:0,reloadDuration:2.5,death:null,
-    reaction:null,reactionPhase:null,reactionHold:null,cowerExit:false,reactionWeapon:null,weaponAbandoned:false};
+    reaction:null,reactionPhase:null,reactionHold:null,cowerExit:false,reactionWeapon:null};
   soldier._fbx=fx;
   soldier.animationBinding={backend:BACKEND,tags:TAGS,play:play,update:update};
   fx.meshLod=meshLodBind(meshes);
@@ -1262,6 +1262,8 @@ function familyOf(fx,clips,speed,families){
 }
 function reactionOf(soldier){
   var e=soldier&&soldier.eng,k=e&&e.state;
+  /* A fled man waiting at his refuge for a retreating squad shows one of the freeze holds; whenever he moves he runs. */
+  if(k==='flee'&&e.fledPhase==='wait')return 'freeze';
   return k==='cower'||k==='flee'||k==='freeze'||k==='rage'?k:null;
 }
 /* Stable per man and independent of every simulation RNG: the same broken man presents the same
@@ -1271,29 +1273,11 @@ function freezeHoldOf(soldier){
   for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}
   return REACTION_ANIM.holds[(h>>>0)%REACTION_ANIM.holds.length];
 }
-function reactionDropsWeapon(reaction){return reaction==='cower'||reaction==='freeze'||reaction==='flee';}
-function reactionWeapon(soldier,fx,drop,abandon){
-  var held=fx.reactionWeapon,w=soldier&&soldier.weapon;
-  function restore(entry){
-    var old=entry&&entry.weapon;if(!old)return;
-    [old.mesh,old.bipodMesh].forEach(function(mesh){if(!mesh||mesh.isDisposed())return;
-      mesh.parent=old.socket||fx.socket;mesh.position.set(0,0,0);
-      if(mesh.rotationQuaternion)mesh.rotationQuaternion.set(0,0,0,1);else mesh.rotation.set(0,0,0);
-    });
-  }
-  function leave(entry){
-    var old=entry&&entry.weapon,W=root.BattleWeapons;
-    if(!old||!W||!W.abandon||!W.abandon(soldier,old))return false;
-    [old.mesh,old.bipodMesh].forEach(function(mesh){if(mesh&&!mesh.isDisposed())mesh._battleAbandonedWeapon=true;});
-    fx.reactionWeapon=null;fx.weapon=null;fx.weaponModel=null;fx.weaponAbandoned=true;return true;
-  }
-  if(fx.weaponAbandoned)return;
-  if(!drop){if(held)restore(held);fx.reactionWeapon=null;return;}
-  if(held&&held.weapon===w){if(abandon)leave(held);return;}
-  if(held)restore(held);
-  if(!w||!w.mesh)return;
-  fx.reactionWeapon={weapon:w};
-  var yaw=soldier.root.rotation.y||0,sin=Math.sin(yaw),cos=Math.cos(yaw),p=soldier.root.position;
+function reactionDropsWeapon(reaction){return reaction==='cower'||reaction==='freeze';}
+function weaponMeshes(w){return[w.mesh,w.bipodMesh].filter(function(mesh){return mesh&&!mesh.isDisposed();});}
+function standAt(soldier){var p=soldier.root.position;return{x:p.x,y:p.y,z:p.z,yaw:soldier.root.rotation.y||0};}
+function putBeside(at,w){
+  var yaw=at.yaw||0,sin=Math.sin(yaw),cos=Math.cos(yaw),p=at;
   [w.mesh,w.bipodMesh].forEach(function(mesh,i){if(!mesh||mesh.isDisposed())return;
     mesh.parent=null;
     var side=REACTION_ANIM.dropSide+i*.04;
@@ -1302,7 +1286,33 @@ function reactionWeapon(soldier,fx,drop,abandon){
     if(!mesh.rotationQuaternion)mesh.rotationQuaternion=new Q();
     Q.RotationYawPitchRollToRef(yaw+REACTION_ANIM.dropYaw,0,0,mesh.rotationQuaternion);
   });
-  if(abandon)leave(fx.reactionWeapon);
+}
+/* What the man does with the weapon in his hands is the sim's: cower and freeze put it beside him for the spell and take it
+   up again (he still carries it); a man who has fled no longer has one (`soldier.weapon` is null, Engagement left it
+   behind), so it stays where it lies, a prop in the world, and the new one he is issued at base is drawn in his hands. */
+function reactionWeapon(soldier,fx,drop){
+  var held=fx.reactionWeapon,w=soldier.weapon;
+  function restore(entry){
+    var old=entry&&entry.weapon;if(!old)return;
+    weaponMeshes(old).forEach(function(mesh){
+      mesh.parent=old.socket||fx.socket;mesh.position.set(0,0,0);
+      if(mesh.rotationQuaternion)mesh.rotationQuaternion.set(0,0,0,1);else mesh.rotation.set(0,0,0);
+    });
+  }
+  if(!w){
+    var left=(held&&held.weapon)||fx.weapon;
+    fx.reactionWeapon=null;fx.weapon=null;fx.weaponModel=null;
+    if(!left)return;
+    if(!held)putBeside(left.droppedAt||standAt(soldier),left);
+    weaponMeshes(left).forEach(function(mesh){mesh._battleAbandonedWeapon=true;});
+    return;
+  }
+  if(!drop){if(held)restore(held);fx.reactionWeapon=null;return;}
+  if(held&&held.weapon===w)return;
+  if(held)restore(held);
+  if(!w.mesh)return;
+  fx.reactionWeapon={weapon:w};
+  putBeside(standAt(soldier),w);
 }
 function reactionFullBody(fx,clips,key,rate,fade){
   var clip=clips[key];if(!clip)return false;
@@ -1329,8 +1339,7 @@ function updateReactionLower(soldier,fx,clips,reaction,stance,dt){
       if(top&&top.clip.key===key&&top.t>=top.clip.duration-.04)fx.reactionPhase='run';
     }
     if(fx.reactionPhase!=='enter'){
-      /* At his refuge Engagement holds him and owns his crouch/prone stance again. */
-      if(soldier.eng&&soldier.eng.refugeHere)return false;
+      /* Whenever a fled man moves he runs; waiting at his refuge is a freeze hold (reactionOf). */
       key='reactionFleeRun';rate=clamp(fx.speed/(clips[key].speed||2.8),.7,1.8);
     }
   }else return false;
@@ -1371,7 +1380,7 @@ function update(soldier,state,dt){
     fx.reactionHold=reaction==='freeze'?freezeHoldOf(soldier):null;
     fx.cowerExit=oldReaction==='cower'&&!reaction;
   }
-  reactionWeapon(soldier,fx,reactionDropsWeapon(reaction)||fx.cowerExit,reaction==='flee');
+  reactionWeapon(soldier,fx,reactionDropsWeapon(reaction)||fx.cowerExit);
   /* Cower has an authored rise. It may be interrupted immediately by renewed reaction or movement;
      otherwise it owns the body until its last frame, then the normal lower layer cross-fades in. */
   if(fx.cowerExit){

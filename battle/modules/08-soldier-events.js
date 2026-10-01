@@ -30,6 +30,8 @@
      objective  5  his side took an objective he stood in; posted by the capture zone, payload {objective}
      cover      6  he reached cover while under fire; posted by Engagement, payload {seconds}
      survived   7  a spell of fire on him ended and it did not wound him; posted by Engagement, payload {seconds}
+   Fled (read by the soldier condition always, it is what a man who has abandoned the fight carries):
+     fled       8  he broke and ran for good (`flee`, Engagement); stress never drains below FLED_FLOOR for him, payload none
    Not queued: the urgent status (`_combatUrgentUntil`), a timestamp module 11 and 44 poll, has no reader
    that wants an event. It joins when one does (the callout channel). */
 (function (root) {
@@ -50,7 +52,8 @@
     kill: { priority: 4, producer: 'wound model', payload: 'victim, zone' },
     objective: { priority: 5, producer: 'capture zone', payload: 'objective' },
     cover: { priority: 6, producer: 'Engagement', payload: 'seconds' },
-    survived: { priority: 7, producer: 'Engagement', payload: 'seconds' }
+    survived: { priority: 7, producer: 'Engagement', payload: 'seconds' },
+    fled: { priority: 8, producer: 'Engagement', payload: 'none (a flag)' }
   };
   var CAPACITY = 128,
     readers = {}; // kind -> { readerId: true }
