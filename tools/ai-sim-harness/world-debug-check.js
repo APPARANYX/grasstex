@@ -56,24 +56,31 @@ assert.equal(api.settings.paths,true);assert.equal(api.settings.windows,false);a
 const reloaded=boot(env.storage);assert.equal(reloaded.context.BattleWorldDebug.settings.paths,true);assert.equal(reloaded.context.BattleWorldDebug.settings.windows,false);
 all.onclick();env.hooks['world-debug-overlay'].beforeBattleRestart();assert.ok(env.meshes.every(mesh=>mesh.disposed));
 env.hooks['world-debug-overlay'].onBattleRestart(sim);assert.ok(env.meshes.some(mesh=>!mesh.disposed),'selected layers restore after restart');
-// Composure marks (module 17): a disc above every living man coloured by band, a pip above it on a frozen one; each is
-// parented to its man's root so it moves with him between the timed rebuilds.
+// Composure marks (module 17): a disc above every living man coloured by band, a white pip on a frozen one,
+// and white F/R reaction letters above the disc; each mark is parented to the man's root.
 {
   const e2=boot();e2.context.BattleSoldierMind={shockUntil:s=>s.mind.shock};
   const man=(x,z,mind,faction='us')=>({faction,id:x+':'+z,root:{position:{x,z}},mind});
   const a=man(0,0,{band:2,stress:.6,shock:0}),b=man(5,0,{band:0,stress:.1,shock:6}),c=man(9,0,{band:0,stress:0,shock:0}),d=man(0,9,{band:3,stress:.9,shock:0},'ge'),e=man(3,3,undefined);
+  a.eng={state:'flee'};d.eng={state:'rage'};
   const sim2={scene:{},time:5,heightAt:()=>0,obstacles:[],_roster:{us:[a,b,c,e],ge:[d]}};
   e2.hooks['world-debug-overlay'].onBattleStart(sim2);e2.context.BattleWorldDebug.set('composure',true);
   const live=name=>e2.meshes.findLast(mesh=>mesh.name===name&&!mesh.disposed);
-  const dot=m=>live('wd-mark-dot-'+m.faction+'-'+m.id),pip=m=>live('wd-mark-frozen-'+m.faction+'-'+m.id);
+  const dot=m=>live('wd-mark-dot-'+m.faction+'-'+m.id),pip=m=>live('wd-mark-frozen-'+m.faction+'-'+m.id),flee=m=>live('wd-mark-flee-'+m.faction+'-'+m.id),rage=m=>live('wd-mark-rage-'+m.faction+'-'+m.id);
   assert.ok(dot(a)&&dot(b)&&dot(c)&&dot(d),'every living man with a mind has a disc, steady or not');
   assert.ok(!dot(e),'a man with no mind yet has none');
   assert.equal(dot(a).material.name,'wd-mark-mat-rattled');assert.equal(dot(c).material.name,'wd-mark-mat-steady');assert.equal(dot(d).material.name,'wd-mark-mat-broken');
   assert.notEqual(dot(a).material,dot(c).material,'a colour per band');
   assert.ok(pip(b)&&!pip(a)&&!pip(c)&&!pip(d),'only the frozen man has a pip');
+  assert.ok(flee(a)&&!flee(b)&&rage(d)&&!rage(c),'flee and rage get their own white status letters');
+  assert.equal(flee(a).lines.length,3,'F is drawn as three strokes');assert.equal(rage(d).lines.length,5,'R is drawn as five strokes');
+  assert.equal(flee(a).color.r,1);assert.equal(flee(a).color.g,1);assert.equal(flee(a).color.b,1);
+  assert.equal(flee(a).parent,a.root);assert.equal(rage(d).parent,d.root,'reaction letters move with their soldier');
   assert.equal(dot(a).parent,a.root,'the disc is parented to the man, so it cannot trail him');
-  assert.ok(dot(a).position.y>2&&pip(b).position.y>dot(b).position.y,'above his head, the pip above the disc');
+  assert.ok(dot(a).position.y>2&&pip(b).position.y>dot(b).position.y&&flee(a).position.y>pip(b).position.y,'the reaction letter sits above the stress mark and frozen pip');
   assert.ok(dot(d).scaling.x>dot(a).scaling.x&&dot(a).scaling.x>dot(c).scaling.x,'larger as stress rises');
+  a.eng.state='engage';e2.context.BattleWorldDebug.refresh();assert.ok(!flee(a),'the F disappears when he is no longer fleeing');
+  a.eng.state='flee';
   const first=dot(a);a.mind.band=3;a.mind.stress=.9;e2.context.BattleWorldDebug.refresh();
   assert.equal(dot(a),first,'a rebuild updates the mark, it does not remake it');assert.equal(dot(a).material.name,'wd-mark-mat-broken','and recolours it');
   d.dead=true;e2.context.BattleWorldDebug.refresh();assert.ok(!dot(d),'a dead man loses it');
