@@ -1736,8 +1736,9 @@
     } else if (cur === 'cower') {
       if (v.underFire) e.fearAt = now;
       if (v.band < 2 || now - e.fearAt >= ACT_TUNING.COWER_QUIET) want = null;
-    } else if (cur && !(RAGE_TRANCE && cur === 'rage')) {
-      if (now - e.reactSince >= ACT_TUNING.REACT_MIN) want = null;
+    } else if (cur) {
+      /* A trance (`?rageTrance=1`) does not end on calm: only rage() ends it. */
+      if (!(RAGE_TRANCE && cur === 'rage') && now - e.reactSince >= ACT_TUNING.REACT_MIN) want = null;
     } else if (v.band >= 2 && v.underFire && ACT.cower) want = 'cower';
     if (want !== cur) {
       if (!want) {
