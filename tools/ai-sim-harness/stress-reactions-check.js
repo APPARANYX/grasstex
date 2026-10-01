@@ -475,6 +475,47 @@ test("rage: charges the enemy, fires on the move, strikes at arm's length, and e
   assert.notEqual(far.s.eng.state, 'rage', 'with no enemy in reach he stops');
 });
 
+/* A man whose own target is past RAGE_REACH while his squad's contact is inside RAGE_RANGE: the break reads the
+   contact, the charge (flag off) reads his target. Off, he breaks into rage and gives it up on the same tick, every
+   tick, and each break renews the guard (the benchmark's 191 breaks in 2.1 s of rage on one seed). `?rageLock=1`
+   charges the nearer of the two: one break, he holds the state and runs at the contact. */
+function splitRage(q) {
+  const ctx = world(q),
+    s = man(ctx.us, 'rifleman');
+  tick(ctx, s);
+  temper(ctx, s, 0, 0, 0.95);
+  stressTo(ctx, s, 'broken');
+  const far = foe(ctx, s, 250); // his own target, past RAGE_REACH
+  const near = man(ctx.ge, 'rifleman', 1);
+  put(near, s.root.position.x + 5, s.root.position.z + 60);
+  ctx.us.contact = { x: near.root.position.x, z: near.root.position.z, at: ctx.b.time, seenBy: s.id };
+  s.fireCooldown = 99;
+  under(ctx, s, 3);
+  const guards = [];
+  let ticksInRage = 0;
+  for (let i = 0; i < 8; i++) {
+    ctx.us.contact.at = ctx.b.time; // the squad keeps seeing him
+    stressTo(ctx, s, 'broken');
+    tick(ctx, s);
+    if (s.eng.state === 'rage') ticksInRage++;
+    guards.push(s.eng.guardUntil || 0);
+  }
+  return { ctx, s, far, near, guards, ticksInRage, acts: ctx.M.of(s).acts.rage };
+}
+test('rage: the break and the charge measure the same enemy with ?rageLock=1; off, a far target makes the rage flicker', () => {
+  const off = splitRage('?stressAct=rage');
+  assert.equal(off.ctx.E.tuning.RAGE_LOCK, false, 'off by default');
+  assert.ok(off.acts.n >= 6, 'off: a new break nearly every tick, ' + off.acts.n);
+  assert.equal(off.ticksInRage, 0, 'off: never in rage at the end of a tick');
+  assert.ok(off.guards[7] > off.guards[0], 'off: each break renews the guard');
+  const on = splitRage('?stressAct=rage&rageLock=1');
+  assert.equal(on.ctx.E.tuning.RAGE_LOCK, true);
+  assert.equal(on.acts.n, 1, 'on: one break');
+  assert.equal(on.ticksInRage, 8, 'on: in rage every tick');
+  assert.equal(new Set(on.guards).size, 1, 'on: the guard is set once');
+  assert.ok(dist(on.s.destination, here(on.near)) < 1, 'on: he runs at the near contact, not his far target');
+});
+
 test('rage: for RAGE_GUARD_SECONDS a hit does a quarter of its damage, of its chance to drop him and of its bleed; the same two draws', () => {
   const T = load_tuning();
   const ctx0 = broke('?stressAct=rage', [0, 0, 0.95], 50);
