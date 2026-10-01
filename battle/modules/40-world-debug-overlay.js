@@ -113,8 +113,8 @@ function rebuildCoverSlots(sim){
 /* Composure marks are meshes parented to each man's root, so they move with him every frame: the layers
    above are rebuilt every 180 ms and would trail a running man. Every living man carries a disc above his
    head coloured by band (green steady, yellow shaken, orange rattled, red broken), a little larger as his
-   stress rises, and a white pip above it while he is frozen by what he just saw. A rebuild only updates
-   scale and material; marks are dropped when a man dies or the layer is switched off. */
+   stress rises. A white pip above it marks shock; a white F or R above the disc marks flee or rage.
+   A rebuild only updates marks; they are dropped when a man dies or the layer is switched off. */
 var markMats=null;
 function matFor(sim,key,c){markMats=markMats||{};var m=markMats[key];if(!m){m=new BABYLON.StandardMaterial('wd-mark-mat-'+key,sim.scene);m.emissiveColor=color3(c);m.diffuseColor=color3(c);m.disableLighting=true;m.alpha=.95;markMats[key]=m;}return m;}
 function disposeMarks(){disposePrefix('wd-mark-');if(markMats){Object.keys(markMats).forEach(function(k){try{markMats[k].dispose();}catch(_){}});markMats=null;}}
@@ -124,12 +124,40 @@ function setDot(sim,s,kind,on,key,color,size,height){
   if(!m){m=BABYLON.MeshBuilder.CreateSphere(name,{diameter:1,segments:6},sim.scene);m.parent=s.root;m.isPickable=false;m.renderingGroupId=3;m.alwaysSelectAsActiveMesh=true;layers[name]=m;}
   m.position=new BABYLON.Vector3(0,height,0);m.scaling=new BABYLON.Vector3(size,size,size);m.material=matFor(sim,key,color);
 }
+function reactionLetter(letter){
+  var V=BABYLON.Vector3,x=.12,y=.19;
+  if(letter==='F')return[
+    [new V(-x,-y,0),new V(-x,y,0)],
+    [new V(-x,y,0),new V(x,y,0)],
+    [new V(-x,0,0),new V(x*.65,0,0)]
+  ];
+  return[
+    [new V(-x,-y,0),new V(-x,y,0)],
+    [new V(-x,y,0),new V(x*.55,y,0)],
+    [new V(x*.55,y,0),new V(x,.10,0),new V(x*.55,0,0)],
+    [new V(-x,0,0),new V(x*.55,0,0)],
+    [new V(.01,0,0),new V(x,-y,0)]
+  ];
+}
+function setReactionLetter(sim,s,kind,on,letter,height){
+  var name='wd-mark-'+kind+'-'+s.faction+'-'+s.id,m=layers[name];
+  if(!on){if(m)disposeLayer(name);return;}
+  if(!m){
+    m=BABYLON.MeshBuilder.CreateLineSystem(name,{lines:reactionLetter(letter),updatable:false},sim.scene);
+    m.parent=s.root;m.isPickable=false;m.renderingGroupId=3;m.alwaysSelectAsActiveMesh=true;
+    m.billboardMode=(BABYLON.Mesh&&BABYLON.Mesh.BILLBOARDMODE_ALL)||7;
+    m.color=color3(COLORS.shock);m.alpha=.98;layers[name]=m;
+  }
+  m.position=new BABYLON.Vector3(0,height,0);
+}
 function updateComposure(sim){
   var Mind=root.BattleSoldierMind,t=+sim.time||0,keys=['steady','shaken','rattled','broken'],colors=[COLORS.steady,COLORS.shaken,COLORS.rattled,COLORS.broken];
   ['us','ge'].forEach(function(f){(sim._roster[f]||[]).forEach(function(s){
-    var live=!!(includedSoldier(s)&&s.root&&s.mind),band=live?s.mind.band:0;
+    var live=!!(includedSoldier(s)&&s.root&&s.mind),band=live?s.mind.band:0,state=live&&s.eng&&s.eng.state;
     setDot(sim,s,'dot',live,keys[band],colors[band],live?.2+.25*s.mind.stress:.2,2.3);
     setDot(sim,s,'frozen',!!(live&&Mind&&Mind.shockUntil(s)>t),'shock',COLORS.shock,.16,2.72);
+    setReactionLetter(sim,s,'flee',state==='flee','F',3.02);
+    setReactionLetter(sim,s,'rage',state==='rage','R',3.02);
   });});
 }
 function rebuildDynamic(){
@@ -191,7 +219,7 @@ function installUi(){
   checkboxRow(grid,'paths','Soldier paths','Rolling committed route queue the soldier is actually following');
   checkboxRow(grid,'waypoints','Waypoints','Future queued route points; active/current is larger');
   checkboxRow(grid,'destinations','Destinations','Final legalized soldier-body ring plus raw squad/fireteam intent crosses');
-  checkboxRow(grid,'composure','Composure','Soldier stress (module 17): a disc above every man, green steady, yellow shaken, orange rattled, red broken, larger as it rises; a white pip above it marks a man frozen by what he just saw')
+  checkboxRow(grid,'composure','Composure','Soldier stress (module 17): a disc above every man, green steady, yellow shaken, orange rattled, red broken, larger as it rises; white pip = frozen, F = fleeing, R = rage')
   checkboxRow(grid,'detours','Avoidance leg','Highlight immediate physical route leg when it differs from the final goal');
   var actions=document.createElement('div');actions.className='wd-actions';
   var all=document.createElement('button');all.type='button';all.className='wd-select-all';all.textContent='Select all';all.onclick=function(){setAll(true);};actions.appendChild(all);
