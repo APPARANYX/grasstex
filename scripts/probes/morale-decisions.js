@@ -19,7 +19,7 @@
      - hist / byCasualties: seconds of non-retreating squads by mean stress (bins of 0.05), split in contact
        or not, and by casualty count (10-man squads), which is where the threshold shift can or cannot bite;
      - retreat: seconds in retreat, and of those the seconds the rally condition's two halves held (calm men,
-       under `rallyCasualty`), so what blocks a rally is on record;
+       clear of the break threshold by `rallyGap`), so what blocks a rally is on record;
      - entries, exits, merges: every break and rally with the numbers at that moment, and the time a merged
        squad stays in retreat afterwards;
      - groups: every reconstitution group formed, with singletons (one squad grouped alone) flagged. */
@@ -144,7 +144,7 @@
           var flatRetreat = p.cf >= FLAT,
             retreating = p.state === 'retreat',
             moraleRetreat = retreating
-              ? !(p.stress < tun.rallyStress && p.cf < tun.rallyCasualty)
+              ? !S.moraleRallies(p.cf, p.stress)
               : p.cf >= breakAt(p.stress),
             predicted = on ? moraleRetreat : flatRetreat,
             actual = cur.state === 'retreat';
@@ -190,7 +190,7 @@
           } else {
             var R = st.retreat,
               calm = p.stress < tun.rallyStress,
-              ok = p.cf < tun.rallyCasualty;
+              ok = p.cf < S.moraleBreakAt(p.stress) - tun.rallyGap;
             R.sec += dt;
             if (calm) R.secCalm += dt;
             if (ok) R.secCasualtyOk += dt;
