@@ -174,6 +174,188 @@
   function updateCOA(sq) {
     return (sq.coa = decideCOA(coaInputsOf(sq)));
   }
+
+  /* Fire discipline. A sighting is a request to the Squad Leader, not permission to shoot.
+     ?fireControl=0 is the old immediate-fire control for paired A/B work. The state is squad-owned:
+       hold      everybody prepares prone and stays silent;
+       precision one designated marksman may fire, the rest stay prepared;
+       open      ordinary Engagement fire/suppression is allowed.
+     Incoming fire always escalates to open and an individual under fire may return it immediately. */
+  var FIRE_CONTROL_ON = !(
+    typeof location !== 'undefined' && /[?&]fireControl=(?:0|off|false)\b/.test(location.search || '')
+  );
+  var FIRE_CONTROL_TUNING = {
+    prepMin: 1.2,
+    readyFraction: 0.7,
+    minReady: 3,
+    longRange: 140,
+    closeRange: 85,
+    minStrength: 0.55,
+    minMarksmanship: 0.42,
+    precisionMarksmanship: 0.62,
+    maxHold: 6,
+    crestStep: 0.75,
+    crestMax: 6,
+    returnFireWindow: 3
+  };
+  function mkm(s) {
+    var St = root.BattleSoldierStats;
+    return St && St.of ? +St.of(s).mkm || 0 : 0.5;
+  }
+  function firstHandContact(sq, battle) {
+    var c = root.SquadAI.squadContact ? root.SquadAI.squadContact(sq, battle) : sq.contact;
+    return c && c.unit && !c.unit.dead && !c.heard && !c.relayedFrom ? c : null;
+  }
+  function fireControlRange(sq, c) {
+    var p = average(sq);
+    return p && c ? dist(p, c) : Infinity;
+  }
+  function precisionShooter(men, range, battle) {
+    var best = null,
+      bestScore = -Infinity;
+    for (var i = 0; i < men.length; i++) {
+      var s = men[i];
+      if (!s.weapon || root.SquadAI.isMachineGun(s) || root.SquadAI.engageRange(s) < range) continue;
+      var roleBonus = s.role === 'sniper' ? 0.2 : s.role === 'scout' ? 0.12 : s.role === 'rifleman' ? 0.03 : 0,
+        score = mkm(s) + roleBonus;
+      if (
+        score > bestScore + 1e-9 ||
+        (Math.abs(score - bestScore) <= 1e-9 && best && String(s.id) < String(best.id))
+      ) {
+        best = s;
+        bestScore = score;
+      }
+    }
+    return best;
+  }
+  function fireControlTelemetry(sq, battle, fc) {
+    telemetry(battle, 'decision-fire-control', {
+      faction: sq.faction,
+      squad: sq.id,
+      state: fc.state,
+      reason: fc.reason,
+      target: fc.targetId,
+      shooter: fc.shooterId,
+      range: isFinite(fc.range) ? +fc.range.toFixed(1) : null,
+      strength: +fc.strength.toFixed(2),
+      marksmanship: +fc.marksmanship.toFixed(2),
+      ready: fc.ready,
+      living: fc.living
+    });
+  }
+  function setFireControl(sq, battle, prev, state, reason, data) {
+    data = data || {};
+    var fc = {
+      state: state,
+      since: battle.time,
+      startedAt: prev && isFinite(+prev.startedAt) ? +prev.startedAt : battle.time,
+      targetId: data.targetId == null ? (prev && prev.targetId) : data.targetId,
+      shooterId: data.shooterId == null ? null : data.shooterId,
+      reason: reason,
+      range: isFinite(+data.range) ? +data.range : prev && isFinite(+prev.range) ? +prev.range : Infinity,
+      strength: isFinite(+data.strength) ? +data.strength : prev ? +prev.strength || 0 : 0,
+      marksmanship: isFinite(+data.marksmanship) ? +data.marksmanship : prev ? +prev.marksmanship || 0 : 0,
+      ready: data.ready == null ? (prev ? +prev.ready || 0 : 0) : +data.ready || 0,
+      living: data.living == null ? (prev ? +prev.living || 0 : 0) : +data.living || 0
+    };
+    sq.fireControl = fc;
+    fireControlTelemetry(sq, battle, fc);
+    return fc;
+  }
+  function clearFireControl(sq, battle, reason) {
+    if (sq.fireControl)
+      telemetry(battle, 'decision-fire-control', {
+        faction: sq.faction,
+        squad: sq.id,
+        state: 'clear',
+        reason: reason || 'contact clear'
+      });
+    sq.fireControl = null;
+  }
+  function updateFireControl(sq, battle, report) {
+    if (!FIRE_CONTROL_ON || !sq || !battle) return null;
+    var c = firstHandContact(sq, battle),
+      fc = sq.fireControl;
+    if (!c) return fc || null; // heard/relayed word never creates permission to fire.
+    if (fc && fc.state === 'open') return fc;
+    if (!fc || (fc.targetId != null && String(fc.targetId) !== String(c.unit.id))) {
+      fc = setFireControl(sq, battle, null, 'hold', 'first visual contact', { targetId: c.unit.id });
+    }
+    if ((report && report.underFire) > 0) {
+      return setFireControl(sq, battle, fc, 'open', 'enemy fire received', { targetId: c.unit.id });
+    }
+    var men = commanded(sq),
+      living = men.length,
+      ready = 0,
+      sum = 0,
+      E = root.BattleEngagement,
+      i;
+    for (i = 0; i < living; i++) {
+      sum += mkm(men[i]);
+      if (E && E.fireControlReady && E.fireControlReady(men[i], battle)) ready++;
+    }
+    var strength = living / Math.max(1, root.SquadAI.establishment(sq)),
+      meanMkm = living ? sum / living : 0,
+      range = fireControlRange(sq, c),
+      needed = Math.min(living, Math.max(FIRE_CONTROL_TUNING.minReady, Math.ceil(living * FIRE_CONTROL_TUNING.readyFraction))),
+      elapsed = battle.time - fc.startedAt;
+    fc.range = range;
+    fc.strength = strength;
+    fc.marksmanship = meanMkm;
+    fc.ready = ready;
+    fc.living = living;
+    fc.targetId = c.unit.id;
+
+    if (!leaderAlive(sq)) return fc; // succession or return fire, never an invisible leader decision.
+    if (fc.state === 'precision') return fc;
+
+    if (range >= FIRE_CONTROL_TUNING.longRange && elapsed >= FIRE_CONTROL_TUNING.prepMin) {
+      var shot = precisionShooter(men, range, battle);
+      if (
+        shot &&
+        mkm(shot) >= FIRE_CONTROL_TUNING.precisionMarksmanship &&
+        E &&
+        E.fireControlReady &&
+        E.fireControlReady(shot, battle)
+      )
+        return setFireControl(sq, battle, fc, 'precision', 'long-range marksman', {
+          targetId: c.unit.id,
+          shooterId: shot.id,
+          range: range,
+          strength: strength,
+          marksmanship: meanMkm,
+          ready: ready,
+          living: living
+        });
+    }
+
+    var prepared = ready >= needed && elapsed >= FIRE_CONTROL_TUNING.prepMin,
+      willing =
+        range <= FIRE_CONTROL_TUNING.closeRange ||
+        (strength >= FIRE_CONTROL_TUNING.minStrength && meanMkm >= FIRE_CONTROL_TUNING.minMarksmanship);
+    if (prepared && willing)
+      return setFireControl(sq, battle, fc, 'open', 'squad prepared', {
+        targetId: c.unit.id,
+        range: range,
+        strength: strength,
+        marksmanship: meanMkm,
+        ready: ready,
+        living: living
+      });
+
+    /* Do not deadlock forever on one awkward crest. After a deliberate hold, two usable rifles are
+       enough for the leader to accept the engagement even if the 70% preparation target was impossible. */
+    if (elapsed >= FIRE_CONTROL_TUNING.maxHold && ready >= Math.min(2, living))
+      return setFireControl(sq, battle, fc, 'open', 'leader accepted partial firing line', {
+        targetId: c.unit.id,
+        range: range,
+        strength: strength,
+        marksmanship: meanMkm,
+        ready: ready,
+        living: living
+      });
+    return fc;
+  }
   var TACTICAL = {
     assault: 1,
     flank: 1,
@@ -1249,6 +1431,14 @@
     if (!sq.inContact) {
       L.end(sq, 'bound', t, 'contact broken');
       sq._assaultAuthorized = false;
+      if (FIRE_CONTROL_ON) clearFireControl(sq, battle, 'contact broken');
+      return;
+    }
+    var fireControl = FIRE_CONTROL_ON ? updateFireControl(sq, battle, r) : null;
+    /* Hold/precision fire control is a preparation, not a bound. The Squad Leader keeps the squad
+       stationary until it opens the engagement; a designated long-range shooter is the one exception. */
+    if (fireControl && fireControl.state !== 'open') {
+      sq._assaultAuthorized = false;
       return;
     }
     if (COA_ON) updateCOA(sq);
@@ -1803,6 +1993,7 @@
         L.clear(q);
         q._boundTurn = null;
         q._assaultAuthorized = false;
+        q.fireControl = null;
         (q.members || []).forEach(function (s) {
           s._regroupUnstick = null;
           s._fireteamDestination = null;
@@ -1843,8 +2034,11 @@
     teamOrderSeconds: TEAM_LEASE,
     boundCycle: BOUND_CYCLE,
     boundDuration: BOUND_DURATION,
-    tuning: { morale: MORALE_TUNING, coa: COA_TUNING },
+    tuning: { morale: MORALE_TUNING, coa: COA_TUNING, fireControl: FIRE_CONTROL_TUNING },
     moraleOn: function () { return MORALE_ON; },
+    fireControlOn: function () { return FIRE_CONTROL_ON; },
+    fireControl: function (sq) { return sq && sq.fireControl ? Object.assign({}, sq.fireControl) : null; },
+    updateFireControl: updateFireControl,
     coaOn: function () { return COA_ON; },
     coas: function () { return Object.keys(COAS); },
     /* Read-only views of the two decisions, for the checks and the probes (nothing in the runtime calls them). */

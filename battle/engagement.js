@@ -268,6 +268,41 @@
     return !!known && battle.time - known.at <= ALERT_HOLD;
   }
 
+  /* Squad fire control is Meso-owned state. Engagement only reads the order and answers whether one
+     man is presently allowed/ready to shoot. A man already taking fire may return it immediately;
+     the Squad Leader will open the rest of the squad on its next tick. */
+  function fireControlTuning() {
+    var Q = root.BattleSquadStability,
+      t = Q && Q.tuning && Q.tuning.fireControl;
+    return t || { returnFireWindow: 3, crestStep: 0.75, crestMax: 6 };
+  }
+  function underFireNow(s, battle) {
+    if (!s || !battle) return false;
+    if ((+s.suppressedUntil || 0) > battle.time) return true;
+    var m = s.mind,
+      last = m && isFinite(+m.lastIncomingAt) ? +m.lastIncomingAt : -999;
+    return battle.time - last <= fireControlTuning().returnFireWindow;
+  }
+  function fireControlOf(s) {
+    return (s && s.squad && s.squad.fireControl) || null;
+  }
+  function fireAuthorized(s, battle) {
+    var f = fireControlOf(s);
+    if (!f || f.state === 'open') return true;
+    if (underFireNow(s, battle)) return true;
+    return f.state === 'precision' && String(f.shooterId) === String(s.id);
+  }
+  function fireControlPreparing(s, battle) {
+    var f = fireControlOf(s);
+    if (!f || underFireNow(s, battle)) return false;
+    if (f.state === 'hold') return true;
+    if (f.state !== 'precision') return false;
+    if (String(f.shooterId) !== String(s.id)) return true;
+    /* The designated marksman may leave preparation only when he personally has the shot. A shared
+       contact alone keeps him low and ready instead of sending him back toward his formation slot. */
+    return !(s.target && !s.target.dead && fireControlReady(s, battle));
+  }
+
   var CRAWL_FIT = !(typeof location !== 'undefined' && /[?&]crawlFit=0\b/.test(location.search || ''));
   // How much of his running pace a crawl covers (module 11's gait table), 0.23 without it.
   function crawlPace() {
@@ -863,6 +898,7 @@
     if (movingTooFast(s) || s.crawling) return false;
     if (facingError(s, posOf(s.target)) > AIM_CONE) return false;
     if (SA().isMachineGun(s) && !s.setUp && e.state === 'engage') return false; // the gun gets emplaced first
+    if (!fireAuthorized(s, battle)) return false; // Squad Leader has not given this man permission yet.
     /* Last, so that when it stops him it was the only thing that did (the same answer in any order). */
     if (battle.time < shockUntil(s)) {
       noteShock(s, 'fire');
@@ -883,6 +919,7 @@
   function suppress(s, battle, point) {
     var e = state(s);
     if (!point || s.reloading || movingTooFast(s) || s.crawling) return false;
+    if (!fireAuthorized(s, battle)) return false;
     if (battle.time < e.burstPauseUntil || battle.time < e.fireReadyAt) return false;
     if (facingError(s, point) > AIM_CONE) return false;
     if (battle.time < shockUntil(s)) {
@@ -1165,6 +1202,79 @@
     if (root.BattleMovementResolver) return;
     var pt = orderPoint(s);
     SA().setDestination(s, pt, battle, !!urgent);
+  }
+
+  /* The contact used for a fire-control preparation is still Perception's truth. A man with his own
+     target uses it; everyone else can prepare on the squad's first-hand contact. */
+  function fireControlTarget(s, battle) {
+    if (s.target && !s.target.dead) return s.target;
+    var c = SA().squadContact ? SA().squadContact(s.squad, battle) : null;
+    return c && c.unit && !c.unit.dead ? c.unit : null;
+  }
+  function proneProxy(s, pt, battle) {
+    return {
+      root: {
+        position: { x: pt.x, y: battle.heightAt(pt.x, pt.z), z: pt.z },
+        rotation: { y: (s.root.rotation && +s.root.rotation.y) || 0 }
+      },
+      prone: true,
+      crouching: false,
+      tacticalCrouch: false,
+      weapon: s.weapon,
+      role: s.role,
+      squad: s.squad
+    };
+  }
+  function proneLineClear(s, target, pt, battle) {
+    if (!s || !target || target.dead || !pt) return false;
+    var proxy = proneProxy(s, pt, battle);
+    if (!SA().hasLineOfSight(proxy, target, battle.heightAt, battle.obstacles)) return false;
+    var B = root.BattleBallistics;
+    return !(B && B.fireLineBlocked && B.fireLineBlocked(proxy, target, battle));
+  }
+  /* A crest preparation is deliberately local. Sample only a few metres toward the observed man;
+     the Movement Resolver still owns the legal physical step. This is not a new pathfinder. */
+  function crestPrepPoint(s, target, battle) {
+    var p = posOf(s);
+    if (!target || target.dead || proneLineClear(s, target, p, battle)) return { x: p.x, z: p.z };
+    var tp = posOf(target),
+      dx = tp.x - p.x,
+      dz = tp.z - p.z,
+      len = Math.hypot(dx, dz),
+      T = fireControlTuning(),
+      step = Math.max(0.25, +T.crestStep || 0.75),
+      max = Math.max(step, +T.crestMax || 6);
+    if (len < 0.1) return { x: p.x, z: p.z };
+    dx /= len;
+    dz /= len;
+    for (var d = step; d <= max + 1e-9; d += step) {
+      var q = { x: p.x + dx * d, z: p.z + dz * d };
+      if (proneLineClear(s, target, q, battle)) return q;
+    }
+    return { x: p.x, z: p.z };
+  }
+  function fireControlReady(s, battle) {
+    if (!s || s.dead || !s.weapon || s.reloading || s.clearingStoppage || s.outOfAmmo || !s.prone || s.crawling)
+      return false;
+    if (s.moving && (s.moveSpeed || 0) > 0.16) return false;
+    var target = fireControlTarget(s, battle);
+    if (!target) return false;
+    var p = posOf(s),
+      tp = posOf(target);
+    if (dist(p.x, p.z, tp.x, tp.z) > SA().engageRange(s)) return false;
+    return proneLineClear(s, target, p, battle);
+  }
+  function prepareFireControl(s, battle) {
+    var target = fireControlTarget(s, battle),
+      known = target ? posOf(target) : knownThreat(s, battle),
+      p = posOf(s),
+      goal = target ? crestPrepPoint(s, target, battle) : { x: p.x, z: p.z };
+    s.state = 'engage';
+    s.setUp = false;
+    if (known) s._faceHint = { x: known.x, z: known.z };
+    commitStance(s, battle, 'prone', 1.0);
+    if (dist(p.x, p.z, goal.x, goal.z) > 0.3) move(s, battle, goal, 'contact-reaction', 0.8);
+    else holdPosition(s, battle);
   }
   function squadForward(s) {
     var sq = s.squad;
@@ -1652,6 +1762,10 @@
       transition(s, battle, 'station', 0, 'firing station');
       return station(s, battle);
     }
+    /* A first contact is not automatically a trigger pull. While the Squad Leader is holding fire,
+       everyone not specifically chosen for a precision shot gets low, faces the contact and creeps
+       only far enough to establish a prone line over a crest. */
+    if (fireControlPreparing(s, battle)) return prepareFireControl(s, battle);
 
     switch (e.state) {
       case 'orient':
@@ -2172,6 +2286,7 @@
       contact = 0,
       effective = 0,
       pinnedCount = 0,
+      underFireCount = 0,
       fireSupport = [],
       i,
       s;
@@ -2179,8 +2294,19 @@
        working in the gap where nobody can see anyone - which is exactly when a squad used to fall
        silent. Assigning before the counting below means a suppressor counts toward this tick's
        base of fire rather than the previous one's. */
-    var known = SA().squadContact ? SA().squadContact(sq, battle) : null;
-    var suppressing = assignSuppressors(sq, battle, members, known),
+    var known = SA().squadContact ? SA().squadContact(sq, battle) : null,
+      controlled = !!(sq.fireControl && sq.fireControl.state !== 'open'),
+      preparingContact = !!(
+        controlled &&
+        known &&
+        known.unit &&
+        !known.unit.dead &&
+        !known.heard &&
+        !known.relayedFrom
+      );
+    /* A hold/precision order is silent preparation. Clear old suppressor jobs while it is active;
+       otherwise a stale suppressOrder would make the squad look like a base of fire before permission. */
+    var suppressing = assignSuppressors(sq, battle, members, controlled ? null : known),
       broken = [],
       fled = [];
     for (i = 0; i < members.length; i++) {
@@ -2190,6 +2316,7 @@
       if (ACTING[e.state] === 1) broken.push(s);
       if (e.fledPhase === 'run' || e.fledPhase === 'wait') fled.push(s); // for the Squad Leader to let go from the roster
       if (s.target) contact++;
+      if (underFireNow(s, battle)) underFireCount++;
       if (e.state === 'pinned' || s.suppressedUntil > battle.time) pinnedCount++;
       /* A man putting rounds on the known position IS the base of fire - that is the entire point
          of him doing it. Counting only men with a visible target meant a squad whose line of sight
@@ -2213,15 +2340,12 @@
     sq.pinnedCount = pinnedCount;
     sq.effectiveCount = effective;
     var wasInContact = !!sq.inContact;
-    /* In contact means shooting at somebody or shooting at where they are - NOT merely knowing a
-       position exists. One blink of line of sight used to clear the firefight state and reset the
-       bound cycle, so a squad trading fire through a hedgerow behaved as if the battle had ended
-       every couple of seconds; but counting bare knowledge instead deadlocks the field. A squad
-       that knows about an enemy 220 m away can neither shoot at it nor bound toward it (a bound
-       needs a base of fire), so it would freeze in place forever. Suppressor assignment already
-       answers the question that matters - can anybody here actually put rounds on it - so that is
-       the test. Out of reach means keep advancing until it is in reach. */
-    sq.inContact = contact > 0 || suppressing > 0;
+    /* Ordinarily contact means a current target or a real suppressor, not bare remembered knowledge.
+       Fire-control preparation is the one deliberate exception: going prone behind a crest can make every
+       current target blink out for a tick, and that must not cancel the Squad Leader's live hold/precision
+       order. Only its recent first-hand contact keeps the preparation alive; heard/relayed word still cannot
+       freeze a squad in place. */
+    sq.inContact = contact > 0 || suppressing > 0 || preparingContact;
     var started = sq.inContact && !wasInContact;
     if (started) {
       sq.contactSince = battle.time;
@@ -2237,6 +2361,7 @@
       contactStarted: started,
       effective: effective,
       pinned: pinnedCount,
+      underFire: underFireCount,
       fireSupport: fireSupport,
       reacting: broken,
       fled: fled
@@ -2315,6 +2440,10 @@
     sectorDistance: sectorDistance,
     facingError: facingError,
     fireAllowed: fireAllowed,
+    fireAuthorized: fireAuthorized,
+    underFireNow: underFireNow,
+    fireControlReady: fireControlReady,
+    crestPrepPoint: crestPrepPoint,
     commitStance: commitStance,
     requestStance: requestStance,
     markUrgent: markUrgent,
