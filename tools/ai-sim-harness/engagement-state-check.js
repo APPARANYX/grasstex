@@ -14,9 +14,13 @@ assert.deepStrictEqual(Object.keys(E.states).sort(), [
   'alert',
   'assault',
   'bound',
+  'cower',
   'engage',
+  'flee',
+  'freeze',
   'orient',
   'pinned',
+  'rage',
   'station',
   'withdraw'
 ]);

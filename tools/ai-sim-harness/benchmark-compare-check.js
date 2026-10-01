@@ -140,6 +140,33 @@ const run = (a, b, extra) => {
     );
   });
 
+  await test('stalled men are read from the timeline: onsets and man-seconds, a clock the runner does not share', () => {
+    const stalled = (us, ge) => ({
+      timeline: {
+        format: 'grasstex-ai-timeline-v1',
+        samples: us.map((v, i) => ({ t: i + 1, us: { stalled: v }, ge: { stalled: ge[i] || 0 } }))
+      }
+    });
+    /* us: one man from 3 s to 5 s, a second joining at 5 s (onsets 2, 6 man-seconds); ge: one man at 2 s (1, 1) */
+    const a = battle('s1', stalled([0, 0, 1, 1, 2, 2, 0, 0], [0, 1, 0, 0, 0, 0, 0, 0]));
+    const b = battle('s1', stalled([0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]));
+    const out = JSON.parse(
+      run([a], [b], ['--count', 'timeline.stalledOnsets', '--count', 'timeline.stalledSamples']).stdout
+    );
+    assert.equal(out.counters['timeline.stalledOnsets'].a, 3);
+    assert.equal(out.counters['timeline.stalledOnsets'].b, 0);
+    assert.equal(out.counters['timeline.stalledSamples'].a, 7);
+    assert.equal(
+      out.counters['timeline.stalledSamples'].fewer,
+      1,
+      'the per-battle sign test works on it too'
+    );
+    const none = battle('s2');
+    delete none.timeline;
+    const o2 = JSON.parse(run([none], [none], ['--count', 'timeline.stalledOnsets']).stdout);
+    assert.equal(o2.counters['timeline.stalledOnsets'].a, 0, 'a record with no timeline counts nothing');
+  });
+
   await test('the dose map sums the records, skips an off record and is null with nothing to sum', async () => {
     const { summarizeStress, stressMarkdown, stressBattles } =
       await import('../../scripts/lib/stress-summary.mjs');
@@ -311,6 +338,31 @@ const run = (a, b, extra) => {
       mdm
     );
     assert.ok(!stressMarkdown(s).join('\n').includes('Stress memory'), 'nothing to say with every flag off');
+    /* The reactions (?stressAct): spells and seconds per reaction, the charge's blows. */
+    const acts = (k, extra) => ({
+      acts: {
+        cower: { n: k, seconds: 1.5 * k },
+        flee: { n: 2 * k, seconds: 4 * k },
+        freeze: { n: 0, seconds: 0 },
+        rage: Object.assign({ n: k, seconds: 2, strikes: 3, hits: 1 }, extra)
+      }
+    });
+    const a2 = summarizeStress([{ stress: block(1, acts(1)) }, { stress: block(2, acts(2)) }]);
+    assert.deepEqual(a2.acts.cower, { n: 3, seconds: 4.5 });
+    assert.deepEqual(a2.acts.flee, { n: 6, seconds: 12 });
+    assert.deepEqual(a2.acts.rage, { n: 3, seconds: 4, strikes: 6, hits: 2 });
+    assert.ok(
+      stressMarkdown(a2)
+        .join('\n')
+        .includes(
+          'Stress reactions: cower 3 (4.5 s) · flee 6 (12 s) · freeze 0 (0 s) · rage 3 (4 s) · charge blows 6 struck, 2 landed'
+        )
+    );
+    assert.equal(s.acts.cower.n, 0, 'no reactions in a build without them');
+    assert.ok(
+      !stressMarkdown(s).join('\n').includes('Stress reactions'),
+      'nothing to say with every reaction off'
+    );
     assert.equal(summarizeStress([{ seed: 'x' }, { stress: { off: true } }]), null);
     assert.equal(summarizeStress([]), null);
     assert.match(stressMarkdown(null)[0], /no stress block/);

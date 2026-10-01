@@ -12,6 +12,13 @@
  * and paired by mean difference; repeat the flag for more. `--ignore a.b` leaves that field out of the identity
  * test (repeat it, or comma-separate): a build that adds a field to the record is compared with one that does not by
  * ignoring it, so "identical on every existing field" is what the test says (e.g. `--ignore stress`).
+ * `--count timeline.stalledOnsets` and `--count timeline.stalledSamples` read the per-second `stalled` series of the
+ * record's timeline (module 97): the men newly stalled each second, and the man-seconds stalled. The runner's own
+ * `movementStalls` count each man once, when he has not moved 1.5 m for 12 s, but its clock keeps running through the
+ * states and phases it skips (a man holding in `cower` is skipped, then reported the moment he is back in `advance`),
+ * while the timeline's clock starts again whenever a man stops qualifying. For an arm that holds men in place, read the
+ * timeline's numbers: with every reaction off the two agree (39 reports, 45 onsets on main); with `stressAct=cower`
+ * 78 reports and 40 onsets.
  * Exit 1 on any runtime error or a median wall-time slowdown above 25%. Nothing is tuned here:
  * it reports, the caller decides what a number means. With ~30 comparisons a p of 0.01 is not a finding. */
 'use strict';
@@ -48,7 +55,27 @@ const median = xs => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
 const mean = xs => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0);
-const at = (o, p) => p.split('.').reduce((v, k) => (v == null ? v : v[k]), o);
+/* Counters derived from the timeline's per-second `stalled` series, summed over both sides. */
+function stalledSeries(b) {
+  const samples = (b.timeline && b.timeline.samples) || [];
+  let onsets = 0,
+    manSeconds = 0;
+  for (const side of ['us', 'ge']) {
+    let prev = 0;
+    for (const x of samples) {
+      const v = (x[side] && x[side].stalled) | 0;
+      if (v > prev) onsets += v - prev;
+      manSeconds += v;
+      prev = v;
+    }
+  }
+  return { onsets, manSeconds };
+}
+const DERIVED = {
+  'timeline.stalledOnsets': b => stalledSeries(b).onsets,
+  'timeline.stalledSamples': b => stalledSeries(b).manSeconds
+};
+const at = (o, p) => (DERIVED[p] ? DERIVED[p](o) : p.split('.').reduce((v, k) => (v == null ? v : v[k]), o));
 /* A copy of `o` without the field at `parts`, sharing everything it does not touch. */
 function without(o, parts) {
   if (o == null || typeof o !== 'object' || !(parts[0] in o)) return o;
@@ -84,7 +111,10 @@ function firstDivergence(a, b) {
     sb = b.stress && b.stress.series;
   if (sa && sb)
     for (let i = 0; i < Math.min(sa.t.length, sb.t.length); i++)
-      if (sa.t[i] !== sb.t[i] || JSON.stringify([sa.us[i], sa.ge[i]]) !== JSON.stringify([sb.us[i], sb.ge[i]])) {
+      if (
+        sa.t[i] !== sb.t[i] ||
+        JSON.stringify([sa.us[i], sa.ge[i]]) !== JSON.stringify([sb.us[i], sb.ge[i]])
+      ) {
         take(sa.t[i], 'stress');
         break;
       }
@@ -138,7 +168,10 @@ function compare(aList, bList, counters = [], ignore = []) {
       a: +mean(pairs.map(([a]) => a.captures || 0)).toFixed(3),
       b: +mean(pairs.map(([, b]) => b.captures || 0)).toFixed(3)
     },
-    movementStalls: { a: pairs.reduce((s, [a]) => s + stalls(a), 0), b: pairs.reduce((s, [, b]) => s + stalls(b), 0) },
+    movementStalls: {
+      a: pairs.reduce((s, [a]) => s + stalls(a), 0),
+      b: pairs.reduce((s, [, b]) => s + stalls(b), 0)
+    },
     runtimeErrors: { a: A.errors.length, b: B.errors.length },
     wallSeconds: { medianA: median(wallA), medianB: median(wallB), ratio: +ratio.toFixed(3), gate: GATE },
     counters: {}
@@ -191,7 +224,9 @@ if (require.main === module) {
     else files.push(args[i]);
   }
   if (files.length !== 2) {
-    console.error('usage: compare_benchmark_arms.cjs [--json] [--count path] [--ignore path] A.json[,..] B.json[,..]');
+    console.error(
+      'usage: compare_benchmark_arms.cjs [--json] [--count path] [--ignore path] A.json[,..] B.json[,..]'
+    );
     process.exit(2);
   }
   const r = compare(files[0], files[1], counters, ignore);
