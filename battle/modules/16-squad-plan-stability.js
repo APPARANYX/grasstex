@@ -210,12 +210,17 @@
     var p = average(sq);
     return p && c ? dist(p, c) : Infinity;
   }
-  function precisionShooter(men, range, battle) {
+  function precisionShooter(men, target, battle) {
     var best = null,
       bestScore = -Infinity;
     for (var i = 0; i < men.length; i++) {
-      var s = men[i];
-      if (!s.weapon || root.SquadAI.isMachineGun(s) || root.SquadAI.engageRange(s) < range) continue;
+      var s = men[i],
+        sp = s && s.root && s.root.position,
+        tp = target && target.root && target.root.position,
+        shotRange = sp && tp ? dist(sp, tp) : Infinity;
+      /* Range is shooter-specific. Using the squad-average contact distance here rejects a man who
+         has actually crept into range at the crest, which is exactly the man this selection needs. */
+      if (!s.weapon || root.SquadAI.isMachineGun(s) || root.SquadAI.engageRange(s) < shotRange) continue;
       var roleBonus = s.role === 'sniper' ? 0.2 : s.role === 'scout' ? 0.12 : s.role === 'rifleman' ? 0.03 : 0,
         score = mkm(s) + roleBonus;
       if (
@@ -310,7 +315,7 @@
     if (fc.state === 'precision') return fc;
 
     if (range >= FIRE_CONTROL_TUNING.longRange && elapsed >= FIRE_CONTROL_TUNING.prepMin) {
-      var shot = precisionShooter(men, range, battle);
+      var shot = precisionShooter(men, c.unit, battle);
       if (
         shot &&
         mkm(shot) >= FIRE_CONTROL_TUNING.precisionMarksmanship &&
