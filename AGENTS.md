@@ -676,6 +676,43 @@ and puts it away after 3 s once the target is past 35 m or the pistol is dry. At
 never fires (2026-09-29, `sidearm` probe, seeds 1-4, 12 battles: 0 draws): contacts are at 150 m or more and
 no gun runs dry in 600 s. It matters for close fights (buildings, hedges) and future ammunition pressure.
 
+**Window firing port** (`battle-navigation.js`, Engagement's `station`, the Tactical positions manager; `?windowPort=0` is the old
+station). A window station is a firing port, not a point in the room. Navigation builds `station.port` once from the opening's own
+metadata. The anchor is `.45` m behind the wall plane (the wall is drawn `.32` thick, so its inner face is `.16` back, and a man is
+`.25` in radius; the old station was `.775` back). The stance is the lowest that clears the sill by `.25`: a `.92` sill, which is every
+generated window, gives `stand`, a `.3` sill `crouch`, and a high sill takes any stance whose eye still clears it by `.12` and stays under
+the lintel by `.1`. The exterior sector is what the jambs let through from the anchor: 50.5 degrees each side of a 1.25 m window, where the
+old station let through 42 while `select` and the fire gate allowed 71 and 75. An opening no stance fits is never offered: it is listed
+in `N.rejectedWindows` with its reason (`sill-too-high`, `lintel-too-low`, `too-short`, `too-narrow`, `bad-opening`; a generated town has
+none). `N.aperture(station, from, to, floorY)` follows one 3D line to the wall plane and asks the jambs, the sill and the lintel (`.08`
+frame margin). On each station update a man at the anchor with a target in the sector asks it twice, once for the eye and once for the bore
+(from a stock point `.5` m behind the ballistics muzzle), and fires only when both pass. When one does not, the pose is corrected inside the
+port through `BattleTacticalPositions.adjustPose`: forward to `.30` m behind the plane, then along the sill within `halfWidth - .08 - .25`
+(about `.30` m on a 1.25 m window), or to a stance the port lists. The manager keeps the pose (`t.pose`) and the last aperture report
+(`t.aperture`) with the task, and the resolver walks to `BattleTacticalPositions.anchor(s)`. The claim, the reservation, the committed
+ingress route, the captain exclusion and the release rules are untouched: no target, a target outside the sector, a closed line and a reload
+all hold the post, and only the manager releases it. `BattleNavigationPhysicality.windowDiagnostics(sim)` returns one row per window
+(assignee, anchor, pose, facing, aperture, stance, eye and bore status with the reason, target, state) and the Window Slots overlay draws
+the frame, the facing, the sector and the two rays. `window-port-check.js` holds it.
+
+What the port does not do (2026-10-01):
+
+- **Not measured, not looked at.** It is on by default and has had no paired standard benchmark (`query_off=windowPort=0`, `seeds`, both
+  prefixes) and no browser look at the pose or the overlay: the checks are Node only, so what a posted man and the Window Slots rays look
+  like on the preview is unseen (the Window Slots button, and `closeup_battle.cjs` with `CLOSEUP_TARGET=id:<n>` on a man the diagnostics show
+  holding a window, are the way to look).
+- **Sill and lintel are enforced by the station's own fire gate only.** Every other ray through a window (`hasLineOfSight`, `canSuppress`,
+  the ballistics wall test, `select`'s claim test, perception) still goes through `lineOfSightBlocked`, which ignores height and opens a window at
+  every height. So the sill shields nobody from incoming fire: a round at his legs crosses the opening, and the `.92` sill now gives `stand`
+  where the old station was a fixed crouch, a bigger target. Making global LOS height-aware needs the floor height under a building (the
+  port's caller passes `battle.heightAt` today) and changes every ray through a window: its own flag and its own paired benchmark.
+- **The sector is a fixed cone from the anchor** (`sectorHalf`); a pose shift does not widen it, and a target just past it is held, not engaged.
+- **No window animation.** No firing pose, no rifle braced on the sill, no window reload: he uses the stand and crouch clips with the
+  rifle through the opening, and the bore line is the ballistics module's semantic muzzle, not the skinned weapon.
+- **The numbers are constants, not tuning.** `PORT_INSET`, `FRAME`, `SILL_CLEAR`, `SILL_PREFER`, `HEAD_CLEAR`, `MIN_HEIGHT`, `MIN_WIDTH`,
+  `SECTOR_MAX` and the two stance eye heights (repeated from SquadAI and the ballistics module) live in `battle-navigation.js`, and the stock
+  offset and the over-shift in Engagement's `portLines`/`portSolve`: no `tuning` object yet and not in `TUNABLES.md`.
+
 **Weapons and wounds.** `BattleWeapons.STATS` holds each kind's numbers and `PROFILES` each side's
 weapon for it (Garand/Kar98k, M1919A6/MG42, Thompson/MP40, M1 Carbine/FG42, M1911A1/P38);
 `SquadAI.createSoldier` issues it (`weapon.profile`, `magSize`, and `carried` where the load differs
@@ -910,6 +947,9 @@ before any effect is claimed.
   stronger local Squad Leader planner. Add platoon/company command, fallback/counterattack and
   combined arms only when force size/vehicle work makes those layers useful; ~5 squads per side
   does not justify a platoon layer yet.
+- **Height-aware window LOS, window animation.** The limits under Window firing port: global LOS ignores the sill and the lintel, the
+  sector does not follow the pose, and there is no firing, braced or reload pose at a window. Any change to global LOS is a behaviour
+  change for every ray through a window: its own flag and a paired benchmark.
 - **Genome rewrite and AI Graph return.** Both are stashed (see the top of this file), so the genome is the
   code defaults. When the whole AI system rewrite is finished, rewrite the genome against the finished layers
   (what it parameterises, what the layers own, one owner per number, the unread `objectiveHoldWin` settled), bring the graph back to mirror the layers and their mapping,
