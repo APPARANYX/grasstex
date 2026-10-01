@@ -1417,7 +1417,7 @@
     (typeof location !== 'undefined' && location.search) || ''
   );
   /* `?rageTrance=1`: rage is a trance, final like a flee. Calm does not end it: only his death, or nobody left within
-     RAGE_REACH to charge, and his squad's retreat does not take him back. For the whole of it he takes RAGE_GUARD_SCALE
+     RAGE_REACH to charge, and his squad's retreat does not take him back. For the whole of it he takes RAGE_TRANCE_GUARD
      of every hit, runs RAGE_SPEED faster (a leg wound does not slow him) and shoots a RAGE_AIM group. The damage the
      guard held back is a debt: when the trance ends and he is still alive, it comes due at once (`BattleWounds.succumb`),
      and if it takes him to the wound model's collapse line he dies of his wounds. Off (the default while it is
@@ -1447,7 +1447,8 @@
     MELEE_POWER: 0.6, // and of its chance to drop him
     RAGE_GUARD_SECONDS: 5, // a man who goes berserk takes less from every hit for this long ...
     RAGE_GUARD_SCALE: 0.25, // ... a quarter of the damage, of the chance to drop him and of the bleed
-    RAGE_SPEED: 1.2, // ?rageTrance=1: his gait speed in the trance, against the same gait out of it
+    RAGE_TRANCE_GUARD: 0.125, // ?rageTrance=1: in the trance the guard is stronger, an eighth of every hit
+    RAGE_SPEED: 1.4, // ?rageTrance=1: his gait speed in the trance, against the same gait out of it
     RAGE_AIM: 0.5 // ?rageTrance=1: his shot group in the trance (a broken man's is up to 1.8 wider, a moving man's 1.55)
   };
   /* Engagement states in which a man is not fighting the way he was (the squad report's `reacting`). */
@@ -1471,10 +1472,11 @@
         ? e.state === 'rage' && !e.guardReached
         : e.guardUntil > battle.time;
     if (!held) return 1;
-    var saved = damage * (1 - ACT_TUNING.RAGE_GUARD_SCALE);
+    var scale = RAGE_TRANCE ? ACT_TUNING.RAGE_TRANCE_GUARD : ACT_TUNING.RAGE_GUARD_SCALE,
+      saved = damage * (1 - scale);
     if (RAGE_TRANCE) e.guardDebt = (e.guardDebt || 0) + saved; // the trance only defers it
     noteAct(victim, 'rage', 'guard', saved);
-    return ACT_TUNING.RAGE_GUARD_SCALE;
+    return scale;
   }
   /* `?rageTrance=1`: is he in the trance? Module 11 (his pace), the shot model (his group) and the Movement Resolver
      (his charge outranks his squad's retreat) ask; nobody reads his state for it. */

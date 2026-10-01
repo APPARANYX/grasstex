@@ -694,8 +694,8 @@ test('rage: with ?rageTrance=1 it is a trance: calm and retreat do not end it, g
   const full = hit(on.ctx, ref, on.g),
     g1 = hit(on.ctx, on.s, on.g);
   assert.ok(
-    Math.abs(g1.res.damage - full.res.damage * T.RAGE_GUARD_SCALE) < 1e-9,
-    "a quarter at arm's length"
+    Math.abs(g1.res.damage - full.res.damage * T.RAGE_TRANCE_GUARD) < 1e-9,
+    "an eighth at arm's length"
   );
   assert.equal(g1.draws, full.draws, 'the same draws from the combat RNG');
   const owed = full.res.damage - g1.res.damage;
@@ -749,7 +749,7 @@ test('rage: with ?rageTrance=1 it is a trance: calm and retreat do not end it, g
   const die = broke(Q, [0, 0, 0.95], 50);
   die.s.hp = 1e6;
   const d1 = hit(die.ctx, die.s, die.g);
-  const owe = (d1.res.damage * (1 - T.RAGE_GUARD_SCALE)) / T.RAGE_GUARD_SCALE;
+  const owe = (d1.res.damage * (1 - T.RAGE_TRANCE_GUARD)) / T.RAGE_TRANCE_GUARD;
   die.s.hp = die.ctx.r.BattleWounds.COLLAPSE_HP + owe - 1;
   die.s.bleedRate = 0;
   put(die.g, die.s.root.position.x, die.s.root.position.z + 400);
