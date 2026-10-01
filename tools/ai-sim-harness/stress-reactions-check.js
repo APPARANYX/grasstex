@@ -635,6 +635,133 @@ test("rage: with ?rageGuard=1 the guard lasts the charge, past RAGE_GUARD_SECOND
   assert.equal(c.ctx.E.guardOnHit(c.s, c.ctx.b, 1), 1);
 });
 
+test('rage: with ?rageTrance=1 it is a trance: calm and retreat do not end it, guarded, faster, tighter, and the debt comes due', () => {
+  const T = load_tuning();
+  const Q = '?stressAct=rage&rageLock=1&rageGuard=1&rageTrance=1';
+  /* Keep the enemy where the squad's picture says, as Perception would. */
+  const keep = t => {
+    t.ctx.us.contact = { x: t.g.root.position.x, z: t.g.root.position.z, at: t.ctx.b.time, seenBy: t.s.id };
+  };
+  function hit(ctx, victim, shooter, zone, roll) {
+    let draws = 0;
+    ctx.b.random = () => (draws++, roll == null ? 0.5 : roll);
+    const res = ctx.r.BattleWounds.wound(shooter, victim, ctx.b, {
+      zone: zone || 'leg',
+      energy: 1,
+      power: 1
+    });
+    return { res, draws };
+  }
+  /* Off: calm ends a rage after REACT_MIN, and nobody is entranced. */
+  const off = broke('?stressAct=rage&rageLock=1&rageGuard=1', [0, 0, 0.95], 50);
+  assert.equal(off.ctx.E.tuning.RAGE_TRANCE, false, 'off by default');
+  assert.equal(off.ctx.E.entranced(off.s), false);
+  stressTo(off.ctx, off.s, 'steady');
+  keep(off);
+  tick(off.ctx, off.s, T.REACT_MIN + 1);
+  assert.notEqual(off.s.eng.state, 'rage', 'off: calm for REACT_MIN ends it');
+  /* On: calm for three times REACT_MIN and he is still in it. */
+  const on = broke(Q, [0, 0, 0.95], 50);
+  assert.equal(on.ctx.E.tuning.RAGE_TRANCE, true);
+  assert.equal(on.s.eng.state, 'rage');
+  assert.equal(on.ctx.E.entranced(on.s), true);
+  stressTo(on.ctx, on.s, 'steady');
+  for (let i = 0; i < 4 * T.REACT_MIN; i++) {
+    keep(on);
+    tick(on.ctx, on.s, 1);
+  }
+  assert.equal(on.s.eng.state, 'rage', 'on: calm does not end the trance');
+  /* His squad's retreat does not take him back. */
+  on.ctx.us.state = 'retreat';
+  keep(on);
+  tick(on.ctx, on.s, 1);
+  assert.equal(on.s.eng.state, 'rage', 'on: a retreat does not end the trance');
+  on.ctx.us.state = 'advance';
+  /* The guard holds at arm's length too, and what it saves is owed. */
+  put(on.g, on.s.root.position.x, on.s.root.position.z + 1.5);
+  keep(on);
+  tick(on.ctx, on.s);
+  assert.equal(on.s.eng.state, 'rage');
+  const ref = man(on.ctx.us, 'rifleman', 1);
+  ref.hp = 1e6;
+  on.s.hp = 1e6;
+  const full = hit(on.ctx, ref, on.g),
+    g1 = hit(on.ctx, on.s, on.g);
+  assert.ok(
+    Math.abs(g1.res.damage - full.res.damage * T.RAGE_GUARD_SCALE) < 1e-9,
+    "a quarter at arm's length"
+  );
+  assert.equal(g1.draws, full.draws, 'the same draws from the combat RNG');
+  const owed = full.res.damage - g1.res.damage;
+  assert.ok(Math.abs(on.s.eng.guardDebt - owed) < 1e-9, 'the saved hp is owed: ' + on.s.eng.guardDebt);
+  /* Faster: module 11 runs him at RAGE_SPEED of his gait, and a leg wound does not slow him. */
+  const hooks = {};
+  on.ctx.r.BattleModules.registerSystem = (id, h) => (hooks[id] = h);
+  load(on.ctx.r, 'battle/modules/11-soldier-individuality.js');
+  const speeds = Object.values(hooks).find(h => h.onSimulationStep).onSimulationStep;
+  const I = on.ctx.r.BattleSoldierIndividuality;
+  on.s.woundSpeed = 0.5;
+  ref.woundSpeed = 0.5;
+  speeds(on.ctx.b);
+  const gait = I.phenotype(on.s).gaits[on.s._locomotionGait];
+  assert.ok(Math.abs(on.s._locomotionGroundSpeed - gait * T.RAGE_SPEED) < 1e-9, 'RAGE_SPEED of his gait');
+  const refGait = I.phenotype(ref).gaits[ref._locomotionGait];
+  assert.ok(Math.abs(ref._locomotionGroundSpeed - refGait * 0.5) < 1e-9, 'anyone else: the wound slows him');
+  /* Tighter: the shot model's group is RAGE_AIM of what it would be out of the trance. */
+  load(on.ctx.r, 'battle/modules/14-z-ballistic-raycast.js');
+  const B = on.ctx.r.BattleBallistics,
+    st = on.s.weapon.stats;
+  const tight = B.dispersionSigma(on.s, st, 100, on.ctx.b, 0);
+  on.s.eng.state = 'engage'; // the same man out of the trance (a test write)
+  const loose = B.dispersionSigma(on.s, st, 100, on.ctx.b, 0);
+  on.s.eng.state = 'rage';
+  assert.ok(Math.abs(tight - loose * T.RAGE_AIM) < 1e-12, 'RAGE_AIM of the group: ' + tight + ' vs ' + loose);
+  /* A kill in rage is counted. */
+  const victim = man(on.ctx.ge, 'rifleman', 1);
+  put(victim, on.s.root.position.x + 3, on.s.root.position.z + 3);
+  victim.hp = 5;
+  const killsBefore = on.ctx.M.of(on.s).acts.rage.kills;
+  hit(on.ctx, victim, on.s, 'chest', 0);
+  assert.equal(victim.dead, true);
+  assert.equal(on.ctx.M.of(on.s).acts.rage.kills, killsBefore + 1, 'the kill is counted');
+  /* Nobody left within RAGE_REACH: the trance is over and the debt comes due. He survives it with enough hp. */
+  const hpBefore = 200;
+  on.s.hp = hpBefore;
+  put(on.g, on.s.root.position.x, on.s.root.position.z + 400);
+  on.s.target = on.g;
+  on.ctx.us.contact = null;
+  tick(on.ctx, on.s);
+  assert.notEqual(on.s.eng.state, 'rage', 'the trance is over');
+  assert.equal(!!on.s.dead, false);
+  assert.ok(Math.abs(on.s.hp - (hpBefore - owed)) < 1e-9, 'the debt came due: hp ' + on.s.hp);
+  assert.equal(on.s.eng.guardDebt, 0);
+  const acts = on.ctx.M.of(on.s).acts.rage;
+  assert.equal(acts.over, 1);
+  assert.ok(Math.abs(acts.debt - owed) < 1e-9);
+  assert.equal(acts.succumbed, 0);
+  /* A man whose debt is more than he has left dies of his wounds, with no roll. */
+  const die = broke(Q, [0, 0, 0.95], 50);
+  die.s.hp = 1e6;
+  const d1 = hit(die.ctx, die.s, die.g);
+  const owe = (d1.res.damage * (1 - T.RAGE_GUARD_SCALE)) / T.RAGE_GUARD_SCALE;
+  die.s.hp = die.ctx.r.BattleWounds.COLLAPSE_HP + owe - 1;
+  die.s.bleedRate = 0;
+  put(die.g, die.s.root.position.x, die.s.root.position.z + 400);
+  die.s.target = die.g;
+  die.ctx.us.contact = null;
+  let draws = 0;
+  die.ctx.b.random = () => (draws++, 0.5);
+  tick(die.ctx, die.s);
+  assert.equal(die.s.dead, true, 'he succumbs');
+  assert.equal(die.s.casualty.cause, 'bledOut');
+  assert.equal(draws, 0, 'no draw from the combat RNG');
+  assert.equal(die.ctx.M.of(die.s).acts.rage.succumbed, 1);
+  /* Nobody else is entranced or owes anything. */
+  const c = broke(Q.replace('stressAct=rage', 'stressAct=cower,freeze'), [0, 0.9, 0.1], 100);
+  assert.equal(c.ctx.E.entranced(c.s), false);
+  assert.equal(c.ctx.E.guardOnHit(c.s, c.ctx.b, 1), 1);
+});
+
 test('a break lasts at least REACT_MIN, ends once he is below broken, and he rejoins the fight', () => {
   const { ctx, s } = broke('?stressAct=freeze', [0, 0.9, 0], 100);
   assert.equal(s.eng.state, 'freeze');

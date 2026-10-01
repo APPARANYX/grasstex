@@ -134,6 +134,9 @@
     if (root.BattleSoldierMind) sigma *= root.BattleSoldierMind.aimSigma(shooter);
     /* ... and a better marksman shoots tighter (module 10: x0.6 at marksmanship 1, x1.4 at 0). */
     if (root.BattleSoldierStats) sigma *= root.BattleSoldierStats.scale(shooter, 'group');
+    /* ... and a man in a berserk trance (Engagement, `?rageTrance=1`) shoots tighter than his fear and pace allow. */
+    if (root.BattleEngagement && root.BattleEngagement.entranced && root.BattleEngagement.entranced(shooter))
+      sigma *= root.BattleEngagement.tuning.ACT_TUNING.RAGE_AIM;
     /* Muzzle climb: each later round of a burst lands wider; a bipod on the ground holds half of it. */
     if (round > 0 && stats.burstClimb > 0)
       sigma *= 1 + round * stats.burstClimb * (shooter.setUp || shooter.prone ? 0.5 : 1);

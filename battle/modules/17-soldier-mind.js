@@ -449,7 +449,18 @@
         cower: { n: 0, sec: 0 },
         flee: { n: 0, sec: 0, waited: 0, waitSec: 0, enemy: 0, timeout: 0, pickup: 0, rearmed: 0 },
         freeze: { n: 0, sec: 0 },
-        rage: { n: 0, sec: 0, strikes: 0, hits: 0, guarded: 0, saved: 0 }
+        rage: {
+          n: 0,
+          sec: 0,
+          strikes: 0,
+          hits: 0,
+          guarded: 0,
+          saved: 0,
+          kills: 0,
+          over: 0,
+          debt: 0,
+          succumbed: 0
+        }
       },
       fightAt: -99, // the last time his squad was in contact or he was under fire (lasting)
       held: 0, // seconds stress did not drain because the fight was still on (lasting)
@@ -870,7 +881,12 @@
     else if (what === 'guard') {
       a.guarded++;
       a.saved += dt;
-    } else if (what === 'wait') a.waited++;
+    } else if (what === 'kill') a.kills++;
+    else if (what === 'over') {
+      a.over++;
+      a.debt += dt;
+    } else if (what === 'succumbed') a.succumbed++;
+    else if (what === 'wait') a.waited++;
     else if (what === 'waiting') a.waitSec += dt;
     else if (what === 'enemy') a.enemy++;
     else if (what === 'timeout') a.timeout++;
@@ -1080,7 +1096,18 @@
         cower: { n: 0, sec: 0 },
         flee: { n: 0, sec: 0, waited: 0, waitSec: 0, enemy: 0, timeout: 0, pickup: 0, rearmed: 0 },
         freeze: { n: 0, sec: 0 },
-        rage: { n: 0, sec: 0, strikes: 0, hits: 0, guarded: 0, saved: 0 }
+        rage: {
+          n: 0,
+          sec: 0,
+          strikes: 0,
+          hits: 0,
+          guarded: 0,
+          saved: 0,
+          kills: 0,
+          over: 0,
+          debt: 0,
+          succumbed: 0
+        }
       }
     };
   }
@@ -1122,6 +1149,10 @@
     to.acts.rage.hits += from.acts.rage.hits;
     to.acts.rage.guarded += from.acts.rage.guarded;
     to.acts.rage.saved += from.acts.rage.saved;
+    to.acts.rage.kills += from.acts.rage.kills;
+    to.acts.rage.over += from.acts.rage.over;
+    to.acts.rage.debt += from.acts.rage.debt;
+    to.acts.rage.succumbed += from.acts.rage.succumbed;
     ['waited', 'waitSec', 'enemy', 'timeout', 'pickup', 'rearmed'].forEach(function (f) {
       to.acts.flee[f] += from.acts.flee[f];
     });
@@ -1152,6 +1183,10 @@
     acts.rage.hits = t.acts.rage.hits;
     acts.rage.guarded = t.acts.rage.guarded;
     acts.rage.savedHp = +t.acts.rage.saved.toFixed(2);
+    acts.rage.kills = t.acts.rage.kills;
+    acts.rage.survived = t.acts.rage.over;
+    acts.rage.debtHp = +t.acts.rage.debt.toFixed(2);
+    acts.rage.succumbed = t.acts.rage.succumbed;
     acts.flee.waited = t.acts.flee.waited;
     acts.flee.waitSeconds = +t.acts.flee.waitSec.toFixed(1);
     acts.flee.homeEnemy = t.acts.flee.enemy;

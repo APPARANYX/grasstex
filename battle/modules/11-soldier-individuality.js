@@ -78,7 +78,7 @@
   function updateSpeeds(sim){
     var units=root.BattleModules.unitsFor(sim);for(var i=0;i<units.length;i++){
       var s=units[i],p=phenotype(s);if(!p)continue;var gait=desiredGait(s,sim),ground=p.gaits[gait]||p.gaits.walk,factor=stanceFactor(s,sim);
-      /* A leg or belly wound (BattleWounds) slows every gait. */ground*=s.woundSpeed>0?s.woundSpeed:1;
+      /* A leg or belly wound (BattleWounds) slows every gait, except in a berserk trance (Engagement, ?rageTrance=1), which is faster still. */var E=root.BattleEngagement,trance=!!(E&&E.entranced&&E.entranced(s));ground*=trance?E.tuning.ACT_TUNING.RAGE_SPEED:s.woundSpeed>0?s.woundSpeed:1;
       s._locomotionGait=gait;s._locomotionGroundSpeed=ground;s.speed=ground/Math.max(.01,factor);
     }
   }
