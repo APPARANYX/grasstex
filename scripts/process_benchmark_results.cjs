@@ -9,7 +9,7 @@
  *   off.json on.json  slim records for ai_flow_live.html (seed, type, winner, window, timeline), the full-length record of each scenario;
  *                     in seeds mode the --max-seeds pairs whose timelines part earliest (all of them would be megabytes a run)
  *   compare.json    a copy of the comparison
- *   headline.txt viewer_url.txt   one line each, for the notification
+ *   headline.txt viewer_url.txt viewer_preview_url.txt   one line each, for the notification: the server's viewer, and the viewer of the branch that ran
  * Run facts come from the GitHub environment (GITHUB_RUN_NUMBER, GITHUB_RUN_ID, GITHUB_REPOSITORY, GITHUB_REF_NAME, GITHUB_SHA). */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -30,13 +30,18 @@ function viewerBase(ref) {
   const m = /^(work|preview)\//.test(String(ref || ''));
   return m && previewSlug(ref) ? `${PROD}/preview/${previewSlug(ref)}` : PROD;
 }
-function viewerUrl({ ref, repo, run, pick = '-end', view = 'brain3d' }) {
+/* The viewer on the server (production), and the viewer of the branch that ran (the preview): it has the change before it reaches main. */
+function viewerUrl({ ref, repo, run, pick = '-end', view = 'brain3d', where = 'production' }) {
   const q = new URLSearchParams();
   q.set('bench', String(run));
   if (repo && repo.toLowerCase() !== 'apparanyx/grasstex') q.set('repo', repo);
   if (pick) q.set('pick', pick);
   q.set('view', view);
-  return `${viewerBase(ref)}/ai_flow_live.html?${q.toString()}`;
+  if (where === 'preview') {
+    if (!/^(work|preview)\//.test(String(ref || ''))) return null;
+    return `${viewerBase(ref)}/ai_flow_live.html?${q.toString()}`;
+  }
+  return `${PROD}/ai_flow_live.html?${q.toString()}`;
 }
 
 function readRecords(list) {
@@ -121,9 +126,18 @@ function process_(args, env = process.env) {
     build
   };
   const v = verdict(compare, mode);
-  const url = meta.run
-    ? viewerUrl({ ref: meta.ref, repo: meta.repo, run: meta.run, pick: mode === 'single' ? '-end' : '' })
-    : null;
+  const link = where =>
+    meta.run
+      ? viewerUrl({
+          ref: meta.ref,
+          repo: meta.repo,
+          run: meta.run,
+          pick: mode === 'single' ? '-end' : '',
+          where
+        })
+      : null;
+  const url = link('production'),
+    previewUrl = link('preview');
 
   const viewerFile = side => ({
     format: 'grasstex-benchmark-viewer-v1',
@@ -158,7 +172,7 @@ function process_(args, env = process.env) {
     md.push(
       '## Viewer',
       '',
-      `[Open both arms in the 3D map](${url})`,
+      `[Open both arms in the 3D map](${url})${previewUrl ? ` · [the same on this branch's viewer](${previewUrl}) (it has the change before it reaches main)` : ''}`,
       '',
       `The viewer loads \`off.json\` and \`on.json\` from the \`benchmark-results\` branch (\`?bench=${meta.run}\`); ${mode === 'single' ? 'it opens the full-length record (`pick=-end`)' : 'it opens the seed that parts earliest'}, and the dropdowns choose another.`,
       ''
@@ -168,7 +182,7 @@ function process_(args, env = process.env) {
     meta,
     verdict: v,
     compare,
-    viewer: { url, seeds: pick.map(x => ({ seed: x.key, firstDivergence: x.t, what: x.what })) }
+    viewer: { url, previewUrl, seeds: pick.map(x => ({ seed: x.key, firstDivergence: x.t, what: x.what })) }
   };
   return {
     md: md.join('\n'),
@@ -176,7 +190,8 @@ function process_(args, env = process.env) {
     off: viewerFile('off'),
     on: viewerFile('on'),
     headline: v.headline.replace(/\s+/g, ' '),
-    url
+    url,
+    previewUrl
   };
 }
 
@@ -205,6 +220,7 @@ if (require.main === module) {
   w('compare.json', fs.readFileSync(args.compare, 'utf8'));
   w('headline.txt', r.headline + '\n');
   w('viewer_url.txt', (r.url || '') + '\n');
+  w('viewer_preview_url.txt', (r.previewUrl || '') + '\n');
   console.log(r.headline);
 }
 module.exports = { process: process_, viewerUrl, viewerBase, previewSlug, longestPerScenario };
