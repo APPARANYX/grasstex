@@ -179,4 +179,20 @@ test('a squad that rallies leaves its group: the group dissolves as squad-rallie
   assert.equal(st.active.length,0,'no group is left waiting for a squad that will never arrive');
   assert.equal(b.state,'retreat');assert.equal(b._reconGroup,null,'the squad that stayed is back in the pool');
 });
+test('a merged squad that is still shaken rests at base: it is not grouped with itself again, tick after tick',()=>{
+  /* Group morale keeps a merged squad in `retreat` until its men are calm. A full squad at base that is not yet calm
+     must wait for its men, not be pooled alone, merged with itself and re-tasked on every command tick (a group of
+     one squad reaches full strength by itself: there is nothing to reconstitute). */
+  const w=world({search:'?morale=1'});[0,1,2].forEach(l=>squad(w,l,4));
+  const shaken=()=>{const q=w.b.factions.us.squads.find(x=>x.reconstitutedFrom);if(q)q.mind={mean:0.5,n:12};};
+  run(w,420,shaken);
+  const q=merged(w),formed=recon(w).groupsFormed;
+  assert.equal(formed,1,'one group made the one merge');
+  assert.equal(q.state,'retreat','12 men, but shaken: it stays at base until they calm (group morale)');
+  run(w,120,shaken);
+  assert.equal(recon(w).groupsFormed,formed,'two more minutes at base: no new group');
+  assert.equal(recon(w).merges,1,'and no merge with itself');
+  q.mind={mean:0.1,n:12};run(w,3);
+  assert.notEqual(q.state,'retreat','calm men: it rallies and goes back to the fight');
+});
 console.log(n+' reconstitution checks passed');

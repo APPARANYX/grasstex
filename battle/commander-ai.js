@@ -719,7 +719,12 @@
             !sq.inContact &&
             sq._assembly &&
             sq._assembly.phase === 'at-base' &&
-            D.aliveMembers(sq).length
+            D.aliveMembers(sq).length &&
+            /* A squad that already holds a full squad's men has nothing to reconstitute: grouped alone it would be
+               "merged" with itself and re-tasked on every command tick. Group morale keeps it in `retreat` until its
+               men are calm, so it rests at base and the Squad Leader rallies it (a merged squad whose men are still
+               shaken, which stress that lasts makes common). */
+            D.aliveMembers(sq).length < RECON_STRENGTH
           );
         })
         .sort(strongestFirst(sim, faction)),

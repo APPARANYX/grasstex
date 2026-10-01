@@ -1269,6 +1269,8 @@
         s = members[i];
         if (s.dead || s.suppressedUntil > battle.time || s.reloading || s.clearingStoppage || s.outOfAmmo)
           continue;
+        // Down, on the run or charging (Engagement's report): not his to bound.
+        if (r.reacting && r.reacting.indexOf(s) >= 0) continue;
         if (
           root.SquadAI.isMachineGun(s) ||
           (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s))

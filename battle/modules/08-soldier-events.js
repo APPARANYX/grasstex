@@ -25,6 +25,11 @@
      suppressed 2  pinned until `until`; posted by SquadAI.pin, payload {until, seconds}
      aimed      3  a trigger pull had him as its target; posted from SquadAI's `aimedAt` slot,
                    payload {from, rounds, d}
+   Relief (read by the soldier condition only behind `?stressMem=relief`; each is something that went well for him):
+     kill       4  he put a man down; posted by the wound model to the shooter, payload {victim, zone}
+     objective  5  his side took an objective he stood in; posted by the capture zone, payload {objective}
+     cover      6  he reached cover while under fire; posted by Engagement, payload {seconds}
+     survived   7  a spell of fire on him ended and it did not wound him; posted by Engagement, payload {seconds}
    Not queued: the urgent status (`_combatUrgentUntil`), a timestamp module 11 and 44 poll, has no reader
    that wants an event. It joins when one does (the callout channel). */
 (function (root) {
@@ -41,7 +46,11 @@
     },
     wound: { priority: 1, producer: 'wound model', payload: 'count' },
     suppressed: { priority: 2, producer: 'SquadAI.pin', payload: 'until, seconds' },
-    aimed: { priority: 3, producer: 'SquadAI aimedAt slot', payload: 'from, rounds, d' }
+    aimed: { priority: 3, producer: 'SquadAI aimedAt slot', payload: 'from, rounds, d' },
+    kill: { priority: 4, producer: 'wound model', payload: 'victim, zone' },
+    objective: { priority: 5, producer: 'capture zone', payload: 'objective' },
+    cover: { priority: 6, producer: 'Engagement', payload: 'seconds' },
+    survived: { priority: 7, producer: 'Engagement', payload: 'seconds' }
   };
   var CAPACITY = 128,
     readers = {}; // kind -> { readerId: true }
@@ -170,6 +179,7 @@
     capacity: CAPACITY,
     subscribe: subscribe,
     post: post,
+    wanted: wanted,
     drain: drain,
     pending: pending,
     announceCasualties: announceCasualties,

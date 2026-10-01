@@ -59,26 +59,27 @@
       q.state === 'retreat' ? 'retreat' : ''
     ].join('|');
   }
+  /* A man whose stress has put him down or on the run (Engagement `cower`, `freeze`, `flee`, `rage`): his own combat
+     intents outrank everything the squad asks of him except its retreat and regroup, and a hold he makes while down
+     beats a station as a pin does. */
+  var REACTING = { cower: 1, flee: 1, freeze: 1, rage: 1 };
+  var PRIORITY = {
+    retreat: 100,
+    regroup: 95,
+    flee: 92,
+    'reload-hold': 90,
+    'firing-station': 80,
+    'rage-charge': 72,
+    'assault-rush': 70,
+    'cover-bound': 60,
+    'contact-reaction': 55
+  };
   function priority(kind, s) {
-    return kind === 'retreat'
-      ? 100
-      : kind === 'regroup'
-        ? 95
-        : kind === 'reload-hold'
-          ? 90
-          : kind === 'firing-station'
-            ? 80
-            : kind === 'assault-rush'
-              ? 70
-              : kind === 'cover-bound'
-                ? 60
-                : kind === 'contact-reaction'
-                  ? 55
-                  : kind === 'hold'
-                    ? s.eng && s.eng.state === 'pinned'
-                      ? 85
-                      : 50
-                    : 20;
+    if (kind === 'hold') {
+      var st = s.eng && s.eng.state;
+      return st === 'pinned' || REACTING[st] === 1 ? 85 : 50;
+    }
+    return PRIORITY[kind] || 20;
   }
   function tolerance(kind) {
     return ['firing-station', 'hold', 'reload-hold', 'contact-reaction'].indexOf(kind) >= 0 ? 0.1 : ORDER_EPS;
@@ -118,6 +119,8 @@
     if (!p || p.signature !== signature(s)) return false;
     if (p.kind === 'cover-bound') return s.eng && s.eng.state === 'bound';
     if (p.kind === 'assault-rush') return s.eng && s.eng.state === 'assault';
+    if (p.kind === 'flee') return s.eng && s.eng.state === 'flee';
+    if (p.kind === 'rage-charge') return s.eng && s.eng.state === 'rage';
     if (p.kind === 'reload-hold') return !!(s.reloading || s.clearingStoppage);
     return p.until + 1e-6 >= now(b);
   }
@@ -416,7 +419,14 @@
         return proposal('tactical-positions', st.positionPause, battle, 'reload-hold', true, Infinity);
       }
       st.positionPause = null;
-      return proposal('tactical-positions', task.position, battle, 'firing-station', true, Infinity);
+      return proposal(
+        'tactical-positions',
+        (P.anchor && P.anchor(soldier)) || task.position,
+        battle,
+        'firing-station',
+        true,
+        Infinity
+      );
     }
     st.positionPause = null;
     if (P && combat && combat.kind === 'firing-station') {
