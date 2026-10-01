@@ -656,7 +656,11 @@ Combat urgency and firing-station release request their legacy entry semantics t
 Engagement executes it; `?fireControl=0` is the immediate-fire control). A first-hand visual contact is a request
 to open fire, not permission to shoot. The Squad Leader starts at `hold`: the squad stops, faces the first-hand
 contact and goes prone; each man may make only a local forward adjustment (0.75 m samples, at most 6 m, through the
-Movement Resolver) to find a prone eye + ballistic line over the crest. Engagement's trigger and suppressive-fire
+Movement Resolver) to find a prone eye + ballistic line over the crest. If the full 6 s preparation window produces
+**zero** usable prone firing lines, the leader changes to `reposition`: fire remains forbidden, but the forced-prone
+drill releases so normal Engagement cover-seeking can move men to a viable fighting position. A man who reaches a
+position from which only crouch/stand clears the obstacle may count ready in that lowest viable fighting stance;
+prone remains the preferred initial ambush posture, not a terrain deadlock. Engagement's trigger and suppressive-fire
 paths both read the same permission. A man who is already being shot at (suppressed or aimed at in the last 3 s)
 may return fire immediately, and the Squad Leader opens the squad on its next tick.
 
