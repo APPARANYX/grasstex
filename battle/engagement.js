@@ -1505,7 +1505,7 @@
        either one made the stationary movement integrator turn the whole reaction pose toward enemies. */
     s.state = 'engage';
     s.setUp = false;
-    s.target = null;
+    if (SA().clearTarget) SA().clearTarget(s);
     s._faceHint = null;
     holdPosition(s, battle);
     commitStance(s, battle, 'crouch', 1.0);
