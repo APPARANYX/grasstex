@@ -1254,7 +1254,7 @@
     if (COA_ON) updateCOA(sq);
     sq._assaultAuthorized = !!ASSAULT_PHASES[sq.commandPhase || ''];
     /* 3c: the COA gates bounding. Defend holds position (no bounds); assault bounds only if the
-       phase also allows. The flag-off path never sets sq.coa, so this is a no-op there. */
+       phase also allows. The explicit `?coa=0` control never sets sq.coa, so this is a no-op there. */
     if (COA_ON && sq.coa && COAS[sq.coa] && !COAS[sq.coa].bounds) sq._assaultAuthorized = false;
     /* A bound needs a base of fire: somebody has to be shooting while somebody else moves. */
     if (
