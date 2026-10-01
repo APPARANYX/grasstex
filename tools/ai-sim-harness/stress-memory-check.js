@@ -86,11 +86,11 @@ function scare(ctx, s, amount) {
   m.pub = amount;
 }
 
-test('the flag parses: lasting by default (owner, 2026-10-01), 0 for none, each named, or all of them', () => {
+test('the flag parses: all memory systems by default, 0 for none, or an exact named list', () => {
   const parse = q => Object.keys(world(q).M.mode().memory).sort();
-  assert.deepEqual(parse(''), ['lasting']);
-  assert.deepEqual(parse('?x=1'), ['lasting']);
-  assert.deepEqual(parse('?stressMem='), ['lasting']);
+  assert.deepEqual(parse(''), ['floor', 'lasting', 'relief']);
+  assert.deepEqual(parse('?x=1'), ['floor', 'lasting', 'relief']);
+  assert.deepEqual(parse('?stressMem='), ['floor', 'lasting', 'relief']);
   assert.deepEqual(parse('?stressMem=0'), []);
   assert.deepEqual(parse('?stressMem=off'), []);
   assert.deepEqual(parse('?stressMem=1'), ['floor', 'lasting', 'relief']);
@@ -101,8 +101,8 @@ test('the flag parses: lasting by default (owner, 2026-10-01), 0 for none, each 
   assert.deepEqual(parse('?mind=react&stressMem=lasting'), ['lasting']);
   assert.deepEqual(
     world().M.mode().memory,
-    { lasting: true },
-    'no location at all: the default, as in the Node harness'
+    { lasting: true, floor: true, relief: true },
+    'no location at all: the full shipping default, as in the Node harness'
   );
   assert.deepEqual(
     parse('?stressMem=floor'),
