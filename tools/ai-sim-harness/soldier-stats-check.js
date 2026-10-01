@@ -284,7 +284,7 @@ test('ranks: the highest composite is 1, the lowest 0, ties by squad id, thin an
   assert.equal(S.profile(w2, mid).pace, 1, 'and against the living: a squad that lost its men drops out');
 });
 
-test("deal: a permutation of the squad's ten ids, each command slot to the best of what is left, off unless asked", () => {
+test("deal: default-on permutation of the squad's ten ids, each command slot to the best of what is left", () => {
   const H2 = require('./harness'),
     roles = H2.bootstrap({ modules: false }).SquadAI.COMPOSITION;
   const { S } = world('?stats=all,deal'),
