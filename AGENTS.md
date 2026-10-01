@@ -806,10 +806,14 @@ a man does, and that it accumulates.
 - **Stress does not recover on the spot.** It is added to by being hit, a squad member nearby going down, the leader lost (and by what
   module 17 already counts: suppression, isolation, contagion), and inside a fight it does not drain on a timer. It recovers after
   the fight or engagement is over (the squad out of contact for a declared time), not during it.
-- **Recovery is bounded by health.** The share of his stress a man can shed is his health (`hp / maxHp`): at full health all of it can
-  go, so a man at 50% stress recovers to 0%; at half health he can only ever lose half of his stress (50% stress settles no lower
-  than 25%). Nothing heals a man today (bleeding eases, `hp` never comes back) so a wounded man stays shaken for the rest of the
-  battle, until there are medics: restoring his health is what lifts the cap.
+- **Recovery is bounded by health, a transverse of hp and stress.** The health a man has lost is the share of his stress he must keep:
+  whenever stress is taken off him, by recovery after the engagement or by a relief event, he keeps `1 - hp / maxHp` of the stress he
+  carries at that moment and can shed only the rest. At full health all of it can go (50% stress recovers to 0%); at half health he
+  keeps half (50% stress settles at 25%); at a quarter of his health, three quarters (50% stress settles at 37.5%). The share is taken
+  on the stress he has at that moment, so it is not a standing floor: each recovery or event sheds at most his health fraction of
+  what he carries then, and the lower his health the less each one takes. Nothing heals a man today (bleeding eases, `hp` never
+  comes back), so a wounded man stays shaken for the rest of the battle, until there are medics: restoring his health is what lifts
+  the cap.
 - **Relief inside a fight comes from events:** reaching cover while under fire, killing an enemy, taking an objective, and being
   shot at without result ("Nothing in life is so exhilarating as to be shot at without result", Churchill: a man who has been
   under fire and is unhurt steadies; today a round aimed at him only adds stress, so exposure without a hit has to become relief
