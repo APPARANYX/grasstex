@@ -11,6 +11,24 @@ const fixedDt = Math.max(0.05, Math.min(0.3, Number.parseFloat(process.env.BATTL
 const outputDir = path.resolve(process.env.BATTLE_BENCHMARK_OUTPUT || 'reports');
 const policyUrl = process.env.BATTLE_BENCHMARK_POLICY_URL || 'https://test.ivandpopov.com/grasstex/battle_policy.php';
 const commit = process.env.BATTLE_BENCHMARK_SOURCE_SHA || process.env.GITHUB_SHA || 'local';
+/* Scripted windows, `contact+60,every60`: measure 60 simulated seconds from first contact, then the rest of the battle in
+   segments that close at every multiple of 60 simulated seconds and at the end. An entry is `<start>+<seconds>` (a start of
+   `contact` or a simulated second, the battle stepped unmeasured up to it) or `every<seconds>` (last: to the end of the battle).
+   Unset, the benchmark is the whole battle as one record. */
+const windows = String(process.env.BATTLE_BENCHMARK_WINDOWS || '').split(',').map(s => s.trim()).filter(Boolean).map(token => {
+  const every = token.match(/^every(\d+(?:\.\d+)?)$/);
+  if (every && +every[1] > 0) return { every: +every[1] };
+  const m = token.match(/^(contact|\d+(?:\.\d+)?)\+(\d+(?:\.\d+)?)$/);
+  if (!m) throw new Error(`BATTLE_BENCHMARK_WINDOWS: "${token}" is not <contact|second>+<seconds> or every<seconds>`);
+  return { start: m[1] === 'contact' ? 'contact' : +m[1], seconds: +m[2] };
+});
+if (windows.some((w, i) => w.every && i !== windows.length - 1)) throw new Error('BATTLE_BENCHMARK_WINDOWS: every<seconds> runs to the end of the battle, so it must be last');
+const battleType = (new URL(url).searchParams.get('defender') || 'meeting') === 'meeting' ? 'meeting' : `${new URL(url).searchParams.get('defender')}-defend`;
+
+/* A shard of a larger run numbers its seeds from here: BATTLE_BENCHMARK_FIRST=10 and a count of 5 play `<prefix>-0011` to `<prefix>-0015`.
+   Set, even to 0, the seeds are always numbered (a count of 1 included); unset, one scripted battle plays the exact seed it was given. */
+const numbered = (process.env.BATTLE_BENCHMARK_FIRST || '') !== '';
+const firstIndex = numbered ? Math.max(0, Number.parseInt(process.env.BATTLE_BENCHMARK_FIRST, 10) || 0) : 0;
 
 fs.mkdirSync(outputDir, { recursive: true });
 
@@ -102,8 +120,10 @@ try {
     window.BattleAIPolicy && window.BattleObjectiveSystem && window.BattleModules
   ), null, { timeout: 120_000 });
 
+  /* The page silences its console while a benchmark runs, so progress comes out through this instead. */
+  await page.exposeFunction('__benchLog', text => console.log(text));
   await page.addScriptTag({ path: path.resolve('scripts/battle-benchmark-intent.cjs') });
-  const result = await page.evaluate(async ({ count, seedPrefix, fixedDt, timeLimit, suppliedPolicy }) => {
+  const result = await page.evaluate(async ({ count, seedPrefix, fixedDt, timeLimit, suppliedPolicy, windows, battleType, numbered, firstIndex }) => {
     const root = window, sim = root.__battle__, engine = sim.scene?.getEngine?.(), renderLoop = root.__battleRenderLoop__;
     if (engine && renderLoop) engine.stopRenderLoop(renderLoop);
     sim.pause();
@@ -318,36 +338,23 @@ try {
     }
 
     const battles = [], commandTick = +root.BattleCommanderAI.commandTick || 0.45, maxSteps = Math.ceil((timeLimit + 2) / fixedDt);
-    try {
-      for (let index = 0; index < count; index++) {
-        const seed = `${seedPrefix}-${String(index + 1).padStart(4, '0')}`;
-        const scenario = root.BattleTownObjectives.regenerate(sim.scene, sim.heightAt, seed, { benchmark: true, benchmarkIndex: index }, sim);
-        root.BattleAIPolicy.setMatchPolicies(sim, baseline, baseline); sim.trainingMode = true;
-        root.BattleSoldierModel?.setImportedEnabled?.(sim.scene, false); rawRestart();
-        sim.manualEnded = false; sim.winner = null; sim.winReason = null; sim.paused = false; sim.timeScale = 1; sim.timeLimit = timeLimit;
-
-        activeCombat = { total: 0, direct: 0, hits: 0, suppressive: 0, suppressedTargets: 0, firstFireSeconds: null, byStance: {}, hitsByStance: {}, missesByStance: {} };
-        let commandAccum = 0, steps = 0, nextSample = 0;
-        const diag = {
-          lastObjectiveSig: objectiveSignature(), lastObjectiveChangeAt: 0, maxNoObjectiveProgress: 0,
-          firstObjectiveProgressSeconds: null, firstCaptureSeconds: null, firstContactSeconds: null,
-          vacantTrack: Object.create(null), unitTrack: Object.create(null), targetlessTrack: Object.create(null), regroupTrack: Object.create(null), routeTrack: Object.create(null),
-          vacantAssignmentSamples: 0, squadSamples: 0, targetlessSamples: 0, overCohesionSamples: 0, captainlessSamples: 0, inContactSamples: 0,
-          stablePlanSamples: 0, blockedFireteamSamples: 0, regroupSamples: 0, supportHoldSamples: 0, retreatSamples: 0,
-          orderedMoveSamples: 0, idleOrderedSamples: 0, phaseSamples: {}, engagementStateSamples: {},
-          vacantObjectiveStalls: [], movementStalls: [], routeStalls: [], targetlessStalls: [], longRegroups: [],
-          everOwned: Object.create(null), everContested: Object.create(null), spreadSamples: { us: [], ge: [] }
-        };
-        const wallStart = performance.now();
-        while (!sim.winner && sim.time < timeLimit + 0.5 && steps < maxSteps) {
-          sim._trainerStepActive = true; try { sim.step ? sim.step(fixedDt) : sim._frame(fixedDt); } finally { sim._trainerStepActive = false; }
-          steps++; commandAccum += fixedDt;
-          while (commandAccum + 1e-9 >= commandTick && !sim.winner) { commandAccum -= commandTick; root.BattleCommanderAI.update(sim, scenario, commandTick); }
-          if (sim.time + 1e-9 >= nextSample) { sampleDiagnostics(diag); nextSample += SAMPLE_SECONDS; }
-        }
-        if (!sim.winner && sim._checkWinner) sim._checkWinner();
-        diag.maxNoObjectiveProgress = Math.max(diag.maxNoObjectiveProgress, (+sim.time || 0) - diag.lastObjectiveChangeAt);
-
+    /* Scripted mode (BATTLE_BENCHMARK_WINDOWS): one battle, stepped unmeasured up to each window and measured inside it.
+       Each window yields one full record (every field below, the diagnostics and the combat counters counted inside the window,
+       the end state, `timeline` and `stress` as of its close); without windows the whole battle is one record, as before. */
+    const scripted = Array.isArray(windows) && windows.length > 0, recordsExpected = scripted ? '?' : count;
+    const newCombat = () => ({ total: 0, direct: 0, hits: 0, suppressive: 0, suppressedTargets: 0, firstFireSeconds: null, byStance: {}, hitsByStance: {}, missesByStance: {} });
+    const newDiag = now => ({
+      lastObjectiveSig: objectiveSignature(), lastObjectiveChangeAt: now, maxNoObjectiveProgress: 0,
+      firstObjectiveProgressSeconds: null, firstCaptureSeconds: null, firstContactSeconds: null,
+      vacantTrack: Object.create(null), unitTrack: Object.create(null), targetlessTrack: Object.create(null), regroupTrack: Object.create(null), routeTrack: Object.create(null),
+      vacantAssignmentSamples: 0, squadSamples: 0, targetlessSamples: 0, overCohesionSamples: 0, captainlessSamples: 0, inContactSamples: 0,
+      stablePlanSamples: 0, blockedFireteamSamples: 0, regroupSamples: 0, supportHoldSamples: 0, retreatSamples: 0,
+      orderedMoveSamples: 0, idleOrderedSamples: 0, phaseSamples: {}, engagementStateSamples: {},
+      vacantObjectiveStalls: [], movementStalls: [], routeStalls: [], targetlessStalls: [], longRegroups: [],
+      everOwned: Object.create(null), everContested: Object.create(null), spreadSamples: { us: [], ge: [] }
+    });
+    function anyContact() { for (const f of ['us', 'ge']) for (const sq of sim.factions?.[f]?.squads || []) if (sq && sq.inContact) return true; return false; }
+    function buildRecord({ index, seed, scenario, diag, wallStart, steps, extra }) {
         const control = sim.objectiveControl || {}, counts = control.counts || { us: control.us || 0, ge: control.ge || 0 }, stats = sim.objectiveStats || {};
         const objectiveStates = (sim._objectives || []).map(o => { const st = objectiveStatus(o); return { id: o.id, owner: st.owner || 'neutral', active: st.active || null, vacantOwner: !!st.vacantOwner, us: +(st.us || st.weights?.us || 0), ge: +(st.ge || st.weights?.ge || 0) }; });
         const recovery = sim._objectiveRecovery || {}, conflicts = provenanceConflicts(), loops = loopAlerts();
@@ -414,8 +421,99 @@ try {
              soldier lever changed a decision, with a one-second series in simulated time (AGENTS.md, stress). */
           stress: root.BattleSoldierMind?.telemetry?.(sim) || null
         };
-        battles.push(record);
-        console.log(`[BENCH] ${index + 1}/${count} ${seed} winner=${record.winner} captures=${record.captures}/${record.objectiveCount} neverOwned=${record.objectivesNeverOwned} spread=${record.squadObjectiveSpread.us}/${record.squadObjectiveSpread.ge} vacant=${record.vacantObjectiveStalls.length} route=${record.routeStalls.length} move=${record.movementStalls.length} loops=${record.loopAlerts.length} conflicts=${record.writerConflicts} regroups=${record.regroups.entries}/${record.regroups.timeouts} stalls=${record.stallOutcomes?.repeats ?? '-'}/${record.stallOutcomes?.wakes ?? '-'} wall=${record.wallSeconds}s`);
+        if (extra) Object.assign(record, extra);
+        return record;
+    }
+    function emit(record) {
+      /* A scripted record is taken in the middle of a battle that goes on: `stress` and `capturesByFaction` are the sim's own
+         live objects, so an earlier record would keep growing with the battle. A copy is what was true at its close. */
+      battles.push(scripted ? JSON.parse(JSON.stringify(record)) : record);
+      root.__benchLog(`[BENCH] ${record.index}/${recordsExpected} ${record.seed} winner=${record.winner} captures=${record.captures}/${record.objectiveCount} neverOwned=${record.objectivesNeverOwned} spread=${record.squadObjectiveSpread.us}/${record.squadObjectiveSpread.ge} vacant=${record.vacantObjectiveStalls.length} route=${record.routeStalls.length} move=${record.movementStalls.length} loops=${record.loopAlerts.length} conflicts=${record.writerConflicts} regroups=${record.regroups.entries}/${record.regroups.timeouts} stalls=${record.stallOutcomes?.repeats ?? '-'}/${record.stallOutcomes?.wakes ?? '-'} wall=${record.wallSeconds}s`);
+    }
+    try {
+      for (let index = 0; index < count; index++) {
+        /* One scripted battle is the scenario its seed names; a count of several, no windows or a numbered shard number them from the prefix. */
+        const seed = scripted && count === 1 && !numbered ? seedPrefix : `${seedPrefix}-${String(firstIndex + index + 1).padStart(4, '0')}`;
+        const scenario = root.BattleTownObjectives.regenerate(sim.scene, sim.heightAt, seed, { benchmark: true, benchmarkIndex: index }, sim);
+        root.BattleAIPolicy.setMatchPolicies(sim, baseline, baseline); sim.trainingMode = true;
+        root.BattleSoldierModel?.setImportedEnabled?.(sim.scene, false); rawRestart();
+        sim.manualEnded = false; sim.winner = null; sim.winReason = null; sim.paused = false; sim.timeScale = 1; sim.timeLimit = timeLimit;
+
+        let commandAccum = 0, steps = 0, nextSample = 0;
+        const live = () => !sim.winner && sim.time < timeLimit + 0.5 && steps < maxSteps;
+        const stepOnce = () => {
+          sim._trainerStepActive = true; try { sim.step ? sim.step(fixedDt) : sim._frame(fixedDt); } finally { sim._trainerStepActive = false; }
+          steps++; commandAccum += fixedDt;
+          while (commandAccum + 1e-9 >= commandTick && !sim.winner) { commandAccum -= commandTick; root.BattleCommanderAI.update(sim, scenario, commandTick); }
+        };
+        const wallStart = performance.now();
+        if (!scripted) {
+          activeCombat = newCombat();
+          const diag = newDiag(0);
+          while (live()) {
+            stepOnce();
+            if (sim.time + 1e-9 >= nextSample) { sampleDiagnostics(diag); nextSample += SAMPLE_SECONDS; }
+          }
+          if (!sim.winner && sim._checkWinner) sim._checkWinner();
+          diag.maxNoObjectiveProgress = Math.max(diag.maxNoObjectiveProgress, (+sim.time || 0) - diag.lastObjectiveChangeAt);
+          emit(buildRecord({ index, seed, scenario, diag, wallStart, steps }));
+        } else {
+          /* Every record is a segment of the battle: it opens at first contact, at a fixed second, or where the last one
+             closed, and counts what happened inside it. A segment that opens where the last one closed (no unmeasured gap)
+             carries the stall and objective trackers over, so a stall that spans a checkpoint is one stall. */
+          const CARRY = ['vacantTrack', 'unitTrack', 'targetlessTrack', 'regroupTrack', 'routeTrack', 'everOwned', 'everContested', 'lastObjectiveSig', 'lastObjectiveChangeAt', 'firstObjectiveProgressSeconds', 'firstCaptureSeconds', 'firstContactSeconds'];
+          let previousClose = null, previousDiag = null;
+          const measure = (labelAt, spec, closed) => {
+            const openedAt = +sim.time, windowStart = performance.now(), diag = newDiag(openedAt);
+            const contiguous = previousDiag && Math.abs(openedAt - previousClose) < 1e-6;
+            if (contiguous) for (const k of CARRY) diag[k] = previousDiag[k];
+            activeCombat = newCombat(); if (!contiguous) nextSample = openedAt;
+            while (live() && !closed(openedAt)) {
+              stepOnce();
+              if (sim.time + 1e-9 >= nextSample) { sampleDiagnostics(diag); nextSample += SAMPLE_SECONDS; }
+            }
+            diag.maxNoObjectiveProgress = Math.max(diag.maxNoObjectiveProgress, (+sim.time || 0) - diag.lastObjectiveChangeAt);
+            const closedAt = +sim.time, label = labelAt();
+            emit(buildRecord({
+              index: battles.length, seed: `${seed}-${label}`, scenario, diag, wallStart, steps,
+              extra: {
+                scenarioSeed: seed, battleType,
+                window: { label, opens: spec.every ? `every${spec.every}` : spec.start, openedAt: +openedAt.toFixed(2), closedAt: +closedAt.toFixed(2), requestedSeconds: spec.every || spec.seconds, completed: label !== 'end' && closedAt >= openedAt + (spec.every ? 0 : spec.seconds) - fixedDt },
+                windowWallSeconds: +((performance.now() - windowStart) / 1000).toFixed(3)
+              }
+            }));
+            activeCombat = null; previousClose = closedAt; previousDiag = diag;
+          };
+          for (let w = 0; w < windows.length && live(); w++) {
+            const spec = windows[w], next = windows[w + 1];
+            if (spec.every) {
+              /* From here to the end of the battle: a record at every multiple of `every` simulated seconds, and one at the end
+                 (`end`, the winner or the time limit, whichever comes first) for what is left since the last. */
+              while (live()) {
+                const boundary = (Math.floor((+sim.time + 1e-9) / spec.every) + 1) * spec.every;
+                /* The last checkpoint is the end itself: the time limit decides the winner a step after its second, so closing at
+                   it would leave a one-step record holding the winner. */
+                const toTheEnd = boundary >= timeLimit - fixedDt;
+                measure(() => (toTheEnd || !live() || sim.time + 1e-9 < boundary ? 'end' : `t${boundary}`), spec, () => !toTheEnd && sim.time + 1e-9 >= boundary);
+              }
+              break;
+            }
+            const label = spec.start === 'contact' ? 'contact' : `t${spec.start}`;
+            /* A window opens at first contact (any squad's report) or at a fixed second, never before the last one closed.
+               A contact window that has not opened by the next fixed window's second is skipped, not run late. */
+            const opensAt = spec.start === 'contact' ? null : Math.max(spec.start, previousClose || 0);
+            const skipAt = opensAt == null && next && !next.every && next.start !== 'contact' ? next.start : null;
+            let skipped = false;
+            while (live()) {
+              if (opensAt == null ? anyContact() : sim.time + 1e-9 >= opensAt) break;
+              if (skipAt != null && sim.time + 1e-9 >= skipAt) { skipped = true; break; }
+              stepOnce();
+            }
+            if (!live()) { root.__benchLog(`[BENCH] ${seed}: the battle ended at ${(+sim.time).toFixed(1)}s before window ${label} opened`); break; }
+            if (skipped) { root.__benchLog(`[BENCH] ${seed}: no contact before ${skipAt}s, window ${label} skipped`); continue; }
+            measure(() => label, spec, openedAt => sim.time + 1e-9 >= openedAt + spec.seconds);
+          }
+        }
         activeCombat = null; cleanup(); if ((index + 1) % 5 === 0) await new Promise(resolve => setTimeout(resolve, 0));
       }
     } finally {
@@ -427,8 +525,8 @@ try {
       if (telemetry && telemetrySaved) Object.assign(telemetry, telemetrySaved);
       if (telemetryConsole !== null && telemetry?.setConsoleLogging) telemetry.setConsoleLogging(telemetryConsole);
     }
-    return { build: root.BATTLE_BUILD || null, policyRevision: root.BattleAIPolicy.stashed ? 0 : suppliedPolicy?.revision || root.BattleAIPolicy.revision || 0, policySource: root.BattleAIPolicy.stashed ? 'stashed-defaults' : suppliedPolicy?.source || 'runtime-default', fixedDt, timeLimit, sampleSeconds: SAMPLE_SECONDS, battles };
-  }, { count, seedPrefix, fixedDt, timeLimit, suppliedPolicy: policy });
+    return { build: root.BATTLE_BUILD || null, policyRevision: root.BattleAIPolicy.stashed ? 0 : suppliedPolicy?.revision || root.BattleAIPolicy.revision || 0, policySource: root.BattleAIPolicy.stashed ? 'stashed-defaults' : suppliedPolicy?.source || 'runtime-default', fixedDt, timeLimit, sampleSeconds: SAMPLE_SECONDS, scripted, battles };
+  }, { count, seedPrefix, fixedDt, timeLimit, suppliedPolicy: policy, windows, battleType, numbered, firstIndex });
 
   const wallSeconds = (Date.now() - startedWall) / 1000, battles = result.battles || [];
   for (const b of battles) b.health = healthFor(b);
@@ -453,7 +551,7 @@ try {
   }
   const summary = {
     generatedAt: new Date().toISOString(), commit, build: result.build, policySource: result.policySource, policyRevision: result.policyRevision, policyWarning: result.policySource === 'stashed-defaults' ? null : policy.warning || null,
-    requestedBattles: count, completedBattles: battles.length, seedPrefix, fixedDt, sampleSeconds: result.sampleSeconds, timeLimit,
+    requestedBattles: result.scripted ? battles.length : count, completedBattles: battles.length, seedPrefix, fixedDt, sampleSeconds: result.sampleSeconds, timeLimit,
     wallSeconds: +wallSeconds.toFixed(2), simulatedSeconds: +simulatedTotal.toFixed(2), realtimeMultiplier: wallSeconds > 0 ? +(simulatedTotal / wallSeconds).toFixed(1) : 0, battlesPerMinute: wallSeconds > 0 ? +(battles.length / wallSeconds * 60).toFixed(2) : 0,
     winners, usWinRate: pct(winners.us || 0, battles.length), geWinRate: pct(winners.ge || 0, battles.length), drawRate: pct((winners.draw || 0) + (winners.none || 0), battles.length),
     avgBattleSeconds: +mean(durations).toFixed(2), p50BattleSeconds: +quantile(durations, .5).toFixed(2), p95BattleSeconds: +quantile(durations, .95).toFixed(2), avgWallSecondsPerBattle: +mean(wallDurations).toFixed(3),
@@ -477,7 +575,8 @@ try {
     shots: sum(battles, b => b.fire?.total), directShots: sum(battles, b => b.fire?.direct), hits: sum(battles, b => b.fire?.hits), suppressiveShots: sum(battles, b => b.fire?.suppressive),
     hitRate: +rate(sum(battles, b => b.fire?.hits), sum(battles, b => b.fire?.direct)).toFixed(4),
     movementResolverChanges: sum(battles, b => b.movementResolver?.changes), browserErrors: browserErrors.length, runtimeErrors: runtimeErrors.length, assetLoadNoise, browserWarnings: browserWarnings.length,
-    stress: summarizeStress(battles)
+    stress: summarizeStress(battles),
+    scripted: result.scripted ? { windows, battleType, records: battles.map(b => ({ seed: b.seed, window: b.window })) } : null
   };
 
   const score = b => (100 - b.health.overall) * 10 + (b.strategicWriterConflicts || 0) * 80 + (b.routeStalls?.length || 0) * 45 + (b.targetlessStalls?.length || 0) * 40 + (b.vacantObjectiveStalls?.length || 0) * 50 + (b.longRegroups?.length || 0) * 35 + (b.loopAlerts?.length || 0) * 25 + (b.captures === 0 ? 80 : 0) + (b.objectivesNeverOwned || 0) * 60 + (b.maxNoObjectiveProgressSeconds || 0) * .25;
@@ -485,11 +584,11 @@ try {
   const payload = { summary, policy, runtimeErrors: dedupe(runtimeErrors), assetLoadNoiseExamples: dedupe(browserErrors.filter(e => assetNoisePattern.test(String(e))), 20), browserWarnings: dedupe(browserWarnings, 100), battles };
   fs.writeFileSync(path.join(outputDir, 'battle-benchmark.json'), JSON.stringify(payload, null, 2));
 
-  const headers = ['index','seed','winner','winReason','simulatedSeconds','timeoutReached','usAlive','geAlive','captures','neutralizations','objectiveCount','objectivesNeverOwned','objectivesNeverContested','usSquadSpread','geSquadSpread','healthOverall','firstContactSeconds','firstFireSeconds','firstCaptureSeconds','maxNoObjectiveProgressSeconds','vacantObjectiveStalls','movementStalls','routeStalls','targetlessStalls','longRegroups','writerConflicts','strategicWriterConflicts','loopAlerts','stallWakes','stallRepeats','stallSwitches','idleUnderOrdersRate','overCohesionRate','shots','hits','hitRate','losBlockedFireAttempts','crestBlockedFireAttempts','movementResolverChanges'];
+  const headers = [...(result.scripted ? ['window', 'windowOpenedAt', 'windowClosedAt'] : []), 'index','seed','winner','winReason','simulatedSeconds','timeoutReached','usAlive','geAlive','captures','neutralizations','objectiveCount','objectivesNeverOwned','objectivesNeverContested','usSquadSpread','geSquadSpread','healthOverall','firstContactSeconds','firstFireSeconds','firstCaptureSeconds','maxNoObjectiveProgressSeconds','vacantObjectiveStalls','movementStalls','routeStalls','targetlessStalls','longRegroups','writerConflicts','strategicWriterConflicts','loopAlerts','stallWakes','stallRepeats','stallSwitches','idleUnderOrdersRate','overCohesionRate','shots','hits','hitRate','losBlockedFireAttempts','crestBlockedFireAttempts','movementResolverChanges'];
   const csvLines = [headers.join(',')];
   for (const b of battles) {
     const row = {
-      ...b, healthOverall: b.health.overall, vacantObjectiveStalls: b.vacantObjectiveStalls?.length || 0, movementStalls: b.movementStalls?.length || 0, routeStalls: b.routeStalls?.length || 0,
+      ...b, window: b.window?.label, windowOpenedAt: b.window?.openedAt, windowClosedAt: b.window?.closedAt, healthOverall: b.health.overall, vacantObjectiveStalls: b.vacantObjectiveStalls?.length || 0, movementStalls: b.movementStalls?.length || 0, routeStalls: b.routeStalls?.length || 0,
       targetlessStalls: b.targetlessStalls?.length || 0, longRegroups: b.longRegroups?.length || 0, loopAlerts: b.loopAlerts?.length || 0,
       stallWakes: b.stallOutcomes?.wakes || 0, stallRepeats: b.stallOutcomes?.repeats || 0, stallSwitches: b.stallOutcomes?.switches || 0,
       idleUnderOrdersRate: rate(b.idleOrderedSamples, b.orderedMoveSamples).toFixed(4), overCohesionRate: rate(b.overCohesionSamples, b.squadSamples).toFixed(4),
@@ -500,7 +599,7 @@ try {
   }
   fs.writeFileSync(path.join(outputDir, 'battle-benchmark.csv'), csvLines.join('\n') + '\n');
 
-  const md = ['# 100-battle headless benchmark','',
+  const md = [result.scripted ? `# Scripted-scenario benchmark (${windows.map(w => w.every ? `every ${w.every} s to the end` : `${w.start === 'contact' ? 'first contact' : `second ${w.start}`} + ${w.seconds} s`).join(', ')})` : '# 100-battle headless benchmark','',
     `- Commit: \`${summary.commit}\``, `- Build: \`${summary.build || 'unknown'}\``, `- Policy: ${summary.policySource}, revision ${summary.policyRevision}${summary.policyWarning ? ` — ${summary.policyWarning}` : ''}`,
     `- Completed: **${summary.completedBattles}/${summary.requestedBattles}** in **${summary.wallSeconds}s** (${summary.realtimeMultiplier}× real-time, ${summary.battlesPerMinute} battles/min)`,
     `- Results: US **${winners.us || 0}** (${summary.usWinRate}), GER **${winners.ge || 0}** (${summary.geWinRate}), draw/none **${(winners.draw || 0) + (winners.none || 0)}** (${summary.drawRate})`,
@@ -518,6 +617,11 @@ try {
     '| Seed | Winner | Health | Captures | Never owned | Spread us/ge | Route stalls | Move stalls | Targetless | Vacant | Regroup | Conflicts | Loops | Max no-progress |',
     '|---|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|'];
   for (const b of problematic) md.push(`| \`${b.seed}\` | ${b.winner} | ${b.health.overall} | ${b.captures}/${b.objectiveCount} | ${b.objectivesNeverOwned} | ${b.squadObjectiveSpread?.us ?? '-'}/${b.squadObjectiveSpread?.ge ?? '-'} | ${b.routeStalls?.length || 0} | ${b.movementStalls?.length || 0} | ${b.targetlessStalls?.length || 0} | ${b.vacantObjectiveStalls?.length || 0} | ${b.longRegroups?.length || 0} | ${b.writerConflicts || 0} | ${b.loopAlerts?.length || 0} | ${b.maxNoObjectiveProgressSeconds}s |`);
+  if (result.scripted) {
+    md.push('', '## Windows', '', '| Window | Opened | Closed | Winner | Alive us/ge | Kills us/ge | Shots | Hits | Move stalls | Retreat samples | Resolver changes | Loops |', '|---|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|');
+    for (const b of battles) md.push(`| ${b.window.label} | ${b.window.openedAt}s | ${b.window.closedAt}s${b.window.completed ? '' : ' (cut short)'} | ${b.winner} | ${b.usAlive}/${b.geAlive} | ${b.usKills}/${b.geKills} | ${b.fire?.total || 0} | ${b.fire?.hits || 0} | ${b.movementStalls?.length || 0} | ${b.retreatSamples} | ${b.movementResolver?.changes || 0} | ${b.loopAlerts?.length || 0} |`);
+    md.push('', 'Kills, survivors, captures, `timeline` and `stress` are the battle as of each window\'s close; stalls, loops, samples, shots and hits are counted inside the window only.');
+  }
   md.push('', '## Diagnostic score note', '', 'Health scores are transparent triage aids, not pass/fail gates. They penalize observed stalls, command ownership conflicts, prolonged targetless/regroup states, cohesion violations and objective inactivity; raw counts remain authoritative.');
   if (runtimeErrors.length) { md.push('', '## Probable runtime errors', ''); for (const error of dedupe(runtimeErrors, 20)) md.push(`- \`${String(error).replaceAll('`', "'")}\``); }
   fs.writeFileSync(path.join(outputDir, 'battle-benchmark.md'), md.join('\n') + '\n');
