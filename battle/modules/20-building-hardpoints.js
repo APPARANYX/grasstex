@@ -50,7 +50,14 @@
     return t ? t.position : null;
   }
   function eligible(s) {
-    return !!(s && !s.dead && s.hp > 0 && !s.incapacitated && (s.role === 'gunner' || s.role === 'rifleman'));
+    return !!(
+      s &&
+      !s.dead &&
+      s.hp > 0 &&
+      !s.incapacitated &&
+      (s.role === 'gunner' || s.role === 'rifleman') &&
+      !(root.BattleEngagement && root.BattleEngagement.reacting(s)) // not while he is down, running or charging
+    );
   }
   function job(s) {
     return s._engagementTask || 'support-by-fire';

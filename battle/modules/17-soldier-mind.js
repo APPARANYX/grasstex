@@ -37,8 +37,9 @@
   'use strict';
   if (!root.SquadAI || !root.BattleModules || !root.BattleSoldierEvents || root.BattleSoldierMind) return;
 
-  var LEVERS = ['react', 'aim', 'hesitate', 'shock', 'morale'];
-  /* The levers a man's own decisions are counted for (the Squad Leader's `morale` is a squad decision, not a man's). */
+  var LEVERS = ['react', 'aim', 'hesitate', 'shock', 'morale', 'act'];
+  /* The levers a man's own decisions are counted for (the Squad Leader's `morale` is a squad decision, not a man's, and
+     `act` is Engagement's reactions, counted as `acts`). */
   var DECIDED = ['react', 'aim', 'hesitate', 'shock'];
   /* What a man carries from one moment of the fight to the next, each off unless named: `?stressMem=lasting,floor,relief`
      (or `1`/`all` for the three). `lasting`: stress does not drain on its timer while the fight goes on, only once
@@ -188,6 +189,27 @@
       reader: 'noteShock: fireAllowed, suppress, orderedBound, advance',
       reads: { noteShock: 1 },
       unit: 'count of decisions the freeze blocked, by which decision',
+      flag: 'always'
+    },
+    {
+      kind: 'lever',
+      lever: 'act',
+      layer: 'Micro (Engagement)',
+      file: 'engagement.js',
+      reader:
+        'reaction (called each soldier tick when ?stressAct= names a reaction): cower, flee, freeze, rage',
+      reads: { view: 1 },
+      unit: 'his band, since when, whether he is under fire and his temper: rattled under fire goes to ground, broken runs, stops or charges',
+      flag: '?mind= act lever (default on) and ?stressAct=cower,flee,freeze,rage (off by default)'
+    },
+    {
+      kind: 'telemetry',
+      lever: 'act',
+      layer: 'Micro (Engagement)',
+      file: 'engagement.js',
+      reader: 'noteAct (a reaction begins, runs a tick, a blow is struck or lands)',
+      reads: { noteAct: 1 },
+      unit: 'count of reactions begun, seconds spent in each, blows struck and landed',
       flag: 'always'
     },
     {
@@ -405,6 +427,14 @@
       decided: { react: dose(), aim: dose(), hesitate: dose(), shock: dose() },
       lapsed: 0,
       shockKinds: { fire: 0, suppress: 0, bound: 0, advance: 0 },
+      view: null, // what Engagement reads for a reaction (view())
+      temper: null, // how he tends to break: three fixed unit hashes (temper())
+      acts: {
+        cower: { n: 0, sec: 0 },
+        flee: { n: 0, sec: 0 },
+        freeze: { n: 0, sec: 0 },
+        rage: { n: 0, sec: 0, strikes: 0, hits: 0 }
+      },
       fightAt: -99, // the last time his squad was in contact or he was under fire (lasting)
       held: 0, // seconds stress did not drain because the fight was still on (lasting)
       floor: 0, // the lowest stress can go (floor)
@@ -680,6 +710,22 @@
   function squadStress(sq) {
     return on('morale') && sq && sq.mind ? sq.mind.mean || 0 : 0;
   }
+  /* What Engagement reads to decide how he reacts (`?stressAct=`): his band and since when, whether he is under fire, and
+     how he tends to break. `temper` is fixed per man, three unit hashes of faction and id (flee, freeze, rage), never the
+     combat RNG: Engagement weighs them against the situation. Null unless the `act` lever is on, so `?mind=0`,
+     `?mind=observe` and a list without `act` leave every man as he was. The object is his own and is refilled on each
+     call: Engagement reads it and keeps nothing. */
+  function view(s, now) {
+    var m = on('act') && s && s.mind;
+    if (!m) return null;
+    var v = m.view || (m.view = { band: 0, since: 0, underFire: false, temper: null });
+    v.band = m.band;
+    v.since = m.bandSince;
+    v.underFire = m.pinnedUntil > now || now - m.lastIncomingAt <= UNDER_FIRE_WINDOW;
+    v.temper =
+      m.temper || (m.temper = { flee: unit(s, 'flee'), freeze: unit(s, 'freeze'), rage: unit(s, 'rage') });
+    return v;
+  }
   function bandName(s) {
     return BANDS[s && s.mind ? s.mind.band : 0];
   }
@@ -782,6 +828,17 @@
   /* The order ended while he was still hesitating: that bound never began. */
   function noteLapse(s) {
     if (MODE.on && s && s.mind) s.mind.lapsed++;
+  }
+  /* A reaction began (`what` 'start'), ran for `dt` more seconds ('time') or, for the charge, struck ('strike') and
+     landed it ('hit'). Counted for the benchmark; nothing reads the numbers back. */
+  function noteAct(s, kind, what, dt) {
+    var m = MODE.on && s && s.mind,
+      a = m && m.acts[kind];
+    if (!a) return;
+    if (what === 'start') a.n++;
+    else if (what === 'time') a.sec += dt;
+    else if (what === 'strike') a.strikes++;
+    else if (what === 'hit') a.hits++;
   }
   /* The freeze blocked a decision that was otherwise his to make; `kind` says which one. The shock has no
      denominator: nothing is counted for a decision it did not touch. */
@@ -981,6 +1038,12 @@
           cover: { n: 0, amt: 0 },
           survived: { n: 0, amt: 0 }
         }
+      },
+      acts: {
+        cower: { n: 0, sec: 0 },
+        flee: { n: 0, sec: 0 },
+        freeze: { n: 0, sec: 0 },
+        rage: { n: 0, sec: 0, strikes: 0, hits: 0 }
       }
     };
   }
@@ -1014,6 +1077,12 @@
       xm.relief[k].n += ym.relief[k].n;
       xm.relief[k].amt += ym.relief[k].amt;
     }
+    for (k in to.acts) {
+      to.acts[k].n += from.acts[k].n;
+      to.acts[k].sec += from.acts[k].sec;
+    }
+    to.acts.rage.strikes += from.acts.rage.strikes;
+    to.acts.rage.hits += from.acts.rage.hits;
   }
   function totalsOut(t) {
     var decisions = {};
@@ -1033,7 +1102,14 @@
     Object.keys(t.memory.relief).forEach(function (k) {
       relief[k] = { n: t.memory.relief[k].n, amount: r3(t.memory.relief[k].amt) };
     });
+    var acts = {};
+    Object.keys(t.acts).forEach(function (k) {
+      acts[k] = { n: t.acts[k].n, seconds: +t.acts[k].sec.toFixed(1) };
+    });
+    acts.rage.strikes = t.acts.rage.strikes;
+    acts.rage.hits = t.acts.rage.hits;
     return {
+      acts: acts,
       memory: {
         flags: Object.keys(MODE.memory),
         heldSeconds: +t.memory.held.toFixed(1),
@@ -1077,7 +1153,8 @@
         floorSum: m.floor,
         floorMax: m.floor,
         relief: m.relieved
-      }
+      },
+      acts: m.acts
     };
   }
   function squadOut(ser, side) {
@@ -1222,6 +1299,8 @@
     hesitation: hesitation,
     shockUntil: shockUntil,
     squadStress: squadStress,
+    view: view,
+    noteAct: noteAct,
     noteHesitation: function (s) {
       if (s && s.mind) s.mind.hesitations++;
     },
