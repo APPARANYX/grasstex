@@ -33,6 +33,7 @@ const OWNER = 'modules/17-soldier-mind.js';
 /* Per-file names bound to `BattleSoldierMind`, each read off the variable's binding in that file. */
 const ALIASES = {
   'engagement.js': ['M'],
+  'modules/16-squad-plan-stability.js': ['M'],
   'modules/40-world-debug-overlay.js': ['Mind']
 };
 /* `_mindSummary` and friends are what module 17 leaves on the sim for the export and the benchmark. */

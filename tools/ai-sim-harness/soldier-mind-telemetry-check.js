@@ -727,7 +727,7 @@ test('the block adds up: sides make the whole, bands make the man-seconds, bands
   const out = ctx.M.telemetry(ctx.b);
   assert.equal(out.men, 2, 'the two men who have a condition');
   assert.equal(out.bySide.us.men + out.bySide.ge.men, out.men);
-  for (const lever of ctx.M.LEVERS) {
+  for (const lever of ctx.M.DECIDED) {
     const d = out.decisions[lever];
     assert.equal(
       d.byBand.reduce((x, y) => x + y, 0),
@@ -823,7 +823,7 @@ test('over a 10 v 10 firefight every count is consistent and the series tells th
     H.run(r, b, 90, () => r.BattleSoldierMind.step(b));
     const out = r.BattleSoldierMind.telemetry(b),
       men = b._roster.us.concat(b._roster.ge).filter(s => s.mind);
-    for (const lever of r.BattleSoldierMind.LEVERS) {
+    for (const lever of r.BattleSoldierMind.DECIDED) {
       const d = out.decisions[lever];
       assert.ok(
         d.changed >= 0 && (d.total == null || d.changed <= d.total),
@@ -839,8 +839,8 @@ test('over a 10 v 10 firefight every count is consistent and the series tells th
         lever + ': the men carry what the block reports'
       );
       const last =
-        out.series.us.slice(-1)[0][8 + r.BattleSoldierMind.LEVERS.indexOf(lever)] +
-        out.series.ge.slice(-1)[0][8 + r.BattleSoldierMind.LEVERS.indexOf(lever)];
+        out.series.us.slice(-1)[0][8 + r.BattleSoldierMind.DECIDED.indexOf(lever)] +
+        out.series.ge.slice(-1)[0][8 + r.BattleSoldierMind.DECIDED.indexOf(lever)];
       assert.equal(last, d.changed, lever + ': the last row is the cumulative count');
     }
     assert.equal(

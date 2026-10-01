@@ -751,6 +751,15 @@
           return n + D.aliveMembers(sq).length;
         }, 0);
       if (survivors < RECON_STRENGTH) dissolveGroup(sim, g, squads, 'below-strength');
+      /* A member that rallied (?morale=1) is no longer retreating, so it will never reach the rally point as a
+         retreating squad: the group cannot finish. Without a rally a member's state leaves `retreat` only through
+         a merge, which ends the group first. */
+      else if (
+        squads.some(function (sq) {
+          return sq.state !== 'retreat';
+        })
+      )
+        dissolveGroup(sim, g, squads, 'squad-rallied');
       else if (
         squads.every(function (sq) {
           return atRally(sq, g);

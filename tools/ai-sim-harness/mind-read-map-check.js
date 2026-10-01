@@ -244,9 +244,15 @@ test('every lever has a row that reads it and a row that counts what it did', ()
       lever + ' has a reader'
     );
     assert.ok(
-      rows.some(r => r.kind === 'telemetry'),
-      lever + ' has a row that counts its decisions'
+      rows.some(r => r.kind === 'telemetry' || r.kind === 'tooling'),
+      lever +
+        " has a row that counts its decisions (a man's lever in the record, the Squad Leader's morale in its probe)"
     );
+    if (M.DECIDED.includes(lever))
+      assert.ok(
+        rows.some(r => r.kind === 'telemetry'),
+        lever + " is a man's decision and is counted in the benchmark record"
+      );
   }
 });
 
@@ -336,8 +342,8 @@ test('a listed file that starts reading something else fails', () => {
   );
   fails(
     mutated('modules/16-squad-plan-stability.js', src => src + '\nvar x = sq.mind.mean;'),
-    /read count: modules\/16-squad-plan-stability\.js reads mind\.mean 3 times/,
-    'a third read of the mean'
+    /read count: modules\/16-squad-plan-stability\.js reads mind\.mean 2 times/,
+    'a second read of the mean'
   );
   fails(
     mutated('engagement.js', src => src + '\nvar y = M.snapshot(s);'),

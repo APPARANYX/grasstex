@@ -285,6 +285,26 @@ test('shock: a man ordered to bound does not start one while frozen', () => {
   assert.ok(['assault', 'bound'].indexOf(ctx.E.stateOf(ctx.man).state) < 0, 'frozen, he stays put');
 });
 
+/* The Squad Leader's group morale (module 16, on by default) reads the squad roll-up through the module, so it is a lever
+   like the others: `?mind=observe` stays identical to `?mind=0` (soldier-mind-check.js plays a whole battle both ways). */
+test('morale lever: the squad mean the Squad Leader reads is the roll-up with the lever on, calm men with it off, observing or not listed', () => {
+  const sq = { mind: { mean: 0.5, max: 0.9, n: 8 } };
+  const read = mode => {
+    const r = H.bootstrap();
+    r.BattleSoldierMind.configure(mode);
+    return r.BattleSoldierMind.squadStress(sq);
+  };
+  assert.equal(read(''), 0.5, 'no flag: every lever on');
+  assert.equal(read('?mind=1'), 0.5);
+  assert.equal(read('?mind=morale'), 0.5, 'the lever alone');
+  for (const m of ['?mind=0', '?mind=observe', '?mind=react,aim,hesitate,shock'])
+    assert.equal(read(m), 0, m + ': calm men, so group morale is the flat 60% rule');
+  const r = H.bootstrap();
+  assert.equal(r.BattleSoldierMind.squadStress(null), 0, 'no squad');
+  assert.equal(r.BattleSoldierMind.squadStress({}), 0, 'no roll-up');
+  assert.ok(r.BattleSoldierMind.LEVERS.indexOf('morale') >= 0, 'declared with the other levers');
+});
+
 /* All levers together across a whole firefight: they act, and they act on real men. */
 test('over a 10 v 10 firefight the levers fire: men freeze, and hesitate before bounds, and none of it throws', () => {
   let shocks = 0,
