@@ -301,10 +301,14 @@ try {
 
         for (const s of units(faction)) {
           const eng = engagementState(s); addMap(state.engagementStateSamples, eng.state || 'unknown');
-          if (!s.root || !s.destination || s.target || !phaseAllowsAdvance(s.squad?.commandPhase)) continue;
+          /* A man who stops qualifying (a target, a phase that does not advance, a combat state) starts his clock again when he
+             qualifies: the clock keeps running through nothing, as module 97's does not (a man holding in `cower` was reported the
+             moment he was back in `advance`). */
+          const key = `${faction}:${s.id}`;
+          if (!s.root || !s.destination || s.target || !phaseAllowsAdvance(s.squad?.commandPhase)) { delete state.unitTrack[key]; continue; }
           const combatState = ['orient','bound','engage','pinned','assault','station','withdraw','suppress','cower','flee','freeze','rage'].includes(String(eng.state || ''));
-          if (combatState) continue;
-          const d = distance(s.root.position, s.destination), key = `${faction}:${s.id}`;
+          if (combatState) { delete state.unitTrack[key]; continue; }
+          const d = distance(s.root.position, s.destination);
           if (d < 8) { delete state.unitTrack[key]; continue; }
           state.orderedMoveSamples++;
           if ((+s.moveSpeed || 0) < 0.35) state.idleOrderedSamples++;
