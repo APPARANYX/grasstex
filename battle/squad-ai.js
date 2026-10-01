@@ -470,8 +470,10 @@
     /* Ballistics owns terrain intersection. Suppressive fire used to stop at obstacles and walls
        but never sampled the ground, so rifles could visibly fire through a hill at a remembered contact. */
     var B = root.BattleBallistics;
-    if (B && typeof B.pointLineBlocked === 'function' && B.pointLineBlocked(shooter, point, battle, AREA_AIM_HEIGHT))
+    if (B && typeof B.pointLineBlocked === 'function' && B.pointLineBlocked(shooter, point, battle, AREA_AIM_HEIGHT)) {
+      shooter._terrainBlockedSuppressiveFire = (shooter._terrainBlockedSuppressiveFire || 0) + 1;
       return false;
+    }
     return true;
   }
   /* Owned command leases. A lease is a commitment that holds a squad's intent for a while: one
