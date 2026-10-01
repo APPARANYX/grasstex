@@ -500,6 +500,16 @@ bound-state samples -11% (p 0.0026), movement stalls 17 to 15, `low-forward-prog
 runs: strategic-stall repeats 72 to 87, 93 to 97, 72 to 94 (p 0.03 on the last; 1 of 20 counters), not a gated counter. A margin on the
 COA (switch only when the other leads by 0.25) was measured on one prefix and dropped: it latches squads in `defend`
 (casualties never heal and stress only falls), bounds -8% and time-limit battles 35 to 52 (p 0.0023).
+**Morale rally gap** (#136, closed unmerged). A rally that needs a gap below the break point (`rallyGap` 0.05), plus the General
+dissolving a reconstitution group whose member rallied, made the rally reachable and stopped the tick-by-tick flip (a rally ceiling
+above the break point), but `?morale=1` still fails the efficiency gate on 200 battles (both prefixes, each arm against its own
+flags-off run, flags off identical to `main` in 100 of 100 records): `withdraw` man-samples +10.7% (more in 120 battles, fewer in
+72, sign p 0.0007), resolver changes +6.7% (126 to 66, p 0.0000), reconstitution groups dissolved 12 to 23 (p 0.03), against
+`low-forward-progress` loops -12% (p 0.0012) and forward-progress alerts -9% (p 0.018); movement stalls 101 to 121 (per-battle
+p 0.52), 0 runtime errors. The rally stays rare (a squad is calm again by the time it has lost its sixth man) and the cost is paid
+at the early break, so nothing more is built on a stress-shifted break threshold: the flag stays in the code, off. What replaces the
+flat retreat is a separate design (fall back and hold), and a squad's shakiness is to come from what its men do (Stress reactions,
+under The soldier layer, in slices).
 **Ranks.** The squad leader is the `sergeant` role (US Staff Sergeant, GE Unteroffizier); the Meso
 layer is the Squad Leader (`squad-leader`: `squadCommand` owner and lease owner). "Captain" is only
 the company echelon in `00-battle-sides.js`. Names that stay `captain*` on purpose, because stored or
@@ -553,7 +563,8 @@ outside the policy genome. Paired standard benchmark (seed `soldier-mind-2026092
 off moved 30 winners both ways (16 GE to US, 14 US to GE, exact McNemar p = 0.86; US wins 43 to 45), time-limit
 battles 52 to 51, no-capture 14 to 14, captures 3.81 to 3.73, health 82.7 to 82.1, no runtime errors: no measurable
 effect on mission outcomes. The World Debug **Composure** layer draws it (a ring per shaken/rattled/broken man, a
-cross on a frozen one), and `closeup_battle.cjs` takes `CLOSEUP_TARGET=stressed` and `CLOSEUP_OVERLAY=composure`.
+cross on a frozen one), and `closeup_battle.cjs` takes `CLOSEUP_TARGET=stressed` and `CLOSEUP_OVERLAY=composure`. What a stressed man does about it, and
+how stress builds and recovers, is owner direction and not built (Open issues, The soldier layer, in slices: Stress reactions).
 **Soldier events** (`modules/08-soldier-events.js`, `BattleSoldierEvents`). What happens to a man reaches the layer that
 reads it through one queue per soldier (`soldier._eventQueue`), one declared vocabulary (`KINDS`: kind, fixed
 priority, producer, payload) and `post` / `drain`. Kinds, in priority order: `casualty` 0 (a man of his side went down
@@ -762,7 +773,7 @@ what a change should show. Owner decision, 2026-09-30.
 | stash | AI Graph and genome stashed (`STASHED` in `ai-policy.js`); genome off means the code defaults | merged (#112) |
 | 2 | One publisher of `orderAnchor` + `rally`, one stall clock, one writer per status timer (#113); soldier stats and the General's `squad` lever (#114) | merged |
 | 3a | Debt adoption (45 → 9 wire-map debt entries, `fireCooldown` still to do: gun state to Engagement/ammunition, merge and leader-down to the Squad Leader, station claims, the unreachable handshake) and the per-soldier event queue (`modules/08-soldier-events.js`) | merged (#117). Neutral by the standard benchmark (100/100 identical records in each of default, `mind=0`, `stats=0`) and by the full-state fingerprint on the default arm, seeds 1-9 only (36/36); the fingerprint was not run on the `mind=0` and `stats=0` arms |
-| 3b | Group morale (squad level, break and rally thresholds) replacing the flat 60% casualty retreat, behind `?morale=`; `squad.mind` becomes a reader. It must reduce to the 60% rule when the men are calm; stress only moves the threshold, by declared numbers (`retreat-episodes` probe: every retreat enters at 60%, mean squad stress 0.22) | merged (#118), off unless `?morale=1`. Paired standard benchmark (commit `e0e4642`, two seed prefixes, 100 battles per arm, numbers in #124): 188 of 200 battles change, and no detectable effect on winners (US wins 81 to 91 of 200, exact McNemar p = 0.18), time-limit battles (108 to 111, p = 0.79), no-capture battles (28 to 28) or captures; 0 runtime errors, wall time x1.05. Flag-on is checked and probed since #133 (`morale-check.js`, `morale-decisions`; the paragraph under Group morale has the numbers: a break one casualty early in about half of all retreats, worth a median 5.8 s, and a rally in 5 of 600 squad-battles); the report's `retreatSamples` rose 1.9% and the resolver's retreat orders 9.8%, so it moves retreating, modestly. Morale states are not declared as data (only the `MORALE_TUNING` numbers) |
+| 3b | Group morale (squad level, break and rally thresholds) replacing the flat 60% casualty retreat, behind `?morale=`; `squad.mind` becomes a reader. It must reduce to the 60% rule when the men are calm; stress only moves the threshold, by declared numbers (`retreat-episodes` probe: every retreat enters at 60%, mean squad stress 0.22) | merged (#118), off unless `?morale=1`. Paired standard benchmark (commit `e0e4642`, two seed prefixes, 100 battles per arm, numbers in #124): 188 of 200 battles change, and no detectable effect on winners (US wins 81 to 91 of 200, exact McNemar p = 0.18), time-limit battles (108 to 111, p = 0.79), no-capture battles (28 to 28) or captures; 0 runtime errors, wall time x1.05. Flag-on is checked and probed since #133 (`morale-check.js`, `morale-decisions`; the paragraph under Group morale has the numbers: a break one casualty early in about half of all retreats, worth a median 5.8 s, and a rally in 5 of 600 squad-battles); the report's `retreatSamples` rose 1.9% and the resolver's retreat orders 9.8%, so it moves retreating, modestly. Morale states are not declared as data (only the `MORALE_TUNING` numbers); Part B (#136, closed unmerged): the rally-gap variant still fails the efficiency gate (the paragraph under Group morale), so nothing more is built on `?morale=1`; individual stress reactions replace it (Open issues) |
 | 3c | Group course of action on contact behind a flag: deterministic weighted scoring, tiebreak by squad id, executed through `fireAndMovement` and the bound leases, the Squad Leader the one COA owner; COAs, morale states and inputs declared as data. No planner, no safe-point memory, no route-through-enemy assessment, no hold-until-reinforced | merged (#119), off unless `?coa=1`. Same benchmark (numbers in #124): 164 of 200 battles change, winners 81 to 80 (p = 1), time-limit battles 108 to 100 (p = 0.23), no-capture 28 to 27, 0 runtime errors, wall time x1.01; `defend` was chosen at 25% of contact starts (17% in a bounding phase) and withholds about 6.5% of a battle's bounds (`coa-check.js`, `coa-decisions`, #133); `retreatSamples` fell 4.2%. Ties go to the first COA by name, not by squad id (a squad's scores are compared, not squads) ; per-tick evaluation (#137): evaluated on each in-contact tick with no margin, it meets the efficiency gate on 200 battles (the paragraph under Group morale has the numbers) |
 | 4 | Efficiency, no behaviour change: states return wake times staggered by an id hash; LOS cached per (observer, target) for a short sim-time window; perception budget; the 6 nav-cache invalidations (`_navCache`, `_physicalPath`) become one call on Navigation. Each proved identical before the next; median wall time against the 25% gate | partly merged: the nav-cache invalidations are one call on Navigation (#120; optional-safe since #123). Wake staggering, the LOS cache and the perception budget are not on `main` |
 | 5 | Read-through: a top-of-file contract for every layer file, dead code out (`flatDamage` in 14-z, the unread `objectiveHoldWin`, the `soldier.target` swap in module 52), every tunable number listed by layer in `TUNABLES.md` as the input to the genome rewrite, then a fresh reader explains each layer from its file alone | partly merged: `flatDamage` in 14-z is gone (#121). Not done: the top-of-file contracts, `objectiveHoldWin`, the `soldier.target` swap in module 52, the fresh-reader test. The inventory is `TUNABLES.md` (#129): its 67 names exist in the files they are listed under and its 52 plain-number values equal the code (checked 2026-09-30, by script, not in CI); its 15 compound entries and its completeness are unchecked |
@@ -773,11 +784,60 @@ the dead `soldier.hp` copy in 14-z are gone (#120, #121, #123).
 
 **The soldier layer, in slices** (the tactics outline's soldier contract; each slice is a tactics change behind a
 lever and a paired benchmark). Shipped: condition, i.e. stress, bands and four levers (see Soldier condition).
-Next, in order: (1) the Squad Leader reads `squad.mind` (which fireteam bounds, when to hold, a
-`doctrine-review` escalation); (2) a callout channel: sim-level, delayed, lossy messages that change the
-listener's state, which voice mirrors and never drives; (3) buddy pairs inside a fireteam (cover and move, calm each
-other); (4) per-man beliefs (seen, told or heard, with age and confidence) replacing the shared `squad.contact`
-inside Engagement; (5) intent-based orders and initiative when the leader is down.
+Next, in order: (1) individual stress reactions (the block below); (2) the Squad Leader reads `squad.mind` (which fireteam bounds, when to hold, a
+`doctrine-review` escalation); (3) a callout channel: sim-level, delayed, lossy messages that change the
+listener's state, which voice mirrors and never drives; (4) buddy pairs inside a fireteam (cover and move, calm each
+other); (5) per-man beliefs (seen, told or heard, with age and confidence) replacing the shared `squad.contact`
+inside Engagement; (6) intent-based orders and initiative when the leader is down.
+
+**Stress reactions: owner direction (2026-09-30), not built.** Today stress only makes a man slightly worse at the same plan
+(recognition, shot group, a bound that starts late, a freeze of at most a second), it decays on a timer (`TAU` 22 s, faster with the
+leader within 12 m, in cover and among steady men, 2.5 times slower under fire) so a man recovers in the middle of a fight, a broken
+man is the same man a little worse, and in a default battle nothing above him reads it. The direction is that stress changes what
+a man does, and that it accumulates.
+- **A broken man stops fighting the way he was.** He does one of three things: abandons his post and retreats (to cover, his squad
+  or the rally point); goes berserk, a "rage" attack that runs at the nearest enemy, firing on the move, and closes to melee; or
+  freezes, no longer fighting or following orders, sitting or crouching where he is, shaking and swaying. Which one is an open
+  design question (a per-man disposition plus his situation, deterministic, never the combat RNG). They are Engagement states,
+  declared in `BattleEngagement.states` with their legal transitions, and they reach the Squad Leader only as status through the
+  squad report (a man who has fled, frozen or charged is not in the base of fire); module 17 still writes only `mind`. The lower
+  bands (shaken, rattled) need visible reactions of their own (cowering, going to ground, slow to advance) so stress shows in a man
+  before he breaks.
+- **Stress does not recover on the spot.** It is added to by being hit, a squad member nearby going down, the leader lost (and by what
+  module 17 already counts: suppression, isolation, contagion), and inside a fight it does not drain on a timer. It recovers after
+  the fight or engagement is over (the squad out of contact for a declared time), not during it.
+- **Recovery is bounded by a stress floor that ratchets with health lost, a transverse of hp and stress.** A man has a stress floor, a
+  locked section at the bottom of his stress bar. Whenever his health or his stress changes the floor becomes the larger of itself and
+  `(1 - hp / maxHp) x stress` at that moment: a running maximum (a ratchet, or high-water mark) that rises as he is hurt or shaken and
+  never falls. Nothing takes his stress below it, neither recovery after the engagement nor a relief event; a man who has never been
+  hurt has no floor, so all of his stress can go. The floor is how low he can go, not how low he does: recovery may stop above it.
+  Worked example: at 50% health and 60% stress the floor is 30%, and after the fight he recovers some (to 50%, say); in the next fight
+  he is at 40% health and a burst of cover fire takes him to 80%, so the floor becomes 60% of 80%, 48%; killing five men could take his
+  stress down to 40%, and he holds at 48%. Nothing heals a man today (bleeding eases, `hp` never comes back), so the floor only rises
+  for the rest of the battle, until there are medics: restoring his health is the only thing that lowers it, and it falls in proportion
+  to the health restored, by the same share as his lost health: `floor x lost_now / lost_before`. Where the floor was set with his stress
+  at full, that is the same as taking off the points restored: a floor of 50% at 50% health, healed to 85% (35 points restored), is
+  50% - 35% = 15%, which is 100% health minus 85%. Healed to full, it is gone. A later rise in stress ratchets it up again from the
+  new health.
+- **Relief inside a fight comes from events:** reaching cover while under fire, killing an enemy, taking an objective, and being
+  shot at without result ("Nothing in life is so exhilarating as to be shot at without result", Churchill: a man who has been
+  under fire and is unhurt steadies; today a round aimed at him only adds stress, so exposure without a hit has to become relief
+  where it is now only a cost). They are new kinds in the soldier event vocabulary (`modules/08-soldier-events.js`: declared kind,
+  priority, producer), posted by the layer that knows (for example the kill by the shot model, the objective by the capture zone,
+  cover reached and fire survived by Engagement) and drained by module 17.
+- **As for every lever:** each reaction behind its own flag, off by default, its decisions counted so its dose is readable,
+  measured on the paired benchmark against the efficiency gate (win rate reported, never gated), numbers in the owning layer's
+  `tuning`, no combat-RNG draw. Ending the timer decay changes module 17's producers and so every battle: it gets its own flag and
+  its own benchmark before any reaction reads it.
+- **Animation (checked 2026-09-30 by file name only; nothing here has been looked at in Motion Lab).** In the game today: `flinch`
+  (Rifle Shielding Face From Debris), `flinchCrouch` (Duck And Look Around Apprehensively), `idleFidget` (Idle Holding A Rifle While
+  Shaking Legs), and the run, sprint and backward-run families (flight and the charge). In the library but not in `CLIPS`:
+  `Sitting Against A Wall Dazed - Sitting Dazed.fbx`, the nearest thing to the freeze (a wall-sit: whether it reads in the open, or
+  sways and shakes, is unknown until it is looked at); firing on the run (Running While Firing Rifle, Repeatedly Firing While
+  Running With Rifle) and the melee clips (bayonet stab and slash, pistol whip, side kick) for the charge; and the rifle kneel set,
+  unused and the natural base for a cowering pose. There is no clip for swaying and shaking in place: it is found among the unused
+  clips in Motion Lab or added as a presentation-only overlay on the pose dials (never the sim, never the RNG). The animation work
+  itself is out of scope until asked.
 
 The loadout, sidearm, perception and weapon-seat work shipped (see Loadouts and sidearms and Perception);
 everything else left is deferred below, by decision on 2026-09-29.
