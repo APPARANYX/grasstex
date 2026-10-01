@@ -164,12 +164,8 @@ test('?stats=0 is the module absent; ?stats=for switches on only fortitude; the 
   assert.equal(world('?stats=all').S.on('squad'), true);
   assert.equal(world('').S.mode().flag, 'default');
   assert.equal(world('?stats=tac,squad').S.on('squad'), true);
-  assert.equal(
-    world('?stats=all').S.on('deal'),
-    false,
-    'dealing changes who a squad is made of: asked for by name'
-  );
-  assert.equal(world('').S.on('deal'), false);
+  assert.equal(world('?stats=all').S.on('deal'), true, 'all now includes stat-based dealing');
+  assert.equal(world('').S.on('deal'), true, 'the shipping default deals roles from soldier stats');
   assert.equal(world('?stats=all,deal').S.on('deal'), true);
   assert.equal(
     world('?stats=all,deal').S.on('for'),
