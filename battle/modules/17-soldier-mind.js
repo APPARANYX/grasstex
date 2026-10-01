@@ -208,6 +208,16 @@
       flag: '?mind= act lever (default on); stress reactions all on by default, ?stressAct=0 disables, a comma list selects exactly named reactions'
     },
     {
+      kind: 'status',
+      lever: null,
+      layer: 'Micro (Engagement)',
+      file: 'engagement.js',
+      reader: 'underFireNow (Squad Leader fire-control return-fire exception)',
+      reads: { recentIncoming: 1 },
+      unit: 'boolean: an aimed round reached this man inside the declared return-fire window',
+      flag: '?fireControl= (default on); false when Soldier Mind is disabled or has no incoming record'
+    },
+    {
       kind: 'telemetry',
       lever: 'act',
       layer: 'Micro (Engagement)',
@@ -734,6 +744,15 @@
     v.temper =
       m.temper || (m.temper = { flee: unit(s, 'flee'), freeze: unit(s, 'freeze'), rage: unit(s, 'rage') });
     return v;
+  }
+  /* Status-only accessor for layers that need to know whether a man was just fired at without
+     reading Soldier Mind's storage directly. This does not depend on a behavioral lever; with the
+     module off there is deliberately no remembered aimed-round status. */
+  function recentIncoming(s, now, window) {
+    if (!MODE.on || !s || !s.mind) return false;
+    var w = isFinite(+window) ? Math.max(0, +window) : UNDER_FIRE_WINDOW,
+      last = isFinite(+s.mind.lastIncomingAt) ? +s.mind.lastIncomingAt : -99;
+    return (+now || 0) - last <= w;
   }
   function bandName(s) {
     return BANDS[s && s.mind ? s.mind.band : 0];
@@ -1331,6 +1350,7 @@
     hesitation: hesitation,
     shockUntil: shockUntil,
     squadStress: squadStress,
+    recentIncoming: recentIncoming,
     view: view,
     noteAct: noteAct,
     noteHesitation: function (s) {

@@ -71,6 +71,8 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 - `MORALE_TUNING = { breakBase: 0.6, breakSlope: 0.3, breakMin: 0.25, rallyStress: 0.15, rallyCasualty: 0.5 }` — group morale thresholds (`?morale=1`)
 - `COA_WEIGHTS` — deterministic COA scoring weights (COA on by default; `?coa=0` disables it)
 
+- `FIRE_CONTROL_TUNING = { prepMin: 1.2, readyFraction: 0.7, minReady: 3, longRange: 140, closeRange: 85, minStrength: 0.55, minMarksmanship: 0.42, precisionMarksmanship: 0.62, maxHold: 6, crestStep: 0.75, crestMax: 6, returnFireWindow: 3 }` — Squad Leader hold/prepare/reposition/open-fire decision, long-range designated marksman, local crest preparation, terrain-deadlock escape, and return-fire exception (`?fireControl=0` control).
+
 ### 17-soldier-mind.js
 - `TAU = 22` — stress decay time constant (s)
 - `CASUALTY_RANGE = 30` — casualty observation range (m)

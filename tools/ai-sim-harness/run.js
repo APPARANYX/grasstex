@@ -27,9 +27,12 @@ function duel(opts){
   opts=opts||{};
   H.resetIds();
   /* These scenarios test Engagement's base contract (orient, cover, suppression, holding a sector), not
-     the independent group-morale or stress-reaction layers. Both have dedicated seeded regression suites, so
-     isolate them here: otherwise default-on squad/reaction layers change what this harness is measuring. */
-  const root=H.bootstrap(Object.assign({search:'?morale=0&coa=0&stressAct=0'},opts));
+     independent Squad Leader/group/reaction layers. Group morale, COA, stress reactions and fire control all
+     have dedicated checks, so isolate them here: otherwise a default-on command layer changes what this harness
+     is measuring (for example, HOLD FIRE correctly blocks the bound-authorisation fixture). The old stance visibility
+     (stanceVis=0) is held too: the lower prone/crouch signature delays acquisition and changes the stance chosen
+     at range, which is a perception/doctrine question with its own check, not this harness's contract. */
+  const root=H.bootstrap(Object.assign({search:'?morale=0&coa=0&stressAct=0&fireControl=0&stanceVis=0'},opts));
   const battle=H.makeBattle(root,{obstacles:opts.obstacles||[],seed:SEED});
   const gap=opts.gap==null?70:opts.gap;
   const us=H.addSquad(root,battle,{id:'us-0',faction:'us',x:0,z:-gap/2,objective:{x:0,z:gap/2},facing:0,composition:opts.composition,seed:SEED});
