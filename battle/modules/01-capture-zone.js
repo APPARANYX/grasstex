@@ -71,6 +71,18 @@
     if (ranked[1] && ranked[0].weight <= ranked[1].weight) return null;
     return ranked[0];
   }
+  /* The men of the side that just took (or took back) the zone, standing in it, are told: something went their way.
+     Nothing is queued unless a layer reads `objective` (the soldier condition, behind ?stressMem=relief). */
+  function tellTakers(instance, sim, helpers, faction) {
+    var E = root.BattleSoldierEvents;
+    if (!E) return;
+    var r = +instance.def.radius || 20,
+      r2 = r * r;
+    helpers.unitsFor(sim).forEach(function (unit) {
+      if (unit.faction === faction && distance2(unit.root.position, instance.def) <= r2)
+        E.post(unit, sim, 'objective', { objective: instance.id });
+    });
+  }
   function init(instance) {
     return {
       owner: instance.def.initialOwner || 'neutral',
@@ -153,6 +165,7 @@
         by: active,
         previousOwner: previous
       });
+      tellTakers(instance, sim, helpers, active);
       return;
     }
     state.owner = active;
@@ -167,6 +180,7 @@
       faction: active,
       seconds: captureSeconds
     });
+    tellTakers(instance, sim, helpers, active);
   }
   function status(instance) {
     var s = instance.state,

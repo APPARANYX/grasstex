@@ -173,6 +173,31 @@
     noteRecognition(s, secs);
     return secs;
   }
+  /* Good news for the man, told to the soldier condition (modules/08-soldier-events.js `cover`, `survived`):
+     reaching cover while he is under fire, and a spell of fire on him that ended without a wound. A kind nobody reads
+     is not queued, so with `?stressMem=relief` off this is a test and nothing more. */
+  function relief(kind, s, battle, payload) {
+    var E = root.BattleSoldierEvents;
+    if (E && E.wanted(kind)) E.post(s, battle, kind, payload);
+  }
+  function fireSpell(s, battle) {
+    var E = root.BattleSoldierEvents;
+    if (!E || !E.wanted('survived')) return;
+    var e = state(s),
+      now = battle.time,
+      wounds = (s.wounds && s.wounds.length) || 0;
+    if (s.suppressedUntil > now) {
+      if (!e.fireSince) {
+        e.fireSince = now;
+        e.fireWounds = wounds;
+      }
+      return;
+    }
+    if (!e.fireSince) return;
+    var secs = now - e.fireSince;
+    e.fireSince = 0;
+    if (wounds === e.fireWounds) relief('survived', s, battle, { seconds: secs });
+  }
   /* Where a man without his own target should be looking and shooting. */
   function knownThreat(s, battle) {
     var contact = squadContact(s, battle);
@@ -1149,6 +1174,7 @@
       role = roleOf(s),
       now = battle.time;
     currentCover(s, battle);
+    fireSpell(s, battle);
 
     if (s.target) {
       e.contactAt = e.state === 'advance' || e.state === 'alert' ? now : e.contactAt;
@@ -1326,6 +1352,7 @@
       d = dist(p.x, p.z, cover.x, cover.z);
     if (d <= (cover.slotId ? 0.35 : COVER_ARRIVED)) {
       if (root.BattleMovementProgress) root.BattleMovementProgress.clearFailuresNear(s, battle, cover);
+      if (s.suppressedUntil > battle.time) relief('cover', s, battle, { seconds: battle.time - e.since });
       holdPosition(s, battle);
       e.stanceUntil = 0; // the run's crouch ends here; engage picks the stance he fights in
       transition(s, battle, 'engage', 0, 'reached cover');
