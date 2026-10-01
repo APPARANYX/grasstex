@@ -152,9 +152,8 @@ test('the four states are declared with their transitions, and every other state
   assert.equal(typeof E.reacting, 'function');
 });
 
-test('off, nobody reacts, however shaken: flag off, ?mind=0, ?mind=observe and a lever list without act', () => {
+test('explicitly off, nobody reacts, however shaken: stressAct=0, ?mind=0, ?mind=observe and a lever list without act', () => {
   for (const q of [
-    '',
     '?stressAct=0',
     '?stressAct=all&mind=0',
     '?stressAct=all&mind=observe',
