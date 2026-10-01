@@ -41,7 +41,8 @@ for (const anchor of [
   "reaction==='freeze'?freezeHoldOf(soldier):null",
   "if(soldier.eng&&soldier.eng.refugeHere)return false",
   "function reactionDropsWeapon(reaction){return reaction==='cower'||reaction==='freeze'||reaction==='flee';}",
-  "reactionWeapon(soldier,fx,reactionDropsWeapon(reaction)||fx.cowerExit);",
+  "reactionWeapon(soldier,fx,reactionDropsWeapon(reaction)||fx.cowerExit,reaction==='flee');",
+  "W.abandon(soldier,old)",
   "loop||spec[2]==='inplace'||spec[2]==='turn'"
 ]) if (!backend.includes(anchor)) throw new Error(`backend contract missing: ${anchor}`);
 

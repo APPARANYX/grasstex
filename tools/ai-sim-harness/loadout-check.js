@@ -62,6 +62,14 @@ test('a dealt squad carries the loadout and the side\'s profile', () => {
     }
   }
 });
+test('an abandoned weapon leaves the soldier while his holstered sidearm remains', () => {
+  const b = H.makeBattle(r, { seed: 7 }), sq = H.addSquad(r, b, { id: 'us-drop', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 } }),
+    s = sq.members.find(x => x.role === 'sergeant'), primary = s.weapon, secondary = s.secondary;
+  assert.equal(r.BattleWeapons.abandon(s, primary), true);
+  assert.equal(s.weapon, null);
+  assert.equal(s.secondary, secondary);
+  assert.equal(r.BattleWeapons.abandon(s, primary), false, 'cannot abandon the same weapon twice');
+});
 
 function fight() {
   H.resetIds();

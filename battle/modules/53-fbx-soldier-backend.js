@@ -1204,7 +1204,7 @@ function bind(soldier,scene,st,lib,faction){
     poseRef:fxRef,weaponModel:null,twoHand:0,yawRate:0,lastYaw:null,turning:false,weaponKind:'rifle',
     lower:{entries:[]},upper:{entries:[]},overlay:0,overlayTarget:0,stance:null,transition:null,sector:0,family:null,moving:false,
     vx:0,vz:0,speed:0,lastX:null,lastZ:null,aim:0,aimWanted:false,aimAt:null,spine:byName[BONE.spine2]||null,fireHold:0,fireShot:0,fireSeen:0,reloadShot:0,reloadSeen:0,reloadDuration:2.5,death:null,
-    reaction:null,reactionPhase:null,reactionHold:null,cowerExit:false,reactionWeapon:null};
+    reaction:null,reactionPhase:null,reactionHold:null,cowerExit:false,reactionWeapon:null,weaponAbandoned:false};
   soldier._fbx=fx;
   soldier.animationBinding={backend:BACKEND,tags:TAGS,play:play,update:update};
   fx.meshLod=meshLodBind(meshes);
@@ -1272,7 +1272,7 @@ function freezeHoldOf(soldier){
   return REACTION_ANIM.holds[(h>>>0)%REACTION_ANIM.holds.length];
 }
 function reactionDropsWeapon(reaction){return reaction==='cower'||reaction==='freeze'||reaction==='flee';}
-function reactionWeapon(soldier,fx,drop){
+function reactionWeapon(soldier,fx,drop,abandon){
   var held=fx.reactionWeapon,w=soldier&&soldier.weapon;
   function restore(entry){
     var old=entry&&entry.weapon;if(!old)return;
@@ -1281,8 +1281,15 @@ function reactionWeapon(soldier,fx,drop){
       if(mesh.rotationQuaternion)mesh.rotationQuaternion.set(0,0,0,1);else mesh.rotation.set(0,0,0);
     });
   }
+  function leave(entry){
+    var old=entry&&entry.weapon,W=root.BattleWeapons;
+    if(!old||!W||!W.abandon||!W.abandon(soldier,old))return false;
+    [old.mesh,old.bipodMesh].forEach(function(mesh){if(mesh&&!mesh.isDisposed())mesh._battleAbandonedWeapon=true;});
+    fx.reactionWeapon=null;fx.weapon=null;fx.weaponModel=null;fx.weaponAbandoned=true;return true;
+  }
+  if(fx.weaponAbandoned)return;
   if(!drop){if(held)restore(held);fx.reactionWeapon=null;return;}
-  if(held&&held.weapon===w)return;
+  if(held&&held.weapon===w){if(abandon)leave(held);return;}
   if(held)restore(held);
   if(!w||!w.mesh)return;
   fx.reactionWeapon={weapon:w};
@@ -1295,6 +1302,7 @@ function reactionWeapon(soldier,fx,drop){
     if(!mesh.rotationQuaternion)mesh.rotationQuaternion=new Q();
     Q.RotationYawPitchRollToRef(yaw+REACTION_ANIM.dropYaw,0,0,mesh.rotationQuaternion);
   });
+  if(abandon)leave(fx.reactionWeapon);
 }
 function reactionFullBody(fx,clips,key,rate,fade){
   var clip=clips[key];if(!clip)return false;
@@ -1363,7 +1371,7 @@ function update(soldier,state,dt){
     fx.reactionHold=reaction==='freeze'?freezeHoldOf(soldier):null;
     fx.cowerExit=oldReaction==='cower'&&!reaction;
   }
-  reactionWeapon(soldier,fx,reactionDropsWeapon(reaction)||fx.cowerExit);
+  reactionWeapon(soldier,fx,reactionDropsWeapon(reaction)||fx.cowerExit,reaction==='flee');
   /* Cower has an authored rise. It may be interrupted immediately by renewed reaction or movement;
      otherwise it owns the body until its last frame, then the normal lower layer cross-fades in. */
   if(fx.cowerExit){

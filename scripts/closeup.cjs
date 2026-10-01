@@ -117,6 +117,7 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
       if (!kind) return { error: 'unknown role ' + who.role };
       if (window.__closeup.soldier) {
         const old = window.__closeup.soldier;
+        scene.meshes.filter(m => m._battleAbandonedWeapon).forEach(m => m.dispose());
         if (old.weapon && old.weapon.mesh && !old.weapon.mesh.parent) old.weapon.mesh.dispose();
         if (old.weapon && old.weapon.bipodMesh && !old.weapon.bipodMesh.parent) old.weapon.bipodMesh.dispose();
         old.root.dispose();
@@ -177,7 +178,8 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
       return {
         rig: fx ? 'fbx' : 'procedural', model: fx && fx.file || null, weapon: s.weapon && s.weapon.model || null,
         clip: lower ? lower.clip.file : null, upperClip: upper ? upper.clip.file : null,
-        weaponDropped: !!(s.weapon && s.weapon.mesh && !s.weapon.mesh.parent),
+        hasWeapon: !!s.weapon,
+        weaponDropped: !!((s.weapon && s.weapon.mesh && !s.weapon.mesh.parent) || scene.meshes.some(m => m._battleAbandonedWeapon)),
         twoHand: fx ? fx.twoHand || 0 : null, supportErrorCm: fx ? fx.supportErrorCm : null, supportReason: fx ? fx.supportReason || null : null
       };
     }, { who, pose, t });
@@ -211,7 +213,7 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
   fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({ url: URL, sidecar: process.env.CLOSEUP_SIDECAR || null, fbx: ready, shots, errors }, null, 1));
   console.log(`OUT ${OUT}`);
   for (const s of shots) console.log(s.error ? `FAIL ${s.soldier} ${s.pose}: ${s.error}`
-    : `SHOT ${s.file} clip=${s.clip}${s.upperClip ? '+' + s.upperClip : ''} weaponDropped=${s.weaponDropped} twoHand=${s.twoHand} supportErrorCm=${s.supportErrorCm}`);
+    : `SHOT ${s.file} clip=${s.clip}${s.upperClip ? '+' + s.upperClip : ''} hasWeapon=${s.hasWeapon} weaponDropped=${s.weaponDropped} twoHand=${s.twoHand} supportErrorCm=${s.supportErrorCm}`);
   errors.forEach(e => console.log('PAGE ERROR ' + e));
   await browser.close();
   if (errors.length || shots.some(s => s.error)) process.exit(1);
