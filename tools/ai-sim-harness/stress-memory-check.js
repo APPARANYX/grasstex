@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* Stress that lasts (module 17, `?stressMem=lasting,floor,relief`): what a man carries from one moment of a fight
-   to the next. Three producers, each off unless named, each with its own check here.
+   to the next. Three producers, `lasting` on by default (owner, 2026-10-01; `?stressMem=0` is none, a list names exactly those that run), each with its own check here.
 
    - lasting: stress does not drain on its timer while the squad is in contact or he is under fire; it drains
      once both have been quiet for CALM_AFTER. Off, it drains as before.
@@ -86,10 +86,11 @@ function scare(ctx, s, amount) {
   m.pub = amount;
 }
 
-test('the flag parses: nothing by default, each named, or all of them', () => {
+test('the flag parses: lasting by default (owner, 2026-10-01), 0 for none, each named, or all of them', () => {
   const parse = q => Object.keys(world(q).M.mode().memory).sort();
-  assert.deepEqual(parse(''), []);
-  assert.deepEqual(parse('?x=1'), []);
+  assert.deepEqual(parse(''), ['lasting']);
+  assert.deepEqual(parse('?x=1'), ['lasting']);
+  assert.deepEqual(parse('?stressMem='), ['lasting']);
   assert.deepEqual(parse('?stressMem=0'), []);
   assert.deepEqual(parse('?stressMem=off'), []);
   assert.deepEqual(parse('?stressMem=1'), ['floor', 'lasting', 'relief']);
@@ -98,11 +99,21 @@ test('the flag parses: nothing by default, each named, or all of them', () => {
   assert.deepEqual(parse('?stressMem=floor,relief'), ['floor', 'relief']);
   assert.deepEqual(parse('?stressMem=floor,panic'), ['floor']);
   assert.deepEqual(parse('?mind=react&stressMem=lasting'), ['lasting']);
-  assert.deepEqual(world().M.mode().memory, {}, 'no location at all: off, as in the Node harness');
+  assert.deepEqual(
+    world().M.mode().memory,
+    { lasting: true },
+    'no location at all: the default, as in the Node harness'
+  );
+  assert.deepEqual(
+    parse('?stressMem=floor'),
+    ['floor'],
+    'a list names exactly the producers that run: no lasting'
+  );
+  assert.deepEqual(parse('?stressMem=panic'), [], 'and one that names nothing known is none');
 });
 
 test('lasting: stress does not drain while the squad is in contact, and drains CALM_AFTER after it stops', () => {
-  const off = world('?x=1'),
+  const off = world('?stressMem=0'),
     on = world('?stressMem=lasting'),
     a = man(off.us, 'rifleman'),
     c = man(on.us, 'rifleman');
@@ -142,7 +153,7 @@ test('lasting: a man under fire holds his stress even when his squad is out of c
 });
 
 test('lasting does not change what a man gains: the same events give the same stress in the same instant', () => {
-  const a = world('?x=1'),
+  const a = world('?stressMem=0'),
     b = world('?stressMem=lasting'),
     sa = man(a.us, 'rifleman'),
     sb = man(b.us, 'rifleman');
@@ -228,7 +239,7 @@ test('floor: bleeding raises it as health is lost; healing lowers it by the shar
 });
 
 test('floor off: nothing holds him, whatever his health', () => {
-  const ctx = world('?x=1'),
+  const ctx = world('?stressMem=0'),
     s = man(ctx.us, 'rifleman');
   run(ctx, s, 0.15);
   hurt(s, 0.6);
@@ -242,7 +253,7 @@ test('floor off: nothing holds him, whatever his health', () => {
 const RELIEF = ['kill', 'objective', 'cover', 'survived'];
 
 test('relief: with it off nothing is queued, with it on each kind is queued and takes RELIEF x nerve off', () => {
-  const off = world('?x=1'),
+  const off = world('?stressMem=0'),
     on = world('?stressMem=relief');
   RELIEF.forEach(k => assert.equal(off.E.wanted(k), false, k + ' is not read, so it is not queued'));
   RELIEF.forEach(k => assert.equal(on.E.wanted(k), true, k));
@@ -260,7 +271,7 @@ test('relief: with it off nothing is queued, with it on each kind is queued and 
     near(ctx.M.of(s).relieved[k].amt, r, 1e-9, k + ' amount counted');
     assert.equal(ctx.M.of(s).relieved[k].n, 1);
   });
-  const ctx = world('?x=1'),
+  const ctx = world('?stressMem=0'),
     s = man(ctx.us, 'rifleman');
   run(ctx, s, 0.15);
   assert.equal(ctx.E.post(s, ctx.b, 'kill', {}), false, 'with relief off a kill posts nothing');
@@ -337,7 +348,7 @@ test('relief: Engagement reports a spell of fire survived, and not one that woun
     b = kinds(shot);
   assert.ok(a.includes('survived'), 'a spell of fire that ended with no wound is survived: ' + a);
   assert.ok(!b.includes('survived'), 'a spell with a wound in it is not: ' + b);
-  const off = world('?x=1');
+  const off = world('?stressMem=0');
   const x = man(off.us, 'rifleman');
   off.S.pin(x, off.b, 1.6);
   for (let i = 0; i < 20; i++) {
@@ -429,7 +440,7 @@ test('relief: the capture zone tells the men of the side that took it who stood 
   assert.deepEqual(heard(enemy), [['objective', 'z1']], 'the neutralising side is told');
   assert.deepEqual(heard(inside), [], 'and the side that lost it is not');
   /* Nobody reads `objective` with relief off: nothing is posted. */
-  const off = world('?x=1');
+  const off = world('?stressMem=0');
   fake.BattleSoldierEvents = off.E;
   load(fake, 'battle/modules/01-capture-zone.js');
   const u = man(off.us, 'rifleman');
@@ -485,7 +496,7 @@ test('telemetry carries the memory block: flags, seconds held, floors and relief
   assert.ok(t.memory.relief.kill.amount > 0);
   assert.equal(t.memory.relief.cover.n, 0);
   assert.deepEqual(t.bySide.us.memory.flags, t.memory.flags, 'and per side');
-  const off = world('?x=1');
+  const off = world('?stressMem=0');
   const x = man(off.us, 'rifleman');
   run(off, x, 5);
   const o = off.M.telemetry(off.b);
