@@ -39,23 +39,30 @@ test('first visual contact holds fire and makes the squad prepare prone before a
   assert.ok(fc.ready>=7,'70% line readiness: '+fc.ready);
   assert.equal(w.E.fireAuthorized(w.us.members[4],w.b),true);
 });
-test('long range prefers one strong scout/marksman while the rest keep holding',()=>{
-  const w=world('?stressAct=0&fireControl=1',160);
-  const scout=w.us.members.find(s=>s.role==='scout');
+test('long range prefers one strong in-range marksman while the rest keep holding',()=>{
+  /* 141.5 m puts the squad-average contact just beyond the 140 m precision threshold while the
+     nearest rifleman is still inside his rifle's real 140 m combat range. A US scout's M1 Carbine
+     is only 110 m, so expecting the scout at 160 m would test an impossible shot rather than fire control. */
+  const w=world('?stressAct=0&fireControl=1',141.5);
+  const tp=w.foe.root.position;
+  const marksman=w.us.members
+    .filter(s=>s.role==='rifleman')
+    .sort((a,b)=>Math.hypot(a.root.position.x-tp.x,a.root.position.z-tp.z)-Math.hypot(b.root.position.x-tp.x,b.root.position.z-tp.z))[0];
   w.us.members.forEach(s=>{w.St.of(s).mkm=0.45;});
-  w.St.of(scout).mkm=0.9;
+  w.St.of(marksman).mkm=0.9;
+  assert.ok(w.r.SquadAI.engageRange(marksman)>=Math.hypot(marksman.root.position.x-tp.x,marksman.root.position.z-tp.z),'fixture marksman is actually in range');
   let fc=command(w); assert.equal(fc.state,'hold');
   prep(w); w.b.time+=1.3;
   fc=command(w);
   assert.equal(fc.state,'precision');
-  assert.equal(String(fc.shooterId),String(scout.id));
-  assert.equal(w.E.fireAuthorized(scout,w.b),true);
-  const other=w.us.members.find(s=>!s.dead&&s!==scout);
+  assert.equal(String(fc.shooterId),String(marksman.id));
+  assert.equal(w.E.fireAuthorized(marksman,w.b),true);
+  const other=w.us.members.find(s=>!s.dead&&s!==marksman);
   assert.equal(w.E.fireAuthorized(other,w.b),false);
-  scout.target=null;
-  scout.prone=false;
-  w.E.updateSoldier(scout,w.b);
-  assert.equal(scout.prone,true,'the designated shooter stays in the prepared posture while reacquiring');
+  marksman.target=null;
+  marksman.prone=false;
+  w.E.updateSoldier(marksman,w.b);
+  assert.equal(marksman.prone,true,'the designated shooter stays in the prepared posture while reacquiring');
 });
 test('a man under incoming fire may answer immediately and the leader opens the squad',()=>{
   const w=world('?stressAct=0&fireControl=1',110);
