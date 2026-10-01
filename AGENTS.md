@@ -508,7 +508,12 @@ gate on 200 battles (both prefixes, each arm against its own flags-off run, flag
 `withdraw` man-samples +10.7% (more in 120 battles, fewer in 72, sign p 0.0007), resolver changes +6.7% (126 to 66, p 0.0000),
 reconstitution groups dissolved 12 to 23 (p 0.03), against `low-forward-progress` loops -12% (p 0.0012) and forward-progress alerts
 -9% (p 0.018); movement stalls 101 to 121 (per-battle p 0.52), 0 runtime errors. The rally stays rare (a squad is calm again by the
-time it has lost its sixth man) and the cost is paid at the early break. **Owner decision, 2026-10-01: morale is on by default anyway**,
+time it has lost its sixth man) and the cost is paid at the early break. **Re-run on this PR's branch** (#142, standard benchmark, both prefixes,
+200 battles pooled, the `morale=0` arm identical to `main` flags off in 100 of 100 records on each prefix; default against `morale=0`):
+`low-forward-progress` loops 1,104 to 977 (-11%, fewer in 99 battles, more in 58, sign p 0.0013), forward-progress alerts -8% (p 0.0084),
+movement stalls 51 to 39 (p 0.63), retreat samples -7% (p 0.10), against resolver changes +5.8% (119 battles more, 74 fewer, p 0.0015),
+`withdraw` man-samples +6.4% (p 0.014) and regroup entries +9% (p 0.063); reported, not gated: US wins 96 to 85 (McNemar p 0.15),
+time-limit battles 94 to 81 (p 0.14); 0 runtime errors, 0 writer conflicts, wall time x1.03. **Owner decision, 2026-10-01: morale is on by default anyway**,
 the failed gate recorded and not waived; `?morale=0` is the flat rule for any A/B. From that day a default battle has group morale,
 so "flags off identical to `main`" compares against a `main` that has it, and every measurement in this file that says flags off
 was taken with it off. What replaces the flat retreat in the long run is a separate design (fall back and hold), and a squad's
