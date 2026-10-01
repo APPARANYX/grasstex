@@ -84,7 +84,7 @@ const run = (a, b, extra) => {
 (async () => {
   await test('a record is the same battle whatever the clock, the index and the run said', () => {
     const a = battle('s1'),
-      b = battle('s1', { index: 7, wallSeconds: 99, cpuWallSeconds: 5 });
+      b = battle('s1', { index: 7, wallSeconds: 99, windowWallSeconds: 41, cpuWallSeconds: 5 });
     b.timeline = Object.assign({}, b.timeline, { ref: 'local-2000', build: 'v30' });
     assert.equal(stateOf(a), stateOf(b));
     assert.notEqual(stateOf(a), stateOf(battle('s1', { captures: 3 })), 'a real field still counts');
@@ -92,6 +92,22 @@ const run = (a, b, extra) => {
     c.timeline = Object.assign({}, c.timeline, { samples: samples(30, 12) });
     assert.notEqual(stateOf(a), stateOf(c), 'and so does the timeline itself');
     assert.equal(a.timeline.ref, 'local-1000', 'the records are not edited to compare them');
+  });
+
+  await test('scripted windows pair on <seed>-<window>: a window one arm never reached is unpaired, not compared with another', () => {
+    const win = (label, over) =>
+      battle('scripted-1-' + label, Object.assign({ window: { label }, windowWallSeconds: 3 }, over || {}));
+    const off = [win('contact'), win('t500')],
+      on = [win('contact', { windowWallSeconds: 9 })];
+    const out = JSON.parse(run(off, on).stdout);
+    assert.deepEqual([out.pairs, out.unpaired.a, out.unpaired.b], [1, 1, 0], out.stdout);
+    assert.equal(out.identicalBattles, 1, 'the window that both arms reached is the same battle');
+    const moved = JSON.parse(run(off, [win('contact', { captures: 3 }), win('t500')]).stdout);
+    assert.deepEqual(
+      [moved.pairs, moved.identicalBattles],
+      [2, 1],
+      'a changed window is one changed battle, not two'
+    );
   });
 
   await test('--ignore leaves a field out of identity: a build that adds a field matches one that lacks it', () => {
@@ -374,6 +390,338 @@ const run = (a, b, extra) => {
     assert.equal(summarizeStress([{ seed: 'x' }, { stress: { off: true } }]), null);
     assert.equal(summarizeStress([]), null);
     assert.match(stressMarkdown(null)[0], /no stress block/);
+  });
+
+  await test('seeds mode: the planner covers every seed once, balanced, over at most the shards it is given', () => {
+    const { plan } = require('../../scripts/plan_benchmark_shards.cjs');
+    for (const [seeds, max] of [
+      [100, 20],
+      [7, 20],
+      [1, 20],
+      [21, 20],
+      [39, 20],
+      [100, 3]
+    ]) {
+      const shards = plan(seeds, max);
+      assert.ok(
+        shards.length <= max && shards.length === Math.min(seeds, max),
+        `${seeds} seeds over ${shards.length} shards`
+      );
+      let next = 0;
+      for (const sh of shards) {
+        assert.equal(sh.first, next, 'contiguous: each shard starts where the last stopped');
+        assert.ok(sh.count >= 1, 'no empty shard');
+        next += sh.count;
+      }
+      assert.equal(next, seeds, 'every seed once');
+      const counts = shards.map(x => x.count);
+      assert.ok(Math.max(...counts) - Math.min(...counts) <= 1, 'balanced to within one seed');
+      assert.deepEqual(
+        shards.map(x => x.shard),
+        shards.map((_, i) => i + 1),
+        'shards numbered from 1'
+      );
+    }
+    assert.deepEqual(plan(100, 20)[0], { shard: 1, first: 0, count: 5 });
+    assert.throws(() => plan(0), /whole number/);
+    assert.throws(() => plan(2.5), /whole number/);
+    assert.throws(() => plan(5, 0), /whole number/);
+    const cli = cp.spawnSync(
+      process.execPath,
+      [path.join(__dirname, '../../scripts/plan_benchmark_shards.cjs'), 'abc'],
+      { encoding: 'utf8' }
+    );
+    assert.equal(cli.status, 2, 'a bad seed count is an error the workflow stops on');
+  });
+
+  await test("seeds mode: casualties is both sides' kills, paired by seed across pooled shard reports, and the table says what it counted", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cmp-'));
+    const rec = (seed, us, ge) => battle(seed, { usKills: us, geKills: ge });
+    const write = (name, battles) => {
+      fs.writeFileSync(path.join(dir, name), JSON.stringify({ battles }));
+      return path.join(dir, name);
+    };
+    // two shards per arm, one seed each: the lists are pooled with a comma, as the compare job does
+    const offList = [
+      write('off1.json', [rec('s-0001-contact', 5, 4)]),
+      write('off2.json', [rec('s-0002-contact', 6, 3)])
+    ].join(',');
+    const onList = [
+      write('on1.json', [rec('s-0001-contact', 2, 2)]),
+      write('on2.json', [rec('s-0002-contact', 6, 3)])
+    ].join(',');
+    const run2 = cp.spawnSync(
+      process.execPath,
+      [
+        path.join(__dirname, '../../scripts/compare_benchmark_arms.cjs'),
+        '--json',
+        '--count',
+        'casualties',
+        offList,
+        onList
+      ],
+      { encoding: 'utf8' }
+    );
+    const out = JSON.parse(run2.stdout);
+    assert.equal(out.pairs, 2, 'two seeds from two shard files pair');
+    assert.deepEqual(
+      [
+        out.counters.casualties.a,
+        out.counters.casualties.b,
+        out.counters.casualties.more,
+        out.counters.casualties.fewer
+      ],
+      [18, 13, 0, 1],
+      'off 9 + 9, on 4 + 9: one pair lost men fewer, the other is a tie'
+    );
+    const { format } = require('../../scripts/format_benchmark_compare.cjs');
+    const table = format(out);
+    assert.match(table, /\*\*2\*\* pairs/);
+    assert.match(table, /\| `casualties` \| 18 \| 13 \|/);
+    assert.match(table, /on fewer/);
+    assert.ok(!/undefined|NaN/.test(table), 'no hole in the table');
+    assert.ok(
+      format({ pairs: 0, counters: {} }).includes('**0** pairs'),
+      'an empty comparison still renders'
+    );
+  });
+
+  await test('the verdict reads the comparison: inert, one battle, quiet, weak or moved, and says when it is a coincidence', () => {
+    const { verdict } = require('../../scripts/format_benchmark_compare.cjs');
+    const c = (a, b, more, fewer, signP) => ({
+      a,
+      b,
+      meanDiff: 0,
+      battlesChanged: more + fewer,
+      more,
+      fewer,
+      signP
+    });
+    const base = {
+      pairs: 100,
+      identicalBattles: 14,
+      unpaired: { a: 0, b: 0 },
+      runtimeErrors: { a: 0, b: 0 },
+      wallSeconds: { ratio: 1, gate: 1.25 },
+      firstDivergence: { battles: 85, median: 144, min: 100, max: 200 }
+    };
+    assert.equal(verdict({ ...base, identicalBattles: 100, counters: {} }, 'seeds').kind, 'inert');
+    assert.match(
+      verdict({ ...base, identicalBattles: 100, counters: {} }).headline,
+      /INERT: all 100 pairs identical/
+    );
+    const one = verdict(
+      { ...base, pairs: 9, identicalBattles: 1, counters: { casualties: c(100, 90, 0, 5, 0.06) } },
+      'single'
+    );
+    assert.equal(one.kind, 'single');
+    assert.match(
+      one.lines.join(' '),
+      /not independent/,
+      'checkpoints of one battle are not independent samples'
+    );
+    const quiet = verdict(
+      { ...base, counters: { casualties: c(2256, 2220, 41, 38, 0.82), a: c(1, 1, 3, 3, 1) } },
+      'seeds'
+    );
+    assert.equal(quiet.kind, 'quiet');
+    assert.match(quiet.headline, /0 of 2 counters under p 0\.05/);
+    assert.match(quiet.headline, /casualties -1\.6% \(p 0\.82\)/);
+    const weak = verdict(
+      {
+        ...base,
+        counters: { casualties: c(100, 80, 10, 40, 0.03), b: c(1, 1, 1, 1, 1), c: c(1, 1, 1, 1, 1) }
+      },
+      'seeds'
+    );
+    assert.equal(weak.kind, 'weak', 'under 0.05 but not under 0.05 / 3');
+    const moved = verdict(
+      { ...base, counters: { casualties: c(100, 80, 10, 90, 0.0001), b: c(1, 1, 1, 1, 1) } },
+      'seeds'
+    );
+    assert.equal(moved.kind, 'moved');
+    assert.match(moved.lines.join(' '), /Bonferroni/);
+    assert.match(
+      verdict({
+        ...base,
+        unpaired: { a: 0, b: 3 },
+        runtimeErrors: { a: 0, b: 2 },
+        wallSeconds: { ratio: 1.4, gate: 1.25 },
+        counters: {}
+      }).lines.join(' '),
+      /over the 1\.25 gate[\s\S]*Runtime errors[\s\S]*Unpaired/
+    );
+    assert.equal(verdict({ pairs: 0, counters: {} }).kind, 'empty');
+  });
+
+  await test('processing a run: slim viewer files, the seeds that part earliest, and the link that opens them', () => {
+    const {
+      process: processResults,
+      viewerUrl,
+      viewerBase,
+      previewSlug
+    } = require('../../scripts/process_benchmark_results.cjs');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'proc-'));
+    const rec = (scenario, label, bump, closed, extra) =>
+      battle(
+        `${scenario}-${label}`,
+        Object.assign(
+          {
+            scenarioSeed: scenario,
+            battleType: 'meeting',
+            window: { label, closedAt: closed },
+            usKills: 5 + (bump ? 1 : 0),
+            geKills: 4,
+            timeline: { format: 'grasstex-ai-timeline-v1', samples: samples(closed, bump), markers: [] }
+          },
+          extra || {}
+        )
+      );
+    const write = (name, battles) => {
+      fs.writeFileSync(path.join(dir, name), JSON.stringify({ summary: { build: 'v-test' }, battles }));
+      return path.join(dir, name);
+    };
+    // seeds mode, windows only: s3 never parts, s1 parts at 21 s, s2 at 8 s
+    const off = write('off.json', [
+      rec('s-0001', 'contact', 0, 40),
+      rec('s-0002', 'contact', 0, 40),
+      rec('s-0003', 'contact', 0, 40)
+    ]);
+    const on = write('on.json', [
+      rec('s-0001', 'contact', 20, 40),
+      rec('s-0002', 'contact', 7, 40),
+      rec('s-0003', 'contact', 0, 40)
+    ]);
+    const compare = {
+      pairs: 3,
+      unpaired: { a: 0, b: 0 },
+      identicalBattles: 1,
+      runtimeErrors: { a: 0, b: 0 },
+      wallSeconds: { ratio: 1, gate: 1.25 },
+      firstDivergence: { battles: 2, min: 8, median: 14, max: 21 },
+      counters: {
+        casualties: { a: 27, b: 29, meanDiff: 0.7, battlesChanged: 2, more: 2, fewer: 0, signP: 0.5 }
+      }
+    };
+    fs.writeFileSync(path.join(dir, 'compare.json'), JSON.stringify(compare));
+    const env = {
+      GITHUB_RUN_NUMBER: '77',
+      GITHUB_RUN_ID: '9',
+      GITHUB_REPOSITORY: 'APPARANYX/grasstex',
+      GITHUB_REF_NAME: 'work/scripted-benchmark',
+      GITHUB_SHA: 'abcdef0123456789'
+    };
+    const r = processResults(
+      {
+        mode: 'seeds',
+        compare: path.join(dir, 'compare.json'),
+        off,
+        on,
+        seed: 's',
+        seeds: '3',
+        windows: 'contact+120',
+        'max-seeds': '2'
+      },
+      env
+    );
+    assert.deepEqual(
+      r.result.viewer.seeds.map(x => [x.seed, x.firstDivergence]),
+      [
+        ['s-0002', 8],
+        ['s-0001', 21]
+      ],
+      'ranked by where they part, the identical seed left out, capped at --max-seeds'
+    );
+    assert.deepEqual(
+      r.off.battles.map(b => b.seed),
+      ['s-0002-contact', 's-0001-contact'],
+      'the viewer opens the earliest first'
+    );
+    assert.deepEqual(
+      Object.keys(r.off.battles[0]).sort(),
+      ['battleType', 'scenarioSeed', 'seed', 'simulatedSeconds', 'timeline', 'winReason', 'window', 'winner'],
+      'a slim record: no stress block, no counters'
+    );
+    assert.equal(
+      r.url,
+      'https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=77&view=brain3d',
+      'seeds mode has no pick: the first record is the earliest part'
+    );
+    assert.ok(!/\n/.test(r.headline) && r.headline.length > 10, 'one line, for the notification');
+    assert.match(r.md, /# Benchmark run #77 · 3 seeds from `s`/);
+    assert.match(r.md, /## Verdict/);
+    assert.match(r.md, /s-0002 8 s \(timeline\) · s-0001 21 s \(timeline\)/);
+    // single mode: one scenario with a record per checkpoint (each a prefix of the last): only the longest goes to the viewer, picked by -end
+    const offS = write('offS.json', [
+      rec('sc', 'contact', 0, 30),
+      rec('sc', 't180', 0, 60),
+      rec('sc', 'end', 0, 90)
+    ]);
+    const onS = write('onS.json', [
+      rec('sc', 'contact', 0, 30),
+      rec('sc', 't180', 25, 60),
+      rec('sc', 'end', 25, 90)
+    ]);
+    const single = processResults(
+      {
+        mode: 'single',
+        compare: path.join(dir, 'compare.json'),
+        off: offS,
+        on: onS,
+        seed: 'sc',
+        windows: 'contact+60,every60'
+      },
+      env
+    );
+    assert.deepEqual(
+      single.off.battles.map(b => b.seed),
+      ['sc-end'],
+      'one record per scenario, the longest'
+    );
+    assert.equal(single.off.battles[0].timeline.samples.length, 90);
+    assert.match(single.url, /bench=77&pick=-end&view=brain3d$/);
+    // the preview of the branch that ran, production for main and for a ref without a preview, another repository named
+    assert.equal(
+      r.previewUrl,
+      'https://test.ivandpopov.com/grasstex/preview/scripted-benchmark/ai_flow_live.html?bench=77&view=brain3d',
+      'the branch that ran has its own viewer'
+    );
+    assert.equal(
+      processResults(
+        { mode: 'seeds', compare: path.join(dir, 'compare.json'), off, on, seeds: '3' },
+        { ...env, GITHUB_REF_NAME: 'main' }
+      ).previewUrl,
+      null,
+      'main has no preview: the server is the viewer'
+    );
+    assert.match(
+      viewerUrl({ ref: 'work/x', run: 1, where: 'preview' }),
+      /grasstex\/preview\/x\/ai_flow_live\.html\?bench=1&pick=-end&view=brain3d$/
+    );
+    assert.equal(previewSlug('work/Scripted_Benchmark-2'), 'scripted-benchmark-2');
+    assert.equal(viewerBase('main'), 'https://test.ivandpopov.com/grasstex');
+    assert.equal(
+      viewerBase('feature/x'),
+      'https://test.ivandpopov.com/grasstex',
+      'no preview is staged for a branch outside work/ and preview/'
+    );
+    assert.equal(viewerBase('preview/a.b'), 'https://test.ivandpopov.com/grasstex/preview/a-b');
+    assert.match(
+      viewerUrl({ ref: 'main', repo: 'someone/else', run: 5 }),
+      /grasstex\/ai_flow_live\.html\?bench=5&repo=someone%2Felse&pick=-end&view=brain3d$/
+    );
+    // a run with nothing to compare still writes a result
+    const none = processResults(
+      {
+        mode: 'seeds',
+        compare: path.join(dir, 'compare.json'),
+        off,
+        on: write('empty.json', []),
+        seeds: '3'
+      },
+      env
+    );
+    assert.deepEqual(none.on.battles, []);
   });
 
   console.log(n + ' benchmark compare checks passed');
