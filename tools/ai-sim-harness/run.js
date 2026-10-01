@@ -11,7 +11,7 @@ let failures=0,checks=0;
 function check(name,ok,detail){
   checks++;
   if(ok)console.log('  PASS  '+name);
-  else{failures++;console.log('  FAIL  '+name+(detail?'  ('+detail+')':''));}
+  else{var msg='  FAIL  '+name+(detail?'  ('+detail+')':'');failures++;console.log(msg);console.error(msg);}
 }
 function section(name){console.log('\n== '+name+' ==');}
 function rifleman(sq){return sq.members.find(s=>s.role==='rifleman');}
@@ -417,5 +417,7 @@ section('full fight still resolves');
   console.log('        (us '+usAlive+'/10, ge '+geAlive+'/10, '+battle.events.fired+' shots, '+battle.events.hits+' hits, '+battle.events.kills+' killed)');
 }
 
-console.log('\n'+(failures?failures+' of '+checks+' checks FAILED':'all '+checks+' checks passed')+' (seed '+SEED+')');
+var summary=(failures?failures+' of '+checks+' checks FAILED':'all '+checks+' checks passed')+' (seed '+SEED+')';
+console.log('\n'+summary);
+if(failures)console.error(summary);
 process.exit(failures?1:0);
