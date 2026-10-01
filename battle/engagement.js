@@ -279,9 +279,8 @@
   function underFireNow(s, battle) {
     if (!s || !battle) return false;
     if ((+s.suppressedUntil || 0) > battle.time) return true;
-    var m = s.mind,
-      last = m && isFinite(+m.lastIncomingAt) ? +m.lastIncomingAt : -999;
-    return battle.time - last <= fireControlTuning().returnFireWindow;
+    var M = mind();
+    return !!(M && M.recentIncoming && M.recentIncoming(s, battle.time, fireControlTuning().returnFireWindow));
   }
   function fireControlOf(s) {
     return (s && s.squad && s.squad.fireControl) || null;
