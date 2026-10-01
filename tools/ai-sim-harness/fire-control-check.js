@@ -74,6 +74,19 @@ test('a man under incoming fire may answer immediately and the leader opens the 
   assert.equal(fc.state,'open');
   assert.equal(fc.reason,'enemy fire received');
 });
+test('zero firing lines after the prep window repositions under hold fire instead of deadlocking',()=>{
+  const w=world('?stressAct=0&fireControl=1',100);
+  let fc=command(w); assert.equal(fc.state,'hold');
+  const real=w.E.fireControlReady;
+  w.E.fireControlReady=()=>false;
+  w.b.time+=w.Q.tuning.fireControl.maxHold+0.1;
+  fc=command(w);
+  assert.equal(fc.state,'reposition');
+  assert.equal(fc.reason,'no viable prone firing line');
+  assert.equal(w.E.fireAuthorized(w.us.members[4],w.b),false,'reposition is movement under hold fire, not permission');
+  w.E.fireControlReady=real;
+});
+
 test('fireControl=0 preserves immediate-fire behavior',()=>{
   const w=world('?stressAct=0&fireControl=0',100);
   command(w);
