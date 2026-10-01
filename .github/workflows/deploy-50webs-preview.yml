@@ -125,6 +125,7 @@ jobs:
           mirror -R --verbose=1 labs labs
           mirror -R --delete --verbose=1 --ignore-time --exclude '\.json\$' --exclude '[Ll][Aa][Bb]' --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' Assets Assets
           put battle_sim.php
+          put ai_flow_live.html
           put preview.json
           bye
           LFTP

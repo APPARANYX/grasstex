@@ -67,6 +67,7 @@ jobs:
     outputs:
       headline: ${{ steps.process.outputs.headline }}
       viewer: ${{ steps.publish.outputs.viewer }}
+      viewer_preview: ${{ steps.publish.outputs.viewer_preview }}
     env:
       BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.sha }}
       BATTLE_BENCHMARK_COUNT: '1'
@@ -161,6 +162,7 @@ jobs:
           set -euo pipefail
           bash scripts/publish_benchmark_result.sh result "$GITHUB_RUN_NUMBER"
           echo "viewer=$(head -n 1 result/viewer_url.txt)" >> "$GITHUB_OUTPUT"
+          echo "viewer_preview=$(head -n 1 result/viewer_preview_url.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Publish run summary
         if: always()
@@ -340,6 +342,7 @@ jobs:
     outputs:
       headline: ${{ steps.process.outputs.headline }}
       viewer: ${{ steps.publish.outputs.viewer }}
+      viewer_preview: ${{ steps.publish.outputs.viewer_preview }}
     env:
       SEED_PREFIX: ${{ github.event.inputs.seed || 'scripted-seeds' }}
       SEEDS: ${{ github.event.inputs.seeds }}
@@ -404,6 +407,7 @@ jobs:
           set -euo pipefail
           bash scripts/publish_benchmark_result.sh result "$GITHUB_RUN_NUMBER"
           echo "viewer=$(head -n 1 result/viewer_url.txt)" >> "$GITHUB_OUTPUT"
+          echo "viewer_preview=$(head -n 1 result/viewer_preview_url.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Publish run summary
         if: always()
@@ -458,6 +462,7 @@ jobs:
           RESULTS: ${{ needs.single.result }} ${{ needs.plan.result }} ${{ needs.shards.result }} ${{ needs.compare.result }}
           HEADLINE: ${{ needs.single.outputs.headline || needs.compare.outputs.headline }}
           VIEWER: ${{ needs.single.outputs.viewer || needs.compare.outputs.viewer }}
+          VIEWER_PREVIEW: ${{ needs.single.outputs.viewer_preview || needs.compare.outputs.viewer_preview }}
           SEED: ${{ github.event.inputs.seed }}
           SEEDS: ${{ github.event.inputs.seeds || '1' }}
           QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
@@ -468,12 +473,20 @@ jobs:
           set -euo pipefail
           if echo "$RESULTS" | grep -Eq 'failure|cancelled'; then status="FAILED (${RESULTS})"; tags='x,warning'; priority='high'; else status='COMPLETE'; tags='white_check_mark,crossed_swords'; priority='default'; fi
           if [ "$SEEDS" = 1 ]; then what="${SEED:-scripted-scout-0003}"; else what="${SEEDS} seeds"; fi
-          # The click opens the viewer with both arms loaded (the result is on the benchmark-results branch); without a result it opens the run.
+          # The click opens the map on the server with both arms loaded, once the server's viewer has the loading code (it gets it when this
+          # reaches main); until then the viewer of the branch that ran, if it is up; else the run.
+          # (the page is read into a variable first: `curl | grep -q` under pipefail fails when grep stops reading early)
+          supports() { local body; body="$(curl -fsS -m 20 "${1%%\?*}" 2>/dev/null || true)"; [[ "$body" == *autoLoadRuntimeFromQuery* ]]; }
+          click="$RUN_URL"
+          if [ -n "$VIEWER" ] && supports "$VIEWER"; then click="$VIEWER"
+          elif [ -n "$VIEWER_PREVIEW" ] && supports "$VIEWER_PREVIEW"; then click="$VIEWER_PREVIEW"
+          fi
+          echo "click: $click"
           curl -fsS \
             -H "Title: M3C benchmark #${GITHUB_RUN_NUMBER}" \
             -H "Priority: ${priority}" \
             -H "Tags: ${tags}" \
-            -H "Click: ${VIEWER:-$RUN_URL}" \
+            -H "Click: ${click}" \
             -H "Actions: view, Open run, ${RUN_URL}" \
             -d "${status} · ${what} · ${HEADLINE:-no result produced} · off [${QUERY_OFF:-none}] vs on [${QUERY_ON:-none}] · ${SOURCE_REF}" \
             https://ntfy.sh/ww2battlesim

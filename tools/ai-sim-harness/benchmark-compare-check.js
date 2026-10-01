@@ -636,7 +636,7 @@ const run = (a, b, extra) => {
     );
     assert.equal(
       r.url,
-      'https://test.ivandpopov.com/grasstex/preview/scripted-benchmark/ai_flow_live.html?bench=77&view=brain3d',
+      'https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=77&view=brain3d',
       'seeds mode has no pick: the first record is the earliest part'
     );
     assert.ok(!/\n/.test(r.headline) && r.headline.length > 10, 'one line, for the notification');
@@ -673,6 +673,23 @@ const run = (a, b, extra) => {
     assert.equal(single.off.battles[0].timeline.samples.length, 90);
     assert.match(single.url, /bench=77&pick=-end&view=brain3d$/);
     // the preview of the branch that ran, production for main and for a ref without a preview, another repository named
+    assert.equal(
+      r.previewUrl,
+      'https://test.ivandpopov.com/grasstex/preview/scripted-benchmark/ai_flow_live.html?bench=77&view=brain3d',
+      'the branch that ran has its own viewer'
+    );
+    assert.equal(
+      processResults(
+        { mode: 'seeds', compare: path.join(dir, 'compare.json'), off, on, seeds: '3' },
+        { ...env, GITHUB_REF_NAME: 'main' }
+      ).previewUrl,
+      null,
+      'main has no preview: the server is the viewer'
+    );
+    assert.match(
+      viewerUrl({ ref: 'work/x', run: 1, where: 'preview' }),
+      /grasstex\/preview\/x\/ai_flow_live\.html\?bench=1&pick=-end&view=brain3d$/
+    );
     assert.equal(previewSlug('work/Scripted_Benchmark-2'), 'scripted-benchmark-2');
     assert.equal(viewerBase('main'), 'https://test.ivandpopov.com/grasstex');
     assert.equal(
