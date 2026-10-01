@@ -1270,7 +1270,7 @@
   }
 
   /* ---- what stress does to a man (module 17 numbers, `?stressAct=cower,flee,freeze,rage`) ---------------------------
-     Off unless named (`1` or `all` for the four). A rattled man under fire goes to ground (`cower`). A broken man stops
+     On by default (`?stressAct=0` disables all; a comma list enables exactly those named). A rattled man under fire goes to ground (`cower`). A broken man stops
      fighting the way he was and does one of three things: runs (`flee`: to cover away from the threat, or the rear),
      stops where he is (`freeze`) or charges the nearest enemy (`rage`). Which one is his temper (three fixed unit
      hashes of his faction and id, module 17 `view`) weighed against the situation: running needs something to run from,
@@ -1281,7 +1281,7 @@
      reacted for: the retreat order outranks every drill, as it does for a man in a firefight. */
   var ACT = (function () {
     var m = /[?&]stressAct=([^&#]*)/.exec((typeof location !== 'undefined' && location.search) || ''),
-      v = m ? decodeURIComponent(m[1]).toLowerCase() : '',
+      v = m ? decodeURIComponent(m[1]).toLowerCase() : 'all',
       out = { cower: false, flee: false, freeze: false, rage: false, any: false };
     if (v === '1' || v === 'on' || v === 'all') v = 'cower,flee,freeze,rage';
     if (v && v !== '0' && v !== 'off')
