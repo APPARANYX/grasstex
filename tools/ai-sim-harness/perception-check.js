@@ -76,6 +76,35 @@ test('view cone: focus at full range, periphery shorter, behind only within arm 
   assert.ok(sees(ctx, me, foe), 'right on top of him');
 });
 
+test('stance concealment is 100/60/35 percent at rest, with an 18 point movement reveal', () => {
+  const ctx = setup([
+    { id: 'us-0', faction: 'us', x: 0, z: 0 },
+    { id: 'ge-0', faction: 'ge', x: 0, z: 300 }
+  ]);
+  const me = lone(ctx.out[0]),
+    foe = lone(ctx.out[1]),
+    base = ctx.S.ROLES[me.role].visionRange;
+  foe.moving = false;
+  foe.prone = foe.tacticalCrouch = false;
+  assert.equal(ctx.S.detectionRange(ctx.S.ROLES[me.role], foe), base, 'standing is full signature');
+  foe.tacticalCrouch = true;
+  assert.ok(Math.abs(ctx.S.detectionRange(ctx.S.ROLES[me.role], foe) - base * 0.6) < 1e-9, 'crouch is 60%');
+  foe.tacticalCrouch = false;
+  foe.prone = true;
+  assert.ok(Math.abs(ctx.S.detectionRange(ctx.S.ROLES[me.role], foe) - base * 0.35) < 1e-9, 'prone is 35%');
+  foe.moving = true;
+  assert.ok(Math.abs(ctx.S.detectionRange(ctx.S.ROLES[me.role], foe) - base * 0.53) < 1e-9, 'moving prone is 53%');
+  assert.deepEqual(ctx.P.VISIBILITY, { stand: 1, crouch: 0.6, prone: 0.35 });
+  assert.equal(ctx.P.MOVING_VISIBILITY_BONUS, 0.18);
+
+  const old = H.bootstrap({ search: '?stanceVis=0' });
+  const oldFoe = { prone: true, tacticalCrouch: false, crouching: false, moving: false };
+  assert.ok(
+    Math.abs(old.SquadAI.detectionRange(old.SquadAI.ROLES.rifleman, oldFoe) - old.SquadAI.ROLES.rifleman.visionRange * 0.45) < 1e-9,
+    'control restores the old 45% prone signature'
+  );
+});
+
 test('he looks toward the known threat of his squad when a head turn reaches it', () => {
   const ctx = setup([
     { id: 'us-0', faction: 'us', x: 0, z: 0 },
