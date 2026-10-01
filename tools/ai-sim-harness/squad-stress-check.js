@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 /* The Squad Leader reads its men's stress for local execution (module 16 `fireAndMovement`, `?slStress=pick,hold,review`,
-   off by default; `1`/`all` is all three, a list exactly those named). This file pins:
+   all three on by default, `0`/`off` none; `1`/`all` is all three, a list exactly those named). This file pins:
 
-     - the flag parse, and that with it off (absent, `0`, an unknown name) the Squad Leader sends the same teams in the
+     - the flag parse, and that with it off (`0`, `off`, an unknown name) the Squad Leader sends the same teams in the
        same order and writes the same telemetry whatever its men's stress (the rotation is stress-blind);
      - `pick`: of the teams that can bound (movers and two men left shooting), the one whose movers' mean stress is
        lowest goes; a tie keeps the rotation's order; a team that cannot go is never picked however calm;
@@ -113,11 +113,12 @@ function fight(w, sq, seconds) {
 }
 const of = (w, type) => w.events.filter(e => e.type === type);
 
-test('the flag: off by default, 1/all/on is all three, a list exactly those named', () => {
+test('the flag: all three by default, 0/off none, 1/all/on all three, a list exactly those named', () => {
   const S = world('').S;
-  assert.deepEqual(S.slStress(), {}, 'absent');
+  assert.deepEqual(S.slStress(), { pick: true, hold: true, review: true }, 'absent');
   const p = q => Object.keys(S.parseSlStress(q)).sort();
-  assert.deepEqual(p(''), []);
+  assert.deepEqual(p(''), ['hold', 'pick', 'review']);
+  assert.deepEqual(p('?slStress='), ['hold', 'pick', 'review']);
   assert.deepEqual(p('?slStress=0'), []);
   assert.deepEqual(p('?slStress=off'), []);
   assert.deepEqual(p('?slStress=bogus'), []);
@@ -137,10 +138,10 @@ test('off: the rotation is stress-blind, the same teams in the same order and th
     fight(w, sq, 60);
     return { sent: w.sent.slice(), events: JSON.stringify(of(w, 'decision-bound').map(e => e.data)) };
   };
-  const calm = run(null, null);
+  const calm = run('slStress=0', null);
   assert.ok(calm.sent.length >= 5, 'it bounds: ' + calm.sent.length);
   assert.deepEqual(calm.sent.slice(0, 3), ['alpha', 'bravo', 'charlie'], 'round robin');
-  for (const f of [null, 'slStress=0', 'slStress=bogus', 'slStress=review'])
+  for (const f of ['slStress=0', 'slStress=off', 'slStress=bogus', 'slStress=review'])
     assert.deepEqual(run(f, { alpha: 0.9, bravo: 0.05, charlie: 0.5 }), calm, String(f));
 });
 
@@ -234,7 +235,8 @@ test('review: not with fewer than reviewMin living men, not on an attack brief, 
   assert.equal(run('slStress=review', {}, 'attack', true), 0, 'attack brief');
   assert.equal(run('slStress=review', {}, 'hold', false), 0, 'out of contact');
   assert.equal(run('slStress=pick,hold', {}, 'hold', true), 0, 'review not named');
-  assert.equal(run(null, {}, 'hold', true), 0, 'flag off');
+  assert.equal(run('slStress=0', {}, 'hold', true), 0, 'flag off');
+  assert.equal(run(null, {}, 'hold', true), 1, 'on by default');
 });
 
 test("module 17's accessors read stress through the lead lever only", () => {
