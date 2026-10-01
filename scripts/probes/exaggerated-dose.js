@@ -10,7 +10,7 @@
 
    The doses come from the page URL, so one probe serves every arm:
      ?dose=<path>:<value>[,<path>:<value>...]      a path into `BattleSquadStability.tuning`
-   e.g. `?morale=1&dose=morale.breakSlope:0.9,morale.rallyStress:0.5,morale.rallyCasualty:0.7`
+   e.g. `?morale=1&dose=morale.breakSlope:0.9,morale.rallyStress:0.5,morale.rallyGap:-0.1`
         `?coa=1&dose=coa.weights.assault.casualtyFrac:-6,coa.weights.assault.stress:-3,coa.weights.assault.leaderDown:-4.5`
         `?coa=1&dose=coa.weights.assault.base:-100`        (every contact is scored `defend`)
    Every override is echoed in the report with the value it replaced; a path that does not exist throws. */
