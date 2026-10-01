@@ -1428,8 +1428,12 @@
     RAGE_GUARD_SCALE: 0.25 // ... a quarter of the damage, of the chance to drop him and of the bleed
   };
   /* Engagement states in which a man is not fighting the way he was (the squad report's `reacting`). */
+  function reactionState(s) {
+    var e = s && s.eng;
+    return e && ACTING[e.state] === 1 ? e.state : null;
+  }
   function reacting(s) {
-    return !!(s && s.eng && ACTING[s.eng.state] === 1);
+    return !!reactionState(s);
   }
   function noteAct(s, kind, what, dt) {
     var M = mind();
@@ -1496,8 +1500,13 @@
     commitStance(s, battle, PRONE_ROLES[s.role] ? 'prone' : 'crouch', PRONE_HOLD);
   }
   function freeze(s, battle) {
+    /* A frozen man is out of the fight for this spell. Perception may have handed him a target earlier
+       in the same AI tick, but he neither tracks it nor contributes a facing hint while dazed. Keeping
+       either one made the stationary movement integrator turn the whole reaction pose toward enemies. */
     s.state = 'engage';
     s.setUp = false;
+    if (SA().clearTarget) SA().clearTarget(s);
+    s._faceHint = null;
     holdPosition(s, battle);
     commitStance(s, battle, 'crouch', 1.0);
   }
@@ -1724,7 +1733,9 @@
     : { attach: function () {}, run: function () {}, order: {} };
   function updateSoldier(s, battle) {
     var result = runDrill(s, battle);
-    if (s && battle && !s.dead) EXT.run('afterDrill', s, battle);
+    /* Combat-urgency/shared-contact drills must not re-arm the facing layer after freeze() deliberately
+       cleared it. Other reactions keep their existing extension behavior. */
+    if (s && battle && !s.dead && reactionState(s) !== 'freeze') EXT.run('afterDrill', s, battle);
     return result;
   }
   function runDrill(s, battle) {
@@ -2430,6 +2441,7 @@
     orderBound: orderBound,
     clearBoundOrders: clearBoundOrders,
     reacting: reacting,
+    reactionState: reactionState,
     fledPhase: fledPhase,
     releaseFled: releaseFled,
     guardOnHit: guardOnHit,
