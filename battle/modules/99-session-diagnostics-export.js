@@ -189,6 +189,7 @@ function soldier(s){
     clearingStoppage:!!(s&&s.clearingStoppage),stoppageUntil:finite(+(s&&s.stoppageUntil)),outOfAmmo:!!(s&&s.outOfAmmo),
     weapon:{kind:w.kind||null,ammo:finite(+w.ammo),reserveAmmo:finite(+w.reserveAmmo),magSize:finite(+w.magSize),heat:finite(+w.heat),jammed:!!w.jammed},
     ammoState:safePlain(s&&s._ammoState,3),engagement:engagement(s),
+    fireControl:{losBlocked:finite(+(s&&s._losBlockedFire)),crestBlocked:finite(+(s&&s._crestBlockedFire)),terrainSuppressionBlocked:finite(+(s&&s._terrainBlockedSuppressiveFire))},
     mind:root.BattleSoldierMind?root.BattleSoldierMind.snapshot(s):null,
     movement:safePlain(s&&s._movementResolver?{last:s._movementResolver.last,changes:s._movementResolver.changes,requests:s._movementResolver.requests,history:(s._movementResolver.history||[]).slice(-6)}:null,5),
     movementProgress:safePlain(s&&s._movementProgress?{stuck:!!s._movementProgress.stuck,recoveries:s._movementProgress.recoveries||0,goalUnreachable:!!s._movementGoalUnreachable}:null,3),
