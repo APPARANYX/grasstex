@@ -250,9 +250,12 @@
     return E && E.reactionState ? E.reactionState(soldier) : null;
   }
   function activeVisualThreat(soldier) {
-    /* Freeze is a temporary non-combatant presentation: enemies can still occupy the same world and
-       bullets already in flight still resolve, but Perception does not posture the squad around a dazed man. */
-    return !!soldier && !soldier.dead && reactionState(soldier) !== 'freeze';
+    /* Freeze and flee are non-threatening combat states. A dazed man or an unarmed man running away
+       remains physically present, but Perception must not posture a squad around him or acquire him as
+       an aimed-fire target. Rage is deliberately NOT excluded: a raging man is still an active threat. */
+    if (!soldier || soldier.dead) return false;
+    var r = reactionState(soldier);
+    return r !== 'freeze' && r !== 'flee';
   }
   function lookYaw(soldier, battle) {
     var body = soldier.root.rotation.y || 0;
@@ -327,14 +330,14 @@
   function shareContact(soldier, battle) {
     var sq = soldier.squad,
       t = soldier.target;
-    if (!sq || !t || t.dead) return null;
+    if (!sq || !activeVisualThreat(t)) return null;
     var p = t.root.position,
       anchor = sq.orderAnchor || sq.rally || p,
       held = sq.contact;
     /* Heard or relayed word gives way to the squad's own eyes. */
     if (
       held &&
-      !held.unit.dead &&
+      activeVisualThreat(held.unit) &&
       !held.heard &&
       !held.relayedFrom &&
       battle.time - held.at <= CONTACT_REFRESH &&
@@ -731,7 +734,7 @@
       hit = 0;
     for (var i = 0; i < enemies.length; i++) {
       var e = enemies[i];
-      if (e.dead) continue;
+      if (!activeVisualThreat(e)) continue;
       if (dist2(e.root.position.x, e.root.position.z, point.x, point.z) > spread) continue;
       pin(e, battle, hold);
       hit++;
@@ -1185,12 +1188,18 @@
     if (!EXT.pass('fireGate', soldier, battle)) return false;
     if (soldier.fireCooldown > 0) return false;
     var stats = soldier.weapon.stats,
-      target = soldier.target,
-      p = soldier.root.position,
+      target = soldier.target;
+    /* Perception normally clears these targets first, but a reaction can begin after the shooter's
+       perception tick. Re-check here so no stale aimed shot starts against a frozen/fleeing man. */
+    if (!activeVisualThreat(target)) {
+      clearTarget(soldier);
+      return false;
+    }
+    var p = soldier.root.position,
       d = dist2(p.x, p.z, target.root.position.x, target.root.position.z);
     /* The burst stays on the man it was laid on; once he is down the gunner lets go. */
     var rounds = discharge(soldier, battle, burstLength(stats, battle, d), function (round, delay) {
-      if (target.dead) return false;
+      if (!activeVisualThreat(target)) return false;
       shot(soldier, target, battle, round, delay);
     });
     soldier.fireCooldown = triggerCooldown(stats, rounds, battle, 1, d);
