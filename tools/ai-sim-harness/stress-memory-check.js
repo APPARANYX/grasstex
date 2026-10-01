@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
-/* Stress that lasts (module 17, `?stressMem=lasting,floor,relief`): what a man carries from one moment of a fight
-   to the next. Three producers, `lasting` on by default (owner, 2026-10-01; `?stressMem=0` is none, a list names exactly those that run), each with its own check here.
+/* Stress memory (module 17, `?stressMem=lasting,floor,relief`): what a man carries from one moment of a fight
+   to the next. All three producers are on by default; `?stressMem=0` is none and a list names exactly those that run.
 
    - lasting: stress does not drain on its timer while the squad is in contact or he is under fire; it drains
      once both have been quiet for CALM_AFTER. Off, it drains as before.
