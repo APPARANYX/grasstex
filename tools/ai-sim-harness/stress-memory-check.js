@@ -39,9 +39,10 @@ const near = (a, b, tol, what) =>
 /* One US squad, parked 20 m up; a GE squad far off. `mode` is the page query (`?stressMem=...`). */
 function world(mode) {
   H.resetIds();
-  const r = H.bootstrap();
+  /* Load the page mode at module initialization, exactly like the browser. This matters for event
+     interest: a default-on relief reader registers at load, and configure() is not an uninstaller. */
+  const r = H.bootstrap(mode == null ? undefined : { search: mode });
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
-  if (mode != null) r.BattleSoldierMind.configure(mode);
   const b = H.makeBattle(r, { seed: SEED });
   const us = H.addSquad(r, b, {
     id: 'us-0',
