@@ -425,6 +425,37 @@ test('freeze: down where he is, holds, no fire, and does not take a bound or the
   assert.ok(dist(p, here(s)) < 0.01, 'and he has not moved');
 });
 
+test('flee is non-threatening, while rage remains an active visual threat', () => {
+  const fled = broke('?stressAct=flee', [0.9, 0, 0], 60, { safe: { x: 0, z: -40 } });
+  assert.equal(fled.s.eng.state, 'flee');
+  fled.ctx.us.members.forEach(o => {
+    if (o !== fled.s) put(o, 1000 + o.id * 10, 1000);
+  });
+  put(fled.g, fled.s.root.position.x, fled.s.root.position.z + 50);
+  fled.g.root.rotation.y = Math.PI;
+  fled.g.target = fled.s;
+  fled.ctx.S.perceive(fled.g, fled.ctx.b);
+  assert.equal(fled.g.target, null, 'an already-tracked fleeing man is dropped');
+  fled.g._scanAt = 0;
+  fled.ctx.S.perceive(fled.g, fled.ctx.b);
+  assert.equal(fled.g.target, null, 'a fleeing man is not reacquired');
+  fled.g.target = fled.s;
+  fled.g.fireCooldown = 0;
+  assert.equal(fled.ctx.S.tryFire(fled.g, fled.ctx.b), false, 'the trigger path also rejects a stale fleeing target');
+
+  const raging = broke('?stressAct=rage', [0, 0, 0.95], 50);
+  assert.equal(raging.s.eng.state, 'rage');
+  raging.ctx.us.members.forEach(o => {
+    if (o !== raging.s) put(o, 1000 + o.id * 10, 1000);
+  });
+  put(raging.g, raging.s.root.position.x, raging.s.root.position.z + 50);
+  raging.g.root.rotation.y = Math.PI;
+  raging.g.target = null;
+  raging.g._scanAt = 0;
+  raging.ctx.S.perceive(raging.g, raging.ctx.b);
+  assert.equal(raging.g.target, raging.s, 'rage stays targetable because the man is still attacking');
+});
+
 test('freeze suspends perception and facing, and opposing perception does not posture around the dazed man', () => {
   const { ctx, s, g } = broke('?stressAct=freeze', [0, 0.9, 0], 60);
   assert.equal(s.eng.state, 'freeze');
