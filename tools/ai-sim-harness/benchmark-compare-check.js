@@ -366,7 +366,18 @@ const run = (a, b, extra) => {
     const a2 = summarizeStress([{ stress: block(1, acts(1)) }, { stress: block(2, acts(2)) }]);
     assert.deepEqual(a2.acts.cower, { n: 3, seconds: 4.5 });
     assert.deepEqual(a2.acts.flee, { n: 6, seconds: 12 });
-    assert.deepEqual(a2.acts.rage, { n: 3, seconds: 4, strikes: 6, hits: 2, guarded: 0, savedHp: 0 });
+    assert.deepEqual(a2.acts.rage, {
+      n: 3,
+      seconds: 4,
+      strikes: 6,
+      hits: 2,
+      guarded: 0,
+      savedHp: 0,
+      kills: 0,
+      survived: 0,
+      debtHp: 0,
+      succumbed: 0
+    });
     assert.ok(
       stressMarkdown(a2)
         .join('\n')
@@ -382,6 +393,20 @@ const run = (a, b, extra) => {
     assert.equal(g2.acts.rage.guarded, 3);
     assert.equal(g2.acts.rage.savedHp, 1.3);
     assert.ok(stressMarkdown(g2).join('\n').includes('hits taken under the berserk guard 3 (1.3 hp saved)'));
+    /* The trance (?rageTrance=1): kills in rage, trances that ended with him alive, the hp due and who it killed. */
+    const t2 = summarizeStress([
+      { stress: block(1, acts(1, { kills: 2, survived: 1, debtHp: 40.25, succumbed: 1 })) },
+      { stress: block(2, acts(2, { kills: 1, survived: 2, debtHp: 10, succumbed: 0 })) }
+    ]);
+    assert.equal(t2.acts.rage.kills, 3);
+    assert.equal(t2.acts.rage.succumbed, 1);
+    assert.ok(
+      stressMarkdown(t2)
+        .join('\n')
+        .includes('kills in rage 3 · trances survived 3, 1 succumbed (50.3 hp due)'),
+      stressMarkdown(t2).join('\n')
+    );
+    assert.ok(!stressMarkdown(a2).join('\n').includes('kills in rage'), 'no kills, nothing said');
     assert.equal(s.acts.cower.n, 0, 'no reactions in a build without them');
     assert.ok(
       !stressMarkdown(s).join('\n').includes('Stress reactions'),
