@@ -83,19 +83,27 @@
   /* 3b: group morale. Behind ?morale=1. Replaces the flat 60% casualty retreat with a
      squad-level break/rally model driven by the squad.mind roll-up (module 17). The break
      threshold is breakBase for calm men (the flat 60% rule) and moves down by breakSlope per
-     unit of mean stress, never below breakMin. A retreating squad rallies only once its men
-     are calm (mean stress < rallyStress) and it is not too depleted. */
+     unit of mean stress, never below breakMin. A retreating squad rallies once its men are calm
+     (mean stress < rallyStress) and it sits rallyGap of a casualty fraction below where it would
+     break at that stress, so a squad that broke early on stress can come back, one the flat rule
+     breaks (60%) never can, and none can break again on the next tick. */
   var MORALE_ON = typeof location !== 'undefined' && /[?&]morale=1\b/.test(location.search || '');
   var MORALE_TUNING = {
     breakBase: 0.6,
     breakSlope: 0.3,
     breakMin: 0.25,
     rallyStress: 0.15,
-    rallyCasualty: 0.5
+    rallyGap: 0.05
   };
   /* The casualty fraction at which a squad under this mean stress breaks (the flat 60% rule at zero). */
   function moraleBreakAt(stress) {
     return Math.max(MORALE_TUNING.breakMin, MORALE_TUNING.breakBase - MORALE_TUNING.breakSlope * stress);
+  }
+  /* Whether a retreating squad rallies. The ceiling on casualties is not a number of its own: it is the break
+     threshold at the present stress less rallyGap, which is what makes break and rally a hysteresis by
+     construction (casualtyFrac < breakAt - gap means the break test on the same inputs is false). */
+  function moraleRallies(casualtyFrac, stress) {
+    return stress < MORALE_TUNING.rallyStress && casualtyFrac < moraleBreakAt(stress) - MORALE_TUNING.rallyGap;
   }
   /* 3c: course of action on contact. Behind ?coa=1. The Squad Leader (the one COA owner) scores the
      declared COAs against declared inputs on every tick the squad is in contact and keeps the winner as
@@ -1313,11 +1321,9 @@
     if (MORALE_ON) {
       var stress = (sq.mind && sq.mind.mean) || 0;
       if (sq.state === 'retreat') {
-        /* Rally: a retreating squad reforms only once calm and not too depleted; otherwise
-           it stays retreating. Casualties do not heal, so a squad broken at high loss keeps
-           falling back. */
-        if (stress < MORALE_TUNING.rallyStress && casualtyFrac < MORALE_TUNING.rallyCasualty)
-          sq.state = anyEngaged ? 'engaged' : 'advance';
+        /* Rally: a retreating squad reforms once calm and clear of its break threshold. Casualties do
+           not heal, so a squad the flat rule broke (60%) keeps falling back until a merge restores it. */
+        if (moraleRallies(casualtyFrac, stress)) sq.state = anyEngaged ? 'engaged' : 'advance';
       } else {
         /* Break: stress lowers the casualty threshold. At zero stress this is exactly the
            flat 60% rule. */
@@ -1737,6 +1743,7 @@
     coas: function () { return Object.keys(COAS); },
     /* Read-only views of the two decisions, for the checks and the probes (nothing in the runtime calls them). */
     moraleBreakAt: moraleBreakAt,
+    moraleRallies: moraleRallies,
     coaInputs: coaInputsOf,
     coaDecide: function (inputs) {
       var scores = {};

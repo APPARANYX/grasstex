@@ -11,13 +11,15 @@
      - off, and on with calm men, the decision is exactly the flat rule (retreat at 6 of 10, with no memory);
      - on, a break earlier than the flat rule needs a mean stress of 1/3 (5 casualties), 2/3 (4) or 1 (3);
        2 or fewer never break, and `breakMin` is never reached (the lowest threshold is 0.3);
-     - on, a retreating squad rallies only with under 5 casualties AND mean stress under 0.15, so a squad
-       that broke at 5 or 6 casualties cannot rally, and a merged squad (strength restored to 10) stays in
-       `retreat` while its men are still shaken, where the flat rule releases it at once;
+     - on, a retreating squad rallies when its men are calm (mean stress under 0.15) and it sits `rallyGap` of a
+       casualty fraction below where it would break at that stress: a squad that broke early on stress (5 or 4
+       casualties) comes back when calm, a squad the flat rule broke (6 or more) never does, and a rallied squad
+       does not break again on the same inputs (the gap is hysteresis by construction, for every count and stress);
      - the numbers are read live from `BattleSquadStability.tuning.morale` (the diagnostic arms turn them);
      - only the mean is read, never the max; without `squad.mind` the stress is 0.
 
-   Characterisation of the shipped numbers (Part A of the 3b/3c investigation): a fix changes this file.
+   Part A pinned the shipped numbers (a rally ceiling of 0.5 casualties, so nothing that broke at 5 or 6 could
+   rally); Part B replaced the ceiling with the gap and this file with it.
    The module is loaded from its shipping source with a stub `location`, so nothing here is a copy. */
 const assert = require('node:assert/strict'),
   fs = require('node:fs'),
@@ -161,18 +163,47 @@ test('flag on: a squad the flat rule keeps is retreating from 5 casualties at me
   assert.equal(decide(w, 2, 1, 'advance'), 'advance', 'two of ten never break, however shaken');
 });
 
-test('flag on: rally needs under 5 casualties and mean stress under 0.15; 5 or more casualties never rally', () => {
+test('flag on: rally needs calm men and a gap below the break threshold; a flat break (6+) never rallies, an early one (4-5) does', () => {
   const w = world('?morale=1');
-  for (let dead = 5; dead <= 9; dead++)
+  for (let dead = 6; dead <= 9; dead++)
     for (const s of [0, 0.05, 0.1, 0.14])
-      assert.equal(decide(w, dead, s, 'retreat'), 'retreat', `${dead} dead, calm (${s}): cannot rally on their own`);
-  assert.equal(decide(w, 4, 0.1, 'retreat'), 'advance', '4 dead and calm: rallies');
-  assert.equal(decide(w, 4, 0.14, 'retreat'), 'advance');
-  assert.equal(decide(w, 4, 0.15, 'retreat'), 'retreat', 'the stress test is strict');
-  assert.equal(decide(w, 4, 0.16, 'retreat'), 'retreat');
-  const rallied = decide(w, 4, 0.1, 'retreat');
-  assert.equal(rallied, 'advance');
-  assert.equal(decide(w, 4, 0.1, rallied), 'advance', 'a rallied calm squad does not break again (no churn)');
+      assert.equal(decide(w, dead, s, 'retreat'), 'retreat', `${dead} dead, calm (${s}): the flat rule broke it and only a merge undoes that`);
+  for (const dead of [4, 5]) {
+    assert.equal(decide(w, dead, 0.1, 'retreat'), 'advance', `${dead} dead and calm: rallies`);
+    assert.equal(decide(w, dead, 0.14, 'retreat'), 'advance');
+    assert.equal(decide(w, dead, 0.15, 'retreat'), 'retreat', 'the stress test is strict');
+    assert.equal(decide(w, dead, 0.4, 'retreat'), 'retreat', 'still shaken: not yet');
+  }
+  assert.equal(decide(w, 5, 0.17, 'retreat'), 'retreat', '5 dead at 0.17 is calm by neither test');
+  assert.ok(w.S.moraleRallies(0.5, 0.14) && !w.S.moraleRallies(0.5, 0.16) && !w.S.moraleRallies(0.6, 0));
+});
+
+test('flag on: a squad broken early on stress breaks, waits, rallies when calm, and breaks again only on new stress', () => {
+  const w = world('?morale=1');
+  let state = decide(w, 5, 0.4, 'advance');
+  assert.equal(state, 'retreat', 'broken at 5 casualties under stress 0.4');
+  state = decide(w, 5, 0.3, state);
+  assert.equal(state, 'retreat', 'stress eased but not calm');
+  state = decide(w, 5, 0.12, state);
+  assert.equal(state, 'advance', 'calm: rallied');
+  assert.equal(decide(w, 5, 0.12, state), 'advance', 'and it stays rallied on the same inputs');
+  assert.equal(decide(w, 5, 0.4, state), 'retreat', 'new stress breaks it again');
+});
+
+test('no flip for any casualty count and stress: whatever rallies does not break on the same inputs', () => {
+  const w = world('?morale=1');
+  let rallies = 0;
+  for (let dead = 0; dead <= 10; dead++)
+    for (let k = 0; k <= 200; k++) {
+      const s = k / 200,
+        after = decide(w, dead, s, 'retreat');
+      if (after !== 'retreat') {
+        rallies++;
+        assert.equal(decide(w, dead, s, after), after, `${dead} dead, stress ${s}: rallied and broke on the same inputs`);
+      }
+    }
+  assert.ok(rallies > 0);
+  console.log('     ' + rallies + ' of 2,211 (casualties x stress) points rally, none of them flips');
 });
 
 test('flag on: a merged squad (10 living on an establishment of 10) stays in retreat until its men are calm; flag off releases it at once', () => {
@@ -196,13 +227,13 @@ test('the mean is the only stress read: the max, or an absent roll-up, changes n
 
 test('the numbers are the layer tuning, read live (BattleSquadStability.tuning.morale)', () => {
   const w = world('?morale=1');
-  assert.deepEqual(w.S.tuning.morale, { breakBase: 0.6, breakSlope: 0.3, breakMin: 0.25, rallyStress: 0.15, rallyCasualty: 0.5 });
+  assert.deepEqual(w.S.tuning.morale, { breakBase: 0.6, breakSlope: 0.3, breakMin: 0.25, rallyStress: 0.15, rallyGap: 0.05 });
   assert.equal(decide(w, 4, 0.3, 'advance'), 'advance');
   w.S.tuning.morale.breakSlope = 0.9; /* the diagnostic arm's dose: a squad at stress 0.3 breaks at 0.33 */
   assert.equal(decide(w, 4, 0.3, 'advance'), 'retreat');
-  w.S.tuning.morale.rallyCasualty = 0.61;
-  w.S.tuning.morale.rallyStress = 0.5;
-  assert.equal(decide(w, 5, 0.4, 'retreat'), 'advance', 'a raised rally ceiling lets a 5-casualty squad rally');
+  const v = world('?morale=1');
+  v.S.tuning.morale.rallyGap = -0.2; /* a negative gap lifts the ceiling past the flat break: only a dose, never shipped */
+  assert.equal(decide(v, 6, 0.1, 'retreat'), 'advance');
 });
 
 console.log('PASS ' + n + ' morale checks');
