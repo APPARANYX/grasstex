@@ -5,7 +5,7 @@
    centre of their home points, merged under one leader and re-tasked by the General. Runs the shipping
    squad, engagement, resolver, Squad Leader and General code with no enemy on the field. */
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),H=require('./harness');
-function load(r,p){new Function('window','globalThis','console',fs.readFileSync(path.join(H.REPO,p),'utf8'))(r,r,{log(){},warn(){}});}
+function load(r,p,search){new Function('window','globalThis','console','location',fs.readFileSync(path.join(H.REPO,p),'utf8'))(r,r,{log(){},warn(){}},search==null?undefined:{search});}
 let n=0;function test(name,fn){fn();n++;console.log('PASS '+name);}
 
 const C_TICK=.45,HOME_Z=-500,FORWARD=150,LANES=[-300,-100,100,300,500];
@@ -16,7 +16,7 @@ function world(opts){
   r.BattleTelemetry={record(type,data){events.push({type,data});}};
   r.BattleSim={start(){}};
   load(r,'battle/commander-doctrine.js');load(r,'battle/commander-routes.js');load(r,'battle/commander-ai.js');
-  load(r,'battle/movement-resolver.js');load(r,'battle/modules/16-squad-plan-stability.js');
+  load(r,'battle/movement-resolver.js');load(r,'battle/modules/16-squad-plan-stability.js',opts.search);
   const b=H.makeBattle(r);b.macroCommandEnabled=opts.macro!==false;b.scene={metadata:{}};
   return{r,b,leader:systems['squad-command'],events,sq:[]};
 }
@@ -163,5 +163,20 @@ test('Macro OFF: no General, no reconstitution',()=>{
 test('the same battle reconstitutes identically',()=>{
   function trace(){const w=world();[0,1,2].forEach(l=>squad(w,l,4));run(w,420);return JSON.stringify(w.events.filter(e=>/reconstitute|merge|promoted|assembly/.test(e.type)));}
   assert.equal(trace(),trace());
+});
+test('a squad that rallies leaves its group: the group dissolves as squad-rallied and the other squad returns to the pool (?morale=1)',()=>{
+  const w=world({search:'?morale=1'});
+  const a=squad(w,0,5),b=squad(w,1,5);
+  a.mind={mean:0.4,n:5};b.mind={mean:0.4,n:5};
+  const grouped=untilGrouped(w,200);
+  assert.deepEqual(grouped.group.squads.slice().sort(),[a.id,b.id].sort(),'the two early-broken squads are grouped');
+  assert.equal(a.state,'retreat');assert.equal(b.state,'retreat');
+  a.mind.mean=0.1;           /* the men of one squad calm down: it rallies */
+  run(w,3);
+  assert.notEqual(a.state,'retreat','it rallied');
+  const st=recon(w),ended=st.ended.find(g=>g.id===grouped.group.id);
+  assert.ok(ended&&ended.status==='dissolved'&&ended.endReason==='squad-rallied','the group it was in dissolved as squad-rallied');
+  assert.equal(st.active.length,0,'no group is left waiting for a squad that will never arrive');
+  assert.equal(b.state,'retreat');assert.equal(b._reconGroup,null,'the squad that stayed is back in the pool');
 });
 console.log(n+' reconstitution checks passed');

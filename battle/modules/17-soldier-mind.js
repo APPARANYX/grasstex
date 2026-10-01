@@ -37,7 +37,9 @@
   'use strict';
   if (!root.SquadAI || !root.BattleModules || !root.BattleSoldierEvents || root.BattleSoldierMind) return;
 
-  var LEVERS = ['react', 'aim', 'hesitate', 'shock'];
+  var LEVERS = ['react', 'aim', 'hesitate', 'shock', 'morale'];
+  /* The levers a man's own decisions are counted for (the Squad Leader's `morale` is a squad decision, not a man's). */
+  var DECIDED = ['react', 'aim', 'hesitate', 'shock'];
   function parse(search) {
     var m = /[?&]mind=([^&#]*)/.exec(search || ''),
       out = { on: true, flag: 'default', levers: {} },
@@ -171,24 +173,14 @@
       flag: 'always'
     },
     {
-      kind: 'status',
-      lever: null,
+      kind: 'lever',
+      lever: 'morale',
       layer: 'Meso (Squad Leader)',
       file: 'modules/16-squad-plan-stability.js',
-      reader: 'COA_INPUTS.stress (course of action on contact)',
-      reads: { 'mind.mean': 1, mind: 1 },
-      unit: 'squad mean stress, weight -1.0 on assault and +0.5 on defend',
-      flag: '?coa=1 (off by default)'
-    },
-    {
-      kind: 'status',
-      lever: null,
-      layer: 'Meso (Squad Leader)',
-      file: 'modules/16-squad-plan-stability.js',
-      reader: 'updateSquadState (group break and rally)',
-      reads: { 'mind.mean': 1, mind: 1 },
-      unit: 'squad mean stress: the break point falls 0.3 per unit, rally under 0.15',
-      flag: '?morale=1 (off by default)'
+      reader: 'squadStress: updateSquadState (group break and rally), COA_INPUTS.stress (?coa=1)',
+      reads: { squadStress: 2, mind: 1, 'mind.mean': 1 },
+      unit: 'squad mean stress, 0 unless the morale lever is on: the break point falls 0.3 per unit, rally under 0.15; weight -1.0 on assault and +0.5 on defend',
+      flag: '?mind= morale lever; group morale on by default (?morale=0 is the flat rule), COA ?coa=1 (off by default)'
     },
     {
       kind: 'display',
@@ -239,6 +231,16 @@
       reads: null,
       unit: 'the dose map and the one-second series of every battle',
       flag: 'every benchmark battle'
+    },
+    {
+      kind: 'tooling',
+      lever: 'morale',
+      layer: 'Tooling',
+      file: 'scripts/probes/morale-decisions.js',
+      reader: 'the morale-decisions probe counts the breaks and rallies morale changes against the flat rule',
+      reads: null,
+      unit: 'early breaks, held retreats, rallies per squad-battle',
+      flag: 'run_probe.cjs'
     },
     {
       kind: 'tooling',
@@ -605,6 +607,11 @@
   function shockUntil(s) {
     return on('shock') && s && s.mind ? s.mind.shockUntil : 0;
   }
+  /* The squad's mean stress as the Squad Leader reads it for group morale (module 16): calm men unless the `morale`
+     lever is on, so `?mind=0`, `?mind=observe` and a lever list without `morale` leave the flat 60% retreat alone. */
+  function squadStress(sq) {
+    return on('morale') && sq && sq.mind ? sq.mind.mean || 0 : 0;
+  }
   function bandName(s) {
     return BANDS[s && s.mind ? s.mind.band : 0];
   }
@@ -782,7 +789,7 @@
         a = m && acc[u.faction];
       if (!a) continue;
       a.shocks += m.shocks;
-      for (k = 0; k < LEVERS.length; k++) a.changed[k] += m.decided[LEVERS[k]].changed;
+      for (k = 0; k < DECIDED.length; k++) a.changed[k] += m.decided[DECIDED[k]].changed;
       if (u.dead) continue;
       a.n++;
       a.sum += m.stress;
@@ -917,7 +924,7 @@
   }
   function totalsOut(t) {
     var decisions = {};
-    LEVERS.forEach(function (k) {
+    DECIDED.forEach(function (k) {
       var d = t.decided[k];
       decisions[k] = {
         total: k === 'shock' ? null : d.total,
@@ -1057,6 +1064,7 @@
     version: '1.0',
     BANDS: BANDS,
     LEVERS: LEVERS,
+    DECIDED: DECIDED,
     tuning: {
       TAU: TAU,
       SUPPRESSED_RATE: SUPPRESSED_RATE,
@@ -1096,6 +1104,7 @@
     aimSigma: aimSigma,
     hesitation: hesitation,
     shockUntil: shockUntil,
+    squadStress: squadStress,
     noteHesitation: function (s) {
       if (s && s.mind) s.mind.hesitations++;
     },
