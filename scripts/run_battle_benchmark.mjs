@@ -282,7 +282,7 @@ try {
         for (const s of units(faction)) {
           const eng = engagementState(s); addMap(state.engagementStateSamples, eng.state || 'unknown');
           if (!s.root || !s.destination || s.target || !phaseAllowsAdvance(s.squad?.commandPhase)) continue;
-          const combatState = ['orient','bound','engage','pinned','assault','station','withdraw','suppress'].includes(String(eng.state || ''));
+          const combatState = ['orient','bound','engage','pinned','assault','station','withdraw','suppress','cower','flee','freeze','rage'].includes(String(eng.state || ''));
           if (combatState) continue;
           const d = distance(s.root.position, s.destination), key = `${faction}:${s.id}`;
           if (d < 8) { delete state.unitTrack[key]; continue; }

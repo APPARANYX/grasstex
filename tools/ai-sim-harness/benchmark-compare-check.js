@@ -311,6 +311,31 @@ const run = (a, b, extra) => {
       mdm
     );
     assert.ok(!stressMarkdown(s).join('\n').includes('Stress memory'), 'nothing to say with every flag off');
+    /* The reactions (?stressAct): spells and seconds per reaction, the charge's blows. */
+    const acts = (k, extra) => ({
+      acts: {
+        cower: { n: k, seconds: 1.5 * k },
+        flee: { n: 2 * k, seconds: 4 * k },
+        freeze: { n: 0, seconds: 0 },
+        rage: Object.assign({ n: k, seconds: 2, strikes: 3, hits: 1 }, extra)
+      }
+    });
+    const a2 = summarizeStress([{ stress: block(1, acts(1)) }, { stress: block(2, acts(2)) }]);
+    assert.deepEqual(a2.acts.cower, { n: 3, seconds: 4.5 });
+    assert.deepEqual(a2.acts.flee, { n: 6, seconds: 12 });
+    assert.deepEqual(a2.acts.rage, { n: 3, seconds: 4, strikes: 6, hits: 2 });
+    assert.ok(
+      stressMarkdown(a2)
+        .join('\n')
+        .includes(
+          'Stress reactions: cower 3 (4.5 s) · flee 6 (12 s) · freeze 0 (0 s) · rage 3 (4 s) · charge blows 6 struck, 2 landed'
+        )
+    );
+    assert.equal(s.acts.cower.n, 0, 'no reactions in a build without them');
+    assert.ok(
+      !stressMarkdown(s).join('\n').includes('Stress reactions'),
+      'nothing to say with every reaction off'
+    );
     assert.equal(summarizeStress([{ seed: 'x' }, { stress: { off: true } }]), null);
     assert.equal(summarizeStress([]), null);
     assert.match(stressMarkdown(null)[0], /no stress block/);

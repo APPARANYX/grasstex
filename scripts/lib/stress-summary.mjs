@@ -128,6 +128,18 @@ export function summarizeStress(battles) {
       ])
     )
   };
+  const ACTS = ['cower', 'flee', 'freeze', 'rage'];
+  const acts = Object.fromEntries(
+    ACTS.map(k => [
+      k,
+      {
+        n: sum(rows, b => b.stress.acts?.[k]?.n),
+        seconds: round(sum(rows, b => b.stress.acts?.[k]?.seconds))
+      }
+    ])
+  );
+  acts.rage.strikes = sum(rows, b => b.stress.acts?.rage?.strikes);
+  acts.rage.hits = sum(rows, b => b.stress.acts?.rage?.hits);
   return {
     format: 'grasstex-stress-summary-v1',
     battles: n,
@@ -149,6 +161,7 @@ export function summarizeStress(battles) {
     hesitations: sum(rows, b => b.stress.hesitations),
     casualtiesSeen: sum(rows, b => b.stress.casualtiesSeen),
     memory,
+    acts,
     squads,
     decisions,
     perBattle: {
@@ -185,6 +198,7 @@ export function summarizeStress(battles) {
 }
 
 const pct = x => (100 * x).toFixed(1) + '%';
+const ACTS_LABELS = ['cower', 'flee', 'freeze', 'rage'];
 /* Lines for the run summary. */
 export function stressMarkdown(s) {
   if (!s) return ['- Stress: no stress block in these records (module 17 off, or a build without telemetry)'];
@@ -203,6 +217,11 @@ export function stressMarkdown(s) {
           )
             .map(([k, v]) => `${k} ${v.n} (${v.amount})`)
             .join(' · ')}`
+        ]
+      : []),
+    ...(s.acts && ACTS_LABELS.some(k => s.acts[k].n)
+      ? [
+          `- Stress reactions: ${ACTS_LABELS.map(k => `${k} ${s.acts[k].n} (${s.acts[k].seconds} s)`).join(' · ')} · charge blows ${s.acts.rage.strikes} struck, ${s.acts.rage.hits} landed`
         ]
       : []),
     `- Per battle (p50 / p90 / max): shaken-or-worse man-time ${s.perBattle.shakenPlusPercent.p50}% / ${s.perBattle.shakenPlusPercent.p90}% / ${s.perBattle.shakenPlusPercent.max}% · squad-seconds over ${s.perBattle.squadSecondsOver.p50} / ${s.perBattle.squadSecondsOver.p90} / ${s.perBattle.squadSecondsOver.max} · shocks ${s.perBattle.shocks.p50} / ${s.perBattle.shocks.p90} / ${s.perBattle.shocks.max}`
