@@ -26,15 +26,15 @@
 
    Levers, for paired benchmarks: `?stats=0` (module off: no state kept, every scale 1),
    `?stats=for,tac,...` (only those stats' effects, `squad` for the General's use of squad means),
-   default all of them but `deal`, which changes who a squad is made of and so is asked for by name:
-   `?stats=all,deal` deals each squad's roles, and so weapons, from its ten men's stats at spawn. */
+   default all of them, including `deal`: each squad's roles and therefore weapons are assigned from
+   its ten men's stats at spawn. `?stats=0` disables the module; a comma list enables exactly those named. */
 (function (root) {
   'use strict';
   if (!root.BattleModules || root.BattleSoldierStats) return;
 
   var STATS = ['phy', 'mkm', 'for', 'tac', 'agi', 'tec'];
   var LEVERS = STATS.concat(['squad', 'deal']);
-  var DEFAULT_LEVERS = STATS.concat(['squad']);
+  var DEFAULT_LEVERS = LEVERS.slice();
   function parse(search) {
     var m = /[?&]stats=([^&#]*)/.exec(search || ''),
       out = { on: true, flag: 'default', levers: {} },

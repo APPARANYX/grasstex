@@ -69,16 +69,16 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 - `ORDER_STRIDE = 13` — order stride distance (m)
 - `COVER_BAND = 5` — cover band width (m)
 - `MORALE_TUNING = { breakBase: 0.6, breakSlope: 0.3, breakMin: 0.25, rallyStress: 0.15, rallyCasualty: 0.5 }` — group morale thresholds (`?morale=1`)
-- `COA_WEIGHTS` — deterministic COA scoring weights (`?coa=1`)
+- `COA_WEIGHTS` — deterministic COA scoring weights (COA on by default; `?coa=0` disables it)
 
 ### 17-soldier-mind.js
 - `TAU = 22` — stress decay time constant (s)
 - `CASUALTY_RANGE = 30` — casualty observation range (m)
 - `LEADER_CALM = 0.65` — leader calming effect
 - `REACT_GAIN = 0.6` — reaction time gain (up to 1.6x)
-- `CALM_AFTER = 12` — `?stressMem=lasting`: seconds out of contact and out of fire before stress drains (s)
+- `CALM_AFTER = 12` — stress-memory `lasting` (default on): seconds out of contact and out of fire before stress drains (s)
 - `FLED_FLOOR = 0.2` — a man who has fled never calms below this stress, at base or anywhere; `BattleSoldierMind.tuning.FLED_FLOOR`
-- `RELIEF = { kill: 0.12, objective: 0.15, cover: 0.06, survived: 0.05 }` — `?stressMem=relief`: stress taken off by each kind, times his nerve
+- `RELIEF = { kill: 0.12, objective: 0.15, cover: 0.06, survived: 0.05 }` — stress-memory `relief` (default on): stress taken off by each kind, times his nerve
 
 ### 10-soldier-stats.js
 - `EFFECTS` — stat effect multipliers (see file)
@@ -132,4 +132,4 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 ## Notes
 - This is a living document. New tunables go in the owning layer's `tuning` object per AGENTS.md.
 - The genome (`battle/ai-policy.js`) remains stashed; these are the code defaults.
-- `?morale=1` and `?coa=1` flags gate the Phase 3b/3c behavioral changes.
+- Group morale and COA are shipping defaults; `?morale=0` and `?coa=0` are their A/B controls. Full stress memory and stat-based roster dealing are also defaults. The genome remains stashed.

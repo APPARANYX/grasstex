@@ -1,10 +1,11 @@
-/* Course of action on contact (module 16 `fireAndMovement`, `?coa=1`): how often the COA is scored, what it
-   picks, how long it holds, and what it leaves to gate. Observe only: reads squad, lease and roll-up state,
+/* Course of action on contact (module 16 `fireAndMovement`, on by default; `?coa=0` is the control):
+   how often the COA is scored, what it picks, how long it holds, and what it leaves to gate. Observe only:
+   reads squad, lease and roll-up state,
    writes nothing, draws no random number.
 
    Run it on a flag-off page too. The winner is then the one the shipping tables WOULD pick from the same
    inputs (`BattleSquadStability.coaDecide`), so `defend` shares and blocked opportunities are a counterfactual
-   on the flat battle; on a `?coa=1` page they are the decisions taken, and `selfCheck` compares the recorded
+   on a `?coa=0` control; on the default page they are the decisions taken, and `selfCheck` compares the recorded
    `sq.coa` with the one re-derived from the inputs of the tick (it must be 0 mismatches).
 
    Timing. A squad decides at the start of an AI step from the state the last step left, so the inputs of a
