@@ -43,7 +43,9 @@ function stubBabylon(root){
 
 function load(root,rel){
   const code=fs.readFileSync(path.join(REPO,rel),'utf8');
-  new Function('window','globalThis','console','BABYLON',code+'\n//# sourceURL='+rel)(root,root,console,root.BABYLON);
+  /* A module sees the global `location` (some checks set one before bootstrapping) unless the bootstrap was given {search}. */
+  if(root.location)new Function('window','globalThis','console','BABYLON','location',code+'\n//# sourceURL='+rel)(root,root,console,root.BABYLON,root.location);
+  else new Function('window','globalThis','console','BABYLON',code+'\n//# sourceURL='+rel)(root,root,console,root.BABYLON);
 }
 function seededRandom(seed){
   let a=seed>>>0;
@@ -59,6 +61,8 @@ function withSeededRandom(seed,fn){const real=Math.random;Math.random=seededRand
 function bootstrap(opts){
   opts=opts||{};
   const root={};root.window=root;stubBabylon(root);
+  /* {search:'?morale=0'} gives every module a `location` with that query, as the page has; absent, there is none (every flag at its default). */
+  if(opts.search!=null)root.location={search:opts.search};
   load(root,'battle/weapons.js');load(root,'battle/obstacle-field.js');load(root,'battle/squad-ai.js');load(root,'battle/engagement.js');
   if(opts.modules!==false){
     root.BattleModules={registerSystem(){},registerUnitType(){},registerObjectiveType(){},runHook(){},unitsFor(){return[];}};

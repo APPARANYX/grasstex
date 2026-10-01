@@ -80,14 +80,14 @@
     ORDER_COHESION = 0.55,
     ORDER_PUBLISH_EPS = 0.05,
     FOLLOW_LAG = 2;
-  /* 3b: group morale. Behind ?morale=1. Replaces the flat 60% casualty retreat with a
+  /* 3b: group morale. On by default (owner decision, 2026-10-01); ?morale=0 is the flat 60% rule. Replaces the flat 60% casualty retreat with a
      squad-level break/rally model driven by the squad.mind roll-up (module 17). The break
      threshold is breakBase for calm men (the flat 60% rule) and moves down by breakSlope per
      unit of mean stress, never below breakMin. A retreating squad rallies once its men are calm
      (mean stress < rallyStress) and it sits rallyGap of a casualty fraction below where it would
      break at that stress, so a squad that broke early on stress can come back, one the flat rule
      breaks (60%) never can, and none can break again on the next tick. */
-  var MORALE_ON = typeof location !== 'undefined' && /[?&]morale=1\b/.test(location.search || '');
+  var MORALE_ON = !(typeof location !== 'undefined' && /[?&]morale=0\b/.test(location.search || ''));
   var MORALE_TUNING = {
     breakBase: 0.6,
     breakSlope: 0.3,
@@ -95,6 +95,14 @@
     rallyStress: 0.15,
     rallyGap: 0.05
   };
+  /* A squad's mean stress as the Squad Leader reads it, group morale and the COA alike: through the soldier condition's
+     own accessor, so `?mind=0`, `?mind=observe` and a lever list without `morale` read calm men (the flat 60% rule);
+     without the module (the harness checks that script a roll-up) it is the roll-up itself. */
+  function squadStress(sq) {
+    var M = root.BattleSoldierMind;
+    if (M && M.squadStress) return M.squadStress(sq);
+    return (sq && sq.mind && sq.mind.mean) || 0;
+  }
   /* The casualty fraction at which a squad under this mean stress breaks (the flat 60% rule at zero). */
   function moraleBreakAt(stress) {
     return Math.max(MORALE_TUNING.breakMin, MORALE_TUNING.breakBase - MORALE_TUNING.breakSlope * stress);
@@ -126,7 +134,7 @@
       return 1 - living / root.SquadAI.establishment(sq);
     },
     stress: function (sq) {
-      return (sq.mind && sq.mind.mean) || 0;
+      return squadStress(sq);
     },
     leaderDown: function (sq) {
       return root.SquadAI.leaderOf(sq) ? 0 : 1;
@@ -1319,7 +1327,7 @@
     sq.aliveCount = living;
     var casualtyFrac = 1 - living / root.SquadAI.establishment(sq);
     if (MORALE_ON) {
-      var stress = (sq.mind && sq.mind.mean) || 0;
+      var stress = squadStress(sq);
       if (sq.state === 'retreat') {
         /* Rally: a retreating squad reforms once calm and clear of its break threshold. Casualties do
            not heal, so a squad the flat rule broke (60%) keeps falling back until a merge restores it. */

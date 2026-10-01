@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 'use strict';
-/* Group morale (phase 3b, `?morale=1`, module 16 `updateSquadState`): the flag-on path, which no check exercised.
+/* Group morale (phase 3b, on by default, `?morale=0` turns it off; module 16 `updateSquadState`).
 
    The Squad Leader replaces the flat 60% casualty retreat with a break threshold that stress lowers
    (`breakBase` 0.6 minus `breakSlope` 0.3 per unit of `squad.mind.mean`, floor `breakMin`) and a rally that
    needs calm men (`rallyStress`) and a squad not too depleted (`rallyCasualty`). This file pins what those
    numbers do on a ten-man squad, because the casualty fraction moves in steps of 0.1:
 
-     - the flag is read once at load from `location.search` (`?morale=1` only) and is off by default;
+     - the flag is read once at load from `location.search`: morale is on unless the URL says `?morale=0`, in the page and
+       in the Node harness (no `location`) alike;
      - off, and on with calm men, the decision is exactly the flat rule (retreat at 6 of 10, with no memory);
      - on, a break earlier than the flat rule needs a mean stress of 1/3 (5 casualties), 2/3 (4) or 1 (3);
        2 or fewer never break, and `breakMin` is never reached (the lowest threshold is 0.3);
@@ -83,27 +84,27 @@ function decide(w, dead, stress, prior, opts) {
 const flat = (dead, prior) => (dead / 10 >= 0.6 ? 'retreat' : 'advance');
 const STRESSES = [0, 0.05, 0.1, 0.15, 0.22, 0.34, 0.5, 0.7, 1];
 
-test('?morale=1 is the only flag that turns morale on, and it is off by default', () => {
-  const parsed = ['', '?seed=1', '?morale=1', '?x=1&morale=1', '?morale=1&x=1', '?morale=10', '?morale=0', '?xmorale=1', '?coa=1'].map(
+test('?morale=0 is the only flag that turns morale off, and it is on by default', () => {
+  const parsed = ['', '?seed=1', '?morale=1', '?x=1&morale=0', '?morale=0&x=1', '?morale=10', '?morale=0', '?xmorale=0', '?coa=1'].map(
     q => [world(q).S.moraleOn(), world(q).S.coaOn()]
   );
   assert.deepEqual(parsed, [
-    [false, false],
-    [false, false],
     [true, false],
     [true, false],
     [true, false],
     [false, false],
     [false, false],
+    [true, false],
     [false, false],
-    [false, true]
+    [true, false],
+    [true, true]
   ]);
-  assert.equal(world(null).S.moraleOn(), false, 'with no location at all (the Node harness) it is off');
+  assert.equal(world(null).S.moraleOn(), true, 'with no location at all (the Node harness) it is on, like the page');
   assert.equal(world('').S.tuning.morale.breakBase, 0.6, 'the calm-men threshold is the flat 60%');
 });
 
 test('flag off: the flat rule, whatever the men feel, and no memory (a squad under 6 casualties is not retreating)', () => {
-  for (const q of ['', '?coa=1']) {
+  for (const q of ['?morale=0', '?morale=0&coa=1']) {
     const w = world(q);
     for (let dead = 0; dead <= 10; dead++)
       for (const s of STRESSES) {
@@ -208,7 +209,7 @@ test('no flip for any casualty count and stress: whatever rallies does not break
 
 test('flag on: a merged squad (10 living on an establishment of 10) stays in retreat until its men are calm; flag off releases it at once', () => {
   const on = world('?morale=1'),
-    off = world('');
+    off = world('?morale=0');
   for (const s of [0.15, 0.2, 0.34, 0.9]) {
     assert.equal(decide(on, 0, s, 'retreat', { establishment: 10 }), 'retreat', 'flag on, stress ' + s);
     assert.equal(decide(off, 0, s, 'retreat', { establishment: 10 }), 'advance', 'flag off, stress ' + s);
