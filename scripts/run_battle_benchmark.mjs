@@ -25,6 +25,11 @@ const windows = String(process.env.BATTLE_BENCHMARK_WINDOWS || '').split(',').ma
 if (windows.some((w, i) => w.every && i !== windows.length - 1)) throw new Error('BATTLE_BENCHMARK_WINDOWS: every<seconds> runs to the end of the battle, so it must be last');
 const battleType = (new URL(url).searchParams.get('defender') || 'meeting') === 'meeting' ? 'meeting' : `${new URL(url).searchParams.get('defender')}-defend`;
 
+/* A shard of a larger run numbers its seeds from here: BATTLE_BENCHMARK_FIRST=10 and a count of 5 play `<prefix>-0011` to `<prefix>-0015`.
+   Set, even to 0, the seeds are always numbered (a count of 1 included); unset, one scripted battle plays the exact seed it was given. */
+const numbered = (process.env.BATTLE_BENCHMARK_FIRST || '') !== '';
+const firstIndex = numbered ? Math.max(0, Number.parseInt(process.env.BATTLE_BENCHMARK_FIRST, 10) || 0) : 0;
+
 fs.mkdirSync(outputDir, { recursive: true });
 
 function pct(n, d) { return d ? `${(100 * n / d).toFixed(1)}%` : '0.0%'; }
@@ -118,7 +123,7 @@ try {
   /* The page silences its console while a benchmark runs, so progress comes out through this instead. */
   await page.exposeFunction('__benchLog', text => console.log(text));
   await page.addScriptTag({ path: path.resolve('scripts/battle-benchmark-intent.cjs') });
-  const result = await page.evaluate(async ({ count, seedPrefix, fixedDt, timeLimit, suppliedPolicy, windows, battleType }) => {
+  const result = await page.evaluate(async ({ count, seedPrefix, fixedDt, timeLimit, suppliedPolicy, windows, battleType, numbered, firstIndex }) => {
     const root = window, sim = root.__battle__, engine = sim.scene?.getEngine?.(), renderLoop = root.__battleRenderLoop__;
     if (engine && renderLoop) engine.stopRenderLoop(renderLoop);
     sim.pause();
@@ -423,8 +428,8 @@ try {
     }
     try {
       for (let index = 0; index < count; index++) {
-        /* One scripted battle is the scenario its seed names; a count of several, or no windows, numbers them from the prefix. */
-        const seed = scripted && count === 1 ? seedPrefix : `${seedPrefix}-${String(index + 1).padStart(4, '0')}`;
+        /* One scripted battle is the scenario its seed names; a count of several, no windows or a numbered shard number them from the prefix. */
+        const seed = scripted && count === 1 && !numbered ? seedPrefix : `${seedPrefix}-${String(firstIndex + index + 1).padStart(4, '0')}`;
         const scenario = root.BattleTownObjectives.regenerate(sim.scene, sim.heightAt, seed, { benchmark: true, benchmarkIndex: index }, sim);
         root.BattleAIPolicy.setMatchPolicies(sim, baseline, baseline); sim.trainingMode = true;
         root.BattleSoldierModel?.setImportedEnabled?.(sim.scene, false); rawRestart();
@@ -517,7 +522,7 @@ try {
       if (telemetryConsole !== null && telemetry?.setConsoleLogging) telemetry.setConsoleLogging(telemetryConsole);
     }
     return { build: root.BATTLE_BUILD || null, policyRevision: root.BattleAIPolicy.stashed ? 0 : suppliedPolicy?.revision || root.BattleAIPolicy.revision || 0, policySource: root.BattleAIPolicy.stashed ? 'stashed-defaults' : suppliedPolicy?.source || 'runtime-default', fixedDt, timeLimit, sampleSeconds: SAMPLE_SECONDS, scripted, battles };
-  }, { count, seedPrefix, fixedDt, timeLimit, suppliedPolicy: policy, windows, battleType });
+  }, { count, seedPrefix, fixedDt, timeLimit, suppliedPolicy: policy, windows, battleType, numbered, firstIndex });
 
   const wallSeconds = (Date.now() - startedWall) / 1000, battles = result.battles || [];
   for (const b of battles) b.health = healthFor(b);

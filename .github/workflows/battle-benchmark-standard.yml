@@ -1,19 +1,29 @@
 name: M3C Standard Benchmark
 
-# One scripted scenario, two arms. The same seed is stepped unmeasured to first contact, measured for 60 simulated
-# seconds, then run to the end of the battle with a record at every 60 simulated seconds and at the end (`windows`), once
-# with the flags of the OFF arm and once with those of the ON arm. Both arms run one after the other on one runner, so wall time is comparable, and the
-# records are compared with scripts/compare_benchmark_arms.cjs. Every record carries all the benchmark's stats and
-# telemetry (health, stalls, loops, combat, `timeline`, `stress`), counted inside its window. Nothing is published to
-# the benchmark-results branch: the report is the run summary and the artifact.
+# Two arms, off and on, on the same seed or seeds, compared with scripts/compare_benchmark_arms.cjs. Nothing is published to the
+# benchmark-results branch: the report is the run summary and the artifact. Every record carries all the benchmark's stats and
+# telemetry (health, stalls, loops, combat, `timeline`, `stress`), counted inside its window.
+#
+# seeds = 1 (the default), one scripted scenario: the seed is used exactly as given, stepped unmeasured to first contact,
+#   measured for 60 simulated seconds, then run to the end of the battle with a record at every 60 simulated seconds and at the
+#   end (`windows`). Both arms run one after the other on one job, so wall time is comparable. About 2 minutes. It shows that a
+#   change is inert and where an arm first parts from the other; one battle per arm carries no rate.
+#
+# seeds = N > 1, a paired run across seeds: `seed` is a prefix, the seeds are `<prefix>-0001` to `<prefix>-<N>`, spread over up to
+#   20 shards that each play their seeds with both arms on one runner, `windows` (default contact+120: the first two minutes of
+#   fighting, not the whole battle). A last job pools the shards and reports each counter paired by seed. About 3.5 minutes for 100.
 
 on:
   workflow_dispatch:
     inputs:
       seed:
-        description: Scenario seed, used exactly as given. A battle that ends early just has fewer checkpoint records.
+        description: Scenario seed, used exactly as given (seeds 1; default scripted-scout-0003), or the prefix of the seeds (seeds above 1; default scripted-seeds)
         required: false
-        default: 'scripted-scout-0003'
+        default: ''
+      seeds:
+        description: How many seeds. 1 is the scripted scenario; more is a paired run across seeds, spread over up to 20 shards (e.g. 100)
+        required: false
+        default: '1'
       query_off:
         description: Page flags for the OFF arm (e.g. morale=0 for the flat retreat). Empty is the default battle.
         required: false
@@ -27,16 +37,25 @@ on:
         required: false
         default: 'meeting'
       windows:
-        description: Measured windows, comma separated - <contact|second>+<seconds>, or every<seconds> last (a record at every multiple of it, and at the end)
+        description: Measured windows, comma separated - <contact|second>+<seconds>, or every<seconds> last (a record at every multiple of it, and at the end). Default contact+60,every60 for one seed, contact+120 for several.
         required: false
-        default: 'contact+60,every60'
+        default: ''
 
 permissions:
   contents: read
 
+env:
+  # The counters the paired report adds up per record (compare_benchmark_arms.cjs --count).
+  BENCH_COUNTERS: >-
+    casualties usKills geKills fire.total fire.hits retreatSamples movementResolver.changes
+    movementStalls.length routeStalls.length targetlessStalls.length vacantObjectiveStalls.length loopAlerts.length writerConflicts
+    regroups.entries stallOutcomes.wakes stallOutcomes.repeats timeline.stalledOnsets timeline.stalledSamples
+
 jobs:
-  benchmark:
+  # ---- one seed: the scripted scenario ------------------------------------------------------------------------------------
+  single:
     name: Scripted scenario, off vs on
+    if: ${{ (github.event.inputs.seeds || '1') == '1' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -103,12 +122,7 @@ jobs:
       - name: Compare the arms
         run: |
           set -uo pipefail
-          counters=(
-            usKills geKills fire.total fire.hits retreatSamples movementResolver.changes
-            movementStalls.length routeStalls.length targetlessStalls.length vacantObjectiveStalls.length loopAlerts.length writerConflicts
-            regroups.entries stallOutcomes.wakes stallOutcomes.repeats timeline.stalledOnsets timeline.stalledSamples
-          )
-          args=(); for c in "${counters[@]}"; do args+=(--count "$c"); done
+          args=(); for c in $BENCH_COUNTERS; do args+=(--count "$c"); done
           set +e
           node scripts/compare_benchmark_arms.cjs "${args[@]}" reports/off/battle-benchmark.json reports/on/battle-benchmark.json > reports/compare.json
           rc=$?
@@ -127,14 +141,19 @@ jobs:
             echo "- **ON** arm flags: \`${QUERY_ON:-none}\`"
             echo
             if [ -f reports/compare.json ]; then
-              echo "### Paired comparison (a = off, b = on)"
+              echo "### Paired comparison (off against on)"
               echo
-              echo "Exit $(cat reports/compare.rc 2>/dev/null || echo '?') (1 means a runtime error or a median wall-time slowdown above 25%). \`unpaired\` counts windows only one arm reached: a flag that changes how long the battle lasts shows up there."
+              echo "Exit $(cat reports/compare.rc 2>/dev/null || echo '?') (1 means a runtime error or a median wall-time slowdown above 25%). \`unpaired\` counts windows only one arm reached: a flag that changes how long the battle lasts shows up there. One battle per arm: a counter here is a size, not a finding."
+              echo
+              node scripts/format_benchmark_compare.cjs reports/compare.json || true
+              echo
+              echo "<details><summary>compare.json</summary>"
               echo
               echo '```json'
               cat reports/compare.json
               echo
               echo '```'
+              echo "</details>"
             fi
             for arm in off on; do
               if [ -f "reports/$arm/battle-benchmark.md" ]; then
@@ -169,27 +188,228 @@ jobs:
         if: failure()
         run: tail -n 300 /tmp/battle-php.log || true
 
+  # ---- several seeds: a paired run across shards ------------------------------------------------------------------------------
+  plan:
+    name: Plan the shards
+    if: ${{ (github.event.inputs.seeds || '1') != '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      windows: ${{ steps.plan.outputs.windows }}
+    steps:
+      - name: Checkout the planner
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/plan_benchmark_shards.cjs
+          sparse-checkout-cone-mode: false
+      - name: Plan
+        id: plan
+        env:
+          SEEDS: ${{ github.event.inputs.seeds }}
+          WINDOWS: ${{ github.event.inputs.windows }}
+        run: |
+          set -euo pipefail
+          shards="$(node scripts/plan_benchmark_shards.cjs "$SEEDS" 20)"
+          echo "matrix={\"include\":${shards}}" >> "$GITHUB_OUTPUT"
+          echo "windows=${WINDOWS:-contact+120}" >> "$GITHUB_OUTPUT"
+          echo "${SEEDS} seeds over: ${shards}"
+
+  shards:
+    name: Shard ${{ matrix.shard }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.sha }}
+      BATTLE_BENCHMARK_COUNT: ${{ matrix.count }}
+      BATTLE_BENCHMARK_FIRST: ${{ matrix.first }}
+      BATTLE_BENCHMARK_TIME_LIMIT: '600'
+      BATTLE_BENCHMARK_STEP: '0.15'
+      BATTLE_BENCHMARK_WINDOWS: ${{ needs.plan.outputs.windows }}
+      BATTLE_BENCHMARK_SEED: ${{ github.event.inputs.seed || 'scripted-seeds' }}
+      BATTLE_TYPE: ${{ github.event.inputs.battle_type || 'meeting' }}
+      QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
+      QUERY_ON: ${{ github.event.inputs.query_on || '' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start local battle server
+        run: |
+          rm -rf /tmp/battle-www
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          echo $! > /tmp/battle-php.pid
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck" >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+
+      - name: Run both arms on this shard's seeds
+        run: |
+          set -euo pipefail
+          case "$BATTLE_TYPE" in
+            meeting) defender_query='' ;;
+            us-defend) defender_query='defender=us' ;;
+            ge-defend) defender_query='defender=ge' ;;
+            *) echo "Unknown battle type: $BATTLE_TYPE" >&2; exit 2 ;;
+          esac
+          for arm in off on; do
+            if [ "$arm" = off ]; then extra="$QUERY_OFF"; else extra="$QUERY_ON"; fi
+            extra="${extra#[?&]}"
+            query="$defender_query"
+            if [ -n "$extra" ]; then if [ -n "$query" ]; then query="${query}&${extra}"; else query="$extra"; fi; fi
+            export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php${query:+?$query}"
+            export BATTLE_BENCHMARK_OUTPUT="reports/$arm"
+            echo "::group::shard ${{ matrix.shard }}, arm ${arm} (${query:-no flags}), seeds ${BATTLE_BENCHMARK_SEED}-NNNN from index ${BATTLE_BENCHMARK_FIRST} x ${BATTLE_BENCHMARK_COUNT}, windows ${BATTLE_BENCHMARK_WINDOWS}"
+            node scripts/run_battle_benchmark.mjs
+            echo "::endgroup::"
+          done
+
+      - name: Upload shard reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seeds-${{ github.run_number }}-shard-${{ matrix.shard }}
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Show server log on failure
+        if: failure()
+        run: tail -n 300 /tmp/battle-php.log || true
+
+  compare:
+    name: Pool the shards and compare
+    needs: [plan, shards]
+    if: ${{ always() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SEED_PREFIX: ${{ github.event.inputs.seed || 'scripted-seeds' }}
+      SEEDS: ${{ github.event.inputs.seeds }}
+      WINDOWS: ${{ needs.plan.outputs.windows }}
+      BATTLE_TYPE: ${{ github.event.inputs.battle_type || 'meeting' }}
+      QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
+      QUERY_ON: ${{ github.event.inputs.query_on || '' }}
+      SHARDS_RESULT: ${{ needs.shards.result }}
+    steps:
+      - name: Checkout the compare tools
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/compare_benchmark_arms.cjs
+            scripts/format_benchmark_compare.cjs
+          sparse-checkout-cone-mode: false
+
+      - name: Download the shard reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: seeds-${{ github.run_number }}-shard-*
+          path: shard-reports
+
+      - name: Compare the arms, paired by seed
+        run: |
+          set -uo pipefail
+          mkdir -p reports
+          off="$(find shard-reports -path '*/off/battle-benchmark.json' | sort | paste -sd, -)"
+          on="$(find shard-reports -path '*/on/battle-benchmark.json' | sort | paste -sd, -)"
+          echo "off reports: $(echo "$off" | tr ',' '\n' | grep -c . || true), on reports: $(echo "$on" | tr ',' '\n' | grep -c . || true)"
+          if [ -z "$off" ] || [ -z "$on" ]; then echo 'No shard produced both arms.' >&2; echo 2 > reports/compare.rc; exit 0; fi
+          args=(); for c in $BENCH_COUNTERS; do args+=(--count "$c"); done
+          set +e
+          node scripts/compare_benchmark_arms.cjs "${args[@]}" "$off" "$on" > reports/compare.json
+          rc=$?
+          set -e
+          echo "compare exit ${rc}"
+          echo "$rc" > reports/compare.rc
+          exit 0
+
+      - name: Publish run summary
+        if: always()
+        run: |
+          {
+            echo "## Seeds: \`${SEED_PREFIX}-0001\` to \`${SEED_PREFIX}-$(printf '%04d' "$SEEDS")\` (${BATTLE_TYPE}), windows \`${WINDOWS}\`"
+            echo
+            echo "- **OFF** arm flags: \`${QUERY_OFF:-none}\`"
+            echo "- **ON** arm flags: \`${QUERY_ON:-none}\`"
+            echo "- shard jobs: ${SHARDS_RESULT}"
+            echo
+            if [ -f reports/compare.json ]; then
+              echo "### Paired comparison, one pair per seed (off against on)"
+              echo
+              echo "Exit $(cat reports/compare.rc 2>/dev/null || echo '?') (1 means a runtime error or a median wall-time slowdown above 25%). \`unpaired\` counts seeds only one arm completed. The sign test is across seeds; the arms ran one after the other on each shard's runner."
+              echo
+              node scripts/format_benchmark_compare.cjs reports/compare.json || true
+              echo
+              echo "<details><summary>compare.json</summary>"
+              echo
+              echo '```json'
+              cat reports/compare.json
+              echo
+              echo '```'
+              echo "</details>"
+            else
+              echo '**No comparison was produced.**'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the comparison
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seeds-${{ github.run_number }}-compare
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Fail the run when a shard or the comparison failed
+        run: |
+          rc="$(cat reports/compare.rc 2>/dev/null || echo 2)"
+          if [ "$rc" != 0 ]; then echo "compare_benchmark_arms.cjs exited ${rc}" >&2; exit 1; fi
+          if [ "$SHARDS_RESULT" != success ]; then echo "shard jobs: ${SHARDS_RESULT}; the comparison above uses the seeds that completed" >&2; exit 1; fi
+
   notify:
     name: Notify benchmark result
-    needs: benchmark
+    needs: [single, plan, shards, compare]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Send ntfy notification
         env:
-          RESULT: ${{ needs.benchmark.result }}
-          SEED: ${{ github.event.inputs.seed || 'scripted-scout-0003' }}
+          RESULTS: ${{ needs.single.result }} ${{ needs.plan.result }} ${{ needs.shards.result }} ${{ needs.compare.result }}
+          SEED: ${{ github.event.inputs.seed }}
+          SEEDS: ${{ github.event.inputs.seeds || '1' }}
           QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
           QUERY_ON: ${{ github.event.inputs.query_on || '' }}
           SOURCE_REF: ${{ github.ref_name }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          if [ "$RESULT" = success ]; then status='COMPLETE'; tags='white_check_mark,crossed_swords'; priority='default'; else status="FAILED (${RESULT})"; tags='x,warning'; priority='high'; fi
+          if echo "$RESULTS" | grep -Eq 'failure|cancelled'; then status="FAILED (${RESULTS})"; tags='x,warning'; priority='high'; else status='COMPLETE'; tags='white_check_mark,crossed_swords'; priority='default'; fi
+          if [ "$SEEDS" = 1 ]; then what="${SEED:-scripted-scout-0003}"; else what="${SEEDS} seeds"; fi
           curl -fsS \
-            -H "Title: M3C scripted benchmark #${GITHUB_RUN_NUMBER}" \
+            -H "Title: M3C benchmark #${GITHUB_RUN_NUMBER}" \
             -H "Priority: ${priority}" \
             -H "Tags: ${tags}" \
             -H "Click: ${RUN_URL}" \
-            -d "${status} · ${SEED} · off [${QUERY_OFF:-none}] vs on [${QUERY_ON:-none}] · ${SOURCE_REF}" \
+            -d "${status} · ${what} · off [${QUERY_OFF:-none}] vs on [${QUERY_ON:-none}] · ${SOURCE_REF}" \
             https://ntfy.sh/ww2battlesim
