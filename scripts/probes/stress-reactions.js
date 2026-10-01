@@ -16,7 +16,8 @@
     ACTING = { cower: 1, flee: 1, freeze: 1, rage: 1 },
     track,
     done,
-    last;
+    last,
+    examples;
   function round(x, k) {
     var p = Math.pow(10, k == null ? 1 : k);
     return Math.round((+x || 0) * p) / p;
@@ -72,6 +73,19 @@
       secs = now - ep.at,
       row = done[ep.kind],
       reason = how || (e && e.transition && e.transition.at >= ep.at ? e.transition.reason : 'unknown');
+    if (examples.length < 400)
+      examples.push({
+        soldier: ep.soldier,
+        faction: ep.faction,
+        squad: ep.squad,
+        kind: ep.kind,
+        from: round(ep.at),
+        to: round(now),
+        endedBy: reason,
+        start: [round(ep.start.x), round(ep.start.z)],
+        end: [round(p.x), round(p.z)],
+        bandAtEnd: m.band
+      });
     row.n++;
     row.men[ep.soldier + ':' + ep.faction] = true;
     row.secs.push(secs);
@@ -127,6 +141,7 @@
     start: function () {
       track = new Map();
       last = {};
+      examples = [];
       done = {};
       KINDS.forEach(function (k) {
         done[k] = blank();
@@ -162,7 +177,7 @@
       }
     },
     report: function (sim) {
-      var out = { reactions: {} },
+      var out = { reactions: {}, examples: examples },
         now = +sim.time || 0;
       track.forEach(function (ep, s) {
         close(sim, s, ep, now, 'end of battle');
