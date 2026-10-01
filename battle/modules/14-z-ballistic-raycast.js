@@ -156,6 +156,8 @@
     var up = norm({ x: -right.z * base.y, y: right.z * base.x - right.x * base.z, z: right.x * base.y });
     var distance = Math.hypot(aim.x - origin.x, aim.y - origin.y, aim.z - origin.z),
       sigma = dispersionSigma(shooter, stats, distance, battle, round);
+    /* One call per round: the soldier condition counts the rounds a frightened man's wider group touched. */
+    if (root.BattleSoldierMind) root.BattleSoldierMind.noteAim(shooter);
     var gx = gaussian(battle) * sigma,
       gy = gaussian(battle) * sigma;
     return {
