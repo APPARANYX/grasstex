@@ -339,8 +339,10 @@ test("deal: default-on permutation of the squad's ten ids, each command slot to 
     dealtSgt > plainSgt * 1.2,
     'the sergeants dealt beat the sergeants by id: ' + dealtSgt + ' vs ' + plainSgt
   );
-  for (const search of ['?stats=0', '?stats=all', ''])
+  for (const search of ['?stats=0', '?stats=for,tac,squad'])
     assert.equal(world(search).S.deal('us', 40, roles), null, search);
+  assert.deepEqual(world('').S.deal('us', 40, roles), dealt, 'the shipping default deals the roster');
+  assert.deepEqual(world('?stats=all').S.deal('us', 40, roles), dealt, 'all includes deal');
   assert.equal(S.deal('us', 40, []), null);
   assert.equal(S.deal('us', 40, ['rifleman', 'rifleman']).join(), '40,41', 'no command slot, no change');
 });
