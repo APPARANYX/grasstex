@@ -21,7 +21,9 @@
  *                     crouch-aim crouch-walk prone prone-aim prone-crawl stand>prone prone>stand
  *                     stand>crouch death.front death.back death.side; stress reactions:
  *                     reaction.cower, reaction.freeze-standing, reaction.freeze-sitting,
- *                     reaction.freeze-fallen, reaction.flee, reaction.rage (default aim)
+ *                     reaction.freeze-fallen, reaction.flee (a fled man on the run: no weapon),
+ *                     reaction.fled-wait (a fled man waiting at his refuge: a freeze hold, no
+ *                     weapon), reaction.rage (default aim)
  *   CLOSEUP_TIMES     seconds into the pose, comma-separated (default 1.5)
  *   CLOSEUP_VIEWS     front, side (or right, as closeup_battle.cjs calls it), back, left,
  *                     three-quarter, top (default front,side)
@@ -51,7 +53,7 @@ const OUT = path.resolve(process.env.CLOSEUP_OUT || path.join(os.tmpdir(), 'clos
 const [W, H] = String(process.env.CLOSEUP_SIZE || '900x900').split('x').map(Number);
 const ALPHA = { front: -Math.PI / 2, side: 0, right: 0, back: Math.PI / 2, left: Math.PI, 'three-quarter': -Math.PI / 4, top: -Math.PI / 2 };
 const REACTION_POSES = ['reaction.cower', 'reaction.freeze-standing', 'reaction.freeze-sitting',
-  'reaction.freeze-fallen', 'reaction.flee', 'reaction.rage'];
+  'reaction.freeze-fallen', 'reaction.flee', 'reaction.fled-wait', 'reaction.rage'];
 const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
 
 (async () => {
@@ -143,14 +145,21 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
       if (pose.indexOf('death.') === 0) { s.dead = true; s.deathVariant = pose.slice(6); s.deathSide = 1; s.deathTag = pose; M.triggerAnimation(s, pose, {}); }
       if (pose.indexOf('reaction.') === 0) {
         const kind = pose.split(/[.-]/)[1];
-        s.eng = { state: kind === 'rage' ? 'rage' : kind, refugeHere: false, strikeAt: kind === 'rage' ? 1 : 0 };
+        // A fled man's state is Engagement's: `flee`, in phase `run` (to his refuge or home) or `wait` (at his refuge), and the
+        // weapon he left is the sim's too (BattleWeapons.abandon): the page's presentation only draws what it finds.
+        s.eng = { state: kind === 'rage' ? 'rage' : kind === 'fled' ? 'flee' : kind, strikeAt: kind === 'rage' ? 1 : 0 };
+        if (kind === 'flee' || kind === 'fled') {
+          s.eng.fledPhase = kind === 'fled' ? 'wait' : 'run';
+          M.animateWalk(s, 1 / FPS, 0); // a frame with the weapon in his hands, as the page has had before he breaks
+          BattleWeapons.abandon(s);
+        }
         if (kind === 'flee') s.moveSpeed = 3.5;
         if (kind === 'rage') {
           s.moveSpeed = 3.9;
           s.target = { root: { position: new BABYLON.Vector3(0, 0, -2) } };
         }
-        if (kind === 'freeze') {
-          const want = { standing: 0, sitting: 1, fallen: 2 }[pose.split('-')[1]];
+        if (kind === 'freeze' || kind === 'fled') {
+          const want = kind === 'fled' ? 0 : { standing: 0, sitting: 1, fallen: 2 }[pose.split('-')[1]];
           const pick = id => {
             const text = `${s.faction}:${id}`; let h = 2166136261;
             for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -190,7 +199,7 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
         const { scene, camera, soldier } = window.__closeup, V = BABYLON.Vector3;
         const nodes = soldier.root.getDescendants(false);
         const hand = side => nodes.find(n => new RegExp('^' + side + '\\s*hand$', 'i').test(String(n.name).replace(/^.*[:|]/, '')));
-        const reactionLow = /^reaction\.(cower|freeze)/.test(pose);
+        const reactionLow = /^reaction\.(cower|freeze|fled)/.test(pose);
         let target = new V(0, soldier.prone ? .3 : reactionLow ? .5 : soldier.crouching ? .7 : .95, 0), radius = soldier.prone ? 2.2 : reactionLow ? 3 : 2.6;
         if (framing === 'hands') {
           const r = hand('right'), l = hand('left');
