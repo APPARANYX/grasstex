@@ -422,7 +422,14 @@
         return proposal('tactical-positions', st.positionPause, battle, 'reload-hold', true, Infinity);
       }
       st.positionPause = null;
-      return proposal('tactical-positions', task.position, battle, 'firing-station', true, Infinity);
+      return proposal(
+        'tactical-positions',
+        (P.anchor && P.anchor(soldier)) || task.position,
+        battle,
+        'firing-station',
+        true,
+        Infinity
+      );
     }
     st.positionPause = null;
     if (P && combat && combat.kind === 'firing-station') {

@@ -398,7 +398,33 @@ N.nextWaypoint=function(sim,soldier,dest){
 };
 
 function makeMaterial(scene,name,r,g,b,alpha){var m=new BABYLON.StandardMaterial(name,scene);m.diffuseColor=new BABYLON.Color3(r,g,b);m.emissiveColor=new BABYLON.Color3(r*.72,g*.72,b*.72);m.specularColor=BABYLON.Color3.Black();m.alpha=alpha;m.disableDepthWrite=true;return m;}
-function disposeMarkers(){for(var i=0;i<debug.markers.length;i++){var m=debug.markers[i];try{m.station.dispose();}catch(_){}try{m.window.dispose();}catch(_){}try{m.line.dispose();}catch(_){}}debug.markers=[];debug.version=-1;}
+function lineSet(sim,name,pts,color,alpha){var l=BABYLON.MeshBuilder.CreateLines(name,{points:pts.map(function(p){return new BABYLON.Vector3(p.x,p.y,p.z);})},sim.scene);l.color=new BABYLON.Color3(color[0],color[1],color[2]);l.alpha=alpha;l.isPickable=false;l.renderingGroupId=3;return l;}
+function disposeMarkers(){for(var i=0;i<debug.markers.length;i++){var m=debug.markers[i];try{m.station.dispose();}catch(_){}try{m.window.dispose();}catch(_){}try{m.line.dispose();}catch(_){}(m.extras||[]).forEach(function(l){try{l.dispose();}catch(_){}});(m.rays||[]).forEach(function(l){try{l.dispose();}catch(_){}});}debug.markers=[];debug.version=-1;}
+/* The firing port, drawn: the aperture frame (jambs, sill, lintel), the facing out through it, the edges
+   of the exterior sector, and while the station is held the eye ray and the bore ray (green: through the
+   aperture, red: blocked, with the reason in windowDiagnostics). A bad window position shows in a screenshot. */
+function portExtras(sim,st){
+  var port=st.port;if(!port)return[];var fy=sim.heightAt(st.windowX,st.windowZ),tx=-st.normalZ,tz=st.normalX,h=port.halfWidth,out=[];
+  function at(u,y,d){return{x:st.windowX+tx*u+st.normalX*(d||0),y:fy+y,z:st.windowZ+tz*u+st.normalZ*(d||0)};}
+  out.push(lineSet(sim,'windowPortFrame',[at(-h,port.sill),at(h,port.sill),at(h,port.head),at(-h,port.head),at(-h,port.sill)],[1,.9,.2],.9));
+  var ey=fy+port.eyeHeight,a=port.sectorHalf;
+  out.push(lineSet(sim,'windowPortFacing',[{x:st.x,y:ey,z:st.z},at(0,port.eyeHeight,6)],[.3,1,.4],.7));
+  [-1,1].forEach(function(sg){var dx=Math.sin(sg*a),dz=Math.cos(sg*a);out.push(lineSet(sim,'windowPortSector',[{x:st.x,y:ey,z:st.z},{x:st.x+(tx*dx+st.normalX*dz)*14,y:ey,z:st.z+(tz*dx+st.normalZ*dz)*14}],[.9,.9,.2],.35));});
+  return out;
+}
+function windowDiagnostics(sim){
+  var P=root.BattleTacticalPositions,live={},out={stations:[],rejected:(N.rejectedWindows||[]).slice()};if(!P||!sim)return out;
+  ['us','ge'].forEach(function(f){(sim._roster[f]||[]).forEach(function(s){var t=s&&P.current(s);if(t)live[t.station]={soldier:s,task:t};});});
+  (N.firingStations||[]).forEach(function(st){
+    var l=live[st.id],t=l&&l.task,a=t&&t.aperture,port=st.port;
+    out.stations.push({id:st.id,window:st.windowId,building:st.building,assigned:l?l.soldier.id:null,state:t?t.status:'free',
+      anchor:t&&t.pose?{x:t.pose.x,z:t.pose.z}:{x:st.x,z:st.z},pose:t&&t.pose?{lat:t.pose.lat,fwd:t.pose.fwd}:null,facing:{x:st.normalX,z:st.normalZ},
+      aperture:port?{halfWidth:port.halfWidth,sill:port.sill,head:port.head,sectorDeg:+(port.sectorHalf*180/Math.PI).toFixed(1),inset:port.inset}:null,
+      stance:(t&&t.pose&&t.pose.stance)||st.stance,eye:a&&a.eye||null,muzzle:a&&a.muzzle||null,eyeAt:a&&a.eyeAt||null,muzzleAt:a&&a.muzzleAt||null,to:a&&a.to||null,
+      target:a?a.target:null,portState:a?a.state:null});
+  });
+  return out;
+}
 function ensureMaterials(scene){if(debug.freeMat&&debug.freeMat.getScene()===scene)return;debug.freeMat=makeMaterial(scene,'windowSlotFreeMat',.2,.85,1,.42);debug.usedMat=makeMaterial(scene,'windowSlotUsedMat',1,.46,.12,.58);}
 function rebuildMarkers(sim){
   disposeMarkers();if(!debug.visible||typeof BABYLON==='undefined'||!sim||!sim.scene)return;ensureMaterials(sim.scene);var slots=N.firingStations||[];
@@ -407,14 +433,17 @@ function rebuildMarkers(sim){
     var sphere=BABYLON.MeshBuilder.CreateSphere('windowStationDebug',{diameter:.62,segments:8},sim.scene);sphere.position.set(st.x,sy,st.z);sphere.material=debug.freeMat;sphere.isPickable=false;sphere.renderingGroupId=3;
     var win=BABYLON.MeshBuilder.CreateSphere('windowOpeningDebug',{diameter:.34,segments:7},sim.scene);win.position.set(wx,wy,wz);win.material=debug.freeMat;win.isPickable=false;win.renderingGroupId=3;
     var line=BABYLON.MeshBuilder.CreateLines('windowSlotLink',{points:[new BABYLON.Vector3(st.x,sy,st.z),new BABYLON.Vector3(wx,wy,wz)]},sim.scene);line.color=new BABYLON.Color3(.45,.9,1);line.alpha=.55;line.isPickable=false;line.renderingGroupId=3;
-    debug.markers.push({id:st.id,station:sphere,window:win,line:line});
+    debug.markers.push({id:st.id,station:sphere,window:win,line:line,extras:portExtras(sim,st),rays:[]});
   }
   debug.version=N.version;updateDebug(sim,true);
 }
 function updateDebug(sim,force){
   if(!debug.visible||!sim)return;if(debug.version!==N.version){rebuildMarkers(sim);return;}if(!force&&sim.time<debug.nextUpdate)return;debug.nextUpdate=sim.time+.22;
   var occ=refreshOccupied(sim,true),used={};for(var i=0;i<occ.length;i++)used[String(occ[i].id).replace(/^station:/,'')]=1;
-  for(i=0;i<debug.markers.length;i++){var m=debug.markers[i],mat=used[m.id]?debug.usedMat:debug.freeMat;m.station.material=mat;m.window.material=mat;}
+  var diag=windowDiagnostics(sim),byId={};diag.stations.forEach(function(d){byId[d.id]=d;});
+  for(i=0;i<debug.markers.length;i++){var m=debug.markers[i],mat=used[m.id]?debug.usedMat:debug.freeMat;m.station.material=mat;m.window.material=mat;
+    (m.rays||[]).forEach(function(l){try{l.dispose();}catch(_){}});m.rays=[];var d=byId[m.id];
+    if(d&&d.eyeAt&&d.target!=null&&d.eye&&d.muzzle){var to=d.to||null;if(to){m.rays.push(lineSet(sim,'windowEyeRay',[d.eyeAt,to],d.eye.ok?[.2,1,.3]:[1,.2,.2],.8));m.rays.push(lineSet(sim,'windowMuzzleRay',[d.muzzleAt,to],d.muzzle.ok?[.2,1,.3]:[1,.2,.2],.8));}}}
   if(debug.button)debug.button.textContent='Window Slots '+occ.length+'/'+debug.markers.length;
 }
 function setVisible(v){debug.visible=!!v;try{localStorage.setItem('battleWindowSlotsVisible',debug.visible?'1':'0');}catch(_){}var sim=currentSim();if(debug.visible)rebuildMarkers(sim);else{disposeMarkers();if(debug.button)debug.button.textContent='Window Slots';}if(debug.button)debug.button.classList.toggle('on',debug.visible);}
@@ -434,7 +463,7 @@ root.BattleModules.registerSystem('navigation-physicality-debug',{
 if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installButton,{once:true});else installButton();}
 
 root.BattleNavigationPhysicality={
-  version:'49-enforced-body-clearance',setWindowDebug:setVisible,windowDebug:function(){return debug.visible;},
+  version:'49-enforced-body-clearance',setWindowDebug:setVisible,windowDiagnostics:windowDiagnostics,windowDebug:function(){return debug.visible;},
   occupiedStations:function(sim){return refreshOccupied(sim||currentSim(),true).slice();},hardTypes:Object.keys(HARD_TYPES),
   bodyRadius:BODY_RADIUS,bodyWidth:BODY_RADIUS*2,navMargin:COLLISION_MARGIN,routeMargin:ROUTE_MARGIN,routeHorizon:ROUTE_HORIZON,minLookahead:MIN_QUEUE,maxLookahead:MAX_QUEUE,
   footprints:function(sim){return staticFootprints(sim||currentSim()).slice();},shapeHit:shapeHit,shapeContains:shapeContains,routeNodes:routeNodes,

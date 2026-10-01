@@ -1,10 +1,16 @@
 /* Building-aware navigation + occupiable firing stations.
    Doors are movement portals; doors/windows are LOS portals. Door portals have a real corridor
    width/depth so infantry can cross the threshold without grazing the wall line. Window firing
-   positions sit safely inside rooms. Persistent reservations belong to BattleTacticalPositions. */
+   positions sit safely inside rooms. Persistent reservations belong to BattleTacticalPositions.
+   A window is also a firing port (`station.port`, built once here from the opening's own metadata): the
+   anchor sits just behind the wall's inner face, not a body-length back in the room, and the port knows
+   its sill, head, half width, the stance that fits the sill and the sector the aperture lets through.
+   `aperture()` answers whether one 3D line from inside actually passes through the opening. Windows no
+   shipping stance can use are kept out of `firingStations` and listed in `rejectedWindows` with a reason.
+   `?windowPort=0` is the old station (0.775 m inset, a fixed crouch, no aperture geometry). */
 (function(root){
   'use strict';
-  var scenario=null,walls=[],nodes=[],edges=[],version=0,firingStations=[],doorPortals=[];
+  var scenario=null,walls=[],nodes=[],edges=[],version=0,firingStations=[],doorPortals=[],rejectedWindows=[];
   var EPS=.0001,DOOR_PAD=1.55,DOOR_CLEARANCE=.48,CORNER_PAD=2.4,MAX_EDGE=300,STATION_INSET=.775;
   /* How much wall a man is allowed to be standing on before it counts as being in his way.
      This has to be an absolute distance. It used to be a fraction of the query segment, so the
@@ -13,6 +19,13 @@
      straight line through the wall, physics refused every step of it, and the two disagreed
      forever. */
   var START_SKIN=.06;
+  var PORT=!(typeof location!=='undefined'&&/[?&]windowPort=0\b/.test(location.search||''));
+  /* Firing port (metres). The wall is drawn .32 thick around its plane, so its inner face is .16 behind
+     it; a man's body is ~.25 in radius, so .45 is the closest anchor that keeps him off the wall. The old
+     inset was .775. FRAME is the margin a ray keeps from the jamb, sill and lintel. EYE and the muzzle
+     heights are SquadAI's and the ballistics module's stance heights (1.55 stand, 1.05 crouch). */
+  var PORT_INSET=.45,FRAME=.08,SILL_CLEAR=.12,SILL_PREFER=.25,HEAD_CLEAR=.1,MIN_HEIGHT=.5,MIN_WIDTH=.6,SECTOR_MAX=65*Math.PI/180;
+  var EYE={stand:1.55,crouch:1.05},STANCES=['crouch','stand'];
   /* Headings to try, either side of the desired one, when the direct step is into a wall. */
   var SLIDE_FAN=[.52,1.05,1.57,2.09];
 
@@ -80,8 +93,46 @@
   function addNode(p,kind,meta){var n={id:nodes.length,x:p.x,z:p.z,kind:kind||'nav',meta:meta||null};nodes.push(n);edges.push([]);return n;}
   function link(a,b){var d=Math.hypot(a.x-b.x,a.z-b.z);edges[a.id].push({to:b.id,cost:d});edges[b.id].push({to:a.id,cost:d});}
 
+  /* The port of one window opening: what its metadata says about standing at it. A stance fits when the
+     eye (and the bore, at the same height) clears the sill by SILL_CLEAR and stays under the lintel; the
+     lowest stance that clears the sill by SILL_PREFER wins, so the wall under the sill covers as much of
+     him as it can, and a high sill takes whatever stance still clears. Nothing fits: the window is rejected. */
+  function buildPort(o){
+    var sill=+o.bottom,head=+o.top,width=+o.width,half=width/2;
+    if(!(sill>=0)||!(head>sill)||!(width>0))return{reject:'bad-opening'};
+    if(width<MIN_WIDTH)return{reject:'too-narrow'};
+    if(head-sill<MIN_HEIGHT)return{reject:'too-short'};
+    var fit=[],i;
+    for(i=0;i<STANCES.length;i++){var eye=EYE[STANCES[i]];if(eye-sill>=SILL_CLEAR&&eye<=head-HEAD_CLEAR)fit.push(STANCES[i]);}
+    if(!fit.length)return{reject:sill+SILL_CLEAR>EYE.stand?'sill-too-high':'lintel-too-low'};
+    var stance=fit[fit.length-1];
+    for(i=0;i<fit.length;i++)if(EYE[fit[i]]-sill>=SILL_PREFER){stance=fit[i];break;}
+    return{inset:PORT_INSET,sill:sill,head:head,halfWidth:half,stance:stance,stances:fit,eyeHeight:EYE[stance],
+      sectorHalf:Math.min(SECTOR_MAX,Math.atan((half-FRAME)/PORT_INSET)),maxLateral:Math.max(0,half-FRAME-.25),maxForward:PORT_INSET-.3};
+  }
+  /* Does the straight line a->b (3D, a inside or at the plane, b outside) go through this window's
+     opening? `floorY` is the ground under the building (opening heights are above it). The line is
+     followed to where it crosses the wall plane; there it must be inside the jambs, over the sill and
+     under the lintel. Never a wall bypass: a line that misses the opening reports why. */
+  function aperture(st,a,b,floorY){
+    var port=st&&st.port;if(!port)return{ok:true,reason:'no-port'};
+    var da=(a.x-st.windowX)*st.normalX+(a.z-st.windowZ)*st.normalZ,db=(b.x-st.windowX)*st.normalX+(b.z-st.windowZ)*st.normalZ;
+    if(db<=.05)return{ok:false,reason:'target-behind'};
+    var k=da>=0?0:(0-da)/(db-da),cx=a.x+(b.x-a.x)*k,cz=a.z+(b.z-a.z)*k,cy=a.y+(b.y-a.y)*k;
+    var u=(cx-st.windowX)*-st.normalZ+(cz-st.windowZ)*st.normalX,y=cy-(+floorY||0);
+    if(Math.abs(u)>port.halfWidth-FRAME)return{ok:false,reason:'jamb',u:u,y:y};
+    if(y<port.sill+.03)return{ok:false,reason:'sill',u:u,y:y};
+    if(y>port.head-.05)return{ok:false,reason:'lintel',u:u,y:y};
+    return{ok:true,reason:'clear',u:u,y:y};
+  }
+  /* Is the point inside the exterior sector the aperture opens from the anchor? */
+  function inSector(st,p){
+    var port=st&&st.port;if(!port)return true;
+    var dx=p.x-st.windowX,dz=p.z-st.windowZ,len=Math.hypot(dx,dz)||1;
+    return (dx*st.normalX+dz*st.normalZ)/len>=Math.cos(port.sectorHalf);
+  }
   function buildScenarioGeometry(s){
-    scenario=s;walls=[];nodes=[];edges=[];firingStations=[];doorPortals=[];version++;
+    scenario=s;walls=[];nodes=[];edges=[];firingStations=[];doorPortals=[];rejectedWindows=[];version++;
     if(!s)return;
     (s.buildings||[]).forEach(function(b){
       ['north','south','east','west'].forEach(function(side){
@@ -102,7 +153,13 @@
           addNode(inside,'door-in',{building:b.id,opening:o.id});
           doorPortals.push({id:o.id,building:b.id,x:p.x,z:p.z,normalX:n.x,normalZ:n.z,width:(+o.width||1.35)+DOOR_CLEARANCE*2,depth:DOOR_PAD*2,outside:outside,inside:inside});
         }else if(o.type==='window'){
-          firingStations.push({id:'station-'+o.id,windowId:o.id,building:b.id,x:p.x-n.x*STATION_INSET,z:p.z-n.z*STATION_INSET,windowX:p.x,windowZ:p.z,normalX:n.x,normalZ:n.z,yBottom:o.bottom,yTop:o.top,stance:'crouch'});
+          var st={id:'station-'+o.id,windowId:o.id,building:b.id,x:p.x-n.x*STATION_INSET,z:p.z-n.z*STATION_INSET,windowX:p.x,windowZ:p.z,normalX:n.x,normalZ:n.z,yBottom:o.bottom,yTop:o.top,stance:'crouch'};
+          if(PORT){
+            var port=buildPort(o);
+            if(port.reject){rejectedWindows.push({id:st.id,windowId:o.id,building:b.id,reason:port.reject,sill:+o.bottom,head:+o.top,width:+o.width});return;}
+            st.port=port;st.stance=port.stance;st.x=p.x-n.x*port.inset;st.z=p.z-n.z*port.inset;
+          }
+          firingStations.push(st);
         }
       });
     });
@@ -111,7 +168,7 @@
       if(d>MAX_EDGE)continue;
       if(movementClear(a,b))link(a,b);
     }
-    console.log('[NAV] graph built; walls='+walls.length+' nodes='+nodes.length+' doors='+doorPortals.length+' firingStations='+firingStations.length);
+    console.log('[NAV] graph built; walls='+walls.length+' nodes='+nodes.length+' doors='+doorPortals.length+' firingStations='+firingStations.length+' rejectedWindows='+rejectedWindows.length);
   }
 
   function heapPush(h,x){h.push(x);var i=h.length-1;while(i>0){var p=(i-1)>>1;if(h[p].f<=h[i].f)break;var t=h[p];h[p]=h[i];h[i]=t;i=p;}}
@@ -166,7 +223,7 @@
     installScenario:buildScenarioGeometry,movementClear:movementClear,resolveStep:resolveStep,lineOfSightBlocked:losBlocked,findPath:findPath,nextWaypoint:nextWaypoint,
     invalidateNavCache: invalidateNavCache, invalidateNavPath: invalidateNavPath,
     get scenario(){return scenario;},get version(){return version;},get walls(){return walls.slice();},get doorPortals(){return doorPortals.slice();},
-    get firingStations(){return firingStations.slice();},get windowSlots(){return firingStations.slice();},get doorPad(){return DOOR_PAD;},get doorClearance(){return DOOR_CLEARANCE;},get startSkin(){return START_SKIN;}
+    get firingStations(){return firingStations.slice();},get rejectedWindows(){return rejectedWindows.slice();},aperture:aperture,inSector:inSector,get portEnabled(){return PORT;},get eyeHeights(){return EYE;},get windowSlots(){return firingStations.slice();},get doorPad(){return DOOR_PAD;},get doorClearance(){return DOOR_CLEARANCE;},get startSkin(){return START_SKIN;}
   };
   console.log('[NAV] firing-station navigation loaded');
 })(typeof window!=='undefined'?window:globalThis);
