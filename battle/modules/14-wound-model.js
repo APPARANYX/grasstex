@@ -89,8 +89,15 @@
       power = hit && isFinite(+hit.power) ? +hit.power : isFinite(+stats.power) ? +stats.power : 1,
       scale = 0.5 + 0.5 * power,
       damage = stats.damage * z.damage * energy * (0.85 + rand(battle) * 0.3),
-      dropped = rand(battle) < z.drop * scale,
+      /* A man in the first seconds of a berserk charge (Engagement `rage`) takes a fraction of the hit: of the damage, of
+         the chance it drops him and of the bleed. The rolls are the same two draws either way. */
+      guard =
+        root.BattleEngagement && root.BattleEngagement.guardOnHit
+          ? root.BattleEngagement.guardOnHit(victim, battle, damage)
+          : 1,
+      dropped = rand(battle) < z.drop * scale * guard,
       st = state(battle);
+    damage *= guard;
     st.stats.hits++;
     st.stats.byZone[zone].hits++;
     victim.hp -= damage;
@@ -103,7 +110,7 @@
     st.stats.wounded++;
     if (z.bleed > 0) {
       if (!(victim.bleedRate > 0)) st.bleeding.push(victim);
-      victim.bleedRate = (victim.bleedRate || 0) + z.bleed * scale;
+      victim.bleedRate = (victim.bleedRate || 0) + z.bleed * scale * guard;
     }
     if (z.speed) victim.woundSpeed = Math.max(MIN_SPEED, (victim.woundSpeed || 1) * z.speed);
     if (z.sigma) victim.woundSigma = Math.min(MAX_SIGMA, (victim.woundSigma || 1) * z.sigma);

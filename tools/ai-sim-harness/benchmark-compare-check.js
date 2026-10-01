@@ -350,7 +350,7 @@ const run = (a, b, extra) => {
     const a2 = summarizeStress([{ stress: block(1, acts(1)) }, { stress: block(2, acts(2)) }]);
     assert.deepEqual(a2.acts.cower, { n: 3, seconds: 4.5 });
     assert.deepEqual(a2.acts.flee, { n: 6, seconds: 12 });
-    assert.deepEqual(a2.acts.rage, { n: 3, seconds: 4, strikes: 6, hits: 2 });
+    assert.deepEqual(a2.acts.rage, { n: 3, seconds: 4, strikes: 6, hits: 2, guarded: 0, savedHp: 0 });
     assert.ok(
       stressMarkdown(a2)
         .join('\n')
@@ -358,6 +358,14 @@ const run = (a, b, extra) => {
           'Stress reactions: cower 3 (4.5 s) · flee 6 (12 s) · freeze 0 (0 s) · rage 3 (4 s) · charge blows 6 struck, 2 landed'
         )
     );
+    /* The berserk guard: hits taken while it held, and the hp it saved. */
+    const g2 = summarizeStress([
+      { stress: block(1, acts(1, { guarded: 2, savedHp: 0.75 })) },
+      { stress: block(2, acts(2, { guarded: 1, savedHp: 0.5 })) }
+    ]);
+    assert.equal(g2.acts.rage.guarded, 3);
+    assert.equal(g2.acts.rage.savedHp, 1.3);
+    assert.ok(stressMarkdown(g2).join('\n').includes('hits taken under the berserk guard 3 (1.3 hp saved)'));
     assert.equal(s.acts.cower.n, 0, 'no reactions in a build without them');
     assert.ok(
       !stressMarkdown(s).join('\n').includes('Stress reactions'),

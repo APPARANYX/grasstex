@@ -1308,7 +1308,9 @@
     MELEE_PERIOD: 1.4, // seconds between blows
     MELEE_HIT: 0.6, // chance a blow lands (the combat RNG, as a shot's roll is)
     MELEE_ENERGY: 0.8, // of a rifle round's wound
-    MELEE_POWER: 0.6 // and of its chance to drop him
+    MELEE_POWER: 0.6, // and of its chance to drop him
+    RAGE_GUARD_SECONDS: 5, // a man who goes berserk takes less from every hit for this long ...
+    RAGE_GUARD_SCALE: 0.25 // ... a quarter of the damage, of the chance to drop him and of the bleed
   };
   /* Engagement states in which a man is not fighting the way he was (the squad report's `reacting`). */
   function reacting(s) {
@@ -1317,6 +1319,15 @@
   function noteAct(s, kind, what, dt) {
     var M = mind();
     if (M) M.noteAct(s, kind, what, dt);
+  }
+  /* A hit has landed on `victim` (the wound model asks before it applies one): how much of it he takes. A man who has
+     just gone berserk (`rage`, for RAGE_GUARD_SECONDS from the moment he broke, whether or not the charge lasts) takes
+     RAGE_GUARD_SCALE of it; anyone else all of it. `damage` is the hit's hp, for the count of what the guard saved. */
+  function guardOnHit(victim, battle, damage) {
+    var e = victim && victim.eng;
+    if (!e || !(e.guardUntil > battle.time)) return 1;
+    noteAct(victim, 'rage', 'guard', damage * (1 - ACT_TUNING.RAGE_GUARD_SCALE));
+    return ACT_TUNING.RAGE_GUARD_SCALE;
   }
   function armed(s) {
     return !!(s.weapon && !s.outOfAmmo && (!root.BattleAmmunition || root.BattleAmmunition.available(s)));
@@ -1524,6 +1535,7 @@
       e.boundOrder = false;
       e.suppressOrder = false;
       e.cover = null;
+      if (want === 'rage') e.guardUntil = now + ACT_TUNING.RAGE_GUARD_SECONDS;
       noteAct(s, want, 'start');
     }
     if (!want) return false;
@@ -2027,8 +2039,7 @@
       if (e.state === 'pinned' || s.suppressedUntil > battle.time) pinnedCount++;
       /* A man putting rounds on the known position IS the base of fire - that is the entire point
          of him doing it. Counting only men with a visible target meant a squad whose line of sight
-         kept blinking could never satisfy the bound requirement and simply stopped advancing. */
-      else if (
+         kept blinking could never satisfy the bound requirement and simply stopped advancing. */ else if (
         !s.reloading &&
         !s.clearingStoppage &&
         (!root.BattleAmmunition || root.BattleAmmunition.available(s))
@@ -2136,6 +2147,7 @@
     orderBound: orderBound,
     clearBoundOrders: clearBoundOrders,
     reacting: reacting,
+    guardOnHit: guardOnHit,
     decide: decide,
     suppress: suppress,
     assignSuppressors: assignSuppressors,
