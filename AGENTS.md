@@ -814,8 +814,11 @@ a man does, and that it accumulates.
   Worked example: at 50% health and 60% stress the floor is 30%, and after the fight he recovers some (to 50%, say); in the next fight
   he is at 40% health and a burst of cover fire takes him to 80%, so the floor becomes 60% of 80%, 48%; killing five men could take his
   stress down to 40%, and he holds at 48%. Nothing heals a man today (bleeding eases, `hp` never comes back), so the floor only rises
-  for the rest of the battle, until there are medics: restoring his health is what lowers it (open: whether it falls in proportion to
-  the health restored or is recomputed from the new health).
+  for the rest of the battle, until there are medics: restoring his health is the only thing that lowers it, and it falls in proportion
+  to the health restored, by the same share as his lost health: `floor x lost_now / lost_before`. Where the floor was set with his stress
+  at full, that is the same as taking off the points restored: a floor of 50% at 50% health, healed to 85% (35 points restored), is
+  50% - 35% = 15%, which is 100% health minus 85%. Healed to full, it is gone. A later rise in stress ratchets it up again from the
+  new health.
 - **Relief inside a fight comes from events:** reaching cover while under fire, killing an enemy, taking an objective, and being
   shot at without result ("Nothing in life is so exhilarating as to be shot at without result", Churchill: a man who has been
   under fire and is unhurt steadies; today a round aimed at him only adds stress, so exposure without a hit has to become relief
