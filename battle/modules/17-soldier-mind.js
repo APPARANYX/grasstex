@@ -37,9 +37,9 @@
   'use strict';
   if (!root.SquadAI || !root.BattleModules || !root.BattleSoldierEvents || root.BattleSoldierMind) return;
 
-  var LEVERS = ['react', 'aim', 'hesitate', 'shock', 'morale', 'act'];
-  /* The levers a man's own decisions are counted for (the Squad Leader's `morale` is a squad decision, not a man's, and
-     `act` is Engagement's reactions, counted as `acts`). */
+  var LEVERS = ['react', 'aim', 'hesitate', 'shock', 'morale', 'act', 'lead'];
+  /* The levers a man's own decisions are counted for (the Squad Leader's `morale` and `lead` are squad decisions, not a
+     man's, and `act` is Engagement's reactions, counted as `acts`). */
   var DECIDED = ['react', 'aim', 'hesitate', 'shock'];
   /* What a man carries from one moment of the fight to the next: `lasting`, `floor` and `relief` are all
      on by default. `?stressMem=0` disables all; a comma list enables exactly those named. `lasting`: stress does not drain on its timer while the fight goes on, only once
@@ -236,6 +236,28 @@
       reads: { squadStress: 2, mind: 1, 'mind.mean': 1 },
       unit: 'squad mean stress, 0 unless the morale lever is on: the break point falls 0.3 per unit, rally under 0.15; weight -1.0 on assault and +0.5 on defend',
       flag: '?mind= morale lever; group morale and COA on by default (?morale=0 / ?coa=0 disable their layer)'
+    },
+    {
+      kind: 'lever',
+      lever: 'lead',
+      layer: 'Meso (Squad Leader)',
+      file: 'modules/16-squad-plan-stability.js',
+      reader:
+        'teamStress: fireAndMovement (which fireteam bounds, a bound held); leadStress: stressReview (doctrine-review)',
+      reads: { teamStress: 2, leadStress: 2 },
+      unit: "a fireteam's movers' mean stress (the calmest team that can go is sent; every team at the shaken band holds the cycle); the squad mean over 1/3 for reviewAfter asks the General for a new task",
+      flag: '?mind= lead lever (default on); the Squad Leader reads it only with ?slStress=pick,hold,review (all three on by default; ?slStress=0 is none)'
+    },
+    {
+      kind: 'tooling',
+      lever: 'lead',
+      layer: 'Tooling',
+      file: 'scripts/probes/stress-decisions.js',
+      reader:
+        'the stress-decisions probe re-derives each bound and counts what a stress-driven pick or hold would change',
+      reads: null,
+      unit: 'bound decisions where the calmest team differs, every team shaken, per battle',
+      flag: 'run_probe.cjs'
     },
     {
       kind: 'display',
@@ -739,6 +761,18 @@
      lever is on, so `?mind=0`, `?mind=observe` and a lever list without `morale` leave the flat 60% retreat alone. */
   function squadStress(sq) {
     return on('morale') && sq && sq.mind ? sq.mind.mean || 0 : 0;
+  }
+  /* What the Squad Leader reads to lead its fireteams (module 16, `?slStress=`): the mean stress of the men it would send,
+     and the squad's own mean. Calm men unless the `lead` lever is on, so `?mind=0`, `?mind=observe` and a lever list
+     without `lead` leave the rotation and the brief as they were. */
+  function teamStress(men) {
+    if (!on('lead') || !men || !men.length) return 0;
+    var sum = 0;
+    for (var i = 0; i < men.length; i++) sum += stressOf(men[i]);
+    return sum / men.length;
+  }
+  function leadStress(sq) {
+    return on('lead') && sq && sq.mind ? sq.mind.mean || 0 : 0;
   }
   /* What Engagement reads to decide how he reacts (`?stressAct=`): his band and since when, whether he is under fire, and
      how he tends to break. `temper` is fixed per man, three unit hashes of faction and id (flee, freeze, rage), never the
@@ -1341,6 +1375,8 @@
     version: '1.0',
     BANDS: BANDS,
     LEVERS: LEVERS,
+    teamStress: teamStress,
+    leadStress: leadStress,
     DECIDED: DECIDED,
     tuning: {
       TAU: TAU,
