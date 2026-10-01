@@ -12,7 +12,8 @@
      flee, freeze, rage; nothing enabled or nothing with weight means no break.
    - flee leaves his weapons, runs to his squad's last safe point (else its home), never fires, holds when it arrives
      and releases a firing station (the whole of what follows, the wait, the pick-up and the weapon at base, is
-     fled-man-check.js); freeze holds and does not fire; rage charges, fires on the move and strikes at arm's length,
+     fled-man-check.js); freeze holds, does not fire, scan, track or turn toward contacts, and is not selected as a
+     fresh visual threat while dazed; rage charges, fires on the move and strikes at arm's length,
      and ends when nobody is within RAGE_REACH.
    - A freeze, cower or charge lasts at least REACT_MIN (cower: until the fire is quiet) and ends once he is below
      broken; a flee does not end: he is done with the fight. A squad that is already retreating is not reacted for.
@@ -422,6 +423,67 @@ test('freeze: down where he is, holds, no fire, and does not take a bound or the
   assert.equal(shots, 0);
   assert.ok(dist(p, s.destination) < 0.5, 'where he was');
   assert.ok(dist(p, here(s)) < 0.01, 'and he has not moved');
+});
+
+test('flee is non-threatening, while rage remains an active visual threat', () => {
+  const fled = broke('?stressAct=flee', [0.9, 0, 0], 60, { safe: { x: 0, z: -40 } });
+  assert.equal(fled.s.eng.state, 'flee');
+  fled.ctx.us.members.forEach(o => {
+    if (o !== fled.s) put(o, 1000 + o.id * 10, 1000);
+  });
+  put(fled.g, fled.s.root.position.x, fled.s.root.position.z + 50);
+  fled.g.root.rotation.y = Math.PI;
+  fled.g.target = fled.s;
+  fled.ctx.S.perceive(fled.g, fled.ctx.b);
+  assert.equal(fled.g.target, null, 'an already-tracked fleeing man is dropped');
+  fled.g._scanAt = 0;
+  fled.ctx.S.perceive(fled.g, fled.ctx.b);
+  assert.equal(fled.g.target, null, 'a fleeing man is not reacquired');
+  fled.g.target = fled.s;
+  fled.g.fireCooldown = 0;
+  assert.equal(fled.ctx.S.tryFire(fled.g, fled.ctx.b), false, 'the trigger path also rejects a stale fleeing target');
+
+  const raging = broke('?stressAct=rage', [0, 0, 0.95], 50);
+  assert.equal(raging.s.eng.state, 'rage');
+  raging.ctx.us.members.forEach(o => {
+    if (o !== raging.s) put(o, 1000 + o.id * 10, 1000);
+  });
+  put(raging.g, raging.s.root.position.x, raging.s.root.position.z + 50);
+  raging.g.root.rotation.y = Math.PI;
+  raging.g.target = null;
+  raging.g._scanAt = 0;
+  raging.ctx.S.perceive(raging.g, raging.ctx.b);
+  assert.equal(raging.g.target, raging.s, 'rage stays targetable because the man is still attacking');
+});
+
+test('freeze suspends perception and facing, and opposing perception does not posture around the dazed man', () => {
+  const { ctx, s, g } = broke('?stressAct=freeze', [0, 0.9, 0], 60);
+  assert.equal(s.eng.state, 'freeze');
+
+  /* The frozen man had a live enemy when he broke; the reaction must remove every input that can rotate
+     the stationary root under the Sitting Dazed / other freeze hold. */
+  s.target = g;
+  s._faceHint = { x: g.root.position.x, z: g.root.position.z };
+  const yaw = s.root.rotation.y;
+  ctx.S.perceive(s, ctx.b);
+  assert.equal(s.target, null, 'no target tracking while frozen');
+  ctx.E.updateSoldier(s, ctx.b);
+  assert.equal(s._faceHint, null, 'Engagement clears its own facing hint while frozen');
+  assert.equal(ctx.S.lookYaw(s, ctx.b), yaw, 'no sector scan/head-turn source while frozen');
+
+  /* Park every other US man outside spotting range so the German observer has exactly one possible
+     visual contact. If he was already tracking the man, the target drops; a new scan skips him. */
+  ctx.us.members.forEach(o => {
+    if (o !== s) put(o, 1000 + o.id * 10, 1000);
+  });
+  put(g, s.root.position.x, s.root.position.z + 60);
+  g.root.rotation.y = Math.PI;
+  g.target = s;
+  ctx.S.perceive(g, ctx.b);
+  assert.equal(g.target, null, 'an existing target is dropped when that man freezes');
+  g._scanAt = 0;
+  ctx.S.perceive(g, ctx.b);
+  assert.equal(g.target, null, 'a frozen man is not reacquired as an active visual threat');
 });
 
 test("rage: charges the enemy, fires on the move, strikes at arm's length, and ends when nobody is near", () => {

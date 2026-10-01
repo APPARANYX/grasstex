@@ -917,6 +917,81 @@ sidearms; soldier condition/stress and its lasting-memory path; cower/flee/freez
 2026-10-01); the fled-man lifecycle; Engagement-owned stance/cover; last-known-threat alert posture; and tactical
 firing stations/window ports are existing substrate. Extend these owners instead of creating parallel systems.
 
+**Post-v278 stabilization phases (approved 2026-10-01).** These are deliberately small, sequential
+behavior/observability slices before the larger soldier roadmap below. Each phase gets its own branch/PR, deterministic
+check, and diagnostics proof. Do not fold these into one "AI cleanup" change.
+
+0. **Non-threatening broken states — PR #159.** Finish the current freeze/flee semantics first. `freeze` and
+   `flee` remain physically present but are not deliberate combat targets: Perception drops them, fresh acquisition
+   and shared contact skip them, aimed fire and suppression re-check them, while `rage` remains fully threatening.
+   Frozen men also suspend target scanning and Engagement-owned facing so the dazed pose does not rotate toward enemies.
+   This is the narrow shipping fix discovered in v278. Do not add the duration model to this PR.
+
+1. **Stress tempo -> freeze duration ("shell shock" vs "shell simmer").** Module 17 owns the evidence. Add a bounded
+   recent-stressor ledger/ring to `soldier.mind`: each positive stress contribution records at least `{at, kind, gain}`
+   in sim time, with a short retention window and no combat-RNG draw. The existing lifetime `gained.*` totals remain
+   telemetry; the new recent ledger answers *how fast did this man get here?*
+   - On transition into `broken`, compute a deterministic **dose concentration** from recent positive gain, not from
+     final stress alone. Suggested first model: recent windows at ~2 s / ~6 s / ~15 s plus the stress rise since the
+     beginning of the window. A large fraction of the break threshold arriving in the shortest window is "shell shock";
+     the same total accumulated across the long window is "shell simmer".
+   - Engagement asks Soldier Mind for a freeze-duration multiplier/snapshot **once when freeze begins** and stores the
+     resulting `freezeUntil` on its own reaction state. Module 17 never writes Engagement timers.
+   - Keep a declared floor/ceiling: roughly **4 s minimum**, with a first measurement ceiling around **12-18 s** rather
+     than allowing a broken band to hold the dazed animation indefinitely. Concentrated blast/casualty/wound/incoming
+     doses trend toward the ceiling; slow suppression/leaderless/isolation/contagion accumulation trends toward the
+     floor. Nerve may scale the result only through already-owned stress gain unless a separate explicit rule is proved.
+   - When `freezeUntil` expires, reassess: if still broken, transition into another appropriate reaction/defensive
+     state (normally cower/flee according to existing conditions), otherwise resume through `advance`. **Broken may
+     persist; freeze may not.**
+   - Diagnostics: export recent dose total, shortest-window dose, concentration, dominant stressor kind, chosen
+     multiplier/duration, freeze start/end and exit reason. Harness must prove equal final stress reached quickly freezes
+     longer than equal final stress accumulated slowly, and that no freeze can persist to the end of a long battle solely
+     because the man remains broken.
+
+2. **Retreat-anchor lease / progress stability.** The v278 loop-watch showed repeated legal retreat destinations moving
+   while men made little net progress. Give the Squad Leader's retreat anchor a short lease (start around **4-8 s**) and
+   coalesce small endpoint changes. Keep the current goal while it is legal and producing progress; republish only for a
+   materially moved squad anchor, blocked/unsafe route, enemy-danger invalidation, or measured no-progress timeout.
+   Movement Resolver remains final arbiter. Add a seeded regression for "many retreat requests, one stable useful goal"
+   and measure destination changes/net travel against the v278 pattern before shipping.
+
+3. **Fire-control + posture observability.** Make the new crest/fire-discipline system self-explaining before further
+   tactical tuning.
+   - Full diagnostics per squad: `fireControl.state` (`hold|reposition|precision|open`), since/reason, target, range,
+     living/ready/required-ready, strength, mean MKM, designated shooter, and counts for visual line, ballistic line,
+     terrain/crest blocked and prone-ready.
+   - Keep a small transition trail: e.g. `hold:first-contact -> reposition:no-prone-lines -> open:7/9-ready`.
+   - Add **posture-churn** LoopWatch: flag repeated stand/crouch/prone changes inside a short window (first rule:
+     >=4 changes in 8 s) when there was little net movement and no meaningful change of contact/cover; include every
+     stance reason. This is diagnostic only first. Do not suppress stance changes until the observed writer/reason is
+     known.
+
+4. **Strategic objective-stall recovery.** v278 knew both sides were stalled for ~300 s and `replanDue` was true, but
+   the knowledge did not force useful recovery. Turn the existing coordination-health signal into deterministic Macro
+   escalation, without creating a second planner:
+   - ~120 s: wake/reconcile missing role/target assignments;
+   - ~180 s: release clearly stale hold/support assignments and refill unassigned squads;
+   - ~240 s: reassert one reachable contested/neutral objective as main effort and give enough squads concrete targets;
+   - ~300 s: strategic reset for active squads that are neither usefully defending nor making measurable progress.
+   Exact thresholds are tunables to measure, not promises. Preserve mission/ownership contracts and prove that recovery
+   changes stalled assignment state without oscillating the General every sample.
+
+5. **General threat disposition for soldiers now, civilians later.** Once #159's semantics are stable, replace
+   reaction-specific target checks with one Perception-owned/read-only classification API (name to settle in the phase,
+   e.g. `threatDisposition(unit)` / `isCombatThreat(unit)`). At minimum distinguish **hostile active threat** from
+   **visible non-threat** rather than making non-threats invisible. Today: normal/rage/armed reconstituted soldiers are
+   threats; freeze/flee/waiting fled men are non-threats. Future civilian NPCs can use the same contract without being
+   shoehorned into soldier reaction states. Target acquisition, shared contact, aimed fire, suppression and tactical
+   threat-facing consume that one classification; projectile/wound physics remain independent so non-threat does not mean
+   invulnerable. Add contract tests proving rage stays targetable, fled/frozen/civilian-style non-threats do not drive
+   combat posture, and rearm/reconstitution restores threat status.
+
+**Phase order:** #159 -> stress-tempo freeze -> retreat stability -> observability -> strategic stall recovery -> threat
+API generalisation. The threat API is intentionally last even though #159 establishes its semantics: first prove the
+behavior with soldiers, then extract the reusable NPC contract. If later diagnostics show a dependency that warrants
+moving observability earlier, doing Phase 3 before Phase 2 is safe; do not combine their behavioral changes.
+
 **Next soldier-level slices, in order:**
 
 1. **Squad Leader reads `squad.mind` for local execution.** Today soldier condition rolls upward but the Squad
