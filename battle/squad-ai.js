@@ -86,10 +86,15 @@
      squad from acquiring the same target on the same frame. */
   var SCAN_INTERVAL = 0.3,
     TRACK_MARGIN = 1.15;
-  /* How much of a man each stance leaves visible. Going prone is a real way to avoid being seen,
-     which is what gives the engagement pipeline something to gain by getting down. */
-  var VISIBILITY = { stand: 1, crouch: 0.72, prone: 0.45 },
-    MOVING_VISIBILITY_BONUS = 0.22;
+  /* How much of a man each stance leaves visible. A low, still silhouette should matter without
+     making prone infantry magically disappear: the shipping curve is the midpoint between the old
+     72/45% values and the proposed 50/25% ambush curve. Movement gives some of the concealment back.
+     ?stanceVis=0 restores the pre-2026-10-01 values for paired A/B work. */
+  var STANCE_VIS_ON = !(typeof location !== 'undefined' && /[?&]stanceVis=0\b/.test(location.search || ''));
+  var VISIBILITY = STANCE_VIS_ON
+      ? { stand: 1, crouch: 0.6, prone: 0.35 }
+      : { stand: 1, crouch: 0.72, prone: 0.45 },
+    MOVING_VISIBILITY_BONUS = STANCE_VIS_ON ? 0.18 : 0.22;
   /* View cone. A man spots at full range inside FOCUS_HALF of where he is looking, at a fraction of
      it in his peripheral vision (more if the enemy is moving, which is what catches the eye), and
      behind him only a man right on top of him. He looks where his body faces, or, when his squad
@@ -1206,7 +1211,10 @@
       SCAN_PERIOD: SCAN_PERIOD,
       HEAR_RANGE: HEAR_RANGE,
       HEAR_MEMORY: HEAR_MEMORY,
-      RELAY_RANGE: RELAY_RANGE
+      RELAY_RANGE: RELAY_RANGE,
+      STANCE_VIS_ON: STANCE_VIS_ON,
+      VISIBILITY: VISIBILITY,
+      MOVING_VISIBILITY_BONUS: MOVING_VISIBILITY_BONUS
     },
     engageRange: engageRange,
     tryFire: tryFire,
