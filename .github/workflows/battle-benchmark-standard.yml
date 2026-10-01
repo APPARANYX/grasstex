@@ -1,8 +1,8 @@
 name: M3C Standard Benchmark
 
 # One scripted scenario, two arms. The same seed is stepped unmeasured to first contact, measured for 60 simulated
-# seconds, stepped unmeasured to second 500 and measured for 60 more (`windows`), once with the flags of the OFF arm and
-# once with those of the ON arm. Both arms run one after the other on one runner, so wall time is comparable, and the
+# seconds, then run to the end of the battle with a record at every 60 simulated seconds and at the end (`windows`), once
+# with the flags of the OFF arm and once with those of the ON arm. Both arms run one after the other on one runner, so wall time is comparable, and the
 # records are compared with scripts/compare_benchmark_arms.cjs. Every record carries all the benchmark's stats and
 # telemetry (health, stalls, loops, combat, `timeline`, `stress`), counted inside its window. Nothing is published to
 # the benchmark-results branch: the report is the run summary and the artifact.
@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       seed:
-        description: Scenario seed, used exactly as given. The battle must last past second 500 or the second window never opens (it is reported, not hidden).
+        description: Scenario seed, used exactly as given. A battle that ends early just has fewer checkpoint records.
         required: false
         default: 'scripted-scout-0003'
       query_off:
@@ -27,9 +27,9 @@ on:
         required: false
         default: 'meeting'
       windows:
-        description: Measured windows as <contact|second>+<seconds>, comma separated
+        description: Measured windows, comma separated - <contact|second>+<seconds>, or every<seconds> last (a record at every multiple of it, and at the end)
         required: false
-        default: 'contact+60,500+60'
+        default: 'contact+60,every60'
 
 permissions:
   contents: read
@@ -44,7 +44,7 @@ jobs:
       BATTLE_BENCHMARK_COUNT: '1'
       BATTLE_BENCHMARK_TIME_LIMIT: '600'
       BATTLE_BENCHMARK_STEP: '0.15'
-      BATTLE_BENCHMARK_WINDOWS: ${{ github.event.inputs.windows || 'contact+60,500+60' }}
+      BATTLE_BENCHMARK_WINDOWS: ${{ github.event.inputs.windows || 'contact+60,every60' }}
       BATTLE_BENCHMARK_SEED: ${{ github.event.inputs.seed || 'scripted-scout-0003' }}
       BATTLE_TYPE: ${{ github.event.inputs.battle_type || 'meeting' }}
       QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
