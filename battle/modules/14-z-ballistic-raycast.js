@@ -512,18 +512,31 @@
     shooter._lastBallisticShot = meta;
     return hit;
   }
+  /* One authoritative terrain test for every trigger path. The sight system may still see a head
+     over a crest; this asks whether the actual muzzle-to-aim line intersects the ground first. */
+  function groundLineBlocked(o, aim, battle, clearance) {
+    if (!o || !aim || !battle || !battle.heightAt) return false;
+    var span = Math.hypot(aim.x - o.x, aim.y - o.y, aim.z - o.z);
+    clearance = clearance == null ? FIRE_LINE_BODY : Math.max(0, +clearance || 0);
+    if (!(span > clearance)) return false;
+    var d = { x: (aim.x - o.x) / span, y: (aim.y - o.y) / span, z: (aim.z - o.z) / span };
+    return groundStop(o, d, span, battle) < span - clearance;
+  }
   /* The line the round will fly before dispersion: from the same simulation muzzle used by the
-     shot to the target's body centre, tested against the ground exactly as a round is (groundStop).
-     The trigger-time gate asks this, so a man who sees a head over a crest does not fire a round
-     that the crest takes. */
+     shot to the target's body centre. */
   function fireLineBlocked(shooter, target, battle) {
     if (!shooter || !target || !shooter.root || !target.root || !battle || !battle.heightAt) return false;
-    var o = muzzleOrigin(shooter, target, battle),
-      aim = targetCenter(target, battle),
-      span = Math.hypot(aim.x - o.x, aim.y - o.y, aim.z - o.z);
-    if (!(span > FIRE_LINE_BODY)) return false;
-    var d = { x: (aim.x - o.x) / span, y: (aim.y - o.y) / span, z: (aim.z - o.z) / span };
-    return groundStop(o, d, span, battle) < span - FIRE_LINE_BODY;
+    return groundLineBlocked(muzzleOrigin(shooter, target, battle), targetCenter(target, battle), battle, FIRE_LINE_BODY);
+  }
+  /* Suppressive fire aims at a point rather than a body, but it must obey the same terrain geometry.
+     Use the same semantic muzzle and groundStop scan as aimed fire so a rifle cannot draw a tracer
+     through a hill simply because it is firing at a remembered position. */
+  function pointLineBlocked(shooter, point, battle, aimHeight) {
+    if (!shooter || !shooter.root || !point || !battle || !battle.heightAt) return false;
+    var proxy = { root: { position: { x: point.x, z: point.z } } },
+      o = muzzleOrigin(shooter, proxy, battle),
+      aim = { x: point.x, y: battle.heightAt(point.x, point.z) + (+aimHeight || 0), z: point.z };
+    return groundLineBlocked(o, aim, battle, 0.08);
   }
   function pointDistance(a, b) {
     return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
@@ -559,6 +572,7 @@
     muzzleOrigin: muzzleOrigin,
     ballisticObstacles: ballisticObstacles,
     fireLineBlocked: fireLineBlocked,
+    pointLineBlocked: pointLineBlocked,
     groundSteps: function () {
       return GROUND_STEPS;
     }

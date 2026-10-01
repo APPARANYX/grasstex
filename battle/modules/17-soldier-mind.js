@@ -205,7 +205,7 @@
         'reaction (called each soldier tick when ?stressAct= names a reaction): cower, flee, freeze, rage',
       reads: { view: 1 },
       unit: 'his band, since when, whether he is under fire and his temper: rattled under fire goes to ground, broken runs, stops or charges',
-      flag: '?mind= act lever (default on) and ?stressAct=cower,flee,freeze,rage (off by default)'
+      flag: '?mind= act lever (default on); stress reactions all on by default, ?stressAct=0 disables, a comma list selects exactly named reactions'
     },
     {
       kind: 'telemetry',
