@@ -29,7 +29,7 @@
   'use strict';
   if (!root.SquadAI || !root.BattleModules || !root.BattleSoldierEvents || root.BattleSoldierMind) return;
 
-  var LEVERS = ['react', 'aim', 'hesitate', 'shock'];
+  var LEVERS = ['react', 'aim', 'hesitate', 'shock', 'morale'];
   function parse(search) {
     var m = /[?&]mind=([^&#]*)/.exec(search || ''),
       out = { on: true, flag: 'default', levers: {} },
@@ -381,6 +381,11 @@
   function shockUntil(s) {
     return on('shock') && s && s.mind ? s.mind.shockUntil : 0;
   }
+  /* The squad's mean stress as the Squad Leader reads it for group morale (module 16): calm men unless the `morale`
+     lever is on, so `?mind=0`, `?mind=observe` and a lever list without `morale` leave the flat 60% retreat alone. */
+  function squadStress(sq) {
+    return on('morale') && sq && sq.mind ? sq.mind.mean || 0 : 0;
+  }
   function bandName(s) {
     return BANDS[s && s.mind ? s.mind.band : 0];
   }
@@ -519,6 +524,7 @@
     aimSigma: aimSigma,
     hesitation: hesitation,
     shockUntil: shockUntil,
+    squadStress: squadStress,
     noteHesitation: function (s) {
       if (s && s.mind) s.mind.hesitations++;
     },

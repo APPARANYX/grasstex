@@ -26,7 +26,10 @@ const SEED=+(process.env.HARNESS_SEED||12345);
 function duel(opts){
   opts=opts||{};
   H.resetIds();
-  const root=H.bootstrap(opts);
+  /* These scenarios test Engagement's contract (orient, cover, suppression, holding a sector). Group morale is on by default,
+     and on some seeds (5) a squad that has taken casualties under fire breaks early and leaves the state they assert on, which
+     is the Squad Leader's business, not Engagement's: it has its own checks (`morale-check.js`, `reconstitution-check.js`). */
+  const root=H.bootstrap(Object.assign({search:'?morale=0'},opts));
   const battle=H.makeBattle(root,{obstacles:opts.obstacles||[],seed:SEED});
   const gap=opts.gap==null?70:opts.gap;
   const us=H.addSquad(root,battle,{id:'us-0',faction:'us',x:0,z:-gap/2,objective:{x:0,z:gap/2},facing:0,composition:opts.composition,seed:SEED});
