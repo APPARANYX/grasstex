@@ -1427,8 +1427,8 @@
       }
     });
   }
-  /* Stress in local execution (`?slStress=pick,hold,review`, off by default; `1`/`all` is all three, a list exactly those
-     named). The Squad Leader reads its men's stress through the soldier condition's `lead` lever and changes only its own
+  /* Stress in local execution (`?slStress=pick,hold,review`, all three on by default; `0`/`off` is none, `1`/`all` is all
+     three, a list exactly those named). The Squad Leader reads its men's stress through the soldier condition's `lead` lever and changes only its own
      decisions: `pick` sends the calmest fireteam that can bound instead of the next in rotation (a tie keeps the rotation);
      `hold` skips a bound cycle when every team that could go is at the shaken band; `review` asks the General for a new
      task (the existing doctrine-review request, on a hold/support/regroup brief) once the squad's mean has stayed at or
@@ -1437,8 +1437,8 @@
   function parseSlStress(search) {
     var m = /[?&]slStress=([^&#]*)/.exec(search || ''),
       out = {},
-      v = m ? decodeURIComponent(m[1]).toLowerCase() : '';
-    if (v === '1' || v === 'on' || v === 'all') SL_STRESS_PARTS.forEach(function (k) { out[k] = true; });
+      v = m ? decodeURIComponent(m[1]).toLowerCase() : 'all';
+    if (v === '' || v === '1' || v === 'on' || v === 'all') SL_STRESS_PARTS.forEach(function (k) { out[k] = true; });
     else if (v && v !== '0' && v !== 'off')
       v.split(',').forEach(function (k) {
         if (SL_STRESS_PARTS.indexOf(k) >= 0) out[k] = true;

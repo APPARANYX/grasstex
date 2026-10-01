@@ -246,7 +246,7 @@
         'teamStress: fireAndMovement (which fireteam bounds, a bound held); leadStress: stressReview (doctrine-review)',
       reads: { teamStress: 2, leadStress: 2 },
       unit: "a fireteam's movers' mean stress (the calmest team that can go is sent; every team at the shaken band holds the cycle); the squad mean over 1/3 for reviewAfter asks the General for a new task",
-      flag: '?mind= lead lever (default on); the Squad Leader reads it only with ?slStress=pick,hold,review (off by default)'
+      flag: '?mind= lead lever (default on); the Squad Leader reads it only with ?slStress=pick,hold,review (all three on by default; ?slStress=0 is none)'
     },
     {
       kind: 'tooling',
