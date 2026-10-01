@@ -2342,12 +2342,13 @@
     sq.pinnedCount = pinnedCount;
     sq.effectiveCount = effective;
     var wasInContact = !!sq.inContact;
-    /* Ordinarily contact means a current target or a real suppressor, not bare remembered knowledge.
-       Fire-control preparation is the one deliberate exception: going prone behind a crest can make every
-       current target blink out for a tick, and that must not cancel the Squad Leader's live hold/precision
-       order. Only its recent first-hand contact keeps the preparation alive; heard/relayed word still cannot
-       freeze a squad in place. */
-    sq.inContact = contact > 0 || suppressing > 0 || preparingContact;
+    /* Contact means a current target, a real suppressor, or somebody presently taking fire. Bare
+       remembered knowledge still does not count. Fire-control preparation is the other deliberate exception:
+       going prone behind a crest can make every current target blink out for a tick, and that must not cancel
+       the Squad Leader's live hold/precision/reposition order. Recent first-hand contact keeps that preparation
+       alive; heard/relayed word alone cannot freeze a squad in place. Incoming fire must keep contact live so
+       the Squad Leader can escalate HOLD FIRE to OPEN FIRE instead of clearing the command before reading it. */
+    sq.inContact = contact > 0 || suppressing > 0 || underFireCount > 0 || preparingContact;
     var started = sq.inContact && !wasInContact;
     if (started) {
       sq.contactSince = battle.time;
