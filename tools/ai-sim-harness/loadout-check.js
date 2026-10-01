@@ -62,13 +62,20 @@ test('a dealt squad carries the loadout and the side\'s profile', () => {
     }
   }
 });
-test('an abandoned weapon leaves the soldier while his holstered sidearm remains', () => {
+test('a man who leaves his weapons behind carries none, and is issued his role\'s loadout again at base', () => {
   const b = H.makeBattle(r, { seed: 7 }), sq = H.addSquad(r, b, { id: 'us-drop', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 } }),
     s = sq.members.find(x => x.role === 'sergeant'), primary = s.weapon, secondary = s.secondary;
-  assert.equal(r.BattleWeapons.abandon(s, primary), true);
+  assert.ok(primary && secondary, 'a sergeant carries a submachine gun and a pistol');
+  assert.equal(r.BattleWeapons.abandon(s), primary, 'the primary is what he left');
   assert.equal(s.weapon, null);
-  assert.equal(s.secondary, secondary);
-  assert.equal(r.BattleWeapons.abandon(s, primary), false, 'cannot abandon the same weapon twice');
+  assert.equal(s.secondary, null, 'the holstered sidearm goes with it');
+  assert.equal(r.BattleWeapons.abandon(s), null, 'nothing more to leave');
+  assert.equal(r.SquadAI.rearm(s, null, b), true);
+  assert.notEqual(s.weapon, primary, 'a new weapon, not the one he left');
+  assert.equal(s.weapon.kind, r.SquadAI.loadoutFor('sergeant', 'us').primary);
+  assert.equal(s.secondary.kind, r.SquadAI.loadoutFor('sergeant', 'us').secondary);
+  assert.ok(s.weapon.stats && s.weapon.ammo > 0 && s.weapon.profile, 'the side\'s own weapon with a full magazine');
+  assert.equal(r.SquadAI.rearm(s, null, b), false, 'a man who carries a weapon is not issued another');
 });
 
 function fight() {

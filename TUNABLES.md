@@ -27,6 +27,7 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 ### battle/commander-ai.js
 - `COMMAND_TICK = 0.45` — commander AI tick interval (s)
 - `RECON_STRENGTH = 10` — recon squad size
+- `FLED_PICKUP_RANGE = 50` — a retreating squad out of contact this near a fled man waiting at his refuge takes him in (m); `BattleCommanderAI.fledPickupRange`
 
 ### battle/battle-sim.js
 - `AI_TICK = 0.15` — main AI tick interval (s)
@@ -47,7 +48,7 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 - `BOUND_METERS = 6.5` — bound distance (m)
 - `MAX_SUPPRESSORS = 2` — max suppressors per target
 - `PREWARNED_REACT = 0.55` — pre-warned reaction time (s)
-- `ACT_TUNING = { COWER_QUIET: 3, REACT_MIN: 4, FLEE_RANGE: 40, FLEE_BACK: 25, FLEE_ARRIVED: 1.5, FLEE_REPICK: 4, FLEE_TRIES: 2, FLEE_NO_THREAT: 0.3, FREEZE_NOT_UNDER_FIRE: 0.7, TROUBLE_AGE: 20, RAGE_RANGE: 120, RAGE_REACH: 160, MELEE_RANGE: 2.2, MELEE_PERIOD: 1.4, MELEE_HIT: 0.6, MELEE_ENERGY: 0.8, MELEE_POWER: 0.6, RAGE_GUARD_SECONDS: 5, RAGE_GUARD_SCALE: 0.25 }` — stress reactions behind `?stressAct=` (s, m, weights, chances; the guard is the share of a hit a berserk man takes for the first seconds); exposed as `BattleEngagement.tuning.ACT_TUNING`
+- `ACT_TUNING = { COWER_QUIET: 3, REACT_MIN: 4, FLEE_ARRIVED: 1.5, FLEE_REPICK: 4, FLEE_TRIES: 2, FLED_WAIT: 180, FLED_ENEMY_NEAR: 80, FLED_SAFE: 80, FLED_HOME_RADIUS: 12, FLEE_NO_THREAT: 0.3, FREEZE_NOT_UNDER_FIRE: 0.7, TROUBLE_AGE: 20, RAGE_RANGE: 120, RAGE_REACH: 160, MELEE_RANGE: 2.2, MELEE_PERIOD: 1.4, MELEE_HIT: 0.6, MELEE_ENERGY: 0.8, MELEE_POWER: 0.6, RAGE_GUARD_SECONDS: 5, RAGE_GUARD_SCALE: 0.25 }` — stress reactions behind `?stressAct=` (s, m, weights, chances; the guard is the share of a hit a berserk man takes for the first seconds; `FLED_*` are a fled man's wait at his refuge, how near an enemy sends him home, how near a known enemy makes a refuge unsafe, and how near home he is at base); exposed as `BattleEngagement.tuning.ACT_TUNING`
 
 ### battle/movement-resolver.js
 - `ORDER_COMMIT = 1.35` — order commitment time (s)
@@ -76,6 +77,7 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 - `LEADER_CALM = 0.65` — leader calming effect
 - `REACT_GAIN = 0.6` — reaction time gain (up to 1.6x)
 - `CALM_AFTER = 12` — `?stressMem=lasting`: seconds out of contact and out of fire before stress drains (s)
+- `FLED_FLOOR = 0.2` — a man who has fled never calms below this stress, at base or anywhere; `BattleSoldierMind.tuning.FLED_FLOOR`
 - `RELIEF = { kill: 0.12, objective: 0.15, cover: 0.06, survived: 0.05 }` — `?stressMem=relief`: stress taken off by each kind, times his nerve
 
 ### 10-soldier-stats.js

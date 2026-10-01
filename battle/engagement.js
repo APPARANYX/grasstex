@@ -1037,11 +1037,12 @@
     },
     flee: {
       meaning:
-        'Break and run from the threat to cover or the rear, and stay there: no fire, no orders (broken, ?stressAct=flee)',
+        'Break for good: leave the weapons, run to the last safe point, wait there for a retreating squad, run home when one comes, an enemy gets near or the wait is over, and be issued a weapon at base (broken, ?stressAct=flee)',
       enteredBy: 'broken, where there is something to run from',
-      exits: 'calm below broken for REACT_MIN -> advance; squad retreat -> withdraw',
+      exits:
+        'issued a weapon at base -> advance (a man of a retreating squad again); nothing else, not even calm',
       rate: '0.15 s',
-      next: ['advance', 'withdraw', 'station']
+      next: ['advance']
     },
     freeze: {
       meaning: 'Break and stop: down where he is, no fire, no orders (broken, ?stressAct=freeze)',
@@ -1294,11 +1295,13 @@
   var ACT_TUNING = {
     COWER_QUIET: 3, // cower: he stays down until the fire on him has been quiet this long
     REACT_MIN: 4, // a break lasts at least this long: nobody snaps out of it in a tick
-    FLEE_RANGE: 40, // he looks for cover this far from where he stands
-    FLEE_BACK: 25, // with none, he runs this far from the threat (toward the rear if there is no threat)
-    FLEE_ARRIVED: 1.5,
-    FLEE_REPICK: 4, // seconds without headway before he looks again ...
-    FLEE_TRIES: 2, // ... at most this many times, then he stays where he is
+    FLEE_ARRIVED: 1.5, // he is at his refuge this near it
+    FLEE_REPICK: 4, // seconds without headway that count as one try ...
+    FLEE_TRIES: 2, // ... after this many a man who cannot reach his refuge waits where he is
+    FLED_WAIT: 180, // at his refuge a fled man waits this long for a retreating squad, then goes home on his own
+    FLED_ENEMY_NEAR: 80, // an enemy known this near him sends him home at once
+    FLED_SAFE: 80, // a refuge is safe when no known enemy is this near it, else he goes to his squad's home
+    FLED_HOME_RADIUS: 12, // he is at base this near his squad's home point: he is issued a weapon again
     FLEE_NO_THREAT: 0.3, // running from nothing in particular: how much his temper to flee counts
     FREEZE_NOT_UNDER_FIRE: 0.7, // stopping when nobody is shooting at him: how much his temper to freeze counts
     TROUBLE_AGE: 20, // a sighting this old still counts as where the trouble is
@@ -1359,45 +1362,18 @@
       if (w[order[i]] > 0 && (!best || w[order[i]] > w[best])) best = order[i];
     return best;
   }
-  /* Cover away from the trouble, else a point further from it (or the squad's rear with no trouble). Chosen once; the
-     goal then stands until he reaches it (`flee` looks again only if he makes no headway). */
+  /* Where a man who has broken for good runs first: the last place his squad stood out of contact with nobody known
+     near (the Squad Leader's `safePoint`), unless the trouble is known to be near it, then its home. Chosen once. */
   function pickRefuge(s, battle) {
     var e = state(s),
       p = posOf(s),
+      sq = s.squad,
       th = trouble(s, battle),
-      rear = s.squad && (s.squad.rally || s.squad.home),
-      ax = 0,
-      az = 0;
-    if (th) {
-      ax = p.x - th.x;
-      az = p.z - th.z;
-    } else if (rear) {
-      ax = rear.x - p.x;
-      az = rear.z - p.z;
-    }
-    var len = Math.hypot(ax, az);
-    if (len < 0.5) {
-      e.refuge = { x: p.x, z: p.z };
-    } else {
-      ax /= len;
-      az /= len;
-      var cover = th
-        ? findCover(s, battle, {
-            maxRange: ACT_TUNING.FLEE_RANGE,
-            evade: true,
-            forward: { x: ax, z: az },
-            threat: { root: { position: th } }
-          })
-        : null;
-      if (cover) {
-        e.cover = cover;
-        e.refuge = { x: cover.x, z: cover.z };
-      } else {
-        e.cover = null;
-        var back = th ? ACT_TUNING.FLEE_BACK : Math.min(ACT_TUNING.FLEE_BACK, len);
-        e.refuge = { x: p.x + ax * back, z: p.z + az * back };
-      }
-    }
+      safe = sq && sq.safePoint,
+      home = e.fledHome || (sq && sq.home) || { x: p.x, z: p.z },
+      pt = safe && !(th && dist(safe.x, safe.z, th.x, th.z) < ACT_TUNING.FLED_SAFE) ? safe : home;
+    e.cover = null;
+    e.refuge = { x: pt.x, z: pt.z };
     e.refugeBest = dist(p.x, p.z, e.refuge.x, e.refuge.z);
     e.refugeAt = battle.time;
   }
@@ -1413,41 +1389,115 @@
     holdPosition(s, battle);
     commitStance(s, battle, 'crouch', 1.0);
   }
-  function flee(s, battle) {
+  /* Run to `goal`. True when he is there (within `radius`). Making no headway for FLEE_REPICK seconds counts a try; with
+     `stayWhenStuck` he stays where he is after FLEE_TRIES (a man does not run off the map), else he keeps trying. */
+  function runTo(s, battle, goal, radius, stayWhenStuck) {
+    var e = state(s),
+      p = posOf(s),
+      d = dist(p.x, p.z, goal.x, goal.z);
+    if (d <= radius) return true;
+    if (d < e.refugeBest - 0.5) {
+      e.refugeBest = d;
+      e.refugeAt = battle.time;
+    } else if (battle.time - e.refugeAt >= ACT_TUNING.FLEE_REPICK) {
+      e.refugeAt = battle.time;
+      if (stayWhenStuck && (e.refugeTries = (e.refugeTries || 0) + 1) > ACT_TUNING.FLEE_TRIES) return true;
+    }
+    markUrgent(s, battle, 0.5);
+    commitStance(s, battle, s.suppressedUntil > battle.time ? 'crouch' : 'stand', 0.5);
+    move(s, battle, goal, 'flee');
+    return false;
+  }
+  /* He broke for good (`flee`): he leaves his weapons where he stands, tells the soldier condition (stress never
+     drains below FLED_FLOOR) and runs. The Squad Leader hears of him through the squad report (`fled`) and lets him go
+     from the roster; he stays on his own until a retreating squad picks him up or he reaches base. */
+  function beginFled(s, battle) {
+    var e = state(s),
+      sq = s.squad,
+      W = root.BattleWeapons;
+    e.fledPhase = 'run';
+    e.fledAt = battle.time;
+    e.fledHome = sq && sq.home ? { x: sq.home.x, z: sq.home.z } : { x: posOf(s).x, z: posOf(s).z };
+    e.refuge = null;
+    e.refugeHere = false;
+    e.refugeTries = 0;
+    if (W && W.abandon) W.abandon(s);
+    relief('fled', s, battle, {});
+    telemetry(battle, 'decision-fled', {
+      faction: s.faction,
+      soldier: s.id,
+      squad: sq ? sq.id : null,
+      weaponLeft: !s.weapon
+    });
+  }
+  function goHome(s, battle, why) {
     var e = state(s),
       p = posOf(s);
+    e.fledPhase = 'home';
+    e.fledAt = battle.time;
+    e.refugeHere = false;
+    e.refuge = null;
+    e.refugeBest = dist(p.x, p.z, e.fledHome.x, e.fledHome.z);
+    e.refugeAt = battle.time;
+    noteAct(s, 'flee', why);
+  }
+  /* Called by the General when a retreating squad takes him in (status flows up, intent down): his wait is over and he
+     goes home with them. Only a man waiting at his refuge can be picked up. */
+  function releaseFled(s, battle, why) {
+    var e = s && s.eng;
+    if (!e || e.fledPhase !== 'wait') return false;
+    goHome(s, battle, why || 'pickup');
+    return true;
+  }
+  function fledPhase(s) {
+    return (s && s.eng && s.eng.fledPhase) || null;
+  }
+  /* A man who has fled is on his own and outranks even his squad's retreat: he runs to his refuge, waits there for
+     FLED_WAIT seconds for a retreating squad to take him in, and goes home when one does, when an enemy gets near him or
+     when the wait is over. At base he is issued a weapon again and rejoins the fight only through reconstitution. */
+  function fledTick(s, battle) {
+    var e = state(s),
+      p = posOf(s),
+      now = battle.time,
+      T = ACT_TUNING,
+      dt = clamp(now - (e.fledTickAt || now), 0, 0.5);
+    e.fledTickAt = now;
+    noteAct(s, 'flee', 'time', dt);
     s.state = 'retreat';
     s.setUp = false;
-    if (!e.refuge) pickRefuge(s, battle);
-    var r = e.refuge,
-      d = dist(p.x, p.z, r.x, r.z);
-    /* The goal stands until he is there. If he makes no headway for FLEE_REPICK he looks again, at most FLEE_TRIES
-       times, and then stays where he is: a man does not run after a threat that moves, nor off the map. */
-    if (d > ACT_TUNING.FLEE_ARRIVED) {
-      if (d < e.refugeBest - 0.5) {
-        e.refugeBest = d;
-        e.refugeAt = battle.time;
-      } else if (battle.time - e.refugeAt >= ACT_TUNING.FLEE_REPICK) {
-        if ((e.refugeTries = (e.refugeTries || 0) + 1) > ACT_TUNING.FLEE_TRIES) e.refuge = { x: p.x, z: p.z };
-        else pickRefuge(s, battle);
-        r = e.refuge;
-        d = dist(p.x, p.z, r.x, r.z);
+    if (e.state !== 'flee') transition(s, battle, 'flee', 0, 'fled');
+    if (e.fledPhase === 'run') {
+      if (!e.refuge) pickRefuge(s, battle);
+      if (!runTo(s, battle, e.refuge, T.FLEE_ARRIVED, true)) return;
+      e.fledPhase = 'wait';
+      e.fledAt = now;
+      e.refugeHere = true;
+      noteAct(s, 'flee', 'wait');
+    }
+    if (e.fledPhase === 'wait') {
+      var th = trouble(s, battle);
+      if (th && dist(p.x, p.z, th.x, th.z) <= T.FLED_ENEMY_NEAR) goHome(s, battle, 'enemy');
+      else if (now - e.fledAt >= T.FLED_WAIT) goHome(s, battle, 'timeout');
+      else {
+        noteAct(s, 'flee', 'waiting', dt);
+        move(s, battle, { x: p.x, z: p.z }, 'flee'); // a hold that beats his squad of one's order home
+        commitStance(s, battle, PRONE_ROLES[s.role] && s.suppressedUntil > now ? 'prone' : 'crouch', 1.0);
+        return;
       }
     }
-    e.refugeHere = d <= ACT_TUNING.FLEE_ARRIVED;
-    if (!e.refugeHere) {
-      markUrgent(s, battle, 0.5);
-      commitStance(s, battle, s.suppressedUntil > battle.time ? 'crouch' : 'stand', 0.5);
-      move(s, battle, r, 'flee');
-    } else {
-      holdPosition(s, battle);
-      commitStance(
-        s,
-        battle,
-        PRONE_ROLES[s.role] && s.suppressedUntil > battle.time ? 'prone' : 'crouch',
-        1.0
-      );
-    }
+    if (!runTo(s, battle, e.fledHome, T.FLED_HOME_RADIUS, false)) return;
+    /* At base: a new weapon, and he is a man of a retreating squad again, recovering. */
+    if (SA().rearm) SA().rearm(s, battle.scene, battle);
+    noteAct(s, 'flee', 'rearmed');
+    telemetry(battle, 'decision-fled-rearmed', {
+      faction: s.faction,
+      soldier: s.id,
+      squad: s.squad ? s.squad.id : null,
+      armed: !!s.weapon
+    });
+    e.fledPhase = null;
+    e.fledHome = null;
+    composed(s, battle, 'flee');
   }
   /* A blow at arm's length: a pseudo-shot through the wound model (a chest hit, less than a rifle round's energy). */
   function strike(s, battle, target) {
@@ -1536,6 +1586,7 @@
       e.suppressOrder = false;
       e.cover = null;
       if (want === 'rage') e.guardUntil = now + ACT_TUNING.RAGE_GUARD_SECONDS;
+      if (want === 'flee') beginFled(s, battle);
       noteAct(s, want, 'start');
     }
     if (!want) return false;
@@ -1544,7 +1595,7 @@
     noteAct(s, want, 'time', dt);
     if (want === 'cower') cower(s, battle);
     else if (want === 'freeze') freeze(s, battle);
-    else if (want === 'flee') flee(s, battle);
+    else if (want === 'flee') fledTick(s, battle);
     else if (!rage(s, battle)) {
       composed(s, battle, 'rage');
       return false;
@@ -1591,6 +1642,7 @@
     /* Squad withdrawal and claimed building stations outrank every individual drill. Both go
        through transition() so the state is honest: the squad counters and the operator readout read it,
        and a man coming off a retreat re-decides instead of resuming a stale firefight state. */
+    if (e.fledPhase) return fledTick(s, battle);
     if (s.squad && s.squad.state === 'retreat') {
       transition(s, battle, 'withdraw', 0, 'squad withdrawing');
       return withdraw(s, battle);
@@ -2029,12 +2081,14 @@
        base of fire rather than the previous one's. */
     var known = SA().squadContact ? SA().squadContact(sq, battle) : null;
     var suppressing = assignSuppressors(sq, battle, members, known),
-      broken = [];
+      broken = [],
+      fled = [];
     for (i = 0; i < members.length; i++) {
       s = members[i];
       if (s.dead) continue;
       var e = state(s);
       if (ACTING[e.state] === 1) broken.push(s);
+      if (e.fledPhase === 'run' || e.fledPhase === 'wait') fled.push(s); // for the Squad Leader to let go from the roster
       if (s.target) contact++;
       if (e.state === 'pinned' || s.suppressedUntil > battle.time) pinnedCount++;
       /* A man putting rounds on the known position IS the base of fire - that is the entire point
@@ -2084,7 +2138,8 @@
       effective: effective,
       pinned: pinnedCount,
       fireSupport: fireSupport,
-      reacting: broken
+      reacting: broken,
+      fled: fled
     };
   }
   /* The Squad Leader's bound order, stored as Micro state and consumed once by orderedBound(). */
@@ -2147,6 +2202,8 @@
     orderBound: orderBound,
     clearBoundOrders: clearBoundOrders,
     reacting: reacting,
+    fledPhase: fledPhase,
+    releaseFled: releaseFled,
     guardOnHit: guardOnHit,
     decide: decide,
     suppress: suppress,
