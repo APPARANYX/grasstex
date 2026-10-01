@@ -662,7 +662,8 @@ drill releases so normal Engagement cover-seeking can move men to a viable fight
 position from which only crouch/stand clears the obstacle may count ready in that lowest viable fighting stance;
 prone remains the preferred initial ambush posture, not a terrain deadlock. Engagement's trigger and suppressive-fire
 paths both read the same permission. A man who is already being shot at (suppressed or aimed at in the last 3 s)
-may return fire immediately, and the Squad Leader opens the squad on its next tick.
+may return fire immediately, **incoming fire itself keeps the squad in contact**, and the Squad Leader opens the
+squad on its next tick even if the posture change briefly cost everyone visual target lock.
 
 The normal volley target is deliberately not "all ten men or deadlock": all available men adopt the low posture,
 but the leader accepts the firing line when 70% of the commanded survivors (minimum three) are stationary, prone,
