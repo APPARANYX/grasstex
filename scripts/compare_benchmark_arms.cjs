@@ -1,7 +1,8 @@
 /* Paired report for two standard-benchmark arms run on one seed prefix.
  *   node scripts/compare_benchmark_arms.cjs [--json] [--count path ...] A.json[,A2.json] B.json[,B2.json]
  * Each argument is a merged battle-benchmark.json (a comma list pools several seed prefixes; the two
- * lists must hold the same prefixes in the same order). Battles pair on `seed`. Reported:
+ * lists must hold the same prefixes in the same order). Battles pair on `seed`: a scripted run's records are one per
+ * measured window, `<seed>-contact` and `<seed>-t500`, so a window only one arm reached is `unpaired`. Reported:
  *   - per-battle identity (every field except wall time and run provenance) and how many battles changed at all,
  *     and, when the records carry a `timeline`, the simulated second at which the changed battles first diverge;
  *   - exact two-sided McNemar (binomial on the discordant pairs) for the winner (US vs GE flips),
@@ -19,12 +20,13 @@
  * while the timeline's clock starts again whenever a man stops qualifying. For an arm that holds men in place, read the
  * timeline's numbers: with every reaction off the two agree (39 reports, 45 onsets on main); with `stressAct=cower`
  * 78 reports and 40 onsets.
+ * `--count casualties` is the men lost by both sides (usKills + geKills) as of each record's close.
  * Exit 1 on any runtime error or a median wall-time slowdown above 25%. Nothing is tuned here:
  * it reports, the caller decides what a number means. With ~30 comparisons a p of 0.01 is not a finding. */
 'use strict';
 const fs = require('node:fs');
 const GATE = 1.25;
-const NOT_STATE = new Set(['wallSeconds', 'index', 'cpuWallSeconds']);
+const NOT_STATE = new Set(['wallSeconds', 'windowWallSeconds', 'index', 'cpuWallSeconds']);
 /* Provenance that names the run and not the battle, left out of identity: the page's BATTLE_REF is
    `local-<mtime of the checkout>`, so the timeline's `ref` differs between any two runs of one commit. */
 const NOT_STATE_PATHS = ['timeline.ref', 'timeline.build'];
@@ -73,7 +75,9 @@ function stalledSeries(b) {
 }
 const DERIVED = {
   'timeline.stalledOnsets': b => stalledSeries(b).onsets,
-  'timeline.stalledSamples': b => stalledSeries(b).manSeconds
+  'timeline.stalledSamples': b => stalledSeries(b).manSeconds,
+  /* Men lost by both sides as of the record's close (each side's `kills` is what it dealt): the one number that says how much fighting a window held. */
+  casualties: b => (+b.usKills || 0) + (+b.geKills || 0)
 };
 const at = (o, p) => (DERIVED[p] ? DERIVED[p](o) : p.split('.').reduce((v, k) => (v == null ? v : v[k]), o));
 /* A copy of `o` without the field at `parts`, sharing everything it does not touch. */
