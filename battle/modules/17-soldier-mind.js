@@ -222,10 +222,10 @@
       lever: 'morale',
       layer: 'Meso (Squad Leader)',
       file: 'modules/16-squad-plan-stability.js',
-      reader: 'squadStress: updateSquadState (group break and rally), COA_INPUTS.stress (?coa=1)',
+      reader: 'squadStress: updateSquadState (group break and rally), COA_INPUTS.stress (COA default on)',
       reads: { squadStress: 2, mind: 1, 'mind.mean': 1 },
       unit: 'squad mean stress, 0 unless the morale lever is on: the break point falls 0.3 per unit, rally under 0.15; weight -1.0 on assault and +0.5 on defend',
-      flag: '?mind= morale lever; group morale on by default (?morale=0 is the flat rule), COA ?coa=1 (off by default)'
+      flag: '?mind= morale lever; group morale and COA on by default (?morale=0 / ?coa=0 disable their layer)'
     },
     {
       kind: 'display',
