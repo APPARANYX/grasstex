@@ -19,7 +19,9 @@
  *                     a dealt variant, e.g. us/scout/thompson.fbx
  *   CLOSEUP_POSES     Motion Lab poses: idle aim fire reload walk walk-aim strafe run sprint crouch
  *                     crouch-aim crouch-walk prone prone-aim prone-crawl stand>prone prone>stand
- *                     stand>crouch death.front death.back death.side (default aim)
+ *                     stand>crouch death.front death.back death.side; stress reactions:
+ *                     reaction.cower, reaction.freeze-standing, reaction.freeze-sitting,
+ *                     reaction.freeze-fallen, reaction.flee, reaction.rage (default aim)
  *   CLOSEUP_TIMES     seconds into the pose, comma-separated (default 1.5)
  *   CLOSEUP_VIEWS     front, side (or right, as closeup_battle.cjs calls it), back, left,
  *                     three-quarter, top (default front,side)
@@ -48,6 +50,8 @@ const FRAMING = list(process.env.CLOSEUP_FRAMING || 'body,hands');
 const OUT = path.resolve(process.env.CLOSEUP_OUT || path.join(os.tmpdir(), 'closeups'));
 const [W, H] = String(process.env.CLOSEUP_SIZE || '900x900').split('x').map(Number);
 const ALPHA = { front: -Math.PI / 2, side: 0, right: 0, back: Math.PI / 2, left: Math.PI, 'three-quarter': -Math.PI / 4, top: -Math.PI / 2 };
+const REACTION_POSES = ['reaction.cower', 'reaction.freeze-standing', 'reaction.freeze-sitting',
+  'reaction.freeze-fallen', 'reaction.flee', 'reaction.rage'];
 const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
 
 (async () => {
@@ -74,7 +78,8 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
   await page.goto(URL + (URL.includes('?') ? '&' : '?') + 'seed=closeup', { waitUntil: 'load', timeout: 180000 });
   await page.waitForFunction(() => !!(window.__battle__ && window.BattleSoldierModel && window.BattleWeapons && window.SquadAI), null, { timeout: 180000 });
   const poses = await page.evaluate(() => [...document.querySelectorAll('#animationLabPose option')].map(o => o.value));
-  for (const p of POSES) if (!poses.includes(p)) throw new Error(`unknown pose ${p}; use ${poses.join(' ')}`);
+  for (const p of POSES) if (!poses.includes(p) && !REACTION_POSES.includes(p))
+    throw new Error(`unknown pose ${p}; use ${poses.concat(REACTION_POSES).join(' ')}`);
 
   await page.evaluate(async ({ W, H }) => {
     const sim = window.__battle__;
@@ -110,7 +115,12 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
       const { scene } = window.__closeup, M = BattleSoldierModel, FPS = 30;
       const kind = SquadAI.LOADOUTS[who.role] && SquadAI.loadoutFor(who.role, who.faction).primary;
       if (!kind) return { error: 'unknown role ' + who.role };
-      if (window.__closeup.soldier) window.__closeup.soldier.root.dispose();
+      if (window.__closeup.soldier) {
+        const old = window.__closeup.soldier;
+        if (old.weapon && old.weapon.mesh && !old.weapon.mesh.parent) old.weapon.mesh.dispose();
+        if (old.weapon && old.weapon.bipodMesh && !old.weapon.bipodMesh.parent) old.weapon.bipodMesh.dispose();
+        old.root.dispose();
+      }
       const s = M.createSoldier(scene, who.faction, who.role, null);
       window.__closeup.soldier = s;
       s.root.position.set(0, 0, 0); s.root.rotation.y = Math.PI;
@@ -130,6 +140,24 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
       if (pose === 'reload') { s.reloading = true; M.triggerAnimation(s, M.TAGS.reload, { duration: 2.6 }); }
       if (pose === 'fire') M.triggerAnimation(s, M.TAGS.fire, {});
       if (pose.indexOf('death.') === 0) { s.dead = true; s.deathVariant = pose.slice(6); s.deathSide = 1; s.deathTag = pose; M.triggerAnimation(s, pose, {}); }
+      if (pose.indexOf('reaction.') === 0) {
+        const kind = pose.split(/[.-]/)[1];
+        s.eng = { state: kind === 'rage' ? 'rage' : kind, refugeHere: false, strikeAt: kind === 'rage' ? 1 : 0 };
+        if (kind === 'flee') s.moveSpeed = 3.5;
+        if (kind === 'rage') {
+          s.moveSpeed = 3.9;
+          s.target = { root: { position: new BABYLON.Vector3(0, 0, -2) } };
+        }
+        if (kind === 'freeze') {
+          const want = { standing: 0, sitting: 1, fallen: 2 }[pose.split('-')[1]];
+          const pick = id => {
+            const text = `${s.faction}:${id}`; let h = 2166136261;
+            for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
+            return (h >>> 0) % 3;
+          };
+          for (let id = 1; id < 100; id++) if (pick(id) === want) { s.id = id; break; }
+        }
+      }
       if (s._fbx) s._fbx.idleKey = 'idle';
       const MOTION = { walk: [1.5, 0], 'walk-aim': [1.5, 0], strafe: [1.4, Math.PI / 2], run: [3.9, 0], sprint: [5.3, 0], 'crouch-walk': [1.4, 0], 'prone-crawl': [.45, 0] };
       let clock = 0, vx = 0, vz = 0, switched = false;
@@ -138,7 +166,9 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
         clock += dt;
         if (pose === 'fire' && clock > 1.1) { clock = 0; M.triggerAnimation(s, M.TAGS.fire, {}); }
         if (pose.indexOf('>') > 0 && clock > .7 && !switched) { switched = true; const to = pose.split('>')[1]; M.setProne(s, to === 'prone'); M.setCrouch(s, to === 'crouch'); }
-        if (motion) { const h = s.root.rotation.y + motion[1]; vx += Math.sin(h) * motion[0] * dt; vz += Math.cos(h) * motion[0] * dt; s.root.position.x = vx; s.root.position.z = vz; }
+        const reactionMotion = pose === 'reaction.flee' ? 3.5 : pose === 'reaction.rage' ? 3.9 : 0;
+        if (motion || reactionMotion) { const h = s.root.rotation.y + (motion ? motion[1] : 0), speed = motion ? motion[0] : reactionMotion;
+          vx += Math.sin(h) * speed * dt; vz += Math.cos(h) * speed * dt; s.root.position.x = vx; s.root.position.z = vz; }
         M.animateWalk(s, dt, motion ? Math.min(1, motion[0] / 5.3) : 0);
         s.root.position.x = 0; s.root.position.z = 0;
       }
@@ -147,17 +177,19 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
       return {
         rig: fx ? 'fbx' : 'procedural', model: fx && fx.file || null, weapon: s.weapon && s.weapon.model || null,
         clip: lower ? lower.clip.file : null, upperClip: upper ? upper.clip.file : null,
+        weaponDropped: !!(s.weapon && s.weapon.mesh && !s.weapon.mesh.parent),
         twoHand: fx ? fx.twoHand || 0 : null, supportErrorCm: fx ? fx.supportErrorCm : null, supportReason: fx ? fx.supportReason || null : null
       };
     }, { who, pose, t });
     const base = { soldier: `${who.faction}/${who.role}${who.weapon ? '/' + who.weapon : ''}`, pose, time: t };
     if (state.error) { shots.push({ ...base, error: state.error }); continue; }
     for (const framing of FRAMING) for (const view of VIEWS) {
-      await page.evaluate(({ framing, view, alpha }) => {
+      await page.evaluate(({ framing, view, alpha, pose }) => {
         const { scene, camera, soldier } = window.__closeup, V = BABYLON.Vector3;
         const nodes = soldier.root.getDescendants(false);
         const hand = side => nodes.find(n => new RegExp('^' + side + '\\s*hand$', 'i').test(String(n.name).replace(/^.*[:|]/, '')));
-        let target = new V(0, soldier.prone ? .3 : soldier.crouching ? .7 : .95, 0), radius = soldier.prone ? 2.2 : 2.6;
+        const reactionLow = /^reaction\.(cower|freeze)/.test(pose);
+        let target = new V(0, soldier.prone ? .3 : reactionLow ? .5 : soldier.crouching ? .7 : .95, 0), radius = soldier.prone ? 2.2 : reactionLow ? 3 : 2.6;
         if (framing === 'hands') {
           const r = hand('right'), l = hand('left');
           const pts = [r, l].filter(Boolean).map(n => n.getAbsolutePosition());
@@ -170,7 +202,7 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
         }
         camera.setTarget(target); camera.radius = radius; camera.alpha = alpha; camera.beta = view === 'top' ? .35 : 1.2;
         scene.render();
-      }, { framing, view, alpha: ALPHA[view] });
+      }, { framing, view, alpha: ALPHA[view], pose });
       const file = `${slug(who.faction)}-${slug(who.role)}-${slug(state.weapon || 'none')}-${slug(pose)}-${t.toFixed(2)}s-${framing}-${view}.png`;
       await page.locator('#closeupCanvas').screenshot({ path: path.join(OUT, file) });
       shots.push({ ...base, file, framing, view, ...state });
@@ -179,7 +211,7 @@ const slug = s => String(s).replace(/\.fbx$/i, '').replace(/[^a-z0-9]+/gi, '-').
   fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({ url: URL, sidecar: process.env.CLOSEUP_SIDECAR || null, fbx: ready, shots, errors }, null, 1));
   console.log(`OUT ${OUT}`);
   for (const s of shots) console.log(s.error ? `FAIL ${s.soldier} ${s.pose}: ${s.error}`
-    : `SHOT ${s.file} clip=${s.clip}${s.upperClip ? '+' + s.upperClip : ''} twoHand=${s.twoHand} supportErrorCm=${s.supportErrorCm}`);
+    : `SHOT ${s.file} clip=${s.clip}${s.upperClip ? '+' + s.upperClip : ''} weaponDropped=${s.weaponDropped} twoHand=${s.twoHand} supportErrorCm=${s.supportErrorCm}`);
   errors.forEach(e => console.log('PAGE ERROR ' + e));
   await browser.close();
   if (errors.length || shots.some(s => s.error)) process.exit(1);
