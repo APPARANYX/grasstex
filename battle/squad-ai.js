@@ -1007,6 +1007,14 @@
     return soldier;
   }
 
+  /* Perception owns soldier.target. Other layers that need to end tracking route through this
+     accessor instead of writing the field directly. */
+  function clearTarget(soldier) {
+    if (!soldier) return false;
+    soldier.target = null;
+    return true;
+  }
+
   function setDestination(soldier, next, battle, urgent) {
     if (!next) return;
     if (root.BattleMovementResolver)
@@ -1058,8 +1066,7 @@
     /* Frozen means dazed, not secretly scanning under the full-body clip. Clear both target and facing
        input here, before the ordinary tracking/acquisition path can refresh squad contact. */
     if (reactionState(soldier) === 'freeze') {
-      soldier.target = null;
-      soldier._faceHint = null;
+      clearTarget(soldier);
       return role;
     }
     var had = soldier.target;
@@ -1218,6 +1225,7 @@
     retreatGoal: retreatGoal,
     formationFor: formationFor,
     setDestination: setDestination,
+    clearTarget: clearTarget,
     hasLineOfSight: hasLineOfSight,
     detectionRange: detectionRange,
     findTarget: findTarget,
