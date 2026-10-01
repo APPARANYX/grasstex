@@ -75,6 +75,9 @@
     if (st.byZone[zone]) st.byZone[zone][cause]++;
     s.casualty = { zone: zone, cause: cause, at: +battle.time || 0, by: by ? by.id : null };
     battle.killSoldier(s, by || null);
+    /* The man who put him down is told (nothing is queued unless a layer reads `kill`). */
+    if (by && by.faction !== s.faction && root.BattleSoldierEvents)
+      root.BattleSoldierEvents.post(by, battle, 'kill', { victim: s.id, zone: zone });
   }
 
   function wound(shooter, victim, battle, hit) {

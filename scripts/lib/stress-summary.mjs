@@ -109,6 +109,25 @@ export function summarizeStress(battles) {
     const k = b.stress.bandSeconds;
     return t ? (100 * (k.shaken + k.rattled + k.broken)) / t : 0;
   });
+  const RELIEF = ['kill', 'objective', 'cover', 'survived'];
+  const memory = {
+    flags: rows[0].stress.memory?.flags || [],
+    heldSeconds: round(sum(rows, b => b.stress.memory?.heldSeconds)),
+    floorMen: sum(rows, b => b.stress.memory?.floor?.men),
+    floorMax: round(Math.max(0, ...rows.map(b => b.stress.memory?.floor?.max || 0)), 3),
+    relief: Object.fromEntries(
+      RELIEF.map(k => [
+        k,
+        {
+          n: sum(rows, b => b.stress.memory?.relief?.[k]?.n),
+          amount: round(
+            sum(rows, b => b.stress.memory?.relief?.[k]?.amount),
+            2
+          )
+        }
+      ])
+    )
+  };
   return {
     format: 'grasstex-stress-summary-v1',
     battles: n,
@@ -129,6 +148,7 @@ export function summarizeStress(battles) {
     shocks: sum(rows, b => b.stress.shocks),
     hesitations: sum(rows, b => b.stress.hesitations),
     casualtiesSeen: sum(rows, b => b.stress.casualtiesSeen),
+    memory,
     squads,
     decisions,
     perBattle: {
@@ -176,6 +196,15 @@ export function stressMarkdown(s) {
     `- Men whose squad is in contact (${s.contactSeconds} man-seconds): steady **${pct(s.contactBandShare.steady)}** · shaken **${pct(s.contactBandShare.shaken)}** · rattled **${pct(s.contactBandShare.rattled)}** · broken **${pct(s.contactBandShare.broken)}**`,
     `- Squads at mean stress ≥ ${s.squads.overMean}: **${s.squads.over}** of ${s.squads.squads} squad-battles, **${s.squads.overSeconds}** squad-seconds, ${s.squads.entries} entries, in **${s.squads.battlesWithAny}/${s.battles}** battles · with ${s.squads.minMen}+ living men: **${s.squads.with3.over}** squad-battles, **${s.squads.with3.overSeconds}** squad-seconds, ${s.squads.with3.entries} entries, in **${s.squads.with3.battlesWithAny}/${s.battles}** battles · peak squad mean ${s.squads.peakMean}`,
     `- Soldier levers, decisions changed (by band steady/shaken/rattled/broken): react **${d.react.changed}**${rate('react')} [${by('react')}] · aim **${d.aim.changed}**${rate('aim')} [${by('aim')}] · hesitate **${d.hesitate.changed}**${rate('hesitate')} [${by('hesitate')}], ${d.hesitate.lapsed} lapsed · shock **${d.shock.changed}** blocked [${by('shock')}] (fire ${d.shock.kinds.fire}, suppress ${d.shock.kinds.suppress}, bound ${d.shock.kinds.bound}, advance ${d.shock.kinds.advance})`,
+    ...(s.memory && (s.memory.flags.length || s.memory.heldSeconds || s.memory.floorMen)
+      ? [
+          `- Stress memory (${s.memory.flags.join(',') || 'none'}): held ${s.memory.heldSeconds} man-seconds · floors ${s.memory.floorMen} men (highest ${s.memory.floorMax}) · relief ${Object.entries(
+            s.memory.relief
+          )
+            .map(([k, v]) => `${k} ${v.n} (${v.amount})`)
+            .join(' · ')}`
+        ]
+      : []),
     `- Per battle (p50 / p90 / max): shaken-or-worse man-time ${s.perBattle.shakenPlusPercent.p50}% / ${s.perBattle.shakenPlusPercent.p90}% / ${s.perBattle.shakenPlusPercent.max}% · squad-seconds over ${s.perBattle.squadSecondsOver.p50} / ${s.perBattle.squadSecondsOver.p90} / ${s.perBattle.squadSecondsOver.max} · shocks ${s.perBattle.shocks.p50} / ${s.perBattle.shocks.p90} / ${s.perBattle.shocks.max}`
   ];
   return lines;

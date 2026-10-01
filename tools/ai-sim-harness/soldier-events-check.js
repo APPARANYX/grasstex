@@ -56,7 +56,16 @@ const drained = (E, s, reader) => {
 
 test('the vocabulary is declared data with distinct priorities, and an unknown kind is an error', () => {
   const { E } = world();
-  assert.deepEqual(Object.keys(E.KINDS), ['casualty', 'wound', 'suppressed', 'aimed']);
+  assert.deepEqual(Object.keys(E.KINDS), [
+    'casualty',
+    'wound',
+    'suppressed',
+    'aimed',
+    'kill',
+    'objective',
+    'cover',
+    'survived'
+  ]);
   const p = Object.values(E.KINDS).map(k => k.priority);
   assert.deepEqual(
     p,
