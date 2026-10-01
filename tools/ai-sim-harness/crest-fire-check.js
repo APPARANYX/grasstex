@@ -102,6 +102,17 @@ test('a narrow crest between sight samples still stops the trigger', () => {
   assert.equal(ctx.shots.length, 0);
 });
 
+
+test('suppressive fire uses the same terrain crest gate', () => {
+  const blocked = setup(ridge(RANGE / 2, 1.35, 4, 20));
+  assert.equal(blocked.S.canSuppress(blocked.shooter, { x: 0, z: RANGE }, blocked.b), false,
+    'remembered contact behind the crest cannot receive suppressive fire');
+  assert.ok(blocked.shooter._terrainBlockedSuppressiveFire > 0, 'terrain refusal is counted for diagnostics');
+  const clear = setup(ridge(RANGE / 2, 0.9, 4, 20));
+  assert.equal(clear.S.canSuppress(clear.shooter, { x: 0, z: RANGE }, clear.b), true,
+    'a low crest that clears the suppression line still permits fire');
+});
+
 test('no combat-RNG draws from the gate itself', () => {
   const ctx = setup(ridge(RANGE / 2, 1.35, 4, 20));
   let draws = 0;

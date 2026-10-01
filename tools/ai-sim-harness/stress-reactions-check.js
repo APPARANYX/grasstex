@@ -3,7 +3,7 @@
 /* What stress does to a man (Engagement, `?stressAct=cower,flee,freeze,rage`): four declared states, each off unless
    named, the numbers from module 17 and the choice Engagement's.
 
-   - The flag parse, and no reaction at all with it off, with `?mind=0`, `?mind=observe` or a lever list without `act`.
+   - The flag parse: all four by default, `?stressAct=0` off, a comma list exact; and no reaction with `?mind=0`, `?mind=observe` or a lever list without `act`.
    - cower: rattled and under fire goes to ground (prone, or crouched for a role that does not go prone), holds, does
      not fire, and gets up when the fire has been quiet for COWER_QUIET or he has calmed below rattled. Not when merely
      shaken, not when nobody is shooting at him.
@@ -109,15 +109,15 @@ function foe(ctx, s, d) {
 const here = s => ({ x: s.root.position.x, z: s.root.position.z });
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
-test('the flag parses: nothing by default, each named, `1` or `all` for the four, unknown names ignored', () => {
+test('the flag parses: all four by default, 0/off disables, a list is exact, 1/all means all', () => {
   const act = q => world(q).E.tuning.ACT;
   const on = a =>
     Object.keys(a)
       .filter(k => k !== 'any' && a[k])
       .sort();
-  assert.deepEqual(on(act('')), []);
-  assert.equal(act('').any, false);
-  assert.deepEqual(on(act('?x=1')), []);
+  assert.deepEqual(on(act('')), ['cower', 'flee', 'freeze', 'rage']);
+  assert.equal(act('').any, true);
+  assert.deepEqual(on(act('?x=1')), ['cower', 'flee', 'freeze', 'rage']);
   assert.deepEqual(on(act('?stressAct=0')), []);
   assert.deepEqual(on(act('?stressAct=off')), []);
   assert.deepEqual(on(act('?stressAct=1')), ['cower', 'flee', 'freeze', 'rage']);
@@ -152,9 +152,8 @@ test('the four states are declared with their transitions, and every other state
   assert.equal(typeof E.reacting, 'function');
 });
 
-test('off, nobody reacts, however shaken: flag off, ?mind=0, ?mind=observe and a lever list without act', () => {
+test('explicitly off, nobody reacts, however shaken: stressAct=0, ?mind=0, ?mind=observe and a lever list without act', () => {
   for (const q of [
-    '',
     '?stressAct=0',
     '?stressAct=all&mind=0',
     '?stressAct=all&mind=observe',
