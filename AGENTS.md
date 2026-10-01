@@ -852,13 +852,76 @@ Wire-map debt still open (2 entries, both scheduled): `soldier.fireCooldown` (sp
 fire pipeline's own clock; phase 3, not yet done) and `soldier.target` in module 52 (phase 5). The 6 nav-cache entries and
 the dead `soldier.hp` copy in 14-z are gone (#120, #121, #123).
 
-**The soldier layer, in slices** (the tactics outline's soldier contract; each slice is a tactics change behind a
-lever and a paired benchmark). Shipped: condition, i.e. stress, bands and four levers (see Soldier condition).
-Next, in order: (1) individual stress reactions (the block below); (2) the Squad Leader reads `squad.mind` (which fireteam bounds, when to hold, a
-`doctrine-review` escalation); (3) a callout channel: sim-level, delayed, lossy messages that change the
-listener's state, which voice mirrors and never drives; (4) buddy pairs inside a fireteam (cover and move, calm each
-other); (5) per-man beliefs (seen, told or heard, with age and confidence) replacing the shared `squad.contact`
-inside Engagement; (6) intent-based orders and initiative when the leader is down.
+**Soldier-level AI continuation (active plan; repo archaeology refreshed 2026-10-01).** This is the
+active behavioral roadmap below the Squad Leader. It is deliberately separate from the larger architecture in
+`battle/AI_TACTICS_OUTLINE.md`. The Sept. 13 outline (`f71ab0dd55cd03daae4b07c81665d3d74452618c`) also describes
+structure-control, street/route-transition plans, a versioned `SquadIntent`, a stronger Squad Leader local planner,
+objective secure/exploit/handoff and later combined arms. Those remain the major AI addition we are intentionally
+waiting on: keep their detailed design in the outline and do **not** pull them into the current implementation queue
+piecemeal. The window archaeology is the warning case: the physical/tactical-position substrate survived while the
+full use of the opening had to be recovered later; the firing-port implementation is now back on main
+(`e10622a3893f5eecfb2bbdefc80b7140e4b7ee37`, with the merge preserved by `e0455331d9ae8b26c47dc455f9c5b97945791278`).
+Do not let the soldier-level items below collapse back into a one-line future note.
+
+**Shipped baseline to preserve.** Perception/view cones, hearing/relay and sector scanning; per-soldier loadouts and
+sidearms; soldier condition/stress and its lasting-memory path; cower/flee/freeze/rage (all four on by default since
+2026-10-01); the fled-man lifecycle; Engagement-owned stance/cover; last-known-threat alert posture; and tactical
+firing stations/window ports are existing substrate. Extend these owners instead of creating parallel systems.
+
+**Next soldier-level slices, in order:**
+
+1. **Squad Leader reads `squad.mind` for local execution.** Today soldier condition rolls upward but the Squad
+   Leader still does not use that report to choose the local execution pattern. Add a bounded read in the Squad
+   Leader layer: use fireteam/squad condition to decide which fireteam is suitable to bound, when a team should
+   hold rather than be sent, and when sustained condition should raise the existing `doctrine-review` wake.
+   This is status upward, never a new writer downward: module 17 continues to own `mind`; Engagement continues
+   to own each man's reaction/stance; the Squad Leader changes only its own task/bound decisions. Keep the rule
+   deterministic, declare its thresholds in the owning layer, expose the decision and reason in telemetry, put the
+   behavior behind its own lever while measured, and prove it with the paired benchmark plus the existing
+   `stress-decisions`/morale instrumentation rather than inferring effect from one battle.
+
+2. **A real tactical callout channel, separate from voice presentation.** Add sim-level messages that can change a
+   listener's information/state after a modeled delay and can be missed. A callout records at least sender,
+   recipient or audience, kind, source position/contact, sent time, delivered time, confidence and expiry/drop
+   reason. Voice audio mirrors a delivered message; it never creates the fact and never drives simulation state.
+   Start with information the simulation already knows how to produce (contact/direction, urgent danger, local
+   task-complete/blocked) rather than inventing a second command hierarchy. Keep message delivery off the combat
+   RNG; if loss needs variation, use deterministic seeded/non-combat choice and record it. The existing
+   `modules/08-soldier-events.js` queue is local experience/state input, not automatically the radio/callout
+   network; share vocabulary where sensible but keep ownership explicit.
+
+3. **Buddy pairs inside each fireteam.** Give a fireteam stable buddy relationships used for local cooperation:
+   one man can cover while his buddy makes a bounded move, a steady buddy can reduce isolation/steadying cost,
+   and a buddy can report that the pair is blocked or separated. A buddy pair is not a destination writer and is
+   not an alternate fireteam commander; it supplies constraints/requests to the existing fireteam/Squad Leader
+   task and Engagement/Movement Resolver owners. Pair identity, separation, cover/move state and the reason a pair
+   broke/reformed must be inspectable. Avoid synchronized choreography: one casualty, suppression, blocked route
+   or incompatible task must degrade the pair cleanly rather than stall both men.
+
+4. **Per-man beliefs instead of omniscient shared contact inside Engagement.** Each soldier should carry what he
+   personally **saw, was told, or heard**, with source, location/sector, observed/reported time, age, confidence
+   and expiry. Unknown is a valid state. The squad may still publish an aggregate contact picture upward, but
+   Engagement should eventually choose targets/last-known sectors from the man's own belief set rather than
+   treating `squad.contact` as instant common knowledge. Sightings outrank weaker reports; delivered callouts can
+   create/update a belief; hearing is lower-confidence and imprecise; stale facts decay. This is the consumer that
+   makes the callout channel materially useful, so build it after that channel. Diagnostics must be able to answer
+   *why this man believed an enemy was there* and distinguish truth from belief without giving the AI hidden truth.
+
+5. **Intent-based continuation and initiative when the Squad Leader is down.** Succession already exists; the
+   missing behavior is what the men/fireteams do while leadership is absent or before a successor can issue a new
+   local plan. Preserve the last valid parent intent/task and allow only bounded, conservative initiative inside
+   it: hold a valid firing/cover position, finish an already-committed short move, protect the fireteam/buddy,
+   react to immediate contact, or report/request help. Do not let a soldier silently choose a new force objective,
+   invent a new squad mission or bypass the Movement Resolver. Once succession completes, the new leader resumes
+   normal ownership. Record the inherited intent/version, local action, reason and hand-back so a replay can show
+   that leader loss degraded command without making the squad either omniscient or inert.
+
+**Rules for every slice above.** One conceptual behavior change at a time; existing owner boundaries remain
+authoritative; new state has an explicit owner and reader; no presentation system writes simulation truth; no
+combat-RNG draw merely to choose tactics; add a deterministic harness/check before relying on a visual impression;
+add observe-only probe/telemetry that measures the decision dose; ship behavioral changes behind a flag until the
+paired GitHub benchmark shows the efficiency gate is acceptable. Once a slice ships, move its evidence into the
+subsystem section but leave this sequence accurate so the next unfinished slice remains visible.
 
 **Stress reactions: owner direction (2026-09-30).** Built, behind `?stressMem=`: stress that does not recover on the spot (`lasting`, on by default since 2026-10-01), the floor and relief events (off unless named; the three bullets below that say so; see Stress that lasts). The reactions are built behind `?stressAct=` (cower, flee, freeze, rage; see Stress reactions above), off by default. Without the reactions (and with `?stressMem=0` for the drain) stress only makes a man slightly worse at the same plan
 (recognition, shot group, a bound that starts late, a freeze of at most a second), it decays on a timer (`TAU` 22 s, faster with the
@@ -909,8 +972,10 @@ a man does, and that it accumulates.
   clips in Motion Lab or added as a presentation-only overlay on the pose dials (never the sim, never the RNG). The animation work
   itself is out of scope until asked.
 
-The loadout, sidearm, perception and weapon-seat work shipped (see Loadouts and sidearms and Perception);
-everything else left is deferred below, by decision on 2026-09-29.
+The loadout, sidearm, perception and weapon-seat work shipped (see Loadouts and sidearms and Perception).
+The active soldier-level continuation is listed above and is **not** part of this deferred list. The larger
+command/urban/route architecture stays in `battle/AI_TACTICS_OUTLINE.md` until that major AI phase is resumed.
+The unrelated asset, tuning and later-system items below remain deferred by the 2026-09-29 decision.
 
 **Deferred / future — not V1 blockers**
 
@@ -945,11 +1010,14 @@ before any effect is claimed.
 - **Damage asset upgrade:** UV-painted body wounds V1 is accepted on the monolithic FBX. When Tripo
   or manual segmentation provides separate helmet/holster/major-gear meshes, add material-specific
   impact layers and detachable-equipment effects. Segmentation is not required for V1.
-- **Command architecture:** the General/Captain/Engagement ownership split and mission contract are
-  already shipped. Future refinement is a versioned `SquadIntent`/single intent resolver and a
-  stronger local Squad Leader planner. Add platoon/company command, fallback/counterattack and
-  combined arms only when force size/vehicle work makes those layers useful; ~5 squads per side
-  does not justify a platoon layer yet.
+- **Command architecture / tactics outline:** the General/Squad Leader/Engagement ownership split and
+  mission contract are already shipped. The larger next AI phase remains intentionally out of the current queue:
+  versioned `SquadIntent`/single intent resolver, the stronger Squad Leader local planner, structure-control and
+  street/route-transition state machines, objective secure/exploit/handoff, then platoon/company command,
+  fallback/counterattack and combined arms when force size/vehicle work justifies them. The detailed source of
+  truth is `battle/AI_TACTICS_OUTLINE.md` (introduced by `f71ab0dd55cd03daae4b07c81665d3d74452618c`); do not
+  duplicate that roadmap here or implement isolated pieces as ad-hoc substitutes. ~5 squads per side still does
+  not justify a platoon layer yet.
 - **Height-aware window LOS, window animation.** The limits under Window firing port: global LOS ignores the sill and the lintel, the
   sector does not follow the pose, and there is no firing, braced or reload pose at a window. Any change to global LOS is a behaviour
   change for every ray through a window: its own flag and a paired benchmark.
