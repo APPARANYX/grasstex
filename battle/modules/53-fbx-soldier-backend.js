@@ -56,6 +56,14 @@ var WEAPON_BIPOD={'m1919a6.fbx':'m1919a6-bipod.fbx','mg42.fbx':'mg42-bipod.fbx'}
    the Motion Lab so it can list exactly the clips the game plays. */
 var CLIPS=root.BattleFbxClips.clips;
 var IDLE_VARIANTS=['idle','idleLook','idleTwoHand','idleFidget'],FLINCH_RATE=1.6;
+/* Presentation-only rates and cross-fades for Engagement's stress reactions. Rage keeps the
+   ordinary locomotion and firing layers because he is still fighting. The other three replace the
+   full-body lower layer and leave the weapon beside the man while their reaction owns him. */
+var REACTION_ANIM={
+  fade:.32,cowerEnterRate:3,cowerExitRate:3,freezeEnterRate:5,fleeEnterRate:1,
+  dropSide:.88,dropBack:.08,dropLift:.055,dropYaw:.35,
+  holds:['reactionFreezeStanding','reactionFreezeSitting','reactionFreezeFallen']
+};
 var DEATH_POOLS={
   front:['deathFront','deathBackHeadKnees','deathBackOneKnee','deathChestKnees'],
   back:['deathBack','deathHitGround','deathHeadKnees','deathFrontHeadKnees'],
@@ -627,7 +635,7 @@ function convertClip(container,key,spec,bones){
   if(hips&&hips.pos){
     var p=hips.pos,last=(frames-1)*3,dx=p[last]-p[0],dy=p[last+1]-p[1];
     travel=Math.sqrt(dx*dx+dy*dy)/Math.max(1e-3,duration);
-    if(loop)for(var f=0;f<frames;f++){var u=f/(frames-1);p[f*3]-=dx*u;p[f*3+1]-=dy*u;}
+    if(loop||spec[2]==='inplace'||spec[2]==='turn')for(var f=0;f<frames;f++){var u=f/(frames-1);p[f*3]-=dx*u;p[f*3+1]-=dy*u;}
   }
   /* Turn clips rotate the hips about the vertical by ~90 degrees; the soldier's root already turns
      in the sim, so that yaw is removed (linearly, like travel) and kept as the clip's turn rate. */
@@ -1195,7 +1203,8 @@ function bind(soldier,scene,st,lib,faction){
     pathL:pathL,chainL:pathL.map(function(){return new MX();}),spineAtL:pathL.indexOf(byName[BONE.spine2]),
     poseRef:fxRef,weaponModel:null,twoHand:0,yawRate:0,lastYaw:null,turning:false,weaponKind:'rifle',
     lower:{entries:[]},upper:{entries:[]},overlay:0,overlayTarget:0,stance:null,transition:null,sector:0,family:null,moving:false,
-    vx:0,vz:0,speed:0,lastX:null,lastZ:null,aim:0,aimWanted:false,aimAt:null,spine:byName[BONE.spine2]||null,fireHold:0,fireShot:0,fireSeen:0,reloadShot:0,reloadSeen:0,reloadDuration:2.5,death:null};
+    vx:0,vz:0,speed:0,lastX:null,lastZ:null,aim:0,aimWanted:false,aimAt:null,spine:byName[BONE.spine2]||null,fireHold:0,fireShot:0,fireSeen:0,reloadShot:0,reloadSeen:0,reloadDuration:2.5,death:null,
+    reaction:null,reactionPhase:null,reactionHold:null,cowerExit:false,reactionWeapon:null,weaponAbandoned:false};
   soldier._fbx=fx;
   soldier.animationBinding={backend:BACKEND,tags:TAGS,play:play,update:update};
   fx.meshLod=meshLodBind(meshes);
@@ -1251,6 +1260,85 @@ function familyOf(fx,clips,speed,families){
   });
   return best;
 }
+function reactionOf(soldier){
+  var e=soldier&&soldier.eng,k=e&&e.state;
+  return k==='cower'||k==='flee'||k==='freeze'||k==='rage'?k:null;
+}
+/* Stable per man and independent of every simulation RNG: the same broken man presents the same
+   freeze hold on every run. This choice is visual only and never feeds back into Engagement. */
+function freezeHoldOf(soldier){
+  var s=String((soldier&&soldier.faction)||'')+':'+String((soldier&&soldier.id)||''),h=2166136261;
+  for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}
+  return REACTION_ANIM.holds[(h>>>0)%REACTION_ANIM.holds.length];
+}
+function reactionDropsWeapon(reaction){return reaction==='cower'||reaction==='freeze'||reaction==='flee';}
+function reactionWeapon(soldier,fx,drop,abandon){
+  var held=fx.reactionWeapon,w=soldier&&soldier.weapon;
+  function restore(entry){
+    var old=entry&&entry.weapon;if(!old)return;
+    [old.mesh,old.bipodMesh].forEach(function(mesh){if(!mesh||mesh.isDisposed())return;
+      mesh.parent=old.socket||fx.socket;mesh.position.set(0,0,0);
+      if(mesh.rotationQuaternion)mesh.rotationQuaternion.set(0,0,0,1);else mesh.rotation.set(0,0,0);
+    });
+  }
+  function leave(entry){
+    var old=entry&&entry.weapon,W=root.BattleWeapons;
+    if(!old||!W||!W.abandon||!W.abandon(soldier,old))return false;
+    [old.mesh,old.bipodMesh].forEach(function(mesh){if(mesh&&!mesh.isDisposed())mesh._battleAbandonedWeapon=true;});
+    fx.reactionWeapon=null;fx.weapon=null;fx.weaponModel=null;fx.weaponAbandoned=true;return true;
+  }
+  if(fx.weaponAbandoned)return;
+  if(!drop){if(held)restore(held);fx.reactionWeapon=null;return;}
+  if(held&&held.weapon===w){if(abandon)leave(held);return;}
+  if(held)restore(held);
+  if(!w||!w.mesh)return;
+  fx.reactionWeapon={weapon:w};
+  var yaw=soldier.root.rotation.y||0,sin=Math.sin(yaw),cos=Math.cos(yaw),p=soldier.root.position;
+  [w.mesh,w.bipodMesh].forEach(function(mesh,i){if(!mesh||mesh.isDisposed())return;
+    mesh.parent=null;
+    var side=REACTION_ANIM.dropSide+i*.04;
+    mesh.position.set(p.x+cos*side-sin*REACTION_ANIM.dropBack,p.y+REACTION_ANIM.dropLift+i*.01,
+      p.z-sin*side-cos*REACTION_ANIM.dropBack);
+    if(!mesh.rotationQuaternion)mesh.rotationQuaternion=new Q();
+    Q.RotationYawPitchRollToRef(yaw+REACTION_ANIM.dropYaw,0,0,mesh.rotationQuaternion);
+  });
+  if(abandon)leave(fx.reactionWeapon);
+}
+function reactionFullBody(fx,clips,key,rate,fade){
+  var clip=clips[key];if(!clip)return false;
+  setClip(fx.lower,clip,rate,fade==null?REACTION_ANIM.fade:fade,false,false);
+  fx.overlayTarget=0;fx.aimWanted=false;fx.bipod=false;fx.supportReleased=true;
+  return true;
+}
+function updateReactionLower(soldier,fx,clips,reaction,stance,dt){
+  var top,key,rate=1;
+  if(reaction==='cower'){
+    if(fx.reactionPhase==='enter'){
+      key='reactionCowerEnter';rate=REACTION_ANIM.cowerEnterRate;top=topEntry(fx.lower);
+      if(top&&top.clip.key===key&&top.t>=top.clip.duration-.04){fx.reactionPhase='hold';key='reactionCowerHold';rate=1;}
+    }else key='reactionCowerHold';
+  }else if(reaction==='freeze'){
+    if(fx.reactionPhase==='enter'){
+      key='reactionFreezeEnter';rate=REACTION_ANIM.freezeEnterRate;top=topEntry(fx.lower);
+      if(top&&top.clip.key===key&&top.t>=top.clip.duration-.04){fx.reactionPhase='hold';key=fx.reactionHold;rate=1;}
+    }else key=fx.reactionHold;
+  }else if(reaction==='flee'){
+    top=topEntry(fx.lower);
+    if(fx.reactionPhase==='enter'){
+      key='reactionFleeEnter';rate=REACTION_ANIM.fleeEnterRate;
+      if(top&&top.clip.key===key&&top.t>=top.clip.duration-.04)fx.reactionPhase='run';
+    }
+    if(fx.reactionPhase!=='enter'){
+      /* At his refuge Engagement holds him and owns his crouch/prone stance again. */
+      if(soldier.eng&&soldier.eng.refugeHere)return false;
+      key='reactionFleeRun';rate=clamp(fx.speed/(clips[key].speed||2.8),.7,1.8);
+    }
+  }else return false;
+  if(!reactionFullBody(fx,clips,key,rate))return false;
+  fx.stance=stance;
+  advance(fx,dt);
+  return true;
+}
 function update(soldier,state,dt){
   var fx=soldier._fbx;if(!fx)return false;
   var clips=fx.lib.clips;dt=Math.max(0,+dt||0);
@@ -1276,6 +1364,25 @@ function update(soldier,state,dt){
   fx.death=null;
 
   var stance=soldier.prone?'prone':(soldier.crouching?'crouch':'stand');
+  var reaction=reactionOf(soldier),oldReaction=fx.reaction;
+  if(reaction!==oldReaction){
+    fx.reaction=reaction;
+    fx.reactionPhase=reaction?'enter':null;
+    fx.reactionHold=reaction==='freeze'?freezeHoldOf(soldier):null;
+    fx.cowerExit=oldReaction==='cower'&&!reaction;
+  }
+  reactionWeapon(soldier,fx,reactionDropsWeapon(reaction)||fx.cowerExit,reaction==='flee');
+  /* Cower has an authored rise. It may be interrupted immediately by renewed reaction or movement;
+     otherwise it owns the body until its last frame, then the normal lower layer cross-fades in. */
+  if(fx.cowerExit){
+    var exit=clips.reactionCowerExit,exitTop=topEntry(fx.lower);
+    if(exitTop&&exitTop.clip===exit&&exitTop.t>=exit.duration-.04)fx.cowerExit=false;
+    else if(fx.speed>.5)fx.cowerExit=false;
+    else if(reactionFullBody(fx,clips,'reactionCowerExit',REACTION_ANIM.cowerExitRate)){
+      fx.stance=stance;advance(fx,dt);return true;
+    }
+  }
+  if(updateReactionLower(soldier,fx,clips,reaction,stance,dt))return true;
   if(fx.stance==null)fx.stance=stance;
   if(stance!==fx.stance){
     /* Crouch<->prone clips carry the body through the ground change (from standing too). The

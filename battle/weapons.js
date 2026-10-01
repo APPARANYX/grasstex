@@ -93,5 +93,12 @@
     show(old,false);show(next,true);
     return true;
   }
-  root.BattleWeapons={STATS:STATS,PROFILES:PROFILES,profileStats:profileStats,issue:issue,attachWeapon:attachWeapon,holster:holster,equip:equip};
+  /* A weapon abandoned in the world is no longer part of the soldier's loadout. Presentation owns
+     the already-detached mesh; this owner only removes the gameplay reference. */
+  function abandon(soldier,weapon){
+    if(!soldier||!weapon||soldier.weapon!==weapon)return false;
+    soldier.weapon=null;
+    return true;
+  }
+  root.BattleWeapons={STATS:STATS,PROFILES:PROFILES,profileStats:profileStats,issue:issue,attachWeapon:attachWeapon,holster:holster,equip:equip,abandon:abandon};
 })(typeof window!=='undefined'?window:globalThis);
