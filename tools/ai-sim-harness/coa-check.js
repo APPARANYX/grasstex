@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 'use strict';
-/* Course of action on contact (phase 3c, `?coa=1`, module 16 `fireAndMovement`): the flag-on path, which no
-   check exercised.
+/* Course of action on contact (phase 3c, module 16 `fireAndMovement`): on by default; `?coa=0`/off is the
+   legacy no-COA control.
 
    On every tick the squad is in contact the Squad Leader scores the declared COAs (`assault`, `defend`)
    against declared inputs (casualty fraction, mean stress, leader down) with declared weights and keeps the
    winner as `sq.coa`. `defend` holds the bounds; `assault` changes nothing. This file pins:
 
-     - the flag is read once at load from `location.search` (`?coa=1` only) and is off by default;
+     - the flag is read once at load from `location.search`: on by default, `?coa=0`/off/false disables it;
      - the scores are the declared tables: `assault` wins while 2.5 x casualties + 1.5 x stress + 2 x leaderDown
        <= 1, a tie goes to `assault` (first by name), a leader down is `defend` on its own;
      - the choice is the better score (a tie is `assault`) on the squad's inputs at that tick, inside a contact as
@@ -17,7 +17,7 @@
      - the COA only gates: `assault` authorises bounds in exactly the phases that did before
        (`boundPhases()`: assault, capture, clear-town), `defend` authorises none, and in every other phase the
        two are identical (a contact that starts on the approach is not gated by either);
-     - flag off, `sq.coa` is never set and a squad with the leader down bounds like any other;
+     - with `?coa=0`, `sq.coa` is never set and a squad with the leader down bounds like any other;
      - a bound waits `BOUND_CYCLE` after every contact start, so a contact that blinks faster than that never
        bounds under either COA (what the COA has left to gate);
      - `_assaultAuthorized` has one writer file.
@@ -119,14 +119,14 @@ function calm(w, sq, seconds) {
   return tick(w, sq, seconds);
 }
 
-test('?coa=1 is the only flag that turns the COA on, and it is off by default', () => {
-  const parsed = ['', '?seed=1', '?coa=1', '?x=1&coa=1', '?coa=1&x=1', '?coa=10', '?coa=0', '?xcoa=1', '?morale=1'].map(q =>
+test('COA is on by default; only explicit 0/off/false disables it', () => {
+  const parsed = ['', '?seed=1', '?coa=1', '?x=1&coa=1', '?coa=10', '?coa=0', '?coa=off', '?coa=false', '?xcoa=0', '?morale=1'].map(q =>
     world(q).S.coaOn()
   );
-  assert.deepEqual(parsed, [false, false, true, true, true, false, false, false, false]);
-  assert.equal(world(null).S.coaOn(), false);
-  assert.deepEqual(world('?coa=1').S.coas().sort(), ['assault', 'defend']);
-  assert.deepEqual(world('?coa=1').S.boundPhases().sort(), ['assault', 'capture', 'clear-town']);
+  assert.deepEqual(parsed, [true, true, true, true, true, false, false, false, true, true]);
+  assert.equal(world(null).S.coaOn(), true, 'no location: same default as the page');
+  assert.deepEqual(world('').S.coas().sort(), ['assault', 'defend']);
+  assert.deepEqual(world('').S.boundPhases().sort(), ['assault', 'capture', 'clear-town']);
 });
 
 test('the declared scores: assault while 2.5 x casualties + 1.5 x stress + 2 x leaderDown <= 1, a tie is assault', () => {
@@ -250,8 +250,8 @@ test('assault bounds a fireteam after BOUND_CYCLE; defend never does, and never 
   }
 });
 
-test('flag off: sq.coa is never set and a squad with the leader down bounds like any other', () => {
-  const w = world(''),
+test('explicitly off: sq.coa is never set and a squad with the leader down bounds like any other', () => {
+  const w = world('?coa=0'),
     sq = squad(w, { phase: 'assault', leaderDown: true, dead: 5, stress: 0.9 });
   contact(w, sq, 12);
   assert.equal(sq.coa, undefined);
