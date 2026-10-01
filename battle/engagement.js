@@ -280,7 +280,7 @@
     if (!s || !battle) return false;
     if ((+s.suppressedUntil || 0) > battle.time) return true;
     var M = mind();
-    return !!(M && M.recentIncoming && M.recentIncoming(s, battle.time, fireControlTuning().returnFireWindow));
+    return !!(M && M.recentIncoming(s, battle.time, fireControlTuning().returnFireWindow));
   }
   function fireControlOf(s) {
     return (s && s.squad && s.squad.fireControl) || null;
