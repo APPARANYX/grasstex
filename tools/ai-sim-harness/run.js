@@ -28,8 +28,8 @@ function duel(opts){
   H.resetIds();
   /* These scenarios test Engagement's base contract (orient, cover, suppression, holding a sector), not
      the independent group-morale or stress-reaction layers. Both have dedicated seeded regression suites, so
-     isolate them here: otherwise making reactions default-on changes what this harness is measuring. */
-  const root=H.bootstrap(Object.assign({search:'?morale=0&stressAct=0'},opts));
+     isolate them here: otherwise default-on squad/reaction layers change what this harness is measuring. */
+  const root=H.bootstrap(Object.assign({search:'?morale=0&coa=0&stressAct=0'},opts));
   const battle=H.makeBattle(root,{obstacles:opts.obstacles||[],seed:SEED});
   const gap=opts.gap==null?70:opts.gap;
   const us=H.addSquad(root,battle,{id:'us-0',faction:'us',x:0,z:-gap/2,objective:{x:0,z:gap/2},facing:0,composition:opts.composition,seed:SEED});

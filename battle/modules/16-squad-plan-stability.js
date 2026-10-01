@@ -113,7 +113,7 @@
   function moraleRallies(casualtyFrac, stress) {
     return stress < MORALE_TUNING.rallyStress && casualtyFrac < moraleBreakAt(stress) - MORALE_TUNING.rallyGap;
   }
-  /* 3c: course of action on contact. Behind ?coa=1. The Squad Leader (the one COA owner) scores the
+  /* 3c: course of action on contact. On by default; ?coa=0/off is the legacy no-COA control. The Squad Leader (the one COA owner) scores the
      declared COAs against declared inputs on every tick the squad is in contact and keeps the winner as
      sq.coa, so a squad whose casualties, stress or leader change inside a contact changes its COA inside it,
      and a contact that blinks is not a new decision. Scoring is deterministic: weighted sum, no RNG; ties
@@ -122,7 +122,7 @@
      stress only falls, it latched squads in defend (fewer bounds, more battles still open at 600 s). The
      COA gates bounding through fireAndMovement: defend holds (no bounds), assault bounds if the phase
      allows. COAs only restrict, never expand. */
-  var COA_ON = typeof location !== 'undefined' && /[?&]coa=1\b/.test(location.search || '');
+  var COA_ON = !(typeof location !== 'undefined' && /[?&]coa=(?:0|off|false)\b/.test(location.search || ''));
   var COAS = {
     assault: { label: 'assault', bounds: true },
     defend: { label: 'defend', bounds: false }
@@ -1254,7 +1254,7 @@
     if (COA_ON) updateCOA(sq);
     sq._assaultAuthorized = !!ASSAULT_PHASES[sq.commandPhase || ''];
     /* 3c: the COA gates bounding. Defend holds position (no bounds); assault bounds only if the
-       phase also allows. The flag-off path never sets sq.coa, so this is a no-op there. */
+       phase also allows. The explicit `?coa=0` control never sets sq.coa, so this is a no-op there. */
     if (COA_ON && sq.coa && COAS[sq.coa] && !COAS[sq.coa].bounds) sq._assaultAuthorized = false;
     /* A bound needs a base of fire: somebody has to be shooting while somebody else moves. */
     if (

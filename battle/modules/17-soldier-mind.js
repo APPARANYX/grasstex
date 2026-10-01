@@ -41,15 +41,15 @@
   /* The levers a man's own decisions are counted for (the Squad Leader's `morale` is a squad decision, not a man's, and
      `act` is Engagement's reactions, counted as `acts`). */
   var DECIDED = ['react', 'aim', 'hesitate', 'shock'];
-  /* What a man carries from one moment of the fight to the next, each off unless named: `?stressMem=lasting,floor,relief`
-     (or `1`/`all` for the three). `lasting`: stress does not drain on its timer while the fight goes on, only once
+  /* What a man carries from one moment of the fight to the next: `lasting`, `floor` and `relief` are all
+     on by default. `?stressMem=0` disables all; a comma list enables exactly those named. `lasting`: stress does not drain on its timer while the fight goes on, only once
      the squad has been out of contact (and he out of fire) for CALM_AFTER. `floor`: a ratchet of how hurt he is
      times how shaken he was; nothing takes his stress below it. `relief`: kills, a captured objective, reaching
      cover under fire and a spell of fire survived take stress off, down to the floor and no further. */
   var MEMORIES = ['lasting', 'floor', 'relief'],
-    /* On with no `?stressMem=` in the URL (owner decision, 2026-10-01: stress that does not drain in a fight is the
-       default battle). `?stressMem=0` is the old drain, a list names exactly the producers that run. */
-    MEMORY_DEFAULT = ['lasting'];
+    /* Full memory is the shipping battle: stress persists through a fight, wounds leave a floor and positive
+       events relieve stress. `?stressMem=0` disables all; a list names exactly the producers that run. */
+    MEMORY_DEFAULT = MEMORIES.slice();
   function parseMemory(search) {
     var m = /[?&]stressMem=([^&#]*)/.exec(search || ''),
       out = {},
@@ -222,10 +222,10 @@
       lever: 'morale',
       layer: 'Meso (Squad Leader)',
       file: 'modules/16-squad-plan-stability.js',
-      reader: 'squadStress: updateSquadState (group break and rally), COA_INPUTS.stress (?coa=1)',
+      reader: 'squadStress: updateSquadState (group break and rally), COA_INPUTS.stress (COA default on)',
       reads: { squadStress: 2, mind: 1, 'mind.mean': 1 },
       unit: 'squad mean stress, 0 unless the morale lever is on: the break point falls 0.3 per unit, rally under 0.15; weight -1.0 on assault and +0.5 on defend',
-      flag: '?mind= morale lever; group morale on by default (?morale=0 is the flat rule), COA ?coa=1 (off by default)'
+      flag: '?mind= morale lever; group morale and COA on by default (?morale=0 / ?coa=0 disable their layer)'
     },
     {
       kind: 'display',

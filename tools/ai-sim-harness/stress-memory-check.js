@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
-/* Stress that lasts (module 17, `?stressMem=lasting,floor,relief`): what a man carries from one moment of a fight
-   to the next. Three producers, `lasting` on by default (owner, 2026-10-01; `?stressMem=0` is none, a list names exactly those that run), each with its own check here.
+/* Stress memory (module 17, `?stressMem=lasting,floor,relief`): what a man carries from one moment of a fight
+   to the next. All three producers are on by default; `?stressMem=0` is none and a list names exactly those that run.
 
    - lasting: stress does not drain on its timer while the squad is in contact or he is under fire; it drains
      once both have been quiet for CALM_AFTER. Off, it drains as before.
@@ -39,9 +39,10 @@ const near = (a, b, tol, what) =>
 /* One US squad, parked 20 m up; a GE squad far off. `mode` is the page query (`?stressMem=...`). */
 function world(mode) {
   H.resetIds();
-  const r = H.bootstrap();
+  /* Load the page mode at module initialization, exactly like the browser. This matters for event
+     interest: a default-on relief reader registers at load, and configure() is not an uninstaller. */
+  const r = H.bootstrap(mode == null ? undefined : { search: mode });
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
-  if (mode != null) r.BattleSoldierMind.configure(mode);
   const b = H.makeBattle(r, { seed: SEED });
   const us = H.addSquad(r, b, {
     id: 'us-0',
@@ -86,11 +87,11 @@ function scare(ctx, s, amount) {
   m.pub = amount;
 }
 
-test('the flag parses: lasting by default (owner, 2026-10-01), 0 for none, each named, or all of them', () => {
+test('the flag parses: all memory systems by default, 0 for none, or an exact named list', () => {
   const parse = q => Object.keys(world(q).M.mode().memory).sort();
-  assert.deepEqual(parse(''), ['lasting']);
-  assert.deepEqual(parse('?x=1'), ['lasting']);
-  assert.deepEqual(parse('?stressMem='), ['lasting']);
+  assert.deepEqual(parse(''), ['floor', 'lasting', 'relief']);
+  assert.deepEqual(parse('?x=1'), ['floor', 'lasting', 'relief']);
+  assert.deepEqual(parse('?stressMem='), ['floor', 'lasting', 'relief']);
   assert.deepEqual(parse('?stressMem=0'), []);
   assert.deepEqual(parse('?stressMem=off'), []);
   assert.deepEqual(parse('?stressMem=1'), ['floor', 'lasting', 'relief']);
@@ -101,8 +102,8 @@ test('the flag parses: lasting by default (owner, 2026-10-01), 0 for none, each 
   assert.deepEqual(parse('?mind=react&stressMem=lasting'), ['lasting']);
   assert.deepEqual(
     world().M.mode().memory,
-    { lasting: true },
-    'no location at all: the default, as in the Node harness'
+    { lasting: true, floor: true, relief: true },
+    'no location at all: the full shipping default, as in the Node harness'
   );
   assert.deepEqual(
     parse('?stressMem=floor'),

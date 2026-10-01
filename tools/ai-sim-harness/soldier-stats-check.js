@@ -164,12 +164,8 @@ test('?stats=0 is the module absent; ?stats=for switches on only fortitude; the 
   assert.equal(world('?stats=all').S.on('squad'), true);
   assert.equal(world('').S.mode().flag, 'default');
   assert.equal(world('?stats=tac,squad').S.on('squad'), true);
-  assert.equal(
-    world('?stats=all').S.on('deal'),
-    false,
-    'dealing changes who a squad is made of: asked for by name'
-  );
-  assert.equal(world('').S.on('deal'), false);
+  assert.equal(world('?stats=all').S.on('deal'), true, 'all now includes stat-based dealing');
+  assert.equal(world('').S.on('deal'), true, 'the shipping default deals roles from soldier stats');
   assert.equal(world('?stats=all,deal').S.on('deal'), true);
   assert.equal(
     world('?stats=all,deal').S.on('for'),
@@ -288,7 +284,7 @@ test('ranks: the highest composite is 1, the lowest 0, ties by squad id, thin an
   assert.equal(S.profile(w2, mid).pace, 1, 'and against the living: a squad that lost its men drops out');
 });
 
-test("deal: a permutation of the squad's ten ids, each command slot to the best of what is left, off unless asked", () => {
+test("deal: default-on permutation of the squad's ten ids, each command slot to the best of what is left", () => {
   const H2 = require('./harness'),
     roles = H2.bootstrap({ modules: false }).SquadAI.COMPOSITION;
   const { S } = world('?stats=all,deal'),
@@ -343,8 +339,10 @@ test("deal: a permutation of the squad's ten ids, each command slot to the best 
     dealtSgt > plainSgt * 1.2,
     'the sergeants dealt beat the sergeants by id: ' + dealtSgt + ' vs ' + plainSgt
   );
-  for (const search of ['?stats=0', '?stats=all', ''])
+  for (const search of ['?stats=0', '?stats=for,tac,squad'])
     assert.equal(world(search).S.deal('us', 40, roles), null, search);
+  assert.deepEqual(world('').S.deal('us', 40, roles), dealt, 'the shipping default deals the roster');
+  assert.deepEqual(world('?stats=all').S.deal('us', 40, roles), dealt, 'all includes deal');
   assert.equal(S.deal('us', 40, []), null);
   assert.equal(S.deal('us', 40, ['rifleman', 'rifleman']).join(), '40,41', 'no command slot, no change');
 });

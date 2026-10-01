@@ -85,19 +85,20 @@ const flat = (dead, prior) => (dead / 10 >= 0.6 ? 'retreat' : 'advance');
 const STRESSES = [0, 0.05, 0.1, 0.15, 0.22, 0.34, 0.5, 0.7, 1];
 
 test('?morale=0 is the only flag that turns morale off, and it is on by default', () => {
-  const parsed = ['', '?seed=1', '?morale=1', '?x=1&morale=0', '?morale=0&x=1', '?morale=10', '?morale=0', '?xmorale=0', '?coa=1'].map(
+  const parsed = ['', '?seed=1', '?morale=1', '?x=1&morale=0', '?morale=0&x=1', '?morale=10', '?morale=0', '?xmorale=0', '?coa=1', '?coa=0'].map(
     q => [world(q).S.moraleOn(), world(q).S.coaOn()]
   );
   assert.deepEqual(parsed, [
-    [true, false],
-    [true, false],
-    [true, false],
-    [false, false],
-    [false, false],
-    [true, false],
-    [false, false],
-    [true, false],
-    [true, true]
+    [true, true],
+    [true, true],
+    [true, true],
+    [false, true],
+    [false, true],
+    [true, true],
+    [false, true],
+    [true, true],
+    [true, true],
+    [true, false]
   ]);
   assert.equal(world(null).S.moraleOn(), true, 'with no location at all (the Node harness) it is on, like the page');
   assert.equal(world('').S.tuning.morale.breakBase, 0.6, 'the calm-men threshold is the flat 60%');
