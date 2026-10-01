@@ -72,6 +72,8 @@ jobs:
           rm -rf .preview && mkdir -p .preview/battle/modules
           cp battle_sim_local.php .preview/battle_sim.php
           cp battle/battle_sim.html battle/*.js .preview/battle/
+          # The AI map viewer of this branch (reads the branch's own battle/*.js; ?a=<url>&b=<url> or ?bench=<run> loads benchmark results).
+          cp ai_flow_live.html .preview/ai_flow_live.html
           cp battle/modules/*.js .preview/battle/modules/
           # The branch's own soldier models and clips; the loader points the FBX backend here.
           for d in soldiers animations weapons; do

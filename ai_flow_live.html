@@ -240,15 +240,38 @@ function refreshRuntimeSelectors(){
   const min=runtimeMinTime(),max=runtimeMaxTime(),scrub=document.getElementById('timelineScrub');scrub.min=String(min);scrub.max=String(max);runtimeOverlay.time=Math.max(min,Math.min(runtimeOverlay.time,max));scrub.value=String(runtimeOverlay.time);
   drawRuntimeTimeline();
 }
+function applyRuntimePayload(slot,name,payload,pick){
+  const runs=extractTimelineRuns(payload,name);
+  if(!runs.length)throw new Error('No timeline or supported diagnostics/benchmark battle records found');
+  let selected=0;
+  if(pick){const i=runs.findIndex(r=>String((r.label||'')+' '+(r.seed||'')).includes(pick));if(i>=0)selected=i}
+  runtimeOverlay[slot]={name,runs,selected};if(runtimeOverlay.A&&runtimeOverlay.B)pairRuntimeBToA();runtimeOverlay.time=runtimeMinTime();
+  refreshRuntimeSelectors();runtimeOverlay.time=runtimeMinTime();document.getElementById('timelineScrub').value=String(runtimeOverlay.time);rerenderRuntimeOverlay();
+}
 async function importRuntimeFile(slot,file){
+  try{applyRuntimePayload(slot,file.name,JSON.parse(await file.text()))}
+  catch(err){const box=document.getElementById('errorBox');box.style.display='block';box.textContent='Runtime import failed: '+err.message}
+}
+/* Results by address: ?a=<url>&b=<url> load the two arms (JSON from a benchmark run, a timeline export or a diagnostics export; CORS must allow the page),
+   ?pick=<text> selects the first record whose label or seed contains it (e.g. end: the full-length record of a scripted run),
+   ?bench=<run number> is the shorthand for a run the benchmark published to the benchmark-results branch (?repo=<owner/name> to change the repository),
+   ?view=<id> opens a view (brain3d, brain, full, cfg, macro, meso, micro, move, health). Nothing here writes anything. */
+async function importRuntimeUrl(slot,url,pick){
   try{
-    const payload=JSON.parse(await file.text()),runs=extractTimelineRuns(payload,file.name);
-    if(!runs.length)throw new Error('No timeline or supported diagnostics/benchmark battle records found');
-    runtimeOverlay[slot]={name:file.name,runs,selected:0};if(runtimeOverlay.A&&runtimeOverlay.B)pairRuntimeBToA();runtimeOverlay.time=runtimeMinTime();
-    refreshRuntimeSelectors();runtimeOverlay.time=runtimeMinTime();document.getElementById('timelineScrub').value=String(runtimeOverlay.time);rerenderRuntimeOverlay();
-  }catch(err){
-    const box=document.getElementById('errorBox');box.style.display='block';box.textContent='Runtime import failed: '+err.message;
-  }
+    if(!/^https?:\/\//i.test(url))throw new Error('only http(s) addresses load: '+url);
+    const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status+' for '+url);
+    applyRuntimePayload(slot,url.split('/').slice(-3).join('/'),await r.json(),pick);
+  }catch(err){const box=document.getElementById('errorBox');box.style.display='block';box.textContent='Runtime load failed: '+err.message}
+}
+function runtimeQuery(){
+  const q=new URLSearchParams(location.search);let a=q.get('a'),b=q.get('b');const bench=q.get('bench');
+  if(bench){const base='https://raw.githubusercontent.com/'+(q.get('repo')||'apparanyx/grasstex')+'/benchmark-results/benchmarks/results/scripted/runs/'+encodeURIComponent(bench)+'/';a=a||base+'off.json';b=b||base+'on.json'}
+  return {a,b,pick:q.get('pick')||'',view:q.get('view')||''};
+}
+async function autoLoadRuntimeFromQuery(){
+  const {a,b,pick}=runtimeQuery();
+  if(a)await importRuntimeUrl('A',a,pick);
+  if(b)await importRuntimeUrl('B',b,pick);
 }
 function runtimeEventsNear(t,windowSec=.55){
   const out=[];
@@ -1831,7 +1854,7 @@ function fullView(){
  window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes((e.target&&e.target.tagName)||''))return;if(e.code==='Space'){spaceDown=true;e.preventDefault();return}if(e.key==='+'||e.key==='='){zoomCenter(1.28);e.preventDefault()}else if(e.key==='-'){zoomCenter(1/1.28);e.preventDefault()}else if(e.key==='0'){actualSize();e.preventDefault()}else if(e.key.toLowerCase()==='f'){fit();e.preventDefault()}else if(e.key==='ArrowLeft'){if(current==='brain3d'){brain3D.yaw-=.12;renderBrain3DScene()}else panByScreen(80,0);e.preventDefault()}else if(e.key==='ArrowRight'){if(current==='brain3d'){brain3D.yaw+=.12;renderBrain3DScene()}else panByScreen(-80,0);e.preventDefault()}else if(e.key==='ArrowUp'){if(current==='brain3d'){brain3D.pitch=clamp(brain3D.pitch-.1*(brain3D.invertY?-1:1),-1.18,1.18);renderBrain3DScene()}else panByScreen(0,80);e.preventDefault()}else if(e.key==='ArrowDown'){if(current==='brain3d'){brain3D.pitch=clamp(brain3D.pitch+.1*(brain3D.invertY?-1:1),-1.18,1.18);renderBrain3DScene()}else panByScreen(0,-80);e.preventDefault()}else if(e.key==='Escape'){workspace.classList.remove('drawerOpen')}});
  window.addEventListener('keyup',e=>{if(e.code==='Space')spaceDown=false});window.addEventListener('blur',()=>{spaceDown=false;endDrag()});
  new ResizeObserver(()=>{updateZoomReadout()}).observe(document.getElementById('stage'));
- initCfgSelect();renderTabs();load().then(()=>setTimeout(fit,30));
+ initCfgSelect();{const v=runtimeQuery().view;if(v&&VIEWS.some(x=>x[0]===v))current=v}renderTabs();load().then(()=>{setTimeout(fit,30);return autoLoadRuntimeFromQuery()});
 })();
 </script>
 </body>
