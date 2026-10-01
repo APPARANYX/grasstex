@@ -1297,7 +1297,8 @@
     FLEE_RANGE: 40, // he looks for cover this far from where he stands
     FLEE_BACK: 25, // with none, he runs this far from the threat (toward the rear if there is no threat)
     FLEE_ARRIVED: 1.5,
-    FLEE_REPICK: 4, // and looks again this often until he is there
+    FLEE_REPICK: 4, // seconds without headway before he looks again ...
+    FLEE_TRIES: 2, // ... at most this many times, then he stays where he is
     FLEE_NO_THREAT: 0.3, // running from nothing in particular: how much his temper to flee counts
     FREEZE_NOT_UNDER_FIRE: 0.7, // stopping when nobody is shooting at him: how much his temper to freeze counts
     TROUBLE_AGE: 20, // a sighting this old still counts as where the trouble is
@@ -1347,7 +1348,8 @@
       if (w[order[i]] > 0 && (!best || w[order[i]] > w[best])) best = order[i];
     return best;
   }
-  /* Cover away from the trouble, else a point further from it (or the squad's rear with no trouble). */
+  /* Cover away from the trouble, else a point further from it (or the squad's rear with no trouble). Chosen once; the
+     goal then stands until he reaches it (`flee` looks again only if he makes no headway). */
   function pickRefuge(s, battle) {
     var e = state(s),
       p = posOf(s),
@@ -1363,29 +1365,30 @@
       az = rear.z - p.z;
     }
     var len = Math.hypot(ax, az);
-    e.refugeAt = battle.time;
     if (len < 0.5) {
       e.refuge = { x: p.x, z: p.z };
-      return;
-    }
-    ax /= len;
-    az /= len;
-    var cover = th
-      ? findCover(s, battle, {
-          maxRange: ACT_TUNING.FLEE_RANGE,
-          evade: true,
-          forward: { x: ax, z: az },
-          threat: { root: { position: th } }
-        })
-      : null;
-    if (cover) {
-      e.cover = cover;
-      e.refuge = { x: cover.x, z: cover.z };
     } else {
-      e.cover = null;
-      var back = th ? ACT_TUNING.FLEE_BACK : Math.min(ACT_TUNING.FLEE_BACK, len);
-      e.refuge = { x: p.x + ax * back, z: p.z + az * back };
+      ax /= len;
+      az /= len;
+      var cover = th
+        ? findCover(s, battle, {
+            maxRange: ACT_TUNING.FLEE_RANGE,
+            evade: true,
+            forward: { x: ax, z: az },
+            threat: { root: { position: th } }
+          })
+        : null;
+      if (cover) {
+        e.cover = cover;
+        e.refuge = { x: cover.x, z: cover.z };
+      } else {
+        e.cover = null;
+        var back = th ? ACT_TUNING.FLEE_BACK : Math.min(ACT_TUNING.FLEE_BACK, len);
+        e.refuge = { x: p.x + ax * back, z: p.z + az * back };
+      }
     }
+    e.refugeBest = dist(p.x, p.z, e.refuge.x, e.refuge.z);
+    e.refugeAt = battle.time;
   }
   function cower(s, battle) {
     s.state = 'engage';
@@ -1404,10 +1407,23 @@
       p = posOf(s);
     s.state = 'retreat';
     s.setUp = false;
-    if (!e.refuge || (battle.time - e.refugeAt >= ACT_TUNING.FLEE_REPICK && !e.refugeHere))
-      pickRefuge(s, battle);
-    var r = e.refuge;
-    e.refugeHere = dist(p.x, p.z, r.x, r.z) <= ACT_TUNING.FLEE_ARRIVED;
+    if (!e.refuge) pickRefuge(s, battle);
+    var r = e.refuge,
+      d = dist(p.x, p.z, r.x, r.z);
+    /* The goal stands until he is there. If he makes no headway for FLEE_REPICK he looks again, at most FLEE_TRIES
+       times, and then stays where he is: a man does not run after a threat that moves, nor off the map. */
+    if (d > ACT_TUNING.FLEE_ARRIVED) {
+      if (d < e.refugeBest - 0.5) {
+        e.refugeBest = d;
+        e.refugeAt = battle.time;
+      } else if (battle.time - e.refugeAt >= ACT_TUNING.FLEE_REPICK) {
+        if ((e.refugeTries = (e.refugeTries || 0) + 1) > ACT_TUNING.FLEE_TRIES) e.refuge = { x: p.x, z: p.z };
+        else pickRefuge(s, battle);
+        r = e.refuge;
+        d = dist(p.x, p.z, r.x, r.z);
+      }
+    }
+    e.refugeHere = d <= ACT_TUNING.FLEE_ARRIVED;
     if (!e.refugeHere) {
       markUrgent(s, battle, 0.5);
       commitStance(s, battle, s.suppressedUntil > battle.time ? 'crouch' : 'stand', 0.5);
@@ -1504,6 +1520,7 @@
       e.actAt = now;
       e.refuge = null;
       e.refugeHere = false;
+      e.refugeTries = 0;
       e.boundOrder = false;
       e.suppressOrder = false;
       e.cover = null;

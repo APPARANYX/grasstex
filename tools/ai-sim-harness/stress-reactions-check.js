@@ -321,6 +321,41 @@ test('flee: runs away from the threat, never fires, holds when it gets there', (
   assert.equal(s.crouching || s.prone, true, 'down at the refuge');
 });
 
+test('flee: the goal stands until he is there, and he does not run after a threat that moves or off the map', () => {
+  const { ctx, s, g } = broke('?stressAct=flee', [0.9, 0, 0], 60);
+  assert.equal(s.eng.state, 'flee');
+  const goal = { x: s.eng.refuge.x, z: s.eng.refuge.z },
+    T = ctx.E.tuning.ACT_TUNING;
+  /* The trouble moves a long way: his goal does not follow it. */
+  put(g, g.root.position.x + 300, g.root.position.z - 300);
+  ctx.us.contact = { x: g.root.position.x, z: g.root.position.z, at: ctx.b.time, seenBy: s.id };
+  /* He makes headway (a step toward it each second), so no second look. */
+  for (let i = 0; i < 10; i++) {
+    put(
+      s,
+      s.root.position.x + (goal.x - s.root.position.x) * 0.1,
+      s.root.position.z + (goal.z - s.root.position.z) * 0.1
+    );
+    s.mind.stress = 0.95; // still broken
+    tick(ctx, s, 1);
+  }
+  assert.deepEqual(s.eng.refuge, goal, 'the goal stood while he ran to it');
+  /* Stuck: no headway for FLEE_REPICK, FLEE_TRIES times over, and then he stays where he is. */
+  const stuck = broke('?stressAct=flee', [0.9, 0, 0], 60);
+  const here0 = here(stuck.s);
+  for (let i = 0; i < (T.FLEE_TRIES + 2) * (T.FLEE_REPICK + 1); i++) {
+    stuck.s.mind.stress = 0.95;
+    tick(stuck.ctx, stuck.s, 1);
+  }
+  assert.equal(stuck.s.eng.state, 'flee');
+  assert.ok(stuck.s.eng.refugeTries > T.FLEE_TRIES, 'he looked again FLEE_TRIES times');
+  assert.ok(
+    dist(stuck.s.eng.refuge, here0) < 1,
+    'and then his refuge is where he stands: ' + JSON.stringify(stuck.s.eng.refuge)
+  );
+  assert.equal(stuck.s.eng.refugeHere, true, 'holding there');
+});
+
 test('flee: cover behind him is where he goes, if there is any', () => {
   /* A wall 12 m behind the man (away from the threat at +z): a slot on its far side from the threat. */
   const wall = { x: 0, z: 8, y: 0, radius: 6, height: 3, cover: 0.2, type: 'wall' };
