@@ -41,15 +41,15 @@
   /* The levers a man's own decisions are counted for (the Squad Leader's `morale` is a squad decision, not a man's, and
      `act` is Engagement's reactions, counted as `acts`). */
   var DECIDED = ['react', 'aim', 'hesitate', 'shock'];
-  /* What a man carries from one moment of the fight to the next, each off unless named: `?stressMem=lasting,floor,relief`
-     (or `1`/`all` for the three). `lasting`: stress does not drain on its timer while the fight goes on, only once
+  /* What a man carries from one moment of the fight to the next: `lasting`, `floor` and `relief` are all
+     on by default. `?stressMem=0` disables all; a comma list enables exactly those named. `lasting`: stress does not drain on its timer while the fight goes on, only once
      the squad has been out of contact (and he out of fire) for CALM_AFTER. `floor`: a ratchet of how hurt he is
      times how shaken he was; nothing takes his stress below it. `relief`: kills, a captured objective, reaching
      cover under fire and a spell of fire survived take stress off, down to the floor and no further. */
   var MEMORIES = ['lasting', 'floor', 'relief'],
-    /* On with no `?stressMem=` in the URL (owner decision, 2026-10-01: stress that does not drain in a fight is the
-       default battle). `?stressMem=0` is the old drain, a list names exactly the producers that run. */
-    MEMORY_DEFAULT = ['lasting'];
+    /* Full memory is the shipping battle: stress persists through a fight, wounds leave a floor and positive
+       events relieve stress. `?stressMem=0` disables all; a list names exactly the producers that run. */
+    MEMORY_DEFAULT = MEMORIES.slice();
   function parseMemory(search) {
     var m = /[?&]stressMem=([^&#]*)/.exec(search || ''),
       out = {},
