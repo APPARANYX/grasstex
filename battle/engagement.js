@@ -1914,11 +1914,111 @@
       tryFire(s, battle);
   }
 
+  /* A window is a firing port (`station.port`, built by Navigation from the opening's own metadata; the
+     Tactical Positions manager owns the assignment and the bounded pose). Here he posts up on it:
+     the stance the sill fits, facing out through the aperture, and each tick the aperture is asked
+     whether his eye and his bore really pass through it. When they do not, the pose is corrected inside
+     the port's bounds (forward to the wall, along the sill, a stance the port lists) and the post is
+     kept. Target loss, a target outside the sector and a closed line never release it: only the manager
+     does that. */
+  var PORT_ON = !(typeof location !== 'undefined' && /[?&]windowPort=0\b/.test(location.search || ''));
+  function portTarget(s, battle) {
+    var tp = posOf(s.target);
+    return { x: tp.x, y: battle.heightAt(tp.x, tp.z) + SA().eyeHeight(s.target) - 0.2, z: tp.z };
+  }
+  function portLines(s, battle, st, t) {
+    var N = root.BattleNavigation,
+      p = posOf(s),
+      floor = battle.heightAt(st.windowX, st.windowZ),
+      to = portTarget(s, battle),
+      eyeY = battle.heightAt(p.x, p.z) + SA().eyeHeight(s),
+      eye = N.aperture(st, { x: p.x, y: eyeY, z: p.z }, to, floor),
+      B = root.BattleBallistics,
+      m = B && B.muzzleOrigin ? B.muzzleOrigin(s, s.target, battle) : { x: p.x, y: eyeY, z: p.z },
+      dx = m.x - p.x,
+      dz = m.z - p.z,
+      l = Math.hypot(dx, dz) || 1,
+      stock = { x: m.x - (dx / l) * 0.5, y: m.y, z: m.z - (dz / l) * 0.5 },
+      /* the butt is behind the muzzle on the same line, so the bore is judged from the stock to the target */
+      muzzle = N.aperture(st, stock, to, floor);
+    return { eye: eye, muzzle: muzzle, eyeAt: { x: p.x, y: eyeY, z: p.z }, muzzleAt: m, to: to };
+  }
+  function portSolve(s, battle, t, st, lines) {
+    var port = st.port,
+      cur = t.pose || { lat: 0, fwd: 0, stance: port.stance },
+      req = null;
+    var bad = !lines.eye.ok ? lines.eye : lines.muzzle.ok ? null : lines.muzzle;
+    if (!bad) return false;
+    if (bad.reason === 'sill' && cur.stance !== 'stand' && port.stances.indexOf('stand') >= 0)
+      req = { stance: 'stand' };
+    else if (bad.reason === 'lintel' && cur.stance !== 'crouch' && port.stances.indexOf('crouch') >= 0)
+      req = { stance: 'crouch' };
+    else if (bad.reason === 'jamb') {
+      var over = Math.abs(bad.u) - (port.halfWidth - 0.08) + 0.05,
+        side = bad.u > 0 ? 1 : -1;
+      // closer to the wall first (it widens the sector), then along the sill toward the side the line crosses
+      if (cur.fwd < port.maxForward) req = { fwd: port.maxForward };
+      else req = { lat: cur.lat + side * Math.max(0.05, over) };
+    }
+    return req ? root.BattleTacticalPositions.adjustPose(s, battle, req) : false;
+  }
   function station(s, battle) {
     var e = state(s),
-      t = root.BattleTacticalPositions.current(s),
-      st = t.position;
+      P = root.BattleTacticalPositions,
+      t = P.current(s),
+      st = t.position,
+      port = PORT_ON && st.port;
     s.state = 'hardpoint';
+    if (!port) return legacyStation(s, battle, e, t, st);
+    var N = root.BattleNavigation,
+      anchor = P.anchor(s) || st,
+      p = posOf(s),
+      d = dist(p.x, p.z, anchor.x, anchor.z),
+      pose = t.pose,
+      out = { x: st.windowX + st.normalX * 20, z: st.windowZ + st.normalZ * 20 },
+      tp = s.target && !s.target.dead ? posOf(s.target) : null,
+      face =
+        tp && N.inSector(st, tp)
+          ? tp
+          : t.threatSector && N.inSector(st, t.threatSector)
+            ? t.threatSector
+            : out;
+    s._faceHint = face;
+    commitStance(s, battle, (pose && pose.stance) || port.stance, 2.0);
+    move(s, battle, { x: anchor.x, z: anchor.z }, 'firing-station');
+    if (d > 0.35) {
+      s.setUp = false;
+      return;
+    }
+    if (SA().isMachineGun(s)) {
+      if (!e.setUpSince) e.setUpSince = battle.time;
+      s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
+    }
+    if (!tp || !N.inSector(st, tp)) {
+      // Holding the sector: no target (or none inside the aperture's reach) is not a reason to leave.
+      P.noteAperture(s, battle, {
+        stance: (pose && pose.stance) || port.stance,
+        target: null,
+        state: 'holding'
+      });
+      return;
+    }
+    var lines = portLines(s, battle, st, t),
+      moved = false;
+    if (!(lines.eye.ok && lines.muzzle.ok)) moved = portSolve(s, battle, t, st, lines);
+    P.noteAperture(s, battle, {
+      stance: (pose && pose.stance) || port.stance,
+      target: s.target.id,
+      state: lines.eye.ok && lines.muzzle.ok ? 'firing' : moved ? 'adjusting' : 'blocked',
+      eye: { ok: lines.eye.ok, reason: lines.eye.reason },
+      muzzle: { ok: lines.muzzle.ok, reason: lines.muzzle.reason },
+      eyeAt: lines.eyeAt,
+      muzzleAt: lines.muzzleAt,
+      to: lines.to
+    });
+    if (lines.eye.ok && lines.muzzle.ok) tryFire(s, battle);
+  }
+  function legacyStation(s, battle, e, t, st) {
     s._faceHint = t.threatSector;
     var p = posOf(s),
       d = dist(p.x, p.z, st.x, st.z);
