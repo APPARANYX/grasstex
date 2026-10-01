@@ -269,6 +269,48 @@ const run = (a, b, extra) => {
       'fire 6, suppress 2, bound 2, advance 0'
     ])
       assert.ok(md.includes(want), want + ' in:\n' + md);
+    /* The memory block (?stressMem): summed over the battles that have one; a build without it reads as none. */
+    assert.deepEqual(s.memory, {
+      flags: [],
+      heldSeconds: 0,
+      floorMen: 0,
+      floorMax: 0,
+      relief: {
+        kill: { n: 0, amount: 0 },
+        objective: { n: 0, amount: 0 },
+        cover: { n: 0, amount: 0 },
+        survived: { n: 0, amount: 0 }
+      }
+    });
+    const mem = (held, men, max, n) => ({
+      memory: {
+        flags: ['lasting', 'relief'],
+        heldSeconds: held,
+        floor: { men, mean: 0.2, max },
+        relief: {
+          kill: { n, amount: n * 0.1 },
+          objective: { n: 0, amount: 0 },
+          cover: { n: 1, amount: 0.05 },
+          survived: { n: 2 * n, amount: n * 0.2 }
+        }
+      }
+    });
+    const m = summarizeStress([
+      { stress: block(1, mem(10.5, 3, 0.4, 2)) },
+      { stress: block(2, mem(4, 2, 0.6, 1)) }
+    ]);
+    assert.deepEqual(m.memory.flags, ['lasting', 'relief']);
+    assert.equal(m.memory.heldSeconds, 14.5);
+    assert.equal(m.memory.floorMen, 5);
+    assert.equal(m.memory.floorMax, 0.6);
+    assert.deepEqual(m.memory.relief.kill, { n: 3, amount: 0.3 });
+    assert.deepEqual(m.memory.relief.survived, { n: 6, amount: 0.6 });
+    const mdm = stressMarkdown(m).join('\n');
+    assert.ok(
+      mdm.includes('Stress memory (lasting,relief): held 14.5 man-seconds · floors 5 men (highest 0.6)'),
+      mdm
+    );
+    assert.ok(!stressMarkdown(s).join('\n').includes('Stress memory'), 'nothing to say with every flag off');
     assert.equal(summarizeStress([{ seed: 'x' }, { stress: { off: true } }]), null);
     assert.equal(summarizeStress([]), null);
     assert.match(stressMarkdown(null)[0], /no stress block/);
