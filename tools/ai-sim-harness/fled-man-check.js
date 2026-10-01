@@ -465,4 +465,36 @@ test('flee is the only reaction that leaves a man his weapons nowhere: cower and
   }
 });
 
+test("a man in a fled phase is not part of the squad's cohesion: a squad that took him in and rallied does not regroup on his account", () => {
+  const w = world(),
+    q = squad(w, 0, 10, 150),
+    S = w.r.BattleRegroupHysteresis,
+    limit = 34;
+  run(w, 1);
+  /* Three men 200 m behind the squad (more than the two stragglers a ten-man squad lets lag): running home, or scattered. */
+  const behind = [rifleman(q, 1), rifleman(q, 2), rifleman(q, 3)];
+  behind.forEach(s => (s.root.position.z -= 200));
+  const control = S.assessment(q, limit);
+  assert.ok(
+    control.rawSpread > limit && control.dispersed,
+    'three ordinary men 200 m behind are a dispersal (the control)'
+  );
+  behind.forEach(s => (s.eng.fledPhase = 'home'));
+  const fled = S.assessment(q, limit);
+  assert.ok(
+    fled.rawSpread < limit,
+    'in a fled phase they are not counted: spread ' + fled.rawSpread.toFixed(1)
+  );
+  assert.equal(fled.dispersed, false);
+  assert.ok(behind.every(s => !fled.members.includes(s) && !fled.outrunners.includes(String(s.id))));
+  /* A man who is merely scattered still counts, fled men or none. */
+  const other = rifleman(q, 4);
+  other.root.position.z -= 200;
+  assert.ok(S.assessment(q, limit).rawSpread > limit, 'a scattered man is still counted beside them');
+  behind.forEach(s => (s.eng.fledPhase = null));
+  other.root.position.z += 200;
+  behind.forEach(s => (s.root.position.z += 200));
+  assert.equal(S.assessment(q, limit).dispersed, false, 'back with the squad, nobody is');
+});
+
 console.log('fled-man-check: ' + n + ' tests passed');
