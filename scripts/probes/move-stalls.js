@@ -14,7 +14,11 @@
       assault: 1,
       station: 1,
       withdraw: 1,
-      suppress: 1
+      suppress: 1,
+      cower: 1,
+      flee: 1,
+      freeze: 1,
+      rage: 1
     },
     ADVANCE = { approach: 1, assault: 1, capture: 1, 'clear-town': 1, flank: 1 },
     c,

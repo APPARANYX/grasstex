@@ -911,63 +911,174 @@
       enteredBy: 'initialisation, alert sector clear, station release',
       exits: 'target -> orient; authorised bound -> bound/assault; shared contact -> alert',
       rate: '0.15 s',
-      next: ['orient', 'bound', 'assault', 'alert', 'pinned', 'engage', 'withdraw', 'station']
+      next: [
+        'orient',
+        'bound',
+        'assault',
+        'alert',
+        'pinned',
+        'engage',
+        'withdraw',
+        'station',
+        'cower',
+        'flee',
+        'freeze',
+        'rage'
+      ]
     },
     orient: {
       meaning: 'Halt and recognise the target before firing',
       enteredBy: 'contact acquisition or a changed threat sector',
       exits: 'target lost -> alert; until elapsed -> decide; urgent cover -> bound',
       rate: '0.15 s',
-      next: ['alert', 'pinned', 'engage', 'bound', 'withdraw', 'station']
+      next: ['alert', 'pinned', 'engage', 'bound', 'withdraw', 'station', 'cower', 'flee', 'freeze', 'rage']
     },
     bound: {
       meaning: 'Move to chosen cover within its travel window',
       enteredBy: 'cover decision, authorised fireteam bound, urgent-cover request',
       exits: 'arrival -> engage; missing/unreachable/overdue cover -> decide',
       rate: '0.15 s',
-      next: ['bound', 'alert', 'pinned', 'engage', 'withdraw', 'station']
+      next: ['bound', 'alert', 'pinned', 'engage', 'withdraw', 'station', 'cower', 'flee', 'freeze', 'rage']
     },
     engage: {
       meaning: 'Hold position and stance, aim and fire',
       enteredBy: 'decide, cover arrival, assault end',
       exits: 'target lost -> alert; suppression -> pinned; review -> decide; order -> bound/assault',
       rate: '0.15 s; cover review every ENGAGE_REVIEW + id jitter',
-      next: ['engage', 'orient', 'bound', 'assault', 'alert', 'pinned', 'withdraw', 'station']
+      next: [
+        'engage',
+        'orient',
+        'bound',
+        'assault',
+        'alert',
+        'pinned',
+        'withdraw',
+        'station',
+        'cower',
+        'flee',
+        'freeze',
+        'rage'
+      ]
     },
     pinned: {
       meaning: 'Stay low and still under suppression',
       enteredBy: 'suppressed in the open during decide/engage',
       exits: 'suppression lifted -> decide/alert; changed sector -> orient; urgent cover -> bound',
       rate: '0.15 s',
-      next: ['pinned', 'orient', 'alert', 'engage', 'bound', 'withdraw', 'station']
+      next: [
+        'pinned',
+        'orient',
+        'alert',
+        'engage',
+        'bound',
+        'withdraw',
+        'station',
+        'cower',
+        'flee',
+        'freeze',
+        'rage'
+      ]
     },
     assault: {
       meaning: 'Complete one authorised short rush',
       enteredBy: 'ordered bound without cover',
       exits: 'arrival/close target/deadline/unreachable -> engage; no goal/target -> alert',
       rate: '0.15 s',
-      next: ['alert', 'engage', 'bound', 'pinned', 'withdraw', 'station']
+      next: ['alert', 'engage', 'bound', 'pinned', 'withdraw', 'station', 'cower', 'flee', 'freeze', 'rage']
     },
     alert: {
       meaning: 'Hold and watch the last known threat sector',
       enteredBy: 'target lost, shared-contact request',
       exits: 'reacquired -> orient; order -> bound/assault; expired quiet sector -> advance',
       rate: '0.15 s; suppressor renews until by SUPPRESS_HOLD',
-      next: ['orient', 'bound', 'assault', 'advance', 'alert', 'engage', 'pinned', 'withdraw', 'station']
+      next: [
+        'orient',
+        'bound',
+        'assault',
+        'advance',
+        'alert',
+        'engage',
+        'pinned',
+        'withdraw',
+        'station',
+        'cower',
+        'flee',
+        'freeze',
+        'rage'
+      ]
     },
     withdraw: {
       meaning: 'Yield combat movement to the squad retreat',
       enteredBy: 'squad retreat override',
       exits: 'retreat ends -> advance handler; station claim -> station',
       rate: '0.15 s',
-      next: ['withdraw', 'station', 'orient', 'bound', 'assault', 'alert', 'engage', 'pinned']
+      next: [
+        'withdraw',
+        'station',
+        'orient',
+        'bound',
+        'assault',
+        'alert',
+        'engage',
+        'pinned',
+        'cower',
+        'flee',
+        'freeze',
+        'rage'
+      ]
+    },
+    cower: {
+      meaning: 'Go to ground under fire and stay down: no aimed fire, no advance (rattled, ?stressAct=cower)',
+      enteredBy: 'rattled and under fire',
+      exits:
+        'calm below rattled, or fire quiet for COWER_QUIET -> advance; broken -> flee/freeze/rage; squad retreat -> withdraw',
+      rate: '0.15 s',
+      next: ['advance', 'withdraw', 'station', 'flee', 'freeze', 'rage']
+    },
+    flee: {
+      meaning:
+        'Break and run from the threat to cover or the rear, and stay there: no fire, no orders (broken, ?stressAct=flee)',
+      enteredBy: 'broken, where there is something to run from',
+      exits: 'calm below broken for REACT_MIN -> advance; squad retreat -> withdraw',
+      rate: '0.15 s',
+      next: ['advance', 'withdraw', 'station']
+    },
+    freeze: {
+      meaning: 'Break and stop: down where he is, no fire, no orders (broken, ?stressAct=freeze)',
+      enteredBy: 'broken, under fire or with nowhere to go',
+      exits: 'calm below broken for REACT_MIN -> advance; squad retreat -> withdraw',
+      rate: '0.15 s',
+      next: ['advance', 'withdraw', 'station']
+    },
+    rage: {
+      meaning:
+        "Break and charge the nearest enemy, firing on the move, and strike at arm's length (broken, ?stressAct=rage)",
+      enteredBy: 'broken, an enemy within RAGE_RANGE and a weapon to use',
+      exits:
+        'calm below broken for REACT_MIN, or no enemy within RAGE_REACH -> advance; squad retreat -> withdraw',
+      rate: '0.15 s',
+      next: ['advance', 'withdraw', 'station']
     },
     station: {
       meaning: 'Use the claimed building firing station',
       enteredBy: 'tactical-position override',
       exits: 'station release -> advance; squad retreat -> withdraw',
       rate: '0.15 s',
-      next: ['station', 'withdraw', 'advance', 'orient', 'bound', 'assault', 'alert', 'engage', 'pinned']
+      next: [
+        'station',
+        'withdraw',
+        'advance',
+        'orient',
+        'bound',
+        'assault',
+        'alert',
+        'engage',
+        'pinned',
+        'cower',
+        'flee',
+        'freeze',
+        'rage'
+      ]
     }
   };
   /* External requests have explicit entry effects. They formerly bypassed enter(), so applying
@@ -1157,6 +1268,278 @@
     return true;
   }
 
+  /* ---- what stress does to a man (module 17 numbers, `?stressAct=cower,flee,freeze,rage`) ---------------------------
+     Off unless named (`1` or `all` for the four). A rattled man under fire goes to ground (`cower`). A broken man stops
+     fighting the way he was and does one of three things: runs (`flee`: to cover away from the threat, or the rear),
+     stops where he is (`freeze`) or charges the nearest enemy (`rage`). Which one is his temper (three fixed unit
+     hashes of his faction and id, module 17 `view`) weighed against the situation: running needs something to run from,
+     stopping fits being under fire, charging needs an enemy within RAGE_RANGE and a weapon. Deterministic, never the
+     combat RNG (a charge's blow does draw it, as a shot does: that is resolution, not the choice). They are states
+     here, declared in STATES with their transitions; module 17 still writes only `mind`, and the Squad Leader hears of
+     them through the squad report (`reacting`), not by reading a man. A squad that is already retreating is not
+     reacted for: the retreat order outranks every drill, as it does for a man in a firefight. */
+  var ACT = (function () {
+    var m = /[?&]stressAct=([^&#]*)/.exec((typeof location !== 'undefined' && location.search) || ''),
+      v = m ? decodeURIComponent(m[1]).toLowerCase() : '',
+      out = { cower: false, flee: false, freeze: false, rage: false, any: false };
+    if (v === '1' || v === 'on' || v === 'all') v = 'cower,flee,freeze,rage';
+    if (v && v !== '0' && v !== 'off')
+      v.split(',').forEach(function (k) {
+        if (k in out && k !== 'any') out[k] = true;
+      });
+    out.any = out.cower || out.flee || out.freeze || out.rage;
+    return out;
+  })();
+  var ACTING = { cower: 1, flee: 1, freeze: 1, rage: 1 };
+  var ACT_TUNING = {
+    COWER_QUIET: 3, // cower: he stays down until the fire on him has been quiet this long
+    REACT_MIN: 4, // a break lasts at least this long: nobody snaps out of it in a tick
+    FLEE_RANGE: 40, // he looks for cover this far from where he stands
+    FLEE_BACK: 25, // with none, he runs this far from the threat (toward the rear if there is no threat)
+    FLEE_ARRIVED: 1.5,
+    FLEE_REPICK: 4, // seconds without headway before he looks again ...
+    FLEE_TRIES: 2, // ... at most this many times, then he stays where he is
+    FLEE_NO_THREAT: 0.3, // running from nothing in particular: how much his temper to flee counts
+    FREEZE_NOT_UNDER_FIRE: 0.7, // stopping when nobody is shooting at him: how much his temper to freeze counts
+    TROUBLE_AGE: 20, // a sighting this old still counts as where the trouble is
+    RAGE_RANGE: 120, // an enemy this near can set him off (about a quarter of a minute at a run)
+    RAGE_REACH: 160, // and he gives up the charge when none is within this
+    MELEE_RANGE: 2.2,
+    MELEE_PERIOD: 1.4, // seconds between blows
+    MELEE_HIT: 0.6, // chance a blow lands (the combat RNG, as a shot's roll is)
+    MELEE_ENERGY: 0.8, // of a rifle round's wound
+    MELEE_POWER: 0.6 // and of its chance to drop him
+  };
+  /* Engagement states in which a man is not fighting the way he was (the squad report's `reacting`). */
+  function reacting(s) {
+    return !!(s && s.eng && ACTING[s.eng.state] === 1);
+  }
+  function noteAct(s, kind, what, dt) {
+    var M = mind();
+    if (M) M.noteAct(s, kind, what, dt);
+  }
+  function armed(s) {
+    return !!(s.weapon && !s.outOfAmmo && (!root.BattleAmmunition || root.BattleAmmunition.available(s)));
+  }
+  /* Where the trouble is: the squad's picture, else what he saw within TROUBLE_AGE, else nobody. */
+  function trouble(s, battle) {
+    var contact = squadContact(s, battle),
+      e = state(s);
+    if (contact) return { x: contact.x, z: contact.z };
+    if (s.target && !s.target.dead) return { x: posOf(s.target).x, z: posOf(s.target).z };
+    if (e.lastSeen && battle.time - e.lastSeenAt <= ACT_TUNING.TROUBLE_AGE)
+      return { x: e.lastSeen.x, z: e.lastSeen.z };
+    return null;
+  }
+  /* How a broken man breaks: the best of his enabled reactions by temper x situation, ties in the order flee, freeze,
+     rage; null when none is enabled or none has any weight. */
+  function chooseBreak(s, battle, v) {
+    var p = posOf(s),
+      th = trouble(s, battle),
+      d = th ? dist(p.x, p.z, th.x, th.z) : Infinity,
+      w = {
+        flee: ACT.flee ? v.temper.flee * (th ? 1 : ACT_TUNING.FLEE_NO_THREAT) : 0,
+        freeze: ACT.freeze ? v.temper.freeze * (v.underFire ? 1 : ACT_TUNING.FREEZE_NOT_UNDER_FIRE) : 0,
+        rage: ACT.rage && d <= ACT_TUNING.RAGE_RANGE && armed(s) ? v.temper.rage : 0
+      },
+      best = null,
+      order = ['flee', 'freeze', 'rage'];
+    for (var i = 0; i < order.length; i++)
+      if (w[order[i]] > 0 && (!best || w[order[i]] > w[best])) best = order[i];
+    return best;
+  }
+  /* Cover away from the trouble, else a point further from it (or the squad's rear with no trouble). Chosen once; the
+     goal then stands until he reaches it (`flee` looks again only if he makes no headway). */
+  function pickRefuge(s, battle) {
+    var e = state(s),
+      p = posOf(s),
+      th = trouble(s, battle),
+      rear = s.squad && (s.squad.rally || s.squad.home),
+      ax = 0,
+      az = 0;
+    if (th) {
+      ax = p.x - th.x;
+      az = p.z - th.z;
+    } else if (rear) {
+      ax = rear.x - p.x;
+      az = rear.z - p.z;
+    }
+    var len = Math.hypot(ax, az);
+    if (len < 0.5) {
+      e.refuge = { x: p.x, z: p.z };
+    } else {
+      ax /= len;
+      az /= len;
+      var cover = th
+        ? findCover(s, battle, {
+            maxRange: ACT_TUNING.FLEE_RANGE,
+            evade: true,
+            forward: { x: ax, z: az },
+            threat: { root: { position: th } }
+          })
+        : null;
+      if (cover) {
+        e.cover = cover;
+        e.refuge = { x: cover.x, z: cover.z };
+      } else {
+        e.cover = null;
+        var back = th ? ACT_TUNING.FLEE_BACK : Math.min(ACT_TUNING.FLEE_BACK, len);
+        e.refuge = { x: p.x + ax * back, z: p.z + az * back };
+      }
+    }
+    e.refugeBest = dist(p.x, p.z, e.refuge.x, e.refuge.z);
+    e.refugeAt = battle.time;
+  }
+  function cower(s, battle) {
+    s.state = 'engage';
+    s.setUp = false;
+    holdPosition(s, battle);
+    commitStance(s, battle, PRONE_ROLES[s.role] ? 'prone' : 'crouch', PRONE_HOLD);
+  }
+  function freeze(s, battle) {
+    s.state = 'engage';
+    s.setUp = false;
+    holdPosition(s, battle);
+    commitStance(s, battle, 'crouch', 1.0);
+  }
+  function flee(s, battle) {
+    var e = state(s),
+      p = posOf(s);
+    s.state = 'retreat';
+    s.setUp = false;
+    if (!e.refuge) pickRefuge(s, battle);
+    var r = e.refuge,
+      d = dist(p.x, p.z, r.x, r.z);
+    /* The goal stands until he is there. If he makes no headway for FLEE_REPICK he looks again, at most FLEE_TRIES
+       times, and then stays where he is: a man does not run after a threat that moves, nor off the map. */
+    if (d > ACT_TUNING.FLEE_ARRIVED) {
+      if (d < e.refugeBest - 0.5) {
+        e.refugeBest = d;
+        e.refugeAt = battle.time;
+      } else if (battle.time - e.refugeAt >= ACT_TUNING.FLEE_REPICK) {
+        if ((e.refugeTries = (e.refugeTries || 0) + 1) > ACT_TUNING.FLEE_TRIES) e.refuge = { x: p.x, z: p.z };
+        else pickRefuge(s, battle);
+        r = e.refuge;
+        d = dist(p.x, p.z, r.x, r.z);
+      }
+    }
+    e.refugeHere = d <= ACT_TUNING.FLEE_ARRIVED;
+    if (!e.refugeHere) {
+      markUrgent(s, battle, 0.5);
+      commitStance(s, battle, s.suppressedUntil > battle.time ? 'crouch' : 'stand', 0.5);
+      move(s, battle, r, 'flee');
+    } else {
+      holdPosition(s, battle);
+      commitStance(
+        s,
+        battle,
+        PRONE_ROLES[s.role] && s.suppressedUntil > battle.time ? 'prone' : 'crouch',
+        1.0
+      );
+    }
+  }
+  /* A blow at arm's length: a pseudo-shot through the wound model (a chest hit, less than a rifle round's energy). */
+  function strike(s, battle, target) {
+    var e = state(s),
+      W = root.BattleWounds;
+    if (battle.time < (e.strikeAt || 0) || !W || !target || target.dead) return;
+    e.strikeAt = battle.time + ACT_TUNING.MELEE_PERIOD;
+    noteAct(s, 'rage', 'strike');
+    var roll = typeof battle.random === 'function' ? battle.random() : Math.random();
+    if (roll >= ACT_TUNING.MELEE_HIT) return;
+    noteAct(s, 'rage', 'hit');
+    W.wound(s, target, battle, {
+      zone: 'chest',
+      energy: ACT_TUNING.MELEE_ENERGY,
+      power: ACT_TUNING.MELEE_POWER
+    });
+  }
+  /* Rounds on the move: the usual gates but the one about speed (the shot group is already wider for a man who moves). */
+  function fireOnTheMove(s, battle) {
+    if (!s.target || s.target.dead || s.reloading || battle.time < state(s).fireReadyAt) return false;
+    if (facingError(s, posOf(s.target)) > AIM_CONE * 2) return false;
+    var d = dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z);
+    if (d > SA().engageRange(s)) return false;
+    SA().tryFire(s, battle);
+    return true;
+  }
+  function rage(s, battle) {
+    var p = posOf(s),
+      th = trouble(s, battle),
+      tg = s.target && !s.target.dead ? s.target : null,
+      goal = tg ? posOf(tg) : th,
+      d = goal ? dist(p.x, p.z, goal.x, goal.z) : Infinity;
+    s.state = 'engage';
+    s.setUp = false;
+    if (d > ACT_TUNING.RAGE_REACH) return false; // nobody to charge: it is over
+    commitStance(s, battle, 'stand', 0.5);
+    markUrgent(s, battle, 0.5);
+    if (d > ACT_TUNING.MELEE_RANGE * 0.8) move(s, battle, { x: goal.x, z: goal.z }, 'rage-charge');
+    else holdPosition(s, battle);
+    if (tg) {
+      fireOnTheMove(s, battle);
+      if (d <= ACT_TUNING.MELEE_RANGE) strike(s, battle, tg);
+    }
+    return true;
+  }
+  function composed(s, battle, from) {
+    var e = state(s);
+    e.cover = null;
+    e.refuge = null;
+    e.refugeHere = false;
+    transition(s, battle, 'advance', 0, from + ' over');
+  }
+  /* Called each soldier tick when any reaction is on, after the squad-retreat check. True: the tick was his reaction's. */
+  function reaction(s, battle) {
+    var M = mind(),
+      now = battle.time,
+      v = M ? M.view(s, now) : null;
+    if (!v) return false;
+    var e = state(s),
+      cur = ACTING[e.state] === 1 ? e.state : null,
+      want = cur;
+    if (v.band >= 3) {
+      if (!cur || cur === 'cower') want = chooseBreak(s, battle, v) || (cur === 'cower' ? 'cower' : null);
+    } else if (cur === 'cower') {
+      if (v.underFire) e.fearAt = now;
+      if (v.band < 2 || now - e.fearAt >= ACT_TUNING.COWER_QUIET) want = null;
+    } else if (cur) {
+      if (now - e.reactSince >= ACT_TUNING.REACT_MIN) want = null;
+    } else if (v.band >= 2 && v.underFire && ACT.cower) want = 'cower';
+    if (want !== cur) {
+      if (!want) {
+        composed(s, battle, cur);
+        return false;
+      }
+      /* A man leaving a firing station is released from it first: a held station would pull him back. */
+      var T = root.BattleTacticalPositions;
+      if (T && T.current(s)) T.release(s, battle, 'broken');
+      transition(s, battle, want, 0, want === 'cower' ? 'rattled under fire' : 'broke: ' + want);
+      e.reactSince = now;
+      e.fearAt = now;
+      e.actAt = now;
+      e.refuge = null;
+      e.refugeHere = false;
+      e.refugeTries = 0;
+      e.boundOrder = false;
+      e.suppressOrder = false;
+      e.cover = null;
+      noteAct(s, want, 'start');
+    }
+    if (!want) return false;
+    var dt = clamp(now - (e.actAt || now), 0, 0.5);
+    e.actAt = now;
+    noteAct(s, want, 'time', dt);
+    if (want === 'cower') cower(s, battle);
+    else if (want === 'freeze') freeze(s, battle);
+    else if (want === 'flee') flee(s, battle);
+    else if (!rage(s, battle)) {
+      composed(s, battle, 'rage');
+      return false;
+    }
+    return true;
+  }
+
   /* ---- per-soldier update ------------------------------------------------------------------ */
 
   /* Declared extension point: drills layered on the state machine attach here (see squad-ai.js
@@ -1200,6 +1583,7 @@
       transition(s, battle, 'withdraw', 0, 'squad withdrawing');
       return withdraw(s, battle);
     }
+    if (ACT.any && reaction(s, battle)) return;
     if (root.BattleTacticalPositions && root.BattleTacticalPositions.update(s, battle)) {
       transition(s, battle, 'station', 0, 'firing station');
       return station(s, battle);
@@ -1581,7 +1965,8 @@
           es.state === 'bound' ||
           es.state === 'pinned' ||
           es.state === 'withdraw' ||
-          es.state === 'assault'
+          es.state === 'assault' ||
+          ACTING[es.state] === 1
         )
           continue;
         if (bounding && es.boundOrder) continue;
@@ -1631,11 +2016,13 @@
        silent. Assigning before the counting below means a suppressor counts toward this tick's
        base of fire rather than the previous one's. */
     var known = SA().squadContact ? SA().squadContact(sq, battle) : null;
-    var suppressing = assignSuppressors(sq, battle, members, known);
+    var suppressing = assignSuppressors(sq, battle, members, known),
+      broken = [];
     for (i = 0; i < members.length; i++) {
       s = members[i];
       if (s.dead) continue;
       var e = state(s);
+      if (ACTING[e.state] === 1) broken.push(s);
       if (s.target) contact++;
       if (e.state === 'pinned' || s.suppressedUntil > battle.time) pinnedCount++;
       /* A man putting rounds on the known position IS the base of fire - that is the entire point
@@ -1681,7 +2068,13 @@
       });
     }
     if (!sq.inContact) sq.contactSince = null;
-    return { contactStarted: started, effective: effective, pinned: pinnedCount, fireSupport: fireSupport };
+    return {
+      contactStarted: started,
+      effective: effective,
+      pinned: pinnedCount,
+      fireSupport: fireSupport,
+      reacting: broken
+    };
   }
   /* The Squad Leader's bound order, stored as Micro state and consumed once by orderedBound(). */
   function orderBound(movers) {
@@ -1742,6 +2135,7 @@
     updateSquad: updateSquad,
     orderBound: orderBound,
     clearBoundOrders: clearBoundOrders,
+    reacting: reacting,
     decide: decide,
     suppress: suppress,
     assignSuppressors: assignSuppressors,
@@ -1782,7 +2176,9 @@
       AIM_SETTLE: AIM_SETTLE,
       COVER_FIRE: COVER_FIRE,
       CRAWL_FIT: CRAWL_FIT,
-      CONTACT_STANCE: CONTACT_STANCE
+      CONTACT_STANCE: CONTACT_STANCE,
+      ACT: ACT,
+      ACT_TUNING: ACT_TUNING
     }
   };
   if (typeof console !== 'undefined')
