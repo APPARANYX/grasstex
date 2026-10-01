@@ -218,6 +218,16 @@
       return s && !s.dead && s.root && s.root.position;
     });
   }
+  /* The men this squad commands: the living, bar one who has fled (Engagement `fledPhase`). A fled man is on his own
+     until he is at base, running to his refuge, waiting or going home, so where he is says nothing about whether the
+     squad is scattered, and a squad that took him in and rallied must not regroup, or wait to advance, on his account
+     (the regroup order outranks his flee: he was pulled back every ~10 s and never got home). */
+  function commanded(sq) {
+    var E = root.BattleEngagement;
+    return alive(sq).filter(function (s) {
+      return !(E && E.fledPhase && E.fledPhase(s));
+    });
+  }
   function average(sq) {
     var a = alive(sq),
       x = 0,
@@ -640,7 +650,7 @@
    straggler: he expands the core, forcing the Squad Leader to restore cohesion instead of allowing two
    scouts to sprint into the next fight alone. Lateral outliers are also non-trimmable. */
   function cohesionAssessment(sq, limit) {
-    var m = alive(sq),
+    var m = commanded(sq),
       n = m.length;
     if (!n)
       return {
@@ -1064,7 +1074,7 @@
     ].join('|');
   }
   function orderCanAdvance(sq) {
-    var living = alive(sq),
+    var living = commanded(sq),
       arrived = 0;
     if (!living.length) return true;
     for (var i = 0; i < living.length; i++) {
