@@ -64,7 +64,8 @@ test('the vocabulary is declared data with distinct priorities, and an unknown k
     'kill',
     'objective',
     'cover',
-    'survived'
+    'survived',
+    'fled'
   ]);
   const p = Object.values(E.KINDS).map(k => k.priority);
   assert.deepEqual(

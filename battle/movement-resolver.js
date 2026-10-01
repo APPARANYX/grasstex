@@ -61,7 +61,9 @@
   }
   /* A man whose stress has put him down or on the run (Engagement `cower`, `freeze`, `flee`, `rage`): his own combat
      intents outrank everything the squad asks of him except its retreat and regroup, and a hold he makes while down
-     beats a station as a pin does. */
+     beats a station as a pin does. The one exception is `flee`: a man who has fled is on his own, in a squad of one in
+     retreat, and does not take its order home (he runs to his refuge, waits there, then goes home himself), so a
+     retreating squad neither rejects his flee intents nor overrides them. */
   var REACTING = { cower: 1, flee: 1, freeze: 1, rage: 1 };
   var PRIORITY = {
     retreat: 100,
@@ -353,7 +355,7 @@
     p.intentPoint = { x: raw.x, z: raw.z };
     var q = soldier.squad || {},
       old = st.combat;
-    if (q.state === 'retreat' || q.commandPhase === 'retreat') {
+    if ((q.state === 'retreat' || q.commandPhase === 'retreat') && p.kind !== 'flee') {
       count(battle, 'lowerPriorityRejected');
       return old;
     }
@@ -393,7 +395,8 @@
     var P = root.BattleTacticalPositions,
       task = P && P.update(soldier, battle),
       sq = soldier.squad || {};
-    if (sq.state === 'retreat' || sq.commandPhase === 'retreat') {
+    var fled = combat && combat.kind === 'flee' && valid(soldier, combat, battle);
+    if (!fled && (sq.state === 'retreat' || sq.commandPhase === 'retreat')) {
       if (st.goal && st.goal.kind !== 'retreat') count(battle, 'emergencyOverrides');
       st.combat = null;
       var escape =

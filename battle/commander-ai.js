@@ -498,7 +498,8 @@
      missionState(sim).reconstitution. */
   var RECON_STRENGTH = 10, // one full rifle squad (SquadAI.COMPOSITION)
     RALLY_RADIUS = 20,
-    RALLY_FORWARD = 30;
+    RALLY_FORWARD = 30,
+    FLED_PICKUP_RANGE = 50; // a retreating squad this near a fled man waiting for one takes him in
   function reconState(sim) {
     var st = missionState(sim);
     return (
@@ -650,7 +651,6 @@
     if (promoted) leader = root.SquadAI.mostSenior(men);
     men.forEach(function (s) {
       if (root.BattleTacticalPositions) root.BattleTacticalPositions.release(s, sim, 'reconstituted');
-      s.squad = survivor;
     });
     /* The Squad Leader re-forms the squad on the group's rally point: slots, plan state, leader, anchor. */
     root.BattleSquadStability.reform(survivor, men, leader, g.rally, RECON_STRENGTH);
@@ -660,7 +660,6 @@
     order.forEach(function (sq) {
       if (sq === survivor) return;
       /* An absorbed squad reads like a destroyed one: no living men, full strength missing. */
-      sq.members = [];
       sq.establishment = RECON_STRENGTH;
       root.BattleSquadStability.disband(sq);
       sq.disbanded = true;
@@ -774,6 +773,42 @@
     }
   }
 
+  /* A fled man (a squad of one, `fledId`: Engagement `flee`) waits at his refuge for a retreating squad. When one that is
+     out of contact stands within FLED_PICKUP_RANGE of him, the General has it take him in (the Squad Leader rewrites
+     its roster, `absorb`) and tells Engagement his wait is over: he goes home with them and is issued a weapon at base. */
+  function pickUpFled(sim, faction) {
+    var squads = sim.factions[faction].squads,
+      E = root.BattleEngagement,
+      S = root.BattleSquadStability;
+    if (!E || !S || !E.releaseFled) return;
+    for (var i = 0; i < squads.length; i++) {
+      var lone = squads[i],
+        man = lone.fledId != null && !lone.disbanded && lone.members && lone.members[0];
+      if (!man || man.dead || E.fledPhase(man) !== 'wait') continue;
+      var p = man.root.position,
+        best = null,
+        bestD = FLED_PICKUP_RANGE;
+      for (var j = 0; j < squads.length; j++) {
+        var sq = squads[j];
+        if (sq === lone || sq.fledId != null || sq.disbanded || sq.state !== 'retreat' || sq.inContact) continue;
+        if (!D.aliveMembers(sq).length) continue;
+        var a = D.avgPos(sq),
+          d = D.dist(p.x, p.z, a.x, a.z);
+        if (d <= bestD) {
+          best = sq;
+          bestD = d;
+        }
+      }
+      if (best && S.absorb(best, lone, sim) && E.releaseFled(man, sim, 'pickup'))
+        telemetry(sim, 'decision-fled-pickup', {
+          faction: faction,
+          soldier: man.id,
+          squad: best.id,
+          distance: +bestD.toFixed(1)
+        });
+    }
+  }
+
   function updateCommander(sim, town, dt) {
     dt = dt || COMMAND_TICK;
     var macro = macroEnabled(sim),
@@ -795,6 +830,7 @@
             objectives: Object.keys(stalled)
           };
         reconstitute(sim, f);
+        pickUpFled(sim, f);
         for (var i = 0; i < squads.length; i++) {
           var sq = squads[i],
             reason = wakeReason(sim, sq, stall);
@@ -959,6 +995,7 @@
     missionState: missionState,
     reconstitute: reconstitute,
     reconstitutionStrength: RECON_STRENGTH,
+    fledPickupRange: FLED_PICKUP_RANGE,
     policyFor: policy,
     genomeFor: genome,
     doctrineFor: doctrine,

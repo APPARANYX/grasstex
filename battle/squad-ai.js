@@ -46,6 +46,20 @@
     }
     return out;
   }
+  /* A man who left his weapons behind is issued the loadout of his role again (the same deal as at spawn): a fled man
+     at base. Returns false for one who still carries a weapon. Presentation draws what he now holds. */
+  function rearm(soldier, scene, battle) {
+    var W = root.BattleWeapons;
+    if (!soldier || soldier.dead || soldier.weapon || !W) return false;
+    var deal = dealLoadout(scene, soldier.weaponSocket || null, soldier.role, soldier.faction);
+    if (W.issue) {
+      W.issue(deal.weapon, soldier.faction);
+      if (deal.secondary) W.issue(deal.secondary, soldier.faction);
+    }
+    if (!W.arm(soldier, deal.weapon, deal.secondary)) return false;
+    if (root.BattleAmmunition && root.BattleAmmunition.initialize) root.BattleAmmunition.initialize(soldier, battle);
+    return true;
+  }
   var COMPOSITION = [
     'sergeant',
     'gunner',
@@ -1125,6 +1139,7 @@
     return cap > 0 ? Math.min(cap, range) : range;
   }
   function tryFire(soldier, battle) {
+    if (!soldier.weapon) return false; // no weapon, no shot (he left it behind)
     if (!EXT.pass('fireGate', soldier, battle)) return false;
     if (soldier.fireCooldown > 0) return false;
     var stats = soldier.weapon.stats,
@@ -1151,6 +1166,7 @@
     LOADOUTS: LOADOUTS,
     loadoutFor: loadoutFor,
     dealLoadout: dealLoadout,
+    rearm: rearm,
     isMachineGun: isMachineGun,
     COMPOSITION: COMPOSITION,
     createSquad: createSquad,
