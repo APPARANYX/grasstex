@@ -478,6 +478,227 @@ const run = (a, b, extra) => {
     );
   });
 
+  await test('the verdict reads the comparison: inert, one battle, quiet, weak or moved, and says when it is a coincidence', () => {
+    const { verdict } = require('../../scripts/format_benchmark_compare.cjs');
+    const c = (a, b, more, fewer, signP) => ({
+      a,
+      b,
+      meanDiff: 0,
+      battlesChanged: more + fewer,
+      more,
+      fewer,
+      signP
+    });
+    const base = {
+      pairs: 100,
+      identicalBattles: 14,
+      unpaired: { a: 0, b: 0 },
+      runtimeErrors: { a: 0, b: 0 },
+      wallSeconds: { ratio: 1, gate: 1.25 },
+      firstDivergence: { battles: 85, median: 144, min: 100, max: 200 }
+    };
+    assert.equal(verdict({ ...base, identicalBattles: 100, counters: {} }, 'seeds').kind, 'inert');
+    assert.match(
+      verdict({ ...base, identicalBattles: 100, counters: {} }).headline,
+      /INERT: all 100 pairs identical/
+    );
+    const one = verdict(
+      { ...base, pairs: 9, identicalBattles: 1, counters: { casualties: c(100, 90, 0, 5, 0.06) } },
+      'single'
+    );
+    assert.equal(one.kind, 'single');
+    assert.match(
+      one.lines.join(' '),
+      /not independent/,
+      'checkpoints of one battle are not independent samples'
+    );
+    const quiet = verdict(
+      { ...base, counters: { casualties: c(2256, 2220, 41, 38, 0.82), a: c(1, 1, 3, 3, 1) } },
+      'seeds'
+    );
+    assert.equal(quiet.kind, 'quiet');
+    assert.match(quiet.headline, /0 of 2 counters under p 0\.05/);
+    assert.match(quiet.headline, /casualties -1\.6% \(p 0\.82\)/);
+    const weak = verdict(
+      {
+        ...base,
+        counters: { casualties: c(100, 80, 10, 40, 0.03), b: c(1, 1, 1, 1, 1), c: c(1, 1, 1, 1, 1) }
+      },
+      'seeds'
+    );
+    assert.equal(weak.kind, 'weak', 'under 0.05 but not under 0.05 / 3');
+    const moved = verdict(
+      { ...base, counters: { casualties: c(100, 80, 10, 90, 0.0001), b: c(1, 1, 1, 1, 1) } },
+      'seeds'
+    );
+    assert.equal(moved.kind, 'moved');
+    assert.match(moved.lines.join(' '), /Bonferroni/);
+    assert.match(
+      verdict({
+        ...base,
+        unpaired: { a: 0, b: 3 },
+        runtimeErrors: { a: 0, b: 2 },
+        wallSeconds: { ratio: 1.4, gate: 1.25 },
+        counters: {}
+      }).lines.join(' '),
+      /over the 1\.25 gate[\s\S]*Runtime errors[\s\S]*Unpaired/
+    );
+    assert.equal(verdict({ pairs: 0, counters: {} }).kind, 'empty');
+  });
+
+  await test('processing a run: slim viewer files, the seeds that part earliest, and the link that opens them', () => {
+    const {
+      process: processResults,
+      viewerUrl,
+      viewerBase,
+      previewSlug
+    } = require('../../scripts/process_benchmark_results.cjs');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'proc-'));
+    const rec = (scenario, label, bump, closed, extra) =>
+      battle(
+        `${scenario}-${label}`,
+        Object.assign(
+          {
+            scenarioSeed: scenario,
+            battleType: 'meeting',
+            window: { label, closedAt: closed },
+            usKills: 5 + (bump ? 1 : 0),
+            geKills: 4,
+            timeline: { format: 'grasstex-ai-timeline-v1', samples: samples(closed, bump), markers: [] }
+          },
+          extra || {}
+        )
+      );
+    const write = (name, battles) => {
+      fs.writeFileSync(path.join(dir, name), JSON.stringify({ summary: { build: 'v-test' }, battles }));
+      return path.join(dir, name);
+    };
+    // seeds mode, windows only: s3 never parts, s1 parts at 21 s, s2 at 8 s
+    const off = write('off.json', [
+      rec('s-0001', 'contact', 0, 40),
+      rec('s-0002', 'contact', 0, 40),
+      rec('s-0003', 'contact', 0, 40)
+    ]);
+    const on = write('on.json', [
+      rec('s-0001', 'contact', 20, 40),
+      rec('s-0002', 'contact', 7, 40),
+      rec('s-0003', 'contact', 0, 40)
+    ]);
+    const compare = {
+      pairs: 3,
+      unpaired: { a: 0, b: 0 },
+      identicalBattles: 1,
+      runtimeErrors: { a: 0, b: 0 },
+      wallSeconds: { ratio: 1, gate: 1.25 },
+      firstDivergence: { battles: 2, min: 8, median: 14, max: 21 },
+      counters: {
+        casualties: { a: 27, b: 29, meanDiff: 0.7, battlesChanged: 2, more: 2, fewer: 0, signP: 0.5 }
+      }
+    };
+    fs.writeFileSync(path.join(dir, 'compare.json'), JSON.stringify(compare));
+    const env = {
+      GITHUB_RUN_NUMBER: '77',
+      GITHUB_RUN_ID: '9',
+      GITHUB_REPOSITORY: 'APPARANYX/grasstex',
+      GITHUB_REF_NAME: 'work/scripted-benchmark',
+      GITHUB_SHA: 'abcdef0123456789'
+    };
+    const r = processResults(
+      {
+        mode: 'seeds',
+        compare: path.join(dir, 'compare.json'),
+        off,
+        on,
+        seed: 's',
+        seeds: '3',
+        windows: 'contact+120',
+        'max-seeds': '2'
+      },
+      env
+    );
+    assert.deepEqual(
+      r.result.viewer.seeds.map(x => [x.seed, x.firstDivergence]),
+      [
+        ['s-0002', 8],
+        ['s-0001', 21]
+      ],
+      'ranked by where they part, the identical seed left out, capped at --max-seeds'
+    );
+    assert.deepEqual(
+      r.off.battles.map(b => b.seed),
+      ['s-0002-contact', 's-0001-contact'],
+      'the viewer opens the earliest first'
+    );
+    assert.deepEqual(
+      Object.keys(r.off.battles[0]).sort(),
+      ['battleType', 'scenarioSeed', 'seed', 'simulatedSeconds', 'timeline', 'winReason', 'window', 'winner'],
+      'a slim record: no stress block, no counters'
+    );
+    assert.equal(
+      r.url,
+      'https://test.ivandpopov.com/grasstex/preview/scripted-benchmark/ai_flow_live.html?bench=77&view=brain3d',
+      'seeds mode has no pick: the first record is the earliest part'
+    );
+    assert.ok(!/\n/.test(r.headline) && r.headline.length > 10, 'one line, for the notification');
+    assert.match(r.md, /# Benchmark run #77 · 3 seeds from `s`/);
+    assert.match(r.md, /## Verdict/);
+    assert.match(r.md, /s-0002 8 s \(timeline\) · s-0001 21 s \(timeline\)/);
+    // single mode: one scenario with a record per checkpoint (each a prefix of the last): only the longest goes to the viewer, picked by -end
+    const offS = write('offS.json', [
+      rec('sc', 'contact', 0, 30),
+      rec('sc', 't180', 0, 60),
+      rec('sc', 'end', 0, 90)
+    ]);
+    const onS = write('onS.json', [
+      rec('sc', 'contact', 0, 30),
+      rec('sc', 't180', 25, 60),
+      rec('sc', 'end', 25, 90)
+    ]);
+    const single = processResults(
+      {
+        mode: 'single',
+        compare: path.join(dir, 'compare.json'),
+        off: offS,
+        on: onS,
+        seed: 'sc',
+        windows: 'contact+60,every60'
+      },
+      env
+    );
+    assert.deepEqual(
+      single.off.battles.map(b => b.seed),
+      ['sc-end'],
+      'one record per scenario, the longest'
+    );
+    assert.equal(single.off.battles[0].timeline.samples.length, 90);
+    assert.match(single.url, /bench=77&pick=-end&view=brain3d$/);
+    // the preview of the branch that ran, production for main and for a ref without a preview, another repository named
+    assert.equal(previewSlug('work/Scripted_Benchmark-2'), 'scripted-benchmark-2');
+    assert.equal(viewerBase('main'), 'https://test.ivandpopov.com/grasstex');
+    assert.equal(
+      viewerBase('feature/x'),
+      'https://test.ivandpopov.com/grasstex',
+      'no preview is staged for a branch outside work/ and preview/'
+    );
+    assert.equal(viewerBase('preview/a.b'), 'https://test.ivandpopov.com/grasstex/preview/a-b');
+    assert.match(
+      viewerUrl({ ref: 'main', repo: 'someone/else', run: 5 }),
+      /grasstex\/ai_flow_live\.html\?bench=5&repo=someone%2Felse&pick=-end&view=brain3d$/
+    );
+    // a run with nothing to compare still writes a result
+    const none = processResults(
+      {
+        mode: 'seeds',
+        compare: path.join(dir, 'compare.json'),
+        off,
+        on: write('empty.json', []),
+        seeds: '3'
+      },
+      env
+    );
+    assert.deepEqual(none.on.battles, []);
+  });
+
   console.log(n + ' benchmark compare checks passed');
 })().catch(e => {
   console.error(e);
