@@ -384,6 +384,100 @@ const run = (a, b, extra) => {
     assert.match(stressMarkdown(null)[0], /no stress block/);
   });
 
+  await test('seeds mode: the planner covers every seed once, balanced, over at most the shards it is given', () => {
+    const { plan } = require('../../scripts/plan_benchmark_shards.cjs');
+    for (const [seeds, max] of [
+      [100, 20],
+      [7, 20],
+      [1, 20],
+      [21, 20],
+      [39, 20],
+      [100, 3]
+    ]) {
+      const shards = plan(seeds, max);
+      assert.ok(
+        shards.length <= max && shards.length === Math.min(seeds, max),
+        `${seeds} seeds over ${shards.length} shards`
+      );
+      let next = 0;
+      for (const sh of shards) {
+        assert.equal(sh.first, next, 'contiguous: each shard starts where the last stopped');
+        assert.ok(sh.count >= 1, 'no empty shard');
+        next += sh.count;
+      }
+      assert.equal(next, seeds, 'every seed once');
+      const counts = shards.map(x => x.count);
+      assert.ok(Math.max(...counts) - Math.min(...counts) <= 1, 'balanced to within one seed');
+      assert.deepEqual(
+        shards.map(x => x.shard),
+        shards.map((_, i) => i + 1),
+        'shards numbered from 1'
+      );
+    }
+    assert.deepEqual(plan(100, 20)[0], { shard: 1, first: 0, count: 5 });
+    assert.throws(() => plan(0), /whole number/);
+    assert.throws(() => plan(2.5), /whole number/);
+    assert.throws(() => plan(5, 0), /whole number/);
+    const cli = cp.spawnSync(
+      process.execPath,
+      [path.join(__dirname, '../../scripts/plan_benchmark_shards.cjs'), 'abc'],
+      { encoding: 'utf8' }
+    );
+    assert.equal(cli.status, 2, 'a bad seed count is an error the workflow stops on');
+  });
+
+  await test("seeds mode: casualties is both sides' kills, paired by seed across pooled shard reports, and the table says what it counted", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cmp-'));
+    const rec = (seed, us, ge) => battle(seed, { usKills: us, geKills: ge });
+    const write = (name, battles) => {
+      fs.writeFileSync(path.join(dir, name), JSON.stringify({ battles }));
+      return path.join(dir, name);
+    };
+    // two shards per arm, one seed each: the lists are pooled with a comma, as the compare job does
+    const offList = [
+      write('off1.json', [rec('s-0001-contact', 5, 4)]),
+      write('off2.json', [rec('s-0002-contact', 6, 3)])
+    ].join(',');
+    const onList = [
+      write('on1.json', [rec('s-0001-contact', 2, 2)]),
+      write('on2.json', [rec('s-0002-contact', 6, 3)])
+    ].join(',');
+    const run2 = cp.spawnSync(
+      process.execPath,
+      [
+        path.join(__dirname, '../../scripts/compare_benchmark_arms.cjs'),
+        '--json',
+        '--count',
+        'casualties',
+        offList,
+        onList
+      ],
+      { encoding: 'utf8' }
+    );
+    const out = JSON.parse(run2.stdout);
+    assert.equal(out.pairs, 2, 'two seeds from two shard files pair');
+    assert.deepEqual(
+      [
+        out.counters.casualties.a,
+        out.counters.casualties.b,
+        out.counters.casualties.more,
+        out.counters.casualties.fewer
+      ],
+      [18, 13, 0, 1],
+      'off 9 + 9, on 4 + 9: one pair lost men fewer, the other is a tie'
+    );
+    const { format } = require('../../scripts/format_benchmark_compare.cjs');
+    const table = format(out);
+    assert.match(table, /\*\*2\*\* pairs/);
+    assert.match(table, /\| `casualties` \| 18 \| 13 \|/);
+    assert.match(table, /on fewer/);
+    assert.ok(!/undefined|NaN/.test(table), 'no hole in the table');
+    assert.ok(
+      format({ pairs: 0, counters: {} }).includes('**0** pairs'),
+      'an empty comparison still renders'
+    );
+  });
+
   console.log(n + ' benchmark compare checks passed');
 })().catch(e => {
   console.error(e);

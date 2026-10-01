@@ -20,6 +20,7 @@
  * while the timeline's clock starts again whenever a man stops qualifying. For an arm that holds men in place, read the
  * timeline's numbers: with every reaction off the two agree (39 reports, 45 onsets on main); with `stressAct=cower`
  * 78 reports and 40 onsets.
+ * `--count casualties` is the men lost by both sides (usKills + geKills) as of each record's close.
  * Exit 1 on any runtime error or a median wall-time slowdown above 25%. Nothing is tuned here:
  * it reports, the caller decides what a number means. With ~30 comparisons a p of 0.01 is not a finding. */
 'use strict';
@@ -74,7 +75,9 @@ function stalledSeries(b) {
 }
 const DERIVED = {
   'timeline.stalledOnsets': b => stalledSeries(b).onsets,
-  'timeline.stalledSamples': b => stalledSeries(b).manSeconds
+  'timeline.stalledSamples': b => stalledSeries(b).manSeconds,
+  /* Men lost by both sides as of the record's close (each side's `kills` is what it dealt): the one number that says how much fighting a window held. */
+  casualties: b => (+b.usKills || 0) + (+b.geKills || 0)
 };
 const at = (o, p) => (DERIVED[p] ? DERIVED[p](o) : p.split('.').reduce((v, k) => (v == null ? v : v[k]), o));
 /* A copy of `o` without the field at `parts`, sharing everything it does not touch. */
