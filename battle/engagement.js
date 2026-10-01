@@ -1410,6 +1410,12 @@
      squad's contact is inside RAGE_RANGE breaks into rage and gives it up on the same tick, every tick (and each break
      renews the guard). On, the charge goes for the nearer of the two, so it cannot end on the tick it began. */
   var RAGE_LOCK = /[?&]rageLock=1(?:&|#|$)/.test((typeof location !== 'undefined' && location.search) || '');
+  /* `?rageGuard=1`: the berserk guard lasts the charge, from the break until he is within MELEE_RANGE of the man he
+     charges, he dies or the rage ends. Off (the default while it is measured), it lasts RAGE_GUARD_SECONDS from the
+     break, whether or not the charge does. */
+  var RAGE_GUARD_CHARGE = /[?&]rageGuard=1(?:&|#|$)/.test(
+    (typeof location !== 'undefined' && location.search) || ''
+  );
   var ACT_TUNING = {
     COWER_QUIET: 3, // cower: he stays down until the fire on him has been quiet this long
     REACT_MIN: 4, // a break lasts at least this long: nobody snaps out of it in a tick
@@ -1442,11 +1448,14 @@
     if (M) M.noteAct(s, kind, what, dt);
   }
   /* A hit has landed on `victim` (the wound model asks before it applies one): how much of it he takes. A man who has
-     just gone berserk (`rage`, for RAGE_GUARD_SECONDS from the moment he broke, whether or not the charge lasts) takes
-     RAGE_GUARD_SCALE of it; anyone else all of it. `damage` is the hit's hp, for the count of what the guard saved. */
+     just gone berserk (`rage`, for RAGE_GUARD_SECONDS from the moment he broke, whether or not the charge lasts; with
+     `?rageGuard=1` while he is in rage and has not yet reached MELEE_RANGE) takes RAGE_GUARD_SCALE of it; anyone else
+     all of it. `damage` is the hit's hp, for the count of what the guard saved. */
   function guardOnHit(victim, battle, damage) {
     var e = victim && victim.eng;
-    if (!e || !(e.guardUntil > battle.time)) return 1;
+    if (!e) return 1;
+    var held = RAGE_GUARD_CHARGE ? e.state === 'rage' && !e.guardReached : e.guardUntil > battle.time;
+    if (!held) return 1;
     noteAct(victim, 'rage', 'guard', damage * (1 - ACT_TUNING.RAGE_GUARD_SCALE));
     return ACT_TUNING.RAGE_GUARD_SCALE;
   }
@@ -1659,6 +1668,7 @@
     s.state = 'engage';
     s.setUp = false;
     if (d > ACT_TUNING.RAGE_REACH) return false; // nobody to charge: it is over
+    if (d <= ACT_TUNING.MELEE_RANGE) state(s).guardReached = true; // at arm's length: the charge's guard is over
     commitStance(s, battle, 'stand', 0.5);
     markUrgent(s, battle, 0.5);
     if (d > ACT_TUNING.MELEE_RANGE * 0.8) move(s, battle, { x: goal.x, z: goal.z }, 'rage-charge');
@@ -1711,7 +1721,10 @@
       e.boundOrder = false;
       e.suppressOrder = false;
       e.cover = null;
-      if (want === 'rage') e.guardUntil = now + ACT_TUNING.RAGE_GUARD_SECONDS;
+      if (want === 'rage') {
+        e.guardUntil = now + ACT_TUNING.RAGE_GUARD_SECONDS;
+        e.guardReached = false;
+      }
       if (want === 'flee') beginFled(s, battle);
       noteAct(s, want, 'start');
     }
@@ -2495,6 +2508,7 @@
       CONTACT_STANCE: CONTACT_STANCE,
       ACT: ACT,
       RAGE_LOCK: RAGE_LOCK,
+      RAGE_GUARD_CHARGE: RAGE_GUARD_CHARGE,
       ACT_TUNING: ACT_TUNING
     }
   };

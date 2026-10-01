@@ -565,6 +565,76 @@ test('rage: for RAGE_GUARD_SECONDS a hit does a quarter of its damage, of its ch
   assert.equal(c.ctx.E.guardOnHit(ref, c.ctx.b, 1), 1);
 });
 
+test("rage: with ?rageGuard=1 the guard lasts the charge, past RAGE_GUARD_SECONDS, and ends at arm's length or with the rage", () => {
+  const T = load_tuning();
+  function hit(ctx, victim, shooter) {
+    let draws = 0;
+    ctx.b.random = () => (draws++, 0.5);
+    victim.hp = 1e6;
+    victim.bleedRate = 0;
+    victim.casualty = null;
+    victim.dead = false;
+    const res = ctx.r.BattleWounds.wound(shooter, victim, ctx.b, { zone: 'leg', energy: 1, power: 1 });
+    return { damage: res.damage, draws };
+  }
+  /* Off: the clock, as before. */
+  const off = broke('?stressAct=rage', [0, 0, 0.95], 50);
+  assert.equal(off.ctx.E.tuning.RAGE_GUARD_CHARGE, false, 'off by default');
+  const ref = man(off.ctx.us, 'rifleman', 1);
+  const full = hit(off.ctx, ref, off.g);
+  off.ctx.b.time = off.s.eng.guardUntil + 0.01;
+  assert.equal(off.s.eng.state, 'rage');
+  assert.ok(
+    Math.abs(hit(off.ctx, off.s, off.g).damage - full.damage) < 1e-9,
+    'off: in rage past the clock, the whole hit'
+  );
+  /* On: still charging 10 s past the clock, still guarded, with the same draws. */
+  const on = broke('?stressAct=rage&rageGuard=1', [0, 0, 0.95], 50);
+  assert.equal(on.ctx.E.tuning.RAGE_GUARD_CHARGE, true);
+  assert.equal(on.s.eng.state, 'rage');
+  on.ctx.b.time = on.s.eng.guardUntil + 10;
+  const g1 = hit(on.ctx, on.s, on.g);
+  assert.ok(
+    Math.abs(g1.damage - full.damage * T.RAGE_GUARD_SCALE) < 1e-9,
+    'on: a quarter, 10 s past RAGE_GUARD_SECONDS'
+  );
+  assert.equal(g1.draws, full.draws, 'the same draws from the combat RNG');
+  /* He reaches the man he charges: the guard is over, though he is still in rage. */
+  put(on.g, on.s.root.position.x, on.s.root.position.z + 1.5);
+  on.ctx.us.contact = {
+    x: on.g.root.position.x,
+    z: on.g.root.position.z,
+    at: on.ctx.b.time,
+    seenBy: on.s.id
+  };
+  on.s.hp = on.s.maxHp || 100;
+  tick(on.ctx, on.s);
+  assert.equal(on.s.eng.state, 'rage', "still in rage at arm's length");
+  assert.equal(on.s.eng.guardReached, true);
+  assert.ok(Math.abs(hit(on.ctx, on.s, on.g).damage - full.damage) < 1e-9, "at arm's length: the whole hit");
+  /* Stepping back out does not bring it back. */
+  put(on.g, on.s.root.position.x, on.s.root.position.z + 30);
+  on.ctx.us.contact = {
+    x: on.g.root.position.x,
+    z: on.g.root.position.z,
+    at: on.ctx.b.time,
+    seenBy: on.s.id
+  };
+  tick(on.ctx, on.s);
+  assert.equal(on.ctx.E.guardOnHit(on.s, on.ctx.b, 1), 1, 'once reached, gone for this break');
+  /* A rage that ends before arm's length ends the guard with it; a new break brings a new one. */
+  const end = broke('?stressAct=rage&rageGuard=1', [0, 0, 0.95], 50);
+  assert.ok(end.ctx.E.guardOnHit(end.s, end.ctx.b, 1) < 1, 'guarded while charging');
+  put(end.g, end.s.root.position.x, end.s.root.position.z + 400); // nobody left within RAGE_REACH
+  end.ctx.us.contact = null;
+  tick(end.ctx, end.s);
+  assert.notEqual(end.s.eng.state, 'rage', 'the charge is over');
+  assert.equal(end.ctx.E.guardOnHit(end.s, end.ctx.b, 1), 1, 'out of rage: no guard');
+  /* Nobody else has it. */
+  const c = broke('?stressAct=cower,freeze&rageGuard=1', [0, 0.9, 0.1], 100);
+  assert.equal(c.ctx.E.guardOnHit(c.s, c.ctx.b, 1), 1);
+});
+
 test('a break lasts at least REACT_MIN, ends once he is below broken, and he rejoins the fight', () => {
   const { ctx, s } = broke('?stressAct=freeze', [0, 0.9, 0], 100);
   assert.equal(s.eng.state, 'freeze');
