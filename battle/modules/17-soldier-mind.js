@@ -46,14 +46,19 @@
      the squad has been out of contact (and he out of fire) for CALM_AFTER. `floor`: a ratchet of how hurt he is
      times how shaken he was; nothing takes his stress below it. `relief`: kills, a captured objective, reaching
      cover under fire and a spell of fire survived take stress off, down to the floor and no further. */
-  var MEMORIES = ['lasting', 'floor', 'relief'];
+  var MEMORIES = ['lasting', 'floor', 'relief'],
+    /* On with no `?stressMem=` in the URL (owner decision, 2026-10-01: stress that does not drain in a fight is the
+       default battle). `?stressMem=0` is the old drain, a list names exactly the producers that run. */
+    MEMORY_DEFAULT = ['lasting'];
   function parseMemory(search) {
     var m = /[?&]stressMem=([^&#]*)/.exec(search || ''),
       out = {},
       v = m ? decodeURIComponent(m[1]).toLowerCase() : '',
       i;
-    if (v === '1' || v === 'on' || v === 'all') for (i = 0; i < MEMORIES.length; i++) out[MEMORIES[i]] = true;
-    else if (v && v !== '0' && v !== 'off')
+    if (!m || v === '') for (i = 0; i < MEMORY_DEFAULT.length; i++) out[MEMORY_DEFAULT[i]] = true;
+    else if (v === '1' || v === 'on' || v === 'all')
+      for (i = 0; i < MEMORIES.length; i++) out[MEMORIES[i]] = true;
+    else if (v !== '0' && v !== 'off')
       v.split(',').forEach(function (k) {
         if (MEMORIES.indexOf(k) >= 0) out[k] = true;
       });
