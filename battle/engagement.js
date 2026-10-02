@@ -258,6 +258,12 @@
     s._faceHint = null;
     s.setUp = false;
   }
+  /* Player camera input uses Engagement's existing facing hint instead of creating a second writer. */
+  function playerFace(s, point) {
+    if (!s) return false;
+    s._faceHint = point && isFinite(+point.x) && isFinite(+point.z) ? { x: +point.x, z: +point.z } : null;
+    return true;
+  }
   // No shot before `until` (sim seconds); never brings the floor forward.
   function delayFire(s, until) {
     var e = s.eng; // a man Engagement has not met yet has no floor to raise
@@ -2683,6 +2689,7 @@
     interruptGun: interruptGun,
     stationClaimed: stationClaimed,
     stationLeft: stationLeft,
+    playerFace: playerFace,
     unemplaceGun: unemplaceGun,
     delayFire: delayFire,
     applyStance: applyStance,

@@ -66,6 +66,7 @@
      retreating squad neither rejects his flee intents nor overrides them. */
   var REACTING = { cower: 1, flee: 1, freeze: 1, rage: 1 };
   var PRIORITY = {
+    player: 120,
     retreat: 100,
     regroup: 95,
     flee: 92,
@@ -304,6 +305,27 @@
     st.order.intentPoint = { x: raw.x, z: raw.z };
     return st.order;
   }
+  /* Player input is an explicit movement authority above squad/combat intents. It is short-lived:
+     camera-controls refreshes it while a soldier is possessed, so disconnecting/exiting naturally
+     returns the man to AI control without leaving a permanent order behind. */
+  function proposePlayer(soldier, next, battle, ttl, options) {
+    if (!soldier || soldier.dead) return null;
+    var raw = point(next);
+    if (!raw) return null;
+    options = options || {};
+    var st = state(soldier),
+      p = proposal('player', raw, battle, 'player', true, ttl == null ? 0.6 : Math.max(0.1, +ttl || 0.6));
+    p.signature = signature(soldier);
+    p.reason = 'player input';
+    p.priority = priority(p.kind, soldier);
+    p.speedScale = Math.max(0.2, Math.min(2, isFinite(+options.speedScale) ? +options.speedScale : 1));
+    p.intentPoint = { x: raw.x, z: raw.z };
+    p.point = legalizeGoal(soldier, battle, raw, 'player', 'player');
+    st.player = p;
+    count(battle, 'requests', 'player');
+    st.requests = (st.requests || 0) + 1;
+    return p;
+  }
   function proposeCombat(soldier, next, battle, kind, ttl, meta) {
     if (!soldier) return null;
     meta = meta || {};
@@ -400,7 +422,12 @@
   function choose(soldier, battle) {
     var st = state(soldier),
       t = now(battle),
-      combat = st.combat;
+      combat = st.combat,
+      player = st.player;
+    /* A possessed soldier is outside AI tactical routing while the short-lived player lease is live.
+       Check this before tactical-position update so an AI firing-station claim cannot fight the pad. */
+    if (player && valid(soldier, player, battle)) return player;
+    if (player) st.player = null;
     var P = root.BattleTacticalPositions,
       task = P && P.update(soldier, battle),
       sq = soldier.squad || {};
@@ -667,6 +694,14 @@
     combatTTL: COMBAT_TTL,
     intentRefresh: INTENT_REFRESH,
     proposeOrder: proposeOrder,
+    proposePlayer: proposePlayer,
+    playerActive: function (s, battle) {
+      var p = s && s._movementResolver && s._movementResolver.player;
+      return !!(p && valid(s, p, battle));
+    },
+    clearPlayer: function (s) {
+      if (s && s._movementResolver) s._movementResolver.player = null;
+    },
     proposeCombat: proposeCombat,
     // A firing-station claim or release withdraws the combat proposal the man had.
     clearCombat: function (s) {
