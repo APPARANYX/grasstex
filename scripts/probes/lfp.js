@@ -37,6 +37,11 @@
   function sqKey(sq) {
     return String((sq && sq.faction) || '?') + ':' + String((sq && sq.id) || '?');
   }
+  function rosterKey(sq) {
+    var a=(sq&&sq.members)||[],ids=[];
+    for(var i=0;i<a.length;i++){var s=a[i];if(!s||s.dead||!s.root)continue;ids.push(s.id==null?'#'+i:String(s.id));}
+    ids.sort();return ids.join(',');
+  }
   function centroid(sq) {
     var a = (sq && sq.members) || [],
       x = 0,
@@ -158,6 +163,7 @@
       inContact: !!sq.inContact,
       contact: contactKind(sq, now),
       living: members.length,
+      rosterKey: rosterKey(sq),
       underFire: under,
       suppressed: suppressed,
       moving: moving,
@@ -327,6 +333,10 @@
     if (s.contactTransitions >= 3) out.push('contact-churn');
     if (s.fireTransitions >= 3) out.push('fire-state-churn');
     if (s.localAvoidanceShare >= 0.25) out.push('local-avoidance-active');
+    if (s.rosterTransitions > 0) out.push('roster-change');
+    if (s.progressGiveback >= 3) out.push('progress-giveback');
+    if ((s.byKind['cover-bound'] || 0) > 0 && s.progressGiveback >= 3) out.push('tactical-cover-backtrack');
+    if (a.goalKind === 'rally') out.push('regroup-window');
     if (s.formationShare >= 0.6) out.push('formation-dominated');
     if (s.combatShare >= 0.6) out.push('combat-intent-dominated');
     if (!out.length) out.push('low-net-with-stable-orders');
@@ -335,8 +345,8 @@
   function capture(sim, sq, a) {
     var k = sqKey(sq),
       all = history.get(k) || [],
-      from = a.at - (a.window || 15) - 0.75,
-      to = a.at + 0.25,
+      from = isFinite(+a.startAt) ? +a.startAt - 0.25 : a.at - (a.window || 15) - 0.75,
+      to = isFinite(+a.endAt) ? +a.endAt + 0.25 : a.at + 0.25,
       snaps = all.filter(function (x) {
         return x.t >= from && x.t <= to;
       }),
@@ -370,10 +380,19 @@
     }
 
     var p = centroid(sq),
+      distances = snaps.map(function(x){return x.goalDistance;}).filter(function(x){return x!=null&&isFinite(+x);}),
+      startDistance = distances.length ? +distances[0] : null,
+      endDistance = distances.length ? +distances[distances.length-1] : null,
+      bestDistance = distances.length ? Math.min.apply(Math,distances) : null,
+      underFireSamples = snaps.filter(function(x){return x.underFire>0;}).length,
       summary = {
         snapshots: snaps.length,
         destinationChanges: moves.length,
         resolverOwnerSwitches: ownerSwitches(moves),
+        rosterTransitions: transitions(snaps,function(x){return x.rosterKey;}),
+        progressGiveback: bestDistance==null||endDistance==null?0:+(endDistance-bestDistance).toFixed(2),
+        bestProgress: startDistance==null||bestDistance==null?0:+(startDistance-bestDistance).toFixed(2),
+        underFireShare: snaps.length ? +(underFireSamples/snaps.length).toFixed(3) : 0,
         contactTransitions: transitions(snaps, function (x) {
           return x.inContact + ':' + (x.contact && x.contact.kind);
         }),
@@ -489,6 +508,7 @@
       return {
         detector: c.detector,
         module43TotalAlerts: fp ? +fp.totalAlerts || 0 : null,
+        module43TrackResets: fp && fp.trackResets ? JSON.parse(JSON.stringify(fp.trackResets)) : null,
         capturedEpisodes: n,
         mean: {
           travel: n ? +(travel / n).toFixed(2) : 0,
