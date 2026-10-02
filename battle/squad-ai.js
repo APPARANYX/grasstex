@@ -349,8 +349,8 @@
      below still requires a CURRENT own sighting and therefore never lets relayed word initiate one. */
   function firstHandAt(c) {
     if (!c) return null;
-    if (isFinite(+c.firstHandAt)) return +c.firstHandAt;
-    return !c.heard && !c.relayedFrom && isFinite(+c.at) ? +c.at : null;
+    if (c.firstHandAt != null && isFinite(+c.firstHandAt)) return +c.firstHandAt;
+    return !c.heard && !c.relayedFrom && c.at != null && isFinite(+c.at) ? +c.at : null;
   }
   function hasFirstHandMemory(c, battle) {
     var at = firstHandAt(c);
