@@ -564,12 +564,12 @@
     var shortShare = total > 0 ? clamp(short / total, 0, 1) : 0,
       midShare = total > 0 ? clamp(mid / total, 0, 1) : 0,
       acuteShare = total > 0 ? clamp(acute / total, 0, 1) : 0,
+      doseStrength = clamp(total / UP[2], 0, 1),
       rise = Math.max(0, m.stress - baseline),
       riseShare = clamp(rise / UP[2], 0, 1),
       concentration = clamp(
-        0.65 * Math.pow(shortShare, 1.5) +
-          0.2 * Math.pow(midShare, 1.5) +
-          0.1 * acuteShare +
+        doseStrength *
+          (0.65 * Math.pow(shortShare, 1.5) + 0.2 * Math.pow(midShare, 1.5) + 0.1 * acuteShare) +
           0.05 * riseShare,
         0,
         1
