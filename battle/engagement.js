@@ -29,7 +29,8 @@
   var ALERT_HOLD = 4.5; // hold the threat sector this long after losing sight
   var ENGAGE_REVIEW = 7.0; // re-open the cover question this often while holding
   var STANCE_HOLD = 4.0,
-    PRONE_HOLD = 5.5;
+    PRONE_HOLD = 5.5,
+    LOW_GAP_HOLD = 2.0;
   var COVER_RANGE = 26,
     COVER_RANGE_UNDER_FIRE = 42,
     COVER_ARRIVED = 1.2;
@@ -2064,7 +2065,7 @@
        same ALERT_HOLD window used by the threat sector. Standing therefore means genuinely quiet, not
        merely "no contact on this one tick". ?contactStance=0 deliberately keeps the old raw control. */
     var lowNow = s.suppressedUntil > battle.time || squadOnHeels(s, battle);
-    if (CONTACT_STANCE && lowNow) e.advanceLowUntil = Math.max(+e.advanceLowUntil || 0, battle.time + ALERT_HOLD);
+    if (CONTACT_STANCE && lowNow) e.advanceLowUntil = Math.max(+e.advanceLowUntil || 0, battle.time + LOW_GAP_HOLD);
     var low = lowNow || (CONTACT_STANCE && battle.time < (+e.advanceLowUntil || 0));
     if (!holdStance(s, battle)) commitStance(s, battle, low ? 'crouch' : 'stand', 1.0);
     followOrders(s, battle, false);
@@ -2344,7 +2345,7 @@
        evidence for ALERT_HOLD. Bursts separated by a short lull no longer produce stand/crouch bobbing:
        the man only stands after a real quiet interval. */
     var underFire = underFireNow(s, battle);
-    if (underFire) e.withdrawLowUntil = Math.max(+e.withdrawLowUntil || 0, battle.time + ALERT_HOLD);
+    if (underFire) e.withdrawLowUntil = Math.max(+e.withdrawLowUntil || 0, battle.time + LOW_GAP_HOLD);
     var withdrawLow = underFire || battle.time < (+e.withdrawLowUntil || 0);
     commitStanceRespectHold(
       s,
@@ -2766,6 +2767,7 @@
       PREWARNED_REACT: PREWARNED_REACT,
       STANCE_HOLD: STANCE_HOLD,
       PRONE_HOLD: PRONE_HOLD,
+      LOW_GAP_HOLD: LOW_GAP_HOLD,
       AIM_SETTLE: AIM_SETTLE,
       COVER_FIRE: COVER_FIRE,
       CRAWL_FIT: CRAWL_FIT,
