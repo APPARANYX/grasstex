@@ -1,5 +1,5 @@
-/* Tactical callouts: what one soldier tells another, as a simulated message (`?callouts=1`, off by default while it is
-   measured). A callout has a sender, an audience, a kind, the fact it carries, the simulated time it was sent, the time
+/* Tactical callouts: what one soldier tells another, as a simulated message (on by default since 2026-10-02, owner's
+   decision on PR #170; `?callouts=0` is the old free relay). A callout has a sender, an audience, a kind, the fact it carries, the simulated time it was sent, the time
    each listener would hear it and whether he did. Voice is presentation and stays separate: an MP3 never creates a fact.
 
    First kind, `contact`: a squad that sees the enemy first-hand calls it out. Friendly men of OTHER squads within
@@ -15,7 +15,7 @@
   'use strict';
   if (root.BattleCallouts) return;
 
-  var ON = typeof location !== 'undefined' && /[?&]callouts=(1|on|all)\b/.test(location.search || '');
+  var ON = !(typeof location !== 'undefined' && /[?&]callouts=(0|off|none)\b/.test(location.search || ''));
 
   var KINDS = {
     contact: { carries: 'unit, x, z, at, stance', consumer: 'Perception squadSenses (relayed contact)' }
