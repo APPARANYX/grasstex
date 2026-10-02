@@ -15,8 +15,9 @@
      fled-man-check.js); freeze holds, does not fire, scan, track or turn toward contacts, and is not selected as a
      fresh visual threat while dazed; rage charges, fires on the move and strikes at arm's length,
      and ends when nobody is within RAGE_REACH.
-   - A freeze, cower or charge lasts at least REACT_MIN (cower: until the fire is quiet) and ends once he is below
-     broken; a flee does not end: he is done with the fight. A squad that is already retreating is not reacted for.
+   - Freeze duration is a bounded one-time snapshot from recent stress tempo: the same final stress reached abruptly
+     lasts longer than a slow simmer, 4..16 s, and expiry forces a reassessment even if he is still broken. Cower/charge
+     keep their existing minimums; a flee does not end: he is done with the fight. A squad already retreating is not reacted for.
    - The squad report names the men reacting, they are neither base of fire nor movers, and no station is claimed for
      them.
    - The choice draws nothing from the combat RNG (a blow's roll and the wound do, and nothing else).
@@ -99,6 +100,29 @@ function under(ctx, s, seconds) {
 }
 function temper(ctx, s, flee, freeze, rage) {
   ctx.M.of(s).temper = { flee, freeze, rage };
+}
+function seededTempoFreeze(entries) {
+  const ctx = world('?stressAct=freeze'),
+    s = man(ctx.us, 'rifleman');
+  tick(ctx, s);
+  temper(ctx, s, 0, 1, 0);
+  const m = ctx.M.of(s);
+  m.stress = m.pub = 0.9;
+  m.band = 3;
+  m.bandSince = ctx.b.time;
+  m.at = ctx.b.time;
+  m.recentStressors = entries.map(e => ({
+    at: ctx.b.time - e.age,
+    kind: e.kind || 'suppression',
+    gain: e.gain,
+    stress: e.stress == null ? 0.1 : e.stress
+  }));
+  m.lastIncomingAt = ctx.b.time; // situation says stopping fits; this adds no stress by itself
+  const g = foe(ctx, s, 80);
+  ctx.us.contact = { x: g.root.position.x, z: g.root.position.z, at: ctx.b.time, seenBy: s.id };
+  ctx.E.updateSoldier(s, ctx.b);
+  assert.equal(s.eng.state, 'freeze');
+  return { ctx, s, g };
 }
 /* An enemy of the man's at distance `d` along +z, as the squad's picture and his own target. */
 function foe(ctx, s, d) {
@@ -423,6 +447,67 @@ test('freeze: down where he is, holds, no fire, and does not take a bound or the
   assert.equal(shots, 0);
   assert.ok(dist(p, s.destination) < 0.5, 'where he was');
   assert.ok(dist(p, here(s)) < 0.01, 'and he has not moved');
+});
+
+test('freeze duration follows stress tempo: equal final stress reached quickly freezes longer than slowly', () => {
+  const quick = seededTempoFreeze([
+      { age: 0.2, gain: 0.2 },
+      { age: 0.6, gain: 0.2 },
+      { age: 1.0, gain: 0.2 },
+      { age: 1.4, gain: 0.2 }
+    ]),
+    slow = seededTempoFreeze([
+      { age: 2.5, gain: 0.2 },
+      { age: 5.0, gain: 0.2 },
+      { age: 9.0, gain: 0.2 },
+      { age: 13.0, gain: 0.2 }
+    ]);
+  assert.equal(quick.ctx.M.stress(quick.s), slow.ctx.M.stress(slow.s), 'same final stress');
+  assert.ok(
+    quick.s.eng.freezeDuration > slow.s.eng.freezeDuration + 4,
+    'concentrated dose freezes materially longer: ' +
+      quick.s.eng.freezeDuration.toFixed(2) +
+      ' vs ' +
+      slow.s.eng.freezeDuration.toFixed(2)
+  );
+  assert.ok(quick.s.eng.freezeDuration <= quick.ctx.M.tuning.FREEZE_MAX + 1e-9);
+  assert.ok(slow.s.eng.freezeDuration >= slow.ctx.M.tuning.FREEZE_MIN - 1e-9);
+  assert.equal(quick.s.eng.freezeDose.recentTotal.toFixed(3), slow.s.eng.freezeDose.recentTotal.toFixed(3));
+  assert.ok(
+    quick.s.eng.freezeDose.shortestWindowDose > slow.s.eng.freezeDose.shortestWindowDose,
+    'the shortest window distinguishes shock from simmer'
+  );
+  const snap = quick.ctx.M.snapshot(quick.s);
+  assert.ok(snap.recentDose && snap.recentDose.dominantKind === 'suppression', 'diagnostics expose recent dose');
+});
+
+test('freeze expires while still broken and cannot restart inside the same broken episode', () => {
+  const { ctx, s } = broke('?stressAct=freeze,cower', [0, 1, 0], 100);
+  assert.equal(s.eng.state, 'freeze');
+  const firstUntil = s.eng.freezeUntil;
+  assert.ok(firstUntil > ctx.b.time);
+  let sawAfter = false;
+  for (let i = 0; i < 200 && ctx.b.time < firstUntil + 3; i++) {
+    const m = ctx.M.of(s);
+    m.stress = m.pub = 0.95;
+    m.lastIncomingAt = ctx.b.time;
+    tick(ctx, s);
+    if (ctx.b.time >= firstUntil) sawAfter = true;
+  }
+  assert.equal(sawAfter, true);
+  assert.notEqual(s.eng.state, 'freeze', 'the bounded spell ended despite persistent broken stress');
+  assert.equal(s.eng.state, 'cower', 'still-broken under-fire fallback is defensive, not another freeze');
+  assert.ok(s.eng.freezeEndedAt >= firstUntil);
+  assert.match(s.eng.freezeExitReason, /^duration-expired-broken:/);
+  const ended = s.eng.freezeEndedAt;
+  for (let i = 0; i < 80; i++) {
+    const m = ctx.M.of(s);
+    m.stress = m.pub = 0.95;
+    m.lastIncomingAt = ctx.b.time;
+    tick(ctx, s);
+    assert.notEqual(s.eng.state, 'freeze', 'same broken episode never restarts freeze');
+  }
+  assert.equal(s.eng.freezeEndedAt, ended, 'one freeze episode, one end record');
 });
 
 test('flee is non-threatening, while rage remains an active visual threat', () => {
