@@ -275,8 +275,56 @@
       strength: +fc.strength.toFixed(2),
       marksmanship: +fc.marksmanship.toFixed(2),
       ready: fc.ready,
-      living: fc.living
+      requiredReady: fc.requiredReady,
+      living: fc.living,
+      visualLine: fc.visualLine,
+      ballisticLine: fc.ballisticLine,
+      terrainCrestBlocked: fc.terrainCrestBlocked,
+      proneReady: fc.proneReady
     });
+  }
+  function fireControlTrailEntry(battle, state, reason, fc) {
+    return {
+      at: battle.time,
+      state: state,
+      reason: reason || null,
+      targetId: fc && fc.targetId != null ? fc.targetId : null,
+      shooterId: fc && fc.shooterId != null ? fc.shooterId : null,
+      ready: fc ? +fc.ready || 0 : 0,
+      requiredReady: fc ? +fc.requiredReady || 0 : 0,
+      living: fc ? +fc.living || 0 : 0
+    };
+  }
+  function pushFireControlTrail(sq, battle, state, reason, fc) {
+    var trail = sq._fireControlTrail || (sq._fireControlTrail = []),
+      prev = trail.length ? trail[trail.length - 1] : null;
+    if (!prev || prev.state !== state || prev.reason !== reason) {
+      trail.push(fireControlTrailEntry(battle, state, reason, fc));
+      if (trail.length > 8) trail.splice(0, trail.length - 8);
+    }
+    return trail;
+  }
+  function fireControlCounts(men, battle, E) {
+    var out = {
+        ready: 0,
+        visualLine: 0,
+        ballisticLine: 0,
+        terrainCrestBlocked: 0,
+        proneReady: 0
+      },
+      i;
+    for (i = 0; i < men.length; i++) {
+      var o =
+        E && E.fireControlObservation
+          ? E.fireControlObservation(men[i], battle)
+          : { ready: E && E.fireControlReady ? E.fireControlReady(men[i], battle) : false };
+      if (o.ready) out.ready++;
+      if (o.visualLine) out.visualLine++;
+      if (o.ballisticLine) out.ballisticLine++;
+      if (o.terrainCrestBlocked) out.terrainCrestBlocked++;
+      if (o.proneReady) out.proneReady++;
+    }
+    return out;
   }
   function setFireControl(sq, battle, prev, state, reason, data) {
     data = data || {};
@@ -291,20 +339,36 @@
       strength: isFinite(+data.strength) ? +data.strength : prev ? +prev.strength || 0 : 0,
       marksmanship: isFinite(+data.marksmanship) ? +data.marksmanship : prev ? +prev.marksmanship || 0 : 0,
       ready: data.ready == null ? (prev ? +prev.ready || 0 : 0) : +data.ready || 0,
-      living: data.living == null ? (prev ? +prev.living || 0 : 0) : +data.living || 0
+      requiredReady:
+        data.requiredReady == null ? (prev ? +prev.requiredReady || 0 : 0) : +data.requiredReady || 0,
+      living: data.living == null ? (prev ? +prev.living || 0 : 0) : +data.living || 0,
+      visualLine: data.visualLine == null ? (prev ? +prev.visualLine || 0 : 0) : +data.visualLine || 0,
+      ballisticLine:
+        data.ballisticLine == null ? (prev ? +prev.ballisticLine || 0 : 0) : +data.ballisticLine || 0,
+      terrainCrestBlocked:
+        data.terrainCrestBlocked == null
+          ? prev
+            ? +prev.terrainCrestBlocked || 0
+            : 0
+          : +data.terrainCrestBlocked || 0,
+      proneReady: data.proneReady == null ? (prev ? +prev.proneReady || 0 : 0) : +data.proneReady || 0
     };
     sq.fireControl = fc;
+    fc.trail = pushFireControlTrail(sq, battle, state, reason, fc).slice();
     fireControlTelemetry(sq, battle, fc);
     return fc;
   }
   function clearFireControl(sq, battle, reason) {
-    if (sq.fireControl)
+    if (sq.fireControl) {
+      pushFireControlTrail(sq, battle, 'clear', reason || 'contact clear', sq.fireControl);
       telemetry(battle, 'decision-fire-control', {
         faction: sq.faction,
         squad: sq.id,
         state: 'clear',
-        reason: reason || 'contact clear'
+        reason: reason || 'contact clear',
+        trail: (sq._fireControlTrail || []).slice()
       });
+    }
     sq.fireControl = null;
   }
   function updateFireControl(sq, battle, report) {
@@ -321,25 +385,32 @@
     }
     var men = commanded(sq),
       living = men.length,
-      ready = 0,
       sum = 0,
       E = root.BattleEngagement,
+      counts = fireControlCounts(men, battle, E),
       i;
-    for (i = 0; i < living; i++) {
-      sum += mkm(men[i]);
-      if (E && E.fireControlReady && E.fireControlReady(men[i], battle)) ready++;
-    }
+    for (i = 0; i < living; i++) sum += mkm(men[i]);
     var strength = living / Math.max(1, root.SquadAI.establishment(sq)),
       meanMkm = living ? sum / living : 0,
       range = fireControlRange(sq, c),
-      needed = Math.min(living, Math.max(FIRE_CONTROL_TUNING.minReady, Math.ceil(living * FIRE_CONTROL_TUNING.readyFraction))),
-      elapsed = battle.time - fc.startedAt;
+      needed = Math.min(
+        living,
+        Math.max(FIRE_CONTROL_TUNING.minReady, Math.ceil(living * FIRE_CONTROL_TUNING.readyFraction))
+      ),
+      elapsed = battle.time - fc.startedAt,
+      ready = counts.ready;
     fc.range = range;
     fc.strength = strength;
     fc.marksmanship = meanMkm;
     fc.ready = ready;
+    fc.requiredReady = needed;
     fc.living = living;
+    fc.visualLine = counts.visualLine;
+    fc.ballisticLine = counts.ballisticLine;
+    fc.terrainCrestBlocked = counts.terrainCrestBlocked;
+    fc.proneReady = counts.proneReady;
     fc.targetId = c.unit.id;
+    fc.trail = (sq._fireControlTrail || []).slice();
 
     if (!leaderAlive(sq)) return fc; // succession or return fire, never an invisible leader decision.
     if (fc.state === 'precision') return fc;
