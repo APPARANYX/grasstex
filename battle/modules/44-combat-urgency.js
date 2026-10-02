@@ -110,10 +110,15 @@
     }
   }
   function threatFor(s, b) {
-    if (s.target && !s.target.dead) return s.target;
-    var c = contact(s, b);
-    if (c && c.unit && !c.unit.dead) return c.unit;
-    if (c && isFinite(+c.x) && isFinite(+c.z)) return { root: { position: { x: +c.x, y: 0, z: +c.z } } };
+    var D = root.SquadAI && root.SquadAI.threatDisposition,
+      own = D ? D(s && s.target) : null;
+    if (s && s.target && (!own || own.combatThreat)) return s.target;
+    var c = contact(s, b),
+      seen = D && c && c.unit ? D(c.unit) : null;
+    if (c && c.unit && (!seen || seen.combatThreat)) return c.unit;
+    /* A location-only contact is still an unknown threat sector. A known visible non-threat is not. */
+    if (c && !c.unit && isFinite(+c.x) && isFinite(+c.z))
+      return { root: { position: { x: +c.x, y: 0, z: +c.z } } };
     return null;
   }
   function sectorFor(s, p) {
@@ -202,6 +207,13 @@
     if (s.target || e.state !== 'advance' || s.reloading || s.clearingStoppage) return;
     var c = contact(s, b);
     if (!c) return;
+    if (
+      c.unit &&
+      root.SquadAI &&
+      root.SquadAI.threatDisposition &&
+      !root.SquadAI.threatDisposition(c.unit).combatThreat
+    )
+      return;
     var h = pos(s),
       aim = { x: +c.x || 0, z: +c.z || 0 };
     if (!h) return;
