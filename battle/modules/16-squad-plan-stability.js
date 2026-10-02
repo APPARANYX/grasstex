@@ -2692,6 +2692,7 @@
   }
   function reset(sim) {
     sim._squadCommandPublishStats = { intentChecks: 0, intentPublishes: 0, intentCoalesced: 0 };
+    if (BUDDY_PAIRS_ON) sim._buddyPairStats = null;
     ['us', 'ge'].forEach(function (f) {
       var a = (sim && sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
       for (var i = 0; i < a.length; i++) {
