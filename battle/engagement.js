@@ -2066,7 +2066,8 @@
        of metres away, before the same fight produced another hold/contact-reaction. Keep Micro authority
        at the current position until the existing threat memory expires. A normal target-loss alert already
        lasts ALERT_HOLD, so this adds no extra delay there; an old/no observation falls through immediately. */
-    var recentThreat = e.lastSeen && battle.time - (+e.lastSeenAt || -999) < ALERT_HOLD;
+    var seenAt = isFinite(+e.lastSeenAt) ? +e.lastSeenAt : -999,
+      recentThreat = e.lastSeen && battle.time - seenAt < ALERT_HOLD;
     if (recentThreat) {
       holdPosition(s, battle);
       if (!holdStance(s, battle)) commitStance(s, battle, 'crouch', 1.0);
