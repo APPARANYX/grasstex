@@ -515,6 +515,142 @@
     shooter._lastBallisticShot = meta;
     return hit;
   }
+  /* Player free-fire is a crosshair ray, not an AI target decision. Start at the same semantic
+     muzzle as ordinary fire, aim through the camera-selected world point, add the same weapon/shooter
+     dispersion, then trace the full weapon range through terrain, structures and opposing bodies. */
+  function playerShotDirection(shooter, aimPoint, stats, battle, round) {
+    if (!aimPoint || !isFinite(+aimPoint.x) || !isFinite(+aimPoint.y) || !isFinite(+aimPoint.z)) return null;
+    var proxy = { root: { position: { x: +aimPoint.x, y: +aimPoint.y, z: +aimPoint.z } } },
+      origin = muzzleOrigin(shooter, proxy, battle),
+      aim = { x: +aimPoint.x, y: +aimPoint.y, z: +aimPoint.z },
+      base = norm({ x: aim.x - origin.x, y: aim.y - origin.y, z: aim.z - origin.z }),
+      flat = Math.hypot(base.x, base.z) || 1,
+      right = { x: base.z / flat, y: 0, z: -base.x / flat },
+      up = norm({ x: -right.z * base.y, y: right.z * base.x - right.x * base.z, z: right.x * base.y }),
+      distance = Math.hypot(aim.x - origin.x, aim.y - origin.y, aim.z - origin.z),
+      sigma = dispersionSigma(shooter, stats, Math.min(stats.range, Math.max(1, distance)), battle, round || 0),
+      gx = gaussian(battle) * sigma,
+      gy = gaussian(battle) * sigma;
+    return {
+      origin: origin,
+      dir: norm({
+        x: base.x + right.x * gx + up.x * gy,
+        y: base.y + up.y * gy,
+        z: base.z + right.z * gx + up.z * gy
+      }),
+      aim: aim,
+      sigma: sigma,
+      distance: distance
+    };
+  }
+  function resolvePlayerRay(shooter, aimPoint, battle, round, delay) {
+    if (!shooter || !shooter.weapon || !battle) return null;
+    var stats = shooter.weapon.stats,
+      shot = playerShotDirection(shooter, aimPoint, stats, battle, round || 0);
+    if (!shot) return null;
+    var power = isFinite(+stats.power) ? +stats.power : 1,
+      pen = penetration(stats),
+      o = shot.origin,
+      dir = shot.dir,
+      left = stats.range,
+      travelled = 0,
+      energy = 1,
+      passes = [],
+      skip = [],
+      end = null;
+    while (!end) {
+      var environment = environmentStop(o, dir, left, battle),
+        body = firstEnemyHit(shooter, o, dir, Math.min(environment.travel, left), battle, skip);
+      if (!body) {
+        var at = pointAt(o, dir, environment.travel),
+          surface = impactSurface(environment, at, dir, battle);
+        end = {
+          impact: at,
+          travel: travelled + environment.travel,
+          stoppedBy: environment.travel < left - 0.1 ? 'environment' : 'range',
+          blocker: blockerOf(environment),
+          surface: surface.surface,
+          normal: surface.normal,
+          direction: dir
+        };
+        break;
+      }
+      var victim = body.soldier,
+        entry = pointAt(o, dir, body.t),
+        exit = pointAt(o, dir, body.out),
+        zone = hitZone(body.shape, entry, dir, stance(victim)),
+        pass = {
+          victim: victim,
+          zone: zone,
+          entry: entry,
+          exit: null,
+          direction: dir,
+          energy: energy,
+          wound: wound(shooter, victim, battle, {
+            zone: zone,
+            point: entry,
+            direction: dir,
+            distance: travelled + body.t,
+            round: round || 0,
+            energy: energy,
+            power: power * energy,
+            body: passes.length
+          })
+        };
+      passes.push(pass);
+      skip.push(victim);
+      var through = pen * THROUGH[zone] * energy;
+      if (passes.length >= MAX_BODIES || !(rand(battle) < through)) {
+        end = {
+          impact: entry,
+          travel: travelled + body.t,
+          stoppedBy: 'soldier',
+          blocker: 'soldier',
+          direction: dir
+        };
+        break;
+      }
+      pass.exit = exit;
+      energy *= RETAIN[zone];
+      travelled += body.out;
+      left = (left - body.out) * RETAIN[zone];
+      o = exit;
+      dir = deflect(dir, battle);
+      pass.exitDirection = dir;
+      if (energy < MIN_ENERGY || left < 1) {
+        end = { impact: exit, travel: travelled, stoppedBy: 'spent', blocker: null, direction: dir };
+        break;
+      }
+    }
+    var first = passes[0] || null,
+      hit = !!first,
+      meta = {
+        mode: 'raycast',
+        origin: shot.origin,
+        aim: shot.aim,
+        impact: first ? first.entry : end.impact,
+        victim: first ? first.victim : null,
+        intendedTarget: null,
+        playerRay: true,
+        dispersionRad: shot.sigma,
+        travel: first ? pointDistance(shot.origin, first.entry) : end.travel,
+        stoppedBy: first ? 'soldier' : end.stoppedBy,
+        blocker: first ? 'soldier' : end.blocker,
+        surface: first ? 'blood' : end.surface,
+        normal: first ? { x: -shot.dir.x, y: -shot.dir.y, z: -shot.dir.z } : end.normal,
+        direction: shot.dir,
+        zone: first ? first.zone : null,
+        wound: first ? first.wound : null,
+        passes: passes,
+        final: first && end.stoppedBy !== 'soldier' ? end : null,
+        round: round || 0,
+        delay: delay || 0
+      };
+    battle.onShot && battle.onShot(shooter, first ? first.victim : null, hit, meta.travel, meta);
+    shooter._lastBallisticShot = meta;
+    return meta;
+  }
+
   /* One authoritative terrain test for every trigger path. The sight system may still see a head
      over a crest; this asks whether the actual muzzle-to-aim line intersects the ground first. */
   function groundLineBlocked(o, aim, battle, clearance) {
@@ -564,6 +700,7 @@
   root.BattleBallistics = {
     version: '98-muzzle-physical-cover',
     resolve: resolveRay,
+    resolvePlayerRay: resolvePlayerRay,
     dispersionSigma: dispersionSigma,
     groupDiameter90: groupDiameter90,
     bodyShape: bodyShape,
