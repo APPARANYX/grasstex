@@ -127,7 +127,11 @@ test('cover/move cooperation narrows an authorized bound but never becomes a mov
   const dose=w.S.buddyTelemetry(w.b);assert.equal(dose.coverMoves,1);assert.equal(dose.cooperationActivations,1);
 });
 
-test('flag off is inert: no pair state and the legacy whole-fireteam bound remains',()=>{
+test('flag defaults on; flag off is inert and preserves the legacy whole-fireteam bound',()=>{
+  const parser=world();
+  assert.equal(parser.S.parseBuddyPairs(''),true);
+  assert.equal(parser.S.parseBuddyPairs('?buddyPairs=0'),false);
+
   const w=world('buddyPairs=0'),q=H.addSquad(w.r,w.b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:100}});
   w.S.initialPhase(q,'assault');q.inContact=true;
   q.members.forEach(s=>{s._fireteamKey=w.S.teamKeyFor(s);});
