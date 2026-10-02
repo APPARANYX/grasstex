@@ -1146,6 +1146,28 @@
     battle.onCallout(soldier, type);
   }
 
+  /* Which contact line to say: front, left or right of the way his squad faces (toward its objective), plain
+     "contact" behind. Voice only: the name of the line changes nothing in the battle. */
+  function contactCall(soldier) {
+    var sq = soldier.squad,
+      t = soldier.target,
+      p = soldier.root.position,
+      from = (sq && (sq.orderAnchor || sq.rally)) || p,
+      goal = sq && (sq.objective || sq.home);
+    if (!t || !goal) return 'contact';
+    var fx = goal.x - from.x,
+      fz = goal.z - from.z,
+      fl = Math.hypot(fx, fz);
+    if (fl < 1) return 'contact';
+    var dx = t.root.position.x - p.x,
+      dz = t.root.position.z - p.z,
+      dl = Math.hypot(dx, dz) || 1,
+      ahead = (dx * fx + dz * fz) / (dl * fl),
+      right = (dx * fz - dz * fx) / (dl * fl);
+    if (ahead >= Math.SQRT1_2) return 'contactFront';
+    if (ahead < -0.35) return 'contact';
+    return right > 0 ? 'contactRight' : 'contactLeft';
+  }
   /* Perception only. What the soldier does about what he sees is engagement.js's job. */
   function perceive(soldier, battle) {
     var heightAt = battle.heightAt,
@@ -1171,7 +1193,7 @@
     }
     if (soldier.target) shareContact(soldier, battle);
     squadSenses(soldier.squad, battle);
-    if (!had && soldier.target) callout(soldier, battle, 'contact');
+    if (!had && soldier.target) callout(soldier, battle, contactCall(soldier));
     if (soldier.lastSquadState !== soldier.squad.state) {
       if (isLeader(soldier))
         callout(
