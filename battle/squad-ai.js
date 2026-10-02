@@ -1040,6 +1040,14 @@
     soldier.target = null;
     return true;
   }
+  /* Player input may point the possessed soldier at a live combat threat, but target ownership
+     remains here in Perception/SquadAI rather than creating a second writer in the camera layer. */
+  function playerAim(soldier, target) {
+    if (!soldier || soldier.dead) return false;
+    if (!threatDisposition(target).combatThreat) return clearTarget(soldier);
+    soldier.target = target;
+    return true;
+  }
 
   function setDestination(soldier, next, battle, urgent) {
     if (!next) return;
@@ -1129,10 +1137,18 @@
   function updateSoldier(soldier, battle) {
     EXT.run('beforeSoldier', soldier, battle);
     if (!soldier.dead) {
-      var role = perceive(soldier, battle);
-      if (root.BattleEngagement) root.BattleEngagement.updateSoldier(soldier, battle);
-      else fallbackBehavior(soldier, battle, role);
-      if (root.BattleMovementResolver) root.BattleMovementResolver.resolve(soldier, battle);
+      var resolver = root.BattleMovementResolver,
+        player = resolver && resolver.playerActive && resolver.playerActive(soldier, battle);
+      if (player) {
+        /* While possessed, player input owns movement, stance and target selection. Keep the normal
+           extension hooks alive, but do not let Perception/Engagement overwrite controller input. */
+        resolver.resolve(soldier, battle);
+      } else {
+        var role = perceive(soldier, battle);
+        if (root.BattleEngagement) root.BattleEngagement.updateSoldier(soldier, battle);
+        else fallbackBehavior(soldier, battle, role);
+        if (resolver) resolver.resolve(soldier, battle);
+      }
     }
     EXT.run('afterSoldier', soldier, battle);
   }
@@ -1258,6 +1274,7 @@
     formationFor: formationFor,
     setDestination: setDestination,
     clearTarget: clearTarget,
+    playerAim: playerAim,
     hasLineOfSight: hasLineOfSight,
     detectionRange: detectionRange,
     findTarget: findTarget,
