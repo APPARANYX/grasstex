@@ -12,6 +12,8 @@ assert.match(cameraSource,/buttonValue\(pad,7\)/,'RT must feed player fire');
 assert.match(cameraSource,/buttonValue\(pad,10\)/,'L3 must feed player run');
 assert.match(cameraSource,/playerYaw\+=lx\*PLAYER_LOOK_RATE\*dt/,'RS right must turn the player camera right');
 assert.doesNotMatch(cameraSource,/playerYaw-=lx\*PLAYER_LOOK_RATE\*dt/,'player horizontal look must not be reversed');
+assert.doesNotMatch(cameraSource,/if\(!pad\)return;/,'free-camera keyboard movement must not require a connected gamepad');
+assert.match(cameraSource,/var f=\(keys\.has\('w'\)\?1:0\)[\s\S]*?if\(pad\)\{\s*var axes=pad\.axes/,'keyboard fly input must be evaluated outside the optional gamepad branch');
 assert.match(cameraSource,/heightAt\(cam\.position\.x,cam\.position\.z\)/,'player camera must clamp against terrain');
 assert.match(cameraSource,/SquadAI\.playerFireRay/,'RT must use free-fire player ray authority');
 const microSource=fs.readFileSync(path.join(H.REPO,'battle/squad-ai.js'),'utf8');
