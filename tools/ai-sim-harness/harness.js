@@ -75,6 +75,8 @@ function bootstrap(opts){
     /* Soldier condition: stress from fire, wounds and casualties, read by Engagement and the shot model. */
     load(root,'battle/modules/08-soldier-events.js');
     load(root,'battle/modules/17-soldier-mind.js');
+    /* Tactical callouts (`?callouts=1`): inert unless the flag is on. */
+    load(root,'battle/modules/09-tactical-callouts.js');
   }
   return root;
 }

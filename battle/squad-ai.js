@@ -401,16 +401,39 @@
   function squadSenses(sq, battle) {
     if (!PERCEPTION_ON || !sq || sq._sensedAt === battle.time) return;
     sq._sensedAt = battle.time;
-    var held = squadContact(sq, battle);
-    if (firstHand(held, battle)) return;
+    var held = squadContact(sq, battle),
+      calls = root.BattleCallouts && root.BattleCallouts.enabled() ? root.BattleCallouts : null;
+    if (firstHand(held, battle)) {
+      if (calls) calls.report(battle, sq, held);
+      return;
+    }
     var here = squadCentre(sq, battle);
     if (!here) return;
+    /* `?callouts=1`: word from another squad comes only as a call one of this squad's men heard (modules/09). */
+    if (calls) {
+      var msg = calls.heard(battle, sq);
+      if (msg && (!held || held.heard || msg.fact.at > held.at)) {
+        var f = msg.fact;
+        sq.contact = {
+          unit: f.unit,
+          x: f.x,
+          z: f.z,
+          at: f.at,
+          seenBy: null,
+          stance: f.stance,
+          relayedFrom: msg.fromSquad,
+          callout: msg.id
+        };
+        calls.noteApplied(battle);
+        return;
+      }
+    }
     var side = battle.factions && battle.factions[sq.faction],
       squads = (side && side.squads) || [],
       best = null,
       bestD = RELAY_RANGE,
       i;
-    for (i = 0; i < squads.length; i++) {
+    for (i = 0; !calls && i < squads.length; i++) {
       var o = squads[i];
       if (o === sq || o.disbanded || !firstHand(o.contact, battle)) continue;
       var there = squadCentre(o, battle),
