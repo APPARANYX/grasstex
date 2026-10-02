@@ -335,23 +335,27 @@ soldier 3 sim seconds after death. It reads presentation transforms only and nev
 state. The user can still drag to change bearing/elevation and wheel to zoom. This is separate from
 the benchmark-only `benchCam=follow` camera.
 
-**Xbox battle player mode** (`battle/camera-controls.js` + existing AI owners): on the normal battle
-page, the standard Xbox **Menu/Start** button enters player mode by choosing a random living soldier
-from a random live squad on the player's faction (`us` by default; `?playerFaction=ge` chooses
-German). Press Menu again to jump to another random living soldier on the same faction; **View**
-returns to the free camera. Controls: **LS** move, **L3** run, **RS** look, **LT** aim,
-**RT** fire, **B** crouch/stand, **A** prone/stand. The possessed soldier alone temporarily skips
+**Battle player mode** (`battle/camera-controls.js` + existing AI owners): on the normal battle
+page, desktop **P** enters player mode by choosing a random living soldier from a random live squad
+on the player's faction (`us` by default; `?playerFaction=ge` chooses German). Press **P** again to
+jump to another random living soldier on the same faction; **V** returns to the free camera.
+Keyboard/mouse controls: **WASD** move, **Shift** run, **mouse** look, **RMB** aim, **LMB** fire,
+**C** crouch/stand, **Z** prone/stand. On a standard Xbox controller, **Menu/Start** enters or switches
+player mode, **View** exits, **LS** moves, **L3** runs, **RS** looks, **LT** aims, **RT** fires,
+**B** crouches/stands and **A** goes prone/stands. Keyboard/mouse and gamepad inputs feed the same
+player-control path and can be mixed; losing the controller leaves possession active so keyboard/mouse
+takes over.
 The possessed soldier carries `isPlayer=true` for the full possession lifetime; that flag, not the
 short render-time movement proposal, gates the entire soldier Micro path. While it is set, SquadAI
 does not run before/after Micro extensions, Perception or Engagement for that man, the Movement
 Resolver never falls through to squad/tactical routing if an input proposal expires, and building
 hardpoints cannot assign or retain him. Squad command and every other soldier keep running.
-Possession starts in a player-owned standing stance. The pad's walk/run choice overrides squad
-hold/defend gait selection for that soldier only. RT is true free-fire: it launches the crosshair
-ray even with no AI target lock, using the normal ammunition/reload/stoppage owner and physical
-ballistics through terrain, buildings, bodies, penetration, wounds and presentation FX. Movement
-still goes through `BattleMovementResolver` and the shipping movement integrator, stance through
-`BattleEngagement.commitStance`, and optional reticle selection through `SquadAI.playerAim`.
+Possession starts in a player-owned standing stance. The player's walk/run choice overrides squad
+hold/defend gait selection for that soldier only. Player fire is true free-fire: it launches the
+crosshair ray even with no AI target lock, using the normal ammunition/reload/stoppage owner and
+physical ballistics through terrain, buildings, bodies, penetration, wounds and presentation FX.
+Movement still goes through `BattleMovementResolver` and the shipping movement integrator, stance
+through `BattleEngagement.commitStance`, and optional reticle selection through `SquadAI.playerAim`.
 The third-person camera is terrain-clamped so its shoulder position cannot drop below the ground.
 `isPlayer` is cleared only on switch/exit/death handoff, at which point normal Micro resumes.
 
