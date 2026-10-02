@@ -89,6 +89,7 @@
         until: 0,
         stance: 'stand',
         stanceUntil: 0,
+        stanceTrail: [],
         fireReadyAt: 0,
         threatSector: null,
         cover: null,
@@ -376,11 +377,43 @@
     }
     s.crawling = false;
   }
-  function commitStance(s, battle, stance, seconds) {
+  function stanceContext(s, battle, e) {
+    var c = s.squad && (SA().squadContact ? SA().squadContact(s.squad, battle) : s.squad.contact),
+      cp = e && e.cover,
+      p = posOf(s);
+    return {
+      x: +p.x || 0,
+      z: +p.z || 0,
+      contact: !!(s.squad && s.squad.inContact),
+      contactId: c && c.unit && c.unit.id != null ? String(c.unit.id) : null,
+      cover: cp
+        ? cp.slotId != null
+          ? String(cp.slotId)
+          : Math.round((+cp.x || 0) * 2) / 2 + ',' + Math.round((+cp.z || 0) * 2) / 2
+        : null
+    };
+  }
+  function commitStance(s, battle, stance, seconds, reason) {
     var e = state(s);
     if (e.stance !== stance) {
+      var from = e.stance,
+        ctx = stanceContext(s, battle, e),
+        trail = e.stanceTrail || (e.stanceTrail = []);
       e.fireReadyAt = Math.max(e.fireReadyAt, battle.time + AIM_SETTLE * statScale(s, 'settle'));
       e.stance = stance;
+      trail.push({
+        at: battle.time,
+        from: from,
+        to: stance,
+        reason: String(reason || ('state:' + (e.state || 'unknown'))),
+        state: e.state || null,
+        x: ctx.x,
+        z: ctx.z,
+        contact: ctx.contact,
+        contactId: ctx.contactId,
+        cover: ctx.cover
+      });
+      if (trail.length > 24) trail.splice(0, trail.length - 24);
     }
     e.stanceUntil =
       battle.time + (seconds == null ? (stance === 'prone' ? PRONE_HOLD : STANCE_HOLD) : seconds);
@@ -394,7 +427,7 @@
   function requestStance(s, battle, stance, seconds) {
     var e = state(s);
     if (STANCE_HEIGHT[stance] >= STANCE_HEIGHT[e.stance]) return false;
-    commitStance(s, battle, stance, seconds);
+    commitStance(s, battle, stance, seconds, 'request:' + stance);
     return true;
   }
   function holdStance(s, battle) {
@@ -1264,17 +1297,50 @@
     }
     return { x: p.x, z: p.z };
   }
-  function fireControlReady(s, battle) {
-    if (!s || s.dead || !s.weapon || s.reloading || s.clearingStoppage || s.outOfAmmo || s.crawling)
-      return false;
-    if (s.moving && (s.moveSpeed || 0) > 0.16) return false;
+  function fireControlObservation(s, battle) {
+    var out = {
+      ready: false,
+      visualLine: false,
+      ballisticLine: false,
+      terrainCrestBlocked: false,
+      proneVisualLine: false,
+      proneBallisticLine: false,
+      proneReady: false,
+      inRange: false,
+      eligible: false,
+      targetId: null
+    };
+    if (!s || s.dead || !battle) return out;
     var target = fireControlTarget(s, battle);
-    if (!target) return false;
+    if (!target) return out;
+    out.targetId = target.id == null ? null : String(target.id);
     var p = posOf(s),
       tp = posOf(target),
-      stance = s.prone ? 'prone' : s.tacticalCrouch || s.crouching ? 'crouch' : 'stand';
-    if (dist(p.x, p.z, tp.x, tp.z) > SA().engageRange(s)) return false;
-    return firingLineClear(s, target, p, stance, battle);
+      stance = s.prone ? 'prone' : s.tacticalCrouch || s.crouching ? 'crouch' : 'stand',
+      proxy = stanceProxy(s, p, stance, battle),
+      proneProxy = stanceProxy(s, p, 'prone', battle),
+      B = root.BattleBallistics,
+      basic = !!(
+        s.weapon &&
+        !s.reloading &&
+        !s.clearingStoppage &&
+        !s.outOfAmmo &&
+        !s.crawling &&
+        !(s.moving && (s.moveSpeed || 0) > 0.16)
+      );
+    out.eligible = basic;
+    out.inRange = dist(p.x, p.z, tp.x, tp.z) <= SA().engageRange(s);
+    out.visualLine = !!SA().hasLineOfSight(proxy, target, battle.heightAt, battle.obstacles);
+    out.ballisticLine = !(B && B.fireLineBlocked && B.fireLineBlocked(proxy, target, battle));
+    out.terrainCrestBlocked = out.visualLine && !out.ballisticLine;
+    out.proneVisualLine = !!SA().hasLineOfSight(proneProxy, target, battle.heightAt, battle.obstacles);
+    out.proneBallisticLine = !(B && B.fireLineBlocked && B.fireLineBlocked(proneProxy, target, battle));
+    out.proneReady = basic && out.inRange && out.proneVisualLine && out.proneBallisticLine;
+    out.ready = basic && out.inRange && out.visualLine && out.ballisticLine;
+    return out;
+  }
+  function fireControlReady(s, battle) {
+    return fireControlObservation(s, battle).ready;
   }
   function prepareFireControl(s, battle) {
     var target = fireControlTarget(s, battle),
@@ -2602,6 +2668,7 @@
     fireAuthorized: fireAuthorized,
     underFireNow: underFireNow,
     fireControlReady: fireControlReady,
+    fireControlObservation: fireControlObservation,
     firingLineClear: firingLineClear,
     crestPrepPoint: crestPrepPoint,
     commitStance: commitStance,

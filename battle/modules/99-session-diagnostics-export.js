@@ -222,6 +222,8 @@ function squad(sq,sim){
     mission:safePlain(sq._macroMission?Object.assign({},sq._macroMission,{key:undefined}):null,4),lastMission:safePlain(sq._lastMacroMission?Object.assign({},sq._lastMacroMission,{key:undefined}):null,4),
     captainRequest:safePlain(sq._macroMissionRequest,3),
     mind:safePlain(sq.mind,3),
+    fireControl:safePlain(sq.fireControl?Object.assign({},sq.fireControl,{trail:undefined}):null,4),
+    fireControlTrail:safePlain(sq._fireControlTrail||[],4),
     /* Owned commitments (BattleLeases): what is live, who owns it, why, what releases it, and which one holds the mission now. */
     leases:root.BattleLeases?safePlain(root.BattleLeases.active(sq,sq._battleSim?+sq._battleSim.time||0:0),4):null,
     recentLeases:safePlain(sq._leases&&sq._leases.ended,4),missionHeldBy:sq._missionHold||null,

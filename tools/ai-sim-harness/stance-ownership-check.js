@@ -22,6 +22,7 @@
      to crouch as standing: proneToCrouch, then standToCrouch a frame later, so he rose to his feet and
      knelt again. */
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),H=require('./harness');
+function load(r,p){new Function('window','globalThis','console',fs.readFileSync(path.join(H.REPO,p),'utf8'))(r,r,{log(){},warn(){}});}
 let n=0;function test(name,fn){fn();n++;console.log('PASS '+name);}
 
 test('only Engagement writes stance flags',()=>{
@@ -124,6 +125,37 @@ test('requestStance only takes a man lower and goes through the commitment',()=>
   E.commitStance(s,b,'crouch',1);
   assert.equal(E.requestStance(s,b,'crouch',9),false,'the same stance restarts no hold');
   assert.equal(E.requestStance(s,b,'stand',9),false,'a request never stands a man up');
+});
+
+test('LoopWatch flags four committed stance changes in 8 seconds only with stable contact/cover and little movement',()=>{
+  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement;
+  load(r,'battle/modules/32-ai-loop-watch.js');
+  const L=r.BattleAILoopWatch;
+  assert.ok(L&&L.sample,'LoopWatch is loaded');
+  s.squad.inContact=true;s.squad.contact={unit:enemy,x:enemy.root.position.x,z:enemy.root.position.z,at:b.time,seenBy:s.id};
+  const e=E.stateOf(s);e.cover={x:s.root.position.x,z:s.root.position.z,slotId:'stable-cover'};
+  E.commitStance(s,b,'crouch',0,'probe:crouch-1');b.time+=1;
+  E.commitStance(s,b,'stand',0,'probe:stand-1');b.time+=1;
+  E.commitStance(s,b,'crouch',0,'probe:crouch-2');b.time+=1;
+  E.commitStance(s,b,'stand',0,'probe:stand-2');
+  assert.equal(e.stanceTrail.length,4);
+  L.sample(b);
+  const a=L.alerts(b).find(x=>x.kind==='posture-churn'&&String(x.soldierId)===String(s.id));
+  assert.ok(a,'posture churn is surfaced');
+  assert.equal(a.stanceChanges,4);
+  assert.deepEqual(a.stanceReasons,['probe:crouch-1','probe:stand-1','probe:crouch-2','probe:stand-2']);
+  assert.ok(a.net<.01,'the diagnostic is about churn without movement');
+  assert.match(a.sequence.join(' | '),/crouch→stand \[probe:stand-1\]/);
+
+  /* Same number of stance changes, but a meaningful contact change means no churn alert. */
+  L.clear(b);e.stanceTrail=[];b.time+=1;
+  E.commitStance(s,b,'crouch',0,'contact:crouch');b.time+=1;
+  s.squad.contact={unit:{id:'other',dead:false,root:{position:{x:40,y:0,z:80}}},x:40,z:80,at:b.time,seenBy:s.id};
+  E.commitStance(s,b,'stand',0,'contact:stand');b.time+=1;
+  E.commitStance(s,b,'crouch',0,'contact:crouch-2');b.time+=1;
+  E.commitStance(s,b,'stand',0,'contact:stand-2');
+  L.sample(b);
+  assert.ok(!L.alerts(b).some(x=>x.kind==='posture-churn'),'a changed contact suppresses the posture-churn diagnosis');
 });
 
 test('an advancing man whose squad is in contact moves crouched; on a quiet march he stands',()=>{
