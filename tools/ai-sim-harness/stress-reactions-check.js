@@ -671,22 +671,24 @@ test('rage: for RAGE_GUARD_SECONDS a hit does a quarter of its damage, of its ch
   assert.equal(c.ctx.E.guardOnHit(ref, c.ctx.b, 1), 1);
 });
 
-test('a break lasts at least REACT_MIN, ends once he is below broken, and he rejoins the fight', () => {
+test('a dazed freeze lasts its snapshotted duration even if he calms, then he rejoins and may freeze on a new break', () => {
   const { ctx, s } = broke('?stressAct=freeze', [0, 0.9, 0], 100);
   assert.equal(s.eng.state, 'freeze');
-  const min = ctx.E.tuning.ACT_TUNING.REACT_MIN;
-  stressTo(ctx, s, 'steady'); // he is calm at once
-  tick(ctx, s, 1);
-  assert.equal(s.eng.state, 'freeze', 'calm, but not for REACT_MIN yet');
-  tick(ctx, s, min);
-  assert.notEqual(s.eng.state, 'freeze', 'then he is out of it');
+  const duration = s.eng.freezeDuration,
+    until = s.eng.freezeUntil;
+  assert.ok(duration >= ctx.M.tuning.FREEZE_MIN && duration <= ctx.M.tuning.FREEZE_MAX);
+  stressTo(ctx, s, 'steady'); // calming does not cancel the dazed spell early
+  tick(ctx, s, Math.max(1, duration - 1));
+  assert.equal(s.eng.state, 'freeze', 'still dazed before freezeUntil');
+  while (ctx.b.time <= until + H.AI_TICK && s.eng.state === 'freeze') tick(ctx, s);
+  assert.notEqual(s.eng.state, 'freeze', 'the bounded daze expires on its own timer');
   assert.equal(ctx.E.reacting(s), false);
-  /* Broken again: broken again. */
+  /* Broken again after returning through steady is a new episode, so freeze may happen again. */
   stressTo(ctx, s, 'broken');
   tick(ctx, s, 0.6);
   assert.equal(s.eng.state, 'freeze');
   assert.equal(ctx.M.of(s).acts.freeze.n, 2, 'two spells counted');
-  assert.ok(ctx.M.of(s).acts.freeze.sec > 3, 'and the seconds in them');
+  assert.ok(ctx.M.of(s).acts.freeze.sec >= duration - 1, 'the first spell contributed its bounded seconds');
 });
 
 test('a squad that is already retreating is not reacted for', () => {
