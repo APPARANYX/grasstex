@@ -478,7 +478,10 @@ test('freeze duration follows stress tempo: equal final stress reached quickly f
     'the shortest window distinguishes shock from simmer'
   );
   const snap = quick.ctx.M.snapshot(quick.s);
-  assert.ok(snap.recentDose && snap.recentDose.dominantKind === 'suppression', 'diagnostics expose recent dose');
+  assert.ok(
+    snap.recentDose && snap.recentDose.dominantKind === 'suppression',
+    'diagnostics expose recent dose'
+  );
 });
 
 test('freeze expires while still broken and cannot restart inside the same broken episode', () => {
@@ -526,7 +529,11 @@ test('flee is non-threatening, while rage remains an active visual threat', () =
   assert.equal(fled.g.target, null, 'a fleeing man is not reacquired');
   fled.g.target = fled.s;
   fled.g.fireCooldown = 0;
-  assert.equal(fled.ctx.S.tryFire(fled.g, fled.ctx.b), false, 'the trigger path also rejects a stale fleeing target');
+  assert.equal(
+    fled.ctx.S.tryFire(fled.g, fled.ctx.b),
+    false,
+    'the trigger path also rejects a stale fleeing target'
+  );
 
   const raging = broke('?stressAct=rage', [0, 0, 0.95], 50);
   assert.equal(raging.s.eng.state, 'rage');
@@ -622,6 +629,47 @@ test("rage: charges the enemy, fires on the move, strikes at arm's length, and e
   assert.notEqual(far.s.eng.state, 'rage', 'with no enemy in reach he stops');
 });
 
+/* A man whose own target is past RAGE_REACH while his squad's contact is inside RAGE_RANGE: the break reads the
+   contact, the charge (flag off) reads his target. Off, he breaks into rage and gives it up on the same tick, every
+   tick, and each break renews the guard (the benchmark's 191 breaks in 2.1 s of rage on one seed). `?rageLock=1`
+   charges the nearer of the two: one break, he holds the state and runs at the contact. */
+function splitRage(q) {
+  const ctx = world(q),
+    s = man(ctx.us, 'rifleman');
+  tick(ctx, s);
+  temper(ctx, s, 0, 0, 0.95);
+  stressTo(ctx, s, 'broken');
+  const far = foe(ctx, s, 250); // his own target, past RAGE_REACH
+  const near = man(ctx.ge, 'rifleman', 1);
+  put(near, s.root.position.x + 5, s.root.position.z + 60);
+  ctx.us.contact = { x: near.root.position.x, z: near.root.position.z, at: ctx.b.time, seenBy: s.id };
+  s.fireCooldown = 99;
+  under(ctx, s, 3);
+  const guards = [];
+  let ticksInRage = 0;
+  for (let i = 0; i < 8; i++) {
+    ctx.us.contact.at = ctx.b.time; // the squad keeps seeing him
+    stressTo(ctx, s, 'broken');
+    tick(ctx, s);
+    if (s.eng.state === 'rage') ticksInRage++;
+    guards.push(s.eng.guardUntil || 0);
+  }
+  return { ctx, s, far, near, guards, ticksInRage, acts: ctx.M.of(s).acts.rage };
+}
+test('rage: the break and the charge measure the same enemy with ?rageLock=1; off, a far target makes the rage flicker', () => {
+  const off = splitRage('?stressAct=rage');
+  assert.equal(off.ctx.E.tuning.RAGE_LOCK, false, 'off by default');
+  assert.ok(off.acts.n >= 6, 'off: a new break nearly every tick, ' + off.acts.n);
+  assert.equal(off.ticksInRage, 0, 'off: never in rage at the end of a tick');
+  assert.ok(off.guards[7] > off.guards[0], 'off: each break renews the guard');
+  const on = splitRage('?stressAct=rage&rageLock=1');
+  assert.equal(on.ctx.E.tuning.RAGE_LOCK, true);
+  assert.equal(on.acts.n, 1, 'on: one break');
+  assert.equal(on.ticksInRage, 8, 'on: in rage every tick');
+  assert.equal(new Set(on.guards).size, 1, 'on: the guard is set once');
+  assert.ok(dist(on.s.destination, here(on.near)) < 1, 'on: he runs at the near contact, not his far target');
+});
+
 test('rage: for RAGE_GUARD_SECONDS a hit does a quarter of its damage, of its chance to drop him and of its bleed; the same two draws', () => {
   const T = load_tuning();
   const ctx0 = broke('?stressAct=rage', [0, 0, 0.95], 50);
@@ -669,6 +717,209 @@ test('rage: for RAGE_GUARD_SECONDS a hit does a quarter of its damage, of its ch
   assert.ok(!(c.s.eng.guardUntil > 0), 'no guard but a berserk one');
   assert.equal(c.ctx.E.guardOnHit(c.s, c.ctx.b, 1), 1);
   assert.equal(c.ctx.E.guardOnHit(ref, c.ctx.b, 1), 1);
+});
+
+test("rage: with ?rageGuard=1 the guard lasts the charge, past RAGE_GUARD_SECONDS, and ends at arm's length or with the rage", () => {
+  const T = load_tuning();
+  function hit(ctx, victim, shooter) {
+    let draws = 0;
+    ctx.b.random = () => (draws++, 0.5);
+    victim.hp = 1e6;
+    victim.bleedRate = 0;
+    victim.casualty = null;
+    victim.dead = false;
+    const res = ctx.r.BattleWounds.wound(shooter, victim, ctx.b, { zone: 'leg', energy: 1, power: 1 });
+    return { damage: res.damage, draws };
+  }
+  /* Off: the clock, as before. */
+  const off = broke('?stressAct=rage', [0, 0, 0.95], 50);
+  assert.equal(off.ctx.E.tuning.RAGE_GUARD_CHARGE, false, 'off by default');
+  const ref = man(off.ctx.us, 'rifleman', 1);
+  const full = hit(off.ctx, ref, off.g);
+  off.ctx.b.time = off.s.eng.guardUntil + 0.01;
+  assert.equal(off.s.eng.state, 'rage');
+  assert.ok(
+    Math.abs(hit(off.ctx, off.s, off.g).damage - full.damage) < 1e-9,
+    'off: in rage past the clock, the whole hit'
+  );
+  /* On: still charging 10 s past the clock, still guarded, with the same draws. */
+  const on = broke('?stressAct=rage&rageGuard=1', [0, 0, 0.95], 50);
+  assert.equal(on.ctx.E.tuning.RAGE_GUARD_CHARGE, true);
+  assert.equal(on.s.eng.state, 'rage');
+  on.ctx.b.time = on.s.eng.guardUntil + 10;
+  const g1 = hit(on.ctx, on.s, on.g);
+  assert.ok(
+    Math.abs(g1.damage - full.damage * T.RAGE_GUARD_SCALE) < 1e-9,
+    'on: a quarter, 10 s past RAGE_GUARD_SECONDS'
+  );
+  assert.equal(g1.draws, full.draws, 'the same draws from the combat RNG');
+  /* He reaches the man he charges: the guard is over, though he is still in rage. */
+  put(on.g, on.s.root.position.x, on.s.root.position.z + 1.5);
+  on.ctx.us.contact = {
+    x: on.g.root.position.x,
+    z: on.g.root.position.z,
+    at: on.ctx.b.time,
+    seenBy: on.s.id
+  };
+  on.s.hp = on.s.maxHp || 100;
+  tick(on.ctx, on.s);
+  assert.equal(on.s.eng.state, 'rage', "still in rage at arm's length");
+  assert.equal(on.s.eng.guardReached, true);
+  assert.ok(Math.abs(hit(on.ctx, on.s, on.g).damage - full.damage) < 1e-9, "at arm's length: the whole hit");
+  /* Stepping back out does not bring it back. */
+  put(on.g, on.s.root.position.x, on.s.root.position.z + 30);
+  on.ctx.us.contact = {
+    x: on.g.root.position.x,
+    z: on.g.root.position.z,
+    at: on.ctx.b.time,
+    seenBy: on.s.id
+  };
+  tick(on.ctx, on.s);
+  assert.equal(on.ctx.E.guardOnHit(on.s, on.ctx.b, 1), 1, 'once reached, gone for this break');
+  /* A rage that ends before arm's length ends the guard with it; a new break brings a new one. */
+  const end = broke('?stressAct=rage&rageGuard=1', [0, 0, 0.95], 50);
+  assert.ok(end.ctx.E.guardOnHit(end.s, end.ctx.b, 1) < 1, 'guarded while charging');
+  put(end.g, end.s.root.position.x, end.s.root.position.z + 400); // nobody left within RAGE_REACH
+  end.ctx.us.contact = null;
+  tick(end.ctx, end.s);
+  assert.notEqual(end.s.eng.state, 'rage', 'the charge is over');
+  assert.equal(end.ctx.E.guardOnHit(end.s, end.ctx.b, 1), 1, 'out of rage: no guard');
+  /* Nobody else has it. */
+  const c = broke('?stressAct=cower,freeze&rageGuard=1', [0, 0.9, 0.1], 100);
+  assert.equal(c.ctx.E.guardOnHit(c.s, c.ctx.b, 1), 1);
+});
+
+test('rage: with ?rageTrance=1 it is a trance: calm and retreat do not end it, guarded, faster, tighter, and the debt comes due', () => {
+  const T = load_tuning();
+  const Q = '?stressAct=cower,rage&rageLock=1&rageGuard=1&rageTrance=1';
+  /* Keep the enemy where the squad's picture says, as Perception would. */
+  const keep = t => {
+    t.ctx.us.contact = { x: t.g.root.position.x, z: t.g.root.position.z, at: t.ctx.b.time, seenBy: t.s.id };
+  };
+  function hit(ctx, victim, shooter, zone, roll) {
+    let draws = 0;
+    ctx.b.random = () => (draws++, roll == null ? 0.5 : roll);
+    const res = ctx.r.BattleWounds.wound(shooter, victim, ctx.b, {
+      zone: zone || 'leg',
+      energy: 1,
+      power: 1
+    });
+    return { res, draws };
+  }
+  /* Off: calm ends a rage after REACT_MIN, and nobody is entranced. */
+  const off = broke('?stressAct=rage&rageLock=1&rageGuard=1', [0, 0, 0.95], 50);
+  assert.equal(off.ctx.E.tuning.RAGE_TRANCE, false, 'off by default');
+  assert.equal(off.ctx.E.entranced(off.s), false);
+  stressTo(off.ctx, off.s, 'steady');
+  keep(off);
+  tick(off.ctx, off.s, T.REACT_MIN + 1);
+  assert.notEqual(off.s.eng.state, 'rage', 'off: calm for REACT_MIN ends it');
+  /* On: calm for three times REACT_MIN and he is still in it. */
+  const on = broke(Q, [0, 0, 0.95], 50);
+  assert.equal(on.ctx.E.tuning.RAGE_TRANCE, true);
+  assert.equal(on.s.eng.state, 'rage');
+  assert.equal(on.ctx.E.entranced(on.s), true);
+  stressTo(on.ctx, on.s, 'steady');
+  for (let i = 0; i < 4 * T.REACT_MIN; i++) {
+    keep(on);
+    tick(on.ctx, on.s, 1);
+  }
+  assert.equal(on.s.eng.state, 'rage', 'on: calm does not end the trance');
+  /* Rattled and under fire is the cower's ground, but a man in the trance stays in it. */
+  stressTo(on.ctx, on.s, 'rattled');
+  under(on.ctx, on.s, 2);
+  keep(on);
+  tick(on.ctx, on.s, 0.3);
+  assert.equal(on.s.eng.state, 'rage', 'on: rattled under fire, still the trance, not a cower');
+  /* His squad's retreat does not take him back. */
+  on.ctx.us.state = 'retreat';
+  keep(on);
+  tick(on.ctx, on.s, 1);
+  assert.equal(on.s.eng.state, 'rage', 'on: a retreat does not end the trance');
+  on.ctx.us.state = 'advance';
+  /* The guard holds at arm's length too, and what it saves is owed. */
+  put(on.g, on.s.root.position.x, on.s.root.position.z + 1.5);
+  keep(on);
+  tick(on.ctx, on.s);
+  assert.equal(on.s.eng.state, 'rage');
+  const ref = man(on.ctx.us, 'rifleman', 1);
+  ref.hp = 1e6;
+  on.s.hp = 1e6;
+  const full = hit(on.ctx, ref, on.g),
+    g1 = hit(on.ctx, on.s, on.g);
+  assert.ok(
+    Math.abs(g1.res.damage - full.res.damage * T.RAGE_TRANCE_GUARD) < 1e-9,
+    "an eighth at arm's length"
+  );
+  assert.equal(g1.draws, full.draws, 'the same draws from the combat RNG');
+  const owed = full.res.damage - g1.res.damage;
+  assert.ok(Math.abs(on.s.eng.guardDebt - owed) < 1e-9, 'the saved hp is owed: ' + on.s.eng.guardDebt);
+  /* Faster: module 11 runs him at RAGE_SPEED of his gait, and a leg wound does not slow him. */
+  const hooks = {};
+  on.ctx.r.BattleModules.registerSystem = (id, h) => (hooks[id] = h);
+  load(on.ctx.r, 'battle/modules/11-soldier-individuality.js');
+  const speeds = Object.values(hooks).find(h => h.onSimulationStep).onSimulationStep;
+  const I = on.ctx.r.BattleSoldierIndividuality;
+  on.s.woundSpeed = 0.5;
+  ref.woundSpeed = 0.5;
+  speeds(on.ctx.b);
+  const gait = I.phenotype(on.s).gaits[on.s._locomotionGait];
+  assert.ok(Math.abs(on.s._locomotionGroundSpeed - gait * T.RAGE_SPEED) < 1e-9, 'RAGE_SPEED of his gait');
+  const refGait = I.phenotype(ref).gaits[ref._locomotionGait];
+  assert.ok(Math.abs(ref._locomotionGroundSpeed - refGait * 0.5) < 1e-9, 'anyone else: the wound slows him');
+  /* Tighter: the shot model's group is RAGE_AIM of what it would be out of the trance. */
+  load(on.ctx.r, 'battle/modules/14-z-ballistic-raycast.js');
+  const B = on.ctx.r.BattleBallistics,
+    st = on.s.weapon.stats;
+  const tight = B.dispersionSigma(on.s, st, 100, on.ctx.b, 0);
+  on.s.eng.state = 'engage'; // the same man out of the trance (a test write)
+  const loose = B.dispersionSigma(on.s, st, 100, on.ctx.b, 0);
+  on.s.eng.state = 'rage';
+  assert.ok(Math.abs(tight - loose * T.RAGE_AIM) < 1e-12, 'RAGE_AIM of the group: ' + tight + ' vs ' + loose);
+  /* A kill in rage is counted. */
+  const victim = man(on.ctx.ge, 'rifleman', 1);
+  put(victim, on.s.root.position.x + 3, on.s.root.position.z + 3);
+  victim.hp = 5;
+  const killsBefore = on.ctx.M.of(on.s).acts.rage.kills;
+  hit(on.ctx, victim, on.s, 'chest', 0);
+  assert.equal(victim.dead, true);
+  assert.equal(on.ctx.M.of(on.s).acts.rage.kills, killsBefore + 1, 'the kill is counted');
+  /* Nobody left within RAGE_REACH: the trance is over and the debt comes due. He survives it with enough hp. */
+  const hpBefore = 200;
+  on.s.hp = hpBefore;
+  put(on.g, on.s.root.position.x, on.s.root.position.z + 400);
+  on.s.target = on.g;
+  on.ctx.us.contact = null;
+  tick(on.ctx, on.s);
+  assert.notEqual(on.s.eng.state, 'rage', 'the trance is over');
+  assert.equal(!!on.s.dead, false);
+  assert.ok(Math.abs(on.s.hp - (hpBefore - owed)) < 1e-9, 'the debt came due: hp ' + on.s.hp);
+  assert.equal(on.s.eng.guardDebt, 0);
+  const acts = on.ctx.M.of(on.s).acts.rage;
+  assert.equal(acts.over, 1);
+  assert.ok(Math.abs(acts.debt - owed) < 1e-9);
+  assert.equal(acts.succumbed, 0);
+  /* A man whose debt is more than he has left dies of his wounds, with no roll. */
+  const die = broke(Q, [0, 0, 0.95], 50);
+  die.s.hp = 1e6;
+  const d1 = hit(die.ctx, die.s, die.g);
+  const owe = (d1.res.damage * (1 - T.RAGE_TRANCE_GUARD)) / T.RAGE_TRANCE_GUARD;
+  die.s.hp = die.ctx.r.BattleWounds.COLLAPSE_HP + owe - 1;
+  die.s.bleedRate = 0;
+  put(die.g, die.s.root.position.x, die.s.root.position.z + 400);
+  die.s.target = die.g;
+  die.ctx.us.contact = null;
+  let draws = 0;
+  die.ctx.b.random = () => (draws++, 0.5);
+  tick(die.ctx, die.s);
+  assert.equal(die.s.dead, true, 'he succumbs');
+  assert.equal(die.s.casualty.cause, 'bledOut');
+  assert.equal(draws, 0, 'no draw from the combat RNG');
+  assert.equal(die.ctx.M.of(die.s).acts.rage.succumbed, 1);
+  /* Nobody else is entranced or owes anything. */
+  const c = broke(Q.replace('stressAct=cower,rage', 'stressAct=cower,freeze'), [0, 0.9, 0.1], 100);
+  assert.equal(c.ctx.E.entranced(c.s), false);
+  assert.equal(c.ctx.E.guardOnHit(c.s, c.ctx.b, 1), 1);
 });
 
 test('a dazed freeze lasts its snapshotted duration even if he calms, then he rejoins and may freeze on a new break', () => {

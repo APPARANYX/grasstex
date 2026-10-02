@@ -75,6 +75,7 @@
     if (st.byZone[zone]) st.byZone[zone][cause]++;
     s.casualty = { zone: zone, cause: cause, at: +battle.time || 0, by: by ? by.id : null };
     battle.killSoldier(s, by || null);
+    if (root.BattleEngagement && root.BattleEngagement.noteKill) root.BattleEngagement.noteKill(by || null);
     /* The man who put him down is told (nothing is queued unless a layer reads `kill`). */
     if (by && by.faction !== s.faction && root.BattleSoldierEvents)
       root.BattleSoldierEvents.post(by, battle, 'kill', { victim: s.id, zone: zone });
@@ -142,6 +143,16 @@
       }
     }
   }
+  /* A berserk trance is over (Engagement, `?rageTrance=1`) and the damage its guard held back comes due at once. True
+     when it takes him to the collapse line: he dies of his wounds (no roll: the debt is what he was owed). */
+  function succumb(s, battle, hp) {
+    if (!s || s.dead || !(hp > 0)) return false;
+    s.hp -= hp;
+    if (s.hp > COLLAPSE_HP) return false;
+    var last = s.wounds && s.wounds[s.wounds.length - 1];
+    casualty(battle, s, last ? last.zone : 'chest', 'bledOut', s._lastHitBy);
+    return true;
+  }
   function reset(sim) {
     sim._wounds = { stats: fresh(), bleeding: [] };
   }
@@ -169,6 +180,7 @@
     BLEED_TAU: BLEED_TAU,
     wound: wound,
     bleed: bleed,
+    succumb: succumb,
     reset: reset,
     summary: summary
   };
