@@ -541,9 +541,8 @@
     for (var i = 0; i < shots.length; i++) {
       var shot = shots[i];
       if (!shot || shot.faction === soldier.faction || battle.time - shot.at > HEAR_MEMORY) continue;
-      /* Classification belongs to Perception's sound producer. The resulting belief deliberately
-         does not retain the shooter ref and is never revalidated against that hidden object. */
-      if (shot.unit && !threatDisposition(shot.unit).combatThreat) continue;
+      /* The recorded enemy gunfire event is the evidence. Do not consult the shooter's current
+         object/state here: a later death/freeze/flee must not rewrite what this man heard. */
       var d = dist2(p.x, p.z, shot.x, shot.z);
       if (d > HEAR_RANGE) continue;
       if (shot.at > bestAt + 1e-6 || (Math.abs(shot.at - bestAt) <= 1e-6 && d < bestD)) {
@@ -554,10 +553,15 @@
     }
     if (!best) return null;
     var store = beliefStore(soldier, battle),
-      eventKey = String(best.at) + ':' + String(best.unit && best.unit.id);
+      eventKey =
+        String(best.at) + ':' + (+best.x).toFixed(2) + ':' + (+best.z).toFixed(2);
     if (store.lastHeardKey === eventKey) return null;
     store.lastHeardKey = eventKey;
-    var k = heardHash(best.unit || {}, best.at, soldier),
+    var k = heardHash(
+        { id: Math.floor((+best.x || 0) * 17) ^ Math.floor((+best.z || 0) * 31) },
+        best.at,
+        soldier
+      ),
       ang = ((k % 360) * Math.PI) / 180,
       err = bestD * HEAR_ERROR * (0.5 + ((k >>> 9) % 50) / 100),
       x = best.x + Math.sin(ang) * err,
