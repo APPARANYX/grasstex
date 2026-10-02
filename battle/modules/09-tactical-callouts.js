@@ -2,13 +2,14 @@
    decision on PR #170; `?callouts=0` is the old free relay). A callout has a sender, an audience, a kind, the fact it carries, the simulated time it was sent, the time
    each listener would hear it and whether he did. Voice is presentation and stays separate: an MP3 never creates a fact.
 
-   First kind, `contact`: a squad that sees the enemy first-hand calls it out. Friendly men of OTHER squads within
-   CALL_RANGE of the caller may hear it after the time it takes to say and hear (SPEAK + distance / sound + REACT), and
+   First kind, `contact`: a squad that sees the enemy first-hand calls it out. With personal beliefs enabled,
+   friendly men in the caller's own squad as well as other squads within CALL_RANGE may hear it; with beliefs off,
+   the old cross-squad-only audience is preserved. Delivery takes SPEAK + distance / sound + REACT, and listeners
    may miss it: deterministically (a hash of the message and the listener, never the combat RNG), more often far off,
    in gunfire and under fire; a man frozen or fleeing does not listen and a dead one hears nothing. When a listener hears
-   it, his squad may take the sighting as a relayed contact (Perception, squad-ai.js `squadSenses`, is still the only
-   writer of `squad.contact`); with the flag on that replaces the old free relay between squad centres within 50 m.
-   Within a squad the sighting is still shared at once (per-man beliefs are a later slice).
+   it, Perception may update that listener's personal belief only after this delivery settles. Cross-squad delivery
+   may also update the aggregate squad picture through `squadSenses`; same-squad delivery does not loop back into
+   `squad.contact`. Voice remains presentation only.
 
    Owns only `battle._callouts`. Reads positions, the gunfire log, `suppressedUntil` and the Engagement state. */
 (function (root) {
@@ -47,6 +48,10 @@
     }
     return (h >>> 0) / 4294967296;
   }
+  function beliefsOn() {
+    var S = root.SquadAI;
+    return !!(S && S.soldierBeliefsOn && S.soldierBeliefsOn());
+  }
   function state(battle) {
     return (
       battle._callouts ||
@@ -54,7 +59,8 @@
         serial: 0,
         pending: [],
         processedAt: -1,
-        bySquad: Object.create(null), // squad id -> the freshest contact message one of its men heard
+        bySquad: Object.create(null), // squad id -> freshest cross-squad message heard
+        bySoldier: Object.create(null), // soldier id -> freshest actually delivered message
         lastCall: Object.create(null), // squad id -> {at, unitId}
         log: [],
         overflow: 0,
@@ -67,6 +73,9 @@
           notListening: 0,
           stale: 0,
           applied: 0,
+          beliefApplied: 0,
+          sameSquadAddressed: 0,
+          sameSquadHeard: 0,
           delaySum: 0
         }
       })
@@ -128,14 +137,32 @@
       if (man.dead) outcome = 'dead';
       else if (NOT_LISTENING[engState(man)]) outcome = 'not-listening';
       else if (d.miss) outcome = 'missed';
-      else if (battle.time - msg.fact.at > TUNING.KEEP || !threat(msg.fact.unit)) outcome = 'stale';
+      else if (
+        battle.time - msg.fact.at > TUNING.KEEP ||
+        (!beliefsOn() && !threat(msg.fact.unit))
+      )
+        outcome = 'stale';
       else outcome = 'heard';
       if (outcome === 'heard') {
         c.heard++;
         c.delaySum += d.at - msg.sentAt;
         var sq = man.squad,
-          best = sq && st.bySquad[sq.id];
-        if (sq && (!best || msg.fact.at > best.fact.at)) st.bySquad[sq.id] = msg;
+          delivery = {
+            msg: msg,
+            at: d.at,
+            confidence: d.confidence,
+            sameSquad: !!(sq && msg.fromSquad != null && String(sq.id) === String(msg.fromSquad))
+          };
+        var current = st.bySoldier[String(man.id)];
+        if (
+          !current ||
+          msg.fact.at > current.msg.fact.at + 1e-6 ||
+          (Math.abs(msg.fact.at - current.msg.fact.at) <= 1e-6 && d.at >= current.at)
+        )
+          st.bySoldier[String(man.id)] = delivery;
+        if (delivery.sameSquad) c.sameSquadHeard++;
+        var best = sq && !delivery.sameSquad && st.bySquad[sq.id];
+        if (sq && !delivery.sameSquad && (!best || msg.fact.at > best.fact.at)) st.bySquad[sq.id] = msg;
       } else if (outcome === 'dead') c.dead++;
       else if (outcome === 'not-listening') c.notListening++;
       else if (outcome === 'missed') c.missed++;
@@ -171,7 +198,7 @@
         man === sender ||
         !man.root ||
         !man.squad ||
-        man.squad === sender.squad ||
+        (!beliefsOn() && man.squad === sender.squad) ||
         man.squad.disbanded
       )
         continue;
@@ -185,6 +212,7 @@
         ((+man.suppressedUntil || 0) > battle.time ? TUNING.MISS_UNDER_FIRE : 0);
       pMiss = Math.min(TUNING.MISS_MAX, pMiss);
       st.counts.addressed++;
+      if (man.squad === sender.squad) st.counts.sameSquadAddressed++;
       st.pending.push({
         msg: msg,
         man: man,
@@ -219,7 +247,17 @@
     });
   }
 
-  /* The freshest contact one of this squad's men has heard called, while it is still worth acting on. */
+  /* The freshest message this particular man actually heard. Personal belief consumption is age-only:
+     later changes to the hidden referenced unit do not retroactively erase what he heard. */
+  function heardBy(battle, man) {
+    if (!ON || !man) return null;
+    var d = settle(battle).bySoldier[String(man.id)];
+    if (!d || !d.msg || battle.time - d.msg.fact.at > TUNING.KEEP) return null;
+    return d;
+  }
+
+  /* The freshest cross-squad contact one of this squad's men has heard called, while it is still worth acting on.
+     This legacy aggregate path retains the existing threat validation; personal belief reads do not use it. */
   function heard(battle, sq) {
     if (!ON || !sq) return null;
     var msg = settle(battle).bySquad[sq.id];
@@ -240,6 +278,9 @@
       notListening: c.notListening,
       stale: c.stale,
       applied: c.applied,
+      beliefApplied: c.beliefApplied,
+      sameSquadAddressed: c.sameSquadAddressed,
+      sameSquadHeard: c.sameSquadHeard,
       meanDelay: c.heard ? +(c.delaySum / c.heard).toFixed(3) : 0
     };
   }
@@ -250,9 +291,12 @@
   function noteApplied(battle) {
     state(battle).counts.applied++;
   }
+  function noteBeliefApplied(battle) {
+    state(battle).counts.beliefApplied++;
+  }
 
   root.BattleCallouts = {
-    version: '1.0',
+    version: '1.1-personal-delivery',
     enabled: function () {
       return ON;
     },
@@ -261,7 +305,9 @@
     send: send,
     report: report,
     heard: heard,
+    heardBy: heardBy,
     noteApplied: noteApplied,
+    noteBeliefApplied: noteBeliefApplied,
     telemetry: telemetry,
     diagnostics: diagnostics
   };
