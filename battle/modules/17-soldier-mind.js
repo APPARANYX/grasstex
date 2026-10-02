@@ -208,6 +208,16 @@
       flag: '?mind= act lever (default on); stress reactions all on by default, ?stressAct=0 disables, a comma list selects exactly named reactions'
     },
     {
+      kind: 'lever',
+      lever: 'act',
+      layer: 'Micro (Engagement)',
+      file: 'engagement.js',
+      reader: 'beginFreeze (one-time stress-tempo snapshot when freeze begins)',
+      reads: { freezeProfile: 1 },
+      unit: 'recent positive stress dose -> deterministic 4..16 s freeze duration; Engagement owns freezeUntil',
+      flag: '?mind= act lever and ?stressAct=freeze'
+    },
+    {
       kind: 'status',
       lever: null,
       layer: 'Micro (Engagement)',
@@ -390,7 +400,15 @@
     SHOCK_MAX = 1,
     SHOCK_MIN_GAIN = 0.1,
     SHOCK_REFRACTORY = 3,
-    MAX_DT = 0.5;
+    MAX_DT = 0.5,
+    /* Recent positive dose is evidence for how abruptly a man broke. Keep only the window Phase 1
+       needs; this is Soldier Mind state, not an Engagement timer. */
+    RECENT_STRESS_WINDOW = 15,
+    RECENT_STRESS_CAP = 512,
+    FREEZE_SHORT_WINDOW = 2,
+    FREEZE_MID_WINDOW = 6,
+    FREEZE_MIN = 4,
+    FREEZE_MAX = 16;
 
   function clamp(n, a, b) {
     return Math.max(a, Math.min(b, n));
@@ -446,6 +464,10 @@
       incoming: 0,
       incomingRounds: 0,
       lastIncomingAt: -99,
+      /* Bounded positive-gain ledger. Entries are {at, kind, gain, stress}: the last field is
+         the man's stress immediately before that contribution's tick, so a later reader can
+         distinguish a sudden dose from the same final stress reached gradually. */
+      recentStressors: [],
       shockUntil: 0,
       shocks: 0,
       coverAt: -99,
@@ -489,6 +511,91 @@
   function of(s) {
     return s.mind || (s.mind = fresh(s));
   }
+
+  function trimRecent(m, now) {
+    var a = m.recentStressors || (m.recentStressors = []),
+      cutoff = now - RECENT_STRESS_WINDOW,
+      drop = 0;
+    while (drop < a.length && a[drop].at < cutoff) drop++;
+    if (drop) a.splice(0, drop);
+    if (a.length > RECENT_STRESS_CAP) a.splice(0, a.length - RECENT_STRESS_CAP);
+    return a;
+  }
+  function recordGain(m, now, kind, gain) {
+    gain = +gain || 0;
+    if (!(gain > 0)) return;
+    var a = trimRecent(m, now);
+    a.push({ at: now, kind: kind, gain: gain, stress: m.stress });
+    if (a.length > RECENT_STRESS_CAP) a.splice(0, a.length - RECENT_STRESS_CAP);
+  }
+  function recentDose(m, now) {
+    var a = trimRecent(m, now),
+      short = 0,
+      mid = 0,
+      total = 0,
+      acute = 0,
+      byKind = {},
+      baseline = m.stress,
+      baselineAt = now,
+      acuteKinds = { wound: 1, friendDown: 1, leaderDown: 1, incoming: 1 };
+    for (var i = 0; i < a.length; i++) {
+      var e = a[i],
+        age = now - e.at,
+        g = +e.gain || 0;
+      if (age < -1e-6 || age > RECENT_STRESS_WINDOW + 1e-6 || !(g > 0)) continue;
+      total += g;
+      if (age <= FREEZE_MID_WINDOW) mid += g;
+      if (age <= FREEZE_SHORT_WINDOW) short += g;
+      byKind[e.kind] = (byKind[e.kind] || 0) + g;
+      if (acuteKinds[e.kind]) acute += g;
+      if (e.at < baselineAt) {
+        baselineAt = e.at;
+        baseline = isFinite(+e.stress) ? +e.stress : baseline;
+      }
+    }
+    var dominant = null,
+      dominantGain = 0;
+    Object.keys(byKind).forEach(function (k) {
+      if (byKind[k] > dominantGain) {
+        dominant = k;
+        dominantGain = byKind[k];
+      }
+    });
+    var shortShare = total > 0 ? clamp(short / total, 0, 1) : 0,
+      midShare = total > 0 ? clamp(mid / total, 0, 1) : 0,
+      acuteShare = total > 0 ? clamp(acute / total, 0, 1) : 0,
+      rise = Math.max(0, m.stress - baseline),
+      riseShare = clamp(rise / UP[2], 0, 1),
+      concentration = clamp(
+        0.65 * Math.pow(shortShare, 1.5) +
+          0.2 * Math.pow(midShare, 1.5) +
+          0.1 * acuteShare +
+          0.05 * riseShare,
+        0,
+        1
+      );
+    return {
+      at: now,
+      recentTotal: total,
+      shortestWindowDose: short,
+      mediumWindowDose: mid,
+      stressRise: rise,
+      concentration: concentration,
+      dominantKind: dominant,
+      dominantGain: dominantGain
+    };
+  }
+  /* Engagement asks this once when freeze begins. Soldier Mind owns only the evidence and this
+     deterministic recommendation; Engagement owns the resulting timer. */
+  function freezeProfile(s, now) {
+    var m = s && s.mind;
+    if (!m) return null;
+    var d = recentDose(m, +now || 0),
+      duration = FREEZE_MIN + (FREEZE_MAX - FREEZE_MIN) * d.concentration;
+    d.multiplier = duration / FREEZE_MIN;
+    d.duration = duration;
+    return d;
+  }
   /* ---- what happened to other people --------------------------------------------------------- */
 
   function wasLeader(s) {
@@ -521,6 +628,7 @@
     if (gain >= SHOCK_MIN_GAIN && d <= (leader ? CASUALTY_RANGE : SHOCK_RANGE)) shock(m, now, gain);
     if (leader) m.gained.leaderDown += gain;
     else m.gained.friendDown += gain;
+    recordGain(m, now, leader ? 'leaderDown' : 'friendDown', gain);
     return gain;
   }
 
@@ -570,6 +678,7 @@
     if (woundsTaken > 0) {
       g = (WOUNDED * woundsTaken) / m.nerve;
       m.gained.wound += g;
+      recordGain(m, now, 'wound', g);
       gain += g;
       m.wounds += woundsTaken;
     }
@@ -577,11 +686,13 @@
     if (suppressed) {
       g = (SUPPRESSED_RATE * dt) / m.nerve;
       m.gained.suppression += g;
+      recordGain(m, now, 'suppression', g);
       gain += g;
     }
     if (m.incoming > 0) {
       g = m.incoming / m.nerve;
       m.gained.incoming += g;
+      recordGain(m, now, 'incoming', g);
       gain += g;
       m.incoming = 0;
     }
@@ -606,16 +717,19 @@
     if (!leader) {
       g = LEADERLESS_RATE * dt;
       m.gained.leaderless += g;
+      recordGain(m, now, 'leaderless', g);
       gain += g;
     }
     if (nearest > ISOLATED_RANGE) {
       g = ISOLATED_RATE * dt;
       m.gained.isolated += g;
+      recordGain(m, now, 'isolated', g);
       gain += g;
     }
     if (worst > 0) {
       g = CONTAGION * worst * dt;
       m.gained.contagion += g;
+      recordGain(m, now, 'contagion', g);
       gain += g;
     }
 
@@ -798,7 +912,8 @@
     var r = function (n) {
       return +n.toFixed(3);
     };
-    var out = {
+    var recent = recentDose(m, m.at >= 0 ? m.at : 0),
+      out = {
       stress: r(m.stress),
       band: BANDS[m.band],
       peak: r(m.peak),
@@ -807,6 +922,18 @@
       hesitations: m.hesitations,
       incomingRounds: m.incomingRounds,
       shockUntil: r(m.shockUntil),
+      recentDose: {
+        windowSeconds: RECENT_STRESS_WINDOW,
+        recentTotal: r(recent.recentTotal),
+        shortestWindowSeconds: FREEZE_SHORT_WINDOW,
+        shortestWindowDose: r(recent.shortestWindowDose),
+        mediumWindowSeconds: FREEZE_MID_WINDOW,
+        mediumWindowDose: r(recent.mediumWindowDose),
+        stressRise: r(recent.stressRise),
+        concentration: r(recent.concentration),
+        dominantKind: recent.dominantKind,
+        dominantGain: r(recent.dominantGain)
+      },
       seconds: {
         steady: r(m.time[0]),
         shaken: r(m.time[1]),
@@ -1359,6 +1486,12 @@
       MAX_HESITATION: MAX_HESITATION,
       SHOCK_MAX: SHOCK_MAX,
       SHOCK_REFRACTORY: SHOCK_REFRACTORY,
+      RECENT_STRESS_WINDOW: RECENT_STRESS_WINDOW,
+      RECENT_STRESS_CAP: RECENT_STRESS_CAP,
+      FREEZE_SHORT_WINDOW: FREEZE_SHORT_WINDOW,
+      FREEZE_MID_WINDOW: FREEZE_MID_WINDOW,
+      FREEZE_MIN: FREEZE_MIN,
+      FREEZE_MAX: FREEZE_MAX,
       DOSE_SQUAD_MEAN: DOSE_SQUAD_MEAN,
       DOSE_SQUAD_MEN: DOSE_SQUAD_MEN,
       CALM_AFTER: CALM_AFTER,
@@ -1387,6 +1520,7 @@
     shockUntil: shockUntil,
     squadStress: squadStress,
     recentIncoming: recentIncoming,
+    freezeProfile: freezeProfile,
     view: view,
     noteAct: noteAct,
     noteHesitation: function (s) {
