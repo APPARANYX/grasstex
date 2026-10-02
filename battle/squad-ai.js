@@ -249,13 +249,29 @@
     var E = root.BattleEngagement;
     return E && E.reactionState ? E.reactionState(soldier) : null;
   }
-  function activeVisualThreat(soldier) {
-    /* Freeze and flee are non-threatening combat states. A dazed man or an unarmed man running away
-       remains physically present, but Perception must not posture a squad around him or acquire him as
-       an aimed-fire target. Rage is deliberately NOT excluded: a raging man is still an active threat. */
-    if (!soldier || soldier.dead) return false;
-    var r = reactionState(soldier);
-    return r !== 'freeze' && r !== 'flee';
+  /* Perception-owned, read-only disposition. "Visible non-threat" is deliberately different from
+     invisible/dead: a dazed, fleeing or explicitly non-combatant person still exists in the scene and
+     can be seen, but must not become a combat target, shared threat, suppression victim or tactical
+     threat reference. This is the soldier contract today and the civilian hook later. */
+  function disposition(kind, visible, combatThreat, reason) {
+    var d = { kind: kind, visible: visible, combatThreat: combatThreat, reason: reason };
+    return typeof Object.freeze === 'function' ? Object.freeze(d) : d;
+  }
+  var THREAT_ACTIVE = disposition('active-threat', true, true, 'combatant'),
+    THREAT_RAGE = disposition('active-threat', true, true, 'rage'),
+    THREAT_FREEZE = disposition('visible-non-threat', true, false, 'freeze'),
+    THREAT_FLEE = disposition('visible-non-threat', true, false, 'flee'),
+    THREAT_DECLARED_NONCOMBATANT = disposition('visible-non-threat', true, false, 'declared-non-threat'),
+    THREAT_DEAD = disposition('inactive', false, false, 'dead'),
+    THREAT_MISSING = disposition('inactive', false, false, 'missing');
+  function threatDisposition(unit) {
+    if (!unit) return THREAT_MISSING;
+    if (unit.dead) return THREAT_DEAD;
+    if (unit.combatThreat === false || unit.combatant === false) return THREAT_DECLARED_NONCOMBATANT;
+    var r = reactionState(unit);
+    if (r === 'freeze') return THREAT_FREEZE;
+    if (r === 'flee') return THREAT_FLEE;
+    return r === 'rage' ? THREAT_RAGE : THREAT_ACTIVE;
   }
   function lookYaw(soldier, battle) {
     var body = soldier.root.rotation.y || 0;
@@ -287,7 +303,7 @@
     scanBuffer.length = 0;
     for (i = 0; i < enemies.length; i++) {
       var e = enemies[i];
-      if (!activeVisualThreat(e)) continue;
+      if (!threatDisposition(e).combatThreat) continue;
       var ex = e.root.position.x,
         ez = e.root.position.z,
         d = dist2(p.x, p.z, ex, ez);
@@ -308,7 +324,7 @@
   /* Eyes already on a man stay on him past the point where he could have been spotted cold. */
   function stillTracking(soldier, heightAt, obstacles) {
     var t = soldier.target;
-    if (!activeVisualThreat(t)) return false;
+    if (!threatDisposition(t).combatThreat) return false;
     var role = ROLES[soldier.role],
       p = soldier.root.position;
     if (dist2(p.x, p.z, t.root.position.x, t.root.position.z) > role.visionRange * TRACK_MARGIN * sightScale(soldier))
@@ -330,14 +346,14 @@
   function shareContact(soldier, battle) {
     var sq = soldier.squad,
       t = soldier.target;
-    if (!sq || !activeVisualThreat(t)) return null;
+    if (!sq || !threatDisposition(t).combatThreat) return null;
     var p = t.root.position,
       anchor = sq.orderAnchor || sq.rally || p,
       held = sq.contact;
     /* Heard or relayed word gives way to the squad's own eyes. */
     if (
       held &&
-      activeVisualThreat(held.unit) &&
+      threatDisposition(held.unit).combatThreat &&
       !held.heard &&
       !held.relayedFrom &&
       battle.time - held.at <= CONTACT_REFRESH &&
@@ -373,7 +389,7 @@
   function firstHand(c, battle) {
     return !!(
       c &&
-      activeVisualThreat(c.unit) &&
+      threatDisposition(c.unit).combatThreat &&
       !c.heard &&
       !c.relayedFrom &&
       battle.time - c.at <= CONTACT_REFRESH
@@ -396,7 +412,7 @@
       i;
     for (i = 0; i < squads.length; i++) {
       var o = squads[i];
-      if (o === sq || o.disbanded || !firstHand(o.contact, battle) || o.contact.unit.dead) continue;
+      if (o === sq || o.disbanded || !firstHand(o.contact, battle)) continue;
       var there = squadCentre(o, battle),
         d = there ? dist2(here.x, here.z, there.x, there.z) : Infinity;
       if (d <= bestD) {
@@ -422,7 +438,7 @@
       heardD = HEAR_RANGE;
     for (i = 0; i < shots.length; i++) {
       var s = shots[i];
-      if (s.faction === sq.faction || s.unit.dead) continue;
+      if (s.faction === sq.faction || !threatDisposition(s.unit).combatThreat) continue;
       var ds = dist2(here.x, here.z, s.x, s.z);
       if (ds <= heardD) {
         heardD = ds;
@@ -451,6 +467,13 @@
        the record is gone - but it does NOT erase it: there are usually nine more enemies right
        there, and wiping the squad's whole picture because it scored a hit left it blind at exactly
        the moment it was winning. Any new sighting overwrites the record anyway. */
+    /* A living person who ceases to be a combat threat remains visible in the world, but the squad's
+       threat contact is no longer about him. Dead contacts keep the old short decay so nearby enemies
+       are not erased from the squad picture by one kill. */
+    if (c.unit && threatDisposition(c.unit).kind === 'visible-non-threat') {
+      squad.contact = null;
+      return null;
+    }
     var limit = c.unit && c.unit.dead ? CONTACT_MEMORY / 3 : CONTACT_MEMORY;
     if (battle.time - c.at > limit) {
       squad.contact = null;
@@ -734,7 +757,7 @@
       hit = 0;
     for (var i = 0; i < enemies.length; i++) {
       var e = enemies[i];
-      if (!activeVisualThreat(e)) continue;
+      if (!threatDisposition(e).combatThreat) continue;
       if (dist2(e.root.position.x, e.root.position.z, point.x, point.z) > spread) continue;
       pin(e, battle, hold);
       hit++;
@@ -1191,7 +1214,7 @@
       target = soldier.target;
     /* Perception normally clears these targets first, but a reaction can begin after the shooter's
        perception tick. Re-check here so no stale aimed shot starts against a frozen/fleeing man. */
-    if (!activeVisualThreat(target)) {
+    if (!threatDisposition(target).combatThreat) {
       clearTarget(soldier);
       return false;
     }
@@ -1199,7 +1222,7 @@
       d = dist2(p.x, p.z, target.root.position.x, target.root.position.z);
     /* The burst stays on the man it was laid on; once he is down the gunner lets go. */
     var rounds = discharge(soldier, battle, burstLength(stats, battle, d), function (round, delay) {
-      if (!activeVisualThreat(target)) return false;
+      if (!threatDisposition(target).combatThreat) return false;
       shot(soldier, target, battle, round, delay);
     });
     soldier.fireCooldown = triggerCooldown(stats, rounds, battle, 1, d);
@@ -1238,6 +1261,7 @@
     hasLineOfSight: hasLineOfSight,
     detectionRange: detectionRange,
     findTarget: findTarget,
+    threatDisposition: threatDisposition,
     lookYaw: lookYaw,
     squadSenses: squadSenses,
     PERCEPTION: {
