@@ -104,6 +104,40 @@ test('on: word passes only once it has been said and heard, keeping the sighting
   assert.ok(tel.sent >= 1 && tel.heard >= 1 && tel.applied >= 1, JSON.stringify(tel));
 });
 
+test('on: a newer callout may refine the same enemy without erasing this squad\'s first-hand memory', () => {
+  const ctx = setup('', [
+    { id: 'us-0', faction: 'us', x: 0, z: 0 },
+    { id: 'us-1', faction: 'us', x: 20, z: 0 },
+    { id: 'ge-0', faction: 'ge', x: 0, z: 200 }
+  ]);
+  const [a, b, ge] = ctx.out,
+    foe = ge.members[0];
+  ctx.b.time = 10;
+  sees(b, foe, 10);
+  assert.equal(ctx.S.hasFirstHandMemory(b.contact, ctx.b), true);
+  ctx.S.squadSenses(b, ctx.b);
+
+  /* The other squad keeps a fresher sighting long enough to say it. B no longer sees the man,
+     so its own contact is memory by the time the call arrives. */
+  let relayedAt = null;
+  for (let t = 12.15; t < 16; t = +(t + 0.15).toFixed(2)) {
+    ctx.b.time = t;
+    sees(a, foe, t);
+    ctx.S.squadSenses(a, ctx.b);
+    ctx.S.squadSenses(b, ctx.b);
+    if (b.contact && b.contact.relayedFrom === 'us-0') {
+      relayedAt = t;
+      break;
+    }
+  }
+  assert.ok(relayedAt != null, 'the fresher callout eventually updates B');
+  assert.equal(b.contact.relayedFrom, 'us-0', 'the CURRENT position is explicitly relayed');
+  assert.equal(b.contact.firstHandAt, 10, 'its own earlier sighting remains separate provenance');
+  assert.equal(ctx.S.hasFirstHandMemory(b.contact, ctx.b), true, 'same-threat fire-control continuity survives');
+  ctx.b.time = 10 + ctx.S.CONTACT_MEMORY + 0.1;
+  assert.equal(ctx.S.hasFirstHandMemory(b.contact, ctx.b), false, 'relays cannot extend first-hand authority forever');
+});
+
 test('on: out of earshot nobody learns, and there is no free 50 m relay', () => {
   const ctx = setup('', [
     { id: 'us-0', faction: 'us', x: 0, z: 0 },
