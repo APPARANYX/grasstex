@@ -49,7 +49,7 @@ test('first visual contact holds fire and makes the squad prepare prone before a
 test('same-threat relayed refresh keeps an existing hold but cannot create one by itself',()=>{
   const w=world('?stressAct=0&fireControl=1',100);
   let fc=command(w); assert.equal(fc.state,'hold');
-  const firstAt=w.us.contact.at;
+  const firstAt=w.us.contact.at,startedAt=fc.startedAt,targetId=fc.targetId;
   w.b.time+=3;
   w.us.members.forEach(s=>s.target=null);
   w.us.contact={
@@ -57,7 +57,10 @@ test('same-threat relayed refresh keeps an existing hold but cannot create one b
     seenBy:null,stance:'stand',relayedFrom:'us-1',firstHandAt:firstAt
   };
   fc=command(w);
-  assert.equal(fc.state,'hold','a newer callout for the same personally seen enemy continues the episode');
+  assert.ok(fc,'a newer callout for the same personally seen enemy keeps the fire-control episode alive');
+  assert.equal(fc.startedAt,startedAt,'the episode was continued rather than cleared/restarted');
+  assert.equal(String(fc.targetId),String(targetId));
+  assert.equal((fc.trail||[]).filter(x=>x.reason==='first visual contact').length,1,'no second HOLD episode was created');
   assert.equal(w.us.inContact,true,'preparation remains contact while first-hand memory is valid');
 
   const fresh=world('?stressAct=0&fireControl=1',100);
