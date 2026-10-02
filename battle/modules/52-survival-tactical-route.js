@@ -74,11 +74,14 @@
   function knownThreat(s, battle) {
     var D = root.SquadAI && root.SquadAI.threatDisposition,
       own = D ? D(s && s.target) : null;
-    if (s && s.target && (!own || own.combatThreat))
+    if (s && s.target) {
+      if (own && !own.combatThreat) return null;
       return point(s.target.root && s.target.root.position);
+    }
     var q = s && s.squad,
       c = q && q.contact,
       cd = D && c && c.unit ? D(c.unit) : null;
+    if (c && c.unit && cd && !cd.combatThreat) return null;
     if (
       c &&
       (!c.unit || !cd || cd.combatThreat) &&
@@ -86,8 +89,7 @@
       battle.time - +c.at <= THREAT_AGE
     )
       return point(c);
-    /* lastSeen is location-only memory: keep it as an unknown sector, but a currently identified
-       visible non-threat above is never converted back into a tactical threat point. */
+    /* lastSeen is location-only memory only when no identified unit currently supersedes it. */
     var e = s && s.eng;
     if (e && e.lastSeen && isFinite(+e.lastSeenAt) && battle.time - +e.lastSeenAt <= THREAT_AGE)
       return point(e.lastSeen);
