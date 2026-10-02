@@ -5,9 +5,10 @@
   var LOOK_X=.0022,LOOK_Y=.0018,PITCH_LIMIT=Math.PI*.46,MAX_HEIGHT=420,GROUND_CLEARANCE=2;
   var PAD_DEADZONE=.16,PAD_LOOK_RATE=2.35,PAD_PRECISION=.28,PAD_THROTTLE_STEP=1.35;
   var PLAYER_DISTANCE=5.6,PLAYER_AIM_DISTANCE=3.15,PLAYER_LOOK_RATE=2.2,PLAYER_MOVE_AHEAD=6,PLAYER_TARGET_DOT=.985,PLAYER_CAMERA_CLEARANCE=.45;
-  var KEY_HINT='Camera: click to look · WASD move · wheel speed · Q/E up/down · Shift sprint · Esc releases';
+  var KEY_HINT='Camera: click to look · WASD move · wheel speed · Q/E up/down · Shift sprint · P player · Esc releases';
   var PAD_HINT='Xbox: LS move · RS look · LT/RT down/up · RB sprint · LB precision · D-pad speed · Y level · Menu player';
-  var PLAYER_HINT='Player: LS move · L3 run · RS look · LT aim · RT fire · B crouch · A prone · Menu new soldier · View exit';
+  var PLAYER_HINT='Player: WASD move · Shift run · mouse look · RMB aim · LMB fire · C crouch · Z prone · P new soldier · V exit';
+  var PLAYER_PAD_HINT='Xbox: LS move · L3 run · RS look · LT aim · RT fire · B crouch · A prone · Menu new soldier · View exit';
   var TOUCH_HINT='Camera: drag to orbit · pinch/wheel to zoom';
   var PAD_WAKE_HINT='Xbox: move a stick or press a button to switch to fly controls';
   function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
@@ -82,11 +83,13 @@
     var camera=new BABYLON.UniversalCamera('cam',startPosition,scene);
     camera.inputs.clear();camera.minZ=.25;camera.maxZ=2600;camera.setTarget(lookTarget);scene.activeCamera=camera;
     var yaw=camera.rotation.y,pitch=camera.rotation.x,active=false,throttle=1,keys=new Set(),padButtons={},padId=null,
-      player=null,playerCam=null,playerYaw=0,playerPitch=0,
+      player=null,playerCam=null,playerYaw=0,playerPitch=0,mouseAim=false,mouseFire=false,
       playerFaction=queryParams().get('playerFaction')==='ge'?'ge':'us',reticle=null;
     function guarded(){return active||document.activeElement===canvas;}
     function keyName(event){return event.key===' '?' ':event.key.toLowerCase();}
+    function editableTarget(target){var tag=target&&target.tagName||'';return tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA'||!!(target&&target.isContentEditable);}
     function movementKey(key){return key==='w'||key==='a'||key==='s'||key==='d'||key==='q'||key==='e'||key==='shift';}
+    function playerMovementKey(key){return key==='w'||key==='a'||key==='s'||key==='d'||key==='shift';}
     function playerLabel(){
       if(!player)return null;
       var side=player.faction==='ge'?'GER':'US',sq=player.squad&&player.squad.id?player.squad.id:'squad';
@@ -94,7 +97,7 @@
     }
     function updateHint(pad){
       var el=document.getElementById('cameraHint');if(!el)return;
-      el.textContent=player?PLAYER_HINT+' · '+playerLabel():KEY_HINT+(pad?' · '+PAD_HINT:'');
+      el.textContent=player?PLAYER_HINT+(pad?' · '+PLAYER_PAD_HINT:'')+' · '+playerLabel():KEY_HINT+(pad?' · '+PAD_HINT:'');
     }
     function padPressedOnce(pad,index){
       var down=buttonValue(pad,index)>.5,was=!!padButtons[index];padButtons[index]=down;return down&&!was;
@@ -170,6 +173,7 @@
     function leavePlayer(reason){
       if(!player)return;
       var b=liveBattle(),old=player;clearPlayerLease(old,b);player=null;
+      mouseAim=false;mouseFire=false;keys.clear();
       ensureReticle().style.display='none';
       if(playerCam){
         camera.position.copyFrom(playerCam.position);
@@ -201,20 +205,27 @@
       if(!player||!global.BattleEngagement||!global.BattleEngagement.commitStance)return;
       global.BattleEngagement.commitStance(player,b,stance,.45,'player');
     }
+    function playerStance(){
+      return player&&player.eng&&player.eng.stance|| (player&&player.prone?'prone':(player&&player.crouching?'crouch':'stand'));
+    }
+    function togglePlayerCrouch(b){
+      var st=playerStance();setPlayerStance(b,st==='crouch'?'stand':'crouch');
+    }
+    function togglePlayerProne(b){
+      var st=playerStance();setPlayerStance(b,(st==='prone'||st==='crawl')?'stand':'prone');
+    }
     function stepPlayer(pad,dt){
       var b=liveBattle();if(!b||!player)return;
       if(player.dead){if(!possessRandom())leavePlayer('no living '+playerFaction+' soldiers');return;}
-      var axes=pad.axes||[],mx=shapedAxis(axes[0]),my=-shapedAxis(axes[1]),lx=shapedAxis(axes[2]),ly=shapedAxis(axes[3]),
-        aiming=buttonValue(pad,6)>.35,firing=buttonValue(pad,7)>.35,running=buttonValue(pad,10)>.5&&!aiming;
+      var axes=pad&&pad.axes||[],
+        mx=(keys.has('d')?1:0)-(keys.has('a')?1:0)+shapedAxis(axes[0]),
+        my=(keys.has('w')?1:0)-(keys.has('s')?1:0)-shapedAxis(axes[1]),
+        lx=shapedAxis(axes[2]),ly=shapedAxis(axes[3]),
+        aiming=mouseAim||buttonValue(pad,6)>.35,firing=mouseFire||buttonValue(pad,7)>.35,
+        running=(keys.has('shift')||buttonValue(pad,10)>.5)&&!aiming;
       playerYaw+=lx*PLAYER_LOOK_RATE*dt;playerPitch=clamp(playerPitch+ly*1.55*dt,-.62,.78);
-      if(padPressedOnce(pad,1)){
-        var st=player.eng&&player.eng.stance|| (player.prone?'prone':(player.crouching?'crouch':'stand'));
-        setPlayerStance(b,st==='crouch'?'stand':'crouch');
-      }
-      if(padPressedOnce(pad,0)){
-        var st2=player.eng&&player.eng.stance|| (player.prone?'prone':(player.crouching?'crouch':'stand'));
-        setPlayerStance(b,(st2==='prone'||st2==='crawl')?'stand':'prone');
-      }
+      if(pad&&padPressedOnce(pad,1))togglePlayerCrouch(b);
+      if(pad&&padPressedOnce(pad,0))togglePlayerProne(b);
       var flat=new BABYLON.Vector3(Math.sin(playerYaw),0,Math.cos(playerYaw)),right=new BABYLON.Vector3(Math.cos(playerYaw),0,-Math.sin(playerYaw)),
         move=flat.scale(my).add(right.scale(mx));if(move.lengthSquared()>1)move.normalize();
       var moving=move.lengthSquared()>.0025,p=player.root.position,next=moving?{x:p.x+move.x*PLAYER_MOVE_AHEAD,z:p.z+move.z*PLAYER_MOVE_AHEAD}:{x:p.x,z:p.z};
@@ -232,23 +243,54 @@
       }
     }
     canvas.addEventListener('click',function(){canvas.focus();if(document.pointerLockElement!==canvas)canvas.requestPointerLock&&canvas.requestPointerLock();});
-    document.addEventListener('pointerlockchange',function(){active=document.pointerLockElement===canvas;if(!active)keys.clear();});
+    document.addEventListener('pointerlockchange',function(){active=document.pointerLockElement===canvas;if(!active){keys.clear();mouseAim=false;mouseFire=false;}});
     document.addEventListener('mousemove',function(event){
-      if(!active||player)return;
+      if(!active)return;
+      if(player){
+        playerYaw+=event.movementX*LOOK_X;playerPitch=clamp(playerPitch+event.movementY*LOOK_Y,-.62,.78);
+        return;
+      }
       yaw+=event.movementX*LOOK_X;pitch+=event.movementY*LOOK_Y;pitch=clamp(pitch,-PITCH_LIMIT,PITCH_LIMIT);
       camera.rotation.y=yaw;camera.rotation.x=pitch;
     });
+    canvas.addEventListener('mousedown',function(event){
+      if(!player)return;
+      if(event.button===0)mouseFire=true;
+      else if(event.button===2)mouseAim=true;
+      else return;
+      event.preventDefault();
+    });
+    window.addEventListener('mouseup',function(event){
+      if(event.button===0)mouseFire=false;
+      else if(event.button===2)mouseAim=false;
+    });
+    canvas.addEventListener('contextmenu',function(event){if(player)event.preventDefault();});
     window.addEventListener('keydown',function(event){
-      if(!guarded()||player)return;
-      var key=keyName(event);if(!movementKey(key))return;
+      var key=keyName(event);if(editableTarget(event.target))return;
+      if(key==='p'){
+        if(!event.repeat){
+          possessRandom();canvas.focus();
+          if(document.pointerLockElement!==canvas&&canvas.requestPointerLock)try{canvas.requestPointerLock();}catch(_){}
+        }
+        event.preventDefault();return;
+      }
+      if(player){
+        var b=liveBattle();
+        if(key==='v'){if(!event.repeat)leavePlayer('V key');event.preventDefault();return;}
+        if(key==='c'){if(!event.repeat)togglePlayerCrouch(b);event.preventDefault();return;}
+        if(key==='z'){if(!event.repeat)togglePlayerProne(b);event.preventDefault();return;}
+        if(playerMovementKey(key)){keys.add(key);event.preventDefault();}
+        return;
+      }
+      if(!guarded()||!movementKey(key))return;
       keys.add(key);event.preventDefault();
     },{passive:false});
     window.addEventListener('keyup',function(event){keys.delete(keyName(event));});
-    window.addEventListener('blur',function(){keys.clear();});
+    window.addEventListener('blur',function(){keys.clear();mouseAim=false;mouseFire=false;});
     window.addEventListener('gamepadconnected',function(e){padId=e.gamepad&&e.gamepad.id||'gamepad';padButtons={};updateHint(e.gamepad);console.log('[CAMERA] gamepad connected: '+padId);});
     window.addEventListener('gamepaddisconnected',function(e){
-      if(!e.gamepad||!padId||e.gamepad.id===padId){padId=null;padButtons={};if(player)leavePlayer('controller disconnected');updateHint(null);}
-      console.log('[CAMERA] gamepad disconnected');
+      if(!e.gamepad||!padId||e.gamepad.id===padId){padId=null;padButtons={};updateHint(null);}
+      console.log('[CAMERA] gamepad disconnected; keyboard controls remain active');
     });
     canvas.addEventListener('wheel',function(event){
       if(!guarded()||player)return;
@@ -259,14 +301,14 @@
     scene.onBeforeRenderObservable.add(function(){
       var dt=Math.min(.05,engine.getDeltaTime()/1000),pad=activeGamepad();
       if(pad&&pad.id!==padId){padId=pad.id;padButtons={};updateHint(pad);console.log('[CAMERA] gamepad active: '+padId);}
-      if(!pad&&padId){padId=null;padButtons={};if(player)leavePlayer('controller disconnected');updateHint(null);}
+      if(!pad&&padId){padId=null;padButtons={};updateHint(null);}
       if(pad){
         var menu=padPressedOnce(pad,9),view=padPressedOnce(pad,8);
         if(menu){possessRandom();refreshPadButtons(pad);return;}
-        if(player){
-          if(view){leavePlayer('View button');refreshPadButtons(pad);return;}
-          stepPlayer(pad,dt);refreshPadButtons(pad);return;
-        }
+        if(player&&view){leavePlayer('View button');refreshPadButtons(pad);return;}
+      }
+      if(player){
+        stepPlayer(pad,dt);if(pad)refreshPadButtons(pad);return;
       }
 
       /* Keyboard fly controls are independent of gamepad presence. The old early return above this
