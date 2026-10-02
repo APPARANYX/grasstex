@@ -5,6 +5,11 @@
    requested run multiplier into the shipping movement integrator. */
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),H=require('./harness');
 function load(r,p){new Function('window','globalThis','console',fs.readFileSync(path.join(H.REPO,p),'utf8'))(r,r,{log(){},warn(){}});}
+const cameraSource=fs.readFileSync(path.join(H.REPO,'battle/camera-controls.js'),'utf8');
+new Function(cameraSource);
+assert.match(cameraSource,/padPressedOnce\(pad,9\)/,'Menu\/Start must enter or switch player mode');
+assert.match(cameraSource,/buttonValue\(pad,7\)/,'RT must feed player fire');
+assert.match(cameraSource,/buttonValue\(pad,10\)/,'L3 must feed player run');
 const r=H.bootstrap({modules:false});
 r.BattleModules={registerSystem(){},unitsFor:b=>(b._roster.us||[]).concat(b._roster.ge||[])};
 load(r,'battle/movement-resolver.js');
