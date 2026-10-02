@@ -198,7 +198,7 @@ function soldier(s){
   return{
     id:s&&s.id,faction:s&&s.faction,role:s&&s.role,dead:!!(s&&s.dead),hp:finite(+s.hp),maxHp:finite(+s.maxHp),
     position:{x:finite(+p.x),y:finite(+p.y),z:finite(+p.z)},destination:point(s&&s.destination),orderDestination:point(s&&s.orderDestination),
-    targetId:s&&s.target?s.target.id:null,state:s&&s.state||null,gait:s&&s._locomotionGait||null,speed:finite(+(s&&s.speed)),moveSpeed:finite(+(s&&s.moveSpeed)),
+    targetId:s&&s.target?s.target.id:null,threatDisposition:root.SquadAI&&root.SquadAI.threatDisposition?safePlain(root.SquadAI.threatDisposition(s),2):null,state:s&&s.state||null,gait:s&&s._locomotionGait||null,speed:finite(+(s&&s.speed)),moveSpeed:finite(+(s&&s.moveSpeed)),
     moving:!!(s&&s.moving),movementStopReason:s&&s._movementStopReason||null,crouching:!!(s&&(s.crouching||s.tacticalCrouch)),prone:!!(s&&s.prone),crawling:!!(s&&s.crawling),
     suppressedUntil:finite(+(s&&s.suppressedUntil)),setUp:!!(s&&s.setUp),reloading:!!(s&&s.reloading),reloadUntil:finite(+(s&&s.reloadUntil)),
     clearingStoppage:!!(s&&s.clearingStoppage),stoppageUntil:finite(+(s&&s.stoppageUntil)),outOfAmmo:!!(s&&s.outOfAmmo),
