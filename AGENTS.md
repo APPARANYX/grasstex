@@ -945,121 +945,36 @@ sidearms; soldier condition/stress and its lasting-memory path; cower/flee/freez
 2026-10-01); the fled-man lifecycle; Engagement-owned stance/cover; last-known-threat alert posture; and tactical
 firing stations/window ports are existing substrate. Extend these owners instead of creating parallel systems.
 
-**Post-v278 stabilization phases (approved 2026-10-01).** These are deliberately small, sequential
-behavior/observability slices before the larger soldier roadmap below. Each phase gets its own branch/PR, deterministic
-check, and diagnostics proof. Do not fold these into one "AI cleanup" change.
+<details>
+<summary><strong>Completed: post-v278 stabilization phases</strong> — #159, #160, #161, #162, #164 and #165 are on main</summary>
 
-0. **Non-threatening broken states — PR #159.** Finish the current freeze/flee semantics first. `freeze` and
-   `flee` remain physically present but are not deliberate combat targets: Perception drops them, fresh acquisition
-   and shared contact skip them, aimed fire and suppression re-check them, while `rage` remains fully threatening.
-   Frozen men also suspend target scanning and Engagement-owned facing so the dazed pose does not rotate toward enemies.
-   This is the narrow shipping fix discovered in v278. Do not add the duration model to this PR.
+The six stabilization slices are closed and no longer part of the active queue:
 
-1. **Stress tempo -> freeze duration ("shell shock" vs "shell simmer").** Module 17 owns the evidence. Add a bounded
-   recent-stressor ledger/ring to `soldier.mind`: each positive stress contribution records at least `{at, kind, gain}`
-   in sim time, with a short retention window and no combat-RNG draw. The existing lifetime `gained.*` totals remain
-   telemetry; the new recent ledger answers *how fast did this man get here?*
-   - On transition into `broken`, compute a deterministic **dose concentration** from recent positive gain, not from
-     final stress alone. Suggested first model: recent windows at ~2 s / ~6 s / ~15 s plus the stress rise since the
-     beginning of the window. A large fraction of the break threshold arriving in the shortest window is "shell shock";
-     the same total accumulated across the long window is "shell simmer".
-   - Engagement asks Soldier Mind for a freeze-duration multiplier/snapshot **once when freeze begins** and stores the
-     resulting `freezeUntil` on its own reaction state. Module 17 never writes Engagement timers.
-   - Keep a declared floor/ceiling: **12 s minimum, 48 s maximum** for the dazed/freeze reaction rather
-     than allowing a broken band to hold the dazed animation indefinitely. Concentrated blast/casualty/wound/incoming
-     doses trend toward the ceiling; slow suppression/leaderless/isolation/contagion accumulation trends toward the
-     floor. Nerve may scale the result only through already-owned stress gain unless a separate explicit rule is proved.
-   - When `freezeUntil` expires, reassess: if still broken, transition into another appropriate reaction/defensive
-     state (normally cower/flee according to existing conditions), otherwise resume through `advance`. **Broken may
-     persist; freeze may not.**
-   - Diagnostics: export recent dose total, shortest-window dose, concentration, dominant stressor kind, chosen
-     multiplier/duration, freeze start/end and exit reason. Harness must prove equal final stress reached quickly freezes
-     longer than equal final stress accumulated slowly, and that no freeze can persist to the end of a long battle solely
-     because the man remains broken.
+- #159: freeze/flee are visible non-threats and frozen men suspend active perception/facing.
+- #160: freeze duration is bounded by recent stress tempo (12–48 s) with diagnostics.
+- #161: retreat anchors/intents are stabilized with the sliding lease and progress checks.
+- #162: fire-control evidence and posture-churn diagnostics are exported.
+- #164: strategic objective-stall recovery escalates through reconcile/release/main-effort/reset.
+- #165: Perception owns the shared threat-disposition contract for active threat / visible non-threat / inactive.
 
-2. **Retreat-anchor lease / progress stability — PR #161.** The v278 loop-watch showed repeated legal retreat
-   destinations moving while men made little net progress. The Squad Leader now gives retreat one **6 s sliding anchor
-   lease**: useful progress extends the same endpoint, arrival advances it materially, and a materially changed retreat
-   goal, a majority blocked route, an anchor made worse by the known threat, or a measured 6 s no-progress spell may
-   replace it. No-progress/blocked recovery rebases from the squad with a half stride instead of pushing the goal farther
-   away. Unchanged urgent retreat fireteam intents are coalesced instead of republished every update; Movement Resolver
-   remains final physical endpoint/legalization arbiter. `retreat-anchor-check.js` is the seeded regression for "many
-   retreat requests, one stable useful goal" and records the publish/check ratio plus net travel; diagnostics expose the
-   live retreat-anchor lease, goal, remaining time, best/current distance and no-progress age.
+Their detailed behavior, harnesses and tuning live in the subsystem sections, carrying PRs and git history. Do not
+reopen these phases as backlog items unless a new measured defect points back to them.
 
-3. **Fire-control + posture observability — PR #162.** The crest/fire-discipline system now exports the evidence
-   behind its decisions instead of requiring visual inference from a battle.
-   - Full squad diagnostics carry `fireControl.state` (`hold|reposition|precision|open`), since/reason, target, range,
-     living/ready/required-ready, strength, mean MKM, designated shooter, and counts for visual line, ballistic line,
-     terrain/crest blocked and prone-ready.
-   - The Squad Leader retains a small transition trail with the decision evidence at each state change (for example
-     `hold:first visual contact -> reposition:no viable prone firing line -> open:7/9 ready`).
-   - Engagement records only actual committed stance changes, with sim time, from/to stance, reason, Engagement state,
-     position and the contact/cover context at that instant. LoopWatch adds diagnostic-only **posture-churn** when at
-     least **4 changes occur inside 8 s**, net movement stays below **4.5 m**, and contact/cover context did not
-     materially change. The alert includes every recorded stance reason. It does **not** suppress or alter a stance
-     change; tuning comes only after observed writer/reason evidence.
+</details>
 
-4. **Strategic objective-stall recovery — Phase 4.** One no-objective-progress episode now escalates through
-   deterministic Macro-owned stages instead of waking the General every 120 s forever. The coordination-health sampler
-   remains observational; Force Command reads its `objectiveStallSeconds` / `lastObjectiveProgressAt` and owns all action.
-   - **120 s reconcile:** restore missing `commandRole` / `targetObjective` projections from a valid brief, refill genuinely
-     targetless active squads, and apply the existing stalled-effort objective penalty to old capture briefs.
-   - **180 s release:** stale non-defensive `hold` actions are forced back to assault and stale `support` roles are released
-     to center before normal objective scoring runs again.
-   - **240 s main effort:** each available offensive squad votes through the existing `chooseObjective` scorer, constrained
-     only to objectives the navigation layer can actually reach; the winning contested/neutral objective (fallback: any
-     reachable non-owned objective) receives at least 60% of available offensive squads when reachable.
-   - **300 s reset:** active squads are re-scored only if they are neither defending an owned objective nor have improved
-     their current mission distance by at least 6 m within the preceding 60 s. Their current stalled targets are penalized
-     during the reset.
-   Objective progress changes `lastObjectiveProgressAt`, which starts a fresh episode and resets the stage counter. Stage
-   history, affected counts and main-effort objective live in `macroCommand.stallRecovery` and
-   `decision-strategic-recovery`. The General still owns briefs/roles/targets; Squad Leader still owns local execution,
-   Engagement owns combat/stance, and Movement Resolver remains the physical movement arbiter.
+**Remaining soldier-level slices, in order:**
 
-5. **General threat disposition for soldiers now, civilians later — Phase 5.** Perception now owns one
-   read-only `SquadAI.threatDisposition(unit)` contract with three outcomes: `active-threat`,
-   `visible-non-threat`, and `inactive`. The returned record is frozen and carries `visible`,
-   `combatThreat`, and a reason. Normal/cower/rage and reconstituted soldiers are active threats; freeze and every
-   flee/fled phase are visible non-threats; dead/missing units are inactive. An explicit `combatant=false` or
-   `combatThreat=false` classifies a future civilian-style NPC as a visible non-threat without inventing a soldier
-   reaction state. Target acquisition/tracking, shared/relayed/heard contact, aimed fire, area suppression, Squad Leader
-   fire-control preparation, combat urgency, tactical-route/position threat selection, sidearm choice and fallback squad
-   engagement all consume this one classification. A known non-threat is not resurrected from last-seen tactical memory.
-   LOS/physical presence and projectile/wound physics remain independent, so visible non-threat does not mean invisible
-   or invulnerable. Full diagnostics export each soldier's current disposition; `threat-disposition-check.js` proves
-   rage remains targetable/suppressible, freeze/flee/civilian-style units remain visible but do not drive combat posture,
-   reconstitution restores active-threat status, and classification draws no combat RNG.
+Slices 1 and 2 of the original continuation are already shipped:
+- **Squad Leader stress-aware local execution — #157.** `?slStress=pick,hold,review` is on by default; the Squad
+  Leader picks the calmest viable fireteam, can hold a bound cycle when every viable team is shaken, and can raise
+  a doctrine-review wake after sustained squad stress. `squad-stress-check.js` owns the regression contract.
+- **Tactical callout channel — #170.** `BattleCallouts` is on by default; messages have delivery delay, can be
+  missed deterministically, carry source/confidence/outcome data, and feed relayed squad contact only after a man
+  actually hears them. Voice remains presentation-only. `callouts-check.js` owns the regression contract.
 
-**Phase order:** #159 -> stress-tempo freeze -> retreat stability -> observability -> strategic stall recovery -> threat
-API generalisation. The threat API is intentionally last even though #159 establishes its semantics: first prove the
-behavior with soldiers, then extract the reusable NPC contract. If later diagnostics show a dependency that warrants
-moving observability earlier, doing Phase 3 before Phase 2 is safe; do not combine their behavioral changes.
+The active queue begins here:
 
-**Next soldier-level slices, in order:**
-
-1. **Squad Leader reads `squad.mind` for local execution.** Today soldier condition rolls upward but the Squad
-   Leader still does not use that report to choose the local execution pattern. Add a bounded read in the Squad
-   Leader layer: use fireteam/squad condition to decide which fireteam is suitable to bound, when a team should
-   hold rather than be sent, and when sustained condition should raise the existing `doctrine-review` wake.
-   This is status upward, never a new writer downward: module 17 continues to own `mind`; Engagement continues
-   to own each man's reaction/stance; the Squad Leader changes only its own task/bound decisions. Keep the rule
-   deterministic, declare its thresholds in the owning layer, expose the decision and reason in telemetry, put the
-   behavior behind its own lever while measured, and prove it with the paired benchmark plus the existing
-   `stress-decisions`/morale instrumentation rather than inferring effect from one battle.
-
-2. **A real tactical callout channel, separate from voice presentation.** Add sim-level messages that can change a
-   listener's information/state after a modeled delay and can be missed. A callout records at least sender,
-   recipient or audience, kind, source position/contact, sent time, delivered time, confidence and expiry/drop
-   reason. Voice audio mirrors a delivered message; it never creates the fact and never drives simulation state.
-   Start with information the simulation already knows how to produce (contact/direction, urgent danger, local
-   task-complete/blocked) rather than inventing a second command hierarchy. Keep message delivery off the combat
-   RNG; if loss needs variation, use deterministic seeded/non-combat choice and record it. The existing
-   `modules/08-soldier-events.js` queue is local experience/state input, not automatically the radio/callout
-   network; share vocabulary where sensible but keep ownership explicit.
-
-3. **Buddy pairs inside each fireteam.** Give a fireteam stable buddy relationships used for local cooperation:
+1. **Buddy pairs inside each fireteam.** Give a fireteam stable buddy relationships used for local cooperation:
    one man can cover while his buddy makes a bounded move, a steady buddy can reduce isolation/steadying cost,
    and a buddy can report that the pair is blocked or separated. A buddy pair is not a destination writer and is
    not an alternate fireteam commander; it supplies constraints/requests to the existing fireteam/Squad Leader
@@ -1067,16 +982,16 @@ moving observability earlier, doing Phase 3 before Phase 2 is safe; do not combi
    broke/reformed must be inspectable. Avoid synchronized choreography: one casualty, suppression, blocked route
    or incompatible task must degrade the pair cleanly rather than stall both men.
 
-4. **Per-man beliefs instead of omniscient shared contact inside Engagement.** Each soldier should carry what he
+2. **Per-man beliefs instead of omniscient shared contact inside Engagement.** Each soldier should carry what he
    personally **saw, was told, or heard**, with source, location/sector, observed/reported time, age, confidence
    and expiry. Unknown is a valid state. The squad may still publish an aggregate contact picture upward, but
    Engagement should eventually choose targets/last-known sectors from the man's own belief set rather than
    treating `squad.contact` as instant common knowledge. Sightings outrank weaker reports; delivered callouts can
    create/update a belief; hearing is lower-confidence and imprecise; stale facts decay. This is the consumer that
-   makes the callout channel materially useful, so build it after that channel. Diagnostics must be able to answer
-   *why this man believed an enemy was there* and distinguish truth from belief without giving the AI hidden truth.
+   makes the callout channel materially useful. Diagnostics must answer *why this man believed an enemy was there*
+   and distinguish truth from belief without giving the AI hidden truth.
 
-5. **Intent-based continuation and initiative when the Squad Leader is down.** Succession already exists; the
+3. **Intent-based continuation and initiative when the Squad Leader is down.** Succession already exists; the
    missing behavior is what the men/fireteams do while leadership is absent or before a successor can issue a new
    local plan. Preserve the last valid parent intent/task and allow only bounded, conservative initiative inside
    it: hold a valid firing/cover position, finish an already-committed short move, protect the fireteam/buddy,
