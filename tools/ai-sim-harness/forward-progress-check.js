@@ -47,6 +47,28 @@ test('a stable-roster out-and-back still raises low-forward-progress',()=>{
   assert.deepEqual(a.goal,{x:0,z:100});
 });
 
+test('required physical detour is classified separately from pathological low progress',()=>{
+  const c=fixture();
+  c.root.BattleNavigation={movementClear(){return false;}};
+  for(const m of c.members){
+    m.destination={x:0,z:100};
+    m._physicalPath={blocked:false,index:0,points:[{x:10,z:50},{x:0,z:100}]};
+  }
+  for(let i=0;i<=30;i++){
+    const x=i<=15?i:(30-i);
+    for(const m of c.members){
+      m.root.position.x=x;
+      m._physicalPath.points=[{x:x+10,z:50},{x:0,z:100}];
+    }
+    tick(c,i*.5);
+  }
+  const s=c.root.BattleSquadForwardProgress.summary(c.sim);
+  assert.equal(s.totalAlerts,0,'required obstacle routing is not a pathological LFP alert');
+  assert.ok(s.totalNavigationDetours>=1,'required obstacle routing remains observable as its own class');
+  assert.equal(s.navigationDetours[0].kind,'navigation-detour-progress');
+  assert.ok(s.navigationDetours[0].requiredDetourShare>=1/3);
+});
+
 test('a living-roster change resets the centroid odometer instead of manufacturing travel',()=>{
   const c=fixture();
   c.members[0].root.position.x=0;

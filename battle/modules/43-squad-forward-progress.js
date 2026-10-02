@@ -7,11 +7,29 @@
 'use strict';
 if(!root.BattleModules||root.BattleSquadForwardProgress)return;
 
-var WINDOW=15,MIN_TRAVEL=12,MIN_NET=2.5,MIN_EFF=.15,ALERT_COOLDOWN=20,MAX_ALERTS=160;
+var WINDOW=15,MIN_TRAVEL=12,MIN_NET=2.5,MIN_EFF=.15,MIN_REQUIRED_DETOUR_SHARE=1/3,ALERT_COOLDOWN=20,MAX_ALERTS=160;
 var ADVANCE={approach:1,assault:1,capture:1,'clear-town':1,flank:1,'corner-check':1,regroup:1};
 
 function clonePoint(p){return p&&isFinite(+p.x)&&isFinite(+p.z)?{x:+p.x,z:+p.z}:null;}
 function dist(a,b){return !a||!b?Infinity:Math.hypot(a.x-b.x,a.z-b.z);}
+function pointSegmentDistance(p,a,b){
+  if(!p||!a||!b)return Infinity;var dx=b.x-a.x,dz=b.z-a.z,den=dx*dx+dz*dz;
+  if(den<1e-9)return dist(p,a);var u=((p.x-a.x)*dx+(p.z-a.z)*dz)/den;u=Math.max(0,Math.min(1,u));
+  return Math.hypot(p.x-(a.x+dx*u),p.z-(a.z+dz*u));
+}
+function requiredPhysicalDetour(s){
+  var N=root.BattleNavigation,from=s&&s.root&&clonePoint(s.root.position),goal=s&&clonePoint(s.destination),
+    path=s&&s._physicalPath,pts=path&&path.points,start=path&&isFinite(+path.index)?Math.max(0,+path.index):0;
+  if(!N||!N.movementClear||!from||!goal||!path||path.blocked||!Array.isArray(pts)||pts.length-start<2||dist(from,goal)<4)return false;
+  try{if(N.movementClear(from,goal))return false;}catch(_){return false;}
+  for(var i=start;i<pts.length;i++){var p=clonePoint(pts[i]);if(p&&pointSegmentDistance(p,from,goal)>2)return true;}
+  return false;
+}
+function requiredDetourShare(sq){
+  var m=sq&&sq.members||[],living=0,detouring=0;
+  for(var i=0;i<m.length;i++){var s=m[i];if(!s||s.dead||!s.root||!s.root.position)continue;living++;if(requiredPhysicalDetour(s))detouring++;}
+  return living?detouring/living:0;
+}
 function centroid(sq){var m=sq&&sq.members||[],x=0,z=0,n=0;for(var i=0;i<m.length;i++){var s=m[i];if(!s||s.dead||!s.root||!s.root.position)continue;x+=+s.root.position.x||0;z+=+s.root.position.z||0;n++;}return n?{x:x/n,z:z/n}:null;}
 function rosterKey(sq){
   var m=sq&&sq.members||[],ids=[];
@@ -30,7 +48,7 @@ function measuredGoal(sim,sq,ph){
   var g=strategicGoal(sim,sq);return g?{point:g,kind:'objective'}:null;
 }
 function key(sq){return String(sq.faction||'?')+':'+String(sq.id||'?');}
-function fresh(){return{tracks:{},alerts:[],totalAlerts:0,byFaction:{us:0,ge:0},samples:0,lowEfficiencySamples:0,trackResets:{roster:0,goal:0,kind:0}};}
+function fresh(){return{tracks:{},alerts:[],navigationDetours:[],totalAlerts:0,totalNavigationDetours:0,byFaction:{us:0,ge:0},samples:0,lowEfficiencySamples:0,trackResets:{roster:0,goal:0,kind:0}};}
 function state(sim){return sim._squadForwardProgress||(sim._squadForwardProgress=fresh());}
 function phase(sq){return String(sq&&sq.commandPhase||'');}
 function trim(hist,t){while(hist.length>1&&t-hist[0].t>WINDOW)hist.shift();}
@@ -50,28 +68,33 @@ function tickSquad(sim,sq){
   }
   var step=dist(tr.last,p);if(isFinite(step)&&step<60)tr.travel=(tr.travel||0)+step;tr.last=p;
   var ri=+sq.routeIndex||0;if(ri!==tr.lastRoute){tr.routeChanges++;tr.lastRoute=ri;}
-  tr.hist.push({t:t,x:p.x,z:p.z,d:dist(p,g),travel:tr.travel||0,phase:ph,routeChanges:tr.routeChanges});trim(tr.hist,t);
+  tr.hist.push({t:t,x:p.x,z:p.z,d:dist(p,g),travel:tr.travel||0,phase:ph,routeChanges:tr.routeChanges,requiredDetourShare:requiredDetourShare(sq)});trim(tr.hist,t);
   if(tr.hist.length<2||t-tr.hist[0].t<WINDOW*.8)return;
   var first=tr.hist[0],last=tr.hist[tr.hist.length-1],travel=(last.travel||0)-(first.travel||0),net=first.d-last.d,eff=travel>0?net/travel:0;
   st.samples++;if(travel>=MIN_TRAVEL&&eff<MIN_EFF)st.lowEfficiencySamples++;if(travel<MIN_TRAVEL||net>=MIN_NET||eff>=MIN_EFF||t-tr.lastAlert<ALERT_COOLDOWN)return;tr.lastAlert=t;
-  var phases=[],seen={};for(var i=0;i<tr.hist.length;i++){var hph=tr.hist[i].phase;if(!seen[hph]){seen[hph]=1;phases.push(hph);}}
-  var coh=sq._cohesionAssessment||{},a={
+  var phases=[],seen={},detourSum=0;for(var i=0;i<tr.hist.length;i++){var hph=tr.hist[i].phase;if(!seen[hph]){seen[hph]=1;phases.push(hph);}detourSum+=+tr.hist[i].requiredDetourShare||0;}
+  var requiredShare=tr.hist.length?detourSum/tr.hist.length:0,coh=sq._cohesionAssessment||{},a={
     kind:'low-forward-progress',faction:sq.faction,squad:sq.id,at:+t.toFixed(2),window:WINDOW,
     startAt:+first.t.toFixed(2),endAt:+last.t.toFixed(2),
     startPoint:{x:+first.x.toFixed(2),z:+first.z.toFixed(2)},endPoint:{x:+last.x.toFixed(2),z:+last.z.toFixed(2)},
     startDistance:+first.d.toFixed(2),distance:+last.d.toFixed(2),goal:{x:+g.x.toFixed(2),z:+g.z.toFixed(2)},rosterKey:roster,
     travel:+travel.toFixed(2),net:+net.toFixed(2),efficiency:+eff.toFixed(3),goalKind:mg.kind,
+    requiredDetourShare:+requiredShare.toFixed(3),
     routeChanges:(last.routeChanges||0)-(first.routeChanges||0),phases:phases,
     spread:isFinite(+coh.coreSpread)?+coh.coreSpread:null,rawSpread:isFinite(+coh.rawSpread)?+coh.rawSpread:null,
     stragglers:Array.isArray(coh.stragglers)?coh.stragglers.slice():[]
   };
   if(a.spread==null)try{if(root.BattleCommanderDoctrine){var c=root.BattleCommanderDoctrine.avgPos(sq);a.spread=+root.BattleCommanderDoctrine.maxSpread(sq,c).toFixed(2);}}catch(_){}
+  if(requiredShare>=MIN_REQUIRED_DETOUR_SHARE){
+    a.kind='navigation-detour-progress';st.totalNavigationDetours++;st.navigationDetours.push(a);if(st.navigationDetours.length>MAX_ALERTS)st.navigationDetours.shift();
+    if(root.BattleTelemetry&&root.BattleTelemetry.record)root.BattleTelemetry.record('navigation-detour-progress',a,sim);return;
+  }
   st.totalAlerts++;if(st.byFaction[sq.faction]!=null)st.byFaction[sq.faction]++;st.alerts.push(a);if(st.alerts.length>MAX_ALERTS)st.alerts.shift();pushLoop(sim,sq,a);if(root.BattleTelemetry&&root.BattleTelemetry.record)root.BattleTelemetry.record('low-forward-progress',a,sim);
 }
-function tick(sim){var st=state(sim);['us','ge'].forEach(function(f){var a=sim.factions&&sim.factions[f]&&sim.factions[f].squads||[];for(var i=0;i<a.length;i++)tickSquad(sim,a[i]);});sim._squadForwardProgressSummary={windowSeconds:WINDOW,totalAlerts:st.totalAlerts,byFaction:{us:st.byFaction.us,ge:st.byFaction.ge},samples:st.samples,lowEfficiencySamples:st.lowEfficiencySamples,trackResets:{roster:st.trackResets.roster||0,goal:st.trackResets.goal||0,kind:st.trackResets.kind||0},alerts:st.alerts.slice(-40)};if(sim._coordinationHealth)sim._coordinationHealth.forwardProgress=JSON.parse(JSON.stringify(sim._squadForwardProgressSummary));}
-function reset(sim){sim._squadForwardProgress=fresh();sim._squadForwardProgressSummary={windowSeconds:WINDOW,totalAlerts:0,byFaction:{us:0,ge:0},samples:0,lowEfficiencySamples:0,trackResets:{roster:0,goal:0,kind:0},alerts:[]};}
+function tick(sim){var st=state(sim);['us','ge'].forEach(function(f){var a=sim.factions&&sim.factions[f]&&sim.factions[f].squads||[];for(var i=0;i<a.length;i++)tickSquad(sim,a[i]);});sim._squadForwardProgressSummary={windowSeconds:WINDOW,totalAlerts:st.totalAlerts,totalNavigationDetours:st.totalNavigationDetours,byFaction:{us:st.byFaction.us,ge:st.byFaction.ge},samples:st.samples,lowEfficiencySamples:st.lowEfficiencySamples,trackResets:{roster:st.trackResets.roster||0,goal:st.trackResets.goal||0,kind:st.trackResets.kind||0},alerts:st.alerts.slice(-40),navigationDetours:st.navigationDetours.slice(-40)};if(sim._coordinationHealth)sim._coordinationHealth.forwardProgress=JSON.parse(JSON.stringify(sim._squadForwardProgressSummary));}
+function reset(sim){sim._squadForwardProgress=fresh();sim._squadForwardProgressSummary={windowSeconds:WINDOW,totalAlerts:0,totalNavigationDetours:0,byFaction:{us:0,ge:0},samples:0,lowEfficiencySamples:0,trackResets:{roster:0,goal:0,kind:0},alerts:[],navigationDetours:[]};}
 
-root.BattleModules.registerSystem('squad-forward-progress',{version:'1.2-roster-continuity',onBattleStart:reset,onBattleRestart:reset,onCommanderTick:tick});
-root.BattleSquadForwardProgress={version:'1.2-roster-continuity',windowSeconds:WINDOW,summary:function(sim){return sim&&sim._squadForwardProgressSummary?JSON.parse(JSON.stringify(sim._squadForwardProgressSummary)):null;}};
+root.BattleModules.registerSystem('squad-forward-progress',{version:'1.3-navigation-aware',onBattleStart:reset,onBattleRestart:reset,onCommanderTick:tick});
+root.BattleSquadForwardProgress={version:'1.3-navigation-aware',windowSeconds:WINDOW,summary:function(sim){return sim&&sim._squadForwardProgressSummary?JSON.parse(JSON.stringify(sim._squadForwardProgressSummary)):null;}};
 console.log('[AI] forward-progress diagnostics distinguish objectives from rally movement');
 })(typeof window!=='undefined'?window:globalThis);
