@@ -110,6 +110,20 @@
     RETREAT_BLOCKED_MIN = 2,
     RETREAT_DANGER_MARGIN = 5,
     RETREAT_RECOVERY_STRIDE = 0.5;
+
+  /* Buddy pairs are a Squad Leader / fireteam execution aid, not a command layer. While the slice is
+     being measured it is opt-in (?buddyPairs=1): with the flag absent/off this module creates no pair
+     state and fire-and-movement is equivalent at its decision points. Pair state is owned here. Runtime
+     readers are this module's fire-and-movement selector only; diagnostics and probes read snapshots.
+     A pair never writes a destination and never calls the Movement Resolver. */
+  function parseBuddyPairs(search) {
+    return /[?&]buddyPairs=(?:1|on|true)(?:&|$)/i.test(search || '');
+  }
+  var BUDDY_PAIRS_ON = parseBuddyPairs(typeof location !== 'undefined' ? location.search : '');
+  var BUDDY_TUNING = {
+    maxSeparation: 14,
+    maxRouteGap: 8
+  };
   /* 3b: group morale. On by default (owner decision, 2026-10-01); ?morale=0 is the flat 60% rule. Replaces the flat 60% casualty retreat with a
      squad-level break/rally model driven by the squad.mind roll-up (module 17). The break
      threshold is breakBase for calm men (the flat 60% rule) and moves down by breakSlope per
@@ -1227,6 +1241,365 @@
         return (+a.slotIndex || 0) - (+b.slotIndex || 0);
       });
   }
+
+  function buddyStats(battle) {
+    if (!BUDDY_PAIRS_ON || !battle) return null;
+    return (
+      battle._buddyPairStats ||
+      (battle._buddyPairStats = {
+        pairsFormed: 0,
+        pairsRetired: 0,
+        pairActivations: 0,
+        cooperationActivations: 0,
+        coverMoves: 0,
+        breaks: 0,
+        reforms: 0,
+        separated: 0,
+        blocked: 0,
+        suppressed: 0,
+        incompatible: 0,
+        routeDiverged: 0,
+        byBreakReason: {}
+      })
+    );
+  }
+  function buddyIncReason(stats, reason) {
+    if (!stats) return;
+    reason = String(reason || 'unknown');
+    stats.byBreakReason[reason] = (stats.byBreakReason[reason] || 0) + 1;
+  }
+  function buddyHistory(sq, row) {
+    var h = sq._buddyPairHistory || (sq._buddyPairHistory = []);
+    h.push(row);
+    if (h.length > 48) h.splice(0, h.length - 48);
+  }
+  function buddyBrokenState(state) {
+    return (
+      state === 'separated' ||
+      state === 'blocked' ||
+      state === 'suppressed' ||
+      state === 'incompatible' ||
+      state === 'route-diverged'
+    );
+  }
+  function buddyTransition(sq, pair, battle, state, reason) {
+    var t = battle.time,
+      previous = pair.state || 'ready',
+      stats = buddyStats(battle);
+    if (previous === state && pair.reason === reason) return;
+    if (buddyBrokenState(state) && !buddyBrokenState(previous)) {
+      stats.breaks++;
+      if (state === 'separated') stats.separated++;
+      else if (state === 'blocked') stats.blocked++;
+      else if (state === 'suppressed') stats.suppressed++;
+      else if (state === 'route-diverged') stats.routeDiverged++;
+      else stats.incompatible++;
+      buddyIncReason(stats, reason);
+      pair.lastBreakReason = reason;
+      pair.lastBreakAt = t;
+    } else if (!buddyBrokenState(state) && buddyBrokenState(previous)) {
+      stats.reforms++;
+      pair.lastReformReason = reason || 'conditions-cleared';
+      pair.lastReformAt = t;
+    }
+    buddyHistory(sq, {
+      at: +t.toFixed(2),
+      pair: pair.id,
+      team: pair.team,
+      a: pair.aId,
+      b: pair.bId,
+      from: previous,
+      to: state,
+      reason: reason || null
+    });
+    pair.state = state;
+    pair.reason = reason || null;
+    pair.since = t;
+    pair.lastChangeAt = t;
+  }
+  function buddyMember(sq, id) {
+    var m = (sq && sq.members) || [];
+    for (var i = 0; i < m.length; i++) if (m[i] && String(m[i].id) === String(id)) return m[i];
+    return null;
+  }
+  function buddyTaskKey(sq, key, a, b) {
+    return [
+      key,
+      (a && a._engagementTask) || '',
+      (b && b._engagementTask) || '',
+      (a && a._engagementPlanSerial) || 0,
+      (b && b._engagementPlanSerial) || 0
+    ].join('|');
+  }
+  function buddyPairId(key, a, b) {
+    var ai = String(a.id),
+      bi = String(b.id);
+    return key + ':' + (ai < bi ? ai + '-' + bi : bi + '-' + ai);
+  }
+  function buddyRetireReason(sq, pair) {
+    var a = buddyMember(sq, pair.aId),
+      b = buddyMember(sq, pair.bId);
+    if (!a || !b || a.dead || b.dead) return 'casualty';
+    if (teamKeyFor(a) !== pair.team || teamKeyFor(b) !== pair.team) return 'fireteam-changed';
+    return 'roster-changed';
+  }
+  function syncBuddyPairs(sq, battle) {
+    if (!BUDDY_PAIRS_ON || !sq || !battle) return null;
+    var old = sq._buddyPairs || {},
+      next = {},
+      unpaired = [],
+      stats = buddyStats(battle);
+    ['command', 'alpha', 'bravo', 'charlie'].forEach(function (key) {
+      var men = aliveTeam(sq, key);
+      for (var i = 0; i + 1 < men.length; i += 2) {
+        var a = men[i],
+          b = men[i + 1],
+          id = buddyPairId(key, a, b),
+          task = buddyTaskKey(sq, key, a, b),
+          pair = old[id];
+        if (!pair) {
+          pair = {
+            id: id,
+            team: key,
+            aId: a.id,
+            bId: b.id,
+            formedAt: battle.time,
+            generation: 1,
+            taskKey: task,
+            state: 'ready',
+            reason: 'formed',
+            since: battle.time,
+            lastChangeAt: battle.time,
+            nextMoverId: a.id,
+            movingId: null,
+            coveringId: null,
+            separation: 0,
+            routeGap: 0,
+            activations: 0,
+            coverMoves: 0
+          };
+          stats.pairsFormed++;
+          buddyHistory(sq, {
+            at: +battle.time.toFixed(2),
+            pair: id,
+            team: key,
+            a: a.id,
+            b: b.id,
+            from: null,
+            to: 'ready',
+            reason: 'formed'
+          });
+        } else if (pair.taskKey !== task) {
+          buddyTransition(sq, pair, battle, 'incompatible', 'task-changed');
+          pair.taskKey = task;
+          pair.generation = (+pair.generation || 1) + 1;
+          pair.movingId = null;
+          pair.coveringId = null;
+          buddyTransition(sq, pair, battle, 'ready', 'task-reformed');
+        }
+        next[id] = pair;
+      }
+      if (men.length % 2) unpaired.push(men[men.length - 1].id);
+    });
+    Object.keys(old).forEach(function (id) {
+      if (next[id]) return;
+      var pair = old[id],
+        why = buddyRetireReason(sq, pair);
+      stats.pairsRetired++;
+      stats.breaks++;
+      buddyIncReason(stats, why);
+      buddyHistory(sq, {
+        at: +battle.time.toFixed(2),
+        pair: pair.id,
+        team: pair.team,
+        a: pair.aId,
+        b: pair.bId,
+        from: pair.state || 'ready',
+        to: 'retired',
+        reason: why
+      });
+    });
+    sq._buddyPairs = next;
+    sq._buddyUnpaired = unpaired;
+    return next;
+  }
+  function buddyIncompatible(s, battle) {
+    if (!s || s.dead) return 'casualty';
+    if ((+s.suppressedUntil || 0) > battle.time) return 'suppressed';
+    var state = s.eng && s.eng.state;
+    if (state === 'freeze' || state === 'flee' || state === 'rage' || state === 'cower')
+      return 'engagement-' + state;
+    return null;
+  }
+  function updateBuddyPairState(sq, pair, battle) {
+    var a = buddyMember(sq, pair.aId),
+      b = buddyMember(sq, pair.bId),
+      ai = buddyIncompatible(a, battle),
+      bi = buddyIncompatible(b, battle);
+    if (ai === 'suppressed' || bi === 'suppressed') {
+      buddyTransition(sq, pair, battle, 'suppressed', ai === 'suppressed' ? 'a-suppressed' : 'b-suppressed');
+      return;
+    }
+    if (ai || bi) {
+      buddyTransition(sq, pair, battle, 'incompatible', ai || bi);
+      return;
+    }
+    var pa = a && a.root && a.root.position,
+      pb = b && b.root && b.root.position;
+    pair.separation = pa && pb ? +dist(pa, pb).toFixed(2) : null;
+    if (pair.separation != null && pair.separation > BUDDY_TUNING.maxSeparation) {
+      buddyTransition(sq, pair, battle, 'separated', 'physical-separation');
+      return;
+    }
+    var da = point(a && a._fireteamDestination),
+      db = point(b && b._fireteamDestination);
+    pair.routeGap = da && db ? +dist(da, db).toFixed(2) : null;
+    if (pair.routeGap != null && pair.routeGap > BUDDY_TUNING.maxRouteGap) {
+      buddyTransition(sq, pair, battle, 'route-diverged', 'fireteam-routes-diverged');
+      return;
+    }
+    var aw = String((a && a._movementStopReason) || ''),
+      bw = String((b && b._movementStopReason) || '');
+    if (aw === 'path-blocked' || aw === 'step-blocked' || bw === 'path-blocked' || bw === 'step-blocked') {
+      buddyTransition(sq, pair, battle, 'blocked', aw || bw);
+      return;
+    }
+    var bound = L.get(sq, 'bound');
+    if (
+      bound &&
+      L.holds(sq, 'bound', battle.time) &&
+      bound.data &&
+      bound.data.team === pair.team &&
+      pair.movingId != null &&
+      pair.coveringId != null
+    ) {
+      buddyTransition(sq, pair, battle, 'cover-move', 'authorized-bound');
+      return;
+    }
+    pair.movingId = null;
+    pair.coveringId = null;
+    buddyTransition(sq, pair, battle, 'ready', 'conditions-clear');
+  }
+  function updateBuddyPairs(sq, battle) {
+    var pairs = syncBuddyPairs(sq, battle);
+    if (!pairs) return null;
+    Object.keys(pairs).sort().forEach(function (id) {
+      updateBuddyPairState(sq, pairs[id], battle);
+    });
+    return pairs;
+  }
+  function buddyBoundPreview(sq, team, movers, fireSupport, battle) {
+    if (!BUDDY_PAIRS_ON || !sq._buddyPairs || !movers.length)
+      return { movers: movers, cooperation: [] };
+    var selected = movers.slice(),
+      cooperation = [];
+    Object.keys(sq._buddyPairs)
+      .sort()
+      .forEach(function (id) {
+        var pair = sq._buddyPairs[id];
+        if (!pair || pair.team !== team || pair.state !== 'ready') return;
+        var a = buddyMember(sq, pair.aId),
+          b = buddyMember(sq, pair.bId);
+        if (movers.indexOf(a) < 0 || movers.indexOf(b) < 0) return;
+        var mover = String(pair.nextMoverId) === String(b.id) ? b : a,
+          cover = mover === a ? b : a;
+        if (fireSupport.indexOf(cover) < 0 && fireSupport.indexOf(mover) >= 0) {
+          var swap = mover;
+          mover = cover;
+          cover = swap;
+        }
+        /* Cooperation is opportunistic. If the designated cover man is not already part of Engagement's
+           base of fire, leave the original fireteam bound untouched instead of parking both men. */
+        if (fireSupport.indexOf(cover) < 0) return;
+        selected = selected.filter(function (s) {
+          return s !== cover;
+        });
+        cooperation.push({ pair: pair, mover: mover, cover: cover });
+      });
+    return { movers: selected, cooperation: cooperation };
+  }
+  function commitBuddyCooperation(sq, preview, battle) {
+    if (!BUDDY_PAIRS_ON || !preview || !preview.cooperation.length) return;
+    var stats = buddyStats(battle);
+    preview.cooperation.forEach(function (c) {
+      var pair = c.pair;
+      pair.movingId = c.mover.id;
+      pair.coveringId = c.cover.id;
+      pair.nextMoverId = c.cover.id;
+      pair.activations = (+pair.activations || 0) + 1;
+      pair.coverMoves = (+pair.coverMoves || 0) + 1;
+      stats.pairActivations++;
+      stats.cooperationActivations++;
+      stats.coverMoves++;
+      buddyTransition(sq, pair, battle, 'cover-move', 'authorized-bound');
+      telemetry(battle, 'decision-buddy-cover-move', {
+        faction: sq.faction,
+        squad: sq.id,
+        team: pair.team,
+        pair: pair.id,
+        mover: c.mover.id,
+        cover: c.cover.id
+      });
+    });
+  }
+  function buddySnapshot(sq) {
+    if (!BUDDY_PAIRS_ON || !sq || !sq._buddyPairs) return null;
+    return {
+      owner: 'squad-leader',
+      readers: ['squad-leader/fire-and-movement', 'diagnostics', 'probes'],
+      pairs: Object.keys(sq._buddyPairs)
+        .sort()
+        .map(function (id) {
+          var p = sq._buddyPairs[id];
+          return {
+            id: p.id,
+            team: p.team,
+            a: p.aId,
+            b: p.bId,
+            generation: p.generation,
+            taskKey: p.taskKey,
+            state: p.state,
+            reason: p.reason,
+            formedAt: p.formedAt,
+            since: p.since,
+            lastChangeAt: p.lastChangeAt,
+            lastBreakReason: p.lastBreakReason || null,
+            lastBreakAt: p.lastBreakAt == null ? null : p.lastBreakAt,
+            lastReformReason: p.lastReformReason || null,
+            lastReformAt: p.lastReformAt == null ? null : p.lastReformAt,
+            separation: p.separation,
+            routeGap: p.routeGap,
+            moving: p.movingId,
+            covering: p.coveringId,
+            nextMover: p.nextMoverId,
+            activations: p.activations || 0,
+            coverMoves: p.coverMoves || 0
+          };
+        }),
+      unpaired: (sq._buddyUnpaired || []).slice(),
+      history: (sq._buddyPairHistory || []).slice(-24)
+    };
+  }
+  function buddyTelemetry(sim) {
+    if (!BUDDY_PAIRS_ON || !sim) return null;
+    var stats = Object.assign({}, buddyStats(sim)),
+      live = 0,
+      byState = {};
+    ['us', 'ge'].forEach(function (f) {
+      var squads = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
+      squads.forEach(function (sq) {
+        Object.keys(sq._buddyPairs || {}).forEach(function (id) {
+          var p = sq._buddyPairs[id];
+          live++;
+          byState[p.state || 'unknown'] = (byState[p.state || 'unknown'] || 0) + 1;
+        });
+      });
+    });
+    stats.livePairs = live;
+    stats.byState = byState;
+    stats.byBreakReason = Object.assign({}, stats.byBreakReason || {});
+    return stats;
+  }
   /* Each fireteam holds its own ground: [lateral, forward] metres from the order anchor in the squad's
    frame. Team anchors used to be the average of the men's individual formation slots, but those
    alternate sides by slotIndex while fireteam membership is also dealt by slotIndex, so every team
@@ -1661,6 +2034,7 @@
         else s.orderDestination = copy(s._fireteamDestination);
       }
     });
+    if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);
   }
   /* Stress in local execution (`?slStress=pick,hold,review`, all three on by default; `0`/`off` is none, `1`/`all` is all
      three, a list exactly those named). The Squad Leader reads its men's stress through the soldier condition's `lead` lever and changes only its own
@@ -1760,7 +2134,8 @@
       turn,
       team,
       movers,
-      holding;
+      holding,
+      buddy;
     for (var k = 0; k < BOUND_TEAMS.length; k++) {
       turn = first + k;
       team = BOUND_TEAMS[turn % BOUND_TEAMS.length];
@@ -1779,12 +2154,14 @@
         if (s._fireteamKey && s._fireteamKey !== team) continue;
         movers.push(s);
       }
+      buddy = buddyBoundPreview(sq, team, movers, r.fireSupport, battle);
+      movers = buddy.movers;
       holding = r.fireSupport.filter(function (man) {
         return movers.indexOf(man) < 0;
       }).length;
       if (movers.length && holding >= 2) {
         if (!lead) break;
-        candidates.push({ turn: turn, team: team, movers: movers, holding: holding, stress: teamStress(movers) });
+        candidates.push({ turn: turn, team: team, movers: movers, holding: holding, stress: teamStress(movers), buddy: buddy });
       }
     }
     var pickedBy = null,
@@ -1815,6 +2192,7 @@
       team = c.team;
       movers = c.movers;
       holding = c.holding;
+      buddy = c.buddy;
     }
     if (!(movers.length && holding >= 2)) turn = first;
     sq._boundTurn = turn;
@@ -1840,6 +2218,7 @@
         'after bound by ' + team,
         'cycle expiry'
       );
+      commitBuddyCooperation(sq, buddy, battle);
       E.orderBound(movers);
       var info = {
         faction: sq.faction,
@@ -2327,6 +2706,11 @@
         q._regroupRecovery = null;
         q._regroupRecoverySerial = 0;
         q._fireteamOrders = {};
+        if (BUDDY_PAIRS_ON) {
+          q._buddyPairs = {};
+          q._buddyUnpaired = [];
+          q._buddyPairHistory = [];
+        }
         L.clear(q);
         q._boundTurn = null;
         q._assaultAuthorized = false;
@@ -2373,6 +2757,7 @@
     boundDuration: BOUND_DURATION,
     tuning: {
       morale: MORALE_TUNING,
+      buddyPairs: BUDDY_TUNING,
       coa: COA_TUNING,
       fireControl: FIRE_CONTROL_TUNING,
       lead: LEAD_TUNING,
@@ -2387,6 +2772,33 @@
     },
     slStress: function () { return Object.assign({}, SL_STRESS); },
     parseSlStress: parseSlStress,
+    buddyPairsOn: function () { return BUDDY_PAIRS_ON; },
+    parseBuddyPairs: parseBuddyPairs,
+    updateBuddyPairs: updateBuddyPairs,
+    buddyFor: function (s) {
+      var sq = s && s.squad, pairs = sq && sq._buddyPairs;
+      if (!BUDDY_PAIRS_ON || !pairs || !s) return null;
+      var ids = Object.keys(pairs);
+      for (var i = 0; i < ids.length; i++) {
+        var p = pairs[ids[i]];
+        if (String(p.aId) === String(s.id) || String(p.bId) === String(s.id))
+          return {
+            pair: p.id,
+            buddy: String(p.aId) === String(s.id) ? p.bId : p.aId,
+            team: p.team,
+            state: p.state,
+            reason: p.reason,
+            since: p.since,
+            separation: p.separation,
+            routeGap: p.routeGap,
+            moving: p.movingId,
+            covering: p.coveringId
+          };
+      }
+      return null;
+    },
+    buddySnapshot: buddySnapshot,
+    buddyTelemetry: buddyTelemetry,
     moraleOn: function () { return MORALE_ON; },
     fireControlOn: function () { return FIRE_CONTROL_ON; },
     fireControl: function (sq) { return sq && sq.fireControl ? Object.assign({}, sq.fireControl) : null; },
