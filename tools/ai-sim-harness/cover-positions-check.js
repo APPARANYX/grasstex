@@ -17,6 +17,40 @@ function fixture(obstacles,physical){
   return{r,b,q,s:q.members[0],other:q.members[1],E:r.BattleEngagement,C:r.BattleCoverPositions};
 }
 function hedge(rot=0){return{id:'hedge',physicalId:'hedge',shape:'obb',type:'hedge',x:0,z:0,hx:14,hz:1,ux:Math.cos(rot),uz:Math.sin(rot),vx:-Math.sin(rot),vz:Math.cos(rot),radius:1,y:0,height:2,cover:.62};}
+test('a suppressed cover detour stays committed through the original formation intent',()=>{
+  const f=fixture([]),{r,b,s}=f,T=r.BattleTacticalRoute;
+  b.time=10;s.root.position.x=0;s.root.position.z=0;s.suppressedUntil=100;
+  s.target={id:99,dead:false,root:{position:{x:0,y:0,z:100}}};
+  let releases=0,reserves=0;
+  r.BattleCoverPositions={
+    candidates(){return[{x:10,z:0,quality:.4,slotId:'route-cover',slot:{id:'route-cover',x:10,z:0}}];},
+    reserve(){reserves++;return true;},
+    release(){releases++;}
+  };
+  r.BattleObstacleField.coverPotentialAt=()=>1;
+  const pick={owner:'squad-stability',kind:'formation',point:{x:0,z:40}};
+  let route=T.resolve(s,b,pick);
+  assert.deepEqual(route.point,{x:10,z:0},'first step is the protective cover waypoint');
+  assert.equal(route.reason,'cover-detour');assert.equal(s._tacticalRoute.steps.length,2);
+  assert.deepEqual(s._tacticalRoute.steps[1],pick.point,'the winning intent is part of the same committed route');
+  assert.equal(reserves,1);
+
+  s.root.position.x=10;s.root.position.z=0;b.time=11;
+  route=T.resolve(s,b,pick);
+  assert.deepEqual(route.point,pick.point,'after cover, the route continues to the original intent instead of ending');
+  assert.equal(route.reason,'cover-detour');assert.ok(s._tacticalRoute,'route remains committed');
+  assert.equal(releases,1,'the passed cover slot is released while the route continues');
+
+  s.root.position.x=5;s.root.position.z=20;b.time=15;
+  route=T.resolve(s,b,pick);
+  assert.deepEqual(route.point,pick.point,'prolonged suppression does not create another cover side-trip mid-route');
+  assert.equal(reserves,1,'no second cover reservation while the committed detour is active');
+
+  s.root.position.x=0;s.root.position.z=40;b.time=16;
+  assert.equal(T.resolve(s,b,pick),null,'the detour ends only at the original intent');
+  assert.equal(s._tacticalRoute,undefined);
+});
+
 test('a held cover position is unavailable after the old fourteen-second lease expires',()=>{
   const f=fixture([{type:'rock',x:0,z:0,y:0,radius:1.3,height:1,cover:.55}]);
   const first=f.E.findCover(f.s,f.b);assert.ok(first);f.s.eng.cover=first;f.s.eng.state='engage';Object.assign(f.s.root.position,{x:first.x,z:first.z});
