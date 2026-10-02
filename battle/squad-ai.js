@@ -401,16 +401,39 @@
   function squadSenses(sq, battle) {
     if (!PERCEPTION_ON || !sq || sq._sensedAt === battle.time) return;
     sq._sensedAt = battle.time;
-    var held = squadContact(sq, battle);
-    if (firstHand(held, battle)) return;
+    var held = squadContact(sq, battle),
+      calls = root.BattleCallouts && root.BattleCallouts.enabled() ? root.BattleCallouts : null;
+    if (firstHand(held, battle)) {
+      if (calls) calls.report(battle, sq, held);
+      return;
+    }
     var here = squadCentre(sq, battle);
     if (!here) return;
+    /* `?callouts=1`: word from another squad comes only as a call one of this squad's men heard (modules/09). */
+    if (calls) {
+      var msg = calls.heard(battle, sq);
+      if (msg && (!held || held.heard || msg.fact.at > held.at)) {
+        var f = msg.fact;
+        sq.contact = {
+          unit: f.unit,
+          x: f.x,
+          z: f.z,
+          at: f.at,
+          seenBy: null,
+          stance: f.stance,
+          relayedFrom: msg.fromSquad,
+          callout: msg.id
+        };
+        calls.noteApplied(battle);
+        return;
+      }
+    }
     var side = battle.factions && battle.factions[sq.faction],
       squads = (side && side.squads) || [],
       best = null,
       bestD = RELAY_RANGE,
       i;
-    for (i = 0; i < squads.length; i++) {
+    for (i = 0; !calls && i < squads.length; i++) {
       var o = squads[i];
       if (o === sq || o.disbanded || !firstHand(o.contact, battle)) continue;
       var there = squadCentre(o, battle),
@@ -1123,6 +1146,28 @@
     battle.onCallout(soldier, type);
   }
 
+  /* Which contact line to say: front, left or right of the way his squad faces (toward its objective), plain
+     "contact" behind. Voice only: the name of the line changes nothing in the battle. */
+  function contactCall(soldier) {
+    var sq = soldier.squad,
+      t = soldier.target,
+      p = soldier.root.position,
+      from = (sq && (sq.orderAnchor || sq.rally)) || p,
+      goal = sq && (sq.objective || sq.home);
+    if (!t || !goal) return 'contact';
+    var fx = goal.x - from.x,
+      fz = goal.z - from.z,
+      fl = Math.hypot(fx, fz);
+    if (fl < 1) return 'contact';
+    var dx = t.root.position.x - p.x,
+      dz = t.root.position.z - p.z,
+      dl = Math.hypot(dx, dz) || 1,
+      ahead = (dx * fx + dz * fz) / (dl * fl),
+      right = (dx * fz - dz * fx) / (dl * fl);
+    if (ahead >= Math.SQRT1_2) return 'contactFront';
+    if (ahead < -0.35) return 'contact';
+    return right > 0 ? 'contactRight' : 'contactLeft';
+  }
   /* Perception only. What the soldier does about what he sees is engagement.js's job. */
   function perceive(soldier, battle) {
     var heightAt = battle.heightAt,
@@ -1148,7 +1193,7 @@
     }
     if (soldier.target) shareContact(soldier, battle);
     squadSenses(soldier.squad, battle);
-    if (!had && soldier.target) callout(soldier, battle, 'contact');
+    if (!had && soldier.target) callout(soldier, battle, contactCall(soldier));
     if (soldier.lastSquadState !== soldier.squad.state) {
       if (isLeader(soldier))
         callout(

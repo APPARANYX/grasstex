@@ -421,6 +421,9 @@ try {
              soldier lever changed a decision, with a one-second series in simulated time (AGENTS.md, stress). */
           stress: root.BattleSoldierMind?.telemetry?.(sim) || null
         };
+        /* Tactical callouts (`?callouts=1`): only when the channel is on, so a flags-off record matches main field for field. */
+        const callouts = root.BattleCallouts?.telemetry?.(sim);
+        if (callouts) record.callouts = callouts;
         if (extra) Object.assign(record, extra);
         return record;
     }
