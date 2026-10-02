@@ -79,9 +79,12 @@ test('suppression/incompatibility degrades cooperation without deadlocking the o
 test('cover/move cooperation narrows an authorized bound but never becomes a movement writer',()=>{
   const w=world(),q=squad(w),p=pairForTeam(w,q,'alpha'),before=q.members.map(s=>JSON.stringify(s.destination||null));
   let orderWrites=0,combatWrites=0;
-  const po=w.r.BattleMovementResolver.proposeOrder,pc=w.r.BattleMovementResolver.proposeCombat;
-  w.r.BattleMovementResolver.proposeOrder=function(){orderWrites++;return po.apply(this,arguments);};
-  w.r.BattleMovementResolver.proposeCombat=function(){combatWrites++;return pc.apply(this,arguments);};
+  /* This focused harness does not load module 18. Install a spy at the resolver boundary instead:
+     any buddy code calling it is itself a contract violation. */
+  w.r.BattleMovementResolver={
+    proposeOrder(){orderWrites++;},
+    proposeCombat(){combatWrites++;}
+  };
   w.b.time=20;w.S.updateBuddyPairs(q,w.b);
   assert.equal(orderWrites+combatWrites,0,'pair maintenance sends no resolver proposal');
   w.S.fireAndMovement(q,w.b);
