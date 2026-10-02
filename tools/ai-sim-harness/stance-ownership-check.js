@@ -223,6 +223,36 @@ test('a firing station cannot raise a temporary lower stance request',()=>{
   assert.equal(s.eng.stance,'stand','station pose resumes when the lower-stance request expires');
 });
 
+test('LoopWatch keeps genuine squad order churn inside one command phase',()=>{
+  const {r,b,s}=oneMan();
+  load(r,'battle/modules/32-ai-loop-watch.js');
+  const L=r.BattleAILoopWatch,m=s.squad.members;
+  s.squad.commandPhase='assault';s.squad.state='advance';
+  for(let i=0;i<10;i++){
+    b.time=i;
+    for(const man of m){man.root.position.x=i%2?2:0;man.root.position.z=0;man._fireteamDestination={x:i%2?10:-10,z:0};}
+    L.sample(b);
+  }
+  const a=L.alerts(b).find(x=>x.kind==='order-churn'&&x.squadId===s.squad.id);
+  assert.ok(a,'stable-phase moving squad orders remain visible');
+  assert.ok(a.destinationChanges>=4);
+});
+
+test('LoopWatch does not stitch squad order churn across a phase handoff',()=>{
+  const {r,b,s}=oneMan();
+  load(r,'battle/modules/32-ai-loop-watch.js');
+  const L=r.BattleAILoopWatch,m=s.squad.members;
+  s.squad.commandPhase='regroup';s.squad.state='advance';
+  for(let i=0;i<10;i++){
+    b.time=i;
+    if(i===4)s.squad.commandPhase='assault';
+    for(const man of m){man.root.position.x=i%2?2:0;man.root.position.z=0;man._fireteamDestination={x:i%2?10:-10,z:0};}
+    L.sample(b);
+  }
+  assert.ok(!L.alerts(b).some(x=>x.kind==='order-churn'&&x.squadId===s.squad.id),
+    'accepted regroup and assault orders are separate order-churn populations');
+});
+
 test('LoopWatch keeps genuine destination cycling inside one movement regime',()=>{
   const {r,b,s}=oneMan(),E=r.BattleEngagement;
   load(r,'battle/modules/32-ai-loop-watch.js');
