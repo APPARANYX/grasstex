@@ -62,6 +62,20 @@ test('shared-contact movement authority lasts through the existing threat-memory
   assert.equal(s._movementResolver.last.kind,'formation','the persistent Meso order resumes once the tactical observation is old');
 });
 
+test('base-of-fire man holds position while squad contact blocks the anchor',()=>{
+  const {q,s,b,E,M}=fixture();
+  q.inContact=true; q._assaultAuthorized=true;
+  const e=E.stateOf(s); e.state='advance'; e.boundOrder=false; s.target=null;
+  s.root.position.x=3; s.root.position.z=18;
+  const formation={...s._movementResolver.order.point};
+  assert.ok(Math.hypot(formation.x-s.root.position.x,formation.z-s.root.position.z)>5,'fixture needs a distant formation order');
+  E.updateSoldier(s,b); M.resolve(s,b);
+  assert.equal(e.state,'advance');
+  assert.equal(s._movementResolver.last.kind,'hold');
+  assert.ok(Math.hypot(s.destination.x-s.root.position.x,s.destination.z-s.root.position.z)<0.01,
+    'contact without a bound holds the current base-of-fire position');
+});
+
 test('assault mission alone does not authorize an individual rush',()=>{
   const f=fixture(),e=combat(f); e.boundOrder=false;
   f.r.BattleLeases.end(f.q,'bound',f.b.time,'test'); f.E.decide(f.s,f.b,'test no cover'); f.M.resolve(f.s,f.b);
