@@ -229,7 +229,11 @@
     e.lastSeen = aim;
     e.lastSeenAt = Math.max(+e.lastSeenAt || -999, +c.at || b.time);
     s._faceHint = aim;
-    root.BattleEngagement.requestStance(s, b, 'crouch', SHARED_HOLD);
+    /* Engagement owns the visibility-aware stance. Alert may deliberately stand a man when
+       crouching would hide the shared threat behind a wall/crest, while ordinary contact advance
+       already stays crouched through squadOnHeels/contactStance. A blind lower-stance request here
+       fought that decision: stand -> request:crouch -> alert:stand, producing real posture churn
+       and briefly sacrificing the line it had just chosen to preserve. */
     request(s, h, b, 'contact-reaction', Math.min(0.8, SHARED_HOLD), 'new shared threat');
     bump(b, 'sharedContactReactions');
   }
