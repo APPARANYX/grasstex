@@ -115,10 +115,23 @@ function emitAlert(sim,alert){
   var st=stateFor(sim),key=alert.kind+'|'+alert.faction+'|'+alert.squadId+'|'+(alert.soldierId==null?'':alert.soldierId),last=st.reported[key]||-999;if(sim.time-last<ALERT_COOLDOWN)return;st.reported[key]=sim.time;alert.at=sim.time;alert.key=key;st.alerts.unshift(alert);if(st.alerts.length>ALERT_LIMIT)st.alerts.length=ALERT_LIMIT;
   if(root.BattleTelemetry)root.BattleTelemetry.record('ai-loop-detected',{kind:alert.kind,severity:alert.severity,faction:alert.faction,squad:alert.squadId,soldier:alert.soldierId==null?null:alert.soldierId,phaseSequence:alert.phases||[],ruleSequence:alert.rules||[],goalWriters:alert.goalWriters||alert.sources||[],destinationChanges:alert.destinationChanges||0,stanceChanges:alert.stanceChanges||0,stanceReasons:alert.stanceReasons||[],travel:alert.travel||0,net:alert.net||0,localAvoidance:!!alert.localAvoidance,stuck:!!alert.stuck,inContact:!!alert.inContact},sim);
 }
+function samePhaseSuffix(h){
+  if(!h.length)return h;var phase=h[h.length-1].phase,i=h.length-1;
+  while(i>0&&h[i-1].phase===phase)i--;
+  return h.slice(i);
+}
 function detectSquad(sim,sq,h){
   if(h.length<7)return;var recent=h.slice(-9),p=repeatingPeriod(recent,'decisionSig',3),move=travelStats(recent,'pos'),orderChanges=changes(recent,'order',2.5),rules=recent.map(function(s){return s.rule;}).filter(Boolean),phases=recent.map(function(s){return s.phase;});
   if(p&&move.net<7&&move.duration>=4.5){emitAlert(sim,{kind:'decision-cycle',severity:'warn',faction:sq.faction,squadId:sq.id,message:'Repeating '+p+'-step command cycle with little progress',phases:phases,rules:Array.from(new Set(rules)),sequence:recent.slice(-p*3).map(function(s){return s.phase+(s.rule?' / '+s.rule:'');}),travel:+move.travel.toFixed(1),net:+move.net.toFixed(1),destinationChanges:orderChanges,inContact:!!recent[recent.length-1].inContact});}
-  if(orderChanges>=4&&move.travel>=5&&move.net<4.5&&move.duration>=5){emitAlert(sim,{kind:'order-churn',severity:'warn',faction:sq.faction,squadId:sq.id,message:'Squad orders keep moving while the squad goes nowhere',phases:phases,rules:Array.from(new Set(rules)),sequence:recent.slice(-6).map(function(s){return s.orderSig;}),travel:+move.travel.toFixed(1),net:+move.net.toFixed(1),destinationChanges:orderChanges,inContact:!!recent[recent.length-1].inContact});}
+  /* Order churn is an execution diagnostic inside one accepted command phase. A legitimate phase
+     handoff (especially regroup -> assault) replaces the squad's order population by design; do
+     not count the old rally orders and the new assault orders as one churn window. Decision-cycle
+     above still sees the full phase history and remains responsible for actual phase oscillation. */
+  var orderRecent=samePhaseSuffix(recent);
+  if(orderRecent.length>=7){
+    var omove=travelStats(orderRecent,'pos'),ochanges=changes(orderRecent,'order',2.5),orules=orderRecent.map(function(s){return s.rule;}).filter(Boolean),ophases=orderRecent.map(function(s){return s.phase;});
+    if(ochanges>=4&&omove.travel>=5&&omove.net<4.5&&omove.duration>=5){emitAlert(sim,{kind:'order-churn',severity:'warn',faction:sq.faction,squadId:sq.id,message:'Squad orders keep moving while the squad goes nowhere',phases:ophases,rules:Array.from(new Set(orules)),sequence:orderRecent.slice(-6).map(function(s){return s.orderSig;}),travel:+omove.travel.toFixed(1),net:+omove.net.toFixed(1),destinationChanges:ochanges,inContact:!!orderRecent[orderRecent.length-1].inContact});}
+  }
 }
 function detectPostureChurn(sim,s,sq){
   var e=s&&s.eng,trail=e&&e.stanceTrail;if(!trail||trail.length<POSTURE_CHANGES)return;
