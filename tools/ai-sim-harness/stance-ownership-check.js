@@ -61,7 +61,7 @@ function oneMan(){
 }
 
 test('an advancing man stays low while the squad has eyes on the enemy, whatever inContact blinks; then stands',()=>{
-  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement,H_=E.tuning.ALERT_HOLD,TICK=.15;
+  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement,H_=E.tuning.ALERT_HOLD,G=E.tuning.LOW_GAP_HOLD,TICK=.15;
   assert.equal(E.tuning.CONTACT_STANCE,true);
   s.target=null;s.eng=null;E.stateOf(s).stanceUntil=0;
   const seen=b.time;s.squad.contact={unit:enemy,x:enemy.root.position.x,z:enemy.root.position.z,at:seen,seenBy:1};
@@ -70,8 +70,8 @@ test('an advancing man stays low while the squad has eyes on the enemy, whatever
   while(b.time-seen<H_-.5)shown.add(tick());
   assert.deepEqual([...shown],['crouch'],'inContact is off and the picture is fresh: he stays low');
   const later=[];
-  while(b.time-seen<H_+2.5)later.push(tick());
-  assert.equal(later[later.length-1],'stand','the picture is older than ALERT_HOLD: he is up');
+  while(b.time-seen<H_+G+1.5)later.push(tick());
+  assert.equal(later[later.length-1],'stand','after threat memory plus the quiet-gap grace he is up');
   assert.equal(later.filter((v,i)=>i&&v!==later[i-1]).length,1,'one change, not a flutter');
 });
 
