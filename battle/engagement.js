@@ -2571,8 +2571,9 @@
         known &&
         known.unit &&
         combatThreat(known.unit) &&
-        !known.heard &&
-        !known.relayedFrom
+        (SA().hasFirstHandMemory
+          ? SA().hasFirstHandMemory(known, battle)
+          : !known.heard && !known.relayedFrom)
       );
     /* A hold/precision order is silent preparation. Clear old suppressor jobs while it is active;
        otherwise a stale suppressOrder would make the squad look like a base of fire before permission. */
