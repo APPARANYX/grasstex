@@ -18,9 +18,6 @@ name: M3C Standard Benchmark
 #   fighting, not the whole battle). A last job pools the shards and reports each counter paired by seed. About 3.5 minutes for 100.
 
 on:
-  push:
-    branches:
-      - work/buddy-pairs
   workflow_dispatch:
     inputs:
       seed:
@@ -55,7 +52,6 @@ env:
   # The counters the paired report adds up per record (compare_benchmark_arms.cjs --count).
   BENCH_COUNTERS: >-
     casualties usKills geKills fire.total fire.hits retreatSamples movementResolver.changes
-    buddyPairs.pairActivations buddyPairs.breaks buddyPairs.reforms buddyPairs.separated buddyPairs.blocked buddyPairs.suppressed buddyPairs.incompatible buddyPairs.routeDiverged buddyPairs.coverMoves
     movementStalls.length routeStalls.length targetlessStalls.length vacantObjectiveStalls.length loopAlerts.length writerConflicts
     regroups.entries stallOutcomes.wakes stallOutcomes.repeats timeline.stalledOnsets timeline.stalledSamples
 
@@ -63,7 +59,7 @@ jobs:
   # ---- one seed: the scripted scenario ------------------------------------------------------------------------------------
   single:
     name: Scripted scenario, off vs on
-    if: ${{ github.event_name != 'push' && (github.event.inputs.seeds || '1') == '1' }}
+    if: ${{ (github.event.inputs.seeds || '1') == '1' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -229,7 +225,7 @@ jobs:
   # ---- several seeds: a paired run across shards ------------------------------------------------------------------------------
   plan:
     name: Plan the shards
-    if: ${{ github.event_name == 'push' || (github.event.inputs.seeds || '1') != '1' }}
+    if: ${{ (github.event.inputs.seeds || '1') != '1' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -244,7 +240,7 @@ jobs:
       - name: Plan
         id: plan
         env:
-          SEEDS: ${{ github.event_name == 'push' && '100' || github.event.inputs.seeds }}
+          SEEDS: ${{ github.event.inputs.seeds }}
           WINDOWS: ${{ github.event.inputs.windows }}
         run: |
           set -euo pipefail
@@ -268,10 +264,10 @@ jobs:
       BATTLE_BENCHMARK_TIME_LIMIT: '600'
       BATTLE_BENCHMARK_STEP: '0.15'
       BATTLE_BENCHMARK_WINDOWS: ${{ needs.plan.outputs.windows }}
-      BATTLE_BENCHMARK_SEED: ${{ github.event_name == 'push' && 'buddy-pairs' || github.event.inputs.seed || 'scripted-seeds' }}
-      BATTLE_TYPE: ${{ github.event_name == 'push' && 'meeting' || github.event.inputs.battle_type || 'meeting' }}
-      QUERY_OFF: ${{ github.event_name == 'push' && 'buddyPairs=0' || github.event.inputs.query_off || '' }}
-      QUERY_ON: ${{ github.event_name == 'push' && 'buddyPairs=1' || github.event.inputs.query_on || '' }}
+      BATTLE_BENCHMARK_SEED: ${{ github.event.inputs.seed || 'scripted-seeds' }}
+      BATTLE_TYPE: ${{ github.event.inputs.battle_type || 'meeting' }}
+      QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
+      QUERY_ON: ${{ github.event.inputs.query_on || '' }}
 
     steps:
       - name: Checkout
@@ -348,12 +344,12 @@ jobs:
       viewer: ${{ steps.publish.outputs.viewer }}
       viewer_preview: ${{ steps.publish.outputs.viewer_preview }}
     env:
-      SEED_PREFIX: ${{ github.event_name == 'push' && 'buddy-pairs' || github.event.inputs.seed || 'scripted-seeds' }}
-      SEEDS: ${{ github.event_name == 'push' && '100' || github.event.inputs.seeds }}
+      SEED_PREFIX: ${{ github.event.inputs.seed || 'scripted-seeds' }}
+      SEEDS: ${{ github.event.inputs.seeds }}
       WINDOWS: ${{ needs.plan.outputs.windows }}
-      BATTLE_TYPE: ${{ github.event_name == 'push' && 'meeting' || github.event.inputs.battle_type || 'meeting' }}
-      QUERY_OFF: ${{ github.event_name == 'push' && 'buddyPairs=0' || github.event.inputs.query_off || '' }}
-      QUERY_ON: ${{ github.event_name == 'push' && 'buddyPairs=1' || github.event.inputs.query_on || '' }}
+      BATTLE_TYPE: ${{ github.event.inputs.battle_type || 'meeting' }}
+      QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
+      QUERY_ON: ${{ github.event.inputs.query_on || '' }}
       SHARDS_RESULT: ${{ needs.shards.result }}
     steps:
       - name: Checkout the compare tools
@@ -468,9 +464,9 @@ jobs:
           VIEWER: ${{ needs.single.outputs.viewer || needs.compare.outputs.viewer }}
           VIEWER_PREVIEW: ${{ needs.single.outputs.viewer_preview || needs.compare.outputs.viewer_preview }}
           SEED: ${{ github.event.inputs.seed }}
-          SEEDS: ${{ github.event_name == 'push' && '100' || github.event.inputs.seeds || '1' }}
-          QUERY_OFF: ${{ github.event_name == 'push' && 'buddyPairs=0' || github.event.inputs.query_off || '' }}
-          QUERY_ON: ${{ github.event_name == 'push' && 'buddyPairs=1' || github.event.inputs.query_on || '' }}
+          SEEDS: ${{ github.event.inputs.seeds || '1' }}
+          QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
+          QUERY_ON: ${{ github.event.inputs.query_on || '' }}
           SOURCE_REF: ${{ github.ref_name }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
