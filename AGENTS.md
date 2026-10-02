@@ -339,15 +339,19 @@ from a random live squad on the player's faction (`us` by default; `?playerFacti
 German). Press Menu again to jump to another random living soldier on the same faction; **View**
 returns to the free camera. Controls: **LS** move, **L3** run, **RS** look, **LT** aim,
 **RT** fire, **B** crouch/stand, **A** prone/stand. The possessed soldier alone temporarily skips
-Perception/Engagement decision updates while the short player movement lease is live; squad command
-and every other soldier keep running. Possession starts in a player-owned standing stance. The pad's
-walk/run choice overrides squad hold/defend gait selection for that soldier only, and the player's
-trigger bypasses squad HOLD FIRE / precision authorization while still using the normal weapon
-cooldown, ammo/stoppage, range, terrain LOS, ballistics, wounds and presentation FX gates. Movement
+The possessed soldier carries `isPlayer=true` for the full possession lifetime; that flag, not the
+short render-time movement proposal, gates the entire soldier Micro path. While it is set, SquadAI
+does not run before/after Micro extensions, Perception or Engagement for that man, the Movement
+Resolver never falls through to squad/tactical routing if an input proposal expires, and building
+hardpoints cannot assign or retain him. Squad command and every other soldier keep running.
+Possession starts in a player-owned standing stance. The pad's walk/run choice overrides squad
+hold/defend gait selection for that soldier only. RT is true free-fire: it launches the crosshair
+ray even with no AI target lock, using the normal ammunition/reload/stoppage owner and physical
+ballistics through terrain, buildings, bodies, penetration, wounds and presentation FX. Movement
 still goes through `BattleMovementResolver` and the shipping movement integrator, stance through
-`BattleEngagement.commitStance`, targeting through `SquadAI.playerAim`, and firing through
-`SquadAI.playerFire`. The third-person camera is terrain-clamped so its shoulder position cannot
-drop below the ground. Death automatically picks another living soldier on the same faction when possible.
+`BattleEngagement.commitStance`, and optional reticle selection through `SquadAI.playerAim`.
+The third-person camera is terrain-clamped so its shoulder position cannot drop below the ground.
+`isPlayer` is cleared only on switch/exit/death handoff, at which point normal Micro resumes.
 
 **Device benchmark** (`modules/97-device-benchmark.js`, inert without the flag): open the page with
 `?bench=1` on any phone or computer, tap **Start benchmark** and keep the tab in front. It
