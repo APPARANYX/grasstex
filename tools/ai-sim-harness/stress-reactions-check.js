@@ -12,10 +12,12 @@
      flee, freeze, rage; nothing enabled or nothing with weight means no break.
    - flee leaves his weapons, runs to his squad's last safe point (else its home), never fires, holds when it arrives
      and releases a firing station (the whole of what follows, the wait, the pick-up and the weapon at base, is
-     fled-man-check.js); freeze holds and does not fire; rage charges, fires on the move and strikes at arm's length,
+     fled-man-check.js); freeze holds, does not fire, scan, track or turn toward contacts, and is not selected as a
+     fresh visual threat while dazed; rage charges, fires on the move and strikes at arm's length,
      and ends when nobody is within RAGE_REACH.
-   - A freeze, cower or charge lasts at least REACT_MIN (cower: until the fire is quiet) and ends once he is below
-     broken; a flee does not end: he is done with the fight. A squad that is already retreating is not reacted for.
+   - Freeze duration is a bounded one-time snapshot from recent stress tempo: the same final stress reached abruptly
+     lasts longer than a slow simmer, 12..48 s, and expiry forces a reassessment even if he is still broken. Cower/charge
+     keep their existing minimums; a flee does not end: he is done with the fight. A squad already retreating is not reacted for.
    - The squad report names the men reacting, they are neither base of fire nor movers, and no station is claimed for
      them.
    - The choice draws nothing from the combat RNG (a blow's roll and the wound do, and nothing else).
@@ -98,6 +100,29 @@ function under(ctx, s, seconds) {
 }
 function temper(ctx, s, flee, freeze, rage) {
   ctx.M.of(s).temper = { flee, freeze, rage };
+}
+function seededTempoFreeze(entries) {
+  const ctx = world('?stressAct=freeze'),
+    s = man(ctx.us, 'rifleman');
+  tick(ctx, s);
+  temper(ctx, s, 0, 1, 0);
+  const m = ctx.M.of(s);
+  m.stress = m.pub = 0.9;
+  m.band = 3;
+  m.bandSince = ctx.b.time;
+  m.at = ctx.b.time;
+  m.recentStressors = entries.map(e => ({
+    at: ctx.b.time - e.age,
+    kind: e.kind || 'suppression',
+    gain: e.gain,
+    stress: e.stress == null ? 0.1 : e.stress
+  }));
+  m.lastIncomingAt = ctx.b.time; // situation says stopping fits; this adds no stress by itself
+  const g = foe(ctx, s, 80);
+  ctx.us.contact = { x: g.root.position.x, z: g.root.position.z, at: ctx.b.time, seenBy: s.id };
+  ctx.E.updateSoldier(s, ctx.b);
+  assert.equal(s.eng.state, 'freeze');
+  return { ctx, s, g };
 }
 /* An enemy of the man's at distance `d` along +z, as the squad's picture and his own target. */
 function foe(ctx, s, d) {
@@ -422,6 +447,135 @@ test('freeze: down where he is, holds, no fire, and does not take a bound or the
   assert.equal(shots, 0);
   assert.ok(dist(p, s.destination) < 0.5, 'where he was');
   assert.ok(dist(p, here(s)) < 0.01, 'and he has not moved');
+});
+
+test('freeze duration follows stress tempo: equal final stress reached quickly freezes longer than slowly', () => {
+  const quick = seededTempoFreeze([
+      { age: 0.2, gain: 0.2 },
+      { age: 0.6, gain: 0.2 },
+      { age: 1.0, gain: 0.2 },
+      { age: 1.4, gain: 0.2 }
+    ]),
+    slow = seededTempoFreeze([
+      { age: 2.5, gain: 0.2 },
+      { age: 5.0, gain: 0.2 },
+      { age: 9.0, gain: 0.2 },
+      { age: 13.0, gain: 0.2 }
+    ]);
+  assert.equal(quick.ctx.M.stress(quick.s), slow.ctx.M.stress(slow.s), 'same final stress');
+  assert.ok(
+    quick.s.eng.freezeDuration > slow.s.eng.freezeDuration + 4,
+    'concentrated dose freezes materially longer: ' +
+      quick.s.eng.freezeDuration.toFixed(2) +
+      ' vs ' +
+      slow.s.eng.freezeDuration.toFixed(2)
+  );
+  assert.ok(quick.s.eng.freezeDuration <= quick.ctx.M.tuning.FREEZE_MAX + 1e-9);
+  assert.ok(slow.s.eng.freezeDuration >= slow.ctx.M.tuning.FREEZE_MIN - 1e-9);
+  assert.equal(quick.s.eng.freezeDose.recentTotal.toFixed(3), slow.s.eng.freezeDose.recentTotal.toFixed(3));
+  assert.ok(
+    quick.s.eng.freezeDose.shortestWindowDose > slow.s.eng.freezeDose.shortestWindowDose,
+    'the shortest window distinguishes shock from simmer'
+  );
+  const snap = quick.ctx.M.snapshot(quick.s);
+  assert.ok(
+    snap.recentDose && snap.recentDose.dominantKind === 'suppression',
+    'diagnostics expose recent dose'
+  );
+});
+
+test('freeze expires while still broken and cannot restart inside the same broken episode', () => {
+  const { ctx, s } = broke('?stressAct=freeze,cower', [0, 1, 0], 100);
+  assert.equal(s.eng.state, 'freeze');
+  const firstUntil = s.eng.freezeUntil;
+  assert.ok(firstUntil > ctx.b.time);
+  let sawAfter = false;
+  for (let i = 0; i < 200 && ctx.b.time < firstUntil + 3; i++) {
+    const m = ctx.M.of(s);
+    m.stress = m.pub = 0.95;
+    m.lastIncomingAt = ctx.b.time;
+    tick(ctx, s);
+    if (ctx.b.time >= firstUntil) sawAfter = true;
+  }
+  assert.equal(sawAfter, true);
+  assert.notEqual(s.eng.state, 'freeze', 'the bounded spell ended despite persistent broken stress');
+  assert.equal(s.eng.state, 'cower', 'still-broken under-fire fallback is defensive, not another freeze');
+  assert.ok(s.eng.freezeEndedAt >= firstUntil);
+  assert.match(s.eng.freezeExitReason, /^duration-expired-broken:/);
+  const ended = s.eng.freezeEndedAt;
+  for (let i = 0; i < 80; i++) {
+    const m = ctx.M.of(s);
+    m.stress = m.pub = 0.95;
+    m.lastIncomingAt = ctx.b.time;
+    tick(ctx, s);
+    assert.notEqual(s.eng.state, 'freeze', 'same broken episode never restarts freeze');
+  }
+  assert.equal(s.eng.freezeEndedAt, ended, 'one freeze episode, one end record');
+});
+
+test('flee is non-threatening, while rage remains an active visual threat', () => {
+  const fled = broke('?stressAct=flee', [0.9, 0, 0], 60, { safe: { x: 0, z: -40 } });
+  assert.equal(fled.s.eng.state, 'flee');
+  fled.ctx.us.members.forEach(o => {
+    if (o !== fled.s) put(o, 1000 + o.id * 10, 1000);
+  });
+  put(fled.g, fled.s.root.position.x, fled.s.root.position.z + 50);
+  fled.g.root.rotation.y = Math.PI;
+  fled.g.target = fled.s;
+  fled.ctx.S.perceive(fled.g, fled.ctx.b);
+  assert.equal(fled.g.target, null, 'an already-tracked fleeing man is dropped');
+  fled.g._scanAt = 0;
+  fled.ctx.S.perceive(fled.g, fled.ctx.b);
+  assert.equal(fled.g.target, null, 'a fleeing man is not reacquired');
+  fled.g.target = fled.s;
+  fled.g.fireCooldown = 0;
+  assert.equal(
+    fled.ctx.S.tryFire(fled.g, fled.ctx.b),
+    false,
+    'the trigger path also rejects a stale fleeing target'
+  );
+
+  const raging = broke('?stressAct=rage', [0, 0, 0.95], 50);
+  assert.equal(raging.s.eng.state, 'rage');
+  raging.ctx.us.members.forEach(o => {
+    if (o !== raging.s) put(o, 1000 + o.id * 10, 1000);
+  });
+  put(raging.g, raging.s.root.position.x, raging.s.root.position.z + 50);
+  raging.g.root.rotation.y = Math.PI;
+  raging.g.target = null;
+  raging.g._scanAt = 0;
+  raging.ctx.S.perceive(raging.g, raging.ctx.b);
+  assert.equal(raging.g.target, raging.s, 'rage stays targetable because the man is still attacking');
+});
+
+test('freeze suspends perception and facing, and opposing perception does not posture around the dazed man', () => {
+  const { ctx, s, g } = broke('?stressAct=freeze', [0, 0.9, 0], 60);
+  assert.equal(s.eng.state, 'freeze');
+
+  /* The frozen man had a live enemy when he broke; the reaction must remove every input that can rotate
+     the stationary root under the Sitting Dazed / other freeze hold. */
+  s.target = g;
+  s._faceHint = { x: g.root.position.x, z: g.root.position.z };
+  const yaw = s.root.rotation.y;
+  ctx.S.perceive(s, ctx.b);
+  assert.equal(s.target, null, 'no target tracking while frozen');
+  ctx.E.updateSoldier(s, ctx.b);
+  assert.equal(s._faceHint, null, 'Engagement clears its own facing hint while frozen');
+  assert.equal(ctx.S.lookYaw(s, ctx.b), yaw, 'no sector scan/head-turn source while frozen');
+
+  /* Park every other US man outside spotting range so the German observer has exactly one possible
+     visual contact. If he was already tracking the man, the target drops; a new scan skips him. */
+  ctx.us.members.forEach(o => {
+    if (o !== s) put(o, 1000 + o.id * 10, 1000);
+  });
+  put(g, s.root.position.x, s.root.position.z + 60);
+  g.root.rotation.y = Math.PI;
+  g.target = s;
+  ctx.S.perceive(g, ctx.b);
+  assert.equal(g.target, null, 'an existing target is dropped when that man freezes');
+  g._scanAt = 0;
+  ctx.S.perceive(g, ctx.b);
+  assert.equal(g.target, null, 'a frozen man is not reacquired as an active visual threat');
 });
 
 test("rage: charges the enemy, fires on the move, strikes at arm's length, and ends when nobody is near", () => {
@@ -768,22 +922,24 @@ test('rage: with ?rageTrance=1 it is a trance: calm and retreat do not end it, g
   assert.equal(c.ctx.E.guardOnHit(c.s, c.ctx.b, 1), 1);
 });
 
-test('a break lasts at least REACT_MIN, ends once he is below broken, and he rejoins the fight', () => {
+test('a dazed freeze lasts its snapshotted duration even if he calms, then he rejoins and may freeze on a new break', () => {
   const { ctx, s } = broke('?stressAct=freeze', [0, 0.9, 0], 100);
   assert.equal(s.eng.state, 'freeze');
-  const min = ctx.E.tuning.ACT_TUNING.REACT_MIN;
-  stressTo(ctx, s, 'steady'); // he is calm at once
-  tick(ctx, s, 1);
-  assert.equal(s.eng.state, 'freeze', 'calm, but not for REACT_MIN yet');
-  tick(ctx, s, min);
-  assert.notEqual(s.eng.state, 'freeze', 'then he is out of it');
+  const duration = s.eng.freezeDuration,
+    until = s.eng.freezeUntil;
+  assert.ok(duration >= ctx.M.tuning.FREEZE_MIN && duration <= ctx.M.tuning.FREEZE_MAX);
+  stressTo(ctx, s, 'steady'); // calming does not cancel the dazed spell early
+  tick(ctx, s, Math.max(1, duration - 1));
+  assert.equal(s.eng.state, 'freeze', 'still dazed before freezeUntil');
+  while (ctx.b.time <= until + H.AI_TICK && s.eng.state === 'freeze') tick(ctx, s);
+  assert.notEqual(s.eng.state, 'freeze', 'the bounded daze expires on its own timer');
   assert.equal(ctx.E.reacting(s), false);
-  /* Broken again: broken again. */
+  /* Broken again after returning through steady is a new episode, so freeze may happen again. */
   stressTo(ctx, s, 'broken');
   tick(ctx, s, 0.6);
   assert.equal(s.eng.state, 'freeze');
   assert.equal(ctx.M.of(s).acts.freeze.n, 2, 'two spells counted');
-  assert.ok(ctx.M.of(s).acts.freeze.sec > 3, 'and the seconds in them');
+  assert.ok(ctx.M.of(s).acts.freeze.sec >= duration - 1, 'the first spell contributed its bounded seconds');
 });
 
 test('a squad that is already retreating is not reacted for', () => {
