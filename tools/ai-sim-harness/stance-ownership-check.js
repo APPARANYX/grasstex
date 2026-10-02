@@ -341,6 +341,9 @@ test('LoopWatch flags four committed stance changes in 8 seconds only with stabl
 
 test('shared-contact reaction does not lower a visibility stance chosen by Engagement',()=>{
   const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement;
+  /* Combat Urgency deliberately refuses to attach without the shipping Movement Resolver.
+     Load the real owner here so this regression exercises the actual shared-contact extension. */
+  load(r,'battle/movement-resolver.js');
   load(r,'battle/modules/44-combat-urgency.js');
   s.target=null;s.eng=null;
   const e=E.stateOf(s);
