@@ -13,6 +13,7 @@ function world(flag){
   r.BattleCommanderDoctrine={policyFor(){return{cohesionRadius:34,captainlessCohesion:26};}};
   r.BattleTelemetry={record(type,data){events.push({type,data});}};
   r.BattleSoldierMind={teamStress(){return 0;},leadStress(){return 0;},squadStress(){return 0;}};
+  r.BattleTacticalPositions={current(s){return s&&s._testPositional?{id:'test-position'}:null;}};
   const search='?fireControl=0&coa=0&slStress=0&'+(flag||'buddyPairs=1');
   new Function('window','globalThis','console','location',SRC)(r,r,{log(){},warn(){}},{search});
   const b=H.makeBattle(r,{seed:12345}),report={inContact:true,effective:10,pinned:0,reacting:[]};
@@ -70,10 +71,38 @@ test('suppression/incompatibility degrades cooperation without deadlocking the o
   assert.ok(w.sent[0].includes(b.id),'the unsuppressed buddy can still move');
   a.suppressedUntil=0;w.r.BattleLeases.end(q,'bound',w.b.time,'test');w.r.BattleLeases.end(q,'bound-cycle',w.b.time,'test');
   w.b.time=21;w.S.updateBuddyPairs(q,w.b);
+  assert.equal(pairForTeam(w,q,'alpha').state,'suppressed','one clear tick starts, not completes, recovery');
+  w.b.time=22.6;w.S.updateBuddyPairs(q,w.b);
   assert.equal(pairForTeam(w,q,'alpha').state,'ready');
-  assert.ok(w.S.buddyTelemetry(w.b).reforms>=1,'reform is counted');
-  b.eng=b.eng||{};b.eng.state='freeze';w.b.time=22;w.S.updateBuddyPairs(q,w.b);
+  assert.ok(w.S.buddyTelemetry(w.b).reforms>=1,'reform is counted after stable recovery');
+  b.eng=b.eng||{};b.eng.state='freeze';w.b.time=23;w.S.updateBuddyPairs(q,w.b);
   assert.equal(pairForTeam(w,q,'alpha').state,'incompatible');
+  b.eng.state='advance';b._testPositional=true;w.b.time=24;w.S.updateBuddyPairs(q,w.b);
+  assert.equal(pairForTeam(w,q,'alpha').reason,'positional-task','an incompatible task keeps the pair degraded');
+  b._testPositional=false;w.b.time=25;w.S.updateBuddyPairs(q,w.b);
+  assert.equal(pairForTeam(w,q,'alpha').state,'incompatible');
+  w.b.time=26.6;w.S.updateBuddyPairs(q,w.b);
+  assert.equal(pairForTeam(w,q,'alpha').state,'ready');
+});
+
+
+test('plan refreshes do not create fake break/reform churn and separation uses hysteresis',()=>{
+  const w=world(),q=squad(w),p=pairForTeam(w,q,'alpha'),a=byId(q,p.a),b=byId(q,p.b),before=w.S.buddyTelemetry(w.b);
+  a._engagementTask=b._engagementTask='support';a._engagementPlanSerial=b._engagementPlanSerial=2;
+  w.b.time=1;w.S.updateBuddyPairs(q,w.b);
+  const refreshed=pairForTeam(w,q,'alpha'),after=w.S.buddyTelemetry(w.b);
+  assert.equal(refreshed.id,p.id);assert.equal(refreshed.state,'ready');
+  assert.equal(after.breaks,before.breaks);assert.equal(after.reforms,before.reforms);
+  assert.ok(refreshed.lastTaskChangeAt===1&&refreshed.generation>p.generation-1,'task context is still inspectable');
+
+  b.root.position.x=a.root.position.x+17;w.b.time=2;w.S.updateBuddyPairs(q,w.b);
+  assert.equal(pairForTeam(w,q,'alpha').state,'separated');
+  b.root.position.x=a.root.position.x+12;w.b.time=3;w.S.updateBuddyPairs(q,w.b);
+  assert.equal(pairForTeam(w,q,'alpha').state,'separated','does not chatter at the break threshold');
+  b.root.position.x=a.root.position.x+9;w.b.time=4;w.S.updateBuddyPairs(q,w.b);
+  assert.equal(pairForTeam(w,q,'alpha').state,'separated','reform requires stable proximity');
+  w.b.time=5.6;w.S.updateBuddyPairs(q,w.b);
+  assert.equal(pairForTeam(w,q,'alpha').state,'ready');
 });
 
 test('cover/move cooperation narrows an authorized bound but never becomes a movement writer',()=>{
