@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* Xbox battle-player control contract: isPlayer is the possession authority boundary. It gates the
+/* Keyboard/Xbox battle-player control contract: isPlayer is the possession authority boundary. It gates the
    whole soldier Micro path, survives squad-plan/indoor routing churn, gives the player a true free-fire
    crosshair ray, and returns the soldier cleanly to AI only when possession ends. */
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),H=require('./harness');
@@ -12,6 +12,18 @@ assert.match(cameraSource,/buttonValue\(pad,7\)/,'RT must feed player fire');
 assert.match(cameraSource,/buttonValue\(pad,10\)/,'L3 must feed player run');
 assert.match(cameraSource,/playerYaw\+=lx\*PLAYER_LOOK_RATE\*dt/,'RS right must turn the player camera right');
 assert.doesNotMatch(cameraSource,/playerYaw-=lx\*PLAYER_LOOK_RATE\*dt/,'player horizontal look must not be reversed');
+assert.doesNotMatch(cameraSource,/if\(!pad&&padId\)[\s\S]{0,220}if\(!pad\)return;/,'free-camera keyboard movement must not return when no gamepad is connected');
+assert.match(cameraSource,/var f=\(keys\.has\('w'\)\?1:0\)[\s\S]*?if\(pad\)\{\s*var axes=pad\.axes/,'keyboard fly input must be evaluated outside the optional gamepad branch');
+assert.match(cameraSource,/if\(key==='p'\)[\s\S]*?possessRandom\(\)/,'P must enter or switch keyboard player mode');
+assert.match(cameraSource,/playerMovementKey\(key\)[\s\S]*?keys\.add\(key\)/,'WASD\/Shift must feed keyboard player movement');
+assert.match(cameraSource,/mx=\(keys\.has\('d'\)[\s\S]*?my=\(keys\.has\('w'\)/,'keyboard player movement must join the same movement vector as the left stick');
+assert.match(cameraSource,/playerYaw\+=event\.movementX\*LOOK_X/,'mouse movement must turn the possessed player');
+assert.match(cameraSource,/event\.button===0\)mouseFire=true/,'left mouse must feed player fire');
+assert.match(cameraSource,/event\.button===2\)mouseAim=true/,'right mouse must feed player aim');
+assert.match(cameraSource,/key==='c'[\s\S]*?togglePlayerCrouch/,'C must toggle crouch\/stand');
+assert.match(cameraSource,/key==='z'[\s\S]*?togglePlayerProne/,'Z must toggle prone\/stand');
+assert.match(cameraSource,/key==='v'[\s\S]*?leavePlayer/,'V must exit player mode');
+assert.doesNotMatch(cameraSource,/leavePlayer\('controller disconnected'\)/,'controller disconnect must fall back to keyboard player control instead of ending possession');
 assert.match(cameraSource,/heightAt\(cam\.position\.x,cam\.position\.z\)/,'player camera must clamp against terrain');
 assert.match(cameraSource,/SquadAI\.playerFireRay/,'RT must use free-fire player ray authority');
 const microSource=fs.readFileSync(path.join(H.REPO,'battle/squad-ai.js'),'utf8');
