@@ -95,6 +95,8 @@
         stance: 'stand',
         stanceUntil: 0,
         stanceTrail: [],
+        advanceLowUntil: 0,
+        withdrawLowUntil: 0,
         fireReadyAt: 0,
         threatSector: null,
         cover: null,
@@ -2057,9 +2059,13 @@
       commitStance(s, battle, 'crouch', Math.max(0.5, shockUntil(s) - battle.time));
       return;
     }
-    /* Upright only on a quiet march: under fire, or while the squad is on the enemy's heels, he moves
-       crouched rather than standing for the beat between two contacts. */
-    var low = s.suppressedUntil > battle.time || squadOnHeels(s, battle);
+    /* Upright only on a quiet march. Contact can blink for one perception/commander tick (especially
+       when a spoken callout refreshes the squad picture), so remember the last low-posture reason for the
+       same ALERT_HOLD window used by the threat sector. Standing therefore means genuinely quiet, not
+       merely "no contact on this one tick". ?contactStance=0 deliberately keeps the old raw control. */
+    var lowNow = s.suppressedUntil > battle.time || squadOnHeels(s, battle);
+    if (CONTACT_STANCE && lowNow) e.advanceLowUntil = Math.max(+e.advanceLowUntil || 0, battle.time + ALERT_HOLD);
+    var low = lowNow || (CONTACT_STANCE && battle.time < (+e.advanceLowUntil || 0));
     if (!holdStance(s, battle)) commitStance(s, battle, low ? 'crouch' : 'stand', 1.0);
     followOrders(s, battle, false);
   }
@@ -2334,15 +2340,18 @@
     s.state = 'retreat';
     s.setUp = false;
     e.cover = null;
-    /* Retreat posture follows the broader "under fire" window, then lets the stance lease decay.
-       A suppression timer ending for one tick is no longer permission to stand and immediately kneel again. */
+    /* Retreat posture follows the broader "under fire" window and remembers the last incoming-fire
+       evidence for ALERT_HOLD. Bursts separated by a short lull no longer produce stand/crouch bobbing:
+       the man only stands after a real quiet interval. */
     var underFire = underFireNow(s, battle);
+    if (underFire) e.withdrawLowUntil = Math.max(+e.withdrawLowUntil || 0, battle.time + ALERT_HOLD);
+    var withdrawLow = underFire || battle.time < (+e.withdrawLowUntil || 0);
     commitStanceRespectHold(
       s,
       battle,
-      underFire ? 'crouch' : 'stand',
-      underFire ? 1.0 : 0.5,
-      underFire ? 'withdraw:under-fire' : 'withdraw:clear'
+      withdrawLow ? 'crouch' : 'stand',
+      withdrawLow ? 1.0 : 0.5,
+      withdrawLow ? 'withdraw:under-fire' : 'withdraw:clear'
     );
     followOrders(s, battle, true);
     if (s.target && dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z) < 35)
