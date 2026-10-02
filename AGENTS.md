@@ -148,6 +148,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `voice-determinism-check.js` | Voice callouts never draw from the combat RNG: a battle is identical with and without voice |
 | `local-steering-check.js` | `stepMovement`'s soft steering (`steerAroundObstacles`, loaded from `battle-sim.js`; the harness stubs it out of `stepMovement`): a man bounding to a wall's cover slot between two tactical circles reaches it, the circles his destination hugs never push him, avoidance deflects but never turns him round, and it still steers round an obstacle on the way elsewhere; the look-ahead never passes the end of his leg and circles holding his waypoint do not push (the scout's real wall, three circles) |
 | `stance-ownership-check.js` | Engagement is the only stance writer: no other runtime file sets `prone`/`tacticalCrouch`/`crawling`/`crouching` (the body's `setCrouch`/`setProne` and SquadAI's no-Engagement fallback aside), `crouching` is derived from the committed flags (never stored, a write throws), `BattleEngagement.requestStance` only takes a man lower, and an advancing man is crouched while his squad is on the enemy's heels (`inContact` or a picture within `ALERT_HOLD`) or he is under fire |
+| `player-control-check.js` | Player possession is a short movement lease above AI goals; while live it prevents Perception/Engagement from replacing the player's target, carries the L3 run multiplier through the real movement integrator, changes crouch/prone/stand through Engagement's stance owner, and after release normal Perception reacquires the enemy. |
 | `soldier-mind-check.js` | Soldier condition (module 17): a friend down is felt by distance, line of sight past 8 m and squad (not by enemies, the far or the blind), the leader down by the whole squad within 60 m, suppression/wounds/aimed rounds add stress (rounds by range), decay with the leader, cover and company calming and being under fire slowing it, contagion never past the neighbour, stress in [0, 1], band hysteresis, levers neutral when off, the module writes only `mind`, and a full firefight with it observing is the same battle (end state and combat-RNG draws) as one without it |
 | `soldier-mind-behaviour-check.js` | What stress costs a man: recognition (`reactTime`, the orient window, the re-orient) stretches, the shot group widens, an ordered bound waits (never past the 3.6 s window, forgotten with the order), a shocked man does not fire, halts and crouches if only advancing, and starts no bound; each lever neutral when off and separately switchable, the `morale` lever included (the squad mean the Squad Leader reads is the roll-up with it on and calm men with it off, observing or not listed) |
 | `soldier-mind-telemetry-check.js` | What the benchmark's `stress` block counts and that counting changes nothing (module 17 `noteReact`, `noteAim`, `noteBound`, `noteLapse`, `noteShock`, `step`, `telemetry`): a recognition is one decision when it begins (not each tick of the orient window), a round is one when it leaves the muzzle, a bound when it starts and whether it waited, an order that ended while he waited is a lapse; the freeze is counted only when it alone stopped a decision (Engagement asks it last, and `fireAllowed` gives the same answer as before in all 128 combinations of its conditions); lever off counts nothing changed, `?mind=0` keeps nothing; no combat-RNG draw and nothing written but the man's own `mind`; the series is one row per side per simulated second in the named columns, cumulative where it counts, squads are over at mean stress 1/3 (and with 3+ living men) with an entry marker at the simulated second, markers are capped and the overflow counted, sides add up to the whole and bands to the changed decisions, `reset` clears it, a 600 s block stays under 200 KB |
@@ -331,6 +332,19 @@ controls. The camera follows the busiest living soldier initially and transfers 
 soldier 3 sim seconds after death. It reads presentation transforms only and never writes simulation
 state. The user can still drag to change bearing/elevation and wheel to zoom. This is separate from
 the benchmark-only `benchCam=follow` camera.
+
+**Xbox battle player mode** (`battle/camera-controls.js` + existing AI owners): on the normal battle
+page, the standard Xbox **Menu/Start** button enters player mode by choosing a random living soldier
+from a random live squad on the player's faction (`us` by default; `?playerFaction=ge` chooses
+German). Press Menu again to jump to another random living soldier on the same faction; **View**
+returns to the free camera. Controls: **LS** move, **L3** run, **RS** look, **LT** aim,
+**RT** fire, **B** crouch/stand, **A** prone/stand. The possessed soldier alone temporarily skips
+Perception/Engagement decision updates while the short player movement lease is live; squad command
+and every other soldier keep running. Movement still goes through `BattleMovementResolver` and the
+shipping movement integrator, stance through `BattleEngagement.commitStance`, targeting through
+`SquadAI.playerAim`, and firing through `SquadAI.tryFire`, so threat disposition, ammo, stoppages,
+range, terrain LOS, ballistics, wounds and presentation FX remain the normal simulation paths. Death
+automatically picks another living soldier on the same faction when possible.
 
 **Device benchmark** (`modules/97-device-benchmark.js`, inert without the flag): open the page with
 `?bench=1` on any phone or computer, tap **Start benchmark** and keep the tab in front. It
