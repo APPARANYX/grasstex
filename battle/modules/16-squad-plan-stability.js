@@ -1394,14 +1394,18 @@
       distance = center && anchor ? dist(center, anchor) : Infinity,
       goalChanged = !d.goal || dist(goal, d.goal) > RETREAT_GOAL_EPS,
       blocked = retreatBlocked(sq),
-      unsafe = retreatUnsafe(sq, battle, anchor, center);
+      unsafe = retreatUnsafe(sq, battle, anchor, center),
+      recovering =
+        d.reason === 'route blocked' || d.reason === 'anchor unsafe' || d.reason === 'no retreat progress';
     d.distance = distance;
 
     if (goalChanged) {
       L.end(sq, 'retreat-anchor', t, 'retreat goal moved');
       return grantRetreatAnchor(sq, battle, center, goal, 'retreat goal moved', 1);
     }
-    if (unsafe || blocked) {
+    /* A blocked/unsafe observation gets one recovery rebase, then that recovery itself receives the
+       normal lease/no-progress window. Persistent stop flags must not recreate the endpoint every tick. */
+    if ((unsafe || blocked) && !recovering) {
       L.end(sq, 'retreat-anchor', t, unsafe ? 'anchor unsafe' : 'route blocked');
       return grantRetreatAnchor(
         sq,
@@ -1429,7 +1433,8 @@
       L.extend(sq, 'retreat-anchor', 'squad-leader', t, t + RETREAT_ANCHOR_LEASE, 'retreat progress');
       return anchor;
     }
-    if (t - (+d.lastProgressAt || t) >= RETREAT_NO_PROGRESS || !L.holds(sq, 'retreat-anchor', t)) {
+    var progressAt = isFinite(+d.lastProgressAt) ? +d.lastProgressAt : t;
+    if (t - progressAt >= RETREAT_NO_PROGRESS || !L.holds(sq, 'retreat-anchor', t)) {
       L.end(sq, 'retreat-anchor', t, 'no retreat progress');
       return grantRetreatAnchor(sq, battle, center, goal, 'no retreat progress', RETREAT_RECOVERY_STRIDE);
     }
