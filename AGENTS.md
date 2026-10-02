@@ -1051,6 +1051,13 @@ before any effect is claimed.
   sidearms). Left: sniper roles (M1903A4 / Kar98k ZF39). They need a model and a weapon seat measured in
   Motion Lab, so they wait for that; the sidearm's pose and grip on the sergeant and gunner models is
   also worth a Motion Lab look once a close fight shows it. Any new role changes combat: benchmark it paired.
+- **Grenades** (owner, 2026-10-02: after the open soldier-level slices, behind a flag). A carried count in
+  `LOADOUTS`; a blast as a radius with falloff and a line-of-sight check through the wound model (zone, energy),
+  posting the existing suppression and stress events; one new Engagement throw action (enemy inside ~30 m behind
+  cover or in a building, no friend near the landing point, a cooldown, landing scatter from a fixed hash, never the
+  combat RNG). Needs assets first: a throw clip (not in the pack), Mk 2 and stick-grenade models, an explosion
+  sprite and sound. Contacts are mostly 150 m+, so it pays off in house and hedge fights; building clearing
+  (`AI_TACTICS_OUTLINE.md`) will use it. Benchmark paired like any new weapon.
 - **FG 42 balance.** The four-arm benchmark attributed the scout balance shift to the FG 42, not
   the perception cones. Test one lever at a time: Kar98k assignment, shorter practical FG 42 range,
   or wider dispersion/grouping at range. Use the existing `perception=0` / `geScout=carbine`
