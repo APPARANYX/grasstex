@@ -223,6 +223,61 @@ test('a firing station cannot raise a temporary lower stance request',()=>{
   assert.equal(s.eng.stance,'stand','station pose resumes when the lower-stance request expires');
 });
 
+test('LoopWatch keeps genuine destination cycling inside one movement regime',()=>{
+  const {r,b,s}=oneMan(),E=r.BattleEngagement;
+  load(r,'battle/modules/32-ai-loop-watch.js');
+  const L=r.BattleAILoopWatch,e=E.stateOf(s);
+  s.squad.commandPhase='assault';s.squad.state='engaged';e.state='advance';
+  for(let i=0;i<10;i++){
+    b.time=i;
+    s.root.position.x=i%2?2:0;s.root.position.z=0;
+    s.destination={x:i%2?10:-10,z:0};
+    L.sample(b);
+  }
+  const a=L.alerts(b).find(x=>x.kind==='position-seeking'&&String(x.soldierId)===String(s.id));
+  assert.ok(a,'stable-regime destination ping-pong remains visible');
+  assert.ok(a.destinationChanges>=5);
+  assert.ok(a.travel>=6&&a.net<4.5);
+});
+
+test('LoopWatch does not stitch position-seeking across command-phase changes',()=>{
+  const {r,b,s}=oneMan(),E=r.BattleEngagement;
+  load(r,'battle/modules/32-ai-loop-watch.js');
+  const L=r.BattleAILoopWatch,e=E.stateOf(s);
+  s.squad.state='engaged';s.squad.commandPhase='assault';e.state='advance';
+  for(let i=0;i<10;i++){
+    b.time=i;
+    if(i===5)s.squad.commandPhase='regroup';
+    s.root.position.x=i%2?2:0;s.root.position.z=0;
+    s.destination={x:i%2?10:-10,z:0};
+    L.sample(b);
+  }
+  assert.ok(!L.alerts(b).some(x=>x.kind==='position-seeking'&&String(x.soldierId)===String(s.id)),
+    'assault and accepted regroup are separate movement populations');
+});
+
+test('LoopWatch restarts position-seeking history on station and retreat authority takeovers',()=>{
+  const run=(kind)=>{
+    const {r,b,s}=oneMan(),E=r.BattleEngagement;
+    load(r,'battle/modules/32-ai-loop-watch.js');
+    const L=r.BattleAILoopWatch,e=E.stateOf(s);
+    s.squad.state='engaged';s.squad.commandPhase='assault';e.state='advance';
+    for(let i=0;i<10;i++){
+      b.time=i;
+      if(i===5){
+        if(kind==='station')e.state='station';
+        else{s.squad.state='retreat';e.state='withdraw';}
+      }
+      s.root.position.x=i%2?2:0;s.root.position.z=0;
+      s.destination={x:i%2?10:-10,z:0};
+      L.sample(b);
+    }
+    assert.ok(!L.alerts(b).some(x=>x.kind==='position-seeking'&&String(x.soldierId)===String(s.id)),
+      kind+' takeover starts a fresh movement regime');
+  };
+  run('station');run('retreat');
+});
+
 test('LoopWatch flags four committed stance changes in 8 seconds only with stable contact/cover and little movement',()=>{
   const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement;
   load(r,'battle/modules/32-ai-loop-watch.js');

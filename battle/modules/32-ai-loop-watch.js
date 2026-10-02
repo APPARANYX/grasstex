@@ -89,6 +89,26 @@ function changes(h,field,threshold){var n=0;for(var i=1;i<h.length;i++)if(dist(h
 function repeatingPeriod(h,field,maxP){
   for(var p=2;p<=maxP;p++){if(h.length<p*3)continue;var ok=true,uniq={};for(var i=0;i<p;i++){var a=h[h.length-1-i][field],b=h[h.length-1-p-i][field],c=h[h.length-1-2*p-i][field];uniq[a]=1;if(a!==b||a!==c){ok=false;break;}}if(ok&&Object.keys(uniq).length>1)return p;}return 0;
 }
+/* Position-seeking is meaningful only inside one movement regime. A retreat, accepted regroup,
+   player takeover, flee/rage break or firing-station ingress deliberately replaces the previous
+   destination authority. Stitching samples across that boundary turns one valid handoff into a
+   fake loop. Phase changes are also boundaries here; squad-level decision-cycle detection remains
+   responsible for diagnosing phases that themselves oscillate. */
+function movementRegime(s,sq,mr){
+  var last=mr&&mr.last,kind=last&&last.kind,eng=s&&s.eng&&s.eng.state,ph=String(sq&&sq.commandPhase||'');
+  if(s&&s.isPlayer||kind==='player')return'player';
+  if((sq&&sq.state==='retreat')||ph==='retreat'||kind==='retreat'||eng==='withdraw')return'retreat';
+  if(ph==='regroup'||kind==='regroup')return'regroup';
+  if(kind==='firing-station'||eng==='station')return'station';
+  if(kind==='flee'||eng==='flee')return'flee';
+  if(kind==='rage-charge'||eng==='rage')return'rage';
+  return'phase:'+ph;
+}
+function pushRegimeHistory(map,k,sample){
+  var h=map[k],prev=h&&h.length?h[h.length-1]:null;
+  if(prev&&prev.regime!==sample.regime)map[k]=h=[];
+  return pushHistory(map,k,sample);
+}
 function stateFor(sim){if(!sim._aiLoopWatch)sim._aiLoopWatch={lastSample:-999,squads:{},soldiers:{},alerts:[],reported:{}};return sim._aiLoopWatch;}
 function reset(sim){sim._aiLoopWatch={lastSample:-999,squads:{},soldiers:{},alerts:[],reported:{}};renderLoopPanel();}
 function emitAlert(sim,alert){
@@ -133,7 +153,7 @@ function sample(sim){
   ['us','ge'].forEach(function(f){var squads=sim.factions&&sim.factions[f]&&sim.factions[f].squads||[];for(var i=0;i<squads.length;i++){
     var sq=squads[i],members=(sq.members||[]).filter(function(s){return !s.dead&&s.root;}),pos=avgPosition(members),order=avgOrder(members);if(!pos)continue;
     var ss={time:sim.time,pos:pos,order:order,orderSig:pointSig(order,2.5),phase:sq.commandPhase||'',rule:sq._lastDoctrineRule||'',target:sq.targetObjective||'',goal:pointSig(sq.objective,3),inContact:!!sq.inContact};ss.decisionSig=[ss.phase,ss.rule,ss.target,ss.goal].join('|');var sh=pushHistory(st.squads,f+':'+sq.id,ss);detectSquad(sim,sq,sh);
-    for(var j=0;j<members.length;j++){var s=members[j],dest=s.destination?{x:+s.destination.x||0,z:+s.destination.z||0}:null,mr=s._movementResolver,hist=mr&&mr.history,lastWrite=hist&&hist.length?hist[hist.length-1]:null,sp={time:sim.time,pos:{x:+s.root.position.x||0,z:+s.root.position.z||0},dest:dest,destSig:pointSig(dest,1.8),eng:s.eng&&s.eng.state||s.state||'',phase:ss.phase,rule:ss.rule,inContact:ss.inContact,src:lastWrite?(lastWrite.source+'/'+(lastWrite.reason||lastWrite.kind||'')):null,goalValid:lastWrite?!!lastWrite.oldGoalValid:null,avoid:!!(s._movementYieldUntil>sim.time||s._separatedAt>sim.time-1)};var hh=pushHistory(st.soldiers,f+':'+sq.id+':'+s.id,sp);detectSoldier(sim,s,sq,hh);}
+    for(var j=0;j<members.length;j++){var s=members[j],dest=s.destination?{x:+s.destination.x||0,z:+s.destination.z||0}:null,mr=s._movementResolver,hist=mr&&mr.history,lastWrite=hist&&hist.length?hist[hist.length-1]:null,sp={time:sim.time,pos:{x:+s.root.position.x||0,z:+s.root.position.z||0},dest:dest,destSig:pointSig(dest,1.8),eng:s.eng&&s.eng.state||s.state||'',phase:ss.phase,rule:ss.rule,inContact:ss.inContact,src:lastWrite?(lastWrite.source+'/'+(lastWrite.reason||lastWrite.kind||'')):null,goalValid:lastWrite?!!lastWrite.oldGoalValid:null,avoid:!!(s._movementYieldUntil>sim.time||s._separatedAt>sim.time-1)};sp.regime=movementRegime(s,sq,mr);var hh=pushRegimeHistory(st.soldiers,f+':'+sq.id+':'+s.id,sp);detectSoldier(sim,s,sq,hh);}
   }});renderLoopPanel();
 }
 
