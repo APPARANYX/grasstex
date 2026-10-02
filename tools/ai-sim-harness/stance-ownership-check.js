@@ -341,6 +341,7 @@ test('LoopWatch flags four committed stance changes in 8 seconds only with stabl
 
 test('shared-contact reaction does not lower a visibility stance chosen by Engagement',()=>{
   const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement;
+  load(r,'battle/modules/44-combat-urgency.js');
   s.target=null;s.eng=null;
   const e=E.stateOf(s);
   s.squad.inContact=true;
