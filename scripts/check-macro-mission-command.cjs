@@ -54,11 +54,16 @@ test('capture completes exactly once and selects a remaining objective',()=>{
 test('removed objective invalidates the mission without resurrecting its route',()=>{
   const f=fixture();f.tick();const old=f.sq._macroMission;assert.ok(old);f.sim._objectives.shift();f.tick();assert.equal(old.status,'invalid');assert.equal(f.sq._macroMission.objectiveId,'b');assert.equal(f.sq.objective.x,200);
 });
-test('prolonged stall wakes once per strategic interval and can recur without progress',()=>{
+test('one stall episode escalates once at 120/180/240/300 seconds and never loops every sample',()=>{
   const f=fixture();f.tick();f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
-  const first=f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length;assert.equal(first,1);
-  for(let i=0;i<10;i++)f.tick();assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length,1);
-  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=241;f.sim.time=241;f.tick();assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length,2);
+  const stages=()=>f.events.filter(e=>e.type==='decision-strategic-recovery').map(e=>e.data.stage);
+  assert.deepEqual(stages(),['reconcile']);
+  for(let i=0;i<10;i++)f.tick();assert.deepEqual(stages(),['reconcile'],'120 s stage repeated every commander sample');
+  for(const age of [181,241,301]){f.sim._coordinationHealth.sides.us.objectiveStallSeconds=age;f.sim.time=age;f.tick();}
+  assert.deepEqual(stages(),['reconcile','release','main-effort','reset']);
+  for(let i=0;i<30;i++)f.tick();
+  assert.deepEqual(stages(),['reconcile','release','main-effort','reset'],'300 s reset oscillated after completion');
+  const st=f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us;assert.equal(st.completed,4);assert.equal(st.history.length,4);
 });
 test('the strategic-stall wake reads the stall seconds, never the replanDue flag',()=>{
   const f=fixture();f.tick();
@@ -67,6 +72,72 @@ test('the strategic-stall wake reads the stall seconds, never the replanDue flag
   assert.equal(wakes(),0,'a replan flag at 60 s of stall wakes nobody');
   f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121,replanDue:false}}};f.sim.time=121;f.tick();
   assert.equal(wakes(),1,'121 s of stall wakes the General whatever the flag says');
+});
+test('120 s reconcile repairs missing Macro projections without replacing a young valid brief',()=>{
+  const f=fixture();f.sim.time=100;f.tick();const mission=f.sq._macroMission;
+  f.sq.commandRole=null;f.sq.targetObjective=null;
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
+  assert.strictEqual(f.sq._macroMission,mission);assert.equal(f.sq.commandRole,mission.role);assert.equal(f.sq.targetObjective,mission.objectiveId);
+  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall-reconcile').length,1);
+});
+test('180 s release breaks stale hold and support assignments instead of refreshing them',()=>{
+  const f=fixture();f.action='hold';f.tick();
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
+  assert.equal(f.sq._macroMission.action,'hold');
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=181;f.sim.time=181;f.tick();
+  assert.equal(f.sq._macroMission.action,'assault','stale hold survived the release stage');
+  assert.equal(f.sq._macroMission.reason,'strategic-stall-release');
+
+  const g=fixture();g.sq.commandRole='support';g.tick();
+  g.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};g.sim.time=121;g.tick();
+  g.sim._coordinationHealth.sides.us.objectiveStallSeconds=181;g.sim.time=181;g.tick();
+  assert.equal(g.sq.commandRole,'center','stale support role was not released');assert.equal(g.sq._macroMission.role,'center');
+});
+test('240 s main effort masses a majority of available offensive squads on one reachable objective',()=>{
+  const f=fixture();
+  function mate(id,x){const m={id:id+'-s',role:'sergeant',dead:false,faction:'us',root:{position:{x,z:0}}};const q={id,faction:'us',state:'advance',commandRole:'center',commandPhase:'assault',targetObjective:null,objective:{x:100,z:0},rally:{x,z:0},home:{x,z:0},route:[{x,z:0},{x:50,z:0}],routeIndex:1,members:[m],aliveCount:1};m.squad=q;f.sim.factions.us.squads.push(q);f.sim._roster.us.push(m);return q;}
+  mate('us-1',-10);mate('us-2',10);f.tick();
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=181;f.sim.time=181;f.tick();
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=241;f.sim.time=241;f.tick();
+  const rec=f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us,target=rec.mainEffort;
+  assert.ok(target,'no main effort was selected');
+  const committed=f.sim.factions.us.squads.filter(q=>q.targetObjective===target&&q._macroMission?.intent==='capture').length;
+  assert.ok(committed>=2,'only '+committed+'/3 squads were given the main effort');
+  assert.equal(f.events.filter(e=>e.type==='decision-strategic-recovery'&&e.data.stage==='main-effort').length,1);
+});
+test('300 s reset leaves an owned defender and a recently progressing squad alone, and resets the stalled squad once',()=>{
+  const f=fixture();
+  function mate(id,x){const m={id:id+'-s',role:'sergeant',dead:false,faction:'us',root:{position:{x,z:0}}};const q={id,faction:'us',state:'advance',commandRole:'center',commandPhase:'assault',targetObjective:null,objective:{x:100,z:0},rally:{x,z:0},home:{x,z:0},route:[{x,z:0},{x:50,z:0}],routeIndex:1,members:[m],aliveCount:1};m.squad=q;f.sim.factions.us.squads.push(q);f.sim._roster.us.push(m);return q;}
+  const moving=mate('us-1',0),defender=mate('us-2',0);f.tick();
+  f.sim._objectives[0].state.owner='us';defender._preparedDefenseRequest={objectiveId:'a',point:{x:100,z:0}};f.tick();
+  assert.equal(defender._macroMission.intent,'defend');
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=181;f.sim.time=181;f.tick();
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=241;f.sim.time=241;f.tick();
+  const main=f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us.mainEffort;assert.ok(main);
+  const progressSquad=[f.sq,moving].find(q=>q.targetObjective===main)||moving;
+  const stalledSquad=progressSquad===f.sq?moving:f.sq;
+  progressSquad.members[0].root.position.x+=10;
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=250;f.sim.time=250;f.tick();
+  const beforeProgress=progressSquad._macroMission,beforeDefense=defender._macroMission,beforeStalled=stalledSquad._macroMission;
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=301;f.sim.time=301;f.tick();
+  const resetIds=f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-reset').map(e=>e.data.squad);
+  assert.ok(resetIds.includes(stalledSquad.id),'stalled squad was not reset');
+  assert.ok(!resetIds.includes(progressSquad.id),'recently progressing squad was reset');
+  assert.ok(!resetIds.includes(defender.id),'useful defender was reset');
+  assert.strictEqual(progressSquad._macroMission,beforeProgress);assert.strictEqual(defender._macroMission,beforeDefense);
+  assert.notStrictEqual(stalledSquad._macroMission,beforeStalled);
+  const n=resetIds.length;for(let i=0;i<20;i++)f.tick();
+  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-reset').length,n,'reset repeated every sample');
+});
+test('objective progress starts a fresh recovery episode',()=>{
+  const f=fixture();f.tick();f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:241}}};f.sim.time=241;f.tick();
+  assert.equal(f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us.completed,3);
+  f.sim._coordinationHealth={lastObjectiveProgressAt:250,sides:{us:{objectiveStallSeconds:10}}};f.sim.time=260;f.tick();
+  const r=f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us;assert.equal(r.completed,0);assert.equal(r.episode,'250');
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=121;f.sim.time=371;f.tick();
+  assert.equal(f.events.filter(e=>e.type==='decision-strategic-recovery'&&e.data.stage==='reconcile').length,2,'new stall episode did not get a new first-stage wake');
 });
 test('reserve commitment is one strategic event and does not revive reserve status',()=>{
   const f=fixture();f.sq.commandRole='reserve';f.sq.targetObjective=null;f.tick();assert.equal(f.sq._macroMission?.intent,'reserve');
@@ -118,24 +189,22 @@ test('contact freezes Squad Leader leg and phase under the same mission',()=>{
   f.sq.members[0].root.position.x=100;for(let i=0;i<10;i++)f.tick(); // inside the zone: no assault->capture rewrite mid-firefight
   assert.equal(f.sq.routeIndex,index);assert.equal(f.sq.commandPhase,phase);assert.equal(JSON.stringify(f.sq.objective),objective);
 });
-test('a stall never re-tasks a mission younger than the stall window',()=>{
+test('the 120 s reconcile does not retask a young mission, but later escalation may',()=>{
   const f=fixture();f.sim.time=100;f.tick();const mission=f.sq._macroMission;
   f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121,replanDue:true}}};f.sim.time=121;f.tick();
   const stalls=()=>f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length;
-  assert.strictEqual(f.sq._macroMission,mission);assert.equal(stalls(),0,'a 21 s old mission woke the General for a faction stall');
+  assert.strictEqual(f.sq._macroMission,mission);assert.equal(stalls(),0,'a 21 s old mission was treated as a failed 120 s effort');
   f.sim._coordinationHealth.sides.us.objectiveStallSeconds=241;f.sim.time=241;f.tick();
-  assert.equal(stalls(),1,'a mission older than the stall window must be reassessed');
+  assert.deepEqual(f.events.filter(e=>e.type==='decision-strategic-recovery').map(e=>e.data.stage),['reconcile','release','main-effort']);
 });
-test('a stall wake moves the stalled effort to another objective, and keeps it when there is none',()=>{
+test('the first stall stage moves an old failed effort, and the stall cost is still only a score',()=>{
   const f=fixture();f.tick();assert.equal(f.sq._macroMission.objectiveId,'a','the nearer objective is the first effort');
   f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121,replanDue:true}}};f.sim.time=121;f.tick();
-  assert.equal(f.sq._macroMission.objectiveId,'b','the stall wake re-picked the objective the side just failed to take');
-  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=241;f.sim.time=241;f.tick();
-  assert.equal(f.sq._macroMission.objectiveId,'a','a stalled switch is itself a stalled effort at the next stall');
-  const out=f.r.BattleCommanderAI.missionState(f.sim).stallOutcomes;assert.deepEqual([out.wakes,out.switches,out.repeats],[2,2,0]);
+  assert.equal(f.sq._macroMission.objectiveId,'b','the 120 s wake re-picked the objective the side just failed to take');
+  const out=f.r.BattleCommanderAI.missionState(f.sim).stallOutcomes;assert.deepEqual([out.wakes,out.switches,out.repeats],[1,1,0]);
   const g=fixture();g.sim._objectives.pop();g.tick();
   g.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121,replanDue:true}}};g.sim.time=121;g.tick();
-  assert.equal(g.sq._macroMission.objectiveId,'a','with no other objective the stall cost is not a veto');
+  assert.equal(g.sq._macroMission.objectiveId,'a','with no alternative the stalled objective remains legal');
 });
 test('a stall closes the stalled efforts, so the frontage limit does not hold the side on them',()=>{
   const f=fixture(),D=f.r.BattleCommanderDoctrine;f.sim._objectives.push({id:'c',def:{x:400,z:0,radius:20,value:1},state:{owner:'neutral'}});

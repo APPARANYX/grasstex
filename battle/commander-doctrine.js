@@ -334,7 +334,7 @@
     });
     return out;
   }
-  function chooseObjective(sim, sq, wantOwned, stalled) {
+  function chooseObjective(sim, sq, wantOwned, stalled, allowed) {
     var objectives = sim._objectives || [],
       p = avgPos(sq),
       cfg = policy(sim, sq.faction),
@@ -346,6 +346,7 @@
     if (doc.objectiveStrategy === 'sequential' && sq.faction === 'ge') ordered.reverse();
     var pool = [];
     for (var k = 0; k < ordered.length; k++) {
+      if (allowed && !allowed[String(ordered[k].id)]) continue;
       var c = candidate(sim, sq, ordered[k], k, wantOwned, doc);
       if (c) pool.push(c);
     }
