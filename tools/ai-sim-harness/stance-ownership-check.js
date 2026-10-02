@@ -127,6 +127,64 @@ test('requestStance only takes a man lower and goes through the commitment',()=>
   assert.equal(E.requestStance(s,b,'stand',9),false,'a request never stands a man up');
 });
 
+test('fire-control preparation keeps its prone lease across a brief control/contact blink',()=>{
+  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement,H_=E.tuning.ALERT_HOLD;
+  s.target=null;s.eng=null;
+  s.squad.contact={unit:enemy,x:enemy.root.position.x,z:enemy.root.position.z,at:b.time,seenBy:enemy.id};
+  s.squad.fireControl={state:'hold',targetId:enemy.id};
+  E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'prone','hold-fire preparation puts him prone');
+  assert.ok(s.eng.stanceUntil>=b.time+H_-1e-9,'the prep posture is leased for the remembered-threat window');
+
+  s.squad.fireControl=null;s.squad.contact=null;s.squad.inContact=false;
+  b.time+=1.2;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'prone','a short fire-control/contact blink cannot stand him back up');
+
+  b.time+=H_;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'stand','once the threat-memory lease expires a quiet advance may stand');
+});
+
+test('withdrawal suppression expiry has hysteresis instead of stand-crouch flutter',()=>{
+  const {r,b,s}=oneMan(),E=r.BattleEngagement;
+  s.target=null;s.eng=null;s.squad.state='retreat';s.suppressedUntil=b.time+.2;
+  E.updateSoldier(s,b);
+  assert.equal(s.eng.state,'withdraw');assert.equal(s.eng.stance,'crouch','under fire a withdrawing man stays low');
+  const heldUntil=s.eng.stanceUntil;
+
+  b.time+=.3;s.suppressedUntil=0;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'crouch','one suppression expiry tick cannot stand him during the hold');
+  assert.equal(s.eng.stanceUntil,heldUntil,'the clear tick does not rewrite/shorten the low-stance lease');
+
+  b.time=heldUntil+.05;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'stand','after the low-stance lease expires he resumes upright retreat');
+});
+
+test('a firing station cannot raise a temporary lower stance request',()=>{
+  const {r,b,s}=oneMan(),E=r.BattleEngagement;
+  s.target=null;s.eng=null;
+  E.commitStance(s,b,'stand',0,'probe:stand');
+  assert.equal(E.requestStance(s,b,'crouch',2),true);
+  const heldUntil=s.eng.stanceUntil;
+  const st={
+    id:'probe-port',x:s.root.position.x,z:s.root.position.z,
+    windowX:s.root.position.x,windowZ:s.root.position.z,normalX:0,normalZ:1,
+    port:{stance:'stand',stances:['stand','crouch']}
+  };
+  r.BattleTacticalPositions={
+    update:()=>true,
+    current:()=>({position:st,pose:{stance:'stand'},threatSector:null}),
+    anchor:()=>({x:st.x,z:st.z}),
+    noteAperture:()=>{}
+  };
+  E.updateSoldier(s,b);
+  assert.equal(s.eng.state,'station');
+  assert.equal(s.eng.stance,'crouch','station pose does not override the active lower-stance request');
+  assert.equal(s.eng.stanceUntil,heldUntil,'station does not extend or replace the request lease');
+
+  b.time=heldUntil+.05;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'stand','station pose resumes when the lower-stance request expires');
+});
+
 test('LoopWatch flags four committed stance changes in 8 seconds only with stable contact/cover and little movement',()=>{
   const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement;
   load(r,'battle/modules/32-ai-loop-watch.js');
