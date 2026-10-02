@@ -2060,13 +2060,14 @@
       commitStance(s, battle, 'crouch', Math.max(0.5, shockUntil(s) - battle.time));
       return;
     }
-    /* Meso already freezes the squad anchor while contact is live unless it explicitly issues a bound.
-       A non-bounding base-of-fire man must therefore hold his current tactical position too. Letting
-       advance fall through to the persistent formation order for one targetless beat made the resolver
-       publish a slot tens of metres away, only for Engagement to replace it with a hold on the next
-       shared-contact tick. The man often never moved, but destination authority ping-ponged and squads
-       accumulated low-forward-progress travel instead of a clean base-of-fire / bound rhythm. */
-    if (s.squad && s.squad.inContact) {
+    /* A short shared-contact reaction is still part of the same tactical observation. Module 44 records
+       that observation in lastSeen/lastSeenAt, but its 1.8 s reaction used to expire before Engagement's
+       4.5 s threat memory. The resolver then exposed the persistent formation order for a beat, often tens
+       of metres away, before the same fight produced another hold/contact-reaction. Keep Micro authority
+       at the current position until the existing threat memory expires. A normal target-loss alert already
+       lasts ALERT_HOLD, so this adds no extra delay there; an old/no observation falls through immediately. */
+    var recentThreat = e.lastSeen && battle.time - (+e.lastSeenAt || -999) < ALERT_HOLD;
+    if (recentThreat) {
       holdPosition(s, battle);
       if (!holdStance(s, battle)) commitStance(s, battle, 'crouch', 1.0);
       return;
