@@ -234,8 +234,14 @@
   }
   function firstHandContact(sq, battle) {
     var c = root.SquadAI.squadContact ? root.SquadAI.squadContact(sq, battle) : sq.contact,
-      d = c && c.unit && root.SquadAI.threatDisposition ? root.SquadAI.threatDisposition(c.unit) : null;
-    return c && c.unit && (!d || d.combatThreat) && !c.heard && !c.relayedFrom ? c : null;
+      d = c && c.unit && root.SquadAI.threatDisposition ? root.SquadAI.threatDisposition(c.unit) : null,
+      own = root.SquadAI.hasFirstHandMemory
+        ? root.SquadAI.hasFirstHandMemory(c, battle)
+        : !!(c && !c.heard && !c.relayedFrom);
+    /* Relayed word alone still cannot create fire permission. If this squad saw the SAME enemy itself
+       within contact memory, however, a newer callout may refine the position without tearing down
+       and rebuilding the existing HOLD/PRECISION episode. */
+    return c && c.unit && (!d || d.combatThreat) && own ? c : null;
   }
   function fireControlRange(sq, c) {
     var p = average(sq);

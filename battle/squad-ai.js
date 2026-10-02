@@ -343,6 +343,31 @@
      at, so last-writer-wins pointed the whole squad at the furthest contact. Fresh news still
      always gets in: an entry older than CONTACT_REFRESH is replaced regardless of distance. */
   var CONTACT_REFRESH = 2;
+  /* Provenance and freshness are separate facts. A newer callout may update the position of an
+     enemy this squad saw itself without erasing that first-hand history. Fire control uses the
+     remembered first-hand timestamp to continue an existing preparation episode, while firstHand()
+     below still requires a CURRENT own sighting and therefore never lets relayed word initiate one. */
+  function firstHandAt(c) {
+    if (!c) return null;
+    if (c.firstHandAt != null && isFinite(+c.firstHandAt)) return +c.firstHandAt;
+    return !c.heard && !c.relayedFrom && c.at != null && isFinite(+c.at) ? +c.at : null;
+  }
+  function hasFirstHandMemory(c, battle) {
+    var at = firstHandAt(c);
+    return !!(
+      c &&
+      c.unit &&
+      threatDisposition(c.unit).combatThreat &&
+      at != null &&
+      battle &&
+      battle.time - at <= CONTACT_MEMORY
+    );
+  }
+  function ownFirstHandFor(held, unit, battle) {
+    if (!held || held.unit !== unit) return null;
+    var at = firstHandAt(held);
+    return at != null && battle.time - at <= CONTACT_MEMORY ? at : null;
+  }
   function shareContact(soldier, battle) {
     var sq = soldier.squad,
       t = soldier.target;
@@ -361,7 +386,15 @@
       dist2(anchor.x, anchor.z, held.x, held.z) <= dist2(anchor.x, anchor.z, p.x, p.z)
     )
       return held;
-    sq.contact = { unit: t, x: p.x, z: p.z, at: battle.time, seenBy: soldier.id, stance: stanceOf(t) };
+    sq.contact = {
+      unit: t,
+      x: p.x,
+      z: p.z,
+      at: battle.time,
+      seenBy: soldier.id,
+      stance: stanceOf(t),
+      firstHandAt: battle.time
+    };
     return sq.contact;
   }
   /* A trigger pull is heard: one report per pull, kept HEAR_MEMORY seconds. */
@@ -413,7 +446,8 @@
     if (calls) {
       var msg = calls.heard(battle, sq);
       if (msg && (!held || held.heard || msg.fact.at > held.at)) {
-        var f = msg.fact;
+        var f = msg.fact,
+          ownAt = ownFirstHandFor(held, f.unit, battle);
         sq.contact = {
           unit: f.unit,
           x: f.x,
@@ -422,7 +456,8 @@
           seenBy: null,
           stance: f.stance,
           relayedFrom: msg.fromSquad,
-          callout: msg.id
+          callout: msg.id,
+          firstHandAt: ownAt
         };
         calls.noteApplied(battle);
         return;
@@ -444,8 +479,18 @@
       }
     }
     if (best && (!held || held.heard || best.contact.at > held.at)) {
-      var c = best.contact;
-      sq.contact = { unit: c.unit, x: c.x, z: c.z, at: c.at, seenBy: null, stance: c.stance, relayedFrom: best.id };
+      var c = best.contact,
+        ownAt = ownFirstHandFor(held, c.unit, battle);
+      sq.contact = {
+        unit: c.unit,
+        x: c.x,
+        z: c.z,
+        at: c.at,
+        seenBy: null,
+        stance: c.stance,
+        relayedFrom: best.id,
+        firstHandAt: ownAt
+      };
       return;
     }
     if (held && !held.heard) return;
@@ -1384,6 +1429,8 @@
     canSuppress: canSuppress,
     shareContact: shareContact,
     squadContact: squadContact,
+    firstHandAt: firstHandAt,
+    hasFirstHandMemory: hasFirstHandMemory,
     CONTACT_MEMORY: CONTACT_MEMORY,
     CONTACT_REFRESH: CONTACT_REFRESH,
     coverMultiplierAt: coverMultiplierAt,

@@ -29,7 +29,8 @@
   var ALERT_HOLD = 4.5; // hold the threat sector this long after losing sight
   var ENGAGE_REVIEW = 7.0; // re-open the cover question this often while holding
   var STANCE_HOLD = 4.0,
-    PRONE_HOLD = 5.5;
+    PRONE_HOLD = 5.5,
+    LOW_GAP_HOLD = 2.0;
   var COVER_RANGE = 26,
     COVER_RANGE_UNDER_FIRE = 42,
     COVER_ARRIVED = 1.2;
@@ -95,6 +96,8 @@
         stance: 'stand',
         stanceUntil: 0,
         stanceTrail: [],
+        advanceLowUntil: 0,
+        withdrawLowUntil: 0,
         fireReadyAt: 0,
         threatSector: null,
         cover: null,
@@ -439,6 +442,21 @@
     var e = state(s);
     if (STANCE_HEIGHT[stance] >= STANCE_HEIGHT[e.stance]) return false;
     commitStance(s, battle, stance, seconds, 'request:' + stance);
+    return true;
+  }
+  /* A committed stance is a short lease, not merely a visual suggestion. A new drill may always
+     take the man lower, but it may not raise him until the current hold expires. This is the
+     arbitration point for fire-control preparation vs orient/advance, reload vs firing station,
+     and suppression vs withdrawal; all still have one stance writer. */
+  function commitStanceRespectHold(s, battle, stance, seconds, reason) {
+    var e = state(s),
+      cur = STANCE_HEIGHT[e.stance],
+      next = STANCE_HEIGHT[stance];
+    if (battle.time < e.stanceUntil && next > cur) {
+      applyStance(s, e.stance);
+      return false;
+    }
+    commitStance(s, battle, stance, seconds, reason);
     return true;
   }
   function holdStance(s, battle) {
@@ -1361,7 +1379,10 @@
     s.state = 'engage';
     s.setUp = false;
     if (known) s._faceHint = { x: known.x, z: known.z };
-    commitStance(s, battle, 'prone', 1.0);
+    /* Bridge the short contact/fire-control blink that used to produce
+       prone -> crouch/stand -> prone loops. ALERT_HOLD is already the lifetime of the same
+       remembered threat sector, so the posture commitment expires with that tactical memory. */
+    commitStance(s, battle, 'prone', ALERT_HOLD, 'fire-control-prep');
     if (dist(p.x, p.z, goal.x, goal.z) > 0.3) move(s, battle, goal, 'contact-reaction', 0.8);
     else holdPosition(s, battle);
   }
@@ -1997,7 +2018,11 @@
     /* A first contact is not automatically a trigger pull. While the Squad Leader is holding fire,
        everyone not specifically chosen for a precision shot gets low, faces the contact and creeps
        only far enough to establish a prone line over a crest. */
-    if (fireControlPreparing(s, battle)) return prepareFireControl(s, battle);
+    /* HOLD/PRECISION blocks new bounds at the Squad Leader, but a displacement already in motion
+       is a commitment: finish it under HOLD FIRE instead of flipping bound -> prone prep -> bound
+       whenever the shared contact blinks. Fire permission remains closed throughout. */
+    if (fireControlPreparing(s, battle) && e.state !== 'bound' && e.state !== 'assault')
+      return prepareFireControl(s, battle);
 
     switch (e.state) {
       case 'orient':
@@ -2035,9 +2060,13 @@
       commitStance(s, battle, 'crouch', Math.max(0.5, shockUntil(s) - battle.time));
       return;
     }
-    /* Upright only on a quiet march: under fire, or while the squad is on the enemy's heels, he moves
-       crouched rather than standing for the beat between two contacts. */
-    var low = s.suppressedUntil > battle.time || squadOnHeels(s, battle);
+    /* Upright only on a quiet march. Contact can blink for one perception/commander tick (especially
+       when a spoken callout refreshes the squad picture), so remember the last low-posture reason for the
+       same ALERT_HOLD window used by the threat sector. Standing therefore means genuinely quiet, not
+       merely "no contact on this one tick". ?contactStance=0 deliberately keeps the old raw control. */
+    var lowNow = s.suppressedUntil > battle.time || squadOnHeels(s, battle);
+    if (CONTACT_STANCE && lowNow) e.advanceLowUntil = Math.max(+e.advanceLowUntil || 0, battle.time + LOW_GAP_HOLD);
+    var low = lowNow || (CONTACT_STANCE && battle.time < (+e.advanceLowUntil || 0));
     if (!holdStance(s, battle)) commitStance(s, battle, low ? 'crouch' : 'stand', 1.0);
     followOrders(s, battle, false);
   }
@@ -2052,7 +2081,13 @@
       return alert(s, battle);
     }
     holdPosition(s, battle);
-    commitStance(s, battle, seeingStance(s, battle, 'crouch'), Math.max(0.8, e.until - battle.time));
+    commitStanceRespectHold(
+      s,
+      battle,
+      seeingStance(s, battle, 'crouch'),
+      Math.max(0.8, e.until - battle.time),
+      'orient'
+    );
     e.fireReadyAt = Math.max(e.fireReadyAt, e.since + recognition(s));
     if (battle.time >= e.until) decide(s, battle, 'oriented');
   }
@@ -2306,7 +2341,19 @@
     s.state = 'retreat';
     s.setUp = false;
     e.cover = null;
-    commitStance(s, battle, s.suppressedUntil > battle.time ? 'crouch' : 'stand', 0.5);
+    /* Retreat posture follows the broader "under fire" window and remembers the last incoming-fire
+       evidence for ALERT_HOLD. Bursts separated by a short lull no longer produce stand/crouch bobbing:
+       the man only stands after a real quiet interval. */
+    var underFire = underFireNow(s, battle);
+    if (underFire) e.withdrawLowUntil = Math.max(+e.withdrawLowUntil || 0, battle.time + LOW_GAP_HOLD);
+    var withdrawLow = underFire || battle.time < (+e.withdrawLowUntil || 0);
+    commitStanceRespectHold(
+      s,
+      battle,
+      withdrawLow ? 'crouch' : 'stand',
+      withdrawLow ? 1.0 : 0.5,
+      withdrawLow ? 'withdraw:under-fire' : 'withdraw:clear'
+    );
     followOrders(s, battle, true);
     if (s.target && dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z) < 35)
       tryFire(s, battle);
@@ -2382,7 +2429,7 @@
             ? t.threatSector
             : out;
     s._faceHint = face;
-    commitStance(s, battle, (pose && pose.stance) || port.stance, 2.0);
+    commitStanceRespectHold(s, battle, (pose && pose.stance) || port.stance, 2.0, 'station');
     move(s, battle, { x: anchor.x, z: anchor.z }, 'firing-station');
     if (d > 0.35) {
       s.setUp = false;
@@ -2420,7 +2467,7 @@
     s._faceHint = t.threatSector;
     var p = posOf(s),
       d = dist(p.x, p.z, st.x, st.z);
-    commitStance(s, battle, 'crouch', 2.0);
+    commitStanceRespectHold(s, battle, 'crouch', 2.0, 'station');
     // Keep the station intent even when occupied; a short-lived hold proposal cannot return him
     // to formation when engagement updates are staggered.
     move(s, battle, { x: st.x, z: st.z }, 'firing-station');
@@ -2534,8 +2581,9 @@
         known &&
         known.unit &&
         combatThreat(known.unit) &&
-        !known.heard &&
-        !known.relayedFrom
+        (SA().hasFirstHandMemory
+          ? SA().hasFirstHandMemory(known, battle)
+          : !known.heard && !known.relayedFrom)
       );
     /* A hold/precision order is silent preparation. Clear old suppressor jobs while it is active;
        otherwise a stale suppressOrder would make the squad look like a base of fire before permission. */
@@ -2719,6 +2767,7 @@
       PREWARNED_REACT: PREWARNED_REACT,
       STANCE_HOLD: STANCE_HOLD,
       PRONE_HOLD: PRONE_HOLD,
+      LOW_GAP_HOLD: LOW_GAP_HOLD,
       AIM_SETTLE: AIM_SETTLE,
       COVER_FIRE: COVER_FIRE,
       CRAWL_FIT: CRAWL_FIT,
