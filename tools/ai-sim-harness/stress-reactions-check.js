@@ -45,10 +45,17 @@ const load_tuning = () => H.bootstrap({ search: '' }).BattleEngagement.tuning.AC
 
 /* One US squad at the origin facing +z, one GE squad far off. `q` is the page query. The men not under test are parked
    far enough that nobody is a neighbour. */
+/* Rage lock, charge guard and trance are on by default (2026-10-02). The cases written before them test the old rage,
+   so a query that does not name a rage flag runs with it off (`=0`); the flag cases name theirs (`=1` is on). */
+function oldRage(q) {
+  q = q == null ? '' : q;
+  for (const f of ['rageLock', 'rageGuard', 'rageTrance']) if (q.indexOf(f + '=') < 0) q += (q ? '&' : '?') + f + '=0';
+  return q;
+}
 function world(q, opts) {
   opts = opts || {};
   H.resetIds();
-  const r = H.bootstrap({ search: q == null ? '' : q });
+  const r = H.bootstrap({ search: oldRage(q) });
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
   const b = H.makeBattle(r, { seed: SEED, obstacles: opts.obstacles || [] });
   const us = H.addSquad(r, b, {
@@ -151,6 +158,20 @@ test('the flag parses: all four by default, 0/off disables, a list is exact, 1/a
   assert.deepEqual(on(act('?stressAct=flee,panic,any')), ['flee']);
   assert.equal(act('?stressAct=freeze').any, true);
   assert.deepEqual(on(act('?mind=react&stressAct=cower')), ['cower']);
+});
+
+test('rage lock, charge guard and trance are on by default; =0 turns each off alone', () => {
+  const T = q => H.bootstrap({ search: q }).BattleEngagement.tuning;
+  for (const q of ['', '?stressAct=rage', '?rageLock=1&rageGuard=1&rageTrance=1']) {
+    const t = T(q);
+    assert.deepEqual([t.RAGE_LOCK, t.RAGE_GUARD_CHARGE, t.RAGE_TRANCE], [true, true, true], q || 'no query');
+  }
+  const l = T('?rageLock=0'),
+    g = T('?rageGuard=0'),
+    r = T('?rageTrance=0');
+  assert.deepEqual([l.RAGE_LOCK, l.RAGE_GUARD_CHARGE, l.RAGE_TRANCE], [false, true, true]);
+  assert.deepEqual([g.RAGE_LOCK, g.RAGE_GUARD_CHARGE, g.RAGE_TRANCE], [true, false, true]);
+  assert.deepEqual([r.RAGE_LOCK, r.RAGE_GUARD_CHARGE, r.RAGE_TRANCE], [true, true, false]);
 });
 
 test('the four states are declared with their transitions, and every other state can enter them', () => {
@@ -658,7 +679,7 @@ function splitRage(q) {
 }
 test('rage: the break and the charge measure the same enemy with ?rageLock=1; off, a far target makes the rage flicker', () => {
   const off = splitRage('?stressAct=rage');
-  assert.equal(off.ctx.E.tuning.RAGE_LOCK, false, 'off by default');
+  assert.equal(off.ctx.E.tuning.RAGE_LOCK, false, 'off with ?rageLock=0');
   assert.ok(off.acts.n >= 6, 'off: a new break nearly every tick, ' + off.acts.n);
   assert.equal(off.ticksInRage, 0, 'off: never in rage at the end of a tick');
   assert.ok(off.guards[7] > off.guards[0], 'off: each break renews the guard');
@@ -733,7 +754,7 @@ test("rage: with ?rageGuard=1 the guard lasts the charge, past RAGE_GUARD_SECOND
   }
   /* Off: the clock, as before. */
   const off = broke('?stressAct=rage', [0, 0, 0.95], 50);
-  assert.equal(off.ctx.E.tuning.RAGE_GUARD_CHARGE, false, 'off by default');
+  assert.equal(off.ctx.E.tuning.RAGE_GUARD_CHARGE, false, 'off with ?rageGuard=0');
   const ref = man(off.ctx.us, 'rifleman', 1);
   const full = hit(off.ctx, ref, off.g);
   off.ctx.b.time = off.s.eng.guardUntil + 0.01;
@@ -808,7 +829,7 @@ test('rage: with ?rageTrance=1 it is a trance: calm and retreat do not end it, g
   }
   /* Off: calm ends a rage after REACT_MIN, and nobody is entranced. */
   const off = broke('?stressAct=rage&rageLock=1&rageGuard=1', [0, 0, 0.95], 50);
-  assert.equal(off.ctx.E.tuning.RAGE_TRANCE, false, 'off by default');
+  assert.equal(off.ctx.E.tuning.RAGE_TRANCE, false, 'off with ?rageTrance=0');
   assert.equal(off.ctx.E.entranced(off.s), false);
   stressTo(off.ctx, off.s, 'steady');
   keep(off);
