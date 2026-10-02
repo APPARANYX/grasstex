@@ -144,6 +144,22 @@ test('fire-control preparation keeps its prone lease across a brief control/cont
   assert.equal(s.eng.stance,'stand','once the threat-memory lease expires a quiet advance may stand');
 });
 
+test('fire-control preparation terminates an active bound instead of letting it resume',()=>{
+  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement;
+  const e=E.stateOf(s);
+  e.state='bound';e.since=b.time;e.until=b.time+12;e.cover={x:s.root.position.x+8,z:s.root.position.z,slotId:'probe-cover'};
+  s.squad.contact={unit:enemy,x:enemy.root.position.x,z:enemy.root.position.z,at:b.time,seenBy:s.id};
+  s.squad.fireControl={state:'hold',targetId:enemy.id};
+  E.updateSoldier(s,b);
+  assert.equal(e.state,'alert','hold-fire preparation ends the locomotion drill');
+  assert.equal(e.cover,null,'the abandoned bound no longer owns a cover destination');
+  assert.equal(e.stance,'prone');
+
+  s.squad.fireControl=null;s.squad.contact=null;s.squad.inContact=false;
+  b.time+=.3;E.updateSoldier(s,b);
+  assert.notEqual(e.state,'bound','a fire-control blink cannot resurrect the interrupted bound');
+});
+
 test('withdrawal suppression expiry has hysteresis instead of stand-crouch flutter',()=>{
   const {r,b,s}=oneMan(),E=r.BattleEngagement;
   s.target=null;s.eng=null;s.squad.state='retreat';s.suppressedUntil=b.time+.2;
