@@ -25,14 +25,21 @@ function measuredGoal(sim,sq,ph){
   var g=strategicGoal(sim,sq);return g?{point:g,kind:'objective'}:null;
 }
 function key(sq){return String(sq.faction||'?')+':'+String(sq.id||'?');}
-function state(sim){return sim._squadForwardProgress||(sim._squadForwardProgress={tracks:{},alerts:[],totalAlerts:0,byFaction:{us:0,ge:0},samples:0,lowEfficiencySamples:0});}
+/* A centroid is only comparable while it is made from the same bodies. A death, fled-man detach,
+   merge or other roster change can move the arithmetic mean many metres even when no survivor took
+   a step. Treat that as a coordinate-system change, not squad travel. */
+function cohort(sq){var a=sq&&sq.members||[],ids=[];for(var i=0;i<a.length;i++){var s=a[i];if(s&&!s.dead&&s.root&&s.root.position)ids.push(String(s.id));}ids.sort();return ids.join(',');}
+function state(sim){return sim._squadForwardProgress||(sim._squadForwardProgress={tracks:{},alerts:[],totalAlerts:0,byFaction:{us:0,ge:0},samples:0,lowEfficiencySamples:0,compositionResets:0});}
 function phase(sq){return String(sq&&sq.commandPhase||'');}
 function trim(hist,t){while(hist.length>1&&t-hist[0].t>WINDOW)hist.shift();}
 function pushLoop(sim,sq,a){var lw=sim&&sim._aiLoopWatch;if(lw&&Array.isArray(lw.alerts))lw.alerts.push({kind:'low-forward-progress',severity:a.net<0?'hot':'warn',faction:sq.faction,squadId:sq.id,soldierId:null,time:a.at,travel:a.travel,net:a.net,destinationChanges:a.routeChanges||0,inContact:!!sq.inContact,phases:a.phases||[],rules:[],sequence:a.phases||[],message:'Squad travelled '+a.travel.toFixed(1)+'m but made only '+a.net.toFixed(1)+'m net '+a.goalKind+' progress in '+WINDOW+'s (eff '+Math.round(a.efficiency*100)+'%)'});}
 function tickSquad(sim,sq){
   if(!sq||sq.state==='retreat')return;var ph=phase(sq);if(!ADVANCE[ph])return;
-  var p=centroid(sq),mg=measuredGoal(sim,sq,ph);if(!p||!mg||!mg.point||!isFinite(dist(p,mg.point)))return;var g=mg.point,t=+sim.time||0,st=state(sim),k=key(sq),tr=st.tracks[k];
-  if(!tr||tr.kind!==mg.kind||dist(tr.goal,g)>8)tr=st.tracks[k]={goal:g,kind:mg.kind,hist:[],last:p,lastRoute:+sq.routeIndex||0,routeChanges:0,lastAlert:-1e9};
+  var p=centroid(sq),mg=measuredGoal(sim,sq,ph);if(!p||!mg||!mg.point||!isFinite(dist(p,mg.point)))return;var g=mg.point,t=+sim.time||0,st=state(sim),k=key(sq),members=cohort(sq),tr=st.tracks[k];
+  if(!tr||tr.kind!==mg.kind||dist(tr.goal,g)>8||tr.cohort!==members){
+    if(tr&&tr.cohort!==members)st.compositionResets++;
+    tr=st.tracks[k]={goal:g,kind:mg.kind,cohort:members,hist:[],last:p,lastRoute:+sq.routeIndex||0,routeChanges:0,lastAlert:-1e9};
+  }
   var step=dist(tr.last,p);if(isFinite(step)&&step<60)tr.travel=(tr.travel||0)+step;tr.last=p;
   var ri=+sq.routeIndex||0;if(ri!==tr.lastRoute){tr.routeChanges++;tr.lastRoute=ri;}
   tr.hist.push({t:t,x:p.x,z:p.z,d:dist(p,g),travel:tr.travel||0,phase:ph,routeChanges:tr.routeChanges});trim(tr.hist,t);
@@ -44,8 +51,8 @@ function tickSquad(sim,sq){
   if(a.spread==null)try{if(root.BattleCommanderDoctrine){var c=root.BattleCommanderDoctrine.avgPos(sq);a.spread=+root.BattleCommanderDoctrine.maxSpread(sq,c).toFixed(2);}}catch(_){}
   st.totalAlerts++;if(st.byFaction[sq.faction]!=null)st.byFaction[sq.faction]++;st.alerts.push(a);if(st.alerts.length>MAX_ALERTS)st.alerts.shift();pushLoop(sim,sq,a);if(root.BattleTelemetry&&root.BattleTelemetry.record)root.BattleTelemetry.record('low-forward-progress',a,sim);
 }
-function tick(sim){var st=state(sim);['us','ge'].forEach(function(f){var a=sim.factions&&sim.factions[f]&&sim.factions[f].squads||[];for(var i=0;i<a.length;i++)tickSquad(sim,a[i]);});sim._squadForwardProgressSummary={windowSeconds:WINDOW,totalAlerts:st.totalAlerts,byFaction:{us:st.byFaction.us,ge:st.byFaction.ge},samples:st.samples,lowEfficiencySamples:st.lowEfficiencySamples,alerts:st.alerts.slice(-40)};if(sim._coordinationHealth)sim._coordinationHealth.forwardProgress=JSON.parse(JSON.stringify(sim._squadForwardProgressSummary));}
-function reset(sim){sim._squadForwardProgress={tracks:{},alerts:[],totalAlerts:0,byFaction:{us:0,ge:0},samples:0,lowEfficiencySamples:0};sim._squadForwardProgressSummary={windowSeconds:WINDOW,totalAlerts:0,byFaction:{us:0,ge:0},samples:0,lowEfficiencySamples:0,alerts:[]};}
+function tick(sim){var st=state(sim);['us','ge'].forEach(function(f){var a=sim.factions&&sim.factions[f]&&sim.factions[f].squads||[];for(var i=0;i<a.length;i++)tickSquad(sim,a[i]);});sim._squadForwardProgressSummary={windowSeconds:WINDOW,totalAlerts:st.totalAlerts,byFaction:{us:st.byFaction.us,ge:st.byFaction.ge},samples:st.samples,lowEfficiencySamples:st.lowEfficiencySamples,compositionResets:st.compositionResets||0,alerts:st.alerts.slice(-40)};if(sim._coordinationHealth)sim._coordinationHealth.forwardProgress=JSON.parse(JSON.stringify(sim._squadForwardProgressSummary));}
+function reset(sim){sim._squadForwardProgress={tracks:{},alerts:[],totalAlerts:0,byFaction:{us:0,ge:0},samples:0,lowEfficiencySamples:0,compositionResets:0};sim._squadForwardProgressSummary={windowSeconds:WINDOW,totalAlerts:0,byFaction:{us:0,ge:0},samples:0,lowEfficiencySamples:0,compositionResets:0,alerts:[]};}
 
 root.BattleModules.registerSystem('squad-forward-progress',{version:'1.1',onBattleStart:reset,onBattleRestart:reset,onCommanderTick:tick});
 root.BattleSquadForwardProgress={version:'1.1',windowSeconds:WINDOW,summary:function(sim){return sim&&sim._squadForwardProgressSummary?JSON.parse(JSON.stringify(sim._squadForwardProgressSummary)):null;}};
