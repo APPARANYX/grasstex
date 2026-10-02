@@ -128,6 +128,7 @@
   function canAssign(s) {
     var sq = s && s.squad;
     return (
+      !s.isPlayer &&
       eligible(s) &&
       sq &&
       sq.state !== 'retreat' &&
@@ -190,6 +191,7 @@
     return true;
   }
   function invalidReason(s, sim, t) {
+    if (s.isPlayer) return 'player-control';
     if (s.dead || s.hp <= 0) return 'death';
     if (s.incapacitated) return 'incapacitated';
     var sq = s.squad;
