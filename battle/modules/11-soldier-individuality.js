@@ -52,18 +52,23 @@
   function distanceToDestination(s){return!s||!s.root||!s.destination?0:Math.hypot((+s.destination.x||0)-(+s.root.position.x||0),(+s.destination.z||0)-(+s.root.position.z||0));}
   function desiredGait(s,sim){
     if(!s||s.dead)return'walk';
-    var d=distanceToDestination(s),e=s.eng||{},phase=s.squad&&s.squad.commandPhase||'',now=sim?+sim.time||0:0;
+    var d=distanceToDestination(s),e=s.eng||{},phase=s.squad&&s.squad.commandPhase||'',now=sim?+sim.time||0:0,
+      R=root.BattleMovementResolver,player=R&&R.playerIntent?R.playerIntent(s,sim):null;
     var urgent=now<(+s._combatUrgentUntil||0)||s.state==='retreat'||e.state==='withdraw';
     if(s.prone){
       if(!s.crawling)return'proneNormal';
+      if(player)return player.pace==='run'?'proneFast':'proneNormal';
       return urgent||e.state==='bound'||d>4?'proneFast':'proneNormal';
     }
     var crouched=!!(s.tacticalCrouch||s.crouching||(+s.suppressedUntil||0)>now);
     if(crouched){
       if(s.reloading||s.clearingStoppage)return'crouchWalk';
+      if(player)return player.pace==='run'?'crouchRun':'crouchWalk';
       return urgent||e.state==='bound'||(s.squad&&s.squad.inContact&&d>4)?'crouchRun':'crouchWalk';
     }
     if(s.reloading||s.clearingStoppage)return'walk';
+    /* While possessed, the pad chooses pace. Squad hold/defend phases no longer throttle the player. */
+    if(player)return player.pace==='run'?'run':'walk';
     if(urgent||e.state==='bound'||e.state==='assault')return'sprint';
     if(d<RUN_DISTANCE)return'walk';
     if(phase==='defend'||phase==='hold'||phase==='support-hold'||phase==='reserve')return'walk';
