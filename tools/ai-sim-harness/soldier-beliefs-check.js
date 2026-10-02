@@ -101,6 +101,8 @@ test('heard gunfire is lower-confidence, imprecise location-only information',()
   B.root.position.x=30;B.root.position.z=0;B.root.rotation.y=Math.PI;B.moving=true;
   w.b.time=2;
   w.b._gunfire=[{x:0,z:40,faction:'ge',unit:w.enemy,at:2}];
+  /* The sound event stands on its own. Later hidden truth about the shooter must not erase it. */
+  w.enemy.dead=true;
   const real=w.b.random;let draws=0;w.b.random=()=>{draws++;return real.call(w.b);};
   w.S.hearGunfireBelief(B,w.b);
   const c=active(w,B),bs=snap(w,B),rec=bs.beliefs.find(x=>x.source==='heard');
