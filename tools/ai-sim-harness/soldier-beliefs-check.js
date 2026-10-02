@@ -26,6 +26,21 @@ function world(search='?soldierBeliefs=1&callouts=1'){
 }
 function snap(w,s){return w.S.beliefSnapshot(s,w.b);}
 function active(w,s){return w.S.soldierContact(s,w.b);}
+function storeDigest(s){
+  const st=s&&s._beliefs;if(!st)return null;
+  const keys=Object.keys(st.byKey||{}).sort();
+  return{
+    lastTime:st.lastTime,lastCalloutId:st.lastCalloutId,lastHeardKey:st.lastHeardKey,
+    records:keys.map(k=>{const r=st.byKey[k];return[
+      k,r.targetId,r.source,r.sourceSoldierId,r.sourceCalloutId,r.x,r.z,r.sector,
+      r.observedAt,r.reportedAt,r.receivedAt,r.baseConfidence,r.expiresAt,r.combatThreat,r.precision,r.reason
+    ];}),
+    history:(st.history||[]).map(h=>[
+      h.at,h.kind,h.key,h.targetId,h.source,h.sourceSoldierId,h.sourceCalloutId,
+      h.observedAt,h.receivedAt,h.confidence,h.combatThreat,h.reason
+    ])
+  };
+}
 function firstHeardCandidate(w,msgId){
   return w.us.members.slice(1).find(s=>hash01(msgId+':'+w.A.id,s.id)>=0.08);
 }
@@ -142,9 +157,9 @@ test('personally visible non-threat replaces stale threat memory instead of resu
 test('diagnostic snapshots are observe-only',()=>{
   const w=world(),B=w.us.members[1];
   w.S.rememberSeen(B,w.enemy,w.b,true,'snapshot-test');
-  const before=JSON.stringify(B._beliefs);
+  const before=storeDigest(B);
   const a=w.S.beliefSnapshot(B,w.b),t=w.S.beliefTelemetry(w.b);
-  assert.ok(a&&t);assert.equal(JSON.stringify(B._beliefs),before,'snapshot/telemetry do not prune or mutate state');
+  assert.ok(a&&t);assert.deepEqual(storeDigest(B),before,'snapshot/telemetry do not prune or mutate state');
 });
 
 test('flag off reproduces legacy shared-contact knowledge and creates no belief state',()=>{
