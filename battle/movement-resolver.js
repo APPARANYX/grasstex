@@ -124,7 +124,11 @@
     return !!(p && p.kind === 'rage-charge' && E && E.entranced && E.entranced(s));
   }
   function valid(s, p, b) {
-    if (!p || p.signature !== signature(s)) return false;
+    if (!p) return false;
+    /* Player authority survives squad phase/plan signature churn. That churn is exactly what used to
+       hand a possessed man back to Micro while moving through buildings. */
+    if (p.kind === 'player' && s && s.isPlayer) return p.until + 1e-6 >= now(b);
+    if (p.signature !== signature(s)) return false;
     if (p.kind === 'cover-bound') return s.eng && s.eng.state === 'bound';
     if (p.kind === 'assault-rush') return s.eng && s.eng.state === 'assault';
     if (p.kind === 'flee') return s.eng && s.eng.state === 'flee';
@@ -425,9 +429,22 @@
       t = now(battle),
       combat = st.combat,
       player = st.player;
-    /* A possessed soldier is outside AI tactical routing while the short-lived player lease is live.
-       Check this before tactical-position update so an AI firing-station claim cannot fight the pad. */
-    if (player && valid(soldier, player, battle)) return player;
+    /* isPlayer is the authority boundary. Never fall through into tactical positions, retreat/regroup,
+       combat intents or formation orders just because the render-time input lease expired for a tick. */
+    if (soldier.isPlayer) {
+      if (player && valid(soldier, player, battle)) return player;
+      var here = point(soldier.root && soldier.root.position),
+        hold = proposal('player', here, battle, 'player', true, 0.6);
+      if (!hold) return null;
+      hold.signature = signature(soldier);
+      hold.reason = 'player hold';
+      hold.priority = priority('player', soldier);
+      hold.speedScale = 1;
+      hold.pace = player && player.pace === 'run' ? 'run' : 'walk';
+      hold.intentPoint = here && { x: here.x, z: here.z };
+      st.player = hold;
+      return hold;
+    }
     if (player) st.player = null;
     var P = root.BattleTacticalPositions,
       task = P && P.update(soldier, battle),
@@ -701,8 +718,7 @@
       return p && valid(s, p, battle) ? p : null;
     },
     playerActive: function (s, battle) {
-      var p = s && s._movementResolver && s._movementResolver.player;
-      return !!(p && valid(s, p, battle));
+      return !!(s && s.isPlayer);
     },
     clearPlayer: function (s) {
       if (s && s._movementResolver) s._movementResolver.player = null;
