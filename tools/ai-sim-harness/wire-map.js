@@ -68,6 +68,8 @@ const EXCLUDED = new Set([
 /* The fields an excluded file is known to write on a classified receiver. wire-map-check.js fails
    when an excluded file writes anything else, so an exclusion cannot hide a new sim write. */
 const EXCLUDED_WRITES = {
+  /* UI possession owns this one lifetime flag; AI layers only read it. */
+  'camera-controls.js': ['soldier.isPlayer'],
   'modules/11-voice-variation.js': ['soldier._voicePitchProfile'],
   'modules/15-bullet-impact-fx.js': ['soldier._uvWoundMarks'],
   'modules/35-ai-command-hierarchy.js': ['soldier.id'],
