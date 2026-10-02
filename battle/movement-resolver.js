@@ -20,7 +20,7 @@
     ORDER_EPS = 2.4,
     ARRIVAL = 1.8,
     ORDER_WRITE_EPS = 0.05;
-  var PRECISE_GOALS = { 'firing-station': 1, 'reload-hold': 1, 'hold': 1, 'contact-reaction': 1 };
+  var PRECISE_GOALS = { 'firing-station': 1, 'reload-hold': 1, 'hold': 1, 'contact-reaction': 1, player: 1 };
   var INTENT_REFRESH = 0.55,
     INTENT_TTL = 0.8,
     INTENT_EPS = 0.18,
@@ -501,6 +501,8 @@
     );
   }
   function tacticalWaypoint(soldier, battle, pick) {
+    /* The player steers himself: no cover detour or door ingress substituted for his input. */
+    if (pick.kind === 'player') return null;
     if (pick.kind === 'firing-station' && root.BattleTacticalPositions)
       return root.BattleTacticalPositions.waypoint(soldier, battle);
     var T = root.BattleTacticalRoute;

@@ -26,6 +26,15 @@ assert.match(cameraSource,/key==='v'[\s\S]*?leavePlayer/,'V must exit player mod
 assert.doesNotMatch(cameraSource,/leavePlayer\('controller disconnected'\)/,'controller disconnect must fall back to keyboard player control instead of ending possession');
 assert.match(cameraSource,/heightAt\(cam\.position\.x,cam\.position\.z\)/,'player camera must clamp against terrain');
 assert.match(cameraSource,/SquadAI\.playerFireRay/,'RT must use free-fire player ray authority');
+/* No aim assist: nothing in the camera picks an enemy near the reticle for the possessed man. */
+assert.doesNotMatch(cameraSource,/aimedEnemy|PLAYER_TARGET_DOT|SquadAI\.playerFire\(/,'player aim must not lock onto an enemy near the crosshair');
+assert.match(cameraSource,/SquadAI\.playerAim\(player,\(aiming\|\|firing\)\?point:null\)/,'player aim must be the crosshair point');
+const moveSource=fs.readFileSync(path.join(H.REPO,'battle/battle-sim.js'),'utf8');
+assert.match(moveSource,/steered=!recovery&&!playerDirect&&steerAroundObstacles/,'possessed movement must not be steered off tactical circles (window posts)');
+const postureSource=fs.readFileSync(path.join(H.REPO,'battle/modules/52-combat-posture-visual.js'),'utf8');
+assert.match(postureSource,/!s\.isPlayer/,'the last-known-threat aim posture must not aim a possessed man');
+const backendSource=fs.readFileSync(path.join(H.REPO,'battle/modules/53-fbx-soldier-backend.js'),'utf8');
+assert.match(backendSource,/playerAt=soldier\.isPlayer&&soldier\.playerAimPoint/,'the FBX aim layer must follow the player crosshair');
 const microSource=fs.readFileSync(path.join(H.REPO,'battle/squad-ai.js'),'utf8');
 const hardpointSource=fs.readFileSync(path.join(H.REPO,'battle/modules/20-building-hardpoints.js'),'utf8');
 assert.match(microSource,/if \(soldier && soldier\.isPlayer\)/,'isPlayer must gate the whole soldier Micro update');
@@ -46,21 +55,22 @@ behind.root.position.x=0;behind.root.position.z=-25;
 s.root.position.x=0;s.root.position.z=0;s.root.rotation.y=0;s.destination={x:0,z:0};s.orderDestination={x:0,z:0};
 s.isPlayer=true;
 
-r.SquadAI.playerAim(s,behind);
-assert.strictEqual(s.target,behind,'playerAim must keep target ownership inside SquadAI');
+r.SquadAI.playerAim(s,{x:0,y:1.5,z:-80});
+assert.equal(s.target,null,'player aim is a crosshair point, never a lock on an enemy');
+assert.deepEqual(s.playerAimPoint,{x:0,y:1.5,z:-80},'player aim point must be kept for presentation');
 us.commandPhase='hold';
 M.proposePlayer(s,{x:0,z:18},b,.6,{speedScale:1,pace:'run'});
 assert.equal(M.playerActive(s,b),true,'isPlayer must be the active possession authority');
 assert.equal(M.playerIntent(s,b).pace,'run','player run pace must survive resolution');
 assert.equal(r.BattleSoldierIndividuality.desiredGait(s,b),'run','squad hold phase must not force a possessed soldier to walk');
 r.SquadAI.updateSoldier(s,b);
-assert.strictEqual(s.target,behind,'possessed soldier must not let Perception overwrite the player target');
+assert.equal(s.target,null,'possessed soldier must not acquire an AI target (enemy 25 m ahead in view)');
 assert.equal(s._movementResolver.goal.kind,'player','player movement must win resolution');
 
 /* Plan/signature churn plus an expired input lease must not hand the man back to Micro. */
-us.commandPhase='defend';b.time+=1;s.target=behind;
+us.commandPhase='defend';b.time+=1;
 r.SquadAI.updateSoldier(s,b);
-assert.strictEqual(s.target,behind,'expired player lease must not re-enable Perception while isPlayer is true');
+assert.equal(s.target,null,'expired player lease must not re-enable Perception while isPlayer is true');
 assert.equal(s._movementResolver.goal.kind,'player','resolver must synthesize a player hold instead of falling into AI routing');
 
 r.BattleSoldierIndividuality.phenotype(s);
@@ -75,8 +85,22 @@ for(let i=0;i<12;i++)H.stepMovement(b,s,.15);
 const walkDistance=s.root.position.z;
 assert.ok(runDistance>walkDistance+1,'player run pace must produce materially more travel than walking');
 
+/* Indoors: the navigation planner would route a point past a wall out through the door. The player's input
+   goes straight; a man under AI orders still follows the planner (the control). */
+const door={x:20,z:0},navStub={movementClear:()=>true,nextWaypoint:()=>door,invalidateNavPath(){},invalidateNavCache(){}};
+r.BattleNavigation=navStub;
+M.proposePlayer(s,{x:0,z:6},b,.6,{speedScale:1,pace:'walk'});r.SquadAI.updateSoldier(s,b);
+assert.deepEqual(s.destination,{x:0,z:6},'player destination must be his input point, not a legalized or routed one');
+s.root.position.x=0;s.root.position.z=0;s.moveSpeed=0;
+for(let i=0;i<8;i++)H.stepMovement(b,s,.15);
+assert.ok(Math.abs(s.root.position.x)<1e-6&&s.root.position.z>.5,'possessed soldier must go where he is steered, not toward the planner\'s exit');
+const ai=us.members[1];ai.root.position.x=0;ai.root.position.z=0;ai.moveSpeed=0;ai.destination={x:0,z:6};ai._movementResolver={goal:{kind:'formation'}};
+for(let i=0;i<8;i++)H.stepMovement(b,ai,.15);
+assert.ok(ai.root.position.x>.5,'control: an AI soldier still follows the navigation planner');
+delete r.BattleNavigation;
+s.root.position.x=0;s.root.position.z=0;
 us.fireControl={state:'hold'};
-r.SquadAI.playerAim(s,ahead);s.fireCooldown=0;s.moving=false;s.moveSpeed=0;
+r.SquadAI.playerAim(s,{x:0,y:1.5,z:25});s.target=ahead;s.fireCooldown=0;s.moving=false;s.moveSpeed=0;
 assert.equal(r.BattleEngagement.fireAuthorized(s,b),false,'squad HOLD FIRE must still gate AI engagement fire');
 r.BattleAmmunition.initialize(s,b);
 r.SquadAI.clearTarget(s);s.fireCooldown=0;
@@ -92,9 +116,10 @@ assert.equal(s.prone,true);assert.equal(s.tacticalCrouch,false);
 r.BattleEngagement.commitStance(s,b,'stand',.45,'player');
 assert.equal(s.prone,false);assert.equal(s.tacticalCrouch,false);
 
-s.isPlayer=false;M.clearPlayer(s);r.SquadAI.clearTarget(s);us.commandPhase='assault';r.SquadAI.updateSoldier(s,b);
+s.isPlayer=false;M.clearPlayer(s);r.SquadAI.playerAim(s,null);
+assert.equal(s.playerAimPoint,null,'release must drop the player aim point');us.commandPhase='assault';r.SquadAI.updateSoldier(s,b);
 assert.strictEqual(s.target,ahead,'after isPlayer clears, normal Perception must resume and reacquire the enemy in front');
 
 b.time+=1;
 assert.equal(M.playerActive(s,b),false,'cleared isPlayer must return authority to AI');
-console.log('PASS: isPlayer gates Micro/indoor routing, RT free-fires through shipping ballistics, and release returns AI control');
+console.log('PASS: isPlayer gates Micro/indoor routing, no aim assist, input goes straight indoors, RT free-fires through shipping ballistics, and release returns AI control');

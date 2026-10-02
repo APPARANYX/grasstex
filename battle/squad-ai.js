@@ -1108,14 +1108,16 @@
     soldier.target = null;
     return true;
   }
-  /* Player input may point the possessed soldier at a live combat threat, but target ownership
-     remains here in Perception/SquadAI rather than creating a second writer in the camera layer. */
-  function playerAim(soldier, target) {
-    if (!soldier || soldier.dead) return false;
-    /* A human player may aim at any living enemy. AI threat-disposition rules (freeze/flee/etc.) are
-       Micro decisions and must not decide whether the player's reticle is allowed to select someone. */
-    if (!target || target.dead || target.faction === soldier.faction) return clearTarget(soldier);
-    soldier.target = target;
+  /* A possessed soldier has no AI target: the player aims him. The crosshair point is a presentation
+     input (where the rifle and spine point, `playerAimPoint`), never a lock on an enemy, so nothing
+     snaps his aim or his body onto a man near the reticle. Fire goes down the crosshair ray (playerFireRay). */
+  function playerAim(soldier, aimPoint) {
+    if (!soldier) return false;
+    soldier.target = null;
+    soldier.playerAimPoint =
+      !soldier.dead && soldier.isPlayer && aimPoint && isFinite(+aimPoint.x) && isFinite(+aimPoint.z)
+        ? { x: +aimPoint.x, y: +aimPoint.y || 0, z: +aimPoint.z }
+        : null;
     return true;
   }
   /* Legacy target-based player fire remains for callers that supply a target. */
