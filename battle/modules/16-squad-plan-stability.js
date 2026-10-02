@@ -121,8 +121,11 @@
   }
   var BUDDY_PAIRS_ON = parseBuddyPairs(typeof location !== 'undefined' ? location.search : '');
   var BUDDY_TUNING = {
-    maxSeparation: 14,
-    maxRouteGap: 8
+    maxSeparation: 16,
+    reformSeparation: 10,
+    maxRouteGap: 8,
+    reformRouteGap: 5,
+    reformDelay: 1.5
   };
   /* 3b: group morale. On by default (owner decision, 2026-10-01); ?morale=0 is the flat 60% rule. Replaces the flat 60% casualty retreat with a
      squad-level break/rally model driven by the squad.mind roll-up (module 17). The break
@@ -1312,6 +1315,11 @@
       to: state,
       reason: reason || null
     });
+    if (buddyBrokenState(state)) {
+      pair.movingId = null;
+      pair.coveringId = null;
+      pair.recoverSince = null;
+    }
     pair.state = state;
     pair.reason = reason || null;
     pair.since = t;
@@ -1390,12 +1398,16 @@
             reason: 'formed'
           });
         } else if (pair.taskKey !== task) {
-          buddyTransition(sq, pair, battle, 'incompatible', 'task-changed');
+          /* A task/version update is context, not automatically a broken relationship. The old code
+             broke and reformed the pair twice in the same tick for every plan refresh, producing
+             tens of thousands of diagnostic transitions without a real incompatibility. Actual
+             incompatible tasks are detected below (e.g. a tactical-position assignment). */
+          pair.previousTaskKey = pair.taskKey;
           pair.taskKey = task;
           pair.generation = (+pair.generation || 1) + 1;
+          pair.lastTaskChangeAt = battle.time;
           pair.movingId = null;
           pair.coveringId = null;
-          buddyTransition(sq, pair, battle, 'ready', 'task-reformed');
         }
         next[id] = pair;
       }
@@ -1429,7 +1441,28 @@
     var state = s.eng && s.eng.state;
     if (state === 'freeze' || state === 'flee' || state === 'rage' || state === 'cower')
       return 'engagement-' + state;
+    if (root.BattleTacticalPositions && root.BattleTacticalPositions.current && root.BattleTacticalPositions.current(s))
+      return 'positional-task';
     return null;
+  }
+  function buddyStillBroken(pair, separation, routeGap) {
+    if (pair.state === 'separated' && separation != null && separation > BUDDY_TUNING.reformSeparation) return true;
+    if (pair.state === 'route-diverged' && routeGap != null && routeGap > BUDDY_TUNING.reformRouteGap) return true;
+    return false;
+  }
+  function buddyRecover(sq, pair, battle) {
+    if (!buddyBrokenState(pair.state)) {
+      pair.recoverSince = null;
+      buddyTransition(sq, pair, battle, 'ready', 'conditions-clear');
+      return;
+    }
+    if (pair.recoverSince == null) {
+      pair.recoverSince = battle.time;
+      return;
+    }
+    if (battle.time - pair.recoverSince < BUDDY_TUNING.reformDelay) return;
+    pair.recoverSince = null;
+    buddyTransition(sq, pair, battle, 'ready', 'conditions-stable');
   }
   function updateBuddyPairState(sq, pair, battle) {
     var a = buddyMember(sq, pair.aId),
@@ -1458,6 +1491,10 @@
       buddyTransition(sq, pair, battle, 'route-diverged', 'fireteam-routes-diverged');
       return;
     }
+    if (buddyStillBroken(pair, pair.separation, pair.routeGap)) {
+      pair.recoverSince = null;
+      return;
+    }
     var aw = String((a && a._movementStopReason) || ''),
       bw = String((b && b._movementStopReason) || '');
     if (aw === 'path-blocked' || aw === 'step-blocked' || bw === 'path-blocked' || bw === 'step-blocked') {
@@ -1478,7 +1515,7 @@
     }
     pair.movingId = null;
     pair.coveringId = null;
-    buddyTransition(sq, pair, battle, 'ready', 'conditions-clear');
+    buddyRecover(sq, pair, battle);
   }
   function updateBuddyPairs(sq, battle) {
     var pairs = syncBuddyPairs(sq, battle);
@@ -1558,6 +1595,8 @@
             b: p.bId,
             generation: p.generation,
             taskKey: p.taskKey,
+            previousTaskKey: p.previousTaskKey || null,
+            lastTaskChangeAt: p.lastTaskChangeAt == null ? null : p.lastTaskChangeAt,
             state: p.state,
             reason: p.reason,
             formedAt: p.formedAt,
@@ -1567,6 +1606,7 @@
             lastBreakAt: p.lastBreakAt == null ? null : p.lastBreakAt,
             lastReformReason: p.lastReformReason || null,
             lastReformAt: p.lastReformAt == null ? null : p.lastReformAt,
+            recoverSince: p.recoverSince == null ? null : p.recoverSince,
             separation: p.separation,
             routeGap: p.routeGap,
             moving: p.movingId,
