@@ -31,6 +31,24 @@
       return { ok: null, detail: 'leaderless ' + (t - l.since).toFixed(1) + ' s' };
     }
   });
+  L.define('retreat-anchor', {
+    priority: 92,
+    progress: function (sq, l, t) {
+      var d = l && l.data,
+        best = d && isFinite(+d.bestDistance) ? +d.bestDistance : null,
+        now = d && isFinite(+d.distance) ? +d.distance : null,
+        quiet = d && isFinite(+d.lastProgressAt) ? Math.max(0, t - d.lastProgressAt) : null;
+      return {
+        ok: now == null || best == null ? null : now <= best + 0.5,
+        detail:
+          'retreat anchor ' +
+          (now == null ? '?' : now.toFixed(1)) +
+          ' m away; no-progress ' +
+          (quiet == null ? '?' : quiet.toFixed(1)) +
+          ' s'
+      };
+    }
+  });
   L.define('regroup', {
     priority: 90,
     progress: function (sq, l) {
@@ -79,7 +97,19 @@
     ORDER_ARRIVAL_RADIUS = 8,
     ORDER_COHESION = 0.55,
     ORDER_PUBLISH_EPS = 0.05,
-    FOLLOW_LAG = 2;
+    FOLLOW_LAG = 2,
+    /* Retreat anchor stability: keep one useful Meso endpoint while the men are making progress.
+       The lease slides on progress; arrival, a materially changed retreat goal, a blocked/unsafe
+       endpoint, or measured no-progress may replace it. Movement Resolver still legalizes each man's
+       physical destination. */
+    RETREAT_ANCHOR_LEASE = 6,
+    RETREAT_ANCHOR_ARRIVE = 5,
+    RETREAT_PROGRESS_EPS = 0.75,
+    RETREAT_GOAL_EPS = 6,
+    RETREAT_NO_PROGRESS = 6,
+    RETREAT_BLOCKED_MIN = 2,
+    RETREAT_DANGER_MARGIN = 5,
+    RETREAT_RECOVERY_STRIDE = 0.5;
   /* 3b: group morale. On by default (owner decision, 2026-10-01); ?morale=0 is the flat 60% rule. Replaces the flat 60% casualty retreat with a
      squad-level break/rally model driven by the squad.mind roll-up (module 17). The break
      threshold is breakBase for calm men (the flat 60% rule) and moves down by breakSlope per
@@ -1283,6 +1313,128 @@
     }
     return arrived / living.length >= ORDER_COHESION;
   }
+  function retreatCenter(sq) {
+    return averageMembers(commanded(sq)) || average(sq) || copy(sq.orderAnchor || sq.rally || sq.home);
+  }
+  function retreatBlocked(sq) {
+    var men = commanded(sq),
+      blocked = 0;
+    for (var i = 0; i < men.length; i++) {
+      var why = String(men[i]._movementStopReason || '');
+      if (why === 'path-blocked' || why === 'step-blocked') blocked++;
+    }
+    return blocked >= Math.max(RETREAT_BLOCKED_MIN, Math.ceil(men.length * 0.5));
+  }
+  function retreatUnsafe(sq, battle, anchor, center) {
+    var c = root.SquadAI.squadContact ? root.SquadAI.squadContact(sq, battle) : sq.contact;
+    if (!c || !anchor || !center) return false;
+    var da = dist(c, anchor),
+      dc = dist(c, center);
+    /* Only invalidate when the leased retreat endpoint is materially closer to the known threat
+       than the men are now. Ordinary contact ahead does not churn a rearward anchor. */
+    return da + RETREAT_DANGER_MARGIN < dc;
+  }
+  function retreatPoint(base, goal, scale) {
+    base = copy(base);
+    goal = copy(goal);
+    if (!base || !goal) return base || goal;
+    var dx = goal.x - base.x,
+      dz = goal.z - base.z,
+      len = Math.hypot(dx, dz);
+    if (len <= 2) return goal;
+    var step = Math.min(ORDER_STRIDE * (scale == null ? 1 : scale), len);
+    return { x: base.x + (dx / len) * step, z: base.z + (dz / len) * step };
+  }
+  function grantRetreatAnchor(sq, battle, base, goal, reason, scale) {
+    var t = battle.time,
+      center = retreatCenter(sq) || base,
+      next = retreatPoint(base, goal, scale),
+      d = center && next ? dist(center, next) : Infinity;
+    publishAnchor(sq, next);
+    sq._orderGoal = copy(goal);
+    sq._orderVersion = (+sq._orderVersion || 0) + 1;
+    L.grant(
+      sq,
+      'retreat-anchor',
+      'squad-leader',
+      t,
+      t + RETREAT_ANCHOR_LEASE,
+      reason || 'retreat endpoint',
+      'arrival, retreat goal change, blocked/unsafe route, no-progress timeout or retreat end',
+      {
+        anchor: copy(next),
+        goal: copy(goal),
+        bestDistance: d,
+        distance: d,
+        lastProgressAt: t,
+        grantedAt: t,
+        reason: reason || 'retreat endpoint'
+      }
+    );
+    telemetry(battle, 'decision-retreat-anchor', {
+      faction: sq.faction,
+      squad: sq.id,
+      reason: reason || 'retreat endpoint',
+      anchor: copy(next),
+      goal: copy(goal),
+      distance: isFinite(d) ? +d.toFixed(2) : null
+    });
+    return next;
+  }
+  function stableRetreatAnchor(sq, battle) {
+    var t = battle.time,
+      goal = root.SquadAI.retreatGoal(sq),
+      center = retreatCenter(sq) || sq.orderAnchor || sq.rally || goal,
+      held = L.get(sq, 'retreat-anchor');
+    if (!held)
+      return grantRetreatAnchor(sq, battle, sq.orderAnchor || sq.rally || center, goal, 'retreat start', 1);
+
+    var d = held.data || (held.data = {}),
+      anchor = d.anchor || sq.orderAnchor || sq.rally,
+      distance = center && anchor ? dist(center, anchor) : Infinity,
+      goalChanged = !d.goal || dist(goal, d.goal) > RETREAT_GOAL_EPS,
+      blocked = retreatBlocked(sq),
+      unsafe = retreatUnsafe(sq, battle, anchor, center);
+    d.distance = distance;
+
+    if (goalChanged) {
+      L.end(sq, 'retreat-anchor', t, 'retreat goal moved');
+      return grantRetreatAnchor(sq, battle, center, goal, 'retreat goal moved', 1);
+    }
+    if (unsafe || blocked) {
+      L.end(sq, 'retreat-anchor', t, unsafe ? 'anchor unsafe' : 'route blocked');
+      return grantRetreatAnchor(
+        sq,
+        battle,
+        center,
+        goal,
+        unsafe ? 'anchor unsafe' : 'route blocked',
+        RETREAT_RECOVERY_STRIDE
+      );
+    }
+    if (distance <= RETREAT_ANCHOR_ARRIVE) {
+      /* At the final retreat point there is nowhere else to publish. Keep the same stable endpoint. */
+      if (anchor && goal && dist(anchor, goal) <= 2) {
+        d.bestDistance = Math.min(isFinite(+d.bestDistance) ? +d.bestDistance : distance, distance);
+        d.lastProgressAt = t;
+        L.extend(sq, 'retreat-anchor', 'squad-leader', t, t + RETREAT_ANCHOR_LEASE, 'final retreat point');
+        return anchor;
+      }
+      L.end(sq, 'retreat-anchor', t, 'anchor reached');
+      return grantRetreatAnchor(sq, battle, anchor || center, goal, 'anchor reached', 1);
+    }
+    if (!isFinite(+d.bestDistance) || distance < +d.bestDistance - RETREAT_PROGRESS_EPS) {
+      d.bestDistance = distance;
+      d.lastProgressAt = t;
+      L.extend(sq, 'retreat-anchor', 'squad-leader', t, t + RETREAT_ANCHOR_LEASE, 'retreat progress');
+      return anchor;
+    }
+    if (t - (+d.lastProgressAt || t) >= RETREAT_NO_PROGRESS || !L.holds(sq, 'retreat-anchor', t)) {
+      L.end(sq, 'retreat-anchor', t, 'no retreat progress');
+      return grantRetreatAnchor(sq, battle, center, goal, 'no retreat progress', RETREAT_RECOVERY_STRIDE);
+    }
+    return anchor;
+  }
   /* The one publisher of the squad's anchor. `orderAnchor` is where the fireteam slots are laid; `rally` is
      the same point for the readers that only know a rally point (the doctrine's empty-squad fallback, the
      resolver's last resort, the exports). Every move of either goes through here: the per-step advance
@@ -1303,10 +1455,15 @@
    deletes that redundant individual producer entirely: only committed fireteam slots publish Meso
    locomotion. */
   function advanceSquadAnchor(sq, battle) {
-    var anchor = sq.orderAnchor || publishAnchor(sq, sq.rally),
-      x = anchor.x,
+    var anchor = sq.orderAnchor || publishAnchor(sq, sq.rally);
+    if (sq.state === 'retreat') {
+      stableRetreatAnchor(sq, battle);
+      return;
+    }
+    if (L.get(sq, 'retreat-anchor')) L.end(sq, 'retreat-anchor', battle.time, 'retreat ended');
+    var x = anchor.x,
       z = anchor.z,
-      goal = sq.state === 'retreat' ? root.SquadAI.retreatGoal(sq) : sq.objective || sq.home,
+      goal = sq.objective || sq.home,
       goalChanged = !sq._orderGoal || dist(goal, sq._orderGoal) > 3;
     var form = root.SquadAI.formationFor(sq),
       formChanged = form !== sq.formation,
@@ -1335,10 +1492,6 @@
           : ORDER_STRIDE;
       x += (dx / len) * Math.min(stride, len);
       z += (dz / len) * Math.min(stride, len);
-      sq._orderVersion = (+sq._orderVersion || 0) + 1;
-    } else if (sq.state === 'retreat' && len > 2) {
-      x += (dx / len) * Math.min(ORDER_STRIDE, len);
-      z += (dz / len) * Math.min(ORDER_STRIDE, len);
       sq._orderVersion = (+sq._orderVersion || 0) + 1;
     }
     publishAnchor(sq, { x: x, z: z });
@@ -1373,7 +1526,7 @@
         sig = fireteamSignature(sq),
         cur = sq._fireteamOrders[key],
         urgent = sq.state === 'retreat';
-      if (!cur || urgent || cur.signature !== sig)
+      if (!cur || cur.signature !== sig || (urgent && dist(cur.anchor, desired) > ORDER_PUBLISH_EPS))
         cur = sq._fireteamOrders[key] = {
           anchor: copy(desired),
           origin: copy(live),
@@ -1409,12 +1562,7 @@
         s._fireteamKey = key;
         if (!defensive) s._defensePost = null;
         stats.intentChecks++;
-        if (
-          !urgent &&
-          previous &&
-          dist(previous, next) <= ORDER_PUBLISH_EPS &&
-          s._fireteamPublishKey === publishKey
-        ) {
+        if (previous && dist(previous, next) <= ORDER_PUBLISH_EPS && s._fireteamPublishKey === publishKey) {
           stats.intentCoalesced++;
           continue;
         }
@@ -2136,7 +2284,20 @@
     teamOrderSeconds: TEAM_LEASE,
     boundCycle: BOUND_CYCLE,
     boundDuration: BOUND_DURATION,
-    tuning: { morale: MORALE_TUNING, coa: COA_TUNING, fireControl: FIRE_CONTROL_TUNING, lead: LEAD_TUNING },
+    tuning: {
+      morale: MORALE_TUNING,
+      coa: COA_TUNING,
+      fireControl: FIRE_CONTROL_TUNING,
+      lead: LEAD_TUNING,
+      retreatAnchor: {
+        lease: RETREAT_ANCHOR_LEASE,
+        arrive: RETREAT_ANCHOR_ARRIVE,
+        progressEps: RETREAT_PROGRESS_EPS,
+        goalEps: RETREAT_GOAL_EPS,
+        noProgress: RETREAT_NO_PROGRESS,
+        recoveryStride: RETREAT_RECOVERY_STRIDE
+      }
+    },
     slStress: function () { return Object.assign({}, SL_STRESS); },
     parseSlStress: parseSlStress,
     moraleOn: function () { return MORALE_ON; },
