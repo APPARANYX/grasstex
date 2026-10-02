@@ -245,7 +245,7 @@ test('LoopWatch does not stitch squad order churn across a phase handoff',()=>{
   s.squad.commandPhase='regroup';s.squad.state='advance';
   for(let i=0;i<10;i++){
     b.time=i;
-    if(i===2)s.squad.commandPhase='assault';
+    if(i===4)s.squad.commandPhase='assault';
     for(const man of m){man.root.position.x=i%2?2:0;man.root.position.z=0;man._fireteamDestination={x:i%2?10:-10,z:0};}
     L.sample(b);
   }
