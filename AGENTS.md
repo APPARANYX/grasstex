@@ -959,16 +959,18 @@ check, and diagnostics proof. Do not fold these into one "AI cleanup" change.
    retreat requests, one stable useful goal" and records the publish/check ratio plus net travel; diagnostics expose the
    live retreat-anchor lease, goal, remaining time, best/current distance and no-progress age.
 
-3. **Fire-control + posture observability.** Make the new crest/fire-discipline system self-explaining before further
-   tactical tuning.
-   - Full diagnostics per squad: `fireControl.state` (`hold|reposition|precision|open`), since/reason, target, range,
+3. **Fire-control + posture observability — PR #162.** The crest/fire-discipline system now exports the evidence
+   behind its decisions instead of requiring visual inference from a battle.
+   - Full squad diagnostics carry `fireControl.state` (`hold|reposition|precision|open`), since/reason, target, range,
      living/ready/required-ready, strength, mean MKM, designated shooter, and counts for visual line, ballistic line,
      terrain/crest blocked and prone-ready.
-   - Keep a small transition trail: e.g. `hold:first-contact -> reposition:no-prone-lines -> open:7/9-ready`.
-   - Add **posture-churn** LoopWatch: flag repeated stand/crouch/prone changes inside a short window (first rule:
-     >=4 changes in 8 s) when there was little net movement and no meaningful change of contact/cover; include every
-     stance reason. This is diagnostic only first. Do not suppress stance changes until the observed writer/reason is
-     known.
+   - The Squad Leader retains a small transition trail with the decision evidence at each state change (for example
+     `hold:first visual contact -> reposition:no viable prone firing line -> open:7/9 ready`).
+   - Engagement records only actual committed stance changes, with sim time, from/to stance, reason, Engagement state,
+     position and the contact/cover context at that instant. LoopWatch adds diagnostic-only **posture-churn** when at
+     least **4 changes occur inside 8 s**, net movement stays below **4.5 m**, and contact/cover context did not
+     materially change. The alert includes every recorded stance reason. It does **not** suppress or alter a stance
+     change; tuning comes only after observed writer/reason evidence.
 
 4. **Strategic objective-stall recovery.** v278 knew both sides were stalled for ~300 s and `replanDue` was true, but
    the knowledge did not force useful recovery. Turn the existing coordination-health signal into deterministic Macro
