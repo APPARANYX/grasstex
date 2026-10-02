@@ -309,6 +309,7 @@
   }
   function createMarker(sim, obj) {
     if (typeof BABYLON === 'undefined' || !sim || !sim.scene) return null;
+    if (!BABYLON.MeshBuilder || typeof BABYLON.MeshBuilder.CreateRibbon !== 'function') return null;
     var scene = sim.scene,
       def = obj.def || {},
       cx = +def.x || 0,
