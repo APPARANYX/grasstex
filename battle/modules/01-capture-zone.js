@@ -198,20 +198,34 @@
     };
   }
 
+  var FLAG_POLE_HEIGHT = 8,
+    FLAG_WIDTH = 3.2,
+    FLAG_HEIGHT = 1.65,
+    FLAG_LOW = 2.35,
+    FLAG_HIGH = 7.15,
+    SANDBAG_CLUSTERS = 6,
+    SANDBAGS_PER_CLUSTER = 3;
+
   function disposeMarkers(sim) {
     var markers = sim && sim._captureZoneMarkers;
     if (!markers) return;
     Object.keys(markers).forEach(function (id) {
       var m = markers[id];
       if (!m) return;
-      ['ring', 'pole', 'cap'].forEach(function (k) {
+      try {
+        if (m.waveObserver && sim.scene && sim.scene.onBeforeRenderObservable)
+          sim.scene.onBeforeRenderObservable.remove(m.waveObserver);
+      } catch (_) {}
+      ['pole', 'flag', 'sandbags'].forEach(function (k) {
         try {
           if (m[k]) m[k].dispose();
         } catch (_) {}
       });
-      try {
-        if (m.material) m.material.dispose();
-      } catch (_) {}
+      ['poleMaterial', 'flagMaterial', 'sandbagMaterial'].forEach(function (k) {
+        try {
+          if (m[k]) m[k].dispose();
+        } catch (_) {}
+      });
     });
     sim._captureZoneMarkers = null;
     sim._captureZoneMarkerScenario = null;
@@ -228,58 +242,149 @@
   function markerColor(st) {
     var us = +((st && st.us) || 0),
       ge = +((st && st.ge) || 0);
-    if (us > 0 && ge > 0 && !st.active) return COLOR_CONTESTED;
-    if (st && st.active === 'us' && st.owner !== 'us') return COLOR_US;
-    if (st && st.active === 'ge' && st.owner !== 'ge') return COLOR_GE;
     if (st && st.owner === 'us') return COLOR_US;
     if (st && st.owner === 'ge') return COLOR_GE;
+    if (st && st.active === 'us') return COLOR_US;
+    if (st && st.active === 'ge') return COLOR_GE;
+    if (us > 0 && ge > 0) return COLOR_CONTESTED;
     return COLOR_NEUTRAL;
+  }
+  function flagTargetY(marker, st) {
+    var low = marker.lowY,
+      high = marker.highY,
+      pct = Math.max(0, Math.min(1, (+((st && st.progress) || 0)) / 100)),
+      owned = st && (st.owner === 'us' || st.owner === 'ge');
+    if (owned) {
+      if (st.phase === 'neutralizing' && st.active && st.active !== st.owner)
+        return high - (high - low) * pct;
+      return high;
+    }
+    if (st && st.phase === 'capturing' && st.active) return low + (high - low) * pct;
+    return low;
+  }
+  function flagPaths() {
+    var top = [],
+      bottom = [],
+      cols = 7;
+    for (var i = 0; i < cols; i++) {
+      var x = (i / (cols - 1)) * FLAG_WIDTH;
+      top.push(new BABYLON.Vector3(x, 0, 0));
+      bottom.push(new BABYLON.Vector3(x, -FLAG_HEIGHT, 0));
+    }
+    return [top, bottom];
+  }
+  function objectiveSandbags(scene, sim, obj, cx, cz, radius, material) {
+    var parts = [],
+      boundary = Math.max(7, radius * 0.9),
+      spacing = 1.55,
+      step = spacing / boundary;
+    for (var cluster = 0; cluster < SANDBAG_CLUSTERS; cluster++) {
+      var centerA = Math.PI / 6 + (cluster / SANDBAG_CLUSTERS) * Math.PI * 2;
+      for (var j = 0; j < SANDBAGS_PER_CLUSTER; j++) {
+        var off = j - (SANDBAGS_PER_CLUSTER - 1) / 2,
+          a = centerA + off * step,
+          x = cx + Math.cos(a) * boundary,
+          z = cz + Math.sin(a) * boundary,
+          y = sim.heightAt(x, z),
+          bag = BABYLON.MeshBuilder.CreateBox(
+            'objective-sandbag-part-' + obj.id,
+            { width: 1.5, height: 0.58, depth: 0.72 },
+            scene
+          );
+        bag.position.set(x, y + 0.29, z);
+        /* Box width follows the tangent, leaving six very broad approach gaps through the boundary. */
+        bag.rotation.y = Math.PI / 2 - a;
+        parts.push(bag);
+      }
+    }
+    var merged =
+      parts.length > 1 ? BABYLON.Mesh.MergeMeshes(parts, true, true, undefined, false, false) : parts[0];
+    if (merged) {
+      merged.name = 'objective-sandbags-' + obj.id;
+      merged.material = material;
+      merged.isPickable = false;
+      if (merged.freezeWorldMatrix) merged.freezeWorldMatrix();
+    }
+    return merged;
   }
   function createMarker(sim, obj) {
     if (typeof BABYLON === 'undefined' || !sim || !sim.scene) return null;
+    if (!BABYLON.MeshBuilder || typeof BABYLON.MeshBuilder.CreateRibbon !== 'function') return null;
     var scene = sim.scene,
       def = obj.def || {},
       cx = +def.x || 0,
       cz = +def.z || 0,
       r = +def.radius || 20,
-      points = [],
-      segments = 56;
-    for (var i = 0; i <= segments; i++) {
-      var a = (i / segments) * Math.PI * 2,
-        x = cx + Math.cos(a) * r,
-        z = cz + Math.sin(a) * r;
-      points.push(new BABYLON.Vector3(x, sim.heightAt(x, z) + 0.24, z));
-    }
-    var ring = BABYLON.MeshBuilder.CreateLines('objective-ring-' + obj.id, { points: points }, scene);
-    ring.isPickable = false;
-    ring.color = color3(COLOR_NEUTRAL);
-    ring.alpha = 0.96;
-    ring.renderingGroupId = 2;
-    var y = sim.heightAt(cx, cz),
+      y = sim.heightAt(cx, cz),
       pole = BABYLON.MeshBuilder.CreateCylinder(
         'objective-pole-' + obj.id,
-        { height: 9, diameter: 0.42, tessellation: 8 },
+        { height: FLAG_POLE_HEIGHT, diameter: 0.28, tessellation: 10 },
         scene
       );
-    pole.position.set(cx, y + 4.5, cz);
+    pole.position.set(cx, y + FLAG_POLE_HEIGHT / 2, cz);
     pole.isPickable = false;
-    pole.renderingGroupId = 2;
-    var cap = BABYLON.MeshBuilder.CreateSphere(
-      'objective-cap-' + obj.id,
-      { diameter: 2.4, segments: 8 },
+
+    var poleMaterial = new BABYLON.StandardMaterial('objective-pole-mat-' + obj.id, scene);
+    poleMaterial.diffuseColor = new BABYLON.Color3(0.26, 0.27, 0.25);
+    poleMaterial.specularColor = BABYLON.Color3.Black();
+    pole.material = poleMaterial;
+
+    var flagMaterial = new BABYLON.StandardMaterial('objective-flag-mat-' + obj.id, scene);
+    flagMaterial.diffuseColor = color3(COLOR_NEUTRAL);
+    flagMaterial.emissiveColor = color3(COLOR_NEUTRAL).scale(0.3);
+    flagMaterial.specularColor = BABYLON.Color3.Black();
+    flagMaterial.backFaceCulling = false;
+    var flag = BABYLON.MeshBuilder.CreateRibbon(
+      'objective-flag-' + obj.id,
+      { pathArray: flagPaths(), closeArray: false, closePath: false, updatable: true },
       scene
     );
-    cap.position.set(cx, y + 9.2, cz);
-    cap.isPickable = false;
-    cap.renderingGroupId = 2;
-    var material = new BABYLON.StandardMaterial('objective-marker-mat-' + obj.id, scene);
-    material.diffuseColor = color3(COLOR_NEUTRAL);
-    material.emissiveColor = color3(COLOR_NEUTRAL).scale(0.72);
-    material.specularColor = BABYLON.Color3.Black();
-    material.disableLighting = false;
-    pole.material = material;
-    cap.material = material;
-    return { ring: ring, pole: pole, cap: cap, material: material };
+    flag.position.set(cx, y + FLAG_LOW, cz);
+    flag.rotation.y = -0.58;
+    flag.isPickable = false;
+    flag.material = flagMaterial;
+    flag._targetY = y + FLAG_LOW;
+
+    var sandbagMaterial = new BABYLON.StandardMaterial('objective-sandbag-mat-' + obj.id, scene);
+    sandbagMaterial.diffuseColor = new BABYLON.Color3(0.57, 0.51, 0.36);
+    sandbagMaterial.ambientColor = new BABYLON.Color3(0.34, 0.3, 0.2);
+    sandbagMaterial.specularColor = BABYLON.Color3.Black();
+    var sandbags = objectiveSandbags(scene, sim, obj, cx, cz, r, sandbagMaterial);
+
+    var base = flag.getVerticesData(BABYLON.VertexBuffer.PositionKind).slice(),
+      waved = base.slice(),
+      phase = 0;
+    for (var h = 0; h < String(obj.id || '').length; h++)
+      phase = (phase * 31 + String(obj.id).charCodeAt(h)) % 628;
+    phase /= 100;
+    var waveObserver = scene.onBeforeRenderObservable.add(function () {
+      if (!flag || (flag.isDisposed && flag.isDisposed())) return;
+      var engine = scene.getEngine && scene.getEngine(),
+        dt = Math.min(0.05, ((engine && engine.getDeltaTime && engine.getDeltaTime()) || 16) / 1000),
+        targetY = flag._targetY == null ? y + FLAG_LOW : flag._targetY,
+        now = ((typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) / 1000) + phase;
+      flag.position.y += (targetY - flag.position.y) * Math.min(1, dt * 4.5);
+      for (var v = 0; v < base.length / 3; v++) {
+        var vx = base[v * 3],
+          reach = FLAG_WIDTH ? vx / FLAG_WIDTH : 0;
+        waved[v * 3] = vx;
+        waved[v * 3 + 1] = base[v * 3 + 1];
+        waved[v * 3 + 2] =
+          (Math.sin(now * 3.6 + vx * 2.15) * 0.15 + Math.sin(now * 2.2 + vx * 4.1) * 0.035) * reach;
+      }
+      flag.updateVerticesData(BABYLON.VertexBuffer.PositionKind, waved, false, false);
+    });
+    return {
+      pole: pole,
+      flag: flag,
+      sandbags: sandbags,
+      poleMaterial: poleMaterial,
+      flagMaterial: flagMaterial,
+      sandbagMaterial: sandbagMaterial,
+      lowY: y + FLAG_LOW,
+      highY: y + FLAG_HIGH,
+      waveObserver: waveObserver
+    };
   }
   function ensureMarkers(sim, payload) {
     if (!sim || !sim._objectives || typeof BABYLON === 'undefined') return;
@@ -304,15 +409,12 @@
       var st =
           (root.BattleObjectiveSystem && root.BattleObjectiveSystem.status(sim, obj.id)) || obj.state || {},
         c = markerColor(st),
-        col = color3(c);
-      marker.ring.color = col;
-      marker.material.diffuseColor = col;
-      marker.material.emissiveColor = col.scale(
-        st.phase === 'capturing' || st.phase === 'neutralizing' ? 1 : 0.72
-      );
-      var pulse =
-        st.phase === 'capturing' || st.phase === 'neutralizing' ? 1 + Math.sin((sim.time || 0) * 5) * 0.1 : 1;
-      marker.cap.scaling.set(pulse, pulse, pulse);
+        col = color3(c),
+        active = st.phase === 'capturing' || st.phase === 'neutralizing',
+        glow = active ? 0.42 + (Math.sin((sim.time || 0) * 5) + 1) * 0.08 : 0.3;
+      marker.flagMaterial.diffuseColor = col;
+      marker.flagMaterial.emissiveColor = col.scale(glow);
+      marker.flag._targetY = flagTargetY(marker, st);
     });
   }
 
@@ -455,14 +557,14 @@
   }
 
   root.BattleModules.registerObjectiveType('capture-zone', {
-    version: '29-objective-defense',
+    version: '30-objective-flags',
     label: 'Timed capture zone',
     init: init,
     tick: tick,
     status: status
   });
   root.BattleModules.registerSystem('capture-zone-tactics', {
-    version: '29-objective-defense',
+    version: '30-objective-flags',
     onBattleStart: function (sim, payload) {
       ensureMarkers(sim, payload);
       updateMarkers(sim, payload);
@@ -481,5 +583,5 @@
       updateMarkers(sim, payload);
     }
   });
-  console.log('[OBJECTIVE] capture zones v29: visible markers + defensive secure state active');
+  console.log('[OBJECTIVE] capture zones v30: waving raise/lower flags + open sandbag boundary active');
 })(typeof window !== 'undefined' ? window : globalThis);
