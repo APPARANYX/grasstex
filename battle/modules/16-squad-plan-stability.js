@@ -315,10 +315,14 @@
       i;
     for (i = 0; i < men.length; i++) {
       var o =
-        E && E.fireControlObservation
-          ? E.fireControlObservation(men[i], battle)
-          : { ready: E && E.fireControlReady ? E.fireControlReady(men[i], battle) : false };
-      if (o.ready) out.ready++;
+          E && E.fireControlObservation
+            ? E.fireControlObservation(men[i], battle)
+            : { ready: false },
+        ready = E && E.fireControlReady ? E.fireControlReady(men[i], battle) : !!o.ready;
+      /* The leader's decision keeps the existing readiness API as its authority. The richer
+         observation is diagnostics only, so tests/tools (and any future readiness policy) can
+         override fireControlReady without being bypassed by instrumentation. */
+      if (ready) out.ready++;
       if (o.visualLine) out.visualLine++;
       if (o.ballisticLine) out.ballisticLine++;
       if (o.terrainCrestBlocked) out.terrainCrestBlocked++;
