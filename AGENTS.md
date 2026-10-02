@@ -1003,7 +1003,16 @@ The active queue begins here:
    makes the callout channel materially useful. Diagnostics must answer *why this man believed an enemy was there*
    and distinguish truth from belief without giving the AI hidden truth.
 
-2. **Intent-based continuation and initiative when the Squad Leader is down.** Succession already exists; the
+2. **Scouts forward: the Squad Leader looks before the squad moves** (owner, 2026-10-02). Before an approach
+   to an objective, a crest or a hedgeline the squad has no current picture of, the Squad Leader sends its scouts
+   ahead to observe while the rest of the squad holds in cover; the squad moves on what they report, or on a
+   timeout when they report nothing. One Squad Leader phase (send, hold, release on a report or the clock; a lease,
+   not a new `...Until`), the scouts' movement through the Movement Resolver, and their reports through the callout
+   channel into the per-man beliefs of slice 1, which it depends on: the squad acts on what the scouts saw and
+   reported, never on hidden truth. Contact while scouting is ordinary Engagement and fire control. The outline's
+   fireteam `recon` task and the building plan's `reconnoiter` step are the larger form of the same idea. Behind a
+   flag, paired benchmark.
+3. **Intent-based continuation and initiative when the Squad Leader is down.** Succession already exists; the
    missing behavior is what the men/fireteams do while leadership is absent or before a successor can issue a new
    local plan. Preserve the last valid parent intent/task and allow only bounded, conservative initiative inside
    it: hold a valid firing/cover position, finish an already-committed short move, protect the fireteam/buddy,
