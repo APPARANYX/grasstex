@@ -96,7 +96,8 @@
   }
   function contact(s, b) {
     var q = s && s.squad,
-      c = q && q.contact;
+      S = root.SquadAI,
+      c = S && S.soldierContact ? S.soldierContact(s, b) : q && q.contact;
     if (!c || !isFinite(+c.at) || b.time - +c.at > SHARED_REACT_AGE) return null;
     return c;
   }
