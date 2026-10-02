@@ -22,7 +22,8 @@ function test(name, fn) {
 }
 function setup(squads) {
   H.resetIds();
-  const r = H.bootstrap();
+  /* The free 50 m relay is the `?callouts=0` control; the callout channel has its own check (callouts-check.js). */
+  const r = H.bootstrap({ search: '?callouts=0' });
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
   const b = H.makeBattle(r, { seed: 11 });
   const out = squads.map(o =>
