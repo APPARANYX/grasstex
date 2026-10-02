@@ -111,13 +111,12 @@
     RETREAT_DANGER_MARGIN = 5,
     RETREAT_RECOVERY_STRIDE = 0.5;
 
-  /* Buddy pairs are a Squad Leader / fireteam execution aid, not a command layer. While the slice is
-     being measured it is opt-in (?buddyPairs=1): with the flag absent/off this module creates no pair
-     state and fire-and-movement is equivalent at its decision points. Pair state is owned here. Runtime
-     readers are this module's fire-and-movement selector only; diagnostics and probes read snapshots.
-     A pair never writes a destination and never calls the Movement Resolver. */
+  /* Buddy pairs are a Squad Leader / fireteam execution aid, not a command layer. They are on by
+     default after standard benchmark #272; ?buddyPairs=0/off/false is the legacy control. Pair state
+     is owned here. Runtime readers are this module's fire-and-movement selector only; diagnostics and
+     probes read snapshots. A pair never writes a destination and never calls the Movement Resolver. */
   function parseBuddyPairs(search) {
-    return /[?&]buddyPairs=(?:1|on|true)(?:&|$)/i.test(search || '');
+    return !/[?&]buddyPairs=(?:0|off|false)(?:&|$)/i.test(search || '');
   }
   var BUDDY_PAIRS_ON = parseBuddyPairs(typeof location !== 'undefined' ? location.search : '');
   var BUDDY_TUNING = {
