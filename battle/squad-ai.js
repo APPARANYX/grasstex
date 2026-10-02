@@ -1044,15 +1044,40 @@
      remains here in Perception/SquadAI rather than creating a second writer in the camera layer. */
   function playerAim(soldier, target) {
     if (!soldier || soldier.dead) return false;
-    if (!threatDisposition(target).combatThreat) return clearTarget(soldier);
+    /* A human player may aim at any living enemy. AI threat-disposition rules (freeze/flee/etc.) are
+       Micro decisions and must not decide whether the player's reticle is allowed to select someone. */
+    if (!target || target.dead || target.faction === soldier.faction) return clearTarget(soldier);
     soldier.target = target;
     return true;
   }
-  /* The player owns his trigger. This deliberately bypasses Engagement's squad fire-authorization
-     gate while retaining SquadAI's weapon cooldown, ammo/stoppage, range, LOS and ballistics gates. */
+  /* Legacy target-based player fire remains for callers that supply a target. */
   function playerFire(soldier, battle) {
     if (!soldier || soldier.dead) return false;
     return tryFire(soldier, battle);
+  }
+  /* Real player trigger: no target lock and no Engagement authorization. The arbitrary crosshair ray
+     goes through the shipping ammunition and ballistics owners, so reloads, jams, impacts, wounds,
+     penetration, terrain and buildings remain authoritative. */
+  function playerFireRay(soldier, aimPoint, battle) {
+    if (!soldier || soldier.dead || !soldier.isPlayer || !soldier.weapon || !aimPoint || !battle) return false;
+    if (soldier.fireCooldown > 0) return false;
+    var A = root.BattleAmmunition;
+    if (A && A.available && !A.available(soldier)) {
+      if ((+soldier.weapon.ammo || 0) <= 0 && (+soldier.weapon.reserveAmmo || 0) > 0 && A.startReload)
+        A.startReload(soldier, battle);
+      return false;
+    }
+    var B = root.BattleBallistics;
+    if (!B || typeof B.resolvePlayerRay !== 'function') return false;
+    var stats = soldier.weapon.stats,
+      p = soldier.root.position,
+      d = Math.hypot((+aimPoint.x || 0) - p.x, (+aimPoint.z || 0) - p.z),
+      rounds = discharge(soldier, battle, burstLength(stats, battle, d), function (round, delay) {
+        return B.resolvePlayerRay(soldier, aimPoint, battle, round, delay) ? undefined : false;
+      });
+    if (!rounds) return false;
+    soldier.fireCooldown = triggerCooldown(stats, rounds, battle, 1, d);
+    return true;
   }
 
   function setDestination(soldier, next, battle, urgent) {
@@ -1141,20 +1166,19 @@
   }
 
   function updateSoldier(soldier, battle) {
+    var resolver = root.BattleMovementResolver;
+    /* isPlayer gates the entire soldier Micro branch. Do not run soldier-mind/sidearm before hooks,
+       Perception, Engagement, or after hooks while possessed; only resolve the player's physical move. */
+    if (soldier && soldier.isPlayer) {
+      if (!soldier.dead && resolver) resolver.resolve(soldier, battle);
+      return;
+    }
     EXT.run('beforeSoldier', soldier, battle);
     if (!soldier.dead) {
-      var resolver = root.BattleMovementResolver,
-        player = resolver && resolver.playerActive && resolver.playerActive(soldier, battle);
-      if (player) {
-        /* While possessed, player input owns movement, stance and target selection. Keep the normal
-           extension hooks alive, but do not let Perception/Engagement overwrite controller input. */
-        resolver.resolve(soldier, battle);
-      } else {
-        var role = perceive(soldier, battle);
-        if (root.BattleEngagement) root.BattleEngagement.updateSoldier(soldier, battle);
-        else fallbackBehavior(soldier, battle, role);
-        if (resolver) resolver.resolve(soldier, battle);
-      }
+      var role = perceive(soldier, battle);
+      if (root.BattleEngagement) root.BattleEngagement.updateSoldier(soldier, battle);
+      else fallbackBehavior(soldier, battle, role);
+      if (resolver) resolver.resolve(soldier, battle);
     }
     EXT.run('afterSoldier', soldier, battle);
   }
@@ -1233,10 +1257,10 @@
     if (!EXT.pass('fireGate', soldier, battle)) return false;
     if (soldier.fireCooldown > 0) return false;
     var stats = soldier.weapon.stats,
-      target = soldier.target;
-    /* Perception normally clears these targets first, but a reaction can begin after the shooter's
-       perception tick. Re-check here so no stale aimed shot starts against a frozen/fleeing man. */
-    if (!threatDisposition(target).combatThreat) {
+      target = soldier.target,
+      playerTarget = !!(soldier.isPlayer && target && !target.dead && target.faction !== soldier.faction);
+    /* AI obeys threat disposition; a possessed player may intentionally shoot any living enemy. */
+    if (!playerTarget && !threatDisposition(target).combatThreat) {
       clearTarget(soldier);
       return false;
     }
@@ -1244,7 +1268,7 @@
       d = dist2(p.x, p.z, target.root.position.x, target.root.position.z);
     /* The burst stays on the man it was laid on; once he is down the gunner lets go. */
     var rounds = discharge(soldier, battle, burstLength(stats, battle, d), function (round, delay) {
-      if (!threatDisposition(target).combatThreat) return false;
+      if (!(soldier.isPlayer && target && !target.dead) && !threatDisposition(target).combatThreat) return false;
       shot(soldier, target, battle, round, delay);
     });
     soldier.fireCooldown = triggerCooldown(stats, rounds, battle, 1, d);
@@ -1282,6 +1306,7 @@
     clearTarget: clearTarget,
     playerAim: playerAim,
     playerFire: playerFire,
+    playerFireRay: playerFireRay,
     hasLineOfSight: hasLineOfSight,
     detectionRange: detectionRange,
     findTarget: findTarget,
