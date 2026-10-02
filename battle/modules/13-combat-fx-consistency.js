@@ -108,7 +108,10 @@
     setTimeout(function(){if(l._tracerGen!==gen)return;l._tracerOn=false;if(!l.isDisposed())l.setEnabled(false);},lifetime);
   }
   root.BattleTracers={on:TRACER_POOL,show:showTracer,stats:function(){return{pool:TRACER_POOL,created:tracerStats.created,reused:tracerStats.reused,stolen:tracerStats.stolen||0,max:TRACER_MAX};}};
-  /* Tracers belong to the world, not the debug/overlay pass. Rendering them in group 3 can render\n     after a cleared depth buffer, making rounds visible through buildings and hedgerows. Group 0 keeps\n     the pooled line optimization while depth-testing the streak against normal scene geometry. */\n  function tracer(scene,name,from,to,color,alpha,lifetime){showTracer(scene,name,from,to,color,alpha,lifetime,0);}
+  /* Tracers belong to the world, not the debug/overlay pass. Rendering them in group 3 can render
+     after a cleared depth buffer, making rounds visible through buildings and hedgerows. Group 0 keeps
+     the pooled line optimization while depth-testing the streak against normal scene geometry. */
+  function tracer(scene,name,from,to,color,alpha,lifetime){showTracer(scene,name,from,to,color,alpha,lifetime,0);}
   /* Effects warm-up. The first shots of a battle used to build the muzzle-flash pool (99 meshes, 13
      textures) and compile the flash, tracer and decal shaders mid-frame: a 94 ms hitch on an iPhone
      (device benchmark worstFrames). They are built and compiled when the battle is set up instead.
