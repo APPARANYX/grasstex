@@ -78,7 +78,8 @@
     if (s && s.target && (!own || own.combatThreat))
       return point(s.target.root && s.target.root.position);
     var q = s && s.squad,
-      c = q && q.contact,
+      S = root.SquadAI,
+      c = S && S.soldierContact ? S.soldierContact(s, battle) : q && q.contact,
       cd = D && c && c.unit ? D(c.unit) : null;
     if (c && c.unit && cd && !cd.combatThreat) identifiedNonThreat = true;
     if (
