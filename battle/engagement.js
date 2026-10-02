@@ -441,6 +441,21 @@
     commitStance(s, battle, stance, seconds, 'request:' + stance);
     return true;
   }
+  /* A committed stance is a short lease, not merely a visual suggestion. A new drill may always
+     take the man lower, but it may not raise him until the current hold expires. This is the
+     arbitration point for fire-control preparation vs orient/advance, reload vs firing station,
+     and suppression vs withdrawal; all still have one stance writer. */
+  function commitStanceRespectHold(s, battle, stance, seconds, reason) {
+    var e = state(s),
+      cur = STANCE_HEIGHT[e.stance],
+      next = STANCE_HEIGHT[stance];
+    if (battle.time < e.stanceUntil && next > cur) {
+      applyStance(s, e.stance);
+      return false;
+    }
+    commitStance(s, battle, stance, seconds, reason);
+    return true;
+  }
   function holdStance(s, battle) {
     var e = state(s);
     if (battle.time < e.stanceUntil) {
@@ -1361,7 +1376,10 @@
     s.state = 'engage';
     s.setUp = false;
     if (known) s._faceHint = { x: known.x, z: known.z };
-    commitStance(s, battle, 'prone', 1.0);
+    /* Bridge the short contact/fire-control blink that used to produce
+       prone -> crouch/stand -> prone loops. ALERT_HOLD is already the lifetime of the same
+       remembered threat sector, so the posture commitment expires with that tactical memory. */
+    commitStance(s, battle, 'prone', ALERT_HOLD, 'fire-control-prep');
     if (dist(p.x, p.z, goal.x, goal.z) > 0.3) move(s, battle, goal, 'contact-reaction', 0.8);
     else holdPosition(s, battle);
   }
@@ -2052,7 +2070,13 @@
       return alert(s, battle);
     }
     holdPosition(s, battle);
-    commitStance(s, battle, seeingStance(s, battle, 'crouch'), Math.max(0.8, e.until - battle.time));
+    commitStanceRespectHold(
+      s,
+      battle,
+      seeingStance(s, battle, 'crouch'),
+      Math.max(0.8, e.until - battle.time),
+      'orient'
+    );
     e.fireReadyAt = Math.max(e.fireReadyAt, e.since + recognition(s));
     if (battle.time >= e.until) decide(s, battle, 'oriented');
   }
@@ -2306,7 +2330,16 @@
     s.state = 'retreat';
     s.setUp = false;
     e.cover = null;
-    commitStance(s, battle, s.suppressedUntil > battle.time ? 'crouch' : 'stand', 0.5);
+    /* Retreat posture follows the broader "under fire" window, then lets the stance lease decay.
+       A suppression timer ending for one tick is no longer permission to stand and immediately kneel again. */
+    var underFire = underFireNow(s, battle);
+    commitStanceRespectHold(
+      s,
+      battle,
+      underFire ? 'crouch' : 'stand',
+      underFire ? 1.0 : 0.5,
+      underFire ? 'withdraw:under-fire' : 'withdraw:clear'
+    );
     followOrders(s, battle, true);
     if (s.target && dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z) < 35)
       tryFire(s, battle);
@@ -2382,7 +2415,7 @@
             ? t.threatSector
             : out;
     s._faceHint = face;
-    commitStance(s, battle, (pose && pose.stance) || port.stance, 2.0);
+    commitStanceRespectHold(s, battle, (pose && pose.stance) || port.stance, 2.0, 'station');
     move(s, battle, { x: anchor.x, z: anchor.z }, 'firing-station');
     if (d > 0.35) {
       s.setUp = false;
@@ -2420,7 +2453,7 @@
     s._faceHint = t.threatSector;
     var p = posOf(s),
       d = dist(p.x, p.z, st.x, st.z);
-    commitStance(s, battle, 'crouch', 2.0);
+    commitStanceRespectHold(s, battle, 'crouch', 2.0, 'station');
     // Keep the station intent even when occupied; a short-lived hold proposal cannot return him
     // to formation when engagement updates are staggered.
     move(s, battle, { x: st.x, z: st.z }, 'firing-station');
