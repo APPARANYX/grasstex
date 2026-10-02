@@ -214,7 +214,7 @@
       file: 'engagement.js',
       reader: 'beginFreeze (one-time stress-tempo snapshot when freeze begins)',
       reads: { freezeProfile: 1 },
-      unit: 'recent positive stress dose -> deterministic 4..16 s freeze duration; Engagement owns freezeUntil',
+      unit: 'recent positive stress dose -> deterministic 12..48 s freeze duration; Engagement owns freezeUntil',
       flag: '?mind= act lever and ?stressAct=freeze'
     },
     {
@@ -407,8 +407,8 @@
     RECENT_STRESS_CAP = 512,
     FREEZE_SHORT_WINDOW = 2,
     FREEZE_MID_WINDOW = 6,
-    FREEZE_MIN = 4,
-    FREEZE_MAX = 16;
+    FREEZE_MIN = 12,
+    FREEZE_MAX = 48;
 
   function clamp(n, a, b) {
     return Math.max(a, Math.min(b, n));
