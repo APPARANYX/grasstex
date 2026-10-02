@@ -990,15 +990,19 @@ check, and diagnostics proof. Do not fold these into one "AI cleanup" change.
    `decision-strategic-recovery`. The General still owns briefs/roles/targets; Squad Leader still owns local execution,
    Engagement owns combat/stance, and Movement Resolver remains the physical movement arbiter.
 
-5. **General threat disposition for soldiers now, civilians later.** Once #159's semantics are stable, replace
-   reaction-specific target checks with one Perception-owned/read-only classification API (name to settle in the phase,
-   e.g. `threatDisposition(unit)` / `isCombatThreat(unit)`). At minimum distinguish **hostile active threat** from
-   **visible non-threat** rather than making non-threats invisible. Today: normal/rage/armed reconstituted soldiers are
-   threats; freeze/flee/waiting fled men are non-threats. Future civilian NPCs can use the same contract without being
-   shoehorned into soldier reaction states. Target acquisition, shared contact, aimed fire, suppression and tactical
-   threat-facing consume that one classification; projectile/wound physics remain independent so non-threat does not mean
-   invulnerable. Add contract tests proving rage stays targetable, fled/frozen/civilian-style non-threats do not drive
-   combat posture, and rearm/reconstitution restores threat status.
+5. **General threat disposition for soldiers now, civilians later — Phase 5.** Perception now owns one
+   read-only `SquadAI.threatDisposition(unit)` contract with three outcomes: `active-threat`,
+   `visible-non-threat`, and `inactive`. The returned record is frozen and carries `visible`,
+   `combatThreat`, and a reason. Normal/cower/rage and reconstituted soldiers are active threats; freeze and every
+   flee/fled phase are visible non-threats; dead/missing units are inactive. An explicit `combatant=false` or
+   `combatThreat=false` classifies a future civilian-style NPC as a visible non-threat without inventing a soldier
+   reaction state. Target acquisition/tracking, shared/relayed/heard contact, aimed fire, area suppression, Squad Leader
+   fire-control preparation, combat urgency, tactical-route/position threat selection, sidearm choice and fallback squad
+   engagement all consume this one classification. A known non-threat is not resurrected from last-seen tactical memory.
+   LOS/physical presence and projectile/wound physics remain independent, so visible non-threat does not mean invisible
+   or invulnerable. Full diagnostics export each soldier's current disposition; `threat-disposition-check.js` proves
+   rage remains targetable/suppressible, freeze/flee/civilian-style units remain visible but do not drive combat posture,
+   reconstitution restores active-threat status, and classification draws no combat RNG.
 
 **Phase order:** #159 -> stress-tempo freeze -> retreat stability -> observability -> strategic stall recovery -> threat
 API generalisation. The threat API is intentionally last even though #159 establishes its semantics: first prove the
