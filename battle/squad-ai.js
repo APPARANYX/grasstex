@@ -648,6 +648,16 @@
     pruneBeliefs(soldier, battle);
     return selectBelief(beliefStore(soldier, battle), battle);
   }
+  function hasKnownNonThreat(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle || !soldier._beliefs) return false;
+    var store = soldier._beliefs,
+      keys = Object.keys(store.byKey || {});
+    for (var i = 0; i < keys.length; i++) {
+      var rec = store.byKey[keys[i]];
+      if (rec && rec.combatThreat === false && battle.time < rec.expiresAt) return true;
+    }
+    return false;
+  }
   function soldierContact(soldier, battle) {
     if (!SOLDIER_BELIEFS_ON)
       return soldier && soldier.squad ? squadContact(soldier.squad, battle) : null;
@@ -687,7 +697,7 @@
         });
     return {
       owner: 'perception',
-      readers: ['engagement', 'combat-urgency', 'diagnostics', 'probes'],
+      readers: ['engagement', 'combat-urgency', 'tactical-route', 'diagnostics', 'probes'],
       selectedKey: selected ? selected.key : null,
       unknown: !selected,
       beliefs: rows,
@@ -1870,6 +1880,7 @@
       return SOLDIER_BELIEFS_ON;
     },
     soldierContact: soldierContact,
+    hasKnownNonThreat: hasKnownNonThreat,
     rememberSeen: rememberSeen,
     applyCalloutBelief: applyCalloutBelief,
     hearGunfireBelief: hearGunfireBelief,
