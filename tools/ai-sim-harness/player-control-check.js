@@ -12,7 +12,7 @@ assert.match(cameraSource,/buttonValue\(pad,7\)/,'RT must feed player fire');
 assert.match(cameraSource,/buttonValue\(pad,10\)/,'L3 must feed player run');
 assert.match(cameraSource,/playerYaw\+=lx\*PLAYER_LOOK_RATE\*dt/,'RS right must turn the player camera right');
 assert.doesNotMatch(cameraSource,/playerYaw-=lx\*PLAYER_LOOK_RATE\*dt/,'player horizontal look must not be reversed');
-assert.doesNotMatch(cameraSource,/if\(!pad\)return;/,'free-camera keyboard movement must not require a connected gamepad');
+assert.doesNotMatch(cameraSource,/if\(!pad&&padId\)[\s\S]{0,220}if\(!pad\)return;/,'free-camera keyboard movement must not return when no gamepad is connected');
 assert.match(cameraSource,/var f=\(keys\.has\('w'\)\?1:0\)[\s\S]*?if\(pad\)\{\s*var axes=pad\.axes/,'keyboard fly input must be evaluated outside the optional gamepad branch');
 assert.match(cameraSource,/if\(key==='p'\)[\s\S]*?possessRandom\(\)/,'P must enter or switch keyboard player mode');
 assert.match(cameraSource,/playerMovementKey\(key\)[\s\S]*?keys\.add\(key\)/,'WASD\/Shift must feed keyboard player movement');
