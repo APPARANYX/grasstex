@@ -581,6 +581,7 @@
       return {
         detector: c.detector,
         module43TotalAlerts: fp ? +fp.totalAlerts || 0 : null,
+        module43TotalNavigationDetours: fp ? +fp.totalNavigationDetours || 0 : null,
         module43TrackResets: fp && fp.trackResets ? JSON.parse(JSON.stringify(fp.trackResets)) : null,
         capturedEpisodes: n,
         mean: {
