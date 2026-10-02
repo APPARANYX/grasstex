@@ -101,7 +101,15 @@
         boundWaitFrom: 0,
         suppressOrder: false,
         burstLeft: SUPPRESS_BURST,
-        burstPauseUntil: 0
+        burstPauseUntil: 0,
+        freezeStartedAt: null,
+        freezeUntil: 0,
+        freezeDuration: 0,
+        freezeDose: null,
+        freezeEndedAt: null,
+        freezeExitReason: null,
+        freezeBrokenSince: null,
+        freezeSpentBrokenSince: null
       };
     return s.eng;
   }
@@ -1463,13 +1471,16 @@
   }
   /* How a broken man breaks: the best of his enabled reactions by temper x situation, ties in the order flee, freeze,
      rage; null when none is enabled or none has any weight. */
-  function chooseBreak(s, battle, v) {
+  function chooseBreak(s, battle, v, skipFreeze) {
     var p = posOf(s),
       th = trouble(s, battle),
       d = th ? dist(p.x, p.z, th.x, th.z) : Infinity,
       w = {
         flee: ACT.flee ? v.temper.flee * (th ? 1 : ACT_TUNING.FLEE_NO_THREAT) : 0,
-        freeze: ACT.freeze ? v.temper.freeze * (v.underFire ? 1 : ACT_TUNING.FREEZE_NOT_UNDER_FIRE) : 0,
+        freeze:
+          ACT.freeze && !skipFreeze
+            ? v.temper.freeze * (v.underFire ? 1 : ACT_TUNING.FREEZE_NOT_UNDER_FIRE)
+            : 0,
         rage: ACT.rage && d <= ACT_TUNING.RAGE_RANGE && armed(s) ? v.temper.rage : 0
       },
       best = null,
@@ -1477,6 +1488,44 @@
     for (var i = 0; i < order.length; i++)
       if (w[order[i]] > 0 && (!best || w[order[i]] > w[best])) best = order[i];
     return best;
+  }
+  function beginFreeze(s, battle, v) {
+    var e = state(s),
+      M = mind(),
+      profile = M && M.freezeProfile ? M.freezeProfile(s, battle.time) : null,
+      duration = profile && isFinite(+profile.duration) ? +profile.duration : ACT_TUNING.REACT_MIN;
+    duration = clamp(duration, ACT_TUNING.REACT_MIN, 60);
+    e.freezeStartedAt = battle.time;
+    e.freezeDuration = duration;
+    e.freezeUntil = battle.time + duration;
+    e.freezeDose = profile;
+    e.freezeEndedAt = null;
+    e.freezeExitReason = null;
+    e.freezeBrokenSince = v ? v.since : null;
+    telemetry(battle, 'decision-freeze-start', {
+      faction: s.faction,
+      soldier: s.id,
+      squad: s.squad ? s.squad.id : null,
+      duration: duration,
+      until: e.freezeUntil,
+      dose: profile
+    });
+  }
+  function finishFreeze(s, battle, why) {
+    var e = state(s);
+    if (e.freezeStartedAt == null || e.freezeEndedAt != null) return;
+    e.freezeEndedAt = battle.time;
+    e.freezeExitReason = why || 'ended';
+    e.freezeSpentBrokenSince = e.freezeBrokenSince;
+    telemetry(battle, 'decision-freeze-end', {
+      faction: s.faction,
+      soldier: s.id,
+      squad: s.squad ? s.squad.id : null,
+      startedAt: e.freezeStartedAt,
+      endedAt: e.freezeEndedAt,
+      duration: e.freezeDuration,
+      reason: e.freezeExitReason
+    });
   }
   /* Where a man who has broken for good runs first: the last place his squad stood out of contact with nobody known
      near (the Squad Leader's `safePoint`), unless the trouble is known to be near it, then its home. Chosen once. */
@@ -1679,15 +1728,36 @@
     if (!v) return false;
     var e = state(s),
       cur = ACTING[e.state] === 1 ? e.state : null,
-      want = cur;
-    if (v.band >= 3) {
-      if (!cur || cur === 'cower') want = chooseBreak(s, battle, v) || (cur === 'cower' ? 'cower' : null);
+      want = cur,
+      spentThisBreak = e.freezeSpentBrokenSince != null && e.freezeSpentBrokenSince === v.since;
+
+    /* Freeze is a bounded spell even if the man remains in the broken band. It does not end early
+       merely because stress decays; when its one-time timer expires, reassess what he does next. */
+    if (cur === 'freeze') {
+      if (!(e.freezeUntil > 0)) e.freezeUntil = (e.reactSince || now) + ACT_TUNING.REACT_MIN;
+      if (now >= e.freezeUntil) {
+        var next = null;
+        if (v.band >= 3) {
+          next = chooseBreak(s, battle, v, true);
+          if (!next && v.underFire && ACT.cower) next = 'cower';
+        } else if (v.band >= 2 && v.underFire && ACT.cower) next = 'cower';
+        var reason =
+          v.band >= 3
+            ? 'duration-expired-broken:' + (next || 'advance')
+            : 'duration-expired-' + (v.band >= 2 ? 'rattled' : 'composed') + ':' + (next || 'advance');
+        finishFreeze(s, battle, reason);
+        want = next;
+      }
+    } else if (v.band >= 3) {
+      if (!cur || cur === 'cower')
+        want = chooseBreak(s, battle, v, spentThisBreak) || (cur === 'cower' ? 'cower' : null);
     } else if (cur === 'cower') {
       if (v.underFire) e.fearAt = now;
       if (v.band < 2 || now - e.fearAt >= ACT_TUNING.COWER_QUIET) want = null;
     } else if (cur) {
       if (now - e.reactSince >= ACT_TUNING.REACT_MIN) want = null;
     } else if (v.band >= 2 && v.underFire && ACT.cower) want = 'cower';
+
     if (want !== cur) {
       if (!want) {
         composed(s, battle, cur);
@@ -1708,6 +1778,7 @@
       e.cover = null;
       if (want === 'rage') e.guardUntil = now + ACT_TUNING.RAGE_GUARD_SECONDS;
       if (want === 'flee') beginFled(s, battle);
+      if (want === 'freeze') beginFreeze(s, battle, v);
       noteAct(s, want, 'start');
     }
     if (!want) return false;
@@ -1767,6 +1838,7 @@
        and a man coming off a retreat re-decides instead of resuming a stale firefight state. */
     if (e.fledPhase) return fledTick(s, battle);
     if (s.squad && s.squad.state === 'retreat') {
+      if (reactionState(s) === 'freeze') finishFreeze(s, battle, 'squad-retreat');
       transition(s, battle, 'withdraw', 0, 'squad withdrawing');
       return withdraw(s, battle);
     }
