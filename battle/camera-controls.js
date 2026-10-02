@@ -4,7 +4,7 @@
   var FOLLOW_DEFAULT=10,FOLLOW_MIN=3,FOLLOW_MAX=90,FOLLOW_BETA=1.18,FOLLOW_HEIGHT=1.05,ORBIT_SPEED=.22;
   var LOOK_X=.0022,LOOK_Y=.0018,PITCH_LIMIT=Math.PI*.46,MAX_HEIGHT=420,GROUND_CLEARANCE=2;
   var PAD_DEADZONE=.16,PAD_LOOK_RATE=2.35,PAD_PRECISION=.28,PAD_THROTTLE_STEP=1.35;
-  var PLAYER_DISTANCE=5.6,PLAYER_AIM_DISTANCE=3.15,PLAYER_LOOK_RATE=2.2,PLAYER_MOVE_AHEAD=6,PLAYER_TARGET_DOT=.985,PLAYER_CAMERA_CLEARANCE=.45;
+  var PLAYER_DISTANCE=5.6,PLAYER_AIM_DISTANCE=3.15,PLAYER_LOOK_RATE=2.2,PLAYER_MOVE_AHEAD=6,PLAYER_CAMERA_CLEARANCE=.45;
   var KEY_HINT='Camera: click to look · WASD move · wheel speed · Q/E up/down · Shift sprint · P player · Esc releases';
   var PAD_HINT='Xbox: LS move · RS look · LT/RT down/up · RB sprint · LB precision · D-pad speed · Y level · Menu player';
   var PLAYER_HINT='Player: WASD move · Shift run · mouse look · RMB aim · LMB fire · C crouch · Z prone · P new soldier · V exit';
@@ -150,23 +150,11 @@
       var ray=playerCam.getForwardRay(1),o=ray.origin,d=ray.direction;
       return{x:o.x+d.x*80,y:o.y+d.y*80,z:o.z+d.z*80};
     }
-    function aimedEnemy(b){
-      if(!playerCam||!player)return null;
-      var enemyFaction=player.faction==='us'?'ge':'us',enemies=b._roster[enemyFaction]||[],ray=playerCam.getForwardRay(1),
-        o=ray.origin,d=ray.direction,best=null,bestScore=-Infinity,range=player.weapon&&player.weapon.stats&&player.weapon.stats.range||500;
-      for(var i=0;i<enemies.length;i++){
-        var e=enemies[i];if(!e||e.dead||!e.root)continue;
-        var p=e.root.position,dx=p.x-o.x,dy=p.y+1.05-o.y,dz=p.z-o.z,dist=Math.hypot(dx,dy,dz);if(!(dist>0)||dist>range+15)continue;
-        var dot=(dx*d.x+dy*d.y+dz*d.z)/dist;if(dot<PLAYER_TARGET_DOT)continue;
-        var score=dot-dist*.00001;if(score>bestScore){bestScore=score;best=e;}
-      }
-      return best;
-    }
     function clearPlayerLease(man,b){
       if(!man)return;
       man.isPlayer=false;
       if(global.BattleMovementResolver&&global.BattleMovementResolver.clearPlayer)global.BattleMovementResolver.clearPlayer(man);
-      if(global.SquadAI&&global.SquadAI.clearTarget)global.SquadAI.clearTarget(man);
+      if(global.SquadAI&&global.SquadAI.playerAim)global.SquadAI.playerAim(man,null);
       if(global.BattleEngagement&&global.BattleEngagement.playerFace)global.BattleEngagement.playerFace(man,null);
       if(global.BattleTacticalPositions&&global.BattleTacticalPositions.release&&b)global.BattleTacticalPositions.release(man,b,'player-release');
     }
@@ -233,13 +221,13 @@
       if(global.BattleMovementResolver&&global.BattleMovementResolver.proposePlayer)
         global.BattleMovementResolver.proposePlayer(player,next,b,.6,{speedScale:1,pace:running?'run':'walk'});
       positionPlayerCamera(aiming);
-      var point=aimPoint(),target_=(aiming||firing)?aimedEnemy(b):null;
+      var point=aimPoint();
       if(global.BattleEngagement&&global.BattleEngagement.playerFace)global.BattleEngagement.playerFace(player,(aiming||firing)?point:null);
-      if(global.SquadAI&&global.SquadAI.playerAim)global.SquadAI.playerAim(player,target_);
+      /* No aim assist: the crosshair is the aim. The soldier's own targeting stays off while possessed. */
+      if(global.SquadAI&&global.SquadAI.playerAim)global.SquadAI.playerAim(player,(aiming||firing)?point:null);
       /* RT is a real trigger, not an AI target request: it fires the crosshair ray even with no lock. */
       if(firing&&point&&global.SquadAI){
         if(global.SquadAI.playerFireRay)global.SquadAI.playerFireRay(player,point,b);
-        else if(target_&&global.SquadAI.playerFire)global.SquadAI.playerFire(player,b);
       }
     }
     canvas.addEventListener('click',function(){canvas.focus();if(document.pointerLockElement!==canvas)canvas.requestPointerLock&&canvas.requestPointerLock();});

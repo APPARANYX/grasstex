@@ -98,7 +98,10 @@
         desired=normalDesired;
       }
     }
-    if(!recovery&&!normalDesired&&root.BattleNavigation)desired=root.BattleNavigation.nextWaypoint(self,soldier,desired)||desired;
+    /* A possessed soldier goes where the stick or WASD points: no pathfinding round to a door, no steering off
+       tactical circles (window posts). Walls still stop him and he slides along them (movementClear/resolveStep). */
+    var playerDirect=!!(soldier.isPlayer&&goal&&goal.kind==='player');
+    if(!recovery&&!normalDesired&&root.BattleNavigation&&!playerDirect)desired=root.BattleNavigation.nextWaypoint(self,soldier,desired)||desired;
     // Record the actual integration gate, not an inference from the last command or stuck detector.
     var observedWaypoint=soldier._movementWaypoint||(soldier._movementWaypoint={x:0,z:0});observedWaypoint.x=desired.x;observedWaypoint.z=desired.z;soldier._movementStopReason=null;
     var dx=desired.x-soldier.root.position.x,dz=desired.z-soldier.root.position.z,d=Math.hypot(dx,dz),crawl=!!(soldier.prone&&soldier.crawling),wantCrouch=!soldier.prone&&!!soldier.tacticalCrouch,
@@ -108,7 +111,7 @@
     function turnToward(yaw){var diff=Math.atan2(Math.sin(yaw-soldier.root.rotation.y),Math.cos(yaw-soldier.root.rotation.y)),maxTurn=(soldier.prone?1.25:2.8)*dt,eased=diff*(1-Math.exp(-8*dt));soldier.root.rotation.y+=Math.max(-maxTurn,Math.min(maxTurn,eased));}
     if(d>.35&&soldier.moveSpeed>.025&&(!soldier.prone||crawl)){
       var here={x:soldier.root.position.x,z:soldier.root.position.z};
-      var dirx=dx/d,dirz=dz/d,steered=!recovery&&steerAroundObstacles(self.obstacles,here.x,here.z,dirx,dirz,soldier.destination,STEER_LEG?desired:null,STEER_LEG?d:0);if(steered){dirx=steered.x;dirz=steered.z;}
+      var dirx=dx/d,dirz=dz/d,steered=!recovery&&!playerDirect&&steerAroundObstacles(self.obstacles,here.x,here.z,dirx,dirz,soldier.destination,STEER_LEG?desired:null,STEER_LEG?d:0);if(steered){dirx=steered.x;dirz=steered.z;}
       var step=Math.min(d,soldier.moveSpeed*dt),nx=here.x+dirx*step,nz=here.z+dirz*step;
       if(!recovery&&root.BattleNavigation&&!root.BattleNavigation.movementClear(here,{x:nx,z:nz})){
         /* Cover steering pushed him into a wall: the plain heading to the waypoint comes first. */
@@ -125,7 +128,7 @@
           }
         }
       }
-      soldier.root.position.x=nx;soldier.root.position.z=nz;soldier.root.position.y=self.heightAt(nx,nz);turnToward(Math.atan2(dirx,dirz));soldier.moving=true;
+      soldier.root.position.x=nx;soldier.root.position.z=nz;soldier.root.position.y=self.heightAt(nx,nz);var aimFace=playerDirect&&soldier._faceHint;turnToward(aimFace?Math.atan2(aimFace.x-nx,aimFace.z-nz):Math.atan2(dirx,dirz));soldier.moving=true;
     }else{soldier.moving=false;soldier._movementStopReason=d<=.35?(soldier._physicalPath&&soldier._physicalPath.blocked?'path-blocked':'arrived'):(soldier.prone&&!crawl?'prone-hold':'speed-settling');var face=soldier.target?soldier.target.root.position:soldier._faceHint;if(face){var tx=face.x-soldier.root.position.x,tz=face.z-soldier.root.position.z;if(Math.abs(tx)+Math.abs(tz)>1e-4)turnToward(Math.atan2(tx,tz));}}
     BattleSoldierModel.animateWalk(soldier,dt,soldier.speed>0?soldier.moveSpeed/soldier.speed:0);
   }
