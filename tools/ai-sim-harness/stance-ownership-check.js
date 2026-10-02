@@ -339,6 +339,25 @@ test('LoopWatch flags four committed stance changes in 8 seconds only with stabl
   assert.ok(!L.alerts(b).some(x=>x.kind==='posture-churn'),'a changed contact suppresses the posture-churn diagnosis');
 });
 
+test('shared-contact reaction does not lower a visibility stance chosen by Engagement',()=>{
+  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement;
+  /* Combat Urgency deliberately refuses to attach without the shipping Movement Resolver.
+     Load the real owner here so this regression exercises the actual shared-contact extension. */
+  load(r,'battle/movement-resolver.js');
+  load(r,'battle/modules/44-combat-urgency.js');
+  s.target=null;s.eng=null;
+  const e=E.stateOf(s);
+  s.squad.inContact=true;
+  s.squad.contact={unit:enemy,x:enemy.root.position.x,z:enemy.root.position.z,at:b.time,seenBy:enemy.id};
+  e.state='alert';e.until=b.time;e._sharedContactAware=false;e._sharedContactSector=null;
+  E.commitStance(s,b,'stand',3,'visibility:stand');
+  const heldUntil=e.stanceUntil;
+  E.updateSoldier(s,b);
+  assert.equal(e.state,'alert','fresh shared contact re-arms the alert after its old sector hold expires');
+  assert.equal(e.stance,'stand','shared-contact reaction does not blindly crouch a man whose owner chose stand');
+  assert.equal(e.stanceUntil,heldUntil,'shared-contact reaction leaves the visibility stance lease intact');
+});
+
 test('an advancing man whose squad is in contact moves crouched; on a quiet march he stands',()=>{
   const {r,b,s}=oneMan(),E=r.BattleEngagement;
   s.target=null;s.eng=null;E.stateOf(s).stanceUntil=0;
