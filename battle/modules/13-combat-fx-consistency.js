@@ -98,10 +98,12 @@
     if(!l&&pool.length>=TRACER_MAX){for(i=0;i<pool.length;i++)if(!l||pool[i]._tracerAt<l._tracerAt)l=pool[i];tracerStats.stolen=(tracerStats.stolen||0)+1;}
     if(l){tracerLine(scene,name,from,to,color,alpha,true,l);tracerStats.reused++;}
     else{
-      l=tracerLine(scene,name,from,to,color,alpha,true,null);if(group!=null)l.renderingGroupId=group;
+      l=tracerLine(scene,name,from,to,color,alpha,true,null);
       /* The two points move every use; skip culling rather than refresh its bounds each time. */
       l.alwaysSelectAsActiveMesh=true;l.doNotSyncBoundingInfo=true;pool.push(l);tracerStats.created++;
     }
+    /* Reused prewarmed lines keep their old renderingGroupId unless we explicitly move them. */
+    if(group!=null)l.renderingGroupId=group;
     var gen=l._tracerGen=(l._tracerGen||0)+1;l._tracerOn=true;l._tracerAt=performance.now();l.setEnabled(true);
     setTimeout(function(){if(l._tracerGen!==gen)return;l._tracerOn=false;if(!l.isDisposed())l.setEnabled(false);},lifetime);
   }
@@ -117,7 +119,7 @@
     if(!FX_PREWARM||!scene||scene._battleFxPrewarmed)return;scene._battleFxPrewarmed=true;
     try{var st=flashAssets(scene),q=st.pool[0]&&st.pool[0].quads[0];if(q)st.materials.forEach(function(m){compileFor(m,q);});}catch(_){}
     if(!TRACER_POOL)return;
-    var V=BABYLON.Vector3,a=new V(0,-1000,0),b=new V(0,-999,0),styles=[['tracer-hit',{r:1,g:.95,b:.7},.50,3],['tracer-miss',{r:1,g:1,b:1},.15,3],['tracer',{r:1,g:.95,b:.7},null,null]];
+    var V=BABYLON.Vector3,a=new V(0,-1000,0),b=new V(0,-999,0),styles=[['tracer-hit',{r:1,g:.95,b:.7},.50,0],['tracer-miss',{r:1,g:1,b:1},.15,0],['tracer',{r:1,g:.95,b:.7},null,null]];
     styles.forEach(function(sy){
       for(var i=0;i<4;i++)showTracer(scene,sy[0],a,b,sy[1],sy[2],0,sy[3]);
       var pool=(tracerState?tracerState.get(scene):scene._battleTracers)||{};
