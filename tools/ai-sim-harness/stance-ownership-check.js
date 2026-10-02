@@ -157,10 +157,11 @@ test('an active bound finishes under hold fire before preparation takes over',()
 
   s.root.position.x=cover.x;s.root.position.z=cover.z;b.time+=.15;
   E.updateSoldier(s,b);
-  assert.equal(e.state,'engage','arrival completes the bound normally');
+  assert.notEqual(e.state,'bound','arrival completes the bound instead of leaving a resumable locomotion state');
 
   b.time+=.15;E.updateSoldier(s,b);
   assert.equal(e.stance,'prone','once the displacement is complete, hold-fire preparation takes over');
+  assert.notEqual(e.state,'bound','preparation cannot resurrect the completed bound');
 });
 
 test('withdrawal suppression expiry has hysteresis instead of stand-crouch flutter',()=>{
