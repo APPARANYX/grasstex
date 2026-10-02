@@ -144,8 +144,11 @@
     return Math.abs(Math.atan2(Math.sin(diff), Math.cos(diff)));
   }
 
+  /* Engagement consumes the man's Perception-owned picture. With the beliefs flag off,
+     soldierContact deliberately returns the legacy squad.contact, preserving the control arm. */
   function squadContact(s, battle) {
     var api = SA();
+    if (api && api.soldierContact) return api.soldierContact(s, battle);
     return api && api.squadContact ? api.squadContact(s.squad, battle) : null;
   }
   /* What the fight has done to a man (module 17, `BattleSoldierMind`): numbers only. Engagement decides
@@ -182,7 +185,7 @@
     var M = mind();
     if (M) M.noteShock(s, kind);
   }
-  /* Recognition time, shortened when the squad has already called the contact. */
+  /* Recognition time is shortened only when this man already has prior information about the contact. */
   function reactTime(s, battle) {
     var base = ((REACT[s.role] || 0.7) + jitter(s, 0.06)) * stretch(s) * statScale(s, 'recognition'),
       contact = squadContact(s, battle),
@@ -392,14 +395,19 @@
     s.crawling = false;
   }
   function stanceContext(s, battle, e) {
-    var c = s.squad && (SA().squadContact ? SA().squadContact(s.squad, battle) : s.squad.contact),
+    var c = s.squad ? squadContact(s, battle) : null,
       cp = e && e.cover,
       p = posOf(s);
     return {
       x: +p.x || 0,
       z: +p.z || 0,
       contact: !!(s.squad && s.squad.inContact),
-      contactId: c && c.unit && c.unit.id != null ? String(c.unit.id) : null,
+      contactId:
+        c && c.knownUnitId != null
+          ? String(c.knownUnitId)
+          : c && c.unit && c.unit.id != null
+            ? String(c.unit.id)
+            : null,
       cover: cp
         ? cp.slotId != null
           ? String(cp.slotId)
@@ -1274,11 +1282,12 @@
     SA().setDestination(s, pt, battle, !!urgent);
   }
 
-  /* The contact used for a fire-control preparation is still Perception's truth. A man with his own
-     target uses it; everyone else can prepare on the squad's first-hand contact. */
+  /* Fire-control preparation may use an exact unit only when this man personally has one. A told
+     or heard belief remains a location/sector and can orient him, but is not converted into hidden
+     target truth for crest/LOS readiness checks. */
   function fireControlTarget(s, battle) {
     if (combatThreat(s.target)) return s.target;
-    var c = SA().squadContact ? SA().squadContact(s.squad, battle) : null;
+    var c = squadContact(s, battle);
     return c && combatThreat(c.unit) ? c.unit : null;
   }
   function stanceProxy(s, pt, stance, battle) {
@@ -2494,7 +2503,10 @@
      are moving, pinned, withdrawing or holding a firing station are all excluded - and during a
      bound the movers never double as the base of fire. */
   function assignSuppressors(sq, battle, members, known) {
-    var contact = known !== undefined ? known : SA().squadContact ? SA().squadContact(sq, battle) : null,
+    var api = SA(),
+      personal = !!(api.soldierBeliefsOn && api.soldierBeliefsOn() && api.soldierContact),
+      contact = known !== undefined ? known : api.squadContact ? api.squadContact(sq, battle) : null,
+      disabled = known === null,
       i,
       s,
       chosen = 0;
@@ -2502,11 +2514,9 @@
       s = members[i];
       if (!s.dead && !s.isPlayer) state(s).suppressOrder = false;
     }
-    if (contact) {
+    if (!disabled && (personal || contact)) {
       var bounding = root.BattleLeases.holds(sq, 'bound', battle.time),
         candidates = [];
-      var point = { x: contact.x, z: contact.z },
-        api = SA();
       for (i = 0; i < members.length; i++) {
         s = members[i];
         if (
@@ -2528,7 +2538,11 @@
         )
           continue;
         if (bounding && es.boundOrder) continue;
-        /* No job for a man who cannot reach it - he keeps advancing instead of standing still. */
+        var own = personal ? api.soldierContact(s, battle) : contact;
+        if (!own || !isFinite(+own.x) || !isFinite(+own.z)) continue;
+        var point = { x: +own.x, z: +own.z };
+        /* No job for a man who cannot reach what HE believes - he keeps advancing instead of
+           inheriting another man's invisible suppressive sector. */
         if (api.canSuppress && !api.canSuppress(s, point, battle)) continue;
         candidates.push(s);
       }
@@ -2587,7 +2601,7 @@
       );
     /* A hold/precision order is silent preparation. Clear old suppressor jobs while it is active;
        otherwise a stale suppressOrder would make the squad look like a base of fire before permission. */
-    var suppressing = assignSuppressors(sq, battle, members, controlled ? null : known),
+    var suppressing = assignSuppressors(sq, battle, members, controlled ? null : undefined),
       broken = [],
       fled = [];
     for (i = 0; i < members.length; i++) {
