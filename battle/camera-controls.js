@@ -161,6 +161,7 @@
     }
     function clearPlayerLease(man,b){
       if(!man)return;
+      man.isPlayer=false;
       if(global.BattleMovementResolver&&global.BattleMovementResolver.clearPlayer)global.BattleMovementResolver.clearPlayer(man);
       if(global.SquadAI&&global.SquadAI.clearTarget)global.SquadAI.clearTarget(man);
       if(global.BattleEngagement&&global.BattleEngagement.playerFace)global.BattleEngagement.playerFace(man,null);
@@ -182,7 +183,8 @@
       var b=liveBattle();if(!b)return false;
       var next=pickPlayerSoldier(player);if(!next)return false;
       if(player)clearPlayerLease(player,b);
-      player=next;playerFaction=next.faction;playerYaw=+next.root.rotation.y||0;playerPitch=0;
+      player=next;player.isPlayer=true;playerFaction=next.faction;playerYaw=+next.root.rotation.y||0;playerPitch=0;
+      /* isPlayer, not a short movement lease, is the authority boundary for the whole possession. */
       /* Possession starts from a neutral player-owned stance instead of inheriting a squad hold-fire posture. */
       if(global.BattleEngagement&&global.BattleEngagement.commitStance)global.BattleEngagement.commitStance(next,b,'stand',.45,'player-possession');
       if(global.BattleTacticalPositions&&global.BattleTacticalPositions.release)global.BattleTacticalPositions.release(next,b,'player-control');
@@ -223,9 +225,10 @@
       var point=aimPoint(),target_=(aiming||firing)?aimedEnemy(b):null;
       if(global.BattleEngagement&&global.BattleEngagement.playerFace)global.BattleEngagement.playerFace(player,(aiming||firing)?point:null);
       if(global.SquadAI&&global.SquadAI.playerAim)global.SquadAI.playerAim(player,target_);
-      if(firing&&target_&&global.SquadAI){
-        if(global.SquadAI.playerFire)global.SquadAI.playerFire(player,b);
-        else if(global.SquadAI.tryFire)global.SquadAI.tryFire(player,b);
+      /* RT is a real trigger, not an AI target request: it fires the crosshair ray even with no lock. */
+      if(firing&&point&&global.SquadAI){
+        if(global.SquadAI.playerFireRay)global.SquadAI.playerFireRay(player,point,b);
+        else if(target_&&global.SquadAI.playerFire)global.SquadAI.playerFire(player,b);
       }
     }
     canvas.addEventListener('click',function(){canvas.focus();if(document.pointerLockElement!==canvas)canvas.requestPointerLock&&canvas.requestPointerLock();});
