@@ -1,6 +1,7 @@
 /* Consistent visible feedback for every weapon discharge.
-   Direct-fire ballistics now supply the actual ray impact point. Keep hit tracers visible and make
-   miss tracers faint, while retaining the legacy fallback for older/non-ballistic shots. */
+   Direct-fire ballistics supply the actual ray impact point. Presentation starts every tracer at
+   the rendered weapon muzzle when available, while gameplay keeps its deterministic semantic muzzle.
+   Keep hit tracers visible and make miss tracers faint, retaining the legacy fallback for older shots. */
 (function(root){
   'use strict';
   if(!root.BattleSim||typeof BABYLON==='undefined'||root.BattleCombatFxConsistency)return;
@@ -134,13 +135,14 @@
     /* The muzzle flash itself is drawn by the core onFire through BattleMuzzleFlash.show. */
     sim.onShot=function(shooter,target,hit,d,shot){
       var ballisticFrom=shot&&shot.mode==='raycast'&&shot.origin?vec3(shot.origin):null,
-        from=ballisticFrom||muzzleWorld(shooter);
+        renderedFrom=muzzleWorld(shooter),
+        from=renderedFrom||ballisticFrom;
       /* Ballistic shots get their tracer here; the shot is marked so the core's legacy tracer
          skips it, but the event still travels down the chain (hit reactions listen there). */
       if(shot&&shot.mode==='raycast'&&shot.impact&&from){
         /* A later round of a burst flies when its muzzle flash shows, not when the tick resolved it. */
         /* To where the round really ended: past a man it went through, into whatever stopped it. */
-        var impact=vec3(shot.final&&shot.final.impact||shot.impact),draw=function(){var f=ballisticFrom||muzzleWorld(shooter)||from;if(hit)hitTracer(sim.scene,f,impact);else missTracer(sim.scene,f,impact);};
+        var impact=vec3(shot.final&&shot.final.impact||shot.impact),draw=function(){var f=muzzleWorld(shooter)||ballisticFrom||from;if(hit)hitTracer(sim.scene,f,impact);else missTracer(sim.scene,f,impact);};
         if(shot.delay>0&&sim.presentAfter)sim.presentAfter(shot.delay,draw);else draw();
         shot.tracerDrawn=true;if(oldShot)oldShot.apply(sim,arguments);return;
       }
