@@ -26,6 +26,8 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 
 ### battle/commander-ai.js
 - `COMMAND_TICK = 0.45` — commander AI tick interval (s)
+- `STRATEGIC_STALL_REPLAN = 120` — first strategic-stall recovery wake (s)
+- `STRATEGIC_STALL_RECOVERY = { reconcile: 120, release: 180, mainEffort: 240, reset: 300, progressWindow: 60, progressDistance: 6, mainEffortFraction: 0.6, mainEffortMin: 2 }` — staged Macro recovery for one no-objective-progress episode: repair assignments, release stale holds/support, mass a reachable main effort, then reset squads that are neither useful defenders nor making measurable mission progress
 - `RECON_STRENGTH = 10` — recon squad size
 - `FLED_PICKUP_RANGE = 50` — a retreating squad out of contact this near a fled man waiting at his refuge takes him in (m); `BattleCommanderAI.fledPickupRange`
 

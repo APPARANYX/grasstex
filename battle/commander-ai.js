@@ -26,7 +26,23 @@
   var oldStart = root.BattleSim.start;
   var COMMAND_TICK = 0.45,
     OBJECTIVE_HOLD_WIN = 35,
-    STRATEGIC_STALL_REPLAN = 120;
+    STRATEGIC_STALL_REPLAN = 120,
+    STRATEGIC_STALL_RECOVERY = {
+      reconcile: 120,
+      release: 180,
+      mainEffort: 240,
+      reset: 300,
+      progressWindow: 60,
+      progressDistance: 6,
+      mainEffortFraction: 0.6,
+      mainEffortMin: 2
+    };
+  var STRATEGIC_STALL_STAGES = [
+    { level: 1, name: 'reconcile', at: STRATEGIC_STALL_RECOVERY.reconcile },
+    { level: 2, name: 'release', at: STRATEGIC_STALL_RECOVERY.release },
+    { level: 3, name: 'main-effort', at: STRATEGIC_STALL_RECOVERY.mainEffort },
+    { level: 4, name: 'reset', at: STRATEGIC_STALL_RECOVERY.reset }
+  ];
 
   var enemyFaction = D.enemyFaction;
   var policy = D.policyFor,
@@ -74,7 +90,11 @@
         wakeReasons: {},
         lastWake: null,
         recentWakes: [],
-        stallByFaction: { us: null, ge: null }
+        stallByFaction: { us: null, ge: null },
+        stallRecovery: {
+          us: { episode: null, completed: 0, mainEffort: null, history: [], progress: {} },
+          ge: { episode: null, completed: 0, mainEffort: null, history: [], progress: {} }
+        }
       })
     );
   }
@@ -296,16 +316,30 @@
       D.nearestEnemyToSquad(sim, sq).distance < cfg.contactDistance * 1.5
     );
   }
-  function strategicStallKey(sim, faction) {
+  function strategicStallInfo(sim, faction) {
     var health = sim._coordinationHealth,
-      side = health && health.sides && health.sides[faction],
-      age = (side && +side.objectiveStallSeconds) || 0;
-    return age >= STRATEGIC_STALL_REPLAN
-      ? String(+health.lastObjectiveProgressAt || 0) + ':' + Math.floor(age / STRATEGIC_STALL_REPLAN)
-      : null;
+      side = health && health.sides && health.sides[faction];
+    return {
+      age: (side && +side.objectiveStallSeconds) || 0,
+      lastProgressAt: health && isFinite(+health.lastObjectiveProgressAt) ? +health.lastObjectiveProgressAt : 0
+    };
   }
-  /* A faction-wide stall is only evidence against a capture brief that has had the whole stall window to
-     work. A brief issued at one stall wake is due at the next, one window later to within a command tick. */
+  function stallRecoveryState(sim, faction) {
+    var all = missionState(sim).stallRecovery,
+      state = all[faction],
+      info = strategicStallInfo(sim, faction),
+      episode = String(info.lastProgressAt);
+    if (state.episode !== episode) {
+      state.episode = episode;
+      state.completed = 0;
+      state.mainEffort = null;
+      state.progress = {};
+    }
+    return state;
+  }
+  /* A faction-wide stall is only evidence against a capture brief that has had the whole first
+     recovery window to work. Later recovery stages do not make this eligibility progressively wider:
+     they have their own explicit scope below. */
   function stallEligible(sim, m) {
     return !!(
       m &&
@@ -313,7 +347,13 @@
       (+sim.time || 0) - (+m.issuedAt || 0) >= STRATEGIC_STALL_REPLAN - COMMAND_TICK / 2
     );
   }
-  /* The objectives the side's stalled capture briefs are attacking: the efforts a stall wake moves off. */
+  function activeSquads(squads) {
+    return (squads || []).filter(function (sq) {
+      return sq && sq.state !== 'retreat' && D.aliveMembers(sq).length > 0;
+    });
+  }
+  /* The objectives the side's stalled capture briefs are attacking: the efforts a recovery wake
+     should be willing to close before opening new frontage. */
   function stalledEfforts(sim, squads) {
     var ids = {};
     for (var i = 0; i < squads.length; i++) {
@@ -324,7 +364,145 @@
     }
     return ids;
   }
-  function wakeReason(sim, sq, stallKey) {
+  function missionDistance(sim, sq, m) {
+    if (!m || !m.point) return Infinity;
+    var p = D.avgPos(sq);
+    return p ? D.dist(p.x, p.z, m.point.x, m.point.z) : Infinity;
+  }
+  /* Macro only observes this. It never writes movement: a 6 m improvement toward the same mission
+     point is a measurable-progress pulse used only by the 300 s reset gate. */
+  function trackMissionProgress(sim, faction, squads) {
+    var recovery = stallRecoveryState(sim, faction),
+      live = {},
+      now = +sim.time || 0;
+    for (var i = 0; i < squads.length; i++) {
+      var sq = squads[i],
+        m = sq._macroMission;
+      if (!sq || sq.state === 'retreat' || !D.aliveMembers(sq).length || !m || !m.point) continue;
+      var id = String(sq.id),
+        d = missionDistance(sim, sq, m),
+        rec = recovery.progress[id];
+      live[id] = 1;
+      if (!rec || rec.version !== m.version || !isFinite(rec.checkpoint)) {
+        recovery.progress[id] = {
+          version: m.version,
+          checkpoint: d,
+          bestDistance: d,
+          lastProgressAt: null
+        };
+        continue;
+      }
+      if (d < rec.bestDistance) rec.bestDistance = d;
+      if (rec.checkpoint - rec.bestDistance >= STRATEGIC_STALL_RECOVERY.progressDistance) {
+        rec.checkpoint = rec.bestDistance;
+        rec.lastProgressAt = now;
+      }
+    }
+    Object.keys(recovery.progress).forEach(function (id) {
+      if (!live[id]) delete recovery.progress[id];
+    });
+    return recovery;
+  }
+  function makingMissionProgress(sim, faction, sq) {
+    var recovery = stallRecoveryState(sim, faction),
+      rec = recovery.progress[String(sq.id)];
+    return !!(
+      rec &&
+      rec.lastProgressAt != null &&
+      (+sim.time || 0) - rec.lastProgressAt <= STRATEGIC_STALL_RECOVERY.progressWindow
+    );
+  }
+  function usefulDefender(sim, sq) {
+    var m = sq && sq._macroMission;
+    if (!m || m.intent !== 'defend' || !m.objectiveId) return false;
+    var obj = root.BattleObjectiveSystem && root.BattleObjectiveSystem.get(sim, m.objectiveId),
+      st = obj && D.objectiveStatus(sim, obj);
+    return !!(st && st.owner === sq.faction);
+  }
+  function objectiveReachable(sim, sq, obj) {
+    var N = root.BattleNavigation,
+      men = D.aliveMembers(sq),
+      start = D.avgPos(sq),
+      end = obj && D.objectivePoint(obj, sim, sq);
+    if (!start || !end || !men.length) return false;
+    if (!N || !N.planIngressPath) return true;
+    try {
+      var path = N.planIngressPath(sim, men[0], start, end);
+      return !!(path && path.length);
+    } catch (_) {
+      return true;
+    }
+  }
+  function reachableAttackMap(sim, sq, preferContested) {
+    var map = {},
+      list = sim._objectives || [];
+    for (var i = 0; i < list.length; i++) {
+      var obj = list[i],
+        st = D.objectiveStatus(sim, obj) || {},
+        owner = st.owner || 'neutral';
+      if (owner === sq.faction) continue;
+      if (preferContested && owner !== 'neutral' && !st.active) continue;
+      if (objectiveReachable(sim, sq, obj)) map[String(obj.id)] = true;
+    }
+    return map;
+  }
+  function chooseMainEffort(sim, squads, stalled) {
+    var active = activeSquads(squads).filter(function (sq) {
+        var m = sq._macroMission;
+        return !usefulDefender(sim, sq) && !(m && m.intent === 'reserve') && sq.commandRole !== 'reserve';
+      }),
+      votes = {},
+      choices = {},
+      i;
+    function vote(preferContested) {
+      votes = {};
+      choices = {};
+      for (i = 0; i < active.length; i++) {
+        var sq = active[i],
+          allowed = reachableAttackMap(sim, sq, preferContested),
+          chosen = D.chooseObjective(sim, sq, false, stalled, allowed);
+        if (!chosen) continue;
+        var id = String(chosen.instance.id);
+        votes[id] = (votes[id] || 0) + 1;
+        choices[id] = chosen.instance;
+      }
+      var ids = Object.keys(votes).sort(function (a, b) {
+        return votes[b] - votes[a] || a.localeCompare(b);
+      });
+      return ids.length ? { id: ids[0], instance: choices[ids[0]], votes: votes[ids[0]], active: active } : null;
+    }
+    return vote(true) || vote(false);
+  }
+  function forcedCandidate(sim, sq, obj) {
+    if (!obj) return null;
+    return {
+      instance: obj,
+      point: D.objectivePoint(obj, sim, sq),
+      status: D.objectiveStatus(sim, obj) || {}
+    };
+  }
+  function recordRecoveryStage(sim, faction, stage, info, detail) {
+    var recovery = stallRecoveryState(sim, faction),
+      event = {
+        faction: faction,
+        stage: stage.name,
+        level: stage.level,
+        threshold: stage.at,
+        stallSeconds: +info.age.toFixed(1),
+        episode: recovery.episode,
+        affected: (detail && detail.affected) || 0,
+        mainEffort: (detail && detail.mainEffort) || null,
+        time: +(+sim.time || 0).toFixed(2)
+      };
+    recovery.completed = stage.level;
+    if (event.mainEffort) recovery.mainEffort = event.mainEffort;
+    recovery.history.push(event);
+    if (recovery.history.length > 24) recovery.history.shift();
+    missionState(sim).lastStall = event;
+    telemetry(sim, 'decision-strategic-recovery', event);
+    return event;
+  }
+  function wakeReason(sim, sq) {
     var m = sq._macroMission,
       living = D.aliveMembers(sq).length;
     if (living && m && m.status === 'completed' && m.endReason === 'reconstituted')
@@ -355,9 +533,9 @@
     if (m.intent === 'defend' && st.owner !== obs.owner) return 'objective-control-changed';
     if (m.intent === 'capture' && !!st.vacantOwner !== obs.vacant && st.vacantOwner)
       return 'objective-vacated';
-    return stallKey && stallEligible(sim, m) ? 'strategic-stall' : null;
+    return null;
   }
-  function selectMission(sim, sq, town, reason, stalled) {
+  function selectMission(sim, sq, town, reason, stalled, forcedObjective) {
     var request = defenseRequest(sim, sq),
       old = sq._macroMission,
       role = sq.commandRole || 'center';
@@ -404,8 +582,8 @@
        never `targetObjective`: a retreating squad must not be counted at an objective). */
     var previous = (old && (old.objectiveId || old.plannedObjectiveId)) || sq.targetObjective,
       assigned = previous && root.BattleObjectiveSystem && root.BattleObjectiveSystem.get(sim, previous),
-      chosen = null;
-    if (assigned && reason !== 'strategic-stall' && reason !== 'mission-complete') {
+      chosen = forcedObjective ? forcedCandidate(sim, sq, forcedObjective) : null;
+    if (assigned && !forcedObjective && !stalled && reason !== 'mission-complete') {
       var status = D.objectiveStatus(sim, assigned) || {};
       if (status.owner !== sq.faction)
         chosen = { instance: assigned, point: D.objectivePoint(assigned, sim, sq), status: status };
@@ -428,6 +606,7 @@
       rule = D.ruleFor(sim, sq.faction, context);
     var action = (rule && rule.action) || 'assault',
       axis = [];
+    if (reason === 'strategic-stall-release' && action === 'hold') action = 'assault';
     var vacant = root.BattleVacantObjectiveAssault;
     if (
       vacant &&
@@ -435,7 +614,8 @@
       enemy.distance >= vacant.immediateThreat
     )
       action = 'assault';
-    if (action === 'defend') {
+    if (action === 'defend' && forcedObjective) action = 'assault';
+    else if (action === 'defend') {
       var defend = D.chooseObjective(sim, sq, true);
       if (defend) {
         chosen = defend;
@@ -468,15 +648,149 @@
       reason
     );
   }
-  function reconsiderMission(sim, sq, town, reason, stalled) {
+  function reconsiderMission(sim, sq, town, reason, stalled, forcedObjective) {
     var before = sq._macroMission && sq._macroMission.objectiveId;
     recordMacroWake(sim, sq, reason);
     if (reason === 'mission-complete') finishMission(sim, sq, 'completed', reason);
     else if (reason === 'mission-invalid') finishMission(sim, sq, 'invalid', reason);
-    selectMission(sim, sq, town, reason, reason === 'strategic-stall' ? stalled : null);
+    selectMission(sim, sq, town, reason, stalled || null, forcedObjective || null);
     root.BattleSquadStability.acknowledgeRequest(sq);
     if (reason === 'strategic-stall') recordStallOutcome(sim, before, sq._macroMission);
   }
+  function runReconcileStage(sim, faction, squads, town, stalled) {
+    var affected = 0;
+    for (var i = 0; i < squads.length; i++) {
+      var sq = squads[i],
+        living = D.aliveMembers(sq).length,
+        m = sq._macroMission;
+      if (!living || sq.state === 'retreat') continue;
+      if (stallEligible(sim, m)) {
+        reconsiderMission(sim, sq, town, 'strategic-stall', stalled);
+        affected++;
+        continue;
+      }
+      var repaired = false;
+      if (m && !sq.commandRole && m.role) {
+        sq.commandRole = m.role;
+        repaired = true;
+      }
+      if (m && m.objectiveId && !sq.targetObjective) {
+        sq.targetObjective = m.objectiveId;
+        repaired = true;
+      }
+      if (repaired) {
+        recordMacroWake(sim, sq, 'strategic-stall-reconcile');
+        affected++;
+      }
+      if (
+        (!m || (!m.objectiveId && m.intent !== 'reserve')) &&
+        sq.commandRole !== 'reserve' &&
+        !sq.targetObjective
+      ) {
+        reconsiderMission(sim, sq, town, 'strategic-stall-reconcile', stalled);
+        affected++;
+      }
+    }
+    return affected;
+  }
+  function staleHoldOrSupport(sim, sq) {
+    var m = sq && sq._macroMission;
+    if (!m || m.intent === 'defend' || m.intent === 'reserve') return false;
+    return m.action === 'hold' || m.role === 'support' || sq.commandRole === 'support';
+  }
+  function runReleaseStage(sim, faction, squads, town, stalled, info) {
+    var affected = 0;
+    for (var i = 0; i < squads.length; i++) {
+      var sq = squads[i],
+        m = sq._macroMission;
+      if (!D.aliveMembers(sq).length || sq.state === 'retreat' || usefulDefender(sim, sq)) continue;
+      var targetless =
+          sq.commandRole !== 'reserve' &&
+          !(m && m.intent === 'reserve') &&
+          !sq.targetObjective,
+        stale = staleHoldOrSupport(sim, sq);
+      if (!targetless && !stale) continue;
+      if (stale && (sq.commandRole === 'support' || (m && m.role === 'support'))) sq.commandRole = 'center';
+      reconsiderMission(sim, sq, town, 'strategic-stall-release', stalled);
+      affected++;
+    }
+    return affected;
+  }
+  function runMainEffortStage(sim, faction, squads, town, stalled) {
+    var plan = chooseMainEffort(sim, squads, stalled);
+    if (!plan || !plan.instance) return { affected: 0, mainEffort: null };
+    var objective = plan.instance,
+      reachable = plan.active.filter(function (sq) {
+        return objectiveReachable(sim, sq, objective);
+      });
+    reachable.sort(function (a, b) {
+      var at = String(a.targetObjective || '') === String(objective.id) ? 0 : 1,
+        bt = String(b.targetObjective || '') === String(objective.id) ? 0 : 1,
+        ap = D.avgPos(a),
+        bp = D.avgPos(b),
+        p = D.objectivePoint(objective, sim, a),
+        q = D.objectivePoint(objective, sim, b),
+        ad = ap && p ? D.dist(ap.x, ap.z, p.x, p.z) : Infinity,
+        bd = bp && q ? D.dist(bp.x, bp.z, q.x, q.z) : Infinity;
+      return at - bt || ad - bd || String(a.id).localeCompare(String(b.id));
+    });
+    var wanted = Math.max(
+        1,
+        Math.max(
+          Math.min(STRATEGIC_STALL_RECOVERY.mainEffortMin, reachable.length),
+          Math.ceil(plan.active.length * STRATEGIC_STALL_RECOVERY.mainEffortFraction)
+        )
+      ),
+      count = Math.min(reachable.length, wanted),
+      affected = 0;
+    for (var i = 0; i < count; i++) {
+      reconsiderMission(sim, reachable[i], town, 'strategic-main-effort', stalled, objective);
+      affected++;
+    }
+    return { affected: affected, mainEffort: String(objective.id) };
+  }
+  function runResetStage(sim, faction, squads, town, stalled) {
+    var affected = 0,
+      resetStalled = Object.assign({}, stalled || {}),
+      candidates = [];
+    for (var i = 0; i < squads.length; i++) {
+      var sq = squads[i],
+        m = sq._macroMission;
+      if (!D.aliveMembers(sq).length || sq.state === 'retreat') continue;
+      if (usefulDefender(sim, sq) || makingMissionProgress(sim, faction, sq)) continue;
+      if (m && (m.intent === 'reserve' || m.intent === 'reconstitute')) continue;
+      candidates.push(sq);
+      if (m && m.objectiveId) resetStalled[m.objectiveId] = true;
+    }
+    for (i = 0; i < candidates.length; i++) {
+      reconsiderMission(sim, candidates[i], town, 'strategic-reset', resetStalled);
+      affected++;
+    }
+    return affected;
+  }
+  function runStrategicRecovery(sim, faction, squads, town) {
+    var info = strategicStallInfo(sim, faction),
+      recovery = trackMissionProgress(sim, faction, squads),
+      crossed = [],
+      stalled = stalledEfforts(sim, squads),
+      detail = null;
+    for (var i = 0; i < STRATEGIC_STALL_STAGES.length; i++)
+      if (STRATEGIC_STALL_STAGES[i].level > recovery.completed && info.age >= STRATEGIC_STALL_STAGES[i].at)
+        crossed.push(STRATEGIC_STALL_STAGES[i]);
+    for (i = 0; i < crossed.length; i++) {
+      var stage = crossed[i];
+      if (stage.name === 'reconcile')
+        detail = { affected: runReconcileStage(sim, faction, squads, town, stalled) };
+      else if (stage.name === 'release')
+        detail = { affected: runReleaseStage(sim, faction, squads, town, stalled, info) };
+      else if (stage.name === 'main-effort')
+        detail = runMainEffortStage(sim, faction, squads, town, stalled);
+      else detail = { affected: runResetStage(sim, faction, squads, town, stalled) };
+      recordRecoveryStage(sim, faction, stage, info, detail);
+    }
+    return crossed.length > 0;
+  }
+
   /* Did a strategic-stall wake change the effort? `repeats` re-picked the stalled objective. */
   function recordStallOutcome(sim, before, m) {
     var st = missionState(sim),
@@ -818,28 +1132,21 @@
     if (root.BattleObjectiveSystem) root.BattleObjectiveSystem.tick(sim, dt);
     if (macro)
       ['us', 'ge'].forEach(function (f) {
-        var squads = sim.factions[f].squads,
-          stats = missionState(sim),
-          key = strategicStallKey(sim, f),
-          stall = key && stats.stallByFaction[f] !== key ? key : null,
-          stalled = stall ? stalledEfforts(sim, squads) : null;
-        if (stalled)
-          stats.lastStall = {
-            faction: f,
-            time: +(+sim.time || 0).toFixed(2),
-            objectives: Object.keys(stalled)
-          };
+        var squads = sim.factions[f].squads;
         reconstitute(sim, f);
         pickUpFled(sim, f);
+        if (runStrategicRecovery(sim, f, squads, town)) {
+          macroWake = true;
+          wakeReasons['@' + f] = 'strategic-recovery';
+        }
         for (var i = 0; i < squads.length; i++) {
           var sq = squads[i],
-            reason = wakeReason(sim, sq, stall);
+            reason = wakeReason(sim, sq);
           if (!reason) continue;
           macroWake = true;
           wakeReasons[sq.id] = reason;
-          reconsiderMission(sim, sq, town, reason, stalled);
+          reconsiderMission(sim, sq, town, reason, null);
         }
-        if (key) stats.stallByFaction[f] = key;
       });
     if (root.BattleModules)
       root.BattleModules.runHook('onCommanderTick', sim, {
@@ -992,6 +1299,7 @@
     commandTick: COMMAND_TICK,
     objectiveHoldWin: OBJECTIVE_HOLD_WIN,
     strategicStallReplan: STRATEGIC_STALL_REPLAN,
+    strategicStallRecovery: STRATEGIC_STALL_RECOVERY,
     missionState: missionState,
     reconstitute: reconstitute,
     reconstitutionStrength: RECON_STRENGTH,
