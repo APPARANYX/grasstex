@@ -117,6 +117,11 @@
       if (key === 'actualChanges') row.changes++;
     }
   }
+  /* A berserk trance (Engagement, `?rageTrance=1`) is final like a flee: his charge outranks his squad's retreat. */
+  function tranceCharge(s, p) {
+    var E = root.BattleEngagement;
+    return !!(p && p.kind === 'rage-charge' && E && E.entranced && E.entranced(s));
+  }
   function valid(s, p, b) {
     if (!p || p.signature !== signature(s)) return false;
     if (p.kind === 'cover-bound') return s.eng && s.eng.state === 'bound';
@@ -355,7 +360,11 @@
     p.intentPoint = { x: raw.x, z: raw.z };
     var q = soldier.squad || {},
       old = st.combat;
-    if ((q.state === 'retreat' || q.commandPhase === 'retreat') && p.kind !== 'flee') {
+    if (
+      (q.state === 'retreat' || q.commandPhase === 'retreat') &&
+      p.kind !== 'flee' &&
+      !tranceCharge(soldier, p)
+    ) {
       count(battle, 'lowerPriorityRejected');
       return old;
     }
@@ -395,7 +404,8 @@
     var P = root.BattleTacticalPositions,
       task = P && P.update(soldier, battle),
       sq = soldier.squad || {};
-    var fled = combat && combat.kind === 'flee' && valid(soldier, combat, battle);
+    var trance = tranceCharge(soldier, combat) && valid(soldier, combat, battle),
+      fled = trance || (combat && combat.kind === 'flee' && valid(soldier, combat, battle));
     if (!fled && (sq.state === 'retreat' || sq.commandPhase === 'retreat')) {
       if (st.goal && st.goal.kind !== 'retreat') count(battle, 'emergencyOverrides');
       st.combat = null;
@@ -405,7 +415,7 @@
           : sq.home || soldier.orderDestination;
       return proposal('squad-command', escape, battle, 'retreat', true, Infinity);
     }
-    if (sq.commandPhase === 'regroup') {
+    if (sq.commandPhase === 'regroup' && !trance) {
       st.combat = null;
       return proposal(
         'squad-command',

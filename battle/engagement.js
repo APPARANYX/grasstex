@@ -1265,7 +1265,8 @@
     return { x: p.x, z: p.z };
   }
   function fireControlReady(s, battle) {
-    if (!s || s.dead || !s.weapon || s.reloading || s.clearingStoppage || s.outOfAmmo || s.crawling) return false;
+    if (!s || s.dead || !s.weapon || s.reloading || s.clearingStoppage || s.outOfAmmo || s.crawling)
+      return false;
     if (s.moving && (s.moveSpeed || 0) > 0.16) return false;
     var target = fireControlTarget(s, battle);
     if (!target) return false;
@@ -1413,6 +1414,26 @@
     return out;
   })();
   var ACTING = { cower: 1, flee: 1, freeze: 1, rage: 1 };
+  /* `?rageLock=1`: the charge measures the enemy the break measured. Off (the default while it is measured), the break
+     reads the squad's trouble and the charge his own target first, so a man whose target is past RAGE_REACH while the
+     squad's contact is inside RAGE_RANGE breaks into rage and gives it up on the same tick, every tick (and each break
+     renews the guard). On, the charge goes for the nearer of the two, so it cannot end on the tick it began. */
+  var RAGE_LOCK = /[?&]rageLock=1(?:&|#|$)/.test((typeof location !== 'undefined' && location.search) || '');
+  /* `?rageGuard=1`: the berserk guard lasts the charge, from the break until he is within MELEE_RANGE of the man he
+     charges, he dies or the rage ends. Off (the default while it is measured), it lasts RAGE_GUARD_SECONDS from the
+     break, whether or not the charge does. */
+  var RAGE_GUARD_CHARGE = /[?&]rageGuard=1(?:&|#|$)/.test(
+    (typeof location !== 'undefined' && location.search) || ''
+  );
+  /* `?rageTrance=1`: rage is a trance, final like a flee. Calm does not end it: only his death, or nobody left within
+     RAGE_REACH to charge, and his squad's retreat does not take him back. For the whole of it he takes RAGE_TRANCE_GUARD
+     of every hit, runs RAGE_SPEED faster (a leg wound does not slow him) and shoots a RAGE_AIM group. The damage the
+     guard held back is a debt: when the trance ends and he is still alive, it comes due at once (`BattleWounds.succumb`),
+     and if it takes him to the wound model's collapse line he dies of his wounds. Off (the default while it is
+     measured), rage ends REACT_MIN after he calms below broken, a retreat ends it, and he moves and shoots as anyone. */
+  var RAGE_TRANCE = /[?&]rageTrance=1(?:&|#|$)/.test(
+    (typeof location !== 'undefined' && location.search) || ''
+  );
   var ACT_TUNING = {
     COWER_QUIET: 3, // cower: he stays down until the fire on him has been quiet this long
     REACT_MIN: 4, // a break lasts at least this long: nobody snaps out of it in a tick
@@ -1434,7 +1455,10 @@
     MELEE_ENERGY: 0.8, // of a rifle round's wound
     MELEE_POWER: 0.6, // and of its chance to drop him
     RAGE_GUARD_SECONDS: 5, // a man who goes berserk takes less from every hit for this long ...
-    RAGE_GUARD_SCALE: 0.25 // ... a quarter of the damage, of the chance to drop him and of the bleed
+    RAGE_GUARD_SCALE: 0.25, // ... a quarter of the damage, of the chance to drop him and of the bleed
+    RAGE_TRANCE_GUARD: 0.125, // ?rageTrance=1: in the trance the guard is stronger, an eighth of every hit
+    RAGE_SPEED: 1.4, // ?rageTrance=1: his gait speed in the trance, against the same gait out of it
+    RAGE_AIM: 0.5 // ?rageTrance=1: his shot group in the trance (a broken man's is up to 1.8 wider, a moving man's 1.55)
   };
   /* Engagement states in which a man is not fighting the way he was (the squad report's `reacting`). */
   function reactionState(s) {
@@ -1449,13 +1473,42 @@
     if (M) M.noteAct(s, kind, what, dt);
   }
   /* A hit has landed on `victim` (the wound model asks before it applies one): how much of it he takes. A man who has
-     just gone berserk (`rage`, for RAGE_GUARD_SECONDS from the moment he broke, whether or not the charge lasts) takes
-     RAGE_GUARD_SCALE of it; anyone else all of it. `damage` is the hit's hp, for the count of what the guard saved. */
+     just gone berserk (`rage`, for RAGE_GUARD_SECONDS from the moment he broke, whether or not the charge lasts; with
+     `?rageGuard=1` while he is in rage and has not yet reached MELEE_RANGE) takes RAGE_GUARD_SCALE of it; anyone else
+     all of it. `damage` is the hit's hp, for the count of what the guard saved. */
   function guardOnHit(victim, battle, damage) {
     var e = victim && victim.eng;
-    if (!e || !(e.guardUntil > battle.time)) return 1;
-    noteAct(victim, 'rage', 'guard', damage * (1 - ACT_TUNING.RAGE_GUARD_SCALE));
-    return ACT_TUNING.RAGE_GUARD_SCALE;
+    if (!e) return 1;
+    var held = RAGE_TRANCE
+      ? e.state === 'rage'
+      : RAGE_GUARD_CHARGE
+        ? e.state === 'rage' && !e.guardReached
+        : e.guardUntil > battle.time;
+    if (!held) return 1;
+    var scale = RAGE_TRANCE ? ACT_TUNING.RAGE_TRANCE_GUARD : ACT_TUNING.RAGE_GUARD_SCALE,
+      saved = damage * (1 - scale);
+    if (RAGE_TRANCE) e.guardDebt = (e.guardDebt || 0) + saved; // the trance only defers it
+    noteAct(victim, 'rage', 'guard', saved);
+    return scale;
+  }
+  /* `?rageTrance=1`: is he in the trance? Module 11 (his pace), the shot model (his group) and the Movement Resolver
+     (his charge outranks his squad's retreat) ask; nobody reads his state for it. */
+  function entranced(s) {
+    return RAGE_TRANCE && !!(s && !s.dead && s.eng && s.eng.state === 'rage');
+  }
+  /* The wound model tells Engagement of every casualty; a man in rage who put him down is counted. */
+  function noteKill(by) {
+    if (by && !by.dead && by.eng && by.eng.state === 'rage') noteAct(by, 'rage', 'kill');
+  }
+  /* The trance is over and he is alive: what the guard held back comes due (the wound model applies it). */
+  function succumb(s, battle) {
+    var e = state(s),
+      debt = e.guardDebt || 0,
+      W = root.BattleWounds;
+    e.guardDebt = 0;
+    if (!RAGE_TRANCE || s.dead) return;
+    noteAct(s, 'rage', 'over', debt);
+    if (debt > 0 && W && W.succumb && W.succumb(s, battle, debt)) noteAct(s, 'rage', 'succumbed');
   }
   function armed(s) {
     return !!(s.weapon && !s.outOfAmmo && (!root.BattleAmmunition || root.BattleAmmunition.available(s)));
@@ -1701,16 +1754,25 @@
       tg = s.target && !s.target.dead ? s.target : null,
       goal = tg ? posOf(tg) : th,
       d = goal ? dist(p.x, p.z, goal.x, goal.z) : Infinity;
+    if (RAGE_LOCK && th) {
+      var dTrouble = dist(p.x, p.z, th.x, th.z);
+      if (dTrouble < d) {
+        goal = th;
+        d = dTrouble;
+      }
+    }
+    var dTarget = tg ? dist(p.x, p.z, posOf(tg).x, posOf(tg).z) : Infinity;
     s.state = 'engage';
     s.setUp = false;
     if (d > ACT_TUNING.RAGE_REACH) return false; // nobody to charge: it is over
+    if (d <= ACT_TUNING.MELEE_RANGE) state(s).guardReached = true; // at arm's length: the charge's guard is over
     commitStance(s, battle, 'stand', 0.5);
     markUrgent(s, battle, 0.5);
     if (d > ACT_TUNING.MELEE_RANGE * 0.8) move(s, battle, { x: goal.x, z: goal.z }, 'rage-charge');
     else holdPosition(s, battle);
     if (tg) {
       fireOnTheMove(s, battle);
-      if (d <= ACT_TUNING.MELEE_RANGE) strike(s, battle, tg);
+      if (dTarget <= ACT_TUNING.MELEE_RANGE) strike(s, battle, tg);
     }
     return true;
   }
@@ -1756,7 +1818,8 @@
       if (v.underFire) e.fearAt = now;
       if (v.band < 2 || now - e.fearAt >= ACT_TUNING.COWER_QUIET) want = null;
     } else if (cur) {
-      if (now - e.reactSince >= ACT_TUNING.REACT_MIN) want = null;
+      /* A trance (`?rageTrance=1`) does not end on calm: only rage() ends it. */
+      if (!(RAGE_TRANCE && cur === 'rage') && now - e.reactSince >= ACT_TUNING.REACT_MIN) want = null;
     } else if (v.band >= 2 && v.underFire && ACT.cower) want = 'cower';
 
     if (want !== cur) {
@@ -1777,7 +1840,11 @@
       e.boundOrder = false;
       e.suppressOrder = false;
       e.cover = null;
-      if (want === 'rage') e.guardUntil = now + ACT_TUNING.RAGE_GUARD_SECONDS;
+      if (want === 'rage') {
+        e.guardUntil = now + ACT_TUNING.RAGE_GUARD_SECONDS;
+        e.guardReached = false;
+        e.guardDebt = 0;
+      }
       if (want === 'flee') beginFled(s, battle);
       if (want === 'freeze') beginFreeze(s, battle, v);
       noteAct(s, want, 'start');
@@ -1791,6 +1858,7 @@
     else if (want === 'flee') fledTick(s, battle);
     else if (!rage(s, battle)) {
       composed(s, battle, 'rage');
+      succumb(s, battle);
       return false;
     }
     return true;
@@ -1838,6 +1906,7 @@
        through transition() so the state is honest: the squad counters and the operator readout read it,
        and a man coming off a retreat re-decides instead of resuming a stale firefight state. */
     if (e.fledPhase) return fledTick(s, battle);
+    if (entranced(s) && reaction(s, battle)) return; // the trance outranks his squad's retreat, as a flee does
     if (s.squad && s.squad.state === 'retreat') {
       if (reactionState(s) === 'freeze') finishFreeze(s, battle, 'squad-retreat');
       transition(s, battle, 'withdraw', 0, 'squad withdrawing');
@@ -2518,6 +2587,8 @@
     fledPhase: fledPhase,
     releaseFled: releaseFled,
     guardOnHit: guardOnHit,
+    entranced: entranced,
+    noteKill: noteKill,
     decide: decide,
     suppress: suppress,
     assignSuppressors: assignSuppressors,
@@ -2565,6 +2636,9 @@
       CRAWL_FIT: CRAWL_FIT,
       CONTACT_STANCE: CONTACT_STANCE,
       ACT: ACT,
+      RAGE_LOCK: RAGE_LOCK,
+      RAGE_GUARD_CHARGE: RAGE_GUARD_CHARGE,
+      RAGE_TRANCE: RAGE_TRANCE,
       ACT_TUNING: ACT_TUNING
     }
   };
