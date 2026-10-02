@@ -2060,6 +2060,17 @@
       commitStance(s, battle, 'crouch', Math.max(0.5, shockUntil(s) - battle.time));
       return;
     }
+    /* Meso already freezes the squad anchor while contact is live unless it explicitly issues a bound.
+       A non-bounding base-of-fire man must therefore hold his current tactical position too. Letting
+       advance fall through to the persistent formation order for one targetless beat made the resolver
+       publish a slot tens of metres away, only for Engagement to replace it with a hold on the next
+       shared-contact tick. The man often never moved, but destination authority ping-ponged and squads
+       accumulated low-forward-progress travel instead of a clean base-of-fire / bound rhythm. */
+    if (s.squad && s.squad.inContact) {
+      holdPosition(s, battle);
+      if (!holdStance(s, battle)) commitStance(s, battle, 'crouch', 1.0);
+      return;
+    }
     /* Upright only on a quiet march. Contact can blink for one perception/commander tick (especially
        when a spoken callout refreshes the squad picture), so remember the last low-posture reason for the
        same ALERT_HOLD window used by the threat sector. Standing therefore means genuinely quiet, not
