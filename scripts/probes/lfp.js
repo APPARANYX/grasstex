@@ -64,6 +64,17 @@
     }
     return false;
   }
+  function directPathBlocked(s) {
+    var N = root.BattleNavigation,
+      from = s && s.root && point(s.root.position),
+      goal = s && point(s.destination);
+    if (!N || !N.movementClear || !from || !goal) return null;
+    try {
+      return !N.movementClear(from, goal);
+    } catch (_) {
+      return null;
+    }
+  }
   function sqKey(sq) {
     return String((sq && sq.faction) || '?') + ':' + String((sq && sq.id) || '?');
   }
@@ -146,6 +157,8 @@
       suppressed = 0,
       localAvoidance = 0,
       navigationDetour = 0,
+      navigationRequired = 0,
+      navigationClearDirect = 0,
       moving = 0,
       speed = 0,
       destChanges = 0,
@@ -177,7 +190,12 @@
         personalSpaceAdjusted(s)
       )
         localAvoidance++;
-      if (physicalDetour(s)) navigationDetour++;
+      if (physicalDetour(s)) {
+        navigationDetour++;
+        var blockedDirect = directPathBlocked(s);
+        if (blockedDirect === true) navigationRequired++;
+        else if (blockedDirect === false) navigationClearDirect++;
+      }
       var v = +s.moveSpeed || 0;
       speed += v;
       if (v > 0.35) moving++;
@@ -202,6 +220,8 @@
       avgSpeed: members.length ? +(speed / members.length).toFixed(2) : 0,
       localAvoidance: localAvoidance,
       navigationDetour: navigationDetour,
+      navigationRequired: navigationRequired,
+      navigationClearDirect: navigationClearDirect,
       destinationChanges: destChanges,
       states: states,
       stances: stance,
@@ -350,6 +370,7 @@
             (+s._separatedAt || -1e9) > now - 1 ||
             personalSpaceAdjusted(s),
           navigationDetour: physicalDetour(s),
+          navigationDirectBlocked: physicalDetour(s) ? directPathBlocked(s) : null,
           stop: s._movementStopReason || null,
           resolver: r
             ? { owner: r.owner || null, kind: r.kind || null, reason: r.reason || null, tacticalReason: r.tacticalReason || null }
@@ -368,6 +389,8 @@
     if (s.fireTransitions >= 3) out.push('fire-state-churn');
     if (s.localAvoidanceShare >= 0.25) out.push('local-avoidance-active');
     if (s.navigationDetourShare >= 0.25) out.push('navigation-detour');
+    if (s.navigationRequiredShare >= 0.25) out.push('navigation-detour-required');
+    if (s.navigationClearDirectShare >= 0.25) out.push('navigation-detour-clear-direct');
     if (s.rosterTransitions > 0) out.push('roster-change');
     if (s.progressGiveback >= 3) out.push('progress-giveback');
     if ((s.byKind['cover-bound'] || 0) > 0 && s.progressGiveback >= 3) out.push('tactical-cover-backtrack');
@@ -398,6 +421,8 @@
       stopSamples = {},
       localSamples = 0,
       detourSamples = 0,
+      requiredDetourSamples = 0,
+      clearDirectDetourSamples = 0,
       formationSamples = 0,
       combatSamples = 0,
       totalResolverSamples = 0;
@@ -412,6 +437,8 @@
       addCounts(stopSamples, trackSnaps[i].stopReasons);
       if (trackSnaps[i].localAvoidance > 0) localSamples++;
       if (trackSnaps[i].navigationDetour > 0) detourSamples++;
+      if (trackSnaps[i].navigationRequired > 0) requiredDetourSamples++;
+      if (trackSnaps[i].navigationClearDirect > 0) clearDirectDetourSamples++;
       var kinds = trackSnaps[i].resolverKinds || {};
       Object.keys(kinds).forEach(function (kind) {
         var n = kinds[kind] || 0;
@@ -444,6 +471,8 @@
         }),
         localAvoidanceShare: trackSnaps.length ? +(localSamples / trackSnaps.length).toFixed(3) : 0,
         navigationDetourShare: trackSnaps.length ? +(detourSamples / trackSnaps.length).toFixed(3) : 0,
+        navigationRequiredShare: trackSnaps.length ? +(requiredDetourSamples / trackSnaps.length).toFixed(3) : 0,
+        navigationClearDirectShare: trackSnaps.length ? +(clearDirectDetourSamples / trackSnaps.length).toFixed(3) : 0,
         formationShare: totalResolverSamples ? +(formationSamples / totalResolverSamples).toFixed(3) : 0,
         combatShare: totalResolverSamples ? +(combatSamples / totalResolverSamples).toFixed(3) : 0,
         byOwner: byOwner,
