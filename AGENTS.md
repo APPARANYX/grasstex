@@ -139,6 +139,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `regroup-axis-check.js` | A man behind the regroup anchor is a trimmable straggler, never an outrunner (the regroup keeps the direction the squad was marching), men ahead or to the side still block, and a regroup whose only scattered man is behind ends on `cohesion restored`, not on the clock; swept over march directions (main fails it) |
 | `succession-check.js` | A killed leader is replaced by the most senior survivor after the 6 s `succession` lease, never more than one leader, the gunner only as the last man, successors replaced in turn, no lease on a led or wiped-out squad, seniority order |
 | `perception-check.js` | View cones (120° focus at full range, ±100° periphery shorter, behind only within 10 m), head turn toward the squad's known threat, a sector scan while holding still with no known threat, contact relayed to a friendly squad within 50 m (first-hand only, keeps its age), enemy gunfire heard within 120 m with a distance-scaled position error, own sightings outrank both, no combat-RNG draws |
+| `threat-disposition-check.js` | Perception's one read-only threat classification: active threat vs visible non-threat vs inactive; normal/cower/rage/reconstituted soldiers remain threats; freeze/flee and explicit civilian-style `combatant=false` remain physically visible but do not become/retain targets, shared contacts, suppression victims, fire-control targets or tactical-route threats; rage remains aimed-fire/suppression eligible; known non-threats do not fall back to last-seen threat memory; returned records are frozen and classification draws no combat RNG. |
 | `squad-stress-check.js` | The Squad Leader's stress lever (`?slStress=pick,hold,review`, all three on by default, `?slStress=0` none): the flag parse; off (`0`, `off`, an unknown name), the rotation is stress-blind (same teams, same order, same telemetry); `pick` sends the calmest team that can go (a tie keeps the rotation, a team that cannot go is never picked); `hold` skips the cycle (a `bound-cycle` lease, `decision-bound-held`) only when every team that could go is at `tuning.lead.holdAt`; `review` raises one doctrine-review request per hold/support/regroup brief after `reviewAfter` s at `reviewAt` with `reviewMin` living men, the clock restarting on a dip; module 17's `teamStress`/`leadStress` read stress only through the `lead` lever. |
 | `fire-control-check.js` | Squad Leader fire discipline: first visual contact holds fire, the squad prepares prone, 70% readiness/strength/MKM opens a volley, long range can designate one high-MKM scout/marksman, personal incoming fire bypasses the hold and opens the squad on the next command tick, and `?fireControl=0` restores immediate fire. `run.js` deliberately uses that control (and `?stanceVis=0`, the old stance visibility) because it is the isolated base-Engagement harness; this file owns fire-control regression coverage. |
 | `crest-fire-check.js` | Permission to fire tests the round's own line: over a crest that shows the head but would take the round (or a narrow crest between sight samples) he still sees the man but pulls no trigger; suppressive/area fire uses the same ballistic ground-line test instead of shooting a remembered position through a hill; on open ground or over a lower crest he fires; terrain refusals are counted for diagnostics and the gate draws no combat RNG |
@@ -990,15 +991,19 @@ check, and diagnostics proof. Do not fold these into one "AI cleanup" change.
    `decision-strategic-recovery`. The General still owns briefs/roles/targets; Squad Leader still owns local execution,
    Engagement owns combat/stance, and Movement Resolver remains the physical movement arbiter.
 
-5. **General threat disposition for soldiers now, civilians later.** Once #159's semantics are stable, replace
-   reaction-specific target checks with one Perception-owned/read-only classification API (name to settle in the phase,
-   e.g. `threatDisposition(unit)` / `isCombatThreat(unit)`). At minimum distinguish **hostile active threat** from
-   **visible non-threat** rather than making non-threats invisible. Today: normal/rage/armed reconstituted soldiers are
-   threats; freeze/flee/waiting fled men are non-threats. Future civilian NPCs can use the same contract without being
-   shoehorned into soldier reaction states. Target acquisition, shared contact, aimed fire, suppression and tactical
-   threat-facing consume that one classification; projectile/wound physics remain independent so non-threat does not mean
-   invulnerable. Add contract tests proving rage stays targetable, fled/frozen/civilian-style non-threats do not drive
-   combat posture, and rearm/reconstitution restores threat status.
+5. **General threat disposition for soldiers now, civilians later — Phase 5.** Perception now owns one
+   read-only `SquadAI.threatDisposition(unit)` contract with three outcomes: `active-threat`,
+   `visible-non-threat`, and `inactive`. The returned record is frozen and carries `visible`,
+   `combatThreat`, and a reason. Normal/cower/rage and reconstituted soldiers are active threats; freeze and every
+   flee/fled phase are visible non-threats; dead/missing units are inactive. An explicit `combatant=false` or
+   `combatThreat=false` classifies a future civilian-style NPC as a visible non-threat without inventing a soldier
+   reaction state. Target acquisition/tracking, shared/relayed/heard contact, aimed fire, area suppression, Squad Leader
+   fire-control preparation, combat urgency, tactical-route/position threat selection, sidearm choice and fallback squad
+   engagement all consume this one classification. A known non-threat is not resurrected from last-seen tactical memory.
+   LOS/physical presence and projectile/wound physics remain independent, so visible non-threat does not mean invisible
+   or invulnerable. Full diagnostics export each soldier's current disposition; `threat-disposition-check.js` proves
+   rage remains targetable/suppressible, freeze/flee/civilian-style units remain visible but do not drive combat posture,
+   reconstitution restores active-threat status, and classification draws no combat RNG.
 
 **Phase order:** #159 -> stress-tempo freeze -> retreat stability -> observability -> strategic stall recovery -> threat
 API generalisation. The threat API is intentionally last even though #159 establishes its semantics: first prove the

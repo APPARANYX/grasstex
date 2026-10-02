@@ -72,10 +72,24 @@
     return N && N.findPath ? N.findPath(a, b) : [clone(b)];
   }
   function knownThreat(s, battle) {
-    if (s && s.target && !s.target.dead) return point(s.target.root && s.target.root.position);
+    var D = root.SquadAI && root.SquadAI.threatDisposition,
+      own = D ? D(s && s.target) : null,
+      identifiedNonThreat = !!(s && s.target && own && !own.combatThreat);
+    if (s && s.target && (!own || own.combatThreat))
+      return point(s.target.root && s.target.root.position);
     var q = s && s.squad,
-      c = q && q.contact;
-    if (c && isFinite(+c.at) && battle.time - +c.at <= THREAT_AGE) return point(c);
+      c = q && q.contact,
+      cd = D && c && c.unit ? D(c.unit) : null;
+    if (c && c.unit && cd && !cd.combatThreat) identifiedNonThreat = true;
+    if (
+      c &&
+      (!c.unit || !cd || cd.combatThreat) &&
+      isFinite(+c.at) &&
+      battle.time - +c.at <= THREAT_AGE
+    )
+      return point(c);
+    /* lastSeen is location-only memory only when no identified non-threat currently supersedes it. */
+    if (identifiedNonThreat) return null;
     var e = s && s.eng;
     if (e && e.lastSeen && isFinite(+e.lastSeenAt) && battle.time - +e.lastSeenAt <= THREAT_AGE)
       return point(e.lastSeen);

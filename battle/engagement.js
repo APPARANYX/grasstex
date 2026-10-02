@@ -58,6 +58,11 @@
   function SA() {
     return root.SquadAI;
   }
+  function combatThreat(unit) {
+    var api = SA(),
+      d = api && api.threatDisposition ? api.threatDisposition(unit) : null;
+    return d ? !!d.combatThreat : !!(unit && !unit.dead);
+  }
   function field() {
     return root.BattleObstacleField;
   }
@@ -308,7 +313,7 @@
     if (String(f.shooterId) !== String(s.id)) return true;
     /* The designated marksman may leave preparation only when he personally has the shot. A shared
        contact alone keeps him low and ready instead of sending him back toward his formation slot. */
-    return !(s.target && !s.target.dead && fireControlReady(s, battle));
+    return !(combatThreat(s.target) && fireControlReady(s, battle));
   }
 
   var CRAWL_FIT = !(typeof location !== 'undefined' && /[?&]crawlFit=0\b/.test(location.search || ''));
@@ -349,7 +354,7 @@
      to look at, `want` stands. */
   function seeingStance(s, battle, want, at) {
     var target = at || s.target;
-    if (!COVER_FIRE || !target || target.dead || want === 'stand' || s.suppressedUntil > battle.time)
+    if (!COVER_FIRE || !combatThreat(target) || want === 'stand' || s.suppressedUntil > battle.time)
       return want;
     var here = posOf(s);
     for (var i = STANCE_ORDER.indexOf(want); i < STANCE_ORDER.length; i++)
@@ -933,7 +938,7 @@
   }
   function fireAllowed(s, battle) {
     var e = state(s);
-    if (!s.target || s.target.dead || s.reloading) return false;
+    if (!combatThreat(s.target) || s.reloading) return false;
     if (battle.time < e.fireReadyAt) return false;
     if (movingTooFast(s) || s.crawling) return false;
     if (facingError(s, posOf(s.target)) > AIM_CONE) return false;
@@ -1248,9 +1253,9 @@
   /* The contact used for a fire-control preparation is still Perception's truth. A man with his own
      target uses it; everyone else can prepare on the squad's first-hand contact. */
   function fireControlTarget(s, battle) {
-    if (s.target && !s.target.dead) return s.target;
+    if (combatThreat(s.target)) return s.target;
     var c = SA().squadContact ? SA().squadContact(s.squad, battle) : null;
-    return c && c.unit && !c.unit.dead ? c.unit : null;
+    return c && combatThreat(c.unit) ? c.unit : null;
   }
   function stanceProxy(s, pt, stance, battle) {
     return {
@@ -1267,7 +1272,7 @@
     };
   }
   function firingLineClear(s, target, pt, stance, battle) {
-    if (!s || !target || target.dead || !pt) return false;
+    if (!s || !combatThreat(target) || !pt) return false;
     var proxy = stanceProxy(s, pt, stance, battle);
     if (!SA().hasLineOfSight(proxy, target, battle.heightAt, battle.obstacles)) return false;
     var B = root.BattleBallistics;
@@ -1280,7 +1285,7 @@
      the Movement Resolver still owns the legal physical step. This is not a new pathfinder. */
   function crestPrepPoint(s, target, battle) {
     var p = posOf(s);
-    if (!target || target.dead || proneLineClear(s, target, p, battle)) return { x: p.x, z: p.z };
+    if (!combatThreat(target) || proneLineClear(s, target, p, battle)) return { x: p.x, z: p.z };
     var tp = posOf(target),
       dx = tp.x - p.x,
       dz = tp.z - p.z,
@@ -1584,7 +1589,7 @@
     var contact = squadContact(s, battle),
       e = state(s);
     if (contact) return { x: contact.x, z: contact.z };
-    if (s.target && !s.target.dead) return { x: posOf(s.target).x, z: posOf(s.target).z };
+    if (combatThreat(s.target)) return { x: posOf(s.target).x, z: posOf(s.target).z };
     if (e.lastSeen && battle.time - e.lastSeenAt <= ACT_TUNING.TROUBLE_AGE)
       return { x: e.lastSeen.x, z: e.lastSeen.z };
     return null;
@@ -1793,7 +1798,7 @@
   function strike(s, battle, target) {
     var e = state(s),
       W = root.BattleWounds;
-    if (battle.time < (e.strikeAt || 0) || !W || !target || target.dead) return;
+    if (battle.time < (e.strikeAt || 0) || !W || !combatThreat(target)) return;
     e.strikeAt = battle.time + ACT_TUNING.MELEE_PERIOD;
     noteAct(s, 'rage', 'strike');
     var roll = typeof battle.random === 'function' ? battle.random() : Math.random();
@@ -1807,7 +1812,7 @@
   }
   /* Rounds on the move: the usual gates but the one about speed (the shot group is already wider for a man who moves). */
   function fireOnTheMove(s, battle) {
-    if (!s.target || s.target.dead || s.reloading || battle.time < state(s).fireReadyAt) return false;
+    if (!combatThreat(s.target) || s.reloading || battle.time < state(s).fireReadyAt) return false;
     if (facingError(s, posOf(s.target)) > AIM_CONE * 2) return false;
     var d = dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z);
     if (d > SA().engageRange(s)) return false;
@@ -1817,7 +1822,7 @@
   function rage(s, battle) {
     var p = posOf(s),
       th = trouble(s, battle),
-      tg = s.target && !s.target.dead ? s.target : null,
+      tg = combatThreat(s.target) ? s.target : null,
       goal = tg ? posOf(tg) : th,
       d = goal ? dist(p.x, p.z, goal.x, goal.z) : Infinity;
     if (RAGE_LOCK && th) {
@@ -2223,7 +2228,7 @@
        Aim tracking (target/lastSeen) may flicker, but the assaultGoal stands until arrival,
        the window lapses, or recovery reports it unreachable. Only a rush that never had a
        live target/goal falls back to alert. */
-    if ((!s.target || s.target.dead) && !e.assaultGoal) {
+    if (!combatThreat(s.target) && !e.assaultGoal) {
       transition(s, battle, 'alert', ALERT_HOLD, 'target lost before rush');
       return alert(s, battle);
     }
@@ -2234,7 +2239,7 @@
       return engage(s, battle);
     }
     var p = posOf(s),
-      hasTarget = !!(s.target && !s.target.dead),
+      hasTarget = combatThreat(s.target),
       t = hasTarget ? posOf(s.target) : null,
       d = t ? dist(p.x, p.z, t.x, t.z) : Infinity;
     commitStance(s, battle, 'crouch', Math.max(1, e.until - battle.time));
@@ -2363,7 +2368,7 @@
       d = dist(p.x, p.z, anchor.x, anchor.z),
       pose = t.pose,
       out = { x: st.windowX + st.normalX * 20, z: st.windowZ + st.normalZ * 20 },
-      tp = s.target && !s.target.dead ? posOf(s.target) : null,
+      tp = combatThreat(s.target) ? posOf(s.target) : null,
       face =
         tp && N.inSector(st, tp)
           ? tp
@@ -2521,7 +2526,7 @@
         controlled &&
         known &&
         known.unit &&
-        !known.unit.dead &&
+        combatThreat(known.unit) &&
         !known.heard &&
         !known.relayedFrom
       );

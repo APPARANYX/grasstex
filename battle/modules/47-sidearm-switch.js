@@ -74,7 +74,11 @@
   }
   function step(s, battle) {
     if (!s || s.dead || !s.secondary || !s.weapon) return;
-    var t = s.target && !s.target.dead && s.target.root ? s.target : null,
+    var td =
+        root.SquadAI && root.SquadAI.threatDisposition
+          ? root.SquadAI.threatDisposition(s.target)
+          : null,
+      t = s.target && s.target.root && (!td || td.combatThreat) ? s.target : null,
       d = t ? distance(s, t) : Infinity;
     if (s._sidearmSince == null) {
       if (!t || d > T.NEAR || rounds(s.secondary) <= 0) return;

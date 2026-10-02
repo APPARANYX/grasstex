@@ -233,8 +233,9 @@
     return St && St.of ? +St.of(s).mkm || 0 : 0.5;
   }
   function firstHandContact(sq, battle) {
-    var c = root.SquadAI.squadContact ? root.SquadAI.squadContact(sq, battle) : sq.contact;
-    return c && c.unit && !c.unit.dead && !c.heard && !c.relayedFrom ? c : null;
+    var c = root.SquadAI.squadContact ? root.SquadAI.squadContact(sq, battle) : sq.contact,
+      d = c && c.unit && root.SquadAI.threatDisposition ? root.SquadAI.threatDisposition(c.unit) : null;
+    return c && c.unit && (!d || d.combatThreat) && !c.heard && !c.relayedFrom ? c : null;
   }
   function fireControlRange(sq, c) {
     var p = average(sq);
