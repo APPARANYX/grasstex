@@ -34,6 +34,36 @@
   function dist(a, b) {
     return !a || !b ? Infinity : Math.hypot(a.x - b.x, a.z - b.z);
   }
+  function pointSegmentDistance(p, a, b) {
+    if (!p || !a || !b) return Infinity;
+    var dx = b.x - a.x,
+      dz = b.z - a.z,
+      den = dx * dx + dz * dz;
+    if (den < 1e-9) return dist(p, a);
+    var t = ((p.x - a.x) * dx + (p.z - a.z) * dz) / den;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x - (a.x + dx * t), p.z - (a.z + dz * t));
+  }
+  function personalSpaceAdjusted(s) {
+    var d = s && s._personalSpaceDestination,
+      intent = d && point(d.intent),
+      actual = d && point(d.point);
+    return !!(intent && actual && dist(intent, actual) > 0.05);
+  }
+  function physicalDetour(s) {
+    var from = s && s.root && point(s.root.position),
+      goal = s && point(s.destination),
+      path = s && s._physicalPath,
+      pts = path && path.points,
+      start = path && isFinite(+path.index) ? Math.max(0, +path.index) : 0;
+    if (!from || !goal || !path || path.blocked || !Array.isArray(pts) || pts.length - start < 2 || dist(from, goal) < 4)
+      return false;
+    for (var i = start; i < pts.length; i++) {
+      var q = point(pts[i]);
+      if (q && pointSegmentDistance(q, from, goal) > 2) return true;
+    }
+    return false;
+  }
   function sqKey(sq) {
     return String((sq && sq.faction) || '?') + ':' + String((sq && sq.id) || '?');
   }
@@ -115,6 +145,7 @@
       under = 0,
       suppressed = 0,
       localAvoidance = 0,
+      navigationDetour = 0,
       moving = 0,
       speed = 0,
       destChanges = 0,
@@ -143,9 +174,10 @@
       if (
         (+s._movementYieldUntil || 0) > now ||
         (+s._separatedAt || -1e9) > now - 1 ||
-        !!s._personalSpaceDestination
+        personalSpaceAdjusted(s)
       )
         localAvoidance++;
+      if (physicalDetour(s)) navigationDetour++;
       var v = +s.moveSpeed || 0;
       speed += v;
       if (v > 0.35) moving++;
@@ -169,6 +201,7 @@
       moving: moving,
       avgSpeed: members.length ? +(speed / members.length).toFixed(2) : 0,
       localAvoidance: localAvoidance,
+      navigationDetour: navigationDetour,
       destinationChanges: destChanges,
       states: states,
       stances: stance,
@@ -315,7 +348,8 @@
           localAvoidance:
             (+s._movementYieldUntil || 0) > now ||
             (+s._separatedAt || -1e9) > now - 1 ||
-            !!s._personalSpaceDestination,
+            personalSpaceAdjusted(s),
+          navigationDetour: physicalDetour(s),
           stop: s._movementStopReason || null,
           resolver: r
             ? { owner: r.owner || null, kind: r.kind || null, reason: r.reason || null, tacticalReason: r.tacticalReason || null }
@@ -333,6 +367,7 @@
     if (s.contactTransitions >= 3) out.push('contact-churn');
     if (s.fireTransitions >= 3) out.push('fire-state-churn');
     if (s.localAvoidanceShare >= 0.25) out.push('local-avoidance-active');
+    if (s.navigationDetourShare >= 0.25) out.push('navigation-detour');
     if (s.rosterTransitions > 0) out.push('roster-change');
     if (s.progressGiveback >= 3) out.push('progress-giveback');
     if ((s.byKind['cover-bound'] || 0) > 0 && s.progressGiveback >= 3) out.push('tactical-cover-backtrack');
@@ -350,13 +385,19 @@
       snaps = all.filter(function (x) {
         return x.t >= from && x.t <= to;
       }),
-      moves = movementEvents(sq, from, to),
+      exactFrom = isFinite(+a.startAt) ? +a.startAt : from,
+      exactTo = isFinite(+a.endAt) ? +a.endAt : to,
+      trackSnaps = snaps.filter(function (x) {
+        return x.t + 1e-6 >= exactFrom && x.t - 1e-6 <= exactTo && (!a.goalKind || x.goalKind === a.goalKind);
+      }),
+      moves = movementEvents(sq, exactFrom, exactTo),
       byOwner = {},
       byKind = {},
       byReason = {},
       stateSamples = {},
       stopSamples = {},
       localSamples = 0,
+      detourSamples = 0,
       formationSamples = 0,
       combatSamples = 0,
       totalResolverSamples = 0;
@@ -366,11 +407,12 @@
       bump(byKind, moves[i].kind);
       bump(byReason, moves[i].reason);
     }
-    for (i = 0; i < snaps.length; i++) {
-      addCounts(stateSamples, snaps[i].states);
-      addCounts(stopSamples, snaps[i].stopReasons);
-      if (snaps[i].localAvoidance > 0) localSamples++;
-      var kinds = snaps[i].resolverKinds || {};
+    for (i = 0; i < trackSnaps.length; i++) {
+      addCounts(stateSamples, trackSnaps[i].states);
+      addCounts(stopSamples, trackSnaps[i].stopReasons);
+      if (trackSnaps[i].localAvoidance > 0) localSamples++;
+      if (trackSnaps[i].navigationDetour > 0) detourSamples++;
+      var kinds = trackSnaps[i].resolverKinds || {};
       Object.keys(kinds).forEach(function (kind) {
         var n = kinds[kind] || 0;
         totalResolverSamples += n;
@@ -380,26 +422,28 @@
     }
 
     var p = centroid(sq),
-      distances = snaps.map(function(x){return x.goalDistance;}).filter(function(x){return x!=null&&isFinite(+x);}),
+      distances = trackSnaps.map(function(x){return x.goalDistance;}).filter(function(x){return x!=null&&isFinite(+x);}),
       startDistance = distances.length ? +distances[0] : null,
       endDistance = distances.length ? +distances[distances.length-1] : null,
       bestDistance = distances.length ? Math.min.apply(Math,distances) : null,
-      underFireSamples = snaps.filter(function(x){return x.underFire>0;}).length,
+      underFireSamples = trackSnaps.filter(function(x){return x.underFire>0;}).length,
       summary = {
-        snapshots: snaps.length,
+        snapshots: trackSnaps.length,
+        contextSnapshots: snaps.length,
         destinationChanges: moves.length,
         resolverOwnerSwitches: ownerSwitches(moves),
-        rosterTransitions: transitions(snaps,function(x){return x.rosterKey;}),
+        rosterTransitions: transitions(trackSnaps,function(x){return x.rosterKey;}),
         progressGiveback: bestDistance==null||endDistance==null?0:+(endDistance-bestDistance).toFixed(2),
         bestProgress: startDistance==null||bestDistance==null?0:+(startDistance-bestDistance).toFixed(2),
-        underFireShare: snaps.length ? +(underFireSamples/snaps.length).toFixed(3) : 0,
-        contactTransitions: transitions(snaps, function (x) {
+        underFireShare: trackSnaps.length ? +(underFireSamples/trackSnaps.length).toFixed(3) : 0,
+        contactTransitions: transitions(trackSnaps, function (x) {
           return x.inContact + ':' + (x.contact && x.contact.kind);
         }),
-        fireTransitions: transitions(snaps, function (x) {
+        fireTransitions: transitions(trackSnaps, function (x) {
           return x.underFire > 0;
         }),
-        localAvoidanceShare: snaps.length ? +(localSamples / snaps.length).toFixed(3) : 0,
+        localAvoidanceShare: trackSnaps.length ? +(localSamples / trackSnaps.length).toFixed(3) : 0,
+        navigationDetourShare: trackSnaps.length ? +(detourSamples / trackSnaps.length).toFixed(3) : 0,
         formationShare: totalResolverSamples ? +(formationSamples / totalResolverSamples).toFixed(3) : 0,
         combatShare: totalResolverSamples ? +(combatSamples / totalResolverSamples).toFixed(3) : 0,
         byOwner: byOwner,
