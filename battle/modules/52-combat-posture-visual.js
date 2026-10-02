@@ -9,7 +9,7 @@
 if(!root.BattleSoldierModel||!root.BattleEngagement||root.BattleCombatPostureVisual)return;
 var M=root.BattleSoldierModel,oldAnimate=M.animateWalk;
 if(typeof oldAnimate!=='function')return;
-function eligible(s,e){return!!(s&&!s.dead&&!s.target&&!s.reloading&&!s.clearingStoppage&&e&&e.lastSeen&&['alert','suppress','orient'].indexOf(String(e.state||''))>=0);}
+function eligible(s,e){return!!(s&&!s.dead&&!s.isPlayer&&!s.target&&!s.reloading&&!s.clearingStoppage&&e&&e.lastSeen&&['alert','suppress','orient'].indexOf(String(e.state||''))>=0);}
 M.animateWalk=function(s,dt,speed){
   if(!s)return oldAnimate.apply(this,arguments);var e;try{e=root.BattleEngagement.stateOf(s);}catch(_){e=s.eng;}
   if(!eligible(s,e))return oldAnimate.apply(this,arguments);
