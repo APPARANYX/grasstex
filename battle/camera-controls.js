@@ -260,26 +260,30 @@
       var dt=Math.min(.05,engine.getDeltaTime()/1000),pad=activeGamepad();
       if(pad&&pad.id!==padId){padId=pad.id;padButtons={};updateHint(pad);console.log('[CAMERA] gamepad active: '+padId);}
       if(!pad&&padId){padId=null;padButtons={};if(player)leavePlayer('controller disconnected');updateHint(null);}
-      if(!pad)return;
-
-      var menu=padPressedOnce(pad,9),view=padPressedOnce(pad,8);
-      if(menu){possessRandom();refreshPadButtons(pad);return;}
-      if(player){
-        if(view){leavePlayer('View button');refreshPadButtons(pad);return;}
-        stepPlayer(pad,dt);refreshPadButtons(pad);return;
+      if(pad){
+        var menu=padPressedOnce(pad,9),view=padPressedOnce(pad,8);
+        if(menu){possessRandom();refreshPadButtons(pad);return;}
+        if(player){
+          if(view){leavePlayer('View button');refreshPadButtons(pad);return;}
+          stepPlayer(pad,dt);refreshPadButtons(pad);return;
+        }
       }
 
+      /* Keyboard fly controls are independent of gamepad presence. The old early return above this
+         block recorded keydown state correctly but skipped every movement frame unless a pad existed. */
       var f=(keys.has('w')?1:0)-(keys.has('s')?1:0),r=(keys.has('d')?1:0)-(keys.has('a')?1:0),v=(keys.has('e')?1:0)-(keys.has('q')?1:0),padSprint=false,padPrecision=false;
-      var axes=pad.axes||[];
-      r+=shapedAxis(axes[0]);f+=-shapedAxis(axes[1]);
-      yaw+=shapedAxis(axes[2])*PAD_LOOK_RATE*dt;pitch+=shapedAxis(axes[3])*PAD_LOOK_RATE*dt;pitch=clamp(pitch,-PITCH_LIMIT,PITCH_LIMIT);
-      camera.rotation.y=yaw;camera.rotation.x=pitch;
-      v+=buttonValue(pad,7)-buttonValue(pad,6);
-      padPrecision=buttonValue(pad,4)>.5;padSprint=buttonValue(pad,5)>.5;
-      if(padPressedOnce(pad,12))throttle=clamp(throttle*PAD_THROTTLE_STEP,THROTTLE_MIN,1);
-      if(padPressedOnce(pad,13))throttle=clamp(throttle/PAD_THROTTLE_STEP,THROTTLE_MIN,1);
-      if(padPressedOnce(pad,3)){pitch=0;camera.rotation.x=0;}
-      refreshPadButtons(pad);
+      if(pad){
+        var axes=pad.axes||[];
+        r+=shapedAxis(axes[0]);f+=-shapedAxis(axes[1]);
+        yaw+=shapedAxis(axes[2])*PAD_LOOK_RATE*dt;pitch+=shapedAxis(axes[3])*PAD_LOOK_RATE*dt;pitch=clamp(pitch,-PITCH_LIMIT,PITCH_LIMIT);
+        camera.rotation.y=yaw;camera.rotation.x=pitch;
+        v+=buttonValue(pad,7)-buttonValue(pad,6);
+        padPrecision=buttonValue(pad,4)>.5;padSprint=buttonValue(pad,5)>.5;
+        if(padPressedOnce(pad,12))throttle=clamp(throttle*PAD_THROTTLE_STEP,THROTTLE_MIN,1);
+        if(padPressedOnce(pad,13))throttle=clamp(throttle/PAD_THROTTLE_STEP,THROTTLE_MIN,1);
+        if(padPressedOnce(pad,3)){pitch=0;camera.rotation.x=0;}
+        refreshPadButtons(pad);
+      }
       if(!f&&!r&&!v)return;
       var forward=camera.getForwardRay().direction.clone();forward.y=0;if(forward.lengthSquared()>1e-8)forward.normalize();
       var up=BABYLON.Axis.Y,right2=scene.useRightHandedSystem?BABYLON.Vector3.Cross(forward,up):BABYLON.Vector3.Cross(up,forward);
