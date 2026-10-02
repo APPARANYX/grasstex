@@ -87,12 +87,13 @@ test('a materially changed retreat goal invalidates the old lease immediately',(
   assert.ok(d(next,first)>3);
   assert.deepEqual(held.data.goal,{x:80,z:0});
 });
-test('a majority physically blocked on the leased endpoint gets one bounded recovery rebase',()=>{
+test('a majority physically blocked on the leased endpoint gets one bounded recovery rebase, not one every tick',()=>{
   const w=fixture(),first=command(w);
   live(w.q).slice(0,2).forEach(s=>{s._movementStopReason='path-blocked';});
   const next=command(w),held=w.L.get(w.q,'retreat-anchor');
   assert.equal(held.data.reason,'route blocked');
   assert.ok(d(next,first)>3);
   assert.ok(d(centre(w.q),next)<13,'recovery uses the half-stride instead of pushing the anchor another full stride');
+  for(let i=0;i<6;i++)assert.ok(d(command(w),next)<1e-9,'persistent blocked flags do not churn the recovery anchor');
 });
 console.log('retreat-anchor-check: '+n+' passed');
