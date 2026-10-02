@@ -75,6 +75,23 @@ test('an advancing man stays low while the squad has eyes on the enemy, whatever
   assert.equal(later.filter((v,i)=>i&&v!==later[i-1]).length,1,'one change, not a flutter');
 });
 
+test('a one-tick contact pulse keeps advance low through the quiet-gap grace instead of bobbing',()=>{
+  const {r,b,s}=oneMan(),E=r.BattleEngagement,G=E.tuning.LOW_GAP_HOLD;
+  assert.ok(G>0,'quiet-gap tuning is exported');
+  s.target=null;s.eng=null;s.squad.contact=null;s.squad.inContact=true;E.stateOf(s).stanceUntil=0;
+  E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'crouch','contact pulse puts him low');
+  const lowUntil=s.eng.advanceLowUntil;
+  assert.ok(lowUntil>=b.time+G-1e-9,'contact pulse opens the low-posture grace');
+
+  b.time+=1.2;s.squad.inContact=false;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'crouch','one clear tick inside the grace cannot stand him');
+
+  const release=Math.max(s.eng.advanceLowUntil,s.eng.stanceUntil)+.05;
+  b.time=release;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'stand','after the quiet gap and stance lease expire he stands');
+});
+
 test('?contactStance=0: the raw signal, he stands the moment inContact clears',()=>{
   globalThis.location={search:'?contactStance=0'};
   let raw;try{raw=H.bootstrap();}finally{delete globalThis.location;}
@@ -165,18 +182,19 @@ test('an active bound finishes under hold fire before preparation takes over',()
 });
 
 test('withdrawal suppression expiry has hysteresis instead of stand-crouch flutter',()=>{
-  const {r,b,s}=oneMan(),E=r.BattleEngagement;
+  const {r,b,s}=oneMan(),E=r.BattleEngagement,G=E.tuning.LOW_GAP_HOLD;
   s.target=null;s.eng=null;s.squad.state='retreat';s.suppressedUntil=b.time+.2;
   E.updateSoldier(s,b);
   assert.equal(s.eng.state,'withdraw');assert.equal(s.eng.stance,'crouch','under fire a withdrawing man stays low');
-  const heldUntil=s.eng.stanceUntil;
+  const lowUntil=s.eng.withdrawLowUntil;
+  assert.ok(lowUntil>=b.time+G-1e-9,'incoming fire opens the withdrawal low-posture grace');
 
   b.time+=.3;s.suppressedUntil=0;E.updateSoldier(s,b);
-  assert.equal(s.eng.stance,'crouch','one suppression expiry tick cannot stand him during the hold');
-  assert.equal(s.eng.stanceUntil,heldUntil,'the clear tick does not rewrite/shorten the low-stance lease');
+  assert.equal(s.eng.stance,'crouch','one suppression expiry tick cannot stand him during the grace');
 
-  b.time=heldUntil+.05;E.updateSoldier(s,b);
-  assert.equal(s.eng.stance,'stand','after the low-stance lease expires he resumes upright retreat');
+  const release=Math.max(s.eng.withdrawLowUntil,s.eng.stanceUntil)+.05;
+  b.time=release;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'stand','after a genuinely quiet gap he resumes upright retreat');
 });
 
 test('a firing station cannot raise a temporary lower stance request',()=>{
