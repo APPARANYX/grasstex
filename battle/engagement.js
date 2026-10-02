@@ -2453,7 +2453,7 @@
       chosen = 0;
     for (i = 0; i < members.length; i++) {
       s = members[i];
-      if (!s.dead) state(s).suppressOrder = false;
+      if (!s.dead && !s.isPlayer) state(s).suppressOrder = false;
     }
     if (contact) {
       var bounding = root.BattleLeases.holds(sq, 'bound', battle.time),
@@ -2464,6 +2464,7 @@
         s = members[i];
         if (
           s.dead ||
+          s.isPlayer ||
           s.target ||
           (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) ||
           (root.BattleAmmunition && !root.BattleAmmunition.available(s))
@@ -2544,6 +2545,13 @@
     for (i = 0; i < members.length; i++) {
       s = members[i];
       if (s.dead) continue;
+      /* A possessed soldier can contribute contact/under-fire facts upward, but squad Micro must not
+         write or interpret his Engagement state while the human owns him. */
+      if (s.isPlayer) {
+        if (s.target) contact++;
+        if (underFireNow(s, battle)) underFireCount++;
+        continue;
+      }
       var e = state(s);
       if (ACTING[e.state] === 1) broken.push(s);
       if (e.fledPhase === 'run' || e.fledPhase === 'wait') fled.push(s); // for the Squad Leader to let go from the roster
@@ -2603,6 +2611,7 @@
   /* The Squad Leader's bound order, stored as Micro state and consumed once by orderedBound(). */
   function orderBound(movers) {
     for (var i = 0; i < movers.length; i++) {
+      if (movers[i].isPlayer) continue;
       var e = state(movers[i]);
       e.boundOrder = true;
       e.suppressOrder = false;
@@ -2612,7 +2621,7 @@
     var a = (sq && sq.members) || [],
       M = mind();
     for (var i = 0; i < a.length; i++)
-      if (!a[i].dead) {
+      if (!a[i].dead && !a[i].isPlayer) {
         if (M && state(a[i]).boundWaitFrom) M.noteLapse(a[i]); // he was still waiting: that bound never began
         state(a[i]).boundOrder = false;
         state(a[i]).boundWaitFrom = 0; // a wait belongs to the order it was made for
