@@ -29,7 +29,7 @@
     c,
     men;
   /* Frames that only forward a request: the caller that matters is the next one out. */
-  var FORWARDERS = { applyStance: 1, commitStance: 1, requestStance: 1, holdStance: 1, setCrouch: 1, setProne: 1 };
+  var FORWARDERS = { applyStance: 1, commitStance: 1, commitStanceRespectHold: 1, requestStance: 1, holdStance: 1, setCrouch: 1, setProne: 1 };
   function writer() {
     var st = String(new Error().stack || ''),
       m;

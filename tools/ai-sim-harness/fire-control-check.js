@@ -46,6 +46,34 @@ test('first visual contact holds fire and makes the squad prepare prone before a
   assert.equal((fc.trail||[]).at(-1).ready,fc.ready,'the transition trail captures the decision evidence');
   assert.equal(w.E.fireAuthorized(w.us.members[4],w.b),true);
 });
+test('same-threat relayed refresh keeps an existing hold but cannot create one by itself',()=>{
+  const w=world('?stressAct=0&fireControl=1',100);
+  let fc=command(w); assert.equal(fc.state,'hold');
+  const firstAt=w.us.contact.at,startedAt=fc.startedAt,targetId=fc.targetId;
+  w.b.time+=3;
+  w.us.members.forEach(s=>s.target=null);
+  w.us.contact={
+    unit:w.foe,x:w.foe.root.position.x,z:w.foe.root.position.z,at:w.b.time,
+    seenBy:null,stance:'stand',relayedFrom:'us-1',firstHandAt:firstAt
+  };
+  fc=command(w);
+  assert.ok(fc,'a newer callout for the same personally seen enemy keeps the fire-control episode alive');
+  assert.equal(fc.startedAt,startedAt,'the episode was continued rather than cleared/restarted');
+  assert.equal(String(fc.targetId),String(targetId));
+  assert.equal((fc.trail||[]).filter(x=>x.reason==='first visual contact').length,1,'no second HOLD episode was created');
+  assert.equal(w.us.inContact,true,'preparation remains contact while first-hand memory is valid');
+
+  const fresh=world('?stressAct=0&fireControl=1',100);
+  fresh.us.fireControl=null;
+  fresh.us.members.forEach(s=>s.target=null);
+  fresh.us.contact={
+    unit:fresh.foe,x:fresh.foe.root.position.x,z:fresh.foe.root.position.z,at:fresh.b.time,
+    seenBy:null,stance:'stand',relayedFrom:'us-9',firstHandAt:null
+  };
+  fc=command(fresh);
+  assert.equal(fc,null,'relayed-only word still cannot initiate fire control');
+});
+
 test('long range prefers one strong in-range marksman while the rest keep holding',()=>{
   /* 141.5 m puts the squad-average contact just beyond the 140 m precision threshold while the
      nearest rifleman is still inside his rifle's real 140 m combat range. A US scout's M1 Carbine

@@ -61,7 +61,7 @@ function oneMan(){
 }
 
 test('an advancing man stays low while the squad has eyes on the enemy, whatever inContact blinks; then stands',()=>{
-  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement,H_=E.tuning.ALERT_HOLD,TICK=.15;
+  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement,H_=E.tuning.ALERT_HOLD,G=E.tuning.LOW_GAP_HOLD,TICK=.15;
   assert.equal(E.tuning.CONTACT_STANCE,true);
   s.target=null;s.eng=null;E.stateOf(s).stanceUntil=0;
   const seen=b.time;s.squad.contact={unit:enemy,x:enemy.root.position.x,z:enemy.root.position.z,at:seen,seenBy:1};
@@ -70,9 +70,26 @@ test('an advancing man stays low while the squad has eyes on the enemy, whatever
   while(b.time-seen<H_-.5)shown.add(tick());
   assert.deepEqual([...shown],['crouch'],'inContact is off and the picture is fresh: he stays low');
   const later=[];
-  while(b.time-seen<H_+2.5)later.push(tick());
-  assert.equal(later[later.length-1],'stand','the picture is older than ALERT_HOLD: he is up');
+  while(b.time-seen<H_+G+1.5)later.push(tick());
+  assert.equal(later[later.length-1],'stand','after threat memory plus the quiet-gap grace he is up');
   assert.equal(later.filter((v,i)=>i&&v!==later[i-1]).length,1,'one change, not a flutter');
+});
+
+test('a one-tick contact pulse keeps advance low through the quiet-gap grace instead of bobbing',()=>{
+  const {r,b,s}=oneMan(),E=r.BattleEngagement,G=E.tuning.LOW_GAP_HOLD;
+  assert.ok(G>0,'quiet-gap tuning is exported');
+  s.target=null;s.eng=null;s.squad.contact=null;s.squad.inContact=true;E.stateOf(s).stanceUntil=0;
+  E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'crouch','contact pulse puts him low');
+  const lowUntil=s.eng.advanceLowUntil;
+  assert.ok(lowUntil>=b.time+G-1e-9,'contact pulse opens the low-posture grace');
+
+  b.time+=1.2;s.squad.inContact=false;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'crouch','one clear tick inside the grace cannot stand him');
+
+  const release=Math.max(s.eng.advanceLowUntil,s.eng.stanceUntil)+.05;
+  b.time=release;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'stand','after the quiet gap and stance lease expire he stands');
 });
 
 test('?contactStance=0: the raw signal, he stands the moment inContact clears',()=>{
@@ -125,6 +142,85 @@ test('requestStance only takes a man lower and goes through the commitment',()=>
   E.commitStance(s,b,'crouch',1);
   assert.equal(E.requestStance(s,b,'crouch',9),false,'the same stance restarts no hold');
   assert.equal(E.requestStance(s,b,'stand',9),false,'a request never stands a man up');
+});
+
+test('fire-control preparation keeps its prone lease across a brief control/contact blink',()=>{
+  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement,H_=E.tuning.ALERT_HOLD;
+  s.target=null;s.eng=null;
+  s.squad.contact={unit:enemy,x:enemy.root.position.x,z:enemy.root.position.z,at:b.time,seenBy:enemy.id};
+  s.squad.fireControl={state:'hold',targetId:enemy.id};
+  E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'prone','hold-fire preparation puts him prone');
+  assert.ok(s.eng.stanceUntil>=b.time+H_-1e-9,'the prep posture is leased for the remembered-threat window');
+
+  s.squad.fireControl=null;s.squad.contact=null;s.squad.inContact=false;
+  b.time+=1.2;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'prone','a short fire-control/contact blink cannot stand him back up');
+
+  b.time+=H_;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'stand','once the threat-memory lease expires a quiet advance may stand');
+});
+
+test('an active bound finishes under hold fire before preparation takes over',()=>{
+  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement;
+  const e=E.stateOf(s),cover={x:s.root.position.x+8,z:s.root.position.z};
+  e.state='bound';e.since=b.time;e.until=b.time+12;e.cover=cover;
+  s.squad.contact={unit:enemy,x:enemy.root.position.x,z:enemy.root.position.z,at:b.time,seenBy:s.id};
+  s.squad.fireControl={state:'hold',targetId:enemy.id};
+  E.updateSoldier(s,b);
+  assert.equal(e.state,'bound','a displacement already in motion is not interrupted by hold-fire preparation');
+  assert.equal(e.cover,cover,'the committed cover destination remains owned');
+  assert.equal(e.stance,'crouch','the mover stays in its bound posture instead of flipping prone');
+
+  s.root.position.x=cover.x;s.root.position.z=cover.z;b.time+=.15;
+  E.updateSoldier(s,b);
+  assert.notEqual(e.state,'bound','arrival completes the bound instead of leaving a resumable locomotion state');
+
+  b.time+=.15;E.updateSoldier(s,b);
+  assert.equal(e.stance,'prone','once the displacement is complete, hold-fire preparation takes over');
+  assert.notEqual(e.state,'bound','preparation cannot resurrect the completed bound');
+});
+
+test('withdrawal suppression expiry has hysteresis instead of stand-crouch flutter',()=>{
+  const {r,b,s}=oneMan(),E=r.BattleEngagement,G=E.tuning.LOW_GAP_HOLD;
+  s.target=null;s.eng=null;s.squad.state='retreat';s.suppressedUntil=b.time+.2;
+  E.updateSoldier(s,b);
+  assert.equal(s.eng.state,'withdraw');assert.equal(s.eng.stance,'crouch','under fire a withdrawing man stays low');
+  const lowUntil=s.eng.withdrawLowUntil;
+  assert.ok(lowUntil>=b.time+G-1e-9,'incoming fire opens the withdrawal low-posture grace');
+
+  b.time+=.3;s.suppressedUntil=0;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'crouch','one suppression expiry tick cannot stand him during the grace');
+
+  const release=Math.max(s.eng.withdrawLowUntil,s.eng.stanceUntil)+.05;
+  b.time=release;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'stand','after a genuinely quiet gap he resumes upright retreat');
+});
+
+test('a firing station cannot raise a temporary lower stance request',()=>{
+  const {r,b,s}=oneMan(),E=r.BattleEngagement;
+  s.target=null;s.eng=null;
+  E.commitStance(s,b,'stand',0,'probe:stand');
+  assert.equal(E.requestStance(s,b,'crouch',2),true);
+  const heldUntil=s.eng.stanceUntil;
+  const st={
+    id:'probe-port',x:s.root.position.x,z:s.root.position.z,
+    windowX:s.root.position.x,windowZ:s.root.position.z,normalX:0,normalZ:1,
+    port:{stance:'stand',stances:['stand','crouch']}
+  };
+  r.BattleTacticalPositions={
+    update:()=>true,
+    current:()=>({position:st,pose:{stance:'stand'},threatSector:null}),
+    anchor:()=>({x:st.x,z:st.z}),
+    noteAperture:()=>{}
+  };
+  E.updateSoldier(s,b);
+  assert.equal(s.eng.state,'station');
+  assert.equal(s.eng.stance,'crouch','station pose does not override the active lower-stance request');
+  assert.equal(s.eng.stanceUntil,heldUntil,'station does not extend or replace the request lease');
+
+  b.time=heldUntil+.05;E.updateSoldier(s,b);
+  assert.equal(s.eng.stance,'stand','station pose resumes when the lower-stance request expires');
 });
 
 test('LoopWatch flags four committed stance changes in 8 seconds only with stable contact/cover and little movement',()=>{
