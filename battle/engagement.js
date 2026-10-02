@@ -1480,24 +1480,24 @@
     return out;
   })();
   var ACTING = { cower: 1, flee: 1, freeze: 1, rage: 1 };
-  /* `?rageLock=1`: the charge measures the enemy the break measured. Off (the default while it is measured), the break
+  /* Rage lock (on by default since 2026-10-02; `?rageLock=0` is the old charge): the charge measures the enemy the break
+     measured. Off, the break
      reads the squad's trouble and the charge his own target first, so a man whose target is past RAGE_REACH while the
      squad's contact is inside RAGE_RANGE breaks into rage and gives it up on the same tick, every tick (and each break
      renews the guard). On, the charge goes for the nearer of the two, so it cannot end on the tick it began. */
-  var RAGE_LOCK = /[?&]rageLock=1(?:&|#|$)/.test((typeof location !== 'undefined' && location.search) || '');
-  /* `?rageGuard=1`: the berserk guard lasts the charge, from the break until he is within MELEE_RANGE of the man he
-     charges, he dies or the rage ends. Off (the default while it is measured), it lasts RAGE_GUARD_SECONDS from the
+  var RAGE_LOCK = !/[?&]rageLock=0(?:&|#|$)/.test((typeof location !== 'undefined' && location.search) || '');
+  /* Charge guard (on by default since 2026-10-02; `?rageGuard=0` is the old guard): the berserk guard lasts the charge,
+     from the break until he is within MELEE_RANGE of the man he charges, he dies or the rage ends. Off, it lasts RAGE_GUARD_SECONDS from the
      break, whether or not the charge does. */
-  var RAGE_GUARD_CHARGE = /[?&]rageGuard=1(?:&|#|$)/.test(
+  var RAGE_GUARD_CHARGE = !/[?&]rageGuard=0(?:&|#|$)/.test(
     (typeof location !== 'undefined' && location.search) || ''
   );
-  /* `?rageTrance=1`: rage is a trance, final like a flee. Calm does not end it: only his death, or nobody left within
+  /* Rage trance (on by default since 2026-10-02; `?rageTrance=0` is the old rage): rage is a trance, final like a flee. Calm does not end it: only his death, or nobody left within
      RAGE_REACH to charge, and his squad's retreat does not take him back. For the whole of it he takes RAGE_TRANCE_GUARD
      of every hit, runs RAGE_SPEED faster (a leg wound does not slow him) and shoots a RAGE_AIM group. The damage the
      guard held back is a debt: when the trance ends and he is still alive, it comes due at once (`BattleWounds.succumb`),
-     and if it takes him to the wound model's collapse line he dies of his wounds. Off (the default while it is
-     measured), rage ends REACT_MIN after he calms below broken, a retreat ends it, and he moves and shoots as anyone. */
-  var RAGE_TRANCE = /[?&]rageTrance=1(?:&|#|$)/.test(
+     and if it takes him to the wound model's collapse line he dies of his wounds. Off, rage ends REACT_MIN after he calms below broken, a retreat ends it, and he moves and shoots as anyone. */
+  var RAGE_TRANCE = !/[?&]rageTrance=0(?:&|#|$)/.test(
     (typeof location !== 'undefined' && location.search) || ''
   );
   var ACT_TUNING = {
