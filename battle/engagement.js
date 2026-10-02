@@ -1369,22 +1369,10 @@
     return fireControlObservation(s, battle).ready;
   }
   function prepareFireControl(s, battle) {
-    var e = state(s),
-      target = fireControlTarget(s, battle),
+    var target = fireControlTarget(s, battle),
       known = target ? posOf(target) : knownThreat(s, battle),
       p = posOf(s),
       goal = target ? crestPrepPoint(s, target, battle) : { x: p.x, z: p.z };
-    /* HOLD/PRECISION fire control outranks a locomotion drill. Before this handoff an active
-       bound kept its cover/state while preparation temporarily forced prone; a one-tick fire-control
-       gap resumed the old bound, producing bound -> prep -> bound posture loops. End that displacement
-       once, release its cover claim, and re-enter through alert after preparation instead of resuming it. */
-    if (e.state === 'bound') {
-      releaseCover(s, battle, 'engagement');
-      e.cover = null;
-      transition(s, battle, 'alert', ALERT_HOLD, 'fire-control preparation interrupted bound');
-    } else if (e.state === 'assault') {
-      transition(s, battle, 'alert', ALERT_HOLD, 'fire-control preparation interrupted assault');
-    }
     s.state = 'engage';
     s.setUp = false;
     if (known) s._faceHint = { x: known.x, z: known.z };
@@ -2027,7 +2015,11 @@
     /* A first contact is not automatically a trigger pull. While the Squad Leader is holding fire,
        everyone not specifically chosen for a precision shot gets low, faces the contact and creeps
        only far enough to establish a prone line over a crest. */
-    if (fireControlPreparing(s, battle)) return prepareFireControl(s, battle);
+    /* HOLD/PRECISION blocks new bounds at the Squad Leader, but a displacement already in motion
+       is a commitment: finish it under HOLD FIRE instead of flipping bound -> prone prep -> bound
+       whenever the shared contact blinks. Fire permission remains closed throughout. */
+    if (fireControlPreparing(s, battle) && e.state !== 'bound' && e.state !== 'assault')
+      return prepareFireControl(s, battle);
 
     switch (e.state) {
       case 'orient':
