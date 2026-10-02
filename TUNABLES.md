@@ -82,6 +82,7 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 - `CALM_AFTER = 12` — stress-memory `lasting` (default on): seconds out of contact and out of fire before stress drains (s)
 - `FLED_FLOOR = 0.2` — a man who has fled never calms below this stress, at base or anywhere; `BattleSoldierMind.tuning.FLED_FLOOR`
 - `RELIEF = { kill: 0.12, objective: 0.15, cover: 0.06, survived: 0.05 }` — stress-memory `relief` (default on): stress taken off by each kind, times his nerve
+- `FREEZE_MIN = 12`, `FREEZE_MAX = 48` — bounded dazed/freeze duration (s), selected once from recent stress-dose concentration when the freeze begins
 
 ### 10-soldier-stats.js
 - `EFFECTS` — stat effect multipliers (see file)

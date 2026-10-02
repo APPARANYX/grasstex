@@ -937,7 +937,7 @@ check, and diagnostics proof. Do not fold these into one "AI cleanup" change.
      the same total accumulated across the long window is "shell simmer".
    - Engagement asks Soldier Mind for a freeze-duration multiplier/snapshot **once when freeze begins** and stores the
      resulting `freezeUntil` on its own reaction state. Module 17 never writes Engagement timers.
-   - Keep a declared floor/ceiling: roughly **4 s minimum**, with a first measurement ceiling around **12-18 s** rather
+   - Keep a declared floor/ceiling: **12 s minimum, 48 s maximum** for the dazed/freeze reaction rather
      than allowing a broken band to hold the dazed animation indefinitely. Concentrated blast/casualty/wound/incoming
      doses trend toward the ceiling; slow suppression/leaderless/isolation/contagion accumulation trends toward the
      floor. Nerve may scale the result only through already-owned stress gain unless a separate explicit rule is proved.
