@@ -22,6 +22,7 @@
      to crouch as standing: proneToCrouch, then standToCrouch a frame later, so he rose to his feet and
      knelt again. */
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),H=require('./harness');
+function load(r,p){new Function('window','globalThis','console',fs.readFileSync(path.join(H.REPO,p),'utf8'))(r,r,{log(){},warn(){}});}
 let n=0;function test(name,fn){fn();n++;console.log('PASS '+name);}
 
 test('only Engagement writes stance flags',()=>{
@@ -127,7 +128,9 @@ test('requestStance only takes a man lower and goes through the commitment',()=>
 });
 
 test('LoopWatch flags four committed stance changes in 8 seconds only with stable contact/cover and little movement',()=>{
-  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement,L=r.BattleAILoopWatch;
+  const {r,b,s,enemy}=oneMan(),E=r.BattleEngagement;
+  load(r,'battle/modules/32-ai-loop-watch.js');
+  const L=r.BattleAILoopWatch;
   assert.ok(L&&L.sample,'LoopWatch is loaded');
   s.squad.inContact=true;s.squad.contact={unit:enemy,x:enemy.root.position.x,z:enemy.root.position.z,at:b.time,seenBy:s.id};
   const e=E.stateOf(s);e.cover={x:s.root.position.x,z:s.root.position.z,slotId:'stable-cover'};
