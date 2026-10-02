@@ -101,7 +101,15 @@
         boundWaitFrom: 0,
         suppressOrder: false,
         burstLeft: SUPPRESS_BURST,
-        burstPauseUntil: 0
+        burstPauseUntil: 0,
+        freezeStartedAt: null,
+        freezeUntil: 0,
+        freezeDuration: 0,
+        freezeDose: null,
+        freezeEndedAt: null,
+        freezeExitReason: null,
+        freezeBrokenSince: null,
+        freezeSpentBrokenSince: null
       };
     return s.eng;
   }
@@ -1081,11 +1089,12 @@
       next: ['advance']
     },
     freeze: {
-      meaning: 'Break and stop: down where he is, no fire, no orders (broken, ?stressAct=freeze)',
+      meaning: 'Break and stop: dazed, down where he is, no fire, no orders (broken, ?stressAct=freeze)',
       enteredBy: 'broken, under fire or with nowhere to go',
-      exits: 'calm below broken for REACT_MIN -> advance; squad retreat -> withdraw',
+      exits:
+        'bounded freezeUntil expires -> reassess into cower/flee/rage or advance; squad retreat -> withdraw',
       rate: '0.15 s',
-      next: ['advance', 'withdraw', 'station']
+      next: ['advance', 'withdraw', 'station', 'cower', 'flee', 'rage']
     },
     rage: {
       meaning:
@@ -1452,8 +1461,12 @@
     RAGE_AIM: 0.5 // ?rageTrance=1: his shot group in the trance (a broken man's is up to 1.8 wider, a moving man's 1.55)
   };
   /* Engagement states in which a man is not fighting the way he was (the squad report's `reacting`). */
+  function reactionState(s) {
+    var e = s && s.eng;
+    return e && ACTING[e.state] === 1 ? e.state : null;
+  }
   function reacting(s) {
-    return !!(s && s.eng && ACTING[s.eng.state] === 1);
+    return !!reactionState(s);
   }
   function noteAct(s, kind, what, dt) {
     var M = mind();
@@ -1512,13 +1525,16 @@
   }
   /* How a broken man breaks: the best of his enabled reactions by temper x situation, ties in the order flee, freeze,
      rage; null when none is enabled or none has any weight. */
-  function chooseBreak(s, battle, v) {
+  function chooseBreak(s, battle, v, skipFreeze) {
     var p = posOf(s),
       th = trouble(s, battle),
       d = th ? dist(p.x, p.z, th.x, th.z) : Infinity,
       w = {
         flee: ACT.flee ? v.temper.flee * (th ? 1 : ACT_TUNING.FLEE_NO_THREAT) : 0,
-        freeze: ACT.freeze ? v.temper.freeze * (v.underFire ? 1 : ACT_TUNING.FREEZE_NOT_UNDER_FIRE) : 0,
+        freeze:
+          ACT.freeze && !skipFreeze
+            ? v.temper.freeze * (v.underFire ? 1 : ACT_TUNING.FREEZE_NOT_UNDER_FIRE)
+            : 0,
         rage: ACT.rage && d <= ACT_TUNING.RAGE_RANGE && armed(s) ? v.temper.rage : 0
       },
       best = null,
@@ -1526,6 +1542,44 @@
     for (var i = 0; i < order.length; i++)
       if (w[order[i]] > 0 && (!best || w[order[i]] > w[best])) best = order[i];
     return best;
+  }
+  function beginFreeze(s, battle, v) {
+    var e = state(s),
+      M = mind(),
+      profile = M ? M.freezeProfile(s, battle.time) : null,
+      duration = profile && isFinite(+profile.duration) ? +profile.duration : ACT_TUNING.REACT_MIN;
+    duration = clamp(duration, ACT_TUNING.REACT_MIN, 60);
+    e.freezeStartedAt = battle.time;
+    e.freezeDuration = duration;
+    e.freezeUntil = battle.time + duration;
+    e.freezeDose = profile;
+    e.freezeEndedAt = null;
+    e.freezeExitReason = null;
+    e.freezeBrokenSince = v ? v.since : null;
+    telemetry(battle, 'decision-freeze-start', {
+      faction: s.faction,
+      soldier: s.id,
+      squad: s.squad ? s.squad.id : null,
+      duration: duration,
+      until: e.freezeUntil,
+      dose: profile
+    });
+  }
+  function finishFreeze(s, battle, why) {
+    var e = state(s);
+    if (e.freezeStartedAt == null || e.freezeEndedAt != null) return;
+    e.freezeEndedAt = battle.time;
+    e.freezeExitReason = why || 'ended';
+    e.freezeSpentBrokenSince = e.freezeBrokenSince;
+    telemetry(battle, 'decision-freeze-end', {
+      faction: s.faction,
+      soldier: s.id,
+      squad: s.squad ? s.squad.id : null,
+      startedAt: e.freezeStartedAt,
+      endedAt: e.freezeEndedAt,
+      duration: e.freezeDuration,
+      reason: e.freezeExitReason
+    });
   }
   /* Where a man who has broken for good runs first: the last place his squad stood out of contact with nobody known
      near (the Squad Leader's `safePoint`), unless the trouble is known to be near it, then its home. Chosen once. */
@@ -1549,8 +1603,13 @@
     commitStance(s, battle, PRONE_ROLES[s.role] ? 'prone' : 'crouch', PRONE_HOLD);
   }
   function freeze(s, battle) {
+    /* A frozen man is out of the fight for this spell. Perception may have handed him a target earlier
+       in the same AI tick, but he neither tracks it nor contributes a facing hint while dazed. Keeping
+       either one made the stationary movement integrator turn the whole reaction pose toward enemies. */
     s.state = 'engage';
     s.setUp = false;
+    if (SA().clearTarget) SA().clearTarget(s);
+    s._faceHint = null;
     holdPosition(s, battle);
     commitStance(s, battle, 'crouch', 1.0);
   }
@@ -1732,9 +1791,29 @@
     if (!v) return false;
     var e = state(s),
       cur = ACTING[e.state] === 1 ? e.state : null,
-      want = cur;
-    if (v.band >= 3) {
-      if (!cur || cur === 'cower') want = chooseBreak(s, battle, v) || (cur === 'cower' ? 'cower' : null);
+      want = cur,
+      spentThisBreak = e.freezeSpentBrokenSince != null && e.freezeSpentBrokenSince === v.since;
+
+    /* Freeze is a bounded spell even if the man remains in the broken band. It does not end early
+       merely because stress decays; when its one-time timer expires, reassess what he does next. */
+    if (cur === 'freeze') {
+      if (!(e.freezeUntil > 0)) e.freezeUntil = (e.reactSince || now) + ACT_TUNING.REACT_MIN;
+      if (now >= e.freezeUntil) {
+        var next = null;
+        if (v.band >= 3) {
+          next = chooseBreak(s, battle, v, true);
+          if (!next && v.underFire && ACT.cower) next = 'cower';
+        } else if (v.band >= 2 && v.underFire && ACT.cower) next = 'cower';
+        var reason =
+          v.band >= 3
+            ? 'duration-expired-broken:' + (next || 'advance')
+            : 'duration-expired-' + (v.band >= 2 ? 'rattled' : 'composed') + ':' + (next || 'advance');
+        finishFreeze(s, battle, reason);
+        want = next;
+      }
+    } else if (v.band >= 3) {
+      if (!cur || cur === 'cower')
+        want = chooseBreak(s, battle, v, spentThisBreak) || (cur === 'cower' ? 'cower' : null);
     } else if (cur === 'cower') {
       if (v.underFire) e.fearAt = now;
       if (v.band < 2 || now - e.fearAt >= ACT_TUNING.COWER_QUIET) want = null;
@@ -1742,6 +1821,7 @@
       /* A trance (`?rageTrance=1`) does not end on calm: only rage() ends it. */
       if (!(RAGE_TRANCE && cur === 'rage') && now - e.reactSince >= ACT_TUNING.REACT_MIN) want = null;
     } else if (v.band >= 2 && v.underFire && ACT.cower) want = 'cower';
+
     if (want !== cur) {
       if (!want) {
         composed(s, battle, cur);
@@ -1766,6 +1846,7 @@
         e.guardDebt = 0;
       }
       if (want === 'flee') beginFled(s, battle);
+      if (want === 'freeze') beginFreeze(s, battle, v);
       noteAct(s, want, 'start');
     }
     if (!want) return false;
@@ -1792,7 +1873,9 @@
     : { attach: function () {}, run: function () {}, order: {} };
   function updateSoldier(s, battle) {
     var result = runDrill(s, battle);
-    if (s && battle && !s.dead) EXT.run('afterDrill', s, battle);
+    /* Combat-urgency/shared-contact drills must not re-arm the facing layer after freeze() deliberately
+       cleared it. Other reactions keep their existing extension behavior. */
+    if (s && battle && !s.dead && reactionState(s) !== 'freeze') EXT.run('afterDrill', s, battle);
     return result;
   }
   function runDrill(s, battle) {
@@ -1825,6 +1908,7 @@
     if (e.fledPhase) return fledTick(s, battle);
     if (entranced(s) && reaction(s, battle)) return; // the trance outranks his squad's retreat, as a flee does
     if (s.squad && s.squad.state === 'retreat') {
+      if (reactionState(s) === 'freeze') finishFreeze(s, battle, 'squad-retreat');
       transition(s, battle, 'withdraw', 0, 'squad withdrawing');
       return withdraw(s, battle);
     }
@@ -2499,6 +2583,7 @@
     orderBound: orderBound,
     clearBoundOrders: clearBoundOrders,
     reacting: reacting,
+    reactionState: reactionState,
     fledPhase: fledPhase,
     releaseFled: releaseFled,
     guardOnHit: guardOnHit,
