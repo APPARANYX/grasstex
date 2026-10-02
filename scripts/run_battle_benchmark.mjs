@@ -424,6 +424,8 @@ try {
         /* Tactical callouts (`?callouts=1`): only when the channel is on, so a flags-off record matches main field for field. */
         const callouts = root.BattleCallouts?.telemetry?.(sim);
         if (callouts) record.callouts = callouts;
+        const buddyPairs = root.BattleSquadStability?.buddyTelemetry?.(sim);
+        if (buddyPairs) record.buddyPairs = buddyPairs;
         if (extra) Object.assign(record, extra);
         return record;
     }

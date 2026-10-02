@@ -567,6 +567,26 @@ so "flags off identical to `main`" compares against a `main` that has it, and ev
 was taken with it off. What replaces the flat retreat in the long run is a separate design (fall back and hold), and a squad's
 shakiness is to come from what its men do (Stress reactions, under The soldier layer, in slices).
 
+
+**Buddy pairs inside each fireteam** (#187, Squad Leader/Meso owner). Stable pairs are deterministic adjacent-slot
+relationships inside the existing command/alpha/bravo/charlie fireteams; they are **on by default** and
+`?buddyPairs=0` is the legacy no-pair control. Pair identity is not command: a pair never writes a destination,
+publishes an order or calls Movement Resolver. During an already-authorized bound, the Squad Leader may leave one
+buddy who is already in Engagement's base of fire covering while the other takes the bound; if that condition is
+not available, the existing whole-fireteam bound passes through. Casualty/fireteam changes deterministically retire
+and re-pair survivors; suppression, freeze/flee/rage/cower, incompatible tactical-position work, blocked movement,
+route divergence and separation only degrade cooperation. Separation/route recovery uses hysteresis plus a 1.5 s
+stable-reform window, so diagnostic state does not chatter while physical movement crosses a threshold. Pair identity,
+task context, separation/route gap, state/reason, break/reform timing and cover/move actors are exported through
+`BattleSquadStability.buddySnapshot`; `buddy-pairs-check.js` owns the deterministic contract and the observe-only
+`scripts/probes/buddy-pairs.js` measures real usage. Standard benchmark #272, 100 paired meeting battles,
+`buddyPairs=0` vs `buddyPairs=1`, `contact+120`: 135 cover/move activations; 6,396 degraded episodes and 4,124
+reforms across all squads (4,708 separation, 631 suppression, 338 incompatibility, 19 blocked, 12 route-diverged);
+resolver changes 153,211→150,895 (-1.5%, sign p 0.001), loop alerts 59→40, movement-stall reports 26→31 in only
+3 paired battles (sign p 0.25), writer conflicts 0→0, runtime errors 0→0 and median wall time x1.001 (gate 1.25).
+The earlier #271 measurement exposed plan-refresh/threshold diagnostic churn (40,477 breaks / 37,980 reforms);
+the shipped hysteresis/task-context fix reduced those counts by 84% / 89% before the default-on decision.
+
 </details>
 
 <details>
@@ -974,15 +994,7 @@ Slices 1 and 2 of the original continuation are already shipped:
 
 The active queue begins here:
 
-1. **Buddy pairs inside each fireteam.** Give a fireteam stable buddy relationships used for local cooperation:
-   one man can cover while his buddy makes a bounded move, a steady buddy can reduce isolation/steadying cost,
-   and a buddy can report that the pair is blocked or separated. A buddy pair is not a destination writer and is
-   not an alternate fireteam commander; it supplies constraints/requests to the existing fireteam/Squad Leader
-   task and Engagement/Movement Resolver owners. Pair identity, separation, cover/move state and the reason a pair
-   broke/reformed must be inspectable. Avoid synchronized choreography: one casualty, suppression, blocked route
-   or incompatible task must degrade the pair cleanly rather than stall both men.
-
-2. **Per-man beliefs instead of omniscient shared contact inside Engagement.** Each soldier should carry what he
+1. **Per-man beliefs instead of omniscient shared contact inside Engagement.** Each soldier should carry what he
    personally **saw, was told, or heard**, with source, location/sector, observed/reported time, age, confidence
    and expiry. Unknown is a valid state. The squad may still publish an aggregate contact picture upward, but
    Engagement should eventually choose targets/last-known sectors from the man's own belief set rather than
@@ -991,7 +1003,7 @@ The active queue begins here:
    makes the callout channel materially useful. Diagnostics must answer *why this man believed an enemy was there*
    and distinguish truth from belief without giving the AI hidden truth.
 
-3. **Intent-based continuation and initiative when the Squad Leader is down.** Succession already exists; the
+2. **Intent-based continuation and initiative when the Squad Leader is down.** Succession already exists; the
    missing behavior is what the men/fireteams do while leadership is absent or before a successor can issue a new
    local plan. Preserve the last valid parent intent/task and allow only bounded, conservative initiative inside
    it: hold a valid firing/cover position, finish an already-committed short move, protect the fireteam/buddy,
