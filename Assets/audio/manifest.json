@@ -985,6 +985,126 @@
           "file": "voices/us/idle-groan-02.mp3",
           "text": "That's terrible. Tell it again.",
           "delivery": "idle"
+        },
+        {
+          "event": "shotsHeard",
+          "file": "voices/us/shots-heard-01.mp3",
+          "text": "Shots! Where's that coming from?"
+        },
+        {
+          "event": "shotsHeard",
+          "file": "voices/us/shots-heard-02.mp3",
+          "text": "I hear fire out there!"
+        },
+        {
+          "event": "leaderDown",
+          "file": "voices/us/sarge-down-01.mp3",
+          "text": "Sarge is down!"
+        },
+        {
+          "event": "leaderDown",
+          "file": "voices/us/sarge-down-02.mp3",
+          "text": "We lost the sergeant!"
+        },
+        {
+          "event": "takingCommand",
+          "file": "voices/us/taking-command-01.mp3",
+          "text": "I've got command! On me!"
+        },
+        {
+          "event": "takingCommand",
+          "file": "voices/us/taking-command-02.mp3",
+          "text": "I'm in charge now, follow me!"
+        },
+        {
+          "event": "wounded",
+          "file": "voices/us/im-hit-01.mp3",
+          "text": "I'm hit!"
+        },
+        {
+          "event": "wounded",
+          "file": "voices/us/im-hit-02.mp3",
+          "text": "Agh! I'm hit!"
+        },
+        {
+          "event": "jammed",
+          "file": "voices/us/jammed-01.mp3",
+          "text": "Jammed!"
+        },
+        {
+          "event": "jammed",
+          "file": "voices/us/jammed-02.mp3",
+          "text": "My weapon's jammed!"
+        },
+        {
+          "event": "lostHim",
+          "file": "voices/us/lost-him-01.mp3",
+          "text": "Lost him!"
+        },
+        {
+          "event": "lostHim",
+          "file": "voices/us/lost-him-02.mp3",
+          "text": "I can't see him!"
+        },
+        {
+          "event": "enemyClose",
+          "file": "voices/us/enemy-close-01.mp3",
+          "text": "He's right there!"
+        },
+        {
+          "event": "enemyClose",
+          "file": "voices/us/enemy-close-02.mp3",
+          "text": "Close! Too close!"
+        },
+        {
+          "event": "takeTheShot",
+          "file": "voices/us/take-the-shot-01.mp3",
+          "text": "Take the shot!"
+        },
+        {
+          "event": "takeTheShot",
+          "file": "voices/us/take-the-shot-02.mp3",
+          "text": "You've got him, take it!"
+        },
+        {
+          "event": "callHeard",
+          "file": "voices/us/heard-you-01.mp3",
+          "text": "Got it!"
+        },
+        {
+          "event": "callHeard",
+          "file": "voices/us/heard-you-02.mp3",
+          "text": "Heard you!"
+        },
+        {
+          "event": "stayDown",
+          "file": "voices/us/stay-down-01.mp3",
+          "text": "Keep your head down!"
+        },
+        {
+          "event": "stayDown",
+          "file": "voices/us/stay-down-02.mp3",
+          "text": "Stay down!"
+        },
+        {
+          "event": "breaking",
+          "file": "voices/us/breaking-01.mp3",
+          "text": "I'm getting out of here!"
+        },
+        {
+          "event": "breaking",
+          "file": "voices/us/breaking-02.mp3",
+          "text": "I can't take it!"
+        },
+        {
+          "event": "enemyOnObjective",
+          "file": "voices/us/enemy-on-objective-01.mp3",
+          "text": "They're on the objective!"
+        },
+        {
+          "event": "enemyOnObjective",
+          "file": "voices/us/enemy-on-objective-02.mp3",
+          "text": "They're taking the objective!"
         }
       ]
     },
@@ -1694,6 +1814,126 @@
           "file": "voices/ge/ruhe-stoehnen-02.mp3",
           "text": "Der ist furchtbar. Erz\u00e4hl ihn nochmal.",
           "delivery": "idle"
+        },
+        {
+          "event": "shotsHeard",
+          "file": "voices/ge/schuesse-gehoert-01.mp3",
+          "text": "Schüsse! Woher?"
+        },
+        {
+          "event": "shotsHeard",
+          "file": "voices/ge/schuesse-gehoert-02.mp3",
+          "text": "Da wird geschossen!"
+        },
+        {
+          "event": "leaderDown",
+          "file": "voices/ge/unteroffizier-gefallen-01.mp3",
+          "text": "Der Unteroffizier ist gefallen!"
+        },
+        {
+          "event": "leaderDown",
+          "file": "voices/ge/unteroffizier-gefallen-02.mp3",
+          "text": "Unteroffizier getroffen!"
+        },
+        {
+          "event": "takingCommand",
+          "file": "voices/ge/uebernehme-kommando-01.mp3",
+          "text": "Ich übernehme! Mir nach!"
+        },
+        {
+          "event": "takingCommand",
+          "file": "voices/ge/uebernehme-kommando-02.mp3",
+          "text": "Hört auf mein Kommando!"
+        },
+        {
+          "event": "wounded",
+          "file": "voices/ge/getroffen-01.mp3",
+          "text": "Ich bin getroffen!"
+        },
+        {
+          "event": "wounded",
+          "file": "voices/ge/getroffen-02.mp3",
+          "text": "Mich hat's erwischt!"
+        },
+        {
+          "event": "jammed",
+          "file": "voices/ge/ladehemmung-01.mp3",
+          "text": "Ladehemmung!"
+        },
+        {
+          "event": "jammed",
+          "file": "voices/ge/ladehemmung-02.mp3",
+          "text": "Hemmung!"
+        },
+        {
+          "event": "lostHim",
+          "file": "voices/ge/verloren-01.mp3",
+          "text": "Hab ihn verloren!"
+        },
+        {
+          "event": "lostHim",
+          "file": "voices/ge/verloren-02.mp3",
+          "text": "Ich seh ihn nicht mehr!"
+        },
+        {
+          "event": "enemyClose",
+          "file": "voices/ge/ganz-nah-01.mp3",
+          "text": "Er ist direkt da!"
+        },
+        {
+          "event": "enemyClose",
+          "file": "voices/ge/ganz-nah-02.mp3",
+          "text": "Ganz nah!"
+        },
+        {
+          "event": "takeTheShot",
+          "file": "voices/ge/schiess-01.mp3",
+          "text": "Schieß!"
+        },
+        {
+          "event": "takeTheShot",
+          "file": "voices/ge/schiess-02.mp3",
+          "text": "Du hast ihn, schieß!"
+        },
+        {
+          "event": "callHeard",
+          "file": "voices/ge/verstanden-01.mp3",
+          "text": "Verstanden!"
+        },
+        {
+          "event": "callHeard",
+          "file": "voices/ge/verstanden-02.mp3",
+          "text": "Jawohl!"
+        },
+        {
+          "event": "stayDown",
+          "file": "voices/ge/kopf-runter-01.mp3",
+          "text": "Kopf runter!"
+        },
+        {
+          "event": "stayDown",
+          "file": "voices/ge/kopf-runter-02.mp3",
+          "text": "Bleib unten!"
+        },
+        {
+          "event": "breaking",
+          "file": "voices/ge/ich-hau-ab-01.mp3",
+          "text": "Ich hau ab!"
+        },
+        {
+          "event": "breaking",
+          "file": "voices/ge/ich-hau-ab-02.mp3",
+          "text": "Ich halt das nicht aus!"
+        },
+        {
+          "event": "enemyOnObjective",
+          "file": "voices/ge/feind-am-ziel-01.mp3",
+          "text": "Sie sind am Ziel!"
+        },
+        {
+          "event": "enemyOnObjective",
+          "file": "voices/ge/feind-am-ziel-02.mp3",
+          "text": "Die nehmen das Ziel!"
         }
       ]
     }
