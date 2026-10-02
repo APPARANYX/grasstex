@@ -340,11 +340,14 @@ German). Press Menu again to jump to another random living soldier on the same f
 returns to the free camera. Controls: **LS** move, **L3** run, **RS** look, **LT** aim,
 **RT** fire, **B** crouch/stand, **A** prone/stand. The possessed soldier alone temporarily skips
 Perception/Engagement decision updates while the short player movement lease is live; squad command
-and every other soldier keep running. Movement still goes through `BattleMovementResolver` and the
-shipping movement integrator, stance through `BattleEngagement.commitStance`, targeting through
-`SquadAI.playerAim`, and firing through `SquadAI.tryFire`, so threat disposition, ammo, stoppages,
-range, terrain LOS, ballistics, wounds and presentation FX remain the normal simulation paths. Death
-automatically picks another living soldier on the same faction when possible.
+and every other soldier keep running. Possession starts in a player-owned standing stance. The pad's
+walk/run choice overrides squad hold/defend gait selection for that soldier only, and the player's
+trigger bypasses squad HOLD FIRE / precision authorization while still using the normal weapon
+cooldown, ammo/stoppage, range, terrain LOS, ballistics, wounds and presentation FX gates. Movement
+still goes through `BattleMovementResolver` and the shipping movement integrator, stance through
+`BattleEngagement.commitStance`, targeting through `SquadAI.playerAim`, and firing through
+`SquadAI.playerFire`. The third-person camera is terrain-clamped so its shoulder position cannot
+drop below the ground. Death automatically picks another living soldier on the same faction when possible.
 
 **Device benchmark** (`modules/97-device-benchmark.js`, inert without the flag): open the page with
 `?bench=1` on any phone or computer, tap **Start benchmark** and keep the tab in front. It

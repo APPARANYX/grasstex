@@ -1048,6 +1048,12 @@
     soldier.target = target;
     return true;
   }
+  /* The player owns his trigger. This deliberately bypasses Engagement's squad fire-authorization
+     gate while retaining SquadAI's weapon cooldown, ammo/stoppage, range, LOS and ballistics gates. */
+  function playerFire(soldier, battle) {
+    if (!soldier || soldier.dead) return false;
+    return tryFire(soldier, battle);
+  }
 
   function setDestination(soldier, next, battle, urgent) {
     if (!next) return;
@@ -1275,6 +1281,7 @@
     setDestination: setDestination,
     clearTarget: clearTarget,
     playerAim: playerAim,
+    playerFire: playerFire,
     hasLineOfSight: hasLineOfSight,
     detectionRange: detectionRange,
     findTarget: findTarget,

@@ -4,7 +4,7 @@
   var FOLLOW_DEFAULT=10,FOLLOW_MIN=3,FOLLOW_MAX=90,FOLLOW_BETA=1.18,FOLLOW_HEIGHT=1.05,ORBIT_SPEED=.22;
   var LOOK_X=.0022,LOOK_Y=.0018,PITCH_LIMIT=Math.PI*.46,MAX_HEIGHT=420,GROUND_CLEARANCE=2;
   var PAD_DEADZONE=.16,PAD_LOOK_RATE=2.35,PAD_PRECISION=.28,PAD_THROTTLE_STEP=1.35;
-  var PLAYER_DISTANCE=5.6,PLAYER_AIM_DISTANCE=3.15,PLAYER_LOOK_RATE=2.2,PLAYER_MOVE_AHEAD=6,PLAYER_TARGET_DOT=.985;
+  var PLAYER_DISTANCE=5.6,PLAYER_AIM_DISTANCE=3.15,PLAYER_LOOK_RATE=2.2,PLAYER_MOVE_AHEAD=6,PLAYER_TARGET_DOT=.985,PLAYER_CAMERA_CLEARANCE=.45;
   var KEY_HINT='Camera: click to look · WASD move · wheel speed · Q/E up/down · Shift sprint · Esc releases';
   var PAD_HINT='Xbox: LS move · RS look · LT/RT down/up · RB sprint · LB precision · D-pad speed · Y level · Menu player';
   var PLAYER_HINT='Player: LS move · L3 run · RS look · LT aim · RT fire · B crouch · A prone · Menu new soldier · View exit';
@@ -137,6 +137,9 @@
         right=new BABYLON.Vector3(Math.cos(playerYaw),0,-Math.sin(playerYaw)),dist=aiming?PLAYER_AIM_DISTANCE:PLAYER_DISTANCE,
         shoulder=aiming?.48:.72,height=player.prone?.86:(player.crouching?1.25:1.62),dir=cameraDirection();
       cam.position.set(p.x-flat.x*dist+right.x*shoulder,p.y+height,p.z-flat.z*dist+right.z*shoulder);
+      /* A shoulder camera is allowed to rise over a slope, never tunnel into it. */
+      var ground=battleSim&&battleSim.heightAt?battleSim.heightAt(cam.position.x,cam.position.z):p.y;
+      if(isFinite(+ground))cam.position.y=Math.max(cam.position.y,+ground+PLAYER_CAMERA_CLEARANCE);
       cam.setTarget(cam.position.add(dir.scale(50)));cam.fov=aiming?.58:.78;
     }
     function aimPoint(){
@@ -180,9 +183,11 @@
       var next=pickPlayerSoldier(player);if(!next)return false;
       if(player)clearPlayerLease(player,b);
       player=next;playerFaction=next.faction;playerYaw=+next.root.rotation.y||0;playerPitch=0;
+      /* Possession starts from a neutral player-owned stance instead of inheriting a squad hold-fire posture. */
+      if(global.BattleEngagement&&global.BattleEngagement.commitStance)global.BattleEngagement.commitStance(next,b,'stand',.45,'player-possession');
       if(global.BattleTacticalPositions&&global.BattleTacticalPositions.release)global.BattleTacticalPositions.release(next,b,'player-control');
       if(global.BattleMovementResolver&&global.BattleMovementResolver.proposePlayer){
-        var p=next.root.position;global.BattleMovementResolver.proposePlayer(next,{x:p.x,z:p.z},b,.6,{speedScale:1});
+        var p=next.root.position;global.BattleMovementResolver.proposePlayer(next,{x:p.x,z:p.z},b,.6,{speedScale:1,pace:'walk'});
       }
       if(b.paused&&b.resume)b.resume();
       var startBtn=document.getElementById('startBtn');if(startBtn)startBtn.hidden=true;
@@ -199,7 +204,7 @@
       if(player.dead){if(!possessRandom())leavePlayer('no living '+playerFaction+' soldiers');return;}
       var axes=pad.axes||[],mx=shapedAxis(axes[0]),my=-shapedAxis(axes[1]),lx=shapedAxis(axes[2]),ly=shapedAxis(axes[3]),
         aiming=buttonValue(pad,6)>.35,firing=buttonValue(pad,7)>.35,running=buttonValue(pad,10)>.5&&!aiming;
-      playerYaw-=lx*PLAYER_LOOK_RATE*dt;playerPitch=clamp(playerPitch+ly*1.55*dt,-.62,.78);
+      playerYaw+=lx*PLAYER_LOOK_RATE*dt;playerPitch=clamp(playerPitch+ly*1.55*dt,-.62,.78);
       if(padPressedOnce(pad,1)){
         var st=player.eng&&player.eng.stance|| (player.prone?'prone':(player.crouching?'crouch':'stand'));
         setPlayerStance(b,st==='crouch'?'stand':'crouch');
@@ -213,12 +218,15 @@
       var moving=move.lengthSquared()>.0025,p=player.root.position,next=moving?{x:p.x+move.x*PLAYER_MOVE_AHEAD,z:p.z+move.z*PLAYER_MOVE_AHEAD}:{x:p.x,z:p.z};
       if(player.prone&&moving)setPlayerStance(b,'crawl');else if(player.eng&&player.eng.stance==='crawl'&&!moving)setPlayerStance(b,'prone');
       if(global.BattleMovementResolver&&global.BattleMovementResolver.proposePlayer)
-        global.BattleMovementResolver.proposePlayer(player,next,b,.6,{speedScale:running&&!player.prone&&!player.crouching?1.65:1});
+        global.BattleMovementResolver.proposePlayer(player,next,b,.6,{speedScale:1,pace:running?'run':'walk'});
       positionPlayerCamera(aiming);
       var point=aimPoint(),target_=(aiming||firing)?aimedEnemy(b):null;
       if(global.BattleEngagement&&global.BattleEngagement.playerFace)global.BattleEngagement.playerFace(player,(aiming||firing)?point:null);
       if(global.SquadAI&&global.SquadAI.playerAim)global.SquadAI.playerAim(player,target_);
-      if(firing&&target_&&global.SquadAI&&global.SquadAI.tryFire)global.SquadAI.tryFire(player,b);
+      if(firing&&target_&&global.SquadAI){
+        if(global.SquadAI.playerFire)global.SquadAI.playerFire(player,b);
+        else if(global.SquadAI.tryFire)global.SquadAI.tryFire(player,b);
+      }
     }
     canvas.addEventListener('click',function(){canvas.focus();if(document.pointerLockElement!==canvas)canvas.requestPointerLock&&canvas.requestPointerLock();});
     document.addEventListener('pointerlockchange',function(){active=document.pointerLockElement===canvas;if(!active)keys.clear();});

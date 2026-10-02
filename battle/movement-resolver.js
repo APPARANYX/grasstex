@@ -319,6 +319,7 @@
     p.reason = 'player input';
     p.priority = priority(p.kind, soldier);
     p.speedScale = Math.max(0.2, Math.min(2, isFinite(+options.speedScale) ? +options.speedScale : 1));
+    p.pace = options.pace === 'run' ? 'run' : 'walk';
     p.intentPoint = { x: raw.x, z: raw.z };
     p.point = legalizeGoal(soldier, battle, raw, 'player', 'player');
     st.player = p;
@@ -695,6 +696,10 @@
     intentRefresh: INTENT_REFRESH,
     proposeOrder: proposeOrder,
     proposePlayer: proposePlayer,
+    playerIntent: function (s, battle) {
+      var p = s && s._movementResolver && s._movementResolver.player;
+      return p && valid(s, p, battle) ? p : null;
+    },
     playerActive: function (s, battle) {
       var p = s && s._movementResolver && s._movementResolver.player;
       return !!(p && valid(s, p, battle));
