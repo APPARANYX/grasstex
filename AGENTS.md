@@ -972,15 +972,23 @@ check, and diagnostics proof. Do not fold these into one "AI cleanup" change.
      materially change. The alert includes every recorded stance reason. It does **not** suppress or alter a stance
      change; tuning comes only after observed writer/reason evidence.
 
-4. **Strategic objective-stall recovery.** v278 knew both sides were stalled for ~300 s and `replanDue` was true, but
-   the knowledge did not force useful recovery. Turn the existing coordination-health signal into deterministic Macro
-   escalation, without creating a second planner:
-   - ~120 s: wake/reconcile missing role/target assignments;
-   - ~180 s: release clearly stale hold/support assignments and refill unassigned squads;
-   - ~240 s: reassert one reachable contested/neutral objective as main effort and give enough squads concrete targets;
-   - ~300 s: strategic reset for active squads that are neither usefully defending nor making measurable progress.
-   Exact thresholds are tunables to measure, not promises. Preserve mission/ownership contracts and prove that recovery
-   changes stalled assignment state without oscillating the General every sample.
+4. **Strategic objective-stall recovery — Phase 4.** One no-objective-progress episode now escalates through
+   deterministic Macro-owned stages instead of waking the General every 120 s forever. The coordination-health sampler
+   remains observational; Force Command reads its `objectiveStallSeconds` / `lastObjectiveProgressAt` and owns all action.
+   - **120 s reconcile:** restore missing `commandRole` / `targetObjective` projections from a valid brief, refill genuinely
+     targetless active squads, and apply the existing stalled-effort objective penalty to old capture briefs.
+   - **180 s release:** stale non-defensive `hold` actions are forced back to assault and stale `support` roles are released
+     to center before normal objective scoring runs again.
+   - **240 s main effort:** each available offensive squad votes through the existing `chooseObjective` scorer, constrained
+     only to objectives the navigation layer can actually reach; the winning contested/neutral objective (fallback: any
+     reachable non-owned objective) receives at least 60% of available offensive squads when reachable.
+   - **300 s reset:** active squads are re-scored only if they are neither defending an owned objective nor have improved
+     their current mission distance by at least 6 m within the preceding 60 s. Their current stalled targets are penalized
+     during the reset.
+   Objective progress changes `lastObjectiveProgressAt`, which starts a fresh episode and resets the stage counter. Stage
+   history, affected counts and main-effort objective live in `macroCommand.stallRecovery` and
+   `decision-strategic-recovery`. The General still owns briefs/roles/targets; Squad Leader still owns local execution,
+   Engagement owns combat/stance, and Movement Resolver remains the physical movement arbiter.
 
 5. **General threat disposition for soldiers now, civilians later.** Once #159's semantics are stable, replace
    reaction-specific target checks with one Perception-owned/read-only classification API (name to settle in the phase,
