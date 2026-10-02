@@ -91,6 +91,21 @@ function regroupRecoveryState(sq,sim){
   var r=sq&&sq._regroupRecovery;if(!r)return null;var t=simNow(sim);
   return{serial:isFinite(+r.serial)?+r.serial:null,startedAt:isFinite(+r.startedAt)?+r.startedAt:null,elapsed:isFinite(+r.startedAt)?rounded(Math.max(0,t-r.startedAt)):null,anchor:point(r.anchor),objective:point(r.objective)};
 }
+function retreatAnchorState(sq,sim){
+  var L=root.BattleLeases,l=L&&L.get(sq,'retreat-anchor');if(!l)return null;var d=l.data||{},t=simNow(sim);
+  return{
+    since:isFinite(+l.since)?+l.since:null,
+    until:isFinite(+l.until)?+l.until:null,
+    remaining:isFinite(+l.until)?rounded(Math.max(0,+l.until-t)):null,
+    reason:d.reason||l.reason||null,
+    anchor:point(d.anchor),
+    goal:point(d.goal),
+    distance:rounded(d.distance),
+    bestDistance:rounded(d.bestDistance),
+    lastProgressAt:isFinite(+d.lastProgressAt)?+d.lastProgressAt:null,
+    noProgressSeconds:isFinite(+d.lastProgressAt)?rounded(Math.max(0,t-d.lastProgressAt)):null
+  };
+}
 function teamKeyFor(s){
   try{if(root.BattleSquadStability&&root.BattleSquadStability.teamKeyFor)return root.BattleSquadStability.teamKeyFor(s);}catch(_){}
   return s&&s._fireteamKey||null;
@@ -121,7 +136,7 @@ function squadAnalysis(sim,sq){
     position:pos,orderAnchor:point(sq.orderAnchor),commandPointDistance:rounded(distance(pos,point(sq.objective))),targetObjectiveState:objectiveTargetState(sim,sq,pos),
     distanceToRally:rounded(distance(pos,point(sq.rally))),distanceToOrderAnchor:rounded(distance(pos,point(sq.orderAnchor))),
     spread:rounded(spread),cohesionLimit:rounded(limit),overCohesionLimit:spread!=null&&limit!=null?spread>limit:null,lastDoctrineRule:sq._lastDoctrineRule||null,
-    routeState:routeState(sq,pos),stablePlan:stablePlanState(sq,sim),regroupRecovery:regroupRecoveryState(sq,sim),fireteamOrders:fireteamOrdersState(sq,sim),movement:movementState(sq),
+    routeState:routeState(sq,pos),stablePlan:stablePlanState(sq,sim),regroupRecovery:regroupRecoveryState(sq,sim),retreatAnchor:retreatAnchorState(sq,sim),fireteamOrders:fireteamOrdersState(sq,sim),movement:movementState(sq),
     objectiveRecovery:objectiveRecovery(sq),objectiveDefenseRequest:defenseRequest(sq),preparedDefenseRequest:preparedDefenseRequest(sq),
     strategicDefenseObjective:sq._strategicDefenseObjective!=null?String(sq._strategicDefenseObjective):null
   };

@@ -73,6 +73,7 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 
 - `FIRE_CONTROL_TUNING = { prepMin: 1.2, readyFraction: 0.7, minReady: 3, longRange: 140, closeRange: 85, minStrength: 0.55, minMarksmanship: 0.42, precisionMarksmanship: 0.62, maxHold: 6, crestStep: 0.75, crestMax: 6, returnFireWindow: 3 }` — Squad Leader hold/prepare/reposition/open-fire decision, long-range designated marksman, local crest preparation, terrain-deadlock escape, and return-fire exception (`?fireControl=0` control).
 - `LEAD_TUNING = { holdAt: 0.3, reviewAt: 1/3, reviewAfter: 10, reviewMin: 3 }` — Squad Leader stress in local execution (`?slStress=pick,hold,review`, all three on by default, `?slStress=0` none): the shaken band at which every team that could bound holds the cycle, and the squad mean, seconds in contact and living men at which a hold/support/regroup brief asks for a doctrine review.
+- `RETREAT_ANCHOR_LEASE = 6`, `RETREAT_ANCHOR_ARRIVE = 5`, `RETREAT_PROGRESS_EPS = 0.75`, `RETREAT_GOAL_EPS = 6`, `RETREAT_NO_PROGRESS = 6`, `RETREAT_RECOVERY_STRIDE = 0.5` — Squad Leader retreat-anchor stability: one leased endpoint while useful progress continues; arrival advances it, material goal change / blocked-or-unsafe route / no-progress may rebase it; recovery uses half of `ORDER_STRIDE`.
 
 ### 17-soldier-mind.js
 - `TAU = 22` — stress decay time constant (s)
