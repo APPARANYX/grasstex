@@ -997,6 +997,246 @@
           "text": "I hear fire out there!"
         },
         {
+          "event": "callHeard",
+          "file": "voices/us/heard-you-01.mp3",
+          "text": "Got it!"
+        },
+        {
+          "event": "callHeard",
+          "file": "voices/us/heard-you-02.mp3",
+          "text": "Heard you!"
+        },
+        {
+          "event": "lostHim",
+          "file": "voices/us/lost-him-01.mp3",
+          "text": "Lost him!"
+        },
+        {
+          "event": "lostHim",
+          "file": "voices/us/lost-him-02.mp3",
+          "text": "I can't see him!"
+        },
+        {
+          "event": "whereAreThey",
+          "file": "voices/us/where-are-they-01.mp3",
+          "text": "Where are they?"
+        },
+        {
+          "event": "whereAreThey",
+          "file": "voices/us/where-are-they-02.mp3",
+          "text": "Anybody see 'em?"
+        },
+        {
+          "event": "allClear",
+          "file": "voices/us/all-clear-01.mp3",
+          "text": "Clear!"
+        },
+        {
+          "event": "allClear",
+          "file": "voices/us/all-clear-02.mp3",
+          "text": "All clear!"
+        },
+        {
+          "event": "enemyClose",
+          "file": "voices/us/enemy-close-01.mp3",
+          "text": "He's right there!"
+        },
+        {
+          "event": "enemyClose",
+          "file": "voices/us/enemy-close-02.mp3",
+          "text": "Close! Too close!"
+        },
+        {
+          "event": "enemyBehind",
+          "file": "voices/us/enemy-behind-01.mp3",
+          "text": "Behind us!"
+        },
+        {
+          "event": "enemyBehind",
+          "file": "voices/us/enemy-behind-02.mp3",
+          "text": "They're behind us!"
+        },
+        {
+          "event": "enemyMG",
+          "file": "voices/us/enemy-mg-01.mp3",
+          "text": "Machine gun!"
+        },
+        {
+          "event": "enemyMG",
+          "file": "voices/us/enemy-mg-02.mp3",
+          "text": "MG! Get down!"
+        },
+        {
+          "event": "sniper",
+          "file": "voices/us/sniper-01.mp3",
+          "text": "Sniper!"
+        },
+        {
+          "event": "sniper",
+          "file": "voices/us/sniper-02.mp3",
+          "text": "Watch it, sniper!"
+        },
+        {
+          "event": "enemyRunning",
+          "file": "voices/us/enemy-running-01.mp3",
+          "text": "They're running!"
+        },
+        {
+          "event": "enemyRunning",
+          "file": "voices/us/enemy-running-02.mp3",
+          "text": "Look at 'em run!"
+        },
+        {
+          "event": "enemyOnObjective",
+          "file": "voices/us/enemy-on-objective-01.mp3",
+          "text": "They're on the objective!"
+        },
+        {
+          "event": "enemyOnObjective",
+          "file": "voices/us/enemy-on-objective-02.mp3",
+          "text": "They're taking the objective!"
+        },
+        {
+          "event": "nearMiss",
+          "file": "voices/us/near-miss-01.mp3",
+          "text": "That was close!"
+        },
+        {
+          "event": "nearMiss",
+          "file": "voices/us/near-miss-02.mp3",
+          "text": "Damn, that was close!"
+        },
+        {
+          "event": "holdFire",
+          "file": "voices/us/hold-fire-01.mp3",
+          "text": "Hold your fire!"
+        },
+        {
+          "event": "holdFire",
+          "file": "voices/us/hold-fire-02.mp3",
+          "text": "Don't shoot yet!"
+        },
+        {
+          "event": "waitForIt",
+          "file": "voices/us/wait-for-it-01.mp3",
+          "text": "Wait for it..."
+        },
+        {
+          "event": "waitForIt",
+          "file": "voices/us/wait-for-it-02.mp3",
+          "text": "Steady... steady..."
+        },
+        {
+          "event": "takeTheShot",
+          "file": "voices/us/take-the-shot-01.mp3",
+          "text": "Take the shot!"
+        },
+        {
+          "event": "takeTheShot",
+          "file": "voices/us/take-the-shot-02.mp3",
+          "text": "You've got him, take it!"
+        },
+        {
+          "event": "suppress",
+          "file": "voices/us/suppress-01.mp3",
+          "text": "Suppressing fire!"
+        },
+        {
+          "event": "suppress",
+          "file": "voices/us/suppress-02.mp3",
+          "text": "Keep their heads down!"
+        },
+        {
+          "event": "mgSetUp",
+          "file": "voices/us/mg-set-01.mp3",
+          "text": "Gun's up!"
+        },
+        {
+          "event": "mgSetUp",
+          "file": "voices/us/mg-set-02.mp3",
+          "text": "MG set!"
+        },
+        {
+          "event": "teamMove",
+          "file": "voices/us/team-move-01.mp3",
+          "text": "Team, move!"
+        },
+        {
+          "event": "teamMove",
+          "file": "voices/us/team-move-02.mp3",
+          "text": "Go, go, go!"
+        },
+        {
+          "event": "flankOrder",
+          "file": "voices/us/flank-01.mp3",
+          "text": "Flank 'em!"
+        },
+        {
+          "event": "flankOrder",
+          "file": "voices/us/flank-02.mp3",
+          "text": "Go around the side!"
+        },
+        {
+          "event": "cornerCheck",
+          "file": "voices/us/corner-01.mp3",
+          "text": "Check that corner!"
+        },
+        {
+          "event": "cornerCheck",
+          "file": "voices/us/corner-02.mp3",
+          "text": "Watch the corner!"
+        },
+        {
+          "event": "clearHouse",
+          "file": "voices/us/clear-house-01.mp3",
+          "text": "Clear that house!"
+        },
+        {
+          "event": "clearHouse",
+          "file": "voices/us/clear-house-02.mp3",
+          "text": "Room by room!"
+        },
+        {
+          "event": "takeWindow",
+          "file": "voices/us/take-window-01.mp3",
+          "text": "I've got the window!"
+        },
+        {
+          "event": "takeWindow",
+          "file": "voices/us/take-window-02.mp3",
+          "text": "Window's mine!"
+        },
+        {
+          "event": "digIn",
+          "file": "voices/us/dig-in-01.mp3",
+          "text": "Dig in!"
+        },
+        {
+          "event": "digIn",
+          "file": "voices/us/dig-in-02.mp3",
+          "text": "We hold here!"
+        },
+        {
+          "event": "reserveWait",
+          "file": "voices/us/reserve-01.mp3",
+          "text": "We're in reserve, sit tight."
+        },
+        {
+          "event": "reserveWait",
+          "file": "voices/us/reserve-02.mp3",
+          "text": "Wait for the word."
+        },
+        {
+          "event": "captureOrder",
+          "file": "voices/us/capture-01.mp3",
+          "text": "Take the objective!"
+        },
+        {
+          "event": "captureOrder",
+          "file": "voices/us/capture-02.mp3",
+          "text": "Secure it!"
+        },
+        {
           "event": "leaderDown",
           "file": "voices/us/sarge-down-01.mp3",
           "text": "Sarge is down!"
@@ -1017,6 +1257,56 @@
           "text": "I'm in charge now, follow me!"
         },
         {
+          "event": "needHelp",
+          "file": "voices/us/need-help-01.mp3",
+          "text": "We're getting cut to pieces!"
+        },
+        {
+          "event": "needHelp",
+          "file": "voices/us/need-help-02.mp3",
+          "text": "We need help over here!"
+        },
+        {
+          "event": "lastMan",
+          "file": "voices/us/last-man-01.mp3",
+          "text": "I'm the only one left!"
+        },
+        {
+          "event": "lastMan",
+          "file": "voices/us/last-man-02.mp3",
+          "text": "They're all dead!"
+        },
+        {
+          "event": "rallied",
+          "file": "voices/us/rallied-01.mp3",
+          "text": "Form up, we're going back in!"
+        },
+        {
+          "event": "rallied",
+          "file": "voices/us/rallied-02.mp3",
+          "text": "Back in it, boys!"
+        },
+        {
+          "event": "reinforced",
+          "file": "voices/us/reinforced-01.mp3",
+          "text": "New men! Fall in!"
+        },
+        {
+          "event": "reinforced",
+          "file": "voices/us/reinforced-02.mp3",
+          "text": "We're joining you!"
+        },
+        {
+          "event": "pickUp",
+          "file": "voices/us/pick-up-01.mp3",
+          "text": "Come on, you're with us!"
+        },
+        {
+          "event": "pickUp",
+          "file": "voices/us/pick-up-02.mp3",
+          "text": "Get up, we're going!"
+        },
+        {
           "event": "wounded",
           "file": "voices/us/im-hit-01.mp3",
           "text": "I'm hit!"
@@ -1025,6 +1315,26 @@
           "event": "wounded",
           "file": "voices/us/im-hit-02.mp3",
           "text": "Agh! I'm hit!"
+        },
+        {
+          "event": "medic",
+          "file": "voices/us/medic-01.mp3",
+          "text": "Medic!"
+        },
+        {
+          "event": "medic",
+          "file": "voices/us/medic-02.mp3",
+          "text": "Medic! Over here!"
+        },
+        {
+          "event": "woundedFriend",
+          "file": "voices/us/hang-on-01.mp3",
+          "text": "He's hit bad!"
+        },
+        {
+          "event": "woundedFriend",
+          "file": "voices/us/hang-on-02.mp3",
+          "text": "Hang on, buddy!"
         },
         {
           "event": "jammed",
@@ -1037,44 +1347,54 @@
           "text": "My weapon's jammed!"
         },
         {
-          "event": "lostHim",
-          "file": "voices/us/lost-him-01.mp3",
-          "text": "Lost him!"
+          "event": "jamCleared",
+          "file": "voices/us/back-in-action-01.mp3",
+          "text": "Back in action!"
         },
         {
-          "event": "lostHim",
-          "file": "voices/us/lost-him-02.mp3",
-          "text": "I can't see him!"
+          "event": "jamCleared",
+          "file": "voices/us/back-in-action-02.mp3",
+          "text": "Got it working!"
         },
         {
-          "event": "enemyClose",
-          "file": "voices/us/enemy-close-01.mp3",
-          "text": "He's right there!"
+          "event": "outOfAmmo",
+          "file": "voices/us/out-of-ammo-01.mp3",
+          "text": "I'm out!"
         },
         {
-          "event": "enemyClose",
-          "file": "voices/us/enemy-close-02.mp3",
-          "text": "Close! Too close!"
+          "event": "outOfAmmo",
+          "file": "voices/us/out-of-ammo-02.mp3",
+          "text": "Out of ammo!"
         },
         {
-          "event": "takeTheShot",
-          "file": "voices/us/take-the-shot-01.mp3",
-          "text": "Take the shot!"
+          "event": "sidearm",
+          "file": "voices/us/sidearm-01.mp3",
+          "text": "Going to pistol!"
         },
         {
-          "event": "takeTheShot",
-          "file": "voices/us/take-the-shot-02.mp3",
-          "text": "You've got him, take it!"
+          "event": "sidearm",
+          "file": "voices/us/sidearm-02.mp3",
+          "text": "Switching to sidearm!"
         },
         {
-          "event": "callHeard",
-          "file": "voices/us/heard-you-01.mp3",
-          "text": "Got it!"
+          "event": "rearmed",
+          "file": "voices/us/rearmed-01.mp3",
+          "text": "Got a rifle again."
         },
         {
-          "event": "callHeard",
-          "file": "voices/us/heard-you-02.mp3",
-          "text": "Heard you!"
+          "event": "rearmed",
+          "file": "voices/us/rearmed-02.mp3",
+          "text": "I'm armed. Ready."
+        },
+        {
+          "event": "madeIt",
+          "file": "voices/us/made-it-01.mp3",
+          "text": "Made it!"
+        },
+        {
+          "event": "madeIt",
+          "file": "voices/us/made-it-02.mp3",
+          "text": "Made it to cover!"
         },
         {
           "event": "stayDown",
@@ -1087,6 +1407,26 @@
           "text": "Stay down!"
         },
         {
+          "event": "cowering",
+          "file": "voices/us/cowering-01.mp3",
+          "text": "I can't move!"
+        },
+        {
+          "event": "cowering",
+          "file": "voices/us/cowering-02.mp3",
+          "text": "Oh God, oh God..."
+        },
+        {
+          "event": "dazed",
+          "file": "voices/us/dazed-01.mp3",
+          "text": "Mama..."
+        },
+        {
+          "event": "dazed",
+          "file": "voices/us/dazed-02.mp3",
+          "text": "I can't... I can't..."
+        },
+        {
           "event": "breaking",
           "file": "voices/us/breaking-01.mp3",
           "text": "I'm getting out of here!"
@@ -1097,14 +1437,174 @@
           "text": "I can't take it!"
         },
         {
-          "event": "enemyOnObjective",
-          "file": "voices/us/enemy-on-objective-01.mp3",
-          "text": "They're on the objective!"
+          "event": "berserk",
+          "file": "voices/us/berserk-01.mp3",
+          "text": "Come on, you bastards!"
         },
         {
-          "event": "enemyOnObjective",
-          "file": "voices/us/enemy-on-objective-02.mp3",
-          "text": "They're taking the objective!"
+          "event": "berserk",
+          "file": "voices/us/berserk-02.mp3",
+          "text": "Come on! Come on!"
+        },
+        {
+          "event": "melee",
+          "file": "voices/us/melee-01.mp3",
+          "text": "Take that!"
+        },
+        {
+          "event": "melee",
+          "file": "voices/us/melee-02.mp3",
+          "text": "Die!"
+        },
+        {
+          "event": "steady",
+          "file": "voices/us/steady-01.mp3",
+          "text": "Steady! Keep it together!"
+        },
+        {
+          "event": "steady",
+          "file": "voices/us/steady-02.mp3",
+          "text": "Easy, we're okay!"
+        },
+        {
+          "event": "moveOut",
+          "file": "voices/us/move-out-01.mp3",
+          "text": "Squad, on me! Move out!"
+        },
+        {
+          "event": "moveOut",
+          "file": "voices/us/move-out-02.mp3",
+          "text": "Let's go, move out!"
+        },
+        {
+          "event": "moveQuiet",
+          "file": "voices/us/move-quiet-01.mp3",
+          "text": "Keep it quiet."
+        },
+        {
+          "event": "moveQuiet",
+          "file": "voices/us/move-quiet-02.mp3",
+          "text": "Stay low and quiet."
+        },
+        {
+          "event": "spreadOut",
+          "file": "voices/us/spread-out-01.mp3",
+          "text": "Spread out! Don't bunch up!"
+        },
+        {
+          "event": "spreadOut",
+          "file": "voices/us/spread-out-02.mp3",
+          "text": "Keep your interval!"
+        },
+        {
+          "event": "closeUp",
+          "file": "voices/us/close-up-01.mp3",
+          "text": "Close it up!"
+        },
+        {
+          "event": "closeUp",
+          "file": "voices/us/close-up-02.mp3",
+          "text": "Tighten up, keep up!"
+        },
+        {
+          "event": "watchSectors",
+          "file": "voices/us/watch-sectors-01.mp3",
+          "text": "Eyes front! Watch your sectors!"
+        },
+        {
+          "event": "watchSectors",
+          "file": "voices/us/watch-sectors-02.mp3",
+          "text": "Keep your eyes open!"
+        },
+        {
+          "event": "reposition",
+          "file": "voices/us/reposition-01.mp3",
+          "text": "No line here! Find a firing position!"
+        },
+        {
+          "event": "reposition",
+          "file": "voices/us/reposition-02.mp3",
+          "text": "Shift! Find a better spot!"
+        },
+        {
+          "event": "baseOfFire",
+          "file": "voices/us/base-of-fire-01.mp3",
+          "text": "Base of fire, cover them!"
+        },
+        {
+          "event": "baseOfFire",
+          "file": "voices/us/base-of-fire-02.mp3",
+          "text": "Covering fire, now!"
+        },
+        {
+          "event": "mgTarget",
+          "file": "voices/us/mg-target-01.mp3",
+          "text": "Gunner, on that position!"
+        },
+        {
+          "event": "mgTarget",
+          "file": "voices/us/mg-target-02.mp3",
+          "text": "MG, hit 'em!"
+        },
+        {
+          "event": "assault",
+          "file": "voices/us/assault-01.mp3",
+          "text": "Assault! Up and at 'em!"
+        },
+        {
+          "event": "assault",
+          "file": "voices/us/assault-02.mp3",
+          "text": "Charge!"
+        },
+        {
+          "event": "ceaseFire",
+          "file": "voices/us/cease-fire-01.mp3",
+          "text": "Cease fire!"
+        },
+        {
+          "event": "ceaseFire",
+          "file": "voices/us/cease-fire-02.mp3",
+          "text": "Cease fire, save your ammo!"
+        },
+        {
+          "event": "checkAmmo",
+          "file": "voices/us/check-ammo-01.mp3",
+          "text": "Check your ammo!"
+        },
+        {
+          "event": "checkAmmo",
+          "file": "voices/us/check-ammo-02.mp3",
+          "text": "Reload while you can!"
+        },
+        {
+          "event": "soundOff",
+          "file": "voices/us/sound-off-01.mp3",
+          "text": "Sound off! Who's hit?"
+        },
+        {
+          "event": "soundOff",
+          "file": "voices/us/sound-off-02.mp3",
+          "text": "Everybody okay?"
+        },
+        {
+          "event": "newOrders",
+          "file": "voices/us/new-orders-01.mp3",
+          "text": "New orders! We're moving!"
+        },
+        {
+          "event": "newOrders",
+          "file": "voices/us/new-orders-02.mp3",
+          "text": "Change of plan, follow me!"
+        },
+        {
+          "event": "fallBackByTeams",
+          "file": "voices/us/fall-back-teams-01.mp3",
+          "text": "Fall back by teams! Cover each other!"
+        },
+        {
+          "event": "fallBackByTeams",
+          "file": "voices/us/fall-back-teams-02.mp3",
+          "text": "Pull back, I'll cover!"
         }
       ]
     },
@@ -1826,6 +2326,246 @@
           "text": "Da wird geschossen!"
         },
         {
+          "event": "callHeard",
+          "file": "voices/ge/verstanden-01.mp3",
+          "text": "Verstanden!"
+        },
+        {
+          "event": "callHeard",
+          "file": "voices/ge/verstanden-02.mp3",
+          "text": "Jawohl!"
+        },
+        {
+          "event": "lostHim",
+          "file": "voices/ge/verloren-01.mp3",
+          "text": "Hab ihn verloren!"
+        },
+        {
+          "event": "lostHim",
+          "file": "voices/ge/verloren-02.mp3",
+          "text": "Ich seh ihn nicht mehr!"
+        },
+        {
+          "event": "whereAreThey",
+          "file": "voices/ge/wo-sind-die-01.mp3",
+          "text": "Wo sind die?"
+        },
+        {
+          "event": "whereAreThey",
+          "file": "voices/ge/wo-sind-die-02.mp3",
+          "text": "Sieht jemand was?"
+        },
+        {
+          "event": "allClear",
+          "file": "voices/ge/alles-klar-01.mp3",
+          "text": "Alles klar!"
+        },
+        {
+          "event": "allClear",
+          "file": "voices/ge/alles-klar-02.mp3",
+          "text": "Gesichert!"
+        },
+        {
+          "event": "enemyClose",
+          "file": "voices/ge/ganz-nah-01.mp3",
+          "text": "Er ist direkt da!"
+        },
+        {
+          "event": "enemyClose",
+          "file": "voices/ge/ganz-nah-02.mp3",
+          "text": "Ganz nah!"
+        },
+        {
+          "event": "enemyBehind",
+          "file": "voices/ge/hinter-uns-01.mp3",
+          "text": "Hinter uns!"
+        },
+        {
+          "event": "enemyBehind",
+          "file": "voices/ge/hinter-uns-02.mp3",
+          "text": "Feind im Rücken!"
+        },
+        {
+          "event": "enemyMG",
+          "file": "voices/ge/feind-mg-01.mp3",
+          "text": "Maschinengewehr!"
+        },
+        {
+          "event": "enemyMG",
+          "file": "voices/ge/feind-mg-02.mp3",
+          "text": "MG! Deckung!"
+        },
+        {
+          "event": "sniper",
+          "file": "voices/ge/scharfschuetze-01.mp3",
+          "text": "Scharfschütze!"
+        },
+        {
+          "event": "sniper",
+          "file": "voices/ge/scharfschuetze-02.mp3",
+          "text": "Vorsicht, Scharfschütze!"
+        },
+        {
+          "event": "enemyRunning",
+          "file": "voices/ge/die-laufen-01.mp3",
+          "text": "Die laufen weg!"
+        },
+        {
+          "event": "enemyRunning",
+          "file": "voices/ge/die-laufen-02.mp3",
+          "text": "Sie hauen ab!"
+        },
+        {
+          "event": "enemyOnObjective",
+          "file": "voices/ge/feind-am-ziel-01.mp3",
+          "text": "Sie sind am Ziel!"
+        },
+        {
+          "event": "enemyOnObjective",
+          "file": "voices/ge/feind-am-ziel-02.mp3",
+          "text": "Die nehmen das Ziel!"
+        },
+        {
+          "event": "nearMiss",
+          "file": "voices/ge/knapp-01.mp3",
+          "text": "Das war knapp!"
+        },
+        {
+          "event": "nearMiss",
+          "file": "voices/ge/knapp-02.mp3",
+          "text": "Verdammt knapp!"
+        },
+        {
+          "event": "holdFire",
+          "file": "voices/ge/nicht-schiessen-01.mp3",
+          "text": "Nicht schießen!"
+        },
+        {
+          "event": "holdFire",
+          "file": "voices/ge/nicht-schiessen-02.mp3",
+          "text": "Noch nicht feuern!"
+        },
+        {
+          "event": "waitForIt",
+          "file": "voices/ge/wartet-01.mp3",
+          "text": "Wartet..."
+        },
+        {
+          "event": "waitForIt",
+          "file": "voices/ge/wartet-02.mp3",
+          "text": "Ruhig... ruhig..."
+        },
+        {
+          "event": "takeTheShot",
+          "file": "voices/ge/schiess-01.mp3",
+          "text": "Schieß!"
+        },
+        {
+          "event": "takeTheShot",
+          "file": "voices/ge/schiess-02.mp3",
+          "text": "Du hast ihn, schieß!"
+        },
+        {
+          "event": "suppress",
+          "file": "voices/ge/niederhalten-01.mp3",
+          "text": "Niederhalten!"
+        },
+        {
+          "event": "suppress",
+          "file": "voices/ge/niederhalten-02.mp3",
+          "text": "Haltet sie unten!"
+        },
+        {
+          "event": "mgSetUp",
+          "file": "voices/ge/mg-in-stellung-01.mp3",
+          "text": "MG in Stellung!"
+        },
+        {
+          "event": "mgSetUp",
+          "file": "voices/ge/mg-in-stellung-02.mp3",
+          "text": "MG feuerbereit!"
+        },
+        {
+          "event": "teamMove",
+          "file": "voices/ge/trupp-los-01.mp3",
+          "text": "Trupp, los!"
+        },
+        {
+          "event": "teamMove",
+          "file": "voices/ge/trupp-los-02.mp3",
+          "text": "Los, los, los!"
+        },
+        {
+          "event": "flankOrder",
+          "file": "voices/ge/umgehen-01.mp3",
+          "text": "Umgehen!"
+        },
+        {
+          "event": "flankOrder",
+          "file": "voices/ge/umgehen-02.mp3",
+          "text": "Von der Seite!"
+        },
+        {
+          "event": "cornerCheck",
+          "file": "voices/ge/ecke-01.mp3",
+          "text": "Ecke sichern!"
+        },
+        {
+          "event": "cornerCheck",
+          "file": "voices/ge/ecke-02.mp3",
+          "text": "Achtung, Ecke!"
+        },
+        {
+          "event": "clearHouse",
+          "file": "voices/ge/haus-saeubern-01.mp3",
+          "text": "Haus säubern!"
+        },
+        {
+          "event": "clearHouse",
+          "file": "voices/ge/haus-saeubern-02.mp3",
+          "text": "Raum für Raum!"
+        },
+        {
+          "event": "takeWindow",
+          "file": "voices/ge/fenster-01.mp3",
+          "text": "Ich nehm das Fenster!"
+        },
+        {
+          "event": "takeWindow",
+          "file": "voices/ge/fenster-02.mp3",
+          "text": "Fenster besetzt!"
+        },
+        {
+          "event": "digIn",
+          "file": "voices/ge/eingraben-01.mp3",
+          "text": "Eingraben!"
+        },
+        {
+          "event": "digIn",
+          "file": "voices/ge/eingraben-02.mp3",
+          "text": "Wir halten hier!"
+        },
+        {
+          "event": "reserveWait",
+          "file": "voices/ge/reserve-01.mp3",
+          "text": "Wir sind Reserve, abwarten."
+        },
+        {
+          "event": "reserveWait",
+          "file": "voices/ge/reserve-02.mp3",
+          "text": "Warten auf Befehl."
+        },
+        {
+          "event": "captureOrder",
+          "file": "voices/ge/ziel-nehmen-01.mp3",
+          "text": "Nehmt das Ziel!"
+        },
+        {
+          "event": "captureOrder",
+          "file": "voices/ge/ziel-nehmen-02.mp3",
+          "text": "Sichern!"
+        },
+        {
           "event": "leaderDown",
           "file": "voices/ge/unteroffizier-gefallen-01.mp3",
           "text": "Der Unteroffizier ist gefallen!"
@@ -1846,6 +2586,56 @@
           "text": "Hört auf mein Kommando!"
         },
         {
+          "event": "needHelp",
+          "file": "voices/ge/aufgerieben-01.mp3",
+          "text": "Wir werden aufgerieben!"
+        },
+        {
+          "event": "needHelp",
+          "file": "voices/ge/aufgerieben-02.mp3",
+          "text": "Wir brauchen Hilfe!"
+        },
+        {
+          "event": "lastMan",
+          "file": "voices/ge/der-letzte-01.mp3",
+          "text": "Ich bin der Letzte!"
+        },
+        {
+          "event": "lastMan",
+          "file": "voices/ge/der-letzte-02.mp3",
+          "text": "Alle tot!"
+        },
+        {
+          "event": "rallied",
+          "file": "voices/ge/wieder-vor-01.mp3",
+          "text": "Sammeln, es geht wieder vor!"
+        },
+        {
+          "event": "rallied",
+          "file": "voices/ge/wieder-vor-02.mp3",
+          "text": "Wieder rein, Männer!"
+        },
+        {
+          "event": "reinforced",
+          "file": "voices/ge/verstaerkung-01.mp3",
+          "text": "Verstärkung! Eingliedern!"
+        },
+        {
+          "event": "reinforced",
+          "file": "voices/ge/verstaerkung-02.mp3",
+          "text": "Wir schließen uns an!"
+        },
+        {
+          "event": "pickUp",
+          "file": "voices/ge/mitkommen-01.mp3",
+          "text": "Komm, du gehst mit uns!"
+        },
+        {
+          "event": "pickUp",
+          "file": "voices/ge/mitkommen-02.mp3",
+          "text": "Auf, wir gehen!"
+        },
+        {
           "event": "wounded",
           "file": "voices/ge/getroffen-01.mp3",
           "text": "Ich bin getroffen!"
@@ -1854,6 +2644,26 @@
           "event": "wounded",
           "file": "voices/ge/getroffen-02.mp3",
           "text": "Mich hat's erwischt!"
+        },
+        {
+          "event": "medic",
+          "file": "voices/ge/sani-01.mp3",
+          "text": "Sanitäter!"
+        },
+        {
+          "event": "medic",
+          "file": "voices/ge/sani-02.mp3",
+          "text": "Sani! Hierher!"
+        },
+        {
+          "event": "woundedFriend",
+          "file": "voices/ge/halt-durch-01.mp3",
+          "text": "Er ist schwer getroffen!"
+        },
+        {
+          "event": "woundedFriend",
+          "file": "voices/ge/halt-durch-02.mp3",
+          "text": "Halt durch, Kamerad!"
         },
         {
           "event": "jammed",
@@ -1866,44 +2676,54 @@
           "text": "Hemmung!"
         },
         {
-          "event": "lostHim",
-          "file": "voices/ge/verloren-01.mp3",
-          "text": "Hab ihn verloren!"
+          "event": "jamCleared",
+          "file": "voices/ge/wieder-feuerbereit-01.mp3",
+          "text": "Wieder feuerbereit!"
         },
         {
-          "event": "lostHim",
-          "file": "voices/ge/verloren-02.mp3",
-          "text": "Ich seh ihn nicht mehr!"
+          "event": "jamCleared",
+          "file": "voices/ge/wieder-feuerbereit-02.mp3",
+          "text": "Läuft wieder!"
         },
         {
-          "event": "enemyClose",
-          "file": "voices/ge/ganz-nah-01.mp3",
-          "text": "Er ist direkt da!"
+          "event": "outOfAmmo",
+          "file": "voices/ge/keine-munition-01.mp3",
+          "text": "Keine Munition!"
         },
         {
-          "event": "enemyClose",
-          "file": "voices/ge/ganz-nah-02.mp3",
-          "text": "Ganz nah!"
+          "event": "outOfAmmo",
+          "file": "voices/ge/keine-munition-02.mp3",
+          "text": "Ich bin leer!"
         },
         {
-          "event": "takeTheShot",
-          "file": "voices/ge/schiess-01.mp3",
-          "text": "Schieß!"
+          "event": "sidearm",
+          "file": "voices/ge/pistole-01.mp3",
+          "text": "Pistole!"
         },
         {
-          "event": "takeTheShot",
-          "file": "voices/ge/schiess-02.mp3",
-          "text": "Du hast ihn, schieß!"
+          "event": "sidearm",
+          "file": "voices/ge/pistole-02.mp3",
+          "text": "Zur Pistole!"
         },
         {
-          "event": "callHeard",
-          "file": "voices/ge/verstanden-01.mp3",
-          "text": "Verstanden!"
+          "event": "rearmed",
+          "file": "voices/ge/wieder-bewaffnet-01.mp3",
+          "text": "Hab wieder ein Gewehr."
         },
         {
-          "event": "callHeard",
-          "file": "voices/ge/verstanden-02.mp3",
-          "text": "Jawohl!"
+          "event": "rearmed",
+          "file": "voices/ge/wieder-bewaffnet-02.mp3",
+          "text": "Bin wieder bewaffnet."
+        },
+        {
+          "event": "madeIt",
+          "file": "voices/ge/geschafft-01.mp3",
+          "text": "Geschafft!"
+        },
+        {
+          "event": "madeIt",
+          "file": "voices/ge/geschafft-02.mp3",
+          "text": "In Deckung!"
         },
         {
           "event": "stayDown",
@@ -1916,6 +2736,26 @@
           "text": "Bleib unten!"
         },
         {
+          "event": "cowering",
+          "file": "voices/ge/ich-kann-nicht-01.mp3",
+          "text": "Ich kann nicht!"
+        },
+        {
+          "event": "cowering",
+          "file": "voices/ge/ich-kann-nicht-02.mp3",
+          "text": "Mein Gott, mein Gott..."
+        },
+        {
+          "event": "dazed",
+          "file": "voices/ge/mutter-01.mp3",
+          "text": "Mutter..."
+        },
+        {
+          "event": "dazed",
+          "file": "voices/ge/mutter-02.mp3",
+          "text": "Ich kann nicht... ich kann nicht..."
+        },
+        {
           "event": "breaking",
           "file": "voices/ge/ich-hau-ab-01.mp3",
           "text": "Ich hau ab!"
@@ -1926,14 +2766,174 @@
           "text": "Ich halt das nicht aus!"
         },
         {
-          "event": "enemyOnObjective",
-          "file": "voices/ge/feind-am-ziel-01.mp3",
-          "text": "Sie sind am Ziel!"
+          "event": "berserk",
+          "file": "voices/ge/kommt-doch-01.mp3",
+          "text": "Kommt doch her!"
         },
         {
-          "event": "enemyOnObjective",
-          "file": "voices/ge/feind-am-ziel-02.mp3",
-          "text": "Die nehmen das Ziel!"
+          "event": "berserk",
+          "file": "voices/ge/kommt-doch-02.mp3",
+          "text": "Ihr Schweine!"
+        },
+        {
+          "event": "melee",
+          "file": "voices/ge/stirb-01.mp3",
+          "text": "Da hast du's!"
+        },
+        {
+          "event": "melee",
+          "file": "voices/ge/stirb-02.mp3",
+          "text": "Stirb!"
+        },
+        {
+          "event": "steady",
+          "file": "voices/ge/ruhig-01.mp3",
+          "text": "Ruhig bleiben!"
+        },
+        {
+          "event": "steady",
+          "file": "voices/ge/ruhig-02.mp3",
+          "text": "Reiß dich zusammen!"
+        },
+        {
+          "event": "moveOut",
+          "file": "voices/ge/abmarsch-01.mp3",
+          "text": "Gruppe, mir nach! Abmarsch!"
+        },
+        {
+          "event": "moveOut",
+          "file": "voices/ge/abmarsch-02.mp3",
+          "text": "Los, vorwärts!"
+        },
+        {
+          "event": "moveQuiet",
+          "file": "voices/ge/leise-01.mp3",
+          "text": "Ruhe jetzt."
+        },
+        {
+          "event": "moveQuiet",
+          "file": "voices/ge/leise-02.mp3",
+          "text": "Leise und geduckt."
+        },
+        {
+          "event": "spreadOut",
+          "file": "voices/ge/auseinander-01.mp3",
+          "text": "Auseinander! Nicht zusammenklumpen!"
+        },
+        {
+          "event": "spreadOut",
+          "file": "voices/ge/auseinander-02.mp3",
+          "text": "Abstand halten!"
+        },
+        {
+          "event": "closeUp",
+          "file": "voices/ge/aufschliessen-01.mp3",
+          "text": "Aufschließen!"
+        },
+        {
+          "event": "closeUp",
+          "file": "voices/ge/aufschliessen-02.mp3",
+          "text": "Dranbleiben!"
+        },
+        {
+          "event": "watchSectors",
+          "file": "voices/ge/augen-auf-01.mp3",
+          "text": "Augen nach vorn! Sektor beobachten!"
+        },
+        {
+          "event": "watchSectors",
+          "file": "voices/ge/augen-auf-02.mp3",
+          "text": "Aufpassen!"
+        },
+        {
+          "event": "reposition",
+          "file": "voices/ge/stellungswechsel-01.mp3",
+          "text": "Kein Schussfeld! Stellung wechseln!"
+        },
+        {
+          "event": "reposition",
+          "file": "voices/ge/stellungswechsel-02.mp3",
+          "text": "Stellungswechsel!"
+        },
+        {
+          "event": "baseOfFire",
+          "file": "voices/ge/deckungsfeuer-01.mp3",
+          "text": "Feuerschutz geben!"
+        },
+        {
+          "event": "baseOfFire",
+          "file": "voices/ge/deckungsfeuer-02.mp3",
+          "text": "Deckungsfeuer, jetzt!"
+        },
+        {
+          "event": "mgTarget",
+          "file": "voices/ge/mg-ziel-01.mp3",
+          "text": "MG, Ziel da vorne!"
+        },
+        {
+          "event": "mgTarget",
+          "file": "voices/ge/mg-ziel-02.mp3",
+          "text": "MG, Feuer frei!"
+        },
+        {
+          "event": "assault",
+          "file": "voices/ge/sturm-01.mp3",
+          "text": "Sturm! Hurra!"
+        },
+        {
+          "event": "assault",
+          "file": "voices/ge/sturm-02.mp3",
+          "text": "Zum Angriff!"
+        },
+        {
+          "event": "ceaseFire",
+          "file": "voices/ge/feuer-halt-01.mp3",
+          "text": "Feuer einstellen!"
+        },
+        {
+          "event": "ceaseFire",
+          "file": "voices/ge/feuer-halt-02.mp3",
+          "text": "Feuer halt, Munition sparen!"
+        },
+        {
+          "event": "checkAmmo",
+          "file": "voices/ge/munition-pruefen-01.mp3",
+          "text": "Munition prüfen!"
+        },
+        {
+          "event": "checkAmmo",
+          "file": "voices/ge/munition-pruefen-02.mp3",
+          "text": "Nachladen, solange es geht!"
+        },
+        {
+          "event": "soundOff",
+          "file": "voices/ge/meldung-01.mp3",
+          "text": "Meldung! Wer ist getroffen?"
+        },
+        {
+          "event": "soundOff",
+          "file": "voices/ge/meldung-02.mp3",
+          "text": "Alle in Ordnung?"
+        },
+        {
+          "event": "newOrders",
+          "file": "voices/ge/neuer-befehl-01.mp3",
+          "text": "Neuer Befehl! Abmarsch!"
+        },
+        {
+          "event": "newOrders",
+          "file": "voices/ge/neuer-befehl-02.mp3",
+          "text": "Planänderung, mir nach!"
+        },
+        {
+          "event": "fallBackByTeams",
+          "file": "voices/ge/abschnittsweise-01.mp3",
+          "text": "Abschnittsweise zurück! Gegenseitig decken!"
+        },
+        {
+          "event": "fallBackByTeams",
+          "file": "voices/ge/abschnittsweise-02.mp3",
+          "text": "Zurück, ich decke!"
         }
       ]
     }
