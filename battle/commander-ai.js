@@ -606,6 +606,7 @@
       rule = D.ruleFor(sim, sq.faction, context);
     var action = (rule && rule.action) || 'assault',
       axis = [];
+    if (reason === 'strategic-stall-release' && action === 'hold') action = 'assault';
     var vacant = root.BattleVacantObjectiveAssault;
     if (
       vacant &&
@@ -692,10 +693,9 @@
     }
     return affected;
   }
-  function staleHoldOrSupport(sim, sq, episodeAt) {
+  function staleHoldOrSupport(sim, sq) {
     var m = sq && sq._macroMission;
     if (!m || m.intent === 'defend' || m.intent === 'reserve') return false;
-    if ((+m.issuedAt || 0) > episodeAt + COMMAND_TICK) return false;
     return m.action === 'hold' || m.role === 'support' || sq.commandRole === 'support';
   }
   function runReleaseStage(sim, faction, squads, town, stalled, info) {
@@ -708,7 +708,7 @@
           sq.commandRole !== 'reserve' &&
           !(m && m.intent === 'reserve') &&
           !sq.targetObjective,
-        stale = staleHoldOrSupport(sim, sq, info.lastProgressAt);
+        stale = staleHoldOrSupport(sim, sq);
       if (!targetless && !stale) continue;
       if (stale && (sq.commandRole === 'support' || (m && m.role === 'support'))) sq.commandRole = 'center';
       reconsiderMission(sim, sq, town, 'strategic-stall-release', stalled);
@@ -750,14 +750,20 @@
     return { affected: affected, mainEffort: String(objective.id) };
   }
   function runResetStage(sim, faction, squads, town, stalled) {
-    var affected = 0;
+    var affected = 0,
+      resetStalled = Object.assign({}, stalled || {}),
+      candidates = [];
     for (var i = 0; i < squads.length; i++) {
       var sq = squads[i],
         m = sq._macroMission;
       if (!D.aliveMembers(sq).length || sq.state === 'retreat') continue;
       if (usefulDefender(sim, sq) || makingMissionProgress(sim, faction, sq)) continue;
       if (m && (m.intent === 'reserve' || m.intent === 'reconstitute')) continue;
-      reconsiderMission(sim, sq, town, 'strategic-reset', stalled);
+      candidates.push(sq);
+      if (m && m.objectiveId) resetStalled[m.objectiveId] = true;
+    }
+    for (i = 0; i < candidates.length; i++) {
+      reconsiderMission(sim, candidates[i], town, 'strategic-reset', resetStalled);
       affected++;
     }
     return affected;
@@ -1132,7 +1138,7 @@
         if (runStrategicRecovery(sim, f, squads, town)) {
           macroWake = true;
           wakeReasons['@' + f] = 'strategic-recovery';
-        } else trackMissionProgress(sim, f, squads);
+        }
         for (var i = 0; i < squads.length; i++) {
           var sq = squads[i],
             reason = wakeReason(sim, sq);
