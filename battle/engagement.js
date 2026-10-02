@@ -1089,11 +1089,12 @@
       next: ['advance']
     },
     freeze: {
-      meaning: 'Break and stop: down where he is, no fire, no orders (broken, ?stressAct=freeze)',
+      meaning: 'Break and stop: dazed, down where he is, no fire, no orders (broken, ?stressAct=freeze)',
       enteredBy: 'broken, under fire or with nowhere to go',
-      exits: 'calm below broken for REACT_MIN -> advance; squad retreat -> withdraw',
+      exits:
+        'bounded freezeUntil expires -> reassess into cower/flee/rage or advance; squad retreat -> withdraw',
       rate: '0.15 s',
-      next: ['advance', 'withdraw', 'station']
+      next: ['advance', 'withdraw', 'station', 'cower', 'flee', 'rage']
     },
     rage: {
       meaning:
