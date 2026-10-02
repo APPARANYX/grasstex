@@ -949,12 +949,15 @@ check, and diagnostics proof. Do not fold these into one "AI cleanup" change.
      longer than equal final stress accumulated slowly, and that no freeze can persist to the end of a long battle solely
      because the man remains broken.
 
-2. **Retreat-anchor lease / progress stability.** The v278 loop-watch showed repeated legal retreat destinations moving
-   while men made little net progress. Give the Squad Leader's retreat anchor a short lease (start around **4-8 s**) and
-   coalesce small endpoint changes. Keep the current goal while it is legal and producing progress; republish only for a
-   materially moved squad anchor, blocked/unsafe route, enemy-danger invalidation, or measured no-progress timeout.
-   Movement Resolver remains final arbiter. Add a seeded regression for "many retreat requests, one stable useful goal"
-   and measure destination changes/net travel against the v278 pattern before shipping.
+2. **Retreat-anchor lease / progress stability — PR #161.** The v278 loop-watch showed repeated legal retreat
+   destinations moving while men made little net progress. The Squad Leader now gives retreat one **6 s sliding anchor
+   lease**: useful progress extends the same endpoint, arrival advances it materially, and a materially changed retreat
+   goal, a majority blocked route, an anchor made worse by the known threat, or a measured 6 s no-progress spell may
+   replace it. No-progress/blocked recovery rebases from the squad with a half stride instead of pushing the goal farther
+   away. Unchanged urgent retreat fireteam intents are coalesced instead of republished every update; Movement Resolver
+   remains final physical endpoint/legalization arbiter. `retreat-anchor-check.js` is the seeded regression for "many
+   retreat requests, one stable useful goal" and records the publish/check ratio plus net travel; diagnostics expose the
+   live retreat-anchor lease, goal, remaining time, best/current distance and no-progress age.
 
 3. **Fire-control + posture observability.** Make the new crest/fire-discipline system self-explaining before further
    tactical tuning.
