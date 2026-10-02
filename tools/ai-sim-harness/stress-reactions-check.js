@@ -16,7 +16,7 @@
      fresh visual threat while dazed; rage charges, fires on the move and strikes at arm's length,
      and ends when nobody is within RAGE_REACH.
    - Freeze duration is a bounded one-time snapshot from recent stress tempo: the same final stress reached abruptly
-     lasts longer than a slow simmer, 4..16 s, and expiry forces a reassessment even if he is still broken. Cower/charge
+     lasts longer than a slow simmer, 12..48 s, and expiry forces a reassessment even if he is still broken. Cower/charge
      keep their existing minimums; a flee does not end: he is done with the fight. A squad already retreating is not reacted for.
    - The squad report names the men reacting, they are neither base of fire nor movers, and no station is claimed for
      them.
