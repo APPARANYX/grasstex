@@ -1063,7 +1063,7 @@
       anyEngaged = false;
     for (var i = 0; i < squad.members.length; i++) {
       if (!squad.members[i].dead) alive++;
-      if (squad.members[i].target) anyEngaged = true;
+      if (threatDisposition(squad.members[i].target).combatThreat) anyEngaged = true;
     }
     squad.aliveCount = alive;
     if (1 - alive / establishment(squad) >= RETREAT_CASUALTY_FRAC) squad.state = 'retreat';
@@ -1163,7 +1163,7 @@
       soldier.setUp = false;
       return;
     }
-    if (soldier.target) {
+    if (threatDisposition(soldier.target).combatThreat) {
       soldier.state = 'engage';
       var p = soldier.root.position,
         t = soldier.target.root.position,
