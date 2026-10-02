@@ -456,6 +456,254 @@
         "idleGroan": [
           "voices/us/idle-groan-01.mp3",
           "voices/us/idle-groan-02.mp3"
+        ],
+        "shotsHeard": [
+          "voices/us/shots-heard-01.mp3",
+          "voices/us/shots-heard-02.mp3"
+        ],
+        "callHeard": [
+          "voices/us/heard-you-01.mp3",
+          "voices/us/heard-you-02.mp3"
+        ],
+        "lostHim": [
+          "voices/us/lost-him-01.mp3",
+          "voices/us/lost-him-02.mp3"
+        ],
+        "whereAreThey": [
+          "voices/us/where-are-they-01.mp3",
+          "voices/us/where-are-they-02.mp3"
+        ],
+        "allClear": [
+          "voices/us/all-clear-01.mp3",
+          "voices/us/all-clear-02.mp3"
+        ],
+        "enemyClose": [
+          "voices/us/enemy-close-01.mp3",
+          "voices/us/enemy-close-02.mp3"
+        ],
+        "enemyBehind": [
+          "voices/us/enemy-behind-01.mp3",
+          "voices/us/enemy-behind-02.mp3"
+        ],
+        "enemyMG": [
+          "voices/us/enemy-mg-01.mp3",
+          "voices/us/enemy-mg-02.mp3"
+        ],
+        "sniper": [
+          "voices/us/sniper-01.mp3",
+          "voices/us/sniper-02.mp3"
+        ],
+        "enemyRunning": [
+          "voices/us/enemy-running-01.mp3",
+          "voices/us/enemy-running-02.mp3"
+        ],
+        "enemyOnObjective": [
+          "voices/us/enemy-on-objective-01.mp3",
+          "voices/us/enemy-on-objective-02.mp3"
+        ],
+        "nearMiss": [
+          "voices/us/near-miss-01.mp3",
+          "voices/us/near-miss-02.mp3"
+        ],
+        "holdFire": [
+          "voices/us/hold-fire-01.mp3",
+          "voices/us/hold-fire-02.mp3"
+        ],
+        "waitForIt": [
+          "voices/us/wait-for-it-01.mp3",
+          "voices/us/wait-for-it-02.mp3"
+        ],
+        "takeTheShot": [
+          "voices/us/take-the-shot-01.mp3",
+          "voices/us/take-the-shot-02.mp3"
+        ],
+        "suppress": [
+          "voices/us/suppress-01.mp3",
+          "voices/us/suppress-02.mp3"
+        ],
+        "mgSetUp": [
+          "voices/us/mg-set-01.mp3",
+          "voices/us/mg-set-02.mp3"
+        ],
+        "teamMove": [
+          "voices/us/team-move-01.mp3",
+          "voices/us/team-move-02.mp3"
+        ],
+        "flankOrder": [
+          "voices/us/flank-01.mp3",
+          "voices/us/flank-02.mp3"
+        ],
+        "cornerCheck": [
+          "voices/us/corner-01.mp3",
+          "voices/us/corner-02.mp3"
+        ],
+        "clearHouse": [
+          "voices/us/clear-house-01.mp3",
+          "voices/us/clear-house-02.mp3"
+        ],
+        "takeWindow": [
+          "voices/us/take-window-01.mp3",
+          "voices/us/take-window-02.mp3"
+        ],
+        "digIn": [
+          "voices/us/dig-in-01.mp3",
+          "voices/us/dig-in-02.mp3"
+        ],
+        "reserveWait": [
+          "voices/us/reserve-01.mp3",
+          "voices/us/reserve-02.mp3"
+        ],
+        "captureOrder": [
+          "voices/us/capture-01.mp3",
+          "voices/us/capture-02.mp3"
+        ],
+        "leaderDown": [
+          "voices/us/sarge-down-01.mp3",
+          "voices/us/sarge-down-02.mp3"
+        ],
+        "takingCommand": [
+          "voices/us/taking-command-01.mp3",
+          "voices/us/taking-command-02.mp3"
+        ],
+        "needHelp": [
+          "voices/us/need-help-01.mp3",
+          "voices/us/need-help-02.mp3"
+        ],
+        "lastMan": [
+          "voices/us/last-man-01.mp3",
+          "voices/us/last-man-02.mp3"
+        ],
+        "rallied": [
+          "voices/us/rallied-01.mp3",
+          "voices/us/rallied-02.mp3"
+        ],
+        "reinforced": [
+          "voices/us/reinforced-01.mp3",
+          "voices/us/reinforced-02.mp3"
+        ],
+        "pickUp": [
+          "voices/us/pick-up-01.mp3",
+          "voices/us/pick-up-02.mp3"
+        ],
+        "wounded": [
+          "voices/us/im-hit-01.mp3",
+          "voices/us/im-hit-02.mp3"
+        ],
+        "medic": [
+          "voices/us/medic-01.mp3",
+          "voices/us/medic-02.mp3"
+        ],
+        "woundedFriend": [
+          "voices/us/hang-on-01.mp3",
+          "voices/us/hang-on-02.mp3"
+        ],
+        "jammed": [
+          "voices/us/jammed-01.mp3",
+          "voices/us/jammed-02.mp3"
+        ],
+        "jamCleared": [
+          "voices/us/back-in-action-01.mp3",
+          "voices/us/back-in-action-02.mp3"
+        ],
+        "outOfAmmo": [
+          "voices/us/out-of-ammo-01.mp3",
+          "voices/us/out-of-ammo-02.mp3"
+        ],
+        "sidearm": [
+          "voices/us/sidearm-01.mp3",
+          "voices/us/sidearm-02.mp3"
+        ],
+        "rearmed": [
+          "voices/us/rearmed-01.mp3",
+          "voices/us/rearmed-02.mp3"
+        ],
+        "madeIt": [
+          "voices/us/made-it-01.mp3",
+          "voices/us/made-it-02.mp3"
+        ],
+        "stayDown": [
+          "voices/us/stay-down-01.mp3",
+          "voices/us/stay-down-02.mp3"
+        ],
+        "cowering": [
+          "voices/us/cowering-01.mp3",
+          "voices/us/cowering-02.mp3"
+        ],
+        "dazed": [
+          "voices/us/dazed-01.mp3",
+          "voices/us/dazed-02.mp3"
+        ],
+        "breaking": [
+          "voices/us/breaking-01.mp3",
+          "voices/us/breaking-02.mp3"
+        ],
+        "berserk": [
+          "voices/us/berserk-01.mp3",
+          "voices/us/berserk-02.mp3"
+        ],
+        "melee": [
+          "voices/us/melee-01.mp3",
+          "voices/us/melee-02.mp3"
+        ],
+        "steady": [
+          "voices/us/steady-01.mp3",
+          "voices/us/steady-02.mp3"
+        ],
+        "moveOut": [
+          "voices/us/move-out-01.mp3",
+          "voices/us/move-out-02.mp3"
+        ],
+        "moveQuiet": [
+          "voices/us/move-quiet-01.mp3",
+          "voices/us/move-quiet-02.mp3"
+        ],
+        "spreadOut": [
+          "voices/us/spread-out-01.mp3",
+          "voices/us/spread-out-02.mp3"
+        ],
+        "closeUp": [
+          "voices/us/close-up-01.mp3",
+          "voices/us/close-up-02.mp3"
+        ],
+        "watchSectors": [
+          "voices/us/watch-sectors-01.mp3",
+          "voices/us/watch-sectors-02.mp3"
+        ],
+        "reposition": [
+          "voices/us/reposition-01.mp3",
+          "voices/us/reposition-02.mp3"
+        ],
+        "baseOfFire": [
+          "voices/us/base-of-fire-01.mp3",
+          "voices/us/base-of-fire-02.mp3"
+        ],
+        "mgTarget": [
+          "voices/us/mg-target-01.mp3",
+          "voices/us/mg-target-02.mp3"
+        ],
+        "assault": [
+          "voices/us/assault-01.mp3",
+          "voices/us/assault-02.mp3"
+        ],
+        "ceaseFire": [
+          "voices/us/cease-fire-01.mp3",
+          "voices/us/cease-fire-02.mp3"
+        ],
+        "checkAmmo": [
+          "voices/us/check-ammo-01.mp3",
+          "voices/us/check-ammo-02.mp3"
+        ],
+        "soundOff": [
+          "voices/us/sound-off-01.mp3",
+          "voices/us/sound-off-02.mp3"
+        ],
+        "newOrders": [
+          "voices/us/new-orders-01.mp3",
+          "voices/us/new-orders-02.mp3"
+        ],
+        "fallBackByTeams": [
+          "voices/us/fall-back-teams-01.mp3",
+          "voices/us/fall-back-teams-02.mp3"
         ]
       },
       "generation": [
@@ -1785,6 +2033,254 @@
         "idleGroan": [
           "voices/ge/ruhe-stoehnen-01.mp3",
           "voices/ge/ruhe-stoehnen-02.mp3"
+        ],
+        "shotsHeard": [
+          "voices/ge/schuesse-gehoert-01.mp3",
+          "voices/ge/schuesse-gehoert-02.mp3"
+        ],
+        "callHeard": [
+          "voices/ge/verstanden-01.mp3",
+          "voices/ge/verstanden-02.mp3"
+        ],
+        "lostHim": [
+          "voices/ge/verloren-01.mp3",
+          "voices/ge/verloren-02.mp3"
+        ],
+        "whereAreThey": [
+          "voices/ge/wo-sind-die-01.mp3",
+          "voices/ge/wo-sind-die-02.mp3"
+        ],
+        "allClear": [
+          "voices/ge/alles-klar-01.mp3",
+          "voices/ge/alles-klar-02.mp3"
+        ],
+        "enemyClose": [
+          "voices/ge/ganz-nah-01.mp3",
+          "voices/ge/ganz-nah-02.mp3"
+        ],
+        "enemyBehind": [
+          "voices/ge/hinter-uns-01.mp3",
+          "voices/ge/hinter-uns-02.mp3"
+        ],
+        "enemyMG": [
+          "voices/ge/feind-mg-01.mp3",
+          "voices/ge/feind-mg-02.mp3"
+        ],
+        "sniper": [
+          "voices/ge/scharfschuetze-01.mp3",
+          "voices/ge/scharfschuetze-02.mp3"
+        ],
+        "enemyRunning": [
+          "voices/ge/die-laufen-01.mp3",
+          "voices/ge/die-laufen-02.mp3"
+        ],
+        "enemyOnObjective": [
+          "voices/ge/feind-am-ziel-01.mp3",
+          "voices/ge/feind-am-ziel-02.mp3"
+        ],
+        "nearMiss": [
+          "voices/ge/knapp-01.mp3",
+          "voices/ge/knapp-02.mp3"
+        ],
+        "holdFire": [
+          "voices/ge/nicht-schiessen-01.mp3",
+          "voices/ge/nicht-schiessen-02.mp3"
+        ],
+        "waitForIt": [
+          "voices/ge/wartet-01.mp3",
+          "voices/ge/wartet-02.mp3"
+        ],
+        "takeTheShot": [
+          "voices/ge/schiess-01.mp3",
+          "voices/ge/schiess-02.mp3"
+        ],
+        "suppress": [
+          "voices/ge/niederhalten-01.mp3",
+          "voices/ge/niederhalten-02.mp3"
+        ],
+        "mgSetUp": [
+          "voices/ge/mg-in-stellung-01.mp3",
+          "voices/ge/mg-in-stellung-02.mp3"
+        ],
+        "teamMove": [
+          "voices/ge/trupp-los-01.mp3",
+          "voices/ge/trupp-los-02.mp3"
+        ],
+        "flankOrder": [
+          "voices/ge/umgehen-01.mp3",
+          "voices/ge/umgehen-02.mp3"
+        ],
+        "cornerCheck": [
+          "voices/ge/ecke-01.mp3",
+          "voices/ge/ecke-02.mp3"
+        ],
+        "clearHouse": [
+          "voices/ge/haus-saeubern-01.mp3",
+          "voices/ge/haus-saeubern-02.mp3"
+        ],
+        "takeWindow": [
+          "voices/ge/fenster-01.mp3",
+          "voices/ge/fenster-02.mp3"
+        ],
+        "digIn": [
+          "voices/ge/eingraben-01.mp3",
+          "voices/ge/eingraben-02.mp3"
+        ],
+        "reserveWait": [
+          "voices/ge/reserve-01.mp3",
+          "voices/ge/reserve-02.mp3"
+        ],
+        "captureOrder": [
+          "voices/ge/ziel-nehmen-01.mp3",
+          "voices/ge/ziel-nehmen-02.mp3"
+        ],
+        "leaderDown": [
+          "voices/ge/unteroffizier-gefallen-01.mp3",
+          "voices/ge/unteroffizier-gefallen-02.mp3"
+        ],
+        "takingCommand": [
+          "voices/ge/uebernehme-kommando-01.mp3",
+          "voices/ge/uebernehme-kommando-02.mp3"
+        ],
+        "needHelp": [
+          "voices/ge/aufgerieben-01.mp3",
+          "voices/ge/aufgerieben-02.mp3"
+        ],
+        "lastMan": [
+          "voices/ge/der-letzte-01.mp3",
+          "voices/ge/der-letzte-02.mp3"
+        ],
+        "rallied": [
+          "voices/ge/wieder-vor-01.mp3",
+          "voices/ge/wieder-vor-02.mp3"
+        ],
+        "reinforced": [
+          "voices/ge/verstaerkung-01.mp3",
+          "voices/ge/verstaerkung-02.mp3"
+        ],
+        "pickUp": [
+          "voices/ge/mitkommen-01.mp3",
+          "voices/ge/mitkommen-02.mp3"
+        ],
+        "wounded": [
+          "voices/ge/getroffen-01.mp3",
+          "voices/ge/getroffen-02.mp3"
+        ],
+        "medic": [
+          "voices/ge/sani-01.mp3",
+          "voices/ge/sani-02.mp3"
+        ],
+        "woundedFriend": [
+          "voices/ge/halt-durch-01.mp3",
+          "voices/ge/halt-durch-02.mp3"
+        ],
+        "jammed": [
+          "voices/ge/ladehemmung-01.mp3",
+          "voices/ge/ladehemmung-02.mp3"
+        ],
+        "jamCleared": [
+          "voices/ge/wieder-feuerbereit-01.mp3",
+          "voices/ge/wieder-feuerbereit-02.mp3"
+        ],
+        "outOfAmmo": [
+          "voices/ge/keine-munition-01.mp3",
+          "voices/ge/keine-munition-02.mp3"
+        ],
+        "sidearm": [
+          "voices/ge/pistole-01.mp3",
+          "voices/ge/pistole-02.mp3"
+        ],
+        "rearmed": [
+          "voices/ge/wieder-bewaffnet-01.mp3",
+          "voices/ge/wieder-bewaffnet-02.mp3"
+        ],
+        "madeIt": [
+          "voices/ge/geschafft-01.mp3",
+          "voices/ge/geschafft-02.mp3"
+        ],
+        "stayDown": [
+          "voices/ge/kopf-runter-01.mp3",
+          "voices/ge/kopf-runter-02.mp3"
+        ],
+        "cowering": [
+          "voices/ge/ich-kann-nicht-01.mp3",
+          "voices/ge/ich-kann-nicht-02.mp3"
+        ],
+        "dazed": [
+          "voices/ge/mutter-01.mp3",
+          "voices/ge/mutter-02.mp3"
+        ],
+        "breaking": [
+          "voices/ge/ich-hau-ab-01.mp3",
+          "voices/ge/ich-hau-ab-02.mp3"
+        ],
+        "berserk": [
+          "voices/ge/kommt-doch-01.mp3",
+          "voices/ge/kommt-doch-02.mp3"
+        ],
+        "melee": [
+          "voices/ge/stirb-01.mp3",
+          "voices/ge/stirb-02.mp3"
+        ],
+        "steady": [
+          "voices/ge/ruhig-01.mp3",
+          "voices/ge/ruhig-02.mp3"
+        ],
+        "moveOut": [
+          "voices/ge/abmarsch-01.mp3",
+          "voices/ge/abmarsch-02.mp3"
+        ],
+        "moveQuiet": [
+          "voices/ge/leise-01.mp3",
+          "voices/ge/leise-02.mp3"
+        ],
+        "spreadOut": [
+          "voices/ge/auseinander-01.mp3",
+          "voices/ge/auseinander-02.mp3"
+        ],
+        "closeUp": [
+          "voices/ge/aufschliessen-01.mp3",
+          "voices/ge/aufschliessen-02.mp3"
+        ],
+        "watchSectors": [
+          "voices/ge/augen-auf-01.mp3",
+          "voices/ge/augen-auf-02.mp3"
+        ],
+        "reposition": [
+          "voices/ge/stellungswechsel-01.mp3",
+          "voices/ge/stellungswechsel-02.mp3"
+        ],
+        "baseOfFire": [
+          "voices/ge/deckungsfeuer-01.mp3",
+          "voices/ge/deckungsfeuer-02.mp3"
+        ],
+        "mgTarget": [
+          "voices/ge/mg-ziel-01.mp3",
+          "voices/ge/mg-ziel-02.mp3"
+        ],
+        "assault": [
+          "voices/ge/sturm-01.mp3",
+          "voices/ge/sturm-02.mp3"
+        ],
+        "ceaseFire": [
+          "voices/ge/feuer-halt-01.mp3",
+          "voices/ge/feuer-halt-02.mp3"
+        ],
+        "checkAmmo": [
+          "voices/ge/munition-pruefen-01.mp3",
+          "voices/ge/munition-pruefen-02.mp3"
+        ],
+        "soundOff": [
+          "voices/ge/meldung-01.mp3",
+          "voices/ge/meldung-02.mp3"
+        ],
+        "newOrders": [
+          "voices/ge/neuer-befehl-01.mp3",
+          "voices/ge/neuer-befehl-02.mp3"
+        ],
+        "fallBackByTeams": [
+          "voices/ge/abschnittsweise-01.mp3",
+          "voices/ge/abschnittsweise-02.mp3"
         ]
       },
       "generation": [
