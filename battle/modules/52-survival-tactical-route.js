@@ -181,6 +181,13 @@
     while (plan && plan.index < plan.steps.length && dist(p, plan.steps[plan.index]) <= ARRIVE) {
       plan.index++;
       routeStats(b).completedSteps++;
+      /* A cover detour is one committed route through cover to the winning intent. Once the cover
+         waypoint has been passed, release its reservation so another man can use it; keep the route
+         itself until the original intent is reached. */
+      if (plan.reason === 'cover-detour' && plan.index > 0 && plan.coverSlotId) {
+        if (root.BattleCoverPositions) root.BattleCoverPositions.release(s, b, 'route');
+        plan.coverSlotId = null;
+      }
     }
     if (plan && plan.index >= plan.steps.length) {
       if (plan.reason === 'cover-detour') s._tacticalRouteCooldownUntil = b.time + COVER_REPLAN_COOLDOWN;
@@ -324,7 +331,11 @@
       return null;
     var pt = protectivePoint(s, b, pick, threat);
     if (!pt) return null;
-    var plan = beginPlan(s, b, pick, 'cover-detour', [pt]);
+    /* This is a detour, not a new objective: commit the cover waypoint and then the original
+       winning intent in one micro-route. The old one-step plan ended at cover, exposed the same
+       formation order again, and under prolonged suppression replanned another cover side-trip,
+       producing endpoint ↔ cover oscillation without any command change. */
+    var plan = beginPlan(s, b, pick, 'cover-detour', [pt, pick.point]);
     plan.coverSlotId = pt.slotId;
     return plan;
   }
