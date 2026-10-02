@@ -1492,7 +1492,7 @@
   function beginFreeze(s, battle, v) {
     var e = state(s),
       M = mind(),
-      profile = M && M.freezeProfile ? M.freezeProfile(s, battle.time) : null,
+      profile = M ? M.freezeProfile(s, battle.time) : null,
       duration = profile && isFinite(+profile.duration) ? +profile.duration : ACT_TUNING.REACT_MIN;
     duration = clamp(duration, ACT_TUNING.REACT_MIN, 60);
     e.freezeStartedAt = battle.time;
