@@ -43,6 +43,23 @@ test('Micro consumes Squad Leader formation without republishing Meso intent',()
   assert.equal(b._movementGoalStats.bySource['squad-stability'].requests,before);
 });
 
+test('base of fire holds its tactical position while squad contact persists without a bound',()=>{
+  const {b,q,s,M,E}=fixture();
+  s._fireteamDestination={x:0,z:30};
+  M.proposeOrder(s,s._fireteamDestination,b,false);
+  M.resolve(s,b);
+  assert.equal(s._movementResolver.last.kind,'formation');
+  q.inContact=true;q._assaultAuthorized=true;s.target=null;
+  const e=E.stateOf(s);e.state='advance';e.until=0;e.boundOrder=false;
+  E.updateSoldier(s,b);M.resolve(s,b);
+  assert.equal(s._movementResolver.last.kind,'hold','contact without a bound is base-of-fire, not formation catch-up');
+  assert.ok(Math.hypot(s.destination.x-s.root.position.x,s.destination.z-s.root.position.z)<.2,'the hold stays on the man, not his distant slot');
+
+  q.inContact=false;b.time+=1;
+  E.updateSoldier(s,b);M.resolve(s,b);
+  assert.equal(s._movementResolver.last.kind,'formation','once contact is genuinely gone the persistent Meso order resumes');
+});
+
 test('assault mission alone does not authorize an individual rush',()=>{
   const f=fixture(),e=combat(f); e.boundOrder=false;
   f.r.BattleLeases.end(f.q,'bound',f.b.time,'test'); f.E.decide(f.s,f.b,'test no cover'); f.M.resolve(f.s,f.b);
