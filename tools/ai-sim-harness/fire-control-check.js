@@ -37,6 +37,13 @@ test('first visual contact holds fire and makes the squad prepare prone before a
   fc=command(w);
   assert.equal(fc.state,'open');
   assert.ok(fc.ready>=7,'70% line readiness: '+fc.ready);
+  assert.equal(fc.requiredReady,7,'the diagnostic says how many men the leader required');
+  assert.ok(fc.visualLine>=fc.ready,'visual-line count includes the ready men');
+  assert.ok(fc.ballisticLine>=fc.ready,'ballistic-line count includes the ready men');
+  assert.ok(fc.proneReady>=fc.ready,'prepared prone-ready count is explicit');
+  assert.ok(Number.isInteger(fc.terrainCrestBlocked),'crest/terrain blocks are counted');
+  assert.deepEqual((fc.trail||[]).map(x=>x.state).slice(-2),['hold','open']);
+  assert.equal((fc.trail||[]).at(-1).ready,fc.ready,'the transition trail captures the decision evidence');
   assert.equal(w.E.fireAuthorized(w.us.members[4],w.b),true);
 });
 test('long range prefers one strong in-range marksman while the rest keep holding',()=>{

@@ -8,7 +8,8 @@
 'use strict';
 if(!root.BattleModules||root.BattleAILoopWatch)return;
 
-var SAMPLE_SECONDS=.9,HISTORY=14,ALERT_LIMIT=16,ALERT_COOLDOWN=6;
+var SAMPLE_SECONDS=.9,HISTORY=14,ALERT_LIMIT=16,ALERT_COOLDOWN=6,
+    POSTURE_WINDOW=8,POSTURE_CHANGES=4,POSTURE_NET=4.5;
 var LABEL_STORE='battleAiRuleLabelsV1';
 var labels=loadLabels();
 var ui={root:null,view:null,svg:null,nodes:null,panel:null,button:null,overlay:null,selected:[],observer:null,insObserver:null};
@@ -92,14 +93,34 @@ function stateFor(sim){if(!sim._aiLoopWatch)sim._aiLoopWatch={lastSample:-999,sq
 function reset(sim){sim._aiLoopWatch={lastSample:-999,squads:{},soldiers:{},alerts:[],reported:{}};renderLoopPanel();}
 function emitAlert(sim,alert){
   var st=stateFor(sim),key=alert.kind+'|'+alert.faction+'|'+alert.squadId+'|'+(alert.soldierId==null?'':alert.soldierId),last=st.reported[key]||-999;if(sim.time-last<ALERT_COOLDOWN)return;st.reported[key]=sim.time;alert.at=sim.time;alert.key=key;st.alerts.unshift(alert);if(st.alerts.length>ALERT_LIMIT)st.alerts.length=ALERT_LIMIT;
-  if(root.BattleTelemetry)root.BattleTelemetry.record('ai-loop-detected',{kind:alert.kind,severity:alert.severity,faction:alert.faction,squad:alert.squadId,soldier:alert.soldierId==null?null:alert.soldierId,phaseSequence:alert.phases||[],ruleSequence:alert.rules||[],goalWriters:alert.goalWriters||alert.sources||[],destinationChanges:alert.destinationChanges||0,travel:alert.travel||0,net:alert.net||0,localAvoidance:!!alert.localAvoidance,stuck:!!alert.stuck,inContact:!!alert.inContact},sim);
+  if(root.BattleTelemetry)root.BattleTelemetry.record('ai-loop-detected',{kind:alert.kind,severity:alert.severity,faction:alert.faction,squad:alert.squadId,soldier:alert.soldierId==null?null:alert.soldierId,phaseSequence:alert.phases||[],ruleSequence:alert.rules||[],goalWriters:alert.goalWriters||alert.sources||[],destinationChanges:alert.destinationChanges||0,stanceChanges:alert.stanceChanges||0,stanceReasons:alert.stanceReasons||[],travel:alert.travel||0,net:alert.net||0,localAvoidance:!!alert.localAvoidance,stuck:!!alert.stuck,inContact:!!alert.inContact},sim);
 }
 function detectSquad(sim,sq,h){
   if(h.length<7)return;var recent=h.slice(-9),p=repeatingPeriod(recent,'decisionSig',3),move=travelStats(recent,'pos'),orderChanges=changes(recent,'order',2.5),rules=recent.map(function(s){return s.rule;}).filter(Boolean),phases=recent.map(function(s){return s.phase;});
   if(p&&move.net<7&&move.duration>=4.5){emitAlert(sim,{kind:'decision-cycle',severity:'warn',faction:sq.faction,squadId:sq.id,message:'Repeating '+p+'-step command cycle with little progress',phases:phases,rules:Array.from(new Set(rules)),sequence:recent.slice(-p*3).map(function(s){return s.phase+(s.rule?' / '+s.rule:'');}),travel:+move.travel.toFixed(1),net:+move.net.toFixed(1),destinationChanges:orderChanges,inContact:!!recent[recent.length-1].inContact});}
   if(orderChanges>=4&&move.travel>=5&&move.net<4.5&&move.duration>=5){emitAlert(sim,{kind:'order-churn',severity:'warn',faction:sq.faction,squadId:sq.id,message:'Squad orders keep moving while the squad goes nowhere',phases:phases,rules:Array.from(new Set(rules)),sequence:recent.slice(-6).map(function(s){return s.orderSig;}),travel:+move.travel.toFixed(1),net:+move.net.toFixed(1),destinationChanges:orderChanges,inContact:!!recent[recent.length-1].inContact});}
 }
+function detectPostureChurn(sim,s,sq){
+  var e=s&&s.eng,trail=e&&e.stanceTrail;if(!trail||trail.length<POSTURE_CHANGES)return;
+  var recent=trail.filter(function(x){return x&&sim.time-(+x.at||0)<=POSTURE_WINDOW;});
+  if(recent.length<POSTURE_CHANGES)return;
+  var first=recent[0],last=recent[recent.length-1],
+      net=dist(first,last),travel=0,contacts={},covers={},reasons=[],i;
+  for(i=0;i<recent.length;i++){
+    var x=recent[i],ck=String(!!x.contact)+'|'+String(x.contactId==null?'':x.contactId),cv=String(x.cover==null?'':x.cover);
+    contacts[ck]=1;covers[cv]=1;reasons.push(String(x.reason||'unknown'));
+    if(i)travel+=dist(recent[i-1],x);
+  }
+  if(net>=POSTURE_NET||Object.keys(contacts).length>1||Object.keys(covers).length>1)return;
+  emitAlert(sim,{kind:'posture-churn',severity:'warn',faction:s.faction,squadId:sq.id,soldierId:s.id,
+    message:'Repeated stance changes with little movement and unchanged contact/cover context',
+    phases:Array.from(new Set(recent.map(function(x){return x.state||'';}).filter(Boolean))),
+    sequence:recent.map(function(x){return x.from+'→'+x.to+' ['+(x.reason||'unknown')+']';}),
+    stanceReasons:reasons,stanceChanges:recent.length,travel:+travel.toFixed(1),net:+net.toFixed(1),
+    destinationChanges:0,inContact:!!last.contact});
+}
 function detectSoldier(sim,s,sq,h){
+  detectPostureChurn(sim,s,sq);
   if(h.length<8)return;var recent=h.slice(-10),move=travelStats(recent,'pos'),destChanges=changes(recent,'dest',2.2),period=repeatingPeriod(recent,'destSig',3),ratio=move.net>.5?move.travel/move.net:move.travel*2;
   if((period||destChanges>=5)&&move.travel>=6&&move.net<4.5&&ratio>2.2&&move.duration>=5.5){emitAlert(sim,{kind:'position-seeking',severity:'hot',faction:s.faction,squadId:sq.id,soldierId:s.id,message:'Soldier is cycling destinations without meaningful net movement',phases:Array.from(new Set(recent.map(function(x){return x.phase;}))),rules:Array.from(new Set(recent.map(function(x){return x.rule;}).filter(Boolean))),sequence:recent.slice(-8).map(function(x){return x.destSig+' ['+x.eng+(x.src?' <'+x.src+'>':'')+']';}),sources:Array.from(new Set(recent.map(function(x){return x.src;}).filter(Boolean))),goalWriters:recent.slice(-8).map(function(x){return x.src||'?';}),oldGoalsValid:recent.slice(-8).map(function(x){return x.goalValid==null?'?':(x.goalValid?'valid':'stale');}),localAvoidance:recent.some(function(x){return x.avoid;}),stuck:!!(s._movementProgress&&s._movementProgress.stuck),travel:+move.travel.toFixed(1),net:+move.net.toFixed(1),destinationChanges:destChanges,period:period,inContact:!!recent[recent.length-1].inContact});}
 }
@@ -121,7 +142,7 @@ function toggleLoopPanel(){if(!ui.panel)return;ui.panel.hidden=!ui.panel.hidden;
 function renderLoopPanel(){
   if(!ui.panel||!ui.button)return;var sim=root.__battle__,st=sim&&sim._aiLoopWatch,alerts=st&&st.alerts||[],list=ui.panel.querySelector('#lwList');ui.button.textContent='Loop Watch · '+alerts.length;ui.button.classList.toggle('hot',alerts.length>0);if(!list)return;
   if(!alerts.length){list.innerHTML='<div class="lw-empty">No short loops detected yet.<br>Run the battle and this panel will flag decision cycling or position seeking.</div>';return;}
-  list.innerHTML=alerts.map(function(a,i){var who=a.faction.toUpperCase()+' '+a.squadId+(a.soldierId==null?'':' · soldier '+a.soldierId),meta='travel '+a.travel+'m · net '+a.net+'m · '+(a.destinationChanges||0)+' destination changes'+(a.inContact?' · in contact':' · out of contact');return'<div class="lw-card '+(a.severity==='hot'?'hot':'warn')+'" data-lw="'+i+'"><div class="lw-title"><span class="lw-kind">'+esc(a.kind)+'</span><span>'+esc(who)+'</span></div><div class="lw-meta">'+esc(a.message)+'<br>'+esc(meta)+'</div><div class="lw-seq">'+esc((a.sequence||[]).join(' → '))+'</div></div>';}).join('');
+  list.innerHTML=alerts.map(function(a,i){var who=a.faction.toUpperCase()+' '+a.squadId+(a.soldierId==null?'':' · soldier '+a.soldierId),changeMeta=a.kind==='posture-churn'?((a.stanceChanges||0)+' stance changes'):((a.destinationChanges||0)+' destination changes'),meta='travel '+a.travel+'m · net '+a.net+'m · '+changeMeta+(a.inContact?' · in contact':' · out of contact');return'<div class="lw-card '+(a.severity==='hot'?'hot':'warn')+'" data-lw="'+i+'"><div class="lw-title"><span class="lw-kind">'+esc(a.kind)+'</span><span>'+esc(who)+'</span></div><div class="lw-meta">'+esc(a.message)+'<br>'+esc(meta)+'</div><div class="lw-seq">'+esc((a.sequence||[]).join(' → '))+'</div></div>';}).join('');
   var cards=list.querySelectorAll('[data-lw]');for(var i=0;i<cards.length;i++)cards[i].onclick=function(){var idx=+this.dataset.lw,a=alerts[idx];if(a)traceAlert(a);};
 }
 function traceAlert(a){
