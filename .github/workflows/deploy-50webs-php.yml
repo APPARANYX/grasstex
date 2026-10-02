@@ -201,11 +201,11 @@ jobs:
           python3 -m py_compile scripts/build_version.py
           echo "Deploying commit: $(git rev-parse HEAD) as build ${{ steps.version.outputs.version }}"
 
-      - name: Install FTP and audio tools
+      - name: Install FTP tools
         shell: bash
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq lftp ffmpeg
+          sudo apt-get install -y -qq lftp
 
       - name: Fetch deployed hash state
         shell: bash
@@ -218,7 +218,20 @@ jobs:
           : "${FTP_HOST:?Missing repository secret FTP_HOST}"
           : "${FTP_USER:?Missing repository secret FTP_USER}"
           : "${FTP_PASSWORD:?Missing repository secret FTP_PASS}"
-          rm -f .deploy-remote.sha256.tsv
+          rm -f .deploy-remote.sha256.tsv .audio-remote-tracker.json
+
+          # The audio tracker the last successful deploy left (scripts/audio_tracker.py); absent on a
+          # host that predates it, which counts as changed.
+          lftp -u "$FTP_USER","$FTP_PASSWORD" "$FTP_HOST" <<LFTP || rm -f .audio-remote-tracker.json
+          set cmd:fail-exit yes
+          set net:max-retries 2
+          set net:timeout 15
+          set ftp:ssl-allow no
+          set ftp:passive-mode true
+          cd grasstex
+          get .battle-audio-tracker.json -o "$GITHUB_WORKSPACE/.audio-remote-tracker.json"
+          bye
+          LFTP
 
           if lftp -u "$FTP_USER","$FTP_PASSWORD" "$FTP_HOST" <<LFTP
           set cmd:fail-exit yes
@@ -236,6 +249,27 @@ jobs:
             rm -f .deploy-remote.sha256.tsv
             echo "No usable remote deployment hash state. This run will bootstrap it with one full managed-runtime upload."
           fi
+
+      # First of the audio steps: has any audio input (Assets/audio, the audio scripts, this file)
+      # changed since the audio that is live? If not, ffmpeg, the voice inventory, the pitch
+      # variants and the voice upload are all skipped: every file they would make is on the host.
+      - name: Has the audio changed since the last deploy?
+        id: audio
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/audio_tracker.py snapshot > .audio-tracker.json
+          if [[ -f .deploy-remote.sha256.tsv ]]; then
+            python3 scripts/audio_tracker.py compare .audio-remote-tracker.json --github-output "$GITHUB_OUTPUT"
+          else
+            echo "No remote hash state: a full upload, audio included."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install audio tools
+        if: steps.audio.outputs.changed == 'true'
+        shell: bash
+        run: sudo apt-get install -y -qq ffmpeg
 
       # The hash state records what was uploaded, not what is still there: re-upload any soldier,
       # animation or weapon FBX that was removed from the host (e.g. a folder dropped to clean it).
@@ -266,6 +300,7 @@ jobs:
           python3 scripts/prune_missing_remote_assets.py .deploy-remote.sha256.tsv .fbx-remote-files.txt
 
       - name: Inventory deployed voice files
+        if: steps.audio.outputs.changed == 'true'
         shell: bash
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
@@ -301,6 +336,7 @@ jobs:
           fi
 
       - name: Build only missing pitch-preserving voice variants
+        if: steps.audio.outputs.changed == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -312,6 +348,7 @@ jobs:
           echo "New pitch variants staged: $(find .audio-deploy/voices -type f -name '*.pitch-*.mp3' | wc -l)"
 
       - name: Prepare missing-only voice upload
+        if: steps.audio.outputs.changed == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -336,6 +373,18 @@ jobs:
           if [[ "$inventory_available" -eq 0 ]]; then
             echo "Remote inventory unavailable: all staged MP3s queued as safe fallback."
           fi
+
+      # The staged manifest is a plain copy of Assets/audio/manifest.json (build_voice_pitch_variants.sh),
+      # and with the audio unchanged there is no voice file to upload.
+      - name: Audio unchanged - stage the manifest only
+        if: steps.audio.outputs.changed != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .audio-deploy
+          cp Assets/audio/manifest.json .audio-deploy/manifest.json
+          : > .audio-upload.lftp
+          echo "Audio unchanged since the last deploy: no ffmpeg, no voice inventory, no pitch variants, no voice upload."
 
       - name: Prepare content-hash deployment plan
         shell: bash
@@ -381,6 +430,8 @@ jobs:
 
           # Publish state last so a failed partial deployment is retried next run.
           put "$GITHUB_WORKSPACE/.deploy-plan/current.sha256.tsv" -o ".battle-deploy.sha256.tsv"
+          # The audio tracker last of all: it says the audio above is live.
+          put "$GITHUB_WORKSPACE/.audio-tracker.json" -o ".battle-audio-tracker.json"
 
           cd battle
           cls -l scenario-generator.js
@@ -427,6 +478,7 @@ jobs:
             echo "- Managed stale files deleted: **$deletes**"
             echo "- Runtime deploy comparison: SHA-256 content hash, not timestamps"
             echo "- Voice MP3 upload: existence-based; already-deployed MP3s are never re-uploaded"
+            echo "- Audio changed since the last deploy: **${{ steps.audio.outputs.changed }}** (audio steps skipped when false)"
             echo "- Deployment state: \`/grasstex/.battle-deploy.sha256.tsv\` published last"
             echo "- Trigger: every push to \`main\` plus manual dispatch"
             echo "- Build number: highest \`build-v<N>\` tag + 1 at start; the tag is pushed only after a successful deploy"
