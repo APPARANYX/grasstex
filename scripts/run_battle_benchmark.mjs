@@ -454,6 +454,8 @@ try {
         if (soldierBeliefs) record.soldierBeliefs = soldierBeliefs;
         const buddyPairs = root.BattleSquadStability?.buddyTelemetry?.(sim);
         if (buddyPairs) record.buddyPairs = buddyPairs;
+        const recon = root.BattleSquadStability?.reconTelemetry?.(sim);
+        if (recon) record.recon = recon;
         if (extra) Object.assign(record, extra);
         return record;
     }

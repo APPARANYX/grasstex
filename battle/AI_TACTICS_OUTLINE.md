@@ -580,7 +580,9 @@ the force objective or issue final individual destinations.
 
 The leader uses this state to keep the team coherent, share observations, maintain its assigned
 sector, and request help or a new route. `support`, `security`, and `assault` remain parent-plan
-roles; `recon`, `move`, `secure`, and `recover` are executable local tasks. A different fireteam
+roles; `recon`, `move`, `secure`, and `recover` are executable local tasks. The first bounded
+`recon` execution slice is now Scouts Forward (#196); broader route/building reconnaissance can extend that owner
+and information contract rather than invent a second recon path. A different fireteam
 may temporarily become the squad’s base/reference team for formation and progress, but this is a
 control aid—not an alternate commander.
 
@@ -621,9 +623,20 @@ the missing layer: what the fight has done to him. It is now `soldier.mind` (`mo
 - **buddy and callouts** (shipped): stable buddy pairs support local cover/move cooperation, and
   `BattleCallouts` delivers simulated messages after delay with deterministic misses. Only an actually delivered
   message can create a told belief; voice/audio is presentation-only and never creates simulation knowledge.
+- **Scouts Forward** (shipped, #196): before committing across an unknown objective approach, crest or represented
+  visual screen, the Squad Leader may own one bounded `recon` lease. Deterministic scout-first soldiers move through
+  the normal order/navigation/Movement Resolver path while the main body holds. Scouts know only what Perception
+  gives them; direct `seen` remains personal until the existing callout channel actually delivers it, at which point
+  recipients may gain `told` beliefs. A missed report creates no knowledge and no-contact remains unknown. Contact,
+  under-fire, observation completion, timeout, retreat/leader/mission/phase invalidation or battle end releases the
+  task; a signature prevents immediate recon churn on the same approach. `?scoutsForward=0` is the legacy control.
 
 The boundary above holds for all of it: the mind supplies numbers, Engagement decides what they cost, and no
 layer writes another's state (the mind writes only `mind`; Engagement stays the only stance writer).
+
+**Next unfinished soldier-level slice:** intent-based continuation after Squad Leader loss. Succession already exists;
+the missing behavior is bounded continuation of the last valid parent intent while command is absent, without choosing
+a new force objective, inventing a new squad mission, bypassing the Movement Resolver, or gaining extra knowledge.
 
 ## Objective security and defense
 
