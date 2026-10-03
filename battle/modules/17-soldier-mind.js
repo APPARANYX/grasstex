@@ -222,10 +222,10 @@
       lever: null,
       layer: 'Micro (Engagement)',
       file: 'engagement.js',
-      reader: 'underFireNow (Squad Leader fire-control return-fire exception)',
+      reader: 'underFireNow (return fire, retreat posture and squad under-fire report)',
       reads: { recentIncoming: 1 },
-      unit: 'boolean: an aimed round reached this man inside the declared return-fire window',
-      flag: '?fireControl= (default on); false when Soldier Mind is disabled or has no incoming record'
+      unit: 'boolean: an aimed round reached this man inside the declared under-fire window',
+      flag: 'shipping/default mind mode only; false for ?mind=0, ?mind=observe and named-lever isolation arms'
     },
     {
       kind: 'telemetry',
