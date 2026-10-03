@@ -36,6 +36,37 @@ test('committed combat plan suppresses transient cohesion regroup',()=>{
   for(let i=0;i<10;i++){b.time+=.45;systems['squad-command'].onCommanderTick(b,{town:null});assert.equal(q.commandPhase,'assault');}
   assert.equal(systems['squad-command'].onSimulationStep,undefined,'no per-step phase revert should exist');
 });
+test('personal contact reactions rate-limit sector churn and ignore sound-only holds',()=>{
+  const setup=source=>{
+    const {r}=root(),b=H.makeBattle(r),q=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:100},composition:['rifleman']});
+    const s=q.members[0];q.inContact=true;s.moving=true;
+    let c={source,x:0,z:20,at:b.time,unit:null};
+    r.SquadAI.soldierBeliefsOn=()=>true;
+    r.SquadAI.soldierContact=()=>c;
+    return{r,b,q,s,setContact:v=>{c=v;}};
+  };
+  const w=setup('told'),E=w.r.BattleEngagement;
+  E.stateOf(w.s).state='advance';E.updateSoldier(w.s,w.b);
+  let u=w.r.BattleCombatUrgency.summary(w.b);
+  assert.equal(u.sharedContactReactions,1,'first delivered report can stop and orient an advancing man');
+
+  w.b.time+=1;w.setContact({source:'told',x:20,z:0,at:w.b.time,unit:null});
+  E.stateOf(w.s).state='advance';E.updateSoldier(w.s,w.b);
+  u=w.r.BattleCombatUrgency.summary(w.b);
+  assert.equal(u.sharedContactReactions,1,'rapid selected-sector flip does not inject another hold');
+  assert.ok(u.sharedContactCooldownBlocks>=1,'rapid sector flip is counted as cooldown-blocked');
+
+  w.b.time+=5;E.stateOf(w.s).state='advance';E.updateSoldier(w.s,w.b);
+  u=w.r.BattleCombatUrgency.summary(w.b);
+  assert.equal(u.sharedContactReactions,2,'materially different report may react again after cooldown');
+
+  const h=setup('heard'),HE=h.r.BattleEngagement;
+  HE.stateOf(h.s).state='advance';HE.updateSoldier(h.s,h.b);
+  const hu=h.r.BattleCombatUrgency.summary(h.b);
+  assert.equal(hu.sharedContactReactions,0,'sound-only belief does not become a movement hold');
+  assert.ok(hu.sharedContactSoundBlocks>=1,'sound-only movement reaction is counted as blocked');
+});
+
 test('resolver coalesces repeated combat intents',()=>{
   const {r}=root(),b=H.makeBattle(r),q=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:100},composition:['rifleman']}),s=q.members[0],M=r.BattleMovementResolver;
   for(let i=0;i<8;i++)M.proposeCombat(s,{x:2,z:3},b,'hold',.8,{source:'engagement',reason:'contact'});
