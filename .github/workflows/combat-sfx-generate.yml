@@ -63,6 +63,29 @@ jobs:
         if: steps.key.outputs.ok == 'true'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
 
+      # Every clip must be present before generating, or the generator sees the library as missing and
+      # regenerates it (it once re-ran all 58 combat clips); and before mastering: normalize_audio.sh drops the .mastering-state.tsv
+      # line of every file it cannot find, and check_audio_manifest.py needs them. Overlaid from the
+      # private APPARANYX/grasstex-audio (gitignored, so `git add` never commits them).
+      - name: Pinned private audio commit
+        id: private-audio
+        if: steps.key.outputs.ok == 'true'
+        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/private-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the private audio
+        if: steps.key.outputs.ok == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: APPARANYX/grasstex-audio
+          ref: ${{ steps.private-audio.outputs.commit }}
+          ssh-key: ${{ secrets.BOOM_AUDIO_DEPLOY_KEY }}
+          path: .runtime/private-audio
+          persist-credentials: false
+
+      - name: Overlay the private audio
+        if: steps.key.outputs.ok == 'true'
+        run: bash scripts/fetch_private_audio.sh .runtime/private-audio
+
       - name: Generate the missing clips
         if: steps.key.outputs.ok == 'true'
         env:
@@ -90,28 +113,6 @@ jobs:
           # shellcheck disable=SC2086
           python3 scripts/check_weapon_clips.py --shots $files 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-
-      # Every clip must be present before mastering: normalize_audio.sh drops the .mastering-state.tsv
-      # line of every file it cannot find, and check_audio_manifest.py needs them. Overlaid from the
-      # private APPARANYX/grasstex-audio (gitignored, so `git add` never commits them).
-      - name: Pinned private audio commit
-        id: private-audio
-        if: steps.key.outputs.ok == 'true'
-        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/private-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
-
-      - name: Check out the private audio
-        if: steps.key.outputs.ok == 'true'
-        uses: actions/checkout@v4
-        with:
-          repository: APPARANYX/grasstex-audio
-          ref: ${{ steps.private-audio.outputs.commit }}
-          ssh-key: ${{ secrets.BOOM_AUDIO_DEPLOY_KEY }}
-          path: .runtime/private-audio
-          persist-credentials: false
-
-      - name: Overlay the private audio
-        if: steps.key.outputs.ok == 'true'
-        run: bash scripts/fetch_private_audio.sh .runtime/private-audio
 
       - name: Copy, master and check
         if: steps.key.outputs.ok == 'true'
