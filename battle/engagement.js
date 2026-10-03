@@ -299,6 +299,11 @@
   /* Once alerted, stay in the fight until the squad-level engagement is won/lost. This keeps a
      temporary personal LOS gap from turning alert -> march -> alert. ?alertHold=0 is the old rule. */
   var ALERT_LATCH = !(typeof location !== 'undefined' && /[?&]alertHold=0\b/.test(location.search || ''));
+  function parseCombatHandoff(search) {
+    return !/[?&]combatHandoff=(?:0|off|false)(?:&|#|$)/i.test(search || '');
+  }
+  var COMBAT_HANDOFF_ON = parseCombatHandoff(typeof location !== 'undefined' ? location.search || '' : ''),
+    COMBAT_HANDOFF_QUIET = 2.5;
   function squadOnHeels(s, battle) {
     var q = s.squad;
     if (!q) return false;
@@ -2047,8 +2052,26 @@
     currentCover(s, battle);
     fireSpell(s, battle);
     if (ALERT_LATCH) {
-      if (!engagementLive(s, battle)) e.engaged = false;
-      else if (s.target) e.engaged = true;
+      var liveFight = engagementLive(s, battle);
+      if (liveFight) {
+        e.handoffQuietSince = null;
+        if (s.target) e.engaged = true;
+      } else if (e.engaged && COMBAT_HANDOFF_ON) {
+        if (e.handoffQuietSince == null) e.handoffQuietSince = now;
+        if (now - e.handoffQuietSince >= COMBAT_HANDOFF_QUIET) {
+          e.engaged = false;
+          e.handoffQuietSince = null;
+          telemetry(battle, 'decision-combat-handoff', {
+            faction: s.faction,
+            squad: s.squad && s.squad.id,
+            soldier: s.id,
+            quietSeconds: COMBAT_HANDOFF_QUIET
+          });
+        }
+      } else {
+        e.engaged = false;
+        e.handoffQuietSince = null;
+      }
     }
 
     if (s.target) {
@@ -2851,6 +2874,7 @@
     resetSoldier: resetSoldier,
     resetSquad: resetSquad,
     stateOf: state,
+    parseCombatHandoff: parseCombatHandoff,
     tuning: {
       REACT: REACT,
       AIM_CONE: AIM_CONE,
@@ -2872,6 +2896,8 @@
       CONTACT_STANCE: CONTACT_STANCE,
       COVER_STANCE: COVER_STANCE,
       ALERT_LATCH: ALERT_LATCH,
+      COMBAT_HANDOFF_ON: COMBAT_HANDOFF_ON,
+      COMBAT_HANDOFF_QUIET: COMBAT_HANDOFF_QUIET,
       ACT: ACT,
       RAGE_LOCK: RAGE_LOCK,
       RAGE_GUARD_CHARGE: RAGE_GUARD_CHARGE,
