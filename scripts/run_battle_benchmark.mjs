@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
 import { summarizeStress, stressMarkdown } from './lib/stress-summary.mjs';
+import { scoreSquadPerformance, summarizeSquadPerformance } from './lib/squad-performance.mjs';
 
 const count = Math.max(1, Number.parseInt(process.env.BATTLE_BENCHMARK_COUNT || '100', 10) || 100);
 const seedPrefix = String(process.env.BATTLE_BENCHMARK_SEED || `benchmark-${(process.env.GITHUB_SHA || 'local').slice(0, 12)}`);
@@ -148,21 +149,30 @@ try {
 
     let activeCombat = null, activeAcquisition = null;
     function stanceOf(s) { return String(s?.stance || s?.eng?.stance || 'unknown'); }
+    function combatBucket(shooter) {
+      const sq = shooter?.squad, faction = shooter?.faction || sq?.faction;
+      if (!activeCombat || !sq || !faction || sq.id == null) return null;
+      const key = `${faction}:${sq.id}`;
+      return activeCombat.bySquad[key] || (activeCombat.bySquad[key] = { total: 0, direct: 0, hits: 0, suppressive: 0, suppressedTargets: 0 });
+    }
     sim.onFire = function(shooter){
       if (!activeCombat) return;
       activeCombat.total++;
+      const bucket = combatBucket(shooter); if (bucket) bucket.total++;
       const stance = stanceOf(shooter); activeCombat.byStance[stance] = (activeCombat.byStance[stance] || 0) + 1;
       if (activeCombat.firstFireSeconds == null) activeCombat.firstFireSeconds = +sim.time.toFixed(2);
     };
     sim.onShot = function(shooter, target, hit){
       if (!activeCombat) return;
       activeCombat.direct++; if (hit) activeCombat.hits++;
+      const bucket = combatBucket(shooter); if (bucket) { bucket.direct++; if (hit) bucket.hits++; }
       const stance = stanceOf(shooter); const key = hit ? 'hitsByStance' : 'missesByStance';
       activeCombat[key][stance] = (activeCombat[key][stance] || 0) + 1;
     };
     sim.onSuppressiveShot = function(shooter, point, count){
       if (!activeCombat) return;
       activeCombat.suppressive++; activeCombat.suppressedTargets += +count || 0;
+      const bucket = combatBucket(shooter); if (bucket) { bucket.suppressive++; bucket.suppressedTargets += +count || 0; }
     };
     sim.onCallout = sim.onUpdate = sim.onWinner = function(){};
 
@@ -236,6 +246,61 @@ try {
     function losBlockedAttempts() { let n = 0; for (const s of allUnits()) n += +s._losBlockedFire || 0; return n; }
     function crestBlockedAttempts() { let n = 0; for (const s of allUnits()) n += +s._crestBlockedFire || 0; return n; }
 
+    function squadResolverChanges(sq) {
+      let n = 0; for (const soldier of aliveMembers(sq)) n += +(soldier?._movementResolver?.changes || 0); return n;
+    }
+    function sampleSquadPerformance(state, faction, sq, p, phase, spread, limit, targetless, now) {
+      const key = `${faction}:${sq.id}`, alive = aliveMembers(sq), role = String(sq.commandRole || 'maneuver');
+      let raw = state.squadPerformance[key];
+      if (!raw) raw = state.squadPerformance[key] = {
+        faction, squad: String(sq.id), samples: 0, roleSamples: {}, phaseSamples: {},
+        aliveStart: alive.length, aliveEnd: alive.length, assignedSamples: 0, targetlessSamples: 0,
+        inContactSamples: 0, overCohesionSamples: 0, regroupSamples: 0, retreatSamples: 0, supportHoldSamples: 0,
+        insideObjectiveSamples: 0, friendlyOwnedTargetSamples: 0, contestingTargetSamples: 0, advanceSamples: 0,
+        travelMeters: 0, objectiveProgressMeters: 0, objectiveRegressionMeters: 0,
+        targetSwitches: 0, phaseSwitches: 0, movementResolverChanges: 0,
+        _lastPos: null, _lastTarget: undefined, _lastTargetDistance: null, _lastPhase: null, _lastResolverChanges: null
+      };
+      raw.samples++; raw.aliveEnd = alive.length; addMap(raw.roleSamples, role); addMap(raw.phaseSamples, phase);
+      if (sq.targetObjective != null) raw.assignedSamples++;
+      if (targetless) raw.targetlessSamples++;
+      if (sq.inContact) raw.inContactSamples++;
+      if (spread != null && limit != null && spread > limit) raw.overCohesionSamples++;
+      if (phase === 'regroup') raw.regroupSamples++;
+      if (sq.state === 'retreat' || phase === 'retreat') raw.retreatSamples++;
+      if (phase === 'support-hold' || role === 'support') raw.supportHoldSamples++;
+      if (phaseAllowsAdvance(phase) && sq.targetObjective != null && sq.state !== 'retreat') raw.advanceSamples++;
+
+      if (p) {
+        if (raw._lastPos) raw.travelMeters += distance(p, raw._lastPos);
+        raw._lastPos = { x: p.x, z: p.z };
+      }
+      const target = sq.targetObjective == null ? null : String(sq.targetObjective);
+      if (raw._lastTarget != null && target != null && raw._lastTarget !== target) raw.targetSwitches++;
+      if (raw._lastPhase != null && raw._lastPhase !== phase) raw.phaseSwitches++;
+      raw._lastPhase = phase;
+
+      let targetDistance = null;
+      const obj = target && root.BattleObjectiveSystem.get(sim, target);
+      if (p && obj) {
+        const st = objectiveStatus(obj), op = objectivePoint(obj), radius = +(obj.def?.radius || st.radius || 20);
+        targetDistance = distance(p, op);
+        if (targetDistance <= radius) raw.insideObjectiveSamples++;
+        if (st.owner === faction) raw.friendlyOwnedTargetSamples++;
+        if (st.active) raw.contestingTargetSamples++;
+      }
+      if (raw._lastTarget === target && target != null && Number.isFinite(raw._lastTargetDistance) && Number.isFinite(targetDistance)) {
+        const delta = raw._lastTargetDistance - targetDistance;
+        if (delta >= .25) raw.objectiveProgressMeters += delta;
+        else if (delta <= -.25) raw.objectiveRegressionMeters += -delta;
+      }
+      raw._lastTarget = target; raw._lastTargetDistance = targetDistance;
+
+      const resolver = squadResolverChanges(sq);
+      if (raw._lastResolverChanges != null && resolver >= raw._lastResolverChanges) raw.movementResolverChanges += resolver - raw._lastResolverChanges;
+      raw._lastResolverChanges = resolver;
+    }
+
     const SAMPLE_SECONDS = 2.5;
     function sampleDiagnostics(state) {
       const now = +sim.time || 0, sig = objectiveSignature(), stats = sim.objectiveStats || {};
@@ -278,6 +343,7 @@ try {
           if (blocked) state.blockedFireteamSamples += blocked;
 
           const relevantTargetless = root.BattleBenchmarkIntent.targetless(sq, p);
+          sampleSquadPerformance(state, faction, sq, p, phase, spread, limit, relevantTargetless, now);
           if (relevantTargetless) {
             state.targetlessSamples++;
             const t = state.targetlessTrack[key] || (state.targetlessTrack[key] = { since: now, reported: false });
@@ -360,7 +426,7 @@ try {
        Each window yields one full record (every field below, the diagnostics and the combat counters counted inside the window,
        the end state, `timeline` and `stress` as of its close); without windows the whole battle is one record, as before. */
     const scripted = Array.isArray(windows) && windows.length > 0, recordsExpected = scripted ? '?' : count;
-    const newCombat = () => ({ total: 0, direct: 0, hits: 0, suppressive: 0, suppressedTargets: 0, firstFireSeconds: null, byStance: {}, hitsByStance: {}, missesByStance: {} });
+    const newCombat = () => ({ total: 0, direct: 0, hits: 0, suppressive: 0, suppressedTargets: 0, firstFireSeconds: null, byStance: {}, hitsByStance: {}, missesByStance: {}, bySquad: {} });
     const newDiag = now => ({
       lastObjectiveSig: objectiveSignature(), lastObjectiveChangeAt: now, maxNoObjectiveProgress: 0,
       firstObjectiveProgressSeconds: null, firstCaptureSeconds: null, firstContactSeconds: null,
@@ -369,7 +435,8 @@ try {
       stablePlanSamples: 0, blockedFireteamSamples: 0, regroupSamples: 0, supportHoldSamples: 0, retreatSamples: 0,
       orderedMoveSamples: 0, idleOrderedSamples: 0, phaseSamples: {}, engagementStateSamples: {},
       vacantObjectiveStalls: [], movementStalls: [], routeStalls: [], targetlessStalls: [], longRegroups: [],
-      everOwned: Object.create(null), everContested: Object.create(null), spreadSamples: { us: [], ge: [] }
+      everOwned: Object.create(null), everContested: Object.create(null), spreadSamples: { us: [], ge: [] },
+      squadPerformance: Object.create(null)
     });
     function anyContact() { for (const f of ['us', 'ge']) for (const sq of sim.factions?.[f]?.squads || []) if (sq && sq.inContact) return true; return false; }
     function buildRecord({ index, seed, scenario, diag, wallStart, steps, extra }) {
@@ -381,6 +448,23 @@ try {
         const loopKinds = {}; for (const a of loops) addMap(loopKinds, a.kind || a.type || 'unknown');
         const objectiveCount = (sim._objectives || []).length, everOwnedIds = Object.keys(diag.everOwned);
         const meanSpread = f => diag.spreadSamples[f].length ? +(diag.spreadSamples[f].reduce((a, b) => a + b, 0) / diag.spreadSamples[f].length).toFixed(2) : 0;
+        const sameSquad = (item, raw) => {
+          if (!item) return false;
+          if (item.faction && String(item.faction).toLowerCase() !== String(raw.faction).toLowerCase()) return false;
+          const id = item.squadId != null ? item.squadId : item.squad;
+          return id != null && String(id) === String(raw.squad);
+        };
+        const squadPerformanceRaw = Object.entries(diag.squadPerformance).map(([key, raw]) => {
+          const clean = {}; for (const [k, v] of Object.entries(raw)) if (!k.startsWith('_')) clean[k] = v;
+          clean.routeStalls = diag.routeStalls.filter(x => sameSquad(x, raw)).length;
+          clean.movementStalls = diag.movementStalls.filter(x => sameSquad(x, raw)).length;
+          clean.targetlessStalls = diag.targetlessStalls.filter(x => sameSquad(x, raw)).length;
+          clean.longRegroups = diag.longRegroups.filter(x => sameSquad(x, raw)).length;
+          clean.loopAlerts = loops.filter(x => sameSquad(x, raw)).length;
+          clean.writerConflicts = conflicts.filter(x => sameSquad(x, raw)).length;
+          clean.combat = activeCombat?.bySquad?.[key] || { total: 0, direct: 0, hits: 0, suppressive: 0, suppressedTargets: 0 };
+          return clean;
+        });
         /* Retreated-squad reconstitution (commander-ai.js); null on builds without it. */
         const reconstitutionSummary = () => {
           const r = root.BattleCommanderAI?.missionState?.(sim)?.reconstitution;
@@ -440,7 +524,7 @@ try {
           orderedMoveSamples: diag.orderedMoveSamples, idleOrderedSamples: diag.idleOrderedSamples, phaseSamples: diag.phaseSamples, engagementStateSamples: diag.engagementStateSamples,
           writerConflicts: conflicts.length, strategicWriterConflicts: strategicConflicts, writerConflictDetails: conflicts.slice(0, 20), loopAlerts: loops.slice(0, 20), loopKinds,
           movementResolver: movementResolverSummary(), movementGoals: sim._movementGoalStats || null, losBlockedFireAttempts: losBlockedAttempts(), crestBlockedFireAttempts: crestBlockedAttempts(), fire: activeCombat,
-          acquisitions: acquisitionSummary(activeAcquisition),
+          acquisitions: acquisitionSummary(activeAcquisition), squadPerformanceRaw,
           reconstitution: reconstitutionSummary(), regroups: regroupSummary(), stallOutcomes: stallSummary(), coordinationHealth: coordinationHealth(), combatUrgency: root.BattleCombatUrgency?.summary?.(sim) || null, objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates,
           timeline: root.BattleAITimeline?.snapshot?.(sim) || null,
           /* Soldier condition (module 17): where the man-seconds went, the squads above mean 1/3, and how often each
@@ -567,7 +651,12 @@ try {
   }, { count, seedPrefix, fixedDt, timeLimit, suppliedPolicy: policy, windows, battleType, numbered, firstIndex });
 
   const wallSeconds = (Date.now() - startedWall) / 1000, battles = result.battles || [];
-  for (const b of battles) b.health = healthFor(b);
+  for (const b of battles) {
+    b.health = healthFor(b);
+    const squads = (b.squadPerformanceRaw || []).map(scoreSquadPerformance);
+    b.squadPerformance = { ...summarizeSquadPerformance(squads), squads };
+    delete b.squadPerformanceRaw;
+  }
   const winners = { us: 0, ge: 0, draw: 0, none: 0 }; for (const b of battles) winners[b.winner] = (winners[b.winner] || 0) + 1;
   const durations = battles.map(b => b.simulatedSeconds), wallDurations = battles.map(b => b.wallSeconds), captures = battles.map(b => b.captures), simulatedTotal = durations.reduce((a, b) => a + b, 0);
   const assetNoisePattern = /(cors|cross-origin|failed to load resource|net::err_failed|texture|skytex|dirttex|audio\/|\.mp3|\.png|\.jpg|\.jpeg)/i;
@@ -587,6 +676,8 @@ try {
     for (const [k, v] of Object.entries(b.phaseSamples || {})) phaseSamples[k] = (phaseSamples[k] || 0) + v;
     for (const [k, v] of Object.entries(b.engagementStateSamples || {})) engagementStateSamples[k] = (engagementStateSamples[k] || 0) + v;
   }
+  const squadRows = battles.flatMap(b => (b.squadPerformance?.squads || []).map(s => ({ ...s, seed: b.seed })));
+  const squadPerformance = summarizeSquadPerformance(squadRows);
   const summary = {
     generatedAt: new Date().toISOString(), commit, build: result.build, policySource: result.policySource, policyRevision: result.policyRevision, policyWarning: result.policySource === 'stashed-defaults' ? null : policy.warning || null,
     requestedBattles: result.scripted ? battles.length : count, completedBattles: battles.length, seedPrefix, fixedDt, sampleSeconds: result.sampleSeconds, timeLimit,
@@ -606,7 +697,7 @@ try {
     objectivesNeverOwnedRate: pct(sum(battles, b => b.objectivesNeverOwned), sum(battles, b => b.objectiveCount)),
     objectivesNeverContested: sum(battles, b => b.objectivesNeverContested),
     avgSquadObjectiveSpread: { us: +mean(battles.map(b => b.squadObjectiveSpread?.us || 0)).toFixed(2), ge: +mean(battles.map(b => b.squadObjectiveSpread?.ge || 0)).toFixed(2) },
-    issueCounts: issue, health: aggregateHealth, phaseSamples, engagementStateSamples,
+    issueCounts: issue, health: aggregateHealth, squadPerformance, phaseSamples, engagementStateSamples,
     idleUnderOrdersRate: +rate(sum(battles, b => b.idleOrderedSamples), sum(battles, b => b.orderedMoveSamples)).toFixed(4),
     overCohesionRate: +rate(sum(battles, b => b.overCohesionSamples), sum(battles, b => b.squadSamples)).toFixed(4),
     targetlessSquadRate: +rate(sum(battles, b => b.targetlessSamples), sum(battles, b => b.squadSamples)).toFixed(4),
@@ -622,11 +713,12 @@ try {
   const payload = { summary, policy, runtimeErrors: dedupe(runtimeErrors), assetLoadNoiseExamples: dedupe(browserErrors.filter(e => assetNoisePattern.test(String(e))), 20), browserWarnings: dedupe(browserWarnings, 100), battles };
   fs.writeFileSync(path.join(outputDir, 'battle-benchmark.json'), JSON.stringify(payload, null, 2));
 
-  const headers = [...(result.scripted ? ['window', 'windowOpenedAt', 'windowClosedAt'] : []), 'index','seed','winner','winReason','simulatedSeconds','timeoutReached','usAlive','geAlive','captures','neutralizations','objectiveCount','objectivesNeverOwned','objectivesNeverContested','usSquadSpread','geSquadSpread','healthOverall','firstContactSeconds','firstFireSeconds','firstCaptureSeconds','maxNoObjectiveProgressSeconds','vacantObjectiveStalls','movementStalls','routeStalls','targetlessStalls','longRegroups','writerConflicts','strategicWriterConflicts','loopAlerts','stallWakes','stallRepeats','stallSwitches','idleUnderOrdersRate','overCohesionRate','shots','hits','hitRate','losBlockedFireAttempts','crestBlockedFireAttempts','movementResolverChanges'];
+  const headers = [...(result.scripted ? ['window', 'windowOpenedAt', 'windowClosedAt'] : []), 'index','seed','winner','winReason','simulatedSeconds','timeoutReached','usAlive','geAlive','captures','neutralizations','objectiveCount','objectivesNeverOwned','objectivesNeverContested','usSquadSpread','geSquadSpread','healthOverall','squadScoreMean','squadScoreP10','lowScoreSquads','firstContactSeconds','firstFireSeconds','firstCaptureSeconds','maxNoObjectiveProgressSeconds','vacantObjectiveStalls','movementStalls','routeStalls','targetlessStalls','longRegroups','writerConflicts','strategicWriterConflicts','loopAlerts','stallWakes','stallRepeats','stallSwitches','idleUnderOrdersRate','overCohesionRate','shots','hits','hitRate','losBlockedFireAttempts','crestBlockedFireAttempts','movementResolverChanges'];
   const csvLines = [headers.join(',')];
   for (const b of battles) {
     const row = {
-      ...b, window: b.window?.label, windowOpenedAt: b.window?.openedAt, windowClosedAt: b.window?.closedAt, healthOverall: b.health.overall, vacantObjectiveStalls: b.vacantObjectiveStalls?.length || 0, movementStalls: b.movementStalls?.length || 0, routeStalls: b.routeStalls?.length || 0,
+      ...b, window: b.window?.label, windowOpenedAt: b.window?.openedAt, windowClosedAt: b.window?.closedAt, healthOverall: b.health.overall,
+      squadScoreMean: b.squadPerformance?.meanOverall ?? '', squadScoreP10: b.squadPerformance?.p10Overall ?? '', lowScoreSquads: b.squadPerformance?.lowScoreSquads ?? 0, vacantObjectiveStalls: b.vacantObjectiveStalls?.length || 0, movementStalls: b.movementStalls?.length || 0, routeStalls: b.routeStalls?.length || 0,
       targetlessStalls: b.targetlessStalls?.length || 0, longRegroups: b.longRegroups?.length || 0, loopAlerts: b.loopAlerts?.length || 0,
       stallWakes: b.stallOutcomes?.wakes || 0, stallRepeats: b.stallOutcomes?.repeats || 0, stallSwitches: b.stallOutcomes?.switches || 0,
       idleUnderOrdersRate: rate(b.idleOrderedSamples, b.orderedMoveSamples).toFixed(4), overCohesionRate: rate(b.overCohesionSamples, b.squadSamples).toFixed(4),
@@ -646,6 +738,7 @@ try {
     `- No objective progress: longest **${summary.maxNoObjectiveProgressSeconds}s** · mean per battle **${summary.avgNoObjectiveProgressSeconds}s**`,
     `- First contact avg **${summary.avgFirstContactSeconds}s** · first fire **${summary.avgFirstFireSeconds}s** · first objective progress **${summary.avgFirstObjectiveProgressSeconds}s** · first capture **${summary.avgFirstCaptureSeconds}s**`,
     `- Health: **${summary.health.overall}/100 overall** · strategic ${summary.health.strategic} · movement ${summary.health.movement} · cohesion ${summary.health.cohesion} · combat ${summary.health.combat} · objective ${summary.health.objective}`,
+    `- Squad performance: mean **${summary.squadPerformance.meanOverall}/100** · median **${summary.squadPerformance.medianOverall}** · p10 **${summary.squadPerformance.p10Overall}** · below 60 **${summary.squadPerformance.lowScoreSquads}/${summary.squadPerformance.squads}** · mission ${summary.squadPerformance.meanMission} · movement ${summary.squadPerformance.meanMovement} · control ${summary.squadPerformance.meanControl} · cohesion ${summary.squadPerformance.meanCohesion} · combat ${summary.squadPerformance.meanCombat} · preservation ${summary.squadPerformance.meanPreservation}`,
     `- Stalls: vacant objective **${issue.vacantObjectiveStalls}** · route **${issue.routeStalls}** · soldier movement **${issue.movementStalls}** · targetless command **${issue.targetlessStalls}** · long regroup **${issue.longRegroups}**`,
     `- Coordination: writer conflicts **${issue.writerConflicts}** (${issue.strategicWriterConflicts} strategic) · loop alerts **${issue.loopAlerts}** · idle-under-orders ${(summary.idleUnderOrdersRate * 100).toFixed(1)}% · over-cohesion ${(summary.overCohesionRate * 100).toFixed(1)}%`,
     `- Combat: **${summary.shots}** discharges · **${summary.directShots}** direct · **${summary.hits}** hits (${(summary.hitRate * 100).toFixed(1)}%) · **${issue.losBlockedFireAttempts}** trigger-time LOS blocks · **${issue.crestBlockedFireAttempts || 0}** held over a crest`,
@@ -655,12 +748,16 @@ try {
     '| Seed | Winner | Health | Captures | Never owned | Spread us/ge | Route stalls | Move stalls | Targetless | Vacant | Regroup | Conflicts | Loops | Max no-progress |',
     '|---|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|'];
   for (const b of problematic) md.push(`| \`${b.seed}\` | ${b.winner} | ${b.health.overall} | ${b.captures}/${b.objectiveCount} | ${b.objectivesNeverOwned} | ${b.squadObjectiveSpread?.us ?? '-'}/${b.squadObjectiveSpread?.ge ?? '-'} | ${b.routeStalls?.length || 0} | ${b.movementStalls?.length || 0} | ${b.targetlessStalls?.length || 0} | ${b.vacantObjectiveStalls?.length || 0} | ${b.longRegroups?.length || 0} | ${b.writerConflicts || 0} | ${b.loopAlerts?.length || 0} | ${b.maxNoObjectiveProgressSeconds}s |`);
+  md.push('', '## Lowest squad performance', '',
+    '| Seed | Squad | Role | Overall | Mission | Movement | Control | Cohesion | Combat | Preservation |',
+    '|---|---|---|---:|---:|---:|---:|---:|---:|---:|');
+  for (const row of summary.squadPerformance.worst || []) md.push(`| \`${row.seed || '-'}\` | ${row.faction || '?'}/${row.squad || '?'} | ${row.role} | ${row.overall} | ${row.mission} | ${row.movement} | ${row.control} | ${row.cohesion} | ${row.combat ?? '-'} | ${row.preservation ?? '-'} |`);
   if (result.scripted) {
     md.push('', '## Windows', '', '| Window | Opened | Closed | Winner | Alive us/ge | Kills us/ge | Shots | Hits | Move stalls | Retreat samples | Resolver changes | Loops |', '|---|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|');
     for (const b of battles) md.push(`| ${b.window.label} | ${b.window.openedAt}s | ${b.window.closedAt}s${b.window.completed ? '' : ' (cut short)'} | ${b.winner} | ${b.usAlive}/${b.geAlive} | ${b.usKills}/${b.geKills} | ${b.fire?.total || 0} | ${b.fire?.hits || 0} | ${b.movementStalls?.length || 0} | ${b.retreatSamples} | ${b.movementResolver?.changes || 0} | ${b.loopAlerts?.length || 0} |`);
     md.push('', 'Kills, survivors, captures, `timeline` and `stress` are the battle as of each window\'s close; stalls, loops, samples, shots and hits are counted inside the window only.');
   }
-  md.push('', '## Diagnostic score note', '', 'Health scores are transparent triage aids, not pass/fail gates. They penalize observed stalls, command ownership conflicts, prolonged targetless/regroup states, cohesion violations and objective inactivity; raw counts remain authoritative.');
+  md.push('', '## Diagnostic score note', '', 'Health and squad-performance scores are transparent triage aids, not pass/fail gates. Squad performance is role-aware: maneuver squads are judged on mission progress without penalizing support/reserve/garrison squads for holding still; combat is omitted when a squad had no combat opportunity. Raw measurements remain authoritative.');
   if (runtimeErrors.length) { md.push('', '## Probable runtime errors', ''); for (const error of dedupe(runtimeErrors, 20)) md.push(`- \`${String(error).replaceAll('`', "'")}\``); }
   fs.writeFileSync(path.join(outputDir, 'battle-benchmark.md'), md.join('\n') + '\n');
 

@@ -55,6 +55,8 @@ env:
     movementStalls.length routeStalls.length targetlessStalls.length vacantObjectiveStalls.length loopAlerts.length writerConflicts
     regroups.entries stallOutcomes.wakes stallOutcomes.repeats timeline.stalledOnsets timeline.stalledSamples
     recon.orders recon.contacts recon.noContact recon.timeouts recon.cancelled recon.reportsDelivered recon.retriggerBlocked
+    squadPerformance.meanOverall squadPerformance.p10Overall squadPerformance.lowScoreSquads
+    squadPerformance.meanMission squadPerformance.meanMovement squadPerformance.meanControl squadPerformance.meanCohesion
 
 jobs:
   # ---- one seed: the scripted scenario ------------------------------------------------------------------------------------
