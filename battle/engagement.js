@@ -2074,6 +2074,16 @@
       }
     }
 
+    /* If the continuous-quiet handoff just released an expired alert, do not execute one final
+       alert tick and renew a low-posture hold. The release tick is the hand-back to ordinary advance. */
+    if (ALERT_LATCH && COMBAT_HANDOFF_ON && !e.engaged && e.state === 'alert' && now >= e.until) {
+      e.cover = null;
+      e.threatSector = null;
+      e.suppressOrder = false;
+      s._faceHint = null;
+      transition(s, battle, 'advance', 0, 'sector clear: combat handoff');
+    }
+
     if (s.target) {
       e.contactAt = e.state === 'advance' || e.state === 'alert' ? now : e.contactAt;
       e.lastSeen = { x: posOf(s.target).x, z: posOf(s.target).z };
