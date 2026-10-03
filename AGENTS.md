@@ -173,6 +173,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `ground-stop-check.js` | Ground stop (14-z `groundStop`, `?groundSteps=<n>`, 12 to 96, default 48): the flag parses as documented and the shipped default is the 48-step scan; a 12 m ridge between two samples of a 450 m rifle's range (37.5 and 56.25 m at 24 steps) lets the round through into the man at 24 steps and takes it at 48, and a 3.2 m ridge in the trigger gate's span is let through at 24 and refused at 48; on 500 rolling-ground shots 48 steps stop every round 24 stop (24 samples are a subset of 48). `--measure` prints how many of 6,000 shots end differently and the cost per shot. The module is loaded from its shipping source with a stub `location`. |
 | `voice-determinism-check.js` | Voice callouts never draw from the combat RNG: a battle is identical with and without voice |
 | `combat-audio-check.js` | Combat audio (module 15-combat-audio.js, presentation only, `?combatAudio=0` off): a round passing within 10 m of the camera plays one flyby (crack within 6 m for a supersonic round, whiz beyond or for a .45; nothing for the shooter's own round within 6 m of its muzzle); the round's end one impact by surface or, on stone and metal, sometimes a ricochet instead (a hash of the point, likelier grazing, never the RNG); each body struck one flesh hit and its man one cry (`wounded`/`down`, none for a killing head shot, none again within 3 s); per-group caps on clips at once and the gap between starts, so a burst is never a wall of noise; sounds wait for the speed of sound; no combat-RNG read. |
+| `weapon-foley-audio-check.js` | Weapon foley and burst tails (module 15-weapon-foley-audio.js, presentation only, `?weaponFoley=0` off), against the real manifest: every fielded model has single-round `fire`, `fireDistant` and stoppage clips; each mechanism's reload plays its own stages in order at fractions of the reload (belt: cover open, belt, cover shut, charge; en bloc: clip in, op rod home; stripper: bolt open, clip, bolt shut; magazine: out, in, charge or slide release), none after he dies; a stoppage clicks then racks clear; a bipod gun deploys going prone and folds getting up; a bolt gun cycles after a shot that leaves a round, a Garand pings out an empty clip; an automatic plays one tail after `TAIL_QUIET` cyclic intervals of quiet, heard to 600 m while handling stops at 30 m; no soldier write, no `Math.random`. |
 | `voice-observations-check.js` | The voice that reads the battle (modules 47 and 48, presentation only: module 48 speaks the scripted lines of #170, from heard gunfire and fire-control orders to wounds, jams and stress reactions, on the state change that causes each) leaves a four-squad battle identical (positions, health, deaths, combat-RNG draws) with every line enabled and without it, speaks new lines on it, and every line it speaks is recorded for both sides |
 | `local-steering-check.js` | `stepMovement`'s soft steering (`steerAroundObstacles`, loaded from `battle-sim.js`; the harness stubs it out of `stepMovement`): a man bounding to a wall's cover slot between two tactical circles reaches it, the circles his destination hugs never push him, avoidance deflects but never turns him round, and it still steers round an obstacle on the way elsewhere; the look-ahead never passes the end of his leg and circles holding his waypoint do not push (the scout's real wall, three circles) |
 | `stance-ownership-check.js` | Engagement is the only stance writer: no other runtime file sets `prone`/`tacticalCrouch`/`crawling`/`crouching` (the body's `setCrouch`/`setProne` and SquadAI's no-Engagement fallback aside), `crouching` is derived from the committed flags (never stored, a write throws), `BattleEngagement.requestStance` only takes a man lower, and an advancing man is crouched while his squad is on the enemy's heels (`inContact` or a picture within `ALERT_HOLD`) or he is under fire |
@@ -1379,39 +1380,43 @@ factions textured differently, weapon on the hands). Keep weapon source `.zip` p
     by `build_voice_pitch_variants.sh` and aren't committed.
 - **Acoustics:** 1 unit ≈ 1 m, 20·log10(r) spreading, 343 m/s delay. Shout culls at 150 m,
   small arms at 1200 m. Settings live in `Assets/audio/acoustics.json`.
-- **Licensing:** only Sonniss GDC bundles (royalty-free, no attribution; **no AI training and no
-  redistribution as a library**) or Freesound CC0. The M1 Garand clips are Freesound 385785, 386842,
-  505204, 460855 and 505206. Provenance per weapon: `git show 1a5b0cf:Assets/audio/WW2_SOURCES.md`.
+- **Licensing:** Sonniss GDC bundles (royalty-free, no attribution; **no AI training and no
+  redistribution as a library**), Freesound CC0, and **licensed third-party small-arms recordings** for every small
+  arm (owner's single-user licence: use inside the game only, **never redistributed or offered as
+  individual stems**). The licensed clips therefore live in the **private** repo `APPARANYX/grasstex-audio`,
+  never here: `.gitignore` keeps `Assets/audio/weapons/*/` out, CI and the production deploy check out
+  the commit pinned in `Assets/audio/weapon-audio.lock.json` with the read-only deploy key in the
+  `PRIVATE_AUDIO_READ_KEY` secret and overlay it (`scripts/fetch_weapon_audio.sh`). A fork's PR has no
+  secret, so its audio and deploy-plan jobs fail. Changing clips: push to grasstex-audio, bump the lock
+  and the clips' `.mastering-state.tsv` lines here. Older provenance: `git show 1a5b0cf:Assets/audio/WW2_SOURCES.md`.
 
-**Weapon/impact/flyby SFX (`Assets/audio/weapon-clip-manifest.json`, planned - no audio recorded
-yet).** Replaces `manifest.json`'s Sonniss-derived `categories.weapons`/`weaponFoley` pools, which
-are keyed by sim kind (`rifle`/`carbine`/`lmg`/`pistol`) rather than the actual model a soldier
-carries, and whose automatic-weapon "shots" are recorded bursts (an onset check found 2+ shots in
-37 of 62 clips: MG42 takes had 21-65). The new manifest is keyed one entry per `battle/weapons.js`
-`PROFILES[faction][kind].model` (10 weapons: Garand, Kar98k, M1 Carbine, Thompson, FG42, MP40,
-M1919A6, MG42, M1911A1, P38), one action per sim event (fire, distant fire, burst tail, reload
-stages by mechanism, stoppage click/clear, bipod deploy/fold, plus the Garand's clip ping and the
-Kar98k's bolt cycle) - 309 clips total (154 baseline P0). It adds `shared` bullet flyby
-(`crackSupersonic`/`whizSubsonic`, 10 clips) and casing foley, and `impacts` keyed 1:1 with
-`15-bullet-impact-fx.js`'s `material()` surface classes (`impactFlesh/Dirt/Masonry/Wood/Metal/Vegetation`,
-30 clips). Every clip marked `singleShot:true` must hold exactly one discharge (one onset, attack
-within 10 ms, no second transient within 18 dB of peak); automatic fire is built at runtime by
-retriggering `fire` at the weapon's `cyclicRpm`, never by playing a recorded burst.
-`scripts/check_weapon_clips.py` checks the manifest against the live `PROFILES` roster and
-(`--audio`) onset-checks every clip that exists; `--shots f.mp3 …` vets a candidate recording
-before import. File layout keys the existing mastering targets: `weapons/<model>/<action>-NN.mp3`
-(smallArms -16 dBFS) for shot/tail clips, `weapons/foley/<model>-<action>-NN.mp3` (-26 dBFS,
-matching the Sonniss foley pool's subfolder) for handling foley, `weapons/shared/<action>-NN.mp3`
-(-22 dBFS) for flyby/impacts. Each clip carries a `prompt` for **ElevenLabs Sound Effects**
-(`POST /v1/sound-generation`, distinct from the TTS voice route above):
-`scripts/generate_weapon_sfx.py [--priority P0] [--only <weapon-id>…] [--force [action]] [--dry-run]`
-fetches into gitignored `.runtime/weapon-sfx/`; run `check_weapon_clips.py --shots` and
-`normalize_audio.sh` over that directory before copying the mastered files into `Assets/audio/`
-and committing only the MP3s, same route as everything else here. Not yet done: wiring these into
-`manifest.json`/the runtime (today only one pooled file per sim kind plays, via `battle-sim.js`
-`weaponFiles`/`buildWeaponAudio`), and expanding each sim shot of an automatic into several
-`fire` triggers at the real cyclic rate (the sim's `rof`/`cyclic` stay the abstract AI/ballistics
-rate; this would be audio-only presentation).
+**Weapon SFX (`Assets/audio/weapon-clip-manifest.json`, shipped from licensed third-party audio).** Replaced
+`manifest.json`'s Sonniss-derived `categories.weapons` small-arms pools and `weaponFoley`, which were
+keyed by sim kind and whose automatic-weapon "shots" were recorded bursts. The clip manifest is keyed
+one entry per `battle/weapons.js` `PROFILES[faction][kind].model` (10 weapons: Garand, Kar98k, M1
+Carbine, Thompson, FG42, MP40, M1919A6, MG42, M1911A1, P38), one action per sim event (fire, distant
+fire, burst tail, reload stages by mechanism, stoppage click/clear, bipod deploy/fold, plus the Garand's
+clip ping and the Kar98k's bolt cycle). Every action is cut from licensed third-party small-arms recordings
+(`grasstex-audio`'s `tools/build.py`; its `SOURCES.csv` records each clip's source take): `fire` from
+the 3 m construction-kit takes, one discharge per file, attack within 10 ms; `fireDistant` from the
+100 m takes; `fireTail` the echo after a designed single shot (never an automatic recording); foley
+from the designed and construction-kit mechanics takes. The pack has no M1919 or M1911: the M1919A6 is
+Bren shots pitched -1 st with MG 42 belt foley pitched -1.5 st, the M1911A1 is TT 33 pitched -2 st, and
+both bipods are the DP 27's. The 17 pack guns the game does not field (StG 44, Bren, DP 27, AVS 36,
+SVT 40, Gewehr 41, G33, Mosin M38, M3, MP28, PPD 40, PPS 43, Sten, PPK, TT 33, M30 Drilling rifle and
+shotgun) are clipped and registered too, ready for a profile to name them. Not recorded: `shared`
+casings and the `impacts` set (flybys and impacts already play from `combat/`), mg42 `barrelChange`.
+The clip manifest's `prompt`s are kept for any clip regenerated with ElevenLabs
+(`scripts/generate_weapon_sfx.py`); `scripts/check_weapon_clips.py --shots` vets a shot before import.
+
+Runtime: `manifest.json` category `weapon.<model>` holds each model's actions. `battle-sim.js`
+`buildWeaponAudio` keys shots by `weapon.profile`: one `fire` per round (automatic fire is retriggered
+per round, never a recorded burst), `fireDistant` from `DISTANT_FROM` (90 m: the near voices' linear
+roll-off is silent by ~97 m), voice pools of `ceil(cyclic x 0.9 s) + 2` so a fast gun never cuts off
+its own last round; a model with no clips falls back to the kind's `SFX_FILES`. Module
+`15-weapon-foley-audio.js` plays the rest (reload stages, stoppages, bipod, bolt cycle, clip ping,
+burst tails; see its harness row). File layout keys the mastering targets: `weapons/<model>/<action>-NN.mp3`
+(smallArms -16 dBFS) and `weapons/foley/<model>-<action>-NN.mp3` (-26 dBFS).
 
 **Combat sounds (`Assets/audio/combat-sfx-manifest.json`).** What a round sounds like after it leaves the muzzle: near-miss
 flybys (`crack`, `whiz`), ricochets, impacts by surface (dirt, masonry, wood, metal, vegetation), flesh hits and pain (`wounded`,
