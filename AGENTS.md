@@ -1016,7 +1016,7 @@ four-run swing. Live-browser runs at `timeScale` 8 aren't deterministic, so use 
 for controlled pairs, and serve both arms the same way: `battle_sim_local.php` in preview mode (a
 `preview.json` beside it) reads `state/` and the audio manifest two directories up.
 
-### Open issues (as of 2026-10-01)
+### Open issues (as of 2026-10-03)
 
 Keep this section to **work that is genuinely still open**. The visible, uncollapsed text should describe
 unfinished work, current debt or the next queue. If a shipped baseline or completed campaign must remain here
@@ -1068,16 +1068,16 @@ procedural/FBX presentation backends. Perception keeps ownership of gameplay tar
 
 </details>
 
-**Soldier-level AI continuation (active plan; repo archaeology refreshed 2026-10-01).** This is the
-active behavioral roadmap below the Squad Leader. It is deliberately separate from the larger architecture in
-`battle/AI_TACTICS_OUTLINE.md`. The Sept. 13 outline (`f71ab0dd55cd03daae4b07c81665d3d74452618c`) also describes
+**AI continuation handoff (current queue below; archaeology refreshed 2026-10-03).** The small
+soldier-level continuation is complete; the active behavioral roadmap has returned to
+`battle/AI_TACTICS_OUTLINE.md`. The Sept. 13 outline (`f71ab0dd55cd03daae4b07c81665d3d74452618c`) describes
 structure-control, street/route-transition plans, a versioned `SquadIntent`, a stronger Squad Leader local planner,
-objective secure/exploit/handoff and later combined arms. Those remain the major AI addition we are intentionally
-waiting on: keep their detailed design in the outline and do **not** pull them into the current implementation queue
-piecemeal. The window archaeology is the warning case: the physical/tactical-position substrate survived while the
-full use of the opening had to be recovered later; the firing-port implementation is now back on main
-(`e10622a3893f5eecfb2bbdefc80b7140e4b7ee37`, with the merge preserved by `e0455331d9ae8b26c47dc455f9c5b97945791278`).
-Do not let the soldier-level items below collapse back into a one-line future note.
+objective secure/exploit/handoff and later combined arms. Keep that detailed design in the outline and do **not**
+pull isolated pieces into the queue ad hoc. The window archaeology is the warning case: the physical/tactical-position
+substrate survived while the full use of the opening had to be recovered later; the firing-port implementation is
+now back on main (`e10622a3893f5eecfb2bbdefc80b7140e4b7ee37`, with the merge preserved by
+`e0455331d9ae8b26c47dc455f9c5b97945791278`). Completed handoffs below stay collapsed for orientation; the next
+unfinished queue stays visible.
 
 <details>
 <summary><strong>Shipped baseline to preserve</strong> — existing substrate, not open work</summary>
@@ -1165,7 +1165,7 @@ then reconstitute. Stress memory's `lasting`, `floor` and `relief` producers are
 `stress-memory-check.js` and `fled-man-check.js`.
 
 Historical sizing/benchmark detail belongs in the completed Soldier mind accordion above and the carrying PRs
-(#139-#147, #150-#153), not in the active backlog. Future work starts with the soldier-level sequence above, not by
+(#139-#147, #150-#153), not in the active backlog. Future work starts with the visible active AI queue above, not by
 reopening the reaction rollout.
 
 </details>
