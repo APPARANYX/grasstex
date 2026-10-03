@@ -2540,6 +2540,14 @@
         if (bounding && es.boundOrder) continue;
         var own = personal ? api.soldierContact(s, battle) : contact;
         if (!own || !isFinite(+own.x) || !isFinite(+own.z)) continue;
+        /* A callout or gunshot is enough to orient and prepare a man, not enough to make him
+           autonomously hose down a sector. Personal-mode automatic suppression requires his own
+           recent visual memory; explicit area-fire / fire-control orders remain separate authority. */
+        if (
+          personal &&
+          (own.source !== 'seen' || !isFinite(+own.at) || battle.time - +own.at > ALERT_HOLD)
+        )
+          continue;
         var point = { x: +own.x, z: +own.z };
         /* No job for a man who cannot reach what HE believes - he keeps advancing instead of
            inheriting another man's invisible suppressive sector. */
