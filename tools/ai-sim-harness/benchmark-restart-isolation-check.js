@@ -44,4 +44,17 @@ assert.doesNotMatch(
   'between-seed finish may pause/presentation-clean only; simulation teardown belongs to restart'
 );
 
+const calloutFile = path.join(__dirname, '..', '..', 'battle', 'modules', '09-tactical-callouts.js');
+const calloutSource = fs.readFileSync(calloutFile, 'utf8');
+assert.match(
+  calloutSource,
+  /registerSystem\('tactical-callouts',[\s\S]{0,300}?onBattleStart:\s*reset,[\s\S]{0,100}?onBattleRestart:\s*reset/,
+  'tactical callouts must participate in the shipping battle lifecycle'
+);
+assert.match(
+  calloutSource,
+  /resetPerceptionBattleState\(battle\)/,
+  'the lifecycle hook must ask the Perception owner to clear battle-scoped memory'
+);
+
 console.log('PASS benchmark preserves shipping restart lifecycle between seeds');
