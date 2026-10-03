@@ -18,6 +18,8 @@ const assert=require('node:assert/strict');
   assert.ok(good.overall>80,'clean advancing squad should score strongly');
   assert.ok(good.movement>90,'forward progress with little regression should score strongly');
   assert.ok(good.mission>80,'assigned squad making objective progress should have strong mission score');
+  assert.equal(good.metrics.insideObjectiveSamples,4,'raw mission inputs remain attached to the scored row');
+  assert.equal(good.metrics.friendlyOwnedTargetSamples,2);
 
   const backwards=scoreSquadPerformance({
     faction:'us',squad:'US-3',samples:20,roleSamples:{maneuver:20},phaseSamples:{assault:11,retreat:9},
