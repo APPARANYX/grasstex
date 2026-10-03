@@ -23,7 +23,7 @@ export function scoreSquadPerformance(raw={}){
   const regroupRate=rate(raw.regroupSamples,samples);
   const retreatRate=rate(raw.retreatSamples,samples);
   const supportHoldRate=rate(raw.supportHoldSamples,samples);
-  const objectivePresenceRate=rate((+raw.insideObjectiveSamples||0)+(+raw.friendlyOwnedTargetSamples||0),samples);
+  const objectivePresenceRate=rate(Math.max(+raw.insideObjectiveSamples||0,+raw.friendlyOwnedTargetSamples||0),samples);
   const progress=+raw.objectiveProgressMeters||0,regression=+raw.objectiveRegressionMeters||0,travel=+raw.travelMeters||0;
   const movementWork=progress+regression;
   const regressionShare=movementWork>1?regression/movementWork:0;
@@ -92,6 +92,10 @@ export function scoreSquadPerformance(raw={}){
       retreatRate:round(retreatRate,3),
       supportHoldRate:round(supportHoldRate,3),
       inContactSamples:contactSamples,
+      insideObjectiveSamples:+raw.insideObjectiveSamples||0,
+      friendlyOwnedTargetSamples:+raw.friendlyOwnedTargetSamples||0,
+      contestingTargetSamples:+raw.contestingTargetSamples||0,
+      advanceSamples:+raw.advanceSamples||0,
       travelMeters:round(travel,2),
       objectiveProgressMeters:round(progress,2),
       objectiveRegressionMeters:round(regression,2),
