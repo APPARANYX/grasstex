@@ -182,7 +182,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `stance-ownership-check.js` | Engagement is the only stance writer: no other runtime file sets `prone`/`tacticalCrouch`/`crawling`/`crouching` (the body's `setCrouch`/`setProne` and SquadAI's no-Engagement fallback aside), `crouching` is derived from the committed flags (never stored, a write throws), `BattleEngagement.requestStance` only takes a man lower, and an advancing man is crouched while his squad is on the enemy's heels (`inContact` or a picture within `ALERT_HOLD`) or he is under fire |
 | `clear-contact-check.js` | Clearing the last contact (`?alertAdvance=0` the control): the flag parse; the Squad Leader orders `sq.clearContact` only after `CLEAR_AFTER` quiet seconds on the squad's own first-hand picture (never heard word), opens a waiting hold-fire order, follows a newer sighting, ends on a sighting, fire, a holding phase, retreat, arrival (`cleared`) or `CLEAR_MAX` (`timeout`) and does not re-order a cleared picture; the anchor heads for the point, not the objective, with no forced stride when the point moves; an alerted man past his sector hold follows the order crouched (`clear`) and proposes no hold, and without the order he holds. |
 | `scouts-forward-check.js` | Scouts Forward (`?scoutsForward=0` legacy control): qualifying unknown/crest approaches, adequate-current-picture suppression, deterministic scout-first/buddy selection with no combat-RNG draw, main-body hold and normal Movement Resolver ownership, hidden-truth isolation, personal `seen` until callout delivery, delivered `told` versus missed/out-of-range ignorance, no-contact uncertainty, bounded timeout/cancellation, same-approach retrigger blocking, and the bounded no-contact recon-rejoin use of the existing regroup-bypass lease. |
-| `player-control-check.js` | Player possession is a short movement lease above AI goals; while live it prevents Perception/Engagement from replacing the player's target, carries the L3 run multiplier through the real movement integrator, changes crouch/prone/stand through Engagement's stance owner, and after release normal Perception reacquires the enemy. |
+| `player-control-check.js` | `isPlayer` is the possession authority boundary for the whole soldier Micro path: expired input does not fall back to AI routing, no aim assist is introduced, keyboard/gamepad movement and free-fire use the shipping resolver/ballistics, stance stays Engagement-owned, the player camera clears terrain and the offset sky dome, and release returns the soldier cleanly to normal Perception/Micro. |
 | `soldier-mind-check.js` | Soldier condition (module 17): a friend down is felt by distance, line of sight past 8 m and squad (not by enemies, the far or the blind), the leader down by the whole squad within 60 m, suppression/wounds/aimed rounds add stress (rounds by range), decay with the leader, cover and company calming and being under fire slowing it, contagion never past the neighbour, stress in [0, 1], band hysteresis, levers neutral when off, the module writes only `mind`, and a full firefight with it observing is the same battle (end state and combat-RNG draws) as one without it |
 | `soldier-mind-behaviour-check.js` | What stress costs a man: recognition (`reactTime`, the orient window, the re-orient) stretches, the shot group widens, an ordered bound waits (never past the 3.6 s window, forgotten with the order), a shocked man does not fire, halts and crouches if only advancing, and starts no bound; each lever neutral when off and separately switchable, the `morale` lever included (the squad mean the Squad Leader reads is the roll-up with it on and calm men with it off, observing or not listed) |
 | `soldier-mind-telemetry-check.js` | What the benchmark's `stress` block counts and that counting changes nothing (module 17 `noteReact`, `noteAim`, `noteBound`, `noteLapse`, `noteShock`, `step`, `telemetry`): a recognition is one decision when it begins (not each tick of the orient window), a round is one when it leaves the muzzle, a bound when it starts and whether it waited, an order that ended while he waited is a lapse; the freeze is counted only when it alone stopped a decision (Engagement asks it last, and `fireAllowed` gives the same answer as before in all 128 combinations of its conditions); lever off counts nothing changed, `?mind=0` keeps nothing; no combat-RNG draw and nothing written but the man's own `mind`; the series is one row per side per simulated second in the named columns, cumulative where it counts, squads are over at mean stress 1/3 (and with 3+ living men) with an entry marker at the simulated second, markers are capped and the overflow counted, sides add up to the whole and bands to the changed decisions, `reset` clears it, a 600 s block stays under 200 KB |
@@ -388,9 +388,11 @@ hold/defend gait selection for that soldier only. Player fire is true free-fire:
 crosshair ray even with no AI target lock, using the normal ammunition/reload/stoppage owner and
 physical ballistics through terrain, buildings, bodies, penetration, wounds and presentation FX.
 Movement still goes through `BattleMovementResolver` and the shipping movement integrator, stance
-through `BattleEngagement.commitStance`, and optional reticle selection through `SquadAI.playerAim`.
-The third-person camera is terrain-clamped so its shoulder position cannot drop below the ground.
-`isPlayer` is cleared only on switch/exit/death handoff, at which point normal Micro resumes.
+through `BattleEngagement.commitStance`, and the crosshair aim point through `SquadAI.playerAim` for
+presentation. The third-person camera is terrain-clamped so its shoulder position cannot drop below
+the ground. Fly, follow and player cameras share `CAMERA_FAR=2600`; keep that farther than the
+physically offset sky dome so looking up cannot clip through to `scene.clearColor`. `isPlayer` is
+cleared only on switch/exit/death handoff, at which point normal Micro resumes.
 
 **Device benchmark** (`modules/97-device-benchmark.js`, inert without the flag): open the page with
 `?bench=1` on any phone or computer, tap **Start benchmark** and keep the tab in front. It
@@ -1014,11 +1016,12 @@ four-run swing. Live-browser runs at `timeScale` 8 aren't deterministic, so use 
 for controlled pairs, and serve both arms the same way: `battle_sim_local.php` in preview mode (a
 `preview.json` beside it) reads `state/` and the audio manifest two directories up.
 
-### Open issues (as of 2026-10-01)
+### Open issues (as of 2026-10-03)
 
-Keep this section to **work that is genuinely still open**. Completed investigations and shipped
-fixes belong in their subsystem sections, commit messages and PRs; do not leave them here as a
-pseudo-backlog. Long-form historical notes remain in git history
+Keep this section to **work that is genuinely still open**. The visible, uncollapsed text should describe
+unfinished work, current debt or the next queue. If a shipped baseline or completed campaign must remain here
+for orientation, put it in a collapsed `<details>` block so it cannot read like active backlog. Detailed evidence
+belongs in subsystem sections, commit messages and PRs. Long-form historical notes remain in git history
 (`git show 3972d3b:AGENTS.md`).
 
 **Concrete sim work**
@@ -1054,28 +1057,37 @@ until every discarded experiment is implemented. New behavior belongs in the act
 - `objectiveHoldWin` remains an unread legacy genome parameter while the genome is stashed; remove/settle it during
   the eventual genome rewrite rather than reviving it now.
 
-**Small debt cleanup (2026-10-03).** `soldier.fireCooldown` now has one direct writer,
-`squad-ai.js`: spawn stamps, frame countdown, reload holds and sidearm draw/clear delays all route through
-`setFireCooldown` / `extendFireCooldown` / `tickFireCooldown`, and the wire-map multi-writer entry is gone.
-`modules/52-combat-posture-visual.js` no longer swaps `soldier.target`; it sends a static
-`animateWalk(..., {aimPoint})` presentation input through the gait/stance wrapper chain to the procedural/FBX
-presentation backends. Perception keeps ownership of gameplay target state.
+<details>
+<summary><strong>Completed: small debt cleanup (2026-10-03)</strong></summary>
 
-**Soldier-level AI continuation (active plan; repo archaeology refreshed 2026-10-01).** This is the
-active behavioral roadmap below the Squad Leader. It is deliberately separate from the larger architecture in
-`battle/AI_TACTICS_OUTLINE.md`. The Sept. 13 outline (`f71ab0dd55cd03daae4b07c81665d3d74452618c`) also describes
+`soldier.fireCooldown` now has one direct writer, `squad-ai.js`: spawn stamps, frame countdown, reload holds and
+sidearm draw/clear delays all route through `setFireCooldown` / `extendFireCooldown` / `tickFireCooldown`, and the
+wire-map multi-writer entry is gone. `modules/52-combat-posture-visual.js` no longer swaps `soldier.target`; it sends
+a static `animateWalk(..., {aimPoint})` presentation input through the gait/stance wrapper chain to the
+procedural/FBX presentation backends. Perception keeps ownership of gameplay target state.
+
+</details>
+
+**AI continuation handoff (current queue below; archaeology refreshed 2026-10-03).** The small
+soldier-level continuation is complete; the active behavioral roadmap has returned to
+`battle/AI_TACTICS_OUTLINE.md`. The Sept. 13 outline (`f71ab0dd55cd03daae4b07c81665d3d74452618c`) describes
 structure-control, street/route-transition plans, a versioned `SquadIntent`, a stronger Squad Leader local planner,
-objective secure/exploit/handoff and later combined arms. Those remain the major AI addition we are intentionally
-waiting on: keep their detailed design in the outline and do **not** pull them into the current implementation queue
-piecemeal. The window archaeology is the warning case: the physical/tactical-position substrate survived while the
-full use of the opening had to be recovered later; the firing-port implementation is now back on main
-(`e10622a3893f5eecfb2bbdefc80b7140e4b7ee37`, with the merge preserved by `e0455331d9ae8b26c47dc455f9c5b97945791278`).
-Do not let the soldier-level items below collapse back into a one-line future note.
+objective secure/exploit/handoff and later combined arms. Keep that detailed design in the outline and do **not**
+pull isolated pieces into the queue ad hoc. The window archaeology is the warning case: the physical/tactical-position
+substrate survived while the full use of the opening had to be recovered later; the firing-port implementation is
+now back on main (`e10622a3893f5eecfb2bbdefc80b7140e4b7ee37`, with the merge preserved by
+`e0455331d9ae8b26c47dc455f9c5b97945791278`). Completed handoffs below stay collapsed for orientation; the next
+unfinished queue stays visible.
 
-**Shipped baseline to preserve.** Perception/view cones, hearing/relay and sector scanning; per-soldier loadouts and
-sidearms; soldier condition/stress and its lasting-memory path; cower/flee/freeze/rage (all four on by default since
-2026-10-01); the fled-man lifecycle; Engagement-owned stance/cover; last-known-threat alert posture; and tactical
-firing stations/window ports are existing substrate. Extend these owners instead of creating parallel systems.
+<details>
+<summary><strong>Shipped baseline to preserve</strong> — existing substrate, not open work</summary>
+
+Perception/view cones, hearing/relay and sector scanning; per-soldier loadouts and sidearms; soldier condition/stress
+and its lasting-memory path; cower/flee/freeze/rage (all four on by default since 2026-10-01); the fled-man lifecycle;
+Engagement-owned stance/cover; last-known-threat alert posture; and tactical firing stations/window ports are existing
+substrate. Extend these owners instead of creating parallel systems.
+
+</details>
 
 <details>
 <summary><strong>Completed: post-v278 stabilization phases</strong> — #159, #160, #161, #162, #164 and #165 are on main</summary>
@@ -1094,9 +1106,9 @@ reopen these phases as backlog items unless a new measured defect points back to
 
 </details>
 
-**Remaining soldier-level slices, in order:**
+<details>
+<summary><strong>Completed: soldier-level continuation</strong> — #157, #170, #190, #196 and #197 shipped/default-on</summary>
 
-Slices 1 through 3 of the original continuation are already shipped:
 - **Squad Leader stress-aware local execution — #157.** `?slStress=pick,hold,review` is on by default; the Squad
   Leader picks the calmest viable fireteam that can bound, can hold a bound cycle when every viable team is shaken,
   and can raise a doctrine-review wake after sustained squad stress. `squad-stress-check.js` owns the regression contract.
@@ -1116,16 +1128,52 @@ Slices 1 through 3 of the original continuation are already shipped:
   and already-issued movement remain legal, and the successor receives an explicit hand-back. The subsystem section
   above owns its benchmark/probe evidence.
 
-The small soldier-level continuation sequence is complete. The active AI queue returns to
-`battle/AI_TACTICS_OUTLINE.md`'s **Immediate first implementation slice**:
+The small soldier-level continuation sequence is complete. These entries are retained only as a compact handoff
+record; their detailed contracts and evidence live in the subsystem sections and carrying PRs.
 
-1. Add `TacticalSituation` plus a read-only street/building-control diagnostic snapshot.
-2. Render/export that diagnostic state without changing behavior.
-3. Add version/reason/confidence metadata to the existing `SquadIntent` command surface.
-4. Add one named `route-transition` lease with progress/abort telemetry.
-5. Validate those control-plane changes on fixed seeds before enabling new route or structure behavior.
+</details>
 
-**Rules for every slice above.** One conceptual behavior change at a time; existing owner boundaries remain
+**Active AI queue — immediate prerequisite: individual command reception/execution.** Before adding new
+urban/route tactics, remove the remaining "psychic squad bus": publishing a squad/fireteam order must not make every
+soldier know, orient to, or execute it on the same tick. Squad/Meso remains the command owner, but each man gets a
+personal receipt/adoption state between the published order and Engagement/Movement execution. That state may record
+`issued -> heard/seen -> processing -> adopted -> executing` (exact field names are implementation detail), and it
+must not become another stance, destination, target, or path owner.
+
+The same contract applies to both classes of currently synchronized behavior:
+
+- **Posture/fire-control orders.** A shared HOLD FIRE / prepare / "get down" decision is published once, then each
+  soldier receives and adopts it on his own deterministic timing. Recognition/TAC, stress, current task, distance,
+  audibility/visibility and a stable per-soldier offset may affect latency. Immediate survival reactions (incoming
+  fire, suppression, wounds, personally seeing a threat) stay individual and may pre-empt or beat the command.
+- **Movement orders.** Regroup, new anchor/fireteam destinations, move-to-cover/structure and later directional
+  commands must not expose a new exact destination to every man immediately. A soldier keeps executing his last
+  adopted order until he personally receives/processes the replacement. Spatial orders may require a brief
+  orient/locate step when the reference is not already obvious; simple already-forward commands need not force a
+  theatrical turn.
+
+Implement this in **small phases**, each with its own deterministic harness/probe and no combat-RNG draw:
+
+1. **Receipt telemetry, behavior-neutral.** Add a versioned command envelope and per-soldier receipt/adoption
+   diagnostics while preserving current execution timing. Measure who would receive which order, by what channel,
+   and at what simulated time.
+2. **Posture/fire-control adoption.** Gate squad-issued prepare/HOLD/posture execution on the soldier's adopted
+   command version. Keep Engagement the only stance/fire-permission owner; under-fire reflexes remain immediate.
+3. **Movement adoption.** Gate regroup/new-anchor/fireteam-destination changes on the soldier's adopted movement
+   order. Movement Resolver remains the only final-destination arbiter and a man retains his previous valid order
+   until the replacement is adopted.
+4. **Orientation and relay.** Add bounded voice/visual receipt and, where needed, Squad Leader -> fireteam leader ->
+   member relay. Distinguish simple non-spatial orders from directional/object-referenced orders so "shift fire
+   left", "cover on the right" and "get in that building" do not all pay the same orientation cost.
+5. **Close the direct-read gaps.** Add a static/runtime ratchet for command-bearing squad fields so new behavior
+   cannot bypass personal adoption, then run fixed-seed and paired benchmarks for churn, stalls, response latency,
+   cohesion and mission progress.
+
+**After that prerequisite ships**, return to `battle/AI_TACTICS_OUTLINE.md`'s tactical control-plane sequence:
+`TacticalSituation` + read-only street/building-control diagnostics, richer `SquadIntent` metadata, then one named
+`route-transition` lease before new route/structure behavior.
+
+**Rules for active AI slices.** One conceptual behavior change at a time; existing owner boundaries remain
 authoritative; new state has an explicit owner and reader; no presentation system writes simulation truth; no
 combat-RNG draw merely to choose tactics; add a deterministic harness/check before relying on a visual impression;
 add observe-only probe/telemetry that measures the decision dose; ship behavioral changes behind a flag until the
@@ -1133,8 +1181,8 @@ paired GitHub benchmark shows the efficiency gate is acceptable. **Do not make a
 simulation merely to satisfy an equality test.** New tactics are expected to change decisions and outcomes; benchmarks
 gate broken invariants, determinism, pathological stalls/loops/churn, runtime errors and performance, while behavioral
 deltas are evidence to understand rather than something to erase. Equality/neutrality checks belong only to explicitly
-non-behavioral tooling or a deliberately isolated legacy/control arm. Once a slice ships, move its evidence into the
-subsystem section but leave this sequence accurate so the next unfinished slice remains visible.
+non-behavioral tooling or a deliberately isolated legacy/control arm. Once a slice ships, move its evidence into the subsystem section; if a compact status record must remain here,
+keep it inside a collapsed completed-work accordion so the next unfinished slice stays visually obvious.
 
 <details>
 <summary><strong>Completed: soldier stress memory + reactions rollout</strong> — default shipping behavior; expand for status</summary>
@@ -1148,14 +1196,13 @@ then reconstitute. Stress memory's `lasting`, `floor` and `relief` producers are
 `stress-memory-check.js` and `fled-man-check.js`.
 
 Historical sizing/benchmark detail belongs in the completed Soldier mind accordion above and the carrying PRs
-(#139-#147, #150-#153), not in the active backlog. Future work starts with the soldier-level sequence above, not by
+(#139-#147, #150-#153), not in the active backlog. Future work starts with the visible active AI queue above, not by
 reopening the reaction rollout.
 
 </details>
 
-The loadout, sidearm, perception and weapon-seat work shipped (see Loadouts and sidearms and Perception).
-The active soldier-level continuation is listed above and is **not** part of this deferred list. The larger
-command/urban/route architecture stays in `battle/AI_TACTICS_OUTLINE.md` until that major AI phase is resumed.
+The active AI queue is listed above and is **not** part of this deferred list. The larger command/urban/route
+architecture stays in `battle/AI_TACTICS_OUTLINE.md` until that major AI phase is resumed.
 The unrelated asset, tuning and later-system items below remain deferred by the 2026-09-29 decision.
 
 **Deferred / future — not V1 blockers**

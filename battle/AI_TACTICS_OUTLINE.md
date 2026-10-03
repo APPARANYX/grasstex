@@ -39,16 +39,20 @@ Force Command (US / GE isolated General contexts): mission, objective, priority,
         ↓
 Squad Leader Local Plan: approach, local axis, fire/support positions, task allocation
         ↓
-Squad Plan: formation, fireteam anchors, order slots, bounded plan lease
+Squad Plan: formation, fireteam anchors, order slots, bounded plan lease; publishes order envelopes
         ↓
-Movement Resolver: chooses one final movement proposal
+Command Reception: each soldier hears/sees, processes, orients when needed, then adopts a version
         ↓
-Engagement: cover, stance, bound, firing station, individual fight
+Movement Resolver: chooses one final movement proposal from the soldier's adopted movement order
+        ↓
+Engagement: cover, stance, bound, firing station, individual fight from adopted combat/posture orders
 ```
 
-Objective, building, navigation, and diagnostic modules may provide constraints, opportunities, or
-telemetry. They must not quietly become alternate command layers. The AI graph must render this
-chain, the active leases, and the reason for each transition.
+Command Reception is an information/acknowledgement boundary, not another commander. It may write only
+per-soldier receipt/adoption state and diagnostics; it must not write stance, target, path, final destination, squad
+plan or strategic intent. Objective, building, navigation, and diagnostic modules may provide constraints,
+opportunities, or telemetry. They must not quietly become alternate command layers. The AI graph must render this
+chain, the active leases, each soldier's adopted command version, and the reason for each transition.
 
 **Force Command information boundary (#201):** US and GE are separate per-battle General singletons behind
 one scheduler/facade. They share code, not mutable state or an enemy picture. A General may read its own force,
@@ -654,9 +658,12 @@ recovers until the Squad Leader establishes a local rally, restores cohesion, an
 diagnostics separate ingress from successful hold time, and loop provenance is time-local. These are ownership
 repairs, not new movement writers.
 
-**Next active AI slice:** the control-plane work in **Immediate first implementation slice** below—`TacticalSituation`,
-read-only street/building control diagnostics, versioned `SquadIntent` metadata, then one named `route-transition`
-lease. Do not jump to new urban movement patterns until that state is visible and fixed-seed validated.
+**Next active AI slice:** first close the individual-command gap in **Immediate first implementation slice** below.
+Squad/fireteam commands must propagate through per-soldier receipt/adoption before they can change coordinated
+posture/fire-control or movement. After that prerequisite is fixed-seed validated, continue with `TacticalSituation`,
+read-only street/building control diagnostics, richer `SquadIntent` metadata, then one named `route-transition`
+lease. Do not jump to new urban movement patterns while soldiers can still consume fresh squad intent as same-tick
+shared truth.
 
 ## Objective security and defense
 
@@ -713,10 +720,39 @@ Cooperation should be modeled as shared, time-stamped facts rather than synchron
 - objective-sector ownership;
 - intent version and lease status.
 
-Allow bounded order delay and stale information later, but make it visible. A recipient may act on a
-local opportunity within the parent intent; it cannot silently replace the strategic objective.
+Bounded order delay is part of the command model, not a later presentation effect. Publishing squad/fireteam
+state does not itself teach every soldier the order. Each recipient must receive it by a valid voice/visual/relay path,
+process it on deterministic individual timing, orient when the spatial reference actually requires that, and adopt a
+specific version before coordinated execution changes. Simple orders such as "get down" or a shift already straight
+ahead need not force a turn; object/directional orders such as "cover on the right" or "get in that building" may.
+Immediate self-preservation and first-hand contact remain local reflexes and may beat the order. A recipient may act
+on a local opportunity within the parent intent; it cannot silently replace the strategic objective.
 
 ## Implementation sequence
+
+### Phase 0 — Individual command reception/adoption (tactical prerequisite)
+
+Build one shared command-reception contract for coordinated posture/fire-control and movement; do not create separate
+timing hacks for regroup, HOLD FIRE, stance, or later urban orders.
+
+- **0A — Receipt telemetry, behavior-neutral.** Add versioned command envelopes and per-soldier
+  issued/heard-or-seen/processing/adopted/executing diagnostics while preserving current timing. No combat-RNG draw.
+- **0B — Posture/fire-control adoption.** A squad HOLD/prepare/posture order affects a man only after he adopts that
+  version. Engagement remains the only stance/fire-permission owner; suppression, incoming fire, wounds and personal
+  contact can still trigger immediate individual survival behavior.
+- **0C — Movement adoption.** Regroup, new anchor/fireteam destinations and later cover/structure orders affect a man
+  only after he adopts the replacement. Until then he keeps his previous valid order; Movement Resolver remains the
+  only final-destination arbiter.
+- **0D — Orientation and relay.** Add bounded voice/visual receipt and Squad Leader -> fireteam leader -> member relay
+  where needed. Price recognition/TAC, stress, distance, audibility/visibility, current task and a stable per-soldier
+  offset deterministically. Distinguish simple non-spatial commands from directional/object-referenced ones.
+- **0E — Bypass ratchet and validation.** Add static/runtime checks so command-bearing squad fields cannot become
+  same-tick personal truth through a new direct read. Measure response latency, cohesion, churn, stalls and mission
+  progress on fixed seeds and paired benchmarks.
+
+**Done when:** one squad order produces staggered, explainable individual receipt/execution rather than synchronized
+same-tick behavior unless the men genuinely received and processed it together; diagnostics can show why each man
+acted when he did, and no new command-reception code owns movement or stance.
 
 ### Phase A — Instrument and model (behavior-neutral)
 
@@ -837,13 +873,22 @@ same command, request, vehicle, and effect contracts remain valid.
 
 ## Immediate first implementation slice
 
-Start with Phase A plus the smallest part of Phase B:
+Close Phase 0 first, in small independent slices:
 
-1. Add `TacticalSituation` and a read-only `street/building control` diagnostic snapshot.
-2. Render it in the existing AI graph and diagnostics exporter.
-3. Add `SquadIntent` version/reason/confidence alongside current command fields, without changing
-   behavior.
-4. Add one named `route-transition` lease and trace its progress/abort reason.
-5. Validate on fixed seeds before enabling any new route or structure behavior.
+1. Add behavior-neutral command envelopes plus per-soldier receipt/adoption telemetry.
+2. Gate squad-issued posture/fire-control preparation on the personally adopted command version.
+3. Gate regroup/new-anchor/fireteam movement on the personally adopted movement command.
+4. Add only the orientation/relay behavior needed to make directional/object-referenced orders intelligible.
+5. Add the direct-read ratchet and validate response latency/churn/stalls/cohesion on fixed seeds and a paired
+   benchmark.
 
-This gives us a visible, testable control plane before teaching the AI new movement patterns.
+Then start Phase A plus the smallest part of Phase B:
+
+6. Add `TacticalSituation` and a read-only `street/building control` diagnostic snapshot.
+7. Render it in the existing AI graph and diagnostics exporter.
+8. Extend the now-versioned command surface with `SquadIntent` reason/confidence metadata.
+9. Add one named `route-transition` lease and trace its progress/abort reason.
+10. Validate on fixed seeds before enabling any new route or structure behavior.
+
+This removes the remaining same-tick "hive mind" before sophisticated tactics depend on the command path, then gives
+those tactics a visible, testable control plane before teaching the AI new movement patterns.

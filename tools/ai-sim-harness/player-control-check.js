@@ -25,6 +25,15 @@ assert.match(cameraSource,/key==='z'[\s\S]*?togglePlayerProne/,'Z must toggle pr
 assert.match(cameraSource,/key==='v'[\s\S]*?leavePlayer/,'V must exit player mode');
 assert.doesNotMatch(cameraSource,/leavePlayer\('controller disconnected'\)/,'controller disconnect must fall back to keyboard player control instead of ending possession');
 assert.match(cameraSource,/heightAt\(cam\.position\.x,cam\.position\.z\)/,'player camera must clamp against terrain');
+const farMatch=cameraSource.match(/CAMERA_FAR=(\d+(?:\.\d+)?)/);
+assert.ok(farMatch,'camera far plane must have one shared constant');
+assert.match(cameraSource,/playerCam\.maxZ=CAMERA_FAR/,'player camera must use the shared world far plane so the sky dome is not clipped');
+const skySource=fs.readFileSync(path.join(H.REPO,'battle/battle-sim.js'),'utf8');
+const skyMatch=skySource.match(/function buildSky\(scene\)\{var radius=(\d+(?:\.\d+)?),offset=(\.?\d+)/);
+assert.ok(skyMatch,'battle sky radius/offset contract must remain measurable');
+const cameraFar=+farMatch[1],skyRadius=+skyMatch[1],skyOffset=+skyMatch[2];
+const farthestSkySurface=skyRadius*(1+Math.sin(Math.PI*skyOffset));
+assert.ok(cameraFar>farthestSkySurface+100,'camera far plane must clear the vertically offset sky dome with margin');
 assert.match(cameraSource,/SquadAI\.playerFireRay/,'RT must use free-fire player ray authority');
 /* No aim assist: nothing in the camera picks an enemy near the reticle for the possessed man. */
 assert.doesNotMatch(cameraSource,/aimedEnemy|PLAYER_TARGET_DOT|SquadAI\.playerFire\(/,'player aim must not lock onto an enemy near the crosshair');
