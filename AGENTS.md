@@ -1384,7 +1384,7 @@ factions textured differently, weapon on the hands). Keep weapon source `.zip` p
   redistribution as a library**), Freesound CC0, and **BOOM Library WWII Firearms** for every small
   arm (owner's single-user licence: use inside the game only, **never redistributed or offered as
   individual stems**). The BOOM clips therefore live in the **private** repo `APPARANYX/grasstex-audio`,
-  never here: `.gitignore` keeps `Assets/audio/weapons/*/` out, CI and the production deploy check out
+  never here: `.gitignore` keeps `Assets/audio/weapons/*/` out, CI, the voice/combat-SFX generators and the production deploy check out
   the commit pinned in `Assets/audio/weapon-audio.lock.json` with the read-only deploy key in the
   `BOOM_AUDIO_DEPLOY_KEY` secret and overlay it (`scripts/fetch_weapon_audio.sh`). A fork's PR has no
   secret, so its audio and deploy-plan jobs fail. Changing clips: push to grasstex-audio, bump the lock
