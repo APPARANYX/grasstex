@@ -78,9 +78,9 @@ test('a man who leaves his weapons behind carries none, and is issued his role\'
   assert.equal(r.SquadAI.rearm(s, null, b), false, 'a man who carries a weapon is not issued another');
 });
 
-function fight() {
+function fight(search) {
   H.resetIds();
-  const r2 = H.bootstrap(),
+  const r2 = H.bootstrap(search ? { search } : undefined),
     b = H.makeBattle(r2, { seed: 9 });
   const us = H.addSquad(r2, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 } }),
     ge = H.addSquad(r2, b, { id: 'ge-0', faction: 'ge', x: 0, z: 60, objective: { x: 0, z: -100 } });
@@ -114,7 +114,8 @@ test('a light machine gun is an emplaced weapon whoever carries it', () => {
   assert.equal(E.fireAllowed(man, b), true, 'once emplaced it fires');
 });
 test('the suppression job goes to the man with the machine gun first', () => {
-  const { r2, b, us } = fight(),
+  /* This is a weapon-priority contract, not an information-propagation contract. */
+  const { r2, b, us } = fight('?soldierBeliefs=0'),
     E = r2.BattleEngagement;
   const man = carrier(us, 'rifleman');
   arm(r2, man, 'lmg');
