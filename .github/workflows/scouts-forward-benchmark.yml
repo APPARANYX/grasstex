@@ -1,6 +1,6 @@
 name: Scouts Forward Paired Benchmark
 
-# Temporary branch-only evidence workflow. It uses the same runner/comparator as the standard benchmark,
+# Temporary branch-only full-battle evidence workflow. It uses the same runner/comparator as the standard benchmark,
 # but self-starts on this branch because the GitHub connector cannot issue workflow_dispatch.
 # The file is removed after evidence is captured; the run/artifacts remain attached to GitHub Actions.
 on:
@@ -16,8 +16,11 @@ permissions:
 env:
   BENCH_COUNTERS: >-
     casualties usKills geKills fire.total fire.hits
+    simulatedSeconds firstContactSeconds firstFireSeconds acquisitions.total acquisitions.reacquired acquisitions.firstAt
+    firstObjectiveProgressSeconds firstCaptureSeconds captures objectivesNeverOwned objectivesNeverContested maxNoObjectiveProgressSeconds
     movementResolver.changes movementStalls.length routeStalls.length targetlessStalls.length vacantObjectiveStalls.length
-    loopAlerts.length writerConflicts regroups.entries stallOutcomes.wakes stallOutcomes.repeats
+    loopAlerts.length writerConflicts strategicWriterConflicts regroups.entries regroupSamples overCohesionSamples longRegroups.length
+    stallOutcomes.wakes stallOutcomes.repeats
     timeline.stalledOnsets timeline.stalledSamples
     callouts.sent callouts.heard callouts.missed callouts.beliefApplied callouts.sameSquadHeard
     soldierBeliefs.updates soldierBeliefs.seen soldierBeliefs.told soldierBeliefs.heard soldierBeliefs.expired
@@ -40,7 +43,6 @@ jobs:
       BATTLE_BENCHMARK_FIRST: ${{ matrix.offset }}
       BATTLE_BENCHMARK_TIME_LIMIT: '600'
       BATTLE_BENCHMARK_STEP: '0.15'
-      BATTLE_BENCHMARK_WINDOWS: 'contact+120'
       BATTLE_BENCHMARK_SEED: scouts-forward-${{ matrix.battle_type }}
       BATTLE_TYPE: ${{ matrix.battle_type }}
 
