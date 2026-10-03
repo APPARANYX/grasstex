@@ -4,7 +4,7 @@
    draws the combat RNG: takes are picked by a hash of the man and a counter. Its own memory of what
    each man was doing lives in a WeakMap, not on the soldier. `?weaponFoley=0` installs nothing.
 
-   Clips: Assets/audio/manifest.json category `weapon.<model>` (licensed third-party audio clips; layout and actions
+   Clips: Assets/audio/manifest.json category `weapon.<model>` (licensed private clips; layout and actions
    in Assets/audio/weapon-clip-manifest.json). An action with no files plays nothing, so a model
    decides its own reload by which stage clips it has:
    - belt-fed (reloadCoverOpen): cover open, belt laid, cover shut, charging handle;
