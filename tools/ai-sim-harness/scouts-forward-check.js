@@ -24,7 +24,8 @@ function world(opts = {}) {
     lineOfSightBlocked() {
       return false;
     },
-    invalidateNavPath() {}
+    invalidateNavPath() {},
+    invalidateNavCache() {}
   };
   load(r, 'battle/movement-resolver.js');
   const b = H.makeBattle(r, {
