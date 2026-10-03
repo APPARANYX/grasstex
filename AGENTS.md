@@ -1133,14 +1133,45 @@ record; their detailed contracts and evidence live in the subsystem sections and
 
 </details>
 
-**Active AI queue — next unfinished work.** Return to `battle/AI_TACTICS_OUTLINE.md`'s
-**Immediate first implementation slice**:
+**Active AI queue — immediate prerequisite: individual command reception/execution.** Before adding new
+urban/route tactics, remove the remaining "psychic squad bus": publishing a squad/fireteam order must not make every
+soldier know, orient to, or execute it on the same tick. Squad/Meso remains the command owner, but each man gets a
+personal receipt/adoption state between the published order and Engagement/Movement execution. That state may record
+`issued -> heard/seen -> processing -> adopted -> executing` (exact field names are implementation detail), and it
+must not become another stance, destination, target, or path owner.
 
-1. Add `TacticalSituation` plus a read-only street/building-control diagnostic snapshot.
-2. Render/export that diagnostic state without changing behavior.
-3. Add version/reason/confidence metadata to the existing `SquadIntent` command surface.
-4. Add one named `route-transition` lease with progress/abort telemetry.
-5. Validate those control-plane changes on fixed seeds before enabling new route or structure behavior.
+The same contract applies to both classes of currently synchronized behavior:
+
+- **Posture/fire-control orders.** A shared HOLD FIRE / prepare / "get down" decision is published once, then each
+  soldier receives and adopts it on his own deterministic timing. Recognition/TAC, stress, current task, distance,
+  audibility/visibility and a stable per-soldier offset may affect latency. Immediate survival reactions (incoming
+  fire, suppression, wounds, personally seeing a threat) stay individual and may pre-empt or beat the command.
+- **Movement orders.** Regroup, new anchor/fireteam destinations, move-to-cover/structure and later directional
+  commands must not expose a new exact destination to every man immediately. A soldier keeps executing his last
+  adopted order until he personally receives/processes the replacement. Spatial orders may require a brief
+  orient/locate step when the reference is not already obvious; simple already-forward commands need not force a
+  theatrical turn.
+
+Implement this in **small phases**, each with its own deterministic harness/probe and no combat-RNG draw:
+
+1. **Receipt telemetry, behavior-neutral.** Add a versioned command envelope and per-soldier receipt/adoption
+   diagnostics while preserving current execution timing. Measure who would receive which order, by what channel,
+   and at what simulated time.
+2. **Posture/fire-control adoption.** Gate squad-issued prepare/HOLD/posture execution on the soldier's adopted
+   command version. Keep Engagement the only stance/fire-permission owner; under-fire reflexes remain immediate.
+3. **Movement adoption.** Gate regroup/new-anchor/fireteam-destination changes on the soldier's adopted movement
+   order. Movement Resolver remains the only final-destination arbiter and a man retains his previous valid order
+   until the replacement is adopted.
+4. **Orientation and relay.** Add bounded voice/visual receipt and, where needed, Squad Leader -> fireteam leader ->
+   member relay. Distinguish simple non-spatial orders from directional/object-referenced orders so "shift fire
+   left", "cover on the right" and "get in that building" do not all pay the same orientation cost.
+5. **Close the direct-read gaps.** Add a static/runtime ratchet for command-bearing squad fields so new behavior
+   cannot bypass personal adoption, then run fixed-seed and paired benchmarks for churn, stalls, response latency,
+   cohesion and mission progress.
+
+**After that prerequisite ships**, return to `battle/AI_TACTICS_OUTLINE.md`'s tactical control-plane sequence:
+`TacticalSituation` + read-only street/building-control diagnostics, richer `SquadIntent` metadata, then one named
+`route-transition` lease before new route/structure behavior.
 
 **Rules for active AI slices.** One conceptual behavior change at a time; existing owner boundaries remain
 authoritative; new state has an explicit owner and reader; no presentation system writes simulation truth; no
