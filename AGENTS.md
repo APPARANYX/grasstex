@@ -649,11 +649,7 @@ x1.6: `reactTime`, the orient window, the re-orient), `aim` (shot group up to x1
 the wait is cleared with the order) and `shock` (a friend down within 10 m, or the leader within 30 m, freezes his
 trigger for 0.35 s plus 2 s per unit of stress it added, at most 1 s, and stops him if he is only advancing; not
 again within 3 s). `?mind=0` is off, `?mind=observe` keeps the state and reads none of it (identical to off:
-`soldier-mind-check.js` and a control on six full battles), `?mind=react,aim,...` only those levers.
-**Hard invariant:** observe mode must remain behavior-neutral even through status helpers such as
-`BattleSoldierMind.recentIncoming`; no observe-only state may alter Engagement, Perception, fire control, movement,
-or the number/order of combat-RNG draws. CI #592 exposed this contract again after per-man beliefs became the default,
-so fix any reader that violates it rather than weakening or bypassing the observe/off equivalence check. `squad.mind`
+`soldier-mind-check.js` and a control on six full battles), `?mind=react,aim,...` only those levers. `squad.mind`
 (mean, max, men per band) is Micro status upward; the export reads it and so does the Squad Leader, through the `morale` lever (`BattleSoldierMind.squadStress`: group morale, on by default, and COA (on by default; `?coa=0` disables it); see Group morale and course of action). A squad with nobody living is rolled up over nobody (`n` 0, everything 0) and settled once by the module (`settle`), so a wiped-out squad does not keep its last living reading. Measured 2026-09-29 (`experience`
 and `mind` probes, six 600 s battles, 216,000 man-seconds, no constants tuned): 88% of aimed rounds arrive from
 250 m or more, so they add under 1% of the stress; it comes from friends down 31%, wounds 20%, isolation 15%,
