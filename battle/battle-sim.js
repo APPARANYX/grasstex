@@ -65,7 +65,7 @@
   }
   function stepMovement(self,soldier,dt){
     if(soldier.dead){if(root.BattleSquadStability)root.BattleSquadStability.endUnstick(soldier);soldier._movementStopReason='dead';BattleSoldierModel.animateWalk(soldier,dt,0);return;}
-    root.SquadAI.tickFireCooldown(soldier,dt);
+    if(root.SquadAI&&root.SquadAI.tickFireCooldown)root.SquadAI.tickFireCooldown(soldier,dt);
     var recovery=soldier._regroupUnstick, sq=soldier.squad,
       lease=recovery&&sq&&root.BattleLeases&&root.BattleLeases.get(sq,'regroup'),
       goal=soldier._movementResolver&&soldier._movementResolver.goal;
