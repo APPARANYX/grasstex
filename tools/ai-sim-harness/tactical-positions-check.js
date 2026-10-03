@@ -43,6 +43,10 @@ test('one station has one assignee, including soldier id zero and another factio
 });
 test('selection skips a held window without calling it a collision',()=>{
   const f=fixture();assert.ok(f.claim());f.P.release(f.other,f.sim,'test');f.other._nextStationClaimAt=0;
+  /* The selector now consumes each candidate man's personal threat picture. This fixture is testing
+     reservation selection, not information propagation, so give the squad members the same direct
+     sighting before asking another man to evaluate the occupied window. */
+  f.sq.members.forEach(m=>f.r.SquadAI.rememberSeen(m,f.enemy,f.sim,true,'station-selection-test'));
   const before=f.P.summary(f.sim);
   f.systems['building-hardpoints'].onCommanderTick(f.sim);
   const after=f.P.summary(f.sim);
