@@ -3,7 +3,7 @@
 /* Tactical callouts (modules/09-tactical-callouts.js, on by default; `?callouts=0` is the old relay).
 
    - Off (`?callouts=0`): the module changes nothing; a squad still takes a neighbour's sighting within 50 m at once.
-   - On (the default, no flag): a squad that sees the enemy first-hand calls it; men of other squads within CALL_RANGE of the caller hear it
+   - On, legacy belief arm (`?soldierBeliefs=0&callouts=1`): a squad that sees the enemy first-hand calls it; men of other squads within CALL_RANGE of the caller hear it
      after SPEAK + distance / sound + REACT, and only then does their squad take it as a relayed contact (keeping the
      sighting's age, naming the call). Out of earshot, nobody learns anything; there is no free relay.
    - A frozen or fleeing man does not listen; a dead one hears nothing; a sighting gone stale is not passed on.
@@ -74,7 +74,7 @@ test('off (?callouts=0): the module is inert and the 50 m relay is as before', (
 });
 
 test('on: word passes only once it has been said and heard, keeping the sighting age', () => {
-  const ctx = setup('', [
+  const ctx = setup('?soldierBeliefs=0&callouts=1', [
     { id: 'us-0', faction: 'us', x: 0, z: 0 },
     { id: 'us-1', faction: 'us', x: 20, z: 0 },
     { id: 'ge-0', faction: 'ge', x: 0, z: 200 }
@@ -105,7 +105,7 @@ test('on: word passes only once it has been said and heard, keeping the sighting
 });
 
 test('on: a newer callout may refine the same enemy without erasing this squad\'s first-hand memory', () => {
-  const ctx = setup('', [
+  const ctx = setup('?soldierBeliefs=0&callouts=1', [
     { id: 'us-0', faction: 'us', x: 0, z: 0 },
     { id: 'us-1', faction: 'us', x: 20, z: 0 },
     { id: 'ge-0', faction: 'ge', x: 0, z: 200 }
@@ -138,8 +138,8 @@ test('on: a newer callout may refine the same enemy without erasing this squad\'
   assert.equal(ctx.S.hasFirstHandMemory(b.contact, ctx.b), false, 'relays cannot extend first-hand authority forever');
 });
 
-test('on: out of earshot nobody learns, and there is no free 50 m relay', () => {
-  const ctx = setup('', [
+test('on, legacy audience: out of earshot nobody learns, and there is no free 50 m relay', () => {
+  const ctx = setup('?soldierBeliefs=0&callouts=1', [
     { id: 'us-0', faction: 'us', x: 0, z: 0 },
     { id: 'us-1', faction: 'us', x: 80, z: 0 },
     { id: 'ge-0', faction: 'ge', x: 0, z: 200 }
@@ -158,7 +158,7 @@ test('on: out of earshot nobody learns, and there is no free 50 m relay', () => 
 
 test('on: a frozen or fleeing man does not listen, a dead man hears nothing', () => {
   for (const what of ['freeze', 'flee', 'dead']) {
-    const ctx = setup('', [
+    const ctx = setup('?soldierBeliefs=0&callouts=1', [
       { id: 'us-0', faction: 'us', x: 0, z: 0 },
       { id: 'us-1', faction: 'us', x: 15, z: 0 },
       { id: 'ge-0', faction: 'ge', x: 0, z: 200 }
@@ -183,7 +183,7 @@ test('on: a frozen or fleeing man does not listen, a dead man hears nothing', ()
 });
 
 test('on: a sighting gone stale by the time it is heard is not passed on', () => {
-  const ctx = setup('', [
+  const ctx = setup('?soldierBeliefs=0&callouts=1', [
     { id: 'us-0', faction: 'us', x: 0, z: 0 },
     { id: 'us-1', faction: 'us', x: 20, z: 0 },
     { id: 'ge-0', faction: 'ge', x: 0, z: 200 }
@@ -200,7 +200,7 @@ test('on: a sighting gone stale by the time it is heard is not passed on', () =>
 });
 
 test('on: a squad calls again only after CALL_REPEAT, or for another enemy', () => {
-  const ctx = setup('', [
+  const ctx = setup('?soldierBeliefs=0&callouts=1', [
     { id: 'us-0', faction: 'us', x: 0, z: 0 },
     { id: 'ge-0', faction: 'ge', x: 0, z: 200 }
   ]);
@@ -223,7 +223,7 @@ test('on: a squad calls again only after CALL_REPEAT, or for another enemy', () 
 });
 
 test('on: calls never chain', () => {
-  const ctx = setup('', [
+  const ctx = setup('?soldierBeliefs=0&callouts=1', [
     { id: 'us-0', faction: 'us', x: 0, z: 0 },
     { id: 'us-1', faction: 'us', x: 45, z: 0 },
     { id: 'us-2', faction: 'us', x: 90, z: 0 },
@@ -239,9 +239,37 @@ test('on: calls never chain', () => {
   assert.equal(c.contact, null, 'its neighbour did not hear it second-hand');
 });
 
+test('restart clears callout and Perception battle memory before time returns to zero', () => {
+  const ctx = setup('?soldierBeliefs=1&callouts=1', [
+    { id: 'us-0', faction: 'us', x: 0, z: 0 },
+    { id: 'us-1', faction: 'us', x: 20, z: 0 },
+    { id: 'ge-0', faction: 'ge', x: 0, z: 200 }
+  ]);
+  const [a, b, ge] = ctx.out;
+  ctx.b.time = 50;
+  sees(a, ge.members[0], 50);
+  ctx.S.squadSenses(a, ctx.b);
+  ctx.b._gunfire = [{ x: 0, z: 40, faction: 'ge', unit: ge.members[0], at: 50 }];
+  ctx.b._gunfirePrunedAt = 50;
+  ctx.S.rememberSeen(b.members[0], ge.members[0], ctx.b, true, 'restart-test');
+  assert.ok(ctx.b._callouts, 'callout state existed before restart');
+  assert.ok(ctx.b._gunfire.length, 'gunfire memory existed before restart');
+  assert.ok(b.members[0]._beliefs, 'personal belief existed before restart');
+
+  ctx.C.reset(ctx.b);
+  ctx.b.time = 0;
+  assert.equal(ctx.b._callouts, undefined, 'callout delivery/pending state is gone');
+  assert.equal(ctx.b._gunfire, undefined, 'old gunfire cannot look future-dated after restart');
+  assert.equal(ctx.b._gunfirePrunedAt, undefined);
+  assert.equal(ctx.b._soldierBeliefStats, undefined);
+  assert.equal(a.contact, null);
+  assert.equal(b.contact, null);
+  assert.equal(b.members[0]._beliefs, undefined, 'per-man belief memory starts unknown');
+});
+
 test('on: misses are deterministic, rarer close than far and in quiet than in gunfire; no combat RNG', () => {
   function run(dx, gunfire) {
-    const ctx = setup('', [
+    const ctx = setup('?soldierBeliefs=0&callouts=1', [
       { id: 'us-0', faction: 'us', x: 0, z: 0 },
       { id: 'us-1', faction: 'us', x: dx, z: 0 },
       { id: 'ge-0', faction: 'ge', x: 0, z: 300 }

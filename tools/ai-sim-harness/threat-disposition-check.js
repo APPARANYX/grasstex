@@ -119,12 +119,23 @@ test('fire-control preparation and tactical routing consume the same classificat
   state(w,'rage');
   o=w.E.fireControlObservation(w.shooter,w.b);
   assert.equal(o.targetId,String(w.target.id));
+  w.S.rememberSeen(w.shooter,w.target,w.b,true,'threat-disposition-test');
   assert.deepEqual(w.T.knownThreat(w.shooter,w.b),{x:0,z:40});
 
   w.shooter.target=null;
   state(w,'flee');
   w.us.contact={unit:w.target,x:0,z:40,at:w.b.time,seenBy:999,stance:'stand'};
-  assert.equal(w.T.knownThreat(w.shooter,w.b),null,'tactical-position selection receives no threat point for a fled man');
+  assert.deepEqual(
+    w.T.knownThreat(w.shooter,w.b),
+    {x:0,z:40},
+    'another man’s aggregate non-threat report does not erase this soldier’s own stale threat memory'
+  );
+  w.S.observeKnownNonThreats(w.shooter,w.b);
+  assert.equal(
+    w.T.knownThreat(w.shooter,w.b),
+    null,
+    'once he personally sees the fled man as a non-threat, tactical routing drops the stale threat'
+  );
 });
 test('the disposition API itself is observational and consumes no combat RNG',()=>{
   const w=world();let draws=0;const real=w.b.random;w.b.random=()=>{draws++;return real.call(w.b);};

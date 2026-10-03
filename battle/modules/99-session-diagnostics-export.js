@@ -193,7 +193,7 @@ function enrichLoops(alerts,events,conflicts){
   });
 }
 function engagement(s){return s&&s.eng?safePlain(s.eng,4):null;}
-function soldier(s){
+function soldier(s,sim){
   var w=s&&s.weapon||{},p=s&&s.root&&s.root.position||{};
   return{
     id:s&&s.id,faction:s&&s.faction,role:s&&s.role,dead:!!(s&&s.dead),hp:finite(+s.hp),maxHp:finite(+s.maxHp),
@@ -207,6 +207,7 @@ function soldier(s){
     fireControl:{losBlocked:finite(+(s&&s._losBlockedFire)),crestBlocked:finite(+(s&&s._crestBlockedFire)),terrainSuppressionBlocked:finite(+(s&&s._terrainBlockedSuppressiveFire))},
     mind:root.BattleSoldierMind?root.BattleSoldierMind.snapshot(s):null,
     buddy:root.BattleSquadStability&&root.BattleSquadStability.buddyFor?safePlain(root.BattleSquadStability.buddyFor(s),4):null,
+    beliefs:root.SquadAI&&root.SquadAI.beliefSnapshot?safePlain(root.SquadAI.beliefSnapshot(s,sim),6):null,
     movement:safePlain(s&&s._movementResolver?{last:s._movementResolver.last,changes:s._movementResolver.changes,requests:s._movementResolver.requests,history:(s._movementResolver.history||[]).slice(-6)}:null,5),
     movementProgress:safePlain(s&&s._movementProgress?{stuck:!!s._movementProgress.stuck,recoveries:s._movementProgress.recoveries||0,goalUnreachable:!!s._movementGoalUnreachable}:null,3),
     positionalTask:root.BattleTacticalPositions?safePlain(root.BattleTacticalPositions.current(s),7):null
@@ -229,7 +230,7 @@ function squad(sq,sim){
     leases:root.BattleLeases?safePlain(root.BattleLeases.active(sq,sq._battleSim?+sq._battleSim.time||0:0),4):null,
     recentLeases:safePlain(sq._leases&&sq._leases.ended,4),missionHeldBy:sq._missionHold||null,
     missionExecution:sq._missionExecution?{version:sq._missionExecution.mission?sq._missionExecution.mission.version:null,acceptedAt:finite(+sq._missionExecution.acceptedAt),holdPoint:point(sq._missionExecution.holdPoint)}:null,
-    contact:safePlain(sq._contact,4),buddyPairs:root.BattleSquadStability&&root.BattleSquadStability.buddySnapshot?safePlain(root.BattleSquadStability.buddySnapshot(sq),6):null,analysis:squadAnalysis(sim,sq),members:(sq.members||[]).map(soldier)
+    contact:safePlain(sq._contact,4),buddyPairs:root.BattleSquadStability&&root.BattleSquadStability.buddySnapshot?safePlain(root.BattleSquadStability.buddySnapshot(sq),6):null,analysis:squadAnalysis(sim,sq),members:(sq.members||[]).map(function(m){return soldier(m,sim);})
   };
 }
 function objectives(sim){

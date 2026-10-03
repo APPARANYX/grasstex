@@ -113,6 +113,19 @@ test('the mind hooks the soldier tick and the aimed-fire slot, and is off cleanl
   assert.equal(off.M.reactScale(o), 1);
 });
 
+test('recent incoming status is shipping-default only; observe and named-lever arms stay isolated', () => {
+  const ctx = world(),
+    s = man(ctx.us, 'rifleman');
+  ctx.M.of(s).lastIncomingAt = 9;
+  assert.equal(ctx.M.recentIncoming(s, 10, 3), true, 'default/all tactics may read recent incoming status');
+  ctx.M.configure('?mind=observe');
+  assert.equal(ctx.M.recentIncoming(s, 10, 3), false, 'observe keeps state but changes no decision');
+  ctx.M.configure('?mind=react');
+  assert.equal(ctx.M.recentIncoming(s, 10, 3), false, 'a named lever arm contains only the named lever');
+  ctx.M.configure('?mind=all');
+  assert.equal(ctx.M.recentIncoming(s, 10, 3), true, 'explicit all restores shipping status reads');
+});
+
 test('nerve is a hash of the man, never the RNG: the same man has the same nerve, a leader is steadier', () => {
   const a = world(),
     b = world();
@@ -564,7 +577,10 @@ function battleFingerprint(mode, seed) {
      (READERS, lever null) that is false with `?mind=0` and live under `observe` by design, so with fire control
      on the two modes are not the same battle whenever a man is shot at during a hold (seen once men stayed in
      the fight for the whole engagement). This test is about the stress levers. */
-  const r = H.bootstrap({ search: '?fireControl=0' });
+  /* This test predates per-man beliefs and proves only that Soldier Mind's observe mode does not
+     activate its own stress levers. Keep the newer behavioral systems on their legacy controls here rather
+     than forcing production tactics to reproduce the old battle. */
+  const r = H.bootstrap({ search: '?fireControl=0&soldierBeliefs=0' });
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
   r.BattleSoldierMind.configure(mode);
   const b = H.makeBattle(r, { seed });

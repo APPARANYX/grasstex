@@ -144,8 +144,11 @@
     return Math.abs(Math.atan2(Math.sin(diff), Math.cos(diff)));
   }
 
+  /* Engagement consumes the man's Perception-owned picture. With the beliefs flag off,
+     soldierContact deliberately returns the legacy squad.contact, preserving the control arm. */
   function squadContact(s, battle) {
     var api = SA();
+    if (api && api.soldierContact) return api.soldierContact(s, battle);
     return api && api.squadContact ? api.squadContact(s.squad, battle) : null;
   }
   /* What the fight has done to a man (module 17, `BattleSoldierMind`): numbers only. Engagement decides
@@ -182,7 +185,7 @@
     var M = mind();
     if (M) M.noteShock(s, kind);
   }
-  /* Recognition time, shortened when the squad has already called the contact. */
+  /* Recognition time is shortened only when this man already has prior information about the contact. */
   function reactTime(s, battle) {
     var base = ((REACT[s.role] || 0.7) + jitter(s, 0.06)) * stretch(s) * statScale(s, 'recognition'),
       contact = squadContact(s, battle),
@@ -283,23 +286,18 @@
   var CONTACT_STANCE = !(
     typeof location !== 'undefined' && /[?&]contactStance=0\b/.test(location.search || '')
   );
-  /* Is the fight this man joined still on? His squad is shooting (`inContact`), or its own eyes were on the enemy
-     within Perception's contact memory (`SquadAI.hasFirstHandMemory`, CONTACT_MEMORY). Heard gunfire and relayed
-     word do not keep it on, a retreat or the end of the battle ends it. This is the squad's lost-contact signal, not
-     a new timer. */
+  /* Is the squad's fight still live? This is deliberately aggregate/Meso information, not the
+     personal contact view used below for a man's aim and fire-control decisions. */
   function engagementLive(s, battle) {
     var q = s.squad;
     if (!q || battle.winner || q.state === 'retreat') return false;
     if (q.inContact || q.clearContact) return true; // clearing the last contact is still the engagement
-    var c = squadContact(s, battle),
-      api = SA();
-    return !!(c && api.hasFirstHandMemory && api.hasFirstHandMemory(c, battle));
+    var api = SA(),
+      c = api && api.squadContact ? api.squadContact(q, battle) : q.contact;
+    return !!(c && api && api.hasFirstHandMemory && api.hasFirstHandMemory(c, battle));
   }
-  /* Once alerted, alert for the whole engagement (owner, 2026-10-03). A man who has seen the enemy, or was told by
-     his Squad Leader to prepare for a volley, stays in the fight (`eng.engaged`) until it is won, lost or the squad
-     has lost contact (`engagementLive`): losing sight of his man holds the sector low instead of standing him up to
-     march after ALERT_HOLD, which re-alerted him (and laid him down again) every time the enemy reappeared.
-     `?alertHold=0` is the old rule (alert lapses after ALERT_HOLD), for a paired A/B. */
+  /* Once alerted, stay in the fight until the squad-level engagement is won/lost. This keeps a
+     temporary personal LOS gap from turning alert -> march -> alert. ?alertHold=0 is the old rule. */
   var ALERT_LATCH = !(typeof location !== 'undefined' && /[?&]alertHold=0\b/.test(location.search || ''));
   function squadOnHeels(s, battle) {
     var q = s.squad;
@@ -410,14 +408,19 @@
     s.crawling = false;
   }
   function stanceContext(s, battle, e) {
-    var c = s.squad && (SA().squadContact ? SA().squadContact(s.squad, battle) : s.squad.contact),
+    var c = s.squad ? squadContact(s, battle) : null,
       cp = e && e.cover,
       p = posOf(s);
     return {
       x: +p.x || 0,
       z: +p.z || 0,
       contact: !!(s.squad && s.squad.inContact),
-      contactId: c && c.unit && c.unit.id != null ? String(c.unit.id) : null,
+      contactId:
+        c && c.knownUnitId != null
+          ? String(c.knownUnitId)
+          : c && c.unit && c.unit.id != null
+            ? String(c.unit.id)
+            : null,
       cover: cp
         ? cp.slotId != null
           ? String(cp.slotId)
@@ -485,13 +488,10 @@
     }
     return false;
   }
-  /* Fighting posture by cover (owner, 2026-10-03): prone is the posture of a man in the open; in cover he
-     crouches behind it (and `seeingStance` raises him as far as he must to see over it). A prone man behind a
-     hedge or wall loses sight of the enemy, stood up to find him, and went down again when he did: the
-     prone -> stand -> prone churn. Prone in cover only when fire is coming and the cover is too low to crouch
-     behind. `?coverStance=0` is the old rule (prone for long shots and suppression wherever he is). */
+  /* Fighting posture by cover: prone is primarily the posture of a man in the open; behind useful
+     cover he crouches unless incoming fire and low cover make prone the safer choice.
+     ?coverStance=0 retains the previous long-shot/suppression rule everywhere. */
   var COVER_STANCE = !(typeof location !== 'undefined' && /[?&]coverStance=0\b/.test(location.search || ''));
-  // Is there cover where he stands (the same test `decide` uses for "cover here")?
   function inCover(s, battle) {
     var F = field(),
       p = posOf(s);
@@ -502,8 +502,6 @@
       p = posOf(s);
     return F && F.coverAt ? F.coverAt(battle.obstacles, p.x, p.z, 'crouch') : 1;
   }
-  /* Prone is only useful where it is survivable and the soldier can still shoot: long shots,
-     real suppression, or cover low enough that crouching leaves him showing. */
   function fightingStance(s, battle, distanceToTarget, coverValue) {
     var suppressed = s.suppressedUntil > battle.time;
     if (!PRONE_ROLES[s.role]) return 'crouch';
@@ -1311,12 +1309,35 @@
     SA().setDestination(s, pt, battle, !!urgent);
   }
 
-  /* The contact used for a fire-control preparation is still Perception's truth. A man with his own
-     target uses it; everyone else can prepare on the squad's first-hand contact. */
+  /* Fire-control preparation uses the live unit only when this man personally has it. If his
+     direct sight just blinked (for example after HOLD FIRE puts him prone), a recent *seen* belief
+     may stand in as a position-only proxy at the recorded last-known point. Told/heard beliefs never
+     become a target object, so no hidden live position leaks through the readiness calculation. */
   function fireControlTarget(s, battle) {
     if (combatThreat(s.target)) return s.target;
-    var c = SA().squadContact ? SA().squadContact(s.squad, battle) : null;
-    return c && combatThreat(c.unit) ? c.unit : null;
+    var c = squadContact(s, battle);
+    if (c && combatThreat(c.unit)) return c.unit;
+    if (
+      c &&
+      c.source === 'seen' &&
+      c.knownUnitId != null &&
+      isFinite(+c.x) &&
+      isFinite(+c.z)
+    ) {
+      return {
+        id: String(c.knownUnitId),
+        combatThreat: true,
+        _recordedFireControlPoint: true,
+        root: {
+          position: { x: +c.x, y: battle.heightAt(+c.x, +c.z), z: +c.z },
+          rotation: { y: 0 }
+        },
+        prone: c.stance === 'prone',
+        crouching: c.stance === 'crouch',
+        tacticalCrouch: c.stance === 'crouch'
+      };
+    }
+    return null;
   }
   function stanceProxy(s, pt, stance, battle) {
     return {
@@ -1420,8 +1441,6 @@
        prone -> crouch/stand -> prone loops. ALERT_HOLD is already the lifetime of the same
        remembered threat sector, so the posture commitment expires with that tactical memory. */
     if (ALERT_LATCH) state(s).engaged = true;
-    /* Prone only in the open. In cover he kneels behind it, rising only as far as he must to see over it, and
-       does not creep forward out of it looking for a prone line (`?coverStance=0`: everyone prone). */
     var low =
       COVER_STANCE && inCover(s, battle)
         ? seeingStance(s, battle, 'crouch', target || (known && { root: { position: known } }))
@@ -2365,9 +2384,9 @@
       transition(s, battle, 'orient', reactTime(s, battle) * 0.6, 're-acquired');
       return orient(s, battle);
     }
-    /* Clearing (the Squad Leader's `clearContact`, module 16): the contact has gone quiet, so once his own
-       sector hold is over a man who is not suppressing stops holding his cover and follows the squad's order up
-       on the last known position, crouched and looking at it. */
+    /* Clearing (the Squad Leader's `clearContact`, module 16): once his sector hold is over, a man
+       who is not suppressing follows the squad up on the last aggregate contact point. That order is
+       Meso intent; his ordinary aim/threat decisions still come from his personal belief view. */
     var clearing = !!(
       s.squad &&
       s.squad.clearContact &&
@@ -2378,10 +2397,10 @@
     );
     if (clearing) s.state = 'clear';
     else holdPosition(s, battle);
-    /* The squad's shared contact outranks this man's own last sighting: somebody else may have
-       eyes on right now. */
+    /* His freshest personal contact/belief outranks his older Engagement last-seen point; the
+       deliberate clearing order is the one exception because it is a Squad Leader destination. */
     var aim = clearing ? s.squad.clearContact : knownThreat(s, battle);
-    /* Holding the sector he looks at where the enemy was: low, but not so low a wall hides it from him. */
+    /* Hold the sector low; clearing moves crouched, otherwise open-ground riflemen go prone. */
     var watch = !clearing && COVER_STANCE && PRONE_ROLES[s.role] && !inCover(s, battle) ? 'prone' : 'crouch';
     if (!holdStance(s, battle))
       commitStance(s, battle, seeingStance(s, battle, watch, aim && { root: { position: aim } }), 2.0);
@@ -2560,7 +2579,10 @@
      are moving, pinned, withdrawing or holding a firing station are all excluded - and during a
      bound the movers never double as the base of fire. */
   function assignSuppressors(sq, battle, members, known) {
-    var contact = known !== undefined ? known : SA().squadContact ? SA().squadContact(sq, battle) : null,
+    var api = SA(),
+      personal = !!(api.soldierBeliefsOn && api.soldierBeliefsOn() && api.soldierContact),
+      contact = known !== undefined ? known : api.squadContact ? api.squadContact(sq, battle) : null,
+      disabled = known === null,
       i,
       s,
       chosen = 0;
@@ -2568,11 +2590,9 @@
       s = members[i];
       if (!s.dead && !s.isPlayer) state(s).suppressOrder = false;
     }
-    if (contact) {
+    if (!disabled && (personal || contact)) {
       var bounding = root.BattleLeases.holds(sq, 'bound', battle.time),
         candidates = [];
-      var point = { x: contact.x, z: contact.z },
-        api = SA();
       for (i = 0; i < members.length; i++) {
         s = members[i];
         if (
@@ -2594,7 +2614,19 @@
         )
           continue;
         if (bounding && es.boundOrder) continue;
-        /* No job for a man who cannot reach it - he keeps advancing instead of standing still. */
+        var own = personal ? api.soldierContact(s, battle) : contact;
+        if (!own || !isFinite(+own.x) || !isFinite(+own.z)) continue;
+        /* A callout or gunshot is enough to orient and prepare a man, not enough to make him
+           autonomously hose down a sector. Personal-mode automatic suppression requires his own
+           recent visual memory; explicit area-fire / fire-control orders remain separate authority. */
+        if (
+          personal &&
+          (own.source !== 'seen' || !isFinite(+own.at) || battle.time - +own.at > ALERT_HOLD)
+        )
+          continue;
+        var point = { x: +own.x, z: +own.z };
+        /* No job for a man who cannot reach what HE believes - he keeps advancing instead of
+           inheriting another man's invisible suppressive sector. */
         if (api.canSuppress && !api.canSuppress(s, point, battle)) continue;
         candidates.push(s);
       }
@@ -2653,7 +2685,7 @@
       );
     /* A hold/precision order is silent preparation. Clear old suppressor jobs while it is active;
        otherwise a stale suppressOrder would make the squad look like a base of fire before permission. */
-    var suppressing = assignSuppressors(sq, battle, members, controlled ? null : known),
+    var suppressing = assignSuppressors(sq, battle, members, controlled ? null : undefined),
       broken = [],
       fled = [];
     for (i = 0; i < members.length; i++) {
