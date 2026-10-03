@@ -99,6 +99,21 @@ test('the replan flag flips when the General wakes on the stall, not before', ()
   );
 });
 
+test('opponent progress does not reset this side\'s strategic stall clock', () => {
+  const w = world();
+  w.H.reset(w.b);
+  for (let t = 2; t <= 20; t += 2) {
+    w.b.time = t;
+    /* GE progresses on an objective; US does not. */
+    w.b.objectiveControl.objectives.a = { owner: 'neutral', active: 'ge', phase: 'capturing', progress: t * 2 };
+    w.H.sample(w.b);
+  }
+  const h = w.b._coordinationHealth;
+  assert.equal(h.lastObjectiveProgressAt.ge, 20, 'GE clock follows GE progress');
+  assert.equal(h.lastObjectiveProgressAt.us, 0, 'US clock is not refreshed by GE progress');
+  assert.ok(h.sides.us.objectiveStallSeconds > h.sides.ge.objectiveStallSeconds);
+});
+
 test('with no General loaded nobody replans, so no stall is ever due', () => {
   const w = world({ general: false });
   assert.equal(w.H.replanAfter, Infinity);
