@@ -1882,6 +1882,31 @@
     return true;
   }
 
+  /* Battle lifecycle reset for Perception-owned memory. A restart returns simulated time to zero,
+     so retaining gunfire/contact/belief state would make prior-battle evidence look fresh or even
+     future-dated in the new battle. Keep the reset at the owner; lifecycle modules call this API. */
+  function resetPerceptionBattleState(battle) {
+    if (!battle) return;
+    delete battle._gunfire;
+    delete battle._gunfirePrunedAt;
+    delete battle._soldierBeliefStats;
+    var sides = ['us', 'ge'];
+    for (var fi = 0; fi < sides.length; fi++) {
+      var faction = sides[fi],
+        squads = (battle.factions && battle.factions[faction] && battle.factions[faction].squads) || [],
+        roster = (battle._roster && battle._roster[faction]) || [];
+      for (var qi = 0; qi < squads.length; qi++) {
+        if (!squads[qi]) continue;
+        squads[qi].contact = null;
+        squads[qi]._sensedAt = -Infinity;
+      }
+      for (var si = 0; si < roster.length; si++) {
+        if (!roster[si]) continue;
+        delete roster[si]._beliefs;
+      }
+    }
+  }
+
   root.BattleExtensionPoints = extensionPoints;
   root.BattleLeases = Leases;
   root.SquadAI = {
@@ -1918,6 +1943,7 @@
     threatDisposition: threatDisposition,
     lookYaw: lookYaw,
     squadSenses: squadSenses,
+    resetPerceptionBattleState: resetPerceptionBattleState,
     parseSoldierBeliefs: parseSoldierBeliefs,
     soldierBeliefsOn: function () {
       return SOLDIER_BELIEFS_ON;
