@@ -3530,6 +3530,7 @@
     fireControl: function (sq) { return sq && sq.fireControl ? Object.assign({}, sq.fireControl) : null; },
     updateFireControl: updateFireControl,
     advanceSquadAnchor: advanceSquadAnchor,
+    updateFireteams: updateFireteams,
     coaOn: function () { return COA_ON; },
     coas: function () { return Object.keys(COAS); },
     /* Read-only views of the two decisions, for the checks and the probes (nothing in the runtime calls them). */
