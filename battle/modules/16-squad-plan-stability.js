@@ -950,7 +950,10 @@
          keeps the direction the squad was marching when it opened. `_formationForward` is only set
          by SquadAI.formationSlot (men with no order destination), so it is usually absent. */
       var rg = L.get(sq, 'regroup'),
-        f = (rg && rg.data && rg.data.forward) || sq._formationForward,
+        f =
+          (rg && rg.data && rg.data.forward) ||
+          (sq._forwardLine && sq._forwardLine.axis) ||
+          sq._formationForward,
         fl = f ? Math.hypot(+f.x || 0, +f.z || 0) : 0;
       if (fl > 1e-6) return { x: (+f.x || 0) / fl, z: (+f.z || 0) / fl };
     }
