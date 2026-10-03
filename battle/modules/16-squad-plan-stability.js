@@ -106,6 +106,16 @@
   L.define('regroup-cooldown', { priority: 20, timer: true });
   L.define('bound-cycle', { priority: 15, timer: true });
   L.define('regroup-bypass', { priority: 10, timer: true });
+  L.define('rally-recovery', {
+    priority: 88,
+    progress: function (sq, lease, t) {
+      var d = (lease && lease.data) || {};
+      return {
+        ok: d.stableSince == null ? null : true,
+        detail: 'post-retreat reform ' + Math.max(0, t - lease.since).toFixed(1) + ' s'
+      };
+    }
+  });
 
   var ASSAULT_LEASE = 26,
     DEFENSE_LEASE = 38,
@@ -123,6 +133,12 @@
     ASSAULT_PHASES = { assault: 1, capture: 1, 'clear-town': 1 };
   var ASSEMBLY_HOME_RADIUS = 20,
     SUCCESSION_DELAY = 6;
+  function parseRallyRecovery(search) {
+    return !/[?&]rallyRecovery=(?:0|off|false)(?:&|#|$)/i.test(search || '');
+  }
+  var RALLY_RECOVERY_ON = parseRallyRecovery(typeof location !== 'undefined' ? location.search || '' : ''),
+    RALLY_RECOVERY_DWELL = 4,
+    RALLY_RECOVERY_ARRIVE = 5;
   var ORDER_STRIDE = 13,
     ORDER_ARRIVAL_RADIUS = 8,
     ORDER_COHESION = 0.55,
@@ -3199,6 +3215,57 @@
       telemetry(battle, 'decision-bound', info);
     }
   }
+  function endRallyRecovery(sq, battle, reason) {
+    if (!battle || (!sq._moraleRallyPoint && !L.get(sq, 'rally-recovery'))) return;
+    sq._moraleRallyPoint = null;
+    L.end(sq, 'rally-recovery', battle.time, reason);
+    telemetry(battle, 'decision-rally-recovery-end', {
+      faction: sq.faction,
+      squad: sq.id,
+      reason: reason
+    });
+  }
+  function recoverFromRetreat(sq, battle, casualtyFrac, stress) {
+    if (!RALLY_RECOVERY_ON) return moraleRallies(casualtyFrac, stress);
+    if (!moraleRallies(casualtyFrac, stress) || sq.inContact) {
+      endRallyRecovery(sq, battle, sq.inContact ? 'contact resumed' : 'morale fell');
+      return false;
+    }
+    var lease = L.get(sq, 'rally-recovery');
+    if (!lease) {
+      var here = average(sq) || sq.orderAnchor || sq.rally || sq.home;
+      sq._moraleRallyPoint = copy(here);
+      L.end(sq, 'retreat-anchor', battle.time, 'morale rally recovery');
+      lease = L.grant(
+        sq,
+        'rally-recovery',
+        'squad-leader',
+        battle.time,
+        Infinity,
+        'morale recovered; physically reform before resuming mission',
+        'contact, morale loss or stable reform',
+        { point: copy(here), stableSince: null }
+      );
+      telemetry(battle, 'decision-rally-recovery-start', {
+        faction: sq.faction,
+        squad: sq.id,
+        point: copy(here)
+      });
+    }
+    var center = average(sq),
+      rally = (lease.data && lease.data.point) || sq._moraleRallyPoint,
+      limit = +(cfg(battle, sq).cohesionRadius || 34),
+      ca = cohesionAssessment(sq, limit),
+      physicallyReady = !!(center && rally && dist(center, rally) <= RALLY_RECOVERY_ARRIVE && !ca.dispersed);
+    if (!physicallyReady) {
+      lease.data.stableSince = null;
+      return false;
+    }
+    if (lease.data.stableSince == null) lease.data.stableSince = battle.time;
+    if (battle.time - lease.data.stableSince < RALLY_RECOVERY_DWELL) return false;
+    endRallyRecovery(sq, battle, 'stable reform complete');
+    return true;
+  }
   function updateSquadState(sq, battle) {
     var living = 0,
       anyEngaged = false;
@@ -3212,17 +3279,20 @@
     if (MORALE_ON) {
       var stress = squadStress(sq);
       if (sq.state === 'retreat') {
-        /* Rally: a retreating squad reforms once calm and clear of its break threshold. Casualties do
-           not heal, so a squad the flat rule broke (60%) keeps falling back until a merge restores it. */
-        if (moraleRallies(casualtyFrac, stress)) sq.state = anyEngaged ? 'engaged' : 'advance';
+        /* Psychological recovery is not physical recovery. Keep retreat authority until the men stop
+           at a local rally point and reform, then hand the old mission back to ordinary command. */
+        if (battle && recoverFromRetreat(sq, battle, casualtyFrac, stress))
+          sq.state = anyEngaged ? 'engaged' : 'advance';
       } else {
-        /* Break: stress lowers the casualty threshold. At zero stress this is exactly the
-           flat 60% rule. */
+        if (battle) endRallyRecovery(sq, battle, 'not retreating');
         if (casualtyFrac >= moraleBreakAt(stress)) sq.state = 'retreat';
         else sq.state = anyEngaged ? 'engaged' : 'advance';
       }
     } else if (casualtyFrac >= 0.6) sq.state = 'retreat';
-    else sq.state = anyEngaged ? 'engaged' : 'advance';
+    else {
+      if (battle) endRallyRecovery(sq, battle, 'morale disabled');
+      sq.state = anyEngaged ? 'engaged' : 'advance';
+    }
     if (battle) updateSuccession(sq, battle);
     if (battle) updateAssembly(sq, battle);
     noteSafePoint(sq, battle);
@@ -3818,6 +3888,9 @@
     buddySnapshot: buddySnapshot,
     buddyTelemetry: buddyTelemetry,
     moraleOn: function () { return MORALE_ON; },
+    rallyRecoveryOn: function () { return RALLY_RECOVERY_ON; },
+    parseRallyRecovery: parseRallyRecovery,
+    rallyRecoveryTuning: { dwell: RALLY_RECOVERY_DWELL, arrive: RALLY_RECOVERY_ARRIVE },
     fireControlOn: function () { return FIRE_CONTROL_ON; },
     alertAdvanceOn: function () { return ALERT_ADVANCE; },
     fireControl: function (sq) { return sq && sq.fireControl ? Object.assign({}, sq.fireControl) : null; },
