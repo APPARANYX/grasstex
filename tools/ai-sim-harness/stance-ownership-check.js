@@ -53,7 +53,10 @@ test('only Engagement writes stance flags',()=>{
 
 function oneMan(){
   H.resetIds();
-  const r=H.bootstrap(),b=H.makeBattle(r),
+  /* These stance checks exercise the historical squad-contact posture contract directly by
+     injecting squad.contact. Keep that contract on the legacy shared-contact arm; personal-belief
+     posture behavior is covered by the dedicated beliefs/engagement checks. */
+  const r=H.bootstrap({search:'?soldierBeliefs=0'}),b=H.makeBattle(r),
     q=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:200}}),
     e=H.addSquad(r,b,{id:'ge-0',faction:'ge',x:0,z:120,objective:{x:0,z:0}}),
     s=q.members.find(m=>m.role==='rifleman');
@@ -93,7 +96,7 @@ test('a one-tick contact pulse keeps advance low through the quiet-gap grace ins
 });
 
 test('?contactStance=0: the raw signal, he stands the moment inContact clears',()=>{
-  globalThis.location={search:'?contactStance=0'};
+  globalThis.location={search:'?contactStance=0&soldierBeliefs=0'};
   let raw;try{raw=H.bootstrap();}finally{delete globalThis.location;}
   const E=raw.BattleEngagement;assert.equal(E.tuning.CONTACT_STANCE,false);
   H.resetIds();
