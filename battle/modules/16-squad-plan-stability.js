@@ -2912,7 +2912,10 @@
      since the published line is a tick old and cleared in retreat) by more than FOLLOW_LAG: it is
      carried forward along the advance axis to where the team actually is. */
   function followTeamForward(sq, key, men, cur) {
-    var axis = commandForward(sq),
+    /* Use the same frame as desiredAnchor(). commandForward may legitimately lag a turn while
+       _formationForward is held; mixing the two frames lets a longitudinal correction consume the
+       lateral separation that desiredAnchor just prescribed. */
+    var axis = teamFrame(sq),
       right = { x: -axis.z, z: axis.x },
       desired = desiredAnchor(sq, key),
       t = forwardMajority(men, axis);
