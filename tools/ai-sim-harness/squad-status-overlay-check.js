@@ -38,11 +38,10 @@ const O = ctx.BattleSquadStatusOverlay;
 assert(O, 'overlay API exported');
 assert(registered && registered.id === 'squad-status-overlay', 'system registered');
 assert.strictEqual(O.longArrowWorld, 150, 'long command arrows require a 150 m destination');
-assert.deepStrictEqual(JSON.parse(JSON.stringify(O.symbolSpec({}))), {
-  arm: 'infantry',
-  echelon: 'squad',
-  glyph: 'X'
-});
+const fallbackSymbol = JSON.parse(JSON.stringify(O.symbolSpec({})));
+assert.strictEqual(fallbackSymbol.id, 'infantry');
+assert.strictEqual(fallbackSymbol.verifiedHistorical, true);
+assert(Array.isArray(fallbackSymbol.primitives) && fallbackSymbol.primitives.length > 0);
 
 function base() {
   return {
