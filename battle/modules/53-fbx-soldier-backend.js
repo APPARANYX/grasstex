@@ -2120,8 +2120,18 @@ function skinSample(anchor,outPos,outNormal){
    512x512 transparent decal map. Babylon's UV-space projection shader includes bone skinning, so
    projecting at the live skin-anchor position writes into the correct UV island and the mark then
    deforms for free with later poses. Rigid/segmented helmet and gear meshes can use the same path
-   later without changing this contract. */
-var SURFACE_DAMAGE_SIZE=512;
+   later without changing this contract.
+   On a phone each map is 256² with no UV edge blending: edge blending keeps two more full-size
+   render targets per wounded mesh, so a desktop map is three 512² targets (~3.5 MB) and by the end
+   of a battle ~40 of them held ~136 MB of GPU memory that is never given back. iOS reloads the tab
+   when its memory runs out. 256² with no blending is one target (~0.35 MB). `?woundMap=512` or
+   `=256` forces either; a phone is a coarse primary pointer. */
+var SURFACE_DAMAGE_PHONE=(function(){
+  var q=root.location&&/[?&]woundMap=(\d+)/.exec(root.location.search||'');
+  if(q)return +q[1]<512;
+  return !!(root.matchMedia&&root.matchMedia('(pointer:coarse)').matches);
+})();
+var SURFACE_DAMAGE_SIZE=SURFACE_DAMAGE_PHONE?256:512;
 function surfaceDamageMap(mesh){
   if(!mesh||!BABYLON.MeshUVSpaceRenderer||!mesh.getScene||!mesh.getVerticesData)return null;
   if(mesh.isDisposed&&mesh.isDisposed())return null;
@@ -2132,7 +2142,7 @@ function surfaceDamageMap(mesh){
   try{
     var renderer=new BABYLON.MeshUVSpaceRenderer(mesh,mesh.getScene(),{
       width:SURFACE_DAMAGE_SIZE,height:SURFACE_DAMAGE_SIZE,generateMipMaps:true,
-      optimizeUVAllocation:true,uvEdgeBlending:true
+      optimizeUVAllocation:true,uvEdgeBlending:!SURFACE_DAMAGE_PHONE
     });
     renderer.clearColor=new BABYLON.Color4(0,0,0,0);
     mesh.decalMap=renderer;
