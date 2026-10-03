@@ -12,6 +12,30 @@ const ctx = {
   BattleModules: {
     registerSystem(id, spec) {
       registered = { id, spec };
+    },
+    listTacticalOverlayProviders() {
+      return [{
+        id: 'vehicles',
+        entities(sim, faction) {
+          return faction === 'us' ? [{
+            id: 'tank-1',
+            faction: 'us',
+            root: { position: { x: 12, z: 34 } },
+            unitType: 'armor'
+          }] : [];
+        },
+        view(v) {
+          return {
+            id: v.id,
+            faction: v.faction,
+            root: v.root,
+            tacticalSymbol: 'armor',
+            overlayStatus: 'ADVANCE',
+            overlayDestination: { x: 250, z: 34, id: 'road-1' },
+            overlayMoving: true
+          };
+        }
+      }];
     }
   },
   SquadAI: {
@@ -57,7 +81,17 @@ function base() {
   };
 }
 
-const sim = { time: 12, objectives: { A: { def: { x: 100, z: 200 } } } };
+const sim = { time: 12, factions: { us: { squads: [] }, ge: { squads: [] } }, objectives: { A: { def: { x: 100, z: 200 } } } };
+
+const providerRows = O.overlayEntities(sim, 'us');
+assert.strictEqual(providerRows.length, 1, 'non-squad provider contributes overlay entity');
+assert.strictEqual(providerRows[0].key, 'provider:vehicles:us:tank-1');
+assert.strictEqual(O.statusFor(providerRows[0].entity, sim).label, 'ADVANCE');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(O.arrowTarget(providerRows[0].entity, sim))), {
+  x: 250,
+  z: 34,
+  id: 'road-1'
+});
 
 let q = base();
 assert.strictEqual(O.statusFor(q, sim).label, 'ADVANCE');
