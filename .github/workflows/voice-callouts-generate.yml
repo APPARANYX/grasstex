@@ -72,7 +72,7 @@ jobs:
         with:
           repository: APPARANYX/grasstex-audio
           ref: ${{ steps.private-audio.outputs.commit }}
-          ssh-key: ${{ secrets.PRIVATE_AUDIO_READ_KEY }}
+          ssh-key: ${{ secrets.PRIVATE_AUDIO_READ_KEY || secrets.AUDIO_PRIVATE_WRITE_KEY }}
           path: .runtime/private-audio
           persist-credentials: false
 
