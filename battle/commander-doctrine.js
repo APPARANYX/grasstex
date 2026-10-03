@@ -136,6 +136,13 @@
       return !u.dead;
     });
   }
+  /* Macro enemy-intel boundary. Default-on: the General may know its own force exactly, but hostile
+     locations/strength enter only through reports held by its own squads. ?generalIntel=0 restores
+     the pre-isolation truth-reading control for paired validation. */
+  function parseGeneralIntel(search) {
+    return !/[?&]generalIntel=(?:0|off|false)(?:&|#|$)/i.test(search || '');
+  }
+  var GENERAL_INTEL_ON = parseGeneralIntel(typeof location !== 'undefined' ? location.search : '');
   function forceScore(sim, faction) {
     var units = forceUnits(sim, faction),
       score = 0;
@@ -152,7 +159,7 @@
     }
     return n;
   }
-  function nearestEnemyToSquad(sim, sq) {
+  function truthNearestEnemyToSquad(sim, sq) {
     var p = avgPos(sq),
       enemy = forceUnits(sim, enemyFaction(sq.faction)),
       best = null,
@@ -165,7 +172,63 @@
         best = e;
       }
     }
-    return { unit: best, distance: bd };
+    return { unit: best, distance: bd, source: 'truth' };
+  }
+  /* Snapshot only what an own-side squad has actually reported. Never pass the live enemy object up
+     to Macro: even a first-hand squad contact becomes an id + last reported point/time here. */
+  function reportedContacts(sim, faction) {
+    var A = root.SquadAI,
+      squads = (sim && sim.factions && sim.factions[faction] && sim.factions[faction].squads) || [],
+      byKey = {},
+      rows = [];
+    if (!A || typeof A.squadContact !== 'function') return rows;
+    for (var i = 0; i < squads.length; i++) {
+      var sq = squads[i];
+      if (!sq || !aliveMembers(sq).length) continue;
+      var c = A.squadContact(sq, sim);
+      if (!c || !isFinite(+c.x) || !isFinite(+c.z)) continue;
+      var id = c.knownUnitId != null ? c.knownUnitId : c.unit && c.unit.id != null ? c.unit.id : null,
+        key = id != null ? 'unit:' + id : 'sector:' + Math.round(+c.x / 20) + ':' + Math.round(+c.z / 20),
+        row = {
+          key: key,
+          targetId: id,
+          x: +c.x,
+          z: +c.z,
+          at: isFinite(+c.at) ? +c.at : +sim.time || 0,
+          sourceSquad: sq.id
+        },
+        old = byKey[key];
+      if (!old || row.at >= old.at) byKey[key] = row;
+    }
+    Object.keys(byKey)
+      .sort()
+      .forEach(function (k) {
+        rows.push(byKey[k]);
+      });
+    return rows;
+  }
+  function reportedNearestEnemyToSquad(sim, sq) {
+    var p = avgPos(sq),
+      rows = reportedContacts(sim, sq.faction),
+      best = null,
+      bd = Infinity;
+    for (var i = 0; i < rows.length; i++) {
+      var d = dist(p.x, p.z, rows[i].x, rows[i].z);
+      if (d < bd) {
+        bd = d;
+        best = rows[i];
+      }
+    }
+    return { unit: null, contact: best, distance: bd, source: 'reports' };
+  }
+  function reportedEnemyStrengthNear(sim, faction, p, radius) {
+    var rows = reportedContacts(sim, faction),
+      n = 0;
+    for (var i = 0; i < rows.length; i++) if (dist(p.x, p.z, rows[i].x, rows[i].z) <= radius) n++;
+    return n;
+  }
+  function nearestEnemyToSquad(sim, sq) {
+    return GENERAL_INTEL_ON ? reportedNearestEnemyToSquad(sim, sq) : truthNearestEnemyToSquad(sim, sq);
   }
 
   function objectivePoint(instance, sim, sq) {
@@ -305,14 +368,17 @@
       support = above(profile.support);
     if (!pace && !grit && !support) return null;
     var home = sq.home || avgPos(sq),
-      foes = forceUnits(sim, enemyFaction(sq.faction)),
+      foes = GENERAL_INTEL_ON
+        ? reportedContacts(sim, sq.faction)
+        : forceUnits(sim, enemyFaction(sq.faction)).map(function (u) {
+            return { x: u.root.position.x, z: u.root.position.z };
+          }),
       away = pool.map(function (c) {
         return dist(home.x, home.z, c.point.x, c.point.z);
       }),
       threat = pool.map(function (c) {
         var d = Infinity;
-        for (var i = 0; i < foes.length; i++)
-          d = Math.min(d, dist(foes[i].root.position.x, foes[i].root.position.z, c.point.x, c.point.z));
+        for (var i = 0; i < foes.length; i++) d = Math.min(d, dist(foes[i].x, foes[i].z, c.point.x, c.point.z));
         return d;
       }),
       out = {},
@@ -364,8 +430,12 @@
         score = (need + active) * value - d * cfg.sectorDistanceWeight;
       if (doc.objectiveStrategy === 'nearest') score = -d + value * 15;
       else if (doc.objectiveStrategy === 'highest-value') score = value * 150 - d * 0.18;
-      else if (doc.objectiveStrategy === 'weakest-pressure')
-        score = 90 - ownerPressure(status, sq.faction) * 18 - d * 0.25 + (owner === sq.faction ? -30 : 30);
+      else if (doc.objectiveStrategy === 'weakest-pressure') {
+        var pressure = GENERAL_INTEL_ON
+          ? reportedEnemyStrengthNear(sim, sq.faction, point, (+obj.def.radius || 30) * 1.5)
+          : ownerPressure(status, sq.faction);
+        score = 90 - pressure * 18 - d * 0.25 + (owner === sq.faction ? -30 : 30);
+      }
       else if (doc.objectiveStrategy === 'sequential')
         score = 200 - i * 35 - d * 0.1 + (owner === sq.faction ? -150 : 0);
       if (obj.handler && typeof obj.handler.commandScore === 'function')
@@ -408,7 +478,9 @@
       status = (chosen && chosen.status) || {},
       owner = status.owner || 'neutral';
     var friendly = nearbyStrength(sim, sq.faction, p, 90),
-      hostile = nearbyStrength(sim, enemyFaction(sq.faction), p, 90),
+      hostile = GENERAL_INTEL_ON
+        ? reportedEnemyStrengthNear(sim, sq.faction, p, 90)
+        : nearbyStrength(sim, enemyFaction(sq.faction), p, 90),
       ratio = friendly / Math.max(1, hostile);
     return {
       objectiveNeutral: owner === 'neutral',
@@ -422,7 +494,11 @@
       insideObjective: !!(
         chosen && dist(p.x, p.z, chosen.point.x, chosen.point.z) < (+chosen.instance.def.radius || 30)
       ),
-      underPressure: owner === sq.faction && ownerPressure(status, sq.faction) > 0,
+      underPressure:
+        owner === sq.faction &&
+        (GENERAL_INTEL_ON
+          ? reportedEnemyStrengthNear(sim, sq.faction, chosen && chosen.point ? chosen.point : p, 60) > 0
+          : ownerPressure(status, sq.faction) > 0),
       localRatio: ratio,
       friendlyStrength: friendly,
       enemyStrength: hostile
@@ -466,6 +542,11 @@
     forceScore: forceScore,
     nearbyStrength: nearbyStrength,
     nearestEnemyToSquad: nearestEnemyToSquad,
+    truthNearestEnemyToSquad: truthNearestEnemyToSquad,
+    reportedContacts: reportedContacts,
+    reportedEnemyStrengthNear: reportedEnemyStrengthNear,
+    generalIntelEnabled: function () { return GENERAL_INTEL_ON; },
+    parseGeneralIntel: parseGeneralIntel,
     objectivePoint: objectivePoint,
     objectiveStatus: objectiveStatus,
     objectiveValueScore: objectiveValueScore,
