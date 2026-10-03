@@ -1953,6 +1953,90 @@
    formation point for every soldier every squad tick. M3C keeps the useful anchor cadence here and
    deletes that redundant individual producer entirely: only committed fireteam slots publish Meso
    locomotion. */
+  /* Clearing the last contact (`?alertAdvance=0` is the old hold). Once a squad has seen the enemy its alerted men
+     hold their sector until the engagement is won, lost or the contact is gone, and the anchor is held while the
+     squad is in contact. Nothing moved them on when the enemy simply dropped out of sight: a hold-fire preparation
+     on a contact nobody could see, or a suppressor firing on a remembered position, kept them in their cover for as
+     long as the picture lasted. When nobody in the squad has seen anyone or been shot at for CLEAR_AFTER seconds
+     and the squad still holds its own (first-hand) picture of the enemy, the Squad Leader orders it to move up on
+     the last place the enemy was seen (`sq.clearContact`): the anchor advances on that point instead of the
+     objective, and Engagement lets an alerted man who is not suppressing follow his order, crouched and watching
+     it. Fire control is opened (a hold-fire order still waiting, or none) and stays open while the order stands,
+     so the man who finds the enemy again shoots instead of the squad going prone for a new volley. The order ends
+     when anyone sees an enemy or is shot at (the fight resumes), when the squad has reached the point (cleared),
+     after CLEAR_MAX seconds, in a holding phase, in retreat or when the battle is over; a newer first-hand
+     sighting moves the point. */
+  var ALERT_ADVANCE = !(typeof location !== 'undefined' && /[?&]alertAdvance=(?:0|off|false)\b/.test(location.search || ''));
+  var CLEAR_AFTER = 6;
+  var CLEAR_MAX = 90;
+  var CLEAR_ARRIVED = 4;
+  var CLEAR_HOLD_PHASES = { regroup: 1, 'support-hold': 1, hold: 1, reserve: 1, defend: 1, 'corner-check': 1 };
+  function endClearContact(sq, battle, why) {
+    if (sq.clearContact && why !== 'sighting' && why !== 'under fire') sq._clearedSeen = sq.clearContact.seen;
+    if (sq.clearContact)
+      telemetry(battle, 'decision-clear-contact-end', {
+        faction: sq.faction,
+        squad: sq.id,
+        reason: why,
+        seconds: battle.time - sq.clearContact.since
+      });
+    sq.clearContact = null;
+  }
+  function updateClearContact(sq, battle, r) {
+    if (!ALERT_ADVANCE) return;
+    var A = root.SquadAI,
+      c = A.squadContact ? A.squadContact(sq, battle) : null,
+      own = !!(c && (A.hasFirstHandMemory ? A.hasFirstHandMemory(c, battle) : !c.heard && !c.relayedFrom)),
+      cc = sq.clearContact,
+      why =
+        sq.contactCount > 0
+          ? 'sighting'
+          : r.underFire > 0
+            ? 'under fire'
+            : sq.state === 'retreat'
+              ? 'retreat'
+              : battle.winner
+                ? 'battle over'
+                : CLEAR_HOLD_PHASES[sq.commandPhase || '']
+                  ? 'holding phase'
+                  : null;
+    if (why) {
+      sq._quietSince = null;
+      endClearContact(sq, battle, why);
+      return;
+    }
+    if (cc) {
+      if (own) {
+        cc.x = c.x;
+        cc.z = c.z;
+        cc.seen = c.at;
+      }
+      var a = sq.orderAnchor;
+      if (a && dist(a, cc) <= CLEAR_ARRIVED && orderCanAdvance(sq)) endClearContact(sq, battle, 'cleared');
+      else if (battle.time - cc.since >= CLEAR_MAX) endClearContact(sq, battle, 'timeout');
+      if (!sq.clearContact) sq._quietSince = null;
+      return;
+    }
+    /* A picture the squad has already cleared, timed out on or left for a holding task is not ordered again. */
+    if (!own || (sq._clearedSeen != null && c.at <= sq._clearedSeen)) {
+      sq._quietSince = null;
+      return;
+    }
+    if (sq._quietSince == null) sq._quietSince = battle.time;
+    if (battle.time - sq._quietSince < CLEAR_AFTER) return;
+    sq.clearContact = { x: c.x, z: c.z, seen: c.at, since: battle.time };
+    telemetry(battle, 'decision-clear-contact', {
+      faction: sq.faction,
+      squad: sq.id,
+      phase: sq.commandPhase || '',
+      point: { x: c.x, z: c.z }
+    });
+    var fc = sq.fireControl;
+    if (FIRE_CONTROL_ON && !(fc && fc.state === 'open'))
+      setFireControl(sq, battle, fc || null, 'open', 'contact quiet: clearing', {
+        targetId: fc ? fc.targetId : c.unit && c.unit.id
+      });
+  }
   function advanceSquadAnchor(sq, battle) {
     var anchor = sq.orderAnchor || publishAnchor(sq, sq.rally);
     if (sq.state === 'retreat') {
@@ -1962,23 +2046,32 @@
     if (L.get(sq, 'retreat-anchor')) L.end(sq, 'retreat-anchor', battle.time, 'retreat ended');
     var x = anchor.x,
       z = anchor.z,
-      goal = sq.objective || sq.home,
-      goalChanged = !sq._orderGoal || dist(goal, sq._orderGoal) > 3;
+      mission = sq.objective || sq.home,
+      goalChanged = !sq._orderGoal || dist(mission, sq._orderGoal) > 3,
+      /* Clearing heads for the last contact; its point moves with what is heard, so it never forces a stride. */
+      goal = sq.clearContact || mission;
     var form = root.SquadAI.formationFor(sq),
       formChanged = form !== sq.formation,
       phase = sq.commandPhase || '',
       hold = ['regroup', 'support-hold', 'hold', 'reserve', 'defend', 'corner-check'].indexOf(phase) >= 0,
       force = false;
     if (goalChanged) {
-      sq._orderGoal = copy(goal);
+      sq._orderGoal = copy(mission);
       force = true;
     }
     if (formChanged) {
       sq.formation = form;
       force = true;
     }
+    /* The first stride of a clearing order is taken at once, so the men in cover get a point ahead to move up
+       to; after that the anchor advances as they arrive, as on any march. */
+    if (sq.clearContact && sq._clearStride !== sq.clearContact.since) {
+      sq._clearStride = sq.clearContact.since;
+      force = true;
+    }
     var bounding = L.holds(sq, 'bound', battle.time),
-      held = !!sq.inContact && !bounding,
+      clearing = !!sq.clearContact,
+      held = !!sq.inContact && !bounding && !clearing,
       dx = goal.x - x,
       dz = goal.z - z,
       len = Math.hypot(dx, dz),
@@ -2125,6 +2218,7 @@
     var r = E.updateSquad(sq, battle);
     if (!r) return;
     if (r.fled && r.fled.length && sq.fledId == null) detachFled(sq, battle, r.fled);
+    updateClearContact(sq, battle, r);
     var members = sq.members || [],
       i,
       s;
@@ -2139,7 +2233,9 @@
       L.end(sq, 'bound', t, 'contact broken');
       sq._assaultAuthorized = false;
       if (SL_STRESS.review) sq._slStressSince = null;
-      if (FIRE_CONTROL_ON) clearFireControl(sq, battle, 'contact broken');
+      /* A squad clearing the last contact is still in that engagement: its open fire order stands, so the man
+         who finds the enemy again fires instead of the squad going to ground for a new volley. */
+      if (FIRE_CONTROL_ON && !sq.clearContact) clearFireControl(sq, battle, 'contact broken');
       return;
     }
     stressReview(sq, battle);
@@ -2841,8 +2937,10 @@
     buddyTelemetry: buddyTelemetry,
     moraleOn: function () { return MORALE_ON; },
     fireControlOn: function () { return FIRE_CONTROL_ON; },
+    alertAdvanceOn: function () { return ALERT_ADVANCE; },
     fireControl: function (sq) { return sq && sq.fireControl ? Object.assign({}, sq.fireControl) : null; },
     updateFireControl: updateFireControl,
+    advanceSquadAnchor: advanceSquadAnchor,
     coaOn: function () { return COA_ON; },
     coas: function () { return Object.keys(COAS); },
     /* Read-only views of the two decisions, for the checks and the probes (nothing in the runtime calls them). */
