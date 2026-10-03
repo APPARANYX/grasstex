@@ -128,7 +128,9 @@
     function ensurePlayerCamera(){
       if(playerCam)return playerCam;
       playerCam=new BABYLON.UniversalCamera('playerCam',camera.position.clone(),scene);
-      /* Keep the full offset sky dome inside the player camera frustum. The old 1800 m far plane\n         sliced its upper cap (radius 1800 m + ~608 m vertical offset), exposing clearColor when looking up. */\n      playerCam.inputs.clear();playerCam.minZ=.06;playerCam.maxZ=CAMERA_FAR;playerCam.fov=.78;return playerCam;
+      /* Keep the full offset sky dome inside the player camera frustum. The old 1800 m far plane
+         sliced its upper cap (radius 1800 m + ~608 m vertical offset), exposing clearColor when looking up. */
+      playerCam.inputs.clear();playerCam.minZ=.06;playerCam.maxZ=CAMERA_FAR;playerCam.fov=.78;return playerCam;
     }
     function cameraDirection(){
       var cp=Math.cos(playerPitch);
