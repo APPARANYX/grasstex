@@ -1040,12 +1040,15 @@ until every discarded experiment is implemented. New behavior belongs in the act
 </details>
 
 **Residual small debt (track individually, not as “AI polish”).**
-- `soldier.fireCooldown` still has cross-file writers (the fire pipeline owns the clock; sidearm/reload paths still
-  write it directly). Fix only when touching that pipeline, with the wire-map ratchet.
-- `modules/52-combat-posture-visual.js` still temporarily swaps `soldier.target` for visual last-known-threat aim;
-  replace that with an explicit presentation aim-point input when that module is next touched.
 - `objectiveHoldWin` remains an unread legacy genome parameter while the genome is stashed; remove/settle it during
   the eventual genome rewrite rather than reviving it now.
+
+**Small debt cleanup (2026-10-03).** `soldier.fireCooldown` now has one direct writer,
+`squad-ai.js`: spawn stamps, frame countdown, reload holds and sidearm draw/clear delays all route through
+`setFireCooldown` / `extendFireCooldown` / `tickFireCooldown`, and the wire-map multi-writer entry is gone.
+`modules/52-combat-posture-visual.js` no longer swaps `soldier.target`; it sends a static
+`animateWalk(..., {aimPoint})` presentation input through the gait/stance wrapper chain to the procedural/FBX
+presentation backends. Perception keeps ownership of gameplay target state.
 
 **Soldier-level AI continuation (active plan; repo archaeology refreshed 2026-10-01).** This is the
 active behavioral roadmap below the Squad Leader. It is deliberately separate from the larger architecture in
