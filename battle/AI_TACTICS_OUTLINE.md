@@ -634,9 +634,16 @@ the missing layer: what the fight has done to him. It is now `soldier.mind` (`mo
 The boundary above holds for all of it: the mind supplies numbers, Engagement decides what they cost, and no
 layer writes another's state (the mind writes only `mind`; Engagement stays the only stance writer).
 
-**Next unfinished soldier-level slice:** intent-based continuation after Squad Leader loss. Succession already exists;
-the missing behavior is bounded continuation of the last valid parent intent while command is absent, without choosing
-a new force objective, inventing a new squad mission, bypassing the Movement Resolver, or gaining extra knowledge.
+**Intent-based continuation after Squad Leader loss** (shipped, #197): the existing six-second `succession`
+lease now owns an actual command-vacancy interval. Module 16 snapshots the last valid parent intent and freezes new
+Meso route/phase/objective/anchor/plan/COA/fire-control/recon/regroup/bound decisions until hand-back. Already-published
+Movement Resolver orders and a live inherited bound can finish; Perception/Engagement/self-preservation and retreat
+remain under their normal owners; ordinary callouts still carry what survivors actually know. `?leaderlessIntent=0`
+is the legacy ghost-commander control. The successor resumes normal Meso ownership after the explicit hand-back.
+
+**Next active AI slice:** the control-plane work in **Immediate first implementation slice** below—`TacticalSituation`,
+read-only street/building control diagnostics, versioned `SquadIntent` metadata, then one named `route-transition`
+lease. Do not jump to new urban movement patterns until that state is visible and fixed-seed validated.
 
 ## Objective security and defense
 

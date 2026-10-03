@@ -168,6 +168,10 @@ test('the inputs are read off the squad: casualties over its establishment, the 
   near(w.S.coaInputs(a).casualtyFrac, 1 - 7 / 5);
 });
 
+/* Leader-down cases in this file explicitly isolate the pre-#197 control arm. COA owns the scoring
+   rule itself; leaderless-intent continuation owns whether an absent Squad Leader is allowed to make a fresh
+   COA decision during succession. Testing those two behaviors in the same assertion would weaken both contracts. */
+
 test('the COA follows the squad inside a contact, in both directions, and the bounds follow it', () => {
   const w = world('?coa=1'),
     sq = squad(w, { phase: 'assault' });
@@ -193,7 +197,7 @@ test('the COA follows the squad inside a contact, in both directions, and the bo
   for (let i = 0; i < 6; i++) sq.members[9 - i].dead = false; /* a merge restores the squad */
   contact(w, sq, 0.3);
   assert.equal(sq.coa, 'assault');
-  const d = world('?coa=1'),
+  const d = world('?coa=1&leaderlessIntent=0'),
     sd = squad(d, { phase: 'assault', leaderDown: true });
   contact(d, sd, 0.3);
   assert.equal(sd.coa, 'defend', 'a leader down is defend on its own');
@@ -222,7 +226,7 @@ test('the COA gates bounds only in the bounding phases; outside them assault and
   assert.equal(phases.length, 11);
   for (const phase of phases)
     for (const leaderDown of [false, true]) {
-      const w = world('?coa=1'),
+      const w = world('?coa=1&leaderlessIntent=0'),
         sq = squad(w, { phase, leaderDown }),
         auth = contact(w, sq, 1);
       assert.equal(sq.coa, leaderDown ? 'defend' : 'assault');
@@ -240,7 +244,7 @@ test('assault bounds a fireteam after BOUND_CYCLE; defend never does, and never 
     contact(a, sa, 1.5);
     assert.equal(bounds(a), 1, phase + ': one bound in the first cycle after it');
     assert.equal(a.events.find(e => e.type === 'decision-bound').data.team, 'alpha');
-    const d = world('?coa=1'),
+    const d = world('?coa=1&leaderlessIntent=0'),
       sd = squad(d, { phase, leaderDown: true });
     contact(d, sd, 60);
     assert.equal(sd.coa, 'defend');
@@ -251,7 +255,7 @@ test('assault bounds a fireteam after BOUND_CYCLE; defend never does, and never 
 });
 
 test('explicitly off: sq.coa is never set and a squad with the leader down bounds like any other', () => {
-  const w = world('?coa=0'),
+  const w = world('?coa=0&leaderlessIntent=0'),
     sq = squad(w, { phase: 'assault', leaderDown: true, dead: 5, stress: 0.9 });
   contact(w, sq, 12);
   assert.equal(sq.coa, undefined);

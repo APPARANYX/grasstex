@@ -456,6 +456,8 @@ try {
         if (buddyPairs) record.buddyPairs = buddyPairs;
         const recon = root.BattleSquadStability?.reconTelemetry?.(sim);
         if (recon) record.recon = recon;
+        const leaderless = root.BattleSquadStability?.leaderlessTelemetry?.(sim);
+        if (leaderless) record.leaderless = leaderless;
         if (extra) Object.assign(record, extra);
         return record;
     }
