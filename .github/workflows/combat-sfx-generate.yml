@@ -82,6 +82,7 @@ jobs:
           set -uo pipefail
           files=$(find .runtime/combat-sfx -name '*.mp3' -not -path '*/pain/*' | sort)
           [ -z "$files" ] && exit 0
+          python3 -m pip install -q numpy
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           # shellcheck disable=SC2086
           python3 scripts/check_weapon_clips.py --shots $files 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
@@ -95,7 +96,10 @@ jobs:
           while read -r rel; do
             [ -n "$rel" ] || continue
             mkdir -p "$(dirname "Assets/audio/$rel")"
-            cp ".runtime/combat-sfx/$rel" "Assets/audio/$rel"
+            # Trim the generator's leading silence, so a near miss sounds when the round passes, not after it.
+            ffmpeg -nostdin -loglevel error -y -i ".runtime/combat-sfx/$rel" \
+              -af 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.004' \
+              -ac 1 -ar 48000 -b:a 128k "Assets/audio/$rel"
             grep -vxF "$rel" Assets/audio/.manifest-placeholders.txt > "$RUNNER_TEMP/ph.txt" || true
             cp "$RUNNER_TEMP/ph.txt" Assets/audio/.manifest-placeholders.txt
           done < "$RUNNER_TEMP/new.txt"

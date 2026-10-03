@@ -29,3 +29,9 @@ vehicles/tank-destroyed-01.mp3
 vehicles/tank-destroyed-02.mp3
 vehicles/tank-impact-01.mp3
 vehicles/tank-impact-02.mp3
+combat/flyby/crack-03.mp3
+combat/flyby/whiz-04.mp3
+combat/flyby/whiz-06.mp3
+combat/flesh/hit-05.mp3
+combat/flesh/hit-06.mp3
+combat/ricochet/whine-04.mp3
