@@ -3281,7 +3281,7 @@
       if (sq.state === 'retreat') {
         /* Psychological recovery is not physical recovery. Keep retreat authority until the men stop
            at a local rally point and reform, then hand the old mission back to ordinary command. */
-        if (battle && recoverFromRetreat(sq, battle, casualtyFrac, stress))
+        if ((battle ? recoverFromRetreat(sq, battle, casualtyFrac, stress) : moraleRallies(casualtyFrac, stress)))
           sq.state = anyEngaged ? 'engaged' : 'advance';
       } else {
         if (battle) endRallyRecovery(sq, battle, 'not retreating');
