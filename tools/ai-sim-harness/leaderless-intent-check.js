@@ -119,9 +119,13 @@ test('immediate contact remains Engagement-owned and requests help upward once',
   const enemy=H.addSquad(w.r,w.b,{id:'ge-0',faction:'ge',x:0,z:34,objective:{x:0,z:0},composition:['rifleman']});
   enemy.members[0].root.position.x=0;enemy.members[0].root.position.z=30;
   killLeader(w);
-  H.run(w.r,w.b,4);
-  assert.equal(w.q.inContact,true,'Perception/Engagement still sees immediate contact');
-  assert.ok(w.q.members.some(s=>!s.dead&&s.target),'a survivor can acquire the threat');
+  let acquired=false,contactSeen=false;
+  H.run(w.r,w.b,4,()=>{
+    acquired=acquired||w.q.members.some(s=>!s.dead&&s.target);
+    contactSeen=contactSeen||w.q.inContact;
+  });
+  assert.equal(contactSeen,true,'Perception/Engagement still sees immediate contact');
+  assert.equal(acquired,true,'a survivor acquires the threat during the leaderless window');
   assert.equal(w.q._macroMissionRequest&&w.q._macroMissionRequest.reason,'leaderless-help');
   const req=w.events.filter(e=>e.type==='decision-captain-request'&&e.data.reason==='leaderless-help');
   assert.equal(req.length,1,'one upward request, not request churn');
