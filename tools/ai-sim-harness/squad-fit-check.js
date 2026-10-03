@@ -20,16 +20,19 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 function load(r, file) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  new Function('window', 'globalThis', 'console', 'location', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(
+    r,
+    r,
+    { log() {}, warn() {} },
+    r.location
+  );
 }
 const base = { phy: 0.4, agi: 0.4, for: 0.4, tec: 0.4, mkm: 0.4, tac: 0.5 };
 
-function world({ stats = true, search } = {}) {
+function world({ stats = true, search, generalIntel = false } = {}) {
   H.resetIds();
-  const r = H.bootstrap({ stats, modules: true });
+  const query = generalIntel ? (search || '') : (search ? search + '&generalIntel=0' : '?generalIntel=0');
+  const r = H.bootstrap({ stats, modules: true, search: query });
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
   load(r, 'battle/commander-doctrine.js');
   if (stats && search != null) r.BattleSoldierStats.configure(search);
@@ -80,6 +83,19 @@ test('pace takes the first objective, grit the furthest, support the safest', ()
   assert.equal(pick(w, 'us-3'), 'B', 'the best base of fire takes the safe ground');
   const c = w.D.chooseObjective(w.b, w.squads['us-1'], false);
   assert.ok(c.squadFit > 0 && c.squadFit <= w.D.tuning.SQUAD_FIT + 1e-9, 'the pull is bounded by SQUAD_FIT');
+});
+
+test('shipping General uses reported hostile position, not the live enemy transform, for support fit', () => {
+  const w = world({ generalIntel: true });
+  const support = w.squads['us-3'];
+  const before = pick(w, 'us-3');
+  w.foe.members.forEach(s => { s.root.position.x = 900; s.root.position.z = 900; });
+  assert.equal(pick(w, 'us-3'), before, 'unreported live enemy movement cannot change Macro squad fit');
+  const reported = { x: -100, z: -150, at: w.b.time, knownUnitId: w.foe.members[0].id };
+  const real = w.r.SquadAI.squadContact;
+  w.r.SquadAI.squadContact = sq => sq.faction === 'us' ? reported : null;
+  assert.equal(pick(w, 'us-3'), 'B', 'reported enemy position makes B the safe support ground');
+  w.r.SquadAI.squadContact = real;
 });
 
 test('the pull is above the median only: a squad in the middle of its side gets the module-absent choice', () => {

@@ -35,7 +35,7 @@ breaching, or room-entry procedures.
 Keep one owner per decision class. The existing hierarchy remains the foundation:
 
 ```
-Force Command: mission, objective, priority, commitment
+Force Command (US / GE isolated General contexts): mission, objective, priority, commitment
         ↓
 Squad Leader Local Plan: approach, local axis, fire/support positions, task allocation
         ↓
@@ -49,6 +49,13 @@ Engagement: cover, stance, bound, firing station, individual fight
 Objective, building, navigation, and diagnostic modules may provide constraints, opportunities, or
 telemetry. They must not quietly become alternate command layers. The AI graph must render this
 chain, the active leases, and the reason for each transition.
+
+**Force Command information boundary (#201):** US and GE are separate per-battle General singletons behind
+one scheduler/facade. They share code, not mutable state or an enemy picture. A General may read its own force,
+public objective-control state, and hostile contacts reported upward by its own squads; it must not score doctrine
+from the opposing live roster or exact enemy transforms. `?generalIntel=0` exists only as the legacy truth-read
+A/B control. Strategic stall/progress clocks are likewise per faction, so enemy progress cannot reset friendly
+decision timing.
 
 ## Reference-to-AI ownership map
 
@@ -640,6 +647,12 @@ Meso route/phase/objective/anchor/plan/COA/fire-control/recon/regroup/bound deci
 Movement Resolver orders and a live inherited bound can finish; Perception/Engagement/self-preservation and retreat
 remain under their normal owners; ordinary callouts still carry what survivors actually know. `?leaderlessIntent=0`
 is the legacy ghost-commander control. The successor resumes normal Meso ownership after the explicit hand-back.
+
+**Command-transition hardening (#201):** the US-3 handoff trace now keeps Engagement authority through 2.5 s of
+continuous quiet before formation resumes; the US-1 backwards-assault trace keeps retreat authority after morale
+recovers until the Squad Leader establishes a local rally, restores cohesion, and holds it for 4 s. Firing-station
+diagnostics separate ingress from successful hold time, and loop provenance is time-local. These are ownership
+repairs, not new movement writers.
 
 **Next active AI slice:** the control-plane work in **Immediate first implementation slice** below—`TacticalSituation`,
 read-only street/building control diagnostics, versioned `SquadIntent` metadata, then one named `route-transition`

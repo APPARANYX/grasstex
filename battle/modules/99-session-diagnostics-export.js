@@ -175,7 +175,7 @@ function tacticalMetrics(sim,conflicts){
   ['us','ge'].forEach(function(f){var squads=sim&&sim.factions&&sim.factions[f]&&sim.factions[f].squads||[];for(var i=0;i<squads.length;i++){
     var sq=squads[i],id=f+'/'+sq.id;out.squads++;
     if(sq.commandPhase==='regroup')out.regrouping.push(id);if(sq.state==='retreat')out.retreating.push(id);
-    if(sq.targetObjective==null&&sq.commandRole!=='support'&&sq.commandRole!=='reserve'&&sq.commandRole!=='garrison')out.targetless.push(id);
+    if(sq.state!=='retreat'&&!sq.disbanded&&sq.targetObjective==null&&sq.commandRole!=='support'&&sq.commandRole!=='reserve'&&sq.commandRole!=='garrison')out.targetless.push(id);
     if(sq._stablePlan)out.activeStablePlans.push({squad:id,phase:sq._stablePlan.phase||null,targetObjective:sq._stablePlan.targetObjective||null,remaining:planUntil(sq)!=null?rounded(Math.max(0,planUntil(sq)-simNow(sim))):null});
     var orders=sq._fireteamOrders||{};Object.keys(orders).forEach(function(key){if(orders[key]&&orders[key].blocked)out.blockedFireteams.push(id+'/'+key);});
     if(sq._captureZoneDefenseRequest||sq._preparedDefenseRequest)out.activeDefenseRequests.push({squad:id,objectiveSecurity:!!sq._captureZoneDefenseRequest,preparedDefense:!!sq._preparedDefenseRequest});
@@ -184,11 +184,16 @@ function tacticalMetrics(sim,conflicts){
 }
 function enrichLoops(alerts,events,conflicts){
   return alerts.map(function(alert){
-    var a=clone(alert)||{};
+    var a=clone(alert)||{},at=isFinite(+a.at)?+a.at:isFinite(+a.time)?+a.time:null;
+    function near(item){
+      if(!matchesAlert(item,a))return false;
+      return at==null||!isFinite(+item.time)||Math.abs((+item.time)-at)<=30;
+    }
     return{
       alert:a,
-      relatedOrderEvents:events.filter(function(e){return matchesAlert(e,a);}).slice(-80),
-      relatedWriterConflicts:conflicts.filter(function(c){return matchesAlert(c,a);}).slice(0,30)
+      relatedOrderEvents:events.filter(near).slice(-80),
+      relatedWriterConflicts:conflicts.filter(near).slice(0,30),
+      relatedWindowSeconds:30
     };
   });
 }

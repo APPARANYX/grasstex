@@ -171,9 +171,11 @@ test('a squad that rallies leaves its group: the group dissolves as squad-rallie
   const grouped=untilGrouped(w,200);
   assert.deepEqual(grouped.group.squads.slice().sort(),[a.id,b.id].sort(),'the two early-broken squads are grouped');
   assert.equal(a.state,'retreat');assert.equal(b.state,'retreat');
-  a.mind.mean=0.1;           /* the men of one squad calm down: it rallies */
+  a.mind.mean=0.1;           /* the men calm down; physical rally/reform must finish before hand-back */
   run(w,3);
-  assert.notEqual(a.state,'retreat','it rallied');
+  assert.equal(a.state,'retreat','psychological recovery alone does not instantly reverse retreat');
+  run(w,3);
+  assert.notEqual(a.state,'retreat','after stable reform it rallied');
   const st=recon(w),ended=st.ended.find(g=>g.id===grouped.group.id);
   assert.ok(ended&&ended.status==='dissolved'&&ended.endReason==='squad-rallied','the group it was in dissolved as squad-rallied');
   assert.equal(st.active.length,0,'no group is left waiting for a squad that will never arrive');
@@ -193,6 +195,8 @@ test('a merged squad that is still shaken rests at base: it is not grouped with 
   assert.equal(recon(w).groupsFormed,formed,'two more minutes at base: no new group');
   assert.equal(recon(w).merges,1,'and no merge with itself');
   q.mind={mean:0.1,n:12};run(w,3);
-  assert.notEqual(q.state,'retreat','calm men: it rallies and goes back to the fight');
+  assert.equal(q.state,'retreat','calm men still complete physical rally/reform before hand-back');
+  run(w,3);
+  assert.notEqual(q.state,'retreat','stable calm men rally and go back to the fight');
 });
 console.log(n+' reconstitution checks passed');
