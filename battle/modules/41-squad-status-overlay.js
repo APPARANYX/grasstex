@@ -62,6 +62,43 @@
   function sideSquads(sim, faction) {
     return (sim && sim.factions && sim.factions[faction] && sim.factions[faction].squads) || [];
   }
+  /* Other formation families (vehicles, guns, aircraft, etc.) do not have to masquerade as squads.
+     A provider returns raw entities through entities(sim,faction) and may map each one to the small
+     overlay contract through view(entity,sim). The renderer never needs to know the gameplay class. */
+  function providerEntities(sim, faction) {
+    var out = [],
+      providers = root.BattleModules && root.BattleModules.listTacticalOverlayProviders
+        ? root.BattleModules.listTacticalOverlayProviders()
+        : [];
+    for (var pi = 0; pi < providers.length; pi++) {
+      var provider = providers[pi],
+        rows = [];
+      if (!provider || typeof provider.entities !== 'function') continue;
+      try { rows = provider.entities(sim, faction) || []; } catch (_) { rows = []; }
+      for (var i = 0; i < rows.length; i++) {
+        var raw = rows[i],
+          entity = raw;
+        if (provider.view) {
+          try { entity = provider.view(raw, sim) || null; } catch (_) { entity = null; }
+        }
+        if (!entity) continue;
+        if (entity.faction && String(entity.faction) !== String(faction)) continue;
+        var id = entity.overlayId != null ? entity.overlayId : entity.id != null ? entity.id : i;
+        out.push({ entity: entity, key: 'provider:' + provider.id + ':' + faction + ':' + String(id) });
+      }
+    }
+    return out;
+  }
+  function overlayEntities(sim, faction) {
+    var out = [],
+      squads = sideSquads(sim, faction);
+    for (var i = 0; i < squads.length; i++) {
+      var sq = squads[i];
+      if (!sq) continue;
+      out.push({ entity: sq, key: 'squad:' + faction + ':' + String(sq.id) });
+    }
+    return out.concat(providerEntities(sim, faction));
+  }
   function living(sq) {
     return ((sq && sq.members) || []).filter(function (s) {
       return s && !s.dead && s.root && s.root.position;
@@ -76,6 +113,10 @@
     return null;
   }
   function centroid(sq, sim) {
+    var explicit = sq && point(sq.overlayPosition);
+    if (explicit) return { x: explicit.x, z: explicit.z, leader: false };
+    if (sq && sq.root && sq.root.position && isFinite(+sq.root.position.x) && isFinite(+sq.root.position.z))
+      return { x: +sq.root.position.x, z: +sq.root.position.z, leader: false };
     var leader = leaderOf(sq);
     if (leader && leader.root && leader.root.position)
       return { x: +leader.root.position.x || 0, z: +leader.root.position.z || 0, leader: true };
@@ -100,6 +141,10 @@
     return team ? 'BOUND ' + String(team).toUpperCase() : 'BOUND';
   }
   function statusFor(sq, sim) {
+    if (sq && sq.overlayStatus != null) {
+      if (typeof sq.overlayStatus === 'string') return { key: 'provider', label: sq.overlayStatus };
+      if (sq.overlayStatus.label) return { key: sq.overlayStatus.key || 'provider', label: String(sq.overlayStatus.label) };
+    }
     var phase = String((sq && sq.commandPhase) || ''),
       fc = sq && sq.fireControl,
       bound = boundLabel(sq, sim);
@@ -121,6 +166,12 @@
   }
   function missionObjective(sq, sim) {
     if (!sq) return null;
+    if (point(sq.overlayObjective))
+      return {
+        x: +sq.overlayObjective.x,
+        z: +sq.overlayObjective.z,
+        id: sq.overlayObjective.id != null ? sq.overlayObjective.id : null
+      };
     var m = sq._macroMission || null, obj = null;
     if (m && m.objectiveId && root.BattleObjectiveSystem && root.BattleObjectiveSystem.get && sim) {
       try { obj = root.BattleObjectiveSystem.get(sim, m.objectiveId); } catch (_) { obj = null; }
@@ -133,6 +184,7 @@
   }
   function movementTarget(sq, sim) {
     if (!sq) return null;
+    if (point(sq.overlayDestination)) return copy(sq.overlayDestination);
     if (sq._reconTask && point(sq._reconTask.point)) return copy(sq._reconTask.point);
     if (sq.state === 'retreat') {
       if (sq._assembly && sq._assembly.phase === 'to-rally' && sq._macroMission && point(sq._macroMission.point))
@@ -147,6 +199,12 @@
      instead of turning every local bound into a permanent HUD vector. */
   function arrowTarget(sq, sim) {
     if (!sq) return null;
+    if (point(sq.overlayDestination))
+      return {
+        x: +sq.overlayDestination.x,
+        z: +sq.overlayDestination.z,
+        id: sq.overlayDestination.id != null ? sq.overlayDestination.id : null
+      };
     if (sq.state === 'retreat') {
       if (sq._assembly && sq._assembly.phase === 'to-rally' && sq._macroMission && point(sq._macroMission.point))
         return copy(sq._macroMission.point);
@@ -169,6 +227,7 @@
   }
   function hasSquadMovementIntent(sq, sim) {
     if (!sq) return false;
+    if (sq.overlayMoving != null) return !!sq.overlayMoving;
     if (sq._reconTask || liveLease(sq, 'recon', sim) || liveLease(sq, 'bound', sim)) return true;
     if (sq.state === 'retreat' || String(sq.commandPhase || '') === 'retreat') return true;
     return !!MOVING_PHASES[String(sq.commandPhase || '')];
@@ -260,8 +319,9 @@
     return visible;
   }
 
-  function createMark(sq) {
-    var key = String(sq.faction || '?') + ':' + String(sq.id), g = makeSvg('g', { 'data-squad': key }), factionClass = sq.faction === 'ge' ? 'sso-ge' : 'sso-us';
+  function createMark(sq, key) {
+    key = key || (String(sq.faction || '?') + ':' + String(sq.id));
+    var g = makeSvg('g', { 'data-overlay-entity': key }), factionClass = sq.faction === 'ge' ? 'sso-ge' : 'sso-us';
     g.setAttribute('class', factionClass);
     var arrowHalo = append(g, 'path', { 'class': 'sso-arrow-halo' }),
       arrow = append(g, 'path', { 'class': 'sso-arrow' }),
@@ -418,13 +478,14 @@
     m.g.style.display = '';
     renderSymbol(m, sq);
     m.unit.setAttribute('transform', 'translate(' + screen.x.toFixed(1) + ' ' + screen.y.toFixed(1) + ')');
-    m.idText.textContent = (sq.faction === 'ge' ? 'GE ' : 'US ') + String(sq.id);
+    var displayId = sq.overlayLabel != null ? String(sq.overlayLabel) : String(sq.id);
+    m.idText.textContent = (sq.faction === 'ge' ? 'GE ' : 'US ') + displayId;
     var st = statusFor(sq, sim), label = st.label,
       w = Math.max(68, Math.min(142, label.length * 6.3 + 18));
     m.statusText.textContent = label;
     m.statusBg.setAttribute('width', w.toFixed(0));
     m.statusBg.setAttribute('x', (-w / 2).toFixed(1));
-    setShown(m.contact, !!sq.inContact);
+    setShown(m.contact, sq.overlayInContact != null ? !!sq.overlayInContact : !!sq.inContact);
 
     var obj = missionObjective(sq, sim), objScreen = obj && project(sim, obj, OBJECTIVE_LIFT);
     if (objScreen && objScreen.visible) {
@@ -467,17 +528,26 @@
       hideArrow(m);
     }
   }
+  function renderableEntity(entity) {
+    if (!entity || entity.disbanded || entity.overlayHidden) return false;
+    if (point(entity.overlayPosition)) return true;
+    if (entity.root && entity.root.position && isFinite(+entity.root.position.x) && isFinite(+entity.root.position.z))
+      return !entity.dead;
+    return living(entity).length > 0;
+  }
   function update() {
     if (!visible || !simRef || !svg) return;
     var seen = Object.create(null), nowMs = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
     ['us', 'ge'].forEach(function (faction) {
-      var squads = sideSquads(simRef, faction);
-      for (var i = 0; i < squads.length; i++) {
-        var sq = squads[i];
-        if (!sq || sq.disbanded || !living(sq).length) continue;
-        var key = String(sq.faction || faction) + ':' + String(sq.id), m = marks[key] || createMark(sq);
+      var rows = overlayEntities(simRef, faction);
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i],
+          entity = row.entity;
+        if (!renderableEntity(entity)) continue;
+        var key = row.key,
+          m = marks[key] || createMark(entity, key);
         seen[key] = 1;
-        updateMark(m, sq, simRef, nowMs);
+        updateMark(m, entity, simRef, nowMs);
       }
     });
     Object.keys(marks).forEach(function (key) { if (!seen[key]) disposeMark(key); });
@@ -515,7 +585,7 @@
   }
 
   root.BattleSquadStatusOverlay = {
-    version: '1.2',
+    version: '1.3',
     historicalBasis: 'Per-symbol provenance is supplied by BattleTacticalSymbols; infantry currently cites FM 21-30 (1941)',
     statusFor: statusFor,
     movementTarget: movementTarget,
@@ -525,13 +595,14 @@
     missionObjective: missionObjective,
     symbolIdFor: symbolIdFor,
     symbolSpec: symbolSpec,
+    overlayEntities: overlayEntities,
     setVisible: setVisible,
     visible: function () { return visible; },
     update: update,
     dispose: dispose
   };
   root.BattleModules.registerSystem('squad-status-overlay', {
-    version: '1.2',
+    version: '1.3',
     onBattleStart: start,
     beforeBattleRestart: reset,
     onBattleRestart: start
