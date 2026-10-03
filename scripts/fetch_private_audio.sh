@@ -2,10 +2,10 @@
 # Overlay every audio clip onto Assets/audio/ from the private repo.
 #
 # All clips (MP3s and their Opus twins, .caf and .ogg) live in APPARANYX/grasstex-audio, never in this public
-# repo: the BOOM Library weapon clips may not be redistributed, and the rest of the library moved with
+# repo: the licensed third-party audio weapon clips may not be redistributed, and the rest of the library moved with
 # them. .gitignore keeps them out of here. CI, the deploy and the generators check out the commit
 # pinned in Assets/audio/private-audio.lock.json with the read-only deploy key in the
-# BOOM_AUDIO_DEPLOY_KEY secret, then run this on that checkout:
+# PRIVATE_AUDIO_READ_KEY secret, then run this on that checkout:
 #   bash scripts/fetch_private_audio.sh .runtime/private-audio
 # Locally, with access to the private repo, the same works on any clone of it at the pinned commit.
 set -euo pipefail

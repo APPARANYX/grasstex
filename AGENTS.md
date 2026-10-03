@@ -1388,12 +1388,12 @@ factions textured differently, weapon on the hands). Keep weapon source `.zip` p
 - **Acoustics:** 1 unit ≈ 1 m, 20·log10(r) spreading, 343 m/s delay. Shout culls at 150 m,
   small arms at 1200 m. Settings live in `Assets/audio/acoustics.json`.
 - **Licensing:** Sonniss GDC bundles (royalty-free, no attribution; **no AI training and no
-  redistribution as a library**), Freesound CC0, ElevenLabs generations, and **BOOM Library WWII
+  redistribution as a library**), Freesound CC0, ElevenLabs generations, and **licensed third-party audio WWII
   Firearms** for every small arm (owner's single-user licence: use inside the game only, **never
   redistributed or offered as individual stems**). So **every clip lives in the private repo
   `APPARANYX/grasstex-audio`**, at the same path it has under `Assets/audio/`, each MP3 with a `.caf`
   and an `.ogg` Opus twin. CI, the generators and the production deploy check out the commit pinned in
-  `Assets/audio/private-audio.lock.json` with the read-only deploy key in the `BOOM_AUDIO_DEPLOY_KEY`
+  `Assets/audio/private-audio.lock.json` with the read-only deploy key in the `PRIVATE_AUDIO_READ_KEY`
   secret and overlay it (`scripts/fetch_private_audio.sh`); the voice and combat-SFX generators push
   new clips there with the write key in `AUDIO_PRIVATE_WRITE_KEY` and bump the lock
   (`scripts/publish_private_audio.sh`). The overlay runs before generation, and both generators refuse before
@@ -1404,13 +1404,13 @@ factions textured differently, weapon on the hands). Keep weapon source `.zip` p
   `00-audio-format.js`, `"opusTwins": "all"` in the manifest), MP3 otherwise; the deploy uploads all
   three and builds the voice pitch variants' twins too. Older provenance: `git show 1a5b0cf:Assets/audio/WW2_SOURCES.md`.
 
-**Weapon SFX (`Assets/audio/weapon-clip-manifest.json`, shipped from BOOM Library).** Replaced
+**Weapon SFX (`Assets/audio/weapon-clip-manifest.json`, shipped from licensed private source audio).** Replaced
 `manifest.json`'s Sonniss-derived `categories.weapons` small-arms pools and `weaponFoley`, which were
 keyed by sim kind and whose automatic-weapon "shots" were recorded bursts. The clip manifest is keyed
 one entry per `battle/weapons.js` `PROFILES[faction][kind].model` (10 weapons: Garand, Kar98k, M1
 Carbine, Thompson, FG42, MP40, M1919A6, MG42, M1911A1, P38), one action per sim event (fire, distant
 fire, burst tail, reload stages by mechanism, stoppage click/clear, bipod deploy/fold, plus the Garand's
-clip ping and the Kar98k's bolt cycle). Every action is cut from BOOM Library WWII Firearms
+clip ping and the Kar98k's bolt cycle). Every action comes from licensed private source audio
 (`grasstex-audio`'s `tools/build.py`; its `SOURCES.csv` records each clip's source take): `fire` from
 the 3 m construction-kit takes, one discharge per file, attack within 10 ms; `fireDistant` from the
 100 m takes; `fireTail` the echo after a designed single shot (never an automatic recording); foley
