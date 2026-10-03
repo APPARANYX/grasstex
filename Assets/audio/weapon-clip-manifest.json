@@ -2,7 +2,7 @@
   "version": 1,
   "base": "Assets/audio/",
   "format": "mp3",
-  "status": "plan: no file exists yet; replaces the Sonniss/Freesound weapon pools and weaponFoley",
+  "status": "shipped for weapons: every per-weapon action is cut from BOOM Library WWII Firearms (not ElevenLabs; the prompts below are kept for any clip regenerated later) and lives in the private repo APPARANYX/grasstex-audio (licence: no redistribution), overlaid by scripts/fetch_weapon_audio.sh and played from manifest.json categories weapon.<model>. That repo also holds the 17 pack guns the game does not field. Not recorded: shared casings and impacts here (flybys and impacts play from combat/, combat-sfx-manifest.json); mg42 barrelChange.",
   "roster": "battle/modules/53-fbx-soldier-backend.js WEAPON_MODELS: every weapon model listed there must have an entry here",
   "rules": {
     "singleShot": "Every clip with singleShot:true holds exactly one discharge: one onset, attack within the first 10 ms, no second transient above peak-18 dB. Automatic fire is built at runtime by retriggering fire at cyclicRpm with round-robin and no immediate repeat. Recorded bursts are rejected.",

@@ -24,3 +24,9 @@ Assets/soldiers/new/*.zip
 state/lab-key.php
 closeups/
 decal-sheets.png
+
+# Licensed small-arms clips (BOOM Library) live in the private repo APPARANYX/grasstex-audio and are
+# overlaid here by scripts/fetch_weapon_audio.sh in CI and the deploy. Never commit them to this
+# public repo: the licence forbids redistributing them. The pin is Assets/audio/weapon-audio.lock.json.
+/Assets/audio/weapons/*/
+/.runtime/weapon-audio/
