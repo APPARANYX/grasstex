@@ -41,6 +41,8 @@
     { needs: 'reloadOpen', stages: [[['reloadOpen'], 0.1], [['reloadShell'], 0.45], [['reloadClose'], 0.85]] },
     { needs: 'reloadMagOut', stages: [[['reloadMagOut'], 0.12], [['reloadMagIn'], 0.55], [['reloadCharge', 'reloadSlideRelease'], 0.85]] }
   ];
+  /* Handling extras in the category that nothing here plays: not preloaded (8 MB decoded across the ten fielded guns). */
+  var UNPLAYED = { fire: true, fireDistant: true, handling: true, grab: true, safety: true, mode: true };
   var ON = !(typeof location !== 'undefined' && /[?&]weaponFoley=0\b/.test(location.search || ''));
 
   function clips(model) {
@@ -103,7 +105,7 @@
         var model = P[f][kind] && P[f][kind].model,
           c = model ? clips(model) : {};
         Object.keys(c).forEach(function (action) {
-          if (action === 'fire' || action === 'fireDistant' || pools[model + '.' + action]) return;
+          if (UNPLAYED[action] || pools[model + '.' + action]) return;
           pools[model + '.' + action] = c[action].map(function (file, i) {
             return {
               endsAt: 0,
@@ -282,6 +284,7 @@
     FOLEY_RANGE: FOLEY_RANGE,
     TAIL_RANGE: TAIL_RANGE,
     BOLT_AFTER: BOLT_AFTER,
+    UNPLAYED: UNPLAYED,
     reloadStages: reloadStages,
     tailQuiet: tailQuiet,
     install: install
