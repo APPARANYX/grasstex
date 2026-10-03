@@ -1,0 +1,32 @@
+#!/usr/bin/env node
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),H=require('./harness');
+function load(r,file){new Function('window','globalThis','console',fs.readFileSync(path.join(H.REPO,file),'utf8'))(r,r,{log(){},warn(){}});}
+H.resetIds();
+const r=H.bootstrap({modules:false});r.BattleSim={start(){}};r.BattleTelemetry={record(){}};
+for(const f of ['commander-doctrine','commander-routes','commander-ai'])load(r,'battle/'+f+'.js');
+const D=r.BattleCommanderDoctrine,C=r.BattleCommanderAI,b=H.makeBattle(r,{seed:+(process.env.HARNESS_SEED||12345)});
+const us=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:120}});
+const ge=H.addSquad(r,b,{id:'ge-0',faction:'ge',x:0,z:80,objective:{x:0,z:0}});
+b.time=10;
+assert.equal(D.generalIntelEnabled(),true,'reported-intel boundary is default-on');
+assert.equal(D.nearestEnemyToSquad(b,us).distance,Infinity,'an unreported enemy roster is invisible to the US General');
+const enemy=ge.members[0];
+us.contact={unit:enemy,x:12,z:40,at:b.time,seenBy:us.members[0].id};
+let seen=D.nearestEnemyToSquad(b,us);
+assert.equal(seen.source,'reports');assert.equal(seen.contact.targetId,enemy.id);
+const reportedDistance=seen.distance;
+enemy.root.position.x=400;enemy.root.position.z=400;
+seen=D.nearestEnemyToSquad(b,us);
+assert.equal(seen.distance,reportedDistance,'moving the live enemy does not move the General\'s last report');
+ge.contact={unit:us.members[0],x:-200,z:-200,at:b.time,seenBy:ge.members[0].id};
+assert.equal(D.reportedContacts(b,'us').length,1,'the opposing General\'s contact picture is not shared');
+const ctx=D.buildContext(b,us,{status:{owner:'neutral'},point:{x:0,z:60},instance:{def:{radius:20}}},seen,D.avgPos(us));
+assert.equal(ctx.enemyStrength,1,'Macro hostile strength is reported contacts, not the live enemy roster');
+assert.ok(ctx.friendlyStrength>ctx.enemyStrength);
+const ug=C.generalFor(b,'us'),gg=C.generalFor(b,'ge');
+assert.notStrictEqual(ug,gg,'US and GE use distinct General singleton state');
+ug.wakeReasons.test=1;ug.stallRecovery.completed=3;
+assert.equal(gg.wakeReasons.test,undefined);assert.equal(gg.stallRecovery.completed,0,'General state does not bleed across factions');
+assert.strictEqual(C.generals(b).us,ug);assert.strictEqual(C.generals(b).ge,gg);
+console.log('PASS two isolated General contexts and report-scoped hostile intel');

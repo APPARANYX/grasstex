@@ -6,8 +6,9 @@
    (its strategic-stall wake, commander-ai.js). `replanDue` and `replanReasons` are diagnostics for
    readers of the export; nothing in the runtime consumes them.
 
-   One clock. A stall is "due" for a replan at the moment the General wakes on it, so the threshold is
-   the General's own, BattleCommanderAI.strategicStallReplan (120 s), read when it is used. This module
+   One progress clock per faction. A stall is "due" for a replan at the moment that side's General
+   wakes on it, so the threshold is the General's own BattleCommanderAI.strategicStallReplan (120 s).
+   Enemy progress never resets the friendly clock. This module
    used to carry a second constant, 12 s, that flagged `objective-stalled` ten times earlier than
    anything acted on it, so the export said a replan was due for 108 s in which the General did nothing.
    With no General loaded nobody replans, so no stall is ever due.
@@ -31,15 +32,35 @@
       .sort()
       .map(function (id) {
         var s = all[id] || {};
-        return [
-          id,
-          s.owner || 'neutral',
-          s.active || '',
-          s.phase || '',
-          Math.round((+s.progress || 0) * 10)
-        ].join('|');
+        return [id, s.owner || 'neutral', s.active || '', s.phase || '', Math.round((+s.progress || 0) * 10)].join('|');
       })
       .join(';');
+  }
+  /* Each General gets its own progress clock. Only positive progress by this faction advances its clock:
+     an opponent moving/capturing elsewhere cannot make this side look strategically unstalled. */
+  function progressSnapshot(sim, faction) {
+    var all = (sim && sim.objectiveControl && sim.objectiveControl.objectives) || {},
+      out = {};
+    Object.keys(all).forEach(function (id) {
+      var st = all[id] || {};
+      out[id] = {
+        owned: st.owner === faction,
+        active: st.active === faction,
+        progress: st.active === faction ? +st.progress || 0 : 0
+      };
+    });
+    return out;
+  }
+  function madeProgress(before, after) {
+    var ids = Object.keys(after || {});
+    for (var i = 0; i < ids.length; i++) {
+      var id = ids[i],
+        a = after[id] || {},
+        b = (before && before[id]) || {};
+      if (a.owned && !b.owned) return true;
+      if (a.active && +a.progress > (+b.progress || 0) + 0.05) return true;
+    }
+    return false;
   }
   function sideHealth(sim, faction, lastProgress) {
     var squads = (sim && sim.factions && sim.factions[faction] && sim.factions[faction].squads) || [],
@@ -50,7 +71,7 @@
       assignedTarget = 0,
       active = 0;
     squads.forEach(function (sq) {
-      if ((sq.aliveCount || 0) <= 0) return;
+      if ((sq.aliveCount || 0) <= 0 || sq.state === 'retreat' || sq.disbanded) return;
       active++;
       var role = sq.commandRole || 'unassigned',
         target = sq.targetObjective || 'unassigned',
@@ -89,11 +110,13 @@
     if (!sim) return;
     var t = now(sim);
     sim._coordinationHealth = {
-      version: '1.0',
+      version: '2.0-faction-progress',
       sampledAt: t,
       lastSample: t,
-      lastObjectiveProgressAt: t,
+      lastAnyObjectiveChangeAt: t,
       objectiveSignature: objectiveSignature(sim),
+      lastObjectiveProgressAt: { us: t, ge: t },
+      objectiveProgress: { us: progressSnapshot(sim, 'us'), ge: progressSnapshot(sim, 'ge') },
       replanAfter: replanAfter(),
       sides: { us: sideHealth(sim, 'us', t), ge: sideHealth(sim, 'ge', t) }
     };
@@ -122,16 +145,22 @@
     var sig = objectiveSignature(sim);
     if (sig !== h.objectiveSignature) {
       h.objectiveSignature = sig;
-      h.lastObjectiveProgressAt = t;
+      h.lastAnyObjectiveChangeAt = t;
     }
+    ['us', 'ge'].forEach(function (faction) {
+      var next = progressSnapshot(sim, faction),
+        prev = h.objectiveProgress && h.objectiveProgress[faction];
+      if (madeProgress(prev, next)) h.lastObjectiveProgressAt[faction] = t;
+      h.objectiveProgress[faction] = next;
+    });
     h.sampledAt = t;
     h.sides = {
-      us: sideHealth(sim, 'us', h.lastObjectiveProgressAt),
-      ge: sideHealth(sim, 'ge', h.lastObjectiveProgressAt)
+      us: sideHealth(sim, 'us', h.lastObjectiveProgressAt.us),
+      ge: sideHealth(sim, 'ge', h.lastObjectiveProgressAt.ge)
     };
   }
   root.BattleModules.registerSystem('ai-coordination-health', {
-    version: '1.0',
+    version: '2.0-faction-progress',
     onBattleStart: reset,
     onBattleRestart: reset,
     onCommanderTick: function (sim) {
@@ -139,7 +168,7 @@
     }
   });
   root.BattleAICoordinationHealth = {
-    version: '1.0',
+    version: '2.0-faction-progress',
     get replanAfter() {
       return replanAfter();
     },

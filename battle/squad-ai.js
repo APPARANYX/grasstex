@@ -1471,6 +1471,7 @@
   function retreatGoal(squad) {
     var a = squad._assembly,
       m = squad._macroMission;
+    if (squad._moraleRallyPoint) return squad._moraleRallyPoint;
     return a && a.phase === 'to-rally' && m && m.version === a.missionVersion && m.point
       ? m.point
       : squad.home;

@@ -98,8 +98,9 @@ test('rear door, complete ingress and station hold survive target flicker withou
     assert.equal(f.P.current(f.s),t);assert.equal(t.route,route);
     if(t.occupiedAt!=null){occupied=true;assert.equal(f.M.resolve(f.s,f.sim).kind,'firing-station');assert.ok(Math.hypot(f.s.root.position.x-f.st.x,f.s.root.position.z-f.st.z)<=.35);}
   }
-  assert.equal(illegal,0);assert.ok(occupied);assert.equal(t.status,'holding');assert.equal(f.P.summary(f.sim).assignmentsOccupied,1);assert.equal(f.sim._tacticalRouteStats.pathSearches,searches);assert.equal(physicalSearches,0);
-  const final=f.s.destination;f.sim.time+=10;f.M.resolve(f.s,f.sim);assert.equal(f.s.destination,final);
+  assert.equal(illegal,0);assert.ok(occupied);assert.equal(t.status,'holding');assert.equal(t.ingressStallFor,0,'successful station hold is not an ingress stall');assert.ok(t.ingressSeconds>=0);assert.ok(t.holdFor>=0);
+  assert.equal(f.P.summary(f.sim).assignmentsOccupied,1);assert.equal(f.sim._tacticalRouteStats.pathSearches,searches);assert.equal(physicalSearches,0);
+  const heldAt=t.holdFor,final=f.s.destination;f.sim.time+=10;f.P.update(f.s,f.sim);f.M.resolve(f.s,f.sim);assert.equal(f.s.destination,final);assert.equal(t.ingressStallFor,0);assert.ok(t.holdFor>=heldAt+9.9,'hold clock advances separately from ingress');
 });
 test('safe-door approach does not shortcut through the exposed front door',()=>{
   const f=fixture();f.s.root.position.x=3;f.s.root.position.z=15;const t=f.claim();assert.ok(t);assert.equal(t.route.door,'rear');

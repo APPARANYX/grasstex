@@ -238,7 +238,6 @@
       t.lastIngressDist = ingressDist;
       t.lastIngressAt = sim.time;
     }
-    t.ingressStallFor = Math.max(0, sim.time - (t.lastIngressAt != null ? t.lastIngressAt : t.assignedAt));
     if (ingressDist <= 0.35) {
       if (t.occupiedAt == null) {
         t.occupiedAt = sim.time;
@@ -248,6 +247,13 @@
       } else t.status = 'holding';
       if (root.BattleMovementProgress) root.BattleMovementProgress.clearFailuresNear(s, sim, t.position);
     }
+    /* Ingress ends when the post is occupied. The old clock kept increasing for the entire successful
+       station hold, making a five-minute firing position look like five minutes of failed pathfinding. */
+    t.ingressStallFor =
+      t.occupiedAt == null ? Math.max(0, sim.time - (t.lastIngressAt != null ? t.lastIngressAt : t.assignedAt)) : 0;
+    t.ingressSeconds =
+      t.occupiedAt == null ? Math.max(0, sim.time - t.assignedAt) : Math.max(0, t.occupiedAt - t.assignedAt);
+    t.holdFor = t.occupiedAt == null ? 0 : Math.max(0, sim.time - t.occupiedAt);
     return t;
   }
   function claim(s, sim, st, threat) {
@@ -431,7 +437,7 @@
     publish(sim);
   }
   root.BattleTacticalPositions = {
-    version: '1.2-m3c-squad-leader-owned',
+    version: '1.3-ingress-hold-telemetry',
     revision: function (sim) {
       return context(sim).revision;
     },
