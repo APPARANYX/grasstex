@@ -2851,10 +2851,7 @@
       if (leaderlessActive(sq)) noteLeaderlessAction(sq, battle, 'retreat', 'survival retreat continues');
       return;
     }
-    if (leaderlessActive(sq)) {
-      noteLeaderlessAction(sq, battle, 'hold-intent', 'squad anchor frozen during succession');
-      return;
-    }
+    if (leaderlessActive(sq)) return;
     if (L.get(sq, 'retreat-anchor')) L.end(sq, 'retreat-anchor', battle.time, 'retreat ended');
     /* The main-body anchor is the hold line during recon. Scouts receive individual fireteam-order
        intents below; the squad itself does not creep after them. */
