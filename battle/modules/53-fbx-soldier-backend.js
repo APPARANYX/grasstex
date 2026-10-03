@@ -1478,7 +1478,7 @@ function update(soldier,state,dt){
   }
   setClip(fx.lower,clip,rate,.25,false,true);
 
-  var over=null,orate=1,restart=false,playerAt=soldier.isPlayer&&soldier.playerAimPoint||null;
+  var over=null,orate=1,restart=false,playerAt=soldier.isPlayer&&soldier.playerAimPoint||null,visualAt=state&&state.aimPoint||null;
   fx.fireHold=Math.max(0,fx.fireHold-dt);fx.hitHold=Math.max(0,(fx.hitHold||0)-dt);
   if(fx.fireShot!==fx.fireSeen){fx.fireSeen=fx.fireShot;fx.fireHold=.9;restart=!fx.fireBurst&&!pistol;}
   if(fx.reloadShot!==fx.reloadSeen){fx.reloadSeen=fx.reloadShot;restart=true;}
@@ -1503,7 +1503,7 @@ function update(soldier,state,dt){
     var auto=!!fx.fireBurst;
     if(pistol&&stance!=='prone'){over=stance==='crouch'?'pistolKneel':'pistolIdle';restart=false;}
     else{over=stance==='prone'?(auto?'fireAutoProne':'fireProne'):(auto?'fireAuto':(stance==='crouch'?'fireCrouch':'fire'));orate=auto?1:1.3;}
-  }else if((soldier.target||playerAt)&&stance!=='prone'){over=pistol?(stance==='crouch'?'pistolKneel':'pistolIdle'):(stance==='crouch'?'crouchAim':'aim');restart=false;}
+  }else if((soldier.target||playerAt||visualAt)&&stance!=='prone'){over=pistol?(stance==='crouch'?'pistolKneel':'pistolIdle'):(stance==='crouch'?'crouchAim':'aim');restart=false;}
   else restart=false;
   if(over){setClip(fx.upper,clips[over],orate,.16,restart,false);fx.overlayTarget=1;}else fx.overlayTarget=0;
   fx.supportReleased=!!(soldier.reloading||fx.hitHold>0||fx.flinchHold>0);
@@ -1512,8 +1512,10 @@ function update(soldier,state,dt){
   else if(over&&over===fx.flinchKey){fx.cupClipKey=over;fx.cupClipT=clips[over].duration-fx.flinchHold*FLINCH_RATE;}
   else fx.cupClipKey=null;
   var t=soldier.target&&soldier.target.root&&soldier.target.root.position;
-  /* A possessed man aims where the player's crosshair is (aimSpine adds 1.2 m to a target's ground point). */
+  /* A possessed man aims where the player's crosshair is (aimSpine adds 1.2 m to a target's ground point).
+     Otherwise presentation may supply a static last-seen point; it never becomes soldier.target. */
   if(!t&&playerAt)t={x:playerAt.x,y:playerAt.y-1.2,z:playerAt.z};
+  if(!t&&visualAt)t=visualAt;
   fx.aimWanted=!soldier.reloading&&(!!t||fx.fireHold>0);fx.aimAt=t||null;
   advance(fx,dt);
   return true;
