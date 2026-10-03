@@ -1033,7 +1033,11 @@ The active queue begins here:
 authoritative; new state has an explicit owner and reader; no presentation system writes simulation truth; no
 combat-RNG draw merely to choose tactics; add a deterministic harness/check before relying on a visual impression;
 add observe-only probe/telemetry that measures the decision dose; ship behavioral changes behind a flag until the
-paired GitHub benchmark shows the efficiency gate is acceptable. Once a slice ships, move its evidence into the
+paired GitHub benchmark shows the efficiency gate is acceptable. **Do not make a behavioral feature imitate the old
+simulation merely to satisfy an equality test.** New tactics are expected to change decisions and outcomes; benchmarks
+gate broken invariants, determinism, pathological stalls/loops/churn, runtime errors and performance, while behavioral
+deltas are evidence to understand rather than something to erase. Equality/neutrality checks belong only to explicitly
+non-behavioral tooling or a deliberately isolated legacy/control arm. Once a slice ships, move its evidence into the
 subsystem section but leave this sequence accurate so the next unfinished slice remains visible.
 
 <details>
