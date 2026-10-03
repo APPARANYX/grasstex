@@ -54,17 +54,18 @@
             k = key(sq),
             open = st.open[k];
           if (!lease || !sq._reconTask) {
-            if (open && sq.orderAnchor) {
-              st.anchorDrift.push(Math.hypot(sq.orderAnchor.x - open.x, sq.orderAnchor.z - open.z));
-              delete st.open[k];
-            }
+            if (open) delete st.open[k];
             continue;
           }
           st.activeSquadSeconds++;
           var task = sq._reconTask,
             sig = k + '|' + String(task.signature);
           st.taskKeys[sig] = 1;
-          if (!open && sq.orderAnchor) st.open[k] = { x: sq.orderAnchor.x, z: sq.orderAnchor.z };
+          if (!open && sq.orderAnchor) {
+            open = st.open[k] = { x: sq.orderAnchor.x, z: sq.orderAnchor.z };
+          }
+          if (open && sq.orderAnchor)
+            st.anchorDrift.push(Math.hypot(sq.orderAnchor.x - open.x, sq.orderAnchor.z - open.z));
           var selected = {};
           for (var j = 0; j < task.scoutIds.length; j++) selected[String(task.scoutIds[j])] = 1;
           var stopped = false;
