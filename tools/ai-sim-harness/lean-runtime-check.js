@@ -56,7 +56,8 @@ test('personal contact reactions rate-limit sector churn and ignore sound-only h
   assert.equal(u.sharedContactReactions,1,'rapid selected-sector flip does not inject another hold');
   assert.ok(u.sharedContactCooldownBlocks>=1,'rapid sector flip is counted as cooldown-blocked');
 
-  w.b.time+=5;E.stateOf(w.s).state='advance';E.updateSoldier(w.s,w.b);
+  w.b.time+=5;w.setContact({source:'told',x:20,z:0,at:w.b.time,unit:null});
+  E.stateOf(w.s).state='advance';E.updateSoldier(w.s,w.b);
   u=w.r.BattleCombatUrgency.summary(w.b);
   assert.equal(u.sharedContactReactions,2,'materially different report may react again after cooldown');
 
