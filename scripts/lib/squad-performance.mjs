@@ -47,7 +47,7 @@ export function scoreSquadPerformance(raw={}){
     movement-=regressionShare*50;
     if(netObjectiveProgress< -3)movement-=Math.min(20,Math.abs(netObjectiveProgress)/Math.max(1,travel)*30);
   }
-  movement-=Math.min(30,routeStalls*12)-0;
+  movement-=Math.min(30,routeStalls*12);
   movement-=Math.min(30,movementStalls*8);
   movement=clamp(movement);
 
@@ -127,7 +127,7 @@ export function summarizeSquadPerformance(rows=[]){
   const roleSummary={};
   for(const [role,xs] of Object.entries(byRole))roleSummary[role]={squads:xs.length,mean:+mean(xs).toFixed(1),median:+quantile(xs,.5).toFixed(1),p10:+quantile(xs,.1).toFixed(1)};
   const worst=[...valid].sort((a,b)=>a.overall-b.overall||String(a.faction).localeCompare(String(b.faction))||String(a.squad).localeCompare(String(b.squad))).slice(0,8)
-    .map(r=>({faction:r.faction,squad:r.squad,role:r.role,overall:r.overall,mission:r.mission,movement:r.movement,control:r.control,cohesion:r.cohesion,combat:r.combat,preservation:r.preservation}));
+    .map(r=>({seed:r.seed||null,faction:r.faction,squad:r.squad,role:r.role,overall:r.overall,mission:r.mission,movement:r.movement,control:r.control,cohesion:r.cohesion,combat:r.combat,preservation:r.preservation}));
   const avg=name=>{const xs=dim(name);return xs.length?+mean(xs).toFixed(1):null;};
   return {
     squads:valid.length,
