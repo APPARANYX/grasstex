@@ -127,18 +127,23 @@
     'prone>stand':{duration:1.4,keys:[[.20,'brace'],[.34,'extend'],[.44,'tuck'],[.58,'kneel'],[.78,'crouch'],[1,'stand']]}
   };
   function desiredStance(s){return s.prone?'prone':(s.crouching?'crouch':'stand');}
+  function presentationAimPoint(p){
+    var a=p&&p.aimPoint;
+    return a&&isFinite(+a.x)&&isFinite(+a.z)?a:null;
+  }
+  function visuallyAiming(s,p){return!!(s&&s.target||presentationAimPoint(p));}
   function poseSnapshot(s){
     return{position:s.poseRoot.position.clone(),rotation:currentQuaternion(s.poseRoot,new Q()),support:s._stanceSupport||0,
       joints:STANCE_JOINTS.map(function(name){return currentQuaternion(s.rig[name],new Q());})};
   }
-  function stanceKey(s,name){
-    var p=STANCE_POSES[name],blade=name==='crouch'&&s.target;
+  function stanceKey(s,name,presentation){
+    var p=STANCE_POSES[name],blade=name==='crouch'&&visuallyAiming(s,presentation);
     return{position:new V3(0,p.y,p.z),rotation:Q.Identity(),support:p.support,joints:p.angles.map(function(x,i){return Q.FromEulerAngles(x,blade?(i===1?.22:(i===2?.30:0)):0,0);})};
   }
   function releaseStancePose(s){
     STANCE_JOINTS.forEach(function(name){releaseQuaternion(s.rig[name]);});releaseQuaternion(s.poseRoot);
   }
-  function stanceTransition(s,dt){
+  function stanceTransition(s,dt,presentation){
     if(!s.rig||!s.poseRoot)return false;
     if(s.dead){if(s._stanceTransition)releaseStancePose(s);s._stanceTransition=null;s._stanceSupport=0;return false;}
     var next=desiredStance(s),tr=s._stanceTransition,previous=tr?tr.to:(s._visualStance||'stand');
@@ -146,7 +151,7 @@
       // Snapshot an interrupted action too; repeated stance assignments never restart the clock.
       var from=poseSnapshot(s),clip=STANCE_CLIPS[previous+'>'+next];
       tr=s._stanceTransition={from:previous,to:next,elapsed:0,duration:clip.duration,keys:[{at:0,pose:from}]};
-      clip.keys.forEach(function(k){tr.keys.push({at:k[0],pose:stanceKey(s,k[1])});});
+      clip.keys.forEach(function(k){tr.keys.push({at:k[0],pose:stanceKey(s,k[1],presentation)});});
       s.animationEvent={tag:'stance.transition',data:{from:previous,to:next,duration:clip.duration}};
     }
     if(!tr){s._visualStance=next;return false;}
@@ -212,7 +217,7 @@
     hq.hs.multiplyToRef(hq.chest,hq.chestW);hq.chestW.conjugateToRef(hq.inv);
   }
   function bodyToChest(point,out){point.subtractToRef(hv.chest,hv.tmp2);hv.tmp2.rotateByQuaternionToRef(hq.inv,out);return out;}
-  function holdWeapon(s,dt){
+  function holdWeapon(s,dt,presentation){
     var r=s.rig,w=s.weapon;if(!r||!w||!w.mesh)return;
     var kind=GRIPS[w.kind]?w.kind:'rifle',g=GRIPS[kind],socket=r.weapon;
     chestTransform(r);
@@ -229,7 +234,7 @@
     var kick=s._animFireKick||0;s._animFireKick=Math.max(0,kick-dt*8);
     if(s.reloading)s._animReloadClock=(s._animReloadClock||0)+dt;else s._animReloadClock=0;
     var reloadDur=w.stats&&w.stats.reloadTime||2.5,rp=s.reloading?Math.min(1,s._animReloadClock/reloadDur):0,reach=Math.sin(Math.PI*rp);
-    var mode=s.reloading?'reload':(s.target||s.prone||(s._animationHold>0)?'aim':'ready'),table=(kind==='pistol'?PISTOL_HOLDS:HOLDS)[s.prone?'prone':mode];
+    var mode=s.reloading?'reload':(visuallyAiming(s,presentation)||s.prone||(s._animationHold>0)?'aim':'ready'),table=(kind==='pistol'?PISTOL_HOLDS:HOLDS)[s.prone?'prone':mode];
     var pose=s._holdPose,k=1-Math.exp(-dt*9);
     if(!pose)pose=s._holdPose=table.slice();else for(var i=0;i<6;i++)pose[i]+=(table[i]-pose[i])*k;
     Q.FromEulerAnglesToRef(pose[4]-kick*.10,pose[3],pose[5]+(mode==='reload'?.35*reach:0),hq.weapon);
@@ -254,7 +259,7 @@
     }
   }
 
-  function primitivePose(s,dt,speedFrac){
+  function primitivePose(s,dt,speedFrac,presentation){
     var r=s.rig;if(!r)return;var k=1-Math.exp(-dt*11),moving=Math.min(1,Math.max(0,speedFrac||0));
     if(s.dead){
       s.deathClock=(s.deathClock||0)+dt;var p=Math.min(1,s.deathClock/.62),ease=1-Math.pow(1-p,3),side=s.deathVariant==='side'?(s.deathSide||1):0,front=s.deathVariant==='front'?1:(s.deathVariant==='back'?-1:0);
@@ -273,7 +278,7 @@
     rot(s.poseRoot,0,0,0,k);
     rot(r.hips,prone?1.40:(crouch?.11:0),0,0,k);
     /* A crouched shooter blades the torso so the left shoulder comes forward to the fore-end. */
-    var blade=crouch&&s.target?1:0;
+    var blade=crouch&&visuallyAiming(s,presentation)?1:0;
     rot(r.spine,prone?-.12:(crouch?.13:0),.22*blade,0,k);
     rot(r.chest,prone?-.08:(crouch?.07:0),.30*blade,0,k);
     rot(r.neck,prone?-.24:0,0,0,k);
@@ -293,16 +298,16 @@
     }
   }
 
-  function semanticTag(soldier,speedFrac){
-    return soldier.dead?(soldier.deathTag||TAGS.deathSide):(soldier.reloading?TAGS.reload:(soldier.prone?(soldier.crawling&&speedFrac>.02?TAGS.crawl:TAGS.prone):(soldier.crouching?(speedFrac>.03?TAGS.crouchWalk:TAGS.crouch):(speedFrac>.03?TAGS.walk:(soldier.target?TAGS.aim:TAGS.idle)))));
+  function semanticTag(soldier,speedFrac,presentation){
+    return soldier.dead?(soldier.deathTag||TAGS.deathSide):(soldier.reloading?TAGS.reload:(soldier.prone?(soldier.crawling&&speedFrac>.02?TAGS.crawl:TAGS.prone):(soldier.crouching?(speedFrac>.03?TAGS.crouchWalk:TAGS.crouch):(speedFrac>.03?TAGS.walk:(visuallyAiming(soldier,presentation)?TAGS.aim:TAGS.idle)))));
   }
-  function animateWalk(soldier,dt,speedFrac){
-    var b=soldier&&soldier.animationBinding;if(!b)return;
-    if(b.backend.indexOf('procedural')===0&&stanceTransition(soldier,dt)){holdWeapon(soldier,dt);return;}
+  function animateWalk(soldier,dt,speedFrac,presentation){
+    var b=soldier&&soldier.animationBinding,aimPoint=presentationAimPoint(presentation);if(!b)return;
+    if(b.backend.indexOf('procedural')===0&&stanceTransition(soldier,dt,presentation)){holdWeapon(soldier,dt,presentation);return;}
     if(b.backend.indexOf('procedural')!==0&&typeof b.update==='function'){
-      try{b.update(soldier,{tag:semanticTag(soldier,speedFrac),speed:speedFrac||0,target:soldier.target||null},dt,TAGS);}catch(e){console.warn('[ANIM] external update failed',e);}return;
+      try{b.update(soldier,{tag:semanticTag(soldier,speedFrac,presentation),speed:speedFrac||0,target:soldier.target||null,aimPoint:aimPoint},dt,TAGS);}catch(e){console.warn('[ANIM] external update failed',e);}return;
     }
-    primitivePose(soldier,dt,speedFrac);holdWeapon(soldier,dt);
+    primitivePose(soldier,dt,speedFrac,presentation);holdWeapon(soldier,dt,presentation);
   }
   function setCrouch(soldier,v){if(!soldier||soldier.dead)return;soldier.crouching=!!v;if(v)soldier.prone=false;}
   function setProne(soldier,v){if(!soldier||soldier.dead)return;soldier.prone=!!v;if(v)soldier.crouching=false;}
