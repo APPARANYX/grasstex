@@ -1309,13 +1309,35 @@
     SA().setDestination(s, pt, battle, !!urgent);
   }
 
-  /* Fire-control preparation may use an exact unit only when this man personally has one. A told
-     or heard belief remains a location/sector and can orient him, but is not converted into hidden
-     target truth for crest/LOS readiness checks. */
+  /* Fire-control preparation uses the live unit only when this man personally has it. If his
+     direct sight just blinked (for example after HOLD FIRE puts him prone), a recent *seen* belief
+     may stand in as a position-only proxy at the recorded last-known point. Told/heard beliefs never
+     become a target object, so no hidden live position leaks through the readiness calculation. */
   function fireControlTarget(s, battle) {
     if (combatThreat(s.target)) return s.target;
     var c = squadContact(s, battle);
-    return c && combatThreat(c.unit) ? c.unit : null;
+    if (c && combatThreat(c.unit)) return c.unit;
+    if (
+      c &&
+      c.source === 'seen' &&
+      c.knownUnitId != null &&
+      isFinite(+c.x) &&
+      isFinite(+c.z)
+    ) {
+      return {
+        id: String(c.knownUnitId),
+        combatThreat: true,
+        _recordedFireControlPoint: true,
+        root: {
+          position: { x: +c.x, y: battle.heightAt(+c.x, +c.z), z: +c.z },
+          rotation: { y: 0 }
+        },
+        prone: c.stance === 'prone',
+        crouching: c.stance === 'crouch',
+        tacticalCrouch: c.stance === 'crouch'
+      };
+    }
+    return null;
   }
   function stanceProxy(s, pt, stance, battle) {
     return {
