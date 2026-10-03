@@ -92,19 +92,52 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # First: did anything audio change (Assets/audio, the audio scripts, this file or the deploy)?
+      # scripts/audio_tracker.py diffs the pull request's base, or the commit before a push. When
+      # nothing did, the steps below are skipped: they would re-check what main already passed.
+      # A base it cannot read, and a manual run, count as changed.
+      - name: Has the audio changed?
+        id: audio
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          case "$EVENT" in
+            pull_request) base="$(git merge-base "$PR_BASE" HEAD 2>/dev/null || echo "$PR_BASE")" ;;
+            push) base="$PUSH_BEFORE" ;;
+            *) base="" ;;
+          esac
+          if [ -z "$base" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "No base to compare with: running the audio checks."
+          else
+            python3 scripts/audio_tracker.py diff "$base" --github-output "$GITHUB_OUTPUT"
+          fi
+          if grep -q '^changed=false' "$GITHUB_OUTPUT"; then
+            echo "No audio input changed since \`${base:0:12}\`: audio checks skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Install FFmpeg
+        if: steps.audio.outputs.changed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
       - name: Voice manifest
+        if: steps.audio.outputs.changed == 'true'
         run: python3 scripts/validate_voice_manifest.py
 
       - name: Clip references
+        if: steps.audio.outputs.changed == 'true'
         run: python3 scripts/check_audio_manifest.py
 
       - name: Slice recipes
+        if: steps.audio.outputs.changed == 'true'
         run: |
           set -euo pipefail
           for recipe in scripts/recipes/*.json; do
@@ -116,6 +149,7 @@ jobs:
       # manifest in exactly that state. Ask the script itself what each declared path would
       # be mastered as, so its tables stay the single source of truth.
       - name: Every declared category has a mastering target
+        if: steps.audio.outputs.changed == 'true'
         run: |
           set -euo pipefail
           python3 -c "
@@ -134,6 +168,7 @@ jobs:
       # committed without running the mastering pass, or .mastering-state.tsv no longer
       # describes the files beside it. Both are how the library silently drifts off spec.
       - name: Mastering is current
+        if: steps.audio.outputs.changed == 'true'
         run: |
           set -euo pipefail
           bash scripts/normalize_audio.sh Assets/audio

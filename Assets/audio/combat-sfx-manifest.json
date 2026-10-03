@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "base": "Assets/audio/",
+  "format": "mono MP3 48 kHz 128 kbps, mastered by scripts/normalize_audio.sh (combat/* targets)",
+  "purpose": "Combat presentation sounds that are not a weapon's own report: rounds passing the camera, ricochets, surface impacts, rounds striking a man, and the man's pain. Generated with ElevenLabs Sound Effects by scripts/generate_combat_sfx.py (.github/workflows/combat-sfx-generate.yml on a branch); played by battle/modules/15-combat-audio.js through Assets/audio/manifest.json categories flyby, ricochet, impacts, flesh and pain. Presentation only: no clip changes the battle.",
+  "rules": {
+    "oneSoundPerInstance": "A round plays at most one flyby clip, and its end point at most one impact or ricochet; a body it strikes one flesh hit; a man hit at most one pain clip. The runtime caps concurrent voices per group so a burst is a run of distinct sounds, never a wall of noise.",
+    "singleShot": "A clip marked singleShot holds exactly one event (one onset): one crack, one hit, one ricochet.",
+    "variations": "Each variation is its own generation, never one generation pitch-shifted."
+  },
+  "groups": {
+    "flyby": {
+      "crack": {
+        "variations": 6,
+        "maxDurationS": 0.5,
+        "role": "flyby",
+        "singleShot": true,
+        "trigger": "supersonic round passes within 6 m of the camera",
+        "files": [
+          "combat/flyby/crack-01.mp3",
+          "combat/flyby/crack-02.mp3",
+          "combat/flyby/crack-03.mp3",
+          "combat/flyby/crack-04.mp3",
+          "combat/flyby/crack-05.mp3",
+          "combat/flyby/crack-06.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. A single supersonic rifle bullet cracking past the listener's head at close range: one sharp, dry, whip-like snap with a very short airy tail, recorded from the listener's position. One bullet only, then silence."
+      },
+      "whiz": {
+        "variations": 6,
+        "maxDurationS": 0.6,
+        "role": "flyby",
+        "singleShot": true,
+        "trigger": "a .45 within 10 m of the camera, or a supersonic round between 6 and 10 m",
+        "files": [
+          "combat/flyby/whiz-01.mp3",
+          "combat/flyby/whiz-02.mp3",
+          "combat/flyby/whiz-03.mp3",
+          "combat/flyby/whiz-04.mp3",
+          "combat/flyby/whiz-05.mp3",
+          "combat/flyby/whiz-06.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. A single bullet whizzing past the listener's head: one short buzzing zip that rises and falls in pitch as it passes, recorded from the listener's position. One bullet only, then silence."
+      }
+    },
+    "ricochet": {
+      "whine": {
+        "variations": 6,
+        "maxDurationS": 1.2,
+        "role": "ricochet",
+        "singleShot": true,
+        "trigger": "some rounds ending on stone, brick or metal within 60 m of the camera, instead of the impact clip",
+        "files": [
+          "combat/ricochet/whine-01.mp3",
+          "combat/ricochet/whine-02.mp3",
+          "combat/ricochet/whine-03.mp3",
+          "combat/ricochet/whine-04.mp3",
+          "combat/ricochet/whine-05.mp3",
+          "combat/ricochet/whine-06.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. A single rifle bullet striking stone and ricocheting away: a sharp hard ping followed by a thin whining whistle that fades into the distance. One ricochet only, outdoors."
+      }
+    },
+    "impacts": {
+      "dirt": {
+        "variations": 4,
+        "maxDurationS": 0.6,
+        "role": "impact",
+        "singleShot": true,
+        "trigger": "round ends in the ground within 40 m of the camera",
+        "files": [
+          "combat/impacts/dirt-01.mp3",
+          "combat/impacts/dirt-02.mp3",
+          "combat/impacts/dirt-03.mp3",
+          "combat/impacts/dirt-04.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. A single rifle bullet slamming into soft earth nearby: a dull thud with a short spray of dirt and pebbles pattering down. One impact only, outdoors."
+      },
+      "masonry": {
+        "variations": 4,
+        "maxDurationS": 0.6,
+        "role": "impact",
+        "singleShot": true,
+        "trigger": "round ends on a building or stone wall within 40 m",
+        "files": [
+          "combat/impacts/masonry-01.mp3",
+          "combat/impacts/masonry-02.mp3",
+          "combat/impacts/masonry-03.mp3",
+          "combat/impacts/masonry-04.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. A single rifle bullet hitting a brick and stone wall nearby: a hard sharp crack with chips of masonry and dust falling. One impact only, outdoors."
+      },
+      "wood": {
+        "variations": 4,
+        "maxDurationS": 0.6,
+        "role": "impact",
+        "singleShot": true,
+        "trigger": "round ends in timber, a door or a tree trunk within 40 m",
+        "files": [
+          "combat/impacts/wood-01.mp3",
+          "combat/impacts/wood-02.mp3",
+          "combat/impacts/wood-03.mp3",
+          "combat/impacts/wood-04.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. A single rifle bullet punching into a thick wooden beam nearby: a solid knock with a short splintering crunch. One impact only."
+      },
+      "metal": {
+        "variations": 4,
+        "maxDurationS": 0.6,
+        "role": "impact",
+        "singleShot": true,
+        "trigger": "round ends on metal within 40 m",
+        "files": [
+          "combat/impacts/metal-01.mp3",
+          "combat/impacts/metal-02.mp3",
+          "combat/impacts/metal-03.mp3",
+          "combat/impacts/metal-04.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. A single rifle bullet striking a sheet of steel nearby: a bright hard metallic clang with a short ringing tail. One impact only."
+      },
+      "vegetation": {
+        "variations": 4,
+        "maxDurationS": 0.5,
+        "role": "impact",
+        "singleShot": true,
+        "trigger": "round ends in a hedge, bush or foliage within 40 m",
+        "files": [
+          "combat/impacts/vegetation-01.mp3",
+          "combat/impacts/vegetation-02.mp3",
+          "combat/impacts/vegetation-03.mp3",
+          "combat/impacts/vegetation-04.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. A single rifle bullet tearing through a dense hedgerow nearby: a quick snap of twigs and a rustle of torn leaves. One impact only, outdoors."
+      }
+    },
+    "flesh": {
+      "hit": {
+        "variations": 6,
+        "maxDurationS": 0.5,
+        "role": "flesh",
+        "singleShot": true,
+        "trigger": "a round strikes a soldier within 40 m of the camera, once per body it strikes",
+        "files": [
+          "combat/flesh/hit-01.mp3",
+          "combat/flesh/hit-02.mp3",
+          "combat/flesh/hit-03.mp3",
+          "combat/flesh/hit-04.mp3",
+          "combat/flesh/hit-05.mp3",
+          "combat/flesh/hit-06.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. A single bullet striking a man's body at close range: a heavy wet thump through cloth and webbing, short and visceral, not gory. One hit only, no voice."
+      }
+    },
+    "pain": {
+      "wounded": {
+        "variations": 8,
+        "maxDurationS": 1.2,
+        "role": "pain",
+        "singleShot": false,
+        "trigger": "a soldier hit and still fighting, within 60 m of the camera; one per man, never again within 3 s",
+        "files": [
+          "combat/pain/wounded-01.mp3",
+          "combat/pain/wounded-02.mp3",
+          "combat/pain/wounded-03.mp3",
+          "combat/pain/wounded-04.mp3",
+          "combat/pain/wounded-05.mp3",
+          "combat/pain/wounded-06.mp3",
+          "combat/pain/wounded-07.mp3",
+          "combat/pain/wounded-08.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. Voice allowed: one adult male WW2 infantry soldier, outdoors, suddenly shot and wounded: a single sharp involuntary cry of pain, a gasp then a strained grunt. No words, one man, one short cry."
+      },
+      "down": {
+        "variations": 6,
+        "maxDurationS": 1.5,
+        "role": "pain",
+        "singleShot": false,
+        "trigger": "a soldier hit and dropped (not an instant head-shot kill), within 60 m of the camera",
+        "files": [
+          "combat/pain/down-01.mp3",
+          "combat/pain/down-02.mp3",
+          "combat/pain/down-03.mp3",
+          "combat/pain/down-04.mp3",
+          "combat/pain/down-05.mp3",
+          "combat/pain/down-06.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. Voice allowed: one adult male WW2 infantry soldier, outdoors, shot and falling: a single choked cry that breaks into a groan as he goes down. No words, one man, one cry."
+      }
+    }
+  },
+  "totals": {
+    "clips": 58
+  }
+}
