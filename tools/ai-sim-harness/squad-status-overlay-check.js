@@ -37,6 +37,7 @@ vm.runInContext(source, ctx, { filename: '41-squad-status-overlay.js' });
 const O = ctx.BattleSquadStatusOverlay;
 assert(O, 'overlay API exported');
 assert(registered && registered.id === 'squad-status-overlay', 'system registered');
+assert.strictEqual(O.longArrowWorld, 150, 'long command arrows require a 150 m destination');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(O.symbolSpec({}))), {
   arm: 'infantry',
   echelon: 'squad',
@@ -95,12 +96,30 @@ q._macroMission = { point: { x: 3, z: 4 } };
 assert.deepStrictEqual(JSON.parse(JSON.stringify(O.movementTarget(q, sim))), { x: 3, z: 4 });
 
 q = base();
-q._macroMission = { objectiveId: 'A', point: { x: 5, z: 6 } };
+q._macroMission = { version: 4, objectiveId: 'A', point: { x: 5, z: 6 } };
 assert.deepStrictEqual(JSON.parse(JSON.stringify(O.missionObjective(q, sim))), {
   x: 100,
   z: 200,
   id: 'A'
 });
+assert.deepStrictEqual(JSON.parse(JSON.stringify(O.arrowTarget(q, sim))), {
+  x: 100,
+  z: 200,
+  id: 'A'
+}, 'long arrow uses the issued mission destination, not the short orderAnchor');
+const sig1 = O.arrowSignature(q, O.arrowTarget(q, sim));
+q.orderAnchor = { x: 99, z: 99 };
+assert.strictEqual(
+  O.arrowSignature(q, O.arrowTarget(q, sim)),
+  sig1,
+  'local Squad Leader anchor updates do not retrigger the long-range command arrow'
+);
+q._macroMission.version = 5;
+assert.notStrictEqual(
+  O.arrowSignature(q, O.arrowTarget(q, sim)),
+  sig1,
+  'a newly issued mission can trigger a fresh command-arrow wipe'
+);
 
 q = base();
 q._macroMission = { point: { x: 5, z: 6 } };
@@ -114,6 +133,8 @@ q = base();
 const before = JSON.stringify(q);
 O.statusFor(q, sim);
 O.movementTarget(q, sim);
+O.arrowTarget(q, sim);
+O.arrowSignature(q, O.arrowTarget(q, sim));
 O.missionObjective(q, sim);
 O.symbolSpec(q);
 assert.strictEqual(JSON.stringify(q), before, 'read model is observe-only');
