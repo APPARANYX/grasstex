@@ -114,11 +114,20 @@ assert.strictEqual(
   sig1,
   'local Squad Leader anchor updates do not retrigger the long-range command arrow'
 );
+q.commandPhase = 'assault';
 q._macroMission.version = 5;
-assert.notStrictEqual(
+assert.strictEqual(
   O.arrowSignature(q, O.arrowTarget(q, sim)),
   sig1,
-  'a newly issued mission can trigger a fresh command-arrow wipe'
+  'phase changes and revised briefs for the same objective do not replay the arrow'
+);
+q._macroMission.objectiveId = null;
+q._macroMission.point = { x: 155, z: 205 };
+const movedSig = O.arrowSignature(q, O.arrowTarget(q, { time: 12, objectives: {} }));
+assert.notStrictEqual(
+  movedSig,
+  sig1,
+  'a materially different destination can trigger a fresh command-arrow wipe'
 );
 
 q = base();
