@@ -439,7 +439,7 @@ Intent flows down and status flows up. No layer rewrites another's state.
 | Macro: Force Command | `commander-ai.js`, `commander-doctrine.js`, `commander-routes.js` | `_macroMission` brief {intent, action, objectiveId, point, flank leg, status}, `targetObjective`, `commandRole`, force allocation, reserves | write `commandPhase`/`objective`/route legs, cover, slots or soldier destinations |
 | Meso: Squad Leader / Squad Command | `modules/16-squad-plan-stability.js` (`executeMission`, `fireAndMovement`; SquadAI's `squadCommand` owner) | stable squad plan: fireteams, formation, order anchor, fire and movement (assault authorisation, bound cycle and team), corner pauses, defensive posts, regroup, the forward line (`sq._forwardLine`), objective phase; the only writer of `commandPhase` (setup states it through `initialPhase`); the only publisher of the anchor pair `orderAnchor` + `rally` (`BattleSquadStability.publishAnchor`: its advance, its regroup, the General's merge and the garrison setup all call it); the roster (`squad.members`, `soldier.squad`: `reform` and `disband` for a merge, `detachFled` for a man who has fled, `absorb` for one a retreating squad takes in) and the squad's `safePoint` | do obstacle avoidance; republish orders every tick |
 | Micro: Engagement | `engagement.js` (+ `modules/44-combat-urgency.js` drills on its `afterDrill` slot) | per-soldier state machine, stance (`prone`/`crawling`/`tacticalCrouch`), permission to fire, combat proposals to the resolver, the squad contact report (`inContact`, base of fire, pinned, and the men reacting to stress), the stress reactions (`cower`, `flee`, `freeze`, `rage`, behind `?stressAct=`), the fled man's phases and the decision to leave his weapons (`BattleWeapons.abandon`) and take a new one at base (`SquadAI.rearm`) | write final destination; pick objectives; decide squad bounds |
-| Perception + shared primitives | `squad-ai.js` | who sees whom (view cones), what a squad hears and is told (`squadSenses`), shot resolution, shared `squad.contact`, `areaFire` suppression; hosts the declared extension points (`SquadAI.extend`) and `BattleLeases`; a status-only squad update when no `squadCommand` owner is loaded | set stance/destination in combat |
+| Perception + shared primitives | `squad-ai.js` | who sees whom (view cones), Perception-owned `soldier._beliefs` (personal seen/told/heard facts with source, recorded location/sector, time, confidence and expiry), the upward aggregate `squad.contact`, shot resolution and `areaFire`; exposes `soldierContact`/belief snapshots to Engagement, combat urgency and tactical routing; hosts `SquadAI.extend` and `BattleLeases` | let aggregate `squad.contact` become instant per-man truth; set stance/destination in combat |
 | Soldier condition | `modules/17-soldier-mind.js` | `soldier.mind` (stress, band, shock) and the `squad.mind` roll-up: what suppression, wounds, casualties, leadership and company do to a man; the four modifiers Engagement and the shot model read | write stance, destination, target or another layer's timer; draw the combat RNG |
 | Soldier stats | `modules/10-soldier-stats.js` (`BattleSoldierStats`) | `soldier.stats` (six hash rolls of faction and id) and `squad.stats` (means over the living): the numbers the reading layers price, and the ranks the General reads | write any timer, stance, destination or another layer's state; draw the combat RNG |
 | Tactical positions | `modules/20-building-hardpoints.js` (`BattleTacticalPositions`: `claim`/`current`/`station`/`release`) | window/hardpoint reservations `assigned→ingress→occupying→holding→released`, committed ingress route | |
@@ -618,8 +618,10 @@ by up to 8% of the range, deterministically). Own sightings always replace heard
 re-acquisitions, 113 seen, 13 relayed, 1 heard; 81 of 14,844 acquisitions were by a still man whose squad
 knew of nobody (65 front, 13 side, 3 behind). No defect, so `HEAR_RANGE`/`RELAY_RANGE` stay: hearing (120 m)
 sits inside every role's sight range, so it can rarely be the first cue.
-Engagement already turns men and assigns suppressors from `squad.contact`, so both cues bring the
-squad's eyes and rifles onto the threat.
+`squad.contact` remains the aggregate picture published upward; it is not instant per-man knowledge. By default each
+soldier instead reads `SquadAI.soldierContact`: personal sight first, then only callouts he actually received or
+gunfire he personally heard, with stale facts expiring on simulation time. Engagement, combat urgency and tactical
+routing consume that personal view; `?soldierBeliefs=0` restores the legacy shared-contact control arm.
 
 **Soldier condition** (`modules/17-soldier-mind.js`, `BattleSoldierMind`). Each man carries `soldier.mind`: `stress`
 (0 calm, 1 broken) read in four bands with hysteresis (steady; shaken from 0.30, rattled from 0.55, broken from
@@ -992,28 +994,25 @@ Slices 1 and 2 of the original continuation are already shipped:
 - **Tactical callout channel — #170.** `BattleCallouts` is on by default; messages have delivery delay, can be
   missed deterministically, carry source/confidence/outcome data, and feed relayed squad contact only after a man
   actually hears them. Voice remains presentation-only. `callouts-check.js` owns the regression contract.
+- **Per-man beliefs — #190.** On by default after the 100-seed paired run #281. Perception owns
+  `soldier._beliefs`; direct sight, actually delivered callouts and personally heard gunfire create time-stamped
+  facts, unknown is valid, weaker reports never become hidden exact targets, and stale facts expire without
+  hidden-truth validation. Engagement/combat urgency/tactical routing read `SquadAI.soldierContact`; aggregate
+  `squad.contact` remains the upward squad picture. `?soldierBeliefs=0` is the legacy control. Restart hooks clear
+  callout/gunfire/belief memory so a new battle cannot inherit evidence from the previous one.
 
 The active queue begins here:
 
-1. **Per-man beliefs instead of omniscient shared contact inside Engagement.** Each soldier should carry what he
-   personally **saw, was told, or heard**, with source, location/sector, observed/reported time, age, confidence
-   and expiry. Unknown is a valid state. The squad may still publish an aggregate contact picture upward, but
-   Engagement should eventually choose targets/last-known sectors from the man's own belief set rather than
-   treating `squad.contact` as instant common knowledge. Sightings outrank weaker reports; delivered callouts can
-   create/update a belief; hearing is lower-confidence and imprecise; stale facts decay. This is the consumer that
-   makes the callout channel materially useful. Diagnostics must answer *why this man believed an enemy was there*
-   and distinguish truth from belief without giving the AI hidden truth.
-
-2. **Scouts forward: the Squad Leader looks before the squad moves** (owner, 2026-10-02). Before an approach
+1. **Scouts forward: the Squad Leader looks before the squad moves** (owner, 2026-10-02). Before an approach
    to an objective, a crest or a hedgeline the squad has no current picture of, the Squad Leader sends its scouts
    ahead to observe while the rest of the squad holds in cover; the squad moves on what they report, or on a
    timeout when they report nothing. One Squad Leader phase (send, hold, release on a report or the clock; a lease,
    not a new `...Until`), the scouts' movement through the Movement Resolver, and their reports through the callout
-   channel into the per-man beliefs of slice 1, which it depends on: the squad acts on what the scouts saw and
+   channel into the shipped per-man beliefs, which it depends on: the squad acts on what the scouts saw and
    reported, never on hidden truth. Contact while scouting is ordinary Engagement and fire control. The outline's
    fireteam `recon` task and the building plan's `reconnoiter` step are the larger form of the same idea. Behind a
    flag, paired benchmark.
-3. **Intent-based continuation and initiative when the Squad Leader is down.** Succession already exists; the
+2. **Intent-based continuation and initiative when the Squad Leader is down.** Succession already exists; the
    missing behavior is what the men/fireteams do while leadership is absent or before a successor can issue a new
    local plan. Preserve the last valid parent intent/task and allow only bounded, conservative initiative inside
    it: hold a valid firing/cover position, finish an already-committed short move, protect the fireteam/buddy,
