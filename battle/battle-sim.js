@@ -18,7 +18,7 @@
   function muzzleWorld(soldier){var w=soldier.weapon,local=BABYLON.Vector3.FromArray(w.muzzleLocal);return BABYLON.Vector3.TransformCoordinates(local,w.mesh.getWorldMatrix());}
   var POOL_SIZE=6,SFX_FILES={rifle:'rifle.mp3',carbine:'carbine.mp3',smg:'carbine.mp3',lmg:'lmg.mp3',pistol:'pistol.mp3'};
   /* Shots are keyed by the weapon model a man carries (`weapon.profile`: m1-garand, mg42, ...), from
-     manifest category `weapon.<model>` (licensed third-party audio clips, Assets/audio/weapon-clip-manifest.json):
+     manifest category `weapon.<model>` (licensed private clips, Assets/audio/weapon-clip-manifest.json):
      `fire` holds one discharge per file and plays once per round, automatic fire included, and
      `fireDistant` takes over from DISTANT_FROM metres. The near voices' linear roll-off reaches
      silence at about 97 m, so the far pool starts before that rather than leaving a silent band.
