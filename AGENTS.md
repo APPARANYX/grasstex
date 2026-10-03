@@ -1373,6 +1373,8 @@ factions textured differently, weapon on the hands). Keep weapon source `.zip` p
 - **Placeholders:** declared-but-unrecorded clips are listed in `Assets/audio/.manifest-placeholders.txt`.
   Delete a line when its audio lands; CI fails if a listed clip exists. New directories must be in
   `AUDIO_ASSET_GLOBS` in `prepare_incremental_deploy.py`, or they 404 live.
+- **ElevenLabs is never called automatically.** The voice and combat-SFX generator workflows run only
+  when a person starts them (`workflow_dispatch`); no push, schedule or other workflow triggers them.
 - **Voices:** generated with ElevenLabs `eleven_v3` via `scripts/generate_voice_callouts.py
   [--faction us|ge] [--force [EVENT]]`, which needs `ELEVENLABS_API_KEY` (never commit it).
   - Voice IDs: US `TxWZERZ5Hc6h9dGxVmXa`, GE `Z2yQ1EdlDmcIgh9Pn4Lw`. Prompt prefix
@@ -1424,7 +1426,7 @@ burst tails; see its harness row). File layout keys the mastering targets: `weap
 flybys (`crack`, `whiz`), ricochets, impacts by surface (dirt, masonry, wood, metal, vegetation), flesh hits and pain (`wounded`,
 `down`), 58 ElevenLabs Sound Effects clips under `Assets/audio/combat/<group>/`, each with its prompt in the manifest, mirrored
 into `manifest.json` categories `flyby`, `ricochet`, `impacts`, `flesh` and `pain` (`check_audio_manifest.py` holds the two equal).
-`.github/workflows/combat-sfx-generate.yml` generates the missing ones on a branch (never main; repo secret `ELEVEN_LABS_API`;
+`.github/workflows/combat-sfx-generate.yml`, started by hand only, generates the missing ones on a branch (never main; repo secret `ELEVEN_LABS_API`;
 `scripts/generate_combat_sfx.py`), masters them (`combat/*` targets: -22 dBFS, pain -18) and commits them; a rerun generates only
 what is missing. `battle/modules/15-combat-audio.js` plays them (see its harness row): one sound per instance, capped per group.
 
