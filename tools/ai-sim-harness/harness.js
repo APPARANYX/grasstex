@@ -85,7 +85,7 @@ function vec(x,y,z){return{x:x,y:y,z:z,set(a,b,c){this.x=a;this.y=b;this.z=c;}};
 function makeBattle(root,opts){
   opts=opts||{};let seed=opts.seed||12345;
   const battle={
-    time:0,obstacles:opts.obstacles||[],heightAt:opts.heightAt||function(){return 0;},
+    time:0,obstacles:opts.obstacles||[],heightAt:opts.heightAt||function(){return 0;},_movementRoot:root,
     _roster:{us:[],ge:[]},factions:{us:{alive:0,kills:0,squads:[]},ge:{alive:0,kills:0,squads:[]}},
     events:{fired:0,hits:0,kills:0,suppressiveShots:0,suppressed:0,callouts:[]},
     rosterOf(f){return this._roster[f];},random(){seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;},
@@ -107,7 +107,7 @@ function addSquad(root,battle,opts){
       const model={root:{position:vec(jx,battle.heightAt(jx,jz),jz),rotation:{x:0,y:opts.facing==null?0:opts.facing,z:0}}};
       const deal=SquadAI.dealLoadout(null,{},role,opts.faction);
       const soldier=SquadAI.createSoldier({id:nextId++,faction:opts.faction,role:role,squad:squad,slotIndex:slot,model:model,weapon:deal.weapon,secondary:deal.secondary});
-      soldier.fireCooldown=0;squad.members.push(soldier);battle._roster[opts.faction].push(soldier);battle.factions[opts.faction].alive++;
+      SquadAI.setFireCooldown(soldier,0);squad.members.push(soldier);battle._roster[opts.faction].push(soldier);battle.factions[opts.faction].alive++;
     });
   });
   battle.factions[opts.faction].squads.push(squad);return squad;

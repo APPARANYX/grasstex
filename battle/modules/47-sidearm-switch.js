@@ -44,7 +44,7 @@
     root.BattleAmmunition.weaponChanged(s);
     root.BattleEngagement.unemplaceGun(s);
     root.BattleEngagement.delayFire(s, battle.time + cost);
-    s.fireCooldown = Math.max(+s.fireCooldown || 0, cost);
+    root.SquadAI.extendFireCooldown(s, cost);
   }
   function draw(s, battle, why) {
     swap(s, battle, T.DRAW);
@@ -61,7 +61,7 @@
       root.BattleAmmunition.clearJam(s);
       cost += T.CLEAR;
       root.BattleEngagement.delayFire(s, battle.time + cost);
-      s.fireCooldown = Math.max(+s.fireCooldown || 0, cost);
+      root.SquadAI.extendFireCooldown(s, cost);
     }
     var st = stats(battle);
     st.returns++;

@@ -10,7 +10,7 @@
     var home={x:laneX,z:z},objective={x:objectiveX,z:objectiveZ},sq=root.SquadAI.createSquad(faction+'-inf-'+index+'-'+Math.floor(sim.time||0),faction,home,objective),nextId=root.BattleModules.nextEntityId(sim),dealt=root.BattleSoldierStats&&root.BattleSoldierStats.deal?root.BattleSoldierStats.deal(faction,nextId,root.SquadAI.COMPOSITION):null,units=[];
     for(var si=0;si<root.SquadAI.COMPOSITION.length;si++){
       var role=root.SquadAI.COMPOSITION[si],jx=laneX+(rand(sim)-.5)*8,jz=z+(rand(sim)-.5)*6,model=root.BattleSoldierModel.createSoldier(sim.scene,faction,role,null);model.root.position.set(jx,sim.heightAt(jx,jz),jz);model.root.rotation.y=objectiveZ>z?0:Math.PI;
-      var deal=root.SquadAI.dealLoadout(sim.scene,model.weaponSocket,role,faction),weapon=deal.weapon,soldier=root.SquadAI.createSoldier({id:dealt?dealt[si]:nextId++,faction:faction,role:role,squad:sq,slotIndex:si,model:model,weapon:weapon,secondary:deal.secondary});soldier.fireCooldown=rand(sim)*.5;soldier.unitType='infantry';soldier.captureWeight=1;soldier.scoreValue=1;
+      var deal=root.SquadAI.dealLoadout(sim.scene,model.weaponSocket,role,faction),weapon=deal.weapon,soldier=root.SquadAI.createSoldier({id:dealt?dealt[si]:nextId++,faction:faction,role:role,squad:sq,slotIndex:si,model:model,weapon:weapon,secondary:deal.secondary});root.SquadAI.setFireCooldown(soldier,rand(sim)*.5);soldier.unitType='infantry';soldier.captureWeight=1;soldier.scoreValue=1;
       sq.members.push(soldier);sim._roster[faction].push(soldier);sim.factions[faction].alive++;units.push(soldier);root.BattleModules.addUnit(sim,soldier,{unitType:'infantry',captureWeight:1});
     }
     if(dealt)nextId+=root.SquadAI.COMPOSITION.length;
