@@ -32,7 +32,7 @@ function duel(opts){
      is measuring (for example, HOLD FIRE correctly blocks the bound-authorisation fixture). The old stance visibility
      (stanceVis=0) is held too: the lower prone/crouch signature delays acquisition and changes the stance chosen
      at range, which is a perception/doctrine question with its own check, not this harness's contract. */
-  const root=H.bootstrap(Object.assign({search:'?morale=0&coa=0&stressAct=0&fireControl=0&stanceVis=0&slStress=0'},opts));
+  const root=H.bootstrap(Object.assign({search:'?morale=0&coa=0&stressAct=0&fireControl=0&stanceVis=0&slStress=0&soldierBeliefs=0'},opts));
   const battle=H.makeBattle(root,{obstacles:opts.obstacles||[],seed:SEED});
   const gap=opts.gap==null?70:opts.gap;
   const us=H.addSquad(root,battle,{id:'us-0',faction:'us',x:0,z:-gap/2,objective:{x:0,z:gap/2},facing:0,composition:opts.composition,seed:SEED});
