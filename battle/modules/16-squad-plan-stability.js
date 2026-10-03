@@ -154,6 +154,10 @@
     observe: 2.2,
     timeout: 18,
     reportWatch: 5,
+    /* Maximum grace for the main body to close the deliberate scout lead after a no-contact
+       release. The existing regroup-bypass lease ends early as soon as the scouts are back inside
+       the normal release band; this is a ceiling, not a blind hold timer. */
+    rejoin: 9,
     pictureAge: 8,
     pictureConfidence: 0.45,
     terrainSamples: 12,
@@ -1185,6 +1189,39 @@
       st.overSince = null;
       if (current) endRegroup(sim, sq, 'recon supersedes regroup');
       return;
+    }
+    /* A just-completed no-contact recon leaves one or two men intentionally forward.
+       The existing regroup-bypass lease owns that short reintegration window. End it as soon as
+       the scouts are back inside the ordinary release radius from the non-scout main body so a
+       genuine later cohesion failure is never masked for the full ceiling. */
+    var rejoin = L.get(sq, 'regroup-bypass');
+    if (rejoin && rejoin.reason === 'recon rejoin') {
+      var ids = (rejoin.data && rejoin.data.scoutIds) || [],
+        idSet = {},
+        body = [],
+        scouts = [];
+      for (var ri = 0; ri < ids.length; ri++) idSet[String(ids[ri])] = 1;
+      var living = commanded(sq);
+      for (ri = 0; ri < living.length; ri++) {
+        if (idSet[String(living[ri].id)]) scouts.push(living[ri]);
+        else body.push(living[ri]);
+      }
+      var bodyCenter = averageMembers(body),
+        rejoined = !scouts.length || !bodyCenter;
+      if (bodyCenter && scouts.length) {
+        rejoined = true;
+        for (ri = 0; ri < scouts.length; ri++)
+          if (dist(scouts[ri].root.position, bodyCenter) > release) {
+            rejoined = false;
+            break;
+          }
+      }
+      if (
+        rejoined ||
+        (rejoin.data && rejoin.data.missionVersion !== missionVersion(sq)) ||
+        sq.state === 'retreat'
+      )
+        L.end(sq, 'regroup-bypass', t, rejoined ? 'scouts rejoined' : 'rejoin invalidated');
     }
     var p = sq._engagementPlan,
       combatPlan = p && (p.status === 'active' || p.status === 'quiet');
@@ -2422,8 +2459,10 @@
       'regroup-bypass',
       'squad-leader',
       battle.time,
-      battle.time + STRAGGLER_BYPASS,
-      'recon rejoin'
+      battle.time + RECON_TUNING.rejoin,
+      'recon rejoin',
+      'scouts back inside cohesion release band, contact, retreat, mission change or expiry',
+      { scoutIds: task.scoutIds.slice(), missionVersion: task.missionVersion }
     );
     syncTasks(sq, sq._engagementPlan);
     var st = reconStats(battle);
