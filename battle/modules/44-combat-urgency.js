@@ -243,7 +243,7 @@
     if (
       personal &&
       e._sharedContactAware &&
-      b.time - (+e._sharedContactReactedAt || -999) < SHARED_REACT_COOLDOWN
+      b.time - (e._sharedContactReactedAt == null ? -999 : +e._sharedContactReactedAt) < SHARED_REACT_COOLDOWN
     ) {
       bump(b, 'sharedContactCooldownBlocks');
       return;
