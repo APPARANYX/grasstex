@@ -67,6 +67,21 @@ while IFS= read -r -d '' src; do
     variant_rel="${stem}${suffix}.${ext}"
     out="$OUTPUT_ROOT/$variant_rel"
 
+    # The variant's Opus twins (.caf for Safari/iOS, .ogg for Chrome, Edge, Firefox and Android;
+    # battle/modules/00-audio-format.js), built even when the MP3 variant is already live, so the
+    # first deploy with twins fills them in. The neutral clips' twins come with the private audio.
+    for twin in caf ogg; do
+      twin_rel="${stem}${suffix}.${twin}"
+      remote_has "$twin_rel" && continue
+      sr="$(ffprobe -v error -select_streams a:0 -show_entries stream=sample_rate -of default=nw=1:nk=1 "$src")"
+      r="$(python3 -c "print(f'{2**(float(\"$semitones\")/12):.10f}')")"
+      t="$(python3 -c "print(f'{1/float(\"$r\"):.10f}')")"
+      mkdir -p "$(dirname "$OUTPUT_ROOT/$twin_rel")"
+      ffmpeg -nostdin -hide_banner -loglevel error -y -i "$src" \
+        -af "asetrate=${sr}*${r},aresample=${sr},atempo=${t}" \
+        -ar 48000 -ac 1 -c:a libopus -b:a 64k -f "$twin" "$OUTPUT_ROOT/$twin_rel"
+    done
+
     if remote_has "$variant_rel"; then
       # Do not recreate already-deployed derived audio. The remote copy remains in place because
       # voice deployment uses reverse mirror without --delete.

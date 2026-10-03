@@ -110,24 +110,24 @@ jobs:
           test "$actual" = "$expected"
           echo "Deploy source pinned to CI-tested commit: $actual"
 
-      # Licensed small-arms clips (licensed third-party audio) are not in this public repo: check out the private
-      # APPARANYX/grasstex-audio at the commit Assets/audio/weapon-audio.lock.json pins, with its read-only
-      # deploy key, and overlay them onto Assets/audio/weapons/ (scripts/fetch_weapon_audio.sh).
-      - name: Pinned weapon audio commit
-        id: weapon-audio
-        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/weapon-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
+      # No audio clip is in this public repo: check out the private APPARANYX/grasstex-audio at the
+      # commit Assets/audio/private-audio.lock.json pins, with its read-only deploy key, and overlay it
+      # onto Assets/audio/ (scripts/fetch_private_audio.sh).
+      - name: Pinned private audio commit
+        id: private-audio
+        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/private-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
 
-      - name: Check out licensed weapon audio
+      - name: Check out the private audio
         uses: actions/checkout@v4
         with:
           repository: APPARANYX/grasstex-audio
-          ref: ${{ steps.weapon-audio.outputs.commit }}
+          ref: ${{ steps.private-audio.outputs.commit }}
           ssh-key: ${{ secrets.PRIVATE_AUDIO_READ_KEY }}
-          path: .runtime/weapon-audio
+          path: .runtime/private-audio
           persist-credentials: false
 
-      - name: Overlay licensed weapon audio
-        run: bash scripts/fetch_weapon_audio.sh .runtime/weapon-audio
+      - name: Overlay the private audio
+        run: bash scripts/fetch_private_audio.sh .runtime/private-audio
 
       - name: Resolve and stamp build version
         id: version
@@ -385,10 +385,10 @@ jobs:
             fi
             printf 'put "%s" -o "%s"\n' "$src" "$rel" >> .audio-upload.lftp
             upload_count=$((upload_count+1))
-          done < <(find .audio-deploy/voices -type f -name '*.mp3' -print0 | sort -z)
+          done < <(find .audio-deploy/voices -type f \( -name '*.mp3' -o -name '*.caf' -o -name '*.ogg' \) -print0 | sort -z)
 
-          echo "Voice MP3s already remote / skipped: $skip_count"
-          echo "Voice MP3s missing / queued for upload: $upload_count"
+          echo "Voice files (MP3, CAF, Ogg) already remote / skipped: $skip_count"
+          echo "Voice files (MP3, CAF, Ogg) missing / queued for upload: $upload_count"
           if [[ "$inventory_available" -eq 0 ]]; then
             echo "Remote inventory unavailable: all staged MP3s queued as safe fallback."
           fi

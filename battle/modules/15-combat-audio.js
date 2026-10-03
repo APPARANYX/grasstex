@@ -203,7 +203,7 @@
         pools[group + '.' + kind] = files(group, kind).map(function (f, i) {
           return {
             endsAt: 0,
-            sound: new BABYLON.Sound('combat-' + group + '-' + kind + i, base + f, scene, null, {
+            sound: new BABYLON.Sound('combat-' + group + '-' + kind + i, root.BattleAudioFormat ? root.BattleAudioFormat.url(base + f) : base + f, scene, null, {
               spatialSound: true,
               distanceModel: 'linear',
               rolloffFactor: 0,
@@ -232,11 +232,21 @@
         },
       count = 0,
       lastCry = {},
-      pools =
-        opts.voices ||
-        (typeof BABYLON !== 'undefined' && scene ? buildVoices(scene, String(opts.audioBase || root.BATTLE_AUDIO_BASE || 'audio/')) : {}),
+      pools = opts.voices || {},
       limits = {},
       stats = (sim._combatAudio = { played: {}, dropped: {}, limits: limits });
+    /* Voices are built once the audio format is settled (modules/00-audio-format.js: Opus twins or MP3). */
+    if (!opts.voices && typeof BABYLON !== 'undefined' && scene) {
+      var F = root.BattleAudioFormat,
+        build = function () {
+          var built = buildVoices(scene, String(opts.audioBase || root.BATTLE_AUDIO_BASE || 'audio/'));
+          Object.keys(built).forEach(function (k) {
+            pools[k] = built[k];
+          });
+        };
+      if (F && F.state === 'probing' && F.ready) F.ready.then(build, build);
+      else build();
+    }
     Object.keys(GROUPS).forEach(function (g) {
       limits[g] = limiter(g, now);
       stats.played[g] = 0;
