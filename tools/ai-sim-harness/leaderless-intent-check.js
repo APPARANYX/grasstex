@@ -35,8 +35,8 @@ function point(p){return p&&{x:+p.x||0,z:+p.z||0};}
 function samePoint(a,b,eps=1e-9){return !!a&&!!b&&Math.hypot(a.x-b.x,a.z-b.z)<=eps;}
 function survivor(w){return w.q.members.find(s=>!s.dead&&s.role==='rifleman')||w.q.members.find(s=>!s.dead);}
 
-test('flag is opt-in while proving and has an explicit legacy control',()=>{
-  assert.equal(world('').Q.leaderlessIntentOn(),false);
+test('feature ships default-on and keeps an explicit legacy control',()=>{
+  assert.equal(world('').Q.leaderlessIntentOn(),true);
   assert.equal(world('?leaderlessIntent=1').Q.leaderlessIntentOn(),true);
   const Q=world('?leaderlessIntent=off').Q;
   assert.equal(Q.leaderlessIntentOn(),false);
