@@ -6,8 +6,9 @@
    (its strategic-stall wake, commander-ai.js). `replanDue` and `replanReasons` are diagnostics for
    readers of the export; nothing in the runtime consumes them.
 
-   One clock. A stall is "due" for a replan at the moment the General wakes on it, so the threshold is
-   the General's own, BattleCommanderAI.strategicStallReplan (120 s), read when it is used. This module
+   One progress clock per faction. A stall is "due" for a replan at the moment that side's General
+   wakes on it, so the threshold is the General's own BattleCommanderAI.strategicStallReplan (120 s).
+   Enemy progress never resets the friendly clock. This module
    used to carry a second constant, 12 s, that flagged `objective-stalled` ten times earlier than
    anything acted on it, so the export said a replan was due for 108 s in which the General did nothing.
    With no General loaded nobody replans, so no stall is ever due.
@@ -159,7 +160,7 @@
     };
   }
   root.BattleModules.registerSystem('ai-coordination-health', {
-    version: '1.0',
+    version: '2.0-faction-progress',
     onBattleStart: reset,
     onBattleRestart: reset,
     onCommanderTick: function (sim) {
