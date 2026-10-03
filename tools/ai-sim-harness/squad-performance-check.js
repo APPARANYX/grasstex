@@ -71,6 +71,7 @@ const assert=require('node:assert/strict');
   assert.equal(summary.lowScoreSquads,1,'the intentionally bad squad is counted in the below-60 tail');
   assert.equal(summary.worst[0].squad,'US-3');
   assert.equal(summary.worst[0].seed,'b');
+  assert.ok(summary.meanCombat>70,'run-level combat mean excludes squads whose combat dimension is null');
 
   console.log('PASS squad performance scores are role-aware, bounded, and expose backtracking/churn without punishing support or reserve');
 })().catch(err=>{console.error(err);process.exit(1);});
