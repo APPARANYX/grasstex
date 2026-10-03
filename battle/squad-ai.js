@@ -307,6 +307,7 @@
         lastTime: battle.time,
         updates: 0,
         seen: 0,
+        seenRefreshes: 0,
         told: 0,
         heard: 0,
         nonThreatSeen: 0,
@@ -326,7 +327,12 @@
       history: [],
       lastTime: battle ? battle.time : 0,
       lastCalloutId: null,
-      lastHeardKey: null
+      lastHeardKey: null,
+      lastPrunedAt: null,
+      version: 0,
+      readAt: null,
+      readVersion: -1,
+      readSelected: null
     };
   }
   function beliefStore(soldier, battle) {
@@ -385,12 +391,16 @@
   }
   function pruneBeliefs(soldier, battle) {
     if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return;
-    var store = beliefStore(soldier, battle),
-      stats = beliefStats(battle);
+    var store = beliefStore(soldier, battle);
+    if (store.lastPrunedAt === battle.time) return;
+    store.lastPrunedAt = battle.time;
+    var stats = beliefStats(battle),
+      changed = false;
     Object.keys(store.byKey).forEach(function (key) {
       var rec = store.byKey[key];
       if (!rec || battle.time < rec.expiresAt) return;
       delete store.byKey[key];
+      changed = true;
       stats.expired++;
       beliefHistory(store, {
         at: battle.time,
@@ -401,6 +411,7 @@
         observedAt: rec.observedAt
       });
     });
+    if (changed) store.version++;
   }
   function writeBelief(soldier, battle, next) {
     if (!SOLDIER_BELIEFS_ON || !soldier || !battle || !next) return null;
@@ -436,6 +447,7 @@
     }
     if (old) stats.superseded++;
     store.byKey[next.key] = next;
+    store.version++;
     stats.updates++;
     if (next.source === 'seen') {
       stats.seen++;
@@ -463,6 +475,27 @@
     var p = unit.root.position,
       key = beliefUnitKey(unit);
     if (!key) return null;
+    var store = beliefStore(soldier, battle),
+      old = store.byKey[key],
+      isThreat = combatThreat !== false;
+    /* Direct sight is sampled every perception tick. Refresh the owned fact in place instead of
+       allocating a new record + diagnostic history row for the same continuous sighting. A source
+       change or threat/non-threat transition still goes through writeBelief and is recorded. */
+    if (old && old.source === 'seen' && (old.combatThreat !== false) === isThreat) {
+      old.unit = unit;
+      old.x = +p.x;
+      old.z = +p.z;
+      old.sector = beliefSector(soldier, p.x, p.z);
+      old.observedAt = battle.time;
+      old.receivedAt = battle.time;
+      old.baseConfidence = 1;
+      old.expiresAt = battle.time + (isThreat ? BELIEF_TUNING.seenTtl : BELIEF_TUNING.nonThreatTtl);
+      old.precision = 'exact-sight';
+      old.reason = reason || (isThreat ? 'direct-sight' : 'seen-non-threat');
+      store.version++;
+      beliefStats(battle).seenRefreshes++;
+      return old;
+    }
     return writeBelief(soldier, battle, {
       key: key,
       unit: unit,
@@ -650,7 +683,13 @@
   function bestBelief(soldier, battle) {
     if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return null;
     pruneBeliefs(soldier, battle);
-    return selectBelief(beliefStore(soldier, battle), battle);
+    var store = beliefStore(soldier, battle);
+    if (store.readAt === battle.time && store.readVersion === store.version) return store.readSelected;
+    var selected = selectBelief(store, battle);
+    store.readAt = battle.time;
+    store.readVersion = store.version;
+    store.readSelected = selected;
+    return selected;
   }
   function hasKnownNonThreat(soldier, battle) {
     if (!SOLDIER_BELIEFS_ON || !soldier || !battle || !soldier._beliefs) return false;
