@@ -173,7 +173,8 @@ test('flag off reproduces legacy shared-contact knowledge and creates no belief 
   assert.equal(B._beliefs,undefined);
   assert.equal(w.S.beliefSnapshot(B,w.b),null);
   assert.equal(w.C.telemetry(w.b).sameSquadAddressed,0,'legacy callout audience remains cross-squad only');
-  assert.equal(w.S.parseSoldierBeliefs(''),false);assert.equal(w.S.parseSoldierBeliefs('?soldierBeliefs=1'),true);
+  assert.equal(w.S.parseSoldierBeliefs(''),true);assert.equal(w.S.parseSoldierBeliefs('?soldierBeliefs=1'),true);
+  assert.equal(w.S.parseSoldierBeliefs('?soldierBeliefs=0'),false);assert.equal(w.S.parseSoldierBeliefs('?soldierBeliefs=off'),false);
 });
 
 console.log(n+' soldier-beliefs checks passed');
