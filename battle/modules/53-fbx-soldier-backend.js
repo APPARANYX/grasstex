@@ -522,6 +522,38 @@ function palmAnchors(meshes,nodes,scheme){
   });
   return out;
 }
+/* On a phone the soldier albedo is halved: each model embeds a 2048² JPEG, ten of them 22 MB of GPU
+   memory apiece with mipmaps (223 MB), and iOS reloads the tab when its memory runs out. Once the
+   embedded texture is up, a 1024² copy (mipmapped, same wrap and filtering) replaces it on the
+   shared material and the original is freed. `?soldierTex=2048` keeps the full size, `=1024` forces
+   the copy; a phone is a coarse primary pointer. */
+var SOLDIER_TEXTURE_MAX=(function(){
+  var q=root.location&&/[?&]soldierTex=(\d+)/.exec(root.location.search||'');
+  if(q)return +q[1]>=2048?0:Math.max(256,+q[1]);
+  return root.matchMedia&&root.matchMedia('(pointer:coarse)').matches?1024:0;
+})();
+function shrinkSoldierTexture(m){
+  var t=m.diffuseTexture,TT=BABYLON.TextureTools;
+  if(!SOLDIER_TEXTURE_MAX||!t||!TT||!TT.CreateResizedCopy)return;
+  function go(){
+    var s=t.getSize(),k=Math.min(1,SOLDIER_TEXTURE_MAX/Math.max(s.width,s.height));
+    if(!(k<1)||m.diffuseTexture!==t)return;
+    var scene=t.getScene(),copy;
+    try{copy=TT.CreateResizedCopy(t,Math.round(s.width*k),Math.round(s.height*k),true);}
+    catch(e){console.warn('[ANIM] soldier texture copy failed; keeping '+s.width+'²',e);return;}
+    copy.name=t.name+'@'+Math.round(s.width*k);copy.gammaSpace=t.gammaSpace;copy.hasAlpha=t.hasAlpha;
+    /* The copy draws once its pass shader compiles; swap only then, so no frame binds an empty texture. */
+    var obs=scene.onBeforeRenderObservable.add(function(){
+      var it=copy.getInternalTexture();if(!it||!it.isReady)return;
+      scene.onBeforeRenderObservable.remove(obs);
+      if(m.diffuseTexture!==t){copy.dispose();return;}
+      var frozen=m.isFrozen;if(frozen&&m.unfreeze)m.unfreeze();
+      m.diffuseTexture=copy;if(frozen&&m.freeze)m.freeze();
+      t.dispose();
+    });
+  }
+  if(t.isReady())go();else t.onLoadObservable.addOnce(go);
+}
 function prepareModel(container){
   var top=container.transformNodes.filter(function(n){return!n.parent;})[0];
   var skeleton=container.skeletons[0];
@@ -537,6 +569,7 @@ function prepareModel(container){
     if(m.specularColor)m.specularColor.set(.06,.06,.06);
     /* The atlas is hundreds of small islands; keep it crisp at glancing angles. */
     if(m.diffuseTexture)m.diffuseTexture.anisotropicFilteringLevel=8;
+    shrinkSoldierTexture(m);
     /* The auto-rig's weights fold the thin smock over itself at the shoulders and back once the
        soldier is posed, turning those triangles away from the camera. Culled, they read as holes;
        draw both sides, lit from whichever side faces the viewer. */
