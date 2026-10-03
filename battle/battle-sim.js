@@ -28,12 +28,16 @@
   var DISTANT_FROM=90,FIRE_CLIP_S=.9,MAX_VOICES=16;
   function modelClips(model,action){var m=root.BATTLE_AUDIO_MANIFEST,c=m&&m.categories&&m.categories['weapon.'+model],list=c&&c[action];return(list&&list.length)?list:null;}
   function weaponFiles(kind){var m=root.BATTLE_AUDIO_MANIFEST,list=m&&m.categories&&m.categories.weapons&&m.categories.weapons[kind];return(list&&list.length)?list:[SFX_FILES[kind]];}
+  /* Opus-in-CAF twin where this browser decodes it (modules/00-audio-format.js), else the MP3. */
+  function clipUrl(u){return root.BattleAudioFormat?root.BattleAudioFormat.url(u):u;}
   function voicesFor(files,cyclic){return Math.min(MAX_VOICES,Math.max(files.length,cyclic>0?Math.ceil(cyclic*FIRE_CLIP_S)+2:POOL_SIZE));}
   function buildWeaponAudio(scene,audioBase){var pools={},cursors={},cam=function(){return scene.activeCamera&&(scene.activeCamera.globalPosition||scene.activeCamera.position);};
-    function pool(key,files,count,far){var voices=[];for(var i=0;i<count;i++)voices.push(new BABYLON.Sound(key+'Sfx'+i,audioBase+files[i%files.length],scene,null,far?{spatialSound:true,distanceModel:'linear',maxDistance:1200,rolloffFactor:1,volume:.20,autoplay:false}:{spatialSound:true,distanceModel:'linear',maxDistance:145,rolloffFactor:1.5,volume:.20,autoplay:false}));pools[key]=voices;cursors[key]=0;}
-    Object.keys(SFX_FILES).forEach(function(kind){var files=weaponFiles(kind);pool(kind,files,Math.max(POOL_SIZE,files.length),false);});
-    /* Every model the sides field, built up front so the first shot is not silent while it loads. */
-    var P=root.BattleWeapons&&root.BattleWeapons.PROFILES||{};Object.keys(P).forEach(function(f){Object.keys(P[f]).forEach(function(kind){var w=P[f][kind],model=w&&w.model,fire=model&&modelClips(model,'fire');if(!fire||pools['m:'+model])return;pool('m:'+model,fire,voicesFor(fire,+w.cyclic||0),false);var far=modelClips(model,'fireDistant');if(far)pool('m:'+model+':far',far,Math.max(far.length,4),true);});});
+    function pool(key,files,count,far){var voices=[];for(var i=0;i<count;i++)voices.push(new BABYLON.Sound(key+'Sfx'+i,clipUrl(audioBase+files[i%files.length]),scene,null,far?{spatialSound:true,distanceModel:'linear',maxDistance:1200,rolloffFactor:1,volume:.20,autoplay:false}:{spatialSound:true,distanceModel:'linear',maxDistance:145,rolloffFactor:1.5,volume:.20,autoplay:false}));pools[key]=voices;cursors[key]=0;}
+    /* Built once the audio format is settled (Opus-in-CAF or MP3); a shot before then plays nothing. */
+    function buildPools(){Object.keys(SFX_FILES).forEach(function(kind){var files=weaponFiles(kind);pool(kind,files,Math.max(POOL_SIZE,files.length),false);});
+        /* Every model the sides field, built up front so the first shot is not silent while it loads. */
+        var P=root.BattleWeapons&&root.BattleWeapons.PROFILES||{};Object.keys(P).forEach(function(f){Object.keys(P[f]).forEach(function(kind){var w=P[f][kind],model=w&&w.model,fire=model&&modelClips(model,'fire');if(!fire||pools['m:'+model])return;pool('m:'+model,fire,voicesFor(fire,+w.cyclic||0),false);var far=modelClips(model,'fireDistant');if(far)pool('m:'+model+':far',far,Math.max(far.length,4),true);});});}
+    var F=root.BattleAudioFormat;if(F&&F.state==='probing'&&F.ready)F.ready.then(buildPools,buildPools);else buildPools();
     function keyFor(weapon){var model=weapon&&weapon.profile;return model&&pools['m:'+model]?'m:'+model:(weapon&&weapon.kind);}
     return{keyFor:keyFor,play:function(key,position,gain,rate){if(pools[key+':far']){var c=cam(),dx=c?c.x-position.x:0,dz=c?c.z-position.z:0;if(c&&dx*dx+dz*dz>=DISTANT_FROM*DISTANT_FROM)key+=':far';}var voices=pools[key];if(!voices)return;var voice=voices[cursors[key]];cursors[key]=(cursors[key]+1)%voices.length;try{voice.setPosition(position);if(voice.setVolume)voice.setVolume(gain==null?.18:gain);if(voice.setPlaybackRate)voice.setPlaybackRate(rate||1);voice.play();}catch(_){}}};}
   function makeFaction(){return{alive:0,kills:0,squads:[]};}
