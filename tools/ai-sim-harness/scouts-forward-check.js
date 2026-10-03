@@ -170,6 +170,22 @@ freshTask.serial = 0;
   assert.deepEqual(w.q.orderAnchor, anchor, 'recon order refresh does not move the main-body anchor');
 }
 
+/* Intentional scout separation belongs to recon, not the regroup lifecycle. */
+{
+  const w = world();
+  const task = start(w);
+  for (const id of task.scoutIds) {
+    const scout = w.q.members.find(s => String(s.id) === String(id));
+    scout.root.position.z += 70;
+  }
+  w.S.updateCohesion(w.b, w.q);
+  assert.equal(w.r.BattleLeases.get(w.q, 'regroup'), null, 'live recon cannot open a competing regroup lease');
+  w.S.endRecon(w.q, w.b, 'observed-no-contact');
+  assert.ok(w.r.BattleLeases.holds(w.q, 'regroup-bypass', w.b.time), 'recon release grants a bounded rejoin grace');
+  w.S.updateCohesion(w.b, w.q);
+  assert.equal(w.r.BattleLeases.get(w.q, 'regroup'), null, 'rejoin grace prevents an immediate recon-to-regroup flip');
+}
+
 /* Hidden enemies are not known. Scout direct sight is personal until the existing callout actually delivers it. */
 {
   const w = world();
