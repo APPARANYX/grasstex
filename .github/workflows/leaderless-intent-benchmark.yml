@@ -1,7 +1,8 @@
 name: Leaderless Intent Paired Benchmark
 
-# Temporary branch-only full-battle evidence workflow for PR #197. It self-starts when this file is
-# pushed because the GitHub connector cannot issue workflow_dispatch. Remove after final evidence is captured.
+# Temporary branch-only full-battle evidence workflow for PR #197. Final rerun after removing the
+# automatic leaderless Macro wake: succession preserves parent intent and existing callouts carry contact reports.
+# It self-starts when this file is pushed because the GitHub connector cannot issue workflow_dispatch.
 on:
   push:
     branches:
@@ -22,7 +23,7 @@ env:
     stallOutcomes.wakes stallOutcomes.repeats timeline.stalledOnsets timeline.stalledSamples
     callouts.sent callouts.heard callouts.missed callouts.beliefApplied callouts.sameSquadHeard
     soldierBeliefs.updates soldierBeliefs.seen soldierBeliefs.told soldierBeliefs.heard soldierBeliefs.expired
-    leaderless.episodes leaderless.handbacks leaderless.destroyed leaderless.helpRequests leaderless.seconds leaderless.activeAtEnd
+    leaderless.episodes leaderless.handbacks leaderless.destroyed leaderless.seconds leaderless.activeAtEnd
     leaderless.actions.immediate-contact leaderless.actions.finish-committed-move leaderless.actions.hold-and-fight
     leaderless.actions.hold-intent leaderless.actions.retreat
 
