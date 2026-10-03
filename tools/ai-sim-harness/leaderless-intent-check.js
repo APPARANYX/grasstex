@@ -114,7 +114,7 @@ test('an inherited bound can finish; succession cannot authorize a new bound',()
   assert.equal(w.E.stateOf(man).boundOrder,false,'stale Micro bound order is cleared');
 });
 
-test('immediate contact remains Engagement-owned and requests help upward once',()=>{
+test('immediate contact remains Engagement-owned without manufacturing a new parent mission',()=>{
   const w=world();
   const enemy=H.addSquad(w.r,w.b,{id:'ge-0',faction:'ge',x:0,z:34,objective:{x:0,z:0},composition:['rifleman']});
   enemy.members[0].root.position.x=0;enemy.members[0].root.position.z=30;
@@ -126,9 +126,9 @@ test('immediate contact remains Engagement-owned and requests help upward once',
   });
   assert.equal(contactSeen,true,'Perception/Engagement still sees immediate contact');
   assert.equal(acquired,true,'a survivor acquires the threat during the leaderless window');
-  assert.equal(w.q._macroMissionRequest&&w.q._macroMissionRequest.reason,'leaderless-help');
+  assert.equal(w.q._macroMissionRequest==null,true,'ordinary leaderless contact does not wake the General into a replacement brief');
   const req=w.events.filter(e=>e.type==='decision-captain-request'&&e.data.reason==='leaderless-help');
-  assert.equal(req.length,1,'one upward request, not request churn');
+  assert.equal(req.length,0,'no synthetic leaderless-help command request is created');
   assert.ok(
     ['immediate-contact','hold-and-fight'].includes(w.q._leaderlessIntent.lastAction),
     'contact is recorded as local action, not a new squad plan'
