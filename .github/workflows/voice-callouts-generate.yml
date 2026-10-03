@@ -5,18 +5,12 @@ name: Generate voice callouts
 # before), masters them (scripts/normalize_audio.sh, the voice target) and commits them to the branch that ran.
 # It only ever adds missing files: a line that already exists is never regenerated or touched.
 #
-# Runs on a push to any branch but main that changes the manifest, and on dispatch. It needs the repository
+# Runs only when started by hand (Actions > Run workflow), never on a push: ElevenLabs is called only on a
+# person's say-so. It needs the repository
 # secret ELEVEN_LABS_API (ELEVENLABS_API_KEY also works); without it the run says so and stops without failing. It never runs on main
 # (main deploys to production on every push).
 
 on:
-  push:
-    branches-ignore:
-      - main
-      - benchmark-results
-    paths:
-      - Assets/audio/manifest.json
-      - .github/workflows/voice-callouts-generate.yml
   workflow_dispatch:
     inputs:
       faction:
