@@ -138,8 +138,8 @@ test('on: a newer callout may refine the same enemy without erasing this squad\'
   assert.equal(ctx.S.hasFirstHandMemory(b.contact, ctx.b), false, 'relays cannot extend first-hand authority forever');
 });
 
-test('on: out of earshot nobody learns, and there is no free 50 m relay', () => {
-  const ctx = setup('', [
+test('on, legacy audience: out of earshot nobody learns, and there is no free 50 m relay', () => {
+  const ctx = setup('?soldierBeliefs=0&callouts=1', [
     { id: 'us-0', faction: 'us', x: 0, z: 0 },
     { id: 'us-1', faction: 'us', x: 80, z: 0 },
     { id: 'ge-0', faction: 'ge', x: 0, z: 200 }
