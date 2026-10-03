@@ -204,7 +204,6 @@
         episodes: 0,
         handbacks: 0,
         destroyed: 0,
-        helpRequests: 0,
         seconds: 0,
         actions: {},
         recent: []
@@ -266,8 +265,7 @@
         members: inheritedMemberIntent(sq),
         lastAction: null,
         lastActionAt: null,
-        actionCounts: {},
-        helpRequested: false
+        actionCounts: {}
       };
     sq._leaderlessIntent = intent;
     var st = leaderlessStats(battle);
@@ -303,30 +301,6 @@
       inheritedPhase: intent.phase,
       missionVersion: intent.missionVersion
     });
-  }
-  function requestLeaderlessHelp(sq, battle, why) {
-    var intent = sq && sq._leaderlessIntent,
-      m = sq && sq._macroMission;
-    if (!intent || intent.helpRequested || !m) return false;
-    var existing = sq._macroMissionRequest;
-    if (existing && existing.missionVersion === m.version) return false;
-    sq._macroMissionRequest = {
-      missionVersion: m.version,
-      reason: 'leaderless-help',
-      why: why || 'leaderless contact',
-      at: battle.time
-    };
-    intent.helpRequested = true;
-    var st = leaderlessStats(battle);
-    if (st) st.helpRequests++;
-    telemetry(battle, 'decision-captain-request', {
-      faction: sq.faction,
-      squad: sq.id,
-      version: m.version,
-      reason: 'leaderless-help',
-      why: why || 'leaderless contact'
-    });
-    return true;
   }
   function endLeaderlessIntent(sq, battle, reason, successor) {
     var intent = sq && sq._leaderlessIntent;
@@ -3058,13 +3032,15 @@
       var inheritedBound = L.get(sq, 'bound');
       if (!L.holds(sq, 'bound', battle.time)) E.clearBoundOrders(sq);
       if (r.contactStarted || r.underFire > 0) {
+        /* Immediate contact remains a Micro fact/action. Perception and the existing tactical-callout
+           channel already report what individual men actually saw/heard; do not turn ordinary contact
+           during a six-second succession gap into an automatic General mission wake. */
         noteLeaderlessAction(
           sq,
           battle,
           'immediate-contact',
           r.underFire > 0 ? 'under fire' : 'contact acquired'
         );
-        requestLeaderlessHelp(sq, battle, r.underFire > 0 ? 'leaderless under fire' : 'leaderless contact');
       } else if (inheritedBound && L.holds(sq, 'bound', battle.time))
         noteLeaderlessAction(sq, battle, 'finish-committed-move', 'inherited bound remains live');
       else if (sq.inContact)
