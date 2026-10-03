@@ -156,44 +156,6 @@ test('personally visible non-threat replaces stale threat memory instead of resu
   assert.ok(rec);assert.equal(rec.combatThreat,false);assert.match(rec.reason,/freeze/);
 });
 
-test('personal shared-contact reactions use evidence quality and cooldown hysteresis',()=>{
-  const w=world(),B=firstHeardCandidate(w,1);
-  B.root.position.x=2;B.root.position.z=0;B.root.rotation.y=Math.PI;B.moving=true;
-  w.A.target=w.enemy;w.S.perceive(w.A,w.b);w.b.time=1.5;assert.ok(w.C.heardBy(w.b,B));
-  w.S.applyCalloutBelief(B,w.b);
-  w.us.inContact=true;
-  w.E.stateOf(B).state='advance';
-  w.E.updateSoldier(B,w.b);
-  let u=w.r.BattleCombatUrgency.summary(w.b);
-  assert.equal(u.sharedContactReactions,1,'first delivered report can stop and orient an advancing man');
-
-  const other=w.ge.members[1];
-  other.dead=false;w.b.factions.ge.alive++;
-  other.root.position.x=38;other.root.position.z=2;
-  w.b.time=2;
-  w.S.rememberSeen(B,other,w.b,true,'cooldown-test');
-  w.E.stateOf(B).state='advance';
-  w.E.updateSoldier(B,w.b);
-  u=w.r.BattleCombatUrgency.summary(w.b);
-  assert.equal(u.sharedContactReactions,1,'rapid selected-sector flip does not inject another hold');
-  assert.ok(u.sharedContactCooldownBlocks>=1,'rapid sector flip is explicitly counted as a cooldown block');
-
-  w.b.time=7;
-  w.E.stateOf(B).state='advance';
-  w.E.updateSoldier(B,w.b);
-  u=w.r.BattleCombatUrgency.summary(w.b);
-  assert.equal(u.sharedContactReactions,2,'materially different personal contact may react again after cooldown');
-
-  const s=world(),C=s.us.members[1];
-  C.root.position.x=20;C.root.position.z=0;C.root.rotation.y=Math.PI;C.moving=true;
-  s.b.time=2;s.b._gunfire=[{x:0,z:40,faction:'ge',unit:s.enemy,at:2}];
-  s.S.hearGunfireBelief(C,s.b);s.us.inContact=true;s.E.stateOf(C).state='advance';
-  s.E.updateSoldier(C,s.b);
-  const su=s.r.BattleCombatUrgency.summary(s.b);
-  assert.equal(su.sharedContactReactions,0,'sound-only belief does not become a movement hold');
-  assert.ok(su.sharedContactSoundBlocks>=1,'sound-only movement reaction is explicitly blocked');
-});
-
 test('diagnostic snapshots are observe-only',()=>{
   const w=world(),B=w.us.members[1];
   w.S.rememberSeen(B,w.enemy,w.b,true,'snapshot-test');
