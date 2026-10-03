@@ -1,6 +1,7 @@
 name: M3C Standard Benchmark
 
 # Two arms, off and on, on the same seed or seeds, compared with scripts/compare_benchmark_arms.cjs and processed by
+# Grouped-seed runs rely on the shipping restart lifecycle; benchmark-restart-isolation-check.js guards that contract.
 # scripts/process_benchmark_results.cjs into one result (a verdict, the paired table, the seeds that part earliest, slim files for
 # the viewer). The result is the head of the run summary, goes to the benchmark-results branch under
 # benchmarks/results/scripted/runs/<run>/ (scripts/publish_benchmark_result.sh; the 100-battle record in
