@@ -440,7 +440,7 @@ try {
           writerConflicts: conflicts.length, strategicWriterConflicts: strategicConflicts, writerConflictDetails: conflicts.slice(0, 20), loopAlerts: loops.slice(0, 20), loopKinds,
           movementResolver: movementResolverSummary(), losBlockedFireAttempts: losBlockedAttempts(), crestBlockedFireAttempts: crestBlockedAttempts(), fire: activeCombat,
           acquisitions: acquisitionSummary(activeAcquisition),
-          reconstitution: reconstitutionSummary(), regroups: regroupSummary(), stallOutcomes: stallSummary(), coordinationHealth: coordinationHealth(), objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates,
+          reconstitution: reconstitutionSummary(), regroups: regroupSummary(), stallOutcomes: stallSummary(), coordinationHealth: coordinationHealth(), combatUrgency: root.BattleCombatUrgency?.summary?.(sim) || null, objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates,
           timeline: root.BattleAITimeline?.snapshot?.(sim) || null,
           /* Soldier condition (module 17): where the man-seconds went, the squads above mean 1/3, and how often each
              soldier lever changed a decision, with a one-second series in simulated time (AGENTS.md, stress). */
