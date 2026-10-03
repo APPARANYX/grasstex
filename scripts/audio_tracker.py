@@ -34,7 +34,7 @@ INPUTS = (
     "scripts/validate_voice_manifest.py",
     "scripts/check_audio_manifest.py",
     "scripts/check_weapon_clips.py",
-    "scripts/fetch_weapon_audio.sh",
+    "scripts/fetch_private_audio.sh",
     "scripts/slice_weapon_shots.py",
     "scripts/audio_tracker.py",
     ".github/workflows/ci.yml",

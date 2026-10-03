@@ -18,7 +18,7 @@
     if(social){if(now-socialLast<700||now-(socialSquad[sid]||0)<(rules.perSquadCooldownSeconds||2.5)*1000)return false;}else if(now-tacticalLast<220||now-(tacticalSquad[sid]||0)<480)return false;
     var file=files[Math.floor(Math.random()*files.length)];if(failed[file])return false;if(social){socialLast=now;socialSquad[sid]=now;}else{tacticalLast=now;tacticalSquad[sid]=now;}
     var handle={accepted:true,started:false,ended:false,soldierId:soldier.id,type:type,file:file,priority:lane},req={soldier:soldier,opts:opts,handle:handle,lane:lane},entry=cache[file];if(entry){if(entry.ready)return playAt(entry,req);entry.pending.push(req);return handle;}
-    var base=window.BATTLE_AUDIO_BASE||'https://test.ivandpopov.com/grasstex/Assets/audio/',url=base+file;entry=cache[file]={file:file,sound:null,ready:false,pending:[req]};
+    var base=window.BATTLE_AUDIO_BASE||'https://test.ivandpopov.com/grasstex/Assets/audio/',url=(window.BattleAudioFormat?window.BattleAudioFormat.url(base+file):base+file);entry=cache[file]={file:file,sound:null,ready:false,pending:[req]};
     try{var scene=soldier.root.getScene();entry.sound=new BABYLON.Sound('voice-'+file,url,scene,function(){entry.ready=true;var q=entry.pending.splice(0);for(var i=0;i<q.length;i++)playAt(entry,q[i]);},{spatialSound:true,distanceModel:'linear',maxDistance:(m.runtime&&m.runtime.voiceMaxDistance)||95,rolloffFactor:1.7,volume:.24,autoplay:false});}
     catch(e){failed[file]=true;delete cache[file];finish(req);return false;}return handle;
   }
