@@ -1018,9 +1018,10 @@ for controlled pairs, and serve both arms the same way: `battle_sim_local.php` i
 
 ### Open issues (as of 2026-10-01)
 
-Keep this section to **work that is genuinely still open**. Completed investigations and shipped
-fixes belong in their subsystem sections, commit messages and PRs; do not leave them here as a
-pseudo-backlog. Long-form historical notes remain in git history
+Keep this section to **work that is genuinely still open**. The visible, uncollapsed text should describe
+unfinished work, current debt or the next queue. If a shipped baseline or completed campaign must remain here
+for orientation, put it in a collapsed `<details>` block so it cannot read like active backlog. Detailed evidence
+belongs in subsystem sections, commit messages and PRs. Long-form historical notes remain in git history
 (`git show 3972d3b:AGENTS.md`).
 
 **Concrete sim work**
@@ -1056,12 +1057,16 @@ until every discarded experiment is implemented. New behavior belongs in the act
 - `objectiveHoldWin` remains an unread legacy genome parameter while the genome is stashed; remove/settle it during
   the eventual genome rewrite rather than reviving it now.
 
-**Small debt cleanup (2026-10-03).** `soldier.fireCooldown` now has one direct writer,
-`squad-ai.js`: spawn stamps, frame countdown, reload holds and sidearm draw/clear delays all route through
-`setFireCooldown` / `extendFireCooldown` / `tickFireCooldown`, and the wire-map multi-writer entry is gone.
-`modules/52-combat-posture-visual.js` no longer swaps `soldier.target`; it sends a static
-`animateWalk(..., {aimPoint})` presentation input through the gait/stance wrapper chain to the procedural/FBX
-presentation backends. Perception keeps ownership of gameplay target state.
+<details>
+<summary><strong>Completed: small debt cleanup (2026-10-03)</strong></summary>
+
+`soldier.fireCooldown` now has one direct writer, `squad-ai.js`: spawn stamps, frame countdown, reload holds and
+sidearm draw/clear delays all route through `setFireCooldown` / `extendFireCooldown` / `tickFireCooldown`, and the
+wire-map multi-writer entry is gone. `modules/52-combat-posture-visual.js` no longer swaps `soldier.target`; it sends
+a static `animateWalk(..., {aimPoint})` presentation input through the gait/stance wrapper chain to the
+procedural/FBX presentation backends. Perception keeps ownership of gameplay target state.
+
+</details>
 
 **Soldier-level AI continuation (active plan; repo archaeology refreshed 2026-10-01).** This is the
 active behavioral roadmap below the Squad Leader. It is deliberately separate from the larger architecture in
@@ -1074,10 +1079,15 @@ full use of the opening had to be recovered later; the firing-port implementatio
 (`e10622a3893f5eecfb2bbdefc80b7140e4b7ee37`, with the merge preserved by `e0455331d9ae8b26c47dc455f9c5b97945791278`).
 Do not let the soldier-level items below collapse back into a one-line future note.
 
-**Shipped baseline to preserve.** Perception/view cones, hearing/relay and sector scanning; per-soldier loadouts and
-sidearms; soldier condition/stress and its lasting-memory path; cower/flee/freeze/rage (all four on by default since
-2026-10-01); the fled-man lifecycle; Engagement-owned stance/cover; last-known-threat alert posture; and tactical
-firing stations/window ports are existing substrate. Extend these owners instead of creating parallel systems.
+<details>
+<summary><strong>Shipped baseline to preserve</strong> — existing substrate, not open work</summary>
+
+Perception/view cones, hearing/relay and sector scanning; per-soldier loadouts and sidearms; soldier condition/stress
+and its lasting-memory path; cower/flee/freeze/rage (all four on by default since 2026-10-01); the fled-man lifecycle;
+Engagement-owned stance/cover; last-known-threat alert posture; and tactical firing stations/window ports are existing
+substrate. Extend these owners instead of creating parallel systems.
+
+</details>
 
 <details>
 <summary><strong>Completed: post-v278 stabilization phases</strong> — #159, #160, #161, #162, #164 and #165 are on main</summary>
@@ -1096,9 +1106,9 @@ reopen these phases as backlog items unless a new measured defect points back to
 
 </details>
 
-**Remaining soldier-level slices, in order:**
+<details>
+<summary><strong>Completed: soldier-level continuation</strong> — #157, #170, #190, #196 and #197 shipped/default-on</summary>
 
-Slices 1 through 3 of the original continuation are already shipped:
 - **Squad Leader stress-aware local execution — #157.** `?slStress=pick,hold,review` is on by default; the Squad
   Leader picks the calmest viable fireteam that can bound, can hold a bound cycle when every viable team is shaken,
   and can raise a doctrine-review wake after sustained squad stress. `squad-stress-check.js` owns the regression contract.
@@ -1118,8 +1128,13 @@ Slices 1 through 3 of the original continuation are already shipped:
   and already-issued movement remain legal, and the successor receives an explicit hand-back. The subsystem section
   above owns its benchmark/probe evidence.
 
-The small soldier-level continuation sequence is complete. The active AI queue returns to
-`battle/AI_TACTICS_OUTLINE.md`'s **Immediate first implementation slice**:
+The small soldier-level continuation sequence is complete. These entries are retained only as a compact handoff
+record; their detailed contracts and evidence live in the subsystem sections and carrying PRs.
+
+</details>
+
+**Active AI queue — next unfinished work.** Return to `battle/AI_TACTICS_OUTLINE.md`'s
+**Immediate first implementation slice**:
 
 1. Add `TacticalSituation` plus a read-only street/building-control diagnostic snapshot.
 2. Render/export that diagnostic state without changing behavior.
@@ -1127,7 +1142,7 @@ The small soldier-level continuation sequence is complete. The active AI queue r
 4. Add one named `route-transition` lease with progress/abort telemetry.
 5. Validate those control-plane changes on fixed seeds before enabling new route or structure behavior.
 
-**Rules for every slice above.** One conceptual behavior change at a time; existing owner boundaries remain
+**Rules for active AI slices.** One conceptual behavior change at a time; existing owner boundaries remain
 authoritative; new state has an explicit owner and reader; no presentation system writes simulation truth; no
 combat-RNG draw merely to choose tactics; add a deterministic harness/check before relying on a visual impression;
 add observe-only probe/telemetry that measures the decision dose; ship behavioral changes behind a flag until the
@@ -1135,8 +1150,8 @@ paired GitHub benchmark shows the efficiency gate is acceptable. **Do not make a
 simulation merely to satisfy an equality test.** New tactics are expected to change decisions and outcomes; benchmarks
 gate broken invariants, determinism, pathological stalls/loops/churn, runtime errors and performance, while behavioral
 deltas are evidence to understand rather than something to erase. Equality/neutrality checks belong only to explicitly
-non-behavioral tooling or a deliberately isolated legacy/control arm. Once a slice ships, move its evidence into the
-subsystem section but leave this sequence accurate so the next unfinished slice remains visible.
+non-behavioral tooling or a deliberately isolated legacy/control arm. Once a slice ships, move its evidence into the subsystem section; if a compact status record must remain here,
+keep it inside a collapsed completed-work accordion so the next unfinished slice stays visually obvious.
 
 <details>
 <summary><strong>Completed: soldier stress memory + reactions rollout</strong> — default shipping behavior; expand for status</summary>
@@ -1155,9 +1170,8 @@ reopening the reaction rollout.
 
 </details>
 
-The loadout, sidearm, perception and weapon-seat work shipped (see Loadouts and sidearms and Perception).
-The active soldier-level continuation is listed above and is **not** part of this deferred list. The larger
-command/urban/route architecture stays in `battle/AI_TACTICS_OUTLINE.md` until that major AI phase is resumed.
+The active AI queue is listed above and is **not** part of this deferred list. The larger command/urban/route
+architecture stays in `battle/AI_TACTICS_OUTLINE.md` until that major AI phase is resumed.
 The unrelated asset, tuning and later-system items below remain deferred by the 2026-09-29 decision.
 
 **Deferred / future — not V1 blockers**
