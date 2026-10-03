@@ -165,7 +165,7 @@ test('feature-off arm keeps the pre-slice command behavior',()=>{
   const w=world('?leaderlessIntent=0');
   const before=point(w.q.orderAnchor);
   killLeader(w);H.run(w.r,w.b,.3);
-  assert.equal(w.q._leaderlessIntent,null);
+  assert.equal(w.q._leaderlessIntent==null,true,'legacy arm creates no leaderless-intent owner record');
   assert.ok(!samePoint(point(w.q.orderAnchor),before),'legacy leaderless squad still advances its Meso anchor');
 });
 
