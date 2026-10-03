@@ -227,6 +227,10 @@ test('the module never writes a soldier field or draws Math.random', () => {
   assert.ok(r.played.length > 0);
   assert.deepEqual(r.moduleWrites, []);
 });
+test('handling extras and shots are never preloaded by this module', () => {
+  for (const a of ['fire', 'fireDistant', 'handling', 'grab', 'safety', 'mode']) assert.equal(F.UNPLAYED[a], true, a);
+  for (const a of ['fireTail', 'reloadMagIn', 'stoppageClick', 'bipodDeploy', 'clipPing', 'boltCycle']) assert.ok(!F.UNPLAYED[a], a);
+});
 test('?weaponFoley=0 installs nothing', () => {
   const off = load('?weaponFoley=0');
   const fire = () => {};
