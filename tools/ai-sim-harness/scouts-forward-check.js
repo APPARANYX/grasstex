@@ -243,6 +243,9 @@ freshTask.serial = 0;
   w.b.time += w.S.tuning.scoutsForward.observe + 0.1;
   w.S.updateRecon(w.q, w.b, { underFire: 0, contactStarted: false });
   assert.equal(w.q._reconLast.reason, 'observed-no-contact');
+  const rejoin = w.r.BattleLeases.get(w.q, 'regroup-bypass');
+  assert.ok(rejoin && rejoin.reason === 'recon rejoin', 'no-contact release uses the existing regroup-bypass lifecycle');
+  assert.ok(rejoin.until - w.b.time >= 8.9, 'rejoin grace is long enough for the main body to absorb the deliberate scout lead');
   for (const id of task.scoutIds) {
     const s = w.q.members.find(m => String(m.id) === String(id));
     assert.equal(w.r.SquadAI.beliefSnapshot(s, w.b).unknown, true, 'nothing observed leaves scout knowledge unknown');
@@ -269,6 +272,8 @@ for (const reason of ['under-fire', 'retreat', 'phase-change', 'battle-end']) {
   }
   assert.equal(w.r.BattleLeases.get(w.q, 'recon'), null, reason + ' releases recon');
   assert.equal(w.q._reconLast.reason, reason);
+  const bypass = w.r.BattleLeases.get(w.q, 'regroup-bypass');
+  assert.ok(!bypass || bypass.reason !== 'recon rejoin', reason + ' does not leave no-contact rejoin ownership behind');
   assert.ok(task.scoutIds.length < w.q.members.length);
 }
 {
@@ -278,6 +283,7 @@ for (const reason of ['under-fire', 'retreat', 'phase-change', 'battle-end']) {
   w.S.updateRecon(w.q, w.b, { underFire: 0, contactStarted: false });
   assert.equal(w.r.BattleLeases.get(w.q, 'recon'), null, 'bounded timeout releases the main body');
   assert.equal(w.q._reconLast.reason, 'timeout');
+  assert.equal(w.r.BattleLeases.get(w.q, 'regroup-bypass').reason, 'recon rejoin', 'timeout proceeds cautiously through the same bounded rejoin handoff');
 }
 
 console.log('PASS Scouts Forward lease, terrain/personal-information decision, deterministic selection, Movement Resolver ownership, callout delivery, uncertainty, cancellation and timeout');
