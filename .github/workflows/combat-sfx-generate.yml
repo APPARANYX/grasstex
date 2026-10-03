@@ -10,6 +10,9 @@ name: Generate combat sound effects
 # Runs on a push to any branch but main that changes the combat manifest or this file, and on dispatch. It needs
 # the repository secret ELEVEN_LABS_API (ELEVENLABS_API_KEY also works); without it the run says so and stops
 # without failing. It never runs on main (main deploys to production on every push).
+#
+# Its commit is pushed with the workflow token, and GitHub starts no workflow for such a push, so CI does not run on
+# it: push the next commit yourself (or update the pull request) before merging.
 
 on:
   push:
