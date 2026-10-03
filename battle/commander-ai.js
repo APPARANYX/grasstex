@@ -79,24 +79,49 @@
   function point(p) {
     return p ? { x: +p.x || 0, z: +p.z || 0 } : null;
   }
+  function newGeneralState(faction) {
+    return {
+      faction: faction,
+      wakeCount: 0,
+      strategicWrites: 0,
+      decisionsUnchanged: 0,
+      wakeReasons: {},
+      lastWake: null,
+      recentWakes: [],
+      lastStall: null,
+      stallRecovery: { episode: null, completed: 0, mainEffort: null, history: [], progress: {} },
+      reconstitution: null
+    };
+  }
+  /* Two per-battle General singletons. They share code, never state. BattleCommanderAI is only the
+     scheduler/facade; each General gets its own state and only own-side reported hostile intel. */
+  function generals(sim) {
+    return sim._generals || (sim._generals = { us: newGeneralState('us'), ge: newGeneralState('ge') });
+  }
+  function generalFor(sim, faction) {
+    var all = generals(sim);
+    return all[faction] || (all[faction] = newGeneralState(faction));
+  }
+  /* Aggregate compatibility/diagnostic view. Decisions never read these cross-side totals. */
   function missionState(sim) {
-    return (
-      sim._macroMissionState ||
-      (sim._macroMissionState = {
-        mode: 'event-driven',
-        wakeCount: 0,
-        strategicWrites: 0,
-        decisionsUnchanged: 0,
-        wakeReasons: {},
-        lastWake: null,
-        recentWakes: [],
-        stallByFaction: { us: null, ge: null },
-        stallRecovery: {
-          us: { episode: null, completed: 0, mainEffort: null, history: [], progress: {} },
-          ge: { episode: null, completed: 0, mainEffort: null, history: [], progress: {} }
-        }
-      })
-    );
+    var st =
+        sim._macroMissionState ||
+        (sim._macroMissionState = {
+          mode: 'event-driven',
+          wakeCount: 0,
+          strategicWrites: 0,
+          decisionsUnchanged: 0,
+          wakeReasons: {},
+          lastWake: null,
+          recentWakes: [],
+          stallByFaction: { us: null, ge: null },
+          stallOutcomes: { wakes: 0, repeats: 0, switches: 0, other: 0 }
+        }),
+      g = generals(sim);
+    st.generals = g;
+    st.stallRecovery = { us: g.us.stallRecovery, ge: g.ge.stallRecovery };
+    st.reconstitution = { us: g.us.reconstitution, ge: g.ge.reconstitution };
+    return st;
   }
   function catalogKey(sim) {
     return (sim._objectives || [])
@@ -253,9 +278,11 @@
   function issueMission(sim, sq, spec, reason) {
     var old = sq._macroMission,
       key = briefKey(spec),
-      stats = missionState(sim);
+      stats = missionState(sim),
+      general = generalFor(sim, sq.faction);
     if (old && old.key === key && (old.status === 'issued' || old.status === 'executing')) {
       stats.decisionsUnchanged++;
+      general.decisionsUnchanged++;
       sq._macroMissionObservation = missionObservation(sim, sq, old);
       return old;
     }
@@ -280,6 +307,7 @@
     sq.targetObjective = m.objectiveId;
     sq.commandRole = m.role;
     stats.strategicWrites++;
+    general.strategicWrites++;
     telemetry(sim, 'decision-mission-issued', {
       faction: sq.faction,
       squad: sq.id,
@@ -292,6 +320,7 @@
   }
   function recordMacroWake(sim, sq, reason) {
     var stats = missionState(sim),
+      general = generalFor(sim, sq.faction),
       event = {
         faction: sq.faction,
         squad: sq.id,
@@ -304,6 +333,11 @@
     stats.lastWake = event;
     stats.recentWakes.push(event);
     if (stats.recentWakes.length > 60) stats.recentWakes.shift();
+    general.wakeCount++;
+    general.wakeReasons[reason] = (general.wakeReasons[reason] || 0) + 1;
+    general.lastWake = event;
+    general.recentWakes.push(event);
+    if (general.recentWakes.length > 40) general.recentWakes.shift();
     telemetry(sim, 'decision-macro-replan', event);
   }
   function reserveDue(sim, sq) {
@@ -319,14 +353,14 @@
   function strategicStallInfo(sim, faction) {
     var health = sim._coordinationHealth,
       side = health && health.sides && health.sides[faction];
+    var last = health && health.lastObjectiveProgressAt && health.lastObjectiveProgressAt[faction];
     return {
       age: (side && +side.objectiveStallSeconds) || 0,
-      lastProgressAt: health && isFinite(+health.lastObjectiveProgressAt) ? +health.lastObjectiveProgressAt : 0
+      lastProgressAt: isFinite(+last) ? +last : 0
     };
   }
   function stallRecoveryState(sim, faction) {
-    var all = missionState(sim).stallRecovery,
-      state = all[faction],
+    var state = generalFor(sim, faction).stallRecovery,
       info = strategicStallInfo(sim, faction),
       episode = String(info.lastProgressAt);
     if (state.episode !== episode) {
@@ -498,6 +532,7 @@
     if (event.mainEffort) recovery.mainEffort = event.mainEffort;
     recovery.history.push(event);
     if (recovery.history.length > 24) recovery.history.shift();
+    generalFor(sim, faction).lastStall = event;
     missionState(sim).lastStall = event;
     telemetry(sim, 'decision-strategic-recovery', event);
     return event;
@@ -655,7 +690,7 @@
     else if (reason === 'mission-invalid') finishMission(sim, sq, 'invalid', reason);
     selectMission(sim, sq, town, reason, stalled || null, forcedObjective || null);
     root.BattleSquadStability.acknowledgeRequest(sq);
-    if (reason === 'strategic-stall') recordStallOutcome(sim, before, sq._macroMission);
+    if (reason === 'strategic-stall') recordStallOutcome(sim, sq.faction, before, sq._macroMission);
   }
   function runReconcileStage(sim, faction, squads, town, stalled) {
     var affected = 0;
@@ -792,14 +827,20 @@
   }
 
   /* Did a strategic-stall wake change the effort? `repeats` re-picked the stalled objective. */
-  function recordStallOutcome(sim, before, m) {
+  function recordStallOutcome(sim, faction, before, m) {
     var st = missionState(sim),
       out = st.stallOutcomes || (st.stallOutcomes = { wakes: 0, repeats: 0, switches: 0, other: 0 }),
+      general = generalFor(sim, faction),
+      own =
+        general.stallOutcomes ||
+        (general.stallOutcomes = { wakes: 0, repeats: 0, switches: 0, other: 0 }),
       after = m && m.objectiveId;
-    out.wakes++;
-    if (after && after === before) out.repeats++;
-    else if (after && m.intent === 'capture') out.switches++;
-    else out.other++;
+    [out, own].forEach(function (row) {
+      row.wakes++;
+      if (after && after === before) row.repeats++;
+      else if (after && m.intent === 'capture') row.switches++;
+      else row.other++;
+    });
   }
 
   /* Reconstitution. Retreated squads that are home and out of contact (`_assembly` `at-base`,
@@ -814,11 +855,12 @@
     RALLY_RADIUS = 20,
     RALLY_FORWARD = 30,
     FLED_PICKUP_RANGE = 50; // a retreating squad this near a fled man waiting for one takes him in
-  function reconState(sim) {
-    var st = missionState(sim);
+  function reconState(sim, faction) {
+    var general = generalFor(sim, faction);
     return (
-      st.reconstitution ||
-      (st.reconstitution = {
+      general.reconstitution ||
+      (general.reconstitution = {
+        faction: faction,
         strength: RECON_STRENGTH,
         serial: 0,
         groupsFormed: 0,
@@ -873,7 +915,7 @@
   }
   function formGroup(sim, faction, squads) {
     /* The strongest grouped squad stands in for the re-formed squad: all of them are at base. */
-    var st = reconState(sim),
+    var st = reconState(sim, faction),
       plan = D.chooseObjective(sim, squads[0], false) || D.chooseObjective(sim, squads[0], true),
       rally = rallyPoint(sim, faction, squads, plan);
     var g = {
@@ -926,13 +968,13 @@
       sq._reconGroup = null;
       finishMission(sim, sq, 'failed', reason);
     });
-    var st = reconState(sim);
+    var st = reconState(sim, g.faction);
     st.groupsDissolved++;
     endGroup(st, g, 'dissolved', reason, +sim.time || 0);
     telemetry(sim, 'decision-reconstitute-dissolved', { faction: g.faction, group: g.id, reason: reason });
   }
   function mergeGroup(sim, g, squads) {
-    var st = reconState(sim),
+    var st = reconState(sim, g.faction),
       t = +sim.time || 0,
       order = squads.slice().sort(strongestFirst(sim, g.faction)),
       /* The most senior surviving leader takes command (a sergeant outranks a rifleman who stepped up
@@ -1019,10 +1061,8 @@
   /* Pool first, then advance groups: a squad merged this tick still reads `retreat` until its Squad Leader
      recomputes its status, so it must not be pooled in the same pass. */
   function reconstitute(sim, faction) {
-    var st = reconState(sim),
-      groups = st.active.filter(function (g) {
-        return g.faction === faction;
-      }),
+    var st = reconState(sim, faction),
+      groups = st.active.slice(),
       pool = sim.factions[faction].squads
         .filter(function (sq) {
           return (
@@ -1123,6 +1163,28 @@
     }
   }
 
+  function updateFactionCommander(sim, town, faction) {
+    var general = generalFor(sim, faction),
+      squads = sim.factions[faction].squads,
+      woke = false,
+      reasons = {};
+    reconstitute(sim, faction);
+    pickUpFled(sim, faction);
+    if (runStrategicRecovery(sim, faction, squads, town)) {
+      woke = true;
+      reasons['@' + faction] = 'strategic-recovery';
+    }
+    for (var i = 0; i < squads.length; i++) {
+      var sq = squads[i],
+        reason = wakeReason(sim, sq);
+      if (!reason) continue;
+      woke = true;
+      reasons[sq.id] = reason;
+      reconsiderMission(sim, sq, town, reason, null);
+    }
+    general.lastTickAt = +sim.time || 0;
+    return { wake: woke, reasons: reasons };
+  }
   function updateCommander(sim, town, dt) {
     dt = dt || COMMAND_TICK;
     var macro = macroEnabled(sim),
@@ -1132,21 +1194,11 @@
     if (root.BattleObjectiveSystem) root.BattleObjectiveSystem.tick(sim, dt);
     if (macro)
       ['us', 'ge'].forEach(function (f) {
-        var squads = sim.factions[f].squads;
-        reconstitute(sim, f);
-        pickUpFled(sim, f);
-        if (runStrategicRecovery(sim, f, squads, town)) {
-          macroWake = true;
-          wakeReasons['@' + f] = 'strategic-recovery';
-        }
-        for (var i = 0; i < squads.length; i++) {
-          var sq = squads[i],
-            reason = wakeReason(sim, sq);
-          if (!reason) continue;
-          macroWake = true;
-          wakeReasons[sq.id] = reason;
-          reconsiderMission(sim, sq, town, reason, null);
-        }
+        var result = updateFactionCommander(sim, town, f);
+        if (result.wake) macroWake = true;
+        Object.keys(result.reasons).forEach(function (key) {
+          wakeReasons[f + ':' + key] = result.reasons[key];
+        });
       });
     if (root.BattleModules)
       root.BattleModules.runHook('onCommanderTick', sim, {
@@ -1236,6 +1288,8 @@
     sim._nextDecisionSnapshot = 0;
     sim._objectiveRecovery = { us: { count: 0, last: null }, ge: { count: 0, last: null } };
     sim._macroMissionState = null;
+    sim._generals = { us: newGeneralState('us'), ge: newGeneralState('ge') };
+    missionState(sim);
     var adapted = {};
     if (root.BattleAIPolicy) {
       ['us', 'ge'].forEach(function (f) {
@@ -1270,6 +1324,8 @@
       sim._nextDecisionSnapshot = 0;
       sim._objectiveRecovery = { us: { count: 0, last: null }, ge: { count: 0, last: null } };
       sim._macroMissionState = null;
+      sim._generals = { us: newGeneralState('us'), ge: newGeneralState('ge') };
+      missionState(sim);
       if (root.BattleModules) root.BattleModules.runHook('onBattleRestart', sim, { town: town });
     };
     scene.onBeforeRenderObservable.add(function () {
@@ -1301,6 +1357,9 @@
     strategicStallReplan: STRATEGIC_STALL_REPLAN,
     strategicStallRecovery: STRATEGIC_STALL_RECOVERY,
     missionState: missionState,
+    generalFor: generalFor,
+    generals: generals,
+    updateFaction: updateFactionCommander,
     reconstitute: reconstitute,
     reconstitutionStrength: RECON_STRENGTH,
     fledPickupRange: FLED_PICKUP_RANGE,
