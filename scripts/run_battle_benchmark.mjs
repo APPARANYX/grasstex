@@ -346,18 +346,12 @@ try {
       }
     }
 
-    function cleanup() {
+    /* Do not tear the battle down by hand between seeds. The shipping restart path owns the old
+       roster and gives every beforeBattleRestart/onBattleRestart hook the real previous battle to
+       release. The old benchmark cleanup zeroed roster/factions/obstacles first, so only the first
+       seed in each worker got a normal restart and later seeds leaked module state across battles. */
+    function finishBattle() {
       sim.paused = true;
-      for (const faction of ['us', 'ge']) for (const u of sim._roster?.[faction] || []) {
-        try { root.BattleTacticalPositions?.release(u, sim, 'battle-reset'); } catch (_) {}
-        u._navCache = null; u.target = null;
-        try { if (u.root && (!u.root.isDisposed || !u.root.isDisposed())) u.root.dispose(); } catch (_) { try { u.root?.dispose(); } catch (__) {} }
-      }
-      sim._roster = { us: [], ge: [] }; sim._moduleUnits = [];
-      sim.factions = { us: { alive: 0, kills: 0, squads: [] }, ge: { alive: 0, kills: 0, squads: [] } };
-      sim.obstacles = []; sim.objectives = []; sim._objectives = []; sim.objectiveControl = null; sim.objectiveStats = null; sim.objectiveHold = null;
-      sim._aiAccum = 0; sim._commandAccum = 0;
-      try { root.BattleTownObjectives.releaseCurrent(sim.scene); } catch (_) {}
       try { engine?.wipeCaches?.(true); } catch (_) {}
     }
 
@@ -554,10 +548,10 @@ try {
             measure(() => label, spec, openedAt => sim.time + 1e-9 >= openedAt + spec.seconds);
           }
         }
-        activeCombat = null; activeAcquisition = null; cleanup(); if ((index + 1) % 5 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+        activeCombat = null; activeAcquisition = null; finishBattle(); if ((index + 1) % 5 === 0) await new Promise(resolve => setTimeout(resolve, 0));
       }
     } finally {
-      activeCombat = null; activeAcquisition = null; root.BattleAIPolicy.clearMatchPolicies(sim); cleanup();
+      activeCombat = null; activeAcquisition = null; root.BattleAIPolicy.clearMatchPolicies(sim); finishBattle();
       if (originalSeed) root.BattleTownObjectives.regenerate(sim.scene, sim.heightAt, originalSeed, { restoredAfterBenchmark: true }, sim);
       sim.trainingMode = false; root.BattleSoldierModel?.setImportedEnabled?.(sim.scene, true); rawRestart();
       sim.timeScale = saved.timeScale; sim.timeLimit = saved.timeLimit; sim.onFire = saved.onFire; sim.onShot = saved.onShot; sim.onSuppressiveShot = saved.onSuppressiveShot;
