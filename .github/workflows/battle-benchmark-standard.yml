@@ -259,6 +259,7 @@ jobs:
           MAX_SHARDS: ${{ github.event_name == 'push' && '4' || '20' }}
         run: |
           set -euo pipefail
+          # Push validation deliberately packs 20 seeds into four workers (five restarts/page).
           shards="$(node scripts/plan_benchmark_shards.cjs "$SEEDS" "$MAX_SHARDS")"
           echo "matrix={\"include\":${shards}}" >> "$GITHUB_OUTPUT"
           echo "windows=${WINDOWS:-contact+120}" >> "$GITHUB_OUTPUT"
