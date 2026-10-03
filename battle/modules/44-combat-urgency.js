@@ -20,6 +20,7 @@
     SHARED_REACT_AGE = 2.5,
     SHARED_HOLD = 1.8,
     SHARED_RESET_QUIET = 4.5,
+    SHARED_REACT_COOLDOWN = 4.5,
     URGENT_TTL = 0.55;
   function point(p) {
     return p && isFinite(+p.x) && isFinite(+p.z) ? { x: +p.x, z: +p.z } : null;
@@ -71,6 +72,8 @@
         urgentCoverArrivals: 0,
         sharedContactReactions: 0,
         sharedContactRepeatBlocks: 0,
+        sharedContactCooldownBlocks: 0,
+        sharedContactSoundBlocks: 0,
         urgentFrames: 0
       });
     st[field]++;
@@ -208,6 +211,15 @@
     if (s.target || e.state !== 'advance' || s.reloading || s.clearingStoppage) return;
     var c = contact(s, b);
     if (!c) return;
+    var S = root.SquadAI,
+      personal = !!(S && S.soldierBeliefsOn && S.soldierBeliefsOn());
+    /* In the personal-information arm a gunshot is evidence that can turn the man's head and seed
+       his belief, but it is not a squad-movement order. Spoken/remembered locations may cause the
+       shared-contact halt below; raw sound alone may not repeatedly stop his advance. */
+    if (personal && c.source === 'heard') {
+      bump(b, 'sharedContactSoundBlocks');
+      return;
+    }
     if (
       c.unit &&
       root.SquadAI &&
@@ -221,6 +233,19 @@
     var sec = sectorFor(s, aim);
     if (e._sharedContactAware && sectorDistance(e._sharedContactSector, sec) <= 1) {
       bump(b, 'sharedContactRepeatBlocks');
+      return;
+    }
+    /* The selected personal belief may alternate between several valid reported threats as their
+       confidence decays/refreshes. That is information churn, not a reason to inject a new hold every
+       tick. Preserve legacy shared-contact behavior exactly when beliefs are off; in personal mode,
+       require a quiet reaction interval before a materially different reported sector can stop him
+       again. The existing timestamp was already state-owned here, so this adds no new writer. */
+    if (
+      personal &&
+      e._sharedContactAware &&
+      b.time - (+e._sharedContactReactedAt || -999) < SHARED_REACT_COOLDOWN
+    ) {
+      bump(b, 'sharedContactCooldownBlocks');
       return;
     }
     e._sharedContactAware = true;
@@ -273,14 +298,14 @@
     }
   }
   root.BattleModules.registerSystem('combat-urgency', {
-    version: '1.3-resolver-coalesced',
+    version: '1.4-personal-hysteresis',
     onBattleStart: reset,
     onBattleRestart: reset,
     onSimulationStep: markUrgent
   });
-  root.BattleAssaultForwardGuard = { version: '1.3-resolver-coalesced', allowCover: allowCover };
+  root.BattleAssaultForwardGuard = { version: '1.4-personal-hysteresis', allowCover: allowCover };
   root.BattleCombatUrgency = {
-    version: '1.3-resolver-coalesced',
+    version: '1.4-personal-hysteresis',
     summary: function (sim) {
       return sim && sim._combatUrgencySummary ? JSON.parse(JSON.stringify(sim._combatUrgencySummary)) : null;
     }
