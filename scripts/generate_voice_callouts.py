@@ -6,6 +6,7 @@ regenerate one event, and --faction us|ge to limit generation to one faction. Pi
 built separately during deployment and are never synthesized here.
 """
 import argparse
+import generation_guard
 import json
 import os
 import sys
@@ -69,6 +70,7 @@ def parse_args():
         help="regenerate all existing clips, or only the named event",
     )
     parser.add_argument("--faction", choices=("us", "ge"), help="generate only one faction")
+    parser.add_argument("--max-new", type=int, help="most missing lines one run may generate (default 12, 0 = no cap)")
     return parser.parse_args()
 
 
@@ -86,6 +88,7 @@ def main():
     force_all = args.force == "*"
     force_event = None if args.force in (None, "*") else args.force
     jobs = []
+    declared = present = unforced = 0
 
     for faction, data in manifest["callouts"].items():
         if args.faction and faction != args.faction:
@@ -105,13 +108,18 @@ def main():
 
             out_path = os.path.join(base, rel_path)
             forced = force_all or force_event == event
-            if not forced and os.path.isfile(out_path) and os.path.getsize(out_path) > 0:
+            have = os.path.isfile(out_path) and os.path.getsize(out_path) > 0
+            declared += 1
+            present += have
+            if not forced and have:
                 continue
+            unforced += not forced
             jobs.append((faction, event, text, rel_path, out_path))
 
     if not jobs:
         print("No matching voice files need generation.")
         return
+    generation_guard.check("voice callouts", declared, present, unforced, generation_guard.max_new(args.max_new))
 
     print(f"Generating {len(jobs)} neutral/base lines...")
     ok, failed = 0, []
