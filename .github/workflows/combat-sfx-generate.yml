@@ -7,7 +7,8 @@ name: Generate combat sound effects
 # Assets/audio/.manifest-placeholders.txt and commits them to the branch that ran. It only ever adds missing files:
 # a clip that already exists is never regenerated, so a rerun spends nothing. Generating spends ElevenLabs credits.
 #
-# Runs on a push to any branch but main that changes the combat manifest or this file, and on dispatch. It needs
+# Runs only when started by hand (Actions > Run workflow), never on a push: ElevenLabs is called only on a
+# person's say-so. It needs
 # the repository secret ELEVEN_LABS_API (ELEVENLABS_API_KEY also works); without it the run says so and stops
 # without failing. It never runs on main (main deploys to production on every push).
 #
@@ -15,13 +16,6 @@ name: Generate combat sound effects
 # it: push the next commit yourself (or update the pull request) before merging.
 
 on:
-  push:
-    branches-ignore:
-      - main
-      - benchmark-results
-    paths:
-      - Assets/audio/combat-sfx-manifest.json
-      - .github/workflows/combat-sfx-generate.yml
   workflow_dispatch:
     inputs:
       only:
