@@ -120,7 +120,21 @@
       g = generals(sim);
     st.generals = g;
     st.stallRecovery = { us: g.us.stallRecovery, ge: g.ge.stallRecovery };
-    st.reconstitution = { us: g.us.reconstitution, ge: g.ge.reconstitution };
+    /* Compatibility/diagnostic roll-up only. Runtime reconstitution decisions use the faction-local
+       General state above; this aggregate never feeds either General. */
+    var ur = g.us.reconstitution,
+      gr = g.ge.reconstitution,
+      rows = [ur, gr].filter(Boolean);
+    st.reconstitution = rows.length
+      ? {
+          groupsFormed: rows.reduce(function (n, r) { return n + (+r.groupsFormed || 0); }, 0),
+          groupsDissolved: rows.reduce(function (n, r) { return n + (+r.groupsDissolved || 0); }, 0),
+          merges: rows.reduce(function (n, r) { return n + (+r.merges || 0); }, 0),
+          promotions: rows.reduce(function (n, r) { return n + (+r.promotions || 0); }, 0),
+          active: rows.reduce(function (a, r) { return a.concat(r.active || []); }, []),
+          ended: rows.reduce(function (a, r) { return a.concat(r.ended || []); }, [])
+        }
+      : null;
     return st;
   }
   function catalogKey(sim) {
