@@ -46,6 +46,8 @@ method_for() {
     # A footstep is a ~1.2 s clip built around one foot-strike transient, same shape as
     # weapon foley.
     */footsteps/*.mp3) echo "transient" ;;
+    # Combat effects (combat-sfx-manifest.json): cracks, hits and short cries, all one event.
+    */combat/*.mp3) echo "transient" ;;
     */vehicles/tank-cannon-*.mp3|*/vehicles/tank-impact-*.mp3|*/vehicles/tank-destroyed-*.mp3) echo "transient" ;;
     */aircraft/bomb-explosion-*.mp3) echo "transient" ;;
     *) echo "integrated" ;;
@@ -59,6 +61,10 @@ transient_target_for() {
     # Handling a grenade is quiet mechanical foley; the detonation is not.
     */grenades/pin-*.mp3|*/grenades/throw-*.mp3|*/grenades/bounce-*.mp3) echo "-26.0" ;;
     */footsteps/*.mp3) echo "-26.0" ;;
+    # Flybys, ricochets, impacts and flesh hits sit under the shot itself; a cry of pain is a
+    # voice, levelled near the callouts.
+    */combat/pain/*.mp3) echo "-18.0" ;;
+    */combat/*.mp3) echo "-22.0" ;;
     # Bullet flybys/impacts: quieter and more distant than the shot itself, louder than
     # handling foley.
     */weapons/shared/*.mp3) echo "-22.0" ;;
