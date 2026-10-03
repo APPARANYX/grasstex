@@ -20,10 +20,12 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 function load(r, file) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  new Function('window', 'globalThis', 'console', 'location', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(
+    r,
+    r,
+    { log() {}, warn() {} },
+    r.location
+  );
 }
 const base = { phy: 0.4, agi: 0.4, for: 0.4, tec: 0.4, mkm: 0.4, tac: 0.5 };
 
