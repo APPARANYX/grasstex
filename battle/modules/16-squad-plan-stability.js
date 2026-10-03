@@ -1177,6 +1177,15 @@
       allowed: ca.allowed,
       dispersed: ca.dispersed
     };
+    /* Recon deliberately makes one or two men outrunners while the main body holds. That separation
+       is owned by the live recon lease, not evidence that squad cohesion failed. Starting a regroup
+       here would create two Squad Leader command commitments fighting over the same men. Keep the
+       full assessment for diagnostics, but do not let intentional recon geometry open a regroup. */
+    if (L.get(sq, 'recon')) {
+      st.overSince = null;
+      if (current) endRegroup(sim, sq, 'recon supersedes regroup');
+      return;
+    }
     var p = sq._engagementPlan,
       combatPlan = p && (p.status === 'active' || p.status === 'quiet');
     if (sq.inContact || combatPlan) {
@@ -2403,6 +2412,19 @@
       retriggerNoted: false
     };
     if (reason === 'scout-contact') startReconReportWatch(sq, task, battle);
+    /* After a no-contact scout excursion the main body is about to move up while the scouts fall
+       back into normal slots. Give that intentional geometry one short existing regroup-bypass
+       lease; otherwise the next commander ticks can misclassify the returning scouts as accidental
+       outrunners and immediately undo the recon decision with a regroup. Contact paths already have
+       their own combat bypass, but this short lease is harmless there and keeps one ownership rule. */
+    L.grant(
+      sq,
+      'regroup-bypass',
+      'squad-leader',
+      battle.time,
+      battle.time + STRAGGLER_BYPASS,
+      'recon rejoin'
+    );
     syncTasks(sq, sq._engagementPlan);
     var st = reconStats(battle);
     if (st) {
@@ -3531,6 +3553,7 @@
     updateFireControl: updateFireControl,
     advanceSquadAnchor: advanceSquadAnchor,
     updateFireteams: updateFireteams,
+    updateCohesion: updateCohesion,
     coaOn: function () { return COA_ON; },
     coas: function () { return Object.keys(COAS); },
     /* Read-only views of the two decisions, for the checks and the probes (nothing in the runtime calls them). */
