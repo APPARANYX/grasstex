@@ -26,6 +26,8 @@ assert(M && T, 'module registry and tactical catalog load');
 assert.strictEqual(typeof M.registerTacticalSymbol, 'function');
 assert.strictEqual(typeof M.getTacticalSymbol, 'function');
 assert.strictEqual(typeof M.listTacticalSymbols, 'function');
+assert.strictEqual(typeof M.registerTacticalOverlayProvider, 'function');
+assert.strictEqual(typeof M.listTacticalOverlayProviders, 'function');
 
 const ids = M.listTacticalSymbols().map(s => s.id);
 ['infantry', 'airborne-infantry', 'machine-gun', 'mortar', 'engineer', 'sniper', 'armor', 'artillery', 'aircraft']
@@ -53,6 +55,13 @@ M.registerTacticalSymbol('rocket-artillery', {
 });
 assert.strictEqual(T.resolveId({ tacticalSymbol: 'rocket-artillery' }), 'rocket-artillery');
 assert.strictEqual(T.get('rocket-artillery').label, 'Rocket artillery');
+
+M.registerTacticalOverlayProvider('vehicle-formations', {
+  entities() { return []; },
+  view(v) { return v; }
+});
+assert.strictEqual(M.listTacticalOverlayProviders().length, 1);
+assert.strictEqual(M.getTacticalOverlayProvider('vehicle-formations').id, 'vehicle-formations');
 
 assert.throws(
   () => M.registerTacticalSymbol('mortar', {}),
