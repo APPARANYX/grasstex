@@ -54,6 +54,7 @@ env:
     casualties usKills geKills fire.total fire.hits retreatSamples movementResolver.changes
     movementStalls.length routeStalls.length targetlessStalls.length vacantObjectiveStalls.length loopAlerts.length writerConflicts
     regroups.entries stallOutcomes.wakes stallOutcomes.repeats timeline.stalledOnsets timeline.stalledSamples
+    recon.orders recon.contacts recon.noContact recon.timeouts recon.cancelled recon.reportsDelivered recon.retriggerBlocked
 
 jobs:
   # ---- one seed: the scripted scenario ------------------------------------------------------------------------------------
