@@ -24,6 +24,11 @@ on:
       - .github/workflows/combat-sfx-generate.yml
   workflow_dispatch:
     inputs:
+      max_new:
+        description: "Most missing clips one run may generate (default 12; 0 = no cap). Raise only for an intended bulk run."
+        required: false
+        default: ""
+        type: string
       only:
         description: "Groups or group.clip ids (space separated); blank for every missing clip"
         required: false
@@ -89,6 +94,7 @@ jobs:
       - name: Generate the missing clips
         if: steps.key.outputs.ok == 'true'
         env:
+          GENERATE_MAX_NEW: ${{ inputs.max_new }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVEN_LABS_API || secrets.ELEVENLABS_API_KEY }}
           ONLY: ${{ inputs.only }}
         run: |

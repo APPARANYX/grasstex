@@ -1394,7 +1394,9 @@ factions textured differently, weapon on the hands). Keep weapon source `.zip` p
   `Assets/audio/private-audio.lock.json` with the read-only deploy key in the `PRIVATE_AUDIO_READ_KEY`
   secret and overlay it (`scripts/fetch_private_audio.sh`); the voice and combat-SFX generators push
   new clips there with the write key in `AUDIO_PRIVATE_WRITE_KEY` and bump the lock
-  (`scripts/publish_private_audio.sh`). A fork's PR has no secrets, so its audio and deploy-plan jobs
+  (`scripts/publish_private_audio.sh`). The overlay runs before generation, and both generators refuse before
+  any ElevenLabs call when no declared clip is on disk or more than 12 are missing (`scripts/generation_guard.py`;
+  `--max-new N` / the workflows' `max_new` input for an intended bulk run, `--force` to regenerate on purpose). A fork's PR has no secrets, so its audio and deploy-plan jobs
   fail. Changing clips by hand: push to grasstex-audio (MP3 plus both twins), bump the lock and the
   MP3s' `.mastering-state.tsv` lines here. Browsers load the twin their probe decodes (module
   `00-audio-format.js`, `"opusTwins": "all"` in the manifest), MP3 otherwise; the deploy uploads all

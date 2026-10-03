@@ -19,6 +19,11 @@ on:
       - .github/workflows/voice-callouts-generate.yml
   workflow_dispatch:
     inputs:
+      max_new:
+        description: "Most missing clips one run may generate (default 12; 0 = no cap). Raise only for an intended bulk run."
+        required: false
+        default: ""
+        type: string
       faction:
         description: "Only one side (us or ge); blank for both"
         required: false
@@ -84,6 +89,7 @@ jobs:
       - name: Generate the missing lines
         if: steps.key.outputs.ok == 'true'
         env:
+          GENERATE_MAX_NEW: ${{ inputs.max_new }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVEN_LABS_API || secrets.ELEVENLABS_API_KEY }}
           FACTION: ${{ inputs.faction }}
         run: |
