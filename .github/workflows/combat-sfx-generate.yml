@@ -1,0 +1,126 @@
+name: Generate combat sound effects
+
+# Generates the clips Assets/audio/combat-sfx-manifest.json declares (near-miss flybys, ricochets, surface
+# impacts, flesh hits, pain) that do not exist yet, with ElevenLabs Sound Effects (scripts/generate_combat_sfx.py:
+# one generation per variation), onset-checks the one-event clips (scripts/check_weapon_clips.py --shots, reported,
+# not blocking), masters them (scripts/normalize_audio.sh, the combat/* targets), clears their lines from
+# Assets/audio/.manifest-placeholders.txt and commits them to the branch that ran. It only ever adds missing files:
+# a clip that already exists is never regenerated, so a rerun spends nothing. Generating spends ElevenLabs credits.
+#
+# Runs on a push to any branch but main that changes the combat manifest or this file, and on dispatch. It needs
+# the repository secret ELEVEN_LABS_API (ELEVENLABS_API_KEY also works); without it the run says so and stops
+# without failing. It never runs on main (main deploys to production on every push).
+#
+# Its commit is pushed with the workflow token, and GitHub starts no workflow for such a push, so CI does not run on
+# it: push the next commit yourself (or update the pull request) before merging.
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - benchmark-results
+    paths:
+      - Assets/audio/combat-sfx-manifest.json
+      - .github/workflows/combat-sfx-generate.yml
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Groups or group.clip ids (space separated); blank for every missing clip"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: combat-sfx-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Check the API key
+        id: key
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVEN_LABS_API || secrets.ELEVENLABS_API_KEY }}
+        run: |
+          if [ -z "$ELEVENLABS_API_KEY" ]; then
+            echo "Repository secret ELEVEN_LABS_API is not set: nothing generated." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install ffmpeg
+        if: steps.key.outputs.ok == 'true'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Generate the missing clips
+        if: steps.key.outputs.ok == 'true'
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVEN_LABS_API || secrets.ELEVENLABS_API_KEY }}
+          ONLY: ${{ inputs.only }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ONLY:-}" ]; then
+            # shellcheck disable=SC2086
+            python3 scripts/generate_combat_sfx.py --only $ONLY | tee "$RUNNER_TEMP/generate.log"
+          else
+            python3 scripts/generate_combat_sfx.py | tee "$RUNNER_TEMP/generate.log"
+          fi
+          tail -n 2 "$RUNNER_TEMP/generate.log" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Onset check (one event per clip)
+        if: steps.key.outputs.ok == 'true'
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          files=$(find .runtime/combat-sfx -name '*.mp3' -not -path '*/pain/*' | sort)
+          [ -z "$files" ] && exit 0
+          python3 -m pip install -q numpy
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          # shellcheck disable=SC2086
+          python3 scripts/check_weapon_clips.py --shots $files 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Copy, master and check
+        if: steps.key.outputs.ok == 'true'
+        run: |
+          set -euo pipefail
+          (cd .runtime/combat-sfx 2>/dev/null && find . -name '*.mp3' | sed 's|^\./||' | sort) > "$RUNNER_TEMP/new.txt" || true
+          while read -r rel; do
+            [ -n "$rel" ] || continue
+            mkdir -p "$(dirname "Assets/audio/$rel")"
+            # Trim the generator's leading silence, so a near miss sounds when the round passes, not after it.
+            ffmpeg -nostdin -loglevel error -y -i ".runtime/combat-sfx/$rel" \
+              -af 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.004' \
+              -ac 1 -ar 48000 -b:a 128k "Assets/audio/$rel"
+            grep -vxF "$rel" Assets/audio/.manifest-placeholders.txt > "$RUNNER_TEMP/ph.txt" || true
+            cp "$RUNNER_TEMP/ph.txt" Assets/audio/.manifest-placeholders.txt
+          done < "$RUNNER_TEMP/new.txt"
+          bash scripts/normalize_audio.sh Assets/audio
+          python3 scripts/check_audio_manifest.py
+
+      - name: Commit the new clips
+        if: steps.key.outputs.ok == 'true'
+        run: |
+          set -euo pipefail
+          git add Assets/audio
+          if git diff --cached --quiet; then
+            echo "No new clips: every declared clip already exists." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          n=$(git diff --cached --name-only --diff-filter=A -- 'Assets/audio/combat/' | wc -l)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898099+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Audio: generate $n combat sound effects (ElevenLabs, mastered)"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          echo "Committed $n new clips to ${GITHUB_REF_NAME}." | tee -a "$GITHUB_STEP_SUMMARY"

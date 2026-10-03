@@ -286,6 +286,19 @@
   var CONTACT_STANCE = !(
     typeof location !== 'undefined' && /[?&]contactStance=0\b/.test(location.search || '')
   );
+  /* Is the squad's fight still live? This is deliberately aggregate/Meso information, not the
+     personal contact view used below for a man's aim and fire-control decisions. */
+  function engagementLive(s, battle) {
+    var q = s.squad;
+    if (!q || battle.winner || q.state === 'retreat') return false;
+    if (q.inContact) return true;
+    var api = SA(),
+      c = api && api.squadContact ? api.squadContact(q, battle) : q.contact;
+    return !!(c && api && api.hasFirstHandMemory && api.hasFirstHandMemory(c, battle));
+  }
+  /* Once alerted, stay in the fight until the squad-level engagement is won/lost. This keeps a
+     temporary personal LOS gap from turning alert -> march -> alert. ?alertHold=0 is the old rule. */
+  var ALERT_LATCH = !(typeof location !== 'undefined' && /[?&]alertHold=0\b/.test(location.search || ''));
   function squadOnHeels(s, battle) {
     var q = s.squad;
     if (!q) return false;
@@ -475,11 +488,25 @@
     }
     return false;
   }
-  /* Prone is only useful where it is survivable and the soldier can still shoot: long shots,
-     real suppression, or cover low enough that crouching leaves him showing. */
+  /* Fighting posture by cover: prone is primarily the posture of a man in the open; behind useful
+     cover he crouches unless incoming fire and low cover make prone the safer choice.
+     ?coverStance=0 retains the previous long-shot/suppression rule everywhere. */
+  var COVER_STANCE = !(typeof location !== 'undefined' && /[?&]coverStance=0\b/.test(location.search || ''));
+  function inCover(s, battle) {
+    var F = field(),
+      p = posOf(s);
+    return !!F && F.coverPotentialAt(battle.obstacles, p.x, p.z) <= USEFUL_COVER;
+  }
+  function crouchCover(s, battle) {
+    var F = field(),
+      p = posOf(s);
+    return F && F.coverAt ? F.coverAt(battle.obstacles, p.x, p.z, 'crouch') : 1;
+  }
   function fightingStance(s, battle, distanceToTarget, coverValue) {
     var suppressed = s.suppressedUntil > battle.time;
     if (!PRONE_ROLES[s.role]) return 'crouch';
+    if (COVER_STANCE && coverValue <= USEFUL_COVER)
+      return suppressed && crouchCover(s, battle) > USEFUL_COVER ? 'prone' : 'crouch';
     if (suppressed) return 'prone';
     if (distanceToTarget > Math.max(70, SA().engageRange(s) * 0.55)) return 'prone';
     if (coverValue > USEFUL_COVER) return 'prone'; // no cover at all: go to ground
@@ -1391,7 +1418,13 @@
     /* Bridge the short contact/fire-control blink that used to produce
        prone -> crouch/stand -> prone loops. ALERT_HOLD is already the lifetime of the same
        remembered threat sector, so the posture commitment expires with that tactical memory. */
-    commitStance(s, battle, 'prone', ALERT_HOLD, 'fire-control-prep');
+    if (ALERT_LATCH) state(s).engaged = true;
+    var low =
+      COVER_STANCE && inCover(s, battle)
+        ? seeingStance(s, battle, 'crouch', target || (known && { root: { position: known } }))
+        : 'prone';
+    if (low !== 'prone') goal = { x: p.x, z: p.z };
+    commitStance(s, battle, low, ALERT_HOLD, 'fire-control-prep');
     if (dist(p.x, p.z, goal.x, goal.z) > 0.3) move(s, battle, goal, 'contact-reaction', 0.8);
     else holdPosition(s, battle);
   }
@@ -1991,6 +2024,10 @@
       now = battle.time;
     currentCover(s, battle);
     fireSpell(s, battle);
+    if (ALERT_LATCH) {
+      if (!engagementLive(s, battle)) e.engaged = false;
+      else if (s.target) e.engaged = true;
+    }
 
     if (s.target) {
       e.contactAt = e.state === 'advance' || e.state === 'alert' ? now : e.contactAt;
@@ -2059,6 +2096,10 @@
     if (s.target) {
       transition(s, battle, 'orient', reactTime(s, battle), 'contact');
       return orient(s, battle);
+    }
+    if (ALERT_LATCH && e.engaged) {
+      transition(s, battle, 'alert', ALERT_HOLD, 'engagement continues');
+      return alert(s, battle);
     }
     /* Frozen by what he just saw (a friend down beside him, the leader falling): still and down on one
        knee for the moment it lasts. The hold is renewed each tick and lapses with the shock. */
@@ -2201,7 +2242,7 @@
        body, a push, or a stronger order in the resolver - and movement progress cannot see it
        inside its 3 m near band. Treat it as the unreachable case above: mark this cover failed for
        a while and re-decide from where he stands (a live battle held men in `bound` for minutes). */
-    if (battle.time >= e.until) {
+    if (battle.time >= e.until && !(ALERT_LATCH && e.engaged)) {
       if (root.BattleMovementProgress)
         root.BattleMovementProgress.noteFailure(s, battle, cover, 'bound-overran');
       decide(s, battle, 'bound overran');
@@ -2322,12 +2363,12 @@
       return orient(s, battle);
     }
     holdPosition(s, battle);
-    /* The squad's shared contact outranks this man's own last sighting: somebody else may have
-       eyes on right now. */
+    /* His freshest personal contact/belief outranks his older Engagement last-seen point. */
     var aim = knownThreat(s, battle);
-    /* Holding the sector he looks at where the enemy was: low, but not so low a wall hides it from him. */
+    /* Hold the sector low; in open ground riflemen go prone, while cover uses the visibility-aware crouch. */
+    var watch = COVER_STANCE && PRONE_ROLES[s.role] && !inCover(s, battle) ? 'prone' : 'crouch';
     if (!holdStance(s, battle))
-      commitStance(s, battle, seeingStance(s, battle, 'crouch', aim && { root: { position: aim } }), 2.0);
+      commitStance(s, battle, seeingStance(s, battle, watch, aim && { root: { position: aim } }), 2.0);
     s._faceHint = aim && facingError(s, aim) > AIM_CONE ? aim : null;
     if (e.suppressOrder && aim) {
       /* A designated suppressor holds the firing line for as long as the contact is current,
@@ -2794,6 +2835,8 @@
       COVER_FIRE: COVER_FIRE,
       CRAWL_FIT: CRAWL_FIT,
       CONTACT_STANCE: CONTACT_STANCE,
+      COVER_STANCE: COVER_STANCE,
+      ALERT_LATCH: ALERT_LATCH,
       ACT: ACT,
       RAGE_LOCK: RAGE_LOCK,
       RAGE_GUARD_CHARGE: RAGE_GUARD_CHARGE,
