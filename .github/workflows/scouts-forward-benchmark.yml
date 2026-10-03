@@ -26,18 +26,18 @@ env:
 
 jobs:
   shards:
-    name: ${{ matrix.battle_type }} · shard ${{ matrix.shard }}
+    name: ${{ matrix.battle_type }} · shard ${{ matrix.offset }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         battle_type: [meeting, us-defend, ge-defend]
-        shard: [0, 1, 2, 3]
+        offset: [0, 3, 6, 9]
     env:
       BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.sha }}
       BATTLE_BENCHMARK_COUNT: '3'
-      BATTLE_BENCHMARK_FIRST: ${{ matrix.shard * 3 }}
+      BATTLE_BENCHMARK_FIRST: ${{ matrix.offset }}
       BATTLE_BENCHMARK_TIME_LIMIT: '600'
       BATTLE_BENCHMARK_STEP: '0.15'
       BATTLE_BENCHMARK_WINDOWS: 'contact+120'
@@ -85,7 +85,7 @@ jobs:
             if [ -n "$defender_query" ]; then query="${defender_query}&${query}"; fi
             export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?${query}"
             export BATTLE_BENCHMARK_OUTPUT="reports/$arm"
-            echo "::group::$BATTLE_TYPE shard ${{ matrix.shard }} arm $arm"
+            echo "::group::$BATTLE_TYPE shard ${{ matrix.offset }} arm $arm"
             node scripts/run_battle_benchmark.mjs
             echo "::endgroup::"
           done
@@ -94,7 +94,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: scouts-forward-${{ github.run_number }}-${{ matrix.battle_type }}-${{ matrix.shard }}
+          name: scouts-forward-${{ github.run_number }}-${{ matrix.battle_type }}-${{ matrix.offset }}
           path: reports/
           if-no-files-found: error
           retention-days: 30
