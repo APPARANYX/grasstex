@@ -61,6 +61,8 @@ env:
     regroups.entries stallOutcomes.wakes stallOutcomes.repeats timeline.stalledOnsets timeline.stalledSamples
     acquisitions.total acquisitions.reacquired soldierBeliefs.updates soldierBeliefs.seen soldierBeliefs.seenRefreshes soldierBeliefs.told soldierBeliefs.heard soldierBeliefs.expired
     soldierBeliefs.unknownMen soldierBeliefs.activeBySource.seen soldierBeliefs.activeBySource.told soldierBeliefs.activeBySource.heard
+    combatUrgency.sharedContactReactions combatUrgency.sharedContactRepeatBlocks combatUrgency.sharedContactCooldownBlocks combatUrgency.sharedContactSoundBlocks
+    combatUrgency.urgentCoverStarts combatUrgency.urgentCoverArrivals
 
 jobs:
   # ---- one seed: the scripted scenario ------------------------------------------------------------------------------------
