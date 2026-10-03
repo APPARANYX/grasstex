@@ -132,14 +132,12 @@
     RETREAT_DANGER_MARGIN = 5,
     RETREAT_RECOVERY_STRIDE = 0.5;
 
-  /* Scouts Forward is opt-in while this branch is being proved. After the paired benchmark the
-     shipping switch is changed to default-on; either way ?scoutsForward=0/off/false is the stable
-     legacy arm. The slice depends on the per-man belief and tactical-callout channels: without
-     them there is no legitimate way for the leader/main body to learn what a scout saw. */
+  /* Scouts Forward is on by default after PR #196's deterministic checks and 36-pair full-battle
+     benchmark (run 37117876560); ?scoutsForward=0/off/false is the stable legacy arm. The slice
+     depends on the per-man belief and tactical-callout channels: without them there is no legitimate
+     way for the leader/main body to learn what a scout saw. */
   function parseScoutsForward(search) {
-    search = search || '';
-    if (/[?&]scoutsForward=(?:0|off|false)(?:&|#|$)/i.test(search)) return false;
-    return /[?&]scoutsForward=(?:1|on|true)(?:&|#|$)/i.test(search);
+    return !/[?&]scoutsForward=(?:0|off|false)(?:&|#|$)/i.test(search || '');
   }
   var SCOUTS_FORWARD_ON = parseScoutsForward(
     typeof location !== 'undefined' ? location.search || '' : ''
