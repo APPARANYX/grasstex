@@ -2911,10 +2911,20 @@
      forward line (the same forward-majority point `_forwardLine` publishes, taken from the men now,
      since the published line is a tick old and cleared in retreat) by more than FOLLOW_LAG: it is
      carried forward along the advance axis to where the team actually is. */
-  function followTeamForward(sq, men, cur) {
+  function followTeamForward(sq, key, men, cur) {
     var axis = commandForward(sq),
+      right = { x: -axis.z, z: axis.x },
+      desired = desiredAnchor(sq, key),
       t = forwardMajority(men, axis);
     if (!t) return;
+    /* Follow is longitudinal only. If the squad frame turns while a team's lease is still live, first
+       restore that team's prescribed lateral lane in the CURRENT frame; otherwise alpha/bravo can
+       converge even though TEAM_OFFSETS still says they are 16 m apart. The combat-handoff dwell made
+       that latent stale-frame collapse visible in mixed fight/move transitions. */
+    if (desired) {
+      var lateral = (desired.x - cur.anchor.x) * right.x + (desired.z - cur.anchor.z) * right.z;
+      cur.anchor = { x: cur.anchor.x + right.x * lateral, z: cur.anchor.z + right.z * lateral };
+    }
     var lag = t.at - (cur.anchor.x * axis.x + cur.anchor.z * axis.z);
     if (lag <= FOLLOW_LAG) return;
     cur.anchor = { x: cur.anchor.x + axis.x * lag, z: cur.anchor.z + axis.z * lag };
@@ -2965,7 +2975,7 @@
           };
         else cur.until = battle.time + TEAM_LEASE;
       }
-      if (!defensive && !regroup && !urgent) followTeamForward(sq, m, cur);
+      if (!defensive && !regroup && !urgent) followTeamForward(sq, key, m, cur);
       for (var i = 0; i < m.length; i++) {
         var s = m[i],
           d = teamSlot(sq, key, s, i, m.length, cur.anchor, cur.forward),
