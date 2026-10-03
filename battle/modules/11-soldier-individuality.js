@@ -101,7 +101,7 @@
         var progress=clamp((+speedFrac||0)/Math.max(.01,expected),0,1);
         speedFrac=ANIM_FRAC[s._locomotionGait]*progress;
       }
-      return oldAnimate.call(this,s,dt,speedFrac);
+      return oldAnimate.call(this,s,dt,speedFrac,arguments[3]);
     };
   }
 
