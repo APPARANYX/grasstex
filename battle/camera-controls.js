@@ -2,7 +2,7 @@
   'use strict';
   var FLY_SPEED=68,FLY_SPRINT=175,THROTTLE_MIN=.01,THROTTLE_PER_PIXEL=.00288,DELTA_UNIT_PX=[1,16,400];
   var FOLLOW_DEFAULT=10,FOLLOW_MIN=3,FOLLOW_MAX=90,FOLLOW_BETA=1.18,FOLLOW_HEIGHT=1.05,ORBIT_SPEED=.22;
-  var LOOK_X=.0022,LOOK_Y=.0018,PITCH_LIMIT=Math.PI*.46,MAX_HEIGHT=420,GROUND_CLEARANCE=2;
+  var LOOK_X=.0022,LOOK_Y=.0018,PITCH_LIMIT=Math.PI*.46,MAX_HEIGHT=420,GROUND_CLEARANCE=2,CAMERA_FAR=2600;
   var PAD_DEADZONE=.16,PAD_LOOK_RATE=2.35,PAD_PRECISION=.28,PAD_THROTTLE_STEP=1.35;
   var PLAYER_DISTANCE=5.6,PLAYER_AIM_DISTANCE=3.15,PLAYER_LOOK_RATE=2.2,PLAYER_MOVE_AHEAD=6,PLAYER_CAMERA_CLEARANCE=.45;
   var KEY_HINT='Camera: click to look · WASD move · wheel speed · Q/E up/down · Shift sprint · P player · Esc releases';
@@ -81,7 +81,7 @@
     var startPosition=pose&&pose.position?pose.position:initialPosition(target,720,-Math.PI/2,1.02);
     var lookTarget=pose&&pose.target?pose.target:target;
     var camera=new BABYLON.UniversalCamera('cam',startPosition,scene);
-    camera.inputs.clear();camera.minZ=.25;camera.maxZ=2600;camera.setTarget(lookTarget);scene.activeCamera=camera;
+    camera.inputs.clear();camera.minZ=.25;camera.maxZ=CAMERA_FAR;camera.setTarget(lookTarget);scene.activeCamera=camera;
     var yaw=camera.rotation.y,pitch=camera.rotation.x,active=false,throttle=1,keys=new Set(),padButtons={},padId=null,
       player=null,playerCam=null,playerYaw=0,playerPitch=0,mouseAim=false,mouseFire=false,
       playerFaction=queryParams().get('playerFaction')==='ge'?'ge':'us',reticle=null;
@@ -128,7 +128,7 @@
     function ensurePlayerCamera(){
       if(playerCam)return playerCam;
       playerCam=new BABYLON.UniversalCamera('playerCam',camera.position.clone(),scene);
-      playerCam.inputs.clear();playerCam.minZ=.06;playerCam.maxZ=1800;playerCam.fov=.78;return playerCam;
+      /* Keep the full offset sky dome inside the player camera frustum. The old 1800 m far plane\n         sliced its upper cap (radius 1800 m + ~608 m vertical offset), exposing clearColor when looking up. */\n      playerCam.inputs.clear();playerCam.minZ=.06;playerCam.maxZ=CAMERA_FAR;playerCam.fov=.78;return playerCam;
     }
     function cameraDirection(){
       var cp=Math.cos(playerPitch);
@@ -347,7 +347,7 @@
       beta=queryNumber(q,'followBeta',FOLLOW_BETA,.4,1.48),
       alpha=queryNumber(q,'followAlpha',-Math.PI/2,-Math.PI*4,Math.PI*4),
       cam=new BABYLON.ArcRotateCamera('followCam',alpha,beta,distance,target.clone?target.clone():target,scene);
-    cam.minZ=.08;cam.maxZ=2600;cam.lowerRadiusLimit=FOLLOW_MIN;cam.upperRadiusLimit=FOLLOW_MAX;
+    cam.minZ=.08;cam.maxZ=CAMERA_FAR;cam.lowerRadiusLimit=FOLLOW_MIN;cam.upperRadiusLimit=FOLLOW_MAX;
     cam.lowerBetaLimit=.35;cam.upperBetaLimit=1.5;cam.wheelPrecision=18;cam.panningSensibility=0;
     cam.attachControl(canvas,true);scene.activeCamera=cam;
     var man=null,deadAt=null,lastWall=global.performance&&performance.now?performance.now():Date.now(),info={
