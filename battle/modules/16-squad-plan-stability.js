@@ -172,15 +172,14 @@
   };
   var RECON_PHASES = { approach: 1, assault: 1, flank: 1 };
 
-  /* Leaderless intent continuation is deliberately opt-in while this slice is being proved.
-     During the existing six-second succession lease there is no substitute Squad Leader: Meso command
-     evolution freezes and the men may only finish already-published movement, keep valid local cover/
-     buddy behavior, react through Engagement, retreat for survival, and report/request help upward.
-     The new leader resumes ordinary ownership after succession. */
+  /* Leaderless intent continuation is on by default after PR #197's deterministic checks and
+     full-battle paired benchmark (run 37121639099); ?leaderlessIntent=0/off/false is the stable legacy
+     arm. During the existing six-second succession lease there is no substitute Squad Leader: Meso
+     command evolution freezes and the men may only finish already-published movement, keep valid local
+     cover/buddy behavior, react through Engagement, retreat for survival, and report through existing
+     Perception/Callouts channels. The new leader resumes ordinary ownership after succession. */
   function parseLeaderlessIntent(search) {
-    search = search || '';
-    if (/[?&]leaderlessIntent=(?:0|off|false)(?:&|#|$)/i.test(search)) return false;
-    return /[?&]leaderlessIntent=(?:1|on|true)(?:&|#|$)/i.test(search);
+    return !/[?&]leaderlessIntent=(?:0|off|false)(?:&|#|$)/i.test(search || '');
   }
   var LEADERLESS_INTENT_ON = parseLeaderlessIntent(
     typeof location !== 'undefined' ? location.search || '' : ''
