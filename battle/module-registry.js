@@ -4,7 +4,7 @@
 (function(root){
   'use strict';
 
-  var registries={unitTypes:Object.create(null),objectiveTypes:Object.create(null),systems:Object.create(null)};
+  var registries={unitTypes:Object.create(null),objectiveTypes:Object.create(null),systems:Object.create(null),tacticalSymbols:Object.create(null),tacticalOverlayProviders:Object.create(null)};
 
   function assertId(id){
     id=String(id||'').trim();
@@ -24,6 +24,8 @@
   function registerUnitType(id,spec){return register('unitTypes',id,spec);}
   function registerObjectiveType(id,spec){return register('objectiveTypes',id,spec);}
   function registerSystem(id,spec){return register('systems',id,spec);}
+  function registerTacticalSymbol(id,spec){return register('tacticalSymbols',id,spec);}
+  function registerTacticalOverlayProvider(id,spec){return register('tacticalOverlayProviders',id,spec);}
 
   function addUnit(sim,unit,meta){
     if(!sim||!unit)return unit;
@@ -67,17 +69,23 @@
     registerUnitType:registerUnitType,
     registerObjectiveType:registerObjectiveType,
     registerSystem:registerSystem,
+    registerTacticalSymbol:registerTacticalSymbol,
+    registerTacticalOverlayProvider:registerTacticalOverlayProvider,
     getUnitType:function(id){return get('unitTypes',id);},
     getObjectiveType:function(id){return get('objectiveTypes',id);},
     getSystem:function(id){return get('systems',id);},
+    getTacticalSymbol:function(id){return get('tacticalSymbols',id);},
+    getTacticalOverlayProvider:function(id){return get('tacticalOverlayProviders',id);},
     listUnitTypes:function(){return list('unitTypes');},
     listObjectiveTypes:function(){return list('objectiveTypes');},
     listSystems:function(){return list('systems');},
+    listTacticalSymbols:function(){return list('tacticalSymbols');},
+    listTacticalOverlayProviders:function(){return list('tacticalOverlayProviders');},
     addUnit:addUnit,
     unitsFor:unitsFor,
     nextEntityId:nextEntityId,
     spawnUnitType:spawnUnitType,
     runHook:runHook
   };
-  console.log('[MODULE] registry v19 loaded');
+  console.log('[MODULE] registry v20 loaded');
 })(typeof window!=='undefined'?window:globalThis);
