@@ -290,7 +290,7 @@
   function engagementLive(s, battle) {
     var q = s.squad;
     if (!q || battle.winner || q.state === 'retreat') return false;
-    if (q.inContact) return true;
+    if (q.inContact || q.clearContact) return true; // clearing the last contact is still the engagement
     var c = squadContact(s, battle),
       api = SA();
     return !!(c && api.hasFirstHandMemory && api.hasFirstHandMemory(c, battle));
@@ -2365,12 +2365,24 @@
       transition(s, battle, 'orient', reactTime(s, battle) * 0.6, 're-acquired');
       return orient(s, battle);
     }
-    holdPosition(s, battle);
+    /* Clearing (the Squad Leader's `clearContact`, module 16): the contact has gone quiet, so once his own
+       sector hold is over a man who is not suppressing stops holding his cover and follows the squad's order up
+       on the last known position, crouched and looking at it. */
+    var clearing = !!(
+      s.squad &&
+      s.squad.clearContact &&
+      ALERT_LATCH &&
+      e.engaged &&
+      !e.suppressOrder &&
+      battle.time >= e.until
+    );
+    if (clearing) s.state = 'clear';
+    else holdPosition(s, battle);
     /* The squad's shared contact outranks this man's own last sighting: somebody else may have
        eyes on right now. */
-    var aim = knownThreat(s, battle);
+    var aim = clearing ? s.squad.clearContact : knownThreat(s, battle);
     /* Holding the sector he looks at where the enemy was: low, but not so low a wall hides it from him. */
-    var watch = COVER_STANCE && PRONE_ROLES[s.role] && !inCover(s, battle) ? 'prone' : 'crouch';
+    var watch = !clearing && COVER_STANCE && PRONE_ROLES[s.role] && !inCover(s, battle) ? 'prone' : 'crouch';
     if (!holdStance(s, battle))
       commitStance(s, battle, seeingStance(s, battle, watch, aim && { root: { position: aim } }), 2.0);
     s._faceHint = aim && facingError(s, aim) > AIM_CONE ? aim : null;
