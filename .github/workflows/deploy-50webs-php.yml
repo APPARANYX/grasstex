@@ -110,6 +110,25 @@ jobs:
           test "$actual" = "$expected"
           echo "Deploy source pinned to CI-tested commit: $actual"
 
+      # Licensed small-arms clips (licensed third-party audio) are not in this public repo: check out the private
+      # APPARANYX/grasstex-audio at the commit Assets/audio/weapon-audio.lock.json pins, with its read-only
+      # deploy key, and overlay them onto Assets/audio/weapons/ (scripts/fetch_weapon_audio.sh).
+      - name: Pinned weapon audio commit
+        id: weapon-audio
+        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/weapon-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
+
+      - name: Check out licensed weapon audio
+        uses: actions/checkout@v4
+        with:
+          repository: APPARANYX/grasstex-audio
+          ref: ${{ steps.weapon-audio.outputs.commit }}
+          ssh-key: ${{ secrets.PRIVATE_AUDIO_READ_KEY }}
+          path: .runtime/weapon-audio
+          persist-credentials: false
+
+      - name: Overlay licensed weapon audio
+        run: bash scripts/fetch_weapon_audio.sh .runtime/weapon-audio
+
       - name: Resolve and stamp build version
         id: version
         shell: bash
