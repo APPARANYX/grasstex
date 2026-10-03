@@ -1317,6 +1317,23 @@
       });
   }
 
+  /* Fire-cycle clock ownership. All runtime/setup layers outside SquadAI route through these
+     helpers; this file is the sole direct writer of soldier.fireCooldown. set is for owner/setup
+     decisions, extend for interruptions such as reload/draw, and tick for frame countdown. */
+  function setFireCooldown(soldier, seconds) {
+    if (!soldier) return 0;
+    soldier.fireCooldown = Math.max(0, +seconds || 0);
+    return soldier.fireCooldown;
+  }
+  function extendFireCooldown(soldier, seconds) {
+    if (!soldier) return 0;
+    return setFireCooldown(soldier, Math.max(+soldier.fireCooldown || 0, +seconds || 0));
+  }
+  function tickFireCooldown(soldier, dt) {
+    if (!soldier) return 0;
+    return setFireCooldown(soldier, (+soldier.fireCooldown || 0) - Math.max(0, +dt || 0));
+  }
+
   function areaFire(shooter, point, battle) {
     if (!EXT.pass('areaFireGate', shooter, battle, point)) return 0;
     if (shooter.fireCooldown > 0 || !canSuppress(shooter, point, battle)) return 0;
@@ -1335,7 +1352,7 @@
       hit++;
     }
     var rounds = discharge(shooter, battle, burstLength(stats, battle, d), function () {});
-    shooter.fireCooldown = triggerCooldown(stats, rounds, battle, AREA_FIRE_RATE, d);
+    setFireCooldown(shooter, triggerCooldown(stats, rounds, battle, AREA_FIRE_RATE, d));
     battle.onSuppressiveShot && battle.onSuppressiveShot(shooter, point, hit, rounds);
     return hit;
   }
@@ -1650,7 +1667,7 @@
         return B.resolvePlayerRay(soldier, aimPoint, battle, round, delay) ? undefined : false;
       });
     if (!rounds) return false;
-    soldier.fireCooldown = triggerCooldown(stats, rounds, battle, 1, d);
+    setFireCooldown(soldier, triggerCooldown(stats, rounds, battle, 1, d));
     return true;
   }
 
@@ -1876,7 +1893,7 @@
       if (!(soldier.isPlayer && target && !target.dead) && !threatDisposition(target).combatThreat) return false;
       shot(soldier, target, battle, round, delay);
     });
-    soldier.fireCooldown = triggerCooldown(stats, rounds, battle, 1, d);
+    setFireCooldown(soldier, triggerCooldown(stats, rounds, battle, 1, d));
     /* The man on the receiving end is told after the burst, so nothing here can change what the burst did. */
     if (rounds > 0) EXT.run('aimedAt', target, battle, { from: soldier, rounds: rounds, d: d });
     return true;
@@ -1933,6 +1950,9 @@
     retreatGoal: retreatGoal,
     formationFor: formationFor,
     setDestination: setDestination,
+    setFireCooldown: setFireCooldown,
+    extendFireCooldown: extendFireCooldown,
+    tickFireCooldown: tickFireCooldown,
     clearTarget: clearTarget,
     playerAim: playerAim,
     playerFire: playerFire,
