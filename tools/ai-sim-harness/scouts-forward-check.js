@@ -93,6 +93,12 @@ freshTask.serial = 0;
 
 /* Flag/control arm and qualifying terrain. */
 {
+  const defaults = world({ search: '' });
+  assert.equal(defaults.S.scoutsForwardOn(), true, 'Scouts Forward ships default-on');
+  assert.equal(defaults.S.parseScoutsForward(''), true);
+  assert.equal(defaults.S.parseScoutsForward('?scoutsForward=1'), true);
+  assert.equal(defaults.S.parseScoutsForward('?scoutsForward=off'), false);
+
   const off = world({ search: '?scoutsForward=0' });
   assert.equal(off.S.scoutsForwardOn(), false);
   assert.equal(off.S.reconCandidate(off.q, off.b, off.q.objective), null, 'flag-off is a legacy control');
