@@ -2242,7 +2242,7 @@
        body, a push, or a stronger order in the resolver - and movement progress cannot see it
        inside its 3 m near band. Treat it as the unreachable case above: mark this cover failed for
        a while and re-decide from where he stands (a live battle held men in `bound` for minutes). */
-    if (battle.time >= e.until && !(ALERT_LATCH && e.engaged)) {
+    if (battle.time >= e.until) {
       if (root.BattleMovementProgress)
         root.BattleMovementProgress.noteFailure(s, battle, cover, 'bound-overran');
       decide(s, battle, 'bound overran');
@@ -2377,7 +2377,7 @@
       s.state = 'suppress';
       suppress(s, battle, aim);
     }
-    if (battle.time >= e.until) {
+    if (battle.time >= e.until && !(ALERT_LATCH && e.engaged)) {
       e.cover = null;
       e.threatSector = null;
       s._faceHint = null;
