@@ -288,6 +288,13 @@
     var st = battle && battle._callouts;
     return st ? { counts: telemetry(battle), recent: st.log.slice(-60), overflow: st.overflow } : null;
   }
+  function reset(battle) {
+    if (!battle) return;
+    delete battle._callouts;
+    if (root.SquadAI && root.SquadAI.resetPerceptionBattleState)
+      root.SquadAI.resetPerceptionBattleState(battle);
+  }
+
   function noteApplied(battle) {
     state(battle).counts.applied++;
   }
@@ -295,8 +302,16 @@
     state(battle).counts.beliefApplied++;
   }
 
+  if (root.BattleModules && root.BattleModules.registerSystem)
+    root.BattleModules.registerSystem('tactical-callouts', {
+      version: '1.2-restart-clean',
+      onBattleStart: reset,
+      onBattleRestart: reset
+    });
+
   root.BattleCallouts = {
-    version: '1.1-personal-delivery',
+    version: '1.2-restart-clean',
+    reset: reset,
     enabled: function () {
       return ON;
     },
