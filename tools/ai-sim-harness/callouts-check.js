@@ -239,6 +239,34 @@ test('on: calls never chain', () => {
   assert.equal(c.contact, null, 'its neighbour did not hear it second-hand');
 });
 
+test('restart clears callout and Perception battle memory before time returns to zero', () => {
+  const ctx = setup('?soldierBeliefs=1&callouts=1', [
+    { id: 'us-0', faction: 'us', x: 0, z: 0 },
+    { id: 'us-1', faction: 'us', x: 20, z: 0 },
+    { id: 'ge-0', faction: 'ge', x: 0, z: 200 }
+  ]);
+  const [a, b, ge] = ctx.out;
+  ctx.b.time = 50;
+  sees(a, ge.members[0], 50);
+  ctx.S.squadSenses(a, ctx.b);
+  ctx.b._gunfire = [{ x: 0, z: 40, faction: 'ge', unit: ge.members[0], at: 50 }];
+  ctx.b._gunfirePrunedAt = 50;
+  ctx.S.rememberSeen(b.members[0], ge.members[0], ctx.b, true, 'restart-test');
+  assert.ok(ctx.b._callouts, 'callout state existed before restart');
+  assert.ok(ctx.b._gunfire.length, 'gunfire memory existed before restart');
+  assert.ok(b.members[0]._beliefs, 'personal belief existed before restart');
+
+  ctx.C.reset(ctx.b);
+  ctx.b.time = 0;
+  assert.equal(ctx.b._callouts, undefined, 'callout delivery/pending state is gone');
+  assert.equal(ctx.b._gunfire, undefined, 'old gunfire cannot look future-dated after restart');
+  assert.equal(ctx.b._gunfirePrunedAt, undefined);
+  assert.equal(ctx.b._soldierBeliefStats, undefined);
+  assert.equal(a.contact, null);
+  assert.equal(b.contact, null);
+  assert.equal(b.members[0]._beliefs, undefined, 'per-man belief memory starts unknown');
+});
+
 test('on: misses are deterministic, rarer close than far and in quiet than in gunfire; no combat RNG', () => {
   function run(dx, gunfire) {
     const ctx = setup('', [
