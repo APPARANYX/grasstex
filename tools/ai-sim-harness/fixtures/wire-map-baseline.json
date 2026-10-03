@@ -344,32 +344,6 @@
         }
       }
     },
-    "soldier.fireCooldown": {
-      "owner": "squad-ai.js",
-      "writers": {
-        "squad-ai.js": {
-          "as": "owner",
-          "why": "tryFire and areaFire set it after a trigger pull."
-        },
-        "battle-sim.js": {
-          "as": "debt+setup",
-          "why": "Spawn gives the man a random first cooldown. stepMovement then counts the cooldown down while the fire pipeline sets it: one clock, two layers.",
-          "fix": "phase 3a"
-        },
-        "modules/10-infantry-squad.js": {
-          "as": "setup",
-          "why": "spawn-stamp"
-        },
-        "modules/12-soldier-animation-events.js": {
-          "as": "fallback+slot",
-          "why": "Legacy reload cooldown when there is no ammunition module; the beforeSoldier weapon-cycle extension also holds fire while reloading."
-        },
-        "modules/47-sidearm-switch.js": {
-          "as": "slot",
-          "why": "The sidearm draw cost delays the next shot from SquadAI's beforeSoldier slot."
-        }
-      }
-    },
     "soldier.hp": {
       "owner": "modules/14-wound-model.js",
       "writers": {
@@ -559,11 +533,6 @@
         "battle-sim.js": {
           "as": "body",
           "why": "killSoldier clears the dead soldier's target."
-        },
-        "modules/52-combat-posture-visual.js": {
-          "as": "debt",
-          "why": "animateWalk swaps a stand-in target while it animates and restores it in a finally block. Presentation writing a sim field; an aim-point argument would avoid it.",
-          "fix": "phase 5"
         }
       }
     },
