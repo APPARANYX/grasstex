@@ -291,7 +291,7 @@
   function engagementLive(s, battle) {
     var q = s.squad;
     if (!q || battle.winner || q.state === 'retreat') return false;
-    if (q.inContact) return true;
+    if (q.inContact || q.clearContact) return true; // clearing the last contact is still the engagement
     var api = SA(),
       c = api && api.squadContact ? api.squadContact(q, battle) : q.contact;
     return !!(c && api && api.hasFirstHandMemory && api.hasFirstHandMemory(c, battle));
@@ -2384,11 +2384,24 @@
       transition(s, battle, 'orient', reactTime(s, battle) * 0.6, 're-acquired');
       return orient(s, battle);
     }
-    holdPosition(s, battle);
-    /* His freshest personal contact/belief outranks his older Engagement last-seen point. */
-    var aim = knownThreat(s, battle);
-    /* Hold the sector low; in open ground riflemen go prone, while cover uses the visibility-aware crouch. */
-    var watch = COVER_STANCE && PRONE_ROLES[s.role] && !inCover(s, battle) ? 'prone' : 'crouch';
+    /* Clearing (the Squad Leader's `clearContact`, module 16): once his sector hold is over, a man
+       who is not suppressing follows the squad up on the last aggregate contact point. That order is
+       Meso intent; his ordinary aim/threat decisions still come from his personal belief view. */
+    var clearing = !!(
+      s.squad &&
+      s.squad.clearContact &&
+      ALERT_LATCH &&
+      e.engaged &&
+      !e.suppressOrder &&
+      battle.time >= e.until
+    );
+    if (clearing) s.state = 'clear';
+    else holdPosition(s, battle);
+    /* His freshest personal contact/belief outranks his older Engagement last-seen point; the
+       deliberate clearing order is the one exception because it is a Squad Leader destination. */
+    var aim = clearing ? s.squad.clearContact : knownThreat(s, battle);
+    /* Hold the sector low; clearing moves crouched, otherwise open-ground riflemen go prone. */
+    var watch = !clearing && COVER_STANCE && PRONE_ROLES[s.role] && !inCover(s, battle) ? 'prone' : 'crouch';
     if (!holdStance(s, battle))
       commitStance(s, battle, seeingStance(s, battle, watch, aim && { root: { position: aim } }), 2.0);
     s._faceHint = aim && facingError(s, aim) > AIM_CONE ? aim : null;
