@@ -256,9 +256,10 @@ jobs:
         env:
           SEEDS: ${{ github.event.inputs.seeds || (github.event_name == 'push' && '20') || '1' }}
           WINDOWS: ${{ github.event.inputs.windows || (github.event_name == 'push' && 'contact+120') || '' }}
+          MAX_SHARDS: ${{ github.event_name == 'push' && '4' || '20' }}
         run: |
           set -euo pipefail
-          shards="$(node scripts/plan_benchmark_shards.cjs "$SEEDS" 20)"
+          shards="$(node scripts/plan_benchmark_shards.cjs "$SEEDS" "$MAX_SHARDS")"
           echo "matrix={\"include\":${shards}}" >> "$GITHUB_OUTPUT"
           echo "windows=${WINDOWS:-contact+120}" >> "$GITHUB_OUTPUT"
           echo "${SEEDS} seeds over: ${shards}"
