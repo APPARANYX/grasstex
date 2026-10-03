@@ -63,12 +63,16 @@ env:
     soldierBeliefs.unknownMen soldierBeliefs.activeBySource.seen soldierBeliefs.activeBySource.told soldierBeliefs.activeBySource.heard
     combatUrgency.sharedContactReactions combatUrgency.sharedContactRepeatBlocks combatUrgency.sharedContactCooldownBlocks combatUrgency.sharedContactSoundBlocks
     combatUrgency.urgentCoverStarts combatUrgency.urgentCoverArrivals
+    movementGoals.actualChanges movementGoals.requests movementGoals.combatIntentRequests movementGoals.combatIntentCoalesced
+    movementGoals.bySource.engagement.requests movementGoals.bySource.engagement.changes movementGoals.bySource.squad-stability.requests movementGoals.bySource.squad-stability.changes
+    movementGoals.bySource.weapon-cycle.requests movementGoals.bySource.weapon-cycle.changes
+    regroups.regroupRequests regroups.suppressed regroups.stragglerSuppressions regroups.endedContact regroups.endedCohesionRestored regroups.endedNewMission regroups.endedRetreat
 
 jobs:
   # ---- one seed: the scripted scenario ------------------------------------------------------------------------------------
   single:
     name: Scripted scenario, off vs on
-    if: ${{ (github.event.inputs.seeds || (github.event_name == 'push' && '100') || '1') == '1' }}
+    if: ${{ (github.event.inputs.seeds || (github.event_name == 'push' && '20') || '1') == '1' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -234,7 +238,7 @@ jobs:
   # ---- several seeds: a paired run across shards ------------------------------------------------------------------------------
   plan:
     name: Plan the shards
-    if: ${{ (github.event.inputs.seeds || (github.event_name == 'push' && '100') || '1') != '1' }}
+    if: ${{ (github.event.inputs.seeds || (github.event_name == 'push' && '20') || '1') != '1' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -249,7 +253,7 @@ jobs:
       - name: Plan
         id: plan
         env:
-          SEEDS: ${{ github.event.inputs.seeds || (github.event_name == 'push' && '100') || '1' }}
+          SEEDS: ${{ github.event.inputs.seeds || (github.event_name == 'push' && '20') || '1' }}
           WINDOWS: ${{ github.event.inputs.windows || (github.event_name == 'push' && 'contact+120') || '' }}
         run: |
           set -euo pipefail
@@ -354,7 +358,7 @@ jobs:
       viewer_preview: ${{ steps.publish.outputs.viewer_preview }}
     env:
       SEED_PREFIX: ${{ github.event.inputs.seed || (github.event_name == 'push' && 'soldier-beliefs') || 'scripted-seeds' }}
-      SEEDS: ${{ github.event.inputs.seeds || (github.event_name == 'push' && '100') || '1' }}
+      SEEDS: ${{ github.event.inputs.seeds || (github.event_name == 'push' && '20') || '1' }}
       WINDOWS: ${{ needs.plan.outputs.windows }}
       BATTLE_TYPE: ${{ github.event.inputs.battle_type || 'meeting' }}
       QUERY_OFF: ${{ github.event.inputs.query_off || (github.event_name == 'push' && 'soldierBeliefs=0&callouts=1') || '' }}
@@ -473,7 +477,7 @@ jobs:
           VIEWER: ${{ needs.single.outputs.viewer || needs.compare.outputs.viewer }}
           VIEWER_PREVIEW: ${{ needs.single.outputs.viewer_preview || needs.compare.outputs.viewer_preview }}
           SEED: ${{ github.event.inputs.seed }}
-          SEEDS: ${{ github.event.inputs.seeds || (github.event_name == 'push' && '100') || '1' }}
+          SEEDS: ${{ github.event.inputs.seeds || (github.event_name == 'push' && '20') || '1' }}
           QUERY_OFF: ${{ github.event.inputs.query_off || (github.event_name == 'push' && 'soldierBeliefs=0&callouts=1') || '' }}
           QUERY_ON: ${{ github.event.inputs.query_on || (github.event_name == 'push' && 'soldierBeliefs=1&callouts=1') || '' }}
           SOURCE_REF: ${{ github.ref_name }}
