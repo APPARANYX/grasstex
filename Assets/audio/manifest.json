@@ -2,6 +2,7 @@
   "version": 7,
   "base": "Assets/audio/",
   "format": "mp3",
+  "opusTwins": "all",
   "runtime": {
     "spatial": true,
     "defaultMaxDistance": 145,
@@ -4920,7 +4921,7 @@
     }
   },
   "notes": [
-    "Small-arms clips (categories weapon.<model>: shots, burst tails, reload/stoppage/bipod foley and handling) are cut from BOOM Library WWII Firearms, licensed to the project owner under BOOM's single-user EULA, which forbids redistributing them or offering them as a library of individual stems. They live in the private repo APPARANYX/grasstex-audio, pinned by Assets/audio/weapon-audio.lock.json, and CI and the deploy overlay them onto this folder; they are never committed here. The hmg/cannon weapon clips and the vehicle and artillery clips are cut from the Sonniss GDC Game Audio Bundles (Pole Position Production, Super Thump, FLYSOUND, Fascinated Sound, Airborne Sound), pulled with scripts/fetch_sonniss_ww2.py and sliced with scripts/slice_weapon_shots.py against scripts/recipes/ww2-sonniss.json. Royalty-free for commercial use, no attribution required; the bundle licence forbids using the audio to train AI models.",
+    "Small-arms clips (categories weapon.<model>: shots, burst tails, reload/stoppage/bipod foley and handling) are cut from BOOM Library WWII Firearms, licensed to the project owner under BOOM's single-user EULA, which forbids redistributing them or offering them as a library of individual stems. They live in the private repo APPARANYX/grasstex-audio, pinned by Assets/audio/private-audio.lock.json, and CI and the deploy overlay them onto this folder; they are never committed here. The hmg/cannon weapon clips and the vehicle and artillery clips are cut from the Sonniss GDC Game Audio Bundles (Pole Position Production, Super Thump, FLYSOUND, Fascinated Sound, Airborne Sound), pulled with scripts/fetch_sonniss_ww2.py and sliced with scripts/slice_weapon_shots.py against scripts/recipes/ww2-sonniss.json. Royalty-free for commercial use, no attribution required; the bundle licence forbids using the audio to train AI models.",
     "The M1 Garand used to come from Freesound CC0 recordings (scripts/recipes/ww2-freesound.json); its clips are now BOOM Library like the other small arms, and that recipe is kept only as history.",
     "footsteps/ is ported directly from the ww2fps sibling project's ElevenLabs-generated battlefield sound library (Teethree89/ww2fps sound-manifest.json concepts 001/004/009, 6 walk + 6 run takes each) so both projects sound consistent underfoot; converted to this project's mono 48kHz MP3 source format and mastered under MASTERING.md's foley target. Nothing plays these yet - see AGENTS.md Audio for the surface each is meant for and the runtime hookup that still needs to be built."
   ],

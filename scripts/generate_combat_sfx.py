@@ -16,6 +16,7 @@ Usage:
   python3 scripts/generate_combat_sfx.py --force impacts.metal
 """
 import argparse
+import generation_guard
 import json
 import os
 import sys
@@ -44,11 +45,13 @@ def main():
     ap.add_argument("--only", nargs="+", help="groups or group.clip ids")
     ap.add_argument("--force", nargs="+", help="regenerate these groups or group.clip ids")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--max-new", type=int, help="most missing clips one run may generate (default 12, 0 = no cap)")
     args = ap.parse_args()
     if not sfx.API_KEY and not args.dry_run:
         sys.exit("ELEVENLABS_API_KEY is not set. Export it before running this script; never commit it.")
     man = json.load(open(MANIFEST_PATH, encoding="utf-8"))
     jobs = []
+    declared = present = unforced = 0
     for group, cid, c in clips(man):
         if not wanted(args.only, group, cid):
             continue
@@ -57,12 +60,17 @@ def main():
             out_path = os.path.join(OUT_ROOT, rel)
             have = any(os.path.isfile(p) and os.path.getsize(p) > 0
                        for p in (out_path, os.path.join(REPO, "Assets/audio", rel)))
+            declared += 1
+            present += bool(have)
             if have and not forced:
                 continue
+            unforced += not forced
             jobs.append((group, cid, c, rel, out_path))
     if not jobs:
         print("No matching clips need generation.")
         return
+    if not args.dry_run:
+        generation_guard.check("combat SFX", declared, present, unforced, generation_guard.max_new(args.max_new))
     print(f"{'Would generate' if args.dry_run else 'Generating'} {len(jobs)} clip(s) into {OUT_ROOT}")
     ok, failed = 0, []
     for i, (group, cid, c, rel, out_path) in enumerate(jobs, 1):

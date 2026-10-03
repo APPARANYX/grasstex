@@ -128,27 +128,27 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      # Licensed small-arms clips (BOOM Library) are not in this public repo: check out the private
-      # APPARANYX/grasstex-audio at the commit Assets/audio/weapon-audio.lock.json pins, with its read-only
-      # deploy key, and overlay them onto Assets/audio/weapons/ (scripts/fetch_weapon_audio.sh).
-      - name: Pinned weapon audio commit
-        id: weapon-audio
+      # No audio clip is in this public repo: check out the private APPARANYX/grasstex-audio at the
+      # commit Assets/audio/private-audio.lock.json pins, with its read-only deploy key, and overlay it
+      # onto Assets/audio/ (scripts/fetch_private_audio.sh).
+      - name: Pinned private audio commit
+        id: private-audio
         if: steps.audio.outputs.changed == 'true'
-        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/weapon-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
+        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/private-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
 
-      - name: Check out licensed weapon audio
+      - name: Check out the private audio
         if: steps.audio.outputs.changed == 'true'
         uses: actions/checkout@v4
         with:
           repository: APPARANYX/grasstex-audio
-          ref: ${{ steps.weapon-audio.outputs.commit }}
+          ref: ${{ steps.private-audio.outputs.commit }}
           ssh-key: ${{ secrets.BOOM_AUDIO_DEPLOY_KEY }}
-          path: .runtime/weapon-audio
+          path: .runtime/private-audio
           persist-credentials: false
 
-      - name: Overlay licensed weapon audio
+      - name: Overlay the private audio
         if: steps.audio.outputs.changed == 'true'
-        run: bash scripts/fetch_weapon_audio.sh .runtime/weapon-audio
+        run: bash scripts/fetch_private_audio.sh .runtime/private-audio
 
       - name: Voice manifest
         if: steps.audio.outputs.changed == 'true'
@@ -247,24 +247,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Licensed small-arms clips (BOOM Library) are not in this public repo: check out the private
-      # APPARANYX/grasstex-audio at the commit Assets/audio/weapon-audio.lock.json pins, with its read-only
-      # deploy key, and overlay them onto Assets/audio/weapons/ (scripts/fetch_weapon_audio.sh).
-      - name: Pinned weapon audio commit
-        id: weapon-audio
-        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/weapon-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
+      # No audio clip is in this public repo: check out the private APPARANYX/grasstex-audio at the
+      # commit Assets/audio/private-audio.lock.json pins, with its read-only deploy key, and overlay it
+      # onto Assets/audio/ (scripts/fetch_private_audio.sh).
+      - name: Pinned private audio commit
+        id: private-audio
+        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/private-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
 
-      - name: Check out licensed weapon audio
+      - name: Check out the private audio
         uses: actions/checkout@v4
         with:
           repository: APPARANYX/grasstex-audio
-          ref: ${{ steps.weapon-audio.outputs.commit }}
+          ref: ${{ steps.private-audio.outputs.commit }}
           ssh-key: ${{ secrets.BOOM_AUDIO_DEPLOY_KEY }}
-          path: .runtime/weapon-audio
+          path: .runtime/private-audio
           persist-credentials: false
 
-      - name: Overlay licensed weapon audio
-        run: bash scripts/fetch_weapon_audio.sh .runtime/weapon-audio
+      - name: Overlay the private audio
+        run: bash scripts/fetch_private_audio.sh .runtime/private-audio
 
       - name: Every runtime the page loads is covered
         run: python3 scripts/check_deploy_coverage.py

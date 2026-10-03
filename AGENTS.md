@@ -1357,8 +1357,10 @@ factions textured differently, weapon on the hands). Keep weapon source `.zip` p
 
 `Assets/audio/manifest.json` is the runtime contract, and the runtime never calls an API.
 
-- **Route:** fetch into gitignored `.runtime/`, slice, master, register in `manifest.json`, then commit
-  the MP3s only.
+- **Route:** fetch into gitignored `.runtime/`, slice, master, register in `manifest.json`, then push
+  the MP3s (with their `.caf`/`.ogg` Opus twins) to the private `APPARANYX/grasstex-audio` and commit
+  here only the manifest, the lock and the `.mastering-state.tsv` lines. **No audio file is committed
+  to this repo** (`.gitignore` keeps `Assets/audio/**/*.mp3|caf|ogg` out).
   - Fetch: `fetch_sonniss_ww2.py scan|fetch <year>`, which does range requests into bundle zips, or
     `fetch_freesound_cc0.py <ids>`, which refuses anything not CC0.
   - Slice: `slice_weapon_shots.py scripts/recipes/<recipe>.json`. It uses transient detection, or
@@ -1386,14 +1388,21 @@ factions textured differently, weapon on the hands). Keep weapon source `.zip` p
 - **Acoustics:** 1 unit ≈ 1 m, 20·log10(r) spreading, 343 m/s delay. Shout culls at 150 m,
   small arms at 1200 m. Settings live in `Assets/audio/acoustics.json`.
 - **Licensing:** Sonniss GDC bundles (royalty-free, no attribution; **no AI training and no
-  redistribution as a library**), Freesound CC0, and **BOOM Library WWII Firearms** for every small
-  arm (owner's single-user licence: use inside the game only, **never redistributed or offered as
-  individual stems**). The BOOM clips therefore live in the **private** repo `APPARANYX/grasstex-audio`,
-  never here: `.gitignore` keeps `Assets/audio/weapons/*/` out, CI, the voice/combat-SFX generators and the production deploy check out
-  the commit pinned in `Assets/audio/weapon-audio.lock.json` with the read-only deploy key in the
-  `BOOM_AUDIO_DEPLOY_KEY` secret and overlay it (`scripts/fetch_weapon_audio.sh`). A fork's PR has no
-  secret, so its audio and deploy-plan jobs fail. Changing clips: push to grasstex-audio, bump the lock
-  and the clips' `.mastering-state.tsv` lines here. Older provenance: `git show 1a5b0cf:Assets/audio/WW2_SOURCES.md`.
+  redistribution as a library**), Freesound CC0, ElevenLabs generations, and **BOOM Library WWII
+  Firearms** for every small arm (owner's single-user licence: use inside the game only, **never
+  redistributed or offered as individual stems**). So **every clip lives in the private repo
+  `APPARANYX/grasstex-audio`**, at the same path it has under `Assets/audio/`, each MP3 with a `.caf`
+  and an `.ogg` Opus twin. CI, the generators and the production deploy check out the commit pinned in
+  `Assets/audio/private-audio.lock.json` with the read-only deploy key in the `BOOM_AUDIO_DEPLOY_KEY`
+  secret and overlay it (`scripts/fetch_private_audio.sh`); the voice and combat-SFX generators push
+  new clips there with the write key in `AUDIO_PRIVATE_WRITE_KEY` and bump the lock
+  (`scripts/publish_private_audio.sh`). The overlay runs before generation, and both generators refuse before
+  any ElevenLabs call when no declared clip is on disk or more than 12 are missing (`scripts/generation_guard.py`;
+  `--max-new N` / the workflows' `max_new` input for an intended bulk run, `--force` to regenerate on purpose). A fork's PR has no secrets, so its audio and deploy-plan jobs
+  fail. Changing clips by hand: push to grasstex-audio (MP3 plus both twins), bump the lock and the
+  MP3s' `.mastering-state.tsv` lines here. Browsers load the twin their probe decodes (module
+  `00-audio-format.js`, `"opusTwins": "all"` in the manifest), MP3 otherwise; the deploy uploads all
+  three and builds the voice pitch variants' twins too. Older provenance: `git show 1a5b0cf:Assets/audio/WW2_SOURCES.md`.
 
 **Weapon SFX (`Assets/audio/weapon-clip-manifest.json`, shipped from BOOM Library).** Replaced
 `manifest.json`'s Sonniss-derived `categories.weapons` small-arms pools and `weaponFoley`, which were
@@ -1435,7 +1444,7 @@ flybys (`crack`, `whiz`), ricochets, impacts by surface (dirt, masonry, wood, me
 `down`), 58 ElevenLabs Sound Effects clips under `Assets/audio/combat/<group>/`, each with its prompt in the manifest, mirrored
 into `manifest.json` categories `flyby`, `ricochet`, `impacts`, `flesh` and `pain` (`check_audio_manifest.py` holds the two equal).
 `.github/workflows/combat-sfx-generate.yml`, started by hand only, generates the missing ones on a branch (never main; repo secret `ELEVEN_LABS_API`;
-`scripts/generate_combat_sfx.py`), masters them (`combat/*` targets: -22 dBFS, pain -18) and commits them; a rerun generates only
+`scripts/generate_combat_sfx.py`), masters them (`combat/*` targets: -22 dBFS, pain -18), pushes them to grasstex-audio and commits the lock; a rerun generates only
 what is missing. `battle/modules/15-combat-audio.js` plays them (see its harness row): one sound per instance, capped per group.
 
 **Audio tracker: CI and the deploy skip audio work when no audio changed.** `scripts/audio_tracker.py` lists the audio inputs

@@ -25,8 +25,12 @@ state/lab-key.php
 closeups/
 decal-sheets.png
 
-# Licensed small-arms clips (BOOM Library) live in the private repo APPARANYX/grasstex-audio and are
-# overlaid here by scripts/fetch_weapon_audio.sh in CI and the deploy. Never commit them to this
-# public repo: the licence forbids redistributing them. The pin is Assets/audio/weapon-audio.lock.json.
-/Assets/audio/weapons/*/
-/.runtime/weapon-audio/
+# Every audio clip (MP3 and its Opus twins, .caf and .ogg) lives in the private repo APPARANYX/grasstex-audio
+# and is overlaid here by scripts/fetch_private_audio.sh in CI, the deploy and the generators. Never
+# commit audio to this public repo: the BOOM Library weapon clips may not be redistributed. The pin
+# is Assets/audio/private-audio.lock.json.
+/Assets/audio/**/*.mp3
+/Assets/audio/**/*.caf
+/Assets/audio/**/*.ogg
+/.runtime/private-audio/
+/.runtime/private-audio-publish/
