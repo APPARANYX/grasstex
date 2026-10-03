@@ -614,10 +614,12 @@ the missing layer: what the fight has done to him. It is now `soldier.mind` (`mo
   hesitation before an ordered bound, a brief freeze after a comrade falls beside him. It is the source of
   `readiness.suppression` in the fireteam contract above and rolls up per squad as `squad.mind` (status upward;
   the Squad Leader does not read it yet).
-- **beliefs** (not yet): today a squad shares one `squad.contact`. The outline's "shared, time-stamped facts"
-  and "unknown is a valid value" need each man to hold what he saw, was told or heard, with age and confidence.
-- **buddy and callouts** (not yet): cooperation as messages that change the listener's state, after a delay and
-  sometimes not at all; pairs that cover and move for each other.
+- **beliefs** (shipped, #190): Perception owns each man's seen/told/heard facts with source, recorded
+  location/sector, observed/reported/received time, age, confidence and expiry. Unknown is valid; `squad.contact`
+  remains the aggregate upward picture while Engagement and its drills read the man's `SquadAI.soldierContact`.
+- **buddy and callouts** (shipped, #187/#170): stable Squad Leader-owned buddy pairs can narrow an already
+  authorized bound so one firing buddy covers the other, and deterministic callouts change only listeners that
+  actually receive them after a delay (or miss them). Voice remains presentation-only.
 
 The boundary above holds for all of it: the mind supplies numbers, Engagement decides what they cost, and no
 layer writes another's state (the mind writes only `mind`; Engagement stays the only stance writer).
