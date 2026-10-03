@@ -54,6 +54,8 @@ env:
     casualties usKills geKills fire.total fire.hits retreatSamples movementResolver.changes
     movementStalls.length routeStalls.length targetlessStalls.length vacantObjectiveStalls.length loopAlerts.length writerConflicts
     regroups.entries stallOutcomes.wakes stallOutcomes.repeats timeline.stalledOnsets timeline.stalledSamples
+    acquisitions.total acquisitions.reacquired soldierBeliefs.updates soldierBeliefs.seen soldierBeliefs.told soldierBeliefs.heard soldierBeliefs.expired
+    soldierBeliefs.unknownMen soldierBeliefs.activeBySource.seen soldierBeliefs.activeBySource.told soldierBeliefs.activeBySource.heard
 
 jobs:
   # ---- one seed: the scripted scenario ------------------------------------------------------------------------------------
