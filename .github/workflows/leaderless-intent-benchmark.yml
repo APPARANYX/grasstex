@@ -1,0 +1,204 @@
+name: Leaderless Intent Paired Benchmark
+
+# Temporary branch-only full-battle evidence workflow for PR #197. It self-starts when this file is
+# pushed because the GitHub connector cannot issue workflow_dispatch. Remove after final evidence is captured.
+on:
+  push:
+    branches:
+      - 'work/leaderless-intent-continuation'
+    paths:
+      - '.github/workflows/leaderless-intent-benchmark.yml'
+
+permissions:
+  contents: read
+
+env:
+  BENCH_COUNTERS: >-
+    casualties usKills geKills fire.total fire.hits
+    simulatedSeconds firstContactSeconds firstFireSeconds acquisitions.total acquisitions.reacquired acquisitions.firstAt
+    firstObjectiveProgressSeconds firstCaptureSeconds captures objectivesNeverOwned objectivesNeverContested maxNoObjectiveProgressSeconds
+    movementResolver.changes movementStalls.length routeStalls.length targetlessStalls.length vacantObjectiveStalls.length
+    loopAlerts.length writerConflicts strategicWriterConflicts regroups.entries regroupSamples overCohesionSamples longRegroups.length
+    stallOutcomes.wakes stallOutcomes.repeats timeline.stalledOnsets timeline.stalledSamples
+    callouts.sent callouts.heard callouts.missed callouts.beliefApplied callouts.sameSquadHeard
+    soldierBeliefs.updates soldierBeliefs.seen soldierBeliefs.told soldierBeliefs.heard soldierBeliefs.expired
+    leaderless.episodes leaderless.handbacks leaderless.destroyed leaderless.helpRequests leaderless.seconds leaderless.activeAtEnd
+    leaderless.actions.immediate-contact leaderless.actions.finish-committed-move leaderless.actions.hold-and-fight
+    leaderless.actions.hold-intent leaderless.actions.retreat
+
+jobs:
+  shards:
+    name: ${{ matrix.battle_type }} · shard ${{ matrix.offset }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        battle_type: [meeting, us-defend, ge-defend]
+        offset: [0, 3, 6, 9]
+    env:
+      BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.sha }}
+      BATTLE_BENCHMARK_COUNT: '3'
+      BATTLE_BENCHMARK_FIRST: ${{ matrix.offset }}
+      BATTLE_BENCHMARK_TIME_LIMIT: '600'
+      BATTLE_BENCHMARK_STEP: '0.15'
+      BATTLE_BENCHMARK_SEED: leaderless-intent-${{ matrix.battle_type }}
+      BATTLE_TYPE: ${{ matrix.battle_type }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start local battle server
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/battle-www
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck" >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+
+      - name: Run paired arms
+        run: |
+          set -euo pipefail
+          case "$BATTLE_TYPE" in
+            meeting) defender_query='' ;;
+            us-defend) defender_query='defender=us' ;;
+            ge-defend) defender_query='defender=ge' ;;
+            *) exit 2 ;;
+          esac
+          for arm in off on; do
+            if [ "$arm" = off ]; then feature='leaderlessIntent=0'; else feature='leaderlessIntent=1'; fi
+            query="$feature"
+            if [ -n "$defender_query" ]; then query="${defender_query}&${query}"; fi
+            export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?${query}"
+            export BATTLE_BENCHMARK_OUTPUT="reports/$arm"
+            echo "::group::$BATTLE_TYPE shard ${{ matrix.offset }} arm $arm"
+            node scripts/run_battle_benchmark.mjs
+            echo "::endgroup::"
+          done
+
+      - name: Upload shard reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaderless-intent-${{ github.run_number }}-${{ matrix.battle_type }}-${{ matrix.offset }}
+          path: reports/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Show server log on failure
+        if: failure()
+        run: tail -n 300 /tmp/battle-php.log || true
+
+  compare:
+    name: Compare 36 paired seeds
+    needs: shards
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/compare_benchmark_arms.cjs
+            scripts/format_benchmark_compare.cjs
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: leaderless-intent-${{ github.run_number }}-*
+          path: shard-reports
+
+      - name: Pool and compare
+        run: |
+          set -euo pipefail
+          test "${{ needs.shards.result }}" = success
+          mkdir -p reports
+          off="$(find shard-reports -path '*/off/battle-benchmark.json' | sort | paste -sd, -)"
+          on="$(find shard-reports -path '*/on/battle-benchmark.json' | sort | paste -sd, -)"
+          test -n "$off"
+          test -n "$on"
+          args=()
+          for c in $BENCH_COUNTERS; do args+=(--count "$c"); done
+          set +e
+          node scripts/compare_benchmark_arms.cjs "${args[@]}" "$off" "$on" > reports/compare.json
+          rc=$?
+          set -e
+          node scripts/format_benchmark_compare.cjs reports/compare.json | tee reports/summary.md
+          echo "$rc" > reports/compare.rc
+          if [ "$rc" != 0 ]; then exit "$rc"; fi
+
+      - name: Upload comparison
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaderless-intent-${{ github.run_number }}-comparison
+          path: reports/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f reports/summary.md ]; then cat reports/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+  probe:
+    name: Observe-only leaderless probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start local battle server
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/battle-www
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck" >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+
+      - name: Run leaderless intent probe against feature-on battles
+        env:
+          PROBE: leaderless-intent
+          PROBE_CONTROL: '1'
+          PROBE_SECONDS: '600'
+          PROBE_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php?leaderlessIntent=1
+          PROBE_OUTPUT: reports/leaderless-intent-probe.json
+        run: |
+          mkdir -p reports
+          node scripts/run_probe.cjs | tee reports/leaderless-intent-probe.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: leaderless-intent-${{ github.run_number }}-probe
+          path: reports/
+          retention-days: 30
