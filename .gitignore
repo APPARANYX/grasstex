@@ -27,7 +27,7 @@ decal-sheets.png
 
 # Every audio clip (MP3 and its Opus twins, .caf and .ogg) lives in the private repo APPARANYX/grasstex-audio
 # and is overlaid here by scripts/fetch_private_audio.sh in CI, the deploy and the generators. Never
-# commit audio to this public repo: the licensed third-party audio weapon clips may not be redistributed. The pin
+# commit audio to this public repo: the licensed private weapon clips may not be redistributed. The pin
 # is Assets/audio/private-audio.lock.json.
 /Assets/audio/**/*.mp3
 /Assets/audio/**/*.caf
