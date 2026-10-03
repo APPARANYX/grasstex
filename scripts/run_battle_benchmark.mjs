@@ -405,12 +405,15 @@ try {
         /* Squad Leader regroups (16-squad-plan-stability.js cohesion counters): how often squads stop
            to re-form, and how each regroup ended. Counters are observe-only. */
         const regroupSummary = () => {
-          const out = { entries: 0, timeouts: 0, contactExits: 0, byFaction: {}, byEnd: {}, recoveries: 0, activeAtEnd: 0, longestActiveSeconds: 0 };
+          const out = { entries: 0, timeouts: 0, contactExits: 0, regroupRequests: 0, suppressed: 0, stragglerSuppressions: 0, byFaction: {}, byEnd: {}, endedContact: 0, endedCohesionRestored: 0, endedNewMission: 0, endedRetreat: 0, recoveries: 0, activeAtEnd: 0, longestActiveSeconds: 0 };
           for (const f of ['us', 'ge']) {
             const side = out.byFaction[f] = { entries: 0, timeouts: 0, contactExits: 0 };
             for (const sq of sim.factions?.[f]?.squads || []) {
               const h = sq?._regroupHysteresis; if (!h) continue;
               for (const [reason, count] of Object.entries(h.byEnd || {})) out.byEnd[reason] = (out.byEnd[reason] || 0) + count;
+              out.regroupRequests += +h.regroupRequests || 0;
+              out.suppressed += +h.suppressed || 0;
+              out.stragglerSuppressions += +h.stragglerSuppressions || 0;
               out.recoveries += +h.recoveries || 0;
               const lease = root.BattleLeases?.get(sq, 'regroup');
               if (lease) { out.activeAtEnd++; out.longestActiveSeconds = Math.max(out.longestActiveSeconds, sim.time - lease.since); }
@@ -418,6 +421,10 @@ try {
             }
             out.entries += side.entries; out.timeouts += side.timeouts; out.contactExits += side.contactExits;
           }
+          out.endedContact = +(out.byEnd.contact || 0);
+          out.endedCohesionRestored = +(out.byEnd['cohesion restored'] || 0);
+          out.endedNewMission = +(out.byEnd['new mission'] || 0);
+          out.endedRetreat = +(out.byEnd.retreat || 0);
           return out;
         };
         const record = {
@@ -438,7 +445,7 @@ try {
           stablePlanSamples: diag.stablePlanSamples, blockedFireteamSamples: diag.blockedFireteamSamples, regroupSamples: diag.regroupSamples, supportHoldSamples: diag.supportHoldSamples, retreatSamples: diag.retreatSamples,
           orderedMoveSamples: diag.orderedMoveSamples, idleOrderedSamples: diag.idleOrderedSamples, phaseSamples: diag.phaseSamples, engagementStateSamples: diag.engagementStateSamples,
           writerConflicts: conflicts.length, strategicWriterConflicts: strategicConflicts, writerConflictDetails: conflicts.slice(0, 20), loopAlerts: loops.slice(0, 20), loopKinds,
-          movementResolver: movementResolverSummary(), losBlockedFireAttempts: losBlockedAttempts(), crestBlockedFireAttempts: crestBlockedAttempts(), fire: activeCombat,
+          movementResolver: movementResolverSummary(), movementGoals: sim._movementGoalStats || null, losBlockedFireAttempts: losBlockedAttempts(), crestBlockedFireAttempts: crestBlockedAttempts(), fire: activeCombat,
           acquisitions: acquisitionSummary(activeAcquisition),
           reconstitution: reconstitutionSummary(), regroups: regroupSummary(), stallOutcomes: stallSummary(), coordinationHealth: coordinationHealth(), combatUrgency: root.BattleCombatUrgency?.summary?.(sim) || null, objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates,
           timeline: root.BattleAITimeline?.snapshot?.(sim) || null,
