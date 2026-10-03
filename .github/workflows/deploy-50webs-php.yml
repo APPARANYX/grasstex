@@ -111,7 +111,7 @@ jobs:
           echo "Deploy source pinned to CI-tested commit: $actual"
 
       # No audio clip is in this public repo: check out the private APPARANYX/grasstex-audio at the
-      # commit Assets/audio/private-audio.lock.json pins, with its read-only deploy key, and overlay it
+      # commit Assets/audio/private-audio.lock.json pins, with a private-audio deploy key, and overlay it
       # onto Assets/audio/ (scripts/fetch_private_audio.sh).
       - name: Pinned private audio commit
         id: private-audio
@@ -122,7 +122,7 @@ jobs:
         with:
           repository: APPARANYX/grasstex-audio
           ref: ${{ steps.private-audio.outputs.commit }}
-          ssh-key: ${{ secrets.PRIVATE_AUDIO_READ_KEY }}
+          ssh-key: ${{ secrets.PRIVATE_AUDIO_READ_KEY || secrets.AUDIO_PRIVATE_WRITE_KEY }}
           path: .runtime/private-audio
           persist-credentials: false
 
