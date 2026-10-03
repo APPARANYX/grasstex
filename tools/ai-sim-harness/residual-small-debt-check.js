@@ -24,7 +24,7 @@ test('fireCooldown has one direct runtime writer and the owner API preserves clo
   assert.equal(s.fireCooldown,0);
   assert.equal(r.SquadAI.extendFireCooldown(s,.7),.7);
   assert.equal(r.SquadAI.extendFireCooldown(s,.2),.7,'extend never shortens an interruption');
-  assert.equal(r.SquadAI.tickFireCooldown(s,.25),.45);
+  assert.ok(Math.abs(r.SquadAI.tickFireCooldown(s,.25)-.45)<1e-12);
   assert.equal(r.SquadAI.tickFireCooldown(s,9),0);
 });
 
