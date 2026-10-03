@@ -64,6 +64,24 @@ lists every tunable number by layer; it is Phase 5's inventory, not a guide.
 | Learning/telemetry backend | `battle_learning.php`, `battle_policy.php`, `battle_log*.php`, `battle_metrics.php` ("What We Learned" page) | Active. The page no longer reads or writes the policy and learning endpoints: the genome is stashed (below). |
 | FBX Motion Lab | `labs/fbx-animation-lab.html` (calibration workbench), in-page **Motion Lab** button | Previews clips; measures hand/weapon contacts and saves per-model sidecars the game loads. |
 
+### Tactical overlay extension point
+
+The tactical status overlay is data-driven. `battle/module-registry.js` owns the
+`tacticalSymbols` and `tacticalOverlayProviders` registries; the starter catalog is
+`battle/modules/40-tactical-symbol-catalog.js`, and `41-squad-status-overlay.js` is only the renderer/read model.
+
+- For another squad/team type, set `tacticalSymbol` on the squad or declare `tacticalSymbol` on its registered
+  unit type. Add/replace its SVG primitives through `BattleModules.registerTacticalSymbol(id, spec)`; do not
+  hard-code another glyph into module 41.
+- For non-squad formations such as tanks, artillery batteries or aircraft, register a
+  `tacticalOverlayProvider`. Its `entities(sim,faction)` may return the native objects and an optional
+  `view(entity,sim)` maps each one to the small overlay contract: `faction`, position/root, `tacticalSymbol`,
+  `overlayStatus`, optional `overlayDestination`, `overlayObjective`, `overlayMoving`, and `overlayInContact`.
+  This keeps vehicle/air gameplay ownership out of the UI.
+- Historical provenance belongs on each symbol spec. Only a spec explicitly marked
+  `verifiedHistorical:true` should be presented as period-authentic; readable placeholders stay marked false
+  until researched/replaced.
+
 In the page: a load overlay (`BattleLoading`, in `battle_sim.html`) shows each boot phase (runtime
 scripts, scenario, terrain, soldiers/weapons/clips, cover, navigation and squads); the FBX backend
 reports per-file progress to it. **Start Battle** unpauses and unlocks audio (iOS needs the gesture).
