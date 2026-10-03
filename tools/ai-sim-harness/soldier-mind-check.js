@@ -577,7 +577,10 @@ function battleFingerprint(mode, seed) {
      (READERS, lever null) that is false with `?mind=0` and live under `observe` by design, so with fire control
      on the two modes are not the same battle whenever a man is shot at during a hold (seen once men stayed in
      the fight for the whole engagement). This test is about the stress levers. */
-  const r = H.bootstrap({ search: '?fireControl=0' });
+  /* This test predates per-man beliefs and proves only that Soldier Mind's observe mode does not
+     activate its own stress levers. Keep the newer behavioral systems on their legacy controls here rather
+     than forcing production tactics to reproduce the old battle. */
+  const r = H.bootstrap({ search: '?fireControl=0&soldierBeliefs=0' });
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
   r.BattleSoldierMind.configure(mode);
   const b = H.makeBattle(r, { seed });
