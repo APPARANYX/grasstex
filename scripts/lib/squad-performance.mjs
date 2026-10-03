@@ -121,7 +121,7 @@ export function scoreSquadPerformance(raw={}){
 export function summarizeSquadPerformance(rows=[]){
   const valid=rows.filter(r=>Number.isFinite(+r?.overall));
   const values=valid.map(r=>+r.overall);
-  const dim=name=>valid.map(r=>+r[name]).filter(Number.isFinite);
+  const dim=name=>valid.map(r=>r[name]).filter(Number.isFinite).map(Number);
   const byRole={};
   for(const row of valid)(byRole[row.role]||(byRole[row.role]=[])).push(+row.overall);
   const roleSummary={};
