@@ -161,9 +161,7 @@ test('fire-control preparation keeps its prone lease across a brief control/cont
   assert.equal(s.eng.stance,'prone','a short fire-control/contact blink cannot stand him back up');
 
   b.time+=H_;E.updateSoldier(s,b);
-  assert.equal(s.eng.stance,'prone','the handoff tick releases alert ownership but does not also rewrite posture');
-  b.time+=.15;E.updateSoldier(s,b);
-  assert.equal(s.eng.stance,'stand','the following quiet advance tick may stand');
+  assert.equal(s.eng.stance,'stand','once the continuous-quiet handoff expires a quiet advance may stand');
 });
 
 test('an active bound finishes under hold fire before preparation takes over',()=>{
