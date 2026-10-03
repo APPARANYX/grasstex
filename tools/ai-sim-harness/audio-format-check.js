@@ -18,8 +18,11 @@ const tests = [];
 function test(name, fn) {
   tests.push([name, fn]);
 }
+/* The weapon-only rule is tested on the manifest without its opusTwins flag. */
+const WEAPON_ONLY = Object.assign({}, MANIFEST);
+delete WEAPON_ONLY.opusTwins;
 function load(search, base) {
-  const r = { BATTLE_AUDIO_MANIFEST: MANIFEST, BATTLE_AUDIO_BASE: base || '/grasstex/Assets/audio/' };
+  const r = { BATTLE_AUDIO_MANIFEST: WEAPON_ONLY, BATTLE_AUDIO_BASE: base || '/grasstex/Assets/audio/' };
   if (search != null) r.location = { search };
   new Function('window', 'globalThis', 'location', SRC)(r, r, r.location);
   return r.BattleAudioFormat;
@@ -102,6 +105,9 @@ test('Safari (decodes both) stops at CAF; a browser that decodes neither stays M
   const n = load();
   assert.equal(await n.probe({ fetch: okFetch(), Ctx: decoder() }), 'mp3');
   assert.equal(n.url(fire), fire);
+});
+test('the shipped manifest declares opusTwins "all" (every clip is in grasstex-audio with both twins)', () => {
+  assert.equal(MANIFEST.opusTwins, 'all');
 });
 test('opusTwins "all" swaps every MP3 the page loads, not only the weapon clips', async () => {
   const r = { BATTLE_AUDIO_MANIFEST: Object.assign({}, MANIFEST, { opusTwins: 'all' }), BATTLE_AUDIO_BASE: '/a/' };

@@ -69,7 +69,7 @@
       try{
         var scene=soldier.root.getScene(),base=root.BATTLE_AUDIO_BASE||'https://test.ivandpopov.com/grasstex/Assets/audio/';
         console.log('[VOICE] request '+base+file);
-        entry.sound=new BABYLON.Sound('voice-'+file,base+file,scene,function(){entry.ready=true;console.log('[VOICE] ready '+file);},{spatialSound:true,distanceModel:'linear',maxDistance:150,rolloffFactor:.7,volume:.28,autoplay:false});
+        entry.sound=new BABYLON.Sound('voice-'+file,root.BattleAudioFormat?root.BattleAudioFormat.url(base+file):base+file,scene,function(){entry.ready=true;console.log('[VOICE] ready '+file);},{spatialSound:true,distanceModel:'linear',maxDistance:150,rolloffFactor:.7,volume:.28,autoplay:false});
       }catch(e){failed[file]=true;delete cache[file];console.error('[VOICE] create failed '+file+': '+(e&&e.message||e));return null;}
       return entry;
     }

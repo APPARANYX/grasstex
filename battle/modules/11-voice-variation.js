@@ -74,7 +74,7 @@
     if(social){lastSocialGlobal=now;socialSquadLast[squadId]=now;}else{lastTacticalGlobal=now;tacticalSquadLast[squadId]=now;}
     var handle=handleFor(soldier,type,file,opts),req={soldier:soldier,type:type,opts:opts,handle:handle,lane:lane},entry=cache[file];
     if(entry){if(entry.ready)return playAt(entry,req);entry.pending.push(req);console.log('[VOICE] waiting '+file);return handle;}
-    var base=window.BATTLE_AUDIO_BASE||'https://test.ivandpopov.com/grasstex/Assets/audio/',url=base+file;console.log('[VOICE] request '+url+' profile='+(profile.id||'neutral'));
+    var base=window.BATTLE_AUDIO_BASE||'https://test.ivandpopov.com/grasstex/Assets/audio/',url=(window.BattleAudioFormat?window.BattleAudioFormat.url(base+file):base+file);console.log('[VOICE] request '+url+' profile='+(profile.id||'neutral'));
     entry=cache[file]={file:file,baseFile:baseFile,profileId:profile.id||'neutral',sound:null,ready:false,pending:[req]};
     try{var scene=soldier.root.getScene();entry.sound=new BABYLON.Sound('voice-'+file,url,scene,function(){entry.ready=true;console.log('[VOICE] ready '+file);var pending=entry.pending.splice(0);for(var i=0;i<pending.length;i++)playAt(entry,pending[i]);},{spatialSound:true,distanceModel:'linear',maxDistance:(m.runtime&&m.runtime.voiceMaxDistance)||95,rolloffFactor:1.7,volume:.24,autoplay:false});}
     catch(e){failed[file]=true;delete cache[file];finish(req);console.error('[VOICE] create failed '+file+': '+(e&&e.message||e));return false;}

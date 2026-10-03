@@ -1,0 +1,6 @@
+{
+  "repo": "APPARANYX/grasstex-audio",
+  "commit": "fb4a46475ed997327757eb5ee4b92d98e5bcb424",
+  "secret": "PRIVATE_AUDIO_READ_KEY",
+  "note": "Every audio clip (MP3 and its Opus-in-CAF twin) lives in this private repo, never in grasstex: the licensed third-party audio weapon clips may not be redistributed, and the rest moved with them. CI, the deploy and the audio generators check this commit out with the read-only deploy key in the named Actions secret and overlay it onto Assets/audio/ (scripts/fetch_private_audio.sh). The generators push new clips there with AUDIO_PRIVATE_WRITE_KEY and bump this commit (scripts/publish_private_audio.sh). Mastering state for the MP3s stays in .mastering-state.tsv here."
+}

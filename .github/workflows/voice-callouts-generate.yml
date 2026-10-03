@@ -13,6 +13,11 @@ name: Generate voice callouts
 on:
   workflow_dispatch:
     inputs:
+      max_new:
+        description: "Most missing clips one run may generate (default 12; 0 = no cap). Raise only for an intended bulk run."
+        required: false
+        default: ""
+        type: string
       faction:
         description: "Only one side (us or ge); blank for both"
         required: false
@@ -52,9 +57,33 @@ jobs:
         if: steps.key.outputs.ok == 'true'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
 
+      # Every clip must be present before generating, or the generator sees the library as missing and
+      # regenerates it (it once re-ran all 58 combat clips); and before mastering: normalize_audio.sh drops the .mastering-state.tsv
+      # line of every file it cannot find, and check_audio_manifest.py needs them. Overlaid from the
+      # private APPARANYX/grasstex-audio (gitignored, so `git add` never commits them).
+      - name: Pinned private audio commit
+        id: private-audio
+        if: steps.key.outputs.ok == 'true'
+        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/private-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the private audio
+        if: steps.key.outputs.ok == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: APPARANYX/grasstex-audio
+          ref: ${{ steps.private-audio.outputs.commit }}
+          ssh-key: ${{ secrets.PRIVATE_AUDIO_READ_KEY }}
+          path: .runtime/private-audio
+          persist-credentials: false
+
+      - name: Overlay the private audio
+        if: steps.key.outputs.ok == 'true'
+        run: bash scripts/fetch_private_audio.sh .runtime/private-audio
+
       - name: Generate the missing lines
         if: steps.key.outputs.ok == 'true'
         env:
+          GENERATE_MAX_NEW: ${{ inputs.max_new }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVEN_LABS_API || secrets.ELEVENLABS_API_KEY }}
           FACTION: ${{ inputs.faction }}
         run: |
@@ -66,28 +95,6 @@ jobs:
           fi
           tail -n 3 "$RUNNER_TEMP/generate.log" >> "$GITHUB_STEP_SUMMARY"
 
-      # The licensed small-arms clips must be present before mastering: normalize_audio.sh drops the
-      # .mastering-state.tsv line of every file it cannot find, and check_audio_manifest.py needs them.
-      # Overlaid from the private APPARANYX/grasstex-audio (gitignored, so `git add` never commits them).
-      - name: Pinned weapon audio commit
-        id: weapon-audio
-        if: steps.key.outputs.ok == 'true'
-        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/weapon-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
-
-      - name: Check out licensed weapon audio
-        if: steps.key.outputs.ok == 'true'
-        uses: actions/checkout@v4
-        with:
-          repository: APPARANYX/grasstex-audio
-          ref: ${{ steps.weapon-audio.outputs.commit }}
-          ssh-key: ${{ secrets.PRIVATE_AUDIO_READ_KEY }}
-          path: .runtime/weapon-audio
-          persist-credentials: false
-
-      - name: Overlay licensed weapon audio
-        if: steps.key.outputs.ok == 'true'
-        run: bash scripts/fetch_weapon_audio.sh .runtime/weapon-audio
-
       - name: Master and check
         if: steps.key.outputs.ok == 'true'
         run: |
@@ -95,6 +102,26 @@ jobs:
           bash scripts/normalize_audio.sh Assets/audio
           python3 scripts/validate_voice_manifest.py
           python3 scripts/check_audio_manifest.py
+
+      # New clips go to the private APPARANYX/grasstex-audio (never this public repo): push them there with
+      # the write deploy key and pin the new commit in Assets/audio/private-audio.lock.json, which the next
+      # step commits here with the mastering state.
+      - name: Check out the private audio for publishing
+        if: steps.key.outputs.ok == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: APPARANYX/grasstex-audio
+          ref: main
+          ssh-key: ${{ secrets.AUDIO_PRIVATE_WRITE_KEY }}
+          path: .runtime/private-audio-publish
+
+      - name: Publish new clips to the private audio
+        id: publish
+        if: steps.key.outputs.ok == 'true'
+        run: |
+          set -euo pipefail
+          bash scripts/publish_private_audio.sh .runtime/private-audio-publish | tee "$RUNNER_TEMP/publish.log"
+          echo "count=$(sed -n 's/^published=//p' "$RUNNER_TEMP/publish.log")" >> "$GITHUB_OUTPUT"
 
       - name: Commit the new lines
         if: steps.key.outputs.ok == 'true'
@@ -105,7 +132,7 @@ jobs:
             echo "No new lines: every scripted line already exists." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          n=$(git diff --cached --name-only --diff-filter=A -- 'Assets/audio/voices/*.mp3' | wc -l)
+          n="${{ steps.publish.outputs.count }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898099+github-actions[bot]@users.noreply.github.com"
           git commit -m "Voice: generate $n scripted callout lines (ElevenLabs, mastered)"
