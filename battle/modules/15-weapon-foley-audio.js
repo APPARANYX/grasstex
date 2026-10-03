@@ -107,7 +107,7 @@
           pools[model + '.' + action] = c[action].map(function (file, i) {
             return {
               endsAt: 0,
-              sound: new BABYLON.Sound('foley-' + model + '-' + action + i, base + file, scene, null, {
+              sound: new BABYLON.Sound('foley-' + model + '-' + action + i, root.BattleAudioFormat ? root.BattleAudioFormat.url(base + file) : base + file, scene, null, {
                 spatialSound: true,
                 distanceModel: 'linear',
                 rolloffFactor: 0,
@@ -135,13 +135,23 @@
           if (ms > 0) setTimeout(fn, ms);
           else fn();
         },
-      pools =
-        opts.voices ||
-        (typeof BABYLON !== 'undefined' && scene ? buildVoices(scene, String(opts.audioBase || root.BATTLE_AUDIO_BASE || 'audio/')) : {}),
+      pools = opts.voices || {},
       seen = typeof WeakMap !== 'undefined' ? new WeakMap() : null,
       count = 0,
       stats = (sim._weaponFoley = { played: {}, scheduled: 0 });
     if (!seen) return sim;
+    /* Voices are built once the audio format is settled (modules/00-audio-format.js). */
+    if (!opts.voices && typeof BABYLON !== 'undefined' && scene) {
+      var F = root.BattleAudioFormat,
+        build = function () {
+          var built = buildVoices(scene, String(opts.audioBase || root.BATTLE_AUDIO_BASE || 'audio/'));
+          Object.keys(built).forEach(function (k) {
+            pools[k] = built[k];
+          });
+        };
+      if (F && F.state === 'probing' && F.ready) F.ready.then(build, build);
+      else build();
+    }
     function listener() {
       var cam = opts.camera ? opts.camera() : scene && scene.activeCamera;
       return v3(cam && (cam.globalPosition || cam.position));
