@@ -229,7 +229,7 @@
     append(unit, 'rect', { 'class': 'sso-frame', x: '-27', y: '-16', width: '54', height: '32', rx: '1.5' });
     append(unit, 'path', { 'class': 'sso-x', d: 'M-24 -13 L24 13 M24 -13 L-24 13' });
     append(unit, 'circle', { 'class': 'sso-echelon', cx: '0', cy: '-22', r: '3.2' });
-    var idText = append(unit, 'text', { 'class': 'sso-text sso-id', x: '0', y: '5' }, String(sq.id));
+    var idText = append(unit, 'text', { 'class': 'sso-text sso-id', x: '34', y: '4', 'text-anchor': 'start' }, String(sq.id));
     var statusBg = append(unit, 'rect', { 'class': 'sso-status-bg', x: '-34', y: '20', width: '68', height: '17', rx: '3' });
     var statusText = append(unit, 'text', { 'class': 'sso-text sso-status', x: '0', y: '32' }, 'HOLD');
     var contact = append(unit, 'circle', { 'class': 'sso-contact', cx: '32', cy: '-14', r: '4' });
@@ -297,6 +297,8 @@
     if (objScreen && objScreen.visible) {
       m.objective.setAttribute('transform', 'translate(' + objScreen.x.toFixed(1) + ' ' + objScreen.y.toFixed(1) + ')');
       m.objText.textContent = objectiveLabel(sq, obj);
+      var labelLane = ((+sq.id || 0) % 3) - 1;
+      m.objText.setAttribute('x', String(labelLane * 28));
       setShown(m.objective, true);
     } else setShown(m.objective, false);
 
