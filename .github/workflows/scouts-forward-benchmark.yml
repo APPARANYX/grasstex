@@ -1,7 +1,7 @@
 name: Scouts Forward Paired Benchmark
 
 # Temporary branch-only full-battle evidence workflow. It uses the same runner/comparator as the standard benchmark,
-# Final evidence rerun after recon-rejoin early-release and per-task probe-baseline reconciliation.
+# Final evidence rerun after recon-rejoin early-release, no-contact scoping, and per-task probe-baseline reconciliation.
 # but self-starts on this branch because the GitHub connector cannot issue workflow_dispatch.
 # The file is removed after evidence is captured; the run/artifacts remain attached to GitHub Actions.
 on:
