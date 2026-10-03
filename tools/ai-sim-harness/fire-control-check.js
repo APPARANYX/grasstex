@@ -14,7 +14,11 @@ function world(search,range){
   const foe=ge.members[0]; ge.members.slice(1).forEach(s=>s.dead=true);
   us.commandPhase='assault';
   us.members.forEach(s=>{s.target=foe;s.root.rotation.y=0;s.moving=false;s.moveSpeed=0;s.suppressedUntil=0;});
-  us.contact={unit:foe,x:foe.root.position.x,z:foe.root.position.z,at:b.time,seenBy:us.members[2].id,stance:'stand'};
+  /* The real sim reaches this fixture through Perception, which records personal sight before a
+     HOLD FIRE posture change can make target blink. Seed that owner state when beliefs are active. */
+  if(r.SquadAI.soldierBeliefsOn&&r.SquadAI.soldierBeliefsOn())
+    us.members.forEach(s=>r.SquadAI.rememberSeen(s,foe,b,true,'fixture-first-sight'));
+  us.contact={unit:foe,x:foe.root.position.x,z:foe.root.position.z,at:b.time,seenBy:us.members[2].id,stance:'stand',firstHandAt:b.time};
   return{r,b,us,ge,foe,E:r.BattleEngagement,Q:r.BattleSquadStability,St:r.BattleSoldierStats};
 }
 function command(w){return w.Q.fireAndMovement(w.us,w.b),w.us.fireControl;}

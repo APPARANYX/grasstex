@@ -146,7 +146,7 @@ try {
       telemetry.end = async function(){ return true; }; telemetry.checkpoint = async function(){ return true; }; telemetry.flush = async function(){ return true; };
     }
 
-    let activeCombat = null;
+    let activeCombat = null, activeAcquisition = null;
     function stanceOf(s) { return String(s?.stance || s?.eng?.stance || 'unknown'); }
     sim.onFire = function(shooter){
       if (!activeCombat) return;
@@ -173,6 +173,30 @@ try {
       return out;
     }
     function units(faction) { return root.BattleModules.unitsFor(sim).filter(u => u && u.faction === faction && !u.dead && u.countsForElimination !== false); }
+    function targetKey(s) { return s?.target && !s.target.dead ? String(s.target.faction || '?') + ':' + String(s.target.id) : null; }
+    function newAcquisition() {
+      const a={ total:0, reacquired:0, byFaction:{us:0,ge:0}, firstAt:null, previous:Object.create(null), ever:Object.create(null) };
+      for(const faction of ['us','ge']) for(const s of sim._roster?.[faction]||[]) {
+        const k=`${faction}:${s.id}`, t=targetKey(s); a.previous[k]=t; if(t)a.ever[k]=true;
+      }
+      return a;
+    }
+    function sampleAcquisitions() {
+      const a=activeAcquisition;if(!a)return;
+      for(const faction of ['us','ge']) for(const s of sim._roster?.[faction]||[]) {
+        if(!s||s.dead)continue;
+        const k=`${faction}:${s.id}`, cur=targetKey(s), prev=Object.prototype.hasOwnProperty.call(a.previous,k)?a.previous[k]:null;
+        if(cur&&!prev){
+          a.total++;a.byFaction[faction]=(a.byFaction[faction]||0)+1;
+          if(a.ever[k])a.reacquired++;else a.ever[k]=true;
+          if(a.firstAt==null)a.firstAt=+sim.time.toFixed(2);
+        }
+        a.previous[k]=cur;
+      }
+    }
+    function acquisitionSummary(a) {
+      return a?{total:a.total,reacquired:a.reacquired,byFaction:{us:a.byFaction.us||0,ge:a.byFaction.ge||0},firstAt:a.firstAt}:null;
+    }
     function forceValue(faction) { let total = 0; for (const u of units(faction)) total += u.scoreValue == null ? 1 : +u.scoreValue; return total; }
     function aliveMembers(sq) { return (sq?.members || []).filter(s => s && !s.dead && s.root); }
     function avgSquad(sq) {
@@ -322,18 +346,12 @@ try {
       }
     }
 
-    function cleanup() {
+    /* Do not tear the battle down by hand between seeds. The shipping restart path owns the old
+       roster and gives every beforeBattleRestart/onBattleRestart hook the real previous battle to
+       release. The old benchmark cleanup zeroed roster/factions/obstacles first, so only the first
+       seed in each worker got a normal restart and later seeds leaked module state across battles. */
+    function finishBattle() {
       sim.paused = true;
-      for (const faction of ['us', 'ge']) for (const u of sim._roster?.[faction] || []) {
-        try { root.BattleTacticalPositions?.release(u, sim, 'battle-reset'); } catch (_) {}
-        u._navCache = null; u.target = null;
-        try { if (u.root && (!u.root.isDisposed || !u.root.isDisposed())) u.root.dispose(); } catch (_) { try { u.root?.dispose(); } catch (__) {} }
-      }
-      sim._roster = { us: [], ge: [] }; sim._moduleUnits = [];
-      sim.factions = { us: { alive: 0, kills: 0, squads: [] }, ge: { alive: 0, kills: 0, squads: [] } };
-      sim.obstacles = []; sim.objectives = []; sim._objectives = []; sim.objectiveControl = null; sim.objectiveStats = null; sim.objectiveHold = null;
-      sim._aiAccum = 0; sim._commandAccum = 0;
-      try { root.BattleTownObjectives.releaseCurrent(sim.scene); } catch (_) {}
       try { engine?.wipeCaches?.(true); } catch (_) {}
     }
 
@@ -381,12 +399,15 @@ try {
         /* Squad Leader regroups (16-squad-plan-stability.js cohesion counters): how often squads stop
            to re-form, and how each regroup ended. Counters are observe-only. */
         const regroupSummary = () => {
-          const out = { entries: 0, timeouts: 0, contactExits: 0, byFaction: {}, byEnd: {}, recoveries: 0, activeAtEnd: 0, longestActiveSeconds: 0 };
+          const out = { entries: 0, timeouts: 0, contactExits: 0, regroupRequests: 0, suppressed: 0, stragglerSuppressions: 0, byFaction: {}, byEnd: {}, endedContact: 0, endedCohesionRestored: 0, endedNewMission: 0, endedRetreat: 0, recoveries: 0, activeAtEnd: 0, longestActiveSeconds: 0 };
           for (const f of ['us', 'ge']) {
             const side = out.byFaction[f] = { entries: 0, timeouts: 0, contactExits: 0 };
             for (const sq of sim.factions?.[f]?.squads || []) {
               const h = sq?._regroupHysteresis; if (!h) continue;
               for (const [reason, count] of Object.entries(h.byEnd || {})) out.byEnd[reason] = (out.byEnd[reason] || 0) + count;
+              out.regroupRequests += +h.regroupRequests || 0;
+              out.suppressed += +h.suppressed || 0;
+              out.stragglerSuppressions += +h.stragglerSuppressions || 0;
               out.recoveries += +h.recoveries || 0;
               const lease = root.BattleLeases?.get(sq, 'regroup');
               if (lease) { out.activeAtEnd++; out.longestActiveSeconds = Math.max(out.longestActiveSeconds, sim.time - lease.since); }
@@ -394,6 +415,10 @@ try {
             }
             out.entries += side.entries; out.timeouts += side.timeouts; out.contactExits += side.contactExits;
           }
+          out.endedContact = +(out.byEnd.contact || 0);
+          out.endedCohesionRestored = +(out.byEnd['cohesion restored'] || 0);
+          out.endedNewMission = +(out.byEnd['new mission'] || 0);
+          out.endedRetreat = +(out.byEnd.retreat || 0);
           return out;
         };
         const record = {
@@ -414,8 +439,9 @@ try {
           stablePlanSamples: diag.stablePlanSamples, blockedFireteamSamples: diag.blockedFireteamSamples, regroupSamples: diag.regroupSamples, supportHoldSamples: diag.supportHoldSamples, retreatSamples: diag.retreatSamples,
           orderedMoveSamples: diag.orderedMoveSamples, idleOrderedSamples: diag.idleOrderedSamples, phaseSamples: diag.phaseSamples, engagementStateSamples: diag.engagementStateSamples,
           writerConflicts: conflicts.length, strategicWriterConflicts: strategicConflicts, writerConflictDetails: conflicts.slice(0, 20), loopAlerts: loops.slice(0, 20), loopKinds,
-          movementResolver: movementResolverSummary(), losBlockedFireAttempts: losBlockedAttempts(), crestBlockedFireAttempts: crestBlockedAttempts(), fire: activeCombat,
-          reconstitution: reconstitutionSummary(), regroups: regroupSummary(), stallOutcomes: stallSummary(), coordinationHealth: coordinationHealth(), objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates,
+          movementResolver: movementResolverSummary(), movementGoals: sim._movementGoalStats || null, losBlockedFireAttempts: losBlockedAttempts(), crestBlockedFireAttempts: crestBlockedAttempts(), fire: activeCombat,
+          acquisitions: acquisitionSummary(activeAcquisition),
+          reconstitution: reconstitutionSummary(), regroups: regroupSummary(), stallOutcomes: stallSummary(), coordinationHealth: coordinationHealth(), combatUrgency: root.BattleCombatUrgency?.summary?.(sim) || null, objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates,
           timeline: root.BattleAITimeline?.snapshot?.(sim) || null,
           /* Soldier condition (module 17): where the man-seconds went, the squads above mean 1/3, and how often each
              soldier lever changed a decision, with a one-second series in simulated time (AGENTS.md, stress). */
@@ -424,6 +450,8 @@ try {
         /* Tactical callouts (`?callouts=1`): only when the channel is on, so a flags-off record matches main field for field. */
         const callouts = root.BattleCallouts?.telemetry?.(sim);
         if (callouts) record.callouts = callouts;
+        const soldierBeliefs = root.SquadAI?.beliefTelemetry?.(sim);
+        if (soldierBeliefs) record.soldierBeliefs = soldierBeliefs;
         const buddyPairs = root.BattleSquadStability?.buddyTelemetry?.(sim);
         if (buddyPairs) record.buddyPairs = buddyPairs;
         if (extra) Object.assign(record, extra);
@@ -450,10 +478,11 @@ try {
           sim._trainerStepActive = true; try { sim.step ? sim.step(fixedDt) : sim._frame(fixedDt); } finally { sim._trainerStepActive = false; }
           steps++; commandAccum += fixedDt;
           while (commandAccum + 1e-9 >= commandTick && !sim.winner) { commandAccum -= commandTick; root.BattleCommanderAI.update(sim, scenario, commandTick); }
+          sampleAcquisitions();
         };
         const wallStart = performance.now();
         if (!scripted) {
-          activeCombat = newCombat();
+          activeCombat = newCombat(); activeAcquisition = newAcquisition();
           const diag = newDiag(0);
           while (live()) {
             stepOnce();
@@ -472,7 +501,7 @@ try {
             const openedAt = +sim.time, windowStart = performance.now(), diag = newDiag(openedAt);
             const contiguous = previousDiag && Math.abs(openedAt - previousClose) < 1e-6;
             if (contiguous) for (const k of CARRY) diag[k] = previousDiag[k];
-            activeCombat = newCombat(); if (!contiguous) nextSample = openedAt;
+            activeCombat = newCombat(); activeAcquisition = newAcquisition(); if (!contiguous) nextSample = openedAt;
             while (live() && !closed(openedAt)) {
               stepOnce();
               if (sim.time + 1e-9 >= nextSample) { sampleDiagnostics(diag); nextSample += SAMPLE_SECONDS; }
@@ -487,7 +516,7 @@ try {
                 windowWallSeconds: +((performance.now() - windowStart) / 1000).toFixed(3)
               }
             }));
-            activeCombat = null; previousClose = closedAt; previousDiag = diag;
+            activeCombat = null; activeAcquisition = null; previousClose = closedAt; previousDiag = diag;
           };
           for (let w = 0; w < windows.length && live(); w++) {
             const spec = windows[w], next = windows[w + 1];
@@ -519,10 +548,10 @@ try {
             measure(() => label, spec, openedAt => sim.time + 1e-9 >= openedAt + spec.seconds);
           }
         }
-        activeCombat = null; cleanup(); if ((index + 1) % 5 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+        activeCombat = null; activeAcquisition = null; finishBattle(); if ((index + 1) % 5 === 0) await new Promise(resolve => setTimeout(resolve, 0));
       }
     } finally {
-      activeCombat = null; root.BattleAIPolicy.clearMatchPolicies(sim); cleanup();
+      activeCombat = null; activeAcquisition = null; root.BattleAIPolicy.clearMatchPolicies(sim); finishBattle();
       if (originalSeed) root.BattleTownObjectives.regenerate(sim.scene, sim.heightAt, originalSeed, { restoredAfterBenchmark: true }, sim);
       sim.trainingMode = false; root.BattleSoldierModel?.setImportedEnabled?.(sim.scene, true); rawRestart();
       sim.timeScale = saved.timeScale; sim.timeLimit = saved.timeLimit; sim.onFire = saved.onFire; sim.onShot = saved.onShot; sim.onSuppressiveShot = saved.onSuppressiveShot;

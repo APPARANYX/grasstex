@@ -222,10 +222,10 @@
       lever: null,
       layer: 'Micro (Engagement)',
       file: 'engagement.js',
-      reader: 'underFireNow (Squad Leader fire-control return-fire exception)',
+      reader: 'underFireNow (return fire, retreat posture and squad under-fire report)',
       reads: { recentIncoming: 1 },
-      unit: 'boolean: an aimed round reached this man inside the declared return-fire window',
-      flag: '?fireControl= (default on); false when Soldier Mind is disabled or has no incoming record'
+      unit: 'boolean: an aimed round reached this man inside the declared under-fire window',
+      flag: 'shipping/default mind mode only; false for ?mind=0, ?mind=observe and named-lever isolation arms'
     },
     {
       kind: 'telemetry',
@@ -904,11 +904,13 @@
       m.temper || (m.temper = { flee: unit(s, 'flee'), freeze: unit(s, 'freeze'), rage: unit(s, 'rage') });
     return v;
   }
-  /* Status-only accessor for layers that need to know whether a man was just fired at without
-     reading Soldier Mind's storage directly. This does not depend on a behavioral lever; with the
-     module off there is deliberately no remembered aimed-round status. */
+  /* Status-only accessor for shipping tactics that need to know whether a man was just fired at
+     without reading Soldier Mind's storage directly. It is live only in the default/all mode.
+     `?mind=observe` must be genuinely observe-only, and a named lever list must isolate only those
+     levers; otherwise this status channel silently changes squad contact/retreat behavior in the
+     control arm and contaminates paired benchmarks. */
   function recentIncoming(s, now, window) {
-    if (!MODE.on || !s || !s.mind) return false;
+    if (!MODE.on || MODE.flag !== 'default' || !s || !s.mind) return false;
     var w = isFinite(+window) ? Math.max(0, +window) : UNDER_FIRE_WINDOW,
       last = isFinite(+s.mind.lastIncomingAt) ? +s.mind.lastIncomingAt : -99;
     return (+now || 0) - last <= w;

@@ -78,9 +78,13 @@
     if (s && s.target && (!own || own.combatThreat))
       return point(s.target.root && s.target.root.position);
     var q = s && s.squad,
-      c = q && q.contact,
+      S = root.SquadAI,
+      personal = !!(S && S.soldierBeliefsOn && S.soldierBeliefsOn()),
+      /* Flag-off is exactly the old raw aggregate read, including its non-threat guard. */
+      c = personal && S.soldierContact ? S.soldierContact(s, battle) : q && q.contact,
       cd = D && c && c.unit ? D(c.unit) : null;
     if (c && c.unit && cd && !cd.combatThreat) identifiedNonThreat = true;
+    if (personal && S.hasKnownNonThreat && S.hasKnownNonThreat(s, battle)) identifiedNonThreat = true;
     if (
       c &&
       (!c.unit || !cd || cd.combatThreat) &&

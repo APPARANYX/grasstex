@@ -119,8 +119,28 @@
      question: the FG 42 and the view cones shipped together). No view cone, no sector scan, nothing
      heard or relayed: a man sees every enemy in range and line of sight, whichever way he faces. */
   var PERCEPTION_ON = !(typeof location !== 'undefined' && /[?&]perception=0\b/.test(location.search || ''));
+  /* Personal beliefs replace treating squad.contact as instant common knowledge. Perception owns
+     soldier._beliefs; Engagement and its declared drills read only the public soldierContact /
+     beliefSnapshot views. Shipped on after the 100-seed Slice 2 benchmark; ?soldierBeliefs=0/off/
+     false/none is the legacy shared-contact control arm. */
+  function parseSoldierBeliefs(search) {
+    return !/[?&]soldierBeliefs=(?:0|off|false|none)(?:&|#|$)/i.test(search || '');
+  }
+  var SOLDIER_BELIEFS_ON = parseSoldierBeliefs(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
   /* How long a squad keeps acting on a last-known enemy position after nobody can see him. */
   var CONTACT_MEMORY = 12;
+  var BELIEF_TUNING = {
+    seenTtl: CONTACT_MEMORY,
+    toldTtl: CONTACT_MEMORY,
+    heardTtl: 5,
+    nonThreatTtl: 4,
+    toldConfidenceMin: 0.55,
+    toldConfidenceMax: 0.92,
+    heardConfidenceMin: 0.2,
+    heardConfidenceMax: 0.5
+  };
   /* Suppressing fire lands in a cone, not on a point: the further out, the looser the group. */
   var AREA_SPREAD_MIN = 3,
     AREA_SPREAD_PER_M = 0.05,
@@ -273,10 +293,494 @@
     if (r === 'flee') return THREAT_FLEE;
     return r === 'rage' ? THREAT_RAGE : THREAT_ACTIVE;
   }
+
+  /* ---- personal information model ------------------------------------------------------------
+     Perception owns these records. They contain only what the man has actually sensed or received:
+     seen, told, heard. The known unit reference is retained for provenance/identity, but remembered
+     contacts expose only the recorded location; they never follow the unit's live position. Time,
+     not hidden ground truth, expires a belief. */
+  function beliefStats(battle) {
+    if (!SOLDIER_BELIEFS_ON || !battle) return null;
+    var st = battle._soldierBeliefStats;
+    if (!st || (st.lastTime != null && battle.time < st.lastTime)) {
+      st = battle._soldierBeliefStats = {
+        lastTime: battle.time,
+        updates: 0,
+        seen: 0,
+        seenRefreshes: 0,
+        told: 0,
+        heard: 0,
+        nonThreatSeen: 0,
+        superseded: 0,
+        rejectedOlder: 0,
+        expired: 0,
+        calloutDelaySum: 0,
+        calloutDelayCount: 0
+      };
+    }
+    st.lastTime = battle.time;
+    return st;
+  }
+  function newBeliefStore(battle) {
+    return {
+      byKey: Object.create(null),
+      history: [],
+      lastTime: battle ? battle.time : 0,
+      lastCalloutId: null,
+      lastHeardKey: null,
+      lastPrunedAt: null,
+      version: 0,
+      readAt: null,
+      readVersion: -1,
+      readSelected: null
+    };
+  }
+  function beliefStore(soldier, battle) {
+    if (!soldier) return null;
+    var st = soldier._beliefs;
+    if (!st || (battle && st.lastTime != null && battle.time < st.lastTime))
+      st = soldier._beliefs = newBeliefStore(battle);
+    if (battle) st.lastTime = battle.time;
+    return st;
+  }
+  function beliefUnitKey(unit) {
+    return unit && unit.id != null ? 'unit:' + String(unit.faction || '?') + ':' + String(unit.id) : null;
+  }
+  function beliefSector(soldier, x, z) {
+    if (!soldier || !soldier.root || !isFinite(+x) || !isFinite(+z)) return null;
+    var p = soldier.root.position,
+      a = Math.atan2(z - p.z, x - p.x);
+    return ((Math.round((a + Math.PI) / (Math.PI / 4)) % 8) + 8) % 8;
+  }
+  function beliefRank(source) {
+    return source === 'seen' ? 3 : source === 'told' ? 2 : source === 'heard' ? 1 : 0;
+  }
+  function beliefConfidence(rec, battle) {
+    if (!rec || !battle || battle.time >= rec.expiresAt) return 0;
+    var span = Math.max(0.001, rec.expiresAt - rec.observedAt),
+      age = Math.max(0, battle.time - rec.observedAt);
+    return clamp((+rec.baseConfidence || 0) * (1 - age / span), 0, 1);
+  }
+  function beliefView(rec, battle) {
+    if (!rec || !battle) return null;
+    var age = Math.max(0, battle.time - rec.observedAt);
+    return {
+      key: rec.key,
+      targetId: rec.targetId,
+      source: rec.source,
+      sourceSoldierId: rec.sourceSoldierId,
+      sourceCalloutId: rec.sourceCalloutId,
+      location: { x: rec.x, z: rec.z },
+      sector: rec.sector,
+      observedAt: rec.observedAt,
+      reportedAt: rec.reportedAt,
+      receivedAt: rec.receivedAt,
+      age: +age.toFixed(3),
+      confidence: +beliefConfidence(rec, battle).toFixed(3),
+      expiresAt: rec.expiresAt,
+      stale: battle.time >= rec.expiresAt,
+      combatThreat: rec.combatThreat !== false,
+      precision: rec.precision,
+      reason: rec.reason || null
+    };
+  }
+  function beliefHistory(store, row) {
+    if (!store) return;
+    store.history.push(row);
+    if (store.history.length > 24) store.history.splice(0, store.history.length - 24);
+  }
+  function pruneBeliefs(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return;
+    var store = beliefStore(soldier, battle);
+    if (store.lastPrunedAt === battle.time) return;
+    store.lastPrunedAt = battle.time;
+    var stats = beliefStats(battle),
+      changed = false;
+    Object.keys(store.byKey).forEach(function (key) {
+      var rec = store.byKey[key];
+      if (!rec || battle.time < rec.expiresAt) return;
+      delete store.byKey[key];
+      changed = true;
+      stats.expired++;
+      beliefHistory(store, {
+        at: battle.time,
+        kind: 'expired',
+        key: key,
+        source: rec.source,
+        targetId: rec.targetId,
+        observedAt: rec.observedAt
+      });
+    });
+    if (changed) store.version++;
+  }
+  function writeBelief(soldier, battle, next) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle || !next) return null;
+    var store = beliefStore(soldier, battle),
+      stats = beliefStats(battle),
+      old = store.byKey[next.key];
+    if (
+      old &&
+      old.combatThreat !== false &&
+      old.source === 'seen' &&
+      next.source !== 'seen' &&
+      battle.time - old.observedAt <= CONTACT_REFRESH
+    ) {
+      stats.rejectedOlder++;
+      return old;
+    }
+    if (
+      old &&
+      next.observedAt < old.observedAt - 1e-6 &&
+      !(next.source === 'seen' && next.combatThreat === false)
+    ) {
+      stats.rejectedOlder++;
+      return old;
+    }
+    if (
+      old &&
+      Math.abs(next.observedAt - old.observedAt) <= 1e-6 &&
+      beliefRank(next.source) < beliefRank(old.source) &&
+      !(next.source === 'seen' && next.combatThreat === false)
+    ) {
+      stats.rejectedOlder++;
+      return old;
+    }
+    if (old) stats.superseded++;
+    store.byKey[next.key] = next;
+    store.version++;
+    stats.updates++;
+    if (next.source === 'seen') {
+      stats.seen++;
+      if (next.combatThreat === false) stats.nonThreatSeen++;
+    } else if (next.source === 'told') stats.told++;
+    else if (next.source === 'heard') stats.heard++;
+    beliefHistory(store, {
+      at: battle.time,
+      kind: 'update',
+      key: next.key,
+      targetId: next.targetId,
+      source: next.source,
+      sourceSoldierId: next.sourceSoldierId,
+      sourceCalloutId: next.sourceCalloutId,
+      observedAt: next.observedAt,
+      receivedAt: next.receivedAt,
+      confidence: next.baseConfidence,
+      combatThreat: next.combatThreat !== false,
+      reason: next.reason || null
+    });
+    return next;
+  }
+  function rememberSeen(soldier, unit, battle, combatThreat, reason) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !unit || !unit.root || !battle) return null;
+    var p = unit.root.position,
+      key = beliefUnitKey(unit);
+    if (!key) return null;
+    var store = beliefStore(soldier, battle),
+      old = store.byKey[key],
+      isThreat = combatThreat !== false;
+    /* Direct sight is sampled every perception tick. Refresh the owned fact in place instead of
+       allocating a new record + diagnostic history row for the same continuous sighting. A source
+       change or threat/non-threat transition still goes through writeBelief and is recorded. */
+    if (old && old.source === 'seen' && (old.combatThreat !== false) === isThreat) {
+      old.unit = unit;
+      old.x = +p.x;
+      old.z = +p.z;
+      old.sector = beliefSector(soldier, p.x, p.z);
+      old.observedAt = battle.time;
+      old.receivedAt = battle.time;
+      old.baseConfidence = 1;
+      old.expiresAt = battle.time + (isThreat ? BELIEF_TUNING.seenTtl : BELIEF_TUNING.nonThreatTtl);
+      old.precision = 'exact-sight';
+      old.reason = reason || (isThreat ? 'direct-sight' : 'seen-non-threat');
+      store.version++;
+      beliefStats(battle).seenRefreshes++;
+      return old;
+    }
+    return writeBelief(soldier, battle, {
+      key: key,
+      unit: unit,
+      targetId: unit.id == null ? null : String(unit.id),
+      source: 'seen',
+      sourceSoldierId: soldier.id == null ? null : String(soldier.id),
+      sourceCalloutId: null,
+      x: +p.x,
+      z: +p.z,
+      sector: beliefSector(soldier, p.x, p.z),
+      observedAt: battle.time,
+      reportedAt: null,
+      receivedAt: battle.time,
+      baseConfidence: 1,
+      expiresAt:
+        battle.time +
+        (combatThreat === false ? BELIEF_TUNING.nonThreatTtl : BELIEF_TUNING.seenTtl),
+      combatThreat: combatThreat !== false,
+      precision: 'exact-sight',
+      reason: reason || (combatThreat === false ? 'seen-non-threat' : 'direct-sight')
+    });
+  }
+  function applyCalloutBelief(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return null;
+    var calls = root.BattleCallouts;
+    if (!calls || !calls.enabled || !calls.enabled() || !calls.heardBy) return null;
+    var delivery = calls.heardBy(battle, soldier);
+    if (!delivery || !delivery.msg || !delivery.msg.fact) return null;
+    var store = beliefStore(soldier, battle),
+      msg = delivery.msg;
+    if (String(store.lastCalloutId) === String(msg.id)) return null;
+    store.lastCalloutId = msg.id;
+    var f = msg.fact,
+      key = beliefUnitKey(f.unit);
+    if (!key || !isFinite(+f.x) || !isFinite(+f.z) || !isFinite(+f.at)) return null;
+    var c = clamp(+delivery.confidence || 0, 0, 1),
+      conf =
+        BELIEF_TUNING.toldConfidenceMin +
+        (BELIEF_TUNING.toldConfidenceMax - BELIEF_TUNING.toldConfidenceMin) * c,
+      stats = beliefStats(battle);
+    stats.calloutDelaySum += Math.max(0, (+delivery.at || battle.time) - (+msg.sentAt || 0));
+    stats.calloutDelayCount++;
+    if (calls.noteBeliefApplied) calls.noteBeliefApplied(battle);
+    return writeBelief(soldier, battle, {
+      key: key,
+      unit: f.unit || null,
+      targetId: f.unit && f.unit.id != null ? String(f.unit.id) : null,
+      source: 'told',
+      sourceSoldierId: msg.from == null ? null : String(msg.from),
+      sourceCalloutId: msg.id,
+      x: +f.x,
+      z: +f.z,
+      sector: beliefSector(soldier, f.x, f.z),
+      observedAt: +f.at,
+      reportedAt: +msg.sentAt,
+      receivedAt: +delivery.at || battle.time,
+      baseConfidence: +conf.toFixed(3),
+      expiresAt: +f.at + BELIEF_TUNING.toldTtl,
+      combatThreat: true,
+      precision: 'reported-position',
+      reason: 'heard-callout'
+    });
+  }
+  function heardHash(unit, at, listener) {
+    var a = ((+unit.id || 0) * 73856093) ^ Math.floor((+at || 0) * 7) ^ ((+listener.id || 0) * 19349663);
+    return a >>> 0;
+  }
+  function hearGunfireBelief(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !PERCEPTION_ON || !soldier || !battle || soldier.dead || !soldier.root) return null;
+    var shots = battle._gunfire;
+    if (!shots || !shots.length) return null;
+    var p = soldier.root.position,
+      best = null,
+      bestAt = -Infinity,
+      bestD = Infinity;
+    for (var i = 0; i < shots.length; i++) {
+      var shot = shots[i];
+      if (!shot || shot.faction === soldier.faction || battle.time - shot.at > HEAR_MEMORY) continue;
+      /* The recorded enemy gunfire event is the evidence. Do not consult the shooter's current
+         object/state here: a later death/freeze/flee must not rewrite what this man heard. */
+      var d = dist2(p.x, p.z, shot.x, shot.z);
+      if (d > HEAR_RANGE) continue;
+      if (shot.at > bestAt + 1e-6 || (Math.abs(shot.at - bestAt) <= 1e-6 && d < bestD)) {
+        best = shot;
+        bestAt = shot.at;
+        bestD = d;
+      }
+    }
+    if (!best) return null;
+    var store = beliefStore(soldier, battle),
+      eventKey =
+        String(best.at) + ':' + (+best.x).toFixed(2) + ':' + (+best.z).toFixed(2);
+    if (store.lastHeardKey === eventKey) return null;
+    store.lastHeardKey = eventKey;
+    var k = heardHash(
+        { id: Math.floor((+best.x || 0) * 17) ^ Math.floor((+best.z || 0) * 31) },
+        best.at,
+        soldier
+      ),
+      ang = ((k % 360) * Math.PI) / 180,
+      err = bestD * HEAR_ERROR * (0.5 + ((k >>> 9) % 50) / 100),
+      x = best.x + Math.sin(ang) * err,
+      z = best.z + Math.cos(ang) * err,
+      closeness = clamp(1 - bestD / HEAR_RANGE, 0, 1),
+      conf =
+        BELIEF_TUNING.heardConfidenceMin +
+        (BELIEF_TUNING.heardConfidenceMax - BELIEF_TUNING.heardConfidenceMin) * closeness;
+    return writeBelief(soldier, battle, {
+      key: 'heard-sector',
+      unit: null,
+      targetId: null,
+      source: 'heard',
+      sourceSoldierId: null,
+      sourceCalloutId: null,
+      x: +x,
+      z: +z,
+      sector: beliefSector(soldier, x, z),
+      observedAt: +best.at,
+      reportedAt: null,
+      receivedAt: battle.time,
+      baseConfidence: +conf.toFixed(3),
+      expiresAt: +best.at + BELIEF_TUNING.heardTtl,
+      combatThreat: true,
+      precision: 'imprecise-sound',
+      reason: 'gunfire'
+    });
+  }
+  function canPersonallySeeKnown(soldier, unit, battle) {
+    if (!soldier || !unit || !unit.root || !battle) return false;
+    var role = ROLES[soldier.role],
+      p = soldier.root.position,
+      u = unit.root.position,
+      d = dist2(p.x, p.z, u.x, u.z),
+      sight = sightScale(soldier);
+    if (d > detectionRange(role, unit) * sight) return false;
+    if (PERCEPTION_ON && d > BEHIND_RANGE) {
+      var reach = viewReach(
+        angleBetween(Math.atan2(u.x - p.x, u.z - p.z), lookYaw(soldier, battle)),
+        unit
+      );
+      if (!reach || d > detectionRange(role, unit) * reach * sight) return false;
+    }
+    return hasLineOfSight(soldier, unit, battle.heightAt, battle.obstacles);
+  }
+  function observeKnownNonThreats(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return;
+    var store = beliefStore(soldier, battle);
+    Object.keys(store.byKey).forEach(function (key) {
+      var rec = store.byKey[key],
+        unit = rec && rec.unit;
+      if (!unit || !unit.root) return;
+      var d = threatDisposition(unit);
+      if (d.kind !== 'visible-non-threat') return;
+      if (!canPersonallySeeKnown(soldier, unit, battle)) return;
+      rememberSeen(soldier, unit, battle, false, 'personally-seen-' + d.reason);
+      if (soldier.target === unit) clearTarget(soldier);
+    });
+  }
+  /* Across different threats, freshness/confidence decides which sector matters now; provenance
+     breaks ties. For the SAME target, writeBelief separately guarantees fresh personal sight cannot
+     be overwritten by weaker word. */
+  function selectBelief(store, battle) {
+    if (!store || !battle) return null;
+    var best = null,
+      bestRank = -1,
+      bestConf = -1;
+    Object.keys(store.byKey).forEach(function (key) {
+      var rec = store.byKey[key];
+      if (!rec || rec.combatThreat === false || battle.time >= rec.expiresAt) return;
+      var rank = beliefRank(rec.source),
+        conf = beliefConfidence(rec, battle);
+      if (
+        !best ||
+        conf > bestConf + 1e-6 ||
+        (Math.abs(conf - bestConf) <= 1e-6 && rank > bestRank) ||
+        (Math.abs(conf - bestConf) <= 1e-6 && rank === bestRank && rec.observedAt > best.observedAt)
+      ) {
+        best = rec;
+        bestRank = rank;
+        bestConf = conf;
+      }
+    });
+    return best;
+  }
+  function bestBelief(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return null;
+    pruneBeliefs(soldier, battle);
+    var store = beliefStore(soldier, battle);
+    if (store.readAt === battle.time && store.readVersion === store.version) return store.readSelected;
+    var selected = selectBelief(store, battle);
+    store.readAt = battle.time;
+    store.readVersion = store.version;
+    store.readSelected = selected;
+    return selected;
+  }
+  function hasKnownNonThreat(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle || !soldier._beliefs) return false;
+    var store = soldier._beliefs,
+      keys = Object.keys(store.byKey || {});
+    for (var i = 0; i < keys.length; i++) {
+      var rec = store.byKey[keys[i]];
+      if (rec && rec.combatThreat === false && battle.time < rec.expiresAt) return true;
+    }
+    return false;
+  }
+  function soldierContact(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON)
+      return soldier && soldier.squad ? squadContact(soldier.squad, battle) : null;
+    var rec = bestBelief(soldier, battle);
+    if (!rec) return null;
+    var liveUnit =
+      rec.source === 'seen' && rec.unit && soldier.target === rec.unit && rec.combatThreat !== false
+        ? rec.unit
+        : null;
+    return {
+      unit: liveUnit,
+      knownUnitId: rec.targetId,
+      x: rec.x,
+      z: rec.z,
+      at: rec.observedAt,
+      seenBy: rec.source === 'seen' ? soldier.id : null,
+      stance: liveUnit ? stanceOf(liveUnit) : null,
+      heard: rec.source === 'heard',
+      told: rec.source === 'told',
+      relayedFrom: rec.source === 'told' ? rec.sourceSoldierId : null,
+      callout: rec.sourceCalloutId,
+      source: rec.source,
+      confidence: beliefConfidence(rec, battle),
+      receivedAt: rec.receivedAt,
+      expiresAt: rec.expiresAt,
+      beliefKey: rec.key
+    };
+  }
+  function beliefSnapshot(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return null;
+    var store = soldier._beliefs || newBeliefStore(battle),
+      selected = selectBelief(store, battle),
+      rows = Object.keys(store.byKey)
+        .sort()
+        .map(function (key) {
+          return beliefView(store.byKey[key], battle);
+        });
+    return {
+      owner: 'perception',
+      readers: ['engagement', 'combat-urgency', 'tactical-route', 'diagnostics', 'probes'],
+      selectedKey: selected ? selected.key : null,
+      unknown: !selected,
+      beliefs: rows,
+      recentHistory: store.history.slice(-12),
+      truthConsultedForMemory: false
+    };
+  }
+  function beliefTelemetry(battle) {
+    if (!SOLDIER_BELIEFS_ON || !battle) return null;
+    var stats = Object.assign({}, beliefStats(battle)),
+      active = { seen: 0, told: 0, heard: 0 },
+      unknown = 0,
+      men = 0;
+    delete stats.lastTime;
+    ['us', 'ge'].forEach(function (f) {
+      var roster = (battle._roster && battle._roster[f]) || [];
+      for (var i = 0; i < roster.length; i++) {
+        var s = roster[i];
+        if (!s || s.dead) continue;
+        men++;
+        var store = s._beliefs;
+        var rec = store ? selectBelief(store, battle) : null;
+        if (!rec) unknown++;
+        else active[rec.source] = (active[rec.source] || 0) + 1;
+      }
+    });
+    stats.format = 'grasstex-soldier-beliefs-v1';
+    stats.activeBySource = active;
+    stats.livingMen = men;
+    stats.unknownMen = unknown;
+    stats.meanCalloutDelay = stats.calloutDelayCount
+      ? +(stats.calloutDelaySum / stats.calloutDelayCount).toFixed(3)
+      : 0;
+    return stats;
+  }
+
   function lookYaw(soldier, battle) {
     var body = soldier.root.rotation.y || 0;
     if (reactionState(soldier) === 'freeze') return body;
-    var c = battle && squadContact(soldier.squad, battle),
+    var c = battle && soldierContact(soldier, battle),
       p = soldier.root.position;
     if (!c) return battle && !soldier.moving ? body + scanOffset(soldier, battle) : body;
     var toThreat = Math.atan2(c.x - p.x, c.z - p.z);
@@ -1220,6 +1724,7 @@
     var heightAt = battle.heightAt,
       obstacles = battle.obstacles,
       role = ROLES[soldier.role];
+    if (SOLDIER_BELIEFS_ON) pruneBeliefs(soldier, battle);
     /* Frozen means dazed, not secretly scanning under the full-body clip. Clear both target and facing
        input here, before the ordinary tracking/acquisition path can refresh squad contact. */
     if (reactionState(soldier) === 'freeze') {
@@ -1238,8 +1743,16 @@
         battle
       );
     }
-    if (soldier.target) shareContact(soldier, battle);
+    if (soldier.target) {
+      if (SOLDIER_BELIEFS_ON) rememberSeen(soldier, soldier.target, battle, true, 'direct-sight');
+      shareContact(soldier, battle);
+    }
     squadSenses(soldier.squad, battle);
+    if (SOLDIER_BELIEFS_ON) {
+      applyCalloutBelief(soldier, battle);
+      hearGunfireBelief(soldier, battle);
+      observeKnownNonThreats(soldier, battle);
+    }
     if (!had && soldier.target) callout(soldier, battle, contactCall(soldier));
     if (soldier.lastSquadState !== soldier.squad.state) {
       if (isLeader(soldier))
@@ -1369,6 +1882,31 @@
     return true;
   }
 
+  /* Battle lifecycle reset for Perception-owned memory. A restart returns simulated time to zero,
+     so retaining gunfire/contact/belief state would make prior-battle evidence look fresh or even
+     future-dated in the new battle. Keep the reset at the owner; lifecycle modules call this API. */
+  function resetPerceptionBattleState(battle) {
+    if (!battle) return;
+    delete battle._gunfire;
+    delete battle._gunfirePrunedAt;
+    delete battle._soldierBeliefStats;
+    var sides = ['us', 'ge'];
+    for (var fi = 0; fi < sides.length; fi++) {
+      var faction = sides[fi],
+        squads = (battle.factions && battle.factions[faction] && battle.factions[faction].squads) || [],
+        roster = (battle._roster && battle._roster[faction]) || [];
+      for (var qi = 0; qi < squads.length; qi++) {
+        if (!squads[qi]) continue;
+        squads[qi].contact = null;
+        squads[qi]._sensedAt = -Infinity;
+      }
+      for (var si = 0; si < roster.length; si++) {
+        if (!roster[si]) continue;
+        delete roster[si]._beliefs;
+      }
+    }
+  }
+
   root.BattleExtensionPoints = extensionPoints;
   root.BattleLeases = Leases;
   root.SquadAI = {
@@ -1405,6 +1943,19 @@
     threatDisposition: threatDisposition,
     lookYaw: lookYaw,
     squadSenses: squadSenses,
+    resetPerceptionBattleState: resetPerceptionBattleState,
+    parseSoldierBeliefs: parseSoldierBeliefs,
+    soldierBeliefsOn: function () {
+      return SOLDIER_BELIEFS_ON;
+    },
+    soldierContact: soldierContact,
+    hasKnownNonThreat: hasKnownNonThreat,
+    rememberSeen: rememberSeen,
+    applyCalloutBelief: applyCalloutBelief,
+    hearGunfireBelief: hearGunfireBelief,
+    observeKnownNonThreats: observeKnownNonThreats,
+    beliefSnapshot: beliefSnapshot,
+    beliefTelemetry: beliefTelemetry,
     PERCEPTION: {
       FOCUS_HALF: FOCUS_HALF,
       PERIPHERAL_HALF: PERIPHERAL_HALF,
@@ -1417,6 +1968,8 @@
       HEAR_RANGE: HEAR_RANGE,
       HEAR_MEMORY: HEAR_MEMORY,
       RELAY_RANGE: RELAY_RANGE,
+      SOLDIER_BELIEFS_ON: SOLDIER_BELIEFS_ON,
+      BELIEF_TUNING: BELIEF_TUNING,
       STANCE_VIS_ON: STANCE_VIS_ON,
       VISIBILITY: VISIBILITY,
       MOVING_VISIBILITY_BONUS: MOVING_VISIBILITY_BONUS

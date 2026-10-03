@@ -137,13 +137,30 @@ const living = q => q.members.filter(s => !s.dead);
 const rifleman = (q, i) => q.members.filter(s => s.role === 'rifleman' && !s.dead)[i || 0];
 /* The squad has run into trouble `d` metres ahead of it: its picture says so (kept fresh while `fn` runs). */
 function trouble(w, q, at) {
+  const unit =
+    q._fixtureThreat ||
+    (q._fixtureThreat = {
+      id: 'fixture-threat-' + q.id,
+      faction: q.faction === 'us' ? 'ge' : 'us',
+      dead: false,
+      root: { position: { x: at.x, y: 0, z: at.z } }
+    });
+  unit.root.position.x = at.x;
+  unit.root.position.z = at.z;
   q.contact = {
     x: at.x,
     z: at.z,
     at: w.b.time,
+    firstHandAt: w.b.time,
     seenBy: -1,
-    unit: { dead: false, root: { position: { x: at.x, y: 0, z: at.z } } }
+    unit
   };
+  /* These lifecycle tests say the threat is "known". Under personal beliefs that means the man
+     needs Perception-owned evidence too; aggregate q.contact alone is intentionally not his truth. */
+  if (w.r.SquadAI.soldierBeliefsOn && w.r.SquadAI.soldierBeliefsOn())
+    q.members
+      .filter(s => s && !s.dead)
+      .forEach(s => w.r.SquadAI.rememberSeen(s, unit, w.b, true, 'fixture-known-trouble'));
 }
 /* Break a man for good: stress at the top, a flee temper. */
 function snap(w, s) {
