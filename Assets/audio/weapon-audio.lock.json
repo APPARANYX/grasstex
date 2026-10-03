@@ -1,6 +1,6 @@
 {
   "repo": "APPARANYX/grasstex-audio",
-  "commit": "ddcfb776d36df9ec3ee1ac6cd314d19ab88161d7",
+  "commit": "fb4a46475ed997327757eb5ee4b92d98e5bcb424",
   "secret": "BOOM_AUDIO_DEPLOY_KEY",
   "note": "Licensed small-arms clips (BOOM Library WWII Firearms). Private on purpose: CI and the deploy check this commit out with the read-only deploy key in the named Actions secret and overlay its weapons/ onto Assets/audio/weapons/ (scripts/fetch_weapon_audio.sh). Bump the commit after pushing new clips there, together with their .mastering-state.tsv lines."
 }
