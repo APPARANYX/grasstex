@@ -13,65 +13,6 @@
   },
   "categories": {
     "weapons": {
-      "rifle": [
-        "weapons/rifle-m1-garand-01.mp3",
-        "weapons/rifle-m1-garand-02.mp3",
-        "weapons/rifle-k98k-01.mp3",
-        "weapons/rifle-k98k-02.mp3",
-        "weapons/rifle-k98k-03.mp3",
-        "weapons/rifle-k98k-04.mp3",
-        "weapons/rifle-m1903a3-01.mp3",
-        "weapons/rifle-m1903a3-02.mp3",
-        "weapons/rifle-m1903a3-03.mp3",
-        "weapons/rifle-m1903a3-04.mp3",
-        "weapons/rifle-m38-01.mp3",
-        "weapons/rifle-m38-02.mp3",
-        "weapons/rifle-m38-03.mp3",
-        "weapons/rifle-m38-04.mp3",
-        "weapons/rifle-mosin-nagant-01.mp3",
-        "weapons/rifle-mosin-nagant-02.mp3",
-        "weapons/rifle-mosin-nagant-03.mp3",
-        "weapons/rifle-mosin-nagant-04.mp3"
-      ],
-      "carbine": [
-        "weapons/smg-m3-single-01.mp3",
-        "weapons/smg-m3-single-02.mp3",
-        "weapons/smg-m3-single-03.mp3",
-        "weapons/smg-m3-single-04.mp3"
-      ],
-      "lmg": [
-        "weapons/lmg-mg42-01.mp3",
-        "weapons/lmg-mg42-02.mp3",
-        "weapons/lmg-mg42-03.mp3",
-        "weapons/lmg-mg42-04.mp3",
-        "weapons/lmg-bar-m1918-01.mp3"
-      ],
-      "pistol": [
-        "weapons/pistol-p38-01.mp3",
-        "weapons/pistol-p38-02.mp3",
-        "weapons/pistol-p38-03.mp3",
-        "weapons/pistol-p38-04.mp3",
-        "weapons/pistol-tt33-01.mp3",
-        "weapons/pistol-tt33-02.mp3",
-        "weapons/pistol-tt33-03.mp3",
-        "weapons/pistol-tt33-04.mp3",
-        "weapons/pistol-luger-01.mp3",
-        "weapons/pistol-luger-02.mp3",
-        "weapons/pistol-luger-03.mp3",
-        "weapons/pistol-luger-04.mp3"
-      ],
-      "smg": [
-        "weapons/smg-mp40-01.mp3",
-        "weapons/smg-mp40-02.mp3",
-        "weapons/smg-thompson-01.mp3",
-        "weapons/smg-thompson-02.mp3",
-        "weapons/smg-thompson-03.mp3",
-        "weapons/smg-thompson-04.mp3",
-        "weapons/smg-thompson-close-01.mp3",
-        "weapons/smg-ppsh41-01.mp3",
-        "weapons/smg-ppsh41-02.mp3",
-        "weapons/smg-m3-grease-gun-01.mp3"
-      ],
       "hmg": [
         "weapons/hmg-m1919a4-01.mp3",
         "weapons/hmg-m1919a4-turret-01.mp3",
@@ -82,14 +23,6 @@
       ],
       "cannon": [
         "weapons/cannon-howitzer-m101-01.mp3"
-      ],
-      "distant": [
-        "weapons/smg-mp40-distant-01.mp3",
-        "weapons/smg-mp40-distant-02.mp3",
-        "weapons/smg-mp40-distant-03.mp3",
-        "weapons/pistol-m1911a1-downrange-01.mp3",
-        "weapons/pistol-m1911a1-downrange-02.mp3",
-        "weapons/pistol-m1911a1-downrange-03.mp3"
       ]
     },
     "grenades": {
@@ -177,54 +110,6 @@
       ],
       "artilleryDistant": [
         "ambience/artillery-distant-01.mp3"
-      ]
-    },
-    "weaponFoley": {
-      "boltCycle": [
-        "weapons/foley/k98k-bolt-01.mp3",
-        "weapons/foley/k98k-bolt-02.mp3",
-        "weapons/foley/k98k-bolt-03.mp3",
-        "weapons/foley/m1903a3-bolt-01.mp3",
-        "weapons/foley/m1903a3-bolt-02.mp3",
-        "weapons/foley/mosin-handling-01.mp3",
-        "weapons/foley/mosin-handling-02.mp3",
-        "weapons/foley/mosin-handling-03.mp3"
-      ],
-      "cocking": [
-        "weapons/foley/mp40-cocking-01.mp3",
-        "weapons/foley/mp40-cocking-02.mp3",
-        "weapons/foley/ppsh41-bolt-01.mp3",
-        "weapons/foley/ppsh41-bolt-02.mp3"
-      ],
-      "magazine": [
-        "weapons/foley/p38-magazine-01.mp3",
-        "weapons/foley/p38-magazine-02.mp3",
-        "weapons/foley/p38-magazine-03.mp3"
-      ],
-      "dryFire": [
-        "weapons/foley/thompson-dryfire-01.mp3",
-        "weapons/foley/thompson-dryfire-02.mp3",
-        "weapons/foley/m1911a1-dryfire-01.mp3",
-        "weapons/foley/m1911a1-dryfire-02.mp3",
-        "weapons/foley/tt33-clearing-01.mp3",
-        "weapons/foley/tt33-clearing-02.mp3"
-      ],
-      "lmgReload": [
-        "weapons/foley/mg42-top-cover-01.mp3",
-        "weapons/foley/mg42-top-cover-02.mp3"
-      ],
-      "clipLoad": [
-        "weapons/foley/m1-garand-clip-load-01.mp3",
-        "weapons/foley/m1-garand-clip-load-02.mp3",
-        "weapons/foley/m1-garand-clip-load-03.mp3"
-      ],
-      "reload": [
-        "weapons/foley/m1-garand-reload-01.mp3",
-        "weapons/foley/m1-garand-reload-02.mp3"
-      ],
-      "safety": [
-        "weapons/foley/m1-garand-safety-01.mp3",
-        "weapons/foley/m1-garand-safety-02.mp3"
       ]
     },
     "footsteps": {
@@ -365,6 +250,1469 @@
         "combat/pain/down-04.mp3",
         "combat/pain/down-05.mp3",
         "combat/pain/down-06.mp3"
+      ]
+    },
+    "weapon.avs36": {
+      "fire": [
+        "weapons/avs36/fire-01.mp3",
+        "weapons/avs36/fire-02.mp3",
+        "weapons/avs36/fire-03.mp3",
+        "weapons/avs36/fire-04.mp3",
+        "weapons/avs36/fire-05.mp3",
+        "weapons/avs36/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/avs36/fireDistant-01.mp3",
+        "weapons/avs36/fireDistant-02.mp3",
+        "weapons/avs36/fireDistant-03.mp3",
+        "weapons/avs36/fireDistant-04.mp3"
+      ],
+      "grab": [
+        "weapons/foley/avs36-grab-01.mp3",
+        "weapons/foley/avs36-grab-02.mp3",
+        "weapons/foley/avs36-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/avs36-handling-01.mp3",
+        "weapons/foley/avs36-handling-02.mp3",
+        "weapons/foley/avs36-handling-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/avs36-reloadCharge-01.mp3",
+        "weapons/foley/avs36-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/avs36-reloadMagIn-01.mp3",
+        "weapons/foley/avs36-reloadMagIn-02.mp3",
+        "weapons/foley/avs36-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/avs36-reloadMagOut-01.mp3",
+        "weapons/foley/avs36-reloadMagOut-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/avs36-stoppageClear-01.mp3",
+        "weapons/foley/avs36-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/avs36-stoppageClick-01.mp3",
+        "weapons/foley/avs36-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.bren": {
+      "fire": [
+        "weapons/bren/fire-01.mp3",
+        "weapons/bren/fire-02.mp3",
+        "weapons/bren/fire-03.mp3",
+        "weapons/bren/fire-04.mp3",
+        "weapons/bren/fire-05.mp3",
+        "weapons/bren/fire-06.mp3",
+        "weapons/bren/fire-07.mp3",
+        "weapons/bren/fire-08.mp3"
+      ],
+      "fireDistant": [
+        "weapons/bren/fireDistant-01.mp3",
+        "weapons/bren/fireDistant-02.mp3",
+        "weapons/bren/fireDistant-03.mp3",
+        "weapons/bren/fireDistant-04.mp3"
+      ],
+      "fireTail": [
+        "weapons/bren/fireTail-01.mp3",
+        "weapons/bren/fireTail-02.mp3",
+        "weapons/bren/fireTail-03.mp3"
+      ],
+      "grab": [
+        "weapons/foley/bren-grab-01.mp3",
+        "weapons/foley/bren-grab-02.mp3",
+        "weapons/foley/bren-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/bren-handling-01.mp3",
+        "weapons/foley/bren-handling-02.mp3",
+        "weapons/foley/bren-handling-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/bren-reloadCharge-01.mp3",
+        "weapons/foley/bren-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/bren-reloadMagIn-01.mp3",
+        "weapons/foley/bren-reloadMagIn-02.mp3",
+        "weapons/foley/bren-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/bren-reloadMagOut-01.mp3",
+        "weapons/foley/bren-reloadMagOut-02.mp3"
+      ],
+      "safety": [
+        "weapons/foley/bren-safety-01.mp3",
+        "weapons/foley/bren-safety-02.mp3",
+        "weapons/foley/bren-safety-03.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/bren-stoppageClear-01.mp3",
+        "weapons/foley/bren-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/bren-stoppageClick-01.mp3",
+        "weapons/foley/bren-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.dp27": {
+      "fire": [
+        "weapons/dp27/fire-01.mp3",
+        "weapons/dp27/fire-02.mp3",
+        "weapons/dp27/fire-03.mp3",
+        "weapons/dp27/fire-04.mp3",
+        "weapons/dp27/fire-05.mp3",
+        "weapons/dp27/fire-06.mp3",
+        "weapons/dp27/fire-07.mp3",
+        "weapons/dp27/fire-08.mp3"
+      ],
+      "fireDistant": [
+        "weapons/dp27/fireDistant-01.mp3",
+        "weapons/dp27/fireDistant-02.mp3",
+        "weapons/dp27/fireDistant-03.mp3",
+        "weapons/dp27/fireDistant-04.mp3"
+      ],
+      "fireTail": [
+        "weapons/dp27/fireTail-01.mp3",
+        "weapons/dp27/fireTail-02.mp3",
+        "weapons/dp27/fireTail-03.mp3"
+      ],
+      "bipodDeploy": [
+        "weapons/foley/dp27-bipodDeploy-01.mp3",
+        "weapons/foley/dp27-bipodDeploy-02.mp3"
+      ],
+      "bipodFold": [
+        "weapons/foley/dp27-bipodFold-01.mp3",
+        "weapons/foley/dp27-bipodFold-02.mp3"
+      ],
+      "grab": [
+        "weapons/foley/dp27-grab-01.mp3",
+        "weapons/foley/dp27-grab-02.mp3",
+        "weapons/foley/dp27-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/dp27-handling-01.mp3",
+        "weapons/foley/dp27-handling-02.mp3",
+        "weapons/foley/dp27-handling-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/dp27-reloadCharge-01.mp3",
+        "weapons/foley/dp27-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/dp27-reloadMagIn-01.mp3",
+        "weapons/foley/dp27-reloadMagIn-02.mp3",
+        "weapons/foley/dp27-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/dp27-reloadMagOut-01.mp3",
+        "weapons/foley/dp27-reloadMagOut-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/dp27-stoppageClear-01.mp3",
+        "weapons/foley/dp27-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/dp27-stoppageClick-01.mp3",
+        "weapons/foley/dp27-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.fg42": {
+      "fire": [
+        "weapons/fg42/fire-01.mp3",
+        "weapons/fg42/fire-02.mp3",
+        "weapons/fg42/fire-03.mp3",
+        "weapons/fg42/fire-04.mp3",
+        "weapons/fg42/fire-05.mp3",
+        "weapons/fg42/fire-06.mp3",
+        "weapons/fg42/fire-07.mp3",
+        "weapons/fg42/fire-08.mp3"
+      ],
+      "fireDistant": [
+        "weapons/fg42/fireDistant-01.mp3",
+        "weapons/fg42/fireDistant-02.mp3",
+        "weapons/fg42/fireDistant-03.mp3",
+        "weapons/fg42/fireDistant-04.mp3"
+      ],
+      "fireTail": [
+        "weapons/fg42/fireTail-01.mp3",
+        "weapons/fg42/fireTail-02.mp3",
+        "weapons/fg42/fireTail-03.mp3"
+      ],
+      "grab": [
+        "weapons/foley/fg42-grab-01.mp3",
+        "weapons/foley/fg42-grab-02.mp3",
+        "weapons/foley/fg42-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/fg42-handling-01.mp3",
+        "weapons/foley/fg42-handling-02.mp3",
+        "weapons/foley/fg42-handling-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/fg42-reloadCharge-01.mp3",
+        "weapons/foley/fg42-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/fg42-reloadMagIn-01.mp3",
+        "weapons/foley/fg42-reloadMagIn-02.mp3",
+        "weapons/foley/fg42-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/fg42-reloadMagOut-01.mp3",
+        "weapons/foley/fg42-reloadMagOut-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/fg42-stoppageClear-01.mp3",
+        "weapons/foley/fg42-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/fg42-stoppageClick-01.mp3",
+        "weapons/foley/fg42-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.g33": {
+      "fire": [
+        "weapons/g33/fire-01.mp3",
+        "weapons/g33/fire-02.mp3",
+        "weapons/g33/fire-03.mp3",
+        "weapons/g33/fire-04.mp3",
+        "weapons/g33/fire-05.mp3",
+        "weapons/g33/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/g33/fireDistant-01.mp3",
+        "weapons/g33/fireDistant-02.mp3",
+        "weapons/g33/fireDistant-03.mp3",
+        "weapons/g33/fireDistant-04.mp3"
+      ],
+      "boltCycle": [
+        "weapons/foley/g33-boltCycle-01.mp3",
+        "weapons/foley/g33-boltCycle-02.mp3",
+        "weapons/foley/g33-boltCycle-03.mp3",
+        "weapons/foley/g33-boltCycle-04.mp3"
+      ],
+      "grab": [
+        "weapons/foley/g33-grab-01.mp3",
+        "weapons/foley/g33-grab-02.mp3",
+        "weapons/foley/g33-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/g33-handling-01.mp3",
+        "weapons/foley/g33-handling-02.mp3",
+        "weapons/foley/g33-handling-03.mp3"
+      ],
+      "reloadStripperClip": [
+        "weapons/foley/g33-reloadStripperClip-01.mp3",
+        "weapons/foley/g33-reloadStripperClip-02.mp3",
+        "weapons/foley/g33-reloadStripperClip-03.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/g33-stoppageClear-01.mp3",
+        "weapons/foley/g33-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/g33-stoppageClick-01.mp3",
+        "weapons/foley/g33-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.gewehr41": {
+      "fire": [
+        "weapons/gewehr41/fire-01.mp3",
+        "weapons/gewehr41/fire-02.mp3",
+        "weapons/gewehr41/fire-03.mp3",
+        "weapons/gewehr41/fire-04.mp3",
+        "weapons/gewehr41/fire-05.mp3",
+        "weapons/gewehr41/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/gewehr41/fireDistant-01.mp3",
+        "weapons/gewehr41/fireDistant-02.mp3",
+        "weapons/gewehr41/fireDistant-03.mp3",
+        "weapons/gewehr41/fireDistant-04.mp3"
+      ],
+      "grab": [
+        "weapons/foley/gewehr41-grab-01.mp3",
+        "weapons/foley/gewehr41-grab-02.mp3",
+        "weapons/foley/gewehr41-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/gewehr41-handling-01.mp3",
+        "weapons/foley/gewehr41-handling-02.mp3",
+        "weapons/foley/gewehr41-handling-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/gewehr41-reloadCharge-01.mp3",
+        "weapons/foley/gewehr41-reloadCharge-02.mp3"
+      ],
+      "reloadStripperClip": [
+        "weapons/foley/gewehr41-reloadStripperClip-01.mp3",
+        "weapons/foley/gewehr41-reloadStripperClip-02.mp3",
+        "weapons/foley/gewehr41-reloadStripperClip-03.mp3"
+      ],
+      "safety": [
+        "weapons/foley/gewehr41-safety-01.mp3",
+        "weapons/foley/gewehr41-safety-02.mp3",
+        "weapons/foley/gewehr41-safety-03.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/gewehr41-stoppageClear-01.mp3",
+        "weapons/foley/gewehr41-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/gewehr41-stoppageClick-01.mp3",
+        "weapons/foley/gewehr41-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.kar98k": {
+      "fire": [
+        "weapons/kar98k/fire-01.mp3",
+        "weapons/kar98k/fire-02.mp3",
+        "weapons/kar98k/fire-03.mp3",
+        "weapons/kar98k/fire-04.mp3",
+        "weapons/kar98k/fire-05.mp3",
+        "weapons/kar98k/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/kar98k/fireDistant-01.mp3",
+        "weapons/kar98k/fireDistant-02.mp3",
+        "weapons/kar98k/fireDistant-03.mp3",
+        "weapons/kar98k/fireDistant-04.mp3"
+      ],
+      "boltCycle": [
+        "weapons/foley/kar98k-boltCycle-01.mp3",
+        "weapons/foley/kar98k-boltCycle-02.mp3",
+        "weapons/foley/kar98k-boltCycle-03.mp3",
+        "weapons/foley/kar98k-boltCycle-04.mp3"
+      ],
+      "grab": [
+        "weapons/foley/kar98k-grab-01.mp3",
+        "weapons/foley/kar98k-grab-02.mp3",
+        "weapons/foley/kar98k-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/kar98k-handling-01.mp3",
+        "weapons/foley/kar98k-handling-02.mp3",
+        "weapons/foley/kar98k-handling-03.mp3"
+      ],
+      "reloadBoltClose": [
+        "weapons/foley/kar98k-reloadBoltClose-01.mp3",
+        "weapons/foley/kar98k-reloadBoltClose-02.mp3"
+      ],
+      "reloadBoltOpen": [
+        "weapons/foley/kar98k-reloadBoltOpen-01.mp3",
+        "weapons/foley/kar98k-reloadBoltOpen-02.mp3"
+      ],
+      "reloadStripperClip": [
+        "weapons/foley/kar98k-reloadStripperClip-01.mp3",
+        "weapons/foley/kar98k-reloadStripperClip-02.mp3",
+        "weapons/foley/kar98k-reloadStripperClip-03.mp3"
+      ],
+      "safety": [
+        "weapons/foley/kar98k-safety-01.mp3",
+        "weapons/foley/kar98k-safety-02.mp3",
+        "weapons/foley/kar98k-safety-03.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/kar98k-stoppageClear-01.mp3",
+        "weapons/foley/kar98k-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/kar98k-stoppageClick-01.mp3",
+        "weapons/foley/kar98k-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.m1-carbine": {
+      "fire": [
+        "weapons/m1-carbine/fire-01.mp3",
+        "weapons/m1-carbine/fire-02.mp3",
+        "weapons/m1-carbine/fire-03.mp3",
+        "weapons/m1-carbine/fire-04.mp3",
+        "weapons/m1-carbine/fire-05.mp3",
+        "weapons/m1-carbine/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/m1-carbine/fireDistant-01.mp3",
+        "weapons/m1-carbine/fireDistant-02.mp3",
+        "weapons/m1-carbine/fireDistant-03.mp3",
+        "weapons/m1-carbine/fireDistant-04.mp3"
+      ],
+      "grab": [
+        "weapons/foley/m1-carbine-grab-01.mp3",
+        "weapons/foley/m1-carbine-grab-02.mp3",
+        "weapons/foley/m1-carbine-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/m1-carbine-handling-01.mp3",
+        "weapons/foley/m1-carbine-handling-02.mp3",
+        "weapons/foley/m1-carbine-handling-03.mp3"
+      ],
+      "mode": [
+        "weapons/foley/m1-carbine-mode-01.mp3",
+        "weapons/foley/m1-carbine-mode-02.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/m1-carbine-reloadCharge-01.mp3",
+        "weapons/foley/m1-carbine-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/m1-carbine-reloadMagIn-01.mp3",
+        "weapons/foley/m1-carbine-reloadMagIn-02.mp3",
+        "weapons/foley/m1-carbine-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/m1-carbine-reloadMagOut-01.mp3",
+        "weapons/foley/m1-carbine-reloadMagOut-02.mp3"
+      ],
+      "safety": [
+        "weapons/foley/m1-carbine-safety-01.mp3",
+        "weapons/foley/m1-carbine-safety-02.mp3",
+        "weapons/foley/m1-carbine-safety-03.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/m1-carbine-stoppageClear-01.mp3",
+        "weapons/foley/m1-carbine-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/m1-carbine-stoppageClick-01.mp3",
+        "weapons/foley/m1-carbine-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.m1-garand": {
+      "fire": [
+        "weapons/m1-garand/fire-01.mp3",
+        "weapons/m1-garand/fire-02.mp3",
+        "weapons/m1-garand/fire-03.mp3",
+        "weapons/m1-garand/fire-04.mp3",
+        "weapons/m1-garand/fire-05.mp3",
+        "weapons/m1-garand/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/m1-garand/fireDistant-01.mp3",
+        "weapons/m1-garand/fireDistant-02.mp3",
+        "weapons/m1-garand/fireDistant-03.mp3",
+        "weapons/m1-garand/fireDistant-04.mp3"
+      ],
+      "clipPing": [
+        "weapons/foley/m1-garand-clipPing-01.mp3",
+        "weapons/foley/m1-garand-clipPing-02.mp3",
+        "weapons/foley/m1-garand-clipPing-03.mp3"
+      ],
+      "grab": [
+        "weapons/foley/m1-garand-grab-01.mp3",
+        "weapons/foley/m1-garand-grab-02.mp3",
+        "weapons/foley/m1-garand-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/m1-garand-handling-01.mp3",
+        "weapons/foley/m1-garand-handling-02.mp3",
+        "weapons/foley/m1-garand-handling-03.mp3"
+      ],
+      "reloadBoltRelease": [
+        "weapons/foley/m1-garand-reloadBoltRelease-01.mp3",
+        "weapons/foley/m1-garand-reloadBoltRelease-02.mp3",
+        "weapons/foley/m1-garand-reloadBoltRelease-03.mp3"
+      ],
+      "reloadClipInsert": [
+        "weapons/foley/m1-garand-reloadClipInsert-01.mp3",
+        "weapons/foley/m1-garand-reloadClipInsert-02.mp3",
+        "weapons/foley/m1-garand-reloadClipInsert-03.mp3"
+      ],
+      "safety": [
+        "weapons/foley/m1-garand-safety-01.mp3",
+        "weapons/foley/m1-garand-safety-02.mp3",
+        "weapons/foley/m1-garand-safety-03.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/m1-garand-stoppageClear-01.mp3",
+        "weapons/foley/m1-garand-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/m1-garand-stoppageClick-01.mp3",
+        "weapons/foley/m1-garand-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.m1911a1": {
+      "fire": [
+        "weapons/m1911a1/fire-01.mp3",
+        "weapons/m1911a1/fire-02.mp3",
+        "weapons/m1911a1/fire-03.mp3",
+        "weapons/m1911a1/fire-04.mp3",
+        "weapons/m1911a1/fire-05.mp3",
+        "weapons/m1911a1/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/m1911a1/fireDistant-01.mp3",
+        "weapons/m1911a1/fireDistant-02.mp3",
+        "weapons/m1911a1/fireDistant-03.mp3"
+      ],
+      "grab": [
+        "weapons/foley/m1911a1-grab-01.mp3",
+        "weapons/foley/m1911a1-grab-02.mp3",
+        "weapons/foley/m1911a1-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/m1911a1-handling-01.mp3",
+        "weapons/foley/m1911a1-handling-02.mp3",
+        "weapons/foley/m1911a1-handling-03.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/m1911a1-reloadMagIn-01.mp3",
+        "weapons/foley/m1911a1-reloadMagIn-02.mp3",
+        "weapons/foley/m1911a1-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/m1911a1-reloadMagOut-01.mp3",
+        "weapons/foley/m1911a1-reloadMagOut-02.mp3"
+      ],
+      "reloadSlideRelease": [
+        "weapons/foley/m1911a1-reloadSlideRelease-01.mp3",
+        "weapons/foley/m1911a1-reloadSlideRelease-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/m1911a1-stoppageClear-01.mp3",
+        "weapons/foley/m1911a1-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/m1911a1-stoppageClick-01.mp3",
+        "weapons/foley/m1911a1-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.m1919a6": {
+      "fire": [
+        "weapons/m1919a6/fire-01.mp3",
+        "weapons/m1919a6/fire-02.mp3",
+        "weapons/m1919a6/fire-03.mp3",
+        "weapons/m1919a6/fire-04.mp3",
+        "weapons/m1919a6/fire-05.mp3",
+        "weapons/m1919a6/fire-06.mp3",
+        "weapons/m1919a6/fire-07.mp3",
+        "weapons/m1919a6/fire-08.mp3",
+        "weapons/m1919a6/fire-09.mp3",
+        "weapons/m1919a6/fire-10.mp3"
+      ],
+      "fireDistant": [
+        "weapons/m1919a6/fireDistant-01.mp3",
+        "weapons/m1919a6/fireDistant-02.mp3",
+        "weapons/m1919a6/fireDistant-03.mp3",
+        "weapons/m1919a6/fireDistant-04.mp3"
+      ],
+      "fireTail": [
+        "weapons/m1919a6/fireTail-01.mp3",
+        "weapons/m1919a6/fireTail-02.mp3",
+        "weapons/m1919a6/fireTail-03.mp3"
+      ],
+      "bipodDeploy": [
+        "weapons/foley/m1919a6-bipodDeploy-01.mp3",
+        "weapons/foley/m1919a6-bipodDeploy-02.mp3"
+      ],
+      "bipodFold": [
+        "weapons/foley/m1919a6-bipodFold-01.mp3",
+        "weapons/foley/m1919a6-bipodFold-02.mp3"
+      ],
+      "grab": [
+        "weapons/foley/m1919a6-grab-01.mp3",
+        "weapons/foley/m1919a6-grab-02.mp3",
+        "weapons/foley/m1919a6-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/m1919a6-handling-01.mp3",
+        "weapons/foley/m1919a6-handling-02.mp3",
+        "weapons/foley/m1919a6-handling-03.mp3"
+      ],
+      "reloadBeltLay": [
+        "weapons/foley/m1919a6-reloadBeltLay-01.mp3",
+        "weapons/foley/m1919a6-reloadBeltLay-02.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/m1919a6-reloadCharge-01.mp3",
+        "weapons/foley/m1919a6-reloadCharge-02.mp3"
+      ],
+      "reloadCoverClose": [
+        "weapons/foley/m1919a6-reloadCoverClose-01.mp3",
+        "weapons/foley/m1919a6-reloadCoverClose-02.mp3"
+      ],
+      "reloadCoverOpen": [
+        "weapons/foley/m1919a6-reloadCoverOpen-01.mp3",
+        "weapons/foley/m1919a6-reloadCoverOpen-02.mp3"
+      ],
+      "safety": [
+        "weapons/foley/m1919a6-safety-01.mp3",
+        "weapons/foley/m1919a6-safety-02.mp3",
+        "weapons/foley/m1919a6-safety-03.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/m1919a6-stoppageClear-01.mp3",
+        "weapons/foley/m1919a6-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/m1919a6-stoppageClick-01.mp3",
+        "weapons/foley/m1919a6-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.m3": {
+      "fire": [
+        "weapons/m3/fire-01.mp3",
+        "weapons/m3/fire-02.mp3",
+        "weapons/m3/fire-03.mp3",
+        "weapons/m3/fire-04.mp3",
+        "weapons/m3/fire-05.mp3",
+        "weapons/m3/fire-06.mp3",
+        "weapons/m3/fire-07.mp3",
+        "weapons/m3/fire-08.mp3"
+      ],
+      "fireDistant": [
+        "weapons/m3/fireDistant-01.mp3",
+        "weapons/m3/fireDistant-02.mp3",
+        "weapons/m3/fireDistant-03.mp3",
+        "weapons/m3/fireDistant-04.mp3"
+      ],
+      "fireTail": [
+        "weapons/m3/fireTail-01.mp3",
+        "weapons/m3/fireTail-02.mp3",
+        "weapons/m3/fireTail-03.mp3"
+      ],
+      "grab": [
+        "weapons/foley/m3-grab-01.mp3",
+        "weapons/foley/m3-grab-02.mp3",
+        "weapons/foley/m3-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/m3-handling-01.mp3",
+        "weapons/foley/m3-handling-02.mp3",
+        "weapons/foley/m3-handling-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/m3-reloadCharge-01.mp3",
+        "weapons/foley/m3-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/m3-reloadMagIn-01.mp3",
+        "weapons/foley/m3-reloadMagIn-02.mp3",
+        "weapons/foley/m3-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/m3-reloadMagOut-01.mp3",
+        "weapons/foley/m3-reloadMagOut-02.mp3"
+      ],
+      "safety": [
+        "weapons/foley/m3-safety-01.mp3",
+        "weapons/foley/m3-safety-02.mp3",
+        "weapons/foley/m3-safety-03.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/m3-stoppageClear-01.mp3",
+        "weapons/foley/m3-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/m3-stoppageClick-01.mp3",
+        "weapons/foley/m3-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.m30-drilling-rifle": {
+      "fire": [
+        "weapons/m30-drilling-rifle/fire-01.mp3",
+        "weapons/m30-drilling-rifle/fire-02.mp3",
+        "weapons/m30-drilling-rifle/fire-03.mp3",
+        "weapons/m30-drilling-rifle/fire-04.mp3",
+        "weapons/m30-drilling-rifle/fire-05.mp3",
+        "weapons/m30-drilling-rifle/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/m30-drilling-rifle/fireDistant-01.mp3",
+        "weapons/m30-drilling-rifle/fireDistant-02.mp3",
+        "weapons/m30-drilling-rifle/fireDistant-03.mp3",
+        "weapons/m30-drilling-rifle/fireDistant-04.mp3"
+      ],
+      "grab": [
+        "weapons/foley/m30-drilling-rifle-grab-01.mp3",
+        "weapons/foley/m30-drilling-rifle-grab-02.mp3",
+        "weapons/foley/m30-drilling-rifle-grab-03.mp3"
+      ],
+      "mode": [
+        "weapons/foley/m30-drilling-rifle-mode-01.mp3",
+        "weapons/foley/m30-drilling-rifle-mode-02.mp3",
+        "weapons/foley/m30-drilling-rifle-mode-03.mp3"
+      ],
+      "reloadClose": [
+        "weapons/foley/m30-drilling-rifle-reloadClose-01.mp3",
+        "weapons/foley/m30-drilling-rifle-reloadClose-02.mp3"
+      ],
+      "reloadOpen": [
+        "weapons/foley/m30-drilling-rifle-reloadOpen-01.mp3",
+        "weapons/foley/m30-drilling-rifle-reloadOpen-02.mp3"
+      ],
+      "reloadShell": [
+        "weapons/foley/m30-drilling-rifle-reloadShell-01.mp3",
+        "weapons/foley/m30-drilling-rifle-reloadShell-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/m30-drilling-rifle-stoppageClear-01.mp3",
+        "weapons/foley/m30-drilling-rifle-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/m30-drilling-rifle-stoppageClick-01.mp3",
+        "weapons/foley/m30-drilling-rifle-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.m30-drilling-shotgun": {
+      "fire": [
+        "weapons/m30-drilling-shotgun/fire-01.mp3",
+        "weapons/m30-drilling-shotgun/fire-02.mp3",
+        "weapons/m30-drilling-shotgun/fire-03.mp3",
+        "weapons/m30-drilling-shotgun/fire-04.mp3",
+        "weapons/m30-drilling-shotgun/fire-05.mp3",
+        "weapons/m30-drilling-shotgun/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/m30-drilling-shotgun/fireDistant-01.mp3",
+        "weapons/m30-drilling-shotgun/fireDistant-02.mp3",
+        "weapons/m30-drilling-shotgun/fireDistant-03.mp3",
+        "weapons/m30-drilling-shotgun/fireDistant-04.mp3"
+      ],
+      "grab": [
+        "weapons/foley/m30-drilling-shotgun-grab-01.mp3",
+        "weapons/foley/m30-drilling-shotgun-grab-02.mp3",
+        "weapons/foley/m30-drilling-shotgun-grab-03.mp3"
+      ],
+      "mode": [
+        "weapons/foley/m30-drilling-shotgun-mode-01.mp3",
+        "weapons/foley/m30-drilling-shotgun-mode-02.mp3",
+        "weapons/foley/m30-drilling-shotgun-mode-03.mp3"
+      ],
+      "reloadClose": [
+        "weapons/foley/m30-drilling-shotgun-reloadClose-01.mp3",
+        "weapons/foley/m30-drilling-shotgun-reloadClose-02.mp3"
+      ],
+      "reloadOpen": [
+        "weapons/foley/m30-drilling-shotgun-reloadOpen-01.mp3",
+        "weapons/foley/m30-drilling-shotgun-reloadOpen-02.mp3"
+      ],
+      "reloadShell": [
+        "weapons/foley/m30-drilling-shotgun-reloadShell-01.mp3",
+        "weapons/foley/m30-drilling-shotgun-reloadShell-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/m30-drilling-shotgun-stoppageClear-01.mp3",
+        "weapons/foley/m30-drilling-shotgun-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/m30-drilling-shotgun-stoppageClick-01.mp3",
+        "weapons/foley/m30-drilling-shotgun-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.mg42": {
+      "fire": [
+        "weapons/mg42/fire-01.mp3",
+        "weapons/mg42/fire-02.mp3",
+        "weapons/mg42/fire-03.mp3",
+        "weapons/mg42/fire-04.mp3",
+        "weapons/mg42/fire-05.mp3",
+        "weapons/mg42/fire-06.mp3",
+        "weapons/mg42/fire-07.mp3",
+        "weapons/mg42/fire-08.mp3",
+        "weapons/mg42/fire-09.mp3",
+        "weapons/mg42/fire-10.mp3",
+        "weapons/mg42/fire-11.mp3",
+        "weapons/mg42/fire-12.mp3"
+      ],
+      "fireDistant": [
+        "weapons/mg42/fireDistant-01.mp3",
+        "weapons/mg42/fireDistant-02.mp3",
+        "weapons/mg42/fireDistant-03.mp3",
+        "weapons/mg42/fireDistant-04.mp3"
+      ],
+      "fireTail": [
+        "weapons/mg42/fireTail-01.mp3",
+        "weapons/mg42/fireTail-02.mp3",
+        "weapons/mg42/fireTail-03.mp3"
+      ],
+      "bipodDeploy": [
+        "weapons/foley/mg42-bipodDeploy-01.mp3",
+        "weapons/foley/mg42-bipodDeploy-02.mp3"
+      ],
+      "bipodFold": [
+        "weapons/foley/mg42-bipodFold-01.mp3",
+        "weapons/foley/mg42-bipodFold-02.mp3"
+      ],
+      "grab": [
+        "weapons/foley/mg42-grab-01.mp3",
+        "weapons/foley/mg42-grab-02.mp3",
+        "weapons/foley/mg42-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/mg42-handling-01.mp3",
+        "weapons/foley/mg42-handling-02.mp3",
+        "weapons/foley/mg42-handling-03.mp3"
+      ],
+      "reloadBeltLay": [
+        "weapons/foley/mg42-reloadBeltLay-01.mp3",
+        "weapons/foley/mg42-reloadBeltLay-02.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/mg42-reloadCharge-01.mp3",
+        "weapons/foley/mg42-reloadCharge-02.mp3"
+      ],
+      "reloadCoverClose": [
+        "weapons/foley/mg42-reloadCoverClose-01.mp3",
+        "weapons/foley/mg42-reloadCoverClose-02.mp3"
+      ],
+      "reloadCoverOpen": [
+        "weapons/foley/mg42-reloadCoverOpen-01.mp3",
+        "weapons/foley/mg42-reloadCoverOpen-02.mp3"
+      ],
+      "safety": [
+        "weapons/foley/mg42-safety-01.mp3",
+        "weapons/foley/mg42-safety-02.mp3",
+        "weapons/foley/mg42-safety-03.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/mg42-stoppageClear-01.mp3",
+        "weapons/foley/mg42-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/mg42-stoppageClick-01.mp3",
+        "weapons/foley/mg42-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.mosin-m38": {
+      "fire": [
+        "weapons/mosin-m38/fire-01.mp3",
+        "weapons/mosin-m38/fire-02.mp3",
+        "weapons/mosin-m38/fire-03.mp3",
+        "weapons/mosin-m38/fire-04.mp3",
+        "weapons/mosin-m38/fire-05.mp3",
+        "weapons/mosin-m38/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/mosin-m38/fireDistant-01.mp3",
+        "weapons/mosin-m38/fireDistant-02.mp3",
+        "weapons/mosin-m38/fireDistant-03.mp3",
+        "weapons/mosin-m38/fireDistant-04.mp3"
+      ],
+      "boltCycle": [
+        "weapons/foley/mosin-m38-boltCycle-01.mp3",
+        "weapons/foley/mosin-m38-boltCycle-02.mp3",
+        "weapons/foley/mosin-m38-boltCycle-03.mp3",
+        "weapons/foley/mosin-m38-boltCycle-04.mp3"
+      ],
+      "grab": [
+        "weapons/foley/mosin-m38-grab-01.mp3",
+        "weapons/foley/mosin-m38-grab-02.mp3",
+        "weapons/foley/mosin-m38-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/mosin-m38-handling-01.mp3",
+        "weapons/foley/mosin-m38-handling-02.mp3",
+        "weapons/foley/mosin-m38-handling-03.mp3"
+      ],
+      "reloadStripperClip": [
+        "weapons/foley/mosin-m38-reloadStripperClip-01.mp3",
+        "weapons/foley/mosin-m38-reloadStripperClip-02.mp3",
+        "weapons/foley/mosin-m38-reloadStripperClip-03.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/mosin-m38-stoppageClear-01.mp3",
+        "weapons/foley/mosin-m38-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/mosin-m38-stoppageClick-01.mp3",
+        "weapons/foley/mosin-m38-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.mp28": {
+      "fire": [
+        "weapons/mp28/fire-01.mp3",
+        "weapons/mp28/fire-02.mp3",
+        "weapons/mp28/fire-03.mp3",
+        "weapons/mp28/fire-04.mp3",
+        "weapons/mp28/fire-05.mp3",
+        "weapons/mp28/fire-06.mp3",
+        "weapons/mp28/fire-07.mp3",
+        "weapons/mp28/fire-08.mp3"
+      ],
+      "fireDistant": [
+        "weapons/mp28/fireDistant-01.mp3",
+        "weapons/mp28/fireDistant-02.mp3",
+        "weapons/mp28/fireDistant-03.mp3",
+        "weapons/mp28/fireDistant-04.mp3"
+      ],
+      "fireTail": [
+        "weapons/mp28/fireTail-01.mp3",
+        "weapons/mp28/fireTail-02.mp3",
+        "weapons/mp28/fireTail-03.mp3"
+      ],
+      "grab": [
+        "weapons/foley/mp28-grab-01.mp3",
+        "weapons/foley/mp28-grab-02.mp3",
+        "weapons/foley/mp28-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/mp28-handling-01.mp3",
+        "weapons/foley/mp28-handling-02.mp3",
+        "weapons/foley/mp28-handling-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/mp28-reloadCharge-01.mp3",
+        "weapons/foley/mp28-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/mp28-reloadMagIn-01.mp3",
+        "weapons/foley/mp28-reloadMagIn-02.mp3",
+        "weapons/foley/mp28-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/mp28-reloadMagOut-01.mp3",
+        "weapons/foley/mp28-reloadMagOut-02.mp3"
+      ],
+      "safety": [
+        "weapons/foley/mp28-safety-01.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/mp28-stoppageClear-01.mp3",
+        "weapons/foley/mp28-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/mp28-stoppageClick-01.mp3",
+        "weapons/foley/mp28-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.mp40": {
+      "fire": [
+        "weapons/mp40/fire-01.mp3",
+        "weapons/mp40/fire-02.mp3",
+        "weapons/mp40/fire-03.mp3",
+        "weapons/mp40/fire-04.mp3",
+        "weapons/mp40/fire-05.mp3",
+        "weapons/mp40/fire-06.mp3",
+        "weapons/mp40/fire-07.mp3",
+        "weapons/mp40/fire-08.mp3"
+      ],
+      "fireDistant": [
+        "weapons/mp40/fireDistant-01.mp3",
+        "weapons/mp40/fireDistant-02.mp3",
+        "weapons/mp40/fireDistant-03.mp3",
+        "weapons/mp40/fireDistant-04.mp3"
+      ],
+      "fireTail": [
+        "weapons/mp40/fireTail-01.mp3",
+        "weapons/mp40/fireTail-02.mp3",
+        "weapons/mp40/fireTail-03.mp3"
+      ],
+      "grab": [
+        "weapons/foley/mp40-grab-01.mp3",
+        "weapons/foley/mp40-grab-02.mp3",
+        "weapons/foley/mp40-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/mp40-handling-01.mp3",
+        "weapons/foley/mp40-handling-02.mp3",
+        "weapons/foley/mp40-handling-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/mp40-reloadCharge-01.mp3",
+        "weapons/foley/mp40-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/mp40-reloadMagIn-01.mp3",
+        "weapons/foley/mp40-reloadMagIn-02.mp3",
+        "weapons/foley/mp40-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/mp40-reloadMagOut-01.mp3",
+        "weapons/foley/mp40-reloadMagOut-02.mp3"
+      ],
+      "safety": [
+        "weapons/foley/mp40-safety-01.mp3",
+        "weapons/foley/mp40-safety-02.mp3",
+        "weapons/foley/mp40-safety-03.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/mp40-stoppageClear-01.mp3",
+        "weapons/foley/mp40-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/mp40-stoppageClick-01.mp3",
+        "weapons/foley/mp40-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.p38": {
+      "fire": [
+        "weapons/p38/fire-01.mp3",
+        "weapons/p38/fire-02.mp3",
+        "weapons/p38/fire-03.mp3",
+        "weapons/p38/fire-04.mp3",
+        "weapons/p38/fire-05.mp3",
+        "weapons/p38/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/p38/fireDistant-01.mp3",
+        "weapons/p38/fireDistant-02.mp3",
+        "weapons/p38/fireDistant-03.mp3"
+      ],
+      "grab": [
+        "weapons/foley/p38-grab-01.mp3",
+        "weapons/foley/p38-grab-02.mp3",
+        "weapons/foley/p38-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/p38-handling-01.mp3",
+        "weapons/foley/p38-handling-02.mp3",
+        "weapons/foley/p38-handling-03.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/p38-reloadMagIn-01.mp3",
+        "weapons/foley/p38-reloadMagIn-02.mp3",
+        "weapons/foley/p38-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/p38-reloadMagOut-01.mp3",
+        "weapons/foley/p38-reloadMagOut-02.mp3"
+      ],
+      "reloadSlideRelease": [
+        "weapons/foley/p38-reloadSlideRelease-01.mp3",
+        "weapons/foley/p38-reloadSlideRelease-02.mp3"
+      ],
+      "safety": [
+        "weapons/foley/p38-safety-01.mp3",
+        "weapons/foley/p38-safety-02.mp3",
+        "weapons/foley/p38-safety-03.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/p38-stoppageClear-01.mp3",
+        "weapons/foley/p38-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/p38-stoppageClick-01.mp3",
+        "weapons/foley/p38-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.ppd40": {
+      "fire": [
+        "weapons/ppd40/fire-01.mp3",
+        "weapons/ppd40/fire-02.mp3",
+        "weapons/ppd40/fire-03.mp3",
+        "weapons/ppd40/fire-04.mp3",
+        "weapons/ppd40/fire-05.mp3",
+        "weapons/ppd40/fire-06.mp3",
+        "weapons/ppd40/fire-07.mp3",
+        "weapons/ppd40/fire-08.mp3"
+      ],
+      "fireDistant": [
+        "weapons/ppd40/fireDistant-01.mp3",
+        "weapons/ppd40/fireDistant-02.mp3",
+        "weapons/ppd40/fireDistant-03.mp3",
+        "weapons/ppd40/fireDistant-04.mp3"
+      ],
+      "fireTail": [
+        "weapons/ppd40/fireTail-01.mp3",
+        "weapons/ppd40/fireTail-02.mp3",
+        "weapons/ppd40/fireTail-03.mp3"
+      ],
+      "grab": [
+        "weapons/foley/ppd40-grab-01.mp3",
+        "weapons/foley/ppd40-grab-02.mp3",
+        "weapons/foley/ppd40-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/ppd40-handling-01.mp3",
+        "weapons/foley/ppd40-handling-02.mp3",
+        "weapons/foley/ppd40-handling-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/ppd40-reloadCharge-01.mp3",
+        "weapons/foley/ppd40-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/ppd40-reloadMagIn-01.mp3",
+        "weapons/foley/ppd40-reloadMagIn-02.mp3",
+        "weapons/foley/ppd40-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/ppd40-reloadMagOut-01.mp3",
+        "weapons/foley/ppd40-reloadMagOut-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/ppd40-stoppageClear-01.mp3",
+        "weapons/foley/ppd40-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/ppd40-stoppageClick-01.mp3",
+        "weapons/foley/ppd40-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.ppk": {
+      "fire": [
+        "weapons/ppk/fire-01.mp3",
+        "weapons/ppk/fire-02.mp3",
+        "weapons/ppk/fire-03.mp3",
+        "weapons/ppk/fire-04.mp3",
+        "weapons/ppk/fire-05.mp3",
+        "weapons/ppk/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/ppk/fireDistant-01.mp3",
+        "weapons/ppk/fireDistant-02.mp3",
+        "weapons/ppk/fireDistant-03.mp3",
+        "weapons/ppk/fireDistant-04.mp3"
+      ],
+      "grab": [
+        "weapons/foley/ppk-grab-01.mp3",
+        "weapons/foley/ppk-grab-02.mp3",
+        "weapons/foley/ppk-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/ppk-handling-01.mp3",
+        "weapons/foley/ppk-handling-02.mp3",
+        "weapons/foley/ppk-handling-03.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/ppk-reloadMagIn-01.mp3",
+        "weapons/foley/ppk-reloadMagIn-02.mp3",
+        "weapons/foley/ppk-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/ppk-reloadMagOut-01.mp3",
+        "weapons/foley/ppk-reloadMagOut-02.mp3"
+      ],
+      "reloadSlideRelease": [
+        "weapons/foley/ppk-reloadSlideRelease-01.mp3",
+        "weapons/foley/ppk-reloadSlideRelease-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/ppk-stoppageClear-01.mp3",
+        "weapons/foley/ppk-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/ppk-stoppageClick-01.mp3",
+        "weapons/foley/ppk-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.pps43": {
+      "fire": [
+        "weapons/pps43/fire-01.mp3",
+        "weapons/pps43/fire-02.mp3",
+        "weapons/pps43/fire-03.mp3",
+        "weapons/pps43/fire-04.mp3",
+        "weapons/pps43/fire-05.mp3",
+        "weapons/pps43/fire-06.mp3",
+        "weapons/pps43/fire-07.mp3",
+        "weapons/pps43/fire-08.mp3"
+      ],
+      "fireDistant": [
+        "weapons/pps43/fireDistant-01.mp3",
+        "weapons/pps43/fireDistant-02.mp3",
+        "weapons/pps43/fireDistant-03.mp3",
+        "weapons/pps43/fireDistant-04.mp3"
+      ],
+      "fireTail": [
+        "weapons/pps43/fireTail-01.mp3",
+        "weapons/pps43/fireTail-02.mp3",
+        "weapons/pps43/fireTail-03.mp3"
+      ],
+      "grab": [
+        "weapons/foley/pps43-grab-01.mp3",
+        "weapons/foley/pps43-grab-02.mp3",
+        "weapons/foley/pps43-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/pps43-handling-01.mp3",
+        "weapons/foley/pps43-handling-02.mp3",
+        "weapons/foley/pps43-handling-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/pps43-reloadCharge-01.mp3",
+        "weapons/foley/pps43-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/pps43-reloadMagIn-01.mp3",
+        "weapons/foley/pps43-reloadMagIn-02.mp3",
+        "weapons/foley/pps43-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/pps43-reloadMagOut-01.mp3",
+        "weapons/foley/pps43-reloadMagOut-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/pps43-stoppageClear-01.mp3",
+        "weapons/foley/pps43-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/pps43-stoppageClick-01.mp3",
+        "weapons/foley/pps43-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.sten": {
+      "fire": [
+        "weapons/sten/fire-01.mp3",
+        "weapons/sten/fire-02.mp3",
+        "weapons/sten/fire-03.mp3",
+        "weapons/sten/fire-04.mp3",
+        "weapons/sten/fire-05.mp3",
+        "weapons/sten/fire-06.mp3",
+        "weapons/sten/fire-07.mp3",
+        "weapons/sten/fire-08.mp3"
+      ],
+      "fireDistant": [
+        "weapons/sten/fireDistant-01.mp3",
+        "weapons/sten/fireDistant-02.mp3",
+        "weapons/sten/fireDistant-03.mp3",
+        "weapons/sten/fireDistant-04.mp3"
+      ],
+      "fireTail": [
+        "weapons/sten/fireTail-01.mp3",
+        "weapons/sten/fireTail-02.mp3",
+        "weapons/sten/fireTail-03.mp3"
+      ],
+      "grab": [
+        "weapons/foley/sten-grab-01.mp3",
+        "weapons/foley/sten-grab-02.mp3",
+        "weapons/foley/sten-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/sten-handling-01.mp3",
+        "weapons/foley/sten-handling-02.mp3",
+        "weapons/foley/sten-handling-03.mp3"
+      ],
+      "mode": [
+        "weapons/foley/sten-mode-01.mp3",
+        "weapons/foley/sten-mode-02.mp3",
+        "weapons/foley/sten-mode-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/sten-reloadCharge-01.mp3",
+        "weapons/foley/sten-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/sten-reloadMagIn-01.mp3",
+        "weapons/foley/sten-reloadMagIn-02.mp3",
+        "weapons/foley/sten-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/sten-reloadMagOut-01.mp3",
+        "weapons/foley/sten-reloadMagOut-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/sten-stoppageClear-01.mp3",
+        "weapons/foley/sten-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/sten-stoppageClick-01.mp3",
+        "weapons/foley/sten-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.stg44": {
+      "fire": [
+        "weapons/stg44/fire-01.mp3",
+        "weapons/stg44/fire-02.mp3",
+        "weapons/stg44/fire-03.mp3",
+        "weapons/stg44/fire-04.mp3",
+        "weapons/stg44/fire-05.mp3",
+        "weapons/stg44/fire-06.mp3",
+        "weapons/stg44/fire-07.mp3",
+        "weapons/stg44/fire-08.mp3"
+      ],
+      "fireDistant": [
+        "weapons/stg44/fireDistant-01.mp3",
+        "weapons/stg44/fireDistant-02.mp3",
+        "weapons/stg44/fireDistant-03.mp3",
+        "weapons/stg44/fireDistant-04.mp3"
+      ],
+      "fireTail": [
+        "weapons/stg44/fireTail-01.mp3",
+        "weapons/stg44/fireTail-02.mp3",
+        "weapons/stg44/fireTail-03.mp3"
+      ],
+      "grab": [
+        "weapons/foley/stg44-grab-01.mp3",
+        "weapons/foley/stg44-grab-02.mp3",
+        "weapons/foley/stg44-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/stg44-handling-01.mp3",
+        "weapons/foley/stg44-handling-02.mp3",
+        "weapons/foley/stg44-handling-03.mp3"
+      ],
+      "mode": [
+        "weapons/foley/stg44-mode-01.mp3",
+        "weapons/foley/stg44-mode-02.mp3",
+        "weapons/foley/stg44-mode-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/stg44-reloadCharge-01.mp3",
+        "weapons/foley/stg44-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/stg44-reloadMagIn-01.mp3",
+        "weapons/foley/stg44-reloadMagIn-02.mp3",
+        "weapons/foley/stg44-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/stg44-reloadMagOut-01.mp3",
+        "weapons/foley/stg44-reloadMagOut-02.mp3"
+      ],
+      "safety": [
+        "weapons/foley/stg44-safety-01.mp3",
+        "weapons/foley/stg44-safety-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/stg44-stoppageClear-01.mp3",
+        "weapons/foley/stg44-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/stg44-stoppageClick-01.mp3",
+        "weapons/foley/stg44-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.svt40": {
+      "fire": [
+        "weapons/svt40/fire-01.mp3",
+        "weapons/svt40/fire-02.mp3",
+        "weapons/svt40/fire-03.mp3",
+        "weapons/svt40/fire-04.mp3",
+        "weapons/svt40/fire-05.mp3",
+        "weapons/svt40/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/svt40/fireDistant-01.mp3",
+        "weapons/svt40/fireDistant-02.mp3",
+        "weapons/svt40/fireDistant-03.mp3",
+        "weapons/svt40/fireDistant-04.mp3"
+      ],
+      "grab": [
+        "weapons/foley/svt40-grab-01.mp3",
+        "weapons/foley/svt40-grab-02.mp3",
+        "weapons/foley/svt40-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/svt40-handling-01.mp3",
+        "weapons/foley/svt40-handling-02.mp3",
+        "weapons/foley/svt40-handling-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/svt40-reloadCharge-01.mp3",
+        "weapons/foley/svt40-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/svt40-reloadMagIn-01.mp3",
+        "weapons/foley/svt40-reloadMagIn-02.mp3",
+        "weapons/foley/svt40-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/svt40-reloadMagOut-01.mp3",
+        "weapons/foley/svt40-reloadMagOut-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/svt40-stoppageClear-01.mp3",
+        "weapons/foley/svt40-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/svt40-stoppageClick-01.mp3",
+        "weapons/foley/svt40-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.thompson": {
+      "fire": [
+        "weapons/thompson/fire-01.mp3",
+        "weapons/thompson/fire-02.mp3",
+        "weapons/thompson/fire-03.mp3",
+        "weapons/thompson/fire-04.mp3",
+        "weapons/thompson/fire-05.mp3",
+        "weapons/thompson/fire-06.mp3",
+        "weapons/thompson/fire-07.mp3",
+        "weapons/thompson/fire-08.mp3"
+      ],
+      "fireDistant": [
+        "weapons/thompson/fireDistant-01.mp3",
+        "weapons/thompson/fireDistant-02.mp3",
+        "weapons/thompson/fireDistant-03.mp3",
+        "weapons/thompson/fireDistant-04.mp3"
+      ],
+      "fireTail": [
+        "weapons/thompson/fireTail-01.mp3",
+        "weapons/thompson/fireTail-02.mp3",
+        "weapons/thompson/fireTail-03.mp3"
+      ],
+      "grab": [
+        "weapons/foley/thompson-grab-01.mp3",
+        "weapons/foley/thompson-grab-02.mp3",
+        "weapons/foley/thompson-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/thompson-handling-01.mp3",
+        "weapons/foley/thompson-handling-02.mp3",
+        "weapons/foley/thompson-handling-03.mp3"
+      ],
+      "reloadCharge": [
+        "weapons/foley/thompson-reloadCharge-01.mp3",
+        "weapons/foley/thompson-reloadCharge-02.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/thompson-reloadMagIn-01.mp3",
+        "weapons/foley/thompson-reloadMagIn-02.mp3",
+        "weapons/foley/thompson-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/thompson-reloadMagOut-01.mp3",
+        "weapons/foley/thompson-reloadMagOut-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/thompson-stoppageClear-01.mp3",
+        "weapons/foley/thompson-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/thompson-stoppageClick-01.mp3",
+        "weapons/foley/thompson-stoppageClick-02.mp3"
+      ]
+    },
+    "weapon.tt33": {
+      "fire": [
+        "weapons/tt33/fire-01.mp3",
+        "weapons/tt33/fire-02.mp3",
+        "weapons/tt33/fire-03.mp3",
+        "weapons/tt33/fire-04.mp3",
+        "weapons/tt33/fire-05.mp3",
+        "weapons/tt33/fire-06.mp3"
+      ],
+      "fireDistant": [
+        "weapons/tt33/fireDistant-01.mp3",
+        "weapons/tt33/fireDistant-02.mp3",
+        "weapons/tt33/fireDistant-03.mp3",
+        "weapons/tt33/fireDistant-04.mp3"
+      ],
+      "grab": [
+        "weapons/foley/tt33-grab-01.mp3",
+        "weapons/foley/tt33-grab-02.mp3",
+        "weapons/foley/tt33-grab-03.mp3"
+      ],
+      "handling": [
+        "weapons/foley/tt33-handling-01.mp3",
+        "weapons/foley/tt33-handling-02.mp3",
+        "weapons/foley/tt33-handling-03.mp3"
+      ],
+      "reloadMagIn": [
+        "weapons/foley/tt33-reloadMagIn-01.mp3",
+        "weapons/foley/tt33-reloadMagIn-02.mp3",
+        "weapons/foley/tt33-reloadMagIn-03.mp3"
+      ],
+      "reloadMagOut": [
+        "weapons/foley/tt33-reloadMagOut-01.mp3",
+        "weapons/foley/tt33-reloadMagOut-02.mp3"
+      ],
+      "reloadSlideRelease": [
+        "weapons/foley/tt33-reloadSlideRelease-01.mp3",
+        "weapons/foley/tt33-reloadSlideRelease-02.mp3"
+      ],
+      "stoppageClear": [
+        "weapons/foley/tt33-stoppageClear-01.mp3",
+        "weapons/foley/tt33-stoppageClear-02.mp3"
+      ],
+      "stoppageClick": [
+        "weapons/foley/tt33-stoppageClick-01.mp3",
+        "weapons/foley/tt33-stoppageClick-02.mp3"
       ]
     }
   },
@@ -2407,7 +3755,7 @@
         {
           "event": "advance",
           "file": "voices/ge/vorwaerts-01.mp3",
-          "text": "Vorw\u00e4rts!"
+          "text": "Vorwärts!"
         },
         {
           "event": "advance",
@@ -2437,12 +3785,12 @@
         {
           "event": "retreat",
           "file": "voices/ge/zurueck-01.mp3",
-          "text": "Zur\u00fcck!"
+          "text": "Zurück!"
         },
         {
           "event": "retreat",
           "file": "voices/ge/zurueck-02.mp3",
-          "text": "R\u00fcckzug!"
+          "text": "Rückzug!"
         },
         {
           "event": "takeCover",
@@ -2462,7 +3810,7 @@
         {
           "event": "takeCover",
           "file": "voices/ge/runter-02.mp3",
-          "text": "K\u00f6pfe runter!"
+          "text": "Köpfe runter!"
         },
         {
           "event": "reload",
@@ -2676,7 +4024,7 @@
         {
           "event": "enemyFlanking",
           "file": "voices/ge/feind-flanke-02.mp3",
-          "text": "Sie kommen \u00fcber die Flanke!",
+          "text": "Sie kommen über die Flanke!",
           "delivery": "observation"
         },
         {
@@ -2736,7 +4084,7 @@
         {
           "event": "coverSet",
           "file": "voices/ge/stellung-bereit-02.mp3",
-          "text": "Ich bin bereit! Vorw\u00e4rts!",
+          "text": "Ich bin bereit! Vorwärts!",
           "delivery": "combat"
         },
         {
@@ -2748,7 +4096,7 @@
         {
           "event": "regroup",
           "file": "voices/ge/sammeln-02.mp3",
-          "text": "Zusammenr\u00fccken! Hier sammeln!",
+          "text": "Zusammenrücken! Hier sammeln!",
           "delivery": "command"
         },
         {
@@ -2766,7 +4114,7 @@
         {
           "event": "objectiveTaken",
           "file": "voices/ge/stellung-genommen-01.mp3",
-          "text": "Die Stellung geh\u00f6rt uns! Halten!",
+          "text": "Die Stellung gehört uns! Halten!",
           "delivery": "command"
         },
         {
@@ -2784,7 +4132,7 @@
         {
           "event": "objectiveLost",
           "file": "voices/ge/stellung-verloren-02.mp3",
-          "text": "Sie haben die Stellung! Zur\u00fcck und sammeln!",
+          "text": "Sie haben die Stellung! Zurück und sammeln!",
           "delivery": "combat"
         },
         {
@@ -2796,7 +4144,7 @@
         {
           "event": "pushNow",
           "file": "voices/ge/nachsetzen-02.mp3",
-          "text": "Vorw\u00e4rts! Lasst sie nicht zur Ruhe kommen!",
+          "text": "Vorwärts! Lasst sie nicht zur Ruhe kommen!",
           "delivery": "command"
         },
         {
@@ -2808,7 +4156,7 @@
         {
           "event": "idleQuip",
           "file": "voices/ge/ruhe-spruch-02.mp3",
-          "text": "F\u00fcr einen hei\u00dfen Kaffee w\u00fcrde ich fast mein Gewehr tauschen. Fast.",
+          "text": "Für einen heißen Kaffee würde ich fast mein Gewehr tauschen. Fast.",
           "delivery": "idle"
         },
         {
@@ -2820,43 +4168,43 @@
         {
           "event": "idleQuip",
           "file": "voices/ge/ruhe-spruch-04.mp3",
-          "text": "Der N\u00e4chste, der 'kurzer Marsch' sagt, tr\u00e4gt meinen Rucksack.",
+          "text": "Der Nächste, der 'kurzer Marsch' sagt, trägt meinen Rucksack.",
           "delivery": "idle"
         },
         {
           "event": "idleQuip",
           "file": "voices/ge/ruhe-spruch-05.mp3",
-          "text": "Ich schw\u00f6re, der Helm wird mit jedem Kilometer schwerer.",
+          "text": "Ich schwöre, der Helm wird mit jedem Kilometer schwerer.",
           "delivery": "idle"
         },
         {
           "event": "idleStory",
           "file": "voices/ge/ruhe-geschichte-01.mp3",
-          "text": "Zu Hause hat mein Bruder meine guten Stiefel f\u00fcr einen Tanz geliehen. Er kam barfu\u00df zur\u00fcck und schwor, ein Hund h\u00e4tte sie gestohlen. Der Hund muss genau seine Gr\u00f6\u00dfe gehabt haben.",
+          "text": "Zu Hause hat mein Bruder meine guten Stiefel für einen Tanz geliehen. Er kam barfuß zurück und schwor, ein Hund hätte sie gestohlen. Der Hund muss genau seine Größe gehabt haben.",
           "delivery": "story"
         },
         {
           "event": "idleStory",
           "file": "voices/ge/ruhe-geschichte-02.mp3",
-          "text": "Mein Vater sagte, beim Milit\u00e4r werde aus mir ein Mann. In der ersten Woche sch\u00e4lte ich zwei Stunden Kartoffeln. Offenbar braucht man daf\u00fcr ein Sch\u00e4lmesser.",
+          "text": "Mein Vater sagte, beim Militär werde aus mir ein Mann. In der ersten Woche schälte ich zwei Stunden Kartoffeln. Offenbar braucht man dafür ein Schälmesser.",
           "delivery": "story"
         },
         {
           "event": "idleStory",
           "file": "voices/ge/ruhe-geschichte-03.mp3",
-          "text": "Unser Koch schwor, der Eintopf sei Rind. Ich fragte, welcher Teil der Kuh beim Umr\u00fchren klappert. Er fand das nicht lustig.",
+          "text": "Unser Koch schwor, der Eintopf sei Rind. Ich fragte, welcher Teil der Kuh beim Umrühren klappert. Er fand das nicht lustig.",
           "delivery": "story"
         },
         {
           "event": "idleStory",
           "file": "voices/ge/ruhe-geschichte-04.mp3",
-          "text": "Ein Kamerad von mir hat im Morgengrauen eine Vogelscheuche gegr\u00fc\u00dft. Zu seiner Verteidigung: Sie stand gerader als unser Leutnant.",
+          "text": "Ein Kamerad von mir hat im Morgengrauen eine Vogelscheuche gegrüßt. Zu seiner Verteidigung: Sie stand gerader als unser Leutnant.",
           "delivery": "story"
         },
         {
           "event": "idleStory",
           "file": "voices/ge/ruhe-geschichte-05.mp3",
-          "text": "Ich schrieb meiner Verlobten, ich k\u00e4me mit Orden nach Hause. Sie schrieb zur\u00fcck, ihr reiche es, wenn ich mit allen Z\u00e4hnen zur\u00fcckkomme. Guter Handel, finde ich.",
+          "text": "Ich schrieb meiner Verlobten, ich käme mit Orden nach Hause. Sie schrieb zurück, ihr reiche es, wenn ich mit allen Zähnen zurückkomme. Guter Handel, finde ich.",
           "delivery": "story"
         },
         {
@@ -2874,7 +4222,7 @@
         {
           "event": "idleLaugh",
           "file": "voices/ge/ruhe-lachen-03.mp3",
-          "text": "Ha! Du erz\u00e4hlst doch M\u00e4rchen!",
+          "text": "Ha! Du erzählst doch Märchen!",
           "delivery": "laugh"
         },
         {
@@ -2886,19 +4234,19 @@
         {
           "event": "idleLaugh",
           "file": "voices/ge/ruhe-lachen-05.mp3",
-          "text": "Heh! Lass das blo\u00df nicht den Leutnant h\u00f6ren.",
+          "text": "Heh! Lass das bloß nicht den Leutnant hören.",
           "delivery": "laugh"
         },
         {
           "event": "idleGroan",
           "file": "voices/ge/ruhe-stoehnen-01.mp3",
-          "text": "Ach komm. Den hast du schon dreimal erz\u00e4hlt.",
+          "text": "Ach komm. Den hast du schon dreimal erzählt.",
           "delivery": "idle"
         },
         {
           "event": "idleGroan",
           "file": "voices/ge/ruhe-stoehnen-02.mp3",
-          "text": "Der ist furchtbar. Erz\u00e4hl ihn nochmal.",
+          "text": "Der ist furchtbar. Erzähl ihn nochmal.",
           "delivery": "idle"
         },
         {
@@ -3572,8 +4920,8 @@
     }
   },
   "notes": [
-    "WW2 weapon, vehicle and artillery clips are cut from the Sonniss GDC Game Audio Bundles (Pole Position Production, Super Thump, FLYSOUND, Fascinated Sound, Airborne Sound), pulled with scripts/fetch_sonniss_ww2.py and sliced with scripts/slice_weapon_shots.py against scripts/recipes/ww2-sonniss.json. Royalty-free for commercial use, no attribution required; the bundle licence forbids using the audio to train AI models.",
-    "The M1 Garand does not appear in any of the nine Sonniss GDC bundles. Its shots and handling foley come from Freesound instead, all dedicated to the public domain under CC0 1.0, pulled with scripts/fetch_freesound_cc0.py against scripts/recipes/ww2-freesound.json.",
+    "Small-arms clips (categories weapon.<model>: shots, burst tails, reload/stoppage/bipod foley and handling) are cut from BOOM Library WWII Firearms, licensed to the project owner under BOOM's single-user EULA, which forbids redistributing them or offering them as a library of individual stems. They live in the private repo APPARANYX/grasstex-audio, pinned by Assets/audio/weapon-audio.lock.json, and CI and the deploy overlay them onto this folder; they are never committed here. The hmg/cannon weapon clips and the vehicle and artillery clips are cut from the Sonniss GDC Game Audio Bundles (Pole Position Production, Super Thump, FLYSOUND, Fascinated Sound, Airborne Sound), pulled with scripts/fetch_sonniss_ww2.py and sliced with scripts/slice_weapon_shots.py against scripts/recipes/ww2-sonniss.json. Royalty-free for commercial use, no attribution required; the bundle licence forbids using the audio to train AI models.",
+    "The M1 Garand used to come from Freesound CC0 recordings (scripts/recipes/ww2-freesound.json); its clips are now BOOM Library like the other small arms, and that recipe is kept only as history.",
     "footsteps/ is ported directly from the ww2fps sibling project's ElevenLabs-generated battlefield sound library (Teethree89/ww2fps sound-manifest.json concepts 001/004/009, 6 walk + 6 run takes each) so both projects sound consistent underfoot; converted to this project's mono 48kHz MP3 source format and mastered under MASTERING.md's foley target. Nothing plays these yet - see AGENTS.md Audio for the surface each is meant for and the runtime hookup that still needs to be built."
   ],
   "voiceSequences": {
