@@ -214,7 +214,22 @@
   function leaderlessTelemetry(battle) {
     var st = battle && battle._leaderlessIntentStats;
     if (!LEADERLESS_INTENT_ON || !st) return null;
-    return JSON.parse(JSON.stringify(st));
+    var out = JSON.parse(JSON.stringify(st)),
+      active = 0,
+      liveSeconds = 0;
+    ['us', 'ge'].forEach(function (side) {
+      var squads = (battle.factions && battle.factions[side] && battle.factions[side].squads) || [];
+      for (var i = 0; i < squads.length; i++) {
+        var intent = squads[i] && squads[i]._leaderlessIntent;
+        if (!intent) continue;
+        active++;
+        liveSeconds += Math.max(0, battle.time - intent.startedAt);
+      }
+    });
+    out.activeAtEnd = active;
+    out.liveSeconds = +liveSeconds.toFixed(2);
+    out.seconds = +(out.seconds + liveSeconds).toFixed(2);
+    return out;
   }
   function inheritedMemberIntent(sq) {
     return alive(sq).map(function (man) {
