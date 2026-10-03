@@ -28,7 +28,16 @@
   L.define('succession', {
     priority: 95,
     progress: function (sq, l, t) {
-      return { ok: null, detail: 'leaderless ' + (t - l.since).toFixed(1) + ' s' };
+      var intent = l && l.data && l.data.intent,
+        action = intent && intent.lastAction;
+      return {
+        ok: null,
+        detail:
+          'leaderless ' +
+          (t - l.since).toFixed(1) +
+          ' s' +
+          (action ? '; ' + action : intent && intent.phase ? '; inherited ' + intent.phase : '')
+      };
     }
   });
   L.define('retreat-anchor', {
@@ -162,6 +171,171 @@
     eye: 1.55
   };
   var RECON_PHASES = { approach: 1, assault: 1, flank: 1 };
+
+  /* Leaderless intent continuation is on by default after PR #197's deterministic checks and
+     full-battle paired benchmark (run 37121639099); ?leaderlessIntent=0/off/false is the stable legacy
+     arm. During the existing six-second succession lease there is no substitute Squad Leader: Meso
+     command evolution freezes and the men may only finish already-published movement, keep valid local
+     cover/buddy behavior, react through Engagement, retreat for survival, and report through existing
+     Perception/Callouts channels. The new leader resumes ordinary ownership after succession. */
+  function parseLeaderlessIntent(search) {
+    return !/[?&]leaderlessIntent=(?:0|off|false)(?:&|#|$)/i.test(search || '');
+  }
+  var LEADERLESS_INTENT_ON = parseLeaderlessIntent(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
+  var LEADERLESS_TUNING = {
+    successionSeconds: SUCCESSION_DELAY
+  };
+  function leaderlessActive(sq) {
+    return !!(
+      LEADERLESS_INTENT_ON &&
+      sq &&
+      !leaderAlive(sq) &&
+      alive(sq).length
+    );
+  }
+  function leaderlessStats(battle) {
+    if (!LEADERLESS_INTENT_ON || !battle) return null;
+    return (
+      battle._leaderlessIntentStats ||
+      (battle._leaderlessIntentStats = {
+        episodes: 0,
+        handbacks: 0,
+        destroyed: 0,
+        seconds: 0,
+        actions: {},
+        recent: []
+      })
+    );
+  }
+  function leaderlessTelemetry(battle) {
+    var st = battle && battle._leaderlessIntentStats;
+    if (!LEADERLESS_INTENT_ON || !st) return null;
+    var out = JSON.parse(JSON.stringify(st)),
+      active = 0,
+      liveSeconds = 0;
+    ['us', 'ge'].forEach(function (side) {
+      var squads = (battle.factions && battle.factions[side] && battle.factions[side].squads) || [];
+      for (var i = 0; i < squads.length; i++) {
+        var intent = squads[i] && squads[i]._leaderlessIntent;
+        if (!intent) continue;
+        active++;
+        liveSeconds += Math.max(0, battle.time - intent.startedAt);
+      }
+    });
+    out.activeAtEnd = active;
+    out.liveSeconds = +liveSeconds.toFixed(2);
+    out.seconds = +(out.seconds + liveSeconds).toFixed(2);
+    return out;
+  }
+  function inheritedMemberIntent(sq) {
+    return alive(sq).map(function (man) {
+      var e =
+          root.BattleEngagement && root.BattleEngagement.stateOf
+            ? root.BattleEngagement.stateOf(man)
+            : man.eng || null,
+        d = point(man._fireteamDestination) || point(man.orderDestination);
+      return {
+        id: String(man.id),
+        team: man._fireteamKey || teamKeyFor(man) || null,
+        task: man._engagementTask || null,
+        destination: d ? copy(d) : null,
+        bound: !!(e && e.boundOrder)
+      };
+    });
+  }
+  function captureLeaderlessIntent(sq, battle) {
+    var p = sq._engagementPlan,
+      m = sq._macroMission,
+      intent = {
+        startedAt: battle.time,
+        missionVersion: missionVersion(sq),
+        macroVersion: m && m.version != null ? m.version : null,
+        phase: String(sq.commandPhase || ''),
+        targetObjective: sq.targetObjective || null,
+        routeIndex: +sq.routeIndex || 0,
+        objective: copy(sq.objective),
+        anchor: copy(sq.orderAnchor || sq.rally),
+        orderVersion: +sq._orderVersion || 0,
+        planSerial: p ? p.serial : null,
+        planStatus: p ? p.status : null,
+        fireControl: sq.fireControl ? sq.fireControl.state : null,
+        members: inheritedMemberIntent(sq),
+        lastAction: null,
+        lastActionAt: null,
+        actionCounts: {}
+      };
+    sq._leaderlessIntent = intent;
+    var st = leaderlessStats(battle);
+    if (st) st.episodes++;
+    telemetry(battle, 'decision-leaderless-inherit', {
+      faction: sq.faction,
+      squad: sq.id,
+      missionVersion: intent.missionVersion,
+      macroVersion: intent.macroVersion,
+      phase: intent.phase,
+      targetObjective: intent.targetObjective,
+      routeIndex: intent.routeIndex,
+      planSerial: intent.planSerial,
+      members: intent.members.length
+    });
+    return intent;
+  }
+  function noteLeaderlessAction(sq, battle, action, why) {
+    var intent = sq && sq._leaderlessIntent;
+    if (!intent || !battle) return;
+    action = action || 'hold-intent';
+    intent.actionCounts[action] = (intent.actionCounts[action] || 0) + 1;
+    var st = leaderlessStats(battle);
+    if (st) st.actions[action] = (st.actions[action] || 0) + 1;
+    if (intent.lastAction === action) return;
+    intent.lastAction = action;
+    intent.lastActionAt = battle.time;
+    telemetry(battle, 'decision-leaderless-local', {
+      faction: sq.faction,
+      squad: sq.id,
+      action: action,
+      why: why || action,
+      inheritedPhase: intent.phase,
+      missionVersion: intent.missionVersion
+    });
+  }
+  function endLeaderlessIntent(sq, battle, reason, successor) {
+    var intent = sq && sq._leaderlessIntent;
+    if (!intent) return null;
+    var seconds = Math.max(0, battle.time - intent.startedAt),
+      st = leaderlessStats(battle),
+      row = {
+        at: +battle.time.toFixed(2),
+        squad: sq.faction + ':' + sq.id,
+        reason: reason || 'ended',
+        successor: successor ? String(successor.id) : null,
+        seconds: +seconds.toFixed(2),
+        phase: intent.phase,
+        missionVersion: intent.missionVersion,
+        actions: Object.assign({}, intent.actionCounts)
+      };
+    if (st) {
+      st.seconds += seconds;
+      if (successor) st.handbacks++;
+      else if (reason === 'squad destroyed') st.destroyed++;
+      st.recent.push(row);
+      if (st.recent.length > 24) st.recent.shift();
+    }
+    telemetry(battle, 'decision-leaderless-handback', {
+      faction: sq.faction,
+      squad: sq.id,
+      reason: reason || 'ended',
+      successor: successor ? successor.id : null,
+      seconds: +seconds.toFixed(2),
+      inheritedPhase: intent.phase,
+      missionVersion: intent.missionVersion,
+      actions: Object.assign({}, intent.actionCounts)
+    });
+    sq._leaderlessIntent = null;
+    return row;
+  }
 
   /* Buddy pairs are a Squad Leader / fireteam execution aid, not a command layer. They are on by
      default after standard benchmark #272; ?buddyPairs=0/off/false is the legacy control. Pair state
@@ -970,6 +1144,12 @@
     var p = sq._engagementPlan,
       phase = String(sq.commandPhase || ''),
       sig = signature(sq);
+    /* Preserve the last valid parent tactical plan during succession. Contact remains a Micro fact,
+       but there is nobody present to stage, replace, close or renew a Meso plan. */
+    if (leaderlessActive(sq) && sq.state !== 'retreat') {
+      if (p) sq._stablePlan = p;
+      return;
+    }
     if (sq.state === 'retreat' || phase === 'retreat') {
       closePlan(sim, sq, 'retreat');
       sq._planDormantSignature = null;
@@ -1179,6 +1359,12 @@
       allowed: ca.allowed,
       dispersed: ca.dispersed
     };
+    /* No absent leader may invent a new regroup. An already-issued regroup remains a parent intent
+       whose release conditions can still complete; immediate contact may still break it below. */
+    if (leaderlessActive(sq) && !current) {
+      st.overSince = null;
+      return;
+    }
     /* Recon deliberately makes one or two men outrunners while the main body holds. That separation
        is owned by the live recon lease, not evidence that squad cohesion failed. Starting a regroup
        here would create two Squad Leader command commitments fighting over the same men. Keep the
@@ -2650,8 +2836,10 @@
     var anchor = sq.orderAnchor || publishAnchor(sq, sq.rally);
     if (sq.state === 'retreat') {
       stableRetreatAnchor(sq, battle);
+      if (leaderlessActive(sq)) noteLeaderlessAction(sq, battle, 'retreat', 'survival retreat continues');
       return;
     }
+    if (leaderlessActive(sq)) return;
     if (L.get(sq, 'retreat-anchor')) L.end(sq, 'retreat-anchor', battle.time, 'retreat ended');
     /* The main-body anchor is the hold line during recon. Scouts receive individual fireteam-order
        intents below; the squad itself does not creep after them. */
@@ -2717,6 +2905,10 @@
   }
   function updateFireteams(sq, battle) {
     sq._fireteamOrders = sq._fireteamOrders || {};
+    if (leaderlessActive(sq) && sq.state !== 'retreat') {
+      if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);
+      return;
+    }
     if (sq._reconTask && L.get(sq, 'recon')) {
       publishReconOrders(sq, battle);
       return;
@@ -2835,6 +3027,26 @@
     if (!r) return;
     if (r.fled && r.fled.length && sq.fledId == null) detachFled(sq, battle, r.fled);
     updateRecon(sq, battle, r);
+    if (leaderlessActive(sq) && sq.state !== 'retreat') {
+      var inheritedBound = L.get(sq, 'bound');
+      if (!L.holds(sq, 'bound', battle.time)) E.clearBoundOrders(sq);
+      if (r.contactStarted || r.underFire > 0) {
+        /* Immediate contact remains a Micro fact/action. Perception and the existing tactical-callout
+           channel already report what individual men actually saw/heard; do not turn ordinary contact
+           during a six-second succession gap into an automatic General mission wake. */
+        noteLeaderlessAction(
+          sq,
+          battle,
+          'immediate-contact',
+          r.underFire > 0 ? 'under fire' : 'contact acquired'
+        );
+      } else if (inheritedBound && L.holds(sq, 'bound', battle.time))
+        noteLeaderlessAction(sq, battle, 'finish-committed-move', 'inherited bound remains live');
+      else if (sq.inContact)
+        noteLeaderlessAction(sq, battle, 'hold-and-fight', 'existing contact under inherited intent');
+      else noteLeaderlessAction(sq, battle, 'hold-intent', 'no new Meso command during succession');
+      return;
+    }
     updateClearContact(sq, battle, r);
     var members = sq.members || [],
       i,
@@ -3023,12 +3235,17 @@
   function updateSuccession(sq, battle) {
     var t = battle.time,
       held = L.get(sq, 'succession'),
-      men = alive(sq);
-    if (root.SquadAI.leaderOf(sq) || !men.length) {
+      men = alive(sq),
+      present = root.SquadAI.leaderOf(sq);
+    if (present || !men.length) {
       if (held) L.end(sq, 'succession', t, men.length ? 'leader present' : 'squad destroyed');
+      if (LEADERLESS_INTENT_ON && sq._leaderlessIntent)
+        endLeaderlessIntent(sq, battle, men.length ? 'leader present' : 'squad destroyed', present || null);
       return;
     }
     if (!held) {
+      var data = null;
+      if (LEADERLESS_INTENT_ON) data = { intent: captureLeaderlessIntent(sq, battle) };
       L.grant(
         sq,
         'succession',
@@ -3036,9 +3253,15 @@
         t,
         t + SUCCESSION_DELAY,
         'squad leader killed',
-        'successor takes command'
+        'successor takes command',
+        data
       );
       return;
+    }
+    if (LEADERLESS_INTENT_ON && !sq._leaderlessIntent) {
+      sq._leaderlessIntent = (held.data && held.data.intent) || captureLeaderlessIntent(sq, battle);
+      held.data = held.data || {};
+      held.data.intent = sq._leaderlessIntent;
     }
     if (L.holds(sq, 'succession', t)) return;
     var next = root.SquadAI.mostSenior(men);
@@ -3049,6 +3272,7 @@
     sq.captainAlive = true;
     sq.accuracyMultiplier = 1;
     L.end(sq, 'succession', t, 'successor took command');
+    if (LEADERLESS_INTENT_ON) endLeaderlessIntent(sq, battle, 'successor took command', next);
     telemetry(battle, 'decision-leader-succession', {
       faction: sq.faction,
       squad: sq.id,
@@ -3280,6 +3504,10 @@
     /* Which lease, if any, is holding this squad's mission execution this tick (diagnostics). */
     sq._missionHold = null;
     if (sq.state === 'retreat' || !alive(sq).length) return;
+    if (leaderlessActive(sq)) {
+      sq._missionHold = 'succession';
+      return;
+    }
     if (L.get(sq, 'regroup')) {
       sq._missionHold = 'regroup';
       return;
@@ -3463,6 +3691,7 @@
     sim._squadCommandPublishStats = { intentChecks: 0, intentPublishes: 0, intentCoalesced: 0 };
     if (BUDDY_PAIRS_ON) sim._buddyPairStats = null;
     sim._scoutsForwardStats = null;
+    sim._leaderlessIntentStats = null;
     ['us', 'ge'].forEach(function (f) {
       var a = (sim && sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
       for (var i = 0; i < a.length; i++) {
@@ -3480,6 +3709,7 @@
         q._reconTask = null;
         q._reconLast = null;
         q._reconReportMonitor = null;
+        q._leaderlessIntent = null;
         if (BUDDY_PAIRS_ON) {
           q._buddyPairs = {};
           q._buddyUnpaired = [];
@@ -3517,14 +3747,14 @@
   }
 
   root.BattleModules.registerSystem('squad-command', {
-    version: '1.6-m3c-scouts-forward',
+    version: '1.7-m3c-leaderless-intent',
     onBattleStart: start,
     beforeBattleRestart: reset,
     onBattleRestart: start,
     onCommanderTick: commanderTick
   });
   root.BattleSquadStability = {
-    version: '1.8-m3c-scouts-forward',
+    version: '1.9-m3c-leaderless-intent',
     planSeconds: { assault: ASSAULT_LEASE, defense: DEFENSE_LEASE },
     teamOrderSeconds: TEAM_LEASE,
     boundCycle: BOUND_CYCLE,
@@ -3543,8 +3773,13 @@
         noProgress: RETREAT_NO_PROGRESS,
         recoveryStride: RETREAT_RECOVERY_STRIDE
       },
-      scoutsForward: RECON_TUNING
+      scoutsForward: RECON_TUNING,
+      leaderlessIntent: LEADERLESS_TUNING
     },
+    leaderlessIntentOn: function () { return LEADERLESS_INTENT_ON; },
+    parseLeaderlessIntent: parseLeaderlessIntent,
+    leaderlessActive: leaderlessActive,
+    leaderlessTelemetry: leaderlessTelemetry,
     scoutsForwardOn: function () { return SCOUTS_FORWARD_ON; },
     parseScoutsForward: parseScoutsForward,
     reconCandidate: reconCandidate,
