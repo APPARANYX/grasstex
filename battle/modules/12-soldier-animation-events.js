@@ -16,7 +16,7 @@
     s.reloading = true;
     s.reloadStart = battle.time;
     s.reloadUntil = battle.time + dur;
-    s.fireCooldown = Math.max(s.fireCooldown || 0, dur);
+    root.SquadAI.extendFireCooldown(s, dur);
     root.BattleSoldierModel.triggerAnimation(s, T.reload, { weapon: s.weapon.kind, duration: dur });
     if (root.BattleTelemetry)
       root.BattleTelemetry.record(
@@ -42,8 +42,8 @@
       /* Whether the finite-ammo system or the fallback owns the timer, reloading is a real combat
          interruption: the man does not keep a firing-station/base-of-fire pose while swapping it. */
       if (s.reloading)
-        s.fireCooldown = Math.max(
-          s.fireCooldown || 0,
+        root.SquadAI.extendFireCooldown(
+          s,
           Math.max(0.16, (+s.reloadUntil || battle.time) - battle.time)
         );
     }
