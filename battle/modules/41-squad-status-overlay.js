@@ -13,7 +13,10 @@
     STORAGE = 'battleSquadStatusOverlayV1',
     LIFT = 4.0,
     OBJECTIVE_LIFT = 0.7,
-    MIN_ARROW_WORLD = 4,
+    LONG_ARROW_WORLD = 150,
+    ARROW_WIPE_MS = 1050,
+    ARROW_HOLD_MS = 180,
+    ARROW_FADE_MS = 320,
     OFFSCREEN_PAD = 90,
     simRef = null,
     visible = true,
@@ -139,6 +142,29 @@
     if (String(sq.commandPhase || '') === 'regroup') return point(sq.objective) || point(sq.rally) || point(sq.orderAnchor);
     return point(sq.orderAnchor);
   }
+  /* The long-range UI arrow is not the 13 m Squad Leader orderAnchor. It represents a newly issued
+     destination/mission far enough away to merit an operational cue. That keeps the arrow momentary
+     instead of turning every local bound into a permanent HUD vector. */
+  function arrowTarget(sq, sim) {
+    if (!sq) return null;
+    if (sq.state === 'retreat') {
+      if (sq._assembly && sq._assembly.phase === 'to-rally' && sq._macroMission && point(sq._macroMission.point))
+        return copy(sq._macroMission.point);
+      return point(sq.home);
+    }
+    var mission = missionObjective(sq, sim);
+    if (mission) return { x: mission.x, z: mission.z, id: mission.id || null };
+    return point(sq.objective);
+  }
+  function arrowSignature(sq, target) {
+    var m = sq && sq._macroMission,
+      version = m && m.version != null ? String(m.version) : '',
+      phase = String((sq && sq.commandPhase) || ''),
+      state = String((sq && sq.state) || ''),
+      x = target ? Math.round((+target.x || 0) / 5) : 0,
+      z = target ? Math.round((+target.z || 0) / 5) : 0;
+    return [state, phase, version, x, z].join('|');
+  }
   function hasSquadMovementIntent(sq, sim) {
     if (!sq) return false;
     if (sq._reconTask || liveLease(sq, 'recon', sim) || liveLease(sq, 'bound', sim)) return true;
@@ -169,8 +195,9 @@
       '#squadStatusOverlay svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}' +
       '#squadStatusToggle{position:fixed;left:12px;bottom:12px;z-index:17;padding:7px 10px;border:1px solid #59666b;border-radius:5px;background:#172126;color:#e6eef0;font:700 10px Arial;cursor:pointer;box-shadow:0 4px 14px #0006}' +
       '#squadStatusToggle.on{border-color:#aebd83;background:#334028}' +
-      '.sso-arrow-halo{fill:none;stroke:#0b0e0b;stroke-width:7;stroke-linecap:round;stroke-linejoin:round;opacity:.66}' +
-      '.sso-arrow{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:12 9}' +
+      '.sso-arrow-halo{fill:none;stroke:#0b0e0b;stroke-width:12;stroke-linecap:round;stroke-linejoin:round;opacity:.72}' +
+      '.sso-arrow{fill:none;stroke-width:7;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 2px 1px #0008)}' +
+      '.sso-arrow-head{fill:currentColor;stroke:#0b0e0b;stroke-width:2;stroke-linejoin:round;filter:drop-shadow(0 2px 1px #0008)}' +
       '.sso-us{color:#91b9e8}.sso-ge{color:#e77868}' +
       '.sso-arrow,.sso-frame,.sso-x,.sso-echelon,.sso-objective{stroke:currentColor}' +
       '.sso-frame{fill:rgba(20,24,20,.72);stroke-width:2.4}.sso-x{stroke-width:2.1}' +
@@ -187,10 +214,6 @@
     overlay.id = 'squadStatusOverlay';
     svg = makeSvg('svg', { 'aria-hidden': 'true' });
     var defs = makeSvg('defs');
-    var us = append(defs, 'marker', { id: 'sso-arrow-us', viewBox: '0 0 10 10', refX: '8.5', refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto-start-reverse' });
-    append(us, 'path', { d: 'M 0 0 L 10 5 L 0 10 z', fill: '#91b9e8' });
-    var ge = append(defs, 'marker', { id: 'sso-arrow-ge', viewBox: '0 0 10 10', refX: '8.5', refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto-start-reverse' });
-    append(ge, 'path', { d: 'M 0 0 L 10 5 L 0 10 z', fill: '#e77868' });
     svg.appendChild(defs);
     overlay.appendChild(svg);
     document.body.appendChild(overlay);
@@ -219,7 +242,8 @@
     var key = String(sq.faction || '?') + ':' + String(sq.id), g = makeSvg('g', { 'data-squad': key }), factionClass = sq.faction === 'ge' ? 'sso-ge' : 'sso-us';
     g.setAttribute('class', factionClass);
     var arrowHalo = append(g, 'path', { 'class': 'sso-arrow-halo' }),
-      arrow = append(g, 'path', { 'class': 'sso-arrow', 'marker-end': 'url(#sso-arrow-' + (sq.faction === 'ge' ? 'ge' : 'us') + ')' }),
+      arrow = append(g, 'path', { 'class': 'sso-arrow' }),
+      arrowHead = append(g, 'path', { 'class': 'sso-arrow-head', d: 'M0 0 L-24 -12 L-18 0 L-24 12 Z' }),
       objective = append(g, 'g', { 'class': 'sso-objective-group' });
     append(objective, 'path', { 'class': 'sso-objective', d: 'M0 -11 L11 0 L0 11 L-11 0 Z' });
     append(objective, 'path', { 'class': 'sso-objective-line', d: 'M-6 0 L6 0 M0 -6 L0 6' });
@@ -234,7 +258,22 @@
     var statusText = append(unit, 'text', { 'class': 'sso-text sso-status', x: '0', y: '32' }, 'HOLD');
     var contact = append(unit, 'circle', { 'class': 'sso-contact', cx: '32', cy: '-14', r: '4' });
     svg.appendChild(g);
-    return marks[key] = { key: key, g: g, arrowHalo: arrowHalo, arrow: arrow, objective: objective, objText: objText, unit: unit, idText: idText, statusBg: statusBg, statusText: statusText, contact: contact };
+    return marks[key] = {
+      key: key,
+      g: g,
+      arrowHalo: arrowHalo,
+      arrow: arrow,
+      arrowHead: arrowHead,
+      arrowSignature: null,
+      arrowStartedAt: null,
+      objective: objective,
+      objText: objText,
+      unit: unit,
+      idText: idText,
+      statusBg: statusBg,
+      statusText: statusText,
+      contact: contact
+    };
   }
   function disposeMark(key) {
     var m = marks[key];
@@ -278,6 +317,44 @@
     if (obj && obj.id) return String(obj.id).toUpperCase();
     return 'OBJ ' + String(sq.id);
   }
+  function hideArrow(m) {
+    setShown(m.arrowHalo, false);
+    setShown(m.arrow, false);
+    setShown(m.arrowHead, false);
+  }
+  function renderArrowWipe(m, sq, fromScreen, toScreen, elapsed) {
+    var d = curvePath(fromScreen, toScreen, sq);
+    m.arrowHalo.setAttribute('d', d);
+    m.arrow.setAttribute('d', d);
+    var length = 0;
+    try { length = Math.max(1, m.arrow.getTotalLength()); } catch (_) { length = Math.max(1, Math.hypot(toScreen.x - fromScreen.x, toScreen.y - fromScreen.y)); }
+    var wipe = Math.min(1, Math.max(0, elapsed / ARROW_WIPE_MS)),
+      tail = elapsed - ARROW_WIPE_MS - ARROW_HOLD_MS,
+      opacity = tail <= 0 ? 1 : Math.max(0, 1 - tail / ARROW_FADE_MS),
+      shown = Math.max(0.01, length * wipe);
+    m.arrow.style.opacity = opacity.toFixed(3);
+    m.arrowHalo.style.opacity = (opacity * 0.72).toFixed(3);
+    m.arrow.setAttribute('stroke-dasharray', length.toFixed(1) + ' ' + length.toFixed(1));
+    m.arrowHalo.setAttribute('stroke-dasharray', length.toFixed(1) + ' ' + length.toFixed(1));
+    m.arrow.setAttribute('stroke-dashoffset', (length - shown).toFixed(1));
+    m.arrowHalo.setAttribute('stroke-dashoffset', (length - shown).toFixed(1));
+
+    var tipLength = Math.min(length, shown),
+      p = null,
+      before = null;
+    try {
+      p = m.arrow.getPointAtLength(tipLength);
+      before = m.arrow.getPointAtLength(Math.max(0, tipLength - 8));
+    } catch (_) {}
+    if (p && before) {
+      var angle = Math.atan2(p.y - before.y, p.x - before.x) * 180 / Math.PI;
+      m.arrowHead.setAttribute('transform', 'translate(' + p.x.toFixed(1) + ' ' + p.y.toFixed(1) + ') rotate(' + angle.toFixed(1) + ')');
+      m.arrowHead.style.opacity = opacity.toFixed(3);
+      setShown(m.arrowHead, wipe > 0.04 && opacity > 0);
+    } else setShown(m.arrowHead, false);
+    setShown(m.arrowHalo, opacity > 0);
+    setShown(m.arrow, opacity > 0);
+  }
   function updateMark(m, sq, sim, nowMs) {
     var at = centroid(sq, sim);
     if (!at) { m.g.style.display = 'none'; return; }
@@ -302,15 +379,28 @@
       setShown(m.objective, true);
     } else setShown(m.objective, false);
 
-    var target = movementTarget(sq, sim), targetScreen = target && project(sim, target, OBJECTIVE_LIFT),
-      showArrow = !!(hasSquadMovementIntent(sq, sim) && target && dist(at, target) >= MIN_ARROW_WORLD && targetScreen && targetScreen.visible);
-    if (showArrow) {
-      var d = curvePath(screen, targetScreen, sq), dash = -((nowMs || 0) * 0.045 % 21);
-      m.arrowHalo.setAttribute('d', d);
-      m.arrow.setAttribute('d', d);
-      m.arrow.setAttribute('stroke-dashoffset', dash.toFixed(1));
-      setShown(m.arrowHalo, true); setShown(m.arrow, true);
-    } else { setShown(m.arrowHalo, false); setShown(m.arrow, false); }
+    var target = arrowTarget(sq, sim),
+      targetScreen = target && project(sim, target, OBJECTIVE_LIFT),
+      longMove = !!(hasSquadMovementIntent(sq, sim) && target && dist(at, target) >= LONG_ARROW_WORLD),
+      sig = longMove ? arrowSignature(sq, target) : null;
+    /* A long destination gets one command-arrow wipe when it becomes visible/new. Local 13 m anchor
+       updates and fireteam bounds never retrigger it. */
+    if (longMove && targetScreen && targetScreen.visible) {
+      if (m.arrowSignature !== sig) {
+        m.arrowSignature = sig;
+        m.arrowStartedAt = nowMs || 0;
+      }
+      var elapsed = Math.max(0, (nowMs || 0) - (m.arrowStartedAt || 0)),
+        total = ARROW_WIPE_MS + ARROW_HOLD_MS + ARROW_FADE_MS;
+      if (elapsed <= total) renderArrowWipe(m, sq, screen, targetScreen, elapsed);
+      else hideArrow(m);
+    } else {
+      if (!longMove) {
+        m.arrowSignature = null;
+        m.arrowStartedAt = null;
+      }
+      hideArrow(m);
+    }
   }
   function update() {
     if (!visible || !simRef || !svg) return;
@@ -360,10 +450,13 @@
   }
 
   root.BattleSquadStatusOverlay = {
-    version: '1.0',
+    version: '1.1',
     historicalBasis: 'FM 21-30 (1941): infantry X in unit frame; one dot above = squad',
     statusFor: statusFor,
     movementTarget: movementTarget,
+    arrowTarget: arrowTarget,
+    arrowSignature: arrowSignature,
+    longArrowWorld: LONG_ARROW_WORLD,
     missionObjective: missionObjective,
     symbolSpec: symbolSpec,
     setVisible: setVisible,
@@ -372,11 +465,11 @@
     dispose: dispose
   };
   root.BattleModules.registerSystem('squad-status-overlay', {
-    version: '1.0',
+    version: '1.1',
     onBattleStart: start,
     beforeBattleRestart: reset,
     onBattleRestart: start
   });
   if (typeof document !== 'undefined') installUi();
-  console.log('[UI] squad status overlay active: FM 21-30 infantry squad frame + status/movement/objectives');
+  console.log('[UI] squad status overlay active: FM 21-30 infantry squad frame + momentary long-range command arrows/objectives');
 })(typeof window !== 'undefined' ? window : globalThis);
