@@ -173,8 +173,25 @@
     if (sq.state === 'retreat' || String(sq.commandPhase || '') === 'retreat') return true;
     return !!MOVING_PHASES[String(sq.commandPhase || '')];
   }
+  function symbolIdFor(sq) {
+    var T = root.BattleTacticalSymbols;
+    if (T && T.resolveId) return T.resolveId(sq);
+    return (sq && (sq.tacticalSymbol || sq.symbolType || sq.unitType)) || 'infantry';
+  }
   function symbolSpec(sq) {
-    return { arm: 'infantry', echelon: 'squad', glyph: 'X' };
+    var T = root.BattleTacticalSymbols,
+      spec = T && T.resolve ? T.resolve(sq) : null;
+    if (spec) return spec;
+    return {
+      id: 'infantry',
+      label: 'Infantry',
+      domain: 'ground',
+      verifiedHistorical: true,
+      historicalBasis: 'U.S. War Department FM 21-30 (1941): infantry X in unit frame; squad echelon dot above',
+      frame: { tag: 'rect', attrs: { x: -27, y: -16, width: 54, height: 32, rx: 1.5, 'class': 'sso-frame' } },
+      primitives: [{ tag: 'path', attrs: { d: 'M-24 -13 L24 13 M24 -13 L-24 13', 'class': 'sso-symbol-stroke' } }],
+      echelon: { kind: 'dots', count: 1, y: -22 }
+    };
   }
 
   function makeSvg(tag, attrs) {
@@ -201,8 +218,11 @@
       '.sso-arrow{fill:none;stroke-width:7;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 2px 1px #0008)}' +
       '.sso-arrow-head{fill:currentColor;stroke:#0b0e0b;stroke-width:2;stroke-linejoin:round;filter:drop-shadow(0 2px 1px #0008)}' +
       '.sso-us{color:#91b9e8}.sso-ge{color:#e77868}' +
-      '.sso-arrow,.sso-frame,.sso-x,.sso-echelon,.sso-objective{stroke:currentColor}' +
-      '.sso-frame{fill:rgba(20,24,20,.72);stroke-width:2.4}.sso-x{stroke-width:2.1}' +
+      '.sso-arrow,.sso-frame,.sso-symbol-stroke,.sso-objective{stroke:currentColor}' +
+      '.sso-frame{fill:rgba(20,24,20,.72);stroke-width:2.4}' +
+      '.sso-symbol-stroke{fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}' +
+      '.sso-symbol-fill{fill:currentColor;stroke:#0b0e0b;stroke-width:1.2;stroke-linejoin:round}' +
+      '.sso-symbol-text{font:700 13px Arial Narrow,Arial,sans-serif;fill:currentColor;stroke:#0b0e0b;stroke-width:2px;paint-order:stroke;text-anchor:middle}' +
       '.sso-echelon{fill:currentColor;stroke:none}' +
       '.sso-status-bg{fill:rgba(9,11,9,.88);stroke:#000;stroke-width:2}' +
       '.sso-text{font:700 10px Arial Narrow,Arial,sans-serif;letter-spacing:.055em;fill:#f3f0df;stroke:#0a0c09;stroke-width:3px;paint-order:stroke;stroke-linejoin:round;text-anchor:middle}' +
@@ -251,16 +271,14 @@
     append(objective, 'path', { 'class': 'sso-objective-line', d: 'M-6 0 L6 0 M0 -6 L0 6' });
     var objText = append(objective, 'text', { 'class': 'sso-text sso-id', x: '0', y: '24' }, 'OBJ');
 
-    var unit = append(g, 'g', { 'class': 'sso-unit' });
-    append(unit, 'rect', { 'class': 'sso-frame', x: '-27', y: '-16', width: '54', height: '32', rx: '1.5' });
-    append(unit, 'path', { 'class': 'sso-x', d: 'M-24 -13 L24 13 M24 -13 L-24 13' });
-    append(unit, 'circle', { 'class': 'sso-echelon', cx: '0', cy: '-22', r: '3.2' });
+    var unit = append(g, 'g', { 'class': 'sso-unit' }),
+      symbolLayer = append(unit, 'g', { 'class': 'sso-symbol-layer' });
     var idText = append(unit, 'text', { 'class': 'sso-text sso-id', x: '34', y: '4', 'text-anchor': 'start' }, String(sq.id));
     var statusBg = append(unit, 'rect', { 'class': 'sso-status-bg', x: '-34', y: '20', width: '68', height: '17', rx: '3' });
     var statusText = append(unit, 'text', { 'class': 'sso-text sso-status', x: '0', y: '32' }, 'HOLD');
     var contact = append(unit, 'circle', { 'class': 'sso-contact', cx: '32', cy: '-14', r: '4' });
     svg.appendChild(g);
-    return marks[key] = {
+    var mark = marks[key] = {
       key: key,
       g: g,
       arrowHalo: arrowHalo,
@@ -271,12 +289,47 @@
       objective: objective,
       objText: objText,
       unit: unit,
+      symbolLayer: symbolLayer,
+      symbolId: null,
       idText: idText,
       statusBg: statusBg,
       statusText: statusText,
       contact: contact
     };
+    renderSymbol(mark, sq);
+    return mark;
   }
+  function primitiveAllowed(tag) {
+    return tag === 'path' || tag === 'rect' || tag === 'circle' || tag === 'ellipse' || tag === 'line' || tag === 'polygon' || tag === 'text';
+  }
+  function renderPrimitive(parent, primitive) {
+    if (!primitive || !primitiveAllowed(primitive.tag)) return null;
+    return append(parent, primitive.tag, primitive.attrs || {}, primitive.text);
+  }
+  function renderEchelon(parent, echelon) {
+    if (!echelon || echelon.kind !== 'dots') return;
+    var count = Math.max(0, Math.min(4, +echelon.count || 0)),
+      y = isFinite(+echelon.y) ? +echelon.y : -22,
+      spacing = 8,
+      start = -((count - 1) * spacing) / 2;
+    for (var i = 0; i < count; i++)
+      append(parent, 'circle', { 'class': 'sso-echelon', cx: start + i * spacing, cy: y, r: 3.2 });
+  }
+  function renderSymbol(m, sq) {
+    if (!m || !m.symbolLayer) return;
+    var id = symbolIdFor(sq),
+      spec = symbolSpec(sq);
+    if (m.symbolId === id) return;
+    while (m.symbolLayer.firstChild) m.symbolLayer.removeChild(m.symbolLayer.firstChild);
+    if (spec.frame) renderPrimitive(m.symbolLayer, spec.frame);
+    (spec.primitives || []).forEach(function (primitive) {
+      renderPrimitive(m.symbolLayer, primitive);
+    });
+    renderEchelon(m.symbolLayer, spec.echelon);
+    m.symbolId = id;
+    m.g.setAttribute('data-symbol', id);
+  }
+
   function disposeMark(key) {
     var m = marks[key];
     if (!m) return;
@@ -363,6 +416,7 @@
     var screen = project(sim, at, LIFT);
     if (!screen || !screen.visible) { m.g.style.display = 'none'; return; }
     m.g.style.display = '';
+    renderSymbol(m, sq);
     m.unit.setAttribute('transform', 'translate(' + screen.x.toFixed(1) + ' ' + screen.y.toFixed(1) + ')');
     m.idText.textContent = (sq.faction === 'ge' ? 'GE ' : 'US ') + String(sq.id);
     var st = statusFor(sq, sim), label = st.label,
@@ -461,14 +515,15 @@
   }
 
   root.BattleSquadStatusOverlay = {
-    version: '1.1',
-    historicalBasis: 'FM 21-30 (1941): infantry X in unit frame; one dot above = squad',
+    version: '1.2',
+    historicalBasis: 'Per-symbol provenance is supplied by BattleTacticalSymbols; infantry currently cites FM 21-30 (1941)',
     statusFor: statusFor,
     movementTarget: movementTarget,
     arrowTarget: arrowTarget,
     arrowSignature: arrowSignature,
     longArrowWorld: LONG_ARROW_WORLD,
     missionObjective: missionObjective,
+    symbolIdFor: symbolIdFor,
     symbolSpec: symbolSpec,
     setVisible: setVisible,
     visible: function () { return visible; },
@@ -476,11 +531,11 @@
     dispose: dispose
   };
   root.BattleModules.registerSystem('squad-status-overlay', {
-    version: '1.1',
+    version: '1.2',
     onBattleStart: start,
     beforeBattleRestart: reset,
     onBattleRestart: start
   });
   if (typeof document !== 'undefined') installUi();
-  console.log('[UI] squad status overlay active: FM 21-30 infantry squad frame + momentary long-range command arrows/objectives');
+  console.log('[UI] tactical status overlay active: registry-driven unit symbols + momentary long-range command arrows/objectives');
 })(typeof window !== 'undefined' ? window : globalThis);
