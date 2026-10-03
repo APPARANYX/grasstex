@@ -2449,21 +2449,20 @@
       retriggerNoted: false
     };
     if (reason === 'scout-contact') startReconReportWatch(sq, task, battle);
-    /* After a no-contact scout excursion the main body is about to move up while the scouts fall
-       back into normal slots. Give that intentional geometry one short existing regroup-bypass
-       lease; otherwise the next commander ticks can misclassify the returning scouts as accidental
-       outrunners and immediately undo the recon decision with a regroup. Contact paths already have
-       their own combat bypass, but this short lease is harmless there and keeps one ownership rule. */
-    L.grant(
-      sq,
-      'regroup-bypass',
-      'squad-leader',
-      battle.time,
-      battle.time + RECON_TUNING.rejoin,
-      'recon rejoin',
-      'scouts back inside cohesion release band, contact, retreat, mission change or expiry',
-      { scoutIds: task.scoutIds.slice(), missionVersion: task.missionVersion }
-    );
+    /* Only a no-contact release hands the main body a deliberate scout lead to absorb. Contact,
+       retreat, leader/phase/mission invalidation and battle end already transition into their own
+       owners and must not leave a recon-derived bypass behind. */
+    if (reason === 'observed-no-contact' || reason === 'timeout')
+      L.grant(
+        sq,
+        'regroup-bypass',
+        'squad-leader',
+        battle.time,
+        battle.time + RECON_TUNING.rejoin,
+        'recon rejoin',
+        'scouts back inside cohesion release band, contact, retreat, mission change or expiry',
+        { scoutIds: task.scoutIds.slice(), missionVersion: task.missionVersion }
+      );
     syncTasks(sq, sq._engagementPlan);
     var st = reconStats(battle);
     if (st) {
