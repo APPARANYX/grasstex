@@ -146,6 +146,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `macro-relief-height-check.js` | Macro relief's runtime `heightAt` samples the exact triangles of the deformed rendered ground, so feet, LOS, cover and ballistics cannot see a smoother/lower hill than the player sees. |
 | `ground-stop-check.js` | Ground stop (14-z `groundStop`, `?groundSteps=<n>`, 12 to 96, default 48): the flag parses as documented and the shipped default is the 48-step scan; a 12 m ridge between two samples of a 450 m rifle's range (37.5 and 56.25 m at 24 steps) lets the round through into the man at 24 steps and takes it at 48, and a 3.2 m ridge in the trigger gate's span is let through at 24 and refused at 48; on 500 rolling-ground shots 48 steps stop every round 24 stop (24 samples are a subset of 48). `--measure` prints how many of 6,000 shots end differently and the cost per shot. The module is loaded from its shipping source with a stub `location`. |
 | `voice-determinism-check.js` | Voice callouts never draw from the combat RNG: a battle is identical with and without voice |
+| `combat-audio-check.js` | Combat audio (module 15-combat-audio.js, presentation only, `?combatAudio=0` off): a round passing within 10 m of the camera plays one flyby (crack within 6 m for a supersonic round, whiz beyond or for a .45; nothing for the shooter's own round within 6 m of its muzzle); the round's end one impact by surface or, on stone and metal, sometimes a ricochet instead (a hash of the point, likelier grazing, never the RNG); each body struck one flesh hit and its man one cry (`wounded`/`down`, none for a killing head shot, none again within 3 s); per-group caps on clips at once and the gap between starts, so a burst is never a wall of noise; sounds wait for the speed of sound; no combat-RNG read. |
 | `voice-observations-check.js` | The voice that reads the battle (modules 47 and 48, presentation only: module 48 speaks the scripted lines of #170, from heard gunfire and fire-control orders to wounds, jams and stress reactions, on the state change that causes each) leaves a four-squad battle identical (positions, health, deaths, combat-RNG draws) with every line enabled and without it, speaks new lines on it, and every line it speaks is recorded for both sides |
 | `local-steering-check.js` | `stepMovement`'s soft steering (`steerAroundObstacles`, loaded from `battle-sim.js`; the harness stubs it out of `stepMovement`): a man bounding to a wall's cover slot between two tactical circles reaches it, the circles his destination hugs never push him, avoidance deflects but never turns him round, and it still steers round an obstacle on the way elsewhere; the look-ahead never passes the end of his leg and circles holding his waypoint do not push (the scout's real wall, three circles) |
 | `stance-ownership-check.js` | Engagement is the only stance writer: no other runtime file sets `prone`/`tacticalCrouch`/`crawling`/`crouching` (the body's `setCrouch`/`setProne` and SquadAI's no-Engagement fallback aside), `crouching` is derived from the committed flags (never stored, a write throws), `BattleEngagement.requestStance` only takes a man lower, and an advancing man is crouched while his squad is on the enemy's heels (`inContact` or a picture within `ALERT_HOLD`) or he is under fire |
@@ -1292,6 +1293,21 @@ and committing only the MP3s, same route as everything else here. Not yet done: 
 `weaponFiles`/`buildWeaponAudio`), and expanding each sim shot of an automatic into several
 `fire` triggers at the real cyclic rate (the sim's `rof`/`cyclic` stay the abstract AI/ballistics
 rate; this would be audio-only presentation).
+
+**Combat sounds (`Assets/audio/combat-sfx-manifest.json`).** What a round sounds like after it leaves the muzzle: near-miss
+flybys (`crack`, `whiz`), ricochets, impacts by surface (dirt, masonry, wood, metal, vegetation), flesh hits and pain (`wounded`,
+`down`), 58 ElevenLabs Sound Effects clips under `Assets/audio/combat/<group>/`, each with its prompt in the manifest, mirrored
+into `manifest.json` categories `flyby`, `ricochet`, `impacts`, `flesh` and `pain` (`check_audio_manifest.py` holds the two equal).
+`.github/workflows/combat-sfx-generate.yml` generates the missing ones on a branch (never main; repo secret `ELEVEN_LABS_API`;
+`scripts/generate_combat_sfx.py`), masters them (`combat/*` targets: -22 dBFS, pain -18) and commits them; a rerun generates only
+what is missing. `battle/modules/15-combat-audio.js` plays them (see its harness row): one sound per instance, capped per group.
+
+**Audio tracker: CI and the deploy skip audio work when no audio changed.** `scripts/audio_tracker.py` lists the audio inputs
+(`Assets/audio/`, the audio scripts and recipes, `ci.yml`, the production deploy). CI's audio job asks it first (`diff` against the
+pull request's base or the commit before a push) and skips ffmpeg and every audio check when nothing changed; the production deploy
+compares a `snapshot` with the tracker the last successful deploy uploaded (`/grasstex/.battle-audio-tracker.json`, put after the
+hash state) and skips ffmpeg, the voice inventory, the pitch variants and the voice upload when they match. Any doubt (no base, no
+tracker on the host, no remote hash state) counts as changed.
 
 **Footsteps (`categories.footsteps` in `manifest.json`, real files, nothing plays them yet).**
 Ported directly from the sibling project `Teethree89/ww2fps`'s ElevenLabs-generated battlefield

@@ -19,7 +19,10 @@ ROOT = 'Assets/audio'
 PLACEHOLDERS = os.path.join(ROOT, '.manifest-placeholders.txt')
 # Directories whose clips are wired up through the manifest. voices/ is validated by
 # scripts/validate_voice_manifest.py instead, which understands the callout event map.
-MANAGED = ('weapons', 'vehicles', 'ambience', 'grenades', 'aircraft', 'footsteps')
+MANAGED = ('weapons', 'vehicles', 'ambience', 'grenades', 'aircraft', 'footsteps', 'combat')
+# The combat sounds are declared (with their generation prompts) in combat-sfx-manifest.json; the
+# runtime manifest must carry exactly the same files.
+COMBAT = os.path.join(ROOT, 'combat-sfx-manifest.json')
 
 
 def load_placeholders():
@@ -54,6 +57,16 @@ def main():
             errors.append(f'manifest references a missing clip: {path} '
                           f'(add the file, or declare it in '
                           f'{os.path.basename(PLACEHOLDERS)})')
+
+    if os.path.isfile(COMBAT):
+        combat = json.load(open(COMBAT, encoding='utf-8'))
+        declared = {f for group in combat['groups'].values()
+                    for clip in group.values() for f in clip['files']}
+        runtime = {p for p in referenced if p.startswith('combat/')}
+        for path in sorted(declared - runtime):
+            errors.append(f'combat-sfx-manifest.json declares {path}, but manifest.json does not play it')
+        for path in sorted(runtime - declared):
+            errors.append(f'manifest.json plays {path}, which combat-sfx-manifest.json does not declare')
 
     for path in sorted(placeholders - referenced):
         errors.append(f'{os.path.basename(PLACEHOLDERS)} lists {path}, '
