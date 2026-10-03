@@ -157,13 +157,15 @@
     return point(sq.objective);
   }
   function arrowSignature(sq, target) {
-    var m = sq && sq._macroMission,
-      version = m && m.version != null ? String(m.version) : '',
-      phase = String((sq && sq.commandPhase) || ''),
-      state = String((sq && sq.state) || ''),
-      x = target ? Math.round((+target.x || 0) / 5) : 0,
-      z = target ? Math.round((+target.z || 0) / 5) : 0;
-    return [state, phase, version, x, z].join('|');
+    /* One wipe belongs to one destination, not to every phase/brief transition on the way there.
+       Macro already coalesces identical briefs; Meso legitimately moves APPROACH -> ASSAULT ->
+       CAPTURE and may receive a revised brief for the same objective. Neither should make the UI
+       pretend a new long-range destination was issued. Coordinates remain in the signature so a
+       genuinely relocated rally/hold point can produce a fresh arrow even without an objective id. */
+    var id = target && target.id != null ? 'obj:' + String(target.id) : 'point',
+      x = target ? Math.round((+target.x || 0) / 20) : 0,
+      z = target ? Math.round((+target.z || 0) / 20) : 0;
+    return [id, x, z].join('|');
   }
   function hasSquadMovementIntent(sq, sim) {
     if (!sq) return false;
@@ -395,7 +397,16 @@
       if (elapsed <= total) renderArrowWipe(m, sq, screen, targetScreen, elapsed);
       else hideArrow(m);
     } else {
-      if (!longMove) {
+      /* Preserve the last played destination signature while it remains the same assignment. The
+         150 m test controls visibility/eligibility only; it is not a "new order" detector. */
+      if (target) {
+        var dormantSig = arrowSignature(sq, target);
+        if (m.arrowSignature == null) m.arrowSignature = dormantSig;
+        else if (m.arrowSignature !== dormantSig) {
+          m.arrowSignature = null;
+          m.arrowStartedAt = null;
+        }
+      } else {
         m.arrowSignature = null;
         m.arrowStartedAt = null;
       }
