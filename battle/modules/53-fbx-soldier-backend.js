@@ -400,7 +400,9 @@ function poseSnapshot(){
   var n=POSE.samples||1;
   var L=POSE.lod,lt=L.posed+L.static+L.offscreen+L.interval;
   return{enabled:POSE.on,frames:POSE.frames,soldierFrames:POSE.samples,
-    lod:{enabled:LOD.on,near:LOD.near,mid:LOD.mid,midHz:LOD.midHz,farHz:LOD.farHz,offscreen:LOD.offscreen,
+    lod:{enabled:LOD.on,near:LOD.near,mid:LOD.mid,screenScale:perfRound(LOD.screenScale||1,4),
+      effectiveNear:perfRound(LOD.near*(LOD.screenScale||1),2),effectiveMid:perfRound(LOD.mid*(LOD.screenScale||1),2),
+      midHz:LOD.midHz,farHz:LOD.farHz,offscreen:LOD.offscreen,
       posedShare:lt?perfRound(L.posed/lt,4):null,shadowKept:L.shadowKept,culled:L.culled,cull:CULL.on,heldStatic:L.static,heldOffscreen:L.offscreen,heldInterval:L.interval,posed:L.posed},wallMs:perfRound(perfNow()-POSE.startedAt,0),
     timerResolutionUs:POSE.resolutionUs,
     posedPerFrame:{mean:frames?perfRound(posedSum/frames,2):null,stats:perfStats(POSE.framePosed,frames)},
@@ -989,11 +991,13 @@ function loadWeapons(scene,st,base){
    own bone weights, UVs and normals, and clips, poses and the animation LOD are unchanged; the GPU
    only skins the vertices the list uses. One list per model, built once before binding and appended
    to the model's shared index buffer; each soldier's mesh gets a second sub-mesh over it and the
-   render hook picks one by camera distance. The models ship unwelded (flat-shaded, ~2 vertices per
-   triangle), so the simplifier sees them welded by position first; a welded corner takes the first
-   vertex at that position. `?soldierLod=0` draws every soldier at full detail. Distances are
-   presentation thresholds, tuned from close-ups (scripts/probe_soldier_mesh_lod.cjs). */
-var MESH_LOD={on:!(typeof location!=='undefined'&&/[?&]soldierLod=0\b/.test(location.search||'')),far:45,band:3,ratio:.12,error:.08,
+   render hook picks one by apparent screen size. The models ship unwelded (flat-shaded, ~2 vertices
+   per triangle), so the simplifier sees them welded by position first; a welded corner takes the
+   first vertex at that position. `?soldierLod=0` draws every soldier at full detail. `far` and
+   `band` remain the 1080p/default-FOV reference distances from the close-up tuning probe; runtime
+   multiplies them by BattleScreenSpaceLod.scale(scene), so small/wide views simplify sooner and
+   large/narrow views preserve detail farther out. */
+var MESH_LOD={on:!(typeof location!=='undefined'&&/[?&]soldierLod=0\b/.test(location.search||'')),far:45,band:3,screenScale:1,ratio:.12,error:.08,
   lib:'https://cdn.jsdelivr.net/npm/meshoptimizer@0.22.0/meshopt_simplifier.js',models:{},failed:null},meshoptPromise=null;
 function meshoptReady(){
   if(!MESH_LOD.on||typeof document==='undefined')return Promise.resolve(null);
@@ -1851,11 +1855,13 @@ function handChain(path,chain,from){
      - static (clip state, weapon and hold unchanged since his last pose, not aiming; e.g. a
        finished death clip or a paused sim): posed once, then held.
    A soldier is always posed the first time. Clip clocks stay on simulation time in update(); this
-   only decides how often the result is written. Distances are presentation thresholds, tuned from
-   close-ups, never gameplay. `?animLod=0` poses every soldier every frame (the previous behaviour). */
+   only decides how often the result is written. `near` and `mid` are 1080p/default-FOV reference
+   distances; runtime scales them by projected screen resolution/FOV through BattleScreenSpaceLod.
+   They remain presentation-only and never affect gameplay. `?animLod=0` poses every soldier every
+   frame (the previous behaviour). */
 /* `clock` (ms) defaults to performance.now(); the full-fidelity benchmark's cadence mode swaps in a
    virtual frame clock so a slow software renderer is scheduled as a 60 FPS device would be. */
-var LOD={on:!(typeof location!=='undefined'&&/[?&]animLod=0\b/.test(location.search||'')),near:35,mid:100,midHz:30,farHz:10,offscreen:true,radius:1.6,clock:null,skeletons:true};
+var LOD={on:!(typeof location!=='undefined'&&/[?&]animLod=0\b/.test(location.search||'')),near:35,mid:100,screenScale:1,midHz:30,farHz:10,offscreen:true,radius:1.6,clock:null,skeletons:true};
 /* `?farHz=<n>` re-poses soldiers beyond `mid` at n Hz instead of 10 (a device test knob). */
 (function(){var m=typeof location!=='undefined'&&/[?&]farHz=([0-9.]+)/.exec(location.search||'');if(m&&+m[1]>0)LOD.farHz=+m[1];})();
 /* Off-screen culling of soldier meshes. Bind makes each soldier's skinned meshes always active (their
@@ -1873,6 +1879,14 @@ function lodCamera(scene){
   /* The camera as it is now: the scene's own planes are last frame's and lag a camera jump. */
   cam.getViewMatrix().multiplyToRef(cam.getProjectionMatrix(),lodVP);BABYLON.Frustum.GetPlanesToRef(lodVP,lodPlanes);
   lodEye.copyFrom(cam.globalPosition||cam.position);return true;
+}
+function lodScreenScale(scene){
+  var S=root.BattleScreenSpaceLod,scale=1;
+  try{if(S&&S.scale)scale=+S.scale(scene)||1;}catch(_){scale=1;}
+  /* This is presentation scaling, not device classification: the same camera/render size yields
+     the same thresholds on phone and desktop. Keep the last value visible for diagnostics. */
+  LOD.screenScale=MESH_LOD.screenScale=scale;
+  return scale;
 }
 /* Shadow-casting lights this frame: every enabled light with a shadow generator. A soldier casts if
    one of his meshes is in a generator's render list (or the generator selects casters with a
@@ -1933,7 +1947,7 @@ function lodSig(fx){
   return poseMix(h,Math.round((fx.cupReach==null?1:fx.cupReach)*1e3));
 }
 /* Why this soldier is not re-posed this frame, or null to pose him. */
-function lodHold(fx,now,cam,shadows){
+function lodHold(fx,now,cam,shadows,screenScale){
   /* Signature of the inputs this pose would use, taken before posing: a pose that still moved an
      eased value (the pistol cup) leaves a different signature for the next frame, so it re-poses. */
   var sig=fx._lodNext=lodSig(fx);if(fx._lodAt==null)return null;
@@ -1948,8 +1962,9 @@ function lodHold(fx,now,cam,shadows){
     fx._lodShadowKept=true; /* body out of view, shadow maybe in view: schedule by distance */
   }
   var dx=lodEye.x-x,dy=lodEye.y-y,dz=lodEye.z-z,d=Math.sqrt(dx*dx+dy*dy+dz*dz);
-  if(d<LOD.near){fx._lodEvery=0;return null;}
-  var every=fx._lodEvery=1000/(d<LOD.mid?LOD.midHz:LOD.farHz);
+  screenScale=screenScale||1;
+  if(d<LOD.near*screenScale){fx._lodEvery=0;return null;}
+  var every=fx._lodEvery=1000/(d<LOD.mid*screenScale?LOD.midHz:LOD.farHz);
   return now-fx._lodAt>=every?null:'interval';
 }
 function lodPosed(fx,now){
@@ -1967,8 +1982,9 @@ function lodPosed(fx,now){
 function hookRender(scene,st){
   if(st.hooked)return;st.hooked=true;
   scene.onBeforeRenderObservable.add(function(){
-    var list=st.active,on=POSE.on,t0=on?perfNow():0,posed=0,lod=LOD.on,cull=CULL.on,now=lod?(LOD.clock?LOD.clock():perfNow()):0,cam=(lod||cull)&&lodCamera(scene),shadows=cam&&(cull||LOD.offscreen)&&lodShadows(scene);
-    var ac=scene.activeCamera,eye=ac&&(ac.globalPosition||ac.position),mf=MESH_LOD.far,mb=MESH_LOD.band;
+    var list=st.active,on=POSE.on,t0=on?perfNow():0,posed=0,lod=LOD.on,cull=CULL.on,now=lod?(LOD.clock?LOD.clock():perfNow()):0,cam=(lod||cull)&&lodCamera(scene),shadows=cam&&(cull||LOD.offscreen)&&lodShadows(scene),
+      screenScale=lodScreenScale(scene);
+    var ac=scene.activeCamera,eye=ac&&(ac.globalPosition||ac.position),mf=MESH_LOD.far*screenScale,mb=MESH_LOD.band*screenScale;
     for(var i=list.length-1;i>=0;i--){
       var fx=list[i];
       if(fx.holder.isDisposed()){list.splice(i,1);continue;}
@@ -1981,7 +1997,7 @@ function hookRender(scene,st){
         else{var mp=fx.root.position,mx=eye.x-mp.x,my=eye.y-mp.y-.9,mz=eye.z-mp.z,md=Math.sqrt(mx*mx+my*my+mz*mz);meshLodApply(fx,fx._meshFar?md>mf-mb:md>mf+mb);}
       }
       if(lod){
-        var hold=fx._lodHold=lodHold(fx,now,cam,shadows);
+        var hold=fx._lodHold=lodHold(fx,now,cam,shadows,screenScale);
         if(on&&fx._lodShadowKept)POSE.lod.shadowKept++;
         if(hold){if(on)POSE.lod[hold]++;continue;}
         fx._poseDt=fx._lodAt==null?null:(now-fx._lodAt)/1000;
@@ -2297,12 +2313,14 @@ root.BattleFbxSoldier={
 };
 /* Read-only diagnostics for the runtime/animation audit (see the instrumentation block above). */
 root.BattleAssetTimings={enabled:ASSET.on,snapshot:assetSnapshot};
-/* Animation LOD thresholds, live-tunable for visual checks (BattleFbxSoldier.lod.farHz=5, .on=false...). */
+/* Animation LOD reference thresholds, live-tunable for visual checks
+   (BattleFbxSoldier.lod.farHz=5, .on=false...). .screenScale is the current resolution/FOV multiplier. */
 root.BattleFbxSoldier.lod=LOD;
 /* Off-screen soldier culling, live-tunable (`.on`, `.radius` m); `lodState(s).culled` per soldier. */
 root.BattleFbxSoldier.cull=CULL;
-/* Soldier mesh LOD: live-tunable (`.far` metres, `.on`); `.models` lists each model's full and far
-   triangle and vertex counts, `.failed` why it is off if meshoptimizer never loaded. */
+/* Soldier mesh LOD: live-tunable (`.far` reference metres, `.on`); `.screenScale` converts the
+   reference distance to the current render size/FOV. `.models` lists full/far triangle and vertex
+   counts, and `.failed` says why meshoptimizer is off if it never loaded. */
 root.BattleFbxSoldier.meshLod=MESH_LOD;
 root.BattleFbxSoldier.meshLodState=function(soldier){var fx=soldier&&soldier._fbx;return fx?{far:!!fx._meshFar,meshes:fx.meshLod?fx.meshLod.length:0}:null;};
 /* Read-only: this soldier's last LOD decision (null = posed), and whether his shadow kept him scheduled. */
