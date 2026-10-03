@@ -119,12 +119,12 @@
      question: the FG 42 and the view cones shipped together). No view cone, no sector scan, nothing
      heard or relayed: a man sees every enemy in range and line of sight, whichever way he faces. */
   var PERCEPTION_ON = !(typeof location !== 'undefined' && /[?&]perception=0\b/.test(location.search || ''));
-  /* Personal beliefs are the measured replacement for treating squad.contact as instant common
-     knowledge. Perception owns soldier._beliefs; Engagement and its declared drills read only the
-     public soldierContact/beliefSnapshot views. While measured this is opt-in:
-     ?soldierBeliefs=1/on/true. Flag off leaves the previous shared-contact behavior intact. */
+  /* Personal beliefs replace treating squad.contact as instant common knowledge. Perception owns
+     soldier._beliefs; Engagement and its declared drills read only the public soldierContact /
+     beliefSnapshot views. Shipped on after the 100-seed Slice 2 benchmark; ?soldierBeliefs=0/off/
+     false/none is the legacy shared-contact control arm. */
   function parseSoldierBeliefs(search) {
-    return /[?&]soldierBeliefs=(?:1|on|true)(?:&|#|$)/i.test(search || '');
+    return !/[?&]soldierBeliefs=(?:0|off|false|none)(?:&|#|$)/i.test(search || '');
   }
   var SOLDIER_BELIEFS_ON = parseSoldierBeliefs(
     typeof location !== 'undefined' ? location.search || '' : ''
