@@ -61,8 +61,15 @@
           var task = sq._reconTask,
             sig = k + '|' + String(task.signature);
           st.taskKeys[sig] = 1;
-          if (!open && sq.orderAnchor) {
-            open = st.open[k] = { x: sq.orderAnchor.x, z: sq.orderAnchor.z };
+          /* Two different recon tasks can end/start between one-second probe samples. Reset the
+             anchor baseline on signature change so "drift" means movement during ONE live task,
+             not the legitimate stride taken between consecutive approaches. */
+          if ((!open || open.signature !== task.signature) && sq.orderAnchor) {
+            open = st.open[k] = {
+              x: sq.orderAnchor.x,
+              z: sq.orderAnchor.z,
+              signature: task.signature
+            };
           }
           if (open && sq.orderAnchor)
             st.anchorDrift.push(Math.hypot(sq.orderAnchor.x - open.x, sq.orderAnchor.z - open.z));
