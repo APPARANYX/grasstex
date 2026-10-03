@@ -560,7 +560,11 @@ test('reset wipes every mind and the battle log', () => {
    draw the same number of combat-RNG values, and so prove the module draws none. */
 function battleFingerprint(mode, seed) {
   H.resetIds();
-  const r = H.bootstrap();
+  /* `?fireControl=0`: the Squad Leader's return-fire exception reads `recentIncoming`, a declared status read
+     (READERS, lever null) that is false with `?mind=0` and live under `observe` by design, so with fire control
+     on the two modes are not the same battle whenever a man is shot at during a hold (seen once men stayed in
+     the fight for the whole engagement). This test is about the stress levers. */
+  const r = H.bootstrap({ search: '?fireControl=0' });
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
   r.BattleSoldierMind.configure(mode);
   const b = H.makeBattle(r, { seed });
