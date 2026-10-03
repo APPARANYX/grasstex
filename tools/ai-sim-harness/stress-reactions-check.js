@@ -655,6 +655,10 @@ test("rage: charges the enemy, fires on the move, strikes at arm's length, and e
    tick, and each break renews the guard (the benchmark's 191 breaks in 2.1 s of rage on one seed). `?rageLock=1`
    charges the nearer of the two: one break, he holds the state and runs at the contact. */
 function splitRage(q) {
+  /* Historical rageLock regression: it deliberately contrasts the old squad-contact break signal
+     with the man's far personal target. Keep that synthetic shared-contact setup on the legacy
+     beliefs arm rather than changing shipping per-man belief behavior. */
+  q += (q ? '&' : '?') + 'soldierBeliefs=0';
   const ctx = world(q),
     s = man(ctx.us, 'rifleman');
   tick(ctx, s);
