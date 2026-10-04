@@ -108,3 +108,4 @@ checks every faction/role model + weapon pair and the two-hand hold, and writes 
 `$FBX_OUT` (`FBX_CHROME` picks a browser; visual PASS is still a human judgement: lit, no holes,
 factions textured differently, weapon on the hands). Keep weapon source `.zip` packs next to the
 `.fbx`; new generator packs in `Assets/soldiers/new/` are gitignored. Only the `.fbx` deploys.
+
