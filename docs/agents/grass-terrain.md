@@ -20,3 +20,4 @@
   - `lod.js` and `stream.js` do camera LOD with crack snapping and hysteresis.
   - `terrain-baked.js` feeds one field to both grass and mesh.
   - Known gap: its `ShaderMaterial` doesn't receive cascaded shadows.
+
