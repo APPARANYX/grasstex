@@ -623,13 +623,35 @@
       proneReady: data.proneReady == null ? (prev ? +prev.proneReady || 0 : 0) : +data.proneReady || 0
     };
     sq.fireControl = fc;
+    var CR = root.BattleCommandReception,
+      envelope =
+        CR && CR.publish
+          ? CR.publish(sq, battle, 'posture-fire', commanded(sq), {
+              scope: 'squad',
+              action: 'fire-control-' + state,
+              signature:
+                String(state) +
+                '|' +
+                String(fc.targetId == null ? '' : fc.targetId) +
+                '|' +
+                String(fc.shooterId == null ? '' : fc.shooterId),
+              reason: reason || null,
+              spatial: false
+            })
+          : null;
+    if (envelope) {
+      fc.commandEnvelopeId = envelope.id;
+      fc.commandVersion = envelope.version;
+    }
     fc.trail = pushFireControlTrail(sq, battle, state, reason, fc).slice();
     fireControlTelemetry(sq, battle, fc);
     return fc;
   }
   function clearFireControl(sq, battle, reason) {
     if (sq.fireControl) {
-      pushFireControlTrail(sq, battle, 'clear', reason || 'contact clear', sq.fireControl);
+      var previous = sq.fireControl,
+        CR = root.BattleCommandReception;
+      pushFireControlTrail(sq, battle, 'clear', reason || 'contact clear', previous);
       telemetry(battle, 'decision-fire-control', {
         faction: sq.faction,
         squad: sq.id,
@@ -637,6 +659,18 @@
         reason: reason || 'contact clear',
         trail: (sq._fireControlTrail || []).slice()
       });
+      if (CR && CR.publish)
+        CR.publish(sq, battle, 'posture-fire', commanded(sq), {
+          scope: 'squad',
+          action: 'fire-control-clear',
+          signature:
+            'clear|' +
+            String(previous.targetId == null ? '' : previous.targetId) +
+            '|' +
+            String(previous.shooterId == null ? '' : previous.shooterId),
+          reason: reason || 'contact clear',
+          spatial: false
+        });
     }
     sq.fireControl = null;
   }
@@ -2737,7 +2771,16 @@
     var selected = {};
     for (var i = 0; i < task.scoutIds.length; i++) selected[String(task.scoutIds[i])] = 1;
     var members = commanded(sq),
-      stats = publishStats(battle);
+      stats = publishStats(battle),
+      CR = root.BattleCommandReception;
+    if (CR && CR.publish)
+      CR.publish(sq, battle, 'movement', members, {
+        scope: 'recon',
+        action: 'scouts-forward',
+        signature: 'recon|' + task.signature,
+        reason: task.reason || 'scouts forward',
+        spatial: true
+      });
     for (i = 0; i < members.length; i++) {
       var man = members[i],
         id = String(man.id),
@@ -2957,8 +3000,9 @@
       var live = averageMembers(m),
         sig = fireteamSignature(sq),
         cur = sq._fireteamOrders[key],
-        urgent = sq.state === 'retreat';
-      if (!cur || cur.signature !== sig || (urgent && dist(cur.anchor, desired) > ORDER_PUBLISH_EPS))
+        urgent = sq.state === 'retreat',
+        issued = false;
+      if (!cur || cur.signature !== sig || (urgent && dist(cur.anchor, desired) > ORDER_PUBLISH_EPS)) {
         cur = sq._fireteamOrders[key] = {
           anchor: copy(desired),
           origin: copy(live),
@@ -2967,21 +3011,33 @@
           until: battle.time + (urgent ? 0 : TEAM_LEASE),
           blocked: false
         };
-      else if (regroup) cur.until = battle.time + TEAM_LEASE;
+        issued = true;
+      } else if (regroup) cur.until = battle.time + TEAM_LEASE;
       else if (battle.time >= cur.until || dist(cur.anchor, desired) > 20) {
         var arrived = live && dist(live, cur.anchor) <= 4.5;
-        if (arrived)
+        if (arrived) {
           cur = sq._fireteamOrders[key] = {
             anchor: copy(desired),
             origin: copy(live),
             forward: forward(sq),
             signature: sig,
-            until: battle.time + TEAM_LEASE,
+            until: battle.time + (urgent ? 0 : TEAM_LEASE),
             blocked: false
           };
-        else cur.until = battle.time + TEAM_LEASE;
+          issued = true;
+        } else cur.until = battle.time + TEAM_LEASE;
       }
       if (!defensive && !regroup && !urgent) followTeamForward(sq, key, m, cur);
+      var CR = root.BattleCommandReception;
+      if (issued && CR && CR.publish)
+        CR.publish(sq, battle, 'movement', m, {
+          scope: 'fireteam:' + key,
+          action: urgent ? 'retreat' : regroup ? 'regroup' : defensive ? 'hold-position' : 'formation',
+          signature: sig + '|' + key + '|' + Math.round(cur.anchor.x * 2) + '|' + Math.round(cur.anchor.z * 2),
+          reason: urgent ? 'squad retreat' : regroup ? 'squad regroup' : 'fireteam order',
+          spatial: true,
+          point: cur.anchor
+        });
       for (var i = 0; i < m.length; i++) {
         var s = m[i],
           d = teamSlot(sq, key, s, i, m.length, cur.anchor, cur.forward),
