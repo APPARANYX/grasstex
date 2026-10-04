@@ -713,7 +713,11 @@
         living = D.aliveMembers(sq).length,
         m = sq._macroMission;
       if (!living || sq.state === 'retreat') continue;
-      if (stallEligible(sim, m)) {
+      /* Objective-control stall is faction-wide. A squad that is still making
+         measurable progress on its existing capture brief is not itself stalled;
+         leave that valid brief alone instead of turning slower command adoption
+         into a Macro replan/order-churn pulse. */
+      if (stallEligible(sim, m) && !makingMissionProgress(sim, faction, sq)) {
         reconsiderMission(sim, sq, town, 'strategic-stall', stalled);
         affected++;
         continue;
