@@ -260,16 +260,18 @@ test('the source reads stress exactly where the table says, file by file and mem
   assert.deepEqual(problems(M, found, exists), []);
 });
 
-test('the runtime readers are the five layers that decide, show or export, and only those', () => {
+test('the runtime readers are the declared decision, command-observer, display and export layers only', () => {
   assert.deepEqual(Object.keys(found.runtime).sort(), [
     'engagement.js',
     'modules/14-z-ballistic-raycast.js',
     'modules/16-squad-plan-stability.js',
+    'modules/18-command-reception.js',
     'modules/40-world-debug-overlay.js',
     'modules/99-session-diagnostics-export.js'
   ]);
   const decides = M.READERS.filter(r => r.kind === 'lever' || r.kind === 'status').map(r => r.layer);
   assert.deepEqual([...new Set(decides)].sort(), [
+    'Command Reception (observe-only Phase 0A)',
     'Meso (Squad Leader)',
     'Micro (Engagement)',
     'Micro (shot model)'
