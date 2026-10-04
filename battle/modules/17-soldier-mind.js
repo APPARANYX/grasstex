@@ -122,7 +122,7 @@
       layer: 'Command Reception (observe-only Phase 0A)',
       file: 'modules/18-command-reception.js',
       reader: 'recognitionScale (planned per-soldier process/orient latency only)',
-      reads: { reactScale: 1 },
+      reads: { reactScale: 2 },
       unit: 'x planned command-processing latency; telemetry only until a later gated phase',
       flag: '?commandReception= (default on); ?mind= react lever supplies the same existing scale'
     },
