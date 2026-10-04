@@ -35,7 +35,7 @@
     /* Decode each take once. Extra playback slots share its decoded AudioBuffer but retain
        independent position, gain and playback state. Babylon Sound.clone() is incompatible here. */
     function pool(key,files,count,far){
-      var opts=far?{spatialSound:true,distanceModel:'linear',maxDistance:1200,rolloffFactor:1,volume:.20,autoplay:false}:{spatialSound:true,distanceModel:'linear',maxDistance:145,rolloffFactor:1.5,volume:.20,autoplay:false};
+      var opts=far?{spatialSound:true,distanceModel:'linear',maxDistance:3500,rolloffFactor:1,volume:.20,autoplay:false}:{spatialSound:true,distanceModel:'linear',maxDistance:145,rolloffFactor:1.5,volume:.20,autoplay:false};
       var voices=new Array(count),takes=Math.min(count,files.length);pools[key]=voices;cursors[key]=0;
       for(var i=0;i<takes;i++)(function(i){
         var extra=[];for(var k=i+takes;k<count;k+=takes)extra.push(k);

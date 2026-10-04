@@ -21,10 +21,10 @@
     },
     "smallArms": {
       "sourcePeakDbAt1m": 160,
-      "description": "Rifle/carbine/LMG/pistol impulse class. NIOSH notes firearm impulses commonly reach roughly 160-170 dB peak and can reach 170-180 dB or higher.",
-      "clearAirAudibleDistanceM": 3000,
-      "hardCullDistanceM": 1200,
-      "maxRuntimeGain": 0.20,
+      "description": "Rifle/carbine/LMG/pistol impulse class. NIOSH notes firearm impulses commonly reach roughly 160-170 dB peak and can reach 170-180 dB or higher. Runtime distant shot clips use a 3.5 km cutoff; this is a gameplay approximation, not a universal audible limit.",
+      "clearAirAudibleDistanceM": 5000,
+      "hardCullDistanceM": 3500,
+      "maxRuntimeGain": 0.2,
       "noiseFloorDb": 38,
       "mixCeilingDb": 138
     },
@@ -48,7 +48,7 @@
       "sourceLevelDbAAt1m": 105,
       "clearAirAudibleDistanceM": 1200,
       "hardCullDistanceM": 700,
-      "maxRuntimeGain": 0.20,
+      "maxRuntimeGain": 0.2,
       "noiseFloorDb": 40,
       "mixCeilingDb": 108
     },
