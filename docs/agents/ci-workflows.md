@@ -20,3 +20,4 @@ and on `main` with the same `seed` input and no flags for a paired comparison ac
 set for an A/B of a flag, and `seeds` (e.g. 100) when the flag needs a verdict and not only a look. The result is published to the `benchmark-results` branch and the artifacts keep every record. Local Playwright runs are for
 probes and single-seed replays only (the scripted benchmark is one seed, about two minutes: `BATTLE_BENCHMARK_WINDOWS=contact+60,every60
 BATTLE_BENCHMARK_COUNT=1 BATTLE_BENCHMARK_SEED=<seed> node scripts/run_battle_benchmark.mjs`).
+
