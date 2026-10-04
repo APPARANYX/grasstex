@@ -702,13 +702,17 @@ Implement this in **small phases**, each with its own deterministic harness/prob
 2. **Posture/fire-control adoption — shipped in #214, opt-in pending paired benchmark.** Engagement can consume
    each soldier's adopted HOLD/OPEN/precision version with `?commandPosture=1`; under-fire reflexes remain immediate,
    Squad/Meso still owns the shared decision, and the default/off arm remains Phase 0A behavior.
-3. **Movement adoption — current slice.** Gate regroup/new-anchor/fireteam-destination changes on the soldier's
-   adopted movement order. Movement Resolver remains the only final-destination arbiter and a man retains his
-   previous valid order until the replacement is adopted. While benchmark validation is pending this behavior is
-   opt-in with `?commandMovement=1`; do not make it default merely because the deterministic harness is green.
-4. **Orientation and relay.** Add bounded voice/visual receipt and, where needed, Squad Leader -> fireteam leader ->
-   member relay. Distinguish simple non-spatial orders from directional/object-referenced orders so "shift fire
-   left", "cover on the right" and "get in that building" do not all pay the same orientation cost.
+3. **Movement adoption — shipped in #215, opt-in pending paired benchmark.** With `?commandMovement=1`,
+   Squad Command applies only each soldier's personally adopted replacement while Movement Resolver remains the
+   final-destination arbiter; a pending order cannot erase the previous adopted slot. The default/off arm remains
+   immediate publication.
+4. **Orientation and relay — current phase, split small.**
+   - **0D1 reference-sensitive orientation — current slice.** Distinguish simple, directional, point and object
+     references so "get down", "shift fire left", "move there" and "get in that building" pay bounded,
+     deterministic processing/orient/locate costs appropriate to the reference instead of one generic spatial delay.
+     Command Reception still must not physically turn a man or become a stance/movement owner.
+   - **0D2 relay topology — next slice after 0D1 ships.** Add bounded direct voice/visual receipt and, where needed,
+     Squad Leader -> fireteam relay -> member timing.
 5. **Close the direct-read gaps.** Add a static/runtime ratchet for command-bearing squad fields so new behavior
    cannot bypass personal adoption, then run fixed-seed and paired benchmarks for churn, stalls, response latency,
    cohesion and mission progress.
