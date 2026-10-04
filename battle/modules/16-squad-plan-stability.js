@@ -1588,7 +1588,10 @@
           return dist(man.root.position, rallyAnchor) <= release;
         }).length,
         rallyRequired = Math.max(1, rallyMen.length - ca.allowed);
-      if (age >= REGROUP_MIN && rallyInside >= rallyRequired) {
+      /* A squad that has cohered elsewhere must not remain trapped by a stale
+         rally point (e.g. a new tactical position reached while regrouping).
+         Retain the original core-spread escape alongside rally-area quorum. */
+      if (age >= REGROUP_MIN && (rallyInside >= rallyRequired || ca.coreSpread <= release)) {
         endRegroup(sim, sq, 'cohesion restored');
         return;
       }
