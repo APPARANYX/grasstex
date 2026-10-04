@@ -326,17 +326,30 @@
     var M = mind();
     return !!(M && M.recentIncoming(s, battle.time, fireControlTuning().returnFireWindow));
   }
-  function fireControlOf(s) {
+  function fireControlOf(s, battle) {
+    var CR = root.BattleCommandReception;
+    if (CR && CR.postureEnabled && CR.postureEnabled()) {
+      var rec = CR.adopted && CR.adopted(s, battle, 'posture-fire', 'squad'),
+        data = rec && rec.data;
+      if (!data || data.state === 'clear') return null;
+      return {
+        state: data.state || null,
+        targetId: data.targetId == null ? null : data.targetId,
+        shooterId: data.shooterId == null ? null : data.shooterId,
+        commandVersion: rec.version,
+        commandEnvelopeId: rec.envelopeId
+      };
+    }
     return (s && s.squad && s.squad.fireControl) || null;
   }
   function fireAuthorized(s, battle) {
-    var f = fireControlOf(s);
+    var f = fireControlOf(s, battle);
     if (!f || f.state === 'open') return true;
     if (underFireNow(s, battle)) return true;
     return f.state === 'precision' && String(f.shooterId) === String(s.id);
   }
   function fireControlPreparing(s, battle) {
-    var f = fireControlOf(s);
+    var f = fireControlOf(s, battle);
     if (!f || underFireNow(s, battle)) return false;
     if (f.state === 'hold') return true;
     if (f.state !== 'precision') return false;

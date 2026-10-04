@@ -636,11 +636,17 @@
                 '|' +
                 String(fc.shooterId == null ? '' : fc.shooterId),
               reason: reason || null,
-              spatial: false
+              spatial: false,
+              data: {
+                state: state,
+                targetId: fc.targetId == null ? null : String(fc.targetId),
+                shooterId: fc.shooterId == null ? null : String(fc.shooterId)
+              }
             })
           : null;
-    /* Phase 0A records the envelope only in BattleCommandReception. Do not stamp it back onto
-       fireControl: the observer must not change gameplay-owned state or benchmark fingerprints. */
+    /* Command Reception owns the envelope/adoption state. Keep it sidecar-only: Meso's shared
+       fireControl record remains the Squad Leader's decision and Engagement chooses what one man
+       may execute from his personally adopted version when the Phase 0B flag is enabled. */
     void envelope;
     fc.trail = pushFireControlTrail(sq, battle, state, reason, fc).slice();
     fireControlTelemetry(sq, battle, fc);
@@ -668,7 +674,12 @@
             '|' +
             String(previous.shooterId == null ? '' : previous.shooterId),
           reason: reason || 'contact clear',
-          spatial: false
+          spatial: false,
+          data: {
+            state: 'clear',
+            targetId: previous.targetId == null ? null : String(previous.targetId),
+            shooterId: previous.shooterId == null ? null : String(previous.shooterId)
+          }
         });
     }
     sq.fireControl = null;

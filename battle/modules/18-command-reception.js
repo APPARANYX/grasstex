@@ -1,14 +1,17 @@
-/* Behavior-neutral individual command-reception telemetry.
-   Phase 0A only observes command publication. It does not gate or alter stance, fire permission,
-   targets, paths, destinations or movement. Later phases may consume the adopted version.
+/* Individual command-reception state.
+   Phase 0A records deterministic per-man receipt/adoption telemetry. Phase 0B optionally lets
+   Engagement consume the personally adopted posture/fire-control version; this module still never
+   writes stance, fire permission, targets, paths, destinations or movement itself.
 
    Owns only battle._commandReception. Timing is deterministic and uses no combat RNG. */
 (function(root){
   'use strict';
   if(root.BattleCommandReception)return;
 
-  var ON=!(typeof location!=='undefined'&&/[?&]commandReception=(?:0|off|false)(?:&|#|$)/i.test(location.search||''));
-  var FORMAT=1;
+  var SEARCH=typeof location!=='undefined'?location.search||'':'',
+    ON=!/[?&]commandReception=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),
+    POSTURE_ON=ON&&/[?&]commandPosture=(?:1|on|true)(?:&|#|$)/i.test(SEARCH);
+  var FORMAT=2;
   var TUNING={
     SOUND:343,
     SPEAK_SIMPLE:.35,
@@ -29,6 +32,15 @@
   }
   function point(v){
     return v&&isFinite(+v.x)&&isFinite(+v.z)?{x:+v.x,z:+v.z}:null;
+  }
+  function copyData(v){
+    if(!v||typeof v!=='object')return null;
+    var out={};
+    Object.keys(v).forEach(function(k){
+      var x=v[k];
+      if(x==null||typeof x==='string'||typeof x==='number'||typeof x==='boolean')out[k]=x;
+    });
+    return out;
   }
   function pos(v){
     return v&&v.root&&v.root.position?point(v.root.position):null;
@@ -55,6 +67,7 @@
       versions:Object.create(null),
       current:Object.create(null),
       bySoldier:Object.create(null),
+      adoptedBySoldier:Object.create(null),
       recent:[],
       counts:{
         envelopes:0,
@@ -117,6 +130,7 @@
         distance:d==null?null:+d.toFixed(2),
         needsOrientation:!!envelope.spatial,
         point:envelope.point?{x:envelope.point.x,z:envelope.point.z}:null,
+        data:copyData(envelope.data),
         phase:'issued',
         countedAdopted:false
       },
@@ -157,6 +171,7 @@
         reason:meta.reason||null,
         spatial:!!meta.spatial,
         point:point(meta.point),
+        data:copyData(meta.data),
         recipients:[]
       },
       men=liveRecipients(recipients||sq.members);
@@ -171,32 +186,51 @@
       id:envelope.id,squad:envelope.squad,category:envelope.category,scope:envelope.scope,
       action:envelope.action,version:envelope.version,issuedAt:envelope.issuedAt,
       sourceId:envelope.sourceId,reason:envelope.reason,spatial:envelope.spatial,
-      point:envelope.point,recipients:envelope.recipients.slice()
+      point:envelope.point,data:copyData(envelope.data),recipients:envelope.recipients.slice()
     });
     if(st.recent.length>TUNING.LOG)st.recent.splice(0,st.recent.length-TUNING.LOG);
     return envelope;
+  }
+  function publicRecord(rec){
+    if(!rec)return null;
+    var out=Object.assign({},rec);
+    delete out.countedAdopted;
+    out.data=copyData(rec.data);
+    if(rec.point)out.point={x:rec.point.x,z:rec.point.z};
+    return out;
   }
   function settle(battle){
     var st=battle&&battle._commandReception;
     if(!ON||!st)return st||null;
     var now=+battle.time||0,ids=Object.keys(st.bySoldier);
     for(var i=0;i<ids.length;i++){
-      var by=st.bySoldier[ids[i]],slots=Object.keys(by);
+      var id=ids[i],by=st.bySoldier[id],slots=Object.keys(by),
+        active=st.adoptedBySoldier[id]||(st.adoptedBySoldier[id]=Object.create(null));
       for(var j=0;j<slots.length;j++){
-        var rec=by[slots[j]],next=stage(rec,now);
+        var slot=slots[j],rec=by[slot],next=stage(rec,now);
         rec.phase=next;
-        if(next==='adopted'&&!rec.countedAdopted){rec.countedAdopted=true;st.counts.adopted++;}
+        if(next==='adopted'&&!rec.countedAdopted){
+          rec.countedAdopted=true;
+          st.counts.adopted++;
+          active[slot]=publicRecord(rec);
+        }
       }
     }
     return st;
   }
+  function adopted(soldier,battle,category,scope){
+    if(!ON||!soldier||!battle)return null;
+    var st=settle(battle),by=st&&st.adoptedBySoldier[String(soldier.id)],
+      slot=String(category||'command')+'|'+String(scope||'squad');
+    return by&&by[slot]?publicRecord(by[slot]):null;
+  }
   function snapshot(soldier,battle){
     if(!ON||!soldier||!battle)return null;
-    var st=settle(battle),by=st&&st.bySoldier[String(soldier.id)];
-    if(!by)return{enabled:true,records:{}};
-    var out={};
-    Object.keys(by).forEach(function(k){out[k]=Object.assign({},by[k]);delete out[k].countedAdopted;});
-    return{enabled:true,records:out};
+    var st=settle(battle),id=String(soldier.id),by=st&&st.bySoldier[id],
+      active=st&&st.adoptedBySoldier[id],out={},adoptedOut={};
+    if(by)Object.keys(by).forEach(function(k){out[k]=publicRecord(by[k]);});
+    if(active)Object.keys(active).forEach(function(k){adoptedOut[k]=publicRecord(active[k]);});
+    return{enabled:true,postureAdoption:POSTURE_ON,records:out,adopted:adoptedOut};
   }
   function squadSnapshot(sq,battle){
     if(!ON||!sq||!battle)return null;
@@ -207,7 +241,7 @@
       out.push({
         id:e.id,category:e.category,scope:e.scope,action:e.action,version:e.version,
         signature:e.signature,issuedAt:e.issuedAt,sourceId:e.sourceId,reason:e.reason,
-        spatial:e.spatial,point:e.point,recipients:e.recipients.slice()
+        spatial:e.spatial,point:e.point,data:copyData(e.data),recipients:e.recipients.slice()
       });
     });
     return out;
@@ -219,7 +253,8 @@
     var c=st.counts;
     return{
       format:FORMAT,
-      behaviorNeutral:true,
+      behaviorNeutral:!POSTURE_ON,
+      postureAdoption:POSTURE_ON,
       envelopes:c.envelopes,
       recipients:c.recipients,
       adopted:c.adopted,
@@ -234,22 +269,24 @@
   }
 
   if(root.BattleModules)root.BattleModules.registerSystem('command-reception',{
-    version:'0A-observe',
+    version:'0B-posture-optin',
     onBattleStart:reset,
     onBattleRestart:reset,
     onSimulationStep:settle
   });
 
   root.BattleCommandReception={
-    version:'0A-observe',
+    version:'0B-posture-optin',
     enabled:function(){return ON;},
+    postureEnabled:function(){return POSTURE_ON;},
     tuning:TUNING,
     publish:publish,
     settle:settle,
+    adopted:adopted,
     snapshot:snapshot,
     squadSnapshot:squadSnapshot,
     telemetry:telemetry,
     reset:reset
   };
-  if(typeof console!=='undefined')console.log('[COMMAND] individual receipt telemetry '+(ON?'active':'off')+' (behavior-neutral)');
+  if(typeof console!=='undefined')console.log('[COMMAND] individual receipt '+(ON?'active':'off')+'; posture adoption '+(POSTURE_ON?'on':'off'));
 })(typeof window!=='undefined'?window:globalThis);
