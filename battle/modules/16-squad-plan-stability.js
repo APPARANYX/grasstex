@@ -1579,7 +1579,16 @@
     var regroup = L.get(sq, 'regroup');
     if (regroup) {
       var age = t - regroup.since;
-      if (age >= REGROUP_MIN && ca.coreSpread <= release) {
+      /* Regroup is an area objective, not a request to reconstruct fireteam slots.
+         Count living commanded men inside the rally circle; a bounded minority of
+         stragglers may catch up without holding the entire squad indefinitely. */
+      var rallyAnchor = regroup.data.anchor || ca.center,
+        rallyMen = commanded(sq),
+        rallyInside = rallyMen.filter(function (man) {
+          return dist(man.root.position, rallyAnchor) <= release;
+        }).length,
+        rallyRequired = Math.max(1, rallyMen.length - ca.allowed);
+      if (age >= REGROUP_MIN && rallyInside >= rallyRequired) {
         endRegroup(sim, sq, 'cohesion restored');
         return;
       }
@@ -3154,6 +3163,21 @@
       for (var i = 0; i < m.length; i++) {
         var s = m[i],
           d = teamSlot(sq, key, s, i, m.length, cur.anchor, cur.forward),
+          rallyAnchor = regroup && L.get(sq, 'regroup'),
+          rallyPoint = rallyAnchor && rallyAnchor.data && rallyAnchor.data.anchor,
+          rallyRadius = rallyPoint ? Math.max(4, (+(cfg(battle, sq).cohesionRadius) || 34) * REGROUP_RELEASE) : 0;
+        /* Each man can satisfy a regroup anywhere inside the rally area. Keep his
+           position when already there; otherwise approach the near edge, avoiding
+           a synchronized rush to individual formation slots. */
+        if (rallyPoint) {
+          var here = point(s.root.position),
+            away = here ? dist(here, rallyPoint) : 0;
+          d = away <= rallyRadius ? here :
+            away > 0 ? {
+              x: rallyPoint.x + (here.x - rallyPoint.x) * (rallyRadius * 0.65 / away),
+              z: rallyPoint.z + (here.z - rallyPoint.z) * (rallyRadius * 0.65 / away)
+            } : copy(rallyPoint);
+        }
           prepared = defensive && s._preparedDefensePost,
           post = prepared ? null : defensive ? holdPost(s, defenseKey) : null,
           next = prepared ? copy(prepared) : post ? { x: post.x, z: post.z } : d,
