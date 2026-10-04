@@ -699,13 +699,13 @@ Implement this in **small phases**, each with its own deterministic harness/prob
 1. **Receipt telemetry, behavior-neutral — shipped in #212.** Versioned command envelopes and per-soldier
    receive/process/adopt diagnostics now observe current posture/fire-control and movement publications with no
    combat-RNG draw and no gameplay write.
-2. **Posture/fire-control adoption — current slice.** Gate squad-issued prepare/HOLD/posture execution on the
-   soldier's adopted command version. Keep Engagement the only stance/fire-permission owner; under-fire reflexes
-   remain immediate. While benchmark validation is pending this behavior is opt-in with `?commandPosture=1`;
-   the default/off arm remains the shipped Phase 0A behavior.
-3. **Movement adoption.** Gate regroup/new-anchor/fireteam-destination changes on the soldier's adopted movement
-   order. Movement Resolver remains the only final-destination arbiter and a man retains his previous valid order
-   until the replacement is adopted.
+2. **Posture/fire-control adoption — shipped in #214, opt-in pending paired benchmark.** Engagement can consume
+   each soldier's adopted HOLD/OPEN/precision version with `?commandPosture=1`; under-fire reflexes remain immediate,
+   Squad/Meso still owns the shared decision, and the default/off arm remains Phase 0A behavior.
+3. **Movement adoption — current slice.** Gate regroup/new-anchor/fireteam-destination changes on the soldier's
+   adopted movement order. Movement Resolver remains the only final-destination arbiter and a man retains his
+   previous valid order until the replacement is adopted. While benchmark validation is pending this behavior is
+   opt-in with `?commandMovement=1`; do not make it default merely because the deterministic harness is green.
 4. **Orientation and relay.** Add bounded voice/visual receipt and, where needed, Squad Leader -> fireteam leader ->
    member relay. Distinguish simple non-spatial orders from directional/object-referenced orders so "shift fire
    left", "cover on the right" and "get in that building" do not all pay the same orientation cost.
