@@ -28,6 +28,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect audio and deploy-plan changes
+    runs-on: ubuntu-latest
+    outputs:
+      audio: ${{ steps.diff.outputs.changed }}
+      plan: ${{ steps.diff.outputs.plan }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Diff against PR base
+        id: diff
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" != "pull_request" || -z "$BASE_SHA" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "plan=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 scripts/audio_tracker.py diff "$BASE_SHA" --github-output "$GITHUB_OUTPUT"
+          if git diff --name-only "$BASE_SHA" HEAD | grep -Eq '^(Assets/audio/|scripts/(recipes/|audio_tracker\\.py|normalize_audio\\.sh|build_voice_pitch_variants\\.sh|validate_voice_manifest\\.py|check_audio_manifest\\.py|check_weapon_clips\\.py|fetch_private_audio\\.sh|slice_weapon_shots\\.py|prepare_incremental_deploy\\.py|check_deploy_coverage\\.py|check_deploy_safety\\.py|build_version\\.py)|\\.github/workflows/(ci|deploy-50webs-php)\\.yml|battle/(battle_sim\\.html|module-registry\\.js))'; then
+            echo "plan=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "plan=false" >> "$GITHUB_OUTPUT"
+          fi
+
   static:
     name: Syntax
     runs-on: ubuntu-latest
@@ -86,42 +116,16 @@ jobs:
 
   audio:
     name: Audio library
+    needs: changes
+    if: needs.changes.outputs.audio == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # First: did anything audio change (Assets/audio, the audio scripts, this file or the deploy)?
-      # scripts/audio_tracker.py diffs the pull request's base, or the commit before a push. When
-      # nothing did, the steps below are skipped: they would re-check what main already passed.
-      # A base it cannot read, and a manual run, count as changed.
-      - name: Has the audio changed?
-        id: audio
-        env:
-          EVENT: ${{ github.event_name }}
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-          PUSH_BEFORE: ${{ github.event.before }}
-        run: |
-          set -euo pipefail
-          case "$EVENT" in
-            pull_request) base="$(git merge-base "$PR_BASE" HEAD 2>/dev/null || echo "$PR_BASE")" ;;
-            push) base="$PUSH_BEFORE" ;;
-            *) base="" ;;
-          esac
-          if [ -z "$base" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "No base to compare with: running the audio checks."
-          else
-            python3 scripts/audio_tracker.py diff "$base" --github-output "$GITHUB_OUTPUT"
-          fi
-          if grep -q '^changed=false' "$GITHUB_OUTPUT"; then
-            echo "No audio input changed since \`${base:0:12}\`: audio checks skipped." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
       - name: Install FFmpeg
-        if: steps.audio.outputs.changed == 'true'
-        run: |
+                run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
@@ -130,12 +134,10 @@ jobs:
       # onto Assets/audio/ (scripts/fetch_private_audio.sh).
       - name: Pinned private audio commit
         id: private-audio
-        if: steps.audio.outputs.changed == 'true'
-        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/private-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
+                run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/private-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
 
       - name: Check out the private audio
-        if: steps.audio.outputs.changed == 'true'
-        uses: actions/checkout@v4
+                uses: actions/checkout@v4
         with:
           repository: APPARANYX/grasstex-audio
           ref: ${{ steps.private-audio.outputs.commit }}
@@ -144,20 +146,16 @@ jobs:
           persist-credentials: false
 
       - name: Overlay the private audio
-        if: steps.audio.outputs.changed == 'true'
-        run: bash scripts/fetch_private_audio.sh .runtime/private-audio
+                run: bash scripts/fetch_private_audio.sh .runtime/private-audio
 
       - name: Voice manifest
-        if: steps.audio.outputs.changed == 'true'
-        run: python3 scripts/validate_voice_manifest.py
+                run: python3 scripts/validate_voice_manifest.py
 
       - name: Clip references
-        if: steps.audio.outputs.changed == 'true'
-        run: python3 scripts/check_audio_manifest.py
+                run: python3 scripts/check_audio_manifest.py
 
       - name: Slice recipes
-        if: steps.audio.outputs.changed == 'true'
-        run: |
+                run: |
           set -euo pipefail
           for recipe in scripts/recipes/*.json; do
             python3 scripts/slice_weapon_shots.py "$recipe" --check-only
@@ -168,8 +166,7 @@ jobs:
       # manifest in exactly that state. Ask the script itself what each declared path would
       # be mastered as, so its tables stay the single source of truth.
       - name: Every declared category has a mastering target
-        if: steps.audio.outputs.changed == 'true'
-        run: |
+                run: |
           set -euo pipefail
           python3 -c "
           import json
@@ -187,8 +184,7 @@ jobs:
       # committed without running the mastering pass, or .mastering-state.tsv no longer
       # describes the files beside it. Both are how the library silently drifts off spec.
       - name: Mastering is current
-        if: steps.audio.outputs.changed == 'true'
-        run: |
+                run: |
           set -euo pipefail
           bash scripts/normalize_audio.sh Assets/audio
           if ! git diff --quiet -- Assets/audio; then
@@ -237,6 +233,8 @@ jobs:
 
   deploy-plan:
     name: Deploy plan
+    needs: changes
+    if: needs.changes.outputs.plan == 'true'
     runs-on: ubuntu-latest
     steps:
       # build_version.py reads build-v<N> tags to work out the next version.
