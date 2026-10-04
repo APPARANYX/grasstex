@@ -514,7 +514,7 @@ jobs:
           HEADLINE: ${{ needs.single.outputs.headline || needs.compare.outputs.headline }}
           VIEWER: ${{ needs.single.outputs.viewer || needs.compare.outputs.viewer }}
           VIEWER_PREVIEW: ${{ needs.single.outputs.viewer_preview || needs.compare.outputs.viewer_preview }}
-          SEED: ${{ github.event.inputs.seed }}
+          SEED: ${{ github.event.inputs.seed || 'scripted-scout-0003' }}
           SEEDS: ${{ github.event.inputs.seeds || '1' }}
           QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
           QUERY_ON: ${{ github.event.inputs.query_on || '' }}
@@ -525,52 +525,51 @@ jobs:
           PURPOSE: ${{ github.event.inputs.purpose || '' }}
         run: |
           set -euo pipefail
+
           if [ -z "$SLACK_WEBHOOK_URL" ]; then
-            echo "SLACK_BENCHMARK_WEBHOOK_URL is not configured; skipping Slack notification."
+            echo "Slack webhook is not configured; skipping."
             exit 0
           fi
 
+          status="COMPLETE"
+          emoji=":white_check_mark:"
           if echo "$RESULTS" | grep -Eq 'failure|cancelled'; then
             status="FAILED"
-            icon=":x:"
-          else
-            status="COMPLETE"
-            icon=":white_check_mark:"
+            emoji=":x:"
           fi
 
-          if [ "$SEEDS" = 1 ]; then
-            what="${SEED:-scripted-scout-0003}"
-          else
-            what="${SEEDS} seeds"
-          fi
-
-          result_link="$RUN_URL"
+          result_url="$RUN_URL"
           if [ -n "$VIEWER" ]; then
-            result_link="$VIEWER"
+            result_url="$VIEWER"
           elif [ -n "$VIEWER_PREVIEW" ]; then
-            result_link="$VIEWER_PREVIEW"
+            result_url="$VIEWER_PREVIEW"
           fi
 
-          purpose_line=""
-          if [ -n "$PURPOSE" ]; then
-            purpose_line="\n*Purpose:* $PURPOSE"
-          fi
-
-          correlation_line=""
-          if [ -n "$CORRELATION_ID" ]; then
-            correlation_line="\n*Correlation:* \`$CORRELATION_ID\`"
-          fi
-
-          message="${icon} *Grasstex benchmark ${status}* — #${GITHUB_RUN_NUMBER}
-*Source:* \`${SOURCE_REF}\`
-*Requested by:* \`${ORIGIN_AGENT}\`${correlation_line}${purpose_line}
-*Run:* ${what}
-*OFF:* \`${QUERY_OFF:-none}\`
-*ON:* \`${QUERY_ON:-none}\`
-*Result:* ${HEADLINE:-no result produced}
-<${result_link}|Open result> · <${RUN_URL}|GitHub run>"
-
-          jq -n --arg text "$message" '{text: $text}' \
+          jq -n \
+            --arg emoji "$emoji" \
+            --arg status "$status" \
+            --arg run "$GITHUB_RUN_NUMBER" \
+            --arg ref "$SOURCE_REF" \
+            --arg agent "$ORIGIN_AGENT" \
+            --arg correlation "$CORRELATION_ID" \
+            --arg purpose "$PURPOSE" \
+            --arg seed "$SEED" \
+            --arg seeds "$SEEDS" \
+            --arg off "$QUERY_OFF" \
+            --arg on "$QUERY_ON" \
+            --arg headline "${HEADLINE:-no result produced}" \
+            --arg result_url "$result_url" \
+            --arg run_url "$RUN_URL" \
+            '{text: ($emoji + " *Grasstex benchmark " + $status + "* — #" + $run
+              + "\n*Source:* " + $ref
+              + "\n*Requested by:* " + $agent
+              + (if $correlation == "" then "" else "\n*Correlation:* " + $correlation end)
+              + (if $purpose == "" then "" else "\n*Purpose:* " + $purpose end)
+              + "\n*Run:* " + $seeds + " seed(s), " + $seed
+              + "\n*OFF:* " + (if $off == "" then "none" else $off end)
+              + "\n*ON:* " + (if $on == "" then "none" else $on end)
+              + "\n*Result:* " + $headline
+              + "\n<" + $result_url + "|Open result> · <" + $run_url + "|GitHub run>")}' \
             | curl --fail-with-body --silent --show-error --retry 3 \
                 -H 'Content-Type: application/json' \
                 --data-binary @- \
