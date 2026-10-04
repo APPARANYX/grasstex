@@ -1089,6 +1089,10 @@
   function movementScope(s) {
     return 'soldier:' + String(s && s.id);
   }
+  function movementExecutionCurrent(s, battle) {
+    var CR = root.BattleCommandReception;
+    return !movementAdoptionOn() || CR.executionCurrent(s, battle, 'movement', movementScope(s), s._fireteamAdoptedEnvelope);
+  }
   function movementSignature(publishKey, next) {
     return (
       String(publishKey || 'movement') +
@@ -2256,9 +2260,7 @@
       /* Arrival acknowledges the latest issued movement, not a previous destination
          that the man still holds while hearing its replacement. Otherwise the same
          old arrival advances another stride on every command tick during reception. */
-      var CR = root.BattleCommandReception;
-      if (movementAdoptionOn() && !CR.executionCurrent(s, battle, 'movement', movementScope(s), s._fireteamAdoptedEnvelope))
-        continue;
+      if (!movementExecutionCurrent(s, battle)) continue;
       if (s.orderDestination && dist(s.root.position, s.orderDestination) <= ORDER_ARRIVAL_RADIUS) arrived++;
     }
     return arrived / living.length >= ORDER_COHESION;
@@ -2916,7 +2918,7 @@
         previous = point(man._fireteamDestination),
         reconKind = selected[id] ? 'recon' : 'recon-hold';
       stats.intentChecks++;
-      if (previous && dist(previous, next) <= ORDER_PUBLISH_EPS && man._fireteamPublishKey === key) {
+      if (previous && dist(previous, next) <= ORDER_PUBLISH_EPS && man._fireteamPublishKey === key && movementExecutionCurrent(man, battle)) {
         stats.intentCoalesced++;
         continue;
       }
@@ -3196,7 +3198,9 @@
         s._fireteamKey = key;
         if (!defensive) s._defensePost = null;
         stats.intentChecks++;
-        if (previous && dist(previous, next) <= ORDER_PUBLISH_EPS && s._fireteamPublishKey === publishKey) {
+        /* With reception enabled the publisher must also supersede a pending
+           command, even when a restored mission reuses the executed destination. */
+        if (previous && dist(previous, next) <= ORDER_PUBLISH_EPS && s._fireteamPublishKey === publishKey && movementExecutionCurrent(s, battle)) {
           stats.intentCoalesced++;
           continue;
         }

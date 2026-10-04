@@ -706,6 +706,12 @@ Implement this in **small phases**, each with its own deterministic harness/prob
    Squad Command applies only each soldier's personally adopted replacement while Movement Resolver remains the
    final-destination arbiter; a pending order cannot erase the previous adopted slot. The default/off arm remains
    immediate publication.
+   Arrival acknowledges the latest personally published movement envelope, not the old destination
+   retained during reception. The Squad Leader cannot repeatedly spend the same old arrival to advance
+   its anchor while replacement orders are pending. Destination coalescing must also verify that
+   execution acknowledges the current envelope: returning to an earlier mission with the same point
+   still supersedes an intervening pending order. These are issuer/execution checks; Command Reception
+   remains information-only and tactical combat commitments retain Movement Resolver arbitration.
 4. **Orientation and relay — current phase, split small.**
    - **0D1 reference-sensitive orientation — shipped in #216.** Distinguish simple, directional, point and object
      references so "get down", "shift fire left", "move there" and "get in that building" pay bounded,
@@ -836,4 +842,3 @@ before any effect is claimed.
 
 - By design: Movement Progress ignores retreat (`movementStopReason` is the observable), and
   meeting engagements get no runtime engineer fortification (`engineerTick` exits early).
-

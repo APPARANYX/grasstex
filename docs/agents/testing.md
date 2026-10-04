@@ -32,6 +32,7 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `formation-backward-check.js` | While a squad advances, no formation destination lies >3 m behind both the man and his fireteam's forward line: a team's anchor follows the team forward when its men ran ahead of a held squad anchor, at fireteam renewal and when a teammate falls |
 | `movement-recovery-check.js` | Recovery episode state machine, goal resets, unreachable criteria, retreat override |
 | `movement-state-check.js` | Resolver/movement-progress state for bounds and assault |
+| `movement-arrival-adoption-check.js` | Production Squad Leader arrival cannot advance repeated strides while a replacement is pending; actual movement preserves travel progress/fireteam lanes, completes a genuine regroup, restores the original mission without reopening recovery, and keeps a valid individual cover commitment through formation adoption. `command-movement-check.js` also covers cancellation A → B → A before B is adopted. |
 | `lean-runtime-check.js` | Squad-plan stability + resolver + tactical route with no extra modules |
 | `macro-command-toggle-check.js` | Macro OFF suppresses Force Command while downstream hooks still run |
 | `map-pipeline-check.js` | Scenario regeneration publishes the same geometry as a page load (benchmarks once ran 10-70x slow on 4x the hedges) |
@@ -320,4 +321,3 @@ node scripts/check_clip_pack.cjs               # prepared-clips.bin matches the 
 for r in scripts/recipes/*.json; do python3 scripts/slice_weapon_shots.py "$r" --check-only; done
 bash scripts/normalize_audio.sh Assets/audio && git diff --quiet -- Assets/audio   # needs ffmpeg
 ```
-

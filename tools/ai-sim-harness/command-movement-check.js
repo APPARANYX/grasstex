@@ -145,6 +145,21 @@ test('legacy/control arm still publishes the computed fireteam slots immediately
   assert.equal(w.C.telemetry(w.b).movementAdoption,false);
 });
 
+test('a cancelled regroup cannot survive return to the previously adopted mission',()=>{
+  const w=world(),man=w.q.members[4];
+  issue(w);
+  w.b.time=3; issue(w);
+  const original=point(man._fireteamDestination);
+  w.q.commandPhase='regroup';w.b.time+=.15;issue(w);
+  const cancelled=pending(w,man);
+  assert.equal(cancelled.action,'regroup');
+  w.q.commandPhase='approach';w.b.time+=.15;issue(w);
+  w.b.time=6;issue(w);
+  assert.equal(adopted(w,man).action,'formation','the cancelled regroup must be superseded even when the restored destination is unchanged');
+  assert.notEqual(adopted(w,man).envelopeId,cancelled.envelopeId);
+  assert.ok(distance(man._fireteamDestination,original)<1e-9);
+});
+
 test('Command Reception remains information-only and Movement Resolver is still downstream',()=>{
   const cr=fs.readFileSync(path.join(H.REPO,'battle/modules/18-command-reception.js'),'utf8');
   const meso=fs.readFileSync(path.join(H.REPO,'battle/modules/16-squad-plan-stability.js'),'utf8');
