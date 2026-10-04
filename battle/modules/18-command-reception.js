@@ -1,8 +1,10 @@
 /* Individual command-reception state.
    Phase 0A records deterministic per-man receipt/adoption telemetry. Phase 0B optionally lets
    Engagement consume the personally adopted posture/fire-control version. Phase 0C exposes the same
-   adopted-command boundary to the Meso movement publisher; this module still never writes stance,
-   fire permission, targets, paths, destinations or movement itself.
+   adopted-command boundary to the Meso movement publisher. Phase 0D1 distinguishes simple,
+   directional, point and object references so "get down" does not pay the same orient/locate cost
+   as "shift left" or "get in that building". This module still never writes stance, fire permission,
+   targets, paths, destinations or movement itself.
 
    Owns only battle._commandReception. Timing is deterministic and uses no combat RNG. */
 (function(root){
@@ -22,8 +24,12 @@
     ATTENTION_SPREAD:.28,
     PROCESS:.16,
     PROCESS_SPREAD:.34,
-    ORIENT:.20,
-    ORIENT_SPREAD:.30,
+    ORIENT_DIRECTION:.08,
+    ORIENT_DIRECTION_SPREAD:.16,
+    ORIENT_POINT:.20,
+    ORIENT_POINT_SPREAD:.30,
+    ORIENT_OBJECT:.28,
+    ORIENT_OBJECT_SPREAD:.40,
     LOG:300
   };
 
@@ -34,6 +40,18 @@
   }
   function point(v){
     return v&&isFinite(+v.x)&&isFinite(+v.z)?{x:+v.x,z:+v.z}:null;
+  }
+  function referenceKind(meta){
+    var r=String(meta&&meta.reference||'').toLowerCase();
+    if(r==='none'||r==='direction'||r==='point'||r==='object')return r;
+    return meta&&meta.spatial?'point':'none';
+  }
+  function orientationSeconds(envelope,scale,h){
+    var r=envelope.reference;
+    if(r==='direction')return(TUNING.ORIENT_DIRECTION+h*TUNING.ORIENT_DIRECTION_SPREAD)*scale;
+    if(r==='point')return(TUNING.ORIENT_POINT+h*TUNING.ORIENT_POINT_SPREAD)*scale;
+    if(r==='object')return(TUNING.ORIENT_OBJECT+h*TUNING.ORIENT_OBJECT_SPREAD)*scale;
+    return 0;
   }
   function copyData(v){
     if(!v||typeof v!=='object')return null;
@@ -108,12 +126,12 @@
       h1=hash01(envelope.id,id+':attention'),
       h2=hash01(envelope.id,id+':process'),
       h3=hash01(envelope.id,id+':orient'),
-      speak=self?0:(envelope.spatial?TUNING.SPEAK_SPATIAL:TUNING.SPEAK_SIMPLE),
+      speak=self?0:(envelope.reference==='none'?TUNING.SPEAK_SIMPLE:TUNING.SPEAK_SPATIAL),
       travel=self||d==null?0:d/TUNING.SOUND,
       receive=envelope.issuedAt+speak+travel+(self?0:TUNING.ATTENTION+h1*TUNING.ATTENTION_SPREAD),
       scale=recognitionScale(soldier),
       processed=receive+(TUNING.PROCESS+h2*TUNING.PROCESS_SPREAD)*scale,
-      orient=envelope.spatial?(TUNING.ORIENT+h3*TUNING.ORIENT_SPREAD)*scale:0,
+      orient=orientationSeconds(envelope,scale,h3),
       adopted=processed+orient,
       rec={
         envelopeId:envelope.id,
@@ -130,7 +148,9 @@
         adoptedAt:+adopted.toFixed(3),
         legacyExecutionAt:envelope.issuedAt,
         distance:d==null?null:+d.toFixed(2),
-        needsOrientation:!!envelope.spatial,
+        reference:envelope.reference,
+        needsOrientation:envelope.reference!=='none',
+        orientationSeconds:+orient.toFixed(3),
         point:envelope.point?{x:envelope.point.x,z:envelope.point.z}:null,
         data:copyData(envelope.data),
         phase:'issued',
@@ -171,7 +191,8 @@
         issuedAt:+battle.time||0,
         sourceId:sender&&sender.id!=null?String(sender.id):null,
         reason:meta.reason||null,
-        spatial:!!meta.spatial,
+        reference:referenceKind(meta),
+        spatial:referenceKind(meta)!=='none',
         point:point(meta.point),
         data:copyData(meta.data),
         recipients:[]
@@ -187,7 +208,7 @@
     st.recent.push({
       id:envelope.id,squad:envelope.squad,category:envelope.category,scope:envelope.scope,
       action:envelope.action,version:envelope.version,issuedAt:envelope.issuedAt,
-      sourceId:envelope.sourceId,reason:envelope.reason,spatial:envelope.spatial,
+      sourceId:envelope.sourceId,reason:envelope.reason,reference:envelope.reference,spatial:envelope.spatial,
       point:envelope.point,data:copyData(envelope.data),recipients:envelope.recipients.slice()
     });
     if(st.recent.length>TUNING.LOG)st.recent.splice(0,st.recent.length-TUNING.LOG);
@@ -243,7 +264,7 @@
       out.push({
         id:e.id,category:e.category,scope:e.scope,action:e.action,version:e.version,
         signature:e.signature,issuedAt:e.issuedAt,sourceId:e.sourceId,reason:e.reason,
-        spatial:e.spatial,point:e.point,data:copyData(e.data),recipients:e.recipients.slice()
+        reference:e.reference,spatial:e.spatial,point:e.point,data:copyData(e.data),recipients:e.recipients.slice()
       });
     });
     return out;
@@ -272,14 +293,14 @@
   }
 
   if(root.BattleModules)root.BattleModules.registerSystem('command-reception',{
-    version:'0C-movement-optin',
+    version:'0D1-reference-orientation',
     onBattleStart:reset,
     onBattleRestart:reset,
     onSimulationStep:settle
   });
 
   root.BattleCommandReception={
-    version:'0C-movement-optin',
+    version:'0D1-reference-orientation',
     enabled:function(){return ON;},
     postureEnabled:function(){return POSTURE_ON;},
     movementEnabled:function(){return MOVEMENT_ON;},
