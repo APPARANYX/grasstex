@@ -1497,16 +1497,24 @@
     }
     var c = cfg(sim, sq),
       limit = +(leaderAlive(sq) ? c.cohesionRadius : c.captainlessCohesion) || 34,
-      release = limit * REGROUP_RELEASE,
+      /* Tactical dispersion is not marching formation. Outside open-ground advance,
+         give independently positioned men a larger operating area; the existing
+         core/outlier assessment still detects genuinely separated squads. */
+      tactical = sq.commandPhase === 'assault' || sq.commandPhase === 'capture' ||
+        sq.commandPhase === 'clear-town' || sq.commandPhase === 'defend' ||
+        sq.commandPhase === 'hold' || sq.commandPhase === 'support-hold',
+      operatingLimit = tactical ? limit * 1.5 : limit,
+      release = operatingLimit * REGROUP_RELEASE,
       st = cohesionState(sq),
       t = sim.time,
-      ca = cohesionAssessment(sq, limit);
+      ca = cohesionAssessment(sq, operatingLimit);
     sq._cohesionAssessment = {
       rawSpread: +ca.rawSpread.toFixed(3),
       coreSpread: +ca.coreSpread.toFixed(3),
       stragglers: ca.stragglers.slice(),
       outrunners: ca.outrunners.slice(),
       allowed: ca.allowed,
+      operatingRadius: +operatingLimit.toFixed(3),
       dispersed: ca.dispersed
     };
     /* No absent leader may invent a new regroup. An already-issued regroup remains a parent intent
@@ -1596,28 +1604,12 @@
       return;
     }
     /* The Squad Leader, not the General, decides a squad is too scattered to keep executing. */
-    var requested = !sq.inContact && !L.holds(sq, 'regroup-bypass', t) && ca.rawSpread > limit;
+    var requested = !sq.inContact && !L.holds(sq, 'regroup-bypass', t) && ca.rawSpread > operatingLimit;
     if (!requested) {
       st.overSince = null;
       return;
     }
     st.regroupRequests++;
-    /* A delayed personal movement order is not yet a failed cohesion response. Give the
-       current order one bounded reception window before opening a new regroup lease.
-       Never mask an existing regroup, contact, or a genuinely prolonged separation. */
-    if (movementAdoptionOn() && ca.dispersed && st.overSince == null) {
-      var reception = root.BattleCommandReception,
-        waiting = commanded(sq).some(function (man) {
-          var view = reception.snapshot && reception.snapshot(man, sim),
-            rec = view && view.records && view.records['movement|' + movementScope(man)];
-          return rec && rec.phase !== 'adopted' && !rec.unreachable &&
-            rec.issuedAt != null && t - rec.issuedAt <= STRAGGLER_BYPASS;
-        });
-      if (waiting) {
-        st.suppressed++;
-        return;
-      }
-    }
     if (!ca.dispersed && ca.stragglers.length) {
       markCatchup(ca, t);
       st.stragglerSuppressions++;
