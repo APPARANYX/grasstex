@@ -26,7 +26,7 @@
   'use strict';
   var SPEED_OF_SOUND = 343,
     FOLEY_RANGE = 30,
-    TAIL_RANGE = 600,
+    TAIL_RANGE = 1500,
     FOLEY_GAIN = 0.5,
     TAIL_GAIN = 0.32,
     BOLT_AFTER = 0.35,
