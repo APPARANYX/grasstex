@@ -639,10 +639,9 @@
               spatial: false
             })
           : null;
-    if (envelope) {
-      fc.commandEnvelopeId = envelope.id;
-      fc.commandVersion = envelope.version;
-    }
+    /* Phase 0A records the envelope only in BattleCommandReception. Do not stamp it back onto
+       fireControl: the observer must not change gameplay-owned state or benchmark fingerprints. */
+    void envelope;
     fc.trail = pushFireControlTrail(sq, battle, state, reason, fc).slice();
     fireControlTelemetry(sq, battle, fc);
     return fc;
