@@ -278,6 +278,20 @@ test('LoopWatch does not stitch squad order churn across recon, tactical-plan, o
   run('recon');run('tactical-plan');run('retreat');
 });
 
+test('LoopWatch leaves retreat order motion to the retreat progress diagnostics',()=>{
+  const {r,b,s}=oneMan();
+  load(r,'battle/modules/32-ai-loop-watch.js');
+  const L=r.BattleAILoopWatch,m=s.squad.members;
+  s.squad.commandPhase='assault';s.squad.state='retreat';
+  for(let i=0;i<14;i++){
+    b.time=i;
+    for(const man of m){man.root.position.x=i%2?2:0;man.root.position.z=0;man._fireteamDestination={x:i%2?10:-10,z:0};}
+    L.sample(b);
+  }
+  assert.ok(!L.alerts(b).some(x=>x.kind==='order-churn'&&x.squadId===s.squad.id),
+    'retreat movement is not mislabeled as Squad Leader order churn');
+});
+
 test('LoopWatch keeps genuine destination cycling inside one movement regime',()=>{
   const {r,b,s}=oneMan(),E=r.BattleEngagement;
   load(r,'battle/modules/32-ai-loop-watch.js');
