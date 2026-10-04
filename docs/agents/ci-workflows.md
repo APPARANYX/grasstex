@@ -21,3 +21,14 @@ set for an A/B of a flag, and `seeds` (e.g. 100) when the flag needs a verdict a
 probes and single-seed replays only (the scripted benchmark is one seed, about two minutes: `BATTLE_BENCHMARK_WINDOWS=contact+60,every60
 BATTLE_BENCHMARK_COUNT=1 BATTLE_BENCHMARK_SEED=<seed> node scripts/run_battle_benchmark.mjs`).
 
+
+### Agent-triggered benchmark dispatch (when GitHub connector lacks `workflow_dispatch`)
+
+Use the existing benchmark workflow, not a replacement benchmark implementation. For a one-off agent-triggered run:
+
+1. Create a short-lived branch from the intended source (normally `main`), e.g. `work/benchmark-<topic>-dispatch`.
+2. Add a tiny `.github/workflows/<topic>-dispatch.yml` with `on: push` scoped **only** to that temporary branch, and `permissions: { contents: read, actions: write }`. The workflow uses `GH_TOKEN: ${{ github.token }}` and the runner's authenticated `gh` CLI to execute `gh workflow run battle-benchmark-standard.yml --repo APPARANYX/grasstex --ref main -f seed=... -f seeds=... -f query_off='...' -f query_on='...' -f battle_type=... -f windows=...`. For pre-merge feature testing, use `--ref <feature-branch>` instead. GitHub may require the dispatcher workflow to exist on the default branch before its push trigger is recognized; **verify the dispatcher run actually starts** rather than assuming the push was enough.
+3. Verify the dispatcher succeeds, then verify the actual standard benchmark run was created with the intended source ref and inputs. Read its published results from `benchmark-results` and its job logs; do not confuse successful dispatch with successful benchmarking.
+4. Delete/reset the temporary branch after dispatch and confirmation; never merge dispatcher code into `main`. If no dispatcher run starts, diagnose the trigger and use an authorized alternative rather than claiming the benchmark ran.
+
+The normal benchmark remains `.github/workflows/battle-benchmark-standard.yml`; this temporary workflow is only a remote trigger for connectors that cannot dispatch it directly.
