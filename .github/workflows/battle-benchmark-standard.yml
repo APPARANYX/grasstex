@@ -44,6 +44,18 @@ on:
         description: Measured windows, comma separated - <contact|second>+<seconds>, or every<seconds> last (a record at every multiple of it, and at the end). Default contact+60,every60 for one seed, contact+120 for several.
         required: false
         default: ''
+      origin_agent:
+        description: Who requested the benchmark (chatgpt, claude-code, human, etc.)
+        required: false
+        default: 'human'
+      correlation_id:
+        description: Opaque ID tying this run back to the investigation that requested it
+        required: false
+        default: ''
+      purpose:
+        description: Short description of the question this benchmark is intended to answer
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -493,3 +505,73 @@ jobs:
             -H "Actions: view, Open run, ${RUN_URL}" \
             -d "${status} · ${what} · ${HEADLINE:-no result produced} · off [${QUERY_OFF:-none}] vs on [${QUERY_ON:-none}] · ${SOURCE_REF}" \
             https://ntfy.sh/ww2battlesim
+
+      - name: Send Slack benchmark notification
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_BENCHMARK_WEBHOOK_URL }}
+          RESULTS: ${{ needs.single.result }} ${{ needs.plan.result }} ${{ needs.shards.result }} ${{ needs.compare.result }}
+          HEADLINE: ${{ needs.single.outputs.headline || needs.compare.outputs.headline }}
+          VIEWER: ${{ needs.single.outputs.viewer || needs.compare.outputs.viewer }}
+          VIEWER_PREVIEW: ${{ needs.single.outputs.viewer_preview || needs.compare.outputs.viewer_preview }}
+          SEED: ${{ github.event.inputs.seed }}
+          SEEDS: ${{ github.event.inputs.seeds || '1' }}
+          QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
+          QUERY_ON: ${{ github.event.inputs.query_on || '' }}
+          SOURCE_REF: ${{ github.ref_name }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ORIGIN_AGENT: ${{ github.event.inputs.origin_agent || 'human' }}
+          CORRELATION_ID: ${{ github.event.inputs.correlation_id || '' }}
+          PURPOSE: ${{ github.event.inputs.purpose || '' }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_BENCHMARK_WEBHOOK_URL is not configured; skipping Slack notification."
+            exit 0
+          fi
+
+          if echo "$RESULTS" | grep -Eq 'failure|cancelled'; then
+            status="FAILED"
+            icon=":x:"
+          else
+            status="COMPLETE"
+            icon=":white_check_mark:"
+          fi
+
+          if [ "$SEEDS" = 1 ]; then
+            what="${SEED:-scripted-scout-0003}"
+          else
+            what="${SEEDS} seeds"
+          fi
+
+          result_link="$RUN_URL"
+          if [ -n "$VIEWER" ]; then
+            result_link="$VIEWER"
+          elif [ -n "$VIEWER_PREVIEW" ]; then
+            result_link="$VIEWER_PREVIEW"
+          fi
+
+          purpose_line=""
+          if [ -n "$PURPOSE" ]; then
+            purpose_line="\n*Purpose:* $PURPOSE"
+          fi
+
+          correlation_line=""
+          if [ -n "$CORRELATION_ID" ]; then
+            correlation_line="\n*Correlation:* \`$CORRELATION_ID\`"
+          fi
+
+          message="${icon} *Grasstex benchmark ${status}* — #${GITHUB_RUN_NUMBER}
+*Source:* \`${SOURCE_REF}\`
+*Requested by:* \`${ORIGIN_AGENT}\`${correlation_line}${purpose_line}
+*Run:* ${what}
+*OFF:* \`${QUERY_OFF:-none}\`
+*ON:* \`${QUERY_ON:-none}\`
+*Result:* ${HEADLINE:-no result produced}
+<${result_link}|Open result> · <${RUN_URL}|GitHub run>"
+
+          jq -n --arg text "$message" '{text: $text}' \
+            | curl --fail-with-body --silent --show-error --retry 3 \
+                -H 'Content-Type: application/json' \
+                --data-binary @- \
+                "$SLACK_WEBHOOK_URL"
