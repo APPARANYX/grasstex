@@ -138,6 +138,10 @@ function detectSquad(sim,sq,h){
      population without changing commandPhase; do not stitch those populations together. Decision-cycle
      above still sees the full phase history and remains responsible for actual phase oscillation. */
   var orderRecent=sameOrderRegimeSuffix(recent);
+  /* Retreat has its own stabilized anchor/progress diagnostics. commandPhase can intentionally
+     remain the pre-retreat phase while retreat owns movement, so treating retreat destination
+     updates as Squad Leader order churn is both duplicate evidence and a mislabeled authority. */
+  if(orderRecent.length&&orderRecent[orderRecent.length-1].orderRegime==='retreat')return;
   if(orderRecent.length>=7){
     var omove=travelStats(orderRecent,'pos'),ochanges=changes(orderRecent,'order',2.5),orules=orderRecent.map(function(s){return s.rule;}).filter(Boolean),ophases=orderRecent.map(function(s){return s.phase;});
     if(ochanges>=4&&omove.travel>=5&&omove.net<4.5&&omove.duration>=5){emitAlert(sim,{kind:'order-churn',severity:'warn',faction:sq.faction,squadId:sq.id,message:'Squad orders keep moving while the squad goes nowhere',phases:ophases,rules:Array.from(new Set(orules)),sequence:orderRecent.slice(-6).map(function(s){return s.orderSig;}),travel:+omove.travel.toFixed(1),net:+omove.net.toFixed(1),destinationChanges:ochanges,inContact:!!orderRecent[orderRecent.length-1].inContact});}
