@@ -412,9 +412,9 @@
     }
     return ids;
   }
-  function missionDistance(sim, sq, m) {
+  function missionDistance(sim, sq, m, p) {
     if (!m || !m.point) return Infinity;
-    var p = D.avgPos(sq);
+    p = p || D.avgPos(sq);
     return p ? D.dist(p.x, p.z, m.point.x, m.point.z) : Infinity;
   }
   /* Macro only observes this. It never writes movement: a 6 m improvement toward the same mission
@@ -428,7 +428,8 @@
         m = sq._macroMission;
       if (!sq || sq.state === 'retreat' || !D.aliveMembers(sq).length || !m || !m.point) continue;
       var id = String(sq.id),
-        d = missionDistance(sim, sq, m),
+        p = D.avgPos(sq),
+        d = missionDistance(sim, sq, m, p),
         rec = recovery.progress[id];
       live[id] = 1;
       if (!rec || rec.version !== m.version || !isFinite(rec.checkpoint)) {
@@ -436,9 +437,27 @@
           version: m.version,
           checkpoint: d,
           bestDistance: d,
-          lastProgressAt: null
+          lastProgressAt: null,
+          lastPosition: p ? { x: +p.x || 0, z: +p.z || 0 } : null,
+          travelSinceExecution: 0,
+          lastExecutionAt: null
         };
         continue;
+      }
+      /* The first recovery stage must distinguish "no objective-zone progress yet" from
+         "the squad is not executing." Track centroid travel separately from strict progress
+         toward the brief. This physical-execution pulse is used only by the 120 s reconcile;
+         later recovery stages still catch circling or other movement that never advances the mission. */
+      if (p) {
+        if (rec.lastPosition) {
+          var step = D.dist(rec.lastPosition.x, rec.lastPosition.z, p.x, p.z);
+          if (isFinite(step) && step < 60) rec.travelSinceExecution = (+rec.travelSinceExecution || 0) + step;
+        }
+        rec.lastPosition = { x: +p.x || 0, z: +p.z || 0 };
+        if ((+rec.travelSinceExecution || 0) >= STRATEGIC_STALL_RECOVERY.progressDistance) {
+          rec.travelSinceExecution = 0;
+          rec.lastExecutionAt = now;
+        }
       }
       if (d < rec.bestDistance) rec.bestDistance = d;
       if (rec.checkpoint - rec.bestDistance >= STRATEGIC_STALL_RECOVERY.progressDistance) {
@@ -458,6 +477,15 @@
       rec &&
       rec.lastProgressAt != null &&
       (+sim.time || 0) - rec.lastProgressAt <= STRATEGIC_STALL_RECOVERY.progressWindow
+    );
+  }
+  function recentlyExecutingMission(sim, faction, sq) {
+    var recovery = stallRecoveryState(sim, faction),
+      rec = recovery.progress[String(sq.id)];
+    return !!(
+      rec &&
+      rec.lastExecutionAt != null &&
+      (+sim.time || 0) - rec.lastExecutionAt <= STRATEGIC_STALL_RECOVERY.progressWindow
     );
   }
   function usefulDefender(sim, sq) {
@@ -717,7 +745,11 @@
          measurable progress on its existing capture brief is not itself stalled;
          leave that valid brief alone instead of turning slower command adoption
          into a Macro replan/order-churn pulse. */
-      if (stallEligible(sim, m) && !makingMissionProgress(sim, faction, sq)) {
+      if (
+        stallEligible(sim, m) &&
+        !makingMissionProgress(sim, faction, sq) &&
+        !recentlyExecutingMission(sim, faction, sq)
+      ) {
         reconsiderMission(sim, sq, town, 'strategic-stall', stalled);
         affected++;
         continue;
