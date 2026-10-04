@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Has the audio changed? CI and the deploy ask this first and skip their audio steps when not.
 
-The audio inputs are everything under Assets/audio plus the scripts and workflows that check,
-master, pitch-shift or upload it (INPUTS below). Two questions, one list:
+The audio inputs are Assets/audio plus scripts that check, master, pitch-shift or upload it
+(INPUTS below). Workflow edits alone do not change audio inputs; CI's deploy-plan
+change detector handles workflow and deployment-contract changes separately. Two questions, one list:
 
   python3 scripts/audio_tracker.py snapshot > tracker.json
       A tracker JSON: the SHA-256 of every audio input in the checkout and one digest over all of
@@ -37,8 +38,6 @@ INPUTS = (
     "scripts/fetch_private_audio.sh",
     "scripts/slice_weapon_shots.py",
     "scripts/audio_tracker.py",
-    ".github/workflows/ci.yml",
-    ".github/workflows/deploy-50webs-php.yml",
 )
 
 
