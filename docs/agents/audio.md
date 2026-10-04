@@ -31,7 +31,7 @@
   - Pitch variants (-1.4 / 0 / +1.3 semitones, split 30/40/30, tempo-compensated) are built at deploy
     by `build_voice_pitch_variants.sh` and aren't committed.
 - **Acoustics:** 1 unit ≈ 1 m, 20·log10(r) spreading, 343 m/s delay. Shout culls at 150 m,
-  small arms at 1200 m. Settings live in `Assets/audio/acoustics.json`.
+  small arms at 3500 m (distant shot pool); automatic-weapon tails at 1500 m. Settings live in `Assets/audio/acoustics.json`.
 - **Licensing:** Sonniss GDC bundles (royalty-free, no attribution; **no AI training and no
   redistribution as a library**), Freesound CC0, ElevenLabs generations, and **licensed third-party audio WWII
   Firearms** for every small arm (owner's single-user licence: use inside the game only, **never
@@ -71,7 +71,7 @@ The clip manifest's `prompt`s are kept for any clip regenerated with ElevenLabs
 Runtime: `manifest.json` category `weapon.<model>` holds each model's actions. `battle-sim.js`
 `buildWeaponAudio` keys shots by `weapon.profile`: one `fire` per round (automatic fire is retriggered
 per round, never a recorded burst), `fireDistant` from `DISTANT_FROM` (90 m: the near voices' linear
-roll-off is silent by ~97 m), voice pools of `ceil(cyclic x 0.9 s) + 2` so a fast gun never cuts off
+roll-off is silent by ~97 m). Distant shots extend to 3500 m and automatic-weapon tails to 1500 m; these are simple gameplay distance limits, not weather/terrain-aware propagation. The 90 m switch remains abrupt, and nearby weapon handling stays at 30 m. Longer-range atmospheric filtering, terrain occlusion and near/far crossfading require separate work. Voice pools of `ceil(cyclic x 0.9 s) + 2` so a fast gun never cuts off
 its own last round; a model with no clips falls back to the kind's `SFX_FILES`. Module
 `15-weapon-foley-audio.js` plays the rest (reload stages, stoppages, bipod, bolt cycle, clip ping,
 burst tails; see its harness row). File layout keys the mastering targets: `weapons/<model>/<action>-NN.mp3`
