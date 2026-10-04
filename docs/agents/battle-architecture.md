@@ -458,7 +458,7 @@ What the port does not do (2026-10-01):
   rifle through the opening, and the bore line is the ballistics module's semantic muzzle, not the skinned weapon.
 - **The numbers are constants, not tuning.** `PORT_INSET`, `FRAME`, `SILL_CLEAR`, `SILL_PREFER`, `HEAD_CLEAR`, `MIN_HEIGHT`, `MIN_WIDTH`,
   `SECTOR_MAX` and the two stance eye heights (repeated from SquadAI and the ballistics module) live in `battle-navigation.js`, and the stock
-  offset and the over-shift in Engagement's `portLines`/`portSolve`: no `tuning` object yet and not in `TUNABLES.md`.
+  offset and the over-shift in Engagement's `portLines`/`portSolve`: no `tuning` object yet and not in `docs/reference/TUNABLES.md`.
 
 **Weapons and wounds.** `BattleWeapons.STATS` holds each kind's numbers and `PROFILES` each side's
 weapon for it (Garand/Kar98k, M1919A6/MG42, Thompson/MP40, M1 Carbine/FG42, M1911A1/P38);
@@ -586,12 +586,12 @@ Not every proposed Phase 4/5 micro-item shipped, by design:
   (median x1.035), and therefore was correctly closed unmerged.
 - Wake staggering was not carried to `main`; without a measured performance regression it is not an active item.
 - **Phase 5 contracts were verified** on the #122 work (all runtime modules had top-of-file contracts),
-  `flatDamage` was removed in #121, and the tunable inventory shipped as `TUNABLES.md` in #129. The proposed
+  `flatDamage` was removed in #121, and the tunable inventory shipped as `docs/reference/TUNABLES.md` in #129. The proposed
   "fresh reader" ceremony was not separately run and is not a blocker.
 
 Owner decision 2026-10-01: treat the **AI-polish campaign as closed**, not as a phase queue that must be reopened
 until every discarded experiment is implemented. New behavior belongs in the active soldier roadmap below or in
-`battle/AI_TACTICS_OUTLINE.md`; new performance work starts from a measured regression.
+`docs/reference/AI_TACTICS_OUTLINE.md`; new performance work starts from a measured regression.
 
 </details>
 
@@ -612,7 +612,7 @@ procedural/FBX presentation backends. Perception keeps ownership of gameplay tar
 
 **AI continuation handoff (current queue below; archaeology refreshed 2026-10-03).** The small
 soldier-level continuation is complete; the active behavioral roadmap has returned to
-`battle/AI_TACTICS_OUTLINE.md`. The Sept. 13 outline (`f71ab0dd55cd03daae4b07c81665d3d74452618c`) describes
+`docs/reference/AI_TACTICS_OUTLINE.md`. The Sept. 13 outline (`f71ab0dd55cd03daae4b07c81665d3d74452618c`) describes
 structure-control, street/route-transition plans, a versioned `SquadIntent`, a stronger Squad Leader local planner,
 objective secure/exploit/handoff and later combined arms. Keep that detailed design in the outline and do **not**
 pull isolated pieces into the queue ad hoc. The window archaeology is the warning case: the physical/tactical-position
@@ -711,7 +711,7 @@ Implement this in **small phases**, each with its own deterministic harness/prob
    cannot bypass personal adoption, then run fixed-seed and paired benchmarks for churn, stalls, response latency,
    cohesion and mission progress.
 
-**After that prerequisite ships**, return to `battle/AI_TACTICS_OUTLINE.md`'s tactical control-plane sequence:
+**After that prerequisite ships**, return to `docs/reference/AI_TACTICS_OUTLINE.md`'s tactical control-plane sequence:
 `TacticalSituation` + read-only street/building-control diagnostics, richer `SquadIntent` metadata, then one named
 `route-transition` lease before new route/structure behavior.
 
@@ -744,7 +744,7 @@ reopening the reaction rollout.
 </details>
 
 The active AI queue is listed above and is **not** part of this deferred list. The larger command/urban/route
-architecture stays in `battle/AI_TACTICS_OUTLINE.md` until that major AI phase is resumed.
+architecture stays in `docs/reference/AI_TACTICS_OUTLINE.md` until that major AI phase is resumed.
 The unrelated asset, tuning and later-system items below remain deferred by the 2026-09-29 decision.
 
 **Deferred / future — not V1 blockers**
@@ -792,7 +792,7 @@ before any effect is claimed.
   versioned `SquadIntent`/single intent resolver, the stronger Squad Leader local planner, structure-control and
   street/route-transition state machines, objective secure/exploit/handoff, then platoon/company command,
   fallback/counterattack and combined arms when force size/vehicle work justifies them. The detailed source of
-  truth is `battle/AI_TACTICS_OUTLINE.md` (introduced by `f71ab0dd55cd03daae4b07c81665d3d74452618c`); do not
+  truth is `docs/reference/AI_TACTICS_OUTLINE.md` (introduced by `f71ab0dd55cd03daae4b07c81665d3d74452618c`); do not
   duplicate that roadmap here or implement isolated pieces as ad-hoc substitutes. ~5 squads per side still does
   not justify a platoon layer yet.
 - **Height-aware window LOS, window animation.** The limits under Window firing port: global LOS ignores the sill and the lintel, the
