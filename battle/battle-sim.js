@@ -32,14 +32,27 @@
   function clipUrl(u){return root.BattleAudioFormat?root.BattleAudioFormat.url(u):u;}
   function voicesFor(files,cyclic){return Math.min(MAX_VOICES,Math.max(files.length,cyclic>0?Math.ceil(cyclic*FIRE_CLIP_S)+2:POOL_SIZE));}
   function buildWeaponAudio(scene,audioBase){var pools={},cursors={},cam=function(){return scene.activeCamera&&(scene.activeCamera.globalPosition||scene.activeCamera.position);};
-    function pool(key,files,count,far){var voices=[];for(var i=0;i<count;i++)voices.push(new BABYLON.Sound(key+'Sfx'+i,clipUrl(audioBase+files[i%files.length]),scene,null,far?{spatialSound:true,distanceModel:'linear',maxDistance:1200,rolloffFactor:1,volume:.20,autoplay:false}:{spatialSound:true,distanceModel:'linear',maxDistance:145,rolloffFactor:1.5,volume:.20,autoplay:false}));pools[key]=voices;cursors[key]=0;}
+    /* Decode each take once. Extra playback slots share its decoded AudioBuffer but retain
+       independent position, gain and playback state. Babylon Sound.clone() is incompatible here. */
+    function pool(key,files,count,far){
+      var opts=far?{spatialSound:true,distanceModel:'linear',maxDistance:1200,rolloffFactor:1,volume:.20,autoplay:false}:{spatialSound:true,distanceModel:'linear',maxDistance:145,rolloffFactor:1.5,volume:.20,autoplay:false};
+      var voices=new Array(count),takes=Math.min(count,files.length);pools[key]=voices;cursors[key]=0;
+      for(var i=0;i<takes;i++)(function(i){
+        var extra=[];for(var k=i+takes;k<count;k+=takes)extra.push(k);
+        var snd=new BABYLON.Sound(key+'Sfx'+i,clipUrl(audioBase+files[i]),scene,extra.length?function(){
+          var buf=snd.getAudioBuffer&&snd.getAudioBuffer();
+          if(buf)extra.forEach(function(k){voices[k]=new BABYLON.Sound(key+'Sfx'+k,buf,scene,null,opts);});
+        }:null,opts);
+        voices[i]=snd;
+      })(i);
+    }
     /* Built once the audio format is settled (Opus-in-CAF or MP3); a shot before then plays nothing. */
     function buildPools(){Object.keys(SFX_FILES).forEach(function(kind){var files=weaponFiles(kind);pool(kind,files,Math.max(POOL_SIZE,files.length),false);});
         /* Every model the sides field, built up front so the first shot is not silent while it loads. */
         var P=root.BattleWeapons&&root.BattleWeapons.PROFILES||{};Object.keys(P).forEach(function(f){Object.keys(P[f]).forEach(function(kind){var w=P[f][kind],model=w&&w.model,fire=model&&modelClips(model,'fire');if(!fire||pools['m:'+model])return;pool('m:'+model,fire,voicesFor(fire,+w.cyclic||0),false);var far=modelClips(model,'fireDistant');if(far)pool('m:'+model+':far',far,Math.max(far.length,4),true);});});}
     var F=root.BattleAudioFormat;if(F&&F.state==='probing'&&F.ready)F.ready.then(buildPools,buildPools);else buildPools();
     function keyFor(weapon){var model=weapon&&weapon.profile;return model&&pools['m:'+model]?'m:'+model:(weapon&&weapon.kind);}
-    return{keyFor:keyFor,play:function(key,position,gain,rate){if(pools[key+':far']){var c=cam(),dx=c?c.x-position.x:0,dz=c?c.z-position.z:0;if(c&&dx*dx+dz*dz>=DISTANT_FROM*DISTANT_FROM)key+=':far';}var voices=pools[key];if(!voices)return;var voice=voices[cursors[key]];cursors[key]=(cursors[key]+1)%voices.length;try{voice.setPosition(position);if(voice.setVolume)voice.setVolume(gain==null?.18:gain);if(voice.setPlaybackRate)voice.setPlaybackRate(rate||1);voice.play();}catch(_){}}};}
+    return{keyFor:keyFor,play:function(key,position,gain,rate){if(pools[key+':far']){var c=cam(),dx=c?c.x-position.x:0,dz=c?c.z-position.z:0;if(c&&dx*dx+dz*dz>=DISTANT_FROM*DISTANT_FROM)key+=':far';}var voices=pools[key];if(!voices)return;var voice=voices[cursors[key]];cursors[key]=(cursors[key]+1)%voices.length;if(!voice)return;try{voice.setPosition(position);if(voice.setVolume)voice.setVolume(gain==null?.18:gain);if(voice.setPlaybackRate)voice.setPlaybackRate(rate||1);voice.play();}catch(_){}}};}
   function makeFaction(){return{alive:0,kills:0,squads:[]};}
   function BattleSim(scene,opts){opts=opts||{};this.scene=scene;this.heightAt=sampleAt;this.obstacles=opts.obstacles||[];this.time=0;this.timeScale=opts.timeScale||1.5;this.timeLimit=opts.timeLimit||DEFAULT_TIME_LIMIT;this.paused=false;this.winner=null;this.factions={us:makeFaction(),ge:makeFaction()};this._roster={us:[],ge:[]};this._moduleUnits=[];this._aiAccum=0;this._disposables=[];this.onFire=null;this.onShot=null;this.onSuppressiveShot=null;this.onCallout=null;this.onWinner=opts.onWinner||null;this.onUpdate=opts.onUpdate||null;this._rng=Math.random;var self=this;this._renderObserver=scene.onBeforeRenderObservable.add(function(){self._frame();});this.spawnAll();}
   BattleSim.prototype.rosterOf=function(faction){return this._roster[faction];};BattleSim.prototype.random=function(){return this._rng();};BattleSim.prototype._resetRandom=function(){var s=this.scene.metadata&&this.scene.metadata.battleScenario,seed=s&&s.seed||'battle-default';this._rng=root.BattleScenarioGenerator?root.BattleScenarioGenerator.rngFor(seed,'combat'):Math.random;};

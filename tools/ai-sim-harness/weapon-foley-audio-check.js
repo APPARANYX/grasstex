@@ -235,4 +235,8 @@ test('?weaponFoley=0 installs nothing', () => {
   assert.equal(sim.onFire, fire);
   assert.equal(off.on, false);
 });
+test('unplayed handling extras and shots are not preloaded by the foley module', () => {
+  for (const action of ['fire', 'fireDistant', 'handling', 'grab', 'safety', 'mode']) assert.equal(F.UNPLAYED[action], true, action);
+  for (const action of ['fireTail', 'reloadMagIn', 'stoppageClick', 'bipodDeploy', 'clipPing', 'boltCycle']) assert.ok(!F.UNPLAYED[action], action);
+});
 console.log(`weapon-foley-audio-check: ${n} checks passed`);
