@@ -640,7 +640,7 @@ The six stabilization slices are closed and no longer part of the active queue:
 - #160: freeze duration is bounded by recent stress tempo (12–48 s) with diagnostics.
 - #161: retreat anchors/intents are stabilized with the sliding lease and progress checks.
 - #162: fire-control evidence and posture-churn diagnostics are exported.
-- #164: strategic objective-stall recovery escalates through reconcile/release/main-effort/reset.
+- #164: strategic objective-stall recovery escalates through reconcile/release/main-effort/reset. The 120 s reconcile stage does not replace a valid capture brief while the squad is still physically executing movement; later stages remain the backstop for motion that never produces strategic progress.
 - #165: Perception owns the shared threat-disposition contract for active threat / visible non-threat / inactive.
 
 Their detailed behavior, harnesses and tuning live in the subsystem sections, carrying PRs and git history. Do not
