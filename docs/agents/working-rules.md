@@ -8,7 +8,7 @@
   PAIRS ANY RECORD FIELD). IDENTICAL RECORDS ON `main` AND ON A BRANCH ARE THE PROOF THAT A CHANGE IS INERT. A PROBE IS FOR
   ONE SEED AND A FEW MINUTES, NEVER FOR AN ARM OF TWENTY SEEDS. (Said three times by the owner, 2026-09-30.)
 - **Squad-performance scores are benchmark triage, never a pass/fail gate.** `run_battle_benchmark.mjs` samples each squad every 2.5 simulated seconds and records a role-aware vector (mission, movement, control, cohesion, combat when exposed, preservation) plus the raw measurements behind it. Support/reserve/garrison squads are not penalized for holding still. Standard paired runs compare the per-battle squad mean, p10/tail and dimension means; use the raw squad rows and reproducible seed before changing AI from a score.
-- **Don't create new plan/roadmap/summary `.md` files.** The one exception is `TUNABLES.md`, the
+- **Don't create new plan/roadmap/summary `.md` files.** The one exception is `docs/reference/TUNABLES.md`, the
   inventory of every tunable number by layer (Phase 5, the input to the genome rewrite). Update this
   file only when a command, contract or rule actually changes. Findings go in the commit message or PR body. Open issues
   hold the current state and the next step, not run-by-run logs: cite the PR that has the numbers.
