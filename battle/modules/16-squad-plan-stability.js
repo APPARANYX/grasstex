@@ -3177,17 +3177,33 @@
           rallyAnchor = regroup && L.get(sq, 'regroup'),
           rallyPoint = rallyAnchor && rallyAnchor.data && rallyAnchor.data.anchor,
           rallyRadius = rallyPoint ? Math.max(4, (+(cfg(battle, sq).cohesionRadius) || 34) * REGROUP_RELEASE) : 0;
-        /* Each man can satisfy a regroup anywhere inside the rally area. Keep his
-           position when already there; otherwise approach the near edge, avoiding
-           a synchronized rush to individual formation slots. */
+        /* Each man can satisfy a regroup anywhere inside the rally area. Choose his
+           personal point once per regroup lease and keep it stable while he approaches.
+           Recomputing the near-edge point from his current position every Squad Leader
+           tick made delayed command adoption chase a moving sequence of equally-valid
+           regroup points (A -> B -> A position seeking) even though the rally area itself
+           never moved. The lease is the Squad Leader's regroup authority, so its data owns
+           these transient targets and they disappear automatically when the regroup ends. */
         if (rallyPoint) {
-          var here = point(s.root.position),
-            away = here ? dist(here, rallyPoint) : 0;
-          d = away <= rallyRadius ? ((point(s._fireteamDestination) && dist(s._fireteamDestination, rallyPoint) <= rallyRadius) ? point(s._fireteamDestination) : here) :
-            away > 0 ? {
-              x: rallyPoint.x + (here.x - rallyPoint.x) * (rallyRadius * 0.65 / away),
-              z: rallyPoint.z + (here.z - rallyPoint.z) * (rallyRadius * 0.65 / away)
-            } : copy(rallyPoint);
+          var rallyData = rallyAnchor.data || (rallyAnchor.data = {}),
+            rallyTargets = rallyData.targets || (rallyData.targets = {}),
+            rallyId = String(s.id),
+            stableRally = point(rallyTargets[rallyId]);
+          if (!stableRally) {
+            var here = point(s.root.position),
+              away = here ? dist(here, rallyPoint) : 0,
+              existing = point(s._fireteamDestination);
+            stableRally = away <= rallyRadius
+              ? (existing && dist(existing, rallyPoint) <= rallyRadius ? existing : here)
+              : away > 0
+                ? {
+                    x: rallyPoint.x + (here.x - rallyPoint.x) * (rallyRadius * 0.65 / away),
+                    z: rallyPoint.z + (here.z - rallyPoint.z) * (rallyRadius * 0.65 / away)
+                  }
+                : copy(rallyPoint);
+            rallyTargets[rallyId] = copy(stableRally);
+          }
+          d = stableRally;
         }
         var prepared = defensive && s._preparedDefensePost,
           post = prepared ? null : defensive ? holdPost(s, defenseKey) : null,
