@@ -3162,7 +3162,7 @@
           next,
           publishKey,
           urgent,
-          kind,
+          urgent ? 'retreat' : regroup ? 'regroup' : defensive ? 'hold-position' : 'formation',
           urgent ? 'squad retreat' : regroup ? 'squad regroup' : 'fireteam order',
           stats
         );
