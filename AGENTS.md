@@ -18,7 +18,7 @@ Read this file first. Load **only the reference documents relevant to the task**
 | Repository layout, entry points, features | [Repository overview](docs/agents/repository-overview.md) |
 | AI ownership, squad behavior, individual soldiers | [Battle architecture](docs/agents/battle-architecture.md) |
 | New tactics, reconnaissance, command and control | [Battle architecture](docs/agents/battle-architecture.md) and [Tactics outline](docs/reference/AI_TACTICS_OUTLINE.md) |
-| Benchmarks, probes, regression tests, scoring | [Testing and benchmarks](docs/agents/testing.md) |
+| Benchmarks, probes, regression tests, scoring | [Testing and benchmarks](docs/agents/testing.md) and [CI and workflows](docs/agents/ci-workflows.md) (including agent-triggered benchmark dispatch) |
 | GitHub Actions, CI, automation | [CI and workflows](docs/agents/ci-workflows.md) |
 | Models, weapons, animation | [Soldiers, weapons and animation](docs/agents/soldiers-weapons-animation.md) |
 | Audio changes (only when explicitly requested) | [Audio](docs/agents/audio.md) |
