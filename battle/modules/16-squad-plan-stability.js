@@ -2247,12 +2247,18 @@
       (sq._regroupRecovery && sq._regroupRecovery.serial) || 0
     ].join('|');
   }
-  function orderCanAdvance(sq) {
+  function orderCanAdvance(sq, battle) {
     var living = commanded(sq),
       arrived = 0;
     if (!living.length) return true;
     for (var i = 0; i < living.length; i++) {
       var s = living[i];
+      /* Arrival acknowledges the latest issued movement, not a previous destination
+         that the man still holds while hearing its replacement. Otherwise the same
+         old arrival advances another stride on every command tick during reception. */
+      var CR = root.BattleCommandReception;
+      if (movementAdoptionOn() && !CR.executionCurrent(s, battle, 'movement', movementScope(s), s._fireteamAdoptedEnvelope))
+        continue;
       if (s.orderDestination && dist(s.root.position, s.orderDestination) <= ORDER_ARRIVAL_RADIUS) arrived++;
     }
     return arrived / living.length >= ORDER_COHESION;
@@ -2993,7 +2999,7 @@
         cc.seen = c.at;
       }
       var a = sq.orderAnchor;
-      if (a && dist(a, cc) <= CLEAR_ARRIVED && orderCanAdvance(sq)) endClearContact(sq, battle, 'cleared');
+      if (a && dist(a, cc) <= CLEAR_ARRIVED && orderCanAdvance(sq, battle)) endClearContact(sq, battle, 'cleared');
       else if (battle.time - cc.since >= CLEAR_MAX) endClearContact(sq, battle, 'timeout');
       if (!sq.clearContact) sq._quietSince = null;
       return;
@@ -3062,7 +3068,7 @@
       dz = goal.z - z,
       len = Math.hypot(dx, dz),
       mayAdvance = !hold && !held && (sq.state === 'advance' || sq.state === 'engaged');
-    if ((force || orderCanAdvance(sq)) && mayAdvance && len > 2) {
+    if ((force || orderCanAdvance(sq, battle)) && mayAdvance && len > 2) {
       var stride = bounding
         ? ORDER_STRIDE * 0.5
         : sq.state === 'engaged'
