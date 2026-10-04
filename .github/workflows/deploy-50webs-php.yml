@@ -54,7 +54,7 @@ jobs:
             exit 0
           fi
           # Only a two-parent merge whose second parent is the exact green PR head.
-          mapfile -t parents < <(git show -s --format='%P' HEAD | tr ' ' '\\n')
+          read -r -a parents <<< "$(git show -s --format='%P' HEAD)"
           if [[ "${#parents[@]}" -ne 2 ]]; then
             echo "::error::Not a two-parent PR merge. Manual review and dispatch required."
             exit 1
