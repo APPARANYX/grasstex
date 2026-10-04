@@ -125,7 +125,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install FFmpeg
-                run: |
+        run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
@@ -134,10 +134,10 @@ jobs:
       # onto Assets/audio/ (scripts/fetch_private_audio.sh).
       - name: Pinned private audio commit
         id: private-audio
-                run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/private-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
+        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/private-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
 
       - name: Check out the private audio
-                uses: actions/checkout@v4
+        uses: actions/checkout@v4
         with:
           repository: APPARANYX/grasstex-audio
           ref: ${{ steps.private-audio.outputs.commit }}
@@ -146,16 +146,16 @@ jobs:
           persist-credentials: false
 
       - name: Overlay the private audio
-                run: bash scripts/fetch_private_audio.sh .runtime/private-audio
+        run: bash scripts/fetch_private_audio.sh .runtime/private-audio
 
       - name: Voice manifest
-                run: python3 scripts/validate_voice_manifest.py
+        run: python3 scripts/validate_voice_manifest.py
 
       - name: Clip references
-                run: python3 scripts/check_audio_manifest.py
+        run: python3 scripts/check_audio_manifest.py
 
       - name: Slice recipes
-                run: |
+        run: |
           set -euo pipefail
           for recipe in scripts/recipes/*.json; do
             python3 scripts/slice_weapon_shots.py "$recipe" --check-only
@@ -166,7 +166,7 @@ jobs:
       # manifest in exactly that state. Ask the script itself what each declared path would
       # be mastered as, so its tables stay the single source of truth.
       - name: Every declared category has a mastering target
-                run: |
+        run: |
           set -euo pipefail
           python3 -c "
           import json
@@ -184,7 +184,7 @@ jobs:
       # committed without running the mastering pass, or .mastering-state.tsv no longer
       # describes the files beside it. Both are how the library silently drifts off spec.
       - name: Mastering is current
-                run: |
+        run: |
           set -euo pipefail
           bash scripts/normalize_audio.sh Assets/audio
           if ! git diff --quiet -- Assets/audio; then
