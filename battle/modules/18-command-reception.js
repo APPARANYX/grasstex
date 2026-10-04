@@ -1,7 +1,8 @@
 /* Individual command-reception state.
    Phase 0A records deterministic per-man receipt/adoption telemetry. Phase 0B optionally lets
-   Engagement consume the personally adopted posture/fire-control version; this module still never
-   writes stance, fire permission, targets, paths, destinations or movement itself.
+   Engagement consume the personally adopted posture/fire-control version. Phase 0C exposes the same
+   adopted-command boundary to the Meso movement publisher; this module still never writes stance,
+   fire permission, targets, paths, destinations or movement itself.
 
    Owns only battle._commandReception. Timing is deterministic and uses no combat RNG. */
 (function(root){
@@ -10,8 +11,9 @@
 
   var SEARCH=typeof location!=='undefined'?location.search||'':'',
     ON=!/[?&]commandReception=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),
-    POSTURE_ON=ON&&/[?&]commandPosture=(?:1|on|true)(?:&|#|$)/i.test(SEARCH);
-  var FORMAT=2;
+    POSTURE_ON=ON&&/[?&]commandPosture=(?:1|on|true)(?:&|#|$)/i.test(SEARCH),
+    MOVEMENT_ON=ON&&/[?&]commandMovement=(?:1|on|true)(?:&|#|$)/i.test(SEARCH);
+  var FORMAT=3;
   var TUNING={
     SOUND:343,
     SPEAK_SIMPLE:.35,
@@ -253,8 +255,9 @@
     var c=st.counts;
     return{
       format:FORMAT,
-      behaviorNeutral:!POSTURE_ON,
+      behaviorNeutral:!(POSTURE_ON||MOVEMENT_ON),
       postureAdoption:POSTURE_ON,
+      movementAdoption:MOVEMENT_ON,
       envelopes:c.envelopes,
       recipients:c.recipients,
       adopted:c.adopted,
@@ -269,16 +272,17 @@
   }
 
   if(root.BattleModules)root.BattleModules.registerSystem('command-reception',{
-    version:'0B-posture-optin',
+    version:'0C-movement-optin',
     onBattleStart:reset,
     onBattleRestart:reset,
     onSimulationStep:settle
   });
 
   root.BattleCommandReception={
-    version:'0B-posture-optin',
+    version:'0C-movement-optin',
     enabled:function(){return ON;},
     postureEnabled:function(){return POSTURE_ON;},
+    movementEnabled:function(){return MOVEMENT_ON;},
     tuning:TUNING,
     publish:publish,
     settle:settle,
@@ -288,5 +292,5 @@
     telemetry:telemetry,
     reset:reset
   };
-  if(typeof console!=='undefined')console.log('[COMMAND] individual receipt '+(ON?'active':'off')+'; posture adoption '+(POSTURE_ON?'on':'off'));
+  if(typeof console!=='undefined')console.log('[COMMAND] individual receipt '+(ON?'active':'off')+'; posture '+(POSTURE_ON?'on':'off')+'; movement '+(MOVEMENT_ON?'on':'off'));
 })(typeof window!=='undefined'?window:globalThis);
