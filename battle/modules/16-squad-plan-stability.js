@@ -1108,17 +1108,32 @@
       return true;
     }
 
-    var scope = movementScope(s);
-    CR.publish(sq, battle, 'movement', [s], {
-      scope: scope,
-      action: kind || 'formation',
-      signature: movementSignature(publishKey, next),
-      reason: reason || 'fireteam order',
-      spatial: true,
-      point: next,
-      data: { publishKey: String(publishKey || ''), urgent: !!urgent, kind: kind || 'formation' }
-    });
-    var adopted = CR.adopted && CR.adopted(s, battle, 'movement', scope);
+    var scope = movementScope(s),
+      slot = 'movement|' + scope,
+      view = CR.snapshot && CR.snapshot(s, battle),
+      pending = view && view.records && view.records[slot],
+      adopted = CR.adopted && CR.adopted(s, battle, 'movement', scope),
+      samePending =
+        pending &&
+        pending.phase !== 'adopted' &&
+        pending.data &&
+        String(pending.data.publishKey || '') === String(publishKey || '');
+
+    /* Freeze one replacement while this man is still processing it. Fireteam geometry may keep
+       sliding with the formation every Meso tick; that must not continuously replace the pending
+       envelope and make adoption impossible. A genuinely different publish key may supersede it. */
+    if (!samePending) {
+      CR.publish(sq, battle, 'movement', [s], {
+        scope: scope,
+        action: kind || 'formation',
+        signature: movementSignature(publishKey, next),
+        reason: reason || 'fireteam order',
+        spatial: true,
+        point: next,
+        data: { publishKey: String(publishKey || ''), urgent: !!urgent, kind: kind || 'formation' }
+      });
+      adopted = CR.adopted && CR.adopted(s, battle, 'movement', scope);
+    }
     if (!adopted || !adopted.point || !adopted.data) return false;
 
     var adoptedKey = String(adopted.data.publishKey || ''),
