@@ -3178,7 +3178,7 @@
               z: rallyPoint.z + (here.z - rallyPoint.z) * (rallyRadius * 0.65 / away)
             } : copy(rallyPoint);
         }
-          prepared = defensive && s._preparedDefensePost,
+        var prepared = defensive && s._preparedDefensePost,
           post = prepared ? null : defensive ? holdPost(s, defenseKey) : null,
           next = prepared ? copy(prepared) : post ? { x: post.x, z: post.z } : d,
           kind = prepared ? 'prepared' : post ? 'defense-post' : 'formation',
