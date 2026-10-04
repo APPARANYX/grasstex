@@ -711,9 +711,9 @@ Implement this in **small phases**, each with its own deterministic harness/prob
      references so "get down", "shift fire left", "move there" and "get in that building" pay bounded,
      deterministic processing/orient/locate costs appropriate to the reference instead of one generic spatial delay.
      Command Reception still must not physically turn a man or become a stance/movement owner.
-   - **0D2 relay topology — active slice, opt-in via `?commandRelay=1`.** Add bounded direct voice/visual receipt and, where needed,
+   - **0D2 relay topology — shipped in #223, opt-in via `?commandRelay=1`.** Add bounded direct voice/visual receipt and, where needed,
      Squad Leader -> fireteam relay -> member timing.
-5. **Close the direct-read gaps.** Add a static/runtime ratchet for command-bearing squad fields so new behavior
+5. **Close the direct-read gaps — Phase 0E in progress.** Add a static/runtime ratchet for command-bearing squad fields so new behavior
    cannot bypass personal adoption, then run fixed-seed and paired benchmarks for churn, stalls, response latency,
    cohesion and mission progress.
 
