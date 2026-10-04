@@ -25,3 +25,4 @@
 - `Assets/terrain/{terrain.json,terrain.bin,splat.png,roaduv.png}` exist only on the host. **Don't
   add placeholders** with those names.
 - Hosted textures load only from `test.ivandpopov.com` (WebGL rejects them cross-origin).
+
