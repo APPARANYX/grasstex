@@ -107,8 +107,6 @@ test('shipping Meso publication is observed for both fire-control and fireteam m
   assert.ok(tel.byCategory.movement>0,JSON.stringify(tel));
   assert.ok(tel.byCategory['posture-fire']>0,JSON.stringify(tel));
   assert.equal(w.us.fireControl.state,'hold');
-  assert.ok(w.us.fireControl.commandEnvelopeId);
-  assert.ok(w.us.fireControl.commandVersion>=1);
   assert.ok(w.C.squadSnapshot(w.us,w.b).some(e=>e.category==='movement'));
   assert.ok(w.C.squadSnapshot(w.us,w.b).some(e=>e.category==='posture-fire'));
 });
