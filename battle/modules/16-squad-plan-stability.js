@@ -1602,6 +1602,22 @@
       return;
     }
     st.regroupRequests++;
+    /* A delayed personal movement order is not yet a failed cohesion response. Give the
+       current order one bounded reception window before opening a new regroup lease.
+       Never mask an existing regroup, contact, or a genuinely prolonged separation. */
+    if (movementAdoptionOn() && ca.dispersed && st.overSince == null) {
+      var reception = root.BattleCommandReception,
+        waiting = commanded(sq).some(function (man) {
+          var view = reception.snapshot && reception.snapshot(man, sim),
+            rec = view && view.records && view.records['movement|' + movementScope(man)];
+          return rec && rec.phase !== 'adopted' && !rec.unreachable &&
+            rec.issuedAt != null && t - rec.issuedAt <= STRAGGLER_BYPASS;
+        });
+      if (waiting) {
+        st.suppressed++;
+        return;
+      }
+    }
     if (!ca.dispersed && ca.stragglers.length) {
       markCatchup(ca, t);
       st.stragglerSuppressions++;
