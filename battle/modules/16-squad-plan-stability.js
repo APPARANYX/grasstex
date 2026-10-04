@@ -3172,7 +3172,7 @@
         if (rallyPoint) {
           var here = point(s.root.position),
             away = here ? dist(here, rallyPoint) : 0;
-          d = away <= rallyRadius ? here :
+          d = away <= rallyRadius ? ((point(s._fireteamDestination) && dist(s._fireteamDestination, rallyPoint) <= rallyRadius) ? point(s._fireteamDestination) : here) :
             away > 0 ? {
               x: rallyPoint.x + (here.x - rallyPoint.x) * (rallyRadius * 0.65 / away),
               z: rallyPoint.z + (here.z - rallyPoint.z) * (rallyRadius * 0.65 / away)
