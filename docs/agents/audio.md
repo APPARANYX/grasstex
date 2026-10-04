@@ -109,3 +109,4 @@ has one entry per surface folder (a flat, non-recursive glob per directory, same
 `weapons/foley`). Not yet done: which surface plays under a soldier's feet needs a terrain/zone
 signal Battle Sim doesn't have yet (its splat/terrain data is host-only), and a footfall-cadence
 hook into the animation/movement system - both real engineering, out of scope here.
+
