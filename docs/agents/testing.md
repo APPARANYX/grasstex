@@ -1,5 +1,7 @@
 ## Test harnesses
 
+CI smoke-test note: this documentation-only PR verifies that unrelated edits skip audio validation and the full deploy-plan job.
+
 All of these run offline in seconds unless noted, and all pass on `main`.
 
 **Node sim checks** (`tools/ai-sim-harness/`). They load the shipping sources with no Babylon and
