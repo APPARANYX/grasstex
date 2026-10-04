@@ -707,11 +707,11 @@ Implement this in **small phases**, each with its own deterministic harness/prob
    final-destination arbiter; a pending order cannot erase the previous adopted slot. The default/off arm remains
    immediate publication.
 4. **Orientation and relay — current phase, split small.**
-   - **0D1 reference-sensitive orientation — current slice.** Distinguish simple, directional, point and object
+   - **0D1 reference-sensitive orientation — shipped in #216.** Distinguish simple, directional, point and object
      references so "get down", "shift fire left", "move there" and "get in that building" pay bounded,
      deterministic processing/orient/locate costs appropriate to the reference instead of one generic spatial delay.
      Command Reception still must not physically turn a man or become a stance/movement owner.
-   - **0D2 relay topology — next slice after 0D1 ships.** Add bounded direct voice/visual receipt and, where needed,
+   - **0D2 relay topology — active slice, opt-in via `?commandRelay=1`.** Add bounded direct voice/visual receipt and, where needed,
      Squad Leader -> fireteam relay -> member timing.
 5. **Close the direct-read gaps.** Add a static/runtime ratchet for command-bearing squad fields so new behavior
    cannot bypass personal adoption, then run fixed-seed and paired benchmarks for churn, stalls, response latency,
