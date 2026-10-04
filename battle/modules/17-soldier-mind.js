@@ -118,6 +118,16 @@
     },
     {
       kind: 'lever',
+      lever: 'react',
+      layer: 'Command Reception (observe-only Phase 0A)',
+      file: 'modules/18-command-reception.js',
+      reader: 'recognitionScale (planned per-soldier process/orient latency only)',
+      reads: { reactScale: 1 },
+      unit: 'x planned command-processing latency; telemetry only until a later gated phase',
+      flag: '?commandReception= (default on); ?mind= react lever supplies the same existing scale'
+    },
+    {
+      kind: 'lever',
       lever: 'aim',
       layer: 'Micro (shot model)',
       file: 'modules/14-z-ballistic-raycast.js',
