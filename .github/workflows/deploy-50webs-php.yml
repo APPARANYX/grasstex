@@ -1,20 +1,17 @@
 name: Deploy Battle Runtime to 50webs
 
-# Production publishes only after CI has completed successfully for the exact main commit.
-# Manual dispatch remains available as an explicit operator override.
+# PR CI runs once. A push to main verifies its exact merged PR head passed CI,
+# then independently validates and publishes the resulting merge commit.
 on:
-  workflow_run:
-    workflows:
-      - CI
-    types:
-      - completed
+  push:
     branches:
       - main
   workflow_dispatch:
 
 permissions:
-  # Write access is needed for one thing only: pushing the build-v<N> tag once a deploy succeeds.
   contents: write
+  actions: read
+  pull-requests: read
 
 concurrency:
   group: deploy-50webs-battle-runtime
@@ -22,68 +19,61 @@ concurrency:
 
 jobs:
   gate:
-    name: Require successful current-main CI
+    name: Verify tested merge before deploy
     runs-on: ubuntu-latest
     outputs:
       should_deploy: ${{ steps.resolve.outputs.should_deploy }}
       target_sha: ${{ steps.resolve.outputs.target_sha }}
       reason: ${{ steps.resolve.outputs.reason }}
-
     steps:
-      - name: Checkout current main
+      - name: Checkout current main with merge parents
         uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 1
-
-      - name: Resolve CI-gated commit
+          fetch-depth: 2
+      - name: Verify current main and merged PR CI
         id: resolve
         shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
-          CI_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-          CI_EVENT: ${{ github.event.workflow_run.event }}
-          CI_SHA: ${{ github.event.workflow_run.head_sha }}
+          EVENT_SHA: ${{ github.sha }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           current_sha="$(git rev-parse HEAD)"
-
+          echo "should_deploy=false" >> "$GITHUB_OUTPUT"
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             echo "should_deploy=true" >> "$GITHUB_OUTPUT"
             echo "target_sha=$current_sha" >> "$GITHUB_OUTPUT"
-            echo "reason=manual dispatch of current main" >> "$GITHUB_OUTPUT"
-            echo "Manual deploy selected main@$current_sha"
+            echo "reason=explicit manual dispatch" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-
-          if [[ "$CI_EVENT" != "push" ]]; then
-            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
-            echo "target_sha=$CI_SHA" >> "$GITHUB_OUTPUT"
-            echo "reason=CI run was not triggered by a push" >> "$GITHUB_OUTPUT"
-            echo "Skipping deploy: CI event was '$CI_EVENT', not push."
+          if [[ "$EVENT_SHA" != "$current_sha" ]]; then
+            echo "Skipping stale push: $EVENT_SHA versus $current_sha"
             exit 0
           fi
-
-          if [[ "$CI_CONCLUSION" != "success" ]]; then
-            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
-            echo "target_sha=$CI_SHA" >> "$GITHUB_OUTPUT"
-            echo "reason=CI conclusion was $CI_CONCLUSION" >> "$GITHUB_OUTPUT"
-            echo "Skipping deploy: CI conclusion was '$CI_CONCLUSION'."
-            exit 0
+          # Only a two-parent merge whose second parent is the exact green PR head.
+          read -r -a parents <<< "$(git show -s --format='%P' HEAD)"
+          if [[ "${#parents[@]}" -ne 2 ]]; then
+            echo "::error::Not a two-parent PR merge. Manual review and dispatch required."
+            exit 1
           fi
-
-          if [[ "$CI_SHA" != "$current_sha" ]]; then
-            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
-            echo "target_sha=$CI_SHA" >> "$GITHUB_OUTPUT"
-            echo "reason=CI passed an older main commit" >> "$GITHUB_OUTPUT"
-            echo "Skipping stale deploy: CI passed $CI_SHA but current main is $current_sha."
-            exit 0
+          pr_head="${parents[1]}"
+          prs="$(gh api "repos/$GH_REPO/commits/$current_sha/pulls" -H 'Accept: application/vnd.github+json')"
+          if ! jq -e --arg head "$pr_head" '[.[] | select(.merged_at != null and .head.sha == $head)] | length > 0' <<< "$prs" >/dev/null; then
+            echo "::error::Merge commit has no associated merged PR with matching head $pr_head"
+            exit 1
           fi
-
+          runs="$(gh api "repos/$GH_REPO/actions/workflows/ci.yml/runs?head_sha=$pr_head&event=pull_request&per_page=100")"
+          if ! jq -e --arg head "$pr_head" '[.workflow_runs[] | select(.head_sha == $head and .status == "completed" and .conclusion == "success")] | length > 0' <<< "$runs" >/dev/null; then
+            echo "::error::No successful completed PR CI on exact merged head $pr_head"
+            exit 1
+          fi
           echo "should_deploy=true" >> "$GITHUB_OUTPUT"
-          echo "target_sha=$CI_SHA" >> "$GITHUB_OUTPUT"
-          echo "reason=successful CI for current main" >> "$GITHUB_OUTPUT"
-          echo "CI gate passed for main@$CI_SHA"
+          echo "target_sha=$current_sha" >> "$GITHUB_OUTPUT"
+          echo "reason=merged PR head $pr_head passed CI" >> "$GITHUB_OUTPUT"
+          echo "Deploying current merge $current_sha; PR head $pr_head passed CI"
 
   deploy:
     name: Upload Battle Sim AI lab
@@ -94,7 +84,7 @@ jobs:
     timeout-minutes: 8
 
     steps:
-      - name: Checkout CI-tested commit
+      - name: Checkout verified merge commit
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.gate.outputs.target_sha }}
@@ -108,7 +98,7 @@ jobs:
           expected="${{ needs.gate.outputs.target_sha }}"
           actual="$(git rev-parse HEAD)"
           test "$actual" = "$expected"
-          echo "Deploy source pinned to CI-tested commit: $actual"
+          echo "Deploy source pinned to verified merge commit: $actual"
 
       # No audio clip is in this public repo: check out the private APPARANYX/grasstex-audio at the
       # commit Assets/audio/private-audio.lock.json pins, with a private-audio deploy key, and overlay it
