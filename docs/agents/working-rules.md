@@ -46,3 +46,4 @@
 - **Subscribe to every PR you open or are asked to merge** (`subscribe_pr_activity`): CI results, reviews, conflicts and the
   merge arrive as events, so nobody has to say "CI passed" and the agent does not poll. Merge when the head's CI events are
   green; cover the gaps (commit-status CI, merge-queue branches, a lost delivery) with one `send_later` check-in.
+
