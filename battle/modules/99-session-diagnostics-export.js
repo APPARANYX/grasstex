@@ -213,6 +213,7 @@ function soldier(s,sim){
     mind:root.BattleSoldierMind?root.BattleSoldierMind.snapshot(s):null,
     buddy:root.BattleSquadStability&&root.BattleSquadStability.buddyFor?safePlain(root.BattleSquadStability.buddyFor(s),4):null,
     beliefs:root.SquadAI&&root.SquadAI.beliefSnapshot?safePlain(root.SquadAI.beliefSnapshot(s,sim),6):null,
+    commandReception:root.BattleCommandReception&&root.BattleCommandReception.snapshot?safePlain(root.BattleCommandReception.snapshot(s,sim),6):null,
     movement:safePlain(s&&s._movementResolver?{last:s._movementResolver.last,changes:s._movementResolver.changes,requests:s._movementResolver.requests,history:(s._movementResolver.history||[]).slice(-6)}:null,5),
     movementProgress:safePlain(s&&s._movementProgress?{stuck:!!s._movementProgress.stuck,recoveries:s._movementProgress.recoveries||0,goalUnreachable:!!s._movementGoalUnreachable}:null,3),
     positionalTask:root.BattleTacticalPositions?safePlain(root.BattleTacticalPositions.current(s),7):null
@@ -231,6 +232,7 @@ function squad(sq,sim){
     mind:safePlain(sq.mind,3),
     fireControl:safePlain(sq.fireControl?Object.assign({},sq.fireControl,{trail:undefined}):null,4),
     fireControlTrail:safePlain(sq._fireControlTrail||[],4),
+    commandReception:root.BattleCommandReception&&root.BattleCommandReception.squadSnapshot?safePlain(root.BattleCommandReception.squadSnapshot(sq,sim),6):null,
     /* Owned commitments (BattleLeases): what is live, who owns it, why, what releases it, and which one holds the mission now. */
     leases:root.BattleLeases?safePlain(root.BattleLeases.active(sq,sq._battleSim?+sq._battleSim.time||0:0),4):null,
     recentLeases:safePlain(sq._leases&&sq._leases.ended,4),missionHeldBy:sq._missionHold||null,
@@ -280,6 +282,7 @@ function buildPayload(sim){
     ammunition:ammo,
     tacticalPositions:root.BattleTacticalPositions?root.BattleTacticalPositions.summary(sim):null,
     coverPositions:root.BattleCoverPositions?root.BattleCoverPositions.snapshot(sim):null,
+    commandReception:root.BattleCommandReception&&root.BattleCommandReception.telemetry?safePlain(root.BattleCommandReception.telemetry(sim),6):null,
     macroCommand:{enabled:sim.macroCommandEnabled!==false,mode:sim._macroMissionState&&sim._macroMissionState.mode||'event-driven',state:safePlain(sim._macroMissionState,5)},
     ownership:sim._orderProvenance?{events:(sim._orderProvenance.seq||0),conflicts:(sim._orderProvenance.conflicts||[]).length,recentConflicts:safePlain((sim._orderProvenance.conflicts||[]).slice(0,20).map(function(c){return{kind:c.kind,time:c.time,field:c.field,squad:c.squad,soldier:c.soldier,owners:c.owners};}),4)}:null,
     factions:{
