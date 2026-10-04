@@ -49,8 +49,27 @@ function run(w,seconds) {
 {
   const w=fixture();
   w.q.members.forEach((s,i)=>{s.root.position.x=(i%2?-1:1)*(20+i*6);s.root.position.z=(i%3)*25;});
+  for(let i=0;i<20&&!w.r.BattleLeases.get(w.q,'regroup');i++){
+    w.b.time+=.15;w.Q.updateCohesion(w.b,w.q);w.Q.executeMission(w.b,w.q,null);
+  }
+  const lease=w.r.BattleLeases.get(w.q,'regroup');
+  assert.ok(lease,'genuine physical separation enters regroup');
+  w.Q.updateFireteams(w.q,w.b);
+  const anchor=lease.data.anchor,radius=34*.78;
+  const outside=w.q.members.filter(s=>!s.dead).sort((a,b)=>
+    Math.hypot(b.root.position.x-anchor.x,b.root.position.z-anchor.z)-
+    Math.hypot(a.root.position.x-anchor.x,a.root.position.z-anchor.z))[0];
+  const first={...lease.data.targets[String(outside.id)]};
+  assert.ok(Number.isFinite(first.x)&&Number.isFinite(first.z),'regroup did not assign a stable personal rally-area point');
+  assert.ok(Math.hypot(first.x-anchor.x,first.z-anchor.z)<=radius,'personal regroup point lies outside the rally area');
+  const dx=first.x-outside.root.position.x,dz=first.z-outside.root.position.z,len=Math.hypot(dx,dz);
+  outside.root.position.x+=dx/len*3;outside.root.position.z+=dz/len*3;
+  w.b.time+=.15;w.Q.updateFireteams(w.q,w.b);
+  assert.deepEqual(lease.data.targets[String(outside.id)],first,
+    'moving toward a regroup area must not move the soldier\'s target underneath a pending/adopted command');
+  console.log('PASS: one regroup lease gives each soldier one stable rally-area destination');
   run(w,5);
-  assert.ok(w.r.BattleLeases.get(w.q,'regroup'),'genuine physical separation enters regroup');
+  assert.ok(w.r.BattleLeases.get(w.q,'regroup'),'genuine physical separation remains in regroup while men close up');
   run(w,85);
   const stats=w.q._regroupHysteresis;
   assert.equal(stats.entries,1,'recovery does not repeatedly reopen');
