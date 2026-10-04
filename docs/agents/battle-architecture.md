@@ -696,11 +696,13 @@ The same contract applies to both classes of currently synchronized behavior:
 
 Implement this in **small phases**, each with its own deterministic harness/probe and no combat-RNG draw:
 
-1. **Receipt telemetry, behavior-neutral.** Add a versioned command envelope and per-soldier receipt/adoption
-   diagnostics while preserving current execution timing. Measure who would receive which order, by what channel,
-   and at what simulated time.
-2. **Posture/fire-control adoption.** Gate squad-issued prepare/HOLD/posture execution on the soldier's adopted
-   command version. Keep Engagement the only stance/fire-permission owner; under-fire reflexes remain immediate.
+1. **Receipt telemetry, behavior-neutral — shipped in #212.** Versioned command envelopes and per-soldier
+   receive/process/adopt diagnostics now observe current posture/fire-control and movement publications with no
+   combat-RNG draw and no gameplay write.
+2. **Posture/fire-control adoption — current slice.** Gate squad-issued prepare/HOLD/posture execution on the
+   soldier's adopted command version. Keep Engagement the only stance/fire-permission owner; under-fire reflexes
+   remain immediate. While benchmark validation is pending this behavior is opt-in with `?commandPosture=1`;
+   the default/off arm remains the shipped Phase 0A behavior.
 3. **Movement adoption.** Gate regroup/new-anchor/fireteam-destination changes on the soldier's adopted movement
    order. Movement Resolver remains the only final-destination arbiter and a man retains his previous valid order
    until the replacement is adopted.
@@ -830,3 +832,4 @@ before any effect is claimed.
 
 - By design: Movement Progress ignores retreat (`movementStopReason` is the observable), and
   meeting engagements get no runtime engineer fortification (`engineerTick` exits early).
+
