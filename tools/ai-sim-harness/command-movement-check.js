@@ -45,7 +45,7 @@ test('a fresh Meso slot is pending information, not a personal destination, unti
   issue(w);
   const rec=pending(w,man);
   assert.ok(rec&&rec.point&&rec.adoptedAt>w.b.time,JSON.stringify(rec));
-  assert.equal(man._fireteamDestination,null,'Squad Command has not applied the pending replacement');
+  assert.equal(man._fireteamDestination==null,true,'Squad Command has not applied the pending replacement');
   assert.equal(w.calls.length,0,'Movement Resolver has not received a psychic order');
 
   w.b.time=rec.adoptedAt+0.001;
