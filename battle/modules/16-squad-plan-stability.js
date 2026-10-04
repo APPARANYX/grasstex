@@ -637,6 +637,7 @@
                 String(fc.shooterId == null ? '' : fc.shooterId),
               reason: reason || null,
               spatial: false,
+              reference: 'none',
               data: {
                 state: state,
                 targetId: fc.targetId == null ? null : String(fc.targetId),
@@ -675,6 +676,7 @@
             String(previous.shooterId == null ? '' : previous.shooterId),
           reason: reason || 'contact clear',
           spatial: false,
+          reference: 'none',
           data: {
             state: 'clear',
             targetId: previous.targetId == null ? null : String(previous.targetId),
@@ -2874,7 +2876,8 @@
         action: 'scouts-forward',
         signature: 'recon|' + task.signature,
         reason: task.reason || 'scouts forward',
-        spatial: true
+        spatial: true,
+        reference: 'point'
       });
     for (i = 0; i < members.length; i++) {
       var man = members[i],
@@ -3137,6 +3140,7 @@
           signature: sig + '|' + key + '|' + Math.round(cur.anchor.x * 2) + '|' + Math.round(cur.anchor.z * 2),
           reason: urgent ? 'squad retreat' : regroup ? 'squad regroup' : 'fireteam order',
           spatial: true,
+          reference: 'point',
           point: cur.anchor
         });
       for (var i = 0; i < m.length; i++) {
