@@ -1076,6 +1076,76 @@
     );
   }
 
+  /* Phase 0C: Meso still computes each fireteam slot, but an opted-in soldier does not receive a
+     replacement slot until Command Reception says that exact personal envelope was adopted.
+     Command Reception remains information-only; this Squad Leader module is still the only writer
+     of _fireteamDestination and Movement Resolver remains the only physical endpoint arbiter. */
+  function movementAdoptionOn() {
+    var CR = root.BattleCommandReception;
+    return !!(CR && CR.movementEnabled && CR.movementEnabled());
+  }
+  function movementScope(s) {
+    return 'soldier:' + String(s && s.id);
+  }
+  function movementSignature(publishKey, next) {
+    return (
+      String(publishKey || 'movement') +
+      '|' +
+      Math.round((+next.x || 0) / ORDER_PUBLISH_EPS) +
+      '|' +
+      Math.round((+next.z || 0) / ORDER_PUBLISH_EPS)
+    );
+  }
+  function publishPersonalMovement(sq, battle, s, next, publishKey, urgent, kind, reason, stats) {
+    var CR = root.BattleCommandReception;
+    if (!(CR && CR.movementEnabled && CR.movementEnabled())) {
+      s._fireteamDestination = copy(next);
+      s._fireteamPublishKey = publishKey;
+      stats.intentPublishes++;
+      if (root.BattleMovementResolver)
+        root.BattleMovementResolver.proposeOrder(s, s._fireteamDestination, battle, !!urgent);
+      else s.orderDestination = copy(s._fireteamDestination);
+      return true;
+    }
+
+    var scope = movementScope(s);
+    CR.publish(sq, battle, 'movement', [s], {
+      scope: scope,
+      action: kind || 'formation',
+      signature: movementSignature(publishKey, next),
+      reason: reason || 'fireteam order',
+      spatial: true,
+      point: next,
+      data: { publishKey: String(publishKey || ''), urgent: !!urgent, kind: kind || 'formation' }
+    });
+    var adopted = CR.adopted && CR.adopted(s, battle, 'movement', scope);
+    if (!adopted || !adopted.point || !adopted.data) return false;
+
+    var adoptedKey = String(adopted.data.publishKey || ''),
+      previous = point(s._fireteamDestination);
+    if (
+      s._fireteamAdoptedEnvelope === adopted.envelopeId &&
+      previous &&
+      dist(previous, adopted.point) <= ORDER_PUBLISH_EPS &&
+      s._fireteamPublishKey === adoptedKey
+    )
+      return false;
+
+    s._fireteamDestination = copy(adopted.point);
+    s._fireteamPublishKey = adoptedKey;
+    s._fireteamAdoptedEnvelope = adopted.envelopeId;
+    stats.intentPublishes++;
+    if (root.BattleMovementResolver)
+      root.BattleMovementResolver.proposeOrder(
+        s,
+        s._fireteamDestination,
+        battle,
+        !!adopted.data.urgent
+      );
+    else s.orderDestination = copy(s._fireteamDestination);
+    return true;
+  }
+
   function tasksFor(phase) {
     if (phase === 'defend' || phase === 'hold')
       return { command: 'control', alpha: 'hold-left', bravo: 'hold-right', charlie: 'local-reserve' };
@@ -2799,18 +2869,24 @@
       man._fireteamKey = man._fireteamKey || teamKeyFor(man);
       man._engagementTask = selected[id] ? 'recon' : 'recon-hold';
       var key = 'recon|' + task.signature + '|' + id,
-        previous = point(man._fireteamDestination);
+        previous = point(man._fireteamDestination),
+        reconKind = selected[id] ? 'recon' : 'recon-hold';
       stats.intentChecks++;
       if (previous && dist(previous, next) <= ORDER_PUBLISH_EPS && man._fireteamPublishKey === key) {
         stats.intentCoalesced++;
         continue;
       }
-      man._fireteamDestination = copy(next);
-      man._fireteamPublishKey = key;
-      stats.intentPublishes++;
-      if (root.BattleMovementResolver)
-        root.BattleMovementResolver.proposeOrder(man, man._fireteamDestination, battle, false);
-      else man.orderDestination = copy(man._fireteamDestination);
+      publishPersonalMovement(
+        sq,
+        battle,
+        man,
+        next,
+        key,
+        false,
+        reconKind,
+        task.reason || 'scouts forward',
+        stats
+      );
     }
     if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);
     return true;
@@ -3064,12 +3140,17 @@
           stats.intentCoalesced++;
           continue;
         }
-        s._fireteamDestination = copy(next);
-        s._fireteamPublishKey = publishKey;
-        stats.intentPublishes++;
-        if (root.BattleMovementResolver)
-          root.BattleMovementResolver.proposeOrder(s, s._fireteamDestination, battle, urgent);
-        else s.orderDestination = copy(s._fireteamDestination);
+        publishPersonalMovement(
+          sq,
+          battle,
+          s,
+          next,
+          publishKey,
+          urgent,
+          kind,
+          urgent ? 'squad retreat' : regroup ? 'squad regroup' : 'fireteam order',
+          stats
+        );
       }
     });
     if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);
@@ -3875,6 +3956,7 @@
           s._regroupUnstick = null;
           s._fireteamDestination = null;
           s._fireteamPublishKey = null;
+          s._fireteamAdoptedEnvelope = null;
           s._fireteamKey = null;
           s._defensePost = null;
           s._engagementTask = null;
