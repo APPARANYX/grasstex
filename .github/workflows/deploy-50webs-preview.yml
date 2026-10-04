@@ -6,10 +6,7 @@ name: Deploy Battle Sim Branch Preview
 # production assets, policy and scenario memory, and makes no telemetry, policy or learning writes.
 
 on:
-  push:
-    branches:
-      - 'work/**'
-      - 'preview/**'
+  # Preview uploads are opt-in. PR CI still validates the preview launcher without publishing.
   workflow_dispatch:
     inputs:
       ref:
