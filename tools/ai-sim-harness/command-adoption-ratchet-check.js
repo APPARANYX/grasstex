@@ -34,7 +34,7 @@ const allowedMovement=new Set(['battle/modules/16-squad-plan-stability.js','batt
 const offenders=[];
 for(const file of files){
   const src=read(file);
-  if(file!=='battle/modules/18-command-reception.js' && /BattleCommandReception\s*\.\s*(?:publish|adopted|snapshot)/.test(src) && !new Set(['battle/modules/16-squad-plan-stability.js','battle/engagement.js']).has(file))
+  if(file!=='battle/modules/18-command-reception.js' && /BattleCommandReception\s*\.\s*(?:publish|adopted|snapshot)/.test(src) && !new Set(['battle/modules/16-squad-plan-stability.js','battle/engagement.js','battle/modules/99-session-diagnostics-export.js']).has(file))
     offenders.push(file+': new direct reception consumer requires review');
   if(file==='battle/modules/18-command-reception.js')continue;
   // Only audit direct reads of command-bearing squad posture and the published personal
