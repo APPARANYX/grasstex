@@ -2463,6 +2463,25 @@
     if (!holdStance(s, battle))
       commitStance(s, battle, seeingStance(s, battle, watch, aim && { root: { position: aim } }), 2.0);
     s._faceHint = aim && facingError(s, aim) > AIM_CONE ? aim : null;
+    /* Phase 0G1: secondary threat orientation. If the man has a secondary threat (a belief in
+       a different 20m sector from the primary) and the primary is either being suppressed,
+       behind cover, or out of effective range, orient toward the secondary instead. The man
+       does not switch targets — s.target stays on the primary — but he faces the secondary
+       so he can react if it enters LOS. This is the difference between a man who only watches
+       one direction and a man who knows about threats from two. */
+    if (root.SquadAI && root.SquadAI.secondaryThreatOn && root.SquadAI.secondaryThreatOn()) {
+      var c = squadContact(s, battle);
+      if (c && c.secondary) {
+        var sec = c.secondary,
+          primaryHandled = e.suppressOrder || /* suppressing the primary */
+            (aim && facingError(s, aim) <= AIM_CONE) || /* primary is in his aim cone */
+            !aim; /* no primary aim point */
+        if (primaryHandled) {
+          s._faceHint = { x: sec.x, z: sec.z };
+          e.threatSector = sec.sector;
+        }
+      }
+    }
     if (e.suppressOrder && aim) {
       /* A designated suppressor holds the firing line for as long as the contact is current,
          rather than wandering off mid-burst when the alert timer lapses. */

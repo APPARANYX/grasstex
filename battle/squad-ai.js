@@ -129,6 +129,11 @@
   var SOLDIER_BELIEFS_ON = parseSoldierBeliefs(
     typeof location !== 'undefined' ? location.search || '' : ''
   );
+  /* Phase 0G1: secondary threat awareness. When on, soldierContact gains a 'secondary' field
+     holding the next-best belief in a different 20m sector from the primary. Engagement can
+     orient toward the secondary when the primary is behind cover or out of range. Default off;
+     the off arm is unchanged single-contact behavior. */
+  var SECONDARY_THREAT_ON = !!(typeof location !== 'undefined' && location.search && /[?&]secondaryThreat=1\b/.test(location.search));
   /* How long a squad keeps acting on a last-known enemy position after nobody can see him. */
   var CONTACT_MEMORY = 12;
   var BELIEF_TUNING = {
@@ -680,6 +685,40 @@
     });
     return best;
   }
+  /* Phase 0G1: the next-best belief in a DIFFERENT 20m sector from the primary. A soldier
+     being shot at from the north while engaging an enemy to the south has both beliefs in
+     his store; selectBelief returns the south one (higher confidence), and this returns the
+     north one. The sector grid (20m, matching the broadcast module's) is coarse enough that
+     two enemies in the same building are the same sector, but fine enough that enemies on
+     opposite sides of a street are different. Returns null if there is no secondary or if
+     the only other beliefs are in the same sector as the primary. */
+  function selectSecondaryBelief(store, battle, primary) {
+    if (!store || !battle || !primary) return null;
+    var primarySector = Math.round(+primary.x / 20) + ':' + Math.round(+primary.z / 20),
+      best = null,
+      bestRank = -1,
+      bestConf = -1;
+    Object.keys(store.byKey).forEach(function (key) {
+      var rec = store.byKey[key];
+      if (!rec || rec.combatThreat === false || battle.time >= rec.expiresAt) return;
+      if (rec === primary) return;
+      var sector = Math.round(+rec.x / 20) + ':' + Math.round(+rec.z / 20);
+      if (sector === primarySector) return; /* same sector as primary, not a secondary */
+      var rank = beliefRank(rec.source),
+        conf = beliefConfidence(rec, battle);
+      if (
+        !best ||
+        conf > bestConf + 1e-6 ||
+        (Math.abs(conf - bestConf) <= 1e-6 && rank > bestRank) ||
+        (Math.abs(conf - bestConf) <= 1e-6 && rank === bestRank && rec.observedAt > best.observedAt)
+      ) {
+        best = rec;
+        bestRank = rank;
+        bestConf = conf;
+      }
+    });
+    return best;
+  }
   function bestBelief(soldier, battle) {
     if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return null;
     pruneBeliefs(soldier, battle);
@@ -710,7 +749,7 @@
       rec.source === 'seen' && rec.unit && soldier.target === rec.unit && rec.combatThreat !== false
         ? rec.unit
         : null;
-    return {
+    var contact = {
       unit: liveUnit,
       knownUnitId: rec.targetId,
       x: rec.x,
@@ -728,6 +767,27 @@
       expiresAt: rec.expiresAt,
       beliefKey: rec.key
     };
+    /* Phase 0G1: attach the secondary threat (next-best belief in a different 20m sector)
+       so Engagement can orient toward it when the primary is behind cover or out of range.
+       The secondary is a lightweight contact shape (x, z, source, confidence) — not a full
+       target — because the man does not switch targets, he just faces the secondary. */
+    if (SECONDARY_THREAT_ON) {
+      var store = soldier._beliefs;
+      if (store) {
+        var sec = selectSecondaryBelief(store, battle, rec);
+        if (sec) {
+          contact.secondary = {
+            x: sec.x,
+            z: sec.z,
+            at: sec.observedAt,
+            source: sec.source,
+            confidence: beliefConfidence(sec, battle),
+            sector: Math.round(+sec.x / 20) + ':' + Math.round(+sec.z / 20)
+          };
+        }
+      }
+    }
+    return contact;
   }
   function beliefSnapshot(soldier, battle) {
     if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return null;
@@ -1977,6 +2037,7 @@
     observeKnownNonThreats: observeKnownNonThreats,
     beliefSnapshot: beliefSnapshot,
     beliefTelemetry: beliefTelemetry,
+    secondaryThreatOn: function () { return SECONDARY_THREAT_ON; },
     PERCEPTION: {
       FOCUS_HALF: FOCUS_HALF,
       PERIPHERAL_HALF: PERIPHERAL_HALF,
