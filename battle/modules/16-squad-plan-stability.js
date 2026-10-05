@@ -1102,8 +1102,9 @@
       Math.round((+next.z || 0) / ORDER_PUBLISH_EPS)
     );
   }
-  function publishPersonalMovement(sq, battle, s, next, publishKey, urgent, kind, reason, stats) {
-    var CR = root.BattleCommandReception;
+  function publishPersonalMovement(sq, battle, s, next, publishKey, urgent, kind, reason, stats, options) {
+    var CR = root.BattleCommandReception,
+      opt = options || {};
     if (!(CR && CR.movementEnabled && CR.movementEnabled())) {
       s._fireteamDestination = copy(next);
       s._fireteamPublishKey = publishKey;
@@ -1134,25 +1135,36 @@
         action: kind || 'formation',
         signature: movementSignature(publishKey, next),
         reason: reason || 'fireteam order',
-        spatial: true,
+        spatial: opt.reference === 'none' ? false : true,
+        reference: opt.reference || 'point',
         point: next,
-        data: { publishKey: String(publishKey || ''), urgent: !!urgent, kind: kind || 'formation' }
+        data: {
+          publishKey: String(publishKey || ''),
+          urgent: !!urgent,
+          kind: kind || 'formation',
+          adoptHere: !!opt.adoptHere
+        }
       });
       adopted = CR.adopted && CR.adopted(s, battle, 'movement', scope);
     }
     if (!adopted || !adopted.point || !adopted.data) return false;
 
-    var adoptedKey = String(adopted.data.publishKey || ''),
+    /* A non-spatial HOLD means stop when the order reaches the man, not return to the coordinate
+       where he happened to be when the leader spoke. This matters only for commands that explicitly
+       opt in (currently recon main-body holds); fixed spatial orders still execute their published point. */
+    var appliedPoint = adopted.data.adoptHere ? point(s.root && s.root.position) : adopted.point,
+      adoptedKey = String(adopted.data.publishKey || ''),
       previous = point(s._fireteamDestination);
+    if (!appliedPoint) return false;
     if (
       s._fireteamAdoptedEnvelope === adopted.envelopeId &&
       previous &&
-      dist(previous, adopted.point) <= ORDER_PUBLISH_EPS &&
+      dist(previous, appliedPoint) <= ORDER_PUBLISH_EPS &&
       s._fireteamPublishKey === adoptedKey
     )
       return false;
 
-    s._fireteamDestination = copy(adopted.point);
+    s._fireteamDestination = copy(appliedPoint);
     s._fireteamPublishKey = adoptedKey;
     s._fireteamAdoptedEnvelope = adopted.envelopeId;
     stats.intentPublishes++;
@@ -2922,7 +2934,7 @@
         stats.intentCoalesced++;
         continue;
       }
-      publishPersonalMovement(
+      var applied = publishPersonalMovement(
         sq,
         battle,
         man,
@@ -2931,8 +2943,14 @@
         false,
         reconKind,
         task.reason || 'scouts forward',
-        stats
+        stats,
+        selected[id] ? null : { adoptHere: true, reference: 'none' }
       );
+      /* The main body's HOLD is non-spatial. Once a man receives it, that receipt position becomes
+         the stable hold point for this recon lease so later ticks coalesce instead of dragging him
+         back to the coordinate captured before he heard the command. */
+      if (!selected[id] && applied && man._fireteamDestination)
+        task.holdPoints[id] = copy(man._fireteamDestination);
     }
     if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);
     return true;
