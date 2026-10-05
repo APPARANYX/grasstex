@@ -18,7 +18,7 @@ function bareFixture(){
   load(r,'battle/battle-navigation.js');load(r,'battle/movement-resolver.js');
   load(r,'battle/modules/44-combat-urgency.js');
   load(r,'battle/modules/52-survival-tactical-route.js');
-  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/15b-squad-leader-buddy-pairs.js');load(r,'battle/modules/16-squad-plan-stability.js'); // stepMovement ends a regroup-unstick record through it
+  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/15b-squad-leader-buddy-pairs.js');load(r,'battle/modules/15c-squad-leader-scouts-forward.js');load(r,'battle/modules/16-squad-plan-stability.js'); // stepMovement ends a regroup-unstick record through it
   const b=H.makeBattle(r);
   const q=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:100},composition:['rifleman']});
   q.state='engaged';q.commandPhase='assault';q.inContact=true;
