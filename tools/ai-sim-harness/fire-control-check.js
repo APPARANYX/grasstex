@@ -6,7 +6,7 @@ const log=console.log;console.log=(...a)=>(typeof a[0]==='string'&&a[0][0]==='['
 let n=0;function test(name,fn){fn();n++;console.log('PASS '+name);}
 function world(search,range){
   H.resetIds();
-  const r=H.bootstrap({search:search||'?stressAct=0',stats:true});
+  const r=H.bootstrap({search:search||'?stressAct=0&commandPosture=0',stats:true});
   r.BattleModules.unitsFor=b=>(b._roster.us||[]).concat(b._roster.ge||[]);
   const b=H.makeBattle(r,{seed:77});
   const us=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:200},facing:0});
@@ -27,7 +27,7 @@ function prep(w){
   w.us.members.filter(s=>!s.dead).forEach(s=>{s.moving=false;s.moveSpeed=0;});
 }
 test('first visual contact holds fire and makes the squad prepare prone before a volley',()=>{
-  const w=world('?stressAct=0&fireControl=1',100);
+  const w=world('?stressAct=0&fireControl=1&commandPosture=0',100);
   let fc=command(w);
   assert.equal(fc.state,'hold');
   assert.equal(w.E.fireAuthorized(w.us.members[4],w.b),false,'contact is not permission');
@@ -82,7 +82,7 @@ test('long range prefers one strong in-range marksman while the rest keep holdin
   /* 141.5 m puts the squad-average contact just beyond the 140 m precision threshold while the
      nearest rifleman is still inside his rifle's real 140 m combat range. A US scout's M1 Carbine
      is only 110 m, so expecting the scout at 160 m would test an impossible shot rather than fire control. */
-  const w=world('?stressAct=0&fireControl=1',141.5);
+  const w=world('?stressAct=0&fireControl=1&commandPosture=0',141.5);
   const tp=w.foe.root.position;
   const marksman=w.us.members
     .filter(s=>s.role==='rifleman')
@@ -114,7 +114,7 @@ test('a man under incoming fire may answer immediately and the leader opens the 
   assert.equal(fc.reason,'enemy fire received');
 });
 test('zero firing lines after the prep window repositions under hold fire instead of deadlocking',()=>{
-  const w=world('?stressAct=0&fireControl=1',100);
+  const w=world('?stressAct=0&fireControl=1&commandPosture=0',100);
   let fc=command(w); assert.equal(fc.state,'hold');
   const real=w.E.fireControlReady;
   w.E.fireControlReady=()=>false;
