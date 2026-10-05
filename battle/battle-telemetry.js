@@ -11,7 +11,13 @@
   function safe(v){try{return JSON.parse(JSON.stringify(v));}catch(_){return{value:String(v)};}}
   function scenarioMeta(sim){var s=sim&&sim.scene&&sim.scene.metadata&&(sim.scene.metadata.battleScenario||sim.scene.metadata.battleTown)||root.BATTLE_SCENARIO||null;return{scenarioId:s&&s.id||null,scenarioSeed:s&&s.seed||null,trainingSeed:s&&s.metadata&&s.metadata.trainingSeed||null};}
   function ensure(sim,nextMode){if(active)return;sessionId=makeId();mode=nextMode||'live';active=true;seq=0;record('session-start',{mode:mode},sim,true);}
-  function trimQueue(){if(queue.length<=MAX_QUEUE)return;var drop=queue.length-MAX_QUEUE;queue.splice(0,drop);delivery.droppedEvents+=drop;}
+  /* Drop from the BACK of the queue (newest events) rather than the front.
+     session-start is the first event pushed and carries the session id, mode and
+     build stamp that every later event joins; dropping it orphans the rest of the
+     session on the server. The newest events are the most expendable because they
+     are the most likely to be superseded by the next tick's event of the same kind
+     (decision-*, objective-*, etc.). */
+  function trimQueue(){if(queue.length<=MAX_QUEUE)return;var drop=queue.length-MAX_QUEUE;queue.splice(queue.length-drop,drop);delivery.droppedEvents+=drop;}
   function record(type,data,sim,internal){
     if(!active&&!internal)ensure(sim,'live');if(!active)return;var sm=scenarioMeta(sim);
     var e={session:sessionId,seq:++seq,mode:mode,build:root.BATTLE_BUILD||'dev',policyRevision:root.BattleAIPolicy?root.BattleAIPolicy.revision:0,scenarioId:sm.scenarioId,scenarioSeed:sm.scenarioSeed,trainingSeed:sm.trainingSeed,type:type,battleTime:sim&&isFinite(sim.time)?+sim.time.toFixed(3):null,clientTime:new Date().toISOString(),data:safe(data||{})};
@@ -44,6 +50,17 @@
   function setConsoleLogging(next){var previous=consoleLogging;consoleLogging=!!next;return previous;}
   function state(){return{active:active,sessionId:sessionId,mode:mode,queued:queue.length,seq:seq,endpoint:ENDPOINT,consoleLogging:consoleLogging,inFlight:!!inFlight,retryAfter:retryAfter,delivery:{batches:delivery.batches,sentEvents:delivery.sentEvents,failedBatches:delivery.failedBatches,highWater:delivery.highWater,droppedEvents:delivery.droppedEvents,batchMax:BATCH_MAX}};}
   flushTimer=setInterval(function(){if(queue.length&&!inFlight&&Date.now()>=retryAfter)drain(false,false);},1500);
-  window.addEventListener('pagehide',function(){if(queue.length)flush(true);});window.addEventListener('beforeunload',function(){if(queue.length)flush(true);});
-  root.BattleTelemetry={start:start,ensure:ensure,record:record,end:end,checkpoint:checkpoint,flush:flush,setConsoleLogging:setConsoleLogging,state:state};console.log('[TELEMETRY] runtime v21b serialized safe-batch delivery loaded');
+  function onPageHide(){if(queue.length)flush(true);}
+  function onBeforeUnload(){if(queue.length)flush(true);}
+  if(typeof window!=='undefined'){
+    window.addEventListener('pagehide',onPageHide);
+    window.addEventListener('beforeunload',onBeforeUnload);
+  }
+  root.BattleTelemetry={start:start,ensure:ensure,record:record,end:end,checkpoint:checkpoint,flush:flush,setConsoleLogging:setConsoleLogging,state:state,
+    /* Clear the flush interval and remove pagehide/beforeunload listeners.
+       Needed for HMR, test cleanup, and multi-sim harnesses that tear down
+       the page between runs. Without this the interval and listeners leak
+       across reloads and can fire drain() on a queue belonging to a dead
+       session. */
+    destroy:function(){if(flushTimer){clearInterval(flushTimer);flushTimer=null;}if(typeof window!=='undefined'){window.removeEventListener('pagehide',onPageHide);window.removeEventListener('beforeunload',onBeforeUnload);}}};console.log('[TELEMETRY] runtime v21c serialized safe-batch delivery loaded (back-drop trim + destroy)');
 })(typeof window!=='undefined'?window:globalThis);
