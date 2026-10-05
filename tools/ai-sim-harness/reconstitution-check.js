@@ -16,7 +16,7 @@ function world(opts){
   r.BattleTelemetry={record(type,data){events.push({type,data});}};
   r.BattleSim={start(){}};
   load(r,'battle/commander-doctrine.js');load(r,'battle/commander-routes.js');load(r,'battle/commander-ai.js');
-  load(r,'battle/movement-resolver.js');load(r,'battle/modules/15a-squad-leader-fire-control.js',opts.search);load(r,'battle/modules/15b-squad-leader-buddy-pairs.js','battle/modules/15c-squad-leader-scouts-forward.js',opts.search);load(r,'battle/modules/15c-squad-leader-scouts-forward.js',opts.search);load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/16-squad-plan-stability.js',opts.search);
+  load(r,'battle/movement-resolver.js');load(r,'battle/modules/15a-squad-leader-fire-control.js',opts.search);load(r,'battle/modules/15b-squad-leader-buddy-pairs.js','battle/modules/15c-squad-leader-scouts-forward.js',opts.search);load(r,'battle/modules/15c-squad-leader-scouts-forward.js',opts.search);load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/16-squad-plan-stability.js',opts.search);
   const b=H.makeBattle(r);b.macroCommandEnabled=opts.macro!==false;b.scene={metadata:{}};
   return{r,b,leader:systems['squad-command'],events,sq:[]};
 }

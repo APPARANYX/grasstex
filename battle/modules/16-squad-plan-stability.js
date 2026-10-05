@@ -240,24 +240,6 @@
     rallyStress: 0.15,
     rallyGap: 0.05
   };
-  /* A squad's mean stress as the Squad Leader reads it, group morale and the COA alike: through the soldier condition's
-     own accessor, so `?mind=0`, `?mind=observe` and a lever list without `morale` read calm men (the flat 60% rule);
-     without the module (the harness checks that script a roll-up) it is the roll-up itself. */
-  function squadStress(sq) {
-    var M = root.BattleSoldierMind;
-    if (M && M.squadStress) return M.squadStress(sq);
-    return (sq && sq.mind && sq.mind.mean) || 0;
-  }
-  /* The casualty fraction at which a squad under this mean stress breaks (the flat 60% rule at zero). */
-  function moraleBreakAt(stress) {
-    return Math.max(MORALE_TUNING.breakMin, MORALE_TUNING.breakBase - MORALE_TUNING.breakSlope * stress);
-  }
-  /* Whether a retreating squad rallies. The ceiling on casualties is not a number of its own: it is the break
-     threshold at the present stress less rallyGap, which is what makes break and rally a hysteresis by
-     construction (casualtyFrac < breakAt - gap means the break test on the same inputs is false). */
-  function moraleRallies(casualtyFrac, stress) {
-    return stress < MORALE_TUNING.rallyStress && casualtyFrac < moraleBreakAt(stress) - MORALE_TUNING.rallyGap;
-  }
   /* 3c: course of action on contact. On by default; ?coa=0/off is the legacy no-COA control. The Squad Leader (the one COA owner) scores the
      declared COAs against declared inputs on every tick the squad is in contact and keeps the winner as
      sq.coa, so a squad whose casualties, stress or leader change inside a contact changes its COA inside it,
@@ -290,35 +272,6 @@
     defend: { base: 0.0, casualtyFrac: 0.5, stress: 0.5, leaderDown: 0.5 }
   };
   var COA_TUNING = { weights: COA_WEIGHTS };
-  /* The declared inputs, read off a squad once; the scores and the choice are then pure functions of
-     that record (the same arithmetic in the same order as before, so the probes and checks can score
-     recorded inputs with the shipping tables instead of a copy). */
-  function coaInputsOf(sq) {
-    var out = {};
-    for (var k in COA_INPUTS) out[k] = COA_INPUTS[k](sq);
-    return out;
-  }
-  function coaScore(coa, inputs) {
-    var w = COA_WEIGHTS[coa], s = w.base || 0, v;
-    for (var k in COA_INPUTS) {
-      v = w[k] || 0;
-      if (v) s += v * inputs[k];
-    }
-    return s;
-  }
-  function decideCOA(inputs) {
-    var names = Object.keys(COAS).sort(), best = names[0], bestScore = -Infinity, s;
-    for (var i = 0; i < names.length; i++) {
-      s = coaScore(names[i], inputs);
-      if (s > bestScore + 1e-9) { bestScore = s; best = names[i]; }
-    }
-    return best;
-  }
-  /* The COA the squad holds after this tick: the better score on its inputs now. Called each tick the squad is
-     in contact, never out of it. */
-  function updateCOA(sq) {
-    return (sq.coa = decideCOA(coaInputsOf(sq)));
-  }
 
   /* Fire discipline. A sighting is a request to the Squad Leader, not permission to shoot.
      ?fireControl=0 is the old immediate-fire control for paired A/B work. The state is squad-owned:
@@ -467,6 +420,27 @@
     captureLeaderlessIntent = _ll ? _ll.captureLeaderlessIntent : function () { return null; },
     noteLeaderlessAction = _ll ? _ll.noteLeaderlessAction : function () {},
     endLeaderlessIntent = _ll ? _ll.endLeaderlessIntent : function () { return null; };
+  /* Morale + COA functions are extracted to 15e-squad-leader-morale-coa.js.
+     The factory is called after the flags and the declared tables are in scope.
+     The returned functions are attached as closure variables so all callers
+     (updateSquadState, fireAndMovement, recoverFromRetreat, the public API
+     export) see the same functions as before. */
+  var _mc = root._squadLeaderMoraleCoa
+    ? root._squadLeaderMoraleCoa({
+        root: root,
+        MORALE_TUNING: MORALE_TUNING,
+        COAS: COAS,
+        COA_INPUTS: COA_INPUTS,
+        COA_WEIGHTS: COA_WEIGHTS
+      })
+    : null;
+  var squadStress = _mc ? _mc.squadStress : function () { return 0; },
+    moraleBreakAt = _mc ? _mc.moraleBreakAt : function () { return 0.6; },
+    moraleRallies = _mc ? _mc.moraleRallies : function () { return false; },
+    coaInputsOf = _mc ? _mc.coaInputsOf : function () { return {}; },
+    coaScore = _mc ? _mc.coaScore : function () { return 0; },
+    decideCOA = _mc ? _mc.decideCOA : function () { return 'assault'; },
+    updateCOA = _mc ? _mc.updateCOA : function () { return null; };
   function median(a) {
     if (!a.length) return 0;
     var b = a.slice().sort(function (x, y) {

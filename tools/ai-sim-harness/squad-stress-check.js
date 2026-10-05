@@ -28,6 +28,7 @@ const FC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15a-squad-leade
 const BP_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15b-squad-leader-buddy-pairs.js'), 'utf8');
 const SF_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15c-squad-leader-scouts-forward.js'), 'utf8');
 const LL_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15d-squad-leader-leaderless-intent.js'), 'utf8');
+const ME_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15e-squad-leader-morale-coa.js'), 'utf8');
 const SEED = +(process.env.HARNESS_SEED || 12345);
 const log = console.log;
 console.log = (...a) => (typeof a[0] === 'string' && a[0][0] === '[' ? undefined : log(...a));
@@ -72,7 +73,7 @@ function world(flags) {
     }
   };
   const search = '?fireControl=0' + (flags == null ? '' : '&' + flags);
-  new Function('window', 'globalThis', 'console', 'location', FC_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', BP_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SF_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', LL_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SRC)(r, r, { log() {}, warn() {} }, { search });
+  new Function('window', 'globalThis', 'console', 'location', FC_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', BP_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SF_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', LL_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', ME_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SRC)(r, r, { log() {}, warn() {} }, { search });
   const b = H.makeBattle(r, { seed: SEED }),
     w = { r, b, S: r.BattleSquadStability, events, sent, made: 0, report: { inContact: false, effective: 6, pinned: 0 } };
   r.BattleEngagement.updateSquad = function (sq) {

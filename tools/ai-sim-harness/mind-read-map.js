@@ -34,6 +34,7 @@ const OWNER = 'modules/17-soldier-mind.js';
 const ALIASES = {
   'engagement.js': ['M'],
   'modules/16-squad-plan-stability.js': ['M'],
+  'modules/15e-squad-leader-morale-coa.js': ['M'],
   'modules/18-command-reception.js': ['M'],
   'modules/40-world-debug-overlay.js': ['Mind']
 };
