@@ -361,7 +361,13 @@
   function settle(battle){
     var st=battle&&battle._commandReception;
     if(!ON||!st)return st||null;
-    var now=+battle.time||0,ids=Object.keys(st.bySoldier);
+    var now=+battle.time||0;
+    /* Cache: settle iterates all soldiers x all slots. With posture on, fireControlOf calls
+       adopted() per-soldier per-tick, which called settle() each time — O(N^2) per tick.
+       The stage transitions only depend on (rec, now), so one settle per battle.time is enough. */
+    if(st.settledAt===now)return st;
+    st.settledAt=now;
+    var ids=Object.keys(st.bySoldier);
     for(var i=0;i<ids.length;i++){
       var id=ids[i],by=st.bySoldier[id],slots=Object.keys(by),
         active=st.adoptedBySoldier[id]||(st.adoptedBySoldier[id]=Object.create(null));
