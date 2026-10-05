@@ -1,7 +1,29 @@
 /* M3C meso-level squad-command owner.
    The General's mission brief (`_macroMission`) says what the squad must achieve; this module is
-   the Squad Leader layer that executes it. It is the only runtime writer of the squad's commandPhase,
-   objective point, route legs and routeIndex, and it owns:
+   the Squad Leader layer that executes it. The layer is this file plus its Squad Leader
+   sub-modules (each exposes a factory on `root` that this file calls with its closure
+   utilities and re-attaches as closure variables, so the layer's callers are unchanged):
+
+     15a fire-control          - squad fire discipline (hold/precision/open), 0G1
+     15b buddy-pairs           - pair state and bound cooperation, 3a
+     15c scouts-forward        - recon screen ahead of the advance, 0F
+     15d leaderless-intent     - what a captainless squad may finish during succession, #197
+     15e morale-coa            - group break/rally thresholds and the contact COA, 3b/3c
+     15f retreat-anchor        - the leased retreat endpoint; publishAnchor, the one writer
+                                 of the orderAnchor/rally pair (state-ownership-check)
+     15g formation             - advance geometry (forward line) and fireteam slots/placement
+     15h fireteams             - the committed fireteam order publisher (locomotion intents)
+     15i clear-contact         - advancing on the last-seen enemy once the picture goes quiet
+     15j fire-and-movement     - assault authorization and which fireteam bounds, 0G3
+     15k reconstitution        - succession, merges, fled detachment, retreat march/assembly
+     15l mission-execution     - execution of the General's brief: route legs, corner pauses,
+                                 doctrine holds and the objective phase
+
+   This file keeps the leases, the load-time flags and tuning tables, the phase machine
+   (transitionPhase - still the layer's only commandPhase writer), the tactical-plan
+   lifecycle, cohesion/regroup, the per-man movement publisher, the anchor advance, squad
+   status, reset/summary and the wiring above. The layer is the only runtime writer of the
+   squad's commandPhase, objective point, route legs and routeIndex, and it owns:
 
      - mission execution: route legs, corner pauses, objective phase, doctrine holds,
      - one tactical command lease (`_engagementPlan`),
@@ -209,155 +231,6 @@
   var LEADERLESS_TUNING = {
     successionSeconds: SUCCESSION_DELAY
   };
-  function leaderlessActive(sq) {
-    return !!(
-      LEADERLESS_INTENT_ON &&
-      sq &&
-      !leaderAlive(sq) &&
-      alive(sq).length
-    );
-  }
-  function leaderlessStats(battle) {
-    if (!LEADERLESS_INTENT_ON || !battle) return null;
-    return (
-      battle._leaderlessIntentStats ||
-      (battle._leaderlessIntentStats = {
-        episodes: 0,
-        handbacks: 0,
-        destroyed: 0,
-        seconds: 0,
-        actions: {},
-        recent: []
-      })
-    );
-  }
-  function leaderlessTelemetry(battle) {
-    var st = battle && battle._leaderlessIntentStats;
-    if (!LEADERLESS_INTENT_ON || !st) return null;
-    var out = JSON.parse(JSON.stringify(st)),
-      active = 0,
-      liveSeconds = 0;
-    ['us', 'ge'].forEach(function (side) {
-      var squads = (battle.factions && battle.factions[side] && battle.factions[side].squads) || [];
-      for (var i = 0; i < squads.length; i++) {
-        var intent = squads[i] && squads[i]._leaderlessIntent;
-        if (!intent) continue;
-        active++;
-        liveSeconds += Math.max(0, battle.time - intent.startedAt);
-      }
-    });
-    out.activeAtEnd = active;
-    out.liveSeconds = +liveSeconds.toFixed(2);
-    out.seconds = +(out.seconds + liveSeconds).toFixed(2);
-    return out;
-  }
-  function inheritedMemberIntent(sq) {
-    return alive(sq).map(function (man) {
-      var e =
-          root.BattleEngagement && root.BattleEngagement.stateOf
-            ? root.BattleEngagement.stateOf(man)
-            : man.eng || null,
-        d = point(man._fireteamDestination) || point(man.orderDestination);
-      return {
-        id: String(man.id),
-        team: man._fireteamKey || teamKeyFor(man) || null,
-        task: man._engagementTask || null,
-        destination: d ? copy(d) : null,
-        bound: !!(e && e.boundOrder)
-      };
-    });
-  }
-  function captureLeaderlessIntent(sq, battle) {
-    var p = sq._engagementPlan,
-      m = sq._macroMission,
-      intent = {
-        startedAt: battle.time,
-        missionVersion: missionVersion(sq),
-        macroVersion: m && m.version != null ? m.version : null,
-        phase: String(sq.commandPhase || ''),
-        targetObjective: sq.targetObjective || null,
-        routeIndex: +sq.routeIndex || 0,
-        objective: copy(sq.objective),
-        anchor: copy(sq.orderAnchor || sq.rally),
-        orderVersion: +sq._orderVersion || 0,
-        planSerial: p ? p.serial : null,
-        planStatus: p ? p.status : null,
-        fireControl: sq.fireControl ? sq.fireControl.state : null,
-        members: inheritedMemberIntent(sq),
-        lastAction: null,
-        lastActionAt: null,
-        actionCounts: {}
-      };
-    sq._leaderlessIntent = intent;
-    var st = leaderlessStats(battle);
-    if (st) st.episodes++;
-    telemetry(battle, 'decision-leaderless-inherit', {
-      faction: sq.faction,
-      squad: sq.id,
-      missionVersion: intent.missionVersion,
-      macroVersion: intent.macroVersion,
-      phase: intent.phase,
-      targetObjective: intent.targetObjective,
-      routeIndex: intent.routeIndex,
-      planSerial: intent.planSerial,
-      members: intent.members.length
-    });
-    return intent;
-  }
-  function noteLeaderlessAction(sq, battle, action, why) {
-    var intent = sq && sq._leaderlessIntent;
-    if (!intent || !battle) return;
-    action = action || 'hold-intent';
-    intent.actionCounts[action] = (intent.actionCounts[action] || 0) + 1;
-    var st = leaderlessStats(battle);
-    if (st) st.actions[action] = (st.actions[action] || 0) + 1;
-    if (intent.lastAction === action) return;
-    intent.lastAction = action;
-    intent.lastActionAt = battle.time;
-    telemetry(battle, 'decision-leaderless-local', {
-      faction: sq.faction,
-      squad: sq.id,
-      action: action,
-      why: why || action,
-      inheritedPhase: intent.phase,
-      missionVersion: intent.missionVersion
-    });
-  }
-  function endLeaderlessIntent(sq, battle, reason, successor) {
-    var intent = sq && sq._leaderlessIntent;
-    if (!intent) return null;
-    var seconds = Math.max(0, battle.time - intent.startedAt),
-      st = leaderlessStats(battle),
-      row = {
-        at: +battle.time.toFixed(2),
-        squad: sq.faction + ':' + sq.id,
-        reason: reason || 'ended',
-        successor: successor ? String(successor.id) : null,
-        seconds: +seconds.toFixed(2),
-        phase: intent.phase,
-        missionVersion: intent.missionVersion,
-        actions: Object.assign({}, intent.actionCounts)
-      };
-    if (st) {
-      st.seconds += seconds;
-      if (successor) st.handbacks++;
-      else if (reason === 'squad destroyed') st.destroyed++;
-      st.recent.push(row);
-      if (st.recent.length > 24) st.recent.shift();
-    }
-    telemetry(battle, 'decision-leaderless-handback', {
-      faction: sq.faction,
-      squad: sq.id,
-      reason: reason || 'ended',
-      successor: successor ? successor.id : null,
-      seconds: +seconds.toFixed(2),
-      inheritedPhase: intent.phase,
-      missionVersion: intent.missionVersion,
-      actions: Object.assign({}, intent.actionCounts)
-    });
-    sq._leaderlessIntent = null;
-    return row;
-  }
 
   /* Buddy pairs are a Squad Leader / fireteam execution aid, not a command layer. They are on by
      default after standard benchmark #272; ?buddyPairs=0/off/false is the legacy control. Pair state
@@ -389,24 +262,6 @@
     rallyStress: 0.15,
     rallyGap: 0.05
   };
-  /* A squad's mean stress as the Squad Leader reads it, group morale and the COA alike: through the soldier condition's
-     own accessor, so `?mind=0`, `?mind=observe` and a lever list without `morale` read calm men (the flat 60% rule);
-     without the module (the harness checks that script a roll-up) it is the roll-up itself. */
-  function squadStress(sq) {
-    var M = root.BattleSoldierMind;
-    if (M && M.squadStress) return M.squadStress(sq);
-    return (sq && sq.mind && sq.mind.mean) || 0;
-  }
-  /* The casualty fraction at which a squad under this mean stress breaks (the flat 60% rule at zero). */
-  function moraleBreakAt(stress) {
-    return Math.max(MORALE_TUNING.breakMin, MORALE_TUNING.breakBase - MORALE_TUNING.breakSlope * stress);
-  }
-  /* Whether a retreating squad rallies. The ceiling on casualties is not a number of its own: it is the break
-     threshold at the present stress less rallyGap, which is what makes break and rally a hysteresis by
-     construction (casualtyFrac < breakAt - gap means the break test on the same inputs is false). */
-  function moraleRallies(casualtyFrac, stress) {
-    return stress < MORALE_TUNING.rallyStress && casualtyFrac < moraleBreakAt(stress) - MORALE_TUNING.rallyGap;
-  }
   /* 3c: course of action on contact. On by default; ?coa=0/off is the legacy no-COA control. The Squad Leader (the one COA owner) scores the
      declared COAs against declared inputs on every tick the squad is in contact and keeps the winner as
      sq.coa, so a squad whose casualties, stress or leader change inside a contact changes its COA inside it,
@@ -439,35 +294,6 @@
     defend: { base: 0.0, casualtyFrac: 0.5, stress: 0.5, leaderDown: 0.5 }
   };
   var COA_TUNING = { weights: COA_WEIGHTS };
-  /* The declared inputs, read off a squad once; the scores and the choice are then pure functions of
-     that record (the same arithmetic in the same order as before, so the probes and checks can score
-     recorded inputs with the shipping tables instead of a copy). */
-  function coaInputsOf(sq) {
-    var out = {};
-    for (var k in COA_INPUTS) out[k] = COA_INPUTS[k](sq);
-    return out;
-  }
-  function coaScore(coa, inputs) {
-    var w = COA_WEIGHTS[coa], s = w.base || 0, v;
-    for (var k in COA_INPUTS) {
-      v = w[k] || 0;
-      if (v) s += v * inputs[k];
-    }
-    return s;
-  }
-  function decideCOA(inputs) {
-    var names = Object.keys(COAS).sort(), best = names[0], bestScore = -Infinity, s;
-    for (var i = 0; i < names.length; i++) {
-      s = coaScore(names[i], inputs);
-      if (s > bestScore + 1e-9) { bestScore = s; best = names[i]; }
-    }
-    return best;
-  }
-  /* The COA the squad holds after this tick: the better score on its inputs now. Called each tick the squad is
-     in contact, never out of it. */
-  function updateCOA(sq) {
-    return (sq.coa = decideCOA(coaInputsOf(sq)));
-  }
 
   /* Fire discipline. A sighting is a request to the Squad Leader, not permission to shoot.
      ?fireControl=0 is the old immediate-fire control for paired A/B work. The state is squad-owned:
@@ -592,6 +418,133 @@
     setFireControl = _fc ? _fc.setFireControl : function () { return null; },
     clearFireControl = _fc ? _fc.clearFireControl : function () {},
     updateFireControl = _fc ? _fc.updateFireControl : function () { return null; };
+  /* Leaderless-intent functions are extracted to 15d-squad-leader-leaderless-intent.js.
+     The factory is called after the shared utilities and the LEADERLESS_INTENT_ON flag are
+     in scope; teamKeyFor and missionVersion are hoisted function declarations, so passing
+     them here is safe. The returned functions are attached as closure variables so all
+     callers see the same functions as before. */
+  var _ll = root._squadLeaderLeaderlessIntent
+    ? root._squadLeaderLeaderlessIntent({
+        root: root,
+        telemetry: telemetry,
+        alive: alive,
+        leaderAlive: leaderAlive,
+        point: point,
+        copy: copy,
+        teamKeyFor: teamKeyFor,
+        missionVersion: missionVersion,
+        LEADERLESS_INTENT_ON: LEADERLESS_INTENT_ON
+      })
+    : null;
+  var leaderlessActive = _ll ? _ll.leaderlessActive : function () { return false; },
+    leaderlessStats = _ll ? _ll.leaderlessStats : function () { return null; },
+    leaderlessTelemetry = _ll ? _ll.leaderlessTelemetry : function () { return null; },
+    captureLeaderlessIntent = _ll ? _ll.captureLeaderlessIntent : function () { return null; },
+    noteLeaderlessAction = _ll ? _ll.noteLeaderlessAction : function () {},
+    endLeaderlessIntent = _ll ? _ll.endLeaderlessIntent : function () { return null; };
+  /* Morale + COA functions are extracted to 15e-squad-leader-morale-coa.js.
+     The factory is called after the flags and the declared tables are in scope.
+     The returned functions are attached as closure variables so all callers
+     (updateSquadState, fireAndMovement, recoverFromRetreat, the public API
+     export) see the same functions as before. */
+  var _mc = root._squadLeaderMoraleCoa
+    ? root._squadLeaderMoraleCoa({
+        root: root,
+        MORALE_TUNING: MORALE_TUNING,
+        COAS: COAS,
+        COA_INPUTS: COA_INPUTS,
+        COA_WEIGHTS: COA_WEIGHTS
+      })
+    : null;
+  var squadStress = _mc ? _mc.squadStress : function () { return 0; },
+    moraleBreakAt = _mc ? _mc.moraleBreakAt : function () { return 0.6; },
+    moraleRallies = _mc ? _mc.moraleRallies : function () { return false; },
+    coaInputsOf = _mc ? _mc.coaInputsOf : function () { return {}; },
+    coaScore = _mc ? _mc.coaScore : function () { return 0; },
+    decideCOA = _mc ? _mc.decideCOA : function () { return 'assault'; },
+    updateCOA = _mc ? _mc.updateCOA : function () { return null; };
+  /* Retreat-anchor + publishAnchor functions are extracted to
+     15f-squad-leader-retreat-anchor.js. The factory is called after the shared utilities
+     and the RETREAT_* tuning are in scope (averageMembers is a hoisted function
+     declaration). The returned functions are attached as closure variables so all callers
+     (advanceSquadAnchor, updateCohesion, reform, the public API export) see the same
+     functions as before. publishAnchor is still the one writer of orderAnchor/rally;
+     state-ownership-check.js now holds the pair to this sub-module's file. */
+  var _ra = root._squadLeaderRetreatAnchor
+    ? root._squadLeaderRetreatAnchor({
+        root: root,
+        telemetry: telemetry,
+        dist: dist,
+        copy: copy,
+        commanded: commanded,
+        average: average,
+        averageMembers: averageMembers,
+        ORDER_STRIDE: ORDER_STRIDE,
+        RETREAT_ANCHOR_LEASE: RETREAT_ANCHOR_LEASE,
+        RETREAT_ANCHOR_ARRIVE: RETREAT_ANCHOR_ARRIVE,
+        RETREAT_PROGRESS_EPS: RETREAT_PROGRESS_EPS,
+        RETREAT_GOAL_EPS: RETREAT_GOAL_EPS,
+        RETREAT_NO_PROGRESS: RETREAT_NO_PROGRESS,
+        RETREAT_BLOCKED_MIN: RETREAT_BLOCKED_MIN,
+        RETREAT_DANGER_MARGIN: RETREAT_DANGER_MARGIN,
+        RETREAT_RECOVERY_STRIDE: RETREAT_RECOVERY_STRIDE
+      })
+    : null;
+  var retreatCenter = _ra ? _ra.retreatCenter : function () { return null; },
+    retreatBlocked = _ra ? _ra.retreatBlocked : function () { return false; },
+    retreatUnsafe = _ra ? _ra.retreatUnsafe : function () { return false; },
+    retreatPoint = _ra ? _ra.retreatPoint : function () { return null; },
+    grantRetreatAnchor = _ra ? _ra.grantRetreatAnchor : function () { return null; },
+    stableRetreatAnchor = _ra ? _ra.stableRetreatAnchor : function () { return null; },
+    /* No-write fallback: the pair is published only by the owner function in 15f
+       (state-ownership-check.js holds orderAnchor/rally to that file). The sub-module is
+       always loaded before 16 (PHP glob sort and every harness load chain), so this arm
+       is a load-order safety net, never a publisher. */
+    publishAnchor = _ra ? _ra.publishAnchor : function () { return null; };
+  /* Reconstitution functions are extracted to 15k-squad-leader-reconstitution.js.
+     The factory is called after the leaderless, morale/COA and retreat-anchor re-attaches
+     (recoverFromRetreat reads the morale functions, reform publishes through publishAnchor)
+     and BEFORE the fire-and-movement one, whose ctx consumes detachFled. The returned
+     functions are attached as closure variables so updateSquadState, fireAndMovement and
+     the public API export see the same functions as before. */
+  var _rk = root._squadLeaderReconstitution
+    ? root._squadLeaderReconstitution({
+        root: root,
+        telemetry: telemetry,
+        copy: copy,
+        dist: dist,
+        alive: alive,
+        average: average,
+        cfg: cfg,
+        cohesionAssessment: cohesionAssessment,
+        initialPhase: initialPhase,
+        publishAnchor: publishAnchor,
+        moraleRallies: moraleRallies,
+        moraleBreakAt: moraleBreakAt,
+        captureLeaderlessIntent: captureLeaderlessIntent,
+        endLeaderlessIntent: endLeaderlessIntent,
+        LEADERLESS_INTENT_ON: LEADERLESS_INTENT_ON,
+        SUCCESSION_DELAY: SUCCESSION_DELAY,
+        MORALE_TUNING: MORALE_TUNING,
+        RALLY_RECOVERY_ON: RALLY_RECOVERY_ON,
+        RALLY_RECOVERY_DWELL: RALLY_RECOVERY_DWELL,
+        RALLY_RECOVERY_ARRIVE: RALLY_RECOVERY_ARRIVE,
+        ASSEMBLY_HOME_RADIUS: ASSEMBLY_HOME_RADIUS
+      })
+    : null;
+  var updateSuccession = _rk ? _rk.updateSuccession : function () {},
+    leaderDown = _rk ? _rk.leaderDown : function () {},
+    assignSlots = _rk ? _rk.assignSlots : function () {},
+    reform = _rk ? _rk.reform : function () {},
+    disband = _rk ? _rk.disband : function () {},
+    noteSafePoint = _rk ? _rk.noteSafePoint : function () {},
+    detachFled = _rk ? _rk.detachFled : function () {},
+    absorb = _rk ? _rk.absorb : function () { return false; },
+    endUnstick = _rk ? _rk.endUnstick : function () {},
+    acknowledgeRequest = _rk ? _rk.acknowledgeRequest : function () {},
+    endRallyRecovery = _rk ? _rk.endRallyRecovery : function () {},
+    recoverFromRetreat = _rk ? _rk.recoverFromRetreat : function () { return false; },
+    updateAssembly = _rk ? _rk.updateAssembly : function () {};
   function median(a) {
     if (!a.length) return 0;
     var b = a.slice().sort(function (x, y) {
@@ -721,92 +674,6 @@
   }
   function setPhase(sim, sq, next, why) {
     transitionPhase(sim, sq, next, why);
-  }
-  function commandForward(sq) {
-    var a = sq.orderAnchor || sq.rally || { x: 0, z: 0 },
-      g = sq.objective || sq.home || a,
-      dx = (+g.x || 0) - (+a.x || 0),
-      dz = (+g.z || 0) - (+a.z || 0),
-      l = Math.hypot(dx, dz);
-    if (l < 0.1) {
-      /* A regroup points sq.objective at its own anchor, so the objective axis collapses; the regroup
-         keeps the direction the squad was marching when it opened. `_formationForward` is only set
-         by SquadAI.formationSlot (men with no order destination), so it is usually absent. */
-      var rg = L.get(sq, 'regroup'),
-        f =
-          (rg && rg.data && rg.data.forward) ||
-          (sq._forwardLine && sq._forwardLine.axis) ||
-          sq._formationForward,
-        fl = f ? Math.hypot(+f.x || 0, +f.z || 0) : 0;
-      if (fl > 1e-6) return { x: (+f.x || 0) / fl, z: (+f.z || 0) / fl };
-    }
-    return { x: dx / (l || 1), z: dz / (l || 1) };
-  }
-  /* The forward line: where the forward majority of a group of men actually is along the advance
-     axis, not their average. Each man is projected on the axis; the front-most half (rounded up) is
-     the forward group, and any man within COVER_BAND behind the rearmost of them joins it, since men
-     taking different cover along one line stand a few metres apart in depth. The line sits at the
-     group's mean, so stragglers behind cannot drag it back and one man out front cannot pull it all
-     the way forward: two men up front, one just behind them and two far back put it between the
-     front pair and the middle man, two thirds of the way to the front. {at: distance along the axis
-     (position . axis), point: the group's mean position, men, of}. */
-  var COVER_BAND = 5;
-  function forwardMajority(men, axis) {
-    var rows = [],
-      i;
-    for (i = 0; i < men.length; i++) {
-      var p = men[i].root.position,
-        x = +p.x || 0,
-        z = +p.z || 0;
-      rows.push({ at: x * axis.x + z * axis.z, x: x, z: z, id: +men[i].id || 0 });
-    }
-    if (!rows.length) return null;
-    rows.sort(function (a, b) {
-      return b.at - a.at || a.id - b.id;
-    });
-    var k = Math.ceil(rows.length / 2),
-      floor = rows[k - 1].at - COVER_BAND;
-    while (k < rows.length && rows[k].at >= floor) k++;
-    var at = 0,
-      mx = 0,
-      mz = 0;
-    for (i = 0; i < k; i++) {
-      at += rows[i].at;
-      mx += rows[i].x;
-      mz += rows[i].z;
-    }
-    return { at: at / k, point: { x: mx / k, z: mz / k }, men: k, of: rows.length };
-  }
-  /* Published each command tick for the squad and each fireteam (sq._forwardLine); cleared in retreat,
-     where backward is the order. The regroup rally point is the squad's forward-majority point. */
-  function publishForwardLine(sq, battle) {
-    var men = alive(sq);
-    if (sq.state === 'retreat' || !men.length) {
-      sq._forwardLine = null;
-      return;
-    }
-    var axis = commandForward(sq),
-      line = forwardMajority(men, axis);
-    if (!line) {
-      sq._forwardLine = null;
-      return;
-    }
-    var groups = {},
-      i;
-    for (i = 0; i < men.length; i++) {
-      var key = men[i]._fireteamKey || teamKeyFor(men[i]);
-      (groups[key] = groups[key] || []).push(men[i]);
-    }
-    line.axis = { x: axis.x, z: axis.z };
-    line.band = COVER_BAND;
-    line.t = battle ? battle.time : 0;
-    line.teams = {};
-    Object.keys(groups)
-      .sort()
-      .forEach(function (key) {
-        line.teams[key] = forwardMajority(groups[key], axis);
-      });
-    sq._forwardLine = line;
   }
   function publishStats(battle) {
     return (
@@ -1495,33 +1362,31 @@
     commitBuddyCooperation = _bp ? _bp.commitBuddyCooperation : function () {},
     buddySnapshot = _bp ? _bp.buddySnapshot : function () { return null; },
     buddyTelemetry = _bp ? _bp.buddyTelemetry : function () { return null; };
-  /* Each fireteam holds its own ground: [lateral, forward] metres from the order anchor in the squad's
-   frame. Team anchors used to be the average of the men's individual formation slots, but those
-   alternate sides by slotIndex while fireteam membership is also dealt by slotIndex, so every team
-   averaged to the middle (alpha and bravo 1.2 m apart in line) and the teams walked through each
-   other: three quarters of formation-on-formation body contacts were between different teams. */
-  var TEAM_OFFSETS = {
-    line: { command: [0, -3], alpha: [-8, 0], bravo: [8, 0], charlie: [0, -9] },
-    wedge: { command: [0, -2], alpha: [-7, 2], bravo: [7, 2], charlie: [0, -9] },
-    column: { command: [0, 0], alpha: [0, 7], bravo: [0, -6], charlie: [0, -12] }
-  };
-  function teamFrame(sq) {
-    var a = sq.orderAnchor || sq.rally || { x: 0, z: 0 },
-      g = sq.state === 'retreat' ? root.SquadAI.retreatGoal(sq) : sq.objective || sq.home || a,
-      dx = (+g.x || 0) - (+a.x || 0),
-      dz = (+g.z || 0) - (+a.z || 0),
-      l = Math.hypot(dx, dz);
-    return l < 0.1 ? commandForward(sq) : { x: dx / l, z: dz / l };
-  }
-  function desiredAnchor(sq, key, formation) {
-    var a = sq.orderAnchor || sq.rally;
-    if (!a) return null;
-    var form = TEAM_OFFSETS[formation || sq.formation || root.SquadAI.formationFor(sq)] || TEAM_OFFSETS.wedge,
-      o = form[key] || [0, 0],
-      f = teamFrame(sq),
-      r = { x: -f.z, z: f.x };
-    return { x: a.x + r.x * o[0] + f.x * o[1], z: a.z + r.z * o[0] + f.z * o[1] };
-  }
+  /* Formation + forward-line functions are extracted to 15g-squad-leader-formation.js.
+     The factory is called right after the buddy-pairs re-attach so aliveTeam (spawn
+     placement) is in scope. The returned functions are attached as closure variables so
+     all callers (cohesion, the anchor advance, fireteam publishing, the public API
+     export) see the same functions as before. */
+  var _fm = root._squadLeaderFormation
+    ? root._squadLeaderFormation({
+        root: root,
+        alive: alive,
+        teamKeyFor: teamKeyFor,
+        aliveTeam: aliveTeam,
+        FOLLOW_LAG: FOLLOW_LAG
+      })
+    : null;
+  var commandForward = _fm ? _fm.commandForward : function () { return { x: 0, z: 0 }; },
+    forwardMajority = _fm ? _fm.forwardMajority : function () { return null; },
+    publishForwardLine = _fm ? _fm.publishForwardLine : function () {},
+    teamFrame = _fm ? _fm.teamFrame : function () { return { x: 0, z: 0 }; },
+    desiredAnchor = _fm ? _fm.desiredAnchor : function () { return null; },
+    forward = _fm ? _fm.forward : function () { return { x: 0, z: 0 }; },
+    teamSlot = _fm ? _fm.teamSlot : function () { return null; },
+    spawnForward = _fm ? _fm.spawnForward : function () { return { x: 0, z: 0 }; },
+    placeAtSlots = _fm ? _fm.placeAtSlots : function () {},
+    placeForce = _fm ? _fm.placeForce : function () {},
+    followTeamForward = _fm ? _fm.followTeamForward : function () {};
   function averageMembers(m) {
     var x = 0,
       z = 0,
@@ -1534,125 +1399,11 @@
       }
     return n ? { x: x / n, z: z / n } : null;
   }
-  function forward(sq) {
-    return commandForward(sq);
-  }
-  function teamSlot(sq, key, s, index, count, a, frame) {
-    var f = frame || forward(sq),
-      r = { x: -f.z, z: f.x },
-      lat = 0,
-      fw = 0;
-    if (count === 2) {
-      lat = index ? -1.45 : 1.45;
-      fw = index ? -0.45 : 0.45;
-    } else if (count >= 3) {
-      if (index === 0) fw = 1.15;
-      else if (index === 1) {
-        lat = -1.7;
-        fw = -0.85;
-      } else {
-        lat = 1.7;
-        fw = -0.85;
-      }
-    }
-    if (key === 'command' && root.SquadAI.isLeader(s)) {
-      lat = 0;
-      fw = 0.5;
-    }
-    return { x: a.x + r.x * lat + f.x * fw, z: a.z + r.z * lat + f.z * fw };
-  }
-  /* Men start on their fireteam slots. They used to appear scattered up to 4 m around the lane point
-   with no regard for their team, so the first order sent them across each other's teams to reach
-   their slots: about half of all cross-team body crossings happened in the first minute. This runs
-   once when a squad enters the battle, after Force Command has given it its objective, so the first
-   order is the ground each man already stands on. What is left of the spawn scatter (a tenth) keeps
-   the men from standing on exact geometric points. A defending garrison is module 21's to place: it
-   hands out prepared posts nearest-first by where each man stands, so moving him first would only
-   reshuffle that (in the defend battles it doubled the defenders' first-minute crossings). */
-  var SPAWN_SCATTER_KEPT = 0.1;
-  /* Before its first brief (Force Command's first tick, 0.45 s in) a squad's objective is its own
-     home, so its axis collapses and every fireteam slot falls on the anchor. Until the brief turns it,
-     the squad faces the battle: the scenario centre (where spawn pointed it), else the enemy's side. */
-  function spawnForward(sim, sq, home) {
-    var sc =
-        sim.scene &&
-        sim.scene.metadata &&
-        (sim.scene.metadata.battleScenario || sim.scene.metadata.battleTown),
-      c = (sc && sc.center) || { x: home.x, z: 0 },
-      dx = (+c.x || 0) - home.x,
-      dz = (+c.z || 0) - home.z,
-      l = Math.hypot(dx, dz);
-    if (l > 1) return { x: dx / l, z: dz / l };
-    return { x: 0, z: sq.faction === 'ge' ? -1 : 1 };
-  }
-  function placeAtSlots(sim, sq) {
-    var home = sq.orderAnchor || sq.rally || sq.home,
-      DW = root.BattleDefenseWorks;
-    if (!home || !sim || (DW && DW.garrisons && DW.garrisons(sim, sq))) return;
-    var f = forward(sq);
-    if (Math.hypot(f.x, f.z) < 0.5) f = sq._formationForward = spawnForward(sim, sq, home);
-    /* The formation the Squad Leader adopts on his first tick (advanceSquadAnchor), not the
-       squad's default from createSquad: a wedge laid out and marched as a line moves every team. */
-    var form = root.SquadAI.formationFor(sq);
-    ['command', 'alpha', 'bravo', 'charlie'].forEach(function (key) {
-      var m = aliveTeam(sq, key),
-        a = desiredAnchor(sq, key, form);
-      if (!a) return;
-      for (var i = 0; i < m.length; i++) {
-        var s = m[i],
-          p = s.root && s.root.position;
-        if (!p) continue;
-        var slot = teamSlot(sq, key, s, i, m.length, a, f),
-          x = slot.x + (p.x - home.x) * SPAWN_SCATTER_KEPT,
-          z = slot.z + (p.z - home.z) * SPAWN_SCATTER_KEPT,
-          N = root.BattleNavigation;
-        /* A slot across a hedge or wall from the lane point is not his ground: keep the old spawn. */
-        if (N && N.movementClear && !N.movementClear({ x: home.x, z: home.z }, { x: x, z: z })) continue;
-        p.x = x;
-        p.z = z;
-        p.y = sim.heightAt ? sim.heightAt(x, z) : p.y;
-        s.root.rotation.y = Math.atan2(f.x, f.z);
-        s.destination = { x: x, z: z };
-        if (root.BattleNavigation) root.BattleNavigation.invalidateNavCache(s);
-      }
-    });
-  }
-  function placeForce(sim) {
-    if (!sim || +sim.time > 0) return;
-    ['us', 'ge'].forEach(function (f) {
-      var a = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
-      for (var i = 0; i < a.length; i++) placeAtSlots(sim, a[i]);
-    });
-  }
   function start(sim) {
     reset(sim);
     placeForce(sim);
   }
 
-  /* A defensive post belongs to the Squad Leader's command intent, not to a contact serial. Once a man has
-   settled into his post, target acquisition/loss must not throw him back into formation and then
-   recreate the same post a second later. It is released only when the defensive command signature
-   materially changes. */
-  function holdPost(s, key) {
-    var p = s._defensePost;
-    if (p && p.commandKey === key) return p;
-    if (!s.orderDestination || dist(s.root.position, s.orderDestination) > 2.6) return null;
-    s._defensePost = { x: s.root.position.x, z: s.root.position.z, commandKey: key };
-    return s._defensePost;
-  }
-  /* Fireteam commitment is a meso command signature. Its anchor AND formation frame are committed:
-   live command-ray jitter must not rotate individual slots underneath a still-valid Squad Leader order.
-   Engagement-plan serials are micro/contact state and deliberately do not belong here. */
-  function fireteamSignature(sq) {
-    var p = sq.objective || {};
-    return [
-      sq.commandPhase || '',
-      sq.targetObjective || '',
-      Math.round((+p.x || 0) / 4),
-      Math.round((+p.z || 0) / 4),
-      (sq._regroupRecovery && sq._regroupRecovery.serial) || 0
-    ].join('|');
-  }
   function orderCanAdvance(sq, battle) {
     var living = commanded(sq),
       arrived = 0;
@@ -1666,148 +1417,6 @@
       if (s.orderDestination && dist(s.root.position, s.orderDestination) <= ORDER_ARRIVAL_RADIUS) arrived++;
     }
     return arrived / living.length >= ORDER_COHESION;
-  }
-  function retreatCenter(sq) {
-    return averageMembers(commanded(sq)) || average(sq) || copy(sq.orderAnchor || sq.rally || sq.home);
-  }
-  function retreatBlocked(sq) {
-    var men = commanded(sq),
-      blocked = 0;
-    for (var i = 0; i < men.length; i++) {
-      var why = String(men[i]._movementStopReason || '');
-      if (why === 'path-blocked' || why === 'step-blocked') blocked++;
-    }
-    return blocked >= Math.max(RETREAT_BLOCKED_MIN, Math.ceil(men.length * 0.5));
-  }
-  function retreatUnsafe(sq, battle, anchor, center) {
-    var c = root.SquadAI.squadContact ? root.SquadAI.squadContact(sq, battle) : sq.contact;
-    if (!c || !anchor || !center) return false;
-    var da = dist(c, anchor),
-      dc = dist(c, center);
-    /* Only invalidate when the leased retreat endpoint is materially closer to the known threat
-       than the men are now. Ordinary contact ahead does not churn a rearward anchor. */
-    return da + RETREAT_DANGER_MARGIN < dc;
-  }
-  function retreatPoint(base, goal, scale) {
-    base = copy(base);
-    goal = copy(goal);
-    if (!base || !goal) return base || goal;
-    var dx = goal.x - base.x,
-      dz = goal.z - base.z,
-      len = Math.hypot(dx, dz);
-    if (len <= 2) return goal;
-    var step = Math.min(ORDER_STRIDE * (scale == null ? 1 : scale), len);
-    return { x: base.x + (dx / len) * step, z: base.z + (dz / len) * step };
-  }
-  function grantRetreatAnchor(sq, battle, base, goal, reason, scale) {
-    var t = battle.time,
-      center = retreatCenter(sq) || base,
-      next = retreatPoint(base, goal, scale),
-      d = center && next ? dist(center, next) : Infinity;
-    publishAnchor(sq, next);
-    sq._orderGoal = copy(goal);
-    sq._orderVersion = (+sq._orderVersion || 0) + 1;
-    L.grant(
-      sq,
-      'retreat-anchor',
-      'squad-leader',
-      t,
-      t + RETREAT_ANCHOR_LEASE,
-      reason || 'retreat endpoint',
-      'arrival, retreat goal change, blocked/unsafe route, no-progress timeout or retreat end',
-      {
-        anchor: copy(next),
-        goal: copy(goal),
-        bestDistance: d,
-        distance: d,
-        lastProgressAt: t,
-        grantedAt: t,
-        reason: reason || 'retreat endpoint'
-      }
-    );
-    telemetry(battle, 'decision-retreat-anchor', {
-      faction: sq.faction,
-      squad: sq.id,
-      reason: reason || 'retreat endpoint',
-      anchor: copy(next),
-      goal: copy(goal),
-      distance: isFinite(d) ? +d.toFixed(2) : null
-    });
-    return next;
-  }
-  function stableRetreatAnchor(sq, battle) {
-    var t = battle.time,
-      goal = root.SquadAI.retreatGoal(sq),
-      center = retreatCenter(sq) || sq.orderAnchor || sq.rally || goal,
-      held = L.get(sq, 'retreat-anchor');
-    if (!held)
-      return grantRetreatAnchor(sq, battle, sq.orderAnchor || sq.rally || center, goal, 'retreat start', 1);
-
-    var d = held.data || (held.data = {}),
-      anchor = d.anchor || sq.orderAnchor || sq.rally,
-      distance = center && anchor ? dist(center, anchor) : Infinity,
-      goalChanged = !d.goal || dist(goal, d.goal) > RETREAT_GOAL_EPS,
-      blocked = retreatBlocked(sq),
-      unsafe = retreatUnsafe(sq, battle, anchor, center),
-      recovering =
-        d.reason === 'route blocked' || d.reason === 'anchor unsafe' || d.reason === 'no retreat progress';
-    d.distance = distance;
-
-    if (goalChanged) {
-      L.end(sq, 'retreat-anchor', t, 'retreat goal moved');
-      return grantRetreatAnchor(sq, battle, center, goal, 'retreat goal moved', 1);
-    }
-    /* A blocked/unsafe observation gets one recovery rebase, then that recovery itself receives the
-       normal lease/no-progress window. Persistent stop flags must not recreate the endpoint every tick. */
-    if ((unsafe || blocked) && !recovering) {
-      L.end(sq, 'retreat-anchor', t, unsafe ? 'anchor unsafe' : 'route blocked');
-      return grantRetreatAnchor(
-        sq,
-        battle,
-        center,
-        goal,
-        unsafe ? 'anchor unsafe' : 'route blocked',
-        RETREAT_RECOVERY_STRIDE
-      );
-    }
-    if (distance <= RETREAT_ANCHOR_ARRIVE) {
-      /* At the final retreat point there is nowhere else to publish. Keep the same stable endpoint. */
-      if (anchor && goal && dist(anchor, goal) <= 2) {
-        d.bestDistance = Math.min(isFinite(+d.bestDistance) ? +d.bestDistance : distance, distance);
-        d.lastProgressAt = t;
-        L.extend(sq, 'retreat-anchor', 'squad-leader', t, t + RETREAT_ANCHOR_LEASE, 'final retreat point');
-        return anchor;
-      }
-      L.end(sq, 'retreat-anchor', t, 'anchor reached');
-      return grantRetreatAnchor(sq, battle, anchor || center, goal, 'anchor reached', 1);
-    }
-    if (!isFinite(+d.bestDistance) || distance < +d.bestDistance - RETREAT_PROGRESS_EPS) {
-      d.bestDistance = distance;
-      d.lastProgressAt = t;
-      L.extend(sq, 'retreat-anchor', 'squad-leader', t, t + RETREAT_ANCHOR_LEASE, 'retreat progress');
-      return anchor;
-    }
-    var progressAt = isFinite(+d.lastProgressAt) ? +d.lastProgressAt : t;
-    if (t - progressAt >= RETREAT_NO_PROGRESS || !L.holds(sq, 'retreat-anchor', t)) {
-      L.end(sq, 'retreat-anchor', t, 'no retreat progress');
-      return grantRetreatAnchor(sq, battle, center, goal, 'no retreat progress', RETREAT_RECOVERY_STRIDE);
-    }
-    return anchor;
-  }
-  /* The one publisher of the squad's anchor. `orderAnchor` is where the fireteam slots are laid; `rally` is
-     the same point for the readers that only know a rally point (the doctrine's empty-squad fallback, the
-     resolver's last resort, the exports). Every move of either goes through here: the per-step advance
-     below, the regroup commit (updateCohesion), the General's reconstitution merge and the garrison setup,
-     which call it as BattleSquadStability.publishAnchor. Nothing else assigns the pair
-     (state-ownership-check.js holds this to the function), so the two cannot disagree and a move is never
-     labelled by whichever path happened to write it: the advance (the squadCommand slot) and the regroup
-     (this module's commander hook) used to assign it separately, and the provenance log read one owner
-     reached by two paths as squad-orders, squad-stability, squad-orders: a writer-ping-pong. Both fields
-     are replaced with fresh copies, so a held reference never moves under its holder. */
-  function publishAnchor(sq, point) {
-    sq.orderAnchor = { x: point.x, z: point.z };
-    sq.rally = { x: point.x, z: point.z };
-    return sq.orderAnchor;
   }
 
   /* Scouts-forward functions are extracted to 15c-squad-leader-scouts-forward.js.
@@ -1856,6 +1465,41 @@
     endRecon = _sf ? _sf.endRecon : function () {},
     updateRecon = _sf ? _sf.updateRecon : function () {},
     publishReconOrders = _sf ? _sf.publishReconOrders : function () { return false; };
+  /* Fireteam publishing functions are extracted to 15h-squad-leader-fireteams.js.
+     The factory is called right after the scouts-forward re-attach (publishReconOrders)
+     so every dependency is in scope. The returned functions are attached as closure
+     variables so the squadCommand slot and the public API export see the same functions
+     as before. */
+  var _ft = root._squadLeaderFireteams
+    ? root._squadLeaderFireteams({
+        root: root,
+        point: point,
+        dist: dist,
+        copy: copy,
+        aliveTeam: aliveTeam,
+        averageMembers: averageMembers,
+        signature: signature,
+        cfg: cfg,
+        publishStats: publishStats,
+        publishPersonalMovement: publishPersonalMovement,
+        movementExecutionCurrent: movementExecutionCurrent,
+        DEFENSIVE: DEFENSIVE,
+        REGROUP_RELEASE: REGROUP_RELEASE,
+        TEAM_LEASE: TEAM_LEASE,
+        ORDER_PUBLISH_EPS: ORDER_PUBLISH_EPS,
+        BUDDY_PAIRS_ON: BUDDY_PAIRS_ON,
+        updateBuddyPairs: updateBuddyPairs,
+        publishReconOrders: publishReconOrders,
+        leaderlessActive: leaderlessActive,
+        desiredAnchor: desiredAnchor,
+        teamSlot: teamSlot,
+        forward: forward,
+        followTeamForward: followTeamForward
+      })
+    : null;
+  var holdPost = _ft ? _ft.holdPost : function () { return null; },
+    fireteamSignature = _ft ? _ft.fireteamSignature : function () { return ''; },
+    updateFireteams = _ft ? _ft.updateFireteams : function () {};
 
   /* The legacy SquadAI issueOrders() both advanced the Squad Leader's anchor AND published an individual
    formation point for every soldier every squad tick. M3C keeps the useful anchor cadence here and
@@ -1879,72 +1523,57 @@
   var CLEAR_MAX = 90;
   var CLEAR_ARRIVED = 4;
   var CLEAR_HOLD_PHASES = { regroup: 1, 'support-hold': 1, hold: 1, reserve: 1, defend: 1, 'corner-check': 1 };
-  function endClearContact(sq, battle, why) {
-    if (sq.clearContact && why !== 'sighting' && why !== 'under fire') sq._clearedSeen = sq.clearContact.seen;
-    if (sq.clearContact)
-      telemetry(battle, 'decision-clear-contact-end', {
-        faction: sq.faction,
-        squad: sq.id,
-        reason: why,
-        seconds: battle.time - sq.clearContact.since
-      });
-    sq.clearContact = null;
-  }
-  function updateClearContact(sq, battle, r) {
-    if (!ALERT_ADVANCE) return;
-    var A = root.SquadAI,
-      c = A.squadContact ? A.squadContact(sq, battle) : null,
-      own = !!(c && (A.hasFirstHandMemory ? A.hasFirstHandMemory(c, battle) : !c.heard && !c.relayedFrom)),
-      cc = sq.clearContact,
-      why =
-        sq.contactCount > 0
-          ? 'sighting'
-          : r.underFire > 0
-            ? 'under fire'
-            : sq.state === 'retreat'
-              ? 'retreat'
-              : battle.winner
-                ? 'battle over'
-                : CLEAR_HOLD_PHASES[sq.commandPhase || '']
-                  ? 'holding phase'
-                  : null;
-    if (why) {
-      sq._quietSince = null;
-      endClearContact(sq, battle, why);
-      return;
-    }
-    if (cc) {
-      if (own) {
-        cc.x = c.x;
-        cc.z = c.z;
-        cc.seen = c.at;
-      }
-      var a = sq.orderAnchor;
-      if (a && dist(a, cc) <= CLEAR_ARRIVED && orderCanAdvance(sq, battle)) endClearContact(sq, battle, 'cleared');
-      else if (battle.time - cc.since >= CLEAR_MAX) endClearContact(sq, battle, 'timeout');
-      if (!sq.clearContact) sq._quietSince = null;
-      return;
-    }
-    /* A picture the squad has already cleared, timed out on or left for a holding task is not ordered again. */
-    if (!own || (sq._clearedSeen != null && c.at <= sq._clearedSeen)) {
-      sq._quietSince = null;
-      return;
-    }
-    if (sq._quietSince == null) sq._quietSince = battle.time;
-    if (battle.time - sq._quietSince < CLEAR_AFTER) return;
-    sq.clearContact = { x: c.x, z: c.z, seen: c.at, since: battle.time };
-    telemetry(battle, 'decision-clear-contact', {
-      faction: sq.faction,
-      squad: sq.id,
-      phase: sq.commandPhase || '',
-      point: { x: c.x, z: c.z }
-    });
-    var fc = sq.fireControl;
-    if (FIRE_CONTROL_ON && !(fc && fc.state === 'open'))
-      setFireControl(sq, battle, fc || null, 'open', 'contact quiet: clearing', {
-        targetId: fc ? fc.targetId : c.unit && c.unit.id
-      });
-  }
+  /* Clear-contact functions are extracted to 15i-squad-leader-clear-contact.js.
+     The factory is called after the flags, constants and the fire-control re-attach are
+     in scope. The returned functions are attached as closure variables so the anchor
+     advance and the fire-and-movement selector see the same functions as before. */
+  var _cc = root._squadLeaderClearContact
+    ? root._squadLeaderClearContact({
+        root: root,
+        telemetry: telemetry,
+        dist: dist,
+        orderCanAdvance: orderCanAdvance,
+        setFireControl: setFireControl,
+        ALERT_ADVANCE: ALERT_ADVANCE,
+        CLEAR_AFTER: CLEAR_AFTER,
+        CLEAR_MAX: CLEAR_MAX,
+        CLEAR_ARRIVED: CLEAR_ARRIVED,
+        CLEAR_HOLD_PHASES: CLEAR_HOLD_PHASES,
+        FIRE_CONTROL_ON: FIRE_CONTROL_ON
+      })
+    : null;
+  var endClearContact = _cc ? _cc.endClearContact : function () {},
+    updateClearContact = _cc ? _cc.updateClearContact : function () {};
+  /* Mission-execution functions are extracted to 15l-squad-leader-mission-execution.js.
+     The factory is called after the scouts-forward re-attach (reconCandidate, startRecon,
+     endRecon) so every dependency is in scope. The returned functions are attached as
+     closure variables so the commander tick and the public API export see the same
+     functions as before. */
+  var _me = root._squadLeaderMissionExecution
+    ? root._squadLeaderMissionExecution({
+        root: root,
+        telemetry: telemetry,
+        dist: dist,
+        copy: copy,
+        alive: alive,
+        average: average,
+        cfg: cfg,
+        leaderAlive: leaderAlive,
+        leaderlessActive: leaderlessActive,
+        missionVersion: missionVersion,
+        setPhase: setPhase,
+        closePlan: closePlan,
+        reconCandidate: reconCandidate,
+        startRecon: startRecon,
+        endRecon: endRecon,
+        URBAN_ARRIVAL_COHESION: URBAN_ARRIVAL_COHESION
+      })
+    : null;
+  var inTown = _me ? _me.inTown : function () { return false; },
+    missionLegs = _me ? _me.missionLegs : function () { return []; },
+    assaultCommitted = _me ? _me.assaultCommitted : function () { return false; },
+    objectivePhase = _me ? _me.objectivePhase : function () { return 'assault'; },
+    executeMission = _me ? _me.executeMission : function () {};
   function advanceSquadAnchor(sq, battle) {
     var anchor = sq.orderAnchor || publishAnchor(sq, sq.rally);
     if (sq.state === 'retreat') {
@@ -2001,159 +1630,6 @@
     }
     publishAnchor(sq, { x: x, z: z });
   }
-  /* A fireteam's slots are laid round its anchor, and the squad anchor only advances once enough men
-     have arrived on their orders. Men who rush on (cover bounds, assault rushes) leave it behind, so
-     the next renewal, or a teammate falling, dealt their slots back behind them: the largest producer
-     in the `backward-orders` probe. While the squad advances the team's anchor never trails the team's
-     forward line (the same forward-majority point `_forwardLine` publishes, taken from the men now,
-     since the published line is a tick old and cleared in retreat) by more than FOLLOW_LAG: it is
-     carried forward along the advance axis to where the team actually is. */
-  function followTeamForward(sq, key, men, cur) {
-    /* Use the same frame as desiredAnchor(). commandForward may legitimately lag a turn while
-       _formationForward is held; mixing the two frames lets a longitudinal correction consume the
-       lateral separation that desiredAnchor just prescribed. */
-    var axis = teamFrame(sq),
-      right = { x: -axis.z, z: axis.x },
-      desired = desiredAnchor(sq, key),
-      t = forwardMajority(men, axis);
-    if (!t) return;
-    /* Follow is longitudinal only. If the squad frame turns while a team's lease is still live, first
-       restore that team's prescribed lateral lane in the CURRENT frame; otherwise alpha/bravo can
-       converge even though TEAM_OFFSETS still says they are 16 m apart. The combat-handoff dwell made
-       that latent stale-frame collapse visible in mixed fight/move transitions. */
-    if (desired) {
-      var lateral = (desired.x - cur.anchor.x) * right.x + (desired.z - cur.anchor.z) * right.z;
-      cur.anchor = { x: cur.anchor.x + right.x * lateral, z: cur.anchor.z + right.z * lateral };
-    }
-    var lag = t.at - (cur.anchor.x * axis.x + cur.anchor.z * axis.z);
-    if (lag <= FOLLOW_LAG) return;
-    cur.anchor = { x: cur.anchor.x + axis.x * lag, z: cur.anchor.z + axis.z * lag };
-  }
-  function updateFireteams(sq, battle) {
-    sq._fireteamOrders = sq._fireteamOrders || {};
-    if (leaderlessActive(sq) && sq.state !== 'retreat') {
-      if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);
-      return;
-    }
-    if (sq._reconTask && L.get(sq, 'recon')) {
-      publishReconOrders(sq, battle);
-      return;
-    }
-    var defensive = !!DEFENSIVE[sq.commandPhase],
-      defenseKey = signature(sq),
-      regroup = sq.commandPhase === 'regroup' && sq.state !== 'retreat',
-      stats = publishStats(battle);
-    ['command', 'alpha', 'bravo', 'charlie'].forEach(function (key) {
-      var m = aliveTeam(sq, key);
-      if (!m.length) return;
-      var desired = desiredAnchor(sq, key);
-      if (!desired) return;
-      var live = averageMembers(m),
-        sig = fireteamSignature(sq),
-        cur = sq._fireteamOrders[key],
-        urgent = sq.state === 'retreat',
-        issued = false;
-      if (!cur || cur.signature !== sig || (urgent && dist(cur.anchor, desired) > ORDER_PUBLISH_EPS)) {
-        cur = sq._fireteamOrders[key] = {
-          anchor: copy(desired),
-          origin: copy(live),
-          forward: forward(sq),
-          signature: sig,
-          until: battle.time + (urgent ? 0 : TEAM_LEASE),
-          blocked: false
-        };
-        issued = true;
-      } else if (regroup) cur.until = battle.time + TEAM_LEASE;
-      else if (battle.time >= cur.until || dist(cur.anchor, desired) > 20) {
-        var arrived = live && dist(live, cur.anchor) <= 4.5;
-        if (arrived) {
-          cur = sq._fireteamOrders[key] = {
-            anchor: copy(desired),
-            origin: copy(live),
-            forward: forward(sq),
-            signature: sig,
-            until: battle.time + (urgent ? 0 : TEAM_LEASE),
-            blocked: false
-          };
-          issued = true;
-        } else cur.until = battle.time + TEAM_LEASE;
-      }
-      if (!defensive && !regroup && !urgent) followTeamForward(sq, key, m, cur);
-      var CR = root.BattleCommandReception;
-      if (issued && CR && CR.publish)
-        CR.publish(sq, battle, 'movement', m, {
-          scope: 'fireteam:' + key,
-          action: urgent ? 'retreat' : regroup ? 'regroup' : defensive ? 'hold-position' : 'formation',
-          signature: sig + '|' + key + '|' + Math.round(cur.anchor.x * 2) + '|' + Math.round(cur.anchor.z * 2),
-          reason: urgent ? 'squad retreat' : regroup ? 'squad regroup' : 'fireteam order',
-          spatial: true,
-          reference: 'point',
-          point: cur.anchor
-        });
-      for (var i = 0; i < m.length; i++) {
-        var s = m[i],
-          d = teamSlot(sq, key, s, i, m.length, cur.anchor, cur.forward),
-          rallyAnchor = regroup && L.get(sq, 'regroup'),
-          rallyPoint = rallyAnchor && rallyAnchor.data && rallyAnchor.data.anchor,
-          rallyRadius = rallyPoint ? Math.max(4, (+(cfg(battle, sq).cohesionRadius) || 34) * REGROUP_RELEASE) : 0;
-        /* Each man can satisfy a regroup anywhere inside the rally area. Choose his
-           personal point once per regroup lease and keep it stable while he approaches.
-           Recomputing the near-edge point from his current position every Squad Leader
-           tick made delayed command adoption chase a moving sequence of equally-valid
-           regroup points (A -> B -> A position seeking) even though the rally area itself
-           never moved. The lease is the Squad Leader's regroup authority, so its data owns
-           these transient targets and they disappear automatically when the regroup ends. */
-        if (rallyPoint) {
-          var rallyData = rallyAnchor.data || (rallyAnchor.data = {}),
-            rallyTargets = rallyData.targets || (rallyData.targets = {}),
-            rallyId = String(s.id),
-            stableRally = point(rallyTargets[rallyId]);
-          if (!stableRally) {
-            var here = point(s.root.position),
-              away = here ? dist(here, rallyPoint) : 0,
-              existing = point(s._fireteamDestination);
-            stableRally = away <= rallyRadius
-              ? (existing && dist(existing, rallyPoint) <= rallyRadius ? existing : here)
-              : away > 0
-                ? {
-                    x: rallyPoint.x + (here.x - rallyPoint.x) * (rallyRadius * 0.65 / away),
-                    z: rallyPoint.z + (here.z - rallyPoint.z) * (rallyRadius * 0.65 / away)
-                  }
-                : copy(rallyPoint);
-            rallyTargets[rallyId] = copy(stableRally);
-          }
-          d = stableRally;
-        }
-        var prepared = defensive && s._preparedDefensePost,
-          post = prepared ? null : defensive ? holdPost(s, defenseKey) : null,
-          next = prepared ? copy(prepared) : post ? { x: post.x, z: post.z } : d,
-          kind = prepared ? 'prepared' : post ? 'defense-post' : 'formation',
-          publishKey = sig + '|' + key + '|' + kind,
-          previous = point(s._fireteamDestination);
-        s._fireteamKey = key;
-        if (!defensive) s._defensePost = null;
-        stats.intentChecks++;
-        /* With reception enabled the publisher must also supersede a pending
-           command, even when a restored mission reuses the executed destination. */
-        if (previous && dist(previous, next) <= ORDER_PUBLISH_EPS && s._fireteamPublishKey === publishKey && movementExecutionCurrent(s, battle)) {
-          stats.intentCoalesced++;
-          continue;
-        }
-        publishPersonalMovement(
-          sq,
-          battle,
-          s,
-          next,
-          publishKey,
-          urgent,
-          urgent ? 'retreat' : regroup ? 'regroup' : defensive ? 'hold-position' : 'formation',
-          urgent ? 'squad retreat' : regroup ? 'squad regroup' : 'fireteam order',
-          stats
-        );
-      }
-    });
-    if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);
-  }
   /* Stress in local execution (`?slStress=pick,hold,review`, all three on by default; `0`/`off` is none, `1`/`all` is all
      three, a list exactly those named). The Squad Leader reads its men's stress through the soldier condition's `lead` lever and changes only its own
      decisions: `pick` sends the calmest fireteam that can bound instead of the next in rotation (a tie keeps the rotation);
@@ -2174,297 +1650,41 @@
   }
   var SL_STRESS = parseSlStress(typeof location !== 'undefined' ? location.search : '');
   var LEAD_TUNING = { holdAt: 0.3, reviewAt: 1 / 3, reviewAfter: 10, reviewMin: 3 };
-  function teamStress(men) {
-    var M = root.BattleSoldierMind;
-    return M && M.teamStress ? M.teamStress(men) : 0;
-  }
-  function leadStress(sq) {
-    var M = root.BattleSoldierMind;
-    return M && M.leadStress ? M.leadStress(sq) : 0;
-  }
-  /* review: the squad has stayed shaken in contact long enough that its brief is worth a second look. */
-  function stressReview(sq, battle) {
-    if (!SL_STRESS.review) return;
-    var living = 0,
-      m = sq.members || [];
-    for (var i = 0; i < m.length; i++) if (m[i] && !m[i].dead) living++;
-    if (living < LEAD_TUNING.reviewMin || leadStress(sq) < LEAD_TUNING.reviewAt) {
-      sq._slStressSince = null;
-      return;
-    }
-    if (sq._slStressSince == null) sq._slStressSince = battle.time;
-    else if (battle.time - sq._slStressSince >= LEAD_TUNING.reviewAfter) requestReview(battle, sq, 'squad stress');
-  }
-  /* Fire and movement. Engagement reports the squad's contact and base of fire; the Squad Leader decides
-   whether the phase allows an assault and, every BOUND_CYCLE seconds, sends one fireteam forward
-   for BOUND_DURATION while at least two men keep shooting. */
-  function fireAndMovement(sq, battle) {
-    var E = root.BattleEngagement;
-    if (!E || !sq || !battle) return;
-    var r = E.updateSquad(sq, battle);
-    if (!r) return;
-    if (r.fled && r.fled.length && sq.fledId == null) detachFled(sq, battle, r.fled);
-    updateRecon(sq, battle, r);
-    if (leaderlessActive(sq) && sq.state !== 'retreat') {
-      var inheritedBound = L.get(sq, 'bound');
-      if (!L.holds(sq, 'bound', battle.time)) E.clearBoundOrders(sq);
-      if (r.contactStarted || r.underFire > 0) {
-        /* Immediate contact remains a Micro fact/action. Perception and the existing tactical-callout
-           channel already report what individual men actually saw/heard; do not turn ordinary contact
-           during a six-second succession gap into an automatic General mission wake. */
-        noteLeaderlessAction(
-          sq,
-          battle,
-          'immediate-contact',
-          r.underFire > 0 ? 'under fire' : 'contact acquired'
-        );
-      } else if (inheritedBound && L.holds(sq, 'bound', battle.time))
-        noteLeaderlessAction(sq, battle, 'finish-committed-move', 'inherited bound remains live');
-      else if (sq.inContact)
-        noteLeaderlessAction(sq, battle, 'hold-and-fight', 'existing contact under inherited intent');
-      else noteLeaderlessAction(sq, battle, 'hold-intent', 'no new Meso command during succession');
-      return;
-    }
-    updateClearContact(sq, battle, r);
-    var members = sq.members || [],
-      i,
-      s;
-    var t = battle.time;
-    /* A bound order that was not taken up inside its window is stale, not pending. */
-    if (!L.holds(sq, 'bound', t)) E.clearBoundOrders(sq);
-    if (r.contactStarted) {
-      L.end(sq, 'bound', t, 'contact started');
-      L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'contact started', 'cycle expiry');
-    }
-    if (!sq.inContact) {
-      L.end(sq, 'bound', t, 'contact broken');
-      sq._assaultAuthorized = false;
-      if (SL_STRESS.review) sq._slStressSince = null;
-      /* A squad clearing the last contact is still in that engagement: its open fire order stands, so the man
-         who finds the enemy again fires instead of the squad going to ground for a new volley. */
-      if (FIRE_CONTROL_ON && !sq.clearContact) clearFireControl(sq, battle, 'contact broken');
-      return;
-    }
-    stressReview(sq, battle);
-    var fireControl = FIRE_CONTROL_ON ? updateFireControl(sq, battle, r) : null;
-    /* Hold/precision fire control is a preparation, not a bound. The Squad Leader keeps the squad
-       stationary until it opens the engagement; a designated long-range shooter is the one exception. */
-    if (fireControl && fireControl.state !== 'open') {
-      sq._assaultAuthorized = false;
-      return;
-    }
-    if (COA_ON) updateCOA(sq);
-    sq._assaultAuthorized = !!ASSAULT_PHASES[sq.commandPhase || ''];
-    /* 3c: the COA gates bounding. Defend holds position (no bounds); assault bounds only if the
-       phase also allows. The explicit `?coa=0` control never sets sq.coa, so this is a no-op there. */
-    if (COA_ON && sq.coa && COAS[sq.coa] && !COAS[sq.coa].bounds) sq._assaultAuthorized = false;
-    /* A bound needs a base of fire: somebody has to be shooting while somebody else moves. */
-    if (
-      !sq._assaultAuthorized ||
-      L.holds(sq, 'bound-cycle', t) ||
-      L.holds(sq, 'bound', t) ||
-      r.effective < 2 ||
-      r.pinned >= r.effective
-    )
-      return;
-    /* Phase 0G3: multi-contact gate. When ?fireteamSplit=1 is on and the squad has active
-       contacts in 2+ threat sectors (via squadContactsMap), suppress bounding and hold
-       position. A squad that bounds into one threat while ignoring another is advancing into
-       a crossfire; holding lets both sectors be engaged before continuing. The Squad Leader
-       can still issue fire-control and individual men can still fire at both sectors via
-       0G1's secondary threat orientation. This gate only prevents the bound (the movement);
-       it does not change fire permission or stance. */
-    if (FIRETEAM_SPLIT_ON) {
-      var A = root.SquadAI;
-      if (A && typeof A.squadContactsMap === 'function') {
-        var contacts = A.squadContactsMap(sq, battle);
-        if (contacts && contacts.length >= 2) {
-          /* Multi-contact: hold position. Extend the bound-cycle so the squad doesn't
-             re-evaluate bounding every tick while dealing with both threats. */
-          L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'multi-contact hold', 'cycle expiry');
-          sq._multiContactSectors = contacts.length;
-          return;
-        }
-        sq._multiContactSectors = 0;
-      }
-    }
-    /* Rotate teams, but skip a team whose departure would strip the base of fire: waiting a tick for
-     the rotation to reach a team that can go is a missed bound. With `?slStress=pick` or `hold` every team
-     that can go is a candidate, in rotation order. */
-    var first = sq._boundTurn == null ? 0 : sq._boundTurn + 1,
-      lead = SL_STRESS.pick || SL_STRESS.hold,
-      candidates = [],
-      turn,
-      team,
-      movers,
-      holding,
-      buddy;
-    for (var k = 0; k < BOUND_TEAMS.length; k++) {
-      turn = first + k;
-      team = BOUND_TEAMS[turn % BOUND_TEAMS.length];
-      movers = [];
-      for (i = 0; i < members.length; i++) {
-        s = members[i];
-        if (s.dead || s.suppressedUntil > battle.time || s.reloading || s.clearingStoppage || s.outOfAmmo)
-          continue;
-        // Down, on the run or charging (Engagement's report): not his to bound.
-        if (r.reacting && r.reacting.indexOf(s) >= 0) continue;
-        if (
-          root.SquadAI.isMachineGun(s) ||
-          (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s))
-        )
-          continue; // positional tasks hold the base of fire
-        if (s._fireteamKey && s._fireteamKey !== team) continue;
-        movers.push(s);
-      }
-      buddy = buddyBoundPreview(sq, team, movers, r.fireSupport, battle);
-      movers = buddy.movers;
-      holding = r.fireSupport.filter(function (man) {
-        return movers.indexOf(man) < 0;
-      }).length;
-      if (movers.length && holding >= 2) {
-        if (!lead) break;
-        candidates.push({ turn: turn, team: team, movers: movers, holding: holding, stress: teamStress(movers), buddy: buddy });
-      }
-    }
-    var pickedBy = null,
-      rotation = null,
-      c;
-    if (lead && candidates.length) {
-      rotation = candidates[0];
-      c = rotation;
-      if (SL_STRESS.pick)
-        for (k = 1; k < candidates.length; k++) if (candidates[k].stress < c.stress) c = candidates[k];
-      if (c !== rotation) pickedBy = 'calmest';
-      if (
-        SL_STRESS.hold &&
-        candidates.every(function (x) {
-          return x.stress >= LEAD_TUNING.holdAt;
-        })
-      ) {
-        L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'bound held: every team shaken', 'cycle expiry');
-        telemetry(battle, 'decision-bound-held', {
-          faction: sq.faction,
-          squad: sq.id,
-          teams: candidates.length,
-          stress: +c.stress.toFixed(3)
-        });
-        return;
-      }
-      turn = c.turn;
-      team = c.team;
-      movers = c.movers;
-      holding = c.holding;
-      buddy = c.buddy;
-    }
-    if (!(movers.length && holding >= 2)) turn = first;
-    sq._boundTurn = turn;
-    if (movers.length && holding >= 2) {
-      L.grant(
-        sq,
-        'bound',
-        'squad-leader',
-        t,
-        t + BOUND_DURATION,
-        'fireteam ' + team + ' bounds',
-        'window expiry or contact broken',
-        {
-          team: team
-        }
-      );
-      L.grant(
-        sq,
-        'bound-cycle',
-        'squad-leader',
-        t,
-        t + BOUND_CYCLE,
-        'after bound by ' + team,
-        'cycle expiry'
-      );
-      commitBuddyCooperation(sq, buddy, battle);
-      E.orderBound(movers);
-      var info = {
-        faction: sq.faction,
-        squad: sq.id,
-        team: team,
-        movers: movers.length,
-        holding: holding
-      };
-      if (lead) {
-        info.stress = +c.stress.toFixed(3);
-        info.rotation = rotation.team;
-        info.reason = pickedBy || 'rotation';
-      }
-      telemetry(battle, 'decision-bound', info);
-    }
-  }
-  function endRallyRecovery(sq, battle, reason) {
-    if (!battle || (!sq._moraleRallyPoint && !L.get(sq, 'rally-recovery'))) return;
-    sq._moraleRallyPoint = null;
-    L.end(sq, 'rally-recovery', battle.time, reason);
-    telemetry(battle, 'decision-rally-recovery-end', {
-      faction: sq.faction,
-      squad: sq.id,
-      reason: reason
-    });
-  }
-  function recoverFromRetreat(sq, battle, casualtyFrac, stress) {
-    if (!RALLY_RECOVERY_ON) return moraleRallies(casualtyFrac, stress);
-    /* Small squads (≤ 4 of 10) can never pass moraleRallies because casualtyFrac ≥ 0.6.
-       Once such a squad has been safely at base for a dwell window, let it rally
-       regardless of casualties — it is better to send 3-4 men back into the fight
-       than to leave them frozen at base for the rest of the battle. But don't
-       interfere with reconstitution: if the General has a pending reconstitution
-       group that includes this squad, let the merge happen instead. */
-    var atBase = sq._assembly && sq._assembly.phase === 'at-base',
-      small = casualtyFrac >= moraleBreakAt(stress) - MORALE_TUNING.rallyGap,
-      pendingRecon = sq._reconGroup || (sq._macroMission && sq._macroMission.intent === 'reconstitute');
-    if (small && atBase && !sq.inContact && !pendingRecon && stress < MORALE_TUNING.rallyStress * 2) {
-      var dwell = sq._assembly.since ? battle.time - sq._assembly.since : 0;
-      if (dwell >= 120) {
-        endRallyRecovery(sq, battle, 'solo redeploy from base');
-        return true;
-      }
-    }
-    if (!moraleRallies(casualtyFrac, stress) || sq.inContact) {
-      endRallyRecovery(sq, battle, sq.inContact ? 'contact resumed' : 'morale fell');
-      return false;
-    }
-    var lease = L.get(sq, 'rally-recovery');
-    if (!lease) {
-      var here = average(sq) || sq.orderAnchor || sq.rally || sq.home;
-      sq._moraleRallyPoint = copy(here);
-      L.end(sq, 'retreat-anchor', battle.time, 'morale rally recovery');
-      lease = L.grant(
-        sq,
-        'rally-recovery',
-        'squad-leader',
-        battle.time,
-        Infinity,
-        'morale recovered; physically reform before resuming mission',
-        'contact, morale loss or stable reform',
-        { point: copy(here), stableSince: null }
-      );
-      telemetry(battle, 'decision-rally-recovery-start', {
-        faction: sq.faction,
-        squad: sq.id,
-        point: copy(here)
-      });
-    }
-    var center = average(sq),
-      rally = (lease.data && lease.data.point) || sq._moraleRallyPoint,
-      limit = +(cfg(battle, sq).cohesionRadius || 34),
-      ca = cohesionAssessment(sq, limit),
-      physicallyReady = !!(center && rally && dist(center, rally) <= RALLY_RECOVERY_ARRIVE && !ca.dispersed);
-    if (!physicallyReady) {
-      lease.data.stableSince = null;
-      return false;
-    }
-    if (lease.data.stableSince == null) lease.data.stableSince = battle.time;
-    if (battle.time - lease.data.stableSince < RALLY_RECOVERY_DWELL) return false;
-    endRallyRecovery(sq, battle, 'stable reform complete');
-    return true;
-  }
+  /* Fire-and-movement functions are extracted to 15j-squad-leader-fire-and-movement.js.
+     The factory is called after the clear-contact re-attach so every dependency is in
+     scope. The returned functions are attached as closure variables so updateSquadState
+     and the public API export see the same functions as before. */
+  var _fa = root._squadLeaderFireAndMovement
+    ? root._squadLeaderFireAndMovement({
+        root: root,
+        telemetry: telemetry,
+        detachFled: detachFled,
+        updateRecon: updateRecon,
+        leaderlessActive: leaderlessActive,
+        noteLeaderlessAction: noteLeaderlessAction,
+        updateClearContact: updateClearContact,
+        updateCOA: updateCOA,
+        updateFireControl: updateFireControl,
+        clearFireControl: clearFireControl,
+        buddyBoundPreview: buddyBoundPreview,
+        commitBuddyCooperation: commitBuddyCooperation,
+        requestReview: requestReview,
+        SL_STRESS: SL_STRESS,
+        LEAD_TUNING: LEAD_TUNING,
+        COAS: COAS,
+        BOUND_CYCLE: BOUND_CYCLE,
+        BOUND_DURATION: BOUND_DURATION,
+        BOUND_TEAMS: BOUND_TEAMS,
+        ASSAULT_PHASES: ASSAULT_PHASES,
+        FIRETEAM_SPLIT_ON: FIRETEAM_SPLIT_ON,
+        FIRE_CONTROL_ON: FIRE_CONTROL_ON,
+        COA_ON: COA_ON
+      })
+    : null;
+  var teamStress = _fa ? _fa.teamStress : function () { return 0; },
+    leadStress = _fa ? _fa.leadStress : function () { return 0; },
+    stressReview = _fa ? _fa.stressReview : function () {},
+    fireAndMovement = _fa ? _fa.fireAndMovement : function () {};
   function updateSquadState(sq, battle) {
     var living = 0,
       anyEngaged = false;
@@ -2497,245 +1717,6 @@
     noteSafePoint(sq, battle);
     fireAndMovement(sq, battle);
   }
-  /* Succession. When the squad leader is killed nobody commands for SUCCESSION_DELAY seconds (the
-     `succession` lease: the squad runs on its leaderless cohesion and corner rules and the accuracy
-     penalty applies); then the most senior survivor takes command (SquadAI.mostSenior), takes the
-     leader's slot and the penalty ends. A squad with a leader holds no lease. */
-  function updateSuccession(sq, battle) {
-    var t = battle.time,
-      held = L.get(sq, 'succession'),
-      men = alive(sq),
-      present = root.SquadAI.leaderOf(sq);
-    if (present || !men.length) {
-      if (held) L.end(sq, 'succession', t, men.length ? 'leader present' : 'squad destroyed');
-      if (LEADERLESS_INTENT_ON && sq._leaderlessIntent)
-        endLeaderlessIntent(sq, battle, men.length ? 'leader present' : 'squad destroyed', present || null);
-      return;
-    }
-    if (!held) {
-      var data = null;
-      if (LEADERLESS_INTENT_ON) data = { intent: captureLeaderlessIntent(sq, battle) };
-      L.grant(
-        sq,
-        'succession',
-        'squad-leader',
-        t,
-        t + SUCCESSION_DELAY,
-        'squad leader killed',
-        'successor takes command',
-        data
-      );
-      return;
-    }
-    if (LEADERLESS_INTENT_ON && !sq._leaderlessIntent) {
-      sq._leaderlessIntent = (held.data && held.data.intent) || captureLeaderlessIntent(sq, battle);
-      held.data = held.data || {};
-      held.data.intent = sq._leaderlessIntent;
-    }
-    if (L.holds(sq, 'succession', t)) return;
-    var next = root.SquadAI.mostSenior(men);
-    sq.leaderId = next.id;
-    next.slotIndex = 0;
-    next.slotRole = null;
-    next._fireteamKey = null;
-    sq.captainAlive = true;
-    sq.accuracyMultiplier = 1;
-    L.end(sq, 'succession', t, 'successor took command');
-    if (LEADERLESS_INTENT_ON) endLeaderlessIntent(sq, battle, 'successor took command', next);
-    telemetry(battle, 'decision-leader-succession', {
-      faction: sq.faction,
-      squad: sq.id,
-      soldier: next.id,
-      role: next.role,
-      leaderlessSeconds: +(t - held.since).toFixed(2)
-    });
-  }
-  /* The Squad Leader's word on who commands and where each man stands. Other layers report the event
-     and this layer rewrites its own state: a leader killed (`leaderDown`, called from killSoldier), a
-     reconstitution merge (`reform` for the squad that survives, `disband` for one absorbed) and the
-     General's acknowledgement that it read a request (`acknowledgeRequest`). */
-  function leaderDown(sq) {
-    sq.captainAlive = false;
-    sq.accuracyMultiplier = 0.8;
-  }
-  /* Slot 0 is the leader, 1 the squad's gun, 2-3 its scouts; every other man - a second gunner, a third
-     scout, a former leader - takes a rifleman slot from 4 up (`slotRole`, SquadAI.formationSlot). */
-  function assignSlots(men, leader) {
-    var gun = false,
-      scouts = 0,
-      next = 4;
-    leader.slotIndex = 0;
-    leader.slotRole = null;
-    for (var i = 0; i < men.length; i++) {
-      var s = men[i];
-      if (s === leader) continue;
-      s.slotRole = null;
-      if (s.role === 'gunner' && !gun) {
-        gun = true;
-        s.slotIndex = 1;
-      } else if (s.role === 'scout' && scouts < 2) s.slotIndex = 2 + scouts++;
-      else {
-        s.slotIndex = next++;
-        if (s.role !== 'rifleman') s.slotRole = 'rifleman';
-      }
-    }
-  }
-  /* A reconstitution merge: `men` (already members of `survivor`) form one squad under `leader`, anchored
-     on the group's rally point, with no plan, post, task or fireteam carried over from their old squads. */
-  function reform(survivor, men, leader, rally, establishment) {
-    assignSlots(men, leader);
-    men.forEach(function (s) {
-      s.squad = survivor;
-      s._fireteamKey = null;
-      s._defensePost = null;
-      s._engagementTask = null;
-      s._engagementPlanSerial = null;
-    });
-    survivor.members = men;
-    survivor.leaderId = leader.id;
-    survivor.establishment = establishment;
-    survivor.aliveCount = men.length;
-    survivor.captainAlive = true;
-    survivor.accuracyMultiplier = 1; // the leader-death penalty (killSoldier) ends with a leader
-    publishAnchor(survivor, rally);
-  }
-  // A squad absorbed by a merge reads like a destroyed one: nobody living and nobody in command.
-  function disband(sq) {
-    sq.members = [];
-    sq.aliveCount = 0;
-    sq.leaderId = null;
-  }
-  /* The last place the squad stood out of contact with nobody known near it: where a man who breaks and runs goes first
-     (Engagement `flee` reads `squad.safePoint`; `squad.rally` is the moving anchor, which is at the front). */
-  function noteSafePoint(sq, battle) {
-    if (!battle || sq.state === 'retreat' || sq.inContact) return;
-    if (root.SquadAI.squadContact ? root.SquadAI.squadContact(sq, battle) : sq.contact) return;
-    var p = average(sq);
-    if (p) sq.safePoint = { x: p.x, z: p.z };
-  }
-  /* Men who have broken for good (Engagement's report, `fled`) leave the squad and are not coming back to it: each
-     becomes a squad of one, retreating, a full squad's strength missing, on the squad's home. A leader who runs leaves
-     the squad leaderless (succession). The General may take a lone man into a retreating squad, or reconstitution
-     groups him at base. */
-  function detachFled(sq, battle, men) {
-    var list = battle.factions && battle.factions[sq.faction] && battle.factions[sq.faction].squads;
-    if (!list) return;
-    men
-      .filter(function (s) {
-        return s.squad === sq && !s.dead;
-      })
-      .sort(function (a, b) {
-        return a.id - b.id;
-      })
-      .forEach(function (s) {
-        var wasLeader = root.SquadAI.leaderOf(sq) === s;
-        sq.members = sq.members.filter(function (m) {
-          return m !== s;
-        });
-        if (wasLeader) leaderDown(sq);
-        var lone = root.SquadAI.createSquad(sq.id + '-fled-' + s.id, sq.faction, copy(sq.home), sq.objective);
-        lone.members.push(s);
-        lone.leaderId = s.id;
-        lone.establishment = root.SquadAI.COMPOSITION.length;
-        lone.fledId = s.id;
-        lone.fledFrom = sq.id;
-        lone.state = 'retreat';
-        lone.route = [];
-        lone.routeIndex = 0;
-        lone._battleSim = battle;
-        initialPhase(lone, 'approach');
-        assignSlots([s], s);
-        s.squad = lone;
-        s._fireteamKey = null;
-        s._defensePost = null;
-        s._engagementTask = null;
-        s._engagementPlanSerial = null;
-        list.push(lone);
-        telemetry(battle, 'decision-fled-detach', {
-          faction: sq.faction,
-          squad: sq.id,
-          lone: lone.id,
-          soldier: s.id,
-          role: s.role,
-          leader: wasLeader
-        });
-      });
-  }
-  /* A retreating squad takes in a lone fled man (the General decides, this layer rewrites its own roster): he joins the
-     squad's roster on the next rifleman slot and his own squad of one is gone, like a squad absorbed by a merge. */
-  function absorb(survivor, lone, battle) {
-    var s = lone && lone.members && lone.members[0];
-    if (!s || s.dead || !survivor || survivor === lone) return false;
-    var slot = 3;
-    survivor.members.forEach(function (m) {
-      if (m.slotIndex > slot) slot = m.slotIndex;
-    });
-    s.squad = survivor;
-    s.slotIndex = slot + 1;
-    s.slotRole = 'rifleman';
-    s._fireteamKey = null;
-    survivor.members.push(s);
-    lone.establishment = root.SquadAI.COMPOSITION.length;
-    disband(lone);
-    lone.disbanded = true;
-    lone.mergedInto = survivor.id;
-    telemetry(battle, 'decision-fled-absorbed', {
-      faction: survivor.faction,
-      squad: survivor.id,
-      lone: lone.id,
-      soldier: s.id
-    });
-    return true;
-  }
-  // A man's regroup-unstick record ends (stepMovement: he recovered, the lease ended or he died).
-  function endUnstick(s) {
-    s._regroupUnstick = null;
-  }
-  // The General has re-selected a brief: the request that woke it is answered.
-  function acknowledgeRequest(sq) {
-    sq._macroMissionRequest = null;
-  }
-  /* Retreat and reconstitution march. A retreating squad heads home (`to-base`); once home and out of
-     contact it is `at-base`, the only state in which the General will group it. A `reconstitute` brief
-     then sends it to the rally point (`to-rally`), where the General merges it. If the brief ends without
-     a merge (the group dissolved) the squad is `at-base` again and walks home. `_assembly` is created on
-     retreat and dropped when the squad stops retreating. SquadAI.retreatGoal() reads it. */
-  function updateAssembly(sq, battle) {
-    if (sq.state !== 'retreat') {
-      sq._assembly = null;
-      return;
-    }
-    var t = battle.time,
-      m = sq._macroMission,
-      briefed = !!(m && m.intent === 'reconstitute' && (m.status === 'issued' || m.status === 'executing')),
-      a = sq._assembly || (sq._assembly = { phase: 'to-base', since: t, missionVersion: null });
-    if (a.phase === 'to-rally' && !(briefed && m.version === a.missionVersion)) {
-      a.phase = 'at-base';
-      a.since = t;
-      a.missionVersion = null;
-    }
-    if (a.phase === 'to-base' && !sq.inContact) {
-      var p = average(sq);
-      if (p && dist(p, sq.home) <= ASSEMBLY_HOME_RADIUS) {
-        a.phase = 'at-base';
-        a.since = t;
-        telemetry(battle, 'decision-assembly-home', { faction: sq.faction, squad: sq.id });
-      }
-    }
-    if (a.phase !== 'at-base' || !briefed) return;
-    a.phase = 'to-rally';
-    a.since = t;
-    a.missionVersion = m.version;
-    if (!root.BattleCommanderAI || !root.BattleCommanderAI.acceptMission)
-      throw new Error('Squad Leader cannot accept a brief without its Macro lifecycle owner');
-    root.BattleCommanderAI.acceptMission(battle, sq, true);
-    telemetry(battle, 'decision-assembly-rally', {
-      faction: sq.faction,
-      squad: sq.id,
-      version: m.version,
-      rally: copy(m.point)
-    });
-  }
   /* The Squad Leader is SquadAI's squadCommand owner: status, fire and movement, anchor, fireteam slots. */
   root.SquadAI.extend('squadCommand', 'squad-leader', function (sq, battle) {
     updateSquadState(sq, battle);
@@ -2744,194 +1725,6 @@
     updateFireteams(sq, battle);
     publishForwardLine(sq, battle);
   });
-
-  function inTown(town, p) {
-    return !!(town && town.center && p && dist(p, town.center) < (+town.radius || 250));
-  }
-  function missionLegs(m) {
-    var legs = (m.route || []).map(copy);
-    if (m.point) legs.push(copy(m.point));
-    return legs;
-  }
-  function assaultCommitted(sim, sq) {
-    var a = sim.factions[sq.faction].squads;
-    for (var i = 0; i < a.length; i++)
-      if (a[i] !== sq && ((+a[i].routeIndex || 0) >= 2 || a[i].state === 'engaged')) return true;
-    return false;
-  }
-  function objectivePhase(sim, sq, m, c, pos) {
-    var obj = root.BattleObjectiveSystem && root.BattleObjectiveSystem.get(sim, m.objectiveId),
-      radius = +(obj && obj.def && obj.def.radius) || 30,
-      inside = dist(pos, m.point) <= radius * (+c.captureCommitRatio || 0.82);
-    if (m.intent === 'defend') return m.requestKey || inside ? 'defend' : 'assault';
-    return inside ? 'capture' : 'assault';
-  }
-  /* Squad Leader execution of the General's brief: the only runtime writer of phase, legs and the squad
-   objective point. Without a brief (Macro OFF) the Squad Leader walks the assigned approach route. */
-  function executeMission(sim, sq, town) {
-    if (!sim || !sq) return;
-    /* Which lease, if any, is holding this squad's mission execution this tick (diagnostics). */
-    sq._missionHold = null;
-    if (sq.state === 'retreat' || !alive(sq).length) return;
-    if (leaderlessActive(sq)) {
-      sq._missionHold = 'succession';
-      return;
-    }
-    if (L.get(sq, 'regroup')) {
-      sq._missionHold = 'regroup';
-      return;
-    }
-    var m = sq._macroMission || null,
-      ex = sq._missionExecution,
-      t = sim.time,
-      c = cfg(sim, sq),
-      pos = average(sq);
-    if (!ex || ex.mission !== m) {
-      ex = sq._missionExecution = { mission: m, acceptedAt: t, holdPoint: copy(pos) };
-      if (m) {
-        sq.route = missionLegs(m);
-        sq.routeIndex = 0;
-        L.end(sq, 'corner-hold', t, 'new mission');
-      }
-      if (m && m.status === 'issued') {
-        if (!root.BattleCommanderAI || !root.BattleCommanderAI.acceptMission)
-          throw new Error('Squad Leader cannot accept a brief without its Macro lifecycle owner');
-        root.BattleCommanderAI.acceptMission(sim, sq, false);
-      }
-    }
-    /* A firefight under this brief is a commitment: contact never advances legs or rewrites phase. */
-    var plan = sq._engagementPlan;
-    if (plan && (plan.status === 'active' || plan.status === 'quiet')) {
-      if (plan.missionVersion === missionVersion(sq)) {
-        sq._missionHold = 'tactical-plan';
-        return;
-      }
-      closePlan(sim, sq, 'mission superseded');
-    }
-    var legs = sq.route || [];
-    if (!legs.length) return;
-    var last = legs.length - 1,
-      idx = Math.max(0, Math.min(last, +sq.routeIndex || 0)),
-      wp = legs[idx];
-    /* A live recon task is itself the mission hold. It never advances a route leg or silently changes
-       command phase while the scouts are out. A superseding macro brief invalidates it immediately.
-       But if the squad has arrived at the objective (inside capture radius), end the recon —
-       the scouts' job is done and the squad should transition to capture/defend. */
-    if (L.get(sq, 'recon')) {
-      if (!sq._reconTask || sq._reconTask.missionVersion !== missionVersion(sq))
-        endRecon(sq, sim, 'mission-change');
-      if (L.get(sq, 'recon') && idx === last) {
-        var liveReconObj = m && m.objectiveId && root.BattleObjectiveSystem ? root.BattleObjectiveSystem.get(sim, m.objectiveId) : null,
-          liveReconRadius = +(liveReconObj && liveReconObj.def && liveReconObj.def.radius) || 30;
-        if (dist(pos, wp) < (+c.captureCommitRatio || 0.82) * liveReconRadius)
-          endRecon(sq, sim, 'arrived at objective');
-      }
-      if (L.get(sq, 'recon')) {
-        sq._missionHold = 'recon';
-        sq.objective = copy(wp);
-        return;
-      }
-    }
-    if ((m && m.intent === 'reserve') || (!m && sq.commandRole === 'reserve')) {
-      setPhase(sim, sq, 'reserve', 'holding reserve');
-      sq.objective = copy(legs[last]);
-      return;
-    }
-    if (m && m.intent === 'hold') {
-      setPhase(sim, sq, 'hold', 'mission hold');
-      sq.objective = copy(legs[last]);
-      return;
-    }
-    if (
-      sq.commandRole === 'support' &&
-      idx >= 1 &&
-      t < (+c.supportDelay || 0) &&
-      !assaultCommitted(sim, sq)
-    ) {
-      setPhase(sim, sq, 'support-hold', 'waiting for assault');
-      sq.objective = copy(legs[Math.min(1, last)]);
-      return;
-    }
-    if (L.holds(sq, 'corner-hold', t)) {
-      sq._missionHold = 'corner-hold';
-      sq.objective = copy(wp);
-      return;
-    }
-    var recon = reconCandidate(sq, sim, wp);
-    /* Don't start a recon task when the squad is already at the objective (idx === last and
-       inside the capture radius). The recon candidate looks at distance from the goal, but
-       when the squad is ON the goal, recon should not fire — the squad should transition
-       to capture/defend, not send scouts. This was masked when reconCandidate required
-       callouts (C gate); removing that gate exposed it. */
-    if (recon && idx === last) {
-      var reconObj = m && m.objectiveId && root.BattleObjectiveSystem ? root.BattleObjectiveSystem.get(sim, m.objectiveId) : null,
-        reconRadius = +(reconObj && reconObj.def && reconObj.def.radius) || 30;
-      if (dist(pos, wp) < (+c.captureCommitRatio || 0.82) * reconRadius) recon = null;
-    }
-    if (recon && startRecon(sq, sim, recon)) {
-      sq._missionHold = 'recon';
-      sq.objective = copy(wp);
-      return;
-    }
-    var axisEnd = m ? (m.route || []).length - 1 : last,
-      limit = +(leaderAlive(sq) ? c.cohesionRadius : c.captainlessCohesion) || 34,
-      urban = inTown(town, wp);
-    var arrival =
-      idx === axisEnd
-        ? Math.max(+c.finalRouteRadius || 14, 32)
-        : urban
-          ? Math.max(+c.routeArrivalRadius || 8, limit * URBAN_ARRIVAL_COHESION)
-          : +c.routeArrivalRadius || 8;
-    if (idx < last && dist(pos, wp) < arrival) {
-      var from = idx;
-      sq.routeIndex = idx = idx + 1;
-      wp = legs[idx];
-      telemetry(sim, 'decision-route', {
-        faction: sq.faction,
-        squad: sq.id,
-        from: from,
-        to: idx,
-        x: wp.x,
-        z: wp.z
-      });
-      if (urban) {
-        L.grant(
-          sq,
-          'corner-hold',
-          'squad-leader',
-          t,
-          t + (+c.cornerHold || 0) + (leaderAlive(sq) ? 0 : +c.cornerNoCaptainExtra || 0),
-          'urban corner after route leg ' + from,
-          'expiry, new mission or regroup release'
-        );
-        setPhase(sim, sq, 'corner-check', 'route ' + from);
-        sq.objective = copy(wp);
-        return;
-      }
-    }
-    if (m && m.objectiveId && idx === last) {
-      if (m.action === 'hold' || m.action === 'regroup') {
-        setPhase(sim, sq, 'hold', 'doctrine ' + m.action);
-        sq.objective = copy(ex.holdPoint || pos);
-        return;
-      }
-      if (m.action === 'support') {
-        setPhase(sim, sq, 'support-hold', 'doctrine support');
-        sq.objective = copy(ex.holdPoint || pos);
-        return;
-      }
-      setPhase(sim, sq, objectivePhase(sim, sq, m, c, pos), 'mission ' + m.objectiveId);
-      sq.objective = copy(wp);
-      return;
-    }
-    /* No separate distance-based contact phase: a firefight is Engagement's inContact, which the
-       plan lease and fire-and-movement already follow (2026-09-24 Macro-off benchmark: removing
-       it left 29 of 30 battles identical). */
-    if (m && m.action === 'flank' && idx === axisEnd) setPhase(sim, sq, 'flank', 'doctrine flank');
-    else if (inTown(town, pos)) setPhase(sim, sq, 'clear-town', 'inside objective area');
-    else setPhase(sim, sq, 'approach', 'route advance');
-    sq.objective = copy(wp);
-  }
 
   function summary(sim) {
     var out = {

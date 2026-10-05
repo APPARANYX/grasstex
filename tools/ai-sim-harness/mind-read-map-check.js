@@ -264,7 +264,8 @@ test('the runtime readers are the declared decision, command-observer, display a
   assert.deepEqual(Object.keys(found.runtime).sort(), [
     'engagement.js',
     'modules/14-z-ballistic-raycast.js',
-    'modules/16-squad-plan-stability.js',
+    'modules/15e-squad-leader-morale-coa.js',
+    'modules/15j-squad-leader-fire-and-movement.js',
     'modules/18-command-reception.js',
     'modules/40-world-debug-overlay.js',
     'modules/99-session-diagnostics-export.js'
@@ -338,13 +339,13 @@ test('a new file that reads stress fails until the table lists it', () => {
 
 test('a listed file that starts reading something else fails', () => {
   fails(
-    mutated('modules/16-squad-plan-stability.js', src => src + '\nvar x = sq.mind.max;'),
-    /unlisted read: modules\/16-squad-plan-stability\.js reads mind\.max/,
+    mutated('modules/15j-squad-leader-fire-and-movement.js', src => src + '\nvar x = sq.mind.max;'),
+    /unlisted read: modules\/15j-squad-leader-fire-and-movement\.js reads mind\.max/,
     'the Squad Leader reads the max'
   );
   fails(
-    mutated('modules/16-squad-plan-stability.js', src => src + '\nvar x = sq.mind.mean;'),
-    /read count: modules\/16-squad-plan-stability\.js reads mind\.mean 2 times/,
+    mutated('modules/15e-squad-leader-morale-coa.js', src => src + '\nvar x = sq.mind.mean;'),
+    /read count: modules\/15e-squad-leader-morale-coa\.js reads mind\.mean 2 times/,
     'a second read of the mean'
   );
   fails(
@@ -361,8 +362,8 @@ test('a listed file that starts reading something else fails', () => {
 
 test('a listed read that is gone fails', () => {
   fails(
-    mutated('modules/16-squad-plan-stability.js', src => src.replace(/sq\.mind\.mean/g, 'sq.other.mean')),
-    /stale row: modules\/16-squad-plan-stability\.js no longer reads mind\.mean|read count: modules\/16/,
+    mutated('modules/15e-squad-leader-morale-coa.js', src => src.replace(/sq\.mind\.mean/g, 'sq.other.mean')),
+    /stale row: modules\/15e-squad-leader-morale-coa\.js no longer reads mind\.mean/,
     'the roll-up is no longer read'
   );
   fails(

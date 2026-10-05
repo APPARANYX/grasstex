@@ -251,8 +251,8 @@
       kind: 'lever',
       lever: 'morale',
       layer: 'Meso (Squad Leader)',
-      file: 'modules/16-squad-plan-stability.js',
-      reader: 'squadStress: updateSquadState (group break and rally), COA_INPUTS.stress (COA default on)',
+      file: 'modules/15e-squad-leader-morale-coa.js',
+      reader: 'squadStress (extracted from 16): updateSquadState in 16 (group break and rally), COA_INPUTS.stress (COA default on)',
       reads: { squadStress: 2, mind: 1, 'mind.mean': 1 },
       unit: 'squad mean stress, 0 unless the morale lever is on: the break point falls 0.3 per unit, rally under 0.15; weight -1.0 on assault and +0.5 on defend',
       flag: '?mind= morale lever; group morale and COA on by default (?morale=0 / ?coa=0 disable their layer)'
@@ -261,9 +261,9 @@
       kind: 'lever',
       lever: 'lead',
       layer: 'Meso (Squad Leader)',
-      file: 'modules/16-squad-plan-stability.js',
+      file: 'modules/15j-squad-leader-fire-and-movement.js',
       reader:
-        'teamStress: fireAndMovement (which fireteam bounds, a bound held); leadStress: stressReview (doctrine-review)',
+        'teamStress: fireAndMovement (which fireteam bounds, a bound held); leadStress: stressReview (doctrine-review) (moved here from 16 in the bare-bones split)',
       reads: { teamStress: 2, leadStress: 2 },
       unit: "a fireteam's movers' mean stress (the calmest team that can go is sent; every team at the shaken band holds the cycle); the squad mean over 1/3 for reviewAfter asks the General for a new task",
       flag: '?mind= lead lever (default on); the Squad Leader reads it only with ?slStress=pick,hold,review (all three on by default; ?slStress=0 is none)'

@@ -72,7 +72,7 @@ function bootstrap(opts){
     load(root,'battle/modules/15a-squad-leader-fire-control.js');
     load(root,'battle/modules/15b-squad-leader-buddy-pairs.js');
     load(root,'battle/modules/15c-squad-leader-scouts-forward.js');
-    load(root,'battle/modules/16-squad-plan-stability.js');
+    load(root,'battle/modules/15d-squad-leader-leaderless-intent.js');load(root,'battle/modules/15e-squad-leader-morale-coa.js');load(root,'battle/modules/15f-squad-leader-retreat-anchor.js');load(root,'battle/modules/15g-squad-leader-formation.js');load(root,'battle/modules/15h-squad-leader-fireteams.js');load(root,'battle/modules/15i-squad-leader-clear-contact.js');load(root,'battle/modules/15j-squad-leader-fire-and-movement.js');load(root,'battle/modules/15k-squad-leader-reconstitution.js');load(root,'battle/modules/15l-squad-leader-mission-execution.js');load(root,'battle/modules/16-squad-plan-stability.js');
     /* The wound model owns what a hit does (hit zone, incapacitation, bleeding). */
     load(root,'battle/modules/14-wound-model.js');
     /* Soldier condition: stress from fire, wounds and casualties, read by Engagement and the shot model. */

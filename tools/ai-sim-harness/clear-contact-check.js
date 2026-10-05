@@ -25,6 +25,13 @@ const SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/16-squad-plan-stab
 const FC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15a-squad-leader-fire-control.js'), 'utf8');
 const BP_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15b-squad-leader-buddy-pairs.js'), 'utf8');
 const SF_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15c-squad-leader-scouts-forward.js'), 'utf8');
+const LL_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15d-squad-leader-leaderless-intent.js'), 'utf8');
+const ME_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15e-squad-leader-morale-coa.js'), 'utf8');
+const CC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15i-squad-leader-clear-contact.js'), 'utf8');
+const RA_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15f-squad-leader-retreat-anchor.js'), 'utf8');
+const FG_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15g-squad-leader-formation.js'), 'utf8');
+const FT_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15h-squad-leader-fireteams.js'), 'utf8');
+const FAM_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15j-squad-leader-fire-and-movement.js'), 'utf8');
 const log = console.log;
 console.log = (...a) => (typeof a[0] === 'string' && a[0][0] === '[' ? undefined : log(...a));
 let n = 0;
@@ -64,6 +71,13 @@ function world(search) {
     }
   };
   new Function('window', 'globalThis', 'console', 'location', FC_SRC)(r, r, console, r.location);
+  new Function('window', 'globalThis', 'console', 'location', LL_SRC)(r, r, console, r.location);
+  new Function('window', 'globalThis', 'console', 'location', ME_SRC)(r, r, console, r.location);
+  new Function('window', 'globalThis', 'console', 'location', RA_SRC)(r, r, console, r.location);
+  new Function('window', 'globalThis', 'console', 'location', FG_SRC)(r, r, console, r.location);
+  new Function('window', 'globalThis', 'console', 'location', FT_SRC)(r, r, console, r.location);
+  new Function('window', 'globalThis', 'console', 'location', FAM_SRC)(r, r, console, r.location);
+  new Function('window', 'globalThis', 'console', 'location', CC_SRC)(r, r, console, r.location);
   new Function('window', 'globalThis', 'console', 'location', SRC)(
     r,
     r,

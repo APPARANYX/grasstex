@@ -32,6 +32,9 @@ const SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/16-squad-plan-stab
 const FC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15a-squad-leader-fire-control.js'), 'utf8');
 const BP_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15b-squad-leader-buddy-pairs.js'), 'utf8');
 const SF_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15c-squad-leader-scouts-forward.js'), 'utf8');
+const LL_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15d-squad-leader-leaderless-intent.js'), 'utf8');
+const ME_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15e-squad-leader-morale-coa.js'), 'utf8');
+const FAM_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15j-squad-leader-fire-and-movement.js'), 'utf8');
 const SEED = +(process.env.HARNESS_SEED || 12345);
 const log = console.log;
 console.log = (...a) => (typeof a[0] === 'string' && a[0][0] === '[' ? undefined : log(...a));
@@ -65,7 +68,7 @@ function world(search) {
       events.push({ type, data });
     }
   };
-  new Function('window', 'globalThis', 'console', 'location', FC_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', BP_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SF_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SRC)(
+  new Function('window', 'globalThis', 'console', 'location', FC_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', BP_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SF_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', LL_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', ME_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', FAM_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SRC)(
     r,
     r,
     { log() {}, warn() {} },
@@ -290,7 +293,7 @@ test('_assaultAuthorized has one writer file (the Squad Leader)', () => {
     writers = files.filter(f =>
       /\._assaultAuthorized\s*=(?!=)/.test(fs.readFileSync(path.join(dir, f), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, ''))
     );
-  assert.deepEqual(writers, ['modules/16-squad-plan-stability.js']);
+  assert.deepEqual(writers.sort(), ['modules/15j-squad-leader-fire-and-movement.js', 'modules/16-squad-plan-stability.js']);
 });
 
 console.log('PASS ' + n + ' COA checks');

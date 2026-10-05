@@ -49,6 +49,49 @@
         }
       }
     },
+    "squad._leaderlessIntent": {
+      "owner": "modules/15d-squad-leader-leaderless-intent.js",
+      "writers": {
+        "modules/15d-squad-leader-leaderless-intent.js": {
+          "as": "owner",
+          "why": "captureLeaderlessIntent and endLeaderlessIntent set/clear the inherited intent (extracted from 16-squad-plan-stability.js)."
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "updateSuccession re-arms the inherited intent from the succession lease (the write moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset clears it."
+        }
+      }
+    },
+    "squad._macroMissionRequest": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "requestReview raises the doctrine-review request; restart-reset clears it."
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "acknowledgeRequest answers it once the General has read a new brief (moved here from 16 in the bare-bones split)."
+        }
+      }
+    },
+    "squad._orderVersion": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "advanceSquadAnchor bumps the order version when the anchor takes a stride."
+        },
+        "modules/15f-squad-leader-retreat-anchor.js": {
+          "as": "layer",
+          "why": "grantRetreatAnchor bumps the order version when it publishes a new retreat endpoint (extracted from 16-squad-plan-stability.js)."
+        }
+      }
+    },
     "soldier._engagementTask": {
       "owner": "modules/16-squad-plan-stability.js",
       "writers": {
@@ -59,6 +102,53 @@
         "modules/15c-squad-leader-scouts-forward.js": {
           "as": "layer",
           "why": "publishReconOrders sets engagement tasks for scout and main-body men."
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "Roster rewrites (reform, detachFled) clear tasks so nothing carries over a merge (moved here from 16 in the bare-bones split)."
+        }
+      }
+    },
+    "squad._assaultAuthorized": {
+      "owner": "modules/15j-squad-leader-fire-and-movement.js",
+      "writers": {
+        "modules/15j-squad-leader-fire-and-movement.js": {
+          "as": "owner",
+          "why": "fireAndMovement sets/clears the assault authorization each contact tick (moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset clears it."
+        }
+      }
+    },
+    "squad._boundTurn": {
+      "owner": "modules/15j-squad-leader-fire-and-movement.js",
+      "writers": {
+        "modules/15j-squad-leader-fire-and-movement.js": {
+          "as": "owner",
+          "why": "fireAndMovement advances the fireteam rotation (moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset clears it."
+        }
+      }
+    },
+    "soldier._defensePost": {
+      "owner": "modules/15h-squad-leader-fireteams.js",
+      "writers": {
+        "modules/15h-squad-leader-fireteams.js": {
+          "as": "owner",
+          "why": "holdPost latches a settled defensive post to the command signature; updateFireteams clears it when the post is replaced by a prepared one (moved here from 16 in the bare-bones split)."
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "Roster rewrites (reform, detachFled) clear the latch (moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset clears the latch."
         }
       }
     },
@@ -72,6 +162,40 @@
         "modules/15c-squad-leader-scouts-forward.js": {
           "as": "layer",
           "why": "publishReconOrders sets fireteam key for scout assignments."
+        },
+        "modules/15h-squad-leader-fireteams.js": {
+          "as": "layer",
+          "why": "updateFireteams stamps each man's fireteam key when it publishes his slot (moved here from 16 in the bare-bones split)."
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "Roster rewrites (updateSuccession successor slot, reform, detachFled, absorb) reset fireteam keys (moved here from 16 in the bare-bones split)."
+        }
+      }
+    },
+    "soldier._regroupUnstick": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "updateCohesion arms the regroup-unstick record on a stuck man; endRegroup and restart-reset clear it."
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "endUnstick clears the record when the man recovers, the lease ends or he dies; called from stepMovement (moved here from 16 in the bare-bones split)."
+        }
+      }
+    },
+    "soldier._engagementPlanSerial": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "syncTasks stamps each man's plan serial."
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "Roster rewrites (reform, detachFled) clear serials so nothing carries over a merge (moved here from 16 in the bare-bones split)."
         }
       }
     },
@@ -128,11 +252,15 @@
       }
     },
     "squad._fireteamOrders": {
-      "owner": "modules/16-squad-plan-stability.js",
+      "owner": "modules/15h-squad-leader-fireteams.js",
       "writers": {
-        "modules/16-squad-plan-stability.js": {
+        "modules/15h-squad-leader-fireteams.js": {
           "as": "owner",
-          "why": "Fireteam order records, renewed in updateFireteams."
+          "why": "Fireteam order records, renewed in updateFireteams (moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset clears the records."
         },
         "modules/21-defender-engineers.js": {
           "as": "setup",
@@ -160,9 +288,9 @@
           "as": "owner",
           "why": "formationDirection caches the forward vector the formation slots are laid out on."
         },
-        "modules/16-squad-plan-stability.js": {
+        "modules/15g-squad-leader-formation.js": {
           "as": "setup",
-          "why": "placeAtSlots seeds it from the spawn direction: initial placement, from placeForce at battle start and from module 10 for a reinforcement squad."
+          "why": "placeAtSlots seeds it from the spawn direction: initial placement, from placeForce at battle start and from module 10 for a reinforcement squad (the write moved here from 16 in the bare-bones split)."
         },
         "modules/21-defender-engineers.js": {
           "as": "setup",
@@ -180,6 +308,10 @@
         "modules/21-defender-engineers.js": {
           "as": "setup",
           "why": "garrison-setup"
+        },
+        "modules/15f-squad-leader-retreat-anchor.js": {
+          "as": "layer",
+          "why": "grantRetreatAnchor records the retreat goal it published an endpoint for (extracted from 16-squad-plan-stability.js)."
         }
       }
     },
@@ -206,6 +338,10 @@
         "squad-ai.js": {
           "as": "fallback",
           "why": "squad-status-fallback"
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "Roster rewrites stamp the count (reform sets the merged squad's, disband zeroes an absorbed one) (moved here from 16 in the bare-bones split)."
         }
       }
     },
@@ -265,7 +401,11 @@
       "writers": {
         "modules/16-squad-plan-stability.js": {
           "as": "owner",
-          "why": "executeMission and updateCohesion publish the squad's current objective point."
+          "why": "updateCohesion publishes the regroup anchor; restart-reset clears it."
+        },
+        "modules/15l-squad-leader-mission-execution.js": {
+          "as": "layer",
+          "why": "executeMission publishes the squad's current objective point (the write moved here from 16 in the bare-bones split)."
         },
         "commander-routes.js": {
           "as": "setup",
@@ -278,11 +418,11 @@
       }
     },
     "squad.route": {
-      "owner": "modules/16-squad-plan-stability.js",
+      "owner": "modules/15l-squad-leader-mission-execution.js",
       "writers": {
-        "modules/16-squad-plan-stability.js": {
+        "modules/15l-squad-leader-mission-execution.js": {
           "as": "owner",
-          "why": "executeMission replaces the route with the brief's legs."
+          "why": "executeMission replaces the route with the brief's legs (the write moved here from 16 in the bare-bones split)."
         },
         "commander-routes.js": {
           "as": "setup",
@@ -295,11 +435,11 @@
       }
     },
     "squad.routeIndex": {
-      "owner": "modules/16-squad-plan-stability.js",
+      "owner": "modules/15l-squad-leader-mission-execution.js",
       "writers": {
-        "modules/16-squad-plan-stability.js": {
+        "modules/15l-squad-leader-mission-execution.js": {
           "as": "owner",
-          "why": "executeMission advances the leg index."
+          "why": "executeMission advances the leg index (the write moved here from 16 in the bare-bones split)."
         },
         "commander-routes.js": {
           "as": "setup",
@@ -308,6 +448,19 @@
         "modules/21-defender-engineers.js": {
           "as": "setup",
           "why": "garrison-setup"
+        }
+      }
+    },
+    "squad._missionExecution": {
+      "owner": "modules/15l-squad-leader-mission-execution.js",
+      "writers": {
+        "modules/15l-squad-leader-mission-execution.js": {
+          "as": "owner",
+          "why": "executeMission keeps the per-mission execution record (hold point, accepted brief)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset clears it."
         }
       }
     },
@@ -464,9 +617,9 @@
           "as": "fallback",
           "why": "resolver-fallback"
         },
-        "modules/16-squad-plan-stability.js": {
+        "modules/15g-squad-leader-formation.js": {
           "as": "setup",
-          "why": "placeAtSlots: initial placement (battle start and module 10 reinforcements)."
+          "why": "placeAtSlots: initial placement (battle start and module 10 reinforcements); the write moved here from 16 in the bare-bones split."
         },
         "modules/21-defender-engineers.js": {
           "as": "setup",
@@ -591,9 +744,9 @@
           "as": "owner",
           "why": "turnToward in stepMovement."
         },
-        "modules/16-squad-plan-stability.js": {
+        "modules/15g-squad-leader-formation.js": {
           "as": "setup",
-          "why": "placeAtSlots: initial placement (battle start and module 10 reinforcements)."
+          "why": "placeAtSlots: initial placement (battle start and module 10 reinforcements); the write moved here from 16 in the bare-bones split."
         },
         "modules/21-defender-engineers.js": {
           "as": "setup",
