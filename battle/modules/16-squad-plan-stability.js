@@ -1164,7 +1164,8 @@
     )
       return false;
 
-    s._fireteamDestination = copy(appliedPoint);
+    if (adopted.data.adoptHere) s._fireteamDestination = copy(appliedPoint);
+    else s._fireteamDestination = copy(adopted.point);
     s._fireteamPublishKey = adoptedKey;
     s._fireteamAdoptedEnvelope = adopted.envelopeId;
     stats.intentPublishes++;
