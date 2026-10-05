@@ -730,6 +730,14 @@ Implement this in **small phases**, each with its own deterministic harness/prob
    own `squad.contact` picture and the Squad Leader can react. Sliced as 0F1 (telemetry, behavior-neutral),
    0F2 (reception, opt-in `?squadBroadcast=1`), 0F3 (reaction, benchmark-gated). This is squad-to-squad, not
    Macro and not Micro; it does not bypass Movement Resolver or Engagement ownership.
+7. **Multi-contact awareness — Phase 0G, design in `docs/reference/AI_TACTICS_OUTLINE.md`.** Today every layer
+   tracks one threat at a time: `selectBelief` returns one winner, `squad.contact` is a single object,
+   Engagement's `decide()` reads one contact. A soldier being shot at from the north while engaging an enemy
+   to the south *knows* about both (both are in `_beliefs.byKey`) but *acts on* only one. 0G makes the existing
+   multi-belief data consumable: Perception exposes a prioritized list, Engagement reacts to secondary threats,
+   and the Squad Leader can assign fireteams to different threat sectors. Sliced as 0G1 (secondary threat
+   awareness, opt-in `?secondaryThreat=1`), 0G2 (squad-level contacts map, opt-in `?squadContacts=1`), 0G3
+   (fireteam split on multi-contact, benchmark-gated).
 
 **After that prerequisite ships**, return to `docs/reference/AI_TACTICS_OUTLINE.md`'s tactical control-plane sequence:
 `TacticalSituation` + read-only street/building-control diagnostics, richer `SquadIntent` metadata, then one named
