@@ -2265,7 +2265,19 @@
       return bound(s, battle);
     }
     /* Nothing to hide behind. Closing the distance is only sane with an order to do it; otherwise
-       go to ground and shoot from where he is. */
+       go to ground and shoot from where he is - UNLESS the target is out of effective range and
+       the squad is not assaulting. In that case, standing in the open to fire at a target he can
+       barely hit is suicide; withdraw toward the squad anchor to break contact instead. This
+       saves lone riflemen pinned by snipers/MGs at long range who would otherwise stand and die. */
+    var sq = s.squad,
+      assaulting = sq && ADVANCING[sq.commandPhase],
+      effectiveRange = SA().engageRange(s),
+      outOfRange = d > effectiveRange * 1.2,
+      anchor = sq && (sq.orderAnchor || sq.rally);
+    if (!suppressed && outOfRange && !assaulting && anchor) {
+      transition(s, battle, 'withdraw', 0, why + ': break contact (no cover, out of range)');
+      return withdraw(s, battle);
+    }
     transition(s, battle, 'engage', 0, why + ': fight from the open');
     return engage(s, battle);
   }
