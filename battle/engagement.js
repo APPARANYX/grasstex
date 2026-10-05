@@ -1771,10 +1771,26 @@
       safe = sq && sq.safePoint,
       home = e.fledHome || (sq && sq.home) || { x: p.x, z: p.z },
       pt = safe && !(th && dist(safe.x, safe.z, th.x, th.z) < ACT_TUNING.FLED_SAFE) ? safe : home;
+    /* Per-soldier offset so multiple fleeing soldiers from the same squad don't converge on
+       the exact same point and orbit it (personal-space pushes them apart but they push back
+       toward the shared refuge). A deterministic ring offset hashed from s.id spreads each
+       fleer ~2-4m apart around the refuge, like a mini rally formation. */
+    var off = fleeOffset(s);
     e.cover = null;
-    e.refuge = { x: pt.x, z: pt.z };
+    e.refuge = { x: pt.x + off.x, z: pt.z + off.z };
     e.refugeBest = dist(p.x, p.z, e.refuge.x, e.refuge.z);
     e.refugeAt = battle.time;
+  }
+  /* Deterministic per-soldier flee offset. Hashes s.id into a ring position so each fleer
+     gets a distinct slot ~2-4m from the refuge center. Same soldier always gets the same
+     offset (deterministic). */
+  function fleeOffset(s) {
+    var h = 2166136261 >>> 0, str = String(s.id) + '|flee';
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13;
+    var angle = ((h >>> 0) / 4294967295) * Math.PI * 2,
+      radius = 2 + ((h >>> 8) % 128) / 128 * 2; /* 2-4m ring */
+    return { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius };
   }
   function cower(s, battle) {
     s.state = 'engage';
@@ -2230,8 +2246,19 @@
       return pinned(s, battle);
     }
     if (here <= USEFUL_COVER) {
-      transition(s, battle, 'engage', 0, why + ': cover here');
-      return engage(s, battle);
+      /* LOS gate: if the man is at useful cover but can't actually see his target (e.g. prone
+         behind a hedgerow that blocks his eye line), don't accept the cover — fall through to
+         findCover() which already filters candidates by standing LOS. Without this gate a man
+         who goes prone behind a hedge stays there indefinitely: engage()'s review only fires
+         when he's in the open, and this "cover here" branch would bounce him back to engage()
+         at the same blind spot every time. */
+      var hasLine = !target || !target.root ||
+        SA().hasLineOfSight(s, target, battle.heightAt, battle.obstacles);
+      if (hasLine) {
+        transition(s, battle, 'engage', 0, why + ': cover here');
+        return engage(s, battle);
+      }
+      /* else: at cover but blind — fall through to findCover() to relocate. */
     }
 
     /* A man whose squad is advancing and who is not under fire takes cover ahead of him or beside
@@ -2370,7 +2397,12 @@
     tryFire(s, battle);
     if (battle.time >= (e.reviewAt || 0)) {
       e.reviewAt = battle.time + ENGAGE_REVIEW + jitter(s, 0.3);
-      if (here > OPEN_COVER) decide(s, battle, 'review');
+      /* Also re-decide when the man has no LOS to his target — a man behind a hedgerow who
+         can't see his enemy should reposition, not lie there indefinitely. The "cover here"
+         branch in decide() now checks LOS too, so this review will relocate him via findCover(). */
+      var noLine = s.target && s.target.root &&
+        !SA().hasLineOfSight(s, s.target, battle.heightAt, battle.obstacles);
+      if (here > OPEN_COVER || noLine) decide(s, battle, noLine ? 'no firing line' : 'review');
     }
   }
 

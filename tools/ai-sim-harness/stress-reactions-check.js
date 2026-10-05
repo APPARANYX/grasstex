@@ -357,10 +357,10 @@ test("flee: he leaves his weapons, runs to the squad's last safe point, never fi
   assert.equal(s.eng.fledPhase, 'run');
   assert.equal(s.state, 'retreat', 'shown as a man on the run (module 11 sprints him)');
   assert.equal(s.weapon, null, 'the weapon stays where he stood');
-  assert.deepEqual(s.eng.refuge, safe);
+  assert.ok(dist(s.eng.refuge, safe) < 5, "refuge near safe (with per-soldier offset)");
   const p = here(s),
     threat = here(g);
-  assert.ok(dist(s.destination, safe) < 1, 'his goal is the safe point');
+  assert.ok(dist(s.destination, s.eng.refuge) < 1, 'his goal is his offset refuge');
   assert.ok(dist(s.destination, threat) > dist(p, threat) + 10, 'further from the threat than he is');
   assert.ok(s._combatUrgentUntil > ctx.b.time, 'at a run');
   let shots = 0;
@@ -369,12 +369,12 @@ test("flee: he leaves his weapons, runs to the squad's last safe point, never fi
   s.fireCooldown = 0;
   tick(ctx, s, 2);
   assert.equal(shots, 0, 'a man running does not fire');
-  /* He gets there and holds. */
-  put(s, safe.x, safe.z);
+  /* He gets there and holds. Put him at his offset refuge, not the raw safe point. */
+  put(s, s.eng.refuge.x, s.eng.refuge.z);
   tick(ctx, s, 0.6);
   assert.equal(s.eng.state, 'flee', 'still in it');
   assert.equal(s.eng.fledPhase, 'wait', 'waiting for a squad');
-  assert.ok(dist(s.destination, safe) < 0.5, 'holding at the refuge');
+  assert.ok(dist(s.destination, s.eng.refuge) < 0.5, 'holding at the refuge');
   assert.equal(s.crouching || s.prone, true, 'down at the refuge');
 });
 
@@ -395,7 +395,7 @@ test('flee: the goal stands until he is there, and a man who cannot get there wa
     s.mind.stress = 0.95;
     tick(ctx, s, 1);
   }
-  assert.deepEqual(s.eng.refuge, safe, 'the goal stood while he ran to it');
+  assert.ok(dist(s.eng.refuge, safe) < 5, "the goal stood while he ran to it (with per-soldier offset)");
   assert.equal(s.eng.refugeTries || 0, 0, 'headway, so no try');
   /* Stuck: no headway for FLEE_REPICK, FLEE_TRIES times over, and then he stays where he is. */
   const stuck = broke('?stressAct=flee', [0.9, 0, 0], 100, { safe }); // the enemy is beyond FLED_ENEMY_NEAR
