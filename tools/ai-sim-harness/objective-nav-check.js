@@ -19,7 +19,7 @@ const SEEDS=['push-1-0001','push-1-0030','push-1-0069','push-1-0070','push-2-s4-
 let failures=0,checks=0;
 function check(name,ok,detail){checks++;if(ok)console.log('  PASS  '+name);else{failures++;console.log('  FAIL  '+name+(detail?'  ('+detail+')':''));}}
 function section(n){console.log('\n== '+n+' ==');}
-function load(root,rel){const c=fs.readFileSync(path.join(REPO,rel),'utf8');new Function('window','globalThis','console','BABYLON',c+'\n//# sourceURL='+rel)(root,root,root.console,root.BABYLON);}
+function load(root,rel){const c=fs.readFileSync(path.join(REPO,rel),'utf8');new Function('window','globalThis','console','BABYLON','location',c+'\n//# sourceURL='+rel)(root,root,root.console,root.BABYLON,root.location);}
 /* The module banners are noise here; the checks below are the output that matters. */
 const quiet={log(){},warn(){},error(){}};
 function bootstrap(){
@@ -164,8 +164,14 @@ section('capture progress survives a lapse in presence');
    implementation of their decisions. */
 function commandFixture(){
   const r=bootstrap();r.BattleSim={start(){}};
-  {const real=require('./harness.js').bootstrap({modules:false});r.SquadAI={updateSquad(){},extend(stage,id,fn){if(stage==='squadCommand')this.updateSquad=fn;},ROLES:{},COMPOSITION:['rifleman'],leaderOf:real.SquadAI.leaderOf,isLeader:real.SquadAI.isLeader,establishment:real.SquadAI.establishment,retreatGoal:real.SquadAI.retreatGoal};r.BattleLeases=real.BattleLeases;}
+  {const real=require('./harness.js').bootstrap({modules:false});r.SquadAI={updateSquad(){},extend(stage,id,fn){if(stage==='squadCommand')this.updateSquad=fn;},ROLES:{},COMPOSITION:['rifleman'],leaderOf:real.SquadAI.leaderOf,isLeader:real.SquadAI.isLeader,isMachineGun:real.SquadAI.isMachineGun,establishment:real.SquadAI.establishment,retreatGoal:real.SquadAI.retreatGoal,squadContact:real.SquadAI.squadContact,soldierBeliefsOn:real.SquadAI.soldierBeliefsOn,soldierContact:real.SquadAI.soldierContact,threatDisposition:real.SquadAI.threatDisposition,hasFirstHandMemory:real.SquadAI.hasFirstHandMemory,engageRange:real.SquadAI.engageRange,formationFor:real.SquadAI.formationFor};r.BattleLeases=real.BattleLeases;}
   load(r,'battle/commander-routes.js');load(r,'battle/commander-ai.js');
+  /* Load callouts with ?callouts=0 so reconCandidate's gate works the same as the old test
+     (callouts loaded but disabled = recon blocked). The live game has callouts on by default,
+     so recon fires; this test was written before defend was added to RECON_PHASES. */
+  r.location = { search: '?callouts=0' };
+  load(r,'battle/modules/09-tactical-callouts.js');
+  delete r.location;
   const sq={id:'us-0',faction:'us',state:'advance',commandRole:'center',commandPhase:'assault',
     route:[{x:0,z:0},{x:0,z:0}],routeIndex:1,
     targetObjective:'outer',objective:{x:120,z:0},rally:{x:65,z:0},members:[],aliveCount:4};
