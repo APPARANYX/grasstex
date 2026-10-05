@@ -165,7 +165,7 @@ section('capture progress survives a lapse in presence');
 function commandFixture(){
   const r=bootstrap();r.BattleSim={start(){}};
   {const real=require('./harness.js').bootstrap({modules:false});r.SquadAI={updateSquad(){},extend(stage,id,fn){if(stage==='squadCommand')this.updateSquad=fn;},ROLES:{},COMPOSITION:['rifleman'],leaderOf:real.SquadAI.leaderOf,isLeader:real.SquadAI.isLeader,isMachineGun:real.SquadAI.isMachineGun,establishment:real.SquadAI.establishment,retreatGoal:real.SquadAI.retreatGoal,squadContact:real.SquadAI.squadContact,soldierBeliefsOn:real.SquadAI.soldierBeliefsOn,soldierContact:real.SquadAI.soldierContact,threatDisposition:real.SquadAI.threatDisposition,hasFirstHandMemory:real.SquadAI.hasFirstHandMemory,engageRange:real.SquadAI.engageRange,formationFor:real.SquadAI.formationFor};r.BattleLeases=real.BattleLeases;}
-  load(r,'battle/commander-routes.js');load(r,'battle/commander-ai.js');
+  load(r,'battle/commander-routes.js');load(r,'battle/commander-ai.js');load(r,'battle/modules/22-commander-reconstitution.js');
   /* Load callouts with ?callouts=0 so reconCandidate's gate works the same as the old test
      (callouts loaded but disabled = recon blocked). The live game has callouts on by default,
      so recon fires; this test was written before defend was added to RECON_PHASES. */
@@ -206,7 +206,7 @@ section('a single assigned squad can reach and capture an outer objective');
   r.BattleModules.unitsFor=sim=>sim._roster.us.concat(sim._roster.ge);
   r.BattleSim={start(){}};
   for(const f of ['battle/movement-resolver.js','battle/objective-system.js','battle/modules/01-capture-zone.js',
-    'battle/commander-doctrine.js','battle/commander-routes.js','battle/commander-ai.js',
+    'battle/commander-doctrine.js','battle/commander-routes.js','battle/commander-ai.js','battle/modules/22-commander-reconstitution.js',
     'battle/modules/15a-squad-leader-fire-control.js','battle/modules/15b-squad-leader-buddy-pairs.js','battle/modules/15c-squad-leader-scouts-forward.js','battle/modules/15d-squad-leader-leaderless-intent.js','battle/modules/15e-squad-leader-morale-coa.js','battle/modules/15f-squad-leader-retreat-anchor.js','battle/modules/15g-squad-leader-formation.js','battle/modules/15h-squad-leader-fireteams.js','battle/modules/15i-squad-leader-clear-contact.js','battle/modules/15j-squad-leader-fire-and-movement.js','battle/modules/15k-squad-leader-reconstitution.js','battle/modules/15l-squad-leader-mission-execution.js','battle/modules/15m-squad-leader-cohesion-regroup.js',
     'battle/modules/16-squad-plan-stability.js'])load(r,f);
   const sim=H.makeBattle(r,{seed:12345});sim.scene={metadata:{}};
