@@ -665,7 +665,19 @@
       if (status.owner !== sq.faction)
         chosen = { instance: assigned, point: D.objectivePoint(assigned, sim, sq), status: status };
     }
-    if (!chosen) chosen = D.chooseObjective(sim, sq, false, stalled) || D.chooseObjective(sim, sq, true);
+    /* Pass an `allowed` reachability map to chooseObjective for capture briefs, the same gate
+       chooseMainEffort uses. Without this, a squad can be briefed to capture an objective it has
+       no nav path to (walled off by buildings or terrain), and the brief persists until the 120s
+       strategic-stall timer fires. Defend briefs (wantOwned=true) are not gated: a squad should
+       still defend an owned objective even if the ingress path is questionable. Falls back to the
+       unconstrained capture search if the reachable pool is empty, so a navigation module outage
+       does not paralyze Force Command. */
+    if (!chosen) {
+      var allowed = reachableAttackMap(sim, sq, false);
+      chosen = D.chooseObjective(sim, sq, false, stalled, allowed) ||
+               D.chooseObjective(sim, sq, false, stalled) ||
+               D.chooseObjective(sim, sq, true, stalled);
+    }
     if (!chosen)
       return issueMission(
         sim,
