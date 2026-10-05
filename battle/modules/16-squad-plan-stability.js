@@ -2814,10 +2814,18 @@
       idx = Math.max(0, Math.min(last, +sq.routeIndex || 0)),
       wp = legs[idx];
     /* A live recon task is itself the mission hold. It never advances a route leg or silently changes
-       command phase while the scouts are out. A superseding macro brief invalidates it immediately. */
+       command phase while the scouts are out. A superseding macro brief invalidates it immediately.
+       But if the squad has arrived at the objective (inside capture radius), end the recon —
+       the scouts' job is done and the squad should transition to capture/defend. */
     if (L.get(sq, 'recon')) {
       if (!sq._reconTask || sq._reconTask.missionVersion !== missionVersion(sq))
         endRecon(sq, sim, 'mission-change');
+      if (L.get(sq, 'recon') && idx === last) {
+        var liveReconObj = m && m.objectiveId && root.BattleObjectiveSystem ? root.BattleObjectiveSystem.get(sim, m.objectiveId) : null,
+          liveReconRadius = +(liveReconObj && liveReconObj.def && liveReconObj.def.radius) || 30;
+        if (dist(pos, wp) < (+c.captureCommitRatio || 0.82) * liveReconRadius)
+          endRecon(sq, sim, 'arrived at objective');
+      }
       if (L.get(sq, 'recon')) {
         sq._missionHold = 'recon';
         sq.objective = copy(wp);
@@ -2850,6 +2858,16 @@
       return;
     }
     var recon = reconCandidate(sq, sim, wp);
+    /* Don't start a recon task when the squad is already at the objective (idx === last and
+       inside the capture radius). The recon candidate looks at distance from the goal, but
+       when the squad is ON the goal, recon should not fire — the squad should transition
+       to capture/defend, not send scouts. This was masked when reconCandidate required
+       callouts (C gate); removing that gate exposed it. */
+    if (recon && idx === last) {
+      var reconObj = m && m.objectiveId && root.BattleObjectiveSystem ? root.BattleObjectiveSystem.get(sim, m.objectiveId) : null,
+        reconRadius = +(reconObj && reconObj.def && reconObj.def.radius) || 30;
+      if (dist(pos, wp) < (+c.captureCommitRatio || 0.82) * reconRadius) recon = null;
+    }
     if (recon && startRecon(sq, sim, recon)) {
       sq._missionHold = 'recon';
       sq.objective = copy(wp);

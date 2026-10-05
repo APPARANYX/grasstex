@@ -156,9 +156,12 @@
         sq.clearContact ||
         !A.leaderOf(sq) ||
         (A.soldierBeliefsOn && !A.soldierBeliefsOn()) ||
-        !C ||
-        !C.enabled ||
-        !C.enabled() ||
+        /* Callouts gate: only block recon if callouts are loaded AND explicitly disabled
+           (?callouts=0). If callouts are not loaded at all, recon should still work —
+           the report-watch path (startReconReportWatch) checks C internally. This was
+           previously a hard gate (!C || !C.enabled || !C.enabled()) that blocked recon
+           whenever callouts were off, which prevented defend-phase recon from firing. */
+        (C && C.enabled && !C.enabled()) ||
         leaderPictureAdequate(sq, battle)
       )
         return null;

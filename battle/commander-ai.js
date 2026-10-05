@@ -498,10 +498,11 @@
        longer "useful" — it is frozen. Let the strategic-stall recovery stages see it so
        the General can re-task it. This breaks the two-defenders-on-opposite-sides-of-a-hill
        stalemate where neither side ever makes contact and both sit for the entire battle. */
-    var health = root.BattleAICoordinationHealth && root.BattleAICoordinationHealth.summary(sim),
-      lastProgress = health && health.lastObjectiveProgressAt && health.lastObjectiveProgressAt[sq.faction],
+    var health = root.BattleAICoordinationHealth,
+      summary = health && typeof health.summary === 'function' ? health.summary(sim) : null,
+      lastProgress = summary && summary.lastObjectiveProgressAt && summary.lastObjectiveProgressAt[sq.faction],
       now = +sim.time || 0;
-    if (lastProgress && now - lastProgress > 180 && !sq.inContact) return false;
+    if (lastProgress && isFinite(+lastProgress) && now - lastProgress > 180 && !sq.inContact) return false;
     return true;
   }
   function objectiveReachable(sim, sq, obj) {
@@ -695,6 +696,13 @@
         reason
       );
     var intent = chosen.status && chosen.status.owner === sq.faction ? 'defend' : 'capture';
+    /* When the General is re-tasking a stale defender (strategic-stall-release or
+       strategic-reset), force capture intent even on an owned objective. The squad was
+       defending too long with no contact — it needs to move, not re-defend the same
+       point. Without this, selectMission re-issues the same defend brief (same briefKey),
+       issueMission dedup returns the old brief unchanged, and the squad never moves. */
+    if ((reason === 'strategic-stall-release' || reason === 'strategic-reset') && intent === 'defend')
+      intent = 'capture';
     /* Doctrine is decided once per brief, when it is issued - never re-evaluated per tick. The brief goes
        straight for the objective: walking the old approach route first cost captures (12-seed replay
        3.2 vs 3.8/battle) and on main a shadow writer had already abandoned it within the first minute. */
