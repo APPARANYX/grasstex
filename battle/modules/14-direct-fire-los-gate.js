@@ -17,14 +17,18 @@
     return !!(B && typeof B.fireLineBlocked === 'function' && B.fireLineBlocked(s, s.target, battle));
   }
   /* Why a shot is refused now: 'los' (no sight of him), 'crest' (sight, but the round's line meets
-     the ground first) or '' (clear). */
+     the ground first) or '' (clear). The catch previously returned '' (clear to fire) on any error
+     in hasLineOfSight or fireLineBlocked, which masked bugs as "always clear to fire"; it now
+     refuses the shot ('los') and counts the failure so it surfaces in diagnostics. */
   function blockReason(s, battle) {
     if (!s || !battle || !s.target || s.target.dead || !s.root || !s.target.root) return 'los';
     try {
       if (!root.SquadAI.hasLineOfSight(s, s.target, battle.heightAt, battle.obstacles)) return 'los';
       return crestBlocked(s, battle) ? 'crest' : '';
-    } catch (_) {
-      return '';
+    } catch (e) {
+      if (typeof console !== 'undefined') console.warn('[FIRE] LOS gate error (refusing shot):', e);
+      s._losGateErrors = (s._losGateErrors || 0) + 1;
+      return 'los';
     }
   }
   function blocked(s, battle) {

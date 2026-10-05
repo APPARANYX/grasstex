@@ -23,6 +23,19 @@
         }
       }
     },
+    "squad._lastDoctrineRule": {
+      "owner": "commander-ai.js",
+      "writers": {
+        "commander-ai.js": {
+          "as": "owner",
+          "why": "selectMission stamps the doctrine rule the General just decided for the brief."
+        },
+        "commander-routes.js": {
+          "as": "setup",
+          "why": "route-setup: cleared at initial route assignment before any doctrine rule is decided."
+        }
+      }
+    },
     "squad._formationForward": {
       "owner": "squad-ai.js",
       "writers": {
