@@ -1,7 +1,29 @@
 /* M3C meso-level squad-command owner.
    The General's mission brief (`_macroMission`) says what the squad must achieve; this module is
-   the Squad Leader layer that executes it. It is the only runtime writer of the squad's commandPhase,
-   objective point, route legs and routeIndex, and it owns:
+   the Squad Leader layer that executes it. The layer is this file plus its Squad Leader
+   sub-modules (each exposes a factory on `root` that this file calls with its closure
+   utilities and re-attaches as closure variables, so the layer's callers are unchanged):
+
+     15a fire-control          - squad fire discipline (hold/precision/open), 0G1
+     15b buddy-pairs           - pair state and bound cooperation, 3a
+     15c scouts-forward        - recon screen ahead of the advance, 0F
+     15d leaderless-intent     - what a captainless squad may finish during succession, #197
+     15e morale-coa            - group break/rally thresholds and the contact COA, 3b/3c
+     15f retreat-anchor        - the leased retreat endpoint; publishAnchor, the one writer
+                                 of the orderAnchor/rally pair (state-ownership-check)
+     15g formation             - advance geometry (forward line) and fireteam slots/placement
+     15h fireteams             - the committed fireteam order publisher (locomotion intents)
+     15i clear-contact         - advancing on the last-seen enemy once the picture goes quiet
+     15j fire-and-movement     - assault authorization and which fireteam bounds, 0G3
+     15k reconstitution        - succession, merges, fled detachment, retreat march/assembly
+     15l mission-execution     - execution of the General's brief: route legs, corner pauses,
+                                 doctrine holds and the objective phase
+
+   This file keeps the leases, the load-time flags and tuning tables, the phase machine
+   (transitionPhase - still the layer's only commandPhase writer), the tactical-plan
+   lifecycle, cohesion/regroup, the per-man movement publisher, the anchor advance, squad
+   status, reset/summary and the wiring above. The layer is the only runtime writer of the
+   squad's commandPhase, objective point, route legs and routeIndex, and it owns:
 
      - mission execution: route legs, corner pauses, objective phase, doctrine holds,
      - one tactical command lease (`_engagementPlan`),
