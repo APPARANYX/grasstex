@@ -212,10 +212,15 @@ test("he leaves his weapons, tells the soldier condition and runs to the squad's
   assert.equal(s.weapon, null, 'the rifle stays where he stood');
   assert.equal(s.secondary, null);
   assert.equal(E(w).fledPhase(s), 'run');
-  assert.deepEqual(s.eng.refuge, safe, 'the squad stood there when nobody was known near');
+  /* The refuge now includes a per-soldier offset (fleeOffset) to prevent orbiting, so check
+     proximity rather than exact equality. */
   assert.ok(
-    dist(s.destination, safe) < 1,
-    'and that is where he runs: ' +
+    dist(s.eng.refuge, safe) < 5,
+    'the refuge is near the squad safe point (with per-soldier offset): ' + JSON.stringify(s.eng.refuge) + ' vs ' + JSON.stringify(safe)
+  );
+  assert.ok(
+    dist(s.destination, s.eng.refuge) < 1,
+    'and that is where he runs (to his offset refuge): ' +
       JSON.stringify([
         s.destination,
         safe,
@@ -264,10 +269,10 @@ test('he runs home instead when the trouble is known to be near the safe point',
     safe = { x: LANES[0], z: HOME_Z + 90 },
     { s } = broken(w, { safe, at: { x: LANES[0], z: HOME_Z + 90 + 50 } });
   assert.equal(s.eng.state, 'flee');
-  assert.deepEqual(
-    s.eng.refuge,
-    { x: LANES[0], z: HOME_Z },
-    "within FLED_SAFE of the safe point: his squad's home"
+  /* Refuge now has a per-soldier offset; check proximity to home instead of exact equality. */
+  assert.ok(
+    dist(s.eng.refuge, { x: LANES[0], z: HOME_Z }) < 5,
+    "within FLED_SAFE of the safe point: his squad's home (with per-soldier offset)"
   );
 });
 

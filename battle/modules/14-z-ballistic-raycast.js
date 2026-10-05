@@ -665,7 +665,23 @@
      shot to the target's body centre. */
   function fireLineBlocked(shooter, target, battle) {
     if (!shooter || !target || !shooter.root || !target.root || !battle || !battle.heightAt) return false;
-    return groundLineBlocked(muzzleOrigin(shooter, target, battle), targetCenter(target, battle), battle, FIRE_LINE_BODY);
+    var o = muzzleOrigin(shooter, target, battle),
+      aim = targetCenter(target, battle),
+      span = Math.hypot(aim.x - o.x, aim.y - o.y, aim.z - o.z);
+    /* Terrain crest check (existing): does the ground take the round before it reaches the body? */
+    if (groundLineBlocked(o, aim, battle, FIRE_LINE_BODY)) return true;
+    /* Obstacle/wall check (new): does a wall, building, or hedge prism intersect the bullet line?
+       The eye-to-eye LOS check in the fire gate clears a target whose head is visible over a low
+       wall, but the bullet flies muzzle-to-body-centre (geometrically lower). A wall shorter than
+       eye height (~1.55m) but tall enough to block the bullet line was invisible to the gate,
+       so soldiers mag-dumped into barriers. This reuses the same obstacleStop the round itself
+       uses in resolveRay, so the gate and the ballistics agree. */
+    if (span > FIRE_LINE_BODY) {
+      var d = { x: (aim.x - o.x) / span, y: (aim.y - o.y) / span, z: (aim.z - o.z) / span };
+      var obs = obstacleStop(o, d, span, battle);
+      if (obs.travel < span - FIRE_LINE_BODY) return true;
+    }
+    return false;
   }
   /* Suppressive fire aims at a point rather than a body, but it must obey the same terrain geometry.
      Use the same semantic muzzle and groundStop scan as aimed fire so a rifle cannot draw a tracer
