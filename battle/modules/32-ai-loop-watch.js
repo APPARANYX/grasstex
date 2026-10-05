@@ -8,8 +8,19 @@
 'use strict';
 if(!root.BattleModules||root.BattleAILoopWatch)return;
 
-var SAMPLE_SECONDS=.9,HISTORY=14,ALERT_LIMIT=16,ALERT_COOLDOWN=6,
-    POSTURE_WINDOW=8,POSTURE_CHANGES=4,POSTURE_NET=4.5;
+var SAMPLE_SECONDS=.9,HISTORY=18,ALERT_LIMIT=16,ALERT_COOLDOWN=6,
+    POSTURE_WINDOW=8,POSTURE_CHANGES=4,POSTURE_NET=4.5,
+    /* Decision-cycle net-progress threshold scales with duration so a slow legitimate assault
+       (1 m/s for 6 s = 6 m net) is not flagged. A squad that made <0.5 m/s of net progress over
+       the cycle window is genuinely stuck. */
+    DECISION_NET_PER_SEC=0.5,
+    /* repeatingPeriod now checks periods 2-5 (was 2-3); 4-5 step cycles are real stall patterns
+       the previous detector silently missed. HISTORY bumped 14 -> 18 so a 5-step cycle still has
+       the 3x repetition it needs (5*3 = 15 samples). */
+    MAX_PERIOD=5,
+    /* Stance changes driven by suppression or cover-seeking are legitimate reactions, not churn.
+       If every change in the window has one of these reasons, posture-churn stays silent. */
+    POSTURE_LEGIT_REASONS={suppression:1,cover:1,'cover-search':1};
 var LABEL_STORE='battleAiRuleLabelsV1';
 var labels=loadLabels();
 var ui={root:null,view:null,svg:null,nodes:null,panel:null,button:null,overlay:null,selected:[],observer:null,insObserver:null};
@@ -131,8 +142,8 @@ function sameOrderRegimeSuffix(h){
   return h.slice(i);
 }
 function detectSquad(sim,sq,h){
-  if(h.length<7)return;var recent=h.slice(-9),p=repeatingPeriod(recent,'decisionSig',3),move=travelStats(recent,'pos'),orderChanges=changes(recent,'order',2.5),rules=recent.map(function(s){return s.rule;}).filter(Boolean),phases=recent.map(function(s){return s.phase;});
-  if(p&&move.net<7&&move.duration>=4.5){emitAlert(sim,{kind:'decision-cycle',severity:'warn',faction:sq.faction,squadId:sq.id,message:'Repeating '+p+'-step command cycle with little progress',phases:phases,rules:Array.from(new Set(rules)),sequence:recent.slice(-p*3).map(function(s){return s.phase+(s.rule?' / '+s.rule:'');}),travel:+move.travel.toFixed(1),net:+move.net.toFixed(1),destinationChanges:orderChanges,inContact:!!recent[recent.length-1].inContact});}
+  if(h.length<7)return;var recent=h.slice(-9),p=repeatingPeriod(recent,'decisionSig',MAX_PERIOD),move=travelStats(recent,'pos'),orderChanges=changes(recent,'order',2.5),rules=recent.map(function(s){return s.rule;}).filter(Boolean),phases=recent.map(function(s){return s.phase;});
+  if(p&&move.net<DECISION_NET_PER_SEC*move.duration&&move.duration>=4.5){emitAlert(sim,{kind:'decision-cycle',severity:'warn',faction:sq.faction,squadId:sq.id,message:'Repeating '+p+'-step command cycle with little progress',phases:phases,rules:Array.from(new Set(rules)),sequence:recent.slice(-p*3).map(function(s){return s.phase+(s.rule?' / '+s.rule:'');}),travel:+move.travel.toFixed(1),net:+move.net.toFixed(1),destinationChanges:orderChanges,inContact:!!recent[recent.length-1].inContact});}
   /* Order churn is an execution diagnostic inside one accepted movement authority. A legitimate
      phase handoff, retreat takeover, recon task, or mission hold can replace the squad's order
      population without changing commandPhase; do not stitch those populations together. Decision-cycle
@@ -159,6 +170,12 @@ function detectPostureChurn(sim,s,sq){
     if(i)travel+=dist(recent[i-1],x);
   }
   if(net>=POSTURE_NET||Object.keys(contacts).length>1||Object.keys(covers).length>1)return;
+  /* If every stance change in the window has a legitimate reason (suppression, cover-seeking),
+     this is a man reacting to incoming fire or moving between cover slots, not churning. The
+     reasons array was already collected for the alert payload; using it as a filter too keeps
+     the panel from flooding under sustained suppression. */
+  var allLegit=reasons.length>0;for(var ri=0;ri<reasons.length;ri++){if(!POSTURE_LEGIT_REASONS[reasons[ri]]){allLegit=false;break;}}
+  if(allLegit)return;
   emitAlert(sim,{kind:'posture-churn',severity:'warn',faction:s.faction,squadId:sq.id,soldierId:s.id,
     message:'Repeated stance changes with little movement and unchanged contact/cover context',
     phases:Array.from(new Set(recent.map(function(x){return x.state||'';}).filter(Boolean))),
@@ -168,7 +185,7 @@ function detectPostureChurn(sim,s,sq){
 }
 function detectSoldier(sim,s,sq,h){
   detectPostureChurn(sim,s,sq);
-  if(h.length<8)return;var recent=h.slice(-10),move=travelStats(recent,'pos'),destChanges=changes(recent,'dest',2.2),period=repeatingPeriod(recent,'destSig',3),ratio=move.net>.5?move.travel/move.net:move.travel*2;
+  if(h.length<8)return;var recent=h.slice(-10),move=travelStats(recent,'pos'),destChanges=changes(recent,'dest',2.2),period=repeatingPeriod(recent,'destSig',MAX_PERIOD),ratio=move.net>.5?move.travel/move.net:move.travel*2;
   if((period||destChanges>=5)&&move.travel>=6&&move.net<4.5&&ratio>2.2&&move.duration>=5.5){emitAlert(sim,{kind:'position-seeking',severity:'hot',faction:s.faction,squadId:sq.id,soldierId:s.id,message:'Soldier is cycling destinations without meaningful net movement',phases:Array.from(new Set(recent.map(function(x){return x.phase;}))),rules:Array.from(new Set(recent.map(function(x){return x.rule;}).filter(Boolean))),sequence:recent.slice(-8).map(function(x){return x.destSig+' ['+x.eng+(x.src?' <'+x.src+'>':'')+']';}),sources:Array.from(new Set(recent.map(function(x){return x.src;}).filter(Boolean))),goalWriters:recent.slice(-8).map(function(x){return x.src||'?';}),oldGoalsValid:recent.slice(-8).map(function(x){return x.goalValid==null?'?':(x.goalValid?'valid':'stale');}),localAvoidance:recent.some(function(x){return x.avoid;}),stuck:!!(s._movementProgress&&s._movementProgress.stuck),travel:+move.travel.toFixed(1),net:+move.net.toFixed(1),destinationChanges:destChanges,period:period,inContact:!!recent[recent.length-1].inContact});}
 }
 /* Sampling also runs under training/benchmark: the alerts are the automated QA signal for loop

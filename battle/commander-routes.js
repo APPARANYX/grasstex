@@ -65,8 +65,9 @@
     if (root.BattleLeases) root.BattleLeases.end(sq, 'corner-hold', +(sim && sim.time) || 0, 'route assigned');
     sq.lastCommandTime = 0;
     sq.objective = route[0];
-    sq._lastLoggedRoute = -1;
     sq.targetObjective = null;
+    /* Cleared at setup before any doctrine rule is decided; selectMission in commander-ai.js is
+       the runtime writer that populates it once Force Command picks a rule for the brief. */
     sq._lastDoctrineRule = null;
     if (root.BattleTelemetry)
       root.BattleTelemetry.record(

@@ -311,7 +311,12 @@
   }
   function setCrouch(soldier,v){if(!soldier||soldier.dead)return;soldier.crouching=!!v;if(v)soldier.prone=false;}
   function setProne(soldier,v){if(!soldier||soldier.dead)return;soldier.prone=!!v;if(v)soldier.crouching=false;}
-  function kill(soldier){if(!soldier||soldier.dead)return;soldier.dead=true;soldier.crawling=false;soldier.reloading=false;soldier.deathClock=0;var r=Math.random();soldier.deathVariant=r<.34?'front':(r<.67?'back':'side');soldier.deathSide=Math.random()<.5?-1:1;soldier.deathTag=soldier.deathVariant==='front'?TAGS.deathFront:(soldier.deathVariant==='back'?TAGS.deathBack:TAGS.deathSide);trigger(soldier,soldier.deathTag,{variant:soldier.deathVariant});}
+  /* Deterministic per-soldier hash for the death-variant pick. Every other Micro module
+     (soldier-mind.unit, soldier-stats.unit, command-reception.hash01) goes to the same trouble
+     so benchmarks and replays are reproducible; kill() was the lone Math.random() holdout.
+     FNV-1a + murmur3 finalizer, mirroring modules/10-soldier-stats.js. */
+  function deathHash(soldier){var h=2166136261>>>0,s=String(soldier.faction)+'|'+String(soldier.id)+'|death';for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}h^=h>>>16;h=Math.imul(h,0x85ebca6b);h^=h>>>13;h=Math.imul(h,0xc2b2ae35);h^=h>>>16;return h>>>0;}
+  function kill(soldier){if(!soldier||soldier.dead)return;soldier.dead=true;soldier.crawling=false;soldier.reloading=false;soldier.deathClock=0;var h=deathHash(soldier),r=h/4294967295;soldier.deathVariant=r<.34?'front':(r<.67?'back':'side');soldier.deathSide=((h>>>17)&1)?-1:1;soldier.deathTag=soldier.deathVariant==='front'?TAGS.deathFront:(soldier.deathVariant==='back'?TAGS.deathBack:TAGS.deathSide);trigger(soldier,soldier.deathTag,{variant:soldier.deathVariant});}
 
   root.BattleSoldierModel={FACTIONS:FACTIONS,BODY:BODY,TAGS:TAGS,createSoldier:createSoldier,createBody:createBody,preload:preloadImported,setImportedEnabled:setImportedEnabled,animateWalk:animateWalk,setCrouch:setCrouch,setProne:setProne,kill:kill,triggerAnimation:trigger,bindAnimationBackend:bindAnimationBackend};
   console.log('[ANIM] anatomical procedural rig loaded (fallback for the imported FBX soldier)');

@@ -681,6 +681,11 @@
       enemy = D.nearestEnemyToSquad(sim, sq),
       context = D.buildContext(sim, sq, chosen, enemy, p),
       rule = D.ruleFor(sim, sq.faction, context);
+    /* selectMission is the one runtime writer of _lastDoctrineRule: it stamps the rule Force
+       Command just decided for this brief. loop-watch (decisionSig), order-provenance and the
+       session diagnostics export all read it; without this write they always see null and the
+       loop detector's rule-churn signal is blind. commander-routes.js only clears it at setup. */
+    sq._lastDoctrineRule = rule ? rule.id : null;
     var action = (rule && rule.action) || 'assault',
       axis = [];
     if (reason === 'strategic-stall-release' && action === 'hold') action = 'assault';

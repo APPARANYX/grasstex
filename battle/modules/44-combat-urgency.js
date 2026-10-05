@@ -294,6 +294,11 @@
         a[i].eng._sharedContactAware = false;
         a[i].eng._sharedContactSector = null;
         a[i].eng._sharedContactQuietAt = null;
+        /* Was missing: reactShared sets this at L253 and the per-soldier cooldown reads it.
+           Without the clear, a soldier who shared-reacted in battle N still carries the
+           timestamp into battle N+1, suppressing the next shared-contact reaction for up to
+           SHARED_REACT_COOLDOWN after the new battle starts. */
+        a[i].eng._sharedContactReactedAt = -999;
       }
     }
   }
