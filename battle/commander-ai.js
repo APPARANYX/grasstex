@@ -493,7 +493,16 @@
     if (!m || m.intent !== 'defend' || !m.objectiveId) return false;
     var obj = root.BattleObjectiveSystem && root.BattleObjectiveSystem.get(sim, m.objectiveId),
       st = obj && D.objectiveStatus(sim, obj);
-    return !!(st && st.owner === sq.faction);
+    if (!(st && st.owner === sq.faction)) return false;
+    /* A defender that has had no objective progress for 180s and is not in contact is no
+       longer "useful" — it is frozen. Let the strategic-stall recovery stages see it so
+       the General can re-task it. This breaks the two-defenders-on-opposite-sides-of-a-hill
+       stalemate where neither side ever makes contact and both sit for the entire battle. */
+    var health = root.BattleAICoordinationHealth && root.BattleAICoordinationHealth.summary(sim),
+      lastProgress = health && health.lastObjectiveProgressAt && health.lastObjectiveProgressAt[sq.faction],
+      now = +sim.time || 0;
+    if (lastProgress && now - lastProgress > 180 && !sq.inContact) return false;
+    return true;
   }
   function objectiveReachable(sim, sq, obj) {
     var N = root.BattleNavigation,
