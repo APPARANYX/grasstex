@@ -749,10 +749,42 @@ timing hacks for regroup, HOLD FIRE, stance, or later urban orders.
 - **0E — Bypass ratchet and validation.** Add static/runtime checks so command-bearing squad fields cannot become
   same-tick personal truth through a new direct read. Measure response latency, cohesion, churn, stalls and mission
   progress on fixed seeds and paired benchmarks.
+- **0F — Inter-squad tactical broadcast.** Nearby squads share tactical contact beyond the General's
+  stale intel rollup. Today a squad creeping up a hill, a squad watching from a distance, and a squad
+  fighting for its life from sniper fire each act on their own picture: the watcher's visual intel
+  never reaches the creeper, the pinned squad's "sniper at X" never reaches either of them in time
+  to matter, and the General's `reportedContacts` aggregation (even with the 30s staleness filter)
+  is too coarse and too delayed for "I am taking fire from this sector right now." 0F adds a
+  Meso-layer broadcast channel: when a squad's contact picture changes meaningfully (new contact,
+  contact upgraded from heard to seen, sniper/MG identified, taking fire from a new sector) it
+  publishes a tactical broadcast to nearby squads within `BROADCAST_RANGE`. Receiving squads merge
+  the broadcast into their own `squad.contact` picture (tagged `source: 'broadcast'`) if they do
+  not already have a fresher contact for the same enemy, and the Squad Leader can react: orient
+  toward the threat, provide supporting fire, or adjust route. This is squad-to-squad, not
+  Macro (General) and not Micro (individual soldier); it does not bypass Movement Resolver or
+  Engagement ownership.
+
+  - **0F1 — Broadcast telemetry, behavior-neutral.** Add a `SquadContactBroadcast` record type
+    and per-squad send/receive diagnostics. Broadcasts are computed and logged but not consumed:
+    `squad.contact` is unchanged. No combat-RNG draw.
+  - **0F2 — Broadcast reception (opt-in `?squadBroadcast=1`).** A receiving squad merges the
+    broadcast into its `squad.contact` picture if it has no fresher contact for the same enemy.
+    The Squad Leader can orient toward the broadcast threat if not already engaged. The
+    default/off arm remains 0F1 behavior.
+  - **0F3 — Broadcast reaction (opt-in, benchmark-gated).** A squad receiving a "pinned by
+    sniper" broadcast from a nearby squad can provide supporting fire or adjust its route to
+    flank the threat. Gated behind a separate flag until paired benchmarks show acceptable
+    churn/stalls/cohesion.
+
+  **Done when:** a squad taking sniper fire broadcasts the threat to nearby squads within the
+  same commander tick; a watching squad's visual intel reaches a creeping squad before it walks
+  into the same threat; the Squad Leader can explain why it oriented or adjusted route based on
+  a broadcast; no squad-to-squad broadcast owns movement, stance, or fire permission.
 
 **Done when:** one squad order produces staggered, explainable individual receipt/execution rather than synchronized
 same-tick behavior unless the men genuinely received and processed it together; diagnostics can show why each man
-acted when he did, and no new command-reception code owns movement or stance.
+acted when he did, and no new command-reception code owns movement or stance; and nearby squads share tactical
+contact in real time without waiting for the General's intel rollup.
 
 ### Phase A — Instrument and model (behavior-neutral)
 
