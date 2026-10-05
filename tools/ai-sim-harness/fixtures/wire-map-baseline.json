@@ -401,7 +401,11 @@
       "writers": {
         "modules/16-squad-plan-stability.js": {
           "as": "owner",
-          "why": "executeMission and updateCohesion publish the squad's current objective point."
+          "why": "updateCohesion publishes the regroup anchor; restart-reset clears it."
+        },
+        "modules/15l-squad-leader-mission-execution.js": {
+          "as": "layer",
+          "why": "executeMission publishes the squad's current objective point (the write moved here from 16 in the bare-bones split)."
         },
         "commander-routes.js": {
           "as": "setup",
@@ -414,11 +418,11 @@
       }
     },
     "squad.route": {
-      "owner": "modules/16-squad-plan-stability.js",
+      "owner": "modules/15l-squad-leader-mission-execution.js",
       "writers": {
-        "modules/16-squad-plan-stability.js": {
+        "modules/15l-squad-leader-mission-execution.js": {
           "as": "owner",
-          "why": "executeMission replaces the route with the brief's legs."
+          "why": "executeMission replaces the route with the brief's legs (the write moved here from 16 in the bare-bones split)."
         },
         "commander-routes.js": {
           "as": "setup",
@@ -431,11 +435,11 @@
       }
     },
     "squad.routeIndex": {
-      "owner": "modules/16-squad-plan-stability.js",
+      "owner": "modules/15l-squad-leader-mission-execution.js",
       "writers": {
-        "modules/16-squad-plan-stability.js": {
+        "modules/15l-squad-leader-mission-execution.js": {
           "as": "owner",
-          "why": "executeMission advances the leg index."
+          "why": "executeMission advances the leg index (the write moved here from 16 in the bare-bones split)."
         },
         "commander-routes.js": {
           "as": "setup",
@@ -444,6 +448,19 @@
         "modules/21-defender-engineers.js": {
           "as": "setup",
           "why": "garrison-setup"
+        }
+      }
+    },
+    "squad._missionExecution": {
+      "owner": "modules/15l-squad-leader-mission-execution.js",
+      "writers": {
+        "modules/15l-squad-leader-mission-execution.js": {
+          "as": "owner",
+          "why": "executeMission keeps the per-mission execution record (hold point, accepted brief)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset clears it."
         }
       }
     },

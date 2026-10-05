@@ -7,7 +7,26 @@ const fs = require('node:fs');
 const path = require('node:path');
 const H = require('./harness');
 const OWNER = 'modules/16-squad-plan-stability.js';
-const SOURCE = fs.readFileSync(path.join(H.REPO, 'battle', OWNER), 'utf8');
+/* The Squad Leader is 16 plus its extracted sub-modules: executeMission (which drives phases
+   through setPhase) lives in 15l since the bare-bones split, so the executed source is the
+   whole chain loaded in page order. The ownership scan below still reads the files
+   individually and holds commandPhase to 16's transitionPhase. */
+const OWNER_FILES = [
+  'modules/15a-squad-leader-fire-control.js',
+  'modules/15b-squad-leader-buddy-pairs.js',
+  'modules/15c-squad-leader-scouts-forward.js',
+  'modules/15d-squad-leader-leaderless-intent.js',
+  'modules/15e-squad-leader-morale-coa.js',
+  'modules/15f-squad-leader-retreat-anchor.js',
+  'modules/15g-squad-leader-formation.js',
+  'modules/15h-squad-leader-fireteams.js',
+  'modules/15i-squad-leader-clear-contact.js',
+  'modules/15j-squad-leader-fire-and-movement.js',
+  'modules/15k-squad-leader-reconstitution.js',
+  'modules/15l-squad-leader-mission-execution.js',
+  'modules/16-squad-plan-stability.js'
+];
+const SOURCE = OWNER_FILES.map(f => fs.readFileSync(path.join(H.REPO, 'battle', f), 'utf8')).join('\n;\n');
 const PHASES = [
   'approach',
   'assault',
