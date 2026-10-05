@@ -88,6 +88,32 @@
         }
       }
     },
+    "squad._assaultAuthorized": {
+      "owner": "modules/15j-squad-leader-fire-and-movement.js",
+      "writers": {
+        "modules/15j-squad-leader-fire-and-movement.js": {
+          "as": "owner",
+          "why": "fireAndMovement sets/clears the assault authorization each contact tick (moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset clears it."
+        }
+      }
+    },
+    "squad._boundTurn": {
+      "owner": "modules/15j-squad-leader-fire-and-movement.js",
+      "writers": {
+        "modules/15j-squad-leader-fire-and-movement.js": {
+          "as": "owner",
+          "why": "fireAndMovement advances the fireteam rotation (moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset clears it."
+        }
+      }
+    },
     "soldier._defensePost": {
       "owner": "modules/15h-squad-leader-fireteams.js",
       "writers": {

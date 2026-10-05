@@ -265,7 +265,7 @@ test('the runtime readers are the declared decision, command-observer, display a
     'engagement.js',
     'modules/14-z-ballistic-raycast.js',
     'modules/15e-squad-leader-morale-coa.js',
-    'modules/16-squad-plan-stability.js',
+    'modules/15j-squad-leader-fire-and-movement.js',
     'modules/18-command-reception.js',
     'modules/40-world-debug-overlay.js',
     'modules/99-session-diagnostics-export.js'
@@ -339,8 +339,8 @@ test('a new file that reads stress fails until the table lists it', () => {
 
 test('a listed file that starts reading something else fails', () => {
   fails(
-    mutated('modules/16-squad-plan-stability.js', src => src + '\nvar x = sq.mind.max;'),
-    /unlisted read: modules\/16-squad-plan-stability\.js reads mind\.max/,
+    mutated('modules/15j-squad-leader-fire-and-movement.js', src => src + '\nvar x = sq.mind.max;'),
+    /unlisted read: modules\/15j-squad-leader-fire-and-movement\.js reads mind\.max/,
     'the Squad Leader reads the max'
   );
   fails(
