@@ -67,7 +67,7 @@ function world() {
     }
   };
   load(r, 'battle/movement-resolver.js');
-  load(r, 'battle/modules/15a-squad-leader-fire-control.js'); load(r, 'battle/modules/15b-squad-leader-buddy-pairs.js'); load(r, 'battle/modules/15c-squad-leader-scouts-forward.js'); load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/15g-squad-leader-formation.js');load(r,'battle/modules/16-squad-plan-stability.js');
+  load(r, 'battle/modules/15a-squad-leader-fire-control.js'); load(r, 'battle/modules/15b-squad-leader-buddy-pairs.js'); load(r, 'battle/modules/15c-squad-leader-scouts-forward.js'); load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/15g-squad-leader-formation.js');load(r,'battle/modules/15h-squad-leader-fireteams.js');load(r,'battle/modules/16-squad-plan-stability.js');
   load(r, 'battle/modules/36-order-provenance.js');
   const b = H.makeBattle(r);
   const q = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 400 } });

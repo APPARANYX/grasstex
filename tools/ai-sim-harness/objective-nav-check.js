@@ -185,7 +185,7 @@ function commandTick(r,sim,town){sim.time+=.45;r.BattleCommanderAI.update(sim,to
 section('an assigned objective mission survives approach-route and lease boundaries');
 {
   const {r,sq,sim,town}=commandFixture();
-  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/15b-squad-leader-buddy-pairs.js');load(r,'battle/modules/15c-squad-leader-scouts-forward.js');load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/15g-squad-leader-formation.js');load(r,'battle/modules/16-squad-plan-stability.js');
+  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/15b-squad-leader-buddy-pairs.js');load(r,'battle/modules/15c-squad-leader-scouts-forward.js');load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/15g-squad-leader-formation.js');load(r,'battle/modules/15h-squad-leader-fireteams.js');load(r,'battle/modules/16-squad-plan-stability.js');
   commandTick(r,sim,town);
   const mission=sq._macroMission;
   check('an assigned outer objective stays the movement goal outside the terminal radius',sq.objective.x===120&&sq.commandPhase==='assault',JSON.stringify(sq.objective)+' '+sq.commandPhase);
@@ -207,7 +207,7 @@ section('a single assigned squad can reach and capture an outer objective');
   r.BattleSim={start(){}};
   for(const f of ['battle/movement-resolver.js','battle/objective-system.js','battle/modules/01-capture-zone.js',
     'battle/commander-doctrine.js','battle/commander-routes.js','battle/commander-ai.js',
-    'battle/modules/15a-squad-leader-fire-control.js','battle/modules/15b-squad-leader-buddy-pairs.js','battle/modules/15c-squad-leader-scouts-forward.js','battle/modules/15d-squad-leader-leaderless-intent.js','battle/modules/15e-squad-leader-morale-coa.js','battle/modules/15f-squad-leader-retreat-anchor.js','battle/modules/15g-squad-leader-formation.js',
+    'battle/modules/15a-squad-leader-fire-control.js','battle/modules/15b-squad-leader-buddy-pairs.js','battle/modules/15c-squad-leader-scouts-forward.js','battle/modules/15d-squad-leader-leaderless-intent.js','battle/modules/15e-squad-leader-morale-coa.js','battle/modules/15f-squad-leader-retreat-anchor.js','battle/modules/15g-squad-leader-formation.js','battle/modules/15h-squad-leader-fireteams.js',
     'battle/modules/16-squad-plan-stability.js'])load(r,f);
   const sim=H.makeBattle(r,{seed:12345});sim.scene={metadata:{}};
   const sq=H.addSquad(r,sim,{id:'us-0',faction:'us',x:65,z:0,objective:{x:180,z:0},seed:12345});
@@ -229,7 +229,7 @@ section('regroup waits for cohesion, then returns to its mission');
 {
   const {r,sq,sim,town}=commandFixture();
   r.BattleTelemetry={record(){}};
-  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/15b-squad-leader-buddy-pairs.js');load(r,'battle/modules/15c-squad-leader-scouts-forward.js');load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/15g-squad-leader-formation.js');load(r,'battle/modules/16-squad-plan-stability.js');
+  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/15b-squad-leader-buddy-pairs.js');load(r,'battle/modules/15c-squad-leader-scouts-forward.js');load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/15g-squad-leader-formation.js');load(r,'battle/modules/15h-squad-leader-fireteams.js');load(r,'battle/modules/16-squad-plan-stability.js');
   commandTick(r,sim,town);
   sq.members[3].root.position.x=-100;
   sq.commandPhase='regroup';sq.objective={x:20,z:0};

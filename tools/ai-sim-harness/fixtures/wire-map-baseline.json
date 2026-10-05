@@ -88,6 +88,19 @@
         }
       }
     },
+    "soldier._defensePost": {
+      "owner": "modules/15h-squad-leader-fireteams.js",
+      "writers": {
+        "modules/15h-squad-leader-fireteams.js": {
+          "as": "owner",
+          "why": "holdPost latches a settled defensive post to the command signature; updateFireteams clears it when the post is replaced by a prepared one (moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "layer",
+          "why": "Roster rewrites (reform, detachFled, absorb) and restart-reset clear the latch."
+        }
+      }
+    },
     "soldier._fireteamKey": {
       "owner": "modules/16-squad-plan-stability.js",
       "writers": {
@@ -98,6 +111,10 @@
         "modules/15c-squad-leader-scouts-forward.js": {
           "as": "layer",
           "why": "publishReconOrders sets fireteam key for scout assignments."
+        },
+        "modules/15h-squad-leader-fireteams.js": {
+          "as": "layer",
+          "why": "updateFireteams stamps each man's fireteam key when it publishes his slot (moved here from 16 in the bare-bones split)."
         }
       }
     },
@@ -154,11 +171,15 @@
       }
     },
     "squad._fireteamOrders": {
-      "owner": "modules/16-squad-plan-stability.js",
+      "owner": "modules/15h-squad-leader-fireteams.js",
       "writers": {
-        "modules/16-squad-plan-stability.js": {
+        "modules/15h-squad-leader-fireteams.js": {
           "as": "owner",
-          "why": "Fireteam order records, renewed in updateFireteams."
+          "why": "Fireteam order records, renewed in updateFireteams (moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset clears the records."
         },
         "modules/21-defender-engineers.js": {
           "as": "setup",
