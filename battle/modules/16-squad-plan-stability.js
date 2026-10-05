@@ -192,7 +192,7 @@
     terrainSamples: 12,
     eye: 1.55
   };
-  var RECON_PHASES = { approach: 1, assault: 1, flank: 1 };
+  var RECON_PHASES = { approach: 1, assault: 1, flank: 1, defend: 1 };
 
   /* Leaderless intent continuation is on by default after PR #197's deterministic checks and
      full-battle paired benchmark (run 37121639099); ?leaderlessIntent=0/off/false is the stable legacy
@@ -2410,6 +2410,22 @@
   }
   function recoverFromRetreat(sq, battle, casualtyFrac, stress) {
     if (!RALLY_RECOVERY_ON) return moraleRallies(casualtyFrac, stress);
+    /* Small squads (≤ 4 of 10) can never pass moraleRallies because casualtyFrac ≥ 0.6.
+       Once such a squad has been safely at base for a dwell window, let it rally
+       regardless of casualties — it is better to send 3-4 men back into the fight
+       than to leave them frozen at base for the rest of the battle. But don't
+       interfere with reconstitution: if the General has a pending reconstitution
+       group that includes this squad, let the merge happen instead. */
+    var atBase = sq._assembly && sq._assembly.phase === 'at-base',
+      small = casualtyFrac >= moraleBreakAt(stress) - MORALE_TUNING.rallyGap,
+      pendingRecon = sq._reconGroup || (sq._macroMission && sq._macroMission.intent === 'reconstitute');
+    if (small && atBase && !sq.inContact && !pendingRecon && stress < MORALE_TUNING.rallyStress * 2) {
+      var dwell = sq._assembly.since ? battle.time - sq._assembly.since : 0;
+      if (dwell >= 120) {
+        endRallyRecovery(sq, battle, 'solo redeploy from base');
+        return true;
+      }
+    }
     if (!moraleRallies(casualtyFrac, stress) || sq.inContact) {
       endRallyRecovery(sq, battle, sq.inContact ? 'contact resumed' : 'morale fell');
       return false;
