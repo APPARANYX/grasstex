@@ -24,6 +24,7 @@ const OWNER_FILES = [
   'modules/15j-squad-leader-fire-and-movement.js',
   'modules/15k-squad-leader-reconstitution.js',
   'modules/15l-squad-leader-mission-execution.js',
+  'modules/15m-squad-leader-cohesion-regroup.js',
   'modules/16-squad-plan-stability.js'
 ];
 const SOURCE = OWNER_FILES.map(f => fs.readFileSync(path.join(H.REPO, 'battle', f), 'utf8')).join('\n;\n');

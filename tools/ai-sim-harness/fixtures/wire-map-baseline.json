@@ -174,15 +174,19 @@
       }
     },
     "soldier._regroupUnstick": {
-      "owner": "modules/16-squad-plan-stability.js",
+      "owner": "modules/15m-squad-leader-cohesion-regroup.js",
       "writers": {
-        "modules/16-squad-plan-stability.js": {
+        "modules/15m-squad-leader-cohesion-regroup.js": {
           "as": "owner",
-          "why": "updateCohesion arms the regroup-unstick record on a stuck man; endRegroup and restart-reset clear it."
+          "why": "updateCohesion arms the regroup-unstick record on a stuck man; endRegroup clears it (moved here from 16 in the bare-bones split)."
         },
         "modules/15k-squad-leader-reconstitution.js": {
           "as": "layer",
           "why": "endUnstick clears the record when the man recovers, the lease ends or he dies; called from stepMovement (moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "layer",
+          "why": "restart-reset clears the record on every living man (reset)."
         }
       }
     },
@@ -396,12 +400,51 @@
         }
       }
     },
-    "squad.objective": {
-      "owner": "modules/16-squad-plan-stability.js",
+    "squad._regroupHysteresis": {
+      "owner": "modules/15m-squad-leader-cohesion-regroup.js",
       "writers": {
-        "modules/16-squad-plan-stability.js": {
+        "modules/15m-squad-leader-cohesion-regroup.js": {
           "as": "owner",
-          "why": "updateCohesion publishes the regroup anchor; restart-reset clears it."
+          "why": "updateCohesion lazily creates the per-squad dispersion-hysteresis record (moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "layer",
+          "why": "restart-reset clears the record (reset)."
+        }
+      }
+    },
+    "squad._regroupRecovery": {
+      "owner": "modules/15m-squad-leader-cohesion-regroup.js",
+      "writers": {
+        "modules/15m-squad-leader-cohesion-regroup.js": {
+          "as": "owner",
+          "why": "updateCohesion arms the recovery record when a regroup commits (moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "layer",
+          "why": "restart-reset clears the record (reset)."
+        }
+      }
+    },
+    "squad._regroupRecoverySerial": {
+      "owner": "modules/15m-squad-leader-cohesion-regroup.js",
+      "writers": {
+        "modules/15m-squad-leader-cohesion-regroup.js": {
+          "as": "owner",
+          "why": "updateCohesion bumps the serial so stale recovery records cannot be mistaken for the live one (moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "layer",
+          "why": "restart-reset zeroes the serial (reset)."
+        }
+      }
+    },
+    "squad.objective": {
+      "owner": "modules/15m-squad-leader-cohesion-regroup.js",
+      "writers": {
+        "modules/15m-squad-leader-cohesion-regroup.js": {
+          "as": "owner",
+          "why": "updateCohesion publishes the regroup anchor (moved here from 16 in the bare-bones split)."
         },
         "modules/15l-squad-leader-mission-execution.js": {
           "as": "layer",
