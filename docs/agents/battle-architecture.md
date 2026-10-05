@@ -722,6 +722,14 @@ Implement this in **small phases**, each with its own deterministic harness/prob
 5. **Close the direct-read gaps — Phase 0E in progress.** Add a static/runtime ratchet for command-bearing squad fields so new behavior
    cannot bypass personal adoption, then run fixed-seed and paired benchmarks for churn, stalls, response latency,
    cohesion and mission progress.
+6. **Inter-squad tactical broadcast — Phase 0F, design in `docs/reference/AI_TACTICS_OUTLINE.md`.** Nearby squads
+   share tactical contact beyond the General's stale intel rollup. Today a squad creeping up a hill, a squad
+   watching from a distance, and a squad fighting for its life from sniper fire each act on their own picture.
+   0F adds a Meso-layer broadcast channel: when a squad's contact picture changes meaningfully it publishes a
+   tactical broadcast to nearby squads within `BROADCAST_RANGE`; receiving squads merge the broadcast into their
+   own `squad.contact` picture and the Squad Leader can react. Sliced as 0F1 (telemetry, behavior-neutral),
+   0F2 (reception, opt-in `?squadBroadcast=1`), 0F3 (reaction, benchmark-gated). This is squad-to-squad, not
+   Macro and not Micro; it does not bypass Movement Resolver or Engagement ownership.
 
 **After that prerequisite ships**, return to `docs/reference/AI_TACTICS_OUTLINE.md`'s tactical control-plane sequence:
 `TacticalSituation` + read-only street/building-control diagnostics, richer `SquadIntent` metadata, then one named
