@@ -1,0 +1,286 @@
+name: Agent apply patch
+
+# Lets an AI agent ship a PR by filing an issue — the agent never holds a token.
+#
+# Flow:
+#   1. The agent opens an issue on APPARANYX/grasstex with the label `agent-apply`.
+#      The issue body carries a base64-encoded git patch, a PR title and a PR body
+#      in a fixed three-section format (see docs/agents/agent-apply-workflow.md).
+#   2. This workflow fires on the `labeled` event for that label.
+#   3. It checks out the repo, parses the issue body, creates
+#      `work/agent-<issue-number>` from `main`, and applies the patch — `git am`
+#      for `git format-patch` input, `git apply` + commit for plain unified diffs.
+#   4. It pushes the branch using secrets.AGENT_TOKEN (configured as a git
+#      http.extraheader so the token never lands in a remote URL or the reflog).
+#   5. It opens a PR with `gh pr create` using the same AGENT_TOKEN, so the PR
+#      shows as authored by the agent's identity, not the github-actions[bot].
+#   6. On success it comments `Opened PR #N: <url>` on the issue and closes it.
+#      On any failure it posts the traceback as an issue comment and leaves the
+#      issue open for the agent or a human to re-file.
+#
+# The AGENT_TOKEN is a fine-grained PAT scoped to APPARANYX/grasstex with
+# Contents: write and Pull requests: write (setup instructions in
+# docs/agents/agent-apply-workflow.md). Issue comments and closes use the
+# workflow's own GITHUB_TOKEN.
+#
+# The agent's PR is not auto-merged: the PR this opens triggers the normal
+# `ci.yml` workflow on `pull_request`, and a human reviews and merges it.
+# Branch protection on `main` is respected.
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  # One in-flight apply per issue. A re-label joins the same group rather than
+  # racing a previous run; cancel-in-progress is off so a re-label after a fix
+  # doesn't kill a run that's already pushing.
+  group: agent-apply-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Apply patch and open PR
+    if: github.event.label.name == 'agent-apply'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # We push with AGENT_TOKEN, not the GITHUB_TOKEN that checkout would
+          # otherwise persist in .git/config as an http.extraheader.
+          persist-credentials: false
+
+      - name: Configure git identity for commits this workflow makes
+        # Used only on the `git apply` path; `git am` takes the author from the
+        # patch. Edit these two lines to change the agent's commit identity.
+        run: |
+          git config user.name "appara-agent"
+          git config user.email "appara-agent@users.noreply.github.com"
+
+      - name: Apply patch, push branch, open PR, close issue
+        env:
+          AGENT_TOKEN: ${{ secrets.AGENT_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+          import traceback
+          from pathlib import Path
+
+          ISSUE_NUMBER = os.environ["ISSUE_NUMBER"]
+          BRANCH = f"work/agent-{ISSUE_NUMBER}"
+          TEMP = Path(os.environ["RUNNER_TEMP"])
+
+          def run(cmd, **kw):
+              """Run a command, streaming stdout to the log, capturing stderr
+              so it can be included in the failure comment if it raises."""
+              print("+", " ".join(str(c) for c in cmd), flush=True)
+              kw.setdefault("stderr", subprocess.PIPE)
+              kw.setdefault("text", True)
+              return subprocess.run([str(c) for c in cmd], check=True, **kw)
+
+          def fail(message):
+              """Post the error as a comment on the issue and exit non-zero."""
+              body = (
+                  "## Agent apply failed\n\n"
+                  "```\n"
+                  f"{message}\n"
+                  "```\n\n"
+                  "The issue is left open. Fix the patch and re-apply the "
+                  "`agent-apply` label (remove and re-add) to retry."
+              )
+              try:
+                  subprocess.run(
+                      ["gh", "issue", "comment", ISSUE_NUMBER, "--body", body],
+                      check=True, capture_output=True, text=True,
+                  )
+              except Exception as e:
+                  print(f"Also failed to comment on issue: {e}", file=sys.stderr)
+              sys.exit(1)
+
+          try:
+              # --- Parse the issue body into PR title / PR body / base64 patch ---
+              event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+              body = event.get("issue", {}).get("body") or ""
+
+              # Only these three H2 headers act as section separators; any other
+              # `## ` line is treated as content of the current section (so the
+              # PR body can use sub-headers without splitting the parse).
+              KNOWN = {
+                  "pr title": "title",
+                  "pr body": "body",
+                  "patch (base64)": "patch",
+                  "patch": "patch",  # alias
+              }
+
+              def norm(s):
+                  return re.sub(r"\s+", " ", s.strip().lower())
+
+              sections = {"title": [], "body": [], "patch": []}
+              current = None
+              for line in body.splitlines():
+                  m = re.match(r"^##\s+(.+?)\s*$", line)
+                  key = KNOWN.get(norm(m.group(1))) if m else None
+                  if key:
+                      current = key
+                      sections[current] = []
+                  elif current:
+                      sections[current].append(line)
+
+              pr_title = "\n".join(sections["title"]).strip()
+              pr_body = "\n".join(sections["body"]).strip()
+              patch_b64 = "\n".join(sections["patch"]).strip()
+
+              if not pr_title:
+                  fail("Missing or empty `## PR Title` section in the issue body.")
+              if not patch_b64:
+                  fail("Missing or empty `## Patch (base64)` section in the issue body.")
+              # An empty PR body is fine.
+
+              # Strip a markdown code fence if the agent wrapped the base64,
+              # then drop all whitespace so line-wrapping in the issue is OK.
+              patch_b64_clean = re.sub(r"^```[a-zA-Z0-9_+.-]*\s*", "", patch_b64)
+              patch_b64_clean = re.sub(r"\s*```$", "", patch_b64_clean)
+              patch_b64_clean = re.sub(r"\s+", "", patch_b64_clean)
+              try:
+                  patch_bytes = base64.b64decode(patch_b64_clean, validate=False)
+              except Exception as e:
+                  fail(f"Could not base64-decode the patch:\n{e}")
+
+              if not patch_bytes:
+                  fail("The decoded patch is empty.")
+
+              patch_path = TEMP / "agent.patch"
+              patch_path.write_bytes(patch_bytes)
+              print(f"Wrote {len(patch_bytes)} bytes of patch to {patch_path}", flush=True)
+
+              # A `git format-patch` file starts with `From <7+ hex> ...`.
+              # Anything else is treated as a plain unified diff.
+              head = patch_bytes[:200].decode("utf-8", errors="replace")
+              is_format_patch = bool(re.match(r"^From [0-9a-f]{7,} ", head))
+
+              # --- Create the branch from origin/main ---
+              run(["git", "fetch", "origin", "main:refs/remotes/origin/main"])
+              run(["git", "checkout", "-B", BRANCH, "origin/main"])
+
+              # --- Apply ---
+              if is_format_patch:
+                  # git am takes the commit message(s) and author(s) from the patch.
+                  run(["git", "am", "--3way", str(patch_path)])
+              else:
+                  run(["git", "apply", "--index", str(patch_path)])
+                  args = ["git", "commit", "-m", pr_title]
+                  if pr_body:
+                      args += ["-m", pr_body]
+                  run(args)
+
+              # Bail if the patch produced no changes (already applied, or no-op).
+              if subprocess.run(
+                  ["git", "diff", "--quiet", "origin/main", "HEAD"]
+              ).returncode == 0:
+                  fail(
+                      "The patch produced no changes against `main`. It may "
+                      "already be applied, or it is a no-op."
+                  )
+
+              # --- Push with AGENT_TOKEN ---
+              # Configure an http.extraheader on the local git config so the
+              # AGENT_TOKEN authorizes the push without leaking into a remote
+              # URL or the reflog. This is what actions/checkout does internally.
+              token = os.environ["AGENT_TOKEN"]
+              cred = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+              run(["git", "config", "--local",
+                   "http.https://github.com/.extraheader",
+                   f"AUTHORIZATION: basic {cred}"])
+
+              # Pre-fetch the existing remote ref so --force-with-lease has a
+              # value to compare against if the branch already exists. If it
+              # doesn't, the fetch fails silently and the push creates it.
+              subprocess.run(
+                  ["git", "fetch", "origin",
+                   f"+refs/heads/{BRANCH}:refs/remotes/origin/{BRANCH}"],
+                  check=False, capture_output=True,
+              )
+              run(["git", "push", "--force-with-lease", "origin",
+                   f"HEAD:refs/heads/{BRANCH}"])
+
+              # --- Open the PR with AGENT_TOKEN so the PR author is the agent ---
+              agent_env = os.environ.copy()
+              agent_env["GH_TOKEN"] = token
+
+              create = subprocess.run(
+                  [
+                      "gh", "pr", "create",
+                      "--base", "main",
+                      "--head", BRANCH,
+                      "--title", pr_title,
+                      "--body", pr_body,
+                      "--json", "number,url",
+                  ],
+                  capture_output=True, text=True, env=agent_env,
+              )
+              if create.returncode == 0:
+                  pr = json.loads(create.stdout)
+                  pr_number = pr["number"]
+                  pr_url = pr["url"]
+              else:
+                  # A PR for this branch may already be open (a previous run got
+                  # that far, then failed before closing the issue). Reuse it.
+                  list_prs = subprocess.run(
+                      [
+                          "gh", "pr", "list",
+                          "--head", BRANCH,
+                          "--state", "open",
+                          "--json", "number,url",
+                          "--limit", "1",
+                      ],
+                      capture_output=True, text=True, env=agent_env, check=False,
+                  )
+                  prs = json.loads(list_prs.stdout) if list_prs.returncode == 0 else []
+                  if prs:
+                      pr_number = prs[0]["number"]
+                      pr_url = prs[0]["url"]
+                  else:
+                      fail(f"`gh pr create` failed:\n{create.stderr}")
+
+              # --- Comment on the issue and close it (uses GITHUB_TOKEN) ---
+              run([
+                  "gh", "issue", "comment", ISSUE_NUMBER,
+                  "--body", f"Opened PR #{pr_number}: {pr_url}",
+              ])
+              run(["gh", "issue", "close", ISSUE_NUMBER])
+
+              print(f"Done. PR #{pr_number}: {pr_url}", flush=True)
+
+          except subprocess.CalledProcessError as e:
+              stdout = e.stdout or ""
+              stderr = e.stderr or ""
+              if isinstance(stdout, bytes):
+                  stdout = stdout.decode("utf-8", "replace")
+              if isinstance(stderr, bytes):
+                  stderr = stderr.decode("utf-8", "replace")
+              detail = (
+                  f"Command failed: {' '.join(str(c) for c in (e.cmd or []))}\n"
+                  f"exit code: {e.returncode}\n"
+                  f"stdout:\n{stdout}\n"
+                  f"stderr:\n{stderr}"
+              )
+              fail(detail)
+          except Exception:
+              fail(traceback.format_exc())
+          PY
