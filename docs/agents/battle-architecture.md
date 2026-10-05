@@ -22,7 +22,7 @@ Intent flows down and status flows up. No layer rewrites another's state.
 | Window firing port | `battle-navigation.js` (`station.port`, `aperture`, `inSector`, `rejectedWindows`) with Engagement's `station` | the aperture geometry (sill, head, jambs, the anchor, the stance the sill fits, the exterior sector) and the per-tick question of whether his eye and his bore pass through it; the post itself, its bounded local pose (`t.pose`) and the aperture report (`t.aperture`) are the Tactical positions manager's record | assign or release a window, pick a destination, write another layer's state; bypass the wall (LOS elsewhere is unchanged) |
 | Tactical routing | `modules/52-survival-tactical-route.js` | safe ingress, suppressed cover detours | resurrect an obsolete objective |
 | Movement Resolver | `movement-resolver.js` | **sole normal-runtime writer of `soldier.destination`**; coalesces Engagement's per-tick combat requests and arbitrates Meso vs Micro proposals | act as a garbage collector for redundant producers |
-| Diagnostics | `modules/36-order-provenance.js` (writer provenance, fast setters, 1.6 s in-place sampler), `32` Loop Watch, `43` forward progress, `99` the one diagnostics exporter (full, loops and orders via `BattleDiagnosticsExport.snapshot(kind)`; `38` only adds its AI Graph buttons) | observe only: removing them leaves a battle identical (~4% wall time) | change gameplay |
+| Diagnostics | `modules/36-order-provenance.js` (writer provenance, fast setters, 1.6 s in-place sampler), `32` Loop Watch, `43` forward progress, `99` the one diagnostics exporter (full, loops and orders via `BattleDiagnosticsExport.snapshot(kind)`; `38` only adds its AI Graph buttons) | observe only: removing them leaves a battle identical (~4% wall time); Loop Watch evaluates squad order churn only within one movement authority, so phase/recon/mission-hold handoffs and retreat ownership are not stitched into a false command loop | change gameplay |
 | Navigation | `battle-navigation.js`, `modules/39-navigation-physicality-debug.js` | doors, stations, pathfinding, 0.45 m body legality | assign or release tasks |
 | Personal space | `modules/51-soldier-personal-space.js` | local physical correction | own commands |
 
@@ -640,7 +640,7 @@ The six stabilization slices are closed and no longer part of the active queue:
 - #160: freeze duration is bounded by recent stress tempo (12–48 s) with diagnostics.
 - #161: retreat anchors/intents are stabilized with the sliding lease and progress checks.
 - #162: fire-control evidence and posture-churn diagnostics are exported.
-- #164: strategic objective-stall recovery escalates through reconcile/release/main-effort/reset.
+- #164: strategic objective-stall recovery escalates through reconcile/release/main-effort/reset. The 120 s reconcile stage does not replace a valid capture brief while the squad is still physically executing movement; later stages remain the backstop for motion that never produces strategic progress.
 - #165: Perception owns the shared threat-disposition contract for active threat / visible non-threat / inactive.
 
 Their detailed behavior, harnesses and tuning live in the subsystem sections, carrying PRs and git history. Do not
@@ -706,6 +706,12 @@ Implement this in **small phases**, each with its own deterministic harness/prob
    Squad Command applies only each soldier's personally adopted replacement while Movement Resolver remains the
    final-destination arbiter; a pending order cannot erase the previous adopted slot. The default/off arm remains
    immediate publication.
+   Arrival acknowledges the latest personally published movement envelope, not the old destination
+   retained during reception. The Squad Leader cannot repeatedly spend the same old arrival to advance
+   its anchor while replacement orders are pending. Destination coalescing must also verify that
+   execution acknowledges the current envelope: returning to an earlier mission with the same point
+   still supersedes an intervening pending order. These are issuer/execution checks; Command Reception
+   remains information-only and tactical combat commitments retain Movement Resolver arbitration.
 4. **Orientation and relay — current phase, split small.**
    - **0D1 reference-sensitive orientation — shipped in #216.** Distinguish simple, directional, point and object
      references so "get down", "shift fire left", "move there" and "get in that building" pay bounded,
@@ -836,4 +842,3 @@ before any effect is claimed.
 
 - By design: Movement Progress ignores retreat (`movementStopReason` is the observable), and
   meeting engagements get no runtime engineer fortification (`engineerTick` exits early).
-

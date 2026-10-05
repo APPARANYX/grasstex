@@ -176,6 +176,38 @@ freshTask.serial = 0;
   assert.deepEqual(w.q.orderAnchor, anchor, 'recon order refresh does not move the main-body anchor');
 }
 
+/* Delayed movement adoption must not turn a non-spatial HOLD into a historical coordinate.
+   Men keep executing their previous valid order while they hear/process "hold"; when they adopt it,
+   they stop where they are then, and that receipt position remains stable for the recon lease. */
+{
+  const w = world({ search: '?scoutsForward=1&commandMovement=1&stressAct=0' });
+  w.S.updateFireteams(w.q, w.b);
+  w.b.time = 3;
+  w.S.updateFireteams(w.q, w.b); // establish an adopted pre-recon formation order
+  const task = start(w);
+  w.S.updateFireteams(w.q, w.b);
+  const selected = new Set(task.scoutIds.map(String));
+  const body = w.q.members.find(s => !s.dead && !selected.has(String(s.id)));
+  const id = String(body.id), issuedHold = { ...task.holdPoints[id] };
+  const rec = w.r.BattleCommandReception.snapshot(body, w.b).records['movement|soldier:' + id];
+  assert.ok(rec && rec.action === 'recon-hold' && rec.adoptedAt > w.b.time, 'main-body recon hold is personally pending');
+  assert.equal(rec.reference, 'none', 'hold is a simple command, not a stale point-location exercise');
+
+  body.root.position.z += 6; // previous valid formation order continues while the hold is being processed
+  const receipt = { x: body.root.position.x, z: body.root.position.z };
+  assert.ok(Math.hypot(receipt.x-issuedHold.x, receipt.z-issuedHold.z) > 5, 'fixture moved while hold was pending');
+  w.b.time = rec.adoptedAt + 0.001;
+  w.S.updateFireteams(w.q, w.b);
+
+  assert.ok(Math.hypot(body._fireteamDestination.x-receipt.x, body._fireteamDestination.z-receipt.z) < 1e-9,
+    'adopted recon hold stops at the man\'s receipt position instead of returning to issue-time coordinates');
+  assert.deepEqual(task.holdPoints[id], receipt, 'receipt position becomes the stable recon hold point');
+  body.root.position.z += 0.4;
+  w.b.time += 0.15;
+  w.S.updateFireteams(w.q, w.b);
+  assert.deepEqual(task.holdPoints[id], receipt, 'later recon ticks do not slide the adopted hold point');
+}
+
 /* Intentional scout separation belongs to recon, not the regroup lifecycle. */
 {
   const w = world();

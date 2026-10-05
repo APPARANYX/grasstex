@@ -73,6 +73,28 @@ test('the strategic-stall wake reads the stall seconds, never the replanDue flag
   f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121,replanDue:false}}};f.sim.time=121;f.tick();
   assert.equal(wakes(),1,'121 s of stall wakes the General whatever the flag says');
 });
+test('120 s reconcile leaves a recently progressing capture brief alone',()=>{
+  const f=fixture();f.tick();
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:100}}};f.sim.time=99.55;f.tick();
+  const mission=f.sq._macroMission;
+  f.sq.members[0].root.position.x=10;f.sim._coordinationHealth.sides.us.objectiveStallSeconds=110;f.sim.time=109.55;f.tick();
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=121;f.sim.time=120.55;f.tick();
+  assert.strictEqual(f.sq._macroMission,mission,'progressing squad was unnecessarily replanned');
+  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length,0,'progressing squad emitted a strategic-stall wake');
+});
+test('120 s reconcile does not replan a capture brief whose squad is still physically executing it',()=>{
+  const f=fixture();f.tick();
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:100}}};f.sim.time=99.55;f.tick();
+  const mission=f.sq._macroMission;
+  f.sq.members[0].root.position.z=10; // lateral travel: execution without straight-line mission progress
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=110;f.sim.time=109.55;f.tick();
+  const rec=f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us.progress[f.sq.id];
+  assert.equal(rec.lastProgressAt,null,'lateral travel accidentally counted as objective progress');
+  assert.ok(rec.lastExecutionAt!=null,'physical mission execution was not observed');
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=121;f.sim.time=120.55;f.tick();
+  assert.strictEqual(f.sq._macroMission,mission,'actively executing squad was unnecessarily replanned');
+  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length,0,'active execution emitted a strategic-stall wake');
+});
 test('120 s reconcile repairs missing Macro projections without replacing a young valid brief',()=>{
   const f=fixture();f.sim.time=100;f.tick();const mission=f.sq._macroMission;
   f.sq.commandRole=null;f.sq.targetObjective=null;

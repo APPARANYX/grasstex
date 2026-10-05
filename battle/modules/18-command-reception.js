@@ -377,6 +377,14 @@
       slot=String(category||'command')+'|'+String(scope||'squad');
     return by&&by[slot]?publicRecord(by[slot]):null;
   }
+  // Issuer-side acknowledgement query. No settlement/copy of every soldier is needed:
+  // execution can acknowledge only the latest personally published envelope.
+  function executionCurrent(soldier,battle,category,scope,envelopeId){
+    var st=battle&&battle._commandReception,
+      by=st&&soldier&&st.bySoldier[String(soldier.id)],
+      rec=by&&by[String(category||'command')+'|'+String(scope||'squad')];
+    return !!(rec&&rec.envelopeId===envelopeId);
+  }
   function snapshot(soldier,battle){
     if(!ON||!soldier||!battle)return null;
     var st=settle(battle),id=String(soldier.id),by=st&&st.bySoldier[id],
@@ -444,6 +452,7 @@
     publish:publish,
     settle:settle,
     adopted:adopted,
+    executionCurrent:executionCurrent,
     snapshot:snapshot,
     squadSnapshot:squadSnapshot,
     telemetry:telemetry,

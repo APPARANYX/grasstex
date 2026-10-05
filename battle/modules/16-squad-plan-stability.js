@@ -1089,6 +1089,10 @@
   function movementScope(s) {
     return 'soldier:' + String(s && s.id);
   }
+  function movementExecutionCurrent(s, battle) {
+    var CR = root.BattleCommandReception;
+    return !movementAdoptionOn() || CR.executionCurrent(s, battle, 'movement', movementScope(s), s._fireteamAdoptedEnvelope);
+  }
   function movementSignature(publishKey, next) {
     return (
       String(publishKey || 'movement') +
@@ -1098,8 +1102,9 @@
       Math.round((+next.z || 0) / ORDER_PUBLISH_EPS)
     );
   }
-  function publishPersonalMovement(sq, battle, s, next, publishKey, urgent, kind, reason, stats) {
-    var CR = root.BattleCommandReception;
+  function publishPersonalMovement(sq, battle, s, next, publishKey, urgent, kind, reason, stats, options) {
+    var CR = root.BattleCommandReception,
+      opt = options || {};
     if (!(CR && CR.movementEnabled && CR.movementEnabled())) {
       s._fireteamDestination = copy(next);
       s._fireteamPublishKey = publishKey;
@@ -1130,25 +1135,37 @@
         action: kind || 'formation',
         signature: movementSignature(publishKey, next),
         reason: reason || 'fireteam order',
-        spatial: true,
+        spatial: opt.reference === 'none' ? false : true,
+        reference: opt.reference || 'point',
         point: next,
-        data: { publishKey: String(publishKey || ''), urgent: !!urgent, kind: kind || 'formation' }
+        data: {
+          publishKey: String(publishKey || ''),
+          urgent: !!urgent,
+          kind: kind || 'formation',
+          adoptHere: !!opt.adoptHere
+        }
       });
       adopted = CR.adopted && CR.adopted(s, battle, 'movement', scope);
     }
     if (!adopted || !adopted.point || !adopted.data) return false;
 
-    var adoptedKey = String(adopted.data.publishKey || ''),
+    /* A non-spatial HOLD means stop when the order reaches the man, not return to the coordinate
+       where he happened to be when the leader spoke. This matters only for commands that explicitly
+       opt in (currently recon main-body holds); fixed spatial orders still execute their published point. */
+    var appliedPoint = adopted.data.adoptHere ? point(s.root && s.root.position) : adopted.point,
+      adoptedKey = String(adopted.data.publishKey || ''),
       previous = point(s._fireteamDestination);
+    if (!appliedPoint) return false;
     if (
       s._fireteamAdoptedEnvelope === adopted.envelopeId &&
       previous &&
-      dist(previous, adopted.point) <= ORDER_PUBLISH_EPS &&
+      dist(previous, appliedPoint) <= ORDER_PUBLISH_EPS &&
       s._fireteamPublishKey === adoptedKey
     )
       return false;
 
-    s._fireteamDestination = copy(adopted.point);
+    if (adopted.data.adoptHere) s._fireteamDestination = copy(appliedPoint);
+    else s._fireteamDestination = copy(adopted.point);
     s._fireteamPublishKey = adoptedKey;
     s._fireteamAdoptedEnvelope = adopted.envelopeId;
     stats.intentPublishes++;
@@ -1497,16 +1514,24 @@
     }
     var c = cfg(sim, sq),
       limit = +(leaderAlive(sq) ? c.cohesionRadius : c.captainlessCohesion) || 34,
-      release = limit * REGROUP_RELEASE,
+      /* Tactical dispersion is not marching formation. Outside open-ground advance,
+         give independently positioned men a larger operating area; the existing
+         core/outlier assessment still detects genuinely separated squads. */
+      tactical = sq.commandPhase === 'assault' || sq.commandPhase === 'capture' ||
+        sq.commandPhase === 'clear-town' || sq.commandPhase === 'defend' ||
+        sq.commandPhase === 'hold' || sq.commandPhase === 'support-hold',
+      operatingLimit = tactical ? limit * 1.5 : limit,
+      release = operatingLimit * REGROUP_RELEASE,
       st = cohesionState(sq),
       t = sim.time,
-      ca = cohesionAssessment(sq, limit);
+      ca = cohesionAssessment(sq, operatingLimit);
     sq._cohesionAssessment = {
       rawSpread: +ca.rawSpread.toFixed(3),
       coreSpread: +ca.coreSpread.toFixed(3),
       stragglers: ca.stragglers.slice(),
       outrunners: ca.outrunners.slice(),
       allowed: ca.allowed,
+      operatingRadius: +operatingLimit.toFixed(3),
       dispersed: ca.dispersed
     };
     /* No absent leader may invent a new regroup. An already-issued regroup remains a parent intent
@@ -1571,7 +1596,19 @@
     var regroup = L.get(sq, 'regroup');
     if (regroup) {
       var age = t - regroup.since;
-      if (age >= REGROUP_MIN && ca.coreSpread <= release) {
+      /* Regroup is an area objective, not a request to reconstruct fireteam slots.
+         Count living commanded men inside the rally circle; a bounded minority of
+         stragglers may catch up without holding the entire squad indefinitely. */
+      var rallyAnchor = regroup.data.anchor || ca.center,
+        rallyMen = commanded(sq),
+        rallyInside = rallyMen.filter(function (man) {
+          return dist(man.root.position, rallyAnchor) <= release;
+        }).length,
+        rallyRequired = Math.max(1, rallyMen.length - ca.allowed);
+      /* A squad that has cohered elsewhere must not remain trapped by a stale
+         rally point (e.g. a new tactical position reached while regrouping).
+         Retain the original core-spread escape alongside rally-area quorum. */
+      if (age >= REGROUP_MIN && (rallyInside >= rallyRequired || ca.coreSpread <= release)) {
         endRegroup(sim, sq, 'cohesion restored');
         return;
       }
@@ -1596,7 +1633,7 @@
       return;
     }
     /* The Squad Leader, not the General, decides a squad is too scattered to keep executing. */
-    var requested = !sq.inContact && !L.holds(sq, 'regroup-bypass', t) && ca.rawSpread > limit;
+    var requested = !sq.inContact && !L.holds(sq, 'regroup-bypass', t) && ca.rawSpread > operatingLimit;
     if (!requested) {
       st.overSince = null;
       return;
@@ -2227,12 +2264,16 @@
       (sq._regroupRecovery && sq._regroupRecovery.serial) || 0
     ].join('|');
   }
-  function orderCanAdvance(sq) {
+  function orderCanAdvance(sq, battle) {
     var living = commanded(sq),
       arrived = 0;
     if (!living.length) return true;
     for (var i = 0; i < living.length; i++) {
       var s = living[i];
+      /* Arrival acknowledges the latest issued movement, not a previous destination
+         that the man still holds while hearing its replacement. Otherwise the same
+         old arrival advances another stride on every command tick during reception. */
+      if (!movementExecutionCurrent(s, battle)) continue;
       if (s.orderDestination && dist(s.root.position, s.orderDestination) <= ORDER_ARRIVAL_RADIUS) arrived++;
     }
     return arrived / living.length >= ORDER_COHESION;
@@ -2890,11 +2931,11 @@
         previous = point(man._fireteamDestination),
         reconKind = selected[id] ? 'recon' : 'recon-hold';
       stats.intentChecks++;
-      if (previous && dist(previous, next) <= ORDER_PUBLISH_EPS && man._fireteamPublishKey === key) {
+      if (previous && dist(previous, next) <= ORDER_PUBLISH_EPS && man._fireteamPublishKey === key && movementExecutionCurrent(man, battle)) {
         stats.intentCoalesced++;
         continue;
       }
-      publishPersonalMovement(
+      var applied = publishPersonalMovement(
         sq,
         battle,
         man,
@@ -2903,8 +2944,14 @@
         false,
         reconKind,
         task.reason || 'scouts forward',
-        stats
+        stats,
+        selected[id] ? null : { adoptHere: true, reference: 'none' }
       );
+      /* The main body's HOLD is non-spatial. Once a man receives it, that receipt position becomes
+         the stable hold point for this recon lease so later ticks coalesce instead of dragging him
+         back to the coordinate captured before he heard the command. */
+      if (!selected[id] && applied && man._fireteamDestination)
+        task.holdPoints[id] = copy(man._fireteamDestination);
     }
     if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);
     return true;
@@ -2973,7 +3020,7 @@
         cc.seen = c.at;
       }
       var a = sq.orderAnchor;
-      if (a && dist(a, cc) <= CLEAR_ARRIVED && orderCanAdvance(sq)) endClearContact(sq, battle, 'cleared');
+      if (a && dist(a, cc) <= CLEAR_ARRIVED && orderCanAdvance(sq, battle)) endClearContact(sq, battle, 'cleared');
       else if (battle.time - cc.since >= CLEAR_MAX) endClearContact(sq, battle, 'timeout');
       if (!sq.clearContact) sq._quietSince = null;
       return;
@@ -3042,7 +3089,7 @@
       dz = goal.z - z,
       len = Math.hypot(dx, dz),
       mayAdvance = !hold && !held && (sq.state === 'advance' || sq.state === 'engaged');
-    if ((force || orderCanAdvance(sq)) && mayAdvance && len > 2) {
+    if ((force || orderCanAdvance(sq, battle)) && mayAdvance && len > 2) {
       var stride = bounding
         ? ORDER_STRIDE * 0.5
         : sq.state === 'engaged'
@@ -3146,7 +3193,38 @@
       for (var i = 0; i < m.length; i++) {
         var s = m[i],
           d = teamSlot(sq, key, s, i, m.length, cur.anchor, cur.forward),
-          prepared = defensive && s._preparedDefensePost,
+          rallyAnchor = regroup && L.get(sq, 'regroup'),
+          rallyPoint = rallyAnchor && rallyAnchor.data && rallyAnchor.data.anchor,
+          rallyRadius = rallyPoint ? Math.max(4, (+(cfg(battle, sq).cohesionRadius) || 34) * REGROUP_RELEASE) : 0;
+        /* Each man can satisfy a regroup anywhere inside the rally area. Choose his
+           personal point once per regroup lease and keep it stable while he approaches.
+           Recomputing the near-edge point from his current position every Squad Leader
+           tick made delayed command adoption chase a moving sequence of equally-valid
+           regroup points (A -> B -> A position seeking) even though the rally area itself
+           never moved. The lease is the Squad Leader's regroup authority, so its data owns
+           these transient targets and they disappear automatically when the regroup ends. */
+        if (rallyPoint) {
+          var rallyData = rallyAnchor.data || (rallyAnchor.data = {}),
+            rallyTargets = rallyData.targets || (rallyData.targets = {}),
+            rallyId = String(s.id),
+            stableRally = point(rallyTargets[rallyId]);
+          if (!stableRally) {
+            var here = point(s.root.position),
+              away = here ? dist(here, rallyPoint) : 0,
+              existing = point(s._fireteamDestination);
+            stableRally = away <= rallyRadius
+              ? (existing && dist(existing, rallyPoint) <= rallyRadius ? existing : here)
+              : away > 0
+                ? {
+                    x: rallyPoint.x + (here.x - rallyPoint.x) * (rallyRadius * 0.65 / away),
+                    z: rallyPoint.z + (here.z - rallyPoint.z) * (rallyRadius * 0.65 / away)
+                  }
+                : copy(rallyPoint);
+            rallyTargets[rallyId] = copy(stableRally);
+          }
+          d = stableRally;
+        }
+        var prepared = defensive && s._preparedDefensePost,
           post = prepared ? null : defensive ? holdPost(s, defenseKey) : null,
           next = prepared ? copy(prepared) : post ? { x: post.x, z: post.z } : d,
           kind = prepared ? 'prepared' : post ? 'defense-post' : 'formation',
@@ -3155,7 +3233,9 @@
         s._fireteamKey = key;
         if (!defensive) s._defensePost = null;
         stats.intentChecks++;
-        if (previous && dist(previous, next) <= ORDER_PUBLISH_EPS && s._fireteamPublishKey === publishKey) {
+        /* With reception enabled the publisher must also supersede a pending
+           command, even when a restored mission reuses the executed destination. */
+        if (previous && dist(previous, next) <= ORDER_PUBLISH_EPS && s._fireteamPublishKey === publishKey && movementExecutionCurrent(s, battle)) {
           stats.intentCoalesced++;
           continue;
         }
