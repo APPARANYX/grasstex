@@ -10,9 +10,14 @@
    Slices:
    - 0F1 (shipped): behavior-neutral telemetry. Broadcasts are computed and logged but NOT
      consumed. squad.contact on receiving squads is unchanged. Default behavior.
-   - 0F2 (this slice, opt-in ?squadBroadcast=1): a receiving squad merges the broadcast into
-     its squad.contact picture if it has no fresher first-hand contact for the same enemy. The
-     Squad Leader can then react to the broadcast threat. The default/off arm remains 0F1.
+   - 0F2 (shipped, opt-in ?squadBroadcast=1): a receiving squad merges the broadcast into
+     its squad.contact picture if it has no fresher first-hand contact for the same enemy.
+   - 0F3 (this slice, same opt-in ?squadBroadcast=1): when a broadcast is applied to a
+     receiving squad, the module emits a 'squad-broadcast-reaction' telemetry event and stamps
+     sq._broadcastReactAt so the Squad Leader and diagnostics can see that the squad reacted
+     to a broadcast. The reaction itself is the existing squadSenses -> soldierContact -> alert()
+     path: individual soldiers orient toward the broadcast contact because squad.contact now
+     holds it. This slice makes the reaction visible and measurable.
 
    Ownership: squad-to-squad, not Macro (General) and not Micro (individual soldier). Does not
    bypass Movement Resolver or Engagement ownership. When 0F2 is on, this module writes
@@ -240,6 +245,24 @@
             };
             rs.applied = (rs.applied || 0) + 1;
             st.applied = (st.applied || 0) + 1;
+            /* Phase 0F3: stamp the reaction timestamp and emit telemetry so the
+               Squad Leader and diagnostics can see that this squad reacted to a
+               broadcast. The reaction itself is the existing squadSenses ->
+               soldierContact -> alert() path: individual soldiers orient toward
+               the broadcast contact because squad.contact now holds it. */
+            squad._broadcastReactAt = now;
+            squad._broadcastReactFrom = sq.id;
+            if (root.BattleTelemetry) {
+              root.BattleTelemetry.record('squad-broadcast-reaction', {
+                receivingSquad: squad.id,
+                faction: squad.faction,
+                sourceSquad: sq.id,
+                kind: change.kind,
+                x: +change.x.toFixed(1),
+                z: +change.z.toFixed(1),
+                distance: +recipients[j].distance.toFixed(1)
+              }, sim);
+            }
           }
         }
         /* Rolling log, capped. */
