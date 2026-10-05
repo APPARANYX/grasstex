@@ -179,14 +179,26 @@
     }
     return { unit: best, distance: bd, source: 'truth' };
   }
-  /* Snapshot only what an own-side squad has actually reported. Never pass the live enemy object up
-     to Macro: even a first-hand squad contact becomes an id + last reported point/time here. */
+  /* Per-tick cache for reportedContacts. Every call to reportedNearestEnemyToSquad,
+     reportedEnemyStrengthNear and buildContext was re-iterating all own-side squads
+     and calling A.squadContact per squad. With 5 squads, that's 5x5 = 25 squadContact
+     queries per tick just for nearest-enemy, plus more in buildContext and squadFit.
+     The cache is keyed by (faction, sim.time) and is invalidated automatically when
+     sim.time advances. */
+  var _contactsCache = { faction: null, time: -1, rows: null };
   function reportedContacts(sim, faction) {
+    var now = +sim.time || 0;
+    if (_contactsCache.faction === faction && _contactsCache.time === now && _contactsCache.rows) {
+      return _contactsCache.rows;
+    }
     var A = root.SquadAI,
       squads = (sim && sim.factions && sim.factions[faction] && sim.factions[faction].squads) || [],
       byKey = {},
       rows = [];
-    if (!A || typeof A.squadContact !== 'function') return rows;
+    if (!A || typeof A.squadContact !== 'function') {
+      _contactsCache.faction = faction; _contactsCache.time = now; _contactsCache.rows = rows;
+      return rows;
+    }
     for (var i = 0; i < squads.length; i++) {
       var sq = squads[i];
       if (!sq || !aliveMembers(sq).length) continue;
@@ -210,6 +222,7 @@
       .forEach(function (k) {
         rows.push(byKey[k]);
       });
+    _contactsCache.faction = faction; _contactsCache.time = now; _contactsCache.rows = rows;
     return rows;
   }
   function reportedNearestEnemyToSquad(sim, sq) {
