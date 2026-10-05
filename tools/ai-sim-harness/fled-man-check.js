@@ -67,7 +67,7 @@ function world(search) {
   load(r, 'battle/commander-routes.js');
   load(r, 'battle/commander-ai.js');
   load(r, 'battle/movement-resolver.js');
-  load(r, 'battle/modules/15a-squad-leader-fire-control.js', search); load(r, 'battle/modules/15b-squad-leader-buddy-pairs.js','battle/modules/15c-squad-leader-scouts-forward.js', search); load(r, 'battle/modules/15c-squad-leader-scouts-forward.js', search); load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/16-squad-plan-stability.js', search);
+  load(r, 'battle/modules/15a-squad-leader-fire-control.js', search); load(r, 'battle/modules/15b-squad-leader-buddy-pairs.js','battle/modules/15c-squad-leader-scouts-forward.js', search); load(r, 'battle/modules/15c-squad-leader-scouts-forward.js', search); load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/15g-squad-leader-formation.js');load(r,'battle/modules/16-squad-plan-stability.js', search);
   load(r, 'battle/modules/46-ammunition-stoppages.js', search);
   const b = H.makeBattle(r);
   b.macroCommandEnabled = true;

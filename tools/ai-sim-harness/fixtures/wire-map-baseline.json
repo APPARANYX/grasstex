@@ -186,9 +186,9 @@
           "as": "owner",
           "why": "formationDirection caches the forward vector the formation slots are laid out on."
         },
-        "modules/16-squad-plan-stability.js": {
+        "modules/15g-squad-leader-formation.js": {
           "as": "setup",
-          "why": "placeAtSlots seeds it from the spawn direction: initial placement, from placeForce at battle start and from module 10 for a reinforcement squad."
+          "why": "placeAtSlots seeds it from the spawn direction: initial placement, from placeForce at battle start and from module 10 for a reinforcement squad (the write moved here from 16 in the bare-bones split)."
         },
         "modules/21-defender-engineers.js": {
           "as": "setup",
@@ -494,9 +494,9 @@
           "as": "fallback",
           "why": "resolver-fallback"
         },
-        "modules/16-squad-plan-stability.js": {
+        "modules/15g-squad-leader-formation.js": {
           "as": "setup",
-          "why": "placeAtSlots: initial placement (battle start and module 10 reinforcements)."
+          "why": "placeAtSlots: initial placement (battle start and module 10 reinforcements); the write moved here from 16 in the bare-bones split."
         },
         "modules/21-defender-engineers.js": {
           "as": "setup",
@@ -621,9 +621,9 @@
           "as": "owner",
           "why": "turnToward in stepMovement."
         },
-        "modules/16-squad-plan-stability.js": {
+        "modules/15g-squad-leader-formation.js": {
           "as": "setup",
-          "why": "placeAtSlots: initial placement (battle start and module 10 reinforcements)."
+          "why": "placeAtSlots: initial placement (battle start and module 10 reinforcements); the write moved here from 16 in the bare-bones split."
         },
         "modules/21-defender-engineers.js": {
           "as": "setup",
