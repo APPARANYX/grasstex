@@ -1,4 +1,4 @@
-/* Phase 0F1 — Inter-squad tactical broadcast telemetry (behavior-neutral).
+/* Phase 0F — Inter-squad tactical broadcast.
 
    Nearby squads share tactical contact beyond the General's stale intel rollup. Today a squad
    creeping up a hill, a squad watching from a distance, and a squad fighting for its life from
@@ -7,17 +7,25 @@
    seen, sniper/MG identified, taking fire from a new sector) it publishes a tactical broadcast
    to nearby squads within BROADCAST_RANGE.
 
-   This slice (0F1) is behavior-neutral: broadcasts are computed and logged but NOT consumed.
-   squad.contact on receiving squads is unchanged. No combat-RNG draw. The telemetry records
-   what WOULD be broadcast so the dose can be measured before 0F2 makes it behavioral.
+   Slices:
+   - 0F1 (shipped): behavior-neutral telemetry. Broadcasts are computed and logged but NOT
+     consumed. squad.contact on receiving squads is unchanged. Default behavior.
+   - 0F2 (this slice, opt-in ?squadBroadcast=1): a receiving squad merges the broadcast into
+     its squad.contact picture if it has no fresher first-hand contact for the same enemy. The
+     Squad Leader can then react to the broadcast threat. The default/off arm remains 0F1.
 
    Ownership: squad-to-squad, not Macro (General) and not Micro (individual soldier). Does not
-   bypass Movement Resolver or Engagement ownership. This module writes only its own diagnostics
-   state (sim._squadBroadcast) and telemetry; it never writes squad.contact, soldier.destination,
-   soldier.target, or any engagement state. */
+   bypass Movement Resolver or Engagement ownership. When 0F2 is on, this module writes
+   squad.contact on receiving squads as a documented sibling layer (the same role as
+   squadSenses in squad-ai.js); it never writes soldier.destination, soldier.target, or any
+   engagement state. */
 (function (root) {
   'use strict';
   if (!root.BattleModules || root.BattleSquadBroadcast) return;
+
+  /* ?squadBroadcast=1 enables 0F2 (broadcast reception). Default off: only telemetry. */
+  var BROADCAST_ON = !(typeof location !== 'undefined' && /[?&]squadBroadcast=0\b/.test(location.search || ''))
+    && !!(typeof location !== 'undefined' && location.search && /[?&]squadBroadcast=1\b/.test(location.search));
 
   /* Range at which a squad's broadcast reaches another squad. Longer than SquadAI.RELAY_RANGE
      (50, within-squad relay) because squads operate spread out; shorter than vision range so a
@@ -47,6 +55,28 @@
       n++;
     }
     return n ? { x: x / n, z: z / n } : null;
+  }
+
+  /* Look up a unit by id in the enemy faction's roster. Returns null if not found
+     (the unit may have died or the id may be a sector key rather than a unit id). */
+  function lookupUnit(sim, unitId, faction) {
+    if (!unitId || !sim || !sim.factions) return null;
+    var enemy = faction === 'us' ? 'ge' : 'us',
+      roster = sim.factions[enemy],
+      units = (roster && (roster.units || roster.members)) || [];
+    /* Check both _roster (battle-sim) and faction.squads (module-registry). */
+    if (sim._roster && sim._roster[enemy]) {
+      var r = sim._roster[enemy];
+      for (var i = 0; i < r.length; i++) if (r[i].id === unitId) return r[i];
+    }
+    for (var j = 0; j < units.length; j++) if (units[j].id === unitId) return units[j];
+    /* Fall back to scanning squads. */
+    var squads = (roster && roster.squads) || [];
+    for (var k = 0; k < squads.length; k++) {
+      var members = squads[k].members || [];
+      for (var m = 0; m < members.length; m++) if (members[m].id === unitId) return members[m];
+    }
+    return null;
   }
 
   /* What changed about a squad's contact that is worth broadcasting. Returns null if nothing
@@ -174,11 +204,43 @@
             recipients: broadcast.recipients
           }, sim);
         }
-        /* Track receive counts on recipient squads (they would receive it in 0F2). */
+        /* Track receive counts on recipient squads. */
         for (var j = 0; j < recipients.length; j++) {
           var rs = squadState(st, recipients[j].squad);
           rs.received++;
           st.received++;
+          /* 0F2: when squadBroadcast=1, actually apply the broadcast to the receiving squad's
+             contact picture. Only apply if the squad does not already have a fresher first-hand
+             contact for the same enemy. A broadcast is never first-hand: it is tagged
+             relayedFrom the source squad, same as the existing squadSenses relay path. This
+             means the receiving squad's perception will still upgrade it to first-hand when one
+             of its own men actually sees the enemy. */
+          if (BROADCAST_ON) {
+            /* Use 'squad' as the variable name so the wire-map scanner recognizes
+               the receiver (SQUAD_NAMES = {'sq','squad'}). This is the receiving
+               squad, not the broadcasting squad (which is 'sq' above). */
+            var squad = recipients[j].squad,
+              held = squad.contact;
+            /* Don't overwrite a first-hand sighting with a broadcast. */
+            if (held && held.firstHandAt) continue;
+            /* Don't overwrite a fresher contact (heard or relayed) with a stale broadcast. */
+            if (held && held.at > change.at) continue;
+            /* Don't apply if the squad is retreating or regrouping (different priorities). */
+            if (squad.state === 'retreat' || squad.commandPhase === 'regroup') continue;
+            squad.contact = {
+              unit: change.unitId ? lookupUnit(sim, change.unitId, f) : null,
+              x: change.x,
+              z: change.z,
+              at: change.at,
+              seenBy: null,
+              stance: null,
+              relayedFrom: sq.id,
+              broadcast: true,
+              firstHandAt: null
+            };
+            rs.applied = (rs.applied || 0) + 1;
+            st.applied = (st.applied || 0) + 1;
+          }
         }
         /* Rolling log, capped. */
         st.broadcasts.unshift(broadcast);
@@ -192,14 +254,15 @@
   }
 
   root.BattleModules.registerSystem('squad-broadcast', {
-    version: '0f1-telemetry-only',
+    version: BROADCAST_ON ? '0f2-broadcast-reception' : '0f1-telemetry-only',
     onBattleStart: reset,
     onBattleRestart: reset,
     onCommanderTick: tick
   });
 
   root.BattleSquadBroadcast = {
-    version: '0f1-telemetry-only',
+    version: BROADCAST_ON ? '0f2-broadcast-reception' : '0f1-telemetry-only',
+    broadcastOn: function () { return BROADCAST_ON; },
     tuning: {
       BROADCAST_RANGE: BROADCAST_RANGE,
       BROADCAST_TTL: BROADCAST_TTL,
@@ -212,13 +275,14 @@
         sent: st.sent,
         received: st.received,
         suppressed: st.suppressed,
+        applied: st.applied || 0,
         bySquad: Object.keys(st.bySquad).map(function (id) {
           var s = st.bySquad[id];
-          return { squad: id, sent: s.sent, received: s.received, suppressed: s.suppressed };
+          return { squad: id, sent: s.sent, received: s.received, suppressed: s.suppressed, applied: s.applied || 0 };
         }),
         recentBroadcasts: st.broadcasts.slice(0, 20)
       };
     }
   };
-  if (typeof console !== 'undefined') console.log('[SQUAD] Phase 0F1 inter-squad tactical broadcast telemetry active (behavior-neutral, range=' + BROADCAST_RANGE + 'm)');
+  if (typeof console !== 'undefined') console.log('[SQUAD] Phase 0F inter-squad tactical broadcast ' + (BROADCAST_ON ? '0F2 active (reception on, ?squadBroadcast=1, range=' + BROADCAST_RANGE + 'm)' : '0F1 active (telemetry only, ?squadBroadcast=1 to enable reception, range=' + BROADCAST_RANGE + 'm)'));
 })(typeof window !== 'undefined' ? window : globalThis);
