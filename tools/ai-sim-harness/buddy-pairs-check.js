@@ -5,6 +5,7 @@
    already-firing buddy covers the other; they never write destinations or call Movement Resolver. */
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),H=require('./harness');
 const SRC=fs.readFileSync(path.join(H.REPO,'battle/modules/16-squad-plan-stability.js'),'utf8');
+const FC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15a-squad-leader-fire-control.js'), 'utf8');
 let n=0;function test(name,fn){fn();n++;console.log('PASS '+name);}
 function world(flag){
   H.resetIds();

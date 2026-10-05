@@ -10,6 +10,19 @@
     "squad-status-fallback": "Status-only squadStatus: runs only when no squadCommand owner is attached; the Squad Leader replaces it."
   },
   "fields": {
+    "squad.fireControl": {
+      "owner": "modules/15a-squad-leader-fire-control.js",
+      "writers": {
+        "modules/15a-squad-leader-fire-control.js": {
+          "as": "owner",
+          "why": "setFireControl and clearFireControl (extracted from 16-squad-plan-stability.js)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset: reset() clears fireControl on battle restart."
+        }
+      }
+    },
     "squad._fireteamOrders": {
       "owner": "modules/16-squad-plan-stability.js",
       "writers": {

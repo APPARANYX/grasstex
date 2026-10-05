@@ -497,310 +497,10 @@
     crestMax: 6,
     returnFireWindow: 3
   };
-  function mkm(s) {
-    var St = root.BattleSoldierStats;
-    return St && St.of ? +St.of(s).mkm || 0 : 0.5;
-  }
-  function firstHandContact(sq, battle) {
-    var c = root.SquadAI.squadContact ? root.SquadAI.squadContact(sq, battle) : sq.contact,
-      d = c && c.unit && root.SquadAI.threatDisposition ? root.SquadAI.threatDisposition(c.unit) : null,
-      own = root.SquadAI.hasFirstHandMemory
-        ? root.SquadAI.hasFirstHandMemory(c, battle)
-        : !!(c && !c.heard && !c.relayedFrom);
-    /* Relayed word alone still cannot create fire permission. If this squad saw the SAME enemy itself
-       within contact memory, however, a newer callout may refine the position without tearing down
-       and rebuilding the existing HOLD/PRECISION episode. */
-    return c && c.unit && (!d || d.combatThreat) && own ? c : null;
-  }
-  function fireControlRange(sq, c) {
-    var p = average(sq);
-    return p && c ? dist(p, c) : Infinity;
-  }
-  function precisionShooter(men, target, battle) {
-    var best = null,
-      bestScore = -Infinity;
-    for (var i = 0; i < men.length; i++) {
-      var s = men[i],
-        sp = s && s.root && s.root.position,
-        tp = target && target.root && target.root.position,
-        shotRange = sp && tp ? dist(sp, tp) : Infinity;
-      /* Range is shooter-specific. Using the squad-average contact distance here rejects a man who
-         has actually crept into range at the crest, which is exactly the man this selection needs. */
-      if (!s.weapon || root.SquadAI.isMachineGun(s) || root.SquadAI.engageRange(s) < shotRange) continue;
-      var roleBonus = s.role === 'sniper' ? 0.2 : s.role === 'scout' ? 0.12 : s.role === 'rifleman' ? 0.03 : 0,
-        score = mkm(s) + roleBonus;
-      if (
-        score > bestScore + 1e-9 ||
-        (Math.abs(score - bestScore) <= 1e-9 && best && String(s.id) < String(best.id))
-      ) {
-        best = s;
-        bestScore = score;
-      }
-    }
-    return best;
-  }
-  function fireControlTelemetry(sq, battle, fc) {
-    telemetry(battle, 'decision-fire-control', {
-      faction: sq.faction,
-      squad: sq.id,
-      state: fc.state,
-      reason: fc.reason,
-      target: fc.targetId,
-      shooter: fc.shooterId,
-      range: isFinite(fc.range) ? +fc.range.toFixed(1) : null,
-      strength: +fc.strength.toFixed(2),
-      marksmanship: +fc.marksmanship.toFixed(2),
-      ready: fc.ready,
-      requiredReady: fc.requiredReady,
-      living: fc.living,
-      visualLine: fc.visualLine,
-      ballisticLine: fc.ballisticLine,
-      terrainCrestBlocked: fc.terrainCrestBlocked,
-      proneReady: fc.proneReady
-    });
-  }
-  function fireControlTrailEntry(battle, state, reason, fc) {
-    return {
-      at: battle.time,
-      state: state,
-      reason: reason || null,
-      targetId: fc && fc.targetId != null ? fc.targetId : null,
-      shooterId: fc && fc.shooterId != null ? fc.shooterId : null,
-      ready: fc ? +fc.ready || 0 : 0,
-      requiredReady: fc ? +fc.requiredReady || 0 : 0,
-      living: fc ? +fc.living || 0 : 0
-    };
-  }
-  function pushFireControlTrail(sq, battle, state, reason, fc) {
-    var trail = sq._fireControlTrail || (sq._fireControlTrail = []),
-      prev = trail.length ? trail[trail.length - 1] : null;
-    if (!prev || prev.state !== state || prev.reason !== reason) {
-      trail.push(fireControlTrailEntry(battle, state, reason, fc));
-      if (trail.length > 8) trail.splice(0, trail.length - 8);
-    }
-    return trail;
-  }
-  function fireControlCounts(men, battle, E) {
-    var out = {
-        ready: 0,
-        visualLine: 0,
-        ballisticLine: 0,
-        terrainCrestBlocked: 0,
-        proneReady: 0
-      },
-      i;
-    for (i = 0; i < men.length; i++) {
-      var o =
-          E && E.fireControlObservation
-            ? E.fireControlObservation(men[i], battle)
-            : { ready: false },
-        ready = E && E.fireControlReady ? E.fireControlReady(men[i], battle) : !!o.ready;
-      /* The leader's decision keeps the existing readiness API as its authority. The richer
-         observation is diagnostics only, so tests/tools (and any future readiness policy) can
-         override fireControlReady without being bypassed by instrumentation. */
-      if (ready) out.ready++;
-      if (o.visualLine) out.visualLine++;
-      if (o.ballisticLine) out.ballisticLine++;
-      if (o.terrainCrestBlocked) out.terrainCrestBlocked++;
-      if (o.proneReady) out.proneReady++;
-    }
-    return out;
-  }
-  function setFireControl(sq, battle, prev, state, reason, data) {
-    data = data || {};
-    var fc = {
-      state: state,
-      since: battle.time,
-      startedAt: prev && isFinite(+prev.startedAt) ? +prev.startedAt : battle.time,
-      targetId: data.targetId == null ? (prev && prev.targetId) : data.targetId,
-      shooterId: data.shooterId == null ? null : data.shooterId,
-      reason: reason,
-      range: isFinite(+data.range) ? +data.range : prev && isFinite(+prev.range) ? +prev.range : Infinity,
-      strength: isFinite(+data.strength) ? +data.strength : prev ? +prev.strength || 0 : 0,
-      marksmanship: isFinite(+data.marksmanship) ? +data.marksmanship : prev ? +prev.marksmanship || 0 : 0,
-      ready: data.ready == null ? (prev ? +prev.ready || 0 : 0) : +data.ready || 0,
-      requiredReady:
-        data.requiredReady == null ? (prev ? +prev.requiredReady || 0 : 0) : +data.requiredReady || 0,
-      living: data.living == null ? (prev ? +prev.living || 0 : 0) : +data.living || 0,
-      visualLine: data.visualLine == null ? (prev ? +prev.visualLine || 0 : 0) : +data.visualLine || 0,
-      ballisticLine:
-        data.ballisticLine == null ? (prev ? +prev.ballisticLine || 0 : 0) : +data.ballisticLine || 0,
-      terrainCrestBlocked:
-        data.terrainCrestBlocked == null
-          ? prev
-            ? +prev.terrainCrestBlocked || 0
-            : 0
-          : +data.terrainCrestBlocked || 0,
-      proneReady: data.proneReady == null ? (prev ? +prev.proneReady || 0 : 0) : +data.proneReady || 0
-    };
-    sq.fireControl = fc;
-    var CR = root.BattleCommandReception,
-      envelope =
-        CR && CR.publish
-          ? CR.publish(sq, battle, 'posture-fire', commanded(sq), {
-              scope: 'squad',
-              action: 'fire-control-' + state,
-              signature:
-                String(state) +
-                '|' +
-                String(fc.targetId == null ? '' : fc.targetId) +
-                '|' +
-                String(fc.shooterId == null ? '' : fc.shooterId),
-              reason: reason || null,
-              spatial: false,
-              reference: 'none',
-              data: {
-                state: state,
-                targetId: fc.targetId == null ? null : String(fc.targetId),
-                shooterId: fc.shooterId == null ? null : String(fc.shooterId)
-              }
-            })
-          : null;
-    /* Command Reception owns the envelope/adoption state. Keep it sidecar-only: Meso's shared
-       fireControl record remains the Squad Leader's decision and Engagement chooses what one man
-       may execute from his personally adopted version when the Phase 0B flag is enabled. */
-    void envelope;
-    fc.trail = pushFireControlTrail(sq, battle, state, reason, fc).slice();
-    fireControlTelemetry(sq, battle, fc);
-    return fc;
-  }
-  function clearFireControl(sq, battle, reason) {
-    if (sq.fireControl) {
-      var previous = sq.fireControl,
-        CR = root.BattleCommandReception;
-      pushFireControlTrail(sq, battle, 'clear', reason || 'contact clear', previous);
-      telemetry(battle, 'decision-fire-control', {
-        faction: sq.faction,
-        squad: sq.id,
-        state: 'clear',
-        reason: reason || 'contact clear',
-        trail: (sq._fireControlTrail || []).slice()
-      });
-      if (CR && CR.publish)
-        CR.publish(sq, battle, 'posture-fire', commanded(sq), {
-          scope: 'squad',
-          action: 'fire-control-clear',
-          signature:
-            'clear|' +
-            String(previous.targetId == null ? '' : previous.targetId) +
-            '|' +
-            String(previous.shooterId == null ? '' : previous.shooterId),
-          reason: reason || 'contact clear',
-          spatial: false,
-          reference: 'none',
-          data: {
-            state: 'clear',
-            targetId: previous.targetId == null ? null : String(previous.targetId),
-            shooterId: previous.shooterId == null ? null : String(previous.shooterId)
-          }
-        });
-    }
-    sq.fireControl = null;
-  }
-  function updateFireControl(sq, battle, report) {
-    if (!FIRE_CONTROL_ON || !sq || !battle) return null;
-    var c = firstHandContact(sq, battle),
-      fc = sq.fireControl;
-    if (!c) return fc || null; // heard/relayed word never creates permission to fire.
-    if (fc && fc.state === 'open') return fc;
-    if (!fc || (fc.targetId != null && String(fc.targetId) !== String(c.unit.id))) {
-      fc = setFireControl(sq, battle, null, 'hold', 'first visual contact', { targetId: c.unit.id });
-    }
-    if ((report && report.underFire) > 0) {
-      return setFireControl(sq, battle, fc, 'open', 'enemy fire received', { targetId: c.unit.id });
-    }
-    var men = commanded(sq),
-      living = men.length,
-      sum = 0,
-      E = root.BattleEngagement,
-      counts = fireControlCounts(men, battle, E),
-      i;
-    for (i = 0; i < living; i++) sum += mkm(men[i]);
-    var strength = living / Math.max(1, root.SquadAI.establishment(sq)),
-      meanMkm = living ? sum / living : 0,
-      range = fireControlRange(sq, c),
-      needed = Math.min(
-        living,
-        Math.max(FIRE_CONTROL_TUNING.minReady, Math.ceil(living * FIRE_CONTROL_TUNING.readyFraction))
-      ),
-      elapsed = battle.time - fc.startedAt,
-      ready = counts.ready;
-    fc.range = range;
-    fc.strength = strength;
-    fc.marksmanship = meanMkm;
-    fc.ready = ready;
-    fc.requiredReady = needed;
-    fc.living = living;
-    fc.visualLine = counts.visualLine;
-    fc.ballisticLine = counts.ballisticLine;
-    fc.terrainCrestBlocked = counts.terrainCrestBlocked;
-    fc.proneReady = counts.proneReady;
-    fc.targetId = c.unit.id;
-    fc.trail = (sq._fireControlTrail || []).slice();
-
-    if (!leaderAlive(sq)) return fc; // succession or return fire, never an invisible leader decision.
-    if (fc.state === 'precision') return fc;
-
-    if (range >= FIRE_CONTROL_TUNING.longRange && elapsed >= FIRE_CONTROL_TUNING.prepMin) {
-      var shot = precisionShooter(men, c.unit, battle);
-      if (
-        shot &&
-        mkm(shot) >= FIRE_CONTROL_TUNING.precisionMarksmanship &&
-        E &&
-        E.fireControlReady &&
-        E.fireControlReady(shot, battle)
-      )
-        return setFireControl(sq, battle, fc, 'precision', 'long-range marksman', {
-          targetId: c.unit.id,
-          shooterId: shot.id,
-          range: range,
-          strength: strength,
-          marksmanship: meanMkm,
-          ready: ready,
-          living: living
-        });
-    }
-
-    var prepared = ready >= needed && elapsed >= FIRE_CONTROL_TUNING.prepMin,
-      willing =
-        range <= FIRE_CONTROL_TUNING.closeRange ||
-        (strength >= FIRE_CONTROL_TUNING.minStrength && meanMkm >= FIRE_CONTROL_TUNING.minMarksmanship);
-    if (prepared && willing)
-      return setFireControl(sq, battle, fc, 'open', 'squad prepared', {
-        targetId: c.unit.id,
-        range: range,
-        strength: strength,
-        marksmanship: meanMkm,
-        ready: ready,
-        living: living
-      });
-
-    /* A prone ambush posture is preferred, not a suicide pact with terrain. If the entire squad has
-       spent the preparation window with zero usable firing lines, the Squad Leader keeps HOLD FIRE but
-       releases the forced-prone drill so Engagement may seek fighting cover / a better local position.
-       Permission still stays closed; normal trigger and suppression paths remain gated. */
-    if (elapsed >= FIRE_CONTROL_TUNING.maxHold && ready === 0 && fc.state !== 'reposition')
-      return setFireControl(sq, battle, fc, 'reposition', 'no viable prone firing line', {
-        targetId: c.unit.id,
-        range: range,
-        strength: strength,
-        marksmanship: meanMkm,
-        ready: ready,
-        living: living
-      });
-    /* Do not deadlock forever on one awkward crest. After a deliberate hold, two usable rifles are
-       enough for the leader to accept the engagement even if the 70% preparation target was impossible. */
-    if (elapsed >= FIRE_CONTROL_TUNING.maxHold && ready >= Math.min(2, living))
-      return setFireControl(sq, battle, fc, 'open', 'leader accepted partial firing line', {
-        targetId: c.unit.id,
-        range: range,
-        strength: strength,
-        marksmanship: meanMkm,
-        ready: ready,
-        living: living
-      });
-    return fc;
-  }
+  /* Fire-control functions are extracted to 15a-squad-leader-fire-control.js.
+     The factory is called after the shared utilities (telemetry, dist, average,
+     commanded, leaderAlive) are defined below. The returned functions are attached
+     as closure variables so all callers see the same functions as before. */
   var TACTICAL = {
     assault: 1,
     flank: 1,
@@ -866,6 +566,32 @@
     }
     return { x: x / a.length, z: z / a.length };
   }
+  /* Fire-control factory: extract the fire-control functions from the extracted sub-module
+     (15a-squad-leader-fire-control.js) with the shared utilities as closure deps. */
+  var _fc = root._squadLeaderFireControl
+    ? root._squadLeaderFireControl({
+        root: root,
+        telemetry: telemetry,
+        dist: dist,
+        average: average,
+        commanded: commanded,
+        leaderAlive: leaderAlive,
+        FIRE_CONTROL_ON: FIRE_CONTROL_ON,
+        FIRETEAM_SPLIT_ON: FIRETEAM_SPLIT_ON,
+        FIRE_CONTROL_TUNING: FIRE_CONTROL_TUNING
+      })
+    : null;
+  var mkm = _fc ? _fc.mkm : function () { return 0.5; },
+    firstHandContact = _fc ? _fc.firstHandContact : function () { return null; },
+    fireControlRange = _fc ? _fc.fireControlRange : function () { return Infinity; },
+    precisionShooter = _fc ? _fc.precisionShooter : function () { return null; },
+    fireControlTelemetry = _fc ? _fc.fireControlTelemetry : function () {},
+    fireControlTrailEntry = _fc ? _fc.fireControlTrailEntry : function () { return {}; },
+    pushFireControlTrail = _fc ? _fc.pushFireControlTrail : function () { return []; },
+    fireControlCounts = _fc ? _fc.fireControlCounts : function () { return { ready: 0 }; },
+    setFireControl = _fc ? _fc.setFireControl : function () { return null; },
+    clearFireControl = _fc ? _fc.clearFireControl : function () {},
+    updateFireControl = _fc ? _fc.updateFireControl : function () { return null; };
   function median(a) {
     if (!a.length) return 0;
     var b = a.slice().sort(function (x, y) {

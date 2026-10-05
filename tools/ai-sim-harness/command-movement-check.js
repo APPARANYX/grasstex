@@ -165,6 +165,7 @@ test('a cancelled regroup cannot survive return to the previously adopted missio
 test('Command Reception remains information-only and Movement Resolver is still downstream',()=>{
   const cr=fs.readFileSync(path.join(H.REPO,'battle/modules/18-command-reception.js'),'utf8');
   const meso=fs.readFileSync(path.join(H.REPO,'battle/modules/16-squad-plan-stability.js'),'utf8');
+const FC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15a-squad-leader-fire-control.js'), 'utf8');
   assert.doesNotMatch(cr,/\.(?:destination|orderDestination|_fireteamDestination|target|prone|crawling|tacticalCrouch)\s*=/);
   assert.doesNotMatch(cr,/\b(?:Math\.random|battle\.random)\s*\(/);
   assert.match(meso,/BattleMovementResolver\.proposeOrder\([\s\S]*?_fireteamDestination/,'adopted Meso intent still enters the existing resolver');
