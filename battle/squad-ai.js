@@ -1113,6 +1113,45 @@
     }
     return c;
   }
+  /* Phase 0G2: squad-level contacts map. Aggregates all living members' beliefs into a sector-keyed
+     map so the Squad Leader can detect multi-sector threats. Unlike squad.contact (one threat at a
+     time), this returns ALL active threat sectors the squad knows about, each with the freshest
+     belief in that sector. Behavior-neutral: read-only, no state written, no combat-RNG draw.
+     The Squad Leader reads this to decide whether to split fireteams (0G3). */
+  function squadContactsMap(squad, battle) {
+    if (!squad || !battle || !SOLDIER_BELIEFS_ON) return null;
+    var sectors = {},
+      now = +battle.time || 0;
+    for (var i = 0; squad.members && i < squad.members.length; i++) {
+      var s = squad.members[i];
+      if (!s || s.dead) continue;
+      var store = s._beliefs;
+      if (!store || !store.byKey) continue;
+      Object.keys(store.byKey).forEach(function (key) {
+        var rec = store.byKey[key];
+        if (!rec || rec.combatThreat === false || now >= rec.expiresAt) return;
+        var sector = Math.round(+rec.x / 20) + ':' + Math.round(+rec.z / 20),
+          existing = sectors[sector];
+        /* Keep the freshest, highest-confidence belief per sector. */
+        if (!existing || rec.observedAt > existing.at ||
+            (rec.observedAt === existing.at && beliefConfidence(rec, battle) > existing.confidence)) {
+          sectors[sector] = {
+            x: +rec.x,
+            z: +rec.z,
+            at: +rec.observedAt,
+            source: rec.source,
+            confidence: beliefConfidence(rec, battle),
+            targetId: rec.targetId,
+            sector: sector,
+            sourceSoldier: s.id
+          };
+        }
+      });
+    }
+    var out = Object.keys(sectors).map(function (k) { return sectors[k]; });
+    out.sort(function (a, b) { return b.confidence - a.confidence || b.at - a.at; });
+    return out;
+  }
 
   /* Suppressing fire at a POSITION rather than at a man.
      Deliberately deals no damage: the shooter has no line of sight to a body, so a round that
@@ -2066,6 +2105,7 @@
     canSuppress: canSuppress,
     shareContact: shareContact,
     squadContact: squadContact,
+    squadContactsMap: squadContactsMap,
     firstHandAt: firstHandAt,
     hasFirstHandMemory: hasFirstHandMemory,
     CONTACT_MEMORY: CONTACT_MEMORY,
