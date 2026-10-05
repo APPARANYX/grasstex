@@ -1457,72 +1457,27 @@
   var CLEAR_MAX = 90;
   var CLEAR_ARRIVED = 4;
   var CLEAR_HOLD_PHASES = { regroup: 1, 'support-hold': 1, hold: 1, reserve: 1, defend: 1, 'corner-check': 1 };
-  function endClearContact(sq, battle, why) {
-    if (sq.clearContact && why !== 'sighting' && why !== 'under fire') sq._clearedSeen = sq.clearContact.seen;
-    if (sq.clearContact)
-      telemetry(battle, 'decision-clear-contact-end', {
-        faction: sq.faction,
-        squad: sq.id,
-        reason: why,
-        seconds: battle.time - sq.clearContact.since
-      });
-    sq.clearContact = null;
-  }
-  function updateClearContact(sq, battle, r) {
-    if (!ALERT_ADVANCE) return;
-    var A = root.SquadAI,
-      c = A.squadContact ? A.squadContact(sq, battle) : null,
-      own = !!(c && (A.hasFirstHandMemory ? A.hasFirstHandMemory(c, battle) : !c.heard && !c.relayedFrom)),
-      cc = sq.clearContact,
-      why =
-        sq.contactCount > 0
-          ? 'sighting'
-          : r.underFire > 0
-            ? 'under fire'
-            : sq.state === 'retreat'
-              ? 'retreat'
-              : battle.winner
-                ? 'battle over'
-                : CLEAR_HOLD_PHASES[sq.commandPhase || '']
-                  ? 'holding phase'
-                  : null;
-    if (why) {
-      sq._quietSince = null;
-      endClearContact(sq, battle, why);
-      return;
-    }
-    if (cc) {
-      if (own) {
-        cc.x = c.x;
-        cc.z = c.z;
-        cc.seen = c.at;
-      }
-      var a = sq.orderAnchor;
-      if (a && dist(a, cc) <= CLEAR_ARRIVED && orderCanAdvance(sq, battle)) endClearContact(sq, battle, 'cleared');
-      else if (battle.time - cc.since >= CLEAR_MAX) endClearContact(sq, battle, 'timeout');
-      if (!sq.clearContact) sq._quietSince = null;
-      return;
-    }
-    /* A picture the squad has already cleared, timed out on or left for a holding task is not ordered again. */
-    if (!own || (sq._clearedSeen != null && c.at <= sq._clearedSeen)) {
-      sq._quietSince = null;
-      return;
-    }
-    if (sq._quietSince == null) sq._quietSince = battle.time;
-    if (battle.time - sq._quietSince < CLEAR_AFTER) return;
-    sq.clearContact = { x: c.x, z: c.z, seen: c.at, since: battle.time };
-    telemetry(battle, 'decision-clear-contact', {
-      faction: sq.faction,
-      squad: sq.id,
-      phase: sq.commandPhase || '',
-      point: { x: c.x, z: c.z }
-    });
-    var fc = sq.fireControl;
-    if (FIRE_CONTROL_ON && !(fc && fc.state === 'open'))
-      setFireControl(sq, battle, fc || null, 'open', 'contact quiet: clearing', {
-        targetId: fc ? fc.targetId : c.unit && c.unit.id
-      });
-  }
+  /* Clear-contact functions are extracted to 15i-squad-leader-clear-contact.js.
+     The factory is called after the flags, constants and the fire-control re-attach are
+     in scope. The returned functions are attached as closure variables so the anchor
+     advance and the fire-and-movement selector see the same functions as before. */
+  var _cc = root._squadLeaderClearContact
+    ? root._squadLeaderClearContact({
+        root: root,
+        telemetry: telemetry,
+        dist: dist,
+        orderCanAdvance: orderCanAdvance,
+        setFireControl: setFireControl,
+        ALERT_ADVANCE: ALERT_ADVANCE,
+        CLEAR_AFTER: CLEAR_AFTER,
+        CLEAR_MAX: CLEAR_MAX,
+        CLEAR_ARRIVED: CLEAR_ARRIVED,
+        CLEAR_HOLD_PHASES: CLEAR_HOLD_PHASES,
+        FIRE_CONTROL_ON: FIRE_CONTROL_ON
+      })
+    : null;
+  var endClearContact = _cc ? _cc.endClearContact : function () {},
+    updateClearContact = _cc ? _cc.updateClearContact : function () {};
   function advanceSquadAnchor(sq, battle) {
     var anchor = sq.orderAnchor || publishAnchor(sq, sq.rally);
     if (sq.state === 'retreat') {
