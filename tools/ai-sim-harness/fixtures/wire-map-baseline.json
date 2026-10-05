@@ -10,6 +10,71 @@
     "squad-status-fallback": "Status-only squadStatus: runs only when no squadCommand owner is attached; the Squad Leader replaces it."
   },
   "fields": {
+    "squad._reconTask": {
+      "owner": "modules/15c-squad-leader-scouts-forward.js",
+      "writers": {
+        "modules/15c-squad-leader-scouts-forward.js": {
+          "as": "owner",
+          "why": "startRecon and endRecon set/clear the recon task (extracted from 16-squad-plan-stability.js)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset: reset() clears recon task on battle restart."
+        }
+      }
+    },
+    "squad._reconLast": {
+      "owner": "modules/15c-squad-leader-scouts-forward.js",
+      "writers": {
+        "modules/15c-squad-leader-scouts-forward.js": {
+          "as": "owner",
+          "why": "reconCandidate caches the last candidate."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset."
+        }
+      }
+    },
+    "squad._reconReportMonitor": {
+      "owner": "modules/15c-squad-leader-scouts-forward.js",
+      "writers": {
+        "modules/15c-squad-leader-scouts-forward.js": {
+          "as": "owner",
+          "why": "startReconReportWatch and updateReconReportWatch."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset."
+        }
+      }
+    },
+    "soldier._engagementTask": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "syncTasks and formation slot assignment."
+        },
+        "modules/15c-squad-leader-scouts-forward.js": {
+          "as": "layer",
+          "why": "publishReconOrders sets engagement tasks for scout and main-body men."
+        }
+      }
+    },
+    "soldier._fireteamKey": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "syncTasks and formation slot assignment."
+        },
+        "modules/15c-squad-leader-scouts-forward.js": {
+          "as": "layer",
+          "why": "publishReconOrders sets fireteam key for scout assignments."
+        }
+      }
+    },
     "squad._buddyPairs": {
       "owner": "modules/15b-squad-leader-buddy-pairs.js",
       "writers": {

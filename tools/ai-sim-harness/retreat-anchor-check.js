@@ -21,7 +21,7 @@ function fixture(){
   r.BattleModules={registerSystem(id,s){systems[id]=s;},getSystem(id){return systems[id];},unitsFor:b=>(b._roster.us||[]).concat(b._roster.ge||[])};
   r.BattleCommanderDoctrine={policyFor(){return{cohesionRadius:34,captainlessCohesion:26,routeArrivalRadius:8,captureCommitRatio:.82};}};
   load(r,'battle/movement-resolver.js');
-  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/15b-squad-leader-buddy-pairs.js');load(r,'battle/modules/16-squad-plan-stability.js');
+  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/15b-squad-leader-buddy-pairs.js');load(r,'battle/modules/15c-squad-leader-scouts-forward.js');load(r,'battle/modules/16-squad-plan-stability.js');
   const b=H.makeBattle(r,{seed:SEED});
   const q=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:120,objective:{x:0,z:300},seed:SEED});
   q.home={x:0,z:0};q.orderAnchor={x:0,z:120};q.rally={x:0,z:120};q._orderGoal={x:0,z:120};
