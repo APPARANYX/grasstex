@@ -28,9 +28,9 @@ function command(w){w.Q.fireAndMovement(w.us,w.b);return w.us.fireControl;}
 function rec(w,s){return w.C.snapshot(s,w.b).records['posture-fire|squad'];}
 function adopted(w,s){return w.C.adopted(s,w.b,'posture-fire','squad');}
 
-test('posture adoption is opt-in while Phase 0B is benchmark-gated',()=>{
-  assert.equal(world('?stressAct=0&fireControl=1').C.postureEnabled(),false,'default battle remains Phase 0A behavior');
-  assert.equal(world('?stressAct=0&fireControl=1&commandPosture=0').C.postureEnabled(),false);
+test('posture adoption is default-on after Phase 0E benchmark validation',()=>{
+  assert.equal(world('?stressAct=0&fireControl=1').C.postureEnabled(),true,'default battle now uses posture adoption');
+  assert.equal(world('?stressAct=0&fireControl=1&commandPosture=0').C.postureEnabled(),false,'?commandPosture=0 is the legacy control arm');
   assert.equal(world('?stressAct=0&fireControl=1&commandPosture=1').C.postureEnabled(),true);
 });
 

@@ -14,13 +14,14 @@
 
   var SEARCH=typeof location!=='undefined'?location.search||'':'',
     ON=!/[?&]commandReception=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),
-    /* Phase 0E: commandPosture is still opt-in pending its benchmark validation.
-       commandMovement and commandRelay are now default-on after 100-seed paired
-       benchmarks confirmed them safe (commandRelay=1 was INERT across 100 seeds;
-       commandMovement=1 was QUIET/WEAK with 0-4 of 32 counters significant and
-       casualties not significant). ?commandMovement=0 and ?commandRelay=0 remain
-       as legacy control arms for A/B benchmark work. */
-    POSTURE_ON=ON&&/[?&]commandPosture=(?:1|on|true)(?:&|#|$)/i.test(SEARCH),
+    /* Phase 0E: all three command-reception flags are now default-on after 100-seed paired
+       benchmarks confirmed them safe:
+       - commandRelay=1 was INERT across 100 seeds (all 100 pairs identical)
+       - commandMovement=1 was QUIET/WEAK (0-4 of 32 counters significant, casualties not significant)
+       - commandPosture=1 was QUIET across 100 seeds (0 of 32 counters significant, casualties -9.3% p=1)
+       after a settle() cache fix eliminated the wall-time gate. ?commandPosture=0, ?commandMovement=0
+       and ?commandRelay=0 remain as legacy control arms for A/B benchmark work. */
+    POSTURE_ON=ON&&!/[?&]commandPosture=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),
     MOVEMENT_ON=ON&&!/[?&]commandMovement=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),
     RELAY_ON=ON&&!/[?&]commandRelay=(?:0|off|false)(?:&|#|$)/i.test(SEARCH);
   var FORMAT=4;
