@@ -781,10 +781,44 @@ timing hacks for regroup, HOLD FIRE, stance, or later urban orders.
   into the same threat; the Squad Leader can explain why it oriented or adjusted route based on
   a broadcast; no squad-to-squad broadcast owns movement, stance, or fire permission.
 
+- **0G — Multi-contact awareness.** Today every layer tracks one threat at a time: `selectBelief`
+  returns one winner, `squad.contact` is a single object, Engagement's `decide()` reads one contact,
+  and a man's `s.target` is one enemy. A soldier being shot at from the north while engaging an
+  enemy to the south *knows* about both (both are in `_beliefs.byKey`) but *acts on* only one; the
+  other is invisible to Engagement until the first expires. A squad fighting on two fronts
+  overwrites its previous contact. Real small-unit tactics — fire and movement, suppression of one
+  element while another moves, dealing with crossfire — require multi-threat awareness at every
+  layer. 0G makes the existing multi-belief data consumable: Perception exposes a prioritized list,
+  Engagement reacts to secondary threats, and the Squad Leader can assign fireteams to different
+  threat sectors.
+
+  - **0G1 — Secondary threat awareness (opt-in `?secondaryThreat=1`).** Perception's
+    `soldierContact` gains a `secondary` field: the next-best belief in a different sector from the
+    primary. Engagement's `alert()` uses it to orient toward the secondary when the primary is
+    behind cover or out of range. The man does not switch targets — he retains the primary — but he
+    faces the secondary and can fire if it enters LOS. Default off; the off arm is unchanged
+    single-contact behavior.
+  - **0G2 — Squad-level contacts map (opt-in `?squadContacts=1`).** `squad.contact` stays for
+    compatibility, but a new `squad._contacts` map (keyed by 20m sector) tracks all active
+    contacts. The Squad Leader reads the map to detect multi-sector threats: if two or more
+    sectors have fresh contacts, it can hold one fireteam in overwatch while the other bounds.
+    Default off.
+  - **0G3 — Fireteam split on multi-contact (opt-in, benchmark-gated).** When the Squad Leader
+    detects contacts in two or more sectors, it assigns one fireteam to suppress the primary
+    sector while the other fireteam continues the mission. This is the first real fire-and-movement
+    behavior: complementary forces on separate threats. Gated behind a separate flag until paired
+    benchmarks show acceptable churn/stalls/cohesion.
+
+  **Done when:** a soldier engaged with one enemy can react to a new threat from a different sector
+  without losing the primary from memory; a squad fighting on two fronts tracks both and can split
+  fireteams; the Squad Leader can explain why it assigned fireteams to different sectors; no
+  multi-contact code owns movement or fire permission beyond what Engagement already owns.
+
 **Done when:** one squad order produces staggered, explainable individual receipt/execution rather than synchronized
 same-tick behavior unless the men genuinely received and processed it together; diagnostics can show why each man
-acted when he did, and no new command-reception code owns movement or stance; and nearby squads share tactical
-contact in real time without waiting for the General's intel rollup.
+acted when he did, and no new command-reception code owns movement or stance; nearby squads share tactical
+contact in real time without waiting for the General's intel rollup; and every layer tracks multiple threats
+rather than overwriting the previous contact.
 
 ### Phase A — Instrument and model (behavior-neutral)
 
