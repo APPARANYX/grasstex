@@ -89,7 +89,7 @@ jobs:
           def run(cmd, **kw):
               """Run a command, streaming stdout to the log, capturing stderr
               so it can be included in the failure comment if it raises."""
-              print("+", " ".join(str(c) for c in cmd), flush=True)
+              print("+", "[credential configuration redacted]" if cmd[:3] == ["git", "config", "--local"] else " ".join(str(c) for c in cmd), flush=True)
               kw.setdefault("stderr", subprocess.PIPE)
               kw.setdefault("text", True)
               return subprocess.run([str(c) for c in cmd], check=True, **kw)
@@ -235,7 +235,12 @@ jobs:
                   capture_output=True, text=True, env=agent_env,
               )
               if create.returncode == 0:
-                  pr = json.loads(create.stdout)
+                  pr_url = create.stdout.strip()
+                  details = subprocess.run(
+                      ["gh", "pr", "view", pr_url, "--json", "number,url"],
+                      capture_output=True, text=True, env=agent_env, check=True,
+                  )
+                  pr = json.loads(details.stdout)
                   pr_number = pr["number"]
                   pr_url = pr["url"]
               else:
