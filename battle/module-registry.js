@@ -30,14 +30,26 @@
   function addUnit(sim,unit,meta){
     if(!sim||!unit)return unit;
     sim._moduleUnits=sim._moduleUnits||[];
-    if(sim._moduleUnits.indexOf(unit)<0)sim._moduleUnits.push(unit);
+    /* Use a Set for O(1) membership test instead of indexOf's O(n). The
+       _moduleUnitSet is the authoritative lookup; _moduleUnits stays as
+       the ordered array for unitsFor() iteration. */
+    if(!sim._moduleUnitSet){
+      sim._moduleUnitSet=new Set(sim._moduleUnits);
+    }
+    if(!sim._moduleUnitSet.has(unit)){
+      sim._moduleUnitSet.add(unit);
+      sim._moduleUnits.push(unit);
+    }
     unit.unitType=unit.unitType||(meta&&meta.unitType)||'unknown';
     if(unit.captureWeight==null)unit.captureWeight=(meta&&meta.captureWeight!=null)?+meta.captureWeight:1;
     return unit;
   }
   function unitsFor(sim){
-    var out=[],seen=[];
-    function push(u){if(!u||seen.indexOf(u)>=0)return;seen.push(u);out.push(u);}
+    /* Use a Set for O(1) dedup instead of indexOf's O(n) per check.
+       With 100+ units the old version did 10,000+ comparisons per call;
+       this version does 100 Set.has() calls. */
+    var out=[],seen=new Set();
+    function push(u){if(!u||seen.has(u))return;seen.add(u);out.push(u);}
     if(sim&&sim._roster){
       (sim._roster.us||[]).forEach(push);(sim._roster.ge||[]).forEach(push);
     }
@@ -56,8 +68,20 @@
     return result;
   }
 
+  /* Cached sorted system list. Systems are registered once at module load,
+     so the cache is stable for the page lifetime. Invalidated if a new system
+     is registered after the first runHook call (rare, but handled). */
+  var systemsCache=null,systemsCacheCount=-1;
+  function systemsList(){
+    var reg=registries.systems;
+    var keys=Object.keys(reg);
+    if(systemsCache&&keys.length===systemsCacheCount)return systemsCache;
+    systemsCache=keys.sort().map(function(id){return reg[id];});
+    systemsCacheCount=keys.length;
+    return systemsCache;
+  }
   function runHook(name,sim,payload){
-    list('systems').forEach(function(system){
+    systemsList().forEach(function(system){
       var fn=system&&system[name];
       if(typeof fn==='function'){
         try{fn(sim,payload||{});}catch(e){console.error('[MODULE] '+system.id+'.'+name+' failed',e);}
