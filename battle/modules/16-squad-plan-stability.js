@@ -478,6 +478,11 @@
   var FIRE_CONTROL_ON = !(
     typeof location !== 'undefined' && /[?&]fireControl=(?:0|off|false)\b/.test(location.search || '')
   );
+  /* Phase 0G3: fireteam split on multi-contact. When on, a squad with active contacts in 2+
+     threat sectors (via squadContactsMap) suppresses bounding and holds position to deal with
+     both threats before continuing the advance. Default off; the off arm is unchanged
+     single-contact fire-and-movement. */
+  var FIRETEAM_SPLIT_ON = !!(typeof location !== 'undefined' && location.search && /[?&]fireteamSplit=1\b/.test(location.search));
   var FIRE_CONTROL_TUNING = {
     prepMin: 1.2,
     readyFraction: 0.7,
@@ -3396,6 +3401,27 @@
       r.pinned >= r.effective
     )
       return;
+    /* Phase 0G3: multi-contact gate. When ?fireteamSplit=1 is on and the squad has active
+       contacts in 2+ threat sectors (via squadContactsMap), suppress bounding and hold
+       position. A squad that bounds into one threat while ignoring another is advancing into
+       a crossfire; holding lets both sectors be engaged before continuing. The Squad Leader
+       can still issue fire-control and individual men can still fire at both sectors via
+       0G1's secondary threat orientation. This gate only prevents the bound (the movement);
+       it does not change fire permission or stance. */
+    if (FIRETEAM_SPLIT_ON) {
+      var A = root.SquadAI;
+      if (A && typeof A.squadContactsMap === 'function') {
+        var contacts = A.squadContactsMap(sq, battle);
+        if (contacts && contacts.length >= 2) {
+          /* Multi-contact: hold position. Extend the bound-cycle so the squad doesn't
+             re-evaluate bounding every tick while dealing with both threats. */
+          L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'multi-contact hold', 'cycle expiry');
+          sq._multiContactSectors = contacts.length;
+          return;
+        }
+        sq._multiContactSectors = 0;
+      }
+    }
     /* Rotate teams, but skip a team whose departure would strip the base of fire: waiting a tick for
      the rotation to reach a team that can go is a missed bound. With `?slStress=pick` or `hold` every team
      that can go is a candidate, in rotation order. */
