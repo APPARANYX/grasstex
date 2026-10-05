@@ -62,6 +62,19 @@
         }
       }
     },
+    "squad._orderVersion": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "advanceSquadAnchor bumps the order version when the anchor takes a stride."
+        },
+        "modules/15f-squad-leader-retreat-anchor.js": {
+          "as": "layer",
+          "why": "grantRetreatAnchor bumps the order version when it publishes a new retreat endpoint (extracted from 16-squad-plan-stability.js)."
+        }
+      }
+    },
     "soldier._engagementTask": {
       "owner": "modules/16-squad-plan-stability.js",
       "writers": {
@@ -193,6 +206,10 @@
         "modules/21-defender-engineers.js": {
           "as": "setup",
           "why": "garrison-setup"
+        },
+        "modules/15f-squad-leader-retreat-anchor.js": {
+          "as": "layer",
+          "why": "grantRetreatAnchor records the retreat goal it published an endpoint for (extracted from 16-squad-plan-stability.js)."
         }
       }
     },

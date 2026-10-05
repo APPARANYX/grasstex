@@ -12,7 +12,7 @@ function fixture({physical=true,inside=false}={}){
   r.BattleSoldierModel={animateWalk(){},setCrouch(s,v){s.crouching=v;},setProne(s,v){s.prone=v;},kill(s){s.dead=true;}};
   r.BattleCommanderAI={policyFor(){return{cohesionRadius:34,captainlessCohesion:26,routeArrivalRadius:8,captureCommitRatio:.82};},chooseObjective(){return null;}};
   load(r,'battle/battle-navigation.js');load(r,'battle/movement-resolver.js');
-  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/15b-squad-leader-buddy-pairs.js');load(r,'battle/modules/15c-squad-leader-scouts-forward.js');load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/16-squad-plan-stability.js');
+  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/15b-squad-leader-buddy-pairs.js');load(r,'battle/modules/15c-squad-leader-scouts-forward.js');load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/16-squad-plan-stability.js');
   load(r,'battle/modules/20-building-hardpoints.js');
   if(physical)load(r,'battle/modules/39-navigation-physicality-debug.js');
   load(r,'battle/modules/46-ammunition-stoppages.js');

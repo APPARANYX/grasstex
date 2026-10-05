@@ -5,7 +5,8 @@
    writes, record replacement and standard Object/Reflect mutation APIs. Generic state,
    status and timer fields are not protected. No parser dependency is needed in CI.
    Phase 2a: the squad's anchor pair (`orderAnchor`, `rally`) has an owner FUNCTION as well as an owner
-   file: only `publishAnchor` in the Squad Leader may assign either, so the Squad Leader cannot split its
+   file: only `publishAnchor` (15f-squad-leader-retreat-anchor.js since the bare-bones split of 16) may
+   assign either, so the Squad Leader cannot split its
    own publisher again (two sites in one file were the writer-ping-pong).
    GRASSTEX_SOURCE_ROOT lets this same check demonstrate the pre-refactor failures. */
 const assert = require('node:assert/strict');
@@ -23,8 +24,8 @@ const owners = {
   '_macroMission.status': 'commander-ai.js',
   _macroMission: 'commander-ai.js',
   commandPhase: 'modules/16-squad-plan-stability.js',
-  orderAnchor: 'modules/16-squad-plan-stability.js',
-  rally: 'modules/16-squad-plan-stability.js',
+  orderAnchor: 'modules/15f-squad-leader-retreat-anchor.js',
+  rally: 'modules/15f-squad-leader-retreat-anchor.js',
   suppressedUntil: 'squad-ai.js',
   _combatUrgentUntil: 'engagement.js'
 };
