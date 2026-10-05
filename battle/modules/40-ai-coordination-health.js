@@ -83,8 +83,13 @@
       if (target !== 'unassigned') assignedTarget++;
     });
     var stalled = Math.max(0, now(sim) - lastProgress),
+      /* Include 'approach' in the assaulting count to match 97-ai-timeline-recorder.js's
+         ADVANCE set. A squad in 'approach' is advancing toward an objective and should
+         count as assaulting for the objective-stalled check; without it, a faction where
+         every squad is still in 'approach' reads as "not assaulting" and the stall is
+         invisible. */
       assaulting =
-        (phases.assault || 0) + (phases.capture || 0) + (phases['clear-town'] || 0) + (phases.flank || 0),
+        (phases.approach || 0) + (phases.assault || 0) + (phases.capture || 0) + (phases['clear-town'] || 0) + (phases.flank || 0),
       missingRoles = Math.max(0, active - assignedRole),
       missingTargets = Math.max(0, active - assignedTarget),
       reasons = [];
