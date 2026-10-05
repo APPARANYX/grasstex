@@ -41,21 +41,17 @@ function publish(w,s,scope,reference,extra){
   },extra||{}));
 }
 
-test('relay topology is opt-in and the legacy timing model remains available',()=>{
-  assert.equal(world('?commandReception=1').C.relayEnabled(),false);
-  assert.equal(world('?commandReception=1&commandRelay=0').C.relayEnabled(),false);
+test('relay topology is default-on and the legacy timing model remains available via ?commandRelay=0',()=>{
+  assert.equal(world('?commandReception=1').C.relayEnabled(),true,'default-on after Phase 0E benchmark validation');
+  assert.equal(world('?commandReception=1&commandRelay=0').C.relayEnabled(),false,'?commandRelay=0 is the legacy control arm');
   assert.equal(world('?commandReception=1&commandRelay=1').C.relayEnabled(),true);
 
-  const a=world('?commandReception=1'),b=world('?commandReception=1&commandRelay=0');
-  const sa=a.q.members[4],sb=b.q.members[4];
-  publish(a,sa,'legacy','point',{point:{x:20,z:20}});
+  /* The legacy timing model is still reachable via ?commandRelay=0. */
+  const b=world('?commandReception=1&commandRelay=0');
+  const sb=b.q.members[4];
   publish(b,sb,'legacy','point',{point:{x:20,z:20}});
-  const ar=rec(a,sa,'legacy'),br=rec(b,sb,'legacy');
-  assert.equal(ar.channel,'direct-voice-model');
-  assert.deepEqual(
-    {receivedAt:ar.receivedAt,processedAt:ar.processedAt,adoptedAt:ar.adoptedAt},
-    {receivedAt:br.receivedAt,processedAt:br.processedAt,adoptedAt:br.adoptedAt}
-  );
+  const br=rec(b,sb,'legacy');
+  assert.equal(br.channel,'direct-voice-model');
 });
 
 test('simple squad orders stay direct even for a member of another fireteam',()=>{

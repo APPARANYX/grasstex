@@ -8,7 +8,7 @@ const assert=require('node:assert/strict'),fs=require('fs'),path=require('path')
 function load(r,p){new Function('window','globalThis','console',fs.readFileSync(path.join(H.REPO,p),'utf8'))(r,r,{log(){},warn(){}});}
 let n=0;function test(name,fn){fn();n++;console.log('PASS '+name);}
 
-function world(search='?leaderlessIntent=1'){
+function world(search='?leaderlessIntent=1&commandMovement=0&commandRelay=0'){
   H.resetIds();
   const r=H.bootstrap({search}),events=[];
   r.BattleTelemetry={record(type,data){events.push({type,data:JSON.parse(JSON.stringify(data||{}))});}};
@@ -162,7 +162,7 @@ test('successor receives an explicit hand-back and normal Meso ownership resumes
 });
 
 test('feature-off arm keeps the pre-slice command behavior',()=>{
-  const w=world('?leaderlessIntent=0');
+  const w=world('?leaderlessIntent=0&commandMovement=0&commandRelay=0');
   const before=point(w.q.orderAnchor);
   killLeader(w);H.run(w.r,w.b,.3);
   assert.equal(w.q._leaderlessIntent==null,true,'legacy arm creates no leaderless-intent owner record');

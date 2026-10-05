@@ -19,7 +19,7 @@ function test(name, fn) {
 }
 function setup() {
   H.resetIds();
-  const r = H.bootstrap(),
+  const r = H.bootstrap({search:'?commandMovement=0&commandRelay=0'}),
     b = H.makeBattle(r);
   b.scene = { metadata: { battleScenario: { center: { x: 300, z: 0 } } } };
   /* At spawn the objective is the squad's home until Force Command's first brief. */
