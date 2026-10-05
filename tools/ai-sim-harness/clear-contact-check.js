@@ -25,6 +25,7 @@ const SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/16-squad-plan-stab
 const FC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15a-squad-leader-fire-control.js'), 'utf8');
 const BP_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15b-squad-leader-buddy-pairs.js'), 'utf8');
 const SF_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15c-squad-leader-scouts-forward.js'), 'utf8');
+const LL_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15d-squad-leader-leaderless-intent.js'), 'utf8');
 const log = console.log;
 console.log = (...a) => (typeof a[0] === 'string' && a[0][0] === '[' ? undefined : log(...a));
 let n = 0;
@@ -64,6 +65,7 @@ function world(search) {
     }
   };
   new Function('window', 'globalThis', 'console', 'location', FC_SRC)(r, r, console, r.location);
+  new Function('window', 'globalThis', 'console', 'location', LL_SRC)(r, r, console, r.location);
   new Function('window', 'globalThis', 'console', 'location', SRC)(
     r,
     r,

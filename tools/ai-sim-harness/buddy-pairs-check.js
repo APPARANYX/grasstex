@@ -8,6 +8,7 @@ const SRC=fs.readFileSync(path.join(H.REPO,'battle/modules/16-squad-plan-stabili
 const FC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15a-squad-leader-fire-control.js'), 'utf8');
 const BP_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15b-squad-leader-buddy-pairs.js'), 'utf8');
 const SF_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15c-squad-leader-scouts-forward.js'), 'utf8');
+const LL_SRC=fs.readFileSync(path.join(H.REPO,'battle/modules/15d-squad-leader-leaderless-intent.js'),'utf8');
 let n=0;function test(name,fn){fn();n++;console.log('PASS '+name);}
 function world(flag){
   H.resetIds();
@@ -19,7 +20,7 @@ function world(flag){
   r.BattleTacticalPositions={current(s){return s&&s._testPositional?{id:'test-position'}:null;}};
   const search='?fireControl=0&coa=0&slStress=0&'+(flag||'buddyPairs=1');
   new Function('window','globalThis','console','location',FC_SRC)(r,r,{log(){},warn(){}},{search});
-  new Function('window','globalThis','console','location',BP_SRC)(r,r,{log(){},warn(){}},{search}); new Function('window','globalThis','console','location',SF_SRC)(r,r,{log(){},warn(){}},{search});
+  new Function('window','globalThis','console','location',BP_SRC)(r,r,{log(){},warn(){}},{search}); new Function('window','globalThis','console','location',SF_SRC)(r,r,{log(){},warn(){}},{search}); new Function('window','globalThis','console','location',LL_SRC)(r,r,{log(){},warn(){}},{search});
   new Function('window','globalThis','console','location',SRC)(r,r,{log(){},warn(){}},{search});
   const b=H.makeBattle(r,{seed:12345}),report={inContact:true,effective:10,pinned:0,reacting:[]};
   r.BattleEngagement.updateSquad=function(sq){

@@ -49,6 +49,19 @@
         }
       }
     },
+    "squad._leaderlessIntent": {
+      "owner": "modules/15d-squad-leader-leaderless-intent.js",
+      "writers": {
+        "modules/15d-squad-leader-leaderless-intent.js": {
+          "as": "owner",
+          "why": "captureLeaderlessIntent and endLeaderlessIntent set/clear the inherited intent (extracted from 16-squad-plan-stability.js)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "layer",
+          "why": "updateSuccession re-arms the inherited intent from the succession lease; restart-reset clears it."
+        }
+      }
+    },
     "soldier._engagementTask": {
       "owner": "modules/16-squad-plan-stability.js",
       "writers": {
