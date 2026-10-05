@@ -219,46 +219,65 @@ jobs:
               run(["git", "push", "--force-with-lease", "origin",
                    f"HEAD:refs/heads/{BRANCH}"])
 
-              # --- Open the PR with AGENT_TOKEN so the PR author is the agent ---
-              agent_env = os.environ.copy()
-              agent_env["GH_TOKEN"] = token
+              # --- Open the PR via the GitHub API (avoids gh CLI version differences) ---
+              # Some runners ship an older gh that lacks --json on pr create / pr list, so we
+              # call the REST API directly with urllib and the AGENT_TOKEN. The PR is authored
+              # by the token's identity (the agent), not github-actions[bot].
+              import urllib.request as _urllib_req
+              import urllib.error as _urllib_err
 
-              create = subprocess.run(
-                  [
-                      "gh", "pr", "create",
-                      "--base", "main",
-                      "--head", BRANCH,
-                      "--title", pr_title,
-                      "--body", pr_body,
-                      "--json", "number,url",
-                  ],
-                  capture_output=True, text=True, env=agent_env,
-              )
-              if create.returncode == 0:
-                  pr = json.loads(create.stdout)
-                  pr_number = pr["number"]
-                  pr_url = pr["url"]
-              else:
-                  # A PR for this branch may already be open (a previous run got
-                  # that far, then failed before closing the issue). Reuse it.
-                  list_prs = subprocess.run(
-                      [
-                          "gh", "pr", "list",
-                          "--head", BRANCH,
-                          "--state", "open",
-                          "--json", "number,url",
-                          "--limit", "1",
-                      ],
-                      capture_output=True, text=True, env=agent_env, check=False,
+              api_base = "https://api.github.com/repos/APPARANYX/grasstex"
+              api_headers = {
+                  "Authorization": f"Bearer {token}",
+                  "Accept": "application/vnd.github+json",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              }
+
+              def _api_post(path, payload):
+                  data = json.dumps(payload).encode()
+                  req = _urllib_req.Request(
+                      api_base + path, data=data, headers=api_headers, method="POST"
                   )
-                  prs = json.loads(list_prs.stdout) if list_prs.returncode == 0 else []
-                  if prs:
-                      pr_number = prs[0]["number"]
-                      pr_url = prs[0]["url"]
-                  else:
-                      fail(f"`gh pr create` failed:\n{create.stderr}")
+                  try:
+                      resp = _urllib_req.urlopen(req)
+                      return resp.status, json.loads(resp.read())
+                  except _urllib_err.HTTPError as e:
+                      return e.code, e.read().decode()
 
-              # --- Comment on the issue and close it (uses GITHUB_TOKEN) ---
+              def _api_get(path):
+                  req = _urllib_req.Request(api_base + path, headers=api_headers)
+                  try:
+                      resp = _urllib_req.urlopen(req)
+                      return resp.status, json.loads(resp.read())
+                  except _urllib_err.HTTPError as e:
+                      return e.code, e.read().decode()
+
+              # Try to create the PR. If a PR is already open for this branch (a previous
+              # run got that far, then failed before closing the issue), GitHub returns 422
+              # with "A pull request for this branch already exists" -- in that case, look
+              # it up via the list endpoint and reuse it.
+              status, result = _api_post("/pulls", {
+                  "title": pr_title,
+                  "body": pr_body,
+                  "head": BRANCH,
+                  "base": "main",
+              })
+              if status == 201:
+                  pr_number = result["number"]
+                  pr_url = result["html_url"]
+              else:
+                  # Look for an existing open PR for this head branch.
+                  status2, result2 = _api_get(f"/pulls?head=APPARANYX:{BRANCH}&state=open&per_page=1")
+                  if status2 == 200 and isinstance(result2, list) and result2:
+                      pr_number = result2[0]["number"]
+                      pr_url = result2[0]["html_url"]
+                  else:
+                      fail(
+                          f"`POST /pulls` failed (HTTP {status}):\n"
+                          f"{result if isinstance(result, str) else json.dumps(result, indent=2)}"
+                      )
+
+              # --- Comment on the issue and close it (uses GITHUB_TOKEN via gh) ---
               run([
                   "gh", "issue", "comment", ISSUE_NUMBER,
                   "--body", f"Opened PR #{pr_number}: {pr_url}",
