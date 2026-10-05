@@ -46,7 +46,7 @@ concurrency:
 jobs:
   apply:
     name: Apply patch and open PR
-    if: github.event.label.name == 'agent-apply'
+    if: |\n      github.event.label.name == 'agent-apply' &&\n      contains(fromJSON('["appara-agent", "ivandpopov", "Teethree89"]'), github.event.issue.user.login)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
