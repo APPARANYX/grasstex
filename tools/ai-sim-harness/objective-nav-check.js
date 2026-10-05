@@ -179,7 +179,7 @@ function commandTick(r,sim,town){sim.time+=.45;r.BattleCommanderAI.update(sim,to
 section('an assigned objective mission survives approach-route and lease boundaries');
 {
   const {r,sq,sim,town}=commandFixture();
-  load(r,'battle/modules/16-squad-plan-stability.js');
+  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/16-squad-plan-stability.js');
   commandTick(r,sim,town);
   const mission=sq._macroMission;
   check('an assigned outer objective stays the movement goal outside the terminal radius',sq.objective.x===120&&sq.commandPhase==='assault',JSON.stringify(sq.objective)+' '+sq.commandPhase);
@@ -222,7 +222,7 @@ section('regroup waits for cohesion, then returns to its mission');
 {
   const {r,sq,sim,town}=commandFixture();
   r.BattleTelemetry={record(){}};
-  load(r,'battle/modules/16-squad-plan-stability.js');
+  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/16-squad-plan-stability.js');
   commandTick(r,sim,town);
   sq.members[3].root.position.x=-100;
   sq.commandPhase='regroup';sq.objective={x:20,z:0};
