@@ -56,9 +56,26 @@
           "as": "owner",
           "why": "captureLeaderlessIntent and endLeaderlessIntent set/clear the inherited intent (extracted from 16-squad-plan-stability.js)."
         },
-        "modules/16-squad-plan-stability.js": {
+        "modules/15k-squad-leader-reconstitution.js": {
           "as": "layer",
-          "why": "updateSuccession re-arms the inherited intent from the succession lease; restart-reset clears it."
+          "why": "updateSuccession re-arms the inherited intent from the succession lease (the write moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset clears it."
+        }
+      }
+    },
+    "squad._macroMissionRequest": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "requestReview raises the doctrine-review request; restart-reset clears it."
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "acknowledgeRequest answers it once the General has read a new brief (moved here from 16 in the bare-bones split)."
         }
       }
     },
@@ -85,6 +102,10 @@
         "modules/15c-squad-leader-scouts-forward.js": {
           "as": "layer",
           "why": "publishReconOrders sets engagement tasks for scout and main-body men."
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "Roster rewrites (reform, detachFled) clear tasks so nothing carries over a merge (moved here from 16 in the bare-bones split)."
         }
       }
     },
@@ -121,9 +142,13 @@
           "as": "owner",
           "why": "holdPost latches a settled defensive post to the command signature; updateFireteams clears it when the post is replaced by a prepared one (moved here from 16 in the bare-bones split)."
         },
-        "modules/16-squad-plan-stability.js": {
+        "modules/15k-squad-leader-reconstitution.js": {
           "as": "layer",
-          "why": "Roster rewrites (reform, detachFled, absorb) and restart-reset clear the latch."
+          "why": "Roster rewrites (reform, detachFled) clear the latch (moved here from 16 in the bare-bones split)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset clears the latch."
         }
       }
     },
@@ -141,6 +166,36 @@
         "modules/15h-squad-leader-fireteams.js": {
           "as": "layer",
           "why": "updateFireteams stamps each man's fireteam key when it publishes his slot (moved here from 16 in the bare-bones split)."
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "Roster rewrites (updateSuccession successor slot, reform, detachFled, absorb) reset fireteam keys (moved here from 16 in the bare-bones split)."
+        }
+      }
+    },
+    "soldier._regroupUnstick": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "updateCohesion arms the regroup-unstick record on a stuck man; endRegroup and restart-reset clear it."
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "endUnstick clears the record when the man recovers, the lease ends or he dies; called from stepMovement (moved here from 16 in the bare-bones split)."
+        }
+      }
+    },
+    "soldier._engagementPlanSerial": {
+      "owner": "modules/16-squad-plan-stability.js",
+      "writers": {
+        "modules/16-squad-plan-stability.js": {
+          "as": "owner",
+          "why": "syncTasks stamps each man's plan serial."
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "Roster rewrites (reform, detachFled) clear serials so nothing carries over a merge (moved here from 16 in the bare-bones split)."
         }
       }
     },
@@ -283,6 +338,10 @@
         "squad-ai.js": {
           "as": "fallback",
           "why": "squad-status-fallback"
+        },
+        "modules/15k-squad-leader-reconstitution.js": {
+          "as": "layer",
+          "why": "Roster rewrites stamp the count (reform sets the merged squad's, disband zeroes an absorbed one) (moved here from 16 in the bare-bones split)."
         }
       }
     },

@@ -205,13 +205,13 @@ test('real recall anchors: chained, hopped, deleted and indexed writes are seen'
   at('eng', 'cover', 'modules/44-combat-urgency.js');
   at('eng', 'fireReadyAt', 'engagement.js');
   at('soldier', '_movementResolver', 'movement-resolver.js');
-  at('squad', 'captainAlive', 'modules/16-squad-plan-stability.js');
+  at('squad', 'captainAlive', 'modules/15k-squad-leader-reconstitution.js');
   at('squad', 'aliveCount', 'squad-ai.js');
   at('soldier', '_personalSpaceDestination', 'movement-resolver.js');
   at('soldier', '_physicalPath', 'modules/39-navigation-physicality-debug.js');
   at('soldier', '_tacticalRoute', 'movement-resolver.js');
   at('soldier', '_planPost', 'modules/00-defense-plan.js');
-  at('soldier', 'slotIndex', 'modules/16-squad-plan-stability.js');
+  at('soldier', 'slotIndex', 'modules/15k-squad-leader-reconstitution.js');
   at('soldier', 'suppressedUntil', 'squad-ai.js');
   at('soldier', 'root.position', 'modules/51-soldier-personal-space.js');
   at('soldier', 'destination', 'movement-resolver.js');
