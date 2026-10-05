@@ -124,6 +124,12 @@
   var REGROUP_ENTER = 1.35,
     REGROUP_RELEASE = 0.78,
     REGROUP_MIN = 2.4,
+    /* If a regroup has been active this long without the rally quorum being met (a stuck
+       straggler behind a wall keeps rallyInside below rallyRequired), release the squad
+       back to mission execution rather than holding it indefinitely. The squad leaves
+       with a regroup-stuck lease-bypass so the cohered majority is not immediately
+       yanked back into a new regroup by the rawSpread > operatingLimit gate. */
+    REGROUP_ESCALATION_SECS = 7.2,
     REENTRY = 4;
   var STRAGGLER_BYPASS = 2.8,
     URBAN_ARRIVAL_COHESION = 0.5;
@@ -1398,7 +1404,10 @@
       zs.push(+m[i].root.position.z || 0);
     }
     var med = { x: median(xs), z: median(zs) },
-      allowed = n >= 9 ? 2 : n >= 5 ? 1 : 0,
+      /* Scale the trim allowance with squad size so a merged 4-man squad is not paralyzed
+         by one stuck straggler. Cap at 2 (the original ceiling) so large squads do not
+         over-trim and produce a degenerate small core. */
+      allowed = Math.max(0, Math.min(2, Math.floor(n / 4))),
       far = [],
       lagging = [],
       blocking = [],
@@ -1611,6 +1620,26 @@
       if (age >= REGROUP_MIN && (rallyInside >= rallyRequired || ca.coreSpread <= release)) {
         endRegroup(sim, sq, 'cohesion restored');
         return;
+      }
+      /* Escalation: if one or more men are genuinely stuck (their movement progress
+         reports them stuck on a regroup-kind goal) and the rally quorum has not been
+         met for REGROUP_ESCALATION_SECS, the cohered majority is being held indefinitely
+         on the stuck man's account. Release the squad back to mission execution with a
+         regroup-bypass lease so rawSpread > operatingLimit does not immediately re-enter
+         regroup. The stuck men rejoin under STRAGGLER_BYPASS. Gated on actual stuck men
+         (not just time) so a stationary squad in a test fixture or a slowly-converging
+         squad is not escalated. */
+      if (age >= REGROUP_ESCALATION_SECS && rallyInside < rallyRequired) {
+        var hasStuckMan = alive(sq).some(function (man) {
+          var p = man._movementProgress;
+          return p && p.stuck && p.kind === 'regroup';
+        });
+        if (hasStuckMan) {
+          st.escalations = (st.escalations || 0) + 1;
+          L.extend(sq, 'regroup-bypass', 'squad-leader', t, t + STRAGGLER_BYPASS, 'regroup escalation: stuck straggler');
+          endRegroup(sim, sq, 'regroup escalation: stuck straggler');
+          return;
+        }
       }
       /* Progress belongs to movement; only the leader authorizes the regroup escape. */
       alive(sq).forEach(function (s) {
