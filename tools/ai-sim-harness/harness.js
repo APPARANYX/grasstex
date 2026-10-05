@@ -70,6 +70,7 @@ function bootstrap(opts){
     if(opts.stats)load(root,'battle/modules/10-soldier-stats.js');
     /* One squad-command owner replaces the old stability/plan/command-lock/regroup stack. */
     load(root,'battle/modules/15a-squad-leader-fire-control.js');
+    load(root,'battle/modules/15b-squad-leader-buddy-pairs.js');
     load(root,'battle/modules/16-squad-plan-stability.js');
     /* The wound model owns what a hit does (hit zone, incapacitation, bleeding). */
     load(root,'battle/modules/14-wound-model.js');
