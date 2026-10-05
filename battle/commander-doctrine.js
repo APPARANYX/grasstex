@@ -143,6 +143,11 @@
     return !/[?&]generalIntel=(?:0|off|false)(?:&|#|$)/i.test(search || '');
   }
   var GENERAL_INTEL_ON = parseGeneralIntel(typeof location !== 'undefined' ? location.search : '');
+  /* Reported contacts older than this are stale and do not count toward reportedEnemyStrengthNear
+     or buildContext.underPressure. A contact still being shot at is re-reported every few seconds
+     via squadSenses/shareContact, so live contacts stay counted; this only filters sightings that
+     have gone quiet. */
+  var CONTACT_STALE_SECS = 30;
   function forceScore(sim, faction) {
     var units = forceUnits(sim, faction),
       score = 0;
@@ -223,8 +228,15 @@
   }
   function reportedEnemyStrengthNear(sim, faction, p, radius) {
     var rows = reportedContacts(sim, faction),
-      n = 0;
-    for (var i = 0; i < rows.length; i++) if (dist(p.x, p.z, rows[i].x, rows[i].z) <= radius) n++;
+      n = 0,
+      now = +sim.time || 0;
+    /* A contact reported five minutes ago is not "strength near this objective" - it is a ghost.
+       Without this filter, Force Command masses against stale sightings and triggers false defend
+       doctrines. CONTACT_STALE_SECS matches the typical re-report interval: a contact still being
+       shot at is re-reported far more often than this, so live contacts stay counted. */
+    var maxAge = CONTACT_STALE_SECS;
+    for (var i = 0; i < rows.length; i++)
+      if (dist(p.x, p.z, rows[i].x, rows[i].z) <= radius && now - (+rows[i].at || 0) <= maxAge) n++;
     return n;
   }
   function nearestEnemyToSquad(sim, sq) {
@@ -521,7 +533,8 @@
       MAX_EFFORTS: MAX_EFFORTS,
       FRONTAGE_COST: FRONTAGE_COST,
       STALL_COST: STALL_COST,
-      SQUAD_FIT: SQUAD_FIT
+      SQUAD_FIT: SQUAD_FIT,
+      CONTACT_STALE_SECS: CONTACT_STALE_SECS
     },
     FALLBACK: FALLBACK,
     FALLBACK_DOCTRINE: FALLBACK_DOCTRINE,
