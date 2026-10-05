@@ -40,7 +40,7 @@
   var OPEN_COVER = 0.92,
     USEFUL_COVER = 0.88;
   var PRONE_ROLES = { rifleman: 1, gunner: 1 };
-  var BOUND_METERS = 6.5,
+  var BOUND_METERS = 14,
     BOUND_ARRIVED = 1.25,
     BOUND_BACK_ALLOW = 2;
   /* Command phases in which the squad is moving on the enemy (16-squad-plan-stability.js). */
@@ -367,8 +367,15 @@
   }
 
   function canCrawlTo(s, battle, d) {
-    var crawl = crawlPace() * Math.max(0.6, s.speed || 1);
-    return d <= crawl * (state(s).until - battle.time) && (s.moveSpeed || 0) <= 2 * crawl;
+    /* Use the actual crawl ground speed from module 11's gait table, not 0.23 × s.speed.
+       The old formula over-estimated crawl speed by ~1.85× because s.speed is the
+       compensated crouch-run pace (5.0), not the raw crawl pace. Reading the gait
+       value directly gives the real crawl ground speed (~0.62 m/s for proneFast). */
+    var I = root.BattleSoldierIndividuality,
+      phen = I && I.phenotype ? I.phenotype(s) : null,
+      crawlGround = phen && phen.gaits ? +(phen.gaits.proneFast || phen.gaits.proneNormal || 0.6) : 0.6,
+      remaining = state(s).until - battle.time;
+    return d <= crawlGround * remaining && (s.moveSpeed || 0) <= 2 * crawlGround;
   }
 
   /* ---- sight from a place and a stance --------------------------------------------------------- */
@@ -1563,7 +1570,7 @@
       s,
       battle,
       'assault',
-      Math.max(0, root.BattleLeases.until(sq, 'bound') - battle.time),
+      Math.max(3, step / Math.max(0.6, s.speed * 0.6) + 2),
       'authorized fireteam bound'
     );
     e.assaultGoal = next;
