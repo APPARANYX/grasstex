@@ -560,6 +560,10 @@
         "modules/44-combat-urgency.js": {
           "as": "slot",
           "why": "reactShared turns the man toward a shared contact from Engagement's afterDrill slot."
+        },
+        "modules/19a-engagement-stress-reactions.js": {
+          "as": "slot",
+          "why": "The stress states stop the frozen or fled man's look direction, written through Engagement's declared ctx sink (_engagementStressCtx) after the 19a verbatim split - the owner's own code, relocated."
         }
       }
     },
@@ -824,6 +828,10 @@
         "squad-ai.js": {
           "as": "fallback",
           "why": "engagement-fallback"
+        },
+        "modules/19a-engagement-stress-reactions.js": {
+          "as": "slot",
+          "why": "leaveWeapons drops the emplaced gun when a man breaks, written through Engagement's declared ctx sink (_engagementStressCtx) after the 19a verbatim split - the owner's own code, relocated."
         }
       }
     },
@@ -837,6 +845,10 @@
         "squad-ai.js": {
           "as": "fallback",
           "why": "engagement-fallback"
+        },
+        "modules/19a-engagement-stress-reactions.js": {
+          "as": "slot",
+          "why": "the stress states mirror their state label like every other state, written through Engagement's declared ctx sink (_engagementStressCtx) after the 19a verbatim split - the owner's own code, relocated."
         }
       }
     },
