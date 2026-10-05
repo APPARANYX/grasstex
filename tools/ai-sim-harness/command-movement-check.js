@@ -18,7 +18,9 @@ function point(v){return v&&{x:+v.x,z:+v.z};}
 function distance(a,b){return Math.hypot(a.x-b.x,a.z-b.z);}
 function world(search){
   H.resetIds();
-  const r=H.bootstrap({search:search||'?stressAct=0&commandMovement=1'});
+  /* Explicitly set commandRelay=0 to isolate movement adoption from relay topology.
+     Relay is now default-on after Phase 0E, but this test measures movement-only timing. */
+  const r=H.bootstrap({search:search||'?stressAct=0&commandMovement=1&commandRelay=0'});
   const b=H.makeBattle(r,{seed:57});
   const q=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:120},facing:0});
   q.state='advance';q.commandPhase='approach';q.orderAnchor={x:0,z:0};q.rally={x:0,z:0};q.objective={x:0,z:120};
@@ -34,9 +36,9 @@ function adopted(w,s){return w.C.adopted(s,w.b,'movement','soldier:'+String(s.id
 function issue(w){w.Q.updateFireteams(w.q,w.b);}
 function allLive(w){return w.q.members.filter(s=>!s.dead);}
 
-test('movement adoption is opt-in while Phase 0C is benchmark-gated',()=>{
-  assert.equal(world('?stressAct=0').C.movementEnabled(),false,'default battle remains immediate movement publication');
-  assert.equal(world('?stressAct=0&commandMovement=0').C.movementEnabled(),false);
+test('movement adoption is default-on after Phase 0E benchmark validation',()=>{
+  assert.equal(world('?stressAct=0').C.movementEnabled(),true,'default battle now uses movement adoption');
+  assert.equal(world('?stressAct=0&commandMovement=0').C.movementEnabled(),false,'?commandMovement=0 is the legacy control arm');
   assert.equal(world('?stressAct=0&commandMovement=1').C.movementEnabled(),true);
 });
 

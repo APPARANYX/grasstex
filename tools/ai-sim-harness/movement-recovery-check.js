@@ -352,7 +352,7 @@ test('identical fireteam slots are proposed once, not every squad tick',()=>{
   /* This synthetic two-rifleman squad has no Squad Leader by construction. The test owns command-publish
      coalescing, not succession behavior, so isolate the pre-#197 leaderless control rather than making the
      fixture accidentally enter the six-second command-vacancy contract. */
-  const r=H.bootstrap({search:'?leaderlessIntent=0'}); // full squad modules, as in the live game
+  const r=H.bootstrap({search:'?leaderlessIntent=0&commandMovement=0&commandRelay=0'}); // full squad modules, as in the live game
   load(r,'battle/movement-resolver.js');
   const b=H.makeBattle(r);
   const q=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:100},composition:['rifleman','rifleman']});

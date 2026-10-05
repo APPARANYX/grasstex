@@ -15,7 +15,10 @@ function test(name,fn){fn();n++;console.log('PASS '+name);}
 
 function world(search){
   H.resetIds();
-  const r=H.bootstrap({search:search==null?'?commandReception=1':search});
+  /* commandMovement and commandRelay are now default-on after Phase 0E.
+     This test measures Phase 0A telemetry (behavior-neutral), so turn them off
+     to preserve the original test conditions. */
+  const r=H.bootstrap({search:search==null?'?commandReception=1&commandMovement=0&commandRelay=0':search});
   const b=H.makeBattle(r,{seed:31});
   const us=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:120},facing:0});
   const ge=H.addSquad(r,b,{id:'ge-0',faction:'ge',x:0,z:180,objective:{x:0,z:0},facing:Math.PI});
@@ -112,7 +115,9 @@ test('shipping Meso publication is observed for both fire-control and fireteam m
 });
 
 test('Phase 0A is behavior-neutral against commandReception=0 for the same Meso decisions',()=>{
-  const on=world('?commandReception=1'),off=world('?commandReception=0');
+  /* Explicitly turn off movement and relay for both arms so the comparison
+     isolates Phase 0A telemetry from Phase 0C/0D2 behavior. */
+  const on=world('?commandReception=1&commandMovement=0&commandRelay=0'),off=world('?commandReception=0&commandMovement=0&commandRelay=0');
   const onShape=issueBaseline(on),offShape=issueBaseline(off);
   assert.deepEqual(onShape,offShape);
   assert.equal(on.us.fireControl.state,off.us.fireControl.state);

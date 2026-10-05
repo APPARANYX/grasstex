@@ -15,7 +15,7 @@ function load(root, rel) {
 function world(opts = {}) {
   H.resetIds();
   let navCalls = 0;
-  const r = H.bootstrap({ search: opts.search == null ? '?scoutsForward=1' : opts.search });
+  const r = H.bootstrap({ search: opts.search == null ? '?scoutsForward=1&commandMovement=0&commandRelay=0' : opts.search });
   r.BattleNavigation = {
     movementClear() {
       navCalls++;

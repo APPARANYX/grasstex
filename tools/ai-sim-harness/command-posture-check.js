@@ -115,7 +115,7 @@ test('precision permission is also personal: only the adopted designated shooter
 });
 
 test('legacy/control arm still reads shared squad fireControl immediately',()=>{
-  const w=world('?stressAct=0&fireControl=1&commandPosture=0'),man=w.us.members[4];
+  const w=world('?stressAct=0&fireControl=1&commandPosture=0&commandMovement=0&commandRelay=0'),man=w.us.members[4];
   const fc=command(w);
   assert.equal(fc.state,'hold');
   assert.equal(w.E.fireAuthorized(man,w.b),false,'legacy shared HOLD is immediate');

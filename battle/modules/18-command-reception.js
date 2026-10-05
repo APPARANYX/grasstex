@@ -14,9 +14,15 @@
 
   var SEARCH=typeof location!=='undefined'?location.search||'':'',
     ON=!/[?&]commandReception=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),
+    /* Phase 0E: commandPosture is still opt-in pending its benchmark validation.
+       commandMovement and commandRelay are now default-on after 100-seed paired
+       benchmarks confirmed them safe (commandRelay=1 was INERT across 100 seeds;
+       commandMovement=1 was QUIET/WEAK with 0-4 of 32 counters significant and
+       casualties not significant). ?commandMovement=0 and ?commandRelay=0 remain
+       as legacy control arms for A/B benchmark work. */
     POSTURE_ON=ON&&/[?&]commandPosture=(?:1|on|true)(?:&|#|$)/i.test(SEARCH),
-    MOVEMENT_ON=ON&&/[?&]commandMovement=(?:1|on|true)(?:&|#|$)/i.test(SEARCH),
-    RELAY_ON=ON&&/[?&]commandRelay=(?:1|on|true)(?:&|#|$)/i.test(SEARCH);
+    MOVEMENT_ON=ON&&!/[?&]commandMovement=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),
+    RELAY_ON=ON&&!/[?&]commandRelay=(?:0|off|false)(?:&|#|$)/i.test(SEARCH);
   var FORMAT=4;
   var TUNING={
     SOUND:343,
