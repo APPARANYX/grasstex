@@ -10,6 +10,45 @@
     "squad-status-fallback": "Status-only squadStatus: runs only when no squadCommand owner is attached; the Squad Leader replaces it."
   },
   "fields": {
+    "squad._buddyPairs": {
+      "owner": "modules/15b-squad-leader-buddy-pairs.js",
+      "writers": {
+        "modules/15b-squad-leader-buddy-pairs.js": {
+          "as": "owner",
+          "why": "syncBuddyPairs builds the pair map (extracted from 16-squad-plan-stability.js)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset: reset() clears buddy pairs on battle restart."
+        }
+      }
+    },
+    "squad._buddyUnpaired": {
+      "owner": "modules/15b-squad-leader-buddy-pairs.js",
+      "writers": {
+        "modules/15b-squad-leader-buddy-pairs.js": {
+          "as": "owner",
+          "why": "syncBuddyPairs sets the unpaired list."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset."
+        }
+      }
+    },
+    "squad._buddyPairHistory": {
+      "owner": "modules/15b-squad-leader-buddy-pairs.js",
+      "writers": {
+        "modules/15b-squad-leader-buddy-pairs.js": {
+          "as": "owner",
+          "why": "buddyHistory pushes entries."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset."
+        }
+      }
+    },
     "squad.fireControl": {
       "owner": "modules/15a-squad-leader-fire-control.js",
       "writers": {

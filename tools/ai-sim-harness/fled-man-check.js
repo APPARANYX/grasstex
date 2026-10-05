@@ -67,7 +67,7 @@ function world(search) {
   load(r, 'battle/commander-routes.js');
   load(r, 'battle/commander-ai.js');
   load(r, 'battle/movement-resolver.js');
-  load(r, 'battle/modules/15a-squad-leader-fire-control.js', search); load(r, 'battle/modules/16-squad-plan-stability.js', search);
+  load(r, 'battle/modules/15a-squad-leader-fire-control.js', search); load(r, 'battle/modules/15b-squad-leader-buddy-pairs.js', search); load(r, 'battle/modules/16-squad-plan-stability.js', search);
   load(r, 'battle/modules/46-ammunition-stoppages.js', search);
   const b = H.makeBattle(r);
   b.macroCommandEnabled = true;
