@@ -1,0 +1,26 @@
+{
+  "id": "multi-structure",
+  "description": "Multi-structure objective — a cluster of buildings, all must be cleared",
+  "seed": "scn-multi-001",
+  "map": { "width": 1000, "depth": 700 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 300, "spanZ": 250 },
+  "objectives": [
+    { "id": "obj-north", "type": "capture-zone", "x": 0, "z": 50, "radius": 25, "label": "North building", "value": 1.0, "captureSeconds": 10 },
+    { "id": "obj-south", "type": "capture-zone", "x": 0, "z": -50, "radius": 25, "label": "South building", "value": 1.0, "captureSeconds": 10 }
+  ],
+  "roads": [
+    { "id": "main", "ax": 0, "az": -150, "bx": 0, "bz": 150, "width": 8 }
+  ],
+  "buildings": [
+    { "id": "n1", "x": 30, "z": 50, "width": 25, "depth": 25 },
+    { "id": "n2", "x": -30, "z": 50, "width": 25, "depth": 25 },
+    { "id": "s1", "x": 30, "z": -50, "width": 25, "depth": 25 },
+    { "id": "s2", "x": -30, "z": -50, "width": 25, "depth": 25 }
+  ],
+  "spawnZones": {
+    "us": { "z": -300, "lanes": [-200, 0, 200] },
+    "ge": { "z": 300, "lanes": [-200, 0, 200] }
+  },
+  "squads": 3,
+  "timeLimit": 400
+}

@@ -1,0 +1,26 @@
+{
+  "id": "contested-intersection",
+  "description": "Contested intersection — two roads cross at center, both sides want the junction",
+  "seed": "scn-intersection-001",
+  "map": { "width": 1200, "depth": 800 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 300, "spanZ": 300 },
+  "objectives": [
+    { "id": "obj-junction", "type": "capture-zone", "x": 0, "z": 0, "radius": 25, "label": "Junction", "value": 1.5, "captureSeconds": 10 }
+  ],
+  "roads": [
+    { "id": "road-ns", "ax": 0, "az": -200, "bx": 0, "bz": 200, "width": 10 },
+    { "id": "road-ew", "ax": -200, "az": 0, "bx": 200, "bz": 0, "width": 10 }
+  ],
+  "buildings": [
+    { "id": "b1", "x": 40, "z": 40, "width": 30, "depth": 30 },
+    { "id": "b2", "x": -40, "z": 40, "width": 30, "depth": 30 },
+    { "id": "b3", "x": 40, "z": -40, "width": 30, "depth": 30 },
+    { "id": "b4", "x": -40, "z": -40, "width": 30, "depth": 30 }
+  ],
+  "spawnZones": {
+    "us": { "z": -350, "lanes": [-300, 0, 300] },
+    "ge": { "z": 350, "lanes": [-300, 0, 300] }
+  },
+  "squads": 4,
+  "timeLimit": 400
+}

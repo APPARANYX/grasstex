@@ -1,0 +1,19 @@
+{
+  "id": "counterattack",
+  "description": "Counterattack — one side holds, the other attacks, then reserves arrive for a counterattack",
+  "seed": "scn-counter-001",
+  "map": { "width": 1000, "depth": 700 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 250, "spanZ": 200 },
+  "objectives": [
+    { "id": "obj-hill", "type": "capture-zone", "x": 0, "z": 0, "radius": 30, "label": "Hill", "value": 1.5, "captureSeconds": 15 }
+  ],
+  "roads": [],
+  "buildings": [],
+  "spawnZones": {
+    "us": { "z": -300, "lanes": [-200, 0, 200] },
+    "ge": { "z": 300, "lanes": [-200, 0, 200] }
+  },
+  "squads": 4,
+  "timeLimit": 400,
+  "defender": "ge"
+}
