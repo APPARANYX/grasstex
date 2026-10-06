@@ -30,7 +30,7 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 - `STRATEGIC_STALL_RECOVERY = { reconcile: 120, release: 180, mainEffort: 240, reset: 300, progressWindow: 60, progressDistance: 6, mainEffortFraction: 0.6, mainEffortMin: 2 }` — staged Macro recovery for one no-objective-progress episode: repair assignments, release stale holds/support, mass a reachable main effort, then reset squads that are neither useful defenders nor making measurable mission progress
 - `RECON_STRENGTH = 10` — preferred/full reconstitution target and rebuilt squad establishment
 - `RECON_MIN_STRENGTH = 6` — minimum combined survivors from at least two at-base remnants that may form a viable rebuilt squad
-- `RECON_POOL_MAX = 4` — largest remnant that enters the survivor pool; 5+ survivors remain a viable squad and use ordinary morale recovery
+- `REMNANT_EXTRACTION_MAX = 4` (`SquadAI`; exposed to Force Command as `RECON_POOL_MAX`) — 1–4 survivors extract independently to home with no local regroup/recentring until reconstitution; 5+ survivors remain a viable squad and use ordinary retreat/morale recovery
 - `RECON_MAX_CENTER_TRAVEL = 300` — maximum distance any source remnant may be from its neutral geographic rendezvous (m)
 - `RECON_FORWARD_DETOUR = 1.15` — frontward rendezvous slide may lengthen each source's route by at most 15% versus the neutral centre
 - `RECON_FORWARD_MAX = 180` — absolute maximum frontward rendezvous slide (m)
