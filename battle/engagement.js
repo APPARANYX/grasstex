@@ -40,7 +40,7 @@
   var OPEN_COVER = 0.92,
     USEFUL_COVER = 0.88;
   var PRONE_ROLES = { rifleman: 1, gunner: 1 };
-  var BOUND_METERS = 14,
+  var BOUND_METERS = 22,
     BOUND_ARRIVED = 1.25,
     BOUND_BACK_ALLOW = 2;
   /* Command phases in which the squad is moving on the enemy (16-squad-plan-stability.js). */
