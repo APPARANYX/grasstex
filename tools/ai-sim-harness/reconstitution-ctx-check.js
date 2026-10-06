@@ -86,7 +86,7 @@ test('the module installs the verbatim set back into commander-ai.js through the
   const ctx = r._commanderReconstitutionCtx();
   assert.deepEqual(
     Object.keys(ctx).sort(),
-    ['D', 'FLED_PICKUP_RANGE', 'RALLY_FORWARD', 'RALLY_RADIUS', 'RECON_STRENGTH', 'finishMission', 'generalFor', 'issueMission', 'missionState', 'recordMacroWake', 'root', 'telemetry'],
+    ['D', 'FLED_PICKUP_RANGE', 'RALLY_FORWARD', 'RALLY_RADIUS', 'RECON_MIN_STRENGTH', 'RECON_STRENGTH', 'finishMission', 'generalFor', 'issueMission', 'missionState', 'recordMacroWake', 'root', 'telemetry'],
     'ctx carries exactly the closure utilities, lifecycle functions and constants the moved bodies consume'
   );
   Object.keys(ctx).forEach(k => assert.notEqual(ctx[k], undefined, 'ctx.' + k + ' defined at install time'));
@@ -110,15 +110,18 @@ test('the module installs the verbatim set back into commander-ai.js through the
 test('the parent seam keeps the pre-split name, arities and the exported constants', () => {
   const { b, sqA, C } = world();
   assert.equal(C.reconstitute.length, 2, 'BattleCommanderAI.reconstitute(sim, faction)');
-  assert.equal(C.reconstitutionStrength, 10, 'the strength export still reads the parent constant');
+  assert.equal(C.reconstitutionStrength, 10, 'the target strength export still reads the parent constant');
+  assert.equal(C.reconstitutionMinimumStrength, 6, 'the viable minimum stays owned by the parent');
   assert.equal(C.fledPickupRange, 50, 'the fled pickup export still reads the parent constant');
   assert.equal(C.missionState(b).reconstitution, null, 'the aggregate roll-up is null before a commander tick');
   assert.equal(C.missionState(b).generals.us.reconstitution, null, 'no faction-local pool record before a commander tick');
   C.reconstitute(b, 'us');
   const st = C.missionState(b).generals.us.reconstitution;
   assert.ok(st, 'the seam lazily creates the faction-local pool record through generalFor');
-  assert.equal(st.strength, 10, 'the pool record carries the parent constant');
+  assert.equal(st.strength, 10, 'the pool record carries the target strength');
+  assert.equal(st.minimumStrength, 6, 'the pool record carries the viable minimum');
   assert.equal(C.missionState(b).reconstitution.groupsFormed, 1, 'the aggregate roll-up sees the group');
+  assert.deepEqual(C.missionState(b).reconstitution.pool.us, { survivors: 0, squads: [], ready: false, minimumStrength: 6, targetStrength: 10 }, 'the aggregate exposes the post-group survivor pool');
   assert.notEqual(sqA, null, 'fixture sanity');
 test('firing: a full pool forms one group, and the group at the rally point merges', () => {
   const { b, events, reformed, sqA, sqB, C } = world();
