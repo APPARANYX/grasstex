@@ -35,6 +35,7 @@
       finishMission = ctx.finishMission,
       recordMacroWake = ctx.recordMacroWake,
       RECON_STRENGTH = ctx.RECON_STRENGTH,
+      RECON_MIN_STRENGTH = ctx.RECON_MIN_STRENGTH,
       RALLY_RADIUS = ctx.RALLY_RADIUS,
       RALLY_FORWARD = ctx.RALLY_FORWARD,
       FLED_PICKUP_RANGE = ctx.FLED_PICKUP_RANGE;
@@ -53,6 +54,8 @@
         (general.reconstitution = {
           faction: faction,
           strength: RECON_STRENGTH,
+          minimumStrength: RECON_MIN_STRENGTH,
+          pool: { survivors: 0, squads: [], ready: false },
           serial: 0,
           groupsFormed: 0,
           groupsDissolved: 0,
@@ -288,18 +291,39 @@
         total = pool.reduce(function (n, sq) {
           return n + D.aliveMembers(sq).length;
         }, 0);
-      /* Strongest first reaches full strength with the fewest squads. */
-      while (total >= RECON_STRENGTH) {
+      /* Keep the pool visible even when it cannot yet form a viable squad. This is diagnostics,
+         not another owner: the General still makes the only grouping decision below. */
+      st.pool = {
+        survivors: total,
+        squads: pool.map(function (sq) {
+          return { id: sq.id, survivors: D.aliveMembers(sq).length };
+        }),
+        ready: pool.length >= 2 && total >= RECON_MIN_STRENGTH
+      };
+      /* Prefer a full 10-man rebuild when the pool can supply one. If the side has only 6-9
+         survivors at base, use all of them rather than waiting forever for an exact full squad.
+         Squads are never split, and at least two source squads must participate so a single
+         understrength squad cannot be "reconstituted" with itself every command tick. */
+      while (pool.length >= 2 && total >= RECON_MIN_STRENGTH) {
         var take = [],
-          n = 0;
-        while (n < RECON_STRENGTH) {
+          n = 0,
+          target = total >= RECON_STRENGTH ? RECON_STRENGTH : total;
+        while (pool.length && (n < target || take.length < 2)) {
           var next = pool.shift();
           take.push(next);
           n += D.aliveMembers(next).length;
         }
+        if (take.length < 2 || n < RECON_MIN_STRENGTH) break;
         total -= n;
         formGroup(sim, faction, take);
       }
+      st.pool = {
+        survivors: total,
+        squads: pool.map(function (sq) {
+          return { id: sq.id, survivors: D.aliveMembers(sq).length };
+        }),
+        ready: pool.length >= 2 && total >= RECON_MIN_STRENGTH
+      };
       for (var i = 0; i < groups.length; i++) {
         var g = groups[i],
           squads = g.squads
@@ -312,7 +336,7 @@
           survivors = squads.reduce(function (n, sq) {
             return n + D.aliveMembers(sq).length;
           }, 0);
-        if (survivors < RECON_STRENGTH) dissolveGroup(sim, g, squads, 'below-strength');
+        if (survivors < RECON_MIN_STRENGTH) dissolveGroup(sim, g, squads, 'below-viable-strength');
         /* A member that rallied (?morale=1) is no longer retreating, so it will never reach the rally point as a
          retreating squad: the group cannot finish. Without a rally a member's state leaves `retreat` only through
          a merge, which ends the group first. */ else if (
