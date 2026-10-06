@@ -63,21 +63,28 @@ frontage, so the side masses on new objectives (`commander-ai.js` `stalledEffort
 `macroCommand.state.stallOutcomes`). All three are scores, never vetoes.
 
 **Reconstitution** (`commander-ai.js` `reconstitute`, Macro only). A retreating squad's Squad Leader
-walks it home (`_assembly` `to-base`); home and out of contact it is `at-base`. Only `at-base` squads
-form the survivor pool, so no group is planned for a squad still on its way. The General prefers a full
-10-man rebuild (`RECON_STRENGTH`) but may form a viable understrength squad once two or more remnants
-at base total at least 6 men (`RECON_MIN_STRENGTH`). Squads are never split; when 10+ are available it
-still groups the fewest strongest remnants that reach the full target. A single understrength squad is
-never "reconstituted" with itself. One-to-four-man ordinary remnants no longer escape the pool through
-the old 120 s solo-redeploy exception; they wait for other survivors, while five or more men can still
-rally through the ordinary morale rule when calm enough. The General publishes the waiting pool in
-diagnostics as survivors + source squads + 6/10 thresholds. It then picks the objective it will
-send them to next (`chooseObjective`, strongest squad as reference) and gives each a `reconstitute`
-brief to a rally point on the approach to it: on the spawn line 30 m forward, in line with the
-objective, clamped to the side's lanes (centre of the home points if there is no objective). The
-brief carries it as `plannedObjectiveId`, never `targetObjective`, so a retreating squad is not counted
-at the objective; after the merge the General sends the squad there unless it changed hands
-(`to-rally`, `SquadAI.retreatGoal`).
+walks it home (`_assembly` `to-base`); home and out of contact it is `at-base`. Only true 1-4-man
+remnants enter the survivor pool (`RECON_POOL_MAX = 4`); five or more survivors remain a viable squad
+and recover through ordinary morale when calm. Reconstitution needs at least 6 combined survivors
+(`RECON_MIN_STRENGTH`) and never splits a source squad or reconstitutes one remnant with itself.
+The General chooses geographically coherent remnants rather than simply taking the strongest first:
+for each possible seed it adds the nearest remnant to the moving centroid until the minimum is met,
+then selects the candidate with the smallest worst source-to-centre march (then total travel, then
+fuller strength). A candidate is rejected when its neutral meeting point would require any source to
+travel more than 300 m (`RECON_MAX_CENTER_TRAVEL`). This prevents a rear-left remnant from being bound
+to a rear-right remnant merely because their combined manpower is sufficient.
+
+The rendezvous is based on the grouped squads' actual at-base positions, not their historical home
+lanes. From that neutral centre the General projects toward the objective it expects to task next and
+slides the meeting point forward only while every source squad's route remains within 115% of its
+straight route to the neutral centre (`RECON_FORWARD_DETOUR = 1.15`), with an absolute 180 m cap
+(`RECON_FORWARD_MAX`). For two squads this is the Pythagorean hypotenuse budget; the same direct
+distance test generalizes it to three-plus remnants. The brief carries the selected objective only as
+`plannedObjectiveId`, never `targetObjective`, so retreating squads are not counted at the objective;
+after the merge the General sends the rebuilt squad there unless control changed
+(`to-rally`, `SquadAI.retreatGoal`). Diagnostics expose waiting survivors/source positions, whether
+enough manpower exists but geography blocks grouping, and each formed group's neutral centre,
+maximum centre travel and forward shift.
 Once all are there the General merges them: the strongest squad with a living leader survives,
 otherwise the most senior survivor is promoted (ex-leader, rifleman, scout, gunner last). The re-formed
 squad has `leaderId`, `establishment` 10 and only living members; absorbed squads are `disbanded`.
