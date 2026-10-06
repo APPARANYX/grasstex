@@ -109,7 +109,8 @@
           true,
           'retreat',
           'remnant extraction home',
-          extractStats
+          extractStats,
+          { survivalFallback: true }
         );
       });
       if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);
