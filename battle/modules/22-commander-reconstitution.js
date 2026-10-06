@@ -174,11 +174,32 @@
       var center = centerPoint(squads),
         travel = centerTravel(squads, center);
       if (!plan || !plan.point)
-        return { point: center, center: center, forwardShift: 0, centerTravel: travel };
+        return {
+          point: center,
+          center: center,
+          forwardShift: 0,
+          centerTravel: travel,
+          sourceTravel: squads.map(function (sq) {
+            var p = squadPoint(sq),
+              direct = D.dist(p.x, p.z, center.x, center.z);
+            return { id: sq.id, centerDistance: direct, rallyDistance: direct };
+          })
+        };
       var dx = (+plan.point.x || 0) - center.x,
         dz = (+plan.point.z || 0) - center.z,
         len = Math.hypot(dx, dz);
-      if (len < 1e-6) return { point: center, center: center, forwardShift: 0, centerTravel: travel };
+      if (len < 1e-6)
+        return {
+          point: center,
+          center: center,
+          forwardShift: 0,
+          centerTravel: travel,
+          sourceTravel: squads.map(function (sq) {
+            var p = squadPoint(sq),
+              direct = D.dist(p.x, p.z, center.x, center.z);
+            return { id: sq.id, centerDistance: direct, rallyDistance: direct };
+          })
+        };
       var ux = dx / len,
         uz = dz / len,
         high = Math.min(RECON_FORWARD_MAX, len),
@@ -199,11 +220,20 @@
         if (allowed(mid)) low = mid;
         else high = mid;
       }
+      var point = { x: center.x + ux * low, z: center.z + uz * low };
       return {
-        point: { x: center.x + ux * low, z: center.z + uz * low },
+        point: point,
         center: center,
         forwardShift: low,
-        centerTravel: travel
+        centerTravel: travel,
+        sourceTravel: squads.map(function (sq) {
+          var p = squadPoint(sq);
+          return {
+            id: sq.id,
+            centerDistance: D.dist(p.x, p.z, center.x, center.z),
+            rallyDistance: D.dist(p.x, p.z, point.x, point.z)
+          };
+        })
       };
     }
     function rallyPoint(sim, faction, squads, plan) {
@@ -231,6 +261,7 @@
         centerTravelMax: geometry.centerTravel.max,
         centerTravelSum: geometry.centerTravel.sum,
         forwardShift: geometry.forwardShift,
+        sourceTravel: geometry.sourceTravel,
         formedAt: +sim.time || 0,
         status: 'assembling'
       };
@@ -264,6 +295,13 @@
         center: g.center,
         centerTravelMax: +g.centerTravelMax.toFixed(1),
         forwardShift: +g.forwardShift.toFixed(1),
+        sourceTravel: g.sourceTravel.map(function (row) {
+          return {
+            id: row.id,
+            centerDistance: +row.centerDistance.toFixed(1),
+            rallyDistance: +row.rallyDistance.toFixed(1)
+          };
+        }),
         objectiveId: g.objectiveId
       });
       return g;
