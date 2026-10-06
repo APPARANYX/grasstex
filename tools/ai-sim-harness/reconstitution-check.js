@@ -263,13 +263,16 @@ test('no group is planned until enough survivors are actually home and out of co
   assert.equal(living(q).length, 6);
   invariants(w, 6);
 });
-test('the rendezvous slides toward the next objective only inside each remnant\'s 15% travel budget', () => {
+test("the rendezvous slides toward the next objective only inside each remnant's 15% travel budget", () => {
   const w = world();
   w.b._objectives = [{ id: 'church', def: { x: -40, z: 0, radius: 30, value: 1 }, state: { owner: 'ge' } }];
   [0, 1].forEach(l => squad(w, l, 4));
   const g = untilGrouped(w, 120).group;
   assert.equal(g.objectiveId, 'church');
-  assert.ok(g.forwardShift > 0 && g.forwardShift <= 180, 'the neutral centre moves forward, but stays capped');
+  assert.ok(
+    g.forwardShift > 0 && g.forwardShift <= 180,
+    'the neutral centre moves forward, but stays capped'
+  );
   const centerToObjective = Math.hypot(g.center.x + 40, g.center.z),
     rallyToObjective = Math.hypot(g.rally.x + 40, g.rally.z);
   assert.ok(rallyToObjective < centerToObjective, 'the rebuilt squad starts closer to its next objective');
@@ -306,7 +309,10 @@ test('four three-man remnants rebuild as two nearby six-man squads', () => {
   run(w, 480);
   const rebuilt = w.b.factions.us.squads.filter(q => q.reconstitutedFrom);
   assert.equal(rebuilt.length, 2);
-  assert.deepEqual(rebuilt.map(q => living(q).length).sort((x, y) => x - y), [6, 6]);
+  assert.deepEqual(
+    rebuilt.map(q => living(q).length).sort((x, y) => x - y),
+    [6, 6]
+  );
   assert.ok(rebuilt.every(q => q.reconstitutedFrom.length === 2));
   invariants(w, 12);
 });
@@ -333,7 +339,11 @@ test('a five-man squad remains a viable squad and is not consumed by the survivo
   run(w, 60);
   const st = recon(w);
   assert.equal(st.groupsFormed, 0);
-  assert.equal(st.pool.us.survivors, 0, '5+ survivors recover as their own squad instead of becoming pool manpower');
+  assert.equal(
+    st.pool.us.survivors,
+    0,
+    '5+ survivors recover as their own squad instead of becoming pool manpower'
+  );
   assert.ok(!q._reconGroup);
 });
 
@@ -356,7 +366,11 @@ test('geography beats raw strength: two nearby threes group before a distant fou
     far = squad(w, 4, 4, null, 20);
   const seen = untilGrouped(w, 120),
     ids = seen.group.squads.slice().sort();
-  assert.deepEqual(ids, [a.id, bq.id].sort(), 'the nearby six-man cluster wins over the stronger far remnant');
+  assert.deepEqual(
+    ids,
+    [a.id, bq.id].sort(),
+    'the nearby six-man cluster wins over the stronger far remnant'
+  );
   assert.ok(seen.group.centerTravelMax <= 300);
   run(w, 360);
   const q = merged(w);
@@ -389,7 +403,11 @@ test("with every leader dead each remnant's successor steps up and the merge kee
   assert.equal(w.events.filter(e => e.type === 'decision-leader-succession').length, 2);
   assert.equal(q.accuracyMultiplier, 1, 'the leaderless accuracy penalty ends once someone leads');
   assert.equal(lead.slotIndex, 0);
-  assert.equal(q.members.filter(s => s.role === 'gunner' && !s.slotRole).length, 1, 'one gun keeps the gunner slot');
+  assert.equal(
+    q.members.filter(s => s.role === 'gunner' && !s.slotRole).length,
+    1,
+    'one gun keeps the gunner slot'
+  );
   invariants(w, 8);
 });
 test('a forming group dissolves only when losses take it below the six-man viable minimum', () => {
@@ -405,7 +423,9 @@ test('a forming group dissolves only when losses take it below the six-man viabl
   assert.equal(st.groupsDissolved, 1);
   assert.equal(st.merges, 0);
   assert.equal(st.active.length, 0);
-  assert.ok(w.sq.filter(q => living(q).length).every(q => !q.disbanded && !q._reconGroup && q.state === 'retreat'));
+  assert.ok(
+    w.sq.filter(q => living(q).length).every(q => !q.disbanded && !q._reconGroup && q.state === 'retreat')
+  );
   assert.ok(w.sq.every(q => !q._macroMission || q._macroMission.status === 'failed'));
   invariants(w, 5);
 });

@@ -158,8 +158,7 @@
           (Math.abs(score[0] - best.score[0]) < 1e-9 &&
             (score[1] < best.score[1] - 1e-9 ||
               (Math.abs(score[1] - best.score[1]) < 1e-9 &&
-                (score[2] < best.score[2] ||
-                  (score[2] === best.score[2] && score[3] < best.score[3])))))
+                (score[2] < best.score[2] || (score[2] === best.score[2] && score[3] < best.score[3])))))
         )
           best = { squads: take.slice(), survivors: total, center: center, travel: travel, score: score };
       }
@@ -435,20 +434,19 @@
     function reconstitute(sim, faction) {
       var st = reconState(sim, faction),
         groups = st.active.slice(),
-        pool = sim.factions[faction].squads
-          .filter(function (sq) {
-            var living = D.aliveMembers(sq).length;
-            return (
-              !sq.disbanded &&
-              sq.state === 'retreat' &&
-              !sq._reconGroup &&
-              !sq.inContact &&
-              sq._assembly &&
-              sq._assembly.phase === 'at-base' &&
-              living > 0 &&
-              living <= RECON_POOL_MAX
-            );
-          }),
+        pool = sim.factions[faction].squads.filter(function (sq) {
+          var living = D.aliveMembers(sq).length;
+          return (
+            !sq.disbanded &&
+            sq.state === 'retreat' &&
+            !sq._reconGroup &&
+            !sq.inContact &&
+            sq._assembly &&
+            sq._assembly.phase === 'at-base' &&
+            living > 0 &&
+            living <= RECON_POOL_MAX
+          );
+        }),
         total = pool.reduce(function (n, sq) {
           return n + D.aliveMembers(sq).length;
         }, 0),
