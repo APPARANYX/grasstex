@@ -471,9 +471,12 @@
      sub-module has no survivor pool and must say so, not silently leave retreated squads
      scattered at their spawn line for good. */
   var RECON_STRENGTH = 10, // establishment / preferred full rebuilt rifle squad
-    RECON_MIN_STRENGTH = 6, // viable rebuilt squad: smaller remnants stay in the survivor pool
+    RECON_MIN_STRENGTH = 6, // minimum combined survivors that may become one rebuilt squad
+    RECON_POOL_MAX = 4, // only true remnants wait for reconstitution; 5+ may rally as their own squad
+    RECON_MAX_CENTER_TRAVEL = 300, // do not bind remnants whose neutral rendezvous is already too far away
+    RECON_FORWARD_DETOUR = 1.15, // each source may spend at most 15% extra travel to move the meeting point frontward
+    RECON_FORWARD_MAX = 180, // absolute cap on the frontward slide after the neutral rendezvous is found
     RALLY_RADIUS = 20,
-    RALLY_FORWARD = 30,
     FLED_PICKUP_RANGE = 50; // a retreating squad this near a fled man waiting for one takes him in
   var reconApi = null;
   root._commanderReconstitutionAttach = function (api) {
@@ -493,8 +496,11 @@
       recordMacroWake: recordMacroWake,
       RECON_STRENGTH: RECON_STRENGTH,
       RECON_MIN_STRENGTH: RECON_MIN_STRENGTH,
+      RECON_POOL_MAX: RECON_POOL_MAX,
+      RECON_MAX_CENTER_TRAVEL: RECON_MAX_CENTER_TRAVEL,
+      RECON_FORWARD_DETOUR: RECON_FORWARD_DETOUR,
+      RECON_FORWARD_MAX: RECON_FORWARD_MAX,
       RALLY_RADIUS: RALLY_RADIUS,
-      RALLY_FORWARD: RALLY_FORWARD,
       FLED_PICKUP_RANGE: FLED_PICKUP_RANGE
     };
   };
@@ -714,6 +720,10 @@
     reconstitute: reconstitute,
     reconstitutionStrength: RECON_STRENGTH,
     reconstitutionMinimumStrength: RECON_MIN_STRENGTH,
+    reconstitutionPoolMax: RECON_POOL_MAX,
+    reconstitutionMaxCenterTravel: RECON_MAX_CENTER_TRAVEL,
+    reconstitutionForwardDetour: RECON_FORWARD_DETOUR,
+    reconstitutionForwardMax: RECON_FORWARD_MAX,
     fledPickupRange: FLED_PICKUP_RANGE,
     policyFor: policy,
     genomeFor: genome,
