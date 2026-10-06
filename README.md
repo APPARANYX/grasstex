@@ -8,3 +8,8 @@ Live: `https://test.ivandpopov.com/grasstex/battle_sim.php`
 Everything else lives in [`AGENTS.md`](AGENTS.md): what's here, how to run it, every test harness,
 the M3C AI architecture, the asset/audio pipelines and deploy. Tactical doctrine is in
 [`docs/reference/AI_TACTICS_OUTLINE.md`](docs/reference/AI_TACTICS_OUTLINE.md).
+
+## License
+
+All rights reserved — this is proprietary code, not open source. See
+[`LICENSE`](LICENSE).
