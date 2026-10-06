@@ -308,3 +308,68 @@ jobs:
       # only on the server; a deploy must never delete or overwrite them. Needs the stamp above.
       - name: Deploy never touches unmanaged server files
         run: python3 scripts/check_deploy_safety.py
+
+  pr316-natural-reconstitution:
+    name: PR316 natural reconstitution canary
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'work/reconstitution-survivor-pool'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start local battle server
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/battle-www
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck" >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+
+      - name: Run 12 natural meeting battles
+        env:
+          BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.sha }}
+          BATTLE_BENCHMARK_COUNT: '12'
+          BATTLE_BENCHMARK_TIME_LIMIT: '600'
+          BATTLE_BENCHMARK_STEP: '0.15'
+          BATTLE_BENCHMARK_SEED: 'pr316-recon'
+          BATTLE_BENCHMARK_OUTPUT: 'reports/pr316-natural'
+          BATTLE_BENCHMARK_URL: 'http://127.0.0.1:8765/grasstex/battle_sim_local.php'
+        run: node scripts/run_battle_benchmark.mjs
+
+      - name: Require natural reconstitution
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const p = JSON.parse(fs.readFileSync('reports/pr316-natural/battle-benchmark.json', 'utf8'));
+          const rows = p.battles.map(b => ({
+            seed: b.seed,
+            groups: b.reconstitution?.groupsFormed || 0,
+            merges: b.reconstitution?.merges || 0,
+            sizes: (b.reconstitution?.merged || []).map(x => x.size)
+          }));
+          const groups = rows.reduce((n, r) => n + r.groups, 0);
+          const merges = rows.reduce((n, r) => n + r.merges, 0);
+          const withMerge = rows.filter(r => r.merges > 0).length;
+          console.log(JSON.stringify({ battles: rows.length, groups, merges, battlesWithMerge: withMerge, rows }, null, 2));
+          if (merges < 1) {
+            console.error('No natural reconstitution merge occurred in the 12-battle canary.');
+            process.exit(1);
+          }
+          NODE
+
