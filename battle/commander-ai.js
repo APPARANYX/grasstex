@@ -170,12 +170,36 @@
     var obj =
         m.objectiveId && root.BattleObjectiveSystem && root.BattleObjectiveSystem.get(sim, m.objectiveId),
       st = (obj && D.objectiveStatus(sim, obj)) || {};
+    /* B1: capture what the General saw when issuing the brief — enemy strength,
+       objective status, squad fit — so a replay explains why this brief was chosen. */
+    var A = root.SquadAI;
+    var enemyFaction = sq.faction === 'us' ? 'ge' : 'us';
+    var enemyAlive = (sim.factions && sim.factions[enemyFaction] && sim.factions[enemyFaction].alive) || 0;
+    var squadAlive = A && A.aliveMembers ? A.aliveMembers(sq).length : (sq.members || []).filter(function(s){return s && !s.dead;}).length;
+    var contact = A && A.squadContact ? A.squadContact(sq, sim) : null;
     return {
       version: m.version,
       owner: st.owner || 'neutral',
       vacant: !!st.vacantOwner,
-      catalog: catalogKey(sim)
+      catalog: catalogKey(sim),
+      enemyStrength: enemyAlive,
+      squadStrength: squadAlive,
+      inContact: !!sq.inContact,
+      hasContact: !!contact,
+      contactAge: contact ? (+sim.time || 0) - contact.at : null
     };
+  }
+  /* B1: confidence 0-1 based on intel quality (first-hand > heard > stale). */
+  function missionConfidence(sq, sim) {
+    var A = root.SquadAI;
+    if (!A || !A.squadContact) return 0.5;
+    var c = A.squadContact(sq, sim);
+    if (!c) return 0.3;
+    var age = (+sim.time || 0) - c.at;
+    if (c.source === 'seen' && age < 10) return 0.9;
+    if (c.source === 'seen' && age < 30) return 0.7;
+    if (c.source === 'heard') return 0.5;
+    return 0.4;
   }
   /* Brief lifecycle. Macro is the sole writer, including acceptance requested by the Squad
      Leader. Evaluated on event-driven wakes inside the 0.45 s commander tick; assembly acceptance
@@ -313,6 +337,7 @@
       requestKey: spec.requestKey || null,
       plannedObjectiveId: spec.plannedObjectiveId || null,
       reason: reason,
+      confidence: missionConfidence(sq, sim),
       key: key
     };
     sq._macroMission = m;
