@@ -1,0 +1,23 @@
+{
+  "id": "contested-airspace",
+  "description": "Contested airspace — both sides have air assets and AD, requiring careful allocation",
+  "seed": "scn-air-001",
+  "map": { "width": 1600, "depth": 1200 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 500, "spanZ": 400 },
+  "objectives": [
+    { "id": "obj-center", "type": "capture-zone", "x": 0, "z": 0, "radius": 35, "label": "Center", "value": 1.5, "captureSeconds": 15 },
+    { "id": "obj-flank", "type": "capture-zone", "x": 300, "z": 0, "radius": 25, "label": "Flank", "value": 1.0, "captureSeconds": 10 }
+  ],
+  "roads": [],
+  "buildings": [],
+  "spawnZones": {
+    "us": { "z": -500, "lanes": [-400, 0, 400] },
+    "ge": { "z": 500, "lanes": [-400, 0, 400] }
+  },
+  "squads": 5,
+  "airAssets": {
+    "us": [{ "type": "fighter", "count": 1 }, { "type": "strike-air", "count": 1 }],
+    "ge": [{ "type": "fighter", "count": 1 }, { "type": "recon-air", "count": 1 }]
+  },
+  "timeLimit": 600
+}

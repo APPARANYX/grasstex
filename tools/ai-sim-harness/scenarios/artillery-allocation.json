@@ -1,0 +1,23 @@
+{
+  "id": "artillery-allocation",
+  "description": "Artillery allocation — limited fire support must be split between two simultaneous efforts",
+  "seed": "scn-artillery-001",
+  "map": { "width": 1400, "depth": 1000 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 400, "spanZ": 350 },
+  "objectives": [
+    { "id": "obj-north", "type": "capture-zone", "x": 0, "z": -200, "radius": 25, "label": "North effort", "value": 1.0, "captureSeconds": 10 },
+    { "id": "obj-south", "type": "capture-zone", "x": 0, "z": 200, "radius": 25, "label": "South effort", "value": 1.0, "captureSeconds": 10 }
+  ],
+  "roads": [],
+  "buildings": [],
+  "spawnZones": {
+    "us": { "z": -400, "lanes": [-300, 0, 300] },
+    "ge": { "z": 400, "lanes": [-300, 0, 300] }
+  },
+  "squads": 5,
+  "fireAssets": {
+    "us": [{ "type": "mortar-team", "count": 1 }, { "type": "artillery-battery", "count": 1 }],
+    "ge": [{ "type": "mortar-team", "count": 2 }]
+  },
+  "timeLimit": 500
+}

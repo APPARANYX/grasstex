@@ -1,0 +1,18 @@
+{
+  "id": "open-ground",
+  "description": "Open-ground objective — two squads face off across flat terrain with one central objective",
+  "seed": "scn-open-ground-001",
+  "map": { "width": 1000, "depth": 600 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 200, "spanZ": 150 },
+  "objectives": [
+    { "id": "obj-center", "type": "capture-zone", "x": 0, "z": 0, "radius": 30, "label": "Central", "value": 1.0, "captureSeconds": 12 }
+  ],
+  "roads": [],
+  "buildings": [],
+  "spawnZones": {
+    "us": { "z": -250, "lanes": [-200, 0, 200] },
+    "ge": { "z": 250, "lanes": [-200, 0, 200] }
+  },
+  "squads": 3,
+  "timeLimit": 300
+}

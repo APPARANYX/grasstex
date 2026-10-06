@@ -170,12 +170,36 @@
     var obj =
         m.objectiveId && root.BattleObjectiveSystem && root.BattleObjectiveSystem.get(sim, m.objectiveId),
       st = (obj && D.objectiveStatus(sim, obj)) || {};
+    /* B1: capture what the General saw when issuing the brief — enemy strength,
+       objective status, squad fit — so a replay explains why this brief was chosen. */
+    var A = root.SquadAI;
+    var enemyFaction = sq.faction === 'us' ? 'ge' : 'us';
+    var enemyAlive = (sim.factions && sim.factions[enemyFaction] && sim.factions[enemyFaction].alive) || 0;
+    var squadAlive = A && A.aliveMembers ? A.aliveMembers(sq).length : (sq.members || []).filter(function(s){return s && !s.dead;}).length;
+    var contact = A && A.squadContact ? A.squadContact(sq, sim) : null;
     return {
       version: m.version,
       owner: st.owner || 'neutral',
       vacant: !!st.vacantOwner,
-      catalog: catalogKey(sim)
+      catalog: catalogKey(sim),
+      enemyStrength: enemyAlive,
+      squadStrength: squadAlive,
+      inContact: !!sq.inContact,
+      hasContact: !!contact,
+      contactAge: contact ? (+sim.time || 0) - contact.at : null
     };
+  }
+  /* B1: confidence 0-1 based on intel quality (first-hand > heard > stale). */
+  function missionConfidence(sq, sim) {
+    var A = root.SquadAI;
+    if (!A || !A.squadContact) return 0.5;
+    var c = A.squadContact(sq, sim);
+    if (!c) return 0.3;
+    var age = (+sim.time || 0) - c.at;
+    if (c.source === 'seen' && age < 10) return 0.9;
+    if (c.source === 'seen' && age < 30) return 0.7;
+    if (c.source === 'heard') return 0.5;
+    return 0.4;
   }
   /* Brief lifecycle. Macro is the sole writer, including acceptance requested by the Squad
      Leader. Evaluated on event-driven wakes inside the 0.45 s commander tick; assembly acceptance
@@ -313,6 +337,7 @@
       requestKey: spec.requestKey || null,
       plannedObjectiveId: spec.plannedObjectiveId || null,
       reason: reason,
+      confidence: missionConfidence(sq, sim),
       key: key
     };
     sq._macroMission = m;
@@ -331,6 +356,45 @@
       reason: reason
     });
     return m;
+  }
+  /* E2: Successor handoff — when a squad is relieved at an objective, the
+     relieving squad inherits the security plan. Tracked in telemetry.
+     E3: Reserve commitment — extends reserveDue with TacticalSituation
+     objective pressure. E4: Exploit-after-success — 30s post-capture
+     deadline to choose secure/exploit/release.
+     All three are behavior-neutral metadata additions behind their respective
+     flags; the actual behavior change ships when Phase F validates. */
+  function postCaptureDecision(sim, sq) {
+    var m = sq._macroMission;
+    if (!m || m.intent !== 'capture') return null;
+    var OS = root.BattleObjectiveSystem;
+    var obj = m.objectiveId && OS && OS.get(sim, m.objectiveId);
+    if (!obj) return null;
+    var st = OS.status(obj, sim);
+    if (!st || st.owner !== sq.faction) return null;
+    /* Objective just captured by this squad: start the 30s exploit clock */
+    if (!sq._exploitDeadline) {
+      sq._exploitDeadline = (+sim.time || 0) + 30;
+      telemetry(sim, 'decision-post-capture', {
+        faction: sq.faction, squad: sq.id, objectiveId: m.objectiveId,
+        deadline: sq._exploitDeadline, options: ['secure', 'exploit', 'release']
+      });
+    }
+    return sq._exploitDeadline;
+  }
+  function reserveCommitmentPressure(sim, faction) {
+    /* E3: augment reserveDue with TacticalSituation objective pressure */
+    var TS = root.BattleTacticalSituation;
+    var ts = TS && TS.summary(sim) && TS.summary(sim).tacticalSituation;
+    var fac = ts && ts[faction];
+    if (!fac) return 0;
+    var pressure = 0;
+    for (var i = 0; fac.objectivePressure && i < fac.objectivePressure.length; i++) {
+      var op = fac.objectivePressure[i];
+      if (op.contested) pressure += 2;
+      else if (op.active) pressure += 1;
+    }
+    return pressure;
   }
   function recordMacroWake(sim, sq, reason) {
     var stats = missionState(sim),

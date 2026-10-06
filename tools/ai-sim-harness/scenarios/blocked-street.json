@@ -1,0 +1,23 @@
+{
+  "id": "blocked-street",
+  "description": "Blocked street — a wall of buildings blocks the direct route, squads must find a way around",
+  "seed": "scn-blocked-001",
+  "map": { "width": 1000, "depth": 700 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 250, "spanZ": 200 },
+  "objectives": [
+    { "id": "obj-end", "type": "capture-zone", "x": 0, "z": 100, "radius": 25, "label": "Far end", "value": 1.0, "captureSeconds": 12 }
+  ],
+  "roads": [
+    { "id": "main", "ax": 0, "az": -200, "bx": 0, "bz": 200, "width": 8 }
+  ],
+  "buildings": [
+    { "id": "block1", "x": 20, "z": 0, "width": 25, "depth": 60 },
+    { "id": "block2", "x": -20, "z": 0, "width": 25, "depth": 60 }
+  ],
+  "spawnZones": {
+    "us": { "z": -300, "lanes": [0] },
+    "ge": { "z": 300, "lanes": [0] }
+  },
+  "squads": 2,
+  "timeLimit": 300
+}

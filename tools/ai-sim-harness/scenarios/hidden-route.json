@@ -1,0 +1,22 @@
+{
+  "id": "hidden-route",
+  "description": "Hidden upper/lower route — a hill blocks the direct path, a flanking route goes around",
+  "seed": "scn-hidden-001",
+  "map": { "width": 1200, "depth": 900 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 400, "spanZ": 350 },
+  "objectives": [
+    { "id": "obj-far", "type": "capture-zone", "x": 0, "z": 200, "radius": 30, "label": "Far objective", "value": 1.0, "captureSeconds": 12 }
+  ],
+  "roads": [
+    { "id": "direct", "ax": 0, "az": -300, "bx": 0, "bz": 300, "width": 8 },
+    { "id": "flank-r", "ax": 200, "az": -300, "bx": 200, "bz": 300, "width": 6 }
+  ],
+  "buildings": [],
+  "terrain": { "hillAt": { "x": 0, "z": 0 }, "hillHeight": 8, "hillRadius": 100 },
+  "spawnZones": {
+    "us": { "z": -400, "lanes": [0, 200] },
+    "ge": { "z": 400, "lanes": [0, 200] }
+  },
+  "squads": 3,
+  "timeLimit": 400
+}

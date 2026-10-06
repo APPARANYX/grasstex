@@ -1,0 +1,20 @@
+{
+  "id": "delayed-counterattack",
+  "description": "Delayed counterattack — defender holds, then commits reserves for a timed counterattack",
+  "seed": "scn-counterattack-001",
+  "map": { "width": 1200, "depth": 900 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 350, "spanZ": 300 },
+  "objectives": [
+    { "id": "obj-ridge", "type": "capture-zone", "x": 0, "z": 0, "radius": 35, "label": "Ridge", "value": 1.5, "captureSeconds": 15 }
+  ],
+  "roads": [],
+  "buildings": [],
+  "spawnZones": {
+    "us": { "z": -400, "lanes": [-300, 0, 300] },
+    "ge": { "z": 400, "lanes": [-300, 0, 300] }
+  },
+  "squads": 5,
+  "defender": "ge",
+  "reserveReleaseAt": 120,
+  "timeLimit": 500
+}

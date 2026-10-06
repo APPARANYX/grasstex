@@ -1,0 +1,20 @@
+{
+  "id": "single-structure",
+  "description": "Single structure — one large building is the objective, both sides want to clear and hold it",
+  "seed": "scn-structure-001",
+  "map": { "width": 800, "depth": 500 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 150, "spanZ": 150 },
+  "objectives": [
+    { "id": "obj-building", "type": "capture-zone", "x": 0, "z": 0, "radius": 35, "label": "Building", "value": 1.5, "captureSeconds": 15 }
+  ],
+  "roads": [],
+  "buildings": [
+    { "id": "main", "x": 0, "z": 0, "width": 50, "depth": 50 }
+  ],
+  "spawnZones": {
+    "us": { "z": -200, "lanes": [-100, 100] },
+    "ge": { "z": 200, "lanes": [-100, 100] }
+  },
+  "squads": 2,
+  "timeLimit": 300
+}

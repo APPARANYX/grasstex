@@ -204,6 +204,23 @@
         x: wp.x,
         z: wp.z
       });
+      /* B2: grant a diagnostic route-transition lease so the leg advancement
+         is visible in BattleLeases.active() and traceable in replays. */
+      L.grant(
+        sq,
+        'route-transition',
+        'squad-leader',
+        t,
+        t + 10,
+        'leg ' + from + ' -> ' + idx,
+        'arrival, new mission, contact or expiry',
+        {
+          leg: idx, from: from, target: { x: wp.x, z: wp.z }, missionVersion: missionVersion(sq),
+          /* D3: route-transition FSM state — enter -> traverse -> clear -> hold.
+             Diagnostic annotation behind ?streetControl=1. Does not change behavior. */
+          fsm: /[?&]streetControl=1\b/.test(typeof location !== 'undefined' ? location.search : '') ? 'traverse' : null
+        }
+      );
       if (urban) {
         L.grant(
           sq,

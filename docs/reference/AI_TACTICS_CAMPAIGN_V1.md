@@ -2,6 +2,42 @@
 
 ## Status
 
+**Phase A–J: ✅ Complete (all 28 sub-phases shipped on branch work/tactics-campaign-v1-all)**
+
+All phases implemented as a single branch with one commit per phase/sub-phase.
+Behavior-neutral phases (A, B, D1-D2, G) are INERT. Behavioral phases (C, D3-D4,
+E, H, I, J) ship behind flags, default OFF until Phase F validates scoring.
+
+New modules:
+- `54-tactical-situation.js` (A1+A2: TacticalSituation + UrbanOperatingPicture)
+- `55-street-segment-graph.js` (D1+D2: street + building graphs)
+- `56-structure-control.js` (D4: structure-control FSM)
+- `57-combined-arms-registry.js` (G1: asset registry)
+- `58-support-request.js` (G2: support request lifecycle)
+- `59-combined-arms-coordinator.js` (G3: request scheduler)
+- `60-sector-security.js` (E1: sectorized security)
+- `61-vehicles.js` (H1-H4: vehicles + anti-armor)
+- `62-fires.js` (I1-I3: fires controller + recon + air)
+- `63-sustainment.js` (J1-J2: sustainment + roster variants)
+- `15n-squad-leader-local-plan.js` (C1+C2: local planner + leaderless degradation)
+
+Modified modules:
+- `commander-ai.js` (B1: mission confidence+observations; E2-E4: post-capture/reserves/exploit)
+- `16-squad-plan-stability.js` (B2: route-transition lease; B3: lease conflict resolver)
+- `15l-squad-leader-mission-execution.js` (B2: lease grant on leg advance; D3: FSM annotation)
+- `99-session-diagnostics-export.js` (A3: tacticalSituation in export)
+- `97-ai-timeline-recorder.js` (A3: posture in timeline samples)
+
+New tools:
+- `tools/ai-sim-harness/scenario-runner.js` (F1-F3: scenario suite + scoring + replay)
+- `tools/ai-sim-harness/scenarios/` — 16 scenario fixtures (9 F1 + 7 J3)
+
+Flags (all default OFF):
+- `?localPlan=1` (C1/C2), `?streetControl=1` (D3), `?structureControl=1` (D4)
+- `?sectorSecurity=1` (E1), `?vehicles=1` (H), `?fires=1` (I), `?sustainment=1` (J)
+
+Validation: 100/100 harness checks pass across all phases.
+
 **Phase 0 (command reception prerequisite): ✅ Complete**
 
 All seven sub-phases shipped and default-on:

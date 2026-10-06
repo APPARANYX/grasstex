@@ -1,0 +1,20 @@
+{
+  "id": "squad-leader-loss",
+  "description": "Squad Leader loss — the attacking side's leader is killed early, testing succession",
+  "seed": "scn-loss-001",
+  "map": { "width": 800, "depth": 500 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 150, "spanZ": 100 },
+  "objectives": [
+    { "id": "obj-center", "type": "capture-zone", "x": 0, "z": 0, "radius": 25, "label": "Center", "value": 1.0, "captureSeconds": 10 }
+  ],
+  "roads": [],
+  "buildings": [],
+  "spawnZones": {
+    "us": { "z": -200, "lanes": [-100, 100] },
+    "ge": { "z": 200, "lanes": [-100, 100] }
+  },
+  "squads": 2,
+  "timeLimit": 250,
+  "killLeaderAt": 30,
+  "killLeaderFaction": "us"
+}

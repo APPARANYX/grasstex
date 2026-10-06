@@ -148,6 +148,12 @@ function sample(sim,st){
   var oc=objectiveCounts(sim),t=rounded(sim.time,2);
   var us=sampleSide(sim,st,'us'),ge=sampleSide(sim,st,'ge');
   us.held=oc.held.us;ge.held=oc.held.ge;us.contested=ge.contested=oc.contested;
+  /* A3: attach TacticalSituation posture snapshot to each timeline sample */
+  var ts=root.BattleTacticalSituation&&root.BattleTacticalSituation.summary(sim);
+  if(ts&&ts.tacticalSituation){
+    if(ts.tacticalSituation.us){us.posture=ts.tacticalSituation.us.forcePosture;us.contacts=ts.tacticalSituation.us.contactCount;us.reserves=ts.tacticalSituation.us.availableReserves;}
+    if(ts.tacticalSituation.ge){ge.posture=ts.tacticalSituation.ge.forcePosture;ge.contacts=ts.tacticalSituation.ge.contactCount;ge.reserves=ts.tacticalSituation.ge.availableReserves;}
+  }
   st.samples.push({t:t,us:us,ge:ge});
 }
 function tick(sim){

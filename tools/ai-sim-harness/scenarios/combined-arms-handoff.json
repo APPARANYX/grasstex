@@ -1,0 +1,27 @@
+{
+  "id": "combined-arms-handoff",
+  "description": "Combined-arms objective handoff — armor seizes, infantry secures, engineers breach",
+  "seed": "scn-handoff-001",
+  "map": { "width": 1200, "depth": 900 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 350, "spanZ": 300 },
+  "objectives": [
+    { "id": "obj-strongpoint", "type": "capture-zone", "x": 0, "z": 0, "radius": 40, "label": "Strongpoint", "value": 2.0, "captureSeconds": 20 }
+  ],
+  "roads": [
+    { "id": "approach", "ax": 0, "az": -400, "bx": 0, "bz": 0, "width": 8 }
+  ],
+  "buildings": [
+    { "id": "fortress", "x": 0, "z": 0, "width": 60, "depth": 60 }
+  ],
+  "spawnZones": {
+    "us": { "z": -400, "lanes": [-200, 0, 200] },
+    "ge": { "z": 400, "lanes": [-200, 0, 200] }
+  },
+  "squads": 4,
+  "vehicles": [
+    { "type": "medium-armor", "faction": "us", "count": 1 },
+    { "type": "assault-gun", "faction": "us", "count": 1 }
+  ],
+  "engineers": true,
+  "timeLimit": 500
+}
