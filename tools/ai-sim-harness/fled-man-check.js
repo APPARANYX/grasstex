@@ -367,6 +367,39 @@ test('at base he is issued a weapon again, is a man of a retreating squad of one
   assert.equal(w.r.BattleSoldierMind.telemetry(w.b).bySide.us.acts.flee.rearmed, 1);
 });
 
+test('rallied or re-briefed on his own he is not: no state, mission or plan of ordinary command reaches a fled detachment', () => {
+  const w = world(),
+    { s } = broken(w, { safe: { x: LANES[0], z: HOME_Z + 60 }, at: { x: LANES[0], z: HOME_Z + 400 } });
+  const lone = s.squad,
+    missions = new Set();
+  let draws = 0;
+  const real = w.b.random;
+  w.b.random = () => (draws++, real.call(w.b));
+  const before = draws;
+  /* The detachment's whole life - the wait at the refuge, the walk home, the rifle at base and
+     long past the 120 s dwell that sends a small retreating squad back out - with the General
+     briefing on every command tick. Nothing of ordinary command may reach him: the solo redeploy
+     and the morale rally are for squads that retreated, not for broken men, so no mission is ever
+     issued (and without a mission no plan phase runs: `approach` is the detach's inert scaffold,
+     `assault` can never come). He comes back under command by a roster rewrite only. */
+  run(w, 500, () => {
+    s.squad.contact = null;
+    missions.add(lone._macroMission ? lone._macroMission.intent + ':' + lone._macroMission.status : 'none');
+  });
+  assert.equal(s.eng.fledPhase, null, 'he got home');
+  assert.ok(s.weapon, 'and his rifle');
+  assert.equal(lone.fledId, s.id, 'the detachment is still what it is');
+  assert.equal(lone.state, 'retreat', 'no rally, no solo redeploy: retreat does not end for him');
+  assert.deepEqual([...missions], ['none'], 'the General never briefed him');
+  assert.ok(!lone._macroMission, 'and nothing of a mission remains on him');
+  assert.ok(
+    lone._assembly && lone._assembly.phase === 'at-base',
+    'at base, where reconstitution can group him'
+  );
+  assert.equal(s.countsForElimination, false, 'still counting for nobody');
+  assert.equal(draws, before, 'and none of it drew from the combat RNG');
+});
+
 test('a retreating squad out of contact near the waiting man takes him in; one in contact or far off does not', () => {
   const w = world();
   const a = squad(w, 0, 10, 150),
@@ -474,27 +507,37 @@ test('a lone man at base is grouped by reconstitution with the other survivors a
   squad(w, 1, 4, 20);
   squad(w, 2, 4, 20);
   squad(w, 3, 1, 20);
-  /* Run for 600s but the solo-redeploy threshold is 120s, so a lone 1-man squad
-     may rally on its own before the group can form. That is the intended new
-     behavior (small squads don't freeze forever). Check either a reconstituted
-     group OR the lone man having rallied. */
-  run(w, 100, () => (s.squad.contact = null));
-  var merged = w.b.factions.us.squads.find(q => q.reconstitutedFrom && !q.disbanded);
-  if (merged) {
-    assert.ok(merged.members.includes(s), 'he is in it');
-    assert.ok(s.weapon, 'armed');
-    assert.notEqual(merged.state, 'retreat');
-    assert.ok(merged.members.length >= 10);
-    invariants(w);
-  } else {
-    /* Solo redeploy: the 1-man squad rallied on its own after 120s at base. */
-    assert.ok(
-      s.squad.state !== 'retreat' ||
-        (s.squad._assembly && s.squad._assembly.since && w.b.time - s.squad._assembly.since < 120),
-      'either rallied or still within dwell window'
-    );
-  }
-  return;
+  /* The survivors are kept shaken (stress 0.4: past both the rally and the solo-redeploy lines) so
+     they wait at base in retreat for the fled man, whose 180 s wait at the refuge ends long after
+     their dwell window would otherwise send them back out on their own. He cannot rally out of it
+     himself (a fled detachment is refused every recovery path), so when he finally stands at base
+     the pool reaches a full squad's strength - 4 + 4 + 1 and him - and the group is his only road
+     back: it must form, and it must take him. */
+  const shaken = w.sq.slice(1).flatMap(q => q.members.filter(m => !m.dead));
+  const mergedYet = () => w.b.factions.us.squads.some(q => q.reconstitutedFrom && !q.disbanded);
+  run(w, 380, () => {
+    s.squad.contact = null;
+    if (!mergedYet()) shaken.forEach(m => (w.r.BattleSoldierMind.of(m).stress = 0.4));
+  });
+  const merged = w.b.factions.us.squads.find(q => q.reconstitutedFrom && !q.disbanded);
+  assert.ok(merged, 'the survivors and the fled man were pooled into one squad');
+  assert.ok(merged.members.includes(s), 'he is in it');
+  assert.equal(s.squad, merged, 'on its roster');
+  assert.ok(s.weapon, 'armed');
+  assert.ok(merged.members.length >= 10, 'a full squad');
+  assert.ok(
+    merged.members.every(m => m.squad === merged),
+    'every man of it on the one roster'
+  );
+  invariants(w);
+  /* Calm again (the pin is off), the reconstituted squad rallies and the General, who ignored the
+     detachment, briefs the squad the man is part of again - the only legal road back under
+     command, taken. */
+  run(w, 100);
+  assert.notEqual(merged.state, 'retreat', 'back in the fight');
+  assert.ok(merged._macroMission, 'the reconstituted squad holds a mission');
+  assert.ok(['executing', 'issued'].includes(merged._macroMission.status), 'a live one');
+  invariants(w);
 });
 
 test('an unarmed man runs through the whole pipeline: ammunition, sidearm, fire, the report and the snapshot', () => {
