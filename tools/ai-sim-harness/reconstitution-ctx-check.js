@@ -12,7 +12,7 @@
 
      - install: the module global exists, the factory takes exactly one ctx, and every name the
        moved bodies consume reaches it defined (D, telemetry, generalFor, missionState,
-       issueMission, finishMission, recordMacroWake and the five constants) - the var-ordering
+       issueMission, finishMission, recordMacroWake and the eight constants) - the var-ordering
        class of bug a moved constant or a renamed utility would introduce;
      - seam: BattleCommanderAI.reconstitute keeps the pre-split name and arity, the exported
        constants keep their values, and a bad api is rejected without disturbing the installed
@@ -83,7 +83,7 @@ function world() {
     x: 0,
     z: 0,
     objective: { x: 0, z: 100 },
-    composition: ['rifleman', 'rifleman', 'rifleman', 'rifleman', 'rifleman']
+    composition: ['rifleman', 'rifleman', 'rifleman', 'rifleman']
   });
   const sqB = H.addSquad(r, b, {
     id: 'us-2',
@@ -91,7 +91,7 @@ function world() {
     x: 4,
     z: 0,
     objective: { x: 0, z: 100 },
-    composition: ['rifleman', 'rifleman', 'rifleman', 'rifleman', 'rifleman']
+    composition: ['rifleman', 'rifleman', 'rifleman', 'rifleman']
   });
   [sqA, sqB].forEach(sq => {
     sq.state = 'retreat';
@@ -111,9 +111,12 @@ test('the module installs the verbatim set back into commander-ai.js through the
     [
       'D',
       'FLED_PICKUP_RANGE',
-      'RALLY_FORWARD',
       'RALLY_RADIUS',
+      'RECON_FORWARD_DETOUR',
+      'RECON_FORWARD_MAX',
+      'RECON_MAX_CENTER_TRAVEL',
       'RECON_MIN_STRENGTH',
+      'RECON_POOL_MAX',
       'RECON_STRENGTH',
       'finishMission',
       'generalFor',
@@ -132,6 +135,10 @@ test('the module installs the verbatim set back into commander-ai.js through the
     'squadById',
     'endGroup',
     'strongestFirst',
+    'squadPoint',
+    'centerPoint',
+    'chooseGroup',
+    'rallyGeometry',
     'rallyPoint',
     'formGroup',
     'dissolveGroup',
@@ -144,6 +151,10 @@ test('the module installs the verbatim set back into commander-ai.js through the
   assert.equal(api.squadById.length, 3, 'squadById(sim, faction, id)');
   assert.equal(api.endGroup.length, 5, 'endGroup(st, g, status, reason, t)');
   assert.equal(api.strongestFirst.length, 2, 'strongestFirst(sim, faction)');
+  assert.equal(api.squadPoint.length, 1, 'squadPoint(sq)');
+  assert.equal(api.centerPoint.length, 1, 'centerPoint(squads)');
+  assert.equal(api.chooseGroup.length, 1, 'chooseGroup(pool)');
+  assert.equal(api.rallyGeometry.length, 2, 'rallyGeometry(squads, plan)');
   assert.equal(api.rallyPoint.length, 4, 'rallyPoint(sim, faction, squads, plan)');
   assert.equal(api.formGroup.length, 3, 'formGroup(sim, faction, squads)');
   assert.equal(api.dissolveGroup.length, 4, 'dissolveGroup(sim, g, squads, reason)');
@@ -158,6 +169,10 @@ test('the parent seam keeps the pre-split name, arities and the exported constan
   assert.equal(C.reconstitute.length, 2, 'BattleCommanderAI.reconstitute(sim, faction)');
   assert.equal(C.reconstitutionStrength, 10, 'the target strength export still reads the parent constant');
   assert.equal(C.reconstitutionMinimumStrength, 6, 'the viable minimum stays owned by the parent');
+  assert.equal(C.reconstitutionPoolMax, 4, 'only 1-4 man remnants enter the survivor pool');
+  assert.equal(C.reconstitutionMaxCenterTravel, 300, 'geographic grouping cap stays parent-owned');
+  assert.equal(C.reconstitutionForwardDetour, 1.15, 'frontward rally detour budget stays parent-owned');
+  assert.equal(C.reconstitutionForwardMax, 180, 'frontward rally slide cap stays parent-owned');
   assert.equal(C.fledPickupRange, 50, 'the fled pickup export still reads the parent constant');
   assert.equal(
     C.missionState(b).reconstitution,
@@ -177,20 +192,28 @@ test('the parent seam keeps the pre-split name, arities and the exported constan
   assert.equal(C.missionState(b).reconstitution.groupsFormed, 1, 'the aggregate roll-up sees the group');
   assert.deepEqual(
     C.missionState(b).reconstitution.pool.us,
-    { survivors: 0, squads: [], ready: false, minimumStrength: 6, targetStrength: 10 },
+    {
+      survivors: 0,
+      squads: [],
+      ready: false,
+      blockedByDistance: false,
+      poolMax: 4,
+      minimumStrength: 6,
+      targetStrength: 10
+    },
     'the aggregate exposes the post-group survivor pool'
   );
   assert.notEqual(sqA, null, 'fixture sanity');
-  test('firing: a full pool forms one group, and the group at the rally point merges', () => {
+  test('firing: a viable 8-man pool forms one group, and the group at the rally point merges', () => {
     const { b, events, reformed, sqA, sqB, C } = world();
     C.reconstitute(b, 'us');
     const st = C.missionState(b).generals.us.reconstitution;
     assert.equal(st.serial, 1, 'one group formed');
-    assert.equal(st.groupsFormed, 1, 'the pool crossed RECON_STRENGTH once');
+    assert.equal(st.groupsFormed, 1, 'the pool crossed RECON_MIN_STRENGTH once');
     assert.equal(st.active.length, 1, 'the group is active');
     const g = st.active[0];
     assert.equal(g.id, 'us-reconstitution-1', "the group is the side's first reconstitution group");
-    assert.equal(g.squads.join(','), 'us-1,us-2', 'strongest-first order groups both squads');
+    assert.equal(g.squads.slice().sort().join(','), 'us-1,us-2', 'the nearby remnants group together');
     assert.equal(g.status, 'assembling', 'the group assembles first');
     assert.equal(g.objectiveId, 'obj-1', 'the planned objective rides on the group');
     assert.equal(sqA._reconGroup, g.id, 'both members are briefed to the group');
@@ -199,7 +222,13 @@ test('the parent seam keeps the pre-split name, arities and the exported constan
       events.some(e => e.type === 'decision-reconstitute-group' && e.data.group === g.id),
       'the group commit telemetry fired'
     );
-    assert.equal(g.rally.z, 30, 'the rally sits RALLY_FORWARD ahead of the spawn line centre');
+    assert.ok(g.forwardShift > 0, 'the neutral meeting point is nudged toward the next objective');
+    [sqA, sqB].forEach(sq => {
+      const p = r.BattleCommanderDoctrine.avgPos(sq),
+        direct = Math.hypot(p.x - g.center.x, p.z - g.center.z),
+        routed = Math.hypot(p.x - g.rally.x, p.z - g.rally.z);
+      assert.ok(routed <= direct * 1.15 + 1e-6, 'frontward slide stays inside the 15% travel budget');
+    });
 
     /* Everyone closed up on the rally point, out of contact: the next pass advances the group. */
     [sqA, sqB].forEach(sq => {
@@ -217,7 +246,7 @@ test('the parent seam keeps the pre-split name, arities and the exported constan
     assert.equal(end.endReason, 'reconstituted', 'the merge reason is reconstituted');
     assert.equal(reformed.length, 1, 'the Squad Leader rewrite was asked exactly once');
     assert.equal(reformed[0].survivor, 'us-1', 'the strongest (first) squad survives');
-    assert.equal(reformed[0].men, 10, 'all ten men move into the re-formed squad');
+    assert.equal(reformed[0].men, 8, 'all eight survivors move into the re-formed squad');
     assert.equal(reformed[0].strength, 10, 'the reform is asked for the reconstitution strength');
     assert.deepEqual(
       reformed[0].rally,
