@@ -74,6 +74,47 @@
       publishReconOrders(sq, battle);
       return;
     }
+    /* A 1-4 man retreating remnant is extracting, not maneuvering as fireteams. Do not manufacture
+       formation slots or a local regroup geometry around the slowest survivor: every living man gets
+       the same homeward retreat intent and Navigation/Movement Resolver may route him there independently.
+       Once Macro changes the assembly phase to a legitimate reconstitution rally this branch turns off
+       and ordinary grouped movement resumes toward that rally. */
+    if (root.SquadAI.isExtractionToHome(sq)) {
+      var home = copy(sq.home),
+        extractKey =
+          'remnant-extract|' + Math.round((+home.x || 0) * 2) + '|' + Math.round((+home.z || 0) * 2),
+        extractStats = publishStats(battle);
+      sq._fireteamOrders = {};
+      (sq.members || []).forEach(function (s) {
+        if (!s || s.dead) return;
+        s._fireteamKey = null;
+        s._defensePost = null;
+        extractStats.intentChecks++;
+        var previous = point(s._fireteamDestination);
+        if (
+          previous &&
+          dist(previous, home) <= ORDER_PUBLISH_EPS &&
+          s._fireteamPublishKey === extractKey &&
+          movementExecutionCurrent(s, battle)
+        ) {
+          extractStats.intentCoalesced++;
+          return;
+        }
+        publishPersonalMovement(
+          sq,
+          battle,
+          s,
+          home,
+          extractKey,
+          true,
+          'retreat',
+          'remnant extraction home',
+          extractStats
+        );
+      });
+      if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);
+      return;
+    }
     var defensive = !!DEFENSIVE[sq.commandPhase],
       defenseKey = signature(sq),
       regroup = sq.commandPhase === 'regroup' && sq.state !== 'retreat',
