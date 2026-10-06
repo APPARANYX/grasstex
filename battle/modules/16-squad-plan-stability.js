@@ -199,22 +199,24 @@
     typeof location !== 'undefined' ? location.search || '' : ''
   );
   var RECON_TUNING = {
-    lookAhead: 46,
-    objectiveApproach: 78,
+    /* Distances scaled to the restored 140-175 m spotting envelope. Scouts must physically crest
+       terrain rather than relying on the former 450-575 m vision override. */
+    lookAhead: 80,
+    objectiveApproach: 110,
     minGoalDistance: 20,
-    advance: 28,
-    pastScreen: 7,
+    advance: 50,
+    pastScreen: 12,
     arrive: 4.5,
     observe: 2.2,
-    timeout: 18,
+    timeout: 28,
     reportWatch: 5,
     /* Maximum grace for the main body to close the deliberate scout lead after a no-contact
        release. The existing regroup-bypass lease ends early as soon as the scouts are back inside
        the normal release band; this is a ceiling, not a blind hold timer. */
-    rejoin: 9,
+    rejoin: 12,
     pictureAge: 8,
     pictureConfidence: 0.45,
-    terrainSamples: 12,
+    terrainSamples: 20,
     eye: 1.55
   };
   var RECON_PHASES = { approach: 1, assault: 1, flank: 1, defend: 1 };
