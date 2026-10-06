@@ -139,13 +139,15 @@ test('a regroup replacement uses the same personal movement channel',()=>{
   assert.ok(distance(man._fireteamDestination,r.point)<1e-9);
 });
 
-test('tiny-remnant extraction replaces the old movement order through the normal adoption boundary',()=>{
+test('tiny-remnant extraction is an immediate survival fallback until a real command is adopted',()=>{
   const w=world(),men=allLive(w);
   issue(w);
   w.b.time=Math.max(...men.map(s=>pending(w,s).adoptedAt))+0.01;
   issue(w);
-  const survivor=men[0],old=point(survivor._fireteamDestination);
-  assert.ok(old);
+  const survivor=men[0],
+    old=point(survivor._fireteamDestination),
+    oldEnvelope=survivor._fireteamAdoptedEnvelope;
+  assert.ok(old&&oldEnvelope);
 
   men.slice(4).forEach(s=>{s.dead=true;});
   w.q.state='retreat';
@@ -155,20 +157,33 @@ test('tiny-remnant extraction replaces the old movement order through the normal
   w.Q.advanceSquadAnchor(w.q,w.b);
   issue(w);
 
-  const rec=pending(w,survivor),home=point(w.q.home);
+  const home=point(w.q.home);
   assert.equal(w.r.SquadAI.isExtractionToHome(w.q),true);
-  assert.ok(rec&&rec.adoptedAt>w.b.time);
-  assert.equal(rec.action,'retreat');
-  assert.equal(rec.reason,'remnant extraction home');
-  assert.ok(distance(rec.point,home)<1e-9,'the pending replacement is home, never a tactical midpoint');
-  assert.ok(distance(w.q.orderAnchor,home)<1e-9,'the Squad Leader anchor is already home');
-  assert.ok(distance(survivor._fireteamDestination,old)<1e-9,'the previous adopted order remains valid while home is pending');
+  assert.ok(distance(w.q.orderAnchor,home)<1e-9,'the Squad Leader anchor is home');
+  assert.ok(distance(survivor._fireteamDestination,home)<1e-9,'survival extraction applies home immediately');
+  assert.ok(survivor._survivalMovementKey,'survival owns movement while the remnant extracts');
+  assert.equal(survivor._fireteamAdoptedEnvelope,oldEnvelope,'the old tactical envelope remains history, not live authority');
+  assert.ok(w.calls.some(x=>x.id===String(survivor.id)&&x.urgent&&distance(x.point,home)<1e-9));
+
+  /* A legitimate reconstitution rally is a genuinely new command again. Home remains the active
+     survival fallback while that new spatial brief is pending, then Command Reception hands movement
+     back only when the new envelope is personally adopted. */
+  const rally={x:40,z:35},version=9;
+  w.q._macroMission={version,intent:'reconstitute',status:'executing',point:rally};
+  w.q._assembly={phase:'to-rally',since:w.b.time,missionVersion:version};
+  w.Q.advanceSquadAnchor(w.q,w.b);
+  issue(w);
+  const rec=pending(w,survivor);
+  assert.equal(w.r.SquadAI.isExtractionToHome(w.q),false);
+  assert.ok(rec&&rec.envelopeId!==oldEnvelope&&rec.adoptedAt>w.b.time);
+  assert.ok(distance(survivor._fireteamDestination,home)<1e-9,'home stays live while the recon rally command is pending');
+  assert.ok(survivor._survivalMovementKey);
 
   w.b.time=rec.adoptedAt+0.001;
   issue(w);
-  assert.equal(adopted(w,survivor).action,'retreat');
-  assert.ok(distance(survivor._fireteamDestination,home)<1e-9,'after adoption the survivor executes home');
-  assert.ok(w.calls.some(x=>x.id===String(survivor.id)&&x.urgent&&distance(x.point,home)<1e-9));
+  assert.equal(survivor._survivalMovementKey,null);
+  assert.equal(survivor._fireteamAdoptedEnvelope,rec.envelopeId);
+  assert.ok(distance(survivor._fireteamDestination,home)>0.05,'the adopted reconstitution movement takes authority back');
 });
 
 test('legacy/control arm still publishes the computed fireteam slots immediately',()=>{
