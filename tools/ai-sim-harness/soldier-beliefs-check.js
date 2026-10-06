@@ -121,7 +121,7 @@ test('aimed fire reveals a distant prone shooter origin and reports it to the sq
   const cold=w.S.detectionRange(w.S.ROLES[victim.role],shooter);
   assert.ok(260>cold,'the prone shooter is outside passive spotting range');
 
-  w.S.extend('shotModel','incoming-fire-check',()=>false);
+  w.S.extend('shotModel','ballistics',()=>false);
   shooter.target=victim;shooter.fireCooldown=0;w.b.time=2;
   assert.equal(w.S.tryFire(shooter,w.b),true,'shooter actually discharges an aimed burst');
 
