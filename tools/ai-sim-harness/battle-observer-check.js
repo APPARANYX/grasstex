@@ -57,6 +57,7 @@ assert.ok(snap.observer.windows[0].reasons.some(r=>r.kind==='low-forward-progres
 q.commandPhase='regroup';tick(15);
 q.commandPhase='approach';tick(16);
 snap=T.snapshot(sim);
+assert.equal(snap.markers.filter(m=>m.kind==='regroup-start').length,1,'regroup entry is explicit');
 assert.equal(snap.markers.filter(m=>m.kind==='regroup-end').length,1,'regroup recovery is explicit');
 assert.ok(snap.observer.windows[0].reasons.some(r=>r.kind==='regroup-start'));
 assert.ok(snap.observer.windows[0].reasons.some(r=>r.kind==='regroup-end'));
