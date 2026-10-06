@@ -26,8 +26,10 @@ function fixture(){
   const q=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:120,objective:{x:0,z:300},seed:SEED});
   q.home={x:0,z:0};q.orderAnchor={x:0,z:120};q.rally={x:0,z:120};q._orderGoal={x:0,z:120};
   q.members.forEach((s,i)=>{s.root.position.x=(i%2?-1:1)*(1+i*.15);s.root.position.z=120+(i%3);});
-  /* Six casualties at calm stress is the historical flat retreat threshold. */
-  q.members.slice(4).forEach(s=>{s.dead=true;});
+  /* Keep five survivors so this fixture exercises the ordinary squad-retreat anchor, not the
+     1-4-man extraction path. Stress holds the already-retreating squad below its morale-rally gate. */
+  q.members.slice(5).forEach(s=>{s.dead=true;});
+  q.state='retreat';q.mind={mean:.5,n:5,max:.5};
   return{r,b,q,L:r.BattleLeases,S:r.BattleSquadStability,systems};
 }
 function p(v){return v?{x:+v.x,z:+v.z}:null;}
@@ -43,6 +45,42 @@ function moveTowardOrders(w,metres){
     s.root.position.x+=dx/len*step;s.root.position.z+=dz/len*step;
   }
 }
+test('a 1-4 man remnant extracts straight home and never recentres on a lagging survivor',()=>{
+  const w=fixture();
+  /* Cross the shared remnant boundary and recreate GE-0's geometry: one man is already far toward home,
+     two are in the middle, and one is still far forward. Tactical cohesion is intentionally awful. */
+  const men=live(w.q);
+  men[4].dead=true;
+  w.q.mind={mean:.5,n:4,max:.5};
+  const a=live(w.q);
+  a[0].root.position.z=32;
+  a[1].root.position.z=78;
+  a[2].root.position.z=118;
+  a[3].root.position.z=156;
+  w.q._regroupRecovery={serial:9,startedAt:w.b.time,anchor:{x:0,z:94}};
+  w.q.orderAnchor={x:0,z:118};w.q.rally={x:0,z:118};
+  const home={x:0,z:0};
+  for(let tick=0;tick<24;tick++){
+    command(w,.45);
+    assert.equal(w.q.state,'retreat');
+    assert.ok(w.r.SquadAI.isExtractionToHome(w.q),'the four-man squad stays in extraction state');
+    assert.deepEqual(p(w.q.orderAnchor),home,'the squad anchor is home, never a midpoint');
+    assert.equal(w.L.get(w.q,'retreat-anchor'),null,'tiny extraction holds no sliding retreat-anchor lease');
+    assert.equal(w.q._regroupRecovery,null,'old tactical regroup recovery is discarded');
+    for(const man of live(w.q)){
+      assert.deepEqual(p(man.orderDestination),home,'every survivor is independently ordered home');
+      assert.deepEqual(p(man._fireteamDestination),home,'no formation slot replaces the homeward intent');
+    }
+    /* Three survivors make progress; the forward straggler is effectively frozen/dazed for the whole
+       interval. His presence must never pull the men already rearward back toward him. */
+    for(let i=0;i<3;i++){
+      const man=a[i],z=man.root.position.z;
+      man.root.position.z=Math.max(0,z-2.5);
+    }
+  }
+  assert.ok(a[0].root.position.z<a[1].root.position.z,'the leading survivor is allowed to stay far ahead');
+  assert.equal(a[3].root.position.z,156,'the delayed survivor may lag without becoming a rally point');
+});
 test('many retreat ticks keep one leased useful anchor and coalesce identical urgent intents',()=>{
   const w=fixture(),T=w.S.tuning.retreatAnchor;
   const first=command(w);
