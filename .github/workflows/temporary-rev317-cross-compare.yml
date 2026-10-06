@@ -1,0 +1,53 @@
+name: Temporary revision 317 cross comparator
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/temporary-rev317-cross-compare.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  compare:
+    if: ${{ github.event.pull_request.head.ref == 'work/rev317-cross-compare' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/compare_benchmark_arms.cjs
+          sparse-checkout-cone-mode: false
+      - name: Download PRE and POST shard artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p pre post reports
+          for run_spec in "37546970899 pre" "37546973287 post"; do
+            set -- $run_spec; run="$1"; out="$2"
+            gh api "repos/${{ github.repository }}/actions/runs/$run/artifacts?per_page=100" --jq '.artifacts[] | select(.name|test("shard-")) | [.id,.name] | @tsv' |
+            while IFS=$'\t' read -r id name; do
+              mkdir -p "$out/$name"
+              gh api "repos/${{ github.repository }}/actions/artifacts/$id/zip" > "/tmp/$id.zip"
+              unzip -q "/tmp/$id.zip" -d "$out/$name"
+            done
+          done
+      - name: Compare PRE against POST, paired by seed
+        run: |
+          set -euo pipefail
+          pre="$(find pre -path '*/off/battle-benchmark.json' | sort | paste -sd, -)"
+          post="$(find post -path '*/off/battle-benchmark.json' | sort | paste -sd, -)"
+          args=()
+          for c in casualties usKills geKills fire.total fire.hits retreatSamples movementResolver.changes movementStalls.length routeStalls.length targetlessStalls.length vacantObjectiveStalls.length loopAlerts.length writerConflicts regroups.entries stallOutcomes.wakes stallOutcomes.repeats timeline.stalledOnsets timeline.stalledSamples recon.orders recon.contacts recon.noContact recon.timeouts recon.cancelled recon.reportsDelivered recon.retriggerBlocked squadPerformance.meanOverall squadPerformance.p10Overall squadPerformance.lowScoreSquads squadPerformance.meanMission squadPerformance.meanMovement squadPerformance.meanControl squadPerformance.meanCohesion; do args+=(--count "$c"); done
+          node scripts/compare_benchmark_arms.cjs "${args[@]}" "$pre" "$post" | tee reports/rev317-cross-compare.json
+      - name: Summarize cross revision result
+        run: |
+          node - <<'NODE'
+          const fs=require('fs'); const x=JSON.parse(fs.readFileSync('reports/rev317-cross-compare.json','utf8'));
+          console.log(JSON.stringify(x,null,2));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rev317-cross-compare
+          path: reports/
