@@ -1,0 +1,29 @@
+name: Temporary tactical-default formatter
+
+on:
+  push:
+    branches:
+      - work/default-broadcast-fireteam-split
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/default-broadcast-fireteam-split
+      - name: Format changed JavaScript
+        run: |
+          npx --yes prettier@3.3.3 --write             battle/modules/49-squad-broadcast.js             battle/modules/16-squad-plan-stability.js             battle/modules/15j-squad-leader-fire-and-movement.js             tools/ai-sim-harness/tactical-default-flags-check.js
+          if git diff --quiet; then
+            echo "Already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add             battle/modules/49-squad-broadcast.js             battle/modules/16-squad-plan-stability.js             battle/modules/15j-squad-leader-fire-and-movement.js             tools/ai-sim-harness/tactical-default-flags-check.js
+          git commit -m "Format tactical default changes"
+          git push origin HEAD:work/default-broadcast-fireteam-split
