@@ -131,6 +131,19 @@
   L.define('regroup-cooldown', { priority: 20, timer: true });
   L.define('bound-cycle', { priority: 15, timer: true });
   L.define('regroup-bypass', { priority: 10, timer: true });
+  /* B2: route-transition lease — diagnostic only, tracks which leg the squad is
+     transitioning through, progress, and abort reason. Does not change behavior. */
+  L.define('route-transition', {
+    priority: 5,
+    timer: true,
+    progress: function (sq, lease, t) {
+      var d = (lease && lease.data) || {};
+      return {
+        ok: d.leg != null ? true : null,
+        detail: 'leg ' + d.leg + ' -> ' + (d.target || '?') + ' (' + Math.max(0, t - lease.since).toFixed(1) + 's)'
+      };
+    }
+  });
   L.define('rally-recovery', {
     priority: 88,
     progress: function (sq, lease, t) {

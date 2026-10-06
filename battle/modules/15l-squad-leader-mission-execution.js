@@ -204,6 +204,18 @@
         x: wp.x,
         z: wp.z
       });
+      /* B2: grant a diagnostic route-transition lease so the leg advancement
+         is visible in BattleLeases.active() and traceable in replays. */
+      L.grant(
+        sq,
+        'route-transition',
+        'squad-leader',
+        t,
+        t + 10,
+        'leg ' + from + ' -> ' + idx,
+        'arrival, new mission, contact or expiry',
+        { leg: idx, from: from, target: { x: wp.x, z: wp.z }, missionVersion: missionVersion(sq) }
+      );
       if (urban) {
         L.grant(
           sq,
