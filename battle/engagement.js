@@ -937,6 +937,9 @@
   function releaseFled(s, battle, why) {
     return stressImpl().releaseFled(s, battle, why);
   }
+  function restoreFledForceCount(s, battle, why) {
+    return stressImpl().restoreFledForceCount(s, battle, why);
+  }
 
   /* ---- per-soldier update ------------------------------------------------------------------ */
 
@@ -1681,6 +1684,7 @@
     reactionState: reactionState,
     fledPhase: fledPhase,
     releaseFled: releaseFled,
+    restoreFledForceCount: restoreFledForceCount,
     guardOnHit: guardOnHit,
     entranced: entranced,
     noteKill: noteKill,

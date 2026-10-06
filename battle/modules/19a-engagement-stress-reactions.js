@@ -295,6 +295,21 @@
       s.countsForElimination = true;
       return true;
     }
+    /* Reconstitution is the other legal hand-back into the fighting force. By then the fled
+       phase has ended at base, so pickup's releaseFled guard deliberately cannot serve it.
+       Engagement still owns the force-count mark it wrote at the break; Macro only reports
+       that a successful roster merge happened. */
+    function restoreFledForceCount(s, battle, why) {
+      if (!s || s.dead || s.countsForElimination !== false) return false;
+      s.countsForElimination = true;
+      telemetry(battle, 'decision-fled-force-restored', {
+        faction: s.faction,
+        soldier: s.id,
+        squad: s.squad ? s.squad.id : null,
+        reason: why || 'reconstitution'
+      });
+      return true;
+    }
     function fledPhase(s) {
       return (s && s.eng && s.eng.fledPhase) || null;
     }
@@ -495,7 +510,8 @@
       finishFreeze: finishFreeze,
       fledPhase: fledPhase,
       fledTick: fledTick,
-      releaseFled: releaseFled
+      releaseFled: releaseFled,
+      restoreFledForceCount: restoreFledForceCount
     };
   };
 
