@@ -133,8 +133,9 @@
       r.pinned >= r.effective
     )
       return;
-    /* Phase 0G3: multi-contact gate. When ?fireteamSplit=1 is on and the squad has active
-       contacts in 2+ threat sectors (via squadContactsMap), suppress bounding and hold
+    /* Phase 0G3: multi-contact gate. When fireteam split is on (the shipped default;
+       ?fireteamSplit=0 is the legacy control) and the squad has active contacts in 2+
+       threat sectors (via squadContactsMap), suppress bounding and hold
        position. A squad that bounds into one threat while ignoring another is advancing into
        a crossfire; holding lets both sectors be engaged before continuing. The Squad Leader
        can still issue fire-control and individual men can still fire at both sectors via
