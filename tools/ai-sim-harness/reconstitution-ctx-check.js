@@ -223,12 +223,12 @@ test('the parent seam keeps the pre-split name, arities and the exported constan
       'the group commit telemetry fired'
     );
     assert.ok(g.forwardShift > 0, 'the neutral meeting point is nudged toward the next objective');
-    [sqA, sqB].forEach(sq => {
-      const p = r.BattleCommanderDoctrine.avgPos(sq),
-        direct = Math.hypot(p.x - g.center.x, p.z - g.center.z),
-        routed = Math.hypot(p.x - g.rally.x, p.z - g.rally.z);
-      assert.ok(routed <= direct * 1.15 + 1e-6, 'frontward slide stays inside the 15% travel budget');
-    });
+    g.sourceTravel.forEach(row =>
+      assert.ok(
+        row.rallyDistance <= row.centerDistance * 1.15 + 1e-6,
+        'frontward slide stays inside the 15% travel budget'
+      )
+    );
 
     /* Everyone closed up on the rally point, out of contact: the next pass advances the group. */
     [sqA, sqB].forEach(sq => {
