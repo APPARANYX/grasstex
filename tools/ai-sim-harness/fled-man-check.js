@@ -562,7 +562,11 @@ test('a lone man at base is grouped by reconstitution with the other survivors a
     merged.members.every(m => m.squad === merged),
     'every man of it on the one roster'
   );
-  assert.equal(s.countsForElimination, true, 'reconstitution returns the former fled man to force accounting');
+  assert.equal(
+    s.countsForElimination,
+    true,
+    'reconstitution returns the former fled man to force accounting'
+  );
   assert.ok(
     w.r.BattleCommanderDoctrine.forceUnits(w.b, 'us').includes(s),
     'the General counts him again after the successful roster merge'
