@@ -139,6 +139,38 @@ test('a regroup replacement uses the same personal movement channel',()=>{
   assert.ok(distance(man._fireteamDestination,r.point)<1e-9);
 });
 
+test('tiny-remnant extraction replaces the old movement order through the normal adoption boundary',()=>{
+  const w=world(),men=allLive(w);
+  issue(w);
+  w.b.time=Math.max(...men.map(s=>pending(w,s).adoptedAt))+0.01;
+  issue(w);
+  const survivor=men[0],old=point(survivor._fireteamDestination);
+  assert.ok(old);
+
+  men.slice(4).forEach(s=>{s.dead=true;});
+  w.q.state='retreat';
+  w.q._assembly={phase:'to-base',since:w.b.time,missionVersion:null};
+  w.q._moraleRallyPoint=null;
+  w.q.orderAnchor={x:0,z:80};w.q.rally={x:0,z:80};
+  w.Q.advanceSquadAnchor(w.q,w.b);
+  issue(w);
+
+  const rec=pending(w,survivor),home=point(w.q.home);
+  assert.equal(w.r.SquadAI.isExtractionToHome(w.q),true);
+  assert.ok(rec&&rec.adoptedAt>w.b.time);
+  assert.equal(rec.action,'retreat');
+  assert.equal(rec.reason,'remnant extraction home');
+  assert.ok(distance(rec.point,home)<1e-9,'the pending replacement is home, never a tactical midpoint');
+  assert.ok(distance(w.q.orderAnchor,home)<1e-9,'the Squad Leader anchor is already home');
+  assert.ok(distance(survivor._fireteamDestination,old)<1e-9,'the previous adopted order remains valid while home is pending');
+
+  w.b.time=rec.adoptedAt+0.001;
+  issue(w);
+  assert.equal(adopted(w,survivor).action,'retreat');
+  assert.ok(distance(survivor._fireteamDestination,home)<1e-9,'after adoption the survivor executes home');
+  assert.ok(w.calls.some(x=>x.id===String(survivor.id)&&x.urgent&&distance(x.point,home)<1e-9));
+});
+
 test('legacy/control arm still publishes the computed fireteam slots immediately',()=>{
   const w=world('?stressAct=0&commandMovement=0');
   issue(w);
