@@ -141,6 +141,35 @@ assert.ok(
 );
 assert.ok(snapshot.observer.windows[0].frames.length >= 6, 'focus window retains the pre-alert ring buffer');
 
+/* A producer that refreshes the same semantic alert every sim tick must not flood the timeline.
+   Use changing timestamps and no stable key to reproduce the real benchmark symptom from #344. */
+loopAlerts = [
+  {
+    kind: 'posture-churn',
+    severity: 'warn',
+    faction: 'us',
+    squadId: 'US-1',
+    soldierId: 'u1',
+    at: 3.6,
+    message: 'Repeated stance changes',
+    stanceChanges: 6,
+    travel: 1,
+    net: 0.2,
+    inContact: true
+  }
+];
+sim.time = 3.6;
+system.onSimulationStep(sim);
+loopAlerts[0].at = 3.75;
+sim.time = 3.75;
+system.onSimulationStep(sim);
+snapshot = timeline.snapshot(sim);
+assert.equal(
+  snapshot.markers.filter(marker => marker.kind === 'loop-alert').length,
+  1,
+  'same semantic loop alert inside one diagnostic episode is collapsed'
+);
+
 timeline.observeEvent(sim, 'vacant-objective-stall', {
   t: 4,
   side: 'us',
