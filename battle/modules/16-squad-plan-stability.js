@@ -1641,6 +1641,18 @@
   function advanceSquadAnchor(sq, battle) {
     var anchor = sq.orderAnchor || publishAnchor(sq, sq.rally);
     if (sq.state === 'retreat') {
+      if (root.SquadAI.isExtractionToHome(sq)) {
+        /* A tiny remnant is no longer maneuvering as a formation. Home is the sole Squad Leader
+           anchor until Macro legitimately reconstitutes it; never rebase the anchor toward a slow
+           or dazed straggler and thereby pull survivors who are already farther rearward back toward
+           the fight. Navigation still owns obstacle avoidance for each man's homeward route. */
+        if (L.get(sq, 'retreat-anchor')) L.end(sq, 'retreat-anchor', battle.time, 'remnant extraction uses home');
+        sq._regroupRecovery = null;
+        publishAnchor(sq, sq.home);
+        sq._orderGoal = copy(sq.home);
+        if (leaderlessActive(sq)) noteLeaderlessAction(sq, battle, 'retreat', 'remnant extraction continues');
+        return;
+      }
       stableRetreatAnchor(sq, battle);
       if (leaderlessActive(sq)) noteLeaderlessAction(sq, battle, 'retreat', 'survival retreat continues');
       return;
