@@ -155,7 +155,9 @@ test('300 s reset leaves an owned defender and a recently progressing squad alon
 });
 test('objective progress starts a fresh recovery episode',()=>{
   const f=fixture();f.tick();f.sim._coordinationHealth={lastObjectiveProgressAt:{us:0},sides:{us:{objectiveStallSeconds:241}}};f.sim.time=241;f.tick();
-  assert.equal(f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us.completed,3);
+  const g=f.r.BattleCommanderAI.generalFor(f.sim,'us');
+  assert.equal(f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us.completed,1);
+  assert.ok(g.lastAdoptionHold&&g.lastAdoptionHold.stage==='release','later stages hold on the previous stage\'s unaccepted brief in the same tick');
   f.sim._coordinationHealth={lastObjectiveProgressAt:{us:250},sides:{us:{objectiveStallSeconds:10}}};f.sim.time=260;f.tick();
   const r=f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us;assert.equal(r.completed,0);assert.equal(r.episode,'250');
   f.sim._coordinationHealth.sides.us.objectiveStallSeconds=121;f.sim.time=371;f.tick();

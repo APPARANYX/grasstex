@@ -89,7 +89,17 @@
       lastWake: null,
       recentWakes: [],
       lastStall: null,
-      stallRecovery: { episode: null, completed: 0, mainEffort: null, history: [], progress: {} },
+      lastAdoptionHold: null,
+      stallRecovery: {
+        episode: null,
+        completed: 0,
+        mainEffort: null,
+        history: [],
+        progress: {},
+        passes: 0,
+        wakes: {},
+        lastReviewAt: null
+      },
       reconstitution: null
     };
   }
