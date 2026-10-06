@@ -31,21 +31,23 @@ function clipTable(root = ROOT) {
 }
 
 /* The source text of `function name(...) {...}`, brace-matched (these functions hold no braces in
-   strings or regexes), and of each `NAME=` declarator up to its terminating comma or semicolon. */
+   strings or regexes), and of each `NAME=` declarator up to its terminating comma or semicolon.
+   Formatting-tolerant since the Prettier ratchet (#304): declarations may be indented inside the
+   IIFE and declarators may carry spaces around `=`. What matters is the code, not its layout. */
 function converterText(src) {
   const parts = [];
   for (const name of CONVERTER_FUNCTIONS) {
-    const at = src.indexOf(`\nfunction ${name}(`);
-    if (at < 0) throw new Error(`${BACKEND}: function ${name} not found`);
-    let i = src.indexOf('{', at), depth = 0;
+    const m = new RegExp(`^[ \\t]*function ${name}\\(`, 'm').exec(src);
+    if (!m) throw new Error(`${BACKEND}: function ${name} not found`);
+    let i = src.indexOf('{', m.index), depth = 0;
     for (; i < src.length; i++) {
       if (src[i] === '{') depth++;
       else if (src[i] === '}' && --depth === 0) break;
     }
-    parts.push(src.slice(at + 1, i + 1));
+    parts.push(src.slice(m.index, i + 1));
   }
   for (const name of CONVERTER_VARS) {
-    const m = new RegExp(`[\\s,]${name}=`).exec(src);
+    const m = new RegExp(`[\\s,]${name}[ \\t]*=`).exec(src);
     if (!m) throw new Error(`${BACKEND}: ${name}= not found`);
     let i = m.index + m[0].length, depth = 0;
     for (; i < src.length; i++) {
