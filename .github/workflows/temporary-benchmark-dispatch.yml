@@ -1,0 +1,32 @@
+name: Temporary benchmark dispatcher
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/temporary-benchmark-dispatch.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    if: ${{ github.event.pull_request.head.ref == 'work/benchmark-dispatch-317' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch 200-seed standard control benchmark on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run battle-benchmark-standard.yml \
+            --repo "${{ github.repository }}" \
+            --ref main \
+            -f seed=post-317 \
+            -f seeds=200 \
+            -f query_off='' \
+            -f query_on='' \
+            -f battle_type=meeting \
+            -f windows=contact+120 \
+            -f origin_agent=chatgpt \
+            -f correlation_id=post-317-200 \
+            -f purpose='Post-317 remnant extraction functional regression control'
