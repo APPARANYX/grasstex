@@ -36,7 +36,6 @@
     pressEnemyClearance: 35,
     scoutLead: 4,
     gunnerTrail: 3,
-    objectiveHoldWin: 35,
     decisionSnapshotSeconds: 5
   };
   var RANGES = {
@@ -60,7 +59,6 @@
     pressEnemyClearance: [18, 65],
     scoutLead: [0, 10],
     gunnerTrail: [0, 8],
-    objectiveHoldWin: [20, 60],
     decisionSnapshotSeconds: [3, 12]
   };
   var TUNABLE = [

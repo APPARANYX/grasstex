@@ -150,12 +150,11 @@ test('the consumers read the defaults: Force Command doctrine and the Squad Lead
   for (const f of ['us', 'ge']) {
     assert.equal(D.genomeOff(), true, 'genome off while stashed');
     for (const k of Object.keys(P.defaults.parameters))
-      if (k !== 'objectiveHoldWin')
-        assert.equal(
-          D.policyFor(sim, f)[k],
-          P.defaults.parameters[k],
-          f + ' tuning number ' + k + ' (module 16 reads these through policyFor)'
-        );
+      assert.equal(
+        D.policyFor(sim, f)[k],
+        P.defaults.parameters[k],
+        f + ' tuning number ' + k + ' (module 16 reads these through policyFor)'
+      );
     same(D.doctrineFor(sim, f), P.defaults.doctrine, f + ' doctrine');
     same(D.genomeFor(sim, f).rules, P.defaults.rules, f + ' rules');
     assert.equal(D.policyFor(sim, f).cohesionRadius, 34);
@@ -218,12 +217,8 @@ test('the two copies of the defaults agree (the genome, and the doctrine module 
   });
   const D = root.BattleCommanderDoctrine,
     defaults = root.BattleAIPolicy.defaults;
-  /* objectiveHoldWin is a genome parameter nothing reads (commander-ai.js uses its own OBJECTIVE_HOLD_WIN). */
-  const unread = new Set(['objectiveHoldWin']);
-  for (const k of Object.keys(defaults.parameters)) {
-    if (unread.has(k)) continue;
+  for (const k of Object.keys(defaults.parameters))
     assert.equal(D.FALLBACK[k], defaults.parameters[k], 'parameter ' + k);
-  }
   for (const k of Object.keys(D.FALLBACK))
     assert.ok(k in defaults.parameters, 'the fallback has a parameter the genome does not: ' + k);
   same(D.FALLBACK_DOCTRINE, defaults.doctrine, 'doctrine numbers');
@@ -304,11 +299,15 @@ test('control: with the genome on, Force Command decides by the genome, not the 
 });
 
 test('Force Command asks the doctrine module for a rule, never the genome module around it', () => {
-  assert.equal(
-    /BattleAIPolicy\s*\.\s*decide/.test(read('battle/commander-ai.js')),
-    false,
-    'commander-ai.js decides through BattleCommanderDoctrine.ruleFor'
-  );
+  /* The brief decision itself moved to module 22a in the reconstitution split; both it and the
+     parent file stay scanned (commander-doctrine.js is the one sanctioned door: ruleFor itself
+     may call BattleAIPolicy.decide when the genome is live). */
+  for (const f of ['battle/commander-ai.js', 'battle/modules/22a-commander-strategic-recovery.js'])
+    assert.equal(
+      /BattleAIPolicy\s*\.\s*decide/.test(read(f)),
+      false,
+      f + ' decides through BattleCommanderDoctrine.ruleFor'
+    );
 });
 
 test('control: with the switch flipped the same hostile inputs take effect', async () => {

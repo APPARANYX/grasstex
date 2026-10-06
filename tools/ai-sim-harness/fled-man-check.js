@@ -63,13 +63,31 @@ function world(search) {
   r.BattleSim = { start() {} };
   load(r, 'battle/modules/08-soldier-events.js', search);
   load(r, 'battle/modules/17-soldier-mind.js', search);
-  load(r, 'battle/commander-doctrine.js');
+  load(r, 'battle/commander-doctrine.js', search);
   load(r, 'battle/commander-routes.js');
   load(r, 'battle/commander-ai.js');
   load(r, 'battle/modules/22-commander-reconstitution.js');
-load(r, 'battle/modules/22a-commander-strategic-recovery.js');
+  load(r, 'battle/modules/22a-commander-strategic-recovery.js');
   load(r, 'battle/movement-resolver.js');
-  load(r, 'battle/modules/15a-squad-leader-fire-control.js', search); load(r, 'battle/modules/15b-squad-leader-buddy-pairs.js','battle/modules/15c-squad-leader-scouts-forward.js', search); load(r, 'battle/modules/15c-squad-leader-scouts-forward.js', search); load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/15g-squad-leader-formation.js');load(r,'battle/modules/15h-squad-leader-fireteams.js');load(r,'battle/modules/15i-squad-leader-clear-contact.js');load(r,'battle/modules/15j-squad-leader-fire-and-movement.js');load(r,'battle/modules/15k-squad-leader-reconstitution.js');load(r,'battle/modules/15l-squad-leader-mission-execution.js');load(r,'battle/modules/15m-squad-leader-cohesion-regroup.js');load(r,'battle/modules/16-squad-plan-stability.js', search);
+  load(r, 'battle/modules/15a-squad-leader-fire-control.js', search);
+  load(
+    r,
+    'battle/modules/15b-squad-leader-buddy-pairs.js',
+    'battle/modules/15c-squad-leader-scouts-forward.js',
+    search
+  );
+  load(r, 'battle/modules/15c-squad-leader-scouts-forward.js', search);
+  load(r, 'battle/modules/15d-squad-leader-leaderless-intent.js');
+  load(r, 'battle/modules/15e-squad-leader-morale-coa.js');
+  load(r, 'battle/modules/15f-squad-leader-retreat-anchor.js');
+  load(r, 'battle/modules/15g-squad-leader-formation.js');
+  load(r, 'battle/modules/15h-squad-leader-fireteams.js');
+  load(r, 'battle/modules/15i-squad-leader-clear-contact.js');
+  load(r, 'battle/modules/15j-squad-leader-fire-and-movement.js');
+  load(r, 'battle/modules/15k-squad-leader-reconstitution.js');
+  load(r, 'battle/modules/15l-squad-leader-mission-execution.js');
+  load(r, 'battle/modules/15m-squad-leader-cohesion-regroup.js');
+  load(r, 'battle/modules/16-squad-plan-stability.js', search);
   load(r, 'battle/modules/46-ammunition-stoppages.js', search);
   const b = H.makeBattle(r);
   b.macroCommandEnabled = true;
@@ -214,11 +232,20 @@ test("he leaves his weapons, tells the soldier condition and runs to the squad's
   assert.equal(s.weapon, null, 'the rifle stays where he stood');
   assert.equal(s.secondary, null);
   assert.equal(E(w).fledPhase(s), 'run');
+  /* Out of the fight, out of the count: the General's force accounting (elimination and the
+     time-limit force score) does not see him until a retreating squad takes him in. */
+  assert.equal(s.countsForElimination, false, 'a fled man does not count toward elimination');
+  const force = w.r.BattleCommanderDoctrine.forceUnits(w.b, 'us');
+  assert.ok(!force.includes(s), 'he is not in the us force count');
+  assert.equal(force.length, 9, 'the nine men still fighting are');
   /* The refuge now includes a per-soldier offset (fleeOffset) to prevent orbiting, so check
      proximity rather than exact equality. */
   assert.ok(
     dist(s.eng.refuge, safe) < 5,
-    'the refuge is near the squad safe point (with per-soldier offset): ' + JSON.stringify(s.eng.refuge) + ' vs ' + JSON.stringify(safe)
+    'the refuge is near the squad safe point (with per-soldier offset): ' +
+      JSON.stringify(s.eng.refuge) +
+      ' vs ' +
+      JSON.stringify(safe)
   );
   assert.ok(
     dist(s.destination, s.eng.refuge) < 1,
@@ -382,9 +409,24 @@ test('a retreating squad out of contact near the waiting man takes him in; one i
   assert.equal(lone.disbanded, true);
   assert.equal(lone.mergedInto, near.id);
   assert.equal(s.eng.fledPhase, 'home', 'and he goes home with them');
+  assert.equal(s.countsForElimination, true, 'taken back onto a fighting roster: he counts again');
+  assert.ok(w.r.BattleCommanderDoctrine.forceUnits(w.b, 'us').includes(s), 'and the General counts him');
   assert.equal(w.r.BattleSoldierMind.telemetry(w.b).bySide.us.acts.flee.homePickup, 1);
   assert.ok(w.events.some(e => e.type === 'decision-fled-pickup' && e.data.squad === near.id));
   invariants(w);
+});
+
+test('?fledElimination=0 is the paired control: a fled man still counts', () => {
+  const w = world('?stressAct=flee&fledElimination=0'),
+    safe = { x: LANES[0], z: HOME_Z + 90 };
+  const { s } = broken(w, { safe });
+  assert.equal(s.eng.fledPhase, 'run');
+  assert.equal(s.countsForElimination, false, 'Engagement still marks him');
+  assert.ok(
+    w.r.BattleCommanderDoctrine.forceUnits(w.b, 'us').includes(s),
+    'but the force count keeps him (the old behavior)'
+  );
+  invariants(w, 10);
 });
 
 test('a man still running to his refuge is not picked up, only one who waits', () => {
@@ -446,7 +488,11 @@ test('a lone man at base is grouped by reconstitution with the other survivors a
     invariants(w);
   } else {
     /* Solo redeploy: the 1-man squad rallied on its own after 120s at base. */
-    assert.ok(s.squad.state !== 'retreat' || (s.squad._assembly && s.squad._assembly.since && (w.b.time - s.squad._assembly.since < 120)), 'either rallied or still within dwell window');
+    assert.ok(
+      s.squad.state !== 'retreat' ||
+        (s.squad._assembly && s.squad._assembly.since && w.b.time - s.squad._assembly.since < 120),
+      'either rallied or still within dwell window'
+    );
   }
   return;
 });

@@ -50,46 +50,56 @@ const mutants = [
     () =>
       edit(
         P,
-        'var persisted=STASHED?null:root.BATTLE_AI_POLICY||null',
-        'var persisted=root.BATTLE_AI_POLICY||null'
+        'var persisted = STASHED ? null : root.BATTLE_AI_POLICY || null',
+        'var persisted = root.BATTLE_AI_POLICY || null'
       )
   ],
   [
     'the scenario memory is read while stashed',
-    () => edit(P, 'var memory=!STASHED&&root.BATTLE_AI_MEMORY', 'var memory=root.BATTLE_AI_MEMORY')
+    () =>
+      edit(P, '!STASHED && root.BATTLE_AI_MEMORY && Array.isArray', 'root.BATTLE_AI_MEMORY && Array.isArray')
   ],
   [
     'set() changes a stashed genome',
-    () => edit(P, 'if(STASHED)return get();current=normalize(next);', 'current=normalize(next);')
+    () => edit(P, 'if (STASHED) return get();\n    current = normalize(next);', 'current = normalize(next);')
   ],
   [
     'a per-match genome is honoured while stashed',
     () =>
       edit(
         P,
-        'if(!STASHED&&sim&&sim.aiGenomes&&sim.aiGenomes[faction])',
-        'if(sim&&sim.aiGenomes&&sim.aiGenomes[faction])'
+        'if (!STASHED && sim && sim.aiGenomes && sim.aiGenomes[faction])',
+        'if (sim && sim.aiGenomes && sim.aiGenomes[faction])'
       )
   ],
   [
     'setMatchPolicies stores a match genome while stashed',
-    () => edit(P, 'if(STASHED)return null;sim.aiGenomes=', 'sim.aiGenomes=')
+    () => edit(P, 'if (STASHED) return null;\n    sim.aiGenomes =', 'sim.aiGenomes =')
   ],
   [
     'persist writes to the server while stashed',
-    () => edit(P, 'if(STASHED)return Promise.resolve({ok:false,stashed:true,revision:revision});', '')
+    () =>
+      edit(P, 'if (STASHED) return Promise.resolve({ ok: false, stashed: true, revision: revision });', '')
   ],
   [
     'refresh fetches the live policy while stashed',
-    () => edit(P, 'if(STASHED)return Promise.resolve({genome:get(),revision:revision,stashed:true});', '')
+    () =>
+      edit(
+        P,
+        'if (STASHED) return Promise.resolve({ genome: get(), revision: revision, stashed: true });',
+        ''
+      )
   ],
   [
     'remember writes to the learning backend while stashed',
-    () => edit(P, 'if(STASHED)return Promise.resolve({ok:false,stashed:true});', '')
+    () => edit(P, 'if (STASHED) return Promise.resolve({ ok: false, stashed: true });', '')
   ],
-  ['the exported flag says live', () => edit(P, 'stashed:STASHED,', 'stashed:false,')],
-  ['the switch is off', () => edit(P, 'var STASHED=true;', 'var STASHED=false;')],
-  ['the trainer loads while stashed', () => edit('ai-trainer.js', '||root.BattleAIPolicy.stashed', '')],
+  ['the exported flag says live', () => edit(P, 'stashed: STASHED,', 'stashed: false,')],
+  ['the switch is off', () => edit(P, 'var STASHED = true;', 'var STASHED = false;')],
+  [
+    'the trainer loads while stashed',
+    () => edit('ai-trainer.js', '    root.BattleAIPolicy.stashed ||\n', '')
+  ],
   [
     'a second door: another module reads the server genome',
     () => append('modules/13-captain-command-throttle.js', 'var _leak = window.BATTLE_AI_POLICY;')
@@ -105,7 +115,11 @@ const mutants = [
   [
     'the genome defaults drift from the doctrine fallback',
     () =>
-      edit(P, 'DEFAULT_PARAMETERS={\n    cohesionRadius:34,', 'DEFAULT_PARAMETERS={\n    cohesionRadius:40,')
+      edit(
+        P,
+        'var DEFAULT_PARAMETERS = {\n    cohesionRadius: 34,',
+        'var DEFAULT_PARAMETERS = {\n    cohesionRadius: 40,'
+      )
   ],
   [
     'a default rule drifts from the genome defaults',
@@ -138,9 +152,9 @@ const mutants = [
     'a second door: Force Command decides a brief through the genome module itself',
     () =>
       edit(
-        'commander-ai.js',
+        'modules/22a-commander-strategic-recovery.js',
         'rule = D.ruleFor(sim, sq.faction, context);',
-        'rule = root.BattleAIPolicy ? root.BattleAIPolicy.decide(genome(sim, sq.faction), context) : null;'
+        'rule = root.BattleAIPolicy ? root.BattleAIPolicy.decide(D.genomeFor(sim, sq.faction), context) : null;'
       )
   ]
 ];
