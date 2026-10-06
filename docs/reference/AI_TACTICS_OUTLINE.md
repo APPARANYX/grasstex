@@ -767,14 +767,13 @@ timing hacks for regroup, HOLD FIRE, stance, or later urban orders.
   - **0F1 — Broadcast telemetry, behavior-neutral.** Add a `SquadContactBroadcast` record type
     and per-squad send/receive diagnostics. Broadcasts are computed and logged but not consumed:
     `squad.contact` is unchanged. No combat-RNG draw.
-  - **0F2 — Broadcast reception (opt-in `?squadBroadcast=1`).** A receiving squad merges the
+  - **0F2 — Broadcast reception (default-on; `?squadBroadcast=0` is the telemetry-only control).** A receiving squad merges the
     broadcast into its `squad.contact` picture if it has no fresher contact for the same enemy.
     The Squad Leader can orient toward the broadcast threat if not already engaged. The
-    default/off arm remains 0F1 behavior.
-  - **0F3 — Broadcast reaction (opt-in, benchmark-gated).** A squad receiving a "pinned by
-    sniper" broadcast from a nearby squad can provide supporting fire or adjust its route to
-    flank the threat. Gated behind a separate flag until paired benchmarks show acceptable
-    churn/stalls/cohesion.
+    explicit `?squadBroadcast=0` arm remains 0F1 behavior.
+  - **0F3 — Broadcast reaction (shipped with default-on reception).** A squad receiving a
+    tactical broadcast stamps the reaction and feeds the existing squad-contact → alert path;
+    `?squadBroadcast=0` disables reception/reaction together for the telemetry-only control.
 
   **Done when:** a squad taking sniper fire broadcasts the threat to nearby squads within the
   same commander tick; a watching squad's visual intel reaches a creeping squad before it walks
@@ -802,11 +801,11 @@ timing hacks for regroup, HOLD FIRE, stance, or later urban orders.
     compatibility, but a new `squad._contacts` map (keyed by 20m sector) tracks all active
     contacts. The Squad Leader reads the map to detect multi-sector threats: if two or more
     sectors have fresh contacts, it can hold one fireteam in overwatch while the other bounds.
-    Default off.
-  - **0G3 — Fireteam split on multi-contact (opt-in, benchmark-gated).** When the Squad Leader
+    This read-only map ships with default-on soldier beliefs; there is no current `squadContacts` runtime gate.
+  - **0G3 — Fireteam split on multi-contact (default-on; `?fireteamSplit=0` legacy control).** When the Squad Leader
     detects contacts in two or more sectors, it assigns one fireteam to suppress the primary
     sector while the other fireteam continues the mission. This is the first real fire-and-movement
-    behavior: complementary forces on separate threats. Gated behind a separate flag until paired
+    behavior: complementary forces on separate threats. The paired
     benchmarks show acceptable churn/stalls/cohesion.
 
   **Done when:** a soldier engaged with one enemy can react to a new threat from a different sector

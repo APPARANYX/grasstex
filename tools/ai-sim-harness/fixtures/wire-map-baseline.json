@@ -400,7 +400,7 @@
         },
         "modules/49-squad-broadcast.js": {
           "as": "layer",
-          "why": "Phase 0F2: inter-squad tactical broadcast writes squad.contact on receiving squads when ?squadBroadcast=1 is on, the same role as squadSenses relay. Only writes when the receiving squad has no fresher first-hand contact. Default off (0F1 is telemetry-only)."
+          "why": "Phase 0F2: default-on inter-squad tactical broadcast writes squad.contact on receiving squads, the same role as squadSenses relay. Only writes when the receiving squad has no fresher first-hand contact. ?squadBroadcast=0 is the telemetry-only 0F1 legacy control."
         }
       }
     },

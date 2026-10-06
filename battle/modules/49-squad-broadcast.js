@@ -8,11 +8,11 @@
    to nearby squads within BROADCAST_RANGE.
 
    Slices:
-   - 0F1 (shipped): behavior-neutral telemetry. Broadcasts are computed and logged but NOT
-     consumed. squad.contact on receiving squads is unchanged. Default behavior.
-   - 0F2 (shipped, opt-in ?squadBroadcast=1): a receiving squad merges the broadcast into
-     its squad.contact picture if it has no fresher first-hand contact for the same enemy.
-   - 0F3 (this slice, same opt-in ?squadBroadcast=1): when a broadcast is applied to a
+   - 0F1 (shipped, legacy ?squadBroadcast=0 control): behavior-neutral telemetry. Broadcasts
+     are computed and logged but NOT consumed; squad.contact on receiving squads is unchanged.
+   - 0F2 (shipped default): a receiving squad merges the broadcast into its squad.contact
+     picture if it has no fresher first-hand contact for the same enemy.
+   - 0F3 (shipped default): when a broadcast is applied to a
      receiving squad, the module emits a 'squad-broadcast-reaction' telemetry event and stamps
      sq._broadcastReactAt so the Squad Leader and diagnostics can see that the squad reacted
      to a broadcast. The reaction itself is the existing squadSenses -> soldierContact -> alert()
@@ -28,10 +28,11 @@
   'use strict';
   if (!root.BattleModules || root.BattleSquadBroadcast) return;
 
-  /* ?squadBroadcast=1 enables 0F2 (broadcast reception). Default off: only telemetry. */
-  var BROADCAST_ON =
-    !(typeof location !== 'undefined' && /[?&]squadBroadcast=0\b/.test(location.search || '')) &&
-    !!(typeof location !== 'undefined' && location.search && /[?&]squadBroadcast=1\b/.test(location.search));
+  /* Broadcast reception is default-on after the current-main 100-seed #342 gate. Keep
+     ?squadBroadcast=0/off/false as the telemetry-only legacy control for paired A/B work. */
+  var BROADCAST_ON = !(
+    typeof location !== 'undefined' && /[?&]squadBroadcast=(?:0|off|false)\b/i.test(location.search || '')
+  );
 
   /* Range at which a squad's broadcast reaches another squad. Longer than SquadAI.RELAY_RANGE
      (50, within-squad relay) because squads operate spread out; shorter than vision range so a
@@ -243,7 +244,7 @@
           var rs = squadState(st, recipients[j].squad);
           rs.received++;
           st.received++;
-          /* 0F2: when squadBroadcast=1, actually apply the broadcast to the receiving squad's
+          /* 0F2: when broadcast reception is enabled (the default), apply it to the receiving squad's
              contact picture. Only apply if the squad does not already have a fresher first-hand
              contact for the same enemy. A broadcast is never first-hand: it is tagged
              relayedFrom the source squad, same as the existing squadSenses relay path. This
@@ -352,9 +353,9 @@
     root.GTLog(
       '[SQUAD] Phase 0F inter-squad tactical broadcast ' +
         (BROADCAST_ON
-          ? '0F2 active (reception on, ?squadBroadcast=1, range=' + BROADCAST_RANGE + 'm)'
-          : '0F1 active (telemetry only, ?squadBroadcast=1 to enable reception, range=' +
+          ? '0F2 active (reception default-on, ?squadBroadcast=0 for telemetry-only, range=' +
             BROADCAST_RANGE +
-            'm)')
+            'm)'
+          : '0F1 active (telemetry-only legacy control, range=' + BROADCAST_RANGE + 'm)')
     );
 })(typeof window !== 'undefined' ? window : globalThis);
