@@ -426,3 +426,38 @@ jobs:
           })().catch(e=>{console.error(e);process.exit(1);});
           NODE
 
+  pr317-format-repair:
+    name: PR317 one-shot format repair
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'work/remnant-extraction-home'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/remnant-extraction-home
+
+      - name: Format PR317 touched JavaScript
+        run: |
+          set -euo pipefail
+          files=(
+            battle/commander-ai.js
+            battle/modules/15h-squad-leader-fireteams.js
+            battle/modules/15k-squad-leader-reconstitution.js
+            battle/modules/16-squad-plan-stability.js
+            battle/squad-ai.js
+            tools/ai-sim-harness/command-adoption-ratchet-check.js
+            tools/ai-sim-harness/command-movement-check.js
+            tools/ai-sim-harness/retreat-anchor-check.js
+          )
+          npx --yes prettier@3.3.3 --write "${files[@]}"
+          if git diff --quiet -- "${files[@]}"; then
+            echo "Files are already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "${files[@]}"
+          git commit -m "Format PR317 remnant extraction"
+          git push origin HEAD:work/remnant-extraction-home
+
