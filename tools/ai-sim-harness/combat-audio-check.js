@@ -13,6 +13,7 @@ const assert = require('node:assert/strict'),
   fs = require('fs'),
   path = require('path');
 const SRC = fs.readFileSync(path.join(__dirname, '..', '..', 'battle/modules/15-combat-audio.js'), 'utf8');
+const CORE = fs.readFileSync(path.join(__dirname, '..', '..', 'battle/core-runtime.js'), 'utf8');
 let n = 0;
 function test(name, fn) {
   fn();
@@ -22,6 +23,7 @@ function test(name, fn) {
 function load(search) {
   const r = {};
   if (search != null) r.location = { search };
+  new Function('window', 'globalThis', 'location', CORE)(r, r, r.location);
   new Function('window', 'globalThis', 'location', SRC)(r, r, r.location);
   return r.BattleCombatAudio;
 }

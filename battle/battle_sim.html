@@ -95,6 +95,7 @@ window.BattleLoading=(function(){
 <script>
 (function(){var originalCreateGround=BABYLON.MeshBuilder.CreateGround;BABYLON.MeshBuilder.CreateGround=function(name,options,scene){if(name==='battleField')options=Object.assign({},options||{},{updatable:true});return originalCreateGround.call(BABYLON.MeshBuilder,name,options,scene);};})();
 </script>
+<script src="core-runtime.js"></script>
 <script src="soldier.js"></script>
 <script src="weapons.js"></script>
 <script src="obstacle-field.js"></script>

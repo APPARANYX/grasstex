@@ -40,7 +40,7 @@
   ];
 
   function clone(v){return JSON.parse(JSON.stringify(v));}
-  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  var clamp=root.GTMath.clamp;
   function rnd(){return Math.random();}
   function pick(a){return a[Math.floor(rnd()*a.length)];}
   function cleanRule(raw,index){

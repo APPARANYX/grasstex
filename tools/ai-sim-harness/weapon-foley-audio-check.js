@@ -14,6 +14,7 @@ const assert = require('node:assert/strict'),
   path = require('path');
 const ROOT = path.join(__dirname, '..', '..');
 const SRC = fs.readFileSync(path.join(ROOT, 'battle/modules/15-weapon-foley-audio.js'), 'utf8');
+const CORE = fs.readFileSync(path.join(ROOT, 'battle/core-runtime.js'), 'utf8');
 const MANIFEST = JSON.parse(fs.readFileSync(path.join(ROOT, 'Assets/audio/manifest.json'), 'utf8'));
 let n = 0;
 function test(name, fn) {
@@ -24,6 +25,7 @@ function test(name, fn) {
 function load(search) {
   const r = { BATTLE_AUDIO_MANIFEST: MANIFEST };
   if (search != null) r.location = { search };
+  new Function('window', 'globalThis', 'location', CORE)(r, r, r.location);
   new Function('window', 'globalThis', 'location', SRC)(r, r, r.location);
   return r.BattleWeaponFoley;
 }

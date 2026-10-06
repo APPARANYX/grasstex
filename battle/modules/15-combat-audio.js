@@ -47,12 +47,7 @@
   function v3(p) {
     return p ? { x: +p.x || 0, y: +p.y || 0, z: +p.z || 0 } : null;
   }
-  function dist(a, b) {
-    var dx = a.x - b.x,
-      dy = a.y - b.y,
-      dz = a.z - b.z;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
-  }
+  var dist=root.GTMath.distStrict;
   /* Closest approach of the segment a -> b to the point c: {miss, along, point} or null. */
   function closest(a, b, c) {
     if (!a || !b || !c) return null;

@@ -1281,7 +1281,7 @@ function play(tag,data,soldier){
   else if(tag===TAGS.hit)fx.hitShot=(fx.hitShot||0)+1;
   else if(tag===TAGS.reload){fx.reloadShot++;fx.reloadDuration=+(data&&data.duration)||(soldier.weapon&&soldier.weapon.stats&&soldier.weapon.stats.reloadTime)||2.5;}
 }
-function clamp(v,a,b){return v<a?a:(v>b?b:v);}
+var clamp=root.GTMath.clamp;
 function sectorOf(fx,angle){
   /* Eight-way sector with a little stickiness so a diagonal path does not flicker between clips. */
   var step=Math.PI/4,current=fx.sector,diff=Math.atan2(Math.sin(angle-current*step),Math.cos(angle-current*step));

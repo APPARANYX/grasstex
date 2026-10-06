@@ -31,7 +31,7 @@ const OUT = path.resolve(process.env.CLIP_PACK_OUT || path.join(ROOT, PACK));
     contentType: 'text/html',
     body: `<!doctype html><meta charset="utf-8"><canvas id="c" width="64" height="64"></canvas>
 <script src="https://cdn.jsdelivr.net/npm/babylonjs@${want.babylon}/babylon.js"></script>
-<script src="soldier.js"></script><script src="weapons.js"></script>
+<script src="core-runtime.js"></script><script src="soldier.js"></script><script src="weapons.js"></script>
 <script src="modules/53-fbx-clip-table.js"></script><script src="modules/53-fbx-soldier-backend.js"></script>`,
   }));
   await page.goto(builder, { waitUntil: 'load' });

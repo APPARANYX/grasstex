@@ -24,6 +24,7 @@ const B={Vector3,Quaternion,Color3,Color4,ParticleSystem,VertexData,Mesh,Matrix,
 B.Texture.BILINEAR_SAMPLINGMODE=2;
 const r={console:{log(){},warn(){}},BABYLON:B,BattleModules:{registerSystem(id,h){hooks[id]=h;}},BattleSim:{start(){}}};r.window=r;vm.createContext(r);
 function load(file){vm.runInContext(fs.readFileSync(path.join(repo,file),'utf8'),r,{filename:file});}
+load('battle/core-runtime.js');
 load('battle/modules/15-bullet-impact-fx.js');
 const fx=r.BattleImpactFx,observable=()=>({add(){return{};},addOnce(){},remove(){}});
 const sim={time:0,scene:{metadata:{},onBeforeRenderObservable:observable(),onDisposeObservable:observable()},heightAt:(x,z)=>x*.03+z*.02,random(){throw Error('Effects consumed the battle RNG');}};

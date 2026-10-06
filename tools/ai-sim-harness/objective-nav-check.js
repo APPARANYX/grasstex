@@ -26,6 +26,7 @@ function bootstrap(){
   const root={console:quiet};root.window=root;
   root.BABYLON={Color3:function(){},MeshBuilder:{CreateLines:()=>({dispose(){}}),CreateCylinder:()=>({position:{set(){}},dispose(){}}),CreateSphere:()=>({position:{set(){}},scaling:{set(){}},dispose(){}})},StandardMaterial:function(){this.dispose=function(){};}};
   root.BattleModules={reg:{},systems:{},registerSystem(n,h){h.id=n;this.systems[n]=h;},listSystems(){return Object.values(this.systems);},getSystem(n){return this.systems[n];},registerObjectiveType(n,h){this.reg[n]=h;},getObjectiveType(n){return this.reg[n];},runHook(){},unitsFor(sim){return sim._units||[];}};
+  load(root,'battle/core-runtime.js');
   load(root,'battle/scenario-generator.js');
   load(root,'battle/battle-navigation.js');
   load(root,'battle/objective-system.js');

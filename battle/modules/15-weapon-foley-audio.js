@@ -80,12 +80,7 @@
   function v3(p) {
     return p ? { x: +p.x || 0, y: +p.y || 0, z: +p.z || 0 } : null;
   }
-  function dist(a, b) {
-    var dx = a.x - b.x,
-      dy = a.y - b.y,
-      dz = a.z - b.z;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
-  }
+  var dist=root.GTMath.distStrict;
   function foleyGain(d) {
     var near = Math.max(0, 1 - d / FOLEY_RANGE);
     return FOLEY_GAIN * (0.1 + 0.9 * Math.pow(near, 1.3));

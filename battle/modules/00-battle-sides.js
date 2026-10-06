@@ -15,8 +15,8 @@
   var BANDS={ge:[.31,.46,.73],us:[.32,.46,.73]};
   var DEFAULT_ECHELON='captain',DEFAULT_DENSITY=.6;
 
-  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
-  function dist(ax,az,bx,bz){return Math.hypot(ax-bx,az-bz);}
+  var clamp=root.GTMath.clamp;
+  var dist=root.GTMath.dist4;
   function other(f){return f==='us'?'ge':'us';}
   function valid(f){return f==='us'||f==='ge';}
 

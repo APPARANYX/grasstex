@@ -133,6 +133,7 @@ test('firing: a flee-tempered man under fresh trouble breaks through the re-atta
 test('engagement.js without the module fails loudly on the first reaction use', () => {
   const r = {};
   r.window = r;
+  load(r, 'battle/core-runtime.js');
   load(r, 'battle/engagement.js');
   assert.ok(r.BattleEngagement, 'engagement.js alone still loads and exports');
   assert.throws(
@@ -145,6 +146,7 @@ test('engagement.js without the module fails loudly on the first reaction use', 
 test('the module without engagement.js fails loudly at load', () => {
   const r = {};
   r.window = r;
+  load(r, 'battle/core-runtime.js');
   assert.throws(
     () => load(r, 'battle/modules/19a-engagement-stress-reactions.js'),
     /engagement\.js must load before/,

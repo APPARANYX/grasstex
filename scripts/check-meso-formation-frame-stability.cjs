@@ -45,6 +45,9 @@ const context = {
   }
 };
 vm.createContext(context);
+vm.runInContext(fs.readFileSync('battle/core-runtime.js', 'utf8'), context, {
+  filename: 'battle/core-runtime.js'
+});
 vm.runInContext(fs.readFileSync('battle/modules/16-squad-plan-stability.js', 'utf8'), context, {
   filename: 'battle/modules/16-squad-plan-stability.js'
 });

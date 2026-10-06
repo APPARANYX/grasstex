@@ -153,9 +153,7 @@
     AREA_FIRE_RATE = 1.55,
     AREA_AIM_HEIGHT = 0.85;
 
-  function clamp(n, a, b) {
-    return Math.max(a, Math.min(b, n));
-  }
+  var clamp=root.GTMath.clamp;
   function dist2(ax, az, bx, bz) {
     var dx = ax - bx,
       dz = az - bz;

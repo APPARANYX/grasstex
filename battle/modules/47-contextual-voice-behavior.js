@@ -16,7 +16,7 @@ function wallNow(){return root.performance&&typeof root.performance.now==='funct
 function hash(s){s=String(s);var h=2166136261>>>0;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
 function roll(key){return hash(key)/4294967296;}
 function chance(sim,key,p){var sc=sim&&sim.scene&&sim.scene.metadata&&sim.scene.metadata.battleScenario;return roll((sc&&sc.seed||'battle')+'|'+key)<p;}
-function dist(a,b){return a&&b?Math.hypot((+a.x||0)-(+b.x||0),(+a.z||0)-(+b.z||0)):Infinity;}
+var dist=root.GTMath.dist;
 function point(v){return v&&isFinite(+v.x)&&isFinite(+v.z)?{x:+v.x,z:+v.z}:null;}
 function alive(sq){return(sq&&sq.members||[]).filter(function(s){return s&&!s.dead&&s.root;});}
 function leader(sq){var a=alive(sq),lead=root.SquadAI&&root.SquadAI.leaderOf(sq);return lead&&lead.root?lead:a[0]||null;}

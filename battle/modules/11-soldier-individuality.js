@@ -27,7 +27,7 @@
   };
   var ANIM_FRAC={walk:.52,run:.82,sprint:1.0,crouchWalk:.46,crouchRun:.88,proneNormal:.34,proneFast:.86};
 
-  function clamp(n,a,b){return Math.max(a,Math.min(b,n));}
+  var clamp=root.GTMath.clamp;
   function hash(str){var h=2166136261>>>0;for(var i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
   /* Trait seeds use the role names the seeds were recorded with: the squad leader role was renamed
      captain -> sergeant, and re-rolling every leader's gait would make each existing seed a new battle. */

@@ -11,7 +11,7 @@ var WINDOW=15,MIN_TRAVEL=12,MIN_NET=2.5,MIN_EFF=.15,MIN_REQUIRED_DETOUR_SHARE=1/
 var ADVANCE={approach:1,assault:1,capture:1,'clear-town':1,flank:1,'corner-check':1,regroup:1};
 
 function clonePoint(p){return p&&isFinite(+p.x)&&isFinite(+p.z)?{x:+p.x,z:+p.z}:null;}
-function dist(a,b){return !a||!b?Infinity:Math.hypot(a.x-b.x,a.z-b.z);}
+var dist=root.GTMath.dist;
 function pointSegmentDistance(p,a,b){
   if(!p||!a||!b)return Infinity;var dx=b.x-a.x,dz=b.z-a.z,den=dx*dx+dz*dz;
   if(den<1e-9)return dist(p,a);var u=((p.x-a.x)*dx+(p.z-a.z)*dz)/den;u=Math.max(0,Math.min(1,u));

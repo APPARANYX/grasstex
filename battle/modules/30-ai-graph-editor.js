@@ -39,7 +39,7 @@ var E={};
 
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function cap(s){return String(s).replace(/([a-z])([A-Z])/g,'$1 $2').replace(/[-_]/g,' ').replace(/^./,function(c){return c.toUpperCase();});}
-function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+var clamp=root.GTMath.clamp;
 function key(type,id){return type+':'+id;}
 function clone(v){return JSON.parse(JSON.stringify(v));}
 function ruleById(id){for(var i=0;i<S.draft.rules.length;i++)if(S.draft.rules[i].id===id)return S.draft.rules[i];return null;}

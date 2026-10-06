@@ -32,6 +32,7 @@ function rng(seed){let a=seed|0;return()=>{a=(a+0x6D2B79F5)|0;let t=Math.imul(a^
 for(const seed of SEEDS){
   section(seed);
   const root={console:quiet,BABYLON:stub()};root.window=root;
+  load(root,'battle/core-runtime.js');
   for(const f of ['battle/obstacle-field.js','battle/terrain-features.js','battle/scenario-generator.js','battle/battle-navigation.js','battle/town-objectives.js','battle/modules/08-m3c-hedge-volume-coalescer.js'])load(root,f);
   const heightAt=(x,z)=>Math.sin(x*.013)*1.7+Math.cos(z*.011)*1.3,scene={metadata:{}},sim={obstacles:null};
   root.BattleTerrainFeatures.scatter(scene,heightAt,{fieldW:2000,fieldD:1200,scenarioSeed:seed+'-bootstrap'});

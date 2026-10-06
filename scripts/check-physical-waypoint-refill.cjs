@@ -7,6 +7,7 @@ function load(root,rel){const c=fs.readFileSync(path.join(REPO,rel),'utf8');new 
 const r={console:quiet};r.window=r;
 r.BABYLON={Color3:function(){},MeshBuilder:{CreateLines:()=>({dispose(){}}),CreateSphere:()=>({position:{set(){}},dispose(){}})},StandardMaterial:function(){}};
 r.BattleModules={systems:{},registerSystem(id,s){s.id=id;this.systems[id]=s;},getSystem(id){return this.systems[id];},listSystems(){return Object.values(this.systems);}};
+load(r,'battle/core-runtime.js');
 load(r,'battle/battle-navigation.js');
 load(r,'battle/modules/39-navigation-physicality-debug.js');
 const N=r.BattleNavigation,scenario={buildings:[]};

@@ -21,7 +21,7 @@
     api={active:true,ready:false,version:'1.2-fps-aim'};
   root.BattleDamageRange=api;
 
-  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  var clamp=root.GTMath.clamp;
   function num(name,fallback,a,b){var v=+q.get(name);return isFinite(v)?clamp(v,a,b):fallback;}
   function label(s){return(s.faction==='us'?'US':'GER')+' '+s.role;}
   function pickRole(sim,faction,role,skip){

@@ -13,9 +13,9 @@
   function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
   function rngFor(seed,salt){return mulberry32(hashSeed(String(seed)+'|'+String(salt||'')));}
   function rr(r,a,b){return a+r()*(b-a);}
-  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  var clamp=root.GTMath.clamp;
   function round(v,n){var p=Math.pow(10,n||0);return Math.round(v*p)/p;}
-  function dist(a,b){return Math.hypot(a.x-b.x,a.z-b.z);}
+  var dist=root.GTMath.distStrict;
   function overlaps(a,b,pad){pad=pad||0;return Math.abs(a.x-b.x)<(a.w+b.w)/2+pad&&Math.abs(a.z-b.z)<(a.d+b.d)/2+pad;}
 
   function openingsFor(building,r){

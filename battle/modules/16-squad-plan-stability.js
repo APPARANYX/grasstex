@@ -348,9 +348,7 @@
   function copy(p) {
     return p ? { x: +p.x || 0, z: +p.z || 0 } : null;
   }
-  function dist(a, b) {
-    return a && b ? Math.hypot((+a.x || 0) - (+b.x || 0), (+a.z || 0) - (+b.z || 0)) : Infinity;
-  }
+  var dist=root.GTMath.dist;
   function telemetry(sim, type, data) {
     if (root.BattleTelemetry) root.BattleTelemetry.record(type, data, sim);
   }

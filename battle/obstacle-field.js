@@ -17,7 +17,7 @@
   var EYE={stand:1.55,crouch:1.05,prone:.42};
   var DEFAULT_HEIGHT=1.6;
 
-  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  var clamp=root.GTMath.clamp;
   function finite(v,d){v=+v;return isFinite(v)?v:d;}
   function isObb(ob){return!!(ob&&ob.shape==='obb');}
   function obstacleHeight(ob){var h=+ob.height;return isFinite(h)&&h>0?h:DEFAULT_HEIGHT;}

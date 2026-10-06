@@ -27,9 +27,9 @@ var ui={root:null,view:null,svg:null,nodes:null,panel:null,button:null,overlay:n
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function cap(s){return String(s||'').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/[-_]+/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();});}
-function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+var clamp=root.GTMath.clamp;
 function clone(v){return JSON.parse(JSON.stringify(v));}
-function dist(a,b){return a&&b?Math.hypot((+a.x||0)-(+b.x||0),(+a.z||0)-(+b.z||0)):Infinity;}
+var dist=root.GTMath.dist;
 function q(v,step){step=step||2;return Math.round((+v||0)/step);}
 function pointSig(p,step){return p?(q(p.x,step)+','+q(p.z,step)):'-';}
 function loadLabels(){try{var v=JSON.parse(localStorage.getItem(LABEL_STORE)||'{}');return v&&typeof v==='object'?v:{};}catch(_){return{};}}

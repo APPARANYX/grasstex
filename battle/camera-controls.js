@@ -11,7 +11,7 @@
   var PLAYER_PAD_HINT='Xbox: LS move · L3 run · RS look · LT aim · RT fire · B crouch · A prone · Menu new soldier · View exit';
   var TOUCH_HINT='Camera: drag to orbit · pinch/wheel to zoom';
   var PAD_WAKE_HINT='Xbox: move a stick or press a button to switch to fly controls';
-  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  var clamp=global.GTMath.clamp;
   function desktopPointer(){return !!(global.matchMedia&&global.matchMedia('(pointer:fine)').matches);}
   function hasGamepadAPI(){return !!(global.navigator&&typeof global.navigator.getGamepads==='function');}
   function queryParams(){try{return new URLSearchParams(global.location&&global.location.search||'');}catch(_){return new URLSearchParams();}}

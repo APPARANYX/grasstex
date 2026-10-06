@@ -20,7 +20,8 @@ const assert = require('node:assert/strict'),
 const repo = path.resolve(__dirname, '../..'),
   MEASURE = process.argv.includes('--measure'),
   SRC = fs.readFileSync(path.join(repo, 'battle/modules/14-z-ballistic-raycast.js'), 'utf8'),
-  FIELD = fs.readFileSync(path.join(repo, 'battle/obstacle-field.js'), 'utf8');
+  FIELD = fs.readFileSync(path.join(repo, 'battle/obstacle-field.js'), 'utf8'),
+  CORE = fs.readFileSync(path.join(repo, 'battle/core-runtime.js'), 'utf8');
 function load(search) {
   const r = { console: { log() {}, warn() {} } };
   r.window = r;
@@ -32,6 +33,7 @@ function load(search) {
     isMachineGun: () => false
   };
   vm.createContext(r);
+  vm.runInContext(CORE, r, { filename: 'battle/core-runtime.js' });
   vm.runInContext(FIELD, r, { filename: 'battle/obstacle-field.js' });
   vm.runInContext(SRC, r, { filename: 'battle/modules/14-z-ballistic-raycast.js' });
   return r;

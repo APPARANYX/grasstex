@@ -63,6 +63,9 @@ function bootstrap(opts){
   const root={};root.window=root;stubBabylon(root);
   /* {search:'?morale=0'} gives every module a `location` with that query, as the page has; absent, there is none (every flag at its default). */
   if(opts.search!=null)root.location={search:opts.search};
+  /* Shared math/log foundation first (after `location` so flag reads like ?log=0 work):
+     every battle file may alias GTMath/GTLog at load time. */
+  load(root,'battle/core-runtime.js');
   load(root,'battle/weapons.js');load(root,'battle/obstacle-field.js');load(root,'battle/squad-ai.js');load(root,'battle/engagement.js');
   /* The cover system is base Engagement (run.js asserts cover used), so its sub-module loads
      with the runtime block, not behind {modules}: it installs itself back into engagement.js,

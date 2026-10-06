@@ -29,7 +29,7 @@
   /* Headings to try, either side of the desired one, when the direct step is into a wall. */
   var SLIDE_FAN=[.52,1.05,1.57,2.09];
 
-  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  var clamp=root.GTMath.clamp;
   function transform(b,lx,lz){var c=Math.cos(b.rot||0),s=Math.sin(b.rot||0);return{x:b.x+lx*c+lz*s,z:b.z-lx*s+lz*c};}
   function localNormal(b,side){var n=side==='north'?{x:0,z:1}:side==='south'?{x:0,z:-1}:side==='east'?{x:1,z:0}:{x:-1,z:0};var c=Math.cos(b.rot||0),s=Math.sin(b.rot||0);return{x:n.x*c+n.z*s,z:-n.x*s+n.z*c};}
   function wallDef(b,side){if(side==='north'||side==='south'){var z=side==='north'?b.d/2:-b.d/2;return{a:transform(b,-b.w/2,z),b:transform(b,b.w/2,z),length:b.w};}var x=side==='east'?b.w/2:-b.w/2;return{a:transform(b,x,-b.d/2),b:transform(b,x,b.d/2),length:b.d};}
