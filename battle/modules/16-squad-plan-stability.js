@@ -1679,7 +1679,8 @@
            anchor until Macro legitimately reconstitutes it; never rebase the anchor toward a slow
            or dazed straggler and thereby pull survivors who are already farther rearward back toward
            the fight. Navigation still owns obstacle avoidance for each man's homeward route. */
-        if (L.get(sq, 'retreat-anchor')) L.end(sq, 'retreat-anchor', battle.time, 'remnant extraction uses home');
+        if (L.get(sq, 'retreat-anchor'))
+          L.end(sq, 'retreat-anchor', battle.time, 'remnant extraction uses home');
         sq._regroupRecovery = null;
         publishAnchor(sq, sq.home);
         sq._orderGoal = copy(sq.home);

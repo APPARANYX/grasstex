@@ -86,7 +86,12 @@
     return n;
   }
   function isExtractionRemnant(squad) {
-    return !!(squad && squad.state === 'retreat' && livingCount(squad) > 0 && livingCount(squad) <= REMNANT_EXTRACTION_MAX);
+    return !!(
+      squad &&
+      squad.state === 'retreat' &&
+      livingCount(squad) > 0 &&
+      livingCount(squad) <= REMNANT_EXTRACTION_MAX
+    );
   }
   function isReconstitutionMarch(squad) {
     var a = squad && squad._assembly,
