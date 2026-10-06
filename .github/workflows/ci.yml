@@ -365,7 +365,9 @@ jobs:
             assemblingAtEnd: b.reconstitution?.assemblingAtEnd || 0,
             merges: b.reconstitution?.merges || 0,
             sizes: (b.reconstitution?.merged || []).map(x => x.size),
-            dissolvedLifetimes: b.reconstitution?.dissolvedLifetimes || []
+            active: b.reconstitution?.active || [],
+            dissolvedGroups: b.reconstitution?.dissolved || [],
+            pool: b.reconstitution?.pool || null
           }));
           const groups = rows.reduce((n, r) => n + r.groups, 0);
           const dissolved = rows.reduce((n, r) => n + r.dissolved, 0);
