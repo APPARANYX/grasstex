@@ -92,7 +92,7 @@
     return g.doctrine || FALLBACK_DOCTRINE;
   }
 
-  var dist=root.GTMath.dist4;
+  var dist = root.GTMath.dist4;
   function enemyFaction(f) {
     return f === 'us' ? 'ge' : 'us';
   }
@@ -388,7 +388,8 @@
       }),
       threat = pool.map(function (c) {
         var d = Infinity;
-        for (var i = 0; i < foes.length; i++) d = Math.min(d, dist(foes[i].x, foes[i].z, c.point.x, c.point.z));
+        for (var i = 0; i < foes.length; i++)
+          d = Math.min(d, dist(foes[i].x, foes[i].z, c.point.x, c.point.z));
         return d;
       }),
       out = {},
@@ -445,8 +446,7 @@
           ? reportedEnemyStrengthNear(sim, sq.faction, point, (+obj.def.radius || 30) * 1.5)
           : ownerPressure(status, sq.faction);
         score = 90 - pressure * 18 - d * 0.25 + (owner === sq.faction ? -30 : 30);
-      }
-      else if (doc.objectiveStrategy === 'sequential')
+      } else if (doc.objectiveStrategy === 'sequential')
         score = 200 - i * 35 - d * 0.1 + (owner === sq.faction ? -150 : 0);
       if (obj.handler && typeof obj.handler.commandScore === 'function')
         score = obj.handler.commandScore(obj, sim, sq, score, cfg);
@@ -556,7 +556,9 @@
     truthNearestEnemyToSquad: truthNearestEnemyToSquad,
     reportedContacts: reportedContacts,
     reportedEnemyStrengthNear: reportedEnemyStrengthNear,
-    generalIntelEnabled: function () { return GENERAL_INTEL_ON; },
+    generalIntelEnabled: function () {
+      return GENERAL_INTEL_ON;
+    },
     parseGeneralIntel: parseGeneralIntel,
     objectivePoint: objectivePoint,
     objectiveStatus: objectiveStatus,

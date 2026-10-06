@@ -62,7 +62,8 @@
     /* The Squad Leader owns commandPhase; route assignment only states where the squad starts. */
     if (root.BattleSquadStability) root.BattleSquadStability.initialPhase(sq, phase);
     else sq.commandPhase = phase;
-    if (root.BattleLeases) root.BattleLeases.end(sq, 'corner-hold', +(sim && sim.time) || 0, 'route assigned');
+    if (root.BattleLeases)
+      root.BattleLeases.end(sq, 'corner-hold', +(sim && sim.time) || 0, 'route assigned');
     sq.lastCommandTime = 0;
     sq.objective = route[0];
     sq.targetObjective = null;

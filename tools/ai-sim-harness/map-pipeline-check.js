@@ -13,98 +13,210 @@
      node tools/ai-sim-harness/map-pipeline-check.js
 */
 'use strict';
-const fs=require('fs'),path=require('path');
-const REPO=path.resolve(__dirname,'..','..');
-const SEEDS=['standard-benchmark-meeting-s1-b0001-0001','standard-benchmark-us-defend-s1-b0002-0001','standard-benchmark-ge-defend-s2-b0001-0001'];
+const fs = require('fs'),
+  path = require('path');
+const REPO = path.resolve(__dirname, '..', '..');
+const SEEDS = [
+  'standard-benchmark-meeting-s1-b0001-0001',
+  'standard-benchmark-us-defend-s1-b0002-0001',
+  'standard-benchmark-ge-defend-s2-b0001-0001'
+];
 
-let failures=0,checks=0;
-function check(name,ok,detail){checks++;if(ok)console.log('  PASS  '+name);else{failures++;console.log('  FAIL  '+name+(detail?'  ('+detail+')':''));}}
-function section(n){console.log('\n== '+n+' ==');}
+let failures = 0,
+  checks = 0;
+function check(name, ok, detail) {
+  checks++;
+  if (ok) console.log('  PASS  ' + name);
+  else {
+    failures++;
+    console.log('  FAIL  ' + name + (detail ? '  (' + detail + ')' : ''));
+  }
+}
+function section(n) {
+  console.log('\n== ' + n + ' ==');
+}
 
 /* Any Babylon construction or call yields a stateful stub; assigned properties read back. */
-function stub(){
-  const store=new Map();
-  const target=function(){};
-  const proxy=new Proxy(target,{
-    get(t,prop){
-      if(prop===Symbol.toPrimitive)return()=>0;
-      if(prop==='then')return undefined;
-      if(!store.has(prop))store.set(prop,stub());
+function stub() {
+  const store = new Map();
+  const target = function () {};
+  const proxy = new Proxy(target, {
+    get(t, prop) {
+      if (prop === Symbol.toPrimitive) return () => 0;
+      if (prop === 'then') return undefined;
+      if (!store.has(prop)) store.set(prop, stub());
       return store.get(prop);
     },
-    set(t,prop,value){store.set(prop,value);return true;},
-    apply(){return stub();},
-    construct(){return stub();}
+    set(t, prop, value) {
+      store.set(prop, value);
+      return true;
+    },
+    apply() {
+      return stub();
+    },
+    construct() {
+      return stub();
+    }
   });
   return proxy;
 }
-const quiet={log(){},warn(){},error(){}};
-function load(root,rel){const c=fs.readFileSync(path.join(REPO,rel),'utf8');new Function('window','globalThis','console','BABYLON',c+'\n//# sourceURL='+rel)(root,root,quiet,root.BABYLON);}
-function world(){
-  const root={console:quiet,BABYLON:stub()};root.window=root;
-  load(root,'battle/core-runtime.js');
+const quiet = { log() {}, warn() {}, error() {} };
+function load(root, rel) {
+  const c = fs.readFileSync(path.join(REPO, rel), 'utf8');
+  new Function('window', 'globalThis', 'console', 'BABYLON', c + '\n//# sourceURL=' + rel)(
+    root,
+    root,
+    quiet,
+    root.BABYLON
+  );
+}
+function world() {
+  const root = { console: quiet, BABYLON: stub() };
+  root.window = root;
+  load(root, 'battle/core-runtime.js');
   /* Same relative order as battle_sim_local.php: shared obstacle field, core terrain,
      pre-commander runtime, then modules. */
-  load(root,'battle/obstacle-field.js');
-  load(root,'battle/terrain-features.js');
-  load(root,'battle/scenario-generator.js');
-  load(root,'battle/battle-navigation.js');
-  load(root,'battle/town-objectives.js');
-  load(root,'battle/modules/08-m3c-hedge-volume-coalescer.js');
-  const scene={metadata:{}};
-  const heightAt=(x,z)=>Math.sin(x*.013)*1.7+Math.cos(z*.011)*1.3;
-  return{root,scene,heightAt};
+  load(root, 'battle/obstacle-field.js');
+  load(root, 'battle/terrain-features.js');
+  load(root, 'battle/scenario-generator.js');
+  load(root, 'battle/battle-navigation.js');
+  load(root, 'battle/town-objectives.js');
+  load(root, 'battle/modules/08-m3c-hedge-volume-coalescer.js');
+  const scene = { metadata: {} };
+  const heightAt = (x, z) => Math.sin(x * 0.013) * 1.7 + Math.cos(z * 0.011) * 1.3;
+  return { root, scene, heightAt };
 }
-function signature(list){return(list||[]).map(f=>[f.id,f.type,f.shape,(+f.x).toFixed(3),(+f.z).toFixed(3),f.visibleHeight==null?'':(+f.visibleHeight).toFixed(3),f.height==null?'':(+f.height).toFixed(3)].join(':')).join('|');}
-function geometry(obstacles){
-  const physical=obstacles&&obstacles.__physicalFootprints||[];
-  return{obstacles:obstacles?obstacles.length:0,physical:physical.length,physicalSig:signature(physical),tacticalSig:signature(obstacles)};
+function signature(list) {
+  return (list || [])
+    .map(f =>
+      [
+        f.id,
+        f.type,
+        f.shape,
+        (+f.x).toFixed(3),
+        (+f.z).toFixed(3),
+        f.visibleHeight == null ? '' : (+f.visibleHeight).toFixed(3),
+        f.height == null ? '' : (+f.height).toFixed(3)
+      ].join(':')
+    )
+    .join('|');
+}
+function geometry(obstacles) {
+  const physical = (obstacles && obstacles.__physicalFootprints) || [];
+  return {
+    obstacles: obstacles ? obstacles.length : 0,
+    physical: physical.length,
+    physicalSig: signature(physical),
+    tacticalSig: signature(obstacles)
+  };
 }
 
-for(const seed of SEEDS){
+for (const seed of SEEDS) {
   section(seed);
   /* Page load: the only entry point the live page uses. */
-  const page=world();
-  const pageBase=page.root.BattleTerrainFeatures.scatter(page.scene,page.heightAt,{fieldW:2000,fieldD:1200,scenarioSeed:seed});
-  const pageGeo=geometry(pageBase.obstacles);
-  const pageStats=page.root.BattleHedgeVolumeCoalescer.stats();
-  const hedges=pageBase.physicalFootprints.filter(f=>f.type==='hedge');
-  const heights=hedges.map(f=>+f.visibleHeight).filter(Number.isFinite);
-  const minH=Math.min(...heights),maxH=Math.max(...heights);
-  check('bocage runtime volumes stay in the mature 2.8-4.57 m range',heights.length>0&&minH>=2.8-1e-6&&maxH<=4.57+1e-6,'min='+minH+' max='+maxH);
-  check('bocage height varies by generated hedge run',maxH-minH>.75,'min='+minH+' max='+maxH);
-  check('tall bocage reaches roughly 15 ft where appropriate',maxH>4.4,'max='+maxH);
-  check('coalesced hedge height is visible height + buried skirt + terrain envelope',hedges.every(f=>{
-    const e=f.terrainEnvelope||{down:0,up:0};
-    return Math.abs((+f.height)-(+f.visibleHeight)-.25-(+e.down||0)-(+e.up||0))<1e-6;
-  }),'sample='+(hedges[0]&&JSON.stringify({height:hedges[0].height,visibleHeight:hedges[0].visibleHeight,envelope:hedges[0].terrainEnvelope})));
-  const tall=hedges.reduce((a,f)=>!a||(+f.visibleHeight)>(+a.visibleHeight)?f:a,null);
-  if(tall){
-    const side=+tall.hz+2,eye=1.55,a={x:tall.x+tall.vx*side,y:(+tall.y)+eye,z:tall.z+tall.vz*side},
-      b={x:tall.x-tall.vx*side,y:(+tall.y)+eye,z:tall.z-tall.vz*side};
-    check('standing eye/muzzle line is blocked by the generated tall hedge',
-      page.root.BattleObstacleField.sightBlocked(pageBase.obstacles,a,b),
-      JSON.stringify({visibleHeight:tall.visibleHeight,height:tall.height,eye}));
+  const page = world();
+  const pageBase = page.root.BattleTerrainFeatures.scatter(page.scene, page.heightAt, {
+    fieldW: 2000,
+    fieldD: 1200,
+    scenarioSeed: seed
+  });
+  const pageGeo = geometry(pageBase.obstacles);
+  const pageStats = page.root.BattleHedgeVolumeCoalescer.stats();
+  const hedges = pageBase.physicalFootprints.filter(f => f.type === 'hedge');
+  const heights = hedges.map(f => +f.visibleHeight).filter(Number.isFinite);
+  const minH = Math.min(...heights),
+    maxH = Math.max(...heights);
+  check(
+    'bocage runtime volumes stay in the mature 2.8-4.57 m range',
+    heights.length > 0 && minH >= 2.8 - 1e-6 && maxH <= 4.57 + 1e-6,
+    'min=' + minH + ' max=' + maxH
+  );
+  check('bocage height varies by generated hedge run', maxH - minH > 0.75, 'min=' + minH + ' max=' + maxH);
+  check('tall bocage reaches roughly 15 ft where appropriate', maxH > 4.4, 'max=' + maxH);
+  check(
+    'coalesced hedge height is visible height + buried skirt + terrain envelope',
+    hedges.every(f => {
+      const e = f.terrainEnvelope || { down: 0, up: 0 };
+      return Math.abs(+f.height - +f.visibleHeight - 0.25 - (+e.down || 0) - (+e.up || 0)) < 1e-6;
+    }),
+    'sample=' +
+      (hedges[0] &&
+        JSON.stringify({
+          height: hedges[0].height,
+          visibleHeight: hedges[0].visibleHeight,
+          envelope: hedges[0].terrainEnvelope
+        }))
+  );
+  const tall = hedges.reduce((a, f) => (!a || +f.visibleHeight > +a.visibleHeight ? f : a), null);
+  if (tall) {
+    const side = +tall.hz + 2,
+      eye = 1.55,
+      a = { x: tall.x + tall.vx * side, y: +tall.y + eye, z: tall.z + tall.vz * side },
+      b = { x: tall.x - tall.vx * side, y: +tall.y + eye, z: tall.z - tall.vz * side };
+    check(
+      'standing eye/muzzle line is blocked by the generated tall hedge',
+      page.root.BattleObstacleField.sightBlocked(pageBase.obstacles, a, b),
+      JSON.stringify({ visibleHeight: tall.visibleHeight, height: tall.height, eye })
+    );
   }
 
   /* Benchmark path: bootstrap page on another seed, then regenerate the benchmark seed. */
-  const bench=world(),sim={obstacles:null};
-  bench.root.BattleTerrainFeatures.scatter(bench.scene,bench.heightAt,{fieldW:2000,fieldD:1200,scenarioSeed:seed.replace(/-\d{4}$/,'')+'-bootstrap'});
-  const scenario=bench.root.BattleTownObjectives.regenerate(bench.scene,bench.heightAt,seed,{benchmark:true,benchmarkIndex:0},sim);
-  const benchGeo=geometry(sim.obstacles);
+  const bench = world(),
+    sim = { obstacles: null };
+  bench.root.BattleTerrainFeatures.scatter(bench.scene, bench.heightAt, {
+    fieldW: 2000,
+    fieldD: 1200,
+    scenarioSeed: seed.replace(/-\d{4}$/, '') + '-bootstrap'
+  });
+  const scenario = bench.root.BattleTownObjectives.regenerate(
+    bench.scene,
+    bench.heightAt,
+    seed,
+    { benchmark: true, benchmarkIndex: 0 },
+    sim
+  );
+  const benchGeo = geometry(sim.obstacles);
 
-  check('page load coalesces hedge chunks into runtime volumes',pageStats.physicalBefore>pageStats.physicalAfter&&pageGeo.physical===pageStats.physicalAfter,JSON.stringify(pageStats));
-  check('regenerate publishes the same physical footprint count as page load',benchGeo.physical===pageGeo.physical,'regenerate='+benchGeo.physical+' page='+pageGeo.physical);
-  check('regenerate publishes identical physical footprints',benchGeo.physicalSig===pageGeo.physicalSig);
-  check('regenerate publishes identical tactical obstacles',benchGeo.obstacles===pageGeo.obstacles&&benchGeo.tacticalSig===pageGeo.tacticalSig,'regenerate='+benchGeo.obstacles+' page='+pageGeo.obstacles);
-  check('regenerate installs the rendered scenario for battle and navigation',!!scenario&&scenario.seed===seed&&bench.scene.metadata.battleScenario===scenario&&bench.root.BattleNavigation.scenario===scenario);
+  check(
+    'page load coalesces hedge chunks into runtime volumes',
+    pageStats.physicalBefore > pageStats.physicalAfter && pageGeo.physical === pageStats.physicalAfter,
+    JSON.stringify(pageStats)
+  );
+  check(
+    'regenerate publishes the same physical footprint count as page load',
+    benchGeo.physical === pageGeo.physical,
+    'regenerate=' + benchGeo.physical + ' page=' + pageGeo.physical
+  );
+  check('regenerate publishes identical physical footprints', benchGeo.physicalSig === pageGeo.physicalSig);
+  check(
+    'regenerate publishes identical tactical obstacles',
+    benchGeo.obstacles === pageGeo.obstacles && benchGeo.tacticalSig === pageGeo.tacticalSig,
+    'regenerate=' + benchGeo.obstacles + ' page=' + pageGeo.obstacles
+  );
+  check(
+    'regenerate installs the rendered scenario for battle and navigation',
+    !!scenario &&
+      scenario.seed === seed &&
+      bench.scene.metadata.battleScenario === scenario &&
+      bench.root.BattleNavigation.scenario === scenario
+  );
 
   /* A trainer or benchmark worker regenerates repeatedly in one page; geometry must not accumulate. */
-  const again={obstacles:null};
-  bench.root.BattleTownObjectives.regenerate(bench.scene,bench.heightAt,seed,{benchmark:true,benchmarkIndex:1},again);
-  const againGeo=geometry(again.obstacles);
-  check('repeated regeneration does not accumulate geometry',againGeo.physicalSig===pageGeo.physicalSig&&againGeo.tacticalSig===pageGeo.tacticalSig,'repeat='+againGeo.physical+'/'+againGeo.obstacles);
+  const again = { obstacles: null };
+  bench.root.BattleTownObjectives.regenerate(
+    bench.scene,
+    bench.heightAt,
+    seed,
+    { benchmark: true, benchmarkIndex: 1 },
+    again
+  );
+  const againGeo = geometry(again.obstacles);
+  check(
+    'repeated regeneration does not accumulate geometry',
+    againGeo.physicalSig === pageGeo.physicalSig && againGeo.tacticalSig === pageGeo.tacticalSig,
+    'repeat=' + againGeo.physical + '/' + againGeo.obstacles
+  );
 }
 
-console.log('\n'+(checks-failures)+'/'+checks+' map pipeline checks passed');
-process.exit(failures?1:0);
+console.log('\n' + (checks - failures) + '/' + checks + ' map pipeline checks passed');
+process.exit(failures ? 1 : 0);

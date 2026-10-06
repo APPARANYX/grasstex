@@ -12,7 +12,10 @@ vm.createContext(ctx);
 
 const coreSource = fs.readFileSync(path.join(__dirname, '../../battle/core-runtime.js'), 'utf8');
 vm.runInContext(coreSource, ctx, { filename: 'battle/core-runtime.js' });
-const utilSource = fs.readFileSync(path.join(__dirname, '../../battle/modules/52-screen-space-lod.js'), 'utf8');
+const utilSource = fs.readFileSync(
+  path.join(__dirname, '../../battle/modules/52-screen-space-lod.js'),
+  'utf8'
+);
 vm.runInContext(utilSource, ctx, { filename: '52-screen-space-lod.js' });
 
 const L = ctx.BattleScreenSpaceLod;
@@ -36,16 +39,29 @@ const scene = {
     }
   },
   getEngine() {
-    return { getRenderHeight() { return 540; } };
+    return {
+      getRenderHeight() {
+        return 540;
+      }
+    };
   }
 };
 close(L.scale(scene), 0.5, 'scene scale reads current render height and projection');
 close(L.distance(100, scene), 50, 'reference metres scale to current screen space');
 
-const backend = fs.readFileSync(path.join(__dirname, '../../battle/modules/53-fbx-soldier-backend.js'), 'utf8');
+const backend = fs.readFileSync(
+  path.join(__dirname, '../../battle/modules/53-fbx-soldier-backend.js'),
+  'utf8'
+);
 assert(/BattleScreenSpaceLod/.test(backend), 'FBX soldier backend consumes shared screen-space LOD');
-assert(/MESH_LOD\.far\*screenScale/.test(backend), 'mesh LOD threshold scales with screen space');
-assert(/LOD\.near\*screenScale/.test(backend), 'full-rate animation threshold scales with screen space');
-assert(/LOD\.mid\*screenScale/.test(backend), 'far animation cadence threshold scales with screen space');
+assert(/MESH_LOD\.far\s*\*\s*screenScale/.test(backend), 'mesh LOD threshold scales with screen space');
+assert(
+  /LOD\.near\s*\*\s*screenScale/.test(backend),
+  'full-rate animation threshold scales with screen space'
+);
+assert(
+  /LOD\.mid\s*\*\s*screenScale/.test(backend),
+  'far animation cadence threshold scales with screen space'
+);
 
 console.log('screen-space-lod-check: PASS');

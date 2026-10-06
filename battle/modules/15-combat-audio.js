@@ -47,7 +47,7 @@
   function v3(p) {
     return p ? { x: +p.x || 0, y: +p.y || 0, z: +p.z || 0 } : null;
   }
-  var dist=root.GTMath.distStrict;
+  var dist = root.GTMath.distStrict;
   /* Closest approach of the segment a -> b to the point c: {miss, along, point} or null. */
   function closest(a, b, c) {
     if (!a || !b || !c) return null;
@@ -106,7 +106,12 @@
     return (n >>> 0) / 4294967296;
   }
   function seedOf(p, k) {
-    return (Math.round(p.x * 97) * 73856093) ^ (Math.round(p.y * 89) * 19349663) ^ (Math.round(p.z * 83) * 83492791) ^ (k | 0);
+    return (
+      (Math.round(p.x * 97) * 73856093) ^
+      (Math.round(p.y * 89) * 19349663) ^
+      (Math.round(p.z * 83) * 83492791) ^
+      (k | 0)
+    );
   }
   /* Impact or ricochet at the round's end, or null for a body (the flesh hit covers it). */
   function ending(end, listener) {
@@ -124,7 +129,14 @@
       if (cos < 0.35) chance += RICOCHET_GRAZING;
     }
     if (chance && d <= GROUPS.ricochet.range && hash01(seedOf(at, 7)) < chance)
-      return { group: 'ricochet', kind: 'whine', d: d, point: at, gain: falloff('ricochet', d), travel: true };
+      return {
+        group: 'ricochet',
+        kind: 'whine',
+        d: d,
+        point: at,
+        gain: falloff('ricochet', d),
+        travel: true
+      };
     if (d > GROUPS.impacts.range) return null;
     return { group: 'impacts', kind: kind, d: d, point: at, gain: falloff('impacts', d), travel: true };
   }
@@ -142,7 +154,8 @@
       var at = v3(p.entry);
       if (!at) return;
       var d = dist(at, L);
-      if (d <= GROUPS.flesh.range) out.push({ group: 'flesh', kind: 'hit', d: d, point: at, gain: falloff('flesh', d), travel: true });
+      if (d <= GROUPS.flesh.range)
+        out.push({ group: 'flesh', kind: 'hit', d: d, point: at, gain: falloff('flesh', d), travel: true });
       var w = p.wound,
         outcome = w && w.outcome;
       if (!outcome || d > GROUPS.pain.range || (outcome === 'killed' && w.zone === 'head')) return;
@@ -193,19 +206,29 @@
   function buildVoices(scene, base) {
     var pools = {};
     Object.keys(GROUPS).forEach(function (group) {
-      var c = (root.BATTLE_AUDIO_MANIFEST && root.BATTLE_AUDIO_MANIFEST.categories && root.BATTLE_AUDIO_MANIFEST.categories[group]) || {};
+      var c =
+        (root.BATTLE_AUDIO_MANIFEST &&
+          root.BATTLE_AUDIO_MANIFEST.categories &&
+          root.BATTLE_AUDIO_MANIFEST.categories[group]) ||
+        {};
       Object.keys(c).forEach(function (kind) {
         pools[group + '.' + kind] = files(group, kind).map(function (f, i) {
           return {
             endsAt: 0,
-            sound: new BABYLON.Sound('combat-' + group + '-' + kind + i, root.BattleAudioFormat ? root.BattleAudioFormat.url(base + f) : base + f, scene, null, {
-              spatialSound: true,
-              distanceModel: 'linear',
-              rolloffFactor: 0,
-              maxDistance: 1000,
-              volume: 0,
-              autoplay: false
-            })
+            sound: new BABYLON.Sound(
+              'combat-' + group + '-' + kind + i,
+              root.BattleAudioFormat ? root.BattleAudioFormat.url(base + f) : base + f,
+              scene,
+              null,
+              {
+                spatialSound: true,
+                distanceModel: 'linear',
+                rolloffFactor: 0,
+                maxDistance: 1000,
+                volume: 0,
+                autoplay: false
+              }
+            )
           };
         });
       });
@@ -262,13 +285,16 @@
       len = typeof len === 'object' ? len[s.kind] : len;
       if (!limits[s.group].admit(len)) return void stats.dropped[s.group]++;
       if (s.group === 'pain' && s.who != null) lastCry[s.who] = t;
-      var v = free[(count++ + (hash01(seedOf(s.point, count)) * free.length) | 0) % free.length];
+      var v = free[((count++ + hash01(seedOf(s.point, count)) * free.length) | 0) % free.length];
       v.endsAt = t + len * 1000;
       stats.played[s.group]++;
       try {
         var snd = v.sound,
           p = s.point;
-        if (snd.setPosition) snd.setPosition(typeof BABYLON !== 'undefined' && BABYLON.Vector3 ? new BABYLON.Vector3(p.x, p.y, p.z) : p);
+        if (snd.setPosition)
+          snd.setPosition(
+            typeof BABYLON !== 'undefined' && BABYLON.Vector3 ? new BABYLON.Vector3(p.x, p.y, p.z) : p
+          );
         if (snd.setVolume) snd.setVolume(s.gain);
         if (snd.setPlaybackRate) snd.setPlaybackRate(1);
         snd.play();
@@ -277,7 +303,8 @@
     function emit(s) {
       if (!s) return;
       /* A man cries out once: a second hit within PAIN_REPEAT is not a second cry. */
-      if (s.group === 'pain' && s.who != null && s.who in lastCry && now() - lastCry[s.who] < PAIN_REPEAT) return;
+      if (s.group === 'pain' && s.who != null && s.who in lastCry && now() - lastCry[s.who] < PAIN_REPEAT)
+        return;
       if (s.travel && s.d > 1) later((s.d / SPEED_OF_SOUND) * 1000, sound.bind(null, s));
       else sound(s);
     }

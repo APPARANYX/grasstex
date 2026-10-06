@@ -25,7 +25,7 @@
   function point(p) {
     return p && isFinite(+p.x) && isFinite(+p.z) ? { x: +p.x, z: +p.z } : null;
   }
-  var dist=root.GTMath.dist;
+  var dist = root.GTMath.dist;
   function pos(s) {
     return point(s && s.root && s.root.position);
   }

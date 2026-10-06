@@ -63,6 +63,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: JavaScript
         run: |
@@ -113,6 +115,27 @@ jobs:
             count=$((count+1))
           done < <(git ls-files '*.json')
           echo "Parsed $count JSON files."
+
+      # Prettier ratchet: the repo's .prettierrc.json was dead config - most tracked JS never
+      # complied. A full one-shot reformat would break every in-flight branch, so instead every
+      # JS file a pull request touches must be on-standard. Legacy files stay as they are and
+      # converge as they get edited; nothing that was ever cleaned may regress.
+      - name: Prettier ratchet
+        run: |
+          set -euo pipefail
+          if [[ -z "$BASE_SHA" ]]; then
+            echo "No pull-request base: the ratchet runs on pull requests only."
+            exit 0
+          fi
+          mapfile -t files < <(git diff --name-only "$BASE_SHA" HEAD -- '*.js' | while IFS= read -r f; do [[ -f "$f" ]] && printf '%s\n' "$f"; done)
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "No JavaScript files changed."
+            exit 0
+          fi
+          echo "Checking ${#files[@]} changed JavaScript file(s) against .prettierrc.json."
+          npx --yes prettier@3.3.3 --check "${files[@]}"
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
 
   audio:
     name: Audio library

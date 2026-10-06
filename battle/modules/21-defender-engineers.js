@@ -18,7 +18,7 @@
   function copy(p) {
     return p ? { x: +p.x || 0, z: +p.z || 0 } : null;
   }
-  var dist=root.GTMath.distStrict;
+  var dist = root.GTMath.distStrict;
   function scenarioOf(sim) {
     var m = sim && sim.scene && sim.scene.metadata;
     return (m && (m.battleScenario || m.battleTown)) || null;

@@ -48,7 +48,7 @@
     MIN_SPEED = 0.35,
     MAX_SIGMA = 2.2;
 
-  var clamp=root.GTMath.clamp;
+  var clamp = root.GTMath.clamp;
   function rand(b) {
     return b && typeof b.random === 'function' ? b.random() : Math.random();
   }

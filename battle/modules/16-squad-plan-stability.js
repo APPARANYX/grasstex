@@ -195,9 +195,7 @@
   function parseScoutsForward(search) {
     return !/[?&]scoutsForward=(?:0|off|false)(?:&|#|$)/i.test(search || '');
   }
-  var SCOUTS_FORWARD_ON = parseScoutsForward(
-    typeof location !== 'undefined' ? location.search || '' : ''
-  );
+  var SCOUTS_FORWARD_ON = parseScoutsForward(typeof location !== 'undefined' ? location.search || '' : '');
   var RECON_TUNING = {
     /* Distances scaled to the restored 140-175 m spotting envelope. Scouts must physically crest
        terrain rather than relying on the former 450-575 m vision override. */
@@ -283,7 +281,8 @@
   };
   var COA_INPUTS = {
     casualtyFrac: function (sq) {
-      var living = 0, m = sq.members || [];
+      var living = 0,
+        m = sq.members || [];
       for (var i = 0; i < m.length; i++) if (m[i] && !m[i].dead) living++;
       return 1 - living / root.SquadAI.establishment(sq);
     },
@@ -313,7 +312,11 @@
      threat sectors (via squadContactsMap) suppresses bounding and holds position to deal with
      both threats before continuing the advance. Default off; the off arm is unchanged
      single-contact fire-and-movement. */
-  var FIRETEAM_SPLIT_ON = !!(typeof location !== 'undefined' && location.search && /[?&]fireteamSplit=1\b/.test(location.search));
+  var FIRETEAM_SPLIT_ON = !!(
+    typeof location !== 'undefined' &&
+    location.search &&
+    /[?&]fireteamSplit=1\b/.test(location.search)
+  );
   var FIRE_CONTROL_TUNING = {
     prepMin: 1.2,
     readyFraction: 0.7,
@@ -350,7 +353,7 @@
   function copy(p) {
     return p ? { x: +p.x || 0, z: +p.z || 0 } : null;
   }
-  var dist=root.GTMath.dist;
+  var dist = root.GTMath.dist;
   function telemetry(sim, type, data) {
     if (root.BattleTelemetry) root.BattleTelemetry.record(type, data, sim);
   }
@@ -410,17 +413,53 @@
         FIRE_CONTROL_TUNING: FIRE_CONTROL_TUNING
       })
     : null;
-  var mkm = _fc ? _fc.mkm : function () { return 0.5; },
-    firstHandContact = _fc ? _fc.firstHandContact : function () { return null; },
-    fireControlRange = _fc ? _fc.fireControlRange : function () { return Infinity; },
-    precisionShooter = _fc ? _fc.precisionShooter : function () { return null; },
+  var mkm = _fc
+      ? _fc.mkm
+      : function () {
+          return 0.5;
+        },
+    firstHandContact = _fc
+      ? _fc.firstHandContact
+      : function () {
+          return null;
+        },
+    fireControlRange = _fc
+      ? _fc.fireControlRange
+      : function () {
+          return Infinity;
+        },
+    precisionShooter = _fc
+      ? _fc.precisionShooter
+      : function () {
+          return null;
+        },
     fireControlTelemetry = _fc ? _fc.fireControlTelemetry : function () {},
-    fireControlTrailEntry = _fc ? _fc.fireControlTrailEntry : function () { return {}; },
-    pushFireControlTrail = _fc ? _fc.pushFireControlTrail : function () { return []; },
-    fireControlCounts = _fc ? _fc.fireControlCounts : function () { return { ready: 0 }; },
-    setFireControl = _fc ? _fc.setFireControl : function () { return null; },
+    fireControlTrailEntry = _fc
+      ? _fc.fireControlTrailEntry
+      : function () {
+          return {};
+        },
+    pushFireControlTrail = _fc
+      ? _fc.pushFireControlTrail
+      : function () {
+          return [];
+        },
+    fireControlCounts = _fc
+      ? _fc.fireControlCounts
+      : function () {
+          return { ready: 0 };
+        },
+    setFireControl = _fc
+      ? _fc.setFireControl
+      : function () {
+          return null;
+        },
     clearFireControl = _fc ? _fc.clearFireControl : function () {},
-    updateFireControl = _fc ? _fc.updateFireControl : function () { return null; };
+    updateFireControl = _fc
+      ? _fc.updateFireControl
+      : function () {
+          return null;
+        };
   /* Leaderless-intent functions are extracted to 15d-squad-leader-leaderless-intent.js.
      The factory is called after the shared utilities and the LEADERLESS_INTENT_ON flag are
      in scope; teamKeyFor and missionVersion are hoisted function declarations, so passing
@@ -439,12 +478,32 @@
         LEADERLESS_INTENT_ON: LEADERLESS_INTENT_ON
       })
     : null;
-  var leaderlessActive = _ll ? _ll.leaderlessActive : function () { return false; },
-    leaderlessStats = _ll ? _ll.leaderlessStats : function () { return null; },
-    leaderlessTelemetry = _ll ? _ll.leaderlessTelemetry : function () { return null; },
-    captureLeaderlessIntent = _ll ? _ll.captureLeaderlessIntent : function () { return null; },
+  var leaderlessActive = _ll
+      ? _ll.leaderlessActive
+      : function () {
+          return false;
+        },
+    leaderlessStats = _ll
+      ? _ll.leaderlessStats
+      : function () {
+          return null;
+        },
+    leaderlessTelemetry = _ll
+      ? _ll.leaderlessTelemetry
+      : function () {
+          return null;
+        },
+    captureLeaderlessIntent = _ll
+      ? _ll.captureLeaderlessIntent
+      : function () {
+          return null;
+        },
     noteLeaderlessAction = _ll ? _ll.noteLeaderlessAction : function () {},
-    endLeaderlessIntent = _ll ? _ll.endLeaderlessIntent : function () { return null; };
+    endLeaderlessIntent = _ll
+      ? _ll.endLeaderlessIntent
+      : function () {
+          return null;
+        };
   /* Morale + COA functions are extracted to 15e-squad-leader-morale-coa.js.
      The factory is called after the flags and the declared tables are in scope.
      The returned functions are attached as closure variables so all callers
@@ -459,13 +518,41 @@
         COA_WEIGHTS: COA_WEIGHTS
       })
     : null;
-  var squadStress = _mc ? _mc.squadStress : function () { return 0; },
-    moraleBreakAt = _mc ? _mc.moraleBreakAt : function () { return 0.6; },
-    moraleRallies = _mc ? _mc.moraleRallies : function () { return false; },
-    coaInputsOf = _mc ? _mc.coaInputsOf : function () { return {}; },
-    coaScore = _mc ? _mc.coaScore : function () { return 0; },
-    decideCOA = _mc ? _mc.decideCOA : function () { return 'assault'; },
-    updateCOA = _mc ? _mc.updateCOA : function () { return null; };
+  var squadStress = _mc
+      ? _mc.squadStress
+      : function () {
+          return 0;
+        },
+    moraleBreakAt = _mc
+      ? _mc.moraleBreakAt
+      : function () {
+          return 0.6;
+        },
+    moraleRallies = _mc
+      ? _mc.moraleRallies
+      : function () {
+          return false;
+        },
+    coaInputsOf = _mc
+      ? _mc.coaInputsOf
+      : function () {
+          return {};
+        },
+    coaScore = _mc
+      ? _mc.coaScore
+      : function () {
+          return 0;
+        },
+    decideCOA = _mc
+      ? _mc.decideCOA
+      : function () {
+          return 'assault';
+        },
+    updateCOA = _mc
+      ? _mc.updateCOA
+      : function () {
+          return null;
+        };
   /* Retreat-anchor + publishAnchor functions are extracted to
      15f-squad-leader-retreat-anchor.js. The factory is called after the shared utilities
      and the RETREAT_* tuning are in scope (averageMembers is a hoisted function
@@ -493,17 +580,45 @@
         RETREAT_RECOVERY_STRIDE: RETREAT_RECOVERY_STRIDE
       })
     : null;
-  var retreatCenter = _ra ? _ra.retreatCenter : function () { return null; },
-    retreatBlocked = _ra ? _ra.retreatBlocked : function () { return false; },
-    retreatUnsafe = _ra ? _ra.retreatUnsafe : function () { return false; },
-    retreatPoint = _ra ? _ra.retreatPoint : function () { return null; },
-    grantRetreatAnchor = _ra ? _ra.grantRetreatAnchor : function () { return null; },
-    stableRetreatAnchor = _ra ? _ra.stableRetreatAnchor : function () { return null; },
+  var retreatCenter = _ra
+      ? _ra.retreatCenter
+      : function () {
+          return null;
+        },
+    retreatBlocked = _ra
+      ? _ra.retreatBlocked
+      : function () {
+          return false;
+        },
+    retreatUnsafe = _ra
+      ? _ra.retreatUnsafe
+      : function () {
+          return false;
+        },
+    retreatPoint = _ra
+      ? _ra.retreatPoint
+      : function () {
+          return null;
+        },
+    grantRetreatAnchor = _ra
+      ? _ra.grantRetreatAnchor
+      : function () {
+          return null;
+        },
+    stableRetreatAnchor = _ra
+      ? _ra.stableRetreatAnchor
+      : function () {
+          return null;
+        },
     /* No-write fallback: the pair is published only by the owner function in 15f
        (state-ownership-check.js holds orderAnchor/rally to that file). The sub-module is
        always loaded before 16 (PHP glob sort and every harness load chain), so this arm
        is a load-order safety net, never a publisher. */
-    publishAnchor = _ra ? _ra.publishAnchor : function () { return null; };
+    publishAnchor = _ra
+      ? _ra.publishAnchor
+      : function () {
+          return null;
+        };
   /* Reconstitution functions are extracted to 15k-squad-leader-reconstitution.js.
      The factory is called after the leaderless, morale/COA and retreat-anchor re-attaches
      (recoverFromRetreat reads the morale functions, reform publishes through publishAnchor)
@@ -542,11 +657,19 @@
     disband = _rk ? _rk.disband : function () {},
     noteSafePoint = _rk ? _rk.noteSafePoint : function () {},
     detachFled = _rk ? _rk.detachFled : function () {},
-    absorb = _rk ? _rk.absorb : function () { return false; },
+    absorb = _rk
+      ? _rk.absorb
+      : function () {
+          return false;
+        },
     endUnstick = _rk ? _rk.endUnstick : function () {},
     acknowledgeRequest = _rk ? _rk.acknowledgeRequest : function () {},
     endRallyRecovery = _rk ? _rk.endRallyRecovery : function () {},
-    recoverFromRetreat = _rk ? _rk.recoverFromRetreat : function () { return false; },
+    recoverFromRetreat = _rk
+      ? _rk.recoverFromRetreat
+      : function () {
+          return false;
+        },
     updateAssembly = _rk ? _rk.updateAssembly : function () {};
   function median(a) {
     if (!a.length) return 0;
@@ -698,7 +821,10 @@
   }
   function movementExecutionCurrent(s, battle) {
     var CR = root.BattleCommandReception;
-    return !movementAdoptionOn() || CR.executionCurrent(s, battle, 'movement', movementScope(s), s._fireteamAdoptedEnvelope);
+    return (
+      !movementAdoptionOn() ||
+      CR.executionCurrent(s, battle, 'movement', movementScope(s), s._fireteamAdoptedEnvelope)
+    );
   }
   function movementSignature(publishKey, next) {
     return (
@@ -777,12 +903,7 @@
     s._fireteamAdoptedEnvelope = adopted.envelopeId;
     stats.intentPublishes++;
     if (root.BattleMovementResolver)
-      root.BattleMovementResolver.proposeOrder(
-        s,
-        s._fireteamDestination,
-        battle,
-        !!adopted.data.urgent
-      );
+      root.BattleMovementResolver.proposeOrder(s, s._fireteamDestination, battle, !!adopted.data.urgent);
     else s.orderDestination = copy(s._fireteamDestination);
     return true;
   }
@@ -1084,26 +1205,82 @@
         BUDDY_TUNING: BUDDY_TUNING
       })
     : null;
-  var aliveTeam = _bp ? _bp.aliveTeam : function () { return []; },
-    buddyStats = _bp ? _bp.buddyStats : function () { return null; },
+  var aliveTeam = _bp
+      ? _bp.aliveTeam
+      : function () {
+          return [];
+        },
+    buddyStats = _bp
+      ? _bp.buddyStats
+      : function () {
+          return null;
+        },
     buddyIncReason = _bp ? _bp.buddyIncReason : function () {},
     buddyHistory = _bp ? _bp.buddyHistory : function () {},
-    buddyBrokenState = _bp ? _bp.buddyBrokenState : function () { return false; },
+    buddyBrokenState = _bp
+      ? _bp.buddyBrokenState
+      : function () {
+          return false;
+        },
     buddyTransition = _bp ? _bp.buddyTransition : function () {},
-    buddyMember = _bp ? _bp.buddyMember : function () { return null; },
-    buddyTaskKey = _bp ? _bp.buddyTaskKey : function () { return ''; },
-    buddyPairId = _bp ? _bp.buddyPairId : function () { return ''; },
-    buddyRetireReason = _bp ? _bp.buddyRetireReason : function () { return 'roster-changed'; },
-    syncBuddyPairs = _bp ? _bp.syncBuddyPairs : function () { return null; },
-    buddyIncompatible = _bp ? _bp.buddyIncompatible : function () { return null; },
-    buddyStillBroken = _bp ? _bp.buddyStillBroken : function () { return false; },
+    buddyMember = _bp
+      ? _bp.buddyMember
+      : function () {
+          return null;
+        },
+    buddyTaskKey = _bp
+      ? _bp.buddyTaskKey
+      : function () {
+          return '';
+        },
+    buddyPairId = _bp
+      ? _bp.buddyPairId
+      : function () {
+          return '';
+        },
+    buddyRetireReason = _bp
+      ? _bp.buddyRetireReason
+      : function () {
+          return 'roster-changed';
+        },
+    syncBuddyPairs = _bp
+      ? _bp.syncBuddyPairs
+      : function () {
+          return null;
+        },
+    buddyIncompatible = _bp
+      ? _bp.buddyIncompatible
+      : function () {
+          return null;
+        },
+    buddyStillBroken = _bp
+      ? _bp.buddyStillBroken
+      : function () {
+          return false;
+        },
     buddyRecover = _bp ? _bp.buddyRecover : function () {},
     updateBuddyPairState = _bp ? _bp.updateBuddyPairState : function () {},
-    updateBuddyPairs = _bp ? _bp.updateBuddyPairs : function () { return null; },
-    buddyBoundPreview = _bp ? _bp.buddyBoundPreview : function () { return { movers: [], cooperation: [] }; },
+    updateBuddyPairs = _bp
+      ? _bp.updateBuddyPairs
+      : function () {
+          return null;
+        },
+    buddyBoundPreview = _bp
+      ? _bp.buddyBoundPreview
+      : function () {
+          return { movers: [], cooperation: [] };
+        },
     commitBuddyCooperation = _bp ? _bp.commitBuddyCooperation : function () {},
-    buddySnapshot = _bp ? _bp.buddySnapshot : function () { return null; },
-    buddyTelemetry = _bp ? _bp.buddyTelemetry : function () { return null; };
+    buddySnapshot = _bp
+      ? _bp.buddySnapshot
+      : function () {
+          return null;
+        },
+    buddyTelemetry = _bp
+      ? _bp.buddyTelemetry
+      : function () {
+          return null;
+        };
   /* Formation + forward-line functions are extracted to 15g-squad-leader-formation.js.
      The factory is called right after the buddy-pairs re-attach so aliveTeam (spawn
      placement) is in scope. The returned functions are attached as closure variables so
@@ -1118,14 +1295,42 @@
         FOLLOW_LAG: FOLLOW_LAG
       })
     : null;
-  var commandForward = _fm ? _fm.commandForward : function () { return { x: 0, z: 0 }; },
-    forwardMajority = _fm ? _fm.forwardMajority : function () { return null; },
+  var commandForward = _fm
+      ? _fm.commandForward
+      : function () {
+          return { x: 0, z: 0 };
+        },
+    forwardMajority = _fm
+      ? _fm.forwardMajority
+      : function () {
+          return null;
+        },
     publishForwardLine = _fm ? _fm.publishForwardLine : function () {},
-    teamFrame = _fm ? _fm.teamFrame : function () { return { x: 0, z: 0 }; },
-    desiredAnchor = _fm ? _fm.desiredAnchor : function () { return null; },
-    forward = _fm ? _fm.forward : function () { return { x: 0, z: 0 }; },
-    teamSlot = _fm ? _fm.teamSlot : function () { return null; },
-    spawnForward = _fm ? _fm.spawnForward : function () { return { x: 0, z: 0 }; },
+    teamFrame = _fm
+      ? _fm.teamFrame
+      : function () {
+          return { x: 0, z: 0 };
+        },
+    desiredAnchor = _fm
+      ? _fm.desiredAnchor
+      : function () {
+          return null;
+        },
+    forward = _fm
+      ? _fm.forward
+      : function () {
+          return { x: 0, z: 0 };
+        },
+    teamSlot = _fm
+      ? _fm.teamSlot
+      : function () {
+          return null;
+        },
+    spawnForward = _fm
+      ? _fm.spawnForward
+      : function () {
+          return { x: 0, z: 0 };
+        },
     placeAtSlots = _fm ? _fm.placeAtSlots : function () {},
     placeForce = _fm ? _fm.placeForce : function () {},
     followTeamForward = _fm ? _fm.followTeamForward : function () {};
@@ -1163,9 +1368,17 @@
         STRAGGLER_BYPASS: STRAGGLER_BYPASS
       })
     : null;
-  var cohesionState = _cg ? _cg.cohesionState : function () { return {}; },
+  var cohesionState = _cg
+      ? _cg.cohesionState
+      : function () {
+          return {};
+        },
     markCatchup = _cg ? _cg.markCatchup : function () {},
-    endRegroup = _cg ? _cg.endRegroup : function () { return false; },
+    endRegroup = _cg
+      ? _cg.endRegroup
+      : function () {
+          return false;
+        },
     updateCohesion = _cg ? _cg.updateCohesion : function () {};
   function averageMembers(m) {
     var x = 0,
@@ -1226,16 +1439,52 @@
         RECON_PHASES: RECON_PHASES
       })
     : null;
-  var reconStats = _sf ? _sf.reconStats : function () { return null; },
+  var reconStats = _sf
+      ? _sf.reconStats
+      : function () {
+          return null;
+        },
     reconInc = _sf ? _sf.reconInc : function () {},
-    reconDistance = _sf ? _sf.reconDistance : function () { return 0; },
-    reconTelemetry = _sf ? _sf.reconTelemetry : function () { return null; },
-    leaderPictureAdequate = _sf ? _sf.leaderPictureAdequate : function () { return false; },
-    reconScreen = _sf ? _sf.reconScreen : function () { return null; },
-    reconSignature = _sf ? _sf.reconSignature : function () { return ''; },
-    reconCandidate = _sf ? _sf.reconCandidate : function () { return null; },
-    reconEligible = _sf ? _sf.reconEligible : function () { return false; },
-    selectReconScouts = _sf ? _sf.selectReconScouts : function () { return null; },
+    reconDistance = _sf
+      ? _sf.reconDistance
+      : function () {
+          return 0;
+        },
+    reconTelemetry = _sf
+      ? _sf.reconTelemetry
+      : function () {
+          return null;
+        },
+    leaderPictureAdequate = _sf
+      ? _sf.leaderPictureAdequate
+      : function () {
+          return false;
+        },
+    reconScreen = _sf
+      ? _sf.reconScreen
+      : function () {
+          return null;
+        },
+    reconSignature = _sf
+      ? _sf.reconSignature
+      : function () {
+          return '';
+        },
+    reconCandidate = _sf
+      ? _sf.reconCandidate
+      : function () {
+          return null;
+        },
+    reconEligible = _sf
+      ? _sf.reconEligible
+      : function () {
+          return false;
+        },
+    selectReconScouts = _sf
+      ? _sf.selectReconScouts
+      : function () {
+          return null;
+        },
     syncReconTasks = _sf ? _sf.syncReconTasks : function () {},
     startRecon = _sf ? _sf.startRecon : function () {},
     updateReconDistance = _sf ? _sf.updateReconDistance : function () {},
@@ -1244,7 +1493,11 @@
     updateReconReportWatch = _sf ? _sf.updateReconReportWatch : function () {},
     endRecon = _sf ? _sf.endRecon : function () {},
     updateRecon = _sf ? _sf.updateRecon : function () {},
-    publishReconOrders = _sf ? _sf.publishReconOrders : function () { return false; };
+    publishReconOrders = _sf
+      ? _sf.publishReconOrders
+      : function () {
+          return false;
+        };
   /* Fireteam publishing functions are extracted to 15h-squad-leader-fireteams.js.
      The factory is called right after the scouts-forward re-attach (publishReconOrders)
      so every dependency is in scope. The returned functions are attached as closure
@@ -1277,8 +1530,16 @@
         followTeamForward: followTeamForward
       })
     : null;
-  var holdPost = _ft ? _ft.holdPost : function () { return null; },
-    fireteamSignature = _ft ? _ft.fireteamSignature : function () { return ''; },
+  var holdPost = _ft
+      ? _ft.holdPost
+      : function () {
+          return null;
+        },
+    fireteamSignature = _ft
+      ? _ft.fireteamSignature
+      : function () {
+          return '';
+        },
     updateFireteams = _ft ? _ft.updateFireteams : function () {};
 
   /* The legacy SquadAI issueOrders() both advanced the Squad Leader's anchor AND published an individual
@@ -1298,11 +1559,20 @@
      when anyone sees an enemy or is shot at (the fight resumes), when the squad has reached the point (cleared),
      after CLEAR_MAX seconds, in a holding phase, in retreat or when the battle is over; a newer first-hand
      sighting moves the point. */
-  var ALERT_ADVANCE = !(typeof location !== 'undefined' && /[?&]alertAdvance=(?:0|off|false)\b/.test(location.search || ''));
+  var ALERT_ADVANCE = !(
+    typeof location !== 'undefined' && /[?&]alertAdvance=(?:0|off|false)\b/.test(location.search || '')
+  );
   var CLEAR_AFTER = 6;
   var CLEAR_MAX = 90;
   var CLEAR_ARRIVED = 4;
-  var CLEAR_HOLD_PHASES = { regroup: 1, 'support-hold': 1, hold: 1, reserve: 1, defend: 1, 'corner-check': 1 };
+  var CLEAR_HOLD_PHASES = {
+    regroup: 1,
+    'support-hold': 1,
+    hold: 1,
+    reserve: 1,
+    defend: 1,
+    'corner-check': 1
+  };
   /* Clear-contact functions are extracted to 15i-squad-leader-clear-contact.js.
      The factory is called after the flags, constants and the fire-control re-attach are
      in scope. The returned functions are attached as closure variables so the anchor
@@ -1349,10 +1619,26 @@
         URBAN_ARRIVAL_COHESION: URBAN_ARRIVAL_COHESION
       })
     : null;
-  var inTown = _me ? _me.inTown : function () { return false; },
-    missionLegs = _me ? _me.missionLegs : function () { return []; },
-    assaultCommitted = _me ? _me.assaultCommitted : function () { return false; },
-    objectivePhase = _me ? _me.objectivePhase : function () { return 'assault'; },
+  var inTown = _me
+      ? _me.inTown
+      : function () {
+          return false;
+        },
+    missionLegs = _me
+      ? _me.missionLegs
+      : function () {
+          return [];
+        },
+    assaultCommitted = _me
+      ? _me.assaultCommitted
+      : function () {
+          return false;
+        },
+    objectivePhase = _me
+      ? _me.objectivePhase
+      : function () {
+          return 'assault';
+        },
     executeMission = _me ? _me.executeMission : function () {};
   function advanceSquadAnchor(sq, battle) {
     var anchor = sq.orderAnchor || publishAnchor(sq, sq.rally);
@@ -1421,7 +1707,10 @@
     var m = /[?&]slStress=([^&#]*)/.exec(search || ''),
       out = {},
       v = m ? decodeURIComponent(m[1]).toLowerCase() : 'all';
-    if (v === '' || v === '1' || v === 'on' || v === 'all') SL_STRESS_PARTS.forEach(function (k) { out[k] = true; });
+    if (v === '' || v === '1' || v === 'on' || v === 'all')
+      SL_STRESS_PARTS.forEach(function (k) {
+        out[k] = true;
+      });
     else if (v && v !== '0' && v !== 'off')
       v.split(',').forEach(function (k) {
         if (SL_STRESS_PARTS.indexOf(k) >= 0) out[k] = true;
@@ -1461,8 +1750,16 @@
         COA_ON: COA_ON
       })
     : null;
-  var teamStress = _fa ? _fa.teamStress : function () { return 0; },
-    leadStress = _fa ? _fa.leadStress : function () { return 0; },
+  var teamStress = _fa
+      ? _fa.teamStress
+      : function () {
+          return 0;
+        },
+    leadStress = _fa
+      ? _fa.leadStress
+      : function () {
+          return 0;
+        },
     stressReview = _fa ? _fa.stressReview : function () {},
     fireAndMovement = _fa ? _fa.fireAndMovement : function () {};
   function updateSquadState(sq, battle) {
@@ -1480,7 +1777,9 @@
       if (sq.state === 'retreat') {
         /* Psychological recovery is not physical recovery. Keep retreat authority until the men stop
            at a local rally point and reform, then hand the old mission back to ordinary command. */
-        if ((battle ? recoverFromRetreat(sq, battle, casualtyFrac, stress) : moraleRallies(casualtyFrac, stress)))
+        if (
+          battle ? recoverFromRetreat(sq, battle, casualtyFrac, stress) : moraleRallies(casualtyFrac, stress)
+        )
           sq.state = anyEngaged ? 'engaged' : 'advance';
       } else {
         if (battle) endRallyRecovery(sq, battle, 'not retreating');
@@ -1637,11 +1936,15 @@
       scoutsForward: RECON_TUNING,
       leaderlessIntent: LEADERLESS_TUNING
     },
-    leaderlessIntentOn: function () { return LEADERLESS_INTENT_ON; },
+    leaderlessIntentOn: function () {
+      return LEADERLESS_INTENT_ON;
+    },
     parseLeaderlessIntent: parseLeaderlessIntent,
     leaderlessActive: leaderlessActive,
     leaderlessTelemetry: leaderlessTelemetry,
-    scoutsForwardOn: function () { return SCOUTS_FORWARD_ON; },
+    scoutsForwardOn: function () {
+      return SCOUTS_FORWARD_ON;
+    },
     parseScoutsForward: parseScoutsForward,
     reconCandidate: reconCandidate,
     selectReconScouts: selectReconScouts,
@@ -1649,13 +1952,18 @@
     updateRecon: updateRecon,
     endRecon: endRecon,
     reconTelemetry: reconTelemetry,
-    slStress: function () { return Object.assign({}, SL_STRESS); },
+    slStress: function () {
+      return Object.assign({}, SL_STRESS);
+    },
     parseSlStress: parseSlStress,
-    buddyPairsOn: function () { return BUDDY_PAIRS_ON; },
+    buddyPairsOn: function () {
+      return BUDDY_PAIRS_ON;
+    },
     parseBuddyPairs: parseBuddyPairs,
     updateBuddyPairs: updateBuddyPairs,
     buddyFor: function (s) {
-      var sq = s && s.squad, pairs = sq && sq._buddyPairs;
+      var sq = s && s.squad,
+        pairs = sq && sq._buddyPairs;
       if (!BUDDY_PAIRS_ON || !pairs || !s) return null;
       var ids = Object.keys(pairs);
       for (var i = 0; i < ids.length; i++) {
@@ -1678,19 +1986,33 @@
     },
     buddySnapshot: buddySnapshot,
     buddyTelemetry: buddyTelemetry,
-    moraleOn: function () { return MORALE_ON; },
-    rallyRecoveryOn: function () { return RALLY_RECOVERY_ON; },
+    moraleOn: function () {
+      return MORALE_ON;
+    },
+    rallyRecoveryOn: function () {
+      return RALLY_RECOVERY_ON;
+    },
     parseRallyRecovery: parseRallyRecovery,
     rallyRecoveryTuning: { dwell: RALLY_RECOVERY_DWELL, arrive: RALLY_RECOVERY_ARRIVE },
-    fireControlOn: function () { return FIRE_CONTROL_ON; },
-    alertAdvanceOn: function () { return ALERT_ADVANCE; },
-    fireControl: function (sq) { return sq && sq.fireControl ? Object.assign({}, sq.fireControl) : null; },
+    fireControlOn: function () {
+      return FIRE_CONTROL_ON;
+    },
+    alertAdvanceOn: function () {
+      return ALERT_ADVANCE;
+    },
+    fireControl: function (sq) {
+      return sq && sq.fireControl ? Object.assign({}, sq.fireControl) : null;
+    },
     updateFireControl: updateFireControl,
     advanceSquadAnchor: advanceSquadAnchor,
     updateFireteams: updateFireteams,
     updateCohesion: updateCohesion,
-    coaOn: function () { return COA_ON; },
-    coas: function () { return Object.keys(COAS); },
+    coaOn: function () {
+      return COA_ON;
+    },
+    coas: function () {
+      return Object.keys(COAS);
+    },
     /* Read-only views of the two decisions, for the checks and the probes (nothing in the runtime calls them). */
     moraleBreakAt: moraleBreakAt,
     moraleRallies: moraleRallies,
@@ -1702,7 +2024,9 @@
       });
       return { winner: decideCOA(inputs), scores: scores };
     },
-    boundPhases: function () { return Object.keys(ASSAULT_PHASES); },
+    boundPhases: function () {
+      return Object.keys(ASSAULT_PHASES);
+    },
     fireAndMovement: fireAndMovement,
     states: PHASE_STATES,
     transitionPhase: transitionPhase,

@@ -1,338 +1,675 @@
-(function(global){
+(function (global) {
   'use strict';
-  var FLY_SPEED=68,FLY_SPRINT=175,THROTTLE_MIN=.01,THROTTLE_PER_PIXEL=.00288,DELTA_UNIT_PX=[1,16,400];
-  var FOLLOW_DEFAULT=10,FOLLOW_MIN=3,FOLLOW_MAX=90,FOLLOW_BETA=1.18,FOLLOW_HEIGHT=1.05,ORBIT_SPEED=.22;
-  var LOOK_X=.0022,LOOK_Y=.0018,PITCH_LIMIT=Math.PI*.46,MAX_HEIGHT=420,GROUND_CLEARANCE=2,CAMERA_FAR=2600;
-  var PAD_DEADZONE=.16,PAD_LOOK_RATE=2.35,PAD_PRECISION=.28,PAD_THROTTLE_STEP=1.35;
-  var PLAYER_DISTANCE=5.6,PLAYER_AIM_DISTANCE=3.15,PLAYER_LOOK_RATE=2.2,PLAYER_MOVE_AHEAD=6,PLAYER_CAMERA_CLEARANCE=.45;
-  var KEY_HINT='Camera: click to look · WASD move · wheel speed · Q/E up/down · Shift sprint · P player · Esc releases';
-  var PAD_HINT='Xbox: LS move · RS look · LT/RT down/up · RB sprint · LB precision · D-pad speed · Y level · Menu player';
-  var PLAYER_HINT='Player: WASD move · Shift run · mouse look · RMB aim · LMB fire · C crouch · Z prone · P new soldier · V exit';
-  var PLAYER_PAD_HINT='Xbox: LS move · L3 run · RS look · LT aim · RT fire · B crouch · A prone · Menu new soldier · View exit';
-  var TOUCH_HINT='Camera: drag to orbit · pinch/wheel to zoom';
-  var PAD_WAKE_HINT='Xbox: move a stick or press a button to switch to fly controls';
-  var clamp=global.GTMath.clamp;
-  function desktopPointer(){return !!(global.matchMedia&&global.matchMedia('(pointer:fine)').matches);}
-  function hasGamepadAPI(){return !!(global.navigator&&typeof global.navigator.getGamepads==='function');}
-  function queryParams(){try{return new URLSearchParams(global.location&&global.location.search||'');}catch(_){return new URLSearchParams();}}
-  function queryNumber(q,key,fallback,min,max){
-    if(!q.has(key))return fallback;
-    var n=+q.get(key);if(!isFinite(n))return fallback;
-    return clamp(n,min,max);
+  var FLY_SPEED = 68,
+    FLY_SPRINT = 175,
+    THROTTLE_MIN = 0.01,
+    THROTTLE_PER_PIXEL = 0.00288,
+    DELTA_UNIT_PX = [1, 16, 400];
+  var FOLLOW_DEFAULT = 10,
+    FOLLOW_MIN = 3,
+    FOLLOW_MAX = 90,
+    FOLLOW_BETA = 1.18,
+    FOLLOW_HEIGHT = 1.05,
+    ORBIT_SPEED = 0.22;
+  var LOOK_X = 0.0022,
+    LOOK_Y = 0.0018,
+    PITCH_LIMIT = Math.PI * 0.46,
+    MAX_HEIGHT = 420,
+    GROUND_CLEARANCE = 2,
+    CAMERA_FAR = 2600;
+  var PAD_DEADZONE = 0.16,
+    PAD_LOOK_RATE = 2.35,
+    PAD_PRECISION = 0.28,
+    PAD_THROTTLE_STEP = 1.35;
+  var PLAYER_DISTANCE = 5.6,
+    PLAYER_AIM_DISTANCE = 3.15,
+    PLAYER_LOOK_RATE = 2.2,
+    PLAYER_MOVE_AHEAD = 6,
+    PLAYER_CAMERA_CLEARANCE = 0.45;
+  var KEY_HINT =
+    'Camera: click to look · WASD move · wheel speed · Q/E up/down · Shift sprint · P player · Esc releases';
+  var PAD_HINT =
+    'Xbox: LS move · RS look · LT/RT down/up · RB sprint · LB precision · D-pad speed · Y level · Menu player';
+  var PLAYER_HINT =
+    'Player: WASD move · Shift run · mouse look · RMB aim · LMB fire · C crouch · Z prone · P new soldier · V exit';
+  var PLAYER_PAD_HINT =
+    'Xbox: LS move · L3 run · RS look · LT aim · RT fire · B crouch · A prone · Menu new soldier · View exit';
+  var TOUCH_HINT = 'Camera: drag to orbit · pinch/wheel to zoom';
+  var PAD_WAKE_HINT = 'Xbox: move a stick or press a button to switch to fly controls';
+  var clamp = global.GTMath.clamp;
+  function desktopPointer() {
+    return !!(global.matchMedia && global.matchMedia('(pointer:fine)').matches);
   }
-  function livingSoldiers(b){
-    if(!b||!b._roster)return[];
-    return (b._roster.us||[]).concat(b._roster.ge||[]).filter(function(s){return s&&s.root&&!s.dead;});
+  function hasGamepadAPI() {
+    return !!(global.navigator && typeof global.navigator.getGamepads === 'function');
   }
-  function busiestSoldier(all){
-    var best=null,bestN=-1;
-    all.forEach(function(s){
-      var n=0,p=s.root.position;
-      all.forEach(function(o){var d=o.root.position,dx=d.x-p.x,dz=d.z-p.z;if(dx*dx+dz*dz<3600)n++;});
-      if(n>bestN){bestN=n;best=s;}
+  function queryParams() {
+    try {
+      return new URLSearchParams((global.location && global.location.search) || '');
+    } catch (_) {
+      return new URLSearchParams();
+    }
+  }
+  function queryNumber(q, key, fallback, min, max) {
+    if (!q.has(key)) return fallback;
+    var n = +q.get(key);
+    if (!isFinite(n)) return fallback;
+    return clamp(n, min, max);
+  }
+  function livingSoldiers(b) {
+    if (!b || !b._roster) return [];
+    return (b._roster.us || []).concat(b._roster.ge || []).filter(function (s) {
+      return s && s.root && !s.dead;
+    });
+  }
+  function busiestSoldier(all) {
+    var best = null,
+      bestN = -1;
+    all.forEach(function (s) {
+      var n = 0,
+        p = s.root.position;
+      all.forEach(function (o) {
+        var d = o.root.position,
+          dx = d.x - p.x,
+          dz = d.z - p.z;
+        if (dx * dx + dz * dz < 3600) n++;
+      });
+      if (n > bestN) {
+        bestN = n;
+        best = s;
+      }
     });
     return best;
   }
-  function nearestLiving(all,from){
-    var best=null,bestD=Infinity;
-    all.forEach(function(s){var p=s.root.position,dx=p.x-from.x,dz=p.z-from.z,d=dx*dx+dz*dz;if(d<bestD){bestD=d;best=s;}});
+  function nearestLiving(all, from) {
+    var best = null,
+      bestD = Infinity;
+    all.forEach(function (s) {
+      var p = s.root.position,
+        dx = p.x - from.x,
+        dz = p.z - from.z,
+        d = dx * dx + dz * dz;
+      if (d < bestD) {
+        bestD = d;
+        best = s;
+      }
+    });
     return best;
   }
-  function initialPosition(target,radius,alpha,beta){
+  function initialPosition(target, radius, alpha, beta) {
     return new BABYLON.Vector3(
-      target.x+radius*Math.cos(alpha)*Math.sin(beta),
-      target.y+radius*Math.cos(beta),
-      target.z+radius*Math.sin(alpha)*Math.sin(beta)
+      target.x + radius * Math.cos(alpha) * Math.sin(beta),
+      target.y + radius * Math.cos(beta),
+      target.z + radius * Math.sin(alpha) * Math.sin(beta)
     );
   }
-  function createTouchOrbit(scene,canvas,target){
-    var camera=new BABYLON.ArcRotateCamera('cam',-Math.PI/2,1.02,720,target,scene);
-    camera.lowerRadiusLimit=90;camera.upperRadiusLimit=1850;camera.lowerBetaLimit=.28;camera.upperBetaLimit=1.5;
-    camera.wheelPrecision=3;camera.panningSensibility=120;camera.attachControl(canvas,true);
-    var hint=TOUCH_HINT+(hasGamepadAPI()?' · '+PAD_WAKE_HINT:'');
-    return {camera:camera,desktop:false,hint:hint};
+  function createTouchOrbit(scene, canvas, target) {
+    var camera = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, 1.02, 720, target, scene);
+    camera.lowerRadiusLimit = 90;
+    camera.upperRadiusLimit = 1850;
+    camera.lowerBetaLimit = 0.28;
+    camera.upperBetaLimit = 1.5;
+    camera.wheelPrecision = 3;
+    camera.panningSensibility = 120;
+    camera.attachControl(canvas, true);
+    var hint = TOUCH_HINT + (hasGamepadAPI() ? ' · ' + PAD_WAKE_HINT : '');
+    return { camera: camera, desktop: false, hint: hint };
   }
-  function shapedAxis(v){
-    v=isFinite(+v)?+v:0;var a=Math.abs(v);if(a<=PAD_DEADZONE)return 0;
-    return Math.sign(v)*(a-PAD_DEADZONE)/(1-PAD_DEADZONE);
+  function shapedAxis(v) {
+    v = isFinite(+v) ? +v : 0;
+    var a = Math.abs(v);
+    if (a <= PAD_DEADZONE) return 0;
+    return (Math.sign(v) * (a - PAD_DEADZONE)) / (1 - PAD_DEADZONE);
   }
-  function buttonValue(pad,index){var b=pad&&pad.buttons&&pad.buttons[index];return b?Math.max(b.pressed?1:0,+b.value||0):0;}
-  function activeGamepad(){
-    if(!hasGamepadAPI())return null;
-    var pads=global.navigator.getGamepads()||[],fallback=null;
-    for(var i=0;i<pads.length;i++){var p=pads[i];if(!p||p.connected===false)continue;if(!fallback)fallback=p;if(p.mapping==='standard')return p;}
+  function buttonValue(pad, index) {
+    var b = pad && pad.buttons && pad.buttons[index];
+    return b ? Math.max(b.pressed ? 1 : 0, +b.value || 0) : 0;
+  }
+  function activeGamepad() {
+    if (!hasGamepadAPI()) return null;
+    var pads = global.navigator.getGamepads() || [],
+      fallback = null;
+    for (var i = 0; i < pads.length; i++) {
+      var p = pads[i];
+      if (!p || p.connected === false) continue;
+      if (!fallback) fallback = p;
+      if (p.mapping === 'standard') return p;
+    }
     return fallback;
   }
-  function cameraPose(camera,fallbackTarget){
-    var position=camera&&camera.position&&camera.position.clone?camera.position.clone():initialPosition(fallbackTarget,720,-Math.PI/2,1.02);
-    var look=fallbackTarget&&fallbackTarget.clone?fallbackTarget.clone():new BABYLON.Vector3(fallbackTarget.x,fallbackTarget.y,fallbackTarget.z);
-    if(camera){
-      try{
-        if(typeof camera.getTarget==='function'){
-          var t=camera.getTarget();if(t)look=t.clone?t.clone():new BABYLON.Vector3(t.x,t.y,t.z);
-        }else if(camera.target){
-          look=camera.target.clone?camera.target.clone():new BABYLON.Vector3(camera.target.x,camera.target.y,camera.target.z);
+  function cameraPose(camera, fallbackTarget) {
+    var position =
+      camera && camera.position && camera.position.clone
+        ? camera.position.clone()
+        : initialPosition(fallbackTarget, 720, -Math.PI / 2, 1.02);
+    var look =
+      fallbackTarget && fallbackTarget.clone
+        ? fallbackTarget.clone()
+        : new BABYLON.Vector3(fallbackTarget.x, fallbackTarget.y, fallbackTarget.z);
+    if (camera) {
+      try {
+        if (typeof camera.getTarget === 'function') {
+          var t = camera.getTarget();
+          if (t) look = t.clone ? t.clone() : new BABYLON.Vector3(t.x, t.y, t.z);
+        } else if (camera.target) {
+          look = camera.target.clone
+            ? camera.target.clone()
+            : new BABYLON.Vector3(camera.target.x, camera.target.y, camera.target.z);
         }
-      }catch(_){}
+      } catch (_) {}
     }
-    return {position:position,target:look};
+    return { position: position, target: look };
   }
-  function createDesktopFly(scene,canvas,target,engine,battleSim,pose){
-    var startPosition=pose&&pose.position?pose.position:initialPosition(target,720,-Math.PI/2,1.02);
-    var lookTarget=pose&&pose.target?pose.target:target;
-    var camera=new BABYLON.UniversalCamera('cam',startPosition,scene);
-    camera.inputs.clear();camera.minZ=.25;camera.maxZ=CAMERA_FAR;camera.setTarget(lookTarget);scene.activeCamera=camera;
-    var yaw=camera.rotation.y,pitch=camera.rotation.x,active=false,throttle=1,keys=new Set(),padButtons={},padId=null,
-      player=null,playerCam=null,playerYaw=0,playerPitch=0,mouseAim=false,mouseFire=false,
-      playerFaction=queryParams().get('playerFaction')==='ge'?'ge':'us',reticle=null;
-    function guarded(){return active||document.activeElement===canvas;}
-    function keyName(event){return event.key===' '?' ':event.key.toLowerCase();}
-    function editableTarget(target){var tag=target&&target.tagName||'';return tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA'||!!(target&&target.isContentEditable);}
-    function movementKey(key){return key==='w'||key==='a'||key==='s'||key==='d'||key==='q'||key==='e'||key==='shift';}
-    function playerMovementKey(key){return key==='w'||key==='a'||key==='s'||key==='d'||key==='shift';}
-    function playerLabel(){
-      if(!player)return null;
-      var side=player.faction==='ge'?'GER':'US',sq=player.squad&&player.squad.id?player.squad.id:'squad';
-      return side+' '+(player.role||'soldier')+' #'+player.id+' · '+sq;
+  function createDesktopFly(scene, canvas, target, engine, battleSim, pose) {
+    var startPosition =
+      pose && pose.position ? pose.position : initialPosition(target, 720, -Math.PI / 2, 1.02);
+    var lookTarget = pose && pose.target ? pose.target : target;
+    var camera = new BABYLON.UniversalCamera('cam', startPosition, scene);
+    camera.inputs.clear();
+    camera.minZ = 0.25;
+    camera.maxZ = CAMERA_FAR;
+    camera.setTarget(lookTarget);
+    scene.activeCamera = camera;
+    var yaw = camera.rotation.y,
+      pitch = camera.rotation.x,
+      active = false,
+      throttle = 1,
+      keys = new Set(),
+      padButtons = {},
+      padId = null,
+      player = null,
+      playerCam = null,
+      playerYaw = 0,
+      playerPitch = 0,
+      mouseAim = false,
+      mouseFire = false,
+      playerFaction = queryParams().get('playerFaction') === 'ge' ? 'ge' : 'us',
+      reticle = null;
+    function guarded() {
+      return active || document.activeElement === canvas;
     }
-    function updateHint(pad){
-      var el=document.getElementById('cameraHint');if(!el)return;
-      el.textContent=player?PLAYER_HINT+(pad?' · '+PLAYER_PAD_HINT:'')+' · '+playerLabel():KEY_HINT+(pad?' · '+PAD_HINT:'');
+    function keyName(event) {
+      return event.key === ' ' ? ' ' : event.key.toLowerCase();
     }
-    function padPressedOnce(pad,index){
-      var down=buttonValue(pad,index)>.5,was=!!padButtons[index];padButtons[index]=down;return down&&!was;
+    function editableTarget(target) {
+      var tag = (target && target.tagName) || '';
+      return (
+        tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || !!(target && target.isContentEditable)
+      );
     }
-    function refreshPadButtons(pad){
-      [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16].forEach(function(i){padButtons[i]=buttonValue(pad,i)>.5;});
+    function movementKey(key) {
+      return (
+        key === 'w' ||
+        key === 'a' ||
+        key === 's' ||
+        key === 'd' ||
+        key === 'q' ||
+        key === 'e' ||
+        key === 'shift'
+      );
     }
-    function liveBattle(){var b=global.__battle__;return b&&b._roster&&b.factions?b:null;}
-    function randomFrom(a){return a&&a.length?a[Math.floor(Math.random()*a.length)]:null;}
-    function pickPlayerSoldier(exclude){
-      var b=liveBattle(),fac=b&&b.factions[playerFaction],squads=fac&&fac.squads||[],choices=[];
-      squads.forEach(function(sq){
-        var men=(sq.members||[]).filter(function(s){return s&&s.root&&!s.dead&&s!==exclude;});
-        if(men.length)choices.push(men);
+    function playerMovementKey(key) {
+      return key === 'w' || key === 'a' || key === 's' || key === 'd' || key === 'shift';
+    }
+    function playerLabel() {
+      if (!player) return null;
+      var side = player.faction === 'ge' ? 'GER' : 'US',
+        sq = player.squad && player.squad.id ? player.squad.id : 'squad';
+      return side + ' ' + (player.role || 'soldier') + ' #' + player.id + ' · ' + sq;
+    }
+    function updateHint(pad) {
+      var el = document.getElementById('cameraHint');
+      if (!el) return;
+      el.textContent = player
+        ? PLAYER_HINT + (pad ? ' · ' + PLAYER_PAD_HINT : '') + ' · ' + playerLabel()
+        : KEY_HINT + (pad ? ' · ' + PAD_HINT : '');
+    }
+    function padPressedOnce(pad, index) {
+      var down = buttonValue(pad, index) > 0.5,
+        was = !!padButtons[index];
+      padButtons[index] = down;
+      return down && !was;
+    }
+    function refreshPadButtons(pad) {
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].forEach(function (i) {
+        padButtons[i] = buttonValue(pad, i) > 0.5;
       });
-      if(!choices.length&&exclude){
-        squads.forEach(function(sq){var men=(sq.members||[]).filter(function(s){return s&&s.root&&!s.dead;});if(men.length)choices.push(men);});
+    }
+    function liveBattle() {
+      var b = global.__battle__;
+      return b && b._roster && b.factions ? b : null;
+    }
+    function randomFrom(a) {
+      return a && a.length ? a[Math.floor(Math.random() * a.length)] : null;
+    }
+    function pickPlayerSoldier(exclude) {
+      var b = liveBattle(),
+        fac = b && b.factions[playerFaction],
+        squads = (fac && fac.squads) || [],
+        choices = [];
+      squads.forEach(function (sq) {
+        var men = (sq.members || []).filter(function (s) {
+          return s && s.root && !s.dead && s !== exclude;
+        });
+        if (men.length) choices.push(men);
+      });
+      if (!choices.length && exclude) {
+        squads.forEach(function (sq) {
+          var men = (sq.members || []).filter(function (s) {
+            return s && s.root && !s.dead;
+          });
+          if (men.length) choices.push(men);
+        });
       }
-      var men=randomFrom(choices);return randomFrom(men);
+      var men = randomFrom(choices);
+      return randomFrom(men);
     }
-    function ensureReticle(){
-      if(reticle)return reticle;
-      reticle=document.createElement('div');reticle.id='battlePlayerReticle';
-      reticle.style.cssText='position:fixed;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);z-index:9;pointer-events:none;display:none';
-      reticle.innerHTML='<i style="position:absolute;left:8px;top:1px;width:2px;height:16px;background:#f1f1dfcc"></i><i style="position:absolute;left:1px;top:8px;width:16px;height:2px;background:#f1f1dfcc"></i>';
-      document.body.appendChild(reticle);return reticle;
+    function ensureReticle() {
+      if (reticle) return reticle;
+      reticle = document.createElement('div');
+      reticle.id = 'battlePlayerReticle';
+      reticle.style.cssText =
+        'position:fixed;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);z-index:9;pointer-events:none;display:none';
+      reticle.innerHTML =
+        '<i style="position:absolute;left:8px;top:1px;width:2px;height:16px;background:#f1f1dfcc"></i><i style="position:absolute;left:1px;top:8px;width:16px;height:2px;background:#f1f1dfcc"></i>';
+      document.body.appendChild(reticle);
+      return reticle;
     }
-    function ensurePlayerCamera(){
-      if(playerCam)return playerCam;
-      playerCam=new BABYLON.UniversalCamera('playerCam',camera.position.clone(),scene);
+    function ensurePlayerCamera() {
+      if (playerCam) return playerCam;
+      playerCam = new BABYLON.UniversalCamera('playerCam', camera.position.clone(), scene);
       /* Keep the full offset sky dome inside the player camera frustum. The old 1800 m far plane
          sliced its upper cap (radius 1800 m + ~608 m vertical offset), exposing clearColor when looking up. */
-      playerCam.inputs.clear();playerCam.minZ=.06;playerCam.maxZ=CAMERA_FAR;playerCam.fov=.78;return playerCam;
+      playerCam.inputs.clear();
+      playerCam.minZ = 0.06;
+      playerCam.maxZ = CAMERA_FAR;
+      playerCam.fov = 0.78;
+      return playerCam;
     }
-    function cameraDirection(){
-      var cp=Math.cos(playerPitch);
-      return new BABYLON.Vector3(Math.sin(playerYaw)*cp,-Math.sin(playerPitch),Math.cos(playerYaw)*cp).normalize();
+    function cameraDirection() {
+      var cp = Math.cos(playerPitch);
+      return new BABYLON.Vector3(
+        Math.sin(playerYaw) * cp,
+        -Math.sin(playerPitch),
+        Math.cos(playerYaw) * cp
+      ).normalize();
     }
-    function positionPlayerCamera(aiming){
-      if(!player||!player.root)return;
-      var cam=ensurePlayerCamera(),p=player.root.position,flat=new BABYLON.Vector3(Math.sin(playerYaw),0,Math.cos(playerYaw)),
-        right=new BABYLON.Vector3(Math.cos(playerYaw),0,-Math.sin(playerYaw)),dist=aiming?PLAYER_AIM_DISTANCE:PLAYER_DISTANCE,
-        shoulder=aiming?.48:.72,height=player.prone?.86:(player.crouching?1.25:1.62),dir=cameraDirection();
-      cam.position.set(p.x-flat.x*dist+right.x*shoulder,p.y+height,p.z-flat.z*dist+right.z*shoulder);
+    function positionPlayerCamera(aiming) {
+      if (!player || !player.root) return;
+      var cam = ensurePlayerCamera(),
+        p = player.root.position,
+        flat = new BABYLON.Vector3(Math.sin(playerYaw), 0, Math.cos(playerYaw)),
+        right = new BABYLON.Vector3(Math.cos(playerYaw), 0, -Math.sin(playerYaw)),
+        dist = aiming ? PLAYER_AIM_DISTANCE : PLAYER_DISTANCE,
+        shoulder = aiming ? 0.48 : 0.72,
+        height = player.prone ? 0.86 : player.crouching ? 1.25 : 1.62,
+        dir = cameraDirection();
+      cam.position.set(
+        p.x - flat.x * dist + right.x * shoulder,
+        p.y + height,
+        p.z - flat.z * dist + right.z * shoulder
+      );
       /* A shoulder camera is allowed to rise over a slope, never tunnel into it. */
-      var ground=battleSim&&battleSim.heightAt?battleSim.heightAt(cam.position.x,cam.position.z):p.y;
-      if(isFinite(+ground))cam.position.y=Math.max(cam.position.y,+ground+PLAYER_CAMERA_CLEARANCE);
-      cam.setTarget(cam.position.add(dir.scale(50)));cam.fov=aiming?.58:.78;
+      var ground = battleSim && battleSim.heightAt ? battleSim.heightAt(cam.position.x, cam.position.z) : p.y;
+      if (isFinite(+ground)) cam.position.y = Math.max(cam.position.y, +ground + PLAYER_CAMERA_CLEARANCE);
+      cam.setTarget(cam.position.add(dir.scale(50)));
+      cam.fov = aiming ? 0.58 : 0.78;
     }
-    function aimPoint(){
-      if(!playerCam)return null;
-      var ray=playerCam.getForwardRay(1),o=ray.origin,d=ray.direction;
-      return{x:o.x+d.x*80,y:o.y+d.y*80,z:o.z+d.z*80};
+    function aimPoint() {
+      if (!playerCam) return null;
+      var ray = playerCam.getForwardRay(1),
+        o = ray.origin,
+        d = ray.direction;
+      return { x: o.x + d.x * 80, y: o.y + d.y * 80, z: o.z + d.z * 80 };
     }
-    function clearPlayerLease(man,b){
-      if(!man)return;
-      man.isPlayer=false;
-      if(global.BattleMovementResolver&&global.BattleMovementResolver.clearPlayer)global.BattleMovementResolver.clearPlayer(man);
-      if(global.SquadAI&&global.SquadAI.playerAim)global.SquadAI.playerAim(man,null);
-      if(global.BattleEngagement&&global.BattleEngagement.playerFace)global.BattleEngagement.playerFace(man,null);
-      if(global.BattleTacticalPositions&&global.BattleTacticalPositions.release&&b)global.BattleTacticalPositions.release(man,b,'player-release');
+    function clearPlayerLease(man, b) {
+      if (!man) return;
+      man.isPlayer = false;
+      if (global.BattleMovementResolver && global.BattleMovementResolver.clearPlayer)
+        global.BattleMovementResolver.clearPlayer(man);
+      if (global.SquadAI && global.SquadAI.playerAim) global.SquadAI.playerAim(man, null);
+      if (global.BattleEngagement && global.BattleEngagement.playerFace)
+        global.BattleEngagement.playerFace(man, null);
+      if (global.BattleTacticalPositions && global.BattleTacticalPositions.release && b)
+        global.BattleTacticalPositions.release(man, b, 'player-release');
     }
-    function leavePlayer(reason){
-      if(!player)return;
-      var b=liveBattle(),old=player;clearPlayerLease(old,b);player=null;
-      mouseAim=false;mouseFire=false;keys.clear();
-      ensureReticle().style.display='none';
-      if(playerCam){
+    function leavePlayer(reason) {
+      if (!player) return;
+      var b = liveBattle(),
+        old = player;
+      clearPlayerLease(old, b);
+      player = null;
+      mouseAim = false;
+      mouseFire = false;
+      keys.clear();
+      ensureReticle().style.display = 'none';
+      if (playerCam) {
         camera.position.copyFrom(playerCam.position);
-        try{camera.setTarget(playerCam.getTarget());}catch(_){}
-        yaw=camera.rotation.y;pitch=camera.rotation.x;
+        try {
+          camera.setTarget(playerCam.getTarget());
+        } catch (_) {}
+        yaw = camera.rotation.y;
+        pitch = camera.rotation.x;
       }
-      scene.activeCamera=camera;updateHint(activeGamepad());
-      global.GTLog('[PLAYER] exited '+(reason||'player mode')+' from '+old.faction+' #'+old.id);
+      scene.activeCamera = camera;
+      updateHint(activeGamepad());
+      global.GTLog('[PLAYER] exited ' + (reason || 'player mode') + ' from ' + old.faction + ' #' + old.id);
     }
-    function possessRandom(){
-      var b=liveBattle();if(!b)return false;
-      var next=pickPlayerSoldier(player);if(!next)return false;
-      if(player)clearPlayerLease(player,b);
-      player=next;player.isPlayer=true;playerFaction=next.faction;playerYaw=+next.root.rotation.y||0;playerPitch=0;
+    function possessRandom() {
+      var b = liveBattle();
+      if (!b) return false;
+      var next = pickPlayerSoldier(player);
+      if (!next) return false;
+      if (player) clearPlayerLease(player, b);
+      player = next;
+      player.isPlayer = true;
+      playerFaction = next.faction;
+      playerYaw = +next.root.rotation.y || 0;
+      playerPitch = 0;
       /* isPlayer, not a short movement lease, is the authority boundary for the whole possession. */
       /* Possession starts from a neutral player-owned stance instead of inheriting a squad hold-fire posture. */
-      if(global.BattleEngagement&&global.BattleEngagement.commitStance)global.BattleEngagement.commitStance(next,b,'stand',.45,'player-possession');
-      if(global.BattleTacticalPositions&&global.BattleTacticalPositions.release)global.BattleTacticalPositions.release(next,b,'player-control');
-      if(global.BattleMovementResolver&&global.BattleMovementResolver.proposePlayer){
-        var p=next.root.position;global.BattleMovementResolver.proposePlayer(next,{x:p.x,z:p.z},b,.6,{speedScale:1,pace:'walk'});
+      if (global.BattleEngagement && global.BattleEngagement.commitStance)
+        global.BattleEngagement.commitStance(next, b, 'stand', 0.45, 'player-possession');
+      if (global.BattleTacticalPositions && global.BattleTacticalPositions.release)
+        global.BattleTacticalPositions.release(next, b, 'player-control');
+      if (global.BattleMovementResolver && global.BattleMovementResolver.proposePlayer) {
+        var p = next.root.position;
+        global.BattleMovementResolver.proposePlayer(next, { x: p.x, z: p.z }, b, 0.6, {
+          speedScale: 1,
+          pace: 'walk'
+        });
       }
-      if(b.paused&&b.resume)b.resume();
-      var startBtn=document.getElementById('startBtn');if(startBtn)startBtn.hidden=true;
-      ensureReticle().style.display='block';scene.activeCamera=ensurePlayerCamera();positionPlayerCamera(false);updateHint(activeGamepad());
-      global.GTLog('[PLAYER] controlling '+playerLabel()+' · faction locked '+playerFaction);
+      if (b.paused && b.resume) b.resume();
+      var startBtn = document.getElementById('startBtn');
+      if (startBtn) startBtn.hidden = true;
+      ensureReticle().style.display = 'block';
+      scene.activeCamera = ensurePlayerCamera();
+      positionPlayerCamera(false);
+      updateHint(activeGamepad());
+      global.GTLog('[PLAYER] controlling ' + playerLabel() + ' · faction locked ' + playerFaction);
       return true;
     }
-    function setPlayerStance(b,stance){
-      if(!player||!global.BattleEngagement||!global.BattleEngagement.commitStance)return;
-      global.BattleEngagement.commitStance(player,b,stance,.45,'player');
+    function setPlayerStance(b, stance) {
+      if (!player || !global.BattleEngagement || !global.BattleEngagement.commitStance) return;
+      global.BattleEngagement.commitStance(player, b, stance, 0.45, 'player');
     }
-    function playerStance(){
-      return player&&player.eng&&player.eng.stance|| (player&&player.prone?'prone':(player&&player.crouching?'crouch':'stand'));
+    function playerStance() {
+      return (
+        (player && player.eng && player.eng.stance) ||
+        (player && player.prone ? 'prone' : player && player.crouching ? 'crouch' : 'stand')
+      );
     }
-    function togglePlayerCrouch(b){
-      var st=playerStance();setPlayerStance(b,st==='crouch'?'stand':'crouch');
+    function togglePlayerCrouch(b) {
+      var st = playerStance();
+      setPlayerStance(b, st === 'crouch' ? 'stand' : 'crouch');
     }
-    function togglePlayerProne(b){
-      var st=playerStance();setPlayerStance(b,(st==='prone'||st==='crawl')?'stand':'prone');
+    function togglePlayerProne(b) {
+      var st = playerStance();
+      setPlayerStance(b, st === 'prone' || st === 'crawl' ? 'stand' : 'prone');
     }
-    function stepPlayer(pad,dt){
-      var b=liveBattle();if(!b||!player)return;
-      if(player.dead){if(!possessRandom())leavePlayer('no living '+playerFaction+' soldiers');return;}
-      var axes=pad&&pad.axes||[],
-        mx=(keys.has('d')?1:0)-(keys.has('a')?1:0)+shapedAxis(axes[0]),
-        my=(keys.has('w')?1:0)-(keys.has('s')?1:0)-shapedAxis(axes[1]),
-        lx=shapedAxis(axes[2]),ly=shapedAxis(axes[3]),
-        aiming=mouseAim||buttonValue(pad,6)>.35,firing=mouseFire||buttonValue(pad,7)>.35,
-        running=(keys.has('shift')||buttonValue(pad,10)>.5)&&!aiming;
-      playerYaw+=lx*PLAYER_LOOK_RATE*dt;playerPitch=clamp(playerPitch+ly*1.55*dt,-.62,.78);
-      if(pad&&padPressedOnce(pad,1))togglePlayerCrouch(b);
-      if(pad&&padPressedOnce(pad,0))togglePlayerProne(b);
-      var flat=new BABYLON.Vector3(Math.sin(playerYaw),0,Math.cos(playerYaw)),right=new BABYLON.Vector3(Math.cos(playerYaw),0,-Math.sin(playerYaw)),
-        move=flat.scale(my).add(right.scale(mx));if(move.lengthSquared()>1)move.normalize();
-      var moving=move.lengthSquared()>.0025,p=player.root.position,next=moving?{x:p.x+move.x*PLAYER_MOVE_AHEAD,z:p.z+move.z*PLAYER_MOVE_AHEAD}:{x:p.x,z:p.z};
-      if(player.prone&&moving)setPlayerStance(b,'crawl');else if(player.eng&&player.eng.stance==='crawl'&&!moving)setPlayerStance(b,'prone');
-      if(global.BattleMovementResolver&&global.BattleMovementResolver.proposePlayer)
-        global.BattleMovementResolver.proposePlayer(player,next,b,.6,{speedScale:1,pace:running?'run':'walk'});
-      positionPlayerCamera(aiming);
-      var point=aimPoint();
-      if(global.BattleEngagement&&global.BattleEngagement.playerFace)global.BattleEngagement.playerFace(player,(aiming||firing)?point:null);
-      /* No aim assist: the crosshair is the aim. The soldier's own targeting stays off while possessed. */
-      if(global.SquadAI&&global.SquadAI.playerAim)global.SquadAI.playerAim(player,(aiming||firing)?point:null);
-      /* RT is a real trigger, not an AI target request: it fires the crosshair ray even with no lock. */
-      if(firing&&point&&global.SquadAI){
-        if(global.SquadAI.playerFireRay)global.SquadAI.playerFireRay(player,point,b);
-      }
-    }
-    canvas.addEventListener('click',function(){canvas.focus();if(document.pointerLockElement!==canvas)canvas.requestPointerLock&&canvas.requestPointerLock();});
-    document.addEventListener('pointerlockchange',function(){active=document.pointerLockElement===canvas;if(!active){keys.clear();mouseAim=false;mouseFire=false;}});
-    document.addEventListener('mousemove',function(event){
-      if(!active)return;
-      if(player){
-        playerYaw+=event.movementX*LOOK_X;playerPitch=clamp(playerPitch+event.movementY*LOOK_Y,-.62,.78);
+    function stepPlayer(pad, dt) {
+      var b = liveBattle();
+      if (!b || !player) return;
+      if (player.dead) {
+        if (!possessRandom()) leavePlayer('no living ' + playerFaction + ' soldiers');
         return;
       }
-      yaw+=event.movementX*LOOK_X;pitch+=event.movementY*LOOK_Y;pitch=clamp(pitch,-PITCH_LIMIT,PITCH_LIMIT);
-      camera.rotation.y=yaw;camera.rotation.x=pitch;
+      var axes = (pad && pad.axes) || [],
+        mx = (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0) + shapedAxis(axes[0]),
+        my = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0) - shapedAxis(axes[1]),
+        lx = shapedAxis(axes[2]),
+        ly = shapedAxis(axes[3]),
+        aiming = mouseAim || buttonValue(pad, 6) > 0.35,
+        firing = mouseFire || buttonValue(pad, 7) > 0.35,
+        running = (keys.has('shift') || buttonValue(pad, 10) > 0.5) && !aiming;
+      playerYaw += lx * PLAYER_LOOK_RATE * dt;
+      playerPitch = clamp(playerPitch + ly * 1.55 * dt, -0.62, 0.78);
+      if (pad && padPressedOnce(pad, 1)) togglePlayerCrouch(b);
+      if (pad && padPressedOnce(pad, 0)) togglePlayerProne(b);
+      var flat = new BABYLON.Vector3(Math.sin(playerYaw), 0, Math.cos(playerYaw)),
+        right = new BABYLON.Vector3(Math.cos(playerYaw), 0, -Math.sin(playerYaw)),
+        move = flat.scale(my).add(right.scale(mx));
+      if (move.lengthSquared() > 1) move.normalize();
+      var moving = move.lengthSquared() > 0.0025,
+        p = player.root.position,
+        next = moving
+          ? { x: p.x + move.x * PLAYER_MOVE_AHEAD, z: p.z + move.z * PLAYER_MOVE_AHEAD }
+          : { x: p.x, z: p.z };
+      if (player.prone && moving) setPlayerStance(b, 'crawl');
+      else if (player.eng && player.eng.stance === 'crawl' && !moving) setPlayerStance(b, 'prone');
+      if (global.BattleMovementResolver && global.BattleMovementResolver.proposePlayer)
+        global.BattleMovementResolver.proposePlayer(player, next, b, 0.6, {
+          speedScale: 1,
+          pace: running ? 'run' : 'walk'
+        });
+      positionPlayerCamera(aiming);
+      var point = aimPoint();
+      if (global.BattleEngagement && global.BattleEngagement.playerFace)
+        global.BattleEngagement.playerFace(player, aiming || firing ? point : null);
+      /* No aim assist: the crosshair is the aim. The soldier's own targeting stays off while possessed. */
+      if (global.SquadAI && global.SquadAI.playerAim)
+        global.SquadAI.playerAim(player, aiming || firing ? point : null);
+      /* RT is a real trigger, not an AI target request: it fires the crosshair ray even with no lock. */
+      if (firing && point && global.SquadAI) {
+        if (global.SquadAI.playerFireRay) global.SquadAI.playerFireRay(player, point, b);
+      }
+    }
+    canvas.addEventListener('click', function () {
+      canvas.focus();
+      if (document.pointerLockElement !== canvas) canvas.requestPointerLock && canvas.requestPointerLock();
     });
-    canvas.addEventListener('mousedown',function(event){
-      if(!player)return;
-      if(event.button===0)mouseFire=true;
-      else if(event.button===2)mouseAim=true;
+    document.addEventListener('pointerlockchange', function () {
+      active = document.pointerLockElement === canvas;
+      if (!active) {
+        keys.clear();
+        mouseAim = false;
+        mouseFire = false;
+      }
+    });
+    document.addEventListener('mousemove', function (event) {
+      if (!active) return;
+      if (player) {
+        playerYaw += event.movementX * LOOK_X;
+        playerPitch = clamp(playerPitch + event.movementY * LOOK_Y, -0.62, 0.78);
+        return;
+      }
+      yaw += event.movementX * LOOK_X;
+      pitch += event.movementY * LOOK_Y;
+      pitch = clamp(pitch, -PITCH_LIMIT, PITCH_LIMIT);
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+    });
+    canvas.addEventListener('mousedown', function (event) {
+      if (!player) return;
+      if (event.button === 0) mouseFire = true;
+      else if (event.button === 2) mouseAim = true;
       else return;
       event.preventDefault();
     });
-    window.addEventListener('mouseup',function(event){
-      if(event.button===0)mouseFire=false;
-      else if(event.button===2)mouseAim=false;
+    window.addEventListener('mouseup', function (event) {
+      if (event.button === 0) mouseFire = false;
+      else if (event.button === 2) mouseAim = false;
     });
-    canvas.addEventListener('contextmenu',function(event){if(player)event.preventDefault();});
-    window.addEventListener('keydown',function(event){
-      var key=keyName(event);if(editableTarget(event.target))return;
-      if(key==='p'){
-        if(!event.repeat){
-          possessRandom();canvas.focus();
-          if(document.pointerLockElement!==canvas&&canvas.requestPointerLock)try{canvas.requestPointerLock();}catch(_){}
+    canvas.addEventListener('contextmenu', function (event) {
+      if (player) event.preventDefault();
+    });
+    window.addEventListener(
+      'keydown',
+      function (event) {
+        var key = keyName(event);
+        if (editableTarget(event.target)) return;
+        if (key === 'p') {
+          if (!event.repeat) {
+            possessRandom();
+            canvas.focus();
+            if (document.pointerLockElement !== canvas && canvas.requestPointerLock)
+              try {
+                canvas.requestPointerLock();
+              } catch (_) {}
+          }
+          event.preventDefault();
+          return;
         }
-        event.preventDefault();return;
+        if (player) {
+          var b = liveBattle();
+          if (key === 'v') {
+            if (!event.repeat) leavePlayer('V key');
+            event.preventDefault();
+            return;
+          }
+          if (key === 'c') {
+            if (!event.repeat) togglePlayerCrouch(b);
+            event.preventDefault();
+            return;
+          }
+          if (key === 'z') {
+            if (!event.repeat) togglePlayerProne(b);
+            event.preventDefault();
+            return;
+          }
+          if (playerMovementKey(key)) {
+            keys.add(key);
+            event.preventDefault();
+          }
+          return;
+        }
+        if (!guarded() || !movementKey(key)) return;
+        keys.add(key);
+        event.preventDefault();
+      },
+      { passive: false }
+    );
+    window.addEventListener('keyup', function (event) {
+      keys.delete(keyName(event));
+    });
+    window.addEventListener('blur', function () {
+      keys.clear();
+      mouseAim = false;
+      mouseFire = false;
+    });
+    window.addEventListener('gamepadconnected', function (e) {
+      padId = (e.gamepad && e.gamepad.id) || 'gamepad';
+      padButtons = {};
+      updateHint(e.gamepad);
+      global.GTLog('[CAMERA] gamepad connected: ' + padId);
+    });
+    window.addEventListener('gamepaddisconnected', function (e) {
+      if (!e.gamepad || !padId || e.gamepad.id === padId) {
+        padId = null;
+        padButtons = {};
+        updateHint(null);
       }
-      if(player){
-        var b=liveBattle();
-        if(key==='v'){if(!event.repeat)leavePlayer('V key');event.preventDefault();return;}
-        if(key==='c'){if(!event.repeat)togglePlayerCrouch(b);event.preventDefault();return;}
-        if(key==='z'){if(!event.repeat)togglePlayerProne(b);event.preventDefault();return;}
-        if(playerMovementKey(key)){keys.add(key);event.preventDefault();}
-        return;
-      }
-      if(!guarded()||!movementKey(key))return;
-      keys.add(key);event.preventDefault();
-    },{passive:false});
-    window.addEventListener('keyup',function(event){keys.delete(keyName(event));});
-    window.addEventListener('blur',function(){keys.clear();mouseAim=false;mouseFire=false;});
-    window.addEventListener('gamepadconnected',function(e){padId=e.gamepad&&e.gamepad.id||'gamepad';padButtons={};updateHint(e.gamepad);global.GTLog('[CAMERA] gamepad connected: '+padId);});
-    window.addEventListener('gamepaddisconnected',function(e){
-      if(!e.gamepad||!padId||e.gamepad.id===padId){padId=null;padButtons={};updateHint(null);}
       global.GTLog('[CAMERA] gamepad disconnected; keyboard controls remain active');
     });
-    canvas.addEventListener('wheel',function(event){
-      if(!guarded()||player)return;
-      event.preventDefault();
-      var pixels=event.deltaY*(DELTA_UNIT_PX[event.deltaMode]||1);
-      throttle=clamp(throttle*Math.exp(-pixels*THROTTLE_PER_PIXEL),THROTTLE_MIN,1);
-    },{passive:false});
-    scene.onBeforeRenderObservable.add(function(){
-      var dt=Math.min(.05,engine.getDeltaTime()/1000),pad=activeGamepad();
-      if(pad&&pad.id!==padId){padId=pad.id;padButtons={};updateHint(pad);global.GTLog('[CAMERA] gamepad active: '+padId);}
-      if(!pad&&padId){padId=null;padButtons={};updateHint(null);}
-      if(pad){
-        var menu=padPressedOnce(pad,9),view=padPressedOnce(pad,8);
-        if(menu){possessRandom();refreshPadButtons(pad);return;}
-        if(player&&view){leavePlayer('View button');refreshPadButtons(pad);return;}
+    canvas.addEventListener(
+      'wheel',
+      function (event) {
+        if (!guarded() || player) return;
+        event.preventDefault();
+        var pixels = event.deltaY * (DELTA_UNIT_PX[event.deltaMode] || 1);
+        throttle = clamp(throttle * Math.exp(-pixels * THROTTLE_PER_PIXEL), THROTTLE_MIN, 1);
+      },
+      { passive: false }
+    );
+    scene.onBeforeRenderObservable.add(function () {
+      var dt = Math.min(0.05, engine.getDeltaTime() / 1000),
+        pad = activeGamepad();
+      if (pad && pad.id !== padId) {
+        padId = pad.id;
+        padButtons = {};
+        updateHint(pad);
+        global.GTLog('[CAMERA] gamepad active: ' + padId);
       }
-      if(player){
-        stepPlayer(pad,dt);if(pad)refreshPadButtons(pad);return;
+      if (!pad && padId) {
+        padId = null;
+        padButtons = {};
+        updateHint(null);
+      }
+      if (pad) {
+        var menu = padPressedOnce(pad, 9),
+          view = padPressedOnce(pad, 8);
+        if (menu) {
+          possessRandom();
+          refreshPadButtons(pad);
+          return;
+        }
+        if (player && view) {
+          leavePlayer('View button');
+          refreshPadButtons(pad);
+          return;
+        }
+      }
+      if (player) {
+        stepPlayer(pad, dt);
+        if (pad) refreshPadButtons(pad);
+        return;
       }
 
       /* Keyboard fly controls are independent of gamepad presence. The old early return above this
          block recorded keydown state correctly but skipped every movement frame unless a pad existed. */
-      var f=(keys.has('w')?1:0)-(keys.has('s')?1:0),r=(keys.has('d')?1:0)-(keys.has('a')?1:0),v=(keys.has('e')?1:0)-(keys.has('q')?1:0),padSprint=false,padPrecision=false;
-      if(pad){
-        var axes=pad.axes||[];
-        r+=shapedAxis(axes[0]);f+=-shapedAxis(axes[1]);
-        yaw+=shapedAxis(axes[2])*PAD_LOOK_RATE*dt;pitch+=shapedAxis(axes[3])*PAD_LOOK_RATE*dt;pitch=clamp(pitch,-PITCH_LIMIT,PITCH_LIMIT);
-        camera.rotation.y=yaw;camera.rotation.x=pitch;
-        v+=buttonValue(pad,7)-buttonValue(pad,6);
-        padPrecision=buttonValue(pad,4)>.5;padSprint=buttonValue(pad,5)>.5;
-        if(padPressedOnce(pad,12))throttle=clamp(throttle*PAD_THROTTLE_STEP,THROTTLE_MIN,1);
-        if(padPressedOnce(pad,13))throttle=clamp(throttle/PAD_THROTTLE_STEP,THROTTLE_MIN,1);
-        if(padPressedOnce(pad,3)){pitch=0;camera.rotation.x=0;}
+      var f = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0),
+        r = (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0),
+        v = (keys.has('e') ? 1 : 0) - (keys.has('q') ? 1 : 0),
+        padSprint = false,
+        padPrecision = false;
+      if (pad) {
+        var axes = pad.axes || [];
+        r += shapedAxis(axes[0]);
+        f += -shapedAxis(axes[1]);
+        yaw += shapedAxis(axes[2]) * PAD_LOOK_RATE * dt;
+        pitch += shapedAxis(axes[3]) * PAD_LOOK_RATE * dt;
+        pitch = clamp(pitch, -PITCH_LIMIT, PITCH_LIMIT);
+        camera.rotation.y = yaw;
+        camera.rotation.x = pitch;
+        v += buttonValue(pad, 7) - buttonValue(pad, 6);
+        padPrecision = buttonValue(pad, 4) > 0.5;
+        padSprint = buttonValue(pad, 5) > 0.5;
+        if (padPressedOnce(pad, 12)) throttle = clamp(throttle * PAD_THROTTLE_STEP, THROTTLE_MIN, 1);
+        if (padPressedOnce(pad, 13)) throttle = clamp(throttle / PAD_THROTTLE_STEP, THROTTLE_MIN, 1);
+        if (padPressedOnce(pad, 3)) {
+          pitch = 0;
+          camera.rotation.x = 0;
+        }
         refreshPadButtons(pad);
       }
-      if(!f&&!r&&!v)return;
-      var forward=camera.getForwardRay().direction.clone();forward.y=0;if(forward.lengthSquared()>1e-8)forward.normalize();
-      var up=BABYLON.Axis.Y,right2=scene.useRightHandedSystem?BABYLON.Vector3.Cross(forward,up):BABYLON.Vector3.Cross(up,forward);
-      if(right2.lengthSquared()>1e-8)right2.normalize();
-      var move2=BABYLON.Vector3.Zero();if(f)move2.addInPlace(forward.scale(f));if(r)move2.addInPlace(right2.scale(r));
-      if(move2.lengthSquared()>1)move2.normalize();
-      var speed=(keys.has('shift')||padSprint?FLY_SPRINT:FLY_SPEED)*throttle;if(padPrecision&&!padSprint)speed*=PAD_PRECISION;
-      camera.position.addInPlace(move2.scale(speed*dt));camera.position.y+=clamp(v,-1,1)*speed*.7*dt;
-      var halfW=battleSim.FIELD_W/2-2,halfD=battleSim.FIELD_D/2-2;
-      camera.position.x=clamp(camera.position.x,-halfW,halfW);camera.position.z=clamp(camera.position.z,-halfD,halfD);
-      camera.position.y=clamp(camera.position.y,battleSim.heightAt(camera.position.x,camera.position.z)+GROUND_CLEARANCE,MAX_HEIGHT);
+      if (!f && !r && !v) return;
+      var forward = camera.getForwardRay().direction.clone();
+      forward.y = 0;
+      if (forward.lengthSquared() > 1e-8) forward.normalize();
+      var up = BABYLON.Axis.Y,
+        right2 = scene.useRightHandedSystem
+          ? BABYLON.Vector3.Cross(forward, up)
+          : BABYLON.Vector3.Cross(up, forward);
+      if (right2.lengthSquared() > 1e-8) right2.normalize();
+      var move2 = BABYLON.Vector3.Zero();
+      if (f) move2.addInPlace(forward.scale(f));
+      if (r) move2.addInPlace(right2.scale(r));
+      if (move2.lengthSquared() > 1) move2.normalize();
+      var speed = (keys.has('shift') || padSprint ? FLY_SPRINT : FLY_SPEED) * throttle;
+      if (padPrecision && !padSprint) speed *= PAD_PRECISION;
+      camera.position.addInPlace(move2.scale(speed * dt));
+      camera.position.y += clamp(v, -1, 1) * speed * 0.7 * dt;
+      var halfW = battleSim.FIELD_W / 2 - 2,
+        halfD = battleSim.FIELD_D / 2 - 2;
+      camera.position.x = clamp(camera.position.x, -halfW, halfW);
+      camera.position.z = clamp(camera.position.z, -halfD, halfD);
+      camera.position.y = clamp(
+        camera.position.y,
+        battleSim.heightAt(camera.position.x, camera.position.z) + GROUND_CLEARANCE,
+        MAX_HEIGHT
+      );
     });
     updateHint(activeGamepad());
     return {
-      camera:camera,desktop:true,hint:KEY_HINT+(activeGamepad()?' · '+PAD_HINT:''),
-      player:function(){return player;},
-      exitPlayer:function(){leavePlayer('API');}
+      camera: camera,
+      desktop: true,
+      hint: KEY_HINT + (activeGamepad() ? ' · ' + PAD_HINT : ''),
+      player: function () {
+        return player;
+      },
+      exitPlayer: function () {
+        leavePlayer('API');
+      }
     };
   }
   /* Normal-play presentation camera for visual testing. `?follow=1` follows the busiest living soldier from a close, persistent ArcRotate camera.
@@ -340,105 +677,204 @@
      it only reads the roster/root transforms, and three sim seconds after the followed man dies it
      transfers to the nearest survivor. `followDist` and `orbitSpeed` are intentionally URL-driven so
      screenshots and visual QA are reproducible without touching benchmark-only camera code. */
-  function createPersistentFollow(options,target,q){
-    var scene=options.scene,canvas=options.canvas,engine=options.engine,
-      orbit=q.get('orbit')==='1',
-      distance=queryNumber(q,'followDist',FOLLOW_DEFAULT,FOLLOW_MIN,FOLLOW_MAX),
-      orbitSpeed=queryNumber(q,'orbitSpeed',ORBIT_SPEED,-1.5,1.5),
-      height=queryNumber(q,'followHeight',FOLLOW_HEIGHT,.2,3),
-      beta=queryNumber(q,'followBeta',FOLLOW_BETA,.4,1.48),
-      alpha=queryNumber(q,'followAlpha',-Math.PI/2,-Math.PI*4,Math.PI*4),
-      cam=new BABYLON.ArcRotateCamera('followCam',alpha,beta,distance,target.clone?target.clone():target,scene);
-    cam.minZ=.08;cam.maxZ=CAMERA_FAR;cam.lowerRadiusLimit=FOLLOW_MIN;cam.upperRadiusLimit=FOLLOW_MAX;
-    cam.lowerBetaLimit=.35;cam.upperBetaLimit=1.5;cam.wheelPrecision=18;cam.panningSensibility=0;
-    cam.attachControl(canvas,true);scene.activeCamera=cam;
-    var man=null,deadAt=null,lastWall=global.performance&&performance.now?performance.now():Date.now(),info={
-      mode:'follow',distance:distance,orbit:orbit,orbitSpeed:orbitSpeed,height:height,
-      current:null,followed:[],switches:0
-    };
-    var obs=scene.onBeforeRenderObservable.add(function persistentFollowCamera(){
-      var wallNow=global.performance&&performance.now?performance.now():Date.now(),
-        orbitDt=Math.min(2,Math.max(0,(wallNow-lastWall)/1000));lastWall=wallNow;
-      var b=global.__battle__;if(!b||!b._roster)return;
-      var roster=(b._roster.us||[]).concat(b._roster.ge||[]);
-      if(man&&roster.indexOf(man)<0){man=null;deadAt=null;}
-      var all=livingSoldiers(b);
-      if(!man&&all.length){
-        man=busiestSoldier(all);deadAt=null;
-        if(man){
-          info.current=man.id;if(info.followed.length<100)info.followed.push(man.id);
+  function createPersistentFollow(options, target, q) {
+    var scene = options.scene,
+      canvas = options.canvas,
+      engine = options.engine,
+      orbit = q.get('orbit') === '1',
+      distance = queryNumber(q, 'followDist', FOLLOW_DEFAULT, FOLLOW_MIN, FOLLOW_MAX),
+      orbitSpeed = queryNumber(q, 'orbitSpeed', ORBIT_SPEED, -1.5, 1.5),
+      height = queryNumber(q, 'followHeight', FOLLOW_HEIGHT, 0.2, 3),
+      beta = queryNumber(q, 'followBeta', FOLLOW_BETA, 0.4, 1.48),
+      alpha = queryNumber(q, 'followAlpha', -Math.PI / 2, -Math.PI * 4, Math.PI * 4),
+      cam = new BABYLON.ArcRotateCamera(
+        'followCam',
+        alpha,
+        beta,
+        distance,
+        target.clone ? target.clone() : target,
+        scene
+      );
+    cam.minZ = 0.08;
+    cam.maxZ = CAMERA_FAR;
+    cam.lowerRadiusLimit = FOLLOW_MIN;
+    cam.upperRadiusLimit = FOLLOW_MAX;
+    cam.lowerBetaLimit = 0.35;
+    cam.upperBetaLimit = 1.5;
+    cam.wheelPrecision = 18;
+    cam.panningSensibility = 0;
+    cam.attachControl(canvas, true);
+    scene.activeCamera = cam;
+    var man = null,
+      deadAt = null,
+      lastWall = global.performance && performance.now ? performance.now() : Date.now(),
+      info = {
+        mode: 'follow',
+        distance: distance,
+        orbit: orbit,
+        orbitSpeed: orbitSpeed,
+        height: height,
+        current: null,
+        followed: [],
+        switches: 0
+      };
+    var obs = scene.onBeforeRenderObservable.add(function persistentFollowCamera() {
+      var wallNow = global.performance && performance.now ? performance.now() : Date.now(),
+        orbitDt = Math.min(2, Math.max(0, (wallNow - lastWall) / 1000));
+      lastWall = wallNow;
+      var b = global.__battle__;
+      if (!b || !b._roster) return;
+      var roster = (b._roster.us || []).concat(b._roster.ge || []);
+      if (man && roster.indexOf(man) < 0) {
+        man = null;
+        deadAt = null;
+      }
+      var all = livingSoldiers(b);
+      if (!man && all.length) {
+        man = busiestSoldier(all);
+        deadAt = null;
+        if (man) {
+          info.current = man.id;
+          if (info.followed.length < 100) info.followed.push(man.id);
           /* First acquisition should open on the soldier, not spend a second flying in from the
              scenario centre. Later motion stays smoothed. */
-          var first=man.root.position;
-          cam.target.set(first.x,first.y+height,first.z);
+          var first = man.root.position;
+          cam.target.set(first.x, first.y + height, first.z);
         }
       }
-      if(!man)return;
-      if(man.dead){
-        if(deadAt==null)deadAt=b.time;
-        if(b.time-deadAt>=3&&all.length){
-          var next=nearestLiving(all,man.root.position);
-          if(next){man=next;deadAt=null;info.current=man.id;info.switches++;if(info.followed.length<100)info.followed.push(man.id);}
+      if (!man) return;
+      if (man.dead) {
+        if (deadAt == null) deadAt = b.time;
+        if (b.time - deadAt >= 3 && all.length) {
+          var next = nearestLiving(all, man.root.position);
+          if (next) {
+            man = next;
+            deadAt = null;
+            info.current = man.id;
+            info.switches++;
+            if (info.followed.length < 100) info.followed.push(man.id);
+          }
         }
-      }else deadAt=null;
-      if(!man.root)return;
-      var t=man.root.position,rawDt=Math.max(0,engine.getDeltaTime()/1000),
-        smoothDt=Math.min(.05,rawDt),k=1-Math.exp(-smoothDt*12);
-      cam.target.x+=(t.x-cam.target.x)*k;
-      cam.target.y+=(t.y+height-cam.target.y)*k;
-      cam.target.z+=(t.z-cam.target.z)*k;
+      } else deadAt = null;
+      if (!man.root) return;
+      var t = man.root.position,
+        rawDt = Math.max(0, engine.getDeltaTime() / 1000),
+        smoothDt = Math.min(0.05, rawDt),
+        k = 1 - Math.exp(-smoothDt * 12);
+      cam.target.x += (t.x - cam.target.x) * k;
+      cam.target.y += (t.y + height - cam.target.y) * k;
+      cam.target.z += (t.z - cam.target.z) * k;
       /* Orbit is a real-time inspection speed, not a per-frame speed. Do not apply the follow
          smoothing clamp here or low-FPS devices/headless validation orbit in slow motion. */
-      if(orbit)cam.alpha+=orbitSpeed*orbitDt;
-      info.current=man.id;info.radius=cam.radius;info.alpha=cam.alpha;info.beta=cam.beta;
+      if (orbit) cam.alpha += orbitSpeed * orbitDt;
+      info.current = man.id;
+      info.radius = cam.radius;
+      info.alpha = cam.alpha;
+      info.beta = cam.beta;
     });
-    var hint=(orbit?'Follow orbit':'Follow camera')+': '+distance.toFixed(distance%1?1:0)+' m · drag to orbit · wheel zoom'+
-      (orbit?' · auto '+orbitSpeed.toFixed(2)+' rad/s':'')+' · switches on death';
-    return{
-      camera:cam,desktop:false,hint:hint,mode:'follow',follow:info,
-      stop:function(){scene.onBeforeRenderObservable.remove(obs);try{cam.detachControl(canvas);}catch(_){}}
+    var hint =
+      (orbit ? 'Follow orbit' : 'Follow camera') +
+      ': ' +
+      distance.toFixed(distance % 1 ? 1 : 0) +
+      ' m · drag to orbit · wheel zoom' +
+      (orbit ? ' · auto ' + orbitSpeed.toFixed(2) + ' rad/s' : '') +
+      ' · switches on death';
+    return {
+      camera: cam,
+      desktop: false,
+      hint: hint,
+      mode: 'follow',
+      follow: info,
+      stop: function () {
+        scene.onBeforeRenderObservable.remove(obs);
+        try {
+          cam.detachControl(canvas);
+        } catch (_) {}
+      }
     };
   }
 
-  function createAdaptive(options,target){
-    var scene=options.scene,canvas=options.canvas,engine=options.engine,battleSim=options.battleSim,
-      q=queryParams(),followRequested=q.get('follow')==='1'||q.get('orbit')==='1';
-    if(followRequested)return createPersistentFollow(options,target,q);
-    var initialPad=activeGamepad();
-    var initial=(desktopPointer()||initialPad)?createDesktopFly(scene,canvas,target,engine,battleSim):createTouchOrbit(scene,canvas,target);
-    var state={camera:initial.camera,desktop:initial.desktop,hint:initial.hint};
-    var wakeObserver=null;
-    function setHint(text){var el=document.getElementById('cameraHint');if(el)el.textContent=text;}
-    function switchToGamepad(pad,source){
-      if(state.desktop)return;
-      pad=pad||activeGamepad();if(!pad)return;
-      var old=state.camera,pose=cameraPose(old,target);
-      try{if(old&&old.detachControl)old.detachControl(canvas);}catch(_){}
-      try{if(old&&old.dispose)old.dispose();}catch(_){}
-      var next=createDesktopFly(scene,canvas,target,engine,battleSim,pose);
-      state.camera=next.camera;state.desktop=true;state.hint=next.hint;setHint(next.hint);
-      if(wakeObserver){scene.onBeforeRenderObservable.remove(wakeObserver);wakeObserver=null;}
-      global.GTLog('[CAMERA] gamepad wake switched touch orbit to fly ('+source+'): '+(pad.id||'gamepad'));
+  function createAdaptive(options, target) {
+    var scene = options.scene,
+      canvas = options.canvas,
+      engine = options.engine,
+      battleSim = options.battleSim,
+      q = queryParams(),
+      followRequested = q.get('follow') === '1' || q.get('orbit') === '1';
+    if (followRequested) return createPersistentFollow(options, target, q);
+    var initialPad = activeGamepad();
+    var initial =
+      desktopPointer() || initialPad
+        ? createDesktopFly(scene, canvas, target, engine, battleSim)
+        : createTouchOrbit(scene, canvas, target);
+    var state = { camera: initial.camera, desktop: initial.desktop, hint: initial.hint };
+    var wakeObserver = null;
+    function setHint(text) {
+      var el = document.getElementById('cameraHint');
+      if (el) el.textContent = text;
     }
-    if(!state.desktop&&hasGamepadAPI()){
-      global.addEventListener('gamepadconnected',function(e){switchToGamepad(e&&e.gamepad,'event');});
+    function switchToGamepad(pad, source) {
+      if (state.desktop) return;
+      pad = pad || activeGamepad();
+      if (!pad) return;
+      var old = state.camera,
+        pose = cameraPose(old, target);
+      try {
+        if (old && old.detachControl) old.detachControl(canvas);
+      } catch (_) {}
+      try {
+        if (old && old.dispose) old.dispose();
+      } catch (_) {}
+      var next = createDesktopFly(scene, canvas, target, engine, battleSim, pose);
+      state.camera = next.camera;
+      state.desktop = true;
+      state.hint = next.hint;
+      setHint(next.hint);
+      if (wakeObserver) {
+        scene.onBeforeRenderObservable.remove(wakeObserver);
+        wakeObserver = null;
+      }
+      global.GTLog(
+        '[CAMERA] gamepad wake switched touch orbit to fly (' + source + '): ' + (pad.id || 'gamepad')
+      );
+    }
+    if (!state.desktop && hasGamepadAPI()) {
+      global.addEventListener('gamepadconnected', function (e) {
+        switchToGamepad(e && e.gamepad, 'event');
+      });
       /* iOS/WebKit can withhold a Bluetooth controller from getGamepads() until user input.
          Poll while touch-orbit is active so either a stick movement or button press that exposes
          the pad can hand control to the fly camera without a reload. */
-      wakeObserver=scene.onBeforeRenderObservable.add(function(){var pad=activeGamepad();if(pad)switchToGamepad(pad,'poll');});
+      wakeObserver = scene.onBeforeRenderObservable.add(function () {
+        var pad = activeGamepad();
+        if (pad) switchToGamepad(pad, 'poll');
+      });
     }
     return state;
   }
-  global.BattleDesktopCamera={
-    current:null,
-    create:function(options){
-      var target=new BABYLON.Vector3(options.scenario.center.x,4,options.scenario.center.z);
-      var result=createAdaptive(options,target);
-      global.BattleDesktopCamera.current=result;
-      if(result.mode==='follow'){
-        global.GTLog('[CAMERA] persistent follow active · distance='+result.follow.distance+'m · orbit='+(result.follow.orbit?'on':'off')+' · orbitSpeed='+result.follow.orbitSpeed);
-      }else{
-        global.GTLog('[CAMERA] '+(result.desktop?'ww2fps Model Lab desktop/gamepad fly controls':'touch orbit controls; waiting for gamepad wake')+' active');
+  global.BattleDesktopCamera = {
+    current: null,
+    create: function (options) {
+      var target = new BABYLON.Vector3(options.scenario.center.x, 4, options.scenario.center.z);
+      var result = createAdaptive(options, target);
+      global.BattleDesktopCamera.current = result;
+      if (result.mode === 'follow') {
+        global.GTLog(
+          '[CAMERA] persistent follow active · distance=' +
+            result.follow.distance +
+            'm · orbit=' +
+            (result.follow.orbit ? 'on' : 'off') +
+            ' · orbitSpeed=' +
+            result.follow.orbitSpeed
+        );
+      } else {
+        global.GTLog(
+          '[CAMERA] ' +
+            (result.desktop
+              ? 'ww2fps Model Lab desktop/gamepad fly controls'
+              : 'touch orbit controls; waiting for gamepad wake') +
+            ' active'
+        );
       }
       return result;
     }

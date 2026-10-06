@@ -252,7 +252,8 @@
       lever: 'morale',
       layer: 'Meso (Squad Leader)',
       file: 'modules/15e-squad-leader-morale-coa.js',
-      reader: 'squadStress (extracted from 16): updateSquadState in 16 (group break and rally), COA_INPUTS.stress (COA default on)',
+      reader:
+        'squadStress (extracted from 16): updateSquadState in 16 (group break and rally), COA_INPUTS.stress (COA default on)',
       reads: { squadStress: 2, mind: 1, 'mind.mean': 1 },
       unit: 'squad mean stress, 0 unless the morale lever is on: the break point falls 0.3 per unit, rally under 0.15; weight -1.0 on assault and +0.5 on defend',
       flag: '?mind= morale lever; group morale and COA on by default (?morale=0 / ?coa=0 disable their layer)'
@@ -420,8 +421,8 @@
     FREEZE_MIN = 12,
     FREEZE_MAX = 48;
 
-  var clamp=root.GTMath.clamp;
-  var dist=root.GTMath.distStrict;
+  var clamp = root.GTMath.clamp;
+  var dist = root.GTMath.distStrict;
   function hash(str) {
     var h = 2166136261 >>> 0;
     for (var i = 0; i < str.length; i++) {
@@ -585,8 +586,7 @@
       rise = Math.max(0, m.stress - baseline),
       riseShare = clamp(rise / UP[2], 0, 1),
       concentration = clamp(
-        doseStrength *
-          (0.65 * Math.pow(shortShare, 1.5) + 0.2 * Math.pow(midShare, 1.5) + 0.1 * acuteShare) +
+        doseStrength * (0.65 * Math.pow(shortShare, 1.5) + 0.2 * Math.pow(midShare, 1.5) + 0.1 * acuteShare) +
           0.05 * riseShare,
         0,
         1
@@ -933,33 +933,33 @@
     };
     var recent = recentDose(m, m.at >= 0 ? m.at : 0),
       out = {
-      stress: r(m.stress),
-      band: BANDS[m.band],
-      peak: r(m.peak),
-      nerve: r(m.nerve),
-      shocks: m.shocks,
-      hesitations: m.hesitations,
-      incomingRounds: m.incomingRounds,
-      shockUntil: r(m.shockUntil),
-      recentDose: {
-        windowSeconds: RECENT_STRESS_WINDOW,
-        recentTotal: r(recent.recentTotal),
-        shortestWindowSeconds: FREEZE_SHORT_WINDOW,
-        shortestWindowDose: r(recent.shortestWindowDose),
-        mediumWindowSeconds: FREEZE_MID_WINDOW,
-        mediumWindowDose: r(recent.mediumWindowDose),
-        stressRise: r(recent.stressRise),
-        concentration: r(recent.concentration),
-        dominantKind: recent.dominantKind,
-        dominantGain: r(recent.dominantGain)
-      },
-      seconds: {
-        steady: r(m.time[0]),
-        shaken: r(m.time[1]),
-        rattled: r(m.time[2]),
-        broken: r(m.time[3])
-      }
-    };
+        stress: r(m.stress),
+        band: BANDS[m.band],
+        peak: r(m.peak),
+        nerve: r(m.nerve),
+        shocks: m.shocks,
+        hesitations: m.hesitations,
+        incomingRounds: m.incomingRounds,
+        shockUntil: r(m.shockUntil),
+        recentDose: {
+          windowSeconds: RECENT_STRESS_WINDOW,
+          recentTotal: r(recent.recentTotal),
+          shortestWindowSeconds: FREEZE_SHORT_WINDOW,
+          shortestWindowDose: r(recent.shortestWindowDose),
+          mediumWindowSeconds: FREEZE_MID_WINDOW,
+          mediumWindowDose: r(recent.mediumWindowDose),
+          stressRise: r(recent.stressRise),
+          concentration: r(recent.concentration),
+          dominantKind: recent.dominantKind,
+          dominantGain: r(recent.dominantGain)
+        },
+        seconds: {
+          steady: r(m.time[0]),
+          shaken: r(m.time[1]),
+          rattled: r(m.time[2]),
+          broken: r(m.time[3])
+        }
+      };
     if (Object.keys(MODE.memory).length) out.memory = { floor: r(m.floor), held: r(m.held) };
     return out;
   }

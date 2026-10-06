@@ -56,7 +56,7 @@
   function copy(p) {
     return p ? { x: +p.x || 0, z: +p.z || 0 } : null;
   }
-  var dist=root.GTMath.dist;
+  var dist = root.GTMath.dist;
   function sideSquads(sim, faction) {
     return (sim && sim.factions && sim.factions[faction] && sim.factions[faction].squads) || [];
   }
@@ -65,19 +65,28 @@
      overlay contract through view(entity,sim). The renderer never needs to know the gameplay class. */
   function providerEntities(sim, faction) {
     var out = [],
-      providers = root.BattleModules && root.BattleModules.listTacticalOverlayProviders
-        ? root.BattleModules.listTacticalOverlayProviders()
-        : [];
+      providers =
+        root.BattleModules && root.BattleModules.listTacticalOverlayProviders
+          ? root.BattleModules.listTacticalOverlayProviders()
+          : [];
     for (var pi = 0; pi < providers.length; pi++) {
       var provider = providers[pi],
         rows = [];
       if (!provider || typeof provider.entities !== 'function') continue;
-      try { rows = provider.entities(sim, faction) || []; } catch (_) { rows = []; }
+      try {
+        rows = provider.entities(sim, faction) || [];
+      } catch (_) {
+        rows = [];
+      }
       for (var i = 0; i < rows.length; i++) {
         var raw = rows[i],
           entity = raw;
         if (provider.view) {
-          try { entity = provider.view(raw, sim) || null; } catch (_) { entity = null; }
+          try {
+            entity = provider.view(raw, sim) || null;
+          } catch (_) {
+            entity = null;
+          }
         }
         if (!entity) continue;
         if (entity.faction && String(entity.faction) !== String(faction)) continue;
@@ -118,7 +127,9 @@
     var leader = leaderOf(sq);
     if (leader && leader.root && leader.root.position)
       return { x: +leader.root.position.x || 0, z: +leader.root.position.z || 0, leader: true };
-    var men = living(sq), x = 0, z = 0;
+    var men = living(sq),
+      x = 0,
+      z = 0;
     if (!men.length) return null;
     for (var i = 0; i < men.length; i++) {
       x += +men[i].root.position.x || 0;
@@ -127,8 +138,11 @@
     return { x: x / men.length, z: z / men.length, leader: false };
   }
   function liveLease(sq, kind, sim) {
-    var L = root.BattleLeases, l = null;
-    try { l = L && L.get ? L.get(sq, kind) : sq && sq._leases && sq._leases.live && sq._leases.live[kind]; } catch (_) {}
+    var L = root.BattleLeases,
+      l = null;
+    try {
+      l = L && L.get ? L.get(sq, kind) : sq && sq._leases && sq._leases.live && sq._leases.live[kind];
+    } catch (_) {}
     if (!l) return null;
     return !sim || !isFinite(+l.until) || (+sim.time || 0) < +l.until ? l : null;
   }
@@ -141,7 +155,8 @@
   function statusFor(sq, sim) {
     if (sq && sq.overlayStatus != null) {
       if (typeof sq.overlayStatus === 'string') return { key: 'provider', label: sq.overlayStatus };
-      if (sq.overlayStatus.label) return { key: sq.overlayStatus.key || 'provider', label: String(sq.overlayStatus.label) };
+      if (sq.overlayStatus.label)
+        return { key: sq.overlayStatus.key || 'provider', label: String(sq.overlayStatus.label) };
     }
     var phase = String((sq && sq.commandPhase) || ''),
       fc = sq && sq.fireControl,
@@ -170,14 +185,20 @@
         z: +sq.overlayObjective.z,
         id: sq.overlayObjective.id != null ? sq.overlayObjective.id : null
       };
-    var m = sq._macroMission || null, obj = null;
+    var m = sq._macroMission || null,
+      obj = null;
     if (m && m.objectiveId && root.BattleObjectiveSystem && root.BattleObjectiveSystem.get && sim) {
-      try { obj = root.BattleObjectiveSystem.get(sim, m.objectiveId); } catch (_) { obj = null; }
+      try {
+        obj = root.BattleObjectiveSystem.get(sim, m.objectiveId);
+      } catch (_) {
+        obj = null;
+      }
       if (obj && obj.def && isFinite(+obj.def.x) && isFinite(+obj.def.z))
         return { x: +obj.def.x, z: +obj.def.z, id: m.objectiveId };
     }
     if (m && point(m.point)) return { x: +m.point.x, z: +m.point.z, id: m.objectiveId || null };
-    if (point(sq.objective)) return { x: +sq.objective.x, z: +sq.objective.z, id: sq.targetObjective || null };
+    if (point(sq.objective))
+      return { x: +sq.objective.x, z: +sq.objective.z, id: sq.targetObjective || null };
     return null;
   }
   function movementTarget(sq, sim) {
@@ -185,11 +206,17 @@
     if (point(sq.overlayDestination)) return copy(sq.overlayDestination);
     if (sq._reconTask && point(sq._reconTask.point)) return copy(sq._reconTask.point);
     if (sq.state === 'retreat') {
-      if (sq._assembly && sq._assembly.phase === 'to-rally' && sq._macroMission && point(sq._macroMission.point))
+      if (
+        sq._assembly &&
+        sq._assembly.phase === 'to-rally' &&
+        sq._macroMission &&
+        point(sq._macroMission.point)
+      )
         return copy(sq._macroMission.point);
       return point(sq.orderAnchor) || point(sq.home);
     }
-    if (String(sq.commandPhase || '') === 'regroup') return point(sq.objective) || point(sq.rally) || point(sq.orderAnchor);
+    if (String(sq.commandPhase || '') === 'regroup')
+      return point(sq.objective) || point(sq.rally) || point(sq.orderAnchor);
     return point(sq.orderAnchor);
   }
   /* The long-range UI arrow is not the 13 m Squad Leader orderAnchor. It represents a newly issued
@@ -204,7 +231,12 @@
         id: sq.overlayDestination.id != null ? sq.overlayDestination.id : null
       };
     if (sq.state === 'retreat') {
-      if (sq._assembly && sq._assembly.phase === 'to-rally' && sq._macroMission && point(sq._macroMission.point))
+      if (
+        sq._assembly &&
+        sq._assembly.phase === 'to-rally' &&
+        sq._macroMission &&
+        point(sq._macroMission.point)
+      )
         return copy(sq._macroMission.point);
       return point(sq.home);
     }
@@ -244,16 +276,21 @@
       label: 'Infantry',
       domain: 'ground',
       verifiedHistorical: true,
-      historicalBasis: 'U.S. War Department FM 21-30 (1941): infantry X in unit frame; squad echelon dot above',
+      historicalBasis:
+        'U.S. War Department FM 21-30 (1941): infantry X in unit frame; squad echelon dot above',
       frame: { tag: 'rect', attrs: { x: -27, y: -16, width: 54, height: 32, rx: 1.5, 'class': 'sso-frame' } },
-      primitives: [{ tag: 'path', attrs: { d: 'M-24 -13 L24 13 M24 -13 L-24 13', 'class': 'sso-symbol-stroke' } }],
+      primitives: [
+        { tag: 'path', attrs: { d: 'M-24 -13 L24 13 M24 -13 L-24 13', 'class': 'sso-symbol-stroke' } }
+      ],
       echelon: { kind: 'dots', count: 1, y: -22 }
     };
   }
 
   function makeSvg(tag, attrs) {
     var n = document.createElementNS(SVG_NS, tag);
-    Object.keys(attrs || {}).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+    Object.keys(attrs || {}).forEach(function (k) {
+      n.setAttribute(k, attrs[k]);
+    });
     return n;
   }
   function append(parent, tag, attrs, text) {
@@ -264,7 +301,9 @@
   }
   function installUi() {
     if (typeof document === 'undefined' || overlay) return;
-    try { visible = localStorage.getItem(STORAGE) !== '0'; } catch (_) {}
+    try {
+      visible = localStorage.getItem(STORAGE) !== '0';
+    } catch (_) {}
     style = document.createElement('style');
     style.textContent =
       '#squadStatusOverlay{position:fixed;inset:0;z-index:9;pointer-events:none;overflow:hidden}' +
@@ -302,7 +341,9 @@
     button.type = 'button';
     button.textContent = 'Squad Overlay';
     button.title = 'WWII-style squad symbols, movement intent and objectives';
-    button.onclick = function () { setVisible(!visible); };
+    button.onclick = function () {
+      setVisible(!visible);
+    };
     document.body.appendChild(button);
     syncUi();
   }
@@ -312,14 +353,17 @@
   }
   function setVisible(v) {
     visible = !!v;
-    try { localStorage.setItem(STORAGE, visible ? '1' : '0'); } catch (_) {}
+    try {
+      localStorage.setItem(STORAGE, visible ? '1' : '0');
+    } catch (_) {}
     syncUi();
     return visible;
   }
 
   function createMark(sq, key) {
-    key = key || (String(sq.faction || '?') + ':' + String(sq.id));
-    var g = makeSvg('g', { 'data-overlay-entity': key }), factionClass = sq.faction === 'ge' ? 'sso-ge' : 'sso-us';
+    key = key || String(sq.faction || '?') + ':' + String(sq.id);
+    var g = makeSvg('g', { 'data-overlay-entity': key }),
+      factionClass = sq.faction === 'ge' ? 'sso-ge' : 'sso-us';
     g.setAttribute('class', factionClass);
     var arrowHalo = append(g, 'path', { 'class': 'sso-arrow-halo' }),
       arrow = append(g, 'path', { 'class': 'sso-arrow' }),
@@ -331,12 +375,24 @@
 
     var unit = append(g, 'g', { 'class': 'sso-unit' }),
       symbolLayer = append(unit, 'g', { 'class': 'sso-symbol-layer' });
-    var idText = append(unit, 'text', { 'class': 'sso-text sso-id', x: '34', y: '4', 'text-anchor': 'start' }, String(sq.id));
-    var statusBg = append(unit, 'rect', { 'class': 'sso-status-bg', x: '-34', y: '20', width: '68', height: '17', rx: '3' });
+    var idText = append(
+      unit,
+      'text',
+      { 'class': 'sso-text sso-id', x: '34', y: '4', 'text-anchor': 'start' },
+      String(sq.id)
+    );
+    var statusBg = append(unit, 'rect', {
+      'class': 'sso-status-bg',
+      x: '-34',
+      y: '20',
+      width: '68',
+      height: '17',
+      rx: '3'
+    });
     var statusText = append(unit, 'text', { 'class': 'sso-text sso-status', x: '0', y: '32' }, 'HOLD');
     var contact = append(unit, 'circle', { 'class': 'sso-contact', cx: '32', cy: '-14', r: '4' });
     svg.appendChild(g);
-    var mark = marks[key] = {
+    var mark = (marks[key] = {
       key: key,
       g: g,
       arrowHalo: arrowHalo,
@@ -353,12 +409,20 @@
       statusBg: statusBg,
       statusText: statusText,
       contact: contact
-    };
+    });
     renderSymbol(mark, sq);
     return mark;
   }
   function primitiveAllowed(tag) {
-    return tag === 'path' || tag === 'rect' || tag === 'circle' || tag === 'ellipse' || tag === 'line' || tag === 'polygon' || tag === 'text';
+    return (
+      tag === 'path' ||
+      tag === 'rect' ||
+      tag === 'circle' ||
+      tag === 'ellipse' ||
+      tag === 'line' ||
+      tag === 'polygon' ||
+      tag === 'text'
+    );
   }
   function renderPrimitive(parent, primitive) {
     if (!primitive || !primitiveAllowed(primitive.tag)) return null;
@@ -391,7 +455,9 @@
   function disposeMark(key) {
     var m = marks[key];
     if (!m) return;
-    try { if (m.g && m.g.parentNode) m.g.parentNode.removeChild(m.g); } catch (_) {}
+    try {
+      if (m.g && m.g.parentNode) m.g.parentNode.removeChild(m.g);
+    } catch (_) {}
     delete marks[key];
   }
   function clearMarks() {
@@ -400,28 +466,66 @@
 
   function worldY(sim, p, lift) {
     var y = 0;
-    try { y = sim && sim.heightAt ? +sim.heightAt(p.x, p.z) || 0 : 0; } catch (_) { y = 0; }
+    try {
+      y = sim && sim.heightAt ? +sim.heightAt(p.x, p.z) || 0 : 0;
+    } catch (_) {
+      y = 0;
+    }
     return y + lift;
   }
   function project(sim, p, lift) {
     if (!sim || !sim.scene || !p || typeof BABYLON === 'undefined') return null;
-    var scene = sim.scene, engine = scene.getEngine && scene.getEngine(), camera = scene.activeCamera;
+    var scene = sim.scene,
+      engine = scene.getEngine && scene.getEngine(),
+      camera = scene.activeCamera;
     if (!engine || !camera || !BABYLON.Vector3 || !BABYLON.Matrix) return null;
-    var canvas = engine.getRenderingCanvas && engine.getRenderingCanvas(), rect = canvas && canvas.getBoundingClientRect ? canvas.getBoundingClientRect() : null;
+    var canvas = engine.getRenderingCanvas && engine.getRenderingCanvas(),
+      rect = canvas && canvas.getBoundingClientRect ? canvas.getBoundingClientRect() : null;
     if (!canvas || !rect || !(rect.width > 0) || !(rect.height > 0)) return null;
     identity = identity || BABYLON.Matrix.Identity();
     var vp = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight()),
-      q = BABYLON.Vector3.Project(new BABYLON.Vector3(p.x, worldY(sim, p, lift), p.z), identity, scene.getTransformMatrix(), vp),
-      x = rect.left + q.x * rect.width / engine.getRenderWidth(),
-      y = rect.top + q.y * rect.height / engine.getRenderHeight();
-    return { x: x, y: y, z: q.z, visible: q.z >= 0 && q.z <= 1 && x >= rect.left - OFFSCREEN_PAD && x <= rect.right + OFFSCREEN_PAD && y >= rect.top - OFFSCREEN_PAD && y <= rect.bottom + OFFSCREEN_PAD };
+      q = BABYLON.Vector3.Project(
+        new BABYLON.Vector3(p.x, worldY(sim, p, lift), p.z),
+        identity,
+        scene.getTransformMatrix(),
+        vp
+      ),
+      x = rect.left + (q.x * rect.width) / engine.getRenderWidth(),
+      y = rect.top + (q.y * rect.height) / engine.getRenderHeight();
+    return {
+      x: x,
+      y: y,
+      z: q.z,
+      visible:
+        q.z >= 0 &&
+        q.z <= 1 &&
+        x >= rect.left - OFFSCREEN_PAD &&
+        x <= rect.right + OFFSCREEN_PAD &&
+        y >= rect.top - OFFSCREEN_PAD &&
+        y <= rect.bottom + OFFSCREEN_PAD
+    };
   }
   function curvePath(a, b, sq) {
-    var dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1,
-      bend = Math.min(42, Math.max(14, len * 0.12)) * (((+sq.id || 0) % 2) ? 1 : -1),
+    var dx = b.x - a.x,
+      dy = b.y - a.y,
+      len = Math.hypot(dx, dy) || 1,
+      bend = Math.min(42, Math.max(14, len * 0.12)) * ((+sq.id || 0) % 2 ? 1 : -1),
       cx = (a.x + b.x) / 2 + (-dy / len) * bend,
       cy = (a.y + b.y) / 2 + (dx / len) * bend;
-    return 'M' + a.x.toFixed(1) + ' ' + a.y.toFixed(1) + ' Q' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' ' + b.x.toFixed(1) + ' ' + b.y.toFixed(1);
+    return (
+      'M' +
+      a.x.toFixed(1) +
+      ' ' +
+      a.y.toFixed(1) +
+      ' Q' +
+      cx.toFixed(1) +
+      ' ' +
+      cy.toFixed(1) +
+      ' ' +
+      b.x.toFixed(1) +
+      ' ' +
+      b.y.toFixed(1)
+    );
   }
   function setShown(node, on) {
     if (node) node.style.display = on ? '' : 'none';
@@ -440,7 +544,11 @@
     m.arrowHalo.setAttribute('d', d);
     m.arrow.setAttribute('d', d);
     var length = 0;
-    try { length = Math.max(1, m.arrow.getTotalLength()); } catch (_) { length = Math.max(1, Math.hypot(toScreen.x - fromScreen.x, toScreen.y - fromScreen.y)); }
+    try {
+      length = Math.max(1, m.arrow.getTotalLength());
+    } catch (_) {
+      length = Math.max(1, Math.hypot(toScreen.x - fromScreen.x, toScreen.y - fromScreen.y));
+    }
     var wipe = Math.min(1, Math.max(0, elapsed / ARROW_WIPE_MS)),
       tail = elapsed - ARROW_WIPE_MS - ARROW_HOLD_MS,
       opacity = tail <= 0 ? 1 : Math.max(0, 1 - tail / ARROW_FADE_MS),
@@ -460,8 +568,11 @@
       before = m.arrow.getPointAtLength(Math.max(0, tipLength - 8));
     } catch (_) {}
     if (p && before) {
-      var angle = Math.atan2(p.y - before.y, p.x - before.x) * 180 / Math.PI;
-      m.arrowHead.setAttribute('transform', 'translate(' + p.x.toFixed(1) + ' ' + p.y.toFixed(1) + ') rotate(' + angle.toFixed(1) + ')');
+      var angle = (Math.atan2(p.y - before.y, p.x - before.x) * 180) / Math.PI;
+      m.arrowHead.setAttribute(
+        'transform',
+        'translate(' + p.x.toFixed(1) + ' ' + p.y.toFixed(1) + ') rotate(' + angle.toFixed(1) + ')'
+      );
       m.arrowHead.style.opacity = opacity.toFixed(3);
       setShown(m.arrowHead, wipe > 0.04 && opacity > 0);
     } else setShown(m.arrowHead, false);
@@ -470,24 +581,35 @@
   }
   function updateMark(m, sq, sim, nowMs) {
     var at = centroid(sq, sim);
-    if (!at) { m.g.style.display = 'none'; return; }
+    if (!at) {
+      m.g.style.display = 'none';
+      return;
+    }
     var screen = project(sim, at, LIFT);
-    if (!screen || !screen.visible) { m.g.style.display = 'none'; return; }
+    if (!screen || !screen.visible) {
+      m.g.style.display = 'none';
+      return;
+    }
     m.g.style.display = '';
     renderSymbol(m, sq);
     m.unit.setAttribute('transform', 'translate(' + screen.x.toFixed(1) + ' ' + screen.y.toFixed(1) + ')');
     var displayId = sq.overlayLabel != null ? String(sq.overlayLabel) : String(sq.id);
     m.idText.textContent = (sq.faction === 'ge' ? 'GE ' : 'US ') + displayId;
-    var st = statusFor(sq, sim), label = st.label,
+    var st = statusFor(sq, sim),
+      label = st.label,
       w = Math.max(68, Math.min(142, label.length * 6.3 + 18));
     m.statusText.textContent = label;
     m.statusBg.setAttribute('width', w.toFixed(0));
     m.statusBg.setAttribute('x', (-w / 2).toFixed(1));
     setShown(m.contact, sq.overlayInContact != null ? !!sq.overlayInContact : !!sq.inContact);
 
-    var obj = missionObjective(sq, sim), objScreen = obj && project(sim, obj, OBJECTIVE_LIFT);
+    var obj = missionObjective(sq, sim),
+      objScreen = obj && project(sim, obj, OBJECTIVE_LIFT);
     if (objScreen && objScreen.visible) {
-      m.objective.setAttribute('transform', 'translate(' + objScreen.x.toFixed(1) + ' ' + objScreen.y.toFixed(1) + ')');
+      m.objective.setAttribute(
+        'transform',
+        'translate(' + objScreen.x.toFixed(1) + ' ' + objScreen.y.toFixed(1) + ')'
+      );
       m.objText.textContent = objectiveLabel(sq, obj);
       var labelLane = ((+sq.id || 0) % 3) - 1;
       m.objText.setAttribute('x', String(labelLane * 28));
@@ -529,13 +651,19 @@
   function renderableEntity(entity) {
     if (!entity || entity.disbanded || entity.overlayHidden) return false;
     if (point(entity.overlayPosition)) return true;
-    if (entity.root && entity.root.position && isFinite(+entity.root.position.x) && isFinite(+entity.root.position.z))
+    if (
+      entity.root &&
+      entity.root.position &&
+      isFinite(+entity.root.position.x) &&
+      isFinite(+entity.root.position.z)
+    )
       return !entity.dead;
     return living(entity).length > 0;
   }
   function update() {
     if (!visible || !simRef || !svg) return;
-    var seen = Object.create(null), nowMs = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+    var seen = Object.create(null),
+      nowMs = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
     ['us', 'ge'].forEach(function (faction) {
       var rows = overlayEntities(simRef, faction);
       for (var i = 0; i < rows.length; i++) {
@@ -548,7 +676,9 @@
         updateMark(m, entity, simRef, nowMs);
       }
     });
-    Object.keys(marks).forEach(function (key) { if (!seen[key]) disposeMark(key); });
+    Object.keys(marks).forEach(function (key) {
+      if (!seen[key]) disposeMark(key);
+    });
   }
   function frame() {
     raf = 0;
@@ -575,16 +705,23 @@
   function dispose() {
     stopLoop();
     clearMarks();
-    try { if (button && button.parentNode) button.parentNode.removeChild(button); } catch (_) {}
-    try { if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); } catch (_) {}
-    try { if (style && style.parentNode) style.parentNode.removeChild(style); } catch (_) {}
+    try {
+      if (button && button.parentNode) button.parentNode.removeChild(button);
+    } catch (_) {}
+    try {
+      if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    } catch (_) {}
+    try {
+      if (style && style.parentNode) style.parentNode.removeChild(style);
+    } catch (_) {}
     button = overlay = svg = style = null;
     simRef = null;
   }
 
   root.BattleSquadStatusOverlay = {
     version: '1.3',
-    historicalBasis: 'Per-symbol provenance is supplied by BattleTacticalSymbols; infantry currently cites FM 21-30 (1941)',
+    historicalBasis:
+      'Per-symbol provenance is supplied by BattleTacticalSymbols; infantry currently cites FM 21-30 (1941)',
     statusFor: statusFor,
     movementTarget: movementTarget,
     arrowTarget: arrowTarget,
@@ -595,7 +732,9 @@
     symbolSpec: symbolSpec,
     overlayEntities: overlayEntities,
     setVisible: setVisible,
-    visible: function () { return visible; },
+    visible: function () {
+      return visible;
+    },
     update: update,
     dispose: dispose
   };
@@ -606,5 +745,7 @@
     onBattleRestart: start
   });
   if (typeof document !== 'undefined') installUi();
-  root.GTLog('[UI] tactical status overlay active: registry-driven unit symbols + momentary long-range command arrows/objectives');
+  root.GTLog(
+    '[UI] tactical status overlay active: registry-driven unit symbols + momentary long-range command arrows/objectives'
+  );
 })(typeof window !== 'undefined' ? window : globalThis);

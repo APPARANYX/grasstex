@@ -127,12 +127,24 @@
       rows = [ur, gr].filter(Boolean);
     st.reconstitution = rows.length
       ? {
-          groupsFormed: rows.reduce(function (n, r) { return n + (+r.groupsFormed || 0); }, 0),
-          groupsDissolved: rows.reduce(function (n, r) { return n + (+r.groupsDissolved || 0); }, 0),
-          merges: rows.reduce(function (n, r) { return n + (+r.merges || 0); }, 0),
-          promotions: rows.reduce(function (n, r) { return n + (+r.promotions || 0); }, 0),
-          active: rows.reduce(function (a, r) { return a.concat(r.active || []); }, []),
-          ended: rows.reduce(function (a, r) { return a.concat(r.ended || []); }, [])
+          groupsFormed: rows.reduce(function (n, r) {
+            return n + (+r.groupsFormed || 0);
+          }, 0),
+          groupsDissolved: rows.reduce(function (n, r) {
+            return n + (+r.groupsDissolved || 0);
+          }, 0),
+          merges: rows.reduce(function (n, r) {
+            return n + (+r.merges || 0);
+          }, 0),
+          promotions: rows.reduce(function (n, r) {
+            return n + (+r.promotions || 0);
+          }, 0),
+          active: rows.reduce(function (a, r) {
+            return a.concat(r.active || []);
+          }, []),
+          ended: rows.reduce(function (a, r) {
+            return a.concat(r.ended || []);
+          }, [])
         }
       : null;
     return st;
@@ -444,8 +456,7 @@
     FLED_PICKUP_RANGE = 50; // a retreating squad this near a fled man waiting for one takes him in
   var reconApi = null;
   root._commanderReconstitutionAttach = function (api) {
-    if (!api || typeof api.reconstitute !== 'function' || typeof api.pickUpFled !== 'function')
-      return false;
+    if (!api || typeof api.reconstitute !== 'function' || typeof api.pickUpFled !== 'function') return false;
     reconApi = api;
     return true;
   };

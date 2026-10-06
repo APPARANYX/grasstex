@@ -28,7 +28,10 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, { log() {}, warn() {} });
+  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
+    log() {},
+    warn() {}
+  });
 }
 let n = 0;
 function test(name, fn) {
@@ -42,7 +45,12 @@ function fixture(obstacles, physical) {
   H.resetIds();
   const r = H.bootstrap({ modules: false }),
     systems = {};
-  r.BattleModules = { registerSystem(id, h) { systems[id] = h; }, unitsFor: b => b._roster.us.concat(b._roster.ge) };
+  r.BattleModules = {
+    registerSystem(id, h) {
+      systems[id] = h;
+    },
+    unitsFor: b => b._roster.us.concat(b._roster.ge)
+  };
   load(r, 'battle/battle-navigation.js');
   load(r, 'battle/movement-resolver.js');
   load(r, 'battle/modules/39-navigation-physicality-debug.js');
@@ -54,7 +62,14 @@ function fixture(obstacles, physical) {
   b.scene = { metadata: { battleScenario: scenario } };
   r.__battle__ = b;
   r.BattleNavigation.installScenario(scenario);
-  const q = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: -8, objective: { x: 0, z: 50 }, composition: ['rifleman', 'rifleman', 'rifleman'] });
+  const q = H.addSquad(r, b, {
+    id: 'us-0',
+    faction: 'us',
+    x: 0,
+    z: -8,
+    objective: { x: 0, z: 50 },
+    composition: ['rifleman', 'rifleman', 'rifleman']
+  });
   q.commandPhase = 'support-hold';
   q.state = 'engaged';
   q.inContact = true;
@@ -66,7 +81,24 @@ function fixture(obstacles, physical) {
   return { r, b, q, s: q.members[0], E: r.BattleEngagement, C: r.BattleCoverPositions };
 }
 function hedge() {
-  return { id: 'hedge', physicalId: 'hedge', shape: 'obb', type: 'hedge', x: 0, z: 0, hx: 14, hz: 1, ux: 1, uz: 0, vx: 0, vz: 1, radius: 1, y: 0, height: 2, cover: 0.62 };
+  return {
+    id: 'hedge',
+    physicalId: 'hedge',
+    shape: 'obb',
+    type: 'hedge',
+    x: 0,
+    z: 0,
+    hx: 14,
+    hz: 1,
+    ux: 1,
+    uz: 0,
+    vx: 0,
+    vz: 1,
+    radius: 1,
+    y: 0,
+    height: 2,
+    cover: 0.62
+  };
 }
 
 test('the module installs the verbatim set back into engagement.js through the ctx sink', () => {
@@ -76,14 +108,35 @@ test('the module installs the verbatim set back into engagement.js through the c
   const ctx = r._engagementCoverCtx();
   assert.deepEqual(
     Object.keys(ctx).sort(),
-    ['COVER_CELL', 'COVER_FIRE', 'COVER_RANGE', 'COVER_SPACING', 'SA', 'USEFUL_COVER', 'dist', 'field', 'posOf', 'root', 'seesFrom', 'state'],
+    [
+      'COVER_CELL',
+      'COVER_FIRE',
+      'COVER_RANGE',
+      'COVER_SPACING',
+      'SA',
+      'USEFUL_COVER',
+      'dist',
+      'field',
+      'posOf',
+      'root',
+      'seesFrom',
+      'state'
+    ],
     'ctx carries exactly the closure utilities and constants the moved bodies consume'
   );
   Object.keys(ctx).forEach(k => assert.notEqual(ctx[k], undefined, 'ctx.' + k + ' defined at install time'));
   const api = r._engagementCoverPositions(ctx);
-  ['coverRegistry', 'buildCoverSlots', 'currentCover', 'releaseCover', 'reserveCover', 'coverCandidates', 'coverSnapshot', 'findCover', 'warm'].forEach(k =>
-    assert.equal(typeof api[k], 'function', 'factory returns ' + k)
-  );
+  [
+    'coverRegistry',
+    'buildCoverSlots',
+    'currentCover',
+    'releaseCover',
+    'reserveCover',
+    'coverCandidates',
+    'coverSnapshot',
+    'findCover',
+    'warm'
+  ].forEach(k => assert.equal(typeof api[k], 'function', 'factory returns ' + k));
   assert.equal(api.findCover.length, 3, 'findCover(s, battle, opts)');
   assert.equal(api.reserveCover.length, 4, 'reserveCover(s, battle, slot, kind)');
   assert.equal(api.releaseCover.length, 3, 'releaseCover(s, battle, kind)');
@@ -107,7 +160,11 @@ test('the parent seam keeps the pre-split names, arities and the spacing export'
   assert.equal(C.snapshot.length, 1, 'BattleCoverPositions.snapshot(battle)');
   assert.equal(C.warm.length, 1, 'BattleCoverPositions.warm(battle)');
   assert.equal(C.spacing, 1.8, 'the claim spacing export still reads the parent constant');
-  assert.equal(r._engagementCoverAttach({}), false, 'the attach sink rejects an api without findCover/reserveCover');
+  assert.equal(
+    r._engagementCoverAttach({}),
+    false,
+    'the attach sink rejects an api without findCover/reserveCover'
+  );
   const f = fixture([]),
     claim = f.C.reserve(f.s, f.b, { id: 'probe:0', x: 0, z: -6, normalX: 0, normalZ: -1 }, 'engagement');
   assert.ok(claim, 'the real installation still works after a rejected attach');
@@ -144,7 +201,8 @@ test('engagement.js without the module fails loudly on the first cover use', () 
   load(r, 'battle/engagement.js');
   assert.ok(r.BattleEngagement, 'engagement.js alone still loads and exports');
   assert.throws(
-    () => r.BattleEngagement.findCover({ root: { position: { x: 0, z: 0 } } }, { time: 0, obstacles: [] }, {}),
+    () =>
+      r.BattleEngagement.findCover({ root: { position: { x: 0, z: 0 } } }, { time: 0, obstacles: [] }, {}),
     /cover system missing/,
     'no silent no-cover battlefield'
   );
