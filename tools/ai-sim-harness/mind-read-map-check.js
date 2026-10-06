@@ -268,6 +268,7 @@ test('the runtime readers are the declared decision, command-observer, display a
     'modules/15j-squad-leader-fire-and-movement.js',
     'modules/18-command-reception.js',
     'modules/19a-engagement-stress-reactions.js',
+    'modules/19b-engagement-fire-stance.js',
     'modules/40-world-debug-overlay.js',
     'modules/99-session-diagnostics-export.js'
   ]);
@@ -368,9 +369,9 @@ test('a listed read that is gone fails', () => {
     'the roll-up is no longer read'
   );
   fails(
-    mutated('engagement.js', src => src.replace(/M\.hesitation\(s\)/g, '0')),
-    /stale row: engagement\.js no longer reads hesitation/,
-    'the hesitation lever is gone from Engagement'
+    mutated('modules/19b-engagement-fire-stance.js', src => src.replace(/M\.hesitation\(s\)/g, '0')),
+    /stale row: modules\/19b-engagement-fire-stance\.js no longer reads hesitation/,
+    'the hesitation lever is gone from the fire/stance module'
   );
 });
 

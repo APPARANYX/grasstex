@@ -37,6 +37,7 @@ const ALIASES = {
   'modules/15j-squad-leader-fire-and-movement.js': ['M'],
   'modules/18-command-reception.js': ['M'],
   'modules/19a-engagement-stress-reactions.js': ['M'],
+  'modules/19b-engagement-fire-stance.js': ['M'],
   'modules/40-world-debug-overlay.js': ['Mind']
 };
 /* `_mindSummary` and friends are what module 17 leaves on the sim for the export and the benchmark. */

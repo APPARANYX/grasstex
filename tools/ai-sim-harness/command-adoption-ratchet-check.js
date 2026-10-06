@@ -9,6 +9,7 @@ const root=path.resolve(__dirname,'../..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const meso=read('battle/modules/16-squad-plan-stability.js');
 const eng=read('battle/engagement.js');
+const fire=read('battle/modules/19b-engagement-fire-stance.js');
 const reception=read('battle/modules/18-command-reception.js');
 const files=[];
 function walk(dir){
@@ -28,14 +29,14 @@ check(/function publishPersonalMovement\(/.test(meso),'Meso personal publisher e
 check(/CR\.adopted\s*&&\s*CR\.adopted\(s,\s*battle,\s*'movement',\s*scope\)/.test(meso),'Meso reads personal movement adoption');
 check(/if\s*\(!adopted\s*\|\|\s*!adopted\.point/.test(meso),'Meso rejects pending/unreachable movement');
 check(/s\._fireteamDestination\s*=\s*copy\(adopted\.point\)/.test(meso),'Meso publishes adopted point');
-check(/CR\.adopted\s*&&\s*CR\.adopted\(s,\s*battle,\s*'posture-fire',\s*'squad'\)/.test(eng),'Engagement reads personal posture adoption');
+check(/CR\.adopted\s*&&\s*CR\.adopted\(s,\s*battle,\s*'posture-fire',\s*'squad'\)/.test(fire),'Engagement fire/stance (19b) reads personal posture adoption');
 check(!/\.(?:destination|orderDestination|_fireteamDestination|target|prone|crawling|tacticalCrouch)\s*=/.test(reception),'Reception never writes physical truth');
 // Loop watch reads the already-published personal destination for observation only; it never issues an order.
 const allowedMovement=new Set(['battle/modules/16-squad-plan-stability.js','battle/modules/15a-squad-leader-fire-control.js','battle/modules/15b-squad-leader-buddy-pairs.js','battle/modules/15c-squad-leader-scouts-forward.js','battle/modules/15c-squad-leader-scouts-forward.js','battle/modules/15d-squad-leader-leaderless-intent.js','battle/modules/15h-squad-leader-fireteams.js','battle/engagement.js','battle/movement-resolver.js','battle/modules/21-defender-engineers.js','battle/modules/36-order-provenance.js','battle/modules/40-world-debug-overlay.js','battle/modules/32-ai-loop-watch.js']);
 const offenders=[];
 for(const file of files){
   const src=read(file);
-  if(file!=='battle/modules/18-command-reception.js' && /BattleCommandReception\s*\.\s*(?:publish|adopted|snapshot)/.test(src) && !new Set(['battle/modules/16-squad-plan-stability.js','battle/engagement.js','battle/modules/99-session-diagnostics-export.js']).has(file))
+  if(file!=='battle/modules/18-command-reception.js' && /BattleCommandReception\s*\.\s*(?:publish|adopted|snapshot)/.test(src) && !new Set(['battle/modules/16-squad-plan-stability.js','battle/engagement.js','battle/modules/19b-engagement-fire-stance.js','battle/modules/99-session-diagnostics-export.js']).has(file))
     offenders.push(file+': new direct reception consumer requires review');
   if(file==='battle/modules/18-command-reception.js')continue;
   // Only audit direct reads of command-bearing squad posture and the published personal

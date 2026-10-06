@@ -564,6 +564,10 @@
         "modules/19a-engagement-stress-reactions.js": {
           "as": "slot",
           "why": "The stress states stop the frozen or fled man's look direction, written through Engagement's declared ctx sink (_engagementStressCtx) after the 19a verbatim split - the owner's own code, relocated."
+        },
+        "modules/19b-engagement-fire-stance.js": {
+          "as": "slot",
+          "why": "station and the legacy fire position stop the look direction, written through Engagement's declared ctx sink (_engagementFireStanceCtx) after the 19b verbatim split - the owner's own code, relocated"
         }
       }
     },
@@ -646,6 +650,10 @@
         "soldier.js": {
           "as": "body",
           "why": "kill() clears it when the soldier dies (the body's own mechanics; stance-ownership-check.js allows it)."
+        },
+        "modules/19b-engagement-fire-stance.js": {
+          "as": "slot",
+          "why": "applyStance commits the crawl gait, written through Engagement's declared ctx sink (_engagementFireStanceCtx) after the 19b verbatim split - the owner's own code, relocated"
         }
       }
     },
@@ -730,6 +738,10 @@
         "squad-ai.js": {
           "as": "fallback",
           "why": "engagement-fallback"
+        },
+        "modules/19b-engagement-fire-stance.js": {
+          "as": "slot",
+          "why": "applyStance commits prone, written through Engagement's declared ctx sink (_engagementFireStanceCtx) after the 19b verbatim split - the owner's own code, relocated"
         }
       }
     },
@@ -832,6 +844,10 @@
         "modules/19a-engagement-stress-reactions.js": {
           "as": "slot",
           "why": "leaveWeapons drops the emplaced gun when a man breaks, written through Engagement's declared ctx sink (_engagementStressCtx) after the 19a verbatim split - the owner's own code, relocated."
+        },
+        "modules/19b-engagement-fire-stance.js": {
+          "as": "slot",
+          "why": "station and legacyStation set and clear the emplaced-gun flag, written through Engagement's declared ctx sink (_engagementFireStanceCtx) after the 19b verbatim split - the owner's own code, relocated"
         }
       }
     },
@@ -849,6 +865,10 @@
         "modules/19a-engagement-stress-reactions.js": {
           "as": "slot",
           "why": "the stress states mirror their state label like every other state, written through Engagement's declared ctx sink (_engagementStressCtx) after the 19a verbatim split - the owner's own code, relocated."
+        },
+        "modules/19b-engagement-fire-stance.js": {
+          "as": "slot",
+          "why": "the fire-control states mirror their state label, written through Engagement's declared ctx sink (_engagementFireStanceCtx) after the 19b verbatim split - the owner's own code, relocated"
         }
       }
     },
@@ -862,6 +882,10 @@
         "squad-ai.js": {
           "as": "fallback",
           "why": "engagement-fallback"
+        },
+        "modules/19b-engagement-fire-stance.js": {
+          "as": "slot",
+          "why": "applyStance commits the tactical crouch, written through Engagement's declared ctx sink (_engagementFireStanceCtx) after the 19b verbatim split - the owner's own code, relocated"
         }
       }
     },
