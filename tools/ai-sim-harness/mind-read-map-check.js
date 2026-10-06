@@ -267,6 +267,7 @@ test('the runtime readers are the declared decision, command-observer, display a
     'modules/15e-squad-leader-morale-coa.js',
     'modules/15j-squad-leader-fire-and-movement.js',
     'modules/18-command-reception.js',
+    'modules/19a-engagement-stress-reactions.js',
     'modules/40-world-debug-overlay.js',
     'modules/99-session-diagnostics-export.js'
   ]);

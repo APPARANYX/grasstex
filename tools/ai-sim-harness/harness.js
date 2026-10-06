@@ -68,6 +68,9 @@ function bootstrap(opts){
      with the runtime block, not behind {modules}: it installs itself back into engagement.js,
      which loads before every module in every chain. */
   load(root,'battle/modules/19-engagement-cover-positions.js');
+  /* Stress reactions are base Engagement too (fled-man-check runs them behind {modules:false}),
+     so the sub-module loads here as well, installing back into engagement.js like the cover one. */
+  load(root,'battle/modules/19a-engagement-stress-reactions.js');
   if(opts.modules!==false){
     root.BattleModules={registerSystem(){},registerUnitType(){},registerObjectiveType(){},runHook(){},unitsFor(){return[];}};
     /* Soldier stats (module 10) are opt-in here: {stats:true}. Absent, every reader gets 1 and the checks keep testing the flat constants. */
