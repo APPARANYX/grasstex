@@ -7,7 +7,8 @@
    and is within 0.6 m of his destination". Their writes disagreed with Engagement's commitment
    and bounced the shown stance A->B->A in under a second (stance-churn probe: 448 in one 300 s
    meeting battle, 70% of shown changes from stepMovement).
-   - Nothing under battle/ writes prone/tacticalCrouch/crawling except engagement.js, the
+   - Nothing under battle/ writes prone/tacticalCrouch/crawling except engagement.js and its
+     fire/stance sub-module (applyStance moved there verbatim), the
      soldier model's own setCrouch/setProne and SquadAI's no-Engagement fallback.
    - stepMovement shows the committed stance and derives nothing: suppressed, holding a target and
      standing still, a man Engagement has standing stays standing.
@@ -30,7 +31,7 @@ test('only Engagement writes stance flags',()=>{
     .concat(fs.readdirSync(path.join(dir,'modules')).filter(f=>f.endsWith('.js')).map(f=>'modules/'+f));
   /* soldier.js: setCrouch/setProne/kill are the body's own mechanics; squad-ai.js: fallbackBehavior
      only runs when engagement.js failed to load. */
-  const ALLOWED={'engagement.js':1,'soldier.js':1,'squad-ai.js':1},WRITE=/\.(prone|tacticalCrouch|crawling|crouching)\s*=(?!=)/g;
+  const ALLOWED={'engagement.js':1,'soldier.js':1,'squad-ai.js':1,'modules/19b-engagement-fire-stance.js':1},WRITE=/\.(prone|tacticalCrouch|crawling|crouching)\s*=(?!=)/g;
   const offenders=[];
   for(const f of files){
     if(ALLOWED[f])continue;
