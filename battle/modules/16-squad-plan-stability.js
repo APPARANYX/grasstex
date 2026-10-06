@@ -313,8 +313,7 @@
      both threats before continuing the advance. Default-on after the current-main 100-seed #342
      gate; ?fireteamSplit=0/off/false is the legacy single-contact control for paired A/B work. */
   var FIRETEAM_SPLIT_ON = !(
-    typeof location !== 'undefined' &&
-    /[?&]fireteamSplit=(?:0|off|false)\b/i.test(location.search || '')
+    typeof location !== 'undefined' && /[?&]fireteamSplit=(?:0|off|false)\b/i.test(location.search || '')
   );
   var FIRE_CONTROL_TUNING = {
     prepMin: 1.2,

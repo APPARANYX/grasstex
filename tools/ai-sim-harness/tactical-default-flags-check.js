@@ -30,4 +30,6 @@ assert.deepEqual(
   'word-form legacy controls disable both features'
 );
 
-console.log('PASS tactical squad broadcast and multi-contact fireteam split are default-on with legacy controls');
+console.log(
+  'PASS tactical squad broadcast and multi-contact fireteam split are default-on with legacy controls'
+);

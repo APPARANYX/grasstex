@@ -31,8 +31,7 @@
   /* Broadcast reception is default-on after the current-main 100-seed #342 gate. Keep
      ?squadBroadcast=0/off/false as the telemetry-only legacy control for paired A/B work. */
   var BROADCAST_ON = !(
-    typeof location !== 'undefined' &&
-    /[?&]squadBroadcast=(?:0|off|false)\b/i.test(location.search || '')
+    typeof location !== 'undefined' && /[?&]squadBroadcast=(?:0|off|false)\b/i.test(location.search || '')
   );
 
   /* Range at which a squad's broadcast reaches another squad. Longer than SquadAI.RELAY_RANGE
