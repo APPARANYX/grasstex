@@ -37,8 +37,11 @@
       recordMacroWake = ctx.recordMacroWake,
       RECON_STRENGTH = ctx.RECON_STRENGTH,
       RECON_MIN_STRENGTH = ctx.RECON_MIN_STRENGTH,
+      RECON_POOL_MAX = ctx.RECON_POOL_MAX,
+      RECON_MAX_CENTER_TRAVEL = ctx.RECON_MAX_CENTER_TRAVEL,
+      RECON_FORWARD_DETOUR = ctx.RECON_FORWARD_DETOUR,
+      RECON_FORWARD_MAX = ctx.RECON_FORWARD_MAX,
       RALLY_RADIUS = ctx.RALLY_RADIUS,
-      RALLY_FORWARD = ctx.RALLY_FORWARD,
       FLED_PICKUP_RANGE = ctx.FLED_PICKUP_RANGE;
     /* Reconstitution. Retreated squads that are home and out of contact (`_assembly` `at-base`,
      16-squad-plan-stability.js) are a side's pool of survivors; no group is planned for a squad still on
@@ -86,33 +89,133 @@
         return D.aliveMembers(b).length - D.aliveMembers(a).length || order.indexOf(a) - order.indexOf(b);
       };
     }
-    /* The rally point is where the re-formed squad starts its next approach: on the spawn line, RALLY_FORWARD
-     ahead of it, straight back from the objective the General expects to send it to, and inside the
-     side's lanes. With no objective to plan for it is the centre of the grouped squads' home points. */
-    function rallyPoint(sim, faction, squads, plan) {
+    function squadPoint(sq) {
+      return D.avgPos(sq) || sq.home || { x: 0, z: 0 };
+    }
+    function centerPoint(squads) {
       var x = 0,
         z = 0;
-      for (var i = 0; i < squads.length; i++) {
-        x += +squads[i].home.x || 0;
-        z += +squads[i].home.z || 0;
+      squads.forEach(function (sq) {
+        var p = squadPoint(sq);
+        x += +p.x || 0;
+        z += +p.z || 0;
+      });
+      return { x: x / squads.length, z: z / squads.length };
+    }
+    function centerTravel(squads, center) {
+      var max = 0,
+        sum = 0;
+      squads.forEach(function (sq) {
+        var p = squadPoint(sq),
+          d = D.dist(p.x, p.z, center.x, center.z);
+        max = Math.max(max, d);
+        sum += d;
+      });
+      return { max: max, sum: sum };
+    }
+    /* Build one geographically coherent survivor group. Start from each remnant in turn and add the
+       nearest remnant to the moving centroid until six survivors are available. The winning candidate
+       minimizes the longest source-to-centre march first, then total marching, then prefers the fuller
+       squad. This keeps A+B together when C is stronger but hundreds of metres away. */
+    function chooseGroup(pool) {
+      var best = null;
+      for (var i = 0; i < pool.length; i++) {
+        var take = [pool[i]],
+          left = pool.filter(function (_, j) {
+            return j !== i;
+          }),
+          total = D.aliveMembers(pool[i]).length;
+        while (total < RECON_MIN_STRENGTH && left.length) {
+          var c = centerPoint(take);
+          left.sort(function (a, b) {
+            var ap = squadPoint(a),
+              bp = squadPoint(b),
+              ad = D.dist(ap.x, ap.z, c.x, c.z),
+              bd = D.dist(bp.x, bp.z, c.x, c.z);
+            return ad - bd || String(a.id).localeCompare(String(b.id));
+          });
+          var next = left.shift();
+          take.push(next);
+          total += D.aliveMembers(next).length;
+        }
+        if (take.length < 2 || total < RECON_MIN_STRENGTH || total > RECON_STRENGTH) continue;
+        var center = centerPoint(take),
+          travel = centerTravel(take, center);
+        if (travel.max > RECON_MAX_CENTER_TRAVEL) continue;
+        var score = [
+          travel.max,
+          travel.sum,
+          RECON_STRENGTH - total,
+          take
+            .map(function (sq) {
+              return sq.id;
+            })
+            .join('|')
+        ];
+        if (
+          !best ||
+          score[0] < best.score[0] - 1e-9 ||
+          (Math.abs(score[0] - best.score[0]) < 1e-9 &&
+            (score[1] < best.score[1] - 1e-9 ||
+              (Math.abs(score[1] - best.score[1]) < 1e-9 &&
+                (score[2] < best.score[2] ||
+                  (score[2] === best.score[2] && score[3] < best.score[3])))))
+        )
+          best = { squads: take.slice(), survivors: total, center: center, travel: travel, score: score };
       }
-      x /= squads.length;
-      z /= squads.length;
-      if (!plan) return { x: x, z: z };
-      var homes = sim.factions[faction].squads.map(function (sq) {
-          return +sq.home.x || 0;
-        }),
-        toward = plan.point.z >= z ? 1 : -1;
+      return best;
+    }
+    /* First find the neutral rendezvous from the squads' ACTUAL at-base positions. Then slide that
+       point toward the General's next objective only as far as every source squad can afford. The
+       allowed route is at most 15% longer than going straight to the neutral centre; for two squads
+       this is the same small-hypotenuse detour budget as the Pythagorean construction. The binary
+       search also handles three-plus squads and objectives that are not perpendicular to the source line. */
+    function rallyGeometry(squads, plan) {
+      var center = centerPoint(squads),
+        travel = centerTravel(squads, center);
+      if (!plan || !plan.point)
+        return { point: center, center: center, forwardShift: 0, centerTravel: travel };
+      var dx = (+plan.point.x || 0) - center.x,
+        dz = (+plan.point.z || 0) - center.z,
+        len = Math.hypot(dx, dz);
+      if (len < 1e-6) return { point: center, center: center, forwardShift: 0, centerTravel: travel };
+      var ux = dx / len,
+        uz = dz / len,
+        high = Math.min(RECON_FORWARD_MAX, len),
+        low = 0;
+      function allowed(shift) {
+        var x = center.x + ux * shift,
+          z = center.z + uz * shift;
+        for (var i = 0; i < squads.length; i++) {
+          var p = squadPoint(squads[i]),
+            baseline = D.dist(p.x, p.z, center.x, center.z),
+            budget = baseline * RECON_FORWARD_DETOUR;
+          if (D.dist(p.x, p.z, x, z) > budget + 1e-6) return false;
+        }
+        return true;
+      }
+      for (var step = 0; step < 24; step++) {
+        var mid = (low + high) / 2;
+        if (allowed(mid)) low = mid;
+        else high = mid;
+      }
       return {
-        x: Math.max(Math.min.apply(null, homes), Math.min(Math.max.apply(null, homes), plan.point.x)),
-        z: z + toward * RALLY_FORWARD
+        point: { x: center.x + ux * low, z: center.z + uz * low },
+        center: center,
+        forwardShift: low,
+        centerTravel: travel
       };
     }
+    function rallyPoint(sim, faction, squads, plan) {
+      return rallyGeometry(squads, plan).point;
+    }
     function formGroup(sim, faction, squads) {
-      /* The strongest grouped squad stands in for the re-formed squad: all of them are at base. */
+      /* All source squads are already at base. Geometry decides where they can realistically meet
+         before the General re-tasks the rebuilt squad. */
       var st = reconState(sim, faction),
         plan = D.chooseObjective(sim, squads[0], false) || D.chooseObjective(sim, squads[0], true),
-        rally = rallyPoint(sim, faction, squads, plan);
+        geometry = rallyGeometry(squads, plan),
+        rally = geometry.point;
       var g = {
         id: faction + '-reconstitution-' + ++st.serial,
         faction: faction,
@@ -124,6 +227,10 @@
         survivors: squads.reduce(function (n, sq) {
           return n + D.aliveMembers(sq).length;
         }, 0),
+        center: geometry.center,
+        centerTravelMax: geometry.centerTravel.max,
+        centerTravelSum: geometry.centerTravel.sum,
+        forwardShift: geometry.forwardShift,
         formedAt: +sim.time || 0,
         status: 'assembling'
       };
@@ -154,6 +261,9 @@
         squads: g.squads,
         survivors: g.survivors,
         rally: g.rally,
+        center: g.center,
+        centerTravelMax: +g.centerTravelMax.toFixed(1),
+        forwardShift: +g.forwardShift.toFixed(1),
         objectiveId: g.objectiveId
       });
       return g;
@@ -289,6 +399,7 @@
         groups = st.active.slice(),
         pool = sim.factions[faction].squads
           .filter(function (sq) {
+            var living = D.aliveMembers(sq).length;
             return (
               !sq.disbanded &&
               sq.state === 'retreat' &&
@@ -296,50 +407,43 @@
               !sq.inContact &&
               sq._assembly &&
               sq._assembly.phase === 'at-base' &&
-              D.aliveMembers(sq).length &&
-              /* A squad that already holds a full squad's men has nothing to reconstitute: grouped alone it would be
-               "merged" with itself and re-tasked on every command tick. Group morale keeps it in `retreat` until its
-               men are calm, so it rests at base and the Squad Leader rallies it (a merged squad whose men are still
-               shaken, which stress that lasts makes common). */
-              D.aliveMembers(sq).length < RECON_STRENGTH
+              living > 0 &&
+              living <= RECON_POOL_MAX
             );
-          })
-          .sort(strongestFirst(sim, faction)),
+          }),
         total = pool.reduce(function (n, sq) {
           return n + D.aliveMembers(sq).length;
-        }, 0);
-      /* Keep the pool visible even when it cannot yet form a viable squad. This is diagnostics,
-         not another owner: the General still makes the only grouping decision below. */
+        }, 0),
+        candidate = chooseGroup(pool);
+      /* Five or more survivors remain a viable squad and use normal morale recovery. Only 1-4-man
+         remnants enter this pool. ready means there is enough manpower AND a geographically coherent
+         cluster whose neutral meeting point is within the assembly-distance budget. */
       st.pool = {
         survivors: total,
         squads: pool.map(function (sq) {
-          return { id: sq.id, survivors: D.aliveMembers(sq).length };
+          var p = squadPoint(sq);
+          return { id: sq.id, survivors: D.aliveMembers(sq).length, x: +p.x.toFixed(1), z: +p.z.toFixed(1) };
         }),
-        ready: pool.length >= 2 && total >= RECON_MIN_STRENGTH
+        ready: !!candidate,
+        blockedByDistance: total >= RECON_MIN_STRENGTH && !candidate
       };
-      /* Prefer a full 10-man rebuild when the pool can supply one. If the side has only 6-9
-         survivors at base, use all of them rather than waiting forever for an exact full squad.
-         Squads are never split, and at least two source squads must participate so a single
-         understrength squad cannot be "reconstituted" with itself every command tick. */
-      while (pool.length >= 2 && total >= RECON_MIN_STRENGTH) {
-        var take = [],
-          n = 0,
-          target = total >= RECON_STRENGTH ? RECON_STRENGTH : total;
-        while (pool.length && (n < target || take.length < 2)) {
-          var next = pool.shift();
-          take.push(next);
-          n += D.aliveMembers(next).length;
-        }
-        if (take.length < 2 || n < RECON_MIN_STRENGTH) break;
-        total -= n;
-        formGroup(sim, faction, take);
+      while (candidate) {
+        candidate.squads.forEach(function (sq) {
+          var at = pool.indexOf(sq);
+          if (at >= 0) pool.splice(at, 1);
+        });
+        total -= candidate.survivors;
+        formGroup(sim, faction, candidate.squads);
+        candidate = chooseGroup(pool);
       }
       st.pool = {
         survivors: total,
         squads: pool.map(function (sq) {
-          return { id: sq.id, survivors: D.aliveMembers(sq).length };
+          var p = squadPoint(sq);
+          return { id: sq.id, survivors: D.aliveMembers(sq).length, x: +p.x.toFixed(1), z: +p.z.toFixed(1) };
         }),
-        ready: pool.length >= 2 && total >= RECON_MIN_STRENGTH
+        ready: !!candidate,
+        blockedByDistance: total >= RECON_MIN_STRENGTH && !candidate
       };
       for (var i = 0; i < groups.length; i++) {
         var g = groups[i],
@@ -412,6 +516,10 @@
       squadById: squadById,
       endGroup: endGroup,
       strongestFirst: strongestFirst,
+      squadPoint: squadPoint,
+      centerPoint: centerPoint,
+      chooseGroup: chooseGroup,
+      rallyGeometry: rallyGeometry,
       rallyPoint: rallyPoint,
       formGroup: formGroup,
       dissolveGroup: dissolveGroup,
