@@ -159,7 +159,23 @@
       return g;
     }
     function dissolveGroup(sim, g, squads, reason) {
-      squads.forEach(function (sq) {
+      /* Clean every original member of the group, not only the still-living subset used by the
+         viability calculation. A squad wiped while assembling must not retain _reconGroup or an
+         executing reconstitution brief forever. */
+      var all = [],
+        seen = {};
+      (squads || []).forEach(function (sq) {
+        if (!sq || seen[sq.id]) return;
+        seen[sq.id] = true;
+        all.push(sq);
+      });
+      g.squads.forEach(function (id) {
+        var sq = squadById(sim, g.faction, id);
+        if (!sq || seen[sq.id]) return;
+        seen[sq.id] = true;
+        all.push(sq);
+      });
+      all.forEach(function (sq) {
         sq._reconGroup = null;
         finishMission(sim, sq, 'failed', reason);
       });
