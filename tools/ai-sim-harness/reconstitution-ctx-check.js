@@ -29,7 +29,10 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, { log() {}, warn() {} });
+  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
+    log() {},
+    warn() {}
+  });
 }
 let n = 0;
 function test(name, fn) {
@@ -65,12 +68,31 @@ function world() {
   const reformed = [];
   r.BattleSquadStability = {
     reform(survivor, men, leader, rally, strength) {
-      reformed.push({ survivor: survivor.id, men: men.length, rally: { x: rally.x, z: rally.z }, strength: strength });
+      reformed.push({
+        survivor: survivor.id,
+        men: men.length,
+        rally: { x: rally.x, z: rally.z },
+        strength: strength
+      });
     },
     disband() {}
   };
-  const sqA = H.addSquad(r, b, { id: 'us-1', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 }, composition: ['rifleman', 'rifleman', 'rifleman', 'rifleman', 'rifleman'] });
-  const sqB = H.addSquad(r, b, { id: 'us-2', faction: 'us', x: 4, z: 0, objective: { x: 0, z: 100 }, composition: ['rifleman', 'rifleman', 'rifleman', 'rifleman', 'rifleman'] });
+  const sqA = H.addSquad(r, b, {
+    id: 'us-1',
+    faction: 'us',
+    x: 0,
+    z: 0,
+    objective: { x: 0, z: 100 },
+    composition: ['rifleman', 'rifleman', 'rifleman', 'rifleman', 'rifleman']
+  });
+  const sqB = H.addSquad(r, b, {
+    id: 'us-2',
+    faction: 'us',
+    x: 4,
+    z: 0,
+    objective: { x: 0, z: 100 },
+    composition: ['rifleman', 'rifleman', 'rifleman', 'rifleman', 'rifleman']
+  });
   [sqA, sqB].forEach(sq => {
     sq.state = 'retreat';
     sq._assembly = { phase: 'at-base' };
@@ -86,14 +108,38 @@ test('the module installs the verbatim set back into commander-ai.js through the
   const ctx = r._commanderReconstitutionCtx();
   assert.deepEqual(
     Object.keys(ctx).sort(),
-    ['D', 'FLED_PICKUP_RANGE', 'RALLY_FORWARD', 'RALLY_RADIUS', 'RECON_MIN_STRENGTH', 'RECON_STRENGTH', 'finishMission', 'generalFor', 'issueMission', 'missionState', 'recordMacroWake', 'root', 'telemetry'],
+    [
+      'D',
+      'FLED_PICKUP_RANGE',
+      'RALLY_FORWARD',
+      'RALLY_RADIUS',
+      'RECON_MIN_STRENGTH',
+      'RECON_STRENGTH',
+      'finishMission',
+      'generalFor',
+      'issueMission',
+      'missionState',
+      'recordMacroWake',
+      'root',
+      'telemetry'
+    ],
     'ctx carries exactly the closure utilities, lifecycle functions and constants the moved bodies consume'
   );
   Object.keys(ctx).forEach(k => assert.notEqual(ctx[k], undefined, 'ctx.' + k + ' defined at install time'));
   const api = r._commanderReconstitutionPositions(ctx);
-  ['reconState', 'squadById', 'endGroup', 'strongestFirst', 'rallyPoint', 'formGroup', 'dissolveGroup', 'mergeGroup', 'atRally', 'reconstitute', 'pickUpFled'].forEach(k =>
-    assert.equal(typeof api[k], 'function', 'factory returns ' + k)
-  );
+  [
+    'reconState',
+    'squadById',
+    'endGroup',
+    'strongestFirst',
+    'rallyPoint',
+    'formGroup',
+    'dissolveGroup',
+    'mergeGroup',
+    'atRally',
+    'reconstitute',
+    'pickUpFled'
+  ].forEach(k => assert.equal(typeof api[k], 'function', 'factory returns ' + k));
   assert.equal(api.reconState.length, 2, 'reconState(sim, faction)');
   assert.equal(api.squadById.length, 3, 'squadById(sim, faction, id)');
   assert.equal(api.endGroup.length, 5, 'endGroup(st, g, status, reason, t)');
@@ -113,83 +159,108 @@ test('the parent seam keeps the pre-split name, arities and the exported constan
   assert.equal(C.reconstitutionStrength, 10, 'the target strength export still reads the parent constant');
   assert.equal(C.reconstitutionMinimumStrength, 6, 'the viable minimum stays owned by the parent');
   assert.equal(C.fledPickupRange, 50, 'the fled pickup export still reads the parent constant');
-  assert.equal(C.missionState(b).reconstitution, null, 'the aggregate roll-up is null before a commander tick');
-  assert.equal(C.missionState(b).generals.us.reconstitution, null, 'no faction-local pool record before a commander tick');
+  assert.equal(
+    C.missionState(b).reconstitution,
+    null,
+    'the aggregate roll-up is null before a commander tick'
+  );
+  assert.equal(
+    C.missionState(b).generals.us.reconstitution,
+    null,
+    'no faction-local pool record before a commander tick'
+  );
   C.reconstitute(b, 'us');
   const st = C.missionState(b).generals.us.reconstitution;
   assert.ok(st, 'the seam lazily creates the faction-local pool record through generalFor');
   assert.equal(st.strength, 10, 'the pool record carries the target strength');
   assert.equal(st.minimumStrength, 6, 'the pool record carries the viable minimum');
   assert.equal(C.missionState(b).reconstitution.groupsFormed, 1, 'the aggregate roll-up sees the group');
-  assert.deepEqual(C.missionState(b).reconstitution.pool.us, { survivors: 0, squads: [], ready: false, minimumStrength: 6, targetStrength: 10 }, 'the aggregate exposes the post-group survivor pool');
+  assert.deepEqual(
+    C.missionState(b).reconstitution.pool.us,
+    { survivors: 0, squads: [], ready: false, minimumStrength: 6, targetStrength: 10 },
+    'the aggregate exposes the post-group survivor pool'
+  );
   assert.notEqual(sqA, null, 'fixture sanity');
-test('firing: a full pool forms one group, and the group at the rally point merges', () => {
-  const { b, events, reformed, sqA, sqB, C } = world();
-  C.reconstitute(b, 'us');
-  const st = C.missionState(b).generals.us.reconstitution;
-  assert.equal(st.serial, 1, 'one group formed');
-  assert.equal(st.groupsFormed, 1, 'the pool crossed RECON_STRENGTH once');
-  assert.equal(st.active.length, 1, 'the group is active');
-  const g = st.active[0];
-  assert.equal(g.id, 'us-reconstitution-1', 'the group is the side\'s first reconstitution group');
-  assert.equal(g.squads.join(','), 'us-1,us-2', 'strongest-first order groups both squads');
-  assert.equal(g.status, 'assembling', 'the group assembles first');
-  assert.equal(g.objectiveId, 'obj-1', 'the planned objective rides on the group');
-  assert.equal(sqA._reconGroup, g.id, 'both members are briefed to the group');
-  assert.equal(sqB._reconGroup, g.id, 'both members are briefed to the group');
-  assert.ok(events.some(e => e.type === 'decision-reconstitute-group' && e.data.group === g.id), 'the group commit telemetry fired');
-  assert.equal(g.rally.z, 30, 'the rally sits RALLY_FORWARD ahead of the spawn line centre');
+  test('firing: a full pool forms one group, and the group at the rally point merges', () => {
+    const { b, events, reformed, sqA, sqB, C } = world();
+    C.reconstitute(b, 'us');
+    const st = C.missionState(b).generals.us.reconstitution;
+    assert.equal(st.serial, 1, 'one group formed');
+    assert.equal(st.groupsFormed, 1, 'the pool crossed RECON_STRENGTH once');
+    assert.equal(st.active.length, 1, 'the group is active');
+    const g = st.active[0];
+    assert.equal(g.id, 'us-reconstitution-1', "the group is the side's first reconstitution group");
+    assert.equal(g.squads.join(','), 'us-1,us-2', 'strongest-first order groups both squads');
+    assert.equal(g.status, 'assembling', 'the group assembles first');
+    assert.equal(g.objectiveId, 'obj-1', 'the planned objective rides on the group');
+    assert.equal(sqA._reconGroup, g.id, 'both members are briefed to the group');
+    assert.equal(sqB._reconGroup, g.id, 'both members are briefed to the group');
+    assert.ok(
+      events.some(e => e.type === 'decision-reconstitute-group' && e.data.group === g.id),
+      'the group commit telemetry fired'
+    );
+    assert.equal(g.rally.z, 30, 'the rally sits RALLY_FORWARD ahead of the spawn line centre');
 
-  /* Everyone closed up on the rally point, out of contact: the next pass advances the group. */
-  [sqA, sqB].forEach(sq => {
-    sq._assembly = { phase: 'to-rally' };
-    sq.members.forEach(s => {
-      s.root.position.x = g.rally.x;
-      s.root.position.z = g.rally.z;
+    /* Everyone closed up on the rally point, out of contact: the next pass advances the group. */
+    [sqA, sqB].forEach(sq => {
+      sq._assembly = { phase: 'to-rally' };
+      sq.members.forEach(s => {
+        s.root.position.x = g.rally.x;
+        s.root.position.z = g.rally.z;
+      });
     });
+    C.reconstitute(b, 'us');
+    assert.equal(st.merges, 1, 'the group merged');
+    assert.equal(st.active.length, 0, 'the group is no longer active');
+    const end = st.ended[st.ended.length - 1];
+    assert.equal(end.status, 'merged', 'the group record reads merged');
+    assert.equal(end.endReason, 'reconstituted', 'the merge reason is reconstituted');
+    assert.equal(reformed.length, 1, 'the Squad Leader rewrite was asked exactly once');
+    assert.equal(reformed[0].survivor, 'us-1', 'the strongest (first) squad survives');
+    assert.equal(reformed[0].men, 10, 'all ten men move into the re-formed squad');
+    assert.equal(reformed[0].strength, 10, 'the reform is asked for the reconstitution strength');
+    assert.deepEqual(
+      reformed[0].rally,
+      { x: g.rally.x, z: g.rally.z },
+      'the re-form happens on the group rally'
+    );
+    assert.deepEqual(
+      sqA.reconstitutedFrom,
+      ['us-1', 'us-2'],
+      'the survivor remembers what it was re-formed from'
+    );
+    assert.equal(sqB.disbanded, true, 'the absorbed squad is disbanded');
+    assert.equal(sqB.mergedInto, 'us-1', 'the absorbed squad names its survivor');
+    assert.equal(sqA._reconGroup, null, 'the survivor leaves the group');
+    assert.ok(
+      events.some(e => e.type === 'decision-squad-merge' && e.data.survivor === 'us-1'),
+      'the merge telemetry fired'
+    );
   });
-  C.reconstitute(b, 'us');
-  assert.equal(st.merges, 1, 'the group merged');
-  assert.equal(st.active.length, 0, 'the group is no longer active');
-  const end = st.ended[st.ended.length - 1];
-  assert.equal(end.status, 'merged', 'the group record reads merged');
-  assert.equal(end.endReason, 'reconstituted', 'the merge reason is reconstituted');
-  assert.equal(reformed.length, 1, 'the Squad Leader rewrite was asked exactly once');
-  assert.equal(reformed[0].survivor, 'us-1', 'the strongest (first) squad survives');
-  assert.equal(reformed[0].men, 10, 'all ten men move into the re-formed squad');
-  assert.equal(reformed[0].strength, 10, 'the reform is asked for the reconstitution strength');
-  assert.deepEqual(reformed[0].rally, { x: g.rally.x, z: g.rally.z }, 'the re-form happens on the group rally');
-  assert.deepEqual(sqA.reconstitutedFrom, ['us-1', 'us-2'], 'the survivor remembers what it was re-formed from');
-  assert.equal(sqB.disbanded, true, 'the absorbed squad is disbanded');
-  assert.equal(sqB.mergedInto, 'us-1', 'the absorbed squad names its survivor');
-  assert.equal(sqA._reconGroup, null, 'the survivor leaves the group');
-  assert.ok(events.some(e => e.type === 'decision-squad-merge' && e.data.survivor === 'us-1'), 'the merge telemetry fired');
-});
 
-test('commander-ai.js without the module fails loudly on the first commander tick', () => {
-  const r = H.bootstrap({ modules: false });
-  r.BattleSim = { start() {} };
-  load(r, 'battle/commander-doctrine.js');
-  load(r, 'battle/commander-routes.js');
-  load(r, 'battle/commander-ai.js');
-  assert.ok(r.BattleCommanderAI, 'commander-ai.js alone still loads and exports');
-  assert.throws(
-    () => r.BattleCommanderAI.reconstitute({ factions: { us: { squads: [] } } }, 'us'),
-    /reconstitution missing/,
-    'no silent never-reconstituting General'
-  );
-});
+  test('commander-ai.js without the module fails loudly on the first commander tick', () => {
+    const r = H.bootstrap({ modules: false });
+    r.BattleSim = { start() {} };
+    load(r, 'battle/commander-doctrine.js');
+    load(r, 'battle/commander-routes.js');
+    load(r, 'battle/commander-ai.js');
+    assert.ok(r.BattleCommanderAI, 'commander-ai.js alone still loads and exports');
+    assert.throws(
+      () => r.BattleCommanderAI.reconstitute({ factions: { us: { squads: [] } } }, 'us'),
+      /reconstitution missing/,
+      'no silent never-reconstituting General'
+    );
+  });
 
-test('the module without commander-ai.js fails loudly at load', () => {
-  const r = {};
-  r.window = r;
-  assert.throws(
-    () => load(r, 'battle/modules/22-commander-reconstitution.js'),
-    /commander-ai\.js must load before/,
-    'the reversed install needs its parent first'
-  );
-});
+  test('the module without commander-ai.js fails loudly at load', () => {
+    const r = {};
+    r.window = r;
+    assert.throws(
+      () => load(r, 'battle/modules/22-commander-reconstitution.js'),
+      /commander-ai\.js must load before/,
+      'the reversed install needs its parent first'
+    );
+  });
 
-console.log('PASS ' + n + ' reconstitution ctx checks');
-
+  console.log('PASS ' + n + ' reconstitution ctx checks');
 });
