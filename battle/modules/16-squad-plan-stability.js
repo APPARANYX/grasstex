@@ -154,6 +154,35 @@
       };
     }
   });
+  /* B3: Centralized lease conflict resolution. Formalizes the implicit precedence
+     so incompatible intents don't race. Does not change behavior — the priority
+     values above already encode these rules. This function makes them explicit
+     and queryable for diagnostics. */
+  function resolveLeaseConflicts(sq, t) {
+    if (!sq || !L || !L.active) return null;
+    var active = L.active(sq, t);
+    if (!active || !active.length) return null;
+    var has = {};
+    active.forEach(function (l) { has[l.kind] = l; });
+    var conflicts = [];
+    /* regroup vs bound — regroup wins (cohesion first) */
+    if (has.regroup && has.bound) {
+      L.end(sq, 'bound', t, 'regroup wins cohesion');
+      conflicts.push({ resolved: 'regroup-wins', ended: 'bound' });
+    }
+    /* corner-hold vs tactical-plan — corner-hold wins (urban commitment) */
+    if (has['corner-hold'] && has['tactical-plan']) {
+      L.end(sq, 'tactical-plan', t, 'corner-hold wins urban');
+      conflicts.push({ resolved: 'corner-hold-wins', ended: 'tactical-plan' });
+    }
+    /* recon vs bound — recon wins (scouts out before bounding) */
+    if (has.recon && has.bound) {
+      L.end(sq, 'bound', t, 'recon wins scouts-first');
+      conflicts.push({ resolved: 'recon-wins', ended: 'bound' });
+    }
+    return conflicts.length ? conflicts : null;
+  }
+  root.BattleLeaseConflictResolver = { resolve: resolveLeaseConflicts };
 
   var ASSAULT_LEASE = 26,
     DEFENSE_LEASE = 38,
