@@ -450,7 +450,8 @@
      pickUpFled resolve through reconImpl(), which throws: a commander-ai.js chain without the
      sub-module has no survivor pool and must say so, not silently leave retreated squads
      scattered at their spawn line for good. */
-  var RECON_STRENGTH = 10, // one full rifle squad (SquadAI.COMPOSITION)
+  var RECON_STRENGTH = 10, // establishment / preferred full rebuilt rifle squad
+    RECON_MIN_STRENGTH = 6, // viable rebuilt squad: smaller remnants stay in the survivor pool
     RALLY_RADIUS = 20,
     RALLY_FORWARD = 30,
     FLED_PICKUP_RANGE = 50; // a retreating squad this near a fled man waiting for one takes him in
@@ -471,6 +472,7 @@
       finishMission: finishMission,
       recordMacroWake: recordMacroWake,
       RECON_STRENGTH: RECON_STRENGTH,
+      RECON_MIN_STRENGTH: RECON_MIN_STRENGTH,
       RALLY_RADIUS: RALLY_RADIUS,
       RALLY_FORWARD: RALLY_FORWARD,
       FLED_PICKUP_RANGE: FLED_PICKUP_RANGE
@@ -691,6 +693,7 @@
     updateFaction: updateFactionCommander,
     reconstitute: reconstitute,
     reconstitutionStrength: RECON_STRENGTH,
+    reconstitutionMinimumStrength: RECON_MIN_STRENGTH,
     fledPickupRange: FLED_PICKUP_RANGE,
     policyFor: policy,
     genomeFor: genome,
