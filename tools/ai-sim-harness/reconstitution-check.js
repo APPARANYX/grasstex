@@ -115,9 +115,9 @@ test('a four-man remnant stays in the survivor pool past the old 120-second solo
   assert.equal(q.state,'retreat','the remnant never redeployed itself');
   assert.ok(q._assembly&&q._assembly.phase==='at-base','it waits at base');
   assert.equal(st.groupsFormed,0,'one remnant cannot reconstitute with itself');
-  assert.equal(st.pool.survivors,4);
-  assert.deepEqual(st.pool.squads,[{id:q.id,survivors:4}]);
-  assert.equal(st.pool.ready,false);
+  assert.equal(st.pool.us.survivors,4);
+  assert.deepEqual(st.pool.us.squads,[{id:q.id,survivors:4}]);
+  assert.equal(st.pool.us.ready,false);
   assert.ok(!q._macroMission||q._macroMission.status!=='executing','no combat brief was revived');
 });
 
