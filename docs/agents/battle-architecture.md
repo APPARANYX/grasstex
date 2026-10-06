@@ -35,7 +35,18 @@ Brief lifecycle: `issued → executing → completed | invalid | failed | supers
 wakes only on: initial brief, mission complete or invalid, reserve due, a defence request that
 changes the task, an objective vacated or changing control on a defend brief, a 120 s strategic
 stall (`STRATEGIC_STALL_REPLAN`, the one stall clock: the coordination-health sampler's `replanDue` is that same number read from the General, an export flag nothing reads), a Squad Leader `doctrine-review` escalation, or a merge (`squad-reconstituted`). Wakes are
-exported under `macroCommand`. `commander-ai.js` declares the lifecycle as `missionStates`; every
+exported under `macroCommand`. The sampler (module 40, `2.1-strategic-chain`) also publishes
+`strategicChain`, an observation-only reconstruction of the chain a stall recovery depends on:
+per faction the last time each link moved (objective change and progress, brief issued, Squad
+Leader acceptance, local phase change, measurable movement toward the mission point, stall
+detection, stall wake, recovery stage), one outcome record per strategic-family wake (the brief
+before and after, whether a new brief was generated or `issueMission`'s dedup left the old one,
+acceptance, local phase change, and whether objective or point progress followed within the
+General's 120 s replan window), and a census of squads whose executing mission has shown no
+point progress for longer than that window (owner and vacancy recorded, never a verdict: an
+empty objective alone is not evidence of a stale plan). It rides the full-diagnostics export and
+the benchmark record's `coordinationHealth`; nothing in the runtime reads it
+(`strategic-chain-check.js`). `commander-ai.js` declares the lifecycle as `missionStates`; every
 write, including a Squad Leader acceptance request, goes through `transitionMission`/`acceptMission`.
 Terminal records cannot reopen; a new issue creates a new brief object.
 
