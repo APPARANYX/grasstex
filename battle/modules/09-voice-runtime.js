@@ -37,13 +37,13 @@
   function playAt(entry, req) {
     try {
       var soldier = req.soldier,
-        root = soldier.root,
+        mesh = soldier.root,
         s = entry.sound,
         o = s.onEndedObservable;
       if (typeof s.detachFromMesh === 'function') s.detachFromMesh();
-      if (root && typeof s.attachToMesh === 'function') s.attachToMesh(root);
+      if (mesh && typeof s.attachToMesh === 'function') s.attachToMesh(mesh);
       else {
-        var p = root.position.clone ? root.position.clone() : root.position;
+        var p = mesh.position.clone ? mesh.position.clone() : mesh.position;
         s.setPosition(p);
       }
       if (o && o.addOnce)
