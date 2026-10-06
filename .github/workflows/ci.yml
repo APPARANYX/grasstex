@@ -308,3 +308,29 @@ jobs:
       # only on the server; a deploy must never delete or overwrite them. Needs the stamp above.
       - name: Deploy never touches unmanaged server files
         run: python3 scripts/check_deploy_safety.py
+
+  runjs-format-repair:
+    name: One-shot run.js format repair
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'work/diag-audio-fire-reveal-overlay'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/diag-audio-fire-reveal-overlay
+
+      - name: Format run.js
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write tools/ai-sim-harness/run.js
+          if git diff --quiet -- tools/ai-sim-harness/run.js; then
+            echo "run.js is already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tools/ai-sim-harness/run.js
+          git commit -m "Format engagement harness"
+          git push origin HEAD:work/diag-audio-fire-reveal-overlay
+
