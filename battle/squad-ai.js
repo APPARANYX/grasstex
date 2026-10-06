@@ -73,6 +73,39 @@
     'rifleman',
     'rifleman'
   ];
+  /* A squad reduced to this many living men is no longer a tactical formation while retreating.
+     It is a survivor remnant: each man extracts to home independently until Macro legitimately
+     assigns the remnant to a reconstitution rally. This is the single shared threshold read by
+     Squad Leader and Force Command, so the two layers cannot disagree about who belongs in the
+     survivor pool. */
+  var REMNANT_EXTRACTION_MAX = 4;
+  function livingCount(squad) {
+    var n = 0,
+      a = (squad && squad.members) || [];
+    for (var i = 0; i < a.length; i++) if (a[i] && !a[i].dead) n++;
+    return n;
+  }
+  function isExtractionRemnant(squad) {
+    return !!(squad && squad.state === 'retreat' && livingCount(squad) > 0 && livingCount(squad) <= REMNANT_EXTRACTION_MAX);
+  }
+  function isReconstitutionMarch(squad) {
+    var a = squad && squad._assembly,
+      m = squad && squad._macroMission;
+    return !!(
+      squad &&
+      squad.state === 'retreat' &&
+      a &&
+      a.phase === 'to-rally' &&
+      m &&
+      m.intent === 'reconstitute' &&
+      (m.status === 'issued' || m.status === 'executing') &&
+      m.version === a.missionVersion &&
+      m.point
+    );
+  }
+  function isExtractionToHome(squad) {
+    return isExtractionRemnant(squad) && !isReconstitutionMarch(squad);
+  }
 
   var RETREAT_CASUALTY_FRAC = 0.6,
     GUNNER_SETUP_TIME = 1.4,
@@ -2171,6 +2204,11 @@
     rearm: rearm,
     isMachineGun: isMachineGun,
     COMPOSITION: COMPOSITION,
+    REMNANT_EXTRACTION_MAX: REMNANT_EXTRACTION_MAX,
+    livingCount: livingCount,
+    isExtractionRemnant: isExtractionRemnant,
+    isReconstitutionMarch: isReconstitutionMarch,
+    isExtractionToHome: isExtractionToHome,
     createSquad: createSquad,
     createSoldier: createSoldier,
     updateSquad: updateSquad,
