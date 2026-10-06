@@ -1,7 +1,8 @@
 name: Deploy Battle Runtime to 50webs
 
-# PR CI runs once. A push to main verifies its exact merged PR head passed CI,
-# then independently validates and publishes the resulting merge commit.
+# PR CI runs once. A push to main resolves the PR that produced the current main
+# commit, verifies that PR's exact head passed CI, then independently validates
+# and publishes the resulting main commit. This supports merge, squash and rebase merges.
 on:
   push:
     branches:
@@ -53,16 +54,20 @@ jobs:
             echo "Skipping stale push: $EVENT_SHA versus $current_sha"
             exit 0
           fi
-          # Only a two-parent merge whose second parent is the exact green PR head.
-          read -r -a parents <<< "$(git show -s --format='%P' HEAD)"
-          if [[ "${#parents[@]}" -ne 2 ]]; then
-            echo "::error::Not a two-parent PR merge. Manual review and dispatch required."
+          # Resolve the PR that produced this exact main commit instead of inferring it
+          # from commit topology. Squash and rebase merges are one-parent commits, while a
+          # traditional merge has two parents; GitHub records all three on the PR itself.
+          prs="$(gh api "repos/$GH_REPO/commits/$current_sha/pulls" -H 'Accept: application/vnd.github+json')"
+          matches="$(jq -c --arg sha "$current_sha" '[.[] | select(.merged_at != null and .merge_commit_sha == $sha and .base.ref == "main")]' <<< "$prs")"
+          match_count="$(jq 'length' <<< "$matches")"
+          if [[ "$match_count" -ne 1 ]]; then
+            echo "::error::Expected exactly one merged PR whose merge commit is current main $current_sha; found $match_count. Manual review and dispatch required."
             exit 1
           fi
-          pr_head="${parents[1]}"
-          prs="$(gh api "repos/$GH_REPO/commits/$current_sha/pulls" -H 'Accept: application/vnd.github+json')"
-          if ! jq -e --arg head "$pr_head" '[.[] | select(.merged_at != null and .head.sha == $head)] | length > 0' <<< "$prs" >/dev/null; then
-            echo "::error::Merge commit has no associated merged PR with matching head $pr_head"
+          pr_head="$(jq -r '.[0].head.sha' <<< "$matches")"
+          pr_number="$(jq -r '.[0].number' <<< "$matches")"
+          if [[ -z "$pr_head" || "$pr_head" == "null" ]]; then
+            echo "::error::Merged PR #$pr_number has no resolvable head SHA."
             exit 1
           fi
           runs="$(gh api "repos/$GH_REPO/actions/workflows/ci.yml/runs?head_sha=$pr_head&event=pull_request&per_page=100")"
@@ -72,8 +77,8 @@ jobs:
           fi
           echo "should_deploy=true" >> "$GITHUB_OUTPUT"
           echo "target_sha=$current_sha" >> "$GITHUB_OUTPUT"
-          echo "reason=merged PR head $pr_head passed CI" >> "$GITHUB_OUTPUT"
-          echo "Deploying current merge $current_sha; PR head $pr_head passed CI"
+          echo "reason=merged PR #$pr_number head $pr_head passed CI" >> "$GITHUB_OUTPUT"
+          echo "Deploying current main $current_sha from PR #$pr_number; PR head $pr_head passed CI"
 
   deploy:
     name: Upload Battle Sim AI lab
