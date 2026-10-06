@@ -12,7 +12,7 @@
 
      - install: the module global exists, the factory takes exactly one ctx, and every name the
        moved bodies consume reaches it defined (D, telemetry, generalFor, missionState,
-       issueMission, finishMission, recordMacroWake and the four constants) - the var-ordering
+       issueMission, finishMission, recordMacroWake and the five constants) - the var-ordering
        class of bug a moved constant or a renamed utility would introduce;
      - seam: BattleCommanderAI.reconstitute keeps the pre-split name and arity, the exported
        constants keep their values, and a bad api is rejected without disturbing the installed
