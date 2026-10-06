@@ -28,7 +28,8 @@ function check(ok,msg){assert.ok(ok,msg);assertions++;}
 check(/function publishPersonalMovement\(/.test(meso),'Meso personal publisher exists');
 check(/CR\.adopted\s*&&\s*CR\.adopted\(s,\s*battle,\s*'movement',\s*scope\)/.test(meso),'Meso reads personal movement adoption');
 check(/if\s*\(!adopted\s*\|\|\s*!adopted\.point/.test(meso),'Meso rejects pending/unreachable movement');
-check(/s\._fireteamDestination\s*=\s*copy\(adopted\.point\)/.test(meso),'Meso publishes adopted point');
+check(/function commitPersonalMovement\(/.test(meso)&&/s\._fireteamDestination\s*=\s*copy\(next\)/.test(meso),'Meso retains the one personal movement commit helper');
+check(/commitPersonalMovement\([\s\S]*?appliedPoint,[\s\S]*?adoptedKey,[\s\S]*?adopted\.envelopeId/.test(meso),'Meso publishes the personally adopted point through the movement commit helper');
 check(/CR\.adopted\s*&&\s*CR\.adopted\(s,\s*battle,\s*'posture-fire',\s*'squad'\)/.test(fire),'Engagement fire/stance (19b) reads personal posture adoption');
 check(!/\.(?:destination|orderDestination|_fireteamDestination|target|prone|crawling|tacticalCrouch)\s*=/.test(reception),'Reception never writes physical truth');
 // Loop watch reads the already-published personal destination for observation only; it never issues an order.
