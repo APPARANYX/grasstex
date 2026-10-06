@@ -164,7 +164,9 @@
     if (!sq) return { key: 'unknown', label: 'UNKNOWN' };
     if (sq.state === 'retreat' || phase === 'retreat') {
       var assembly = sq._assembly && sq._assembly.phase;
-      return { key: 'retreat', label: assembly === 'to-rally' ? 'RECONSTITUTE' : 'RETREAT' };
+      if (assembly === 'to-rally') return { key: 'reconstitute', label: 'RECONSTITUTE' };
+      if (liveLease(sq, 'rally-recovery', sim)) return { key: 'rally-recovery', label: 'RALLYING' };
+      return { key: 'retreat', label: 'RETREAT' };
     }
     if (sq._reconTask || liveLease(sq, 'recon', sim)) return { key: 'recon', label: 'SCOUTS FORWARD' };
     if (phase === 'regroup' || liveLease(sq, 'regroup', sim)) return { key: 'regroup', label: 'REGROUP' };
@@ -213,6 +215,8 @@
         point(sq._macroMission.point)
       )
         return copy(sq._macroMission.point);
+      var recovery = liveLease(sq, 'rally-recovery', sim);
+      if (recovery && recovery.data && point(recovery.data.point)) return copy(recovery.data.point);
       return point(sq.orderAnchor) || point(sq.home);
     }
     if (String(sq.commandPhase || '') === 'regroup')
@@ -238,6 +242,8 @@
         point(sq._macroMission.point)
       )
         return copy(sq._macroMission.point);
+      var recovery = liveLease(sq, 'rally-recovery', sim);
+      if (recovery && recovery.data && point(recovery.data.point)) return copy(recovery.data.point);
       return point(sq.home);
     }
     var mission = missionObjective(sq, sim);

@@ -24,11 +24,18 @@ function setup(squads) {
   H.resetIds();
   /* This harness isolates the legacy aggregate Perception contract: free 50 m relay plus shared
      squad contact. Personal beliefs and delivered callouts have their own dedicated checks. */
-  const r = H.bootstrap({ search: '?callouts=0&soldierBeliefs=0' });
+  const r = H.bootstrap({ search: '?callouts=0&soldierBeliefs=0&incomingFireReveal=0' });
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
   const b = H.makeBattle(r, { seed: 11 });
   const out = squads.map(o =>
-    H.addSquad(r, b, { id: o.id, faction: o.faction, x: o.x, z: o.z, objective: { x: o.x, z: o.z + 100 }, facing: 0 })
+    H.addSquad(r, b, {
+      id: o.id,
+      faction: o.faction,
+      x: o.x,
+      z: o.z,
+      objective: { x: o.x, z: o.z + 100 },
+      facing: 0
+    })
   );
   return { r, b, S: r.SquadAI, P: r.SquadAI.PERCEPTION, out };
 }
@@ -95,14 +102,20 @@ test('stance concealment is 100/60/35 percent at rest, with an 18 point movement
   foe.prone = true;
   assert.ok(Math.abs(ctx.S.detectionRange(ctx.S.ROLES[me.role], foe) - base * 0.35) < 1e-9, 'prone is 35%');
   foe.moving = true;
-  assert.ok(Math.abs(ctx.S.detectionRange(ctx.S.ROLES[me.role], foe) - base * 0.53) < 1e-9, 'moving prone is 53%');
+  assert.ok(
+    Math.abs(ctx.S.detectionRange(ctx.S.ROLES[me.role], foe) - base * 0.53) < 1e-9,
+    'moving prone is 53%'
+  );
   assert.deepEqual(ctx.P.VISIBILITY, { stand: 1, crouch: 0.6, prone: 0.35 });
   assert.equal(ctx.P.MOVING_VISIBILITY_BONUS, 0.18);
 
   const old = H.bootstrap({ search: '?stanceVis=0' });
   const oldFoe = { prone: true, tacticalCrouch: false, crouching: false, moving: false };
   assert.ok(
-    Math.abs(old.SquadAI.detectionRange(old.SquadAI.ROLES.rifleman, oldFoe) - old.SquadAI.ROLES.rifleman.visionRange * 0.45) < 1e-9,
+    Math.abs(
+      old.SquadAI.detectionRange(old.SquadAI.ROLES.rifleman, oldFoe) -
+        old.SquadAI.ROLES.rifleman.visionRange * 0.45
+    ) < 1e-9,
     'control restores the old 45% prone signature'
   );
 });
@@ -124,7 +137,13 @@ test('he looks toward the known threat of his squad when a head turn reaches it'
   me.squad.contact = { unit: foe, x: Math.sin(a) * 50, z: Math.cos(a) * 50, at: ctx.b.time, seenBy: null };
   assert.ok(sees(ctx, me, foe), 'warned of a threat 60 deg off, his focus swings onto it');
   const behind = Math.PI;
-  me.squad.contact = { unit: foe, x: Math.sin(behind) * 50, z: Math.cos(behind) * 50, at: ctx.b.time, seenBy: null };
+  me.squad.contact = {
+    unit: foe,
+    x: Math.sin(behind) * 50,
+    z: Math.cos(behind) * 50,
+    at: ctx.b.time,
+    seenBy: null
+  };
   assert.equal(ctx.S.lookYaw(me, ctx.b), 0, 'a threat behind him needs the body to turn, not the head');
 });
 
@@ -153,13 +172,22 @@ test('a man holding still with no known threat scans his sector; on the move or 
     if (sees(ctx, me, foe)) seen++;
   }
   const sweep = deg(P.SCAN_SWEEP);
-  assert.ok(deg(hi) > sweep - 3 && deg(lo) < -sweep + 3, 'one period sweeps both sides: ' + deg(lo).toFixed(0) + '..' + deg(hi).toFixed(0));
+  assert.ok(
+    deg(hi) > sweep - 3 && deg(lo) < -sweep + 3,
+    'one period sweeps both sides: ' + deg(lo).toFixed(0) + '..' + deg(hi).toFixed(0)
+  );
   assert.ok(deg(hi) <= sweep + 1e-9 && deg(lo) >= -sweep - 1e-9, 'never past SCAN_SWEEP');
   assert.ok(sweep < deg(P.FOCUS_HALF), 'the sweep keeps his front inside his focus');
-  assert.ok(seen > 0 && seen < steps, 'a man 90 deg off at range is caught while the scan faces him, not all the time');
+  assert.ok(
+    seen > 0 && seen < steps,
+    'a man 90 deg off at range is caught while the scan faces him, not all the time'
+  );
   place(foe, 0, range * 0.9);
   for (b.time = 0; b.time < P.SCAN_PERIOD; b.time += H.AI_TICK)
-    assert.ok(sees(ctx, me, foe), 'the man straight ahead is never lost to the scan (t=' + b.time.toFixed(2) + ')');
+    assert.ok(
+      sees(ctx, me, foe),
+      'the man straight ahead is never lost to the scan (t=' + b.time.toFixed(2) + ')'
+    );
   b.time = 1.3;
   const y1 = S.lookYaw(me, b);
   assert.equal(S.lookYaw(me, b), y1, 'the same instant gives the same look (clock, not dice)');
