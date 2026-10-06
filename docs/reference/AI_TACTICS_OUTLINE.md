@@ -771,10 +771,9 @@ timing hacks for regroup, HOLD FIRE, stance, or later urban orders.
     broadcast into its `squad.contact` picture if it has no fresher contact for the same enemy.
     The Squad Leader can orient toward the broadcast threat if not already engaged. The
     explicit `?squadBroadcast=0` arm remains 0F1 behavior.
-  - **0F3 — Broadcast reaction (opt-in, benchmark-gated).** A squad receiving a "pinned by
-    sniper" broadcast from a nearby squad can provide supporting fire or adjust its route to
-    flank the threat. Gated behind a separate flag until paired benchmarks show acceptable
-    churn/stalls/cohesion.
+  - **0F3 — Broadcast reaction (shipped with default-on reception).** A squad receiving a
+    tactical broadcast stamps the reaction and feeds the existing squad-contact → alert path;
+    `?squadBroadcast=0` disables reception/reaction together for the telemetry-only control.
 
   **Done when:** a squad taking sniper fire broadcasts the threat to nearby squads within the
   same commander tick; a watching squad's visual intel reaches a creeping squad before it walks
