@@ -162,9 +162,6 @@
     listUnitTypes: function () {
       return list('unitTypes');
     },
-    listObjectiveTypes: function () {
-      return list('objectiveTypes');
-    },
     listSystems: function () {
       return list('systems');
     },
