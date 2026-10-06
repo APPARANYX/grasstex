@@ -25,6 +25,8 @@ vm.runInThisContext(fs.readFileSync(commanderPath,'utf8'),{filename:commanderPat
 if(!root.BattleCommanderAI)throw new Error('BattleCommanderAI did not load');
 const reconPath=path.resolve(__dirname,'../../battle/modules/22-commander-reconstitution.js');
 vm.runInThisContext(fs.readFileSync(reconPath,'utf8'),{filename:reconPath});
+const recoveryPath=path.resolve(__dirname,'../../battle/modules/22a-commander-strategic-recovery.js');
+vm.runInThisContext(fs.readFileSync(recoveryPath,'utf8'),{filename:recoveryPath});
 
 function sim(enabled){return{time:10,macroCommandEnabled:enabled,factions:{us:{squads:[]},ge:{squads:[]}},objectiveControl:{counts:{}},objectiveHold:{us:0,ge:0},_nextDecisionSnapshot:99};}
 let off=sim(false);

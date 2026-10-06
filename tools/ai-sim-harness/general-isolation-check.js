@@ -6,6 +6,7 @@ H.resetIds();
 const r=H.bootstrap({modules:false});r.BattleSim={start(){}};r.BattleTelemetry={record(){}};
 for(const f of ['commander-doctrine','commander-routes','commander-ai'])load(r,'battle/'+f+'.js');
 load(r,'battle/modules/22-commander-reconstitution.js');
+load(r,'battle/modules/22a-commander-strategic-recovery.js');
 const D=r.BattleCommanderDoctrine,C=r.BattleCommanderAI,b=H.makeBattle(r,{seed:+(process.env.HARNESS_SEED||12345)});
 const us=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:120}});
 const ge=H.addSquad(r,b,{id:'ge-0',faction:'ge',x:0,z:80,objective:{x:0,z:0}});

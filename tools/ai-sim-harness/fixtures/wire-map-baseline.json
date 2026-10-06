@@ -273,15 +273,15 @@
       }
     },
     "squad._lastDoctrineRule": {
-      "owner": "commander-ai.js",
+      "owner": "modules/22a-commander-strategic-recovery.js",
       "writers": {
-        "commander-ai.js": {
-          "as": "owner",
-          "why": "selectMission stamps the doctrine rule the General just decided for the brief."
-        },
         "commander-routes.js": {
           "as": "setup",
           "why": "route-setup: cleared at initial route assignment before any doctrine rule is decided."
+        },
+        "modules/22a-commander-strategic-recovery.js": {
+          "as": "owner",
+          "why": "the recovery stage machine stamps the doctrine rule it acted on (moved verbatim from commander-ai.js by the 22a split; it is the field's only writer)."
         }
       }
     },
@@ -380,6 +380,10 @@
         "modules/21-defender-engineers.js": {
           "as": "setup",
           "why": "garrison-setup"
+        },
+        "modules/22a-commander-strategic-recovery.js": {
+          "as": "slot",
+          "why": "selectMission and runReconcileStage re-role the squad when the main effort moves, written through commander-ai.js's declared ctx sink (_commanderRecoveryCtx) after the 22a verbatim split - the owner's own code, relocated."
         }
       }
     },
@@ -534,6 +538,10 @@
         "modules/21-defender-engineers.js": {
           "as": "setup",
           "why": "garrison-setup"
+        },
+        "modules/22a-commander-strategic-recovery.js": {
+          "as": "slot",
+          "why": "selectMission points the re-issued mission at its objective, written through commander-ai.js's declared ctx sink (_commanderRecoveryCtx) after the 22a verbatim split - the owner's own code, relocated."
         }
       }
     },
