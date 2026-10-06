@@ -1,0 +1,29 @@
+name: Temporary observer formatter
+
+on:
+  push:
+    branches:
+      - work/observer-diagnostic-triggers
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/observer-diagnostic-triggers
+      - name: Format changed JavaScript
+        run: |
+          npx --yes prettier@3.3.3 --write             battle/modules/97-ai-timeline-recorder.js             tools/ai-sim-harness/observer-diagnostic-trigger-check.js
+          if git diff --quiet; then
+            echo "Already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add battle/modules/97-ai-timeline-recorder.js tools/ai-sim-harness/observer-diagnostic-trigger-check.js
+          git commit -m "Format observer diagnostic changes"
+          git push origin HEAD:work/observer-diagnostic-triggers
