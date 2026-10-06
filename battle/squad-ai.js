@@ -371,7 +371,15 @@
     return ((Math.round((a + Math.PI) / (Math.PI / 4)) % 8) + 8) % 8;
   }
   function beliefRank(source) {
-    return source === 'seen' ? 4 : source === 'incoming' ? 3 : source === 'told' ? 2 : source === 'heard' ? 1 : 0;
+    return source === 'seen'
+      ? 4
+      : source === 'incoming'
+        ? 3
+        : source === 'told'
+          ? 2
+          : source === 'heard'
+            ? 1
+            : 0;
   }
   function beliefConfidence(rec, battle) {
     if (!rec || !battle || battle.time >= rec.expiresAt) return 0;

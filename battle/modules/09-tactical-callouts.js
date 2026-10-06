@@ -141,10 +141,7 @@
       if (man.dead) outcome = 'dead';
       else if (NOT_LISTENING[engState(man)]) outcome = 'not-listening';
       else if (d.miss) outcome = 'missed';
-      else if (
-        battle.time - msg.fact.at > TUNING.KEEP ||
-        (!beliefsOn() && !threat(msg.fact.unit))
-      )
+      else if (battle.time - msg.fact.at > TUNING.KEEP || (!beliefsOn() && !threat(msg.fact.unit)))
         outcome = 'stale';
       else outcome = 'heard';
       if (outcome === 'heard') {
