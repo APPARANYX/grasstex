@@ -155,7 +155,11 @@ assert.equal(
   1,
   'external benchmark stall becomes an exact timeline marker'
 );
-assert.equal(snapshot.observer.windows.length, 1, 'same-squad external trouble extends the active focus window');
+assert.equal(
+  snapshot.observer.windows.length,
+  1,
+  'same-squad external trouble extends the active focus window'
+);
 assert.ok(
   snapshot.observer.windows[0].reasons.some(reason => reason.kind === 'vacant-objective-stall'),
   'external benchmark stall joins the focus reasons'

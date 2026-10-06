@@ -491,9 +491,7 @@
       var at = a.at != null ? +a.at : +sim.time || 0,
         key =
           a.key ||
-          [a.kind || 'loop', a.faction || '?', a.squadId || '?', a.soldierId || '', rounded(at, 2)].join(
-            '|'
-          );
+          [a.kind || 'loop', a.faction || '?', a.squadId || '?', a.soldierId || '', rounded(at, 2)].join('|');
       if (st.loopSeen.has(key)) return;
       st.loopSeen.add(key);
       observeEvent(sim, 'loop-alert', {
