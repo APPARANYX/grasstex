@@ -345,7 +345,7 @@ jobs:
         env:
           BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.sha }}
           BATTLE_BENCHMARK_COUNT: '3'
-          BATTLE_BENCHMARK_TIME_LIMIT: '600'
+          BATTLE_BENCHMARK_TIME_LIMIT: '800'
           BATTLE_BENCHMARK_STEP: '0.15'
           BATTLE_BENCHMARK_SEED: 'pr316-recon'
           BATTLE_BENCHMARK_OUTPUT: 'reports/pr316-natural'
