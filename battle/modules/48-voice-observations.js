@@ -54,7 +54,7 @@
   function pos(s) {
     return s && s.root && s.root.position;
   }
-  var dist=root.GTMath.dist;
+  var dist = root.GTMath.dist;
   function centre(list) {
     if (!list.length) return null;
     var x = 0,

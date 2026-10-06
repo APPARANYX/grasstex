@@ -23,7 +23,10 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, { log() {}, warn() {} });
+  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
+    log() {},
+    warn() {}
+  });
 }
 let n = 0;
 function test(name, fn) {
@@ -32,20 +35,74 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 const CTX_KEYS = [
-  'AIM_CONE', 'AIM_SETTLE', 'ALERT_HOLD', 'ALERT_LATCH', 'BOUND_ARRIVED', 'BOUND_BACK_ALLOW',
-  'BOUND_METERS', 'CONTACT_STANCE', 'COVER_FIRE', 'COVER_RANGE_UNDER_FIRE', 'COVER_STANCE',
-  'GUNNER_SETUP', 'MOVE_FIRE_FRACTION', 'PRONE_HOLD', 'PRONE_ROLES', 'SA', 'STANCE_HOLD',
-  'SUPPRESS_BURST', 'SUPPRESS_PAUSE', 'USEFUL_COVER', 'assault', 'bound', 'combatThreat',
-  'dist', 'facingError', 'field', 'findCover', 'holdPosition', 'jitter', 'knownThreat',
-  'mind', 'move', 'noteShock', 'posOf', 'root', 'shockUntil', 'squadContact', 'statScale',
-  'state', 'transition'
+  'AIM_CONE',
+  'AIM_SETTLE',
+  'ALERT_HOLD',
+  'ALERT_LATCH',
+  'BOUND_ARRIVED',
+  'BOUND_BACK_ALLOW',
+  'BOUND_METERS',
+  'CONTACT_STANCE',
+  'COVER_FIRE',
+  'COVER_RANGE_UNDER_FIRE',
+  'COVER_STANCE',
+  'GUNNER_SETUP',
+  'MOVE_FIRE_FRACTION',
+  'PRONE_HOLD',
+  'PRONE_ROLES',
+  'SA',
+  'STANCE_HOLD',
+  'SUPPRESS_BURST',
+  'SUPPRESS_PAUSE',
+  'USEFUL_COVER',
+  'assault',
+  'bound',
+  'combatThreat',
+  'dist',
+  'facingError',
+  'field',
+  'findCover',
+  'holdPosition',
+  'jitter',
+  'knownThreat',
+  'mind',
+  'move',
+  'noteShock',
+  'posOf',
+  'root',
+  'shockUntil',
+  'squadContact',
+  'statScale',
+  'state',
+  'transition'
 ];
 const API = [
-  'engagementLive', 'squadOnHeels', 'underFireNow', 'fireAuthorized', 'fireControlPreparing',
-  'canCrawlTo', 'seesFrom', 'seeingStance', 'applyStance', 'commitStance', 'requestStance',
-  'commitStanceRespectHold', 'holdStance', 'inCover', 'fightingStance', 'fireAllowed',
-  'tryFire', 'suppress', 'firingLineClear', 'crestPrepPoint', 'fireControlObservation',
-  'fireControlReady', 'prepareFireControl', 'boundForward', 'orderedBound', 'station'
+  'engagementLive',
+  'squadOnHeels',
+  'underFireNow',
+  'fireAuthorized',
+  'fireControlPreparing',
+  'canCrawlTo',
+  'seesFrom',
+  'seeingStance',
+  'applyStance',
+  'commitStance',
+  'requestStance',
+  'commitStanceRespectHold',
+  'holdStance',
+  'inCover',
+  'fightingStance',
+  'fireAllowed',
+  'tryFire',
+  'suppress',
+  'firingLineClear',
+  'crestPrepPoint',
+  'fireControlObservation',
+  'fireControlReady',
+  'prepareFireControl',
+  'boundForward',
+  'orderedBound',
+  'station'
 ];
 
 test('the module installs the verbatim set back into engagement.js through the ctx sink', () => {
@@ -53,7 +110,11 @@ test('the module installs the verbatim set back into engagement.js through the c
   assert.equal(typeof r._engagementFireStance, 'function', 'module factory global');
   assert.equal(r._engagementFireStance.length, 1, 'factory takes exactly the ctx');
   const ctx = r._engagementFireStanceCtx();
-  assert.deepEqual(Object.keys(ctx).sort(), CTX_KEYS, 'ctx carries exactly the closure utilities and constants the moved bodies consume');
+  assert.deepEqual(
+    Object.keys(ctx).sort(),
+    CTX_KEYS,
+    'ctx carries exactly the closure utilities and constants the moved bodies consume'
+  );
   Object.keys(ctx).forEach(k => assert.notEqual(ctx[k], undefined, 'ctx.' + k + ' defined at install time'));
   const api = r._engagementFireStance(ctx);
   API.forEach(k => assert.equal(typeof api[k], 'function', 'factory returns ' + k));
@@ -83,14 +144,30 @@ test('the parent seam keeps the pre-split names and arities and the tuning expor
   const ctx = r._engagementFireStanceCtx();
   assert.equal(E.tuning.STANCE_HOLD, ctx.STANCE_HOLD, 'tuning.STANCE_HOLD stays a parent constant');
   assert.equal(E.tuning.COVER_STANCE, ctx.COVER_STANCE, 'tuning.COVER_STANCE stays a parent constant');
-  assert.equal(E.tuning.CRAWL_FIT !== undefined && ctx.CRAWL_FIT === undefined, true, 'CRAWL_FIT stays in the parent (the module gets it through no other channel)');
+  assert.equal(
+    E.tuning.CRAWL_FIT !== undefined && ctx.CRAWL_FIT === undefined,
+    true,
+    'CRAWL_FIT stays in the parent (the module gets it through no other channel)'
+  );
   assert.equal(E.tuning.COVER_FIRE, ctx.COVER_FIRE, 'tuning.COVER_FIRE stays a parent constant');
   assert.equal(E.tuning.ALERT_LATCH, ctx.ALERT_LATCH, 'tuning.ALERT_LATCH stays a parent constant');
-  assert.equal(E.tuning.COMBAT_HANDOFF_ON, ctx.COMBAT_HANDOFF_ON === undefined ? E.tuning.COMBAT_HANDOFF_ON : ctx.COMBAT_HANDOFF_ON, 'tuning.COMBAT_HANDOFF_ON stays a parent constant');
-  assert.equal(r._engagementFireStanceAttach({}), false, 'the attach sink rejects an api without fireAllowed/commitStance');
+  assert.equal(
+    E.tuning.COMBAT_HANDOFF_ON,
+    ctx.COMBAT_HANDOFF_ON === undefined ? E.tuning.COMBAT_HANDOFF_ON : ctx.COMBAT_HANDOFF_ON,
+    'tuning.COMBAT_HANDOFF_ON stays a parent constant'
+  );
+  assert.equal(
+    r._engagementFireStanceAttach({}),
+    false,
+    'the attach sink rejects an api without fireAllowed/commitStance'
+  );
   const b = H.makeBattle(r);
   const q = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 50 } });
-  assert.equal(E.stateOf(q.members[0]).stance, 'stand', 'the rejected attach did not disturb the installed api');
+  assert.equal(
+    E.stateOf(q.members[0]).stance,
+    'stand',
+    'the rejected attach did not disturb the installed api'
+  );
 });
 
 test('firing: a committed crouch lands on the body and fire permission answers through the seam', () => {
@@ -102,11 +179,19 @@ test('firing: a committed crouch lands on the body and fire permission answers t
     E = r.BattleEngagement;
   s.target = { id: 99, dead: false, root: { position: { x: 0, y: 0, z: 30 } } };
   E.commitStance(s, b, 'crouch', 3, 'ctx-check');
-  assert.equal(E.stateOf(s).stance, 'crouch', 'the committed stance went through the seam into his eng state');
+  assert.equal(
+    E.stateOf(s).stance,
+    'crouch',
+    'the committed stance went through the seam into his eng state'
+  );
   assert.equal(s.tacticalCrouch, true, 'and onto his body flags');
   E.commitStance(s, b, 'stand', 1, 'ctx-check');
   assert.equal(E.stateOf(s).stance, 'stand', 'committing stand raises him again through the seam');
-  assert.equal(E.fireAllowed(s, b), false, 'an unarmed unready man does not get fire permission through the seam');
+  assert.equal(
+    E.fireAllowed(s, b),
+    false,
+    'an unarmed unready man does not get fire permission through the seam'
+  );
   s.reloading = false;
   s.target.root.position.z = 6;
   assert.equal(typeof E.fireControlReady(s, b), 'boolean', 'fireControlReady answers through the seam');
@@ -119,15 +204,22 @@ test('engagement.js without the module fails loudly on the first fire or stance 
   load(r, 'battle/core-runtime.js');
   load(r, 'battle/engagement.js');
   assert.ok(r.BattleEngagement, 'engagement.js alone still loads and exports');
-  assert.throws(() => r.BattleEngagement.fireAllowed({ root: { position: { x: 0, z: 0 } } }, { time: 0 }), /fire\/stance system missing/, 'no silent fire-when-unready battlefield');
+  assert.throws(
+    () => r.BattleEngagement.fireAllowed({ root: { position: { x: 0, z: 0 } } }, { time: 0 }),
+    /fire\/stance system missing/,
+    'no silent fire-when-unready battlefield'
+  );
 });
 
 test('the module without engagement.js fails loudly at load', () => {
   const r = {};
   r.window = r;
   load(r, 'battle/core-runtime.js');
-  assert.throws(() => load(r, 'battle/modules/19b-engagement-fire-stance.js'), /engagement\.js must load before/, 'the reversed install needs its parent first');
+  assert.throws(
+    () => load(r, 'battle/modules/19b-engagement-fire-stance.js'),
+    /engagement\.js must load before/,
+    'the reversed install needs its parent first'
+  );
 });
 
 console.log('PASS ' + n + ' fire-stance ctx checks');
-

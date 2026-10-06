@@ -35,11 +35,46 @@
     CLEAR_AT = 0.8;
   /* Each stage: the actions it may play, first one the model has wins, and when (fraction of the reload). */
   var PLANS = [
-    { needs: 'reloadCoverOpen', stages: [[['reloadCoverOpen'], 0.1], [['reloadBeltLay'], 0.4], [['reloadCoverClose'], 0.68], [['reloadCharge'], 0.86]] },
-    { needs: 'reloadClipInsert', stages: [[['reloadClipInsert'], 0.45], [['reloadBoltRelease'], 0.8]] },
-    { needs: 'reloadStripperClip', stages: [[['reloadBoltOpen'], 0.08], [['reloadStripperClip'], 0.4], [['reloadBoltClose', 'boltCycle', 'reloadCharge'], 0.85]] },
-    { needs: 'reloadOpen', stages: [[['reloadOpen'], 0.1], [['reloadShell'], 0.45], [['reloadClose'], 0.85]] },
-    { needs: 'reloadMagOut', stages: [[['reloadMagOut'], 0.12], [['reloadMagIn'], 0.55], [['reloadCharge', 'reloadSlideRelease'], 0.85]] }
+    {
+      needs: 'reloadCoverOpen',
+      stages: [
+        [['reloadCoverOpen'], 0.1],
+        [['reloadBeltLay'], 0.4],
+        [['reloadCoverClose'], 0.68],
+        [['reloadCharge'], 0.86]
+      ]
+    },
+    {
+      needs: 'reloadClipInsert',
+      stages: [
+        [['reloadClipInsert'], 0.45],
+        [['reloadBoltRelease'], 0.8]
+      ]
+    },
+    {
+      needs: 'reloadStripperClip',
+      stages: [
+        [['reloadBoltOpen'], 0.08],
+        [['reloadStripperClip'], 0.4],
+        [['reloadBoltClose', 'boltCycle', 'reloadCharge'], 0.85]
+      ]
+    },
+    {
+      needs: 'reloadOpen',
+      stages: [
+        [['reloadOpen'], 0.1],
+        [['reloadShell'], 0.45],
+        [['reloadClose'], 0.85]
+      ]
+    },
+    {
+      needs: 'reloadMagOut',
+      stages: [
+        [['reloadMagOut'], 0.12],
+        [['reloadMagIn'], 0.55],
+        [['reloadCharge', 'reloadSlideRelease'], 0.85]
+      ]
+    }
   ];
   /* Never preload actions that no runtime path plays. */
   var UNPLAYED = { fire: true, fireDistant: true, handling: true, grab: true, safety: true, mode: true };
@@ -59,7 +94,8 @@
       if (!has(c, PLANS[i].needs)) continue;
       var out = [];
       PLANS[i].stages.forEach(function (st) {
-        for (var k = 0; k < st[0].length; k++) if (has(c, st[0][k])) return void out.push({ action: st[0][k], at: st[1] });
+        for (var k = 0; k < st[0].length; k++)
+          if (has(c, st[0][k])) return void out.push({ action: st[0][k], at: st[1] });
       });
       return out;
     }
@@ -70,7 +106,7 @@
     return Math.max(TAIL_MIN_QUIET, cyclic > 0 ? TAIL_QUIET / cyclic : 0);
   }
   function hash01(n) {
-    n = (n ^ 61) ^ (n >>> 16);
+    n = n ^ 61 ^ (n >>> 16);
     n = (n + (n << 3)) | 0;
     n = n ^ (n >>> 4);
     n = Math.imul(n, 0x27d4eb2d);
@@ -80,7 +116,7 @@
   function v3(p) {
     return p ? { x: +p.x || 0, y: +p.y || 0, z: +p.z || 0 } : null;
   }
-  var dist=root.GTMath.distStrict;
+  var dist = root.GTMath.distStrict;
   function foleyGain(d) {
     var near = Math.max(0, 1 - d / FOLEY_RANGE);
     return FOLEY_GAIN * (0.1 + 0.9 * Math.pow(near, 1.3));
@@ -104,14 +140,20 @@
           pools[model + '.' + action] = c[action].map(function (file, i) {
             return {
               endsAt: 0,
-              sound: new BABYLON.Sound('foley-' + model + '-' + action + i, root.BattleAudioFormat ? root.BattleAudioFormat.url(base + file) : base + file, scene, null, {
-                spatialSound: true,
-                distanceModel: 'linear',
-                rolloffFactor: 0,
-                maxDistance: 1000,
-                volume: 0,
-                autoplay: false
-              })
+              sound: new BABYLON.Sound(
+                'foley-' + model + '-' + action + i,
+                root.BattleAudioFormat ? root.BattleAudioFormat.url(base + file) : base + file,
+                scene,
+                null,
+                {
+                  spatialSound: true,
+                  distanceModel: 'linear',
+                  rolloffFactor: 0,
+                  maxDistance: 1000,
+                  volume: 0,
+                  autoplay: false
+                }
+              )
             };
           });
         });
@@ -181,7 +223,10 @@
         stats.played[action] = (stats.played[action] || 0) + 1;
         try {
           var snd = v.sound;
-          if (snd.setPosition) snd.setPosition(typeof BABYLON !== 'undefined' && BABYLON.Vector3 ? new BABYLON.Vector3(p.x, p.y, p.z) : p);
+          if (snd.setPosition)
+            snd.setPosition(
+              typeof BABYLON !== 'undefined' && BABYLON.Vector3 ? new BABYLON.Vector3(p.x, p.y, p.z) : p
+            );
           if (snd.setVolume) snd.setVolume(gain);
           if (snd.setPlaybackRate) snd.setPlaybackRate(1);
           snd.play();
@@ -196,7 +241,14 @@
     function stateOf(s) {
       var st = seen.get(s);
       if (!st) {
-        st = { reloading: !!s.reloading, stoppage: !!s.clearingStoppage, lying: !!s.prone, lastShot: 0, tailDue: false, model: modelOf(s) };
+        st = {
+          reloading: !!s.reloading,
+          stoppage: !!s.clearingStoppage,
+          lying: !!s.prone,
+          lastShot: 0,
+          tailDue: false,
+          model: modelOf(s)
+        };
         seen.set(s, st);
       }
       return st;
@@ -223,7 +275,7 @@
       var L = listener();
       if (!L) return;
       var t = now(),
-        men = (sim.rosterOf ? (sim.rosterOf('us') || []).concat(sim.rosterOf('ge') || []) : []);
+        men = sim.rosterOf ? (sim.rosterOf('us') || []).concat(sim.rosterOf('ge') || []) : [];
       for (var i = 0; i < men.length; i++) {
         var s = men[i];
         if (!s || s.dead || !s.weapon) continue;
@@ -266,7 +318,10 @@
       st.lastShot = now();
       if ((w.stats && +w.stats.cyclic) > 0 && has(c, 'fireTail')) st.tailDue = true;
       var left = +w.ammo || 0;
-      if (left <= 0 && has(c, 'clipPing')) later(40, function () { play(s, 'clipPing', false); });
+      if (left <= 0 && has(c, 'clipPing'))
+        later(40, function () {
+          play(s, 'clipPing', false);
+        });
       else if (left > 0 && has(c, 'boltCycle') && !((w.stats && +w.stats.cyclic) > 0))
         later(BOLT_AFTER * 1000, function () {
           if (!s.dead) play(s, 'boltCycle', false);
@@ -275,7 +330,10 @@
     var oldFire = sim.onFire;
     sim.onFire = function (soldier, delay) {
       var r = oldFire ? oldFire.apply(sim, arguments) : undefined;
-      if (delay > 0 && sim.presentAfter) sim.presentAfter(delay, function () { shot(soldier); });
+      if (delay > 0 && sim.presentAfter)
+        sim.presentAfter(delay, function () {
+          shot(soldier);
+        });
       else shot(soldier);
       return r;
     };

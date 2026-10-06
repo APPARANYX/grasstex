@@ -18,7 +18,9 @@ vm.createContext(ctx);
 
 vm.runInContext(read('battle/core-runtime.js'), ctx, { filename: 'battle/core-runtime.js' });
 vm.runInContext(read('battle/module-registry.js'), ctx, { filename: 'module-registry.js' });
-vm.runInContext(read('battle/modules/40-tactical-symbol-catalog.js'), ctx, { filename: '40-tactical-symbol-catalog.js' });
+vm.runInContext(read('battle/modules/40-tactical-symbol-catalog.js'), ctx, {
+  filename: '40-tactical-symbol-catalog.js'
+});
 
 const M = ctx.BattleModules;
 const T = ctx.BattleTacticalSymbols;
@@ -31,8 +33,17 @@ assert.strictEqual(typeof M.registerTacticalOverlayProvider, 'function');
 assert.strictEqual(typeof M.listTacticalOverlayProviders, 'function');
 
 const ids = M.listTacticalSymbols().map(s => s.id);
-['infantry', 'airborne-infantry', 'machine-gun', 'mortar', 'engineer', 'sniper', 'armor', 'artillery', 'aircraft']
-  .forEach(id => assert(ids.includes(id), 'starter symbol registered: ' + id));
+[
+  'infantry',
+  'airborne-infantry',
+  'machine-gun',
+  'mortar',
+  'engineer',
+  'sniper',
+  'armor',
+  'artillery',
+  'aircraft'
+].forEach(id => assert(ids.includes(id), 'starter symbol registered: ' + id));
 
 assert.strictEqual(T.resolveId({}), 'infantry', 'unspecified squad falls back to infantry');
 assert.strictEqual(T.resolveId({ tacticalSymbol: 'mortar' }), 'mortar', 'explicit display symbol wins');
@@ -58,8 +69,12 @@ assert.strictEqual(T.resolveId({ tacticalSymbol: 'rocket-artillery' }), 'rocket-
 assert.strictEqual(T.get('rocket-artillery').label, 'Rocket artillery');
 
 M.registerTacticalOverlayProvider('vehicle-formations', {
-  entities() { return []; },
-  view(v) { return v; }
+  entities() {
+    return [];
+  },
+  view(v) {
+    return v;
+  }
 });
 assert.strictEqual(M.listTacticalOverlayProviders().length, 1);
 assert.strictEqual(M.getTacticalOverlayProvider('vehicle-formations').id, 'vehicle-formations');
@@ -73,6 +88,10 @@ assert.throws(
 const infantry = T.get('infantry');
 assert.strictEqual(infantry.verifiedHistorical, true);
 assert(/FM 21-30/.test(infantry.historicalBasis), 'verified marks carry provenance');
-assert.strictEqual(T.get('sniper').verifiedHistorical, false, 'placeholder marks are explicitly not claimed historical');
+assert.strictEqual(
+  T.get('sniper').verifiedHistorical,
+  false,
+  'placeholder marks are explicitly not claimed historical'
+);
 
 console.log('tactical-symbol-registry-check: PASS');

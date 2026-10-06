@@ -23,7 +23,7 @@
   function pos(s) {
     return point(s && s.root && s.root.position);
   }
-  var dist=root.GTMath.dist;
+  var dist = root.GTMath.dist;
   function clone(p) {
     return { x: +p.x, z: +p.z };
   }
@@ -73,8 +73,7 @@
     var D = root.SquadAI && root.SquadAI.threatDisposition,
       own = D ? D(s && s.target) : null,
       identifiedNonThreat = !!(s && s.target && own && !own.combatThreat);
-    if (s && s.target && (!own || own.combatThreat))
-      return point(s.target.root && s.target.root.position);
+    if (s && s.target && (!own || own.combatThreat)) return point(s.target.root && s.target.root.position);
     var q = s && s.squad,
       S = root.SquadAI,
       personal = !!(S && S.soldierBeliefsOn && S.soldierBeliefsOn()),
@@ -83,12 +82,7 @@
       cd = D && c && c.unit ? D(c.unit) : null;
     if (c && c.unit && cd && !cd.combatThreat) identifiedNonThreat = true;
     if (personal && S.hasKnownNonThreat && S.hasKnownNonThreat(s, battle)) identifiedNonThreat = true;
-    if (
-      c &&
-      (!c.unit || !cd || cd.combatThreat) &&
-      isFinite(+c.at) &&
-      battle.time - +c.at <= THREAT_AGE
-    )
+    if (c && (!c.unit || !cd || cd.combatThreat) && isFinite(+c.at) && battle.time - +c.at <= THREAT_AGE)
       return point(c);
     /* lastSeen is location-only memory only when no identified non-threat currently supersedes it. */
     if (identifiedNonThreat) return null;

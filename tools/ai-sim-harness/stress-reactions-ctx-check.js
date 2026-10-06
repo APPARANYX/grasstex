@@ -26,8 +26,14 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 function load(r, p, search) {
-  new Function('window', 'globalThis', 'console', 'BABYLON', 'location', fs.readFileSync(path.join(H.REPO, p), 'utf8') + '\n//# sourceURL=' + p)(
-    r, r, { log() {}, warn() {} }, r.BABYLON, search == null ? undefined : { search });
+  new Function(
+    'window',
+    'globalThis',
+    'console',
+    'BABYLON',
+    'location',
+    fs.readFileSync(path.join(H.REPO, p), 'utf8') + '\n//# sourceURL=' + p
+  )(r, r, { log() {}, warn() {} }, r.BABYLON, search == null ? undefined : { search });
 }
 let n = 0;
 function test(name, fn) {
@@ -42,7 +48,13 @@ function world(search) {
   H.resetIds();
   const r = H.bootstrap({ modules: false, search: search || '?stressAct=flee' });
   r.BattleSim = { start() {} };
-  r.BattleModules = { registerSystem() {}, registerUnitType() {}, registerObjectiveType() {}, runHook() {}, unitsFor: b => (b._roster.us || []).concat(b._roster.ge || []) };
+  r.BattleModules = {
+    registerSystem() {},
+    registerUnitType() {},
+    registerObjectiveType() {},
+    runHook() {},
+    unitsFor: b => (b._roster.us || []).concat(b._roster.ge || [])
+  };
   load(r, 'battle/modules/08-soldier-events.js', search);
   load(r, 'battle/modules/17-soldier-mind.js', search);
   load(r, 'battle/movement-resolver.js', search);
@@ -61,7 +73,14 @@ const HERE = { x: -300, z: -350 };
 /* The squad's picture says trouble sits at HERE, kept fresh while `fn` runs; and the man's
    temper is flee with stress at the top (fled-man-check's snap). */
 function press(w, s, fn) {
-  const unit = w.q._threat || (w.q._threat = { id: 'fixture-threat', faction: 'ge', dead: false, root: { position: { x: HERE.x, y: 0, z: HERE.z } } });
+  const unit =
+    w.q._threat ||
+    (w.q._threat = {
+      id: 'fixture-threat',
+      faction: 'ge',
+      dead: false,
+      root: { position: { x: HERE.x, y: 0, z: HERE.z } }
+    });
   w.q.contact = { x: HERE.x, z: HERE.z, at: w.b.time, firstHandAt: w.b.time, seenBy: -1, unit };
   w.M.of(s).temper = { flee: 1, freeze: 0, rage: 0 };
   w.M.of(s).stress = 0.95;
@@ -77,14 +96,50 @@ test('the module installs the verbatim set back into engagement.js through the c
   const ctx = r._engagementStressCtx();
   assert.deepEqual(
     Object.keys(ctx).sort(),
-    ['ACT', 'ACTING', 'ACT_TUNING', 'AIM_CONE', 'PRONE_HOLD', 'PRONE_ROLES', 'RAGE_GUARD_CHARGE', 'RAGE_LOCK', 'RAGE_TRANCE', 'SA', 'clamp', 'combatThreat', 'commitStance', 'dist', 'facingError', 'holdPosition', 'markUrgent', 'mind', 'move', 'posOf', 'relief', 'root', 'squadContact', 'state', 'telemetry', 'transition'],
+    [
+      'ACT',
+      'ACTING',
+      'ACT_TUNING',
+      'AIM_CONE',
+      'PRONE_HOLD',
+      'PRONE_ROLES',
+      'RAGE_GUARD_CHARGE',
+      'RAGE_LOCK',
+      'RAGE_TRANCE',
+      'SA',
+      'clamp',
+      'combatThreat',
+      'commitStance',
+      'dist',
+      'facingError',
+      'holdPosition',
+      'markUrgent',
+      'mind',
+      'move',
+      'posOf',
+      'relief',
+      'root',
+      'squadContact',
+      'state',
+      'telemetry',
+      'transition'
+    ],
     'ctx carries exactly the closure utilities and constants the moved bodies consume'
   );
   Object.keys(ctx).forEach(k => assert.notEqual(ctx[k], undefined, 'ctx.' + k + ' defined at install time'));
   const api = r._engagementStressReactions(ctx);
-  ['reactionState', 'reacting', 'reaction', 'guardOnHit', 'entranced', 'noteKill', 'finishFreeze', 'fledPhase', 'fledTick', 'releaseFled'].forEach(k =>
-    assert.equal(typeof api[k], 'function', 'factory returns ' + k)
-  );
+  [
+    'reactionState',
+    'reacting',
+    'reaction',
+    'guardOnHit',
+    'entranced',
+    'noteKill',
+    'finishFreeze',
+    'fledPhase',
+    'fledTick',
+    'releaseFled'
+  ].forEach(k => assert.equal(typeof api[k], 'function', 'factory returns ' + k));
   assert.equal(api.reactionState.length, 1, 'reactionState(s)');
   assert.equal(api.reaction.length, 2, 'reaction(s, battle)');
   assert.equal(api.guardOnHit.length, 3, 'guardOnHit(victim, battle, damage)');
@@ -108,9 +163,17 @@ test('the parent seam keeps the pre-split names and arities and the tuning expor
   assert.equal(E.tuning.ACT, ctx.ACT, 'tuning.ACT is the parent-side flag set the module consumes');
   assert.equal(E.tuning.ACT_TUNING, ctx.ACT_TUNING, 'tuning.ACT_TUNING stays a parent constant');
   assert.equal(E.tuning.RAGE_LOCK, ctx.RAGE_LOCK, 'tuning.RAGE_LOCK stays a parent constant');
-  assert.equal(E.tuning.RAGE_GUARD_CHARGE, ctx.RAGE_GUARD_CHARGE, 'tuning.RAGE_GUARD_CHARGE stays a parent constant');
+  assert.equal(
+    E.tuning.RAGE_GUARD_CHARGE,
+    ctx.RAGE_GUARD_CHARGE,
+    'tuning.RAGE_GUARD_CHARGE stays a parent constant'
+  );
   assert.equal(E.tuning.RAGE_TRANCE, ctx.RAGE_TRANCE, 'tuning.RAGE_TRANCE stays a parent constant');
-  assert.equal(r._engagementStressAttach({}), false, 'the attach sink rejects an api without reaction/guardOnHit');
+  assert.equal(
+    r._engagementStressAttach({}),
+    false,
+    'the attach sink rejects an api without reaction/guardOnHit'
+  );
   const f = world(),
     s = f.q.members.find(m => m.role === 'rifleman');
   assert.equal(f.E.reactionState(s), null, 'the rejected attach did not disturb the installed api');
@@ -155,4 +218,3 @@ test('the module without engagement.js fails loudly at load', () => {
 });
 
 console.log('PASS ' + n + ' stress-reactions ctx checks');
-

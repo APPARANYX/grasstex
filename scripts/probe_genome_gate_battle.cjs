@@ -20,7 +20,7 @@
    Set up (worktrees are never committed; AGENTS.md "Before/after pictures"):
      git worktree add --detach /tmp/www/genome-stashed HEAD
      git worktree add --detach /tmp/www/genome-live HEAD
-     sed -i 's/^  var STASHED=true;/  var STASHED=false;/' /tmp/www/genome-live/battle/ai-policy.js
+     sed -i 's/^  var STASHED = true;/  var STASHED = false;/' /tmp/www/genome-live/battle/ai-policy.js
      echo '{"ref":"local"}' | tee /tmp/www/genome-stashed/preview.json > /tmp/www/genome-live/preview.json
    Serve /tmp/www with PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/www (see the browser smoke
    section), then:

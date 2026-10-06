@@ -4,7 +4,10 @@ const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
 const path = require('path');
-const source = fs.readFileSync(path.join(__dirname, '../../battle/modules/41-squad-status-overlay.js'), 'utf8');
+const source = fs.readFileSync(
+  path.join(__dirname, '../../battle/modules/41-squad-status-overlay.js'),
+  'utf8'
+);
 
 let registered = null;
 const ctx = {
@@ -14,28 +17,34 @@ const ctx = {
       registered = { id, spec };
     },
     listTacticalOverlayProviders() {
-      return [{
-        id: 'vehicles',
-        entities(sim, faction) {
-          return faction === 'us' ? [{
-            id: 'tank-1',
-            faction: 'us',
-            root: { position: { x: 12, z: 34 } },
-            unitType: 'armor'
-          }] : [];
-        },
-        view(v) {
-          return {
-            id: v.id,
-            faction: v.faction,
-            root: v.root,
-            tacticalSymbol: 'armor',
-            overlayStatus: 'ADVANCE',
-            overlayDestination: { x: 250, z: 34, id: 'road-1' },
-            overlayMoving: true
-          };
+      return [
+        {
+          id: 'vehicles',
+          entities(sim, faction) {
+            return faction === 'us'
+              ? [
+                  {
+                    id: 'tank-1',
+                    faction: 'us',
+                    root: { position: { x: 12, z: 34 } },
+                    unitType: 'armor'
+                  }
+                ]
+              : [];
+          },
+          view(v) {
+            return {
+              id: v.id,
+              faction: v.faction,
+              root: v.root,
+              tacticalSymbol: 'armor',
+              overlayStatus: 'ADVANCE',
+              overlayDestination: { x: 250, z: 34, id: 'road-1' },
+              overlayMoving: true
+            };
+          }
         }
-      }];
+      ];
     }
   },
   SquadAI: {
@@ -83,7 +92,11 @@ function base() {
   };
 }
 
-const sim = { time: 12, factions: { us: { squads: [] }, ge: { squads: [] } }, objectives: { A: { def: { x: 100, z: 200 } } } };
+const sim = {
+  time: 12,
+  factions: { us: { squads: [] }, ge: { squads: [] } },
+  objectives: { A: { def: { x: 100, z: 200 } } }
+};
 
 const providerRows = O.overlayEntities(sim, 'us');
 assert.strictEqual(providerRows.length, 1, 'non-squad provider contributes overlay entity');
@@ -109,11 +122,7 @@ q._reconTask = { point: { x: 50, z: 60 } };
 assert.strictEqual(O.statusFor(q, sim).label, 'SCOUTS FORWARD');
 q.state = 'retreat';
 q._assembly = { phase: 'to-rally' };
-assert.strictEqual(
-  O.statusFor(q, sim).label,
-  'RECONSTITUTE',
-  'survival retreat outranks recon display'
-);
+assert.strictEqual(O.statusFor(q, sim).label, 'RECONSTITUTE', 'survival retreat outranks recon display');
 
 q = base();
 q.commandPhase = 'regroup';
@@ -137,11 +146,15 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(O.missionObjective(q, sim))), {
   z: 200,
   id: 'A'
 });
-assert.deepStrictEqual(JSON.parse(JSON.stringify(O.arrowTarget(q, sim))), {
-  x: 100,
-  z: 200,
-  id: 'A'
-}, 'long arrow uses the issued mission destination, not the short orderAnchor');
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(O.arrowTarget(q, sim))),
+  {
+    x: 100,
+    z: 200,
+    id: 'A'
+  },
+  'long arrow uses the issued mission destination, not the short orderAnchor'
+);
 const sig1 = O.arrowSignature(q, O.arrowTarget(q, sim));
 q.orderAnchor = { x: 99, z: 99 };
 assert.strictEqual(

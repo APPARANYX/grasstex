@@ -84,19 +84,30 @@
     },
     /* Diagnostics: cache hit/miss counters per soldier. Exposed for the timeline recorder and
        benchmark counters; the cache itself is module-private. */
-    cacheHits: function (s) { return (s && s._losCacheHits) || 0; },
-    cacheMisses: function (s) { return (s && s._losCacheMisses) || 0; },
+    cacheHits: function (s) {
+      return (s && s._losCacheHits) || 0;
+    },
+    cacheMisses: function (s) {
+      return (s && s._losCacheMisses) || 0;
+    },
     cacheTuning: { LOS_CACHE_SECS: LOS_CACHE_SECS },
     /* Test/benchmark hook: clear the cache (e.g. on battle restart). */
-    clearCache: function () { cache = {}; }
+    clearCache: function () {
+      cache = {};
+    }
   };
   /* Clear the cache on battle restart so stale entries from a previous battle don't bleed in. */
   if (root.BattleModules) {
     root.BattleModules.registerSystem('direct-fire-los-gate', {
       version: '67-trigger-los-fire-line-cached',
-      onBattleStart: function () { cache = {}; },
-      onBattleRestart: function () { cache = {}; }
+      onBattleStart: function () {
+        cache = {};
+      },
+      onBattleRestart: function () {
+        cache = {};
+      }
     });
   }
-  if (typeof console !== 'undefined') root.GTLog('[FIRE] trigger-time stance-aware LOS gate active (cached, ' + LOS_CACHE_SECS + 's TTL)');
+  if (typeof console !== 'undefined')
+    root.GTLog('[FIRE] trigger-time stance-aware LOS gate active (cached, ' + LOS_CACHE_SECS + 's TTL)');
 })(typeof window !== 'undefined' ? window : globalThis);

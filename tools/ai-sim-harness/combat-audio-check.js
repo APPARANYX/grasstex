@@ -52,7 +52,7 @@ test('a .45 (Thompson, M1911A1) only whizzes', () => {
   assert.equal(F.flyby(...line(1), cam, colt).kind, 'whiz');
 });
 test('closer is louder', () => {
-  const g = [1, 3, 5, 7, 9.5].map((m) => F.flyby(...line(m), cam, rifle).gain);
+  const g = [1, 3, 5, 7, 9.5].map(m => F.flyby(...line(m), cam, rifle).gain);
   for (let i = 1; i < g.length; i++) assert.ok(g[i] < g[i - 1], g.join());
   assert.ok(g[g.length - 1] > 0);
 });
@@ -87,11 +87,16 @@ function rig(opts = {}) {
       }
     }
   });
-  const keys = ['flyby.crack', 'flyby.whiz', 'ricochet.whine', 'flesh.hit', 'pain.wounded', 'pain.down'].concat(
-    ['dirt', 'masonry', 'wood', 'metal', 'vegetation'].map((k) => 'impacts.' + k)
-  );
+  const keys = [
+    'flyby.crack',
+    'flyby.whiz',
+    'ricochet.whine',
+    'flesh.hit',
+    'pain.wounded',
+    'pain.down'
+  ].concat(['dirt', 'masonry', 'wood', 'metal', 'vegetation'].map(k => 'impacts.' + k));
   const voices = {};
-  for (const k of keys) voices[k] = opts.empty ? [] : [0, 1, 2, 3].map((i) => voice(k, i));
+  for (const k of keys) voices[k] = opts.empty ? [] : [0, 1, 2, 3].map(i => voice(k, i));
   const sim = {
     scene: null,
     presentAfter(delay, fn) {
@@ -121,10 +126,10 @@ function rig(opts = {}) {
     advance(ms) {
       t += ms;
     },
-    keys: () => played.map((p) => p.key)
+    keys: () => played.map(p => p.key)
   };
 }
-const far = (x) => ({ x: x, y: 1.6, z: 300 });
+const far = x => ({ x: x, y: 1.6, z: 300 });
 const shot = (miss, extra = {}) => {
   const [a, b] = line(miss);
   return Object.freeze({ mode: 'raycast', origin: a, impact: b, stoppedBy: 'spent', delay: 0, ...extra });
@@ -150,8 +155,9 @@ test('rounds a gap apart play in turn, never more than the cap at once', () => {
     R.sim.onShot(rifle, null, false, 400, shot(3));
     R.advance(G.gap + 1);
   }
-  const starts = R.played.map((p) => p.t);
-  for (const s of starts) assert.ok(starts.filter((u) => u <= s && s < u + G.len.crack * 1000).length <= G.voices);
+  const starts = R.played.map(p => p.t);
+  for (const s of starts)
+    assert.ok(starts.filter(u => u <= s && s < u + G.len.crack * 1000).length <= G.voices);
   assert.ok(R.played.length >= 4 && R.played.length < 12, String(R.played.length));
   for (let i = 1; i < starts.length; i++) assert.ok(starts[i] - starts[i - 1] >= G.gap);
 });
@@ -162,7 +168,7 @@ test('a clip is not restarted while it sounds, and variants rotate', () => {
     R.advance(400);
   }
   assert.equal(R.played.length, 20);
-  assert.ok(new Set(R.played.map((p) => p.i)).size > 1);
+  assert.ok(new Set(R.played.map(p => p.i)).size > 1);
 });
 test('a delayed round of a burst plays when its tracer shows', () => {
   const R = rig();
@@ -182,7 +188,11 @@ test('a far round, or no clips on disk yet, plays nothing and throws nothing', (
 });
 test('a suppressive burst past the camera is one flyby', () => {
   const R = rig();
-  const shooter = { id: 9, weapon: { kind: 'lmg', profile: 'mg42' }, root: { position: { x: -200, y: 0.2, z: 1 } } };
+  const shooter = {
+    id: 9,
+    weapon: { kind: 'lmg', profile: 'mg42' },
+    root: { position: { x: -200, y: 0.2, z: 1 } }
+  };
   R.sim.onSuppressiveShot(shooter, { x: 200, z: 1 }, 0, 7);
   assert.deepEqual(R.keys(), ['flyby.crack']);
 });
@@ -197,21 +207,45 @@ test('surfaces are told apart; a body is flesh', () => {
 });
 test('a round ending near the camera plays one impact, after the sound arrives; far off nothing', () => {
   const R = rig();
-  R.sim.onShot(rifle, null, false, 400, Object.freeze({ mode: 'raycast', origin: far(-300), impact: { x: 20, y: 0, z: 0 }, blocker: 'ground', stoppedBy: 'terrain' }));
+  R.sim.onShot(
+    rifle,
+    null,
+    false,
+    400,
+    Object.freeze({
+      mode: 'raycast',
+      origin: far(-300),
+      impact: { x: 20, y: 0, z: 0 },
+      blocker: 'ground',
+      stoppedBy: 'terrain'
+    })
+  );
   assert.equal(R.played.length, 0);
   assert.equal(R.travel.length, 1);
   assert.ok(Math.abs(R.travel[0].ms - (Math.hypot(20, 1.6) / 343) * 1000) < 1);
   R.travel[0].fn();
   assert.deepEqual(R.keys(), ['impacts.dirt']);
   const Q = rig({ instant: true });
-  Q.sim.onShot(rifle, null, false, 400, Object.freeze({ origin: far(-300), impact: { x: 45, y: 0, z: 0 }, blocker: 'ground' }));
+  Q.sim.onShot(
+    rifle,
+    null,
+    false,
+    400,
+    Object.freeze({ origin: far(-300), impact: { x: 45, y: 0, z: 0 }, blocker: 'ground' })
+  );
   assert.equal(Q.played.length, 0);
 });
 test('stone and metal ricochet instead of an impact, never both, and the choice is a fixed hash', () => {
   const pick = (x, extra = {}) => {
     const R = rig({ instant: true });
-    R.sim.onShot(rifle, null, false, 400, Object.freeze({ origin: far(-300), impact: { x, y: 1, z: 5 }, surface: 'building', ...extra }));
-    return R.keys().filter((k) => !k.startsWith('flyby'));
+    R.sim.onShot(
+      rifle,
+      null,
+      false,
+      400,
+      Object.freeze({ origin: far(-300), impact: { x, y: 1, z: 5 }, surface: 'building', ...extra })
+    );
+    return R.keys().filter(k => !k.startsWith('flyby'));
   };
   const outcomes = [];
   for (let x = 0; x < 30; x += 0.5) {
@@ -220,14 +254,16 @@ test('stone and metal ricochet instead of an impact, never both, and the choice 
     assert.deepEqual(pick(x), k);
     outcomes.push(k[0]);
   }
-  const ric = outcomes.filter((k) => k === 'ricochet.whine').length;
+  const ric = outcomes.filter(k => k === 'ricochet.whine').length;
   assert.ok(ric > 0 && ric < outcomes.length / 2, String(ric));
   /* Dirt never ricochets. */
-  for (let x = 0; x < 30; x += 0.5) assert.deepEqual(pick(x, { surface: '', blocker: 'ground' }), ['impacts.dirt']);
+  for (let x = 0; x < 30; x += 0.5)
+    assert.deepEqual(pick(x, { surface: '', blocker: 'ground' }), ['impacts.dirt']);
   /* Grazing makes it likelier. */
   let graze = 0;
   for (let x = 0; x < 30; x += 0.5)
-    if (pick(x, { direction: { x: 1, y: 0, z: 0.1 }, normal: { x: 0, y: 0, z: 1 } })[0] === 'ricochet.whine') graze++;
+    if (pick(x, { direction: { x: 1, y: 0, z: 0.1 }, normal: { x: 0, y: 0, z: 1 } })[0] === 'ricochet.whine')
+      graze++;
   assert.ok(graze > ric, graze + ' vs ' + ric);
 });
 const victim = (id, x) => ({ id, root: { position: { x, y: 0, z: 0 } } });
@@ -271,19 +307,22 @@ test('a round through one man into the next: two hits, one cry (the gap), then t
   );
   R.advance(0);
   const k = R.keys().sort();
-  assert.equal(k.filter((x) => x === 'impacts.dirt').length, 1);
-  assert.equal(k.filter((x) => x === 'flesh.hit').length + R.sim._combatAudio.dropped.flesh, 2);
-  assert.equal(k.filter((x) => x === 'pain.wounded').length, 1); /* two men, but within the gap: one cry plays */
+  assert.equal(k.filter(x => x === 'impacts.dirt').length, 1);
+  assert.equal(k.filter(x => x === 'flesh.hit').length + R.sim._combatAudio.dropped.flesh, 2);
+  assert.equal(
+    k.filter(x => x === 'pain.wounded').length,
+    1
+  ); /* two men, but within the gap: one cry plays */
 });
 test('the same man does not cry again within PAIN_REPEAT', () => {
   const R = rig({ instant: true });
   R.sim.onShot(rifle, null, true, 400, bodyShot('wounded', 'arm'));
   R.advance(500);
   R.sim.onShot(rifle, null, true, 400, bodyShot('wounded', 'leg'));
-  assert.equal(R.keys().filter((k) => k.startsWith('pain')).length, 1);
+  assert.equal(R.keys().filter(k => k.startsWith('pain')).length, 1);
   R.advance(F.PAIN_REPEAT);
   R.sim.onShot(rifle, null, true, 400, bodyShot('wounded', 'leg'));
-  assert.equal(R.keys().filter((k) => k.startsWith('pain')).length, 2);
+  assert.equal(R.keys().filter(k => k.startsWith('pain')).length, 2);
 });
 test('?combatAudio=0 installs nothing', () => {
   const off = load('?combatAudio=0');

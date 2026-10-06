@@ -29,8 +29,9 @@
   if (!root.BattleModules || root.BattleSquadBroadcast) return;
 
   /* ?squadBroadcast=1 enables 0F2 (broadcast reception). Default off: only telemetry. */
-  var BROADCAST_ON = !(typeof location !== 'undefined' && /[?&]squadBroadcast=0\b/.test(location.search || ''))
-    && !!(typeof location !== 'undefined' && location.search && /[?&]squadBroadcast=1\b/.test(location.search));
+  var BROADCAST_ON =
+    !(typeof location !== 'undefined' && /[?&]squadBroadcast=0\b/.test(location.search || '')) &&
+    !!(typeof location !== 'undefined' && location.search && /[?&]squadBroadcast=1\b/.test(location.search));
 
   /* Range at which a squad's broadcast reaches another squad. Longer than SquadAI.RELAY_RANGE
      (50, within-squad relay) because squads operate spread out; shorter than vision range so a
@@ -45,13 +46,16 @@
   var BROADCAST_COOLDOWN = 3.0;
 
   function dist2(ax, az, bx, bz) {
-    var dx = ax - bx, dz = az - bz;
+    var dx = ax - bx,
+      dz = az - bz;
     return Math.sqrt(dx * dx + dz * dz);
   }
 
   function squadCentre(sq) {
     if (!sq || !sq.members) return null;
-    var x = 0, z = 0, n = 0;
+    var x = 0,
+      z = 0,
+      n = 0;
     for (var i = 0; i < sq.members.length; i++) {
       var s = sq.members[i];
       if (!s || s.dead || !s.root) continue;
@@ -92,7 +96,14 @@
     var now = +battle.time || 0;
     /* First-ever contact for this squad is always meaningful. */
     if (!prev) {
-      return { kind: 'new-contact', x: +c.x, z: +c.z, at: now, unitId: c.unit && c.unit.id, seenBy: c.seenBy };
+      return {
+        kind: 'new-contact',
+        x: +c.x,
+        z: +c.z,
+        at: now,
+        unitId: c.unit && c.unit.id,
+        seenBy: c.seenBy
+      };
     }
     /* Contact upgraded from heard/relayed to first-hand. */
     if (!prev.firstHandAt && c.firstHandAt) {
@@ -102,7 +113,15 @@
     var prevSec = Math.round(+prev.x / 20) + ':' + Math.round(+prev.z / 20),
       curSec = Math.round(+c.x / 20) + ':' + Math.round(+c.z / 20);
     if (prevSec !== curSec) {
-      return { kind: 'sector-change', x: +c.x, z: +c.z, at: now, unitId: c.unit && c.unit.id, fromSector: prevSec, toSector: curSec };
+      return {
+        kind: 'sector-change',
+        x: +c.x,
+        z: +c.z,
+        at: now,
+        unitId: c.unit && c.unit.id,
+        fromSector: prevSec,
+        toSector: curSec
+      };
     }
     /* Contact is significantly fresher (a new sighting of the same enemy in the same sector
        after a gap). */
@@ -132,8 +151,10 @@
   function stateFor(sim) {
     if (!sim._squadBroadcast) {
       sim._squadBroadcast = {
-        sent: 0, received: 0, suppressed: 0,
-        bySquad: {}, /* squadId -> { sent, received, suppressed, lastBroadcastAt, lastContactSig } */
+        sent: 0,
+        received: 0,
+        suppressed: 0,
+        bySquad: {} /* squadId -> { sent, received, suppressed, lastBroadcastAt, lastContactSig } */,
         broadcasts: [] /* rolling log of recent broadcasts, capped at 100 */
       };
     }
@@ -151,7 +172,7 @@
   function contactSig(sq) {
     var c = sq.contact;
     if (!c) return null;
-    return Math.round(+c.x / 20) + ':' + Math.round(+c.z / 20) + ':' + (c.unit && c.unit.id || '?');
+    return Math.round(+c.x / 20) + ':' + Math.round(+c.z / 20) + ':' + ((c.unit && c.unit.id) || '?');
   }
 
   function tick(sim) {
@@ -178,7 +199,9 @@
           continue;
         }
         var change = contactChange(sq, ss.lastContact, sim);
-        ss.lastContact = sq.contact ? { x: +sq.contact.x, z: +sq.contact.z, at: +sq.contact.at, firstHandAt: sq.contact.firstHandAt } : null;
+        ss.lastContact = sq.contact
+          ? { x: +sq.contact.x, z: +sq.contact.z, at: +sq.contact.at, firstHandAt: sq.contact.firstHandAt }
+          : null;
         if (!change) continue;
         /* Compute recipients. */
         var recipients = nearbySquads(sim, sq, BROADCAST_RANGE);
@@ -194,20 +217,26 @@
           z: change.z,
           unitId: change.unitId || null,
           recipientCount: recipients.length,
-          recipients: recipients.map(function (r) { return { squad: r.squad.id, distance: +r.distance.toFixed(1) }; })
+          recipients: recipients.map(function (r) {
+            return { squad: r.squad.id, distance: +r.distance.toFixed(1) };
+          })
         };
         /* Log to telemetry (behavior-neutral: nobody consumes this yet). */
         if (root.BattleTelemetry) {
-          root.BattleTelemetry.record('squad-broadcast', {
-            sourceSquad: sq.id,
-            faction: f,
-            kind: change.kind,
-            x: +change.x.toFixed(1),
-            z: +change.z.toFixed(1),
-            unitId: change.unitId || null,
-            recipientCount: recipients.length,
-            recipients: broadcast.recipients
-          }, sim);
+          root.BattleTelemetry.record(
+            'squad-broadcast',
+            {
+              sourceSquad: sq.id,
+              faction: f,
+              kind: change.kind,
+              x: +change.x.toFixed(1),
+              z: +change.z.toFixed(1),
+              unitId: change.unitId || null,
+              recipientCount: recipients.length,
+              recipients: broadcast.recipients
+            },
+            sim
+          );
         }
         /* Track receive counts on recipient squads. */
         for (var j = 0; j < recipients.length; j++) {
@@ -253,15 +282,19 @@
             squad._broadcastReactAt = now;
             squad._broadcastReactFrom = sq.id;
             if (root.BattleTelemetry) {
-              root.BattleTelemetry.record('squad-broadcast-reaction', {
-                receivingSquad: squad.id,
-                faction: squad.faction,
-                sourceSquad: sq.id,
-                kind: change.kind,
-                x: +change.x.toFixed(1),
-                z: +change.z.toFixed(1),
-                distance: +recipients[j].distance.toFixed(1)
-              }, sim);
+              root.BattleTelemetry.record(
+                'squad-broadcast-reaction',
+                {
+                  receivingSquad: squad.id,
+                  faction: squad.faction,
+                  sourceSquad: sq.id,
+                  kind: change.kind,
+                  x: +change.x.toFixed(1),
+                  z: +change.z.toFixed(1),
+                  distance: +recipients[j].distance.toFixed(1)
+                },
+                sim
+              );
             }
           }
         }
@@ -285,7 +318,9 @@
 
   root.BattleSquadBroadcast = {
     version: BROADCAST_ON ? '0f2-broadcast-reception' : '0f1-telemetry-only',
-    broadcastOn: function () { return BROADCAST_ON; },
+    broadcastOn: function () {
+      return BROADCAST_ON;
+    },
     tuning: {
       BROADCAST_RANGE: BROADCAST_RANGE,
       BROADCAST_TTL: BROADCAST_TTL,
@@ -301,11 +336,25 @@
         applied: st.applied || 0,
         bySquad: Object.keys(st.bySquad).map(function (id) {
           var s = st.bySquad[id];
-          return { squad: id, sent: s.sent, received: s.received, suppressed: s.suppressed, applied: s.applied || 0 };
+          return {
+            squad: id,
+            sent: s.sent,
+            received: s.received,
+            suppressed: s.suppressed,
+            applied: s.applied || 0
+          };
         }),
         recentBroadcasts: st.broadcasts.slice(0, 20)
       };
     }
   };
-  if (typeof console !== 'undefined') root.GTLog('[SQUAD] Phase 0F inter-squad tactical broadcast ' + (BROADCAST_ON ? '0F2 active (reception on, ?squadBroadcast=1, range=' + BROADCAST_RANGE + 'm)' : '0F1 active (telemetry only, ?squadBroadcast=1 to enable reception, range=' + BROADCAST_RANGE + 'm)'));
+  if (typeof console !== 'undefined')
+    root.GTLog(
+      '[SQUAD] Phase 0F inter-squad tactical broadcast ' +
+        (BROADCAST_ON
+          ? '0F2 active (reception on, ?squadBroadcast=1, range=' + BROADCAST_RANGE + 'm)'
+          : '0F1 active (telemetry only, ?squadBroadcast=1 to enable reception, range=' +
+            BROADCAST_RANGE +
+            'm)')
+    );
 })(typeof window !== 'undefined' ? window : globalThis);

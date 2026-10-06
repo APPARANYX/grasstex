@@ -42,10 +42,7 @@
       /* Whether the finite-ammo system or the fallback owns the timer, reloading is a real combat
          interruption: the man does not keep a firing-station/base-of-fire pose while swapping it. */
       if (s.reloading)
-        root.SquadAI.extendFireCooldown(
-          s,
-          Math.max(0.16, (+s.reloadUntil || battle.time) - battle.time)
-        );
+        root.SquadAI.extendFireCooldown(s, Math.max(0.16, (+s.reloadUntil || battle.time) - battle.time));
     }
   });
   root.SquadAI.extend('afterSoldier', 'weapon-cycle', function (s, battle) {

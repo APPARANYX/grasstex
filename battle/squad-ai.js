@@ -57,7 +57,8 @@
       if (deal.secondary) W.issue(deal.secondary, soldier.faction);
     }
     if (!W.arm(soldier, deal.weapon, deal.secondary)) return false;
-    if (root.BattleAmmunition && root.BattleAmmunition.initialize) root.BattleAmmunition.initialize(soldier, battle);
+    if (root.BattleAmmunition && root.BattleAmmunition.initialize)
+      root.BattleAmmunition.initialize(soldier, battle);
     return true;
   }
   var COMPOSITION = [
@@ -126,14 +127,16 @@
   function parseSoldierBeliefs(search) {
     return !/[?&]soldierBeliefs=(?:0|off|false|none)(?:&|#|$)/i.test(search || '');
   }
-  var SOLDIER_BELIEFS_ON = parseSoldierBeliefs(
-    typeof location !== 'undefined' ? location.search || '' : ''
-  );
+  var SOLDIER_BELIEFS_ON = parseSoldierBeliefs(typeof location !== 'undefined' ? location.search || '' : '');
   /* Phase 0G1: secondary threat awareness. When on, soldierContact gains a 'secondary' field
      holding the next-best belief in a different 20m sector from the primary. Engagement can
      orient toward the secondary when the primary is behind cover or out of range. Default off;
      the off arm is unchanged single-contact behavior. */
-  var SECONDARY_THREAT_ON = !!(typeof location !== 'undefined' && location.search && /[?&]secondaryThreat=1\b/.test(location.search));
+  var SECONDARY_THREAT_ON = !!(
+    typeof location !== 'undefined' &&
+    location.search &&
+    /[?&]secondaryThreat=1\b/.test(location.search)
+  );
   /* How long a squad keeps acting on a last-known enemy position after nobody can see him. */
   var CONTACT_MEMORY = 12;
   var BELIEF_TUNING = {
@@ -153,7 +156,7 @@
     AREA_FIRE_RATE = 1.55,
     AREA_AIM_HEIGHT = 0.85;
 
-  var clamp=root.GTMath.clamp;
+  var clamp = root.GTMath.clamp;
   function dist2(ax, az, bx, bz) {
     var dx = ax - bx,
       dz = az - bz;
@@ -513,9 +516,7 @@
       reportedAt: null,
       receivedAt: battle.time,
       baseConfidence: 1,
-      expiresAt:
-        battle.time +
-        (combatThreat === false ? BELIEF_TUNING.nonThreatTtl : BELIEF_TUNING.seenTtl),
+      expiresAt: battle.time + (combatThreat === false ? BELIEF_TUNING.nonThreatTtl : BELIEF_TUNING.seenTtl),
       combatThreat: combatThreat !== false,
       precision: 'exact-sight',
       reason: reason || (combatThreat === false ? 'seen-non-threat' : 'direct-sight')
@@ -567,7 +568,8 @@
     return a >>> 0;
   }
   function hearGunfireBelief(soldier, battle) {
-    if (!SOLDIER_BELIEFS_ON || !PERCEPTION_ON || !soldier || !battle || soldier.dead || !soldier.root) return null;
+    if (!SOLDIER_BELIEFS_ON || !PERCEPTION_ON || !soldier || !battle || soldier.dead || !soldier.root)
+      return null;
     var shots = battle._gunfire;
     if (!shots || !shots.length) return null;
     var p = soldier.root.position,
@@ -589,8 +591,7 @@
     }
     if (!best) return null;
     var store = beliefStore(soldier, battle),
-      eventKey =
-        String(best.at) + ':' + (+best.x).toFixed(2) + ':' + (+best.z).toFixed(2);
+      eventKey = String(best.at) + ':' + (+best.x).toFixed(2) + ':' + (+best.z).toFixed(2);
     if (store.lastHeardKey === eventKey) return null;
     store.lastHeardKey = eventKey;
     var k = heardHash(
@@ -635,10 +636,7 @@
       sight = sightScale(soldier);
     if (d > detectionRange(role, unit) * sight) return false;
     if (PERCEPTION_ON && d > BEHIND_RANGE) {
-      var reach = viewReach(
-        angleBetween(Math.atan2(u.x - p.x, u.z - p.z), lookYaw(soldier, battle)),
-        unit
-      );
+      var reach = viewReach(angleBetween(Math.atan2(u.x - p.x, u.z - p.z), lookYaw(soldier, battle)), unit);
       if (!reach || d > detectionRange(role, unit) * reach * sight) return false;
     }
     return hasLineOfSight(soldier, unit, battle.heightAt, battle.obstacles);
@@ -739,8 +737,7 @@
     return false;
   }
   function soldierContact(soldier, battle) {
-    if (!SOLDIER_BELIEFS_ON)
-      return soldier && soldier.squad ? squadContact(soldier.squad, battle) : null;
+    if (!SOLDIER_BELIEFS_ON) return soldier && soldier.squad ? squadContact(soldier.squad, battle) : null;
     var rec = bestBelief(soldier, battle);
     if (!rec) return null;
     var liveUnit =
@@ -889,7 +886,10 @@
     if (!threatDisposition(t).combatThreat) return false;
     var role = ROLES[soldier.role],
       p = soldier.root.position;
-    if (dist2(p.x, p.z, t.root.position.x, t.root.position.z) > role.visionRange * TRACK_MARGIN * sightScale(soldier))
+    if (
+      dist2(p.x, p.z, t.root.position.x, t.root.position.z) >
+      role.visionRange * TRACK_MARGIN * sightScale(soldier)
+    )
       return false;
     return hasLineOfSight(soldier, t, heightAt, obstacles);
   }
@@ -1061,7 +1061,8 @@
     if (battle._gunfirePrunedAt !== battle.time) {
       battle._gunfirePrunedAt = battle.time;
       var keep = 0;
-      for (i = 0; i < shots.length; i++) if (battle.time - shots[i].at <= HEAR_MEMORY) shots[keep++] = shots[i];
+      for (i = 0; i < shots.length; i++)
+        if (battle.time - shots[i].at <= HEAR_MEMORY) shots[keep++] = shots[i];
       shots.length = keep;
     }
     var heard = null,
@@ -1131,8 +1132,11 @@
         var sector = Math.round(+rec.x / 20) + ':' + Math.round(+rec.z / 20),
           existing = sectors[sector];
         /* Keep the freshest, highest-confidence belief per sector. */
-        if (!existing || rec.observedAt > existing.at ||
-            (rec.observedAt === existing.at && beliefConfidence(rec, battle) > existing.confidence)) {
+        if (
+          !existing ||
+          rec.observedAt > existing.at ||
+          (rec.observedAt === existing.at && beliefConfidence(rec, battle) > existing.confidence)
+        ) {
           sectors[sector] = {
             x: +rec.x,
             z: +rec.z,
@@ -1146,8 +1150,12 @@
         }
       });
     }
-    var out = Object.keys(sectors).map(function (k) { return sectors[k]; });
-    out.sort(function (a, b) { return b.confidence - a.confidence || b.at - a.at; });
+    var out = Object.keys(sectors).map(function (k) {
+      return sectors[k];
+    });
+    out.sort(function (a, b) {
+      return b.confidence - a.confidence || b.at - a.at;
+    });
     return out;
   }
 
@@ -1186,7 +1194,11 @@
     /* Ballistics owns terrain intersection. Suppressive fire used to stop at obstacles and walls
        but never sampled the ground, so rifles could visibly fire through a hill at a remembered contact. */
     var B = root.BattleBallistics;
-    if (B && typeof B.pointLineBlocked === 'function' && B.pointLineBlocked(shooter, point, battle, AREA_AIM_HEIGHT)) {
+    if (
+      B &&
+      typeof B.pointLineBlocked === 'function' &&
+      B.pointLineBlocked(shooter, point, battle, AREA_AIM_HEIGHT)
+    ) {
       shooter._terrainBlockedSuppressiveFire = (shooter._terrainBlockedSuppressiveFire || 0) + 1;
       return false;
     }
@@ -1208,13 +1220,25 @@
   }
   var Leases = {
     define: function (kind, spec) {
-      LEASE_KINDS[kind] = { priority: +spec.priority || 0, timer: !!spec.timer, progress: spec.progress || null, label: spec.label || kind };
+      LEASE_KINDS[kind] = {
+        priority: +spec.priority || 0,
+        timer: !!spec.timer,
+        progress: spec.progress || null,
+        label: spec.label || kind
+      };
     },
     kinds: function () {
       return LEASE_KINDS;
     },
     grant: function (sq, kind, owner, since, until, reason, release, data) {
-      var l = { kind: kind, owner: owner, since: since, until: until, reason: reason || kind, release: release || 'expiry' };
+      var l = {
+        kind: kind,
+        owner: owner,
+        since: since,
+        until: until,
+        reason: reason || kind,
+        release: release || 'expiry'
+      };
       if (data) l.data = data;
       leaseTable(sq).live[kind] = l;
       return l;
@@ -1375,8 +1399,7 @@
      aimed rate of a semi-automatic weapon. */
   function triggerCooldown(stats, rounds, battle, factor, d) {
     var jitter = 0.85 + rand(battle) * 0.3;
-    if (automatic(stats, d))
-      return rounds / stats.cyclic + (stats.burstPause || 0.8) * factor * jitter;
+    if (automatic(stats, d)) return rounds / stats.cyclic + (stats.burstPause || 0.8) * factor * jitter;
     return (1 / stats.rof) * factor * jitter;
   }
   /* Fires the rounds of one trigger pull through fire(round, delay); stops early if the weapon
@@ -1595,8 +1618,7 @@
       phase === 'regroup'
     )
       return 'column';
-    if (squad.state === 'engaged' || ['assault', 'capture', 'defend'].indexOf(phase) >= 0)
-      return 'line';
+    if (squad.state === 'engaged' || ['assault', 'capture', 'defend'].indexOf(phase) >= 0) return 'line';
     var anchor = squad.orderAnchor || squad.rally,
       goal = squad.objective || squad.home;
     return dist2(anchor.x, anchor.z, goal.x, goal.z) < 68 ? 'line' : 'wedge';
@@ -1748,7 +1770,8 @@
      goes through the shipping ammunition and ballistics owners, so reloads, jams, impacts, wounds,
      penetration, terrain and buildings remain authoritative. */
   function playerFireRay(soldier, aimPoint, battle) {
-    if (!soldier || soldier.dead || !soldier.isPlayer || !soldier.weapon || !aimPoint || !battle) return false;
+    if (!soldier || soldier.dead || !soldier.isPlayer || !soldier.weapon || !aimPoint || !battle)
+      return false;
     if (soldier.fireCooldown > 0) return false;
     var A = root.BattleAmmunition;
     if (A && A.available && !A.available(soldier)) {
@@ -1988,7 +2011,8 @@
       d = dist2(p.x, p.z, target.root.position.x, target.root.position.z);
     /* The burst stays on the man it was laid on; once he is down the gunner lets go. */
     var rounds = discharge(soldier, battle, burstLength(stats, battle, d), function (round, delay) {
-      if (!(soldier.isPlayer && target && !target.dead) && !threatDisposition(target).combatThreat) return false;
+      if (!(soldier.isPlayer && target && !target.dead) && !threatDisposition(target).combatThreat)
+        return false;
       shot(soldier, target, battle, round, delay);
     });
     setFireCooldown(soldier, triggerCooldown(stats, rounds, battle, 1, d));
@@ -2074,7 +2098,9 @@
     observeKnownNonThreats: observeKnownNonThreats,
     beliefSnapshot: beliefSnapshot,
     beliefTelemetry: beliefTelemetry,
-    secondaryThreatOn: function () { return SECONDARY_THREAT_ON; },
+    secondaryThreatOn: function () {
+      return SECONDARY_THREAT_ON;
+    },
     PERCEPTION: {
       FOCUS_HALF: FOCUS_HALF,
       PERIPHERAL_HALF: PERIPHERAL_HALF,

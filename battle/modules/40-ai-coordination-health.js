@@ -32,7 +32,13 @@
       .sort()
       .map(function (id) {
         var s = all[id] || {};
-        return [id, s.owner || 'neutral', s.active || '', s.phase || '', Math.round((+s.progress || 0) * 10)].join('|');
+        return [
+          id,
+          s.owner || 'neutral',
+          s.active || '',
+          s.phase || '',
+          Math.round((+s.progress || 0) * 10)
+        ].join('|');
       })
       .join(';');
   }
@@ -89,7 +95,11 @@
          every squad is still in 'approach' reads as "not assaulting" and the stall is
          invisible. */
       assaulting =
-        (phases.approach || 0) + (phases.assault || 0) + (phases.capture || 0) + (phases['clear-town'] || 0) + (phases.flank || 0),
+        (phases.approach || 0) +
+        (phases.assault || 0) +
+        (phases.capture || 0) +
+        (phases['clear-town'] || 0) +
+        (phases.flank || 0),
       missingRoles = Math.max(0, active - assignedRole),
       missingTargets = Math.max(0, active - assignedTarget),
       reasons = [];

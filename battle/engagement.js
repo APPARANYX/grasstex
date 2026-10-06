@@ -67,8 +67,8 @@
   function field() {
     return root.BattleObstacleField;
   }
-  var clamp=root.GTMath.clamp;
-  var dist=root.GTMath.dist4;
+  var clamp = root.GTMath.clamp;
+  var dist = root.GTMath.dist4;
   function posOf(s) {
     return s.root.position;
   }
@@ -301,8 +301,7 @@
      first stance or fire decision instead of fielding men who neither kneel nor shoot. */
   var fireStanceApi = null;
   root._engagementFireStanceAttach = function (api) {
-    if (!api || typeof api.fireAllowed !== 'function' || typeof api.commitStance !== 'function')
-      return false;
+    if (!api || typeof api.fireAllowed !== 'function' || typeof api.commitStance !== 'function') return false;
     fireStanceApi = api;
     return true;
   };
@@ -465,8 +464,7 @@
     COVER_CELL = 2,
     coverApi = null;
   root._engagementCoverAttach = function (api) {
-    if (!api || typeof api.findCover !== 'function' || typeof api.reserveCover !== 'function')
-      return false;
+    if (!api || typeof api.findCover !== 'function' || typeof api.reserveCover !== 'function') return false;
     coverApi = api;
     return true;
   };
@@ -866,8 +864,7 @@
      who cannot break. */
   var stressApi = null;
   root._engagementStressAttach = function (api) {
-    if (!api || typeof api.reaction !== 'function' || typeof api.guardOnHit !== 'function')
-      return false;
+    if (!api || typeof api.reaction !== 'function' || typeof api.guardOnHit !== 'function') return false;
     stressApi = api;
     return true;
   };
@@ -1080,7 +1077,8 @@
        same ALERT_HOLD window used by the threat sector. Standing therefore means genuinely quiet, not
        merely "no contact on this one tick". ?contactStance=0 deliberately keeps the old raw control. */
     var lowNow = s.suppressedUntil > battle.time || squadOnHeels(s, battle);
-    if (CONTACT_STANCE && lowNow) e.advanceLowUntil = Math.max(+e.advanceLowUntil || 0, battle.time + LOW_GAP_HOLD);
+    if (CONTACT_STANCE && lowNow)
+      e.advanceLowUntil = Math.max(+e.advanceLowUntil || 0, battle.time + LOW_GAP_HOLD);
     var low = lowNow || (CONTACT_STANCE && battle.time < (+e.advanceLowUntil || 0));
     if (!holdStance(s, battle)) commitStance(s, battle, low ? 'crouch' : 'stand', 1.0);
     followOrders(s, battle, false);
@@ -1133,8 +1131,8 @@
          who goes prone behind a hedge stays there indefinitely: engage()'s review only fires
          when he's in the open, and this "cover here" branch would bounce him back to engage()
          at the same blind spot every time. */
-      var hasLine = !target || !target.root ||
-        SA().hasLineOfSight(s, target, battle.heightAt, battle.obstacles);
+      var hasLine =
+        !target || !target.root || SA().hasLineOfSight(s, target, battle.heightAt, battle.obstacles);
       if (hasLine) {
         transition(s, battle, 'engage', 0, why + ': cover here');
         return engage(s, battle);
@@ -1281,8 +1279,8 @@
       /* Also re-decide when the man has no LOS to his target — a man behind a hedgerow who
          can't see his enemy should reposition, not lie there indefinitely. The "cover here"
          branch in decide() now checks LOS too, so this review will relocate him via findCover(). */
-      var noLine = s.target && s.target.root &&
-        !SA().hasLineOfSight(s, s.target, battle.heightAt, battle.obstacles);
+      var noLine =
+        s.target && s.target.root && !SA().hasLineOfSight(s, s.target, battle.heightAt, battle.obstacles);
       if (here > OPEN_COVER || noLine) decide(s, battle, noLine ? 'no firing line' : 'review');
     }
   }
@@ -1386,8 +1384,9 @@
       var c = squadContact(s, battle);
       if (c && c.secondary) {
         var sec = c.secondary,
-          primaryHandled = e.suppressOrder || /* suppressing the primary */
-            (aim && facingError(s, aim) <= AIM_CONE) || /* primary is in his aim cone */
+          primaryHandled =
+            e.suppressOrder /* suppressing the primary */ ||
+            (aim && facingError(s, aim) <= AIM_CONE) /* primary is in his aim cone */ ||
             !aim; /* no primary aim point */
         if (primaryHandled) {
           s._faceHint = { x: sec.x, z: sec.z };
@@ -1490,10 +1489,7 @@
         /* A callout or gunshot is enough to orient and prepare a man, not enough to make him
            autonomously hose down a sector. Personal-mode automatic suppression requires his own
            recent visual memory; explicit area-fire / fire-control orders remain separate authority. */
-        if (
-          personal &&
-          (own.source !== 'seen' || !isFinite(+own.at) || battle.time - +own.at > ALERT_HOLD)
-        )
+        if (personal && (own.source !== 'seen' || !isFinite(+own.at) || battle.time - +own.at > ALERT_HOLD))
           continue;
         var point = { x: +own.x, z: +own.z };
         /* No job for a man who cannot reach what HE believes - he keeps advancing instead of

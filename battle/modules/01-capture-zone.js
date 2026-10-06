@@ -252,7 +252,7 @@
   function flagTargetY(marker, st) {
     var low = marker.lowY,
       high = marker.highY,
-      pct = Math.max(0, Math.min(1, (+((st && st.progress) || 0)) / 100)),
+      pct = Math.max(0, Math.min(1, +((st && st.progress) || 0) / 100)),
       owned = st && (st.owner === 'us' || st.owner === 'ge');
     if (owned) {
       if (st.phase === 'neutralizing' && st.active && st.active !== st.owner)
@@ -362,7 +362,9 @@
       var engine = scene.getEngine && scene.getEngine(),
         dt = Math.min(0.05, ((engine && engine.getDeltaTime && engine.getDeltaTime()) || 16) / 1000),
         targetY = flag._targetY == null ? y + FLAG_LOW : flag._targetY,
-        now = ((typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) / 1000) + phase;
+        now =
+          (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) / 1000 +
+          phase;
       flag.position.y += (targetY - flag.position.y) * Math.min(1, dt * 4.5);
       for (var v = 0; v < base.length / 3; v++) {
         var vx = base[v * 3],
@@ -472,7 +474,8 @@
         sim
       );
     sq._captureZoneDefenseRequest = null;
-    if (root.BattleLeases) root.BattleLeases.end(sq, 'objective-security', +(sim.time || 0), reason || 'released');
+    if (root.BattleLeases)
+      root.BattleLeases.end(sq, 'objective-security', +(sim.time || 0), reason || 'released');
   }
   /* Objective security is not a pure timer: its expired record marks the 18 s window as used, so a
      squad already holding the zone is not granted a fresh one. It is never pruned. */
@@ -573,7 +576,8 @@
       ['us', 'ge'].forEach(function (f) {
         ((sim.factions && sim.factions[f] && sim.factions[f].squads) || []).forEach(function (sq) {
           sq._captureZoneDefenseRequest = null;
-          if (root.BattleLeases) root.BattleLeases.end(sq, 'objective-security', +(sim.time || 0), 'battle restart');
+          if (root.BattleLeases)
+            root.BattleLeases.end(sq, 'objective-security', +(sim.time || 0), 'battle restart');
         });
       });
       updateMarkers(sim, payload);

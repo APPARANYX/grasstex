@@ -23,7 +23,7 @@
     return n >= 12 && n <= 96 ? n : 48;
   }
 
-  var clamp=root.GTMath.clamp;
+  var clamp = root.GTMath.clamp;
   function rand(b) {
     return b && b.random ? b.random() : Math.random();
   }
@@ -174,12 +174,22 @@
     };
   }
   function ballisticObstacles(obstacles) {
-    if (!obstacles || !obstacles.length || !obstacles.__physicalFootprints || !obstacles.__physicalFootprints.length)
+    if (
+      !obstacles ||
+      !obstacles.length ||
+      !obstacles.__physicalFootprints ||
+      !obstacles.__physicalFootprints.length
+    )
       return obstacles;
     var version = obstacles.__physicalVersion || 0,
       footprints = obstacles.__physicalFootprints,
       cached = obstacles.__ballisticObstacles;
-    if (cached && cached.version === version && cached.count === obstacles.length && cached.footprints === footprints)
+    if (
+      cached &&
+      cached.version === version &&
+      cached.count === obstacles.length &&
+      cached.footprints === footprints
+    )
       return cached.list;
     var byId = Object.create(null),
       seen = Object.create(null),
@@ -526,7 +536,13 @@
       right = { x: base.z / flat, y: 0, z: -base.x / flat },
       up = norm({ x: -right.z * base.y, y: right.z * base.x - right.x * base.z, z: right.x * base.y }),
       distance = Math.hypot(aim.x - origin.x, aim.y - origin.y, aim.z - origin.z),
-      sigma = dispersionSigma(shooter, stats, Math.min(stats.range, Math.max(1, distance)), battle, round || 0),
+      sigma = dispersionSigma(
+        shooter,
+        stats,
+        Math.min(stats.range, Math.max(1, distance)),
+        battle,
+        round || 0
+      ),
       gx = gaussian(battle) * sigma,
       gy = gaussian(battle) * sigma;
     return {

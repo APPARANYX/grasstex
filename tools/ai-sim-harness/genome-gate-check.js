@@ -28,7 +28,7 @@ function test(name, fn) {
   queue.push([name, fn]);
 }
 
-const SWITCH = 'var STASHED=true;';
+const SWITCH = 'var STASHED = true;';
 const HOSTILE = {
   version: 2,
   parameters: {
@@ -64,11 +64,14 @@ function policyRoot({ stashed, fetchLog }) {
     },
     BattleScenarioGenerator: { similarity: () => 1 }
   };
-  new Function('window', 'globalThis', 'console', read('battle/core-runtime.js'))(root, root, { log() {}, warn() {} });
+  new Function('window', 'globalThis', 'console', read('battle/core-runtime.js'))(root, root, {
+    log() {},
+    warn() {}
+  });
   let source = read('battle/ai-policy.js');
   if (!stashed) {
     assert.ok(source.includes(SWITCH), 'the switch line moved: update SWITCH in genome-gate-check.js');
-    source = source.replace(SWITCH, 'var STASHED=false;');
+    source = source.replace(SWITCH, 'var STASHED = false;');
   }
   const fetchStub = url => {
     fetchLog.push(String(url));

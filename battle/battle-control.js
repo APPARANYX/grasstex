@@ -1,109 +1,560 @@
 /* Battle Sim / ww2fps AI lab operator controls. */
-(function(root){
+(function (root) {
   'use strict';
   /* No build stamp here. This file used to set BATTLE_BUILD and rewrite the HUD label and title to
      its own hard-coded version, which is how a v28 page ended up displaying v22. The page owns the
      build id; see battle/battle_sim.html. */
-  if(!root.BattleSim)return;
-  var oldStart=root.BattleSim.start,API_BASE=root.BATTLE_API_BASE||'/grasstex/';
-  var TIME_LIMIT_REASON='time limit objective score',DEFAULT_DURATION_MINUTES=10,MIN_DURATION_MINUTES=1,MAX_DURATION_MINUTES=180;
-  function telemetry(sim,type,data){if(root.BattleTelemetry)root.BattleTelemetry.record(type,data,sim);}
-  function addButton(parent,label,id,handler){var b=document.createElement('button');b.id=id;b.type='button';b.textContent=label;b.style.cssText='flex:1;padding:6px 5px;background:#1c2116;border:1px solid #46512f;color:#e7e7dc;font-size:11px;border-radius:5px;cursor:pointer';b.addEventListener('click',handler);parent.appendChild(b);return b;}
-  function row(parent){var r=document.createElement('div');r.style.cssText='display:flex;gap:5px;margin-top:5px';parent.appendChild(r);return r;}
-  function scenario(sim){return sim&&sim.scene&&sim.scene.metadata&&(sim.scene.metadata.battleScenario||sim.scene.metadata.battleTown)||null;}
-  function clampDurationMinutes(value){var n=Number(value);if(!isFinite(n))n=DEFAULT_DURATION_MINUTES;return Math.max(MIN_DURATION_MINUTES,Math.min(MAX_DURATION_MINUTES,Math.round(n)));}
-  function storedDurationMinutes(sim){var fallback=isFinite(+sim.timeLimit)&&sim.timeLimit>0?Math.round(sim.timeLimit/60):DEFAULT_DURATION_MINUTES;try{var saved=localStorage.getItem('battleDurationMinutes');if(saved!=null)return clampDurationMinutes(saved);}catch(_){}return clampDurationMinutes(fallback);}
-  function applyDuration(sim,input){var minutes=clampDurationMinutes(input&&input.value);if(input)input.value=String(minutes);sim._operatorTimeLimitSeconds=minutes*60;sim.timeLimit=sim._operatorTimeLimitSeconds;try{localStorage.setItem('battleDurationMinutes',String(minutes));}catch(_){}return minutes;}
-  function continueAfterTimeLimit(sim){
-    if(!sim||sim.winReason!==TIME_LIMIT_REASON)return false;
-    var expiredAt=+sim.time||0,configured=+sim._operatorTimeLimitSeconds||null;
-    sim.winner=null;sim.winReason=null;sim.manualEnded=false;sim.timeLimit=Infinity;sim.resume();
-    var banner=document.getElementById('banner');if(banner)banner.style.display='none';
-    var button=document.getElementById('bannerContinue');if(button)button.hidden=true;
-    var status=document.getElementById('aiTestStatus');if(status)status.textContent='Battle continued past time limit · awaiting decisive outcome';
-    telemetry(sim,'battle-continue-after-time-limit',{at:+expiredAt.toFixed(2),configuredTimeLimit:configured});
-    root.GTLog('[CONTROL] continued past time limit at '+expiredAt.toFixed(1)+'s');return true;
+  if (!root.BattleSim) return;
+  var oldStart = root.BattleSim.start,
+    API_BASE = root.BATTLE_API_BASE || '/grasstex/';
+  var TIME_LIMIT_REASON = 'time limit objective score',
+    DEFAULT_DURATION_MINUTES = 10,
+    MIN_DURATION_MINUTES = 1,
+    MAX_DURATION_MINUTES = 180;
+  function telemetry(sim, type, data) {
+    if (root.BattleTelemetry) root.BattleTelemetry.record(type, data, sim);
   }
-  function syncTimeoutContinueUi(sim){
-    var button=document.getElementById('bannerContinue');if(!button)return;
-    var timedOut=!!(sim&&sim.winner&&sim.winReason===TIME_LIMIT_REASON);button.hidden=!timedOut;
-    if(timedOut){var text=document.getElementById('bannerText');if(text){var leader=sim.winner==='draw'?'Draw':sim.winner==='us'?'US leads':'German forces lead';text.textContent='Time limit · '+leader;}}
+  function addButton(parent, label, id, handler) {
+    var b = document.createElement('button');
+    b.id = id;
+    b.type = 'button';
+    b.textContent = label;
+    b.style.cssText =
+      'flex:1;padding:6px 5px;background:#1c2116;border:1px solid #46512f;color:#e7e7dc;font-size:11px;border-radius:5px;cursor:pointer';
+    b.addEventListener('click', handler);
+    parent.appendChild(b);
+    return b;
+  }
+  function row(parent) {
+    var r = document.createElement('div');
+    r.style.cssText = 'display:flex;gap:5px;margin-top:5px';
+    parent.appendChild(r);
+    return r;
+  }
+  function scenario(sim) {
+    return (
+      (sim &&
+        sim.scene &&
+        sim.scene.metadata &&
+        (sim.scene.metadata.battleScenario || sim.scene.metadata.battleTown)) ||
+      null
+    );
+  }
+  function clampDurationMinutes(value) {
+    var n = Number(value);
+    if (!isFinite(n)) n = DEFAULT_DURATION_MINUTES;
+    return Math.max(MIN_DURATION_MINUTES, Math.min(MAX_DURATION_MINUTES, Math.round(n)));
+  }
+  function storedDurationMinutes(sim) {
+    var fallback =
+      isFinite(+sim.timeLimit) && sim.timeLimit > 0
+        ? Math.round(sim.timeLimit / 60)
+        : DEFAULT_DURATION_MINUTES;
+    try {
+      var saved = localStorage.getItem('battleDurationMinutes');
+      if (saved != null) return clampDurationMinutes(saved);
+    } catch (_) {}
+    return clampDurationMinutes(fallback);
+  }
+  function applyDuration(sim, input) {
+    var minutes = clampDurationMinutes(input && input.value);
+    if (input) input.value = String(minutes);
+    sim._operatorTimeLimitSeconds = minutes * 60;
+    sim.timeLimit = sim._operatorTimeLimitSeconds;
+    try {
+      localStorage.setItem('battleDurationMinutes', String(minutes));
+    } catch (_) {}
+    return minutes;
+  }
+  function continueAfterTimeLimit(sim) {
+    if (!sim || sim.winReason !== TIME_LIMIT_REASON) return false;
+    var expiredAt = +sim.time || 0,
+      configured = +sim._operatorTimeLimitSeconds || null;
+    sim.winner = null;
+    sim.winReason = null;
+    sim.manualEnded = false;
+    sim.timeLimit = Infinity;
+    sim.resume();
+    var banner = document.getElementById('banner');
+    if (banner) banner.style.display = 'none';
+    var button = document.getElementById('bannerContinue');
+    if (button) button.hidden = true;
+    var status = document.getElementById('aiTestStatus');
+    if (status) status.textContent = 'Battle continued past time limit · awaiting decisive outcome';
+    telemetry(sim, 'battle-continue-after-time-limit', {
+      at: +expiredAt.toFixed(2),
+      configuredTimeLimit: configured
+    });
+    root.GTLog('[CONTROL] continued past time limit at ' + expiredAt.toFixed(1) + 's');
+    return true;
+  }
+  function syncTimeoutContinueUi(sim) {
+    var button = document.getElementById('bannerContinue');
+    if (!button) return;
+    var timedOut = !!(sim && sim.winner && sim.winReason === TIME_LIMIT_REASON);
+    button.hidden = !timedOut;
+    if (timedOut) {
+      var text = document.getElementById('bannerText');
+      if (text) {
+        var leader = sim.winner === 'draw' ? 'Draw' : sim.winner === 'us' ? 'US leads' : 'German forces lead';
+        text.textContent = 'Time limit · ' + leader;
+      }
+    }
   }
 
-  function spawnUnit(sim,faction,typeId){if(sim._trainingRunning)return null;if(!root.BattleModules)throw new Error('Battle module registry unavailable');var result=root.BattleModules.spawnUnitType(typeId,sim,faction,{}),count=result&&result.count!=null?result.count:(result&&result.units?result.units.length:1);telemetry(sim,'reinforcement',{faction:faction,unitType:typeId,count:count,totalAlive:sim.factions[faction]&&sim.factions[faction].alive});return result;}
+  function spawnUnit(sim, faction, typeId) {
+    if (sim._trainingRunning) return null;
+    if (!root.BattleModules) throw new Error('Battle module registry unavailable');
+    var result = root.BattleModules.spawnUnitType(typeId, sim, faction, {}),
+      count =
+        result && result.count != null ? result.count : result && result.units ? result.units.length : 1;
+    telemetry(sim, 'reinforcement', {
+      faction: faction,
+      unitType: typeId,
+      count: count,
+      totalAlive: sim.factions[faction] && sim.factions[faction].alive
+    });
+    return result;
+  }
   /* Live engagement readout. "Are they actually fighting or just walking about" should be
      answerable from the HUD, not only from the telemetry log. */
-  function engagementText(sim){
-    if(!root.BattleEngagement)return'Engagement pipeline not loaded';
-    var counts={},contact=0,known=0,suppressing=0,total=0;
-    ['us','ge'].forEach(function(f){
-      (sim._roster&&sim._roster[f]||[]).forEach(function(s){
-        if(s.dead)return;total++;
-        var e=root.BattleEngagement.stateOf(s);
+  function engagementText(sim) {
+    if (!root.BattleEngagement) return 'Engagement pipeline not loaded';
+    var counts = {},
+      contact = 0,
+      known = 0,
+      suppressing = 0,
+      total = 0;
+    ['us', 'ge'].forEach(function (f) {
+      ((sim._roster && sim._roster[f]) || []).forEach(function (s) {
+        if (s.dead) return;
+        total++;
+        var e = root.BattleEngagement.stateOf(s);
         /* A designated suppressor sits in the alert state while he works, so label the job rather
            than the state - "alert" would read as idle. */
-        var st=(e.suppressOrder&&e.state==='alert'?'suppress':e.state)||'advance';
-        counts[st]=(counts[st]||0)+1;
+        var st = (e.suppressOrder && e.state === 'alert' ? 'suppress' : e.state) || 'advance';
+        counts[st] = (counts[st] || 0) + 1;
       });
-      (sim.factions&&sim.factions[f]&&sim.factions[f].squads||[]).forEach(function(sq){if(sq.inContact)contact++;if(sq.contact)known++;suppressing+=sq.suppressorCount||0;});
+      ((sim.factions && sim.factions[f] && sim.factions[f].squads) || []).forEach(function (sq) {
+        if (sq.inContact) contact++;
+        if (sq.contact) known++;
+        suppressing += sq.suppressorCount || 0;
+      });
     });
-    var order=['advance','alert','orient','bound','engage','suppress','pinned','assault','station','withdraw'];
-    var parts=order.filter(function(k){return counts[k];}).map(function(k){return k+' '+counts[k];});
-    Object.keys(counts).forEach(function(k){if(order.indexOf(k)<0)parts.push(k+' '+counts[k]);});
-    return contact+' in contact · '+known+' tracking a position · '+suppressing+' suppressing\n'+(parts.join(' · ')||'no men')+' ('+total+' alive)';
+    var order = [
+      'advance',
+      'alert',
+      'orient',
+      'bound',
+      'engage',
+      'suppress',
+      'pinned',
+      'assault',
+      'station',
+      'withdraw'
+    ];
+    var parts = order
+      .filter(function (k) {
+        return counts[k];
+      })
+      .map(function (k) {
+        return k + ' ' + counts[k];
+      });
+    Object.keys(counts).forEach(function (k) {
+      if (order.indexOf(k) < 0) parts.push(k + ' ' + counts[k]);
+    });
+    return (
+      contact +
+      ' in contact · ' +
+      known +
+      ' tracking a position · ' +
+      suppressing +
+      ' suppressing\n' +
+      (parts.join(' · ') || 'no men') +
+      ' (' +
+      total +
+      ' alive)'
+    );
   }
-  function objectiveText(sim){var control=sim.objectiveControl,objects=control&&(control.objectives||control.sectors);if(!objects)return'';var parts=[];Object.keys(objects).forEach(function(id){var x=objects[id]||{},owner=x.owner==='neutral'?'N':String(x.owner||'?').toUpperCase(),push=x.active?(' '+String(x.active).toUpperCase()+'→'+(x.progress||0)+'%'):'';parts.push((x.label||id)+': '+owner+push);});return parts.join(' · ');}
-  function endBattle(sim,reason){if(sim._trainingRunning)return;sim.pause();sim.manualEnded=true;if(root.BattleTelemetry)root.BattleTelemetry.end(sim,reason||'manual',{usAlive:sim.factions.us.alive,geAlive:sim.factions.ge.alive,objectives:sim.objectiveControl||null,policyRevision:root.BattleAIPolicy?root.BattleAIPolicy.revision:0});var s=document.getElementById('aiTestStatus');if(s)s.textContent='Battle ended · decision logging stopped';root.GTLog('[CONTROL] battle ended; telemetry flushed');}
-  function formatStats(j){if(!j||!j.ok)return'Log stats unavailable';var p=!(root.BattleAIPolicy&&root.BattleAIPolicy.stashed)&&j.policy&&j.policy.revision!=null?(' · genome r'+j.policy.revision):'';return'Logs: '+j.records+' events · '+j.battles+' battles · '+j.captures+' captures · '+j.sessions+' sessions'+p;}
-  function refreshStats(target){return fetch(API_BASE+'battle_log_stats.php?days=7&ts='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){if(target)target.textContent=formatStats(j);return j;}).catch(function(){if(target)target.textContent='Log stats unavailable';return null;});}
-  function newScenario(sim){
-    if(sim._trainingRunning||!root.BattleScenarioGenerator||!root.BattleTownObjectives)return;var seed=root.BattleScenarioGenerator.newSeed('live');var wasPaused=sim.paused;
-    root.BattleTownObjectives.regenerate(sim.scene,sim.heightAt,seed,{manualScenario:true},sim);sim.restart();sim.paused=wasPaused;telemetry(sim,'scenario-generated',{seed:seed,scenarioId:scenario(sim)&&scenario(sim).id,fingerprint:scenario(sim)&&scenario(sim).fingerprint});root.GTLog('[CONTROL] new scenario seed='+seed);
+  function objectiveText(sim) {
+    var control = sim.objectiveControl,
+      objects = control && (control.objectives || control.sectors);
+    if (!objects) return '';
+    var parts = [];
+    Object.keys(objects).forEach(function (id) {
+      var x = objects[id] || {},
+        owner = x.owner === 'neutral' ? 'N' : String(x.owner || '?').toUpperCase(),
+        push = x.active ? ' ' + String(x.active).toUpperCase() + '→' + (x.progress || 0) + '%' : '';
+      parts.push((x.label || id) + ': ' + owner + push);
+    });
+    return parts.join(' · ');
+  }
+  function endBattle(sim, reason) {
+    if (sim._trainingRunning) return;
+    sim.pause();
+    sim.manualEnded = true;
+    if (root.BattleTelemetry)
+      root.BattleTelemetry.end(sim, reason || 'manual', {
+        usAlive: sim.factions.us.alive,
+        geAlive: sim.factions.ge.alive,
+        objectives: sim.objectiveControl || null,
+        policyRevision: root.BattleAIPolicy ? root.BattleAIPolicy.revision : 0
+      });
+    var s = document.getElementById('aiTestStatus');
+    if (s) s.textContent = 'Battle ended · decision logging stopped';
+    root.GTLog('[CONTROL] battle ended; telemetry flushed');
+  }
+  function formatStats(j) {
+    if (!j || !j.ok) return 'Log stats unavailable';
+    var p =
+      !(root.BattleAIPolicy && root.BattleAIPolicy.stashed) && j.policy && j.policy.revision != null
+        ? ' · genome r' + j.policy.revision
+        : '';
+    return (
+      'Logs: ' +
+      j.records +
+      ' events · ' +
+      j.battles +
+      ' battles · ' +
+      j.captures +
+      ' captures · ' +
+      j.sessions +
+      ' sessions' +
+      p
+    );
+  }
+  function refreshStats(target) {
+    return fetch(API_BASE + 'battle_log_stats.php?days=7&ts=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) {
+        return r.ok ? r.json() : null;
+      })
+      .then(function (j) {
+        if (target) target.textContent = formatStats(j);
+        return j;
+      })
+      .catch(function () {
+        if (target) target.textContent = 'Log stats unavailable';
+        return null;
+      });
+  }
+  function newScenario(sim) {
+    if (sim._trainingRunning || !root.BattleScenarioGenerator || !root.BattleTownObjectives) return;
+    var seed = root.BattleScenarioGenerator.newSeed('live');
+    var wasPaused = sim.paused;
+    root.BattleTownObjectives.regenerate(sim.scene, sim.heightAt, seed, { manualScenario: true }, sim);
+    sim.restart();
+    sim.paused = wasPaused;
+    telemetry(sim, 'scenario-generated', {
+      seed: seed,
+      scenarioId: scenario(sim) && scenario(sim).id,
+      fingerprint: scenario(sim) && scenario(sim).fingerprint
+    });
+    root.GTLog('[CONTROL] new scenario seed=' + seed);
   }
 
-  function installUi(sim){
-    var hud=document.getElementById('hud');if(!hud||document.getElementById('battleOps'))return;
-    var startBtn=document.getElementById('startBtn'),duration=document.createElement('div');duration.id='battleDurationControl';duration.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;color:#a8ab8e';
-    var durationLabel=document.createElement('label');durationLabel.htmlFor='battleDurationMinutes';durationLabel.textContent='Battle length';
-    var durationWrap=document.createElement('span');durationWrap.style.cssText='display:flex;align-items:center;gap:4px;color:#c6cbb0';
-    var durationInput=document.createElement('input');durationInput.id='battleDurationMinutes';durationInput.type='number';durationInput.min=String(MIN_DURATION_MINUTES);durationInput.max=String(MAX_DURATION_MINUTES);durationInput.step='1';durationInput.value=String(storedDurationMinutes(sim));durationInput.setAttribute('aria-label','Battle length in minutes');durationInput.style.cssText='width:58px;box-sizing:border-box;padding:3px 5px;border:1px solid #46512f;border-radius:4px;background:#11160e;color:#eef0df;font:11px Arial,sans-serif;text-align:right';
-    durationWrap.appendChild(durationInput);durationWrap.appendChild(document.createTextNode('min'));duration.appendChild(durationLabel);duration.appendChild(durationWrap);
-    if(startBtn&&startBtn.parentNode)startBtn.parentNode.insertBefore(duration,startBtn);else hud.appendChild(duration);
-    applyDuration(sim,durationInput);durationInput.addEventListener('change',function(){var minutes=applyDuration(sim,durationInput);root.GTLog('[CONTROL] battle length='+minutes+' min');});
+  function installUi(sim) {
+    var hud = document.getElementById('hud');
+    if (!hud || document.getElementById('battleOps')) return;
+    var startBtn = document.getElementById('startBtn'),
+      duration = document.createElement('div');
+    duration.id = 'battleDurationControl';
+    duration.style.cssText =
+      'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;color:#a8ab8e';
+    var durationLabel = document.createElement('label');
+    durationLabel.htmlFor = 'battleDurationMinutes';
+    durationLabel.textContent = 'Battle length';
+    var durationWrap = document.createElement('span');
+    durationWrap.style.cssText = 'display:flex;align-items:center;gap:4px;color:#c6cbb0';
+    var durationInput = document.createElement('input');
+    durationInput.id = 'battleDurationMinutes';
+    durationInput.type = 'number';
+    durationInput.min = String(MIN_DURATION_MINUTES);
+    durationInput.max = String(MAX_DURATION_MINUTES);
+    durationInput.step = '1';
+    durationInput.value = String(storedDurationMinutes(sim));
+    durationInput.setAttribute('aria-label', 'Battle length in minutes');
+    durationInput.style.cssText =
+      'width:58px;box-sizing:border-box;padding:3px 5px;border:1px solid #46512f;border-radius:4px;background:#11160e;color:#eef0df;font:11px Arial,sans-serif;text-align:right';
+    durationWrap.appendChild(durationInput);
+    durationWrap.appendChild(document.createTextNode('min'));
+    duration.appendChild(durationLabel);
+    duration.appendChild(durationWrap);
+    if (startBtn && startBtn.parentNode) startBtn.parentNode.insertBefore(duration, startBtn);
+    else hud.appendChild(duration);
+    applyDuration(sim, durationInput);
+    durationInput.addEventListener('change', function () {
+      var minutes = applyDuration(sim, durationInput);
+      root.GTLog('[CONTROL] battle length=' + minutes + ' min');
+    });
 
-    var banner=document.getElementById('banner'),bannerRestart=document.getElementById('bannerRestart'),bannerContinue=null;
-    if(bannerRestart&&bannerRestart.parentNode){bannerContinue=document.createElement('button');bannerContinue.id='bannerContinue';bannerContinue.type='button';bannerContinue.textContent='Continue';bannerContinue.hidden=true;bannerContinue.style.marginRight='8px';bannerRestart.parentNode.insertBefore(bannerContinue,bannerRestart);bannerContinue.addEventListener('click',function(){continueAfterTimeLimit(sim);});}
+    var banner = document.getElementById('banner'),
+      bannerRestart = document.getElementById('bannerRestart'),
+      bannerContinue = null;
+    if (bannerRestart && bannerRestart.parentNode) {
+      bannerContinue = document.createElement('button');
+      bannerContinue.id = 'bannerContinue';
+      bannerContinue.type = 'button';
+      bannerContinue.textContent = 'Continue';
+      bannerContinue.hidden = true;
+      bannerContinue.style.marginRight = '8px';
+      bannerRestart.parentNode.insertBefore(bannerContinue, bannerRestart);
+      bannerContinue.addEventListener('click', function () {
+        continueAfterTimeLimit(sim);
+      });
+    }
 
-    var box=document.createElement('div');box.id='battleOps';box.style.cssText='margin-top:8px;border-top:1px solid rgba(255,255,255,.1);padding-top:8px';
-    var types=root.BattleModules?root.BattleModules.listUnitTypes().filter(function(t){return t.operatorSpawn;}):[];types.forEach(function(type,index){var r=row(box),n=type.spawnCount||1,label=type.buttonLabel||type.label||type.id;addButton(r,'+'+n+' US '+label,'spawn-us-'+index,function(){spawnUnit(sim,'us',type.id);});addButton(r,'+'+n+' GER '+label,'spawn-ge-'+index,function(){spawnUnit(sim,'ge',type.id);});});
-    var actions=row(box);addButton(actions,'End battle','endBattleBtn',function(){endBattle(sim,'manual');});var train=root.BattleAIPolicy&&root.BattleAIPolicy.stashed?null:addButton(actions,'Genome v2 Training','trainAiBtn',function(){showTrainingDialog(sim,train);});
-    var maps=row(box);addButton(maps,'New seeded map','newScenarioBtn',function(){newScenario(sim);});addButton(maps,'Training review ↗','trainingReviewBtn',function(){window.open(API_BASE+'battle_metrics.php','_blank','noopener');});
-    var statsRow=row(box);addButton(statsRow,'Refresh log stats','refreshStatsBtn',function(){refreshStats(document.getElementById('logStats'));});
-    var status=document.createElement('div');status.id='aiTestStatus';status.style.cssText='margin-top:6px;color:#a8ab8e;font-size:10px;line-height:1.35';status.textContent='AI log: active · '+(root.BattleAIPolicy&&root.BattleAIPolicy.stashed?'genome stashed (code defaults)':'genome r'+(root.BattleAIPolicy?root.BattleAIPolicy.revision:0));box.appendChild(status);
-    var scenarioInfo=document.createElement('div');scenarioInfo.id='scenarioInfo';scenarioInfo.style.cssText='margin-top:4px;color:#b9bea7;font-size:10px;line-height:1.35;word-break:break-all';box.appendChild(scenarioInfo);
-    var logStats=document.createElement('div');logStats.id='logStats';logStats.style.cssText='margin-top:4px;color:#a8ab8e;font-size:10px;line-height:1.35';logStats.textContent='Logs: loading…';box.appendChild(logStats);
-    var engagement=document.createElement('div');engagement.id='engagementDetail';engagement.style.cssText='margin-top:5px;color:#cfd6b6;font-size:10px;line-height:1.35';box.appendChild(engagement);
-    var objective=document.createElement('div');objective.id='objectiveDetail';objective.style.cssText='margin-top:5px;color:#b9bea7;font-size:10px;line-height:1.35';box.appendChild(objective);hud.appendChild(box);
-    setInterval(function(){var o=document.getElementById('objectiveDetail');if(o)o.textContent=objectiveText(sim);var eg=document.getElementById('engagementDetail');if(eg)eg.textContent=engagementText(sim);var sc=scenario(sim),e=document.getElementById('scenarioInfo');if(e&&sc)e.textContent='Scenario '+sc.id+' · seed '+sc.seed+' · '+sc.buildings.length+' buildings · '+sc.objectives.length+' objectives';syncTimeoutContinueUi(sim);},500);refreshStats(logStats);setInterval(function(){refreshStats(logStats);},15000);
+    var box = document.createElement('div');
+    box.id = 'battleOps';
+    box.style.cssText = 'margin-top:8px;border-top:1px solid rgba(255,255,255,.1);padding-top:8px';
+    var types = root.BattleModules
+      ? root.BattleModules.listUnitTypes().filter(function (t) {
+          return t.operatorSpawn;
+        })
+      : [];
+    types.forEach(function (type, index) {
+      var r = row(box),
+        n = type.spawnCount || 1,
+        label = type.buttonLabel || type.label || type.id;
+      addButton(r, '+' + n + ' US ' + label, 'spawn-us-' + index, function () {
+        spawnUnit(sim, 'us', type.id);
+      });
+      addButton(r, '+' + n + ' GER ' + label, 'spawn-ge-' + index, function () {
+        spawnUnit(sim, 'ge', type.id);
+      });
+    });
+    var actions = row(box);
+    addButton(actions, 'End battle', 'endBattleBtn', function () {
+      endBattle(sim, 'manual');
+    });
+    var train =
+      root.BattleAIPolicy && root.BattleAIPolicy.stashed
+        ? null
+        : addButton(actions, 'Genome v2 Training', 'trainAiBtn', function () {
+            showTrainingDialog(sim, train);
+          });
+    var maps = row(box);
+    addButton(maps, 'New seeded map', 'newScenarioBtn', function () {
+      newScenario(sim);
+    });
+    addButton(maps, 'Training review ↗', 'trainingReviewBtn', function () {
+      window.open(API_BASE + 'battle_metrics.php', '_blank', 'noopener');
+    });
+    var statsRow = row(box);
+    addButton(statsRow, 'Refresh log stats', 'refreshStatsBtn', function () {
+      refreshStats(document.getElementById('logStats'));
+    });
+    var status = document.createElement('div');
+    status.id = 'aiTestStatus';
+    status.style.cssText = 'margin-top:6px;color:#a8ab8e;font-size:10px;line-height:1.35';
+    status.textContent =
+      'AI log: active · ' +
+      (root.BattleAIPolicy && root.BattleAIPolicy.stashed
+        ? 'genome stashed (code defaults)'
+        : 'genome r' + (root.BattleAIPolicy ? root.BattleAIPolicy.revision : 0));
+    box.appendChild(status);
+    var scenarioInfo = document.createElement('div');
+    scenarioInfo.id = 'scenarioInfo';
+    scenarioInfo.style.cssText =
+      'margin-top:4px;color:#b9bea7;font-size:10px;line-height:1.35;word-break:break-all';
+    box.appendChild(scenarioInfo);
+    var logStats = document.createElement('div');
+    logStats.id = 'logStats';
+    logStats.style.cssText = 'margin-top:4px;color:#a8ab8e;font-size:10px;line-height:1.35';
+    logStats.textContent = 'Logs: loading…';
+    box.appendChild(logStats);
+    var engagement = document.createElement('div');
+    engagement.id = 'engagementDetail';
+    engagement.style.cssText = 'margin-top:5px;color:#cfd6b6;font-size:10px;line-height:1.35';
+    box.appendChild(engagement);
+    var objective = document.createElement('div');
+    objective.id = 'objectiveDetail';
+    objective.style.cssText = 'margin-top:5px;color:#b9bea7;font-size:10px;line-height:1.35';
+    box.appendChild(objective);
+    hud.appendChild(box);
+    setInterval(function () {
+      var o = document.getElementById('objectiveDetail');
+      if (o) o.textContent = objectiveText(sim);
+      var eg = document.getElementById('engagementDetail');
+      if (eg) eg.textContent = engagementText(sim);
+      var sc = scenario(sim),
+        e = document.getElementById('scenarioInfo');
+      if (e && sc)
+        e.textContent =
+          'Scenario ' +
+          sc.id +
+          ' · seed ' +
+          sc.seed +
+          ' · ' +
+          sc.buildings.length +
+          ' buildings · ' +
+          sc.objectives.length +
+          ' objectives';
+      syncTimeoutContinueUi(sim);
+    }, 500);
+    refreshStats(logStats);
+    setInterval(function () {
+      refreshStats(logStats);
+    }, 15000);
   }
 
-  function showTrainingDialog(sim,trainButton){
-    var overlay=document.getElementById('genomeTrainingDialog');
-    if(!overlay){
-      overlay=document.createElement('div');overlay.id='genomeTrainingDialog';overlay.style.cssText='position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(4,7,4,.76);font:13px/1.45 Arial,sans-serif;color:#edf0de';
-      overlay.innerHTML='<div role="dialog" aria-modal="true" aria-labelledby="genomeTrainingTitle" style="width:min(420px,100%);box-sizing:border-box;border:1px solid #66784a;border-radius:10px;background:#141a11;box-shadow:0 20px 70px rgba(0,0,0,.5);padding:18px"><div id="genomeTrainingTitle" style="font-size:18px;font-weight:700">Genome v2 Training</div><div id="genomeTrainingPrompt" style="margin-top:7px;color:#c5cbb2">Choose how to run this generation.</div><div id="genomeTrainingChoices" style="display:flex;gap:8px;margin-top:16px"><button type="button" data-training-mode="screen" style="flex:1;padding:10px 8px;border:1px solid #788c58;border-radius:6px;background:#27331e;color:#f0f4e8;cursor:pointer">On screen<br><small>6 matches · responsive</small></button><button type="button" data-training-mode="headless" style="flex:1;padding:10px 8px;border:1px solid #788c58;border-radius:6px;background:#33451f;color:#f0f4e8;cursor:pointer">Headless<br><small>24 matches · no rendering</small></button></div><div id="genomeTrainingProgress" style="display:none;margin-top:18px"><div id="genomeTrainingProgressLabel" style="color:#dce5ce">Preparing training…</div><div style="height:10px;margin-top:7px;overflow:hidden;border:1px solid #66784a;border-radius:999px;background:#090c08"><div id="genomeTrainingProgressFill" style="width:0;height:100%;background:#9bbd54;transition:width .12s linear"></div></div></div><div style="display:flex;justify-content:flex-end;margin-top:18px"><button id="genomeTrainingClose" type="button" style="padding:7px 14px;border:1px solid #66784a;border-radius:6px;background:#20291a;color:#edf0de;cursor:pointer">Close</button></div></div>';
+  function showTrainingDialog(sim, trainButton) {
+    var overlay = document.getElementById('genomeTrainingDialog');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'genomeTrainingDialog';
+      overlay.style.cssText =
+        'position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(4,7,4,.76);font:13px/1.45 Arial,sans-serif;color:#edf0de';
+      overlay.innerHTML =
+        '<div role="dialog" aria-modal="true" aria-labelledby="genomeTrainingTitle" style="width:min(420px,100%);box-sizing:border-box;border:1px solid #66784a;border-radius:10px;background:#141a11;box-shadow:0 20px 70px rgba(0,0,0,.5);padding:18px"><div id="genomeTrainingTitle" style="font-size:18px;font-weight:700">Genome v2 Training</div><div id="genomeTrainingPrompt" style="margin-top:7px;color:#c5cbb2">Choose how to run this generation.</div><div id="genomeTrainingChoices" style="display:flex;gap:8px;margin-top:16px"><button type="button" data-training-mode="screen" style="flex:1;padding:10px 8px;border:1px solid #788c58;border-radius:6px;background:#27331e;color:#f0f4e8;cursor:pointer">On screen<br><small>6 matches · responsive</small></button><button type="button" data-training-mode="headless" style="flex:1;padding:10px 8px;border:1px solid #788c58;border-radius:6px;background:#33451f;color:#f0f4e8;cursor:pointer">Headless<br><small>24 matches · no rendering</small></button></div><div id="genomeTrainingProgress" style="display:none;margin-top:18px"><div id="genomeTrainingProgressLabel" style="color:#dce5ce">Preparing training…</div><div style="height:10px;margin-top:7px;overflow:hidden;border:1px solid #66784a;border-radius:999px;background:#090c08"><div id="genomeTrainingProgressFill" style="width:0;height:100%;background:#9bbd54;transition:width .12s linear"></div></div></div><div style="display:flex;justify-content:flex-end;margin-top:18px"><button id="genomeTrainingClose" type="button" style="padding:7px 14px;border:1px solid #66784a;border-radius:6px;background:#20291a;color:#edf0de;cursor:pointer">Close</button></div></div>';
       document.body.appendChild(overlay);
     }
-    var choices=overlay.querySelector('#genomeTrainingChoices'),prompt=overlay.querySelector('#genomeTrainingPrompt'),progress=overlay.querySelector('#genomeTrainingProgress'),label=overlay.querySelector('#genomeTrainingProgressLabel'),fill=overlay.querySelector('#genomeTrainingProgressFill'),close=overlay.querySelector('#genomeTrainingClose');
-    function closeDialog(){if(!sim._trainingRunning)overlay.style.display='none';}
-    close.onclick=closeDialog;overlay.onclick=function(e){if(e.target===overlay)closeDialog();};overlay.style.display='flex';choices.style.display='flex';progress.style.display='none';prompt.textContent='Choose how to run this generation.';close.disabled=false;
-    Array.prototype.forEach.call(choices.querySelectorAll('[data-training-mode]'),function(choice){choice.onclick=async function(){if(sim._trainingRunning||!root.BattleAITrainer)return;var headless=choice.getAttribute('data-training-mode')==='headless';choices.style.display='none';progress.style.display='block';close.disabled=true;fill.style.width='0%';label.textContent=(headless?'Headless':'On-screen')+' training · preparing…';prompt.textContent=headless?'Rendering is paused while the full 24-match generation runs.':'The six-match generation yields every frame so the battle remains visible.';trainButton.disabled=true;trainButton.textContent='Training…';function onProgress(p){var completed=(p.matchNo-1)+Math.min(1,p.maxSteps?+p.steps/p.maxSteps:0),percent=Math.max(0,Math.min(100,completed/p.totalMatches*100));fill.style.width=percent.toFixed(1)+'%';label.textContent=(p.headless?'Headless':'On-screen')+' · '+(p.phase==='complete'?'complete':('match '+p.matchNo+'/'+p.totalMatches))+' · '+percent.toFixed(1)+'%';}try{await root.BattleAITrainer.train(sim,{candidates:headless?4:3,scenarios:headless?3:1,headless:headless,renderLoop:root.__battleRenderLoop__,button:trainButton,status:document.getElementById('aiTestStatus'),onProgress:onProgress});fill.style.width='100%';label.textContent=(headless?'Headless':'On-screen')+' training complete · 100%';prompt.textContent='Results were saved to the training log.';}catch(e){console.error('[TRAINING] failed',e);label.textContent='Training failed: '+(e&&e.message||e);prompt.textContent='No policy promotion was applied from this run.';}finally{close.disabled=false;trainButton.disabled=false;trainButton.textContent='Genome v2 Training';refreshStats(document.getElementById('logStats'));}};});
+    var choices = overlay.querySelector('#genomeTrainingChoices'),
+      prompt = overlay.querySelector('#genomeTrainingPrompt'),
+      progress = overlay.querySelector('#genomeTrainingProgress'),
+      label = overlay.querySelector('#genomeTrainingProgressLabel'),
+      fill = overlay.querySelector('#genomeTrainingProgressFill'),
+      close = overlay.querySelector('#genomeTrainingClose');
+    function closeDialog() {
+      if (!sim._trainingRunning) overlay.style.display = 'none';
+    }
+    close.onclick = closeDialog;
+    overlay.onclick = function (e) {
+      if (e.target === overlay) closeDialog();
+    };
+    overlay.style.display = 'flex';
+    choices.style.display = 'flex';
+    progress.style.display = 'none';
+    prompt.textContent = 'Choose how to run this generation.';
+    close.disabled = false;
+    Array.prototype.forEach.call(choices.querySelectorAll('[data-training-mode]'), function (choice) {
+      choice.onclick = async function () {
+        if (sim._trainingRunning || !root.BattleAITrainer) return;
+        var headless = choice.getAttribute('data-training-mode') === 'headless';
+        choices.style.display = 'none';
+        progress.style.display = 'block';
+        close.disabled = true;
+        fill.style.width = '0%';
+        label.textContent = (headless ? 'Headless' : 'On-screen') + ' training · preparing…';
+        prompt.textContent = headless
+          ? 'Rendering is paused while the full 24-match generation runs.'
+          : 'The six-match generation yields every frame so the battle remains visible.';
+        trainButton.disabled = true;
+        trainButton.textContent = 'Training…';
+        function onProgress(p) {
+          var completed = p.matchNo - 1 + Math.min(1, p.maxSteps ? +p.steps / p.maxSteps : 0),
+            percent = Math.max(0, Math.min(100, (completed / p.totalMatches) * 100));
+          fill.style.width = percent.toFixed(1) + '%';
+          label.textContent =
+            (p.headless ? 'Headless' : 'On-screen') +
+            ' · ' +
+            (p.phase === 'complete' ? 'complete' : 'match ' + p.matchNo + '/' + p.totalMatches) +
+            ' · ' +
+            percent.toFixed(1) +
+            '%';
+        }
+        try {
+          await root.BattleAITrainer.train(sim, {
+            candidates: headless ? 4 : 3,
+            scenarios: headless ? 3 : 1,
+            headless: headless,
+            renderLoop: root.__battleRenderLoop__,
+            button: trainButton,
+            status: document.getElementById('aiTestStatus'),
+            onProgress: onProgress
+          });
+          fill.style.width = '100%';
+          label.textContent = (headless ? 'Headless' : 'On-screen') + ' training complete · 100%';
+          prompt.textContent = 'Results were saved to the training log.';
+        } catch (e) {
+          console.error('[TRAINING] failed', e);
+          label.textContent = 'Training failed: ' + ((e && e.message) || e);
+          prompt.textContent = 'No policy promotion was applied from this run.';
+        } finally {
+          close.disabled = false;
+          trainButton.disabled = false;
+          trainButton.textContent = 'Genome v2 Training';
+          refreshStats(document.getElementById('logStats'));
+        }
+      };
+    });
   }
 
-  root.BattleSim.start=function(scene,opts){
-    var sim=oldStart(scene,opts),rawRestart=sim.restart.bind(sim);sim._controlRawRestart=rawRestart;sim.manualEnded=false;sim._operatorTimeLimitSeconds=clampDurationMinutes(storedDurationMinutes(sim))*60;sim.timeLimit=sim._operatorTimeLimitSeconds;if(root.BattleTelemetry)root.BattleTelemetry.ensure(sim,'live');sim.spawnUnit=function(faction,typeId){return spawnUnit(sim,faction,typeId);};sim.spawnReinforcement=function(faction){return spawnUnit(sim,faction,'infantry-squad');};sim.endBattle=function(reason){endBattle(sim,reason);};sim.continueAfterTimeLimit=function(){return continueAfterTimeLimit(sim);};
-    sim.restart=function(){var resumeAfter=sim.manualEnded||!sim.paused;if(root.BattleTelemetry)root.BattleTelemetry.end(sim,'restart');rawRestart();sim.timeLimit=sim._operatorTimeLimitSeconds;sim.manualEnded=false;sim.paused=!resumeAfter;var sc=scenario(sim);if(root.BattleTelemetry)root.BattleTelemetry.start(sim,'live',{restart:true,policyRevision:root.BattleAIPolicy?root.BattleAIPolicy.revision:0,scenarioSeed:sc&&sc.seed,scenarioId:sc&&sc.id});var s=document.getElementById('aiTestStatus');if(s)s.textContent='AI log: active · genome r'+(root.BattleAIPolicy?root.BattleAIPolicy.revision:0);var b=document.getElementById('bannerContinue');if(b)b.hidden=true;};
-    installUi(sim);var sc=scenario(sim);telemetry(sim,'battle-start',{usAlive:sim.factions.us.alive,geAlive:sim.factions.ge.alive,policyRevision:root.BattleAIPolicy?root.BattleAIPolicy.revision:0,scenarioSeed:sc&&sc.seed,scenarioId:sc&&sc.id,fingerprint:sc&&sc.fingerprint,unitModules:root.BattleModules?root.BattleModules.listUnitTypes().map(function(x){return x.id;}):[]});return sim;
+  root.BattleSim.start = function (scene, opts) {
+    var sim = oldStart(scene, opts),
+      rawRestart = sim.restart.bind(sim);
+    sim._controlRawRestart = rawRestart;
+    sim.manualEnded = false;
+    sim._operatorTimeLimitSeconds = clampDurationMinutes(storedDurationMinutes(sim)) * 60;
+    sim.timeLimit = sim._operatorTimeLimitSeconds;
+    if (root.BattleTelemetry) root.BattleTelemetry.ensure(sim, 'live');
+    sim.spawnUnit = function (faction, typeId) {
+      return spawnUnit(sim, faction, typeId);
+    };
+    sim.spawnReinforcement = function (faction) {
+      return spawnUnit(sim, faction, 'infantry-squad');
+    };
+    sim.endBattle = function (reason) {
+      endBattle(sim, reason);
+    };
+    sim.continueAfterTimeLimit = function () {
+      return continueAfterTimeLimit(sim);
+    };
+    sim.restart = function () {
+      var resumeAfter = sim.manualEnded || !sim.paused;
+      if (root.BattleTelemetry) root.BattleTelemetry.end(sim, 'restart');
+      rawRestart();
+      sim.timeLimit = sim._operatorTimeLimitSeconds;
+      sim.manualEnded = false;
+      sim.paused = !resumeAfter;
+      var sc = scenario(sim);
+      if (root.BattleTelemetry)
+        root.BattleTelemetry.start(sim, 'live', {
+          restart: true,
+          policyRevision: root.BattleAIPolicy ? root.BattleAIPolicy.revision : 0,
+          scenarioSeed: sc && sc.seed,
+          scenarioId: sc && sc.id
+        });
+      var s = document.getElementById('aiTestStatus');
+      if (s)
+        s.textContent =
+          'AI log: active · genome r' + (root.BattleAIPolicy ? root.BattleAIPolicy.revision : 0);
+      var b = document.getElementById('bannerContinue');
+      if (b) b.hidden = true;
+    };
+    installUi(sim);
+    var sc = scenario(sim);
+    telemetry(sim, 'battle-start', {
+      usAlive: sim.factions.us.alive,
+      geAlive: sim.factions.ge.alive,
+      policyRevision: root.BattleAIPolicy ? root.BattleAIPolicy.revision : 0,
+      scenarioSeed: sc && sc.seed,
+      scenarioId: sc && sc.id,
+      fingerprint: sc && sc.fingerprint,
+      unitModules: root.BattleModules
+        ? root.BattleModules.listUnitTypes().map(function (x) {
+            return x.id;
+          })
+        : []
+    });
+    return sim;
   };
-  root.BattleControl={spawnUnit:spawnUnit,endBattle:endBattle,refreshStats:refreshStats,newScenario:newScenario,continueAfterTimeLimit:continueAfterTimeLimit,runScenarios:function(sim){return root.BattleAITrainer&&root.BattleAITrainer.train(sim,{candidates:4,scenarios:3,headless:true,renderLoop:root.__battleRenderLoop__});}};root.GTLog('[CONTROL] AI lab controls loaded · build '+(root.BATTLE_BUILD||'dev'));
-})(typeof window!=='undefined'?window:globalThis);
+  root.BattleControl = {
+    spawnUnit: spawnUnit,
+    endBattle: endBattle,
+    refreshStats: refreshStats,
+    newScenario: newScenario,
+    continueAfterTimeLimit: continueAfterTimeLimit,
+    runScenarios: function (sim) {
+      return (
+        root.BattleAITrainer &&
+        root.BattleAITrainer.train(sim, {
+          candidates: 4,
+          scenarios: 3,
+          headless: true,
+          renderLoop: root.__battleRenderLoop__
+        })
+      );
+    }
+  };
+  root.GTLog('[CONTROL] AI lab controls loaded · build ' + (root.BATTLE_BUILD || 'dev'));
+})(typeof window !== 'undefined' ? window : globalThis);

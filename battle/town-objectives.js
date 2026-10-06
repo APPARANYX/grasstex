@@ -1,56 +1,365 @@
 /* Procedural settlement renderer: roofless enterable buildings + terrain-conforming road splats. */
-(function(root){
+(function (root) {
   'use strict';
-  if(typeof BABYLON==='undefined'||!root.BattleTerrainFeatures||!root.BattleScenarioGenerator)return;
-  var oldScatter=root.BattleTerrainFeatures.scatter,currentRender=null,currentBase=null;
-  var WALL=new BABYLON.Color3(.52,.48,.39),WALL2=new BABYLON.Color3(.43,.40,.34),FLOOR=new BABYLON.Color3(.31,.29,.25),ROAD=new BABYLON.Color3(.24,.23,.21);
-  function mat(scene,name,color){var m=new BABYLON.StandardMaterial(name,scene);m.diffuseColor=color;m.specularColor=BABYLON.Color3.Black();return m;}
-  function renderMaterials(scene,tag){var road=mat(scene,'scenario-road-'+tag,ROAD);road.alpha=.72;road.backFaceCulling=false;road.useVertexColor=true;road.useVertexAlpha=true;road.zOffset=-2;return{wall:mat(scene,'scenario-wall-'+tag,WALL),wall2:mat(scene,'scenario-wall2-'+tag,WALL2),floor:mat(scene,'scenario-floor-'+tag,FLOOR),road:road};}
-  function disposeMaterials(mats){if(!mats)return;Object.keys(mats).forEach(function(k){try{mats[k].dispose();}catch(_){}});}
-  function addBox(scene,parent,name,w,h,d,x,y,z,material){var m=BABYLON.MeshBuilder.CreateBox(name,{width:w,height:h,depth:d},scene);m.parent=parent;m.position.set(x,y,z);m.material=material;m.isPickable=false;return m;}
-  function sideOpenings(b,side){return(b.openings||[]).filter(function(o){return o.side===side;}).sort(function(a,c){return a.offset-c.offset;});}
-  function buildWall(scene,rootNode,b,side,wallMat,meshes){var northSouth=side==='north'||side==='south',len=northSouth?b.w:b.d,thick=.32,h=b.h,constant=northSouth?(side==='north'?b.d/2:-b.d/2):(side==='east'?b.w/2:-b.w/2),opens=sideOpenings(b,side),cursor=-len/2;function piece(range,y0,y1){var width=range[1]-range[0];if(width<=.03||y1-y0<=.03)return;var along=(range[0]+range[1])/2,cy=(y0+y1)/2,m;if(northSouth)m=addBox(scene,rootNode,'wall-'+b.id+'-'+side,width,y1-y0,thick,along,cy,constant,wallMat);else m=addBox(scene,rootNode,'wall-'+b.id+'-'+side,thick,y1-y0,width,constant,cy,along,wallMat);meshes.push(m);}for(var i=0;i<opens.length;i++){var o=opens[i],a=Math.max(-len/2,o.offset-o.width/2),c=Math.min(len/2,o.offset+o.width/2);if(a>cursor)piece([cursor,a],0,h);if(o.bottom>0)piece([a,c],0,Math.min(h,o.bottom));if(o.top<h)piece([a,c],Math.max(0,o.top),h);cursor=Math.max(cursor,c);}if(cursor<len/2)piece([cursor,len/2],0,h);}
-  function buildBuilding(scene,heightAt,b,index,meshes,mats){var y=heightAt(b.x,b.z),node=new BABYLON.TransformNode('building-'+b.id,scene);node.position.set(b.x,y,b.z);node.rotation.y=b.rot||0;meshes.push(node);var wallMat=index%3===0?mats.wall2:mats.wall,slab=addBox(scene,node,'floor-'+b.id,b.w,.08,b.d,0,.04,0,mats.floor);meshes.push(slab);buildWall(scene,node,b,'north',wallMat,meshes);buildWall(scene,node,b,'south',wallMat,meshes);buildWall(scene,node,b,'east',wallMat,meshes);buildWall(scene,node,b,'west',wallMat,meshes);}
-  function buildRoad(scene,heightAt,r,index,meshes,mats){
-    var dx=r.bx-r.ax,dz=r.bz-r.az,len=Math.hypot(dx,dz)||1,uz=dz/len,rx=-uz,rz=dx/len,width=r.width||8,half=width/2,shoulder=2.6,steps=Math.max(4,Math.ceil(len/7)),positions=[],indices=[],colors=[],uvs=[],cross=[-half-shoulder,-half*.86,half*.86,half+shoulder],alpha=[0,.72,.72,0];
-    for(var i=0;i<=steps;i++){var t=i/steps,cx=r.ax+dx*t,cz=r.az+dz*t;for(var j=0;j<4;j++){var x=cx+rx*cross[j],z=cz+rz*cross[j],y=heightAt(x,z)+.055;positions.push(x,y,z);colors.push(1,1,1,alpha[j]);uvs.push(j/3,t*len/10);}}
-    for(i=0;i<steps;i++)for(j=0;j<3;j++){var a=i*4+j,b=a+1,c=(i+1)*4+j,d=c+1;indices.push(a,c,b,b,c,d);}
-    var mesh=new BABYLON.Mesh('scenario-road-splat-'+index,scene),vd=new BABYLON.VertexData();vd.positions=positions;vd.indices=indices;vd.colors=colors;vd.uvs=uvs;var normals=[];BABYLON.VertexData.ComputeNormals(positions,indices,normals);vd.normals=normals;vd.applyToMesh(mesh);mesh.material=mats.road;mesh.isPickable=false;mesh.receiveShadows=false;mesh.hasVertexAlpha=true;meshes.push(mesh);
+  if (typeof BABYLON === 'undefined' || !root.BattleTerrainFeatures || !root.BattleScenarioGenerator) return;
+  var oldScatter = root.BattleTerrainFeatures.scatter,
+    currentRender = null,
+    currentBase = null;
+  var WALL = new BABYLON.Color3(0.52, 0.48, 0.39),
+    WALL2 = new BABYLON.Color3(0.43, 0.4, 0.34),
+    FLOOR = new BABYLON.Color3(0.31, 0.29, 0.25),
+    ROAD = new BABYLON.Color3(0.24, 0.23, 0.21);
+  function mat(scene, name, color) {
+    var m = new BABYLON.StandardMaterial(name, scene);
+    m.diffuseColor = color;
+    m.specularColor = BABYLON.Color3.Black();
+    return m;
   }
-  function disposeRender(){if(currentRender&&currentRender.dispose)currentRender.dispose();currentRender=null;}
-  function activateTerrain(scenario){root.BattleScenarioGenerator.setActive(scenario);if(root.BattleSim&&root.BattleSim.applyScenarioTerrain)root.BattleSim.applyScenarioTerrain(scenario);}
+  function renderMaterials(scene, tag) {
+    var road = mat(scene, 'scenario-road-' + tag, ROAD);
+    road.alpha = 0.72;
+    road.backFaceCulling = false;
+    road.useVertexColor = true;
+    road.useVertexAlpha = true;
+    road.zOffset = -2;
+    return {
+      wall: mat(scene, 'scenario-wall-' + tag, WALL),
+      wall2: mat(scene, 'scenario-wall2-' + tag, WALL2),
+      floor: mat(scene, 'scenario-floor-' + tag, FLOOR),
+      road: road
+    };
+  }
+  function disposeMaterials(mats) {
+    if (!mats) return;
+    Object.keys(mats).forEach(function (k) {
+      try {
+        mats[k].dispose();
+      } catch (_) {}
+    });
+  }
+  function addBox(scene, parent, name, w, h, d, x, y, z, material) {
+    var m = BABYLON.MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, scene);
+    m.parent = parent;
+    m.position.set(x, y, z);
+    m.material = material;
+    m.isPickable = false;
+    return m;
+  }
+  function sideOpenings(b, side) {
+    return (b.openings || [])
+      .filter(function (o) {
+        return o.side === side;
+      })
+      .sort(function (a, c) {
+        return a.offset - c.offset;
+      });
+  }
+  function buildWall(scene, rootNode, b, side, wallMat, meshes) {
+    var northSouth = side === 'north' || side === 'south',
+      len = northSouth ? b.w : b.d,
+      thick = 0.32,
+      h = b.h,
+      constant = northSouth ? (side === 'north' ? b.d / 2 : -b.d / 2) : side === 'east' ? b.w / 2 : -b.w / 2,
+      opens = sideOpenings(b, side),
+      cursor = -len / 2;
+    function piece(range, y0, y1) {
+      var width = range[1] - range[0];
+      if (width <= 0.03 || y1 - y0 <= 0.03) return;
+      var along = (range[0] + range[1]) / 2,
+        cy = (y0 + y1) / 2,
+        m;
+      if (northSouth)
+        m = addBox(
+          scene,
+          rootNode,
+          'wall-' + b.id + '-' + side,
+          width,
+          y1 - y0,
+          thick,
+          along,
+          cy,
+          constant,
+          wallMat
+        );
+      else
+        m = addBox(
+          scene,
+          rootNode,
+          'wall-' + b.id + '-' + side,
+          thick,
+          y1 - y0,
+          width,
+          constant,
+          cy,
+          along,
+          wallMat
+        );
+      meshes.push(m);
+    }
+    for (var i = 0; i < opens.length; i++) {
+      var o = opens[i],
+        a = Math.max(-len / 2, o.offset - o.width / 2),
+        c = Math.min(len / 2, o.offset + o.width / 2);
+      if (a > cursor) piece([cursor, a], 0, h);
+      if (o.bottom > 0) piece([a, c], 0, Math.min(h, o.bottom));
+      if (o.top < h) piece([a, c], Math.max(0, o.top), h);
+      cursor = Math.max(cursor, c);
+    }
+    if (cursor < len / 2) piece([cursor, len / 2], 0, h);
+  }
+  function buildBuilding(scene, heightAt, b, index, meshes, mats) {
+    var y = heightAt(b.x, b.z),
+      node = new BABYLON.TransformNode('building-' + b.id, scene);
+    node.position.set(b.x, y, b.z);
+    node.rotation.y = b.rot || 0;
+    meshes.push(node);
+    var wallMat = index % 3 === 0 ? mats.wall2 : mats.wall,
+      slab = addBox(scene, node, 'floor-' + b.id, b.w, 0.08, b.d, 0, 0.04, 0, mats.floor);
+    meshes.push(slab);
+    buildWall(scene, node, b, 'north', wallMat, meshes);
+    buildWall(scene, node, b, 'south', wallMat, meshes);
+    buildWall(scene, node, b, 'east', wallMat, meshes);
+    buildWall(scene, node, b, 'west', wallMat, meshes);
+  }
+  function buildRoad(scene, heightAt, r, index, meshes, mats) {
+    var dx = r.bx - r.ax,
+      dz = r.bz - r.az,
+      len = Math.hypot(dx, dz) || 1,
+      uz = dz / len,
+      rx = -uz,
+      rz = dx / len,
+      width = r.width || 8,
+      half = width / 2,
+      shoulder = 2.6,
+      steps = Math.max(4, Math.ceil(len / 7)),
+      positions = [],
+      indices = [],
+      colors = [],
+      uvs = [],
+      cross = [-half - shoulder, -half * 0.86, half * 0.86, half + shoulder],
+      alpha = [0, 0.72, 0.72, 0];
+    for (var i = 0; i <= steps; i++) {
+      var t = i / steps,
+        cx = r.ax + dx * t,
+        cz = r.az + dz * t;
+      for (var j = 0; j < 4; j++) {
+        var x = cx + rx * cross[j],
+          z = cz + rz * cross[j],
+          y = heightAt(x, z) + 0.055;
+        positions.push(x, y, z);
+        colors.push(1, 1, 1, alpha[j]);
+        uvs.push(j / 3, (t * len) / 10);
+      }
+    }
+    for (i = 0; i < steps; i++)
+      for (j = 0; j < 3; j++) {
+        var a = i * 4 + j,
+          b = a + 1,
+          c = (i + 1) * 4 + j,
+          d = c + 1;
+        indices.push(a, c, b, b, c, d);
+      }
+    var mesh = new BABYLON.Mesh('scenario-road-splat-' + index, scene),
+      vd = new BABYLON.VertexData();
+    vd.positions = positions;
+    vd.indices = indices;
+    vd.colors = colors;
+    vd.uvs = uvs;
+    var normals = [];
+    BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+    vd.normals = normals;
+    vd.applyToMesh(mesh);
+    mesh.material = mats.road;
+    mesh.isPickable = false;
+    mesh.receiveShadows = false;
+    mesh.hasVertexAlpha = true;
+    meshes.push(mesh);
+  }
+  function disposeRender() {
+    if (currentRender && currentRender.dispose) currentRender.dispose();
+    currentRender = null;
+  }
+  function activateTerrain(scenario) {
+    root.BattleScenarioGenerator.setActive(scenario);
+    if (root.BattleSim && root.BattleSim.applyScenarioTerrain) root.BattleSim.applyScenarioTerrain(scenario);
+  }
   /* Draw calls: a building is ~30 wall pieces (openings split each wall), so a town was 500-700 draw
      calls, over half of a frame's (device benchmark, #68). Nothing reads the pieces: sight, cover,
      ballistics, bullet holes and World Debug all use the scenario data and obstacle field. So once the
      town is built its pieces are baked into one static mesh per material (walls, alternate walls,
      floors). `?mergeWalls=0` keeps the separate pieces (before/after on one build). */
-  var MERGE=!(typeof location!=='undefined'&&/[?&]mergeWalls=0\b/.test(location.search||''));
-  function mergeBuildings(meshes,mats){
-    if(!MERGE||!BABYLON.Mesh.MergeMeshes)return;
-    var keep=[],groups={},nodes=[];
-    meshes.forEach(function(m){if(!(m instanceof BABYLON.Mesh)&&m.computeWorldMatrix){m.computeWorldMatrix(true);nodes.push(m);}});
-    meshes.forEach(function(m){
-      var k=m instanceof BABYLON.Mesh&&m.material&&(m.material===mats.wall?'wall':m.material===mats.wall2?'wall2':m.material===mats.floor?'floor':null);
-      if(k)(groups[k]||(groups[k]=[])).push(m);else keep.push(m);
+  var MERGE = !(typeof location !== 'undefined' && /[?&]mergeWalls=0\b/.test(location.search || ''));
+  function mergeBuildings(meshes, mats) {
+    if (!MERGE || !BABYLON.Mesh.MergeMeshes) return;
+    var keep = [],
+      groups = {},
+      nodes = [];
+    meshes.forEach(function (m) {
+      if (!(m instanceof BABYLON.Mesh) && m.computeWorldMatrix) {
+        m.computeWorldMatrix(true);
+        nodes.push(m);
+      }
     });
-    Object.keys(groups).forEach(function(k){
-      var merged=BABYLON.Mesh.MergeMeshes(groups[k],true,true);if(!merged){keep.push.apply(keep,groups[k]);return;}
-      merged.name=(k==='floor'?'floor-':'wall-')+'merged-'+k;merged.material=mats[k];merged.isPickable=false;merged.freezeWorldMatrix();keep.push(merged);
+    meshes.forEach(function (m) {
+      var k =
+        m instanceof BABYLON.Mesh &&
+        m.material &&
+        (m.material === mats.wall
+          ? 'wall'
+          : m.material === mats.wall2
+            ? 'wall2'
+            : m.material === mats.floor
+              ? 'floor'
+              : null);
+      if (k) (groups[k] || (groups[k] = [])).push(m);
+      else keep.push(m);
     });
-    nodes.forEach(function(n){if(!n.getChildren().length){try{n.dispose();}catch(_){}keep.splice(keep.indexOf(n),1);}});
-    meshes.length=0;Array.prototype.push.apply(meshes,keep);
+    Object.keys(groups).forEach(function (k) {
+      var merged = BABYLON.Mesh.MergeMeshes(groups[k], true, true);
+      if (!merged) {
+        keep.push.apply(keep, groups[k]);
+        return;
+      }
+      merged.name = (k === 'floor' ? 'floor-' : 'wall-') + 'merged-' + k;
+      merged.material = mats[k];
+      merged.isPickable = false;
+      merged.freezeWorldMatrix();
+      keep.push(merged);
+    });
+    nodes.forEach(function (n) {
+      if (!n.getChildren().length) {
+        try {
+          n.dispose();
+        } catch (_) {}
+        keep.splice(keep.indexOf(n), 1);
+      }
+    });
+    meshes.length = 0;
+    Array.prototype.push.apply(meshes, keep);
   }
-  function renderScenario(scene,heightAt,scenario){disposeRender();activateTerrain(scenario);var meshes=[],mats=renderMaterials(scene,scenario.id||Date.now());for(var r=0;r<(scenario.roads||[]).length;r++)buildRoad(scene,heightAt,scenario.roads[r],r,meshes,mats);for(var i=0;i<(scenario.buildings||[]).length;i++)buildBuilding(scene,heightAt,scenario.buildings[i],i,meshes,mats);mergeBuildings(meshes,mats);scenario.meshes=meshes;scenario.sectors=scenario.objectives;scenario.center=scenario.center||{x:scenario.settlement.cx,z:scenario.settlement.cz};scenario.radius=scenario.radius||Math.max(scenario.settlement.spanX,scenario.settlement.spanZ)*.62;scenario.dispose=function(){for(var j=meshes.length-1;j>=0;j--)try{meshes[j].dispose();}catch(_){}meshes.length=0;disposeMaterials(mats);};scene.metadata=scene.metadata||{};scene.metadata.battleScenario=scenario;scene.metadata.battleTown=scenario;if(root.BattleNavigation)root.BattleNavigation.installScenario(scenario);currentRender=scenario;root.GTLog('[TOWN] scenario '+scenario.id+' seed='+scenario.seed+' buildings='+scenario.buildings.length+' objectives='+scenario.objectives.length+' roadSplats='+(scenario.roads||[]).length);return scenario;}
+  function renderScenario(scene, heightAt, scenario) {
+    disposeRender();
+    activateTerrain(scenario);
+    var meshes = [],
+      mats = renderMaterials(scene, scenario.id || Date.now());
+    for (var r = 0; r < (scenario.roads || []).length; r++)
+      buildRoad(scene, heightAt, scenario.roads[r], r, meshes, mats);
+    for (var i = 0; i < (scenario.buildings || []).length; i++)
+      buildBuilding(scene, heightAt, scenario.buildings[i], i, meshes, mats);
+    mergeBuildings(meshes, mats);
+    scenario.meshes = meshes;
+    scenario.sectors = scenario.objectives;
+    scenario.center = scenario.center || { x: scenario.settlement.cx, z: scenario.settlement.cz };
+    scenario.radius =
+      scenario.radius || Math.max(scenario.settlement.spanX, scenario.settlement.spanZ) * 0.62;
+    scenario.dispose = function () {
+      for (var j = meshes.length - 1; j >= 0; j--)
+        try {
+          meshes[j].dispose();
+        } catch (_) {}
+      meshes.length = 0;
+      disposeMaterials(mats);
+    };
+    scene.metadata = scene.metadata || {};
+    scene.metadata.battleScenario = scenario;
+    scene.metadata.battleTown = scenario;
+    if (root.BattleNavigation) root.BattleNavigation.installScenario(scenario);
+    currentRender = scenario;
+    root.GTLog(
+      '[TOWN] scenario ' +
+        scenario.id +
+        ' seed=' +
+        scenario.seed +
+        ' buildings=' +
+        scenario.buildings.length +
+        ' objectives=' +
+        scenario.objectives.length +
+        ' roadSplats=' +
+        (scenario.roads || []).length
+    );
+    return scenario;
+  }
   /* Cover density is derived from the field area inside terrain-features.js. Passing fixed clump
      and row counts here is what used to leave a 2000x1200 m map with a hundred trees, so only the
      seed and the footprint are supplied. */
-  function scatterNatural(scene,heightAt,scenario,opts){opts=opts||{};var seedInt=root.BattleScenarioGenerator.hashSeed(scenario.seed+'|terrain-clutter');return oldScatter(scene,heightAt,Object.assign({},opts,{seed:seedInt,fieldW:scenario.map.width,fieldD:scenario.map.depth,keepoutZ:scenario.map.depth*.44}));}
-  function wireBase(base,rendered){var naturalDispose=base.dispose;base._naturalDispose=naturalDispose;base.town=rendered;base.scenario=rendered;base.dispose=function(){try{naturalDispose&&naturalDispose();}catch(_){}if(currentRender===rendered)disposeRender();if(currentBase===base)currentBase=null;};currentBase=base;return base;}
-  function releaseCurrent(scene){if(currentBase&&currentBase._naturalDispose){try{currentBase._naturalDispose();}catch(_){}currentBase=null;}disposeRender();if(root.BattleNavigation)root.BattleNavigation.installScenario(null);if(scene&&scene.metadata){scene.metadata.battleScenario=null;scene.metadata.battleTown=null;}}
+  function scatterNatural(scene, heightAt, scenario, opts) {
+    opts = opts || {};
+    var seedInt = root.BattleScenarioGenerator.hashSeed(scenario.seed + '|terrain-clutter');
+    return oldScatter(
+      scene,
+      heightAt,
+      Object.assign({}, opts, {
+        seed: seedInt,
+        fieldW: scenario.map.width,
+        fieldD: scenario.map.depth,
+        keepoutZ: scenario.map.depth * 0.44
+      })
+    );
+  }
+  function wireBase(base, rendered) {
+    var naturalDispose = base.dispose;
+    base._naturalDispose = naturalDispose;
+    base.town = rendered;
+    base.scenario = rendered;
+    base.dispose = function () {
+      try {
+        naturalDispose && naturalDispose();
+      } catch (_) {}
+      if (currentRender === rendered) disposeRender();
+      if (currentBase === base) currentBase = null;
+    };
+    currentBase = base;
+    return base;
+  }
+  function releaseCurrent(scene) {
+    if (currentBase && currentBase._naturalDispose) {
+      try {
+        currentBase._naturalDispose();
+      } catch (_) {}
+      currentBase = null;
+    }
+    disposeRender();
+    if (root.BattleNavigation) root.BattleNavigation.installScenario(null);
+    if (scene && scene.metadata) {
+      scene.metadata.battleScenario = null;
+      scene.metadata.battleTown = null;
+    }
+  }
   /* Regeneration builds through the public scatter entry point, exactly like page load, so runtime
      wrappers such as the hedge volume coalescer apply to benchmark, trainer and manual scenarios too.
      Calling the captured natural scatter directly published ~4x the hedge footprints for the same map. */
-  function regenerate(scene,heightAt,seed,meta,sim){releaseCurrent(scene);var scenario=root.BattleScenarioGenerator.create(seed,meta||{});activateTerrain(scenario);var base=root.BattleTerrainFeatures.scatter(scene,heightAt,{});if(sim)sim.obstacles=base.obstacles||[];return base.scenario;}
-  root.BattleTerrainFeatures.scatter=function(scene,heightAt,opts){opts=opts||{};var scenario=root.BattleScenarioGenerator.current();if(!scenario)scenario=root.BattleScenarioGenerator.activate(opts.scenarioSeed||root.BATTLE_SCENARIO_SEED||root.BattleScenarioGenerator.newSeed('live'));activateTerrain(scenario);var base=scatterNatural(scene,heightAt,scenario,opts),rendered=renderScenario(scene,heightAt,scenario);return wireBase(base,rendered);};
-  root.BattleTownObjectives={render:renderScenario,regenerate:regenerate,releaseCurrent:releaseCurrent,current:function(){return currentRender;},build:function(scene,heightAt){var s=root.BattleScenarioGenerator.current()||root.BattleScenarioGenerator.activate(root.BattleScenarioGenerator.newSeed('live'));return renderScenario(scene,heightAt,s);}};
-})(typeof window!=='undefined'?window:globalThis);
+  function regenerate(scene, heightAt, seed, meta, sim) {
+    releaseCurrent(scene);
+    var scenario = root.BattleScenarioGenerator.create(seed, meta || {});
+    activateTerrain(scenario);
+    var base = root.BattleTerrainFeatures.scatter(scene, heightAt, {});
+    if (sim) sim.obstacles = base.obstacles || [];
+    return base.scenario;
+  }
+  root.BattleTerrainFeatures.scatter = function (scene, heightAt, opts) {
+    opts = opts || {};
+    var scenario = root.BattleScenarioGenerator.current();
+    if (!scenario)
+      scenario = root.BattleScenarioGenerator.activate(
+        opts.scenarioSeed || root.BATTLE_SCENARIO_SEED || root.BattleScenarioGenerator.newSeed('live')
+      );
+    activateTerrain(scenario);
+    var base = scatterNatural(scene, heightAt, scenario, opts),
+      rendered = renderScenario(scene, heightAt, scenario);
+    return wireBase(base, rendered);
+  };
+  root.BattleTownObjectives = {
+    render: renderScenario,
+    regenerate: regenerate,
+    releaseCurrent: releaseCurrent,
+    current: function () {
+      return currentRender;
+    },
+    build: function (scene, heightAt) {
+      var s =
+        root.BattleScenarioGenerator.current() ||
+        root.BattleScenarioGenerator.activate(root.BattleScenarioGenerator.newSeed('live'));
+      return renderScenario(scene, heightAt, s);
+    }
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
