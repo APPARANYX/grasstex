@@ -20,6 +20,7 @@ r.BattleTelemetry = {
 };
 for (const f of ['commander-doctrine', 'commander-routes', 'commander-ai']) load(r, 'battle/' + f + '.js');
 load(r, 'battle/modules/22-commander-reconstitution.js');
+load(r, 'battle/modules/22a-commander-strategic-recovery.js');
 const C = r.BattleCommanderAI;
 assert(
   C.missionStates && C.transitionMission && C.acceptMission,

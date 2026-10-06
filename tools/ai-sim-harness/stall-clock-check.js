@@ -43,6 +43,7 @@ function world({ general = true } = {}) {
     load(r, 'battle/commander-routes.js');
     load(r, 'battle/commander-ai.js');
     load(r, 'battle/modules/22-commander-reconstitution.js');
+    load(r, 'battle/modules/22a-commander-strategic-recovery.js');
   }
   load(r, 'battle/modules/40-ai-coordination-health.js');
   const b = H.makeBattle(r);

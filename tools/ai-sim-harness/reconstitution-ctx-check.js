@@ -53,6 +53,7 @@ function world() {
   load(r, 'battle/commander-routes.js');
   load(r, 'battle/commander-ai.js');
   load(r, 'battle/modules/22-commander-reconstitution.js');
+  load(r, 'battle/modules/22a-commander-strategic-recovery.js');
   const b = H.makeBattle(r);
   /* formGroup plans the rally around the objective the General expects to send the re-formed
      squad to; a fixed plan keeps the geometry deterministic without loading the objective stack. */
