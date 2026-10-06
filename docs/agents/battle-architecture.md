@@ -729,7 +729,7 @@ Implement this in **small phases**, each with its own deterministic harness/prob
    0F adds a Meso-layer broadcast channel: when a squad's contact picture changes meaningfully it publishes a
    tactical broadcast to nearby squads within `BROADCAST_RANGE`; receiving squads merge the broadcast into their
    own `squad.contact` picture and the Squad Leader can react. Sliced as 0F1 (telemetry, behavior-neutral),
-   0F2 (reception, opt-in `?squadBroadcast=1`), 0F3 (reaction, benchmark-gated). This is squad-to-squad, not
+   0F2 (reception, default-on; `?squadBroadcast=0` is the telemetry-only control), 0F3 (reaction, shipped with reception). This is squad-to-squad, not
    Macro and not Micro; it does not bypass Movement Resolver or Engagement ownership.
 7. **Multi-contact awareness — Phase 0G, design in `docs/reference/AI_TACTICS_OUTLINE.md`.** Today every layer
    tracks one threat at a time: `selectBelief` returns one winner, `squad.contact` is a single object,
@@ -737,8 +737,8 @@ Implement this in **small phases**, each with its own deterministic harness/prob
    to the south _knows_ about both (both are in `_beliefs.byKey`) but _acts on_ only one. 0G makes the existing
    multi-belief data consumable: Perception exposes a prioritized list, Engagement reacts to secondary threats,
    and the Squad Leader can assign fireteams to different threat sectors. Sliced as 0G1 (secondary threat
-   awareness, opt-in `?secondaryThreat=1`), 0G2 (squad-level contacts map, opt-in `?squadContacts=1`), 0G3
-   (fireteam split on multi-contact, benchmark-gated).
+   awareness, opt-in `?secondaryThreat=1`), 0G2 (the read-only squad-level contacts map, available whenever default-on soldier beliefs are active; the old `?squadContacts=1` documentation is obsolete), 0G3
+   (fireteam split on multi-contact, default-on; `?fireteamSplit=0` is the legacy control).
 
 **After that prerequisite ships**, return to `docs/reference/AI_TACTICS_OUTLINE.md`'s tactical control-plane sequence:
 `TacticalSituation` + read-only street/building-control diagnostics, richer `SquadIntent` metadata, then one named
