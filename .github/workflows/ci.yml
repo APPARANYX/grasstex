@@ -308,3 +308,119 @@ jobs:
       # only on the server; a deploy must never delete or overwrite them. Needs the stamp above.
       - name: Deploy never touches unmanaged server files
         run: python3 scripts/check_deploy_safety.py
+
+  pr317-live-8x:
+    name: PR317 live 8x remnant extraction
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'work/remnant-extraction-home'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start local battle server
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/battle-www
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=pr317-health" >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+
+      - name: Run live 8x extraction invariant
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch({args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--enable-webgl','--ignore-gpu-blocklist']});
+            try {
+              const page = await browser.newPage({ignoreHTTPSErrors:true,viewport:{width:900,height:650}});
+              await page.route('**/*', route => {
+                const req = route.request();
+                if (req.method() === 'POST' || /battle_(policy|learning|log|metrics)[^/]*\.php/.test(req.url()))
+                  return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+                return route.continue();
+              });
+              await page.goto('http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=pr317-live-8x',{waitUntil:'load',timeout:180000});
+              await page.waitForFunction(() => window.__battle__ && window.SquadAI && window.BattleSquadStability,null,{timeout:180000});
+              const setup = await page.evaluate(() => {
+                const b=window.__battle__, q=b.factions.ge.squads[0], home={x:q.home.x,z:q.home.z};
+                const men=q.members.filter(s=>!s.dead);
+                men.slice(4).forEach(s=>b.killSoldier(s,null));
+                const live=q.members.filter(s=>!s.dead);
+                const depths=[80,190,300,410];
+                live.forEach((s,i)=>{
+                  s.root.position.x=home.x;
+                  s.root.position.z=home.z-depths[i];
+                  s.destination={x:s.root.position.x,z:s.root.position.z};
+                  s.orderDestination={x:s.root.position.x,z:s.root.position.z};
+                  s._fireteamDestination={x:s.root.position.x,z:s.root.position.z};
+                });
+                q.state='retreat';
+                q._assembly={phase:'to-base',since:b.time,missionVersion:null};
+                q._moraleRallyPoint=null;
+                q._regroupRecovery={serial:77,startedAt:b.time,anchor:{x:home.x,z:home.z-250}};
+                q.orderAnchor={x:home.x,z:home.z-260};
+                q.rally={x:home.x,z:home.z-260};
+                q._orderGoal={x:home.x,z:home.z-260};
+                b.timeScale=8;
+                b.paused=false;
+                if (b.resume) b.resume();
+                return {home, ids:live.map(s=>s.id), start:live.map(s=>({id:s.id,z:s.root.position.z}))};
+              });
+              await page.waitForTimeout(1200);
+              const samples=[];
+              for(let i=0;i<24;i++){
+                samples.push(await page.evaluate(ids=>{
+                  const b=window.__battle__,q=b.factions.ge.squads[0],home=q.home,L=window.BattleLeases;
+                  return {
+                    t:+b.time.toFixed(3),
+                    state:q.state,
+                    anchor:{x:q.orderAnchor.x,z:q.orderAnchor.z},
+                    rally:{x:q.rally.x,z:q.rally.z},
+                    retreatLease:!!(L&&L.get(q,'retreat-anchor')),
+                    regroupRecovery:!!q._regroupRecovery,
+                    men:q.members.filter(s=>ids.includes(s.id)&&!s.dead).map(s=>({
+                      id:s.id,
+                      x:+s.root.position.x,
+                      z:+s.root.position.z,
+                      order:s.orderDestination&&{x:+s.orderDestination.x,z:+s.orderDestination.z},
+                      fireteam:s._fireteamDestination&&{x:+s._fireteamDestination.x,z:+s._fireteamDestination.z}
+                    }))
+                  };
+                },setup.ids));
+                await page.waitForTimeout(80);
+              }
+              const eps=.05, home=setup.home;
+              for(const row of samples){
+                assert.equal(row.state,'retreat','remnant left retreat at t='+row.t);
+                assert.ok(Math.hypot(row.anchor.x-home.x,row.anchor.z-home.z)<=eps,'anchor left home at t='+row.t);
+                assert.ok(Math.hypot(row.rally.x-home.x,row.rally.z-home.z)<=eps,'rally left home at t='+row.t);
+                assert.equal(row.retreatLease,false,'sliding retreat-anchor lease reappeared at t='+row.t);
+                assert.equal(row.regroupRecovery,false,'regroup recovery survived extraction at t='+row.t);
+                for(const man of row.men){
+                  assert.ok(man.order && Math.hypot(man.order.x-home.x,man.order.z-home.z)<=eps,'soldier '+man.id+' order not home at t='+row.t);
+                  assert.ok(man.fireteam && Math.hypot(man.fireteam.x-home.x,man.fireteam.z-home.z)<=eps,'soldier '+man.id+' fireteam intent not home at t='+row.t);
+                }
+              }
+              const end=samples[samples.length-1];
+              console.log(JSON.stringify({timeScale:8,home,start:setup.start,end:end.men.map(m=>({id:m.id,z:+m.z.toFixed(1)})),samples:samples.length},null,2));
+            } finally { await browser.close(); }
+          })().catch(e=>{console.error(e);process.exit(1);});
+          NODE
+
