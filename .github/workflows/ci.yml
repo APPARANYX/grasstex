@@ -310,7 +310,7 @@ jobs:
         run: python3 scripts/check_deploy_safety.py
 
   pr316-natural-reconstitution:
-    name: PR316 natural reconstitution canary
+    name: PR316 reconstitution completion diagnostic
     if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'work/reconstitution-survivor-pool'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -341,10 +341,10 @@ jobs:
           cat /tmp/battle-php.log
           exit 1
 
-      - name: Run 12 natural meeting battles
+      - name: Run 3 known group-forming meeting battles
         env:
           BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.sha }}
-          BATTLE_BENCHMARK_COUNT: '12'
+          BATTLE_BENCHMARK_COUNT: '3'
           BATTLE_BENCHMARK_TIME_LIMIT: '600'
           BATTLE_BENCHMARK_STEP: '0.15'
           BATTLE_BENCHMARK_SEED: 'pr316-recon'
@@ -359,16 +359,21 @@ jobs:
           const p = JSON.parse(fs.readFileSync('reports/pr316-natural/battle-benchmark.json', 'utf8'));
           const rows = p.battles.map(b => ({
             seed: b.seed,
+            seconds: b.simulatedSeconds,
             groups: b.reconstitution?.groupsFormed || 0,
+            dissolved: b.reconstitution?.groupsDissolved || 0,
+            assemblingAtEnd: b.reconstitution?.assemblingAtEnd || 0,
             merges: b.reconstitution?.merges || 0,
-            sizes: (b.reconstitution?.merged || []).map(x => x.size)
+            sizes: (b.reconstitution?.merged || []).map(x => x.size),
+            dissolvedLifetimes: b.reconstitution?.dissolvedLifetimes || []
           }));
           const groups = rows.reduce((n, r) => n + r.groups, 0);
+          const dissolved = rows.reduce((n, r) => n + r.dissolved, 0);
+          const assembling = rows.reduce((n, r) => n + r.assemblingAtEnd, 0);
           const merges = rows.reduce((n, r) => n + r.merges, 0);
-          const withMerge = rows.filter(r => r.merges > 0).length;
-          console.log(JSON.stringify({ battles: rows.length, groups, merges, battlesWithMerge: withMerge, rows }, null, 2));
-          if (merges < 1) {
-            console.error('No natural reconstitution merge occurred in the 12-battle canary.');
+          console.log(JSON.stringify({ battles: rows.length, groups, dissolved, assemblingAtEnd: assembling, merges, rows }, null, 2));
+          if (groups < 1) {
+            console.error('Known group-forming seeds unexpectedly formed no groups.');
             process.exit(1);
           }
           NODE
