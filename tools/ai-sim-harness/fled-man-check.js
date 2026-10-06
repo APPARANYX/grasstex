@@ -223,6 +223,39 @@ function broken(w, opts) {
   return { q, s, spot };
 }
 
+test('an ordinary one-man remnant retreats and cannot continue as a one-man assault squad', () => {
+  const w = world(),
+    q = squad(w, 0, 1, 150),
+    man = living(q)[0];
+  q.commandPhase = 'assault';
+  q.targetObjective = 'obj-center';
+  q._macroMission = {
+    version: 1,
+    owner: 'force-command',
+    intent: 'capture',
+    action: 'assault',
+    objectiveId: 'obj-center',
+    point: { x: LANES[0], z: 0 },
+    route: [],
+    role: 'center',
+    requestKey: null,
+    plannedObjectiveId: null,
+    reason: 'fixture',
+    status: 'executing',
+    acceptedAt: w.b.time
+  };
+  run(w, 1.5, () => (q.contact = null));
+  assert.equal(living(q).length, 1);
+  assert.equal(w.r.SquadAI.establishment(q), 10, 'casualties stay measured against the original squad');
+  assert.equal(q.state, 'retreat', '90% casualties force the ordinary remnant to withdraw');
+  assert.equal(man.eng.state, 'withdraw', 'the last man executes retreat, not the stale assault phase');
+  assert.equal(q._macroMission.status, 'failed', 'the assault brief is ended');
+  assert.equal(q._macroMission.endReason, 'squad-retreat');
+  assert.ok(q._assembly && q._assembly.phase === 'to-base', 'he is in the survivor/reconstitution pipeline');
+  assert.equal(q.fledId, undefined, 'an ordinary remnant is not a fled detachment');
+  assert.notEqual(man.countsForElimination, false, 'an ordinary surviving soldier still counts for his side');
+});
+
 test("he leaves his weapons, tells the soldier condition and runs to the squad's last safe point", () => {
   const w = world(),
     safe = { x: LANES[0], z: HOME_Z + 90 },
@@ -529,6 +562,11 @@ test('a lone man at base is grouped by reconstitution with the other survivors a
     merged.members.every(m => m.squad === merged),
     'every man of it on the one roster'
   );
+  assert.equal(s.countsForElimination, true, 'reconstitution returns the former fled man to force accounting');
+  assert.ok(
+    w.r.BattleCommanderDoctrine.forceUnits(w.b, 'us').includes(s),
+    'the General counts him again after the successful roster merge'
+  );
   invariants(w);
   /* Calm again (the pin is off), the reconstituted squad rallies and the General, who ignored the
      detachment, briefs the squad the man is part of again - the only legal road back under
@@ -537,6 +575,47 @@ test('a lone man at base is grouped by reconstitution with the other survivors a
   assert.notEqual(merged.state, 'retreat', 'back in the fight');
   assert.ok(merged._macroMission, 'the reconstituted squad holds a mission');
   assert.ok(['executing', 'issued'].includes(merged._macroMission.status), 'a live one');
+  invariants(w);
+});
+
+test('a fled sergeant can supply the surviving squad object without leaving the rebuilt squad marked fled', () => {
+  const w = world(),
+    { s } = broken(w, {
+      role: 'sergeant',
+      safe: { x: LANES[0], z: HOME_Z + 40 },
+      at: { x: LANES[0], z: HOME_Z + 400 }
+    }),
+    lone = s.squad,
+    survivors = [squad(w, 1, 4, 20), squad(w, 2, 4, 20), squad(w, 3, 4, 20)];
+
+  /* Leave three riflemen in each ordinary remnant. Succession gives them rifleman leaders,
+     while the fled detachment still has its sergeant, so the General's seniority rule chooses
+     the fled squad object as the survivor when 1 + 3 + 3 + 3 reconstitute. */
+  survivors.forEach(q => {
+    const leader = w.r.SquadAI.leaderOf(q);
+    assert.ok(leader && leader.role === 'sergeant');
+    w.b.killSoldier(leader, null);
+  });
+  const shaken = survivors.flatMap(q => q.members.filter(m => !m.dead)),
+    mergedYet = () => w.b.factions.us.squads.some(q => q.reconstitutedFrom && !q.disbanded);
+  run(w, 420, () => {
+    s.squad.contact = null;
+    if (!mergedYet()) shaken.forEach(m => (w.r.BattleSoldierMind.of(m).stress = 0.4));
+  });
+
+  const merged = w.b.factions.us.squads.find(q => q.reconstitutedFrom && !q.disbanded);
+  assert.ok(merged, 'the ten survivors reconstituted');
+  assert.equal(merged, lone, 'the senior fled sergeant made his detachment the surviving squad object');
+  assert.equal(merged.fledId, null, 'the one-man detachment identity ended at the merge');
+  assert.equal(merged.fledFrom, null, 'its source marker ended with it');
+  assert.equal(merged.members.length, 10, 'the survivor object is now a full squad');
+  assert.equal(s.countsForElimination, true, 'the sergeant is back in force accounting');
+  assert.ok(w.r.BattleCommanderDoctrine.forceUnits(w.b, 'us').includes(s));
+
+  run(w, 100);
+  assert.notEqual(merged.state, 'retreat', 'the rebuilt full squad can rally normally');
+  assert.ok(merged._macroMission, 'and return to ordinary command');
+  assert.ok(['issued', 'executing'].includes(merged._macroMission.status));
   invariants(w);
 });
 
