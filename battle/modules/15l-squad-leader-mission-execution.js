@@ -240,7 +240,9 @@
       if (m.intent === 'defend' && !sq.inContact && !L.get(sq, 'recon')) {
         var enemyDir = defendScoutDirection(sim, sq, pos);
         if (enemyDir) {
-          var scoutGoal = { x: pos.x + enemyDir.x * 60, z: pos.z + enemyDir.z * 60 },
+          /* Match the 110 m objective-approach gate so defender recon can use the full
+             80 m crest look-ahead while scouts physically advance up to 50 m. */
+          var scoutGoal = { x: pos.x + enemyDir.x * 110, z: pos.z + enemyDir.z * 110 },
             defendRecon = reconCandidate(sq, sim, scoutGoal);
           if (defendRecon && startRecon(sq, sim, defendRecon)) {
             sq._missionHold = 'recon';
