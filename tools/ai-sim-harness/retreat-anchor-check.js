@@ -127,7 +127,7 @@ test('a materially changed retreat goal invalidates the old lease immediately',(
 });
 test('a majority physically blocked on the leased endpoint gets one bounded recovery rebase, not one every tick',()=>{
   const w=fixture(),first=command(w);
-  live(w.q).slice(0,2).forEach(s=>{s._movementStopReason='path-blocked';});
+  live(w.q).slice(0,3).forEach(s=>{s._movementStopReason='path-blocked';});
   const next=command(w),held=w.L.get(w.q,'retreat-anchor');
   assert.equal(held.data.reason,'route blocked');
   assert.ok(d(next,first)>3);
