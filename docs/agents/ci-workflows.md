@@ -10,7 +10,6 @@
 | `battle-benchmark.yml` | tag `benchmark-*` or dispatch (source must be on main) | 30 workers × 10 = **300 battles**, 100 per type. Major milestones only. |
 | `battle-hotpath-profile.yml` | dispatch (type/seed/seconds) | Hot-path profile on one seed |
 | `branch-housekeeping.yml` | PR merged; Mondays; dispatch (`dry_run`, default on) | Deletes a merged PR's head branch unless it moved past the merged commit or another open PR uses it; the sweep deletes branches with every commit already in `main` (`git cherry`), no open PR and a tip ≥7 days old. Never `main`/`benchmark-results`; unmerged branches are only listed in the run summary. |
-| `tripo-model-sync.yml` | dispatch | Tripo FBX export via `scripts/tripo_models.py` (needs the `TRIP_API` secret) |
 
 Benchmark battles are 600 simulated seconds at a fixed 0.15 s step. Results go to the
 `benchmark-results` branch.
