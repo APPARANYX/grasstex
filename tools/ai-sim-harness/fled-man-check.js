@@ -613,7 +613,7 @@ test('a fled sergeant can supply the surviving squad object without leaving the 
   assert.ok(w.r.BattleCommanderDoctrine.forceUnits(w.b, 'us').includes(s));
 
   run(w, 100);
-  assert.notEqual(merged.state, 'retreat', 'the rebuilt full squad can rally normally');
+  assert.notEqual(merged.state, 'retreat', 'the viable rebuilt squad can rally normally');
   assert.ok(merged._macroMission, 'and return to ordinary command');
   assert.ok(['issued', 'executing'].includes(merged._macroMission.status));
   invariants(w);
