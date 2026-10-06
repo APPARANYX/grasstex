@@ -2,11 +2,32 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const H = require('./harness');
+
+const broadcastSource = fs.readFileSync(
+  path.resolve(__dirname, '../../battle/modules/49-squad-broadcast.js'),
+  'utf8'
+);
+
+function loadBroadcast(root) {
+  if (root.location) {
+    new Function('window', 'globalThis', 'console', 'location', broadcastSource)(
+      root,
+      root,
+      console,
+      root.location
+    );
+  } else {
+    new Function('window', 'globalThis', 'console', broadcastSource)(root, root, console);
+  }
+}
 
 function defaults(search) {
   H.resetIds();
   const root = H.bootstrap({ search: search || '' });
+  loadBroadcast(root);
   return {
     broadcast: root.BattleSquadBroadcast.broadcastOn(),
     fireteamSplit: root.BattleSquadStability.fireteamSplitOn()
