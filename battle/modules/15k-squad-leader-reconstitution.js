@@ -221,6 +221,14 @@
       survivor.leaderId = leader.id;
       survivor.establishment = establishment;
       survivor.aliveCount = men.length;
+      /* A one-man fled detachment may be the strongest/senior survivor object selected for
+         the merge. Once it becomes the reconstituted full squad, that detachment identity is
+         over; keeping fledId would make recoverFromRetreat's guard freeze the rebuilt squad
+         in retreat forever. */
+      if (survivor.fledId != null) {
+        survivor.fledId = null;
+        survivor.fledFrom = null;
+      }
       survivor.captainAlive = true;
       survivor.accuracyMultiplier = 1; // the leader-death penalty (killSoldier) ends with a leader
       publishAnchor(survivor, rally);
