@@ -1,0 +1,22 @@
+{
+  "id": "bridge-loss",
+  "description": "Bridge loss — the primary crossing is destroyed, forces must find an alternate route",
+  "seed": "scn-bridge-001",
+  "map": { "width": 1400, "depth": 1000 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 400, "spanZ": 350 },
+  "objectives": [
+    { "id": "obj-far-bank", "type": "capture-zone", "x": 0, "z": 300, "radius": 30, "label": "Far bank", "value": 1.5, "captureSeconds": 12 }
+  ],
+  "roads": [
+    { "id": "main-bridge", "ax": 0, "az": -300, "bx": 0, "bz": 300, "width": 8 },
+    { "id": "alt-route", "ax": 300, "az": -300, "bx": 300, "bz": 300, "width": 6 }
+  ],
+  "buildings": [],
+  "terrain": { "river": { "z": 0, "width": 50 }, "bridgeDestroyed": true, "altCrossing": { "x": 300, "z": 0 } },
+  "spawnZones": {
+    "us": { "z": -450, "lanes": [0, 300] },
+    "ge": { "z": 450, "lanes": [0, 300] }
+  },
+  "squads": 4,
+  "timeLimit": 500
+}

@@ -1,0 +1,24 @@
+{
+  "id": "convoy-disruption",
+  "description": "Convoy disruption — ambush forces hit a moving convoy on a road",
+  "seed": "scn-convoy-001",
+  "map": { "width": 1000, "depth": 1500 },
+  "settlement": { "cx": 0, "cz": 0, "spanX": 200, "spanZ": 500 },
+  "objectives": [
+    { "id": "obj-convoy-end", "type": "capture-zone", "x": 0, "z": 500, "radius": 30, "label": "Convoy exit", "value": 1.0, "captureSeconds": 10 },
+    { "id": "obj-ambush", "type": "capture-zone", "x": 0, "z": 0, "radius": 40, "label": "Ambush point", "value": 1.0, "captureSeconds": 8 }
+  ],
+  "roads": [
+    { "id": "convoy-route", "ax": 0, "az": -600, "bx": 0, "bz": 600, "width": 8 }
+  ],
+  "buildings": [
+    { "id": "cover1", "x": 40, "z": 0, "width": 30, "depth": 30 },
+    { "id": "cover2", "x": -40, "z": 0, "width": 30, "depth": 30 }
+  ],
+  "spawnZones": {
+    "us": { "z": -600, "lanes": [0] },
+    "ge": { "z": 0, "lanes": [-40, 40] }
+  },
+  "squads": 3,
+  "timeLimit": 400
+}
