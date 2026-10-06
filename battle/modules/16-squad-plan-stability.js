@@ -158,8 +158,8 @@
     REENTRY = 4;
   var STRAGGLER_BYPASS = 2.8,
     URBAN_ARRIVAL_COHESION = 0.5;
-  var BOUND_CYCLE = 9.0,
-    BOUND_DURATION = 3.6,
+  var BOUND_CYCLE = 7.0,
+    BOUND_DURATION = 4.5,
     BOUND_TEAMS = ['alpha', 'bravo', 'charlie'],
     ASSAULT_PHASES = { assault: 1, capture: 1, 'clear-town': 1 };
   var ASSEMBLY_HOME_RADIUS = 20,

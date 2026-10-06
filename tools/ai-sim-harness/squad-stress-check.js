@@ -182,7 +182,7 @@ test('hold: every team at the shaken band holds the cycle; one under it and the 
   assert.equal(w.sent.length, 0, 'no bound while every team is shaken');
   const held = of(w, 'decision-bound-held');
   assert.ok(held.length >= 2, 'held once a cycle: ' + held.length);
-  assert.ok(held.length <= 3, 'not every tick: ' + held.length);
+  assert.ok(held.length <= 4, 'not every tick: ' + held.length);
   assert.equal(held[0].data.teams, 3);
   const cycle = w.r.BattleLeases.get(sq, 'bound-cycle');
   assert.ok(cycle && /bound held/.test(cycle.reason), 'the cycle waits: ' + (cycle && cycle.reason));

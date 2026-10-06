@@ -245,7 +245,7 @@ test('assault bounds a fireteam after BOUND_CYCLE; defend never does, and never 
   for (const phase of ['assault', 'capture', 'clear-town']) {
     const a = world('?coa=1'),
       sa = squad(a, { phase });
-    contact(a, sa, 8.5);
+    contact(a, sa, 6.5);
     assert.equal(bounds(a), 0, 'the first ' + a.S.boundCycle + ' s of a contact hold the bounds');
     contact(a, sa, 1.5);
     assert.equal(bounds(a), 1, phase + ': one bound in the first cycle after it');
@@ -273,14 +273,14 @@ test('a contact that blinks faster than BOUND_CYCLE never bounds, under either C
     const w = world(search),
       sq = squad(w, { phase: 'assault' });
     for (let i = 0; i < 12; i++) {
-      contact(w, sq, 8); /* 8 s of contact, one tick of quiet, and again */
+      contact(w, sq, 6); /* 6 s of contact, one tick of quiet, and again */
       calm(w, sq, 0.15);
     }
-    assert.equal(bounds(w), 0, search + ': 12 contacts of 8 s, no bound');
+    assert.equal(bounds(w), 0, search + ': 12 contacts of 6 s, no bound');
     const steady = world(search),
       ss = squad(steady, { phase: 'assault' });
     contact(steady, ss, 100);
-    assert.ok(bounds(steady) >= 8, search + ': the same 100 s of unbroken contact bounds about every 9 s (' + bounds(steady) + ')');
+    assert.ok(bounds(steady) >= 8, search + ': the same 100 s of unbroken contact bounds about every 7 s (' + bounds(steady) + ')');
   }
 });
 

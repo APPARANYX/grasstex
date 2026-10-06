@@ -55,6 +55,27 @@
     if (m.intent === 'defend') return m.requestKey || inside ? 'defend' : 'assault';
     return inside ? 'capture' : 'assault';
   }
+  /* For a defending squad at its objective, figure out which direction to scout.
+     Looks toward the map center (where the enemy spawn is) or toward any known
+     enemy contacts. Returns a normalized {x, z} direction vector, or null if
+     no direction can be determined. */
+  function defendScoutDirection(sim, sq, pos) {
+    /* First choice: toward the last known enemy contact, if any. */
+    var A = root.SquadAI,
+      c = A && A.squadContact ? A.squadContact(sq, sim) : null;
+    if (c && isFinite(+c.x) && isFinite(+c.z)) {
+      var dx = c.x - pos.x, dz = c.z - pos.z,
+        d = Math.hypot(dx, dz);
+      if (d > 1) return { x: dx / d, z: dz / d };
+    }
+    /* Fallback: toward the map center (enemy spawn direction). */
+    var town = sim && sim.scene && sim.scene.metadata && (sim.scene.metadata.battleScenario || sim.scene.metadata.battleTown),
+      center = town && town.center ? town.center : { x: 0, z: 0 };
+    dx = center.x - pos.x; dz = center.z - pos.z;
+    d = Math.hypot(dx, dz);
+    if (d > 1) return { x: dx / d, z: dz / d };
+    return null;
+  }
   /* Squad Leader execution of the General's brief: the only runtime writer of phase, legs and the squad
    objective point. Without a brief (Macro OFF) the Squad Leader walks the assigned approach route. */
   function executeMission(sim, sq, town) {
@@ -208,6 +229,25 @@
         setPhase(sim, sq, 'support-hold', 'doctrine support');
         sq.objective = copy(ex.holdPoint || pos);
         return;
+      }
+      /* Defending squads at their objective: try scouting toward the enemy before
+         settling into defend phase. The recon system looks for crests and visual
+         screens between the squad and its goal — for a defender, the "goal" is
+         the objective they're already on, so we point recon toward the enemy's
+         likely approach direction instead. This is what breaks the two-defenders-
+         on-opposite-sides-of-a-hill stalemate: scouts go over the crest and
+         acquire the enemy, triggering contact. */
+      if (m.intent === 'defend' && !sq.inContact && !L.get(sq, 'recon')) {
+        var enemyDir = defendScoutDirection(sim, sq, pos);
+        if (enemyDir) {
+          var scoutGoal = { x: pos.x + enemyDir.x * 60, z: pos.z + enemyDir.z * 60 },
+            defendRecon = reconCandidate(sq, sim, scoutGoal);
+          if (defendRecon && startRecon(sq, sim, defendRecon)) {
+            sq._missionHold = 'recon';
+            sq.objective = copy(wp);
+            return;
+          }
+        }
       }
       setPhase(sim, sq, objectivePhase(sim, sq, m, c, pos), 'mission ' + m.objectiveId);
       sq.objective = copy(wp);
