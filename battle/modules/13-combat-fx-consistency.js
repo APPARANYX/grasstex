@@ -159,5 +159,5 @@
   }
   root.BattleSim.start=function(scene,opts){return install(oldStart(scene,opts));};
   root.BattleCombatFxConsistency={version:'99-depth-occluded-tracers',install:install};
-  if(typeof console!=='undefined')console.log('[FX] ballistic hit tracers use 50% vertex alpha; miss tracers use 15% vertex alpha');
+  if(typeof console!=='undefined')root.GTLog('[FX] ballistic hit tracers use 50% vertex alpha; miss tracers use 15% vertex alpha');
 })(typeof window!=='undefined'?window:globalThis);

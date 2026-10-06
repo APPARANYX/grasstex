@@ -54,9 +54,7 @@
   function pos(s) {
     return s && s.root && s.root.position;
   }
-  function dist(a, b) {
-    return a && b ? Math.hypot(a.x - b.x, a.z - b.z) : Infinity;
-  }
+  var dist=root.GTMath.dist;
   function centre(list) {
     if (!list.length) return null;
     var x = 0,

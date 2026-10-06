@@ -382,5 +382,5 @@
       return sim ? snapshot(sim) : null;
     }
   };
-  console.log('[FIRE] finite combat loads + reloads + heat-sensitive stoppages active');
+  root.GTLog('[FIRE] finite combat loads + reloads + heat-sensitive stoppages active');
 })(typeof window !== 'undefined' ? window : globalThis);

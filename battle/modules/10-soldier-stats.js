@@ -301,5 +301,5 @@
     reset: reset
   };
   if (typeof console !== 'undefined')
-    console.log('[STATS] soldier stats active (' + MODE.flag + '): phy mkm for tac agi tec, hash rolls');
+    root.GTLog('[STATS] soldier stats active (' + MODE.flag + '): phy mkm for tac agi tec, hash rolls');
 })(typeof window !== 'undefined' ? window : globalThis);

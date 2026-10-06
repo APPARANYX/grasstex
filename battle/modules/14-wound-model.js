@@ -48,9 +48,7 @@
     MIN_SPEED = 0.35,
     MAX_SIGMA = 2.2;
 
-  function clamp(n, a, b) {
-    return Math.max(a, Math.min(b, n));
-  }
+  var clamp=root.GTMath.clamp;
   function rand(b) {
     return b && typeof b.random === 'function' ? b.random() : Math.random();
   }
@@ -184,5 +182,5 @@
     reset: reset,
     summary: summary
   };
-  if (typeof console !== 'undefined') console.log('[WOUNDS] hit-zone incapacitation + bleeding active');
+  if (typeof console !== 'undefined') root.GTLog('[WOUNDS] hit-zone incapacitation + bleeding active');
 })(typeof window !== 'undefined' ? window : globalThis);

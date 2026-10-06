@@ -29,7 +29,7 @@
   /* Headings to try, either side of the desired one, when the direct step is into a wall. */
   var SLIDE_FAN=[.52,1.05,1.57,2.09];
 
-  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  var clamp=root.GTMath.clamp;
   function transform(b,lx,lz){var c=Math.cos(b.rot||0),s=Math.sin(b.rot||0);return{x:b.x+lx*c+lz*s,z:b.z-lx*s+lz*c};}
   function localNormal(b,side){var n=side==='north'?{x:0,z:1}:side==='south'?{x:0,z:-1}:side==='east'?{x:1,z:0}:{x:-1,z:0};var c=Math.cos(b.rot||0),s=Math.sin(b.rot||0);return{x:n.x*c+n.z*s,z:-n.x*s+n.z*c};}
   function wallDef(b,side){if(side==='north'||side==='south'){var z=side==='north'?b.d/2:-b.d/2;return{a:transform(b,-b.w/2,z),b:transform(b,b.w/2,z),length:b.w};}var x=side==='east'?b.w/2:-b.w/2;return{a:transform(b,x,-b.d/2),b:transform(b,x,b.d/2),length:b.d};}
@@ -168,7 +168,7 @@
       if(d>MAX_EDGE)continue;
       if(movementClear(a,b))link(a,b);
     }
-    console.log('[NAV] graph built; walls='+walls.length+' nodes='+nodes.length+' doors='+doorPortals.length+' firingStations='+firingStations.length+' rejectedWindows='+rejectedWindows.length);
+    root.GTLog('[NAV] graph built; walls='+walls.length+' nodes='+nodes.length+' doors='+doorPortals.length+' firingStations='+firingStations.length+' rejectedWindows='+rejectedWindows.length);
   }
 
   function heapPush(h,x){h.push(x);var i=h.length-1;while(i>0){var p=(i-1)>>1;if(h[p].f<=h[i].f)break;var t=h[p];h[p]=h[i];h[i]=t;i=p;}}
@@ -225,5 +225,5 @@
     get scenario(){return scenario;},get version(){return version;},get walls(){return walls.slice();},get doorPortals(){return doorPortals.slice();},
     get firingStations(){return firingStations.slice();},get rejectedWindows(){return rejectedWindows.slice();},aperture:aperture,inSector:inSector,get portEnabled(){return PORT;},get eyeHeights(){return EYE;},get windowSlots(){return firingStations.slice();},get doorPad(){return DOOR_PAD;},get doorClearance(){return DOOR_CLEARANCE;},get startSkin(){return START_SKIN;}
   };
-  console.log('[NAV] firing-station navigation loaded');
+  root.GTLog('[NAV] firing-station navigation loaded');
 })(typeof window!=='undefined'?window:globalThis);

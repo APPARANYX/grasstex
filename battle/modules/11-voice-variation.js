@@ -28,7 +28,7 @@
     if(total<=0){soldier._voicePitchProfile=list[0];return list[0];}
     var key=[soldier.faction,soldier.id,soldier.role,soldier.squad&&soldier.squad.id].join('|'),roll=(hashString(key)/4294967296)*total,acc=0,p=list[list.length-1];
     for(i=0;i<list.length;i++){acc+=Math.max(0,+list[i].weight||0);if(roll<acc){p=list[i];break;}}
-    soldier._voicePitchProfile=p;console.log('[VOICE] '+soldier.id+' profile '+p.id+' ('+(+p.semitones||0)+' st)');return p;
+    soldier._voicePitchProfile=p;root.GTLog('[VOICE] '+soldier.id+' profile '+p.id+' ('+(+p.semitones||0)+' st)');return p;
   }
   function variantPath(file,profile){var suffix=profile&&profile.suffix||'';if(!suffix)return file;var dot=file.lastIndexOf('.');return dot>=0?file.slice(0,dot)+suffix+file.slice(dot):file+suffix;}
   function contactStore(sq){if(contactEpisodes&&sq){var r=contactEpisodes.get(sq);if(!r){r={token:null,firstAt:null};contactEpisodes.set(sq,r);}return r;}var k=String(sq&&sq.faction||'?')+':'+String(sq&&sq.id||'?');return contactFallback[k]||(contactFallback[k]={token:null,firstAt:null});}
@@ -58,7 +58,7 @@
      soldier for the clip's length; detach on completion so an idle cached Sound isn't still
      tracking (and, after a restart, reading) a disposed root. */
   function armEnded(entry,req){function done(){try{if(entry.sound&&typeof entry.sound.detachFromMesh==='function')entry.sound.detachFromMesh();}catch(_){}finish(req);}var o=entry&&entry.sound&&entry.sound.onEndedObservable;if(o&&typeof o.addOnce==='function'){o.addOnce(done);return;}if(o&&typeof o.add==='function'){var token=o.add(function(){try{o.remove(token);}catch(_){}done();});return;}try{var prior=entry.sound.onended;entry.sound.onended=function(){try{if(typeof prior==='function')prior.apply(this,arguments);}finally{done();}};}catch(_){}}
-  function playAt(entry,req){try{var soldier=req.soldier,root=soldier.root,s=entry.sound;if(typeof s.detachFromMesh==='function')s.detachFromMesh();if(root&&typeof s.attachToMesh==='function')s.attachToMesh(root);else{var p=root.position.clone?root.position.clone():root.position;s.setPosition(p);}armEnded(entry,req);s.play();req.handle.started=true;console.log('[VOICE] play '+entry.file+' profile='+(entry.profileId||'neutral')+' lane='+req.lane);}catch(e){console.error('[VOICE] play failed '+entry.file+': '+(e&&e.message||e));finish(req);}return req.handle;}
+  function playAt(entry,req){try{var soldier=req.soldier,root=soldier.root,s=entry.sound;if(typeof s.detachFromMesh==='function')s.detachFromMesh();if(root&&typeof s.attachToMesh==='function')s.attachToMesh(root);else{var p=root.position.clone?root.position.clone():root.position;s.setPosition(p);}armEnded(entry,req);s.play();req.handle.started=true;root.GTLog('[VOICE] play '+entry.file+' profile='+(entry.profileId||'neutral')+' lane='+req.lane);}catch(e){console.error('[VOICE] play failed '+entry.file+': '+(e&&e.message||e));finish(req);}return req.handle;}
   function enqueue(soldier,type,cam,opts){
     opts=opts||{};var contact=null;if(type==='contact'){contact=contactCandidate(soldier);if(!contact)return false;type=contact.type;}
     var m=window.BATTLE_AUDIO_MANIFEST;if(!m||!m.callouts||!m.callouts[soldier.faction]){console.warn('[VOICE] manifest/event map unavailable');return false;}
@@ -73,14 +73,14 @@
     commitContact(contact);
     if(social){lastSocialGlobal=now;socialSquadLast[squadId]=now;}else{lastTacticalGlobal=now;tacticalSquadLast[squadId]=now;}
     var handle=handleFor(soldier,type,file,opts),req={soldier:soldier,type:type,opts:opts,handle:handle,lane:lane},entry=cache[file];
-    if(entry){if(entry.ready)return playAt(entry,req);entry.pending.push(req);console.log('[VOICE] waiting '+file);return handle;}
-    var base=window.BATTLE_AUDIO_BASE||'https://test.ivandpopov.com/grasstex/Assets/audio/',url=(window.BattleAudioFormat?window.BattleAudioFormat.url(base+file):base+file);console.log('[VOICE] request '+url+' profile='+(profile.id||'neutral'));
+    if(entry){if(entry.ready)return playAt(entry,req);entry.pending.push(req);root.GTLog('[VOICE] waiting '+file);return handle;}
+    var base=window.BATTLE_AUDIO_BASE||'https://test.ivandpopov.com/grasstex/Assets/audio/',url=(window.BattleAudioFormat?window.BattleAudioFormat.url(base+file):base+file);root.GTLog('[VOICE] request '+url+' profile='+(profile.id||'neutral'));
     entry=cache[file]={file:file,baseFile:baseFile,profileId:profile.id||'neutral',sound:null,ready:false,pending:[req]};
-    try{var scene=soldier.root.getScene();entry.sound=new BABYLON.Sound('voice-'+file,url,scene,function(){entry.ready=true;console.log('[VOICE] ready '+file);var pending=entry.pending.splice(0);for(var i=0;i<pending.length;i++)playAt(entry,pending[i]);},{spatialSound:true,distanceModel:'linear',maxDistance:(m.runtime&&m.runtime.voiceMaxDistance)||95,rolloffFactor:1.7,volume:.24,autoplay:false});}
+    try{var scene=soldier.root.getScene();entry.sound=new BABYLON.Sound('voice-'+file,url,scene,function(){entry.ready=true;root.GTLog('[VOICE] ready '+file);var pending=entry.pending.splice(0);for(var i=0;i<pending.length;i++)playAt(entry,pending[i]);},{spatialSound:true,distanceModel:'linear',maxDistance:(m.runtime&&m.runtime.voiceMaxDistance)||95,rolloffFactor:1.7,volume:.24,autoplay:false});}
     catch(e){failed[file]=true;delete cache[file];finish(req);console.error('[VOICE] create failed '+file+': '+(e&&e.message||e));return false;}
     return handle;
   }
 
   root.BattleVoiceScheduler={enqueue:enqueue,profileFor:profileFor,variantPath:variantPath};
-  console.log('[VOICE] v5 pitch profiles + one-contact-per-squad + playback completion active');
+  root.GTLog('[VOICE] v5 pitch profiles + one-contact-per-squad + playback completion active');
 })(typeof window!=='undefined'?window:globalThis);

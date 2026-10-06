@@ -344,5 +344,5 @@ if(typeof document!=='undefined'){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installButton,{once:true});else installButton();
 }
 root.BattleDiagnosticsExport={version:'2.0',build:buildPayload,snapshot:snapshot,download:download,exportCurrent:function(sim){return download('full',sim);},current:function(){return activeSim;}};
-console.log('[DIAG] end-session full diagnostics export ready');
+root.GTLog('[DIAG] end-session full diagnostics export ready');
 })(typeof window!=='undefined'?window:globalThis);

@@ -20,6 +20,8 @@ root.BattleObjectiveSystem={tick:function(){objectiveTicks++;}};
 root.BattleModules={runHook:function(name,sim,payload){if(name==='onCommanderTick'){hooks++;if(payload.macroCommandEnabled!==sim.macroCommandEnabled)throw new Error('hook payload did not expose Macro state');}}};
 root.BattleTelemetry={record:function(type,data){telemetry.push({type:type,data:data});}};
 
+const corePath=path.resolve(__dirname,'../../battle/core-runtime.js');
+vm.runInThisContext(fs.readFileSync(corePath,'utf8'),{filename:corePath});
 const commanderPath=path.resolve(__dirname,'../../battle/commander-ai.js');
 vm.runInThisContext(fs.readFileSync(commanderPath,'utf8'),{filename:commanderPath});
 if(!root.BattleCommanderAI)throw new Error('BattleCommanderAI did not load');

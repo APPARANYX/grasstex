@@ -23,9 +23,7 @@
     return n >= 12 && n <= 96 ? n : 48;
   }
 
-  function clamp(n, a, b) {
-    return Math.max(a, Math.min(b, n));
-  }
+  var clamp=root.GTMath.clamp;
   function rand(b) {
     return b && b.random ? b.random() : Math.random();
   }
@@ -734,5 +732,5 @@
     }
   };
   if (typeof console !== 'undefined')
-    console.log('[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts');
+    root.GTLog('[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts');
 })(typeof window !== 'undefined' ? window : globalThis);

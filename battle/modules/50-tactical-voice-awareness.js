@@ -33,5 +33,5 @@ root.BattleVoiceScheduler.enqueue=function(soldier,type,cam,opts){
 };
 root.BattleModules.registerSystem('tactical-voice-awareness',{version:'1.0',onBattleStart:reset,onBattleRestart:reset});
 root.BattleTacticalVoiceAwareness={version:'1.0',reset:reset};
-console.log('[VOICE] tactical location awareness active: one call per squad/contact/location episode');
+root.GTLog('[VOICE] tactical location awareness active: one call per squad/contact/location episode');
 })(typeof window!=='undefined'?window:globalThis);

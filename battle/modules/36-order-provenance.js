@@ -229,5 +229,5 @@ root.BattleOrderProvenance={
   findSoldier:findSoldier,findSquad:findSquad,graphKey:graphKey,ownerLabel:ownerLabel,
   withOwner:withOwner,write:explicitWrite,decorateLoopCards:decorateLoopCards
 };
-console.log('[ORDER-PROVENANCE] writer tracing active (fast setters, '+SAMPLE_SECONDS.toFixed(1)+'s in-place sampler); battle behavior unchanged');
+root.GTLog('[ORDER-PROVENANCE] writer tracing active (fast setters, '+SAMPLE_SECONDS.toFixed(1)+'s in-place sampler); battle behavior unchanged');
 })(typeof window!=='undefined'?window:globalThis);

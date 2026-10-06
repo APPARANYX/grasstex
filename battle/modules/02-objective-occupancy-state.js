@@ -25,5 +25,5 @@
   }
   type.status=function(instance,sim,api){return enrich(oldStatus(instance,sim,api));};
   root.BattleObjectiveOccupancy={version:'66-occupancy-state',enrich:enrich};
-  if(typeof console!=='undefined')console.log('[OBJECTIVE] explicit occupied/vacant owner state active');
+  if(typeof console!=='undefined')root.GTLog('[OBJECTIVE] explicit occupied/vacant owner state active');
 })(typeof window!=='undefined'?window:globalThis);

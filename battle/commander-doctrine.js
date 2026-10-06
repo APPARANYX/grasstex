@@ -92,9 +92,7 @@
     return g.doctrine || FALLBACK_DOCTRINE;
   }
 
-  function dist(ax, az, bx, bz) {
-    return Math.hypot(ax - bx, az - bz);
-  }
+  var dist=root.GTMath.dist4;
   function enemyFaction(f) {
     return f === 'us' ? 'ge' : 'us';
   }
@@ -574,5 +572,5 @@
     maxEfforts: MAX_EFFORTS,
     frontageCost: FRONTAGE_COST
   };
-  console.log('[COMMAND] doctrine + objective scoring loaded');
+  root.GTLog('[COMMAND] doctrine + objective scoring loaded');
 })(typeof window !== 'undefined' ? window : globalThis);

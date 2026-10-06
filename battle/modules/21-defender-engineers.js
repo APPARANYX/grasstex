@@ -18,9 +18,7 @@
   function copy(p) {
     return p ? { x: +p.x || 0, z: +p.z || 0 } : null;
   }
-  function dist(a, b) {
-    return Math.hypot((+a.x || 0) - (+b.x || 0), (+a.z || 0) - (+b.z || 0));
-  }
+  var dist=root.GTMath.distStrict;
   function scenarioOf(sim) {
     var m = sim && sim.scene && sim.scene.metadata;
     return (m && (m.battleScenario || m.battleTown)) || null;
@@ -90,7 +88,7 @@
         b._defenderChoice = root.BATTLE_DEFENDER;
         b.restart();
         b.pause();
-        console.log('[SIDES] defender=' + String(root.BATTLE_DEFENDER || 'meeting'));
+        root.GTLog('[SIDES] defender=' + String(root.BATTLE_DEFENDER || 'meeting'));
       }
     }
     us.addEventListener('change', function () {
@@ -529,7 +527,7 @@
       posts: plan.posts.length,
       squadsDeployed: n
     });
-    console.log(
+    root.GTLog(
       '[DEFENSE] ' +
         root.BattleSides.summary(sides) +
         ' · ' +
@@ -596,5 +594,5 @@
   };
   ensureEngineer();
   installUi();
-  console.log('[DEFENSE] terrain-aware defender + engineers loaded');
+  root.GTLog('[DEFENSE] terrain-aware defender + engineers loaded');
 })(typeof window !== 'undefined' ? window : globalThis);

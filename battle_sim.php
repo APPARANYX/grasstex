@@ -65,8 +65,10 @@ function atomic_write($dest, $bytes) {
 
 function asset_path_safe($path) {
     if (strpos($path, 'Assets/') !== 0 || strpos($path, '..') !== false || strpos($path, "\0") !== false) return false;
-    /* Source archives are kept in the repository for asset provenance, but the runtime consumes
-       prepared FBX/PNG/audio outputs only. Never spend live-sync bandwidth or host storage on ZIPs. */
+    /* Source .zip archives are not part of the runtime tree any more (untracked in the
+       repo-hygiene pass); this filter stays so a zip that reappears is still never synced.
+       The runtime consumes prepared FBX/PNG/audio outputs only. Never spend live-sync
+       bandwidth or host storage on ZIPs. */
     return !preg_match('/\\.zip$/i', $path);
 }
 
@@ -254,7 +256,7 @@ if ($body !== false && strlen($body) > 100 && stripos($body, '<html') !== false)
     $cdnTag = '<script src="https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js"></script>';
     if (strpos($body, $cdnTag) !== false) $body = str_replace($cdnTag, $bootstrap."\n".$cdnTag, $body);
     $version = rawurlencode($resolvedRef) . '&c=' . rawurlencode($cacheEpoch);
-    foreach (array('soldier.js','weapons.js','obstacle-field.js','terrain-features.js','squad-ai.js','movement-resolver.js','engagement.js','battle-sim.js') as $file) $body = str_replace('<script src="'.$file.'"></script>', '<script src="'.$base.'battle/'.$file.'?v='.$version.'"></script>', $body);
+    foreach (array('core-runtime.js','soldier.js','weapons.js','obstacle-field.js','terrain-features.js','squad-ai.js','movement-resolver.js','engagement.js','battle-sim.js') as $file) $body = str_replace('<script src="'.$file.'"></script>', '<script src="'.$base.'battle/'.$file.'?v='.$version.'"></script>', $body);
     $extras = '';
     foreach (array('acoustics.js','scenario-generator.js','battle-navigation.js','town-objectives.js','module-registry.js','ai-policy.js','objective-system.js','battle-telemetry.js','commander-doctrine.js','commander-routes.js','commander-ai.js') as $file) $extras .= '<script src="'.$base.'battle/'.$file.'?v='.$version.'"></script>' . "\n";
     foreach ($moduleFiles as $file) $extras .= '<script src="'.$base.'battle/modules/'.rawurlencode($file).'?v='.$version.'"></script>' . "\n";

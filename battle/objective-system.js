@@ -61,5 +61,5 @@
   var api={attach:attach,reset:reset,tick:tick,get:get,status:status,unitsFor:unitsFor,definitionsFromTown:definitionsFromTown,ownedCount:ownedCount,allOwnedBy:allOwnedBy,summary:summary};
   root.BattleObjectiveSystem=api;
   root.BattleModules.registerSystem('objectives',{version:'19',init:function(sim,payload){var town=payload&&payload.town;attach(sim,definitionsFromTown(town),{town:town});}});
-  console.log('[OBJECTIVES] modular objective service v19 loaded');
+  root.GTLog('[OBJECTIVES] modular objective service v19 loaded');
 })(typeof window!=='undefined'?window:globalThis);

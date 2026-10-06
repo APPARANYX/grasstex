@@ -3,6 +3,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),H=require('./harness');
 const systems={},r={};r.window=r;r.BattleCommanderAI={strategicStallReplan:120};
 r.BattleModules={registerSystem(id,h){systems[id]=h;}};
+new Function('window','globalThis','console',fs.readFileSync(path.join(H.REPO,'battle/core-runtime.js'),'utf8'))(r,r,{log(){},warn(){}});
 new Function('window','globalThis','console',fs.readFileSync(path.join(H.REPO,'battle/modules/40-ai-coordination-health.js'),'utf8'))(r,r,{log(){},warn(){}});
 const squad=f=>({id:f+'-0',faction:f,aliveCount:8,state:'advance',commandRole:'center',targetObjective:'obj',commandPhase:'assault'});
 const sim={time:0,winner:null,factions:{us:{squads:[squad('us')]},ge:{squads:[squad('ge')]}},objectiveControl:{objectives:{obj:{owner:'neutral',active:null,phase:'idle',progress:0}}}};

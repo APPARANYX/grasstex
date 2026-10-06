@@ -396,6 +396,7 @@ test('relief: the capture zone tells the men of the side that took it who stood 
     },
     BattleSoldierEvents: ctx.E
   };
+  load(fake, 'battle/core-runtime.js');
   load(fake, 'battle/modules/01-capture-zone.js');
   assert.ok(handler, 'the zone registers its handler');
   const inside = man(ctx.us, 'rifleman', 0),
@@ -443,6 +444,7 @@ test('relief: the capture zone tells the men of the side that took it who stood 
   /* Nobody reads `objective` with relief off: nothing is posted. */
   const off = world('?stressMem=0');
   fake.BattleSoldierEvents = off.E;
+  load(fake, 'battle/core-runtime.js');
   load(fake, 'battle/modules/01-capture-zone.js');
   const u = man(off.us, 'rifleman');
   put(u, 100, 100);

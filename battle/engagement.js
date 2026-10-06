@@ -67,12 +67,8 @@
   function field() {
     return root.BattleObstacleField;
   }
-  function clamp(v, a, b) {
-    return Math.max(a, Math.min(b, v));
-  }
-  function dist(ax, az, bx, bz) {
-    return Math.hypot(ax - bx, az - bz);
-  }
+  var clamp=root.GTMath.clamp;
+  var dist=root.GTMath.dist4;
   function posOf(s) {
     return s.root.position;
   }
@@ -1754,5 +1750,5 @@
     }
   };
   if (typeof console !== 'undefined')
-    console.log('[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver');
+    root.GTLog('[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver');
 })(typeof window !== 'undefined' ? window : globalThis);

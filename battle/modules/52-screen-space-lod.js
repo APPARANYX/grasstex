@@ -63,5 +63,5 @@
     scale:scale,
     distance:distance
   };
-  console.log('[LOD] screen-space scaling active: 1080p / 0.8 rad reference');
+  root.GTLog('[LOD] screen-space scaling active: 1080p / 0.8 rad reference');
 })(typeof window!=='undefined'?window:globalThis);

@@ -41,5 +41,5 @@ Object.keys(ROLE).forEach(function(role){
 });
 
 root.BattleEffectiveRanges={version:'1.1-combat-groups',weapons:EFFECTIVE,roles:ROLE};
-console.log('[COMBAT] practical WW2 ranges + combat shot-group calibration active');
+root.GTLog('[COMBAT] practical WW2 ranges + combat shot-group calibration active');
 })(typeof window!=='undefined'?window:globalThis);

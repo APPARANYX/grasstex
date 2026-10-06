@@ -56,6 +56,8 @@ const ctx = {
 };
 ctx.globalThis = ctx;
 vm.createContext(ctx);
+const coreRuntime = fs.readFileSync(path.join(__dirname, '../../battle/core-runtime.js'), 'utf8');
+vm.runInContext(coreRuntime, ctx, { filename: 'battle/core-runtime.js' });
 vm.runInContext(source, ctx, { filename: '41-squad-status-overlay.js' });
 
 const O = ctx.BattleSquadStatusOverlay;

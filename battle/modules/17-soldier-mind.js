@@ -420,12 +420,8 @@
     FREEZE_MIN = 12,
     FREEZE_MAX = 48;
 
-  function clamp(n, a, b) {
-    return Math.max(a, Math.min(b, n));
-  }
-  function dist(a, b) {
-    return Math.hypot(a.x - b.x, a.z - b.z);
-  }
+  var clamp=root.GTMath.clamp;
+  var dist=root.GTMath.distStrict;
   function hash(str) {
     var h = 2166136261 >>> 0;
     for (var i = 0; i < str.length; i++) {
@@ -1585,7 +1581,7 @@
     reset: reset
   };
   if (typeof console !== 'undefined')
-    console.log(
+    root.GTLog(
       '[MIND] soldier condition active (' + MODE.flag + '): stress from fire, wounds, casualties, leadership'
     );
 })(typeof window !== 'undefined' ? window : globalThis);

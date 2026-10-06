@@ -38,6 +38,7 @@ test('combat posture visual passes a static presentation aim point without touch
       stateOf(s){return s.eng;}
     }
   };
+  load(r,'battle/core-runtime.js');
   load(r,'battle/modules/52-combat-posture-visual.js');
 
   const s={

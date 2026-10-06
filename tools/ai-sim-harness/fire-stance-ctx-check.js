@@ -116,6 +116,7 @@ test('firing: a committed crouch lands on the body and fire permission answers t
 test('engagement.js without the module fails loudly on the first fire or stance use', () => {
   const r = {};
   r.window = r;
+  load(r, 'battle/core-runtime.js');
   load(r, 'battle/engagement.js');
   assert.ok(r.BattleEngagement, 'engagement.js alone still loads and exports');
   assert.throws(() => r.BattleEngagement.fireAllowed({ root: { position: { x: 0, z: 0 } } }, { time: 0 }), /fire\/stance system missing/, 'no silent fire-when-unready battlefield');
@@ -124,6 +125,7 @@ test('engagement.js without the module fails loudly on the first fire or stance 
 test('the module without engagement.js fails loudly at load', () => {
   const r = {};
   r.window = r;
+  load(r, 'battle/core-runtime.js');
   assert.throws(() => load(r, 'battle/modules/19b-engagement-fire-stance.js'), /engagement\.js must load before/, 'the reversed install needs its parent first');
 });
 

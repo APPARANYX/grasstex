@@ -157,5 +157,5 @@
     list:function(){return root.BattleModules.listTacticalSymbols();},
     register:function(id,spec){return root.BattleModules.registerTacticalSymbol(id,spec);}
   };
-  console.log('[UI] tactical symbol catalog active: '+root.BattleModules.listTacticalSymbols().length+' symbol types');
+  root.GTLog('[UI] tactical symbol catalog active: '+root.BattleModules.listTacticalSymbols().length+' symbol types');
 })(typeof window!=='undefined'?window:globalThis);

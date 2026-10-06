@@ -21,7 +21,7 @@
     api={active:true,ready:false,version:'1.2-fps-aim'};
   root.BattleDamageRange=api;
 
-  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  var clamp=root.GTMath.clamp;
   function num(name,fallback,a,b){var v=+q.get(name);return isFinite(v)?clamp(v,a,b):fallback;}
   function label(s){return(s.faction==='us'?'US':'GER')+' '+s.role;}
   function pickRole(sim,faction,role,skip){
@@ -252,7 +252,7 @@
     function stepGamepad(dt){
       var pad=activePad();
       if(!pad){padId=null;padButtons={};return;}
-      if(pad.id!==padId){padId=pad.id||'gamepad';padButtons={};console.log('[RANGE] gamepad active: '+padId);}
+      if(pad.id!==padId){padId=pad.id||'gamepad';padButtons={};root.GTLog('[RANGE] gamepad active: '+padId);}
       var axes=pad.axes||[],lookX=shapedAxis(axes[2]),lookY=shapedAxis(axes[3]);
       if(fps){
         fpsYaw+=lookX*2.25*dt;fpsPitch=clamp(fpsPitch+lookY*1.7*dt,-1.32,1.32);
@@ -386,7 +386,7 @@
     api.setZone=setZone;api.setAuto=setAuto;api.setPanelCollapsed=setPanelCollapsed;api.setFps=setFps;
     api.gamepadMap={A:'fire',RT:'fire in FPS',B:'clear',X:'3-shot',Y:'auto',LB:'exit',RB:'orbit',DPad:'target/zone',RS:'aim/orbit',LT:'ADS in FPS',R3:'kill',View:'toggle UI',Menu:'toggle FPS'};
     updateUi();if(auto)setAuto(true);
-    console.log('[RANGE] ready: '+targets.map(label).join(', ')+' · deckY='+baseY);
+    root.GTLog('[RANGE] ready: '+targets.map(label).join(', ')+' · deckY='+baseY);
     return sim;
   }
 

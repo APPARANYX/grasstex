@@ -13,8 +13,8 @@
     roadblock:{cost:[3,2],height:1.25,cover:.50,posts:0,span:7,shape:'line',siting:'flat'}
   };
   var COMBAT={sandbags:1,foxholes:1,trench:1,mg:1},POST_CLAIM=90,LOS_PROOF=42;
-  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
-  function dist(ax,az,bx,bz){return Math.hypot(ax-bx,az-bz);}
+  var clamp=root.GTMath.clamp;
+  var dist=root.GTMath.dist4;
   function round(v){return Math.round(v*100)/100;}
   function hash(s){s=String(s||'default');var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
   function rng(seed){var a=hash(seed);return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
@@ -73,5 +73,5 @@
   function resetClaims(plan){if(plan)(plan.posts||[]).forEach(function(p){p.claim=null;});}
   function register(plan,work,sector){if(!plan||!work)return null;plan.works.push(work);plan.posts=plan.posts.concat(work.posts||[]);plan.obstacles=plan.obstacles.concat(work.obstacles||[]);var id=work.objectiveId||(sector&&sector.objectiveId);if(id){var e=plan.bySector[id]||(plan.bySector[id]={sector:sector||null,works:[],posts:[]});e.works.push(work);e.posts=e.posts.concat(work.posts||[]);}plan.stats.works=plan.works.length;plan.stats.posts=plan.posts.length;plan.stats.obstacles=plan.obstacles.length;return work;}
   root.BattleDefensePlan={WORKS:WORKS,build:build,empty:empty,register:register,materialise:materialise,claimPost:claimPost,holdPost:holdPost,releasePost:releasePost,resetClaims:resetClaims};
-  if(typeof console!=='undefined')console.log('[DEFENSE] terrain-aware planner loaded');
+  if(typeof console!=='undefined')root.GTLog('[DEFENSE] terrain-aware planner loaded');
 })(typeof window!=='undefined'?window:globalThis);

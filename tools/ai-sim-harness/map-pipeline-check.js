@@ -42,6 +42,7 @@ const quiet={log(){},warn(){},error(){}};
 function load(root,rel){const c=fs.readFileSync(path.join(REPO,rel),'utf8');new Function('window','globalThis','console','BABYLON',c+'\n//# sourceURL='+rel)(root,root,quiet,root.BABYLON);}
 function world(){
   const root={console:quiet,BABYLON:stub()};root.window=root;
+  load(root,'battle/core-runtime.js');
   /* Same relative order as battle_sim_local.php: shared obstacle field, core terrain,
      pre-commander runtime, then modules. */
   load(root,'battle/obstacle-field.js');

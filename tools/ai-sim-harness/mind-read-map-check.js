@@ -39,6 +39,7 @@ function loadMind(repo) {
     BattleSoldierEvents: { subscribe() {} }
   };
   root.window = root;
+  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(repo, 'battle/core-runtime.js'), 'utf8'))(root, root, { log() {}, warn() {} });
   const source = fs.readFileSync(path.join(repo, 'battle/modules/17-soldier-mind.js'), 'utf8');
   new Function('window', 'globalThis', 'console', source)(root, root, { log() {}, warn() {} });
   assert.ok(root.BattleSoldierMind, 'module 17 loads from ' + repo);

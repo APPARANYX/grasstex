@@ -23,9 +23,7 @@
   function pos(s) {
     return point(s && s.root && s.root.position);
   }
-  function dist(a, b) {
-    return a && b ? Math.hypot(a.x - b.x, a.z - b.z) : Infinity;
-  }
+  var dist=root.GTMath.dist;
   function clone(p) {
     return { x: +p.x, z: +p.z };
   }
@@ -698,5 +696,5 @@
     onCommanderTick: publish
   });
   root.BattleMovementExecution = { version: '3.0-lean-owner' };
-  console.log('[MOVE] lean movement execution: committed micro-route + conservative recovery');
+  root.GTLog('[MOVE] lean movement execution: committed micro-route + conservative recovery');
 })(typeof window !== 'undefined' ? window : globalThis);

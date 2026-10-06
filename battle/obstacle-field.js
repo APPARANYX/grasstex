@@ -17,7 +17,7 @@
   var EYE={stand:1.55,crouch:1.05,prone:.42};
   var DEFAULT_HEIGHT=1.6;
 
-  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  var clamp=root.GTMath.clamp;
   function finite(v,d){v=+v;return isFinite(v)?v:d;}
   function isObb(ob){return!!(ob&&ob.shape==='obb');}
   function obstacleHeight(ob){var h=+ob.height;return isFinite(h)&&h>0?h:DEFAULT_HEIGHT;}
@@ -155,5 +155,5 @@
     coverPotentialAt:coverPotentialAt,nearby:nearby,obstacleHeight:obstacleHeight,obstacleTop:obstacleTop,
     horizontalDistance:horizontalDistance,sightHitT:sightHitT
   };
-  if(typeof console!=='undefined')console.log('[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded');
+  if(typeof console!=='undefined')root.GTLog('[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded');
 })(typeof window!=='undefined'?window:globalThis);

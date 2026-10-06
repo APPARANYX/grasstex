@@ -56,9 +56,7 @@
   function copy(p) {
     return p ? { x: +p.x || 0, z: +p.z || 0 } : null;
   }
-  function dist(a, b) {
-    return a && b ? Math.hypot((+a.x || 0) - (+b.x || 0), (+a.z || 0) - (+b.z || 0)) : Infinity;
-  }
+  var dist=root.GTMath.dist;
   function sideSquads(sim, faction) {
     return (sim && sim.factions && sim.factions[faction] && sim.factions[faction].squads) || [];
   }
@@ -608,5 +606,5 @@
     onBattleRestart: start
   });
   if (typeof document !== 'undefined') installUi();
-  console.log('[UI] tactical status overlay active: registry-driven unit symbols + momentary long-range command arrows/objectives');
+  root.GTLog('[UI] tactical status overlay active: registry-driven unit symbols + momentary long-range command arrows/objectives');
 })(typeof window !== 'undefined' ? window : globalThis);

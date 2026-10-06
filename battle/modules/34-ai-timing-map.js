@@ -86,5 +86,5 @@ function install(){
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 root.BattleAITimingMap={values:values,loops:loopData,refresh:decorate,open:function(){if(ui.panel){ui.panel.hidden=false;decorate();}}};
-console.log('[AI-GRAPH] existing timing + designed loop map loaded');
+root.GTLog('[AI-GRAPH] existing timing + designed loop map loaded');
 })(typeof window!=='undefined'?window:globalThis);

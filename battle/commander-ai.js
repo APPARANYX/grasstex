@@ -15,7 +15,7 @@
 (function (root) {
   'use strict';
   /* The build id belongs to the page, not to a runtime: stamping one here overwrote it. */
-  console.log('[COMMAND] Genome v2 commander loaded');
+  root.GTLog('[COMMAND] Genome v2 commander loaded');
   if (!root.BattleSim || !root.SquadAI || !root.BattleCommanderDoctrine || !root.BattleCommanderRoutes) {
     console.warn('[COMMAND] doctrine/route modules missing; hierarchical AI disabled');
     return;
@@ -57,7 +57,7 @@
     sim.winner = winner;
     sim.winReason = reason;
     telemetry(sim, 'objective-victory', { winner: winner, reason: reason });
-    console.log('[COMMAND] objective victory ' + winner + ' reason=' + reason);
+    root.GTLog('[COMMAND] objective victory ' + winner + ' reason=' + reason);
     if (sim.onWinner) sim.onWinner(winner, sim);
   }
   function macroEnabled(sim) {
@@ -655,7 +655,7 @@
         updateCommander(sim, town, COMMAND_TICK);
       }
     });
-    console.log(
+    root.GTLog(
       '[COMMAND] Genome v2 doctrine + modular objectives active · build ' + (root.BATTLE_BUILD || 'dev')
     );
     return sim;

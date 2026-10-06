@@ -25,5 +25,5 @@
     isVacantEnemyObjective: isVacantEnemyObjective
   };
   if (typeof console !== 'undefined')
-    console.log('[COMMAND] vacant enemy-owned objectives inform Force Command missions');
+    root.GTLog('[COMMAND] vacant enemy-owned objectives inform Force Command missions');
 })(typeof window !== 'undefined' ? window : globalThis);

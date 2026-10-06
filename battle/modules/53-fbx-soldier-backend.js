@@ -1132,14 +1132,14 @@ function loadLibrary(scene){
       solveGrips(lib,lib.clips.aim,st.bones,Object.keys(WEAPON_POINTS).filter(function(k){return pistols.indexOf(k)<0;}));
       solveGrips(lib,lib.clips.pistolIdle,st.bones,pistols);
       assetAdd('model',f,'grips',perfNow()-tg);
-      console.log('[ANIM] hand sockets '+f+': R='+lib.palms[BONE.rightHand+'Source']
+      root.GTLog('[ANIM] hand sockets '+f+': R='+lib.palms[BONE.rightHand+'Source']
         +' L='+lib.palms[BONE.leftHand+'Source']
         +' Rverts='+lib.palms[BONE.rightHand+'Vertices']+' Lverts='+lib.palms[BONE.leftHand+'Vertices']);
     });
     hookRender(scene,st);st.ready=true;
     assetMark('ready');if(ASSET.on)ASSET.bindClipsMs=ASSET.marks.ready-ASSET.marks.bindClipsStart;
     meshopt.then(function(M){meshLodInstall(st,M);});
-    console.log('[ANIM] FBX soldiers ready: '+MODEL_SET+' '+Object.keys(st.libs).map(function(f){return f.replace('.fbx','')+(st.libs[f].retargeted?'*':'');}).join(' ')+', weapons '+Object.keys(st.weapons||{}).join(' ')+', '+list.length+' clips, '+st.animated.length+' animated bones, '+(Date.now()-started)+' ms'+(SMOOTH_NORMALS?', smoothed normals':''));
+    root.GTLog('[ANIM] FBX soldiers ready: '+MODEL_SET+' '+Object.keys(st.libs).map(function(f){return f.replace('.fbx','')+(st.libs[f].retargeted?'*':'');}).join(' ')+', weapons '+Object.keys(st.weapons||{}).join(' ')+', '+list.length+' clips, '+st.animated.length+' animated bones, '+(Date.now()-started)+' ms'+(SMOOTH_NORMALS?', smoothed normals':''));
     return true;
   }).catch(function(error){
     st.error=error;console.error('[ANIM] FBX soldiers failed to load',error);return false;
@@ -1281,7 +1281,7 @@ function play(tag,data,soldier){
   else if(tag===TAGS.hit)fx.hitShot=(fx.hitShot||0)+1;
   else if(tag===TAGS.reload){fx.reloadShot++;fx.reloadDuration=+(data&&data.duration)||(soldier.weapon&&soldier.weapon.stats&&soldier.weapon.stats.reloadTime)||2.5;}
 }
-function clamp(v,a,b){return v<a?a:(v>b?b:v);}
+var clamp=root.GTMath.clamp;
 function sectorOf(fx,angle){
   /* Eight-way sector with a little stickiness so a diagonal path does not flicker between clips. */
   var step=Math.PI/4,current=fx.sector,diff=Math.atan2(Math.sin(angle-current*step),Math.cos(angle-current*step));
@@ -2327,5 +2327,5 @@ root.BattleFbxSoldier.meshLodState=function(soldier){var fx=soldier&&soldier._fb
 root.BattleFbxSoldier.lodState=function(soldier){var fx=soldier&&soldier._fbx;return fx?{hold:fx._lodHold||null,shadowKept:!!fx._lodShadowKept,culled:!!fx._culled,lastPoseAt:fx._lodAt==null?null:fx._lodAt}:null;};
 root.BattlePoseTimings={enable:poseEnable,disable:function(){POSE.on=false;return false;},reset:function(){if(POSE.on)poseReset();},
   enabled:function(){return POSE.on;},snapshot:poseSnapshot,layers:POSE_LAYERS.slice()};
-console.log('[ANIM] FBX soldier backend installed (models + clips load with the battle)');
+root.GTLog('[ANIM] FBX soldier backend installed (models + clips load with the battle)');
 })(typeof window!=='undefined'?window:globalThis);

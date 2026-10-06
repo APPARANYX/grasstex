@@ -17,7 +17,7 @@
   try{
     var base=root.BATTLE_AUDIO_BASE||'https://test.ivandpopov.com/grasstex/Assets/audio/';
     fetch(base+'acoustics.json?ts='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){
-      if(j){root.BATTLE_ACOUSTICS_SPEC=j;if(j.speedOfSoundMps)SPEED_OF_SOUND=+j.speedOfSoundMps||343;console.log('[ACOUSTICS] spec loaded; c='+SPEED_OF_SOUND+'m/s');}
+      if(j){root.BATTLE_ACOUSTICS_SPEC=j;if(j.speedOfSoundMps)SPEED_OF_SOUND=+j.speedOfSoundMps||343;root.GTLog('[ACOUSTICS] spec loaded; c='+SPEED_OF_SOUND+'m/s');}
     }).catch(function(){});
   }catch(_){}
 
@@ -68,8 +68,8 @@
       var entry=cache[file]={file:file,sound:null,ready:false};
       try{
         var scene=soldier.root.getScene(),base=root.BATTLE_AUDIO_BASE||'https://test.ivandpopov.com/grasstex/Assets/audio/';
-        console.log('[VOICE] request '+base+file);
-        entry.sound=new BABYLON.Sound('voice-'+file,root.BattleAudioFormat?root.BattleAudioFormat.url(base+file):base+file,scene,function(){entry.ready=true;console.log('[VOICE] ready '+file);},{spatialSound:true,distanceModel:'linear',maxDistance:150,rolloffFactor:.7,volume:.28,autoplay:false});
+        root.GTLog('[VOICE] request '+base+file);
+        entry.sound=new BABYLON.Sound('voice-'+file,root.BattleAudioFormat?root.BattleAudioFormat.url(base+file):base+file,scene,function(){entry.ready=true;root.GTLog('[VOICE] ready '+file);},{spatialSound:true,distanceModel:'linear',maxDistance:150,rolloffFactor:.7,volume:.28,autoplay:false});
       }catch(e){failed[file]=true;delete cache[file];console.error('[VOICE] create failed '+file+': '+(e&&e.message||e));return null;}
       return entry;
     }
@@ -91,7 +91,7 @@
       for(var i=0;i<q.length;i++){
         var e=q[i];
         if(e.due<=now&&e.entry.ready){
-          try{e.entry.sound.setPosition(e.pos);if(e.entry.sound.setVolume)e.entry.sound.setVolume(e.gain);e.entry.sound.play();console.log('[VOICE] play '+e.file+' gain='+e.gain.toFixed(3));}catch(err){console.error('[VOICE] play failed '+e.file+': '+(err&&err.message||err));}
+          try{e.entry.sound.setPosition(e.pos);if(e.entry.sound.setVolume)e.entry.sound.setVolume(e.gain);e.entry.sound.play();root.GTLog('[VOICE] play '+e.file+' gain='+e.gain.toFixed(3));}catch(err){console.error('[VOICE] play failed '+e.file+': '+(err&&err.message||err));}
         }else remain.push(e);
       }
       q=remain;if(q.length)requestAnimationFrame(drain);else running=false;
@@ -99,5 +99,5 @@
     return {enqueue:enqueue};
   })();
 
-  console.log('[ACOUSTICS] runtime v17 active; voice 150m cull, small arms 1200m cull, delayed at '+SPEED_OF_SOUND+'m/s');
+  root.GTLog('[ACOUSTICS] runtime v17 active; voice 150m cull, small arms 1200m cull, delayed at '+SPEED_OF_SOUND+'m/s');
 })(typeof window!=='undefined'?window:globalThis);

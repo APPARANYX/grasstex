@@ -25,9 +25,9 @@ var STATION_RADIUS=.92,STATION_ROUTE_MARGIN=.28;
 var simRef=null,occupied=[],occupiedAt=-999,occupiedRevision=-1,legacyCache=null,physicalIndexCache=null;
 var debug={visible:false,version:-1,markers:[],freeMat:null,usedMat:null,button:null,nextUpdate:0};
 
-function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+var clamp=root.GTMath.clamp;
 function point(v){return v&&isFinite(+v.x)&&isFinite(+v.z)?{x:+v.x,z:+v.z,kind:v.kind||null,meta:v.meta||null}:null;}
-function dist(a,b){return!a||!b?Infinity:Math.hypot(a.x-b.x,a.z-b.z);}
+var dist=root.GTMath.dist;
 function currentSim(){var b=simRef||root.__battle__;if(!b||!b.obstacles)return null;var navScenario=N.scenario,battleScenario=b.scene&&b.scene.metadata&&b.scene.metadata.battleScenario;if(navScenario&&battleScenario&&navScenario!==battleScenario)return null;return b;}
 function hardObstacle(ob){return!!(ob&&HARD_TYPES[String(ob.type||'').toLowerCase()]);}
 function shapeMargin(fp,margin){return fp&&fp.type==='occupied-window'?Math.min(margin,STATION_ROUTE_MARGIN):margin;}
@@ -471,5 +471,5 @@ root.BattleNavigationPhysicality={
   planIngressPath:function(sim,soldier,start,end){return planComplete(sim,start,end,soldier,true);},
   planPath:function(sim,start,end){return planComplete(sim||currentSim(),start,end);},planLocal:function(sim,start,end){return planLocal(sim||currentSim(),null,start,end);}
 };
-console.log('[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded');
+root.GTLog('[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded');
 })(typeof window!=='undefined'?window:globalThis);

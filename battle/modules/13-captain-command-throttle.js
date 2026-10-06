@@ -23,5 +23,5 @@
     version:'24-playback-handles',
     beforeBattleRestart:function(){lastLeaderCommandMs=0;}
   });
-  console.log('[VOICE] squad leader command throttle active; global gap='+LEADER_GLOBAL_GAP_MS+'ms');
+  root.GTLog('[VOICE] squad leader command throttle active; global gap='+LEADER_GLOBAL_GAP_MS+'ms');
 })(typeof window!=='undefined'?window:globalThis);

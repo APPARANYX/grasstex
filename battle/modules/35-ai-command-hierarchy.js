@@ -73,5 +73,5 @@ function install(){
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 root.BattleAICommandHierarchy={refresh:decorate,clearTrace:clearTrace,traceLeader:traceLeader};
-console.log('[AI-GRAPH] command hierarchy truth map loaded: Force Command -> Squad Orders; Squad Leader is influence only');
+root.GTLog('[AI-GRAPH] command hierarchy truth map loaded: Force Command -> Squad Orders; Squad Leader is influence only');
 })(typeof window!=='undefined'?window:globalThis);

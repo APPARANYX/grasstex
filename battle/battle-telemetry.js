@@ -22,7 +22,7 @@
     if(!active&&!internal)ensure(sim,'live');if(!active)return;var sm=scenarioMeta(sim);
     var e={session:sessionId,seq:++seq,mode:mode,build:root.BATTLE_BUILD||'dev',policyRevision:root.BattleAIPolicy?root.BattleAIPolicy.revision:0,scenarioId:sm.scenarioId,scenarioSeed:sm.scenarioSeed,trainingSeed:sm.trainingSeed,type:type,battleTime:sim&&isFinite(sim.time)?+sim.time.toFixed(3):null,clientTime:new Date().toISOString(),data:safe(data||{})};
     queue.push(e);trimQueue();delivery.highWater=Math.max(delivery.highWater,queue.length);
-    if(consoleLogging&&(type.indexOf('decision')===0||type.indexOf('objective')===0||type.indexOf('policy-')===0||type==='reinforcement'||type==='module-spawn'||type==='battle-end'||type==='training-result'))console.log('[AI]',type,JSON.stringify(e.data));
+    if(consoleLogging&&(type.indexOf('decision')===0||type.indexOf('objective')===0||type.indexOf('policy-')===0||type==='reinforcement'||type==='module-spawn'||type==='battle-end'||type==='training-result'))root.GTLog('[AI]',type,JSON.stringify(e.data));
     if(queue.length>=BATCH_MAX&&!inFlight&&Date.now()>=retryAfter)drain(false,false);
   }
   function send(events,beacon){if(!events.length||root.BATTLE_PREVIEW)return Promise.resolve(true); /* branch previews never write production logs */var body=JSON.stringify({events:events});if(beacon&&navigator.sendBeacon){try{return Promise.resolve(navigator.sendBeacon(ENDPOINT,new Blob([body],{type:'application/json'})));}catch(_){}}return fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:body,cache:'no-store',keepalive:true}).then(function(r){return r.ok;}).catch(function(){return false;});}
@@ -62,5 +62,5 @@
        the page between runs. Without this the interval and listeners leak
        across reloads and can fire drain() on a queue belonging to a dead
        session. */
-    destroy:function(){if(flushTimer){clearInterval(flushTimer);flushTimer=null;}if(typeof window!=='undefined'){window.removeEventListener('pagehide',onPageHide);window.removeEventListener('beforeunload',onBeforeUnload);}}};console.log('[TELEMETRY] runtime v21c serialized safe-batch delivery loaded (back-drop trim + destroy)');
+    destroy:function(){if(flushTimer){clearInterval(flushTimer);flushTimer=null;}if(typeof window!=='undefined'){window.removeEventListener('pagehide',onPageHide);window.removeEventListener('beforeunload',onBeforeUnload);}}};root.GTLog('[TELEMETRY] runtime v21c serialized safe-batch delivery loaded (back-drop trim + destroy)');
 })(typeof window!=='undefined'?window:globalThis);

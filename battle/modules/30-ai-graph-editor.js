@@ -39,7 +39,7 @@ var E={};
 
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function cap(s){return String(s).replace(/([a-z])([A-Z])/g,'$1 $2').replace(/[-_]/g,' ').replace(/^./,function(c){return c.toUpperCase();});}
-function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+var clamp=root.GTMath.clamp;
 function key(type,id){return type+':'+id;}
 function clone(v){return JSON.parse(JSON.stringify(v));}
 function ruleById(id){for(var i=0;i<S.draft.rules.length;i++)if(S.draft.rules[i].id===id)return S.draft.rules[i];return null;}
@@ -227,5 +227,5 @@ function importPolicy(){var file=E.importFile.files&&E.importFile.files[0];if(!f
 inject();
 root.BattleAIGraphEditor={open:open,apply:applyLive,save:savePolicy,frame:frameAll,draft:function(){return clone(S.draft);}};
 if(new URLSearchParams(location.search).get('editor')==='ai'||location.hash==='#ai-graph')setTimeout(function(){open(true);},0);
-console.log('[AI-GRAPH] Blender-style Policy Genome workbench loaded');
+root.GTLog('[AI-GRAPH] Blender-style Policy Genome workbench loaded');
 })(typeof window!=='undefined'?window:globalThis);

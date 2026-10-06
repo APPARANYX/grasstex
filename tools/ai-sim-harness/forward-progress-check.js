@@ -11,6 +11,7 @@ function fixture(){
     BattleModules:{registerSystem(id,s){systems[id]=s;}},
     BattleTelemetry:{record(){}}
   };
+  load(root,'battle/core-runtime.js');
   load(root,'battle/modules/43-squad-forward-progress.js');
   const members=[
     {id:1,dead:false,root:{position:{x:0,y:0,z:0}}},

@@ -25,9 +25,7 @@
   function point(p) {
     return p && isFinite(+p.x) && isFinite(+p.z) ? { x: +p.x, z: +p.z } : null;
   }
-  function dist(a, b) {
-    return a && b ? Math.hypot(a.x - b.x, a.z - b.z) : Infinity;
-  }
+  var dist=root.GTMath.dist;
   function pos(s) {
     return point(s && s.root && s.root.position);
   }
@@ -315,5 +313,5 @@
       return sim && sim._combatUrgencySummary ? JSON.parse(JSON.stringify(sim._combatUrgencySummary)) : null;
     }
   };
-  console.log('[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction');
+  root.GTLog('[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction');
 })(typeof window !== 'undefined' ? window : globalThis);

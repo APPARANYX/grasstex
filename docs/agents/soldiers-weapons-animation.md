@@ -106,6 +106,8 @@ character in an A-pose must be moved to the library's T-pose rest first (`tools/
 Before committing, run the lineup: `node scripts/fbx-soldier-lineup.cjs` against the local server
 checks every faction/role model + weapon pair and the two-hand hold, and writes close-ups to
 `$FBX_OUT` (`FBX_CHROME` picks a browser; visual PASS is still a human judgement: lit, no holes,
-factions textured differently, weapon on the hands). Keep weapon source `.zip` packs next to the
-`.fbx`; new generator packs in `Assets/soldiers/new/` are gitignored. Only the `.fbx` deploys.
+factions textured differently, weapon on the hands). Source `.zip` packs are not tracked
+any more (removed in the repo-hygiene pass; recover one from git history with
+`git checkout <sha> -- <path>` when a re-export is needed, or re-download the generator
+pack); new generator packs in `Assets/soldiers/new/` are gitignored. Only the `.fbx` deploys.
 

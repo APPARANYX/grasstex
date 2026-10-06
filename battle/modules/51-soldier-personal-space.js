@@ -118,5 +118,5 @@ function publish(sim){var out=JSON.parse(JSON.stringify(stats(sim)));out.minSepa
 function reset(sim){if(root.BattleCoverPositions&&root.BattleCoverPositions.warm)try{root.BattleCoverPositions.warm(sim);}catch(_){}sim._personalSpaceStats=fresh();delete sim._personalSpaceDestinations;root.BattleModules.unitsFor(sim).forEach(function(s){delete s._personalSpaceDestination;});publish(sim);}
 root.BattleModules.registerSystem('soldier-personal-space',{version:'1.0',onBattleStart:reset,onBattleRestart:reset,onSimulationStep:tick,onCommanderTick:publish});
 root.BattleSoldierPersonalSpace={version:'1.1',minSeparation:MIN,destinationSeparation:DEST_SPACE,resolveDestination:resolveDestination,summary:function(sim){return sim&&sim._personalSpaceSummary?JSON.parse(JSON.stringify(sim._personalSpaceSummary)):null;}};
-console.log('[MOVE] soldier personal space active: 0.90m minimum center spacing');
+root.GTLog('[MOVE] soldier personal space active: 0.90m minimum center spacing');
 })(typeof window!=='undefined'?window:globalThis);
