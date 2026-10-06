@@ -233,7 +233,7 @@ test('three four-man remnants rebuild the nearest pair and leave the third in th
   assert.notEqual(q.state, 'retreat', 'the rebuilt squad returns to command');
   const leftover = w.sq.find(x => !x.disbanded && x !== q && living(x).length);
   assert.ok(leftover && living(leftover).length === 4, 'the unneeded remnant keeps waiting');
-  assert.equal(leftover._reconGroup, null);
+  assert.ok(!leftover._reconGroup);
   invariants(w, 12);
 });
 test('no group is planned until enough survivors are actually home and out of contact', () => {
