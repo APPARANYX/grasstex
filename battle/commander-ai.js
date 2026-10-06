@@ -139,6 +139,26 @@
           promotions: rows.reduce(function (n, r) {
             return n + (+r.promotions || 0);
           }, 0),
+          pool: {
+            us: ur
+              ? {
+                  survivors: +(ur.pool && ur.pool.survivors) || 0,
+                  squads: (ur.pool && ur.pool.squads) || [],
+                  ready: !!(ur.pool && ur.pool.ready),
+                  minimumStrength: +ur.minimumStrength || RECON_MIN_STRENGTH,
+                  targetStrength: +ur.strength || RECON_STRENGTH
+                }
+              : null,
+            ge: gr
+              ? {
+                  survivors: +(gr.pool && gr.pool.survivors) || 0,
+                  squads: (gr.pool && gr.pool.squads) || [],
+                  ready: !!(gr.pool && gr.pool.ready),
+                  minimumStrength: +gr.minimumStrength || RECON_MIN_STRENGTH,
+                  targetStrength: +gr.strength || RECON_STRENGTH
+                }
+              : null
+          },
           active: rows.reduce(function (a, r) {
             return a.concat(r.active || []);
           }, []),
