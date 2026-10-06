@@ -124,14 +124,27 @@
   }
 
   /* Capability-oriented force accounting: modules register units, so nothing here knows about
-     concrete unit ids. */
+     concrete unit ids. A man who has fled is out of the fight: Engagement marks him
+     countsForElimination=false at the break and restores him only when a retreating squad takes
+     him in, so he does not count toward his side's elimination or the time-limit force score while
+     he runs, waits at his refuge or walks home alone. Default on; ?fledElimination=0 restores the
+     old counting (fled men still count) for paired validation. */
+  function parseFledElimination(search) {
+    return !/[?&]fledElimination=(?:0|off|false)(?:&|#|$)/i.test(search || '');
+  }
+  var FLED_ELIMINATION_ON = parseFledElimination(typeof location !== 'undefined' ? location.search : '');
   function forceUnits(sim, faction) {
     if (root.BattleModules)
       return root.BattleModules.unitsFor(sim).filter(function (u) {
-        return u && u.faction === faction && !u.dead && u.countsForElimination !== false;
+        return (
+          u &&
+          u.faction === faction &&
+          !u.dead &&
+          (FLED_ELIMINATION_ON ? u.countsForElimination !== false : true)
+        );
       });
     return (sim._roster[faction] || []).filter(function (u) {
-      return !u.dead;
+      return !u.dead && (FLED_ELIMINATION_ON ? u.countsForElimination !== false : true);
     });
   }
   /* Macro enemy-intel boundary. Default-on: the General may know its own force exactly, but hostile

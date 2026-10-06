@@ -16,7 +16,7 @@ $ranges = array(
     'supportDelay'=>array(0,45),'sectorNeutralNeed'=>array(35,120),'sectorEnemyNeed'=>array(60,170),'sectorActiveBonus'=>array(0,40),'sectorDistanceWeight'=>array(.2,1.1),
     'routeArrivalRadius'=>array(5,14),'finalRouteRadius'=>array(8,24),'captureCommitRatio'=>array(.55,.98),'contactDistance'=>array(16,48),'townBoundary'=>array(45,95),
     'engagedRallyAdvance'=>array(.04,.34),'pressObjectiveMinDistance'=>array(3,14),'pressEnemyClearance'=>array(18,65),'scoutLead'=>array(0,10),'gunnerTrail'=>array(0,8),
-    'objectiveHoldWin'=>array(20,60),'decisionSnapshotSeconds'=>array(3,12)
+    'decisionSnapshotSeconds'=>array(3,12)
 );
 $doctrineRanges = array('reserveFraction'=>array(0,.42),'localSuperiority'=>array(.75,2.1),'flankPreference'=>array(0,1),'defenseCommitment'=>array(0,1),'riskTolerance'=>array(0,1));
 $strategies = array('balanced','nearest','highest-value','weakest-pressure','sequential');
