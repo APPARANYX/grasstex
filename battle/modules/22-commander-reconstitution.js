@@ -2,11 +2,12 @@
    Behavior-neutral extraction: every function body moved verbatim from the parent file.
 
    This is the General's survivor pool: retreated squads that are home and out of contact
-   (_assembly at-base, 16-squad-plan-stability.js) are grouped fewest-at-a-time once the pool
-   holds a full squad's worth, briefed to a rally point, merged into one re-tasked squad when
-   every member is there out of contact, and dissolved back into the pool if they fall below
-   strength or a member rallies first (reconState, formGroup, dissolveGroup, mergeGroup,
-   reconstitute). It also owns the fled man's pickup: a retreating squad out of contact within
+   (_assembly at-base, 16-squad-plan-stability.js) are grouped fewest-at-a-time. A full 10-man
+   rebuild is preferred when available, but two or more remnants totaling at least the viable
+   minimum may rebuild understrength instead of waiting forever. They are briefed to a rally point,
+   merged into one re-tasked squad when every member is there out of contact, and dissolved back
+   into the pool if they fall below the viable minimum or a member rallies first (reconState,
+   formGroup, dissolveGroup, mergeGroup, reconstitute). It also owns the fled man's pickup: a retreating squad out of contact within
    FLED_PICKUP_RANGE absorbs a lone fled man waiting at his refuge (pickUpFled). Group state
    lives in missionState(sim).reconstitution on the side's General context.
 
@@ -41,9 +42,9 @@
       FLED_PICKUP_RANGE = ctx.FLED_PICKUP_RANGE;
     /* Reconstitution. Retreated squads that are home and out of contact (`_assembly` `at-base`,
      16-squad-plan-stability.js) are a side's pool of survivors; no group is planned for a squad still on
-     its way home. Whenever the pool holds a full squad's worth, the General groups the fewest squads that
-     reach it (squads are never split) and briefs each to a rally point at the centre of their home
-     points. When every grouped squad is there out of contact the General merges them into one squad
+     its way home. A full 10-man rebuild is preferred; when the pool has only 6-9 men, two or more remnants
+     may rebuild as a viable understrength squad rather than waiting indefinitely. Squads are never split.
+     The General briefs each grouped remnant to a rally point at the centre of their home points. When every grouped squad is there out of contact the General merges them into one squad
      under one leader and re-tasks it (`squad-reconstituted`). A group that falls below full strength
      before merging is dissolved and its squads return to the pool. State lives in
      missionState(sim).reconstitution. */
