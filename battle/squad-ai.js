@@ -128,6 +128,16 @@
     return !/[?&]soldierBeliefs=(?:0|off|false|none)(?:&|#|$)/i.test(search || '');
   }
   var SOLDIER_BELIEFS_ON = parseSoldierBeliefs(typeof location !== 'undefined' ? location.search || '' : '');
+  /* Aimed fire is stronger evidence than ambient gunfire. A man who is actually being shot at gets
+     the shooter's firing origin even when the shooter is too far/prone to spot cold; the existing
+     tracking rule decides whether he can keep the shooter visually after that reveal. The legacy
+     arm is retained for paired benchmarks. */
+  function parseIncomingFireReveal(search) {
+    return !/[?&]incomingFireReveal=(?:0|off|false)(?:&|#|$)/i.test(search || '');
+  }
+  var INCOMING_FIRE_REVEAL_ON = parseIncomingFireReveal(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
   /* Phase 0G1: secondary threat awareness. When on, soldierContact gains a 'secondary' field
      holding the next-best belief in a different 20m sector from the primary. Engagement can
      orient toward the secondary when the primary is behind cover or out of range. Default off;
@@ -143,6 +153,7 @@
     seenTtl: CONTACT_MEMORY,
     toldTtl: CONTACT_MEMORY,
     heardTtl: 5,
+    incomingFireTtl: 6,
     nonThreatTtl: 4,
     toldConfidenceMin: 0.55,
     toldConfidenceMax: 0.92,
@@ -316,6 +327,7 @@
         seenRefreshes: 0,
         told: 0,
         heard: 0,
+        incoming: 0,
         nonThreatSeen: 0,
         superseded: 0,
         rejectedOlder: 0,
@@ -359,7 +371,7 @@
     return ((Math.round((a + Math.PI) / (Math.PI / 4)) % 8) + 8) % 8;
   }
   function beliefRank(source) {
-    return source === 'seen' ? 3 : source === 'told' ? 2 : source === 'heard' ? 1 : 0;
+    return source === 'seen' ? 4 : source === 'incoming' ? 3 : source === 'told' ? 2 : source === 'heard' ? 1 : 0;
   }
   function beliefConfidence(rec, battle) {
     if (!rec || !battle || battle.time >= rec.expiresAt) return 0;
@@ -458,7 +470,8 @@
     if (next.source === 'seen') {
       stats.seen++;
       if (next.combatThreat === false) stats.nonThreatSeen++;
-    } else if (next.source === 'told') stats.told++;
+    } else if (next.source === 'incoming') stats.incoming++;
+    else if (next.source === 'told') stats.told++;
     else if (next.source === 'heard') stats.heard++;
     beliefHistory(store, {
       at: battle.time,
@@ -559,8 +572,8 @@
       baseConfidence: +conf.toFixed(3),
       expiresAt: +f.at + BELIEF_TUNING.toldTtl,
       combatThreat: true,
-      precision: 'reported-position',
-      reason: 'heard-callout'
+      precision: f.precision || 'reported-position',
+      reason: f.reason ? 'callout:' + String(f.reason) : 'heard-callout'
     });
   }
   function heardHash(unit, at, listener) {
@@ -758,6 +771,8 @@
       callout: rec.sourceCalloutId,
       source: rec.source,
       confidence: beliefConfidence(rec, battle),
+      precision: rec.precision || null,
+      reason: rec.reason || null,
       receivedAt: rec.receivedAt,
       expiresAt: rec.expiresAt,
       beliefKey: rec.key
@@ -964,6 +979,92 @@
     var list = battle._gunfire || (battle._gunfire = []),
       p = shooter.root.position;
     list.push({ x: p.x, z: p.z, faction: shooter.faction, unit: shooter, at: battle.time });
+  }
+
+  /* Being the intended recipient of aimed fire reveals where that fire came from. This is not the
+     ambient 120 m hearing path: the bullet/shot itself supplies the direction. Perception records
+     the shooter's position at trigger time, never a magic live position. The victim may acquire the
+     shooter as a target when otherwise unaware; normal stillTracking() then decides whether his eyes
+     can keep that target. Squad-mates learn the same firing origin through the existing simulated
+     callout channel, with its delay/miss rules. */
+  function noteIncomingFire(victim, shooter, battle) {
+    if (
+      !INCOMING_FIRE_REVEAL_ON ||
+      !PERCEPTION_ON ||
+      !victim ||
+      victim.dead ||
+      !victim.root ||
+      !shooter ||
+      !shooter.root ||
+      !battle ||
+      victim.faction === shooter.faction ||
+      !threatDisposition(shooter).combatThreat
+    )
+      return null;
+    var p = shooter.root.position,
+      now = battle.time,
+      key = beliefUnitKey(shooter),
+      rec = null,
+      sq = victim.squad,
+      held = sq ? squadContact(sq, battle) : null,
+      sameRecent = !!(
+        held &&
+        held.fireRevealed &&
+        held.unit === shooter &&
+        now - (+held.at || 0) < CONTACT_REFRESH
+      );
+
+    if (SOLDIER_BELIEFS_ON && key)
+      rec = writeBelief(victim, battle, {
+        key: key,
+        unit: shooter,
+        targetId: shooter.id == null ? null : String(shooter.id),
+        source: 'incoming',
+        sourceSoldierId: victim.id == null ? null : String(victim.id),
+        sourceCalloutId: null,
+        x: +p.x,
+        z: +p.z,
+        sector: beliefSector(victim, p.x, p.z),
+        observedAt: now,
+        reportedAt: null,
+        receivedAt: now,
+        baseConfidence: 1,
+        expiresAt: now + BELIEF_TUNING.incomingFireTtl,
+        combatThreat: true,
+        precision: 'fire-origin',
+        reason: 'incoming-fire'
+      });
+
+    if (!threatDisposition(victim.target).combatThreat) victim.target = shooter;
+
+    if (sq) {
+      /* Do not erase a simultaneous direct sighting of another enemy. The victim still keeps his
+         personal fire-origin belief and can call it out as a second threat. */
+      if (!firstHand(held, battle) || (held && held.unit === shooter))
+        sq.contact = {
+          unit: shooter,
+          x: +p.x,
+          z: +p.z,
+          at: now,
+          seenBy: null,
+          stance: stanceOf(shooter),
+          heard: true,
+          fireRevealed: true,
+          reportedBy: victim.id
+        };
+      var calls = root.BattleCallouts;
+      if (!sameRecent && calls && calls.enabled && calls.enabled() && calls.send)
+        calls.send(battle, victim, 'incomingFire', {
+          unit: shooter,
+          x: +p.x,
+          z: +p.z,
+          at: now,
+          stance: stanceOf(shooter),
+          precision: 'fire-origin',
+          reason: 'incoming-fire'
+        });
+    }
+    return rec || (sq && sq.contact) || null;
   }
   function squadCentre(sq, battle) {
     if (sq._centreAt === battle.time) return sq._centre;
@@ -2016,8 +2117,12 @@
       shot(soldier, target, battle, round, delay);
     });
     setFireCooldown(soldier, triggerCooldown(stats, rounds, battle, 1, d));
-    /* The man on the receiving end is told after the burst, so nothing here can change what the burst did. */
-    if (rounds > 0) EXT.run('aimedAt', target, battle, { from: soldier, rounds: rounds, d: d });
+    /* The man on the receiving end learns the firing origin only after the burst, so the reveal
+       cannot change the burst that produced it. Other aimed-at observers run after the same fact. */
+    if (rounds > 0) {
+      noteIncomingFire(target, soldier, battle);
+      EXT.run('aimedAt', target, battle, { from: soldier, rounds: rounds, d: d });
+    }
     return true;
   }
 
@@ -2090,6 +2195,11 @@
     soldierBeliefsOn: function () {
       return SOLDIER_BELIEFS_ON;
     },
+    parseIncomingFireReveal: parseIncomingFireReveal,
+    incomingFireRevealOn: function () {
+      return INCOMING_FIRE_REVEAL_ON;
+    },
+    noteIncomingFire: noteIncomingFire,
     soldierContact: soldierContact,
     hasKnownNonThreat: hasKnownNonThreat,
     rememberSeen: rememberSeen,
@@ -2114,6 +2224,7 @@
       HEAR_MEMORY: HEAR_MEMORY,
       RELAY_RANGE: RELAY_RANGE,
       SOLDIER_BELIEFS_ON: SOLDIER_BELIEFS_ON,
+      INCOMING_FIRE_REVEAL_ON: INCOMING_FIRE_REVEAL_ON,
       BELIEF_TUNING: BELIEF_TUNING,
       STANCE_VIS_ON: STANCE_VIS_ON,
       VISIBILITY: VISIBILITY,
