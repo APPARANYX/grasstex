@@ -233,6 +233,7 @@ try {
     function addMap(map, key, n = 1) { key = String(key || 'unknown'); map[key] = (map[key] || 0) + n; }
     function provenanceConflicts() { try { return root.BattleOrderProvenance?.conflicts?.(sim) || []; } catch (_) { return []; } }
     function loopAlerts() { try { return root.BattleAILoopWatch?.alerts?.(sim) || []; } catch (_) { return []; } }
+    function observerEvent(kind, data) { try { return root.BattleAITimeline?.observeEvent?.(sim, kind, data) || null; } catch (_) { return null; } }
     function coordinationHealth() { try { return root.BattleAICoordinationHealth?.summary?.(sim) || null; } catch (_) { return null; } }
     function movementResolverSummary() {
       const out = { soldiers: 0, changes: 0, orderWins: 0, combatWins: 0, byKind: {} };
@@ -347,7 +348,10 @@ try {
           if (relevantTargetless) {
             state.targetlessSamples++;
             const t = state.targetlessTrack[key] || (state.targetlessTrack[key] = { since: now, reported: false });
-            if (!t.reported && now - t.since >= 15) { t.reported = true; state.targetlessStalls.push({ faction, squad: sq.id, at: +now.toFixed(1), phase }); }
+            if (!t.reported && now - t.since >= 15) {
+              const event = { faction, side: faction, squad: sq.id, at: +now.toFixed(1), t: +now.toFixed(1), phase };
+              t.reported = true; state.targetlessStalls.push(event); observerEvent('targetless-command-stall', event);
+            }
           } else delete state.targetlessTrack[key];
 
           if (phase === 'regroup') {
@@ -364,7 +368,8 @@ try {
             if (!t || t.index !== routeIndex) t = state.routeTrack[key] = { index: routeIndex, bestDistance: d, lastProgress: now, reported: false };
             else if (d < t.bestDistance - 3) { t.bestDistance = d; t.lastProgress = now; t.reported = false; }
             if (!t.reported && d > 12 && now - t.lastProgress >= 20) {
-              t.reported = true; state.routeStalls.push({ faction, squad: sq.id, at: +now.toFixed(1), routeIndex, distance: +d.toFixed(1), phase });
+              const event = { faction, side: faction, squad: sq.id, at: +now.toFixed(1), t: +now.toFixed(1), routeIndex, distance: +d.toFixed(1), phase };
+              t.reported = true; state.routeStalls.push(event); observerEvent('route-stall', event);
             }
           } else delete state.routeTrack[key];
 
@@ -380,7 +385,8 @@ try {
               else {
                 if (d < prior.bestDistance - 2) { prior.bestDistance = d; prior.lastProgress = now; }
                 if (!prior.reported && now - prior.lastProgress >= 15) {
-                  prior.reported = true; state.vacantObjectiveStalls.push({ faction, squad: sq.id, objective: targetId, at: +now.toFixed(1), distance: +d.toFixed(1), phase });
+                  const event = { faction, side: faction, squad: sq.id, objective: targetId, at: +now.toFixed(1), t: +now.toFixed(1), distance: +d.toFixed(1), phase };
+                  prior.reported = true; state.vacantObjectiveStalls.push(event); observerEvent('vacant-objective-stall', event);
                 }
               }
             } else delete state.vacantTrack[key];
