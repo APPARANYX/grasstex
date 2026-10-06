@@ -8,12 +8,14 @@ battle/build-version.json
 __pycache__/
 *.pyc
 
-# Raw Sonniss GDC bundle pulls (scripts/fetch_sonniss_ww2.py). Multi-hundred-megabyte
-# field recordings; the committed assets are the sliced/mastered MP3s under Assets/audio.
-.runtime/sonniss-ww2/
-.runtime/fetch*.log
-.runtime/freesound-cc0/
-.runtime/garand-scan/
+# .runtime/ is transient scratch: the private-audio checkouts, raw Sonniss GDC bundle
+# pulls, fetch logs, and conversation-maintenance state all live there and are never
+# committed (docs/agents/audio.md, scripts/conversation-maintenance.py).
+/.runtime/
+
+# battle_sim.php's live-sync cache on the production host (asset path -> GitHub blob
+# SHA). The host writes and owns it; a committed copy would ship a stale cache.
+.battle-assets-state.json
 
 # Raw generator packs for soldiers/weapons stay local; only prepared models are tracked
 # (see AGENTS.md, Asset pipeline). The weapon .zip sources predate this rule and remain tracked.
@@ -32,5 +34,3 @@ decal-sheets.png
 /Assets/audio/**/*.mp3
 /Assets/audio/**/*.caf
 /Assets/audio/**/*.ogg
-/.runtime/private-audio/
-/.runtime/private-audio-publish/
