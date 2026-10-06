@@ -175,7 +175,7 @@ function scanMarkers(sim,st){
       var key=squadKey(f,q.id),phase=q.commandPhase||'none',prior=st.prevPhase.get(key);
       if(prior!=null&&prior!==phase){
         marker(st,now,'phase-change',{side:f,squad:q.id,from:prior,to:phase});
-        if(phase==='regroup')startFocus(st,now,f,q.id,{kind:'regroup-start',t:rounded(now,2),from:prior});
+        if(phase==='regroup'){marker(st,now,'regroup-start',{side:f,squad:q.id,from:prior});startFocus(st,now,f,q.id,{kind:'regroup-start',t:rounded(now,2),from:prior});}
         if(prior==='regroup'){marker(st,now,'regroup-end',{side:f,squad:q.id,to:phase});startFocus(st,now,f,q.id,{kind:'regroup-end',t:rounded(now,2),to:phase});}
       }
       st.prevPhase.set(key,phase);
