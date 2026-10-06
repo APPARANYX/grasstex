@@ -201,6 +201,17 @@
     });
     /* The Squad Leader re-forms the squad on the group's rally point: slots, plan state, leader, anchor. */
     root.BattleSquadStability.reform(survivor, men, leader, g.rally, RECON_STRENGTH);
+    /* A man who reached base on his own stayed outside force accounting while he was a fled
+       detachment. Successful reconstitution is his second legal return path (pickup is the
+       first), so tell Engagement—the owner of countsForElimination—to restore him now that
+       the roster rewrite has actually put him back in a full fighting squad. */
+    men.forEach(function (s) {
+      if (s.countsForElimination !== false) return;
+      var E = root.BattleEngagement;
+      if (!E || typeof E.restoreFledForceCount !== 'function')
+        throw new Error('Reconstitution cannot restore a fled man without Engagement force-count ownership');
+      E.restoreFledForceCount(s, sim, 'reconstitution');
+    });
     survivor._reconGroup = null;
     survivor.reconstitutedFrom = g.squads.slice();
     finishMission(sim, survivor, 'completed', 'reconstituted');
