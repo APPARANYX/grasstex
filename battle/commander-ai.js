@@ -357,6 +357,45 @@
     });
     return m;
   }
+  /* E2: Successor handoff — when a squad is relieved at an objective, the
+     relieving squad inherits the security plan. Tracked in telemetry.
+     E3: Reserve commitment — extends reserveDue with TacticalSituation
+     objective pressure. E4: Exploit-after-success — 30s post-capture
+     deadline to choose secure/exploit/release.
+     All three are behavior-neutral metadata additions behind their respective
+     flags; the actual behavior change ships when Phase F validates. */
+  function postCaptureDecision(sim, sq) {
+    var m = sq._macroMission;
+    if (!m || m.intent !== 'capture') return null;
+    var OS = root.BattleObjectiveSystem;
+    var obj = m.objectiveId && OS && OS.get(sim, m.objectiveId);
+    if (!obj) return null;
+    var st = OS.status(obj, sim);
+    if (!st || st.owner !== sq.faction) return null;
+    /* Objective just captured by this squad: start the 30s exploit clock */
+    if (!sq._exploitDeadline) {
+      sq._exploitDeadline = (+sim.time || 0) + 30;
+      telemetry(sim, 'decision-post-capture', {
+        faction: sq.faction, squad: sq.id, objectiveId: m.objectiveId,
+        deadline: sq._exploitDeadline, options: ['secure', 'exploit', 'release']
+      });
+    }
+    return sq._exploitDeadline;
+  }
+  function reserveCommitmentPressure(sim, faction) {
+    /* E3: augment reserveDue with TacticalSituation objective pressure */
+    var TS = root.BattleTacticalSituation;
+    var ts = TS && TS.summary(sim) && TS.summary(sim).tacticalSituation;
+    var fac = ts && ts[faction];
+    if (!fac) return 0;
+    var pressure = 0;
+    for (var i = 0; fac.objectivePressure && i < fac.objectivePressure.length; i++) {
+      var op = fac.objectivePressure[i];
+      if (op.contested) pressure += 2;
+      else if (op.active) pressure += 1;
+    }
+    return pressure;
+  }
   function recordMacroWake(sim, sq, reason) {
     var stats = missionState(sim),
       general = generalFor(sim, sq.faction),
