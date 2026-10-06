@@ -127,25 +127,142 @@
     return rec;
   }
 
+  /* A2: UrbanOperatingPicture — building cells, street segments, sector visibility.
+     Reads from BattleNavigation (roads/buildings), BattleObstacleField, soldier positions.
+     Writes only sim._urbanOperatingPicture (owned by this module). */
+  function computeUrban(sim, faction) {
+    if (!sim || !sim.factions || !sim.factions[faction]) return null;
+    var squads = sim.factions[faction].squads || [];
+    var now = +sim.time || 0;
+    var A = root.SquadAI;
+
+    // Building cells: which buildings are occupied, by whom, observation age
+    var buildings = [];
+    var scenario = sim.scene && sim.scene.metadata && (sim.scene.metadata.battleScenario || sim.scene.metadata.battleTown);
+    if (scenario && scenario.buildings) {
+      for (var bi = 0; bi < scenario.buildings.length; bi++) {
+        var b = scenario.buildings[bi];
+        var occupants = { us: 0, ge: 0 };
+        for (var si = 0; si < squads.length; si++) {
+          var members = A.aliveMembers(squads[si]);
+          for (var mi = 0; mi < members.length; mi++) {
+            var p = members[mi].root.position;
+            if (Math.abs(p.x - b.x) < (b.width || 20) && Math.abs(p.z - b.z) < (b.depth || 20))
+              occupants[faction]++;
+          }
+        }
+        // Check enemy proximity
+        var enemyF = faction === 'us' ? 'ge' : 'us';
+        var enemySquads = sim.factions[enemyF] && sim.factions[enemyF].squads || [];
+        for (si = 0; si < enemySquads.length; si++) {
+          var eMembers = A.aliveMembers(enemySquads[si]);
+          for (mi = 0; mi < eMembers.length; mi++) {
+            var ep = eMembers[mi].root.position;
+            if (Math.abs(ep.x - b.x) < (b.width || 20) && Math.abs(ep.z - b.z) < (b.depth || 20))
+              occupants[enemyF]++;
+          }
+        }
+        buildings.push({
+          id: b.id || ('b-' + bi),
+          x: b.x, z: b.z,
+          occupied: occupants.us > 0 || occupants.ge > 0,
+          us: occupants.us, ge: occupants.ge,
+          contested: occupants.us > 0 && occupants.ge > 0,
+          observationAge: occupants.us > 0 || occupants.ge > 0 ? 0 : -1
+        });
+      }
+    }
+
+    // Street segments: from scenario roads, classify as cleared/contested/unknown
+    var streets = [];
+    if (scenario && scenario.roads) {
+      for (var ri = 0; ri < scenario.roads.length; ri++) {
+        var road = scenario.roads[ri];
+        var midX = (road.ax + road.bx) / 2, midZ = (road.az + road.bz) / 2;
+        var usNear = false, geNear = false;
+        for (si = 0; si < squads.length; si++) {
+          members = A.aliveMembers(squads[si]);
+          for (mi = 0; mi < members.length; mi++) {
+            p = members[mi].root.position;
+            if (Math.hypot(p.x - midX, p.z - midZ) < 60) usNear = true;
+          }
+        }
+        enemySquads = sim.factions[enemyF] && sim.factions[enemyF].squads || [];
+        for (si = 0; si < enemySquads.length; si++) {
+          eMembers = A.aliveMembers(enemySquads[si]);
+          for (mi = 0; mi < eMembers.length; mi++) {
+            ep = eMembers[mi].root.position;
+            if (Math.hypot(ep.x - midX, ep.z - midZ) < 60) geNear = true;
+          }
+        }
+        streets.push({
+          id: road.id || ('r-' + ri),
+          start: { x: road.ax, z: road.az },
+          end: { x: road.bx, z: road.bz },
+          status: usNear && geNear ? 'contested' : usNear ? 'cleared' : geNear ? 'enemy' : 'unknown'
+        });
+      }
+    }
+
+    // Sector visibility: rough estimate of how much of the map this faction can observe
+    var visibleSectors = 0;
+    var totalSectors = 0;
+    var sectorGrid = {};
+    for (si = 0; si < squads.length; si++) {
+      members = A.aliveMembers(squads[si]);
+      for (mi = 0; mi < members.length; mi++) {
+        p = members[mi].root.position;
+        var gx = Math.floor(p.x / 100), gz = Math.floor(p.z / 100);
+        var key = gx + ':' + gz;
+        sectorGrid[key] = true;
+      }
+    }
+    totalSectors = 20 * 12; // 2000x1200 map at 100m grid
+    visibleSectors = Object.keys(sectorGrid).length;
+
+    return {
+      faction: faction,
+      time: now,
+      buildings: buildings,
+      streets: streets,
+      visibleSectorCount: visibleSectors,
+      totalSectorCount: totalSectors,
+      visibilityFraction: totalSectors > 0 ? visibleSectors / totalSectors : 0
+    };
+  }
+
+  function sampleUrban(sim) {
+    if (!sim) return null;
+    var rec = sim._urbanOperatingPicture || (sim._urbanOperatingPicture = {});
+    rec.us = computeUrban(sim, 'us');
+    rec.ge = computeUrban(sim, 'ge');
+    rec.time = +sim.time || 0;
+    return rec;
+  }
+
   function summary(sim) {
-    return sim && sim._tacticalSituation ? JSON.parse(JSON.stringify(sim._tacticalSituation)) : null;
+    var ts = sim && sim._tacticalSituation ? JSON.parse(JSON.stringify(sim._tacticalSituation)) : null;
+    var uop = sim && sim._urbanOperatingPicture ? JSON.parse(JSON.stringify(sim._urbanOperatingPicture)) : null;
+    return { tacticalSituation: ts, urbanOperatingPicture: uop };
   }
 
   root.BattleTacticalSituation = {
-    version: '1.0-a1',
+    version: '1.1-a2',
     compute: compute,
+    computeUrban: computeUrban,
     sample: sample,
+    sampleUrban: sampleUrban,
     summary: summary,
     sectors: SECTORS
   };
 
   if (root.BattleModules) {
     root.BattleModules.registerSystem('tactical-situation', {
-      version: '1.0-a1',
-      onBattleStart: function (sim) { sim._tacticalSituation = null; sample(sim); },
-      onCommanderTick: function (sim) { sample(sim); },
-      onBattleRestart: function (sim) { sim._tacticalSituation = null; sample(sim); }
+      version: '1.1-a2',
+      onBattleStart: function (sim) { sim._tacticalSituation = null; sim._urbanOperatingPicture = null; sample(sim); sampleUrban(sim); },
+      onCommanderTick: function (sim) { sample(sim); sampleUrban(sim); },
+      onBattleRestart: function (sim) { sim._tacticalSituation = null; sim._urbanOperatingPicture = null; sample(sim); sampleUrban(sim); }
     });
   }
-  console.log('[TACTICAL] A1: TacticalSituation instrumentation active (read-only)');
+  console.log('[TACTICAL] A1+A2: TacticalSituation + UrbanOperatingPicture instrumentation active (read-only)');
 })(typeof window !== 'undefined' ? window : globalThis);
