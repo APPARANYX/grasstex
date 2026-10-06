@@ -145,6 +145,8 @@
                   survivors: +(ur.pool && ur.pool.survivors) || 0,
                   squads: (ur.pool && ur.pool.squads) || [],
                   ready: !!(ur.pool && ur.pool.ready),
+                  blockedByDistance: !!(ur.pool && ur.pool.blockedByDistance),
+                  poolMax: RECON_POOL_MAX,
                   minimumStrength: +ur.minimumStrength || RECON_MIN_STRENGTH,
                   targetStrength: +ur.strength || RECON_STRENGTH
                 }
@@ -154,6 +156,8 @@
                   survivors: +(gr.pool && gr.pool.survivors) || 0,
                   squads: (gr.pool && gr.pool.squads) || [],
                   ready: !!(gr.pool && gr.pool.ready),
+                  blockedByDistance: !!(gr.pool && gr.pool.blockedByDistance),
+                  poolMax: RECON_POOL_MAX,
                   minimumStrength: +gr.minimumStrength || RECON_MIN_STRENGTH,
                   targetStrength: +gr.strength || RECON_STRENGTH
                 }
