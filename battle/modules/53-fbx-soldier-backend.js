@@ -4778,7 +4778,7 @@
   }
   function clearSurfaceDamage(soldier) {
     var fx = soldier && soldier._fbx;
-    if (!fx) return (0, (n = 0));
+    if (!fx) return 0, (n = 0);
     fx.meshes.forEach(function (mesh) {
       var d = mesh._battleSurfaceDamage;
       if (!d || !d.renderer) return;

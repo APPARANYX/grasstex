@@ -200,7 +200,7 @@
       idx.epoch = 1;
     }
     var out = idx.scratch;
-    ((out.length = 0), (pad = pad || 0));
+    (out.length = 0), (pad = pad || 0);
     var minX = Math.min(a.x, b.x) - pad,
       maxX = Math.max(a.x, b.x) + pad,
       minZ = Math.min(a.z, b.z) - pad,
@@ -422,7 +422,7 @@
       last = h.pop();
     if (h.length) {
       h[0] = last;
-      for (var i = 0; ;) {
+      for (var i = 0; ; ) {
         var l = i * 2 + 1,
           r = l + 1,
           s = i;

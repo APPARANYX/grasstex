@@ -15,7 +15,7 @@ function load(r, p) {
 }
 const cameraSource = fs.readFileSync(path.join(H.REPO, 'battle/camera-controls.js'), 'utf8');
 new Function(cameraSource);
-assert.match(cameraSource, /padPressedOnce\(pad,\s*9\)/, 'Menu\/Start must enter or switch player mode');
+assert.match(cameraSource, /padPressedOnce\(pad,\s*9\)/, 'Menu/Start must enter or switch player mode');
 assert.match(cameraSource, /buttonValue\(pad,\s*7\)/, 'RT must feed player fire');
 assert.match(cameraSource, /buttonValue\(pad,\s*10\)/, 'L3 must feed player run');
 assert.match(
@@ -46,7 +46,7 @@ assert.match(
 assert.match(
   cameraSource,
   /playerMovementKey\(key\)[\s\S]*?keys\.add\(key\)/,
-  'WASD\/Shift must feed keyboard player movement'
+  'WASD/Shift must feed keyboard player movement'
 );
 assert.match(
   cameraSource,
@@ -60,8 +60,8 @@ assert.match(
 );
 assert.match(cameraSource, /event\.button === 0\) mouseFire = true/, 'left mouse must feed player fire');
 assert.match(cameraSource, /event\.button === 2\) mouseAim = true/, 'right mouse must feed player aim');
-assert.match(cameraSource, /key === 'c'[\s\S]*?togglePlayerCrouch/, 'C must toggle crouch\/stand');
-assert.match(cameraSource, /key === 'z'[\s\S]*?togglePlayerProne/, 'Z must toggle prone\/stand');
+assert.match(cameraSource, /key === 'c'[\s\S]*?togglePlayerCrouch/, 'C must toggle crouch/stand');
+assert.match(cameraSource, /key === 'z'[\s\S]*?togglePlayerProne/, 'Z must toggle prone/stand');
 assert.match(cameraSource, /key === 'v'[\s\S]*?leavePlayer/, 'V must exit player mode');
 assert.doesNotMatch(
   cameraSource,

@@ -29,7 +29,7 @@ assert.match(
 assert.doesNotMatch(
   fx,
   /from=ballisticFrom\|\|muzzleWorld\(shooter\)/,
-  'semantic head\/bore origin must not visually override the weapon muzzle'
+  'semantic head/bore origin must not visually override the weapon muzzle'
 );
 assert.match(
   fx,
