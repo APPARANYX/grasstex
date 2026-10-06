@@ -482,6 +482,14 @@ try {
             formedAt: +g.formedAt || 0,
             age: +((+sim.time || 0) - (+g.formedAt || 0)).toFixed(2),
             rally: g.rally ? { x: +g.rally.x || 0, z: +g.rally.z || 0 } : null,
+            center: g.center ? { x: +g.center.x || 0, z: +g.center.z || 0 } : null,
+            centerTravelMax: Number.isFinite(+g.centerTravelMax) ? +(+g.centerTravelMax).toFixed(1) : null,
+            forwardShift: Number.isFinite(+g.forwardShift) ? +(+g.forwardShift).toFixed(1) : null,
+            sourceTravel: (g.sourceTravel || []).map(row => ({
+              id: row.id,
+              centerDistance: +(+row.centerDistance || 0).toFixed(1),
+              rallyDistance: +(+row.rallyDistance || 0).toFixed(1)
+            })),
             survivors: +g.survivors || 0,
             squads: (g.squads || []).map(id => {
               const sq = sim.factions?.[g.faction]?.squads?.find(q => String(q.id) === String(id));
@@ -513,6 +521,8 @@ try {
                 mergedAt: g.endedAt,
                 assemblySeconds: span(g),
                 size: g.size,
+                centerTravelMax: Number.isFinite(+g.centerTravelMax) ? +(+g.centerTravelMax).toFixed(1) : null,
+                forwardShift: Number.isFinite(+g.forwardShift) ? +(+g.forwardShift).toFixed(1) : null,
                 promoted: !!g.promoted,
                 objectiveId: g.objectiveId || null
               })),
