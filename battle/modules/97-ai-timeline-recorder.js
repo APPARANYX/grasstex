@@ -97,6 +97,7 @@
       wakeCount: 0,
       mergeEnded: 0,
       lfpSeen: new Set(),
+      loopSeen: new Set(),
       focusBuffer: [],
       focusWindows: [],
       activeFocus: new Map(),
@@ -285,6 +286,29 @@
     st.focusWindows.push(w);
     st.activeFocus.set(key, w);
   }
+  function observeEvent(sim, kind, data) {
+    if (!sim || !kind) return null;
+    var st = get(sim),
+      src = data || {},
+      t = src.t != null ? +src.t : +sim.time || 0,
+      out = {};
+    Object.keys(src).forEach(function (k) {
+      if (k !== 't') out[k] = src[k];
+    });
+    var m = marker(st, t, kind, out),
+      side = out.side != null ? out.side : out.faction,
+      squad = out.squad != null ? out.squad : out.squadId;
+    if (side != null && squad != null) {
+      var reason = {};
+      Object.keys(out).forEach(function (k) {
+        reason[k] = out[k];
+      });
+      reason.kind = kind;
+      reason.t = rounded(t, 2);
+      startFocus(st, t, side, squad, reason);
+    }
+    return m;
+  }
   function focusTick(sim, st) {
     var now = +sim.time || 0;
     if (now + 1e-9 < st.nextFocusSample) return;
@@ -454,6 +478,43 @@
       });
     });
   }
+  function scanLoopAlerts(sim, st) {
+    var alerts = [];
+    try {
+      alerts =
+        root.BattleAILoopWatch && root.BattleAILoopWatch.alerts
+          ? root.BattleAILoopWatch.alerts(sim) || []
+          : [];
+    } catch (_) {}
+    alerts.forEach(function (a) {
+      if (!a) return;
+      var at = a.at != null ? +a.at : +sim.time || 0,
+        key =
+          a.key ||
+          [a.kind || 'loop', a.faction || '?', a.squadId || '?', a.soldierId || '', rounded(at, 2)].join(
+            '|'
+          );
+      if (st.loopSeen.has(key)) return;
+      st.loopSeen.add(key);
+      observeEvent(sim, 'loop-alert', {
+        t: at,
+        diagnosticKind: a.kind || 'loop',
+        severity: a.severity || null,
+        side: a.faction || null,
+        squad: a.squadId,
+        soldier: a.soldierId,
+        message: a.message || null,
+        phases: a.phases || null,
+        rules: a.rules || null,
+        sources: a.sources || null,
+        travel: a.travel,
+        net: a.net,
+        destinationChanges: a.destinationChanges,
+        stanceChanges: a.stanceChanges,
+        inContact: a.inContact
+      });
+    });
+  }
   function scanMarkers(sim, st) {
     var now = +sim.time || 0;
     ['us', 'ge'].forEach(function (f) {
@@ -575,6 +636,7 @@
       }
     }
     scanLfp(sim, st);
+    scanLoopAlerts(sim, st);
   }
   function objectiveCounts(sim) {
     var held = { us: 0, ge: 0 },
@@ -688,13 +750,14 @@
     };
   }
   root.BattleAITimeline = {
-    version: '1.1-observer',
+    version: '1.2-observer',
     sampleSeconds: SAMPLE_SECONDS,
     snapshot: snapshot,
+    observeEvent: observeEvent,
     reset: reset
   };
   root.BattleModules.registerSystem('ai-timeline-recorder', {
-    version: '1.1-observer',
+    version: '1.2-observer',
     onBattleStart: reset,
     onBattleRestart: reset,
     onSimulationStep: tick
