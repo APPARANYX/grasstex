@@ -139,6 +139,30 @@
           promotions: rows.reduce(function (n, r) {
             return n + (+r.promotions || 0);
           }, 0),
+          pool: {
+            us: ur
+              ? {
+                  survivors: +(ur.pool && ur.pool.survivors) || 0,
+                  squads: (ur.pool && ur.pool.squads) || [],
+                  ready: !!(ur.pool && ur.pool.ready),
+                  blockedByDistance: !!(ur.pool && ur.pool.blockedByDistance),
+                  poolMax: RECON_POOL_MAX,
+                  minimumStrength: +ur.minimumStrength || RECON_MIN_STRENGTH,
+                  targetStrength: +ur.strength || RECON_STRENGTH
+                }
+              : null,
+            ge: gr
+              ? {
+                  survivors: +(gr.pool && gr.pool.survivors) || 0,
+                  squads: (gr.pool && gr.pool.squads) || [],
+                  ready: !!(gr.pool && gr.pool.ready),
+                  blockedByDistance: !!(gr.pool && gr.pool.blockedByDistance),
+                  poolMax: RECON_POOL_MAX,
+                  minimumStrength: +gr.minimumStrength || RECON_MIN_STRENGTH,
+                  targetStrength: +gr.strength || RECON_STRENGTH
+                }
+              : null
+          },
           active: rows.reduce(function (a, r) {
             return a.concat(r.active || []);
           }, []),
@@ -450,9 +474,13 @@
      pickUpFled resolve through reconImpl(), which throws: a commander-ai.js chain without the
      sub-module has no survivor pool and must say so, not silently leave retreated squads
      scattered at their spawn line for good. */
-  var RECON_STRENGTH = 10, // one full rifle squad (SquadAI.COMPOSITION)
+  var RECON_STRENGTH = 10, // establishment / preferred full rebuilt rifle squad
+    RECON_MIN_STRENGTH = 6, // minimum combined survivors that may become one rebuilt squad
+    RECON_POOL_MAX = 4, // only true remnants wait for reconstitution; 5+ may rally as their own squad
+    RECON_MAX_CENTER_TRAVEL = 300, // do not bind remnants whose neutral rendezvous is already too far away
+    RECON_FORWARD_DETOUR = 1.15, // each source may spend at most 15% extra travel to move the meeting point frontward
+    RECON_FORWARD_MAX = 180, // absolute cap on the frontward slide after the neutral rendezvous is found
     RALLY_RADIUS = 20,
-    RALLY_FORWARD = 30,
     FLED_PICKUP_RANGE = 50; // a retreating squad this near a fled man waiting for one takes him in
   var reconApi = null;
   root._commanderReconstitutionAttach = function (api) {
@@ -471,8 +499,12 @@
       finishMission: finishMission,
       recordMacroWake: recordMacroWake,
       RECON_STRENGTH: RECON_STRENGTH,
+      RECON_MIN_STRENGTH: RECON_MIN_STRENGTH,
+      RECON_POOL_MAX: RECON_POOL_MAX,
+      RECON_MAX_CENTER_TRAVEL: RECON_MAX_CENTER_TRAVEL,
+      RECON_FORWARD_DETOUR: RECON_FORWARD_DETOUR,
+      RECON_FORWARD_MAX: RECON_FORWARD_MAX,
       RALLY_RADIUS: RALLY_RADIUS,
-      RALLY_FORWARD: RALLY_FORWARD,
       FLED_PICKUP_RANGE: FLED_PICKUP_RANGE
     };
   };
@@ -691,6 +723,11 @@
     updateFaction: updateFactionCommander,
     reconstitute: reconstitute,
     reconstitutionStrength: RECON_STRENGTH,
+    reconstitutionMinimumStrength: RECON_MIN_STRENGTH,
+    reconstitutionPoolMax: RECON_POOL_MAX,
+    reconstitutionMaxCenterTravel: RECON_MAX_CENTER_TRAVEL,
+    reconstitutionForwardDetour: RECON_FORWARD_DETOUR,
+    reconstitutionForwardMax: RECON_FORWARD_MAX,
     fledPickupRange: FLED_PICKUP_RANGE,
     policyFor: policy,
     genomeFor: genome,

@@ -534,18 +534,14 @@ test('a leader who runs leaves his squad leaderless; the next man takes command 
   assert.equal(s.squad.leaderId, s.id, 'and he leads his squad of one');
 });
 
-test('a lone man at base is grouped by reconstitution with the other survivors and rejoins the fight in a full squad', () => {
+test('a lone man at base is grouped by reconstitution with enough other survivors and rejoins a viable squad', () => {
   const w = world(),
     { s } = broken(w, { safe: { x: LANES[0], z: HOME_Z + 40 }, at: { x: LANES[0], z: HOME_Z + 400 } });
-  squad(w, 1, 4, 20);
-  squad(w, 2, 4, 20);
-  squad(w, 3, 1, 20);
-  /* The survivors are kept shaken (stress 0.4: past both the rally and the solo-redeploy lines) so
-     they wait at base in retreat for the fled man, whose 180 s wait at the refuge ends long after
-     their dwell window would otherwise send them back out on their own. He cannot rally out of it
-     himself (a fled detachment is refused every recovery path), so when he finally stands at base
-     the pool reaches a full squad's strength - 4 + 4 + 1 and him - and the group is his only road
-     back: it must form, and it must take him. */
+  squad(w, 1, 3, 20);
+  squad(w, 2, 2, 20);
+  /* Five ordinary survivors wait at base; none can independently redeploy. The fled man's 180 s
+     refuge wait ends later, and when he finally reaches base he is the sixth survivor: the pool
+     crosses the viable minimum and reconstitution becomes his legal road back under command. */
   const shaken = w.sq.slice(1).flatMap(q => q.members.filter(m => !m.dead));
   const mergedYet = () => w.b.factions.us.squads.some(q => q.reconstitutedFrom && !q.disbanded);
   run(w, 380, () => {
@@ -557,7 +553,7 @@ test('a lone man at base is grouped by reconstitution with the other survivors a
   assert.ok(merged.members.includes(s), 'he is in it');
   assert.equal(s.squad, merged, 'on its roster');
   assert.ok(s.weapon, 'armed');
-  assert.ok(merged.members.length >= 10, 'a full squad');
+  assert.equal(merged.members.length, 6, 'a viable understrength squad');
   assert.ok(
     merged.members.every(m => m.squad === merged),
     'every man of it on the one roster'
@@ -590,11 +586,11 @@ test('a fled sergeant can supply the surviving squad object without leaving the 
       at: { x: LANES[0], z: HOME_Z + 400 }
     }),
     lone = s.squad,
-    survivors = [squad(w, 1, 4, 20), squad(w, 2, 4, 20), squad(w, 3, 4, 20)];
+    survivors = [squad(w, 1, 4, 20), squad(w, 2, 3, 20)];
 
-  /* Leave three riflemen in each ordinary remnant. Succession gives them rifleman leaders,
-     while the fled detachment still has its sergeant, so the General's seniority rule chooses
-     the fled squad object as the survivor when 1 + 3 + 3 + 3 reconstitute. */
+  /* Leave three and two riflemen in the ordinary remnants. Their successors are riflemen while
+     the fled detachment still has its sergeant, so when he arrives the 1 + 3 + 2 pool reaches
+     the six-man minimum and the fled squad object wins survivor selection by seniority. */
   survivors.forEach(q => {
     const leader = w.r.SquadAI.leaderOf(q);
     assert.ok(leader && leader.role === 'sergeant');
@@ -608,16 +604,16 @@ test('a fled sergeant can supply the surviving squad object without leaving the 
   });
 
   const merged = w.b.factions.us.squads.find(q => q.reconstitutedFrom && !q.disbanded);
-  assert.ok(merged, 'the ten survivors reconstituted');
+  assert.ok(merged, 'the six survivors reconstituted');
   assert.equal(merged, lone, 'the senior fled sergeant made his detachment the surviving squad object');
   assert.equal(merged.fledId, null, 'the one-man detachment identity ended at the merge');
   assert.equal(merged.fledFrom, null, 'its source marker ended with it');
-  assert.equal(merged.members.length, 10, 'the survivor object is now a full squad');
+  assert.equal(merged.members.length, 6, 'the survivor object is now a viable rebuilt squad');
   assert.equal(s.countsForElimination, true, 'the sergeant is back in force accounting');
   assert.ok(w.r.BattleCommanderDoctrine.forceUnits(w.b, 'us').includes(s));
 
   run(w, 100);
-  assert.notEqual(merged.state, 'retreat', 'the rebuilt full squad can rally normally');
+  assert.notEqual(merged.state, 'retreat', 'the viable rebuilt squad can rally normally');
   assert.ok(merged._macroMission, 'and return to ordinary command');
   assert.ok(['issued', 'executing'].includes(merged._macroMission.status));
   invariants(w);

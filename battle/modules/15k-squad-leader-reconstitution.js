@@ -62,22 +62,10 @@
        lease to end: the detachment is a fresh squad and the grant sits below this guard.) */
       if (sq.fledId != null) return false;
       if (!RALLY_RECOVERY_ON) return moraleRallies(casualtyFrac, stress);
-      /* Small squads (≤ 4 of 10) can never pass moraleRallies because casualtyFrac ≥ 0.6.
-       Once such a squad has been safely at base for a dwell window, let it rally
-       regardless of casualties — it is better to send 3-4 men back into the fight
-       than to leave them frozen at base for the rest of the battle. But don't
-       interfere with reconstitution: if the General has a pending reconstitution
-       group that includes this squad, let the merge happen instead. */
-      var atBase = sq._assembly && sq._assembly.phase === 'at-base',
-        small = casualtyFrac >= moraleBreakAt(stress) - MORALE_TUNING.rallyGap,
-        pendingRecon = sq._reconGroup || (sq._macroMission && sq._macroMission.intent === 'reconstitute');
-      if (small && atBase && !sq.inContact && !pendingRecon && stress < MORALE_TUNING.rallyStress * 2) {
-        var dwell = sq._assembly.since ? battle.time - sq._assembly.since : 0;
-        if (dwell >= 120) {
-          endRallyRecovery(sq, battle, 'solo redeploy from base');
-          return true;
-        }
-      }
+      /* A 1-4 man remnant cannot recover its casualty fraction by waiting. Keep it in the
+         General's survivor pool instead of silently turning a tiny remnant back into an assault
+         squad after a timer. Five or more survivors may still rally through the ordinary morale
+         rule below when calm enough; smaller remnants return only through reconstitution. */
       if (!moraleRallies(casualtyFrac, stress) || sq.inContact) {
         endRallyRecovery(sq, battle, sq.inContact ? 'contact resumed' : 'morale fell');
         return false;

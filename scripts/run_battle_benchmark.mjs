@@ -476,9 +476,68 @@ try {
           const r = root.BattleCommanderAI?.missionState?.(sim)?.reconstitution;
           if (!r) return null;
           const span = g => +((g.endedAt || 0) - (g.formedAt || 0)).toFixed(2);
-          return { groupsFormed: r.groupsFormed, groupsDissolved: r.groupsDissolved, merges: r.merges, promotions: r.promotions, assemblingAtEnd: r.active.length,
-            merged: r.ended.filter(g => g.status === 'merged').map(g => ({ faction: g.faction, formedAt: g.formedAt, mergedAt: g.endedAt, assemblySeconds: span(g), size: g.size, promoted: !!g.promoted, objectiveId: g.objectiveId || null })),
-            dissolvedLifetimes: r.ended.filter(g => g.status === 'dissolved').map(span) };
+          const active = (r.active || []).map(g => ({
+            faction: g.faction,
+            group: g.id,
+            formedAt: +g.formedAt || 0,
+            age: +((+sim.time || 0) - (+g.formedAt || 0)).toFixed(2),
+            rally: g.rally ? { x: +g.rally.x || 0, z: +g.rally.z || 0 } : null,
+            center: g.center ? { x: +g.center.x || 0, z: +g.center.z || 0 } : null,
+            centerTravelMax: Number.isFinite(+g.centerTravelMax) ? +(+g.centerTravelMax).toFixed(1) : null,
+            forwardShift: Number.isFinite(+g.forwardShift) ? +(+g.forwardShift).toFixed(1) : null,
+            sourceTravel: (g.sourceTravel || []).map(row => ({
+              id: row.id,
+              centerDistance: +(+row.centerDistance || 0).toFixed(1),
+              rallyDistance: +(+row.rallyDistance || 0).toFixed(1)
+            })),
+            survivors: +g.survivors || 0,
+            squads: (g.squads || []).map(id => {
+              const sq = sim.factions?.[g.faction]?.squads?.find(q => String(q.id) === String(id));
+              const p = avgSquad(sq);
+              return {
+                id,
+                living: aliveMembers(sq).length,
+                state: sq?.state || null,
+                assembly: sq?._assembly?.phase || null,
+                inContact: !!sq?.inContact,
+                position: p ? { x: +p.x.toFixed(1), z: +p.z.toFixed(1) } : null,
+                distanceToRally: p && g.rally ? +distance(p, g.rally).toFixed(1) : null
+              };
+            })
+          }));
+          return {
+            groupsFormed: r.groupsFormed,
+            groupsDissolved: r.groupsDissolved,
+            merges: r.merges,
+            promotions: r.promotions,
+            assemblingAtEnd: r.active.length,
+            pool: r.pool || null,
+            active,
+            merged: r.ended
+              .filter(g => g.status === 'merged')
+              .map(g => ({
+                faction: g.faction,
+                formedAt: g.formedAt,
+                mergedAt: g.endedAt,
+                assemblySeconds: span(g),
+                size: g.size,
+                centerTravelMax: Number.isFinite(+g.centerTravelMax) ? +(+g.centerTravelMax).toFixed(1) : null,
+                forwardShift: Number.isFinite(+g.forwardShift) ? +(+g.forwardShift).toFixed(1) : null,
+                promoted: !!g.promoted,
+                objectiveId: g.objectiveId || null
+              })),
+            dissolved: r.ended
+              .filter(g => g.status === 'dissolved')
+              .map(g => ({
+                faction: g.faction,
+                formedAt: g.formedAt,
+                endedAt: g.endedAt,
+                lifetimeSeconds: span(g),
+                reason: g.endReason || null,
+                survivors: +g.survivors || 0,
+                squads: (g.squads || []).slice()
+              }))
+          };
         };
         /* Strategic-stall wakes (commander-ai.js recordStallOutcome): repeats re-picked the stalled
            objective, switches opened a new capture effort; null on builds without the counter. */
