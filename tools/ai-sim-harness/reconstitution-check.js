@@ -188,7 +188,7 @@ function merged(w) {
 
 test('three four-man remnants rebuild the nearest pair and leave the third in the pool', () => {
   const w = world();
-  [0, 1].forEach(l => squad(w, l, 4));
+  [0, 1, 2].forEach(l => squad(w, l, 4));
   let homeFirst = true;
   const published = [],
     S = w.r.BattleSquadStability,
@@ -468,7 +468,7 @@ test('a merged squad that is still shaken rests at base: it is not grouped with 
      must wait for its men, not be pooled alone, merged with itself and re-tasked on every command tick (a group of
      one squad reaches full strength by itself: there is nothing to reconstitute). */
   const w = world({ search: '?morale=1' });
-  [0, 1, 2].forEach(l => squad(w, l, 4));
+  [0, 1].forEach(l => squad(w, l, 4));
   const shaken = () => {
     const q = w.b.factions.us.squads.find(x => x.reconstitutedFrom);
     if (q) q.mind = { mean: 0.5, n: 8 };
