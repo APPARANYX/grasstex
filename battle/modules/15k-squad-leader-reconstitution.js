@@ -61,11 +61,16 @@
        at base, however calm the FLED floor lets him get: no recovery. (He holds no rally-recovery
        lease to end: the detachment is a fresh squad and the grant sits below this guard.) */
       if (sq.fledId != null) return false;
+      /* A 1-4 man remnant is extracting, not tactically rallying. While it is still on the ordinary
+         retreat-to-home leg, morale recovery may not invent a local rally point or return it to combat:
+         each survivor keeps going home independently and the only hand-back is a legitimate
+         reconstitution roster rewrite. Once Macro has actually briefed the remnant to a reconstitution
+         rally, this guard no longer applies; the merge owns that movement. */
+      if (root.SquadAI.isExtractionToHome(sq)) {
+        endRallyRecovery(sq, battle, 'remnant extracting home');
+        return false;
+      }
       if (!RALLY_RECOVERY_ON) return moraleRallies(casualtyFrac, stress);
-      /* A 1-4 man remnant cannot recover its casualty fraction by waiting. Keep it in the
-         General's survivor pool instead of silently turning a tiny remnant back into an assault
-         squad after a timer. Five or more survivors may still rally through the ordinary morale
-         rule below when calm enough; smaller remnants return only through reconstitution. */
       if (!moraleRallies(casualtyFrac, stress) || sq.inContact) {
         endRallyRecovery(sq, battle, sq.inContact ? 'contact resumed' : 'morale fell');
         return false;

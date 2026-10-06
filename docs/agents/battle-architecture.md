@@ -62,10 +62,20 @@ efforts its stalled capture briefs were on: each costs `stallCost` (150) and no 
 frontage, so the side masses on new objectives (`commander-ai.js` `stalledEfforts`; outcomes under
 `macroCommand.state.stallOutcomes`). All three are scores, never vetoes.
 
-**Reconstitution** (`commander-ai.js` `reconstitute`, Macro only). A retreating squad's Squad Leader
-walks it home (`_assembly` `to-base`); home and out of contact it is `at-base`. Only true 1-4-man
-remnants enter the survivor pool (`RECON_POOL_MAX = 4`); five or more survivors remain a viable squad
-and recover through ordinary morale when calm. Reconstitution needs at least 6 combined survivors
+**Reconstitution** (`commander-ai.js` `reconstitute`, Macro only). SquadAI owns the shared
+survivor-remnant boundary (`REMNANT_EXTRACTION_MAX = 4`), which Force Command exposes as
+`RECON_POOL_MAX`. A retreating squad with 1-4 living men is no longer a tactical formation: until a
+real reconstitution brief moves its assembly state to `to-rally`, the Squad Leader pins its anchor to
+`home` and gives every survivor the same homeward **survival fallback**. That fallback is continuation
+of the already-entered retreat state, not a new tactical command, so it does not require a scattered
+man to remain inside voice/visual Command Reception range. It opens no local morale-rally recovery and
+never uses the sliding retreat-anchor/recentring path. A dazed, frozen or otherwise delayed survivor
+may lag; men already farther rearward are never ordered back toward him. Navigation still legalizes
+each man's route around terrain. A later `to-rally` reconstitution brief is a real new command again:
+home remains the live fallback while that replacement is pending, and Command Reception takes movement
+authority back only when the reconstitution order is personally adopted. Once the remnant reaches home and is out of
+contact it is `at-base` and waits in the survivor pool. Five or more survivors remain a viable squad
+and keep the ordinary retreat-anchor / morale-recovery behavior. Reconstitution needs at least 6 combined survivors
 (`RECON_MIN_STRENGTH`) and never splits a source squad or reconstitutes one remnant with itself.
 The General chooses geographically coherent remnants rather than simply taking the strongest first:
 for each possible seed it adds the nearest remnant to the moving centroid until the minimum is met,

@@ -819,6 +819,9 @@
   }
   function movementExecutionCurrent(s, battle) {
     var CR = root.BattleCommandReception;
+    /* A survival fallback is locally authoritative while it is active. It is not an unreceived
+       tactical command, so there is no Command Reception envelope that can be "current" for it. */
+    if (s && s._survivalMovementKey) return true;
     return (
       !movementAdoptionOn() ||
       CR.executionCurrent(s, battle, 'movement', movementScope(s), s._fireteamAdoptedEnvelope)
@@ -833,17 +836,36 @@
       Math.round((+next.z || 0) / ORDER_PUBLISH_EPS)
     );
   }
+  function commitPersonalMovement(s, next, publishKey, battle, urgent, stats, envelopeId) {
+    s._fireteamDestination = copy(next);
+    s._fireteamPublishKey = publishKey;
+    if (envelopeId !== undefined) s._fireteamAdoptedEnvelope = envelopeId;
+    stats.intentPublishes++;
+    if (root.BattleMovementResolver)
+      root.BattleMovementResolver.proposeOrder(s, s._fireteamDestination, battle, !!urgent);
+    else s.orderDestination = copy(s._fireteamDestination);
+    return true;
+  }
   function publishPersonalMovement(sq, battle, s, next, publishKey, urgent, kind, reason, stats, options) {
     var CR = root.BattleCommandReception,
       opt = options || {};
+
+    /* Remnant extraction is continuation of an already-entered survival state, not a fresh tactical
+       instruction a scattered soldier must hear from his leader. Once a retreating squad falls to
+       1-4 men, each survivor independently falls back to home even if voice/visual command links are
+       gone. Keep this path narrow and self-validating: callers cannot use it for ordinary movement.
+       The previous adopted tactical envelope is intentionally retained as history; _survivalMovementKey
+       keeps it from becoming live again while a later real command (the reconstitution rally) is pending. */
+    if (opt.survivalFallback) {
+      if (!(urgent && root.SquadAI.isExtractionToHome(sq)))
+        throw new Error('Survival movement fallback is only valid for a tiny remnant extracting home');
+      s._survivalMovementKey = String(publishKey || 'survival');
+      return commitPersonalMovement(s, next, publishKey, battle, true, stats);
+    }
+
     if (!(CR && CR.movementEnabled && CR.movementEnabled())) {
-      s._fireteamDestination = copy(next);
-      s._fireteamPublishKey = publishKey;
-      stats.intentPublishes++;
-      if (root.BattleMovementResolver)
-        root.BattleMovementResolver.proposeOrder(s, s._fireteamDestination, battle, !!urgent);
-      else s.orderDestination = copy(s._fireteamDestination);
-      return true;
+      s._survivalMovementKey = null;
+      return commitPersonalMovement(s, next, publishKey, battle, urgent, stats);
     }
 
     var scope = movementScope(s),
@@ -878,6 +900,15 @@
       });
       adopted = CR.adopted && CR.adopted(s, battle, 'movement', scope);
     }
+
+    /* If survival fallback replaced the last adopted tactical order, do not resurrect that stale
+       order while the first post-extraction command is still pending. Only the newest personally
+       adopted envelope may take authority back from survival movement. */
+    if (
+      s._survivalMovementKey &&
+      (!adopted || !CR.executionCurrent(s, battle, 'movement', scope, adopted.envelopeId))
+    )
+      return false;
     if (!adopted || !adopted.point || !adopted.data) return false;
 
     /* A non-spatial HOLD means stop when the order reaches the man, not return to the coordinate
@@ -888,6 +919,7 @@
       previous = point(s._fireteamDestination);
     if (!appliedPoint) return false;
     if (
+      !s._survivalMovementKey &&
       s._fireteamAdoptedEnvelope === adopted.envelopeId &&
       previous &&
       dist(previous, appliedPoint) <= ORDER_PUBLISH_EPS &&
@@ -895,15 +927,16 @@
     )
       return false;
 
-    if (adopted.data.adoptHere) s._fireteamDestination = copy(appliedPoint);
-    else s._fireteamDestination = copy(adopted.point);
-    s._fireteamPublishKey = adoptedKey;
-    s._fireteamAdoptedEnvelope = adopted.envelopeId;
-    stats.intentPublishes++;
-    if (root.BattleMovementResolver)
-      root.BattleMovementResolver.proposeOrder(s, s._fireteamDestination, battle, !!adopted.data.urgent);
-    else s.orderDestination = copy(s._fireteamDestination);
-    return true;
+    s._survivalMovementKey = null;
+    return commitPersonalMovement(
+      s,
+      appliedPoint,
+      adoptedKey,
+      battle,
+      !!adopted.data.urgent,
+      stats,
+      adopted.envelopeId
+    );
   }
 
   function tasksFor(phase) {
@@ -1641,6 +1674,19 @@
   function advanceSquadAnchor(sq, battle) {
     var anchor = sq.orderAnchor || publishAnchor(sq, sq.rally);
     if (sq.state === 'retreat') {
+      if (root.SquadAI.isExtractionToHome(sq)) {
+        /* A tiny remnant is no longer maneuvering as a formation. Home is the sole Squad Leader
+           anchor until Macro legitimately reconstitutes it; never rebase the anchor toward a slow
+           or dazed straggler and thereby pull survivors who are already farther rearward back toward
+           the fight. Navigation still owns obstacle avoidance for each man's homeward route. */
+        if (L.get(sq, 'retreat-anchor'))
+          L.end(sq, 'retreat-anchor', battle.time, 'remnant extraction uses home');
+        sq._regroupRecovery = null;
+        publishAnchor(sq, sq.home);
+        sq._orderGoal = copy(sq.home);
+        if (leaderlessActive(sq)) noteLeaderlessAction(sq, battle, 'retreat', 'remnant extraction continues');
+        return;
+      }
       stableRetreatAnchor(sq, battle);
       if (leaderlessActive(sq)) noteLeaderlessAction(sq, battle, 'retreat', 'survival retreat continues');
       return;

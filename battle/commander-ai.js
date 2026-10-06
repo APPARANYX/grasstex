@@ -476,7 +476,7 @@
      scattered at their spawn line for good. */
   var RECON_STRENGTH = 10, // establishment / preferred full rebuilt rifle squad
     RECON_MIN_STRENGTH = 6, // minimum combined survivors that may become one rebuilt squad
-    RECON_POOL_MAX = 4, // only true remnants wait for reconstitution; 5+ may rally as their own squad
+    RECON_POOL_MAX = root.SquadAI.REMNANT_EXTRACTION_MAX, // shared SquadAI survivor-remnant boundary
     RECON_MAX_CENTER_TRAVEL = 300, // do not bind remnants whose neutral rendezvous is already too far away
     RECON_FORWARD_DETOUR = 1.15, // each source may spend at most 15% extra travel to move the meeting point frontward
     RECON_FORWARD_MAX = 180, // absolute cap on the frontward slide after the neutral rendezvous is found
