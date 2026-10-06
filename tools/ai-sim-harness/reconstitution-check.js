@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 /* Squad reconstitution (commander-ai.js reconstitute + the Squad Leader's assembly march): retreated squads
-   whose survivors reach a full squad are grouped with the fewest squads, marched home and then to the
-   centre of their home points, merged under one leader and re-tasked by the General. Runs the shipping
+   form a survivor pool at home. The General prefers a full 10-man rebuild, but once at least six men from
+   two or more remnants are available it may form a viable understrength squad instead of waiting forever.
+   They march to the rally point, merge under one leader and are re-tasked by the General. Runs the shipping
    squad, engagement, resolver, Squad Leader and General code with no enemy on the field. */
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),H=require('./harness');
 function load(r,p,search){new Function('window','globalThis','console','location',fs.readFileSync(path.join(H.REPO,p),'utf8'))(r,r,{log(){},warn(){}},search==null?undefined:{search});}
@@ -77,14 +78,15 @@ test('three squads of four merge into one squad of twelve under one leader',()=>
   invariants(w,12);
   const ev=w.events.map(e=>e.type);assert.ok(ev.includes('decision-reconstitute-group')&&ev.includes('decision-squad-merge'));
 });
-test('no group is planned until every squad in it is home and out of contact',()=>{
-  const w=world();squad(w,0,4,null,40);squad(w,1,4,null,150);squad(w,2,4,null,420);
+test('no group is planned until enough survivors are actually home and out of contact',()=>{
+  const w=world();squad(w,0,3,null,40);squad(w,1,2,null,150);squad(w,2,1,null,420);
   const home=[];let grouped=null;
   run(w,420,b=>{w.sq.forEach((q,i)=>{if(!home[i]&&q._assembly&&q._assembly.phase!=='to-base')home[i]=b.time;});if(!grouped&&recon(w).active.length)grouped=b.time;});
-  assert.ok(grouped,'a group was planned');
+  assert.ok(grouped,'a viable six-man group was planned');
   assert.ok(home.every(t=>t<=grouped),'planned at '+grouped+'s, squads home at '+home.map(t=>t.toFixed(1)).join('/'));
-  assert.ok(grouped-Math.min(...home)>60,'the near squads waited for the far one instead of being planned on the way');
-  assert.equal(recon(w).groupsDissolved,0);merged(w);
+  assert.ok(grouped-Math.min(...home)>60,'the five men already home waited for the far survivor instead of grouping early');
+  assert.equal(recon(w).groupsDissolved,0);
+  const q=merged(w);assert.equal(living(q).length,6);invariants(w,6);
 });
 test('the General rallies the group on the approach to its next objective and sends it there',()=>{
   const w=world();w.b._objectives=[{id:'church',def:{x:-40,z:0,radius:30,value:1},state:{owner:'ge'}}];
@@ -106,12 +108,27 @@ test('four squads of three merge into twelve',()=>{
   const w=world();[0,1,2,3].forEach(l=>squad(w,l,3));run(w,480);
   const q=merged(w);assert.equal(living(q).length,12);assert.equal(q.reconstitutedFrom.length,4);invariants(w,12);
 });
-test('eight survivors wait; a third retreating squad completes the group',()=>{
-  const w=world();[0,1].forEach(l=>squad(w,l,4));run(w,200);
-  assert.equal(recon(w).groupsFormed,0,'8 survivors never form a group');
-  assert.ok(w.sq.every(q=>q.state==='retreat'&&!q.disbanded));
-  squad(w,2,2);run(w,300);
-  const q=merged(w);assert.equal(living(q).length,10);invariants(w,10);
+test('a four-man remnant stays in the survivor pool past the old 120-second solo-redeploy window',()=>{
+  const w=world(),q=squad(w,0,4,null,20);
+  run(w,240);
+  const st=recon(w);
+  assert.equal(q.state,'retreat','the remnant never redeployed itself');
+  assert.ok(q._assembly&&q._assembly.phase==='at-base','it waits at base');
+  assert.equal(st.groupsFormed,0,'one remnant cannot reconstitute with itself');
+  assert.equal(st.pool.survivors,4);
+  assert.deepEqual(st.pool.squads,[{id:q.id,survivors:4}]);
+  assert.equal(st.pool.ready,false);
+  assert.ok(!q._macroMission||q._macroMission.status!=='executing','no combat brief was revived');
+});
+
+test('two four-man remnants form a viable understrength squad instead of waiting for ten',()=>{
+  const w=world();[0,1].forEach(l=>squad(w,l,4));run(w,360);
+  const st=recon(w),q=merged(w);
+  assert.equal(st.groupsFormed,1,'8 survivors are enough for one viable group');
+  assert.equal(st.merges,1);
+  assert.equal(living(q).length,8);
+  assert.equal(q.establishment,10,'the rebuilt squad still measures casualties against full establishment');
+  invariants(w,8);
 });
 test('a pool of five threes groups the four strongest; the fifth keeps waiting',()=>{
   const w=world();[0,1,2,3,4].forEach(l=>squad(w,l,3));const seen=untilGrouped(w,120);
@@ -140,13 +157,15 @@ test('with every leader dead each squad\'s successor steps up and the merge keep
   assert.ok(q.members.filter(s=>s.role==='gunner').every(s=>s===q.members.find(m=>m.slotIndex===1)||s.slotRole==='rifleman'));
   invariants(w,12);
 });
-test('a group that falls below strength dissolves back to the pool',()=>{
+test('a forming group dissolves only when losses take it below the six-man viable minimum',()=>{
   const w=world();[0,1,2].forEach(l=>squad(w,l,4));untilGrouped(w,120);
   assert.equal(recon(w).active.length,1);
-  living(w.sq[2]).slice(0,3).forEach(s=>w.b.killSoldier(s,null));run(w,300);
+  living(w.sq[2]).slice(0,4).forEach(s=>w.b.killSoldier(s,null));
+  living(w.sq[1]).slice(0,3).forEach(s=>w.b.killSoldier(s,null));
+  run(w,60);
   const st=recon(w);assert.equal(st.groupsDissolved,1);assert.equal(st.merges,0);assert.equal(st.active.length,0);
-  assert.ok(w.sq.every(q=>!q.disbanded&&!q._reconGroup&&q.state==='retreat'));
-  assert.ok(w.sq.every(q=>!q._macroMission||q._macroMission.status==='failed'));invariants(w,9);
+  assert.ok(w.sq.filter(q=>living(q).length).every(q=>!q.disbanded&&!q._reconGroup&&q.state==='retreat'));
+  assert.ok(w.sq.every(q=>!q._macroMission||q._macroMission.status==='failed'));invariants(w,5);
 });
 test('a re-formed squad holds together and retreats again only at 60% of full strength',()=>{
   const w=world();[0,1,2].forEach(l=>squad(w,l,4));run(w,420);
