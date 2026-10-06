@@ -308,3 +308,35 @@ jobs:
       # only on the server; a deploy must never delete or overwrite them. Needs the stamp above.
       - name: Deploy never touches unmanaged server files
         run: python3 scripts/check_deploy_safety.py
+
+  c1-format-repair:
+    name: C1 one-shot format repair
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'work/prettier-ratchet'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/prettier-ratchet
+
+      - name: Format refresh drift
+        run: |
+          set -euo pipefail
+          files=(
+            battle/modules/39-navigation-physicality-debug.js
+            battle/modules/53-fbx-soldier-backend.js
+            tools/ai-sim-harness/muzzle-fx-origin-check.js
+            tools/ai-sim-harness/player-control-check.js
+          )
+          npx --yes prettier@3.3.3 --write "${files[@]}"
+          if git diff --quiet -- "${files[@]}"; then
+            echo "Files are already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "${files[@]}"
+          git commit -m "Format C1 refresh drift"
+          git push origin HEAD:work/prettier-ratchet
+
