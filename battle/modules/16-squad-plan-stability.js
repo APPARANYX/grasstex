@@ -308,14 +308,13 @@
   var FIRE_CONTROL_ON = !(
     typeof location !== 'undefined' && /[?&]fireControl=(?:0|off|false)\b/.test(location.search || '')
   );
-  /* Phase 0G3: fireteam split on multi-contact. When on, a squad with active contacts in 2+
+  /* Phase 0G3: fireteam split on multi-contact. A squad with active contacts in 2+
      threat sectors (via squadContactsMap) suppresses bounding and holds position to deal with
-     both threats before continuing the advance. Default off; the off arm is unchanged
-     single-contact fire-and-movement. */
-  var FIRETEAM_SPLIT_ON = !!(
+     both threats before continuing the advance. Default-on after the current-main 100-seed #342
+     gate; ?fireteamSplit=0/off/false is the legacy single-contact control for paired A/B work. */
+  var FIRETEAM_SPLIT_ON = !(
     typeof location !== 'undefined' &&
-    location.search &&
-    /[?&]fireteamSplit=1\b/.test(location.search)
+    /[?&]fireteamSplit=(?:0|off|false)\b/i.test(location.search || '')
   );
   var FIRE_CONTROL_TUNING = {
     prepMin: 1.2,
@@ -1996,6 +1995,9 @@
     rallyRecoveryTuning: { dwell: RALLY_RECOVERY_DWELL, arrive: RALLY_RECOVERY_ARRIVE },
     fireControlOn: function () {
       return FIRE_CONTROL_ON;
+    },
+    fireteamSplitOn: function () {
+      return FIRETEAM_SPLIT_ON;
     },
     alertAdvanceOn: function () {
       return ALERT_ADVANCE;
