@@ -112,6 +112,53 @@ test('heard gunfire is lower-confidence, imprecise location-only information',()
   assert.equal(rec.precision,'imprecise-sound');assert.equal(draws,0);
 });
 
+test('aimed fire reveals a distant prone shooter origin and reports it to the squad',()=>{
+  const w=world(),victim=w.A,mate=firstHeardCandidate(w,1),shooter=w.enemy;
+  assert.ok(mate,'deterministic same-squad listener exists');
+  mate.root.position.x=2;mate.root.position.z=0;mate.root.rotation.y=0;mate.moving=true;
+  shooter.root.position.x=0;shooter.root.position.z=260;shooter.prone=true;shooter.moving=false;
+  victim.root.position.x=0;victim.root.position.z=0;victim.target=null;
+  const cold=w.S.detectionRange(w.S.ROLES[victim.role],shooter);
+  assert.ok(260>cold,'the prone shooter is outside passive spotting range');
+
+  w.S.extend('shotModel','incoming-fire-check',()=>false);
+  shooter.target=victim;shooter.fireCooldown=0;w.b.time=2;
+  assert.equal(w.S.tryFire(shooter,w.b),true,'shooter actually discharges an aimed burst');
+
+  const vc=active(w,victim),vr=snap(w,victim).beliefs.find(x=>x.source==='incoming');
+  assert.ok(vc&&vr,'the intended victim gets an incoming-fire belief');
+  assert.equal(vc.knownUnitId,String(shooter.id));
+  assert.equal(vc.precision,'fire-origin');
+  assert.equal(vr.reason,'incoming-fire');
+  assert.deepEqual(vr.location,{x:0,z:260},'the record is the firing origin at trigger time');
+  assert.equal(victim.target,shooter,'the shot reveals the shooter for ordinary tracking to take over');
+  assert.ok(w.us.contact&&w.us.contact.fireRevealed&&w.us.contact.unit===shooter,'the squad gets the direction immediately');
+  assert.ok(w.C.diagnostics(w.b).counts.sent>=1,'the victim calls the firing origin to nearby squad-mates');
+
+  shooter.root.position.x=25;shooter.root.position.z=275;
+  assert.equal(active(w,victim).x,0,'the fire-origin belief does not secretly track the shooter after the shot');
+  assert.equal(active(w,victim).z,260);
+
+  w.b.time=3.5;
+  assert.ok(w.C.heardBy(w.b,mate),'a same-squad mate receives the existing simulated callout');
+  w.S.applyCalloutBelief(mate,w.b);
+  const mc=active(w,mate);
+  assert.ok(mc);assert.equal(mc.source,'told');assert.equal(mc.precision,'fire-origin');
+  assert.equal(mc.knownUnitId,String(shooter.id));
+  assert.equal(w.E.fireControlObservation(mate,w.b).targetId,String(shooter.id),'reported firing origin is actionable fire-control information');
+});
+
+test('incoming-fire reveal has a complete legacy control arm',()=>{
+  const w=world('?soldierBeliefs=1&callouts=1&incomingFireReveal=0');
+  w.A.target=null;w.us.contact=null;
+  assert.equal(w.S.parseIncomingFireReveal('?incomingFireReveal=0'),false);
+  assert.equal(w.S.incomingFireRevealOn(),false);
+  assert.equal(w.S.noteIncomingFire(w.A,w.enemy,w.b),null);
+  assert.equal(w.A.target,null);
+  assert.equal(w.us.contact,null);
+  assert.equal(snap(w,w.A).unknown,true);
+});
+
 test('direct personal sight supersedes a weaker report and does not follow hidden truth afterward',()=>{
   const w=world(),B=firstHeardCandidate(w,1);
   B.root.position.x=2;B.root.position.z=0;B.root.rotation.y=Math.PI;B.moving=true;
