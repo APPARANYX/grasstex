@@ -380,3 +380,32 @@ jobs:
           }
           NODE
 
+  pr316-format-repair:
+    name: PR316 one-shot format repair
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'work/reconstitution-survivor-pool'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reconstitution-survivor-pool
+
+      - name: Format PR316 geometry files
+        run: |
+          set -euo pipefail
+          files=(
+            battle/modules/22-commander-reconstitution.js
+            tools/ai-sim-harness/reconstitution-check.js
+          )
+          npx --yes prettier@3.3.3 --write "${files[@]}"
+          if git diff --quiet -- "${files[@]}"; then
+            echo "Files are already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "${files[@]}"
+          git commit -m "Format PR316 reconstitution geometry"
+          git push origin HEAD:work/reconstitution-survivor-pool
+
