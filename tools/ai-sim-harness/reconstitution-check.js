@@ -370,9 +370,9 @@ test('a pool of five threes groups the four strongest; the fifth keeps waiting',
 test('the most senior leader takes command: a sergeant outranks a rifleman who stepped up', () => {
   const w = world(),
     noLead = ['rifleman', 'rifleman', 'rifleman', 'scout', 'gunner'];
-  squad(w, 0, 4, noLead);
-  squad(w, 1, 4, noLead);
-  const c = squad(w, 2, 3);
+  squad(w, 0, 4, noLead, 20);
+  squad(w, 1, 4, noLead, 20);
+  const c = squad(w, 2, 3, null, 20);
   run(w, 420);
   const q = merged(w),
     cap = c.members.find(s => s.role === 'sergeant');
