@@ -293,6 +293,7 @@ function buildPayload(sim){
     timeline:root.BattleAITimeline&&root.BattleAITimeline.snapshot?root.BattleAITimeline.snapshot(sim):null,
     coordinationHealth:ai.coordinationHealth,diagnosticMetrics:ai.diagnosticMetrics,movementResolver:ai.movementResolver,
     loopWatch:ai.loopWatch,orderProvenance:ai.orderProvenance,leases:ai.leases,
+    tacticalSituation:root.BattleTacticalSituation?clone(root.BattleTacticalSituation.summary(sim)):null,
     console:consoleDump()
   };
 }
