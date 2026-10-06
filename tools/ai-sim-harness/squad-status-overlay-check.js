@@ -125,6 +125,19 @@ q._assembly = { phase: 'to-rally' };
 assert.strictEqual(O.statusFor(q, sim).label, 'RECONSTITUTE', 'survival retreat outranks recon display');
 
 q = base();
+q.state = 'retreat';
+q.commandPhase = 'assault';
+assert.strictEqual(O.statusFor(q, sim).label, 'RETREAT', 'a live withdrawal outranks the stale mission phase');
+q._leases.live['rally-recovery'] = { until: 20, data: { point: { x: 14, z: 24 } } };
+assert.strictEqual(O.statusFor(q, sim).label, 'RALLYING', 'post-retreat physical reform is not mislabeled as continued retreat');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(O.movementTarget(q, sim))), { x: 14, z: 24 });
+assert.deepStrictEqual(JSON.parse(JSON.stringify(O.arrowTarget(q, sim))), { x: 14, z: 24 });
+q.state = 'advance';
+q.inContact = true;
+q.coa = 'assault';
+assert.strictEqual(O.statusFor(q, sim).label, 'ASSAULT', 'once recovery hands command back, the overlay follows the active assault');
+
+q = base();
 q.commandPhase = 'regroup';
 q.objective = { x: 7, z: 8 };
 assert.deepStrictEqual(JSON.parse(JSON.stringify(O.movementTarget(q, sim))), { x: 7, z: 8 });
