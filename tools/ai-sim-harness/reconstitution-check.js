@@ -273,12 +273,12 @@ test('the rendezvous slides toward the next objective only inside each remnant\'
   const centerToObjective = Math.hypot(g.center.x + 40, g.center.z),
     rallyToObjective = Math.hypot(g.rally.x + 40, g.rally.z);
   assert.ok(rallyToObjective < centerToObjective, 'the rebuilt squad starts closer to its next objective');
-  g.squads.forEach(id => {
-    const q = w.sq.find(x => x.id === id),
-      p = w.r.BattleCommanderDoctrine.avgPos(q),
-      direct = Math.hypot(p.x - g.center.x, p.z - g.center.z),
-      routed = Math.hypot(p.x - g.rally.x, p.z - g.rally.z);
-    assert.ok(routed <= direct * 1.15 + 1e-5, id + ' stays within the Pythagorean detour budget');
+  g.sourceTravel.forEach(row => {
+    assert.ok(
+      row.rallyDistance <= row.centerDistance * 1.15 + 1e-5,
+      row.id + ' stays within the Pythagorean detour budget'
+    );
+    const q = w.sq.find(x => x.id === row.id);
     assert.equal(q._macroMission.plannedObjectiveId, 'church');
     assert.equal(q.targetObjective, null, 'a retreating squad is never counted at the objective');
   });
