@@ -369,7 +369,7 @@
     if (c && combatThreat(c.unit)) return c.unit;
     if (
       c &&
-      c.source === 'seen' &&
+      (c.source === 'seen' || c.source === 'incoming' || c.precision === 'fire-origin') &&
       c.knownUnitId != null &&
       isFinite(+c.x) &&
       isFinite(+c.z)
