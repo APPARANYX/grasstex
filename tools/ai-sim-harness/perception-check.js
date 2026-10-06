@@ -24,7 +24,7 @@ function setup(squads) {
   H.resetIds();
   /* This harness isolates the legacy aggregate Perception contract: free 50 m relay plus shared
      squad contact. Personal beliefs and delivered callouts have their own dedicated checks. */
-  const r = H.bootstrap({ search: '?callouts=0&soldierBeliefs=0' });
+  const r = H.bootstrap({ search: '?callouts=0&soldierBeliefs=0&incomingFireReveal=0' });
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
   const b = H.makeBattle(r, { seed: 11 });
   const out = squads.map(o =>
