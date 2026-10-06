@@ -11,7 +11,8 @@
     FOCUS_PRE = 15,
     FOCUS_POST = 30,
     MAX_FOCUS_WINDOWS = 12,
-    MAX_FOCUS_REASONS = 12;
+    MAX_FOCUS_REASONS = 12,
+    LOOP_EPISODE_SECONDS = 15;
   var COMBAT = {
     orient: 1,
     bound: 1,
@@ -98,6 +99,7 @@
       mergeEnded: 0,
       lfpSeen: new Set(),
       loopSeen: new Set(),
+      loopEpisodeAt: new Map(),
       focusBuffer: [],
       focusWindows: [],
       activeFocus: new Map(),
@@ -489,11 +491,23 @@
     alerts.forEach(function (a) {
       if (!a) return;
       var at = a.at != null ? +a.at : +sim.time || 0,
-        key =
-          a.key ||
-          [a.kind || 'loop', a.faction || '?', a.squadId || '?', a.soldierId || '', rounded(at, 2)].join('|');
+        semanticKey = [
+          a.kind || 'loop',
+          a.faction || '?',
+          a.squadId || '?',
+          a.soldierId == null ? '' : a.soldierId
+        ].join('|'),
+        priorEpisodeAt = st.loopEpisodeAt.get(semanticKey),
+        key = a.key || [semanticKey, rounded(at, 2)].join('|');
+      /* Loop Watch normally supplies a stable key and its own cooldown. The observer also collapses
+         same-actor/same-kind alerts inside one 15 s diagnostic episode. This is defensive against
+         producers that refresh an alert timestamp/key every simulation tick: the focused window
+         already preserves the full lead-up/recovery, so repeating the same marker adds noise rather
+         than evidence. A recurrence after the episode window remains visible and extends focus. */
+      if (priorEpisodeAt != null && at - priorEpisodeAt < LOOP_EPISODE_SECONDS) return;
       if (st.loopSeen.has(key)) return;
       st.loopSeen.add(key);
+      st.loopEpisodeAt.set(semanticKey, at);
       observeEvent(sim, 'loop-alert', {
         t: at,
         diagnosticKind: a.kind || 'loop',
