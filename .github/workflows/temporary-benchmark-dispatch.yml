@@ -14,19 +14,11 @@ jobs:
     if: ${{ github.event.pull_request.head.ref == 'work/benchmark-dispatch-317' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch 200-seed standard control benchmark on main
+      - name: Dispatch matched 200-seed revision benchmarks
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh workflow run battle-benchmark-standard.yml \
-            --repo "${{ github.repository }}" \
-            --ref main \
-            -f seed=post-317 \
-            -f seeds=200 \
-            -f query_off='' \
-            -f query_on='' \
-            -f battle_type=meeting \
-            -f windows=contact+120 \
-            -f origin_agent=chatgpt \
-            -f correlation_id=post-317-200 \
-            -f purpose='Post-317 remnant extraction functional regression control'
+          set -euo pipefail
+          common=(-f seed=rev317-ab -f seeds=200 -f query_off='' -f query_on='' -f battle_type=meeting -f windows=contact+120 -f origin_agent=chatgpt)
+          gh workflow run battle-benchmark-standard.yml --repo "${{ github.repository }}" --ref bench/pre-317-7623b51e "${common[@]}" -f correlation_id=rev317-pre -f purpose='Revision A/B PRE #317'
+          gh workflow run battle-benchmark-standard.yml --repo "${{ github.repository }}" --ref main "${common[@]}" -f correlation_id=rev317-post -f purpose='Revision A/B POST #317'
