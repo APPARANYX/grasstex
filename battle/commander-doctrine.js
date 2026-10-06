@@ -572,5 +572,5 @@
     maxEfforts: MAX_EFFORTS,
     frontageCost: FRONTAGE_COST
   };
-  console.log('[COMMAND] doctrine + objective scoring loaded');
+  root.GTLog('[COMMAND] doctrine + objective scoring loaded');
 })(typeof window !== 'undefined' ? window : globalThis);

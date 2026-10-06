@@ -173,5 +173,5 @@ root.BattleAITimeline={version:'1.0',sampleSeconds:SAMPLE_SECONDS,snapshot:snaps
 root.BattleModules.registerSystem('ai-timeline-recorder',{
   version:'1.0',onBattleStart:reset,onBattleRestart:reset,onSimulationStep:tick
 });
-console.log('[DIAG] AI timeline recorder active: 1 s samples + exact state-change markers');
+root.GTLog('[DIAG] AI timeline recorder active: 1 s samples + exact state-change markers');
 })(typeof window!=='undefined'?window:globalThis);

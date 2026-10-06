@@ -606,5 +606,5 @@
     onBattleRestart: start
   });
   if (typeof document !== 'undefined') installUi();
-  console.log('[UI] tactical status overlay active: registry-driven unit symbols + momentary long-range command arrows/objectives');
+  root.GTLog('[UI] tactical status overlay active: registry-driven unit symbols + momentary long-range command arrows/objectives');
 })(typeof window !== 'undefined' ? window : globalThis);

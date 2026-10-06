@@ -16,6 +16,7 @@ const ctx = {
 ctx.globalThis = ctx;
 vm.createContext(ctx);
 
+vm.runInContext(read('battle/core-runtime.js'), ctx, { filename: 'battle/core-runtime.js' });
 vm.runInContext(read('battle/module-registry.js'), ctx, { filename: 'module-registry.js' });
 vm.runInContext(read('battle/modules/40-tactical-symbol-catalog.js'), ctx, { filename: '40-tactical-symbol-catalog.js' });
 

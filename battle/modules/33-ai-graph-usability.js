@@ -83,5 +83,5 @@ function install(){
 
 install();
 root.BattleAIGraphUsability={clearSelection:clearCanvasSelection,syncTrace:syncTopTrace};
-console.log('[AI-GRAPH] space-friendly names + unclipped/top trace wires + canvas deselect loaded');
+root.GTLog('[AI-GRAPH] space-friendly names + unclipped/top trace wires + canvas deselect loaded');
 })(typeof window!=='undefined'?window:globalThis);

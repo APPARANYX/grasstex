@@ -168,7 +168,7 @@
       if(d>MAX_EDGE)continue;
       if(movementClear(a,b))link(a,b);
     }
-    console.log('[NAV] graph built; walls='+walls.length+' nodes='+nodes.length+' doors='+doorPortals.length+' firingStations='+firingStations.length+' rejectedWindows='+rejectedWindows.length);
+    root.GTLog('[NAV] graph built; walls='+walls.length+' nodes='+nodes.length+' doors='+doorPortals.length+' firingStations='+firingStations.length+' rejectedWindows='+rejectedWindows.length);
   }
 
   function heapPush(h,x){h.push(x);var i=h.length-1;while(i>0){var p=(i-1)>>1;if(h[p].f<=h[i].f)break;var t=h[p];h[p]=h[i];h[i]=t;i=p;}}
@@ -225,5 +225,5 @@
     get scenario(){return scenario;},get version(){return version;},get walls(){return walls.slice();},get doorPortals(){return doorPortals.slice();},
     get firingStations(){return firingStations.slice();},get rejectedWindows(){return rejectedWindows.slice();},aperture:aperture,inSector:inSector,get portEnabled(){return PORT;},get eyeHeights(){return EYE;},get windowSlots(){return firingStations.slice();},get doorPad(){return DOOR_PAD;},get doorClearance(){return DOOR_CLEARANCE;},get startSkin(){return START_SKIN;}
   };
-  console.log('[NAV] firing-station navigation loaded');
+  root.GTLog('[NAV] firing-station navigation loaded');
 })(typeof window!=='undefined'?window:globalThis);

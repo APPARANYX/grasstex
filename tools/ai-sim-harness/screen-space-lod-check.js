@@ -10,6 +10,8 @@ const ctx = { console: { log() {}, warn() {}, error() {} } };
 ctx.globalThis = ctx;
 vm.createContext(ctx);
 
+const coreSource = fs.readFileSync(path.join(__dirname, '../../battle/core-runtime.js'), 'utf8');
+vm.runInContext(coreSource, ctx, { filename: 'battle/core-runtime.js' });
 const utilSource = fs.readFileSync(path.join(__dirname, '../../battle/modules/52-screen-space-lod.js'), 'utf8');
 vm.runInContext(utilSource, ctx, { filename: '52-screen-space-lod.js' });
 

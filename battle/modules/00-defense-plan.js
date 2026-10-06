@@ -73,5 +73,5 @@
   function resetClaims(plan){if(plan)(plan.posts||[]).forEach(function(p){p.claim=null;});}
   function register(plan,work,sector){if(!plan||!work)return null;plan.works.push(work);plan.posts=plan.posts.concat(work.posts||[]);plan.obstacles=plan.obstacles.concat(work.obstacles||[]);var id=work.objectiveId||(sector&&sector.objectiveId);if(id){var e=plan.bySector[id]||(plan.bySector[id]={sector:sector||null,works:[],posts:[]});e.works.push(work);e.posts=e.posts.concat(work.posts||[]);}plan.stats.works=plan.works.length;plan.stats.posts=plan.posts.length;plan.stats.obstacles=plan.obstacles.length;return work;}
   root.BattleDefensePlan={WORKS:WORKS,build:build,empty:empty,register:register,materialise:materialise,claimPost:claimPost,holdPost:holdPost,releasePost:releasePost,resetClaims:resetClaims};
-  if(typeof console!=='undefined')console.log('[DEFENSE] terrain-aware planner loaded');
+  if(typeof console!=='undefined')root.GTLog('[DEFENSE] terrain-aware planner loaded');
 })(typeof window!=='undefined'?window:globalThis);

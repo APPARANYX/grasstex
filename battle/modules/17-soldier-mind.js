@@ -1581,7 +1581,7 @@
     reset: reset
   };
   if (typeof console !== 'undefined')
-    console.log(
+    root.GTLog(
       '[MIND] soldier condition active (' + MODE.flag + '): stress from fire, wounds, casualties, leadership'
     );
 })(typeof window !== 'undefined' ? window : globalThis);

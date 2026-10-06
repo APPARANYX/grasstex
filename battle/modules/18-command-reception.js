@@ -471,5 +471,5 @@
     telemetry:telemetry,
     reset:reset
   };
-  if(typeof console!=='undefined')console.log('[COMMAND] individual receipt '+(ON?'active':'off')+'; posture '+(POSTURE_ON?'on':'off')+'; movement '+(MOVEMENT_ON?'on':'off')+'; relay '+(RELAY_ON?'on':'off'));
+  if(typeof console!=='undefined')root.GTLog('[COMMAND] individual receipt '+(ON?'active':'off')+'; posture '+(POSTURE_ON?'on':'off')+'; movement '+(MOVEMENT_ON?'on':'off')+'; relay '+(RELAY_ON?'on':'off'));
 })(typeof window!=='undefined'?window:globalThis);

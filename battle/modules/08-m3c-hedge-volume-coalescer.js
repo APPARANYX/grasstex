@@ -76,11 +76,11 @@ function compact(base){
   obs.__physicalFootprints=compactPhysical;obs.__physicalVersion=(+obs.__physicalVersion||0)+1;
   try{delete obs.__battleField;}catch(_){obs.__battleField=null;}
   base.physicalFootprints=compactPhysical;stats.obstaclesAfter=obs.length;
-  console.log('[M3C-PERF] hedge runtime volumes '+stats.inputHedges+' -> '+stats.outputHedges+'; physical '+stats.physicalBefore+' -> '+stats.physicalAfter+'; tactical '+stats.obstaclesBefore+' -> '+stats.obstaclesAfter);
+  root.GTLog('[M3C-PERF] hedge runtime volumes '+stats.inputHedges+' -> '+stats.outputHedges+'; physical '+stats.physicalBefore+' -> '+stats.physicalAfter+'; tactical '+stats.obstaclesBefore+' -> '+stats.obstaclesAfter);
   return base;
 }
 
 root.BattleTerrainFeatures.scatter=function(scene,heightAt,opts){return compact(oldScatter(scene,heightAt,opts));};
 root.BattleHedgeVolumeCoalescer={version:'1.0-runtime-run-coalescer',compact:compact,stats:function(){return JSON.parse(JSON.stringify(stats));}};
-console.log('[M3C-PERF] terrain-following hedge render detail retained; hot-path volumes coalesced by hedge run');
+root.GTLog('[M3C-PERF] terrain-following hedge render detail retained; hot-path volumes coalesced by hedge run');
 })(typeof window!=='undefined'?window:globalThis);

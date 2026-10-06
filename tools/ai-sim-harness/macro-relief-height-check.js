@@ -28,6 +28,7 @@ const root={
     VertexData:{ComputeNormals(){}}
   }
 };
+new Function('window','globalThis','console','BABYLON',fs.readFileSync(path.resolve(__dirname,'../../battle/core-runtime.js'),'utf8'))(root,root,{log(){},warn(){}},root.BABYLON);
 new Function('window','globalThis','console','BABYLON',src)(root,root,{log(){},warn(){}},root.BABYLON);
 root.BattleSim.buildTerrain({});
 function meshAt(x,z){

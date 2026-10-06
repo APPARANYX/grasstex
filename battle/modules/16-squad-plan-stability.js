@@ -1741,5 +1741,5 @@
         : null;
     }
   };
-  console.log('[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing');
+  root.GTLog('[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing');
 })(typeof window !== 'undefined' ? window : globalThis);

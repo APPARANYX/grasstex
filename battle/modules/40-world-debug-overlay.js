@@ -238,5 +238,5 @@ root.BattleModules.registerSystem('world-debug-overlay',{
 });
 if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installUi,{once:true});else installUi();}
 root.BattleWorldDebug={version:'50-m3c-authoritative-volumes',settings:settings,set:setSetting,setAll:setAll,refresh:function(){rebuildStatic(true);rebuildDynamic();},dispose:clearAll};
-console.log('[WORLD-DEBUG] M3C authoritative volumes + body-sized destination rings loaded');
+root.GTLog('[WORLD-DEBUG] M3C authoritative volumes + body-sized destination rings loaded');
 })(typeof window!=='undefined'?window:globalThis);

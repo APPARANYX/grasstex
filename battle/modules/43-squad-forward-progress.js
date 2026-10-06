@@ -96,5 +96,5 @@ function reset(sim){sim._squadForwardProgress=fresh();sim._squadForwardProgressS
 
 root.BattleModules.registerSystem('squad-forward-progress',{version:'1.3-navigation-aware',onBattleStart:reset,onBattleRestart:reset,onCommanderTick:tick});
 root.BattleSquadForwardProgress={version:'1.3-navigation-aware',windowSeconds:WINDOW,summary:function(sim){return sim&&sim._squadForwardProgressSummary?JSON.parse(JSON.stringify(sim._squadForwardProgressSummary)):null;}};
-console.log('[AI] forward-progress diagnostics distinguish objectives from rally movement');
+root.GTLog('[AI] forward-progress diagnostics distinguish objectives from rally movement');
 })(typeof window!=='undefined'?window:globalThis);

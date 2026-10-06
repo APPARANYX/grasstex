@@ -471,5 +471,5 @@ root.BattleNavigationPhysicality={
   planIngressPath:function(sim,soldier,start,end){return planComplete(sim,start,end,soldier,true);},
   planPath:function(sim,start,end){return planComplete(sim||currentSim(),start,end);},planLocal:function(sim,start,end){return planLocal(sim||currentSim(),null,start,end);}
 };
-console.log('[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded');
+root.GTLog('[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded');
 })(typeof window!=='undefined'?window:globalThis);

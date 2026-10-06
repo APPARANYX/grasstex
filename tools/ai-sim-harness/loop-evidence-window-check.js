@@ -14,6 +14,7 @@ r.BattleOrderProvenance={
   ];},
   conflicts(){return[];},version:'test'
 };
+new Function('window','globalThis','console',fs.readFileSync(path.join(H.REPO,'battle/core-runtime.js'),'utf8'))(r,r,{log(){},warn(){}});
 new Function('window','globalThis','console',fs.readFileSync(path.join(H.REPO,'battle/modules/99-session-diagnostics-export.js'),'utf8'))(r,r,{log(){},warn(){},error(){}});
 const sim={time:130,winner:null,factions:{us:{squads:[]},ge:{squads:[]}},scene:{metadata:{battleScenario:{seed:'diag'}}}};
 const out=r.BattleDiagnosticsExport.snapshot('loops',sim),row=out.loopWatch.alerts[0];

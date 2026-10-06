@@ -89,5 +89,5 @@ function tick(sim){if(!voiceReady(sim))return;var st=state(sim),t=+sim.time||0;p
 
 root.BattleModules.registerSystem(SYSTEM,{version:'1.2',onBattleStart:reset,onBattleRestart:reset,onSimulationStep:tick});
 root.BattleContextVoice={version:'1.2',say:say,socialSafe:socialSafe,meaningfulIdle:socialSafe};
-console.log('[VOICE] playback-driven stories + any-speed safe-march banter active');
+root.GTLog('[VOICE] playback-driven stories + any-speed safe-march banter active');
 })(typeof window!=='undefined'?window:globalThis);

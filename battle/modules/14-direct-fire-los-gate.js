@@ -98,5 +98,5 @@
       onBattleRestart: function () { cache = {}; }
     });
   }
-  if (typeof console !== 'undefined') console.log('[FIRE] trigger-time stance-aware LOS gate active (cached, ' + LOS_CACHE_SECS + 's TTL)');
+  if (typeof console !== 'undefined') root.GTLog('[FIRE] trigger-time stance-aware LOS gate active (cached, ' + LOS_CACHE_SECS + 's TTL)');
 })(typeof window !== 'undefined' ? window : globalThis);

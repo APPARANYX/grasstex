@@ -754,5 +754,5 @@
     resetSoldier: resetSoldier,
     summary: summary
   };
-  console.log('[MOVE] resolver: sole combat-request coalescer and destination writer');
+  root.GTLog('[MOVE] resolver: sole combat-request coalescer and destination writer');
 })(typeof window !== 'undefined' ? window : globalThis);

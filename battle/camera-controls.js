@@ -171,7 +171,7 @@
         yaw=camera.rotation.y;pitch=camera.rotation.x;
       }
       scene.activeCamera=camera;updateHint(activeGamepad());
-      console.log('[PLAYER] exited '+(reason||'player mode')+' from '+old.faction+' #'+old.id);
+      global.GTLog('[PLAYER] exited '+(reason||'player mode')+' from '+old.faction+' #'+old.id);
     }
     function possessRandom(){
       var b=liveBattle();if(!b)return false;
@@ -188,7 +188,7 @@
       if(b.paused&&b.resume)b.resume();
       var startBtn=document.getElementById('startBtn');if(startBtn)startBtn.hidden=true;
       ensureReticle().style.display='block';scene.activeCamera=ensurePlayerCamera();positionPlayerCamera(false);updateHint(activeGamepad());
-      console.log('[PLAYER] controlling '+playerLabel()+' · faction locked '+playerFaction);
+      global.GTLog('[PLAYER] controlling '+playerLabel()+' · faction locked '+playerFaction);
       return true;
     }
     function setPlayerStance(b,stance){
@@ -277,10 +277,10 @@
     },{passive:false});
     window.addEventListener('keyup',function(event){keys.delete(keyName(event));});
     window.addEventListener('blur',function(){keys.clear();mouseAim=false;mouseFire=false;});
-    window.addEventListener('gamepadconnected',function(e){padId=e.gamepad&&e.gamepad.id||'gamepad';padButtons={};updateHint(e.gamepad);console.log('[CAMERA] gamepad connected: '+padId);});
+    window.addEventListener('gamepadconnected',function(e){padId=e.gamepad&&e.gamepad.id||'gamepad';padButtons={};updateHint(e.gamepad);global.GTLog('[CAMERA] gamepad connected: '+padId);});
     window.addEventListener('gamepaddisconnected',function(e){
       if(!e.gamepad||!padId||e.gamepad.id===padId){padId=null;padButtons={};updateHint(null);}
-      console.log('[CAMERA] gamepad disconnected; keyboard controls remain active');
+      global.GTLog('[CAMERA] gamepad disconnected; keyboard controls remain active');
     });
     canvas.addEventListener('wheel',function(event){
       if(!guarded()||player)return;
@@ -290,7 +290,7 @@
     },{passive:false});
     scene.onBeforeRenderObservable.add(function(){
       var dt=Math.min(.05,engine.getDeltaTime()/1000),pad=activeGamepad();
-      if(pad&&pad.id!==padId){padId=pad.id;padButtons={};updateHint(pad);console.log('[CAMERA] gamepad active: '+padId);}
+      if(pad&&pad.id!==padId){padId=pad.id;padButtons={};updateHint(pad);global.GTLog('[CAMERA] gamepad active: '+padId);}
       if(!pad&&padId){padId=null;padButtons={};updateHint(null);}
       if(pad){
         var menu=padPressedOnce(pad,9),view=padPressedOnce(pad,8);
@@ -418,7 +418,7 @@
       var next=createDesktopFly(scene,canvas,target,engine,battleSim,pose);
       state.camera=next.camera;state.desktop=true;state.hint=next.hint;setHint(next.hint);
       if(wakeObserver){scene.onBeforeRenderObservable.remove(wakeObserver);wakeObserver=null;}
-      console.log('[CAMERA] gamepad wake switched touch orbit to fly ('+source+'): '+(pad.id||'gamepad'));
+      global.GTLog('[CAMERA] gamepad wake switched touch orbit to fly ('+source+'): '+(pad.id||'gamepad'));
     }
     if(!state.desktop&&hasGamepadAPI()){
       global.addEventListener('gamepadconnected',function(e){switchToGamepad(e&&e.gamepad,'event');});
@@ -436,9 +436,9 @@
       var result=createAdaptive(options,target);
       global.BattleDesktopCamera.current=result;
       if(result.mode==='follow'){
-        console.log('[CAMERA] persistent follow active · distance='+result.follow.distance+'m · orbit='+(result.follow.orbit?'on':'off')+' · orbitSpeed='+result.follow.orbitSpeed);
+        global.GTLog('[CAMERA] persistent follow active · distance='+result.follow.distance+'m · orbit='+(result.follow.orbit?'on':'off')+' · orbitSpeed='+result.follow.orbitSpeed);
       }else{
-        console.log('[CAMERA] '+(result.desktop?'ww2fps Model Lab desktop/gamepad fly controls':'touch orbit controls; waiting for gamepad wake')+' active');
+        global.GTLog('[CAMERA] '+(result.desktop?'ww2fps Model Lab desktop/gamepad fly controls':'touch orbit controls; waiting for gamepad wake')+' active');
       }
       return result;
     }

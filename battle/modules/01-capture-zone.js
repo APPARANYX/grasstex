@@ -583,5 +583,5 @@
       updateMarkers(sim, payload);
     }
   });
-  console.log('[OBJECTIVE] capture zones v30: waving raise/lower flags + open sandbag boundary active');
+  root.GTLog('[OBJECTIVE] capture zones v30: waving raise/lower flags + open sandbag boundary active');
 })(typeof window !== 'undefined' ? window : globalThis);

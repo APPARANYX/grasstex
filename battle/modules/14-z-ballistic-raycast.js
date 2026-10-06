@@ -732,5 +732,5 @@
     }
   };
   if (typeof console !== 'undefined')
-    console.log('[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts');
+    root.GTLog('[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts');
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -125,5 +125,5 @@
       });
     }
   });
-  console.log('[ANIM] fire/reload event bridge loaded; finite ammo retains magazine ownership');
+  root.GTLog('[ANIM] fire/reload event bridge loaded; finite ammo retains magazine ownership');
 })(typeof window !== 'undefined' ? window : globalThis);

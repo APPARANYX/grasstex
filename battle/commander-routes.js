@@ -101,5 +101,5 @@
     ensureAssignments: ensureAssignments,
     initForce: initForce
   };
-  console.log('[COMMAND] force allocation + approach routes loaded');
+  root.GTLog('[COMMAND] force allocation + approach routes loaded');
 })(typeof window !== 'undefined' ? window : globalThis);

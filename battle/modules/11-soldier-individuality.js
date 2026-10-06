@@ -107,5 +107,5 @@
 
   root.BattleModules.registerSystem(SYSTEM,{version:'68-realistic-gaits',onBattleStart:applyAll,onBattleRestart:applyAll,onSimulationStep:updateSpeeds});
   root.BattleSoldierIndividuality={version:'68-realistic-gaits',roleSpeeds:ROLE,gaitLimits:LIMITS,crawlFactor:CRAWL_FACTOR,runDistance:RUN_DISTANCE,phenotype:phenotype,desiredGait:desiredGait};
-  if(typeof console!=='undefined')console.log('[INFANTRY] realistic walk/run/sprint + crouch/crawl gait bands active');
+  if(typeof console!=='undefined')root.GTLog('[INFANTRY] realistic walk/run/sprint + crouch/crawl gait bands active');
 })(typeof window!=='undefined'?window:globalThis);

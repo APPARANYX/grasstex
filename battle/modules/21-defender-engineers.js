@@ -88,7 +88,7 @@
         b._defenderChoice = root.BATTLE_DEFENDER;
         b.restart();
         b.pause();
-        console.log('[SIDES] defender=' + String(root.BATTLE_DEFENDER || 'meeting'));
+        root.GTLog('[SIDES] defender=' + String(root.BATTLE_DEFENDER || 'meeting'));
       }
     }
     us.addEventListener('change', function () {
@@ -527,7 +527,7 @@
       posts: plan.posts.length,
       squadsDeployed: n
     });
-    console.log(
+    root.GTLog(
       '[DEFENSE] ' +
         root.BattleSides.summary(sides) +
         ' · ' +
@@ -594,5 +594,5 @@
   };
   ensureEngineer();
   installUi();
-  console.log('[DEFENSE] terrain-aware defender + engineers loaded');
+  root.GTLog('[DEFENSE] terrain-aware defender + engineers loaded');
 })(typeof window !== 'undefined' ? window : globalThis);

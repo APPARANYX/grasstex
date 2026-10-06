@@ -182,5 +182,5 @@
     reset: reset,
     summary: summary
   };
-  if (typeof console !== 'undefined') console.log('[WOUNDS] hit-zone incapacitation + bleeding active');
+  if (typeof console !== 'undefined') root.GTLog('[WOUNDS] hit-zone incapacitation + bleeding active');
 })(typeof window !== 'undefined' ? window : globalThis);

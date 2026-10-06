@@ -17,5 +17,5 @@ M.animateWalk=function(s,dt,speed,presentation){
   return oldAnimate.call(this,s,dt,speed,visual);
 };
 root.BattleCombatPostureVisual={version:'2.0',input:'animateWalk.presentation.aimPoint'};
-if(typeof console!=='undefined')console.log('[ANIM] combat-ready aim posture uses presentation-only last-known threat point');
+if(typeof console!=='undefined')root.GTLog('[ANIM] combat-ready aim posture uses presentation-only last-known threat point');
 })(typeof window!=='undefined'?window:globalThis);

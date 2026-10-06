@@ -183,5 +183,5 @@
       return sim && sim._coordinationHealth ? JSON.parse(JSON.stringify(sim._coordinationHealth)) : null;
     }
   };
-  console.log('[AI-HEALTH] objective assignment and replan health active');
+  root.GTLog('[AI-HEALTH] objective assignment and replan health active');
 })(typeof window !== 'undefined' ? window : globalThis);

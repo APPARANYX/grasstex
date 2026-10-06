@@ -319,5 +319,5 @@
   function kill(soldier){if(!soldier||soldier.dead)return;soldier.dead=true;soldier.crawling=false;soldier.reloading=false;soldier.deathClock=0;var h=deathHash(soldier),r=h/4294967295;soldier.deathVariant=r<.34?'front':(r<.67?'back':'side');soldier.deathSide=((h>>>17)&1)?-1:1;soldier.deathTag=soldier.deathVariant==='front'?TAGS.deathFront:(soldier.deathVariant==='back'?TAGS.deathBack:TAGS.deathSide);trigger(soldier,soldier.deathTag,{variant:soldier.deathVariant});}
 
   root.BattleSoldierModel={FACTIONS:FACTIONS,BODY:BODY,TAGS:TAGS,createSoldier:createSoldier,createBody:createBody,preload:preloadImported,setImportedEnabled:setImportedEnabled,animateWalk:animateWalk,setCrouch:setCrouch,setProne:setProne,kill:kill,triggerAnimation:trigger,bindAnimationBackend:bindAnimationBackend};
-  console.log('[ANIM] anatomical procedural rig loaded (fallback for the imported FBX soldier)');
+  root.GTLog('[ANIM] anatomical procedural rig loaded (fallback for the imported FBX soldier)');
 })(typeof window!=='undefined'?window:globalThis);

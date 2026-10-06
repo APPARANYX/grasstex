@@ -152,5 +152,5 @@ root.BattleStanceTransitionCrawl={
   libraryReference:{name:'Universal Animation Library [Standard]',license:'CC0',humanoidCompatible:true,containsProneCrawl:false},
   transition:function(s,from,to){startTransition(s,from,to);}
 };
-console.log('[ANIM] six rigged stance transitions + grounded low-crawl override active');
+root.GTLog('[ANIM] six rigged stance transitions + grounded low-crawl override active');
 })(typeof window!=='undefined'?window:globalThis);

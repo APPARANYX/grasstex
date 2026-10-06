@@ -227,5 +227,5 @@ function importPolicy(){var file=E.importFile.files&&E.importFile.files[0];if(!f
 inject();
 root.BattleAIGraphEditor={open:open,apply:applyLive,save:savePolicy,frame:frameAll,draft:function(){return clone(S.draft);}};
 if(new URLSearchParams(location.search).get('editor')==='ai'||location.hash==='#ai-graph')setTimeout(function(){open(true);},0);
-console.log('[AI-GRAPH] Blender-style Policy Genome workbench loaded');
+root.GTLog('[AI-GRAPH] Blender-style Policy Genome workbench loaded');
 })(typeof window!=='undefined'?window:globalThis);

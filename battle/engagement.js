@@ -1750,5 +1750,5 @@
     }
   };
   if (typeof console !== 'undefined')
-    console.log('[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver');
+    root.GTLog('[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver');
 })(typeof window !== 'undefined' ? window : globalThis);

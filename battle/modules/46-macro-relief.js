@@ -82,5 +82,5 @@ B.applyScenarioTerrain=function(scenario){var out=baseApply.apply(this,arguments
 B.start=function(scene,opts){var sim=baseStart.apply(this,arguments);sim.heightAt=heightAt;settleUnits(sim);var restart=sim.restart&&sim.restart.bind(sim);if(restart)sim.restart=function(){var out=restart();this.heightAt=heightAt;settleUnits(this);return out;};return sim;};
 
 root.BattleMacroRelief={version:'1.1-mesh-authoritative',heightAt:heightAt,profile:function(){return JSON.parse(JSON.stringify(profile()));}};
-console.log('[TERRAIN] deterministic macro hills + flat dirt plateau active');
+root.GTLog('[TERRAIN] deterministic macro hills + flat dirt plateau active');
 })(typeof window!=='undefined'?window:globalThis);

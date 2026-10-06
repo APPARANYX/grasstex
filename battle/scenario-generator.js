@@ -127,5 +127,5 @@
   function newSeed(prefix){return String(prefix||'train')+'-'+Date.now().toString(36)+'-'+Math.floor(Math.random()*0xffffff).toString(36);}
 
   root.BattleScenarioGenerator={MAP_W:MAP_W,MAP_D:MAP_D,FEATURE_KEYS:FEATURE_KEYS.slice(),hashSeed:hashSeed,rngFor:rngFor,create:create,activate:activate,setActive:setActive,current:current,newSeed:newSeed,fingerprint:fingerprint,similarity:similarity};
-  console.log('[SCENARIO] generator v20 loaded; battlefield='+MAP_W+'x'+MAP_D+'m');
+  root.GTLog('[SCENARIO] generator v20 loaded; battlefield='+MAP_W+'x'+MAP_D+'m');
 })(typeof window!=='undefined'?window:globalThis);

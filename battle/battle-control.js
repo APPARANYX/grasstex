@@ -22,7 +22,7 @@
     var button=document.getElementById('bannerContinue');if(button)button.hidden=true;
     var status=document.getElementById('aiTestStatus');if(status)status.textContent='Battle continued past time limit · awaiting decisive outcome';
     telemetry(sim,'battle-continue-after-time-limit',{at:+expiredAt.toFixed(2),configuredTimeLimit:configured});
-    console.log('[CONTROL] continued past time limit at '+expiredAt.toFixed(1)+'s');return true;
+    root.GTLog('[CONTROL] continued past time limit at '+expiredAt.toFixed(1)+'s');return true;
   }
   function syncTimeoutContinueUi(sim){
     var button=document.getElementById('bannerContinue');if(!button)return;
@@ -53,12 +53,12 @@
     return contact+' in contact · '+known+' tracking a position · '+suppressing+' suppressing\n'+(parts.join(' · ')||'no men')+' ('+total+' alive)';
   }
   function objectiveText(sim){var control=sim.objectiveControl,objects=control&&(control.objectives||control.sectors);if(!objects)return'';var parts=[];Object.keys(objects).forEach(function(id){var x=objects[id]||{},owner=x.owner==='neutral'?'N':String(x.owner||'?').toUpperCase(),push=x.active?(' '+String(x.active).toUpperCase()+'→'+(x.progress||0)+'%'):'';parts.push((x.label||id)+': '+owner+push);});return parts.join(' · ');}
-  function endBattle(sim,reason){if(sim._trainingRunning)return;sim.pause();sim.manualEnded=true;if(root.BattleTelemetry)root.BattleTelemetry.end(sim,reason||'manual',{usAlive:sim.factions.us.alive,geAlive:sim.factions.ge.alive,objectives:sim.objectiveControl||null,policyRevision:root.BattleAIPolicy?root.BattleAIPolicy.revision:0});var s=document.getElementById('aiTestStatus');if(s)s.textContent='Battle ended · decision logging stopped';console.log('[CONTROL] battle ended; telemetry flushed');}
+  function endBattle(sim,reason){if(sim._trainingRunning)return;sim.pause();sim.manualEnded=true;if(root.BattleTelemetry)root.BattleTelemetry.end(sim,reason||'manual',{usAlive:sim.factions.us.alive,geAlive:sim.factions.ge.alive,objectives:sim.objectiveControl||null,policyRevision:root.BattleAIPolicy?root.BattleAIPolicy.revision:0});var s=document.getElementById('aiTestStatus');if(s)s.textContent='Battle ended · decision logging stopped';root.GTLog('[CONTROL] battle ended; telemetry flushed');}
   function formatStats(j){if(!j||!j.ok)return'Log stats unavailable';var p=!(root.BattleAIPolicy&&root.BattleAIPolicy.stashed)&&j.policy&&j.policy.revision!=null?(' · genome r'+j.policy.revision):'';return'Logs: '+j.records+' events · '+j.battles+' battles · '+j.captures+' captures · '+j.sessions+' sessions'+p;}
   function refreshStats(target){return fetch(API_BASE+'battle_log_stats.php?days=7&ts='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){if(target)target.textContent=formatStats(j);return j;}).catch(function(){if(target)target.textContent='Log stats unavailable';return null;});}
   function newScenario(sim){
     if(sim._trainingRunning||!root.BattleScenarioGenerator||!root.BattleTownObjectives)return;var seed=root.BattleScenarioGenerator.newSeed('live');var wasPaused=sim.paused;
-    root.BattleTownObjectives.regenerate(sim.scene,sim.heightAt,seed,{manualScenario:true},sim);sim.restart();sim.paused=wasPaused;telemetry(sim,'scenario-generated',{seed:seed,scenarioId:scenario(sim)&&scenario(sim).id,fingerprint:scenario(sim)&&scenario(sim).fingerprint});console.log('[CONTROL] new scenario seed='+seed);
+    root.BattleTownObjectives.regenerate(sim.scene,sim.heightAt,seed,{manualScenario:true},sim);sim.restart();sim.paused=wasPaused;telemetry(sim,'scenario-generated',{seed:seed,scenarioId:scenario(sim)&&scenario(sim).id,fingerprint:scenario(sim)&&scenario(sim).fingerprint});root.GTLog('[CONTROL] new scenario seed='+seed);
   }
 
   function installUi(sim){
@@ -69,7 +69,7 @@
     var durationInput=document.createElement('input');durationInput.id='battleDurationMinutes';durationInput.type='number';durationInput.min=String(MIN_DURATION_MINUTES);durationInput.max=String(MAX_DURATION_MINUTES);durationInput.step='1';durationInput.value=String(storedDurationMinutes(sim));durationInput.setAttribute('aria-label','Battle length in minutes');durationInput.style.cssText='width:58px;box-sizing:border-box;padding:3px 5px;border:1px solid #46512f;border-radius:4px;background:#11160e;color:#eef0df;font:11px Arial,sans-serif;text-align:right';
     durationWrap.appendChild(durationInput);durationWrap.appendChild(document.createTextNode('min'));duration.appendChild(durationLabel);duration.appendChild(durationWrap);
     if(startBtn&&startBtn.parentNode)startBtn.parentNode.insertBefore(duration,startBtn);else hud.appendChild(duration);
-    applyDuration(sim,durationInput);durationInput.addEventListener('change',function(){var minutes=applyDuration(sim,durationInput);console.log('[CONTROL] battle length='+minutes+' min');});
+    applyDuration(sim,durationInput);durationInput.addEventListener('change',function(){var minutes=applyDuration(sim,durationInput);root.GTLog('[CONTROL] battle length='+minutes+' min');});
 
     var banner=document.getElementById('banner'),bannerRestart=document.getElementById('bannerRestart'),bannerContinue=null;
     if(bannerRestart&&bannerRestart.parentNode){bannerContinue=document.createElement('button');bannerContinue.id='bannerContinue';bannerContinue.type='button';bannerContinue.textContent='Continue';bannerContinue.hidden=true;bannerContinue.style.marginRight='8px';bannerRestart.parentNode.insertBefore(bannerContinue,bannerRestart);bannerContinue.addEventListener('click',function(){continueAfterTimeLimit(sim);});}
@@ -105,5 +105,5 @@
     sim.restart=function(){var resumeAfter=sim.manualEnded||!sim.paused;if(root.BattleTelemetry)root.BattleTelemetry.end(sim,'restart');rawRestart();sim.timeLimit=sim._operatorTimeLimitSeconds;sim.manualEnded=false;sim.paused=!resumeAfter;var sc=scenario(sim);if(root.BattleTelemetry)root.BattleTelemetry.start(sim,'live',{restart:true,policyRevision:root.BattleAIPolicy?root.BattleAIPolicy.revision:0,scenarioSeed:sc&&sc.seed,scenarioId:sc&&sc.id});var s=document.getElementById('aiTestStatus');if(s)s.textContent='AI log: active · genome r'+(root.BattleAIPolicy?root.BattleAIPolicy.revision:0);var b=document.getElementById('bannerContinue');if(b)b.hidden=true;};
     installUi(sim);var sc=scenario(sim);telemetry(sim,'battle-start',{usAlive:sim.factions.us.alive,geAlive:sim.factions.ge.alive,policyRevision:root.BattleAIPolicy?root.BattleAIPolicy.revision:0,scenarioSeed:sc&&sc.seed,scenarioId:sc&&sc.id,fingerprint:sc&&sc.fingerprint,unitModules:root.BattleModules?root.BattleModules.listUnitTypes().map(function(x){return x.id;}):[]});return sim;
   };
-  root.BattleControl={spawnUnit:spawnUnit,endBattle:endBattle,refreshStats:refreshStats,newScenario:newScenario,continueAfterTimeLimit:continueAfterTimeLimit,runScenarios:function(sim){return root.BattleAITrainer&&root.BattleAITrainer.train(sim,{candidates:4,scenarios:3,headless:true,renderLoop:root.__battleRenderLoop__});}};console.log('[CONTROL] AI lab controls loaded · build '+(root.BATTLE_BUILD||'dev'));
+  root.BattleControl={spawnUnit:spawnUnit,endBattle:endBattle,refreshStats:refreshStats,newScenario:newScenario,continueAfterTimeLimit:continueAfterTimeLimit,runScenarios:function(sim){return root.BattleAITrainer&&root.BattleAITrainer.train(sim,{candidates:4,scenarios:3,headless:true,renderLoop:root.__battleRenderLoop__});}};root.GTLog('[CONTROL] AI lab controls loaded · build '+(root.BATTLE_BUILD||'dev'));
 })(typeof window!=='undefined'?window:globalThis);

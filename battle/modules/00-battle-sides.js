@@ -128,5 +128,5 @@
     build:build,sectorFor:sectorFor,heldSector:heldSector,isDefender:isDefender,isAttacker:isAttacker,summary:summary,
     progressOf:progressOf,tacticalFrame:tacticalFrame,offsetPoint:offsetPoint,spawnPoint:spawnPoint,other:other
   };
-  if(typeof console!=='undefined')console.log('[SIDES] attacker/defender model loaded');
+  if(typeof console!=='undefined')root.GTLog('[SIDES] attacker/defender model loaded');
 })(typeof window!=='undefined'?window:globalThis);

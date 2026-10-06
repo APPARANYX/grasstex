@@ -307,5 +307,5 @@
       };
     }
   };
-  if (typeof console !== 'undefined') console.log('[SQUAD] Phase 0F inter-squad tactical broadcast ' + (BROADCAST_ON ? '0F2 active (reception on, ?squadBroadcast=1, range=' + BROADCAST_RANGE + 'm)' : '0F1 active (telemetry only, ?squadBroadcast=1 to enable reception, range=' + BROADCAST_RANGE + 'm)'));
+  if (typeof console !== 'undefined') root.GTLog('[SQUAD] Phase 0F inter-squad tactical broadcast ' + (BROADCAST_ON ? '0F2 active (reception on, ?squadBroadcast=1, range=' + BROADCAST_RANGE + 'm)' : '0F1 active (telemetry only, ?squadBroadcast=1 to enable reception, range=' + BROADCAST_RANGE + 'm)'));
 })(typeof window !== 'undefined' ? window : globalThis);

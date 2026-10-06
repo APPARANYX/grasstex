@@ -224,7 +224,7 @@
     obstacles.__physicalVersion=4;
 
     var meshes=mergeBuckets(scene,entries);
-    console.log('[TERRAIN] cover field: '+obstacles.length+' tactical volumes · '+physical.length+' physical volumes · building keepouts='+buildings.length+' in '+meshes.length+' merged meshes over '+Math.round(halfW*2)+'x'+Math.round(keepoutZ*2)+'m');
+    root.GTLog('[TERRAIN] cover field: '+obstacles.length+' tactical volumes · '+physical.length+' physical volumes · building keepouts='+buildings.length+' in '+meshes.length+' merged meshes over '+Math.round(halfW*2)+'x'+Math.round(keepoutZ*2)+'m');
     return{obstacles:obstacles,physicalFootprints:physical,dispose:function(){for(var i=0;i<meshes.length;i++){try{meshes[i].dispose();}catch(_){}}meshes.length=0;}};
   }
 

@@ -13,11 +13,12 @@ class Element {
 class Vector3{constructor(x,y,z){Object.assign(this,{x,y,z});}}
 class Color3{constructor(r,g,b){Object.assign(this,{r,g,b});}}
 const source=fs.readFileSync(path.resolve(__dirname,'../../battle/modules/40-world-debug-overlay.js'),'utf8');
+const coreSource=fs.readFileSync(path.resolve(__dirname,'../../battle/core-runtime.js'),'utf8');
 function boot(stored={}){
   const hooks={},meshes=[],writes=[],windowSettings=[],storage={...stored},document={readyState:'complete',head:new Element('head'),body:new Element('body'),createElement:tag=>new Element(tag)},cover={calls:0,slots:[{id:'free',x:30,z:10,normalX:0,normalZ:1,status:'free',soldierId:null,faction:null,type:'hedge'},{id:'reserved',x:40,z:10,normalX:1,normalZ:0,status:'reserved',soldierId:1,faction:'us',type:'hedge'},{id:'occupied',x:50,z:10,normalX:-1,normalZ:0,status:'occupied',soldierId:2,faction:'ge',type:'rock'}]};
   const context={console:{log(){}},document,performance:{now:()=>1000},localStorage:{getItem:key=>storage[key]??null,setItem(key,value){storage[key]=value;writes.push(key);}},BattleModules:{registerSystem(id,api){hooks[id]=api;}},BattleNavigation:{version:1,walls:[{a:{x:0,z:0},b:{x:10,z:0},openings:[]}],firingStations:[]},BattleNavigationPhysicality:{setWindowDebug(value){windowSettings.push(value);storage.battleWindowSlotsVisible=value?'1':'0';},occupiedStations:()=>[],bodyRadius:.45,navMargin:.45,routeMargin:1.15},BABYLON:{Vector3,Color3,MeshBuilder:{CreateLineSystem(name,options){const mesh={name,lines:options.lines,dispose(){this.disposed=true;}};meshes.push(mesh);return mesh;},CreateSphere(name,options){const mesh={name,options,dispose(){this.disposed=true;}};meshes.push(mesh);return mesh;}},StandardMaterial:class{constructor(name){this.name=name;}dispose(){this.disposed=true;}}}};
   context.BattleCoverPositions={snapshot(){cover.calls++;return cover.slots;}};
-  context.window=context;vm.createContext(context);vm.runInContext(source,context);
+  context.window=context;vm.createContext(context);vm.runInContext(coreSource,context);vm.runInContext(source,context);
   return{context,hooks,meshes,writes,windowSettings,storage,document,cover};
 }
 const env=boot(),api=env.context.BattleWorldDebug,panel=env.document.body.querySelector('.wd-panel');

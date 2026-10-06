@@ -221,5 +221,5 @@ root.BattleModules.registerSystem('ai-loop-watch',{
 
 if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installGraphUi,{once:true});else installGraphUi();}
 root.BattleAILoopWatch={sample:sample,alerts:function(sim){var st=sim&&sim._aiLoopWatch;return clone(st&&st.alerts||[]);},clear:function(sim){if(sim)reset(sim);},labelFor:ruleLabel,setLabel:setRuleLabel,highlight:highlightKeys};
-console.log('[AI-GRAPH] connection trace + rule aliases + short-loop watch loaded');
+root.GTLog('[AI-GRAPH] connection trace + rule aliases + short-loop watch loaded');
 })(typeof window!=='undefined'?window:globalThis);

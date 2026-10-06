@@ -11,7 +11,7 @@
   function finish(req){if(!req||req.handle.ended)return;req.handle.ended=true;if(req.opts&&typeof req.opts.onEnded==='function')try{req.opts.onEnded(req.handle);}catch(e){console.error('[VOICE] onEnded failed: '+(e&&e.message||e));}}
   /* See 11-voice-variation.js: attachToMesh tracks the soldier every frame instead of a
      one-time setPosition snapshot, so the emitter doesn't get left behind mid-line. */
-  function playAt(entry,req){try{var soldier=req.soldier,root=soldier.root,s=entry.sound,o=s.onEndedObservable;if(typeof s.detachFromMesh==='function')s.detachFromMesh();if(root&&typeof s.attachToMesh==='function')s.attachToMesh(root);else{var p=root.position.clone?root.position.clone():root.position;s.setPosition(p);}if(o&&o.addOnce)o.addOnce(function(){try{if(typeof s.detachFromMesh==='function')s.detachFromMesh();}catch(_){}finish(req);});s.play();req.handle.started=true;console.log('[VOICE] play '+entry.file+' lane='+req.lane);}catch(e){console.error('[VOICE] play failed '+entry.file+': '+(e&&e.message||e));finish(req);}return req.handle;}
+  function playAt(entry,req){try{var soldier=req.soldier,root=soldier.root,s=entry.sound,o=s.onEndedObservable;if(typeof s.detachFromMesh==='function')s.detachFromMesh();if(root&&typeof s.attachToMesh==='function')s.attachToMesh(root);else{var p=root.position.clone?root.position.clone():root.position;s.setPosition(p);}if(o&&o.addOnce)o.addOnce(function(){try{if(typeof s.detachFromMesh==='function')s.detachFromMesh();}catch(_){}finish(req);});s.play();req.handle.started=true;root.GTLog('[VOICE] play '+entry.file+' lane='+req.lane);}catch(e){console.error('[VOICE] play failed '+entry.file+': '+(e&&e.message||e));finish(req);}return req.handle;}
   function enqueue(soldier,type,cam,opts){
     opts=opts||{};var m=window.BATTLE_AUDIO_MANIFEST;if(!m||!m.callouts||!m.callouts[soldier.faction])return false;var files=(m.callouts[soldier.faction].events||{})[type];if(!files||!files.length)return false;
     var rules=m.rules&&m.rules.voice||{},now=performance.now(),lane=opts.priority||(SOCIAL[type]?'social':'tactical'),social=lane==='social',sid=soldier.squad&&soldier.squad.id||soldier.faction,cp=cameraPos(cam),drop=rules.dropBeyondDistance||120;if(cp&&distance(cp,soldier.root.position)>drop)return false;
@@ -23,5 +23,5 @@
     catch(e){failed[file]=true;delete cache[file];finish(req);return false;}return handle;
   }
   root.BattleVoiceScheduler={enqueue:enqueue};
-  console.log('[VOICE] baseline playback-aware runtime active');
+  root.GTLog('[VOICE] baseline playback-aware runtime active');
 })(typeof window!=='undefined'?window:globalThis);

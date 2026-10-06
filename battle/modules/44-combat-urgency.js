@@ -313,5 +313,5 @@
       return sim && sim._combatUrgencySummary ? JSON.parse(JSON.stringify(sim._combatUrgencySummary)) : null;
     }
   };
-  console.log('[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction');
+  root.GTLog('[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction');
 })(typeof window !== 'undefined' ? window : globalThis);

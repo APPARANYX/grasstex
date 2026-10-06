@@ -105,5 +105,5 @@ installStyle();ensureHelp();installWireDrag();
 state.observer=new MutationObserver(scheduleDecorate);state.observer.observe(rootEl,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['hidden']});
 scheduleDecorate();
 root.BattleAIGraphLogic={decorate:decorate,cancelDrag:cancelDrag};
-console.log('[AI-GRAPH] IF/AND/THEN logic view + drag wiring loaded');
+root.GTLog('[AI-GRAPH] IF/AND/THEN logic view + drag wiring loaded');
 })(typeof window!=='undefined'?window:globalThis);

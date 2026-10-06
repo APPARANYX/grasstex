@@ -155,5 +155,5 @@
     coverPotentialAt:coverPotentialAt,nearby:nearby,obstacleHeight:obstacleHeight,obstacleTop:obstacleTop,
     horizontalDistance:horizontalDistance,sightHitT:sightHitT
   };
-  if(typeof console!=='undefined')console.log('[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded');
+  if(typeof console!=='undefined')root.GTLog('[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded');
 })(typeof window!=='undefined'?window:globalThis);

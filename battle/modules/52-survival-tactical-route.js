@@ -696,5 +696,5 @@
     onCommanderTick: publish
   });
   root.BattleMovementExecution = { version: '3.0-lean-owner' };
-  console.log('[MOVE] lean movement execution: committed micro-route + conservative recovery');
+  root.GTLog('[MOVE] lean movement execution: committed micro-route + conservative recovery');
 })(typeof window !== 'undefined' ? window : globalThis);

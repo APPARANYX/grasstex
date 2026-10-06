@@ -15,7 +15,7 @@
     id=assertId(id);spec=spec||{};
     if(registries[kind][id])throw new Error('Battle module already registered: '+kind+'/'+id);
     spec.id=id;registries[kind][id]=spec;
-    console.log('[MODULE] registered '+kind+'/'+id+(spec.version?' v'+spec.version:''));
+    root.GTLog('[MODULE] registered '+kind+'/'+id+(spec.version?' v'+spec.version:''));
     return spec;
   }
   function list(kind){return Object.keys(registries[kind]).sort().map(function(id){return registries[kind][id];});}
@@ -111,5 +111,5 @@
     spawnUnitType:spawnUnitType,
     runHook:runHook
   };
-  console.log('[MODULE] registry v20 loaded');
+  root.GTLog('[MODULE] registry v20 loaded');
 })(typeof window!=='undefined'?window:globalThis);
