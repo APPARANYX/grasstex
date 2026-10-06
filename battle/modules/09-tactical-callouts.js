@@ -19,7 +19,11 @@
   var ON = !(typeof location !== 'undefined' && /[?&]callouts=(0|off|none)\b/.test(location.search || ''));
 
   var KINDS = {
-    contact: { carries: 'unit, x, z, at, stance', consumer: 'Perception squadSenses (relayed contact)' }
+    contact: { carries: 'unit, x, z, at, stance', consumer: 'Perception squadSenses (relayed contact)' },
+    incomingFire: {
+      carries: 'unit, x, z, at, stance, precision, reason',
+      consumer: 'Perception personal beliefs (shooter firing origin)'
+    }
   };
   var TUNING = {
     CALL_RANGE: 60, // m: a shout carries this far to be understood
