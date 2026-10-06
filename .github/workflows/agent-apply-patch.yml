@@ -18,6 +18,12 @@ name: Agent apply patch
 #      On any failure it posts the traceback as an issue comment and leaves the
 #      issue open for the agent or a human to re-file.
 #
+# The job only runs when the ISSUE AUTHOR is on the approved list in the job's if:
+# condition (the label itself can only be added by collaborators with triage
+# permission, but the author check is defense in depth against a mis-labeled
+# outside issue on this public repo). To approve a new issue author, add their
+# login to the fromJson list.
+#
 # The AGENT_TOKEN is a fine-grained PAT scoped to APPARANYX/grasstex with
 # Contents: write and Pull requests: write (setup instructions in
 # docs/agents/agent-apply-workflow.md). Issue comments and closes use the
@@ -46,7 +52,7 @@ concurrency:
 jobs:
   apply:
     name: Apply patch and open PR
-    if: github.event.label.name == 'agent-apply'
+    if: github.event.label.name == 'agent-apply' && contains(fromJson('["appara-agent", "ivandpopov", "Teethree89"]'), github.event.issue.user.login)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -89,7 +95,14 @@ jobs:
           def run(cmd, **kw):
               """Run a command, streaming stdout to the log, capturing stderr
               so it can be included in the failure comment if it raises."""
-              print("+", " ".join(str(c) for c in cmd), flush=True)
+              # git config --local with the http.extraheader carries the base64'd
+              # credential; GitHub masks it in logs, but never print it at all.
+              shown = (
+                  "[credential configuration redacted]"
+                  if len(cmd) >= 3 and cmd[:3] == ["git", "config", "--local"]
+                  else " ".join(str(c) for c in cmd)
+              )
+              print("+", shown, flush=True)
               kw.setdefault("stderr", subprocess.PIPE)
               kw.setdefault("text", True)
               return subprocess.run([str(c) for c in cmd], check=True, **kw)

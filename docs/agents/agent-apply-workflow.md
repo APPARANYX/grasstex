@@ -133,16 +133,16 @@ respected.
 
 ### Security note
 
-Anyone with triage permission on the repo can apply the `agent-apply` label and
-thus trigger a PR with arbitrary patch contents. Restrict label application to
-collaborators you trust to file patches, or add an `actor` filter to the
-workflow's `if:` condition, e.g.:
+Anyone with triage permission on the repo can apply the `agent-apply` label, so
+the label alone is not proof the issue is yours. The workflow's `if:` condition
+therefore also requires the **issue author** to be on an approved list:
 
 ```yaml
-if: |
-  github.event.label.name == 'agent-apply' &&
-  contains(fromJson('["appara-agent", "ivandpopov"]'), github.event.issue.user.login)
+if: github.event.label.name == 'agent-apply' && contains(fromJson('["appara-agent", "ivandpopov", "Teethree89"]'), github.event.issue.user.login)
 ```
+
+A labeled issue filed by anyone else is silently skipped. To approve a new issue
+author, add their login to that list.
 
 The `AGENT_TOKEN` is scoped to a single repo and to the two permissions above,
 so a leaked token can at worst push branches and open PRs to
