@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 /* Squad reconstitution (commander-ai.js reconstitute + the Squad Leader's assembly march): retreated squads
-   form a survivor pool at home. The General prefers a full 10-man rebuild, but once at least six men from
-   two or more remnants are available it may form a viable understrength squad instead of waiting forever.
-   They march to the rally point, merge under one leader and are re-tasked by the General. Runs the shipping
+   form a survivor pool at home. Only true 1-4-man remnants enter it; 5+ survivors remain a viable squad
+   and use normal morale recovery. Nearby remnants totaling at least six men may form an understrength squad.
+   Their rendezvous starts at the geometric centre of their real positions, then slides toward the front only
+   inside a 15% travel-detour budget. They merge under one leader and are re-tasked by the General. Runs the shipping
    squad, engagement, resolver, Squad Leader and General code with no enemy on the field. */
 const assert = require('node:assert/strict'),
   fs = require('fs'),
@@ -185,11 +186,10 @@ function merged(w) {
   return m[0];
 }
 
-test('three squads of four merge into one squad of twelve under one leader', () => {
+test('three four-man remnants rebuild the nearest pair and leave the third in the pool', () => {
   const w = world();
-  [0, 1, 2].forEach(l => squad(w, l, 4));
+  [0, 1].forEach(l => squad(w, l, 4));
   let homeFirst = true;
-  /* The Squad Leader re-forms the merged squad (`reform`) and publishes its anchor through the one publisher. */
   const published = [],
     S = w.r.BattleSquadStability,
     real = S.reform;
@@ -204,7 +204,7 @@ test('three squads of four merge into one squad of twelve under one leader', () 
     });
     return out;
   };
-  run(w, 420, b =>
+  run(w, 420, () =>
     w.sq.forEach(q => {
       if (q._assembly && q._assembly.phase === 'to-rally' && !q._sawRally) {
         q._sawRally = true;
@@ -214,41 +214,27 @@ test('three squads of four merge into one squad of twelve under one leader', () 
     })
   );
   const st = recon(w),
-    q = merged(w);
-  const mergeEvent = w.events.find(e => e.type === 'decision-squad-merge'),
-    rally = st.ended[0].rally;
-  const handed = published.filter(
-    x =>
-      x.squad === q.id &&
-      Math.hypot(x.p.x - rally.x, x.p.z - rally.z) < 1e-9 &&
-      Math.hypot(x.anchor.x - rally.x, x.anchor.z - rally.z) < 1e-9 &&
-      Math.hypot(x.rally.x - rally.x, x.rally.z - rally.z) < 1e-9
-  );
-  assert.equal(
-    handed.length,
-    1,
-    "the Squad Leader re-formed the survivor once and left its anchor pair on the group's rally point"
-  );
-  assert.ok(mergeEvent && handed[0].at > 0, 'and at the merge');
+    q = merged(w),
+    rally = st.ended.find(g => g.status === 'merged').rally,
+    handed = published.filter(
+      x =>
+        x.squad === q.id &&
+        Math.hypot(x.p.x - rally.x, x.p.z - rally.z) < 1e-9 &&
+        Math.hypot(x.anchor.x - rally.x, x.anchor.z - rally.z) < 1e-9 &&
+        Math.hypot(x.rally.x - rally.x, x.rally.z - rally.z) < 1e-9
+    );
+  assert.equal(handed.length, 1, 'the Squad Leader publishes the rebuilt squad once at the group rally');
   assert.equal(st.groupsFormed, 1);
   assert.equal(st.merges, 1);
-  assert.ok(homeFirst, 'no squad turned for the rally point before it was home');
-  assert.equal(living(q).length, 12);
-  assert.equal(q.members.length, 12, 'the re-formed squad carries only living men');
+  assert.ok(homeFirst, 'no remnant turns for the rendezvous before reaching base');
+  assert.equal(living(q).length, 8);
+  assert.equal(q.reconstitutedFrom.length, 2);
   assert.equal(living(q).filter(s => w.r.SquadAI.isLeader(s)).length, 1, 'exactly one leader');
-  assert.equal(q.state === 'retreat', false, 'the re-formed squad is no longer retreating');
-  const mergeAt = w.events.findIndex(e => e.type === 'decision-squad-merge'),
-    next = w.events.slice(mergeAt).find(e => e.type === 'decision-mission-issued' && e.data.squad === q.id);
-  assert.ok(
-    next && next.data.reason === 'squad-reconstituted' && next.data.intent !== 'reconstitute',
-    'the General re-tasked it straight after the merge'
-  );
-  assert.ok(['issued', 'executing'].includes(q._macroMission.status));
-  const others = w.sq.filter(x => x !== q);
-  assert.ok(others.every(x => x.disbanded && x.members.length === 0 && x.mergedInto === q.id));
+  assert.notEqual(q.state, 'retreat', 'the rebuilt squad returns to command');
+  const leftover = w.sq.find(x => !x.disbanded && x !== q && living(x).length);
+  assert.ok(leftover && living(leftover).length === 4, 'the unneeded remnant keeps waiting');
+  assert.equal(leftover._reconGroup, null);
   invariants(w, 12);
-  const ev = w.events.map(e => e.type);
-  assert.ok(ev.includes('decision-reconstitute-group') && ev.includes('decision-squad-merge'));
 });
 test('no group is planned until enough survivors are actually home and out of contact', () => {
   const w = world();
@@ -277,19 +263,22 @@ test('no group is planned until enough survivors are actually home and out of co
   assert.equal(living(q).length, 6);
   invariants(w, 6);
 });
-test('the General rallies the group on the approach to its next objective and sends it there', () => {
+test('the rendezvous slides toward the next objective only inside each remnant\'s 15% travel budget', () => {
   const w = world();
   w.b._objectives = [{ id: 'church', def: { x: -40, z: 0, radius: 30, value: 1 }, state: { owner: 'ge' } }];
-  [0, 1, 2].forEach(l => squad(w, l, 4));
-  const seen = untilGrouped(w, 120),
-    g = seen.group;
+  [0, 1].forEach(l => squad(w, l, 4));
+  const g = untilGrouped(w, 120).group;
   assert.equal(g.objectiveId, 'church');
-  assert.deepEqual(
-    g.rally,
-    { x: -40, z: HOME_Z + 30 },
-    'on the spawn line, straight back from the objective, 30 m ahead'
-  );
-  w.sq.forEach(q => {
+  assert.ok(g.forwardShift > 0 && g.forwardShift <= 180, 'the neutral centre moves forward, but stays capped');
+  const centerToObjective = Math.hypot(g.center.x + 40, g.center.z),
+    rallyToObjective = Math.hypot(g.rally.x + 40, g.rally.z);
+  assert.ok(rallyToObjective < centerToObjective, 'the rebuilt squad starts closer to its next objective');
+  g.squads.forEach(id => {
+    const q = w.sq.find(x => x.id === id),
+      p = w.r.BattleCommanderDoctrine.avgPos(q),
+      direct = Math.hypot(p.x - g.center.x, p.z - g.center.z),
+      routed = Math.hypot(p.x - g.rally.x, p.z - g.rally.z);
+    assert.ok(routed <= direct * 1.15 + 1e-5, id + ' stays within the Pythagorean detour budget');
     assert.equal(q._macroMission.plannedObjectiveId, 'church');
     assert.equal(q.targetObjective, null, 'a retreating squad is never counted at the objective');
   });
@@ -297,23 +286,28 @@ test('the General rallies the group on the approach to its next objective and se
   const q = merged(w),
     mergeAt = w.events.findIndex(e => e.type === 'decision-squad-merge'),
     next = w.events.slice(mergeAt).find(e => e.type === 'decision-mission-issued' && e.data.squad === q.id);
-  assert.equal(next.data.objectiveId, 'church', 'the merged squad goes for the objective it rallied for');
+  assert.equal(next.data.objectiveId, 'church', 'the rebuilt squad goes for the objective it rallied toward');
   assert.equal(next.data.intent, 'capture');
 });
-test("a rally point for a distant objective stays inside the side's lanes", () => {
+test('far-apart remnants wait instead of accepting an absurd cross-map assembly march', () => {
   const w = world();
-  w.b._objectives = [{ id: 'far', def: { x: 900, z: 0, radius: 30, value: 1 }, state: { owner: 'ge' } }];
-  [0, 1, 2].forEach(l => squad(w, l, 4));
-  const g = untilGrouped(w, 120).group;
-  assert.deepEqual(g.rally, { x: LANES[2], z: HOME_Z + 30 });
+  squad(w, 0, 4, null, 20);
+  squad(w, 4, 4, null, 20);
+  run(w, 120);
+  const st = recon(w);
+  assert.equal(st.groupsFormed, 0);
+  assert.equal(st.pool.us.survivors, 8);
+  assert.equal(st.pool.us.ready, false);
+  assert.equal(st.pool.us.blockedByDistance, true);
 });
-test('four squads of three merge into twelve', () => {
+test('four three-man remnants rebuild as two nearby six-man squads', () => {
   const w = world();
   [0, 1, 2, 3].forEach(l => squad(w, l, 3));
   run(w, 480);
-  const q = merged(w);
-  assert.equal(living(q).length, 12);
-  assert.equal(q.reconstitutedFrom.length, 4);
+  const rebuilt = w.b.factions.us.squads.filter(q => q.reconstitutedFrom);
+  assert.equal(rebuilt.length, 2);
+  assert.deepEqual(rebuilt.map(q => living(q).length).sort((x, y) => x - y), [6, 6]);
+  assert.ok(rebuilt.every(q => q.reconstitutedFrom.length === 2));
   invariants(w, 12);
 });
 test('a four-man remnant stays in the survivor pool past the old 120-second solo-redeploy window', () => {
@@ -325,9 +319,22 @@ test('a four-man remnant stays in the survivor pool past the old 120-second solo
   assert.ok(q._assembly && q._assembly.phase === 'at-base', 'it waits at base');
   assert.equal(st.groupsFormed, 0, 'one remnant cannot reconstitute with itself');
   assert.equal(st.pool.us.survivors, 4);
-  assert.deepEqual(st.pool.us.squads, [{ id: q.id, survivors: 4 }]);
+  assert.equal(st.pool.us.squads.length, 1);
+  assert.equal(st.pool.us.squads[0].id, q.id);
+  assert.equal(st.pool.us.squads[0].survivors, 4);
   assert.equal(st.pool.us.ready, false);
   assert.ok(!q._macroMission || q._macroMission.status !== 'executing', 'no combat brief was revived');
+});
+
+test('a five-man squad remains a viable squad and is not consumed by the survivor pool', () => {
+  const w = world(),
+    q = squad(w, 0, 5, null, 20);
+  q.mind = { mean: 0.4, n: 5 };
+  run(w, 60);
+  const st = recon(w);
+  assert.equal(st.groupsFormed, 0);
+  assert.equal(st.pool.us.survivors, 0, '5+ survivors recover as their own squad instead of becoming pool manpower');
+  assert.ok(!q._reconGroup);
 });
 
 test('two four-man remnants form a viable understrength squad instead of waiting for ten', () => {
@@ -342,95 +349,70 @@ test('two four-man remnants form a viable understrength squad instead of waiting
   assert.equal(q.establishment, 10, 'the rebuilt squad still measures casualties against full establishment');
   invariants(w, 8);
 });
-test('a pool of five threes groups the four strongest; the fifth keeps waiting', () => {
+test('geography beats raw strength: two nearby threes group before a distant four', () => {
   const w = world();
-  [0, 1, 2, 3, 4].forEach(l => squad(w, l, 3));
-  const seen = untilGrouped(w, 120);
-  const st = recon(w);
-  assert.equal(st.groupsFormed, 1);
-  assert.equal(st.active[0].squads.length, 4);
-  assert.ok(
-    seen.homeDist.every(d => d <= 20) && seen.atBase.every(p => p === 'at-base' || p === 'to-rally'),
-    'grouped at base: ' + JSON.stringify(seen)
-  );
-  assert.equal(
-    st.active[0].rally.x,
-    (LANES[0] + LANES[1] + LANES[2] + LANES[3]) / 4,
-    'rally at the centre of the grouped home points'
-  );
-  run(w, 480);
-  const q = merged(w),
-    left = w.sq.filter(x => !x.disbanded && x !== q);
-  assert.equal(living(q).length, 12);
-  assert.equal(left.length, 1);
-  assert.equal(left[0].state, 'retreat');
-  assert.ok(!left[0]._reconGroup);
-  invariants(w, 15);
+  const a = squad(w, 0, 3, null, 20),
+    bq = squad(w, 1, 3, null, 20),
+    far = squad(w, 4, 4, null, 20);
+  const seen = untilGrouped(w, 120),
+    ids = seen.group.squads.slice().sort();
+  assert.deepEqual(ids, [a.id, bq.id].sort(), 'the nearby six-man cluster wins over the stronger far remnant');
+  assert.ok(seen.group.centerTravelMax <= 300);
+  run(w, 360);
+  const q = merged(w);
+  assert.equal(living(q).length, 6);
+  assert.ok(!far.disbanded && living(far).length === 4 && !far._reconGroup);
+  invariants(w, 10);
 });
 test('the most senior leader takes command: a sergeant outranks a rifleman who stepped up', () => {
   const w = world(),
     noLead = ['rifleman', 'rifleman', 'rifleman', 'scout', 'gunner'];
-  squad(w, 0, 4, noLead, 20);
-  squad(w, 1, 4, noLead, 20);
-  const c = squad(w, 2, 3, null, 20);
-  run(w, 420);
+  squad(w, 0, 3, noLead, 20);
+  const c = squad(w, 1, 3, null, 20);
+  run(w, 360);
   const q = merged(w),
     cap = c.members.find(s => s.role === 'sergeant');
-  assert.equal(q, c, 'the squad with a living leader keeps its identity');
+  assert.equal(q, c, 'the squad with the living sergeant keeps its identity');
   assert.equal(q.leaderId, cap.id);
   assert.equal(recon(w).promotions, 0);
-  invariants(w, 11);
+  invariants(w, 6);
 });
-test("with every leader dead each squad's successor steps up and the merge keeps one of them", () => {
+test("with every leader dead each remnant's successor steps up and the merge keeps one of them", () => {
   const w = world(),
     keep = ['gunner', 'scout', 'rifleman', 'rifleman'];
-  [0, 1, 2].forEach(l => (squad(w, l, 4, keep).accuracyMultiplier = 0.8));
-  run(w, 420);
+  [0, 1].forEach(l => (squad(w, l, 4, keep, 20).accuracyMultiplier = 0.8));
+  run(w, 360);
   const q = merged(w),
     lead = q.members.find(s => s.id === q.leaderId);
   assert.equal(lead.role, 'rifleman');
   assert.equal(recon(w).promotions, 0, 'successors already lead; the merge promotes nobody');
-  assert.equal(w.events.filter(e => e.type === 'decision-leader-succession').length, 3);
+  assert.equal(w.events.filter(e => e.type === 'decision-leader-succession').length, 2);
   assert.equal(q.accuracyMultiplier, 1, 'the leaderless accuracy penalty ends once someone leads');
   assert.equal(lead.slotIndex, 0);
-  assert.equal(
-    q.members.filter(s => s.role === 'gunner' && !s.slotRole).length,
-    1,
-    'one gun keeps the gunner slot'
-  );
-  assert.ok(
-    q.members
-      .filter(s => s.role === 'gunner')
-      .every(s => s === q.members.find(m => m.slotIndex === 1) || s.slotRole === 'rifleman')
-  );
-  invariants(w, 12);
+  assert.equal(q.members.filter(s => s.role === 'gunner' && !s.slotRole).length, 1, 'one gun keeps the gunner slot');
+  invariants(w, 8);
 });
 test('a forming group dissolves only when losses take it below the six-man viable minimum', () => {
   const w = world();
-  [0, 1, 2].forEach(l => squad(w, l, 4));
+  [0, 1].forEach(l => squad(w, l, 4));
   untilGrouped(w, 120);
   assert.equal(recon(w).active.length, 1);
-  living(w.sq[2])
-    .slice(0, 4)
-    .forEach(s => w.b.killSoldier(s, null));
   living(w.sq[1])
     .slice(0, 3)
     .forEach(s => w.b.killSoldier(s, null));
-  run(w, 60);
+  run(w, 30);
   const st = recon(w);
   assert.equal(st.groupsDissolved, 1);
   assert.equal(st.merges, 0);
   assert.equal(st.active.length, 0);
-  assert.ok(
-    w.sq.filter(q => living(q).length).every(q => !q.disbanded && !q._reconGroup && q.state === 'retreat')
-  );
+  assert.ok(w.sq.filter(q => living(q).length).every(q => !q.disbanded && !q._reconGroup && q.state === 'retreat'));
   assert.ok(w.sq.every(q => !q._macroMission || q._macroMission.status === 'failed'));
   invariants(w, 5);
 });
 test('a re-formed squad holds together and retreats again only at 60% of full strength', () => {
   const w = world();
-  [0, 1, 2].forEach(l => squad(w, l, 4));
-  run(w, 420);
+  [0, 1].forEach(l => squad(w, l, 4));
+  run(w, 360);
   const q = merged(w);
   let retreated = false;
   run(w, 30, () => {
@@ -439,7 +421,7 @@ test('a re-formed squad holds together and retreats again only at 60% of full st
   assert.equal(retreated, false, 'no re-retreat without new casualties');
   living(q)
     .filter(s => !w.r.SquadAI.isLeader(s))
-    .slice(0, 7)
+    .slice(0, 3)
     .forEach(s => w.b.killSoldier(s, null));
   run(w, 1);
   assert.notEqual(q.state, 'retreat', '5 of 10 left');
@@ -460,60 +442,46 @@ test('Macro OFF: no General, no reconstitution', () => {
 test('the same battle reconstitutes identically', () => {
   function trace() {
     const w = world();
-    [0, 1, 2].forEach(l => squad(w, l, 4));
-    run(w, 420);
+    [0, 1].forEach(l => squad(w, l, 4));
+    run(w, 360);
     return JSON.stringify(w.events.filter(e => /reconstitute|merge|promoted|assembly/.test(e.type)));
   }
   assert.equal(trace(), trace());
 });
-test('a squad that rallies leaves its group: the group dissolves as squad-rallied and the other squad returns to the pool (?morale=1)', () => {
-  const w = world({ search: '?morale=1' });
-  const a = squad(w, 0, 5),
-    b = squad(w, 1, 5);
-  a.mind = { mean: 0.4, n: 5 };
-  b.mind = { mean: 0.4, n: 5 };
-  const grouped = untilGrouped(w, 200);
-  assert.deepEqual(
-    grouped.group.squads.slice().sort(),
-    [a.id, b.id].sort(),
-    'the two early-broken squads are grouped'
-  );
-  assert.equal(a.state, 'retreat');
-  assert.equal(b.state, 'retreat');
-  a.mind.mean = 0.1; /* the men calm down; physical rally/reform must finish before hand-back */
-  run(w, 3);
-  assert.equal(a.state, 'retreat', 'psychological recovery alone does not instantly reverse retreat');
-  run(w, 3);
-  assert.notEqual(a.state, 'retreat', 'after stable reform it rallied');
+test('a member that leaves retreat dissolves its forming group and returns the other remnant to the pool', () => {
+  const w = world(),
+    a = squad(w, 0, 4, null, 20),
+    bq = squad(w, 1, 4, null, 20),
+    grouped = untilGrouped(w, 120);
+  assert.deepEqual(grouped.group.squads.slice().sort(), [a.id, bq.id].sort());
+  a.state = 'advance';
+  w.r.BattleCommanderAI.reconstitute(w.b, 'us');
   const st = recon(w),
     ended = st.ended.find(g => g.id === grouped.group.id);
-  assert.ok(
-    ended && ended.status === 'dissolved' && ended.endReason === 'squad-rallied',
-    'the group it was in dissolved as squad-rallied'
-  );
-  assert.equal(st.active.length, 0, 'no group is left waiting for a squad that will never arrive');
-  assert.equal(b.state, 'retreat');
-  assert.equal(b._reconGroup, null, 'the squad that stayed is back in the pool');
+  assert.ok(ended && ended.status === 'dissolved' && ended.endReason === 'squad-rallied');
+  assert.equal(st.active.length, 0);
+  assert.equal(bq.state, 'retreat');
+  assert.equal(bq._reconGroup, null);
 });
 test('a merged squad that is still shaken rests at base: it is not grouped with itself again, tick after tick', () => {
-  /* Group morale keeps a merged squad in `retreat` until its men are calm. A full squad at base that is not yet calm
+  /* Group morale keeps a merged squad in `retreat` until its men are calm. A rebuilt viable squad at base that is not yet calm
      must wait for its men, not be pooled alone, merged with itself and re-tasked on every command tick (a group of
      one squad reaches full strength by itself: there is nothing to reconstitute). */
   const w = world({ search: '?morale=1' });
   [0, 1, 2].forEach(l => squad(w, l, 4));
   const shaken = () => {
     const q = w.b.factions.us.squads.find(x => x.reconstitutedFrom);
-    if (q) q.mind = { mean: 0.5, n: 12 };
+    if (q) q.mind = { mean: 0.5, n: 8 };
   };
-  run(w, 420, shaken);
+  run(w, 360, shaken);
   const q = merged(w),
     formed = recon(w).groupsFormed;
   assert.equal(formed, 1, 'one group made the one merge');
-  assert.equal(q.state, 'retreat', '12 men, but shaken: it stays at base until they calm (group morale)');
+  assert.equal(q.state, 'retreat', '8 men, but shaken: it stays at base until they calm (group morale)');
   run(w, 120, shaken);
   assert.equal(recon(w).groupsFormed, formed, 'two more minutes at base: no new group');
   assert.equal(recon(w).merges, 1, 'and no merge with itself');
-  q.mind = { mean: 0.1, n: 12 };
+  q.mind = { mean: 0.1, n: 8 };
   run(w, 3);
   assert.equal(q.state, 'retreat', 'calm men still complete physical rally/reform before hand-back');
   run(w, 3);
