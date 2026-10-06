@@ -18,6 +18,9 @@ name: M3C Standard Benchmark
 #   fighting, not the whole battle). A last job pools the shards and reports each counter paired by seed. About 3.5 minutes for 100.
 
 on:
+  push:
+    branches:
+      - work/diag-audio-fire-reveal-overlay
   workflow_dispatch:
     inputs:
       seed:
@@ -74,7 +77,7 @@ jobs:
   # ---- one seed: the scripted scenario ------------------------------------------------------------------------------------
   single:
     name: Scripted scenario, off vs on
-    if: ${{ (github.event.inputs.seeds || '1') == '1' }}
+    if: ${{ (github.event.inputs.seeds || '100') == '1' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -91,8 +94,8 @@ jobs:
       BATTLE_BENCHMARK_WINDOWS: ${{ github.event.inputs.windows || 'contact+60,every60' }}
       BATTLE_BENCHMARK_SEED: ${{ github.event.inputs.seed || 'scripted-scout-0003' }}
       BATTLE_TYPE: ${{ github.event.inputs.battle_type || 'meeting' }}
-      QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
-      QUERY_ON: ${{ github.event.inputs.query_on || '' }}
+      QUERY_OFF: ${{ github.event.inputs.query_off || 'incomingFireReveal=0' }}
+      QUERY_ON: ${{ github.event.inputs.query_on || 'incomingFireReveal=1' }}
 
     steps:
       - name: Checkout
@@ -240,7 +243,7 @@ jobs:
   # ---- several seeds: a paired run across shards ------------------------------------------------------------------------------
   plan:
     name: Plan the shards
-    if: ${{ (github.event.inputs.seeds || '1') != '1' }}
+    if: ${{ (github.event.inputs.seeds || '100') != '1' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -279,10 +282,10 @@ jobs:
       BATTLE_BENCHMARK_TIME_LIMIT: '600'
       BATTLE_BENCHMARK_STEP: '0.15'
       BATTLE_BENCHMARK_WINDOWS: ${{ needs.plan.outputs.windows }}
-      BATTLE_BENCHMARK_SEED: ${{ github.event.inputs.seed || 'scripted-seeds' }}
+      BATTLE_BENCHMARK_SEED: ${{ github.event.inputs.seed || 'pr314-incoming-fire' }}
       BATTLE_TYPE: ${{ github.event.inputs.battle_type || 'meeting' }}
-      QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
-      QUERY_ON: ${{ github.event.inputs.query_on || '' }}
+      QUERY_OFF: ${{ github.event.inputs.query_off || 'incomingFireReveal=0' }}
+      QUERY_ON: ${{ github.event.inputs.query_on || 'incomingFireReveal=1' }}
 
     steps:
       - name: Checkout
@@ -359,12 +362,12 @@ jobs:
       viewer: ${{ steps.publish.outputs.viewer }}
       viewer_preview: ${{ steps.publish.outputs.viewer_preview }}
     env:
-      SEED_PREFIX: ${{ github.event.inputs.seed || 'scripted-seeds' }}
+      SEED_PREFIX: ${{ github.event.inputs.seed || 'pr314-incoming-fire' }}
       SEEDS: ${{ github.event.inputs.seeds }}
       WINDOWS: ${{ needs.plan.outputs.windows }}
       BATTLE_TYPE: ${{ github.event.inputs.battle_type || 'meeting' }}
-      QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
-      QUERY_ON: ${{ github.event.inputs.query_on || '' }}
+      QUERY_OFF: ${{ github.event.inputs.query_off || 'incomingFireReveal=0' }}
+      QUERY_ON: ${{ github.event.inputs.query_on || 'incomingFireReveal=1' }}
       SHARDS_RESULT: ${{ needs.shards.result }}
     steps:
       - name: Checkout the compare tools
@@ -479,9 +482,9 @@ jobs:
           VIEWER: ${{ needs.single.outputs.viewer || needs.compare.outputs.viewer }}
           VIEWER_PREVIEW: ${{ needs.single.outputs.viewer_preview || needs.compare.outputs.viewer_preview }}
           SEED: ${{ github.event.inputs.seed }}
-          SEEDS: ${{ github.event.inputs.seeds || '1' }}
-          QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
-          QUERY_ON: ${{ github.event.inputs.query_on || '' }}
+          SEEDS: ${{ github.event.inputs.seeds || '100' }}
+          QUERY_OFF: ${{ github.event.inputs.query_off || 'incomingFireReveal=0' }}
+          QUERY_ON: ${{ github.event.inputs.query_on || 'incomingFireReveal=1' }}
           SOURCE_REF: ${{ github.ref_name }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -515,9 +518,9 @@ jobs:
           VIEWER: ${{ needs.single.outputs.viewer || needs.compare.outputs.viewer }}
           VIEWER_PREVIEW: ${{ needs.single.outputs.viewer_preview || needs.compare.outputs.viewer_preview }}
           SEED: ${{ github.event.inputs.seed || 'scripted-scout-0003' }}
-          SEEDS: ${{ github.event.inputs.seeds || '1' }}
-          QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
-          QUERY_ON: ${{ github.event.inputs.query_on || '' }}
+          SEEDS: ${{ github.event.inputs.seeds || '100' }}
+          QUERY_OFF: ${{ github.event.inputs.query_off || 'incomingFireReveal=0' }}
+          QUERY_ON: ${{ github.event.inputs.query_on || 'incomingFireReveal=1' }}
           SOURCE_REF: ${{ github.ref_name }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           ORIGIN_AGENT: ${{ github.event.inputs.origin_agent || 'human' }}
