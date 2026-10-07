@@ -94,6 +94,7 @@
         stanceTrail: [],
         advanceLowUntil: 0,
         withdrawLowUntil: 0,
+        withdrawPoint: null,
         fireReadyAt: 0,
         threatSector: null,
         cover: null,
@@ -620,12 +621,14 @@
       ]
     },
     withdraw: {
-      meaning: 'Yield combat movement to the squad retreat',
-      enteredBy: 'squad retreat override',
-      exits: 'retreat ends -> advance handler; station claim -> station',
+      meaning:
+        'Withdraw under squad retreat authority or make a local break-contact move to the squad anchor',
+      enteredBy: 'squad retreat override; no-cover out-of-range break contact',
+      exits: 'squad retreat ends/local threat clears or closes -> advance/orient; station claim -> station',
       rate: '0.15 s',
       next: [
         'withdraw',
+        'advance',
         'station',
         'orient',
         'bound',
@@ -731,6 +734,7 @@
       return;
     }
     if (e.state !== next) {
+      if (next !== 'withdraw') e.withdrawPoint = null;
       /* A gun that leaves its firing position has to be emplaced again before it counts as set up. */
       if (next !== 'engage' && next !== 'station') e.setUpSince = 0;
       e.state = next;
@@ -1018,6 +1022,7 @@
     if (entranced(s) && reaction(s, battle)) return; // the trance outranks his squad's retreat, as a flee does
     if (s.squad && s.squad.state === 'retreat') {
       if (reactionState(s) === 'freeze') finishFreeze(s, battle, 'squad-retreat');
+      e.withdrawPoint = null;
       transition(s, battle, 'withdraw', 0, 'squad withdrawing');
       return withdraw(s, battle);
     }
@@ -1048,6 +1053,8 @@
         return assault(s, battle);
       case 'alert':
         return alert(s, battle);
+      case 'withdraw':
+        return withdraw(s, battle);
       default:
         return advance(s, battle);
     }
@@ -1184,6 +1191,7 @@
       outOfRange = d > effectiveRange * 1.2,
       anchor = sq && (sq.orderAnchor || sq.rally);
     if (!suppressed && outOfRange && !assaulting && anchor) {
+      e.withdrawPoint = { x: +anchor.x, z: +anchor.z };
       transition(s, battle, 'withdraw', 0, why + ': break contact (no cover, out of range)');
       return withdraw(s, battle);
     }
@@ -1414,7 +1422,16 @@
   }
 
   function withdraw(s, battle) {
-    var e = state(s);
+    var e = state(s),
+      squadRetreat = !!(s.squad && s.squad.state === 'retreat'),
+      localPoint = !squadRetreat && e.withdrawPoint;
+    /* A squad retreat owns persistent movement at Meso. A local break-contact withdrawal is
+       different: Engagement chose it, so Engagement must publish that temporary combat movement
+       through the resolver instead of yielding to a squad order that does not exist. */
+    if (!squadRetreat && !localPoint) {
+      transition(s, battle, 'advance', 0, 'retreat ended');
+      return advance(s, battle);
+    }
     s.state = 'retreat';
     s.setUp = false;
     e.cover = null;
@@ -1431,7 +1448,34 @@
       withdrawLow ? 1.0 : 0.5,
       withdrawLow ? 'withdraw:under-fire' : 'withdraw:clear'
     );
-    followOrders(s, battle, true);
+    if (localPoint) {
+      var p = posOf(s),
+        target = combatThreat(s.target) ? s.target : null,
+        targetDistance = target ? dist(p.x, p.z, posOf(target).x, posOf(target).z) : Infinity,
+        assaulting = s.squad && ADVANCING[s.squad.commandPhase];
+      if (!target || assaulting) {
+        transition(
+          s,
+          battle,
+          'advance',
+          0,
+          target ? 'break contact superseded by squad advance' : 'break contact clear'
+        );
+        return advance(s, battle);
+      }
+      if (targetDistance <= SA().engageRange(s) * 1.1) {
+        transition(
+          s,
+          battle,
+          'orient',
+          reactTime(s, battle) * 0.6,
+          'break contact complete: target in range'
+        );
+        return orient(s, battle);
+      }
+      if (dist(p.x, p.z, localPoint.x, localPoint.z) > 1.8) move(s, battle, localPoint, 'withdraw');
+      else holdPosition(s, battle);
+    } else followOrders(s, battle, true);
     if (s.target && dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z) < 35)
       tryFire(s, battle);
   }
