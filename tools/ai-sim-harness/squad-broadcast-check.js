@@ -165,7 +165,10 @@ test('broadcast preserves observation age and cannot overwrite a newer aggregate
 
   assert.equal(b.contact.at, 9, 'receiver keeps its newer observation');
   assert.equal(b.contact.x, 10);
-  const log = w.r.BattleSquadBroadcast.summary(w.b).recentBroadcasts[0];
+  const log = w.r.BattleSquadBroadcast
+    .summary(w.b)
+    .recentBroadcasts.find(x => x.sourceSquad === 'us-a');
+  assert.ok(log, 'A produced the stale candidate report');
   assert.equal(log.at, 10, 'broadcast record has dispatch time');
   assert.equal(log.observedAt, 1, 'broadcast fact retains source observation time');
 });
