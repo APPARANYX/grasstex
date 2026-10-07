@@ -498,12 +498,10 @@
           a.soldierId == null ? '' : a.soldierId
         ].join('|'),
         priorEpisodeAt = st.loopEpisodeAt.get(semanticKey),
-        key = a.key || [semanticKey, rounded(at, 2)].join('|');
-      /* Loop Watch normally supplies a stable key and its own cooldown. The observer also collapses
-         same-actor/same-kind alerts inside one 15 s diagnostic episode. This is defensive against
-         producers that refresh an alert timestamp/key every simulation tick: the focused window
-         already preserves the full lead-up/recovery, so repeating the same marker adds noise rather
-         than evidence. A recurrence after the episode window remains visible and extends focus. */
+        key = [semanticKey, rounded(at, 2)].join('|');
+      /* Collapse same-actor/same-kind alerts inside one 15 s diagnostic episode, but key the
+         observer occurrence by timestamp rather than Loop Watch's stable actor key. Otherwise a
+         real recurrence after the episode window is suppressed forever by loopSeen. */
       if (priorEpisodeAt != null && at - priorEpisodeAt < LOOP_EPISODE_SECONDS) return;
       if (st.loopSeen.has(key)) return;
       st.loopSeen.add(key);
