@@ -321,7 +321,10 @@ test('initial defender progress timestamp zero still ages into strategic recover
   Object.assign(q, { commandRole: 'center', commandPhase: 'defend', route: [] });
   q._preparedDefenseRequest = { objectiveId: 'obj-home', point: { x: 0, z: 0 } };
   drive(w, 4);
-  assert.ok(q._macroMission && q._macroMission.intent === 'defend', 'precondition: initial owned-objective defense');
+  assert.ok(
+    q._macroMission && q._macroMission.intent === 'defend',
+    'precondition: initial owned-objective defense'
+  );
   w.C.acceptMission(w.b, q, false);
   const sampled = w.A.summary(w.b);
   assert.equal(sampled.lastObjectiveProgressAt.us, 0, 'coordination health initializes progress at t=0');
