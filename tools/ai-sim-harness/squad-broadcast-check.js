@@ -56,6 +56,17 @@ function seen(w, sq, x, at) {
     firstHandAt: at
   };
 }
+function heard(w, sq, x, at) {
+  sq.contact = {
+    unit: w.foe,
+    x: x,
+    z: 40,
+    at: at,
+    seenBy: null,
+    heard: true,
+    firstHandAt: null
+  };
+}
 function tick(w, t) {
   w.b.time = t;
   w.sys.onCommanderTick(w.b);
@@ -86,6 +97,32 @@ function tick(w, t) {
   assert.equal(b.contact.x, 45, 'suppressed update retries after cooldown');
   assert.equal(b.contact.at, 11, 'retry keeps source observation time');
   assert.ok(w.r.BattleSquadBroadcast.summary(w.b).suppressed >= 1);
+}
+
+{
+  const w = setup([0, 60]),
+    [a] = w.squads;
+  heard(w, a, 0, 10);
+  tick(w, 10);
+  assert.equal(w.r.BattleSquadBroadcast.summary(w.b).sent, 1);
+
+  seen(w, a, 0, 11);
+  tick(w, 11);
+  assert.equal(
+    w.r.BattleSquadBroadcast.summary(w.b).sent,
+    1,
+    'first-hand upgrade remains pending inside cooldown'
+  );
+  tick(w, 14);
+  let summary = w.r.BattleSquadBroadcast.summary(w.b);
+  assert.equal(summary.sent, 2, 'same-sector first-hand upgrade retries after cooldown');
+  assert.equal(summary.recentBroadcasts[0].kind, 'upgraded-to-firsthand');
+
+  seen(w, a, 0, 35);
+  tick(w, 35);
+  summary = w.r.BattleSquadBroadcast.summary(w.b);
+  assert.equal(summary.sent, 3, 'same-sector observation can be reacquired after TTL');
+  assert.equal(summary.recentBroadcasts[0].kind, 're-acquired');
 }
 
 {
