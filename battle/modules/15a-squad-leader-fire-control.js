@@ -211,8 +211,14 @@
     }
     function updateFireControl(sq, battle, report) {
       if (!FIRE_CONTROL_ON || !sq || !battle) return null;
-      var c = firstHandContact(sq, battle),
-        fc = sq.fireControl;
+      var fc = sq.fireControl;
+      if (
+        fc &&
+        fc.state === 'reposition' &&
+        battle.time - fc.since >= FIRE_CONTROL_TUNING.repositionTimeout
+      )
+        return setFireControl(sq, battle, fc, 'open', 'reposition timed out: resume maneuver fire');
+      var c = firstHandContact(sq, battle);
       if (!c) return fc || null;
       if (fc && fc.state === 'open') return fc;
       if (!fc || (fc.targetId != null && String(fc.targetId) !== String(c.unit.id))) {
@@ -296,7 +302,7 @@
           ready: ready,
           living: living
         });
-      if (elapsed >= FIRE_CONTROL_TUNING.maxHold && ready >= Math.min(2, living))
+      if (elapsed >= FIRE_CONTROL_TUNING.maxHold && ready > 0)
         return setFireControl(sq, battle, fc, 'open', 'leader accepted partial firing line', {
           targetId: c.unit.id,
           range: range,
