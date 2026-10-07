@@ -117,7 +117,10 @@
        forbidden, but the whole point of that state is to release movement so the Squad Leader can
        maneuver the assault toward a viable firing line. Do not turn REPOSITION into a stationary
        self-latch by treating it like HOLD/PRECISION here. */
-    if (fireControl && (fireControl.state === 'hold' || fireControl.state === 'precision')) {
+    if (
+      fireControl &&
+      (fireControl.state === 'hold' || fireControl.state === 'precision')
+    ) {
       sq._assaultAuthorized = false;
       return;
     }
