@@ -195,6 +195,31 @@ assert.equal(
   'the same semantic loop can reappear after the diagnostic episode window'
 );
 
+timeline.observeEvent(sim, 'vacant-objective-stall', {
+  t: 4,
+  side: 'us',
+  squad: 'US-1',
+  objective: 'obj-2',
+  distance: 84.2,
+  phase: 'assault'
+});
+snapshot = timeline.snapshot(sim);
+assert.equal(
+  snapshot.markers.filter(marker => marker.kind === 'vacant-objective-stall').length,
+  1,
+  'external benchmark stall becomes an exact timeline marker'
+);
+assert.equal(
+  snapshot.observer.windows.length,
+  1,
+  'same-squad external trouble extends the active focus window'
+);
+assert.ok(
+  snapshot.observer.windows[0].reasons.some(reason => reason.kind === 'vacant-objective-stall'),
+  'external benchmark stall joins the focus reasons'
+);
+assert.deepEqual(Object.keys(sim).sort(), baseKeys, 'diagnostic triggers write no gameplay state');
+
 loopAlerts = [
   {
     kind: 'low-forward-progress',
@@ -223,29 +248,5 @@ const progressMarkers = snapshot.markers.filter(
 assert.equal(progressMarkers.length, 1, 'a persistent time-stamped producer alert is not replayed as new episodes');
 assert.equal(progressMarkers[0].t, 25, 'the producer event time is preserved');
 
-timeline.observeEvent(sim, 'vacant-objective-stall', {
-  t: 4,
-  side: 'us',
-  squad: 'US-1',
-  objective: 'obj-2',
-  distance: 84.2,
-  phase: 'assault'
-});
-snapshot = timeline.snapshot(sim);
-assert.equal(
-  snapshot.markers.filter(marker => marker.kind === 'vacant-objective-stall').length,
-  1,
-  'external benchmark stall becomes an exact timeline marker'
-);
-assert.equal(
-  snapshot.observer.windows.length,
-  1,
-  'same-squad external trouble extends the active focus window'
-);
-assert.ok(
-  snapshot.observer.windows[0].reasons.some(reason => reason.kind === 'vacant-objective-stall'),
-  'external benchmark stall joins the focus reasons'
-);
-assert.deepEqual(Object.keys(sim).sort(), baseKeys, 'diagnostic triggers write no gameplay state');
 
 console.log('PASS observer focuses exact loop-watch and external benchmark stall diagnostics');
