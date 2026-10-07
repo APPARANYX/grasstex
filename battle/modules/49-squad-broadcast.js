@@ -230,6 +230,7 @@
         st.sent++;
         var broadcast = {
           at: now,
+          observedAt: change.at,
           sourceSquad: sq.id,
           faction: f,
           kind: change.kind,
@@ -251,6 +252,7 @@
               kind: change.kind,
               x: +change.x.toFixed(1),
               z: +change.z.toFixed(1),
+              observedAt: change.at,
               unitId: change.unitId || null,
               recipientCount: recipients.length,
               recipients: broadcast.recipients
@@ -274,11 +276,15 @@
                the receiver (SQUAD_NAMES = {'sq','squad'}). This is the receiving
                squad, not the broadcasting squad (which is 'sq' above). */
             var squad = recipients[j].squad,
-              held = squad.contact;
-            /* Don't overwrite a first-hand sighting with a broadcast. */
-            if (held && held.firstHandAt) continue;
-            /* Don't overwrite a fresher contact (heard or relayed) with a stale broadcast. */
-            if (held && held.at > change.at) continue;
+              held = squad.contact,
+              A = root.SquadAI,
+              hasOwnFresh =
+                A && A.hasFirstHandMemory
+                  ? A.hasFirstHandMemory(held, sim)
+                  : !!(held && held.firstHandAt != null && now - held.firstHandAt <= BROADCAST_TTL);
+            if (hasOwnFresh) continue;
+            /* Compare source observation age, not dispatch time. */
+            if (held && isFinite(+held.at) && +held.at > change.at) continue;
             /* Don't apply if the squad is retreating or regrouping (different priorities). */
             if (squad.state === 'retreat' || squad.commandPhase === 'regroup') continue;
             squad.contact = {
