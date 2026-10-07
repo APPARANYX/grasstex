@@ -290,7 +290,12 @@ try {
         if (st.owner === faction) raw.friendlyOwnedTargetSamples++;
         if (st.active) raw.contestingTargetSamples++;
       }
-      if (raw._lastTarget === target && target != null && Number.isFinite(raw._lastTargetDistance) && Number.isFinite(targetDistance)) {
+      /* Objective-distance movement is a mission-progress metric, not a generic displacement metric.
+         A retreating squad deliberately increases distance from its assigned objective; counting that as
+         regression makes correct survival/extraction behavior look like failed maneuver. Travel and
+         preservation still record retreat movement, while forward tactical backsliding remains penalized. */
+      const retreating = sq.state === 'retreat' || phase === 'retreat';
+      if (!retreating && raw._lastTarget === target && target != null && Number.isFinite(raw._lastTargetDistance) && Number.isFinite(targetDistance)) {
         const delta = raw._lastTargetDistance - targetDistance;
         if (delta >= .25) raw.objectiveProgressMeters += delta;
         else if (delta <= -.25) raw.objectiveRegressionMeters += -delta;
