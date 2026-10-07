@@ -2,11 +2,23 @@
 'use strict';
 
 const assert = require('node:assert/strict'),
+  fs = require('node:fs'),
+  path = require('node:path'),
   H = require('./harness');
 
+function load(root, file) {
+  new Function(
+    'window',
+    'globalThis',
+    'console',
+    fs.readFileSync(path.join(H.REPO, file), 'utf8')
+  )(root, root, { log() {}, warn() {} });
+}
+
 H.resetIds();
-const r = H.bootstrap(),
-  b = H.makeBattle(r, { seed: 707, obstacles: [] }),
+const r = H.bootstrap();
+load(r, 'battle/movement-resolver.js');
+const b = H.makeBattle(r, { seed: 707, obstacles: [] }),
   us = H.addSquad(r, b, {
     id: 'us-withdraw',
     faction: 'us',
