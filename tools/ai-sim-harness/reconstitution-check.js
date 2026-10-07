@@ -605,7 +605,7 @@ test('a dissolved rally sends an en-route remnant back through to-base instead o
   });
   a.state = 'advance';
   w.r.BattleCommanderAI.reconstitute(w.b, 'us');
-  w.r.BattleSquadStability.updateAssembly(bq, w.b);
+  w.leader.onCommanderTick(w.b, { town: null });
   assert.equal(bq._reconGroup, null, 'dissolution releases group ownership');
   assert.equal(bq._assembly.phase, 'to-base', '80 m from base remains physical transit, not at-base');
 });
