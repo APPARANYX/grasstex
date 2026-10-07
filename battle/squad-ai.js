@@ -628,6 +628,44 @@
       reason: f.reason ? 'callout:' + String(f.reason) : 'heard-callout'
     });
   }
+  function rememberReportedContact(soldier, battle, fact) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || soldier.dead || !battle || !fact) return null;
+    if (!isFinite(+fact.x) || !isFinite(+fact.z) || !isFinite(+fact.observedAt)) return null;
+    var observedAt = +fact.observedAt,
+      unit = fact.unit || null,
+      targetId = null,
+      key = null,
+      sourceId = fact.sourceId == null ? null : String(fact.sourceId),
+      reportId = fact.reportId,
+      confidence = fact.confidence == null ? BELIEF_TUNING.toldConfidenceMin : +fact.confidence;
+    if (fact.targetId != null) targetId = String(fact.targetId);
+    else if (unit && unit.id != null) targetId = String(unit.id);
+    if (targetId)
+      key = 'unit:' + String(unit && unit.faction ? unit.faction : fact.otherFaction || '?') + ':' + targetId;
+    else key = 'reported-sector:' + Math.round(+fact.x / 20) + ':' + Math.round(+fact.z / 20);
+    if (!reportId) reportId = 'report:' + sourceId + ':' + observedAt + ':' + (targetId || key);
+    reportId = String(reportId);
+    var conf = clamp(confidence, BELIEF_TUNING.toldConfidenceMin, BELIEF_TUNING.toldConfidenceMax);
+    return writeBelief(soldier, battle, {
+      key: key,
+      unit: unit,
+      targetId: targetId,
+      source: 'told',
+      sourceSoldierId: sourceId,
+      sourceCalloutId: reportId,
+      x: +fact.x,
+      z: +fact.z,
+      sector: beliefSector(soldier, fact.x, fact.z),
+      observedAt: observedAt,
+      reportedAt: isFinite(+fact.reportedAt) ? +fact.reportedAt : battle.time,
+      receivedAt: battle.time,
+      baseConfidence: +conf.toFixed(3),
+      expiresAt: observedAt + BELIEF_TUNING.toldTtl,
+      combatThreat: true,
+      precision: fact.precision || 'reported-position',
+      reason: fact.reason || 'reported-contact'
+    });
+  }
   function heardHash(unit, at, listener) {
     var a = ((+unit.id || 0) * 73856093) ^ Math.floor((+at || 0) * 7) ^ ((+listener.id || 0) * 19349663);
     return a >>> 0;
@@ -2263,6 +2301,7 @@
     soldierContact: soldierContact,
     hasKnownNonThreat: hasKnownNonThreat,
     rememberSeen: rememberSeen,
+    rememberReportedContact: rememberReportedContact,
     applyCalloutBelief: applyCalloutBelief,
     hearGunfireBelief: hearGunfireBelief,
     observeKnownNonThreats: observeKnownNonThreats,
