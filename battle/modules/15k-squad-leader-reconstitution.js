@@ -70,6 +70,18 @@
         endRallyRecovery(sq, battle, 'remnant extracting home');
         return false;
       }
+      /* A rebuilt squad (`reconstitutedFrom`) concentrates wounded survivors, and a wound's `floor`
+         memory (Soldier Mind) is permanent: however long the squad rests at base its mean stress
+         never drains below the mean floor, so two badly hurt men can pin the squad above the rally
+         line forever - the rebuild frozen in retreat while each fresh brief dies on the General's
+         retreating-squad guard. The merge is the road back for squads that cannot come back on
+         their own, so for a rebuilt squad the gate measures only the stress that can still drain:
+         the mean net of each man's permanent floor. Unwounded men carry floor zero and the gate is
+         unchanged (BattleSoldierMind owns the field; without it there is nothing to net). */
+      if (sq.reconstitutedFrom != null) {
+        var Mind = root.BattleSoldierMind;
+        if (Mind && Mind.squadFloor) stress = Math.max(0, stress - Mind.squadFloor(sq));
+      }
       if (!RALLY_RECOVERY_ON) return moraleRallies(casualtyFrac, stress);
       if (!moraleRallies(casualtyFrac, stress) || sq.inContact) {
         endRallyRecovery(sq, battle, sq.inContact ? 'contact resumed' : 'morale fell');
