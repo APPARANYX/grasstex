@@ -231,14 +231,8 @@ test('tiny-remnant extraction is an immediate survival fallback until a real com
 
   const home = base;
   assert.equal(w.r.SquadAI.isExtractionToHome(w.q), true);
-  assert.ok(
-    distance(w.q.home, home) > 1,
-    'the tactical defender home is distinct from the extraction base'
-  );
-  assert.ok(
-    distance(w.q.orderAnchor, home) < 1e-9,
-    'the Squad Leader anchor is the extraction base'
-  );
+  assert.ok(distance(w.q.home, home) > 1, 'the tactical defender home is distinct from the extraction base');
+  assert.ok(distance(w.q.orderAnchor, home) < 1e-9, 'the Squad Leader anchor is the extraction base');
   assert.ok(
     distance(survivor._fireteamDestination, home) < 1e-9,
     'survival extraction applies the extraction base immediately'
