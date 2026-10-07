@@ -54,7 +54,11 @@ function world() {
   w.E.stateOf(prior).suppressOrder = true;
   const chosen = w.E.assignSuppressors(w.q, w.b, w.q.members, { x: 0, z: 50, at: w.b.time });
   assert.equal(chosen, 2);
-  assert.equal(w.E.stateOf(prior).suppressOrder, true, 'previous suppressor retains the job when still eligible');
+  assert.equal(
+    w.E.stateOf(prior).suppressOrder,
+    true,
+    'previous suppressor retains the job when still eligible'
+  );
 }
 
 {
