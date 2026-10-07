@@ -15,9 +15,8 @@
    - 0F3 (shipped default): when a broadcast is applied to a
      receiving squad, the module emits a 'squad-broadcast-reaction' telemetry event and stamps
      sq._broadcastReactAt so the Squad Leader and diagnostics can see that the squad reacted
-     to a broadcast. The reaction itself is the existing squadSenses -> soldierContact -> alert()
-     path: individual soldiers orient toward the broadcast contact because squad.contact now
-     holds it. This slice makes the reaction visible and measurable.
+     to a broadcast. With personal beliefs enabled, reception enters through Perception's
+     reported-contact API; squad.contact remains the upward aggregate picture.
 
    Ownership: squad-to-squad, not Macro (General) and not Micro (individual soldier). Does not
    bypass Movement Resolver or Engagement ownership. When 0F2 is on, this module writes
@@ -352,7 +351,9 @@
                   kind: change.kind,
                   x: +change.x.toFixed(1),
                   z: +change.z.toFixed(1),
-                  distance: +recipients[j].distance.toFixed(1)
+                  observedAt: change.at,
+                  distance: +recipients[j].distance.toFixed(1),
+                  beliefsApplied: beliefApplies
                 },
                 sim
               );
@@ -395,6 +396,7 @@
         received: st.received,
         suppressed: st.suppressed,
         applied: st.applied || 0,
+        beliefsApplied: st.beliefsApplied || 0,
         bySquad: Object.keys(st.bySquad).map(function (id) {
           var s = st.bySquad[id];
           return {
@@ -402,7 +404,8 @@
             sent: s.sent,
             received: s.received,
             suppressed: s.suppressed,
-            applied: s.applied || 0
+            applied: s.applied || 0,
+            beliefsApplied: s.beliefsApplied || 0
           };
         }),
         recentBroadcasts: st.broadcasts.slice(0, 20)
