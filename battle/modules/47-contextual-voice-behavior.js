@@ -175,11 +175,13 @@
   }
   function schedule(sim, sq, soldier, event, delayMs, opts) {
     if (!soldier) return;
+    var due = wallNow() + Math.max(0, +delayMs || 0);
     state(sim).pending.push({
       squad: key(sq),
       soldierId: String(soldier.id),
       event: event,
-      due: wallNow() + Math.max(0, +delayMs || 0),
+      due: due,
+      retryUntil: due + 1800,
       cancelOnContact: !!(opts && opts.cancelOnContact),
       cancelOnSocialUnsafe: !!(opts && opts.cancelOnSocialUnsafe),
       opts: opts || {}
@@ -245,7 +247,7 @@
         continue;
       }
       var s = memberById(sq, p.soldierId);
-      if (s && !say(sim, s, p.event, p.opts) && !s.dead && now - p.due < 1800) {
+      if (s && !say(sim, s, p.event, p.opts) && !s.dead && now < p.retryUntil) {
         p.due = now + 750;
         keep.push(p);
       }
