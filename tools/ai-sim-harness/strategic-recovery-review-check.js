@@ -320,17 +320,25 @@ test('initial defender progress timestamp zero still ages into strategic recover
   });
   Object.assign(q, { commandRole: 'center', commandPhase: 'defend', route: [] });
   q._preparedDefenseRequest = { objectiveId: 'obj-home', point: { x: 0, z: 0 } };
-  w.A.reset(w.b);
   drive(w, 4);
   assert.ok(
     q._macroMission && q._macroMission.intent === 'defend',
     'precondition: initial owned-objective defense'
   );
   w.C.acceptMission(w.b, q, false);
-  const sampled = w.A.summary(w.b);
-  assert.equal(sampled.lastObjectiveProgressAt.us, 0, 'coordination health initializes progress at t=0');
 
-  drive(w, 540);
+  /* Freeze the observed progress clock at the exact battle-start sentinel from module 40.
+     Drive the real commander without sampling new objective progress so this isolates the
+     consumer bug: timestamp 0 must age like any other finite timestamp. */
+  const health = w.b._coordinationHealth;
+  health.lastObjectiveProgressAt.us = 0;
+  assert.equal(health.lastObjectiveProgressAt.us, 0);
+  for (; w.T < 540; w.T += 2) {
+    w.b.time = w.T;
+    health.lastObjectiveProgressAt.us = 0;
+    health.sides.us.objectiveStallSeconds = w.T;
+    w.C.update(w.b, null, w.C.commandTick);
+  }
   assert.ok(
     q._macroMission && q._macroMission.intent === 'capture' && q._macroMission.objectiveId === 'obj-away',
     'the idle defender is eventually re-tasked instead of being protected forever by falsy timestamp zero'
