@@ -22,9 +22,9 @@ const assert=require('node:assert/strict');
   assert.equal(good.metrics.friendlyOwnedTargetSamples,2);
 
   const backwards=scoreSquadPerformance({
-    faction:'us',squad:'US-3',samples:20,roleSamples:{maneuver:20},phaseSamples:{assault:11,retreat:9},
+    faction:'us',squad:'US-3',samples:20,roleSamples:{maneuver:20},phaseSamples:{assault:20},
     aliveStart:10,aliveEnd:4,assignedSamples:20,targetlessSamples:2,inContactSamples:15,
-    overCohesionSamples:10,regroupSamples:6,retreatSamples:9,supportHoldSamples:0,
+    overCohesionSamples:10,regroupSamples:6,retreatSamples:0,supportHoldSamples:0,
     insideObjectiveSamples:0,friendlyOwnedTargetSamples:0,contestingTargetSamples:0,
     travelMeters:90,objectiveProgressMeters:5,objectiveRegressionMeters:80,targetSwitches:3,phaseSwitches:8,
     movementResolverChanges:70,routeStalls:1,movementStalls:2,targetlessStalls:1,longRegroups:1,loopAlerts:3,writerConflicts:1,
