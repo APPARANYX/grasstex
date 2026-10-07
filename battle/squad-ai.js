@@ -645,11 +645,7 @@
     else key = 'reported-sector:' + Math.round(+fact.x / 20) + ':' + Math.round(+fact.z / 20);
     if (!reportId) reportId = 'report:' + sourceId + ':' + observedAt + ':' + (targetId || key);
     reportId = String(reportId);
-    var conf = clamp(
-      confidence,
-      BELIEF_TUNING.toldConfidenceMin,
-      BELIEF_TUNING.toldConfidenceMax
-    );
+    var conf = clamp(confidence, BELIEF_TUNING.toldConfidenceMin, BELIEF_TUNING.toldConfidenceMax);
     return writeBelief(soldier, battle, {
       key: key,
       unit: unit,
