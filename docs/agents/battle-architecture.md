@@ -418,7 +418,8 @@ to open fire, not permission to shoot. The Squad Leader starts at `hold`: the sq
 contact and goes prone; each man may make only a local forward adjustment (0.75 m samples, at most 6 m, through the
 Movement Resolver) to find a prone eye + ballistic line over the crest. If the full 6 s preparation window produces
 **zero** usable prone firing lines, the leader changes to `reposition`: fire remains forbidden, but the forced-prone
-drill releases so normal Engagement cover-seeking can move men to a viable fighting position. A man who reaches a
+drill and the Meso stationary-preparation gate both release so Squad Leader bounds / normal Engagement cover-seeking
+can move men to a viable fighting position. A man who reaches a
 position from which only crouch/stand clears the obstacle may count ready in that lowest viable fighting stance;
 prone remains the preferred initial ambush posture, not a terrain deadlock. Engagement's trigger and suppressive-fire
 paths both read the same permission. A man who is already being shot at (suppressed or aimed at in the last 3 s)
