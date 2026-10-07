@@ -74,6 +74,7 @@
     'firing-station': 80,
     'rage-charge': 72,
     'assault-rush': 70,
+    withdraw: 65,
     'cover-bound': 60,
     'contact-reaction': 55
   };
