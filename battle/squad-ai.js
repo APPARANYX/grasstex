@@ -633,12 +633,19 @@
     if (!isFinite(+fact.x) || !isFinite(+fact.z) || !isFinite(+fact.observedAt)) return null;
     var observedAt = +fact.observedAt,
       unit = fact.unit || null,
-      targetId = fact.targetId != null ? String(fact.targetId) : unit && unit.id != null ? String(unit.id) : null,
+      targetId =
+        fact.targetId != null
+          ? String(fact.targetId)
+          : unit && unit.id != null
+            ? String(unit.id)
+            : null,
       key = targetId
         ? 'unit:' + String(unit && unit.faction ? unit.faction : fact.otherFaction || '?') + ':' + targetId
         : 'reported-sector:' + Math.round(+fact.x / 20) + ':' + Math.round(+fact.z / 20),
       sourceId = fact.sourceId == null ? null : String(fact.sourceId),
-      reportId = String(fact.reportId || ('report:' + sourceId + ':' + observedAt + ':' + (targetId || key))),
+      reportId = String(
+        fact.reportId || ('report:' + sourceId + ':' + observedAt + ':' + (targetId || key))
+      ),
       conf = clamp(
         fact.confidence == null ? BELIEF_TUNING.toldConfidenceMin : +fact.confidence,
         BELIEF_TUNING.toldConfidenceMin,
