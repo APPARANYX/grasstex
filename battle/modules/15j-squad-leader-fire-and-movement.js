@@ -113,9 +113,11 @@
     }
     stressReview(sq, battle);
     var fireControl = FIRE_CONTROL_ON ? updateFireControl(sq, battle, r) : null;
-    /* Hold/precision fire control is a preparation, not a bound. The Squad Leader keeps the squad
-       stationary until it opens the engagement; a designated long-range shooter is the one exception. */
-    if (fireControl && fireControl.state !== 'open') {
+    /* Hold/precision fire control is preparation, not a bound. REPOSITION is different: fire stays
+       forbidden, but the whole point of that state is to release movement so the Squad Leader can
+       maneuver the assault toward a viable firing line. Do not turn REPOSITION into a stationary
+       self-latch by treating it like HOLD/PRECISION here. */
+    if (fireControl && (fireControl.state === 'hold' || fireControl.state === 'precision')) {
       sq._assaultAuthorized = false;
       return;
     }
