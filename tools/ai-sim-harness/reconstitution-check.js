@@ -507,4 +507,68 @@ test('a merged squad that is still shaken rests at base: it is not grouped with 
   run(w, 3);
   assert.notEqual(q.state, 'retreat', 'stable calm men rally and go back to the fight');
 });
+test('the fresh brief for a rebuilt squad waits for its rally, not issued into the retreat to die a tick later', () => {
+  const w = world();
+  [0, 1].forEach(l => squad(w, l, 4));
+  run(w, 420);
+  const q = merged(w),
+    mergeAt = w.events.findIndex(e => e.type === 'decision-squad-merge');
+  assert.ok(mergeAt >= 0, 'the two remnants merged');
+  const after = w.events.slice(mergeAt);
+  assert.ok(
+    after.every(
+      e => !(e.type === 'decision-mission-end' && e.data.squad === q.id && e.data.reason === 'squad-retreat')
+    ),
+    'no brief is issued into the still-retreating rebuild and auto-failed one tick later'
+  );
+  const issued = after.filter(e => e.type === 'decision-mission-issued' && e.data.squad === q.id);
+  assert.ok(issued.length >= 1, 'the General re-tasks the rebuilt squad once it is back under command');
+  assert.notEqual(q._macroMission.status, 'failed', 'the re-tasking brief stands');
+});
+test('wound floors do not freeze a rebuilt squad: the rally gate measures the still-drainable stress', () => {
+  const w = world();
+  /* Soldier Mind's reading contract, stubbed: the live battle caches the squad mean in sq.mind and
+     each man's permanent floor in mind.memory.floor (BattleSoldierMind.squadFloor is their mean).
+     A merge concentrates wounded survivors - live case: mean 0.27 pinned at a 0.18 floor, above
+     the 0.15 rally line however long the squad rests. Every other member the loaded stack calls
+     on BattleSoldierMind once it exists is stubbed at its absent-API neutral value, and a miss
+     throws rather than silently skewing the battle. */
+  const mindStub = {
+    squadStress: q => (q && q.mind && q.mind.mean) || 0,
+    squadFloor: q => (q && q.mind && q.mind.floor) || 0,
+    reactScale: () => 1,
+    shockUntil: () => 0,
+    recentIncoming: () => false,
+    view: () => null,
+    noteReact() {},
+    noteShock() {},
+    noteLapse() {}
+  };
+  w.r.BattleSoldierMind = new Proxy(mindStub, {
+    get(target, key) {
+      if (key in target) return target[key];
+      if (typeof key !== 'string') return undefined;
+      throw new Error('reconstitution-check mind stub lacks BattleSoldierMind.' + key);
+    }
+  });
+  [0, 1].forEach(l => squad(w, l, 3));
+  const pinned = () => {
+    const q = w.b.factions.us.squads.find(x => x.reconstitutedFrom);
+    if (q) q.mind = { mean: 0.27, n: 6, floor: 0.18 };
+  };
+  run(w, 420, pinned);
+  const q = merged(w),
+    mergeAt = w.events.findIndex(e => e.type === 'decision-squad-merge');
+  assert.equal(living(q).length, 6, 'the two three-man remnants rebuild at the viable minimum');
+  assert.notEqual(
+    q.state,
+    'retreat',
+    'a squad pinned above the rally line by permanent wound floors still rallies: 0.27 - 0.18 = 0.09 < 0.15'
+  );
+  const issued = w.events
+    .slice(mergeAt)
+    .filter(e => e.type === 'decision-mission-issued' && e.data.squad === q.id);
+  assert.ok(issued.length >= 1, 'and the General re-tasks it');
+  assert.notEqual(q._macroMission.status, 'failed', 'the fresh brief stands');
+});
 console.log(n + ' reconstitution checks passed');

@@ -35,6 +35,7 @@ const ALIASES = {
   'engagement.js': ['M'],
   'modules/15e-squad-leader-morale-coa.js': ['M'],
   'modules/15j-squad-leader-fire-and-movement.js': ['M'],
+  'modules/15k-squad-leader-reconstitution.js': ['Mind'],
   'modules/18-command-reception.js': ['M'],
   'modules/19a-engagement-stress-reactions.js': ['M'],
   'modules/19b-engagement-fire-stance.js': ['M'],

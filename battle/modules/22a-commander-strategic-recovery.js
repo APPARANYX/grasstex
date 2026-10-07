@@ -337,7 +337,17 @@
     function wakeReason(sim, sq) {
       var m = sq._macroMission,
         living = D.aliveMembers(sq).length;
-      if (living && m && m.status === 'completed' && m.endReason === 'reconstituted')
+      /* The rebuilt squad is still retreating until its men rally (rally recovery, module 15k).
+         Waking the General now would issue the fresh brief into a retreating squad that the guard
+         below kills one tick later. The completed/reconstituted mission is terminal and survives
+         the wait untouched, so the same wake fires on its own once the squad is back under command. */
+      if (
+        living &&
+        sq.state !== 'retreat' &&
+        m &&
+        m.status === 'completed' &&
+        m.endReason === 'reconstituted'
+      )
         return 'squad-reconstituted';
       if (sq.state === 'retreat' || !living) {
         var assembling = sq.state === 'retreat' && sq._reconGroup && m && m.intent === 'reconstitute';

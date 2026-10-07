@@ -260,6 +260,17 @@
     },
     {
       kind: 'lever',
+      lever: 'morale',
+      layer: 'Meso (Squad Leader)',
+      file: 'modules/15k-squad-leader-reconstitution.js',
+      reader:
+        'recoverFromRetreat (a rebuilt squad only): the rally gate reads squadStress net of the permanent floors',
+      reads: { squadFloor: 2 },
+      unit: 'squad mean permanent wound floor, netted out of a rebuild rally gate so wounded men cannot pin it above the rally line; 0 unless the morale lever is on',
+      flag: '?mind= morale lever; the net applies only to a reconstitution rebuild (reconstitutedFrom)'
+    },
+    {
+      kind: 'lever',
       lever: 'lead',
       layer: 'Meso (Squad Leader)',
       file: 'modules/15j-squad-leader-fire-and-movement.js',
@@ -881,6 +892,23 @@
      lever is on, so `?mind=0`, `?mind=observe` and a lever list without `morale` leave the flat 60% retreat alone. */
   function squadStress(sq) {
     return on('morale') && sq && sq.mind ? sq.mind.mean || 0 : 0;
+  }
+  /* The squad's mean permanent floor (`floor` memory: wounds) under the same lever gate - the
+     level squadStress can never drain below, however long the men rest. Squad Stability's rally
+     gate (module 15k) reads squadStress net of this for a rebuilt squad, so men whose wounds pin
+     them do not veto a reconstitution merge's road back to command. */
+  function squadFloor(sq) {
+    if (!on('morale') || !sq) return 0;
+    var m = sq.members || [],
+      sum = 0,
+      n = 0;
+    for (var i = 0; i < m.length; i++) {
+      var s = m[i];
+      if (!s || s.dead) continue;
+      sum += (s.mind && s.mind.memory && s.mind.memory.floor) || 0;
+      n++;
+    }
+    return n ? sum / n : 0;
   }
   /* What the Squad Leader reads to lead its fireteams (module 16, `?slStress=`): the mean stress of the men it would send,
      and the squad's own mean. Calm men unless the `lead` lever is on, so `?mind=0`, `?mind=observe` and a lever list
@@ -1562,6 +1590,7 @@
     hesitation: hesitation,
     shockUntil: shockUntil,
     squadStress: squadStress,
+    squadFloor: squadFloor,
     recentIncoming: recentIncoming,
     freezeProfile: freezeProfile,
     view: view,
