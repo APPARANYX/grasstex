@@ -273,6 +273,30 @@ test('tiny-remnant extraction is an immediate survival fallback until a real com
   );
 });
 
+test('an unreachable movement command retries when the soldier regains command range', () => {
+  const w = world(),
+    man = w.q.members[4],
+    leader = w.r.SquadAI.leaderOf(w.q);
+  man.root.position.x = leader.root.position.x + 150;
+  man.root.position.z = leader.root.position.z;
+  issue(w);
+  let rec = pending(w, man);
+  assert.ok(rec && rec.phase === 'unreachable' && rec.adoptedAt == null, JSON.stringify(rec));
+  assert.equal(man._fireteamDestination == null, true, 'unheard movement has no personal authority');
+
+  man.root.position.x = leader.root.position.x + 2;
+  w.b.time = 60;
+  issue(w);
+  rec = pending(w, man);
+  assert.equal(rec.phase === 'unreachable', false, 'the identical command rebuilds transport after range returns');
+  assert.ok(rec.retryAt === 60 && rec.adoptedAt > 60, JSON.stringify(rec));
+
+  w.b.time = rec.adoptedAt + 0.001;
+  issue(w);
+  assert.equal(man._fireteamAdoptedEnvelope, rec.envelopeId);
+  assert.ok(man._fireteamDestination, 'the recovered command reaches normal movement execution');
+});
+
 test('legacy/control arm still publishes the computed fireteam slots immediately', () => {
   const w = world('?stressAct=0&commandMovement=0');
   issue(w);
