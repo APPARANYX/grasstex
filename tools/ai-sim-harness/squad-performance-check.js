@@ -149,16 +149,8 @@ const assert = require('node:assert/strict');
     support.mission >= 90,
     'support squad is rewarded for holding its support brief instead of being forced to capture'
   );
-  assert.equal(
-    support.movement,
-    100,
-    'stationary support is not treated as failed movement'
-  );
-  assert.equal(
-    support.combat,
-    null,
-    'no combat opportunity is omitted rather than scored as a failure'
-  );
+  assert.equal(support.movement, 100, 'stationary support is not treated as failed movement');
+  assert.equal(support.combat, null, 'no combat opportunity is omitted rather than scored as a failure');
 
   const reserve = scoreSquadPerformance({
     faction: 'ge',
@@ -213,21 +205,11 @@ const assert = require('node:assert/strict');
     { ...reserve, seed: 'd' }
   ]);
   assert.equal(summary.squads, 4);
-  assert.ok(
-    summary.p10Overall < summary.medianOverall,
-    'bottom-decile exposes the weak tail'
-  );
-  assert.equal(
-    summary.lowScoreSquads,
-    1,
-    'the intentionally bad squad is counted in the below-60 tail'
-  );
+  assert.ok(summary.p10Overall < summary.medianOverall, 'bottom-decile exposes the weak tail');
+  assert.equal(summary.lowScoreSquads, 1, 'the intentionally bad squad is counted in the below-60 tail');
   assert.equal(summary.worst[0].squad, 'US-3');
   assert.equal(summary.worst[0].seed, 'b');
-  assert.ok(
-    summary.meanCombat > 70,
-    'run-level combat mean excludes squads whose combat dimension is null'
-  );
+  assert.ok(summary.meanCombat > 70, 'run-level combat mean excludes squads whose combat dimension is null');
 
   console.log(
     'PASS squad performance scores are role-aware, bounded, and expose backtracking/churn without punishing support or reserve'
