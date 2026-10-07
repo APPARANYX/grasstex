@@ -130,6 +130,7 @@
   function desiredAnchor(sq, key, formation) {
     var a = sq.orderAnchor || sq.rally;
     if (!a) return null;
+    if (root.SquadAI.isReconstitutionMarch && root.SquadAI.isReconstitutionMarch(sq)) return { x: a.x, z: a.z };
     var form = TEAM_OFFSETS[formation || sq.formation || root.SquadAI.formationFor(sq)] || TEAM_OFFSETS.wedge,
       o = form[key] || [0, 0],
       f = teamFrame(sq),
