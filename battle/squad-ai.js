@@ -633,24 +633,23 @@
     if (!isFinite(+fact.x) || !isFinite(+fact.z) || !isFinite(+fact.observedAt)) return null;
     var observedAt = +fact.observedAt,
       unit = fact.unit || null,
-      targetId =
-        fact.targetId != null
-          ? String(fact.targetId)
-          : unit && unit.id != null
-            ? String(unit.id)
-            : null,
-      key = targetId
-        ? 'unit:' + String(unit && unit.faction ? unit.faction : fact.otherFaction || '?') + ':' + targetId
-        : 'reported-sector:' + Math.round(+fact.x / 20) + ':' + Math.round(+fact.z / 20),
+      targetId = null,
+      key = null,
       sourceId = fact.sourceId == null ? null : String(fact.sourceId),
-      reportId = String(
-        fact.reportId || 'report:' + sourceId + ':' + observedAt + ':' + (targetId || key)
-      ),
-      conf = clamp(
-        fact.confidence == null ? BELIEF_TUNING.toldConfidenceMin : +fact.confidence,
-        BELIEF_TUNING.toldConfidenceMin,
-        BELIEF_TUNING.toldConfidenceMax
-      );
+      reportId = fact.reportId,
+      confidence = fact.confidence == null ? BELIEF_TUNING.toldConfidenceMin : +fact.confidence;
+    if (fact.targetId != null) targetId = String(fact.targetId);
+    else if (unit && unit.id != null) targetId = String(unit.id);
+    if (targetId)
+      key = 'unit:' + String(unit && unit.faction ? unit.faction : fact.otherFaction || '?') + ':' + targetId;
+    else key = 'reported-sector:' + Math.round(+fact.x / 20) + ':' + Math.round(+fact.z / 20);
+    if (!reportId) reportId = 'report:' + sourceId + ':' + observedAt + ':' + (targetId || key);
+    reportId = String(reportId);
+    var conf = clamp(
+      confidence,
+      BELIEF_TUNING.toldConfidenceMin,
+      BELIEF_TUNING.toldConfidenceMax
+    );
     return writeBelief(soldier, battle, {
       key: key,
       unit: unit,
