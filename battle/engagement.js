@@ -1090,7 +1090,14 @@
     if (CONTACT_STANCE && lowNow)
       e.advanceLowUntil = Math.max(+e.advanceLowUntil || 0, battle.time + LOW_GAP_HOLD);
     var low = lowNow || (CONTACT_STANCE && battle.time < (+e.advanceLowUntil || 0));
-    if (!holdStance(s, battle)) commitStance(s, battle, low ? 'crouch' : 'stand', 1.0);
+    if (!holdStance(s, battle))
+      commitStance(
+        s,
+        battle,
+        low ? 'crouch' : 'stand',
+        1.0,
+        low ? (lowNow ? 'advance:contact-low' : 'advance:contact-hold') : 'advance:quiet'
+      );
     followOrders(s, battle, false);
   }
 
