@@ -24,7 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p pre post reports
-          for run_spec in "37546970899 pre" "37546973287 post"; do
+          for run_spec in "37557128272 pre" "37557130069 post"; do
             set -- $run_spec; run="$1"; out="$2"
             gh api "repos/${{ github.repository }}/actions/runs/$run/artifacts?per_page=100" --jq '.artifacts[] | select(.name|test("shard-")) | [.id,.name] | @tsv' |
             while IFS=$'\t' read -r id name; do
