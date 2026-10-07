@@ -250,6 +250,14 @@ jobs:
           # jitter/reissue destinations. Macro mission command also exercises its VM fixture here.
           node scripts/check-meso-formation-frame-stability.cjs
           node scripts/check-macro-mission-command.cjs
+          # Three more standalone checks that existed but were never wired to anything (the
+          # complexity audit found them passing yet unreachable): movement-order ownership
+          # (committed Meso formation order survives resolve calls), meso-micro movement
+          # ownership (a defensive mission does not issue offensive bounds) and physical
+          # waypoint refill (rolling queues refill in place, no full physical replan).
+          node scripts/check-movement-order-ownership.cjs
+          node scripts/check-meso-micro-movement-ownership.cjs
+          node scripts/check-physical-waypoint-refill.cjs
 
       - name: Engagement harness seeds
         run: |
