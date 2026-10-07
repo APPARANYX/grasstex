@@ -188,10 +188,9 @@
     return st.bySquad[key];
   }
 
-  function contactSig(sq) {
-    var c = sq.contact;
+  function contactSig(c) {
     if (!c) return null;
-    return Math.round(+c.x / 20) + ':' + Math.round(+c.z / 20) + ':' + ((c.unit && c.unit.id) || '?');
+    return Math.round(c.x / 20) + ':' + Math.round(c.z / 20) + ':' + (c.unitId == null ? '?' : c.unitId);
   }
 
   function tick(sim) {
