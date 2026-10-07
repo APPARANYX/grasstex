@@ -905,7 +905,7 @@
     for (var i = 0; i < m.length; i++) {
       var s = m[i];
       if (!s || s.dead) continue;
-      sum += (s.mind && s.mind.memory && s.mind.memory.floor) || 0;
+      sum += (s.mind && s.mind.floor) || 0;
       n++;
     }
     return n ? sum / n : 0;
