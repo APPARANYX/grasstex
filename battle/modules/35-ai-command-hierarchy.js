@@ -326,11 +326,17 @@
     ui.view.appendChild(k);
   }
   function decorate() {
-    decorateCore();
-    ensureLeader();
-    ensureKey();
-    drawWires();
-    if (ui.trace) drawTrace();
+    var observer = ui.observer;
+    if (observer) observer.disconnect();
+    try {
+      decorateCore();
+      ensureLeader();
+      ensureKey();
+      drawWires();
+      if (ui.trace) drawTrace();
+    } finally {
+      if (observer && ui.nodes) observer.observe(ui.nodes, { childList: true, subtree: true });
+    }
   }
   function schedule() {
     if (ui.scheduled) return;
