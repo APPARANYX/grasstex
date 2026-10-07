@@ -343,6 +343,11 @@
       if (!fireAuthorized(s, battle)) return false;
       if (battle.time < e.burstPauseUntil || battle.time < e.fireReadyAt) return false;
       if (facingError(s, point) > AIM_CONE) return false;
+      if (SA().isMachineGun(s)) {
+        if (!e.setUpSince) e.setUpSince = battle.time;
+        s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
+        if (!s.setUp) return false;
+      }
       if (battle.time < shockUntil(s)) {
         noteShock(s, 'suppress'); // everything but the area-fire gate allowed it: the freeze stopped this burst
         return false;
