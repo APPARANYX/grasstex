@@ -490,7 +490,7 @@
     } catch (_) {}
     alerts.forEach(function (a) {
       if (!a) return;
-      var at = a.at != null ? +a.at : +sim.time || 0,
+      var at = a.at != null ? +a.at : a.time != null ? +a.time : +sim.time || 0,
         semanticKey = [
           a.kind || 'loop',
           a.faction || '?',
