@@ -12,11 +12,7 @@ never decides tactics, ammo, hits or paths.
   keyed in `CLIPS`, `FAMILIES` (8-way) and `FOUR_WAY` in `modules/53-fbx-clip-table.js`
   (`BattleFbxClips`, data only). The battle fetches only those files, and the lab loads the same table
   for its **Show all animation clips** toggle (off: only in-game clips; on: all, in-game marked ●).
-  The library holds only the clips the table plays plus the few a documented probe names
-  (`probe_pistol_cup.cjs`): the complexity-audit pass removed the 176 unplayed browsing copies
-  (69.6 MB) — re-download a candidate from Mixamo by its exact file name (or drop a local file
-  into the Motion Lab) when evaluating a new clip, and commit it only together with its
-  `CLIPS` entry. Bone names are canonicalised at load, so `mixamorig:` and older rigs bind the same clips.
+  Bone names are canonicalised at load, so `mixamorig:` and older rigs bind the same clips.
 - **Prepared clips.** The battle loads every `CLIPS` entry from one file,
   `Assets/animations/prepared-clips.bin` (~4.5 MiB instead of ~36 MiB of clip FBX), already through
   `sourceRig` + `convertClip`; retargeting onto each model still runs at load. A clip whose spec no
@@ -88,9 +84,8 @@ broken `blender` on PATH. Use lowercase filenames, since the host is case-sensit
 **Approved runtime-format direction (2026-09-27):** FBX is the authoring/ingress format, not the
 long-term browser runtime format. The pipeline should convert FBX soldiers/clips/weapons as needed
 into measured game-ready artifacts (GLB/glTF or a compact custom representation) and ship those
-prepared outputs. Keep raw/source FBX that something reads: the `CLIPS`-table sources (pack
-rebuild and the `?clipPack=0` fallback), the soldier and weapon models, and files a documented
-probe names. Browsing stock nobody plays does not earn its sync bandwidth; do not make production clients repeat deterministic parsing, resampling or rig-preparation work that
+prepared outputs. Keep raw/source FBX for regeneration and Motion Lab/source workflows where needed;
+do not make production clients repeat deterministic parsing, resampling or rig-preparation work that
 can be done once offline.
 
 **File-shape decision (2026-10-06):** the backend stays one file — do not split it as routine
