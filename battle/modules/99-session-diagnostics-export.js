@@ -995,6 +995,25 @@
     if (value == null || value === '') return '-';
     return String(value).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
   }
+  function tableRow(cells) {
+    return (
+      '| ' +
+      cells
+        .map(function (cell) {
+          return mdValue(cell);
+        })
+        .join(' | ') +
+      ' |'
+    );
+  }
+  function squadIds(squads) {
+    if (!squads.length) return '-';
+    return squads
+      .map(function (sq) {
+        return sq.id;
+      })
+      .join(', ');
+  }
   function compactMarkdown(payload) {
     var lines = [
       '# Grasstex Battle Diagnostic Summary',
@@ -1011,8 +1030,8 @@
       '',
       '| Faction | Alive | Kills |',
       '| --- | ---: | ---: |',
-      '| US | ' + mdValue(payload.factions.us.alive) + ' | ' + mdValue(payload.factions.us.kills) + ' |',
-      '| GE | ' + mdValue(payload.factions.ge.alive) + ' | ' + mdValue(payload.factions.ge.kills) + ' |',
+      tableRow(['US', payload.factions.us.alive, payload.factions.us.kills]),
+      tableRow(['GE', payload.factions.ge.alive, payload.factions.ge.kills]),
       '',
       '## Squad State',
       '',
@@ -1021,20 +1040,18 @@
     ];
     payload.squads.forEach(function (sq) {
       lines.push(
-        '| ' +
-          [
-            mdValue(sq.id),
-            mdValue(sq.faction),
-            mdValue(sq.alive),
-            mdValue(sq.state),
-            mdValue(sq.commandPhase),
-            mdValue(sq.commandRole),
-            mdValue(sq.targetObjective),
-            sq.inContact ? 'yes' : 'no',
-            mdValue(sq.fireControl && sq.fireControl.state),
-            mdValue(sq.assembly && sq.assembly.phase)
-          ].join(' | ') +
-          ' |'
+        tableRow([
+          sq.id,
+          sq.faction,
+          sq.alive,
+          sq.state,
+          sq.commandPhase,
+          sq.commandRole,
+          sq.targetObjective,
+          sq.inContact ? 'yes' : 'no',
+          sq.fireControl && sq.fireControl.state,
+          sq.assembly && sq.assembly.phase
+        ])
       );
     });
     var activeRecon =
@@ -1059,9 +1076,9 @@
       '## Immediate Flags',
       '',
       '- Active reconstitution groups: ' + activeRecon.length,
-      '- Fire-control reposition squads: ' + reposition.map(function (sq) { return sq.id; }).join(', ') || '-',
-      '- No-retreat-progress squads: ' + retreatStalls.map(function (sq) { return sq.id; }).join(', ') || '-',
-      '- Over-cohesion squads: ' + overCohesion.map(function (sq) { return sq.id; }).join(', ') || '-',
+      '- Fire-control reposition squads: ' + squadIds(reposition),
+      '- No-retreat-progress squads: ' + squadIds(retreatStalls),
+      '- Over-cohesion squads: ' + squadIds(overCohesion),
       '- Loop Watch alerts: ' + mdValue(payload.loopWatch && payload.loopWatch.count),
       '- Order-writer conflicts: ' + mdValue(payload.orderProvenance && payload.orderProvenance.conflictCount),
       '',
@@ -1165,7 +1182,11 @@
         stamp;
     downloadText(stem + '-summary.md', compactMarkdown(payload), 'text/markdown;charset=utf-8');
     setTimeout(function () {
-      downloadText(stem + '-timeline.jsonl', timelineJsonl(payload), 'application/x-ndjson;charset=utf-8');
+      downloadText(
+        stem + '-timeline.jsonl',
+        timelineJsonl(payload),
+        'application/x-ndjson;charset=utf-8'
+      );
     }, 75);
     return payload;
   }
