@@ -186,6 +186,20 @@ function merged(w) {
   return m[0];
 }
 
+test('a prepared defender remnant extracts to its immutable base, not its in-field tactical home', () => {
+  const w = world(),
+    q = squad(w, 0, 4),
+    base = { x: q.baseHome.x, z: q.baseHome.z },
+    tactical = { x: q.home.x + 80, z: q.home.z + 220 };
+  q.home = tactical;
+  q.state = 'retreat';
+  run(w, 90);
+  const p = w.r.BattleCommanderDoctrine.avgPos(q);
+  assert.ok(q._assembly && q._assembly.phase === 'at-base', 'the tiny defender remnant enters the survivor pool');
+  assert.ok(Math.hypot(p.x - base.x, p.z - base.z) <= 20, 'the remnant reaches the rear base');
+  assert.ok(Math.hypot(p.x - tactical.x, p.z - tactical.z) > 100, 'it is not stranded at the tactical garrison fallback');
+});
+
 test('three four-man remnants rebuild the nearest pair and leave the third in the pool', () => {
   const w = world();
   [0, 1, 2].forEach(l => squad(w, l, 4));
