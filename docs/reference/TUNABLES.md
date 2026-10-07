@@ -26,8 +26,8 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 
 ### battle/commander-ai.js
 - `COMMAND_TICK = 0.45` — commander AI tick interval (s)
-- `STRATEGIC_STALL_REPLAN = 120` — first strategic-stall recovery wake (s)
-- `STRATEGIC_STALL_RECOVERY = { reconcile: 120, release: 180, mainEffort: 240, reset: 300, progressWindow: 60, progressDistance: 6, mainEffortFraction: 0.6, mainEffortMin: 2 }` — staged Macro recovery for one no-objective-progress episode: repair assignments, release stale holds/support, mass a reachable main effort, then reset squads that are neither useful defenders nor making measurable mission progress
+- `STRATEGIC_STALL_REPLAN = 120` — first strategic-stall recovery wake (s), and the review-pass cadence once the recovery ladder is exhausted: the General re-runs the reset population every 120 s of continued stall
+- `STRATEGIC_STALL_RECOVERY = { reconcile: 120, release: 180, mainEffort: 240, reset: 300, progressWindow: 60, progressDistance: 6, mainEffortFraction: 0.6, mainEffortMin: 2 }` — staged Macro recovery for one no-objective-progress episode: repair assignments, release stale holds/support, mass a reachable main effort, then reset squads that are neither useful defenders nor making measurable mission progress. `progressWindow` is also the adoption window: a later stage holds while a previous stage's brief is still younger than it and unaccepted. A same-objective reset re-briefs through the objective's flank point instead of deduping into a no-op; a re-derived identical brief is a recorded ineffective wake, never churn
 - `RECON_STRENGTH = 10` — preferred/full reconstitution target and rebuilt squad establishment
 - `RECON_MIN_STRENGTH = 6` — minimum combined survivors from at least two at-base remnants that may form a viable rebuilt squad
 - `REMNANT_EXTRACTION_MAX = 4` (`SquadAI`; exposed to Force Command as `RECON_POOL_MAX`) — 1–4 survivors extract independently to home with no local regroup/recentring until reconstitution; 5+ survivors remain a viable squad and use ordinary retreat/morale recovery

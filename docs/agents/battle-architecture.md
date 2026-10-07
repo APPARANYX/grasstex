@@ -35,7 +35,31 @@ Brief lifecycle: `issued → executing → completed | invalid | failed | supers
 wakes only on: initial brief, mission complete or invalid, reserve due, a defence request that
 changes the task, an objective vacated or changing control on a defend brief, a 120 s strategic
 stall (`STRATEGIC_STALL_REPLAN`, the one stall clock: the coordination-health sampler's `replanDue` is that same number read from the General, an export flag nothing reads), a Squad Leader `doctrine-review` escalation, or a merge (`squad-reconstituted`). Wakes are
-exported under `macroCommand`. The sampler (module 40, `2.1-strategic-chain`) also publishes
+exported under `macroCommand`.
+
+Strategic-recovery validity and lifecycle (module 22a, the strategic-freeze fix): the stall
+ladder (reconcile 120 s → release 180 s → main-effort 240 s → reset 300 s of faction objective
+stall) is one pass per episode, the episode keyed to the last objective progress — and a side
+that recovers nothing makes none, so the ladder alone could leave a front unreviewed for the
+rest of the battle. Three lifecycle rules close that without touching Squad Leader ownership:
+
+- a later stage holds (bounded by one 60 s adoption window) while a brief the previous stage
+  published is still young and unaccepted, instead of superseding an in-flight adoption;
+- once the ladder is exhausted, a review pass re-runs the reset population every
+  `STRATEGIC_STALL_REPLAN` of continued stall — deterministic cadence, never a new timer. The
+  population still excludes useful defenders and squads with a measurable-progress pulse, and a
+  pass that re-derives the identical brief is deduped into a recorded ineffective wake
+  (`recovery.history` stage `review` with `pass`/`issued`/`ineffective`), so a static world
+  produces no churn;
+- a strategic reset that keeps the squad on its failing objective re-briefs it through the
+  objective's flank point rather than re-deriving the identical brief (which `issueMission`
+  dedup would leave in place — the no-new-brief lock). The flank point is a deterministic
+  function of objective and squad, so the rule is stable: an unmoved squad re-derives the same
+  key and dedups; only a changed decision (another effort, an owner flip) produces a new brief.
+  Resets that switch objectives are untouched, and the stalled objective is never excluded —
+  with every effort stalled it may still be the correct one.
+
+The sampler (module 40, `2.1-strategic-chain`) also publishes
 `strategicChain`, an observation-only reconstruction of the chain a stall recovery depends on:
 per faction the last time each link moved (objective change and progress, brief issued, Squad
 Leader acceptance, local phase change, measurable movement toward the mission point, stall
@@ -676,6 +700,7 @@ The six stabilization slices are closed and no longer part of the active queue:
 - #161: retreat anchors/intents are stabilized with the sliding lease and progress checks.
 - #162: fire-control evidence and posture-churn diagnostics are exported.
 - #164: strategic objective-stall recovery escalates through reconcile/release/main-effort/reset. The 120 s reconcile stage does not replace a valid capture brief while the squad is still physically executing movement; later stages remain the backstop for motion that never produces strategic progress.
+- strategic-freeze fix: exhausting the #164 ladder no longer ends strategic review. Review passes recur every `STRATEGIC_STALL_REPLAN` of continued stall, stages hold on young unaccepted briefs (adoption window = `progressWindow`), and a same-objective reset varies the approach instead of deduping into a no-op. `strategic-recovery-review-check.js` owns both sides of the invariant.
 - #165: Perception owns the shared threat-disposition contract for active threat / visible non-threat / inactive.
 
 Their detailed behavior, harnesses and tuning live in the subsystem sections, carrying PRs and git history. Do not
