@@ -37,7 +37,13 @@ const assert = require('node:assert/strict');
     longRegroups: 0,
     loopAlerts: 0,
     writerConflicts: 0,
-    combat: { total: 30, direct: 20, hits: 8, suppressive: 5, suppressedTargets: 10 }
+    combat: {
+      total: 30,
+      direct: 20,
+      hits: 8,
+      suppressive: 5,
+      suppressedTargets: 10
+    }
   });
   assert.equal(good.role, 'maneuver');
   assert.ok(good.overall > 80, 'clean advancing squad should score strongly');
@@ -76,11 +82,26 @@ const assert = require('node:assert/strict');
     longRegroups: 1,
     loopAlerts: 3,
     writerConflicts: 1,
-    combat: { total: 14, direct: 10, hits: 1, suppressive: 2, suppressedTargets: 1 }
+    combat: {
+      total: 14,
+      direct: 10,
+      hits: 1,
+      suppressive: 2,
+      suppressedTargets: 1
+    }
   });
-  assert.ok(backwards.overall < good.overall - 25, 'backtracking/churn must be visible in the overall diagnostic score');
-  assert.ok(backwards.movement < 35, 'large objective regression should dominate movement score');
-  assert.ok(backwards.control < 60, 'loops/conflicts/target churn should reduce command-control score');
+  assert.ok(
+    backwards.overall < good.overall - 25,
+    'backtracking/churn must be visible in the overall diagnostic score'
+  );
+  assert.ok(
+    backwards.movement < 35,
+    'large objective regression should dominate movement score'
+  );
+  assert.ok(
+    backwards.control < 60,
+    'loops/conflicts/target churn should reduce command-control score'
+  );
 
   const support = scoreSquadPerformance({
     faction: 'ge',
@@ -112,11 +133,28 @@ const assert = require('node:assert/strict');
     longRegroups: 0,
     loopAlerts: 0,
     writerConflicts: 0,
-    combat: { total: 0, direct: 0, hits: 0, suppressive: 0, suppressedTargets: 0 }
+    combat: {
+      total: 0,
+      direct: 0,
+      hits: 0,
+      suppressive: 0,
+      suppressedTargets: 0
+    }
   });
-  assert.ok(support.mission >= 90, 'support squad is rewarded for holding its support brief instead of being forced to capture');
-  assert.equal(support.movement, 100, 'stationary support is not treated as failed movement');
-  assert.equal(support.combat, null, 'no combat opportunity is omitted rather than scored as a failure');
+  assert.ok(
+    support.mission >= 90,
+    'support squad is rewarded for holding its support brief instead of being forced to capture'
+  );
+  assert.equal(
+    support.movement,
+    100,
+    'stationary support is not treated as failed movement'
+  );
+  assert.equal(
+    support.combat,
+    null,
+    'no combat opportunity is omitted rather than scored as a failure'
+  );
 
   const reserve = scoreSquadPerformance({
     faction: 'ge',
@@ -144,16 +182,24 @@ const assert = require('node:assert/strict');
     longRegroups: 0,
     loopAlerts: 0,
     writerConflicts: 0,
-    combat: { total: 0, direct: 0, hits: 0, suppressive: 0, suppressedTargets: 0 }
+    combat: {
+      total: 0,
+      direct: 0,
+      hits: 0,
+      suppressive: 0,
+      suppressedTargets: 0
+    }
   });
   assert.ok(reserve.mission >= 95, 'reserve is not penalized for having no objective');
   assert.ok(reserve.overall > 90, 'clean reserve behavior remains healthy');
 
   for (const row of [good, backwards, support, reserve]) {
     for (const key of ['overall', 'mission', 'movement', 'control', 'cohesion', 'preservation']) {
-      if (row[key] != null) assert.ok(row[key] >= 0 && row[key] <= 100, `${key} stays in 0..100`);
+      if (row[key] != null)
+        assert.ok(row[key] >= 0 && row[key] <= 100, `${key} stays in 0..100`);
     }
-    if (row.combat != null) assert.ok(row.combat >= 0 && row.combat <= 100, 'combat stays in 0..100');
+    if (row.combat != null)
+      assert.ok(row.combat >= 0 && row.combat <= 100, 'combat stays in 0..100');
   }
 
   const summary = summarizeSquadPerformance([
@@ -163,11 +209,21 @@ const assert = require('node:assert/strict');
     { ...reserve, seed: 'd' }
   ]);
   assert.equal(summary.squads, 4);
-  assert.ok(summary.p10Overall < summary.medianOverall, 'bottom-decile exposes the weak tail');
-  assert.equal(summary.lowScoreSquads, 1, 'the intentionally bad squad is counted in the below-60 tail');
+  assert.ok(
+    summary.p10Overall < summary.medianOverall,
+    'bottom-decile exposes the weak tail'
+  );
+  assert.equal(
+    summary.lowScoreSquads,
+    1,
+    'the intentionally bad squad is counted in the below-60 tail'
+  );
   assert.equal(summary.worst[0].squad, 'US-3');
   assert.equal(summary.worst[0].seed, 'b');
-  assert.ok(summary.meanCombat > 70, 'run-level combat mean excludes squads whose combat dimension is null');
+  assert.ok(
+    summary.meanCombat > 70,
+    'run-level combat mean excludes squads whose combat dimension is null'
+  );
 
   console.log(
     'PASS squad performance scores are role-aware, bounded, and expose backtracking/churn without punishing support or reserve'
