@@ -245,8 +245,11 @@ snapshot = timeline.snapshot(sim);
 const progressMarkers = snapshot.markers.filter(
   marker => marker.kind === 'loop-alert' && marker.diagnosticKind === 'low-forward-progress'
 );
-assert.equal(progressMarkers.length, 1, 'a persistent time-stamped producer alert is not replayed as new episodes');
+assert.equal(
+  progressMarkers.length,
+  1,
+  'a persistent time-stamped producer alert is not replayed as new episodes'
+);
 assert.equal(progressMarkers[0].t, 25, 'the producer event time is preserved');
-
 
 console.log('PASS observer focuses exact loop-watch and external benchmark stall diagnostics');
