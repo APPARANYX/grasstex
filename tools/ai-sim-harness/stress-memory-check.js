@@ -239,6 +239,22 @@ test('floor: bleeding raises it as health is lost; healing lowers it by the shar
   near(ctx.M.of(s).floor, 0.1, 0.01, 'it starts again from the new health');
 });
 
+test('squadFloor reads each living soldier live mind.floor value', () => {
+  const ctx = world('?mind=morale&stressMem=floor'),
+    men = ctx.us.members.filter(s => !s.dead).slice(0, 3);
+  ctx.us.members
+    .filter(s => !men.includes(s))
+    .forEach(s => {
+      s.dead = true;
+    });
+  men.forEach((s, i) => {
+    ctx.M.of(s).floor = [0.12, 0.18, 0.24][i];
+  });
+  near(ctx.M.squadFloor(ctx.us), 0.18, 1e-12, 'mean live wound floor');
+  men[2].dead = true;
+  near(ctx.M.squadFloor(ctx.us), 0.15, 1e-12, 'dead men are excluded');
+});
+
 test('floor off: nothing holds him, whatever his health', () => {
   const ctx = world('?stressMem=0'),
     s = man(ctx.us, 'rifleman');
