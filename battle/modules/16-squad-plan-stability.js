@@ -1675,15 +1675,15 @@
     var anchor = sq.orderAnchor || publishAnchor(sq, sq.rally);
     if (sq.state === 'retreat') {
       if (root.SquadAI.isExtractionToHome(sq)) {
-        /* A tiny remnant is no longer maneuvering as a formation. Home is the sole Squad Leader
-           anchor until Macro legitimately reconstitutes it; never rebase the anchor toward a slow
-           or dazed straggler and thereby pull survivors who are already farther rearward back toward
-           the fight. Navigation still owns obstacle avoidance for each man's homeward route. */
+        /* A tiny remnant is no longer maneuvering as a formation. The immutable extraction base is
+           the sole Squad Leader anchor until Macro legitimately reconstitutes it; a prepared defender's
+           tactical `home` may be a sector fallback and must not strand the remnant in the field. */
+        var extraction = root.SquadAI.extractionHome ? root.SquadAI.extractionHome(sq) : sq.home;
         if (L.get(sq, 'retreat-anchor'))
-          L.end(sq, 'retreat-anchor', battle.time, 'remnant extraction uses home');
+          L.end(sq, 'retreat-anchor', battle.time, 'remnant extraction uses base');
         sq._regroupRecovery = null;
-        publishAnchor(sq, sq.home);
-        sq._orderGoal = copy(sq.home);
+        publishAnchor(sq, extraction);
+        sq._orderGoal = copy(extraction);
         if (leaderlessActive(sq)) noteLeaderlessAction(sq, battle, 'retreat', 'remnant extraction continues');
         return;
       }

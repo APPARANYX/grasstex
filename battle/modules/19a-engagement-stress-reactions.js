@@ -183,7 +183,8 @@
         sq = s.squad,
         th = trouble(s, battle),
         safe = sq && sq.safePoint,
-        home = e.fledHome || (sq && sq.home) || { x: p.x, z: p.z },
+        base = sq && SA().extractionHome ? SA().extractionHome(sq) : sq && sq.home,
+        home = e.fledHome || base || { x: p.x, z: p.z },
         pt = safe && !(th && dist(safe.x, safe.z, th.x, th.z) < ACT_TUNING.FLED_SAFE) ? safe : home;
       /* Per-soldier offset so multiple fleeing soldiers from the same squad don't converge on
        the exact same point and orbit it (personal-space pushes them apart but they push back
@@ -257,7 +258,8 @@
         W = root.BattleWeapons;
       e.fledPhase = 'run';
       e.fledAt = battle.time;
-      e.fledHome = sq && sq.home ? { x: sq.home.x, z: sq.home.z } : { x: posOf(s).x, z: posOf(s).z };
+      var base = sq && SA().extractionHome ? SA().extractionHome(sq) : sq && sq.home;
+      e.fledHome = base ? { x: base.x, z: base.z } : { x: posOf(s).x, z: posOf(s).z };
       e.refuge = null;
       e.refugeHere = false;
       e.refugeTries = 0;

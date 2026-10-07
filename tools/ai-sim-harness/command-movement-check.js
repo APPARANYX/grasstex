@@ -204,13 +204,24 @@ test('tiny-remnant extraction is an immediate survival fallback until a real com
   issue(w);
   const survivor = men[0],
     old = point(survivor._fireteamDestination),
-    oldEnvelope = survivor._fireteamAdoptedEnvelope;
+    oldEnvelope = survivor._fireteamAdoptedEnvelope,
+    base = point(w.r.SquadAI.extractionHome(w.q)),
+    tacticalHome = { x: 85, z: 65 };
   assert.ok(old && oldEnvelope);
+
+  /* Prepared defenders rewrite `home` to a sector fallback. That remains the ordinary retreat goal,
+     but it must not become the terminal base for a tiny remnant. */
+  w.q.home = tacticalHome;
+  w.q.state = 'retreat';
+  assert.equal(w.r.SquadAI.isExtractionToHome(w.q), false);
+  assert.ok(
+    distance(w.r.SquadAI.retreatGoal(w.q), tacticalHome) < 1e-9,
+    'ordinary retreat still uses tactical home'
+  );
 
   men.slice(4).forEach(s => {
     s.dead = true;
   });
-  w.q.state = 'retreat';
   w.q._assembly = { phase: 'to-base', since: w.b.time, missionVersion: null };
   w.q._moraleRallyPoint = null;
   w.q.orderAnchor = { x: 0, z: 80 };
@@ -218,12 +229,13 @@ test('tiny-remnant extraction is an immediate survival fallback until a real com
   w.Q.advanceSquadAnchor(w.q, w.b);
   issue(w);
 
-  const home = point(w.q.home);
+  const home = base;
   assert.equal(w.r.SquadAI.isExtractionToHome(w.q), true);
-  assert.ok(distance(w.q.orderAnchor, home) < 1e-9, 'the Squad Leader anchor is home');
+  assert.ok(distance(w.q.home, home) > 1, 'the tactical defender home is distinct from the extraction base');
+  assert.ok(distance(w.q.orderAnchor, home) < 1e-9, 'the Squad Leader anchor is the extraction base');
   assert.ok(
     distance(survivor._fireteamDestination, home) < 1e-9,
-    'survival extraction applies home immediately'
+    'survival extraction applies the extraction base immediately'
   );
   assert.ok(survivor._survivalMovementKey, 'survival owns movement while the remnant extracts');
   assert.equal(
@@ -233,8 +245,8 @@ test('tiny-remnant extraction is an immediate survival fallback until a real com
   );
   assert.ok(w.calls.some(x => x.id === String(survivor.id) && x.urgent && distance(x.point, home) < 1e-9));
 
-  /* A legitimate reconstitution rally is a genuinely new command again. Home remains the active
-     survival fallback while that new spatial brief is pending, then Command Reception hands movement
+  /* A legitimate reconstitution rally is a genuinely new command again. The extraction base remains
+     the active survival fallback while that new spatial brief is pending, then Command Reception hands movement
      back only when the new envelope is personally adopted. */
   const rally = { x: 40, z: 35 },
     version = 9;
@@ -247,7 +259,7 @@ test('tiny-remnant extraction is an immediate survival fallback until a real com
   assert.ok(rec && rec.envelopeId !== oldEnvelope && rec.adoptedAt > w.b.time);
   assert.ok(
     distance(survivor._fireteamDestination, home) < 1e-9,
-    'home stays live while the recon rally command is pending'
+    'the extraction base stays live while the reconstitution rally command is pending'
   );
   assert.ok(survivor._survivalMovementKey);
 
