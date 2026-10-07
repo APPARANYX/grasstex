@@ -287,8 +287,9 @@
             if (held && isFinite(+held.at) && +held.at > change.at) continue;
             /* Don't apply if the squad is retreating or regrouping (different priorities). */
             if (squad.state === 'retreat' || squad.commandPhase === 'regroup') continue;
+            var unit = change.unitId ? lookupUnit(sim, change.unitId, f) : null;
             squad.contact = {
-              unit: change.unitId ? lookupUnit(sim, change.unitId, f) : null,
+              unit: unit,
               x: change.x,
               z: change.z,
               at: change.at,
@@ -296,10 +297,44 @@
               stance: null,
               relayedFrom: sq.id,
               broadcast: true,
-              firstHandAt: null
+              firstHandAt: null,
+              precision: change.precision || 'reported-position'
             };
             rs.applied = (rs.applied || 0) + 1;
             st.applied = (st.applied || 0) + 1;
+            var beliefApplies = 0;
+            if (A && A.rememberReportedContact) {
+              var members = squad.members || [];
+              for (var mi = 0; mi < members.length; mi++) {
+                var man = members[mi];
+                if (!man || man.dead) continue;
+                if (
+                  A.rememberReportedContact(man, sim, {
+                    unit: unit,
+                    targetId: change.unitId,
+                    otherFaction: f === 'us' ? 'ge' : 'us',
+                    x: change.x,
+                    z: change.z,
+                    observedAt: change.at,
+                    reportedAt: now,
+                    sourceId: 'squad:' + String(sq.id),
+                    reportId:
+                      'broadcast:' +
+                      String(sq.id) +
+                      ':' +
+                      String(change.at) +
+                      ':' +
+                      String(change.unitId == null ? contactSig(contact) : change.unitId),
+                    confidence: change.firstHand ? 0.78 : 0.62,
+                    precision: change.precision || 'reported-position',
+                    reason: 'squad-broadcast:' + change.kind
+                  })
+                )
+                  beliefApplies++;
+              }
+            }
+            rs.beliefsApplied = (rs.beliefsApplied || 0) + beliefApplies;
+            st.beliefsApplied = (st.beliefsApplied || 0) + beliefApplies;
             /* Phase 0F3: stamp the reaction timestamp and emit telemetry so the
                Squad Leader and diagnostics can see that this squad reacted to a
                broadcast. The reaction itself is the existing squadSenses ->
