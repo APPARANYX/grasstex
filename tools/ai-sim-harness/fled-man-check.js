@@ -350,12 +350,21 @@ test('a prepared defender flees and extracts to its immutable base, not the tact
     });
   assert.ok(dist(q.home, tactical) < 1e-9, 'the prepared squad keeps its tactical fallback');
   assert.ok(dist(q.baseHome, base) < 1e-9, 'the original rear base is preserved');
-  assert.ok(dist(s.eng.fledHome, base) < 1e-9, 'Engagement remembers the true base for the fled lifecycle');
-  assert.ok(dist(s.squad.home, base) < 1e-9, 'the detached one-man squad inherits the extraction base');
+  assert.ok(
+    dist(s.eng.fledHome, base) < 1e-9,
+    'Engagement remembers the true base for the fled lifecycle'
+  );
+  assert.ok(
+    dist(s.squad.home, base) < 1e-9,
+    'the detached one-man squad inherits the extraction base'
+  );
   run(w, 300, () => (s.squad.contact = null));
   assert.equal(s.eng.fledPhase, null, 'he reaches base and rearms');
   assert.ok(dist(here(s), base) <= T(w).FLED_HOME_RADIUS + 3);
-  assert.ok(s.squad._assembly && s.squad._assembly.phase === 'at-base', 'the defender remnant enters the reconstitution pool');
+  assert.ok(
+    s.squad._assembly && s.squad._assembly.phase === 'at-base',
+    'the defender remnant enters the reconstitution pool'
+  );
 });
 
 test('at the refuge he waits FLED_WAIT seconds, however calm he gets, then goes home on his own', () => {
