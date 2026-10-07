@@ -2,11 +2,23 @@
 'use strict';
 
 const assert = require('node:assert/strict'),
+  fs = require('node:fs'),
+  path = require('node:path'),
   H = require('./harness');
+
+function loadLoopWatch(r) {
+  new Function(
+    'window',
+    'globalThis',
+    'console',
+    fs.readFileSync(path.join(H.REPO, 'battle/modules/32-ai-loop-watch.js'), 'utf8')
+  )(r, r, { log() {}, warn() {} });
+}
 
 function world() {
   H.resetIds();
   const r = H.bootstrap({ search: '?stressAct=0&commandPosture=0' });
+  loadLoopWatch(r);
   const b = H.makeBattle(r, { seed: 404 });
   const us = H.addSquad(r, b, {
     id: 'us-loop',
