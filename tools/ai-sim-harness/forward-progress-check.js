@@ -133,7 +133,11 @@ test('movement inside an already-held friendly objective is not low-forward-prog
   }
   const summary = c.root.BattleSquadForwardProgress.summary(c.sim);
   assert.equal(summary.totalAlerts, 0, 'security movement inside a held zone is not a progress failure');
-  assert.equal(Object.keys(c.sim._squadForwardProgress.tracks).length, 0, 'completed objective drops the approach track');
+  assert.equal(
+    Object.keys(c.sim._squadForwardProgress.tracks).length,
+    0,
+    'completed objective drops the approach track'
+  );
 });
 
 test('a living-roster change resets the centroid odometer instead of manufacturing travel', () => {
