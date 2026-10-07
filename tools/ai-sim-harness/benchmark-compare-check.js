@@ -177,6 +177,31 @@ const run = (a, b, extra) => {
       1,
       'the per-battle sign test works on it too'
     );
+    const turnover = battle('turnover', {
+      timeline: {
+        format: 'grasstex-ai-timeline-v1',
+        samples: [
+          { t: 1, us: { stalled: 0 }, ge: { stalled: 0 } },
+          { t: 2, us: { stalled: 1 }, ge: { stalled: 0 } },
+          { t: 3, us: { stalled: 1 }, ge: { stalled: 0 } },
+          { t: 4, us: { stalled: 1 }, ge: { stalled: 0 } }
+        ],
+        markers: [
+          { t: 2, kind: 'stall-start', side: 'us', soldier: 1 },
+          { t: 3, kind: 'stall-end', side: 'us', soldier: 1 },
+          { t: 3, kind: 'stall-start', side: 'us', soldier: 2 }
+        ]
+      }
+    });
+    const turnoverOut = JSON.parse(
+      run([turnover], [battle('turnover')], ['--count', 'timeline.stalledOnsets']).stdout
+    );
+    assert.equal(
+      turnoverOut.counters['timeline.stalledOnsets'].a,
+      2,
+      'soldier turnover counts two stall starts even when the aggregate stalled count stays at one'
+    );
+
     const none = battle('s2');
     delete none.timeline;
     const o2 = JSON.parse(run([none], [none], ['--count', 'timeline.stalledOnsets']).stdout);
@@ -184,8 +209,9 @@ const run = (a, b, extra) => {
   });
 
   await test('the dose map sums the records, skips an off record and is null with nothing to sum', async () => {
-    const { summarizeStress, stressMarkdown, stressBattles } =
-      await import('../../scripts/lib/stress-summary.mjs');
+    const { summarizeStress, stressMarkdown, stressBattles } = await import(
+      '../../scripts/lib/stress-summary.mjs'
+    );
     const block = (k, extra) =>
       Object.assign(
         {
@@ -535,6 +561,16 @@ const run = (a, b, extra) => {
       verdict({ ...base, identicalBattles: 100, counters: {} }).headline,
       /INERT: all 100 pairs identical/
     );
+    const incomplete = verdict({
+      ...base,
+      pairs: 1,
+      identicalBattles: 1,
+      unpaired: { a: 99, b: 0 },
+      counters: {}
+    });
+    assert.equal(incomplete.kind, 'incomplete');
+    assert.match(incomplete.headline, /INCOMPLETE: all 1 paired records identical, but 99 records unpaired/);
+
     const one = verdict(
       { ...base, pairs: 9, identicalBattles: 1, counters: { casualties: c(100, 90, 0, 5, 0.06) } },
       'single'

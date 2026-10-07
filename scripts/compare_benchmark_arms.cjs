@@ -59,18 +59,23 @@ const median = xs => {
 const mean = xs => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0);
 /* Counters derived from the timeline's per-second `stalled` series, summed over both sides. */
 function stalledSeries(b) {
-  const samples = (b.timeline && b.timeline.samples) || [];
-  let onsets = 0,
-    manSeconds = 0;
+  const timeline = b.timeline || {},
+    samples = timeline.samples || [],
+    markers = timeline.markers || [],
+    stallMarkers = markers.filter(m => m && (m.kind === 'stall-start' || m.kind === 'stall-end'));
+  let onsets = stallMarkers.filter(m => m.kind === 'stall-start').length,
+    manSeconds = 0,
+    legacyOnsets = 0;
   for (const side of ['us', 'ge']) {
     let prev = 0;
     for (const x of samples) {
       const v = (x[side] && x[side].stalled) | 0;
-      if (v > prev) onsets += v - prev;
+      if (v > prev) legacyOnsets += v - prev;
       manSeconds += v;
       prev = v;
     }
   }
+  if (!stallMarkers.length) onsets = legacyOnsets;
   return { onsets, manSeconds };
 }
 const DERIVED = {
