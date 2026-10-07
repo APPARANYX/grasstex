@@ -111,6 +111,12 @@
   function isExtractionToHome(squad) {
     return isExtractionRemnant(squad) && !isReconstitutionMarch(squad);
   }
+  /* `home` can be a tactical fallback (prepared defenders rewrite it near their sector).
+     `baseHome` is the squad's immutable rear/base point from creation and is the destination
+     for permanent fled/extraction lifecycles. */
+  function extractionHome(squad) {
+    return squad && (squad.baseHome || squad.home) ? squad.baseHome || squad.home : null;
+  }
 
   var RETREAT_CASUALTY_FRAC = 0.6,
     GUNNER_SETUP_TIME = 1.4,
@@ -1680,6 +1686,7 @@
       members: [],
       state: 'advance',
       home: homePoint,
+      baseHome: { x: homePoint.x, z: homePoint.z },
       objective: objective,
       rally: { x: homePoint.x, z: homePoint.z },
       orderAnchor: { x: homePoint.x, z: homePoint.z },
@@ -1738,6 +1745,7 @@
   function retreatGoal(squad) {
     var a = squad._assembly,
       m = squad._macroMission;
+    if (isExtractionToHome(squad)) return extractionHome(squad);
     if (squad._moraleRallyPoint) return squad._moraleRallyPoint;
     return a && a.phase === 'to-rally' && m && m.version === a.missionVersion && m.point
       ? m.point
@@ -2214,6 +2222,7 @@
     isExtractionRemnant: isExtractionRemnant,
     isReconstitutionMarch: isReconstitutionMarch,
     isExtractionToHome: isExtractionToHome,
+    extractionHome: extractionHome,
     createSquad: createSquad,
     createSoldier: createSoldier,
     updateSquad: updateSquad,
