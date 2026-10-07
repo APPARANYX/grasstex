@@ -130,7 +130,11 @@
     if (L.get(sq, 'recon')) {
       if (!sq._reconTask || sq._reconTask.missionVersion !== missionVersion(sq))
         endRecon(sq, sim, 'mission-change');
-      if (L.get(sq, 'recon') && idx === last) {
+      if (
+        L.get(sq, 'recon') &&
+        idx === last &&
+        !(sq._reconTask && sq._reconTask.defenderOrigin)
+      ) {
         var liveReconObj = m && m.objectiveId && root.BattleObjectiveSystem ? root.BattleObjectiveSystem.get(sim, m.objectiveId) : null,
           liveReconRadius = +(liveReconObj && liveReconObj.def && liveReconObj.def.radius) || 30;
         if (dist(pos, wp) < (+c.captureCommitRatio || 0.82) * liveReconRadius)
@@ -244,6 +248,7 @@
              80 m crest look-ahead while scouts physically advance up to 50 m. */
           var scoutGoal = { x: pos.x + enemyDir.x * 110, z: pos.z + enemyDir.z * 110 },
             defendRecon = reconCandidate(sq, sim, scoutGoal);
+          if (defendRecon) defendRecon.defenderOrigin = true;
           if (defendRecon && startRecon(sq, sim, defendRecon)) {
             sq._missionHold = 'recon';
             sq.objective = copy(wp);
