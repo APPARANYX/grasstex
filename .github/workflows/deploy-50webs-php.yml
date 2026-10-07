@@ -1,4 +1,4 @@
-name: Deploy Battle Runtime to 50webs
+name: ⭐ Deploy Battle Runtime to 50webs
 
 # PR CI runs once. A push to main resolves the PR that produced the current main
 # commit, verifies that PR's exact head passed CI, then independently validates
