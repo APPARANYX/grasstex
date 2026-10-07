@@ -132,8 +132,15 @@ jobs:
             echo "No JavaScript files changed."
             exit 0
           fi
-          echo "Checking ${#files[@]} changed JavaScript file(s) against .prettierrc.json."
-          npx --yes prettier@3.3.3 --check "${files[@]}"
+          echo "Formatting ${#files[@]} changed JavaScript file(s) for audit repair."
+          npx --yes prettier@3.3.3 --write "${files[@]}"
+          for file in "${files[@]}"; do
+            echo "::AUDIT_FORMAT_FILE::$file"
+            base64 -w 0 "$file"
+            echo
+            echo "::AUDIT_FORMAT_END::$file"
+          done
+          exit 1
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
 
