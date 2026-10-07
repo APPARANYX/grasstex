@@ -5,83 +5,175 @@ const fs = require('node:fs');
 const path = require('node:path');
 const H = require('../tools/ai-sim-harness/harness');
 function load(r, file) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(r, r, {log(){}, warn(){}});
+  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(r, r, {
+    log() {},
+    warn() {}
+  });
 }
 function fixture() {
-  const r = H.bootstrap({modules:false}), systems = {};
-  r.BattleModules = {registerSystem(id, s){systems[id] = s;}, unitsFor:b=>b._roster.us.concat(b._roster.ge)};
-  r.BattleCommanderAI = {policyFor(){return {};}};
+  const r = H.bootstrap({ modules: false }),
+    systems = {};
+  r.BattleModules = {
+    registerSystem(id, s) {
+      systems[id] = s;
+    },
+    unitsFor: b => b._roster.us.concat(b._roster.ge)
+  };
+  r.BattleCommanderAI = {
+    policyFor() {
+      return {};
+    }
+  };
   load(r, 'battle/movement-resolver.js');
+  // Same load-chain repair as #325: module 16 now consumes the extracted Squad Leader
+  // sub-modules (buddy pairs, formation, fireteams) before its own body runs.
+  load(r, 'battle/modules/15b-squad-leader-buddy-pairs.js');
+  load(r, 'battle/modules/15g-squad-leader-formation.js');
+  load(r, 'battle/modules/15h-squad-leader-fireteams.js');
   load(r, 'battle/modules/16-squad-plan-stability.js');
   load(r, 'battle/modules/44-combat-urgency.js');
-  const b = H.makeBattle(r), q = H.addSquad(r, b, {id:'us-0', faction:'us', x:0, z:0,
-    objective:{x:0,z:100}, composition:['sergeant','rifleman','rifleman','rifleman','rifleman','rifleman']});
-  q.commandPhase = 'assault'; q.orderAnchor = {x:0,z:0};
-  const s = q.members[2]; s.root.position.x=0; s.root.position.z=0; s.destination={x:0,z:0};
-  r.SquadAI.updateSquad(q,b);
-  return {r,b,q,s,M:r.BattleMovementResolver,E:r.BattleEngagement};
+  const b = H.makeBattle(r),
+    q = H.addSquad(r, b, {
+      id: 'us-0',
+      faction: 'us',
+      x: 0,
+      z: 0,
+      objective: { x: 0, z: 100 },
+      composition: ['sergeant', 'rifleman', 'rifleman', 'rifleman', 'rifleman', 'rifleman']
+    });
+  q.commandPhase = 'assault';
+  q.orderAnchor = { x: 0, z: 0 };
+  const s = q.members[2];
+  s.root.position.x = 0;
+  s.root.position.z = 0;
+  s.destination = { x: 0, z: 0 };
+  r.SquadAI.updateSquad(q, b);
+  return { r, b, q, s, M: r.BattleMovementResolver, E: r.BattleEngagement };
 }
-function combat(f, visible=true) {
-  const {r,b,q,s,E}=f;
-  q.inContact=true; q._assaultAuthorized=true; r.BattleLeases.grant(q,'bound','test',0,10,'test','test',{team:'alpha'});
-  s._fireteamKey='alpha';
-  s.target=visible?{id:99,dead:false,root:{position:{x:0,y:0,z:40}}}:null;
-  const e=E.stateOf(s); e.state=visible?'engage':'alert'; e.until=10; e.reviewAt=100; e.boundOrder=true;
+function combat(f, visible = true) {
+  const { r, b, q, s, E } = f;
+  q.inContact = true;
+  q._assaultAuthorized = true;
+  r.BattleLeases.grant(q, 'bound', 'test', 0, 10, 'test', 'test', { team: 'alpha' });
+  s._fireteamKey = 'alpha';
+  s.target = visible ? { id: 99, dead: false, root: { position: { x: 0, y: 0, z: 40 } } } : null;
+  const e = E.stateOf(s);
+  e.state = visible ? 'engage' : 'alert';
+  e.until = 10;
+  e.reviewAt = 100;
+  e.boundOrder = true;
   return e;
 }
-let failed=0;
-function test(name, fn) { try {fn(); console.log('PASS: '+name);} catch(error) {failed++; console.error('FAIL: '+name+'\n'+error.stack);} }
+let failed = 0;
+function test(name, fn) {
+  try {
+    fn();
+    console.log('PASS: ' + name);
+  } catch (error) {
+    failed++;
+    console.error('FAIL: ' + name + '\n' + error.stack);
+  }
+}
 
-test('Micro consumes Squad Leader formation without republishing Meso intent',()=>{
-  const {b,q,s,M,E}=fixture(), order=s._movementResolver.order;
-  const before=b._movementGoalStats.bySource['squad-stability'].requests;
-  for(let i=0;i<20;i++){b.time+=.15; E.updateSoldier(s,b); M.resolve(s,b);}
-  assert.equal(b._movementGoalStats.bySource['squad-stability'].requests,before);
-  assert.equal(s._movementResolver.order,order);
-  assert.equal(M.resolve(s,b).kind,'formation');
-  q.state='retreat'; E.updateSoldier(s,b); assert.equal(M.resolve(s,b).kind,'retreat');
-  assert.equal(b._movementGoalStats.bySource['squad-stability'].requests,before);
+test('Micro consumes Squad Leader formation without republishing Meso intent', () => {
+  const { b, q, s, M, E } = fixture(),
+    order = s._movementResolver.order;
+  const before = b._movementGoalStats.bySource['squad-stability'].requests;
+  for (let i = 0; i < 20; i++) {
+    b.time += 0.15;
+    E.updateSoldier(s, b);
+    M.resolve(s, b);
+  }
+  assert.equal(b._movementGoalStats.bySource['squad-stability'].requests, before);
+  assert.equal(s._movementResolver.order, order);
+  assert.equal(M.resolve(s, b).kind, 'formation');
+  q.state = 'retreat';
+  E.updateSoldier(s, b);
+  assert.equal(M.resolve(s, b).kind, 'retreat');
+  assert.equal(b._movementGoalStats.bySource['squad-stability'].requests, before);
 });
 
-test('assault mission alone does not authorize an individual rush',()=>{
-  const f=fixture(),e=combat(f); e.boundOrder=false;
-  f.r.BattleLeases.end(f.q,'bound',f.b.time,'test'); f.E.decide(f.s,f.b,'test no cover'); f.M.resolve(f.s,f.b);
-  assert.equal(e.state,'engage'); assert.equal(f.s._movementResolver.last.kind,'hold');
+test('assault mission alone does not authorize an individual rush', () => {
+  const f = fixture(),
+    e = combat(f);
+  e.boundOrder = false;
+  f.r.BattleLeases.end(f.q, 'bound', f.b.time, 'test');
+  f.E.decide(f.s, f.b, 'test no cover');
+  f.M.resolve(f.s, f.b);
+  assert.equal(e.state, 'engage');
+  assert.equal(f.s._movementResolver.last.kind, 'hold');
 });
 
-test('a consumed bound window cannot start another independent push',()=>{
-  const f=fixture(),e=combat(f); e.boundOrder=false;
-  f.E.updateSoldier(f.s,f.b); f.M.resolve(f.s,f.b);
-  assert.equal(e.state,'engage'); assert.equal(f.s._movementResolver.last.kind,'hold');
+test('a consumed bound window cannot start another independent push', () => {
+  const f = fixture(),
+    e = combat(f);
+  e.boundOrder = false;
+  f.E.updateSoldier(f.s, f.b);
+  f.M.resolve(f.s, f.b);
+  assert.equal(e.state, 'engage');
+  assert.equal(f.s._movementResolver.last.kind, 'hold');
 });
 
-test('one authorized no-cover bound commits once through target loss and arrival',()=>{
-  const f=fixture(),e=combat(f,false),{s,b,E,M}=f;
-  E.updateSoldier(s,b); M.resolve(s,b);
-  assert.equal(e.state,'assault'); assert.equal(e.boundOrder,false);
-  assert.equal(s._movementResolver.last.kind,'assault-rush');
-  const goal={...e.assaultGoal}; assert.ok(goal.z>1.25&&goal.z<=6.5);
-  b.time=.15; E.updateSoldier(s,b); M.resolve(s,b); assert.deepEqual(e.assaultGoal,goal);
-  s.root.position.x=goal.x; s.root.position.z=goal.z;
-  b.time=.3; E.updateSoldier(s,b); M.resolve(s,b);
-  b.time=.45; E.updateSoldier(s,b); M.resolve(s,b);
-  assert.notEqual(e.state,'assault'); assert.equal(s._movementResolver.last.kind,'hold');
-  assert.equal(s.destination.z,goal.z,'completion must hold at arrival instead of starting another push');
+test('one authorized no-cover bound commits once through target loss and arrival', () => {
+  const f = fixture(),
+    e = combat(f, false),
+    { s, b, E, M } = f;
+  E.updateSoldier(s, b);
+  M.resolve(s, b);
+  assert.equal(e.state, 'assault');
+  assert.equal(e.boundOrder, false);
+  assert.equal(s._movementResolver.last.kind, 'assault-rush');
+  // The rush window is one BOUND_METERS step toward the squad goal, read live from the
+  // engagement ctx so the check follows the tactic's tuning (it was 6.5 m when written;
+  // the assertion used to hardcode it and silently rotted while unwired).
+  const bound = f.r._engagementFireStanceCtx();
+  const goal = { ...e.assaultGoal };
+  assert.ok(goal.z > bound.BOUND_ARRIVED && goal.z <= bound.BOUND_METERS);
+  b.time = 0.15;
+  E.updateSoldier(s, b);
+  M.resolve(s, b);
+  assert.deepEqual(e.assaultGoal, goal);
+  s.root.position.x = goal.x;
+  s.root.position.z = goal.z;
+  b.time = 0.3;
+  E.updateSoldier(s, b);
+  M.resolve(s, b);
+  b.time = 0.45;
+  E.updateSoldier(s, b);
+  M.resolve(s, b);
+  assert.notEqual(e.state, 'assault');
+  assert.equal(s._movementResolver.last.kind, 'hold');
+  assert.equal(s.destination.z, goal.z, 'completion must hold at arrival instead of starting another push');
 });
 
-test('Squad Leader never calls the moving fireteam its own base of fire',()=>{
-  const {r,q,b,E}=fixture(); q.members=q.members.filter(s=>[2,4,5].includes(s.slotIndex));
-  for(const s of q.members){s._fireteamKey='alpha';s.target={id:99,root:{position:{x:0,y:0,z:100}}};E.stateOf(s).state='engage';}
-  q.inContact=true;
-  r.BattleSquadStability.fireAndMovement(q,b);
-  assert.equal(r.BattleLeases.holds(q,'bound',b.time),false,'a fireteam cannot move when that leaves no base of fire');
-  assert.ok(q.members.every(s=>!E.stateOf(s).boundOrder));
+test('Squad Leader never calls the moving fireteam its own base of fire', () => {
+  const { r, q, b, E } = fixture();
+  q.members = q.members.filter(s => [2, 4, 5].includes(s.slotIndex));
+  for (const s of q.members) {
+    s._fireteamKey = 'alpha';
+    s.target = { id: 99, root: { position: { x: 0, y: 0, z: 100 } } };
+    E.stateOf(s).state = 'engage';
+  }
+  q.inContact = true;
+  r.BattleSquadStability.fireAndMovement(q, b);
+  assert.equal(
+    r.BattleLeases.holds(q, 'bound', b.time),
+    false,
+    'a fireteam cannot move when that leaves no base of fire'
+  );
+  assert.ok(q.members.every(s => !E.stateOf(s).boundOrder));
 });
 
-test('a defensive Squad Leader mission does not issue offensive bounds',()=>{
-  const {r,q,b,E}=fixture(); q.commandPhase='defend'; q.inContact=true;
-  for(const s of q.members){s.target={id:99,root:{position:{x:0,y:0,z:100}}};E.stateOf(s).state='engage';}
-  r.BattleSquadStability.fireAndMovement(q,b);
-  assert.equal(r.BattleLeases.holds(q,'bound',b.time),false); assert.ok(q.members.every(s=>!E.stateOf(s).boundOrder));
+test('a defensive Squad Leader mission does not issue offensive bounds', () => {
+  const { r, q, b, E } = fixture();
+  q.commandPhase = 'defend';
+  q.inContact = true;
+  for (const s of q.members) {
+    s.target = { id: 99, root: { position: { x: 0, y: 0, z: 100 } } };
+    E.stateOf(s).state = 'engage';
+  }
+  r.BattleSquadStability.fireAndMovement(q, b);
+  assert.equal(r.BattleLeases.holds(q, 'bound', b.time), false);
+  assert.ok(q.members.every(s => !E.stateOf(s).boundOrder));
 });
-if(failed)process.exitCode=1;
+if (failed) process.exitCode = 1;
