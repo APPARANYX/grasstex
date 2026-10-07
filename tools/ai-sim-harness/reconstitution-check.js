@@ -620,21 +620,15 @@ test('short retreat-anchor recovery still moves every reconstitution survivor to
   w.b.time = w.r.BattleSquadStability.tuning.retreatAnchor.noProgress + 0.1;
   w.r.BattleSquadStability.advanceSquadAnchor(q, w.b);
   const held = w.r.BattleLeases.get(q, 'retreat-anchor');
-  assert.equal(held.data.reason, 'no retreat progress', 'precondition: exercise the recovery rebase');
-  assert.ok(
-    Math.abs(held.data.distance - 6.5) < 0.05,
-    'the live recovery geometry is the 6.5 m half-stride'
-  );
+  assert.equal(held.data.reason, 'no retreat progress');
+  assert.ok(Math.abs(held.data.distance - 6.5) < 0.05, 'expected the live 6.5 m recovery stride');
 
   w.r.BattleSquadStability.updateFireteams(q, w.b);
-  const axis = { x: 0, z: 1 };
   living(q).forEach(s => {
     const d = s._fireteamDestination,
-      forward = (d.x - s.root.position.x) * axis.x + (d.z - s.root.position.z) * axis.z;
-    assert.ok(
-      forward > 2,
-      'reconstitution survivor ' + s.id + ' receives material forward motion, got ' + forward.toFixed(2) + ' m'
-    );
+      forward = d.z - s.root.position.z,
+      message = 'survivor ' + s.id + ' forward movement was ' + forward.toFixed(2) + ' m';
+    assert.ok(forward > 2, message);
   });
 });
 
