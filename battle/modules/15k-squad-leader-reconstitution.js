@@ -354,7 +354,13 @@
         briefed = !!(m && m.intent === 'reconstitute' && (m.status === 'issued' || m.status === 'executing')),
         a = sq._assembly || (sq._assembly = { phase: 'to-base', since: t, missionVersion: null });
       if (a.phase === 'to-rally' && !(briefed && m.version === a.missionVersion)) {
-        a.phase = 'at-base';
+        /* A dissolved rally task does not teleport the remnant home. Resume the ordinary
+           extraction state unless it is physically back inside the base radius already. */
+        var fallbackPos = average(sq),
+          fallbackHome = root.SquadAI.extractionHome ? root.SquadAI.extractionHome(sq) : sq.home,
+          physicallyHome =
+            fallbackPos && fallbackHome && dist(fallbackPos, fallbackHome) <= ASSEMBLY_HOME_RADIUS;
+        a.phase = physicallyHome ? 'at-base' : 'to-base';
         a.since = t;
         a.missionVersion = null;
       }
