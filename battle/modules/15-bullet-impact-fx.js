@@ -203,7 +203,8 @@
         surfaceMaps: [],
         surfaceStamps: {},
         texture: null,
-        serial: 0
+        serial: 0,
+        epoch: 0
       })
     );
   }
@@ -707,6 +708,7 @@
   function clear(sim) {
     var st = sim && sim._impactFx;
     if (!st) return;
+    st.epoch = (+st.epoch || 0) + 1;
     st.bursts.forEach(function (b) {
       b.system.dispose(false);
     });
@@ -783,11 +785,13 @@
       oldSuppressive = sim.onSuppressiveShot;
     sim.onShot = function (shooter, target, hit, d, shot) {
       if (oldShot) oldShot.apply(sim, arguments);
-      if (shot && shot.delay > 0 && sim.presentAfter)
+      if (shot && shot.delay > 0 && sim.presentAfter) {
+        var epoch = state(sim).epoch;
         sim.presentAfter(shot.delay, function () {
+          if (!sim._impactFx || sim._impactFx.epoch !== epoch) return;
           impact(sim, shot, shooter);
         });
-      else impact(sim, shot, shooter);
+      } else impact(sim, shot, shooter);
     };
     sim.onSuppressiveShot = function (shooter, point, hit, rounds) {
       if (oldSuppressive) oldSuppressive.apply(sim, arguments);
