@@ -347,7 +347,10 @@
         noteShock(s, 'suppress'); // everything but the area-fire gate allowed it: the freeze stopped this burst
         return false;
       }
-      if (!SA().areaFire(s, point, battle)) return false;
+      var cooldownBefore = +s.fireCooldown || 0,
+        pinned = SA().areaFire(s, point, battle),
+        fired = pinned > 0 || (+s.fireCooldown || 0) > cooldownBefore;
+      if (!fired) return false;
       e.burstLeft = (e.burstLeft || SUPPRESS_BURST) - 1;
       if (e.burstLeft <= 0) {
         e.burstLeft = SUPPRESS_BURST;
