@@ -98,14 +98,8 @@ const assert = require('node:assert/strict');
     backwards.overall < good.overall - 25,
     'backtracking/churn must be visible in the overall diagnostic score'
   );
-  assert.ok(
-    backwards.movement < 35,
-    'large objective regression should dominate movement score'
-  );
-  assert.ok(
-    backwards.control < 60,
-    'loops/conflicts/target churn should reduce command-control score'
-  );
+  assert.ok(backwards.movement < 35, 'large objective regression should dominate movement score');
+  assert.ok(backwards.control < 60, 'loops/conflicts/target churn should reduce command-control score');
 
   const support = scoreSquadPerformance({
     faction: 'ge',
