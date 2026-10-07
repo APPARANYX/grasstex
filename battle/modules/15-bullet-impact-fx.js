@@ -51,11 +51,11 @@
      behind it (arm -> torso). size scales the stamp, max caps it (exits run large), depth caps
      the projection box. All metres. */
   var WOUND_FIT = {
-    head:    { size: 0.60, max: 0.14, depth: 0.10 },
-    arm:     { size: 0.55, max: 0.14, depth: 0.06 },
-    leg:     { size: 0.70, max: 0.18, depth: 0.10 },
+    head: { size: 0.6, max: 0.14, depth: 0.1 },
+    arm: { size: 0.55, max: 0.14, depth: 0.06 },
+    leg: { size: 0.7, max: 0.18, depth: 0.1 },
     abdomen: { size: 0.85, max: 0.22, depth: 0.15 },
-    chest:   { size: 1.00, max: 0.26, depth: 0.18 }
+    chest: { size: 1.0, max: 0.26, depth: 0.18 }
   };
   var STYLES = {
     blood: { color: [0.48, 0.025, 0.035], count: 9, size: 0.075, power: 1.6, life: 0.42 },
@@ -242,7 +242,11 @@
       data = new Uint8Array(n * n * 4),
       seed = (variant + 1) * 0x45d9f3b + (kind === 'soak' ? 0x51ed270b : 0x119de1f3);
     function hash(x, y, k) {
-      var q = (Math.imul(x + 17, 374761393) ^ Math.imul(y + 31, 668265263) ^ Math.imul(seed + k * 101, 2246822519)) | 0;
+      var q =
+        (Math.imul(x + 17, 374761393) ^
+          Math.imul(y + 31, 668265263) ^
+          Math.imul(seed + k * 101, 2246822519)) |
+        0;
       q = Math.imul(q ^ (q >>> 13), 1274126177);
       return ((q ^ (q >>> 16)) >>> 0) / 4294967296;
     }
@@ -285,7 +289,15 @@
         data[i + 2] = blue;
         data[i + 3] = Math.round(alpha * (kind === 'soak' ? 205 : 235));
       }
-    var tex = B.RawTexture.CreateRGBATexture(data, n, n, sim.scene, false, false, B.Texture.BILINEAR_SAMPLINGMODE);
+    var tex = B.RawTexture.CreateRGBATexture(
+      data,
+      n,
+      n,
+      sim.scene,
+      false,
+      false,
+      B.Texture.BILINEAR_SAMPLINGMODE
+    );
     tex.hasAlpha = true;
     tex.gammaSpace = true;
     if (B.Texture.CLAMP_ADDRESSMODE != null) tex.wrapU = tex.wrapV = B.Texture.CLAMP_ADDRESSMODE;
@@ -470,7 +482,8 @@
       var body = st.body[i];
       /* UV wounds already live in the mesh's texture space and need no per-frame transform work. */
       if (body.uv) continue;
-      if (body.skin && !placeSkinWound(body) && (!body.mesh.isDisposed || !body.mesh.isDisposed())) body.mesh.dispose();
+      if (body.skin && !placeSkinWound(body) && (!body.mesh.isDisposed || !body.mesh.isDisposed()))
+        body.mesh.dispose();
     }
   }
   function disposeBodyEntry(body) {
@@ -512,7 +525,14 @@
     /* Preferred FBX path: project a shared blood stamp into a destination texture that belongs only
        to this soldier mesh. No material clone: the uniform material is still shared by the model. */
     if (skin && F && F.paintSurfaceWound) {
-      var painted = F.paintSurfaceWound(skin, surfaceStamp(sim, st, kind, cellAt.col), out, s, roll, fit.depth);
+      var painted = F.paintSurfaceWound(
+        skin,
+        surfaceStamp(sim, st, kind, cellAt.col),
+        out,
+        s,
+        roll,
+        fit.depth
+      );
       if (painted) {
         victim._uvWoundMarks = (victim._uvWoundMarks || 0) + 1;
         rememberSurfaceMap(st, painted.renderer, victim);
@@ -714,10 +734,17 @@
     });
     st.body.forEach(disposeBodyEntry);
     /* UV marks are persistent by design, so explicitly wipe every private map touched this battle. */
-    var F = root.BattleFbxSoldier, clearedSoldiers = [];
+    var F = root.BattleFbxSoldier,
+      clearedSoldiers = [];
     st.surfaceMaps.forEach(function (entry) {
       try {
-        if (entry && entry.soldier && F && F.clearSurfaceDamage && clearedSoldiers.indexOf(entry.soldier) < 0) {
+        if (
+          entry &&
+          entry.soldier &&
+          F &&
+          F.clearSurfaceDamage &&
+          clearedSoldiers.indexOf(entry.soldier) < 0
+        ) {
           clearedSoldiers.push(entry.soldier);
           F.clearSurfaceDamage(entry.soldier);
         } else if (entry && entry.renderer && entry.renderer.clear) entry.renderer.clear();

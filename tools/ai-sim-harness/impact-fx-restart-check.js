@@ -10,11 +10,7 @@ const source = fs.readFileSync(
   'utf8'
 );
 
-assert.match(
-  source,
-  /serial:\s*0,\s*epoch:\s*0/,
-  'impact state carries a restart generation'
-);
+assert.match(source, /serial:\s*0,\s*epoch:\s*0/, 'impact state carries a restart generation');
 assert.match(
   source,
   /function clear\(sim\)[\s\S]{0,180}?st\.epoch = \(\+st\.epoch \|\| 0\) \+ 1;/,
