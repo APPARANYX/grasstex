@@ -142,6 +142,7 @@ test('contact ends the regroup and arms the reentry cooldown', () => {
   q.inContact = true;
   tick(leader, b);
   assert.equal(L.get(q, 'regroup'), null, 'contact ends the regroup lease');
+  assert.equal(q.commandPhase, 'approach', 'ending the lease restores the phase regroup interrupted');
   const end = q._leases && q._leases.ended ? q._leases.ended.filter(l => l.kind === 'regroup').at(-1) : null;
   assert.ok(end, 'the lease records its end');
   assert.equal(end.endReason, 'contact');
