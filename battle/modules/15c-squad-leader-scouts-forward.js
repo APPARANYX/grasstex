@@ -294,6 +294,7 @@
       var task = (sq._reconTask = {
         signature: candidate.signature,
         reason: candidate.reason,
+        defenderOrigin: !!candidate.defenderOrigin,
         startedAt: battle.time,
         until: battle.time + RECON_TUNING.timeout,
         phase: sq.commandPhase || '',
