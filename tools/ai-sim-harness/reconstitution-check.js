@@ -591,6 +591,53 @@ test('wound floors do not freeze a rebuilt squad: the rally gate measures the st
   assert.ok(issued.length >= 1, 'and the General re-tasks it');
   assert.notEqual(q._macroMission.status, 'failed', 'the fresh brief stands');
 });
+test('short retreat-anchor recovery still moves every reconstitution survivor toward the rally', () => {
+  const w = world(),
+    q = squad(w, 0, 10, null, 20),
+    leader = q.members.find(s => s.slotIndex === 0),
+    rear = q.members.find(s => s.slotIndex === 8 || s.slotIndex === 9);
+  assert.ok(leader && rear, 'fixture has command and rear-team survivors');
+  q.members.forEach(s => {
+    if (s !== leader && s !== rear) w.b.killSoldier(s, null);
+  });
+  const p = w.r.BattleCommanderDoctrine.avgPos(q),
+    point = { x: p.x, z: p.z + 120 },
+    version = 7;
+  q.state = 'retreat';
+  q.orderAnchor = { x: p.x, z: p.z };
+  q.rally = { x: p.x, z: p.z };
+  q._assembly = { phase: 'to-rally', since: 0, missionVersion: version };
+  q._macroMission = {
+    version,
+    intent: 'reconstitute',
+    action: 'assemble',
+    status: 'executing',
+    point
+  };
+
+  w.b.time = 0;
+  w.r.BattleSquadStability.advanceSquadAnchor(q, w.b);
+  w.b.time = w.r.BattleSquadStability.tuning.retreatAnchor.noProgress + 0.1;
+  w.r.BattleSquadStability.advanceSquadAnchor(q, w.b);
+  const held = w.r.BattleLeases.get(q, 'retreat-anchor');
+  assert.equal(held.data.reason, 'no retreat progress', 'precondition: exercise the recovery rebase');
+  assert.ok(
+    Math.abs(held.data.distance - 6.5) < 0.05,
+    'the live recovery geometry is the 6.5 m half-stride'
+  );
+
+  w.r.BattleSquadStability.updateFireteams(q, w.b);
+  const axis = { x: 0, z: 1 };
+  living(q).forEach(s => {
+    const d = s._fireteamDestination,
+      forward = (d.x - s.root.position.x) * axis.x + (d.z - s.root.position.z) * axis.z;
+    assert.ok(
+      forward > 2,
+      'reconstitution survivor ' + s.id + ' receives material forward motion, got ' + forward.toFixed(2) + ' m'
+    );
+  });
+});
+
 test('a dissolved rally sends an en-route remnant back through to-base instead of declaring it home', () => {
   const w = world(),
     a = squad(w, 0, 4, null, 20),
