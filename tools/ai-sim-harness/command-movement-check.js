@@ -274,7 +274,7 @@ test('tiny-remnant extraction is an immediate survival fallback until a real com
 });
 
 test('an unreachable movement command retries when the soldier regains command range', () => {
-  const w = world(),
+  const w = world('?stressAct=0&commandMovement=1&commandRelay=1'),
     man = w.q.members[4],
     leader = w.r.SquadAI.leaderOf(w.q);
   man.root.position.x = leader.root.position.x + 150;
