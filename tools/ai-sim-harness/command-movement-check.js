@@ -288,7 +288,11 @@ test('an unreachable movement command retries when the soldier regains command r
   w.b.time = 60;
   issue(w);
   rec = pending(w, man);
-  assert.equal(rec.phase === 'unreachable', false, 'the identical command rebuilds transport after range returns');
+  assert.equal(
+    rec.phase === 'unreachable',
+    false,
+    'the identical command rebuilds transport after range returns'
+  );
   assert.ok(rec.retryAt === 60 && rec.adoptedAt > 60, JSON.stringify(rec));
 
   w.b.time = rec.adoptedAt + 0.001;
