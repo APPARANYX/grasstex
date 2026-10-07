@@ -115,10 +115,21 @@
    averaged to the middle (alpha and bravo 1.2 m apart in line) and the teams walked through each
    other: three quarters of formation-on-formation body contacts were between different teams. */
   var TEAM_OFFSETS = {
-    line: { command: [0, -3], alpha: [-8, 0], bravo: [8, 0], charlie: [0, -9] },
-    wedge: { command: [0, -2], alpha: [-7, 2], bravo: [7, 2], charlie: [0, -9] },
-    column: { command: [0, 0], alpha: [0, 7], bravo: [0, -6], charlie: [0, -12] }
-  };
+      line: { command: [0, -3], alpha: [-8, 0], bravo: [8, 0], charlie: [0, -9] },
+      wedge: { command: [0, -2], alpha: [-7, 2], bravo: [7, 2], charlie: [0, -9] },
+      column: { command: [0, 0], alpha: [0, 7], bravo: [0, -6], charlie: [0, -12] }
+    },
+    /* A 1-4 man source remnant marching to a reconstitution rally is not a full ten-man column.
+       Full-strength rear-team offsets can cancel a short retreat-recovery stride entirely
+       (13 m * 0.5 = 6.5 m while charlie sits 12 m behind the anchor), leaving the remnant
+       repeatedly "recovering" without asking its survivors to move forward. Keep a small
+       footprint for collision separation while preserving material motion toward the rally. */
+    RECONSTITUTION_OFFSETS = {
+      command: [0, 0],
+      alpha: [-2, 0],
+      bravo: [2, 0],
+      charlie: [0, -3]
+    };
   function teamFrame(sq) {
     var a = sq.orderAnchor || sq.rally || { x: 0, z: 0 },
       g = sq.state === 'retreat' ? root.SquadAI.retreatGoal(sq) : sq.objective || sq.home || a,
@@ -130,7 +141,11 @@
   function desiredAnchor(sq, key, formation) {
     var a = sq.orderAnchor || sq.rally;
     if (!a) return null;
-    var form = TEAM_OFFSETS[formation || sq.formation || root.SquadAI.formationFor(sq)] || TEAM_OFFSETS.wedge,
+    var reconstitutionMarch =
+        root.SquadAI.isReconstitutionMarch && root.SquadAI.isReconstitutionMarch(sq),
+      form = reconstitutionMarch
+        ? RECONSTITUTION_OFFSETS
+        : TEAM_OFFSETS[formation || sq.formation || root.SquadAI.formationFor(sq)] || TEAM_OFFSETS.wedge,
       o = form[key] || [0, 0],
       f = teamFrame(sq),
       r = { x: -f.z, z: f.x };
