@@ -198,32 +198,34 @@
     var st = stateFor(sim),
       now = +sim.time || 0;
     ['us', 'ge'].forEach(function (f) {
-      var squads = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
-      for (var i = 0; i < squads.length; i++) {
-        var sq = squads[i];
-        if (!sq || sq.disbanded) continue;
+      var squads = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [],
+        sources = squads.map(function (sq) {
+          return { squad: sq, contact: snapshotContact(sq) };
+        });
+      for (var i = 0; i < sources.length; i++) {
+        var sq = sources[i].squad,
+          contact = sources[i].contact;
+        if (!sq || sq.disbanded || !contact || contact.broadcast) continue;
         var ss = squadState(st, sq),
-          sig = contactSig(sq),
-          prevSig = ss.lastContactSig;
-        /* Track the contact signature for next tick's change detection. */
-        ss.lastContactSig = sig;
-        /* No contact or no change in signature = no broadcast. */
-        if (!sig) continue;
-        if (sig === prevSig) continue;
-        /* Cooldown: don't re-broadcast the same sector+unit too often. */
+          change = contactChange(contact, ss.lastContact);
+        if (!change) continue;
+        /* A cooldown suppression does not consume the change. lastContact tracks the
+           last successfully sent report, so a still-current change retries later. */
         if (now - ss.lastBroadcastAt < BROADCAST_COOLDOWN) {
           ss.suppressed++;
           st.suppressed++;
           continue;
         }
-        var change = contactChange(sq, ss.lastContact, sim);
-        ss.lastContact = sq.contact
-          ? { x: +sq.contact.x, z: +sq.contact.z, at: +sq.contact.at, firstHandAt: sq.contact.firstHandAt }
-          : null;
-        if (!change) continue;
-        /* Compute recipients. */
         var recipients = nearbySquads(sim, sq, BROADCAST_RANGE);
         ss.lastBroadcastAt = now;
+        ss.lastContactSig = contactSig(contact);
+        ss.lastContact = {
+          x: contact.x,
+          z: contact.z,
+          at: contact.at,
+          firstHandAt: contact.firstHandAt,
+          unitId: contact.unitId
+        };
         ss.sent++;
         st.sent++;
         var broadcast = {
