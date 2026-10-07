@@ -15,7 +15,9 @@ function load(root, rel) {
 function world(opts = {}) {
   H.resetIds();
   let navCalls = 0;
-  const r = H.bootstrap({ search: opts.search == null ? '?scoutsForward=1&commandMovement=0&commandRelay=0' : opts.search });
+  const r = H.bootstrap({
+    search: opts.search == null ? '?scoutsForward=1&commandMovement=0&commandRelay=0' : opts.search
+  });
   r.BattleNavigation = {
     movementClear() {
       navCalls++;
@@ -142,12 +144,26 @@ freshTask.serial = 0;
   const e = enemy(w.r, w.b);
   const leader = w.r.SquadAI.leaderOf(w.q);
   w.r.SquadAI.rememberSeen(leader, e, w.b, true, 'test-direct-sight');
-  assert.equal(w.S.reconCandidate(w.q, w.b, w.q.objective), null, 'fresh leader belief is adequate current picture');
+  assert.equal(
+    w.S.reconCandidate(w.q, w.b, w.q.objective),
+    null,
+    'fresh leader belief is adequate current picture'
+  );
 
   const u = world();
   const hidden = enemy(u.r, u.b);
-  u.q.contact = { unit: hidden, x: hidden.root.position.x, z: hidden.root.position.z, at: u.b.time, seenBy: 999 };
-  assert.equal(u.r.SquadAI.soldierContact(u.r.SquadAI.leaderOf(u.q), u.b), null, 'aggregate squad.contact is not personal knowledge');
+  u.q.contact = {
+    unit: hidden,
+    x: hidden.root.position.x,
+    z: hidden.root.position.z,
+    at: u.b.time,
+    seenBy: 999
+  };
+  assert.equal(
+    u.r.SquadAI.soldierContact(u.r.SquadAI.leaderOf(u.q), u.b),
+    null,
+    'aggregate squad.contact is not personal knowledge'
+  );
   assert.ok(u.S.reconCandidate(u.q, u.b, u.q.objective), 'aggregate contact is not an omniscient recon veto');
 }
 
@@ -162,14 +178,24 @@ freshTask.serial = 0;
   assert.ok(w.navCalls() > 0, 'normal Movement Resolver legalization consulted navigation');
   for (const s of body) {
     const h = bodyBefore.get(String(s.id));
-    assert.ok(Math.hypot(s._fireteamDestination.x - h.x, s._fireteamDestination.z - h.z) < 1e-9, 'main body holds its actual position');
+    assert.ok(
+      Math.hypot(s._fireteamDestination.x - h.x, s._fireteamDestination.z - h.z) < 1e-9,
+      'main body holds its actual position'
+    );
   }
   for (const id of task.scoutIds) {
     const s = w.q.members.find(m => String(m.id) === String(id));
-    assert.equal(s._movementResolver.order.owner, 'squad-stability', 'scout order belongs to existing squad-stability producer');
+    assert.equal(
+      s._movementResolver.order.owner,
+      'squad-stability',
+      'scout order belongs to existing squad-stability producer'
+    );
     assert.equal(s._movementResolver.order.kind, 'formation', 'scout uses ordinary order proposal kind');
     w.r.BattleMovementResolver.resolve(s, w.b);
-    assert.ok(s.destination && s.destination.z > s.root.position.z, 'Movement Resolver writes the scout physical destination');
+    assert.ok(
+      s.destination && s.destination.z > s.root.position.z,
+      'Movement Resolver writes the scout physical destination'
+    );
   }
   const anchor = { x: w.q.orderAnchor.x, z: w.q.orderAnchor.z };
   w.S.updateFireteams(w.q, w.b);
@@ -188,24 +214,73 @@ freshTask.serial = 0;
   w.S.updateFireteams(w.q, w.b);
   const selected = new Set(task.scoutIds.map(String));
   const body = w.q.members.find(s => !s.dead && !selected.has(String(s.id)));
-  const id = String(body.id), issuedHold = { ...task.holdPoints[id] };
+  const id = String(body.id),
+    issuedHold = { ...task.holdPoints[id] };
   const rec = w.r.BattleCommandReception.snapshot(body, w.b).records['movement|soldier:' + id];
-  assert.ok(rec && rec.action === 'recon-hold' && rec.adoptedAt > w.b.time, 'main-body recon hold is personally pending');
+  assert.ok(
+    rec && rec.action === 'recon-hold' && rec.adoptedAt > w.b.time,
+    'main-body recon hold is personally pending'
+  );
   assert.equal(rec.reference, 'none', 'hold is a simple command, not a stale point-location exercise');
 
   body.root.position.z += 6; // previous valid formation order continues while the hold is being processed
   const receipt = { x: body.root.position.x, z: body.root.position.z };
-  assert.ok(Math.hypot(receipt.x-issuedHold.x, receipt.z-issuedHold.z) > 5, 'fixture moved while hold was pending');
+  assert.ok(
+    Math.hypot(receipt.x - issuedHold.x, receipt.z - issuedHold.z) > 5,
+    'fixture moved while hold was pending'
+  );
   w.b.time = rec.adoptedAt + 0.001;
   w.S.updateFireteams(w.q, w.b);
 
-  assert.ok(Math.hypot(body._fireteamDestination.x-receipt.x, body._fireteamDestination.z-receipt.z) < 1e-9,
-    'adopted recon hold stops at the man\'s receipt position instead of returning to issue-time coordinates');
+  assert.ok(
+    Math.hypot(body._fireteamDestination.x - receipt.x, body._fireteamDestination.z - receipt.z) < 1e-9,
+    "adopted recon hold stops at the man's receipt position instead of returning to issue-time coordinates"
+  );
   assert.deepEqual(task.holdPoints[id], receipt, 'receipt position becomes the stable recon hold point');
   body.root.position.z += 0.4;
   w.b.time += 0.15;
   w.S.updateFireteams(w.q, w.b);
   assert.deepEqual(task.holdPoints[id], receipt, 'later recon ticks do not slide the adopted hold point');
+}
+
+/* Defender recon starts from an owned objective, so objective proximity must not cancel the
+   lease before the scouts can personally adopt their movement commands. */
+{
+  const w = world({
+    objective: { x: 0, z: 0 },
+    search: '?scoutsForward=1&commandMovement=1&commandRelay=0&stressAct=0'
+  });
+  w.b.scene = { metadata: { battleTown: { center: { x: 0, z: 100 }, radius: 250 } } };
+  w.r.BattleObjectiveSystem = {
+    get() {
+      return { def: { radius: 30 } };
+    }
+  };
+  w.q.commandPhase = 'defend';
+  w.q._macroMission = {
+    version: 1,
+    intent: 'defend',
+    action: 'defend',
+    objectiveId: 'owned',
+    point: { x: 0, z: 0 },
+    route: [],
+    status: 'executing'
+  };
+  w.S.executeMission(w.b, w.q, null);
+  const task = w.q._reconTask;
+  assert.ok(task && task.defenderOrigin, 'stationed defender opens a defender-origin recon task');
+  w.S.updateFireteams(w.q, w.b);
+  const scout = w.q.members.find(s => task.scoutIds.map(String).includes(String(s.id)));
+  const rec = w.r.BattleCommandReception.snapshot(scout, w.b).records['movement|soldier:' + String(scout.id)];
+  assert.ok(rec && rec.adoptedAt > w.b.time, 'scout movement is still in personal adoption');
+
+  w.b.time += 0.45;
+  w.S.executeMission(w.b, w.q, null);
+  assert.ok(
+    w.r.BattleLeases.get(w.q, 'recon'),
+    'objective proximity does not cancel defender recon on the next commander tick'
+  );
+  assert.equal(w.q._reconTask, task, 'the same task survives long enough to execute');
 }
 
 /* Intentional scout separation belongs to recon, not the regroup lifecycle. */
@@ -217,11 +292,22 @@ freshTask.serial = 0;
     scout.root.position.z += 70;
   }
   w.S.updateCohesion(w.b, w.q);
-  assert.equal(w.r.BattleLeases.get(w.q, 'regroup'), null, 'live recon cannot open a competing regroup lease');
+  assert.equal(
+    w.r.BattleLeases.get(w.q, 'regroup'),
+    null,
+    'live recon cannot open a competing regroup lease'
+  );
   w.S.endRecon(w.q, w.b, 'observed-no-contact');
-  assert.ok(w.r.BattleLeases.holds(w.q, 'regroup-bypass', w.b.time), 'recon release grants a bounded rejoin grace');
+  assert.ok(
+    w.r.BattleLeases.holds(w.q, 'regroup-bypass', w.b.time),
+    'recon release grants a bounded rejoin grace'
+  );
   w.S.updateCohesion(w.b, w.q);
-  assert.equal(w.r.BattleLeases.get(w.q, 'regroup'), null, 'rejoin grace prevents an immediate recon-to-regroup flip');
+  assert.equal(
+    w.r.BattleLeases.get(w.q, 'regroup'),
+    null,
+    'rejoin grace prevents an immediate recon-to-regroup flip'
+  );
 }
 
 /* Hidden enemies are not known. Scout direct sight is personal until the existing callout actually delivers it. */
@@ -241,12 +327,20 @@ freshTask.serial = 0;
      but it must not gain knowledge from the hidden enemy. */
   e.root.position.z += 20;
   const c2 = w.S.reconCandidate(w.q, w.b, w.q.objective);
-  assert.deepEqual(c2 && c2.reason, c1 && c1.reason, 'moving a hidden enemy cannot change terrain/information qualification');
+  assert.deepEqual(
+    c2 && c2.reason,
+    c1 && c1.reason,
+    'moving a hidden enemy cannot change terrain/information qualification'
+  );
 
   w.r.SquadAI.perceive(scout, w.b);
   const seen = w.r.SquadAI.soldierContact(scout, w.b);
   assert.ok(seen && seen.source === 'seen', 'Perception gives direct sight only to the scout');
-  assert.equal(w.r.SquadAI.soldierContact(leader, w.b), null, 'direct sight has not teleported to the leader');
+  assert.equal(
+    w.r.SquadAI.soldierContact(leader, w.b),
+    null,
+    'direct sight has not teleported to the leader'
+  );
   w.S.updateRecon(w.q, w.b, { underFire: 0, contactStarted: true });
   assert.equal(w.q._reconLast.reason, 'scout-contact', 'reportable scout contact releases recon');
 
@@ -256,13 +350,21 @@ freshTask.serial = 0;
     if (man === scout || man.dead) continue;
     w.r.SquadAI.applyCalloutBelief(man, w.b);
     const snap = w.r.SquadAI.beliefSnapshot(man, w.b);
-    if ((snap.beliefs || []).some(x => x.source === 'told' && String(x.sourceSoldierId) === String(scout.id))) told++;
+    if ((snap.beliefs || []).some(x => x.source === 'told' && String(x.sourceSoldierId) === String(scout.id)))
+      told++;
   }
   assert.ok(told > 0, 'delivered scout callout creates told beliefs only at actual recipients');
   const farSnap = w.r.SquadAI.beliefSnapshot(far, w.b);
-  assert.equal((farSnap.beliefs || []).some(x => x.source === 'told'), false, 'out-of-range callout creates no knowledge');
+  assert.equal(
+    (farSnap.beliefs || []).some(x => x.source === 'told'),
+    false,
+    'out-of-range callout creates no knowledge'
+  );
   w.S.updateRecon(w.q, w.b, null);
-  assert.ok(w.S.reconTelemetry(w.b).reportsDelivered > 0, 'recon telemetry observes actual told-belief delivery');
+  assert.ok(
+    w.S.reconTelemetry(w.b).reportsDelivered > 0,
+    'recon telemetry observes actual told-belief delivery'
+  );
 }
 
 /* No-contact completion is uncertainty, not enemy-absence knowledge; the same approach cannot re-trigger. */
@@ -282,15 +384,33 @@ freshTask.serial = 0;
   w.S.updateRecon(w.q, w.b, { underFire: 0, contactStarted: false });
   assert.equal(w.q._reconLast.reason, 'observed-no-contact');
   const rejoin = w.r.BattleLeases.get(w.q, 'regroup-bypass');
-  assert.ok(rejoin && rejoin.reason === 'recon rejoin', 'no-contact release uses the existing regroup-bypass lifecycle');
-  assert.ok(rejoin.until - w.b.time >= 8.9, 'rejoin grace is long enough for the main body to absorb the deliberate scout lead');
+  assert.ok(
+    rejoin && rejoin.reason === 'recon rejoin',
+    'no-contact release uses the existing regroup-bypass lifecycle'
+  );
+  assert.ok(
+    rejoin.until - w.b.time >= 8.9,
+    'rejoin grace is long enough for the main body to absorb the deliberate scout lead'
+  );
   for (const id of task.scoutIds) {
     const s = w.q.members.find(m => String(m.id) === String(id));
-    assert.equal(w.r.SquadAI.beliefSnapshot(s, w.b).unknown, true, 'nothing observed leaves scout knowledge unknown');
+    assert.equal(
+      w.r.SquadAI.beliefSnapshot(s, w.b).unknown,
+      true,
+      'nothing observed leaves scout knowledge unknown'
+    );
   }
-  assert.equal(w.S.reconCandidate(w.q, w.b, w.q.objective), null, 'same approach cannot immediately re-enter recon');
+  assert.equal(
+    w.S.reconCandidate(w.q, w.b, w.q.objective),
+    null,
+    'same approach cannot immediately re-enter recon'
+  );
   assert.equal(w.S.reconCandidate(w.q, w.b, w.q.objective), null);
-  assert.equal(w.S.reconTelemetry(w.b).retriggerBlocked, 1, 'same-approach retrigger is diagnosed once, not churned');
+  assert.equal(
+    w.S.reconTelemetry(w.b).retriggerBlocked,
+    1,
+    'same-approach retrigger is diagnosed once, not churned'
+  );
 }
 
 /* Every invalidation releases the lease; timeout is bounded. */
@@ -311,7 +431,10 @@ for (const reason of ['under-fire', 'retreat', 'phase-change', 'battle-end']) {
   assert.equal(w.r.BattleLeases.get(w.q, 'recon'), null, reason + ' releases recon');
   assert.equal(w.q._reconLast.reason, reason);
   const bypass = w.r.BattleLeases.get(w.q, 'regroup-bypass');
-  assert.ok(!bypass || bypass.reason !== 'recon rejoin', reason + ' does not leave no-contact rejoin ownership behind');
+  assert.ok(
+    !bypass || bypass.reason !== 'recon rejoin',
+    reason + ' does not leave no-contact rejoin ownership behind'
+  );
   assert.ok(task.scoutIds.length < w.q.members.length);
 }
 {
@@ -321,7 +444,13 @@ for (const reason of ['under-fire', 'retreat', 'phase-change', 'battle-end']) {
   w.S.updateRecon(w.q, w.b, { underFire: 0, contactStarted: false });
   assert.equal(w.r.BattleLeases.get(w.q, 'recon'), null, 'bounded timeout releases the main body');
   assert.equal(w.q._reconLast.reason, 'timeout');
-  assert.equal(w.r.BattleLeases.get(w.q, 'regroup-bypass').reason, 'recon rejoin', 'timeout proceeds cautiously through the same bounded rejoin handoff');
+  assert.equal(
+    w.r.BattleLeases.get(w.q, 'regroup-bypass').reason,
+    'recon rejoin',
+    'timeout proceeds cautiously through the same bounded rejoin handoff'
+  );
 }
 
-console.log('PASS Scouts Forward lease, terrain/personal-information decision, deterministic selection, Movement Resolver ownership, callout delivery, uncertainty, cancellation and timeout');
+console.log(
+  'PASS Scouts Forward lease, terrain/personal-information decision, deterministic selection, Movement Resolver ownership, callout delivery, uncertainty, cancellation and timeout'
+);

@@ -302,4 +302,50 @@ test('adoption hold: a young unaccepted brief from one stage holds the next stag
   assert.ok(stages.indexOf('release') >= 0, 'acceptance released the held stage: ' + stages.join(','));
 });
 
+/* A timestamp of exactly zero is valid history from the coordination sampler, not "missing".
+   A static defender with no later progress must therefore become eligible for strategic recovery. */
+test('initial defender progress timestamp zero still ages into strategic recovery', () => {
+  const events = [],
+    w = world(events, [
+      { id: 'obj-home', type: 'capture-zone', x: 0, z: 0, radius: 30, value: 1 },
+      { id: 'obj-away', type: 'capture-zone', x: 0, z: 160, radius: 30, value: 1 }
+    ]);
+  w.b.objectiveControl.objectives['obj-home'].owner = 'us';
+  const q = H.addSquad(w.r, w.b, {
+    id: 'us-def',
+    faction: 'us',
+    x: 0,
+    z: 0,
+    objective: { x: 0, z: 0 }
+  });
+  Object.assign(q, { commandRole: 'center', commandPhase: 'defend', route: [] });
+  q._preparedDefenseRequest = { objectiveId: 'obj-home', point: { x: 0, z: 0 } };
+  drive(w, 4);
+  assert.ok(
+    q._macroMission && q._macroMission.intent === 'defend',
+    'precondition: initial owned-objective defense'
+  );
+  w.C.acceptMission(w.b, q, false);
+  /* The prepared-defense request is only fixture scaffolding for the initial brief. Remove the
+     external pin now so strategic recovery is free to re-task this otherwise ordinary defender. */
+  q._preparedDefenseRequest = null;
+  q._macroMission.requestKey = null;
+
+  /* Freeze the observed progress clock at the exact battle-start sentinel from module 40.
+     Drive the real commander without sampling new objective progress so this isolates the
+     consumer bug: timestamp 0 must age like any other finite timestamp. */
+  const health = w.b._coordinationHealth;
+  health.lastObjectiveProgressAt.us = 0;
+  assert.equal(health.lastObjectiveProgressAt.us, 0);
+  for (; w.T < 540; w.T += 2) {
+    w.b.time = w.T;
+    health.lastObjectiveProgressAt.us = 0;
+    health.sides.us.objectiveStallSeconds = w.T;
+    w.C.update(w.b, null, w.C.commandTick);
+  }
+  assert.ok(
+    q._macroMission && q._macroMission.intent === 'capture' && q._macroMission.objectiveId === 'obj-away',
+    'the idle defender is eventually re-tasked instead of being protected forever by falsy timestamp zero'
+  );
+});
 console.log('PASS ' + n + ' strategic-recovery review checks');

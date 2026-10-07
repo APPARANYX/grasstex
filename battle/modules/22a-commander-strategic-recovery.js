@@ -239,7 +239,8 @@
         lastProgress =
           summary && summary.lastObjectiveProgressAt && summary.lastObjectiveProgressAt[sq.faction],
         now = +sim.time || 0;
-      if (lastProgress && isFinite(+lastProgress) && now - lastProgress > 180 && !sq.inContact) return false;
+      if (lastProgress != null && isFinite(+lastProgress) && now - lastProgress > 180 && !sq.inContact)
+        return false;
       return true;
     }
     function objectiveReachable(sim, sq, obj) {

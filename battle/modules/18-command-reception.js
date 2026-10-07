@@ -118,6 +118,7 @@
           reachable: 0,
           relayed: 0,
           unreachable: 0,
+          recovered: 0,
           latencySum: 0,
           latencyMax: 0
         }
@@ -354,6 +355,37 @@
     }
     return rec;
   }
+  function retryUnreachable(st, envelope, soldier, sender, battle, sq) {
+    var id = String(soldier.id),
+      slot = envelope.category + '|' + envelope.scope,
+      by = st.bySoldier[id],
+      rec = by && by[slot];
+    if (!rec || rec.envelopeId !== envelope.id || !rec.unreachable) return false;
+    /* Reachability is not permanent state. Retry transport for the same command when the
+       publisher presents it again, but start the delivery clock now rather than pretending
+       the soldier heard an order while he was out of range. */
+    var retryAt = +battle.time || 0,
+      timingEnvelope = Object.assign({}, envelope, { issuedAt: retryAt }),
+      timing = RELAY_ON
+        ? routedTiming(timingEnvelope, soldier, sender, battle, sq)
+        : legacyTiming(timingEnvelope, soldier, sender, battle);
+    if (!timing) return false;
+    rec.unreachable = false;
+    rec.channel = timing.channel;
+    rec.hops = timing.hops;
+    rec.relayId = timing.relayId;
+    rec.relayReceivedAt = timing.relayReceivedAt == null ? null : +timing.relayReceivedAt.toFixed(3);
+    rec.relayReadyAt = timing.relayReadyAt == null ? null : +timing.relayReadyAt.toFixed(3);
+    rec.receivedAt = +timing.receivedAt.toFixed(3);
+    rec.processedAt = +timing.processedAt.toFixed(3);
+    rec.adoptedAt = +timing.adoptedAt.toFixed(3);
+    rec.distance = timing.distance == null ? null : +timing.distance.toFixed(2);
+    rec.orientationSeconds = +timing.orientationSeconds.toFixed(3);
+    rec.retryAt = retryAt;
+    rec.phase = stage(rec, retryAt);
+    st.counts.recovered++;
+    return true;
+  }
   function publish(sq, battle, category, recipients, meta) {
     if (!ON || !sq || !battle) return null;
     meta = meta || {};
@@ -364,6 +396,10 @@
       current = st.current[key];
     if (current && current.signature === signature) {
       settle(battle);
+      var retrySender = meta.sender || leaderOf(sq),
+        retryMen = liveRecipients(recipients || sq.members);
+      for (var ri = 0; ri < retryMen.length; ri++)
+        retryUnreachable(st, current, retryMen[ri], retrySender, battle, sq);
       return current;
     }
     var version = (st.versions[key] || 0) + 1;
@@ -539,6 +575,7 @@
       reachable: c.reachable,
       relayed: c.relayed,
       unreachable: c.unreachable,
+      recovered: c.recovered || 0,
       meanPlannedLatency: c.reachable ? +(c.latencySum / c.reachable).toFixed(3) : 0,
       maxPlannedLatency: +c.latencyMax.toFixed(3),
       recent: st.recent.slice(-40)

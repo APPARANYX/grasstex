@@ -591,4 +591,44 @@ test('wound floors do not freeze a rebuilt squad: the rally gate measures the st
   assert.ok(issued.length >= 1, 'and the General re-tasks it');
   assert.notEqual(q._macroMission.status, 'failed', 'the fresh brief stands');
 });
+test('a dissolved rally sends an en-route remnant back through to-base instead of declaring it home', () => {
+  const w = world(),
+    a = squad(w, 0, 4, null, 20),
+    bq = squad(w, 1, 4, null, 20),
+    grouped = untilGrouped(w, 120);
+  assert.deepEqual(grouped.group.squads.slice().sort(), [a.id, bq.id].sort());
+  assert.equal(bq._assembly.phase, 'to-rally', 'precondition: remnant accepted the assembly brief');
+  const home = w.r.SquadAI.extractionHome(bq);
+  bq.members
+    .filter(s => !s.dead)
+    .forEach(s => {
+      s.root.position.x = home.x;
+      s.root.position.z = home.z + 80;
+    });
+  a.state = 'advance';
+  w.r.BattleCommanderAI.reconstitute(w.b, 'us');
+  run(w, H.AI_TICK);
+  assert.equal(bq._reconGroup, null, 'dissolution releases group ownership');
+  assert.equal(bq._assembly.phase, 'to-base', '80 m from base remains physical transit, not at-base');
+});
+
+test('a source squad wiped during assembly is cleaned when the surviving sources merge', () => {
+  const w = world(),
+    a = squad(w, 0, 4, null, 20),
+    wiped = squad(w, 1, 1, null, 20),
+    c = squad(w, 2, 4, null, 20),
+    grouped = untilGrouped(w, 120);
+  assert.deepEqual(
+    grouped.group.squads.slice().sort(),
+    [a.id, wiped.id, c.id].sort(),
+    'all three sources are needed for the viable group'
+  );
+  living(wiped).forEach(s => w.b.killSoldier(s, null));
+  run(w, 360);
+  const ended = recon(w).ended.find(g => g.id === grouped.group.id);
+  assert.ok(ended && ended.status === 'merged', 'the eight surviving men still merge successfully');
+  assert.equal(wiped._reconGroup, null, 'the wiped source is detached from the terminal group');
+  assert.ok(wiped._macroMission, 'the wiped source keeps its terminal mission record for diagnostics');
+  assert.equal(wiped._macroMission.status, 'failed', 'its reconstitution brief is terminal');
+});
 console.log(n + ' reconstitution checks passed');
