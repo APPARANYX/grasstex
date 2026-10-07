@@ -114,7 +114,11 @@
         dz = to.z - from.z,
         len = Math.hypot(dx, dz);
       if (!(len > 1)) return null;
-      var heightAt = battle.heightAt || function () { return 0; },
+      var heightAt =
+          battle.heightAt ||
+          function () {
+            return 0;
+          },
         ay = heightAt(from.x, from.z) + RECON_TUNING.eye,
         by = heightAt(to.x, to.z) + RECON_TUNING.eye,
         i;
@@ -125,8 +129,7 @@
           x = from.x + dx * t,
           z = from.z + dz * t,
           lineY = ay + (by - ay) * t;
-        if (heightAt(x, z) > lineY - 0.12)
-          return { reason: 'crest', distance: len * t };
+        if (heightAt(x, z) > lineY - 0.12) return { reason: 'crest', distance: len * t };
       }
       var a = { x: from.x, z: from.z, y: ay },
         b = { x: to.x, z: to.z, y: by },
@@ -546,7 +549,12 @@
           previous = point(man._fireteamDestination),
           reconKind = selected[id] ? 'recon' : 'recon-hold';
         stats.intentChecks++;
-        if (previous && dist(previous, next) <= ORDER_PUBLISH_EPS && man._fireteamPublishKey === key && movementExecutionCurrent(man, battle)) {
+        if (
+          previous &&
+          dist(previous, next) <= ORDER_PUBLISH_EPS &&
+          man._fireteamPublishKey === key &&
+          movementExecutionCurrent(man, battle)
+        ) {
           stats.intentCoalesced++;
           continue;
         }
