@@ -66,7 +66,8 @@
     }
   }
   function endRegroup(sim, sq, reason) {
-    if (!L.end(sq, 'regroup', sim.time, reason)) return false;
+    var lease = L.get(sq, 'regroup');
+    if (!lease || !L.end(sq, 'regroup', sim.time, reason)) return false;
     var st = cohesionState(sq);
     st.exits++;
     st.overSince = null;
@@ -77,6 +78,15 @@
     });
     L.end(sq, 'corner-hold', sim.time, 'regroup released');
     L.grant(sq, 'regroup-cooldown', 'squad-leader', sim.time, sim.time + REENTRY, reason);
+    /* Phase and lease are one authority handoff. If regroup ends while mission execution is
+       temporarily suspended (for example during leader succession), the stale regroup phase
+       must not keep overriding valid Micro movement after the lease is gone. Resume the phase
+       that regroup interrupted; the next mission tick may immediately select a newer one. */
+    if (sq.commandPhase === 'regroup') {
+      var resume = lease.data && lease.data.resumePhase;
+      if (!resume || resume === 'regroup') resume = 'approach';
+      transitionPhase(sim, sq, resume, 'regroup released: ' + reason, 'regroup');
+    }
     return true;
   }
   function updateCohesion(sim, sq) {
@@ -277,6 +287,7 @@
       {
         anchor: anchor,
         missionVersion: missionVersion(sq),
+        resumePhase: sq.commandPhase && sq.commandPhase !== 'regroup' ? sq.commandPhase : 'approach',
         startSpread: ca.coreSpread,
         forward: Math.hypot(marching.x, marching.z) > 1e-6 ? marching : null
       }
