@@ -208,6 +208,38 @@ freshTask.serial = 0;
   assert.deepEqual(task.holdPoints[id], receipt, 'later recon ticks do not slide the adopted hold point');
 }
 
+/* Defender recon starts from an owned objective, so objective proximity must not cancel the
+   lease before the scouts can personally adopt their movement commands. */
+{
+  const w = world({ objective: { x: 0, z: 0 }, search: '?scoutsForward=1&commandMovement=1&commandRelay=0&stressAct=0' });
+  w.b.scene = { metadata: { battleTown: { center: { x: 0, z: 100 }, radius: 250 } } };
+  w.r.BattleObjectiveSystem = {
+    get() { return { def: { radius: 30 } }; }
+  };
+  w.q.commandPhase = 'defend';
+  w.q._macroMission = {
+    version: 1,
+    intent: 'defend',
+    action: 'defend',
+    objectiveId: 'owned',
+    point: { x: 0, z: 0 },
+    route: [],
+    status: 'executing'
+  };
+  w.S.executeMission(w.b, w.q, null);
+  const task = w.q._reconTask;
+  assert.ok(task && task.defenderOrigin, 'stationed defender opens a defender-origin recon task');
+  w.S.updateFireteams(w.q, w.b);
+  const scout = w.q.members.find(s => task.scoutIds.map(String).includes(String(s.id)));
+  const rec = w.r.BattleCommandReception.snapshot(scout, w.b).records['movement|soldier:' + String(scout.id)];
+  assert.ok(rec && rec.adoptedAt > w.b.time, 'scout movement is still in personal adoption');
+
+  w.b.time += 0.45;
+  w.S.executeMission(w.b, w.q, null);
+  assert.ok(w.r.BattleLeases.get(w.q, 'recon'), 'objective proximity does not cancel defender recon on the next commander tick');
+  assert.equal(w.q._reconTask, task, 'the same task survives long enough to execute');
+}
+
 /* Intentional scout separation belongs to recon, not the regroup lifecycle. */
 {
   const w = world();
