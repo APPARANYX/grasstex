@@ -394,6 +394,15 @@
         sq._reconGroup = null;
         finishMission(sim, sq, 'completed', 'merged');
       });
+      /* The filtered merge list contains only sources that still have survivors. Clean original
+         group members that were wiped during assembly too, otherwise their group id and executing
+         reconstitution brief outlive the group that just merged. */
+      g.squads.forEach(function (id) {
+        var source = squadById(sim, g.faction, id);
+        if (!source || source === survivor || order.indexOf(source) >= 0) return;
+        source._reconGroup = null;
+        finishMission(sim, source, 'failed', 'wiped-during-reconstitution');
+      });
       st.merges++;
       if (promoted) st.promotions++;
       g.survivor = survivor.id;
