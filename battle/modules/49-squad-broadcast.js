@@ -22,8 +22,9 @@
    Ownership: squad-to-squad, not Macro (General) and not Micro (individual soldier). Does not
    bypass Movement Resolver or Engagement ownership. When 0F2 is on, this module writes
    squad.contact on receiving squads as a documented sibling layer (the same role as
-   squadSenses in squad-ai.js); it never writes soldier.destination, soldier.target, or any
-   engagement state. */
+   squadSenses in squad-ai.js). Personal reaction is delivered only through SquadAI's
+   Perception-owned rememberReported API; this module never writes soldier._beliefs,
+   soldier.destination, soldier.target, or any engagement state. */
 (function (root) {
   'use strict';
   if (!root.BattleModules || root.BattleSquadBroadcast) return;
@@ -91,44 +92,35 @@
 
   /* What changed about a squad's contact that is worth broadcasting. Returns null if nothing
      meaningful changed (same contact, same sector, no upgrade). */
-  function contactChange(sq, prev, battle) {
-    var c = sq.contact;
-    if (!c || !isFinite(+c.x) || !isFinite(+c.z)) return null;
-    var now = +battle.time || 0;
-    /* First-ever contact for this squad is always meaningful. */
-    if (!prev) {
-      return {
-        kind: 'new-contact',
-        x: +c.x,
-        z: +c.z,
-        at: now,
-        unitId: c.unit && c.unit.id,
-        seenBy: c.seenBy
-      };
-    }
-    /* Contact upgraded from heard/relayed to first-hand. */
-    if (!prev.firstHandAt && c.firstHandAt) {
-      return { kind: 'upgraded-to-firsthand', x: +c.x, z: +c.z, at: now, unitId: c.unit && c.unit.id };
-    }
-    /* Contact moved to a new 20m sector (significant position change). */
+  function contactChange(c, prev, battle) {
+    if (!c || !isFinite(+c.x) || !isFinite(+c.z) || !isFinite(+c.at)) return null;
+    /* A relayed fact may be consumed locally, but it is never a new broadcast source. This keeps
+       one commander tick and later ticks from turning a 120 m tactical channel into an
+       order-dependent multi-hop faction network. A later first-hand sighting replaces the relayed
+       aggregate and may then be broadcast normally. */
+    if (c.broadcast || c.relayedFrom != null) return null;
+    var fact = {
+      x: +c.x,
+      z: +c.z,
+      at: +c.at,
+      unitId: c.unit && c.unit.id,
+      stance: c.stance || null,
+      precision: c.precision || (c.heard ? 'imprecise-sound' : 'reported-position')
+    };
+    /* First-ever locally originated contact is always meaningful. Observation time belongs to
+       the evidence; dispatch time is recorded separately by the broadcast record. */
+    if (!prev) return Object.assign({ kind: 'new-contact', seenBy: c.seenBy }, fact);
+    /* Contact upgraded from heard/local uncertainty to first-hand. */
+    if (!prev.firstHandAt && c.firstHandAt)
+      return Object.assign({ kind: 'upgraded-to-firsthand' }, fact);
+    /* Contact moved to a new 20 m sector (significant position change). */
     var prevSec = Math.round(+prev.x / 20) + ':' + Math.round(+prev.z / 20),
       curSec = Math.round(+c.x / 20) + ':' + Math.round(+c.z / 20);
-    if (prevSec !== curSec) {
-      return {
-        kind: 'sector-change',
-        x: +c.x,
-        z: +c.z,
-        at: now,
-        unitId: c.unit && c.unit.id,
-        fromSector: prevSec,
-        toSector: curSec
-      };
-    }
-    /* Contact is significantly fresher (a new sighting of the same enemy in the same sector
-       after a gap). */
-    if (c.at > prev.at + BROADCAST_TTL) {
-      return { kind: 're-acquired', x: +c.x, z: +c.z, at: now, unitId: c.unit && c.unit.id };
-    }
+    if (prevSec !== curSec)
+      return Object.assign({ kind: 'sector-change', fromSector: prevSec, toSector: curSec }, fact);
+    /* A fresh observation in the same sector eventually refreshes the report. This compares
+       against the last SUCCESSFULLY broadcast observation, so cooldown-suppressed changes retry. */
+    if (+c.at > +prev.at + BROADCAST_TTL) return Object.assign({ kind: 're-acquired' }, fact);
     return null;
   }
 
@@ -170,47 +162,60 @@
     return st.bySquad[key];
   }
 
-  function contactSig(sq) {
-    var c = sq.contact;
+  function contactSig(c) {
     if (!c) return null;
     return Math.round(+c.x / 20) + ':' + Math.round(+c.z / 20) + ':' + ((c.unit && c.unit.id) || '?');
+  }
+
+  function contactSnapshot(c) {
+    return c
+      ? {
+          x: +c.x,
+          z: +c.z,
+          at: +c.at,
+          firstHandAt: c.firstHandAt,
+          heard: !!c.heard,
+          relayedFrom: c.relayedFrom == null ? null : c.relayedFrom,
+          broadcast: !!c.broadcast
+        }
+      : null;
   }
 
   function tick(sim) {
     if (!sim || sim.winner) return;
     var st = stateFor(sim),
-      now = +sim.time || 0;
+      now = +sim.time || 0,
+      A = root.SquadAI;
     ['us', 'ge'].forEach(function (f) {
       var squads = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
       for (var i = 0; i < squads.length; i++) {
         var sq = squads[i];
         if (!sq || sq.disbanded) continue;
+        /* Read through Perception's aggregate API so an already-expired source contact is pruned
+           before transport. */
+        var c = A && A.squadContact ? A.squadContact(sq, sim) : sq.contact;
+        if (!c || c.broadcast || c.relayedFrom != null) continue;
         var ss = squadState(st, sq),
-          sig = contactSig(sq),
-          prevSig = ss.lastContactSig;
-        /* Track the contact signature for next tick's change detection. */
-        ss.lastContactSig = sig;
-        /* No contact or no change in signature = no broadcast. */
-        if (!sig) continue;
-        if (sig === prevSig) continue;
-        /* Cooldown: don't re-broadcast the same sector+unit too often. */
+          sig = contactSig(c),
+          change = contactChange(c, ss.lastContact, sim);
+        if (!sig || !change) continue;
+        /* Suppression does NOT advance the last-sent baseline. The same meaningful change will
+           therefore retry after cooldown instead of disappearing forever. */
         if (now - ss.lastBroadcastAt < BROADCAST_COOLDOWN) {
           ss.suppressed++;
           st.suppressed++;
           continue;
         }
-        var change = contactChange(sq, ss.lastContact, sim);
-        ss.lastContact = sq.contact
-          ? { x: +sq.contact.x, z: +sq.contact.z, at: +sq.contact.at, firstHandAt: sq.contact.firstHandAt }
-          : null;
-        if (!change) continue;
-        /* Compute recipients. */
+
         var recipients = nearbySquads(sim, sq, BROADCAST_RANGE);
         ss.lastBroadcastAt = now;
+        ss.lastContactSig = sig;
+        ss.lastContact = contactSnapshot(c);
         ss.sent++;
         st.sent++;
         var broadcast = {
           at: now,
+          observedAt: change.at,
           sourceSquad: sq.id,
           faction: f,
           kind: change.kind,
@@ -222,7 +227,6 @@
             return { squad: r.squad.id, distance: +r.distance.toFixed(1) };
           })
         };
-        /* Log to telemetry (behavior-neutral: nobody consumes this yet). */
         if (root.BattleTelemetry) {
           root.BattleTelemetry.record(
             'squad-broadcast',
@@ -232,6 +236,7 @@
               kind: change.kind,
               x: +change.x.toFixed(1),
               z: +change.z.toFixed(1),
+              observedAt: change.at,
               unitId: change.unitId || null,
               recipientCount: recipients.length,
               recipients: broadcast.recipients
@@ -239,67 +244,81 @@
             sim
           );
         }
-        /* Track receive counts on recipient squads. */
+
         for (var j = 0; j < recipients.length; j++) {
-          var rs = squadState(st, recipients[j].squad);
+          var squad = recipients[j].squad,
+            rs = squadState(st, squad);
           rs.received++;
           st.received++;
-          /* 0F2: when broadcast reception is enabled (the default), apply it to the receiving squad's
-             contact picture. Only apply if the squad does not already have a fresher first-hand
-             contact for the same enemy. A broadcast is never first-hand: it is tagged
-             relayedFrom the source squad, same as the existing squadSenses relay path. This
-             means the receiving squad's perception will still upgrade it to first-hand when one
-             of its own men actually sees the enemy. */
-          if (BROADCAST_ON) {
-            /* Use 'squad' as the variable name so the wire-map scanner recognizes
-               the receiver (SQUAD_NAMES = {'sq','squad'}). This is the receiving
-               squad, not the broadcasting squad (which is 'sq' above). */
-            var squad = recipients[j].squad,
-              held = squad.contact;
-            /* Don't overwrite a first-hand sighting with a broadcast. */
-            if (held && held.firstHandAt) continue;
-            /* Don't overwrite a fresher contact (heard or relayed) with a stale broadcast. */
-            if (held && held.at > change.at) continue;
-            /* Don't apply if the squad is retreating or regrouping (different priorities). */
-            if (squad.state === 'retreat' || squad.commandPhase === 'regroup') continue;
-            squad.contact = {
-              unit: change.unitId ? lookupUnit(sim, change.unitId, f) : null,
-              x: change.x,
-              z: change.z,
-              at: change.at,
-              seenBy: null,
-              stance: null,
-              relayedFrom: sq.id,
-              broadcast: true,
-              firstHandAt: null
-            };
-            rs.applied = (rs.applied || 0) + 1;
-            st.applied = (st.applied || 0) + 1;
-            /* Phase 0F3: stamp the reaction timestamp and emit telemetry so the
-               Squad Leader and diagnostics can see that this squad reacted to a
-               broadcast. The reaction itself is the existing squadSenses ->
-               soldierContact -> alert() path: individual soldiers orient toward
-               the broadcast contact because squad.contact now holds it. */
-            squad._broadcastReactAt = now;
-            squad._broadcastReactFrom = sq.id;
-            if (root.BattleTelemetry) {
-              root.BattleTelemetry.record(
-                'squad-broadcast-reaction',
+          if (!BROADCAST_ON) continue;
+
+          var held = A && A.squadContact ? A.squadContact(squad, sim) : squad.contact;
+          /* Never replace own first-hand memory or a newer aggregate with an older report. */
+          if (held && A && A.hasFirstHandMemory && A.hasFirstHandMemory(held, sim)) continue;
+          if (held && +held.at > +change.at) continue;
+          if (squad.state === 'retreat' || squad.commandPhase === 'regroup') continue;
+
+          var reportedUnit = change.unitId ? lookupUnit(sim, change.unitId, f) : null;
+          squad.contact = {
+            unit: reportedUnit,
+            x: change.x,
+            z: change.z,
+            at: change.at,
+            seenBy: null,
+            stance: change.stance || null,
+            relayedFrom: sq.id,
+            broadcast: true,
+            firstHandAt: null,
+            precision: change.precision || 'reported-position'
+          };
+          rs.applied = (rs.applied || 0) + 1;
+          st.applied = (st.applied || 0) + 1;
+
+          /* Transport hands the same dated fact to Perception, which alone owns personal beliefs.
+             This makes the advertised "reaction" real under shipping soldier-belief defaults while
+             preserving personal sight as stronger/fresher truth. */
+          if (A && A.rememberReported) {
+            for (var mi = 0; squad.members && mi < squad.members.length; mi++) {
+              var man = squad.members[mi];
+              if (!man || man.dead) continue;
+              A.rememberReported(
+                man,
+                sim,
                 {
-                  receivingSquad: squad.id,
-                  faction: squad.faction,
-                  sourceSquad: sq.id,
-                  kind: change.kind,
-                  x: +change.x.toFixed(1),
-                  z: +change.z.toFixed(1),
-                  distance: +recipients[j].distance.toFixed(1)
+                  unit: reportedUnit,
+                  x: change.x,
+                  z: change.z,
+                  at: change.at,
+                  precision: change.precision || 'reported-position'
                 },
-                sim
+                {
+                  sourceSquadId: sq.id,
+                  reportedAt: now,
+                  reason: 'squad-broadcast:' + String(sq.id)
+                }
               );
             }
           }
+
+          squad._broadcastReactAt = now;
+          squad._broadcastReactFrom = sq.id;
+          if (root.BattleTelemetry) {
+            root.BattleTelemetry.record(
+              'squad-broadcast-reaction',
+              {
+                receivingSquad: squad.id,
+                faction: squad.faction,
+                sourceSquad: sq.id,
+                kind: change.kind,
+                x: +change.x.toFixed(1),
+                z: +change.z.toFixed(1),
+                observedAt: change.at,
+                distance: +recipients[j].distance.toFixed(1)
+              },
+              sim
+            );
+          }
         }
-        /* Rolling log, capped. */
         st.broadcasts.unshift(broadcast);
         if (st.broadcasts.length > 100) st.broadcasts.length = 100;
       }
