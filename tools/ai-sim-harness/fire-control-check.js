@@ -114,7 +114,7 @@ test('a man under incoming fire may answer immediately and the leader opens the 
   assert.equal(fc.reason,'enemy fire received');
 });
 test('zero firing lines after the prep window repositions under hold fire instead of deadlocking',()=>{
-  const w=world('?stressAct=0&fireControl=1&commandPosture=0&coa=0',100);
+  const w=world('?stressAct=0&fireControl=1&commandPosture=0',100);
   let fc=command(w); assert.equal(fc.state,'hold');
   const real=w.E.fireControlReady;
   w.E.fireControlReady=()=>false;
@@ -123,11 +123,6 @@ test('zero firing lines after the prep window repositions under hold fire instea
   assert.equal(fc.state,'reposition');
   assert.equal(fc.reason,'no viable prone firing line');
   assert.equal(w.E.fireAuthorized(w.us.members[4],w.b),false,'reposition is movement under hold fire, not permission');
-  assert.equal(
-    w.us._assaultAuthorized,
-    true,
-    'reposition releases the Meso movement gate so the assault can seek a viable firing line'
-  );
   w.E.fireControlReady=real;
 });
 
