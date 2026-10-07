@@ -325,6 +325,7 @@
     minMarksmanship: 0.42,
     precisionMarksmanship: 0.62,
     maxHold: 6,
+    repositionTimeout: 12,
     crestStep: 0.75,
     crestMax: 6,
     returnFireWindow: 3

@@ -225,6 +225,48 @@ test('zero firing lines after the prep window repositions under hold fire instea
   w.E.fireControlReady = real;
 });
 
+test('one viable firing line breaks the max-hold dead band', () => {
+  const w = world('?stressAct=0&fireControl=1&commandPosture=0&coa=0', 100),
+    chosen = w.us.members.find(s => !s.dead);
+  let fc = command(w);
+  assert.equal(fc.state, 'hold');
+  w.E.fireControlReady = s => s === chosen;
+  w.E.fireControlObservation = s => ({
+    ready: s === chosen,
+    visualLine: s === chosen,
+    ballisticLine: s === chosen,
+    terrainCrestBlocked: false,
+    proneReady: s === chosen
+  });
+  w.b.time += w.Q.tuning.fireControl.maxHold + 0.1;
+  fc = command(w);
+  assert.equal(fc.state, 'open');
+  assert.equal(fc.ready, 1);
+  assert.equal(fc.reason, 'leader accepted partial firing line');
+});
+
+test('zero-line reposition times out even after the initiating contact ages out', () => {
+  const w = world('?stressAct=0&fireControl=1&commandPosture=0&coa=0', 100);
+  let fc = command(w);
+  assert.equal(fc.state, 'hold');
+  w.E.fireControlReady = () => false;
+  w.E.fireControlObservation = () => ({
+    ready: false,
+    visualLine: false,
+    ballisticLine: false,
+    terrainCrestBlocked: true,
+    proneReady: false
+  });
+  w.b.time += w.Q.tuning.fireControl.maxHold + 0.1;
+  fc = command(w);
+  assert.equal(fc.state, 'reposition');
+  const repositionSince = fc.since;
+  w.b.time = repositionSince + w.Q.tuning.fireControl.repositionTimeout + 0.1;
+  fc = command(w);
+  assert.equal(fc.state, 'open');
+  assert.equal(fc.reason, 'reposition timed out: resume maneuver fire');
+});
+
 test('fireControl=0 preserves immediate-fire behavior', () => {
   const w = world('?stressAct=0&fireControl=0', 100);
   command(w);
