@@ -209,8 +209,9 @@ const run = (a, b, extra) => {
   });
 
   await test('the dose map sums the records, skips an off record and is null with nothing to sum', async () => {
-    const { summarizeStress, stressMarkdown, stressBattles } =
-      await import('../../scripts/lib/stress-summary.mjs');
+    const { summarizeStress, stressMarkdown, stressBattles } = await import(
+      '../../scripts/lib/stress-summary.mjs'
+    );
     const block = (k, extra) =>
       Object.assign(
         {
