@@ -105,16 +105,23 @@
     ids.sort();
     return ids.join(',');
   }
-  function objectiveById(sim, id) {
+  function objectiveRecordById(sim, id) {
     var a = (sim && sim._objectives) || [];
-    for (var i = 0; i < a.length; i++) {
-      var o = a[i];
-      if (String(o && o.id) === String(id)) {
-        var d = o.def || o;
-        return clonePoint(d);
-      }
-    }
+    for (var i = 0; i < a.length; i++) if (String(a[i] && a[i].id) === String(id)) return a[i];
     return null;
+  }
+  function objectiveById(sim, id) {
+    var o = objectiveRecordById(sim, id),
+      d = o && (o.def || o);
+    return clonePoint(d);
+  }
+  function heldObjectiveReached(sim, sq, p) {
+    if (!sq || !p || !sq.targetObjective || !root.BattleObjectiveSystem) return false;
+    var o = objectiveRecordById(sim, sq.targetObjective),
+      d = o && (o.def || o),
+      status = root.BattleObjectiveSystem.status(sim, sq.targetObjective);
+    if (!d || !status || status.owner !== sq.faction || status.phase !== 'held') return false;
+    return dist(p, d) <= (+status.radius || +d.radius || 20);
   }
   function strategicGoal(sim, sq) {
     return (
@@ -201,8 +208,15 @@
     var g = mg.point,
       t = +sim.time || 0,
       st = state(sim),
-      k = key(sq),
-      tr = st.tracks[k],
+      k = key(sq);
+    /* Once a squad is inside a friendly held objective, lateral security/formation movement is not
+       failed forward progress. Drop the approach track so a completed tactical goal cannot emit
+       low-progress noise merely because the squad is no longer converging on the exact zone centre. */
+    if (mg.kind === 'objective' && heldObjectiveReached(sim, sq, p)) {
+      delete st.tracks[k];
+      return;
+    }
+    var tr = st.tracks[k],
       reset = null;
     if (tr) {
       if (tr.kind !== mg.kind) reset = 'kind';
