@@ -7,8 +7,8 @@ function test(name,fn){try{fn();passed++;console.log('PASS '+name);}catch(e){fai
 // The real lease primitive from squad-ai.js; the rest of SquadAI is stubbed.
 const REAL=require(path.join(repo,'tools/ai-sim-harness/harness')).bootstrap({modules:false}),LEASES=REAL.BattleLeases;
 function fixture(){
-  const events=[],systems={},r={console:{log(){},warn(){}},Math,JSON,isFinite};r.window=r;
-  r.BattleLeases=LEASES;r.BattleSim={start(){}};r.SquadAI={updateSquad(){},extend(stage,id,fn){if(stage==='squadCommand')this.updateSquad=fn;},formationSlot(){return null;},formationFor(){return'wedge';},leaderOf:REAL.SquadAI.leaderOf,isLeader:REAL.SquadAI.isLeader,establishment:REAL.SquadAI.establishment,retreatGoal:REAL.SquadAI.retreatGoal};
+  const events=[],systems={},r={console:{log(){},warn(){}},Math,JSON,isFinite,location:{search:'?scoutsForward=0'}};r.window=r;
+  r.BattleLeases=LEASES;r.BattleSim={start(){}};r.SquadAI={updateSquad(){},extend(stage,id,fn){if(stage==='squadCommand')this.updateSquad=fn;},formationSlot(){return null;},formationFor(){return'wedge';},leaderOf:REAL.SquadAI.leaderOf,isLeader:REAL.SquadAI.isLeader,establishment:REAL.SquadAI.establishment,retreatGoal:REAL.SquadAI.retreatGoal,isMachineGun:REAL.SquadAI.isMachineGun,engageRange:REAL.SquadAI.engageRange};
   r.BattleTelemetry={record(type,data){events.push({type,data});}};
   r.BattleModules={registerSystem(id,h){systems[id]=h;},unitsFor(sim){return sim._roster.us.concat(sim._roster.ge);},runHook(name,sim,payload){for(const h of Object.values(systems))if(h[name])h[name](sim,payload);}};
   r.BattleObjectiveSystem={get(sim,id){return sim._objectives.find(o=>o.id===id);},status(sim,id){return this.get(sim,id)?.state||{};},tick(){}};

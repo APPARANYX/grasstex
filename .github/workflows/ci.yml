@@ -245,6 +245,11 @@ jobs:
             echo "--- $(basename "$check")"
             node "$check"
           done
+          # Standalone architecture-bound regressions outside the canonical harness glob.
+          # Keep formation-frame stability explicit: publishing the same Meso commitment must not
+          # jitter/reissue destinations. Macro mission command also exercises its VM fixture here.
+          node scripts/check-meso-formation-frame-stability.cjs
+          node scripts/check-macro-mission-command.cjs
 
       - name: Engagement harness seeds
         run: |
