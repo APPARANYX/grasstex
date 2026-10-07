@@ -320,6 +320,7 @@ test('initial defender progress timestamp zero still ages into strategic recover
   });
   Object.assign(q, { commandRole: 'center', commandPhase: 'defend', route: [] });
   q._preparedDefenseRequest = { objectiveId: 'obj-home', point: { x: 0, z: 0 } };
+  w.A.reset(w.b);
   drive(w, 4);
   assert.ok(
     q._macroMission && q._macroMission.intent === 'defend',
