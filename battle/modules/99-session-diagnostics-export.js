@@ -1080,7 +1080,8 @@
       '- No-retreat-progress squads: ' + squadIds(retreatStalls),
       '- Over-cohesion squads: ' + squadIds(overCohesion),
       '- Loop Watch alerts: ' + mdValue(payload.loopWatch && payload.loopWatch.count),
-      '- Order-writer conflicts: ' + mdValue(payload.orderProvenance && payload.orderProvenance.conflictCount),
+      '- Order-writer conflicts: ' +
+        mdValue(payload.orderProvenance && payload.orderProvenance.conflictCount),
       '',
       '## Reconstitution',
       '',
@@ -1182,11 +1183,7 @@
         stamp;
     downloadText(stem + '-summary.md', compactMarkdown(payload), 'text/markdown;charset=utf-8');
     setTimeout(function () {
-      downloadText(
-        stem + '-timeline.jsonl',
-        timelineJsonl(payload),
-        'application/x-ndjson;charset=utf-8'
-      );
+      downloadText(stem + '-timeline.jsonl', timelineJsonl(payload), 'application/x-ndjson;charset=utf-8');
     }, 75);
     return payload;
   }
