@@ -211,6 +211,7 @@ function broken(w, opts) {
   opts = opts || {};
   const q = squad(w, opts.lane || 0, opts.alive, opts.forward),
     s = opts.role ? q.members.find(m => m.role === opts.role) : rifleman(q);
+  if (opts.tacticalHome) q.home = { x: opts.tacticalHome.x, z: opts.tacticalHome.z };
   run(w, 1); // a quiet moment: the squad's safe point is where it stands
   if (opts.safe) q.safePoint = opts.safe;
   trouble(w, q, opts.at || { x: q.members[0].root.position.x, z: HOME_Z + 150 + 120 });
@@ -335,6 +336,28 @@ test('he runs home instead when the trouble is known to be near the safe point',
   assert.ok(
     dist(s.eng.refuge, { x: LANES[0], z: HOME_Z }) < 5,
     "within FLED_SAFE of the safe point: his squad's home (with per-soldier offset)"
+  );
+});
+
+test('a prepared defender flees and extracts to its immutable base, not the tactical garrison home', () => {
+  const w = world(),
+    base = { x: LANES[0], z: HOME_Z },
+    tactical = { x: LANES[0] + 70, z: HOME_Z + 180 },
+    { q, s } = broken(w, {
+      tacticalHome: tactical,
+      safe: tactical,
+      at: { x: tactical.x, z: tactical.z + 30 }
+    });
+  assert.ok(dist(q.home, tactical) < 1e-9, 'the prepared squad keeps its tactical fallback');
+  assert.ok(dist(q.baseHome, base) < 1e-9, 'the original rear base is preserved');
+  assert.ok(dist(s.eng.fledHome, base) < 1e-9, 'Engagement remembers the true base for the fled lifecycle');
+  assert.ok(dist(s.squad.home, base) < 1e-9, 'the detached one-man squad inherits the extraction base');
+  run(w, 300, () => (s.squad.contact = null));
+  assert.equal(s.eng.fledPhase, null, 'he reaches base and rearms');
+  assert.ok(dist(here(s), base) <= T(w).FLED_HOME_RADIUS + 3);
+  assert.ok(
+    s.squad._assembly && s.squad._assembly.phase === 'at-base',
+    'the defender remnant enters the reconstitution pool'
   );
 });
 

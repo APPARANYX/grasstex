@@ -80,7 +80,7 @@
        Once Macro changes the assembly phase to a legitimate reconstitution rally this branch turns off
        and ordinary grouped movement resumes toward that rally. */
       if (root.SquadAI.isExtractionToHome(sq)) {
-        var home = copy(sq.home),
+        var home = copy(root.SquadAI.extractionHome ? root.SquadAI.extractionHome(sq) : sq.home),
           extractKey =
             'remnant-extract|' + Math.round((+home.x || 0) * 2) + '|' + Math.round((+home.z || 0) * 2),
           extractStats = publishStats(battle);

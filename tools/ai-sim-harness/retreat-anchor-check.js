@@ -71,6 +71,7 @@ function fixture() {
     seed: SEED
   });
   q.home = { x: 0, z: 0 };
+  q.baseHome = { x: 0, z: 0 }; // fixture setup: this is the squad's original rear base
   q.orderAnchor = { x: 0, z: 120 };
   q.rally = { x: 0, z: 120 };
   q._orderGoal = { x: 0, z: 120 };

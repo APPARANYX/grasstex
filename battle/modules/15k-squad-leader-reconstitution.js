@@ -275,7 +275,7 @@
           var lone = root.SquadAI.createSquad(
             sq.id + '-fled-' + s.id,
             sq.faction,
-            copy(sq.home),
+            copy(root.SquadAI.extractionHome ? root.SquadAI.extractionHome(sq) : sq.home),
             sq.objective
           );
           lone.members.push(s);
@@ -359,8 +359,9 @@
         a.missionVersion = null;
       }
       if (a.phase === 'to-base' && !sq.inContact) {
-        var p = average(sq);
-        if (p && dist(p, sq.home) <= ASSEMBLY_HOME_RADIUS) {
+        var p = average(sq),
+          home = root.SquadAI.extractionHome ? root.SquadAI.extractionHome(sq) : sq.home;
+        if (p && home && dist(p, home) <= ASSEMBLY_HOME_RADIUS) {
           a.phase = 'at-base';
           a.since = t;
           telemetry(battle, 'decision-assembly-home', { faction: sq.faction, squad: sq.id });
