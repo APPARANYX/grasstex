@@ -15,9 +15,8 @@
    - 0F3 (shipped default): when a broadcast is applied to a
      receiving squad, the module emits a 'squad-broadcast-reaction' telemetry event and stamps
      sq._broadcastReactAt so the Squad Leader and diagnostics can see that the squad reacted
-     to a broadcast. The reaction itself is the existing squadSenses -> soldierContact -> alert()
-     path: individual soldiers orient toward the broadcast contact because squad.contact now
-     holds it. This slice makes the reaction visible and measurable.
+     to a broadcast. With personal beliefs enabled, reception enters through Perception's
+     reported-contact API; squad.contact remains the upward aggregate picture.
 
    Ownership: squad-to-squad, not Macro (General) and not Micro (individual soldier). Does not
    bypass Movement Resolver or Engagement ownership. When 0F2 is on, this module writes
@@ -89,46 +88,64 @@
     return null;
   }
 
-  /* What changed about a squad's contact that is worth broadcasting. Returns null if nothing
-     meaningful changed (same contact, same sector, no upgrade). */
-  function contactChange(sq, prev, battle) {
-    var c = sq.contact;
-    if (!c || !isFinite(+c.x) || !isFinite(+c.z)) return null;
-    var now = +battle.time || 0;
-    /* First-ever contact for this squad is always meaningful. */
-    if (!prev) {
+  function snapshotContact(sq) {
+    var c = sq && sq.contact;
+    if (!c || !isFinite(+c.x) || !isFinite(+c.z) || !isFinite(+c.at)) return null;
+    return {
+      x: +c.x,
+      z: +c.z,
+      at: +c.at,
+      unitId: c.unit && c.unit.id != null ? c.unit.id : null,
+      firstHandAt: c.firstHandAt == null ? null : +c.firstHandAt,
+      broadcast: !!c.broadcast,
+      precision: c.precision || null
+    };
+  }
+
+  function contactChange(c, prev) {
+    if (!c) return null;
+    if (!prev)
       return {
         kind: 'new-contact',
-        x: +c.x,
-        z: +c.z,
-        at: now,
-        unitId: c.unit && c.unit.id,
-        seenBy: c.seenBy
+        x: c.x,
+        z: c.z,
+        at: c.at,
+        unitId: c.unitId,
+        firstHand: c.firstHandAt != null,
+        precision: c.precision
       };
-    }
-    /* Contact upgraded from heard/relayed to first-hand. */
-    if (!prev.firstHandAt && c.firstHandAt) {
-      return { kind: 'upgraded-to-firsthand', x: +c.x, z: +c.z, at: now, unitId: c.unit && c.unit.id };
-    }
-    /* Contact moved to a new 20m sector (significant position change). */
-    var prevSec = Math.round(+prev.x / 20) + ':' + Math.round(+prev.z / 20),
-      curSec = Math.round(+c.x / 20) + ':' + Math.round(+c.z / 20);
-    if (prevSec !== curSec) {
+    if (prev.firstHandAt == null && c.firstHandAt != null)
+      return {
+        kind: 'upgraded-to-firsthand',
+        x: c.x,
+        z: c.z,
+        at: c.at,
+        unitId: c.unitId,
+        firstHand: true,
+        precision: c.precision
+      };
+    var prevSec = Math.round(prev.x / 20) + ':' + Math.round(prev.z / 20),
+      curSec = Math.round(c.x / 20) + ':' + Math.round(c.z / 20);
+    if (prevSec !== curSec)
       return {
         kind: 'sector-change',
-        x: +c.x,
-        z: +c.z,
-        at: now,
-        unitId: c.unit && c.unit.id,
-        fromSector: prevSec,
-        toSector: curSec
+        x: c.x,
+        z: c.z,
+        at: c.at,
+        unitId: c.unitId,
+        firstHand: c.firstHandAt != null,
+        precision: c.precision
       };
-    }
-    /* Contact is significantly fresher (a new sighting of the same enemy in the same sector
-       after a gap). */
-    if (c.at > prev.at + BROADCAST_TTL) {
-      return { kind: 're-acquired', x: +c.x, z: +c.z, at: now, unitId: c.unit && c.unit.id };
-    }
+    if (c.at > prev.at + BROADCAST_TTL)
+      return {
+        kind: 're-acquired',
+        x: c.x,
+        z: c.z,
+        at: c.at,
+        unitId: c.unitId,
+        firstHand: c.firstHandAt != null,
+        precision: c.precision
+      };
     return null;
   }
 
@@ -170,10 +187,9 @@
     return st.bySquad[key];
   }
 
-  function contactSig(sq) {
-    var c = sq.contact;
+  function contactSig(c) {
     if (!c) return null;
-    return Math.round(+c.x / 20) + ':' + Math.round(+c.z / 20) + ':' + ((c.unit && c.unit.id) || '?');
+    return Math.round(c.x / 20) + ':' + Math.round(c.z / 20) + ':' + (c.unitId == null ? '?' : c.unitId);
   }
 
   function tick(sim) {
@@ -181,36 +197,39 @@
     var st = stateFor(sim),
       now = +sim.time || 0;
     ['us', 'ge'].forEach(function (f) {
-      var squads = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
-      for (var i = 0; i < squads.length; i++) {
-        var sq = squads[i];
-        if (!sq || sq.disbanded) continue;
+      var squads = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [],
+        sources = squads.map(function (sq) {
+          return { squad: sq, contact: snapshotContact(sq) };
+        });
+      for (var i = 0; i < sources.length; i++) {
+        var sq = sources[i].squad,
+          contact = sources[i].contact;
+        if (!sq || sq.disbanded || !contact || contact.broadcast) continue;
         var ss = squadState(st, sq),
-          sig = contactSig(sq),
-          prevSig = ss.lastContactSig;
-        /* Track the contact signature for next tick's change detection. */
-        ss.lastContactSig = sig;
-        /* No contact or no change in signature = no broadcast. */
-        if (!sig) continue;
-        if (sig === prevSig) continue;
-        /* Cooldown: don't re-broadcast the same sector+unit too often. */
+          change = contactChange(contact, ss.lastContact);
+        if (!change) continue;
+        /* A cooldown suppression does not consume the change. lastContact tracks the
+           last successfully sent report, so a still-current change retries later. */
         if (now - ss.lastBroadcastAt < BROADCAST_COOLDOWN) {
           ss.suppressed++;
           st.suppressed++;
           continue;
         }
-        var change = contactChange(sq, ss.lastContact, sim);
-        ss.lastContact = sq.contact
-          ? { x: +sq.contact.x, z: +sq.contact.z, at: +sq.contact.at, firstHandAt: sq.contact.firstHandAt }
-          : null;
-        if (!change) continue;
-        /* Compute recipients. */
         var recipients = nearbySquads(sim, sq, BROADCAST_RANGE);
         ss.lastBroadcastAt = now;
+        ss.lastContactSig = contactSig(contact);
+        ss.lastContact = {
+          x: contact.x,
+          z: contact.z,
+          at: contact.at,
+          firstHandAt: contact.firstHandAt,
+          unitId: contact.unitId
+        };
         ss.sent++;
         st.sent++;
         var broadcast = {
           at: now,
+          observedAt: change.at,
           sourceSquad: sq.id,
           faction: f,
           kind: change.kind,
@@ -232,6 +251,7 @@
               kind: change.kind,
               x: +change.x.toFixed(1),
               z: +change.z.toFixed(1),
+              observedAt: change.at,
               unitId: change.unitId || null,
               recipientCount: recipients.length,
               recipients: broadcast.recipients
@@ -255,15 +275,20 @@
                the receiver (SQUAD_NAMES = {'sq','squad'}). This is the receiving
                squad, not the broadcasting squad (which is 'sq' above). */
             var squad = recipients[j].squad,
-              held = squad.contact;
-            /* Don't overwrite a first-hand sighting with a broadcast. */
-            if (held && held.firstHandAt) continue;
-            /* Don't overwrite a fresher contact (heard or relayed) with a stale broadcast. */
-            if (held && held.at > change.at) continue;
+              held = squad.contact,
+              A = root.SquadAI,
+              hasOwnFresh =
+                A && A.hasFirstHandMemory
+                  ? A.hasFirstHandMemory(held, sim)
+                  : !!(held && held.firstHandAt != null && now - held.firstHandAt <= BROADCAST_TTL);
+            if (hasOwnFresh) continue;
+            /* Compare source observation age, not dispatch time. */
+            if (held && isFinite(+held.at) && +held.at > change.at) continue;
             /* Don't apply if the squad is retreating or regrouping (different priorities). */
             if (squad.state === 'retreat' || squad.commandPhase === 'regroup') continue;
+            var unit = change.unitId ? lookupUnit(sim, change.unitId, f) : null;
             squad.contact = {
-              unit: change.unitId ? lookupUnit(sim, change.unitId, f) : null,
+              unit: unit,
               x: change.x,
               z: change.z,
               at: change.at,
@@ -271,10 +296,44 @@
               stance: null,
               relayedFrom: sq.id,
               broadcast: true,
-              firstHandAt: null
+              firstHandAt: null,
+              precision: change.precision || 'reported-position'
             };
             rs.applied = (rs.applied || 0) + 1;
             st.applied = (st.applied || 0) + 1;
+            var beliefApplies = 0;
+            if (A && A.rememberReportedContact) {
+              var members = squad.members || [];
+              for (var mi = 0; mi < members.length; mi++) {
+                var man = members[mi];
+                if (!man || man.dead) continue;
+                if (
+                  A.rememberReportedContact(man, sim, {
+                    unit: unit,
+                    targetId: change.unitId,
+                    otherFaction: f === 'us' ? 'ge' : 'us',
+                    x: change.x,
+                    z: change.z,
+                    observedAt: change.at,
+                    reportedAt: now,
+                    sourceId: 'squad:' + String(sq.id),
+                    reportId:
+                      'broadcast:' +
+                      String(sq.id) +
+                      ':' +
+                      String(change.at) +
+                      ':' +
+                      String(change.unitId == null ? contactSig(contact) : change.unitId),
+                    confidence: change.firstHand ? 0.78 : 0.62,
+                    precision: change.precision || 'reported-position',
+                    reason: 'squad-broadcast:' + change.kind
+                  })
+                )
+                  beliefApplies++;
+              }
+            }
+            rs.beliefsApplied = (rs.beliefsApplied || 0) + beliefApplies;
+            st.beliefsApplied = (st.beliefsApplied || 0) + beliefApplies;
             /* Phase 0F3: stamp the reaction timestamp and emit telemetry so the
                Squad Leader and diagnostics can see that this squad reacted to a
                broadcast. The reaction itself is the existing squadSenses ->
@@ -292,7 +351,9 @@
                   kind: change.kind,
                   x: +change.x.toFixed(1),
                   z: +change.z.toFixed(1),
-                  distance: +recipients[j].distance.toFixed(1)
+                  observedAt: change.at,
+                  distance: +recipients[j].distance.toFixed(1),
+                  beliefsApplied: beliefApplies
                 },
                 sim
               );
@@ -335,6 +396,7 @@
         received: st.received,
         suppressed: st.suppressed,
         applied: st.applied || 0,
+        beliefsApplied: st.beliefsApplied || 0,
         bySquad: Object.keys(st.bySquad).map(function (id) {
           var s = st.bySquad[id];
           return {
@@ -342,7 +404,8 @@
             sent: s.sent,
             received: s.received,
             suppressed: s.suppressed,
-            applied: s.applied || 0
+            applied: s.applied || 0,
+            beliefsApplied: s.beliefsApplied || 0
           };
         }),
         recentBroadcasts: st.broadcasts.slice(0, 20)
