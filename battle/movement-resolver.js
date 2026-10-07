@@ -454,10 +454,14 @@
     if (!fled && (sq.state === 'retreat' || sq.commandPhase === 'retreat')) {
       if (st.goal && st.goal.kind !== 'retreat') count(battle, 'emergencyOverrides');
       st.combat = null;
-      var escape =
-        st.order && st.order.signature === signature(soldier)
-          ? st.order.point
-          : sq.home || soldier.orderDestination;
+      var extraction =
+          root.SquadAI && root.SquadAI.isExtractionToHome && root.SquadAI.isExtractionToHome(sq) && root.SquadAI.extractionHome
+            ? root.SquadAI.extractionHome(sq)
+            : null,
+        escape =
+          st.order && st.order.signature === signature(soldier)
+            ? st.order.point
+            : extraction || sq.home || soldier.orderDestination;
       return proposal('squad-command', escape, battle, 'retreat', true, Infinity);
     }
     if (sq.commandPhase === 'regroup' && !trance) {
