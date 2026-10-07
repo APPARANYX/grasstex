@@ -534,7 +534,7 @@
   }
   function detectSquad(sim, sq, h) {
     if (h.length < 7) return;
-    var recent = h.slice(-9),
+    var recent = h.slice(-MAX_PERIOD * 3),
       p = repeatingPeriod(recent, 'decisionSig', MAX_PERIOD),
       move = travelStats(recent, 'pos'),
       orderChanges = changes(recent, 'order', 2.5),
