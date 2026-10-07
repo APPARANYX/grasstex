@@ -45,7 +45,8 @@
           tp = target && target.root && target.root.position,
           shotRange = sp && tp ? dist(sp, tp) : Infinity;
         if (!s.weapon || root.SquadAI.isMachineGun(s) || root.SquadAI.engageRange(s) < shotRange) continue;
-        var roleBonus = s.role === 'sniper' ? 0.2 : s.role === 'scout' ? 0.12 : s.role === 'rifleman' ? 0.03 : 0,
+        var roleBonus =
+            s.role === 'sniper' ? 0.2 : s.role === 'scout' ? 0.12 : s.role === 'rifleman' ? 0.03 : 0,
           score = mkm(s) + roleBonus;
         if (
           score > bestScore + 1e-9 ||
@@ -108,10 +109,7 @@
         },
         i;
       for (i = 0; i < men.length; i++) {
-        var o =
-            E && E.fireControlObservation
-              ? E.fireControlObservation(men[i], battle)
-              : { ready: false },
+        var o = E && E.fireControlObservation ? E.fireControlObservation(men[i], battle) : { ready: false },
           ready = E && E.fireControlReady ? E.fireControlReady(men[i], battle) : !!o.ready;
         if (ready) out.ready++;
         if (o.visualLine) out.visualLine++;
@@ -127,7 +125,7 @@
         state: state,
         since: battle.time,
         startedAt: prev && isFinite(+prev.startedAt) ? +prev.startedAt : battle.time,
-        targetId: data.targetId == null ? (prev && prev.targetId) : data.targetId,
+        targetId: data.targetId == null ? prev && prev.targetId : data.targetId,
         shooterId: data.shooterId == null ? null : data.shooterId,
         reason: reason,
         range: isFinite(+data.range) ? +data.range : prev && isFinite(+prev.range) ? +prev.range : Infinity,
@@ -212,11 +210,7 @@
     function updateFireControl(sq, battle, report) {
       if (!FIRE_CONTROL_ON || !sq || !battle) return null;
       var fc = sq.fireControl;
-      if (
-        fc &&
-        fc.state === 'reposition' &&
-        battle.time - fc.since >= FIRE_CONTROL_TUNING.repositionTimeout
-      )
+      if (fc && fc.state === 'reposition' && battle.time - fc.since >= FIRE_CONTROL_TUNING.repositionTimeout)
         return setFireControl(sq, battle, fc, 'open', 'reposition timed out: resume maneuver fire');
       var c = firstHandContact(sq, battle);
       if (!c) return fc || null;
