@@ -587,6 +587,57 @@
       reason: reason || (combatThreat === false ? 'seen-non-threat' : 'direct-sight')
     });
   }
+  /* Perception-owned ingress for reported tactical facts from non-callout transports.
+     The transport supplies only evidence and provenance; this owner decides belief key, confidence,
+     staleness and replacement. Reported information never becomes a live hidden target. */
+  function rememberReported(soldier, battle, fact, meta) {
+    if (
+      !SOLDIER_BELIEFS_ON ||
+      !soldier ||
+      soldier.dead ||
+      !battle ||
+      !fact ||
+      !isFinite(+fact.x) ||
+      !isFinite(+fact.z) ||
+      !isFinite(+fact.at)
+    )
+      return null;
+    var observedAt = +fact.at,
+      expiresAt = observedAt + BELIEF_TUNING.toldTtl;
+    if (battle.time >= expiresAt) return null;
+    var opt = meta || {},
+      key =
+        beliefUnitKey(fact.unit) ||
+        'told-sector:' + Math.round(+fact.x / 20) + ':' + Math.round(+fact.z / 20),
+      conf = clamp(
+        opt.confidence == null ? 0.72 : +opt.confidence,
+        BELIEF_TUNING.toldConfidenceMin,
+        BELIEF_TUNING.toldConfidenceMax
+      );
+    return writeBelief(soldier, battle, {
+      key: key,
+      unit: fact.unit || null,
+      targetId: fact.unit && fact.unit.id != null ? String(fact.unit.id) : null,
+      source: 'told',
+      sourceSoldierId: null,
+      sourceCalloutId: null,
+      x: +fact.x,
+      z: +fact.z,
+      sector: beliefSector(soldier, fact.x, fact.z),
+      observedAt: observedAt,
+      reportedAt: isFinite(+opt.reportedAt) ? +opt.reportedAt : battle.time,
+      receivedAt: battle.time,
+      baseConfidence: +conf.toFixed(3),
+      expiresAt: expiresAt,
+      combatThreat: fact.combatThreat !== false,
+      precision: fact.precision || 'reported-position',
+      reason:
+        opt.reason ||
+        (opt.sourceSquadId != null
+          ? 'squad-broadcast:' + String(opt.sourceSquadId)
+          : 'reported-contact')
+    });
+  }
   function applyCalloutBelief(soldier, battle) {
     if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return null;
     var calls = root.BattleCallouts;
@@ -2263,6 +2314,7 @@
     soldierContact: soldierContact,
     hasKnownNonThreat: hasKnownNonThreat,
     rememberSeen: rememberSeen,
+    rememberReported: rememberReported,
     applyCalloutBelief: applyCalloutBelief,
     hearGunfireBelief: hearGunfireBelief,
     observeKnownNonThreats: observeKnownNonThreats,
