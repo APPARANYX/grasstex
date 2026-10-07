@@ -1,4 +1,4 @@
-name: Generate combat sound effects
+name: ⭐ Generate combat sound effects
 
 # Generates the clips Assets/audio/combat-sfx-manifest.json declares (near-miss flybys, ricochets, surface
 # impacts, flesh hits, pain) that do not exist yet, with ElevenLabs Sound Effects (scripts/generate_combat_sfx.py:
