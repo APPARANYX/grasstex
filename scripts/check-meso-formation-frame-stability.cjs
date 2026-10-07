@@ -35,6 +35,9 @@ const context = {
     isLeader: real.isLeader,
     establishment: real.establishment,
     retreatGoal: real.retreatGoal,
+    isExtractionToHome: real.isExtractionToHome,
+    isMachineGun: real.isMachineGun,
+    engageRange: real.engageRange,
     formationFor() { return 'line'; },
     // A deterministic formation around the Squad Leader-owned squad anchor. This keeps the test about
     // Meso commitment lifecycle rather than production formation geometry.
@@ -48,9 +51,14 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync('battle/core-runtime.js', 'utf8'), context, {
   filename: 'battle/core-runtime.js'
 });
-vm.runInContext(fs.readFileSync('battle/modules/16-squad-plan-stability.js', 'utf8'), context, {
-  filename: 'battle/modules/16-squad-plan-stability.js'
-});
+for (const file of [
+  'battle/modules/15b-squad-leader-buddy-pairs.js',
+  'battle/modules/15g-squad-leader-formation.js',
+  'battle/modules/15h-squad-leader-fireteams.js',
+  'battle/modules/16-squad-plan-stability.js'
+]) {
+  vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
+}
 
 function soldier(id, slotIndex, x) {
   return {
