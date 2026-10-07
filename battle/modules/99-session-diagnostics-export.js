@@ -884,6 +884,291 @@
     else out.orderProvenance = ai.orderProvenance;
     return out;
   }
+  function compactSquad(sim, sq) {
+    var analysis = squadAnalysis(sim, sq),
+      mission = sq._macroMission || null;
+    return {
+      id: sq.id,
+      faction: sq.faction,
+      state: sq.state || null,
+      commandPhase: sq.commandPhase || null,
+      commandRole: sq.commandRole || null,
+      alive: aliveMembers(sq).length,
+      inContact: !!sq.inContact,
+      targetObjective: sq.targetObjective || null,
+      mission: mission
+        ? {
+            version: mission.version,
+            intent: mission.intent || null,
+            action: mission.action || null,
+            objectiveId: mission.objectiveId || null,
+            status: mission.status || null,
+            reason: mission.reason || null
+          }
+        : null,
+      fireControl: safePlain(sq.fireControl, 3),
+      fireControlTrail: safePlain((sq._fireControlTrail || []).slice(-8), 3),
+      regroup: safePlain(sq._regroupHysteresis, 2),
+      assembly: safePlain(sq._assembly, 3),
+      reconstitutionGroup: sq._reconGroup || null,
+      analysis: {
+        position: analysis.position,
+        commandPointDistance: analysis.commandPointDistance,
+        targetObjectiveState: analysis.targetObjectiveState,
+        spread: analysis.spread,
+        cohesionLimit: analysis.cohesionLimit,
+        overCohesionLimit: analysis.overCohesionLimit,
+        route: analysis.route,
+        regroupRecovery: analysis.regroupRecovery,
+        retreatAnchor: analysis.retreatAnchor,
+        fireteamOrders: analysis.fireteamOrders,
+        movement: analysis.movement
+      }
+    };
+  }
+  function compactSnapshot(sim) {
+    sim = sim || activeSim || root.__battle__;
+    if (!sim) throw new Error('No active battle simulation');
+    var ai = aiSections(sim),
+      scenario =
+        (sim.scene &&
+          sim.scene.metadata &&
+          (sim.scene.metadata.battleScenario || sim.scene.metadata.battleTown)) ||
+        {},
+      timeline =
+        root.BattleAITimeline && root.BattleAITimeline.snapshot ? root.BattleAITimeline.snapshot(sim) : null,
+      squads = [];
+    ['us', 'ge'].forEach(function (faction) {
+      ((sim.factions && sim.factions[faction] && sim.factions[faction].squads) || []).forEach(function (sq) {
+        squads.push(compactSquad(sim, sq));
+      });
+    });
+    return {
+      format: 'grasstex-battle-compact-diagnostics-v1',
+      exportedAt: new Date().toISOString(),
+      build: root.BATTLE_BUILD || root.BATTLE_BUILD_DEPLOYED || 'dev',
+      ref: root.BATTLE_REF || null,
+      seed: scenario.seed || sim.seed || null,
+      battle: {
+        time: finite(+sim.time),
+        timeLimit: finite(+sim.timeLimit),
+        winner: sim.winner || null,
+        winReason: sim.winReason || null,
+        manualEnded: !!sim.manualEnded
+      },
+      factions: {
+        us: {
+          alive: sim.factions && sim.factions.us && sim.factions.us.alive,
+          kills: sim.factions && sim.factions.us && sim.factions.us.kills
+        },
+        ge: {
+          alive: sim.factions && sim.factions.ge && sim.factions.ge.alive,
+          kills: sim.factions && sim.factions.ge && sim.factions.ge.kills
+        }
+      },
+      objectives: objectives(sim),
+      reconstitution: safePlain(sim._macroMissionState && sim._macroMissionState.reconstitution, 5),
+      commandReception:
+        root.BattleCommandReception && root.BattleCommandReception.telemetry
+          ? safePlain(root.BattleCommandReception.telemetry(sim), 4)
+          : null,
+      coordinationHealth: ai.coordinationHealth,
+      diagnosticMetrics: ai.diagnosticMetrics,
+      movementResolver: ai.movementResolver,
+      loopWatch: {
+        count: ai.loopWatch.count,
+        alerts: safePlain((ai.loopWatch.alerts || []).slice(-40), 5)
+      },
+      orderProvenance: {
+        eventCount: ai.orderProvenance.eventCount,
+        conflictCount: ai.orderProvenance.conflictCount,
+        conflicts: safePlain((ai.orderProvenance.conflicts || []).slice(-30), 4)
+      },
+      squads: squads,
+      timeline: timeline
+    };
+  }
+  function markdownJson(value) {
+    return '~~~json\n' + JSON.stringify(value, null, 2) + '\n~~~\n';
+  }
+  function mdValue(value) {
+    if (value == null || value === '') return '-';
+    return String(value).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+  }
+  function compactMarkdown(payload) {
+    var lines = [
+      '# Grasstex Battle Diagnostic Summary',
+      '',
+      '- Exported: ' + mdValue(payload.exportedAt),
+      '- Build: ' + mdValue(payload.build),
+      '- Ref: ' + mdValue(payload.ref),
+      '- Seed: ' + mdValue(payload.seed),
+      '- Battle time: ' + mdValue(payload.battle.time) + ' s',
+      '- Winner: ' + mdValue(payload.battle.winner),
+      '- Win reason: ' + mdValue(payload.battle.winReason),
+      '',
+      '## Force Summary',
+      '',
+      '| Faction | Alive | Kills |',
+      '| --- | ---: | ---: |',
+      '| US | ' + mdValue(payload.factions.us.alive) + ' | ' + mdValue(payload.factions.us.kills) + ' |',
+      '| GE | ' + mdValue(payload.factions.ge.alive) + ' | ' + mdValue(payload.factions.ge.kills) + ' |',
+      '',
+      '## Squad State',
+      '',
+      '| Squad | Side | Alive | State | Phase | Role | Objective | Contact | Fire control | Assembly |',
+      '| --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- |'
+    ];
+    payload.squads.forEach(function (sq) {
+      lines.push(
+        '| ' +
+          [
+            mdValue(sq.id),
+            mdValue(sq.faction),
+            mdValue(sq.alive),
+            mdValue(sq.state),
+            mdValue(sq.commandPhase),
+            mdValue(sq.commandRole),
+            mdValue(sq.targetObjective),
+            sq.inContact ? 'yes' : 'no',
+            mdValue(sq.fireControl && sq.fireControl.state),
+            mdValue(sq.assembly && sq.assembly.phase)
+          ].join(' | ') +
+          ' |'
+      );
+    });
+    var activeRecon =
+        payload.reconstitution && Array.isArray(payload.reconstitution.active)
+          ? payload.reconstitution.active
+          : [],
+      reposition = payload.squads.filter(function (sq) {
+        return sq.fireControl && sq.fireControl.state === 'reposition';
+      }),
+      retreatStalls = payload.squads.filter(function (sq) {
+        return (
+          sq.analysis &&
+          sq.analysis.retreatAnchor &&
+          sq.analysis.retreatAnchor.reason === 'no retreat progress'
+        );
+      }),
+      overCohesion = payload.squads.filter(function (sq) {
+        return sq.analysis && sq.analysis.overCohesionLimit;
+      });
+    lines.push(
+      '',
+      '## Immediate Flags',
+      '',
+      '- Active reconstitution groups: ' + activeRecon.length,
+      '- Fire-control reposition squads: ' + reposition.map(function (sq) { return sq.id; }).join(', ') || '-',
+      '- No-retreat-progress squads: ' + retreatStalls.map(function (sq) { return sq.id; }).join(', ') || '-',
+      '- Over-cohesion squads: ' + overCohesion.map(function (sq) { return sq.id; }).join(', ') || '-',
+      '- Loop Watch alerts: ' + mdValue(payload.loopWatch && payload.loopWatch.count),
+      '- Order-writer conflicts: ' + mdValue(payload.orderProvenance && payload.orderProvenance.conflictCount),
+      '',
+      '## Reconstitution',
+      '',
+      markdownJson(payload.reconstitution),
+      '## Command Reception',
+      '',
+      markdownJson(payload.commandReception),
+      '## Coordination Health',
+      '',
+      markdownJson(payload.coordinationHealth),
+      '## Diagnostic Metrics',
+      '',
+      markdownJson(payload.diagnosticMetrics),
+      '## Movement Resolver',
+      '',
+      markdownJson(payload.movementResolver),
+      '## Loop Watch',
+      '',
+      markdownJson(payload.loopWatch),
+      '## Squad Details',
+      ''
+    );
+    payload.squads.forEach(function (sq) {
+      lines.push('### ' + sq.faction.toUpperCase() + ' / ' + sq.id, '', markdownJson(sq));
+    });
+    return lines.join('\n');
+  }
+  function timelineJsonl(payload) {
+    var timeline = payload.timeline || {},
+      rows = [];
+    rows.push(
+      JSON.stringify({
+        type: 'meta',
+        format: 'grasstex-ai-timeline-jsonl-v1',
+        build: payload.build,
+        ref: payload.ref,
+        seed: payload.seed,
+        battle: payload.battle,
+        sampleSeconds: timeline.sampleSeconds
+      })
+    );
+    (timeline.samples || []).forEach(function (sample) {
+      rows.push(JSON.stringify({ type: 'sample', data: sample }));
+    });
+    (timeline.markers || []).forEach(function (marker) {
+      rows.push(JSON.stringify({ type: 'marker', data: marker }));
+    });
+    var observer = timeline.observer || {};
+    (observer.windows || []).forEach(function (window) {
+      rows.push(
+        JSON.stringify({
+          type: 'observer-window',
+          id: window.id,
+          side: window.side,
+          squad: window.squad,
+          start: window.start,
+          triggerAt: window.triggerAt,
+          through: window.through,
+          end: window.end,
+          reasons: window.reasons
+        })
+      );
+      (window.frames || []).forEach(function (frame) {
+        rows.push(JSON.stringify({ type: 'observer-frame', window: window.id, data: frame }));
+      });
+    });
+    return rows.join('\n') + '\n';
+  }
+  function downloadText(name, text, type) {
+    if (
+      typeof document === 'undefined' ||
+      typeof Blob === 'undefined' ||
+      !root.URL ||
+      !root.URL.createObjectURL
+    )
+      return text;
+    var blob = new Blob([text], { type: type || 'text/plain;charset=utf-8' }),
+      url = root.URL.createObjectURL(blob),
+      a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () {
+      root.URL.revokeObjectURL(url);
+    }, 1500);
+    return text;
+  }
+  function downloadCompact(sim) {
+    var payload = compactSnapshot(sim),
+      stamp = payload.exportedAt.replace(/[:.]/g, '-'),
+      stem =
+        'battle-compact-diag-' +
+        cleanName(payload.seed || 'battle') +
+        '-' +
+        cleanName(payload.build || 'dev') +
+        '-' +
+        stamp;
+    downloadText(stem + '-summary.md', compactMarkdown(payload), 'text/markdown;charset=utf-8');
+    setTimeout(function () {
+      downloadText(stem + '-timeline.jsonl', timelineJsonl(payload), 'application/x-ndjson;charset=utf-8');
+    }, 75);
+    return payload;
+  }
   function cleanName(v) {
     return (
       String(v || 'battle')
@@ -925,29 +1210,51 @@
     return payload;
   }
   function installButton() {
-    if (typeof document === 'undefined' || document.getElementById('bannerExportDiagnostics')) return;
+    if (typeof document === 'undefined') return;
     var restart = document.getElementById('bannerRestart'),
       host = restart && restart.parentNode;
     if (!host) return;
-    var b = document.createElement('button');
-    b.id = 'bannerExportDiagnostics';
-    b.type = 'button';
-    b.textContent = 'Export Full Diagnostics';
-    b.title =
-      'Download full battle state, squads, soldiers, ammo, objectives and runtime diagnostics as JSON';
-    b.style.marginLeft = '8px';
-    b.style.background = '#243247';
-    b.style.borderColor = '#58749a';
-    b.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      try {
-        download('full', activeSim);
-      } catch (err) {
-        console.error('[DIAG] export failed', err);
-      }
-    });
-    host.appendChild(b);
+    if (!document.getElementById('bannerExportCompactDiagnostics')) {
+      var compact = document.createElement('button');
+      compact.id = 'bannerExportCompactDiagnostics';
+      compact.type = 'button';
+      compact.textContent = 'Export Compact Diagnostics';
+      compact.title = 'Download a concise Markdown summary plus chronological timeline JSONL';
+      compact.style.marginLeft = '8px';
+      compact.style.background = '#263b2e';
+      compact.style.borderColor = '#5b8a69';
+      compact.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          downloadCompact(activeSim);
+        } catch (err) {
+          console.error('[DIAG] compact export failed', err);
+        }
+      });
+      host.appendChild(compact);
+    }
+    if (!document.getElementById('bannerExportDiagnostics')) {
+      var full = document.createElement('button');
+      full.id = 'bannerExportDiagnostics';
+      full.type = 'button';
+      full.textContent = 'Export Full JSON';
+      full.title =
+        'Download full battle state, squads, soldiers, ammo, objectives and runtime diagnostics as JSON';
+      full.style.marginLeft = '8px';
+      full.style.background = '#243247';
+      full.style.borderColor = '#58749a';
+      full.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          download('full', activeSim);
+        } catch (err) {
+          console.error('[DIAG] export failed', err);
+        }
+      });
+      host.appendChild(full);
+    }
   }
 
   /* This module sorts last, so it sees the fully wrapped BattleSim.start and only remembers the
@@ -965,10 +1272,12 @@
     else installButton();
   }
   root.BattleDiagnosticsExport = {
-    version: '2.0',
+    version: '2.1-compact',
     build: buildPayload,
+    compact: compactSnapshot,
     snapshot: snapshot,
     download: download,
+    downloadCompact: downloadCompact,
     exportCurrent: function (sim) {
       return download('full', sim);
     },
@@ -976,5 +1285,5 @@
       return activeSim;
     }
   };
-  root.GTLog('[DIAG] end-session full diagnostics export ready');
+  root.GTLog('[DIAG] compact + full end-session diagnostics export ready');
 })(typeof window !== 'undefined' ? window : globalThis);
