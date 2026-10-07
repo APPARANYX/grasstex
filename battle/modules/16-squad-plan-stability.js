@@ -876,6 +876,7 @@
       samePending =
         pending &&
         pending.phase !== 'adopted' &&
+        pending.phase !== 'unreachable' &&
         pending.data &&
         String(pending.data.publishKey || '') === String(publishKey || '');
 
