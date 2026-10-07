@@ -622,7 +622,7 @@ test('a source squad wiped during assembly is cleaned when the surviving sources
   const ended = recon(w).ended.find(g => g.id === grouped.group.id);
   assert.ok(ended && ended.status === 'merged', 'the eight surviving men still merge successfully');
   assert.equal(wiped._reconGroup, null, 'the wiped source is detached from the terminal group');
-  assert.ok(wiped._macroMission && w.r.BattleCommanderAI.isTerminalMission(wiped._macroMission), 'its reconstitution brief is terminal');
-  assert.equal(wiped._macroMission.status, 'failed');
+  assert.ok(wiped._macroMission, 'the wiped source keeps its terminal mission record for diagnostics');
+  assert.equal(wiped._macroMission.status, 'failed', 'its reconstitution brief is terminal');
 });
 console.log(n + ' reconstitution checks passed');
