@@ -91,7 +91,7 @@ survivor-remnant boundary (`REMNANT_EXTRACTION_MAX = 4`), which Force Command ex
 `RECON_POOL_MAX`. A retreating squad with 1-4 living men is no longer a tactical formation: until a
 real reconstitution brief moves its assembly state to `to-rally`, the Squad Leader pins its anchor to
 `SquadAI.extractionHome(sq)` and gives every survivor the same rear-base **survival fallback**. `baseHome`
-is captured when the squad is created and never follows a later prepared-defender rewrite of tactical `home`; That fallback is continuation
+is captured when the squad is created and never follows a later prepared-defender rewrite of tactical `home`. That fallback is continuation
 of the already-entered retreat state, not a new tactical command, so it does not require a scattered
 man to remain inside voice/visual Command Reception range. It opens no local morale-rally recovery and
 never uses the sliding retreat-anchor/recentring path. A dazed, frozen or otherwise delayed survivor
