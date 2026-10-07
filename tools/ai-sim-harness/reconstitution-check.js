@@ -599,10 +599,12 @@ test('a dissolved rally sends an en-route remnant back through to-base instead o
   assert.deepEqual(grouped.group.squads.slice().sort(), [a.id, bq.id].sort());
   assert.equal(bq._assembly.phase, 'to-rally', 'precondition: remnant accepted the assembly brief');
   const home = w.r.SquadAI.extractionHome(bq);
-  bq.members.filter(s => !s.dead).forEach(s => {
-    s.root.position.x = home.x;
-    s.root.position.z = home.z + 80;
-  });
+  bq.members
+    .filter(s => !s.dead)
+    .forEach(s => {
+      s.root.position.x = home.x;
+      s.root.position.z = home.z + 80;
+    });
   a.state = 'advance';
   w.r.BattleCommanderAI.reconstitute(w.b, 'us');
   run(w, H.AI_TICK);
@@ -616,7 +618,11 @@ test('a source squad wiped during assembly is cleaned when the surviving sources
     wiped = squad(w, 1, 1, null, 20),
     c = squad(w, 2, 4, null, 20),
     grouped = untilGrouped(w, 120);
-  assert.deepEqual(grouped.group.squads.slice().sort(), [a.id, wiped.id, c.id].sort(), 'all three sources are needed for the viable group');
+  assert.deepEqual(
+    grouped.group.squads.slice().sort(),
+    [a.id, wiped.id, c.id].sort(),
+    'all three sources are needed for the viable group'
+  );
   living(wiped).forEach(s => w.b.killSoldier(s, null));
   run(w, 360);
   const ended = recon(w).ended.find(g => g.id === grouped.group.id);
