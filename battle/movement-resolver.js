@@ -455,7 +455,10 @@
       if (st.goal && st.goal.kind !== 'retreat') count(battle, 'emergencyOverrides');
       st.combat = null;
       var extraction =
-          root.SquadAI && root.SquadAI.isExtractionToHome && root.SquadAI.isExtractionToHome(sq) && root.SquadAI.extractionHome
+          root.SquadAI &&
+          root.SquadAI.isExtractionToHome &&
+          root.SquadAI.isExtractionToHome(sq) &&
+          root.SquadAI.extractionHome
             ? root.SquadAI.extractionHome(sq)
             : null,
         escape =
