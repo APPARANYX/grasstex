@@ -7,12 +7,11 @@ const assert = require('node:assert/strict'),
   H = require('./harness');
 
 function load(root, file) {
-  new Function(
-    'window',
-    'globalThis',
-    'console',
-    fs.readFileSync(path.join(H.REPO, file), 'utf8')
-  )(root, root, { log() {}, warn() {} });
+  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(
+    root,
+    root,
+    { log() {}, warn() {} }
+  );
 }
 
 H.resetIds();
@@ -67,7 +66,11 @@ assert.deepEqual(s._movementResolver.combat.intentPoint, us.orderAnchor);
 b.time += 0.15;
 E.updateSoldier(s, b);
 assert.equal(e.state, 'withdraw', 'local withdrawal remains a real state across ticks');
-assert.equal(s._movementResolver.combat.kind, 'withdraw', 'resolver continues receiving the break-contact move');
+assert.equal(
+  s._movementResolver.combat.kind,
+  'withdraw',
+  'resolver continues receiving the break-contact move'
+);
 
 put(foe, 0, range * 0.8);
 b.time += 0.15;

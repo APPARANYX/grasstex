@@ -621,7 +621,8 @@
       ]
     },
     withdraw: {
-      meaning: 'Withdraw under squad retreat authority or make a local break-contact move to the squad anchor',
+      meaning:
+        'Withdraw under squad retreat authority or make a local break-contact move to the squad anchor',
       enteredBy: 'squad retreat override; no-cover out-of-range break contact',
       exits: 'squad retreat ends/local threat clears or closes -> advance/orient; station claim -> station',
       rate: '0.15 s',
@@ -1453,15 +1454,26 @@
         targetDistance = target ? dist(p.x, p.z, posOf(target).x, posOf(target).z) : Infinity,
         assaulting = s.squad && ADVANCING[s.squad.commandPhase];
       if (!target || assaulting) {
-        transition(s, battle, 'advance', 0, target ? 'break contact superseded by squad advance' : 'break contact clear');
+        transition(
+          s,
+          battle,
+          'advance',
+          0,
+          target ? 'break contact superseded by squad advance' : 'break contact clear'
+        );
         return advance(s, battle);
       }
       if (targetDistance <= SA().engageRange(s) * 1.1) {
-        transition(s, battle, 'orient', reactTime(s, battle) * 0.6, 'break contact complete: target in range');
+        transition(
+          s,
+          battle,
+          'orient',
+          reactTime(s, battle) * 0.6,
+          'break contact complete: target in range'
+        );
         return orient(s, battle);
       }
-      if (dist(p.x, p.z, localPoint.x, localPoint.z) > 1.8)
-        move(s, battle, localPoint, 'withdraw');
+      if (dist(p.x, p.z, localPoint.x, localPoint.z) > 1.8) move(s, battle, localPoint, 'withdraw');
       else holdPosition(s, battle);
     } else followOrders(s, battle, true);
     if (s.target && dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z) < 35)
