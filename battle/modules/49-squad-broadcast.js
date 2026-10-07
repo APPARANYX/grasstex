@@ -89,46 +89,64 @@
     return null;
   }
 
-  /* What changed about a squad's contact that is worth broadcasting. Returns null if nothing
-     meaningful changed (same contact, same sector, no upgrade). */
-  function contactChange(sq, prev, battle) {
-    var c = sq.contact;
-    if (!c || !isFinite(+c.x) || !isFinite(+c.z)) return null;
-    var now = +battle.time || 0;
-    /* First-ever contact for this squad is always meaningful. */
-    if (!prev) {
+  function snapshotContact(sq) {
+    var c = sq && sq.contact;
+    if (!c || !isFinite(+c.x) || !isFinite(+c.z) || !isFinite(+c.at)) return null;
+    return {
+      x: +c.x,
+      z: +c.z,
+      at: +c.at,
+      unitId: c.unit && c.unit.id != null ? c.unit.id : null,
+      firstHandAt: c.firstHandAt == null ? null : +c.firstHandAt,
+      broadcast: !!c.broadcast,
+      precision: c.precision || null
+    };
+  }
+
+  function contactChange(c, prev) {
+    if (!c) return null;
+    if (!prev)
       return {
         kind: 'new-contact',
-        x: +c.x,
-        z: +c.z,
-        at: now,
-        unitId: c.unit && c.unit.id,
-        seenBy: c.seenBy
+        x: c.x,
+        z: c.z,
+        at: c.at,
+        unitId: c.unitId,
+        firstHand: c.firstHandAt != null,
+        precision: c.precision
       };
-    }
-    /* Contact upgraded from heard/relayed to first-hand. */
-    if (!prev.firstHandAt && c.firstHandAt) {
-      return { kind: 'upgraded-to-firsthand', x: +c.x, z: +c.z, at: now, unitId: c.unit && c.unit.id };
-    }
-    /* Contact moved to a new 20m sector (significant position change). */
-    var prevSec = Math.round(+prev.x / 20) + ':' + Math.round(+prev.z / 20),
-      curSec = Math.round(+c.x / 20) + ':' + Math.round(+c.z / 20);
-    if (prevSec !== curSec) {
+    if (prev.firstHandAt == null && c.firstHandAt != null)
+      return {
+        kind: 'upgraded-to-firsthand',
+        x: c.x,
+        z: c.z,
+        at: c.at,
+        unitId: c.unitId,
+        firstHand: true,
+        precision: c.precision
+      };
+    var prevSec = Math.round(prev.x / 20) + ':' + Math.round(prev.z / 20),
+      curSec = Math.round(c.x / 20) + ':' + Math.round(c.z / 20);
+    if (prevSec !== curSec)
       return {
         kind: 'sector-change',
-        x: +c.x,
-        z: +c.z,
-        at: now,
-        unitId: c.unit && c.unit.id,
-        fromSector: prevSec,
-        toSector: curSec
+        x: c.x,
+        z: c.z,
+        at: c.at,
+        unitId: c.unitId,
+        firstHand: c.firstHandAt != null,
+        precision: c.precision
       };
-    }
-    /* Contact is significantly fresher (a new sighting of the same enemy in the same sector
-       after a gap). */
-    if (c.at > prev.at + BROADCAST_TTL) {
-      return { kind: 're-acquired', x: +c.x, z: +c.z, at: now, unitId: c.unit && c.unit.id };
-    }
+    if (c.at > prev.at + BROADCAST_TTL)
+      return {
+        kind: 're-acquired',
+        x: c.x,
+        z: c.z,
+        at: c.at,
+        unitId: c.unitId,
+        firstHand: c.firstHandAt != null,
+        precision: c.precision
+      };
     return null;
   }
 
