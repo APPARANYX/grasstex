@@ -1458,10 +1458,14 @@
       disabled = known === null,
       i,
       s,
-      chosen = 0;
+      chosen = 0,
+      priorSuppressors = [];
     for (i = 0; i < members.length; i++) {
       s = members[i];
-      if (!s.dead && !s.isPlayer) state(s).suppressOrder = false;
+      if (!s.dead && !s.isPlayer) {
+        if (state(s).suppressOrder) priorSuppressors.push(s);
+        state(s).suppressOrder = false;
+      }
     }
     if (!disabled && (personal || contact)) {
       var bounding = root.BattleLeases.holds(sq, 'bound', battle.time),
@@ -1481,7 +1485,7 @@
         if (
           es.state === 'bound' ||
           es.state === 'pinned' ||
-          es.state === 'withdraw' ||
+          (es.state === 'withdraw' && sq.state === 'retreat') ||
           es.state === 'assault' ||
           ACTING[es.state] === 1
         )
@@ -1504,8 +1508,8 @@
         var ga = SA().isMachineGun(a) ? 0 : 1,
           gb = SA().isMachineGun(b) ? 0 : 1;
         if (ga !== gb) return ga - gb;
-        var sa = state(a).suppressOrder ? 0 : 1,
-          sb = state(b).suppressOrder ? 0 : 1;
+        var sa = priorSuppressors.indexOf(a) >= 0 ? 0 : 1,
+          sb = priorSuppressors.indexOf(b) >= 0 ? 0 : 1;
         if (sa !== sb) return sa - sb;
         return (+a.slotIndex || 0) - (+b.slotIndex || 0);
       });
