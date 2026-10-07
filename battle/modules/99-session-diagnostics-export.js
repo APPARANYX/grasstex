@@ -918,7 +918,7 @@
         spread: analysis.spread,
         cohesionLimit: analysis.cohesionLimit,
         overCohesionLimit: analysis.overCohesionLimit,
-        route: analysis.route,
+        route: analysis.routeState,
         regroupRecovery: analysis.regroupRecovery,
         retreatAnchor: analysis.retreatAnchor,
         fireteamOrders: analysis.fireteamOrders,
