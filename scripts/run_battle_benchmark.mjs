@@ -453,7 +453,14 @@ try {
     function buildRecord({ index, seed, scenario, diag, wallStart, steps, extra }) {
         const control = sim.objectiveControl || {}, counts = control.counts || { us: control.us || 0, ge: control.ge || 0 }, stats = sim.objectiveStats || {};
         const objectiveStates = (sim._objectives || []).map(o => { const st = objectiveStatus(o); return { id: o.id, owner: st.owner || 'neutral', active: st.active || null, vacantOwner: !!st.vacantOwner, us: +(st.us || st.weights?.us || 0), ge: +(st.ge || st.weights?.ge || 0) }; });
-        const recovery = sim._objectiveRecovery || {}, conflicts = provenanceConflicts(), loops = loopAlerts();
+        const recovery = sim._objectiveRecovery || {}, allConflicts = provenanceConflicts(), allLoops = loopAlerts();
+        const diagnosticTime = item => Number.isFinite(+item?.at) ? +item.at : Number.isFinite(+item?.time) ? +item.time : null;
+        const inRecordWindow = item => {
+          if (!extra?.window) return true;
+          const at = diagnosticTime(item);
+          return at != null && at > extra.window.openedAt + 1e-9 && at <= extra.window.closedAt + 1e-9;
+        };
+        const conflicts = allConflicts.filter(inRecordWindow), loops = allLoops.filter(inRecordWindow);
         const strategicFields = new Set(['commandPhase','targetObjective','objective','orderAnchor','rally']);
         const strategicConflicts = conflicts.filter(c => strategicFields.has(c?.field)).length;
         const loopKinds = {}; for (const a of loops) addMap(loopKinds, a.kind || a.type || 'unknown');

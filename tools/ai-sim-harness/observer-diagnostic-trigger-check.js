@@ -170,6 +170,31 @@ assert.equal(
   'same semantic loop alert inside one diagnostic episode is collapsed'
 );
 
+loopAlerts = [
+  {
+    kind: 'posture-churn',
+    severity: 'warn',
+    faction: 'us',
+    squadId: 'US-1',
+    soldierId: 'u1',
+    at: 20,
+    key: 'posture-churn|us|US-1|u1',
+    message: 'Repeated stance changes again',
+    stanceChanges: 5,
+    travel: 1.2,
+    net: 0.3,
+    inContact: true
+  }
+];
+sim.time = 20;
+system.onSimulationStep(sim);
+snapshot = timeline.snapshot(sim);
+assert.equal(
+  snapshot.markers.filter(marker => marker.kind === 'loop-alert').length,
+  2,
+  'the same semantic loop can reappear after the diagnostic episode window'
+);
+
 timeline.observeEvent(sim, 'vacant-objective-stall', {
   t: 4,
   side: 'us',
