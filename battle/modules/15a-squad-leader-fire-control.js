@@ -287,6 +287,19 @@
           living: living
         });
 
+      if (
+        fc.state === 'reposition' &&
+        battle.time - fc.since >= FIRE_CONTROL_TUNING.repositionTimeout
+      )
+        return setFireControl(sq, battle, fc, 'open', 'reposition timed out: resume maneuver fire', {
+          targetId: c.unit.id,
+          range: range,
+          strength: strength,
+          marksmanship: meanMkm,
+          ready: ready,
+          living: living
+        });
+
       if (elapsed >= FIRE_CONTROL_TUNING.maxHold && ready === 0 && fc.state !== 'reposition')
         return setFireControl(sq, battle, fc, 'reposition', 'no viable prone firing line', {
           targetId: c.unit.id,
@@ -296,7 +309,7 @@
           ready: ready,
           living: living
         });
-      if (elapsed >= FIRE_CONTROL_TUNING.maxHold && ready >= Math.min(2, living))
+      if (elapsed >= FIRE_CONTROL_TUNING.maxHold && ready > 0)
         return setFireControl(sq, battle, fc, 'open', 'leader accepted partial firing line', {
           targetId: c.unit.id,
           range: range,
