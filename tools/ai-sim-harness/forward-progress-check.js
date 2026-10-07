@@ -111,6 +111,35 @@ test('required physical detour is classified separately from pathological low pr
   assert.ok(s.navigationDetours[0].requiredDetourShare >= 1 / 3);
 });
 
+test('movement inside an already-held friendly objective is not low-forward-progress', () => {
+  const c = fixture(),
+    obj = { id: 'obj-held', def: { x: 0, z: 100, radius: 20 } };
+  c.sq.targetObjective = obj.id;
+  c.sq.objective = { x: 0, z: 100 };
+  c.sim._objectives = [obj];
+  c.root.BattleObjectiveSystem = {
+    status(sim, id) {
+      assert.equal(id, obj.id);
+      return { owner: 'us', active: 'us', phase: 'held', radius: 20 };
+    }
+  };
+  for (let i = 0; i <= 30; i++) {
+    const x = i <= 15 ? i : 30 - i;
+    for (const m of c.members) {
+      m.root.position.x = x;
+      m.root.position.z = 100;
+    }
+    tick(c, i * 0.5);
+  }
+  const summary = c.root.BattleSquadForwardProgress.summary(c.sim);
+  assert.equal(summary.totalAlerts, 0, 'security movement inside a held zone is not a progress failure');
+  assert.equal(
+    Object.keys(c.sim._squadForwardProgress.tracks).length,
+    0,
+    'completed objective drops the approach track'
+  );
+});
+
 test('a living-roster change resets the centroid odometer instead of manufacturing travel', () => {
   const c = fixture();
   c.members[0].root.position.x = 0;
