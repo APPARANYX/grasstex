@@ -644,7 +644,7 @@
         : 'reported-sector:' + Math.round(+fact.x / 20) + ':' + Math.round(+fact.z / 20),
       sourceId = fact.sourceId == null ? null : String(fact.sourceId),
       reportId = String(
-        fact.reportId || ('report:' + sourceId + ':' + observedAt + ':' + (targetId || key))
+        fact.reportId || 'report:' + sourceId + ':' + observedAt + ':' + (targetId || key)
       ),
       conf = clamp(
         fact.confidence == null ? BELIEF_TUNING.toldConfidenceMin : +fact.confidence,
