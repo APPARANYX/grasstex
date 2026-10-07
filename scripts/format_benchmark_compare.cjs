@@ -46,6 +46,7 @@ function verdict(r, mode = 'seeds') {
   const tested = entries.filter(([, c]) => c.more + c.fewer > 0);
   const k = entries.length;
   const changed = (r.pairs || 0) - (r.identicalBattles || 0);
+  const unpaired = ((r.unpaired && r.unpaired.a) || 0) + ((r.unpaired && r.unpaired.b) || 0);
   const fd = r.firstDivergence;
   const desc = ([n, c]) => `${n} ${c.a} to ${c.b} (${pct(c.a, c.b)}, p ${c.signP})`;
   const lines = [];
@@ -53,6 +54,9 @@ function verdict(r, mode = 'seeds') {
   if (!r.pairs) {
     kind = 'empty';
     headline = 'no pairs: the arms share no record';
+  } else if (!changed && unpaired) {
+    kind = 'incomplete';
+    headline = `INCOMPLETE: all ${r.pairs} paired records identical, but ${unpaired} record${unpaired === 1 ? '' : 's'} unpaired (off ${r.unpaired?.a ?? 0}, on ${r.unpaired?.b ?? 0})`;
   } else if (!changed) {
     kind = 'inert';
     headline = `INERT: all ${r.pairs} pairs identical in every field`;
