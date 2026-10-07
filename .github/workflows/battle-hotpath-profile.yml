@@ -1,4 +1,4 @@
-name: Battle Sim Hot Path Profile
+name: ⭐ Battle Sim Hot Path Profile
 
 on:
   workflow_dispatch:

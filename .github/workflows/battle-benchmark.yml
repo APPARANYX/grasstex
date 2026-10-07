@@ -1,4 +1,4 @@
-name: M3C Battle Benchmark Matrix
+name: ⭐ M3C Battle Benchmark Matrix
 
 on:
   workflow_dispatch:

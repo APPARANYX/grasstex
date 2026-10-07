@@ -1,4 +1,4 @@
-name: Branch housekeeping
+name: ⭐ Branch housekeeping
 
 # Deletes branches whose work is already in main, so the branch list only shows live work.
 #

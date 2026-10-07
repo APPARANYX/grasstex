@@ -1,4 +1,4 @@
-name: Generate voice callouts
+name: ⭐ Generate voice callouts
 
 # Generates the voice lines that Assets/audio/manifest.json scripts (callouts.<side>.generation) but that do not
 # exist yet, with ElevenLabs (scripts/generate_voice_callouts.py: same voices, model and settings as every line

@@ -1,4 +1,4 @@
-name: CI
+name: ⭐ CI
 
 # The single gate for pull requests; production deployment validates merged main separately. Before this nothing ran on a PR at all: syntax errors,
 # a manifest naming a clip that does not exist, and audio committed off the mastering

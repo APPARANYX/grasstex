@@ -1,4 +1,4 @@
-name: M3C Standard Benchmark
+name: ⭐ M3C Standard Benchmark
 
 # Two arms, off and on, on the same seed or seeds, compared with scripts/compare_benchmark_arms.cjs and processed by
 # scripts/process_benchmark_results.cjs into one result (a verdict, the paired table, the seeds that part earliest, slim files for
