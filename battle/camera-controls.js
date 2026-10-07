@@ -178,6 +178,7 @@
       padButtons = {},
       padId = null,
       player = null,
+      playerBattle = null,
       playerCam = null,
       playerYaw = 0,
       playerPitch = 0,
@@ -335,10 +336,11 @@
     }
     function leavePlayer(reason) {
       if (!player) return;
-      var b = liveBattle(),
+      var b = playerBattle || liveBattle(),
         old = player;
       clearPlayerLease(old, b);
       player = null;
+      playerBattle = null;
       mouseAim = false;
       mouseFire = false;
       keys.clear();
@@ -360,8 +362,9 @@
       if (!b) return false;
       var next = pickPlayerSoldier(player);
       if (!next) return false;
-      if (player) clearPlayerLease(player, b);
+      if (player) clearPlayerLease(player, playerBattle || b);
       player = next;
+      playerBattle = b;
       player.isPlayer = true;
       playerFaction = next.faction;
       playerYaw = +next.root.rotation.y || 0;
@@ -410,6 +413,10 @@
     function stepPlayer(pad, dt) {
       var b = liveBattle();
       if (!b || !player) return;
+      if (playerBattle !== b) {
+        leavePlayer('battle restarted');
+        return;
+      }
       if (player.dead) {
         if (!possessRandom()) leavePlayer('no living ' + playerFaction + ' soldiers');
         return;
