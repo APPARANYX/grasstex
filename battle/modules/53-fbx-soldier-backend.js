@@ -2737,6 +2737,16 @@
       }
     });
     holder.onDisposeObservable.add(function () {
+      /* Reaction animation temporarily detaches held weapons, and a fled man can abandon one
+       permanently. Detached meshes are no longer descendants of the soldier root, so restart
+       teardown must dispose the ones this soldier still owns explicitly. */
+      ((fx && fx.detachedWeaponMeshes) || []).slice().forEach(function (mesh) {
+        if (!mesh || (mesh.isDisposed && mesh.isDisposed())) return;
+        try {
+          mesh.dispose();
+        } catch (_) {}
+      });
+      if (fx) fx.detachedWeaponMeshes = [];
       /* A wounded mesh lazily owns its UV-space damage renderer. It is not part of the shared
        material, so dispose it with this soldier only. */
       meshes.forEach(function (m) {
@@ -2845,7 +2855,8 @@
       reactionPhase: null,
       reactionHold: null,
       cowerExit: false,
-      reactionWeapon: null
+      reactionWeapon: null,
+      detachedWeaponMeshes: []
     };
     soldier._fbx = fx;
     soldier.animationBinding = { backend: BACKEND, tags: TAGS, play: play, update: update };
@@ -2968,7 +2979,17 @@
     var p = soldier.root.position;
     return { x: p.x, y: p.y, z: p.z, yaw: soldier.root.rotation.y || 0 };
   }
-  function putBeside(at, w) {
+  function trackDetachedWeapon(fx, mesh) {
+    if (!fx || !mesh) return;
+    var list = fx.detachedWeaponMeshes || (fx.detachedWeaponMeshes = []);
+    if (list.indexOf(mesh) < 0) list.push(mesh);
+  }
+  function untrackDetachedWeapon(fx, mesh) {
+    var list = fx && fx.detachedWeaponMeshes,
+      i = list ? list.indexOf(mesh) : -1;
+    if (i >= 0) list.splice(i, 1);
+  }
+  function putBeside(at, w, fx) {
     var yaw = at.yaw || 0,
       sin = Math.sin(yaw),
       cos = Math.cos(yaw),
@@ -2976,6 +2997,7 @@
     [w.mesh, w.bipodMesh].forEach(function (mesh, i) {
       if (!mesh || mesh.isDisposed()) return;
       mesh.parent = null;
+      trackDetachedWeapon(fx, mesh);
       var side = REACTION_ANIM.dropSide + i * 0.04;
       mesh.position.set(
         p.x + cos * side - sin * REACTION_ANIM.dropBack,
@@ -2997,6 +3019,8 @@
       if (!old) return;
       weaponMeshes(old).forEach(function (mesh) {
         mesh.parent = old.socket || fx.socket;
+        untrackDetachedWeapon(fx, mesh);
+        delete mesh._battleAbandonedWeapon;
         mesh.position.set(0, 0, 0);
         if (mesh.rotationQuaternion) mesh.rotationQuaternion.set(0, 0, 0, 1);
         else mesh.rotation.set(0, 0, 0);
@@ -3008,7 +3032,7 @@
       fx.weapon = null;
       fx.weaponModel = null;
       if (!left) return;
-      if (!held) putBeside(left.droppedAt || standAt(soldier), left);
+      if (!held) putBeside(left.droppedAt || standAt(soldier), left, fx);
       weaponMeshes(left).forEach(function (mesh) {
         mesh._battleAbandonedWeapon = true;
       });
@@ -3023,7 +3047,7 @@
     if (held) restore(held);
     if (!w.mesh) return;
     fx.reactionWeapon = { weapon: w };
-    putBeside(standAt(soldier), w);
+    putBeside(standAt(soldier), w, fx);
   }
   function reactionFullBody(fx, clips, key, rate, fade) {
     var clip = clips[key];
@@ -4777,8 +4801,9 @@
     }
   }
   function clearSurfaceDamage(soldier) {
-    var fx = soldier && soldier._fbx;
-    if (!fx) return 0, (n = 0);
+    var fx = soldier && soldier._fbx,
+      n = 0;
+    if (!fx) return n;
     fx.meshes.forEach(function (mesh) {
       var d = mesh._battleSurfaceDamage;
       if (!d || !d.renderer) return;
