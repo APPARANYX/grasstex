@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+/* Regression coverage for the shipped squad-broadcast information path. */
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
