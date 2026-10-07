@@ -326,6 +326,10 @@ test('initial defender progress timestamp zero still ages into strategic recover
     'precondition: initial owned-objective defense'
   );
   w.C.acceptMission(w.b, q, false);
+  /* The prepared-defense request is only fixture scaffolding for the initial brief. Remove the
+     external pin now so strategic recovery is free to re-task this otherwise ordinary defender. */
+  q._preparedDefenseRequest = null;
+  q._macroMission.requestKey = null;
 
   /* Freeze the observed progress clock at the exact battle-start sentinel from module 40.
      Drive the real commander without sampling new objective progress so this isolates the
