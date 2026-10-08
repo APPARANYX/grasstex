@@ -207,7 +207,8 @@
   function blockedForBrief(s, battle) {
     if (!blocked(s)) return false;
     var o = man(s, battle);
-    return !!(o && o.current && o.state !== 'pending');
+    /* A later retreat, firing post or other lawful holder supersedes the stale terminal formation episode. */
+    return !!(o && o.current && o.state === 'blocked' && o.terminal);
   }
   /* The scouting detail's result for the squad's current brief, read from Squad Leader's own recon records
      (`_reconTask` while underway, `_reconLast` once ended; both are written by module 15c, nothing is added). It
