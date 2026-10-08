@@ -218,7 +218,11 @@
         !man.dead &&
         man !== root.SquadAI.leaderOf(sq) &&
         !root.SquadAI.isMachineGun(man) &&
-        (+man.suppressedUntil || 0) <= battle.time
+        (+man.suppressedUntil || 0) <= battle.time &&
+        /* A man holding a firing station already has a Squad Leader-owned positional obligation, and the
+           Movement Resolver ranks it above a formation order: sending him would leave his recon order
+           adopted and never executed (#361 defect 2). Meso picks someone free instead. */
+        !(root.BattleTacticalPositions && root.BattleTacticalPositions.current(man))
       );
     }
     function selectReconScouts(sq, battle) {
