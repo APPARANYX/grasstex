@@ -50,9 +50,11 @@
   }
   function axis(sim, sq) {
     var a = point(sq && sq.orderAnchor) || point(sq && sq.rally),
+      r = sq && sq.route,
+      /* No objective id: the axis runs to the end of the route, not to the current leg waypoint. */
       g =
         objectiveById(sim, sq && sq.targetObjective) ||
-        point(sq && sq._routeFinalObjective) ||
+        point(r && r.length ? r[r.length - 1] : null) ||
         point(sq && sq.objective);
     if (!a || !g) return null;
     var dx = g.x - a.x,
