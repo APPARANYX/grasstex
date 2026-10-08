@@ -38,6 +38,7 @@
       RALLY_RECOVERY_ON = ctx.RALLY_RECOVERY_ON,
       RALLY_RECOVERY_DWELL = ctx.RALLY_RECOVERY_DWELL,
       RALLY_RECOVERY_ARRIVE = ctx.RALLY_RECOVERY_ARRIVE,
+      WOUND_RALLY_ON = ctx.WOUND_RALLY_ON !== false,
       ASSEMBLY_HOME_RADIUS = ctx.ASSEMBLY_HOME_RADIUS;
     function endRallyRecovery(sq, battle, reason) {
       if (!battle || (!sq._moraleRallyPoint && !L.get(sq, 'rally-recovery'))) return;
@@ -77,8 +78,12 @@
          retreating-squad guard. The merge is the road back for squads that cannot come back on
          their own, so for a rebuilt squad the gate measures only the stress that can still drain:
          the mean net of each man's permanent floor. Unwounded men carry floor zero and the gate is
-         unchanged (BattleSoldierMind owns the field; without it there is nothing to net). */
-      if (sq.reconstitutedFrom != null) {
+         unchanged (BattleSoldierMind owns the field; without it there is nothing to net).
+         The same holds for any 5-9 man squad that retreated: it is too big for the 1-4 man
+         reconstitution pool, so wound floors above the rally line would keep it in retreat for the
+         rest of the battle (v420 live: us-1, 5 men at base 330 s). `?woundRally=0` restores the
+         rebuilt-only netting. */
+      if (sq.reconstitutedFrom != null || WOUND_RALLY_ON) {
         var Mind = root.BattleSoldierMind;
         if (Mind && Mind.squadFloor) stress = Math.max(0, stress - Mind.squadFloor(sq));
       }

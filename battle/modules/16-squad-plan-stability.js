@@ -167,7 +167,12 @@
   function parseRallyRecovery(search) {
     return !/[?&]rallyRecovery=(?:0|off|false)(?:&|#|$)/i.test(search || '');
   }
-  var RALLY_RECOVERY_ON = parseRallyRecovery(typeof location !== 'undefined' ? location.search || '' : ''),
+  /* `?woundRally=0` restores the old gate: only a rebuilt squad's rally reads stress net of its men's wound floors. */
+  function parseWoundRally(search) {
+    return !/[?&]woundRally=(?:0|off|false)(?:&|#|$)/i.test(search || '');
+  }
+  var WOUND_RALLY_ON = parseWoundRally(typeof location !== 'undefined' ? location.search || '' : ''),
+    RALLY_RECOVERY_ON = parseRallyRecovery(typeof location !== 'undefined' ? location.search || '' : ''),
     RALLY_RECOVERY_DWELL = 4,
     RALLY_RECOVERY_ARRIVE = 5;
   var ORDER_STRIDE = 13,
@@ -644,6 +649,7 @@
         SUCCESSION_DELAY: SUCCESSION_DELAY,
         MORALE_TUNING: MORALE_TUNING,
         RALLY_RECOVERY_ON: RALLY_RECOVERY_ON,
+        WOUND_RALLY_ON: WOUND_RALLY_ON,
         RALLY_RECOVERY_DWELL: RALLY_RECOVERY_DWELL,
         RALLY_RECOVERY_ARRIVE: RALLY_RECOVERY_ARRIVE,
         ASSEMBLY_HOME_RADIUS: ASSEMBLY_HOME_RADIUS
