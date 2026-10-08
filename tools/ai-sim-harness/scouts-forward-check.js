@@ -283,6 +283,58 @@ freshTask.serial = 0;
   assert.equal(w.q._reconTask, task, 'the same task survives long enough to execute');
 }
 
+/* Scouts moving must not manufacture a new scouting decision (#361 defect 4). A defender's recon goal was derived from the
+   whole-squad centroid, so scouts walking out shifted it across a 12 m signature bucket and the same defended objective
+   became eligible for recon again after every no-contact completion. The goal now hangs off the objective waypoint. */
+function scoutsMoveRuns(extra) {
+  const w = world({
+    objective: { x: 0, z: 0 },
+    search: '?scoutsForward=1&commandMovement=0&commandRelay=0&stressAct=0' + extra
+  });
+  w.b.scene = { metadata: { battleTown: { center: { x: 0, z: 100 }, radius: 250 } } };
+  w.r.BattleObjectiveSystem = {
+    get() {
+      return { def: { radius: 30 } };
+    }
+  };
+  w.q.commandPhase = 'defend';
+  w.q._macroMission = {
+    version: 1,
+    intent: 'defend',
+    action: 'defend',
+    objectiveId: 'owned',
+    point: { x: 0, z: 0 },
+    route: [],
+    status: 'executing'
+  };
+  w.S.executeMission(w.b, w.q, null);
+  const task = w.q._reconTask;
+  assert.ok(task && task.defenderOrigin, 'stationed defender opens one recon task');
+  let started = 1;
+  for (let round = 0; round < 4; round++) {
+    /* The scouts walk out (centroid shifts), find nothing and the task ends; the squad leader re-evaluates. */
+    for (const id of w.q._reconTask.scoutIds) {
+      const scout = w.q.members.find(s => String(s.id) === String(id));
+      scout.root.position.z += 40;
+    }
+    w.S.endRecon(w.q, w.b, 'observed-no-contact');
+    w.b.time += 1;
+    w.S.executeMission(w.b, w.q, null);
+    if (!w.q._reconTask) break;
+    started++;
+  }
+  return started;
+}
+assert.equal(
+  scoutsMoveRuns(''),
+  1,
+  'the same defended objective is not scouted again because the scouts moved'
+);
+assert.ok(
+  scoutsMoveRuns('&reconRef=0') > 1,
+  '?reconRef=0 is the control: the centroid shift re-triggers recon'
+);
+
 /* Intentional scout separation belongs to recon, not the regroup lifecycle. */
 {
   const w = world();

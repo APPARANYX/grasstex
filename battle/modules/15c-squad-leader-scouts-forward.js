@@ -141,15 +141,23 @@
         return { reason: 'visual-screen', distance: null };
       return null;
     }
-    function reconSignature(sq, goal) {
+    /* ?reconRef=0/off/false keys the signature on the derived goal (the old behavior). */
+    var RECON_REF_STABLE =
+      typeof location === 'undefined' ||
+      !/[?&]reconRef=(?:0|off|false)(?:&|#|$)/i.test(location.search || '');
+    /* `ref` is a stable parent point (a defender's objective waypoint). The goal itself is derived from the squad
+       centroid, which scouts walking out move across a 12 m bucket: the same objective then looked like a new
+       approach and was scouted again after every no-contact completion (#361 defect 4). */
+    function reconSignature(sq, goal, ref) {
+      var key = RECON_REF_STABLE && ref ? ref : goal;
       return [
         missionVersion(sq),
         +sq.routeIndex || 0,
-        Math.round((+goal.x || 0) / 12),
-        Math.round((+goal.z || 0) / 12)
+        Math.round((+key.x || 0) / 12),
+        Math.round((+key.z || 0) / 12)
       ].join('|');
     }
-    function reconCandidate(sq, battle, goal) {
+    function reconCandidate(sq, battle, goal, ref) {
       if (!SCOUTS_FORWARD_ON || !sq || !battle || !goal || !RECON_PHASES[sq.commandPhase || '']) return null;
       var A = root.SquadAI,
         C = root.BattleCallouts;
@@ -185,7 +193,7 @@
           screen && screen.distance != null
             ? Math.max(16, Math.min(RECON_TUNING.advance, screen.distance + RECON_TUNING.pastScreen))
             : Math.min(RECON_TUNING.advance, d - 4),
-        sig = reconSignature(sq, goal),
+        sig = reconSignature(sq, goal, ref),
         last = sq._reconLast;
       if (last && last.signature === sig) {
         if (!last.retriggerNoted) {
