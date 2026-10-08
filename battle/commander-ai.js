@@ -15,7 +15,7 @@
 (function (root) {
   'use strict';
   /* The build id belongs to the page, not to a runtime: stamping one here overwrote it. */
-  root.GTLog('[COMMAND] Genome v2 commander loaded');
+  root.GTLog('[COMMAND] objective commander module loaded');
   if (!root.BattleSim || !root.SquadAI || !root.BattleCommanderDoctrine || !root.BattleCommanderRoutes) {
     console.warn('[COMMAND] doctrine/route modules missing; hierarchical AI disabled');
     return;
@@ -709,7 +709,9 @@
       }
     });
     root.GTLog(
-      '[COMMAND] Genome v2 doctrine + modular objectives active · build ' + (root.BATTLE_BUILD || 'dev')
+      '[COMMAND] objectives active · Genome ' + (D.genomeOff && D.genomeOff() ? 'stashed' : 'active') +
+        ' · doctrine actions ' + (D.actionDoctrineEnabled ? 'on' : 'off') +
+        ' · build ' + (root.BATTLE_BUILD || 'dev')
     );
     return sim;
   };
