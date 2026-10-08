@@ -33,7 +33,8 @@
       BUDDY_PAIRS_ON = ctx.BUDDY_PAIRS_ON,
       SCOUTS_FORWARD_ON = ctx.SCOUTS_FORWARD_ON,
       RECON_TUNING = ctx.RECON_TUNING,
-      RECON_PHASES = ctx.RECON_PHASES;
+      RECON_PHASES = ctx.RECON_PHASES,
+      RECON_LEDGER_ON = ctx.RECON_LEDGER_ON !== false;
 
     /* A deliberate Meso scouting task must release an existing station reservation at its owner;
        otherwise the posted soldier receives a recon order he cannot physically execute. */
@@ -147,15 +148,184 @@
         return { reason: 'visual-screen', distance: null };
       return null;
     }
-    function reconSignature(sq, goal) {
+    function reconSignature(sq, goal, point) {
+      /* A defender task's identity is the observation point itself (#393): the derived goal moves
+         with the squad, the ground being looked at does not. Route reconnaissance keeps the legacy
+         goal key — for a leg advance the goal (the next waypoint) is the stable anchor. */
+      var key = RECON_LEDGER_ON && point ? point : goal;
       return [
         missionVersion(sq),
         +sq.routeIndex || 0,
-        Math.round((+goal.x || 0) / 12),
-        Math.round((+goal.z || 0) / 12)
+        Math.round((+key.x || 0) / 12),
+        Math.round((+key.z || 0) / 12)
       ].join('|');
     }
-    function reconCandidate(sq, battle, goal) {
+    /* Outcome ledger (#393): what this squad has actually learned about the ground it was sent to
+       observe, keyed to the standing missionVersion. `observed` is the scouts' own report (arrival
+       plus observation window, or enemy contact); `attempts` bounds re-dispatches of a point that
+       never produced one. A NEWER squad contact re-opens observed ground (read-side staleness in
+       reconLedgerFind) — new enemy information, not a timer, renews the requirement. */
+    function reconLedgerOf(sq) {
+      var l = sq && sq._reconLedger;
+      return Array.isArray(l) ? l : [];
+    }
+    function reconContactCutoff(sq, battle) {
+      var A = root.SquadAI,
+        c = A && A.squadContact ? A.squadContact(sq, battle) : null;
+      return c && isFinite(+c.at) ? +c.at : 0;
+    }
+    function reconLedgerFind(sq, point, mission, cutoff, cell, defenderOnly) {
+      var entries = reconLedgerOf(sq);
+      for (var i = entries.length - 1; i >= 0; i--) {
+        var e = entries[i];
+        if (e.missionVersion !== mission) continue;
+        if (defenderOnly && !e.defenderOrigin) continue;
+        if (+e.endedAt < cutoff - 1e-6) continue; /* newer enemy information re-opened this ground */
+        if (Math.hypot(e.point.x - point.x, e.point.z - point.z) <= cell) return e;
+      }
+      return null;
+    }
+    function reconNoteRetrigger(sq, battle, entry, detail) {
+      if (!entry || entry.retriggerNoted) return;
+      entry.retriggerNoted = true;
+      var st = reconStats(battle);
+      if (st) st.retriggerBlocked++;
+      telemetry(battle, 'decision-recon-retrigger-blocked', {
+        faction: sq.faction,
+        squad: sq.id,
+        signature: entry.signature,
+        previousEnd: entry.reason,
+        detail: detail || 'already observed'
+      });
+    }
+    function reconRecordOutcome(sq, battle, task, reason) {
+      if (!RECON_LEDGER_ON || !task) return;
+      var observed = reason === 'observed-no-contact' || reason === 'scout-contact' || reason === 'contact',
+        entry = {
+          missionVersion: task.missionVersion,
+          defenderOrigin: !!task.defenderOrigin,
+          signature: task.signature,
+          point: copy(task.point),
+          reason: reason,
+          endedAt: battle.time,
+          observed: observed,
+          attempts: 1
+        },
+        i;
+      if (!observed && (reason === 'timeout' || reason === 'scouts-unavailable')) {
+        /* Name the physical blocker through the #387 execution-outcome reader (derived, no state):
+           the follow-on decision must know the scouts never reached the ground, and why. */
+        var O = root.BattleExecutionOutcome,
+          blocked = 0,
+          blockers = {};
+        if (O && O.man)
+          for (i = 0; i < task.scoutIds.length; i++) {
+            var st = O.man(buddyMember(sq, task.scoutIds[i]));
+            if (st && st.state === 'blocked') {
+              blocked++;
+              reconInc(blockers, st.kind || 'movement');
+            }
+          }
+        if (blocked) {
+          entry.blockedScouts = blocked;
+          entry.blockers = blockers;
+        }
+      }
+      var ledger = sq._reconLedger;
+      if (!Array.isArray(ledger)) ledger = sq._reconLedger = [];
+      var cell = RECON_TUNING.pointCell || 12,
+        prior = null;
+      for (i = ledger.length - 1; i >= 0; i--) {
+        var e = ledger[i];
+        if (e.missionVersion !== entry.missionVersion || e.defenderOrigin !== entry.defenderOrigin) continue;
+        if (Math.hypot(e.point.x - entry.point.x, e.point.z - entry.point.z) <= cell) {
+          prior = e;
+          break;
+        }
+      }
+      if (prior) {
+        /* Same observation point under the same mission: one investigation, one attempt count. */
+        prior.attempts = (+prior.attempts || 1) + 1;
+        prior.endedAt = entry.endedAt;
+        prior.reason = reason;
+        if (observed) prior.observed = true;
+        if (entry.blockedScouts) {
+          prior.blockedScouts = entry.blockedScouts;
+          prior.blockers = entry.blockers;
+        }
+      } else {
+        ledger.push(entry);
+        if (ledger.length > 16) ledger.shift();
+      }
+    }
+    /* Defender reconnaissance (#393): probe outward from the objective along the goal axis, one
+       observation point at a time, following the outcome ledger. A completed observation covers
+       the open ground it could see; only a screen it could not see past justifies the next point,
+       on the screen's far side. A point whose scouts never reported is retried at most
+       RECON_TUNING.retryCap times; then the chain stops until the mission changes or newer enemy
+       contact re-opens the ground. */
+    function reconDefenderCandidate(sq, battle, goal, from) {
+      var cell = RECON_TUNING.pointCell || 12,
+        retryCap = RECON_TUNING.retryCap || 2,
+        mission = missionVersion(sq),
+        cutoff = reconContactCutoff(sq, battle),
+        base = copy(from),
+        chained = 0,
+        consumed = null,
+        point = null,
+        axis = null,
+        d = 0,
+        reason = null,
+        entry,
+        guard;
+      for (guard = 0; guard < 12; guard++) {
+        var dx = goal.x - base.x,
+          dz = goal.z - base.z;
+        d = Math.hypot(dx, dz);
+        if (d < RECON_TUNING.minGoalDistance) return null;
+        axis = { x: dx / d, z: dz / d };
+        var look = Math.min(RECON_TUNING.lookAhead, d - 3),
+          far = { x: base.x + axis.x * look, z: base.z + axis.z * look },
+          screen = reconScreen(battle, base, far);
+        if (!screen && chained > 0) {
+          /* The last observation saw open ground out to its lookahead: that ground is covered. */
+          reconNoteRetrigger(sq, battle, consumed);
+          return null;
+        }
+        if (!screen && d > RECON_TUNING.objectiveApproach) return null;
+        var advance =
+          screen && screen.distance != null
+            ? Math.max(16, Math.min(RECON_TUNING.advance, screen.distance + RECON_TUNING.pastScreen))
+            : Math.min(RECON_TUNING.advance, d - 4);
+        if (!(advance >= 12)) return null;
+        reason = screen ? screen.reason : 'unknown-approach';
+        point = { x: base.x + axis.x * advance, z: base.z + axis.z * advance };
+        entry = reconLedgerFind(sq, point, mission, cutoff, cell, true);
+        if (!entry) break; /* genuinely unobserved ground: this is the next observation point */
+        if (!entry.observed) {
+          if ((+entry.attempts || 1) >= retryCap) {
+            reconNoteRetrigger(sq, battle, entry, 'no report after ' + entry.attempts + ' attempts');
+            return null;
+          }
+          break; /* bounded retry of a point that never produced a report */
+        }
+        chained++;
+        consumed = entry;
+        base = copy(entry.point);
+      }
+      if (guard >= 12) return null;
+      return {
+        signature: reconSignature(sq, goal, point),
+        reason: reason,
+        from: from,
+        goal: copy(goal),
+        point: copy(point),
+        axis: axis,
+        goalDistance: d,
+        followOn: chained
+      };
+    }
+    function reconCandidate(sq, battle, goal, ref) {
       if (!SCOUTS_FORWARD_ON || !sq || !battle || !goal || !RECON_PHASES[sq.commandPhase || '']) return null;
       var A = root.SquadAI,
         C = root.BattleCallouts;
@@ -176,6 +346,10 @@
         return null;
       var from = average(sq);
       if (!from) return null;
+      /* A defender passes its owned objective waypoint as `ref` (#393): geometry and task identity
+         hang off the ground the squad was ordered to hold, so scouts walking out cannot shift the
+         requirement. Route reconnaissance keeps the centroid as its base. */
+      if (RECON_LEDGER_ON && ref) return reconDefenderCandidate(sq, battle, goal, ref);
       var dx = goal.x - from.x,
         dz = goal.z - from.z,
         d = Math.hypot(dx, dz);
@@ -456,6 +630,9 @@
         scoutIds: task.scoutIds.slice(),
         retriggerNoted: false
       };
+      /* The outcome ledger (#393) records what this task actually learned, keyed to the mission it
+         served, so the next decision follows the ground rather than a shifted centroid. */
+      reconRecordOutcome(sq, battle, task, reason);
       if (reason === 'scout-contact') startReconReportWatch(sq, task, battle);
       /* Only a no-contact release hands the main body a deliberate scout lead to absorb. Contact,
          retreat, leader/phase/mission invalidation and battle end already transition into their own
