@@ -789,6 +789,7 @@ Implement this in **small phases**, each with its own deterministic harness/prob
      deterministic processing/orient/locate costs appropriate to the reference instead of one generic spatial delay.
      Command Reception still must not physically turn a man or become a stance/movement owner.
    - **0D2 relay topology — shipped in #223, opt-in via `?commandRelay=1`.** Add bounded direct voice/visual receipt and, where needed,
+   - **Squad relay (`?squadRelay=0` restores the old behaviour).** When neither the sender, nor the fireteam relay, reaches a man, `routedTiming` (module 18) tries every other living squadmate the sender did reach (his own first hop) and uses the one that gets the order to the man soonest. Still one hop, only for relayable (`reference !== 'none'`, `relay !== false`) orders; a man no reached squadmate can hear stays `unreachable`. Information only: no new movement writer or timer.
      Squad Leader -> fireteam relay -> member timing.
 5. **Close the direct-read gaps — Phase 0E in progress.** Add a static/runtime ratchet for command-bearing squad fields so new behavior
    cannot bypass personal adoption, then run fixed-seed and paired benchmarks for churn, stalls, response latency,
