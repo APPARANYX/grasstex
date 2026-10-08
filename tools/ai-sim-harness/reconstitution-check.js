@@ -673,10 +673,11 @@ test('a source squad wiped during assembly is cleaned when the surviving sources
   assert.equal(wiped._macroMission.status, 'failed', 'its reconstitution brief is terminal');
 });
 
-function waitingFledWorld(search) {
+function waitingFledWorld(search, sizes) {
+  sizes = sizes || [4, 4];
   const w = world(search ? { search } : undefined),
-    a = squad(w, 0, 4, null, 20),
-    b = squad(w, 1, 4, null, 20),
+    a = squad(w, 0, sizes[0], null, 20),
+    b = squad(w, 1, sizes[1], null, 20),
     grouped = untilGrouped(w, 120),
     c = squad(w, 2, 1, null, 20);
   assert.deepEqual(grouped.group.squads.slice().sort(), [a.id, b.id].sort());
@@ -690,6 +691,7 @@ function waitingFledWorld(search) {
   c._reconGroup = grouped.group.id;
   c._assembly = Object.assign({}, a._assembly, { phase: 'to-rally' });
   grouped.group.squads.push(c.id);
+  if (sizes.length > 2) w.b.killSoldier(living(b)[0], null);
   const hold = () => {
     man.root.position.x = spot.x;
     man.root.position.z = spot.z;
@@ -731,5 +733,11 @@ function pooledWithWaitingFled(search) {
 test('a fled man waiting at his refuge is never pooled into a group, so groups do not form and dissolve in a loop', () => {
   assert.equal(pooledWithWaitingFled().groupsFormed, 0);
   assert.ok(pooledWithWaitingFled('?fledWaitMerge=0').groupsFormed >= 1, 'the control arm pools him');
+});
+test('too few without the waiting fled man: the group closes with a reason instead of staying open', () => {
+  const { w, grouped } = waitingFledWorld(null, [3, 3, 'loss']);
+  const ended = recon(w).ended.find(g => g.id === grouped.group.id);
+  assert.ok(ended, 'the group is closed');
+  assert.notEqual(ended.status, 'merged');
 });
 console.log(n + ' reconstitution checks passed');

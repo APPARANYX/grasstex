@@ -440,7 +440,7 @@
        resolver: he cannot walk to the rally he was assigned, and only the pickup or his own wait clock frees
        him. He still counts toward the group's strength while it assembles (a retreating squad may take him
        in on the way), but once every other squad is at the rally and they are viable without him, the group
-       merges without him instead of staying open to the end of the battle. */
+       merges without him instead of staying open to the end of the battle (and closes if they are too few). */
     function meetWithoutWaitingFled(sim, g, squads) {
       var waiting = squads.filter(waitingFled);
       if (!waiting.length) return;
@@ -451,12 +451,14 @@
         return n + D.aliveMembers(sq).length;
       }, 0);
       if (
-        strength < RECON_MIN_STRENGTH ||
         !movers.every(function (sq) {
           return atRally(sq, g);
         })
       )
         return;
+      /* Too few without him: close the group with a reason instead of leaving the men at the rally to the
+         end of the battle. He is not pooled while he waits, so the group does not re-form around him. */
+      if (strength < RECON_MIN_STRENGTH) return dissolveGroup(sim, g, squads, 'fled-man-waiting');
       waiting.forEach(function (sq) {
         sq._reconGroup = null;
         finishMission(sim, sq, 'failed', 'fled-waiting-at-refuge');
