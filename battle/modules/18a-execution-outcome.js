@@ -66,11 +66,11 @@
   function missionVersionOf(sq) {
     return sq && sq._macroMission ? +sq._macroMission.version || 0 : 0;
   }
+  /* `peek` never settles Command Reception: reading an outcome must not advance any lifecycle. */
   function movementRecord(s, battle) {
     var CR = root.BattleCommandReception;
-    if (!CR || !CR.movementEnabled || !CR.movementEnabled()) return null;
-    var view = CR.snapshot(s, battle);
-    return (view && view.records && view.records['movement|soldier:' + String(s.id)]) || null;
+    if (!CR || !CR.movementEnabled || !CR.movementEnabled() || !CR.peek) return null;
+    return CR.peek(s, battle, 'movement', 'soldier:' + String(s.id));
   }
   /* Is the man closing on his goal? Movement Execution keeps the samples it judges him by. */
   function closing(s, goal) {
@@ -89,6 +89,7 @@
         envelopeId: null,
         version: null,
         missionVersion: null,
+        current: false,
         publishKey: null,
         why: null,
         by: null,
@@ -103,6 +104,10 @@
     out.version = rec.version;
     out.missionVersion = rec.data && rec.data.missionVersion != null ? +rec.data.missionVersion : null;
     out.publishKey = (rec.data && rec.data.publishKey) || null;
+    /* Is this the order of the squad's standing brief? A record from an older brief, or one that names none
+       (published before the brief carried its version), is not: it is never counted as this brief's outcome,
+       even when the slot happens to be unchanged. */
+    out.current = out.missionVersion != null && out.missionVersion === missionVersionOf(sq);
     if (rec.unreachable) {
       out.state = 'pending';
       out.why = 'undeliverable';
@@ -165,13 +170,20 @@
         held: 0,
         executing: 0,
         blocked: 0,
-        completed: 0
+        completed: 0,
+        notCurrent: 0
       },
       heldBy = {},
       men = [];
     alive(sq).forEach(function (s) {
       var o = man(s, battle);
       men.push(o);
+      /* A man with no order has nothing to be current about; any other state counts only for the brief it
+         came from. An older brief's order is reported as notCurrent, never blended into this one. */
+      if (o.state !== 'none' && !o.current) {
+        counts.notCurrent++;
+        return;
+      }
       counts[o.state]++;
       if (o.state === 'held') heldBy[o.by] = (heldBy[o.by] || 0) + 1;
     });
@@ -190,6 +202,12 @@
   function blocked(s) {
     var p = s && s._movementProgress;
     return !!(p && p.stuck && p.terminal && p.kind === 'formation');
+  }
+  /* The same fact, bound to the squad's standing brief: the man's applied order is from this brief. */
+  function blockedForBrief(s, battle) {
+    if (!blocked(s)) return false;
+    var o = man(s, battle);
+    return !!(o && o.current && o.state !== 'pending');
   }
   /* The scouting detail's result for the squad's current brief, read from Squad Leader's own recon records
      (`_reconTask` while underway, `_reconLast` once ended; both are written by module 15c, nothing is added). It
@@ -217,6 +235,7 @@
     recon: recon,
     version: '1-derived',
     blocked: blocked,
+    blockedForBrief: blockedForBrief,
     man: man,
     squad: squad
   };

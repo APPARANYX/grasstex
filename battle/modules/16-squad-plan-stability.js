@@ -1441,7 +1441,7 @@
 
   function executionBlocked(s, battle) {
     var O = root.BattleExecutionOutcome;
-    return !!(EXEC_REPORT_ON && O && O.blocked(s) && movementExecutionCurrent(s, battle));
+    return !!(EXEC_REPORT_ON && O && O.blockedForBrief(s, battle) && movementExecutionCurrent(s, battle));
   }
   function orderCanAdvance(sq, battle) {
     var living = commanded(sq),

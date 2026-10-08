@@ -447,4 +447,51 @@ test('A: a trapped man keeps his status and rejoins the squad when his obstructi
   assert.ok(w.O.squad(q, w.b).counts.blocked < 5, 'the squad counts him again');
 });
 
+test('Review: an older brief order and its physical blocker are not the standing brief failure', () => {
+  const { w, q, sealed } = blockedWorld('?stressAct=0&morale=0&coa=0&fireControl=0', 6);
+  w.r.BattleObjectiveSystem.attach(w.b, TWO, {});
+  for (let i = 0; i < 160 && !wakes(w, 'execution-blocked', 'us-0').length; i++) w.run(0.5);
+  assert.ok(wakes(w, 'execution-blocked', 'us-0').length >= 1, 'reported under the first brief');
+  /* The General's answer is standing and its envelopes are in transit; the sealed men still carry the stuck
+     episode of the first brief's destination. That episode is not a failure of an order they have not adopted. */
+  const m = q._macroMission,
+    carried = sealed.filter(s => w.O.blocked(s) && w.O.man(s, w.b).state === 'pending');
+  assert.ok(m.version > 1 && carried.length >= 1, 'a stuck episode outlives its brief: v' + m.version);
+  assert.equal(
+    w.O.blockedForBrief(carried[0], w.b),
+    false,
+    'an unadopted order is not blocked on old evidence'
+  );
+  assert.equal(w.O.squad(q, w.b).counts.blocked, 0);
+  /* Records from an older brief are never blended into the standing one. */
+  /* A newer brief appears while the old records persist. */
+  q._macroMission = Object.assign({}, m, { version: m.version + 5, status: 'executing', reason: 'test' });
+  q._macroMissionRequest = null;
+  const sq = w.O.squad(q, w.b);
+  assert.ok(sq.counts.notCurrent >= carried.length && sq.counts.blocked === 0, JSON.stringify(sq.counts));
+  assert.equal(w.O.man(carried[0], w.b).current, false);
+  w.Q.executeMission(w.b, q, null);
+  assert.ok(!q._macroMissionRequest, 'no escalation for the new brief on the old evidence');
+});
+
+test('Review: reading an outcome does not settle Command Reception', () => {
+  const { w, q } = blockedWorld('?stressAct=0&morale=0&coa=0&fireControl=0', 0);
+  w.run(10);
+  const st = w.b._commandReception;
+  w.b.time += 0.05;
+  const settledAt = st.settledAt,
+    phases = JSON.stringify(
+      Object.keys(st.bySoldier).map(k => Object.values(st.bySoldier[k]).map(r => r.phase))
+    ),
+    counts = JSON.stringify(st.counts);
+  q.members.forEach(s => w.O.man(s, w.b));
+  w.O.squad(q, w.b);
+  assert.equal(st.settledAt, settledAt, 'settledAt unchanged');
+  assert.equal(JSON.stringify(st.counts), counts);
+  assert.equal(
+    JSON.stringify(Object.keys(st.bySoldier).map(k => Object.values(st.bySoldier[k]).map(r => r.phase))),
+    phases
+  );
+});
+
 console.log(n + ' execution-contract checks passed');
