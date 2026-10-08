@@ -138,6 +138,42 @@ freshTask.serial = 0;
   assert.equal(draws, before, 'recon decision/selection/start draws no combat RNG');
 }
 
+/* Dead doctrinal scouts are not a hard recon dependency. Preserve a three-man
+   main body: severely depleted squads cannot send a detached scout at all. */
+{
+  const w = world();
+  const designated = w.q.members.filter(s => s.role === 'scout');
+  assert.ok(designated.length > 0, 'fixture starts with dedicated scouts');
+  designated.forEach(s => {
+    s.dead = true;
+  });
+  const replacements = w.S.selectReconScouts(w.q, w.b);
+  assert.ok(replacements.length > 0, 'living non-scouts can substitute for dead scouts');
+  assert.ok(
+    replacements.every(s => !s.dead && s.role !== 'scout'),
+    'replacements are eligible survivors, never dead doctrinal scouts'
+  );
+  const candidate = w.S.reconCandidate(w.q, w.b, w.q.objective);
+  assert.ok(candidate, 'the absence of doctrinal scouts does not veto the recon candidate');
+  assert.equal(w.S.startRecon(w.q, w.b, candidate), true, 'substitutes can receive a recon task');
+}
+{
+  const w = world();
+  const survivor = w.q.members.filter(s => s.role !== 'scout').slice(0, 3);
+  assert.equal(survivor.length, 3, 'fixture retains three non-scout survivors');
+  w.q.members.forEach(s => {
+    if (!survivor.includes(s)) s.dead = true;
+  });
+  assert.deepEqual(
+    w.S.selectReconScouts(w.q, w.b),
+    [],
+    'three surviving men cannot detach one and abandon the main-body minimum'
+  );
+  const candidate = w.S.reconCandidate(w.q, w.b, w.q.objective);
+  assert.ok(candidate, 'the terrain can still suggest a recon task');
+  assert.equal(w.S.startRecon(w.q, w.b, candidate), false, 'understrength squad declines detached recon');
+}
+
 /* A current personal threat picture suppresses recon; aggregate contact alone does not become leader knowledge. */
 {
   const w = world();
