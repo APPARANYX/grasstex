@@ -1,0 +1,453 @@
+{
+  "meta": {
+    "mode": "seeds",
+    "run": "407",
+    "runId": "37773140235",
+    "repo": "APPARANYX/grasstex",
+    "ref": "claude/recon-skip-posted-men",
+    "sha": "27bbde4bff0f24ebfb9e679455297c1ba417e639",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/37773140235",
+    "seed": "reconposts",
+    "seeds": 60,
+    "windows": "every60",
+    "battleType": "meeting",
+    "queryOff": "reconPosts=0",
+    "queryOn": "",
+    "build": "v29-dev"
+  },
+  "verdict": {
+    "kind": "moved",
+    "headline": "MOVED: 186 of 576 pairs changed (median first part 329.1 s); 6 of 34 counters under p 0.05 (about 1.7 by chance), 2 under 0.0015; casualties +1.0% (p 0.0005)",
+    "lines": [
+      "Clears the Bonferroni line (p < 0.0015): recon.timeouts 319 to 293 (-8.2%, p 0); casualties 14078 to 14215 (+1.0%, p 0.0005).",
+      "Under 0.05 only: usKills 7106 to 7277 (+2.4%, p 0.0079); fire.hits 7043 to 7188 (+2.1%, p 0.0079); recon.noContact 8436 to 8460 (+0.3%, p 0.0166); fire.total 20317 to 20748 (+2.1%, p 0.0357).",
+      "Unpaired records: off 2, on 2 (a seed or checkpoint only one arm reached: the flag changed how long the battle lasted, or a shard failed)."
+    ]
+  },
+  "compare": {
+    "pairs": 576,
+    "unpaired": {
+      "a": 2,
+      "b": 2
+    },
+    "identicalBattles": 390,
+    "winners": {
+      "a": {
+        "us": 34,
+        "ge": 26
+      },
+      "b": {
+        "us": 36,
+        "ge": 24
+      },
+      "flips": 4,
+      "mcnemarUsWon": {
+        "aOnly": 1,
+        "bOnly": 3,
+        "discordant": 4,
+        "p": 0.625
+      }
+    },
+    "timeLimit": {
+      "a": 44,
+      "b": 43,
+      "mcnemar": {
+        "aOnly": 2,
+        "bOnly": 1,
+        "discordant": 3,
+        "p": 1
+      }
+    },
+    "noCapture": {
+      "a": 115,
+      "b": 115,
+      "mcnemar": {
+        "aOnly": 0,
+        "bOnly": 0,
+        "discordant": 0,
+        "p": 1
+      }
+    },
+    "captures": {
+      "a": 3.33,
+      "b": 3.345
+    },
+    "movementStalls": {
+      "a": 32,
+      "b": 32
+    },
+    "runtimeErrors": {
+      "a": 0,
+      "b": 0
+    },
+    "wallSeconds": {
+      "medianA": 10.4315,
+      "medianB": 10.33,
+      "ratio": 0.99,
+      "gate": 1.25
+    },
+    "counters": {
+      "casualties": {
+        "a": 14078,
+        "b": 14215,
+        "meanDiff": 0.2378,
+        "battlesChanged": 49,
+        "more": 37,
+        "fewer": 12,
+        "signP": 0.0005
+      },
+      "usKills": {
+        "a": 7106,
+        "b": 7277,
+        "meanDiff": 0.2969,
+        "battlesChanged": 47,
+        "more": 33,
+        "fewer": 14,
+        "signP": 0.0079
+      },
+      "geKills": {
+        "a": 6972,
+        "b": 6938,
+        "meanDiff": -0.059,
+        "battlesChanged": 48,
+        "more": 21,
+        "fewer": 27,
+        "signP": 0.4709
+      },
+      "fire.total": {
+        "a": 20317,
+        "b": 20748,
+        "meanDiff": 0.7483,
+        "battlesChanged": 45,
+        "more": 30,
+        "fewer": 15,
+        "signP": 0.0357
+      },
+      "fire.hits": {
+        "a": 7043,
+        "b": 7188,
+        "meanDiff": 0.2517,
+        "battlesChanged": 47,
+        "more": 33,
+        "fewer": 14,
+        "signP": 0.0079
+      },
+      "retreatSamples": {
+        "a": 99323,
+        "b": 98019,
+        "meanDiff": -2.2639,
+        "battlesChanged": 46,
+        "more": 16,
+        "fewer": 30,
+        "signP": 0.0541
+      },
+      "movementResolver.changes": {
+        "a": 1181390,
+        "b": 1178781,
+        "meanDiff": -4.5295,
+        "battlesChanged": 68,
+        "more": 31,
+        "fewer": 37,
+        "signP": 0.5446
+      },
+      "movementStalls.length": {
+        "a": 32,
+        "b": 32,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "routeStalls.length": {
+        "a": 0,
+        "b": 0,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "targetlessStalls.length": {
+        "a": 0,
+        "b": 0,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "vacantObjectiveStalls.length": {
+        "a": 257,
+        "b": 270,
+        "meanDiff": 0.0226,
+        "battlesChanged": 27,
+        "more": 16,
+        "fewer": 11,
+        "signP": 0.4421
+      },
+      "loopAlerts.length": {
+        "a": 283,
+        "b": 281,
+        "meanDiff": -0.0035,
+        "battlesChanged": 18,
+        "more": 8,
+        "fewer": 10,
+        "signP": 0.8145
+      },
+      "writerConflicts": {
+        "a": 0,
+        "b": 0,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "regroups.entries": {
+        "a": 896,
+        "b": 908,
+        "meanDiff": 0.0208,
+        "battlesChanged": 27,
+        "more": 19,
+        "fewer": 8,
+        "signP": 0.0522
+      },
+      "stallOutcomes.wakes": {
+        "a": 121,
+        "b": 124,
+        "meanDiff": 0.0052,
+        "battlesChanged": 14,
+        "more": 8,
+        "fewer": 6,
+        "signP": 0.7905
+      },
+      "stallOutcomes.repeats": {
+        "a": 43,
+        "b": 44,
+        "meanDiff": 0.0017,
+        "battlesChanged": 5,
+        "more": 3,
+        "fewer": 2,
+        "signP": 1
+      },
+      "timeline.stalledOnsets": {
+        "a": 37,
+        "b": 37,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "timeline.stalledSamples": {
+        "a": 1583,
+        "b": 1484,
+        "meanDiff": -0.1719,
+        "battlesChanged": 4,
+        "more": 2,
+        "fewer": 2,
+        "signP": 1
+      },
+      "timeline.stalledOnsetsRepeated": {
+        "a": 200,
+        "b": 200,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "timeline.stalledSamplesRepeated": {
+        "a": 8344,
+        "b": 7777,
+        "meanDiff": -0.9844,
+        "battlesChanged": 4,
+        "more": 0,
+        "fewer": 4,
+        "signP": 0.125
+      },
+      "recon.orders": {
+        "a": 12218,
+        "b": 12215,
+        "meanDiff": -0.0052,
+        "battlesChanged": 40,
+        "more": 22,
+        "fewer": 18,
+        "signP": 0.6358
+      },
+      "recon.contacts": {
+        "a": 423,
+        "b": 417,
+        "meanDiff": -0.0104,
+        "battlesChanged": 23,
+        "more": 9,
+        "fewer": 14,
+        "signP": 0.4049
+      },
+      "recon.noContact": {
+        "a": 8436,
+        "b": 8460,
+        "meanDiff": 0.0417,
+        "battlesChanged": 40,
+        "more": 28,
+        "fewer": 12,
+        "signP": 0.0166
+      },
+      "recon.timeouts": {
+        "a": 319,
+        "b": 293,
+        "meanDiff": -0.0451,
+        "battlesChanged": 29,
+        "more": 2,
+        "fewer": 27,
+        "signP": 0
+      },
+      "recon.cancelled": {
+        "a": 2660,
+        "b": 2661,
+        "meanDiff": 0.0017,
+        "battlesChanged": 37,
+        "more": 22,
+        "fewer": 15,
+        "signP": 0.324
+      },
+      "recon.reportsDelivered": {
+        "a": 1901,
+        "b": 1876,
+        "meanDiff": -0.0434,
+        "battlesChanged": 21,
+        "more": 8,
+        "fewer": 13,
+        "signP": 0.3833
+      },
+      "recon.retriggerBlocked": {
+        "a": 9619,
+        "b": 9602,
+        "meanDiff": -0.0295,
+        "battlesChanged": 36,
+        "more": 17,
+        "fewer": 19,
+        "signP": 0.8679
+      },
+      "squadPerformance.meanOverall": {
+        "a": 50430.5,
+        "b": 50440.4,
+        "meanDiff": 0.0172,
+        "battlesChanged": 56,
+        "more": 34,
+        "fewer": 22,
+        "signP": 0.1409
+      },
+      "squadPerformance.p10Overall": {
+        "a": 47695.69999999987,
+        "b": 47697.79999999988,
+        "meanDiff": 0.0036,
+        "battlesChanged": 30,
+        "more": 16,
+        "fewer": 14,
+        "signP": 0.8555
+      },
+      "squadPerformance.lowScoreSquads": {
+        "a": 1,
+        "b": 1,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "squadPerformance.meanMission": {
+        "a": 42227.99999999996,
+        "b": 42269.69999999997,
+        "meanDiff": 0.0724,
+        "battlesChanged": 53,
+        "more": 32,
+        "fewer": 21,
+        "signP": 0.169
+      },
+      "squadPerformance.meanMovement": {
+        "a": 56889.80000000004,
+        "b": 56862.20000000004,
+        "meanDiff": -0.0479,
+        "battlesChanged": 46,
+        "more": 19,
+        "fewer": 27,
+        "signP": 0.302
+      },
+      "squadPerformance.meanControl": {
+        "a": 57282.60000000001,
+        "b": 57281.50000000002,
+        "meanDiff": -0.0019,
+        "battlesChanged": 40,
+        "more": 20,
+        "fewer": 20,
+        "signP": 1
+      },
+      "squadPerformance.meanCohesion": {
+        "a": 50495.8,
+        "b": 50498.29999999999,
+        "meanDiff": 0.0043,
+        "battlesChanged": 58,
+        "more": 26,
+        "fewer": 32,
+        "signP": 0.5118
+      }
+    },
+    "firstDivergence": {
+      "battles": 63,
+      "min": 235.05,
+      "p10": 235.05,
+      "median": 329.1,
+      "p90": 433.05,
+      "max": 569.1
+    },
+    "pass": true
+  },
+  "viewer": {
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=407&view=brain3d",
+    "previewUrl": null,
+    "seeds": [
+      {
+        "seed": "reconposts-0054",
+        "firstDivergence": 235.05,
+        "what": "timeline"
+      },
+      {
+        "seed": "reconposts-0042",
+        "firstDivergence": 257.1,
+        "what": "timeline"
+      },
+      {
+        "seed": "reconposts-0030",
+        "firstDivergence": 273,
+        "what": "timeline"
+      },
+      {
+        "seed": "reconposts-0016",
+        "firstDivergence": 274.05,
+        "what": "timeline"
+      },
+      {
+        "seed": "reconposts-0034",
+        "firstDivergence": 288,
+        "what": "timeline"
+      },
+      {
+        "seed": "reconposts-0011",
+        "firstDivergence": 329.1,
+        "what": "timeline"
+      },
+      {
+        "seed": "reconposts-0060",
+        "firstDivergence": 333,
+        "what": "timeline"
+      },
+      {
+        "seed": "reconposts-0006",
+        "firstDivergence": 339,
+        "what": "timeline"
+      }
+    ]
+  }
+}
