@@ -157,7 +157,11 @@ freshTask.serial = 0;
     const candidate = w.S.reconCandidate(w.q, w.b, w.q.objective);
     assert.ok(candidate);
     assert.equal(w.S.startRecon(w.q, w.b, candidate), true);
-    assert.deepEqual(ids(w.S.selectReconScouts(w.q, w.b)), selected, 'selection size and membership are retained');
+    assert.deepEqual(
+      ids(w.S.selectReconScouts(w.q, w.b)),
+      selected,
+      'selection size and membership are retained'
+    );
     return released;
   };
   const on = testCase('');
