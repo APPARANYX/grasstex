@@ -59,8 +59,11 @@
     /* Use a Set for O(1) membership test instead of indexOf's O(n). The
        _moduleUnitSet is the authoritative lookup; _moduleUnits stays as
        the ordered array for unitsFor() iteration. */
-    if (!sim._moduleUnitSet) {
+    /* A restart replaces the array (spawnAll, the trainer's reset) and used to leave the Set holding every
+       old soldier. The Set remembers which array it mirrors and is rebuilt when that array is replaced. */
+    if (!sim._moduleUnitSet || sim._moduleUnitSetFor !== sim._moduleUnits) {
       sim._moduleUnitSet = new Set(sim._moduleUnits);
+      sim._moduleUnitSetFor = sim._moduleUnits;
     }
     if (!sim._moduleUnitSet.has(unit)) {
       sim._moduleUnitSet.add(unit);
