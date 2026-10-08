@@ -1156,6 +1156,57 @@ section('physical wayfinding respects body clearance through hedgerows');
     Math.hypot(entering.man.root.position.x - station.x, entering.man.root.position.z - station.z) <= 0.35 &&
       entering.illegal === 0
   );
+  /* hill-0008 (us-defend), GE squad ge-4: three men stood in a building for 222 s, 230 s and the rest of the battle,
+     "path-blocked" with their formation slot 30-45 m away. The base graph answered "straight line" because the line
+     to the slot threads the building's door, but a hedge across that line forces a detour whose every first leg is a
+     building wall, and the visibility graph had hedge corners only: no node led out through the door. */
+  {
+    const lodge = {
+      id: 'lodge',
+      x: 0,
+      z: 0,
+      w: 16,
+      d: 14.6,
+      rot: 0,
+      openings: [{ id: 'lodge-door', type: 'door', side: 'west', offset: -1.4, width: 1.4 }]
+    };
+    const longHedge = {
+      id: 'long-hedge',
+      type: 'hedge',
+      shape: 'obb',
+      x: -24,
+      z: 0,
+      hx: 30,
+      hz: 1.1,
+      ux: 0,
+      uz: 1,
+      vx: -1,
+      vz: 0
+    };
+    const lodgeWorld = world([longHedge]);
+    lodgeWorld.scene.metadata.battleScenario = { buildings: [lodge] };
+    N.installScenario(lodgeWorld.scene.metadata.battleScenario);
+    const inside = { x: 0, z: 2.3 },
+      slot = { x: -48, z: -14.6 };
+    check(
+      'the fixture is the wedge: the straight line threads the door, then the hedge blocks it',
+      !N.movementClear(inside, { x: -30, z: -9.5 }) && N.movementClear(inside, { x: -9, z: -0.9 })
+    );
+    const route = P.planPath(lodgeWorld, inside, slot);
+    check(
+      'a man inside a building finds a route out through the door when a hedge forces a detour',
+      route.length > 0 && clearPath(inside, route, [longHedge], P.routeMargin),
+      JSON.stringify(route)
+    );
+    const walk = walkPhysical(lodgeWorld, inside, slot, 140);
+    check(
+      'he walks out and reaches his slot instead of standing path-blocked in the building',
+      Math.hypot(walk.man.root.position.x - slot.x, walk.man.root.position.z - slot.z) < 0.7 &&
+        walk.illegal === 0 &&
+        !walk.man._physicalPath.blocked,
+      JSON.stringify(walk.man.root.position)
+    );
+  }
   load(r, 'battle/movement-resolver.js');
   const close = {
     slotIndex: 0,
