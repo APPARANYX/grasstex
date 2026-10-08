@@ -414,4 +414,37 @@ test('G: a recon detail ending without contact is labelled as its own outcome fo
   assert.equal(w.O.recon(q), null, "a recon that ended before this brief is not this brief's outcome");
 });
 
+test('A: a trapped man keeps his status and rejoins the squad when his obstruction clears', () => {
+  const { w, q, sealed } = blockedWorld('?stressAct=0&morale=0&coa=0&fireControl=0&executionReport=1', 5);
+  w.run(60);
+  const man = sealed[1],
+    gap = () =>
+      Math.hypot(
+        man.root.position.x -
+          centroid(
+            q,
+            q.members.filter(s => !sealed.includes(s))
+          ).x,
+        man.root.position.z -
+          centroid(
+            q,
+            q.members.filter(s => !sealed.includes(s))
+          ).z
+      );
+  assert.equal(w.O.blocked(man), true, 'he is recorded as blocked');
+  const far = gap(),
+    start = { x: man.root.position.x, z: man.root.position.z };
+  assert.ok(far > 40, 'the squad has left him behind: ' + far);
+  /* The obstruction clears: the pockets are removed from the world. */
+  w.pockets.length = 0;
+  w.run(40);
+  assert.ok(
+    Math.hypot(man.root.position.x - start.x, man.root.position.z - start.z) > 20,
+    'he moves again under the same orders'
+  );
+  assert.equal(w.O.blocked(man), false, 'the blocked status clears by itself, with no flag of ours');
+  assert.ok(gap() < far - 20, 'and closes on the squad: ' + far + ' -> ' + gap());
+  assert.ok(w.O.squad(q, w.b).counts.blocked < 5, 'the squad counts him again');
+});
+
 console.log(n + ' execution-contract checks passed');
