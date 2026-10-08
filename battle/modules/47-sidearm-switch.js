@@ -76,10 +76,7 @@
   }
   function step(s, battle) {
     if (!s || s.dead || !s.secondary || !s.weapon) return;
-    var td =
-        root.SquadAI && root.SquadAI.threatDisposition
-          ? root.SquadAI.threatDisposition(s.target)
-          : null,
+    var td = root.SquadAI && root.SquadAI.threatDisposition ? root.SquadAI.threatDisposition(s.target) : null,
       t = s.target && s.target.root && (!td || td.combatThreat) ? s.target : null,
       d = t ? distance(s, t) : Infinity;
     /* The pistol he drew is no longer in his hands (he fled and was issued a fresh loadout): nothing to put away. */
