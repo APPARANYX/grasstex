@@ -212,6 +212,10 @@
         goalDistance: d
       };
     }
+    /* ?reconPosts=0/off/false restores the old detail, which could send a posted man (the benchmark's off arm). */
+    var RECON_SKIPS_POSTED =
+      typeof location === 'undefined' ||
+      !/[?&]reconPosts=(?:0|off|false)(?:&|#|$)/i.test(location.search || '');
     function reconEligible(man, sq, battle) {
       return !!(
         man &&
@@ -222,7 +226,7 @@
         /* A man holding a firing station already has a Squad Leader-owned positional obligation, and the
            Movement Resolver ranks it above a formation order: sending him would leave his recon order
            adopted and never executed (#361 defect 2). Meso picks someone free instead. */
-        !(root.BattleTacticalPositions && root.BattleTacticalPositions.current(man))
+        !(RECON_SKIPS_POSTED && root.BattleTacticalPositions && root.BattleTacticalPositions.current(man))
       );
     }
     function selectReconScouts(sq, battle) {
