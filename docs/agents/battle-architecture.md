@@ -414,7 +414,12 @@ shots left (AGI+MKM), riflemen whoever remains, and the role still issues the we
 0.85 s gunner). `engage` pins position and commits stance. `alert` holds the sector for
 `ALERT_HOLD`. Fire requires: a live target, not reloading, past `eng.fireReadyAt`, speed ≤12% and
 not crawling, within `AIM_CONE` (~12.6°), and gunner emplaced. `squad.inContact` is
-`contactCount>0 || suppressors>0`. Suppression deals no damage, only pins. There are at most
+`contactCount>0 || suppressors>0 || taking fire` where `contactCount` is the men whose held target has a live firing line: sight
+alone does not make a firefight. A target whose round would meet the crest or an obstacle first (the trigger-time gate's own
+`blockReason`) counts for `NO_LINE_GRACE` (6 s) after the line closes, then the man is only *observing*: he proposes no hold, so the
+Squad Leader's published order moves him, and the squad can clear contact, close its plan lease and advance on the last sighting
+instead of sitting behind the crest with every layer reading "contact" (`?fireLineContact=0` is the old rule; the hill stalemate,
+`hill-stalemate-check.js`). Suppression deals no damage, only pins. There are at most
 `MAX_SUPPRESSORS` suppressors, the MG first. The Squad Leader (`fireAndMovement`) sends one fireteam
 forward every `BOUND_CYCLE` if ≥2 are shooting, only in an assault phase, and the MG never moves.
 `engagement.js` declares each stored state's meaning, entries, exits, update rate and legal next
@@ -789,7 +794,6 @@ Implement this in **small phases**, each with its own deterministic harness/prob
      deterministic processing/orient/locate costs appropriate to the reference instead of one generic spatial delay.
      Command Reception still must not physically turn a man or become a stance/movement owner.
    - **0D2 relay topology — shipped in #223, opt-in via `?commandRelay=1`.** Add bounded direct voice/visual receipt and, where needed,
-   - **Squad relay (`?squadRelay=0` restores the old behaviour).** When neither the sender, nor the fireteam relay, reaches a man, `routedTiming` (module 18) tries every other living squadmate the sender did reach (his own first hop) and uses the one that gets the order to the man soonest. Still one hop, only for relayable (`reference !== 'none'`, `relay !== false`) orders; a man no reached squadmate can hear stays `unreachable`. Information only: no new movement writer or timer.
      Squad Leader -> fireteam relay -> member timing.
 5. **Close the direct-read gaps — Phase 0E in progress.** Add a static/runtime ratchet for command-bearing squad fields so new behavior
    cannot bypass personal adoption, then run fixed-seed and paired benchmarks for churn, stalls, response latency,
