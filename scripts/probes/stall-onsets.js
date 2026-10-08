@@ -58,7 +58,9 @@
         var was = p0.stalled;
         p0.stalled = now - p0.at >= 12 && (+s.moveSpeed || 0) < 0.35;
         if (p0.stalled && !was) {
-          var m = sq && sq._macroMission;
+          var m = sq && sq._macroMission,
+            O = root.BattleObjectiveSystem,
+            st = m && m.objectiveId && O && O.status ? O.status(sim, m.objectiveId) : null;
           onsets.push({
             t: +now.toFixed(0),
             faction: s.faction,
@@ -68,7 +70,17 @@
             contact: !!(sq && sq.inContact),
             intent: (m && m.intent) || null,
             eng: es,
-            distToDest: +d.toFixed(0)
+            distToDest: +d.toFixed(0),
+            objective: (m && m.objectiveId) || null,
+            objOwner: st ? st.owner || 'neutral' : null,
+            objPhase: st ? st.phase || null : null,
+            distToMissionPoint:
+              m && m.point ? +Math.hypot(p.x - m.point.x, p.z - m.point.z).toFixed(0) : null,
+            alive: sq
+              ? sq.members.filter(function (x) {
+                  return !x.dead;
+                }).length
+              : null
           });
         }
       });
