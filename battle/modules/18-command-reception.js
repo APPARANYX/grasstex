@@ -407,7 +407,8 @@
     var id = String(soldier.id),
       slot = envelope.category + '|' + envelope.scope,
       by = st.bySoldier[id];
-    if (!ENROLL_MISSING || (by && by[slot])) return false;
+    /* A record from an older envelope is not enrollment in the current, unchanged order. */
+    if (!ENROLL_MISSING || (by && by[slot] && by[slot].envelopeId === envelope.id)) return false;
     planRecipient(
       st,
       Object.assign({}, envelope, { issuedAt: +battle.time || 0 }),
@@ -539,6 +540,18 @@
       rec = by && by[String(category || 'command') + '|' + String(scope || 'squad')];
     return !!(rec && rec.envelopeId === envelopeId);
   }
+  /* One personal record as it stands now, without settling the battle's records: a read-only observer (the
+     execution outcome reader, a diagnostic export) must not advance the lifecycle. The phase is the pure
+     stage(rec, now) a settle would assign at this time. */
+  function peek(soldier, battle, category, scope) {
+    var st = ON && battle && battle._commandReception,
+      by = st && soldier && st.bySoldier[String(soldier.id)],
+      rec = by && by[String(category || 'command') + '|' + String(scope || 'squad')];
+    if (!rec) return null;
+    var out = publicRecord(rec);
+    out.phase = stage(rec, +battle.time || 0);
+    return out;
+  }
   function snapshot(soldier, battle) {
     if (!ON || !soldier || !battle) return null;
     var st = settle(battle),
@@ -649,6 +662,7 @@
     settle: settle,
     adopted: adopted,
     executionCurrent: executionCurrent,
+    peek: peek,
     snapshot: snapshot,
     squadSnapshot: squadSnapshot,
     telemetry: telemetry,

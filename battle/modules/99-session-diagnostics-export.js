@@ -644,9 +644,39 @@
         ? {
             version: sq._missionExecution.mission ? sq._missionExecution.mission.version : null,
             acceptedAt: finite(+sq._missionExecution.acceptedAt),
-            holdPoint: point(sq._missionExecution.holdPoint)
+            holdPoint: point(sq._missionExecution.holdPoint),
+            blockedReported: !!sq._missionExecution.blockedReported
           }
         : null,
+      /* What became of the squad's movement orders (read-only join of the existing records; see 18a). */
+      execution: (function () {
+        var O = root.BattleExecutionOutcome,
+          e = O && O.squad(sq, sim);
+        return e
+          ? {
+              missionVersion: e.missionVersion,
+              living: e.living,
+              counts: e.counts,
+              heldBy: e.heldBy,
+              recon: e.recon,
+              blocked: e.men
+                .filter(function (o) {
+                  return o.state === 'blocked' || o.state === 'pending';
+                })
+                .map(function (o) {
+                  return {
+                    id: o.id,
+                    state: o.state,
+                    why: o.why,
+                    envelopeId: o.envelopeId,
+                    missionVersion: o.missionVersion,
+                    terminal: o.terminal,
+                    distance: o.distance
+                  };
+                })
+            }
+          : null;
+      })(),
       contact: safePlain(sq._contact, 4),
       buddyPairs:
         root.BattleSquadStability && root.BattleSquadStability.buddySnapshot
@@ -884,6 +914,48 @@
     else out.orderProvenance = ai.orderProvenance;
     return out;
   }
+  /* Who owns each man of a squad in retreat and where he is (compact export, diagnostics only): resolver owner, kind and reason,
+     Engagement state, stop reason, distance to the squad's home, speed, health and stress, so a man who stands still on the way
+     home, or a retreat nobody owns, shows in the export instead of only in the squad's counts. At most 12 men, null off retreat. */
+  function retreatMen(sim, sq) {
+    if (!sq || sq.state !== 'retreat') return null;
+    var SQ = root.SquadAI,
+      home = (SQ && SQ.extractionHome && SQ.extractionHome(sq)) || sq.home || null,
+      M = root.BattleSoldierMind,
+      now = simNow(sim);
+    return aliveMembers(sq)
+      .slice(0, 12)
+      .map(function (s) {
+        var p = s.root.position,
+          d = s.destination,
+          last = (s._movementResolver && s._movementResolver.last) || {};
+        return {
+          id: s.id,
+          role: s.role || null,
+          pos: [rounded(p.x), rounded(p.z)],
+          dest: d ? [rounded(d.x), rounded(d.z)] : null,
+          homeM: rounded(distance(p, home)),
+          speed: rounded(s.moveSpeed || 0),
+          engagement: (s.eng && s.eng.state) || null,
+          resolver: { owner: last.owner || null, kind: last.kind || null, reason: last.reason || null },
+          stop: s._movementStopReason || null,
+          hp: rounded(s.hp),
+          stress: M && M.stress ? rounded(M.stress(s)) : null,
+          suppressed: (+s.suppressedUntil || 0) > now
+        };
+      });
+  }
+  /* The inputs of a retreating squad's rally decision: mean stress, mean permanent wound floor and casualty fraction. */
+  function retreatGate(sq) {
+    if (!sq || sq.state !== 'retreat') return null;
+    var M = root.BattleSoldierMind,
+      est = (root.SquadAI && root.SquadAI.establishment && root.SquadAI.establishment(sq)) || 10;
+    return {
+      stress: M && M.squadStress ? rounded(M.squadStress(sq)) : null,
+      floor: M && M.squadFloor ? rounded(M.squadFloor(sq)) : null,
+      casualtyFrac: rounded(1 - aliveMembers(sq).length / est)
+    };
+  }
   function compactSquad(sim, sq) {
     var analysis = squadAnalysis(sim, sq),
       mission = sq._macroMission || null;
@@ -911,6 +983,8 @@
       regroup: safePlain(sq._regroupHysteresis, 2),
       assembly: safePlain(sq._assembly, 3),
       reconstitutionGroup: sq._reconGroup || null,
+      retreatMen: retreatMen(sim, sq),
+      retreatGate: retreatGate(sq),
       analysis: {
         position: analysis.position,
         commandPointDistance: analysis.commandPointDistance,
