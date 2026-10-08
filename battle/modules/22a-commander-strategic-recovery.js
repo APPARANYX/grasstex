@@ -239,7 +239,7 @@
         lastProgress =
           summary && summary.lastObjectiveProgressAt && summary.lastObjectiveProgressAt[sq.faction],
         now = +sim.time || 0;
-      if (lastProgress != null && isFinite(+lastProgress) && now - lastProgress > 180 && !sq.inContact)
+      if (lastProgress != null && isFinite(+lastProgress) && now - lastProgress >= 180 && !sq.inContact)
         return false;
       return true;
     }
@@ -387,7 +387,14 @@
     function selectMission(sim, sq, town, reason, stalled, forcedObjective) {
       var request = defenseRequest(sim, sq),
         old = sq._macroMission,
-        role = sq.commandRole || 'center';
+        role = sq.commandRole || 'center',
+        staleDefenderRetask =
+          old &&
+          old.intent === 'defend' &&
+          !sq.inContact &&
+          (reason === 'strategic-stall-release' ||
+            reason === 'strategic-main-effort' ||
+            reason === 'strategic-reset');
       if (request)
         return issueMission(
           sim,
@@ -464,8 +471,7 @@
        defending too long with no contact — it needs to move, not re-defend the same
        point. Without this, selectMission re-issues the same defend brief (same briefKey),
        issueMission dedup returns the old brief unchanged, and the squad never moves. */
-      if ((reason === 'strategic-stall-release' || reason === 'strategic-reset') && intent === 'defend')
-        intent = 'capture';
+      if (staleDefenderRetask && intent === 'defend') intent = 'capture';
       /* Doctrine is decided once per brief, when it is issued - never re-evaluated per tick. The brief goes
        straight for the objective: walking the old approach route first cost captures (12-seed replay
        3.2 vs 3.8/battle) and on main a shadow writer had already abandoned it within the first minute. */
@@ -480,6 +486,14 @@
       sq._lastDoctrineRule = rule ? rule.id : null;
       var action = (rule && rule.action) || 'assault',
         axis = [];
+      /* A recovery wake cannot escape DEFEND if doctrine immediately chooses another
+         stationary action. Only an idle defender being deliberately re-tasked gets this
+         override; ordinary defense and attack doctrine are unchanged. */
+      if (
+        staleDefenderRetask &&
+        (action === 'defend' || action === 'hold' || action === 'regroup' || action === 'support')
+      )
+        action = 'assault';
       if (reason === 'strategic-stall-release' && action === 'hold') action = 'assault';
       var vacant = root.BattleVacantObjectiveAssault;
       if (
@@ -608,8 +622,17 @@
         if (!D.aliveMembers(sq).length || sq.state === 'retreat' || usefulDefender(sim, sq)) continue;
         var targetless =
             sq.commandRole !== 'reserve' && !(m && m.intent === 'reserve') && !sq.targetObjective,
-          stale = staleHoldOrSupport(sim, sq);
-        if (!targetless && !stale) continue;
+          stale = staleHoldOrSupport(sim, sq),
+          /* The 180 s release used to miss ordinary idle defenders because they still had
+             targetObjective, even though usefulDefender had expired. Explicitly prepared
+             garrisons and live objective-security requests remain authoritative. */
+          idleDefender =
+            m &&
+            m.intent === 'defend' &&
+            !sq.inContact &&
+            !defenseRequest(sim, sq) &&
+            !makingMissionProgress(sim, faction, sq);
+        if (!targetless && !stale && !idleDefender) continue;
         if (stale && (sq.commandRole === 'support' || (m && m.role === 'support'))) sq.commandRole = 'center';
         reconsiderMission(sim, sq, town, 'strategic-stall-release', stalled);
         affected++;
