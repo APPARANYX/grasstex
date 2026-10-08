@@ -270,6 +270,10 @@ test('B: a higher-priority movement authority is held, never blocked and never p
     assert.ok(o.by && !o.progressing);
     assert.equal(w.O.blocked(s), false, kind + ' is another authority, not a block of the formation order');
     assert.equal(o.envelopeId, o0.envelopeId, 'the outcome still names the order it describes');
+    /* A terminal formation failure from an earlier tick is not a current block once a higher authority owns him. */
+    s._movementProgress.kind = 'formation';
+    assert.equal(w.O.man(s, w.b).state, 'held', kind + ': higher authority still owns him');
+    assert.equal(w.O.blockedForBrief(s, w.b), false, kind + ': stale formation block is not reportable');
   });
 });
 
