@@ -36,6 +36,19 @@
         }
       }
     },
+    "squad._reconLedger": {
+      "owner": "modules/15c-squad-leader-scouts-forward.js",
+      "writers": {
+        "modules/15c-squad-leader-scouts-forward.js": {
+          "as": "owner",
+          "why": "reconRecordOutcome appends/merges per-point recon outcome entries keyed to missionVersion (#393)."
+        },
+        "modules/16-squad-plan-stability.js": {
+          "as": "setup",
+          "why": "restart-reset."
+        }
+      }
+    },
     "squad._reconReportMonitor": {
       "owner": "modules/15c-squad-leader-scouts-forward.js",
       "writers": {

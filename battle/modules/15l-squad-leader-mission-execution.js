@@ -33,6 +33,7 @@
       reconCandidate = ctx.reconCandidate,
       startRecon = ctx.startRecon,
       endRecon = ctx.endRecon,
+      RECON_LEDGER_ON = ctx.RECON_LEDGER_ON !== false,
       URBAN_ARRIVAL_COHESION = ctx.URBAN_ARRIVAL_COHESION;
     function inTown(town, p) {
       return !!(town && town.center && p && dist(p, town.center) < (+town.radius || 250));
@@ -250,12 +251,19 @@
          on-opposite-sides-of-a-hill stalemate: scouts go over the crest and
          acquire the enemy, triggering contact. */
         if (m.intent === 'defend' && !sq.inContact && !L.get(sq, 'recon')) {
-          var enemyDir = defendScoutDirection(sim, sq, pos);
+          /* #393: anchor the scouting decision on the owned objective waypoint, not the whole-squad
+             centroid — scouts walking out move the centroid and must not manufacture a new strategic
+             task. The control arm (?reconLedger=0) restores the centroid-derived base. */
+          var reconBase = RECON_LEDGER_ON ? wp : pos,
+            enemyDir = defendScoutDirection(sim, sq, reconBase);
           if (enemyDir) {
             /* Match the 110 m objective-approach gate so defender recon can use the full
              80 m crest look-ahead while scouts physically advance up to 50 m. */
-            var scoutGoal = { x: pos.x + enemyDir.x * 110, z: pos.z + enemyDir.z * 110 },
-              defendRecon = reconCandidate(sq, sim, scoutGoal);
+            var scoutGoal = {
+                x: reconBase.x + enemyDir.x * 110,
+                z: reconBase.z + enemyDir.z * 110
+              },
+              defendRecon = reconCandidate(sq, sim, scoutGoal, reconBase);
             if (defendRecon) defendRecon.defenderOrigin = true;
             if (defendRecon && startRecon(sq, sim, defendRecon)) {
               sq._missionHold = 'recon';
