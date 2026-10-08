@@ -394,4 +394,24 @@ test('A: a block the objective does not cure is escalated once, not swapped back
   assert.equal(wakes(w, 'execution-blocked', 'us-0').length, 1);
 });
 
+test('G: a recon detail ending without contact is labelled as its own outcome for the standing brief', () => {
+  const { w, q } = blockedWorld('?stressAct=0&morale=0&coa=0&fireControl=0', 0);
+  w.run(3);
+  const at = q._macroMission.issuedAt || 0;
+  assert.equal(w.O.recon(q), null, 'no recon under this brief');
+  q._reconTask = { scoutIds: ['a', 'b'] };
+  assert.equal(w.O.recon(q).outcome, 'underway');
+  q._reconTask = null;
+  const ended = reason => {
+    q._reconLast = { reason, endedAt: at + 5, scoutIds: ['a', 'b'] };
+    return w.O.recon(q);
+  };
+  assert.equal(ended('observed-no-contact').outcome, 'no-contact');
+  assert.equal(ended('timeout').outcome, 'timeout');
+  assert.equal(ended('scout-contact').outcome, 'contact');
+  assert.equal(ended('retreat').outcome, 'cancelled');
+  q._reconLast = { reason: 'observed-no-contact', endedAt: at - 1, scoutIds: [] };
+  assert.equal(w.O.recon(q), null, "a recon that ended before this brief is not this brief's outcome");
+});
+
 console.log(n + ' execution-contract checks passed');

@@ -658,6 +658,7 @@
               living: e.living,
               counts: e.counts,
               heldBy: e.heldBy,
+              recon: e.recon,
               blocked: e.men
                 .filter(function (o) {
                   return o.state === 'blocked' || o.state === 'pending';

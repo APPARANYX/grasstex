@@ -181,6 +181,7 @@
       living: men.length,
       counts: counts,
       heldBy: heldBy,
+      recon: recon(sq),
       men: men
     };
   }
@@ -190,7 +191,30 @@
     var p = s && s._movementProgress;
     return !!(p && p.stuck && p.terminal && p.kind === 'formation');
   }
+  /* The scouting detail's result for the squad's current brief, read from Squad Leader's own recon records
+     (`_reconTask` while underway, `_reconLast` once ended; both are written by module 15c, nothing is added). It
+     names a no-contact completion as such: neither a failure nor progress, and not the same as a timeout. */
+  var RECON_OUTCOME = {
+    'scout-contact': 'contact',
+    'observed-no-contact': 'no-contact',
+    timeout: 'timeout'
+  };
+  function recon(sq) {
+    if (!sq) return null;
+    var m = sq._macroMission,
+      since = m ? +m.issuedAt || 0 : 0;
+    if (sq._reconTask) return { outcome: 'underway', scouts: (sq._reconTask.scoutIds || []).length };
+    var last = sq._reconLast;
+    if (!last || !(+last.endedAt >= since)) return null;
+    return {
+      outcome: RECON_OUTCOME[last.reason] || 'cancelled',
+      reason: last.reason,
+      endedAt: +last.endedAt,
+      scouts: (last.scoutIds || []).length
+    };
+  }
   root.BattleExecutionOutcome = {
+    recon: recon,
     version: '1-derived',
     blocked: blocked,
     man: man,
