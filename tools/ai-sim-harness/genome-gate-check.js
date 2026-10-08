@@ -250,50 +250,42 @@ function doctrineOn(root) {
   return root.BattleCommanderDoctrine;
 }
 
-test('genome off, a brief is decided by the same default rules with or without the genome module', () => {
+test('baseline: Force Command action doctrine is OFF for every context, with or without the Genome module', () => {
   const stashed = policyRoot({ stashed: true, fetchLog: [] }),
     P = stashed.BattleAIPolicy,
     withModule = doctrineOn(stashed),
     bare = doctrineOn({}),
     sim = { scene: { metadata: { battleScenario: SCENARIO } } };
-  assert.equal(bare.genomeOff(), true, 'no genome module: off');
-  let decided = 0;
+  assert.equal(bare.genomeOff(), true, 'no Genome module: off');
+  assert.equal(withModule.actionDoctrineEnabled, false, 'action doctrine disabled in shipping code');
+  assert.equal(bare.actionDoctrineEnabled, false, 'action doctrine disabled in Node harness');
+  let wouldHaveMatched = 0;
   for (let mask = 0; mask < 1 << FLAGS.length; mask++) {
     const context = {};
     FLAGS.forEach((f, i) => (context[f] = !!(mask & (1 << i))));
-    const expected = P.decide(P.defaults, context);
-    same(withModule.ruleFor(sim, 'us', context), expected, 'stashed module, hostile server data: ' + mask);
-    same(bare.ruleFor(sim, 'ge', context), expected, 'no module: ' + mask);
-    if (expected) decided++;
+    if (P.decide(P.defaults, context)) wouldHaveMatched++;
+    assert.equal(withModule.ruleFor(sim, 'us', context), null, 'stashed action rules stay off: ' + mask);
+    assert.equal(bare.ruleFor(sim, 'ge', context), null, 'missing Genome action rules stay off: ' + mask);
   }
-  assert.ok(decided > 0 && decided < 1 << FLAGS.length, 'some situations match a rule and some do not');
-  assert.equal(
-    bare.ruleFor(sim, 'us', { objectiveNeutral: true, outnumbered: false }).id,
-    'press-neutral',
-    'a neutral objective, not outnumbered: press'
-  );
-  assert.equal(
-    bare.ruleFor(sim, 'us', { objectiveEnemy: true, outnumbered: true }).action,
-    'flank',
-    'an enemy strongpoint, outnumbered: flank'
-  );
-  assert.equal(
-    bare.ruleFor(sim, 'us', { objectiveOwned: true, underPressure: true }).action,
-    'defend',
-    'an owned objective under pressure: defend'
-  );
-  assert.equal(bare.ruleFor(sim, 'us', {}), null, 'nothing holds: no rule, the brief assaults');
+  assert.ok(wouldHaveMatched > 0, 'positive control: old fallback rules would have triggered');
 });
 
-test('control: with the genome on, Force Command decides by the genome, not the code defaults', () => {
+test('baseline isolation: even a manually revived Genome cannot silently re-enable doctrine actions', () => {
   const root = policyRoot({ stashed: false, fetchLog: [] }),
     D = doctrineOn(root),
     sim = { scene: { metadata: { battleScenario: SCENARIO } } };
-  assert.equal(D.genomeOff(), false);
+  assert.equal(D.genomeOff(), false, 'control: Genome un-stashed');
   assert.equal(
-    D.ruleFor(sim, 'us', { objectiveNeutral: true, outnumbered: false }).id,
+    root.BattleAIPolicy.decide(root.BattleAIPolicy.genomeFor(sim, 'us'), { objectiveNeutral: true })
+      .id,
     'always-hold',
-    'the server genome decides'
+    'positive control: hostile server Genome still contains the action'
+  );
+  assert.equal(D.actionDoctrineEnabled, false);
+  assert.equal(
+    D.ruleFor(sim, 'us', { objectiveNeutral: true }),
+    null,
+    'an active Genome cannot reactivate commander doctrine without explicitly changing the code switch'
   );
   assert.notEqual(D.policyFor(sim, 'us').cohesionRadius, D.FALLBACK.cohesionRadius);
 });
