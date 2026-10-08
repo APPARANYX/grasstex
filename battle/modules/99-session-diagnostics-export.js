@@ -884,6 +884,38 @@
     else out.orderProvenance = ai.orderProvenance;
     return out;
   }
+  /* Who owns each man of a squad in retreat and where he is (compact export, diagnostics only): resolver owner, kind and reason,
+     Engagement state, stop reason, distance to the squad's home, speed, health and stress, so a man who stands still on the way
+     home, or a retreat nobody owns, shows in the export instead of only in the squad's counts. At most 12 men, null off retreat. */
+  function retreatMen(sim, sq) {
+    if (!sq || sq.state !== 'retreat') return null;
+    var SQ = root.SquadAI,
+      home = (SQ && SQ.extractionHome && SQ.extractionHome(sq)) || sq.home || null,
+      M = root.BattleSoldierMind,
+      now = simNow(sim);
+    return aliveMembers(sq)
+      .slice(0, 12)
+      .map(function (s) {
+        var p = s.root.position,
+          d = s.destination,
+          last = (s._movementResolver && s._movementResolver.last) || {};
+        return {
+          id: s.id,
+          role: s.role || null,
+          pos: [rounded(p.x), rounded(p.z)],
+          dest: d ? [rounded(d.x), rounded(d.z)] : null,
+          homeM: rounded(distance(p, home)),
+          speed: rounded(s.moveSpeed || 0),
+          engagement: (s.eng && s.eng.state) || null,
+          resolver: { owner: last.owner || null, kind: last.kind || null, reason: last.reason || null },
+          stop: s._movementStopReason || null,
+          hp: rounded(s.hp),
+          stress: s.mind && M ? rounded(s.mind.stress) : null,
+          floor: s.mind ? rounded(s.mind.floor) : null,
+          suppressed: (+s.suppressedUntil || 0) > now
+        };
+      });
+  }
   function compactSquad(sim, sq) {
     var analysis = squadAnalysis(sim, sq),
       mission = sq._macroMission || null;
@@ -911,6 +943,7 @@
       regroup: safePlain(sq._regroupHysteresis, 2),
       assembly: safePlain(sq._assembly, 3),
       reconstitutionGroup: sq._reconGroup || null,
+      retreatMen: retreatMen(sim, sq),
       analysis: {
         position: analysis.position,
         commandPointDistance: analysis.commandPointDistance,
