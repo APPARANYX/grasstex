@@ -708,10 +708,10 @@
         updateCommander(sim, town, COMMAND_TICK);
       }
     });
+    var genomeStatus = D.genomeOff && D.genomeOff() ? 'stashed' : 'active',
+      doctrineStatus = D.actionDoctrineEnabled ? 'on' : 'off';
     root.GTLog(
-      '[COMMAND] objectives active · Genome ' + (D.genomeOff && D.genomeOff() ? 'stashed' : 'active') +
-        ' · doctrine actions ' + (D.actionDoctrineEnabled ? 'on' : 'off') +
-        ' · build ' + (root.BATTLE_BUILD || 'dev')
+      `[COMMAND] objectives active · Genome ${genomeStatus} · doctrine actions ${doctrineStatus} · build ${root.BATTLE_BUILD || 'dev'}`
     );
     return sim;
   };
