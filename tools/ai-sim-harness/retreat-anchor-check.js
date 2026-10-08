@@ -263,4 +263,35 @@ test('a majority physically blocked on the leased endpoint gets one bounded reco
   for (let i = 0; i < 6; i++)
     assert.ok(d(command(w), next) < 1e-9, 'persistent blocked flags do not churn the recovery anchor');
 });
+function settleAtSlotOffset(w, arrived) {
+  command(w);
+  const a = p(w.q.orderAnchor),
+    men = live(w.q);
+  /* every man stands at his own slot, whose mean sits 6.5 m from the anchor (a lone rifleman's offset) */
+  men.forEach((s, i) => {
+    s.root.position.x = a.x + 6.5 + (i % 2 ? -0.4 : 0.4);
+    s.root.position.z = a.z;
+    s._movementStopReason = arrived ? 'arrived' : 'moving';
+  });
+  for (let i = 0; i < 8; i++) command(w, 0.45);
+  return w.L.get(w.q, 'retreat-anchor');
+}
+test('men who all arrived at their slots count as having reached the anchor despite the slot offset', () => {
+  const held = settleAtSlotOffset(fixture(), true);
+  assert.equal(held.data.reason, 'anchor reached', 'got ' + held.data.reason);
+});
+test('a slot offset alone is not arrival while any man is still walking, and ?retreatArrival=0 restores the old test', () => {
+  const walking = settleAtSlotOffset(fixture(), false);
+  assert.notEqual(walking.data.reason, 'anchor reached');
+  const saved = global.location;
+  global.location = { search: '?retreatArrival=0' };
+  try {
+    const w = fixture();
+    // module flag is read at load time, so fixture() above loaded it under the flag
+    const held = settleAtSlotOffset(w, true);
+    assert.notEqual(held.data.reason, 'anchor reached');
+  } finally {
+    global.location = saved;
+  }
+});
 console.log('retreat-anchor-check: ' + n + ' passed');
