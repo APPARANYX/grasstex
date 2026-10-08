@@ -735,6 +735,36 @@ section('meeting engagements do not enter prepared-defender construction');
     error
   );
 }
+section('a squad on a live capture brief is not pinned as a garrison by its engineer');
+{
+  const { r, sq, sim } = commandFixture();
+  load(r, 'battle/modules/00-battle-sides.js');
+  load(r, 'battle/modules/00-defense-plan.js');
+  sim.obstacles = [];
+  sim.scene = null;
+  sim._defensePlans = { us: r.BattleDefensePlan.empty('us'), ge: r.BattleDefensePlan.empty('ge') };
+  load(r, 'battle/modules/21-defender-engineers.js');
+  sim._sides = r.BattleSides.build(
+    { center: { x: 0, z: 0 }, objectives: [sim._objectives[0].def] },
+    { defender: 'us' }
+  );
+  sim._objectives[0].state.owner = 'us';
+  sq.members[0].role = 'engineer';
+  sq.members[0].squad = sq;
+  sq.members[0].root.position = { x: 120, z: 0 };
+  sq._macroMission = { intent: 'capture', objectiveId: 'elsewhere', status: 'executing', version: 1 };
+  const tick = () => r.BattleModules.getSystem('defender-engineers').onCommanderTick(sim, { dt: 11 });
+  tick();
+  check('the engineer still builds at the owned objective', sim._engineerBuild.counts['us|outer'] === 1);
+  check('an executing capture brief gets no standing garrison request', !sq._preparedDefenseRequest);
+  check('nor a garrison objective', !sq.garrisonObjective);
+  sq._macroMission = { intent: 'defend', objectiveId: 'outer', status: 'executing', version: 2 };
+  tick();
+  check(
+    'a squad already on a defend brief is garrisoned as before',
+    sq._preparedDefenseRequest && sq._preparedDefenseRequest.objectiveId === 'outer'
+  );
+}
 section("an engineer's technical skill is his building rate");
 {
   /* dt 4 s per tick against the 10 s BUILD_SECONDS: x1.4 builds on the 2nd tick, x1 on the 3rd, x0.6 on the 5th. */
