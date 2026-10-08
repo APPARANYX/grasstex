@@ -27,7 +27,8 @@
     NODE_PAD = 0.34,
     ROUTE_HORIZON = 96,
     ROUTE_CORRIDOR = 12,
-    MAX_ROUTE_SHAPES = 32;
+    MAX_ROUTE_SHAPES = 32,
+    DOOR_NODE_PAD = 1.55;
   var LOOKAHEAD_DISTANCE = 105,
     MIN_QUEUE = 3,
     TARGET_QUEUE = 5,
@@ -443,6 +444,20 @@
     var u = ROUTE_HORIZON / d;
     return { x: start.x + (goal.x - start.x) * u, z: start.z + (goal.z - start.z) * u, kind: 'lookahead' };
   }
+  /* Both sides of every door within the route horizon of `start`, off the doorway by the base graph's own pad. */
+  function doorNodes(start) {
+    var out = [],
+      portals = N.doorPortals || [];
+    for (var i = 0; i < portals.length; i++) {
+      var d = portals[i];
+      if (dist(start, d) > ROUTE_HORIZON) continue;
+      out.push(
+        { x: d.x + d.normalX * DOOR_NODE_PAD, z: d.z + d.normalZ * DOOR_NODE_PAD, kind: 'door' },
+        { x: d.x - d.normalX * DOOR_NODE_PAD, z: d.z - d.normalZ * DOOR_NODE_PAD, kind: 'door' }
+      );
+    }
+    return out;
+  }
   function planLocal(sim, soldier, start, goal, expanded) {
     /* A lookahead is a synthetic point on the straight line, not a command. It obeys the same legal-stand
      invariant as a real destination: no route can end inside a body buffer, so an illegal horizon point
@@ -458,63 +473,78 @@
     );
     if (edgeClear(sim, start, end, shapes, ROUTE_MARGIN))
       return { points: [end], segmentGoal: end, finalGoal: goal, shapes: shapes };
-    var nodes = [start, end],
-      i,
-      j;
-    for (i = 0; i < shapes.length; i++) {
-      var candidates = routeNodes(shapes[i], ROUTE_MARGIN);
-      for (j = 0; j < candidates.length; j++) {
-        var p = candidates[j];
-        if (edgeClear(sim, p, p, shapes, ROUTE_MARGIN)) {
-          p.kind = 'avoid';
-          nodes.push(p);
+    function search(withDoors) {
+      var nodes = [start, end],
+        i,
+        j;
+      if (withDoors) {
+        /* A door node is a way out of (or into) a building, not a corner of a hedge. */
+        var doors = doorNodes(start);
+        for (i = 0; i < doors.length; i++)
+          if (edgeClear(sim, doors[i], doors[i], shapes, ROUTE_MARGIN)) nodes.push(doors[i]);
+      }
+      for (i = 0; i < shapes.length; i++) {
+        var candidates = routeNodes(shapes[i], ROUTE_MARGIN);
+        for (j = 0; j < candidates.length; j++) {
+          var p = candidates[j];
+          if (edgeClear(sim, p, p, shapes, ROUTE_MARGIN)) {
+            p.kind = 'avoid';
+            nodes.push(p);
+          }
         }
       }
-    }
-    /* Visibility edges are tested when A* expands a node, not for every pair up front: the search
-     usually settles a handful of the ~130 nodes. Clearance permits outward escape when a start is
-     already inside a buffer, so visibility is directed: a legal escape edge must never imply a legal
-     reverse entry edge. Neighbours are visited in index order, as the full graph listed them, and an
-     edge is only tested when it would improve its neighbour's cost. */
-    var open = [],
-      g = new Array(nodes.length),
-      prev = new Array(nodes.length),
-      closed = new Array(nodes.length);
-    for (i = 0; i < g.length; i++) g[i] = Infinity;
-    g[0] = 0;
-    heapPush(open, { id: 0, f: dist(start, end) });
-    while (open.length) {
-      var cur = heapPop(open),
-        id = cur.id;
-      if (closed[id]) continue;
-      closed[id] = 1;
-      if (id === 1) break;
-      for (j = 0; j < nodes.length; j++) {
-        if (j === id) continue;
-        var ng = g[id] + dist(nodes[id], nodes[j]);
-        if (!(ng + 1e-6 < g[j]) || !edgeClear(sim, nodes[id], nodes[j], shapes, ROUTE_MARGIN)) continue;
-        g[j] = ng;
-        prev[j] = id;
-        heapPush(open, { id: j, f: ng + dist(nodes[j], end) });
+      /* Visibility edges are tested when A* expands a node, not for every pair up front: the search
+       usually settles a handful of the ~130 nodes. Clearance permits outward escape when a start is
+       already inside a buffer, so visibility is directed: a legal escape edge must never imply a legal
+       reverse entry edge. Neighbours are visited in index order, as the full graph listed them, and an
+       edge is only tested when it would improve its neighbour's cost. */
+      var open = [],
+        g = new Array(nodes.length),
+        prev = new Array(nodes.length),
+        closed = new Array(nodes.length);
+      for (i = 0; i < g.length; i++) g[i] = Infinity;
+      g[0] = 0;
+      heapPush(open, { id: 0, f: dist(start, end) });
+      while (open.length) {
+        var cur = heapPop(open),
+          id = cur.id;
+        if (closed[id]) continue;
+        closed[id] = 1;
+        if (id === 1) break;
+        for (j = 0; j < nodes.length; j++) {
+          if (j === id) continue;
+          var ng = g[id] + dist(nodes[id], nodes[j]);
+          if (!(ng + 1e-6 < g[j]) || !edgeClear(sim, nodes[id], nodes[j], shapes, ROUTE_MARGIN)) continue;
+          g[j] = ng;
+          prev[j] = id;
+          heapPush(open, { id: j, f: ng + dist(nodes[j], end) });
+        }
       }
-    }
-    var path = [];
-    if (isFinite(g[1])) {
-      var k = 1,
-        ids = [1];
-      while (k !== 0 && prev[k] != null) {
-        k = prev[k];
-        ids.push(k);
+      var path = [];
+      if (isFinite(g[1])) {
+        var k = 1,
+          ids = [1];
+        while (k !== 0 && prev[k] != null) {
+          k = prev[k];
+          ids.push(k);
+        }
+        ids.reverse();
+        for (i = 1; i < ids.length; i++)
+          path.push({
+            x: nodes[ids[i]].x,
+            z: nodes[ids[i]].z,
+            kind: nodes[ids[i]].kind || 'physical',
+            meta: nodes[ids[i]].meta || null
+          });
       }
-      ids.reverse();
-      for (i = 1; i < ids.length; i++)
-        path.push({
-          x: nodes[ids[i]].x,
-          z: nodes[ids[i]].z,
-          kind: nodes[ids[i]].kind || 'physical',
-          meta: nodes[ids[i]].meta || null
-        });
+      return path;
     }
+    var i, j;
+    var path = search(false);
+    /* The base door graph answered "straight line" because the line threads a door, so the visibility graph above has no
+       way out of the building when a hedge or rock beyond the door forces a detour: every edge from the start is a wall.
+       Door nodes are only added once the plain search has failed, so every route that was found is unchanged. */
+    if (!path.length) path = search(true);
     if (!path.length && !expanded && shapes.length >= MAX_ROUTE_SHAPES)
       return planLocal(sim, soldier, start, goal, true);
     if (!path.length) {
