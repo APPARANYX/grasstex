@@ -14,4 +14,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh workflow run battle-benchmark-standard.yml --repo APPARANYX/grasstex --ref work/benchmark-diagnostic-evidence -f seed=scripted-scout-0003 -f seeds=1 -f query_off='' -f query_on='' -f battle_type=meeting -f windows=contact+60,every60 -f origin_agent=chatgpt -f correlation_id=pr396-control -f purpose='Verify identical arms on diagnostics-only PR 396'
+          gh workflow run battle-benchmark-standard.yml --repo APPARANYX/grasstex --ref work/benchmark-diagnostic-evidence -f seed=scripted-scout-0003 -f seeds=1 -f query_off='' -f query_on='' -f battle_type=meeting -f windows=contact+60,every60 -f origin_agent=chatgpt -f correlation_id=pr396-synced-control -f purpose='Recheck diagnostic-only PR396 with main recon changes included'
