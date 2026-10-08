@@ -69,7 +69,7 @@
   /* Look up a unit by id in the enemy faction's roster. Returns null if not found
      (the unit may have died or the id may be a sector key rather than a unit id). */
   function lookupUnit(sim, unitId, faction) {
-    if (!unitId || !sim || !sim.factions) return null;
+    if (unitId == null || !sim || !sim.factions) return null;
     var enemy = faction === 'us' ? 'ge' : 'us',
       roster = sim.factions[enemy],
       units = (roster && (roster.units || roster.members)) || [];
@@ -235,7 +235,7 @@
           kind: change.kind,
           x: change.x,
           z: change.z,
-          unitId: change.unitId || null,
+          unitId: change.unitId == null ? null : change.unitId,
           recipientCount: recipients.length,
           recipients: recipients.map(function (r) {
             return { squad: r.squad.id, distance: +r.distance.toFixed(1) };
@@ -252,7 +252,7 @@
               x: +change.x.toFixed(1),
               z: +change.z.toFixed(1),
               observedAt: change.at,
-              unitId: change.unitId || null,
+              unitId: change.unitId == null ? null : change.unitId,
               recipientCount: recipients.length,
               recipients: broadcast.recipients
             },
@@ -286,7 +286,7 @@
             if (held && isFinite(+held.at) && +held.at > change.at) continue;
             /* Don't apply if the squad is retreating or regrouping (different priorities). */
             if (squad.state === 'retreat' || squad.commandPhase === 'regroup') continue;
-            var unit = change.unitId ? lookupUnit(sim, change.unitId, f) : null;
+            var unit = change.unitId != null ? lookupUnit(sim, change.unitId, f) : null;
             squad.contact = {
               unit: unit,
               x: change.x,
