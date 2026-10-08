@@ -419,7 +419,12 @@ shots left (AGI+MKM), riflemen whoever remains, and the role still issues the we
 0.85 s gunner). `engage` pins position and commits stance. `alert` holds the sector for
 `ALERT_HOLD`. Fire requires: a live target, not reloading, past `eng.fireReadyAt`, speed ≤12% and
 not crawling, within `AIM_CONE` (~12.6°), and gunner emplaced. `squad.inContact` is
-`contactCount>0 || suppressors>0`. Suppression deals no damage, only pins. There are at most
+`contactCount>0 || suppressors>0 || taking fire` where `contactCount` is the men whose held target has a live firing line: sight
+alone does not make a firefight. A target whose round would meet the crest or an obstacle first (the trigger-time gate's own
+`blockReason`) counts for `NO_LINE_GRACE` (6 s) after the line closes, then the man is only *observing*: he proposes no hold, so the
+Squad Leader's published order moves him, and the squad can clear contact, close its plan lease and advance on the last sighting
+instead of sitting behind the crest with every layer reading "contact" (`?fireLineContact=0` is the old rule; the hill stalemate,
+`hill-stalemate-check.js`). Suppression deals no damage, only pins. There are at most
 `MAX_SUPPRESSORS` suppressors, the MG first. The Squad Leader (`fireAndMovement`) sends one fireteam
 forward every `BOUND_CYCLE` if ≥2 are shooting, only in an assault phase, and the MG never moves.
 `engagement.js` declares each stored state's meaning, entries, exits, update rate and legal next
