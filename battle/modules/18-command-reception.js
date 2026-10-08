@@ -25,7 +25,9 @@
     MOVEMENT_ON = ON && !/[?&]commandMovement=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),
     RELAY_ON = ON && !/[?&]commandRelay=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),
     /* ?enrollMissing=0 is the legacy control: a man absent from an unchanged envelope is never enrolled. */
-    ENROLL_MISSING = !/[?&]enrollMissing=(?:0|off|false)(?:&|#|$)/i.test(SEARCH);
+    ENROLL_MISSING = !/[?&]enrollMissing=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),
+    /* Other personally reached squadmates may relay an otherwise undeliverable referenced order. */
+    SQUAD_RELAY_ON = RELAY_ON && !/[?&]squadRelay=(?:0|off|false)(?:&|#|$)/i.test(SEARCH);
   var FORMAT = 4;
   var TUNING = {
     SOUND: 343,
@@ -270,40 +272,51 @@
       orientationSeconds: orient
     };
   }
+  function viaRelay(envelope, soldier, sender, battle, relay) {
+    var first = recipientTiming(envelope, relay, sender, battle, envelope.issuedAt, ':relay');
+    if (!first) return null;
+    var second = recipientTiming(
+      envelope,
+      soldier,
+      relay,
+      battle,
+      first.adoptedAt + TUNING.RELAY_PAUSE,
+      ':member'
+    );
+    if (!second) return null;
+    return {
+      channel: first.channel === second.channel ? first.channel + '-relay' : 'mixed-relay',
+      hops: 2,
+      relayId: String(relay.id),
+      relayReceivedAt: first.receivedAt,
+      relayReadyAt: first.adoptedAt,
+      distance: second.distance,
+      receivedAt: second.receivedAt,
+      processedAt: second.processedAt,
+      adoptedAt: second.adoptedAt,
+      orientationSeconds: second.orientationSeconds
+    };
+  }
+  /* Last resort for a man nobody above can reach: the squadmate who got the order from the sender and can reach him
+     soonest. The relay has to hear the order first (his own first hop), so nothing is relayed that he does not hold. */
+  function squadRelay(envelope, soldier, sender, battle, sq, tried) {
+    var best = null;
+    ((sq && sq.members) || []).forEach(function (m) {
+      if (!m || m.dead || m.isPlayer || m === soldier || m === sender || m === tried) return;
+      var t = viaRelay(envelope, soldier, sender, battle, m);
+      if (t && (!best || t.adoptedAt < best.adoptedAt)) best = t;
+    });
+    return best;
+  }
   function routedTiming(envelope, soldier, sender, battle, sq) {
     if (!sender) return null;
-    var relay =
-      envelope.reference !== 'none' && envelope.relayPolicy !== 'never'
-        ? relayFor(sq, soldier, sender)
-        : null;
-    if (relay) {
-      var first = recipientTiming(envelope, relay, sender, battle, envelope.issuedAt, ':relay');
-      if (first) {
-        var second = recipientTiming(
-          envelope,
-          soldier,
-          relay,
-          battle,
-          first.adoptedAt + TUNING.RELAY_PAUSE,
-          ':member'
-        );
-        if (second)
-          return {
-            channel: first.channel === second.channel ? first.channel + '-relay' : 'mixed-relay',
-            hops: 2,
-            relayId: String(relay.id),
-            relayReceivedAt: first.receivedAt,
-            relayReadyAt: first.adoptedAt,
-            distance: second.distance,
-            receivedAt: second.receivedAt,
-            processedAt: second.processedAt,
-            adoptedAt: second.adoptedAt,
-            orientationSeconds: second.orientationSeconds
-          };
-      }
-    }
+    var canRelay = envelope.reference !== 'none' && envelope.relayPolicy !== 'never',
+      relay = canRelay ? relayFor(sq, soldier, sender) : null,
+      routed = relay ? viaRelay(envelope, soldier, sender, battle, relay) : null;
+    if (routed) return routed;
     var direct = recipientTiming(envelope, soldier, sender, battle, envelope.issuedAt, ':direct');
-    if (!direct) return null;
+    if (!direct)
+      return SQUAD_RELAY_ON && canRelay ? squadRelay(envelope, soldier, sender, battle, sq, relay) : null;
     direct.channel = direct.channel === 'self' ? 'self-command' : direct.channel + '-direct';
     direct.hops = 1;
     direct.relayId = null;
