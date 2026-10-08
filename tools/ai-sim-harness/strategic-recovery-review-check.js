@@ -112,7 +112,14 @@ test('freeze side: a stalled assault is reset through a varied approach at the s
   drive(w, 4);
   const m1 = q._macroMission;
   assert.ok(m1 && m1.intent === 'capture' && m1.objectiveId === 'obj-a', 'initial brief assaults obj-a');
-  assert.equal(m1.route.length, 0, 'the plain doctrine assault has no approach legs');
+  assert.equal(m1.route.length, 0, 'the fixed-policy assault has no approach legs');
+  assert.equal(w.r.BattleCommanderDoctrine.actionDoctrineEnabled, false);
+  assert.equal(q._lastDoctrineRule, null, 'no hidden fallback doctrine rule selected');
+  assert.equal(
+    events.filter(e => e.type === 'decision-doctrine').length,
+    0,
+    'no doctrine action decisions emitted for a default mission'
+  );
   w.C.acceptMission(w.b, q, false);
   assert.equal(m1.status, 'executing');
   /* The squad never moves and the objective never changes hands: a genuinely stalled front. */
