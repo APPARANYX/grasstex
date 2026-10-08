@@ -22,13 +22,15 @@ function fixture(){
   function tick(){sim.time+=.45;r.BattleCommanderAI.update(sim,town,.45);} // Squad Leader executes from its own onCommanderTick hook
   return{r,sq,sim,town,events,tick,systems,get decisions(){return decisions;},set action(v){action=v;}};
 }
-test('genome off and its module absent, a brief is decided by the code-default rules (the Node harness runs them too)',()=>{
+test('genome absent and action doctrine off: fixed baseline issues a normal assault without any rule',()=>{
   const f=fixture();delete f.r.BattleAIPolicy;f.sq.targetObjective=null;f.sq.routeIndex=0;
   for(let i=0;i<5;i++){const m={id:'r'+i,role:'rifleman',dead:false,faction:'us',root:{position:{x:0,z:0}}};f.sq.members.push(m);f.sim._roster.us.push(m);}
   f.tick();
-  const d=f.events.find(e=>e.type==='decision-doctrine');
-  assert.ok(d,'a rule decided the brief: with an empty rule list nothing would have');assert.equal(d.data.rule,'press-neutral');assert.equal(d.data.action,'assault');
-  assert.deepEqual(d.data.conditions,['objectiveNeutral','notOutnumbered']);
+  assert.strictEqual(f.r.BattleCommanderDoctrine.actionDoctrineEnabled,false);
+  assert.equal(f.events.filter(e=>e.type==='decision-doctrine').length,0,'no fallback rule ran');
+  assert.equal(f.sq._macroMission.action,'assault');
+  assert.equal(f.sq._macroMission.intent,'capture');
+  assert.strictEqual(f.sq._lastDoctrineRule,null,'ordinary brief records no selected rule');
 });
 test('accepted objective survives local doctrine/contact noise without strategic reevaluation',()=>{
   const f=fixture();f.tick();const point=JSON.stringify(f.sq.objective),decisions=f.decisions;f.action='hold';
@@ -102,8 +104,10 @@ test('120 s reconcile repairs missing Macro projections without replacing a youn
   assert.strictEqual(f.sq._macroMission,mission);assert.equal(f.sq.commandRole,mission.role);assert.equal(f.sq.targetObjective,mission.objectiveId);
   assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall-reconcile').length,1);
 });
-test('180 s release breaks stale hold and support assignments instead of refreshing them',()=>{
-  const f=fixture();f.action='hold';f.tick();
+test('180 s release can recover an inherited stale hold and support assignment without action doctrine',()=>{
+  const f=fixture();f.tick();
+  // Model an in-flight legacy HOLD created before doctrine was disabled; no new policy can create it.
+  f.sq._macroMission.intent='hold';f.sq._macroMission.action='hold';
   f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
   assert.equal(f.sq._macroMission.action,'hold');
   f.sim._coordinationHealth.sides.us.objectiveStallSeconds=181;f.sim.time=181;f.tick();
@@ -179,11 +183,12 @@ test('vacant-objective extension never rewrites another squad on a global wake',
   f.sq.objective={x:71,z:0};f.sq.commandPhase='regroup';f.tick();
   assert.equal(f.sq.objective.x,100,'Squad Leader did not restore the vacant objective mission');assert.equal(f.sq._macroMission.action,'assault');
 });
-test('a brief decides doctrine once and goes straight for its objective',()=>{
+test('a fixed-policy brief goes straight to its objective and never runs an action doctrine rule',()=>{
   const f=fixture();f.sq.targetObjective=null;f.sq.routeIndex=0;f.tick();
-  const mission=f.sq._macroMission;assert.equal(mission.action,'assault');assert.equal(f.decisions,1);assert.equal(f.sq.objective.x,100);
+  const mission=f.sq._macroMission;assert.equal(mission.action,'assault');assert.equal(f.decisions,0);assert.equal(f.sq.objective.x,100);
+  assert.strictEqual(f.sq._lastDoctrineRule,null);
   for(let i=0;i<20;i++){f.sq.inContact=!!(i%3);f.tick();}
-  assert.strictEqual(f.sq._macroMission,mission);assert.equal(f.decisions,1,'doctrine re-evaluated during an unchanged mission');
+  assert.strictEqual(f.sq._macroMission,mission);assert.equal(f.decisions,0,'an unchanged mission triggered action doctrine');
 });
 test('Squad Leader regroup is Meso-owned: no General wake, no restore writes, mission resumes',()=>{
   const f=fixture();const extra=[];
@@ -199,12 +204,13 @@ test('Squad Leader regroup is Meso-owned: no General wake, no restore writes, mi
   assert.equal(f.sq.commandPhase,phase);assert.equal(f.sq.objective.x,100);assert.strictEqual(f.sq._macroMission,mission);
   assert.equal(f.r.BattleCommanderAI.missionState(f.sim).wakeCount,wakes,'General woke for a Squad Leader regroup');
 });
-test('a doctrine hold is reviewed once when its Squad Leader lease ends, not every tick',()=>{
-  const f=fixture();f.action='hold';f.tick();assert.equal(f.sq._macroMission.action,'hold');assert.equal(f.sq.commandPhase,'hold');
-  const lease=f.r.BattleSquadStability.planSeconds.defense,decisions=f.decisions;
-  for(let i=0;i<Math.ceil((lease-1)/.45);i++)f.tick();assert.equal(f.decisions,decisions,'hold was re-evaluated before its lease ended');
-  for(let i=0;i<6;i++)f.tick();assert.equal(f.decisions,decisions+1,'expected exactly one doctrine review at lease end');
-  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='doctrine-review').length,1);
+test('the disabled doctrine cannot inject a HOLD or request doctrine-review from an unchanged assault',()=>{
+  const f=fixture();f.action='hold';f.tick();
+  const mission=f.sq._macroMission;assert.equal(mission.action,'assault');assert.equal(f.sq.commandPhase,'assault');
+  for(let i=0;i<40;i++)f.tick();
+  assert.strictEqual(f.sq._macroMission,mission);
+  assert.equal(f.decisions,0,'disabled doctrine still evaluated rule decisions');
+  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='doctrine-review').length,0);
 });
 test('contact freezes Squad Leader leg and phase under the same mission',()=>{
   const f=fixture();f.tick();assert.equal(f.sq.commandPhase,'assault');
