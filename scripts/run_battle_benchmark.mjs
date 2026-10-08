@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
 import { summarizeStress, stressMarkdown } from './lib/stress-summary.mjs';
+import evidence from './lib/benchmark-evidence.cjs';
 import { scoreSquadPerformance, summarizeSquadPerformance } from './lib/squad-performance.mjs';
 
 const count = Math.max(1, Number.parseInt(process.env.BATTLE_BENCHMARK_COUNT || '100', 10) || 100);
@@ -740,6 +741,7 @@ try {
   const wallSeconds = (Date.now() - startedWall) / 1000, battles = result.battles || [];
   for (const b of battles) {
     b.health = healthFor(b);
+    b.diagnosticAnalysis = evidence.assessEvidence(b);
     const squads = (b.squadPerformanceRaw || []).map(scoreSquadPerformance);
     b.squadPerformance = { ...summarizeSquadPerformance(squads), squads };
     delete b.squadPerformanceRaw;
@@ -765,7 +767,15 @@ try {
   }
   const squadRows = battles.flatMap(b => (b.squadPerformance?.squads || []).map(s => ({ ...s, seed: b.seed })));
   const squadPerformance = summarizeSquadPerformance(squadRows);
+  const evidenceProblems = battles.flatMap(b => (b.diagnosticAnalysis?.integrity?.discrepancies || []).map(code => ({ seed: b.seed, code })));
   const summary = {
+    diagnosticEvidence: {
+      version: 'grasstex-benchmark-analysis-v1',
+      integrityOk: evidenceProblems.length === 0,
+      discrepancies: evidenceProblems,
+      movementStallCompleted: sum(battles, b => b.diagnosticAnalysis?.movementStallCompleted),
+      movementStallCensored: sum(battles, b => b.diagnosticAnalysis?.movementStallCensored)
+    },
     generatedAt: new Date().toISOString(), commit, build: result.build, policySource: result.policySource, policyRevision: result.policyRevision, policyWarning: result.policySource === 'stashed-defaults' ? null : policy.warning || null,
     requestedBattles: result.scripted ? battles.length : count, completedBattles: battles.length, seedPrefix, fixedDt, sampleSeconds: result.sampleSeconds, timeLimit,
     wallSeconds: +wallSeconds.toFixed(2), simulatedSeconds: +simulatedTotal.toFixed(2), realtimeMultiplier: wallSeconds > 0 ? +(simulatedTotal / wallSeconds).toFixed(1) : 0, battlesPerMinute: wallSeconds > 0 ? +(battles.length / wallSeconds * 60).toFixed(2) : 0,
