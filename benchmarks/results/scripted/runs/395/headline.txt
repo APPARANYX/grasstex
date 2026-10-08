@@ -1,1 +1,0 @@
-WEAK: 274 of 281 pairs changed (median first part 32.1 s); 5 of 34 counters under p 0.05 (about 1.7 by chance); casualties +1.9% (p 0.068)
