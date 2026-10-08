@@ -208,6 +208,60 @@ const run = (a, b, extra) => {
     assert.equal(o2.counters['timeline.stalledOnsets'].a, 0, 'a record with no timeline counts nothing');
   });
 
+  await test('scripted windows count a stall onset once per battle; the whole-timeline figure stays under Repeated (#369)', () => {
+    /* One battle, three window records; every record carries the whole timeline. Onsets at 100 s and 250 s. */
+    const timeline = {
+      format: 'grasstex-ai-timeline-v1',
+      samples: Array.from({ length: 300 }, (_, i) => {
+        const t = i + 1;
+        const v = (t >= 100 && t < 110) || (t >= 250 && t < 260) ? 1 : 0;
+        return { t, us: { stalled: v }, ge: { stalled: 0 } };
+      }),
+      markers: [
+        { t: 100, kind: 'stall-start', side: 'us', soldier: 1 },
+        { t: 110, kind: 'stall-end', side: 'us', soldier: 1 },
+        { t: 250, kind: 'stall-start', side: 'us', soldier: 1 },
+        { t: 260, kind: 'stall-end', side: 'us', soldier: 1 }
+      ]
+    };
+    const windows = [
+      { label: 'contact', opens: 'contact', openedAt: 150, closedAt: 210 },
+      { label: 't240', opens: 'every60', openedAt: 210, closedAt: 240 },
+      { label: 'end', opens: 'every60', openedAt: 240, closedAt: 300 }
+    ];
+    const arm = (seed, withTimeline) =>
+      windows.map(window =>
+        battle(`${seed}-${window.label}`, withTimeline ? { window, timeline } : { window })
+      );
+    const counts = [
+      'timeline.stalledOnsets',
+      'timeline.stalledSamples',
+      'timeline.stalledOnsetsRepeated',
+      'timeline.stalledSamplesRepeated'
+    ];
+    const args = counts.flatMap(c => ['--count', c]);
+    const out = JSON.parse(run(arm('b', true), arm('b', false), args).stdout);
+    assert.equal(
+      out.counters['timeline.stalledOnsets'].a,
+      2,
+      'the 100 s onset sits before the first window and is kept once; 250 s once'
+    );
+    assert.equal(
+      out.counters['timeline.stalledSamples'].a,
+      20,
+      'man-seconds are not repeated per window either'
+    );
+    assert.equal(
+      out.counters['timeline.stalledOnsetsRepeated'].a,
+      6,
+      'the old reading: 2 onsets in each of 3 records'
+    );
+    assert.equal(out.counters['timeline.stalledSamplesRepeated'].a, 60);
+    const whole = JSON.parse(run([battle('w', { timeline })], [battle('w')], args).stdout);
+    assert.equal(whole.counters['timeline.stalledOnsets'].a, 2, 'a record without a window is read whole');
+    assert.equal(whole.counters['timeline.stalledOnsetsRepeated'].a, 2);
+  });
+
   await test('the dose map sums the records, skips an off record and is null with nothing to sum', async () => {
     const { summarizeStress, stressMarkdown, stressBattles } = await import(
       '../../scripts/lib/stress-summary.mjs'
