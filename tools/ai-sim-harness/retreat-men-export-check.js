@@ -22,6 +22,7 @@ b.factions = b.factions || {};
 const snap0 = r.BattleDiagnosticsExport.compact(b);
 const s0 = snap0.squads.find(s => s.id === 'us-1');
 assert.equal(s0.retreatMen, null, 'a squad not in retreat has no retreat list');
+assert.equal(s0.retreatGate, null);
 q.state = 'retreat';
 const man = q.members.find(m => !m.dead);
 man._movementResolver = { last: { owner: 'resolver', kind: 'retreat', reason: 'squad retreat' } };
@@ -33,6 +34,7 @@ assert.deepEqual(row.resolver, { owner: 'resolver', kind: 'retreat', reason: 'sq
 assert.equal(row.stop, 'blocked');
 assert.equal(typeof row.homeM, 'number');
 assert.equal(row.pos.length, 2);
+assert.deepEqual(Object.keys(s1.retreatGate).sort(), ['casualtyFrac', 'floor', 'stress']);
 console.log(
   'PASS compact export lists each retreating man with resolver owner, stop reason and distance home'
 );

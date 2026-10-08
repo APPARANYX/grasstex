@@ -910,11 +910,21 @@
           resolver: { owner: last.owner || null, kind: last.kind || null, reason: last.reason || null },
           stop: s._movementStopReason || null,
           hp: rounded(s.hp),
-          stress: s.mind && M ? rounded(s.mind.stress) : null,
-          floor: s.mind ? rounded(s.mind.floor) : null,
+          stress: M && M.stress ? rounded(M.stress(s)) : null,
           suppressed: (+s.suppressedUntil || 0) > now
         };
       });
+  }
+  /* The inputs of a retreating squad's rally decision: mean stress, mean permanent wound floor and casualty fraction. */
+  function retreatGate(sq) {
+    if (!sq || sq.state !== 'retreat') return null;
+    var M = root.BattleSoldierMind,
+      est = (root.SquadAI && root.SquadAI.establishment && root.SquadAI.establishment(sq)) || 10;
+    return {
+      stress: M && M.squadStress ? rounded(M.squadStress(sq)) : null,
+      floor: M && M.squadFloor ? rounded(M.squadFloor(sq)) : null,
+      casualtyFrac: rounded(1 - aliveMembers(sq).length / est)
+    };
   }
   function compactSquad(sim, sq) {
     var analysis = squadAnalysis(sim, sq),
@@ -944,6 +954,7 @@
       assembly: safePlain(sq._assembly, 3),
       reconstitutionGroup: sq._reconGroup || null,
       retreatMen: retreatMen(sim, sq),
+      retreatGate: retreatGate(sq),
       analysis: {
         position: analysis.position,
         commandPointDistance: analysis.commandPointDistance,
