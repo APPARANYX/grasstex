@@ -107,7 +107,7 @@ test('120 s reconcile repairs missing Macro projections without replacing a youn
 test('180 s release can recover an inherited stale hold and support assignment without action doctrine',()=>{
   const f=fixture();f.tick();
   // Model an in-flight legacy HOLD created before doctrine was disabled; no new policy can create it.
-  f.sq._macroMission.intent='hold';f.sq._macroMission.action='hold';
+  f.sq._macroMission.intent='hold';f.sq._macroMission.action='hold';f.sq._macroMission.key='legacy-hold-brief';
   f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
   assert.equal(f.sq._macroMission.action,'hold');
   f.sim._coordinationHealth.sides.us.objectiveStallSeconds=181;f.sim.time=181;f.tick();
