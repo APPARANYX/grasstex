@@ -231,6 +231,14 @@
   var LEADERLESS_INTENT_ON = parseLeaderlessIntent(
     typeof location !== 'undefined' ? location.search || '' : ''
   );
+  /* The stride waits only for men the leader can reach (issue #368). ?unreachableAnchor=0/off/false is the legacy
+     control: every commanded man counts, so a squad with more than ORDER_COHESION's share out of earshot never moves. */
+  function parseUnreachableAnchor(search) {
+    return !/[?&]unreachableAnchor=(?:0|off|false)(?:&|#|$)/i.test(search || '');
+  }
+  var UNREACHABLE_ANCHOR_ON = parseUnreachableAnchor(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
   var LEADERLESS_TUNING = {
     successionSeconds: SUCCESSION_DELAY
   };
@@ -1430,19 +1438,33 @@
     placeForce(sim);
   }
 
+  function movementUnreachable(s, battle) {
+    var CR = root.BattleCommandReception;
+    return !!(
+      UNREACHABLE_ANCHOR_ON &&
+      movementAdoptionOn() &&
+      CR.unreachable &&
+      CR.unreachable(s, battle, 'movement', movementScope(s))
+    );
+  }
   function orderCanAdvance(sq, battle) {
     var living = commanded(sq),
-      arrived = 0;
+      arrived = 0,
+      reachable = 0;
     if (!living.length) return true;
     for (var i = 0; i < living.length; i++) {
       var s = living[i];
+      /* A man the leader cannot reach (beyond voice and sight of him and his relay) can never acknowledge the
+         order, so the stride does not wait for him: he is neither counted as arrived nor owed an arrival. */
+      if (movementUnreachable(s, battle)) continue;
+      reachable++;
       /* Arrival acknowledges the latest issued movement, not a previous destination
          that the man still holds while hearing its replacement. Otherwise the same
          old arrival advances another stride on every command tick during reception. */
       if (!movementExecutionCurrent(s, battle)) continue;
       if (s.orderDestination && dist(s.root.position, s.orderDestination) <= ORDER_ARRIVAL_RADIUS) arrived++;
     }
-    return arrived / living.length >= ORDER_COHESION;
+    return reachable > 0 && arrived / reachable >= ORDER_COHESION;
   }
 
   /* Scouts-forward functions are extracted to 15c-squad-leader-scouts-forward.js.

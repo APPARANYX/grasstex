@@ -110,6 +110,11 @@ the extraction base remains the live fallback while that replacement is pending,
 authority back only when the reconstitution order is personally adopted. Once the remnant reaches that base and is out of
 contact it is `at-base` and waits in the survivor pool. Five or more survivors remain a viable squad
 and keep the ordinary retreat-anchor / morale-recovery behavior. Reconstitution needs at least 6 combined survivors
+The Squad Leader's order anchor takes its next stride (`orderCanAdvance`) once `ORDER_COHESION` of the men it can reach have
+arrived at their newest movement order. A man whose latest movement record is `unreachable` (beyond voice and sight of the
+sender and any relay) can never acknowledge it, so he is neither counted as arrived nor owed an arrival; a squad with no
+reachable man does not advance. Counting him used to freeze an advancing squad for good once more than `1 - ORDER_COHESION` of it was
+out of earshot (issue #368). `?unreachableAnchor=0` restores the old count.
 (`RECON_MIN_STRENGTH`) and never splits a source squad or reconstitutes one remnant with itself.
 The General chooses geographically coherent remnants rather than simply taking the strongest first:
 for each possible seed it adds the nearest remnant to the moving centroid until the minimum is met,

@@ -513,6 +513,14 @@
       rec = by && by[String(category || 'command') + '|' + String(scope || 'squad')];
     return !!(rec && rec.envelopeId === envelopeId);
   }
+  /* True while the latest envelope published to this man is one he cannot hear (beyond voice and sight of the
+     sender and any relay). Such a man can never acknowledge it, so the issuer must not wait for him. */
+  function unreachable(soldier, battle, category, scope) {
+    var st = battle && battle._commandReception,
+      by = st && soldier && st.bySoldier[String(soldier.id)],
+      rec = by && by[String(category || 'command') + '|' + String(scope || 'squad')];
+    return !!(rec && rec.unreachable);
+  }
   function snapshot(soldier, battle) {
     if (!ON || !soldier || !battle) return null;
     var st = settle(battle),
@@ -622,6 +630,7 @@
     settle: settle,
     adopted: adopted,
     executionCurrent: executionCurrent,
+    unreachable: unreachable,
     snapshot: snapshot,
     squadSnapshot: squadSnapshot,
     telemetry: telemetry,
