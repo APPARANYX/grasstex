@@ -274,7 +274,13 @@ test('a returning soldier with an old envelope is enrolled into the new unchange
   const w = world();
   const player = w.us.members[3];
   const first = { scope: 'squad', action: 'defend', signature: 'first', point: { x: 0, z: 40 } };
-  const second = { scope: 'squad', action: 'assault', signature: 'second', point: { x: 60, z: 40 }, data: { missionVersion: 2 } };
+  const second = {
+    scope: 'squad',
+    action: 'assault',
+    signature: 'second',
+    point: { x: 60, z: 40 },
+    data: { missionVersion: 2 }
+  };
   const a = w.C.publish(w.us, w.b, 'movement', w.us.members, first);
   assert.equal(w.C.snapshot(player, w.b).records['movement|squad'].envelopeId, a.id);
   player.isPlayer = true;
