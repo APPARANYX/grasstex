@@ -17,7 +17,7 @@ function assessEvidence(b) {
   const incidents = [];
   // Pair each stall termination with its onset, including one that began before a window.
   function key(m) {
-    const d = m.data || {};
+    const d = m;
     return [d.side || d.faction || '', d.squad || d.squadId || '', d.soldier || d.soldierId || d.id || ''].join(':');
   }
   for (const m of markers) {
@@ -25,13 +25,13 @@ function assessEvidence(b) {
     else if (m.kind === 'stall-end') {
       const onset = active.get(key(m));
       if (inside(m)) {
-        const duration = onset ? Math.max(0, +m.t - +onset.t) : Number(m.data?.duration);
+        const duration = onset ? Math.max(0, +m.t - +onset.t) : Number(m.duration);
         incidents.push({
           kind: 'movement-stall', actor: key(m),
           startedAt: onset ? +onset.t : null, endedAt: +m.t,
           durationSeconds: Number.isFinite(duration) ? +duration.toFixed(2) : null,
-          resolution: m.data?.reason || 'unknown', outcome: 'ended',
-          onset: onset?.data || null, end: m.data || null
+          resolution: m.reason || 'unknown', outcome: 'ended',
+          onset: onset || null, end: m || null
         });
       }
       active.delete(key(m));
@@ -42,7 +42,7 @@ function assessEvidence(b) {
       if (+onset.t > hi) continue;
       incidents.push({
         kind: 'movement-stall', actor, startedAt: +onset.t, endedAt: null,
-        durationSeconds: null, resolution: null, outcome: 'censored', onset: onset.data || null
+        durationSeconds: null, resolution: null, outcome: 'censored', onset: onset || null
       });
     }
   }
@@ -52,7 +52,7 @@ function assessEvidence(b) {
   if (conflicts.length !== (b.writerConflicts || 0)) discrepancies.push('writer-conflict-count');
   // Legacy benchmark records may contain truncated loopAlerts.
   if (b.diagnosticEvidence && loops.length !== (b.diagnosticEvidence.loops || []).length) discrepancies.push('loop-count');
-  if (win && (+lo > +hi || !Number.isFinite(lo) || !Number.isFinite(hi))) discrepancies.push('invalid-window');
+  if (win && (lo > hi || !Number.isFinite(lo) || !Number.isFinite(hi))) discrepancies.push('invalid-window');
   return {
     schema: 'grasstex-benchmark-analysis-v1',
     window: win ? { openedAt: lo, closedAt: hi } : null,
