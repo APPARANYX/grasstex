@@ -408,6 +408,24 @@
     augmentPosts(plan, sim._sides);
     return work;
   }
+  /* The General owns whole-squad allocation. A squad on a live capture or reconstitution brief that
+     happens to pass through an owned objective with its engineer is not that objective's garrison:
+     the standing request would take mission precedence over recovery (22a selectMission) and
+     convert the attack into a permanent DEFEND. Its engineer still builds the works. */
+  function garrisonable(sq) {
+    var m = sq && sq._macroMission;
+    /* ?engineerGarrison=0/off/false restores the old unconditional pin (the paired-benchmark control). */
+    if (
+      typeof location !== 'undefined' &&
+      /[?&]engineerGarrison=(?:0|off|false)\b/i.test(location.search || '')
+    )
+      return true;
+    return !(
+      m &&
+      (m.intent === 'capture' || m.intent === 'reconstitute') &&
+      (m.status === 'issued' || m.status === 'executing')
+    );
+  }
   /* Runtime posts and garrisons share the prepared-defender tactical frame. A meeting
      engagement has no designated front; do not partially build works before discovering that. */
   function engineerTick(sim, dt) {
@@ -458,7 +476,8 @@
         radius: +g.obj.def.radius || 30,
         role: 'main'
       };
-      if (g.engineer.squad) garrison(sim, g.engineer.squad, sector, sim._defensePlans[g.faction], false);
+      if (g.engineer.squad && garrisonable(g.engineer.squad))
+        garrison(sim, g.engineer.squad, sector, sim._defensePlans[g.faction], false);
       telemetry(sim, 'engineer-fortification-built', {
         faction: g.faction,
         objective: g.obj.id,

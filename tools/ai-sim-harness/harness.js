@@ -188,6 +188,7 @@ function bootstrap(opts) {
     load(root, 'battle/modules/17-soldier-mind.js');
     /* Behavior-neutral command receipt/adoption telemetry; later phases may gate on it. */
     load(root, 'battle/modules/18-command-reception.js');
+    load(root, 'battle/modules/18a-execution-outcome.js');
     /* Tactical callouts (`?callouts=1`): inert unless the flag is on. */
     load(root, 'battle/modules/09-tactical-callouts.js');
   }

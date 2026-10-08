@@ -513,13 +513,17 @@
       rec = by && by[String(category || 'command') + '|' + String(scope || 'squad')];
     return !!(rec && rec.envelopeId === envelopeId);
   }
-  /* True while the latest envelope published to this man is one he cannot hear (beyond voice and sight of the
-     sender and any relay). Such a man can never acknowledge it, so the issuer must not wait for him. */
-  function unreachable(soldier, battle, category, scope) {
-    var st = battle && battle._commandReception,
+  /* One personal record as it stands now, without settling the battle's records: a read-only observer (the
+     execution outcome reader, a diagnostic export) must not advance the lifecycle. The phase is the pure
+     stage(rec, now) a settle would assign at this time. */
+  function peek(soldier, battle, category, scope) {
+    var st = ON && battle && battle._commandReception,
       by = st && soldier && st.bySoldier[String(soldier.id)],
       rec = by && by[String(category || 'command') + '|' + String(scope || 'squad')];
-    return !!(rec && rec.unreachable);
+    if (!rec) return null;
+    var out = publicRecord(rec);
+    out.phase = stage(rec, +battle.time || 0);
+    return out;
   }
   function snapshot(soldier, battle) {
     if (!ON || !soldier || !battle) return null;
@@ -630,7 +634,7 @@
     settle: settle,
     adopted: adopted,
     executionCurrent: executionCurrent,
-    unreachable: unreachable,
+    peek: peek,
     snapshot: snapshot,
     squadSnapshot: squadSnapshot,
     telemetry: telemetry,

@@ -144,4 +144,39 @@ test('?unreachableAnchor=0 is the old rule: the unreachable half holds the ancho
   assert.equal(w.q._orderVersion, v0, 'flag off keeps the legacy freeze');
 });
 
+test('mixed current-brief unreachable and physical blockers leave the remaining men free', () => {
+  const w = world(),
+    men = live(w),
+    near = men.slice(0, 6),
+    far = men.slice(-4);
+  w.Q.updateFireteams(w.q, w.b);
+  w.Q.advanceSquadAnchor(w.q, w.b);
+  settleAndArrive(w);
+  strand(w, far);
+  republish(w);
+  settleAndArrive(w, near);
+  strand(w, far);
+  for (const s of near.slice(3)) {
+    s.root.position.z -= 40;
+    s._movementResolver = { last: { kind: 'formation', owner: 'squad-stability' } };
+    s._movementProgress = { stuck: true, terminal: true, kind: 'formation' };
+  }
+  const before = w.q._orderVersion;
+  w.Q.advanceSquadAnchor(w.q, w.b);
+  assert.ok(w.q._orderVersion > before, 'three arrived out of three able members take the next stride');
+});
+
+test('no able recipients is not mistaken for successful arrival', () => {
+  const w = world(),
+    men = live(w);
+  w.Q.updateFireteams(w.q, w.b);
+  w.Q.advanceSquadAnchor(w.q, w.b);
+  settleAndArrive(w);
+  strand(w, men);
+  republish(w);
+  const before = w.q._orderVersion;
+  w.Q.advanceSquadAnchor(w.q, w.b);
+  assert.equal(w.q._orderVersion, before);
+});
+
 console.log(n + ' passed');

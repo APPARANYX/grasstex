@@ -170,6 +170,18 @@
   var RALLY_RECOVERY_ON = parseRallyRecovery(typeof location !== 'undefined' ? location.search || '' : ''),
     RALLY_RECOVERY_DWELL = 4,
     RALLY_RECOVERY_ARRIVE = 5;
+  /* Execution report (`?executionReport=0` restores the old stride gate): a man whose order is current and
+     whom Movement Execution has found physically blocked, with both of its recovery rounds spent, cannot
+     arrive. The Squad Leader reads that outcome (BattleExecutionOutcome, derived from the records at
+     each handoff): the stride does not wait for him, and a squad most of whose men cannot carry out the
+     order reports that to the General once per brief. */
+  var EXEC_REPORT_ON = !/[?&]executionReport=(?:0|off|false)(?:&|#|$)/i.test(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
+  /* Avoid waiting for an undeliverable *current* order, independently of physical blocking. */
+  var UNREACHABLE_ANCHOR_ON = !/[?&]unreachableAnchor=(?:0|off|false)(?:&|#|$)/i.test(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
   var ORDER_STRIDE = 13,
     ORDER_ARRIVAL_RADIUS = 8,
     ORDER_COHESION = 0.55,
@@ -229,14 +241,6 @@
     return !/[?&]leaderlessIntent=(?:0|off|false)(?:&|#|$)/i.test(search || '');
   }
   var LEADERLESS_INTENT_ON = parseLeaderlessIntent(
-    typeof location !== 'undefined' ? location.search || '' : ''
-  );
-  /* The stride waits only for men the leader can reach (issue #368). ?unreachableAnchor=0/off/false is the legacy
-     control: every commanded man counts, so a squad with more than ORDER_COHESION's share out of earshot never moves. */
-  function parseUnreachableAnchor(search) {
-    return !/[?&]unreachableAnchor=(?:0|off|false)(?:&|#|$)/i.test(search || '');
-  }
-  var UNREACHABLE_ANCHOR_ON = parseUnreachableAnchor(
     typeof location !== 'undefined' ? location.search || '' : ''
   );
   var LEADERLESS_TUNING = {
@@ -905,7 +909,8 @@
           publishKey: String(publishKey || ''),
           urgent: !!urgent,
           kind: kind || 'formation',
-          adoptHere: !!opt.adoptHere
+          adoptHere: !!opt.adoptHere,
+          missionVersion: missionVersion(sq)
         }
       });
       adopted = CR.adopted && CR.adopted(s, battle, 'movement', scope);
@@ -1438,33 +1443,78 @@
     placeForce(sim);
   }
 
+  function executionBlocked(s, battle) {
+    var O = root.BattleExecutionOutcome;
+    return !!(EXEC_REPORT_ON && O && O.blockedForBrief(s, battle) && movementExecutionCurrent(s, battle));
+  }
   function movementUnreachable(s, battle) {
-    var CR = root.BattleCommandReception;
+    /* Read the common version-bound execution contract, not a second hand-written blocked definition. */
+    var O = root.BattleExecutionOutcome,
+      outcome = UNREACHABLE_ANCHOR_ON && O && O.man(s, battle);
     return !!(
-      UNREACHABLE_ANCHOR_ON &&
-      movementAdoptionOn() &&
-      CR.unreachable &&
-      CR.unreachable(s, battle, 'movement', movementScope(s))
+      outcome &&
+      outcome.current &&
+      outcome.state === 'pending' &&
+      outcome.why === 'undeliverable'
     );
   }
   function orderCanAdvance(sq, battle) {
     var living = commanded(sq),
       arrived = 0,
-      reachable = 0;
+      blocked = 0,
+      unreachable = 0;
     if (!living.length) return true;
     for (var i = 0; i < living.length; i++) {
       var s = living[i];
-      /* A man the leader cannot reach (beyond voice and sight of him and his relay) can never acknowledge the
-         order, so the stride does not wait for him: he is neither counted as arrived nor owed an arrival. */
-      if (movementUnreachable(s, battle)) continue;
-      reachable++;
+      /* Men who cannot receive this brief cannot acknowledge it. The outcome is distinct from
+         a physically terminal blocked order, which the General may need to reconsider. */
+      if (movementUnreachable(s, battle)) {
+        unreachable++;
+        continue;
+      }
       /* Arrival acknowledges the latest issued movement, not a previous destination
          that the man still holds while hearing its replacement. Otherwise the same
          old arrival advances another stride on every command tick during reception. */
       if (!movementExecutionCurrent(s, battle)) continue;
       if (s.orderDestination && dist(s.root.position, s.orderDestination) <= ORDER_ARRIVAL_RADIUS) arrived++;
+      else if (executionBlocked(s, battle)) blocked++;
     }
-    return reachable > 0 && arrived / reachable >= ORDER_COHESION;
+    /* A reachable recipient still processing an order remains owed. No able men means no phantom stride. */
+    var owed = living.length - blocked - unreachable;
+    return owed > 0 && arrived / owed >= ORDER_COHESION;
+  }
+  /* The General is told once per brief when most of the squad cannot carry the order out. The request
+     rides the existing Squad Leader to General channel (`_macroMissionRequest`, bound to the brief's
+     version, so a report about a replaced brief never wakes its successor); the once-only mark lives on
+     the Squad Leader's own execution record, which a new brief replaces. */
+  function reportBlockedExecution(sim, sq) {
+    var m = sq._macroMission,
+      ex = sq._missionExecution;
+    if (!EXEC_REPORT_ON || !m || !ex || ex.mission !== m || ex.blockedReported) return;
+    if (m.status !== 'issued' && m.status !== 'executing') return;
+    /* A brief the General issued in answer to this report is its one reassessment: men still blocked under it are
+       a physical problem the objective did not cure, and asking again would only swap objectives. */
+    if (m.reason === 'execution-blocked') return;
+    var r = sq._macroMissionRequest;
+    if (r && r.missionVersion === m.version) return;
+    var men = commanded(sq),
+      n = 0;
+    for (var i = 0; i < men.length; i++) if (executionBlocked(men[i], sim)) n++;
+    if (!n || n * 2 <= men.length) return;
+    ex.blockedReported = true;
+    sq._macroMissionRequest = {
+      missionVersion: m.version,
+      reason: 'execution-blocked',
+      why: n + ' of ' + men.length + ' men physically blocked',
+      at: sim.time
+    };
+    telemetry(sim, 'decision-captain-request', {
+      faction: sq.faction,
+      squad: sq.id,
+      version: m.version,
+      reason: 'execution-blocked',
+      why: sq._macroMissionRequest.why
+    });
   }
 
   /* Scouts-forward functions are extracted to 15c-squad-leader-scouts-forward.js.
@@ -1571,6 +1621,7 @@
         publishStats: publishStats,
         publishPersonalMovement: publishPersonalMovement,
         movementExecutionCurrent: movementExecutionCurrent,
+        executionBlocked: executionBlocked,
         DEFENSIVE: DEFENSIVE,
         REGROUP_RELEASE: REGROUP_RELEASE,
         TEAM_LEASE: TEAM_LEASE,
@@ -1716,6 +1767,7 @@
       return;
     }
     if (leaderlessActive(sq)) return;
+    reportBlockedExecution(battle, sq);
     if (L.get(sq, 'retreat-anchor')) L.end(sq, 'retreat-anchor', battle.time, 'retreat ended');
     /* The main-body anchor is the hold line during recon. Scouts receive individual fireteam-order
        intents below; the squad itself does not creep after them. */
