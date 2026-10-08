@@ -436,6 +436,39 @@
         man = sq && sq.fledId != null && !sq.disbanded && sq.members && sq.members[0];
       return !!(man && !man.dead && E && E.fledPhase && E.fledPhase(man) === 'wait');
     }
+    /* A fled man waiting at his refuge is under Engagement's flee, which outranks a squad retreat in the
+       resolver: he cannot walk to the rally he was assigned, and only the pickup or his own wait clock frees
+       him. He still counts toward the group's strength while it assembles (a retreating squad may take him
+       in on the way), but once every other squad is at the rally and they are viable without him, the group
+       merges without him instead of staying open to the end of the battle. */
+    function meetWithoutWaitingFled(sim, g, squads) {
+      var waiting = squads.filter(waitingFled);
+      if (!waiting.length) return;
+      var movers = squads.filter(function (sq) {
+        return waiting.indexOf(sq) < 0;
+      });
+      var strength = movers.reduce(function (n, sq) {
+        return n + D.aliveMembers(sq).length;
+      }, 0);
+      if (
+        strength < RECON_MIN_STRENGTH ||
+        !movers.every(function (sq) {
+          return atRally(sq, g);
+        })
+      )
+        return;
+      waiting.forEach(function (sq) {
+        sq._reconGroup = null;
+        finishMission(sim, sq, 'failed', 'fled-waiting-at-refuge');
+        telemetry(sim, 'decision-recon-fled-left', { faction: g.faction, group: g.id, squad: sq.id });
+      });
+      g.squads = g.squads.filter(function (id) {
+        return !waiting.some(function (sq) {
+          return sq.id === id;
+        });
+      });
+      mergeGroup(sim, g, movers);
+    }
     function atRally(sq, g) {
       var a = sq._assembly,
         p = D.avgPos(sq);
@@ -500,20 +533,8 @@
         blockedByDistance: total >= RECON_MIN_STRENGTH && !candidate
       };
       for (var i = 0; i < groups.length; i++) {
-        var g = groups[i];
-        /* A fled man waiting at his refuge is under Engagement's flee, which outranks a squad retreat in the
-           resolver: he cannot walk to a rally he was assigned, and only the pickup or his own wait clock frees
-           him. The group meets without him instead of staying open to the end of the battle. */
-        if (FLED_WAIT_EXCLUDED_ON)
-          g.squads = g.squads.filter(function (id) {
-            var w = squadById(sim, faction, id);
-            if (!waitingFled(w)) return true;
-            w._reconGroup = null;
-            finishMission(sim, w, 'failed', 'fled-waiting-at-refuge');
-            telemetry(sim, 'decision-recon-fled-left', { faction: faction, group: g.id, squad: id });
-            return false;
-          });
-        var squads = g.squads
+        var g = groups[i],
+          squads = g.squads
             .map(function (id) {
               return squadById(sim, faction, id);
             })
@@ -538,6 +559,7 @@
           })
         )
           mergeGroup(sim, g, squads);
+        else if (FLED_WAIT_EXCLUDED_ON) meetWithoutWaitingFled(sim, g, squads);
       }
     }
 
