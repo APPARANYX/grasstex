@@ -1451,12 +1451,7 @@
     /* Read the common version-bound execution contract, not a second hand-written blocked definition. */
     var O = root.BattleExecutionOutcome,
       outcome = UNREACHABLE_ANCHOR_ON && O && O.man(s, battle);
-    return !!(
-      outcome &&
-      outcome.current &&
-      outcome.state === 'pending' &&
-      outcome.why === 'undeliverable'
-    );
+    return !!(outcome && outcome.current && outcome.state === 'pending' && outcome.why === 'undeliverable');
   }
   function orderCanAdvance(sq, battle) {
     var living = commanded(sq),
