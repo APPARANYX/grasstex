@@ -689,6 +689,40 @@ test('flee is the only reaction that leaves a man his weapons nowhere: cower and
   }
 });
 
+test('a man going home who was taken in by a squad in regroup keeps running home, not to the regroup anchor', () => {
+  const w = world();
+  const a = squad(w, 0, 10, 150),
+    s = rifleman(a);
+  run(w, 1);
+  const refuge = { x: LANES[0], z: HOME_Z + 150 };
+  a.safePoint = refuge;
+  trouble(w, a, { x: LANES[0], z: HOME_Z + 400 });
+  snap(w, s);
+  run(w, 0.5, () => {
+    snap(w, s);
+    trouble(w, a, { x: LANES[0], z: HOME_Z + 400 });
+  });
+  run(w, 3, () => (s.squad.contact = null));
+  const near = squad(w, 1, 4, 150);
+  const stay = () => {
+    near.members.forEach(m => ((m.root.position.x = refuge.x + 20), (m.root.position.z = refuge.z)));
+    near.inContact = false;
+  };
+  stay();
+  run(w, 1.5, stay);
+  assert.equal(s.squad, near, 'taken in');
+  assert.equal(s.eng.fledPhase, 'home');
+  near.commandPhase = 'regroup';
+  near.rally = { x: refuge.x + 30, z: refuge.z - 40 };
+  run(w, 1, () => {
+    stay();
+    near.commandPhase = 'regroup';
+  });
+  const goal = s._movementResolver && s._movementResolver.goal;
+  assert.notEqual(goal && goal.kind, 'regroup', 'the regroup order does not take over a man going home');
+  assert.equal(s.eng.fledPhase, 'home');
+});
+
 test("a man in a fled phase is not part of the squad's cohesion: a squad that took him in and rallied does not regroup on his account", () => {
   const w = world(),
     q = squad(w, 0, 10, 150),
