@@ -116,7 +116,7 @@
     }
     var g =
       objectiveById(sim, sq && sq.targetObjective) ||
-      point(sq && sq.route && sq.route.length ? sq.route[sq.route.length - 1] : null) ||
+      point(sq && sq._routeFinalObjective) ||
       point(sq && sq.objective);
     return g ? { kind: 'objective', point: g } : null;
   }
