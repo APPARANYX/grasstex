@@ -5,59 +5,59 @@
 
 ## Verdict
 
-**MOVED: 244 of 269 pairs changed (median first part 220.05 s); 10 of 34 counters under p 0.05 (about 1.7 by chance), 4 under 0.0015; casualties +4.1% (p 0.0042)**
+**MOVED: 257 of 283 pairs changed (median first part 220.05 s); 10 of 34 counters under p 0.05 (about 1.7 by chance), 3 under 0.0015; casualties +3.5% (p 0.019)**
 
-- Clears the Bonferroni line (p < 0.0015): movementResolver.changes 581615 to 609665 (+4.8%, p 0); regroups.entries 482 to 561 (+16.4%, p 0); stallOutcomes.wakes 54 to 26 (-51.9%, p 0.0005); stallOutcomes.repeats 24 to 7 (-70.8%, p 0.0013).
-- Under 0.05 only: casualties 7431 to 7735 (+4.1%, p 0.0042); recon.orders 5880 to 6052 (+2.9%, p 0.0076); timeline.stalledOnsetsRepeated 199 to 162 (-18.6%, p 0.0081); recon.retriggerBlocked 4553 to 4657 (+2.3%, p 0.0093); timeline.stalledSamplesRepeated 5504 to 4565 (-17.1%, p 0.0201); retreatSamples 85752 to 87354 (+1.9%, p 0.0392).
-- Unpaired records: off 17, on 4 (a seed or checkpoint only one arm reached: the flag changed how long the battle lasted, or a shard failed).
+- Clears the Bonferroni line (p < 0.0015): movementResolver.changes 609951 to 640825 (+5.1%, p 0); regroups.entries 504 to 587 (+16.5%, p 0); stallOutcomes.repeats 24 to 7 (-70.8%, p 0.0013).
+- Under 0.05 only: stallOutcomes.wakes 54 to 28 (-48.1%, p 0.0022); recon.orders 6159 to 6342 (+3.0%, p 0.0043); timeline.stalledOnsetsRepeated 199 to 162 (-18.6%, p 0.0081); recon.retriggerBlocked 4765 to 4877 (+2.4%, p 0.0113); casualties 7842 to 8115 (+3.5%, p 0.019); timeline.stalledSamplesRepeated 5504 to 4565 (-17.1%, p 0.0201); retreatSamples 90996 to 93709 (+3.0%, p 0.0213).
+- Unpaired records: off 3, on 5 (a seed or checkpoint only one arm reached: the flag changed how long the battle lasted, or a shard failed).
 
 ## Paired comparison (off against on)
 
-- **269** pairs (unpaired: off 17, on 4) · identical in every field: **25** · runtime errors off 0 / on 0 · wall time on/off x0.998 (gate 1.25)
-- the 190 changed records first part at simulated second: min 160.05, p10 181.05, median 220.05, p90 284.1, max 378
+- **283** pairs (unpaired: off 3, on 5) · identical in every field: **26** · runtime errors off 0 / on 0 · wall time on/off x0.998 (gate 1.25)
+- the 200 changed records first part at simulated second: min 160.05, p10 181.05, median 220.05, p90 284.1, max 378
 
 | counter | off | on | mean diff per pair | pairs changed | on more | on fewer | sign p |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| `casualties` | 7431 | 7735 | 1.1301 | 177 | 108 | 69 | 0.0042 |
-| `usKills` | 3288 | 3475 | 0.6952 | 164 | 91 | 73 | 0.1842 |
-| `geKills` | 4143 | 4260 | 0.4349 | 170 | 93 | 77 | 0.2499 |
-| `fire.total` | 19296 | 19154 | -0.5279 | 179 | 90 | 89 | 1 |
-| `fire.hits` | 6542 | 6543 | 0.0037 | 174 | 90 | 84 | 0.7048 |
-| `retreatSamples` | 85752 | 87354 | 5.9554 | 172 | 100 | 72 | 0.0392 |
-| `movementResolver.changes` | 581615 | 609665 | 104.2751 | 189 | 146 | 43 | 0 |
-| `movementStalls.length` | 64 | 47 | -0.0632 | 19 | 6 | 13 | 0.1671 |
+| `casualties` | 7842 | 8115 | 0.9647 | 187 | 110 | 77 | 0.019 |
+| `usKills` | 3449 | 3701 | 0.8905 | 173 | 98 | 75 | 0.0941 |
+| `geKills` | 4393 | 4414 | 0.0742 | 180 | 93 | 87 | 0.7095 |
+| `fire.total` | 20411 | 20123 | -1.0177 | 189 | 92 | 97 | 0.7712 |
+| `fire.hits` | 6974 | 6851 | -0.4346 | 184 | 92 | 92 | 1 |
+| `retreatSamples` | 90996 | 93709 | 9.5866 | 182 | 107 | 75 | 0.0213 |
+| `movementResolver.changes` | 609951 | 640825 | 109.0954 | 199 | 156 | 43 | 0 |
+| `movementStalls.length` | 64 | 47 | -0.0601 | 19 | 6 | 13 | 0.1671 |
 | `routeStalls.length` | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 | `targetlessStalls.length` | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| `vacantObjectiveStalls.length` | 268 | 291 | 0.0855 | 105 | 60 | 45 | 0.1716 |
-| `loopAlerts.length` | 206 | 237 | 0.1152 | 107 | 58 | 49 | 0.4394 |
+| `vacantObjectiveStalls.length` | 279 | 311 | 0.1131 | 111 | 63 | 48 | 0.1837 |
+| `loopAlerts.length` | 212 | 250 | 0.1343 | 113 | 63 | 50 | 0.2589 |
 | `writerConflicts` | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| `regroups.entries` | 482 | 561 | 0.2937 | 97 | 70 | 27 | 0 |
-| `stallOutcomes.wakes` | 54 | 26 | -0.1041 | 38 | 8 | 30 | 0.0005 |
-| `stallOutcomes.repeats` | 24 | 7 | -0.0632 | 18 | 2 | 16 | 0.0013 |
-| `timeline.stalledOnsets` | 71 | 51 | -0.0743 | 19 | 6 | 13 | 0.1671 |
-| `timeline.stalledSamples` | 1941 | 1656 | -1.0595 | 29 | 10 | 19 | 0.136 |
-| `timeline.stalledOnsetsRepeated` | 199 | 162 | -0.1375 | 29 | 7 | 22 | 0.0081 |
-| `timeline.stalledSamplesRepeated` | 5504 | 4565 | -3.4907 | 37 | 11 | 26 | 0.0201 |
-| `recon.orders` | 5880 | 6052 | 0.6394 | 136 | 84 | 52 | 0.0076 |
-| `recon.contacts` | 259 | 268 | 0.0335 | 85 | 39 | 46 | 0.5154 |
-| `recon.noContact` | 4024 | 4076 | 0.1933 | 104 | 61 | 43 | 0.095 |
-| `recon.timeouts` | 167 | 194 | 0.1004 | 66 | 38 | 28 | 0.2678 |
-| `recon.cancelled` | 1277 | 1332 | 0.2045 | 126 | 69 | 57 | 0.3271 |
-| `recon.reportsDelivered` | 1307 | 1401 | 0.3494 | 98 | 53 | 45 | 0.4797 |
-| `recon.retriggerBlocked` | 4553 | 4657 | 0.3866 | 117 | 73 | 44 | 0.0093 |
-| `squadPerformance.meanOverall` | 23282.199999999993 | 23353.400000000012 | 0.2647 | 177 | 81 | 96 | 0.2926 |
-| `squadPerformance.p10Overall` | 21878.8 | 21949.999999999996 | 0.2647 | 159 | 85 | 74 | 0.4278 |
+| `regroups.entries` | 504 | 587 | 0.2933 | 103 | 75 | 28 | 0 |
+| `stallOutcomes.wakes` | 54 | 28 | -0.0919 | 40 | 10 | 30 | 0.0022 |
+| `stallOutcomes.repeats` | 24 | 7 | -0.0601 | 18 | 2 | 16 | 0.0013 |
+| `timeline.stalledOnsets` | 71 | 51 | -0.0707 | 19 | 6 | 13 | 0.1671 |
+| `timeline.stalledSamples` | 1941 | 1656 | -1.0071 | 29 | 10 | 19 | 0.136 |
+| `timeline.stalledOnsetsRepeated` | 199 | 162 | -0.1307 | 29 | 7 | 22 | 0.0081 |
+| `timeline.stalledSamplesRepeated` | 5504 | 4565 | -3.318 | 37 | 11 | 26 | 0.0201 |
+| `recon.orders` | 6159 | 6342 | 0.6466 | 143 | 89 | 54 | 0.0043 |
+| `recon.contacts` | 275 | 282 | 0.0247 | 88 | 40 | 48 | 0.4557 |
+| `recon.noContact` | 4207 | 4255 | 0.1696 | 108 | 61 | 47 | 0.2108 |
+| `recon.timeouts` | 182 | 210 | 0.0989 | 69 | 40 | 29 | 0.2284 |
+| `recon.cancelled` | 1335 | 1409 | 0.2615 | 133 | 75 | 58 | 0.1651 |
+| `recon.reportsDelivered` | 1386 | 1492 | 0.3746 | 101 | 56 | 45 | 0.3197 |
+| `recon.retriggerBlocked` | 4765 | 4877 | 0.3958 | 123 | 76 | 47 | 0.0113 |
+| `squadPerformance.meanOverall` | 24498.899999999994 | 24559.800000000014 | 0.2152 | 187 | 85 | 102 | 0.2419 |
+| `squadPerformance.p10Overall` | 23013.19999999999 | 23076.59999999999 | 0.224 | 168 | 90 | 78 | 0.3961 |
 | `squadPerformance.lowScoreSquads` | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| `squadPerformance.meanMission` | 19524.500000000004 | 19520.399999999994 | -0.0152 | 172 | 83 | 89 | 0.7031 |
-| `squadPerformance.meanMovement` | 26421.999999999993 | 26579.400000000005 | 0.5851 | 165 | 90 | 75 | 0.2757 |
-| `squadPerformance.meanControl` | 26522.7 | 26612.899999999998 | 0.3353 | 160 | 79 | 81 | 0.937 |
-| `squadPerformance.meanCohesion` | 23529.700000000008 | 23604.200000000008 | 0.277 | 180 | 88 | 92 | 0.8231 |
+| `squadPerformance.meanMission` | 20533.2 | 20490.79999999999 | -0.1498 | 181 | 85 | 96 | 0.4574 |
+| `squadPerformance.meanMovement` | 27806.19999999999 | 27967.200000000004 | 0.5689 | 173 | 94 | 79 | 0.2871 |
+| `squadPerformance.meanControl` | 27911.8 | 28001.6 | 0.3173 | 169 | 82 | 87 | 0.7584 |
+| `squadPerformance.meanCohesion` | 24784.700000000008 | 24865.200000000008 | 0.2845 | 190 | 95 | 95 | 1 |
 
 With this many counters a p of 0.05 is expected by chance in about one of twenty: read the size and the direction across counters, not one p.
 
 ## The 8 seeds that part earliest (simulated seconds)
 
-fresh363-0056 160.05 s (timeline) · fresh363-0032 168 s (timeline) · fresh363-0046 169.05 s (timeline) · fresh363-0007 178.05 s (timeline) · fresh363-0043 178.05 s (timeline) · fresh363-0016 181.05 s (timeline) · fresh363-0014 185.1 s (timeline) · fresh363-0002 187.05 s (timeline)
+fresh363-0056 160.05 s (timeline) · fresh363-0032 168 s (timeline) · fresh363-0046 169.05 s (timeline) · fresh363-0007 178.05 s (timeline) · fresh363-0043 178.05 s (timeline) · fresh363-0016 181.05 s (timeline) · fresh363-0014 185.1 s (timeline) · fresh363-0028 186 s (timeline)
 
 ## Viewer
 
