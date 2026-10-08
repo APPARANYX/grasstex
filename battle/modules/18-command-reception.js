@@ -94,6 +94,16 @@
       if (m[i] && !m[i].dead && S && S.isLeader && S.isLeader(m[i])) return m[i];
     return null;
   }
+  /* No orders from a dead general: with no living leader nobody gives an ordinary command. A retreat
+     is the exception: a leaderless squad that is already falling back is told so by its senior living
+     man (SquadAI.mostSenior, the man succession will promote), otherwise every recipient is
+     'unreachable' for the whole succession gap and keeps its pre-retreat destination. */
+  function senderFor(sq, meta) {
+    var lead = (meta && meta.sender) || leaderOf(sq),
+      S = root.SquadAI;
+    if (lead || !(meta && meta.action === 'retreat') || !(S && S.mostSenior)) return lead;
+    return S.mostSenior((sq && sq.members) || []);
+  }
   function squadKey(sq) {
     return String((sq && sq.faction) || '?') + ':' + String((sq && sq.id) || '?');
   }
@@ -396,7 +406,7 @@
       current = st.current[key];
     if (current && current.signature === signature) {
       settle(battle);
-      var retrySender = meta.sender || leaderOf(sq),
+      var retrySender = senderFor(sq, meta),
         retryMen = liveRecipients(recipients || sq.members);
       for (var ri = 0; ri < retryMen.length; ri++)
         retryUnreachable(st, current, retryMen[ri], retrySender, battle, sq);
@@ -404,7 +414,7 @@
     }
     var version = (st.versions[key] || 0) + 1;
     st.versions[key] = version;
-    var sender = meta.sender || leaderOf(sq),
+    var sender = senderFor(sq, meta),
       envelope = {
         id: 'cmd-' + ++st.serial,
         squad: squadKey(sq),
