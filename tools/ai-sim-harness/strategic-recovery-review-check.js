@@ -313,6 +313,50 @@ test('adoption hold: a young unaccepted brief from one stage holds the next stag
   assert.ok(stages.indexOf('release') >= 0, 'acceptance released the held stage: ' + stages.join(','));
 });
 
+/* A stage held for an in-flight adoption ran nothing, so the tick reports no strategic wake
+   (the commander tick's `macroCommandWake` and its '@faction' reason). */
+test('adoption hold: a held stage reports no strategic wake, the stage that runs does', () => {
+  const events = [],
+    w = world(events, [
+      { id: 'obj-a', type: 'capture-zone', x: 0, z: 120, radius: 30, value: 1 },
+      { id: 'obj-b', type: 'capture-zone', x: 140, z: 20, radius: 30, value: 1 }
+    ]),
+    ticks = [];
+  w.r.BattleModules.runHook = (name, sim, p) => {
+    if (name === 'onCommanderTick')
+      ticks.push({ time: sim.time, wake: p.macroCommandWake, why: p.macroWakeReasons });
+  };
+  const q = H.addSquad(w.r, w.b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 120 } });
+  Object.assign(q, { commandRole: 'center', targetObjective: 'obj-a', commandPhase: 'assault' });
+  drive(w, 116);
+  w.C.acceptMission(w.b, q, false);
+  ticks.length = 0;
+  w.T = 250;
+  w.b.time = 250;
+  w.A.sample(w.b);
+  w.C.update(w.b, null, w.C.commandTick);
+  assert.equal(
+    history(w, 'us')
+      .map(h => h.stage)
+      .join(','),
+    'reconcile'
+  );
+  assert.equal(ticks[0].wake, true, 'the reconcile tick reports a strategic wake');
+  assert.equal(ticks[0].why['us:@us'], 'strategic-recovery');
+  assert.ok(w.C.generalFor(w.b, 'us').lastAdoptionHold, 'release is held on the young brief');
+  ticks.length = 0;
+  drive(w, 256);
+  assert.ok(
+    ticks.length >= 1 && ticks.every(t => t.wake === false),
+    'held ticks report no wake: ' + JSON.stringify(ticks)
+  );
+  assert.deepEqual(
+    history(w, 'us').map(h => h.stage),
+    ['reconcile'],
+    'and the stage stayed held'
+  );
+});
+
 /* A timestamp of exactly zero is valid history from the coordination sampler, not "missing".
    A static defender with no later progress must therefore become eligible for strategic recovery. */
 test('initial defender progress timestamp zero still ages into strategic recovery', () => {
