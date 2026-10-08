@@ -318,7 +318,9 @@
       if (battle.time < e.fireReadyAt) return false;
       if (movingTooFast(s) || s.crawling) return false;
       if (facingError(s, posOf(s.target)) > AIM_CONE) return false;
-      if (SA().isMachineGun(s) && !s.setUp && e.state === 'engage') return false; // the gun gets emplaced first
+      /* The gun gets emplaced first, whether he is engaging in the open or holding a firing station
+         (the station sets `setUp` from its own clock just before it fires). */
+      if (SA().isMachineGun(s) && !s.setUp && (e.state === 'engage' || s.state === 'hardpoint')) return false;
       if (!fireAuthorized(s, battle)) return false; // Squad Leader has not given this man permission yet.
       /* Last, so that when it stops him it was the only thing that did (the same answer in any order). */
       if (battle.time < shockUntil(s)) {
