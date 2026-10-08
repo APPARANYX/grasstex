@@ -39,6 +39,13 @@
     objectiveStrategy: 'balanced'
   };
 
+  /* Architecture audit #360: deterministic doctrine *action overrides* are disabled in the
+     shipping baseline, just like Genome v2 training. The General still needs stable allocation,
+     objective scoring, and reachability parameters; those are NOT tactical action rules.
+     Keep the original table below for a separately reviewed future re-enable, but never apply
+     it to missions while this switch is false (regardless of genome stash state). */
+  var ACTION_DOCTRINE_ON = false;
+
   /* The rules Force Command decides a brief by (which action a squad's situation calls for, checked against the
      conditions buildContext reports). They are the same four rules as ai-policy.js's DEFAULT_RULES; genome-gate-check
      holds the two copies equal. */
@@ -79,6 +86,7 @@
     return best ? { id: best.id, when: best.when.slice(), action: best.action, weight: best.weight } : null;
   }
   function ruleFor(sim, faction, context) {
+    if (!ACTION_DOCTRINE_ON) return null;
     return genomeOff()
       ? decideRule(FALLBACK_RULES, context)
       : root.BattleAIPolicy.decide(genome(sim, faction), context);
@@ -559,6 +567,7 @@
     FALLBACK: FALLBACK,
     FALLBACK_DOCTRINE: FALLBACK_DOCTRINE,
     FALLBACK_RULES: FALLBACK_RULES,
+    actionDoctrineEnabled: ACTION_DOCTRINE_ON,
     genomeOff: genomeOff,
     decideRule: decideRule,
     ruleFor: ruleFor,
