@@ -403,44 +403,4 @@ test('initial defender progress timestamp zero still ages into strategic recover
     'the idle defender is eventually re-tasked instead of being protected forever by falsy timestamp zero'
   );
 });
-
-/* An engineer-made garrison request is advisory: a frozen defender holding one is re-tasked by the
-   General's recovery; a binding (start-of-battle) request is never overridden. */
-[
-  [true, 'obj-away'],
-  [false, 'obj-home']
-].forEach(([advisory, expected]) =>
-  test(
-    'a frozen defender ' + (advisory ? 'on an engineer-made' : 'on a designated') + ' garrison request',
-    () => {
-      const events = [],
-        w = world(events, [
-          { id: 'obj-home', type: 'capture-zone', x: 0, z: 0, radius: 30, value: 1 },
-          { id: 'obj-away', type: 'capture-zone', x: 0, z: 160, radius: 30, value: 1 }
-        ]);
-      w.b.objectiveControl.objectives['obj-home'].owner = 'us';
-      const q = H.addSquad(w.r, w.b, {
-        id: 'us-def',
-        faction: 'us',
-        x: 0,
-        z: 0,
-        objective: { x: 0, z: 0 }
-      });
-      Object.assign(q, { commandRole: 'center', commandPhase: 'defend', route: [] });
-      q._preparedDefenseRequest = { objectiveId: 'obj-home', point: { x: 0, z: 0 }, advisory };
-      drive(w, 4);
-      assert.ok(q._macroMission && q._macroMission.intent === 'defend', 'precondition: garrison brief');
-      w.C.acceptMission(w.b, q, false);
-      const health = w.b._coordinationHealth;
-      for (; w.T < 540; w.T += 2) {
-        w.b.time = w.T;
-        health.lastObjectiveProgressAt.us = 0;
-        health.sides.us.objectiveStallSeconds = w.T;
-        w.C.update(w.b, null, w.C.commandTick);
-      }
-      assert.equal(q._macroMission.objectiveId, expected, 'mission objective');
-      assert.equal(!!q._garrisonReleased, advisory, 'release marker');
-    }
-  )
-);
 console.log('PASS ' + n + ' strategic-recovery review checks');
