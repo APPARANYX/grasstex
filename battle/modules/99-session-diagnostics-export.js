@@ -644,9 +644,39 @@
         ? {
             version: sq._missionExecution.mission ? sq._missionExecution.mission.version : null,
             acceptedAt: finite(+sq._missionExecution.acceptedAt),
-            holdPoint: point(sq._missionExecution.holdPoint)
+            holdPoint: point(sq._missionExecution.holdPoint),
+            blockedReported: !!sq._missionExecution.blockedReported
           }
         : null,
+      /* What became of the squad's movement orders (read-only join of the existing records; see 18a). */
+      execution: (function () {
+        var O = root.BattleExecutionOutcome,
+          e = O && O.squad(sq, sim);
+        return e
+          ? {
+              missionVersion: e.missionVersion,
+              living: e.living,
+              counts: e.counts,
+              heldBy: e.heldBy,
+              recon: e.recon,
+              blocked: e.men
+                .filter(function (o) {
+                  return o.state === 'blocked' || o.state === 'pending';
+                })
+                .map(function (o) {
+                  return {
+                    id: o.id,
+                    state: o.state,
+                    why: o.why,
+                    envelopeId: o.envelopeId,
+                    missionVersion: o.missionVersion,
+                    terminal: o.terminal,
+                    distance: o.distance
+                  };
+                })
+            }
+          : null;
+      })(),
       contact: safePlain(sq._contact, 4),
       buddyPairs:
         root.BattleSquadStability && root.BattleSquadStability.buddySnapshot
