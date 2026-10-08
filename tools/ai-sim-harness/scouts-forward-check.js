@@ -138,6 +138,38 @@ freshTask.serial = 0;
   assert.equal(draws, before, 'recon decision/selection/start draws no combat RNG');
 }
 
+/* A posted recon member must be released by the position owner, not silently replaced by a smaller detail. */
+{
+  const testCase = flag => {
+    const w = world({ search: '?scoutsForward=1&commandMovement=0&commandRelay=0' + flag });
+    const selected = ids(w.S.selectReconScouts(w.q, w.b));
+    const occupied = new Set([String(selected[selected.length - 1])]);
+    const released = [];
+    w.r.BattleTacticalPositions = {
+      current: s => (occupied.has(String(s.id)) ? { station: 'post' } : null),
+      release: (s, sim, reason) => {
+        assert.equal(sim, w.b);
+        released.push({ id: s.id, reason });
+        occupied.delete(String(s.id));
+        return true;
+      }
+    };
+    const candidate = w.S.reconCandidate(w.q, w.b, w.q.objective);
+    assert.ok(candidate);
+    assert.equal(w.S.startRecon(w.q, w.b, candidate), true);
+    assert.deepEqual(
+      ids(w.S.selectReconScouts(w.q, w.b)),
+      selected,
+      'selection size and membership are retained'
+    );
+    return released;
+  };
+  const on = testCase('');
+  assert.equal(on.length, 1, 'the incompatible post is relinquished');
+  assert.equal(on[0].reason, 'recon-task');
+  assert.equal(testCase('&reconPosts=0').length, 0, 'the control leaves the position held');
+}
+
 /* A current personal threat picture suppresses recon; aggregate contact alone does not become leader knowledge. */
 {
   const w = world();
