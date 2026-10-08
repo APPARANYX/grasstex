@@ -23,4 +23,18 @@ assert.equal(windowed.movementStallCompleted, 1, 'stall ending in window carries
 assert.equal(windowed.movementStallCensored, 0);
 const bad = assessEvidence({ ...data, writerConflicts: 3 });
 assert.deepEqual(bad.integrity.discrepancies, ['writer-conflict-count']);
+const trace = assessEvidence({timeline:{markers:[
+  { t: 1, kind: 'brief-change', side: 'ge', squad: 'A', objective: 'O2' },
+  { t: 3, kind: 'phase-change', side: 'ge', squad: 'A', from: 'hold', to: 'advance' },
+  { t: 5, kind: 'stall-start', side: 'ge', squad: 'A', soldier: '7' },
+  { t: 12, kind: 'strategic-stall-wake', side: 'ge', squad: 'A', objective: 'O2' },
+  { t: 14, kind: 'brief-change', side: 'ge', squad: 'A', objective: 'O3' }
+]}});
+assert.equal(trace.commandEpisodes.length, 2);
+assert.equal(trace.commandEpisodes[0].outcome, 'superseded');
+assert.equal(trace.commandEpisodes[0].phaseTransitions.length, 1);
+assert.equal(trace.commandEpisodes[0].stallOnsets.length, 1);
+assert.equal(trace.commandEpisodes[0].acceptance, 'not-observed');
+assert.equal(trace.strategicWakeEpisodes[0].nextBriefAt, 14);
+assert.equal(trace.strategicWakeEpisodes[0].outcome, 'unverified');
 console.log('PASS benchmark evidence: scoped timeline events, cross-window stall pairing, censored episodes and count integrity');
