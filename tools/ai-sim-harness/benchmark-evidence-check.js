@@ -56,5 +56,5 @@ assert.equal(trace.strategicWakeEpisodes[0].nextBriefAt, 14);
 assert.equal(trace.strategicWakeEpisodes[0].outcome, 'unverified');
 
 console.log(
-  'PASS benchmark evidence: scoped timeline events, cross-window stall pairing, censored episodes and count integrity',
+  'PASS benchmark evidence: scoped timeline events, cross-window stall pairing, censored episodes and count integrity'
 );
