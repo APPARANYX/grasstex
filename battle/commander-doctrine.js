@@ -533,7 +533,16 @@
       vx = p.x - c.x,
       vz = p.z - c.z,
       len = Math.hypot(vx, vz) || 1;
-    var side = sq.commandRole === 'left' || String(sq.id).length % 2 === 0 ? -1 : 1,
+    /* Role decides the side. The id-length parity this used alone is constant for the real squad ids
+       (us-0..us-4 are all four characters), so every squad, 'right' included, flanked the same way. */
+    var side =
+        sq.commandRole === 'left'
+          ? -1
+          : sq.commandRole === 'right'
+            ? 1
+            : String(sq.id).length % 2 === 0
+              ? -1
+              : 1,
       off = Math.min(80, Math.max(35, (+chosen.instance.def.radius || 30) * 1.7));
     return { x: p.x + (-vz / len) * off * side, z: p.z + (vx / len) * off * side };
   }
