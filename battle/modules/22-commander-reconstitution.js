@@ -457,6 +457,7 @@
             !sq.disbanded &&
             sq.state === 'retreat' &&
             !sq._reconGroup &&
+            !(FLED_WAIT_EXCLUDED_ON && waitingFled(sq)) &&
             !sq.inContact &&
             sq._assembly &&
             sq._assembly.phase === 'at-base' &&

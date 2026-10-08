@@ -708,10 +708,28 @@ test('a fled man waiting at his refuge does not keep the group from meeting', ()
   assert.equal(c._reconGroup, null, 'the waiting man is released from the group');
   assert.ok(!c.reconstitutedFrom && !c.disbanded, 'and stays his own detachment');
   assert.ok(w.b.factions.us.squads.some(q => q.reconstitutedFrom && living(q).length === 8));
+  assert.ok(recon(w).groupsFormed <= 2, 'and the group does not re-form every few seconds');
 });
 test('?fledWaitMerge=0 restores the old wait: the group stays open on the waiting man', () => {
   const { w, grouped } = waitingFledWorld('?fledWaitMerge=0');
   const ended = recon(w).ended.find(g => g.id === grouped.group.id);
   assert.ok(!ended, 'the group is still open');
+});
+function pooledWithWaitingFled(search) {
+  const w = world(search ? { search } : undefined);
+  squad(w, 0, 3, null, 20);
+  squad(w, 1, 2, null, 20);
+  const c = squad(w, 2, 1, null, 20),
+    man = living(c)[0],
+    E = w.r.BattleEngagement;
+  c.fledId = man.id;
+  run(w, 200, () => {
+    E.stateOf(man).fledPhase = 'wait';
+  });
+  return recon(w);
+}
+test('a fled man waiting at his refuge is never pooled into a group, so groups do not form and dissolve in a loop', () => {
+  assert.equal(pooledWithWaitingFled().groupsFormed, 0);
+  assert.ok(pooledWithWaitingFled('?fledWaitMerge=0').groupsFormed >= 1, 'the control arm pools him');
 });
 console.log(n + ' reconstitution checks passed');
