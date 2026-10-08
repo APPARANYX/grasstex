@@ -468,7 +468,7 @@
             : extraction || sq.home || soldier.orderDestination;
       return proposal('squad-command', escape, battle, 'retreat', true, Infinity);
     }
-    if (sq.commandPhase === 'regroup' && !trance) {
+    if (sq.commandPhase === 'regroup' && !fled) {
       st.combat = null;
       return proposal(
         'squad-command',

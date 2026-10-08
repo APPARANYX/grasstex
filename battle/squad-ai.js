@@ -1965,6 +1965,8 @@
   function playerFireRay(soldier, aimPoint, battle) {
     if (!soldier || soldier.dead || !soldier.isPlayer || !soldier.weapon || !aimPoint || !battle)
       return false;
+    /* Same lifecycle gate as the sim's own frame: a paused or finished battle takes no shots. */
+    if (battle.paused || battle.winner) return false;
     if (soldier.fireCooldown > 0) return false;
     var A = root.BattleAmmunition;
     if (A && A.available && !A.available(soldier)) {

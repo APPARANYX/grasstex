@@ -35,6 +35,12 @@
       RECON_TUNING = ctx.RECON_TUNING,
       RECON_PHASES = ctx.RECON_PHASES;
 
+    /* A deliberate Meso scouting task must release an existing station reservation at its owner;
+       otherwise the posted soldier receives a recon order he cannot physically execute. */
+    var RECON_RELEASE_POST_ON =
+      typeof location === 'undefined' ||
+      !/[?&]reconPosts=(?:0|off|false)(?:&|#|$)/i.test(location.search || '');
+
     function reconStats(battle) {
       if (!SCOUTS_FORWARD_ON || !battle) return null;
       var st = battle._scoutsForwardStats;
@@ -212,21 +218,13 @@
         goalDistance: d
       };
     }
-    /* ?reconPosts=0/off/false restores the old detail, which could send a posted man (the benchmark's off arm). */
-    var RECON_SKIPS_POSTED =
-      typeof location === 'undefined' ||
-      !/[?&]reconPosts=(?:0|off|false)(?:&|#|$)/i.test(location.search || '');
     function reconEligible(man, sq, battle) {
       return !!(
         man &&
         !man.dead &&
         man !== root.SquadAI.leaderOf(sq) &&
         !root.SquadAI.isMachineGun(man) &&
-        (+man.suppressedUntil || 0) <= battle.time &&
-        /* A man holding a firing station already has a Squad Leader-owned positional obligation, and the
-           Movement Resolver ranks it above a formation order: sending him would leave his recon order
-           adopted and never executed (#361 defect 2). Meso picks someone free instead. */
-        !(RECON_SKIPS_POSTED && root.BattleTacticalPositions && root.BattleTacticalPositions.current(man))
+        (+man.suppressedUntil || 0) <= battle.time
       );
     }
     function selectReconScouts(sq, battle) {
@@ -276,6 +274,15 @@
       if (!candidate || L.get(sq, 'recon')) return false;
       var scouts = selectReconScouts(sq, battle);
       if (!scouts.length || scouts.length >= commanded(sq).length) return false;
+      /* The station manager is the sole owner of the reservation. Keep the original full recon
+         detail, then explicitly release its incompatible post before publishing the scout task. */
+      if (RECON_RELEASE_POST_ON && root.BattleTacticalPositions) {
+        var posts = root.BattleTacticalPositions;
+        for (var ri = 0; ri < scouts.length; ri++) {
+          if (posts.current && posts.current(scouts[ri]) && posts.release)
+            posts.release(scouts[ri], battle, 'recon-task');
+        }
+      }
       var selected = {},
         hold = {},
         starts = {},

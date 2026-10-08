@@ -138,49 +138,32 @@ freshTask.serial = 0;
   assert.equal(draws, before, 'recon decision/selection/start draws no combat RNG');
 }
 
-/* A man holding a firing station is never detailed as a scout (#361 defect 2): the Movement Resolver ranks his
-   post above a formation order, so a recon order sent to him is adopted and never walked. */
+/* A posted recon member must be released by the position owner, not silently replaced by a smaller detail. */
 {
-  const w = world();
-  const posts = new Set();
-  w.r.BattleTacticalPositions = {
-    current: s => (posts.has(String(s.id)) ? { station: 'window-' + s.id } : null)
+  const testCase = flag => {
+    const w = world({ search: '?scoutsForward=1&commandMovement=0&commandRelay=0' + flag });
+    const selected = ids(w.S.selectReconScouts(w.q, w.b));
+    const occupied = new Set([String(selected[selected.length - 1])]);
+    const released = [];
+    w.r.BattleTacticalPositions = {
+      current: s => (occupied.has(String(s.id)) ? { station: 'post' } : null),
+      release: (s, sim, reason) => {
+        assert.equal(sim, w.b);
+        released.push({ id: s.id, reason });
+        occupied.delete(String(s.id));
+        return true;
+      }
+    };
+    const candidate = w.S.reconCandidate(w.q, w.b, w.q.objective);
+    assert.ok(candidate);
+    assert.equal(w.S.startRecon(w.q, w.b, candidate), true);
+    assert.deepEqual(ids(w.S.selectReconScouts(w.q, w.b)), selected, 'selection size and membership are retained');
+    return released;
   };
-  /* One free scout cannot fill the two-man detail alone: the filler is the next man by slot. */
-  const [, scoutA, scoutB, rifleA, rifleB] = [1, 2, 3, 4, 5].map(i => w.q.members[i]);
-  scoutB.suppressedUntil = w.b.time + 60;
-  const before = ids(w.S.selectReconScouts(w.q, w.b));
-  assert.deepEqual(
-    before,
-    [scoutA.id, rifleA.id],
-    'control: with no post the filler is the next man by slot'
-  );
-  posts.add(String(rifleA.id));
-  const after = ids(w.S.selectReconScouts(w.q, w.b));
-  assert.deepEqual(
-    after,
-    [scoutA.id, rifleB.id],
-    'men on a firing station are skipped; the next free man fills'
-  );
-  /* A buddy who holds a post does not drag the pair in. */
-  const pair = world();
-  const pp = new Set();
-  pair.r.BattleTacticalPositions = { current: s => (pp.has(String(s.id)) ? {} : null) };
-  const scout = pair.q.members[2],
-    buddy = pair.q.members[4];
-  pair.q._buddyPairs = { p: { aId: scout.id, bId: buddy.id } };
-  pp.add(String(buddy.id));
-  assert.ok(
-    !ids(pair.S.selectReconScouts(pair.q, pair.b)).includes(buddy.id),
-    'a posted buddy is not detailed'
-  );
-  /* Nobody free: no detached recon, not a recon that cannot move. */
-  const all = world();
-  all.r.BattleTacticalPositions = { current: s => (s.role === 'scout' ? null : {}) };
-  all.q.members.forEach(m => {
-    if (m.role === 'scout') m.suppressedUntil = all.b.time + 60;
-  });
-  assert.deepEqual(ids(all.S.selectReconScouts(all.q, all.b)), [], 'no free man, no scouts');
+  const on = testCase('');
+  assert.equal(on.length, 1, 'the incompatible post is relinquished');
+  assert.equal(on[0].reason, 'recon-task');
+  assert.equal(testCase('&reconPosts=0').length, 0, 'the control leaves the position held');
 }
 
 /* A current personal threat picture suppresses recon; aggregate contact alone does not become leader knowledge. */

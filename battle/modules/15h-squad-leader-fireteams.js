@@ -27,6 +27,11 @@
       publishStats = ctx.publishStats,
       publishPersonalMovement = ctx.publishPersonalMovement,
       movementExecutionCurrent = ctx.movementExecutionCurrent,
+      executionBlocked =
+        ctx.executionBlocked ||
+        function () {
+          return false;
+        },
       DEFENSIVE = ctx.DEFENSIVE,
       REGROUP_RELEASE = ctx.REGROUP_RELEASE,
       TEAM_LEASE = ctx.TEAM_LEASE,
@@ -127,7 +132,13 @@
         if (!m.length) return;
         var desired = desiredAnchor(sq, key);
         if (!desired) return;
-        var live = averageMembers(m),
+        /* The team's renewal waits for its men to close on the anchor. A man the Squad Leader's reading of
+         Movement Execution (executionBlocked) has found physically unable to arrive is not waited for:
+         counting him would hold his whole fireteam on its old anchor for as long as he stays stuck. */
+        var able = m.filter(function (s) {
+            return !executionBlocked(s, battle);
+          }),
+          live = averageMembers(able.length ? able : m),
           sig = fireteamSignature(sq),
           cur = sq._fireteamOrders[key],
           urgent = sq.state === 'retreat',

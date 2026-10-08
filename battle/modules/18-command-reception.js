@@ -23,7 +23,9 @@
        and ?commandRelay=0 remain as legacy control arms for A/B benchmark work. */
     POSTURE_ON = ON && !/[?&]commandPosture=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),
     MOVEMENT_ON = ON && !/[?&]commandMovement=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),
-    RELAY_ON = ON && !/[?&]commandRelay=(?:0|off|false)(?:&|#|$)/i.test(SEARCH);
+    RELAY_ON = ON && !/[?&]commandRelay=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),
+    /* ?enrollMissing=0 is the legacy control: a man absent from an unchanged envelope is never enrolled. */
+    ENROLL_MISSING = !/[?&]enrollMissing=(?:0|off|false)(?:&|#|$)/i.test(SEARCH);
   var FORMAT = 4;
   var TUNING = {
     SOUND: 343,
@@ -129,6 +131,7 @@
           relayed: 0,
           unreachable: 0,
           recovered: 0,
+          enrolled: 0,
           latencySum: 0,
           latencyMax: 0
         }
@@ -396,6 +399,28 @@
     st.counts.recovered++;
     return true;
   }
+  /* A man who was not a live recipient when this envelope went out (player-controlled then, released to the AI since)
+     has no record, so nothing could ever retry him and the order stays undelivered while the rest of the squad holds
+     it (#361 defect 3). The unchanged order is delivered to him now: same envelope and version, transport clock
+     starting at this moment, every existing record and clock untouched. */
+  function enrollMissing(st, envelope, soldier, sender, battle, sq) {
+    var id = String(soldier.id),
+      slot = envelope.category + '|' + envelope.scope,
+      by = st.bySoldier[id];
+    /* A record from an older envelope is not enrollment in the current, unchanged order. */
+    if (!ENROLL_MISSING || (by && by[slot] && by[slot].envelopeId === envelope.id)) return false;
+    planRecipient(
+      st,
+      Object.assign({}, envelope, { issuedAt: +battle.time || 0 }),
+      soldier,
+      sender,
+      battle,
+      sq
+    );
+    if (envelope.recipients.indexOf(id) < 0) envelope.recipients.push(id);
+    st.counts.enrolled = (st.counts.enrolled || 0) + 1;
+    return true;
+  }
   function publish(sq, battle, category, recipients, meta) {
     if (!ON || !sq || !battle) return null;
     meta = meta || {};
@@ -408,8 +433,10 @@
       settle(battle);
       var retrySender = senderFor(sq, meta),
         retryMen = liveRecipients(recipients || sq.members);
-      for (var ri = 0; ri < retryMen.length; ri++)
-        retryUnreachable(st, current, retryMen[ri], retrySender, battle, sq);
+      for (var ri = 0; ri < retryMen.length; ri++) {
+        if (!retryUnreachable(st, current, retryMen[ri], retrySender, battle, sq))
+          enrollMissing(st, current, retryMen[ri], retrySender, battle, sq);
+      }
       return current;
     }
     var version = (st.versions[key] || 0) + 1;
@@ -513,6 +540,18 @@
       rec = by && by[String(category || 'command') + '|' + String(scope || 'squad')];
     return !!(rec && rec.envelopeId === envelopeId);
   }
+  /* One personal record as it stands now, without settling the battle's records: a read-only observer (the
+     execution outcome reader, a diagnostic export) must not advance the lifecycle. The phase is the pure
+     stage(rec, now) a settle would assign at this time. */
+  function peek(soldier, battle, category, scope) {
+    var st = ON && battle && battle._commandReception,
+      by = st && soldier && st.bySoldier[String(soldier.id)],
+      rec = by && by[String(category || 'command') + '|' + String(scope || 'squad')];
+    if (!rec) return null;
+    var out = publicRecord(rec);
+    out.phase = stage(rec, +battle.time || 0);
+    return out;
+  }
   function snapshot(soldier, battle) {
     if (!ON || !soldier || !battle) return null;
     var st = settle(battle),
@@ -586,6 +625,7 @@
       relayed: c.relayed,
       unreachable: c.unreachable,
       recovered: c.recovered || 0,
+      enrolled: c.enrolled || 0,
       meanPlannedLatency: c.reachable ? +(c.latencySum / c.reachable).toFixed(3) : 0,
       maxPlannedLatency: +c.latencyMax.toFixed(3),
       recent: st.recent.slice(-40)
@@ -622,6 +662,7 @@
     settle: settle,
     adopted: adopted,
     executionCurrent: executionCurrent,
+    peek: peek,
     snapshot: snapshot,
     squadSnapshot: squadSnapshot,
     telemetry: telemetry,

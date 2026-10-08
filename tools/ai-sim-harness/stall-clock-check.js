@@ -101,13 +101,30 @@ test('the replan flag flips when the General wakes on the stall, not before', ()
   );
 });
 
-test('opponent progress does not reset this side\'s strategic stall clock', () => {
+test('a stalled side whose squads are all defending is flagged too, under its own reason (#361 defect 8)', () => {
+  const w = world();
+  w.b._roster.us.forEach(s => s.squad && (s.squad.commandPhase = 'defend'));
+  const q = w.b.factions.us.squads[0];
+  q.commandPhase = 'defend';
+  const clock = w.C.strategicStallReplan;
+  const due = firstDue(w, clock + 20);
+  assert.ok(due, 'an all-defend side reads replanDue while the same stall clock runs');
+  assert.deepEqual(due.reasons, ['objective-stalled-no-assault']);
+  assert.ok(due.t - clock <= 2, 'flagged at the same clock, not later');
+});
+
+test("opponent progress does not reset this side's strategic stall clock", () => {
   const w = world();
   w.H.reset(w.b);
   for (let t = 2; t <= 20; t += 2) {
     w.b.time = t;
     /* GE progresses on an objective; US does not. */
-    w.b.objectiveControl.objectives.a = { owner: 'neutral', active: 'ge', phase: 'capturing', progress: t * 2 };
+    w.b.objectiveControl.objectives.a = {
+      owner: 'neutral',
+      active: 'ge',
+      phase: 'capturing',
+      progress: t * 2
+    };
     w.H.sample(w.b);
   }
   const h = w.b._coordinationHealth;
