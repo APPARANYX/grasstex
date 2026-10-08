@@ -46,6 +46,52 @@ function assessEvidence(b) {
       });
     }
   }
+  // The timeline records brief changes, phases, and stalls, but not a definitive
+  // order acknowledgement. This is chronology, never proof that an order was accepted.
+  const commandEpisodes = [];
+  const bySquad = new Map();
+  const squadKey = m => [m.side || m.faction || '', m.squad || m.squadId || ''].join(':');
+  for (const m of markers) {
+    const actor = squadKey(m);
+    if (m.kind === 'brief-change') {
+      const previous = bySquad.get(actor);
+      if (previous && previous.outcome === 'unresolved') previous.outcome = 'superseded';
+      const ep = {
+        actor, issuedAt: +m.t, brief: m,
+        phaseTransitions: [], stallOnsets: [], progressSignals: [],
+        outcome: 'unresolved', acceptance: 'not-observed',
+        movementOwnership: 'not-attributed'
+      };
+      commandEpisodes.push(ep);
+      bySquad.set(actor, ep);
+    } else {
+      const ep = bySquad.get(actor);
+      if (!ep) continue;
+      if (m.kind === 'phase-change') ep.phaseTransitions.push(m);
+      if (m.kind === 'stall-start') ep.stallOnsets.push(m);
+      // A low-forward-progress diagnostic is a negative observation,
+      // not proof of progress or recovery.
+      if (m.kind === 'low-forward-progress') ep.progressSignals.push(m);
+    }
+  }
+  const scopedCommands = commandEpisodes.filter(ep =>
+    ep.issuedAt <= hi + 1e-9 && (!win || ep.issuedAt > lo + 1e-9 ||
+      ep.phaseTransitions.some(inside) || ep.stallOnsets.some(inside)));
+  const wakeEpisodes = events.filter(m => m.kind === 'strategic-stall-wake').map(w => {
+    const actor = squadKey(w);
+    const later = markers.filter(m => +m.t > +w.t && +m.t <= Math.min(+w.t + 120, hi) &&
+      (m.side || m.faction || '') === (w.side || w.faction || '') &&
+      (!w.squad || squadKey(m) === actor));
+    const nextBrief = later.find(m => m.kind === 'brief-change');
+    const nextPhase = later.find(m => m.kind === 'phase-change');
+    return {
+      at: +w.t, actor, objective: w.objective || null,
+      nextBriefAt: nextBrief ? +nextBrief.t : null,
+      nextPhaseAt: nextPhase ? +nextPhase.t : null,
+      outcome: 'unverified',
+      reason: 'Order acceptance and sustained mission progress require independent evidence'
+    };
+  });
   const conflicts = b.diagnosticEvidence?.conflicts || b.writerConflictDetails || [];
   const loops = b.diagnosticEvidence?.loops || b.loopAlerts || [];
   const discrepancies = [];
@@ -57,6 +103,7 @@ function assessEvidence(b) {
     schema: 'grasstex-benchmark-analysis-v1',
     window: win ? { openedAt: lo, closedAt: hi } : null,
     incidentKinds, movementStallEpisodes: incidents,
+    commandEpisodes: scopedCommands, strategicWakeEpisodes: wakeEpisodes,
     movementStallCompleted: incidents.filter(x => x.outcome === 'ended').length,
     movementStallCensored: incidents.filter(x => x.outcome === 'censored').length,
     integrity: { ok: discrepancies.length === 0, discrepancies },
