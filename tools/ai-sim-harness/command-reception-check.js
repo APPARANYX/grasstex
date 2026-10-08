@@ -237,4 +237,69 @@ test('full diagnostics exports battle, squad and per-soldier command receipt vie
   );
 });
 
+test('a man released from player control is enrolled on the unchanged order, with his own clock (#361 defect 3)', () => {
+  const run = search => {
+    const w = world(search);
+    const player = w.us.members[3];
+    player.isPlayer = true;
+    const meta = { scope: 'squad', action: 'defend', signature: 'defend-a', point: { x: 0, z: 40 } };
+    const first = w.C.publish(w.us, w.b, 'movement', w.us.members, meta);
+    assert.ok(!first.recipients.includes(String(player.id)), 'a player-controlled man is not a recipient');
+    const others = w.us.members.filter(s => s !== player && !s.dead);
+    const clocks = s => {
+      const r = w.C.snapshot(s, w.b).records['movement|squad'];
+      return [r.envelopeId, r.version, r.issuedAt, r.receivedAt, r.adoptedAt].join('|');
+    };
+    const before = others.map(clocks);
+    w.b.time = 10;
+    player.isPlayer = false;
+    const again = w.C.publish(w.us, w.b, 'movement', w.us.members, meta);
+    assert.equal(again.id, first.id, 'same envelope, no new version');
+    const rec = w.C.snapshot(player, w.b).records['movement|squad'];
+    const after = others.map(clocks);
+    assert.deepEqual(after, before, 'existing records and clocks are untouched');
+    return { w, player, first, rec };
+  };
+  const on = run();
+  assert.ok(on.rec, 'the released man now has a record');
+  assert.equal(on.rec.envelopeId, on.first.id);
+  assert.equal(on.rec.version, on.first.version);
+  assert.equal(on.rec.issuedAt, 10, 'his transport clock starts when he becomes eligible');
+  assert.ok(on.first.recipients.includes(String(on.player.id)));
+  const off = run('?commandReception=1&commandMovement=0&commandRelay=0&enrollMissing=0');
+  assert.equal(off.rec, undefined, 'flag off is the legacy control');
+});
+
+test('a returning soldier with an old envelope is enrolled into the new unchanged order', () => {
+  const w = world();
+  const player = w.us.members[3];
+  const first = { scope: 'squad', action: 'defend', signature: 'first', point: { x: 0, z: 40 } };
+  const second = {
+    scope: 'squad',
+    action: 'assault',
+    signature: 'second',
+    point: { x: 60, z: 40 },
+    data: { missionVersion: 2 }
+  };
+  const a = w.C.publish(w.us, w.b, 'movement', w.us.members, first);
+  assert.equal(w.C.snapshot(player, w.b).records['movement|squad'].envelopeId, a.id);
+  player.isPlayer = true;
+  w.b.time = 5;
+  const b = w.C.publish(w.us, w.b, 'movement', w.us.members, second);
+  assert.ok(!b.recipients.includes(String(player.id)));
+  const other = w.us.members[2];
+  const stable = w.C.snapshot(other, w.b).records['movement|squad'];
+  player.isPlayer = false;
+  w.b.time = 10;
+  w.C.publish(w.us, w.b, 'movement', w.us.members, second);
+  const got = w.C.snapshot(player, w.b).records['movement|squad'];
+  assert.equal(got.envelopeId, b.id, 'old movement slot is replaced with the standing envelope');
+  assert.equal(got.data.missionVersion, 2);
+  assert.equal(got.issuedAt, 10);
+  assert.ok(b.recipients.includes(String(player.id)));
+  const unchanged = w.C.snapshot(other, w.b).records['movement|squad'];
+  assert.equal(unchanged.envelopeId, stable.envelopeId);
+  assert.equal(unchanged.issuedAt, stable.issuedAt);
+});
+
 console.log(n + ' command-reception checks passed');
