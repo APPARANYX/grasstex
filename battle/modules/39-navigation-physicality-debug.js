@@ -28,6 +28,9 @@
     ROUTE_HORIZON = 96,
     ROUTE_CORRIDOR = 12,
     MAX_ROUTE_SHAPES = 32,
+    WIDE_ROUTE_CORRIDOR = 24,
+    WIDE_ROUTE_SHAPES = 64,
+    WIDE_ROUTE_TESTS = 3000,
     DOOR_NODE_PAD = 1.55;
   var LOOKAHEAD_DISTANCE = 105,
     MIN_QUEUE = 3,
@@ -378,8 +381,12 @@
     return true;
   }
 
-  function routeFootprints(sim, start, goal, soldier, limit) {
-    var list = gatherStatic(sim, start, goal, ROUTE_CORRIDOR + ROUTE_MARGIN + 1),
+  /* Visibility tests the widened pass may still spend in this lookahead: one budget for the whole rolling plan,
+     so a start boxed in by hedges cannot widen on every one of its (up to 48) segments. */
+  var wideTestsLeft = WIDE_ROUTE_TESTS;
+  function routeFootprints(sim, start, goal, soldier, limit, corridor) {
+    corridor = corridor || ROUTE_CORRIDOR;
+    var list = gatherStatic(sim, start, goal, corridor + ROUTE_MARGIN + 1),
       scored = [],
       i;
     for (i = 0; i < list.length; i++) {
@@ -387,7 +394,7 @@
         br = boundRadius(fp, ROUTE_MARGIN),
         clearance = pointSegmentDistance({ x: +fp.x, z: +fp.z }, start, goal) - br,
         direct = shapeHit(start, goal, fp, ROUTE_MARGIN) ? 0 : 1;
-      if (direct === 0 || clearance <= ROUTE_CORRIDOR)
+      if (direct === 0 || clearance <= corridor)
         scored.push({ fp: fp, direct: direct, clearance: clearance });
     }
     var occ = refreshOccupied(sim, false);
@@ -395,7 +402,7 @@
       var st = occ[i];
       if (st.soldier === soldier) continue;
       var c = pointSegmentDistance(st, start, goal) - boundRadius(st, ROUTE_MARGIN);
-      if (c <= ROUTE_CORRIDOR)
+      if (c <= corridor)
         scored.push({ fp: st, direct: shapeHit(start, goal, st, ROUTE_MARGIN) ? 0 : 1, clearance: c });
     }
     scored.sort(function (a, b) {
@@ -469,7 +476,8 @@
       start,
       end,
       soldier,
-      expanded ? MAX_ROUTE_SHAPES * 3 : MAX_ROUTE_SHAPES
+      expanded ? WIDE_ROUTE_SHAPES : MAX_ROUTE_SHAPES,
+      expanded ? WIDE_ROUTE_CORRIDOR : ROUTE_CORRIDOR
     );
     if (edgeClear(sim, start, end, shapes, ROUTE_MARGIN))
       return { points: [end], segmentGoal: end, finalGoal: goal, shapes: shapes };
@@ -498,7 +506,8 @@
        already inside a buffer, so visibility is directed: a legal escape edge must never imply a legal
        reverse entry edge. Neighbours are visited in index order, as the full graph listed them, and an
        edge is only tested when it would improve its neighbour's cost. */
-      var open = [],
+      var tests = 0,
+        open = [],
         g = new Array(nodes.length),
         prev = new Array(nodes.length),
         closed = new Array(nodes.length);
@@ -514,7 +523,10 @@
         for (j = 0; j < nodes.length; j++) {
           if (j === id) continue;
           var ng = g[id] + dist(nodes[id], nodes[j]);
-          if (!(ng + 1e-6 < g[j]) || !edgeClear(sim, nodes[id], nodes[j], shapes, ROUTE_MARGIN)) continue;
+          if (!(ng + 1e-6 < g[j])) continue;
+          /* The widened pass is a last resort in dense ground: it gives up after a bounded number of visibility tests. */
+          if (expanded && (--wideTestsLeft < 0 || ++tests > WIDE_ROUTE_TESTS)) return [];
+          if (!edgeClear(sim, nodes[id], nodes[j], shapes, ROUTE_MARGIN)) continue;
           g[j] = ng;
           prev[j] = id;
           heapPush(open, { id: j, f: ng + dist(nodes[j], end) });
@@ -545,8 +557,9 @@
        way out of the building when a hedge or rock beyond the door forces a detour: every edge from the start is a wall.
        Door nodes are only added once the plain search has failed, so every route that was found is unchanged. */
     if (!path.length) path = search(true);
-    if (!path.length && !expanded && shapes.length >= MAX_ROUTE_SHAPES)
-      return planLocal(sim, soldier, start, goal, true);
+    /* One widening, only after the plain corridor found nothing: a wall or hedge line that runs past the 12 m corridor
+       starts its detour at a corner the corridor never listed (or the shape cap cut), so no node of it is reachable. */
+    if (!path.length && !expanded) return planLocal(sim, soldier, start, goal, true);
     if (!path.length) {
       var direct = null;
       for (i = 0; i < shapes.length; i++) {
@@ -630,6 +643,7 @@
   function rawLookahead(sim, soldier, start, dest) {
     var targets = baseTargets(start, dest);
     if (!targets.length) return [];
+    wideTestsLeft = WIDE_ROUTE_TESTS;
     var cursor = { x: start.x, z: start.z },
       raw = [],
       travel = 0,
@@ -807,6 +821,7 @@
 
   function planComplete(sim, start, end, soldier, exact) {
     if (!sim) return baseFindPath(start, end);
+    wideTestsLeft = WIDE_ROUTE_TESTS;
     if (!exact) end = standGoal(sim, null, start, end);
     if (dist(start, end) <= GOAL_ARRIVAL && N.movementClear(start, end)) return [point(end)];
     var building = baseFindPath(start, end) || [{ x: end.x, z: end.z }],
@@ -1286,6 +1301,7 @@
       return planComplete(sim || currentSim(), start, end);
     },
     planLocal: function (sim, start, end) {
+      wideTestsLeft = WIDE_ROUTE_TESTS;
       return planLocal(sim || currentSim(), null, start, end);
     }
   };
