@@ -368,8 +368,6 @@
         signature: candidate.signature,
         reason: candidate.reason,
         defenderOrigin: !!candidate.defenderOrigin,
-        probeKey: candidate.probeKey || null,
-        from: copy(candidate.from),
         startedAt: battle.time,
         until: battle.time + RECON_TUNING.timeout,
         phase: sq.commandPhase || '',
@@ -387,6 +385,10 @@
         arrivedAt: null,
         updatedAt: null
       });
+      if (candidate.probeKey) {
+        task.probeKey = candidate.probeKey;
+        task.from = copy(candidate.from);
+      }
       L.grant(
         sq,
         'recon',
