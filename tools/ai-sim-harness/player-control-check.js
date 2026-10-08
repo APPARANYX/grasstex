@@ -287,6 +287,24 @@ assert.equal(
 assert.equal(s.weapon.ammo, ammoBefore - 1, 'free-fire must spend shipping ammunition');
 assert.ok(b.events.fired > firedBefore, 'free-fire must emit the normal onFire presentation event');
 
+/* The trigger obeys the simulation lifecycle: a paused or finished battle takes no player shots. */
+for (const [label, set, clear] of [
+  ['paused', () => (b.paused = true), () => (b.paused = false)],
+  ['ended', () => (b.winner = 'us'), () => (b.winner = null)]
+]) {
+  s.fireCooldown = 0;
+  const ammoHeld = s.weapon.ammo;
+  set();
+  assert.equal(
+    r.SquadAI.playerFireRay(s, { x: 80, y: 1, z: 0 }, b),
+    false,
+    label + ' battle: RT must not fire'
+  );
+  assert.equal(s.weapon.ammo, ammoHeld, label + ' battle: no ammunition spent');
+  clear();
+}
+s.fireCooldown = 0;
+
 r.BattleEngagement.commitStance(s, b, 'crouch', 0.45, 'player');
 assert.equal(s.tacticalCrouch, true);
 assert.equal(s.prone, false);

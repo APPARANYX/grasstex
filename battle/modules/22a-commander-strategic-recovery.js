@@ -316,6 +316,8 @@
           threshold: stage.at,
           stallSeconds: +info.age.toFixed(1),
           episode: recovery.episode,
+          /* Reconsiderations ATTEMPTED by this stage, including ones deduped into the same brief; `issued` (review
+             passes) counts the materially new briefs. Neither says a squad moved. */
           affected: (detail && detail.affected) || 0,
           mainEffort: (detail && detail.mainEffort) || null,
           time: +(+sim.time || 0).toFixed(2)
@@ -543,6 +545,14 @@
     function reconsiderMission(sim, sq, town, reason, stalled, forcedObjective) {
       var before = sq._macroMission && sq._macroMission.objectiveId,
         previous = sq._macroMission;
+      /* The Squad Leader reports that most of its men are physically blocked on this brief. The General
+       answers through the same re-selection every other wake uses, with the brief's objective carrying
+       the stalled-effort cost so a better-placed objective can win; if none does, the brief dedups and
+       the wake is recorded as ineffective like any other. Not a timer, and it fires once per brief. */
+      if (reason === 'execution-blocked' && !stalled && before) {
+        stalled = {};
+        stalled[before] = true;
+      }
       recordMacroWake(sim, sq, reason);
       if (reason === 'mission-complete') finishMission(sim, sq, 'completed', reason);
       else if (reason === 'mission-invalid') finishMission(sim, sq, 'invalid', reason);
@@ -723,6 +733,7 @@
         crossed = [],
         stalled = stalledEfforts(sim, squads),
         detail = null,
+        ran = 0,
         general = generalFor(sim, faction),
         i;
       for (i = 0; i < STRATEGIC_STALL_STAGES.length; i++)
@@ -759,6 +770,7 @@
           recovery.lastReviewAt = +sim.time || 0;
         }
         recordRecoveryStage(sim, faction, stage, info, detail);
+        ran++;
       }
       /* Review passes (see runReviewPass): only when no ladder stage ran or was held this tick, so
        a pass never stacks on top of a stage in the same commander tick. */
@@ -767,7 +779,8 @@
         recovery.completed >= STRATEGIC_STALL_STAGES[STRATEGIC_STALL_STAGES.length - 1].level &&
         info.age >= STRATEGIC_STALL_RECOVERY.reset + STRATEGIC_STALL_REPLAN * (recovery.passes + 1) &&
         runReviewPass(sim, faction, squads, town, info);
-      return crossed.length > 0 || reviewed;
+      /* A stage held for an in-flight adoption did nothing this tick: it reports no wake. */
+      return ran > 0 || reviewed;
     }
 
     /* Did a strategic-stall wake change the effort? `repeats` re-picked the stalled objective. */

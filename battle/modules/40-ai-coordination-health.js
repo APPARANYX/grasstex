@@ -113,6 +113,13 @@
     if (missingRoles) reasons.push('missing-role');
     if (missingTargets) reasons.push('missing-target');
     if (assaulting > 0 && stalled >= replanAfter()) reasons.push('objective-stalled');
+    /* A side whose squads are all defending, holding or regrouping reads as "not assaulting", yet the same stall clock
+       can run and the General's recovery ladder can act on it (it wakes on the seconds, never on this flag). Naming it
+       keeps `replanDue` from reading false while recovery is working. Diagnostics only: nothing consumes the flag. */ else if (
+      stalled >= replanAfter() &&
+      active > 0
+    )
+      reasons.push('objective-stalled-no-assault');
     return {
       activeSquads: active,
       assignedRoles: assignedRole,
