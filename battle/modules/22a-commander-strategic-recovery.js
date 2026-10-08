@@ -723,6 +723,7 @@
         crossed = [],
         stalled = stalledEfforts(sim, squads),
         detail = null,
+        ran = 0,
         general = generalFor(sim, faction),
         i;
       for (i = 0; i < STRATEGIC_STALL_STAGES.length; i++)
@@ -759,6 +760,7 @@
           recovery.lastReviewAt = +sim.time || 0;
         }
         recordRecoveryStage(sim, faction, stage, info, detail);
+        ran++;
       }
       /* Review passes (see runReviewPass): only when no ladder stage ran or was held this tick, so
        a pass never stacks on top of a stage in the same commander tick. */
@@ -767,7 +769,8 @@
         recovery.completed >= STRATEGIC_STALL_STAGES[STRATEGIC_STALL_STAGES.length - 1].level &&
         info.age >= STRATEGIC_STALL_RECOVERY.reset + STRATEGIC_STALL_REPLAN * (recovery.passes + 1) &&
         runReviewPass(sim, faction, squads, town, info);
-      return crossed.length > 0 || reviewed;
+      /* A stage held for an in-flight adoption did nothing this tick: it reports no wake. */
+      return ran > 0 || reviewed;
     }
 
     /* Did a strategic-stall wake change the effort? `repeats` re-picked the stalled objective. */
