@@ -348,4 +348,88 @@ test('initial defender progress timestamp zero still ages into strategic recover
     'the idle defender is eventually re-tasked instead of being protected forever by falsy timestamp zero'
   );
 });
+/* Regression: a defender with its original targetObjective remains fully assigned, so it
+   was invisible to the old 180 s release (targetless/hold/support only). Losing its
+   doctrinal scouts must not also make strategic recovery dependent on reconnaissance.
+   Force a doctrine DEFEND choice to catch a new capture brief being undone by doctrine. */
+test('idle assigned defender with dead scouts is released to an attack at 180 s', () => {
+  const events = [],
+    w = world(events, [
+      { id: 'obj-home', type: 'capture-zone', x: 0, z: 0, radius: 30, value: 1 },
+      { id: 'obj-away', type: 'capture-zone', x: 0, z: 160, radius: 30, value: 1 }
+    ]);
+  w.b.objectiveControl.objectives['obj-home'].owner = 'us';
+  const q = H.addSquad(w.r, w.b, {
+    id: 'us-idle',
+    faction: 'us',
+    x: 0,
+    z: 0,
+    objective: { x: 0, z: 0 }
+  });
+  Object.assign(q, { commandRole: 'center', commandPhase: 'defend', route: [] });
+  q._preparedDefenseRequest = { objectiveId: 'obj-home', point: { x: 0, z: 0 } };
+  drive(w, 4);
+  const initial = q._macroMission;
+  assert.ok(initial && initial.intent === 'defend' && q.targetObjective === 'obj-home');
+  w.C.acceptMission(w.b, q, false);
+  /* The request seeded the initial defense; ordinary unpinned defenders have no ongoing
+     prepared-defense obligation. This also mirrors the existing zero-time defender fixture. */
+  q._preparedDefenseRequest = null;
+  initial.requestKey = null;
+  const designated = q.members.filter(s => s.role === 'scout');
+  assert.ok(designated.length > 0, 'the setup had real scouts to lose');
+  designated.forEach(s => {
+    s.dead = true;
+  });
+  q.aliveCount = q.members.filter(s => !s.dead).length;
+  assert.ok(q.aliveCount >= 4, 'remaining squad can still execute a General mission');
+  w.r.BattleCommanderDoctrine.ruleFor = () => ({
+    id: 'test-defense-rule',
+    action: 'defend',
+    when: []
+  });
+
+  drive(w, 178);
+  assert.equal(q._macroMission, initial, 'defense does not churn before the release threshold');
+  drive(w, 186);
+  const release = history(w, 'us').find(h => h.stage === 'release');
+  assert.ok(release && release.affected >= 1, '180 s release explicitly sees the assigned defender');
+  const fresh = q._macroMission;
+  assert.ok(fresh !== initial, 'General publishes a new mission instead of deduping DEFEND');
+  assert.equal(fresh.intent, 'capture', 'idle defender transitions to capture intent');
+  assert.equal(fresh.objectiveId, 'obj-away', 'new mission attacks an objective not already held');
+  assert.equal(fresh.action, 'assault', 'DEFEND doctrine cannot undo the strategic re-task');
+  assert.ok(
+    strategicWakes(events, 'us-idle').some(e => e.data.reason === 'strategic-stall-release'),
+    'diagnostics attribute the new mission to release'
+  );
+});
+
+/* An explicit prepared-defense pin is different from an ordinary idle defender. If it
+   remains authoritative, recovery may review the front but must not abandon the post. */
+test('permanent prepared garrison remains pinned without contact', () => {
+  const events = [],
+    w = world(events, [
+      { id: 'obj-home', type: 'capture-zone', x: 0, z: 0, radius: 30, value: 1 },
+      { id: 'obj-away', type: 'capture-zone', x: 0, z: 160, radius: 30, value: 1 }
+    ]);
+  w.b.objectiveControl.objectives['obj-home'].owner = 'us';
+  const q = H.addSquad(w.r, w.b, {
+    id: 'us-pinned',
+    faction: 'us',
+    x: 0,
+    z: 0,
+    objective: { x: 0, z: 0 }
+  });
+  Object.assign(q, { commandRole: 'center', commandPhase: 'defend', route: [] });
+  q._preparedDefenseRequest = { objectiveId: 'obj-home', point: { x: 0, z: 0 } };
+  drive(w, 4);
+  const pinned = q._macroMission;
+  assert.ok(pinned && pinned.intent === 'defend');
+  w.C.acceptMission(w.b, q, false);
+  drive(w, 422);
+  assert.equal(q._macroMission, pinned, 'an externally pinned garrison retains its mission');
+  assert.equal(q._macroMission.intent, 'defend');
+});
+
 console.log('PASS ' + n + ' strategic-recovery review checks');
