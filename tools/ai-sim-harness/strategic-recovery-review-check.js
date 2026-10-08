@@ -359,6 +359,7 @@ test('idle assigned defender with dead scouts is released to an attack at 180 s'
       { id: 'obj-away', type: 'capture-zone', x: 0, z: 160, radius: 30, value: 1 }
     ]);
   w.b.objectiveControl.objectives['obj-home'].owner = 'us';
+  w.b._objectives.find(o => o.id === 'obj-home').state.owner = 'us';
   const q = H.addSquad(w.r, w.b, {
     id: 'us-idle',
     faction: 'us',
@@ -414,6 +415,7 @@ test('permanent prepared garrison remains pinned without contact', () => {
       { id: 'obj-away', type: 'capture-zone', x: 0, z: 160, radius: 30, value: 1 }
     ]);
   w.b.objectiveControl.objectives['obj-home'].owner = 'us';
+  w.b._objectives.find(o => o.id === 'obj-home').state.owner = 'us';
   const q = H.addSquad(w.r, w.b, {
     id: 'us-pinned',
     faction: 'us',
