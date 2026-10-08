@@ -248,6 +248,8 @@ mission/route/goal signature prevents recon-release-recon churn on the same appr
 or timeout, the existing `regroup-bypass` lease gives the main body at most 9 s to absorb the intentionally-forward
 scout geometry and releases early when the scouts are back inside the ordinary cohesion-release band.
 
+**Defender recon is a progressive probe** (#393, `?reconProbe=0` restores the old keying). A stationed defender's scout goal used to hang off the squad centroid, so scouts walking out moved the 12 m signature cell and the same DEFEND brief dispatched a new scan after every no-contact end. The probe key is now the owned objective plus a 45° bearing sector (module 15l passes both to `reconCandidate`); module 15c keeps `sq._reconProbes[key]` = depth step, last reached point and end time. A no-contact or timeout end advances one step (cap 3, scouts start the next look from where they actually got, 50 m further) only if the scouts physically moved at least 12 m from where the probe began; no forward progress means no new scan. A contact does not advance it. At the cap a defender looks again only when its last no-contact information is `PROBE_VALID_SECONDS` (120 s) old. No new timer, writer or channel. `recon-probe-check.js` owns the contract.
+
 `BattleSquadStability.reconTelemetry` and the `scouts-forward` observe-only probe expose order reasons, selected
 men, scout distance/time, endings, contact/report delivery, wait time, same-approach retrigger blocks, duplicate tasks,
 main-body stop context and live anchor drift. `scouts-forward-check.js` owns the deterministic contract. Full-battle

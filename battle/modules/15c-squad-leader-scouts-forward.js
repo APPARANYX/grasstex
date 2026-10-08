@@ -41,6 +41,18 @@
       typeof location === 'undefined' ||
       !/[?&]reconPosts=(?:0|off|false)(?:&|#|$)/i.test(location.search || '');
 
+    /* Defender recon is a progressive probe (#393): the key is the owned objective plus a bearing sector, and the
+       depth step advances only when the scouts physically got further than the last probe, so the squad centroid
+       moving behind them cannot manufacture a new scan. ?reconProbe=0 restores the centroid-bucket signature. */
+    var RECON_PROBE_ON =
+      typeof location === 'undefined' ||
+      !/[?&]reconProbe=(?:0|off|false)(?:&|#|$)/i.test(location.search || '');
+    var PROBE_CAP = 3,
+      PROBE_SECTORS = 8,
+      PROBE_MIN_PROGRESS = 12,
+      /* A defender that found nothing at full depth looks again once that information is this old. */
+      PROBE_VALID_SECONDS = 120;
+
     function reconStats(battle) {
       if (!SCOUTS_FORWARD_ON || !battle) return null;
       var st = battle._scoutsForwardStats;
@@ -155,7 +167,31 @@
         Math.round((+goal.z || 0) / 12)
       ].join('|');
     }
-    function reconCandidate(sq, battle, goal) {
+    function probeFor(sq, ref) {
+      var mv = missionVersion(sq);
+      if (sq._reconProbesMv !== mv) {
+        sq._reconProbesMv = mv;
+        sq._reconProbes = {};
+      }
+      var sector =
+          ((Math.round(Math.atan2(ref.dir.z, ref.dir.x) / ((Math.PI * 2) / PROBE_SECTORS)) % PROBE_SECTORS) +
+            PROBE_SECTORS) %
+          PROBE_SECTORS,
+        key =
+          Math.round((+ref.objective.x || 0) / 12) +
+          ',' +
+          Math.round((+ref.objective.z || 0) / 12) +
+          ',s' +
+          sector;
+      return (sq._reconProbes[key] = sq._reconProbes[key] || {
+        key: key,
+        step: 0,
+        round: 0,
+        origin: null,
+        endedAt: -1
+      });
+    }
+    function reconCandidate(sq, battle, goal, ref) {
       if (!SCOUTS_FORWARD_ON || !sq || !battle || !goal || !RECON_PHASES[sq.commandPhase || '']) return null;
       var A = root.SquadAI,
         C = root.BattleCallouts;
@@ -174,8 +210,22 @@
         leaderPictureAdequate(sq, battle)
       )
         return null;
-      var from = average(sq);
+      var from = average(sq),
+        probe = null;
       if (!from) return null;
+      if (RECON_PROBE_ON && ref && ref.objective && ref.dir) {
+        probe = probeFor(sq, ref);
+        if (probe.step >= PROBE_CAP) {
+          if (probe.endedAt < 0 || battle.time - probe.endedAt < PROBE_VALID_SECONDS) return null;
+          probe.step = 0;
+          probe.round++;
+          probe.origin = null;
+        }
+        if (probe.origin) {
+          from = copy(probe.origin);
+          goal = { x: from.x + ref.dir.x * 110, z: from.z + ref.dir.z * 110 };
+        }
+      }
       var dx = goal.x - from.x,
         dz = goal.z - from.z,
         d = Math.hypot(dx, dz);
@@ -191,7 +241,11 @@
           screen && screen.distance != null
             ? Math.max(16, Math.min(RECON_TUNING.advance, screen.distance + RECON_TUNING.pastScreen))
             : Math.min(RECON_TUNING.advance, d - 4),
-        sig = reconSignature(sq, goal),
+        sig = probe
+          ? [missionVersion(sq), +sq.routeIndex || 0, probe.key, 'p' + probe.round + '.' + probe.step].join(
+              '|'
+            )
+          : reconSignature(sq, goal),
         last = sq._reconLast;
       if (last && last.signature === sig) {
         if (!last.retriggerNoted) {
@@ -215,7 +269,8 @@
         goal: copy(goal),
         point: { x: from.x + ux * advance, z: from.z + uz * advance },
         axis: { x: ux, z: uz },
-        goalDistance: d
+        goalDistance: d,
+        probeKey: probe ? probe.key : null
       };
     }
     function reconEligible(man, sq, battle) {
@@ -313,6 +368,8 @@
         signature: candidate.signature,
         reason: candidate.reason,
         defenderOrigin: !!candidate.defenderOrigin,
+        probeKey: candidate.probeKey || null,
+        from: copy(candidate.from),
         startedAt: battle.time,
         until: battle.time + RECON_TUNING.timeout,
         phase: sq.commandPhase || '',
@@ -439,6 +496,28 @@
         }
       if (battle.time >= mon.until) sq._reconReportMonitor = null;
     }
+    /* A no-contact end escalates one depth step only if the scouts physically got further out than the probe began. */
+    function advanceProbe(sq, task, battle) {
+      var probe = sq._reconProbes && sq._reconProbes[task.probeKey];
+      if (!probe) return;
+      probe.endedAt = battle.time;
+      var sx = 0,
+        sz = 0,
+        n = 0;
+      for (var i = 0; i < task.scoutIds.length; i++) {
+        var p = task.lastPositions && task.lastPositions[String(task.scoutIds[i])];
+        if (!p) continue;
+        sx += p.x;
+        sz += p.z;
+        n++;
+      }
+      if (!n || !task.from) return;
+      var reached = { x: sx / n, z: sz / n };
+      if (dist(reached, task.from) >= PROBE_MIN_PROGRESS) {
+        probe.step++;
+        probe.origin = reached;
+      }
+    }
     function endRecon(sq, battle, reason) {
       var task = sq && sq._reconTask;
       if (!task) return null;
@@ -456,6 +535,8 @@
         scoutIds: task.scoutIds.slice(),
         retriggerNoted: false
       };
+      if (task.probeKey && (reason === 'observed-no-contact' || reason === 'timeout'))
+        advanceProbe(sq, task, battle);
       if (reason === 'scout-contact') startReconReportWatch(sq, task, battle);
       /* Only a no-contact release hands the main body a deliberate scout lead to absorb. Contact,
          retreat, leader/phase/mission invalidation and battle end already transition into their own
