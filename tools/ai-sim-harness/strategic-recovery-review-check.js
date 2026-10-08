@@ -228,10 +228,9 @@ test('stability side: legitimate static defense and a progressing effort are not
     defendBrief && defendBrief.intent === 'defend' && defendBrief.objectiveId === 'obj-d',
     'defender holds the prepared-defense brief'
   );
-  assert.equal(
-    defender._lastDoctrineRule,
-    null,
-    'prepared defense remains valid without any doctrine action override'
+  assert.ok(
+    defender._lastDoctrineRule == null,
+    'prepared defense bypasses rule selection, leaving the doctrine marker absent'
   );
   w.C.acceptMission(w.b, defender, false);
   w.C.acceptMission(w.b, moving, false);
