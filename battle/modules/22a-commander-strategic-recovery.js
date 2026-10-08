@@ -542,13 +542,6 @@
       }
       return issueMission(sim, sq, spec, reason);
     }
-    /* ?garrisonRelease=0/off/false restores the binding engineer garrison (the paired-benchmark control). */
-    function garrisonReleaseOn() {
-      return !(
-        typeof location !== 'undefined' &&
-        /[?&]garrisonRelease=(?:0|off|false)\b/i.test(location.search || '')
-      );
-    }
     function reconsiderMission(sim, sq, town, reason, stalled, forcedObjective) {
       var before = sq._macroMission && sq._macroMission.objectiveId,
         previous = sq._macroMission;
@@ -557,16 +550,8 @@
        faction progress). An engineer-made garrison request is advisory: the General releases it here so
        selectMission can re-task the squad; the request itself stays the engineer module's to write. */
       var req = sq._preparedDefenseRequest;
-      if (req && req.advisory && /^strategic-/.test(reason) && !sq._garrisonReleased && garrisonReleaseOn()) {
+      if (req && req.advisory && /^strategic-/.test(reason))
         sq._garrisonReleased = { at: +(+sim.time || 0).toFixed(2), objectiveId: req.objectiveId };
-        telemetry(sim, 'garrison-released', {
-          faction: sq.faction,
-          squad: sq.id,
-          objective: req.objectiveId,
-          reason: reason,
-          time: +(+sim.time || 0).toFixed(1)
-        });
-      }
       if (reason === 'mission-complete') finishMission(sim, sq, 'completed', reason);
       else if (reason === 'mission-invalid') finishMission(sim, sq, 'invalid', reason);
       selectMission(sim, sq, town, reason, stalled || null, forcedObjective || null);
