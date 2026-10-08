@@ -1,0 +1,17 @@
+name: Temporary PR 396 main baseline benchmark dispatch
+on:
+  push:
+    branches:
+      - work/benchmark-396-main-control-dispatch
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch main baseline standard benchmark
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run battle-benchmark-standard.yml --repo APPARANYX/grasstex --ref main -f seed=scripted-scout-0003 -f seeds=1 -f query_off='' -f query_on='' -f battle_type=meeting -f windows=contact+60,every60 -f origin_agent=chatgpt -f correlation_id=pr396-main-baseline -f purpose='Compare main against PR396 diagnostic instrumentation'
