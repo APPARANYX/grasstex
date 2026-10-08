@@ -1470,6 +1470,9 @@
       ex = sq._missionExecution;
     if (!EXEC_REPORT_ON || !m || !ex || ex.mission !== m || ex.blockedReported) return;
     if (m.status !== 'issued' && m.status !== 'executing') return;
+    /* A brief the General issued in answer to this report is its one reassessment: men still blocked under it are
+       a physical problem the objective did not cure, and asking again would only swap objectives. */
+    if (m.reason === 'execution-blocked') return;
     var r = sq._macroMissionRequest;
     if (r && r.missionVersion === m.version) return;
     var men = commanded(sq),

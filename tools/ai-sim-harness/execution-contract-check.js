@@ -359,4 +359,39 @@ test('F: another squad making objective progress does not hide a blocked squad f
   assert.equal(wakes(w, 'execution-blocked', 'us-1').length, 0, 'the squad that is moving is not');
 });
 
+test('A: the General answers the report with a replacement brief that the men physically carry out', () => {
+  const run = flag => {
+      const { w, q, free } = blockedWorld('?stressAct=0&morale=0&coa=0&fireControl=0' + flag, 6);
+      w.r.BattleObjectiveSystem.attach(w.b, TWO, {});
+      w.run(60);
+      return { w, q, free, m: q._macroMission, c: centroid(q, free) };
+    },
+    off = run('&executionReport=0'),
+    on = run('');
+  assert.equal(off.m.objectiveId, 'obj-a');
+  assert.equal(off.m.version, 1, 'main: the same brief stands for as long as the squad is frozen');
+  assert.ok(off.c.z < 40);
+  assert.equal(on.m.objectiveId, 'obj-b', 'the General reassessed the objective');
+  assert.equal(on.m.reason, 'execution-blocked');
+  assert.ok(on.m.version > 1 && on.m.status === 'executing', 'the Squad Leader accepted the replacement');
+  /* Physical: obj-b lies east at (150, 20); the free men leave the obj-a line and move toward it. */
+  assert.ok(on.c.x > off.c.x + 10, 'the free men carry the new brief out: x ' + on.c.x + ' vs ' + off.c.x);
+});
+
+test('A: a block the objective does not cure is escalated once, not swapped back and forth', () => {
+  const w = world({ search: '?stressAct=0&morale=0&coa=0&fireControl=0', objectives: TWO }),
+    q = w.squad('us-0', 'us', 0, 0, { x: 0, z: 150 });
+  q.commandRole = 'center';
+  q.commandPhase = 'assault';
+  q.state = 'advance';
+  /* Everyone is stuck wherever the General sends them. */
+  w.seal(q.members);
+  w.run(150);
+  assert.ok(
+    q._macroMission.version <= 2,
+    'one reassessment, then the Squad Leader keeps the brief: v' + q._macroMission.version
+  );
+  assert.equal(wakes(w, 'execution-blocked', 'us-0').length, 1);
+});
+
 console.log(n + ' execution-contract checks passed');
