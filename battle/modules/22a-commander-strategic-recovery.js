@@ -546,6 +546,12 @@
       var before = sq._macroMission && sq._macroMission.objectiveId,
         previous = sq._macroMission;
       recordMacroWake(sim, sq, reason);
+      /* A strategic-stall wake only reaches a defender that is no longer useful (frozen, no contact, no
+       faction progress). An engineer-made garrison request is advisory: the General releases it here so
+       selectMission can re-task the squad; the request itself stays the engineer module's to write. */
+      var req = sq._preparedDefenseRequest;
+      if (req && req.advisory && /^strategic-/.test(reason))
+        sq._garrisonReleased = { at: +(+sim.time || 0).toFixed(2), objectiveId: req.objectiveId };
       if (reason === 'mission-complete') finishMission(sim, sq, 'completed', reason);
       else if (reason === 'mission-invalid') finishMission(sim, sq, 'invalid', reason);
       selectMission(sim, sq, town, reason, stalled || null, forcedObjective || null);

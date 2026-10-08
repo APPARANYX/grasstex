@@ -274,7 +274,10 @@
       point: copy(point),
       anchor: copy(center),
       requestedAt: +(sim.time || 0),
-      reason: 'prepared garrison'
+      reason: 'prepared garrison',
+      /* Only the start-of-battle designated garrison is binding; an engineer-made one is advisory, so the
+         General's strategic recovery can release it (sq._garrisonReleased) to keep momentum. */
+      advisory: !teleport
     };
     /* Initial placement is setup, outside the normal live ownership path. Runtime garrisons only
        publish the request/post constraints below; Force Command and Squad Stability apply them. */

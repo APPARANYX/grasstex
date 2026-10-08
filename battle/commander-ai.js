@@ -194,6 +194,8 @@
   function defenseRequest(sim, sq) {
     var r = sq._preparedDefenseRequest,
       source = 'prepared-defense';
+    /* An advisory (engineer-made) request the General released no longer binds the squad. */
+    if (r && r.advisory && sq._garrisonReleased) r = null;
     if (!r) {
       r = sq._captureZoneDefenseRequest;
       source = 'objective-security';
