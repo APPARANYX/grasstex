@@ -316,6 +316,8 @@
           threshold: stage.at,
           stallSeconds: +info.age.toFixed(1),
           episode: recovery.episode,
+          /* Reconsiderations ATTEMPTED by this stage, including ones deduped into the same brief; `issued` (review
+             passes) counts the materially new briefs. Neither says a squad moved. */
           affected: (detail && detail.affected) || 0,
           mainEffort: (detail && detail.mainEffort) || null,
           time: +(+sim.time || 0).toFixed(2)
