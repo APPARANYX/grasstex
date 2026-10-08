@@ -264,8 +264,8 @@ test('baseline: Force Command action doctrine is OFF for every context, with or 
     const context = {};
     FLAGS.forEach((f, i) => (context[f] = !!(mask & (1 << i))));
     if (P.decide(P.defaults, context)) wouldHaveMatched++;
-    assert.equal(withModule.ruleFor(sim, 'us', context), null, 'stashed action rules stay off: ' + mask);
-    assert.equal(bare.ruleFor(sim, 'ge', context), null, 'missing Genome action rules stay off: ' + mask);
+    assert.equal(withModule.ruleFor(sim, 'us', context), null);
+    assert.equal(bare.ruleFor(sim, 'ge', context), null);
   }
   assert.ok(wouldHaveMatched > 0, 'positive control: old fallback rules would have triggered');
 });
@@ -275,12 +275,9 @@ test('baseline isolation: even a manually revived Genome cannot silently re-enab
     D = doctrineOn(root),
     sim = { scene: { metadata: { battleScenario: SCENARIO } } };
   assert.equal(D.genomeOff(), false, 'control: Genome un-stashed');
-  assert.equal(
-    root.BattleAIPolicy.decide(root.BattleAIPolicy.genomeFor(sim, 'us'), { objectiveNeutral: true })
-      .id,
-    'always-hold',
-    'positive control: hostile server Genome still contains the action'
-  );
+  const hostile = root.BattleAIPolicy.genomeFor(sim, 'us'),
+    hostileRule = root.BattleAIPolicy.decide(hostile, { objectiveNeutral: true });
+  assert.equal(hostileRule.id, 'always-hold', 'positive control: hostile Genome has active rules');
   assert.equal(D.actionDoctrineEnabled, false);
   assert.equal(
     D.ruleFor(sim, 'us', { objectiveNeutral: true }),
