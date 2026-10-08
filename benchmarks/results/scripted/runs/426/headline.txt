@@ -1,1 +1,0 @@
-QUIET: 185 of 283 pairs changed (median first part 228 s); 0 of 34 counters under p 0.05 (about 1.7 by chance); casualties +0.2% (p 0.7493)
