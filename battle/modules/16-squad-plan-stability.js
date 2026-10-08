@@ -178,6 +178,10 @@
   var EXEC_REPORT_ON = !/[?&]executionReport=(?:0|off|false)(?:&|#|$)/i.test(
     typeof location !== 'undefined' ? location.search || '' : ''
   );
+  /* Avoid waiting for an undeliverable *current* order, independently of physical blocking. */
+  var UNREACHABLE_ANCHOR_ON = !/[?&]unreachableAnchor=(?:0|off|false)(?:&|#|$)/i.test(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
   var ORDER_STRIDE = 13,
     ORDER_ARRIVAL_RADIUS = 8,
     ORDER_COHESION = 0.55,
@@ -1443,13 +1447,26 @@
     var O = root.BattleExecutionOutcome;
     return !!(EXEC_REPORT_ON && O && O.blockedForBrief(s, battle) && movementExecutionCurrent(s, battle));
   }
+  function movementUnreachable(s, battle) {
+    /* Read the common version-bound execution contract, not a second hand-written blocked definition. */
+    var O = root.BattleExecutionOutcome,
+      outcome = UNREACHABLE_ANCHOR_ON && O && O.man(s, battle);
+    return !!(outcome && outcome.current && outcome.state === 'pending' && outcome.why === 'undeliverable');
+  }
   function orderCanAdvance(sq, battle) {
     var living = commanded(sq),
       arrived = 0,
-      blocked = 0;
+      blocked = 0,
+      unreachable = 0;
     if (!living.length) return true;
     for (var i = 0; i < living.length; i++) {
       var s = living[i];
+      /* Men who cannot receive this brief cannot acknowledge it. The outcome is distinct from
+         a physically terminal blocked order, which the General may need to reconsider. */
+      if (movementUnreachable(s, battle)) {
+        unreachable++;
+        continue;
+      }
       /* Arrival acknowledges the latest issued movement, not a previous destination
          that the man still holds while hearing its replacement. Otherwise the same
          old arrival advances another stride on every command tick during reception. */
@@ -1457,8 +1474,8 @@
       if (s.orderDestination && dist(s.root.position, s.orderDestination) <= ORDER_ARRIVAL_RADIUS) arrived++;
       else if (executionBlocked(s, battle)) blocked++;
     }
-    /* The stride waits for the men who can still arrive; a squad with nobody left who can does not advance. */
-    var owed = living.length - blocked;
+    /* A reachable recipient still processing an order remains owed. No able men means no phantom stride. */
+    var owed = living.length - blocked - unreachable;
     return owed > 0 && arrived / owed >= ORDER_COHESION;
   }
   /* The General is told once per brief when most of the squad cannot carry the order out. The request
