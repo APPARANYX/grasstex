@@ -543,6 +543,14 @@
     function reconsiderMission(sim, sq, town, reason, stalled, forcedObjective) {
       var before = sq._macroMission && sq._macroMission.objectiveId,
         previous = sq._macroMission;
+      /* The Squad Leader reports that most of its men are physically blocked on this brief. The General
+       answers through the same re-selection every other wake uses, with the brief's objective carrying
+       the stalled-effort cost so a better-placed objective can win; if none does, the brief dedups and
+       the wake is recorded as ineffective like any other. Not a timer, and it fires once per brief. */
+      if (reason === 'execution-blocked' && !stalled && before) {
+        stalled = {};
+        stalled[before] = true;
+      }
       recordMacroWake(sim, sq, reason);
       if (reason === 'mission-complete') finishMission(sim, sq, 'completed', reason);
       else if (reason === 'mission-invalid') finishMission(sim, sq, 'invalid', reason);
