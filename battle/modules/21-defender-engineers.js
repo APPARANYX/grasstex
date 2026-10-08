@@ -414,6 +414,12 @@
      convert the attack into a permanent DEFEND. Its engineer still builds the works. */
   function garrisonable(sq) {
     var m = sq && sq._macroMission;
+    /* ?engineerGarrison=0/off/false restores the old unconditional pin (the paired-benchmark control). */
+    if (
+      typeof location !== 'undefined' &&
+      /[?&]engineerGarrison=(?:0|off|false)\b/i.test(location.search || '')
+    )
+      return true;
     return !(
       m &&
       (m.intent === 'capture' || m.intent === 'reconstitute') &&
