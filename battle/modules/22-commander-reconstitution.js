@@ -428,6 +428,14 @@
           role: leader.role
         });
     }
+    var FLED_WAIT_EXCLUDED_ON = !/[?&]fledWaitMerge=(?:0|off|false)(?:&|#|$)/i.test(
+      typeof location !== 'undefined' ? location.search || '' : ''
+    );
+    function waitingFled(sq) {
+      var E = root.BattleEngagement,
+        man = sq && sq.fledId != null && !sq.disbanded && sq.members && sq.members[0];
+      return !!(man && !man.dead && E && E.fledPhase && E.fledPhase(man) === 'wait');
+    }
     function atRally(sq, g) {
       var a = sq._assembly,
         p = D.avgPos(sq);
@@ -491,8 +499,20 @@
         blockedByDistance: total >= RECON_MIN_STRENGTH && !candidate
       };
       for (var i = 0; i < groups.length; i++) {
-        var g = groups[i],
-          squads = g.squads
+        var g = groups[i];
+        /* A fled man waiting at his refuge is under Engagement's flee, which outranks a squad retreat in the
+           resolver: he cannot walk to a rally he was assigned, and only the pickup or his own wait clock frees
+           him. The group meets without him instead of staying open to the end of the battle. */
+        if (FLED_WAIT_EXCLUDED_ON)
+          g.squads = g.squads.filter(function (id) {
+            var w = squadById(sim, faction, id);
+            if (!waitingFled(w)) return true;
+            w._reconGroup = null;
+            finishMission(sim, w, 'failed', 'fled-waiting-at-refuge');
+            telemetry(sim, 'decision-recon-fled-left', { faction: faction, group: g.id, squad: id });
+            return false;
+          });
+        var squads = g.squads
             .map(function (id) {
               return squadById(sim, faction, id);
             })
