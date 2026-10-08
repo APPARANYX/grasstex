@@ -123,12 +123,14 @@
     if (!d || !status || status.owner !== sq.faction || status.phase !== 'held') return false;
     return dist(p, d) <= (+status.radius || +d.radius || 20);
   }
+  /* The squad's strategic goal when it has no objective id: the end of its route. sq.objective is only the
+     current leg waypoint (module 15l), so measuring against it restarts the track at every leg. */
+  function routeEnd(sq) {
+    var r = sq && sq.route;
+    return clonePoint(r && r.length ? r[r.length - 1] : null);
+  }
   function strategicGoal(sim, sq) {
-    return (
-      objectiveById(sim, sq && sq.targetObjective) ||
-      clonePoint(sq && sq._routeFinalObjective) ||
-      clonePoint(sq && sq.objective)
-    );
+    return objectiveById(sim, sq && sq.targetObjective) || routeEnd(sq) || clonePoint(sq && sq.objective);
   }
   function measuredGoal(sim, sq, ph) {
     if (ph === 'regroup') {
