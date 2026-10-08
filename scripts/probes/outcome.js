@@ -7,7 +7,9 @@
     sample: function () {},
     report: function (sim) {
       var f = sim.factions,
-        ctl = sim.objectiveControl || {},
+        /* The records live under objectiveControl.objectives; the wrapper's own fields (us, ge, counts,
+           total...) are not objectives. */
+        ctl = (sim.objectiveControl && sim.objectiveControl.objectives) || {},
         held = { us: 0, ge: 0, neutral: 0 };
       Object.keys(ctl).forEach(function (id) {
         var c = ctl[id],

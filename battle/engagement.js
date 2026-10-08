@@ -28,6 +28,11 @@
   var MOVE_FIRE_FRACTION = 0.12; // above this fraction of top speed the weapon stays down
   var ALERT_HOLD = 4.5; // hold the threat sector this long after losing sight
   var ENGAGE_REVIEW = 7.0; // re-open the cover question this often while holding
+  var NO_LINE_GRACE = 6.0; // a held target the man cannot fire on this long is observed, not engaged
+  /* On by default; `?fireLineContact=0` is the old rule (every held target is contact, however long it has been unshootable). */
+  var FIRE_LINE_CONTACT = !(
+    typeof location !== 'undefined' && /[?&]fireLineContact=0\b/.test(location.search || '')
+  );
   var STANCE_HOLD = 4.0,
     PRONE_HOLD = 5.5,
     LOW_GAP_HOLD = 2.0;
@@ -1284,9 +1289,19 @@
     }
 
     var d = dist(p.x, p.z, posOf(s.target).x, posOf(s.target).z);
-    holdPosition(s, battle);
+    /* A man who sees a head he cannot hit (fireLineLive) is observing, not fighting: he proposes no hold,
+       so the Squad Leader's published order (the anchor's advance, a clearing move) takes him up to a
+       position with a line instead of pinning him behind the crest for the rest of the battle. */
+    var fighting = fireLineLive(s, e, battle);
+    if (fighting) holdPosition(s, battle);
     if (!holdStance(s, battle))
-      commitStance(s, battle, seeingStance(s, battle, fightingStance(s, battle, d, here)));
+      commitStance(
+        s,
+        battle,
+        fighting ? seeingStance(s, battle, fightingStance(s, battle, d, here)) : 'crouch',
+        undefined,
+        fighting ? undefined : 'engage:observing'
+      );
     if (SA().isMachineGun(s)) {
       if (!e.setUpSince) e.setUpSince = battle.time;
       s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
@@ -1580,6 +1595,23 @@
     return chosen;
   }
 
+  /* Whether a man's held target is a firefight or only something he can see. Perception owns who was
+     seen; Engagement owns whether that is contact the Squad Leader must fight or fight around. A target
+     whose sight line clears but whose round would meet the crest or an obstacle first (the trigger-time
+     gate's own verdict, one definition) produces no fire, no hits and no cover to take, so counting it as
+     contact held the squad's plan lease open, its anchor in place and its course of action at "defend"
+     for as long as both sides could see each other's heads. Contact stays live for NO_LINE_GRACE after
+     the line closes (a stance change or a step behind a bush must not flap it) and again the moment
+     the line opens; incoming fire and suppressors count as contact on their own, below. */
+  function fireLineLive(s, e, battle) {
+    var G = root.BattleDirectFireLOSGate;
+    if (!FIRE_LINE_CONTACT || !G || !G.blockReason || !G.blockReason(s, battle)) {
+      e.noLineSince = null;
+      return true;
+    }
+    if (e.noLineSince == null) e.noLineSince = battle.time;
+    return battle.time - e.noLineSince < NO_LINE_GRACE;
+  }
   /* Squad contact report. Micro state flows up: who can see the enemy, who is pinned, who is
      actually putting rounds out (the base of fire). The Squad Leader (16-squad-plan-stability.js) reads
      this report to decide fire and movement; Engagement only executes a bound it is ordered to. */
@@ -1626,7 +1658,8 @@
       var e = state(s);
       if (ACTING[e.state] === 1) broken.push(s);
       if (e.fledPhase === 'run' || e.fledPhase === 'wait') fled.push(s); // for the Squad Leader to let go from the roster
-      if (s.target) contact++;
+      if (s.target && fireLineLive(s, e, battle)) contact++;
+      else if (!s.target) e.noLineSince = null;
       if (underFireNow(s, battle)) underFireCount++;
       if (e.state === 'pinned' || s.suppressedUntil > battle.time) pinnedCount++;
       /* A man putting rounds on the known position IS the base of fire - that is the entire point
