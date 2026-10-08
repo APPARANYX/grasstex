@@ -116,7 +116,9 @@
         if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);
         return;
       }
-      var defensive = !!DEFENSIVE[sq.commandPhase],
+      /* A squad in retreat is not defending, whatever its commandPhase still says: a prepared defender falling back (or
+         marching to a reconstitution rally) would otherwise be ordered back to the post he just left. */
+      var defensive = !!DEFENSIVE[sq.commandPhase] && sq.state !== 'retreat',
         defenseKey = signature(sq),
         regroup = sq.commandPhase === 'regroup' && sq.state !== 'retreat',
         stats = publishStats(battle);
