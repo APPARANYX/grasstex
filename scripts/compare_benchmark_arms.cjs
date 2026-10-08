@@ -13,6 +13,9 @@
  * and paired by mean difference; repeat the flag for more. `--ignore a.b` leaves that field out of the identity
  * test (repeat it, or comma-separate): a build that adds a field to the record is compared with one that does not by
  * ignoring it, so "identical on every existing field" is what the test says (e.g. `--ignore stress`).
+ * (In a scripted-window run these count what happened inside each record's own window, so an onset is counted once per battle;
+ * `timeline.stalledOnsetsRepeated` and `timeline.stalledSamplesRepeated` are the old whole-timeline figures, in which an
+ * early onset recurs in every later window's record: use them only to read runs published before #369.)
  * `--count timeline.stalledOnsets` and `--count timeline.stalledSamples` read the per-second `stalled` series of the
  * record's timeline (module 97): the men newly stalled each second, and the man-seconds stalled. The runner's own
  * `movementStalls` count each man once, when he has not moved 1.5 m for 12 s, but its clock keeps running through the
@@ -57,17 +60,35 @@ const median = xs => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
 const mean = xs => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0);
-/* Counters derived from the timeline's per-second `stalled` series, summed over both sides. */
-function stalledSeries(b) {
+/* Counters derived from the timeline's per-second `stalled` series, summed over both sides. A scripted-window run stores
+   one record per window and each carries the battle's whole timeline from t=0, so reading a record's full timeline counts
+   an early onset again in every later window of the same battle (#369). `repeated: false` keeps only what happened inside
+   the record's own window (`openedAt` < t <= `closedAt`; the first window, opened at `contact` or a start second, also
+   keeps everything before it); `repeated: true` is the old whole-timeline reading, kept for earlier runs. A record
+   without a window (a whole-battle run) is read whole either way. */
+function stalledSeries(b, repeated) {
   const timeline = b.timeline || {},
-    samples = timeline.samples || [],
-    markers = timeline.markers || [],
-    stallMarkers = markers.filter(m => m && (m.kind === 'stall-start' || m.kind === 'stall-end'));
+    w = b.window && typeof b.window === 'object' ? b.window : null,
+    lo =
+      !repeated && w && String(w.opens).startsWith('every') && Number.isFinite(+w.openedAt)
+        ? +w.openedAt
+        : -Infinity,
+    hi = !repeated && w && Number.isFinite(+w.closedAt) ? +w.closedAt + 1e-9 : Infinity,
+    inside = x => x && x.t > lo && x.t <= hi,
+    allSamples = timeline.samples || [],
+    samples = allSamples.filter(inside),
+    markers = (timeline.markers || []).filter(inside),
+    stallMarkers = markers.filter(m => m.kind === 'stall-start' || m.kind === 'stall-end');
   let onsets = stallMarkers.filter(m => m.kind === 'stall-start').length,
     manSeconds = 0,
     legacyOnsets = 0;
   for (const side of ['us', 'ge']) {
+    /* a man already stalled when the window opens is not a new onset */
     let prev = 0;
+    for (const x of allSamples) {
+      if (x && x.t <= lo) prev = (x[side] && x[side].stalled) | 0;
+      else break;
+    }
     for (const x of samples) {
       const v = (x[side] && x[side].stalled) | 0;
       if (v > prev) legacyOnsets += v - prev;
@@ -79,8 +100,11 @@ function stalledSeries(b) {
   return { onsets, manSeconds };
 }
 const DERIVED = {
-  'timeline.stalledOnsets': b => stalledSeries(b).onsets,
-  'timeline.stalledSamples': b => stalledSeries(b).manSeconds,
+  'timeline.stalledOnsets': b => stalledSeries(b, false).onsets,
+  'timeline.stalledSamples': b => stalledSeries(b, false).manSeconds,
+  /* The pre-#369 reading, each record's whole timeline: in a scripted-window run an onset is counted once per later window. */
+  'timeline.stalledOnsetsRepeated': b => stalledSeries(b, true).onsets,
+  'timeline.stalledSamplesRepeated': b => stalledSeries(b, true).manSeconds,
   /* Men lost by both sides as of the record's close (each side's `kills` is what it dealt): the one number that says how much fighting a window held. */
   casualties: b => (+b.usKills || 0) + (+b.geKills || 0)
 };
