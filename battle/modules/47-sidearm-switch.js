@@ -49,6 +49,7 @@
   function draw(s, battle, why) {
     swap(s, battle, T.DRAW);
     s._sidearmSince = battle.time;
+    s._sidearmDrawn = s.weapon;
     var st = stats(battle);
     st.draws++;
     bump(st.drawsBy, why);
@@ -56,6 +57,7 @@
   function putAway(s, battle, why) {
     swap(s, battle, T.DRAW);
     s._sidearmSince = null;
+    s._sidearmDrawn = null;
     var cost = T.DRAW;
     if (s.weapon.jammed) {
       root.BattleAmmunition.clearJam(s);
@@ -74,12 +76,11 @@
   }
   function step(s, battle) {
     if (!s || s.dead || !s.secondary || !s.weapon) return;
-    var td =
-        root.SquadAI && root.SquadAI.threatDisposition
-          ? root.SquadAI.threatDisposition(s.target)
-          : null,
+    var td = root.SquadAI && root.SquadAI.threatDisposition ? root.SquadAI.threatDisposition(s.target) : null,
       t = s.target && s.target.root && (!td || td.combatThreat) ? s.target : null,
       d = t ? distance(s, t) : Infinity;
+    /* The pistol he drew is no longer in his hands (he fled and was issued a fresh loadout): nothing to put away. */
+    if (s._sidearmSince != null && s._sidearmDrawn !== s.weapon) s._sidearmSince = s._sidearmDrawn = null;
     if (s._sidearmSince == null) {
       if (!t || d > T.NEAR || rounds(s.secondary) <= 0) return;
       if (outOfAction(s)) draw(s, battle, 'primary-out');

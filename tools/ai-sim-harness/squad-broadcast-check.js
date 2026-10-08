@@ -152,4 +152,15 @@ function tick(w, t) {
   assert.ok(summary.beliefsApplied >= 1, JSON.stringify(summary));
 }
 
+{
+  /* Soldier id 0 is a real id (the first man spawned); a falsy test read it as "no unit". */
+  const w = setup([0, 60]),
+    [a, b] = w.squads;
+  w.foe.id = 0;
+  seen(w, a, 0, 1);
+  tick(w, 10);
+  assert.equal(b.contact.unit, w.foe, 'a contact on soldier id 0 resolves to that soldier');
+  assert.equal(w.r.BattleSquadBroadcast.summary(w.b).recentBroadcasts[0].unitId, 0);
+}
+
 console.log('PASS squad broadcast source isolation, cooldown retry, freshness, and personal belief delivery');
