@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
 import { summarizeStress, stressMarkdown } from './lib/stress-summary.mjs';
+import evidence from './lib/benchmark-evidence.cjs';
 import { scoreSquadPerformance, summarizeSquadPerformance } from './lib/squad-performance.mjs';
 
 const count = Math.max(1, Number.parseInt(process.env.BATTLE_BENCHMARK_COUNT || '100', 10) || 100);
@@ -461,6 +462,15 @@ try {
           return at != null && at > extra.window.openedAt + 1e-9 && at <= extra.window.closedAt + 1e-9;
         };
         const conflicts = allConflicts.filter(inRecordWindow), loops = allLoops.filter(inRecordWindow);
+        /* Full evidence survives in JSON; presentation/reporting may choose a shorter excerpt.
+           A cumulative diagnostic source is window-filtered before any counts or records are saved. */
+        const diagnosticEvidence = {
+          schema: 'grasstex-benchmark-evidence-v1',
+          window: extra?.window ? { openedAt: extra.window.openedAt, closedAt: extra.window.closedAt } : null,
+          conflicts,
+          loops,
+          sourceTotals: { conflicts: allConflicts.length, loops: allLoops.length }
+        };
         const strategicFields = new Set(['commandPhase','targetObjective','objective','orderAnchor','rally']);
         const strategicConflicts = conflicts.filter(c => strategicFields.has(c?.field)).length;
         const loopKinds = {}; for (const a of loops) addMap(loopKinds, a.kind || a.type || 'unknown');
@@ -599,7 +609,8 @@ try {
           squadSamples: diag.squadSamples, targetlessSamples: diag.targetlessSamples, overCohesionSamples: diag.overCohesionSamples, captainlessSamples: diag.captainlessSamples, inContactSamples: diag.inContactSamples,
           stablePlanSamples: diag.stablePlanSamples, blockedFireteamSamples: diag.blockedFireteamSamples, regroupSamples: diag.regroupSamples, supportHoldSamples: diag.supportHoldSamples, retreatSamples: diag.retreatSamples,
           orderedMoveSamples: diag.orderedMoveSamples, idleOrderedSamples: diag.idleOrderedSamples, phaseSamples: diag.phaseSamples, engagementStateSamples: diag.engagementStateSamples,
-          writerConflicts: conflicts.length, strategicWriterConflicts: strategicConflicts, writerConflictDetails: conflicts.slice(0, 20), loopAlerts: loops.slice(0, 20), loopKinds,
+          writerConflicts: conflicts.length, strategicWriterConflicts: strategicConflicts, writerConflictDetails: conflicts, loopAlerts: loops, loopKinds,
+          diagnosticEvidence,
           movementResolver: movementResolverSummary(), movementGoals: sim._movementGoalStats || null, losBlockedFireAttempts: losBlockedAttempts(), crestBlockedFireAttempts: crestBlockedAttempts(), fire: activeCombat,
           acquisitions: acquisitionSummary(activeAcquisition), squadPerformanceRaw,
           reconstitution: reconstitutionSummary(), regroups: regroupSummary(), stallOutcomes: stallSummary(), coordinationHealth: coordinationHealth(), combatUrgency: root.BattleCombatUrgency?.summary?.(sim) || null, objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates,
@@ -730,6 +741,7 @@ try {
   const wallSeconds = (Date.now() - startedWall) / 1000, battles = result.battles || [];
   for (const b of battles) {
     b.health = healthFor(b);
+    b.diagnosticAnalysis = evidence.assessEvidence(b);
     const squads = (b.squadPerformanceRaw || []).map(scoreSquadPerformance);
     b.squadPerformance = { ...summarizeSquadPerformance(squads), squads };
     delete b.squadPerformanceRaw;
@@ -755,7 +767,15 @@ try {
   }
   const squadRows = battles.flatMap(b => (b.squadPerformance?.squads || []).map(s => ({ ...s, seed: b.seed })));
   const squadPerformance = summarizeSquadPerformance(squadRows);
+  const evidenceProblems = battles.flatMap(b => (b.diagnosticAnalysis?.integrity?.discrepancies || []).map(code => ({ seed: b.seed, code })));
   const summary = {
+    diagnosticEvidence: {
+      version: 'grasstex-benchmark-analysis-v1',
+      integrityOk: evidenceProblems.length === 0,
+      discrepancies: evidenceProblems,
+      movementStallCompleted: sum(battles, b => b.diagnosticAnalysis?.movementStallCompleted),
+      movementStallCensored: sum(battles, b => b.diagnosticAnalysis?.movementStallCensored)
+    },
     generatedAt: new Date().toISOString(), commit, build: result.build, policySource: result.policySource, policyRevision: result.policyRevision, policyWarning: result.policySource === 'stashed-defaults' ? null : policy.warning || null,
     requestedBattles: result.scripted ? battles.length : count, completedBattles: battles.length, seedPrefix, fixedDt, sampleSeconds: result.sampleSeconds, timeLimit,
     wallSeconds: +wallSeconds.toFixed(2), simulatedSeconds: +simulatedTotal.toFixed(2), realtimeMultiplier: wallSeconds > 0 ? +(simulatedTotal / wallSeconds).toFixed(1) : 0, battlesPerMinute: wallSeconds > 0 ? +(battles.length / wallSeconds * 60).toFixed(2) : 0,
