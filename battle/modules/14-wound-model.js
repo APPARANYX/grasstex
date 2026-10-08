@@ -48,6 +48,17 @@
     MIN_SPEED = 0.35,
     MAX_SIGMA = 2.2;
 
+  /* Medic effect (interim, until there are medics): the men of a squad that retreated, is home at base and is out of contact
+     slowly regain health, MEDIC_HP_PER_S each, while they are not bleeding. Healing lowers the share of health lost, which
+     is what Soldier Mind's wound floor is made of, so a hurt squad's stress can drain below the rally line and it can
+     return to the fight through the ordinary morale rally. A man who broke for good (`fledId`) is not treated. At full health his
+     wound slowing and shot spread are cleared. `?medic=0` is the old battle: nothing heals. */
+  function parseMedic(search) {
+    return !/[?&]medic=(?:0|off|false)(?:&|#|$)/i.test(search || '');
+  }
+  var MEDIC_ON = parseMedic(typeof location !== 'undefined' ? location.search || '' : ''),
+    MEDIC_HP_PER_S = 0.3,
+    MEDIC_EVERY = 1;
   var clamp = root.GTMath.clamp;
   function rand(b) {
     return b && typeof b.random === 'function' ? b.random() : Math.random();
@@ -57,7 +68,7 @@
     Object.keys(ZONES).forEach(function (k) {
       z[k] = { hits: 0, dropped: 0, killed: 0, bledOut: 0 };
     });
-    return { hits: 0, wounded: 0, dropped: 0, killed: 0, bledOut: 0, byZone: z };
+    return { hits: 0, wounded: 0, dropped: 0, killed: 0, bledOut: 0, healed: 0, byZone: z };
   }
   function state(battle) {
     return battle._wounds || (battle._wounds = { stats: fresh(), bleeding: [] });
@@ -141,6 +152,41 @@
       }
     }
   }
+  function medic(sim, dt) {
+    if (!MEDIC_ON || !sim || !sim.factions || !(dt > 0)) return;
+    sim._medicClock = (sim._medicClock || 0) + dt;
+    if (sim._medicClock < MEDIC_EVERY) return;
+    var step = sim._medicClock;
+    sim._medicClock = 0;
+    var st = state(sim);
+    ['us', 'ge'].forEach(function (f) {
+      var squads = (sim.factions[f] && sim.factions[f].squads) || [];
+      for (var i = 0; i < squads.length; i++) {
+        var sq = squads[i];
+        if (
+          !sq ||
+          sq.state !== 'retreat' ||
+          sq.fledId != null ||
+          sq.inContact ||
+          !sq._assembly ||
+          sq._assembly.phase !== 'at-base'
+        )
+          continue;
+        var men = sq.members || [];
+        for (var j = 0; j < men.length; j++) {
+          var s = men[j];
+          if (!s || s.dead || !(s.maxHp > 0) || !(s.hp < s.maxHp) || s.bleedRate > 0) continue;
+          var add = Math.min(MEDIC_HP_PER_S * step, s.maxHp - s.hp);
+          s.hp += add;
+          st.stats.healed += add;
+          if (s.hp >= s.maxHp) {
+            s.woundSpeed = 1;
+            s.woundSigma = 1;
+          }
+        }
+      }
+    });
+  }
   /* A berserk trance is over (Engagement, `?rageTrance=1`) and the damage its guard held back comes due at once. True
      when it takes him to the collapse line: he dies of his wounds (no roll: the debt is what he was owed). */
   function succumb(s, battle, hp) {
@@ -166,6 +212,7 @@
     onBattleRestart: reset,
     onSimulationStep: function (sim, payload) {
       bleed(sim, payload && +payload.dt);
+      medic(sim, payload && +payload.dt);
     },
     onCommanderTick: function (sim) {
       if (sim._coordinationHealth) sim._coordinationHealth.wounds = summary(sim);
@@ -178,6 +225,10 @@
     BLEED_TAU: BLEED_TAU,
     wound: wound,
     bleed: bleed,
+    medic: medic,
+    medicOn: function () {
+      return MEDIC_ON;
+    },
     succumb: succumb,
     reset: reset,
     summary: summary
