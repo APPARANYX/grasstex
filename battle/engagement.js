@@ -20,6 +20,12 @@
 (function (root) {
   'use strict';
 
+  /* ?retreatPosture=0 restores the old behavior: a retreat's end does not clear a man's withdraw state
+     or void a posture order adopted before it ended. */
+  var RETREAT_POSTURE_ON = !(
+    typeof location !== 'undefined' &&
+    /[?&]retreatPosture=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')
+  );
   /* Seconds between acquiring a target and being allowed to shoot at it. This is recognition and
      weapon handling, not aiming accuracy - the aim cone below is a separate gate. */
   var REACT = { sergeant: 0.55, rifleman: 0.7, gunner: 0.85, scout: 0.45 };
@@ -1030,6 +1036,14 @@
       e.withdrawPoint = null;
       transition(s, battle, 'withdraw', 0, 'squad withdrawing');
       return withdraw(s, battle);
+    }
+    /* The retreat set this state, so the retreat's end clears it here, ahead of fire control. A
+       leaderless or out-of-earshot man never hears a replacement order, and a held-over HOLD from
+       before the retreat would otherwise keep him in prepareFireControl, never reaching the
+       'retreat ended' exit in withdraw(). A posture order adopted before the end is void. */
+    if (RETREAT_POSTURE_ON && e.state === 'withdraw' && !e.withdrawPoint) {
+      e.retreatEndedAt = battle.time;
+      transition(s, battle, 'advance', 0, 'retreat ended');
     }
     if (ACT.any && reaction(s, battle)) return;
     if (root.BattleTacticalPositions && root.BattleTacticalPositions.update(s, battle)) {
