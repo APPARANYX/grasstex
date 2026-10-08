@@ -42,6 +42,29 @@
       typeof location === 'undefined' ||
       !/[?&]reconPosts=(?:0|off|false)(?:&|#|$)/i.test(location.search || '');
 
+    /* The recon time budget is derived from the walk (#393): the farthest scout destination at the slowest scout's own
+       ground speed, plus the observation window and the report allowance, and never shorter than the constant it
+       replaced. ?reconBudget=0 restores the constant. */
+    var RECON_BUDGET_ON =
+      typeof location === 'undefined' ||
+      !/[?&]reconBudget=(?:0|off|false)(?:&|#|$)/i.test(location.search || '');
+    function reconBudget(scouts, dest) {
+      var floor = RECON_TUNING.timeout;
+      if (!RECON_BUDGET_ON) return floor;
+      var pace = Infinity,
+        far = 0;
+      for (var i = 0; i < scouts.length; i++) {
+        var man = scouts[i],
+          to = dest[String(man.id)],
+          v = +man._locomotionGroundSpeed || +man.walkSpeed || 0;
+        if (!to || !man.root) continue;
+        if (v > 0) pace = Math.min(pace, v);
+        far = Math.max(far, dist(man.root.position, to));
+      }
+      if (!isFinite(pace) || !(far > 0)) return floor;
+      return Math.max(floor, far / pace + RECON_TUNING.observe + RECON_TUNING.reportWatch);
+    }
+
     function reconStats(battle) {
       if (!SCOUTS_FORWARD_ON || !battle) return null;
       var st = battle._scoutsForwardStats;
@@ -488,7 +511,7 @@
         reason: candidate.reason,
         defenderOrigin: !!candidate.defenderOrigin,
         startedAt: battle.time,
-        until: battle.time + RECON_TUNING.timeout,
+        until: battle.time + reconBudget(scouts, dest),
         phase: sq.commandPhase || '',
         missionVersion: missionVersion(sq),
         point: copy(candidate.point),
