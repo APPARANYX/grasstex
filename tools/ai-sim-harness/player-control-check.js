@@ -477,14 +477,20 @@ ahead.dead = false;
 r.BattleBallistics.resolvePlayerRay = () => ({ victim: ahead });
 s.fireCooldown = 0;
 assert.equal(r.SquadAI.playerFireRay(s, { x: 0, y: 1.5, z: 25 }, b), true);
-assert.ok(ge.contact && ge.contact.fireRevealed, 'surviving enemy victim squad learns actual player-ray origin');
+assert.ok(
+  ge.contact && ge.contact.fireRevealed,
+  'surviving enemy victim squad learns actual player-ray origin'
+);
 assert.equal(ge.contact.precision, 'fire-origin');
 assert.equal(ge.contact.x, s.root.position.x);
 assert.equal(ge.contact.z, s.root.position.z);
 const recordedRayOrigin = { x: ge.contact.x, z: ge.contact.z };
 s.root.position.x += 7;
-assert.deepEqual({ x: ge.contact.x, z: ge.contact.z }, recordedRayOrigin,
-  'the enemy remembers the shot-time origin, not the live shooter location');
+assert.deepEqual(
+  { x: ge.contact.x, z: ge.contact.z },
+  recordedRayOrigin,
+  'the enemy remembers the shot-time origin, not the live shooter location'
+);
 s.root.position.x -= 7;
 ge.contact = null;
 r.BattleBallistics.resolvePlayerRay = () => ({ victim: null, stoppedBy: 'terrain' });
