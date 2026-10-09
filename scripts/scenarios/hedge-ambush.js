@@ -46,8 +46,6 @@
   var initiallyBlocked=!root.SquadAI.hasLineOfSight(
       defender,shooter,sim.heightAt,sim.obstacles);
   if(!initiallyBlocked) throw Error('Fixture error: hedge does not obscure defender');
-  var normal=root.BattleEngagement.findCover(defender,sim);
-  if(normal) root.BattleEngagement.releaseCover(defender,sim);
   root.BattleEngagement.decide(defender,sim,'fixture: blind hedge engagement');
   var eng=root.BattleEngagement.stateOf(defender);
   return {
@@ -55,7 +53,7 @@
    actor:String(defender.id),threat:String(shooter.id),
    actorFaction:defender.faction,
    blockedAtStart:initiallyBlocked,
-   normalCoverAvailable:!!normal,
+   normalCoverAvailable:null,
    immediateEngagement:eng.state,
    selectedType:eng.cover&&eng.cover.type||null,
    selectedPosition:eng.cover?{x:eng.cover.x,z:eng.cover.z}:null,
