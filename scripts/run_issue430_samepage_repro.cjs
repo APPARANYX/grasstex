@@ -134,7 +134,7 @@ const hash = s => createHash('sha256').update(s).digest('hex');
           timeLimit: seconds
         });
         const checkpoints = {};
-        const milestones = [0, 1, 5, 15, 30, 60, 120];
+        const milestones = [0, 60, 120, 180, 240, 300, 360, 420, 480, 540];
         function mark() { for (const t of milestones) if (sim.time + 0.0001 >= t && !(t in checkpoints)) checkpoints[t] = JSON.stringify(root.BattleStateFingerprint.snapshot(sim)); }
         mark();
         let fireEvents = 0;
