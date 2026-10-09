@@ -123,9 +123,16 @@ window.BattleLoading=(function(){
   console.log('Battle Sim',build,'ref='+ref);console.log('pageProtocol='+location.protocol);console.log('assetBase='+(window.BATTLE_ASSET_BASE||'hardcoded/default'));console.log('audioBase='+(window.BATTLE_AUDIO_BASE||'audio/'));
   var loading=window.BattleLoading;loading.done('scripts');loading.start('scenario');await loading.frame();
 
-  var requested=new URLSearchParams(location.search).get('seed')||window.BATTLE_SCENARIO_SEED||'',liveSeed=requested||BattleScenarioGenerator.newSeed('live'),scenario=BattleScenarioGenerator.activate(liveSeed,{mode:'live'});document.getElementById('seedShort').textContent=liveSeed;document.getElementById('seedShort').title=liveSeed;
-  /* A bare battle URL must generate a NEW seed on each page load, including refresh.
-     Only explicit ?seed= replay links pin a scenario; display the chosen seed in the HUD. */
+  var firstLoad=BattleScenarioGenerator.initialLoadSeed(location.search,window.BATTLE_SCENARIO_SEED),
+      liveSeed=firstLoad.seed,scenario=BattleScenarioGenerator.activate(liveSeed,{mode:'live'});
+  document.getElementById('seedShort').textContent=liveSeed;document.getElementById('seedShort').title=liveSeed;
+  /* Older builds wrote generated live-* seeds to the URL. Remove those stale pins
+     on arrival, so refreshing the cleaned URL makes a new battlefield.
+     Explicit named seeds or ?seed=live-...&pinSeed=1 stay replayable. */
+  if(firstLoad.removeAutoSeed){try{
+    var cleanUrl=new URL(location.href);cleanUrl.searchParams.delete('seed');
+    history.replaceState(null,'',cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+  }catch(_){} }
   console.log('[SCENARIO] live seed='+liveSeed+' id='+scenario.id+' fingerprint='+JSON.stringify(scenario.fingerprint.vector));
 
   var canvas=document.getElementById('renderCanvas'),engine=new BABYLON.Engine(canvas,true,{stencil:false,preserveDrawingBuffer:true,audioEngine:true});engine.renderEvenInBackground=true;console.log('legacyAudioEngine='+(BABYLON.Engine.audioEngine?'present':'missing')+' · background rendering enabled');

@@ -9,6 +9,19 @@ visible in the HUD and diagnostics. An explicit `?seed=example` is deterministic
 and remains suitable for bug reproduction and benchmarks; operator scenario
 controls may also deliberately select a specific seed.
 
+**Legacy seed cleanup:** Older releases silently wrote generated
+`?seed=live-<timestamp>-<random>` values into the browser URL. When such a URL
+is opened now, it produces a **new random battlefield** and removes the stale
+`seed` parameter with `history.replaceState`. Refreshing it then produces another
+random seed. Deliberate `live-...` replay links must include `&pinSeed=1`
+(`?seed=live-...&pinSeed=1`); other explicitly named seeds still replay
+unchanged. The URL cleanup preserves unrelated query parameters.
+Manual smoke: open `battle_sim.php?seed=live-mu8p91no-4c64u`; the URL
+must lose only the `seed` parameter and the HUD should show a different
+`live-...` value. Refresh and confirm a *third* value. Compare with
+`?seed=live-mu8p91no-4c64u&pinSeed=1`, which must retain that exact seed
+and replay the same world on refresh.
+
 ## Terrain contact for objective art
 
 Capture flags and poles sample the **rendered `battleField` GroundMesh**
@@ -57,6 +70,8 @@ navigation problem comprehensively solved.
   actual rendered-height priority, explicit-seed replay behavior
 - Existing `map-pipeline-check.js`, `objective-marker-check.js`,
   `objective-nav-check.js` and engagement regression suites
+- `node tools/ai-sim-harness/initial-seed-url-check.js`: legacy auto-seed
+  cleanup, preserved named and pinned replay links, and refreshed bare URLs
 - Visual QA: start with a bare URL twice, confirm two seed labels; reload a
   `?seed=...` URL and confirm identical world; inspect flags and sandbags from
   ground-level player view and a hill; check roads, hedge junctions and cover

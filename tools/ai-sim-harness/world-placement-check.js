@@ -170,12 +170,17 @@ for (const seed of seeds) {
 const page = fs.readFileSync(path.join(REPO, 'battle/battle_sim.html'), 'utf8');
 assert.doesNotMatch(
   page,
-  /history\.replaceState\([^)]*seed/,
-  'bare-URL random seed must never get pinned to address bar'
+  /searchParams\.set\(['"]seed['"]/,
+  'automatic seed generation must never write a new seed into the URL'
 );
 assert.match(
   page,
-  /requested\|\|BattleScenarioGenerator\.newSeed\('live'\)/,
-  'no-seed load creates a fresh seed'
+  /BattleScenarioGenerator\.initialLoadSeed\(location\.search,window\.BATTLE_SCENARIO_SEED\)/,
+  'first-load seed policy is resolved by shared scenario generator'
+);
+assert.match(
+  page,
+  /if\(firstLoad\.removeAutoSeed\)/,
+  'legacy live seeds must be cleaned so subsequent reloads randomize'
 );
 console.log('PASS first load randomizes and explicit seed links remain deterministic');
