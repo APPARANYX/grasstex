@@ -1,0 +1,104 @@
+name: ⭐ Matrix Diagnostics Smoke
+
+# Work-branch validation of the production matrix's actual browser runner and merger,
+# without triggering the 300-battle main-only release matrix.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/battle-benchmark.yml'
+      - '.github/workflows/matrix-diagnostics-smoke.yml'
+      - 'scripts/run_battle_benchmark.mjs'
+      - 'scripts/merge_battle_benchmarks.mjs'
+      - 'scripts/lib/matrix-diagnostic-audit.cjs'
+      - 'scripts/lib/benchmark-evidence.cjs'
+      - 'tools/ai-sim-harness/matrix-diagnostics-check.js'
+      - 'tools/ai-sim-harness/matrix-diagnostics-merge-check.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Three real battles, current diagnostics
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify synthetic diagnostic and merge fixtures
+        run: |
+          node tools/ai-sim-harness/matrix-diagnostics-check.js
+          node tools/ai-sim-harness/matrix-diagnostics-merge-check.js
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start local multi-worker battle server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+      - name: Run meeting, US-defend, GE-defend on shipping sim
+        env:
+          BATTLE_BENCHMARK_COUNT: '1'
+          BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BATTLE_BENCHMARK_TIME_LIMIT: '600'
+          BATTLE_BENCHMARK_STEP: '0.15'
+        run: |
+          set -euo pipefail
+          for type in meeting us-defend ge-defend; do
+            case "$type" in
+              meeting) extra='' ;;
+              us-defend) extra='?defender=us' ;;
+              ge-defend) extra='?defender=ge' ;;
+            esac
+            BATTLE_BENCHMARK_SEED="matrix-smoke-$type" \
+              BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php$extra" \
+              BATTLE_BENCHMARK_OUTPUT="reports/$type" \
+              node scripts/run_battle_benchmark.mjs
+          done
+      - name: Merge and enforce current evidence schema
+        run: |
+          set -euo pipefail
+          BATTLE_BENCHMARK_MERGE_INPUT=reports \
+            BATTLE_BENCHMARK_OUTPUT=reports/merged \
+            node scripts/merge_battle_benchmarks.mjs
+          node <<'NODE'
+          const fs = require('fs'), assert = require('assert/strict');
+          const r = JSON.parse(fs.readFileSync('reports/merged/battle-benchmark.json', 'utf8'));
+          const d = r.summary?.diagnosticAudit;
+          assert.equal(r.summary?.completedBattles, 3, 'must complete three genuine battles');
+          for (const type of ['meeting', 'us-defend', 'ge-defend']) {
+            assert.equal(r.summary.battleTypes[type]?.completedBattles, 1, type);
+            assert.equal(d?.byType?.[type]?.valid, 1, type + ' diagnostic integrity');
+          }
+          assert.equal(d.ok, true, JSON.stringify(d.issueCounts));
+          assert.equal(r.summary.diagnosticEvidence.integrityOk, true);
+          console.log('PASS matrix smoke: all three scenarios, timeline + observer + evidence schemas, integration merger');
+          NODE
+      - name: Attach diagnostic smoke reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: matrix-diag-smoke-${{ github.run_number }}
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Include audit in PR job summary
+        if: always()
+        run: |
+          if [ -f reports/merged/battle-benchmark.md ]; then
+            cat reports/merged/battle-benchmark.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Matrix diagnostics smoke did not generate a merged report' >> "$GITHUB_STEP_SUMMARY"
+          fi

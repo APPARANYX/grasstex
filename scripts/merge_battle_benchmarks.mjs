@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { summarizeStress, stressMarkdown } from './lib/stress-summary.mjs';
 import { summarizeSquadPerformance } from './lib/squad-performance.mjs';
+import matrixAudit from './lib/matrix-diagnostic-audit.cjs';
 
 const inputDir = path.resolve(process.env.BATTLE_BENCHMARK_MERGE_INPUT || 'shard-reports');
 const outputDir = path.resolve(process.env.BATTLE_BENCHMARK_OUTPUT || 'reports');
@@ -26,7 +27,7 @@ function dedupe(values,limit=100){return [...new Set(values.map(String))].slice(
 function mergeMaps(battles,field){const out={};for(const b of battles)for(const [k,v] of Object.entries(b[field]||{}))out[k]=(out[k]||0)+(+v||0);return out;}
 function battleTypeOf(b){
   if (b && ['meeting','us-defend','ge-defend'].includes(b.battleType)) return b.battleType;
-  const seed=String(b?.seed||''),m=seed.match(/(?:^|-)(meeting|us-defend|ge-defend)-s\d+-/);
+  const seed=String(b?.seed||''),m=seed.match(/(?:^|-)(meeting|us-defend|ge-defend)-(?:s\d+-)?b?\d+(?:-\d+)?$/);
   return m ? m[1] : 'unknown';
 }
 function winnerCounts(rows){const out={us:0,ge:0,draw:0,none:0};for(const b of rows)out[b.winner]=(out[b.winner]||0)+1;return out;}
@@ -63,6 +64,11 @@ if(!files.length)throw new Error(`No shard reports found under ${inputDir}`);
 const shards=files.map(file=>({file,payload:JSON.parse(fs.readFileSync(file,'utf8'))}));
 const battles=shards.flatMap(x=>x.payload.battles||[]).sort((a,b)=>String(a.seed).localeCompare(String(b.seed)));
 for(const b of battles)b.battleType=battleTypeOf(b);
+const diagnosticAudit=matrixAudit.auditMatrixDiagnostics(battles);
+const diagnosticEvidence={version:'grasstex-benchmark-analysis-v1',integrityOk:diagnosticAudit.ok,
+  discrepancies:diagnosticAudit.examples.filter(e=>e.code.startsWith('evidence:')),
+  movementStallCompleted:diagnosticAudit.totals.movementStallCompleted,
+  movementStallCensored:diagnosticAudit.totals.movementStallCensored};
 const winners=winnerCounts(battles);
 const durations=battles.map(b=>+b.simulatedSeconds||0),captures=battles.map(b=>+b.captures||0),first=shards[0].payload;
 const parallelWallSeconds=Math.max(...shards.map(x=>+x.payload.summary?.wallSeconds||0));
@@ -90,7 +96,7 @@ const summary={
   objectivesNeverOwned:sum(battles,b=>b.objectivesNeverOwned),objectivesNeverOwnedRate:pct(sum(battles,b=>b.objectivesNeverOwned),sum(battles,b=>b.objectiveCount)),
   objectivesNeverContested:sum(battles,b=>b.objectivesNeverContested),
   avgSquadObjectiveSpread:{us:+mean(battles.map(b=>+b.squadObjectiveSpread?.us||0)).toFixed(2),ge:+mean(battles.map(b=>+b.squadObjectiveSpread?.ge||0)).toFixed(2)},
-  issueCounts:issue,health,squadPerformance,
+  issueCounts:issue,health,squadPerformance,diagnosticAudit,diagnosticEvidence,
   phaseSamples:mergeMaps(battles,'phaseSamples'),engagementStateSamples:mergeMaps(battles,'engagementStateSamples'),
   idleUnderOrdersRate:+rate(sum(battles,b=>b.idleOrderedSamples),sum(battles,b=>b.orderedMoveSamples)).toFixed(4),overCohesionRate:+rate(sum(battles,b=>b.overCohesionSamples),sum(battles,b=>b.squadSamples)).toFixed(4),targetlessSquadRate:+rate(sum(battles,b=>b.targetlessSamples),sum(battles,b=>b.squadSamples)).toFixed(4),
   shots:sum(battles,b=>b.fire?.total),directShots:sum(battles,b=>b.fire?.direct),hits:sum(battles,b=>b.fire?.hits),suppressiveShots:sum(battles,b=>b.fire?.suppressive),hitRate:+rate(sum(battles,b=>b.fire?.hits),sum(battles,b=>b.fire?.direct)).toFixed(4),
@@ -99,9 +105,16 @@ const summary={
 const payload={summary,policy:first.policy||null,shards:shards.map(x=>({file:x.file,summary:x.payload.summary})),runtimeErrors,assetLoadNoiseExamples:assetNoiseExamples,browserWarnings,battles};
 fs.writeFileSync(path.join(outputDir,'battle-benchmark.json'),JSON.stringify(payload,null,2));
 
-const headers=['seed','battleType','winner','winReason','simulatedSeconds','timeoutReached','usAlive','geAlive','captures','neutralizations','objectiveCount','objectivesNeverOwned','objectivesNeverContested','usSquadSpread','geSquadSpread','healthOverall','squadScoreMean','squadScoreP10','lowScoreSquads','firstContactSeconds','firstFireSeconds','firstCaptureSeconds','maxNoObjectiveProgressSeconds','vacantObjectiveStalls','movementStalls','routeStalls','targetlessStalls','longRegroups','writerConflicts','strategicWriterConflicts','loopAlerts','idleUnderOrdersRate','overCohesionRate','shots','hits','hitRate','losBlockedFireAttempts','crestBlockedFireAttempts','movementResolverChanges'];
+const headers=['seed','battleType','winner','winReason','simulatedSeconds','timeoutReached','usAlive','geAlive','captures','neutralizations','objectiveCount','objectivesNeverOwned','objectivesNeverContested','usSquadSpread','geSquadSpread','healthOverall','squadScoreMean','squadScoreP10','lowScoreSquads','firstContactSeconds','firstFireSeconds','firstCaptureSeconds','maxNoObjectiveProgressSeconds','vacantObjectiveStalls','movementStalls','routeStalls','targetlessStalls','longRegroups','writerConflicts','strategicWriterConflicts','loopAlerts','idleUnderOrdersRate','overCohesionRate','shots','hits','hitRate','losBlockedFireAttempts','crestBlockedFireAttempts','movementResolverChanges','diagnosticIntegrityOk','diagnosticIssues','timelineSamples','timelineMarkers','observerWindows','observerFrames','observerDropped'];
 const lines=[headers.join(',')];
-for(const b of battles){const row={...b,healthOverall:b.health?.overall??'',squadScoreMean:b.squadPerformance?.meanOverall??'',squadScoreP10:b.squadPerformance?.p10Overall??'',lowScoreSquads:b.squadPerformance?.lowScoreSquads??0,vacantObjectiveStalls:b.vacantObjectiveStalls?.length||0,movementStalls:b.movementStalls?.length||0,routeStalls:b.routeStalls?.length||0,targetlessStalls:b.targetlessStalls?.length||0,longRegroups:b.longRegroups?.length||0,loopAlerts:b.loopAlerts?.length||0,idleUnderOrdersRate:rate(b.idleOrderedSamples,b.orderedMoveSamples).toFixed(4),overCohesionRate:rate(b.overCohesionSamples,b.squadSamples).toFixed(4),shots:b.fire?.total||0,hits:b.fire?.hits||0,hitRate:rate(b.fire?.hits||0,b.fire?.direct||0).toFixed(4),movementResolverChanges:b.movementResolver?.changes||0,usSquadSpread:b.squadObjectiveSpread?.us??0,geSquadSpread:b.squadObjectiveSpread?.ge??0};lines.push(headers.map(h=>csv(row[h])).join(','));}
+let auditRow = 0;
+for(const b of battles){const evidenceRow=diagnosticAudit.records[auditRow++];const row={...b,healthOverall:b.health?.overall??'',squadScoreMean:b.squadPerformance?.meanOverall??'',squadScoreP10:b.squadPerformance?.p10Overall??'',lowScoreSquads:b.squadPerformance?.lowScoreSquads??0,vacantObjectiveStalls:b.vacantObjectiveStalls?.length||0,movementStalls:b.movementStalls?.length||0,routeStalls:b.routeStalls?.length||0,targetlessStalls:b.targetlessStalls?.length||0,longRegroups:b.longRegroups?.length||0,loopAlerts:b.loopAlerts?.length||0,idleUnderOrdersRate:rate(b.idleOrderedSamples,b.orderedMoveSamples).toFixed(4),overCohesionRate:rate(b.overCohesionSamples,b.squadSamples).toFixed(4),shots:b.fire?.total||0,hits:b.fire?.hits||0,hitRate:rate(b.fire?.hits||0,b.fire?.direct||0).toFixed(4),movementResolverChanges:b.movementResolver?.changes||0,usSquadSpread:b.squadObjectiveSpread?.us??0,geSquadSpread:b.squadObjectiveSpread?.ge??0,
+  diagnosticIntegrityOk:evidenceRow.ok,
+  diagnosticIssues:evidenceRow.issues.join(';'),
+  timelineSamples:b.timeline?.samples?.length||0,timelineMarkers:b.timeline?.markers?.length||0,
+  observerWindows:b.timeline?.observer?.windows?.length||0,
+  observerFrames:(b.timeline?.observer?.windows||[]).reduce((n,w)=>n+(w.frames?.length||0),0),
+  observerDropped:b.timeline?.observer?.dropped||0};lines.push(headers.map(h=>csv(row[h])).join(','));}
 fs.writeFileSync(path.join(outputDir,'battle-benchmark.csv'),lines.join('\n')+'\n');
 
 const score=b=>(100-(+b.health?.overall||0))*10+(b.strategicWriterConflicts||0)*80+(b.routeStalls?.length||0)*45+(b.targetlessStalls?.length||0)*40+(b.vacantObjectiveStalls?.length||0)*50+(b.longRegroups?.length||0)*35+(b.loopAlerts?.length||0)*25+(b.captures===0?80:0)+(+b.objectivesNeverOwned||0)*60+(+b.maxNoObjectiveProgressSeconds||0)*.25;
@@ -112,6 +125,14 @@ md.push('','## Lowest squad performance','','| Seed | Squad | Role | Overall | M
 for(const row of summary.squadPerformance.worst||[])md.push(`| \`${row.seed||'-'}\` | ${row.faction||'?'}/${row.squad||'?'} | ${row.role} | ${row.overall} | ${row.mission} | ${row.movement} | ${row.control} | ${row.cohesion} | ${row.combat??'-'} | ${row.preservation??'-'} |`);
 md.push('','## Most problematic runs','','| Seed | Type | Winner | Health | Captures | Never owned | Spread us/ge | Route stalls | Move stalls | Targetless | Vacant | Regroup | Conflicts | Loops | Max no-progress |','|---|---|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|');
 for(const b of problematic)md.push(`| \`${b.seed}\` | ${b.battleType} | ${b.winner} | ${b.health?.overall??''} | ${b.captures}/${b.objectiveCount} | ${b.objectivesNeverOwned} | ${b.squadObjectiveSpread?.us??'-'}/${b.squadObjectiveSpread?.ge??'-'} | ${b.routeStalls?.length||0} | ${b.movementStalls?.length||0} | ${b.targetlessStalls?.length||0} | ${b.vacantObjectiveStalls?.length||0} | ${b.longRegroups?.length||0} | ${b.writerConflicts||0} | ${b.loopAlerts?.length||0} | ${b.maxNoObjectiveProgressSeconds}s |`);
+md.push('','## Diagnostic evidence audit','',
+  `- Standards: timeline \`${diagnosticAudit.standards.timeline}\`, observer \`${diagnosticAudit.standards.observer}\`, evidence \`${diagnosticAudit.standards.evidence}\`, analysis \`${diagnosticAudit.standards.analysis}\``,
+  `- Integrity: **${diagnosticAudit.ok?'PASS':'FAIL'}**, ${diagnosticAudit.totals.validBattles}/${diagnosticAudit.totals.battles} battles valid; ${Object.values(diagnosticAudit.issueCounts).reduce((n,v)=>n+v,0)} discrepancies`,
+  `- Coverage: ${diagnosticAudit.totals.timelineSamples} one-second samples; ${diagnosticAudit.totals.timelineMarkers} semantic markers; ${diagnosticAudit.totals.observerWindows} conditional focus windows (${diagnosticAudit.totals.observerFrames} frames; ${diagnosticAudit.totals.observerDropped} dropped)`,
+  `- Evidence: ${diagnosticAudit.totals.evidenceConflicts} writer conflicts, ${diagnosticAudit.totals.evidenceLoops} loop alerts; ${diagnosticAudit.totals.movementStallCompleted} stalls ended, ${diagnosticAudit.totals.movementStallCensored} censored (neither establishes successful recovery)`,
+  '', '| Scenario | Valid / recorded | Timeline samples | Focus windows |', '|---|---:|---:|---:|');
+for(const type of typeOrder){const x=diagnosticAudit.byType[type];md.push(`| ${type} | ${x.valid}/${x.battles} | ${x.timelineSamples} | ${x.observerWindows} |`);}
+if(!diagnosticAudit.ok){md.push('','### Diagnostic integrity failures','');for(const x of diagnosticAudit.examples.slice(0,30))md.push(`- \`${x.seed||'?'}\` (${x.type}): \`${x.code}\``);}
 md.push('','## Diagnostic score note','','Health and squad-performance scores are transparent triage aids, not pass/fail gates. Role-aware squad scores do not penalize support/reserve/garrison squads for holding still; raw metrics and reproducible seeds remain authoritative.');
 if(runtimeErrors.length){md.push('','## Probable runtime errors','');for(const e of runtimeErrors.slice(0,20))md.push(`- \`${String(e).replaceAll('`',"'")}\``);}
 fs.writeFileSync(path.join(outputDir,'battle-benchmark.md'),md.join('\n')+'\n');
