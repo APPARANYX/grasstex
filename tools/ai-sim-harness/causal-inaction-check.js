@@ -5,45 +5,99 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const source = fs.readFileSync(path.join(__dirname,
-  '../../scripts/probes/causal-inaction.cjs'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../../scripts/probes/causal-inaction.cjs'), 'utf8');
 
 function fixture(search, outcomeState) {
-  let originalFires = 0, mutations = 0, randoms = 0, reads = 0;
-  const sq = { id: 'ge-2', state: 'advance', commandPhase: 'approach',
-    _macroMission: { version: 1 } };
+  let originalFires = 0,
+    mutations = 0,
+    randoms = 0,
+    reads = 0;
+  const sq = { id: 'ge-2', state: 'advance', commandPhase: 'approach', _macroMission: { version: 1 } };
   const target = { id: 99, dead: false, root: { position: { x: 0, z: 30 } } };
-  const soldier = { id: 76, faction: 'ge', role: 'gunner', squad: sq,
-    root: { position: { x: 0, z: 0 } }, destination: { x: 0, z: 50 },
-    dead: false, target, moveSpeed: 0, eng: { state: 'engage' },
-    _losBlockedFire: 0, _crestBlockedFire: 0,
-    _terrainBlockedSuppressiveFire: 0, _movementStopReason: 'path-blocked',
+  const soldier = {
+    id: 76,
+    faction: 'ge',
+    role: 'gunner',
+    squad: sq,
+    root: { position: { x: 0, z: 0 } },
+    destination: { x: 0, z: 50 },
+    dead: false,
+    target,
+    moveSpeed: 0,
+    eng: { state: 'engage' },
+    _losBlockedFire: 0,
+    _crestBlockedFire: 0,
+    _terrainBlockedSuppressiveFire: 0,
+    _movementStopReason: 'path-blocked',
     _movementResolver: { last: { owner: 'post', kind: 'firing-station', reason: 'prepared' } }
   };
   const ignored = { ...soldier, id: 77 };
-  const state = { state: outcomeState, envelopeId: 'env-1', missionVersion: 1,
-    current: true, by: outcomeState === 'held' ? 'post' : null,
+  const state = {
+    state: outcomeState,
+    envelopeId: 'env-1',
+    missionVersion: 1,
+    current: true,
+    by: outcomeState === 'held' ? 'post' : null,
     why: outcomeState === 'pending' ? 'undeliverable' : null,
-    terminal: outcomeState === 'blocked', progressing: false };
+    terminal: outcomeState === 'blocked',
+    progressing: false
+  };
   const root = {
-    location: { search }, BattleProbes: {},
+    location: { search },
+    BattleProbes: {},
     BattleModules: { unitsFor: () => [soldier, ignored] },
-    BattleExecutionOutcome: { man: () => { reads++; return state; } },
-    BattleDirectFireLOSGate: { blocked: () => { mutations++; throw Error('LOS recomputed'); } },
-    BattleCommandReception: { adopted: () => { mutations++; throw Error('command settled'); } }
+    BattleExecutionOutcome: {
+      man: () => {
+        reads++;
+        return state;
+      }
+    },
+    BattleDirectFireLOSGate: {
+      blocked: () => {
+        mutations++;
+        throw Error('LOS recomputed');
+      }
+    },
+    BattleCommandReception: {
+      adopted: () => {
+        mutations++;
+        throw Error('command settled');
+      }
+    }
   };
   const math = Object.create(Math);
-  math.random = () => { randoms++; throw Error('RNG touched'); };
-  vm.runInNewContext(source, { window: root, URLSearchParams, Math: math, Map },
-    { filename: 'causal-inaction.cjs' });
+  math.random = () => {
+    randoms++;
+    throw Error('RNG touched');
+  };
+  vm.runInNewContext(
+    source,
+    { window: root, URLSearchParams, Math: math, Map },
+    { filename: 'causal-inaction.cjs' }
+  );
   const probe = root.BattleProbes['causal-inaction'];
   assert.ok(probe, 'probe registered');
-  const sim = { time: 0, onFire: () => { originalFires++; },
-    _commandReception: { adoptedBySoldier: { 76: {} } } };
+  const sim = {
+    time: 0,
+    onFire: () => {
+      originalFires++;
+    },
+    _commandReception: { adoptedBySoldier: { 76: {} } }
+  };
   probe.start(sim);
-  return { soldier, target, state, sim, probe, root,
+  return {
+    soldier,
+    target,
+    state,
+    sim,
+    probe,
+    root,
     stats: () => ({ originalFires, mutations, randoms, reads }),
-    sample(t) { sim.time = t; probe.sample(sim); } };
+    sample(t) {
+      sim.time = t;
+      probe.sample(sim);
+    }
+  };
 }
 
 // True firing rejection and an authoritative arbitration hold, not an inferred decision.
@@ -85,8 +139,7 @@ assert.equal(b.stats().mutations, 0);
 
 // An adopted HOLD is a state correlation, never a verified direct firing gate.
 const c = fixture('?probeSide=ge&probeIds=76', 'pending');
-c.sim._commandReception.adoptedBySoldier[76]['posture-fire|squad'] =
-  { data: { state: 'hold' } };
+c.sim._commandReception.adoptedBySoldier[76]['posture-fire|squad'] = { data: { state: 'hold' } };
 for (let t = 0; t <= 13; t++) c.sample(t);
 const correlated = c.probe.report(c.sim);
 assert.ok(correlated.episodes.some(e => e.code === 'restrictive-fire-order' && e.confidence === 'likely'));
@@ -96,8 +149,7 @@ assert.ok(correlated.episodes.some(e => e.code === 'order-undeliverable' && e.co
 const e = fixture('?probeSide=ge&probeIds=76', 'executing');
 for (let t = 0; t <= 6; t++) {
   e.sim.time = t;
-  if (t >= 1 && t <= 4)
-    e.root.BattleCausalInaction.denied(e.soldier, e.sim, 'fire-not-authorized');
+  if (t >= 1 && t <= 4) e.root.BattleCausalInaction.denied(e.soldier, e.sim, 'fire-not-authorized');
   e.sample(t);
 }
 const denied = e.probe.report(e.sim).episodes.find(x => x.kind === 'fire-silence');
@@ -107,8 +159,10 @@ assert.equal(denied.scope, 'decision-gate');
 assert.equal(denied.evidence.directFireDenials['fire-not-authorized'], 4);
 
 // The production firing gate must emit directly at the actual denial branch.
-const fireSource = fs.readFileSync(path.join(__dirname,
-  '../../battle/modules/19b-engagement-fire-stance.js'), 'utf8');
+const fireSource = fs.readFileSync(
+  path.join(__dirname, '../../battle/modules/19b-engagement-fire-stance.js'),
+  'utf8'
+);
 assert.ok(fireSource.includes("return reportFireDenial(s, battle, 'fire-not-authorized')"));
 assert.ok(fireSource.includes("return reportFireDenial(s, battle, 'mg-not-setup')"));
 
@@ -117,4 +171,6 @@ const d = fixture('?probeSide=ge&probeIds=76', 'none');
 d.soldier.target = null;
 for (let t = 0; t <= 30; t++) d.sample(t);
 assert.equal(d.probe.report(d.sim).episodes.length, 0);
-console.log('PASS causal inaction: verified vs inferred evidence, firing + movement, purity, bounds and filters');
+console.log(
+  'PASS causal inaction: verified vs inferred evidence, firing + movement, purity, bounds and filters'
+);
