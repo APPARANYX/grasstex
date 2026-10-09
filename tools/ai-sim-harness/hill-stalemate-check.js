@@ -150,11 +150,26 @@ test('the low crest has a physically reachable upper-body aim point', () => {
   assert.ok(aim && aim.y > 1.35, 'an exposed upper-body aim point clears the crest');
 });
 
-test('observed enemies behind a fully blocking crest do not permanently stall the assault', () => {
-  const w = pair(ridge(RANGE / 2, 1.8, 4, 20));
-  // Isolate the fire-vs-maneuver ownership test: grant observation while
-  // leaving real muzzle/body/terrain clearance authoritative for every round.
-  w.r.SquadAI.hasLineOfSight = () => true;
+test('a centerline-obstructed sighting still transitions to a moving assault', () => {
+  const w = pair(ridge(RANGE / 2, 1.35, 4, 20));
+  // Retain the original centerline-only tactical integration scenario. Live
+  // ballistics separately uses exposed-body clearance (crest-fire-check.js).
+  const B = w.r.BattleBallistics;
+  B.fireLineBlocked = (shooter, target, battle) => {
+    const o = B.muzzleOrigin(shooter, target, battle),
+      e = B.bodyShape(target, battle),
+      a = { x: e.cx, y: e.cy, z: e.cz },
+      span = Math.hypot(a.x - o.x, a.y - o.y, a.z - o.z);
+    for (let i = 1; i <= 48; i++) {
+      const t = (span * i) / 48;
+      if (t >= span - 0.5) break;
+      const x = o.x + ((a.x - o.x) * t) / span,
+        y = o.y + ((a.y - o.y) * t) / span,
+        z = o.z + ((a.z - o.z) * t) / span;
+      if (y <= battle.heightAt(x, z) + 0.08) return true;
+    }
+    return false;
+  };
   let firstShotAt = null;
   drive(w, 300, b => {
     if (firstShotAt === null && b.events.fired > 0) firstShotAt = b.time;
