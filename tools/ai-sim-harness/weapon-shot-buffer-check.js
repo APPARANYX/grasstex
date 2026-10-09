@@ -16,7 +16,7 @@ assert.match(compact, /F\.state==='probing'&&F\.ready/, 'format detection finish
 assert.match(compact, /getAudioBuffer/, 'decoded take is reused');
 assert.match(
   compact,
-  /new BABYLON\.Sound\(key\+'Sfx'\+k,buf,scene,null,opts\)/,
+  /newBABYLON\.Sound\(key\+'Sfx'\+k,buf,scene,null,opts\)/,
   'extra voices reuse decoded buffer'
 );
 assert.match(compact, /voices\[k\]=/, 'extra voices keep stable playback slots');
