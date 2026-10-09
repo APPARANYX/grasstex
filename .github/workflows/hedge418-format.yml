@@ -1,0 +1,28 @@
+name: Temporary hedge PR pinned Prettier
+on:
+  push:
+    branches:
+      - work/hedge418-format
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Format three touched files
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write battle/engagement.js battle/modules/19-engagement-cover-positions.js tools/ai-sim-harness/hedgerow-firing-lane-check.js
+          git config user.name 'grasstex-ci[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add battle/engagement.js battle/modules/19-engagement-cover-positions.js tools/ai-sim-harness/hedgerow-firing-lane-check.js
+          if ! git diff --cached --quiet; then
+            git commit -m "Format experimental hedge firing-lane test and source with pinned Prettier"
+            git push origin HEAD:refs/heads/work/hedge418-format
+          fi
