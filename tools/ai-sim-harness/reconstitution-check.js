@@ -67,7 +67,7 @@ function world(opts) {
   load(r, 'battle/modules/15c-squad-leader-scouts-forward.js', opts.search);
   load(r, 'battle/modules/15d-squad-leader-leaderless-intent.js');
   load(r, 'battle/modules/15e-squad-leader-morale-coa.js');
-  load(r, 'battle/modules/15f-squad-leader-retreat-anchor.js');
+  load(r, 'battle/modules/15f-squad-leader-retreat-anchor.js', opts.search);
   load(r, 'battle/modules/15g-squad-leader-formation.js');
   load(r, 'battle/modules/15h-squad-leader-fireteams.js');
   load(r, 'battle/modules/15i-squad-leader-clear-contact.js');
@@ -672,4 +672,42 @@ test('a source squad wiped during assembly is cleaned when the surviving sources
   assert.ok(wiped._macroMission, 'the wiped source keeps its terminal mission record for diagnostics');
   assert.equal(wiped._macroMission.status, 'failed', 'its reconstitution brief is terminal');
 });
+
+/* Temporary causal reconstruction: 4+1+4 survivors, real General assembly, real
+   Squad Leader/resolver/Micro movement. The original cenge-0007 census script
+   is not checked in: this is a controlled substitute, NOT that identical battle. */
+function probe398(search) {
+  const w = world({ search });
+  const left = squad(w, 0, 4, null, 20);
+  const lone = squad(w, 1, 1, null, 20);
+  const right = squad(w, 2, 4, null, 20);
+  const group = untilGrouped(w, 150).group;
+  assert.deepEqual(group.squads.slice().sort(), [left.id, lone.id, right.id].sort());
+  const beginning = {
+    time: w.b.time,
+    rally: group.rally,
+    lone: w.r.BattleCommanderDoctrine.avgPos(lone)
+  };
+  let closest = Infinity, furthestAfterAtBase = 0, arrived = 0, noProgress = 0;
+  run(w, 900, () => {
+    if (lone._assembly && lone._assembly.phase === 'to-rally') {
+      const p = w.r.BattleCommanderDoctrine.avgPos(lone);
+      const dist = Math.hypot(p.x - group.rally.x, p.z - group.rally.z);
+      if (dist < closest) closest = dist;
+      if (dist > furthestAfterAtBase) furthestAfterAtBase = dist;
+      if (lone.members.some(s => !s.dead && s._movementStopReason === 'arrived')) arrived++;
+    }
+  });
+  const st = recon(w);
+  return {
+    search, beginning, finishedAt: w.b.time, groupsFormed: st.groupsFormed,
+    merges: st.merges, ended: st.ended.map(g => ({status:g.status, at:g.endedAt, rally:g.rally})),
+    loneFinal: w.r.BattleCommanderDoctrine.avgPos(lone),
+    loneAssembly: lone._assembly && lone._assembly.phase,
+    closest, furthestAfterAtBase, arrived,
+    anchorProgress: w.events.filter(e => e.type === 'decision-retreat-anchor' && e.data.squad === lone.id).length
+  };
+}
+const probes398 = [probe398('?retreatArrival=0'), probe398('')];
+console.log('PR398_CAUSAL_RECONSTITUTION ' + JSON.stringify(probes398));
 console.log(n + ' reconstitution checks passed');
