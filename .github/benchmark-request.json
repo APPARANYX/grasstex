@@ -1,0 +1,1 @@
+{"benchmark":"standard","ref":"work/experimental-movement-substeps","seed":"movement-precision-20261009","seeds":"4","battle_type":"ge-defend","query_off":"","query_on":"movementSubsteps=3","origin_agent":"chatgpt","correlation_id":"pr-435","purpose":"Paired movement substep accuracy and cost"}
