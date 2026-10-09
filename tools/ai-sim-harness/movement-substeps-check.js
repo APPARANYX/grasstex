@@ -32,14 +32,13 @@ const BattleSim = function () {};
 const move = (sim, soldier, dt) => {
   moves.push({ name: soldier.name, time: sim.time, dt });
 };
-new Function(
-  'BattleSim',
-  'root',
-  'SquadAI',
-  'AI_TICK',
-  'stepMovement',
-  frameSource
-)(BattleSim, root, SquadAI, 0.15, move);
+new Function('BattleSim', 'root', 'SquadAI', 'AI_TICK', 'stepMovement', frameSource)(
+  BattleSim,
+  root,
+  SquadAI,
+  0.15,
+  move
+);
 assert.equal(typeof BattleSim.prototype._frame, 'function');
 
 function simulate(parts, dt = 0.15) {
@@ -81,9 +80,13 @@ for (const parts of [2, 3]) {
   assert.equal(run.moves.length, 2 * parts);
   for (let pass = 0; pass < parts; pass++) {
     const records = run.moves.slice(pass * 2, pass * 2 + 2);
-    assert.deepEqual(records.map(x => x.name), ['us', 'ge'], 'both sides advance together');
+    assert.deepEqual(
+      records.map(x => x.name),
+      ['us', 'ge'],
+      'both sides advance together'
+    );
     for (const record of records) {
-      assert.ok(Math.abs(record.time - (pass + 1) * 0.15 / parts) < 1e-10);
+      assert.ok(Math.abs(record.time - ((pass + 1) * 0.15) / parts) < 1e-10);
       assert.ok(Math.abs(record.dt - 0.15 / parts) < 1e-10);
     }
   }
