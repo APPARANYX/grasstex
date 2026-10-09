@@ -119,13 +119,18 @@ function breakContact(w) {
     point(w.q.baseHome),
     'unreachable retreating soldier must continue independently to the known rear base: ' +
       JSON.stringify({
-        state: w.q.state, stop: s._movementStopReason, since: s._lostContactRetreatSince,
+        state: w.q.state,
+        stop: s._movementStopReason,
+        since: s._lostContactRetreatSince,
         current: w.C.peek(s, w.b, 'movement', 'soldier:' + s.id),
         adopted: w.C.adopted(s, w.b, 'movement', 'soldier:' + s.id),
         adoptedEnvelope: s._fireteamAdoptedEnvelope,
-        lastPublishKey: s._fireteamPublishKey, survival: s._survivalMovementKey,
-        order: point(s.orderDestination), dest: point(s._fireteamDestination),
-        here: point(s.root.position), base: point(w.q.baseHome),
+        lastPublishKey: s._fireteamPublishKey,
+        survival: s._survivalMovementKey,
+        order: point(s.orderDestination),
+        dest: point(s._fireteamDestination),
+        here: point(s.root.position),
+        base: point(w.q.baseHome),
         anchor: point(w.q.orderAnchor)
       })
   );
