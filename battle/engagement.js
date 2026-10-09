@@ -457,7 +457,9 @@
   // How much of his running pace a crawl covers (module 11's gait table), 0.23 without it.
   var COVER_FIRE = !(typeof location !== 'undefined' && /[?&]coverFire=0\b/.test(location.search || ''));
   /* Opt-in bounded end-of-cover sightline recovery; default stays legacy until paired battles. */
-  var COVER_PEEK = !!(typeof location !== 'undefined' && /[?&]coverPeek=(?:1|on|true)(?:&|#|$)/i.test(location.search || ''));
+  var COVER_PEEK = !!(
+    typeof location !== 'undefined' && /[?&]coverPeek=(?:1|on|true)(?:&|#|$)/i.test(location.search || '')
+  );
 
   var COVER_STANCE = !(typeof location !== 'undefined' && /[?&]coverStance=0\b/.test(location.search || ''));
   /* ---- cover (battle/modules/19-engagement-cover-positions.js) ------------------------------ */
