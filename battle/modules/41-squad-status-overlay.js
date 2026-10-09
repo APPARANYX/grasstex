@@ -17,7 +17,10 @@
     ARROW_WIPE_MS = 1050,
     ARROW_HOLD_MS = 180,
     ARROW_FADE_MS = 320,
-    OFFSCREEN_PAD = 90,
+    /* Reserve enough screen room for unit silhouettes and labels rather than
+       allowing projected symbols to hover 90px outside the actual canvas. */
+    SYMBOL_INSET_X = 52,
+    SYMBOL_INSET_Y = 42,
     simRef = null,
     visible = true,
     overlay = null,
@@ -330,6 +333,7 @@
       '.sso-text{font:700 10px Arial Narrow,Arial,sans-serif;letter-spacing:.055em;fill:#f3f0df;stroke:#0a0c09;stroke-width:3px;paint-order:stroke;stroke-linejoin:round;text-anchor:middle}' +
       '.sso-id{font-size:9px;fill:#fff}.sso-status{font-size:9px}' +
       '.sso-objective{fill:rgba(12,14,11,.78);stroke-width:2.2}.sso-objective-line{stroke:currentColor;stroke-width:1.8}' +
+      '.sso-objective-edge-mark{fill:#192120;stroke:currentColor;stroke-width:2;filter:drop-shadow(0 1px 2px #000a)}' +
       '.sso-contact{fill:#fff;stroke:#111;stroke-width:1.5}' +
       '.sso-edge-arrow{fill:currentColor;stroke:#081112;stroke-width:2;stroke-linejoin:round;filter:drop-shadow(0 2px 3px #000)}' +
       '.sso-edge-text{font:700 11px Arial,sans-serif;fill:#f3f0df;stroke:#0b0d0b;stroke-width:3;paint-order:stroke;text-anchor:middle}' +
@@ -380,6 +384,15 @@
     append(objective, 'path', { 'class': 'sso-objective', d: 'M0 -11 L11 0 L0 11 L-11 0 Z' });
     append(objective, 'path', { 'class': 'sso-objective-line', d: 'M-6 0 L6 0 M0 -6 L0 6' });
     var objText = append(objective, 'text', { 'class': 'sso-text sso-id', x: '0', y: '24' }, 'OBJ');
+    /* The destination has its own compact edge diamond. Never draw a sweeping
+       screen-space path from this edge location to an out-of-view unit. */
+    var objectiveEdge = append(g, 'g', { 'class': 'sso-objective-edge' });
+    append(objectiveEdge, 'path', {
+      'class': 'sso-objective-edge-mark',
+      d: 'M0 -10 L10 0 L0 10 L-10 0 Z'
+    });
+    append(objectiveEdge, 'text', { 'class': 'sso-edge-text', x: '0', y: '25' }, 'OBJ');
+    setShown(objectiveEdge, false);
 
     var unit = append(g, 'g', { 'class': 'sso-unit' }),
       symbolLayer = append(unit, 'g', { 'class': 'sso-symbol-layer' });
@@ -417,6 +430,7 @@
       arrowSignature: null,
       arrowStartedAt: null,
       objective: objective,
+      objectiveEdge: objectiveEdge,
       objText: objText,
       unit: unit,
       symbolLayer: symbolLayer,
@@ -511,56 +525,94 @@
       ),
       x = rect.left + (q.x * rect.width) / engine.getRenderWidth(),
       y = rect.top + (q.y * rect.height) / engine.getRenderHeight();
+    var insetX = Math.min(SYMBOL_INSET_X, rect.width * 0.22),
+      insetY = Math.min(SYMBOL_INSET_Y, rect.height * 0.22),
+      eye = camera.globalPosition || camera.position,
+      facing = camera.getForwardRay && camera.getForwardRay(1).direction,
+      horizontalFacing = facing && facing.x * facing.x + facing.z * facing.z,
+      behind = !!(
+        eye &&
+        facing &&
+        horizontalFacing > 1e-8 &&
+        (p.x - eye.x) * facing.x + (p.z - eye.z) * facing.z < -1e-5
+      );
     return {
       x: x,
       y: y,
       z: q.z,
       visible:
+        [q.x, q.y, q.z, x, y].every(isFinite) &&
+        !behind &&
         q.z >= 0 &&
         q.z <= 1 &&
-        x >= rect.left - OFFSCREEN_PAD &&
-        x <= rect.right + OFFSCREEN_PAD &&
-        y >= rect.top - OFFSCREEN_PAD &&
-        y <= rect.bottom + OFFSCREEN_PAD
+        x >= rect.left + insetX &&
+        x <= rect.right - insetX &&
+        y >= rect.top + insetY &&
+        y <= rect.bottom - insetY
     };
   }
 
-  /* World-space bearing survives projected coordinates leaving the screen or moving behind the
-     camera. In the local camera frame 0 = forward/up, +90 deg = right, 180 = behind/down. */
-  function edgeDirection(world, camera, rect) {
+  /* The edge cue is a 2D screen-center ray, not a flat compass-angle ellipse.
+     Grounded targets in front of the camera use their actual camera projection;
+     those behind use a stable camera-relative fallback (screen projection inverts
+     behind the near plane). Intersect that ray with a *rectangle*, not an ellipse,
+     so the resulting pointer sits on the correct screen edge, never in the sky. */
+  function edgeRay(rect, vx, vy) {
     if (
-      !world ||
-      !camera ||
-      !camera.position ||
-      !camera.getForwardRay ||
       !rect ||
       !(rect.width > 0) ||
-      !(rect.height > 0)
+      !(rect.height > 0) ||
+      !isFinite(vx) ||
+      !isFinite(vy) ||
+      !(vx * vx + vy * vy > 1e-10)
     )
       return null;
-    var f = camera.getForwardRay(1).direction;
-    if (!f) return null;
-    var dx = +world.x - +camera.position.x,
-      dz = +world.z - +camera.position.z,
-      fx = +f.x,
-      fz = +f.z;
-    if (![dx, dz, fx, fz].every(isFinite) || !(dx * dx + dz * dz > 0.000001)) return null;
-    var angle = Math.atan2(dx * fz - dz * fx, dx * fx + dz * fz),
-      radiusX = Math.max(8, rect.width / 2 - Math.min(68, rect.width * 0.2)),
-      radiusY = Math.max(8, rect.height / 2 - Math.min(62, rect.height * 0.2));
+    var cx = rect.left + rect.width / 2,
+      cy = rect.top + rect.height / 2,
+      halfX = Math.max(2, rect.width / 2 - Math.min(78, rect.width * 0.22)),
+      halfY = Math.max(2, rect.height / 2 - Math.min(62, rect.height * 0.22)),
+      scale = Math.min(halfX / (Math.abs(vx) || 1e-12), halfY / (Math.abs(vy) || 1e-12));
     return {
-      x: rect.left + rect.width / 2 + Math.sin(angle) * radiusX,
-      y: rect.top + rect.height / 2 - Math.cos(angle) * radiusY,
-      angle: (angle * 180) / Math.PI
+      x: cx + vx * scale,
+      y: cy + vy * scale,
+      angle: (Math.atan2(vx, -vy) * 180) / Math.PI
     };
   }
-  function screenEdge(sim, at) {
+  function edgeDirection(world, camera, rect, projected) {
+    if (!world || !camera || !rect || !(rect.width > 0) || !(rect.height > 0) || !camera.getForwardRay)
+      return null;
+    var pos = camera.globalPosition || camera.position,
+      forward = camera.getForwardRay(1).direction;
+    if (!pos || !forward) return null;
+    var dx = +world.x - +pos.x,
+      dz = +world.z - +pos.z,
+      fx = +forward.x,
+      fz = +forward.z;
+    if (![dx, dz, fx, fz].every(isFinite) || dx * dx + dz * dz < 1e-8 || fx * fx + fz * fz < 1e-8)
+      return null;
+    var ahead = dx * fx + dz * fz,
+      right = dx * fz - dz * fx,
+      cx = rect.left + rect.width / 2,
+      cy = rect.top + rect.height / 2,
+      /* For a point that is genuinely in front of the camera, the screen's
+         projected X/Y—not geographic north or vertical terrain height—owns
+         the direction of the on-edge indicator. */
+      projectedValid = projected && isFinite(projected.x) && isFinite(projected.y),
+      vx = ahead > 1e-5 && projectedValid ? projected.x - cx : right,
+      vy = ahead > 1e-5 && projectedValid ? projected.y - cy : -ahead;
+    if (vx * vx + vy * vy < 1e-8) {
+      vx = right;
+      vy = -ahead; /* straight ahead/behind or point exactly under the crosshair */
+    }
+    return edgeRay(rect, vx, vy);
+  }
+  function screenEdge(sim, at, screen) {
     var scene = sim && sim.scene,
       camera = scene && scene.activeCamera,
       engine = scene && scene.getEngine && scene.getEngine(),
       canvas = engine && engine.getRenderingCanvas && engine.getRenderingCanvas(),
       rect = canvas && canvas.getBoundingClientRect && canvas.getBoundingClientRect();
-    return edgeDirection(at, camera, rect);
+    return edgeDirection(at, camera, rect, screen);
   }
   function curvePath(a, b, sq) {
     var dx = b.x - a.x,
@@ -643,7 +695,7 @@
       return;
     }
     var screen = project(sim, at, LIFT),
-      edge = screen && !screen.visible ? screenEdge(sim, at) : null;
+      edge = screen && !screen.visible ? screenEdge(sim, at, screen) : null;
     if (!screen || (!screen.visible && !edge)) {
       m.g.style.display = 'none';
       return;
@@ -683,22 +735,31 @@
       m.objText.setAttribute('x', String(labelLane * 28));
       setShown(m.objective, true);
     } else setShown(m.objective, false);
+    var objEdge = objScreen && !objScreen.visible ? screenEdge(sim, obj, objScreen) : null;
+    setShown(m.objectiveEdge, !!objEdge);
+    if (objEdge)
+      m.objectiveEdge.setAttribute(
+        'transform',
+        'translate(' + objEdge.x.toFixed(1) + ' ' + objEdge.y.toFixed(1) + ')'
+      );
 
     var target = arrowTarget(sq, sim),
       targetScreen = target && project(sim, target, OBJECTIVE_LIFT),
-      targetEdge = targetScreen && !targetScreen.visible ? screenEdge(sim, target) : null,
       longMove = !!(hasSquadMovementIntent(sq, sim) && target && dist(at, target) >= LONG_ARROW_WORLD),
       sig = longMove ? arrowSignature(sq, target) : null;
     /* A long destination gets one command-arrow wipe when it becomes visible/new. Local 13 m anchor
        updates and fireteam bounds never retrigger it. */
-    if (longMove && targetScreen && (targetScreen.visible || targetEdge)) {
-      if (m.arrowSignature !== sig) {
+    /* A screen-to-screen command line is meaningful only if both endpoints are
+       actually visible. Projected/offscreen coordinates are not map routes: joining
+       edge chevrons drew fake 'assaults from the sky'. Those cues stand alone. */
+    if (longMove && screen.visible && targetScreen && targetScreen.visible) {
+      if (m.arrowSignature !== sig || m.arrowStartedAt == null) {
         m.arrowSignature = sig;
         m.arrowStartedAt = nowMs || 0;
       }
       var elapsed = Math.max(0, (nowMs || 0) - (m.arrowStartedAt || 0)),
         total = ARROW_WIPE_MS + ARROW_HOLD_MS + ARROW_FADE_MS;
-      if (elapsed <= total) renderArrowWipe(m, sq, edge || screen, targetEdge || targetScreen, elapsed);
+      if (elapsed <= total) renderArrowWipe(m, sq, screen, targetScreen, elapsed);
       else hideArrow(m);
     } else {
       /* Preserve the last played destination signature while it remains the same assignment. The
@@ -796,6 +857,7 @@
     arrowTarget: arrowTarget,
     arrowSignature: arrowSignature,
     edgeDirection: edgeDirection,
+    edgeRay: edgeRay,
     longArrowWorld: LONG_ARROW_WORLD,
     missionObjective: missionObjective,
     symbolIdFor: symbolIdFor,
