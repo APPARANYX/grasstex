@@ -702,6 +702,18 @@ function probe398(search) {
     { anchor: { ...lone.orderAnchor }, goal: { ...group.rally }, bestDistance: 6.4,
       distance: 6.4, lastProgressAt: t0, grantedAt: t0, reason: 'retreat start' }
   );
+  /* The other group sources are already at their assigned rendezvous.
+     This isolates the final lone remnant as the only missing arrival. */
+  for (const readySq of [left, right]) {
+    for (const man of living(readySq)) {
+      man.root.position.x = group.rally.x;
+      man.root.position.z = group.rally.z;
+      man.orderDestination = { ...group.rally };
+      man._movementStopReason = 'arrived';
+    }
+    readySq.orderAnchor = { ...group.rally };
+    readySq.rally = { ...group.rally };
+  }
   const beforeStep = { ...lone.orderAnchor };
   w.r.BattleSquadStability.advanceSquadAnchor(lone, w.b);
   const afterStep = { ...lone.orderAnchor };
