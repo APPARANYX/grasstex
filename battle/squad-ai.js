@@ -1140,6 +1140,7 @@
           stance: stanceOf(shooter),
           heard: true,
           fireRevealed: true,
+          precision: 'fire-origin',
           reportedBy: victim.id
         };
       var calls = root.BattleCallouts;
