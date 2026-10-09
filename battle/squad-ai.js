@@ -1960,9 +1960,18 @@
     if (!soldier || soldier.dead) return false;
     return tryFire(soldier, battle);
   }
+  /* The player's trigger on an automatic set to full auto. The gun cycles at its own rate for as long as
+     the trigger is held, with no burst length and no re-lay pause: those are a gunner's trigger
+     discipline, which the AI models and the player supplies. A frame that spans more than one cyclic
+     interval fires the rounds due together, each carrying its offset as a round of an AI burst does.
+     Climb counts the rounds since the trigger was let go (a gap over TRIGGER_HELD_GAP) and stops at the
+     longest AI burst's, so a long press is never wider than the worst round of a burst. */
+  var TRIGGER_HELD_GAP = 0.25,
+    TRIGGER_CATCH_UP = 4;
   /* Real player trigger: no target lock and no Engagement authorization. The arbitrary crosshair ray
      goes through the shipping ammunition and ballistics owners, so reloads, jams, impacts, wounds,
-     penetration, terrain and buildings remain authoritative. */
+     penetration, terrain and buildings remain authoritative. The fire mode is the player's
+     (BattleWeapons.fireMode): full auto fires per the note above, semi one aimed round per cooldown. */
   function playerFireRay(soldier, aimPoint, battle) {
     if (!soldier || soldier.dead || !soldier.isPlayer || !soldier.weapon || !aimPoint || !battle)
       return false;
@@ -1980,10 +1989,23 @@
     var B = root.BattleBallistics;
     if (!B || typeof B.resolvePlayerRay !== 'function') return false;
     var stats = soldier.weapon.stats,
-      p = soldier.root.position,
-      d = Math.hypot((+aimPoint.x || 0) - p.x, (+aimPoint.z || 0) - p.z),
-      rounds = discharge(soldier, battle, burstLength(stats, battle, d), function (round, delay) {
-        var shot = B.resolvePlayerRay(soldier, aimPoint, battle, round, delay);
+      W = root.BattleWeapons,
+      auto =
+        stats.cyclic > 0 && !!stats.burst && (!W || !W.fireMode || W.fireMode(soldier.weapon) === 'auto'),
+      interval = auto ? 1 / stats.cyclic : 0,
+      late = auto ? battle.time - (+soldier._triggerNext || -Infinity) : Infinity,
+      held = late >= -1e-6 && late <= TRIGGER_HELD_GAP,
+      first = held ? +soldier._triggerRound || 0 : 0,
+      due = held ? Math.min(TRIGGER_CATCH_UP, 1 + Math.floor(Math.max(0, late) / interval)) : 1,
+      climbCap = auto ? Math.max(0, (stats.burst[1] | 0) - 1) : 0,
+      rounds = discharge(soldier, battle, due, function (round, delay) {
+        var shot = B.resolvePlayerRay(
+          soldier,
+          aimPoint,
+          battle,
+          auto ? Math.min(first + round, climbCap) : 0,
+          delay
+        );
         /* The player HUD consumes only confirmed enemy casualties/wounds from the actual
            ballistic result, never a guessed screen-space collision or mere trigger pull. */
         if (shot && shot.victim && shot.victim.faction !== soldier.faction) {
@@ -1996,7 +2018,17 @@
         return shot ? undefined : false;
       });
     if (!rounds) return false;
-    setFireCooldown(soldier, triggerCooldown(stats, rounds, battle, 1, d));
+    if (auto) {
+      /* The cadence is the gun's: the next round falls one interval after the last scheduled one. */
+      soldier._triggerNext = (held ? soldier._triggerNext : battle.time) + rounds * interval;
+      soldier._triggerRound = first + rounds;
+      setFireCooldown(soldier, Math.max(0, soldier._triggerNext - battle.time));
+    } else {
+      soldier._triggerNext = 0;
+      soldier._triggerRound = 0;
+      /* One aimed round: the same cooldown a semi-automatic or bolt action has always had here. */
+      setFireCooldown(soldier, triggerCooldown({ rof: stats.rof }, 1, battle, 1, 0));
+    }
     return true;
   }
 

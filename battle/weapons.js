@@ -188,7 +188,15 @@
                     used at 100-400 m on semi-auto, since its recoil made automatic fire at range
                     wasted rounds. `autoWithin` is the distance inside which a trigger pull is a burst;
                     beyond it the weapon fires single aimed rounds at `rof`. `carried` overrides the
-                    kind's combat load (46-ammunition-stoppages). */
+                    kind's combat load (46-ammunition-stoppages).
+     Fire selector. `selector` lists the modes a weapon really had, the one it is drawn in first. Only the
+     player reads it (`fireMode`); the AI's own rule is `autoWithin`, and its bursts are a gunner's trigger
+     discipline, not a feature of the gun.
+       Thompson M1A1  selector (FULL / SEMI), drawn on full auto
+       FG 42          selector (semi from a closed bolt, full auto from an open one), drawn on semi
+       MP 40, M1919A6, MG 42   no selector: full auto only (a trained man tapped single shots off an
+                    MP 40's slow cyclic rate; that is trigger control, not a mode)
+       M1 Carbine     semi only in the field (the selective-fire M2 is not issued here) */
   var PROFILES = {
     us: {
       rifle: { model: 'm1-garand', label: 'M1 Garand', magazine: 8, rof: 0.95, reloadTime: 2.4 },
@@ -199,6 +207,7 @@
         cyclic: 11.7,
         burst: [3, 5],
         burstClimb: 0.14,
+        selector: ['auto', 'semi'],
         damage: 34,
         power: 0.6
       },
@@ -250,6 +259,7 @@
         burstPause: 0.9,
         burstClimb: 0.2,
         autoWithin: 50,
+        selector: ['semi', 'auto'],
         range: 450,
         falloffStart: 300,
         accuracy: 0.78,
@@ -282,6 +292,27 @@
     weapon.magSize = stats.magazine || 8;
     weapon.ammo = weapon.magSize;
     return weapon;
+  }
+  /* The player's fire mode: 'auto' (the trigger held cycles the gun at its own rate) or 'semi' (one aimed
+     round per cooldown). A weapon with a `selector` answers to `weapon.fireMode`, the rest are what the kind
+     is: an automatic is full auto, anything else semi. `cycleFireMode` returns the new mode, or null for a
+     weapon with no selector. The AI never reads this. */
+  function fireModes(weapon) {
+    var s = weapon && weapon.stats;
+    return s && s.selector && s.selector.length > 1 ? s.selector : null;
+  }
+  function fireMode(weapon) {
+    var s = weapon && weapon.stats;
+    if (!s) return 'semi';
+    var modes = fireModes(weapon);
+    if (modes) return modes.indexOf(weapon.fireMode) >= 0 ? weapon.fireMode : modes[0];
+    return s.cyclic > 0 && s.burst ? 'auto' : 'semi';
+  }
+  function cycleFireMode(weapon) {
+    var modes = fireModes(weapon);
+    if (!modes) return null;
+    weapon.fireMode = modes[(modes.indexOf(fireMode(weapon)) + 1) % modes.length];
+    return weapon.fireMode;
   }
   function attachWeapon(scene, socket, kind) {
     var build = (BUILDERS[kind] || BUILDERS.rifle)(scene),
@@ -353,6 +384,9 @@
     PROFILES: PROFILES,
     profileStats: profileStats,
     issue: issue,
+    fireModes: fireModes,
+    fireMode: fireMode,
+    cycleFireMode: cycleFireMode,
     attachWeapon: attachWeapon,
     holster: holster,
     equip: equip,
