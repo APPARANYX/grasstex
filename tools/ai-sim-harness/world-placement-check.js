@@ -72,17 +72,25 @@ function signatures(items) {
   for (const yaw of [0, Math.PI / 2, Math.PI / 3]) {
     const mesh = { rotation: { x: 0, z: 0 }, position: { y: 5 } };
     T.orientGroundMesh(mesh, plane, 0, 0, yaw, 2, 0.36);
-    assert.ok(Math.abs(mesh.rotation.x - Math.atan(0.12)) < 1e-10,
-      'ground pitch follows world-Z grade at yaw ' + yaw);
-    assert.ok(Math.abs(mesh.rotation.z - Math.atan(0.18)) < 1e-10,
-      'ground roll follows world-X grade at yaw ' + yaw);
-    assert.ok(Math.abs(mesh.position.y - 5) < 1e-10,
-      'planar ground leaves mesh anchor unchanged');
+    assert.ok(
+      Math.abs(mesh.rotation.x - Math.atan(0.12)) < 1e-10,
+      'ground pitch follows world-Z grade at yaw ' + yaw
+    );
+    assert.ok(
+      Math.abs(mesh.rotation.z - Math.atan(0.18)) < 1e-10,
+      'ground roll follows world-X grade at yaw ' + yaw
+    );
+    assert.ok(
+      Math.abs(mesh.position.y - 5) < 1e-10,
+      'planar ground leaves mesh anchor unchanged'
+    );
   }
   const bowed = { rotation: { x: 0, z: 0 }, position: { y: 4 } };
   T.orientGroundMesh(bowed, (x) => x * x * 0.1, 0, 0, 0, 3, 0.25);
-  assert.ok(Math.abs(bowed.position.y - 4.9) < 1e-10,
-    'long log/wall centers between sampled terrain endpoints on bowed ground');
+  assert.ok(
+    Math.abs(bowed.position.y - 4.9) < 1e-10,
+    'long log/wall centers between sampled terrain endpoints on bowed ground'
+  );
   console.log('PASS terrain tangent grounding: logs, rock faces, wall spans and sandbags');
 }
 
