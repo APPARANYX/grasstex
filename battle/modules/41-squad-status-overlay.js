@@ -526,13 +526,19 @@
       x = rect.left + (q.x * rect.width) / engine.getRenderWidth(),
       y = rect.top + (q.y * rect.height) / engine.getRenderHeight();
     var insetX = Math.min(SYMBOL_INSET_X, rect.width * 0.22),
-      insetY = Math.min(SYMBOL_INSET_Y, rect.height * 0.22);
+      insetY = Math.min(SYMBOL_INSET_Y, rect.height * 0.22),
+      eye = camera.globalPosition || camera.position,
+      facing = camera.getForwardRay && camera.getForwardRay(1).direction,
+      horizontalFacing = facing && facing.x * facing.x + facing.z * facing.z,
+      behind = !!(eye && facing && horizontalFacing > 1e-8 &&
+        (p.x - eye.x) * facing.x + (p.z - eye.z) * facing.z < -1e-5);
     return {
       x: x,
       y: y,
       z: q.z,
       visible:
         [q.x, q.y, q.z, x, y].every(isFinite) &&
+        !behind &&
         q.z >= 0 &&
         q.z <= 1 &&
         x >= rect.left + insetX &&
@@ -738,7 +744,7 @@
        actually visible. Projected/offscreen coordinates are not map routes: joining
        edge chevrons drew fake 'assaults from the sky'. Those cues stand alone. */
     if (longMove && screen.visible && targetScreen && targetScreen.visible) {
-      if (m.arrowSignature !== sig) {
+      if (m.arrowSignature !== sig || m.arrowStartedAt == null) {
         m.arrowSignature = sig;
         m.arrowStartedAt = nowMs || 0;
       }
