@@ -27,7 +27,7 @@
     PLAYER_MOVE_AHEAD = 6,
     PLAYER_CAMERA_CLEARANCE = 0.45;
   /* Player-only sprint budget; AI soldiers keep their existing movement model. */
-  var SPRINT_DRAIN = 28, STAMINA_WALK_RECOVER = 17, STAMINA_IDLE_RECOVER = 23, STAMINA_RESTART = 25;
+  var SPRINT_DRAIN = 12, STAMINA_WALK_RECOVER = 12, STAMINA_IDLE_RECOVER = 18, STAMINA_RESTART = 25;
   var KEY_HINT =
     'Camera: click to look · WASD move · wheel speed · Q/E up/down · Shift sprint · P player · Esc releases';
   var PAD_HINT =
@@ -501,6 +501,7 @@
       lastWoundCount = (next.wounds && next.wounds.length) || 0;
       damageAt = 0;
       damageOrigin = null;
+      lastShotPulse = 0;
       /* isPlayer, not a short movement lease, is the authority boundary for the whole possession. */
       /* Possession starts from a neutral player-owned stance instead of inheriting a squad hold-fire posture. */
       if (global.BattleEngagement && global.BattleEngagement.commitStance)
@@ -576,7 +577,7 @@
         next = moving
           ? { x: p.x + move.x * PLAYER_MOVE_AHEAD, z: p.z + move.z * PLAYER_MOVE_AHEAD }
           : { x: p.x, z: p.z };
-      var running = sprintAllowed(runRequested && !b.paused && !b.winner, moving, dt);
+      var running = b.paused || b.winner ? false : sprintAllowed(runRequested, moving, dt);
       if (player.prone && moving) setPlayerStance(b, 'crawl');
       else if (player.eng && player.eng.stance === 'crawl' && !moving) setPlayerStance(b, 'prone');
       if (global.BattleMovementResolver && global.BattleMovementResolver.proposePlayer)
