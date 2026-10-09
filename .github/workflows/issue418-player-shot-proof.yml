@@ -1,0 +1,19 @@
+name: Temporary targeted player-ray origin parity
+on:
+  push:
+    branches:
+      - work/issue418-player-shot-format
+permissions:
+  contents: read
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          node tools/ai-sim-harness/player-control-check.js
+          node tools/ai-sim-harness/soldier-beliefs-check.js
