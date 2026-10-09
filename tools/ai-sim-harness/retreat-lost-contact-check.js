@@ -67,7 +67,14 @@ function breakContact(w) {
   w.r.BattleLeases.end(w.q, 'retreat-anchor', w.b.time, 'test disconnected fireteam');
   tick(w, 1);
   const pending = w.C.peek(s, w.b, 'movement', 'soldier:' + s.id);
-  assert.ok(pending && pending.unreachable, 'fresh order genuinely cannot reach isolated soldier');
+  assert.ok(
+    pending && pending.unreachable,
+    'fresh order genuinely cannot reach isolated soldier: ' + JSON.stringify({
+      pending: pending && { action: pending.action, phase: pending.phase, sourceId: pending.sourceId, channel: pending.channel, point: pending.point },
+      state: w.q.state, anchor: w.q.orderAnchor, leader: w.S.leaderOf(w.q) && w.S.leaderOf(w.q).id,
+      candidate: s.id, here: point(s.root.position), orders: w.q._fireteamOrders
+    })
+  );
   assert.ok(distance(s.root.position, w.q.orderAnchor) > 100, 'fresh squad rally is distant');
   return { s, old };
 }
