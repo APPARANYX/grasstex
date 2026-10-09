@@ -1203,9 +1203,18 @@
     } else if (!cover && root.BattleCausalInaction && root.BattleCausalInaction.coverDecision) {
       /* This event is a direct top-level Engagement skip reason. It does not
          re-evaluate LOS, request movement or alter a cover reservation. */
-      root.BattleCausalInaction.coverDecision(s, battle, 'firing-lane-gate',
-        !COVER_PEEK ? 'flag-disabled' : suppressed ? 'suppressed' :
-        !target || !target.root ? 'no-live-target' : 'line-already-open');
+      root.BattleCausalInaction.coverDecision(
+        s,
+        battle,
+        'firing-lane-gate',
+        !COVER_PEEK
+          ? 'flag-disabled'
+          : suppressed
+            ? 'suppressed'
+            : !target || !target.root
+              ? 'no-live-target'
+              : 'line-already-open'
+      );
     }
     if (cover) {
       e.cover = cover;

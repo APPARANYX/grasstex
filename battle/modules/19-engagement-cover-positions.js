@@ -460,7 +460,7 @@
         dist(path[path.length - 1].x, path[path.length - 1].z, to.x, to.z) <= 0.35
       );
     }
-      function findFiringLane(s, battle, opts) {
+    function findFiringLane(s, battle, opts) {
       opts = opts || {};
       var notify = root.BattleCausalInaction && root.BattleCausalInaction.coverDecision,
         rejections = notify ? {} : null;
@@ -469,8 +469,7 @@
       }
       function observed(code, selected) {
         if (notify)
-          notify(s, battle, 'firing-lane', code, rejections,
-            selected && { x: selected.x, z: selected.z });
+          notify(s, battle, 'firing-lane', code, rejections, selected && { x: selected.x, z: selected.z });
       }
       var F = field(),
         t = s.target,
@@ -489,30 +488,63 @@
         leads = SA().isLeader(s);
       for (var i = 0; i < nearby.length; i++) {
         var slots = coverSlots(c, nearby[i]);
-        if (!slots.length || seen.has(slots)) { reject('no-cover-slots'); continue; }
+        if (!slots.length || seen.has(slots)) {
+          reject('no-cover-slots');
+          continue;
+        }
         seen.add(slots);
         for (var j = 0; j < slots.length; j++) {
           var slot = slots[j],
             shape = slot.shape;
-          if (!shape || shape.shape !== 'obb' || !P.shapeHit(p, posOf(t), shape, 0)) { reject('not-physical-shot-blocker'); continue; }
+          if (!shape || shape.shape !== 'obb' || !P.shapeHit(p, posOf(t), shape, 0)) {
+            reject('not-physical-shot-blocker');
+            continue;
+          }
           /* Long-face slots are behind the obstacle and stay blind; only an end
            face has a chance to see around a continuous long hedgerow. */
           var ux = +shape.ux || 1,
             uz = +shape.uz || 0,
             axisLen = Math.hypot(ux, uz) || 1,
             endFace = Math.abs((slot.normalX * ux + slot.normalZ * uz) / axisLen) > 0.85;
-          if (!endFace) { reject('not-end-face'); continue; }
+          if (!endFace) {
+            reject('not-end-face');
+            continue;
+          }
           var d = dist(p.x, p.z, slot.x, slot.z);
-          if (d < 1.5 || d > maxRange) { reject('outside-bound-radius'); continue; }
-          if (!coverAvailable(c, slot, s, battle)) { reject('slot-reserved'); continue; }
-          if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, slot)) { reject('unreachable-memory'); continue; }
-          if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, slot)) { reject('forward-guard'); continue; }
+          if (d < 1.5 || d > maxRange) {
+            reject('outside-bound-radius');
+            continue;
+          }
+          if (!coverAvailable(c, slot, s, battle)) {
+            reject('slot-reserved');
+            continue;
+          }
+          if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, slot)) {
+            reject('unreachable-memory');
+            continue;
+          }
+          if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, slot)) {
+            reject('forward-guard');
+            continue;
+          }
           var anchor = s.orderDestination || (s.squad && s.squad.orderAnchor);
-          if (leads && anchor && dist(slot.x, slot.z, anchor.x, anchor.z) > 18) { reject('leader-anchor-limit'); continue; }
+          if (leads && anchor && dist(slot.x, slot.z, anchor.x, anchor.z) > 18) {
+            reject('leader-anchor-limit');
+            continue;
+          }
           var back = opts.notBehind;
-          if (back && (slot.x - p.x) * back.axis.x + (slot.z - p.z) * back.axis.z < -back.allow) { reject('behind-order-line'); continue; }
-          if (!seesFrom(slot, 'stand', t, battle)) { reject('no-standing-los'); continue; }
-          if (!reachable(p, slot)) { reject('path-unreachable'); continue; }
+          if (back && (slot.x - p.x) * back.axis.x + (slot.z - p.z) * back.axis.z < -back.allow) {
+            reject('behind-order-line');
+            continue;
+          }
+          if (!seesFrom(slot, 'stand', t, battle)) {
+            reject('no-standing-los');
+            continue;
+          }
+          if (!reachable(p, slot)) {
+            reject('path-unreachable');
+            continue;
+          }
           var score = -d - F.coverPotentialAt(battle.obstacles, slot.x, slot.z) * 4;
           if (score > bestScore) {
             bestScore = score;
@@ -537,7 +569,7 @@
       return best;
     }
 
-  function findCover(s, battle, opts) {
+    function findCover(s, battle, opts) {
       opts = opts || {};
       var target = opts.threat || s.target;
       /* The causal observer receives outcomes of *actual* eligibility gates.
