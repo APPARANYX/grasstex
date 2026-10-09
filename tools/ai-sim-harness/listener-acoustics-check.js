@@ -147,8 +147,25 @@ function world(mode, withGraph) {
 {
   const w = world('standard', false);
   assert.equal(w.api.prepare(w.sound, w.position, 'voice', 0.24, w.scene), true);
-  assert.equal(w.api.stats.degraded, 1, 'unsupported Babylon graph degrades safely');
+  assert.equal(w.api.stats.filtered, 0, 'unsupported Babylon graph degrades safely');
   assert.equal(w.sound.volume, 0.24, 'fallback retains dry intelligible audio');
+}
+{
+  const w = world('standard', false);
+  const bus = w.context.createGain();
+  w.scene.mainSoundTrack = { _outputAudioNode: bus };
+  w.sound._scene = w.scene;
+  w.sound._soundV2 = { _outNode: w.context.createGain() };
+  w.sound.getSoundGain = function () { return this._soundV2._outNode; };
+  w.sound.connectToSoundTrackAudioNode = function (node) { this.routed = node; };
+  assert.equal(w.api.prepare(w.sound, w.position, 'voice', 0.24, w.scene), true);
+  assert.equal(w.api.stats.filtered, 1, 'AudioV2 SoundTrack rerouting inserts a filter');
+  assert.ok(w.sound.routed && w.sound.routed !== bus, 'AudioV2 routes through the filter');
+  const filter = w.sound.routed;
+  w.api.reset();
+  w.api.prepare(w.sound, w.position, 'voice', 0.24, w.scene);
+  assert.equal(w.sound.routed, filter, 'restarts reuse the same filter');
+  assert.equal(w.api.stats.filtered, 1, 'no duplicate AudioV2 audio nodes');
 }
 {
   const w = world('off', true);
