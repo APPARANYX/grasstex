@@ -107,6 +107,9 @@
         var rec = CR.adopted && CR.adopted(s, battle, 'posture-fire', 'squad'),
           data = rec && rec.data;
         if (!data || data.state === 'clear') return null;
+        /* A retreat voids posture orders adopted before it ended (engagement.js stamps retreatEndedAt). */
+        var eng = s && state(s);
+        if (eng && eng.retreatEndedAt != null && !(rec.adoptedAt > eng.retreatEndedAt)) return null;
         return {
           state: data.state || null,
           targetId: data.targetId == null ? null : data.targetId,

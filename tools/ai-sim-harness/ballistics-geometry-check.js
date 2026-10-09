@@ -1,65 +1,204 @@
 #!/usr/bin/env node
 'use strict';
-const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),H=require('./harness');
-function load(root,rel){
-  const code=fs.readFileSync(path.join(H.REPO,rel),'utf8');
-  new Function('window','globalThis','console','BABYLON',code+'\n//# sourceURL='+rel)(root,root,{log(){},warn(){}},root.BABYLON);
+const assert = require('node:assert/strict'),
+  fs = require('node:fs'),
+  path = require('node:path'),
+  H = require('./harness');
+function load(root, rel) {
+  const code = fs.readFileSync(path.join(H.REPO, rel), 'utf8');
+  new Function('window', 'globalThis', 'console', 'BABYLON', code + '\n//# sourceURL=' + rel)(
+    root,
+    root,
+    { log() {}, warn() {} },
+    root.BABYLON
+  );
 }
-function root(){const r=H.bootstrap({modules:false});load(r,'battle/modules/14-z-ballistic-raycast.js');return r;}
-function man(x,z,faction){
-  return{faction:faction||'us',hp:100,root:{position:{x:x,y:0,z:z},rotation:{y:0}},weapon:null};
+function root() {
+  const r = H.bootstrap({ modules: false });
+  load(r, 'battle/modules/14-z-ballistic-raycast.js');
+  return r;
 }
-function weapon(kind){
-  return{kind:kind||'rifle',stats:{range:120,falloffStart:120,combatSigmaAt100:.000001,damage:10,power:1}};
+function man(x, z, faction) {
+  return {
+    faction: faction || 'us',
+    hp: 100,
+    root: { position: { x: x, y: 0, z: z }, rotation: { y: 0 } },
+    weapon: null
+  };
 }
-function approx(a,b,eps,msg){assert.ok(Math.abs(a-b)<=eps,(msg||'values differ')+': '+a+' vs '+b);}
+function weapon(kind) {
+  return {
+    kind: kind || 'rifle',
+    stats: { range: 120, falloffStart: 120, combatSigmaAt100: 0.000001, damage: 10, power: 1 }
+  };
+}
+function approx(a, b, eps, msg) {
+  assert.ok(Math.abs(a - b) <= eps, (msg || 'values differ') + ': ' + a + ' vs ' + b);
+}
 
 {
-  const r=root(),B=r.BattleBallistics,b=H.makeBattle(r,{seed:4}),s=man(0,0,'us'),t=man(0,30,'ge');
-  s.weapon=weapon('rifle');b._roster.ge.push(t);b.factions.ge.alive=1;
-  let o=B.muzzleOrigin(s,t,b);
-  approx(o.y,1.55,1e-9,'standing bore height');approx(o.z,.78,1e-9,'rifle bore starts ahead of the body root');
-  s.crouching=true;o=B.muzzleOrigin(s,t,b);approx(o.y,1.05,1e-9,'crouched bore height');
-  s.crouching=false;s.prone=true;o=B.muzzleOrigin(s,t,b);approx(o.y,.42,1e-9,'prone bore height');
-  s.prone=false;
-  let meta=null;b.random=()=>.5;b.onShot=(a,target,hit,d,m)=>meta=m;
-  B.resolve(s,t,b);
-  const expected=B.muzzleOrigin(s,t,b);
-  approx(meta.origin.x,expected.x,1e-9);approx(meta.origin.y,expected.y,1e-9);approx(meta.origin.z,expected.z,1e-9);
-  assert.equal(B.fireLineBlocked(s,t,b),false,'flat-ground muzzle line reaches the body');
+  const r = root(),
+    B = r.BattleBallistics,
+    b = H.makeBattle(r, { seed: 4 }),
+    s = man(0, 0, 'us'),
+    t = man(0, 30, 'ge');
+  s.weapon = weapon('rifle');
+  b._roster.ge.push(t);
+  b.factions.ge.alive = 1;
+  let o = B.muzzleOrigin(s, t, b);
+  approx(o.y, 1.55, 1e-9, 'standing bore height');
+  approx(o.z, 0.78, 1e-9, 'rifle bore starts ahead of the body root');
+  s.crouching = true;
+  o = B.muzzleOrigin(s, t, b);
+  approx(o.y, 1.05, 1e-9, 'crouched bore height');
+  s.crouching = false;
+  s.prone = true;
+  o = B.muzzleOrigin(s, t, b);
+  approx(o.y, 0.42, 1e-9, 'prone bore height');
+  s.prone = false;
+  let meta = null;
+  b.random = () => 0.5;
+  b.onShot = (a, target, hit, d, m) => (meta = m);
+  B.resolve(s, t, b);
+  const expected = B.muzzleOrigin(s, t, b);
+  approx(meta.origin.x, expected.x, 1e-9);
+  approx(meta.origin.y, expected.y, 1e-9);
+  approx(meta.origin.z, expected.z, 1e-9);
+  assert.equal(B.fireLineBlocked(s, t, b), false, 'flat-ground muzzle line reaches the body');
   console.log('PASS round origin and crest gate share the deterministic simulation muzzle');
 }
 
-function logField(x,z){
-  const tactical={x,z,y:0,height:.62,radius:2.1,cover:.60,type:'log',physicalId:'log-1'};
-  const exact={id:'log-1',type:'log',shape:'obb',x,z,hx:2.5,hz:.275,ux:1,uz:0,vx:0,vz:1};
-  const obstacles=[tactical];obstacles.__physicalFootprints=[exact];obstacles.__physicalVersion=4;return obstacles;
+function logField(x, z) {
+  const tactical = { x, z, y: 0, height: 0.62, radius: 2.1, cover: 0.6, type: 'log', physicalId: 'log-1' };
+  const exact = {
+    id: 'log-1',
+    type: 'log',
+    shape: 'obb',
+    x,
+    z,
+    hx: 2.5,
+    hz: 0.275,
+    ux: 1,
+    uz: 0,
+    vx: 0,
+    vz: 1
+  };
+  const obstacles = [tactical];
+  obstacles.__physicalFootprints = [exact];
+  obstacles.__physicalVersion = 4;
+  return obstacles;
 }
-function resolveLine(r,s,t,obstacles,enemies){
-  const b=H.makeBattle(r,{seed:7,obstacles});b.random=()=>.5;b._roster.ge.push(...(enemies||[]));b.factions.ge.alive=(enemies||[]).length;
-  let meta=null;b.onShot=(a,target,hit,d,m)=>meta=m;r.BattleBallistics.resolve(s,t,b);return meta;
+function resolveLine(r, s, t, obstacles, enemies) {
+  const b = H.makeBattle(r, { seed: 7, obstacles });
+  b.random = () => 0.5;
+  b._roster.ge.push(...(enemies || []));
+  b.factions.ge.alive = (enemies || []).length;
+  let meta = null;
+  b.onShot = (a, target, hit, d, m) => (meta = m);
+  r.BattleBallistics.resolve(s, t, b);
+  return meta;
 }
 {
-  const r=root(),s=man(0,1,'us'),t=man(30,1,'ge');s.weapon=weapon('rifle');
-  const obstacles=logField(15,0),exact=r.BattleBallistics.ballisticObstacles(obstacles);
-  assert.equal(exact.length,1);assert.equal(exact[0].shape,'obb','ballistics resolves the linked physical footprint');
-  const shot=resolveLine(r,s,t,obstacles,[t]);
-  assert.equal(shot.victim,t,'a ray inside the tactical cover circle but outside the rendered log footprint flies on');
+  const r = root(),
+    s = man(0, 1, 'us'),
+    t = man(30, 1, 'ge');
+  s.weapon = weapon('rifle');
+  const obstacles = logField(15, 0),
+    exact = r.BattleBallistics.ballisticObstacles(obstacles);
+  assert.equal(exact.length, 1);
+  assert.equal(exact[0].shape, 'obb', 'ballistics resolves the linked physical footprint');
+  const shot = resolveLine(r, s, t, obstacles, [t]);
+  assert.equal(
+    shot.victim,
+    t,
+    'a ray inside the tactical cover circle but outside the rendered log footprint flies on'
+  );
   console.log('PASS tactical cover radius no longer catches a round that misses the physical log');
 }
 {
-  const r=root(),s=man(15,-10,'us'),t=man(15,10,'ge');s.weapon=weapon('rifle');s.prone=true;t.prone=true;
-  const shot=resolveLine(r,s,t,logField(15,0),[]);
-  assert.equal(shot.stoppedBy,'environment');assert.equal(shot.surface,'log');
-  assert.ok(shot.impact.z>-0.34&&shot.impact.z<-0.22,'impact is on the 0.275 m physical log face, not the 2.1 m tactical circle: '+shot.impact.z);
-  assert.ok(shot.normal.z<-.9,'OBB impact normal faces back toward the shooter');
+  const r = root(),
+    s = man(15, -10, 'us'),
+    t = man(15, 10, 'ge');
+  s.weapon = weapon('rifle');
+  s.prone = true;
+  t.prone = true;
+  const shot = resolveLine(r, s, t, logField(15, 0), []);
+  assert.equal(shot.stoppedBy, 'environment');
+  assert.equal(shot.surface, 'log');
+  assert.ok(
+    shot.impact.z > -0.34 && shot.impact.z < -0.22,
+    'impact is on the 0.275 m physical log face, not the 2.1 m tactical circle: ' + shot.impact.z
+  );
+  assert.ok(shot.normal.z < -0.9, 'OBB impact normal faces back toward the shooter');
   console.log('PASS scatter-cover impact and decal normal land on the physical face');
 }
 {
-  const r=root(),s=man(15,-10,'us'),t=man(15,10,'ge');s.weapon=weapon('rifle');s.prone=true;t.prone=true;
-  const tactical=[{x:15,z:0,y:0,height:.62,radius:2.1,cover:.60,type:'log'}];
-  const shot=resolveLine(r,s,t,tactical,[]);
-  assert.ok(shot.impact.z<-1.5,'legacy/no-footprint obstacles retain their old cylinder collision');
+  const r = root(),
+    s = man(15, -10, 'us'),
+    t = man(15, 10, 'ge');
+  s.weapon = weapon('rifle');
+  s.prone = true;
+  t.prone = true;
+  const tactical = [{ x: 15, z: 0, y: 0, height: 0.62, radius: 2.1, cover: 0.6, type: 'log' }];
+  const shot = resolveLine(r, s, t, tactical, []);
+  assert.ok(shot.impact.z < -1.5, 'legacy/no-footprint obstacles retain their old cylinder collision');
   console.log('PASS compatibility fallback remains for obstacles without physical geometry');
 }
-console.log('4 ballistics geometry checks passed');
+
+/* Continuous player bore preview is read-only and uses the same solid geometry
+   as actual rounds before any weapon dispersion is applied. */
+{
+  const r = root(),
+    B = r.BattleBallistics,
+    b = H.makeBattle(r, { seed: 18 }),
+    s = man(0, 0, 'us'),
+    t = man(0, 30, 'ge');
+  s.weapon = weapon('rifle');
+  b._roster.ge.push(t);
+  b.factions.ge.alive = 1;
+  let randomCalls = 0,
+    shotCalls = 0;
+  b.random = () => {
+    randomCalls++;
+    return 0.5;
+  };
+  b.onShot = () => shotCalls++;
+  const sight = { x: 0, y: 0.88, z: 30 },
+    before = t.hp;
+  const dot = B.previewPlayerRay(s, sight, b);
+  assert.ok(dot && dot.impact, 'muzzle preview returns a physical impact');
+  assert.equal(dot.stoppedBy, 'soldier', 'the preview intersects a real enemy in its ray');
+  assert.ok(dot.impact.z > 29 && dot.impact.z < 31, 'preview ends at the body, not at the 120 m range limit');
+  assert.equal(t.hp, before, 'preview cannot inflict wounds');
+  assert.equal(randomCalls, 0, 'preview cannot consume combat RNG');
+  assert.equal(shotCalls, 0, 'preview cannot emit ballistic shot callbacks');
+  const liveShot = B.resolvePlayerRay(s, sight, b, 0, 0);
+  assert.equal(liveShot.victim, t, 'real ray uses the same enemy-intersection geometry');
+  assert.ok(
+    Math.abs(liveShot.impact.z - dot.impact.z) < 0.05,
+    'zero-dispersion live hit and read-only preview agree on physical contact'
+  );
+  assert.ok(randomCalls > 0 && shotCalls > 0, 'only the real discharge consumes RNG and reports a hit');
+  console.log('PASS bore preview is non-mutating and agrees with actual enemy hit geometry');
+}
+{
+  const r = root(),
+    B = r.BattleBallistics,
+    s = man(15, -10, 'us');
+  s.weapon = weapon('rifle');
+  s.prone = true;
+  const b = H.makeBattle(r, { seed: 19, obstacles: logField(15, 0) });
+  b.random = () => {
+    throw Error('preview must not use random');
+  };
+  const dot = B.previewPlayerRay(s, { x: 15, y: 0.42, z: 10 }, b);
+  assert.equal(dot.stoppedBy, 'environment', 'physical cover stops the previewed bullet');
+  assert.ok(dot.impact.z > -0.36 && dot.impact.z < -0.2, 'preview stops at the actual low log face');
+  assert.equal(
+    B.previewPlayerRay(s, { x: NaN, y: 0, z: 1 }, b),
+    null,
+    'invalid input never produces a misleading marker'
+  );
+  console.log('PASS bore preview respects low cover and rejects invalid input');
+}
+console.log('6 ballistics geometry checks passed');

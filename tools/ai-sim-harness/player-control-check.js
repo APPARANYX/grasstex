@@ -15,7 +15,50 @@ function load(r, p) {
 }
 const cameraSource = fs.readFileSync(path.join(H.REPO, 'battle/camera-controls.js'), 'utf8');
 new Function(cameraSource);
-assert.match(cameraSource, /padPressedOnce\(pad,\s*9\)/, 'Menu/Start must enter or switch player mode');
+/* Menu/Start gesture contract: a short press retains switching; a hold opens settings
+   once, without also triggering a short press on release. */
+assert.match(cameraSource, /menuHoldGesture\(menuHoldState,[\s\S]*buttonValue\(pad, 9\)/);
+assert.match(cameraSource, /if \(menuGesture === 'hold'\)[\s\S]*?togglePlayerMenu\(\)/);
+assert.match(cameraSource, /if \(menuGesture === 'tap'\)[\s\S]*?possessRandom\(\)/);
+assert.match(cameraSource, /if \(menuOpen\)[\s\S]*?stepPlayerMenuPad\(pad\)/);
+assert.match(cameraSource, /if \(key === 'o'[\s\S]*?togglePlayerMenu\(\)/, 'keyboard O also opens settings');
+assert.match(cameraSource, /fillMenuSquads\(player && player\.squad, player\)/);
+assert.match(cameraSource, /fillMenuSoldiers\(soldier\)/);
+assert.match(
+  cameraSource,
+  /b\.factions\[faction\]\.squads\.indexOf\(sq\)/,
+  'selected squad is revalidated against the live faction'
+);
+assert.match(
+  cameraSource,
+  /soldier\.dead[\s\S]{0,100}!soldier\.root/,
+  'soldier selection rejects casualties'
+);
+assert.match(cameraSource, /if \(menuOpen\) closePlayerMenu\(\)/, 'player release cleans up the menu');
+assert.match(cameraSource, /!b\.paused[\s\S]{0,100}typeof b\.pause/, 'settings pause only an active battle');
+assert.match(
+  cameraSource,
+  /b === liveBattle\(\)[\s\S]{0,170}typeof b\.resume/,
+  'settings resume only a pause owned by this menu'
+);
+
+const vm = require('node:vm');
+const win = { GTMath: { clamp: (value, min, max) => Math.min(max, Math.max(min, value)) } };
+vm.runInNewContext(cameraSource, { window: win });
+const G = win.BattleDesktopCamera.menuHoldGesture;
+assert.equal(win.BattleDesktopCamera.menuHoldMs, 650);
+const st = { down: false, since: 0, long: false };
+assert.equal(G(st, true, 0), null, 'press starts the timer, not a switch');
+assert.equal(G(st, true, 649), null, 'below threshold cannot open settings');
+assert.equal(G(st, false, 649), 'tap', 'short release switches');
+assert.equal(G(st, false, 650), null, 'releasing twice cannot switch twice');
+assert.equal(G(st, true, 1000), null);
+assert.equal(G(st, true, 1650), 'hold', 'long press opens settings');
+assert.equal(G(st, true, 1800), null, 'held button must not retrigger menu');
+assert.equal(G(st, false, 1801), null, 'release after hold cannot also switch soldier');
+assert.equal(G(st, true, 2000), null);
+assert.equal(G(st, false, 2025), 'tap', 'subsequent taps work after a hold');
+
 assert.match(cameraSource, /buttonValue\(pad,\s*7\)/, 'RT must feed player fire');
 assert.match(cameraSource, /buttonValue\(pad,\s*10\)/, 'L3 must feed player run');
 assert.match(
@@ -80,6 +123,108 @@ assert.match(
   /playerCam\.maxZ = CAMERA_FAR/,
   'player camera must use the shared world far plane so the sky dome is not clipped'
 );
+
+/* Camera center, muzzle impact, and confirmed enemy contact are three separate signals. */
+const squadSource = fs.readFileSync(path.join(H.REPO, 'battle/squad-ai.js'), 'utf8');
+const ballisticsSource = fs.readFileSync(
+  path.join(H.REPO, 'battle/modules/14-z-ballistic-raycast.js'),
+  'utf8'
+);
+assert.match(cameraSource, /bpr-line bpr-top/, 'crosshair is built from four slim independent strokes');
+assert.match(cameraSource, /bpr-top\{width:1px;height:5px/, 'reticle lines have 1-pixel thickness');
+assert.match(cameraSource, /id="battlePlayerHitMarker"/, 'confirmed hits flash on center reticle');
+assert.match(cameraSource, /_playerConfirmedHits/, 'hit flash tracks the shooter hit counter');
+assert.match(
+  squadSource,
+  /shot && shot\.victim && shot\.victim\.faction !== soldier\.faction/,
+  'only authoritative opposite-faction bullet hits increment marker counter'
+);
+assert.match(
+  squadSource,
+  /B\.resolvePlayerRay\(soldier, aimPoint, battle, round, delay\)/,
+  'enemy hit signal is read from authoritative discharged rounds'
+);
+assert.match(cameraSource, /B\.previewPlayerRay\(player, point, b\)/, 'floating dot uses bore preview');
+assert.match(cameraSource, /shotImpact = shot\.impact/, 'fired rounds briefly show their actual impact');
+assert.match(cameraSource, /BABYLON\.Vector3\.Project\(/, 'muzzle point is screen projected, not centered');
+assert.match(cameraSource, /playerBoreDot\.style\.display = 'none'/, 'offscreen markers must hide');
+assert.match(
+  ballisticsSource,
+  /function previewPlayerRay[\s\S]*?environmentStop\([\s\S]*?firstEnemyHit\(/,
+  'muzzle preview shares live obstruction and opposing-body collision'
+);
+assert.match(
+  cameraSource,
+  /playerYaw \+= lx \* PLAYER_LOOK_RATE \* dt \* \(aiming \? PLAYER_ADS_SENSITIVITY : 1\)/,
+  'right-stick horizontal turn slows only while zoom aiming'
+);
+assert.match(
+  cameraSource,
+  /playerPitch \+ ly \* 1\.55 \* dt \* \(aiming \? PLAYER_ADS_SENSITIVITY : 1\)/,
+  'right-stick vertical turn slows while zoom aiming'
+);
+assert.match(
+  cameraSource,
+  /event\.movementX \* LOOK_X \* sensitivity/,
+  'mouse horizontal aim adopts zoom sensitivity'
+);
+assert.match(
+  cameraSource,
+  /event\.movementY \* LOOK_Y \* sensitivity/,
+  'mouse vertical aim adopts zoom sensitivity'
+);
+assert.match(
+  cameraSource,
+  /PLAYER_ADS_SENSITIVITY = 0\.36/,
+  'aiming uses intentional 36% mouse and controller sensitivity'
+);
+
+/* Player feedback must be wired to shipping soldier/weapon state and be optional on unsupported devices. */
+assert.match(cameraSource, /ensurePlayerFeedback\(\)/, 'possession installs player HUD');
+assert.match(cameraSource, /player\.maxHp/, 'HUD reads real health');
+assert.match(cameraSource, /player\.bleedRate/, 'HUD reads real wound bleeding');
+assert.match(
+  cameraSource,
+  /playerStamina = Math\.max\(0, playerStamina - SPRINT_DRAIN \* dt\)/,
+  'running drains the player sprint budget'
+);
+assert.match(
+  cameraSource,
+  /playerExhausted && playerStamina >= STAMINA_RESTART/,
+  'exhaustion needs recovery before sprinting again'
+);
+assert.match(
+  cameraSource,
+  /b\.paused \|\| b\.winner \? false : sprintAllowed/,
+  'paused battles must not change stamina'
+);
+assert.match(
+  cameraSource,
+  /SquadAI\.playerFireRay\(player, point, b\)\)\s*\{[\s\S]{0,650}playerRumble/,
+  'shooting haptic only follows accepted authoritative firing'
+);
+assert.match(
+  cameraSource,
+  /wounds > lastWoundCount[\s\S]{0,450}playerRumble/,
+  'hit haptic follows new wounds, not continuing bleed loss'
+);
+assert.match(cameraSource, /player\._lastHitBy/, 'hurt direction uses real shooter position');
+assert.match(
+  cameraSource,
+  /Math\.atan2\(damageOrigin\.x - here\.x, damageOrigin\.z - here\.z\) - playerYaw/,
+  'hurt direction rotates with camera heading'
+);
+assert.match(
+  cameraSource,
+  /typeof global\.navigator\.vibrate === 'function'/,
+  'phone haptics are capability checked'
+);
+assert.match(
+  cameraSource,
+  /actuator\.playEffect\('dual-rumble'/,
+  'controller rumble is attempted when available'
+);
+
 const skySource = fs.readFileSync(path.join(H.REPO, 'battle/battle-sim.js'), 'utf8');
 const skyMatch = skySource.match(/function buildSky\(scene\)\{var radius=(\d+(?:\.\d+)?),offset=(\.?\d+)/);
 assert.ok(skyMatch, 'battle sky radius/offset contract must remain measurable');

@@ -65,7 +65,40 @@
       yaw = (shooter.root.rotation && +shooter.root.rotation.y) || 0,
       fx = flat > 1e-6 ? dx / flat : Math.sin(yaw),
       fz = flat > 1e-6 ? dz / flat : Math.cos(yaw);
-    return { x: p.x + fx * forward, y: battle.heightAt(p.x, p.z) + h, z: p.z + fz * forward };
+    var mx = p.x + fx * forward,
+      mz = p.z + fz * forward,
+      ground = st === 'prone' ? battle.heightAt(mx, mz) : battle.heightAt(p.x, p.z);
+    /* A prone weapon projects 0.45-0.82 m ahead of the soldier. On an uphill slope,
+       sampling ground beneath the hips for a forward muzzle puts the barrel INSIDE the hill.
+       Sample the terrain at the actual muzzle's horizontal location instead; this is the
+       same semantic origin used by AI rounds, player free-fire and the crest/LOS fire gate.
+       Standing/crouched origins keep their established grouping on flat and sloped terrain. */
+    return { x: mx, y: ground + h, z: mz };
+  }
+  /* Presentation-only ground tangent. The render rig can pitch/roll its prone body without
+     rotating the authoritative soldier root or changing the real bullet's aim direction.
+     Use the soldier's own yaw; +Z is forward, +X is right in Babylon local coordinates. */
+  function proneTerrainTilt(shooter, battle) {
+    if (!shooter || !shooter.root || !battle || typeof battle.heightAt !== 'function')
+      return { pitch: 0, roll: 0 };
+    var p = shooter.root.position,
+      yaw = (shooter.root.rotation && +shooter.root.rotation.y) || 0,
+      fx = Math.sin(yaw),
+      fz = Math.cos(yaw),
+      rx = fz,
+      rz = -fx,
+      front = 0.82,
+      back = 0.55,
+      side = 0.45,
+      h = battle.heightAt;
+    var riseForward = h(p.x + fx * front, p.z + fz * front) - h(p.x - fx * back, p.z - fz * back),
+      riseRight = h(p.x + rx * side, p.z + rz * side) - h(p.x - rx * side, p.z - rz * side),
+      pitch = -Math.atan(riseForward / (front + back)),
+      roll = Math.atan(riseRight / (2 * side));
+    return {
+      pitch: Math.max(-0.35, Math.min(0.35, pitch)),
+      roll: Math.max(-0.24, Math.min(0.24, roll))
+    };
   }
   function bodyShape(s, battle) {
     var p = s.root.position,
@@ -557,6 +590,40 @@
       distance: distance
     };
   }
+  /* Read-only, dispersion-free preview of the live muzzle ray for the secondary player dot.
+     Shares the exact terrain/structure/body occlusion rules with actual rounds; it performs
+     no RNG draws, wound writes, onShot callbacks or AI target acquisition. */
+  function previewPlayerRay(shooter, aimPoint, battle) {
+    if (
+      !shooter ||
+      !shooter.root ||
+      !shooter.weapon ||
+      !shooter.weapon.stats ||
+      !battle ||
+      !aimPoint ||
+      !isFinite(+aimPoint.x) ||
+      !isFinite(+aimPoint.y) ||
+      !isFinite(+aimPoint.z)
+    )
+      return null;
+    var stats = shooter.weapon.stats,
+      range = +stats.range || 0;
+    if (!(range > 0)) return null;
+    var proxy = { root: { position: aimPoint } },
+      origin = muzzleOrigin(shooter, proxy, battle),
+      dir = norm({
+        x: aimPoint.x - origin.x,
+        y: aimPoint.y - origin.y,
+        z: aimPoint.z - origin.z
+      }),
+      environment = environmentStop(origin, dir, range, battle),
+      body = firstEnemyHit(shooter, origin, dir, Math.min(range, environment.travel), battle);
+    return {
+      impact: pointAt(origin, dir, body ? body.t : environment.travel),
+      origin: origin,
+      stoppedBy: body ? 'soldier' : environment.travel < range - 0.1 ? 'environment' : 'range'
+    };
+  }
   function resolvePlayerRay(shooter, aimPoint, battle, round, delay) {
     if (!shooter || !shooter.weapon || !battle) return null;
     var stats = shooter.weapon.stats,
@@ -731,6 +798,7 @@
     version: '98-muzzle-physical-cover',
     resolve: resolveRay,
     resolvePlayerRay: resolvePlayerRay,
+    previewPlayerRay: previewPlayerRay,
     dispersionSigma: dispersionSigma,
     groupDiameter90: groupDiameter90,
     bodyShape: bodyShape,
@@ -740,6 +808,7 @@
     RETAIN: RETAIN,
     rayEllipsoid: rayEllipsoid,
     muzzleOrigin: muzzleOrigin,
+    proneTerrainTilt: proneTerrainTilt,
     ballisticObstacles: ballisticObstacles,
     fireLineBlocked: fireLineBlocked,
     pointLineBlocked: pointLineBlocked,

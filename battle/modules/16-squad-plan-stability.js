@@ -227,9 +227,22 @@
     pictureAge: 8,
     pictureConfidence: 0.45,
     terrainSamples: 20,
-    eye: 1.55
+    eye: 1.55,
+    /* Outcome-ledger equivalence (#393): two observation points within pointCell metres are one
+       investigation of the same ground; retryCap bounds re-dispatches of a point whose scouts
+       never produced a report (timeout / blocked / scouts lost). */
+    pointCell: 12,
+    retryCap: 2
   };
   var RECON_PHASES = { approach: 1, assault: 1, flank: 1, defend: 1 };
+  /* Recon outcome ledger (#393): defender reconnaissance follows observed ground — an outcome
+     ledger keyed to the standing missionVersion — instead of a signature quantized from the
+     whole-squad centroid, which scouts walking out moved across 12 m buckets and turned the same
+     defended objective into a new task after every completion. ?reconLedger=0/off/false is the
+     legacy control arm (centroid-derived defender goal, last-signature duplicate check). */
+  var RECON_LEDGER_ON = !/[?&]reconLedger=(?:0|off|false)(?:&|#|$)/i.test(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
 
   /* Leaderless intent continuation is on by default after PR #197's deterministic checks and
      full-battle paired benchmark (run 37121639099); ?leaderlessIntent=0/off/false is the stable legacy
@@ -1536,7 +1549,8 @@
         BUDDY_PAIRS_ON: BUDDY_PAIRS_ON,
         SCOUTS_FORWARD_ON: SCOUTS_FORWARD_ON,
         RECON_TUNING: RECON_TUNING,
-        RECON_PHASES: RECON_PHASES
+        RECON_PHASES: RECON_PHASES,
+        RECON_LEDGER_ON: RECON_LEDGER_ON
       })
     : null;
   var reconStats = _sf
@@ -1717,6 +1731,7 @@
         reconCandidate: reconCandidate,
         startRecon: startRecon,
         endRecon: endRecon,
+        RECON_LEDGER_ON: RECON_LEDGER_ON,
         URBAN_ARRIVAL_COHESION: URBAN_ARRIVAL_COHESION
       })
     : null;
@@ -1982,6 +1997,7 @@
         q._fireteamOrders = {};
         q._reconTask = null;
         q._reconLast = null;
+        q._reconLedger = null;
         q._reconReportMonitor = null;
         q._leaderlessIntent = null;
         if (BUDDY_PAIRS_ON) {

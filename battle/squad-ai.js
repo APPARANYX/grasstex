@@ -1980,7 +1980,12 @@
       p = soldier.root.position,
       d = Math.hypot((+aimPoint.x || 0) - p.x, (+aimPoint.z || 0) - p.z),
       rounds = discharge(soldier, battle, burstLength(stats, battle, d), function (round, delay) {
-        return B.resolvePlayerRay(soldier, aimPoint, battle, round, delay) ? undefined : false;
+        var shot = B.resolvePlayerRay(soldier, aimPoint, battle, round, delay);
+        /* The player HUD consumes only confirmed enemy casualties/wounds from the actual
+           ballistic result, never a guessed screen-space collision or mere trigger pull. */
+        if (shot && shot.victim && shot.victim.faction !== soldier.faction)
+          soldier._playerConfirmedHits = (soldier._playerConfirmedHits || 0) + 1;
+        return shot ? undefined : false;
       });
     if (!rounds) return false;
     setFireCooldown(soldier, triggerCooldown(stats, rounds, battle, 1, d));
