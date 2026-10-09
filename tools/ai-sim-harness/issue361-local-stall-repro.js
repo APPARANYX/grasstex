@@ -182,6 +182,35 @@ function captureStarvation(search) {
 }
 const off = captureStarvation('');
 const on = captureStarvation('&localMissionWake=1');
+
+/* Negative safety controls: legitimate pinned garrisons never trigger local
+   attack reviews, and physically progressing attackers should be left alone. */
+const garrison = world('&localMissionWake=1');
+seedDefender(garrison, true);
+drive(garrison, 420, supplyFriendlyProgress);
+assert.equal(garrison.q._macroMission.intent, 'defend');
+assert.equal(
+  garrison.events.filter(e => e.type === 'decision-local-mission-stall').length,
+  0, 'legitimate prepared defense cannot be released by local CAPTURE review'
+);
+const moving = world('&localMissionWake=1');
+moving.q.targetObjective = 'away';
+moving.q.commandPhase = 'assault';
+drive(moving, 2);
+assert.equal(moving.q._macroMission.intent, 'capture');
+moving.r.BattleCommanderAI.acceptMission(moving.b, moving.q, false);
+drive(moving, 420, w => {
+  supplyFriendlyProgress(w);
+  /* Controlled physical progress in a Macro-only fixture. Motion is injected
+     because this driver deliberately does not run the movement integrator. */
+  if (w.T % 2 === 0 && w.T > 4)
+    w.q.members.filter(s => !s.dead).forEach(s => { s.root.position.z += 0.26; });
+});
+assert.equal(
+  moving.events.filter(e => e.type === 'decision-local-mission-stall').length,
+  0, 'real centroid travel toward CAPTURE never triggers a false local wake'
+);
+
 console.log('ISSUE361_LOCAL_STALL ' + JSON.stringify({off,on}));
 assert.equal(off.attempts.length, 0, 'flag-off must reproduce missing local recovery');
 assert.equal(off.stillSame, true, 'healthy faction continues masking stalled mission');
