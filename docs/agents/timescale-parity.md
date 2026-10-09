@@ -29,12 +29,15 @@ node tools/ai-sim-harness/fixed-step-clock-check.js
 PARITY_SCENARIO=meeting PARITY_SECONDS=600 node scripts/run_timescale_parity_benchmark.cjs
 ```
 
-The `⭐ Timescale Parity Benchmark` workflow runs real-battle state
-fingerprints for meeting, US-defense and German-defense seeds, comparing
-against the current 0.15s fixed-step headless baseline. Each scenario checks
-1x/4x/8x with virtual 20/30/60/120fps cadence. Any difference in gameplay
-state is a failure, even if win counts agree. A full-length scenario must emit
-actual fire events, so a quiet opening cannot pass as combat parity.
+The `⭐ Timescale Parity Benchmark` workflow runs real 600s firefights
+for meeting, US-defense and German-defense seeds, comparing the fixed 0.15s
+benchmark against six representative 1x/4x/8x × 20/30/60/120fps cases.
+**Every comparison uses a fresh browser page**; reusing a page and restarting
+the battle has independently observed squad/buddy-pair timing drift even when
+both runs use identical 0.15s stepping. This is a separate restart-isolation
+issue, not evidence against timescale parity. The unit test covers the full
+12-way speed/FPS grid. Any difference in isolated gameplay state fails; every
+full-length baseline must emit fire events.
 
 The full-fidelity performance benchmark's `FF_CADENCE` mode now also goes
 through the live accumulator, so CPU measurements include catch-up costs.
