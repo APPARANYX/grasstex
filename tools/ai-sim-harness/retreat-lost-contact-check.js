@@ -92,7 +92,18 @@ function breakContact(w) {
       })
   );
   assert.ok(distance(s.root.position, w.q.orderAnchor) > 100, 'fresh squad rally is distant');
-  return { s, old };
+  /* The old personally adopted instruction was replaced in flight while the
+     leader walked away. Settle the man at that *actual last adopted* endpoint,
+     and let shipping stepMovement report the arrival. The headless fixture does
+     not run the physical Movement Resolver's ordinary order-to-destination copy. */
+  const lastKnown = point(s.orderDestination);
+  assert.ok(lastKnown, 'an adopted retreat endpoint exists');
+  s.root.position.x = lastKnown.x;
+  s.root.position.z = lastKnown.z;
+  s.destination = point(lastKnown);
+  H.stepMovement(w.b, s, 0.15);
+  assert.equal(s._movementStopReason, 'arrived');
+  return { s, old: lastKnown };
 }
 
 {
