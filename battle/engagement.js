@@ -1193,7 +1193,13 @@
     /* A tall hedge may shield every sheltered slot from its threat. When held behind
        that cover without a line, search reachable edge slots before abandoning the
        fire-fight or pretending to shoot through the hedge. */
-    if (!cover && COVER_PEEK && !suppressed && here <= USEFUL_COVER && hasLine === false) {
+    if (
+      !cover &&
+      COVER_PEEK &&
+      !suppressed &&
+      target && target.root &&
+      !SA().hasLineOfSight(s, target, battle.heightAt, battle.obstacles)
+    ) {
       cover = coverImpl().findFiringLane(s, battle, {
         maxRange: COVER_RANGE,
         notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null
