@@ -70,6 +70,8 @@ navigation problem comprehensively solved.
   actual rendered-height priority, explicit-seed replay behavior
 - Existing `map-pipeline-check.js`, `objective-marker-check.js`,
   `objective-nav-check.js` and engagement regression suites
+- `node tools/ai-sim-harness/initial-seed-url-check.js`: legacy auto-seed
+  cleanup, preserved named and pinned replay links, and refreshed bare URLs
 - Visual QA: start with a bare URL twice, confirm two seed labels; reload a
   `?seed=...` URL and confirm identical world; inspect flags and sandbags from
   ground-level player view and a hill; check roads, hedge junctions and cover
