@@ -44,9 +44,9 @@
   var PAD_HINT =
     'Xbox: LS move · RS look · LT/RT down/up · RB sprint · LB precision · D-pad speed · Y level · Menu tap player / hold settings';
   var PLAYER_HINT =
-    'Player: WASD move · Shift run · mouse look · RMB aim · LMB fire · C crouch · Z prone · P new soldier · O settings · V exit';
+    'Player: WASD move · Shift run · mouse look · RMB aim · LMB fire · B selector · C crouch · Z prone · P new soldier · O settings · V exit';
   var PLAYER_PAD_HINT =
-    'Xbox: LS move · L3 run · RS look · LT aim · RT fire · B crouch · A prone · Menu tap next / hold settings · View exit';
+    'Xbox: LS move · L3 run · RS look · LT aim · RT fire · Y selector · B crouch · A prone · Menu tap next / hold settings · View exit';
   var TOUCH_HINT = 'Camera: drag to orbit · pinch/wheel to zoom';
   var PAD_WAKE_HINT = 'Xbox: move a stick or press a button to switch to fly controls';
   var clamp = global.GTMath.clamp;
@@ -466,6 +466,7 @@
       playerHud.id = 'battlePlayerHud';
       playerHud.innerHTML =
         '<div class="bph-title" id="battlePlayerName"></div>' +
+        '<div class="bph-row"><span id="battlePlayerWeapon"></span><span id="battlePlayerFireMode"></span></div>' +
         '<div class="bph-row"><span>HEALTH</span><span id="battlePlayerHealthValue"></span></div>' +
         '<div class="bph-track"><div class="bph-fill" id="battlePlayerHealthFill"></div></div>' +
         '<div class="bph-row"><span>STAMINA</span><span id="battlePlayerStaminaValue"></span></div>' +
@@ -710,6 +711,15 @@
       document.getElementById('battlePlayerStaminaValue').textContent =
         Math.round(playerStamina) + '%' + (playerExhausted ? ' EXHAUSTED' : '');
       document.getElementById('battlePlayerStaminaFill').style.width = playerStamina.toFixed(1) + '%';
+      var gun = player.weapon,
+        W = global.BattleWeapons;
+      document.getElementById('battlePlayerWeapon').textContent = (gun && gun.stats && gun.stats.label) || '';
+      document.getElementById('battlePlayerFireMode').textContent =
+        gun && W && W.fireMode && gun.stats && gun.stats.cyclic > 0
+          ? W.fireMode(gun) === 'auto'
+            ? 'FULL AUTO'
+            : 'SEMI'
+          : '';
       var rate = Math.max(0, +player.bleedRate || 0),
         bleed = document.getElementById('battlePlayerBleeding');
       bleed.textContent =
@@ -1132,6 +1142,19 @@
       var st = playerStance();
       setPlayerStance(b, st === 'crouch' ? 'stand' : 'crouch');
     }
+    /* The selector: only a weapon that really had one answers (BattleWeapons `selector`), so the key is
+       inert on an MP 40 or an MG 42, which fire full auto and nothing else. */
+    function cyclePlayerFireMode() {
+      var W = global.BattleWeapons;
+      return !!(
+        player &&
+        !player.dead &&
+        player.weapon &&
+        W &&
+        W.cycleFireMode &&
+        W.cycleFireMode(player.weapon)
+      );
+    }
     function togglePlayerProne(b) {
       var st = playerStance();
       setPlayerStance(b, st === 'prone' || st === 'crawl' ? 'stand' : 'prone');
@@ -1159,6 +1182,7 @@
       playerPitch = clamp(playerPitch + ly * 1.55 * dt * (aiming ? PLAYER_ADS_SENSITIVITY : 1), -0.62, 0.78);
       if (pad && padPressedOnce(pad, 1)) togglePlayerCrouch(b);
       if (pad && padPressedOnce(pad, 0)) togglePlayerProne(b);
+      if (pad && padPressedOnce(pad, 3)) cyclePlayerFireMode();
       if (grenadesOn() && pad && padPressedOnce(pad, 5)) requestPlayerGrenade(pad);
       var grenadePending = grenadesOn() && global.BattleGrenades.pendingOf(player, b);
       var flat = new BABYLON.Vector3(Math.sin(playerYaw), 0, Math.cos(playerYaw)),
@@ -1291,6 +1315,11 @@
           }
           if (key === 'v') {
             if (!event.repeat) leavePlayer('V key');
+            event.preventDefault();
+            return;
+          }
+          if (key === 'b') {
+            if (!event.repeat) cyclePlayerFireMode();
             event.preventDefault();
             return;
           }
