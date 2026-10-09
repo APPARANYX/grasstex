@@ -168,7 +168,12 @@ assert.equal(a.stats().mutations, 0, 'causal planner observer must never evaluat
 const nearDeath = fixture('?probeIds=76', 'executing');
 nearDeath.sim.time = 2;
 nearDeath.root.BattleCausalInaction.coverDecision(
-  nearDeath.soldier, nearDeath.sim, 'firing-lane', 'selected', {}, { x: 12, z: 0 }
+  nearDeath.soldier,
+  nearDeath.sim,
+  'firing-lane',
+  'selected',
+  {},
+  { x: 12, z: 0 }
 );
 nearDeath.soldier.root.position.x = 11.79;
 nearDeath.soldier.dead = true; // only the fixture's soldier changes; the probe remains read-only
@@ -184,7 +189,12 @@ assert.equal(nearDeath.stats().mutations, 0);
 const farDeath = fixture('?probeIds=76', 'executing');
 farDeath.sim.time = 2;
 farDeath.root.BattleCausalInaction.coverDecision(
-  farDeath.soldier, farDeath.sim, 'firing-lane', 'selected', {}, { x: 12, z: 0 }
+  farDeath.soldier,
+  farDeath.sim,
+  'firing-lane',
+  'selected',
+  {},
+  { x: 12, z: 0 }
 );
 farDeath.soldier.root.position.x = 5;
 farDeath.soldier.dead = true;
