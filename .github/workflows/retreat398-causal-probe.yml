@@ -1,0 +1,18 @@
+name: Temporary PR398 causal reconstitution probe
+on:
+  push:
+    branches:
+      - work/retreat398-targeted-census-repro
+permissions:
+  contents: read
+jobs:
+  causal-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compare original-authority paths on real reconstitution runtime
+        run: node tools/ai-sim-harness/reconstitution-check.js
