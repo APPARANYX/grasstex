@@ -61,9 +61,13 @@ function fixture(search) {
     randoms++;
     throw Error('RNG touched');
   };
-  vm.runInNewContext(source, { window: root, URLSearchParams, Math: math, Map }, {
-    filename: 'gunner-trace.cjs'
-  });
+  vm.runInNewContext(
+    source,
+    { window: root, URLSearchParams, Math: math, Map },
+    {
+      filename: 'gunner-trace.cjs'
+    }
+  );
   const probe = root.BattleProbes['gunner-trace'];
   assert.ok(probe, 'probe registered');
   const sim = {
