@@ -116,7 +116,14 @@ function hiddenContact(ctx, opts) {
 }
 
 test('grenades are on by default and only an absent or complete grenades=1 value keeps them on', () => {
-  for (const search of ['?grenades=0', '?grenades=10', '?grenades=1.0', '?grenades=1-extra', '?grenades=off', '?grenades=']) {
+  for (const search of [
+    '?grenades=0',
+    '?grenades=10',
+    '?grenades=1.0',
+    '?grenades=1-extra',
+    '?grenades=off',
+    '?grenades='
+  ]) {
     const { G } = setup({ search: search + '&log=0' });
     assert.equal(G.on(), false, search);
   }
