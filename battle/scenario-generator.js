@@ -334,6 +334,24 @@
     );
   }
 
+  /* Old builds copied automatically generated live-* seeds into the address bar.
+     Loading that legacy URL must not silently pin every subsequent refresh.
+     Explicit named seeds, and live-* seeds with ?pinSeed=1, still replay exactly. */
+  function initialLoadSeed(search, serverSeed, generateSeed) {
+    var params = new URLSearchParams(search || ''),
+      urlSeed = params.get('seed') || '',
+      supplied = urlSeed || String(serverSeed || ''),
+      autoUrlSeed =
+        /^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) &&
+        params.get('pinSeed') !== '1',
+      requested = autoUrlSeed ? '' : supplied;
+    return {
+      seed: requested || (generateSeed || newSeed)('live'),
+      requested: requested,
+      removeAutoSeed: autoUrlSeed
+    };
+  }
+
   root.BattleScenarioGenerator = {
     MAP_W: MAP_W,
     MAP_D: MAP_D,
@@ -345,6 +363,7 @@
     setActive: setActive,
     current: current,
     newSeed: newSeed,
+    initialLoadSeed: initialLoadSeed,
     fingerprint: fingerprint,
     similarity: similarity
   };
