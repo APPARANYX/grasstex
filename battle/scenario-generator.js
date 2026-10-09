@@ -341,9 +341,7 @@
     var params = new URLSearchParams(search || ''),
       urlSeed = params.get('seed') || '',
       supplied = urlSeed || String(serverSeed || ''),
-      autoUrlSeed =
-        /^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) &&
-        params.get('pinSeed') !== '1',
+      autoUrlSeed = /^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) && params.get('pinSeed') !== '1',
       requested = autoUrlSeed ? '' : supplied;
     return {
       seed: requested || (generateSeed || newSeed)('live'),
