@@ -36,6 +36,7 @@ jobs:
       PARITY_SCENARIO: ${{ matrix.scenario }}
       PARITY_SEED: ${{ github.event.inputs.seed || 'timescale-parity' }}
       PARITY_SECONDS: ${{ github.event.inputs.seconds || '600' }}
+      PARITY_CASES: 1x@20,1x@120,4x@30,4x@60,8x@20,8x@120
       PARITY_OUT: reports/timescale-parity/${{ matrix.scenario }}.json
     steps:
       - uses: actions/checkout@v4
@@ -63,7 +64,7 @@ jobs:
           done
           cat /tmp/battle-php.log
           exit 1
-      - name: Replay real battle through 12 timescale/FPS combinations
+      - name: Replay isolated 600s battles across representative speed/FPS combinations
         run: node scripts/run_timescale_parity_benchmark.cjs
       - name: Save seed-level fingerprints
         if: always()
