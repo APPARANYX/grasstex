@@ -1,0 +1,28 @@
+name: Temporary causal cover Prettier
+on:
+  push:
+    branches:
+      - work/causal-cover-format
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply repository pinned Prettier to cover causal evidence
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write scripts/probes/causal-inaction.cjs scripts/run_causal_inaction_benchmark.cjs tools/ai-sim-harness/causal-inaction-check.js battle/modules/19-engagement-cover-positions.js
+          git config user.name 'grasstex-ci[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/probes/causal-inaction.cjs scripts/run_causal_inaction_benchmark.cjs tools/ai-sim-harness/causal-inaction-check.js battle/modules/19-engagement-cover-positions.js
+          if ! git diff --cached --quiet; then
+            git commit -m "Format causal planner evidence source with pinned Prettier"
+            git push origin HEAD:refs/heads/work/causal-cover-format
+          fi
