@@ -44,6 +44,10 @@ const BATTLES = (process.env.PROBE_BATTLES ||
 const SECONDS = Math.max(5, +process.env.PROBE_SECONDS || 600);
 const STEP = Math.max(.05, Math.min(.3, +process.env.PROBE_STEP || .15));
 const URL = process.env.PROBE_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
+/* A separate, explicit INITIAL CONDITION fixture, applied equally to both
+   probe and probe-free control. It is not a read-only probe. */
+const FIXTURE = process.env.PROBE_FIXTURE || '';
+if (FIXTURE && !/^[a-z0-9-]+$/.test(FIXTURE)) throw Error('Invalid PROBE_FIXTURE');
 const DEFENDER = { meeting: '', 'us-defend': 'us', 'ge-defend': 'ge' };
 
 async function battle(browser, { type, seed }, probes) {
@@ -76,6 +80,7 @@ async function battle(browser, { type, seed }, probes) {
     } catch (e) { if (attempt >= 3) throw e; console.error(`${type} ${seed}: retrying load after ${String(e.message).split('\n')[0]}`); }
   }
   // The read-only snapshot helper is also present in the probe-free control arm.
+  if (FIXTURE) await page.addScriptTag({ path: path.join(__dirname, 'scenarios', FIXTURE + '.js') });
   for (const name of new Set(['state-fingerprint', ...probes])) {
     const base = path.join(__dirname, 'probes', name);
     const file = fs.existsSync(base + '.js') ? base + '.js' : base + '.cjs';
@@ -100,6 +105,7 @@ async function battle(browser, { type, seed }, probes) {
       if (p.start) p.start(sim);
       return { n, p, next: 0 };
     });
+    const fixtureInfo = root.BattleProbeScenario ? root.BattleProbeScenario(sim, { names }) : null;
     const tick = +root.BattleCommanderAI.commandTick || .45, wall = performance.now();
     let acc = 0, steps = 0;
     while (!sim.winner && sim.time < SECONDS + .5 && steps < Math.ceil((SECONDS + 2) / STEP)) {
@@ -115,7 +121,7 @@ async function battle(browser, { type, seed }, probes) {
     for (const q of probes) reports[q.n] = q.p.report ? q.p.report(sim) : null;
     return {
       simSeconds: +(+sim.time).toFixed(2), wallSeconds: +((performance.now() - wall) / 1000).toFixed(1), steps,
-      winner: sim.winner || null, fingerprint, reports
+      winner: sim.winner || null, fingerprint, reports, fixture: fixtureInfo
     };
   }, { names: probes, STEP, SECONDS });
   result._endState = JSON.parse(result.fingerprint);
@@ -129,7 +135,7 @@ async function battle(browser, { type, seed }, probes) {
     fs.readdirSync(path.join(__dirname, 'probes')).filter(f => f.endsWith('.js')).map(f => f.slice(0, -3)).join(', '));
   const browser = await chromium.launch({ headless: true, executablePath: process.env.PROBE_BROWSER || undefined,
     args: ['--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--ignore-certificate-errors'] });
-  const out = { probes: NAMES, step: STEP, seconds: SECONDS, url: URL, battles: [] };
+  const out = { probes: NAMES, fixture: FIXTURE || null, step: STEP, seconds: SECONDS, url: URL, battles: [] };
   try {
     for (const b of BATTLES) {
       const r = await battle(browser, b, NAMES);
