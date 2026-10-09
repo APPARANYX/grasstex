@@ -240,7 +240,7 @@ for (const lane of summary.coverLaneOutcomes) {
     md.push('    - t=' + point.t + ', pos=' + JSON.stringify(point.pos) +
       ', dest=' + JSON.stringify(point.dest) + ', engagement=' + point.state +
       ', phase=' + point.squadPhase + ', stop=' + point.stop +
-      ', owner=' + (point.resolver?.owner || 'none') + ', hp=' + point.hp + ', target=' + point.target + ', los=' + point.visibleNow + ', ready=' + point.readyAt + ', stance=' + point.stance);
+      ', owner=' + (point.resolver?.owner || 'none') + ', hp=' + point.hp + ', target=' + point.target + ', los=' + point.visibleNow + ', ready=' + point.readyAt + ', stance=' + point.stance + ', authorized=' + point.authorizedNow + ', reload=' + point.reloading + ', cooldown=' + point.cooldown + ', denied=' + JSON.stringify(point.recentDenied));
 }
 if (summary.coverDecisionsOmitted)
   md.push(
