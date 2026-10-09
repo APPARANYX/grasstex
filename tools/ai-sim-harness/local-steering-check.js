@@ -14,7 +14,7 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 const src = fs.readFileSync(path.join(H.REPO, 'battle/battle-sim.js'), 'utf8'),
-  body = src.slice(src.indexOf('  var AVOID_LOOKAHEAD='), src.indexOf('  function stepMovement('));
+  body = src.slice(src.search(/\bvar AVOID_LOOKAHEAD\s*=/), src.indexOf('  function stepMovement('));
 assert.ok(body.includes('function steerAroundObstacles('), 'steering source found');
 const steer = new Function('root', body + ';return steerAroundObstacles;')({});
 let n = 0;
