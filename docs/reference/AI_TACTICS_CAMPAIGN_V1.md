@@ -182,6 +182,45 @@ When the Squad Leader is unavailable (dead, fled, succession gap):
 
 **Validation:** harness check that leaderless squads hold position and don't invent tasks. Benchmark: INERT (degradation only).
 
+## Proposed Phase C extension — deliberate ambush posture and covered fire-and-maneuver (NOT IMPLEMENTED)
+
+**Status: proposed follow-up to C1/C2, outside the 28 sub-phases already completed on this branch.** Track and validate this as a new tactical increment under PR #299; do not silently count it as implemented or enable the existing isolated hedge-peek experiment by default.
+
+**Purpose:** A hedgerow is both concealment and an obstruction. Sending one defender to a mathematically legal firing point at the exposed hedge end can be suicidal. The Squad Leader must choose an intentional *squad tactic*, rather than having isolated soldiers continuously reselect cover. Two mutually exclusive modes share a single local tactical owner:
+
+### C-extension 1 — Pre-contact masked firing-line / ambush preparation (option B)
+
+- Trigger only when the squad has not been detected or engaged by the enemy and has actionable local intelligence or a designated fire sector. A stale, merely *told* enemy position is not omniscient targeting.
+- Reconnoiter and quietly occupy **masked, terrain-aware firing positions** behind a ridge crest, fold, wall, hedgerow, or other cover. Select positions whose standing/crouched/prone firing envelope can expose the weapon briefly without presenting the entire squad in the open. Assess physical navigation, cover protection, silhouette/exposure, firing-lane LOS, and retreat routes; do not pick a firing lane solely because it is visible from an exposed hedge end.
+- Establish squad/fireteam sectors, security, and an optional synchronized opening-fire trigger. **Do not prematurely engage** just because an enemy is in nominal range when the designated ambush is still being prepared, unless immediate self-defense is necessary.
+- On the first deliberate volley, enter an **engaged firing-line hold lease**. Keep firing from chosen positions rather than immediately invoking ordinary cover-seeking or lateral bounding. A configurable minimum dwell period prevents instant posture oscillation; high-confidence critical danger can interrupt immediately.
+- Break that lease into option A **only once a measured pressure threshold is crossed** or a higher-authority retreat/casualty survival override occurs. A pressure model may combine incoming accurate fire, suppression, casualties, flank compromise, blown cover, and loss of effective LOS; it must use observed evidence, not enemy omniscience. Use hysteresis (separate enter/exit thresholds) and a post-switch cooldown so A/B cannot thrash. Initial thresholds/dwell are provisional, tuned in Phase F with causal comparisons.
+
+### C-extension 2 — In-contact fire-and-maneuver (option A)
+
+- Trigger when a squad is already engaged under substantial pressure, or option B's firing line becomes unsafe/nonfunctional. **Do not trigger A merely because a pre-contact squad opens an ambush volley.**
+- Organize complementary fireteam roles: a supported base-of-fire suppresses or covers known threat sectors while another team makes a **short, fast bound from covered position to covered position**. Alternate only after the receiving team is actually in a usable covered firing station; never infer safety from accepted movement orders or “arrived” flags alone.
+- Evaluate a *whole route*, not just an endpoint: terrain grade, passable navigation, protection along intervening segments, exposure duration, enemy observation/aim state, realistic stand/kneel/prone muzzle clearance, cohesion and reserve stamina. Avoid running out around an exposed hedge tip just to obtain one clear ray.
+- If no covered route/overwatch is available, choose suppress/hold/withdraw/re-task through existing authority rather than forcing a suicidal lateral sprint. An isolated soldier must not invent independent squad-wide tactics.
+- Retain genuine suppression, casualty extraction, retreat, squad regroup/reconstitution, and leaderless safety overrides. No direct teleporting, no duplicate movement writer, no new General authority.
+
+### C-extension 3 — Posture arbiter, mission ownership and anti-oscillation
+
+- One Squad Leader-owned, versioned tactical posture lease, e.g. `prepare-ambush → firing-line-hold` **or** `covered-fire-and-maneuver`, attached to the current macro mission. Mode exclusivity is enforced explicitly; old leases expire on mission version change, invalid actors, loss of leader, withdrawal, or valid emergency override.
+- Existing Engagement reports firing-line feasibility and threat/exposure pressure; existing Movement Resolver alone chooses the physical movement writer; tactical planner proposes team roles and safe cover-to-cover leg goals. The planner must respect per-soldier role, no-regroup respawn exceptions, and standing cover leases.
+- Posture transitions record who ordered them, why the threshold was met, the prior/next lease, and suppression/contact evidence. Add bounded causal records for rejected firing-lane candidates and unsafe approach legs, chosen route, actual position pulses, **living arrival**, subsequent shots, casualties and observed death before arrival. Instrumentation is read-only; do not claim an arbitrary movement denial caused an entire stall interval.
+- Keep old `?coverPeek=1` from draft [#420](https://github.com/APPARANYX/grasstex/pull/420) **experimental and default OFF**; treat its successful isolated 12-case LOS tests and the lethal full-browser hedge-flank case as reproducible baseline/negative-control evidence. Do not merge its uncoordinated exposed-end bound as the final tactical solution.
+
+### Proposed Phase F acceptance / rollout (not part of completed F1–F3)
+
+1. A **concealed crest/hedge ambush**: pre-contact positions chosen while hidden; coordinated first volley; firing-line remains steady until pressure actually crosses the threshold. Negative control: mild contact and a first shot alone must **not** trigger A.
+2. A **pressured hedgerow attack**: covered fireteam bounds with suppressing partner, realistic intervening cover and route cost; measure actual displacement, active muzzle LOS, shots/hits and survival. Negative control: exposed end-of-hedge lane causing the defender to be killed without firing must not be selected as the preferred move.
+3. Pressure rise/fall, enemy unseen, no available protected route, forced retreat, suppression, leader death, and mission reassignment: prove deterministic A/B exclusivity, emergency overrides, anti-thrash thresholds, and correct writer/lease ownership.
+4. Paired identical-seed **causal benchmark with observer-free controls**, plus meeting/US-defend/GE-defend field comparisons that actually trigger each mode. Report posture adoption vs real movement/firing, exposure time, casualties, kills, suppression, objective progress, route stalls, and performance. A randomized benchmark with zero relevant triggers is **INERT**, not evidence of efficacy.
+5. Ship behind a **new candidate default-OFF flag** (name chosen during implementation), initially as a small independent PR series. Promote/merge behavioral modes only after demonstrated tactical benefit without unacceptable casualties and no role/lease regressions.
+
+**Evidence and dependency:** [#418](https://github.com/APPARANYX/grasstex/issues/418), experimental [#420](https://github.com/APPARANYX/grasstex/pull/420), merged causal gate instrumentation [#425](https://github.com/APPARANYX/grasstex/pull/425), and observed full-battle lethal hedge exposure from the #420 causal replay. This belongs to the **Squad Leader tactics / Phase C** roadmap, not as a blind single-soldier Engagement hotfix.
+
 ---
 
 ## Phase D — Streets and structures
