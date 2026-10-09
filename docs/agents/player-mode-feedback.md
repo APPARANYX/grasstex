@@ -44,19 +44,23 @@ casualties, wounds, shooting, and AI orders remain with their existing owners.
   actually struck an enemy soldier**. It does not activate for shots fired into
   cover, empty magazines, misses, or friendly/noncombat contact. Multiple hits in
   the same burst aggregate; selection resets the marker to the new soldier's hits.
-- A **separate 6 px floating dot** projects the soldier's bore-line first contact
+- A **separate 4 px hollow bore ring** projects the soldier's bore-line first contact
   onto the actual camera screen using `BattleBallistics.previewPlayerRay`.
   The preview shares the simulated muzzle, enemy body ellipsoids, terrain and
   physical-cover blockers with real rounds. It is sampled at most every 90 ms,
   and **never consumes combat RNG, damages soldiers, or emits shot events**.
   The preview deliberately excludes random dispersion: actual rounds still scatter.
-  For 160 ms after an accepted shot, the dot instead shows the fired round's
+  The ring position eases in screen space (80 ms exponential response, with frame
+  deltas capped at 50 ms) rather than snapping on low-FPS frames. A newly visible
+  point initializes at the correct position; leaving player mode or switching
+  soldiers clears the old smoothed position. For 160 ms after an accepted shot,
+  the ring instead shows the fired round's
   **recorded ballistic impact**, then returns to the stable bore preview.
   No target lock, target selection or automatic aim correction is introduced.
   The two indicators intentionally need not overlap, especially next to walls or
   when the muzzle is low in crouch/prone. That discrepancy is useful feedback,
   not a command to bend the bullet toward the camera center.
-- Holding **RMB/LT to aim** now applies a **0.36 sensitivity multiplier** to
+- Holding **RMB/LT to aim** now applies a **0.18 sensitivity multiplier** to
   both mouse X/Y and right-stick X/Y, while unzoomed looking remains unchanged.
   This scales look motion only, not weapon dispersion, ballistic accuracy or
   AI movement.
