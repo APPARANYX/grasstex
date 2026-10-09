@@ -29,8 +29,8 @@
        z=baseZ+Math.floor(i/3)*3.2*(baseZ<0?-1:1);
      s.root.position.set(x,sim.heightAt(x,z),z);
      s.root.rotation.y=baseZ<0?0:Math.PI;
-     s.destination=null;
-     s.orderDestination=null;
+     s.destination={x:x,z:z};
+     s.orderDestination={x:x,z:z};
    }
   }
   arrange(us,-8);
@@ -39,6 +39,8 @@
   /* First defender occupies the true blind middle of the hedge. */
   defender.root.position.set(center.x,sim.heightAt(center.x,-2.3),-2.3);
   shooter.root.position.set(center.x,sim.heightAt(center.x,29),29);
+  defender.destination={x:center.x,z:-2.3}; defender.orderDestination={x:center.x,z:-2.3};
+  shooter.destination={x:center.x,z:29}; shooter.orderDestination={x:center.x,z:29};
   us.commandPhase='defend'; us.state='defend'; us.inContact=true;
   ge.commandPhase='defend'; ge.state='defend'; ge.inContact=true;
   defender.target=shooter;
