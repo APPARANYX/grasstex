@@ -143,6 +143,7 @@ test('OFF has no registered grenade clock, field writes or RNG draws, including 
   G.count(s);
   G.cooldownLeft(s, b);
   G.pendingOf(s, b);
+  assert.equal(G.reviewDue(s, b), false);
   G.preview(s, b, { x: 20, z: 0 });
   G.projectiles(b);
   G.summary(b);
@@ -314,6 +315,44 @@ test('Engagement can throw at a remembered enemy after cover removes its live ta
   assert.equal(s.target, null);
   assert.equal(r.BattleEngagement.stateOf(s).state, 'throw');
   assert.deepEqual(G.pendingOf(s, b).aim, { x: 20, z: 0 });
+});
+
+test('an alert with no actionable grenade preserves the existing Engagement cover-review clock', () => {
+  const ctx = setup();
+  const { G, r, s, b } = ctx;
+  const E = r.BattleEngagement;
+  s.squad.inContact = true;
+  E.requestState(s, b, 'shared-contact', 10);
+  const e = E.stateOf(s);
+  const coverReviewAt = b.time - 2;
+  e.reviewAt = coverReviewAt;
+  E.updateSoldier(s, b);
+  assert.equal(G.pendingOf(s, b), null, 'the alert has no known grenade target');
+  assert.equal(e.reviewAt, coverReviewAt, 'a failed grenade decision cannot reschedule cover review');
+  b.time += G.TUNING.DECISION_EVERY;
+  E.updateSoldier(s, b);
+  assert.equal(e.reviewAt, coverReviewAt, 'later grenade reviews still leave that clock alone');
+  assert.equal(G.summary(b).throws, 0);
+});
+
+test('grenade review cadence is per soldier, resets with the battle, and never writes Engagement state', () => {
+  const ctx = setup();
+  const { G, r, s, b } = ctx;
+  const e = r.BattleEngagement.stateOf(s);
+  e.reviewAt = 37;
+  const before = JSON.stringify(e);
+  assert.equal(G.reviewDue(s, b), true);
+  assert.equal(G.reviewDue(s, b), false, 'a repeated same-tick review is not due');
+  b.time += G.TUNING.DECISION_EVERY - 0.01;
+  assert.equal(G.reviewDue(s, b), false);
+  b.time += 0.01;
+  assert.equal(G.reviewDue(s, b), true, 'the next review becomes due at its own cadence');
+  const other = man(ctx, 'us', -100, 0);
+  assert.equal(G.reviewDue(other, b), true, 'one soldier cannot delay another soldier review');
+  assert.equal(G.reviewDue(s, b), false);
+  r.BattleModules.runHook('onBattleRestart', b, {});
+  assert.equal(G.reviewDue(s, b), true, 'restart discards the prior review cadence');
+  assert.equal(JSON.stringify(e), before, 'cadence and reset never mutate the Engagement record');
 });
 
 test('a bound without cover cannot bypass HOLD FIRE, and OPEN FIRE permits the same throw', () => {

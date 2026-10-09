@@ -1428,8 +1428,7 @@
     var e = state(s);
     /* Cover often removes the live target. A fresh personal report is still a grenade decision,
        without turning every remembered contact into a rifle engagement. */
-    if (root.BattleGrenades && root.BattleGrenades.on() && battle.time >= e.reviewAt) {
-      e.reviewAt = battle.time + root.BattleGrenades.TUNING.DECISION_EVERY;
+    if (root.BattleGrenades && root.BattleGrenades.on() && root.BattleGrenades.reviewDue(s, battle)) {
       decide(s, battle, 'remembered contact', true);
       if (root.BattleGrenades.pendingOf(s, battle)) return;
     }

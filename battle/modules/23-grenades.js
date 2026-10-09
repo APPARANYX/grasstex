@@ -77,6 +77,7 @@
       battle._grenades = {
         rng: root.BattleScenarioGenerator.rngFor(seedOf(battle), 'grenades'),
         pending: [],
+        reviewAt: new WeakMap(),
         live: [],
         seq: 0,
         stats: freshStats()
@@ -271,6 +272,13 @@
     var path = preview(s, battle, aim);
     return path && path.legal ? commit(s, battle, aim, 'contact') : null;
   }
+  function reviewDue(s, battle) {
+    if (!ON || !s || !battle) return false;
+    var times = state(battle).reviewAt;
+    if (battle.time < (times.get(s) || 0)) return false;
+    times.set(s, battle.time + TUNING.DECISION_EVERY);
+    return true;
+  }
   function freezeFlight(g) {
     Object.freeze(g.from);
     Object.freeze(g.to);
@@ -422,6 +430,7 @@
     projectiles: projectiles,
     playerThrow: playerThrow,
     consider: consider,
+    reviewDue: reviewDue,
     preview: preview,
     position: position,
     summary: summary
