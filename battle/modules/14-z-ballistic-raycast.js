@@ -789,19 +789,28 @@
     var origin = muzzleOrigin(shooter, target, battle),
       body = bodyShape(target, battle),
       st = stance(target),
-      offsets = st === 'prone'
-        ? [{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0.55 }]
-        : [{ x: 0, y: 0, z: 0 }, { x: 0, y: 0.72, z: 0 }, { x: 0, y: 0.9, z: 0 }];
+      offsets =
+        st === 'prone'
+          ? [
+              { x: 0, y: 0, z: 0 },
+              { x: 0, y: 0, z: 0.55 }
+            ]
+          : [
+              { x: 0, y: 0, z: 0 },
+              { x: 0, y: 0.72, z: 0 },
+              { x: 0, y: 0.9, z: 0 }
+            ];
     for (var i = 0; i < offsets.length; i++) {
       var q = offsets[i],
         yaw = body.yaw || 0,
-        aim = { x: body.cx + Math.sin(yaw) * q.z * body.rz + q.x * body.rx,
+        aim = {
+          x: body.cx + Math.sin(yaw) * q.z * body.rz + q.x * body.rx,
           y: body.cy + q.y * body.ry,
-          z: body.cz + Math.cos(yaw) * q.z * body.rz },
+          z: body.cz + Math.cos(yaw) * q.z * body.rz
+        },
         span = Math.hypot(aim.x - origin.x, aim.y - origin.y, aim.z - origin.z);
       if (!(span > EPS)) continue;
-      var d = { x: (aim.x - origin.x) / span, y: (aim.y - origin.y) / span,
-        z: (aim.z - origin.z) / span },
+      var d = { x: (aim.x - origin.x) / span, y: (aim.y - origin.y) / span, z: (aim.z - origin.z) / span },
         entry = rayEllipsoid(origin, d, body, false);
       if (entry == null || entry > span + EPS) continue;
       /* Evaluate obstruction before the front surface of the target, not the

@@ -45,8 +45,22 @@ function setup(heightAt) {
   const b = H.makeBattle(r, { seed: 7, heightAt });
   const shots = [];
   b.onShot = (shooter, target, hit, d, meta) => shots.push(meta);
-  const us = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 }, facing: 0 });
-  const ge = H.addSquad(r, b, { id: 'ge-0', faction: 'ge', x: 0, z: RANGE, objective: { x: 0, z: -100 }, facing: Math.PI });
+  const us = H.addSquad(r, b, {
+    id: 'us-0',
+    faction: 'us',
+    x: 0,
+    z: 0,
+    objective: { x: 0, z: 100 },
+    facing: 0
+  });
+  const ge = H.addSquad(r, b, {
+    id: 'ge-0',
+    faction: 'ge',
+    x: 0,
+    z: RANGE,
+    objective: { x: 0, z: -100 },
+    facing: Math.PI
+  });
   const shooter = us.members.find(s => s.role === 'rifleman'),
     target = ge.members.find(s => s.role === 'rifleman');
   for (const s of [shooter, target]) {
@@ -102,15 +116,20 @@ test('a narrow crest between sight samples still stops the trigger', () => {
   assert.equal(ctx.shots.length, 0);
 });
 
-
 test('suppressive fire uses the same terrain crest gate', () => {
   const blocked = setup(ridge(RANGE / 2, 1.8, 4, 20));
-  assert.equal(blocked.S.canSuppress(blocked.shooter, { x: 0, z: RANGE }, blocked.b), false,
-    'remembered contact behind the crest cannot receive suppressive fire');
+  assert.equal(
+    blocked.S.canSuppress(blocked.shooter, { x: 0, z: RANGE }, blocked.b),
+    false,
+    'remembered contact behind the crest cannot receive suppressive fire'
+  );
   assert.ok(blocked.shooter._terrainBlockedSuppressiveFire > 0, 'terrain refusal is counted for diagnostics');
   const clear = setup(ridge(RANGE / 2, 0.9, 4, 20));
-  assert.equal(clear.S.canSuppress(clear.shooter, { x: 0, z: RANGE }, clear.b), true,
-    'a low crest that clears the suppression line still permits fire');
+  assert.equal(
+    clear.S.canSuppress(clear.shooter, { x: 0, z: RANGE }, clear.b),
+    true,
+    'a low crest that clears the suppression line still permits fire'
+  );
 });
 
 test('no combat-RNG draws from the gate itself', () => {
