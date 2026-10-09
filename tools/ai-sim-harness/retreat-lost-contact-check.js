@@ -107,7 +107,7 @@ function breakContact(w) {
 }
 
 {
-  const w = world('?retreatLostContact=1');
+  const w = world('');
   const { s, old } = breakContact(w);
   for (let i = 0; i < 30; i++) {
     // Real integrator makes the local arrival/movement observation, not a fake stop label.
@@ -136,10 +136,10 @@ function breakContact(w) {
   );
   assert.ok(s._survivalMovementKey, 'fallback is explicit local survival state, not a received command');
   assert.ok(distance(old, s.orderDestination) > 100, 'not simply another nearby formation slot');
-  console.log('PASS disconnected five-man retreat resumes toward already-known base');
+  console.log('PASS default-on disconnected retreat resumes toward already-known base');
 }
 {
-  const w = world('');
+  const w = world('?retreatLostContact=0');
   const { s, old } = breakContact(w);
   for (let i = 0; i < 30; i++) {
     H.stepMovement(w.b, s, 0.15);
@@ -147,8 +147,8 @@ function breakContact(w) {
   }
   assert.ok(
     distance(s.orderDestination, old) < 1,
-    'default-OFF arm preserves old behavior for paired testing'
+    'explicit flag-OFF arm preserves old behavior for paired testing'
   );
-  console.log('PASS flag-OFF arm preserves legacy reception boundary');
+  console.log('PASS rollback flag preserves legacy reception boundary');
 }
 console.log('retreat-lost-contact-check: 2 checks passed');
