@@ -9,6 +9,7 @@ const vm = require('node:vm');
 const systems = {};
 const root = {
   console: { log() {}, warn() {}, error() {} },
+  GTLog() {},
   location: { search: '' },
   GTMath: {
     clamp(value, low, high) {
