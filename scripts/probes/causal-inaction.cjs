@@ -463,6 +463,12 @@
             state: s.eng && s.eng.state || null,
             squadPhase: s.squad && s.squad.commandPhase || null,
             alive: !s.dead, hp: +s.hp || 0,
+            target: s.target ? String(s.target.id) : null,
+            targetDead: s.target ? !!s.target.dead : null,
+            visibleNow: !s.dead && s.target && !s.target.dead &&
+              root.SquadAI.hasLineOfSight(s,s.target,sim.heightAt,sim.obstacles),
+            readyAt: s.eng && s.eng.fireReadyAt || null,
+            stance: s.eng && s.eng.stance || null,
             currentCover: s.eng && s.eng.cover && { x: round(s.eng.cover.x), z: round(s.eng.cover.z), type:s.eng.cover.type } || null,
             stop: s._movementStopReason || null,
             resolver: resolver ? {owner: resolver.owner||null,kind:resolver.kind||null,reason:resolver.reason||null} : null
