@@ -30,3 +30,22 @@ Use the existing benchmark workflow, not a replacement benchmark implementation.
 4. Delete/reset the temporary branch after dispatch and confirmation; never merge dispatcher code into `main`. If no dispatcher run starts, diagnose the trigger and use an authorized alternative rather than claiming the benchmark ran.
 
 The normal benchmark remains `.github/workflows/battle-benchmark-standard.yml`; this temporary workflow is only a remote trigger for connectors that cannot dispatch it directly.
+
+
+### Permanent agent benchmark launcher (preferred over temporary dispatch workflows)
+
+The canonical [⭐ Agent Benchmark Launcher](../../.github/workflows/agent-benchmark-launcher.yml) accepts a JSON request placed at `.github/benchmark-request.json` on a **new branch matching** `work/benchmark-launch/**`. Use GitHub create-branch (from main or the desired source) and create-file on that branch. Its push triggers the launcher, which invokes an **existing** workflow through authenticated `gh workflow run`. The launcher does not run any benchmark directly and does not change gameplay. Do not merge launch branches.
+
+Request examples (JSON file content):
+
+```json
+{"benchmark":"standard","seed":"live-mv0z6zy9-4lhnw","seeds":"1","battle_type":"meeting","query_off":"","query_on":"","origin_agent":"chatgpt","correlation_id":"issue-431"}
+```
+
+```json
+{"benchmark":"causal","exact_seed":"live-mv0z6zy9-4lhnw","seconds":"660","side":"ge","ids":"62,63,67","squads":"ge-1"}
+```
+
+Other selectors: `targeted-fire` (seeds, seconds, side, role, ids, squads), `timescale` (seed, seconds), `matrix-smoke` (no inputs), and `matrix-full` (seed, battles_per_worker, worker_minutes_cutoff). **Full matrix** always runs on main and requires `"confirm_full_matrix": true` to avoid accidental 300-battle workloads. Every request may specify `"ref": "main"` (default) or an approved feature branch, except full matrix. Standard also accepts `query_off`, `query_on`, `windows`, `purpose`; causal accepts `query`, `seeds`, `role`. An exact causal seed executes once **per each of three scenarios**; review meeting/us-defend/ge-defend separately.
+
+After launching, inspect the **launcher** Actions run for successful dispatch, then locate the **child workflow** named in the request and verify its source ref, inputs, conclusion and artifact evidence. Launcher success does not mean benchmark success. For another request, use a fresh unique launch branch (do not rewrite/merge the previous branch). The manual Actions `workflow_dispatch` buttons remain usable. This permanent mechanism supersedes the temporary per-topic workflow workaround described earlier in this document.
