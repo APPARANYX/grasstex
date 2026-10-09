@@ -60,6 +60,36 @@
       orderGoal: point(sq._orderGoal),
       retreatTarget: point(root.SquadAI && root.SquadAI.retreatGoal && root.SquadAI.retreatGoal(sq)),
       squadVersion: sq._orderVersion,
+      retreatLease: (function () {
+        var L = root.BattleLeases && root.BattleLeases.get && root.BattleLeases.get(sq, 'retreat-anchor');
+        return L && L.data ? {
+          reason: L.data.reason,
+          goal: point(L.data.goal),
+          anchor: point(L.data.anchor),
+          bestDistance: round(L.data.bestDistance),
+          lastProgressAt: round(L.data.lastProgressAt)
+        } : null;
+      })(),
+      moraleRally: point(sq._moraleRallyPoint),
+      assembly: sq._assembly ? { phase: sq._assembly.phase, missionVersion: sq._assembly.missionVersion } : null,
+      fireteamKey: unit._fireteamKey || null,
+      fireteamPublishKey: unit._fireteamPublishKey || null,
+      adoptedEnvelope: unit._fireteamAdoptedEnvelope || null,
+      fireteamOrders: Object.keys(sq._fireteamOrders || {}).reduce(function (a, key) {
+        var v = sq._fireteamOrders[key];
+        a[key] = v && { anchor: point(v.anchor), origin: point(v.origin), signature: v.signature, until: round(v.until) };
+        return a;
+      }, {}),
+      commandRecord: (function () {
+        var C = root.BattleCommandReception;
+        var r = C && C.peek && C.peek(unit, sim, 'movement', 'soldier:' + String(unit.id));
+        return r && {
+          envelopeId: r.envelopeId, phase: r.phase, point: point(r.point),
+          issuedAt: round(r.issuedAt), adoptedAt: round(r.adoptedAt),
+          unreachable: r.unreachable, sourceId: r.sourceId, channel: r.channel,
+          publishKey: r.data && r.data.publishKey
+        };
+      })(),
       actor: unit.id,
       dead: !!unit.dead,
       here: here,
