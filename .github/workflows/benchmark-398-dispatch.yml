@@ -1,0 +1,32 @@
+name: Temporary PR 398 paired benchmarks
+on:
+  push:
+    branches:
+      - work/benchmark-398-dispatch
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run existing standard benchmark in three battle modes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for mode in meeting us-defend ge-defend; do
+            gh workflow run battle-benchmark-standard.yml \
+              --repo APPARANYX/grasstex \
+              --ref claude/retreat-anchor-slot \
+              -f seed=retreat398p \
+              -f seeds=60 \
+              -f query_off=retreatArrival=0 \
+              -f query_on='' \
+              -f battle_type="$mode" \
+              -f windows=contact+600 \
+              -f origin_agent=chatgpt \
+              -f correlation_id="pr398-${mode}-synced" \
+              -f purpose="Retreat arrival PR398 current-main paired acceptance"
+            echo "Dispatched $mode"
+          done
