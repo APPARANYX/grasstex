@@ -458,6 +458,67 @@
       dist(path[path.length - 1].x, path[path.length - 1].z, to.x, to.z) <= 0.35
     );
   }
+  /* The rear side of tall bocage is safe but blind. If no protective firing cover
+     has a line, use an end-face *stand slot* around the obstacle as a short lateral
+     firing-lane bound. It is an ordinary Engagement cover-bound proposal: Movement
+     Resolver/navigation still own the actual route, and the slot is reserved as
+     existing cover slots are. Do not pick through a hedge or move farther than a
+     normal cover bound. */
+  function findFiringLane(s, battle, opts) {
+    opts = opts || {};
+    var F = field(),
+      t = s.target;
+    if (!F || !t || !t.root) return null;
+    var p = posOf(s),
+      maxRange = opts.maxRange || COVER_RANGE,
+      nearby = F.nearby(battle.obstacles, p.x, p.z, maxRange),
+      c = coverRegistry(battle),
+      best = null,
+      bestScore = -Infinity,
+      seen = new Set(),
+      leads = SA().isLeader(s);
+    for (var i = 0; i < nearby.length; i++) {
+      var slots = coverSlots(c, nearby[i]);
+      if (!slots.length || seen.has(slots)) continue;
+      seen.add(slots);
+      for (var j = 0; j < slots.length; j++) {
+        var slot = slots[j],
+          shape = slot.shape;
+        if (!shape || shape.shape !== 'obb') continue;
+        /* Long-face slots are behind the obstacle and stay blind; only an end
+           face has a chance to see around a continuous long hedgerow. */
+        var ux = +shape.ux || 1,
+          uz = +shape.uz || 0,
+          axisLen = Math.hypot(ux, uz) || 1,
+          endFace = Math.abs((slot.normalX * ux + slot.normalZ * uz) / axisLen) > 0.85;
+        if (!endFace) continue;
+        var d = dist(p.x, p.z, slot.x, slot.z);
+        if (d < 1.5 || d > maxRange) continue;
+        if (!coverAvailable(c, slot, s, battle)) continue;
+        if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, slot))
+          continue;
+        if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, slot))
+          continue;
+        var anchor = s.orderDestination || (s.squad && s.squad.orderAnchor);
+        if (leads && anchor && dist(slot.x, slot.z, anchor.x, anchor.z) > 18) continue;
+        var back = opts.notBehind;
+        if (back && (slot.x - p.x) * back.axis.x + (slot.z - p.z) * back.axis.z < -back.allow)
+          continue;
+        if (!seesFrom(slot, 'stand', t, battle) || !reachable(p, slot)) continue;
+        var score = -d - F.coverPotentialAt(battle.obstacles, slot.x, slot.z) * 4;
+        if (score > bestScore) {
+          bestScore = score;
+          best = {
+            x: slot.x, z: slot.z, slot: slot, slotId: slot.id,
+            distance: d, quality: F.coverPotentialAt(battle.obstacles, slot.x, slot.z),
+            obstacle: slot.obstacle, type: 'firing-lane'
+          };
+        }
+      }
+    }
+    if (best && !reserveCover(s, battle, best.slot, 'engagement')) return null;
+    return best;
+  }
   function findCover(s, battle, opts) {
     opts = opts || {};
     var target = opts.threat || s.target;
@@ -520,6 +581,7 @@
       coverCandidates: coverCandidates,
       coverSnapshot: coverSnapshot,
       findCover: findCover,
+      findFiringLane: findFiringLane,
       warm: warm
     };
   };
