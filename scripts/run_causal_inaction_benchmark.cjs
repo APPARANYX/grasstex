@@ -72,6 +72,7 @@ const env = {
   PROBE_SECONDS: String(seconds),
   PROBE_URL: url.toString(),
   PROBE_CONTROL: process.env.CAUSAL_CONTROL || '1',
+  PROBE_FIXTURE: process.env.CAUSAL_FIXTURE || '',
   PROBE_OUTPUT: raw
 };
 const ran = spawnSync(process.execPath, [path.join(__dirname, 'run_probe.cjs')], {
@@ -92,6 +93,7 @@ const summary = {
     prefix,
     url: url.toString(),
     query: causalQuery,
+    fixture: process.env.CAUSAL_FIXTURE || null,
     control: env.PROBE_CONTROL === '1'
   },
   expectedBattles: battles.length,
