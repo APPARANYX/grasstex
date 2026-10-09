@@ -460,18 +460,24 @@
         dist(path[path.length - 1].x, path[path.length - 1].z, to.x, to.z) <= 0.35
       );
     }
-    /* The rear side of tall bocage is safe but blind. If no protective firing cover
-     has a line, use an end-face *stand slot* around the obstacle as a short lateral
-     firing-lane bound. It is an ordinary Engagement cover-bound proposal: Movement
-     Resolver/navigation still own the actual route, and the slot is reserved as
-     existing cover slots are. Do not pick through a hedge or move farther than a
-     normal cover bound. */
     function findFiringLane(s, battle, opts) {
       opts = opts || {};
+      var notify = root.BattleCausalInaction && root.BattleCausalInaction.coverDecision,
+        rejections = notify ? {} : null;
+      function reject(code) {
+        if (rejections) rejections[code] = (rejections[code] || 0) + 1;
+      }
+      function observed(code, selected) {
+        if (notify)
+          notify(s, battle, 'firing-lane', code, rejections, selected && { x: selected.x, z: selected.z });
+      }
       var F = field(),
         t = s.target,
         P = root.BattleNavigationPhysicality;
-      if (!F || !t || !t.root || !P || !P.shapeHit) return null;
+      if (!F || !t || !t.root || !P || !P.shapeHit) {
+        observed('missing-contact-or-navigation');
+        return null;
+      }
       var p = posOf(s),
         maxRange = opts.maxRange || COVER_RANGE,
         nearby = F.nearby(battle.obstacles, p.x, p.z, maxRange),
@@ -482,31 +488,63 @@
         leads = SA().isLeader(s);
       for (var i = 0; i < nearby.length; i++) {
         var slots = coverSlots(c, nearby[i]);
-        if (!slots.length || seen.has(slots)) continue;
+        if (!slots.length || seen.has(slots)) {
+          reject('no-cover-slots');
+          continue;
+        }
         seen.add(slots);
         for (var j = 0; j < slots.length; j++) {
           var slot = slots[j],
             shape = slot.shape;
-          if (!shape || shape.shape !== 'obb' || !P.shapeHit(p, posOf(t), shape, 0)) continue;
+          if (!shape || shape.shape !== 'obb' || !P.shapeHit(p, posOf(t), shape, 0)) {
+            reject('not-physical-shot-blocker');
+            continue;
+          }
           /* Long-face slots are behind the obstacle and stay blind; only an end
            face has a chance to see around a continuous long hedgerow. */
           var ux = +shape.ux || 1,
             uz = +shape.uz || 0,
             axisLen = Math.hypot(ux, uz) || 1,
             endFace = Math.abs((slot.normalX * ux + slot.normalZ * uz) / axisLen) > 0.85;
-          if (!endFace) continue;
+          if (!endFace) {
+            reject('not-end-face');
+            continue;
+          }
           var d = dist(p.x, p.z, slot.x, slot.z);
-          if (d < 1.5 || d > maxRange) continue;
-          if (!coverAvailable(c, slot, s, battle)) continue;
-          if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, slot))
+          if (d < 1.5 || d > maxRange) {
+            reject('outside-bound-radius');
             continue;
-          if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, slot))
+          }
+          if (!coverAvailable(c, slot, s, battle)) {
+            reject('slot-reserved');
             continue;
+          }
+          if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, slot)) {
+            reject('unreachable-memory');
+            continue;
+          }
+          if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, slot)) {
+            reject('forward-guard');
+            continue;
+          }
           var anchor = s.orderDestination || (s.squad && s.squad.orderAnchor);
-          if (leads && anchor && dist(slot.x, slot.z, anchor.x, anchor.z) > 18) continue;
+          if (leads && anchor && dist(slot.x, slot.z, anchor.x, anchor.z) > 18) {
+            reject('leader-anchor-limit');
+            continue;
+          }
           var back = opts.notBehind;
-          if (back && (slot.x - p.x) * back.axis.x + (slot.z - p.z) * back.axis.z < -back.allow) continue;
-          if (!seesFrom(slot, 'stand', t, battle) || !reachable(p, slot)) continue;
+          if (back && (slot.x - p.x) * back.axis.x + (slot.z - p.z) * back.axis.z < -back.allow) {
+            reject('behind-order-line');
+            continue;
+          }
+          if (!seesFrom(slot, 'stand', t, battle)) {
+            reject('no-standing-los');
+            continue;
+          }
+          if (!reachable(p, slot)) {
+            reject('path-unreachable');
+            continue;
+          }
           var score = -d - F.coverPotentialAt(battle.obstacles, slot.x, slot.z) * 4;
           if (score > bestScore) {
             bestScore = score;
@@ -523,13 +561,31 @@
           }
         }
       }
-      if (best && !reserveCover(s, battle, best.slot, 'engagement')) return null;
+      if (best && !reserveCover(s, battle, best.slot, 'engagement')) {
+        observed('reservation-failed');
+        return null;
+      }
+      observed(best ? 'selected' : 'no-viable-lane', best);
       return best;
     }
+
     function findCover(s, battle, opts) {
       opts = opts || {};
       var target = opts.threat || s.target;
-      if (!target) return null;
+      /* The causal observer receives outcomes of *actual* eligibility gates.
+       Nothing is recomputed and the decision is unchanged without a probe. */
+      var notify = root.BattleCausalInaction && root.BattleCausalInaction.coverDecision,
+        rejections = notify ? {} : null;
+      function rejected(code) {
+        if (rejections) rejections[code] = (rejections[code] || 0) + 1;
+      }
+      function observed(code, goal) {
+        if (notify) notify(s, battle, 'normal-cover', code, rejections, goal && { x: goal.x, z: goal.z });
+      }
+      if (!target) {
+        observed('no-target');
+        return null;
+      }
       var p = posOf(s),
         forward = opts.forward || null,
         candidates = coverCandidates(s, battle, target, opts.maxRange || COVER_RANGE),
@@ -539,21 +595,43 @@
       for (var i = 0; i < candidates.length; i++) {
         var pt = candidates[i],
           moveD = pt.distance;
-        if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, pt))
+        if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, pt)) {
+          rejected('forward-guard');
           continue;
-        if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, pt))
+        }
+        if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, pt)) {
+          rejected('unreachable-memory');
           continue;
+        }
         var anchor = s.orderDestination || (s.squad && s.squad.orderAnchor);
-        if (leads && anchor && dist(pt.x, pt.z, anchor.x, anchor.z) > 18) continue;
-        if (dist(pt.x, pt.z, posOf(target).x, posOf(target).z) < (opts.minEnemyDistance || 12)) continue;
+        if (leads && anchor && dist(pt.x, pt.z, anchor.x, anchor.z) > 18) {
+          rejected('leader-anchor-limit');
+          continue;
+        }
+        if (dist(pt.x, pt.z, posOf(target).x, posOf(target).z) < (opts.minEnemyDistance || 12)) {
+          rejected('target-too-close');
+          continue;
+        }
         var back = opts.notBehind;
-        if (back && (pt.x - p.x) * back.axis.x + (pt.z - p.z) * back.axis.z < -back.allow) continue;
+        if (back && (pt.x - p.x) * back.axis.x + (pt.z - p.z) * back.axis.z < -back.allow) {
+          rejected('behind-order-line');
+          continue;
+        }
         var score = (1 - pt.quality) * 40 - moveD;
         if (forward) score += ((pt.x - p.x) * forward.x + (pt.z - p.z) * forward.z) * 0.9;
-        if (score <= bestScore) continue;
+        if (score <= bestScore) {
+          rejected('lower-ranked-slot');
+          continue;
+        }
         // Cover to fight from keeps a line to the threat (standing is the highest he can rise); evading takes any.
-        if (COVER_FIRE && !opts.evade && !seesFrom(pt, 'stand', target, battle)) continue;
-        if (!reachable(p, pt)) continue;
+        if (COVER_FIRE && !opts.evade && !seesFrom(pt, 'stand', target, battle)) {
+          rejected('no-standing-los');
+          continue;
+        }
+        if (!reachable(p, pt)) {
+          rejected('path-unreachable');
+          continue;
+        }
         bestScore = score;
         best = pt;
       }
@@ -568,9 +646,16 @@
         (!root.BattleMovementProgress || root.BattleMovementProgress.candidateAllowed(s, battle, incumbent))
       ) {
         var incumbentScore = (1 - incumbent.quality) * 40 - dist(p.x, p.z, incumbent.x, incumbent.z);
-        if (bestScore < incumbentScore + 4) return incumbent;
+        if (bestScore < incumbentScore + 4) {
+          observed('incumbent-preferred', incumbent);
+          return incumbent;
+        }
       }
-      if (best && !reserveCover(s, battle, best.slot, 'engagement')) return null;
+      if (best && !reserveCover(s, battle, best.slot, 'engagement')) {
+        observed('reservation-failed');
+        return null;
+      }
+      observed(best ? 'selected' : 'no-viable-cover', best);
       return best;
     }
     function warm(battle) {

@@ -315,27 +315,41 @@
     function movingTooFast(s) {
       return !!(s.moving && (s.moveSpeed || 0) > Math.max(0.16, (s.speed || 1) * MOVE_FIRE_FRACTION));
     }
+    /* Optional forensic observer. No gameplay state ownership and no changes to gate results. */
+    function reportFireDenial(s, battle, reason) {
+      var tap = root.BattleCausalInaction;
+      if (tap && tap.denied) {
+        try {
+          tap.denied(s, battle, reason);
+        } catch (_) {
+          /* A diagnostic observer must never stop or alter combat. */
+        }
+      }
+      return false;
+    }
     function fireAllowed(s, battle) {
       var e = state(s);
-      if (!combatThreat(s.target) || s.reloading) return false;
-      if (battle.time < e.fireReadyAt) return false;
-      if (movingTooFast(s) || s.crawling) return false;
-      if (facingError(s, posOf(s.target)) > AIM_CONE) return false;
+      if (!combatThreat(s.target)) return reportFireDenial(s, battle, 'no-threat');
+      if (s.reloading) return reportFireDenial(s, battle, 'reloading');
+      if (battle.time < e.fireReadyAt) return reportFireDenial(s, battle, 'aim-settling');
+      if (movingTooFast(s) || s.crawling) return reportFireDenial(s, battle, 'movement');
+      if (facingError(s, posOf(s.target)) > AIM_CONE) return reportFireDenial(s, battle, 'facing');
       /* The gun gets emplaced first, whether he is engaging in the open or holding a firing station
          (the station sets `setUp` from its own clock just before it fires). */
-      if (SA().isMachineGun(s) && !s.setUp && (e.state === 'engage' || s.state === 'hardpoint')) return false;
-      if (!fireAuthorized(s, battle)) return false; // Squad Leader has not given this man permission yet.
+      if (SA().isMachineGun(s) && !s.setUp && (e.state === 'engage' || s.state === 'hardpoint'))
+        return reportFireDenial(s, battle, 'mg-not-setup');
+      if (!fireAuthorized(s, battle)) return reportFireDenial(s, battle, 'fire-not-authorized'); // Squad Leader permission.
       /* Last, so that when it stops him it was the only thing that did (the same answer in any order). */
       if (battle.time < shockUntil(s)) {
         noteShock(s, 'fire');
-        return false;
+        return reportFireDenial(s, battle, 'shock');
       }
       return true;
     }
     function tryFire(s, battle) {
       if (!fireAllowed(s, battle)) return false;
       var d = dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z);
-      if (d > SA().engageRange(s)) return false;
+      if (d > SA().engageRange(s)) return reportFireDenial(s, battle, 'engagement-range');
       SA().tryFire(s, battle);
       return true;
     }

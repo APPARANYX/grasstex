@@ -1984,8 +1984,13 @@
         var shot = B.resolvePlayerRay(soldier, aimPoint, battle, round, delay);
         /* The player HUD consumes only confirmed enemy casualties/wounds from the actual
            ballistic result, never a guessed screen-space collision or mere trigger pull. */
-        if (shot && shot.victim && shot.victim.faction !== soldier.faction)
+        if (shot && shot.victim && shot.victim.faction !== soldier.faction) {
           soldier._playerConfirmedHits = (soldier._playerConfirmedHits || 0) + 1;
+          /* A surviving man physically hit by a player's free-aim shot knows
+             where the round came from. This does not reveal a missed shot to
+             everyone downrange or create an AI-style target lock for the player. */
+          noteIncomingFire(shot.victim, soldier, battle);
+        }
         return shot ? undefined : false;
       });
     if (!rounds) return false;

@@ -16,9 +16,9 @@ function load(root, rel) {
     root.location || { search: '' }
   );
 }
-function setup(xs) {
+function setup(xs, extraQuery = '') {
   H.resetIds();
-  const r = H.bootstrap({ search: '?squadBroadcast=1' }),
+  const r = H.bootstrap({ search: '?squadBroadcast=1' + extraQuery }),
     systems = {};
   r.BattleModules.registerSystem = function (id, sys) {
     systems[id] = sys;
@@ -191,8 +191,48 @@ function tick(w, t) {
   assert.equal(report.unit, null, 'receiver is not granted a magically tracked live target');
   assert.equal(report.precision, 'fire-origin');
   assert.equal(outOfRange.contact, null, 'no unlimited-range squad broadcast');
+  assert.equal(shooter.squad.contact, null, 'the hostile firing squad receives no friendly report');
   shooter.root.position.x = 35;
   assert.equal(warned.contact.x, 0, 'report remains tied to original firing point after shooter moves');
+}
+
+{
+  /* Switching the explicit shot-origin reveal off must preserve the legacy
+     non-magical hearing/spotting path, even when a distant aimed burst fires. */
+  const w = setup([0, 60, 180], '&incomingFireReveal=0'),
+    [attacked, neighbour, far] = w.squads,
+    target = attacked.members[0],
+    shooter = w.foe;
+  shooter.root.position.z = 260;
+  shooter.target = target;
+  shooter.fireCooldown = 0;
+  target.target = null;
+  w.b.time = 2;
+  w.r.SquadAI.extend('shotModel', 'ballistics', () => false);
+  assert.equal(w.r.SquadAI.incomingFireRevealOn(), false);
+  assert.equal(w.r.SquadAI.tryFire(shooter, w.b), true);
+  assert.equal(attacked.contact, null, 'old rule does not create an aimed-fire location');
+  w.sys.onCommanderTick(w.b);
+  assert.equal(neighbour.contact, null, 'no squad voice report without source knowledge');
+  assert.equal(far.contact, null);
+}
+
+{
+  /* A firing attempt blocked before discharge is not a shot. Neither the
+     recipient nor his squad can gain a precise firing origin from it. */
+  const w = setup([0, 60, 180]),
+    [attacked, neighbour] = w.squads,
+    target = attacked.members[0],
+    shooter = w.foe;
+  shooter.root.position.z = 260;
+  shooter.target = target;
+  shooter.fireCooldown = 0;
+  w.b.time = 2;
+  shooter.weapon = null;
+  assert.equal(w.r.SquadAI.tryFire(shooter, w.b), false, 'no weapon prevents a burst');
+  assert.equal(attacked.contact, null, 'failed firing attempt reveals nothing to target squad');
+  w.sys.onCommanderTick(w.b);
+  assert.equal(neighbour.contact, null, 'nothing can relay to neighbouring friendlies');
 }
 
 console.log('PASS squad broadcast source isolation, cooldown retry, freshness, and personal belief delivery');
