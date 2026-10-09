@@ -150,8 +150,11 @@ test('the low crest has a physically reachable upper-body aim point', () => {
   assert.ok(aim && aim.y > 1.35, 'an exposed upper-body aim point clears the crest');
 });
 
-test('a fully hidden target does not freeze the assault before the crest', () => {
+test('observed enemies behind a fully blocking crest do not permanently stall the assault', () => {
   const w = pair(ridge(RANGE / 2, 1.8, 4, 20));
+  // Isolate the fire-vs-maneuver ownership test: grant observation while
+  // leaving real muzzle/body/terrain clearance authoritative for every round.
+  w.r.SquadAI.hasLineOfSight = () => true;
   let firstShotAt = null;
   drive(w, 300, b => {
     if (firstShotAt === null && b.events.fired > 0) firstShotAt = b.time;
