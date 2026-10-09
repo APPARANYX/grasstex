@@ -26,14 +26,15 @@ an accumulator per wall-clock second; it **does not** change step size.
 ```sh
 node tools/ai-sim-harness/fixed-step-clock-check.js
 # Requires a local battle PHP server and Playwright:
-PARITY_SCENARIO=meeting PARITY_SECONDS=120 node scripts/run_timescale_parity_benchmark.cjs
+PARITY_SCENARIO=meeting PARITY_SECONDS=600 node scripts/run_timescale_parity_benchmark.cjs
 ```
 
 The `⭐ Timescale Parity Benchmark` workflow runs real-battle state
 fingerprints for meeting, US-defense and German-defense seeds, comparing
 against the current 0.15s fixed-step headless baseline. Each scenario checks
 1x/4x/8x with virtual 20/30/60/120fps cadence. Any difference in gameplay
-state is a failure, even if win counts agree.
+state is a failure, even if win counts agree. A full-length scenario must emit
+actual fire events, so a quiet opening cannot pass as combat parity.
 
 The full-fidelity performance benchmark's `FF_CADENCE` mode now also goes
 through the live accumulator, so CPU measurements include catch-up costs.
