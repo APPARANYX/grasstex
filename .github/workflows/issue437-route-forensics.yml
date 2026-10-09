@@ -1,0 +1,66 @@
+name: Issue 437 v456 route forensic replay
+on:
+  push:
+    branches:
+      - 'work/issue437-v456-route-forensics'
+permissions:
+  contents: read
+jobs:
+  replay:
+    name: v456 exact-seed soldier 6 route vs rally
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify read-only probe syntax
+        run: node --check scripts/probes/route-437.js
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start local battle server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+      - name: Replay v456 exactly, compare probe-free control
+        run: |
+          set -euo pipefail
+          mkdir -p reports/route437
+          PROBE=route-437 PROBE_BATTLES=meeting:live-mv16s0bu-92cyc PROBE_SECONDS=830 PROBE_CONTROL=1 PROBE_OUTPUT=reports/route437/raw.json node scripts/run_probe.cjs >/dev/null
+      - name: Summarize actor route and independent control
+        if: always()
+        run: |
+          node - <<'NODE' | tee reports/route437/summary.md
+          const fs = require('node:fs');
+          const p = 'reports/route437/raw.json';
+          if (!fs.existsSync(p)) { console.log('No report produced.'); process.exit(1); }
+          const b = JSON.parse(fs.readFileSync(p)).battles[0], r = b.reports['route-437'];
+          console.log('# Issue 437 — v456 route forensic');
+          console.log('Battle:', b.type, b.seed, 'until', b.simSeconds, 'winner', b.winner);
+          console.log('Control fingerprint matches:', b.sameBattle, 'runtime errors:', b.errors.length);
+          console.log('Sample counters:', JSON.stringify(r.totals));
+          console.log('Last actor snapshot:', JSON.stringify(r.last));
+          console.log('Key transitions:');
+          for (const s of r.transitions.filter(s => s.time >= 760).slice(-26))
+            console.log(JSON.stringify({t:s.time,alive:s.living,here:s.here,anchor:s.actualAnchor,home:s.squadHome,rally:s.squadRally,orderAnchor:s.orderAnchor,dest:s.destination,wp:s.waypoint,anchorDist:s.actualAnchorDistance,localDist:s.physicalDestinationDistance,wpDist:s.waypointDistance,stop:s.stop,still:s.stillSeconds,owner:s.resolverLast,nav:s.navigation}));
+          if (!b.sameBattle || b.errors.length) process.exitCode = 1;
+          NODE
+      - name: Upload actor route trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue437-v456-route-repro
+          path: reports/route437/
+          if-no-files-found: warn
+          retention-days: 14
