@@ -344,8 +344,17 @@
         bag.position.set(x, y + 0.24, z);
         var T = root.BattleTerrainFeatures;
         if (T && T.orientGroundMesh)
-          T.orientGroundMesh(bag, function (px, pz) { return markerSurfaceY(sim, px, pz); },
-            x, z, rot, 0.75, 0.36);
+          T.orientGroundMesh(
+            bag,
+            function (px, pz) {
+              return markerSurfaceY(sim, px, pz);
+            },
+            x,
+            z,
+            rot,
+            0.75,
+            0.36
+          );
         parts.push(bag);
       }
     }
