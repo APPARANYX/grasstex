@@ -26,7 +26,9 @@
     PLAYER_LOOK_RATE = 2.2,
     PLAYER_MOVE_AHEAD = 6,
     PLAYER_CAMERA_CLEARANCE = 0.45,
-    PLAYER_ADS_SENSITIVITY = 0.36,
+    PLAYER_ADS_SENSITIVITY = 0.18,
+    PLAYER_BORE_EASE_MS = 80,
+    PLAYER_BORE_MAX_FRAME_MS = 50,
     PLAYER_BORE_PREVIEW_MS = 90,
     PLAYER_HIT_FLASH_MS = 260,
     PLAYER_SHOT_IMPACT_MS = 160;
@@ -63,6 +65,18 @@
       return state.long ? null : 'tap';
     }
     return null;
+  }
+  /* Screen-space low-pass filter: stable across ordinary frame rates, with a bounded
+     frame step so a stalled/low-FPS frame cannot teleport the hollow bore indicator.
+     Initial acquisition starts at its target; subsequent updates ease toward it. */
+  function smoothBoreDot(previous, target, frameMs) {
+    if (!previous) return { x: target.x, y: target.y };
+    var dt = Math.min(PLAYER_BORE_MAX_FRAME_MS, Math.max(0, +frameMs || 0)),
+      alpha = 1 - Math.exp(-dt / PLAYER_BORE_EASE_MS);
+    return {
+      x: previous.x + (target.x - previous.x) * alpha,
+      y: previous.y + (target.y - previous.y) * alpha
+    };
   }
   function desktopPointer() {
     return !!(global.matchMedia && global.matchMedia('(pointer:fine)').matches);
@@ -229,6 +243,8 @@
       shotImpact = null,
       lastBorePreview = 0,
       borePreview = null,
+      boreScreenPos = null,
+      borePaintAt = 0,
       settingsMenu = null,
       menuOpen = false,
       menuPauseOwner = null,
@@ -378,8 +394,8 @@
         'width:22px;height:1px;background:#fff;top:50%;left:50%;' +
         'box-shadow:0 0 3px #d7dfbd;transform:translate(-50%,-50%) rotate(45deg)}' +
         '#battlePlayerHitMarker:after{transform:translate(-50%,-50%) rotate(-45deg)}' +
-        '#battlePlayerBoreDot{position:fixed;z-index:17;width:6px;height:6px;' +
-        'border:1px solid #ffffffc9;background:#c4d9b6bd;box-shadow:0 0 0 1px #13212490,0 0 5px #a5c2a7;' +
+        '#battlePlayerBoreDot{position:fixed;z-index:17;box-sizing:border-box;width:4px;height:4px;' +
+        'border:1px solid #e7f1e2;background:transparent;box-shadow:0 0 2px #15211b;' +
         'border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;display:none}' +
         '#battlePlayerHud{position:fixed;left:12px;bottom:58px;z-index:16;pointer-events:none;' +
         'min-width:190px;max-width:270px;padding:12px 14px;background:rgba(11,16,17,.83);' +
@@ -422,9 +438,11 @@
     /* Project the *simulated* muzzle line's physical first contact to a screen-space
        marker. Unlike the fixed camera reticle, this shifts around near cover and parallax.
        While a shot is fresh the dot shows that round's *actual* dispersed impact. */
-    function paintBoreDot(worldPoint) {
+    function paintBoreDot(worldPoint, now) {
       if (!playerBoreDot || !playerCam || !worldPoint) {
         if (playerBoreDot) playerBoreDot.style.display = 'none';
+        boreScreenPos = null;
+        borePaintAt = 0;
         return;
       }
       var width = engine.getRenderWidth(),
@@ -449,10 +467,19 @@
         projected.y > height
       ) {
         playerBoreDot.style.display = 'none';
+        boreScreenPos = null;
+        borePaintAt = 0;
         return;
       }
-      playerBoreDot.style.left = rect.left + (projected.x / width) * rect.width + 'px';
-      playerBoreDot.style.top = rect.top + (projected.y / height) * rect.height + 'px';
+      var target = {
+          x: rect.left + (projected.x / width) * rect.width,
+          y: rect.top + (projected.y / height) * rect.height
+        },
+        elapsed = borePaintAt ? Math.max(0, now - borePaintAt) : 0;
+      boreScreenPos = smoothBoreDot(boreScreenPos, target, elapsed);
+      borePaintAt = now;
+      playerBoreDot.style.left = boreScreenPos.x.toFixed(2) + 'px';
+      playerBoreDot.style.top = boreScreenPos.y.toFixed(2) + 'px';
       playerBoreDot.style.display = 'block';
     }
     function updatePlayerReticle(point, b, now) {
@@ -472,7 +499,8 @@
       paintBoreDot(
         now - shotImpactAt < PLAYER_SHOT_IMPACT_MS && shotImpact
           ? shotImpact
-          : borePreview && borePreview.impact
+          : borePreview && borePreview.impact,
+        now
       );
     }
     function updatePlayerFeedback(pad) {
@@ -816,6 +844,8 @@
       keys.clear();
       ensureReticle().style.display = 'none';
       if (playerBoreDot) playerBoreDot.style.display = 'none';
+      boreScreenPos = null;
+      borePaintAt = 0;
       if (hitMarker) hitMarker.style.opacity = '0';
       if (playerHud) playerHud.style.display = 'none';
       if (playerDamage) playerDamage.style.opacity = '0';
@@ -867,6 +897,8 @@
       shotImpact = null;
       lastBorePreview = 0;
       borePreview = null;
+      boreScreenPos = null;
+      borePaintAt = 0;
       /* isPlayer, not a short movement lease, is the authority boundary for the whole possession. */
       /* Possession starts from a neutral player-owned stance instead of inheriting a squad hold-fire posture. */
       if (global.BattleEngagement && global.BattleEngagement.commitStance)
@@ -954,9 +986,12 @@
       var point = aimPoint();
       if (global.BattleEngagement && global.BattleEngagement.playerFace)
         global.BattleEngagement.playerFace(player, aiming || firing ? point : null);
-      /* No aim assist: the crosshair is the aim. The soldier's own targeting stays off while possessed. */
+      /* The raw camera bearing tells Engagement where to turn the soldier; the rendered
+         gun pose follows the physical bore arc, not an impossible behind-body camera ray. */
+      var B = global.BattleBallistics,
+        weaponAim = B && B.playerBoreAimPoint && point ? B.playerBoreAimPoint(player, point, b) : point;
       if (global.SquadAI && global.SquadAI.playerAim)
-        global.SquadAI.playerAim(player, aiming || firing ? point : null);
+        global.SquadAI.playerAim(player, aiming || firing ? weaponAim : null);
       /* RT is a real trigger, not an AI target request: it fires the crosshair ray even with no lock. */
       if (firing && point && global.SquadAI) {
         if (global.SquadAI.playerFireRay && global.SquadAI.playerFireRay(player, point, b)) {
@@ -1411,6 +1446,7 @@
   }
   global.BattleDesktopCamera = {
     current: null,
+    smoothBoreDot: smoothBoreDot,
     menuHoldGesture: menuHoldGesture,
     menuHoldMs: MENU_HOLD_MS,
     create: function (options) {

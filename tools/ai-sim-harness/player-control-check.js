@@ -175,9 +175,35 @@ assert.match(
 );
 assert.match(
   cameraSource,
-  /PLAYER_ADS_SENSITIVITY = 0\.36/,
-  'aiming uses intentional 36% mouse and controller sensitivity'
+  /PLAYER_ADS_SENSITIVITY = 0\.18/,
+  'aiming uses half of the previous ADS multiplier (18%)'
 );
+
+/* The secondary muzzle dot is a hollow, screen-projected ring with frame-time
+   bounded easing. It must never teleport on a slow frame or bleed across possession. */
+assert.match(
+  cameraSource,
+  /battlePlayerBoreDot\{[^']*width:4px;height:4px/,
+  'bore ring is reduced to a 4 px outer diameter'
+);
+assert.match(cameraSource, /border:1px solid #e7f1e2;background:transparent/, 'dot has no fill');
+assert.match(cameraSource, /smoothBoreDot\(boreScreenPos, target, elapsed\)/, 'screen position is eased');
+assert.match(cameraSource, /boreScreenPos = null;/, 'easing resets on exit and reassignment');
+const smooth = win.BattleDesktopCamera.smoothBoreDot;
+assert.equal(smooth(null, { x: 10, y: 20 }, 16).x, 10, 'first visible ring starts at the target');
+const start = { x: 0, y: 0 },
+  target = { x: 100, y: -100 };
+const one16 = smooth(start, target, 16),
+  two16 = smooth(one16, target, 16),
+  one32 = smooth(start, target, 32),
+  hitch = smooth(start, target, 240),
+  capped = smooth(start, target, 50);
+assert.ok(one16.x > 0 && one16.x < 100, 'regular frame must ease rather than snap');
+assert.ok(one16.y < 0 && one16.y > -100, 'Y axis must ease symmetrically');
+assert.ok(Math.abs(two16.x - one32.x) < 1e-9, 'ordinary-frame easing is frame-rate invariant');
+assert.ok(Math.abs(hitch.x - capped.x) < 1e-9, 'slow frame time must be capped');
+assert.ok(hitch.x > 0 && hitch.x < 50, 'low-FPS hitch must not snap to target');
+assert.equal(smooth(start, target, 0).x, 0, 'zero elapsed time cannot move the ring');
 
 /* Player feedback must be wired to shipping soldier/weapon state and be optional on unsupported devices. */
 assert.match(cameraSource, /ensurePlayerFeedback\(\)/, 'possession installs player HUD');
@@ -245,8 +271,18 @@ assert.doesNotMatch(
 );
 assert.match(
   cameraSource,
-  /SquadAI\.playerAim\(player, aiming \|\| firing \? point : null\)/,
-  'player aim must be the crosshair point'
+  /SquadAI\.playerAim\(player, aiming \|\| firing \? weaponAim : null\)/,
+  'player visual aim follows the constrained physical muzzle direction'
+);
+assert.match(
+  cameraSource,
+  /B\.playerBoreAimPoint\(player, point, b\)/,
+  'FBX visual aim must agree with the authoritative bore preview and shot'
+);
+assert.match(
+  cameraSource,
+  /BattleEngagement\.playerFace\(player, aiming \|\| firing \? point : null\)/,
+  'Engagement receives the raw view bearing to rotate the soldier into alignment'
 );
 const moveSource = fs.readFileSync(path.join(H.REPO, 'battle/battle-sim.js'), 'utf8');
 assert.match(
