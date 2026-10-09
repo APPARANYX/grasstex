@@ -94,6 +94,32 @@
     };
   }
 
+  /* Static low cover should rest along the rendered terrain tangent. The meshes are already
+     yaw-baked into world-oriented local geometry, so pitch/roll only affect presentation.
+     Keep the published X/Z footprints and tactical obstacle heights completely unchanged.
+     Sampling BOTH long ends prevents a log or wall floating at one end on an incline. */
+  function orientGroundMesh(mesh, heightAt, x, z, rot, halfLength, halfWidth) {
+    var c = Math.cos(rot || 0),
+      s = Math.sin(rot || 0),
+      ux = c, uz = -s, vx = s, vz = c,
+      a = Math.max(0.01, halfLength),
+      b = Math.max(0.01, halfWidth),
+      highA = heightAt(x + ux * a, z + uz * a),
+      lowA = heightAt(x - ux * a, z - uz * a),
+      highB = heightAt(x + vx * b, z + vz * b),
+      lowB = heightAt(x - vx * b, z - vz * b),
+      along = (highA - lowA) / (2 * a),
+      across = (highB - lowB) / (2 * b),
+      slopeX = along * ux + across * vx,
+      slopeZ = along * uz + across * vz;
+    /* The pitch and roll are on the visual mesh, not on its navigation footprint. */
+    mesh.rotation.x = -Math.atan(slopeZ);
+    mesh.rotation.z = Math.atan(slopeX);
+    /* Anchor to the long-end average; this is especially important for convex/concave ground. */
+    mesh.position.y += (highA + lowA) * 0.5 - heightAt(x, z);
+    return mesh;
+  }
+
   function buildTree(scene, x, y, z, scale, leafColor) {
     var trunkH = 1.2 * scale;
     var trunk = cylinder(scene, 0.22 * scale, trunkH, TRUNK, [0, trunkH / 2, 0]);
@@ -192,23 +218,23 @@
     return out;
   }
 
-  function buildRock(scene, x, y, z, size, rot) {
+  function buildRock(scene, x, y, z, size, rot, heightAt) {
     var m = box(scene, [size * 1.8, size, size * 1.5], ROCK, [0, size / 2, 0], [0, rot, 0]);
     m.position.set(x, y, z);
-    return m;
+    return orientGroundMesh(m, heightAt, x, z, rot, size * 0.9, size * 0.75);
   }
-  function buildLog(scene, x, y, z, len, rot) {
+  function buildLog(scene, x, y, z, len, rot, heightAt) {
     var m = cylinder(scene, 0.55, len, TRUNK, null);
     m.rotation.z = Math.PI / 2;
     m.rotation.y = rot;
     m.bakeCurrentTransformIntoVertices();
     m.position.set(x, y + 0.28, z);
-    return m;
+    return orientGroundMesh(m, heightAt, x, z, rot, len / 2, 0.275);
   }
-  function buildWallStub(scene, x, y, z, len, rot) {
+  function buildWallStub(scene, x, y, z, len, rot, heightAt) {
     var m = box(scene, [len, 1.05, 0.5], STONE, [0, 0.52, 0], [0, rot, 0]);
     m.position.set(x, y, z);
-    return m;
+    return orientGroundMesh(m, heightAt, x, z, rot, len / 2, 0.25);
   }
 
   /* Shared exact X/Z footprint overlap predicate. Used at world generation time, never
@@ -363,6 +389,16 @@
       );
     }
 
+    /* Final rendered terrain triangles can differ slightly from simulation heightAt.
+       Use the visual surface for mesh grounding only; simulation collision stays authoritative. */
+    var groundMesh = scene && scene.getMeshByName && scene.getMeshByName('battleField');
+    function visualHeight(x, z) {
+      if (groundMesh && typeof groundMesh.getHeightAtCoordinates === 'function') {
+        var h = groundMesh.getHeightAtCoordinates(x, z);
+        if (isFinite(h)) return h;
+      }
+      return heightAt(x, z);
+    }
     function place(mesh, x, z) {
       entries.push({ mesh: mesh, x: x, z: z });
     }
@@ -564,7 +600,7 @@
         var tx = ccx + (rng() - 0.5) * 11,
           tz = ccz + (rng() - 0.5) * 11,
           scale = 0.85 + rng() * 0.7,
-          ty = heightAt(tx, tz);
+          ty = visualHeight(tx, tz);
         var treeCandidate = { shape: 'circle', x: tx, z: tz, radius: 1.2 * scale };
         if (pointBlockedByBuilding(tx, tz, 1.25 * scale) || !placementAllowed(treeCandidate, 0.6)) continue;
         var treeFp = addCircle(tx, tz, 0.11 * scale, 'tree', 'tree-' + physicalSeq++);
@@ -578,7 +614,7 @@
     for (i = 0; i < lowCover; i++) {
       var lx = (rng() - 0.5) * halfW * 2,
         lz = (rng() - 0.5) * keepoutZ * 2,
-        ly = heightAt(lx, lz),
+        ly = visualHeight(lx, lz),
         roll = rng();
       if (roll < 0.45) {
         var size = 0.7 + rng() * 0.5,
@@ -590,7 +626,7 @@
         )
           continue;
         var rockFp = addObb(lx, lz, size * 0.9, size * 0.75, rockRot, 'rock', 'rock-' + physicalSeq++);
-        place(buildRock(scene, lx, ly, lz, size, rockRot), lx, lz);
+        place(buildRock(scene, lx, ly, lz, size, rockRot, visualHeight), lx, lz);
         addObstacle(lx, lz, size * 1.1, 0.55, size, 'rock', rockFp.id);
       } else if (roll < 0.75) {
         var len = 2.6 + rng() * 2.4,
@@ -602,7 +638,7 @@
         )
           continue;
         var logFp = addObb(lx, lz, len / 2, 0.275, logRot, 'log', 'log-' + physicalSeq++);
-        place(buildLog(scene, lx, ly, lz, len, logRot), lx, lz);
+        place(buildLog(scene, lx, ly, lz, len, logRot, visualHeight), lx, lz);
         addObstacle(lx, lz, len * 0.42, 0.6, 0.62, 'log', logFp.id);
       } else {
         var wl = 4 + rng() * 7,
@@ -614,7 +650,16 @@
         )
           continue;
         var wallFp = addObb(lx, lz, wl / 2, 0.25, rot, 'wall', 'wall-' + physicalSeq++);
-        place(buildWallStub(scene, lx, ly, lz, wl, rot), lx, lz);
+        /* A long rigid wall bridges hills. Use short slope-fitted visual spans under
+           the same authoritative collision footprint, without adding nav blockers. */
+        var spans = Math.max(1, Math.ceil(wl / 3)),
+          spanLen = wl / spans;
+        for (var wi = 0; wi < spans; wi++) {
+          var offset = (wi + 0.5 - spans / 2) * spanLen,
+            sx = lx + Math.cos(rot) * offset,
+            sz = lz - Math.sin(rot) * offset;
+          place(buildWallStub(scene, sx, visualHeight(sx, sz), sz, spanLen, rot, visualHeight), sx, sz);
+        }
         var steps2 = Math.max(1, Math.round(wl / 3));
         for (var q = 0; q <= steps2; q++) {
           var v = (q / steps2 - 0.5) * wl;
@@ -657,6 +702,7 @@
   }
 
   root.BattleTerrainFeatures = {
+    orientGroundMesh: orientGroundMesh,
     scatter: scatter,
     hedgeWidth: HEDGE_WIDTH,
     hedgeHeight: HEDGE_HEIGHT_MAX,
