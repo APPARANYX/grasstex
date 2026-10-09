@@ -123,23 +123,31 @@ const offset = scenario('?coverPeek=1');
 offset.s.root.position.z = -8; // hedge blocks LOS, but cover shading only extends 1.5 m
 assert.equal(offset.r.BattleObstacleField.coverPotentialAt(offset.b.obstacles, 0, -8), 1);
 offset.E.decide(offset.s, offset.b, 'no firing line');
-assert.equal(offset.E.stateOf(offset.s).state, 'bound',
-  'blind hedge must trigger reposition even from outside the immediate cover band');
+assert.equal(
+  offset.E.stateOf(offset.s).state,
+  'bound',
+  'blind hedge must trigger reposition even from outside the immediate cover band'
+);
 assert.equal(offset.E.stateOf(offset.s).cover.type, 'firing-lane');
 
 const noRoute = scenario('?coverPeek=1');
 noRoute.r.BattleNavigation.movementClear = () => false;
 noRoute.r.BattleNavigation.findPath = () => null;
 noRoute.E.decide(noRoute.s, noRoute.b, 'no firing line');
-assert.notEqual(noRoute.E.stateOf(noRoute.s).state, 'bound',
-  'no legal navigation must not manufacture a reachable hedge-end move');
+assert.notEqual(
+  noRoute.E.stateOf(noRoute.s).state,
+  'bound',
+  'no legal navigation must not manufacture a reachable hedge-end move'
+);
 
 const underFire = scenario('?coverPeek=1');
 underFire.s.suppressedUntil = underFire.b.time + 8;
 underFire.E.decide(underFire.s, underFire.b, 'incoming fire');
-assert.notEqual(underFire.E.stateOf(underFire.s).cover?.type, 'firing-lane',
-  'suppressed soldier may seek any safe shelter but must not expose himself to peek');
-
+assert.notEqual(
+  underFire.E.stateOf(underFire.s).cover?.type,
+  'firing-lane',
+  'suppressed soldier may seek any safe shelter but must not expose himself to peek'
+);
 
 const legacy = scenario('?coverPeek=0');
 legacy.E.decide(legacy.s, legacy.b, 'no firing line');
