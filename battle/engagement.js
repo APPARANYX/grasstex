@@ -1195,7 +1195,13 @@
        fire-fight or pretending to shoot through the hedge. */
     var laneAllowed = !cover && COVER_PEEK && !suppressed && target && target.root,
       laneBlocked = laneAllowed && !SA().hasLineOfSight(s, target, battle.heightAt, battle.obstacles);
-    if (laneBlocked) {
+    /* Experimental fire-and-movement rule: an exposed hedge-end bound only
+       begins while the observed target is suppressed long enough for a flank.
+       This is NOT active on PR420 and requires explicit ?coverPeekSupport=1. */
+    var needSupport = typeof location !== 'undefined' &&
+      /[?&]coverPeekSupport=1(?:&|#|$)/.test(location.search || '');
+    var safeWindow = !needSupport || (target && target.suppressedUntil > battle.time + 7);
+    if (laneBlocked && safeWindow) {
       cover = coverImpl().findFiringLane(s, battle, {
         maxRange: COVER_RANGE,
         notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null
@@ -1205,7 +1211,8 @@
          re-evaluate LOS, request movement or alter a cover reservation. */
       root.BattleCausalInaction.coverDecision(s, battle, 'firing-lane-gate',
         !COVER_PEEK ? 'flag-disabled' : suppressed ? 'suppressed' :
-        !target || !target.root ? 'no-live-target' : 'line-already-open');
+        !target || !target.root ? 'no-live-target' :
+        laneBlocked && !safeWindow ? 'target-not-suppressed' : 'line-already-open');
     }
     if (cover) {
       e.cover = cover;
