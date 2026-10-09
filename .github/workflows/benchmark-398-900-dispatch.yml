@@ -1,0 +1,45 @@
+name: Temporary PR 398 900-second acceptance dispatch
+on:
+  push:
+    branches:
+      - work/benchmark-398-900-dispatch
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch fresh 900-second paired controls and late-case replay
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for mode in meeting us-defend ge-defend; do
+            gh workflow run battle-benchmark-standard.yml \
+              --repo APPARANYX/grasstex \
+              --ref work/retreat398-900-validation \
+              -f seed=retreat398late \
+              -f seeds=60 \
+              -f query_off=retreatArrival=0 \
+              -f query_on='' \
+              -f battle_type="$mode" \
+              -f windows=contact+900 \
+              -f origin_agent=chatgpt \
+              -f correlation_id="pr398-900-${mode}" \
+              -f purpose="Independent 900s safety acceptance for PR398"
+            echo "Requested 900-second $mode, 60 seeds"
+          done
+          gh workflow run battle-benchmark-standard.yml \
+            --repo APPARANYX/grasstex \
+            --ref work/retreat398-900-validation \
+            -f seed=cenge-0007 \
+            -f seeds=1 \
+            -f query_off=retreatArrival=0 \
+            -f query_on='' \
+            -f battle_type=ge-defend \
+            -f windows=every60 \
+            -f origin_agent=chatgpt \
+            -f correlation_id=pr398-cenge-0007-900 \
+            -f purpose="900s original late retreat reconstitution reproducer"
+          echo "Requested focused cenge-0007 900-second replay"
