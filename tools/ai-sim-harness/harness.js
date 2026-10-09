@@ -303,7 +303,7 @@ function addSquad(root, battle, opts) {
 const movementSource = fs.readFileSync(path.join(REPO, 'battle/battle-sim.js'), 'utf8');
 const movementBody = movementSource.slice(
   movementSource.indexOf('  function stepMovement('),
-  movementSource.indexOf('  BattleSim.prototype._frame=')
+  movementSource.search(/\\s*BattleSim\\.prototype\\._frame\\s*=/)
 );
 const movementFactory = new Function(
   'root',
