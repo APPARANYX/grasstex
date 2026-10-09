@@ -15,4 +15,4 @@ jobs:
         with:
           node-version: '22'
       - name: Compare original-authority paths on real reconstitution runtime
-        run: node tools/ai-sim-harness/reconstitution-check.js
+        run: |\n          node tools/ai-sim-harness/retreat-anchor-check.js\n          node tools/ai-sim-harness/reconstitution-check.js
