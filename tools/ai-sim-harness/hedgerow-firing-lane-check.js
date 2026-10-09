@@ -149,7 +149,6 @@ assert.notEqual(
   'suppressed soldier may seek any safe shelter but must not expose himself to peek'
 );
 
-
 /* Purpose-built 12-case exercise matrix: the ordinary 20-seed benchmark had
    zero feature activations, so identical battle totals cannot validate this
    particular hedge encounter. Each variant must actually reach a firing line. */
@@ -158,7 +157,10 @@ for (const halfWidth of [10, 12, 14])
   for (const startZ of [-2.3, -8])
     for (const targetX of [0, 2]) variations.push({ halfWidth, startZ, targetX });
 const coverage = {
-  total: variations.length, selected: 0, arrived: 0, regainedSight: 0,
+  total: variations.length,
+  selected: 0,
+  arrived: 0,
+  regainedSight: 0,
   cases: []
 };
 for (const variant of variations) {
@@ -190,15 +192,23 @@ for (const variant of variations) {
 
   const old = scenario('?coverPeek=0', variant);
   old.E.decide(old.s, old.b, 'hedge fire-lane benchmark control');
-  assert.notEqual(old.E.stateOf(old.s).cover?.type, 'firing-lane',
-    'legacy control must not run experimental lane selection');
+  assert.notEqual(
+    old.E.stateOf(old.s).cover?.type,
+    'firing-lane',
+    'legacy control must not run experimental lane selection'
+  );
 }
 const lowWall = scenario('?coverPeek=1', { halfWidth: 12, startZ: -2.3, height: 0.6 });
-assert.ok(lowWall.r.SquadAI.hasLineOfSight(lowWall.s, lowWall.s.target, lowWall.b.heightAt, lowWall.b.obstacles),
-  'short wall is not a blocked firing line');
+assert.ok(
+  lowWall.r.SquadAI.hasLineOfSight(lowWall.s, lowWall.s.target, lowWall.b.heightAt, lowWall.b.obstacles),
+  'short wall is not a blocked firing line'
+);
 lowWall.E.decide(lowWall.s, lowWall.b, 'low wall negative control');
-assert.notEqual(lowWall.E.stateOf(lowWall.s).cover?.type, 'firing-lane',
-  'actor should not flank a harmless waist-high wall');
+assert.notEqual(
+  lowWall.E.stateOf(lowWall.s).cover?.type,
+  'firing-lane',
+  'actor should not flank a harmless waist-high wall'
+);
 console.log('HEDGE_PEEK_MATRIX ' + JSON.stringify(coverage));
 
 const legacy = scenario('?coverPeek=0');
