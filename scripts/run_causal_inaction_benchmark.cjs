@@ -36,7 +36,7 @@ const raw = path.join(out, 'raw.json');
 const url = new URL(process.env.CAUSAL_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php');
 /* Query flags drive the actual battle under test. Never let a user-supplied
    gameplay query replace benchmark seed, defender or observer selectors. */
-const causalQuery = String(process.env.CAUSAL_QUERY || '').replace(/^\\?/, '');
+const causalQuery = String(process.env.CAUSAL_QUERY || '').replace(/^\?/, '');
 for (const [key, value] of new URLSearchParams(causalQuery)) {
   if (!/^[A-Za-z][A-Za-z0-9]*$/.test(key) ||
       ['seed','defender','probeSide','probeRole','probeIds','probeSquads'].includes(key))
