@@ -1197,7 +1197,8 @@
       !cover &&
       COVER_PEEK &&
       !suppressed &&
-      target && target.root &&
+      target &&
+      target.root &&
       !SA().hasLineOfSight(s, target, battle.heightAt, battle.obstacles)
     ) {
       cover = coverImpl().findFiringLane(s, battle, {
