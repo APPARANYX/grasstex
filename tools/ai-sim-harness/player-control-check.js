@@ -289,7 +289,7 @@ assert.match(
 const moveSource = fs.readFileSync(path.join(H.REPO, 'battle/battle-sim.js'), 'utf8');
 assert.match(
   moveSource,
-  /steered=!recovery&&!playerDirect&&steerAroundObstacles/,
+  /steered\s*=\s*!recovery\s*&&\s*!playerDirect\s*&&\s*steerAroundObstacles/,
   'possessed movement must not be steered off tactical circles (window posts)'
 );
 const postureSource = fs.readFileSync(
