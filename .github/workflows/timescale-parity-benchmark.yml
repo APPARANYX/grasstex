@@ -14,7 +14,7 @@ on:
       seconds:
         description: 'Simulated seconds per battle, per speed/FPS variant'
         required: false
-        default: '120'
+        default: '600'
       seed:
         description: 'Battle seed'
         required: false
@@ -35,7 +35,7 @@ jobs:
     env:
       PARITY_SCENARIO: ${{ matrix.scenario }}
       PARITY_SEED: ${{ github.event.inputs.seed || 'timescale-parity' }}
-      PARITY_SECONDS: ${{ github.event.inputs.seconds || '120' }}
+      PARITY_SECONDS: ${{ github.event.inputs.seconds || '600' }}
       PARITY_OUT: reports/timescale-parity/${{ matrix.scenario }}.json
     steps:
       - uses: actions/checkout@v4
