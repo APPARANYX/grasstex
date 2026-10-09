@@ -87,7 +87,7 @@ jobs:
     env:
       BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.sha }}
       BATTLE_BENCHMARK_COUNT: '1'
-      BATTLE_BENCHMARK_TIME_LIMIT: '600'
+      BATTLE_BENCHMARK_TIME_LIMIT: '900'
       BATTLE_BENCHMARK_STEP: '0.15'
       BATTLE_BENCHMARK_WINDOWS: ${{ github.event.inputs.windows || 'contact+60,every60' }}
       BATTLE_BENCHMARK_SEED: ${{ github.event.inputs.seed || 'scripted-scout-0003' }}
@@ -277,7 +277,7 @@ jobs:
       BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.sha }}
       BATTLE_BENCHMARK_COUNT: ${{ matrix.count }}
       BATTLE_BENCHMARK_FIRST: ${{ matrix.first }}
-      BATTLE_BENCHMARK_TIME_LIMIT: '600'
+      BATTLE_BENCHMARK_TIME_LIMIT: '900'
       BATTLE_BENCHMARK_STEP: '0.15'
       BATTLE_BENCHMARK_WINDOWS: ${{ needs.plan.outputs.windows }}
       BATTLE_BENCHMARK_SEED: ${{ github.event.inputs.seed || 'scripted-seeds' }}
