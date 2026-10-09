@@ -80,8 +80,8 @@ function fixture({ physical = true, inside = false, win = {} } = {}) {
   // Execute the real integrator and death path with rendering stubbed, as the navigation suite does.
   let code = fs.readFileSync(path.join(H.REPO, 'battle/battle-sim.js'), 'utf8');
   code = code.replace(
-    '  BattleSim.prototype._frame=function',
-    '  root.stepMovementProbe=stepMovement;root.killProbe=BattleSim.prototype.killSoldier;\n  BattleSim.prototype._frame=function'
+    /(?=BattleSim\\.prototype\\._frame\\s*=\\s*function)/,
+    'root.stepMovementProbe = stepMovement; root.killProbe = BattleSim.prototype.killSoldier;\n  '
   );
   new Function('window', 'globalThis', 'BABYLON', 'BattleSoldierModel', code)(
     r,
