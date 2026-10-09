@@ -16,7 +16,7 @@ const path = require('node:path');
 const URL_ = process.env.PARITY_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
 const SEED = process.env.PARITY_SEED || 'timescale-parity';
 const SCENARIO = process.env.PARITY_SCENARIO || 'meeting';
-const SECONDS = Math.max(15, +process.env.PARITY_SECONDS || 120);
+const SECONDS = Math.max(15, +process.env.PARITY_SECONDS || 600);
 const OUT = process.env.PARITY_OUT || '';
 const DEFENDER = { meeting: '', 'us-defend': 'us', 'ge-defend': 'ge' };
 if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
@@ -84,6 +84,9 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
         root.BattleSoldierModel.setImportedEnabled(sim.scene, false);
       }
 
+      let fireCount = 0;
+      let hitCount = 0;
+      let suppressionCount = 0;
       function reset() {
         (sim._controlRawRestart || sim.restart.bind(sim))();
         sim._fixedClock.reset();
@@ -95,7 +98,17 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
           timeScale: 1,
           timeLimit: seconds
         });
-        sim.onFire = sim.onShot = sim.onSuppressiveShot = sim.onCallout = sim.onUpdate = function () {};
+        fireCount = hitCount = suppressionCount = 0;
+        sim.onFire = function () {
+          fireCount++;
+        };
+        sim.onShot = function (shooter, target, hit) {
+          if (hit) hitCount++;
+        };
+        sim.onSuppressiveShot = function () {
+          suppressionCount++;
+        };
+        sim.onCallout = sim.onUpdate = function () {};
       }
 
       function snapshot(label) {
@@ -105,6 +118,9 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
           winner: sim.winner || null,
           aliveUS: sim.factions.us.alive,
           aliveGE: sim.factions.ge.alive,
+          fireEvents: fireCount,
+          hitEvents: hitCount,
+          suppressionEvents: suppressionCount,
           fingerprint: JSON.stringify(root.BattleStateFingerprint.snapshot(sim)),
           pendingSeconds: sim._fixedClock.stats.pendingSeconds,
           backloggedFrames: sim._fixedClock.stats.backloggedFrames
@@ -155,6 +171,9 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
         winner: standard.winner,
         aliveUS: standard.aliveUS,
         aliveGE: standard.aliveGE,
+        fireEvents: standard.fireEvents,
+        hitEvents: standard.hitEvents,
+        suppressionEvents: standard.suppressionEvents,
         fingerprint: hash(standard.fingerprint)
       },
       variants: results.variants.map(run => ({
@@ -164,6 +183,9 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
         winner: run.winner,
         aliveUS: run.aliveUS,
         aliveGE: run.aliveGE,
+        fireEvents: run.fireEvents,
+        hitEvents: run.hitEvents,
+        suppressionEvents: run.suppressionEvents,
         pendingSeconds: run.pendingSeconds,
         backloggedFrames: run.backloggedFrames,
         fingerprint: hash(run.fingerprint)
@@ -175,7 +197,9 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
       fs.writeFileSync(OUT, JSON.stringify(report, null, 2) + '\n');
     }
     console.log(JSON.stringify(report, null, 2));
-    if (errors.length || report.variants.some(v => !v.sameBattle)) process.exitCode = 1;
+    if (errors.length || !report.baseline.fireEvents || report.variants.some(v => !v.sameBattle)) {
+      process.exitCode = 1;
+    }
   } finally {
     await page.close();
     await browser.close();
