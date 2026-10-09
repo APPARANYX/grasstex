@@ -428,6 +428,49 @@
           role: leader.role
         });
     }
+    var FLED_WAIT_EXCLUDED_ON = !/[?&]fledWaitMerge=(?:0|off|false)(?:&|#|$)/i.test(
+      typeof location !== 'undefined' ? location.search || '' : ''
+    );
+    function waitingFled(sq) {
+      var E = root.BattleEngagement,
+        man = sq && sq.fledId != null && !sq.disbanded && sq.members && sq.members[0];
+      return !!(man && !man.dead && E && E.fledPhase && E.fledPhase(man) === 'wait');
+    }
+    /* A fled man waiting at his refuge is under Engagement's flee, which outranks a squad retreat in the
+       resolver: he cannot walk to the rally he was assigned, and only the pickup or his own wait clock frees
+       him. He still counts toward the group's strength while it assembles (a retreating squad may take him
+       in on the way), but once every other squad is at the rally and they are viable without him, the group
+       merges without him instead of staying open to the end of the battle (and closes if they are too few). */
+    function meetWithoutWaitingFled(sim, g, squads) {
+      var waiting = squads.filter(waitingFled);
+      if (!waiting.length) return;
+      var movers = squads.filter(function (sq) {
+        return waiting.indexOf(sq) < 0;
+      });
+      var strength = movers.reduce(function (n, sq) {
+        return n + D.aliveMembers(sq).length;
+      }, 0);
+      if (
+        !movers.every(function (sq) {
+          return atRally(sq, g);
+        })
+      )
+        return;
+      /* Too few without him: close the group with a reason instead of leaving the men at the rally to the
+         end of the battle. He is not pooled while he waits, so the group does not re-form around him. */
+      if (strength < RECON_MIN_STRENGTH) return dissolveGroup(sim, g, squads, 'fled-man-waiting');
+      waiting.forEach(function (sq) {
+        sq._reconGroup = null;
+        finishMission(sim, sq, 'failed', 'fled-waiting-at-refuge');
+        telemetry(sim, 'decision-recon-fled-left', { faction: g.faction, group: g.id, squad: sq.id });
+      });
+      g.squads = g.squads.filter(function (id) {
+        return !waiting.some(function (sq) {
+          return sq.id === id;
+        });
+      });
+      mergeGroup(sim, g, movers);
+    }
     function atRally(sq, g) {
       var a = sq._assembly,
         p = D.avgPos(sq);
@@ -449,6 +492,7 @@
             !sq.disbanded &&
             sq.state === 'retreat' &&
             !sq._reconGroup &&
+            !(FLED_WAIT_EXCLUDED_ON && waitingFled(sq)) &&
             !sq.inContact &&
             sq._assembly &&
             sq._assembly.phase === 'at-base' &&
@@ -517,6 +561,7 @@
           })
         )
           mergeGroup(sim, g, squads);
+        else if (FLED_WAIT_EXCLUDED_ON) meetWithoutWaitingFled(sim, g, squads);
       }
     }
 

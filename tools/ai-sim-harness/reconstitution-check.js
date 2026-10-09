@@ -54,7 +54,7 @@ function world(opts) {
   load(r, 'battle/commander-doctrine.js');
   load(r, 'battle/commander-routes.js');
   load(r, 'battle/commander-ai.js');
-  load(r, 'battle/modules/22-commander-reconstitution.js');
+  load(r, 'battle/modules/22-commander-reconstitution.js', opts.search);
   load(r, 'battle/modules/22a-commander-strategic-recovery.js');
   load(r, 'battle/movement-resolver.js');
   load(r, 'battle/modules/15a-squad-leader-fire-control.js', opts.search);
@@ -671,5 +671,73 @@ test('a source squad wiped during assembly is cleaned when the surviving sources
   assert.equal(wiped._reconGroup, null, 'the wiped source is detached from the terminal group');
   assert.ok(wiped._macroMission, 'the wiped source keeps its terminal mission record for diagnostics');
   assert.equal(wiped._macroMission.status, 'failed', 'its reconstitution brief is terminal');
+});
+
+function waitingFledWorld(search, sizes) {
+  sizes = sizes || [4, 4];
+  const w = world(search ? { search } : undefined),
+    a = squad(w, 0, sizes[0], null, 20),
+    b = squad(w, 1, sizes[1], null, 20),
+    grouped = untilGrouped(w, 120),
+    c = squad(w, 2, 1, null, 20);
+  assert.deepEqual(grouped.group.squads.slice().sort(), [a.id, b.id].sort());
+  /* c is a fled man waiting at his refuge (Engagement's flee owns him and he never leaves it) whose lone squad
+     is a member of the group, as in the census (cenu-0008). */
+  const man = living(c)[0],
+    spot = { x: man.root.position.x, z: man.root.position.z },
+    E = w.r.BattleEngagement;
+  c.fledId = man.id;
+  c.state = 'retreat';
+  c._reconGroup = grouped.group.id;
+  c._assembly = Object.assign({}, a._assembly, { phase: 'to-rally' });
+  grouped.group.squads.push(c.id);
+  if (sizes.length > 2) w.b.killSoldier(living(b)[0], null);
+  const hold = () => {
+    man.root.position.x = spot.x;
+    man.root.position.z = spot.z;
+    E.stateOf(man).fledPhase = 'wait';
+  };
+  run(w, 360, hold);
+  return { w, a, b, c, grouped };
+}
+test('a fled man waiting at his refuge does not keep the group from meeting', () => {
+  const { w, a, b, c, grouped } = waitingFledWorld();
+  const ended = recon(w).ended.find(g => g.id === grouped.group.id);
+  assert.ok(
+    ended && ended.status === 'merged',
+    'the eight men who can walk to the rally merge: ' + JSON.stringify(ended)
+  );
+  assert.equal(c._reconGroup, null, 'the waiting man is released from the group');
+  assert.ok(!c.reconstitutedFrom && !c.disbanded, 'and stays his own detachment');
+  assert.ok(w.b.factions.us.squads.some(q => q.reconstitutedFrom && living(q).length === 8));
+  assert.ok(recon(w).groupsFormed <= 2, 'and the group does not re-form every few seconds');
+});
+test('?fledWaitMerge=0 restores the old wait: the group stays open on the waiting man', () => {
+  const { w, grouped } = waitingFledWorld('?fledWaitMerge=0');
+  const ended = recon(w).ended.find(g => g.id === grouped.group.id);
+  assert.ok(!ended, 'the group is still open');
+});
+function pooledWithWaitingFled(search) {
+  const w = world(search ? { search } : undefined);
+  squad(w, 0, 3, null, 20);
+  squad(w, 1, 2, null, 20);
+  const c = squad(w, 2, 1, null, 20),
+    man = living(c)[0],
+    E = w.r.BattleEngagement;
+  c.fledId = man.id;
+  run(w, 200, () => {
+    E.stateOf(man).fledPhase = 'wait';
+  });
+  return recon(w);
+}
+test('a fled man waiting at his refuge is never pooled into a group, so groups do not form and dissolve in a loop', () => {
+  assert.equal(pooledWithWaitingFled().groupsFormed, 0);
+  assert.ok(pooledWithWaitingFled('?fledWaitMerge=0').groupsFormed >= 1, 'the control arm pools him');
+});
+test('too few without the waiting fled man: the group closes with a reason instead of staying open', () => {
+  const { w, grouped } = waitingFledWorld(null, [3, 3, 'loss']);
+  const ended = recon(w).ended.find(g => g.id === grouped.group.id);
+  assert.ok(ended, 'the group is closed');
+  assert.notEqual(ended.status, 'merged');
 });
 console.log(n + ' reconstitution checks passed');
