@@ -156,8 +156,12 @@ function world(mode, withGraph) {
   w.scene.mainSoundTrack = { _outputAudioNode: bus };
   w.sound._scene = w.scene;
   w.sound._soundV2 = { _outNode: w.context.createGain() };
-  w.sound.getSoundGain = function () { return this._soundV2._outNode; };
-  w.sound.connectToSoundTrackAudioNode = function (node) { this.routed = node; };
+  w.sound.getSoundGain = function () {
+    return this._soundV2._outNode;
+  };
+  w.sound.connectToSoundTrackAudioNode = function (node) {
+    this.routed = node;
+  };
   assert.equal(w.api.prepare(w.sound, w.position, 'voice', 0.24, w.scene), true);
   assert.equal(w.api.stats.filtered, 1, 'AudioV2 SoundTrack rerouting inserts a filter');
   assert.ok(w.sound.routed && w.sound.routed !== bus, 'AudioV2 routes through the filter');
