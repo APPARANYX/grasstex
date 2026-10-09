@@ -1,0 +1,31 @@
+name: Temporary weapon fixture formatter
+on:
+  push:
+    branches:
+      - 'work/experimental-movement-substeps'
+    paths:
+      - '.github/workflows/temporary-format-weapon-check.yml'
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/experimental-movement-substeps
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned formatting for source-compatible shot buffer check
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write tools/ai-sim-harness/weapon-shot-buffer-check.js
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add tools/ai-sim-harness/weapon-shot-buffer-check.js
+          if ! git diff --cached --quiet; then
+            git commit -m "Format weapon shot buffer source regression check"
+            git push origin HEAD:work/experimental-movement-substeps
+          fi
