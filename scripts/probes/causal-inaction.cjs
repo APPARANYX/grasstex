@@ -13,7 +13,7 @@
     side: params.get('probeSide') || 'all',
     roles: csv('probeRole'), ids: csv('probeIds'), squads: csv('probeSquads')
   };
-  var MAX_EPISODES = 80, MAX_HISTORY = 10, FIRE_SILENCE = 5, MOVE_STILL = 12;
+  var MAX_EPISODES = 80, MAX_HISTORY = 10, MAX_DENIALS = 160, FIRE_SILENCE = 5, MOVE_STILL = 12;
   var data, units, originalFire;
   function round(n) { return +Number(n || 0).toFixed(2); }
   function bump(o, k) { o[k] = (o[k] || 0) + 1; }
@@ -28,7 +28,7 @@
   function unit(s) {
     var k = key(s), d = units.get(k);
     if (!d) {
-      d = { lastShot: -Infinity, fire: null, move: null, history: [] };
+      d = { lastShot: -Infinity, fire: null, move: null, history: [], denials: [] };
       units.set(k, d);
     }
     return d;
@@ -79,7 +79,7 @@
       evidence: evidence, history: history.slice(-MAX_HISTORY)
     });
   }
-  function fireClassification(s, sim, f) {
+  function fireClassification(s, sim, f, d) {
     var rejects = {
       los: Math.max(0, (+s._losBlockedFire || 0) - f.los),
       crest: Math.max(0, (+s._crestBlockedFire || 0) - f.crest),
@@ -89,8 +89,22 @@
       rec = recs && recs[String(s.id)] && recs[String(s.id)]['posture-fire|squad'],
       order = rec && rec.data && rec.data.state || null,
       state = s.eng && s.eng.state || null;
+    var denials = {};
+    d.denials.forEach(function (e) {
+      if (e.t >= f.since && e.t <= sim.time && e.target === f.target) bump(denials, e.code);
+    });
     var evidence = { target: f.target, fireOrder: order, engagement: state,
-      triggerRejectDeltas: rejects, roundsFired: 0 };
+      triggerRejectDeltas: rejects, directFireDenials: denials, roundsFired: 0 };
+    if (Object.keys(denials).length && (rejects.crest || rejects.los || rejects.terrain))
+      return { evidence: evidence, result: {
+        code: 'multiple-observed-fire-blockers', confidence: 'verified', scope: 'decision-and-shot-attempt',
+        interpretation: 'Both a real Engagement denial and a trigger-path rejection occurred; neither proves the entire silent interval.'
+      } };
+    if (Object.keys(denials).length)
+      return { evidence: evidence, result: {
+        code: 'engagement-decision-denied', confidence: 'verified', scope: 'decision-gate',
+        interpretation: 'The Engagement fire-permission gate actually refused firing for the recorded reasons.'
+      } };
     if (rejects.crest || rejects.los || rejects.terrain)
       return { evidence: evidence, result: {
         code: 'observed-trigger-rejection', confidence: 'verified', scope: 'shot-attempt',
@@ -139,7 +153,7 @@
     }
     var f = d.fire;
     if (!f.reported && sim.time - f.since >= FIRE_SILENCE) {
-      var c = fireClassification(s, sim, f);
+      var c = fireClassification(s, sim, f, d);
       emit('fire-silence', s, f.since, sim.time, c.result, c.evidence, d.history);
       f.reported = true;
     }
@@ -174,8 +188,22 @@
     start: function (sim) {
       data = { schema: 'grasstex-causal-inaction-v1', config: options,
         counts: {}, reasons: {}, confidence: {}, episodes: [], episodesOmitted: 0,
-        roundsObserved: 0, actorsObserved: 0 };
+        directDenialsOmitted: 0, roundsObserved: 0, actorsObserved: 0 };
       units = new Map();
+      /* Called only from the real Engagement rejection sites, never by sampling a gate. */
+      root.BattleCausalInaction = {
+        denied: function (s, battle, code) {
+          if (!chosen(s) || !battle) return;
+          var d = unit(s), now = +battle.time || 0;
+          d.denials.push({ t: now, code: code,
+            target: s.target && !s.target.dead ? String(s.target.id) : null });
+          while (d.denials.length && d.denials[0].t < now - 10) d.denials.shift();
+          if (d.denials.length > MAX_DENIALS) {
+            d.denials.shift();
+            data.directDenialsOmitted++;
+          }
+        }
+      };
       originalFire = sim.onFire;
       sim.onFire = function (s) {
         var result = originalFire && originalFire.apply(this, arguments);
