@@ -53,3 +53,20 @@ subframe interpolator; 1x rendering can display noticeable stair-stepping,
 and visual effects do not promise exact cross-speed equality. The guarantee
 here is a shared simulation-step sequence, provided gameplay code reads only
 simulation time for gameplay decisions.
+
+## Experimental movement substeps (not enabled by default)
+
+The engine supports `?movementSubsteps=2` (two 0.075s movement passes
+per 0.15s AI step) and `?movementSubsteps=3` (three 0.05s movement passes).
+The default remains **one 0.15s pass**. The experimental passes advance the
+US and German soldier rosters together at each intermediate simulation time
+and keep `SquadAI.updateSquad`, `SquadAI.updateSoldier`, `onSimulationStep`
+and General cadence unchanged. Noncanonical manual step lengths retain their
+existing integration behavior.
+
+Test with the existing paired standard benchmark: OFF empty; ON
+`movementSubsteps=2` or `movementSubsteps=3`, same scenario and seed.
+Compare movement stalls, navigation reachability, avoidance, casualties,
+fire/control cadence and benchmark wall-time. The 0.05s option is **not
+assumed superior** until measured. Do not enable either candidate by default
+without paired benchmark and device-performance evidence.
