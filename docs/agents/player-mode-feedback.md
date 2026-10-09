@@ -81,6 +81,9 @@ The overlay toggle continues to control these indications.
 
 - `node tools/ai-sim-harness/player-control-check.js` (Menu tap/hold timing and roster safety)
 - `node tools/ai-sim-harness/squad-status-overlay-check.js`
+- Low-frame-rate aim smoke: pan near a crest at 60 FPS and throttled 10–20 FPS.
+  The small unfilled ring should ease toward muzzle parallax, not snap across
+  the viewport; the center reticle and the actual bullet impact remain authoritative.
 - Manual smoke: switch possession, sprint to exhaustion/recovery, fire a loaded
   weapon and an empty one, aim near a wall/crest and verify the dot separates from center, score enemy hits and misses,
   compare zoomed/unzoomed mouse and right-stick look, take a hit from several bearings and turn, confirm
