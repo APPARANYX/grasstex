@@ -141,7 +141,7 @@ assert.match(
 );
 assert.match(
   squadSource,
-  /B\.resolvePlayerRay\(soldier, aimPoint, battle, round, delay\)/,
+  /B\.resolvePlayerRay\(\s*soldier,\s*aimPoint,\s*battle,[\s\S]{0,120}?delay\s*\)/,
   'enemy hit signal is read from authoritative discharged rounds'
 );
 assert.match(cameraSource, /B\.previewPlayerRay\(player, point, b\)/, 'floating dot uses bore preview');

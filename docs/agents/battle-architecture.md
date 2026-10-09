@@ -548,7 +548,10 @@ held a target for ~10,000 samples, 98% of them at 150 m or more, `engageRange` s
 them, and he fired 0/94/0 rounds against 280-422 for a rifleman; the gate is right, the contacts are far).
 A rifle for leaders would be a loadout change (`LOADOUTS`) needing the Garand/Kar98k seat checked on the
 captain models in Motion Lab. A selective-fire weapon (`autoWithin`, the FG42: 50 m) bursts only inside
-that distance and fires single aimed rounds beyond it. `rof` is the aimed rate of a semi-auto or bolt action; an
+that distance and fires single aimed rounds beyond it. That is the AI's rule: bursts model a gunner's
+trigger discipline (the MG 42, M1919A6 and MP 40 had no selector at all). The player's trigger does not
+burst: an automatic held fires at `cyclic` until released, and the Thompson M1A1 and FG 42 carry a real
+`selector` (`BattleWeapons.fireMode`, see player-mode-feedback.md). `rof` is the aimed rate of a semi-auto or bolt action; an
 automatic has `cyclic` (rounds/s), `burst` [min, max], `burstPause` and `burstClimb`. One trigger pull
 fires the whole burst on one AI tick (0.15 s, slower than an MG42 cycles); each round goes through
 `roundGate`, `shotModel(…, round, delay)` and `afterShot`, and `onFire(soldier, delay)` / the shot's

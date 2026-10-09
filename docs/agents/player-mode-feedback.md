@@ -28,6 +28,17 @@ casualties, wounds, shooting, and AI orders remain with their existing owners.
   the player looks around, fades over 1.7 seconds, and does not pulse again for
   subsequent bleeding ticks. The source is taken from the wound model's
   `_lastHitBy` reference and sampled when that new wound is observed.
+- **Trigger and selector.** An automatic (Thompson M1A1, MP 40, M1919A6, MG 42, FG 42) fires one round per
+  cyclic interval for as long as LMB/RT is held, with no burst length and no re-lay pause: a burst is the
+  player's trigger discipline (the AI's bursts model a gunner's). Letting go stops the gun at once. Only
+  weapons that really had a selector answer to it: **B** / **Y** cycles the Thompson M1A1 (drawn on full
+  auto) and the FG 42 (drawn on semi) between full auto and semi, where semi is one aimed round per `rof`
+  cooldown. The MP 40, M1919A6 and MG 42 are full auto only; the key does nothing on them. The HUD row under
+  the name shows the weapon and `FULL AUTO` / `SEMI` (nothing for a bolt action or semi-automatic). Muzzle
+  climb counts rounds since the trigger was let go (a gap over 0.25 s) and is capped at the longest AI
+  burst's, so a held trigger is never wider than the worst round of a burst. The mode lives on the weapon
+  (`weapon.fireMode`, `BattleWeapons.fireMode` / `cycleFireMode`); the AI never reads it and keeps
+  `autoWithin` for the FG 42.
 - Successful `SquadAI.playerFireRay` triggers brief haptics; a new wound
   triggers a stronger haptic. Unsupported `Gamepad.vibrationActuator`,
   legacy `hapticActuators`, and `navigator.vibrate` APIs are silent no-ops.
@@ -100,6 +111,7 @@ offscreen border into empty sky. On-screen command movement remains unchanged.
 ## Regression checks
 
 - `node tools/ai-sim-harness/player-control-check.js` (Menu tap/hold timing and roster safety)
+- `node tools/ai-sim-harness/player-fire-mode-check.js` (held full auto, selector, semi, climb, AI bursts untouched)
 - `node tools/ai-sim-harness/squad-status-overlay-check.js` (projected bearings,
   rear-camera fallback, rectangular edge intersection, and offscreen-only cues)
 - Low-frame-rate aim smoke: pan near a crest at 60 FPS and throttled 10–20 FPS.
