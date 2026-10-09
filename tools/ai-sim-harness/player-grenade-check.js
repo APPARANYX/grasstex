@@ -280,68 +280,134 @@ assert.equal(
   aim(null, () => 0),
   null
 );
-on.event('canvas', 'mousedown', { button: 2 });
+const trigger = (button, down) =>
+  on.event(down ? 'canvas' : 'window', down ? 'mousedown' : 'mouseup', { button });
+// Aiming alone shows nothing: the grenade has to be chosen first.
+trigger(2, true);
 on.tick();
 const overlay = on.elements.get('battlePlayerGrenadePreview'),
   hud = on.elements.get('battlePlayerGrenades');
-assert.equal(overlay.style.display, 'block', 'aiming shows the grenade arc');
+assert.notEqual(overlay.style.display, 'block', 'aiming with the rifle shows no grenade arc');
+assert.match(hud.textContent, /GRENADES 2 · G \/ RB SELECT/);
+trigger(0, true);
+on.tick();
+assert.equal(on.fireCalls, 1, 'fire is a rifle shot until a grenade is chosen');
+assert.equal(on.throws.length, 0);
+trigger(0, false);
+on.key('g');
+on.tick();
+assert.match(hud.textContent, /SELECTED · AIM FOR ARC · FIRE TO THROW/, 'G chooses the grenade');
+assert.equal(overlay.style.display, 'block', 'aiming with a chosen grenade shows the arc');
 assert.match(overlay.children[0].attributes.d, /M.*L/, 'the actual preview points draw an arc');
 assert.equal(overlay.children[0].attributes.stroke, '#f5d789');
-assert.match(hud.textContent, /GRENADES 2/);
 on.legal(false);
 on.tick();
 assert.equal(overlay.children[0].attributes.stroke, '#fa8d7b', 'blocked arc is visibly distinct');
 assert.match(overlay.children[2].textContent, /wall/);
-on.key('g');
+on.legal(true);
 on.key('g');
 on.key('g', true);
-assert.equal(on.throws.length, 1, 'keyboard auto-repeat and duplicate downs cannot throw again');
+on.tick();
+assert.match(hud.textContent, /SELECTED/, 'duplicate downs and auto-repeat cannot cancel the choice');
+assert.equal(on.throws.length, 0, 'choosing a grenade never throws');
+// Fire is the throw: one press, one request, and no rifle round.
+const rifleShots = on.fireCalls;
+trigger(0, true);
+on.tick();
+assert.equal(on.throws.length, 1, 'fire throws the chosen grenade');
 assert.equal(on.throws[0].s, on.soldier, 'request belongs to the possessed soldier');
 assert.equal(on.throws[0].b, on.battle);
 assert.ok(on.throws[0].aim.z > 60, 'a level view submits a distant request for core range clamping');
 on.key('w');
-on.event('canvas', 'mousedown', { button: 0 });
 on.tick();
 assert.equal(on.move.z, 0, 'windup holds the player movement proposal');
-assert.equal(on.fireCalls, 0, 'windup suppresses rifle fire');
+assert.equal(on.fireCalls, rifleShots, 'windup suppresses rifle fire');
 assert.match(hud.textContent, /THROWING/);
 assert.equal(overlay.style.display, 'none');
 on.pending(null);
 on.tick();
 assert.ok(on.move.z > 0, 'player movement resumes after release');
-assert.equal(on.fireCalls, 1, 'rifle fire resumes after release');
+assert.equal(
+  on.fireCalls,
+  rifleShots,
+  'the press that threw is spent: a held trigger does not fire the rifle'
+);
+assert.match(hud.textContent, /G \/ RB SELECT/, 'throwing returns to the rifle');
+trigger(0, false);
+on.tick();
+trigger(0, true);
+on.tick();
+assert.equal(on.fireCalls, rifleShots + 1, 'a fresh press fires the rifle again');
+trigger(0, false);
 on.event('window', 'keyup', { key: 'g' });
-on.key('g');
-assert.equal(on.throws.length, 2, 'a released and re-pressed G makes a fresh request');
+trigger(0, true);
+on.tick();
+on.key('g'); // a trigger already held when the grenade is chosen must be released first
+on.tick();
+assert.equal(on.throws.length, 1, 'a held trigger cannot throw the moment a grenade is chosen');
+trigger(0, false);
+on.tick();
+trigger(0, true);
+on.tick();
+assert.equal(on.throws.length, 2, 'a released and re-pressed trigger throws');
+trigger(0, false);
 on.pending(null);
 on.projectiles([{ by: on.soldier.id, detonateAt: on.battle.time + 4.2 }]);
 on.tick();
 assert.match(hud.textContent, /FUSE 4\.2 s/, 'fuse uses the authoritative projectile clock');
+on.projectiles([]);
 
 const pad = { id: 'Xbox', mapping: 'standard', connected: true, axes: [], buttons: [] };
 pad.buttons[5] = { pressed: true, value: 1 };
 on.pad(pad);
 on.tick();
-assert.equal(on.throws.length, 2, 'reconnecting with RB held cannot make an accidental throw');
+assert.doesNotMatch(hud.textContent, /SELECTED/, 'reconnecting with RB held cannot choose a grenade');
 pad.buttons[5] = { pressed: false, value: 0 };
 on.tick();
 pad.buttons[5] = { pressed: true, value: 1 };
 on.tick();
 on.tick();
-assert.equal(on.throws.length, 3, 'RB is one throw request per physical press');
+assert.match(hud.textContent, /SELECTED/, 'RB chooses the grenade once per physical press');
+pad.buttons[5] = { pressed: false, value: 0 };
+pad.buttons[6] = { pressed: true, value: 1 };
+on.tick();
+assert.equal(overlay.style.display, 'block', 'LT shows the arc for a chosen grenade');
+pad.buttons[7] = { pressed: true, value: 1 };
+on.tick();
+on.tick();
+assert.equal(on.throws.length, 3, 'RT throws once per physical press');
+pad.buttons[6] = { pressed: false, value: 0 };
+pad.buttons[7] = { pressed: false, value: 0 };
+on.pending(null);
+on.tick();
+pad.buttons[5] = { pressed: true, value: 1 };
+on.tick();
+assert.match(hud.textContent, /SELECTED/);
+pad.buttons[5] = { pressed: false, value: 0 };
+on.tick();
+pad.buttons[5] = { pressed: true, value: 1 };
+on.tick();
+assert.doesNotMatch(hud.textContent, /SELECTED/, 'a second press of RB puts the grenade away');
+on.event('window', 'keyup', { key: 'g' });
+on.key('g');
+on.tick();
+assert.match(hud.textContent, /SELECTED/);
 on.key('v');
 assert.equal(on.soldier.isPlayer, false);
 assert.equal(overlay.style.display, 'none', 'exit hides the throw preview');
+on.event('window', 'keyup', { key: 'g' });
 on.key('g');
 assert.equal(on.throws.length, 3, 'free camera cannot throw');
 on.key('p');
-on.window.__battle__ = { ...on.battle };
-on.key('g');
-assert.equal(on.throws.length, 3, 'stale possession cannot throw into a restarted battle');
 on.tick();
+assert.match(hud.textContent, /G \/ RB SELECT/, 'a new possession starts with the rifle in hand');
+on.event('window', 'keyup', { key: 'g' });
+on.key('g');
+on.window.__battle__ = { ...on.battle };
+trigger(0, true);
+on.tick();
+assert.equal(on.throws.length, 3, 'stale possession cannot throw into a restarted battle');
 assert.equal(on.soldier.isPlayer, false, 'restart releases possession normally');
 assert.equal(on.soldier.grenades, 2, 'presentation never writes inventory');
 assert.equal(on.soldier._grenadeNextAt, 0, 'presentation never writes cooldown');
-console.log(
-  'PASS player grenades: opt-in, G/RB edges, terrain aim, arc legality, count/fuse, windup and release'
-);
+console.log('PASS player grenades: G/RB choose, aim shows the arc, fire throws once, windup and release');

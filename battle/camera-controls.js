@@ -277,6 +277,9 @@
       boreScreenPos = null,
       borePaintAt = 0,
       grenadeKeyDown = false,
+      grenadeReady = false,
+      grenadeFireHeld = false,
+      grenadeFireSpent = false,
       grenadeHud = null,
       grenadeOverlay = null,
       grenadeArc = null,
@@ -330,7 +333,9 @@
       el.textContent = player
         ? PLAYER_HINT +
           (pad ? ' · ' + PLAYER_PAD_HINT : '') +
-          (grenadesOn() ? ' · G' + (pad ? ' / RB' : '') + ' grenade · aim to preview arc' : '') +
+          (grenadesOn()
+            ? ' · G' + (pad ? ' / RB' : '') + ' select grenade · aim for arc · fire throws'
+            : '') +
           ' · ' +
           playerLabel()
         : KEY_HINT + (pad ? ' · ' + PAD_HINT : '');
@@ -487,6 +492,24 @@
       lastGrenadePreview = -Infinity;
       if (grenadeOverlay) grenadeOverlay.style.display = 'none';
     }
+    /* G / RB chooses the grenade; only then does aiming draw its arc and fire throw it. */
+    function clearGrenadeReady() {
+      grenadeReady = false;
+      grenadeFireHeld = false;
+      clearGrenadePreview();
+    }
+    function toggleGrenadeReady(pad) {
+      var b = liveBattle();
+      if (!grenadesOn() || !player || playerBattle !== b || menuOpen) return;
+      if (grenadeReady) {
+        clearGrenadeReady();
+        return;
+      }
+      if (global.BattleGrenades.count(player) <= 0) return;
+      grenadeReady = true;
+      // A trigger already held when the grenade is chosen has to be released and pressed again.
+      grenadeFireHeld = mouseFire || buttonValue(pad, 7) > 0.35;
+    }
     function ensureGrenadeFeedback() {
       if (grenadeHud || !grenadesOn()) return;
       grenadeHud = document.createElement('div');
@@ -532,9 +555,12 @@
       var aim = playerGrenadeAim(b),
         plan = aim && global.BattleGrenades.playerThrow(player, b, aim);
       if (plan) {
-        clearGrenadePreview();
+        clearGrenadeReady();
+        // The press that threw is spent: the rifle must not start firing when the windup ends.
+        grenadeFireSpent = true;
         playerRumble(pad, 90, 0.25, 0.4);
       }
+      return !!plan;
     }
     function grenadeScreenPoint(point) {
       if (!point) return null;
@@ -617,8 +643,10 @@
           : !carried
             ? 'EMPTY'
             : cooldown > 0
-              ? 'READY IN ' + cooldown.toFixed(1) + ' s'
-              : 'G / RB THROW · AIM FOR ARC';
+              ? (grenadeReady ? 'SELECTED · ' : '') + 'READY IN ' + cooldown.toFixed(1) + ' s'
+              : grenadeReady
+                ? 'SELECTED · AIM FOR ARC · FIRE TO THROW · G / RB CANCEL'
+                : 'G / RB SELECT';
       if (live.length) status += ' · FUSE ' + Math.max(0, live[0].detonateAt - b.time).toFixed(1) + ' s';
       grenadeHud.textContent = 'GRENADES ' + carried + ' · ' + status;
       grenadeHud.style.display = 'block';
@@ -931,7 +959,7 @@
       mouseFire = false;
       keys.clear();
       grenadeKeyDown = false;
-      clearGrenadePreview();
+      clearGrenadeReady();
       if (document.pointerLockElement === canvas && document.exitPointerLock) document.exitPointerLock();
       menuPauseOwner = null;
       if (b && !b.paused && !b.winner && typeof b.pause === 'function') {
@@ -1043,7 +1071,7 @@
       mouseFire = false;
       keys.clear();
       grenadeKeyDown = false;
-      clearGrenadePreview();
+      clearGrenadeReady();
       ensureReticle().style.display = 'none';
       if (playerBoreDot) playerBoreDot.style.display = 'none';
       boreScreenPos = null;
@@ -1102,7 +1130,7 @@
       boreScreenPos = null;
       borePaintAt = 0;
       grenadeKeyDown = false;
-      clearGrenadePreview();
+      clearGrenadeReady();
       /* isPlayer, not a short movement lease, is the authority boundary for the whole possession. */
       /* Possession starts from a neutral player-owned stance instead of inheriting a squad hold-fire posture. */
       if (global.BattleEngagement && global.BattleEngagement.commitStance)
@@ -1183,7 +1211,15 @@
       if (pad && padPressedOnce(pad, 1)) togglePlayerCrouch(b);
       if (pad && padPressedOnce(pad, 0)) togglePlayerProne(b);
       if (pad && padPressedOnce(pad, 3)) cyclePlayerFireMode();
-      if (grenadesOn() && pad && padPressedOnce(pad, 5)) requestPlayerGrenade(pad);
+      if (grenadesOn() && pad && padPressedOnce(pad, 5)) toggleGrenadeReady(pad);
+      if (!firing) grenadeFireSpent = false;
+      if (grenadeReady && (!grenadesOn() || global.BattleGrenades.count(player) <= 0)) clearGrenadeReady();
+      if (grenadeReady) {
+        // Fire is the throw: one press, one request, and never a rifle round while chosen.
+        var grenadePress = firing && !grenadeFireHeld;
+        grenadeFireHeld = firing;
+        if (grenadePress) requestPlayerGrenade(pad);
+      }
       var grenadePending = grenadesOn() && global.BattleGrenades.pendingOf(player, b);
       var flat = new BABYLON.Vector3(Math.sin(playerYaw), 0, Math.cos(playerYaw)),
         right = new BABYLON.Vector3(Math.cos(playerYaw), 0, -Math.sin(playerYaw)),
@@ -1213,7 +1249,7 @@
       if (global.SquadAI && global.SquadAI.playerAim)
         global.SquadAI.playerAim(player, aiming || firing ? weaponAim : null);
       /* RT is a real trigger, not an AI target request: it fires the crosshair ray even with no lock. */
-      if (!grenadePending && firing && point && global.SquadAI) {
+      if (!grenadePending && !grenadeReady && !grenadeFireSpent && firing && point && global.SquadAI) {
         if (global.SquadAI.playerFireRay && global.SquadAI.playerFireRay(player, point, b)) {
           var shotTime = Date.now(),
             shot = player._lastBallisticShot;
@@ -1228,7 +1264,7 @@
         }
       }
       updatePlayerReticle(point, b, Date.now());
-      updateGrenadePreview(b, aiming && !grenadePending, Date.now());
+      updateGrenadePreview(b, aiming && grenadeReady && !grenadePending, Date.now());
     }
     canvas.addEventListener('click', function () {
       canvas.focus();
@@ -1308,7 +1344,7 @@
         if (player) {
           var b = liveBattle();
           if (key === 'g' && grenadesOn()) {
-            if (!event.repeat && !grenadeKeyDown) requestPlayerGrenade(activeGamepad());
+            if (!event.repeat && !grenadeKeyDown) toggleGrenadeReady(activeGamepad());
             grenadeKeyDown = true;
             event.preventDefault();
             return;

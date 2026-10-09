@@ -105,7 +105,10 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 - `RANGE = 30`, `CONF_MIN = 0.5`, `CONTACT_FRESH = 6`, `DECISION_EVERY = 1.5`, `FRIEND_CLEAR = 13` — throw range (m), personal-contact confidence/age (s), remembered-contact review cadence (s), friendly clearance including scatter (m)
 - `WINDUP = 0.9`, `COOLDOWN = 18`, `FUSE = 3.6` — decision-to-release, release cooldown, landed fuse (s)
 - `SCATTER = 3.5`, `FLIGHT_MIN = 0.7`, `FLIGHT_PER_M = 1/18`, `FLIGHT_MAX = 2.4` — independent-stream landing scatter (m) and flight-time bounds/range slope (s, s/m)
-- `BLAST_RADIUS = 9`, `SUPPRESS_RADIUS = 16`, `PIN_MIN = 1.6`, `PIN_MAX = 4.2`, `SEVERITY = 55`, `POWER = 0.85` — fragmentation/suppression radii (m), pin hold (s), wound severity/drop class
+- `SUPPRESS_RADIUS = 16`, `PIN_MIN = 1.6`, `PIN_MAX = 4.2` — burst suppression radius (m) and pin hold (s)
+- `FRAG_SEVERITY = 40`, `FRAG_POWER = 0.85`, `BLAST_SEVERITY = 60`, `FRAG_MAX_RANGE = 22`, `FRAG_MIN_RANGE = 0.6`, `FRAG_MAX_HITS = 8` — per-fragment and overpressure wound severity (scaled by range-decayed energy through `BattleWounds`), drop class, fragment reach (m), range floor (m) and hit cap
+- `KINDS.mk2 = { hits5: 2, spread: 1.25, reach: 17, blast: 1.8 }` (US, 57 g TNT) and `KINDS.m24 = { hits5: 1.6, spread: 1.55, reach: 12, blast: 3 }` (German, 170 g TNT, thin steel head) — mean fragment hits on a standing man at 5 m, density falloff exponent, fragment energy decay length (m), overpressure injury radius (m). Hits are Poisson with mean `hits5 × STANCE_AREA × (5 / d)^spread`; fitted so a standing man in the open is a casualty ~95 % at 2 m, ~50 % at 5 m (Mk 2) and ~5 % at 15 m
+- `STANCE_AREA = { stand: 1, crouch: 0.6, prone: 0.3 }`, `FRAG_ZONES = leg .40, abdomen .16, chest .22, arm .18, head .04` — silhouette share presented to a ground burst; zone odds of a fragment hit
 - `ARC_STEPS = 24`, `ARC_MIN = 1.3`, `ARC_MAX = 7`, `ARC_PER_M = 0.24`, `REST_Y = 0.12`, `SETTLE_TIME = 0.35`, `BURST_Y = 0.5`, `VICTIM_Y = 0.9` — deterministic physical arc samples, arc apex bounds/slope, rest/fragment/body heights (m), settling time (s)
 - `RELEASE_ORIGIN = { stand: [.22,1.7,.02], crouch: [.32,1.2,.45], prone: [.16,.75,.27] }` — measured semantic palm offsets (right, up, forward; m), rotated by the soldier's yaw at release
 

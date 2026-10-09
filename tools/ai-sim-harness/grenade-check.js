@@ -185,7 +185,7 @@ test('inventory is role-issued, consumed at release once, and cooldown begins at
   assert.equal(G.summary(b).throws, 1);
   assert.equal(ctx.combatDraws(), 0, 'landing scatter does not touch combat RNG');
   assert.ok(ctx.ownDraws.count > 0);
-  assert.deepEqual(ctx.ownDraws.streams, ['grenades']);
+  assert.deepEqual(ctx.ownDraws.streams, ['grenades', 'grenade-fragments']);
   at(ctx, b.time);
   assert.equal(G.count(s), carried - 1);
   assert.equal(G.summary(b).throws, 1);
@@ -490,39 +490,150 @@ test('the projectile flies, lands and detonates once on simulation time', () => 
   assert.equal(G.summary(b).bursts, 1);
 });
 
-test('one burst wounds multiple enemies, friends and the thrower with falloff and radius limits', () => {
+function ring(ctx, center, d, n, faction, mutate) {
+  return Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * Math.PI * 2;
+    const v = victim(ctx, center.x + d * Math.cos(a), center.z + d * Math.sin(a), faction);
+    if (mutate) mutate(v);
+    return v;
+  });
+}
+const lost = men => men.reduce((sum, v) => sum + (1000 - v.hp), 0);
+function prng(seed) {
+  let a = seed;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+test('one burst wounds by fragment density, hits friends and the thrower, and stops at its radii', () => {
   const ctx = setup();
   const { G, b, s } = ctx;
+  const T = G.TUNING;
   const g = throwOnce(ctx);
-  const close = victim(ctx, g.to.x + 0.5, g.to.z);
-  const far = victim(ctx, g.to.x + G.TUNING.BLAST_RADIUS * 0.7, g.to.z);
-  const edge = victim(ctx, g.to.x + G.TUNING.BLAST_RADIUS, g.to.z);
-  const pinOnly = victim(ctx, g.to.x, g.to.z + G.TUNING.BLAST_RADIUS + 0.2);
-  const outside = victim(ctx, g.to.x, g.to.z + G.TUNING.SUPPRESS_RADIUS + 0.2);
+  const close = ring(ctx, g.to, 1, 12);
+  const mid = ring(ctx, g.to, 6, 12);
+  const far = ring(ctx, g.to, 12, 12);
+  const beyond = ring(ctx, g.to, T.FRAG_MAX_RANGE + 0.5, 6);
   const friend = victim(ctx, g.to.x + 2, g.to.z, 'us');
   s.root.position.set(g.to.x - 2, 0, g.to.z);
   s.hp = s.maxHp = 1000;
   at(ctx, g.detonateAt);
-  assert.ok(close.hp < far.hp && far.hp < 1000, 'fragment severity falls with distance');
-  assert.ok(close.bleedRate > far.bleedRate, 'fragment bleeding also falls with distance');
-  assert.ok(close.woundSpeed < far.woundSpeed, 'fragment slowing also falls with distance');
-  assert.ok(close.woundSigma > far.woundSigma, 'fragment shooting impairment also falls with distance');
+  assert.ok(
+    close.every(v => v.wounds && v.wounds.length > 0),
+    'every man at a metre is struck'
+  );
+  assert.ok(
+    lost(close) > lost(mid) && lost(mid) > lost(far) && lost(far) > 0,
+    'fragment wounds fall with range'
+  );
+  const bleed = men => men.reduce((sum, v) => sum + (v.bleedRate || 0), 0);
+  assert.ok(bleed(close) > bleed(mid) && bleed(mid) > bleed(far), 'fragment bleeding also falls with range');
+  const slow = men => men.reduce((sum, v) => sum + (1 - (v.woundSpeed || 1)), 0);
+  assert.ok(slow(close) > slow(mid) && slow(mid) > slow(far), 'fragment slowing also falls with range');
   assert.ok(friend.hp < 1000, 'friendship does not grant immunity after release');
   assert.ok(s.hp < 1000, 'the thrower is a normal blast victim');
-  assert.equal(edge.hp, 1000, 'zero-energy radius edge cannot wound or drop');
-  assert.ok(!edge.dead);
-  assert.ok(!edge.wounds || !edge.wounds.length);
-  assert.equal(pinOnly.hp, 1000);
-  assert.ok(pinOnly.suppressedUntil > b.time, 'suppression reaches beyond the fragment radius');
-  assert.equal(outside.hp, 1000);
-  assert.equal(outside.suppressedUntil, 0);
-  const seen = events(ctx, close);
+  assert.equal(lost(beyond), 0, 'nothing beyond the fragment range is wounded');
+  assert.ok(beyond.every(v => v.suppressedUntil === 0 && !(v.wounds && v.wounds.length)));
+  assert.ok(
+    far.every(v => v.suppressedUntil > b.time),
+    'suppression covers the whole fragment field it overlaps'
+  );
+  const seen = events(ctx, close[0]);
   assert.ok(seen.some(row => row.kind === 'suppressed'));
   assert.ok(
     seen.some(row => row.kind === 'wound'),
     'the wound owner posts ordinary stress events'
   );
-  assert.equal(G.summary(b).wounded, 4);
+  const struck = [...close, ...mid, ...far, friend, s].filter(v => v.wounds && v.wounds.length).length;
+  assert.equal(G.summary(b).wounded, struck, 'a man struck by several fragments is counted once');
+});
+
+test('prone and crouched men present less of themselves than standing men', () => {
+  const ctx = setup();
+  const { G, b, s } = ctx;
+  const g = throwOnce(ctx, { x: 29, z: 0 });
+  const stand = ring(ctx, g.to, 4, 24);
+  const crouch = ring(ctx, g.to, 4, 24, undefined, v => (v.tacticalCrouch = true));
+  const prone = ring(ctx, g.to, 4, 24, undefined, v => (v.prone = true));
+  at(ctx, g.detonateAt);
+  const hits = men => men.reduce((sum, v) => sum + ((v.wounds && v.wounds.length) || 0), 0);
+  assert.ok(hits(stand) > hits(crouch) && hits(crouch) > hits(prone), 'exposure falls with a lower stance');
+  assert.ok(hits(prone) > 0, 'lying down is cover from a ground burst, not immunity');
+  assert.ok(!s.dead);
+});
+
+test('each side throws its own grenade: Mk 2 for US, M24 for German, and cover stops fragments', () => {
+  const us = setup();
+  const usBurst = throwOnce(us, { x: 29, z: 0 });
+  assert.equal(usBurst.kind, 'mk2');
+  const ge = setup();
+  ge.s = man(ge, 'ge', 0, 0);
+  ge.s.isPlayer = true;
+  const plan = ge.G.playerThrow(ge.s, ge.b, { x: 29, z: 0 });
+  assert.ok(plan);
+  at(ge, plan.releaseAt);
+  const geBurst = ge.G.projectiles(ge.b)[0];
+  assert.equal(geBurst.kind, 'm24');
+  assert.ok(Object.isFrozen(geBurst) && geBurst.severity === ge.G.TUNING.FRAG_SEVERITY);
+  const K = us.G.TUNING.KINDS;
+  assert.ok(K.m24.blast > K.mk2.blast, 'the 170 g charge has the larger overpressure radius');
+  assert.ok(
+    K.m24.spread > K.mk2.spread && K.m24.reach < K.mk2.reach,
+    'the thin steel head carries fewer, shorter fragments'
+  );
+  // Cover between the burst and the men: a wall absorbs every fragment, the blast, but not the pin.
+  us.b.obstacles = [
+    { shape: 'obb', x: usBurst.to.x + 2, z: usBurst.to.z, hx: 0.25, hz: 8, y: 0, height: 3, type: 'wall' }
+  ];
+  const behind = ring(us, { x: usBurst.to.x + 4, z: usBurst.to.z }, 1, 8);
+  at(us, usBurst.detonateAt);
+  assert.equal(lost(behind), 0, 'fragments do not pass a physical wall');
+  assert.ok(behind.every(v => v.suppressedUntil > us.b.time));
+});
+
+test('lethality matches the published radii for a standing man in the open', () => {
+  const casualty = (faction, d) => {
+    const ctx = setup();
+    ctx.b.random = prng(20260101);
+    if (faction === 'ge') {
+      ctx.s = man(ctx, 'ge', 0, 0);
+      ctx.s.isPlayer = true;
+    }
+    const victimSide = faction === 'ge' ? 'us' : 'ge';
+    let down = 0,
+      total = 0;
+    for (let burst = 0; burst < 8; burst++) {
+      ctx.s.grenades = 3;
+      ctx.s._grenadeNextAt = 0;
+      const g = throwOnce(ctx, { x: 29, z: 0 });
+      const men = ring(ctx, g.to, d, 24, victimSide, v => (v.hp = v.maxHp = 100));
+      at(ctx, g.detonateAt);
+      for (let t = 0; t < 90; t += 5) at(ctx, ctx.b.time + 5);
+      down += men.filter(v => v.dead).length;
+      total += men.length;
+    }
+    return down / total;
+  };
+  // Doctrine for fragmentation grenades of this class: lethal within ~5 m, casualties to ~15 m.
+  const mk2 = {
+    1: casualty('us', 1),
+    3: casualty('us', 3),
+    5: casualty('us', 5),
+    10: casualty('us', 10),
+    15: casualty('us', 15)
+  };
+  assert.ok(mk2[1] >= 0.95, 'a man on top of a Mk 2 is a casualty: ' + mk2[1]);
+  assert.ok(mk2[3] >= 0.6 && mk2[3] <= 0.9, 'Mk 2 at 3 m: ' + mk2[3]);
+  assert.ok(mk2[5] >= 0.3 && mk2[5] <= 0.6, 'about half of exposed men at the 5 m lethal radius: ' + mk2[5]);
+  assert.ok(mk2[10] >= 0.05 && mk2[10] <= 0.25, 'Mk 2 at 10 m: ' + mk2[10]);
+  assert.ok(mk2[15] <= 0.12, 'a few at the 15 m casualty radius: ' + mk2[15]);
+  const m24 = { 1: casualty('ge', 1), 5: casualty('ge', 5), 10: casualty('ge', 10) };
+  assert.ok(m24[1] >= 0.95, 'blast alone kills at the charge: ' + m24[1]);
+  assert.ok(m24[5] < mk2[5] && m24[10] < mk2[10], 'poor fragmentation falls off faster than the Mk 2');
 });
 
 test('enemy grenade casualties earn kill credit while friendly and self casualties retain cause only', () => {
@@ -563,8 +674,7 @@ test('a friendly grenade wound that later bleeds out preserves source and counts
   const ctx = setup();
   const { G, r, s, b } = ctx;
   const g = throwOnce(ctx);
-  const friend = victim(ctx, g.to.x + 1, g.to.z, 'us');
-  friend.hp = 75;
+  const friends = ring(ctx, g.to, 7, 16, 'us', v => (v.hp = 60));
   r.BattleSoldierEvents.subscribe('grenade-check', ['kill']);
   const credited = [];
   const noteKill = r.BattleEngagement.noteKill;
@@ -574,24 +684,25 @@ test('a friendly grenade wound that later bleeds out preserves source and counts
   };
   at(ctx, g.detonateAt - 0.001);
   at(ctx, g.detonateAt);
-  assert.ok(!friend.dead, 'the friend survives the initial fragmentation hit');
-  assert.ok(friend.bleedRate > 0);
-  assert.equal(friend.wounds.at(-1).source, 'grenade');
-  assert.equal(friend.wounds.at(-1).by, s.id);
-  assert.equal(G.summary(b).casualties, 0);
+  const droppedAtOnce = friends.filter(v => v.dead).length;
+  const bleeding = friends.filter(v => !v.dead && v.bleedRate > 0);
+  assert.ok(bleeding.length > 0, 'some friends survive the initial fragmentation hit and bleed');
+  assert.ok(bleeding.every(v => v.wounds.at(-1).source === 'grenade' && v.wounds.at(-1).by === s.id));
+  assert.equal(G.summary(b).casualties, droppedAtOnce);
   s.weapon = null;
-  for (let i = 0; i < 120 && !friend.dead; i++) at(ctx, b.time + 1);
-  assert.ok(friend.dead, 'the ordinary wound clock eventually records the bleed-out');
-  assert.equal(friend.casualty.cause, 'bledOut');
-  assert.equal(friend.casualty.by, s.id);
-  assert.equal(friend.casualty.source, 'grenade');
-  assert.deepEqual(credited, [null]);
+  for (let i = 0; i < 120; i++) at(ctx, b.time + 1);
+  const dead = friends.filter(v => v.dead);
+  assert.ok(dead.length > droppedAtOnce, 'the ordinary wound clock eventually records a bleed-out');
+  const bledOut = dead.filter(v => v.casualty.cause === 'bledOut');
+  assert.ok(bledOut.length > 0);
+  assert.ok(dead.every(v => v.casualty.by === s.id && v.casualty.source === 'grenade'));
+  assert.ok(credited.length === dead.length && credited.every(by => by === null), 'no kill credit');
   assert.equal(b.factions.us.kills, 0);
   assert.equal(events(ctx, s).filter(row => row.kind === 'kill').length, 0);
-  assert.equal(r.BattleWounds.summary(b).grenadeCasualties, 1);
-  assert.equal(r.BattleWounds.summary(b).grenadeFriendlyCasualties, 1);
-  assert.equal(G.summary(b).casualties, 1, 'grenade totals include delayed casualties');
-  assert.equal(G.summary(b).friendlyCasualties, 1);
+  assert.equal(r.BattleWounds.summary(b).grenadeCasualties, dead.length);
+  assert.equal(r.BattleWounds.summary(b).grenadeFriendlyCasualties, dead.length);
+  assert.equal(G.summary(b).casualties, dead.length, 'grenade totals include delayed casualties');
+  assert.equal(G.summary(b).friendlyCasualties, dead.length);
   assert.equal(G.summary(b).bursts, 1);
 });
 
@@ -621,7 +732,7 @@ test('blast follows physical cover footprints, including a clear line inside a w
 test('terrain and navigation walls stop fragments while leaving burst suppression', () => {
   for (const blocker of ['terrain', 'wall']) {
     const ctx = setup();
-    const g = throwOnce(ctx);
+    const g = throwOnce(ctx, { x: 29, z: 0 }); // the thrower stays beyond fragment range
     const v = victim(ctx, g.to.x + 5, g.to.z);
     if (blocker === 'terrain') ctx.b.heightAt = x => (x > g.to.x + 1.5 && x < g.to.x + 3.5 ? 3 : 0);
     else ctx.r.BattleNavigation = { lineOfSightBlocked: () => true };
@@ -636,7 +747,7 @@ test('a released blast keeps its own severity after its thrower dies or abandons
   const damage = [];
   for (const change of ['none', 'death', 'weapon']) {
     const ctx = setup({ seed: 'grenade-thrower-lifecycle' });
-    const g = throwOnce(ctx);
+    const g = throwOnce(ctx, { x: 29, z: 0 });
     const v = victim(ctx, g.to.x + 1, g.to.z);
     if (change === 'death') ctx.b.killSoldier(ctx.s, null);
     if (change === 'weapon') ctx.s.weapon = null;
