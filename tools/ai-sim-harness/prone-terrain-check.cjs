@@ -86,7 +86,7 @@ function close(a, b, why) {
 // The animation must apply the slope exclusively to FBX holder, not physical root,
 // otherwise aiming, navigation and cover may all change as a side effect.
 const fbx = fs.readFileSync(path.join(H.REPO, 'battle/modules/53-fbx-soldier-backend.js'), 'utf8');
-assert.match(fbx, /ballistics\.proneTerrainTilt\(fx\.soldier, battle\)/);
+assert.match(fbx, /BattleBallistics\.proneTerrainTilt\(fx\.soldier, battle\)/);
 assert.match(fbx, /fx\.holder\.rotation\.x \+=/);
 assert.match(fbx, /fx\.holder\.rotation\.z \+=/);
 assert.doesNotMatch(fbx.slice(fbx.indexOf('Terrain-follow is presentation-only'),
