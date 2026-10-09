@@ -44,8 +44,9 @@
       teamSlot = ctx.teamSlot,
       forward = ctx.forward,
       followTeamForward = ctx.followTeamForward,
-      /* Keep this opt-in until targeted and paired current-main battles justify promotion. */
-      LOST_CONTACT_RETREAT_ON = /[?&]retreatLostContact=(?:1|on|true)(?:&|#|$)/i.test(
+      /* Promoted after exact-seed recovery, red/green fixture and 36 paired
+         default-inert regression controls; ?retreatLostContact=0 restores legacy. */
+      LOST_CONTACT_RETREAT_ON = !/[?&]retreatLostContact=(?:0|off|false)(?:&|#|$)/i.test(
         (root.location && root.location.search) || ''
       );
     /* A defensive post belongs to the Squad Leader's command intent, not to a contact serial. Once a man has
