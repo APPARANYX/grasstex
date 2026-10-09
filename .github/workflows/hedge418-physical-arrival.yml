@@ -1,0 +1,17 @@
+name: Temporary hedge firing lane actual arrival
+on:
+  push:
+    branches:
+      - work/hedge418-physical-arrival-probe
+permissions:
+  contents: read
+jobs:
+  arrival:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tools/ai-sim-harness/hedgerow-firing-lane-check.js
