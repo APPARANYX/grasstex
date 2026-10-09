@@ -1,0 +1,30 @@
+name: Temporary AI hill-stalemate current-main replay
+on:
+  push:
+    branches:
+      - work/benchmark-361-hills-dispatch
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch focused hill seed replays with standard benchmark
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for seed in hill-0002 hill-0008; do
+            gh workflow run battle-benchmark-standard.yml \
+              --repo APPARANYX/grasstex \
+              --ref main \
+              -f seed="$seed" -f seeds=1 \
+              -f query_off='' -f query_on='' \
+              -f battle_type=meeting \
+              -f windows=contact+60,every60 \
+              -f origin_agent=chatgpt \
+              -f correlation_id="issue361-${seed}-main" \
+              -f purpose="Current-main focused trace of hillside command and post-recon progress"
+            echo "Dispatched hill $seed"
+          done
