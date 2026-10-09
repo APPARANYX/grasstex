@@ -219,6 +219,14 @@ md.push(
     fired +
     '. Firing after selection does not prove LOS to the original target.'
 );
+const nearFatal = summary.coverLaneOutcomes.filter(x => x.status === 'killed-at-firing-position').length;
+const farFatal = summary.coverLaneOutcomes.filter(x => x.status === 'killed-before-arrival').length;
+md.push('- Fatal flank outcomes: ' + nearFatal + ' killed within 0.6m of the destination, ' +
+  farFatal + ' killed farther away; an unobserved living arrival is not a pathfinding failure.');
+for (const e of summary.coverLaneOutcomes.filter(x => x.observedDeadAt != null).slice(0,20))
+  md.push('- ' + e.actor + ': ' + e.status + ' @ observed t=' + e.observedDeadAt +
+    's, nearest ' + (+e.nearestMeters).toFixed(2) + 'm, last owner ' +
+    String(e.lastMovementOwner) + ', last movement stop ' + String(e.lastStop));
 if (summary.coverDecisionsOmitted)
   md.push(
     '- Warning: ' +
