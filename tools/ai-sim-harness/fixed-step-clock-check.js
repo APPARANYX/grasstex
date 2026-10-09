@@ -131,4 +131,6 @@ attached.restart();
 assert.equal(attached._fixedClock.stats.pendingSeconds, 0, 'restart clears accumulated time');
 assert.equal(attached._fixedClock.stats.totalSteps, 0);
 
-console.log('Fixed-step clock: 1x/4x/8x parity across 20/30/60/120fps, ordered commander ticks, catch-up, pause, restart, and speed switching PASS');
+console.log(
+  'Fixed-step clock: 1x/4x/8x parity across 20/30/60/120fps, ordered commander ticks, catch-up, pause, restart, and speed switching PASS'
+);
