@@ -138,7 +138,12 @@
       var men = root.BattleModules.unitsFor(sim), chosen = 0;
       for (var i = 0; i < men.length; i++) {
         var s = men[i];
-        if (!choose(s) || s.dead) continue;
+        if (!choose(s)) continue;
+        if (s.dead) {
+          var former = counters.units[String(s.faction) + ':' + String(s.id)];
+          if (former && on('fire')) silence(sim, former, s, 'death');
+          continue;
+        }
         chosen++;
         var d = entry(s), e = s.eng || {}, st = String(e.state || 'advance'),
           order = on('command') || on('gates') ? adoptedOrder(s, sim) : 'unwatched',
