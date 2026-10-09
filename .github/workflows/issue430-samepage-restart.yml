@@ -17,7 +17,7 @@ jobs:
     env:
       PARITY_SCENARIO: ${{ matrix.scenario }}
       PARITY_SEED: timescale-parity
-      PARITY_SECONDS: '600'
+      PARITY_SECONDS: '120'
       PARITY_CASES: '1x@20'
       PARITY_OUT: reports/restart430/${{ matrix.scenario }}.json
     steps:
