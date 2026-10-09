@@ -67,7 +67,7 @@ for (const type of types) expectedByScenario[type] = 0;
 for (const pair of battles) expectedByScenario[pair.slice(0, pair.indexOf(':'))]++;
 const env = {
   ...process.env,
-  PROBE: 'causal-inaction',
+  PROBE: process.env.CAUSAL_GEOMETRY === '1' ? 'causal-inaction,crest-geometry' : 'causal-inaction',
   PROBE_BATTLES: battles.join(','),
   PROBE_SECONDS: String(seconds),
   PROBE_URL: url.toString(),
