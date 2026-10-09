@@ -469,6 +469,11 @@
               root.SquadAI.hasLineOfSight ? root.SquadAI.hasLineOfSight(s,s.target,sim.heightAt,sim.obstacles) : null,
             readyAt: s.eng && s.eng.fireReadyAt || null,
             stance: s.eng && s.eng.stance || null,
+            authorizedNow: !s.dead && root.BattleEngagement &&
+              root.BattleEngagement.fireAuthorized ? root.BattleEngagement.fireAuthorized(s,sim) : null,
+            reloading: !!s.reloading, cooldown: +s.fireCooldown || 0,
+            shots: s._playerConfirmedHits || null,
+            recentDenied: traceUnit.denials.slice(-3).map(function(x){return x.code;}),
             currentCover: s.eng && s.eng.cover && { x: round(s.eng.cover.x), z: round(s.eng.cover.z), type:s.eng.cover.type } || null,
             stop: s._movementStopReason || null,
             resolver: resolver ? {owner: resolver.owner||null,kind:resolver.kind||null,reason:resolver.reason||null} : null
