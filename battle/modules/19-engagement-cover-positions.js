@@ -502,27 +502,43 @@
             axisLen = Math.hypot(ux, uz) || 1,
             endFace = Math.abs((slot.normalX * ux + slot.normalZ * uz) / axisLen) > 0.85;
           if (!endFace) { reject('not-end-face'); continue; }
-          var d = dist(p.x, p.z, slot.x, slot.z);
+          var d = dist(p.x, p.z, candidate.x, candidate.z);
           if (d < 1.5 || d > maxRange) { reject('outside-bound-radius'); continue; }
-          if (!coverAvailable(c, slot, s, battle)) { reject('slot-reserved'); continue; }
+          /* Experimental safer variant: keep the firing station on the reverse
+             (friendly) side of the hedgerow, not level with its exposed end.
+             Never fall back to the exposed point when this candidate fails. */
+          var rearSide = typeof location !== 'undefined' &&
+            /[?&]coverPeekRear=1(?:&|#|$)/.test(location.search || '');
+          var candidate = slot;
+          if (rearSide) {
+            var vx = isFinite(+shape.vx) ? +shape.vx : -uz,
+              vz = isFinite(+shape.vz) ? +shape.vz : ux,
+              side = (p.x - shape.x) * vx + (p.z - shape.z) * vz >= 0 ? 1 : -1;
+            candidate = Object.assign({}, slot, {
+              id: slot.id + '-rear',
+              x: slot.x + vx * side * 2.2,
+              z: slot.z + vz * side * 2.2
+            });
+          }
+          if (!coverAvailable(c, candidate, s, battle)) { reject('slot-reserved'); continue; }
           if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, slot)) { reject('unreachable-memory'); continue; }
           if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, slot)) { reject('forward-guard'); continue; }
           var anchor = s.orderDestination || (s.squad && s.squad.orderAnchor);
-          if (leads && anchor && dist(slot.x, slot.z, anchor.x, anchor.z) > 18) { reject('leader-anchor-limit'); continue; }
+          if (leads && anchor && dist(candidate.x, candidate.z, anchor.x, anchor.z) > 18) { reject('leader-anchor-limit'); continue; }
           var back = opts.notBehind;
-          if (back && (slot.x - p.x) * back.axis.x + (slot.z - p.z) * back.axis.z < -back.allow) { reject('behind-order-line'); continue; }
-          if (!seesFrom(slot, 'stand', t, battle)) { reject('no-standing-los'); continue; }
-          if (!reachable(p, slot)) { reject('path-unreachable'); continue; }
-          var score = -d - F.coverPotentialAt(battle.obstacles, slot.x, slot.z) * 4;
+          if (back && (candidate.x - p.x) * back.axis.x + (candidate.z - p.z) * back.axis.z < -back.allow) { reject('behind-order-line'); continue; }
+          if (!seesFrom(candidate, 'stand', t, battle)) { reject('no-standing-los'); continue; }
+          if (!reachable(p, candidate)) { reject('path-unreachable'); continue; }
+          var score = -d - F.coverPotentialAt(battle.obstacles, candidate.x, candidate.z) * 4;
           if (score > bestScore) {
             bestScore = score;
             best = {
-              x: slot.x,
-              z: slot.z,
-              slot: slot,
-              slotId: slot.id,
+              x: candidate.x,
+              z: candidate.z,
+              slot: candidate,
+              slotId: candidate.id,
               distance: d,
-              quality: F.coverPotentialAt(battle.obstacles, slot.x, slot.z),
+              quality: F.coverPotentialAt(battle.obstacles, candidate.x, candidate.z),
               obstacle: slot.obstacle,
               type: 'firing-lane'
             };
