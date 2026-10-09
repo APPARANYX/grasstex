@@ -47,8 +47,6 @@ const sim = { time: 10,
 };
 probe.start(sim);
 probe.sample(sim);
-assert.equal(probe.report(sim).units['ge:76'].gates['fire-order:hold'], 1);
-assert.equal(Object.keys(probe.report(sim).units).length, 1, 'strict side/role/id/squad selection');
 sim.onFire(selected, false); sim.onFire(selected, true);
 sim.time += .15;
 selected.setUp = false;
@@ -60,6 +58,8 @@ selected._crestBlockedFire = 3;
 probe.sample(sim);
 const r = probe.report(sim);
 const d = r.units['ge:76'];
+assert.equal(d.gates['fire-order:hold'], 1);
+assert.equal(Object.keys(r.units).length, 1, 'strict side/role/id/squad selection');
 assert.equal(d.rounds, 2);
 assert.equal(d.pulls, 1);
 assert.equal(d.setupTransitions, 1);
