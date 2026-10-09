@@ -1,0 +1,27 @@
+name: Temporary causal fatal-flank Prettier
+on:
+  push:
+    branches:
+      - work/causal-fatal-format
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write tools/ai-sim-harness/causal-inaction-check.js
+          git config user.name 'grasstex-ci[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/ai-sim-harness/causal-inaction-check.js
+          if ! git diff --cached --quiet; then
+            git commit -m "Format fatal-flank causal regression using pinned Prettier"
+            git push origin HEAD:refs/heads/work/causal-fatal-format
+          fi
