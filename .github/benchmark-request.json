@@ -1,0 +1,9 @@
+{
+  "benchmark": "causal",
+  "ref": "main",
+  "exact_seed": "live-mv16s0bu-92cyc",
+  "seconds": "830",
+  "side": "us",
+  "squads": "us-0",
+  "ids": "0,1,3,6,8"
+}
