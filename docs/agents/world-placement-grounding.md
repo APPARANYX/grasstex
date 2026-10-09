@@ -40,6 +40,10 @@ reserve clear approach lanes. Buildings retain their existing exclusion zones.
 A rejected candidate is **omitted**, not shoved into another barrier; the same
 seed produces the same decision with no new RNG draws.
 
+A continuous hedge consists of touching terrain-prism sections; numerical
+rounding at the shared face does not count as a physical overlap. Distinct
+intersections still fail the seeded geometry regression.
+
 This prevents generator-created impassable crossings; it does **not** replace
 runtime Navigation, guarantee every possible dynamic fortification avoids every
 other object, or guarantee that every squad can reach every location. A full
