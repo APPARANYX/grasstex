@@ -148,19 +148,36 @@ const hash = s => createHash('sha256').update(s).digest('hex');
         const causalTrace = [];
         function traceCause() {
           if (sim.time + 1e-9 < 235 || sim.time - 1e-9 > 305) return;
-          const all = sim._roster.us.concat(sim._roster.ge);
-          const s = all.find(x => +x.id === 39) || null;
+          const soldiers = sim._roster.us.concat(sim._roster.ge).map(s => ({
+            id: s.id,
+            hp: s.hp,
+            maxHp: s.maxHp,
+            dead: !!s.dead,
+            bleedRate: s.bleedRate || 0,
+            squad: s.squad ? s.squad.id : null,
+            squadState: s.squad ? s.squad.state : null,
+            inContact: !!(s.squad && s.squad.inContact),
+            assemblyPhase: s.squad && s.squad._assembly ? s.squad._assembly.phase : null,
+            medicEligible: !!(
+              !s.dead &&
+              s.maxHp > 0 &&
+              s.hp < s.maxHp &&
+              !(s.bleedRate > 0) &&
+              s.squad &&
+              s.squad.state === 'retreat' &&
+              s.squad.fledId == null &&
+              !s.squad.inContact &&
+              s.squad._assembly &&
+              s.squad._assembly.phase === 'at-base'
+            ),
+            stress: s.mind ? s.mind.stress : null,
+            floor: s.mind ? s.mind.floor : null,
+            lost: s.mind ? s.mind.lost : null
+          }));
           causalTrace.push({
             t: sim.time,
             medicClock: sim._medicClock == null ? null : sim._medicClock,
-            hp: s ? s.hp : null,
-            bleedRate: s ? (s.bleedRate || 0) : null,
-            squadState: s && s.squad ? s.squad.state : null,
-            inContact: !!(s && s.squad && s.squad.inContact),
-            assemblyPhase: s && s.squad && s.squad._assembly ? s.squad._assembly.phase : null,
-            stress: s && s.mind ? s.mind.stress : null,
-            floor: s && s.mind ? s.mind.floor : null,
-            lost: s && s.mind ? s.mind.lost : null
+            soldiers
           });
         }
         mark();
@@ -240,7 +257,30 @@ const hash = s => createHash('sha256').update(s).digest('hex');
       const n = Math.min(baseline.causalTrace.length, repeated.causalTrace.length);
       for (let i = 0; i < n; i++) {
         const a = baseline.causalTrace[i], b = repeated.causalTrace[i];
-        if (!Object.is(a[field], b[field])) return { index: i, baseline: a, repeated: b };
+        if (!Object.is(a[field], b[field])) return { index: i, baseline: a[field], repeated: b[field], at: a.t };
+      }
+      return null;
+    }
+    function firstSoldierDifference(fields) {
+      const n = Math.min(baseline.causalTrace.length, repeated.causalTrace.length);
+      for (let i = 0; i < n; i++) {
+        const a = baseline.causalTrace[i], b = repeated.causalTrace[i];
+        const m = Math.min(a.soldiers.length, b.soldiers.length);
+        for (let j = 0; j < m; j++) {
+          const sa = a.soldiers[j], sb = b.soldiers[j];
+          for (const field of fields) {
+            if (!Object.is(sa[field], sb[field])) {
+              return { index: i, at: a.t, soldierIndex: j, soldierId: sa.id, field, baseline: sa, repeated: sb, baselineMedicClock: a.medicClock, repeatedMedicClock: b.medicClock };
+            }
+          }
+        }
+      }
+      return null;
+    }
+    function firstMedicEligibleTick(trace) {
+      for (const point of trace) {
+        const soldier = point.soldiers.find(s => s.medicEligible);
+        if (soldier) return { at: point.t, medicClock: point.medicClock, soldier };
       }
       return null;
     }
@@ -250,10 +290,11 @@ const hash = s => createHash('sha256').update(s).digest('hex');
       repeatedRestart: repeated.restartState,
       repeatedEndMedicClock: repeated.endMedicClock,
       firstMedicClockDifference: firstTraceDifference('medicClock'),
-      firstHpDifference: firstTraceDifference('hp'),
-      firstFloorDifference: firstTraceDifference('floor'),
-      firstLostDifference: firstTraceDifference('lost'),
-      firstStressDifference: firstTraceDifference('stress')
+      firstMedicEligibleBaseline: firstMedicEligibleTick(baseline.causalTrace),
+      firstMedicEligibleRepeated: firstMedicEligibleTick(repeated.causalTrace),
+      firstHealthDifference: firstSoldierDifference(['hp', 'bleedRate']),
+      firstMindDifference: firstSoldierDifference(['floor', 'lost', 'stress']),
+      firstContextDifference: firstSoldierDifference(['dead', 'squadState', 'inContact', 'assemblyPhase', 'medicEligible'])
     };
     const initialDiffs = [];
     if (earliest !== undefined) firstDifferences(JSON.parse(baseline.checkpoints[earliest]), JSON.parse(repeated.checkpoints[earliest]), 'battle', initialDiffs);
