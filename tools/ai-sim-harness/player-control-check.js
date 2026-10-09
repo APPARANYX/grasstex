@@ -80,6 +80,53 @@ assert.match(
   /playerCam\.maxZ = CAMERA_FAR/,
   'player camera must use the shared world far plane so the sky dome is not clipped'
 );
+
+/* Player feedback must be wired to shipping soldier/weapon state and be optional on unsupported devices. */
+assert.match(cameraSource, /ensurePlayerFeedback\(\)/, 'possession installs player HUD');
+assert.match(cameraSource, /player\.maxHp/, 'HUD reads real health');
+assert.match(cameraSource, /player\.bleedRate/, 'HUD reads real wound bleeding');
+assert.match(
+  cameraSource,
+  /playerStamina = Math\.max\(0, playerStamina - SPRINT_DRAIN \* dt\)/,
+  'running drains the player sprint budget'
+);
+assert.match(
+  cameraSource,
+  /playerExhausted && playerStamina >= STAMINA_RESTART/,
+  'exhaustion needs recovery before sprinting again'
+);
+assert.match(
+  cameraSource,
+  /b\.paused \|\| b\.winner \? false : sprintAllowed/,
+  'paused battles must not change stamina'
+);
+assert.match(
+  cameraSource,
+  /SquadAI\.playerFireRay\(player, point, b\)\)\s*\{[\s\S]{0,180}playerRumble/,
+  'shooting haptic only follows accepted authoritative firing'
+);
+assert.match(
+  cameraSource,
+  /wounds > lastWoundCount[\s\S]{0,450}playerRumble/,
+  'hit haptic follows new wounds, not continuing bleed loss'
+);
+assert.match(cameraSource, /player\._lastHitBy/, 'hurt direction uses real shooter position');
+assert.match(
+  cameraSource,
+  /Math\.atan2\(damageOrigin\.x - here\.x, damageOrigin\.z - here\.z\) - playerYaw/,
+  'hurt direction rotates with camera heading'
+);
+assert.match(
+  cameraSource,
+  /typeof global\.navigator\.vibrate === 'function'/,
+  'phone haptics are capability checked'
+);
+assert.match(
+  cameraSource,
+  /actuator\.playEffect\('dual-rumble'/,
+  'controller rumble is attempted when available'
+);
+
 const skySource = fs.readFileSync(path.join(H.REPO, 'battle/battle-sim.js'), 'utf8');
 const skyMatch = skySource.match(/function buildSky\(scene\)\{var radius=(\d+(?:\.\d+)?),offset=(\.?\d+)/);
 assert.ok(skyMatch, 'battle sky radius/offset contract must remain measurable');

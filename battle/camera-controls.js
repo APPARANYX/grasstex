@@ -26,6 +26,11 @@
     PLAYER_LOOK_RATE = 2.2,
     PLAYER_MOVE_AHEAD = 6,
     PLAYER_CAMERA_CLEARANCE = 0.45;
+  /* Player-only sprint budget; AI soldiers keep their existing movement model. */
+  var SPRINT_DRAIN = 12,
+    STAMINA_WALK_RECOVER = 12,
+    STAMINA_IDLE_RECOVER = 18,
+    STAMINA_RESTART = 25;
   var KEY_HINT =
     'Camera: click to look · WASD move · wheel speed · Q/E up/down · Shift sprint · P player · Esc releases';
   var PAD_HINT =
@@ -185,7 +190,15 @@
       mouseAim = false,
       mouseFire = false,
       playerFaction = queryParams().get('playerFaction') === 'ge' ? 'ge' : 'us',
-      reticle = null;
+      reticle = null,
+      playerHud = null,
+      playerDamage = null,
+      playerStamina = 100,
+      playerExhausted = false,
+      lastWoundCount = 0,
+      damageAt = 0,
+      damageOrigin = null,
+      lastShotPulse = 0;
     function guarded() {
       return active || document.activeElement === canvas;
     }
@@ -276,6 +289,132 @@
       document.body.appendChild(reticle);
       return reticle;
     }
+
+    /* Browser capability detection is essential: iOS Safari commonly exposes neither phone vibration
+       nor controller rumble. Haptics are optional feedback, never a condition for firing or damage. */
+    function playerRumble(pad, duration, strong, weak) {
+      try {
+        var actuator = pad && (pad.vibrationActuator || (pad.hapticActuators && pad.hapticActuators[0]));
+        if (actuator && typeof actuator.playEffect === 'function') {
+          var result = actuator.playEffect('dual-rumble', {
+            duration: duration,
+            startDelay: 0,
+            strongMagnitude: strong,
+            weakMagnitude: weak
+          });
+          if (result && typeof result.catch === 'function') result.catch(function () {});
+          return;
+        }
+        if (actuator && typeof actuator.pulse === 'function') {
+          var pulse = actuator.pulse(Math.max(strong, weak), duration);
+          if (pulse && typeof pulse.catch === 'function') pulse.catch(function () {});
+          return;
+        }
+        if (global.navigator && typeof global.navigator.vibrate === 'function')
+          global.navigator.vibrate(duration);
+      } catch (_) {
+        /* Unsupported and permission-blocked devices should remain playable. */
+      }
+    }
+    function ensurePlayerFeedback() {
+      if (playerHud) return;
+      var css = document.createElement('style');
+      css.id = 'battlePlayerFeedbackStyles';
+      css.textContent =
+        '#battlePlayerHud{position:fixed;left:12px;bottom:58px;z-index:16;pointer-events:none;' +
+        'min-width:190px;max-width:270px;padding:12px 14px;background:rgba(11,16,17,.83);' +
+        'border:1px solid rgba(209,210,184,.48);border-radius:5px;color:#f2f1dc;' +
+        'font:700 11px Arial,sans-serif;letter-spacing:.08em;text-shadow:0 1px 2px #000}' +
+        '#battlePlayerHud .bph-title{font-size:12px;margin-bottom:10px;letter-spacing:.035em}' +
+        '#battlePlayerHud .bph-row{display:flex;justify-content:space-between;gap:10px;margin:7px 0 4px}' +
+        '#battlePlayerHud .bph-track{height:7px;background:#313c3d;border-radius:2px;overflow:hidden}' +
+        '#battlePlayerHud .bph-fill{height:100%;width:100%;transition:width .12s linear}' +
+        '#battlePlayerHealthFill{background:#b9c7a4}' +
+        '#battlePlayerStaminaFill{background:#a4b9ce}' +
+        '#battlePlayerBleeding{margin-top:10px;color:#bdc8b8}' +
+        '#battlePlayerBleeding.alert{color:#ff8f81}' +
+        '#battlePlayerDamage{position:fixed;left:50%;top:50%;width:min(76vw,76vh);height:min(76vw,76vh);' +
+        'border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:10;opacity:0;' +
+        'background:conic-gradient(from -25deg, transparent 0deg,rgba(230,22,20,.04) 4deg,' +
+        'rgba(238,30,22,.95) 24deg,rgba(255,40,29,.72) 36deg,transparent 57deg 360deg);' +
+        '-webkit-mask-image:radial-gradient(circle,transparent 0 50%,#000 72%,transparent 97%);' +
+        'mask-image:radial-gradient(circle,transparent 0 50%,#000 72%,transparent 97%);' +
+        'filter:blur(13px)}' +
+        '#battlePlayerDamage.undirected{background:radial-gradient(circle,transparent 49%,' +
+        'rgba(235,31,24,.8) 79%,transparent 98%)}';
+      document.head.appendChild(css);
+      playerHud = document.createElement('div');
+      playerHud.id = 'battlePlayerHud';
+      playerHud.innerHTML =
+        '<div class="bph-title" id="battlePlayerName"></div>' +
+        '<div class="bph-row"><span>HEALTH</span><span id="battlePlayerHealthValue"></span></div>' +
+        '<div class="bph-track"><div class="bph-fill" id="battlePlayerHealthFill"></div></div>' +
+        '<div class="bph-row"><span>STAMINA</span><span id="battlePlayerStaminaValue"></span></div>' +
+        '<div class="bph-track"><div class="bph-fill" id="battlePlayerStaminaFill"></div></div>' +
+        '<div id="battlePlayerBleeding" role="status"></div>';
+      playerHud.style.display = 'none';
+      document.body.appendChild(playerHud);
+      playerDamage = document.createElement('div');
+      playerDamage.id = 'battlePlayerDamage';
+      playerDamage.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(playerDamage);
+    }
+    function updatePlayerFeedback(pad) {
+      if (!player || !playerHud) return;
+      var wounds = (player.wounds && player.wounds.length) || 0;
+      if (wounds > lastWoundCount) {
+        damageAt = Date.now();
+        var shooter = player._lastHitBy;
+        var pos = shooter && shooter.root && shooter.root.position;
+        damageOrigin = pos && isFinite(+pos.x) && isFinite(+pos.z) ? { x: +pos.x, z: +pos.z } : null;
+        playerRumble(pad, 230, 0.85, 0.65);
+      }
+      lastWoundCount = wounds;
+      var hpMax = +player.maxHp > 0 ? +player.maxHp : 1;
+      var hp = clamp((+player.hp || 0) / hpMax, 0, 1);
+      document.getElementById('battlePlayerName').textContent = playerLabel();
+      document.getElementById('battlePlayerHealthValue').textContent =
+        Math.max(0, Math.ceil(+player.hp || 0)) + ' / ' + Math.ceil(hpMax);
+      document.getElementById('battlePlayerHealthFill').style.width = (100 * hp).toFixed(1) + '%';
+      document.getElementById('battlePlayerStaminaValue').textContent =
+        Math.round(playerStamina) + '%' + (playerExhausted ? ' EXHAUSTED' : '');
+      document.getElementById('battlePlayerStaminaFill').style.width = playerStamina.toFixed(1) + '%';
+      var rate = Math.max(0, +player.bleedRate || 0),
+        bleed = document.getElementById('battlePlayerBleeding');
+      bleed.textContent =
+        rate > 0
+          ? 'BLEEDING · ' + rate.toFixed(2) + ' HP/s'
+          : wounds
+            ? 'WOUNDED · BLEEDING STOPPED'
+            : 'NO BLEEDING';
+      bleed.classList.toggle('alert', rate > 0);
+      var elapsed = Date.now() - damageAt;
+      if (elapsed >= 0 && elapsed < 1700) {
+        var opacity = (1 - elapsed / 1700) * 0.95;
+        playerDamage.style.opacity = opacity.toFixed(3);
+        playerDamage.classList.toggle('undirected', !damageOrigin);
+        if (damageOrigin && player.root) {
+          var here = player.root.position;
+          var angle = Math.atan2(damageOrigin.x - here.x, damageOrigin.z - here.z) - playerYaw;
+          playerDamage.style.transform =
+            'translate(-50%,-50%) rotate(' + ((angle * 180) / Math.PI).toFixed(1) + 'deg)';
+        } else playerDamage.style.transform = 'translate(-50%,-50%)';
+      } else playerDamage.style.opacity = '0';
+    }
+    function sprintAllowed(requested, moving, dt) {
+      if (requested && moving && !playerExhausted) {
+        playerStamina = Math.max(0, playerStamina - SPRINT_DRAIN * dt);
+        if (!playerStamina) playerExhausted = true;
+        return true; /* The final depleted frame can finish the current running stride. */
+      }
+      playerStamina = Math.min(
+        100,
+        playerStamina + (moving ? STAMINA_WALK_RECOVER : STAMINA_IDLE_RECOVER) * dt
+      );
+      if (playerExhausted && playerStamina >= STAMINA_RESTART) playerExhausted = false;
+      return false;
+    }
+
     function ensurePlayerCamera() {
       if (playerCam) return playerCam;
       playerCam = new BABYLON.UniversalCamera('playerCam', camera.position.clone(), scene);
@@ -345,6 +484,8 @@
       mouseFire = false;
       keys.clear();
       ensureReticle().style.display = 'none';
+      if (playerHud) playerHud.style.display = 'none';
+      if (playerDamage) playerDamage.style.opacity = '0';
       if (playerCam) {
         camera.position.copyFrom(playerCam.position);
         try {
@@ -369,6 +510,12 @@
       playerFaction = next.faction;
       playerYaw = +next.root.rotation.y || 0;
       playerPitch = 0;
+      playerStamina = 100;
+      playerExhausted = false;
+      lastWoundCount = (next.wounds && next.wounds.length) || 0;
+      damageAt = 0;
+      damageOrigin = null;
+      lastShotPulse = 0;
       /* isPlayer, not a short movement lease, is the authority boundary for the whole possession. */
       /* Possession starts from a neutral player-owned stance instead of inheriting a squad hold-fire posture. */
       if (global.BattleEngagement && global.BattleEngagement.commitStance)
@@ -386,6 +533,8 @@
       var startBtn = document.getElementById('startBtn');
       if (startBtn) startBtn.hidden = true;
       ensureReticle().style.display = 'block';
+      ensurePlayerFeedback();
+      playerHud.style.display = 'block';
       scene.activeCamera = ensurePlayerCamera();
       positionPlayerCamera(false);
       updateHint(activeGamepad());
@@ -428,7 +577,7 @@
         ly = shapedAxis(axes[3]),
         aiming = mouseAim || buttonValue(pad, 6) > 0.35,
         firing = mouseFire || buttonValue(pad, 7) > 0.35,
-        running = (keys.has('shift') || buttonValue(pad, 10) > 0.5) && !aiming;
+        runRequested = (keys.has('shift') || buttonValue(pad, 10) > 0.5) && !aiming;
       playerYaw += lx * PLAYER_LOOK_RATE * dt;
       playerPitch = clamp(playerPitch + ly * 1.55 * dt, -0.62, 0.78);
       if (pad && padPressedOnce(pad, 1)) togglePlayerCrouch(b);
@@ -442,6 +591,7 @@
         next = moving
           ? { x: p.x + move.x * PLAYER_MOVE_AHEAD, z: p.z + move.z * PLAYER_MOVE_AHEAD }
           : { x: p.x, z: p.z };
+      var running = b.paused || b.winner ? false : sprintAllowed(runRequested, moving, dt);
       if (player.prone && moving) setPlayerStance(b, 'crawl');
       else if (player.eng && player.eng.stance === 'crawl' && !moving) setPlayerStance(b, 'prone');
       if (global.BattleMovementResolver && global.BattleMovementResolver.proposePlayer)
@@ -458,7 +608,13 @@
         global.SquadAI.playerAim(player, aiming || firing ? point : null);
       /* RT is a real trigger, not an AI target request: it fires the crosshair ray even with no lock. */
       if (firing && point && global.SquadAI) {
-        if (global.SquadAI.playerFireRay) global.SquadAI.playerFireRay(player, point, b);
+        if (global.SquadAI.playerFireRay && global.SquadAI.playerFireRay(player, point, b)) {
+          var shotTime = Date.now();
+          if (shotTime - lastShotPulse >= 80) {
+            playerRumble(pad, 45, 0.28, 0.52);
+            lastShotPulse = shotTime;
+          }
+        }
       }
     }
     canvas.addEventListener('click', function () {
@@ -608,6 +764,7 @@
       }
       if (player) {
         stepPlayer(pad, dt);
+        updatePlayerFeedback(pad);
         if (pad) refreshPadButtons(pad);
         return;
       }
