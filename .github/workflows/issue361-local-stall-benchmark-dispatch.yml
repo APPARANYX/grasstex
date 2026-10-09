@@ -1,0 +1,32 @@
+name: Temporary issue 361 local-mission paired acceptance
+on:
+  push:
+    branches:
+      - work/issue361-local-stall-benchmark-dispatch
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch current-main-based experimental ON versus default OFF paired battles
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for mode in meeting us-defend ge-defend; do
+            gh workflow run battle-benchmark-standard.yml \
+              --repo APPARANYX/grasstex \
+              --ref work/issue361-local-mission-stall \
+              -f seed=local361a \
+              -f seeds=20 \
+              -f query_off='' \
+              -f query_on=localMissionWake=1 \
+              -f battle_type="$mode" \
+              -f windows=contact+60,every60 \
+              -f origin_agent=chatgpt \
+              -f correlation_id="issue361-local-${mode}-20" \
+              -f purpose="Opt-in mission-local recovery impact and safety"
+            echo "Dispatched $mode 20 paired seeds"
+          done
