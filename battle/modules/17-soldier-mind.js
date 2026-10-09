@@ -371,6 +371,16 @@
       reads: null,
       unit: 'whatever the probe measures',
       flag: 'run_probe.cjs'
+    },
+    {
+      kind: 'tooling',
+      lever: null,
+      layer: 'Tooling',
+      file: 'scripts/probes/targeted-fire-control.cjs',
+      reader: 'focused fire-control observer reading stress and incoming-round context',
+      reads: null,
+      unit: 'per-gunner stress and fire gate observations, not a gameplay decision',
+      flag: 'run_probe.cjs'
     }
   ];
 

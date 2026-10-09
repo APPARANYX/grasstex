@@ -49,8 +49,17 @@ const DEFENDER = { meeting: '', 'us-defend': 'us', 'ge-defend': 'ge' };
 async function battle(browser, { type, seed }, probes) {
   if (!(type in DEFENDER)) throw new Error(`unknown battle type ${type}`);
   const page = await browser.newPage({ viewport: { width: 960, height: 540 }, ignoreHTTPSErrors: true });
-  const errors = [];
-  page.on('pageerror', e => errors.push(String(e && e.stack || e).slice(0, 400)));
+  const errors = [], assetErrors = { count: 0, examples: [] };
+  page.on('pageerror', e => {
+    const message = String(e && e.stack || e).slice(0, 400);
+    // Local browser probes lack the production's private audio library. An exact
+    // audio-mp3 404 is known asset noise, not a simulation exception. Never
+    // suppress unrelated page errors, even ones originating from Babylon.
+    if (/^Uncaught \(in promise\) Error: HTTP 404 loading '\/grasstex\/Assets\/audio\/[A-Za-z0-9/_-]+\.mp3': Not Found/.test(message)) {
+      assetErrors.count++;
+      if (assetErrors.examples.length < 3) assetErrors.examples.push(message.split('\\n')[0]);
+    } else errors.push(message);
+  });
   page.setDefaultTimeout(180000);
   // Probe battles use the procedural rig (as the benchmark does). The page itself waits for its FBX
   // soldiers (no fallback since #86), so let them load; on a local PHP dev server that is slow, but
@@ -67,8 +76,11 @@ async function battle(browser, { type, seed }, probes) {
     } catch (e) { if (attempt >= 3) throw e; console.error(`${type} ${seed}: retrying load after ${String(e.message).split('\n')[0]}`); }
   }
   // The read-only snapshot helper is also present in the probe-free control arm.
-  for (const name of new Set(['state-fingerprint', ...probes]))
-    await page.addScriptTag({ path: path.join(__dirname, 'probes', name + '.js') });
+  for (const name of new Set(['state-fingerprint', ...probes])) {
+    const base = path.join(__dirname, 'probes', name);
+    const file = fs.existsSync(base + '.js') ? base + '.js' : base + '.cjs';
+    await page.addScriptTag({ path: file });
+  }
   const result = await page.evaluate(async ({ names, STEP, SECONDS }) => {
     const root = window, sim = root.__battle__, engine = sim.scene && sim.scene.getEngine && sim.scene.getEngine();
     if (engine && root.__battleRenderLoop__) engine.stopRenderLoop(root.__battleRenderLoop__);
@@ -109,7 +121,7 @@ async function battle(browser, { type, seed }, probes) {
   result._endState = JSON.parse(result.fingerprint);
   result.fingerprint = createHash('sha256').update(result.fingerprint).digest('hex');
   await page.close();
-  return { type, seed, ...result, errors };
+  return { type, seed, ...result, errors, assetErrors };
 }
 
 (async () => {
@@ -130,7 +142,7 @@ async function battle(browser, { type, seed }, probes) {
       delete r._endState;
       out.battles.push(r);
       console.error(`${b.type} ${b.seed}: ${r.simSeconds}s sim in ${r.wallSeconds}s, winner ${r.winner}` +
-        (r.sameBattle == null ? '' : `, same battle as control: ${r.sameBattle}`) + (r.errors.length ? `, ${r.errors.length} page errors` : ''));
+        (r.sameBattle == null ? '' : `, same battle as control: ${r.sameBattle}`) + (r.errors.length ? `, ${r.errors.length} runtime errors` : '') + (r.assetErrors.count ? `, ${r.assetErrors.count} expected audio 404s` : ''));
     }
   } finally { await browser.close(); }
   const text = JSON.stringify(out, null, 1);
