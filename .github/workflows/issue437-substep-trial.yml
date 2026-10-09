@@ -1,0 +1,82 @@
+name: Issue 437 v456 movement-substep trial
+on:
+  push:
+    branches:
+      - 'work/issue437-v456-substep-trial'
+permissions:
+  contents: read
+jobs:
+  replay:
+    name: v456 exact-seed movement steps ${{ matrix.substeps }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        substeps: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify read-only probe and movement selector syntax
+        run: |
+          node --check scripts/probes/route-437.js
+          node --check battle/modules/00-movement-substeps.js
+          node --check battle/battle-sim.js
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start local battle server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+      - name: Exact-seed paired with own probe-free control
+        env:
+          PARTS: ${{ matrix.substeps }}
+        run: |
+          set -euo pipefail
+          mkdir -p reports/route437
+          PROBE=route-437 \
+          PROBE_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?movementSubsteps=${PARTS}" \
+          PROBE_BATTLES=meeting:live-mv16s0bu-92cyc \
+          PROBE_SECONDS=830 PROBE_CONTROL=1 \
+          PROBE_OUTPUT="reports/route437/substeps-${PARTS}.json" \
+          node scripts/run_probe.cjs >/dev/null
+      - name: Summarize retreat actor route
+        if: always()
+        env:
+          PARTS: ${{ matrix.substeps }}
+        run: |
+          node - <<'NODE' | tee "reports/route437/summary-${PARTS}.md"
+          const fs = require('node:fs');
+          const path = 'reports/route437/substeps-' + process.env.PARTS + '.json';
+          if (!fs.existsSync(path)) { console.log('No report produced.'); process.exit(1); }
+          const b = JSON.parse(fs.readFileSync(path)).battles[0], r = b.reports['route-437'];
+          const p = r.last || {};
+          console.log('# v456 exact-seed route trial — substeps', process.env.PARTS);
+          console.log('Battle end', b.simSeconds, 'winner', b.winner, 'sameBattle', b.sameBattle, 'runtimeErrors', b.errors.length);
+          console.log('Counters', JSON.stringify(r.totals));
+          console.log('Last actor', JSON.stringify(p));
+          console.log('Recent samples around terminal retreat');
+          for (const s of r.samples.filter(x => x.time >= 790).slice(-15))
+            console.log(JSON.stringify({t:s.time,actor:s.actor,here:s.here,anchor:s.actualAnchor,rally:s.squadRally,dest:s.destination,wp:s.waypoint,distAnchor:s.actualAnchorDistance,distRally:s.rallyDistance,distLocal:s.physicalDestinationDistance,still:s.stillSeconds,stop:s.stop,nav:s.navigation}));
+          if (!b.sameBattle || b.errors.length || +p.substeps !== +process.env.PARTS) process.exitCode = 1;
+          NODE
+      - name: Upload per-step route traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue437-v456-substeps-${{ matrix.substeps }}
+          path: reports/route437/
+          if-no-files-found: warn
+          retention-days: 14
