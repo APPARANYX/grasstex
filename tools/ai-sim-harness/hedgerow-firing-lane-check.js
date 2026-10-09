@@ -92,6 +92,25 @@ assert.ok(
 );
 const route = f.r.BattleNavigation.findPath(f.s.root.position, e.cover);
 assert.ok(route && route.length, 'destination must be navigable');
+
+const start = { x: f.s.root.position.x, z: f.s.root.position.z };
+let nearest = Infinity;
+for (let i = 0; i < 240; i++) {
+  f.b.time += 0.15;
+  H.stepMovement(f.b, f.s, 0.15);
+  nearest = Math.min(nearest, Math.hypot(
+    f.s.root.position.x - e.cover.x,
+    f.s.root.position.z - e.cover.z
+  ));
+  if (nearest < 0.6) break;
+}
+assert.ok(nearest < 0.6,
+  'shipping movement integrator must physically reach the firing lane; closest=' + nearest);
+assert.ok(Math.hypot(f.s.root.position.x - start.x, f.s.root.position.z - start.z)>9,
+  'soldier must actually cross useful distance, not merely accept a new brief');
+assert.equal(f.r.SquadAI.hasLineOfSight(f.s,f.s.target,f.b.heightAt,f.b.obstacles),true,
+  'reached firing lane must grant an actual soldier sightline');
+
 console.log('PASS tall-hedge defender relocates to a reachable firing lane');
 
 const legacy = scenario('?coverPeek=0');
