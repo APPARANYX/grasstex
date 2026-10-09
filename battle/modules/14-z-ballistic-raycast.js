@@ -561,9 +561,18 @@
      Shares the exact terrain/structure/body occlusion rules with actual rounds; it performs
      no RNG draws, wound writes, onShot callbacks or AI target acquisition. */
   function previewPlayerRay(shooter, aimPoint, battle) {
-    if (!shooter || !shooter.root || !shooter.weapon || !shooter.weapon.stats ||
-        !battle || !aimPoint || !isFinite(+aimPoint.x) || !isFinite(+aimPoint.y) ||
-        !isFinite(+aimPoint.z)) return null;
+    if (
+      !shooter ||
+      !shooter.root ||
+      !shooter.weapon ||
+      !shooter.weapon.stats ||
+      !battle ||
+      !aimPoint ||
+      !isFinite(+aimPoint.x) ||
+      !isFinite(+aimPoint.y) ||
+      !isFinite(+aimPoint.z)
+    )
+      return null;
     var stats = shooter.weapon.stats,
       range = +stats.range || 0;
     if (!(range > 0)) return null;

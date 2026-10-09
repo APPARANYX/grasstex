@@ -466,9 +466,7 @@
         );
       if (now - lastBorePreview >= PLAYER_BORE_PREVIEW_MS) {
         var B = global.BattleBallistics;
-        borePreview = B && B.previewPlayerRay && point
-          ? B.previewPlayerRay(player, point, b)
-          : null;
+        borePreview = B && B.previewPlayerRay && point ? B.previewPlayerRay(player, point, b) : null;
         lastBorePreview = now;
       }
       paintBoreDot(
@@ -932,11 +930,7 @@
         firing = mouseFire || buttonValue(pad, 7) > 0.35,
         runRequested = (keys.has('shift') || buttonValue(pad, 10) > 0.5) && !aiming;
       playerYaw += lx * PLAYER_LOOK_RATE * dt * (aiming ? PLAYER_ADS_SENSITIVITY : 1);
-      playerPitch = clamp(
-        playerPitch + ly * 1.55 * dt * (aiming ? PLAYER_ADS_SENSITIVITY : 1),
-        -0.62,
-        0.78
-      );
+      playerPitch = clamp(playerPitch + ly * 1.55 * dt * (aiming ? PLAYER_ADS_SENSITIVITY : 1), -0.62, 0.78);
       if (pad && padPressedOnce(pad, 1)) togglePlayerCrouch(b);
       if (pad && padPressedOnce(pad, 0)) togglePlayerProne(b);
       var flat = new BABYLON.Vector3(Math.sin(playerYaw), 0, Math.cos(playerYaw)),
