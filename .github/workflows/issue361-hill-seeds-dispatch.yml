@@ -16,14 +16,14 @@ jobs:
         run: |
           set -euo pipefail
           gh workflow run battle-benchmark-standard.yml \
-            --repo APPARANYX/grasstex --ref 22509a5a2ceb0cc84d0f55d9a7c7abf4f818aefa \
+            --repo APPARANYX/grasstex --ref work/issue361-pinned-main-hill \
             -f seed=hill-0002 -f seeds=1 -f battle_type=ge-defend \
             -f query_off='' -f query_on='' \
             -f windows=contact+60,every60 \
             -f origin_agent=chatgpt -f correlation_id=issue361-hill0002-main \
             -f purpose="Current-main ge-defend hill0002 recon-timeout and us3 anchor follow-through"
           gh workflow run battle-benchmark-standard.yml \
-            --repo APPARANYX/grasstex --ref 22509a5a2ceb0cc84d0f55d9a7c7abf4f818aefa \
+            --repo APPARANYX/grasstex --ref work/issue361-pinned-main-hill \
             -f seed=hill-0008 -f seeds=1 -f battle_type=us-defend \
             -f query_off='' -f query_on='' \
             -f windows=contact+60,every60 \
