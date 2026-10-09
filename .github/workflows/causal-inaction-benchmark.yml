@@ -40,6 +40,10 @@ on:
         description: 'Optional existing seed to replay in each of the three scenarios'
         required: false
         default: ''
+      query:
+        description: 'Optional gameplay query flags e.g. coverPeek=1; seed and observer filters are reserved'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -62,6 +66,7 @@ jobs:
       CAUSAL_IDS: ${{ github.event.inputs.ids || '' }}
       CAUSAL_SQUADS: ${{ github.event.inputs.squads || '' }}
       CAUSAL_BATTLES: ${{ github.event.inputs.exact_seed && format('{0}:{1}', matrix.battle_type, github.event.inputs.exact_seed) || '' }}
+      CAUSAL_QUERY: ${{ github.event.inputs.query || '' }}
       CAUSAL_CONTROL: '1'
       CAUSAL_PREFIX: causal-inaction
       CAUSAL_OUT: reports/causal-inaction
