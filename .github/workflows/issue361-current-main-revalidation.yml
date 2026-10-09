@@ -20,6 +20,7 @@ jobs:
           COMMAND_AUDIT_OUTPUT: reports/issue361/current-main.json
         run: |
           set -euo pipefail
+          mkdir -p reports/issue361
           node scripts/run_command_lifecycle_audit.cjs | tee /tmp/issue361.log
       - if: always()
         uses: actions/upload-artifact@v4
