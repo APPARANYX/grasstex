@@ -1,0 +1,75 @@
+name: ⭐ Timescale Parity Benchmark
+
+on:
+  pull_request:
+    paths:
+      - 'battle/modules/00-fixed-step-clock.js'
+      - 'battle/commander-ai.js'
+      - 'scripts/run_timescale_parity_benchmark.cjs'
+      - 'scripts/benchmark_full_fidelity.cjs'
+      - 'tools/ai-sim-harness/fixed-step-clock-check.js'
+      - '.github/workflows/timescale-parity-benchmark.yml'
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: 'Simulated seconds per battle, per speed/FPS variant'
+        required: false
+        default: '120'
+      seed:
+        description: 'Battle seed'
+        required: false
+        default: 'timescale-parity'
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    name: ${{ matrix.scenario }} · 1x/4x/8x at 20/30/60/120fps
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [meeting, us-defend, ge-defend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PARITY_SCENARIO: ${{ matrix.scenario }}
+      PARITY_SEED: ${{ github.event.inputs.seed || 'timescale-parity' }}
+      PARITY_SECONDS: ${{ github.event.inputs.seconds || '120' }}
+      PARITY_OUT: reports/timescale-parity/${{ matrix.scenario }}.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fixed-step contract
+        run: |
+          node --check battle/modules/00-fixed-step-clock.js
+          node --check scripts/run_timescale_parity_benchmark.cjs
+          node tools/ai-sim-harness/fixed-step-clock-check.js
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start local battle server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+      - name: Replay real battle through 12 timescale/FPS combinations
+        run: node scripts/run_timescale_parity_benchmark.cjs
+      - name: Save seed-level fingerprints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: timescale-parity-${{ matrix.scenario }}-${{ github.run_number }}
+          path: reports/timescale-parity/
+          if-no-files-found: warn
+          retention-days: 14
