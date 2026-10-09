@@ -26,7 +26,7 @@ jobs:
               -f battle_type="$mode" \
               -f windows=contact+60,every60 \
               -f origin_agent=chatgpt \
-              -f correlation_id="issue418-hedge-${mode}-20" \
-              -f purpose="Cover peek opt-in safety 20 paired seeds"
+              -f correlation_id="issue418-hedge-expanded-${mode}-20" \
+              -f purpose="Expanded real blocker hedge peek 20 paired seeds same controls"
             echo "Dispatched $mode"
           done
