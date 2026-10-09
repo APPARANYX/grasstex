@@ -425,7 +425,11 @@
               goal: event.goal,
               status: 'selected',
               arrivedAt: null,
-              firedAt: null
+              firedAt: null,
+              startPosition: position(s.root.position),
+              samples: [],
+              lastPosition: position(s.root.position),
+              statusReason: null
             };
             if (data.coverLaneOutcomes.length < MAX_COVER) data.coverLaneOutcomes.push(d.coverLane);
           }
@@ -448,7 +452,26 @@
         selected = 0;
       for (var i = 0; i < all.length; i++) {
         var s = all[i];
-        if (!chosen(s) || s.dead) continue;
+        if (!chosen(s)) continue;
+        var traceUnit = unit(s), trace = traceUnit.coverLane;
+        if (trace && trace.samples.length < 90) {
+          var resolver = s._movementResolver && s._movementResolver.last;
+          var entry = {
+            t: round(sim.time), pos: position(s.root.position),
+            dest: position(s.destination),
+            orderDestination: position(s.orderDestination),
+            state: s.eng && s.eng.state || null,
+            squadPhase: s.squad && s.squad.commandPhase || null,
+            alive: !s.dead, hp: +s.hp || 0,
+            currentCover: s.eng && s.eng.cover && { x: round(s.eng.cover.x), z: round(s.eng.cover.z), type:s.eng.cover.type } || null,
+            stop: s._movementStopReason || null,
+            resolver: resolver ? {owner: resolver.owner||null,kind:resolver.kind||null,reason:resolver.reason||null} : null
+          };
+          trace.samples.push(entry);
+          trace.lastPosition = entry.pos;
+          if (s.dead) trace.statusReason = 'actor-dead';
+        }
+        if (s.dead) continue;
         selected++;
         var d = unit(s),
           o = motionOutcome(s, sim);
@@ -468,7 +491,11 @@
       }
       data.actorsObserved = Math.max(data.actorsObserved, selected);
     },
-    report: function () {
+    report: function (sim) {
+      if (sim && sim.factions) data.finalSurvivors = {
+        us: sim.factions.us && sim.factions.us.alive,
+        ge: sim.factions.ge && sim.factions.ge.alive
+      };
       return data;
     }
   };
