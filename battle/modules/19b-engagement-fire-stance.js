@@ -336,7 +336,8 @@
       if (facingError(s, posOf(s.target)) > AIM_CONE) return reportFireDenial(s, battle, 'facing');
       /* The gun gets emplaced first, whether he is engaging in the open or holding a firing station
          (the station sets `setUp` from its own clock just before it fires). */
-      if (SA().isMachineGun(s) && !s.setUp && (e.state === 'engage' || s.state === 'hardpoint')) return reportFireDenial(s, battle, 'mg-not-setup');
+      if (SA().isMachineGun(s) && !s.setUp && (e.state === 'engage' || s.state === 'hardpoint'))
+        return reportFireDenial(s, battle, 'mg-not-setup');
       if (!fireAuthorized(s, battle)) return reportFireDenial(s, battle, 'fire-not-authorized'); // Squad Leader permission.
       /* Last, so that when it stops him it was the only thing that did (the same answer in any order). */
       if (battle.time < shockUntil(s)) {
