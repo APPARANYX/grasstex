@@ -31,17 +31,35 @@
     STAMINA_WALK_RECOVER = 12,
     STAMINA_IDLE_RECOVER = 18,
     STAMINA_RESTART = 25;
+  var MENU_HOLD_MS = 650;
   var KEY_HINT =
     'Camera: click to look · WASD move · wheel speed · Q/E up/down · Shift sprint · P player · Esc releases';
   var PAD_HINT =
-    'Xbox: LS move · RS look · LT/RT down/up · RB sprint · LB precision · D-pad speed · Y level · Menu player';
+    'Xbox: LS move · RS look · LT/RT down/up · RB sprint · LB precision · D-pad speed · Y level · Menu tap player / hold settings';
   var PLAYER_HINT =
-    'Player: WASD move · Shift run · mouse look · RMB aim · LMB fire · C crouch · Z prone · P new soldier · V exit';
+    'Player: WASD move · Shift run · mouse look · RMB aim · LMB fire · C crouch · Z prone · P new soldier · O settings · V exit';
   var PLAYER_PAD_HINT =
-    'Xbox: LS move · L3 run · RS look · LT aim · RT fire · B crouch · A prone · Menu new soldier · View exit';
+    'Xbox: LS move · L3 run · RS look · LT aim · RT fire · B crouch · A prone · Menu tap next / hold settings · View exit';
   var TOUCH_HINT = 'Camera: drag to orbit · pinch/wheel to zoom';
   var PAD_WAKE_HINT = 'Xbox: move a stick or press a button to switch to fly controls';
   var clamp = global.GTMath.clamp;
+  function menuHoldGesture(state, pressed, now) {
+    if (pressed && !state.down) {
+      state.down = true;
+      state.since = now;
+      state.long = false;
+      return null;
+    }
+    if (pressed && !state.long && now - state.since >= MENU_HOLD_MS) {
+      state.long = true;
+      return 'hold';
+    }
+    if (!pressed && state.down) {
+      state.down = false;
+      return state.long ? null : 'tap';
+    }
+    return null;
+  }
   function desktopPointer() {
     return !!(global.matchMedia && global.matchMedia('(pointer:fine)').matches);
   }
@@ -198,7 +216,15 @@
       lastWoundCount = 0,
       damageAt = 0,
       damageOrigin = null,
-      lastShotPulse = 0;
+      lastShotPulse = 0,
+      settingsMenu = null,
+      menuOpen = false,
+      menuPauseOwner = null,
+      menuSquads = [],
+      menuSoldiers = [],
+      menuFocus = 0,
+      menuHoldState = { down: false, since: 0, long: false },
+      playerHapticsEnabled = true;
     function guarded() {
       return active || document.activeElement === canvas;
     }
@@ -293,6 +319,7 @@
     /* Browser capability detection is essential: iOS Safari commonly exposes neither phone vibration
        nor controller rumble. Haptics are optional feedback, never a condition for firing or damage. */
     function playerRumble(pad, duration, strong, weak) {
+      if (!playerHapticsEnabled) return;
       try {
         var actuator = pad && (pad.vibrationActuator || (pad.hapticActuators && pad.hapticActuators[0]));
         if (actuator && typeof actuator.playEffect === 'function') {
@@ -415,6 +442,220 @@
       return false;
     }
 
+    /* Settings are built from the live roster: only available, living squad members are selectable.
+       The dropdown indexes are views, not persistent soldier IDs or gameplay orders. */
+    function menuOptions(select, labels, emptyLabel) {
+      while (select.firstChild) select.removeChild(select.firstChild);
+      if (!labels.length) {
+        var empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = emptyLabel;
+        select.appendChild(empty);
+      } else
+        labels.forEach(function (name, i) {
+          var option = document.createElement('option');
+          option.value = String(i);
+          option.textContent = name;
+          select.appendChild(option);
+        });
+      select.disabled = !labels.length;
+    }
+    function fillMenuSoldiers(preferred) {
+      var sq = menuSquads[+settingsMenu.querySelector('#bpmSquad').value];
+      menuSoldiers = ((sq && sq.members) || []).filter(function (s) {
+        return s && !s.dead && s.root;
+      });
+      menuOptions(
+        settingsMenu.querySelector('#bpmSoldier'),
+        menuSoldiers.map(function (s) {
+          var weapon = s.weapon && (s.weapon.kind || s.weapon.model || s.weapon.name);
+          return '#' + s.id + ' · ' + (s.role || 'soldier') + (weapon ? ' · ' + weapon : '');
+        }),
+        'No living soldiers'
+      );
+      var i = menuSoldiers.indexOf(preferred);
+      if (i >= 0) settingsMenu.querySelector('#bpmSoldier').value = String(i);
+      settingsMenu.querySelector('#bpmApply').disabled = !menuSoldiers.length;
+    }
+    function fillMenuSquads(preferred, soldier) {
+      var b = liveBattle(),
+        faction = settingsMenu.querySelector('#bpmFaction').value;
+      menuSquads = ((b && b.factions[faction] && b.factions[faction].squads) || []).filter(function (sq) {
+        return (
+          sq &&
+          !sq.disbanded &&
+          (sq.members || []).some(function (s) {
+            return s && !s.dead && s.root;
+          })
+        );
+      });
+      menuOptions(
+        settingsMenu.querySelector('#bpmSquad'),
+        menuSquads.map(function (sq) {
+          var living = sq.members.filter(function (s) {
+            return s && !s.dead && s.root;
+          }).length;
+          return 'Unit ' + sq.id + ' · ' + living + ' active';
+        }),
+        'No active units'
+      );
+      var i = menuSquads.indexOf(preferred);
+      if (i >= 0) settingsMenu.querySelector('#bpmSquad').value = String(i);
+      fillMenuSoldiers(soldier);
+    }
+    function syncMenuFocus() {
+      if (!settingsMenu) return;
+      var rows = settingsMenu.querySelectorAll('.bpm-field');
+      for (var i = 0; i < rows.length; i++) rows[i].classList.toggle('active', menuFocus === i);
+    }
+    function closePlayerMenu() {
+      if (!menuOpen) return;
+      menuOpen = false;
+      if (settingsMenu) settingsMenu.style.display = 'none';
+      canvas.focus();
+      var b = menuPauseOwner;
+      menuPauseOwner = null;
+      if (b && b === liveBattle() && b.paused && !b.winner && typeof b.resume === 'function') b.resume();
+      updateHint(activeGamepad());
+    }
+    function possessSelected() {
+      if (!menuOpen) return false;
+      var b = liveBattle(),
+        faction = settingsMenu.querySelector('#bpmFaction').value,
+        sq = menuSquads[+settingsMenu.querySelector('#bpmSquad').value],
+        soldier = menuSoldiers[+settingsMenu.querySelector('#bpmSoldier').value];
+      /* Guard against stale/dead men after a battle restart. */
+      if (
+        !b ||
+        !sq ||
+        !soldier ||
+        !b.factions[faction] ||
+        b.factions[faction].squads.indexOf(sq) < 0 ||
+        (sq.members || []).indexOf(soldier) < 0 ||
+        soldier.dead ||
+        !soldier.root
+      ) {
+        fillMenuSquads(null, null);
+        return false;
+      }
+      var preservePause = !!(b.paused && menuPauseOwner !== b);
+      closePlayerMenu();
+      return possessSoldier(soldier, preservePause);
+    }
+    function ensurePlayerMenu() {
+      if (settingsMenu) return;
+      var style = document.createElement('style');
+      style.id = 'battlePlayerMenuStyles';
+      style.textContent =
+        '#battlePlayerSettings{position:fixed;inset:0;z-index:45;display:none;align-items:center;' +
+        'justify-content:center;padding:16px;background:#000b;color:#f2f1df;font:12px Arial,sans-serif}' +
+        '#battlePlayerSettings section{width:min(420px,94vw);max-height:90vh;overflow:auto;padding:20px;' +
+        'border:1px solid #7c9384;border-radius:7px;background:#162426;box-shadow:0 14px 45px #0009}' +
+        '#battlePlayerSettings h2{margin:0 0 8px;font-size:20px}' +
+        '#battlePlayerSettings p{color:#b6c7c3;line-height:1.5}' +
+        '#battlePlayerSettings .bpm-field{display:block;margin:8px -6px;padding:6px;border:2px solid transparent;' +
+        'border-radius:5px;font-weight:bold}' +
+        '#battlePlayerSettings .bpm-field.active{border-color:#c8c78c;background:#344740}' +
+        '#battlePlayerSettings select{box-sizing:border-box;display:block;width:100%;padding:9px;' +
+        'margin-top:6px;background:#263a3c;border:1px solid #7a918a;border-radius:4px;color:white}' +
+        '#battlePlayerSettings .bpm-field.check{display:flex;gap:10px;align-items:center}' +
+        '#battlePlayerSettings .bpm-buttons{display:flex;gap:10px;margin-top:12px}' +
+        '#battlePlayerSettings button{flex:1;padding:10px;border-radius:4px;cursor:pointer;' +
+        'border:1px solid #8c9e93;color:white;background:#40564f;font-weight:bold}' +
+        '#battlePlayerSettings button.primary{background:#668049}' +
+        '#battlePlayerSettings button:disabled{opacity:.5;cursor:default}';
+      document.head.appendChild(style);
+      settingsMenu = document.createElement('div');
+      settingsMenu.id = 'battlePlayerSettings';
+      settingsMenu.innerHTML =
+        '<section role="dialog" aria-modal="true" aria-label="Player settings">' +
+        '<h2>PLAYER SETTINGS</h2><p>Choose the faction, unit and soldier to control.</p>' +
+        '<label class="bpm-field">FACTION<select id="bpmFaction">' +
+        '<option value="us">United States</option><option value="ge">Germany</option></select></label>' +
+        '<label class="bpm-field">UNIT / SQUAD<select id="bpmSquad"></select></label>' +
+        '<label class="bpm-field">SOLDIER<select id="bpmSoldier"></select></label>' +
+        '<label class="bpm-field check"><input type="checkbox" id="bpmHaptics" checked> HAPTIC FEEDBACK</label>' +
+        '<div class="bpm-buttons"><button class="primary" id="bpmApply" type="button">DEPLOY</button>' +
+        '<button id="bpmClose" type="button">BACK</button></div>' +
+        '<p>D-pad ↑↓ field · ←→ choice · A deploy / toggle haptics · B back · tap Menu close.' +
+        ' Mouse and touch supported. Click battlefield to resume mouse look.</p></section>';
+      document.body.appendChild(settingsMenu);
+      settingsMenu.querySelector('#bpmFaction').addEventListener('change', function () {
+        fillMenuSquads(null, null);
+      });
+      settingsMenu.querySelector('#bpmSquad').addEventListener('change', function () {
+        fillMenuSoldiers(null);
+      });
+      settingsMenu.querySelector('#bpmHaptics').addEventListener('change', function (e) {
+        playerHapticsEnabled = e.target.checked;
+      });
+      settingsMenu.querySelector('#bpmApply').addEventListener('click', possessSelected);
+      settingsMenu.querySelector('#bpmClose').addEventListener('click', closePlayerMenu);
+      var rows = settingsMenu.querySelectorAll('.bpm-field');
+      for (var i = 0; i < rows.length; i++)
+        (function (n) {
+          rows[n].addEventListener('pointerdown', function () {
+            menuFocus = n;
+            syncMenuFocus();
+          });
+        })(i);
+    }
+    function openPlayerMenu() {
+      ensurePlayerMenu();
+      if (menuOpen) return;
+      var b = liveBattle();
+      settingsMenu.querySelector('#bpmFaction').value = player ? player.faction : playerFaction;
+      settingsMenu.querySelector('#bpmHaptics').checked = playerHapticsEnabled;
+      fillMenuSquads(player && player.squad, player);
+      menuFocus = 0;
+      syncMenuFocus();
+      menuOpen = true;
+      settingsMenu.style.display = 'flex';
+      settingsMenu.querySelector('#bpmFaction').focus();
+      mouseAim = false;
+      mouseFire = false;
+      keys.clear();
+      if (document.pointerLockElement === canvas && document.exitPointerLock) document.exitPointerLock();
+      menuPauseOwner = null;
+      if (b && !b.paused && !b.winner && typeof b.pause === 'function') {
+        b.pause();
+        menuPauseOwner = b;
+      }
+    }
+    function togglePlayerMenu() {
+      if (menuOpen) closePlayerMenu();
+      else openPlayerMenu();
+    }
+    function cycleMenuValue(select, delta) {
+      if (!select || select.disabled || select.options.length < 2) return;
+      select.selectedIndex = (select.selectedIndex + delta + select.options.length) % select.options.length;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    function stepPlayerMenuPad(pad) {
+      if (padPressedOnce(pad, 1)) {
+        closePlayerMenu();
+        return;
+      }
+      if (padPressedOnce(pad, 12)) menuFocus = (menuFocus + 3) % 4;
+      if (padPressedOnce(pad, 13)) menuFocus = (menuFocus + 1) % 4;
+      var delta = (padPressedOnce(pad, 15) ? 1 : 0) - (padPressedOnce(pad, 14) ? 1 : 0);
+      var fields = ['#bpmFaction', '#bpmSquad', '#bpmSoldier'];
+      if (delta && menuFocus < 3) cycleMenuValue(settingsMenu.querySelector(fields[menuFocus]), delta);
+      if (delta && menuFocus === 3) {
+        var h = settingsMenu.querySelector('#bpmHaptics');
+        h.checked = !h.checked;
+        playerHapticsEnabled = h.checked;
+      }
+      if (padPressedOnce(pad, 0)) {
+        if (menuFocus === 3) {
+          var box = settingsMenu.querySelector('#bpmHaptics');
+          box.checked = !box.checked;
+          playerHapticsEnabled = box.checked;
+        } else possessSelected();
+      }
+      syncMenuFocus();
+    }
+
     function ensurePlayerCamera() {
       if (playerCam) return playerCam;
       playerCam = new BABYLON.UniversalCamera('playerCam', camera.position.clone(), scene);
@@ -475,6 +716,7 @@
     }
     function leavePlayer(reason) {
       if (!player) return;
+      if (menuOpen) closePlayerMenu();
       var b = playerBattle || liveBattle(),
         old = player;
       clearPlayerLease(old, b);
@@ -499,10 +741,22 @@
       global.GTLog('[PLAYER] exited ' + (reason || 'player mode') + ' from ' + old.faction + ' #' + old.id);
     }
     function possessRandom() {
+      return possessSoldier(pickPlayerSoldier(player));
+    }
+    function possessSoldier(next, preservePause) {
       var b = liveBattle();
-      if (!b) return false;
-      var next = pickPlayerSoldier(player);
-      if (!next) return false;
+      /* This is a possession transfer, never a spawn. Only current living members qualify. */
+      if (
+        !b ||
+        !next ||
+        !next.root ||
+        next.dead ||
+        !b.factions[next.faction] ||
+        !b.factions[next.faction].squads.some(function (sq) {
+          return (sq.members || []).indexOf(next) >= 0;
+        })
+      )
+        return false;
       if (player) clearPlayerLease(player, playerBattle || b);
       player = next;
       playerBattle = b;
@@ -529,7 +783,7 @@
           pace: 'walk'
         });
       }
-      if (b.paused && b.resume) b.resume();
+      if (b.paused && b.resume && !preservePause) b.resume();
       var startBtn = document.getElementById('startBtn');
       if (startBtn) startBtn.hidden = true;
       ensureReticle().style.display = 'block';
@@ -660,6 +914,21 @@
       'keydown',
       function (event) {
         var key = keyName(event);
+        if (key === 'o' && !event.repeat && (menuOpen || !editableTarget(event.target))) {
+          togglePlayerMenu();
+          event.preventDefault();
+          return;
+        }
+        if (menuOpen && key === 'escape') {
+          closePlayerMenu();
+          event.preventDefault();
+          return;
+        }
+        if (menuOpen) {
+          /* Keyboard users can operate the native dropdowns and buttons. No possession,
+             stance, movement or fire shortcuts leak through the settings modal. */
+          return;
+        }
         if (editableTarget(event.target)) return;
         if (key === 'p') {
           if (!event.repeat) {
@@ -746,21 +1015,39 @@
       if (!pad && padId) {
         padId = null;
         padButtons = {};
+        menuHoldState.down = false;
         updateHint(null);
       }
-      if (pad) {
-        var menu = padPressedOnce(pad, 9),
-          view = padPressedOnce(pad, 8);
-        if (menu) {
-          possessRandom();
+      /* A quick Start release still enters/switches soldiers; holding opens the
+         settings panel once at 650 ms and cannot also invoke the tap on release. */
+      var menuGesture = menuHoldGesture(menuHoldState, !!pad && buttonValue(pad, 9) > 0.5, Date.now());
+      if (menuGesture === 'hold') {
+        togglePlayerMenu();
+        if (pad) refreshPadButtons(pad);
+        return;
+      }
+      if (menuGesture === 'tap') {
+        if (menuOpen) closePlayerMenu();
+        else possessRandom();
+        if (pad) refreshPadButtons(pad);
+        return;
+      }
+      if (menuOpen) {
+        if (pad) {
+          stepPlayerMenuPad(pad);
           refreshPadButtons(pad);
-          return;
         }
-        if (player && view) {
-          leavePlayer('View button');
-          refreshPadButtons(pad);
-          return;
-        }
+        if (player) updatePlayerFeedback(pad);
+        return;
+      }
+      if (menuHoldState.down) {
+        if (pad) refreshPadButtons(pad);
+        return;
+      }
+      if (pad && player && padPressedOnce(pad, 8)) {
+        leavePlayer('View button');
+        refreshPadButtons(pad);
+        return;
       }
       if (player) {
         stepPlayer(pad, dt);
@@ -833,7 +1120,8 @@
       },
       exitPlayer: function () {
         leavePlayer('API');
-      }
+      },
+      openPlayerSettings: openPlayerMenu
     };
   }
   /* Normal-play presentation camera for visual testing. `?follow=1` follows the busiest living soldier from a close, persistent ArcRotate camera.
@@ -1018,6 +1306,8 @@
   }
   global.BattleDesktopCamera = {
     current: null,
+    menuHoldGesture: menuHoldGesture,
+    menuHoldMs: MENU_HOLD_MS,
     create: function (options) {
       var target = new BABYLON.Vector3(options.scenario.center.x, 4, options.scenario.center.z);
       var result = createAdaptive(options, target);

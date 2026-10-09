@@ -15,7 +15,50 @@ function load(r, p) {
 }
 const cameraSource = fs.readFileSync(path.join(H.REPO, 'battle/camera-controls.js'), 'utf8');
 new Function(cameraSource);
-assert.match(cameraSource, /padPressedOnce\(pad,\s*9\)/, 'Menu/Start must enter or switch player mode');
+/* Menu/Start gesture contract: a short press retains switching; a hold opens settings
+   once, without also triggering a short press on release. */
+assert.match(cameraSource, /menuHoldGesture\(menuHoldState,[\s\S]*buttonValue\(pad, 9\)/);
+assert.match(cameraSource, /if \(menuGesture === 'hold'\)[\s\S]*?togglePlayerMenu\(\)/);
+assert.match(cameraSource, /if \(menuGesture === 'tap'\)[\s\S]*?possessRandom\(\)/);
+assert.match(cameraSource, /if \(menuOpen\)[\s\S]*?stepPlayerMenuPad\(pad\)/);
+assert.match(cameraSource, /if \(key === 'o'[\s\S]*?togglePlayerMenu\(\)/, 'keyboard O also opens settings');
+assert.match(cameraSource, /fillMenuSquads\(player && player\.squad, player\)/);
+assert.match(cameraSource, /fillMenuSoldiers\(soldier\)/);
+assert.match(
+  cameraSource,
+  /b\.factions\[faction\]\.squads\.indexOf\(sq\)/,
+  'selected squad is revalidated against the live faction'
+);
+assert.match(
+  cameraSource,
+  /soldier\.dead[\s\S]{0,100}!soldier\.root/,
+  'soldier selection rejects casualties'
+);
+assert.match(cameraSource, /if \(menuOpen\) closePlayerMenu\(\)/, 'player release cleans up the menu');
+assert.match(cameraSource, /!b\.paused[\s\S]{0,100}typeof b\.pause/, 'settings pause only an active battle');
+assert.match(
+  cameraSource,
+  /b === liveBattle\(\)[\s\S]{0,170}typeof b\.resume/,
+  'settings resume only a pause owned by this menu'
+);
+
+const vm = require('node:vm');
+const win = { GTMath: { clamp: (value, min, max) => Math.min(max, Math.max(min, value)) } };
+vm.runInNewContext(cameraSource, { window: win });
+const G = win.BattleDesktopCamera.menuHoldGesture;
+assert.equal(win.BattleDesktopCamera.menuHoldMs, 650);
+const st = { down: false, since: 0, long: false };
+assert.equal(G(st, true, 0), null, 'press starts the timer, not a switch');
+assert.equal(G(st, true, 649), null, 'below threshold cannot open settings');
+assert.equal(G(st, false, 649), 'tap', 'short release switches');
+assert.equal(G(st, false, 650), null, 'releasing twice cannot switch twice');
+assert.equal(G(st, true, 1000), null);
+assert.equal(G(st, true, 1650), 'hold', 'long press opens settings');
+assert.equal(G(st, true, 1800), null, 'held button must not retrigger menu');
+assert.equal(G(st, false, 1801), null, 'release after hold cannot also switch soldier');
+assert.equal(G(st, true, 2000), null);
+assert.equal(G(st, false, 2025), 'tap', 'subsequent taps work after a hold');
+
 assert.match(cameraSource, /buttonValue\(pad,\s*7\)/, 'RT must feed player fire');
 assert.match(cameraSource, /buttonValue\(pad,\s*10\)/, 'L3 must feed player run');
 assert.match(
