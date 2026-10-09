@@ -59,7 +59,9 @@ const summary = { schema: 'grasstex-causal-inaction-summary-v1',
     seconds, prefix, url: url.toString(), control: env.PROBE_CONTROL === '1' },
   expectedBattles: battles.length, completedBattles: record.battles.length,
   valid: true, failures: [], byScenario: {}, reasons: {}, confidence: {}, kinds: {},
-  episodes: [], episodesOmitted: 0, directDenialsOmitted: 0, directDecisionReasons: {} };
+  episodes: [], episodesOmitted: 0, directDenialsOmitted: 0, directDecisionReasons: {},
+  coverDecisions: [], coverDecisionsOmitted: 0, coverDecisionCounts: {},
+  coverRejectCounts: {}, coverLaneOutcomes: [] };
 function bump(obj, key, n=1) { obj[key] = (obj[key] || 0) + n; }
 for (const type of types) summary.byScenario[type] = { battles: 0, episodes: 0, reasons: {}, confidence: {} };
 for (const b of record.battles) {
@@ -73,6 +75,13 @@ for (const b of record.battles) {
     { summary.failures.push(b.seed + ': missing causal probe'); continue; }
   summary.episodesOmitted += r.episodesOmitted || 0;
   summary.directDenialsOmitted += r.directDenialsOmitted || 0;
+  summary.coverDecisionsOmitted += r.coverDecisionsOmitted || 0;
+  for (const [k,n] of Object.entries(r.coverDecisionCounts || {})) bump(summary.coverDecisionCounts,k,n);
+  for (const [k,n] of Object.entries(r.coverRejectCounts || {})) bump(summary.coverRejectCounts,k,n);
+  for (const decision of r.coverDecisions || [])
+    summary.coverDecisions.push({type:b.type,seed:b.seed,...decision});
+  for (const outcome of r.coverLaneOutcomes || [])
+    summary.coverLaneOutcomes.push({type:b.type,seed:b.seed,...outcome});
   for (const e of r.episodes) {
     group.episodes++;
     bump(group.reasons, e.code);
@@ -111,6 +120,21 @@ for (const type of types) {
 md.push('', '## Observed evidence codes', '');
 for (const [reason,n] of Object.entries(summary.reasons).sort((a,b)=>b[1]-a[1]))
   md.push('- '+reason+': '+n);
+md.push('', '## Actual cover and firing-lane decision gates (direct evidence)', '');
+for (const [name,n] of Object.entries(summary.coverDecisionCounts).sort((a,b)=>b[1]-a[1]))
+  md.push('- ' + name + ': ' + n);
+md.push('', '### Observed slot rejection counts (not necessarily exclusive)', '');
+for (const [name,n] of Object.entries(summary.coverRejectCounts).sort((a,b)=>b[1]-a[1]))
+  md.push('- ' + name + ': ' + n);
+const arrived = summary.coverLaneOutcomes.filter(x=>x.arrivedAt!=null).length;
+const fired = summary.coverLaneOutcomes.filter(x=>x.firedAt!=null).length;
+md.push('', '### Selected firing-lane physical outcomes', '',
+  '- Selected: ' + summary.coverLaneOutcomes.length + ', physically arrived: ' + arrived +
+  ', later fired: ' + fired + '. Firing after selection does not prove LOS to the original target.');
+if (summary.coverDecisionsOmitted) md.push(
+  '- Warning: ' + summary.coverDecisionsOmitted +
+  ' planner decisions omitted from per-battle detail. Aggregated counts remain complete.'
+);
 md.push('', '## Direct Engagement decision denials within reported episodes', '');
 for (const [reason,n] of Object.entries(summary.directDecisionReasons).sort((a,b)=>b[1]-a[1]))
   md.push('- '+reason+': '+n);
@@ -132,6 +156,8 @@ if (summary.directDenialsOmitted) md.push('', '**Warning:** ' + summary.directDe
   ' direct firing denial events dropped from rolling actor buffers; results may be incomplete.');
 if (summary.failures.length) md.push('', '## Invalidating failures', '', ...summary.failures.map(s=>'- '+s));
 md.push('', '### Evidence interpretation', '',
+  '- Verified cover rejections mean the shipping planner actually took those branches; different candidates can fail different gates in one search.',
+  '- A selected flank destination does not prove physical travel; physically arrived and post-selection fire are observed separately.',
   '- Verified means a named authoritative record or real trigger rejection was observed; it does NOT automatically prove the whole inaction interval was caused by that event.',
   '- Likely is a state correlation, NOT a decision-gate invocation or confirmed root cause.',
   '- Unknown explicitly means evidence is insufficient; instrument the responsible decision boundary before changing behavior.',
