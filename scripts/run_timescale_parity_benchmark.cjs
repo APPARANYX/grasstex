@@ -1,10 +1,11 @@
-/* Real-battle fixed-step parity: replay the same seed under 1x/4x/8x and
- * synthetic 20/30/60/120fps wall-clock cadences. The full soldier, squad,
- * combat and commander state must match the ordinary 0.15s benchmark.
+/* Full-combat timescale parity. Every arm gets a FRESH browser page: battle restart
+ * is not an isolation boundary for all squad-level caches, and repeat-restart comparisons
+ * diverge even with the exact same fixed-step timing. Compare isolated pages only.
  *
- * Run with a local battle PHP server:
- *   NODE_PATH=$(npm root -g) node scripts/run_timescale_parity_benchmark.cjs
- * Env: PARITY_URL, PARITY_SEED, PARITY_SCENARIO, PARITY_SECONDS, PARITY_OUT.
+ * Requires Playwright and the local battle PHP server:
+ *   PARITY_SECONDS=600 node scripts/run_timescale_parity_benchmark.cjs
+ * Env: PARITY_URL, PARITY_SEED, PARITY_SCENARIO, PARITY_SECONDS, PARITY_CASES, PARITY_OUT
+ * PARITY_CASES: comma-separated 1x@20,1x@120,4x@30,4x@60,8x@20,8x@120 etc.
  */
 'use strict';
 
@@ -16,14 +17,44 @@ const path = require('node:path');
 const URL_ = process.env.PARITY_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
 const SEED = process.env.PARITY_SEED || 'timescale-parity';
 const SCENARIO = process.env.PARITY_SCENARIO || 'meeting';
-const SECONDS = Math.max(15, +process.env.PARITY_SECONDS || 600);
+const SECONDS = Math.max(15, Number(process.env.PARITY_SECONDS || 600));
 const OUT = process.env.PARITY_OUT || '';
-const ONLY = process.env.PARITY_ONLY || '';
-const REPEAT_REFERENCE = process.env.PARITY_REPEAT_REFERENCE === '1';
 const DEFENDER = { meeting: '', 'us-defend': 'us', 'ge-defend': 'ge' };
-if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
-  throw new Error('Invalid scenario ' + SCENARIO);
+if (!(SCENARIO in DEFENDER)) throw new Error('Invalid scenario ' + SCENARIO);
+
+const allCases = [];
+for (const speed of [1, 4, 8]) {
+  for (const fps of [20, 30, 60, 120]) allCases.push({ speed, fps, id: speed + 'x@' + fps });
 }
+const requested = process.env.PARITY_CASES
+  ? process.env.PARITY_CASES.split(',').map(v => v.trim()).filter(Boolean)
+  : allCases.map(x => x.id);
+const cases = requested.map(id => {
+  const found = allCases.find(x => x.id === id);
+  if (!found) throw new Error('Unknown PARITY_CASES case ' + id);
+  return found;
+});
+if (new Set(cases.map(x => x.id)).size !== cases.length) throw new Error('Duplicate parity cases');
+
+function firstDifferences(left, right, at, out) {
+  if (out.length >= 12 || Object.is(left, right)) return;
+  const a = left && typeof left === 'object';
+  const b = right && typeof right === 'object';
+  if (a && b && Array.isArray(left) === Array.isArray(right)) {
+    const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+    for (const key of Array.from(keys).sort()) {
+      firstDifferences(left[key], right[key], at + '.' + key, out);
+      if (out.length >= 12) break;
+    }
+  } else {
+    out.push({
+      path: at,
+      expected: String(JSON.stringify(left)).slice(0, 120),
+      actual: String(JSON.stringify(right)).slice(0, 120)
+    });
+  }
+}
+const hash = s => createHash('sha256').update(s).digest('hex');
 
 (async function () {
   const browser = await chromium.launch({
@@ -37,59 +68,57 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
       '--ignore-certificate-errors'
     ]
   });
-  const page = await browser.newPage({ viewport: { width: 960, height: 540 }, ignoreHTTPSErrors: true });
-  page.setDefaultTimeout(180000);
-  const errors = [];
-  page.on('pageerror', e => {
-    const message = String((e && e.stack) || e);
-    if (/^Uncaught \(in promise\) Error: HTTP 404 loading '\/grasstex\/Assets\/audio\/[A-Za-z0-9/_-]+\.mp3': Not Found/.test(message)) return;
-    errors.push(message.slice(0, 400));
-  });
-  await page.route('**/*', route =>
+  const context = await browser.newContext({ viewport: { width: 960, height: 540 }, ignoreHTTPSErrors: true });
+  context.setDefaultTimeout(180000);
+  await context.route('**/*', route =>
     ['media', 'font'].includes(route.request().resourceType()) ? route.abort() : route.continue()
   );
+  const q = new URLSearchParams({ seed: SEED });
+  if (DEFENDER[SCENARIO]) q.set('defender', DEFENDER[SCENARIO]);
+  const target = URL_ + (URL_.includes('?') ? '&' : '?') + q;
+  const errors = [];
 
-  try {
-    const query = new URLSearchParams({ seed: SEED });
-    if (DEFENDER[SCENARIO]) query.set('defender', DEFENDER[SCENARIO]);
-    await page.goto(URL_ + (URL_.includes('?') ? '&' : '?') + query, {
-      waitUntil: 'domcontentloaded',
-      timeout: 180000
+  async function replay(mode) {
+    const label = mode ? mode.id : 'fixed-benchmark';
+    const page = await context.newPage();
+    const pageErrors = [];
+    page.on('pageerror', e => {
+      const message = String((e && e.stack) || e);
+      if (/^Uncaught \(in promise\) Error: HTTP 404 loading '\/grasstex\/Assets\/audio\/[A-Za-z0-9/_-]+\.mp3': Not Found/.test(message)) return;
+      pageErrors.push(message.slice(0, 350));
     });
-    await page.waitForFunction(
-      () => !!(window.__battle__ && window.BattleCommanderAI && window.BattleAIPolicy && window.BattleModules),
-      null,
-      { timeout: 180000 }
-    );
-    await page.addScriptTag({ path: path.join(__dirname, 'probes/state-fingerprint.js') });
-    const results = await page.evaluate(async ({ seconds, only, repeatReference }) => {
-      const root = window;
-      const sim = root.__battle__;
-      if (!sim._fixedClockInstalled || !sim._fixedClock || !sim._liveCommanderTick) {
-        throw new Error('The shipping fixed-step clock/commander hook is not installed');
-      }
-      const engine = sim.scene.getEngine();
-      engine.stopRenderLoop();
-      sim.pause();
-      const telemetry = root.BattleTelemetry;
-      if (telemetry) {
-        try {
-          if (telemetry.end) await telemetry.end(sim, 'parity-start');
-        } catch (_) {}
-        telemetry.record = telemetry.start = telemetry.ensure = function () {};
-        telemetry.end = telemetry.checkpoint = telemetry.flush = async () => true;
-      }
-      const policy = root.BattleAIPolicy.get();
-      root.BattleAIPolicy.setMatchPolicies(sim, policy, policy);
-      sim.trainingMode = true;
-      if (root.BattleSoldierModel && root.BattleSoldierModel.setImportedEnabled) {
-        root.BattleSoldierModel.setImportedEnabled(sim.scene, false);
-      }
+    try {
+      await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 180000 });
+      await page.waitForFunction(
+        () => !!(window.__battle__ && window.BattleCommanderAI && window.BattleAIPolicy && window.BattleModules),
+        null,
+        { timeout: 180000 }
+      );
+      await page.addScriptTag({ path: path.join(__dirname, 'probes/state-fingerprint.js') });
+      const data = await page.evaluate(async ({ seconds, mode }) => {
+        const root = window;
+        const sim = root.__battle__;
+        const engine = sim.scene.getEngine();
+        engine.stopRenderLoop();
+        sim.pause();
+        if (!sim._fixedClockInstalled || !sim._fixedClock || !sim._liveCommanderTick) {
+          throw new Error('Shipping fixed-step clock/commander hook is not installed');
+        }
 
-      let fireCount = 0;
-      let hitCount = 0;
-      let suppressionCount = 0;
-      function reset() {
+        const telemetry = root.BattleTelemetry;
+        if (telemetry) {
+          try {
+            if (telemetry.end) await telemetry.end(sim, 'parity-start');
+          } catch (_) {}
+          telemetry.record = telemetry.start = telemetry.ensure = function () {};
+          telemetry.end = telemetry.checkpoint = telemetry.flush = async () => true;
+        }
+        const policy = root.BattleAIPolicy.get();
+        root.BattleAIPolicy.setMatchPolicies(sim, policy, policy);
+        sim.trainingMode = true;
+        if (root.BattleSoldierModel && root.BattleSoldierModel.setImportedEnabled) {
+          root.BattleSoldierModel.setImportedEnabled(sim.scene, false);
+        }
         (sim._controlRawRestart || sim.restart.bind(sim))();
         sim._fixedClock.reset();
         Object.assign(sim, {
@@ -97,126 +126,99 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
           manualEnded: false,
           winner: null,
           winReason: null,
-          timeScale: 1,
+          timeScale: mode ? mode.speed : 1,
           timeLimit: seconds
         });
-        fireCount = hitCount = suppressionCount = 0;
+        let fireEvents = 0;
+        let hitEvents = 0;
+        let suppressionEvents = 0;
         sim.onFire = function () {
-          fireCount++;
+          fireEvents++;
         };
         sim.onShot = function (shooter, target, hit) {
-          if (hit) hitCount++;
+          if (hit) hitEvents++;
         };
         sim.onSuppressiveShot = function () {
-          suppressionCount++;
+          suppressionEvents++;
         };
         sim.onCallout = sim.onUpdate = function () {};
-      }
 
-      function snapshot(label) {
+        if (!mode) {
+          const tick = root.BattleCommanderAI.commandTick || 0.45;
+          const fixedStep = root.BattleSim.AI_TICK;
+          let commandDebt = 0;
+          while (!sim.winner && sim.time + 1e-9 < seconds) {
+            sim._trainerStepActive = true;
+            try {
+              sim.step(fixedStep);
+            } finally {
+              sim._trainerStepActive = false;
+            }
+            commandDebt += fixedStep;
+            while (commandDebt + 1e-9 >= tick && !sim.winner) {
+              commandDebt -= tick;
+              root.BattleCommanderAI.update(sim, sim.scene.metadata.battleScenario, tick);
+            }
+          }
+        } else {
+          const frames = Math.ceil((seconds / mode.speed) * mode.fps);
+          const wallFrame = seconds / mode.speed / frames;
+          for (let i = 0; i < frames && !sim.winner; i++) sim._fixedClock.advance(wallFrame);
+        }
+
         return {
-          label: label,
           simSeconds: sim.time,
           winner: sim.winner || null,
           aliveUS: sim.factions.us.alive,
           aliveGE: sim.factions.ge.alive,
-          fireEvents: fireCount,
-          hitEvents: hitCount,
-          suppressionEvents: suppressionCount,
-          fingerprint: JSON.stringify(root.BattleStateFingerprint.snapshot(sim)),
+          fireEvents,
+          hitEvents,
+          suppressionEvents,
           pendingSeconds: sim._fixedClock.stats.pendingSeconds,
-          backloggedFrames: sim._fixedClock.stats.backloggedFrames
+          backloggedFrames: sim._fixedClock.stats.backloggedFrames,
+          fingerprint: JSON.stringify(root.BattleStateFingerprint.snapshot(sim))
         };
-      }
+      }, { seconds: SECONDS, mode });
+      errors.push(...pageErrors.map(message => ({ label, message })));
+      console.log(label + ': sim=' + data.simSeconds.toFixed(2) + ' fire=' + data.fireEvents + ' hits=' + data.hitEvents);
+      return { label, ...data };
+    } finally {
+      await page.close();
+    }
+  }
 
-      function referenceReplay() {
-        const tick = root.BattleCommanderAI.commandTick || 0.45;
-        let commandDebt = 0;
-        const fixedStep = root.BattleSim.AI_TICK;
-        while (!sim.winner && sim.time + 1e-9 < seconds) {
-          sim._trainerStepActive = true;
-          try {
-            sim.step(fixedStep);
-          } finally {
-            sim._trainerStepActive = false;
-          }
-          commandDebt += fixedStep;
-          while (commandDebt + 1e-9 >= tick && !sim.winner) {
-            commandDebt -= tick;
-            root.BattleCommanderAI.update(sim, sim.scene.metadata.battleScenario, tick);
-          }
-        }
-      }
-      reset();
-      referenceReplay();
-      const baseline = snapshot('fixed-benchmark');
-      const baselineState = JSON.parse(baseline.fingerprint);
-      function differences(left, right, location, out) {
-        if (out.length >= 12 || Object.is(left, right)) return;
-        const a = left && typeof left === 'object';
-        const b = right && typeof right === 'object';
-        if (a && b && Array.isArray(left) === Array.isArray(right)) {
-          const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
-          for (const key of Array.from(keys).sort()) {
-            if (out.length >= 12) break;
-            differences(left[key], right[key], location + '.' + key, out);
-          }
-          return;
-        }
-        out.push({
-          path: location,
-          expected: String(JSON.stringify(left)).slice(0, 150),
-          actual: String(JSON.stringify(right)).slice(0, 150)
-        });
-      }
-      const variants = [];
-      if (repeatReference) {
-        reset();
-        referenceReplay();
-        const repeated = snapshot('fixed-benchmark repeat');
-        repeated.differences = [];
-        differences(baselineState, JSON.parse(repeated.fingerprint), 'battle', repeated.differences);
-        variants.push(repeated);
-      }
-      for (const speed of [1, 4, 8]) {
-        for (const fps of [20, 30, 60, 120]) {
-          const label = speed + 'x @ ' + fps + 'fps';
-          if (only && only !== label) continue;
-          reset();
-          sim.timeScale = speed;
-          const count = Math.ceil((seconds / speed) * fps);
-          const wallFrame = seconds / speed / count;
-          for (let i = 0; i < count && !sim.winner; i++) sim._fixedClock.advance(wallFrame);
-          const result = snapshot(label);
-          result.differences = [];
-          if (result.fingerprint !== baseline.fingerprint) {
-            differences(baselineState, JSON.parse(result.fingerprint), 'battle', result.differences);
-          }
-          variants.push(result);
-        }
-      }
-      return { baseline: baseline, variants: variants };
-    }, { seconds: SECONDS, only: ONLY, repeatReference: REPEAT_REFERENCE });
-
-    const standard = results.baseline;
-    const hash = source => createHash('sha256').update(source).digest('hex');
+  try {
+    const baseline = await replay(null);
     const report = {
       scenario: SCENARIO,
       seed: SEED,
       seconds: SECONDS,
+      cases: cases.map(x => x.id),
+      isolatedPages: true,
       baseline: {
-        simSeconds: standard.simSeconds,
-        winner: standard.winner,
-        aliveUS: standard.aliveUS,
-        aliveGE: standard.aliveGE,
-        fireEvents: standard.fireEvents,
-        hitEvents: standard.hitEvents,
-        suppressionEvents: standard.suppressionEvents,
-        fingerprint: hash(standard.fingerprint)
+        label: baseline.label,
+        simSeconds: baseline.simSeconds,
+        winner: baseline.winner,
+        aliveUS: baseline.aliveUS,
+        aliveGE: baseline.aliveGE,
+        fireEvents: baseline.fireEvents,
+        hitEvents: baseline.hitEvents,
+        suppressionEvents: baseline.suppressionEvents,
+        fingerprint: hash(baseline.fingerprint)
       },
-      variants: results.variants.map(run => ({
+      variants: [],
+      errors
+    };
+    for (const mode of cases) {
+      const run = await replay(mode);
+      const sameBattle = run.fingerprint === baseline.fingerprint;
+      const differences = [];
+      if (!sameBattle) {
+        firstDifferences(JSON.parse(baseline.fingerprint), JSON.parse(run.fingerprint), 'battle', differences);
+      }
+      report.variants.push({
         label: run.label,
-        sameBattle: run.fingerprint === standard.fingerprint,
+        sameBattle,
         simSeconds: run.simSeconds,
         winner: run.winner,
         aliveUS: run.aliveUS,
@@ -227,21 +229,19 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
         pendingSeconds: run.pendingSeconds,
         backloggedFrames: run.backloggedFrames,
         fingerprint: hash(run.fingerprint),
-        differences: run.differences
-      })),
-      only: ONLY || 'all',
-      errors: errors
-    };
+        differences
+      });
+    }
     if (OUT) {
       fs.mkdirSync(path.dirname(OUT), { recursive: true });
       fs.writeFileSync(OUT, JSON.stringify(report, null, 2) + '\n');
     }
     console.log(JSON.stringify(report, null, 2));
-    if (errors.length || !report.baseline.fireEvents || report.variants.some(v => !v.sameBattle)) {
+    if (errors.length || !report.baseline.fireEvents || report.variants.some(x => !x.sameBattle)) {
       process.exitCode = 1;
     }
   } finally {
-    await page.close();
+    await context.close();
     await browser.close();
   }
 })().catch(e => {
