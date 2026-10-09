@@ -185,7 +185,7 @@
   }
   function shotDirection(shooter, target, stats, battle, round) {
     var origin = muzzleOrigin(shooter, target, battle),
-      aim = targetCenter(target, battle);
+      aim = exposedAim(shooter, target, battle) || targetCenter(target, battle);
     var base = norm({ x: aim.x - origin.x, y: aim.y - origin.y, z: aim.z - origin.z }),
       flat = Math.hypot(base.x, base.z) || 1;
     var right = { x: base.z / flat, y: 0, z: -base.x / flat };
@@ -780,27 +780,41 @@
     var d = { x: (aim.x - o.x) / span, y: (aim.y - o.y) / span, z: (aim.z - o.z) / span };
     return groundStop(o, d, span, battle) < span - clearance;
   }
-  /* The line the round will fly before dispersion: from the same simulation muzzle used by the
-     shot to the target's body centre. */
-  function fireLineBlocked(shooter, target, battle) {
-    if (!shooter || !target || !shooter.root || !target.root || !battle || !battle.heightAt) return false;
-    var o = muzzleOrigin(shooter, target, battle),
-      aim = targetCenter(target, battle),
-      span = Math.hypot(aim.x - o.x, aim.y - o.y, aim.z - o.z);
-    /* Terrain crest check (existing): does the ground take the round before it reaches the body? */
-    if (groundLineBlocked(o, aim, battle, FIRE_LINE_BODY)) return true;
-    /* Obstacle/wall check (new): does a wall, building, or hedge prism intersect the bullet line?
-       The eye-to-eye LOS check in the fire gate clears a target whose head is visible over a low
-       wall, but the bullet flies muzzle-to-body-centre (geometrically lower). A wall shorter than
-       eye height (~1.55m) but tall enough to block the bullet line was invisible to the gate,
-       so soldiers mag-dumped into barriers. This reuses the same obstacleStop the round itself
-       uses in resolveRay, so the gate and the ballistics agree. */
-    if (span > FIRE_LINE_BODY) {
-      var d = { x: (aim.x - o.x) / span, y: (aim.y - o.y) / span, z: (aim.z - o.z) / span };
-      var obs = obstacleStop(o, d, span, battle);
-      if (obs.travel < span - FIRE_LINE_BODY) return true;
+  /* Pick an aim point on the actual target ellipsoid whose incoming muzzle ray
+     enters the body before hitting terrain or physical cover. This is deterministic:
+     the gate and the subsequent dispersed round choose the same nominal aim without
+     drawing extra RNG or storing mutable aim state. Prefer center mass whenever clear. */
+  function exposedAim(shooter, target, battle) {
+    if (!shooter || !target || !shooter.root || !target.root || !battle || !battle.heightAt) return null;
+    var origin = muzzleOrigin(shooter, target, battle),
+      body = bodyShape(target, battle),
+      st = stance(target),
+      offsets = st === 'prone'
+        ? [{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0.55 }]
+        : [{ x: 0, y: 0, z: 0 }, { x: 0, y: 0.72, z: 0 }, { x: 0, y: 0.9, z: 0 }];
+    for (var i = 0; i < offsets.length; i++) {
+      var q = offsets[i],
+        yaw = body.yaw || 0,
+        aim = { x: body.cx + Math.sin(yaw) * q.z * body.rz + q.x * body.rx,
+          y: body.cy + q.y * body.ry,
+          z: body.cz + Math.cos(yaw) * q.z * body.rz },
+        span = Math.hypot(aim.x - origin.x, aim.y - origin.y, aim.z - origin.z);
+      if (!(span > EPS)) continue;
+      var d = { x: (aim.x - origin.x) / span, y: (aim.y - origin.y) / span,
+        z: (aim.z - origin.z) / span },
+        entry = rayEllipsoid(origin, d, body, false);
+      if (entry == null || entry > span + EPS) continue;
+      /* Evaluate obstruction before the front surface of the target, not the
+         center or far side: an exposed shoulder can be hittable at a crest. */
+      var approach = Math.max(EPS, entry - EPS);
+      if (groundStop(origin, d, approach, battle) < approach - EPS) continue;
+      if (obstacleStop(origin, d, approach, battle).travel < approach - EPS) continue;
+      return aim;
     }
-    return false;
+    return null;
+  }
+  function fireLineBlocked(shooter, target, battle) {
+    return !exposedAim(shooter, target, battle);
   }
   /* Suppressive fire aims at a point rather than a body, but it must obey the same terrain geometry.
      Use the same semantic muzzle and groundStop scan as aimed fire so a rifle cannot draw a tracer
@@ -850,6 +864,7 @@
     proneTerrainTilt: proneTerrainTilt,
     ballisticObstacles: ballisticObstacles,
     fireLineBlocked: fireLineBlocked,
+    exposedAim: exposedAim,
     pointLineBlocked: pointLineBlocked,
     groundSteps: function () {
       return GROUND_STEPS;
