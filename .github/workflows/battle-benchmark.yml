@@ -91,7 +91,8 @@ jobs:
           rm -rf /tmp/battle-www
           mkdir -p /tmp/battle-www
           ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
-          php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          # Keep concurrent image/asset reads from queueing behind the benchmark page load.
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
           echo $! > /tmp/battle-php.pid
           for i in $(seq 1 30); do
             if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck" >/dev/null; then exit 0; fi
@@ -191,6 +192,24 @@ jobs:
           r.summary.battlesPerWorker = per;
           r.summary.workerMinutesCutoff = Number(process.env.WORKER_MINUTES_CUTOFF || 10);
           r.summary.missingBattles = Math.max(0, expected - Number(r.summary.completedBattles || 0));
+          const byType = r.summary.battleTypes || {};
+          const perType = per * 10;
+          r.summary.scenarioCoverage = Object.fromEntries(['meeting','us-defend','ge-defend'].map(type => [
+            type, {
+              expected: perType,
+              completed: Number(byType[type]?.completedBattles || 0),
+              missing: Math.max(0, perType - Number(byType[type]?.completedBattles || 0))
+            }
+          ]));
+          const diag = r.summary.diagnosticAudit;
+          r.summary.validation = {
+            complete: r.summary.completedBattles === expected &&
+              Object.values(r.summary.scenarioCoverage).every(x => x.missing === 0),
+            diagnosticsValid: diag?.ok === true,
+            recordedBattles: r.summary.completedBattles,
+            expectedBattles: expected,
+            issues: diag?.issueCounts || { 'missing-diagnostic-audit': 1 }
+          };
           fs.writeFileSync(p, JSON.stringify(r, null, 2) + '\n');
           let md = fs.readFileSync('reports/battle-benchmark.md', 'utf8');
           md = md.replace(/- Completed: \*\*\d+\/\d+\*\*/, `- Completed: **${r.summary.completedBattles}/${expected} expected**`);
@@ -211,9 +230,18 @@ jobs:
           const report = JSON.parse(fs.readFileSync('reports/battle-benchmark.json', 'utf8'));
           const expectedBattles = Number(process.env.BATTLES_PER_WORKER || 10) * Number(process.env.EXPECTED_SHARDS || 30);
           const completedBattles = Number(report.summary && report.summary.completedBattles || 0);
-          const complete = completedBattles >= expectedBattles;
+          const diag = report.summary?.diagnosticAudit || null;
+          const validation = report.summary?.validation || {};
+          const status = !validation.diagnosticsValid ? 'invalid' :
+            validation.complete ? 'complete' : 'partial';
           const compact = {
-            status: complete ? 'complete' : 'partial',
+            status,
+            diagnosticIntegrityOk: validation.diagnosticsValid === true,
+            diagnosticIssueCounts: diag?.issueCounts || {},
+            diagnosticRecords: diag?.totals?.validBattles || 0,
+            diagnosticSamples: diag?.totals?.timelineSamples || 0,
+            diagnosticObserverWindows: diag?.totals?.observerWindows || 0,
+            scenarioCoverage: report.summary?.scenarioCoverage || {},
             runNumber: Number(process.env.GITHUB_RUN_NUMBER),
             runId: Number(process.env.GITHUB_RUN_ID),
             sourceSha: process.env.BATTLE_BENCHMARK_SOURCE_SHA,
@@ -289,7 +317,13 @@ jobs:
             const compact = JSON.parse(fs.readFileSync('benchmarks/results/latest/battle-benchmark-summary.json', 'utf8'));
             const s = compact.summary || {}, issues = s.issueCounts || {}, health = s.health || {};
             const status = {
-              status: compact.status || 'partial',
+              status: compact.status || 'invalid',
+              diagnosticIntegrityOk: compact.diagnosticIntegrityOk === true,
+              diagnosticIssueCounts: compact.diagnosticIssueCounts || {},
+              diagnosticRecords: compact.diagnosticRecords ?? null,
+              diagnosticSamples: compact.diagnosticSamples ?? null,
+              diagnosticObserverWindows: compact.diagnosticObserverWindows ?? null,
+              scenarioCoverage: compact.scenarioCoverage || {},
               runNumber: compact.runNumber,
               runId: compact.runId,
               sourceSha: compact.sourceSha,
@@ -332,6 +366,21 @@ jobs:
           fi
           git commit -m "Benchmark results #${GITHUB_RUN_NUMBER}"
           git push origin "HEAD:${RESULTS_BRANCH}"
+ 
+      - name: Enforce diagnostics integrity after preserving reports
+        if: success()
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const r = JSON.parse(fs.readFileSync('reports/battle-benchmark.json', 'utf8'));
+          if (!r.summary?.validation?.diagnosticsValid) {
+            console.error('Matrix diagnostic-integrity validation failed; artifact and persistent evidence were preserved.');
+            console.error(JSON.stringify(r.summary?.diagnosticAudit?.issueCounts || {}));
+            process.exit(1);
+          }
+          console.log('Diagnostic-integrity PASS. Scenario coverage: ' +
+            JSON.stringify(r.summary.scenarioCoverage));
+          NODE
 
   notify:
     name: Notify benchmark result
@@ -367,7 +416,7 @@ jobs:
             tags="x,warning"
             priority="high"
           else
-            status="COMPLETE/PARTIAL per report"
+            status="COMPLETE/PARTIAL by coverage · diagnostics validated"
             tags="white_check_mark,crossed_swords"
             priority="default"
           fi
