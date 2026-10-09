@@ -682,6 +682,7 @@
     }
     function leavePlayer(reason) {
       if (!player) return;
+      if (menuOpen) closePlayerMenu();
       var b = playerBattle || liveBattle(),
         old = player;
       clearPlayerLease(old, b);
@@ -706,10 +707,15 @@
       global.GTLog('[PLAYER] exited ' + (reason || 'player mode') + ' from ' + old.faction + ' #' + old.id);
     }
     function possessRandom() {
+      return possessSoldier(pickPlayerSoldier(player));
+    }
+    function possessSoldier(next) {
       var b = liveBattle();
-      if (!b) return false;
-      var next = pickPlayerSoldier(player);
-      if (!next) return false;
+      /* This is a possession transfer, never a spawn. Only current living members qualify. */
+      if (!b || !next || !next.root || next.dead || !b.factions[next.faction] ||
+          !b.factions[next.faction].squads.some(function (sq) {
+            return (sq.members || []).indexOf(next) >= 0;
+          })) return false;
       if (player) clearPlayerLease(player, playerBattle || b);
       player = next;
       playerBattle = b;
@@ -867,6 +873,21 @@
       'keydown',
       function (event) {
         var key = keyName(event);
+        if (key === 'o' && !event.repeat && !editableTarget(event.target)) {
+          togglePlayerMenu();
+          event.preventDefault();
+          return;
+        }
+        if (menuOpen && key === 'escape') {
+          closePlayerMenu();
+          event.preventDefault();
+          return;
+        }
+        if (menuOpen) {
+          /* Keyboard users can operate the native dropdowns and buttons. No possession,
+             stance, movement or fire shortcuts leak through the settings modal. */
+          return;
+        }
         if (editableTarget(event.target)) return;
         if (key === 'p') {
           if (!event.repeat) {
@@ -953,21 +974,39 @@
       if (!pad && padId) {
         padId = null;
         padButtons = {};
+        menuHoldState.down = false;
         updateHint(null);
       }
-      if (pad) {
-        var menu = padPressedOnce(pad, 9),
-          view = padPressedOnce(pad, 8);
-        if (menu) {
-          possessRandom();
+      /* A quick Start release still enters/switches soldiers; holding opens the
+         settings panel once at 650 ms and cannot also invoke the tap on release. */
+      var menuGesture = menuHoldGesture(menuHoldState, !!pad && buttonValue(pad, 9) > 0.5, Date.now());
+      if (menuGesture === 'hold') {
+        togglePlayerMenu();
+        if (pad) refreshPadButtons(pad);
+        return;
+      }
+      if (menuGesture === 'tap') {
+        if (menuOpen) closePlayerMenu();
+        else possessRandom();
+        if (pad) refreshPadButtons(pad);
+        return;
+      }
+      if (menuOpen) {
+        if (pad) {
+          stepPlayerMenuPad(pad);
           refreshPadButtons(pad);
-          return;
         }
-        if (player && view) {
-          leavePlayer('View button');
-          refreshPadButtons(pad);
-          return;
-        }
+        if (player) updatePlayerFeedback(pad);
+        return;
+      }
+      if (menuHoldState.down) {
+        if (pad) refreshPadButtons(pad);
+        return;
+      }
+      if (pad && player && padPressedOnce(pad, 8)) {
+        leavePlayer('View button');
+        refreshPadButtons(pad);
+        return;
       }
       if (player) {
         stepPlayer(pad, dt);
@@ -1040,7 +1079,8 @@
       },
       exitPlayer: function () {
         leavePlayer('API');
-      }
+      },
+      openPlayerSettings: openPlayerMenu
     };
   }
   /* Normal-play presentation camera for visual testing. `?follow=1` follows the busiest living soldier from a close, persistent ArcRotate camera.
@@ -1225,6 +1265,8 @@
   }
   global.BattleDesktopCamera = {
     current: null,
+    menuHoldGesture: menuHoldGesture,
+    menuHoldMs: MENU_HOLD_MS,
     create: function (options) {
       var target = new BABYLON.Vector3(options.scenario.center.x, 4, options.scenario.center.z);
       var result = createAdaptive(options, target);
