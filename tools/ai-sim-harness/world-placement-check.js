@@ -83,7 +83,7 @@ function signatures(items) {
     assert.ok(Math.abs(mesh.position.y - 5) < 1e-10, 'planar ground leaves mesh anchor unchanged');
   }
   const bowed = { rotation: { x: 0, z: 0 }, position: { y: 4 } };
-  T.orientGroundMesh(bowed, (x) => x * x * 0.1, 0, 0, 0, 3, 0.25);
+  T.orientGroundMesh(bowed, x => x * x * 0.1, 0, 0, 0, 3, 0.25);
   assert.ok(
     Math.abs(bowed.position.y - 4.9) < 1e-10,
     'long log/wall centers between sampled terrain endpoints on bowed ground'
