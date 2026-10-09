@@ -68,11 +68,12 @@ function collect(records) {
     targetSeconds: 0, noTargetSeconds: 0, setupSeconds: 0,
     silenceEpisodes5s: 0, silentTargetSeconds5s: 0,
     LOSRejected: 0, crestRejected: 0, areaRejected: 0, setupTransitions: 0, cowerTransitions: 0,
-    gates: {}, fireOrders: {}, states: {}, profiles: {}, errors: [], parityFailures: [] };
+    gates: {}, fireOrders: {}, states: {}, profiles: {}, errors: [], expectedAudio404s: 0, parityFailures: [] };
   for (const b of records) {
     o.battles++;
     if (b.sameBattle === false) o.parityFailures.push(b.seed);
     if (b.errors && b.errors.length) o.errors.push({ seed: b.seed, errors: b.errors });
+    o.expectedAudio404s += b.assetErrors?.count || 0;
     const probe = b.reports && b.reports['targeted-fire-control'];
     for (const d of Object.values((probe && probe.units) || {})) {
       o.units++; o.rounds += d.rounds; o.pulls += d.pulls;
@@ -144,7 +145,9 @@ lines.push('', '## Interpretation',
   'Blocker samples are post-step classifications, **not actual counts of function invocations**.',
   'onFire rounds and trigger-path LOS/crest rejection counters are actual runtime events.',
   'A 5-second held-target/no-shot episode is a diagnostic symptom, **not automatically a bug**.',
+  'Known missing local audio MP3 404s are reported separately (not runtime failures).',
   'Each seed is also run without this probe when TARGET_CONTROL=1; any end-state difference invalidates causal claims.',
+  '', 'Expected local audio 404s: **' + summary.total.expectedAudio404s + '**; non-asset runtime-error seeds: **' + summary.total.errors.length + '**.',
   '', 'See raw.json for exact per-unit episodes, state/order transitions and battle fingerprints.');
 fs.writeFileSync(mdPath, lines.join('\n') + '\n');
 console.error(lines.join('\n'));
