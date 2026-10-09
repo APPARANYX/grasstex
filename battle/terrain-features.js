@@ -101,7 +101,10 @@
   function orientGroundMesh(mesh, heightAt, x, z, rot, halfLength, halfWidth) {
     var c = Math.cos(rot || 0),
       s = Math.sin(rot || 0),
-      ux = c, uz = -s, vx = s, vz = c,
+      ux = c,
+      uz = -s,
+      vx = s,
+      vz = c,
       a = Math.max(0.01, halfLength),
       b = Math.max(0.01, halfWidth),
       highA = heightAt(x + ux * a, z + uz * a),
