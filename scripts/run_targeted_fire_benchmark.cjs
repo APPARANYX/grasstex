@@ -101,7 +101,17 @@ function collect(records) {
 const groups = {};
 for (const type of types) {
   const rows = report.battles.filter(b => b.type === type);
-  groups[type] = { all: collect(rows), byRole: {} };
+  groups[type] = { all: collect(rows), byRole: {}, bySide: {} };
+  for (const side of ['us', 'ge']) {
+    const projected = rows.map(b => ({
+      ...b,
+      reports: { 'targeted-fire-control': { units: Object.fromEntries(
+        Object.entries(b.reports?.['targeted-fire-control']?.units || {})
+          .filter(([, unit]) => unit.faction === side)
+      ) } }
+    }));
+    groups[type].bySide[side] = collect(projected);
+  }
   const roles = new Set();
   for (const b of rows)
     for (const unit of Object.values(b.reports?.['targeted-fire-control']?.units || {}))
@@ -136,6 +146,18 @@ for (const type of types) {
     ' | ' + n.silenceEpisodes5s + ' | ' + n.LOSRejected + ' / ' + n.crestRejected +
     ' | ' + n.parityFailures.length + ' |');
 }
+lines.push('', '## By faction: machine gunners', '',
+  '| Scenario | Faction | Gunner rounds | Target-seconds | Morale flee (samples) | Squad retreat (samples) | Stale withdraw (samples) | Crest rejects |',
+  '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |');
+for (const type of types) {
+  for (const side of ['us', 'ge']) {
+    const x = groups[type].bySide[side];
+    lines.push('| ' + type + ' | ' + side + ' | ' + x.rounds + ' | ' + x.targetSeconds +
+      ' | ' + (x.gates['stress:flee'] || 0) + ' | ' + (x.gates['squad-retreat'] || 0) +
+      ' | ' + (x.gates['withdraw:stale'] || 0) + ' | ' + x.crestRejected + ' |');
+  }
+}
+lines.push('', 'The blocker taxonomy is a post-step observation; a stale withdraw label is not proof the squad is operational without independent command/release evidence.');
 lines.push('', '## First observed blocker samples by scenario');
 for (const type of types) {
   lines.push('', '**' + type + '**: ' + Object.entries(groups[type].all.gates)
