@@ -17,7 +17,9 @@ function auditMatrixDiagnostics(battles) {
   for (const type of TYPES) byType[type] = { battles: 0, valid: 0, invalid: 0, observerWindows: 0, timelineSamples: 0 };
   const issues = {};
   const examples = [];
+  const records = [];
   const seen = new Set();
+  let recordIssues = [];
   const totals = {
     battles: rows.length, validBattles: 0, invalidBattles: 0,
     timelineSamples: 0, timelineMarkers: 0, observerWindows: 0,
@@ -27,11 +29,13 @@ function auditMatrixDiagnostics(battles) {
     markerKinds: {}
   };
   function problem(seed, type, code) {
+    recordIssues.push(code);
     issues[code] = (issues[code] || 0) + 1;
     if (examples.length < MAX_EXAMPLES) examples.push({ seed, type, code });
   }
   function countMap(o, k) { o[k] = (o[k] || 0) + 1; }
   for (const b of rows) {
+    recordIssues = [];
     const seed = String(b?.seed ?? ''), type = String(b?.battleType ?? 'unknown');
     const prior = Object.values(issues).reduce((n, v) => n + v, 0);
     if (!TYPES.includes(type)) problem(seed, type, 'unknown-battle-type');
@@ -96,6 +100,7 @@ function auditMatrixDiagnostics(battles) {
           problem(seed, type, 'evidence:' + String(code));
     }
     const count = Object.values(issues).reduce((n, v) => n + v, 0) - prior;
+    records.push({ seed, type, ok: count === 0, issues: recordIssues });
     if (count) {
       totals.invalidBattles++;
       if (byType[type]) byType[type].invalid++;
@@ -108,7 +113,7 @@ function auditMatrixDiagnostics(battles) {
     schema: 'grasstex-matrix-diagnostics-audit-v1',
     ok: totals.invalidBattles === 0 && rows.length > 0,
     standards: { timeline: TIMELINE, observer: OBSERVER, analysis: ANALYSIS, evidence: EVIDENCE },
-    totals, byType, issueCounts: issues, examples,
+    totals, byType, issueCounts: issues, examples, records,
     interpretation: 'Diagnostic validity and expected-seed coverage are independent. Observer windows are conditional; zero windows is valid. A resolved stall is not evidence of recovered forward movement.'
   };
 }
