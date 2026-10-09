@@ -30,11 +30,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      CAUSAL_BATTLES: ge-defend:hill-0002,us-defend:hill-0008
-      CAUSAL_SECONDS: '600'
+      CAUSAL_BATTLES: meeting:hedge420-ambush-0001
+      CAUSAL_SECONDS: '180'
+      CAUSAL_FIXTURE: hedge-ambush
       CAUSAL_CONTROL: '1'
       CAUSAL_QUERY: ${{ matrix.mode == 'on' && 'coverPeek=1' || 'coverPeek=0' }}
-      CAUSAL_OUT: reports/hedge-420-causal-${{ matrix.mode }}
+      CAUSAL_OUT: reports/hedge-420-fixture-${{ matrix.mode }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -62,7 +63,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hedge-420-causal-${{ matrix.mode }}
-          path: reports/hedge-420-causal-${{ matrix.mode }}/
+          name: hedge-420-fixture-${{ matrix.mode }}
+          path: reports/hedge-420-fixture-${{ matrix.mode }}/
           retention-days: 14
           if-no-files-found: warn
