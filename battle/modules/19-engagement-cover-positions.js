@@ -461,7 +461,21 @@
   function findCover(s, battle, opts) {
     opts = opts || {};
     var target = opts.threat || s.target;
-    if (!target) return null;
+    /* The causal observer receives outcomes of *actual* eligibility gates.
+       Nothing is recomputed and the decision is unchanged without a probe. */
+    var notify = root.BattleCausalInaction && root.BattleCausalInaction.coverDecision,
+      rejections = notify ? {} : null;
+    function rejected(code) {
+      if (rejections) rejections[code] = (rejections[code] || 0) + 1;
+    }
+    function observed(code, goal) {
+      if (notify)
+        notify(s, battle, 'normal-cover', code, rejections, goal && { x: goal.x, z: goal.z });
+    }
+    if (!target) {
+      observed('no-target');
+      return null;
+    }
     var p = posOf(s),
       forward = opts.forward || null,
       candidates = coverCandidates(s, battle, target, opts.maxRange || COVER_RANGE),
@@ -471,21 +485,25 @@
     for (var i = 0; i < candidates.length; i++) {
       var pt = candidates[i],
         moveD = pt.distance;
-      if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, pt))
+      if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, pt)) {
+        rejected('forward-guard');
         continue;
-      if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, pt))
+      }
+      if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, pt)) {
+        rejected('unreachable-memory');
         continue;
+      }
       var anchor = s.orderDestination || (s.squad && s.squad.orderAnchor);
-      if (leads && anchor && dist(pt.x, pt.z, anchor.x, anchor.z) > 18) continue;
-      if (dist(pt.x, pt.z, posOf(target).x, posOf(target).z) < (opts.minEnemyDistance || 12)) continue;
+      if (leads && anchor && dist(pt.x, pt.z, anchor.x, anchor.z) > 18) { rejected('leader-anchor-limit'); continue; }
+      if (dist(pt.x, pt.z, posOf(target).x, posOf(target).z) < (opts.minEnemyDistance || 12)) { rejected('target-too-close'); continue; }
       var back = opts.notBehind;
-      if (back && (pt.x - p.x) * back.axis.x + (pt.z - p.z) * back.axis.z < -back.allow) continue;
+      if (back && (pt.x - p.x) * back.axis.x + (pt.z - p.z) * back.axis.z < -back.allow) { rejected('behind-order-line'); continue; }
       var score = (1 - pt.quality) * 40 - moveD;
       if (forward) score += ((pt.x - p.x) * forward.x + (pt.z - p.z) * forward.z) * 0.9;
-      if (score <= bestScore) continue;
+      if (score <= bestScore) { rejected('lower-ranked-slot'); continue; }
       // Cover to fight from keeps a line to the threat (standing is the highest he can rise); evading takes any.
-      if (COVER_FIRE && !opts.evade && !seesFrom(pt, 'stand', target, battle)) continue;
-      if (!reachable(p, pt)) continue;
+      if (COVER_FIRE && !opts.evade && !seesFrom(pt, 'stand', target, battle)) { rejected('no-standing-los'); continue; }
+      if (!reachable(p, pt)) { rejected('path-unreachable'); continue; }
       bestScore = score;
       best = pt;
     }
@@ -500,9 +518,16 @@
       (!root.BattleMovementProgress || root.BattleMovementProgress.candidateAllowed(s, battle, incumbent))
     ) {
       var incumbentScore = (1 - incumbent.quality) * 40 - dist(p.x, p.z, incumbent.x, incumbent.z);
-      if (bestScore < incumbentScore + 4) return incumbent;
+      if (bestScore < incumbentScore + 4) {
+        observed('incumbent-preferred', incumbent);
+        return incumbent;
+      }
     }
-    if (best && !reserveCover(s, battle, best.slot, 'engagement')) return null;
+    if (best && !reserveCover(s, battle, best.slot, 'engagement')) {
+      observed('reservation-failed');
+      return null;
+    }
+    observed(best ? 'selected' : 'no-viable-cover', best);
     return best;
   }
   function warm(battle) {
