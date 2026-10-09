@@ -8,7 +8,7 @@ const assert = require('node:assert/strict'),
 const repo = path.resolve(__dirname, '../..'),
   src = fs.readFileSync(path.join(repo, 'battle/scenario-generator.js'), 'utf8'),
   page = fs.readFileSync(path.join(repo, 'battle/battle_sim.html'), 'utf8'),
-  root = { GTLog() {} };
+  root = { GTLog() {}, GTMath: { clamp: (v, a, b) => Math.max(a, Math.min(b, v)) } };
 new Function('window', 'globalThis', 'URLSearchParams', src)(root, root, URLSearchParams);
 const choose = root.BattleScenarioGenerator.initialLoadSeed;
 let calls = 0;
