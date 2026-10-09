@@ -853,7 +853,7 @@ section('physical wayfinding respects body clearance through hedgerows');
   // Exercise the shipping integrator, including steering and turn smoothing, without rendering.
   const movementSource = fs
     .readFileSync(path.join(REPO, 'battle/battle-sim.js'), 'utf8')
-    .replace('root.BattleSim={', 'root.stepMovementProbe=stepMovement;root.BattleSim={');
+    .replace(/root\.BattleSim\s*=\s*\{/, 'root.stepMovementProbe = stepMovement; root.BattleSim = {');
   const model = {
     animateWalk() {},
     setCrouch(s, v) {
