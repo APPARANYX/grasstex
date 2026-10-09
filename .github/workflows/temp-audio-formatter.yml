@@ -1,0 +1,19 @@
+name: Temporary audio PR formatter
+on:
+  push:
+    branches:
+      - work/lightweight-listener-acoustics
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print formatted JS for handoff
+        run: |
+          npx --yes prettier@3.3.3 --write battle/modules/12a-listener-acoustics.js tools/ai-sim-harness/listener-acoustics-check.js >/dev/null
+          for f in battle/modules/12a-listener-acoustics.js tools/ai-sim-harness/listener-acoustics-check.js; do
+            echo "GT_FORMAT_BEGIN:$f"
+            base64 -w0 "$f"
+            echo
+            echo "GT_FORMAT_END:$f"
+          done
