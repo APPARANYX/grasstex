@@ -43,7 +43,11 @@
       desiredAnchor = ctx.desiredAnchor,
       teamSlot = ctx.teamSlot,
       forward = ctx.forward,
-      followTeamForward = ctx.followTeamForward;
+      followTeamForward = ctx.followTeamForward,
+      /* Keep this opt-in until targeted and paired current-main battles justify promotion. */
+      LOST_CONTACT_RETREAT_ON = /[?&]retreatLostContact=(?:1|on|true)(?:&|#|$)/i.test(
+        (root.location && root.location.search) || ''
+      );
     /* A defensive post belongs to the Squad Leader's command intent, not to a contact serial. Once a man has
    settled into his post, target acquisition/loss must not throw him back into formation and then
    recreate the same post a second later. It is released only when the defensive command signature
@@ -240,7 +244,7 @@
             stats.intentCoalesced++;
             continue;
           }
-          publishPersonalMovement(
+          var applied = publishPersonalMovement(
             sq,
             battle,
             s,
@@ -251,6 +255,54 @@
             urgent ? 'squad retreat' : regroup ? 'squad regroup' : 'fireteam order',
             stats
           );
+          if (LOST_CONTACT_RETREAT_ON) {
+            /* The Squad Leader cannot speak through walls or over unlimited distance.
+               Only a man who personally adopted RETREAT, physically finished that
+               earlier instruction, and now has an UNREACHABLE replacement may rely
+               on his *pre-known* base after six seconds waiting for orders. Never
+               assign the current moving formation/rally via this autonomy path. */
+            var C = root.BattleCommandReception,
+              here = point(s.root && s.root.position),
+              base = point(sq.baseHome),
+              previousRetreat = C && C.adopted && C.adopted(s, battle, 'movement', 'soldier:' + s.id),
+              pendingRetreat = C && C.peek && C.peek(s, battle, 'movement', 'soldier:' + s.id),
+              stranded =
+                urgent &&
+                !applied &&
+                !s.isPlayer &&
+                !s._survivalMovementKey &&
+                s._movementStopReason === 'arrived' &&
+                here &&
+                base &&
+                previousRetreat &&
+                previousRetreat.action === 'retreat' &&
+                previousRetreat.envelopeId === s._fireteamAdoptedEnvelope &&
+                pendingRetreat &&
+                pendingRetreat.unreachable &&
+                previous &&
+                dist(here, previous) <= 0.5 &&
+                dist(here, base) > 20;
+            if (!stranded) {
+              s._lostContactRetreatSince = null;
+            } else {
+              if (s._lostContactRetreatSince == null) s._lostContactRetreatSince = battle.time;
+              if (battle.time - s._lostContactRetreatSince >= 6) {
+                publishPersonalMovement(
+                  sq,
+                  battle,
+                  s,
+                  base,
+                  'lost-contact-retreat-base',
+                  true,
+                  'retreat',
+                  'soldier initiative: return to known base after lost contact',
+                  stats,
+                  { survivalFallback: true, lostContactRetreat: true }
+                );
+                s._lostContactRetreatSince = null;
+              }
+            }
+          }
         }
       });
       if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);
