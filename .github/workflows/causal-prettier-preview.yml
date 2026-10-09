@@ -1,0 +1,30 @@
+name: Temporary causal Prettier preview
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/causal-prettier-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Format changed files into logs (no repository write)
+        run: |
+          npx --yes prettier@3.3.3 --write battle/modules/19b-engagement-fire-stance.js tools/ai-sim-harness/causal-inaction-check.js
+          python3 - <<'PY'
+          import base64
+          from pathlib import Path
+          for name in ('battle/modules/19b-engagement-fire-stance.js', 'tools/ai-sim-harness/causal-inaction-check.js'):
+              v=base64.b64encode(Path(name).read_bytes()).decode('ascii')
+              print('CAUSAL_START:'+name)
+              for i in range(0,len(v),800): print('CAUSAL_CHUNK:'+v[i:i+800])
+              print('CAUSAL_END:'+name)
+          PY
