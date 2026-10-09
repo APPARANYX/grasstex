@@ -42,7 +42,13 @@
       RECON_FORWARD_DETOUR = ctx.RECON_FORWARD_DETOUR,
       RECON_FORWARD_MAX = ctx.RECON_FORWARD_MAX,
       RALLY_RADIUS = ctx.RALLY_RADIUS,
-      FLED_PICKUP_RANGE = ctx.FLED_PICKUP_RANGE;
+      FLED_PICKUP_RANGE = ctx.FLED_PICKUP_RANGE,
+      /* A fled man's lone squad shares its id (`<squad>-fled-<man>`) with every earlier lone squad of the same man, and
+         an absorbed one stays in the roster. ?fledBriefEnd=0 restores the old lookup and leaves the absorbed man's
+         reconstitute brief and group open. */
+      FLED_BRIEF_END_ON = !/[?&]fledBriefEnd=(?:0|off|false)(?:&|#|$)/i.test(
+        typeof location !== 'undefined' ? location.search || '' : ''
+      );
     /* Reconstitution. Retreated squads that are home and out of contact (`_assembly` `at-base`,
      16-squad-plan-stability.js) are a side's pool of survivors; no group is planned for a squad still on
      its way home. A full 10-man rebuild is preferred; when the pool has only 6-9 men, two or more remnants
@@ -71,9 +77,14 @@
       );
     }
     function squadById(sim, faction, id) {
-      var a = sim.factions[faction].squads;
-      for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i];
-      return null;
+      var a = sim.factions[faction].squads,
+        stale = null;
+      for (var i = 0; i < a.length; i++) {
+        if (a[i].id !== id) continue;
+        if (!FLED_BRIEF_END_ON || !a[i].disbanded) return a[i];
+        stale = stale || a[i];
+      }
+      return stale;
     }
     function endGroup(st, g, status, reason, t) {
       g.status = status;
@@ -592,13 +603,19 @@
             bestD = d;
           }
         }
-        if (best && S.absorb(best, lone, sim) && E.releaseFled(man, sim, 'pickup'))
+        if (best && S.absorb(best, lone, sim) && E.releaseFled(man, sim, 'pickup')) {
+          /* His squad of one is gone like a merged squad: its brief ends and its group no longer counts it. */
+          if (FLED_BRIEF_END_ON) {
+            lone._reconGroup = null;
+            finishMission(sim, lone, 'completed', 'absorbed');
+          }
           telemetry(sim, 'decision-fled-pickup', {
             faction: faction,
             soldier: man.id,
             squad: best.id,
             distance: +bestD.toFixed(1)
           });
+        }
       }
     }
     return {

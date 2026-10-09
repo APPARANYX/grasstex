@@ -66,7 +66,7 @@ function world(search) {
   load(r, 'battle/commander-doctrine.js', search);
   load(r, 'battle/commander-routes.js');
   load(r, 'battle/commander-ai.js');
-  load(r, 'battle/modules/22-commander-reconstitution.js');
+  load(r, 'battle/modules/22-commander-reconstitution.js', search);
   load(r, 'battle/modules/22a-commander-strategic-recovery.js');
   load(r, 'battle/movement-resolver.js');
   load(r, 'battle/modules/15a-squad-leader-fire-control.js', search);
@@ -505,6 +505,85 @@ test('a retreating squad out of contact near the waiting man takes him in; one i
   invariants(w);
 });
 
+function pickedUp(search) {
+  const w = world(search),
+    a = squad(w, 0, 10, 150),
+    s = rifleman(a);
+  run(w, 1);
+  const refuge = { x: LANES[0], z: HOME_Z + 150 };
+  a.safePoint = refuge;
+  trouble(w, a, { x: LANES[0], z: HOME_Z + 400 });
+  snap(w, s);
+  run(w, 0.5, () => {
+    snap(w, s);
+    trouble(w, a, { x: LANES[0], z: HOME_Z + 400 });
+  });
+  run(w, 3, () => (s.squad.contact = null));
+  const lone = s.squad;
+  /* The General has the lone man in a reconstitution group with an executing brief when a squad takes him in. */
+  lone._reconGroup = 'us-reconstitution-9';
+  lone._macroMission = {
+    version: 1,
+    owner: 'force-command',
+    intent: 'reconstitute',
+    action: 'assemble',
+    objectiveId: null,
+    point: refuge,
+    route: [],
+    role: 'center',
+    requestKey: null,
+    plannedObjectiveId: null,
+    reason: 'fixture',
+    status: 'executing',
+    acceptedAt: w.b.time
+  };
+  const near = squad(w, 1, 4, 150),
+    put = () => {
+      near.members.forEach(m => ((m.root.position.x = refuge.x + 20), (m.root.position.z = refuge.z)));
+      near.inContact = false;
+    };
+  put();
+  run(w, 1.5, put);
+  return { w, s, lone, near };
+}
+test('a squad that takes in a waiting man ends his reconstitute brief and group (?fledBriefEnd=0 keeps them open)', () => {
+  const on = pickedUp();
+  assert.equal(on.lone.disbanded, true);
+  assert.equal(
+    on.lone._macroMission.status,
+    'completed',
+    'the absorbed lone squad brief is ended like a merged squad'
+  );
+  assert.equal(on.lone._macroMission.endReason, 'absorbed');
+  assert.equal(on.lone._reconGroup, null, 'and it is out of its group');
+  const off = pickedUp('?stressAct=flee&fledBriefEnd=0');
+  assert.equal(off.lone.disbanded, true);
+  assert.equal(
+    off.lone._macroMission.status,
+    'executing',
+    'old behaviour: the dead object keeps an executing brief'
+  );
+  assert.equal(off.lone._reconGroup, 'us-reconstitution-9');
+});
+test('an id shared by a disbanded lone squad and a live one resolves to the live one (?fledBriefEnd=0 the first)', () => {
+  const find = search => {
+    const w = world(search),
+      stale = { id: 'us-0-fled-5', disbanded: true },
+      live = { id: 'us-0-fled-5' };
+    w.b.factions.us.squads.push(stale, live);
+    return {
+      got: w.r
+        ._commanderReconstitutionPositions(w.r._commanderReconstitutionCtx())
+        .squadById(w.b, 'us', 'us-0-fled-5'),
+      stale,
+      live
+    };
+  };
+  const on = find();
+  assert.equal(on.got, on.live);
+  const off = find('?stressAct=flee&fledBriefEnd=0');
+  assert.equal(off.got, off.stale);
+});
 test('?fledElimination=0 is the paired control: a fled man still counts', () => {
   const w = world('?stressAct=flee&fledElimination=0'),
     safe = { x: LANES[0], z: HOME_Z + 90 };
