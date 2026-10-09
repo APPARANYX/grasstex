@@ -48,6 +48,7 @@
       : null;
     var out = {
       time: round(sim.time),
+      substeps: sim._movementSubsteps || 1,
       winner: sim.winner || null,
       squad: sq.id,
       living: (sq.members || []).filter(function (s) { return !s.dead; }).length,
