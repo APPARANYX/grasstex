@@ -18,6 +18,7 @@ const SEED = process.env.PARITY_SEED || 'timescale-parity';
 const SCENARIO = process.env.PARITY_SCENARIO || 'meeting';
 const SECONDS = Math.max(15, +process.env.PARITY_SECONDS || 600);
 const OUT = process.env.PARITY_OUT || '';
+const ONLY = process.env.PARITY_ONLY || '';
 const DEFENDER = { meeting: '', 'us-defend': 'us', 'ge-defend': 'ge' };
 if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
   throw new Error('Invalid scenario ' + SCENARIO);
@@ -60,7 +61,7 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
       { timeout: 180000 }
     );
     await page.addScriptTag({ path: path.join(__dirname, 'probes/state-fingerprint.js') });
-    const results = await page.evaluate(async seconds => {
+    const results = await page.evaluate(async ({ seconds, only }) => {
       const root = window;
       const sim = root.__battle__;
       if (!sim._fixedClockInstalled || !sim._fixedClock || !sim._liveCommanderTick) {
@@ -145,20 +146,45 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
         }
       }
       const baseline = snapshot('fixed-benchmark');
+      const baselineState = JSON.parse(baseline.fingerprint);
+      function differences(left, right, location, out) {
+        if (out.length >= 12 || Object.is(left, right)) return;
+        const a = left && typeof left === 'object';
+        const b = right && typeof right === 'object';
+        if (a && b && Array.isArray(left) === Array.isArray(right)) {
+          const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+          for (const key of Array.from(keys).sort()) {
+            if (out.length >= 12) break;
+            differences(left[key], right[key], location + '.' + key, out);
+          }
+          return;
+        }
+        out.push({
+          path: location,
+          expected: String(JSON.stringify(left)).slice(0, 150),
+          actual: String(JSON.stringify(right)).slice(0, 150)
+        });
+      }
       const variants = [];
       for (const speed of [1, 4, 8]) {
         for (const fps of [20, 30, 60, 120]) {
+          const label = speed + 'x @ ' + fps + 'fps';
+          if (only && only !== label) continue;
           reset();
           sim.timeScale = speed;
           const count = Math.ceil((seconds / speed) * fps);
           const wallFrame = seconds / speed / count;
           for (let i = 0; i < count && !sim.winner; i++) sim._fixedClock.advance(wallFrame);
-          const result = snapshot(speed + 'x @ ' + fps + 'fps');
+          const result = snapshot(label);
+          result.differences = [];
+          if (result.fingerprint !== baseline.fingerprint) {
+            differences(baselineState, JSON.parse(result.fingerprint), 'battle', result.differences);
+          }
           variants.push(result);
         }
       }
       return { baseline: baseline, variants: variants };
-    }, SECONDS);
+    }, { seconds: SECONDS, only: ONLY });
 
     const standard = results.baseline;
     const hash = source => createHash('sha256').update(source).digest('hex');
@@ -188,8 +214,10 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
         suppressionEvents: run.suppressionEvents,
         pendingSeconds: run.pendingSeconds,
         backloggedFrames: run.backloggedFrames,
-        fingerprint: hash(run.fingerprint)
+        fingerprint: hash(run.fingerprint),
+        differences: run.differences
       })),
+      only: ONLY || 'all',
       errors: errors
     };
     if (OUT) {
