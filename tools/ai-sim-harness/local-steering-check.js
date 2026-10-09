@@ -103,7 +103,10 @@ function runTo(circles, start, target, useLeg, seconds) {
   while (t < seconds && Math.hypot(target.x - p.x, target.z - p.z) > 0.35) {
     const d = Math.hypot(target.x - p.x, target.z - p.z),
       h = { x: (target.x - p.x) / d, z: (target.z - p.z) / d },
-      s = (useLeg ? steer(circles, p.x, p.z, h.x, h.z, target, target, d) : steer(circles, p.x, p.z, h.x, h.z, target)) || h,
+      s =
+        (useLeg
+          ? steer(circles, p.x, p.z, h.x, h.z, target, target, d)
+          : steer(circles, p.x, p.z, h.x, h.z, target)) || h,
       step = Math.min(d, speed * dt),
       mv = { x: s.x * step, z: s.z * step };
     if (last && mv.x * last.x + mv.z * last.z < 0) reversals++;
@@ -115,13 +118,20 @@ function runTo(circles, start, target, useLeg, seconds) {
   return { t, reversals, d: Math.hypot(target.x - p.x, target.z - p.z) };
 }
 test('a wall slot 2.3 m from the third circle: he arrives without turning round; the old look-ahead orbits it', () => {
-  for (const from of [R({ x: -250.63, z: -286.97 }), R({ x: -247.68, z: -288.61 }), R({ x: -249.2, z: -288.9 })]) {
+  for (const from of [
+    R({ x: -250.63, z: -286.97 }),
+    R({ x: -247.68, z: -288.61 }),
+    R({ x: -249.2, z: -288.9 })
+  ]) {
     const now = runTo(wall, from, slot2, true, 5);
     assert.ok(now.d <= 0.35, 'stuck ' + now.d.toFixed(2) + ' m short after ' + now.t.toFixed(1) + ' s');
     assert.equal(now.reversals, 0, 'turned round ' + now.reversals + ' times on the way in');
   }
   const old = runTo(wall, R(M0), slot2, false, 5);
-  assert.ok(old.d > 0.35 || old.reversals > 0, 'control: without the leg the failure reproduces (' + JSON.stringify(old) + ')');
+  assert.ok(
+    old.d > 0.35 || old.reversals > 0,
+    'control: without the leg the failure reproduces (' + JSON.stringify(old) + ')'
+  );
 });
 test('a circle whose ring holds the waypoint he is walking to does not push him; one that does not still does', () => {
   const tree = [{ x: 0.35, z: 1.54, radius: 1.23, type: 'tree' }],
@@ -129,15 +139,32 @@ test('a circle whose ring holds the waypoint he is walking to does not push him;
     wp = { x: 0, z: 0 },
     far = { x: 8, z: 1 },
     h = { x: -0.14, z: 0.99 };
-  assert.ok(steer(tree, from.x, from.z, h.x, h.z, far), 'control: the goal rule alone pushes him off his own leg');
-  assert.equal(steer(tree, from.x, from.z, h.x, h.z, far, wp, 0.99), null, 'the ring holds his waypoint: no push');
+  assert.ok(
+    steer(tree, from.x, from.z, h.x, h.z, far),
+    'control: the goal rule alone pushes him off his own leg'
+  );
+  assert.equal(
+    steer(tree, from.x, from.z, h.x, h.z, far, wp, 0.99),
+    null,
+    'the ring holds his waypoint: no push'
+  );
   const lone = [{ x: 0, z: 0, radius: 1.6 }],
     s = steer(lone, -3.5, 0.3, 1, 0, { x: 9, z: 0.3 }, { x: 6, z: 0.3 }, 9.5);
-  assert.ok(s && Math.abs(s.z) > 0.1 && s.x > 0, 'a circle on the way to a distant waypoint still steers him round');
+  assert.ok(
+    s && Math.abs(s.z) > 0.1 && s.x > 0,
+    'a circle on the way to a distant waypoint still steers him round'
+  );
 });
 test('the look-ahead never passes the end of his leg', () => {
   const ahead = [{ x: 2.6, z: 0, radius: 0.6 }];
-  assert.ok(steer(ahead, 0, 0, 1, 0, { x: 9, z: 0 }), 'control: 1.8 m ahead is inside the ring of a circle behind his waypoint');
-  assert.equal(steer(ahead, 0, 0, 1, 0, { x: 9, z: 0 }, { x: 1, z: 0 }, 1), null, 'his leg ends at 1 m: what lies past it is not his business');
+  assert.ok(
+    steer(ahead, 0, 0, 1, 0, { x: 9, z: 0 }),
+    'control: 1.8 m ahead is inside the ring of a circle behind his waypoint'
+  );
+  assert.equal(
+    steer(ahead, 0, 0, 1, 0, { x: 9, z: 0 }, { x: 1, z: 0 }, 1),
+    null,
+    'his leg ends at 1 m: what lies past it is not his business'
+  );
 });
 console.log(n + ' local steering checks passed');
