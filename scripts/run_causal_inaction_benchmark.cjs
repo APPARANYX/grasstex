@@ -34,6 +34,15 @@ const out = path.resolve(process.env.CAUSAL_OUT || 'reports/causal-inaction');
 fs.mkdirSync(out, { recursive: true });
 const raw = path.join(out, 'raw.json');
 const url = new URL(process.env.CAUSAL_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php');
+/* Query flags drive the actual battle under test. Never let a user-supplied
+   gameplay query replace benchmark seed, defender or observer selectors. */
+const causalQuery = String(process.env.CAUSAL_QUERY || '').replace(/^\\?/, '');
+for (const [key, value] of new URLSearchParams(causalQuery)) {
+  if (!/^[A-Za-z][A-Za-z0-9]*$/.test(key) ||
+      ['seed','defender','probeSide','probeRole','probeIds','probeSquads'].includes(key))
+    throw Error('CAUSAL_QUERY has a reserved/invalid key: ' + key);
+  url.searchParams.set(key, value);
+}
 for (const [name, key] of [
   ['CAUSAL_SIDE','probeSide'], ['CAUSAL_ROLE','probeRole'], ['CAUSAL_IDS','probeIds'],
   ['CAUSAL_SQUADS','probeSquads']
@@ -56,7 +65,7 @@ const record = JSON.parse(fs.readFileSync(raw,'utf8'));
 const summary = { schema: 'grasstex-causal-inaction-summary-v1',
   config: { types, seedsPerType: specified.length ? null : seeds,
     exactSeeds: specified.length ? specified : null,
-    seconds, prefix, url: url.toString(), control: env.PROBE_CONTROL === '1' },
+    seconds, prefix, url: url.toString(), query: causalQuery, control: env.PROBE_CONTROL === '1' },
   expectedBattles: battles.length, completedBattles: record.battles.length,
   valid: true, failures: [], byScenario: {}, reasons: {}, confidence: {}, kinds: {},
   episodes: [], episodesOmitted: 0, directDenialsOmitted: 0, directDecisionReasons: {},
