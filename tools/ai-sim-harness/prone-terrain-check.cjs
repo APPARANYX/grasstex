@@ -93,3 +93,12 @@ assert.doesNotMatch(fbx.slice(fbx.indexOf('Terrain-follow is presentation-only')
   fbx.indexOf('cullApply(fx,', fbx.indexOf('Terrain-follow is presentation-only'))),
   /fx\.root\.rotation\.[xz] =|fx\.root\.rotation\.[xz] \+=/);
 console.log('PASS: visual slope alignment is render-only, simulation root stays upright');
+assert.match(fbx, /pronePose = fx\.stance === 'prone'/,
+  'prone pose uses the existing terrain tangent');
+assert.match(fbx, /dying = !!fx\.death/,
+  'death poses remain slope-aligned after the clip finishes');
+assert.match(fbx, /deathEntry = topEntry\(fx\.lower\)/,
+  'standing death begins upright, then blends to the slope during the fall');
+assert.match(fbx, /tilt\.pitch \*= contact/);
+assert.match(fbx, /tilt\.roll \*= contact/);
+console.log('PASS: dead soldiers blend into the terrain tangent without rotating the simulation root');

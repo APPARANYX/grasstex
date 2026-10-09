@@ -330,20 +330,31 @@
         /* Decorative walls must not intersect houses, solid cover, or approach
            roads; rejected pieces leave additional usable infantry gaps. */
         if (!markerFootprintClear(sim, x, z, 0.75, 0.36, rot, true)) continue;
-        var y = Math.min(
-            markerSurfaceY(sim, x, z),
-            markerSurfaceY(sim, x + Math.cos(rot) * 0.75, z - Math.sin(rot) * 0.75),
-            markerSurfaceY(sim, x - Math.cos(rot) * 0.75, z + Math.sin(rot) * 0.75)
-          ),
+        var y = markerSurfaceY(sim, x, z),
           bag = BABYLON.MeshBuilder.CreateBox(
             'objective-sandbag-part-' + obj.id,
             { width: 1.5, height: 0.58, depth: 0.72 },
             scene
           );
-        bag.position.set(x, y + 0.24, z);
-        /* The box bottom is buried 5cm, avoiding hovering on sloping terrain.
-           Box width follows the tangent, leaving broad approach gaps. */
+        /* Bake yaw while the bag is still at the origin, then align the physical
+           lower surface to both ends of the terrain. Collision/approach lanes do
+           not change; this only corrects the visual slope of the boundary bags. */
         bag.rotation.y = rot;
+        bag.bakeCurrentTransformIntoVertices();
+        bag.position.set(x, y + 0.24, z);
+        var T = root.BattleTerrainFeatures;
+        if (T && T.orientGroundMesh)
+          T.orientGroundMesh(
+            bag,
+            function (px, pz) {
+              return markerSurfaceY(sim, px, pz);
+            },
+            x,
+            z,
+            rot,
+            0.75,
+            0.36
+          );
         parts.push(bag);
       }
     }

@@ -4350,20 +4350,34 @@
           continue;
         }
         if (!fx.root.isEnabled()) continue;
-        /* Terrain-follow is presentation-only: the torso and weapon lean with the hill
-           when prone; authoritative root yaw, collision, orders and shot origins remain
-           simulation-owned. Keep it active even on animation-LOD hold frames. */
+        /* Terrain-follow is presentation-only. Keep active on animation-LOD hold frames
+           and after death clips finish so fallen men do not lie horizontally across hills.
+           The authoritative root yaw, physics, shot origin, and navigation remain upright. */
         var battle = root.__battle__,
-          tilt = { pitch: 0, roll: 0 };
+          tilt = { pitch: 0, roll: 0 },
+          pronePose = fx.stance === 'prone',
+          dying = !!fx.death;
         if (
-          fx.stance === 'prone' &&
-          !fx.death &&
+          (pronePose || dying) &&
           root.BattleBallistics &&
           root.BattleBallistics.proneTerrainTilt &&
           battle &&
           battle.heightAt
-        )
+        ) {
           tilt = root.BattleBallistics.proneTerrainTilt(fx.soldier, battle);
+          if (dying && !pronePose) {
+            /* Let the standing/crouched fall play before leaning the whole render rig.
+               By the time the body has landed, it has the slope's final pitch and roll. */
+            var deathEntry = topEntry(fx.lower),
+              progress =
+                deathEntry && deathEntry.clip && deathEntry.clip.duration > 0
+                  ? deathEntry.t / deathEntry.clip.duration
+                  : 1,
+              contact = Math.max(0, Math.min(1, (progress - 0.2) / 0.55));
+            tilt.pitch *= contact;
+            tilt.roll *= contact;
+          }
+        }
         var frameDt = Math.max(0, Math.min(0.05, (scene.getEngine().getDeltaTime() || 16.7) / 1000)),
           follow = 1 - Math.exp(-10 * frameDt);
         fx.holder.rotation.x += (tilt.pitch - fx.holder.rotation.x) * follow;
