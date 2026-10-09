@@ -1,0 +1,78 @@
+name: Issue 437 current-main exact-seed retreat replay
+on:
+  push:
+    branches:
+      - 'work/fix437-isolated-retreat-fallback'
+    paths:
+      - '.github/workflows/issue437-targeted-replay.yml'
+permissions:
+  contents: read
+jobs:
+  replay:
+    name: 'Issue 437 exact seed / flag ${{ matrix.arm }}'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [off, on]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe syntax
+        run: node --check scripts/probes/route-437.js
+      - name: Install browser dependencies
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Serve the actual shipping battle
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+      - name: Exact seed with control fingerprint
+        env:
+          ARM: ${{ matrix.arm }}
+        run: |
+          set -euo pipefail
+          mkdir -p reports/issue437
+          if [ "$ARM" = "on" ]; then flags="retreatLostContact=1"; else flags="retreatLostContact=0"; fi
+          PROBE=route-437 PROBE_BATTLES=meeting:live-mv16s0bu-92cyc \
+            PROBE_SECONDS=830 PROBE_CONTROL=1 \
+            PROBE_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?${flags}" \
+            PROBE_OUTPUT="reports/issue437/${ARM}.json" node scripts/run_probe.cjs >/dev/null
+      - name: Summarize soldier 6 and control
+        if: always()
+        env:
+          ARM: ${{ matrix.arm }}
+        run: |
+          node - <<'NODE' | tee "reports/issue437/summary-${ARM}.md"
+          const fs = require('node:fs');
+          const file = 'reports/issue437/' + process.env.ARM + '.json';
+          if (!fs.existsSync(file)) { console.log('NO TRACE'); process.exit(1); }
+          const b = JSON.parse(fs.readFileSync(file)).battles[0], p = b.reports['route-437'];
+          console.log('# Issue #437 flag ' + process.env.ARM);
+          console.log('End', b.simSeconds, 'winner', b.winner,
+            'probe/control identical', b.sameBattle, 'runtime errors', b.errors.length);
+          console.log('Counters', JSON.stringify(p.totals));
+          console.log('Last soldier', JSON.stringify(p.last));
+          console.log('First arrived-far', JSON.stringify(p.samples.find(s => s.arrivedFar) || null));
+          if (!b.sameBattle || b.errors.length) process.exitCode = 1;
+          NODE
+      - name: Publish evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue437-current-${{ matrix.arm }}
+          path: reports/issue437
+          if-no-files-found: warn
+          retention-days: 14
