@@ -530,8 +530,12 @@
       eye = camera.globalPosition || camera.position,
       facing = camera.getForwardRay && camera.getForwardRay(1).direction,
       horizontalFacing = facing && facing.x * facing.x + facing.z * facing.z,
-      behind = !!(eye && facing && horizontalFacing > 1e-8 &&
-        (p.x - eye.x) * facing.x + (p.z - eye.z) * facing.z < -1e-5);
+      behind = !!(
+        eye &&
+        facing &&
+        horizontalFacing > 1e-8 &&
+        (p.x - eye.x) * facing.x + (p.z - eye.z) * facing.z < -1e-5
+      );
     return {
       x: x,
       y: y,
@@ -554,24 +558,29 @@
      behind the near plane). Intersect that ray with a *rectangle*, not an ellipse,
      so the resulting pointer sits on the correct screen edge, never in the sky. */
   function edgeRay(rect, vx, vy) {
-    if (!rect || !(rect.width > 0) || !(rect.height > 0) ||
-        !isFinite(vx) || !isFinite(vy) ||
-        !(vx * vx + vy * vy > 1e-10)) return null;
+    if (
+      !rect ||
+      !(rect.width > 0) ||
+      !(rect.height > 0) ||
+      !isFinite(vx) ||
+      !isFinite(vy) ||
+      !(vx * vx + vy * vy > 1e-10)
+    )
+      return null;
     var cx = rect.left + rect.width / 2,
       cy = rect.top + rect.height / 2,
       halfX = Math.max(2, rect.width / 2 - Math.min(78, rect.width * 0.22)),
       halfY = Math.max(2, rect.height / 2 - Math.min(62, rect.height * 0.22)),
-      scale = Math.min(halfX / (Math.abs(vx) || 1e-12),
-                       halfY / (Math.abs(vy) || 1e-12));
+      scale = Math.min(halfX / (Math.abs(vx) || 1e-12), halfY / (Math.abs(vy) || 1e-12));
     return {
       x: cx + vx * scale,
       y: cy + vy * scale,
-      angle: Math.atan2(vx, -vy) * 180 / Math.PI
+      angle: (Math.atan2(vx, -vy) * 180) / Math.PI
     };
   }
   function edgeDirection(world, camera, rect, projected) {
-    if (!world || !camera || !rect || !(rect.width > 0) ||
-        !(rect.height > 0) || !camera.getForwardRay) return null;
+    if (!world || !camera || !rect || !(rect.width > 0) || !(rect.height > 0) || !camera.getForwardRay)
+      return null;
     var pos = camera.globalPosition || camera.position,
       forward = camera.getForwardRay(1).direction;
     if (!pos || !forward) return null;
@@ -579,8 +588,8 @@
       dz = +world.z - +pos.z,
       fx = +forward.x,
       fz = +forward.z;
-    if (![dx, dz, fx, fz].every(isFinite) || dx * dx + dz * dz < 1e-8 ||
-        fx * fx + fz * fz < 1e-8) return null;
+    if (![dx, dz, fx, fz].every(isFinite) || dx * dx + dz * dz < 1e-8 || fx * fx + fz * fz < 1e-8)
+      return null;
     var ahead = dx * fx + dz * fz,
       right = dx * fz - dz * fx,
       cx = rect.left + rect.width / 2,
