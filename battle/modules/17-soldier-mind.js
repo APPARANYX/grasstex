@@ -343,6 +343,16 @@
     },
     {
       kind: 'tooling',
+      lever: null,
+      layer: 'Tooling',
+      file: 'scripts/run_issue430_samepage_repro.cjs',
+      reader: 'the same-page restart causal trace and full-state fingerprint comparison',
+      reads: null,
+      unit: 'per-soldier stress/floor/lost checkpoints around the first restart divergence',
+      flag: 'Issue #430 restart regression'
+    },
+    {
+      kind: 'tooling',
       lever: 'morale',
       layer: 'Tooling',
       file: 'scripts/probes/morale-decisions.js',

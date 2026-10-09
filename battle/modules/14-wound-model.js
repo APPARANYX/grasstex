@@ -199,6 +199,7 @@
   }
   function reset(sim) {
     sim._wounds = { stats: fresh(), bleeding: [] };
+    sim._medicClock = 0;
   }
   function summary(sim) {
     var st = sim && sim._wounds;
