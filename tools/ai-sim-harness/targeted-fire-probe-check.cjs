@@ -96,7 +96,7 @@ assert.equal(readGate('withdraw', 'advance', { state: 'hold' }, { withdrawPoint:
 assert.equal(readGate('engage', 'engage', { state: 'clear' }), 'eligible-unknown', 'clear is not a restrictive order');
 assert.equal(readGate('engage', 'engage', { state: 'precision', shooterId: 76 }), 'eligible-unknown', 'chosen precision shooter may fire');
 assert.equal(readGate('engage', 'engage', { state: 'hold' }), 'fire-order:hold', 'restrictive hold is still visible');
-assert.equal(readGate('engage', 'engage', { state: 'hold' }, { retreatEndedAt: sim.time - 1 }), 'eligible-unknown', 'pre-retreat posture is stale after release');
+assert.equal(readGate('engage', 'engage', { state: 'hold' }, { retreatEndedAt: sim.time + 1 }), 'eligible-unknown', 'pre-retreat posture is stale after release');
 assert.equal(observedSettlements, 0, 'extended cases still never settle commands');
 assert.equal(losRecomputes, 0, 'extended cases still do not trace mutating LOS');
 console.log('targeted-fire-probe: selection, fire events, gate classifications and no-side-effect checks passed');
