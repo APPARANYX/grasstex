@@ -19,11 +19,11 @@
      left the leader out of every fight past 25 m. `loadoutFor` is the only place a role picks a
      weapon, so a per-man variation (sniper, sidearm) is a new loadout, not a new code path. */
   var LOADOUTS = {
-    sergeant: { primary: 'smg', secondary: 'pistol' },
-    rifleman: { primary: 'rifle' },
-    gunner: { primary: 'lmg', secondary: 'pistol' },
-    scout: { primary: 'carbine' },
-    engineer: { primary: 'rifle' }
+    sergeant: { primary: 'smg', secondary: 'pistol', grenades: 2 },
+    rifleman: { primary: 'rifle', grenades: 2 },
+    gunner: { primary: 'lmg', secondary: 'pistol', grenades: 1 },
+    scout: { primary: 'carbine', grenades: 2 },
+    engineer: { primary: 'rifle', grenades: 3 }
   };
   /* A light machine gun is emplaced, fires from a base of fire and takes the suppression job first:
      what the man carries decides it, not his role. */
@@ -32,7 +32,7 @@
   }
   function loadoutFor(role, faction) {
     var l = LOADOUTS[role] || LOADOUTS.rifleman;
-    return { primary: l.primary, secondary: l.secondary || null };
+    return { primary: l.primary, secondary: l.secondary || null, grenades: l.grenades || 0 };
   }
   /* Build a man's weapons from his loadout: the primary he carries out, and a sidearm holstered
      (hidden, ready for `BattleWeapons.equip`). Both are the side's own weapon for the kind. */
@@ -1560,7 +1560,7 @@
     };
   }
   var EXT = extensionPoints({
-    fireGate: ['ammunition', 'ballistics', 'direct-fire-los'], // before an aimed shot: weapon ready, target in range, trigger-time LOS
+    fireGate: ['ammunition', 'ballistics', 'direct-fire-los', 'grenades'], // weapon ready, target reachable, no throw windup
     shotModel: ['ballistics'], // where an aimed round goes (default: resolveFire accuracy roll)
     woundModel: ['wounds'], // what a round that struck a man does to him (default: flat hp damage)
     areaFireGate: ['ammunition'], // before a suppressive shot
@@ -1968,6 +1968,8 @@
       return false;
     /* Same lifecycle gate as the sim's own frame: a paused or finished battle takes no shots. */
     if (battle.paused || battle.winner) return false;
+    if (root.BattleGrenades && root.BattleGrenades.on() && root.BattleGrenades.pendingOf(soldier, battle))
+      return false;
     if (soldier.fireCooldown > 0) return false;
     var A = root.BattleAmmunition;
     if (A && A.available && !A.available(soldier)) {

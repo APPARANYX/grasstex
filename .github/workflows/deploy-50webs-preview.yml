@@ -76,6 +76,8 @@ jobs:
           for d in soldiers animations weapons; do
             if [ -d "Assets/$d" ]; then mkdir -p ".preview/Assets/$d" && cp "Assets/$d"/*.fbx ".preview/Assets/$d/"; fi
           done
+          # Imported grenade models use the prepared GLB runtime format.
+          if ls Assets/weapons/*.glb >/dev/null 2>&1; then cp Assets/weapons/*.glb .preview/Assets/weapons/; fi
           # The prepared clip pack the backend loads instead of the clip FBX.
           if ls Assets/animations/*.bin >/dev/null 2>&1; then cp Assets/animations/*.bin .preview/Assets/animations/; fi
           if [ -d Assets/effects/muzzle-flash ]; then mkdir -p .preview/Assets/effects/muzzle-flash && cp Assets/effects/muzzle-flash/*.png .preview/Assets/effects/muzzle-flash/; fi

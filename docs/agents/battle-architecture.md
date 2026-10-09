@@ -863,13 +863,22 @@ before any effect is claimed.
   sidearms). Left: sniper roles (M1903A4 / Kar98k ZF39). They need a model and a weapon seat measured in
   Motion Lab, so they wait for that; the sidearm's pose and grip on the sergeant and gunner models is
   also worth a Motion Lab look once a close fight shows it. Any new role changes combat: benchmark it paired.
-- **Grenades** (owner, 2026-10-02: after the open soldier-level slices, behind a flag). A carried count in
-  `LOADOUTS`; a blast as a radius with falloff and a line-of-sight check through the wound model (zone, energy),
-  posting the existing suppression and stress events; one new Engagement throw action (enemy inside ~30 m behind
-  cover or in a building, no friend near the landing point, a cooldown, landing scatter from a fixed hash, never the
-  combat RNG). Needs assets first: a throw clip (not in the pack), Mk 2 and stick-grenade models, an explosion
-  sprite and sound. Contacts are mostly 150 m+, so it pays off in house and hedge fights; building clearing
-  (`AI_TACTICS_OUTLINE.md`) will use it. Benchmark paired like any new weapon.
+- **Grenades** (#409, **ON by default**; `?grenades=0` turns the whole system off and leaves it inert). `modules/23-grenades.js`
+  owns carried counts, commitments, releases and bursts. Loadouts issue 2 to leaders/riflemen/scouts,
+  1 to gunners and 3 to engineers; possession and weapon rearming do not refill them, battle restart does.
+  Player G/controller RB and Engagement's `throw` action use the same 0.9 s commitment. Only death
+  before release cancels it; retreat, a changed target or a skipped AI tick do not. Release consumes
+  one, starts an 18 s cooldown and freezes the physical arc. The fuse expires 3.6 s after landing.
+  AI requires a fresh confident personal contact within 30 m, blocked rifle fire, fire authorization,
+  a clear arc and no friendly (including itself) within 13 m of the intended landing. Scatter uses
+  a separate scenario-seeded `grenades` RNG stream; it never draws combat randomness. Physical
+  cover/walls/terrain use `BattleBallistics.environmentLineBlocked`. The blast applies zone wounds
+  with distance-scaled severity, drop odds, bleeding and injury inside 9 m, and ordinary suppression
+  events within 16 m. Friendly/self injuries retain attribution and earn no kill credit. Imported
+  Mk 2/M24 props, three stance-specific throw clips and bounded dust/flash are presentation only
+  (`24-grenade-fx.js`); player aim displays the owner's arc and landing point. Default-enabled in #442 after a
+  paired 100-seed benchmark (quiet: casualties +0.4 %, p 0.625) and owner review. Grenade-specific
+  audio is still outstanding.
 - **FG 42 balance.** The four-arm benchmark attributed the scout balance shift to the FG 42, not
   the perception cones. Test one lever at a time: Kar98k assignment, shorter practical FG 42 range,
   or wider dispersion/grouping at range. Use the existing `perception=0` / `geScout=carbine`

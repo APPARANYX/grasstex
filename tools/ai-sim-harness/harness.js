@@ -183,6 +183,9 @@ function bootstrap(opts) {
     load(root, 'battle/modules/16-squad-plan-stability.js');
     /* The wound model owns what a hit does (hit zone, incapacitation, bleeding). */
     load(root, 'battle/modules/14-wound-model.js');
+    /* Grenade scatter uses the shipping scenario RNG stream; the weapon is inert under ?grenades=0. */
+    load(root, 'battle/scenario-generator.js');
+    load(root, 'battle/modules/23-grenades.js');
     /* Soldier condition: stress from fire, wounds and casualties, read by Engagement and the shot model. */
     load(root, 'battle/modules/08-soldier-events.js');
     load(root, 'battle/modules/17-soldier-mind.js');

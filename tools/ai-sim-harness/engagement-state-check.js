@@ -22,6 +22,7 @@ assert.deepStrictEqual(Object.keys(E.states).sort(), [
   'pinned',
   'rage',
   'station',
+  'throw',
   'withdraw'
 ]);
 for (const def of Object.values(E.states)) {

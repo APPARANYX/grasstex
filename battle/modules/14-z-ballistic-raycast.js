@@ -322,6 +322,16 @@
       ground = groundStop(o, d, maxT, battle);
     return ground < ob.travel ? { travel: ground, ground: true } : ob;
   }
+  /* Explosives and throw previews use the same physical cover, walls and terrain as rounds. */
+  function environmentLineBlocked(from, to, battle) {
+    var span = Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z);
+    if (!(span > 0.00001)) return false;
+    var direction = { x: (to.x - from.x) / span, y: (to.y - from.y) / span, z: (to.z - from.z) / span };
+    return (
+      !!segmentBlocked(from, direction, span, battle) ||
+      groundStop(from, direction, span, battle) < span - 0.00001
+    );
+  }
   function obbNormal(ob, p) {
     var ux = isFinite(+ob.ux) ? +ob.ux : 1,
       uz = isFinite(+ob.uz) ? +ob.uz : 0,
@@ -872,6 +882,7 @@
     muzzleOrigin: muzzleOrigin,
     proneTerrainTilt: proneTerrainTilt,
     ballisticObstacles: ballisticObstacles,
+    environmentLineBlocked: environmentLineBlocked,
     fireLineBlocked: fireLineBlocked,
     exposedAim: exposedAim,
     pointLineBlocked: pointLineBlocked,

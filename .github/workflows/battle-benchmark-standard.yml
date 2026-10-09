@@ -64,6 +64,8 @@ env:
   # The counters the paired report adds up per record (compare_benchmark_arms.cjs --count).
   BENCH_COUNTERS: >-
     casualties usKills geKills fire.total fire.hits retreatSamples movementResolver.changes
+    grenades.throws grenades.bursts grenades.wounded grenades.casualties grenades.suppressed
+    grenades.friendlyWounded grenades.friendlyCasualties grenades.aborted
     movementStalls.length routeStalls.length targetlessStalls.length vacantObjectiveStalls.length loopAlerts.length writerConflicts
     regroups.entries stallOutcomes.wakes stallOutcomes.repeats timeline.stalledOnsets timeline.stalledSamples
     timeline.stalledOnsetsRepeated timeline.stalledSamplesRepeated

@@ -418,9 +418,13 @@
     return fireStanceImpl().fireAllowed(s, battle);
   }
   function tryFire(s, battle) {
+    if (root.BattleGrenades && root.BattleGrenades.on() && root.BattleGrenades.pendingOf(s, battle))
+      return false;
     return fireStanceImpl().tryFire(s, battle);
   }
   function suppress(s, battle, point) {
+    if (root.BattleGrenades && root.BattleGrenades.on() && root.BattleGrenades.pendingOf(s, battle))
+      return false;
     return fireStanceImpl().suppress(s, battle, point);
   }
   function firingLineClear(target, pt, stance, battle) {
@@ -709,6 +713,16 @@
       ]
     }
   };
+  STATES.throw = {
+    meaning: 'Hold the committed grenade windup; simulation clock owns release',
+    enteredBy: 'Engagement decide commits a legal carried grenade',
+    exits: 'release -> engage/alert; self preservation can interrupt the drill without cancelling release',
+    rate: '0.15 s; release is independent of AI ticks',
+    next: ['throw', 'engage', 'alert', 'advance', 'withdraw', 'station', 'cower', 'flee', 'freeze', 'rage']
+  };
+  ['orient', 'bound', 'engage', 'pinned', 'alert'].forEach(function (name) {
+    STATES[name].next.push('throw');
+  });
   /* External requests have explicit entry effects. They formerly bypassed enter(), so applying
      normal drill resets here would change the fight. Keep their clocks and incidental fields
      exactly as before; the transition record adds provenance without changing moveReason. */
@@ -1046,6 +1060,11 @@
       transition(s, battle, 'advance', 0, 'retreat ended');
     }
     if (ACT.any && reaction(s, battle)) return;
+    if (root.BattleGrenades && root.BattleGrenades.on() && root.BattleGrenades.pendingOf(s, battle))
+      return throwing(s, battle);
+    if (e.state === 'throw') {
+      transition(s, battle, s.target ? 'engage' : 'alert', 0, 'grenade released');
+    }
     if (root.BattleTacticalPositions && root.BattleTacticalPositions.update(s, battle)) {
       transition(s, battle, 'station', 0, 'firing station');
       return station(s, battle);
@@ -1142,11 +1161,16 @@
   }
 
   /* The one place that answers "so what do I do about this enemy?". */
-  function decide(s, battle, why) {
+  function decide(s, battle, why, grenadeOnly) {
     var e = state(s),
       F = field(),
       p = posOf(s),
       target = s.target;
+    if (root.BattleGrenades && root.BattleGrenades.on() && root.BattleGrenades.consider(s, battle)) {
+      transition(s, battle, 'throw', root.BattleGrenades.TUNING.WINDUP, why + ': grenade');
+      return throwing(s, battle);
+    }
+    if (grenadeOnly) return;
     if (!target) {
       transition(s, battle, 'alert', ALERT_HOLD, 'no target');
       return;
@@ -1223,6 +1247,15 @@
     }
     transition(s, battle, 'engage', 0, why + ': fight from the open');
     return engage(s, battle);
+  }
+
+  function throwing(s, battle) {
+    var plan = root.BattleGrenades.pendingOf(s, battle);
+    if (!plan) return;
+    s.state = 'throw';
+    s.setUp = false;
+    holdPosition(s, battle);
+    s._faceHint = plan.aim;
   }
 
   function bound(s, battle) {
@@ -1393,6 +1426,12 @@
      what produced the old "walk, aim, walk, aim" cycle. */
   function alert(s, battle) {
     var e = state(s);
+    /* Cover often removes the live target. A fresh personal report is still a grenade decision,
+       without turning every remembered contact into a rifle engagement. */
+    if (root.BattleGrenades && root.BattleGrenades.on() && root.BattleGrenades.reviewDue(s, battle)) {
+      decide(s, battle, 'remembered contact', true);
+      if (root.BattleGrenades.pendingOf(s, battle)) return;
+    }
     s.state = 'alert';
     s.setUp = false;
     if (orderedBound(s, battle)) return;

@@ -30,6 +30,7 @@
     PLAYER_BORE_EASE_MS = 80,
     PLAYER_BORE_MAX_FRAME_MS = 50,
     PLAYER_BORE_PREVIEW_MS = 90,
+    PLAYER_GRENADE_PREVIEW_MS = 90,
     PLAYER_HIT_FLASH_MS = 260,
     PLAYER_SHOT_IMPACT_MS = 160;
   /* Player-only sprint budget; AI soldiers keep their existing movement model. */
@@ -77,6 +78,36 @@
       x: previous.x + (target.x - previous.x) * alpha,
       y: previous.y + (target.y - previous.y) * alpha
     };
+  }
+  /* The view selects ground, never a hidden enemy. A shallow/upward view asks for a long
+     throw; the grenade owner clamps that request to the weapon's actual range. */
+  function grenadeAimPoint(ray, heightAt) {
+    if (!ray || !ray.origin || !ray.direction) return null;
+    var o = ray.origin,
+      d = ray.direction,
+      distance = 80,
+      previous = 0;
+    if (heightAt) {
+      for (var t = 0.5; t <= distance; t += 0.5) {
+        var x = o.x + d.x * t,
+          z = o.z + d.z * t,
+          ground = heightAt(x, z);
+        if (isFinite(ground) && o.y + d.y * t <= ground) {
+          var low = previous,
+            high = t;
+          for (var i = 0; i < 8; i++) {
+            var mid = (low + high) / 2,
+              h = heightAt(o.x + d.x * mid, o.z + d.z * mid);
+            if (o.y + d.y * mid <= h) high = mid;
+            else low = mid;
+          }
+          distance = high;
+          break;
+        }
+        previous = t;
+      }
+    }
+    return { x: o.x + d.x * distance, z: o.z + d.z * distance };
   }
   function desktopPointer() {
     return !!(global.matchMedia && global.matchMedia('(pointer:fine)').matches);
@@ -245,6 +276,14 @@
       borePreview = null,
       boreScreenPos = null,
       borePaintAt = 0,
+      grenadeKeyDown = false,
+      grenadeHud = null,
+      grenadeOverlay = null,
+      grenadeArc = null,
+      grenadeLanding = null,
+      grenadeLabel = null,
+      grenadePreview = null,
+      lastGrenadePreview = -Infinity,
       settingsMenu = null,
       menuOpen = false,
       menuPauseOwner = null,
@@ -289,7 +328,11 @@
       var el = document.getElementById('cameraHint');
       if (!el) return;
       el.textContent = player
-        ? PLAYER_HINT + (pad ? ' · ' + PLAYER_PAD_HINT : '') + ' · ' + playerLabel()
+        ? PLAYER_HINT +
+          (pad ? ' · ' + PLAYER_PAD_HINT : '') +
+          (grenadesOn() ? ' · G' + (pad ? ' / RB' : '') + ' grenade · aim to preview arc' : '') +
+          ' · ' +
+          playerLabel()
         : KEY_HINT + (pad ? ' · ' + PAD_HINT : '');
     }
     function padPressedOnce(pad, index) {
@@ -435,6 +478,150 @@
       playerDamage.setAttribute('aria-hidden', 'true');
       document.body.appendChild(playerDamage);
     }
+    function grenadesOn() {
+      return !!(global.BattleGrenades && global.BattleGrenades.on());
+    }
+    function clearGrenadePreview() {
+      grenadePreview = null;
+      lastGrenadePreview = -Infinity;
+      if (grenadeOverlay) grenadeOverlay.style.display = 'none';
+    }
+    function ensureGrenadeFeedback() {
+      if (grenadeHud || !grenadesOn()) return;
+      grenadeHud = document.createElement('div');
+      grenadeHud.id = 'battlePlayerGrenades';
+      grenadeHud.setAttribute('role', 'status');
+      grenadeHud.style.cssText = 'margin-top:10px;color:#dfc890;line-height:1.5;letter-spacing:.03em';
+      playerHud.appendChild(grenadeHud);
+      var ns = 'http://www.w3.org/2000/svg';
+      grenadeOverlay = document.createElementNS(ns, 'svg');
+      grenadeOverlay.id = 'battlePlayerGrenadePreview';
+      grenadeOverlay.setAttribute('aria-hidden', 'true');
+      grenadeOverlay.style.cssText =
+        'position:fixed;inset:0;width:100%;height:100%;z-index:15;pointer-events:none;display:none';
+      grenadeArc = document.createElementNS(ns, 'path');
+      grenadeArc.setAttribute('fill', 'none');
+      grenadeArc.setAttribute('stroke-width', '2');
+      grenadeArc.setAttribute('stroke-dasharray', '5 4');
+      grenadeLanding = document.createElementNS(ns, 'circle');
+      grenadeLanding.setAttribute('r', '9');
+      grenadeLanding.setAttribute('fill', 'none');
+      grenadeLanding.setAttribute('stroke-width', '2');
+      grenadeLabel = document.createElementNS(ns, 'text');
+      grenadeLabel.setAttribute('font-size', '12');
+      grenadeLabel.setAttribute('font-family', 'Arial,sans-serif');
+      grenadeLabel.setAttribute('paint-order', 'stroke');
+      grenadeLabel.setAttribute('stroke', '#101510');
+      grenadeLabel.setAttribute('stroke-width', '3');
+      grenadeOverlay.appendChild(grenadeArc);
+      grenadeOverlay.appendChild(grenadeLanding);
+      grenadeOverlay.appendChild(grenadeLabel);
+      document.body.appendChild(grenadeOverlay);
+    }
+    function playerGrenadeAim(b) {
+      if (!playerCam) return null;
+      return grenadeAimPoint(playerCam.getForwardRay(1), function (x, z) {
+        return b.heightAt ? b.heightAt(x, z) : battleSim.heightAt(x, z);
+      });
+    }
+    function requestPlayerGrenade(pad) {
+      var b = liveBattle();
+      if (!grenadesOn() || !player || playerBattle !== b || menuOpen) return;
+      positionPlayerCamera(mouseAim || buttonValue(pad, 6) > 0.35);
+      var aim = playerGrenadeAim(b),
+        plan = aim && global.BattleGrenades.playerThrow(player, b, aim);
+      if (plan) {
+        clearGrenadePreview();
+        playerRumble(pad, 90, 0.25, 0.4);
+      }
+    }
+    function grenadeScreenPoint(point) {
+      if (!point) return null;
+      var width = engine.getRenderWidth(),
+        height = engine.getRenderHeight(),
+        p = BABYLON.Vector3.Project(
+          new BABYLON.Vector3(point.x, point.y, point.z),
+          BABYLON.Matrix.Identity(),
+          playerCam.getTransformationMatrix(),
+          playerCam.viewport.toGlobal(width, height)
+        ),
+        rect = canvas.getBoundingClientRect();
+      if (!isFinite(p.x) || !isFinite(p.y) || !isFinite(p.z) || p.z < 0 || p.z > 1) return null;
+      return { x: rect.left + (p.x / width) * rect.width, y: rect.top + (p.y / height) * rect.height };
+    }
+    function updateGrenadePreview(b, aiming, now) {
+      if (!grenadesOn() || !aiming || menuOpen) {
+        clearGrenadePreview();
+        return;
+      }
+      ensureGrenadeFeedback();
+      if (now - lastGrenadePreview >= PLAYER_GRENADE_PREVIEW_MS) {
+        grenadePreview = global.BattleGrenades.preview(player, b, playerGrenadeAim(b));
+        lastGrenadePreview = now;
+      }
+      if (!grenadePreview) {
+        grenadeOverlay.style.display = 'none';
+        return;
+      }
+      var color = grenadePreview.legal ? '#f5d789' : '#fa8d7b',
+        path = '',
+        connected = false;
+      (grenadePreview.points || []).forEach(function (point) {
+        var p = grenadeScreenPoint(point);
+        if (p) {
+          path += (connected ? ' L' : ' M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
+          connected = true;
+        } else connected = false;
+      });
+      grenadeArc.setAttribute('d', path);
+      grenadeArc.setAttribute('stroke', color);
+      var landing = grenadeScreenPoint(grenadePreview.to);
+      grenadeLanding.style.display = grenadeLabel.style.display = landing ? '' : 'none';
+      if (landing) {
+        grenadeLanding.setAttribute('cx', landing.x);
+        grenadeLanding.setAttribute('cy', landing.y);
+        grenadeLanding.setAttribute('stroke', color);
+        grenadeLabel.setAttribute('x', landing.x + 14);
+        grenadeLabel.setAttribute('y', landing.y - 12);
+        grenadeLabel.setAttribute('fill', color);
+        var p = player.root.position,
+          dx = grenadePreview.to.x - p.x,
+          dz = grenadePreview.to.z - p.z;
+        grenadeLabel.textContent = grenadePreview.legal
+          ? Math.round(Math.sqrt(dx * dx + dz * dz)) + ' m · grenade'
+          : grenadePreview.reason || 'Throw unavailable';
+      }
+      grenadeOverlay.style.display = 'block';
+    }
+    function updateGrenadeFeedback(b) {
+      if (!grenadesOn()) {
+        if (grenadeHud) grenadeHud.style.display = 'none';
+        clearGrenadePreview();
+        return;
+      }
+      if (!b || b !== playerBattle) {
+        clearGrenadePreview();
+        return;
+      }
+      ensureGrenadeFeedback();
+      var G = global.BattleGrenades,
+        carried = G.count(player),
+        pending = G.pendingOf(player, b),
+        cooldown = G.cooldownLeft(player, b),
+        live = G.projectiles(b).filter(function (g) {
+          return g.by === player.id;
+        }),
+        status = pending
+          ? 'THROWING · ' + Math.max(0, pending.releaseAt - b.time).toFixed(1) + ' s'
+          : !carried
+            ? 'EMPTY'
+            : cooldown > 0
+              ? 'READY IN ' + cooldown.toFixed(1) + ' s'
+              : 'G / RB THROW · AIM FOR ARC';
+      if (live.length) status += ' · FUSE ' + Math.max(0, live[0].detonateAt - b.time).toFixed(1) + ' s';
+      grenadeHud.textContent = 'GRENADES ' + carried + ' · ' + status;
+      grenadeHud.style.display = 'block';
+    }
     /* Project the *simulated* muzzle line's physical first contact to a screen-space
        marker. Unlike the fixed camera reticle, this shifts around near cover and parallax.
        While a shot is fresh the dot shows that round's *actual* dispersed impact. */
@@ -544,6 +731,7 @@
             'translate(-50%,-50%) rotate(' + ((angle * 180) / Math.PI).toFixed(1) + 'deg)';
         } else playerDamage.style.transform = 'translate(-50%,-50%)';
       } else playerDamage.style.opacity = '0';
+      updateGrenadeFeedback(liveBattle());
     }
     function sprintAllowed(requested, moving, dt) {
       if (requested && moving && !playerExhausted) {
@@ -732,6 +920,8 @@
       mouseAim = false;
       mouseFire = false;
       keys.clear();
+      grenadeKeyDown = false;
+      clearGrenadePreview();
       if (document.pointerLockElement === canvas && document.exitPointerLock) document.exitPointerLock();
       menuPauseOwner = null;
       if (b && !b.paused && !b.winner && typeof b.pause === 'function') {
@@ -842,6 +1032,8 @@
       mouseAim = false;
       mouseFire = false;
       keys.clear();
+      grenadeKeyDown = false;
+      clearGrenadePreview();
       ensureReticle().style.display = 'none';
       if (playerBoreDot) playerBoreDot.style.display = 'none';
       boreScreenPos = null;
@@ -899,6 +1091,8 @@
       borePreview = null;
       boreScreenPos = null;
       borePaintAt = 0;
+      grenadeKeyDown = false;
+      clearGrenadePreview();
       /* isPlayer, not a short movement lease, is the authority boundary for the whole possession. */
       /* Possession starts from a neutral player-owned stance instead of inheriting a squad hold-fire posture. */
       if (global.BattleEngagement && global.BattleEngagement.commitStance)
@@ -965,11 +1159,13 @@
       playerPitch = clamp(playerPitch + ly * 1.55 * dt * (aiming ? PLAYER_ADS_SENSITIVITY : 1), -0.62, 0.78);
       if (pad && padPressedOnce(pad, 1)) togglePlayerCrouch(b);
       if (pad && padPressedOnce(pad, 0)) togglePlayerProne(b);
+      if (grenadesOn() && pad && padPressedOnce(pad, 5)) requestPlayerGrenade(pad);
+      var grenadePending = grenadesOn() && global.BattleGrenades.pendingOf(player, b);
       var flat = new BABYLON.Vector3(Math.sin(playerYaw), 0, Math.cos(playerYaw)),
         right = new BABYLON.Vector3(Math.cos(playerYaw), 0, -Math.sin(playerYaw)),
         move = flat.scale(my).add(right.scale(mx));
       if (move.lengthSquared() > 1) move.normalize();
-      var moving = move.lengthSquared() > 0.0025,
+      var moving = !grenadePending && move.lengthSquared() > 0.0025,
         p = player.root.position,
         next = moving
           ? { x: p.x + move.x * PLAYER_MOVE_AHEAD, z: p.z + move.z * PLAYER_MOVE_AHEAD }
@@ -993,7 +1189,7 @@
       if (global.SquadAI && global.SquadAI.playerAim)
         global.SquadAI.playerAim(player, aiming || firing ? weaponAim : null);
       /* RT is a real trigger, not an AI target request: it fires the crosshair ray even with no lock. */
-      if (firing && point && global.SquadAI) {
+      if (!grenadePending && firing && point && global.SquadAI) {
         if (global.SquadAI.playerFireRay && global.SquadAI.playerFireRay(player, point, b)) {
           var shotTime = Date.now(),
             shot = player._lastBallisticShot;
@@ -1008,6 +1204,7 @@
         }
       }
       updatePlayerReticle(point, b, Date.now());
+      updateGrenadePreview(b, aiming && !grenadePending, Date.now());
     }
     canvas.addEventListener('click', function () {
       canvas.focus();
@@ -1019,6 +1216,8 @@
         keys.clear();
         mouseAim = false;
         mouseFire = false;
+        grenadeKeyDown = false;
+        clearGrenadePreview();
       }
     });
     document.addEventListener('mousemove', function (event) {
@@ -1084,6 +1283,12 @@
         }
         if (player) {
           var b = liveBattle();
+          if (key === 'g' && grenadesOn()) {
+            if (!event.repeat && !grenadeKeyDown) requestPlayerGrenade(activeGamepad());
+            grenadeKeyDown = true;
+            event.preventDefault();
+            return;
+          }
           if (key === 'v') {
             if (!event.repeat) leavePlayer('V key');
             event.preventDefault();
@@ -1113,15 +1318,19 @@
     );
     window.addEventListener('keyup', function (event) {
       keys.delete(keyName(event));
+      if (keyName(event) === 'g') grenadeKeyDown = false;
     });
     window.addEventListener('blur', function () {
       keys.clear();
       mouseAim = false;
       mouseFire = false;
+      grenadeKeyDown = false;
+      clearGrenadePreview();
     });
     window.addEventListener('gamepadconnected', function (e) {
       padId = (e.gamepad && e.gamepad.id) || 'gamepad';
       padButtons = {};
+      if (grenadesOn()) padButtons[5] = buttonValue(e.gamepad, 5) > 0.5;
       updateHint(e.gamepad);
       global.GTLog('[CAMERA] gamepad connected: ' + padId);
     });
@@ -1149,6 +1358,7 @@
       if (pad && pad.id !== padId) {
         padId = pad.id;
         padButtons = {};
+        if (grenadesOn()) padButtons[5] = buttonValue(pad, 5) > 0.5;
         updateHint(pad);
         global.GTLog('[CAMERA] gamepad active: ' + padId);
       }
@@ -1447,6 +1657,7 @@
   global.BattleDesktopCamera = {
     current: null,
     smoothBoreDot: smoothBoreDot,
+    grenadeAimPoint: grenadeAimPoint,
     menuHoldGesture: menuHoldGesture,
     menuHoldMs: MENU_HOLD_MS,
     create: function (options) {
