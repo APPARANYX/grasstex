@@ -22,7 +22,7 @@
   function choose(s) {
     if (!s || !s.root || !s.squad) return false;
     return (opts.side === 'all' || s.faction === opts.side) &&
-      (opts.role === 'all' || s.role === opts.role) &&
+      (opts.role === 'all' || opts.role.split(',').indexOf(s.role) >= 0) &&
       (!opts.ids.length || opts.ids.indexOf(String(s.id)) >= 0) &&
       (!opts.squads.length || opts.squads.indexOf(String(s.squad.id)) >= 0);
   }
