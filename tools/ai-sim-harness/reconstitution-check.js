@@ -683,6 +683,15 @@ function probe398(search) {
   const right = squad(w, 2, 4, null, 20);
   const group = untilGrouped(w, 150).group;
   assert.deepEqual(group.squads.slice().sort(), [left.id, lone.id, right.id].sort());
+  /* Start a physically valid reconstitution march well beyond the 20 m merge radius:
+     several 13 m anchor strides must precede final slot arrival. The 68 m
+     separation deliberately hits the old 16 m anchor + 6.5 m slot case. */
+  const loneMan = living(lone)[0];
+  loneMan.root.position.x = group.rally.x + 68;
+  loneMan.root.position.z = group.rally.z;
+  lone.orderAnchor = { x: loneMan.root.position.x, z: loneMan.root.position.z };
+  lone.rally = { x: loneMan.root.position.x, z: loneMan.root.position.z };
+  lone._orderGoal = { ...lone.orderAnchor };
   const beginning = {
     time: w.b.time,
     rally: group.rally,
