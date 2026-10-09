@@ -1,0 +1,23 @@
+name: Fire origin -> cross-squad integration regression
+on:
+  push:
+    branches:
+      - work/fire-origin-broadcast-integration
+permissions:
+  contents: read
+jobs:
+  fire-origin-broadcast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Cover, beliefs, broadcast and default-on checks
+        run: |
+          set -euo pipefail
+          node tools/ai-sim-harness/cover-positions-check.js
+          node tools/ai-sim-harness/soldier-beliefs-check.js
+          node tools/ai-sim-harness/tactical-default-flags-check.js
+          node tools/ai-sim-harness/squad-broadcast-check.js
