@@ -1,0 +1,52 @@
+name: Issue 430 restart isolation proof
+on:
+  push:
+    branches: [fix/issue430-samepage-restart-isolation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  restart-proof:
+    name: meeting same-page 600s causal proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      PARITY_SCENARIO: meeting
+      PARITY_SEED: timescale-parity
+      PARITY_SECONDS: '600'
+      PARITY_CASES: none
+      PARITY_OUT: reports/restart430/meeting.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and restart static contract
+        run: |
+          node --check scripts/run_issue430_samepage_repro.cjs
+          node tools/ai-sim-harness/benchmark-restart-isolation-check.js
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start local battle server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+      - name: Re-run reference battle on same page
+        run: node scripts/run_issue430_samepage_repro.cjs
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue430-restart-proof-${{ github.run_number }}
+          path: reports/restart430/
+          if-no-files-found: warn
+          retention-days: 14
