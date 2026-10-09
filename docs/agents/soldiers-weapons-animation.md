@@ -76,7 +76,7 @@ never decides tactics, ammo, hits or paths.
 - Wired beyond the basics: turn-in-place (standing, crouch, prone), death pools, hit reactions
   (`combat.hit`), idle variants and suppression flinches. Still unused: prone roll right (a left roll
   needs mirroring) and the kneel set. Jump clips need a nav vault edge.
-  The opt-in grenade action uses standing, crouched and prone throw clips (`combat.throw`), with
+  The grenade action uses standing, crouched and prone throw clips (`combat.throw`), with
   their measured release phase retimed to the simulation's windup. Imported GLB Mk 2/M24 props
   follow the right palm, then the immutable simulated flight; the rifle is slung during the clip.
   Regenerate the original project-authored props with `tools/build-grenade-models.py` in Blender.

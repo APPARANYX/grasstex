@@ -163,7 +163,7 @@ function setup(enabled) {
     matchMedia: () => ({ matches: true }),
     navigator: { getGamepads: () => (pad ? [pad] : []) },
     addEventListener: (type, fn) => handlers.set('window:' + type, fn),
-    location: { search: enabled ? '?grenades=1' : '' },
+    location: { search: enabled ? '' : '?grenades=0' },
     __battle__: battle,
     SquadAI: {
       playerAim() {},

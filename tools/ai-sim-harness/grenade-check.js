@@ -115,19 +115,14 @@ function hiddenContact(ctx, opts) {
   });
 }
 
-test('the opt-in parser accepts only the complete grenades=1 value', () => {
-  for (const search of [
-    '',
-    '?grenades=0',
-    '?grenades=10',
-    '?grenades=1.0',
-    '?grenades=1-extra',
-    '?xgrenades=1'
-  ]) {
-    const { G } = setup({ search: search + (search ? '&' : '?') + 'log=0' });
-    assert.equal(G.on(), false, search || 'absent flag');
+test('grenades are on by default and only an absent or complete grenades=1 value keeps them on', () => {
+  for (const search of ['?grenades=0', '?grenades=10', '?grenades=1.0', '?grenades=1-extra', '?grenades=off', '?grenades=']) {
+    const { G } = setup({ search: search + '&log=0' });
+    assert.equal(G.on(), false, search);
   }
-  assert.equal(setup({ search: '?x=1&grenades=1&log=0' }).G.on(), true);
+  for (const search of ['?log=0', '?xgrenades=0&log=0', '?x=1&grenades=1&log=0'])
+    assert.equal(setup({ search }).G.on(), true, search);
+  assert.equal(setup({ search: '' }).G.on(), true, 'an empty query string is the default battle');
 });
 
 test('OFF has no registered grenade clock, field writes or RNG draws, including read APIs', () => {

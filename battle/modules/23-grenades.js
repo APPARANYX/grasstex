@@ -1,12 +1,15 @@
-/* Opt-in carried fragmentation grenades (#409).
+/* Carried fragmentation grenades (#409). On by default; `?grenades=0` is the off switch.
    Engagement/player commits once; this owner releases and bursts on the simulation clock.
    Only death cancels a commitment. Scatter uses its own seeded stream. Wounds, suppression
    and physical occlusion stay with their existing owners. Presentation reads frozen flights. */
 (function (root) {
   'use strict';
   if (!root.SquadAI || !root.BattleModules || root.BattleGrenades) return;
+  /* Absent or exactly `grenades=1` is on. Any other value (0, off, 10, 1.0) turns it off, so a
+     mistyped switch fails closed. */
   function parseOn(search) {
-    return /[?&]grenades=1(?:&|#|$)/.test(search || '');
+    var m = /[?&]grenades=([^&#]*)/.exec(search || '');
+    return !m || m[1] === '1';
   }
   var ON = parseOn(typeof location !== 'undefined' ? location.search : '');
   var TUNING = Object.freeze({

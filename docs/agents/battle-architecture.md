@@ -863,7 +863,7 @@ before any effect is claimed.
   sidearms). Left: sniper roles (M1903A4 / Kar98k ZF39). They need a model and a weapon seat measured in
   Motion Lab, so they wait for that; the sidearm's pose and grip on the sergeant and gunner models is
   also worth a Motion Lab look once a close fight shows it. Any new role changes combat: benchmark it paired.
-- **Grenades** (#409, experimental, **OFF by default**, `?grenades=1`). `modules/23-grenades.js`
+- **Grenades** (#409, **ON by default**; `?grenades=0` turns the whole system off and leaves it inert). `modules/23-grenades.js`
   owns carried counts, commitments, releases and bursts. Loadouts issue 2 to leaders/riflemen/scouts,
   1 to gunners and 3 to engineers; possession and weapon rearming do not refill them, battle restart does.
   Player G/controller RB and Engagement's `throw` action use the same 0.9 s commitment. Only death
@@ -876,8 +876,9 @@ before any effect is claimed.
   with distance-scaled severity, drop odds, bleeding and injury inside 9 m, and ordinary suppression
   events within 16 m. Friendly/self injuries retain attribution and earn no kill credit. Imported
   Mk 2/M24 props, three stance-specific throw clips and bounded dust/flash are presentation only
-  (`24-grenade-fx.js`); player aim displays the owner's arc and landing point. Grenade-specific audio,
-  paired-benchmark review and device smoke validation remain release work before default-enabling.
+  (`24-grenade-fx.js`); player aim displays the owner's arc and landing point. Default-enabled in #442 after a
+  paired 100-seed benchmark (quiet: casualties +0.4 %, p 0.625) and owner review. Grenade-specific
+  audio is still outstanding.
 - **FG 42 balance.** The four-arm benchmark attributed the scout balance shift to the FG 42, not
   the perception cones. Test one lever at a time: Kar98k assignment, shorter practical FG 42 range,
   or wider dispersion/grouping at range. Use the existing `perception=0` / `geScout=carbine`

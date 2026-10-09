@@ -1,10 +1,13 @@
-/* Opt-in grenade presentation. The core owns commitments, flight and blast resolution;
+/* Grenade presentation, gated by the core's `?grenades` switch. The core owns commitments, flight and blast resolution;
    this module reads its records and draws imported, lit props plus a bounded dust burst.
    No inventory, navigation, damage, suppression or simulation RNG writes. */
 (function (root) {
   'use strict';
   if (!root.BattleModules || typeof BABYLON === 'undefined' || root.BattleGrenadeFx) return;
-  var ON = /[?&]grenades=1(?:&|#|$)/.test(typeof location !== 'undefined' ? location.search || '' : ''),
+  var ON = !!(
+      root.BattleGrenades &&
+      root.BattleGrenades.parseOn(typeof location !== 'undefined' ? location.search || '' : '')
+    ),
     B = BABYLON,
     STATES = new WeakMap(),
     BOUND = new WeakSet(),

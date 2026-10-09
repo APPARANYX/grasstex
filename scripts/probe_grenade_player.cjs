@@ -11,7 +11,7 @@ const { chromium } = require('playwright');
 
 const URL_ =
   process.env.GRENADE_PLAYER_URL ||
-  'https://test.ivandpopov.com/grasstex/preview/issue409-grenade-vertical-slice/battle_sim.php?grenades=1&seed=grenade-player-smoke';
+  'https://test.ivandpopov.com/grasstex/preview/issue409-grenade-vertical-slice/battle_sim.php?seed=grenade-player-smoke';
 const OUT = path.resolve(process.env.GRENADE_PLAYER_OUT || path.join(os.tmpdir(), 'grenade-player'));
 
 (async () => {
@@ -93,7 +93,7 @@ const OUT = path.resolve(process.env.GRENADE_PLAYER_OUT || path.join(os.tmpdir()
         preview: window.BATTLE_PREVIEW || null
       };
     });
-    assert.equal(summary.fixture.enabled, true, 'the opt-in flag must reach the staged runtime');
+    assert.equal(summary.fixture.enabled, true, 'grenades must be on by default in the staged runtime');
     assert.ok(summary.fixture.count > 0);
 
     // Deploy through the shipping settings UI; the fixture selected the first live US soldier.

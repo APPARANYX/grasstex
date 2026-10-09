@@ -100,7 +100,7 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 - `BLEED_TAU = 30` — bleed-out time constant (s)
 - `ZONES`, `ZONE_ODDS` — wound zone definitions and probabilities
 
-### 23-grenades.js (opt-in `?grenades=1`)
+### 23-grenades.js (on by default; `?grenades=0` disables)
 - `SquadAI.LOADOUTS.*.grenades = { sergeant: 2, rifleman: 2, gunner: 1, scout: 2, engineer: 3 }`, `LOADOUT_MAX = 3` — carried inventory; no refill on possession/rearm
 - `RANGE = 30`, `CONF_MIN = 0.5`, `CONTACT_FRESH = 6`, `DECISION_EVERY = 1.5`, `FRIEND_CLEAR = 13` — throw range (m), personal-contact confidence/age (s), remembered-contact review cadence (s), friendly clearance including scatter (m)
 - `WINDUP = 0.9`, `COOLDOWN = 18`, `FUSE = 3.6` — decision-to-release, release cooldown, landed fuse (s)
