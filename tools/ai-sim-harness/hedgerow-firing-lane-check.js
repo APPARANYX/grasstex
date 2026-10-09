@@ -48,7 +48,7 @@ function scenario(flag) {
   q.state='engaged';
   q.inContact=true;
   const s=q.members[0];
-  s.root.position.x=0;s.root.position.z=-8;
+  s.root.position.x=0;s.root.position.z=-2.3;
   s.target={root:{position:{x:0,y:0,z:60}}};
   s.eng=null;
   return {r,b,q,s,hedge,E:r.BattleEngagement};
@@ -56,12 +56,6 @@ function scenario(flag) {
 const f=scenario('?coverPeek=1');
 assert.equal(f.E.findCover(f.s,f.b),null,
   'there is no covered slot with a shot over this tall hedge');
-console.log('HEDGE_PEEK_DIAG ' + JSON.stringify({
-  soldier:f.s.root.position, target:f.s.target.root.position,
-  coverHere:f.r.BattleObstacleField.coverPotentialAt(f.b.obstacles,f.s.root.position.x,f.s.root.position.z),
-  hasLine:f.r.SquadAI.hasLineOfSight(f.s,f.s.target,f.b.heightAt,f.b.obstacles),
-  nearSlotCount:f.r.BattleCoverPositions.snapshot(f.b).length
-}));
 f.E.decide(f.s,f.b,'no firing line');
 const e=f.E.stateOf(f.s);
 assert.equal(e.state,'bound','blind defender must begin a bounded move to a real firing lane');
