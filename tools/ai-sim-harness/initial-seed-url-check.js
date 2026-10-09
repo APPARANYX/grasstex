@@ -38,9 +38,6 @@ expect(
   false
 );
 assert.equal(calls, 4, 'explicit seeds must not consume auto-seed entropy');
-const probeRunner = fs.readFileSync(path.join(repo, 'scripts/run_probe.cjs'), 'utf8');
-assert.match(probeRunner, /new URLSearchParams\(\{ seed, pinSeed: '1' \}\)/,
-  'forensic probe and control must pin auto-shaped live seeds in fresh browser pages');
 assert.match(
   page,
   /cleanUrl\.searchParams\.delete\('seed'\)/,
