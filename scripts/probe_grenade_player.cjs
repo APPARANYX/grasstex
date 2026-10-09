@@ -118,6 +118,16 @@ const OUT = path.resolve(process.env.GRENADE_PLAYER_OUT || path.join(os.tmpdir()
     });
     await page.mouse.move(760, 420);
     await page.mouse.down({ button: 'right' });
+    // Chromium over CDP delivers pointerdown/contextmenu but not the compatibility mousedown (the
+    // Babylon canvas cancels pointerdown). Deliver that one event to the shipping canvas handler.
+    summary.syntheticMouseDown = await page.evaluate(() => {
+      const delivered = __grenadeInputLog.some(e => e.type === 'mousedown' && e.button === 2);
+      if (!delivered)
+        document
+          .getElementById('renderCanvas')
+          .dispatchEvent(new MouseEvent('mousedown', { button: 2, bubbles: true, cancelable: true }));
+      return !delivered;
+    });
     await page.evaluate(() => __battle__.scene.render());
     summary.aim = await page.evaluate(() => {
       const svg = document.getElementById('battlePlayerGrenadePreview'),
