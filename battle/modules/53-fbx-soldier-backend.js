@@ -4369,8 +4369,10 @@
             /* Let the standing/crouched fall play before leaning the whole render rig.
                By the time the body has landed, it has the slope's final pitch and roll. */
             var deathEntry = topEntry(fx.lower),
-              progress = deathEntry && deathEntry.clip && deathEntry.clip.duration > 0
-                ? deathEntry.t / deathEntry.clip.duration : 1,
+              progress =
+                deathEntry && deathEntry.clip && deathEntry.clip.duration > 0
+                  ? deathEntry.t / deathEntry.clip.duration
+                  : 1,
               contact = Math.max(0, Math.min(1, (progress - 0.2) / 0.55));
             tilt.pitch *= contact;
             tilt.roll *= contact;
