@@ -86,7 +86,7 @@
     }
     return false;
   }
-  function makeWet(ctx) {
+  function makeWet(ctx, trackNode) {
     if (wet && wet.ctx === ctx) return wet;
     if (!ctx || !ctx.createConvolver || !ctx.createGain || !ctx.createBuffer) return null;
     try {
@@ -107,7 +107,7 @@
       output.gain.value = 0.23;
       convolver.connect(output);
       var ae = BABYLON.Engine && BABYLON.Engine.audioEngine;
-      output.connect((ae && ae.masterGain) || ctx.destination);
+      output.connect(trackNode || (ae && ae.masterGain) || ctx.destination);
       wet = { ctx: ctx, input: convolver };
     } catch (_) {
       wet = null;
@@ -117,40 +117,79 @@
   function filterFor(e) {
     if (e.filter || e.failedFilter || quality === 'off') return;
     var s = e.sound,
+      gain = null;
+    try {
       gain = s && (typeof s.getSoundGain === 'function' ? s.getSoundGain() : s._soundGain);
+    } catch (_) {}
     var panner = s && s._soundPanner,
       ctx = gain && gain.context;
-    if (!ctx || !panner || typeof panner.disconnect !== 'function' || !ctx.createBiquadFilter) {
+    // Babylon 9.27 Sound adapts AudioV2: its output is the gain node returned
+    // by getSoundGain(), and the original destination is its SoundTrack bus.
+    var scene = s && s._scene,
+      track =
+        scene &&
+        (s.soundTrackId >= 0 && scene.soundTracks
+          ? scene.soundTracks[s.soundTrackId]
+          : scene.mainSoundTrack),
+      trackNode = track && track._outputAudioNode,
+      v2 = !!(s && s._soundV2 && trackNode && typeof s.connectToSoundTrackAudioNode === 'function');
+    // A pooled Sound survives battle restarts. Reuse the existing nodes rather
+    // than inserting another filter every time its acoustic record is recreated.
+    if (s && s._battleAcousticFilter) {
+      e.filter = s._battleAcousticFilter;
+      e.send = s._battleAcousticSend || null;
+      return;
+    }
+    if (!ctx || !ctx.createBiquadFilter) return;
+    if (!v2 && (!panner || typeof panner.disconnect !== 'function')) {
       e.failedFilter = true;
       stats.degraded++;
       return;
     }
-    var filter = null;
+    var filter = null,
+      switched = false;
     try {
       filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
       filter.frequency.value = 20000;
-      // This targets the known legacy Babylon graph panner -> gain. Never rewire
-      // a graph with missing nodes; a failed connection falls back to untouched audio.
-      panner.disconnect(gain);
-      panner.connect(filter);
-      filter.connect(gain);
+      if (v2) {
+        // Public rerouting API keeps Babylon's bookkeeping intact. The filter
+        // returns to exactly the same SoundTrack bus used before it was inserted.
+        filter.connect(trackNode);
+        s.connectToSoundTrackAudioNode(filter);
+      } else {
+        // Legacy graph, if present: source -> spatial panner -> gain.
+        panner.disconnect(gain);
+        panner.connect(filter);
+        filter.connect(gain);
+      }
+      switched = true;
       e.filter = filter;
-      var bus = makeWet(ctx);
+      s._battleAcousticFilter = filter;
+      var bus = makeWet(ctx, v2 ? trackNode : null);
       if (bus && ctx.createGain) {
         e.send = ctx.createGain();
         e.send.gain.value = 0;
         filter.connect(e.send);
         e.send.connect(bus.input);
+        s._battleAcousticSend = e.send;
       }
       stats.filtered++;
     } catch (_) {
       try {
-        if (filter) filter.disconnect();
+        if (switched && v2) s.connectToSoundTrackAudioNode(trackNode);
+        else if (switched) {
+          panner.disconnect(filter);
+          panner.connect(gain);
+        }
       } catch (_) {}
       try {
-        panner.connect(gain);
+        if (filter) filter.disconnect();
       } catch (_) {}
+      s._battleAcousticFilter = null;
+      s._battleAcousticSend = null;
+      e.filter = null;
+      e.send = null;
       e.failedFilter = true;
       stats.degraded++;
     }
