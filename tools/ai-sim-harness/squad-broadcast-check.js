@@ -196,7 +196,6 @@ function tick(w, t) {
   assert.equal(warned.contact.x, 0, 'report remains tied to original firing point after shooter moves');
 }
 
-
 {
   /* Switching the explicit shot-origin reveal off must preserve the legacy
      non-magical hearing/spotting path, even when a distant aimed burst fires. */
