@@ -62,4 +62,39 @@ function resolveLine(r,s,t,obstacles,enemies){
   assert.ok(shot.impact.z<-1.5,'legacy/no-footprint obstacles retain their old cylinder collision');
   console.log('PASS compatibility fallback remains for obstacles without physical geometry');
 }
-console.log('4 ballistics geometry checks passed');
+
+/* Continuous player bore preview is read-only and uses the same solid geometry
+   as actual rounds before any weapon dispersion is applied. */
+{
+  const r=root(),B=r.BattleBallistics,b=H.makeBattle(r,{seed:18}),s=man(0,0,'us'),t=man(0,30,'ge');
+  s.weapon=weapon('rifle');b._roster.ge.push(t);b.factions.ge.alive=1;
+  let randomCalls=0,shotCalls=0;b.random=()=>{randomCalls++;return .5;};b.onShot=()=>shotCalls++;
+  const sight={x:0,y:.88,z:30},before=t.hp;
+  const dot=B.previewPlayerRay(s,sight,b);
+  assert.ok(dot&&dot.impact,'muzzle preview returns a physical impact');
+  assert.equal(dot.stoppedBy,'soldier','the preview intersects a real enemy in its ray');
+  assert.ok(dot.impact.z>29&&dot.impact.z<31,'preview ends at the body, not at the 120 m range limit');
+  assert.equal(t.hp,before,'preview cannot inflict wounds');
+  assert.equal(randomCalls,0,'preview cannot consume combat RNG');
+  assert.equal(shotCalls,0,'preview cannot emit ballistic shot callbacks');
+  const liveShot=B.resolvePlayerRay(s,sight,b,0,0);
+  assert.equal(liveShot.victim,t,'real ray uses the same enemy-intersection geometry');
+  assert.ok(Math.abs(liveShot.impact.z-dot.impact.z)<.05,
+    'zero-dispersion live hit and read-only preview agree on physical contact');
+  assert.ok(randomCalls>0&&shotCalls>0,'only the real discharge consumes RNG and reports a hit');
+  console.log('PASS bore preview is non-mutating and agrees with actual enemy hit geometry');
+}
+{
+  const r=root(),B=r.BattleBallistics,s=man(15,-10,'us');
+  s.weapon=weapon('rifle');s.prone=true;
+  const b=H.makeBattle(r,{seed:19,obstacles:logField(15,0)});
+  b.random=()=>{throw Error('preview must not use random');};
+  const dot=B.previewPlayerRay(s,{x:15,y:.42,z:10},b);
+  assert.equal(dot.stoppedBy,'environment','physical cover stops the previewed bullet');
+  assert.ok(dot.impact.z>-.36&&dot.impact.z<-.2,
+    'preview stops at the actual low log face');
+  assert.equal(B.previewPlayerRay(s,{x:NaN,y:0,z:1},b),null,
+    'invalid input never produces a misleading marker');
+  console.log('PASS bore preview respects low cover and rejects invalid input');
+}
+console.log('6 ballistics geometry checks passed');
