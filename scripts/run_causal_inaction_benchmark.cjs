@@ -221,6 +221,27 @@ md.push(
     fired +
     '. Firing after selection does not prove LOS to the original target.'
 );
+for (const lane of summary.coverLaneOutcomes) {
+  const xs = lane.samples || [];
+  const first = xs[0], last = xs[xs.length - 1];
+  const statuses = [...new Set(xs.map(x =>
+    [x.state, x.squadPhase, x.stop || '-', x.resolver?.owner || '-'].join('/')))].slice(0, 18);
+  md.push(
+    '- ' + lane.actor + ' @ ' + lane.start + ' s, goal ' + JSON.stringify(lane.goal) +
+    ', start ' + JSON.stringify(lane.startPosition) +
+    ', arrival ' + String(lane.arrivedAt) + ', fire ' + String(lane.firedAt) +
+    ', observed final position ' + JSON.stringify(lane.lastPosition) +
+    ', reason ' + String(lane.statusReason) +
+    ', initial sample ' + JSON.stringify(first) +
+    ', final sample ' + JSON.stringify(last) +
+    ', successive states ' + JSON.stringify(statuses)
+  );
+  for (const point of xs.slice(0, 12))
+    md.push('    - t=' + point.t + ', pos=' + JSON.stringify(point.pos) +
+      ', dest=' + JSON.stringify(point.dest) + ', engagement=' + point.state +
+      ', phase=' + point.squadPhase + ', stop=' + point.stop +
+      ', owner=' + (point.resolver?.owner || 'none') + ', hp=' + point.hp);
+}
 if (summary.coverDecisionsOmitted)
   md.push(
     '- Warning: ' +
