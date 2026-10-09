@@ -41,7 +41,7 @@ const html = `<!doctype html><meta charset="utf-8"><style>body{margin:0}canvas{w
       new B.HemisphericLight('sky', new B.Vector3(0, 1, 0), scene).intensity = 1.1;
       const sun = new B.DirectionalLight('sun', new B.Vector3(-0.4, -1, 0.8), scene);
       sun.intensity = 2;
-      const ground = B.MeshBuilder.CreateGround('ground', { width: 20, height: 20 }, scene);
+      const ground = B.MeshBuilder.CreateGround('ground', { width: 80, height: 80 }, scene);
       const mat = new B.StandardMaterial('groundMat', scene);
       mat.diffuseColor = new B.Color3(0.23, 0.27, 0.16);
       ground.material = mat;

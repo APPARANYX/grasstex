@@ -180,10 +180,13 @@
       quad.billboardMode = B.Mesh.BILLBOARDMODE_ALL;
       quad.isPickable = false;
       quad.material = i ? dust : flash;
+      /* The ignition stays in front of the dense initial dust cloud. */
+      quad.alphaIndex = i ? 0 : 1000;
       quads.push(quad);
     }
     var light = new B.PointLight('grenadeBurstLight', holder.position.clone(), scene);
     light.diffuse = new B.Color3(1, 0.62, 0.24);
+    light.specular = B.Color3.Black();
     light.range = 7;
     st.bursts.push({
       node: holder,

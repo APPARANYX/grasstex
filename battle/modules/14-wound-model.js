@@ -90,8 +90,10 @@
       if (by && by.faction === s.faction)
         st.grenadeFriendlyCasualties = (st.grenadeFriendlyCasualties || 0) + 1;
     }
-    // Keep causal attribution above, but friendly/self casualties never earn an enemy kill.
-    var credit = by && by.faction !== s.faction ? by : null;
+    // Grenade friendly/self casualties retain their cause without earning an enemy kill.
+    // Preserve the existing ordinary-round credit path in the flag-OFF control.
+    var credit =
+      lastWound && lastWound.source === 'grenade' && by && by.faction === s.faction ? null : by || null;
     battle.killSoldier(s, credit);
     if (root.BattleEngagement && root.BattleEngagement.noteKill) root.BattleEngagement.noteKill(credit);
     /* The man who put him down is told (nothing is queued unless a layer reads `kill`). */
