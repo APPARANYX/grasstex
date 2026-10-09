@@ -1193,18 +1193,19 @@
     /* A tall hedge may shield every sheltered slot from its threat. When held behind
        that cover without a line, search reachable edge slots before abandoning the
        fire-fight or pretending to shoot through the hedge. */
-    if (
-      !cover &&
-      COVER_PEEK &&
-      !suppressed &&
-      target &&
-      target.root &&
-      !SA().hasLineOfSight(s, target, battle.heightAt, battle.obstacles)
-    ) {
+    var laneAllowed = !cover && COVER_PEEK && !suppressed && target && target.root,
+      laneBlocked = laneAllowed && !SA().hasLineOfSight(s, target, battle.heightAt, battle.obstacles);
+    if (laneBlocked) {
       cover = coverImpl().findFiringLane(s, battle, {
         maxRange: COVER_RANGE,
         notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null
       });
+    } else if (!cover && root.BattleCausalInaction && root.BattleCausalInaction.coverDecision) {
+      /* This event is a direct top-level Engagement skip reason. It does not
+         re-evaluate LOS, request movement or alter a cover reservation. */
+      root.BattleCausalInaction.coverDecision(s, battle, 'firing-lane-gate',
+        !COVER_PEEK ? 'flag-disabled' : suppressed ? 'suppressed' :
+        !target || !target.root ? 'no-live-target' : 'line-already-open');
     }
     if (cover) {
       e.cover = cover;
