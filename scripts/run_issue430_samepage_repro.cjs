@@ -120,7 +120,7 @@ const hash = s => createHash('sha256').update(s).digest('hex');
         if (root.BattleSoldierModel && root.BattleSoldierModel.setImportedEnabled) {
           root.BattleSoldierModel.setImportedEnabled(sim.scene, false);
         }
-        (sim._controlRawRestart || sim.restart.bind(sim))();
+        sim.restart();
         sim._fixedClock.reset();
         Object.assign(sim, {
           paused: false,
