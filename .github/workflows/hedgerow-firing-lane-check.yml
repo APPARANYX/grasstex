@@ -1,0 +1,20 @@
+name: Hedgerow firing-lane safety regression
+on:
+  push:
+    branches:
+      - work/hedge-firing-lane-review
+permissions:
+  contents: read
+jobs:
+  hedge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test sightline and bounded fire lane
+        run: |
+          node tools/ai-sim-harness/hedgerow-firing-lane-check.js
+          node tools/ai-sim-harness/cover-positions-check.js
