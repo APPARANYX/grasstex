@@ -1,0 +1,32 @@
+name: Temporary hedge firing-lane paired acceptance
+on:
+  push:
+    branches:
+      - work/hedge418-paired-benchmark-dispatch
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch bounded hedge-peek controls
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for mode in meeting us-defend ge-defend; do
+            gh workflow run battle-benchmark-standard.yml \
+              --repo APPARANYX/grasstex \
+              --ref work/hedge-firing-lane-review \
+              -f seed=hedge418a \
+              -f seeds=20 \
+              -f query_off='' \
+              -f query_on=coverPeek=1 \
+              -f battle_type="$mode" \
+              -f windows=contact+60,every60 \
+              -f origin_agent=chatgpt \
+              -f correlation_id="issue418-hedge-${mode}-20" \
+              -f purpose="Cover peek opt-in safety 20 paired seeds"
+            echo "Dispatched $mode"
+          done
