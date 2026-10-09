@@ -146,6 +146,8 @@ assert(source.includes('longMove && screen.visible && targetScreen && targetScre
 assert(!source.includes('edge || screen'), 'edge chevrons cannot become movement path origins');
 assert(!source.includes('targetEdge || targetScreen'), 'edge points cannot become movement path endpoints');
 assert(!source.includes('OFFSCREEN_PAD'), 'projected symbols may not display beyond canvas');
+assert(source.includes('!behind &&'), 'behind-camera symbols cannot be treated as onscreen projections');
+assert(source.includes('m.arrowStartedAt == null'), 'command cue starts when previously offscreen endpoints enter view');
 assert(source.includes("var insetX = Math.min(SYMBOL_INSET_X"), 'onscreen bounds include symbol label clearance');
 
 const fallbackSymbol = JSON.parse(JSON.stringify(O.symbolSpec({})));
