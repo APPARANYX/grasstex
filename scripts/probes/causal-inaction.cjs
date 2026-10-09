@@ -13,7 +13,7 @@
     side: params.get('probeSide') || 'all',
     roles: csv('probeRole'), ids: csv('probeIds'), squads: csv('probeSquads')
   };
-  var MAX_EPISODES = 80, MAX_HISTORY = 10, MAX_DENIALS = 160, FIRE_SILENCE = 5, MOVE_STILL = 12;
+  var MAX_EPISODES = 160, MAX_HISTORY = 10, MAX_DENIALS = 160, FIRE_SILENCE = 5, MOVE_STILL = 12;
   var data, units, originalFire;
   function round(n) { return +Number(n || 0).toFixed(2); }
   function bump(o, k) { o[k] = (o[k] || 0) + 1; }
@@ -127,6 +127,9 @@
     } };
   }
   function movementClassification(o) {
+    if (o.current === false && o.envelopeId)
+      return { code: 'stale-order-version', confidence: 'verified', scope: 'order-version',
+        interpretation: 'The adopted/received movement envelope is from a different mission version; investigate order publication and replacement.' };
     if (o.state === 'held')
       return { code: 'resolver-hold', confidence: 'verified', scope: 'arbitration',
         interpretation: 'Movement Resolver chose a different authority. This may be a justified hold, not a defect.' };
