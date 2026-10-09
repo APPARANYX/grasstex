@@ -66,13 +66,14 @@
       fx = flat > 1e-6 ? dx / flat : Math.sin(yaw),
       fz = flat > 1e-6 ? dz / flat : Math.cos(yaw);
     var mx = p.x + fx * forward,
-      mz = p.z + fz * forward;
+      mz = p.z + fz * forward,
+      ground = st === 'prone' ? battle.heightAt(mx, mz) : battle.heightAt(p.x, p.z);
     /* A prone weapon projects 0.45-0.82 m ahead of the soldier. On an uphill slope,
        sampling ground beneath the hips for a forward muzzle puts the barrel INSIDE the hill.
        Sample the terrain at the actual muzzle's horizontal location instead; this is the
        same semantic origin used by AI rounds, player free-fire and the crest/LOS fire gate.
        Standing/crouched origins keep their established grouping on flat and sloped terrain. */
-    return { x: mx, y: battle.heightAt(st === 'prone' ? mx : p.x, st === 'prone' ? mz : p.z) + h, z: mz };
+    return { x: mx, y: ground + h, z: mz };
   }
   /* Presentation-only ground tangent. The render rig can pitch/roll its prone body without
      rotating the authoritative soldier root or changing the real bullet's aim direction.
@@ -90,13 +91,13 @@
       back = 0.55,
       side = 0.45,
       h = battle.heightAt;
-    var along = (h(p.x + fx * front, p.z + fz * front) -
-        h(p.x - fx * back, p.z - fz * back)) / (front + back),
-      across = (h(p.x + rx * side, p.z + rz * side) -
-        h(p.x - rx * side, p.z - rz * side)) / (2 * side);
+    var riseForward = h(p.x + fx * front, p.z + fz * front) - h(p.x - fx * back, p.z - fz * back),
+      riseRight = h(p.x + rx * side, p.z + rz * side) - h(p.x - rx * side, p.z - rz * side),
+      pitch = -Math.atan(riseForward / (front + back)),
+      roll = Math.atan(riseRight / (2 * side));
     return {
-      pitch: Math.max(-0.35, Math.min(0.35, -Math.atan(along))),
-      roll: Math.max(-0.24, Math.min(0.24, Math.atan(across)))
+      pitch: Math.max(-0.35, Math.min(0.35, pitch)),
+      roll: Math.max(-0.24, Math.min(0.24, roll))
     };
   }
   function bodyShape(s, battle) {
