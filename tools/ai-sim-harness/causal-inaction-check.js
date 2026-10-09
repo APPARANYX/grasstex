@@ -107,8 +107,12 @@ for (let t = 0; t <= 13; t++) {
     a.soldier._losBlockedFire = 2;
     a.sim.time = t;
     a.root.BattleCausalInaction.coverDecision(
-      a.soldier, a.sim, 'normal-cover', 'no-viable-cover',
-      { 'no-standing-los': 2, 'path-unreachable': 1 }, null
+      a.soldier,
+      a.sim,
+      'normal-cover',
+      'no-viable-cover',
+      { 'no-standing-los': 2, 'path-unreachable': 1 },
+      null
     );
   }
   a.sample(t);
@@ -123,8 +127,11 @@ assert.equal(fire.code, 'observed-trigger-rejection');
 assert.equal(fire.confidence, 'verified');
 assert.equal(fire.scope, 'shot-attempt', 'does not claim entire silence proven');
 assert.equal(fire.evidence.triggerRejectDeltas.los, 2);
-assert.equal(fire.evidence.coverDecisions[0].code, 'no-viable-cover',
-  'direct planner denial is attached to the fire-silence evidence');
+assert.equal(
+  fire.evidence.coverDecisions[0].code,
+  'no-viable-cover',
+  'direct planner denial is attached to the fire-silence evidence'
+);
 assert.equal(fire.evidence.coverDecisions[0].rejected['no-standing-los'], 2);
 assert.equal(report.coverDecisionCounts['normal-cover:no-viable-cover'], 1);
 assert.equal(report.coverRejectCounts['normal-cover:path-unreachable'], 1);
@@ -145,9 +152,7 @@ assert.equal(report.counts['fire-silence'], 1, 'shot resets silence clock');
 // Selected firing-lane arrivals are measured from observed positions and shot callbacks,
 // never by re-running LOS, planning a route, or changing Engagement orders.
 a.sim.time = 19;
-a.root.BattleCausalInaction.coverDecision(
-  a.soldier, a.sim, 'firing-lane', 'selected', {}, { x: 12, z: 0 }
-);
+a.root.BattleCausalInaction.coverDecision(a.soldier, a.sim, 'firing-lane', 'selected', {}, { x: 12, z: 0 });
 let lane = a.probe.report(a.sim).coverLaneOutcomes[0];
 assert.equal(lane.status, 'selected');
 assert.equal(lane.arrivedAt, null);
@@ -200,7 +205,9 @@ assert.ok(fireSource.includes("return reportFireDenial(s, battle, 'mg-not-setup'
 const f = fixture('?probeIds=76', 'executing');
 for (let k = 0; k < 325; k++) {
   f.sim.time = k / 10;
-  f.root.BattleCausalInaction.coverDecision(f.soldier, f.sim, 'normal-cover', 'no-viable-cover', { 'no-standing-los': 1 });
+  f.root.BattleCausalInaction.coverDecision(f.soldier, f.sim, 'normal-cover', 'no-viable-cover', {
+    'no-standing-los': 1
+  });
 }
 assert.equal(f.probe.report(f.sim).coverDecisions.length, 320);
 assert.equal(f.probe.report(f.sim).coverDecisionsOmitted, 5);
@@ -208,7 +215,8 @@ assert.equal(f.probe.report(f.sim).coverRejectCounts['normal-cover:no-standing-l
 
 // The production cover gate must report the decision exactly where it was rejected.
 const coverSource = fs.readFileSync(
-  path.join(__dirname, '../../battle/modules/19-engagement-cover-positions.js'), 'utf8'
+  path.join(__dirname, '../../battle/modules/19-engagement-cover-positions.js'),
+  'utf8'
 );
 assert.ok(coverSource.includes("rejected('no-standing-los')"));
 assert.ok(coverSource.includes("observed(best ? 'selected' : 'no-viable-cover', best)"));
