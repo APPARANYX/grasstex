@@ -1,0 +1,31 @@
+name: Temporary formatter for movement core
+on:
+  push:
+    branches:
+      - 'work/experimental-movement-substeps'
+    paths:
+      - '.github/workflows/temporary-format-movement-core.yml'
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/experimental-movement-substeps
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Format existing compact source using the pinned repo standard
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write battle/battle-sim.js battle/modules/00-movement-substeps.js tools/ai-sim-harness/movement-substeps-check.js
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add battle/battle-sim.js battle/modules/00-movement-substeps.js tools/ai-sim-harness/movement-substeps-check.js
+          if ! git diff --cached --quiet; then
+            git commit -m "Apply pinned Prettier to movement precision experiment"
+            git push origin HEAD:work/experimental-movement-substeps
+          fi
