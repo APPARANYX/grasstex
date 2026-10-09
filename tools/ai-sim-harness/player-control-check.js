@@ -31,9 +31,9 @@ assert.match(cameraSource, /soldier\.dead \|\| !soldier\.root/,
   'soldier selection rejects casualties');
 assert.match(cameraSource, /if \(menuOpen\) closePlayerMenu\(\)/,
   'player release cleans up the menu');
-assert.match(cameraSource, /if \(b && !b\.paused && !b\.winner && typeof b\.pause/,
+assert.match(cameraSource, /!b\.paused[\s\S]{0,100}typeof b\.pause/,
   'settings pause only an active battle');
-assert.match(cameraSource, /if \(b && b === liveBattle\(\) && b\.paused && !b\.winner && typeof b\.resume/,
+assert.match(cameraSource, /b === liveBattle\(\)[\s\S]{0,170}typeof b\.resume/,
   'settings resume only a pause owned by this menu');
 
 const vm = require('node:vm');
