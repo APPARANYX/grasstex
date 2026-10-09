@@ -7,7 +7,16 @@ casualties, wounds, shooting, and AI orders remain with their existing owners.
 
 ## HUD and damage feedback
 
-- Enter player mode with desktop **P** or standard gamepad **Menu**. The lower-left HUD
+- Tap standard gamepad **Menu/Start** to enter player mode or switch to another living
+  soldier of your current faction; hold Menu for **650 ms** to open **Player Settings**.
+  Desktop **P** still enters/switches soldiers; **O** opens the settings panel.
+  The menu supports faction (US/Germany), active unit/squad, and individual living soldier
+  selection, plus a haptic feedback toggle. D-pad up/down changes fields, left/right changes
+  selections, **A** deploys/toggles haptics, **B** backs out; keyboard, mouse and touch can
+  operate the native selectors and buttons. Menu pauses a running battle while open,
+  resumes only if it initiated the pause, and blocks player movement/firing underneath.
+  Selection never creates a soldier and refuses dead or stale roster entries.
+- The lower-left HUD
   shows current soldier/faction, soldier `hp / maxHp`, stamina, and wound-model
   `bleedRate` with explicit bleeding/wounded/stable statuses.
 - The player stamina budget starts at 100 on possession, drains 12 points per
@@ -39,7 +48,7 @@ The overlay toggle continues to control these indications.
 
 ## Regression checks
 
-- `node tools/ai-sim-harness/player-control-check.js`
+- `node tools/ai-sim-harness/player-control-check.js` (Menu tap/hold timing and roster safety)
 - `node tools/ai-sim-harness/squad-status-overlay-check.js`
 - Manual smoke: switch possession, sprint to exhaustion/recovery, fire a loaded
   weapon and an empty one, take a hit from several bearings and turn, confirm
