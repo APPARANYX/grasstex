@@ -57,7 +57,7 @@ function close(a, b, why) {
   assert.ok(B.proneTerrainTilt(s, b).pitch < -0.3, 'uphill body tilts muzzle up');
   assert.equal(B.fireLineBlocked(s, { ...t, prone: true }, b), false,
     'a clear uphill bore-to-target line is not falsely classified as blocked');
-  const ray = B.resolvePlayerRay(s, { x: 0, y: b.heightAt(30) + 0.9, z: 30 }, b);
+  const ray = B.resolvePlayerRay(s, { x: 0, y: b.heightAt(0, 30) + 0.9, z: 30 }, b);
   assert.ok(ray && ray.travel > 8,
     'uphill player MG42 shot leaves muzzle and travels instead of impacting at the feet');
   close(ray.origin.y, origin.y, 'player free-fire uses the same muzzle');
