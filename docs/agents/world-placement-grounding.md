@@ -4,7 +4,7 @@
 
 A visit to `battle_sim.php` / the local battle page **without** an explicit
 `?seed=` chooses a new `BattleScenarioGenerator.newSeed('live')` on every page
-load or refresh. We do not rewrite that seed into the URL. The chosen seed remains
+load or refresh, including default-entry links. We do not rewrite that seed into the URL. The chosen seed remains
 visible in the HUD and diagnostics. An explicit `?seed=example` is deterministic
 and remains suitable for bug reproduction and benchmarks; operator scenario
 controls may also deliberately select a specific seed.
