@@ -484,7 +484,7 @@ assert.equal(ge.contact.z, s.root.position.z);
 const recordedRayOrigin = { x: ge.contact.x, z: ge.contact.z };
 s.root.position.x += 7;
 assert.deepEqual({ x: ge.contact.x, z: ge.contact.z }, recordedRayOrigin,
-  'the enemy remembers the shot-time origin, not the player's live location');
+  'the enemy remembers the shot-time origin, not the live shooter location');
 s.root.position.x -= 7;
 ge.contact = null;
 r.BattleBallistics.resolvePlayerRay = () => ({ victim: null, stoppedBy: 'terrain' });
