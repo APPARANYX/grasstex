@@ -469,8 +469,9 @@
     function findFiringLane(s, battle, opts) {
       opts = opts || {};
       var F = field(),
-        t = s.target;
-      if (!F || !t || !t.root) return null;
+        t = s.target,
+        P = root.BattleNavigationPhysicality;
+      if (!F || !t || !t.root || !P || !P.shapeHit) return null;
       var p = posOf(s),
         maxRange = opts.maxRange || COVER_RANGE,
         nearby = F.nearby(battle.obstacles, p.x, p.z, maxRange),
@@ -486,7 +487,7 @@
         for (var j = 0; j < slots.length; j++) {
           var slot = slots[j],
             shape = slot.shape;
-          if (!shape || shape.shape !== 'obb') continue;
+          if (!shape || shape.shape !== 'obb' || !P.shapeHit(p, posOf(t), shape, 0)) continue;
           /* Long-face slots are behind the obstacle and stay blind; only an end
            face has a chance to see around a continuous long hedgerow. */
           var ux = +shape.ux || 1,
