@@ -512,6 +512,7 @@
       if (!menuOpen) return;
       menuOpen = false;
       if (settingsMenu) settingsMenu.style.display = 'none';
+      canvas.focus();
       var b = menuPauseOwner;
       menuPauseOwner = null;
       if (b && b === liveBattle() && b.paused && !b.winner && typeof b.resume === 'function') b.resume();
@@ -609,6 +610,7 @@
       syncMenuFocus();
       menuOpen = true;
       settingsMenu.style.display = 'flex';
+      settingsMenu.querySelector('#bpmFaction').focus();
       mouseAim = false;
       mouseFire = false;
       keys.clear();
@@ -911,7 +913,7 @@
       'keydown',
       function (event) {
         var key = keyName(event);
-        if (key === 'o' && !event.repeat && !editableTarget(event.target)) {
+        if (key === 'o' && !event.repeat && (menuOpen || !editableTarget(event.target))) {
           togglePlayerMenu();
           event.preventDefault();
           return;
