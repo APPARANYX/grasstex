@@ -4353,13 +4353,18 @@
         /* Terrain-follow is presentation-only: the torso and weapon lean with the hill
            when prone; authoritative root yaw, collision, orders and shot origins remain
            simulation-owned. Keep it active even on animation-LOD hold frames. */
-        var ballistics = root.BattleBallistics,
-          battle = root.__battle__,
-          tilt = fx.stance === 'prone' && !fx.death && ballistics && ballistics.proneTerrainTilt &&
-            battle && battle.heightAt
-              ? ballistics.proneTerrainTilt(fx.soldier, battle)
-              : { pitch: 0, roll: 0 },
-          frameDt = Math.max(0, Math.min(0.05, (scene.getEngine().getDeltaTime() || 16.7) / 1000)),
+        var battle = root.__battle__,
+          tilt = { pitch: 0, roll: 0 };
+        if (
+          fx.stance === 'prone' &&
+          !fx.death &&
+          root.BattleBallistics &&
+          root.BattleBallistics.proneTerrainTilt &&
+          battle &&
+          battle.heightAt
+        )
+          tilt = root.BattleBallistics.proneTerrainTilt(fx.soldier, battle);
+        var frameDt = Math.max(0, Math.min(0.05, (scene.getEngine().getDeltaTime() || 16.7) / 1000)),
           follow = 1 - Math.exp(-10 * frameDt);
         fx.holder.rotation.x += (tilt.pitch - fx.holder.rotation.x) * follow;
         fx.holder.rotation.z += (tilt.roll - fx.holder.rotation.z) * follow;
