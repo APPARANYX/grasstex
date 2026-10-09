@@ -1,5 +1,6 @@
-/* Hosted battle-player grenade smoke test. Drives the real settings, RMB and G handlers,
- * then steps the shipping simulation to inspect release/fuse/burst. The fixture relocates one
+/* Hosted battle-player grenade smoke test. Drives the real settings, RMB, G and LMB handlers
+ * (G chooses the grenade, RMB shows the arc, LMB throws), then steps the shipping simulation to
+ * inspect release/fuse/burst. The fixture relocates one
  * soldier to an open throwing lane; it never invokes playerThrow or writes grenade inventory.
  * GRENADE_PLAYER_URL selects a hosted preview; GRENADE_PLAYER_OUT keeps JSON/screenshots.
  */
@@ -120,45 +121,57 @@ const OUT = path.resolve(process.env.GRENADE_PLAYER_OUT || path.join(os.tmpdir()
     await page.mouse.down({ button: 'right' });
     // Chromium over CDP delivers pointerdown/contextmenu but not the compatibility mousedown (the
     // Babylon canvas cancels pointerdown). Deliver that one event to the shipping canvas handler.
-    summary.syntheticMouseDown = await page.evaluate(() => {
-      const delivered = __grenadeInputLog.some(e => e.type === 'mousedown' && e.button === 2);
-      if (!delivered)
-        document
-          .getElementById('renderCanvas')
-          .dispatchEvent(new MouseEvent('mousedown', { button: 2, bubbles: true, cancelable: true }));
-      return !delivered;
-    });
+    const deliver = button =>
+      page.evaluate(button => {
+        const delivered = __grenadeInputLog.some(e => e.type === 'mousedown' && e.button === button);
+        if (!delivered)
+          document
+            .getElementById('renderCanvas')
+            .dispatchEvent(new MouseEvent('mousedown', { button, bubbles: true, cancelable: true }));
+        return !delivered;
+      }, button);
+    summary.syntheticMouseDown = { right: await deliver(2) };
     await page.evaluate(() => __battle__.scene.render());
-    summary.aim = await page.evaluate(() => {
-      const svg = document.getElementById('battlePlayerGrenadePreview'),
-        path = svg?.querySelector('path'),
-        landing = svg?.querySelector('circle'),
-        label = svg?.querySelector('text');
-      return {
-        camera: __battle__.scene.activeCamera.name,
-        visible: !!svg && getComputedStyle(svg).display !== 'none',
-        arc: path?.getAttribute('d'),
-        color: path?.getAttribute('stroke'),
-        landingVisible: !!landing && getComputedStyle(landing).display !== 'none',
-        label: label?.textContent,
-        hud: document.getElementById('battlePlayerGrenades')?.textContent,
-        hint: document.getElementById('cameraHint')?.textContent,
-        inputLog: __grenadeInputLog,
-        mouseTarget: document.elementFromPoint(760, 420)?.id,
-        pointerLock: document.pointerLockElement?.id
-      };
-    });
+    const overlay = () =>
+      page.evaluate(() => {
+        const svg = document.getElementById('battlePlayerGrenadePreview'),
+          path = svg?.querySelector('path'),
+          landing = svg?.querySelector('circle'),
+          label = svg?.querySelector('text');
+        return {
+          camera: __battle__.scene.activeCamera.name,
+          visible: !!svg && getComputedStyle(svg).display !== 'none',
+          arc: path?.getAttribute('d'),
+          color: path?.getAttribute('stroke'),
+          landingVisible: !!landing && getComputedStyle(landing).display !== 'none',
+          label: label?.textContent,
+          hud: document.getElementById('battlePlayerGrenades')?.textContent,
+          hint: document.getElementById('cameraHint')?.textContent,
+          inputLog: __grenadeInputLog,
+          mouseTarget: document.elementFromPoint(760, 420)?.id,
+          pointerLock: document.pointerLockElement?.id
+        };
+      });
+    summary.aimWithRifle = await overlay();
+    assert.equal(summary.aimWithRifle.camera, 'playerCam');
+    assert.equal(summary.aimWithRifle.visible, false, 'aiming with the rifle must not draw a grenade arc');
+    assert.match(summary.aimWithRifle.hud, /G \/ RB SELECT/);
+
+    // G chooses the grenade; only then does aim mode show the arc.
+    await page.keyboard.press('g');
+    await page.evaluate(() => __battle__.scene.render());
+    summary.aim = await overlay();
     await screenshot(page, summary, 'aim-preview');
-    assert.equal(summary.aim.camera, 'playerCam');
-    assert.equal(summary.aim.visible, true, 'RMB must show the shipping grenade preview');
+    assert.equal(summary.aim.visible, true, 'a chosen grenade must show the shipping arc in aim mode');
+    assert.match(summary.aim.hud, /SELECTED/);
     assert.match(summary.aim.arc, /M.*L/, 'the projected arc must contain visible segments');
     assert.equal(summary.aim.color, '#f5d789', 'the selected lane must have a legal throw');
     assert.equal(summary.aim.landingVisible, true);
     assert.match(summary.aim.label, /m.*grenade/);
-    assert.match(summary.aim.hud, /GRENADES/);
 
-    await page.keyboard.down('g');
-    await page.keyboard.down('g'); // CDP produces repeat=true when the key remains held.
+    // Fire is the throw. Hold it down: one press must make exactly one throw.
+    await page.mouse.down({ button: 'left' });
+    summary.syntheticMouseDown.left = await deliver(0);
     await page.evaluate(() => __battle__.scene.render());
     summary.windup = await page.evaluate(() => {
       const b = __battle__,
@@ -173,14 +186,13 @@ const OUT = path.resolve(process.env.GRENADE_PLAYER_OUT || path.join(os.tmpdir()
         hud: document.getElementById('battlePlayerGrenades')?.textContent
       };
     });
-    assert.equal(summary.windup.pending, true, 'G must enter the real grenade commitment owner');
+    assert.equal(summary.windup.pending, true, 'fire must enter the real grenade commitment owner');
     assert.equal(summary.windup.count, summary.fixture.count, 'windup must retain carried inventory');
     assert.equal(summary.windup.throws, 0);
     assert.match(summary.windup.hud, /THROWING/);
     await screenshot(page, summary, 'windup');
 
     await advance(page, summary.windup.releaseAt + 0.01);
-    await page.keyboard.down('g');
     await page.evaluate(() => __battle__.scene.render());
     summary.release = await page.evaluate(() => {
       const b = __battle__,
@@ -200,7 +212,7 @@ const OUT = path.resolve(process.env.GRENADE_PLAYER_OUT || path.join(os.tmpdir()
     });
     assert.equal(summary.release.count, summary.fixture.count - 1, 'release consumes exactly one grenade');
     assert.equal(summary.release.pending, false);
-    assert.equal(summary.release.throws, 1, 'holding and repeating G cannot release another grenade');
+    assert.equal(summary.release.throws, 1, 'a held fire button cannot release another grenade');
     assert.equal(summary.release.live, true);
     assert.match(summary.release.hud, /FUSE \d+\.\d s/);
     await screenshot(page, summary, 'flight-fuse');
@@ -222,7 +234,7 @@ const OUT = path.resolve(process.env.GRENADE_PLAYER_OUT || path.join(os.tmpdir()
     assert.equal(summary.burst.count, summary.fixture.count - 1);
     assert.equal(summary.burst.live, 0);
     await screenshot(page, summary, 'post-burst');
-    await page.keyboard.up('g');
+    await page.mouse.up({ button: 'left' });
     await page.mouse.up({ button: 'right' });
     await page.keyboard.press('v');
     assert.equal(await page.evaluate(() => __grenadePlayerProbe.soldier.isPlayer), false);
@@ -232,7 +244,7 @@ const OUT = path.resolve(process.env.GRENADE_PLAYER_OUT || path.join(os.tmpdir()
       'simulation hooks must not fail'
     );
     summary.pass = true;
-    console.log('PASS hosted player grenade UI: real DEPLOY/RMB/G, one release, actual count/fuse and burst');
+    console.log('PASS hosted player grenade UI: real DEPLOY, G chooses, RMB shows the arc, LMB throws once, count/fuse and burst');
   } catch (error) {
     summary.pass = false;
     summary.failure = String(error && error.stack ? error.stack : error);

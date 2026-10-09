@@ -866,15 +866,28 @@ before any effect is claimed.
 - **Grenades** (#409, **ON by default**; `?grenades=0` turns the whole system off and leaves it inert). `modules/23-grenades.js`
   owns carried counts, commitments, releases and bursts. Loadouts issue 2 to leaders/riflemen/scouts,
   1 to gunners and 3 to engineers; possession and weapon rearming do not refill them, battle restart does.
-  Player G/controller RB and Engagement's `throw` action use the same 0.9 s commitment. Only death
+  The player chooses the grenade with G/controller RB (press again to put it away), aim mode
+  (RMB/LT) then shows the owner's arc and landing point, and fire (LMB/RT) throws it, one press one
+  throw, never a rifle round while it is chosen. Engagement's `throw` action uses the same 0.9 s
+  commitment. Only death
   before release cancels it; retreat, a changed target or a skipped AI tick do not. Release consumes
   one, starts an 18 s cooldown and freezes the physical arc. The fuse expires 3.6 s after landing.
   AI requires a fresh confident personal contact within 30 m, blocked rifle fire, fire authorization,
   a clear arc and no friendly (including itself) within 13 m of the intended landing. Scatter uses
-  a separate scenario-seeded `grenades` RNG stream; it never draws combat randomness. Physical
-  cover/walls/terrain use `BattleBallistics.environmentLineBlocked`. The blast applies zone wounds
-  with distance-scaled severity, drop odds, bleeding and injury inside 9 m, and ordinary suppression
-  events within 16 m. Friendly/self injuries retain attribution and earn no kill credit. Imported
+  a separate scenario-seeded `grenades` RNG stream and fragment hits a second, `grenade-fragments`;
+  neither draws combat randomness. Physical cover/walls/terrain use
+  `BattleBallistics.environmentLineBlocked`. A burst gives every man within 22 m with a clear line a
+  Poisson number of fragment hits (mean `hits5 x stance area x (5 / d)^spread`, legs and low torso
+  favoured; crouched men present 0.6 and prone men 0.3 of the standing silhouette) plus one
+  overpressure chest wound inside the kind's blast radius. Each is an ordinary `BattleWounds` blast
+  hit whose energy decays with range, so a man is wounded, bled and dropped by the existing owner.
+  The US Mk 2 (57 g TNT, serrated cast iron) and the German M24 (170 g TNT in a thin steel head:
+  bigger overpressure radius, fewer and shorter-ranged fragments) have their own constants. They are
+  fitted to the published figures for the class (lethal radius about 5 m, casualty radius about 15 m,
+  fragments to hundreds of metres at negligible density; TC 3-23.30 for the M67, Mk 2 fill 52-66 g
+  by period): a standing man in the open is a casualty about 95 % of the time at 2 m, half the time
+  at 5 m and rarely at 15 m, and lying down cuts that by roughly two thirds. Ordinary suppression
+  events reach 16 m. Friendly/self injuries retain attribution and earn no kill credit. Imported
   Mk 2/M24 props, three stance-specific throw clips and bounded dust/flash are presentation only
   (`24-grenade-fx.js`); player aim displays the owner's arc and landing point. Default-enabled in #442 after a
   paired 100-seed benchmark (quiet: casualties +0.4 %, p 0.625) and owner review. Grenade-specific

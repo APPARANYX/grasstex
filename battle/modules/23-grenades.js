@@ -1,7 +1,12 @@
 /* Carried fragmentation grenades (#409). On by default; `?grenades=0` is the off switch.
    Engagement/player commits once; this owner releases and bursts on the simulation clock.
    Only death cancels a commitment. Scatter uses its own seeded stream. Wounds, suppression
-   and physical occlusion stay with their existing owners. Presentation reads frozen flights. */
+   and physical occlusion stay with their existing owners. Presentation reads frozen flights.
+
+   Blast model (see docs/agents/battle-architecture.md for the published figures it is fitted to):
+   each man inside the burst rolls a number of fragment hits from the fragment density at his
+   range and his stance, plus one overpressure wound at point-blank range. Both are ordinary
+   BattleWounds hits; nothing here subtracts hit points directly. */
 (function (root) {
   'use strict';
   if (!root.SquadAI || !root.BattleModules || root.BattleGrenades) return;
@@ -25,12 +30,36 @@
     FLIGHT_MAX: 2.4,
     FUSE: 3.6, // seconds after landing
     FRIEND_CLEAR: 13, // includes blast radius + scatter, and the thrower
-    BLAST_RADIUS: 9,
     SUPPRESS_RADIUS: 16,
     PIN_MIN: 1.6,
     PIN_MAX: 4.2,
-    SEVERITY: 55,
-    POWER: 0.85,
+    /* Fragments. An effective fragment carries a wound roughly the size of a rifle round's torso
+       wound at the burst and loses energy with range (exp(-d / reach)). The number that strike a
+       standing man is Poisson with mean `hits5 * (5 / d)^spread`: `hits5` is the mean at 5 m and
+       `spread` the density falloff, below the geometric 2 because heavy fragments carry farther. */
+    FRAG_SEVERITY: 40,
+    FRAG_POWER: 0.85,
+    FRAG_MAX_RANGE: 22,
+    FRAG_MIN_RANGE: 0.6,
+    FRAG_MAX_HITS: 8,
+    BLAST_SEVERITY: 60,
+    // Share of the standing silhouette presented to a ground burst.
+    STANCE_AREA: Object.freeze({ stand: 1, crouch: 0.6, prone: 0.3 }),
+    // Fragment zone odds (cumulative order): legs and low torso take most of a ground burst.
+    FRAG_ZONES: Object.freeze([
+      ['leg', 0.4],
+      ['abdomen', 0.16],
+      ['chest', 0.22],
+      ['arm', 0.18],
+      ['head', 0.04]
+    ]),
+    /* Per grenade. mk2: 57 g TNT in a serrated cast-iron body (US). m24: 170 g TNT in a thin
+       steel head, blast-dominant with poor fragmentation (German). `blast` is the overpressure
+       injury radius (m), `reach` the fragment energy decay length (m). */
+    KINDS: Object.freeze({
+      mk2: Object.freeze({ hits5: 2, spread: 1.25, reach: 17, blast: 1.8 }),
+      m24: Object.freeze({ hits5: 1.6, spread: 1.55, reach: 12, blast: 3 })
+    }),
     BURST_Y: 0.5,
     VICTIM_Y: 0.9,
     LOADOUT_MAX: 3,
@@ -79,6 +108,8 @@
     if (!battle._grenades)
       battle._grenades = {
         rng: root.BattleScenarioGenerator.rngFor(seedOf(battle), 'grenades'),
+        // Fragment hits draw from their own stream so scatter never depends on who stood near a burst.
+        fragRng: root.BattleScenarioGenerator.rngFor(seedOf(battle), 'grenade-fragments'),
         pending: [],
         reviewAt: new WeakMap(),
         live: [],
@@ -117,9 +148,15 @@
   function lineBlocked(battle, a, b) {
     return root.BattleBallistics.environmentLineBlocked(a, b, battle);
   }
+  function stanceOf(s) {
+    return s.prone ? 'prone' : s.tacticalCrouch || s.crouching ? 'crouch' : 'stand';
+  }
+  function kindOf(faction) {
+    return faction === 'ge' ? 'm24' : 'mk2';
+  }
   function hand(s, battle, stance) {
     var p = s.root.position;
-    stance = stance || (s.prone ? 'prone' : s.tacticalCrouch || s.crouching ? 'crouch' : 'stand');
+    stance = stance || stanceOf(s);
     var offset = RELEASE_ORIGIN[stance],
       yaw = s.root.rotation.y || 0,
       c = Math.cos(yaw),
@@ -225,7 +262,7 @@
       source: source,
       decidedAt: battle.time,
       releaseAt: battle.time + TUNING.WINDUP,
-      stance: s.prone ? 'prone' : s.tacticalCrouch || s.crouching ? 'crouch' : 'stand'
+      stance: stanceOf(s)
     });
     state(battle).pending.push(plan);
     record(battle, 'decision-grenade', {
@@ -312,8 +349,9 @@
         releasedAt: plan.releaseAt,
         flight: path.flight,
         detonateAt: plan.releaseAt + path.flight + TUNING.FUSE,
-        severity: TUNING.SEVERITY,
-        power: TUNING.POWER
+        kind: kindOf(s.faction),
+        severity: TUNING.FRAG_SEVERITY,
+        power: TUNING.FRAG_POWER
       });
     s.grenades = count(s) - 1;
     s._grenadeNextAt = plan.releaseAt + TUNING.COOLDOWN;
@@ -344,8 +382,32 @@
     }
     return { x: g.to.x, y: g.to.y, z: g.to.z };
   }
+  /* Number of effective fragments that strike a man at range d, by inversion on one stream draw. */
+  function fragmentHits(kind, d, stance, u) {
+    var r = Math.max(d, TUNING.FRAG_MIN_RANGE),
+      lambda = kind.hits5 * TUNING.STANCE_AREA[stance] * Math.pow(5 / r, kind.spread),
+      p = Math.exp(-lambda),
+      cumulative = p,
+      n = 0;
+    while (u > cumulative && n < TUNING.FRAG_MAX_HITS) {
+      n++;
+      p *= lambda / n;
+      cumulative += p;
+    }
+    return n;
+  }
+  function fragmentZone(u) {
+    var zones = TUNING.FRAG_ZONES,
+      acc = 0;
+    for (var i = 0; i < zones.length; i++) {
+      acc += zones[i][1];
+      if (u < acc) return zones[i][0];
+    }
+    return zones[zones.length - 1][0];
+  }
   function burst(g, battle) {
     var st = state(battle),
+      kind = TUNING.KINDS[g.kind] || TUNING.KINDS.mk2,
       origin = { x: g.to.x, y: g.to.y + TUNING.BURST_Y, z: g.to.z },
       all = units(battle),
       wounded = [],
@@ -356,28 +418,52 @@
       if (!v || v.dead || !v.root) continue;
       var p = v.root.position,
         d = dist(origin, p);
-      if (d > TUNING.SUPPRESS_RADIUS) continue;
-      root.SquadAI.pin(
-        v,
-        battle,
-        TUNING.PIN_MIN + (TUNING.PIN_MAX - TUNING.PIN_MIN) * (1 - d / TUNING.SUPPRESS_RADIUS)
-      );
-      suppressed++;
+      if (d > TUNING.SUPPRESS_RADIUS && d > TUNING.FRAG_MAX_RANGE) continue;
+      if (d <= TUNING.SUPPRESS_RADIUS) {
+        root.SquadAI.pin(
+          v,
+          battle,
+          TUNING.PIN_MIN + (TUNING.PIN_MAX - TUNING.PIN_MIN) * (1 - d / TUNING.SUPPRESS_RADIUS)
+        );
+        suppressed++;
+      }
       if (
-        d >= TUNING.BLAST_RADIUS ||
+        d > TUNING.FRAG_MAX_RANGE ||
         lineBlocked(battle, origin, { x: p.x, y: battle.heightAt(p.x, p.z) + TUNING.VICTIM_Y, z: p.z })
       )
         continue;
-      var before = v.hp;
-      root.BattleWounds.wound(g.byRef, v, battle, {
-        energy: Math.pow(1 - d / TUNING.BLAST_RADIUS, 1.35),
-        severity: g.severity,
-        power: g.power,
-        blast: { x: g.to.x, z: g.to.z, d: d }
-      });
-      wounded.push({ id: v.id, faction: v.faction, d: d, hp: Math.max(0, before - v.hp), dead: !!v.dead });
-      if (v.faction === g.byFaction) {
-        st.stats.friendlyWounded++;
+      var before = v.hp,
+        blast = { x: g.to.x, z: g.to.z, d: d },
+        energy = Math.exp(-d / kind.reach),
+        hits = fragmentHits(kind, d, stanceOf(v), st.fragRng()),
+        zones = [];
+      for (var h = 0; h < hits; h++) zones.push(fragmentZone(st.fragRng()));
+      if (d < kind.blast)
+        root.BattleWounds.wound(g.byRef, v, battle, {
+          zone: 'chest',
+          energy: 1 - d / kind.blast,
+          severity: TUNING.BLAST_SEVERITY,
+          power: g.power,
+          blast: blast
+        });
+      for (var k = 0; k < zones.length && !v.dead; k++)
+        root.BattleWounds.wound(g.byRef, v, battle, {
+          zone: zones[k],
+          energy: energy,
+          severity: g.severity,
+          power: g.power,
+          blast: blast
+        });
+      if (hits || d < kind.blast) {
+        wounded.push({
+          id: v.id,
+          faction: v.faction,
+          d: d,
+          hits: hits,
+          hp: Math.max(0, before - v.hp),
+          dead: !!v.dead
+        });
+        if (v.faction === g.byFaction) st.stats.friendlyWounded++;
       }
     }
     st.stats.wounded += wounded.length;
@@ -386,6 +472,7 @@
       grenade: g.id,
       by: g.by,
       faction: g.byFaction,
+      kind: g.kind,
       at: g.detonateAt,
       x: g.to.x,
       z: g.to.z,
