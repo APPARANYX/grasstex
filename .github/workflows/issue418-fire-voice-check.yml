@@ -4,13 +4,15 @@ on:
     branches:
       - work/issue418-targeted-fire-voice-contract
 permissions:
-  contents: read
+  contents: write
 jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -18,3 +20,14 @@ jobs:
         run: |
           node tools/ai-sim-harness/squad-broadcast-check.js
           node tools/ai-sim-harness/soldier-beliefs-check.js
+      - name: Apply pinned Prettier to the sole test file
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write tools/ai-sim-harness/squad-broadcast-check.js
+          git config user.name 'grasstex-ci[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/ai-sim-harness/squad-broadcast-check.js
+          if ! git diff --cached --quiet; then
+            git commit -m "Format fire-origin relay test with pinned Prettier"
+            git push origin HEAD:refs/heads/work/issue418-targeted-fire-voice-contract
+          fi
