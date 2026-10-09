@@ -136,8 +136,10 @@ function drive(w, seconds, probe) {
   });
 }
 
-test('the crest hides nothing but blocks every round: the geometry under test', () => {
+test('a fully denied ballistic line preserves sight without firing', () => {
   const w = pair(ridge(RANGE / 2, 1.35, 4, 20));
+  // A 1.35m crest now exposes upper bodies; explicitly model full obstruction here.
+  w.r.BattleBallistics.fireLineBlocked = () => true;
   drive(w, 12);
   const holders = w.us.members.filter(s => s.target);
   assert.ok(holders.length >= 8, 'the attackers see the defenders over the crest (' + holders.length + ')');
@@ -148,8 +150,10 @@ test('the crest hides nothing but blocks every round: the geometry under test', 
   );
 });
 
-test('a crest-blocked sighting is contact for a few seconds, then observation: the assault goes over the crest and fights', () => {
+test('a wholly blocked sighting becomes observation and the assault closes the gap', () => {
   const w = pair(ridge(RANGE / 2, 1.35, 4, 20));
+  w.r.BattleBallistics.fireLineBlocked = (shooter, target) =>
+    Math.abs(shooter.root.position.z - target.root.position.z) > 55;
   let contactEarly = null,
     firstShotAt = null;
   drive(w, 300, b => {
@@ -171,6 +175,7 @@ test('a crest-blocked sighting is contact for a few seconds, then observation: t
 
 test('the defender keeps defending: the same crest, nobody ordered forward, nobody leaves and nobody is forced to', () => {
   const w = pair(ridge(RANGE / 2, 1.35, 4, 20));
+  w.r.BattleBallistics.fireLineBlocked = () => true;
   w.us.commandPhase = 'defend';
   w.us.route = [];
   w.us.objective = { x: 0, z: 0 };
@@ -215,6 +220,7 @@ test('the grace is a hold-down, not a flap: counted for 6 s, then observed, and 
       E.updateSquad(w.us, w.b);
       return w.us.contactCount;
     };
+  w.r.BattleBallistics.fireLineBlocked = () => top >= 1.35;
   assert.equal(count(100), 1, 'blocked, but only just: still contact');
   assert.equal(count(103), 1, 'inside the grace');
   assert.equal(count(105.9), 1, 'inside the grace');
