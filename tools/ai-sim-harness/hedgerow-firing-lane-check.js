@@ -97,6 +97,8 @@ const start = { x: f.s.root.position.x, z: f.s.root.position.z };
 let nearest = Infinity;
 for (let i = 0; i < 240; i++) {
   f.b.time += 0.15;
+  f.E.updateSoldier(f.s, f.b);
+  f.r.BattleMovementResolver.resolve(f.s, f.b);
   H.stepMovement(f.b, f.s, 0.15);
   nearest = Math.min(nearest, Math.hypot(
     f.s.root.position.x - e.cover.x,
