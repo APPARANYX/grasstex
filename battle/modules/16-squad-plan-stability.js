@@ -883,8 +883,28 @@
        The previous adopted tactical envelope is intentionally retained as history; _survivalMovementKey
        keeps it from becoming live again while a later real command (the reconstitution rally) is pending. */
     if (opt.survivalFallback) {
-      if (!(urgent && root.SquadAI.isExtractionToHome(sq)))
-        throw new Error('Survival movement fallback is only valid for a tiny remnant extracting home');
+      /* Issue #437: a stranded soldier who personally heard the earlier RETREAT may
+         independently continue to his known base after that order has run out. This
+         is not a new command from the distant Squad Leader: Command Reception still
+         reports the replacement as unreachable. Do not give him the current rally,
+         and keep every physical destination going through the Movement Resolver. */
+      var lostContact = false;
+      if (opt.lostContactRetreat && sq.state === 'retreat' && sq.baseHome && !s.dead && !s.isPlayer) {
+        var recent = CR && CR.peek && CR.peek(s, battle, 'movement', movementScope(s)),
+          heard = CR && CR.adopted && CR.adopted(s, battle, 'movement', movementScope(s));
+        lostContact = !!(
+          recent &&
+          recent.unreachable &&
+          heard &&
+          heard.action === 'retreat' &&
+          heard.envelopeId === s._fireteamAdoptedEnvelope &&
+          dist(next, sq.baseHome) <= ORDER_PUBLISH_EPS
+        );
+      }
+      if (!(urgent && (root.SquadAI.isExtractionToHome(sq) || lostContact)))
+        throw new Error(
+          'Survival movement is restricted to remnant extraction or a disconnected retreat to a known base'
+        );
       s._survivalMovementKey = String(publishKey || 'survival');
       return commitPersonalMovement(s, next, publishKey, battle, true, stats);
     }
