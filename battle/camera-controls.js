@@ -442,7 +442,6 @@
       return false;
     }
 
-
     /* Settings are built from the live roster: only available, living squad members are selectable.
        The dropdown indexes are views, not persistent soldier IDs or gameplay orders. */
     function menuOptions(select, labels, emptyLabel) {
@@ -452,36 +451,54 @@
         empty.value = '';
         empty.textContent = emptyLabel;
         select.appendChild(empty);
-      } else labels.forEach(function (name, i) {
-        var option = document.createElement('option');
-        option.value = String(i);
-        option.textContent = name;
-        select.appendChild(option);
-      });
+      } else
+        labels.forEach(function (name, i) {
+          var option = document.createElement('option');
+          option.value = String(i);
+          option.textContent = name;
+          select.appendChild(option);
+        });
       select.disabled = !labels.length;
     }
     function fillMenuSoldiers(preferred) {
       var sq = menuSquads[+settingsMenu.querySelector('#bpmSquad').value];
-      menuSoldiers = ((sq && sq.members) || []).filter(function (s) { return s && !s.dead && s.root; });
-      menuOptions(settingsMenu.querySelector('#bpmSoldier'), menuSoldiers.map(function (s) {
-        var weapon = s.weapon && (s.weapon.kind || s.weapon.model || s.weapon.name);
-        return '#' + s.id + ' · ' + (s.role || 'soldier') + (weapon ? ' · ' + weapon : '');
-      }), 'No living soldiers');
+      menuSoldiers = ((sq && sq.members) || []).filter(function (s) {
+        return s && !s.dead && s.root;
+      });
+      menuOptions(
+        settingsMenu.querySelector('#bpmSoldier'),
+        menuSoldiers.map(function (s) {
+          var weapon = s.weapon && (s.weapon.kind || s.weapon.model || s.weapon.name);
+          return '#' + s.id + ' · ' + (s.role || 'soldier') + (weapon ? ' · ' + weapon : '');
+        }),
+        'No living soldiers'
+      );
       var i = menuSoldiers.indexOf(preferred);
       if (i >= 0) settingsMenu.querySelector('#bpmSoldier').value = String(i);
       settingsMenu.querySelector('#bpmApply').disabled = !menuSoldiers.length;
     }
     function fillMenuSquads(preferred, soldier) {
-      var b = liveBattle(), faction = settingsMenu.querySelector('#bpmFaction').value;
+      var b = liveBattle(),
+        faction = settingsMenu.querySelector('#bpmFaction').value;
       menuSquads = ((b && b.factions[faction] && b.factions[faction].squads) || []).filter(function (sq) {
-        return sq && !sq.disbanded && (sq.members || []).some(function (s) {
-          return s && !s.dead && s.root;
-        });
+        return (
+          sq &&
+          !sq.disbanded &&
+          (sq.members || []).some(function (s) {
+            return s && !s.dead && s.root;
+          })
+        );
       });
-      menuOptions(settingsMenu.querySelector('#bpmSquad'), menuSquads.map(function (sq) {
-        var living = sq.members.filter(function (s) { return s && !s.dead && s.root; }).length;
-        return 'Unit ' + sq.id + ' · ' + living + ' active';
-      }), 'No active units');
+      menuOptions(
+        settingsMenu.querySelector('#bpmSquad'),
+        menuSquads.map(function (sq) {
+          var living = sq.members.filter(function (s) {
+            return s && !s.dead && s.root;
+          }).length;
+          return 'Unit ' + sq.id + ' · ' + living + ' active';
+        }),
+        'No active units'
+      );
       var i = menuSquads.indexOf(preferred);
       if (i >= 0) settingsMenu.querySelector('#bpmSquad').value = String(i);
       fillMenuSoldiers(soldier);
@@ -502,13 +519,21 @@
     }
     function possessSelected() {
       if (!menuOpen) return false;
-      var b = liveBattle(), faction = settingsMenu.querySelector('#bpmFaction').value,
+      var b = liveBattle(),
+        faction = settingsMenu.querySelector('#bpmFaction').value,
         sq = menuSquads[+settingsMenu.querySelector('#bpmSquad').value],
         soldier = menuSoldiers[+settingsMenu.querySelector('#bpmSoldier').value];
       /* Guard against stale/dead men after a battle restart. */
-      if (!b || !sq || !soldier || !b.factions[faction] ||
-          b.factions[faction].squads.indexOf(sq) < 0 || (sq.members || []).indexOf(soldier) < 0 ||
-          soldier.dead || !soldier.root) {
+      if (
+        !b ||
+        !sq ||
+        !soldier ||
+        !b.factions[faction] ||
+        b.factions[faction].squads.indexOf(sq) < 0 ||
+        (sq.members || []).indexOf(soldier) < 0 ||
+        soldier.dead ||
+        !soldier.root
+      ) {
         fillMenuSquads(null, null);
         return false;
       }
@@ -565,9 +590,13 @@
       settingsMenu.querySelector('#bpmApply').addEventListener('click', possessSelected);
       settingsMenu.querySelector('#bpmClose').addEventListener('click', closePlayerMenu);
       var rows = settingsMenu.querySelectorAll('.bpm-field');
-      for (var i = 0; i < rows.length; i++) (function (n) {
-        rows[n].addEventListener('pointerdown', function () { menuFocus = n; syncMenuFocus(); });
-      })(i);
+      for (var i = 0; i < rows.length; i++)
+        (function (n) {
+          rows[n].addEventListener('pointerdown', function () {
+            menuFocus = n;
+            syncMenuFocus();
+          });
+        })(i);
     }
     function openPlayerMenu() {
       ensurePlayerMenu();
@@ -583,8 +612,7 @@
       mouseAim = false;
       mouseFire = false;
       keys.clear();
-      if (document.pointerLockElement === canvas && document.exitPointerLock)
-        document.exitPointerLock();
+      if (document.pointerLockElement === canvas && document.exitPointerLock) document.exitPointerLock();
       menuPauseOwner = null;
       if (b && !b.paused && !b.winner && typeof b.pause === 'function') {
         b.pause();
@@ -601,7 +629,10 @@
       select.dispatchEvent(new Event('change', { bubbles: true }));
     }
     function stepPlayerMenuPad(pad) {
-      if (padPressedOnce(pad, 1)) { closePlayerMenu(); return; }
+      if (padPressedOnce(pad, 1)) {
+        closePlayerMenu();
+        return;
+      }
       if (padPressedOnce(pad, 12)) menuFocus = (menuFocus + 3) % 4;
       if (padPressedOnce(pad, 13)) menuFocus = (menuFocus + 1) % 4;
       var delta = (padPressedOnce(pad, 15) ? 1 : 0) - (padPressedOnce(pad, 14) ? 1 : 0);
@@ -712,10 +743,17 @@
     function possessSoldier(next) {
       var b = liveBattle();
       /* This is a possession transfer, never a spawn. Only current living members qualify. */
-      if (!b || !next || !next.root || next.dead || !b.factions[next.faction] ||
-          !b.factions[next.faction].squads.some(function (sq) {
-            return (sq.members || []).indexOf(next) >= 0;
-          })) return false;
+      if (
+        !b ||
+        !next ||
+        !next.root ||
+        next.dead ||
+        !b.factions[next.faction] ||
+        !b.factions[next.faction].squads.some(function (sq) {
+          return (sq.members || []).indexOf(next) >= 0;
+        })
+      )
+        return false;
       if (player) clearPlayerLease(player, playerBattle || b);
       player = next;
       playerBattle = b;

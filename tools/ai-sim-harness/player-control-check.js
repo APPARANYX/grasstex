@@ -21,20 +21,22 @@ assert.match(cameraSource, /menuHoldGesture\(menuHoldState,[\s\S]*buttonValue\(p
 assert.match(cameraSource, /if \(menuGesture === 'hold'\)[\s\S]*?togglePlayerMenu\(\)/);
 assert.match(cameraSource, /if \(menuGesture === 'tap'\)[\s\S]*?possessRandom\(\)/);
 assert.match(cameraSource, /if \(menuOpen\)[\s\S]*?stepPlayerMenuPad\(pad\)/);
-assert.match(cameraSource, /if \(key === 'o'[\s\S]*?togglePlayerMenu\(\)/,
-  'keyboard O also opens settings');
+assert.match(cameraSource, /if \(key === 'o'[\s\S]*?togglePlayerMenu\(\)/, 'keyboard O also opens settings');
 assert.match(cameraSource, /fillMenuSquads\(player && player\.squad, player\)/);
 assert.match(cameraSource, /fillMenuSoldiers\(soldier\)/);
-assert.match(cameraSource, /b\.factions\[faction\]\.squads\.indexOf\(sq\)/,
-  'selected squad is revalidated against the live faction');
-assert.match(cameraSource, /soldier\.dead \|\| !soldier\.root/,
-  'soldier selection rejects casualties');
-assert.match(cameraSource, /if \(menuOpen\) closePlayerMenu\(\)/,
-  'player release cleans up the menu');
-assert.match(cameraSource, /!b\.paused[\s\S]{0,100}typeof b\.pause/,
-  'settings pause only an active battle');
-assert.match(cameraSource, /b === liveBattle\(\)[\s\S]{0,170}typeof b\.resume/,
-  'settings resume only a pause owned by this menu');
+assert.match(
+  cameraSource,
+  /b\.factions\[faction\]\.squads\.indexOf\(sq\)/,
+  'selected squad is revalidated against the live faction'
+);
+assert.match(cameraSource, /soldier\.dead \|\| !soldier\.root/, 'soldier selection rejects casualties');
+assert.match(cameraSource, /if \(menuOpen\) closePlayerMenu\(\)/, 'player release cleans up the menu');
+assert.match(cameraSource, /!b\.paused[\s\S]{0,100}typeof b\.pause/, 'settings pause only an active battle');
+assert.match(
+  cameraSource,
+  /b === liveBattle\(\)[\s\S]{0,170}typeof b\.resume/,
+  'settings resume only a pause owned by this menu'
+);
 
 const vm = require('node:vm');
 const win = { GTMath: { clamp: (value, min, max) => Math.min(max, Math.max(min, value)) } };
