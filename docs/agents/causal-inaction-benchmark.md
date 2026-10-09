@@ -14,9 +14,20 @@ To replay an exact known incident seed without renaming it:
 
     CAUSAL_BATTLES=us-defend:hill-0002 CAUSAL_CONTROL=1 node scripts/run_causal_inaction_benchmark.cjs
 
+To compare the same real battlefield with a candidate behavior OFF and ON, run
+the same `CAUSAL_BATTLES` value twice against the candidate source branch:
+
+    CAUSAL_BATTLES=ge-defend:hill-0002 CAUSAL_QUERY=coverPeek=0 CAUSAL_OUT=reports/hedge-off CAUSAL_CONTROL=1 node scripts/run_causal_inaction_benchmark.cjs
+    CAUSAL_BATTLES=ge-defend:hill-0002 CAUSAL_QUERY=coverPeek=1 CAUSAL_OUT=reports/hedge-on  CAUSAL_CONTROL=1 node scripts/run_causal_inaction_benchmark.cjs
+
+The workflow's `query` input and the `CAUSAL_QUERY` environment value supply
+feature flags; the runner rejects attempts to override the seed, defender or
+probe selectors. The fingerprint control checks whether the observer itself
+changes each battle, *not* whether OFF and ON arms legitimately diverge.
+
 CAUSAL_BATTLES accepts comma-separated type:seed pairs, overrides generated seed names and validates duplicates. In workflow_dispatch, exact_seed runs the named seed once in each scenario.
 
-Filters: CAUSAL_TYPES, CAUSAL_BATTLES, CAUSAL_SEEDS, CAUSAL_SECONDS, CAUSAL_SIDE (all/us/ge), CAUSAL_ROLE (CSV or all), CAUSAL_IDS, CAUSAL_SQUADS, CAUSAL_PREFIX, CAUSAL_URL, CAUSAL_OUT, CAUSAL_CONTROL (default 1). Corresponding browser selectors: probeSide, probeRole, probeIds, probeSquads.
+Filters: CAUSAL_TYPES, CAUSAL_BATTLES, CAUSAL_SEEDS, CAUSAL_SECONDS, CAUSAL_QUERY, CAUSAL_SIDE (all/us/ge), CAUSAL_ROLE (CSV or all), CAUSAL_IDS, CAUSAL_SQUADS, CAUSAL_PREFIX, CAUSAL_URL, CAUSAL_OUT, CAUSAL_CONTROL (default 1). Corresponding browser selectors: probeSide, probeRole, probeIds, probeSquads.
 
 Files in reports/causal-inaction/: raw.json (per-battle original evidence), summary.json (all reported episodes by seed), summary.md (human-readable aggregate).
 
