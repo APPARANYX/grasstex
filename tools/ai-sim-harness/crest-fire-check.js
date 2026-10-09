@@ -45,8 +45,22 @@ function setup(heightAt) {
   const b = H.makeBattle(r, { seed: 7, heightAt });
   const shots = [];
   b.onShot = (shooter, target, hit, d, meta) => shots.push(meta);
-  const us = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 }, facing: 0 });
-  const ge = H.addSquad(r, b, { id: 'ge-0', faction: 'ge', x: 0, z: RANGE, objective: { x: 0, z: -100 }, facing: Math.PI });
+  const us = H.addSquad(r, b, {
+    id: 'us-0',
+    faction: 'us',
+    x: 0,
+    z: 0,
+    objective: { x: 0, z: 100 },
+    facing: 0
+  });
+  const ge = H.addSquad(r, b, {
+    id: 'ge-0',
+    faction: 'ge',
+    x: 0,
+    z: RANGE,
+    objective: { x: 0, z: -100 },
+    facing: Math.PI
+  });
   const shooter = us.members.find(s => s.role === 'rifleman'),
     target = ge.members.find(s => s.role === 'rifleman');
   for (const s of [shooter, target]) {
@@ -76,21 +90,21 @@ test('open ground: he sees and fires (control)', () => {
   assert.ok(ctx.shots.length > 0, 'a round flew');
 });
 
-test('a crest that shows the head but takes the round: sight clear, no trigger pull', () => {
+test('an exposed upper body over a crest permits firing', () => {
   /* Eye line crosses the crest at 1.55 m, the round's line at ~1.22 m: a 1.35 m crest sits between. */
   const ctx = setup(ridge(RANGE / 2, 1.35, 4, 20));
   assert.ok(sees(ctx), 'he still sees the head over the crest (spotting unchanged)');
-  assert.equal(pulls(ctx), false, 'no trigger pull');
-  assert.equal(ctx.shots.length, 0, 'no round launched into the slope');
-  assert.ok(ctx.shooter._crestBlockedFire > 0, 'the refusal is counted as a crest block');
-  assert.ok(!ctx.shooter._losBlockedFire, 'and not as a sight block (the benchmark scores those)');
+  assert.ok(pulls(ctx), 'upper target volume permits a trigger pull');
+  assert.ok(ctx.shots.length > 0, 'a ballistic round was launched');
+  assert.ok(ctx.shots[0].aim.y > 1.35, 'the shot uses an upper exposed target region');
   assert.equal(ctx.shooter.target, ctx.target, 'he keeps the man he sees');
 });
 
-test('a crest low enough for the round: he fires', () => {
+test('a crest low enough for center-mass fire retains center aim', () => {
   const ctx = setup(ridge(RANGE / 2, 1.0, 4, 20));
   assert.ok(sees(ctx));
   assert.ok(pulls(ctx), 'trigger pulled');
+  assert.ok(Math.abs(ctx.shots[0].aim.y - 0.88) < 0.05, 'center mass remains preferred when clear');
 });
 
 test('a narrow crest between sight samples still stops the trigger', () => {
@@ -102,19 +116,24 @@ test('a narrow crest between sight samples still stops the trigger', () => {
   assert.equal(ctx.shots.length, 0);
 });
 
-
 test('suppressive fire uses the same terrain crest gate', () => {
-  const blocked = setup(ridge(RANGE / 2, 1.35, 4, 20));
-  assert.equal(blocked.S.canSuppress(blocked.shooter, { x: 0, z: RANGE }, blocked.b), false,
-    'remembered contact behind the crest cannot receive suppressive fire');
+  const blocked = setup(ridge(RANGE / 2, 1.8, 4, 20));
+  assert.equal(
+    blocked.S.canSuppress(blocked.shooter, { x: 0, z: RANGE }, blocked.b),
+    false,
+    'remembered contact behind the crest cannot receive suppressive fire'
+  );
   assert.ok(blocked.shooter._terrainBlockedSuppressiveFire > 0, 'terrain refusal is counted for diagnostics');
   const clear = setup(ridge(RANGE / 2, 0.9, 4, 20));
-  assert.equal(clear.S.canSuppress(clear.shooter, { x: 0, z: RANGE }, clear.b), true,
-    'a low crest that clears the suppression line still permits fire');
+  assert.equal(
+    clear.S.canSuppress(clear.shooter, { x: 0, z: RANGE }, clear.b),
+    true,
+    'a low crest that clears the suppression line still permits fire'
+  );
 });
 
 test('no combat-RNG draws from the gate itself', () => {
-  const ctx = setup(ridge(RANGE / 2, 1.35, 4, 20));
+  const ctx = setup(ridge(RANGE / 2, 1.8, 4, 20));
   let draws = 0;
   const real = ctx.b.random;
   ctx.b.random = () => (draws++, real());
