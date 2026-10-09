@@ -59,7 +59,7 @@ const summary = { schema: 'grasstex-causal-inaction-summary-v1',
     seconds, prefix, url: url.toString(), control: env.PROBE_CONTROL === '1' },
   expectedBattles: battles.length, completedBattles: record.battles.length,
   valid: true, failures: [], byScenario: {}, reasons: {}, confidence: {}, kinds: {},
-  episodes: [], episodesOmitted: 0, directDenialsOmitted: 0 };
+  episodes: [], episodesOmitted: 0, directDenialsOmitted: 0, directDecisionReasons: {} };
 function bump(obj, key, n=1) { obj[key] = (obj[key] || 0) + n; }
 for (const type of types) summary.byScenario[type] = { battles: 0, episodes: 0, reasons: {}, confidence: {} };
 for (const b of record.battles) {
@@ -80,6 +80,8 @@ for (const b of record.battles) {
     bump(summary.reasons, e.code);
     bump(summary.confidence, e.confidence);
     bump(summary.kinds, e.kind);
+    for (const [reason,n] of Object.entries(e.evidence?.directFireDenials || {}))
+      bump(summary.directDecisionReasons, reason, n);
     summary.episodes.push({ type: b.type, seed: b.seed, ...e });
   }
 }
@@ -109,10 +111,20 @@ for (const type of types) {
 md.push('', '## Observed evidence codes', '');
 for (const [reason,n] of Object.entries(summary.reasons).sort((a,b)=>b[1]-a[1]))
   md.push('- '+reason+': '+n);
+md.push('', '## Direct Engagement decision denials within reported episodes', '');
+for (const [reason,n] of Object.entries(summary.directDecisionReasons).sort((a,b)=>b[1]-a[1]))
+  md.push('- '+reason+': '+n);
 md.push('', '## Top forensic episodes (full records in summary.json/raw.json)', '');
-for (const e of summary.episodes.slice(0,30))
+for (const e of summary.episodes.slice(0,30)) {
+  const decisions = Object.entries(e.evidence?.directFireDenials || {})
+    .sort((a,b)=>b[1]-a[1]).map(([k,n])=>k+'='+n).join(', ');
+  const blocker = e.kind === 'movement-inaction'
+    ? (e.evidence?.order?.heldBy || e.evidence?.stopReason || '') : '';
   md.push('- **'+e.seed+'** '+e.actor+' @ '+e.observedAt+' s: '+e.kind+
-    ' / '+e.code+' ('+e.confidence+'; '+e.scope+'), '+e.seconds+' s. '+e.interpretation);
+    ' / '+e.code+' ('+e.confidence+'; '+e.scope+'), '+e.seconds+' s.'+
+    (decisions ? ' Direct denial gates: '+decisions+'.' : '')+
+    (blocker ? ' Movement blocker: '+blocker+'.' : '')+' '+e.interpretation);
+}
 if (!summary.episodes.length) md.push('No qualifying episodes were observed.');
 if (summary.episodesOmitted) md.push('', '**Warning:** '+summary.episodesOmitted+
   ' episodes omitted due to the per-battle cap. Narrow CAUSAL_* filters or replay seeds.');
