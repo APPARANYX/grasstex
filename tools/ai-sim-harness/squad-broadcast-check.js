@@ -163,4 +163,36 @@ function tick(w, t) {
   assert.equal(w.r.BattleSquadBroadcast.summary(w.b).recentBroadcasts[0].unitId, 0);
 }
 
+{
+  /* Real distant aimed burst -> victim's squad -> another friendly squad.
+     This is contact information, not a live target or an unbounded global reveal. */
+  const w = setup([0, 60, 180]),
+    [underFire, warned, outOfRange] = w.squads,
+    victim = underFire.members[0],
+    shooter = w.foe;
+  shooter.root.position.x = 0;
+  shooter.root.position.z = 260;
+  shooter.prone = true;
+  shooter.target = victim;
+  shooter.fireCooldown = 0;
+  victim.target = null;
+  w.b.time = 2;
+  w.r.SquadAI.extend('shotModel', 'ballistics', () => false);
+  assert.equal(w.r.SquadAI.tryFire(shooter, w.b), true, 'an actual 260 m aimed burst was fired');
+  assert.ok(underFire.contact && underFire.contact.fireRevealed, 'victim reports incoming-fire origin');
+  assert.equal(underFire.contact.precision, 'fire-origin', 'squad preserves origin precision for broadcast');
+  assert.equal(underFire.contact.z, 260, 'snapshot is at trigger-time origin');
+
+  w.sys.onCommanderTick(w.b);
+  assert.ok(warned.contact && warned.contact.broadcast, 'nearby friendly squad receives warning');
+  assert.equal(warned.contact.precision, 'fire-origin', 'source origin precision survives the relay');
+  const report = w.r.SquadAI.soldierContact(warned.members[0], w.b);
+  assert.ok(report && report.source === 'told', 'receiving soldier has reported, not first-hand, knowledge');
+  assert.equal(report.unit, null, 'receiver is not granted a magically tracked live target');
+  assert.equal(report.precision, 'fire-origin');
+  assert.equal(outOfRange.contact, null, 'no unlimited-range squad broadcast');
+  shooter.root.position.x = 35;
+  assert.equal(warned.contact.x, 0, 'report remains tied to original firing point after shooter moves');
+}
+
 console.log('PASS squad broadcast source isolation, cooldown retry, freshness, and personal belief delivery');
