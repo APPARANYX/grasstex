@@ -100,7 +100,7 @@ for (const seed of seeds) {
     heightAt() { return -30; },
     obstacles: []
   };
-  assert.equal(M.surfaceY(sim, 10, 5), 14.15,
+  assert.ok(Math.abs(M.surfaceY(sim, 10, 5) - 14.15) < 1e-9,
     'visual terrain triangles override stale simulation height on marker placement');
   sim.scene.getMeshByName = () => null;
   assert.equal(M.surfaceY(sim, 10, 5), -30,
