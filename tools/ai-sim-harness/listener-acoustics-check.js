@@ -8,7 +8,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const SOURCE = fs.readFileSync(
-  path.resolve(__dirname, '../../battle/modules/12a-listener-acoustics.js'), 'utf8'
+  path.resolve(__dirname, '../../battle/modules/12a-listener-acoustics.js'),
+  'utf8'
 );
 
 function world(mode, withGraph) {
@@ -26,7 +27,9 @@ function world(mode, withGraph) {
         type: 'allpass',
         frequency: {
           value: 0,
-          setTargetAtTime(v) { this.value = v; }
+          setTargetAtTime(v) {
+            this.value = v;
+          }
         },
         connect() {},
         disconnect() {}
@@ -35,15 +38,26 @@ function world(mode, withGraph) {
     createGain() {
       return {
         context,
-        gain: { value: 0, setTargetAtTime(v) { this.value = v; } },
+        gain: {
+          value: 0,
+          setTargetAtTime(v) {
+            this.value = v;
+          }
+        },
         connect() {}
       };
     },
     createBuffer(channels, length) {
       const data = Array.from({ length: channels }, () => new Float32Array(length));
-      return { getChannelData(i) { return data[i]; } };
+      return {
+        getChannelData(i) {
+          return data[i];
+        }
+      };
     },
-    createConvolver() { return { connect() {} }; }
+    createConvolver() {
+      return { connect() {} };
+    }
   };
   const graph = {
     context,
@@ -52,8 +66,12 @@ function world(mode, withGraph) {
   };
   const sound = {
     _soundPanner: withGraph ? graph : undefined,
-    getSoundGain() { return withGraph ? graph : null; },
-    setVolume(v) { this.volume = v; }
+    getSoundGain() {
+      return withGraph ? graph : null;
+    },
+    setVolume(v) {
+      this.volume = v;
+    }
   };
   const scene = {
     activeCamera: { position: { x: 0, y: 1.6, z: 0 } },
@@ -62,16 +80,22 @@ function world(mode, withGraph) {
   const sim = {
     scene,
     obstacles: [],
-    heightAt() { return obstruct ? 6 : -3; }
+    heightAt() {
+      return obstruct ? 6 : -3;
+    }
   };
   const ctx = {
     BABYLON: { Engine: { audioEngine: { masterGain: context.destination } } },
     location: { search: '?acoustics=' + mode },
     console,
     performance: { now: () => clock },
-    setTimeout(fn) { timers.push(fn); },
+    setTimeout(fn) {
+      timers.push(fn);
+    },
     BattleObstacleField: {
-      sightBlocked() { return obstruct; }
+      sightBlocked() {
+        return obstruct;
+      }
     },
     BattleModules: { registerSystem() {} },
     window: null
@@ -82,11 +106,22 @@ function world(mode, withGraph) {
   const api = ctx.BattleListenerAcoustics;
   api.bind(sim);
   return {
-    api, sound, scene, state, context,
+    api,
+    sound,
+    scene,
+    state,
+    context,
     position: { x: 40, y: 1.6, z: 0 },
-    block(v) { obstruct = v; },
-    move(x) { scene.activeCamera.position.x = x; },
-    tick() { clock += 250; if (timers.length) timers.shift()(); }
+    block(v) {
+      obstruct = v;
+    },
+    move(x) {
+      scene.activeCamera.position.x = x;
+    },
+    tick() {
+      clock += 250;
+      if (timers.length) timers.shift()();
+    }
   };
 }
 
