@@ -13,7 +13,7 @@
     side: params.get('probeSide') || 'all',
     roles: csv('probeRole'), ids: csv('probeIds'), squads: csv('probeSquads')
   };
-  var MAX_EPISODES = 160, MAX_HISTORY = 10, MAX_DENIALS = 160, FIRE_SILENCE = 5, MOVE_STILL = 12;
+  var MAX_EPISODES = 160, MAX_HISTORY = 10, MAX_DENIALS = 160, MAX_COVER = 320, FIRE_SILENCE = 5, MOVE_STILL = 12;
   var data, units, originalFire;
   function round(n) { return +Number(n || 0).toFixed(2); }
   function bump(o, k) { o[k] = (o[k] || 0) + 1; }
@@ -28,7 +28,7 @@
   function unit(s) {
     var k = key(s), d = units.get(k);
     if (!d) {
-      d = { lastShot: -Infinity, fire: null, move: null, history: [], denials: [] };
+      d = { lastShot: -Infinity, fire: null, move: null, history: [], denials: [], coverEvents: [], coverLane: null };
       units.set(k, d);
     }
     return d;
@@ -94,7 +94,10 @@
       if (e.t >= f.since && e.t <= sim.time && e.target === f.target) bump(denials, e.code);
     });
     var evidence = { target: f.target, fireOrder: order, engagement: state,
-      triggerRejectDeltas: rejects, directFireDenials: denials, roundsFired: 0 };
+      triggerRejectDeltas: rejects, directFireDenials: denials, roundsFired: 0,
+      coverDecisions: d.coverEvents.filter(function (e) {
+        return e.t >= f.since && e.t <= sim.time;
+      }).slice(-5) };
     if (Object.keys(denials).length && (rejects.crest || rejects.los || rejects.terrain))
       return { evidence: evidence, result: {
         code: 'multiple-observed-fire-blockers', confidence: 'verified', scope: 'decision-and-shot-attempt',
@@ -181,7 +184,10 @@
         displacementMeters: round(range(m.anchor, here)),
         distanceToDestinationMeters: round(range(here, dest)),
         stopReason: s._movementStopReason || null,
-        resolver: d.history[d.history.length - 1] && d.history[d.history.length - 1].resolver || null
+        resolver: d.history[d.history.length - 1] && d.history[d.history.length - 1].resolver || null,
+        coverDecisions: d.coverEvents.filter(function (e) {
+          return e.t >= m.since && e.t <= sim.time;
+        }).slice(-5)
       }, d.history);
       m.reported = true;
     }
@@ -191,7 +197,9 @@
     start: function (sim) {
       data = { schema: 'grasstex-causal-inaction-v1', config: options,
         counts: {}, reasons: {}, confidence: {}, episodes: [], episodesOmitted: 0,
-        directDenialsOmitted: 0, roundsObserved: 0, actorsObserved: 0 };
+        directDenialsOmitted: 0, coverDecisions: [], coverDecisionsOmitted: 0,
+        coverDecisionCounts: {}, coverRejectCounts: {}, coverLaneOutcomes: [],
+        roundsObserved: 0, actorsObserved: 0 };
       units = new Map();
       /* Called only from the real Engagement rejection sites, never by sampling a gate. */
       root.BattleCausalInaction = {
@@ -205,6 +213,34 @@
             d.denials.shift();
             data.directDenialsOmitted++;
           }
+        },
+        /* Invoked at the actual slot-ranking branch. Counts are witnesses to
+           gate execution, not retrospective guesses that a gate caused all
+           inactivity. The collector owns only bounded diagnostic storage. */
+        coverDecision: function (s, battle, stage, code, counts, goal) {
+          if (!chosen(s) || !battle) return;
+          var d = unit(s), now = round(battle.time), rejected = {},
+            event = { t: now, actor: key(s), target: s.target && String(s.target.id) || null,
+              stage: String(stage), code: String(code), rejected: rejected };
+          Object.keys(counts || {}).forEach(function (name) {
+            var n = +counts[name] || 0;
+            if (n > 0) {
+              rejected[name] = n;
+              bump(data.coverRejectCounts, String(stage) + ':' + name, n);
+            }
+          });
+          if (goal && isFinite(+goal.x) && isFinite(+goal.z))
+            event.goal = position(goal);
+          bump(data.coverDecisionCounts, event.stage + ':' + event.code);
+          d.coverEvents.push(event);
+          if (d.coverEvents.length > 12) d.coverEvents.shift();
+          if (data.coverDecisions.length < MAX_COVER) data.coverDecisions.push(event);
+          else data.coverDecisionsOmitted++;
+          if (event.stage === 'firing-lane' && event.code === 'selected' && event.goal) {
+            d.coverLane = { actor: key(s), start: now, goal: event.goal,
+              status: 'selected', arrivedAt: null, firedAt: null };
+            if (data.coverLaneOutcomes.length < MAX_COVER) data.coverLaneOutcomes.push(d.coverLane);
+          }
         }
       };
       originalFire = sim.onFire;
@@ -213,6 +249,8 @@
         if (chosen(s)) {
           unit(s).lastShot = sim.time;
           data.roundsObserved++;
+          var lane = unit(s).coverLane;
+          if (lane && lane.firedAt == null && sim.time >= lane.start) lane.firedAt = round(sim.time);
         }
         return result;
       };
@@ -224,6 +262,11 @@
         if (!chosen(s) || s.dead) continue;
         selected++;
         var d = unit(s), o = motionOutcome(s, sim);
+        if (d.coverLane && d.coverLane.arrivedAt == null && d.coverLane.goal &&
+            range(position(s.root.position), d.coverLane.goal) <= 0.6) {
+          d.coverLane.arrivedAt = round(sim.time);
+          d.coverLane.status = 'physically-arrived';
+        }
         d.history.push(sampleRow(s, o, sim));
         if (d.history.length > MAX_HISTORY) d.history.shift();
         recordFire(s, sim, d);
