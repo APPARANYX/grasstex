@@ -76,7 +76,12 @@ never decides tactics, ammo, hits or paths.
 - Wired beyond the basics: turn-in-place (standing, crouch, prone), death pools, hit reactions
   (`combat.hit`), idle variants and suppression flinches. Still unused: prone roll right (a left roll
   needs mirroring) and the kneel set. Jump clips need a nav vault edge.
-  Not in the pack: sideways crawl, grenade throw, melee, limp, climb, window lean.
+  The opt-in grenade action uses standing, crouched and prone throw clips (`combat.throw`), with
+  their measured release phase retimed to the simulation's windup. Imported GLB Mk 2/M24 props
+  follow the right palm, then the immutable simulated flight; the rifle is slung during the clip.
+  Regenerate the original project-authored props with `tools/build-grenade-models.py` in Blender.
+  `scripts/probe_grenade_presentation.cjs` checks imported props, throw clips, attachment and restart.
+  Not in the pack: sideways crawl, melee, limp, climb, window lean.
 
 **Asset pipeline.** Use the Blender app bundle `/Applications/Blender.app/Contents/MacOS/Blender`, not the
 broken `blender` on PATH. Use lowercase filenames, since the host is case-sensitive (`git mv` to rename).

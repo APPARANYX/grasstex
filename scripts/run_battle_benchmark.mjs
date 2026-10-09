@@ -408,7 +408,7 @@ try {
              moment he was back in `advance`). */
           const key = `${faction}:${s.id}`;
           if (!s.root || !s.destination || s.target || !phaseAllowsAdvance(s.squad?.commandPhase)) { delete state.unitTrack[key]; continue; }
-          const combatState = ['orient','bound','engage','pinned','assault','station','withdraw','suppress','cower','flee','freeze','rage'].includes(String(eng.state || ''));
+          const combatState = ['orient','bound','engage','pinned','assault','station','withdraw','suppress','cower','flee','freeze','rage','throw'].includes(String(eng.state || ''));
           if (combatState) { delete state.unitTrack[key]; continue; }
           const d = distance(s.root.position, s.destination);
           if (d < 8) { delete state.unitTrack[key]; continue; }
@@ -448,7 +448,8 @@ try {
       orderedMoveSamples: 0, idleOrderedSamples: 0, phaseSamples: {}, engagementStateSamples: {},
       vacantObjectiveStalls: [], movementStalls: [], routeStalls: [], targetlessStalls: [], longRegroups: [],
       everOwned: Object.create(null), everContested: Object.create(null), spreadSamples: { us: [], ge: [] },
-      squadPerformance: Object.create(null)
+      squadPerformance: Object.create(null),
+      grenadeStart: root.BattleGrenades?.on?.() ? root.BattleGrenades.summary(sim) : null
     });
     function anyContact() { for (const f of ['us', 'ge']) for (const sq of sim.factions?.[f]?.squads || []) if (sq && sq.inContact) return true; return false; }
     function buildRecord({ index, seed, scenario, diag, wallStart, steps, extra }) {
@@ -630,6 +631,11 @@ try {
         if (recon) record.recon = recon;
         const leaderless = root.BattleSquadStability?.leaderlessTelemetry?.(sim);
         if (leaderless) record.leaderless = leaderless;
+        if (root.BattleGrenades?.on?.()) {
+          const current = root.BattleGrenades.summary(sim), start = diag.grenadeStart || {};
+          record.grenades = Object.fromEntries(Object.entries(current).filter(([, v]) => typeof v === 'number').map(([k, v]) => [k, v - (start[k] || 0)]));
+          record.grenades.byFaction = Object.fromEntries(['us', 'ge'].map(f => [f, current.byFaction[f] - (start.byFaction?.[f] || 0)]));
+        }
         if (extra) Object.assign(record, extra);
         return record;
     }

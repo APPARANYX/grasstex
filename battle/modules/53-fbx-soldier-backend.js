@@ -88,6 +88,9 @@
   var CLIPS = root.BattleFbxClips.clips;
   var IDLE_VARIANTS = ['idle', 'idleLook', 'idleTwoHand', 'idleFidget'],
     FLINCH_RATE = 1.6;
+  /* Source-clip release times at the forward hand-velocity peak, measured by
+     scripts/probe_grenade_presentation.cjs. Sync that frame to core's releaseAt. */
+  var THROW_RELEASE = { throw: 2, throwCrouch: 56 / 30, throwProne: 58 / 30 };
   /* Presentation-only rates and cross-fades for Engagement's stress reactions. Rage keeps the
    ordinary locomotion and firing layers because he is still fighting. The other three replace the
    full-body lower layer and leave the weapon beside the man while their reaction owns him. */
@@ -2925,6 +2928,21 @@
         +(data && data.duration) ||
         (soldier.weapon && soldier.weapon.stats && soldier.weapon.stats.reloadTime) ||
         2.5;
+    } else if (tag === TAGS.throw) {
+      var stance =
+          (data && data.stance) || (soldier.prone ? 'prone' : soldier.crouching ? 'crouch' : 'stand'),
+        key = stance === 'prone' ? 'throwProne' : stance === 'crouch' ? 'throwCrouch' : 'throw',
+        clip = fx.lib.clips[key];
+      if (!clip) return;
+      /* The authored forward swing peaks here. Scale the clip's lead-in onto the authoritative
+         decision/release window, then keep the follow-through at that rate. Cosmetic clocks only. */
+      var windup = Math.max(0.1, +(data && data.releaseAt) - +(data && data.decidedAt) || 0.9);
+      fx.throwing = {
+        key: key,
+        stance: stance,
+        rate: THROW_RELEASE[key] / windup,
+        started: false
+      };
     }
   }
   var clamp = root.GTMath.clamp;
@@ -3135,6 +3153,7 @@
     fx.speed = Math.sqrt(fx.vx * fx.vx + fx.vz * fx.vz);
 
     if (soldier.dead) {
+      fx.throwing = null;
       fx.bipod = false;
       if (!fx.death) {
         /* Pick from the pool for how he fell; a soldier cut down at a run carries his momentum. */
@@ -3162,6 +3181,25 @@
       return true;
     }
     fx.death = null;
+
+    if (fx.throwing) {
+      var throwing = fx.throwing,
+        throwClip = clips[throwing.key],
+        throwTop = topEntry(fx.lower);
+      if (throwing.started && throwTop && throwTop.t >= throwClip.duration - 0.03) fx.throwing = null;
+      else {
+        setClip(fx.lower, throwClip, throwing.rate, 0.12, !throwing.started, false);
+        throwing.started = true;
+        fx.transition = null;
+        fx.overlayTarget = 0;
+        fx.aimWanted = false;
+        fx.bipod = false;
+        fx.supportReleased = true;
+        fx.stance = throwing.stance;
+        advance(fx, dt);
+        return true;
+      }
+    }
 
     var stance = soldier.prone ? 'prone' : soldier.crouching ? 'crouch' : 'stand';
     var reaction = reactionOf(soldier),
@@ -3749,6 +3787,7 @@
     /* Arm dials are the pistol support cup only (same rule as the Motion Lab preview):
      stray dial values stored on a long-gun slot stay inert here too. */
     var dialPistol = dialKey === 'pistol' || /m1911a1|p38/i.test(dialKey || '');
+    if (fx.throwing) dialPistol = false;
     var dials = dialPistol ? armDegFor(fx.lib.file, dialKey) : null;
     var leftGrip = dialPistol ? leftGripFor(fx.lib.file, dialKey) : null;
     if (on) {
@@ -3764,6 +3803,7 @@
     }
     var wrDial = wristRFor(fx.lib.file, dialKey),
       wrNode = null;
+    if (fx.throwing) wrDial = null;
     if (wrDial) {
       var ri = st.bones ? st.bones.indexOf(BONE.rightHand) : -1;
       wrNode = (ri >= 0 && nodes[ri]) || null;
@@ -3930,6 +3970,14 @@
     socketWorld.multiplyToRef(rootInv, socketWorld);
     socketWorld.decompose(sScale, fx.socket.rotationQuaternion, fx.socket.position);
     fx.socket.scaling.copyFrom(sScale);
+    /* The rifle is slung down the back during the throw, leaving the animated right palm
+       for the imported grenade. No weapon or inventory state changes. */
+    if (fx.throwing) {
+      var lying = fx.throwing.stance === 'prone',
+        carryY = lying ? 0.38 : fx.throwing.stance === 'crouch' ? 0.54 : 0.91;
+      fx.socket.position.set(-0.18, carryY, -0.22);
+      Q.FromEulerAnglesToRef(lying ? 0 : -1.25, -0.28, 0, fx.socket.rotationQuaternion);
+    }
     if (on) {
       poseLayer('weapon', perfNow() - t);
       poseInputs(fx, ran);

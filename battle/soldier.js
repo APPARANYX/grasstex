@@ -37,6 +37,7 @@
     aim: 'combat.aim',
     fire: 'combat.fire',
     reload: 'combat.reload',
+    throw: 'combat.throw',
     hit: 'combat.hit',
     stand: 'stance.stand',
     crouch: 'stance.crouch',

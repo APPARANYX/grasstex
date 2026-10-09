@@ -83,19 +83,32 @@
     st[cause]++;
     if (st.byZone[zone]) st.byZone[zone][cause]++;
     s.casualty = { zone: zone, cause: cause, at: +battle.time || 0, by: by ? by.id : null };
-    battle.killSoldier(s, by || null);
-    if (root.BattleEngagement && root.BattleEngagement.noteKill) root.BattleEngagement.noteKill(by || null);
+    var lastWound = s.wounds && s.wounds[s.wounds.length - 1];
+    if (lastWound && lastWound.source === 'grenade') {
+      s.casualty.source = 'grenade';
+      st.grenadeCasualties = (st.grenadeCasualties || 0) + 1;
+      if (by && by.faction === s.faction)
+        st.grenadeFriendlyCasualties = (st.grenadeFriendlyCasualties || 0) + 1;
+    }
+    // Keep causal attribution above, but friendly/self casualties never earn an enemy kill.
+    var credit = by && by.faction !== s.faction ? by : null;
+    battle.killSoldier(s, credit);
+    if (root.BattleEngagement && root.BattleEngagement.noteKill) root.BattleEngagement.noteKill(credit);
     /* The man who put him down is told (nothing is queued unless a layer reads `kill`). */
     if (by && by.faction !== s.faction && root.BattleSoldierEvents)
       root.BattleSoldierEvents.post(by, battle, 'kill', { victim: s.id, zone: zone });
   }
 
   function wound(shooter, victim, battle, hit) {
-    var stats = shooter.weapon.stats,
+    /* Fragment severity belongs to the released explosive, independent of the thrower's gun
+       (which can be abandoned before the fuse expires). Ordinary rounds keep their existing rolls. */
+    var blast = !!(hit && hit.blast),
+      stats = blast ? { damage: hit.severity, power: hit.power } : shooter.weapon.stats,
       zone = (hit && ZONES[hit.zone] && hit.zone) || rollZone(battle),
       z = ZONES[zone],
       /* A round that already went through a man arrives with only part of its energy (hit.energy). */
       energy = hit && isFinite(+hit.energy) ? clamp(+hit.energy, 0, 1) : 1,
+      injury = blast ? energy : 1,
       power = hit && isFinite(+hit.power) ? +hit.power : isFinite(+stats.power) ? +stats.power : 1,
       scale = 0.5 + 0.5 * power,
       damage = stats.damage * z.damage * energy * (0.85 + rand(battle) * 0.3),
@@ -105,13 +118,15 @@
         root.BattleEngagement && root.BattleEngagement.guardOnHit
           ? root.BattleEngagement.guardOnHit(victim, battle, damage)
           : 1,
-      dropped = rand(battle) < z.drop * scale * guard,
+      dropped = rand(battle) < z.drop * scale * guard * injury,
       st = state(battle);
     damage *= guard;
     st.stats.hits++;
     st.stats.byZone[zone].hits++;
     victim.hp -= damage;
-    (victim.wounds || (victim.wounds = [])).push({ zone: zone, at: +battle.time || 0, by: shooter.id });
+    var woundRecord = { zone: zone, at: +battle.time || 0, by: shooter.id };
+    if (blast) woundRecord.source = 'grenade';
+    (victim.wounds || (victim.wounds = [])).push(woundRecord);
     victim._lastHitBy = shooter;
     if (victim.hp <= COLLAPSE_HP || dropped) {
       casualty(battle, victim, zone, victim.hp <= 0 ? 'killed' : 'dropped', shooter);
@@ -120,10 +135,18 @@
     st.stats.wounded++;
     if (z.bleed > 0) {
       if (!(victim.bleedRate > 0)) st.bleeding.push(victim);
-      victim.bleedRate = (victim.bleedRate || 0) + z.bleed * scale * guard;
+      victim.bleedRate = (victim.bleedRate || 0) + z.bleed * scale * guard * injury;
     }
-    if (z.speed) victim.woundSpeed = Math.max(MIN_SPEED, (victim.woundSpeed || 1) * z.speed);
-    if (z.sigma) victim.woundSigma = Math.min(MAX_SIGMA, (victim.woundSigma || 1) * z.sigma);
+    if (z.speed)
+      victim.woundSpeed = Math.max(
+        MIN_SPEED,
+        (victim.woundSpeed || 1) * (blast ? 1 - (1 - z.speed) * injury : z.speed)
+      );
+    if (z.sigma)
+      victim.woundSigma = Math.min(
+        MAX_SIGMA,
+        (victim.woundSigma || 1) * (blast ? 1 + (z.sigma - 1) * injury : z.sigma)
+      );
     /* Being hit and staying up still puts a man down behind whatever he has for a moment. */
     root.SquadAI.pin(victim, battle, SHOCK);
     if (root.BattleSoldierEvents) root.BattleSoldierEvents.post(victim, battle, 'wound', { count: 1 });

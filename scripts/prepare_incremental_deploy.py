@@ -35,7 +35,7 @@ BATTLE_FILES = [
 # models (source .zip packs stay out). The FBX soldier backend (battle/modules/53-fbx-soldier-backend.js) reads them
 # from the same-origin Assets/ directory.
 SOLDIER_ASSET_GLOBS = [("Assets/soldiers", "*.fbx"), ("Assets/animations", "*.fbx"), ("Assets/animations", "*.bin"),
-                       ("Assets/weapons", "*.fbx"),
+                       ("Assets/weapons", "*.fbx"), ("Assets/weapons", "*.glb"),
                        ("Assets/effects/muzzle-flash", "*.png"), ("Assets/effects/decals", "*.png")]
 # Non-voice audio: weapon reports, handling foley, vehicle and ambience beds. The voice
 # callouts are staged separately by the deploy workflow's pitch-variant step, but nothing

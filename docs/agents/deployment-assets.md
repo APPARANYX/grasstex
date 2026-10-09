@@ -5,7 +5,7 @@
   `battle_sim.php` (a GitHub-mirroring loader that writes git-tracked `Assets/` to the host and
   never deletes) is not deployed.
 - `scripts/prepare_incremental_deploy.py` uploads by content hash: `.fbx` from soldiers,
-  animations and weapons, muzzle-flash `.png`, audio, and the Motion Lab's own files
+  animations and weapons, prepared weapon `.glb`, muzzle-flash `.png`, audio, and the Motion Lab's own files
   (`MANAGED_LAB`: `labs/fbx-animation-lab.html`, its two `.js`, `asset-list.php`,
   `save-calibration.php`). `scripts/build_version.py stamp|show|tag`
   derives the version from `build-v<N>` tags. Each deploy also lists the host's
