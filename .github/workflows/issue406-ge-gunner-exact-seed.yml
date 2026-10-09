@@ -1,0 +1,67 @@
+name: Issue 406 original-seed GE gunner causal benchmark
+on:
+  push:
+    branches: [work/issue406-exact-seed-ge-gunner-audit]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gunner:
+    name: Original seed / GE gunners / full-shipping 900s cap
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      PROBE: targeted-fire-control
+      PROBE_BATTLES: meeting:live-mv06u7n7-4fet7
+      PROBE_SECONDS: '900'
+      PROBE_STEP: '0.15'
+      PROBE_CONTROL: '1'
+      PROBE_URL: 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?probeSide=ge&probeRole=gunner&probeWatch=command,gates,setup,stress,fire,los'
+      PROBE_OUTPUT: reports/issue406-ge-gunners/raw.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe observational purity regression
+        run: node tools/ai-sim-harness/targeted-fire-probe-check.js
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start local battle server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www reports/issue406-ge-gunners
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+      - name: Full battle with observe-only gunner probe and probe-free control
+        run: node scripts/run_probe.cjs > reports/issue406-ge-gunners/console.json
+      - name: Extract actor-level findings
+        if: always()
+        run: |
+          node - <<'JS'
+          const fs=require('node:fs'), p='reports/issue406-ge-gunners/raw.json';
+          if(!fs.existsSync(p))process.exit(0);
+          const r=JSON.parse(fs.readFileSync(p,'utf8')),b=r.battles[0],q=b.reports['targeted-fire-control'],u=Object.values(q.units||{});
+          const o={seed:b.seed,simSeconds:b.simSeconds,winner:b.winner,probeControlMatch:b.sameBattle,errors:b.errors,units:u.map(x=>({
+            id:x.id,role:x.role,squad:x.squad,rounds:x.rounds,pulls:x.pulls,targetSeconds:+(x.targetSamples*.15).toFixed(2),gates:x.gates,engagements:x.engagements,fireOrders:x.fireOrders,setupTransitions:x.setupTransitions,losRejects:x.LOSRejected,crestRejects:x.crestRejected,episodes:x.episodes,last:x.last
+          }))};
+          fs.writeFileSync('reports/issue406-ge-gunners/findings.json',JSON.stringify(o,null,2)+'\n');
+          console.log(JSON.stringify(o,null,2).slice(0,30000));
+          if(b.sameBattle===false || b.errors?.length)process.exitCode=1;
+          JS
+      - name: Publish actor forensic artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue406-original-seed-ge-gunners
+          path: reports/issue406-ge-gunners/
+          if-no-files-found: warn
+          retention-days: 21
