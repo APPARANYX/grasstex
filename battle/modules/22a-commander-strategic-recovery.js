@@ -727,6 +727,77 @@
       );
       return true;
     }
+    /* Experimental squad-local recovery. The strategic ladder's episode is faction-wide;
+       friendly progress can correctly reset it even while another accepted capture brief
+       has not moved. Track that capture's *physical* pulses by mission version independently,
+       and review it on the existing 120 s replan cadence. Off by default until paired battles
+       establish useful outcomes and no garrison/contact churn (?localMissionWake=1). */
+    var LOCAL_MISSION_WAKE_ON = /[?&]localMissionWake=(?:1|on|true)(?:&|#|$)/i.test(
+      typeof location !== 'undefined' ? location.search || '' : ''
+    );
+    function reviewLocalCaptureStalls(sim, faction, squads, town, info) {
+      if (!LOCAL_MISSION_WAKE_ON || info.age >= STRATEGIC_STALL_REPLAN) return 0;
+      var general = generalFor(sim, faction),
+        records = general.localMissionReview || (general.localMissionReview = {}),
+        now = +sim.time || 0,
+        live = {},
+        count = 0;
+      for (var i = 0; i < squads.length; i++) {
+        var sq = squads[i],
+          m = sq && sq._macroMission,
+          members = sq && D.aliveMembers(sq),
+          id = sq && String(sq.id);
+        if (!sq || !members.length || sq.state === 'retreat' || !m ||
+            m.intent !== 'capture' || m.status !== 'executing' || !m.point) continue;
+        live[id] = true;
+        var p = D.avgPos(sq),
+          distance = missionDistance(sim, sq, m, p),
+          rec = records[id];
+        if (!p || !isFinite(distance)) continue;
+        if (!rec || rec.version !== m.version) {
+          rec = records[id] = {
+            version: m.version, position: { x: p.x, z: p.z },
+            distance: distance, motion: 0, lastPhysicalAt: now, lastWakeAt: null
+          };
+          continue;
+        }
+        var step = D.dist(p.x, p.z, rec.position.x, rec.position.z);
+        rec.position = { x: p.x, z: p.z };
+        if (isFinite(step) && step < 60) rec.motion += step;
+        if (rec.motion >= STRATEGIC_STALL_RECOVERY.progressDistance ||
+            rec.distance - distance >= STRATEGIC_STALL_RECOVERY.progressDistance) {
+          rec.motion = 0;
+          rec.distance = distance;
+          rec.lastPhysicalAt = now;
+        }
+        /* A firefight, active recon, prepared hold, or near-objective capture is not
+           evidence of a blocked attack. Leave those to their existing lifecycle owners. */
+        if (sq.inContact || sq._reconTask || sq._preparedDefenseRequest ||
+            sq._captureZoneDefenseRequest || distance <= 30) {
+          rec.lastPhysicalAt = now;
+          continue;
+        }
+        if (now - rec.lastPhysicalAt < STRATEGIC_STALL_REPLAN ||
+            now - (+m.issuedAt || 0) < STRATEGIC_STALL_REPLAN ||
+            (rec.lastWakeAt != null && now - rec.lastWakeAt < STRATEGIC_STALL_REPLAN))
+          continue;
+        rec.lastWakeAt = now;
+        telemetry(sim, 'decision-local-mission-stall', {
+          faction: faction, squad: sq.id, missionVersion: m.version,
+          objectiveId: m.objectiveId, distance: +distance.toFixed(1),
+          noPhysicalProgressSeconds: +(now - rec.lastPhysicalAt).toFixed(1)
+        });
+        var stalled = {};
+        if (m.objectiveId) stalled[m.objectiveId] = true;
+        reconsiderMission(sim, sq, town, 'strategic-local-stall', stalled);
+        count++;
+      }
+      Object.keys(records).forEach(function (id) {
+        if (!live[id]) delete records[id];
+      });
+      return count;
+    }
+
     function runStrategicRecovery(sim, faction, squads, town) {
       var info = strategicStallInfo(sim, faction),
         recovery = trackMissionProgress(sim, faction, squads),
@@ -779,8 +850,11 @@
         recovery.completed >= STRATEGIC_STALL_STAGES[STRATEGIC_STALL_STAGES.length - 1].level &&
         info.age >= STRATEGIC_STALL_RECOVERY.reset + STRATEGIC_STALL_REPLAN * (recovery.passes + 1) &&
         runReviewPass(sim, faction, squads, town, info);
-      /* A stage held for an in-flight adoption did nothing this tick: it reports no wake. */
-      return ran > 0 || reviewed;
+      /* A local CAPTURE review is independent of healthy sibling squads' faction clock.
+         It uses the same General cadence and mission issuer; no soldier movement writer. */
+      var localReviews = reviewLocalCaptureStalls(sim, faction, squads, town, info);
+      /* A stage held for in-flight adoption did nothing this tick. */
+      return ran > 0 || reviewed || localReviews > 0;
     }
 
     /* Did a strategic-stall wake change the effort? `repeats` re-picked the stalled objective. */
