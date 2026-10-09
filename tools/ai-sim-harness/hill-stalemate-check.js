@@ -144,8 +144,8 @@ test('the low crest has a physically reachable upper-body aim point', () => {
   shooter.root.position.z = 0;
   target.root.position.x = 0;
   target.root.position.z = RANGE;
-  shooter.prone = shooter.crouching = false;
-  target.prone = target.crouching = false;
+  shooter.prone = shooter.tacticalCrouch = false;
+  target.prone = target.tacticalCrouch = false;
   const aim = w.r.BattleBallistics.exposedAim(shooter, target, w.b);
   assert.ok(aim && aim.y > 1.35, 'an exposed upper-body aim point clears the crest');
 });
