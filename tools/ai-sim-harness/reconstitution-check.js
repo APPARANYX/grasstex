@@ -56,6 +56,8 @@ function world(opts) {
   load(r, 'battle/commander-ai.js');
   load(r, 'battle/modules/22-commander-reconstitution.js');
   load(r, 'battle/modules/22a-commander-strategic-recovery.js');
+  load(r, 'battle/battle-navigation.js');
+  load(r, 'battle/modules/39-navigation-physicality-debug.js');
   load(r, 'battle/movement-resolver.js');
   load(r, 'battle/modules/15a-squad-leader-fire-control.js', opts.search);
   load(
@@ -714,6 +716,16 @@ function probe398(search) {
     readySq.orderAnchor = { ...group.rally };
     readySq.rally = { ...group.rally };
   }
+  const hedge = {
+    id: 'rally-side-hedge', type: 'hedge', shape: 'obb',
+    x: group.rally.x + 11.2, z: group.rally.z + 7,
+    hx: 2.2, hz: 7.5, ux: 1, uz: 0, vx: 0, vz: 1
+  };
+  w.b.heightAt = (x,z) => (Math.sin(x/22) + Math.cos(z/25)) * 0.7;
+  w.b.obstacles.__physicalFootprints = [hedge];
+  w.b.scene.metadata.battleScenario = { buildings: [] };
+  w.r.BattleNavigation.installScenario(w.b.scene.metadata.battleScenario);
+  w.r.BattleModules.getSystem('navigation-physicality-debug').onBattleStart(w.b);
   const beforeStep = { ...lone.orderAnchor };
   w.r.BattleSquadStability.advanceSquadAnchor(lone, w.b);
   const afterStep = { ...lone.orderAnchor };
@@ -724,7 +736,18 @@ function probe398(search) {
     lone: w.r.BattleCommanderDoctrine.avgPos(lone)
   };
   let closest = Infinity, furthestAfterAtBase = 0, arrived = 0, noProgress = 0;
+  const trail = [], start = w.b.time;
   run(w, 180, () => {
+    if (w.b.time <= start + 4 || Math.round(w.b.time * 10) % 20 === 0) {
+      const man = living(lone)[0];
+      if (man && trail.length < 36) trail.push({
+        t: +w.b.time.toFixed(2), x: +man.root.position.x.toFixed(2),
+        z: +man.root.position.z.toFixed(2), anchor: lone.orderAnchor && +lone.orderAnchor.x.toFixed(2),
+        goal: man.destination && +man.destination.x.toFixed(2),
+        stop: man._movementStopReason, phase: lone._assembly && lone._assembly.phase,
+        nav: man._physicalPath && {blocked: man._physicalPath.blocked, points:man._physicalPath.points?.length}
+      });
+    }
     if (lone._assembly && lone._assembly.phase === 'to-rally') {
       const p = w.r.BattleCommanderDoctrine.avgPos(lone);
       const dist = Math.hypot(p.x - group.rally.x, p.z - group.rally.z);
@@ -740,7 +763,7 @@ function probe398(search) {
     loneFinal: w.r.BattleCommanderDoctrine.avgPos(lone),
     loneAssembly: lone._assembly && lone._assembly.phase,
     closest, furthestAfterAtBase, arrived,
-    anchorProgress: w.events.filter(e => e.type === 'decision-retreat-anchor' && e.data.squad === lone.id).length
+    anchorProgress: w.events.filter(e => e.type === 'decision-retreat-anchor' && e.data.squad === lone.id).length, trail
   };
 }
 const probes398 = [probe398('?retreatArrival=0'), probe398('')];
