@@ -19,7 +19,7 @@ function fixture({physical=true,inside=false}={}){
   load(r,'battle/modules/51-soldier-personal-space.js');load(r,'battle/modules/52-survival-tactical-route.js');load(r,'battle/modules/99-session-diagnostics-export.js');
   // Execute the real integrator and death path with rendering stubbed, as the navigation suite does.
   let code=fs.readFileSync(path.join(H.REPO,'battle/battle-sim.js'),'utf8');
-  code=code.replace('  BattleSim.prototype._frame=function','  root.stepMovementProbe=stepMovement;root.killProbe=BattleSim.prototype.killSoldier;\n  BattleSim.prototype._frame=function');
+  code=code.replace(/(?=BattleSim\.prototype\._frame\s*=\s*function)/, 'root.stepMovementProbe = stepMovement; root.killProbe = BattleSim.prototype.killSoldier;\\n  ');
   new Function('window','globalThis','BABYLON','BattleSoldierModel',code)(r,r,r.BABYLON,r.BattleSoldierModel);
   const sim=H.makeBattle(r),sq=H.addSquad(r,sim,{id:'us-0',faction:'us',x:0,z:-14,objective:{x:0,z:0},composition:['rifleman','rifleman','sergeant','gunner']});
   const room={id:'room',x:0,z:0,w:12,d:12,rot:0,openings:[
