@@ -66,8 +66,11 @@ The PR checks run both
 `tools/ai-sim-harness/matrix-diagnostics-check.js` (schema, clock, observer,
 integrity and duplicate-seed cases) and
 `tools/ai-sim-harness/matrix-diagnostics-merge-check.js` (real merger on
-valid and invalid synthetic shards). These do **not** substitute for a full
-300-battle browser run.
+valid and invalid synthetic shards). These validate the merger but do **not** substitute for a browser run.
+The `⭐ Matrix Diagnostics Smoke` PR workflow additionally runs **one genuine
+browser battle per scenario** with current sources and checks their merged
+diagnostics. Even that three-battle check is **not** a statistical
+300-battle regression run.
 
 Matrix workflow deliberately restricts manual dispatches to `main`. Once
 this PR passes CI and is merged, use **Actions → ⭐ M3C Battle Benchmark
