@@ -683,22 +683,36 @@ function probe398(search) {
   const right = squad(w, 2, 4, null, 20);
   const group = untilGrouped(w, 150).group;
   assert.deepEqual(group.squads.slice().sort(), [left.id, lone.id, right.id].sort());
-  /* Start a physically valid reconstitution march well beyond the 20 m merge radius:
-     several 13 m anchor strides must precede final slot arrival. The 68 m
-     separation deliberately hits the old 16 m anchor + 6.5 m slot case. */
+  /* Reconstruct the terminal geometry observed in the old census:
+     the one-man remnant stands on the assigned slot 6.4m past its leased
+     anchor, while the macro rally remains 22.4m away (radius 20m).
+     Both arms start from exactly the same explicit lease/physical state. */
   const loneMan = living(lone)[0];
-  loneMan.root.position.x = group.rally.x + 68;
+  loneMan.root.position.x = group.rally.x + 22.4;
   loneMan.root.position.z = group.rally.z;
-  lone.orderAnchor = { x: loneMan.root.position.x, z: loneMan.root.position.z };
-  lone.rally = { x: loneMan.root.position.x, z: loneMan.root.position.z };
-  lone._orderGoal = { ...lone.orderAnchor };
+  loneMan._movementStopReason = 'arrived';
+  lone.orderAnchor = { x: group.rally.x + 16, z: group.rally.z };
+  lone.rally = { ...lone.orderAnchor };
+  lone._orderGoal = { ...group.rally };
+  loneMan.orderDestination = { x: loneMan.root.position.x, z: loneMan.root.position.z };
+  const t0 = w.b.time;
+  w.r.BattleLeases.grant(
+    lone, 'retreat-anchor', 'squad-leader', t0, t0 + 6,
+    'retreat endpoint', 'arrival, retreat goal change, blocked/unsafe route, no-progress timeout or retreat end',
+    { anchor: { ...lone.orderAnchor }, goal: { ...group.rally }, bestDistance: 6.4,
+      distance: 6.4, lastProgressAt: t0, grantedAt: t0, reason: 'retreat start' }
+  );
+  const beforeStep = { ...lone.orderAnchor };
+  w.r.BattleSquadStability.advanceSquadAnchor(lone, w.b);
+  const afterStep = { ...lone.orderAnchor };
   const beginning = {
     time: w.b.time,
     rally: group.rally,
+    beforeStep, afterStep,
     lone: w.r.BattleCommanderDoctrine.avgPos(lone)
   };
   let closest = Infinity, furthestAfterAtBase = 0, arrived = 0, noProgress = 0;
-  run(w, 900, () => {
+  run(w, 180, () => {
     if (lone._assembly && lone._assembly.phase === 'to-rally') {
       const p = w.r.BattleCommanderDoctrine.avgPos(lone);
       const dist = Math.hypot(p.x - group.rally.x, p.z - group.rally.z);
