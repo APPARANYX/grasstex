@@ -1,0 +1,102 @@
+name: ⭐ Targeted MG42 Fire Benchmark
+
+# Independent, observe-only multi-seed probe. Runs full battles, filters diagnostics by unit/role.
+# PRs changing this probe run 20 seeds per scenario against a probe-free replay.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/targeted-fire-control.yml'
+      - 'scripts/probes/targeted-fire-control.js'
+      - 'scripts/run_targeted_fire_benchmark.cjs'
+      - 'tools/ai-sim-harness/targeted-fire-probe-check.js'
+  workflow_dispatch:
+    inputs:
+      seeds:
+        description: Seeds per scenario (default 20)
+        required: false
+        default: '20'
+      side:
+        description: ge, us or all
+        required: false
+        default: ge
+      role:
+        description: Role names, comma separated, or all
+        required: false
+        default: gunner,sergeant,rifleman
+      ids:
+        description: Optional exact soldier IDs, comma separated (e.g. 76)
+        required: false
+        default: ''
+      squads:
+        description: Optional squad IDs (e.g. ge-2)
+        required: false
+        default: ''
+      seconds:
+        description: Battle seconds per seed (default 600)
+        required: false
+        default: '600'
+
+permissions:
+  contents: read
+
+jobs:
+  targeted:
+    name: ${{ matrix.battle_type }} · focused fire control
+    strategy:
+      fail-fast: false
+      matrix:
+        battle_type: [meeting, us-defend, ge-defend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TARGET_SEEDS: ${{ github.event.inputs.seeds || '20' }}
+      TARGET_TYPES: ${{ matrix.battle_type }}
+      TARGET_SIDE: ${{ github.event.inputs.side || 'ge' }}
+      TARGET_ROLE: ${{ github.event.inputs.role || 'gunner,sergeant,rifleman' }}
+      TARGET_IDS: ${{ github.event.inputs.ids || '' }}
+      TARGET_SQUADS: ${{ github.event.inputs.squads || '' }}
+      TARGET_SECONDS: ${{ github.event.inputs.seconds || '600' }}
+      TARGET_CONTROL: '1'
+      TARGET_SEED_PREFIX: targeted-mg42
+      TARGET_OUT: reports/targeted-fire
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Regression test for observer purity and selectors
+        run: node tools/ai-sim-harness/targeted-fire-probe-check.js
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start local battle server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+      - name: Run selected fire-control seed sweep with control replay
+        run: node scripts/run_targeted_fire_benchmark.cjs
+      - name: Publish focused findings
+        if: always()
+        run: |
+          if [ -f reports/targeted-fire/summary.md ]; then
+            cat reports/targeted-fire/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'No targeted-fire report produced. Inspect job logs.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Save per-unit traces and seed comparison
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: targeted-fire-${{ matrix.battle_type }}-${{ github.run_number }}
+          path: reports/targeted-fire/
+          if-no-files-found: warn
+          retention-days: 14
