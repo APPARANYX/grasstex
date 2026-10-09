@@ -148,7 +148,10 @@ function seedDefender(w, pinned) {
 function supplyFriendlyProgress(w) {
   if (w.T % 100 === 0) {
     w.b.objectiveControl.objectives.other = {
-      owner: 'neutral', active: 'us', progress: w.T / 100, phase: 'capturing'
+      owner: 'neutral',
+      active: 'us',
+      progress: w.T / 100,
+      phase: 'capturing'
     };
   }
 }
@@ -169,13 +172,17 @@ function captureStarvation(search) {
   const general = w.r.BattleCommanderAI.generalFor(w.b, 'us');
   const attempted = w.events.filter(e => e.type === 'decision-local-mission-stall');
   return {
-    search, stillSame: w.q._macroMission === first,
+    search,
+    stillSame: w.q._macroMission === first,
     attempts: attempted.map(e => e.data),
     checkpoints: checkpoints.map(q => ({
-      t:q.time, intent:q.intent, version:q.version, status:q.status,
-      factionStall:q.factionStall,
-      lastProgressAt:q.squadProgress && q.squadProgress.lastProgressAt,
-      recoveryStages:q.stages.length
+      t: q.time,
+      intent: q.intent,
+      version: q.version,
+      status: q.status,
+      factionStall: q.factionStall,
+      lastProgressAt: q.squadProgress && q.squadProgress.lastProgressAt,
+      recoveryStages: q.stages.length
     })),
     stages: general.stallRecovery.history.length
   };
@@ -191,7 +198,8 @@ drive(garrison, 420, supplyFriendlyProgress);
 assert.equal(garrison.q._macroMission.intent, 'defend');
 assert.equal(
   garrison.events.filter(e => e.type === 'decision-local-mission-stall').length,
-  0, 'legitimate prepared defense cannot be released by local CAPTURE review'
+  0,
+  'legitimate prepared defense cannot be released by local CAPTURE review'
 );
 const moving = world('&localMissionWake=1');
 moving.q.targetObjective = 'away';
@@ -204,16 +212,27 @@ drive(moving, 420, w => {
   /* Controlled physical progress in a Macro-only fixture. Motion is injected
      because this driver deliberately does not run the movement integrator. */
   if (w.T % 2 === 0 && w.T > 4)
-    w.q.members.filter(s => !s.dead).forEach(s => { s.root.position.z += 0.26; });
+    w.q.members
+      .filter(s => !s.dead)
+      .forEach(s => {
+        s.root.position.z += 0.26;
+      });
 });
 assert.equal(
   moving.events.filter(e => e.type === 'decision-local-mission-stall').length,
-  0, 'real centroid travel toward CAPTURE never triggers a false local wake'
+  0,
+  'real centroid travel toward CAPTURE never triggers a false local wake'
 );
 
-console.log('ISSUE361_LOCAL_STALL ' + JSON.stringify({off,on}));
+console.log('ISSUE361_LOCAL_STALL ' + JSON.stringify({ off, on }));
 assert.equal(off.attempts.length, 0, 'flag-off must reproduce missing local recovery');
 assert.equal(off.stillSame, true, 'healthy faction continues masking stalled mission');
 assert.ok(on.attempts.length >= 1, 'flag-on must review the isolated stalled CAPTURE');
-assert.ok(on.attempts.every(e => e.noPhysicalProgressSeconds >= 120), 'only after 120 s without movement');
-assert.ok(on.attempts.every(e => e.missionVersion >= 1), 'outcomes carry mission identity');
+assert.ok(
+  on.attempts.every(e => e.noPhysicalProgressSeconds >= 120),
+  'only after 120 s without movement'
+);
+assert.ok(
+  on.attempts.every(e => e.missionVersion >= 1),
+  'outcomes carry mission identity'
+);
