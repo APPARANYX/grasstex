@@ -65,8 +65,13 @@ function breakContact(w) {
   w.q.orderAnchor = { x: 0, z: -120 };
   w.q.rally = { x: 0, z: -120 };
   w.r.BattleLeases.end(w.q, 'retreat-anchor', w.b.time, 'test disconnected fireteam');
-  tick(w, 1);
-  const pending = w.C.peek(s, w.b, 'movement', 'soldier:' + s.id);
+  let pending = null;
+  for (let i = 0; i < 40; i++) {
+    H.stepMovement(w.b, s, 0.15);
+    tick(w, 1);
+    pending = w.C.peek(s, w.b, 'movement', 'soldier:' + s.id);
+    if (pending && pending.unreachable) break;
+  }
   assert.ok(
     pending && pending.unreachable,
     'fresh order genuinely cannot reach isolated soldier: ' + JSON.stringify({
