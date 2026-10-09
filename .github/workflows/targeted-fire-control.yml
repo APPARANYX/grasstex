@@ -53,8 +53,8 @@ jobs:
     env:
       TARGET_SEEDS: ${{ github.event.inputs.seeds || (github.event_name == 'pull_request' && '2') || '20' }}
       TARGET_TYPES: ${{ matrix.battle_type }}
-      TARGET_SIDE: ${{ github.event.inputs.side || 'ge' }}
-      TARGET_ROLE: ${{ github.event.inputs.role || 'gunner,sergeant,rifleman' }}
+      TARGET_SIDE: ${{ github.event.inputs.side || (github.event_name == 'pull_request' && 'all') || 'ge' }}
+      TARGET_ROLE: ${{ github.event.inputs.role || (github.event_name == 'pull_request' && 'gunner') || 'gunner,sergeant,rifleman' }}
       TARGET_IDS: ${{ github.event.inputs.ids || '' }}
       TARGET_SQUADS: ${{ github.event.inputs.squads || '' }}
       TARGET_SECONDS: ${{ github.event.inputs.seconds || '600' }}

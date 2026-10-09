@@ -72,4 +72,31 @@ assert.equal(originalFires, 2, 'existing fire callback preserved');
 assert.equal(observedSettlements, 0, 'never settle command-reception state');
 assert.equal(losRecomputes, 0, 'never change direct-fire LOS cache');
 assert.equal(randomCalls, 0, 'never advance battle RNG');
+
+// The prior probe incorrectly called a squad's CLEAR an active fire hold, and
+// collapsed a man actively fleeing under his squad's retreat into "withdraw".
+function readGate(state, squadState, order, extra) {
+  sim.time += 0.15;
+  selected.eng = { state, fireReadyAt: 0, ...(extra || {}) };
+  squad.state = squadState;
+  selected.setUp = true;
+  sim._commandReception.adoptedBySoldier[76]['posture-fire|squad'] = {
+    adoptedAt: sim.time - 1,
+    data: order || { state: 'clear' }
+  };
+  probe.start(sim);
+  probe.sample(sim);
+  const row = probe.report(sim).units['ge:76'];
+  return Object.keys(row.gates)[0];
+}
+assert.equal(readGate('flee', 'retreat', { state: 'clear' }), 'stress:flee', 'morale flight wins over squad retreat');
+assert.equal(readGate('withdraw', 'retreat', { state: 'hold' }), 'squad-retreat', 'live retreat is not stale');
+assert.equal(readGate('withdraw', 'advance', { state: 'hold' }), 'withdraw:stale', 'retreat finished but unowned withdraw remained');
+assert.equal(readGate('withdraw', 'advance', { state: 'hold' }, { withdrawPoint: { x: 0, z: -20 } }), 'withdraw:local');
+assert.equal(readGate('engage', 'engage', { state: 'clear' }), 'eligible-unknown', 'clear is not a restrictive order');
+assert.equal(readGate('engage', 'engage', { state: 'precision', shooterId: 76 }), 'eligible-unknown', 'chosen precision shooter may fire');
+assert.equal(readGate('engage', 'engage', { state: 'hold' }), 'fire-order:hold', 'restrictive hold is still visible');
+assert.equal(readGate('engage', 'engage', { state: 'hold' }, { retreatEndedAt: sim.time + 1 }), 'eligible-unknown', 'pre-retreat posture is stale after release');
+assert.equal(observedSettlements, 0, 'extended cases still never settle commands');
+assert.equal(losRecomputes, 0, 'extended cases still do not trace mutating LOS');
 console.log('targeted-fire-probe: selection, fire events, gate classifications and no-side-effect checks passed');

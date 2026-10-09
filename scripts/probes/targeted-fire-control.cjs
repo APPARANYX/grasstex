@@ -75,8 +75,11 @@
     // Primary reasons for a unit not participating in combat. First-blocker classification,
     // sampled AFTER the shipping AI step: indicative, not instrumented call-site evidence.
     if (s.dead) return 'dead';
-    if (s.squad.state === 'retreat' || rx === 'withdraw') return 'withdraw';
+    // A fleeing man can also belong to a withdrawing squad. Keep the immediate reason
+    // (morale break) distinct from retreat orders and stale micro withdraw states.
     if (rx === 'cower' || rx === 'freeze' || rx === 'flee') return 'stress:' + rx;
+    if (s.squad.state === 'retreat') return 'squad-retreat';
+    if (rx === 'withdraw') return e.withdrawPoint ? 'withdraw:local' : 'withdraw:stale';
     if (!t || t.dead || !t.root) return s.squad.inContact ? 'no-personal-target' : 'no-contact';
     if (rx === 'orient') return 'recognizing';
     if (rx === 'bound' || rx === 'assault' || rx === 'alert' || rx === 'advance') return 'fsm:' + rx;
@@ -89,8 +92,16 @@
     if (angle(s, t) > .22) return 'facing';
     if (root.SquadAI && root.SquadAI.isMachineGun && root.SquadAI.isMachineGun(s) &&
         !s.setUp && (rx === 'engage' || s.state === 'hardpoint')) return 'mg-setup';
-    if (order !== 'open' && order !== 'none' && !underFire(s, sim))
-      return 'fire-order:' + order;
+    // Match Engagement.fireAuthorized: CLEAR is absence of a restrictive order, and
+    // a designated precision shooter is explicitly authorized. The observer reads
+    // the adopted record without invoking its mutating settlement function.
+    var adopted = sim._commandReception && sim._commandReception.adoptedBySoldier,
+      rec = adopted && adopted[String(s.id)] && adopted[String(s.id)]['posture-fire|squad'],
+      chosenPrecision = order === 'precision' && rec && rec.data &&
+        String(rec.data.shooterId) === String(s.id),
+      expiredOnRetreat = rec && e.retreatEndedAt != null && !(rec.adoptedAt > e.retreatEndedAt);
+    if (!expiredOnRetreat && order !== 'open' && order !== 'none' && order !== 'clear' &&
+        !chosenPrecision && !underFire(s, sim)) return 'fire-order:' + order;
     if (sim.time < (+((s.mind && s.mind.shockUntil) || 0))) return 'shock';
     var p = s.root.position, q = t.root.position, distance = Math.hypot(p.x - q.x, p.z - q.z);
     if (root.SquadAI && root.SquadAI.engageRange && distance > root.SquadAI.engageRange(s))
@@ -184,7 +195,8 @@
         }
         if (on('fire')) silence(sim, d, s, why);
         d.last = { t: round(sim.time), target: !!s.target, order: order, gate: why,
-          engagement: st, setup: !!s.setUp, ammo: s.weapon && s.weapon.ammo };
+          engagement: st, squadState: s.squad.state, setup: !!s.setUp,
+          ammo: s.weapon && s.weapon.ammo };
       }
       counters.selectedUnits = Math.max(counters.selectedUnits, chosen);
       counters.sampledSeconds = round(sim.time);
