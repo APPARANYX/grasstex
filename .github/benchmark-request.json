@@ -1,0 +1,12 @@
+{
+  "benchmark": "standard",
+  "ref": "work/crest431-exposed-shot-fix",
+  "seed": "live-mv0z6zy9-4lhnw",
+  "seeds": "1",
+  "battle_type": "meeting",
+  "query_off": "",
+  "query_on": "",
+  "origin_agent": "chatgpt",
+  "correlation_id": "issue-431",
+  "purpose": "Exact hillcrest seed new exposed-aim collision and fingerprint validation"
+}
