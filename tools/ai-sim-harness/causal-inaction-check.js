@@ -41,7 +41,7 @@ function fixture(search, outcomeState) {
   const sim = { time: 0, onFire: () => { originalFires++; },
     _commandReception: { adoptedBySoldier: { 76: {} } } };
   probe.start(sim);
-  return { soldier, target, state, sim, probe,
+  return { soldier, target, state, sim, probe, root,
     stats: () => ({ originalFires, mutations, randoms, reads }),
     sample(t) { sim.time = t; probe.sample(sim); } };
 }
@@ -91,6 +91,26 @@ for (let t = 0; t <= 13; t++) c.sample(t);
 const correlated = c.probe.report(c.sim);
 assert.ok(correlated.episodes.some(e => e.code === 'restrictive-fire-order' && e.confidence === 'likely'));
 assert.ok(correlated.episodes.some(e => e.code === 'order-undeliverable' && e.confidence === 'verified'));
+
+// Actual Engagement denial instrumentation is VERIFIED, unlike a HOLD snapshot.
+const e = fixture('?probeSide=ge&probeIds=76', 'executing');
+for (let t = 0; t <= 6; t++) {
+  e.sim.time = t;
+  if (t >= 1 && t <= 4)
+    e.root.BattleCausalInaction.denied(e.soldier, e.sim, 'fire-not-authorized');
+  e.sample(t);
+}
+const denied = e.probe.report(e.sim).episodes.find(x => x.kind === 'fire-silence');
+assert.equal(denied.code, 'engagement-decision-denied');
+assert.equal(denied.confidence, 'verified');
+assert.equal(denied.scope, 'decision-gate');
+assert.equal(denied.evidence.directFireDenials['fire-not-authorized'], 4);
+
+// The production firing gate must emit directly at the actual denial branch.
+const fireSource = fs.readFileSync(path.join(__dirname,
+  '../../battle/modules/19b-engagement-fire-stance.js'), 'utf8');
+assert.ok(fireSource.includes("return reportFireDenial(s, battle, 'fire-not-authorized')"));
+assert.ok(fireSource.includes("return reportFireDenial(s, battle, 'mg-not-setup')"));
 
 // No target is not a silent-fire incident.
 const d = fixture('?probeSide=ge&probeIds=76', 'none');
