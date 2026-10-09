@@ -27,7 +27,7 @@ function dedupe(values,limit=100){return [...new Set(values.map(String))].slice(
 function mergeMaps(battles,field){const out={};for(const b of battles)for(const [k,v] of Object.entries(b[field]||{}))out[k]=(out[k]||0)+(+v||0);return out;}
 function battleTypeOf(b){
   if (b && ['meeting','us-defend','ge-defend'].includes(b.battleType)) return b.battleType;
-  const seed=String(b?.seed||''),m=seed.match(/(?:^|-)(meeting|us-defend|ge-defend)-s\d+-/);
+  const seed=String(b?.seed||''),m=seed.match(/(?:^|-)(meeting|us-defend|ge-defend)-(?:s\d+-)?\d+$/);
   return m ? m[1] : 'unknown';
 }
 function winnerCounts(rows){const out={us:0,ge:0,draw:0,none:0};for(const b of rows)out[b.winner]=(out[b.winner]||0)+1;return out;}
