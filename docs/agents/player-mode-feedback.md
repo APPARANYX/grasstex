@@ -71,16 +71,29 @@ casualties, wounds, shooting, and AI orders remain with their existing owners.
 ## Offscreen squads
 
 The tactical squad overlay retains its existing on-screen historical symbols.
-When a squad is outside the camera projection (including behind it), its marker
-is replaced by a faction-colored, labeled edge chevron following the squad's
-world-space bearing. If the squad/destination is offscreen, the existing
-momentary long-range command arrow connects to clamped screen-edge anchors.
+When a squad is outside the camera projection (including behind it), it shows
+a faction-colored, labeled edge chevron. For a unit in front of the camera,
+the pointer follows a ray from **screen center toward that unit's actual
+projected screen coordinate**, intersected with the safe inset screen rectangle.
+This respects perspective, camera pitch, ultrawide aspect ratio and canvas
+offset—unlike the old flat compass ellipse that pointed up for any unit ahead.
+Behind-camera units deliberately use camera-relative rear/left/right bearings
+because the perspective projection flips behind the camera.
+
+An offscreen mission objective has a separate compact edge diamond labeled
+OBJ. A long-range command-intent curve is now displayed **only while both
+the squad and destination markers are onscreen**. Drawing curves from an
+offscreen edge anchor made soldiers appear to assault objectives 'from space';
+the edge cues now remain independent until both endpoints enter view.
+The on-screen arrow wipe plays when the command first becomes visible, but
+does not invent extra orders or change any squad/Movement authority.
 The overlay toggle continues to control these indications.
 
 ## Regression checks
 
 - `node tools/ai-sim-harness/player-control-check.js` (Menu tap/hold timing and roster safety)
-- `node tools/ai-sim-harness/squad-status-overlay-check.js`
+- `node tools/ai-sim-harness/squad-status-overlay-check.js` (projected bearings,
+  rear-camera fallback, rectangular edge intersection, and offscreen-only cues)
 - Low-frame-rate aim smoke: pan near a crest at 60 FPS and throttled 10–20 FPS.
   The small unfilled ring should ease toward muzzle parallax, not snap across
   the viewport; the center reticle and the actual bullet impact remain authoritative.
