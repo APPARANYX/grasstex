@@ -1,0 +1,28 @@
+name: Temporary crest #431 formatter
+on:
+  push:
+    branches: [work/crest431-exposed-shot-fix]
+    paths: ['.github/workflows/crest431-formatter.yml']
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Format changed JS and push work branch
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write battle/modules/14-z-ballistic-raycast.js tools/ai-sim-harness/crest-fire-check.js tools/ai-sim-harness/hill-stalemate-check.js
+          if ! git diff --quiet; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add battle/modules/14-z-ballistic-raycast.js tools/ai-sim-harness/crest-fire-check.js tools/ai-sim-harness/hill-stalemate-check.js
+            git commit -m "style: format crest targeting fix and regression fixtures"
+            git push origin HEAD:work/crest431-exposed-shot-fix
+          fi
