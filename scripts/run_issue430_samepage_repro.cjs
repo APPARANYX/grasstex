@@ -120,7 +120,10 @@ const hash = s => createHash('sha256').update(s).digest('hex');
         if (root.BattleSoldierModel && root.BattleSoldierModel.setImportedEnabled) {
           root.BattleSoldierModel.setImportedEnabled(sim.scene, false);
         }
-        sim.restart();
+        const hooks = [];
+        const oldRunHook = root.BattleModules.runHook;
+        root.BattleModules.runHook = function (name) { hooks.push(name); return oldRunHook.apply(this, arguments); };
+        try { sim.restart(); } finally { root.BattleModules.runHook = oldRunHook; }
         sim._fixedClock.reset();
         Object.assign(sim, {
           paused: false,
@@ -130,6 +133,10 @@ const hash = s => createHash('sha256').update(s).digest('hex');
           timeScale: mode ? mode.speed : 1,
           timeLimit: seconds
         });
+        const checkpoints = {};
+        const milestones = [0, 1, 5, 15, 30, 60, 120];
+        function mark() { for (const t of milestones) if (sim.time + 0.0001 >= t && !(t in checkpoints)) checkpoints[t] = JSON.stringify(root.BattleStateFingerprint.snapshot(sim)); }
+        mark();
         let fireEvents = 0;
         let hitEvents = 0;
         let suppressionEvents = 0;
@@ -160,14 +167,17 @@ const hash = s => createHash('sha256').update(s).digest('hex');
               commandDebt -= tick;
               root.BattleCommanderAI.update(sim, sim.scene.metadata.battleScenario, tick);
             }
+            mark();
           }
         } else {
           const frames = Math.ceil((seconds / mode.speed) * mode.fps);
           const wallFrame = seconds / mode.speed / frames;
-          for (let i = 0; i < frames && !sim.winner; i++) sim._fixedClock.advance(wallFrame);
+          for (let i = 0; i < frames && !sim.winner; i++) { sim._fixedClock.advance(wallFrame); mark(); }
         }
 
         return {
+          hooks,
+          checkpoints,
           simSeconds: sim.time,
           winner: sim.winner || null,
           aliveUS: sim.factions.us.alive,
@@ -193,6 +203,9 @@ const hash = s => createHash('sha256').update(s).digest('hex');
     const repeated = await replay(null);
     const samePageEqual = baseline.fingerprint === repeated.fingerprint;
     const samePageDiffs = [];
+    const earliest = Object.keys(baseline.checkpoints).find(t => baseline.checkpoints[t] !== repeated.checkpoints[t]);
+    const initialDiffs = [];
+    if (earliest !== undefined) firstDifferences(JSON.parse(baseline.checkpoints[earliest]), JSON.parse(repeated.checkpoints[earliest]), 'battle', initialDiffs);
     if (!samePageEqual) firstDifferences(JSON.parse(baseline.fingerprint), JSON.parse(repeated.fingerprint), 'battle', samePageDiffs);
     const report = {
       scenario: SCENARIO,
@@ -200,7 +213,7 @@ const hash = s => createHash('sha256').update(s).digest('hex');
       seconds: SECONDS,
       cases: cases.map(x => x.id),
       isolatedPages: false,
-      samePageRestart: { sameBattle: samePageEqual, fingerprint: hash(repeated.fingerprint), differences: samePageDiffs, fireEvents: repeated.fireEvents },
+      samePageRestart: { sameBattle: samePageEqual, fingerprint: hash(repeated.fingerprint), hooksFirst: baseline.hooks, hooksRepeat: repeated.hooks, firstDifferenceAt: earliest || null, firstDifferences: initialDiffs, differences: samePageDiffs, fireEvents: repeated.fireEvents },
       baseline: {
         label: baseline.label,
         simSeconds: baseline.simSeconds,
