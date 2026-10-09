@@ -252,7 +252,9 @@ assert.match(
 );
 
 const skySource = fs.readFileSync(path.join(H.REPO, 'battle/battle-sim.js'), 'utf8');
-const skyMatch = skySource.match(/function buildSky\(scene\)\{var radius=(\d+(?:\.\d+)?),offset=(\.?\d+)/);
+const skyMatch = skySource.match(
+  /function buildSky\(scene\)\s*\{\s*var radius\s*=\s*(\d+(?:\.\d+)?),\s*offset\s*=\s*(\d*\.?\d+)/
+);
 assert.ok(skyMatch, 'battle sky radius/offset contract must remain measurable');
 const cameraFar = +farMatch[1],
   skyRadius = +skyMatch[1],
