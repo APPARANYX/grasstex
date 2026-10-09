@@ -25,7 +25,11 @@
     PLAYER_AIM_DISTANCE = 3.15,
     PLAYER_LOOK_RATE = 2.2,
     PLAYER_MOVE_AHEAD = 6,
-    PLAYER_CAMERA_CLEARANCE = 0.45;
+    PLAYER_CAMERA_CLEARANCE = 0.45,
+    PLAYER_ADS_SENSITIVITY = 0.36,
+    PLAYER_BORE_PREVIEW_MS = 90,
+    PLAYER_HIT_FLASH_MS = 260,
+    PLAYER_SHOT_IMPACT_MS = 160;
   /* Player-only sprint budget; AI soldiers keep their existing movement model. */
   var SPRINT_DRAIN = 12,
     STAMINA_WALK_RECOVER = 12,
@@ -209,6 +213,8 @@
       mouseFire = false,
       playerFaction = queryParams().get('playerFaction') === 'ge' ? 'ge' : 'us',
       reticle = null,
+      playerBoreDot = null,
+      hitMarker = null,
       playerHud = null,
       playerDamage = null,
       playerStamina = 100,
@@ -217,6 +223,12 @@
       damageAt = 0,
       damageOrigin = null,
       lastShotPulse = 0,
+      lastConfirmedHits = 0,
+      hitMarkerAt = 0,
+      shotImpactAt = 0,
+      shotImpact = null,
+      lastBorePreview = 0,
+      borePreview = null,
       settingsMenu = null,
       menuOpen = false,
       menuPauseOwner = null,
@@ -309,10 +321,17 @@
       reticle = document.createElement('div');
       reticle.id = 'battlePlayerReticle';
       reticle.style.cssText =
-        'position:fixed;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);z-index:9;pointer-events:none;display:none';
+        'position:fixed;left:50%;top:50%;width:15px;height:15px;transform:translate(-50%,-50%);z-index:17;pointer-events:none;display:none';
       reticle.innerHTML =
-        '<i style="position:absolute;left:8px;top:1px;width:2px;height:16px;background:#f1f1dfcc"></i><i style="position:absolute;left:1px;top:8px;width:16px;height:2px;background:#f1f1dfcc"></i>';
+        '<i class="bpr-line bpr-top"></i><i class="bpr-line bpr-bottom"></i>' +
+        '<i class="bpr-line bpr-left"></i><i class="bpr-line bpr-right"></i>' +
+        '<span id="battlePlayerHitMarker" aria-hidden="true"></span>';
       document.body.appendChild(reticle);
+      hitMarker = reticle.querySelector('#battlePlayerHitMarker');
+      playerBoreDot = document.createElement('div');
+      playerBoreDot.id = 'battlePlayerBoreDot';
+      playerBoreDot.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(playerBoreDot);
       return reticle;
     }
 
@@ -348,6 +367,20 @@
       var css = document.createElement('style');
       css.id = 'battlePlayerFeedbackStyles';
       css.textContent =
+        '#battlePlayerReticle .bpr-line{position:absolute;background:#e8ece5;' +
+        'box-shadow:0 0 2px #000a;display:block}' +
+        '#battlePlayerReticle .bpr-top{width:1px;height:5px;left:7px;top:0}' +
+        '#battlePlayerReticle .bpr-bottom{width:1px;height:5px;left:7px;bottom:0}' +
+        '#battlePlayerReticle .bpr-left{height:1px;width:5px;top:7px;left:0}' +
+        '#battlePlayerReticle .bpr-right{height:1px;width:5px;top:7px;right:0}' +
+        '#battlePlayerHitMarker{position:absolute;inset:-9px;opacity:0;pointer-events:none}' +
+        '#battlePlayerHitMarker:before,#battlePlayerHitMarker:after{content:"";position:absolute;' +
+        'width:22px;height:1px;background:#fff;top:50%;left:50%;' +
+        'box-shadow:0 0 3px #d7dfbd;transform:translate(-50%,-50%) rotate(45deg)}' +
+        '#battlePlayerHitMarker:after{transform:translate(-50%,-50%) rotate(-45deg)}' +
+        '#battlePlayerBoreDot{position:fixed;z-index:17;width:6px;height:6px;' +
+        'border:1px solid #ffffffc9;background:#c4d9b6bd;box-shadow:0 0 0 1px #13212490,0 0 5px #a5c2a7;' +
+        'border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;display:none}' +
         '#battlePlayerHud{position:fixed;left:12px;bottom:58px;z-index:16;pointer-events:none;' +
         'min-width:190px;max-width:270px;padding:12px 14px;background:rgba(11,16,17,.83);' +
         'border:1px solid rgba(209,210,184,.48);border-radius:5px;color:#f2f1dc;' +
@@ -385,6 +418,62 @@
       playerDamage.id = 'battlePlayerDamage';
       playerDamage.setAttribute('aria-hidden', 'true');
       document.body.appendChild(playerDamage);
+    }
+    /* Project the *simulated* muzzle line's physical first contact to a screen-space
+       marker. Unlike the fixed camera reticle, this shifts around near cover and parallax.
+       While a shot is fresh the dot shows that round's *actual* dispersed impact. */
+    function paintBoreDot(worldPoint) {
+      if (!playerBoreDot || !playerCam || !worldPoint) {
+        if (playerBoreDot) playerBoreDot.style.display = 'none';
+        return;
+      }
+      var width = engine.getRenderWidth(),
+        height = engine.getRenderHeight(),
+        viewport = playerCam.viewport.toGlobal(width, height),
+        projected = BABYLON.Vector3.Project(
+          new BABYLON.Vector3(worldPoint.x, worldPoint.y, worldPoint.z),
+          BABYLON.Matrix.Identity(),
+          playerCam.getTransformationMatrix(),
+          viewport
+        ),
+        rect = canvas.getBoundingClientRect();
+      if (
+        !isFinite(projected.x) ||
+        !isFinite(projected.y) ||
+        !isFinite(projected.z) ||
+        projected.z < 0 ||
+        projected.z > 1 ||
+        projected.x < 0 ||
+        projected.x > width ||
+        projected.y < 0 ||
+        projected.y > height
+      ) {
+        playerBoreDot.style.display = 'none';
+        return;
+      }
+      playerBoreDot.style.left = rect.left + (projected.x / width) * rect.width + 'px';
+      playerBoreDot.style.top = rect.top + (projected.y / height) * rect.height + 'px';
+      playerBoreDot.style.display = 'block';
+    }
+    function updatePlayerReticle(point, b, now) {
+      if (!player || !playerBoreDot) return;
+      var confirmed = player._playerConfirmedHits || 0;
+      if (confirmed > lastConfirmedHits) hitMarkerAt = now;
+      lastConfirmedHits = confirmed;
+      if (hitMarker)
+        hitMarker.style.opacity = String(
+          Math.max(0, 1 - (now - hitMarkerAt) / PLAYER_HIT_FLASH_MS).toFixed(2)
+        );
+      if (now - lastBorePreview >= PLAYER_BORE_PREVIEW_MS) {
+        var B = global.BattleBallistics;
+        borePreview = B && B.previewPlayerRay && point ? B.previewPlayerRay(player, point, b) : null;
+        lastBorePreview = now;
+      }
+      paintBoreDot(
+        now - shotImpactAt < PLAYER_SHOT_IMPACT_MS && shotImpact
+          ? shotImpact
+          : borePreview && borePreview.impact
+      );
     }
     function updatePlayerFeedback(pad) {
       if (!player || !playerHud) return;
@@ -726,6 +815,8 @@
       mouseFire = false;
       keys.clear();
       ensureReticle().style.display = 'none';
+      if (playerBoreDot) playerBoreDot.style.display = 'none';
+      if (hitMarker) hitMarker.style.opacity = '0';
       if (playerHud) playerHud.style.display = 'none';
       if (playerDamage) playerDamage.style.opacity = '0';
       if (playerCam) {
@@ -770,6 +861,12 @@
       damageAt = 0;
       damageOrigin = null;
       lastShotPulse = 0;
+      lastConfirmedHits = next._playerConfirmedHits || 0;
+      hitMarkerAt = 0;
+      shotImpactAt = 0;
+      shotImpact = null;
+      lastBorePreview = 0;
+      borePreview = null;
       /* isPlayer, not a short movement lease, is the authority boundary for the whole possession. */
       /* Possession starts from a neutral player-owned stance instead of inheriting a squad hold-fire posture. */
       if (global.BattleEngagement && global.BattleEngagement.commitStance)
@@ -832,8 +929,8 @@
         aiming = mouseAim || buttonValue(pad, 6) > 0.35,
         firing = mouseFire || buttonValue(pad, 7) > 0.35,
         runRequested = (keys.has('shift') || buttonValue(pad, 10) > 0.5) && !aiming;
-      playerYaw += lx * PLAYER_LOOK_RATE * dt;
-      playerPitch = clamp(playerPitch + ly * 1.55 * dt, -0.62, 0.78);
+      playerYaw += lx * PLAYER_LOOK_RATE * dt * (aiming ? PLAYER_ADS_SENSITIVITY : 1);
+      playerPitch = clamp(playerPitch + ly * 1.55 * dt * (aiming ? PLAYER_ADS_SENSITIVITY : 1), -0.62, 0.78);
       if (pad && padPressedOnce(pad, 1)) togglePlayerCrouch(b);
       if (pad && padPressedOnce(pad, 0)) togglePlayerProne(b);
       var flat = new BABYLON.Vector3(Math.sin(playerYaw), 0, Math.cos(playerYaw)),
@@ -863,13 +960,19 @@
       /* RT is a real trigger, not an AI target request: it fires the crosshair ray even with no lock. */
       if (firing && point && global.SquadAI) {
         if (global.SquadAI.playerFireRay && global.SquadAI.playerFireRay(player, point, b)) {
-          var shotTime = Date.now();
+          var shotTime = Date.now(),
+            shot = player._lastBallisticShot;
+          if (shot && shot.playerRay && shot.impact) {
+            shotImpact = shot.impact;
+            shotImpactAt = shotTime;
+          }
           if (shotTime - lastShotPulse >= 80) {
             playerRumble(pad, 45, 0.28, 0.52);
             lastShotPulse = shotTime;
           }
         }
       }
+      updatePlayerReticle(point, b, Date.now());
     }
     canvas.addEventListener('click', function () {
       canvas.focus();
@@ -886,8 +989,10 @@
     document.addEventListener('mousemove', function (event) {
       if (!active) return;
       if (player) {
-        playerYaw += event.movementX * LOOK_X;
-        playerPitch = clamp(playerPitch + event.movementY * LOOK_Y, -0.62, 0.78);
+        var aimingNow = mouseAim || buttonValue(activeGamepad(), 6) > 0.35,
+          sensitivity = aimingNow ? PLAYER_ADS_SENSITIVITY : 1;
+        playerYaw += event.movementX * LOOK_X * sensitivity;
+        playerPitch = clamp(playerPitch + event.movementY * LOOK_Y * sensitivity, -0.62, 0.78);
         return;
       }
       yaw += event.movementX * LOOK_X;

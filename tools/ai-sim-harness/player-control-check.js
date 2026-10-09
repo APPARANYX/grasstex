@@ -124,6 +124,61 @@ assert.match(
   'player camera must use the shared world far plane so the sky dome is not clipped'
 );
 
+/* Camera center, muzzle impact, and confirmed enemy contact are three separate signals. */
+const squadSource = fs.readFileSync(path.join(H.REPO, 'battle/squad-ai.js'), 'utf8');
+const ballisticsSource = fs.readFileSync(
+  path.join(H.REPO, 'battle/modules/14-z-ballistic-raycast.js'),
+  'utf8'
+);
+assert.match(cameraSource, /bpr-line bpr-top/, 'crosshair is built from four slim independent strokes');
+assert.match(cameraSource, /bpr-top\{width:1px;height:5px/, 'reticle lines have 1-pixel thickness');
+assert.match(cameraSource, /id="battlePlayerHitMarker"/, 'confirmed hits flash on center reticle');
+assert.match(cameraSource, /_playerConfirmedHits/, 'hit flash tracks the shooter hit counter');
+assert.match(
+  squadSource,
+  /shot && shot\.victim && shot\.victim\.faction !== soldier\.faction/,
+  'only authoritative opposite-faction bullet hits increment marker counter'
+);
+assert.match(
+  squadSource,
+  /B\.resolvePlayerRay\(soldier, aimPoint, battle, round, delay\)/,
+  'enemy hit signal is read from authoritative discharged rounds'
+);
+assert.match(cameraSource, /B\.previewPlayerRay\(player, point, b\)/, 'floating dot uses bore preview');
+assert.match(cameraSource, /shotImpact = shot\.impact/, 'fired rounds briefly show their actual impact');
+assert.match(cameraSource, /BABYLON\.Vector3\.Project\(/, 'muzzle point is screen projected, not centered');
+assert.match(cameraSource, /playerBoreDot\.style\.display = 'none'/, 'offscreen markers must hide');
+assert.match(
+  ballisticsSource,
+  /function previewPlayerRay[\s\S]*?environmentStop\([\s\S]*?firstEnemyHit\(/,
+  'muzzle preview shares live obstruction and opposing-body collision'
+);
+assert.match(
+  cameraSource,
+  /playerYaw \+= lx \* PLAYER_LOOK_RATE \* dt \* \(aiming \? PLAYER_ADS_SENSITIVITY : 1\)/,
+  'right-stick horizontal turn slows only while zoom aiming'
+);
+assert.match(
+  cameraSource,
+  /playerPitch \+ ly \* 1\.55 \* dt \* \(aiming \? PLAYER_ADS_SENSITIVITY : 1\)/,
+  'right-stick vertical turn slows while zoom aiming'
+);
+assert.match(
+  cameraSource,
+  /event\.movementX \* LOOK_X \* sensitivity/,
+  'mouse horizontal aim adopts zoom sensitivity'
+);
+assert.match(
+  cameraSource,
+  /event\.movementY \* LOOK_Y \* sensitivity/,
+  'mouse vertical aim adopts zoom sensitivity'
+);
+assert.match(
+  cameraSource,
+  /PLAYER_ADS_SENSITIVITY = 0\.36/,
+  'aiming uses intentional 36% mouse and controller sensitivity'
+);
+
 /* Player feedback must be wired to shipping soldier/weapon state and be optional on unsupported devices. */
 assert.match(cameraSource, /ensurePlayerFeedback\(\)/, 'possession installs player HUD');
 assert.match(cameraSource, /player\.maxHp/, 'HUD reads real health');
@@ -145,7 +200,7 @@ assert.match(
 );
 assert.match(
   cameraSource,
-  /SquadAI\.playerFireRay\(player, point, b\)\)\s*\{[\s\S]{0,180}playerRumble/,
+  /SquadAI\.playerFireRay\(player, point, b\)\)\s*\{[\s\S]{0,650}playerRumble/,
   'shooting haptic only follows accepted authoritative firing'
 );
 assert.match(
