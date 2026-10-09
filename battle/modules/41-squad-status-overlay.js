@@ -331,6 +331,8 @@
       '.sso-id{font-size:9px;fill:#fff}.sso-status{font-size:9px}' +
       '.sso-objective{fill:rgba(12,14,11,.78);stroke-width:2.2}.sso-objective-line{stroke:currentColor;stroke-width:1.8}' +
       '.sso-contact{fill:#fff;stroke:#111;stroke-width:1.5}' +
+      '.sso-edge-arrow{fill:currentColor;stroke:#081112;stroke-width:2;stroke-linejoin:round;filter:drop-shadow(0 2px 3px #000)}' +
+      '.sso-edge-text{font:700 11px Arial,sans-serif;fill:#f3f0df;stroke:#0b0d0b;stroke-width:3;paint-order:stroke;text-anchor:middle}' +
       '.sso-hidden{display:none!important}';
     document.head.appendChild(style);
 
@@ -397,6 +399,13 @@
     });
     var statusText = append(unit, 'text', { 'class': 'sso-text sso-status', x: '0', y: '32' }, 'HOLD');
     var contact = append(unit, 'circle', { 'class': 'sso-contact', cx: '32', cy: '-14', r: '4' });
+    /* Offscreen squad pointer is independent of the short-lived long-move command arrow. */
+    var edge = append(g, 'g', { 'class': 'sso-edge' }),
+      edgeArrow = append(edge, 'path', {
+        'class': 'sso-edge-arrow', d: 'M0 -15 L11 8 L0 3 L-11 8 Z'
+      }),
+      edgeText = append(edge, 'text', { 'class': 'sso-edge-text', x: '0', y: '27' }, '');
+    setShown(edge, false);
     svg.appendChild(g);
     var mark = (marks[key] = {
       key: key,
@@ -414,7 +423,10 @@
       idText: idText,
       statusBg: statusBg,
       statusText: statusText,
-      contact: contact
+      contact: contact,
+      edge: edge,
+      edgeArrow: edgeArrow,
+      edgeText: edgeText
     });
     renderSymbol(mark, sq);
     return mark;
@@ -511,6 +523,35 @@
         y <= rect.bottom + OFFSCREEN_PAD
     };
   }
+
+  /* World-space bearing survives projected coordinates leaving the screen or moving behind the
+     camera. In the local camera frame 0 = forward/up, +90 deg = right, 180 = behind/down. */
+  function edgeDirection(world, camera, rect) {
+    if (!world || !camera || !camera.position || !camera.getForwardRay || !rect ||
+        !(rect.width > 0) || !(rect.height > 0)) return null;
+    var f = camera.getForwardRay(1).direction;
+    if (!f) return null;
+    var dx = +world.x - +camera.position.x,
+      dz = +world.z - +camera.position.z,
+      fx = +f.x, fz = +f.z;
+    if (![dx, dz, fx, fz].every(isFinite) || !(dx * dx + dz * dz > 0.000001)) return null;
+    var angle = Math.atan2(dx * fz - dz * fx, dx * fx + dz * fz),
+      radiusX = Math.max(8, rect.width / 2 - Math.min(68, rect.width * 0.2)),
+      radiusY = Math.max(8, rect.height / 2 - Math.min(62, rect.height * 0.2));
+    return {
+      x: rect.left + rect.width / 2 + Math.sin(angle) * radiusX,
+      y: rect.top + rect.height / 2 - Math.cos(angle) * radiusY,
+      angle: angle * 180 / Math.PI
+    };
+  }
+  function screenEdge(sim, at) {
+    var scene = sim && sim.scene,
+      camera = scene && scene.activeCamera,
+      engine = scene && scene.getEngine && scene.getEngine(),
+      canvas = engine && engine.getRenderingCanvas && engine.getRenderingCanvas(),
+      rect = canvas && canvas.getBoundingClientRect && canvas.getBoundingClientRect();
+    return edgeDirection(at, camera, rect);
+  }
   function curvePath(a, b, sq) {
     var dx = b.x - a.x,
       dy = b.y - a.y,
@@ -591,14 +632,24 @@
       m.g.style.display = 'none';
       return;
     }
-    var screen = project(sim, at, LIFT);
-    if (!screen || !screen.visible) {
+    var screen = project(sim, at, LIFT),
+      edge = screen && !screen.visible ? screenEdge(sim, at) : null;
+    if (!screen || (!screen.visible && !edge)) {
       m.g.style.display = 'none';
       return;
     }
     m.g.style.display = '';
     renderSymbol(m, sq);
-    m.unit.setAttribute('transform', 'translate(' + screen.x.toFixed(1) + ' ' + screen.y.toFixed(1) + ')');
+    setShown(m.unit, screen.visible);
+    setShown(m.edge, !!edge);
+    if (edge) {
+      m.edge.setAttribute('transform', 'translate(' + edge.x.toFixed(1) + ' ' + edge.y.toFixed(1) + ')');
+      m.edgeArrow.setAttribute('transform', 'rotate(' + edge.angle.toFixed(1) + ')');
+      m.edgeText.textContent = (sq.faction === 'ge' ? 'GE ' : 'US ') +
+        (sq.overlayLabel != null ? String(sq.overlayLabel) : String(sq.id));
+    } else {
+      m.unit.setAttribute('transform', 'translate(' + screen.x.toFixed(1) + ' ' + screen.y.toFixed(1) + ')');
+    }
     var displayId = sq.overlayLabel != null ? String(sq.overlayLabel) : String(sq.id);
     m.idText.textContent = (sq.faction === 'ge' ? 'GE ' : 'US ') + displayId;
     var st = statusFor(sq, sim),
@@ -624,18 +675,19 @@
 
     var target = arrowTarget(sq, sim),
       targetScreen = target && project(sim, target, OBJECTIVE_LIFT),
+      targetEdge = targetScreen && !targetScreen.visible ? screenEdge(sim, target) : null,
       longMove = !!(hasSquadMovementIntent(sq, sim) && target && dist(at, target) >= LONG_ARROW_WORLD),
       sig = longMove ? arrowSignature(sq, target) : null;
     /* A long destination gets one command-arrow wipe when it becomes visible/new. Local 13 m anchor
        updates and fireteam bounds never retrigger it. */
-    if (longMove && targetScreen && targetScreen.visible) {
+    if (longMove && targetScreen && (targetScreen.visible || targetEdge)) {
       if (m.arrowSignature !== sig) {
         m.arrowSignature = sig;
         m.arrowStartedAt = nowMs || 0;
       }
       var elapsed = Math.max(0, (nowMs || 0) - (m.arrowStartedAt || 0)),
         total = ARROW_WIPE_MS + ARROW_HOLD_MS + ARROW_FADE_MS;
-      if (elapsed <= total) renderArrowWipe(m, sq, screen, targetScreen, elapsed);
+      if (elapsed <= total) renderArrowWipe(m, sq, edge || screen, targetEdge || targetScreen, elapsed);
       else hideArrow(m);
     } else {
       /* Preserve the last played destination signature while it remains the same assignment. The
@@ -725,13 +777,14 @@
   }
 
   root.BattleSquadStatusOverlay = {
-    version: '1.3',
+    version: '1.4',
     historicalBasis:
       'Per-symbol provenance is supplied by BattleTacticalSymbols; infantry currently cites FM 21-30 (1941)',
     statusFor: statusFor,
     movementTarget: movementTarget,
     arrowTarget: arrowTarget,
     arrowSignature: arrowSignature,
+    edgeDirection: edgeDirection,
     longArrowWorld: LONG_ARROW_WORLD,
     missionObjective: missionObjective,
     symbolIdFor: symbolIdFor,
@@ -745,7 +798,7 @@
     dispose: dispose
   };
   root.BattleModules.registerSystem('squad-status-overlay', {
-    version: '1.3',
+    version: '1.4',
     onBattleStart: start,
     beforeBattleRestart: reset,
     onBattleRestart: start
