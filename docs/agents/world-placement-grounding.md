@@ -16,6 +16,11 @@ is opened now, it produces a **new random battlefield** and removes the stale
 random seed. Deliberate `live-...` replay links must include `&pinSeed=1`
 (`?seed=live-...&pinSeed=1`); other explicitly named seeds still replay
 unchanged. The URL cleanup preserves unrelated query parameters.
+Manual smoke: open `battle_sim.php?seed=live-mu8p91no-4c64u`; the URL
+must lose only the `seed` parameter and the HUD should show a different
+`live-...` value. Refresh and confirm a *third* value. Compare with
+`?seed=live-mu8p91no-4c64u&pinSeed=1`, which must retain that exact seed
+and replay the same world on refresh.
 
 ## Terrain contact for objective art
 
