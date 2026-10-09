@@ -1,0 +1,9 @@
+{
+  "benchmark": "causal",
+  "ref": "work/causal-live-seed-pin-fix",
+  "exact_seed": "live-mv0z6zy9-4lhnw",
+  "seconds": "660",
+  "side": "ge",
+  "ids": "62,63,67",
+  "squads": "ge-1"
+}
