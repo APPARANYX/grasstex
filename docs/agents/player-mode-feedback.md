@@ -89,6 +89,14 @@ The on-screen arrow wipe plays when the command first becomes visible, but
 does not invent extra orders or change any squad/Movement authority.
 The overlay toggle continues to control these indications.
 
+Visual smoke: from player mode on a fixed seed, look level at friendly squads
+that are offscreen ahead, behind and to either side. The chevron must intersect
+the inset **screen rectangle** in the same direction as the unit's projected
+screen position (not automatically at the top merely because the unit is ahead).
+Turn and pitch the camera until the objective moves behind the view; its diamond
+must stay rearward, and there must be no long movement spline painted from an
+offscreen border into empty sky. On-screen command movement remains unchanged.
+
 ## Regression checks
 
 - `node tools/ai-sim-harness/player-control-check.js` (Menu tap/hold timing and roster safety)
