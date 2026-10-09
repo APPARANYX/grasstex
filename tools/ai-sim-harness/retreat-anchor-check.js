@@ -263,4 +263,42 @@ test('a majority physically blocked on the leased endpoint gets one bounded reco
   for (let i = 0; i < 6; i++)
     assert.ok(d(command(w), next) < 1e-9, 'persistent blocked flags do not churn the recovery anchor');
 });
+// Terrain-aware actual movement proof. No synthetic _movementStopReason assignment:
+// the shipping stepMovement integrator determines physical arrival at the committed
+// individual goal, and real navigation plans the subsequent route around an obstacle.
+test('terrain obstacle: genuinely arrived retreat slots allow anchor stride and legal onward path', () => {
+  const w = fixture(), b = w.b;
+  load(w.r, 'battle/battle-navigation.js');
+  load(w.r, 'battle/modules/39-navigation-physicality-debug.js');
+  const N = w.r.BattleNavigation;
+  b.scene = { metadata: { battleScenario: { buildings: [] } } };
+  b.obstacles = [];
+  b.obstacles.__physicalFootprints = [{
+    id: 'rally-hedge', type: 'hedge', shape: 'obb',
+    x: 4, z: 85, hx: 2.1, hz: 8, ux: 1, uz: 0, vx: 0, vz: 1
+  }];
+  b.heightAt = (x,z) => Math.sin(x/15) * 0.4 + Math.cos(z/19) * 0.6;
+  N.installScenario(b.scene.metadata.battleScenario);
+  w.systems['navigation-physicality-debug'].onBattleStart(b);
+  const anchor = command(w);
+  for (const s of live(w.q)) {
+    s.root.position.x = anchor.x + 6.5;
+    s.root.position.z = anchor.z;
+    const assigned = {x:s.root.position.x,z:s.root.position.z};
+    s.destination = {...assigned};
+    s.orderDestination = {...assigned};
+    H.stepMovement(b,s,0.15);
+    assert.equal(s._movementStopReason,'arrived','physical step reports arrival at its actual committed slot');
+    assert.ok(N.movementClear(assigned,assigned),'arrival lies outside the hedge body');
+  }
+  const old = p(w.q.orderAnchor), oldGoal=p(w.q.home);
+  const updated = command(w);
+  assert.ok(d(old,updated)>5,'genuine slot arrivals advance the retreat anchor by a physical stride');
+  const start = p(live(w.q)[0].root.position);
+  const path = w.r.BattleNavigationPhysicality.planPath(b,start,oldGoal);
+  assert.ok(path.length>0,'onward route around hedge is available');
+  const fp=b.obstacles.__physicalFootprints[0];
+  assert.ok(path.every((q,i) => !w.r.BattleNavigationPhysicality.shapeHit(i?path[i-1]:start,q,fp,w.r.BattleNavigationPhysicality.routeMargin)), 'planned route never intersects hedge');
+});
+
 console.log('retreat-anchor-check: ' + n + ' passed');
