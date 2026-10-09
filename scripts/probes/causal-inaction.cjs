@@ -425,7 +425,13 @@
               goal: event.goal,
               status: 'selected',
               arrivedAt: null,
-              firedAt: null
+              firedAt: null,
+              lastPosition: position(s.root.position),
+              nearestMeters: range(position(s.root.position),event.goal),
+              observedDeadAt: null,
+              atDeathMeters: null,
+              lastMovementOwner: null,
+              lastStop: null
             };
             if (data.coverLaneOutcomes.length < MAX_COVER) data.coverLaneOutcomes.push(d.coverLane);
           }
@@ -448,7 +454,24 @@
         selected = 0;
       for (var i = 0; i < all.length; i++) {
         var s = all[i];
-        if (!chosen(s) || s.dead) continue;
+        if (!chosen(s)) continue;
+        var trace = unit(s).coverLane;
+        if (trace && trace.goal) {
+          var currentPosition = position(s.root.position),
+            gap = range(currentPosition, trace.goal),
+            resolver = s._movementResolver && s._movementResolver.last;
+          trace.lastPosition = currentPosition;
+          trace.nearestMeters = Math.min(trace.nearestMeters, gap);
+          trace.lastMovementOwner = resolver && resolver.owner || null;
+          trace.lastStop = s._movementStopReason || null;
+          if (s.dead && trace.observedDeadAt == null) {
+            trace.observedDeadAt = round(sim.time);
+            trace.atDeathMeters = round(gap);
+            if (trace.arrivedAt == null)
+              trace.status = gap <= 0.6 ? 'killed-at-firing-position' : 'killed-before-arrival';
+          }
+        }
+        if (s.dead) continue;
         selected++;
         var d = unit(s),
           o = motionOutcome(s, sim);
