@@ -65,7 +65,9 @@ async function battle(browser, { type, seed }, probes) {
   // soldiers (no fallback since #86), so let them load; on a local PHP dev server that is slow, but
   // aborting them leaves the page on its load error. Media and fonts are never needed.
   await page.route('**/*', r => ['media', 'font'].includes(r.request().resourceType()) ? r.abort() : r.continue());
-  const q = new URLSearchParams({ seed });
+  // Explicit forensic replays must retain auto-shaped live seeds across fresh pages.
+  // Without pinSeed=1 each probe/control page generates a different random seed.
+  const q = new URLSearchParams({ seed, pinSeed: '1' });
   if (DEFENDER[type]) q.set('defender', DEFENDER[type]);
   // The single-threaded PHP dev server can stall a load behind another page's asset downloads.
   for (let attempt = 1; ; attempt++) {
