@@ -28,8 +28,9 @@
  *   FF_GPU=1      launch Chromium with its own GPU settings instead of SwiftShader software WebGL
  *   FF_CHROME     Chromium/Chrome executable
  *   FF_CADENCE=<hz> drive frames on a virtual clock at this rate instead of the render loop: each frame
- *                 steps the sim 1/hz s x FF_TIMESCALE, then renders; animation LOD schedules on that
- *                 clock. Pose/CPU per frame then describe a device at <hz> FPS; wall frame interval does not.
+ *                 feeds 1/hz wall seconds into the same fixed-step clock as live playback, then renders;
+ *                 animation LOD schedules on that clock. Pose/CPU per frame describe a device at <hz>
+ *                 FPS; wall frame interval does not.
  *   FF_QUERY      extra page query, e.g. animLod=0 for a same-build before/after (kept across redirects)
  *   FF_ISOLATE=0  don't serve the page cross-origin isolated (then performance.now() is clamped to 100 us)
  *   FF_OUT        output dir (default $TMPDIR/full-fidelity)
@@ -186,7 +187,10 @@ const pct = v => v == null ? '—' : (100 * v).toFixed(1) + '%';
         if (!rec.on) return;
         window.__ffClock += 1000 / cadence;
         engine.beginFrame();
-        if (!b.winner) b._frame(timeScale / cadence);
+        if (!b.winner) {
+          if (b._fixedClock) b._fixedClock.advance(1 / cadence);
+          else b._frame(timeScale / cadence);
+        }
         b.paused = true; try { scene.render(); } finally { b.paused = false; }
         engine.endFrame();
         rec.virtualFrames = (rec.virtualFrames || 0) + 1;
