@@ -74,11 +74,22 @@ function breakContact(w) {
   }
   assert.ok(
     pending && pending.unreachable,
-    'fresh order genuinely cannot reach isolated soldier: ' + JSON.stringify({
-      pending: pending && { action: pending.action, phase: pending.phase, sourceId: pending.sourceId, channel: pending.channel, point: pending.point },
-      state: w.q.state, anchor: w.q.orderAnchor, leader: w.S.leaderOf(w.q) && w.S.leaderOf(w.q).id,
-      candidate: s.id, here: point(s.root.position), orders: w.q._fireteamOrders
-    })
+    'fresh order genuinely cannot reach isolated soldier: ' +
+      JSON.stringify({
+        pending: pending && {
+          action: pending.action,
+          phase: pending.phase,
+          sourceId: pending.sourceId,
+          channel: pending.channel,
+          point: pending.point
+        },
+        state: w.q.state,
+        anchor: w.q.orderAnchor,
+        leader: w.S.leaderOf(w.q) && w.S.leaderOf(w.q).id,
+        candidate: s.id,
+        here: point(s.root.position),
+        orders: w.q._fireteamOrders
+      })
   );
   assert.ok(distance(s.root.position, w.q.orderAnchor) > 100, 'fresh squad rally is distant');
   return { s, old };
@@ -92,8 +103,11 @@ function breakContact(w) {
     H.stepMovement(w.b, s, 0.15);
     tick(w, 1);
   }
-  assert.deepEqual(point(s.orderDestination), point(w.q.baseHome),
-    'unreachable retreating soldier must continue independently to the known rear base');
+  assert.deepEqual(
+    point(s.orderDestination),
+    point(w.q.baseHome),
+    'unreachable retreating soldier must continue independently to the known rear base'
+  );
   assert.ok(s._survivalMovementKey, 'fallback is explicit local survival state, not a received command');
   assert.ok(distance(old, s.orderDestination) > 100, 'not simply another nearby formation slot');
   console.log('PASS disconnected five-man retreat resumes toward already-known base');
@@ -105,8 +119,10 @@ function breakContact(w) {
     H.stepMovement(w.b, s, 0.15);
     tick(w, 1);
   }
-  assert.ok(distance(s.orderDestination, old) < 1,
-    'default-OFF arm preserves old behavior for paired testing');
+  assert.ok(
+    distance(s.orderDestination, old) < 1,
+    'default-OFF arm preserves old behavior for paired testing'
+  );
   console.log('PASS flag-OFF arm preserves legacy reception boundary');
 }
 console.log('retreat-lost-contact-check: 2 checks passed');

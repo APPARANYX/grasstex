@@ -902,7 +902,9 @@
         );
       }
       if (!(urgent && (root.SquadAI.isExtractionToHome(sq) || lostContact)))
-        throw new Error('Survival movement is restricted to remnant extraction or a disconnected retreat to a known base');
+        throw new Error(
+          'Survival movement is restricted to remnant extraction or a disconnected retreat to a known base'
+        );
       s._survivalMovementKey = String(publishKey || 'survival');
       return commitPersonalMovement(s, next, publishKey, battle, true, stats);
     }
