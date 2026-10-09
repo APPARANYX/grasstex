@@ -128,9 +128,7 @@
     var scene = s && s._scene,
       track =
         scene &&
-        (s.soundTrackId >= 0 && scene.soundTracks
-          ? scene.soundTracks[s.soundTrackId]
-          : scene.mainSoundTrack),
+        (s.soundTrackId >= 0 && scene.soundTracks ? scene.soundTracks[s.soundTrackId] : scene.mainSoundTrack),
       trackNode = track && track._outputAudioNode,
       v2 = !!(s && s._soundV2 && trackNode && typeof s.connectToSoundTrackAudioNode === 'function');
     // A pooled Sound survives battle restarts. Reuse the existing nodes rather
