@@ -986,9 +986,12 @@
       var point = aimPoint();
       if (global.BattleEngagement && global.BattleEngagement.playerFace)
         global.BattleEngagement.playerFace(player, aiming || firing ? point : null);
-      /* No aim assist: the crosshair is the aim. The soldier's own targeting stays off while possessed. */
+      /* The raw camera bearing tells Engagement where to turn the soldier; the rendered
+         gun pose follows the physical bore arc, not an impossible behind-body camera ray. */
+      var B = global.BattleBallistics,
+        weaponAim = B && B.playerBoreAimPoint && point ? B.playerBoreAimPoint(player, point, b) : point;
       if (global.SquadAI && global.SquadAI.playerAim)
-        global.SquadAI.playerAim(player, aiming || firing ? point : null);
+        global.SquadAI.playerAim(player, aiming || firing ? weaponAim : null);
       /* RT is a real trigger, not an AI target request: it fires the crosshair ray even with no lock. */
       if (firing && point && global.SquadAI) {
         if (global.SquadAI.playerFireRay && global.SquadAI.playerFireRay(player, point, b)) {

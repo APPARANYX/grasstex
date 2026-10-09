@@ -63,8 +63,10 @@
       dz = tp ? tp.z - p.z : 0,
       flat = Math.hypot(dx, dz),
       yaw = (shooter.root.rotation && +shooter.root.rotation.y) || 0,
-      fx = flat > 1e-6 ? dx / flat : Math.sin(yaw),
-      fz = flat > 1e-6 ? dz / flat : Math.cos(yaw);
+      /* Possessed weapons cannot teleport their semantic muzzle around the soldier when
+         a third-person camera looks behind him. Ordinary AI targeting is unaffected. */
+      fx = shooter.isPlayer ? Math.sin(yaw) : flat > 1e-6 ? dx / flat : Math.sin(yaw),
+      fz = shooter.isPlayer ? Math.cos(yaw) : flat > 1e-6 ? dz / flat : Math.cos(yaw);
     var mx = p.x + fx * forward,
       mz = p.z + fz * forward,
       ground = st === 'prone' ? battle.heightAt(mx, mz) : battle.heightAt(p.x, p.z);
@@ -556,6 +558,46 @@
     shooter._lastBallisticShot = meta;
     return hit;
   }
+  /* The camera can orbit independently of the soldier. Only the body/weapon forward arc
+     can launch a bullet: unlike a view ray, it cannot fire backward or sideways through the
+     shoulder. The prone limit is tighter because the grounded weapon cannot swivel freely.
+     Both the live ray and its presentation preview use this *same* constrained bore. */
+  var PLAYER_BORE_YAW_LIMIT = { stand: 0.38, crouch: 0.32, prone: 0.2 };
+  function playerBoreDirection(shooter, origin, aimPoint) {
+    var dx = +aimPoint.x - origin.x,
+      dz = +aimPoint.z - origin.z,
+      dy = +aimPoint.y - origin.y,
+      bodyYaw = (shooter.root.rotation && +shooter.root.rotation.y) || 0,
+      desiredYaw = Math.atan2(dx, dz),
+      delta = Math.atan2(Math.sin(desiredYaw - bodyYaw), Math.cos(desiredYaw - bodyYaw)),
+      st = stance(shooter),
+      limit = PLAYER_BORE_YAW_LIMIT[st] == null ? PLAYER_BORE_YAW_LIMIT.stand : PLAYER_BORE_YAW_LIMIT[st],
+      /* Free-look fully behind the body is not even an attempted shoulder aim.
+         Fire straight along the barrel until the body actually turns around. */
+      yaw = bodyYaw + (Math.abs(delta) >= Math.PI / 2 ? 0 : clamp(delta, -limit, limit)),
+      pitch = clamp(Math.atan2(dy, Math.hypot(dx, dz) || 1e-6), -0.55, 0.55),
+      flat = Math.cos(pitch);
+    return { x: Math.sin(yaw) * flat, y: Math.sin(pitch), z: Math.cos(yaw) * flat };
+  }
+  /* The FBX aim pose must receive the *same legal muzzle direction* as the round,
+     not the raw orbit-camera bearing (which could be behind the soldier).
+     Engagement still receives raw view bearing separately, to turn the body. */
+  function playerBoreAimPoint(shooter, aimPoint, battle) {
+    if (
+      !shooter ||
+      !shooter.root ||
+      !aimPoint ||
+      !battle ||
+      !isFinite(+aimPoint.x) ||
+      !isFinite(+aimPoint.y) ||
+      !isFinite(+aimPoint.z)
+    )
+      return null;
+    var proxy = { root: { position: aimPoint } },
+      origin = muzzleOrigin(shooter, proxy, battle),
+      dir = playerBoreDirection(shooter, origin, aimPoint);
+    return { x: origin.x + dir.x * 80, y: origin.y + dir.y * 80, z: origin.z + dir.z * 80 };
+  }
   /* Player free-fire is a crosshair ray, not an AI target decision. Start at the same semantic
      muzzle as ordinary fire, aim through the camera-selected world point, add the same weapon/shooter
      dispersion, then trace the full weapon range through terrain, structures and opposing bodies. */
@@ -564,7 +606,7 @@
     var proxy = { root: { position: { x: +aimPoint.x, y: +aimPoint.y, z: +aimPoint.z } } },
       origin = muzzleOrigin(shooter, proxy, battle),
       aim = { x: +aimPoint.x, y: +aimPoint.y, z: +aimPoint.z },
-      base = norm({ x: aim.x - origin.x, y: aim.y - origin.y, z: aim.z - origin.z }),
+      base = playerBoreDirection(shooter, origin, aim),
       flat = Math.hypot(base.x, base.z) || 1,
       right = { x: base.z / flat, y: 0, z: -base.x / flat },
       up = norm({ x: -right.z * base.y, y: right.z * base.x - right.x * base.z, z: right.x * base.y }),
@@ -611,11 +653,7 @@
     if (!(range > 0)) return null;
     var proxy = { root: { position: aimPoint } },
       origin = muzzleOrigin(shooter, proxy, battle),
-      dir = norm({
-        x: aimPoint.x - origin.x,
-        y: aimPoint.y - origin.y,
-        z: aimPoint.z - origin.z
-      }),
+      dir = playerBoreDirection(shooter, origin, aimPoint),
       environment = environmentStop(origin, dir, range, battle),
       body = firstEnemyHit(shooter, origin, dir, Math.min(range, environment.travel), battle);
     return {
@@ -799,6 +837,7 @@
     resolve: resolveRay,
     resolvePlayerRay: resolvePlayerRay,
     previewPlayerRay: previewPlayerRay,
+    playerBoreAimPoint: playerBoreAimPoint,
     dispersionSigma: dispersionSigma,
     groupDiameter90: groupDiameter90,
     bodyShape: bodyShape,

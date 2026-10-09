@@ -271,8 +271,18 @@ assert.doesNotMatch(
 );
 assert.match(
   cameraSource,
-  /SquadAI\.playerAim\(player, aiming \|\| firing \? point : null\)/,
-  'player aim must be the crosshair point'
+  /SquadAI\.playerAim\(player, aiming \|\| firing \? weaponAim : null\)/,
+  'player visual aim follows the constrained physical muzzle direction'
+);
+assert.match(
+  cameraSource,
+  /B\.playerBoreAimPoint\(player, point, b\)/,
+  'FBX visual aim must agree with the authoritative bore preview and shot'
+);
+assert.match(
+  cameraSource,
+  /BattleEngagement\.playerFace\(player, aiming \|\| firing \? point : null\)/,
+  'Engagement receives the raw view bearing to rotate the soldier into alignment'
 );
 const moveSource = fs.readFileSync(path.join(H.REPO, 'battle/battle-sim.js'), 'utf8');
 assert.match(
