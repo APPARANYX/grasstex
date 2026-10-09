@@ -733,7 +733,7 @@
        and review it on the existing 120 s replan cadence. Off by default until paired battles
        establish useful outcomes and no garrison/contact churn (?localMissionWake=1). */
     var LOCAL_MISSION_WAKE_ON = /[?&]localMissionWake=(?:1|on|true)(?:&|#|$)/i.test(
-      typeof location !== 'undefined' ? location.search || '' : ''
+      root.location ? root.location.search || '' : ''
     );
     function reviewLocalCaptureStalls(sim, faction, squads, town, info) {
       if (!LOCAL_MISSION_WAKE_ON || info.age >= STRATEGIC_STALL_REPLAN) return 0;
