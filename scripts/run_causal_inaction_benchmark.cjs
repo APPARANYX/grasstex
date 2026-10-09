@@ -3,14 +3,24 @@
  * Replays each seed probe-free by default; sameBattle=false invalidates evidence.
  * Usage: CAUSAL_SEEDS=20 CAUSAL_SECONDS=600 node scripts/run_causal_inaction_benchmark.cjs
  * Optional: CAUSAL_TYPES, CAUSAL_SIDE, CAUSAL_ROLE, CAUSAL_IDS, CAUSAL_SQUADS,
- * CAUSAL_PREFIX, CAUSAL_CONTROL, CAUSAL_URL, CAUSAL_OUT. */
+ * CAUSAL_PREFIX, CAUSAL_BATTLES (exact type:seed CSV), CAUSAL_CONTROL, CAUSAL_URL, CAUSAL_OUT. */
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const types = String(process.env.CAUSAL_TYPES || 'meeting,us-defend,ge-defend')
-  .split(',').map(x => x.trim()).filter(Boolean);
+const specified = String(process.env.CAUSAL_BATTLES || '').split(',')
+  .map(x => x.trim()).filter(Boolean);
+for (const name of specified) {
+  const pos = name.indexOf(':');
+  if (pos < 1 || !['meeting', 'us-defend', 'ge-defend'].includes(name.slice(0, pos)) ||
+      !name.slice(pos + 1)) throw Error('Invalid CAUSAL_BATTLES item: ' + name);
+}
+if (new Set(specified).size !== specified.length) throw Error('Duplicate CAUSAL_BATTLES seed');
+const types = specified.length
+  ? [...new Set(specified.map(x => x.slice(0, x.indexOf(':'))))]
+  : String(process.env.CAUSAL_TYPES || 'meeting,us-defend,ge-defend')
+      .split(',').map(x => x.trim()).filter(Boolean);
 if (!types.length || types.some(x => !['meeting','us-defend','ge-defend'].includes(x)))
   throw Error('CAUSAL_TYPES must be meeting,us-defend,ge-defend');
 const seeds = +(process.env.CAUSAL_SEEDS || 20);
@@ -28,8 +38,12 @@ for (const [name, key] of [
   ['CAUSAL_SIDE','probeSide'], ['CAUSAL_ROLE','probeRole'], ['CAUSAL_IDS','probeIds'],
   ['CAUSAL_SQUADS','probeSquads']
 ]) if (process.env[name]) url.searchParams.set(key, process.env[name]);
-const battles = types.flatMap(type => Array.from({ length: seeds }, (_, i) =>
-  type + ':' + prefix + '-' + type + '-' + String(i + 1).padStart(4, '0')));
+const battles = specified.length ? specified :
+  types.flatMap(type => Array.from({ length: seeds }, (_, i) =>
+    type + ':' + prefix + '-' + type + '-' + String(i + 1).padStart(4, '0')));
+const expectedByScenario = {};
+for (const type of types) expectedByScenario[type] = 0;
+for (const pair of battles) expectedByScenario[pair.slice(0, pair.indexOf(':'))]++;
 const env = { ...process.env, PROBE: 'causal-inaction', PROBE_BATTLES: battles.join(','),
   PROBE_SECONDS: String(seconds), PROBE_URL: url.toString(),
   PROBE_CONTROL: process.env.CAUSAL_CONTROL || '1', PROBE_OUTPUT: raw };
@@ -40,10 +54,12 @@ if (ran.error) throw ran.error;
 if (!fs.existsSync(raw)) throw Error('Probe did not write ' + raw);
 const record = JSON.parse(fs.readFileSync(raw,'utf8'));
 const summary = { schema: 'grasstex-causal-inaction-summary-v1',
-  config: { types, seedsPerType: seeds, seconds, prefix, url: url.toString(), control: env.PROBE_CONTROL === '1' },
+  config: { types, seedsPerType: specified.length ? null : seeds,
+    exactSeeds: specified.length ? specified : null,
+    seconds, prefix, url: url.toString(), control: env.PROBE_CONTROL === '1' },
   expectedBattles: battles.length, completedBattles: record.battles.length,
   valid: true, failures: [], byScenario: {}, reasons: {}, confidence: {}, kinds: {},
-  episodes: [], episodesOmitted: 0 };
+  episodes: [], episodesOmitted: 0, directDenialsOmitted: 0 };
 function bump(obj, key, n=1) { obj[key] = (obj[key] || 0) + n; }
 for (const type of types) summary.byScenario[type] = { battles: 0, episodes: 0, reasons: {}, confidence: {} };
 for (const b of record.battles) {
@@ -56,6 +72,7 @@ for (const b of record.battles) {
   if (!r || r.schema !== 'grasstex-causal-inaction-v1')
     { summary.failures.push(b.seed + ': missing causal probe'); continue; }
   summary.episodesOmitted += r.episodesOmitted || 0;
+  summary.directDenialsOmitted += r.directDenialsOmitted || 0;
   for (const e of r.episodes) {
     group.episodes++;
     bump(group.reasons, e.code);
@@ -67,8 +84,8 @@ for (const b of record.battles) {
   }
 }
 for (const type of types)
-  if (summary.byScenario[type].battles !== seeds)
-    summary.failures.push(type + ': expected ' + seeds + ', got ' + summary.byScenario[type].battles);
+  if (summary.byScenario[type].battles !== expectedByScenario[type])
+    summary.failures.push(type + ': expected ' + expectedByScenario[type] + ', got ' + summary.byScenario[type].battles);
 summary.valid = !summary.failures.length && summary.completedBattles === summary.expectedBattles;
 const order = { verified: 0, likely: 1, unknown: 2 };
 summary.episodes.sort((a,b) =>
@@ -99,6 +116,8 @@ for (const e of summary.episodes.slice(0,30))
 if (!summary.episodes.length) md.push('No qualifying episodes were observed.');
 if (summary.episodesOmitted) md.push('', '**Warning:** '+summary.episodesOmitted+
   ' episodes omitted due to the per-battle cap. Narrow CAUSAL_* filters or replay seeds.');
+if (summary.directDenialsOmitted) md.push('', '**Warning:** ' + summary.directDenialsOmitted +
+  ' direct firing denial events dropped from rolling actor buffers; results may be incomplete.');
 if (summary.failures.length) md.push('', '## Invalidating failures', '', ...summary.failures.map(s=>'- '+s));
 md.push('', '### Evidence interpretation', '',
   '- Verified means a named authoritative record or real trigger rejection was observed; it does NOT automatically prove the whole inaction interval was caused by that event.',
