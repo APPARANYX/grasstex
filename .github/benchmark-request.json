@@ -1,0 +1,9 @@
+{
+  "benchmark": "causal",
+  "ref": "work/crest431-exposed-shot-fix",
+  "exact_seed": "live-mv0z6zy9-4lhnw",
+  "seconds": "660",
+  "side": "ge",
+  "ids": "62,67",
+  "squads": "ge-1"
+}
