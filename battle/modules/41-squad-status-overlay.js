@@ -333,6 +333,7 @@
       '.sso-text{font:700 10px Arial Narrow,Arial,sans-serif;letter-spacing:.055em;fill:#f3f0df;stroke:#0a0c09;stroke-width:3px;paint-order:stroke;stroke-linejoin:round;text-anchor:middle}' +
       '.sso-id{font-size:9px;fill:#fff}.sso-status{font-size:9px}' +
       '.sso-objective{fill:rgba(12,14,11,.78);stroke-width:2.2}.sso-objective-line{stroke:currentColor;stroke-width:1.8}' +
+      '.sso-objective-edge-mark{fill:#192120;stroke:currentColor;stroke-width:2;filter:drop-shadow(0 1px 2px #000a)}' +
       '.sso-contact{fill:#fff;stroke:#111;stroke-width:1.5}' +
       '.sso-edge-arrow{fill:currentColor;stroke:#081112;stroke-width:2;stroke-linejoin:round;filter:drop-shadow(0 2px 3px #000)}' +
       '.sso-edge-text{font:700 11px Arial,sans-serif;fill:#f3f0df;stroke:#0b0d0b;stroke-width:3;paint-order:stroke;text-anchor:middle}' +
@@ -383,6 +384,15 @@
     append(objective, 'path', { 'class': 'sso-objective', d: 'M0 -11 L11 0 L0 11 L-11 0 Z' });
     append(objective, 'path', { 'class': 'sso-objective-line', d: 'M-6 0 L6 0 M0 -6 L0 6' });
     var objText = append(objective, 'text', { 'class': 'sso-text sso-id', x: '0', y: '24' }, 'OBJ');
+    /* The destination has its own compact edge diamond. Never draw a sweeping
+       screen-space path from this edge location to an out-of-view unit. */
+    var objectiveEdge = append(g, 'g', { 'class': 'sso-objective-edge' });
+    append(objectiveEdge, 'path', {
+      'class': 'sso-objective-edge-mark',
+      d: 'M0 -10 L10 0 L0 10 L-10 0 Z'
+    });
+    append(objectiveEdge, 'text', { 'class': 'sso-edge-text', x: '0', y: '25' }, 'OBJ');
+    setShown(objectiveEdge, false);
 
     var unit = append(g, 'g', { 'class': 'sso-unit' }),
       symbolLayer = append(unit, 'g', { 'class': 'sso-symbol-layer' });
@@ -420,6 +430,7 @@
       arrowSignature: null,
       arrowStartedAt: null,
       objective: objective,
+      objectiveEdge: objectiveEdge,
       objText: objText,
       unit: unit,
       symbolLayer: symbolLayer,
@@ -709,6 +720,13 @@
       m.objText.setAttribute('x', String(labelLane * 28));
       setShown(m.objective, true);
     } else setShown(m.objective, false);
+    var objEdge = objScreen && !objScreen.visible ? screenEdge(sim, obj, objScreen) : null;
+    setShown(m.objectiveEdge, !!objEdge);
+    if (objEdge)
+      m.objectiveEdge.setAttribute(
+        'transform',
+        'translate(' + objEdge.x.toFixed(1) + ' ' + objEdge.y.toFixed(1) + ')'
+      );
 
     var target = arrowTarget(sq, sim),
       targetScreen = target && project(sim, target, OBJECTIVE_LIFT),
