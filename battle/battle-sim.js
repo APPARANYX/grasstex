@@ -163,7 +163,44 @@
     }else{soldier.moving=false;soldier._movementStopReason=d<=.35?(soldier._physicalPath&&soldier._physicalPath.blocked?'path-blocked':'arrived'):(soldier.prone&&!crawl?'prone-hold':'speed-settling');var face=soldier.target?soldier.target.root.position:soldier._faceHint;if(face){var tx=face.x-soldier.root.position.x,tz=face.z-soldier.root.position.z;if(Math.abs(tx)+Math.abs(tz)>1e-4)turnToward(Math.atan2(tx,tz));}}
     BattleSoldierModel.animateWalk(soldier,dt,soldier.speed>0?soldier.moveSpeed/soldier.speed:0);
   }
-  BattleSim.prototype._frame=function(forcedDt){if(this.paused||this.winner)return;var dt=forcedDt==null?this.scene.getEngine().getDeltaTime()/1000*this.timeScale:+forcedDt;if(!(dt>0))return;dt=Math.min(dt,.25);this.time+=dt;var us=this._roster.us,ge=this._roster.ge,i;for(i=0;i<us.length;i++)stepMovement(this,us[i],dt);for(i=0;i<ge.length;i++)stepMovement(this,ge[i],dt);this._aiAccum+=dt;while(this._aiAccum>=AI_TICK&&!this.winner){this._aiAccum-=AI_TICK;var f=this.factions,squadsUs=f.us.squads,squadsGe=f.ge.squads;for(i=0;i<squadsUs.length;i++)SquadAI.updateSquad(squadsUs[i],this);for(i=0;i<squadsGe.length;i++)SquadAI.updateSquad(squadsGe[i],this);for(i=0;i<us.length;i++)SquadAI.updateSoldier(us[i],this);for(i=0;i<ge.length;i++)SquadAI.updateSoldier(ge[i],this);this._checkWinner();if(this.onUpdate)this.onUpdate(this);}if(root.BattleModules)root.BattleModules.runHook('onSimulationStep',this,{dt:dt});};
+  BattleSim.prototype._frame=function(forcedDt){
+    if(this.paused||this.winner)return;
+    var dt=forcedDt==null?this.scene.getEngine().getDeltaTime()/1000*this.timeScale:+forcedDt;
+    if(!(dt>0))return;
+    dt=Math.min(dt,.25);
+    this.time+=dt;
+    var us=this._roster.us,ge=this._roster.ge,i;
+    /* Experimental movement-only substeps. AI, command, module hooks and fire-control
+       still run at exactly their existing simulated-time cadence. Advance both sides
+       together per substep so personal-space and collision checks see the other men's
+       latest positions, rather than moving one man three times before his neighbor. */
+    var parts=(this._movementSubsteps===2||this._movementSubsteps===3)&&Math.abs(dt-AI_TICK)<1e-9?this._movementSubsteps:1;
+    if(parts>1){
+      var endTime=this.time,startTime=endTime-dt,subDt=dt/parts,pass;
+      try{
+        for(pass=0;pass<parts;pass++){
+          this.time=pass===parts-1?endTime:startTime+(pass+1)*subDt;
+          for(i=0;i<us.length;i++)stepMovement(this,us[i],subDt);
+          for(i=0;i<ge.length;i++)stepMovement(this,ge[i],subDt);
+        }
+      }finally{this.time=endTime;}
+    }else{
+      for(i=0;i<us.length;i++)stepMovement(this,us[i],dt);
+      for(i=0;i<ge.length;i++)stepMovement(this,ge[i],dt);
+    }
+    this._aiAccum+=dt;
+    while(this._aiAccum>=AI_TICK&&!this.winner){
+      this._aiAccum-=AI_TICK;
+      var f=this.factions,squadsUs=f.us.squads,squadsGe=f.ge.squads;
+      for(i=0;i<squadsUs.length;i++)SquadAI.updateSquad(squadsUs[i],this);
+      for(i=0;i<squadsGe.length;i++)SquadAI.updateSquad(squadsGe[i],this);
+      for(i=0;i<us.length;i++)SquadAI.updateSoldier(us[i],this);
+      for(i=0;i<ge.length;i++)SquadAI.updateSoldier(ge[i],this);
+      this._checkWinner();
+      if(this.onUpdate)this.onUpdate(this);
+    }
+    if(root.BattleModules)root.BattleModules.runHook('onSimulationStep',this,{dt:dt});
+  };
   BattleSim.prototype.step=function(dt){this._frame(+dt||AI_TICK);};BattleSim.prototype._checkWinner=function(){if(this.winner)return;var us=this.factions.us.alive,ge=this.factions.ge.alive,timeUp=this.time>=this.timeLimit;if(us<=0||ge<=0||timeUp){this.winner=us===ge?'draw':(us>ge?'us':'ge');if(this.onWinner)this.onWinner(this.winner,this);}};
   /* Presentation of something the sim resolved `delay` sim-seconds early (the later rounds of a burst,
      which the AI tick resolves together): play it that much later, at the current time scale. */
