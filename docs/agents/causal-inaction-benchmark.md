@@ -10,7 +10,13 @@ Start the ordinary local battle server with PHP_CLI_SERVER_WORKERS=4 (see docs/a
 
 Or use Actions > ⭐ Causal Inaction Benchmark on a branch containing the workflow. PR checks use one paired seed per scenario; manual dispatch defaults to 20 paired seeds per scenario. Scenarios: meeting, us-defend, ge-defend.
 
-Filters: CAUSAL_TYPES, CAUSAL_SEEDS, CAUSAL_SECONDS, CAUSAL_SIDE (all/us/ge), CAUSAL_ROLE (CSV or all), CAUSAL_IDS, CAUSAL_SQUADS, CAUSAL_PREFIX, CAUSAL_URL, CAUSAL_OUT, CAUSAL_CONTROL (default 1). Corresponding browser selectors: probeSide, probeRole, probeIds, probeSquads.
+To replay an exact known incident seed without renaming it:
+
+    CAUSAL_BATTLES=us-defend:hill-0002 CAUSAL_CONTROL=1 node scripts/run_causal_inaction_benchmark.cjs
+
+CAUSAL_BATTLES accepts comma-separated type:seed pairs, overrides generated seed names and validates duplicates. In workflow_dispatch, exact_seed runs the named seed once in each scenario.
+
+Filters: CAUSAL_TYPES, CAUSAL_BATTLES, CAUSAL_SEEDS, CAUSAL_SECONDS, CAUSAL_SIDE (all/us/ge), CAUSAL_ROLE (CSV or all), CAUSAL_IDS, CAUSAL_SQUADS, CAUSAL_PREFIX, CAUSAL_URL, CAUSAL_OUT, CAUSAL_CONTROL (default 1). Corresponding browser selectors: probeSide, probeRole, probeIds, probeSquads.
 
 Files in reports/causal-inaction/: raw.json (per-battle original evidence), summary.json (all reported episodes by seed), summary.md (human-readable aggregate).
 
@@ -23,7 +29,7 @@ Files in reports/causal-inaction/: raw.json (per-battle original evidence), summ
 - Unknown: no sufficient authoritative reason. Do not invent root causes.
 - Distinguish a justified hold from a defect. A soldier guarding a prepared post or retreating may correctly decline to obey a formation movement request.
 
-Each episode records actor and squad, interval, reason code, confidence, causal scope, order and resolver evidence, and up to 10 recent one-second samples. At most 80 episodes per battle and 160 recent direct-denial events per actor are retained; omitted counts are surfaced.
+Each episode records actor and squad, interval, reason code, confidence, causal scope, order and resolver evidence, and up to 10 recent one-second samples. At most 160 episodes per battle and 160 recent direct-denial events per actor are retained; omitted counts are surfaced.
 
 Every seed is also replayed without the probe by default. A divergent fingerprint, runtime error, missing payload or missing seed invalidates the run. Read-only is a required functional property, not an assumption.
 
