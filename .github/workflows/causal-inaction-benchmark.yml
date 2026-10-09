@@ -1,0 +1,105 @@
+name: ⭐ Causal Inaction Benchmark
+
+# Full shipping battles; each instrumented seed is replayed without the probe.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/causal-inaction-benchmark.yml'
+      - 'scripts/probes/causal-inaction.cjs'
+      - 'scripts/run_causal_inaction_benchmark.cjs'
+      - 'scripts/run_probe.cjs'
+      - 'tools/ai-sim-harness/causal-inaction-check.js'
+  workflow_dispatch:
+    inputs:
+      seeds:
+        description: 'Paired seeds per scenario (default 20)'
+        required: false
+        default: '20'
+      seconds:
+        description: 'Simulation seconds per battle'
+        required: false
+        default: '600'
+      side:
+        description: 'all, ge or us'
+        required: false
+        default: 'all'
+      role:
+        description: 'Optional comma-separated roles, or all'
+        required: false
+        default: 'all'
+      ids:
+        description: 'Optional soldier IDs'
+        required: false
+        default: ''
+      squads:
+        description: 'Optional squad IDs'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  forensic:
+    name: ${{ matrix.battle_type }} · fire / movement inaction
+    strategy:
+      fail-fast: false
+      matrix:
+        battle_type: [meeting, us-defend, ge-defend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CAUSAL_SEEDS: ${{ github.event.inputs.seeds || (github.event_name == 'pull_request' && '1') || '20' }}
+      CAUSAL_TYPES: ${{ matrix.battle_type }}
+      CAUSAL_SECONDS: ${{ github.event.inputs.seconds || '600' }}
+      CAUSAL_SIDE: ${{ github.event.inputs.side || 'all' }}
+      CAUSAL_ROLE: ${{ github.event.inputs.role || 'all' }}
+      CAUSAL_IDS: ${{ github.event.inputs.ids || '' }}
+      CAUSAL_SQUADS: ${{ github.event.inputs.squads || '' }}
+      CAUSAL_CONTROL: '1'
+      CAUSAL_PREFIX: causal-inaction
+      CAUSAL_OUT: reports/causal-inaction
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Observer contract and syntax
+        run: |
+          node --check scripts/probes/causal-inaction.cjs
+          node --check scripts/run_causal_inaction_benchmark.cjs
+          node tools/ai-sim-harness/causal-inaction-check.js
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start local battle server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+      - name: Forensic probe and identical-seed control replay
+        run: node scripts/run_causal_inaction_benchmark.cjs
+      - name: Add evidence summary
+        if: always()
+        run: |
+          if [ -f reports/causal-inaction/summary.md ]; then
+            cat reports/causal-inaction/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'No causal report produced; inspect job logs.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Save seed-level evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: causal-inaction-${{ matrix.battle_type }}-${{ github.run_number }}
+          path: reports/causal-inaction/
+          if-no-files-found: warn
+          retention-days: 14
