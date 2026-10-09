@@ -14,6 +14,7 @@ jobs:
       PARITY_SEED: timescale-parity
       PARITY_SECONDS: '600'
       PARITY_ONLY: '1x @ 20fps'
+      PARITY_REPEAT_REFERENCE: '1'
       PARITY_OUT: reports/diag.json
     steps:
       - uses: actions/checkout@v4
