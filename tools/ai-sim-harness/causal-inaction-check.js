@@ -164,6 +164,36 @@ a.sim.onFire(a.soldier, 0);
 assert.equal(lane.firedAt, 20);
 assert.equal(a.stats().mutations, 0, 'causal planner observer must never evaluate/mutate the game');
 
+// Near-goal deaths are observable and cannot be mistaken for a pathfinding stall.
+const nearDeath = fixture('?probeIds=76', 'executing');
+nearDeath.sim.time = 2;
+nearDeath.root.BattleCausalInaction.coverDecision(
+  nearDeath.soldier, nearDeath.sim, 'firing-lane', 'selected', {}, { x: 12, z: 0 }
+);
+nearDeath.soldier.root.position.x = 11.79;
+nearDeath.soldier.dead = true; // only the fixture's soldier changes; the probe remains read-only
+nearDeath.sample(3);
+const killedNear = nearDeath.probe.report(nearDeath.sim).coverLaneOutcomes[0];
+assert.equal(killedNear.arrivedAt, null, 'death is not reported as living arrival');
+assert.equal(killedNear.status, 'killed-at-firing-position');
+assert.equal(killedNear.observedDeadAt, 3);
+assert.ok(killedNear.atDeathMeters <= 0.6);
+assert.ok(killedNear.nearestMeters <= 0.6);
+assert.equal(nearDeath.stats().mutations, 0);
+
+const farDeath = fixture('?probeIds=76', 'executing');
+farDeath.sim.time = 2;
+farDeath.root.BattleCausalInaction.coverDecision(
+  farDeath.soldier, farDeath.sim, 'firing-lane', 'selected', {}, { x: 12, z: 0 }
+);
+farDeath.soldier.root.position.x = 5;
+farDeath.soldier.dead = true;
+farDeath.sample(3);
+const killedFar = farDeath.probe.report(farDeath.sim).coverLaneOutcomes[0];
+assert.equal(killedFar.status, 'killed-before-arrival');
+assert.ok(killedFar.atDeathMeters > 0.6);
+assert.equal(farDeath.stats().mutations, 0);
+
 // A stationary executing soldier and a silent gun without call-site evidence are UNKNOWN.
 const b = fixture('?probeSide=ge&probeIds=76', 'executing');
 for (let t = 0; t <= 13; t++) b.sample(t);
