@@ -53,6 +53,9 @@ casualties, wounds, shooting, and AI orders remain with their existing owners.
   For 160 ms after an accepted shot, the dot instead shows the fired round's
   **recorded ballistic impact**, then returns to the stable bore preview.
   No target lock, target selection or automatic aim correction is introduced.
+  The two indicators intentionally need not overlap, especially next to walls or
+  when the muzzle is low in crouch/prone. That discrepancy is useful feedback,
+  not a command to bend the bullet toward the camera center.
 - Holding **RMB/LT to aim** now applies a **0.36 sensitivity multiplier** to
   both mouse X/Y and right-stick X/Y, while unzoomed looking remains unchanged.
   This scales look motion only, not weapon dispersion, ballistic accuracy or
