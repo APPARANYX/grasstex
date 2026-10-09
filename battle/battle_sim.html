@@ -124,7 +124,8 @@ window.BattleLoading=(function(){
   var loading=window.BattleLoading;loading.done('scripts');loading.start('scenario');await loading.frame();
 
   var requested=new URLSearchParams(location.search).get('seed')||window.BATTLE_SCENARIO_SEED||'',liveSeed=requested||BattleScenarioGenerator.newSeed('live'),scenario=BattleScenarioGenerator.activate(liveSeed,{mode:'live'});document.getElementById('seedShort').textContent=liveSeed;document.getElementById('seedShort').title=liveSeed;
-  if(!requested){try{var u=new URL(location.href);u.searchParams.set('seed',liveSeed);history.replaceState(null,'',u.toString());}catch(_){}}
+  /* A bare battle URL must generate a NEW seed on each page load, including refresh.
+     Only explicit ?seed= replay links pin a scenario; display the chosen seed in the HUD. */
   console.log('[SCENARIO] live seed='+liveSeed+' id='+scenario.id+' fingerprint='+JSON.stringify(scenario.fingerprint.vector));
 
   var canvas=document.getElementById('renderCanvas'),engine=new BABYLON.Engine(canvas,true,{stencil:false,preserveDrawingBuffer:true,audioEngine:true});engine.renderEvenInBackground=true;console.log('legacyAudioEngine='+(BABYLON.Engine.audioEngine?'present':'missing')+' · background rendering enabled');
