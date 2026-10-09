@@ -524,7 +524,8 @@
               distance: d,
               quality: F.coverPotentialAt(battle.obstacles, slot.x, slot.z),
               obstacle: slot.obstacle,
-              type: 'firing-lane'
+              type: 'firing-lane',
+              returnPoint: { x: p.x, z: p.z }
             };
           }
         }
