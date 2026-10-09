@@ -252,7 +252,7 @@
     for (var i = 0; i < axes.length; i++) {
       var ux = axes[i][0],
         uz = axes[i][1];
-      if (Math.abs(dx * ux + dz * uz) >= project(a, ux, uz) + project(b, ux, uz) + gap) return false;
+      if (Math.abs(dx * ux + dz * uz) >= project(a, ux, uz) + project(b, ux, uz) + gap - 1e-7) return false;
     }
     return true;
   }
