@@ -1,0 +1,18 @@
+name: Issue 361 local-mission starvation reproducer
+on:
+  push:
+    branches:
+      - work/issue361-local-mission-stall
+permissions:
+  contents: read
+jobs:
+  mission-stall:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run controlled faction-progress versus stationary capture
+        run: node tools/ai-sim-harness/issue361-local-stall-repro.js
