@@ -11,7 +11,7 @@ function load(r, file) {
   const src = fs.readFileSync(path.join(H.REPO, file), 'utf8');
   new Function('window', 'globalThis', 'console', src)(r, r, { log() {}, warn() {} });
 }
-function scenario(flag) {
+function scenario(flag, variant = {}) {
   H.resetIds();
   globalThis.location = { search: flag };
   let r;
@@ -44,14 +44,14 @@ function scenario(flag) {
     shape: 'obb',
     x: 0,
     z: 0,
-    hx: 14,
+    hx: variant.halfWidth == null ? 14 : variant.halfWidth,
     hz: 1,
     ux: 1,
     uz: 0,
     vx: 0,
     vz: 1,
     y: 0,
-    height: 2,
+    height: variant.height == null ? 2 : variant.height,
     cover: 0.62
   };
   b.obstacles = [hedge];
@@ -74,8 +74,8 @@ function scenario(flag) {
   q.inContact = true;
   const s = q.members[0];
   s.root.position.x = 0;
-  s.root.position.z = -2.3;
-  s.target = { root: { position: { x: 0, y: 0, z: 60 } } };
+  s.root.position.z = variant.startZ == null ? -2.3 : variant.startZ;
+  s.target = { root: { position: { x: variant.targetX == null ? 0 : variant.targetX, y: 0, z: 60 } } };
   s.eng = null;
   return { r, b, q, s, hedge, E: r.BattleEngagement };
 }
@@ -123,23 +123,93 @@ const offset = scenario('?coverPeek=1');
 offset.s.root.position.z = -8; // hedge blocks LOS, but cover shading only extends 1.5 m
 assert.equal(offset.r.BattleObstacleField.coverPotentialAt(offset.b.obstacles, 0, -8), 1);
 offset.E.decide(offset.s, offset.b, 'no firing line');
-assert.equal(offset.E.stateOf(offset.s).state, 'bound',
-  'blind hedge must trigger reposition even from outside the immediate cover band');
+assert.equal(
+  offset.E.stateOf(offset.s).state,
+  'bound',
+  'blind hedge must trigger reposition even from outside the immediate cover band'
+);
 assert.equal(offset.E.stateOf(offset.s).cover.type, 'firing-lane');
 
 const noRoute = scenario('?coverPeek=1');
 noRoute.r.BattleNavigation.movementClear = () => false;
 noRoute.r.BattleNavigation.findPath = () => null;
 noRoute.E.decide(noRoute.s, noRoute.b, 'no firing line');
-assert.notEqual(noRoute.E.stateOf(noRoute.s).state, 'bound',
-  'no legal navigation must not manufacture a reachable hedge-end move');
+assert.notEqual(
+  noRoute.E.stateOf(noRoute.s).state,
+  'bound',
+  'no legal navigation must not manufacture a reachable hedge-end move'
+);
 
 const underFire = scenario('?coverPeek=1');
 underFire.s.suppressedUntil = underFire.b.time + 8;
 underFire.E.decide(underFire.s, underFire.b, 'incoming fire');
-assert.notEqual(underFire.E.stateOf(underFire.s).cover?.type, 'firing-lane',
-  'suppressed soldier may seek any safe shelter but must not expose himself to peek');
+assert.notEqual(
+  underFire.E.stateOf(underFire.s).cover?.type,
+  'firing-lane',
+  'suppressed soldier may seek any safe shelter but must not expose himself to peek'
+);
 
+/* Purpose-built 12-case exercise matrix: the ordinary 20-seed benchmark had
+   zero feature activations, so identical battle totals cannot validate this
+   particular hedge encounter. Each variant must actually reach a firing line. */
+const variations = [];
+for (const halfWidth of [10, 12, 14])
+  for (const startZ of [-2.3, -8])
+    for (const targetX of [0, 2]) variations.push({ halfWidth, startZ, targetX });
+const coverage = {
+  total: variations.length,
+  selected: 0,
+  arrived: 0,
+  regainedSight: 0,
+  cases: []
+};
+for (const variant of variations) {
+  const w = scenario('?coverPeek=1', variant),
+    blocked = !w.r.SquadAI.hasLineOfSight(w.s, w.s.target, w.b.heightAt, w.b.obstacles);
+  assert.ok(blocked, 'matrix requires initially obstructed sight: ' + JSON.stringify(variant));
+  w.E.decide(w.s, w.b, 'hedge fire-lane benchmark');
+  const choice = w.E.stateOf(w.s),
+    test = { ...variant, selected: choice.cover?.type === 'firing-lane' };
+  assert.ok(test.selected, 'must choose a flank in ' + JSON.stringify(variant));
+  coverage.selected++;
+  const chosen = { x: choice.cover.x, z: choice.cover.z };
+  let nearest = Infinity;
+  for (let frame = 0; frame < 280; frame++) {
+    w.b.time += 0.15;
+    w.E.updateSoldier(w.s, w.b);
+    w.r.BattleMovementResolver.resolve(w.s, w.b);
+    H.stepMovement(w.b, w.s, 0.15);
+    nearest = Math.min(nearest, Math.hypot(w.s.root.position.x - chosen.x, w.s.root.position.z - chosen.z));
+    if (nearest < 0.6) break;
+  }
+  test.arrived = nearest < 0.6;
+  assert.ok(test.arrived, 'must reach firing lane in ' + JSON.stringify(variant) + ', closest=' + nearest);
+  coverage.arrived++;
+  test.sight = w.r.SquadAI.hasLineOfSight(w.s, w.s.target, w.b.heightAt, w.b.obstacles);
+  assert.ok(test.sight, 'must regain actual fire LOS in ' + JSON.stringify(variant));
+  coverage.regainedSight++;
+  coverage.cases.push(test);
+
+  const old = scenario('?coverPeek=0', variant);
+  old.E.decide(old.s, old.b, 'hedge fire-lane benchmark control');
+  assert.notEqual(
+    old.E.stateOf(old.s).cover?.type,
+    'firing-lane',
+    'legacy control must not run experimental lane selection'
+  );
+}
+const lowWall = scenario('?coverPeek=1', { halfWidth: 12, startZ: -2.3, height: 0.6 });
+assert.ok(
+  lowWall.r.SquadAI.hasLineOfSight(lowWall.s, lowWall.s.target, lowWall.b.heightAt, lowWall.b.obstacles),
+  'short wall is not a blocked firing line'
+);
+lowWall.E.decide(lowWall.s, lowWall.b, 'low wall negative control');
+assert.notEqual(
+  lowWall.E.stateOf(lowWall.s).cover?.type,
+  'firing-lane',
+  'actor should not flank a harmless waist-high wall'
+);
+console.log('HEDGE_PEEK_MATRIX ' + JSON.stringify(coverage));
 
 const legacy = scenario('?coverPeek=0');
 legacy.E.decide(legacy.s, legacy.b, 'no firing line');
