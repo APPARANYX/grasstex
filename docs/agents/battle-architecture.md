@@ -248,6 +248,8 @@ mission/route/goal signature prevents recon-release-recon churn on the same appr
 or timeout, the existing `regroup-bypass` lease gives the main body at most 9 s to absorb the intentionally-forward
 scout geometry and releases early when the scouts are back inside the ordinary cohesion-release band.
 
+**Recon time budget** (#393, `?reconBudget=0` restores the 28 s constant). `RECON_TUNING.timeout` was not derived from anything, and a defender's scouts (about 1.0-1.3 m/s once adoption is counted) did not reach a point 41-50 m out in it, so most defender tasks ended in `timeout` (no report) instead of an observation. A task's budget is now the walk to the farthest scout destination at the slowest scout's own ground speed (`_locomotionGroundSpeed`, else `walkSpeed`) plus `RECON_TUNING.observe` and `reportWatch`, never shorter than the old constant, and the old constant when no pace is known. Module 15c `reconBudget`; no new timer or writer. `recon-budget-check.js` owns the contract.
+
 `BattleSquadStability.reconTelemetry` and the `scouts-forward` observe-only probe expose order reasons, selected
 men, scout distance/time, endings, contact/report delivery, wait time, same-approach retrigger blocks, duplicate tasks,
 main-body stop context and live anchor drift. `scouts-forward-check.js` owns the deterministic contract. Full-battle
