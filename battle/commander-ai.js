@@ -699,14 +699,19 @@
       missionState(sim);
       if (root.BattleModules) root.BattleModules.runHook('onBattleRestart', sim, { town: town });
     };
-    scene.onBeforeRenderObservable.add(function () {
-      if (sim.paused || sim.winner || sim._trainerStepActive) return;
-      var dt = Math.min(0.25, Math.max(0, (scene.getEngine().getDeltaTime() / 1000) * sim.timeScale));
+    /* The fixed-step clock calls this after each 0.15s soldier-AI step, just like
+       deterministic replay. Pages without the optional clock retain the legacy observer. */
+    sim._liveCommanderTick = function (dt) {
       sim._commandAccum += dt;
-      while (sim._commandAccum >= COMMAND_TICK && !sim.winner) {
+      while (sim._commandAccum + 1e-9 >= COMMAND_TICK && !sim.winner) {
         sim._commandAccum -= COMMAND_TICK;
         updateCommander(sim, town, COMMAND_TICK);
       }
+    };
+    scene.onBeforeRenderObservable.add(function () {
+      if (sim._fixedClockInstalled || sim.paused || sim.winner || sim._trainerStepActive) return;
+      var dt = Math.min(0.25, Math.max(0, (scene.getEngine().getDeltaTime() / 1000) * sim.timeScale));
+      sim._liveCommanderTick(dt);
     });
     var genomeStatus = D.genomeOff && D.genomeOff() ? 'stashed' : 'active',
       doctrineStatus = D.actionDoctrineEnabled ? 'on' : 'off';
