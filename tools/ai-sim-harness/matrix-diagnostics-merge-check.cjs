@@ -72,7 +72,16 @@ try {
   assert.ok(b.csv.includes('evidence:writer-conflict-count'));
   assert.ok(b.md.includes('Integrity: **FAIL**'));
 
-  console.log('PASS matrix merger: diagnostics retained in JSON/CSV/Markdown, partial scenario grouping and integrity failures surfaced');
+  // The shipping runner does not set battleType; the merger must recognize seed layouts.
+  const smokeMeeting = battle('matrix-smoke-meeting-0001', undefined, false);
+  const smokeGerman = battle('matrix-smoke-ge-defend-0001', undefined, false);
+  const legacyAmerican = battle('manual-benchmark-us-defend-s2-b0002-0001', undefined, false);
+  const c = run([smokeMeeting, smokeGerman, legacyAmerican]);
+  assert.equal(c.json.summary.diagnosticAudit.ok, true, JSON.stringify(c.json.summary.diagnosticAudit.issueCounts));
+  assert.equal(c.json.summary.battleTypes.meeting.completedBattles, 1);
+  assert.equal(c.json.summary.battleTypes['ge-defend'].completedBattles, 1);
+  assert.equal(c.json.summary.battleTypes['us-defend'].completedBattles, 1);
+    console.log('PASS matrix merger: diagnostics retained in JSON/CSV/Markdown, partial scenario grouping and integrity failures surfaced');
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
