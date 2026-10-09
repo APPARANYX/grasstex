@@ -224,8 +224,10 @@
     if (a.shape === 'circle' && b.shape === 'circle') return true;
     function project(shape, ux, uz) {
       if (shape.shape === 'circle') return +(shape.placementRadius || shape.radius) || 0;
-      return Math.abs(shape.hx * (shape.ux * ux + shape.uz * uz)) +
-        Math.abs(shape.hz * (shape.vx * ux + shape.vz * uz));
+      return (
+        Math.abs(shape.hx * (shape.ux * ux + shape.uz * uz)) +
+        Math.abs(shape.hz * (shape.vx * ux + shape.vz * uz))
+      );
     }
     /* OBB-vs-circle needs the box's axes only; checking arbitrary circle axes
        would falsely reject a corner. Clamp the circle centre to the actual box. */
@@ -241,11 +243,16 @@
         rr = (+(c.placementRadius || c.radius) || 0) + gap;
       return (lx - ex) * (lx - ex) + (lz - ez) * (lz - ez) < rr * rr;
     }
-    var axes = [[a.ux, a.uz], [a.vx, a.vz], [b.ux, b.uz], [b.vx, b.vz]];
+    var axes = [
+      [a.ux, a.uz],
+      [a.vx, a.vz],
+      [b.ux, b.uz],
+      [b.vx, b.vz]
+    ];
     for (var i = 0; i < axes.length; i++) {
-      var ux = axes[i][0], uz = axes[i][1];
-      if (Math.abs(dx * ux + dz * uz) >= project(a, ux, uz) + project(b, ux, uz) + gap)
-        return false;
+      var ux = axes[i][0],
+        uz = axes[i][1];
+      if (Math.abs(dx * ux + dz * uz) >= project(a, ux, uz) + project(b, ux, uz) + gap) return false;
     }
     return true;
   }
@@ -255,31 +262,42 @@
     return true;
   }
   function rectFootprint(x, z, hx, hz, rot) {
-    var c = Math.cos(rot || 0), s = Math.sin(rot || 0);
+    var c = Math.cos(rot || 0),
+      s = Math.sin(rot || 0);
     return { shape: 'obb', x: x, z: z, hx: hx, hz: hz, ux: c, uz: -s, vx: s, vz: c };
   }
   function distanceToSegment(px, pz, ax, az, bx, bz) {
-    var dx = bx - ax, dz = bz - az, d2 = dx * dx + dz * dz,
+    var dx = bx - ax,
+      dz = bz - az,
+      d2 = dx * dx + dz * dz,
       t = d2 > 1e-8 ? Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / d2)) : 0;
     return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
   }
   function segmentDistance(ax, az, bx, bz, cx, cz, dx, dz) {
-    var a = bx - ax, b = bz - az, c = dx - cx, d = dz - cz,
+    var a = bx - ax,
+      b = bz - az,
+      c = dx - cx,
+      d = dz - cz,
       det = a * d - b * c;
     if (Math.abs(det) > 1e-9) {
-      var rx = cx - ax, rz = cz - az,
+      var rx = cx - ax,
+        rz = cz - az,
         t = (rx * d - rz * c) / det,
         u = (rx * b - rz * a) / det;
       if (t >= 0 && t <= 1 && u >= 0 && u <= 1) return 0;
     }
-    return Math.min(distanceToSegment(ax, az, cx, cz, dx, dz),
+    return Math.min(
+      distanceToSegment(ax, az, cx, cz, dx, dz),
       distanceToSegment(bx, bz, cx, cz, dx, dz),
       distanceToSegment(cx, cz, ax, az, bx, bz),
-      distanceToSegment(dx, dz, ax, az, bx, bz));
+      distanceToSegment(dx, dz, ax, az, bx, bz)
+    );
   }
   function roadClear(roads, candidate, gap) {
     for (var i = 0; i < (roads || []).length; i++) {
-      var road = roads[i], dist, radius;
+      var road = roads[i],
+        dist,
+        radius;
       if (candidate.shape === 'circle') {
         dist = distanceToSegment(candidate.x, candidate.z, road.ax, road.az, road.bx, road.bz);
         radius = +(candidate.placementRadius || candidate.radius) || 0;
@@ -291,7 +309,7 @@
         dist = segmentDistance(ax, az, bx, bz, road.ax, road.az, road.bx, road.bz);
         radius = candidate.hz;
       }
-      if (dist < (+(road.width || 8) / 2) + radius + (gap || 0)) return false;
+      if (dist < +(road.width || 8) / 2 + radius + (gap || 0)) return false;
     }
     return true;
   }
@@ -328,17 +346,21 @@
       var boundary = Math.max(7, (+o.radius || 20) * 0.9);
       for (var cl = 0; cl < 6; cl++)
         for (var j = -1; j <= 1; j++) {
-          var a = Math.PI / 6 + cl * Math.PI / 3 + j * 1.55 / boundary;
+          var a = Math.PI / 6 + (cl * Math.PI) / 3 + (j * 1.55) / boundary;
           objectiveKeepouts.push({
-            shape: 'circle', x: o.x + Math.cos(a) * boundary,
-            z: o.z + Math.sin(a) * boundary, radius: 1.45
+            shape: 'circle',
+            x: o.x + Math.cos(a) * boundary,
+            z: o.z + Math.sin(a) * boundary,
+            radius: 1.45
           });
         }
     });
     function placementAllowed(candidate, margin) {
-      return placementClear(physical, candidate, margin) &&
+      return (
+        placementClear(physical, candidate, margin) &&
         placementClear(objectiveKeepouts, candidate, 0) &&
-        roadClear(roads, candidate, 1.1);
+        roadClear(roads, candidate, 1.1)
+      );
     }
 
     function place(mesh, x, z) {
@@ -501,15 +523,17 @@
           bx = horizontal ? cursor + segLen : fixed - jag,
           bz = horizontal ? fixed - jag : cursor + segLen;
         var hedgeCandidate = {
-          shape: 'obb', x: (ax + bx) / 2, z: (az + bz) / 2,
-          hx: Math.hypot(bx - ax, bz - az) / 2, hz: HEDGE_WIDTH / 2,
+          shape: 'obb',
+          x: (ax + bx) / 2,
+          z: (az + bz) / 2,
+          hx: Math.hypot(bx - ax, bz - az) / 2,
+          hz: HEDGE_WIDTH / 2,
           ux: (bx - ax) / Math.hypot(bx - ax, bz - az),
           uz: (bz - az) / Math.hypot(bx - ax, bz - az),
           vx: -(bz - az) / Math.hypot(bx - ax, bz - az),
           vz: (bx - ax) / Math.hypot(bx - ax, bz - az)
         };
-        if (!segmentBlockedByBuilding(ax, az, bx, bz, HEDGE_WIDTH) &&
-            placementAllowed(hedgeCandidate, 0.7)) {
+        if (!segmentBlockedByBuilding(ax, az, bx, bz, HEDGE_WIDTH) && placementAllowed(hedgeCandidate, 0.7)) {
           var pieces = Math.max(1, Math.ceil(segLen / HEDGE_CHUNK)),
             runHeight = HEDGE_HEIGHT_MIN + hedgeHeightRng() * (HEDGE_HEIGHT_MAX - HEDGE_HEIGHT_MIN);
           for (var h = 0; h < pieces; h++) {
@@ -542,8 +566,7 @@
           scale = 0.85 + rng() * 0.7,
           ty = heightAt(tx, tz);
         var treeCandidate = { shape: 'circle', x: tx, z: tz, radius: 1.2 * scale };
-        if (pointBlockedByBuilding(tx, tz, 1.25 * scale) ||
-            !placementAllowed(treeCandidate, 0.6)) continue;
+        if (pointBlockedByBuilding(tx, tz, 1.25 * scale) || !placementAllowed(treeCandidate, 0.6)) continue;
         var treeFp = addCircle(tx, tz, 0.11 * scale, 'tree', 'tree-' + physicalSeq++);
         treeFp.placementRadius = 1.2 * scale;
         place(buildTree(scene, tx, ty, tz, scale, LEAF[Math.floor(rng() * LEAF.length)]), tx, tz);
@@ -561,8 +584,10 @@
         var size = 0.7 + rng() * 0.5,
           rockRot = rng() * Math.PI,
           rockBound = Math.hypot(size * 0.9, size * 0.75);
-        if (pointBlockedByBuilding(lx, lz, rockBound) ||
-            !placementAllowed(rectFootprint(lx, lz, size * 0.9, size * 0.75, rockRot), 0.7))
+        if (
+          pointBlockedByBuilding(lx, lz, rockBound) ||
+          !placementAllowed(rectFootprint(lx, lz, size * 0.9, size * 0.75, rockRot), 0.7)
+        )
           continue;
         var rockFp = addObb(lx, lz, size * 0.9, size * 0.75, rockRot, 'rock', 'rock-' + physicalSeq++);
         place(buildRock(scene, lx, ly, lz, size, rockRot), lx, lz);
@@ -571,8 +596,10 @@
         var len = 2.6 + rng() * 2.4,
           logRot = rng() * Math.PI,
           logBound = Math.hypot(len / 2, 0.275);
-        if (pointBlockedByBuilding(lx, lz, logBound) ||
-            !placementAllowed(rectFootprint(lx, lz, len / 2, 0.275, logRot), 0.7))
+        if (
+          pointBlockedByBuilding(lx, lz, logBound) ||
+          !placementAllowed(rectFootprint(lx, lz, len / 2, 0.275, logRot), 0.7)
+        )
           continue;
         var logFp = addObb(lx, lz, len / 2, 0.275, logRot, 'log', 'log-' + physicalSeq++);
         place(buildLog(scene, lx, ly, lz, len, logRot), lx, lz);
@@ -581,8 +608,10 @@
         var wl = 4 + rng() * 7,
           rot = rng() * Math.PI,
           wallBound = Math.hypot(wl / 2, 0.25);
-        if (pointBlockedByBuilding(lx, lz, wallBound) ||
-            !placementAllowed(rectFootprint(lx, lz, wl / 2, 0.25, rot), 0.7))
+        if (
+          pointBlockedByBuilding(lx, lz, wallBound) ||
+          !placementAllowed(rectFootprint(lx, lz, wl / 2, 0.25, rot), 0.7)
+        )
           continue;
         var wallFp = addObb(lx, lz, wl / 2, 0.25, rot, 'wall', 'wall-' + physicalSeq++);
         place(buildWallStub(scene, lx, ly, lz, wl, rot), lx, lz);

@@ -298,8 +298,7 @@
         building = T.rectFootprint(b.x, b.z, b.w / 2, b.d / 2, b.rot || 0);
       if (T.footprintOverlap(fp, building, 0.5)) return false;
     }
-    if (onRoad && T.roadClear && !T.roadClear((scenario && scenario.roads) || [], fp, 0.8))
-      return false;
+    if (onRoad && T.roadClear && !T.roadClear((scenario && scenario.roads) || [], fp, 0.8)) return false;
     return true;
   }
   function markerAnchor(sim, cx, cz) {
@@ -308,10 +307,10 @@
        ground nearby, without changing the tactical objective's actual coordinate. */
     for (var r = 3; r <= 21; r += 3)
       for (var n = 0; n < 24; n++) {
-        var a = 2 * Math.PI * n / 24,
-          x = cx + r * Math.cos(a), z = cz + r * Math.sin(a);
-        if (markerFootprintClear(sim, x, z, 0.48, 0.48, 0, false))
-          return { x: x, z: z };
+        var a = (2 * Math.PI * n) / 24,
+          x = cx + r * Math.cos(a),
+          z = cz + r * Math.sin(a);
+        if (markerFootprintClear(sim, x, z, 0.48, 0.48, 0, false)) return { x: x, z: z };
       }
     return null;
   }
