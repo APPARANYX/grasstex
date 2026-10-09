@@ -502,8 +502,6 @@
             axisLen = Math.hypot(ux, uz) || 1,
             endFace = Math.abs((slot.normalX * ux + slot.normalZ * uz) / axisLen) > 0.85;
           if (!endFace) { reject('not-end-face'); continue; }
-          var d = dist(p.x, p.z, candidate.x, candidate.z);
-          if (d < 1.5 || d > maxRange) { reject('outside-bound-radius'); continue; }
           /* Experimental safer variant: keep the firing station on the reverse
              (friendly) side of the hedgerow, not level with its exposed end.
              Never fall back to the exposed point when this candidate fails. */
@@ -520,9 +518,11 @@
               z: slot.z + vz * side * 2.2
             });
           }
+          var d = dist(p.x, p.z, candidate.x, candidate.z);
+          if (d < 1.5 || d > maxRange) { reject('outside-bound-radius'); continue; }
           if (!coverAvailable(c, candidate, s, battle)) { reject('slot-reserved'); continue; }
-          if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, slot)) { reject('unreachable-memory'); continue; }
-          if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, slot)) { reject('forward-guard'); continue; }
+          if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, candidate)) { reject('unreachable-memory'); continue; }
+          if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, candidate)) { reject('forward-guard'); continue; }
           var anchor = s.orderDestination || (s.squad && s.squad.orderAnchor);
           if (leads && anchor && dist(candidate.x, candidate.z, anchor.x, anchor.z) > 18) { reject('leader-anchor-limit'); continue; }
           var back = opts.notBehind;
