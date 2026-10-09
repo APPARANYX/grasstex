@@ -468,6 +468,32 @@ assert.equal(
 assert.equal(s.weapon.ammo, ammoBefore - 1, 'free-fire must spend shipping ammunition');
 assert.ok(b.events.fired > firedBefore, 'free-fire must emit the normal onFire presentation event');
 
+/* A player-ray survivor hit is a real incoming shot, not an all-faction reveal.
+   Stub only the authoritative ballistic hit result; playerFireRay still owns
+   ammunition and disclosure, and must never conjure a target on a miss. */
+const actualRay = r.BattleBallistics.resolvePlayerRay;
+ge.contact = null;
+ahead.dead = false;
+r.BattleBallistics.resolvePlayerRay = () => ({ victim: ahead });
+s.fireCooldown = 0;
+assert.equal(r.SquadAI.playerFireRay(s, { x: 0, y: 1.5, z: 25 }, b), true);
+assert.ok(ge.contact && ge.contact.fireRevealed, 'surviving enemy victim squad learns actual player-ray origin');
+assert.equal(ge.contact.precision, 'fire-origin');
+assert.equal(ge.contact.x, s.root.position.x);
+assert.equal(ge.contact.z, s.root.position.z);
+const recordedRayOrigin = { x: ge.contact.x, z: ge.contact.z };
+s.root.position.x += 7;
+assert.deepEqual({ x: ge.contact.x, z: ge.contact.z }, recordedRayOrigin,
+  'the enemy remembers the shot-time origin, not the player's live location');
+s.root.position.x -= 7;
+ge.contact = null;
+r.BattleBallistics.resolvePlayerRay = () => ({ victim: null, stoppedBy: 'terrain' });
+s.fireCooldown = 0;
+assert.equal(r.SquadAI.playerFireRay(s, { x: 80, y: 1, z: 0 }, b), true);
+assert.equal(ge.contact, null, 'player-ray miss creates no precise targeted shot report');
+r.BattleBallistics.resolvePlayerRay = actualRay;
+s.fireCooldown = 0;
+
 /* The trigger obeys the simulation lifecycle: a paused or finished battle takes no player shots. */
 for (const [label, set, clear] of [
   ['paused', () => (b.paused = true), () => (b.paused = false)],
