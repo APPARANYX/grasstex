@@ -538,8 +538,9 @@
         fillMenuSquads(null, null);
         return false;
       }
+      var preservePause = !!(b.paused && menuPauseOwner !== b);
       closePlayerMenu();
-      return possessSoldier(soldier);
+      return possessSoldier(soldier, preservePause);
     }
     function ensurePlayerMenu() {
       if (settingsMenu) return;
@@ -742,7 +743,7 @@
     function possessRandom() {
       return possessSoldier(pickPlayerSoldier(player));
     }
-    function possessSoldier(next) {
+    function possessSoldier(next, preservePause) {
       var b = liveBattle();
       /* This is a possession transfer, never a spawn. Only current living members qualify. */
       if (
@@ -782,7 +783,7 @@
           pace: 'walk'
         });
       }
-      if (b.paused && b.resume) b.resume();
+      if (b.paused && b.resume && !preservePause) b.resume();
       var startBtn = document.getElementById('startBtn');
       if (startBtn) startBtn.hidden = true;
       ensureReticle().style.display = 'block';
