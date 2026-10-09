@@ -10,7 +10,7 @@ function fixture(shapes=[]){
   r.BattleSoldierModel={animateWalk(){},setCrouch(s,v){s.crouching=v;},setProne(s,v){s.prone=v;}};
   function load(p){new Function('window','globalThis','console','BABYLON',fs.readFileSync(path.join(H.REPO,p),'utf8'))(r,r,{log(){},warn(){}},r.BABYLON);}
   load('battle/battle-navigation.js');load('battle/movement-resolver.js');load('battle/modules/39-navigation-physicality-debug.js');load('battle/modules/51-soldier-personal-space.js');
-  const code=fs.readFileSync(path.join(H.REPO,'battle/battle-sim.js'),'utf8').replace('  BattleSim.prototype._frame=function','  root.stepMovementProbe=stepMovement;\n  BattleSim.prototype._frame=function');
+  const code=fs.readFileSync(path.join(H.REPO,'battle/battle-sim.js'),'utf8').replace(/(?=  BattleSim\.prototype\._frame\s*=\s*function)/, '  root.stepMovementProbe=stepMovement;\n');
   new Function('window','globalThis','BABYLON','BattleSoldierModel',code)(r,r,r.BABYLON,r.BattleSoldierModel);
   const sim=H.makeBattle(r),sq=H.addSquad(r,sim,{id:'us-0',faction:'us',x:0,z:-8,objective:{x:0,z:20},composition:['rifleman','rifleman','rifleman']});
   sim.obstacles.__physicalFootprints=shapes;const scenario={buildings:[]};sim.scene={metadata:{battleScenario:scenario}};r.__battle__=sim;r.BattleNavigation.installScenario(scenario);systems['navigation-physicality-debug'].onBattleStart(sim);
