@@ -19,6 +19,7 @@ const SCENARIO = process.env.PARITY_SCENARIO || 'meeting';
 const SECONDS = Math.max(15, +process.env.PARITY_SECONDS || 600);
 const OUT = process.env.PARITY_OUT || '';
 const ONLY = process.env.PARITY_ONLY || '';
+const REPEAT_REFERENCE = process.env.PARITY_REPEAT_REFERENCE === '1';
 const DEFENDER = { meeting: '', 'us-defend': 'us', 'ge-defend': 'ge' };
 if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
   throw new Error('Invalid scenario ' + SCENARIO);
@@ -61,7 +62,7 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
       { timeout: 180000 }
     );
     await page.addScriptTag({ path: path.join(__dirname, 'probes/state-fingerprint.js') });
-    const results = await page.evaluate(async ({ seconds, only }) => {
+    const results = await page.evaluate(async ({ seconds, only, repeatReference }) => {
       const root = window;
       const sim = root.__battle__;
       if (!sim._fixedClockInstalled || !sim._fixedClock || !sim._liveCommanderTick) {
@@ -128,23 +129,26 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
         };
       }
 
-      reset();
-      const tick = root.BattleCommanderAI.commandTick || 0.45;
-      let commandDebt = 0;
-      const fixedStep = root.BattleSim.AI_TICK;
-      while (!sim.winner && sim.time + 1e-9 < seconds) {
-        sim._trainerStepActive = true;
-        try {
-          sim.step(fixedStep);
-        } finally {
-          sim._trainerStepActive = false;
-        }
-        commandDebt += fixedStep;
-        while (commandDebt + 1e-9 >= tick && !sim.winner) {
-          commandDebt -= tick;
-          root.BattleCommanderAI.update(sim, sim.scene.metadata.battleScenario, tick);
+      function referenceReplay() {
+        const tick = root.BattleCommanderAI.commandTick || 0.45;
+        let commandDebt = 0;
+        const fixedStep = root.BattleSim.AI_TICK;
+        while (!sim.winner && sim.time + 1e-9 < seconds) {
+          sim._trainerStepActive = true;
+          try {
+            sim.step(fixedStep);
+          } finally {
+            sim._trainerStepActive = false;
+          }
+          commandDebt += fixedStep;
+          while (commandDebt + 1e-9 >= tick && !sim.winner) {
+            commandDebt -= tick;
+            root.BattleCommanderAI.update(sim, sim.scene.metadata.battleScenario, tick);
+          }
         }
       }
+      reset();
+      referenceReplay();
       const baseline = snapshot('fixed-benchmark');
       const baselineState = JSON.parse(baseline.fingerprint);
       function differences(left, right, location, out) {
@@ -166,6 +170,14 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
         });
       }
       const variants = [];
+      if (repeatReference) {
+        reset();
+        referenceReplay();
+        const repeated = snapshot('fixed-benchmark repeat');
+        repeated.differences = [];
+        differences(baselineState, JSON.parse(repeated.fingerprint), 'battle', repeated.differences);
+        variants.push(repeated);
+      }
       for (const speed of [1, 4, 8]) {
         for (const fps of [20, 30, 60, 120]) {
           const label = speed + 'x @ ' + fps + 'fps';
@@ -184,7 +196,7 @@ if (!Object.prototype.hasOwnProperty.call(DEFENDER, SCENARIO)) {
         }
       }
       return { baseline: baseline, variants: variants };
-    }, { seconds: SECONDS, only: ONLY });
+    }, { seconds: SECONDS, only: ONLY, repeatReference: REPEAT_REFERENCE });
 
     const standard = results.baseline;
     const hash = source => createHash('sha256').update(source).digest('hex');
