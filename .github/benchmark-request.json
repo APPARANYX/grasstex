@@ -1,0 +1,1 @@
+{"benchmark":"standard","ref":"work/experimental-movement-substeps","seed":"hill-0008","seeds":"1","battle_type":"us-defend","windows":"contact+60,every60","query_off":"","query_on":"movementSubsteps=2","origin_agent":"chatgpt","correlation_id":"pr-435-geometry","purpose":"Known blocked-route/hedge reproduction, movement-step comparison"}
