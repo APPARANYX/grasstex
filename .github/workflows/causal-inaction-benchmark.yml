@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/causal-inaction-benchmark.yml'
       - 'scripts/probes/causal-inaction.cjs'
+      - 'scripts/probes/crest-geometry.cjs'
       - 'scripts/run_causal_inaction_benchmark.cjs'
       - 'scripts/run_probe.cjs'
       - 'tools/ai-sim-harness/causal-inaction-check.js'
@@ -40,6 +41,10 @@ on:
         description: 'Optional existing seed to replay in each of the three scenarios'
         required: false
         default: ''
+      geometry:
+        description: 'Collect read-only crest 3D ray evidence (1 = enabled)'
+        required: false
+        default: '0'
       query:
         description: 'Optional gameplay query flags e.g. coverPeek=1; seed and observer filters are reserved'
         required: false
@@ -67,6 +72,7 @@ jobs:
       CAUSAL_SQUADS: ${{ github.event.inputs.squads || '' }}
       CAUSAL_BATTLES: ${{ github.event.inputs.exact_seed && format('{0}:{1}', matrix.battle_type, github.event.inputs.exact_seed) || '' }}
       CAUSAL_QUERY: ${{ github.event.inputs.query || '' }}
+      CAUSAL_GEOMETRY: ${{ github.event.inputs.geometry || '0' }}
       CAUSAL_CONTROL: '1'
       CAUSAL_PREFIX: causal-inaction
       CAUSAL_OUT: reports/causal-inaction
@@ -78,6 +84,7 @@ jobs:
       - name: Observer contract and syntax
         run: |
           node --check scripts/probes/causal-inaction.cjs
+          node --check scripts/probes/crest-geometry.cjs
           node --check scripts/run_causal_inaction_benchmark.cjs
           node tools/ai-sim-harness/causal-inaction-check.js
           node tools/ai-sim-harness/cover-positions-check.js
