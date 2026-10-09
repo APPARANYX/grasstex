@@ -80,10 +80,7 @@ function signatures(items) {
       Math.abs(mesh.rotation.z - Math.atan(0.18)) < 1e-10,
       'ground roll follows world-X grade at yaw ' + yaw
     );
-    assert.ok(
-      Math.abs(mesh.position.y - 5) < 1e-10,
-      'planar ground leaves mesh anchor unchanged'
-    );
+    assert.ok(Math.abs(mesh.position.y - 5) < 1e-10, 'planar ground leaves mesh anchor unchanged');
   }
   const bowed = { rotation: { x: 0, z: 0 }, position: { y: 4 } };
   T.orientGroundMesh(bowed, (x) => x * x * 0.1, 0, 0, 0, 3, 0.25);
