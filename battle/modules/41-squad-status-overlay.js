@@ -402,7 +402,8 @@
     /* Offscreen squad pointer is independent of the short-lived long-move command arrow. */
     var edge = append(g, 'g', { 'class': 'sso-edge' }),
       edgeArrow = append(edge, 'path', {
-        'class': 'sso-edge-arrow', d: 'M0 -15 L11 8 L0 3 L-11 8 Z'
+        'class': 'sso-edge-arrow',
+        d: 'M0 -15 L11 8 L0 3 L-11 8 Z'
       }),
       edgeText = append(edge, 'text', { 'class': 'sso-edge-text', x: '0', y: '27' }, '');
     setShown(edge, false);
@@ -527,13 +528,22 @@
   /* World-space bearing survives projected coordinates leaving the screen or moving behind the
      camera. In the local camera frame 0 = forward/up, +90 deg = right, 180 = behind/down. */
   function edgeDirection(world, camera, rect) {
-    if (!world || !camera || !camera.position || !camera.getForwardRay || !rect ||
-        !(rect.width > 0) || !(rect.height > 0)) return null;
+    if (
+      !world ||
+      !camera ||
+      !camera.position ||
+      !camera.getForwardRay ||
+      !rect ||
+      !(rect.width > 0) ||
+      !(rect.height > 0)
+    )
+      return null;
     var f = camera.getForwardRay(1).direction;
     if (!f) return null;
     var dx = +world.x - +camera.position.x,
       dz = +world.z - +camera.position.z,
-      fx = +f.x, fz = +f.z;
+      fx = +f.x,
+      fz = +f.z;
     if (![dx, dz, fx, fz].every(isFinite) || !(dx * dx + dz * dz > 0.000001)) return null;
     var angle = Math.atan2(dx * fz - dz * fx, dx * fx + dz * fz),
       radiusX = Math.max(8, rect.width / 2 - Math.min(68, rect.width * 0.2)),
@@ -541,7 +551,7 @@
     return {
       x: rect.left + rect.width / 2 + Math.sin(angle) * radiusX,
       y: rect.top + rect.height / 2 - Math.cos(angle) * radiusY,
-      angle: angle * 180 / Math.PI
+      angle: (angle * 180) / Math.PI
     };
   }
   function screenEdge(sim, at) {
@@ -645,7 +655,8 @@
     if (edge) {
       m.edge.setAttribute('transform', 'translate(' + edge.x.toFixed(1) + ' ' + edge.y.toFixed(1) + ')');
       m.edgeArrow.setAttribute('transform', 'rotate(' + edge.angle.toFixed(1) + ')');
-      m.edgeText.textContent = (sq.faction === 'ge' ? 'GE ' : 'US ') +
+      m.edgeText.textContent =
+        (sq.faction === 'ge' ? 'GE ' : 'US ') +
         (sq.overlayLabel != null ? String(sq.overlayLabel) : String(sq.id));
     } else {
       m.unit.setAttribute('transform', 'translate(' + screen.x.toFixed(1) + ' ' + screen.y.toFixed(1) + ')');

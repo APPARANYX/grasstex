@@ -27,7 +27,10 @@
     PLAYER_MOVE_AHEAD = 6,
     PLAYER_CAMERA_CLEARANCE = 0.45;
   /* Player-only sprint budget; AI soldiers keep their existing movement model. */
-  var SPRINT_DRAIN = 12, STAMINA_WALK_RECOVER = 12, STAMINA_IDLE_RECOVER = 18, STAMINA_RESTART = 25;
+  var SPRINT_DRAIN = 12,
+    STAMINA_WALK_RECOVER = 12,
+    STAMINA_IDLE_RECOVER = 18,
+    STAMINA_RESTART = 25;
   var KEY_HINT =
     'Camera: click to look · WASD move · wheel speed · Q/E up/down · Shift sprint · P player · Esc releases';
   var PAD_HINT =
@@ -294,7 +297,10 @@
         var actuator = pad && (pad.vibrationActuator || (pad.hapticActuators && pad.hapticActuators[0]));
         if (actuator && typeof actuator.playEffect === 'function') {
           var result = actuator.playEffect('dual-rumble', {
-            duration: duration, startDelay: 0, strongMagnitude: strong, weakMagnitude: weak
+            duration: duration,
+            startDelay: 0,
+            strongMagnitude: strong,
+            weakMagnitude: weak
           });
           if (result && typeof result.catch === 'function') result.catch(function () {});
           return;
@@ -306,7 +312,9 @@
         }
         if (global.navigator && typeof global.navigator.vibrate === 'function')
           global.navigator.vibrate(duration);
-      } catch (_) { /* Unsupported and permission-blocked devices should remain playable. */ }
+      } catch (_) {
+        /* Unsupported and permission-blocked devices should remain playable. */
+      }
     }
     function ensurePlayerFeedback() {
       if (playerHud) return;
@@ -358,8 +366,7 @@
         damageAt = Date.now();
         var shooter = player._lastHitBy;
         var pos = shooter && shooter.root && shooter.root.position;
-        damageOrigin = pos && isFinite(+pos.x) && isFinite(+pos.z)
-          ? { x: +pos.x, z: +pos.z } : null;
+        damageOrigin = pos && isFinite(+pos.x) && isFinite(+pos.z) ? { x: +pos.x, z: +pos.z } : null;
         playerRumble(pad, 230, 0.85, 0.65);
       }
       lastWoundCount = wounds;
@@ -372,9 +379,14 @@
       document.getElementById('battlePlayerStaminaValue').textContent =
         Math.round(playerStamina) + '%' + (playerExhausted ? ' EXHAUSTED' : '');
       document.getElementById('battlePlayerStaminaFill').style.width = playerStamina.toFixed(1) + '%';
-      var rate = Math.max(0, +player.bleedRate || 0), bleed = document.getElementById('battlePlayerBleeding');
-      bleed.textContent = rate > 0 ? 'BLEEDING · ' + rate.toFixed(2) + ' HP/s'
-        : wounds ? 'WOUNDED · BLEEDING STOPPED' : 'NO BLEEDING';
+      var rate = Math.max(0, +player.bleedRate || 0),
+        bleed = document.getElementById('battlePlayerBleeding');
+      bleed.textContent =
+        rate > 0
+          ? 'BLEEDING · ' + rate.toFixed(2) + ' HP/s'
+          : wounds
+            ? 'WOUNDED · BLEEDING STOPPED'
+            : 'NO BLEEDING';
       bleed.classList.toggle('alert', rate > 0);
       var elapsed = Date.now() - damageAt;
       if (elapsed >= 0 && elapsed < 1700) {
@@ -385,7 +397,7 @@
           var here = player.root.position;
           var angle = Math.atan2(damageOrigin.x - here.x, damageOrigin.z - here.z) - playerYaw;
           playerDamage.style.transform =
-            'translate(-50%,-50%) rotate(' + (angle * 180 / Math.PI).toFixed(1) + 'deg)';
+            'translate(-50%,-50%) rotate(' + ((angle * 180) / Math.PI).toFixed(1) + 'deg)';
         } else playerDamage.style.transform = 'translate(-50%,-50%)';
       } else playerDamage.style.opacity = '0';
     }
@@ -395,8 +407,10 @@
         if (!playerStamina) playerExhausted = true;
         return true; /* The final depleted frame can finish the current running stride. */
       }
-      playerStamina = Math.min(100, playerStamina +
-        (moving ? STAMINA_WALK_RECOVER : STAMINA_IDLE_RECOVER) * dt);
+      playerStamina = Math.min(
+        100,
+        playerStamina + (moving ? STAMINA_WALK_RECOVER : STAMINA_IDLE_RECOVER) * dt
+      );
       if (playerExhausted && playerStamina >= STAMINA_RESTART) playerExhausted = false;
       return false;
     }

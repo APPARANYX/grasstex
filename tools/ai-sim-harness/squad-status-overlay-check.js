@@ -78,7 +78,9 @@ assert.strictEqual(O.longArrowWorld, 150, 'long command arrows require a 150 m d
 const viewport = { left: 10, top: 20, width: 1000, height: 600 };
 const edgeCamera = {
   position: { x: 0, z: 0 },
-  getForwardRay() { return { direction: { x: 0, z: 1 } }; }
+  getForwardRay() {
+    return { direction: { x: 0, z: 1 } };
+  }
 };
 const directions = [
   ['front', { x: 0, z: 100 }, 510, 82, 0],
@@ -89,13 +91,17 @@ const directions = [
 for (const [side, location, x, y, angle] of directions) {
   const p = O.edgeDirection(location, edgeCamera, viewport);
   assert(p, side + ' pointer must resolve');
-  assert(Math.abs(p.x - x) < 0.01 && Math.abs(p.y - y) < 0.01,
-    side + ' pointer must be inside the proper viewport edge');
+  assert(
+    Math.abs(p.x - x) < 0.01 && Math.abs(p.y - y) < 0.01,
+    side + ' pointer must be inside the proper viewport edge'
+  );
   assert(Math.abs(p.angle - angle) < 0.01, side + ' arrow must face the squad');
 }
 assert.strictEqual(O.edgeDirection({ x: 1, z: 0 }, edgeCamera, { width: 0, height: 0 }), null);
-assert(source.includes('edge || screen') && source.includes('targetEdge || targetScreen'),
-  'command arrows use clamped anchors for offscreen squads and destinations');
+assert(
+  source.includes('edge || screen') && source.includes('targetEdge || targetScreen'),
+  'command arrows use clamped anchors for offscreen squads and destinations'
+);
 
 const fallbackSymbol = JSON.parse(JSON.stringify(O.symbolSpec({})));
 assert.strictEqual(fallbackSymbol.id, 'infantry');
