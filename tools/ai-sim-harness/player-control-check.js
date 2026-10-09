@@ -29,7 +29,11 @@ assert.match(
   /b\.factions\[faction\]\.squads\.indexOf\(sq\)/,
   'selected squad is revalidated against the live faction'
 );
-assert.match(cameraSource, /soldier\.dead[\s\S]{0,100}!soldier\.root/, 'soldier selection rejects casualties');
+assert.match(
+  cameraSource,
+  /soldier\.dead[\s\S]{0,100}!soldier\.root/,
+  'soldier selection rejects casualties'
+);
 assert.match(cameraSource, /if \(menuOpen\) closePlayerMenu\(\)/, 'player release cleans up the menu');
 assert.match(cameraSource, /!b\.paused[\s\S]{0,100}typeof b\.pause/, 'settings pause only an active battle');
 assert.match(
