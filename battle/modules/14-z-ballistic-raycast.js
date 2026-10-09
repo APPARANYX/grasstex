@@ -557,6 +557,31 @@
       distance: distance
     };
   }
+  /* Read-only, dispersion-free preview of the live muzzle ray for the secondary player dot.
+     Shares the exact terrain/structure/body occlusion rules with actual rounds; it performs
+     no RNG draws, wound writes, onShot callbacks or AI target acquisition. */
+  function previewPlayerRay(shooter, aimPoint, battle) {
+    if (!shooter || !shooter.root || !shooter.weapon || !shooter.weapon.stats ||
+        !battle || !aimPoint || !isFinite(+aimPoint.x) || !isFinite(+aimPoint.y) ||
+        !isFinite(+aimPoint.z)) return null;
+    var stats = shooter.weapon.stats,
+      range = +stats.range || 0;
+    if (!(range > 0)) return null;
+    var proxy = { root: { position: aimPoint } },
+      origin = muzzleOrigin(shooter, proxy, battle),
+      dir = norm({
+        x: aimPoint.x - origin.x,
+        y: aimPoint.y - origin.y,
+        z: aimPoint.z - origin.z
+      }),
+      environment = environmentStop(origin, dir, range, battle),
+      body = firstEnemyHit(shooter, origin, dir, Math.min(range, environment.travel), battle);
+    return {
+      impact: pointAt(origin, dir, body ? body.t : environment.travel),
+      origin: origin,
+      stoppedBy: body ? 'soldier' : environment.travel < range - 0.1 ? 'environment' : 'range'
+    };
+  }
   function resolvePlayerRay(shooter, aimPoint, battle, round, delay) {
     if (!shooter || !shooter.weapon || !battle) return null;
     var stats = shooter.weapon.stats,
@@ -731,6 +756,7 @@
     version: '98-muzzle-physical-cover',
     resolve: resolveRay,
     resolvePlayerRay: resolvePlayerRay,
+    previewPlayerRay: previewPlayerRay,
     dispersionSigma: dispersionSigma,
     groupDiameter90: groupDiameter90,
     bodyShape: bodyShape,
