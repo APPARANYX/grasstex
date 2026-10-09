@@ -25,13 +25,13 @@ function load(r, p) {
     r.BABYLON
   );
 }
-function world() {
+function world(search) {
   H.resetIds();
   const log = console.log;
   let r;
   try {
     console.log = () => {};
-    r = H.bootstrap({ modules: false, search: '?morale=0&coa=0&fireControl=0' });
+    r = H.bootstrap({ modules: false, search: '?morale=0&coa=0&fireControl=0' + (search || '') });
   } finally {
     console.log = log;
   }
@@ -152,31 +152,39 @@ function supplyFriendlyProgress(w) {
     };
   }
 }
-const w = world();
-w.q.targetObjective = 'away';
-w.q.commandPhase = 'assault';
-drive(w, 2);
-const first = w.q._macroMission;
-assert.equal(first.intent, 'capture');
-w.r.BattleCommanderAI.acceptMission(w.b, w.q, false);
-const checkpoints = [];
-for (const t of [120, 180, 240, 300, 420]) {
-  drive(w, t, supplyFriendlyProgress);
-  checkpoints.push(state(w));
+
+function captureStarvation(search) {
+  const w = world(search);
+  w.q.targetObjective = 'away';
+  w.q.commandPhase = 'assault';
+  drive(w, 2);
+  const first = w.q._macroMission;
+  assert.equal(first.intent, 'capture');
+  w.r.BattleCommanderAI.acceptMission(w.b, w.q, false);
+  const checkpoints = [];
+  for (const t of [120, 180, 240, 300, 420]) {
+    drive(w, t, supplyFriendlyProgress);
+    checkpoints.push(state(w));
+  }
+  const general = w.r.BattleCommanderAI.generalFor(w.b, 'us');
+  const attempted = w.events.filter(e => e.type === 'decision-local-mission-stall');
+  return {
+    search, stillSame: w.q._macroMission === first,
+    attempts: attempted.map(e => e.data),
+    checkpoints: checkpoints.map(q => ({
+      t:q.time, intent:q.intent, version:q.version, status:q.status,
+      factionStall:q.factionStall,
+      lastProgressAt:q.squadProgress && q.squadProgress.lastProgressAt,
+      recoveryStages:q.stages.length
+    })),
+    stages: general.stallRecovery.history.length
+  };
 }
-const general = w.r.BattleCommanderAI.generalFor(w.b,'us');
-const stillSame = w.q._macroMission === first;
-const neverProgressed = checkpoints.every(x => !x.squadProgress || x.squadProgress.lastProgressAt == null);
-const missed = stillSame && neverProgressed && general.stallRecovery.history.length === 0;
-console.log('ISSUE361_LOCAL_STALL ' + JSON.stringify({
-  baseline: 'controlled supplied progress + physically stationary accepted CAPTURE',
-  issued: { version:first.version, objective:first.objectiveId },
-  missed, stillSame, neverProgressed,
-  checkpoints: checkpoints.map(s=>({
-    t:s.time,intent:s.intent,version:s.version,status:s.status,
-    factionStall:s.factionStall, lastProgressAt:s.squadProgress && s.squadProgress.lastProgressAt,
-    lastExecutionAt:s.squadProgress && s.squadProgress.lastExecutionAt,
-    recoveryStages:s.stages.length
-  }))
-}));
-assert.ok(missed,'controlled single-squad starvation was reproduced; if fixed, update this negative-control expectation');
+const off = captureStarvation('');
+const on = captureStarvation('&localMissionWake=1');
+console.log('ISSUE361_LOCAL_STALL ' + JSON.stringify({off,on}));
+assert.equal(off.attempts.length, 0, 'flag-off must reproduce missing local recovery');
+assert.equal(off.stillSame, true, 'healthy faction continues masking stalled mission');
+assert.ok(on.attempts.length >= 1, 'flag-on must review the isolated stalled CAPTURE');
+assert.ok(on.attempts.every(e => e.noPhysicalProgressSeconds >= 120), 'only after 120 s without movement');
+assert.ok(on.attempts.every(e => e.missionVersion >= 1), 'outcomes carry mission identity');
