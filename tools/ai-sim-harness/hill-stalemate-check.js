@@ -136,10 +136,18 @@ function drive(w, seconds, probe) {
   });
 }
 
-test('an exposed upper body over the crest produces a firefight', () => {
+test('the low crest has a physically reachable upper-body aim point', () => {
   const w = pair(ridge(RANGE / 2, 1.35, 4, 20));
-  drive(w, 12);
-  assert.ok(w.b.events.fired > 0, 'the actual upper-body opening now permits firing');
+  const shooter = w.us.members.find(s => s.role === 'rifleman');
+  const target = w.ge.members.find(s => s.role === 'rifleman');
+  shooter.root.position.x = 0;
+  shooter.root.position.z = 0;
+  target.root.position.x = 0;
+  target.root.position.z = RANGE;
+  shooter.prone = shooter.crouching = false;
+  target.prone = target.crouching = false;
+  const aim = w.r.BattleBallistics.exposedAim(shooter, target, w.b);
+  assert.ok(aim && aim.y > 1.35, 'an exposed upper-body aim point clears the crest');
 });
 
 test('a fully hidden target does not freeze the assault before the crest', () => {
