@@ -273,6 +273,47 @@
     }
     return [top, bottom];
   }
+  /* The rendered ground mesh is the authority for ground-contact presentation:
+     it has the final interpolated triangles after scenario terrain is applied.
+     The simulation height sample remains the fallback for headless tests. */
+  function markerSurfaceY(sim, x, z) {
+    var mesh = sim && sim.scene && sim.scene.getMeshByName && sim.scene.getMeshByName('battleField');
+    if (mesh && typeof mesh.getHeightAtCoordinates === 'function') {
+      var h = mesh.getHeightAtCoordinates(x, z);
+      if (isFinite(h)) return h;
+    }
+    return sim.heightAt(x, z);
+  }
+  function markerFootprintClear(sim, x, z, hx, hz, rotation, onRoad) {
+    var T = root.BattleTerrainFeatures,
+      fp = T && T.rectFootprint && T.rectFootprint(x, z, hx, hz, rotation);
+    if (!fp || !T.placementClear) return true;
+    var obstacles = (sim && sim.obstacles) || [],
+      physical = obstacles.__physicalFootprints || [];
+    if (!T.placementClear(physical, fp, 0.45)) return false;
+    var scenario = sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario,
+      buildings = (scenario && scenario.buildings) || [];
+    for (var i = 0; i < buildings.length; i++) {
+      var b = buildings[i],
+        building = T.rectFootprint(b.x, b.z, b.w / 2, b.d / 2, b.rot || 0);
+      if (T.footprintOverlap(fp, building, 0.5)) return false;
+    }
+    if (onRoad && T.roadClear && !T.roadClear((scenario && scenario.roads) || [], fp, 0.8)) return false;
+    return true;
+  }
+  function markerAnchor(sim, cx, cz) {
+    if (markerFootprintClear(sim, cx, cz, 0.48, 0.48, 0, false)) return { x: cx, z: cz };
+    /* A rare objective generated in a building must put its visual pole in legal
+       ground nearby, without changing the tactical objective's actual coordinate. */
+    for (var r = 3; r <= 21; r += 3)
+      for (var n = 0; n < 24; n++) {
+        var a = (2 * Math.PI * n) / 24,
+          x = cx + r * Math.cos(a),
+          z = cz + r * Math.sin(a);
+        if (markerFootprintClear(sim, x, z, 0.48, 0.48, 0, false)) return { x: x, z: z };
+      }
+    return null;
+  }
   function objectiveSandbags(scene, sim, obj, cx, cz, radius, material) {
     var parts = [],
       boundary = Math.max(7, radius * 0.9),
@@ -285,15 +326,24 @@
           a = centerA + off * step,
           x = cx + Math.cos(a) * boundary,
           z = cz + Math.sin(a) * boundary,
-          y = sim.heightAt(x, z),
+          rot = Math.PI / 2 - a;
+        /* Decorative walls must not intersect houses, solid cover, or approach
+           roads; rejected pieces leave additional usable infantry gaps. */
+        if (!markerFootprintClear(sim, x, z, 0.75, 0.36, rot, true)) continue;
+        var y = Math.min(
+            markerSurfaceY(sim, x, z),
+            markerSurfaceY(sim, x + Math.cos(rot) * 0.75, z - Math.sin(rot) * 0.75),
+            markerSurfaceY(sim, x - Math.cos(rot) * 0.75, z + Math.sin(rot) * 0.75)
+          ),
           bag = BABYLON.MeshBuilder.CreateBox(
             'objective-sandbag-part-' + obj.id,
             { width: 1.5, height: 0.58, depth: 0.72 },
             scene
           );
-        bag.position.set(x, y + 0.29, z);
-        /* Box width follows the tangent, leaving six very broad approach gaps through the boundary. */
-        bag.rotation.y = Math.PI / 2 - a;
+        bag.position.set(x, y + 0.24, z);
+        /* The box bottom is buried 5cm, avoiding hovering on sloping terrain.
+           Box width follows the tangent, leaving broad approach gaps. */
+        bag.rotation.y = rot;
         parts.push(bag);
       }
     }
@@ -312,16 +362,18 @@
     if (!BABYLON.MeshBuilder || typeof BABYLON.MeshBuilder.CreateRibbon !== 'function') return null;
     var scene = sim.scene,
       def = obj.def || {},
-      cx = +def.x || 0,
-      cz = +def.z || 0,
+      anchor = markerAnchor(sim, +def.x || 0, +def.z || 0);
+    if (!anchor) return null;
+    var cx = anchor.x,
+      cz = anchor.z,
       r = +def.radius || 20,
-      y = sim.heightAt(cx, cz),
+      y = markerSurfaceY(sim, cx, cz),
       pole = BABYLON.MeshBuilder.CreateCylinder(
         'objective-pole-' + obj.id,
         { height: FLAG_POLE_HEIGHT, diameter: 0.28, tessellation: 10 },
         scene
       );
-    pole.position.set(cx, y + FLAG_POLE_HEIGHT / 2, cz);
+    pole.position.set(cx, y + FLAG_POLE_HEIGHT / 2 - 0.15, cz);
     pole.isPickable = false;
 
     var poleMaterial = new BABYLON.StandardMaterial('objective-pole-mat-' + obj.id, scene);
@@ -559,6 +611,12 @@
     });
   }
 
+  /* Pure location helpers exposed for geometry fixtures; no runtime reads this API. */
+  root.BattleCaptureMarkerGeometry = {
+    surfaceY: markerSurfaceY,
+    footprintClear: markerFootprintClear,
+    anchor: markerAnchor
+  };
   root.BattleModules.registerObjectiveType('capture-zone', {
     version: '30-objective-flags',
     label: 'Timed capture zone',

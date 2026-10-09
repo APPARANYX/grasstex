@@ -211,6 +211,108 @@
     return m;
   }
 
+  /* Shared exact X/Z footprint overlap predicate. Used at world generation time, never
+     in the per-soldier tick. AABB/circumcircle early rejection makes large hedge fields cheap;
+     separating-axis tests retain narrow lanes next to rotated obstacles. */
+  function footprintOverlap(a, b, gap) {
+    gap = Math.max(0, +gap || 0);
+    var ar = a.shape === 'circle' ? +(a.placementRadius || a.radius) || 0 : Math.hypot(a.hx, a.hz),
+      br = b.shape === 'circle' ? +(b.placementRadius || b.radius) || 0 : Math.hypot(b.hx, b.hz),
+      dx = a.x - b.x,
+      dz = a.z - b.z;
+    if (dx * dx + dz * dz >= (ar + br + gap) * (ar + br + gap)) return false;
+    if (a.shape === 'circle' && b.shape === 'circle') return true;
+    function project(shape, ux, uz) {
+      if (shape.shape === 'circle') return +(shape.placementRadius || shape.radius) || 0;
+      return (
+        Math.abs(shape.hx * (shape.ux * ux + shape.uz * uz)) +
+        Math.abs(shape.hz * (shape.vx * ux + shape.vz * uz))
+      );
+    }
+    /* OBB-vs-circle needs the box's axes only; checking arbitrary circle axes
+       would falsely reject a corner. Clamp the circle centre to the actual box. */
+    if (a.shape === 'circle' || b.shape === 'circle') {
+      var c = a.shape === 'circle' ? a : b,
+        box = a.shape === 'circle' ? b : a,
+        tx = c.x - box.x,
+        tz = c.z - box.z,
+        lx = tx * box.ux + tz * box.uz,
+        lz = tx * box.vx + tz * box.vz,
+        ex = Math.max(-box.hx, Math.min(box.hx, lx)),
+        ez = Math.max(-box.hz, Math.min(box.hz, lz)),
+        rr = (+(c.placementRadius || c.radius) || 0) + gap;
+      return (lx - ex) * (lx - ex) + (lz - ez) * (lz - ez) < rr * rr;
+    }
+    var axes = [
+      [a.ux, a.uz],
+      [a.vx, a.vz],
+      [b.ux, b.uz],
+      [b.vx, b.vz]
+    ];
+    for (var i = 0; i < axes.length; i++) {
+      var ux = axes[i][0],
+        uz = axes[i][1];
+      if (Math.abs(dx * ux + dz * uz) >= project(a, ux, uz) + project(b, ux, uz) + gap - 1e-7) return false;
+    }
+    return true;
+  }
+  function placementClear(footprints, candidate, margin) {
+    for (var i = 0; i < (footprints || []).length; i++)
+      if (footprintOverlap(footprints[i], candidate, margin)) return false;
+    return true;
+  }
+  function rectFootprint(x, z, hx, hz, rot) {
+    var c = Math.cos(rot || 0),
+      s = Math.sin(rot || 0);
+    return { shape: 'obb', x: x, z: z, hx: hx, hz: hz, ux: c, uz: -s, vx: s, vz: c };
+  }
+  function distanceToSegment(px, pz, ax, az, bx, bz) {
+    var dx = bx - ax,
+      dz = bz - az,
+      d2 = dx * dx + dz * dz,
+      t = d2 > 1e-8 ? Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / d2)) : 0;
+    return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
+  }
+  function segmentDistance(ax, az, bx, bz, cx, cz, dx, dz) {
+    var a = bx - ax,
+      b = bz - az,
+      c = dx - cx,
+      d = dz - cz,
+      det = a * d - b * c;
+    if (Math.abs(det) > 1e-9) {
+      var rx = cx - ax,
+        rz = cz - az,
+        t = (rx * d - rz * c) / det,
+        u = (rx * b - rz * a) / det;
+      if (t >= 0 && t <= 1 && u >= 0 && u <= 1) return 0;
+    }
+    return Math.min(
+      distanceToSegment(ax, az, cx, cz, dx, dz),
+      distanceToSegment(bx, bz, cx, cz, dx, dz),
+      distanceToSegment(cx, cz, ax, az, bx, bz),
+      distanceToSegment(dx, dz, ax, az, bx, bz)
+    );
+  }
+  function roadClear(roads, candidate, gap) {
+    for (var i = 0; i < (roads || []).length; i++) {
+      var road = roads[i],
+        dist,
+        radius;
+      if (candidate.shape === 'circle') {
+        dist = distanceToSegment(candidate.x, candidate.z, road.ax, road.az, road.bx, road.bz);
+        radius = +(candidate.placementRadius || candidate.radius) || 0;
+      } else {
+        var ax = candidate.x - candidate.ux * candidate.hx,
+          az = candidate.z - candidate.uz * candidate.hx,
+          bx = candidate.x + candidate.ux * candidate.hx,
+          bz = candidate.z + candidate.uz * candidate.hx;
+        dist = segmentDistance(ax, az, bx, bz, road.ax, road.az, road.bx, road.bz);
+        radius = candidate.hz;
+      }
+      if (dist < +(road.width || 8) / 2 + radius + (gap || 0)) return false;
+    }
+    return true;
+  }
   function scatter(scene, heightAt, opts) {
     opts = opts || {};
     var fieldW = opts.fieldW || 360,
@@ -233,7 +335,33 @@
         ? root.BattleScenarioGenerator.current()
         : null);
     var buildings = (scenario && scenario.buildings) || [],
-      BUILDING_KEEP = opts.buildingKeepout == null ? 2.2 : +opts.buildingKeepout;
+      roads = (scenario && scenario.roads) || [],
+      objectives = (scenario && scenario.objectives) || [],
+      BUILDING_KEEP = opts.buildingKeepout == null ? 2.2 : +opts.buildingKeepout,
+      /* Keep fixed visual objective structures clear without turning them into
+         navigation blockers. Existing capture-zone gameplay coordinates are unchanged. */
+      objectiveKeepouts = [];
+    objectives.forEach(function (o) {
+      objectiveKeepouts.push({ shape: 'circle', x: o.x, z: o.z, radius: 3.0 });
+      var boundary = Math.max(7, (+o.radius || 20) * 0.9);
+      for (var cl = 0; cl < 6; cl++)
+        for (var j = -1; j <= 1; j++) {
+          var a = Math.PI / 6 + (cl * Math.PI) / 3 + (j * 1.55) / boundary;
+          objectiveKeepouts.push({
+            shape: 'circle',
+            x: o.x + Math.cos(a) * boundary,
+            z: o.z + Math.sin(a) * boundary,
+            radius: 1.45
+          });
+        }
+    });
+    function placementAllowed(candidate, margin) {
+      return (
+        placementClear(physical, candidate, margin) &&
+        placementClear(objectiveKeepouts, candidate, 0) &&
+        roadClear(roads, candidate, 1.1)
+      );
+    }
 
     function place(mesh, x, z) {
       entries.push({ mesh: mesh, x: x, z: z });
@@ -394,7 +522,18 @@
           az = horizontal ? fixed + jag : cursor,
           bx = horizontal ? cursor + segLen : fixed - jag,
           bz = horizontal ? fixed - jag : cursor + segLen;
-        if (!segmentBlockedByBuilding(ax, az, bx, bz, HEDGE_WIDTH)) {
+        var hedgeCandidate = {
+          shape: 'obb',
+          x: (ax + bx) / 2,
+          z: (az + bz) / 2,
+          hx: Math.hypot(bx - ax, bz - az) / 2,
+          hz: HEDGE_WIDTH / 2,
+          ux: (bx - ax) / Math.hypot(bx - ax, bz - az),
+          uz: (bz - az) / Math.hypot(bx - ax, bz - az),
+          vx: -(bz - az) / Math.hypot(bx - ax, bz - az),
+          vz: (bx - ax) / Math.hypot(bx - ax, bz - az)
+        };
+        if (!segmentBlockedByBuilding(ax, az, bx, bz, HEDGE_WIDTH) && placementAllowed(hedgeCandidate, 0.7)) {
           var pieces = Math.max(1, Math.ceil(segLen / HEDGE_CHUNK)),
             runHeight = HEDGE_HEIGHT_MIN + hedgeHeightRng() * (HEDGE_HEIGHT_MAX - HEDGE_HEIGHT_MIN);
           for (var h = 0; h < pieces; h++) {
@@ -426,8 +565,10 @@
           tz = ccz + (rng() - 0.5) * 11,
           scale = 0.85 + rng() * 0.7,
           ty = heightAt(tx, tz);
-        if (pointBlockedByBuilding(tx, tz, 1.25 * scale)) continue;
+        var treeCandidate = { shape: 'circle', x: tx, z: tz, radius: 1.2 * scale };
+        if (pointBlockedByBuilding(tx, tz, 1.25 * scale) || !placementAllowed(treeCandidate, 0.6)) continue;
         var treeFp = addCircle(tx, tz, 0.11 * scale, 'tree', 'tree-' + physicalSeq++);
+        treeFp.placementRadius = 1.2 * scale;
         place(buildTree(scene, tx, ty, tz, scale, LEAF[Math.floor(rng() * LEAF.length)]), tx, tz);
         addObstacle(tx, tz, 1.15 * scale, 0.72, 2.2 * scale, 'tree', treeFp.id);
       }
@@ -443,7 +584,11 @@
         var size = 0.7 + rng() * 0.5,
           rockRot = rng() * Math.PI,
           rockBound = Math.hypot(size * 0.9, size * 0.75);
-        if (pointBlockedByBuilding(lx, lz, rockBound)) continue;
+        if (
+          pointBlockedByBuilding(lx, lz, rockBound) ||
+          !placementAllowed(rectFootprint(lx, lz, size * 0.9, size * 0.75, rockRot), 0.7)
+        )
+          continue;
         var rockFp = addObb(lx, lz, size * 0.9, size * 0.75, rockRot, 'rock', 'rock-' + physicalSeq++);
         place(buildRock(scene, lx, ly, lz, size, rockRot), lx, lz);
         addObstacle(lx, lz, size * 1.1, 0.55, size, 'rock', rockFp.id);
@@ -451,7 +596,11 @@
         var len = 2.6 + rng() * 2.4,
           logRot = rng() * Math.PI,
           logBound = Math.hypot(len / 2, 0.275);
-        if (pointBlockedByBuilding(lx, lz, logBound)) continue;
+        if (
+          pointBlockedByBuilding(lx, lz, logBound) ||
+          !placementAllowed(rectFootprint(lx, lz, len / 2, 0.275, logRot), 0.7)
+        )
+          continue;
         var logFp = addObb(lx, lz, len / 2, 0.275, logRot, 'log', 'log-' + physicalSeq++);
         place(buildLog(scene, lx, ly, lz, len, logRot), lx, lz);
         addObstacle(lx, lz, len * 0.42, 0.6, 0.62, 'log', logFp.id);
@@ -459,7 +608,11 @@
         var wl = 4 + rng() * 7,
           rot = rng() * Math.PI,
           wallBound = Math.hypot(wl / 2, 0.25);
-        if (pointBlockedByBuilding(lx, lz, wallBound)) continue;
+        if (
+          pointBlockedByBuilding(lx, lz, wallBound) ||
+          !placementAllowed(rectFootprint(lx, lz, wl / 2, 0.25, rot), 0.7)
+        )
+          continue;
         var wallFp = addObb(lx, lz, wl / 2, 0.25, rot, 'wall', 'wall-' + physicalSeq++);
         place(buildWallStub(scene, lx, ly, lz, wl, rot), lx, lz);
         var steps2 = Math.max(1, Math.round(wl / 3));
@@ -509,6 +662,10 @@
     hedgeHeight: HEDGE_HEIGHT_MAX,
     hedgeHeightMin: HEDGE_HEIGHT_MIN,
     hedgeHeightMax: HEDGE_HEIGHT_MAX,
-    hedgeChunk: HEDGE_CHUNK
+    hedgeChunk: HEDGE_CHUNK,
+    footprintOverlap: footprintOverlap,
+    placementClear: placementClear,
+    roadClear: roadClear,
+    rectFootprint: rectFootprint
   };
 })(typeof window !== 'undefined' ? window : globalThis);
