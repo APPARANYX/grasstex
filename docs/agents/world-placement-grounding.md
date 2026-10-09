@@ -9,6 +9,14 @@ visible in the HUD and diagnostics. An explicit `?seed=example` is deterministic
 and remains suitable for bug reproduction and benchmarks; operator scenario
 controls may also deliberately select a specific seed.
 
+**Legacy seed cleanup:** Older releases silently wrote generated
+`?seed=live-<timestamp>-<random>` values into the browser URL. When such a URL
+is opened now, it produces a **new random battlefield** and removes the stale
+`seed` parameter with `history.replaceState`. Refreshing it then produces another
+random seed. Deliberate `live-...` replay links must include `&pinSeed=1`
+(`?seed=live-...&pinSeed=1`); other explicitly named seeds still replay
+unchanged. The URL cleanup preserves unrelated query parameters.
+
 ## Terrain contact for objective art
 
 Capture flags and poles sample the **rendered `battleField` GroundMesh**
