@@ -52,9 +52,9 @@ const keyboard =
 const input = new Function(
   keyboard + '\nreturn {keyName, editableTarget, movementKey, playerMovementKey};'
 )();
-assert.equal(input.keyName({ key: ' '}), ' ');
-assert.equal(input.keyName({ key: 'W'}), 'w');
-assert.equal(input.keyName({ key: 'Escape'}), 'escape');
+assert.equal(input.keyName({ key: ' ' }), ' ');
+assert.equal(input.keyName({ key: 'W' }), 'w');
+assert.equal(input.keyName({ key: 'Escape' }), 'escape');
 for (const tagName of ['INPUT', 'SELECT', 'TEXTAREA']) assert.equal(input.editableTarget({ tagName }), true);
 assert.equal(input.editableTarget({ tagName: 'DIV', isContentEditable: true }), true);
 assert.equal(input.editableTarget({ tagName: 'DIV' }), false);
