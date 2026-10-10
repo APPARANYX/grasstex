@@ -295,7 +295,9 @@
           snd.setPosition(
             typeof BABYLON !== 'undefined' && BABYLON.Vector3 ? new BABYLON.Vector3(p.x, p.y, p.z) : p
           );
-        if (snd.setVolume) snd.setVolume(s.gain);
+        var acoustics = root.BattleListenerAcoustics;
+        if (!acoustics || !acoustics.prepare(snd, p, s.group === 'pain' ? 'voice' : 'combat', s.gain, scene))
+          if (snd.setVolume) snd.setVolume(s.gain);
         if (snd.setPlaybackRate) snd.setPlaybackRate(1);
         snd.play();
       } catch (_) {}

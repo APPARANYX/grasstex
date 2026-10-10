@@ -1,0 +1,23 @@
+name: Acoustic browser QA
+on:
+  workflow_dispatch:
+    inputs:
+      preview_ref:
+        description: 'Preview ref or PR number to test (main for current deployed main)'
+        type: string
+        required: true
+        default: main
+jobs:
+  acoustic-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install browser
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Real browser audio compatibility
+        env:
+          AUDIO_PREVIEW_URL: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ inputs.preview_ref }}
+        run: node scripts/probes/probe_listener_acoustics.cjs

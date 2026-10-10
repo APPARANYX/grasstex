@@ -53,6 +53,19 @@
           } catch (_) {}
           finish(req);
         });
+      var acoustics = root.BattleListenerAcoustics;
+      if (acoustics && mesh && mesh.position)
+        acoustics.prepare(
+          s,
+          function () {
+            return typeof mesh.getAbsolutePosition === 'function'
+              ? mesh.getAbsolutePosition()
+              : mesh.position;
+          },
+          'voice',
+          0.24,
+          mesh.getScene()
+        );
       s.play();
       req.handle.started = true;
       root.GTLog('[VOICE] play ' + entry.file + ' lane=' + req.lane);
