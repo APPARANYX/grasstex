@@ -16,11 +16,13 @@ function loadPlaywright(){
 const URL_=process.env.DR_URL||'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
 const SEED=process.env.DR_SEED||'damage-range-probe';
 const OUT=path.resolve(process.env.DR_OUT||'closeups/damage-range');
+const navigationTrace=[];
 
 (async()=>{
   const {chromium}=loadPlaywright();fs.mkdirSync(OUT,{recursive:true});
   const browser=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--enable-webgl','--ignore-gpu-blocklist','--ignore-certificate-errors','--no-sandbox']});
   const page=await browser.newPage({ignoreHTTPSErrors:true,viewport:{width:1280,height:760}});
+  page.on('framenavigated',frame=>{if(frame===page.mainFrame())navigationTrace.push(frame.url());});
   const errors=[],logs=[];
   page.on('pageerror',e=>errors.push(String(e&&e.stack||e).slice(0,500)));
   page.on('console',m=>logs.push('['+m.type()+'] '+m.text()));
@@ -112,14 +114,24 @@ const OUT=path.resolve(process.env.DR_OUT||'closeups/damage-range');
   if(!death.targetDead)fail.push('Kill did not put selected target into death state');
   await page.screenshot({path:path.join(OUT,'death.png')});
 
+  // Reset intentionally reloads the range page. Wait for the navigation and fresh startup;
+  // evaluating old window globals during this reload would produce a false QA failure.
+  const resetNavigation=page.waitForNavigation({waitUntil:'load',timeout:300000});
+  await page.locator('#rangeReset').click();
+  await resetNavigation;
+  await page.waitForFunction(()=>window.__battle__&&window.BattleDamageRange&&BattleDamageRange.ready,null,{timeout:300000,polling:100});
+  const reset=await snap();
+  if(reset.targets.length!==10||reset.wounds!==0||reset.surfaceMaps!==0)fail.push('Reset reload did not restore clean range state');
+
   if(errors.length)fail.push('page errors: '+errors.slice(0,4).join(' | '));
-  const summary={url:URL_,seed:SEED,initial,stable,first,accumulated,second,cleared,death,errors,logs:logs.slice(-120),ok:fail.length===0,fail};
+  const summary={url:URL_,seed:SEED,initial,stable,first,accumulated,second,cleared,death,reset,navigationTrace,errors,logs:logs.slice(-120),ok:fail.length===0,fail};
   fs.writeFileSync(path.join(OUT,'summary.json'),JSON.stringify(summary,null,2));
   console.log('INITIAL '+JSON.stringify({targets:initial.targets,camera:initial.camera,enabled:initial.enabledSoldiers,baseY:initial.baseY}));
   console.log('FIRST '+JSON.stringify({wounds:first.wounds,uv:first.uvWounds,maps:first.surfaceMaps}));
   console.log('ACCUM '+JSON.stringify({wounds:accumulated.wounds,uv:accumulated.uvWounds,maps:accumulated.surfaceMaps}));
   console.log('SECOND '+JSON.stringify({wounds:second.wounds,uv:second.uvWounds,maps:second.surfaceMaps}));
+  console.log('RESET '+JSON.stringify({wounds:reset.wounds,maps:reset.surfaceMaps,navigations:navigationTrace.length}));
   console.log(fail.length?'FAIL '+fail.join('; '):'OK damage range: stationary 10-man lineup, UV-only wound accumulation, per-soldier maps, clear + death');
   await browser.close();
   process.exit(fail.length?1:0);
-})().catch(e=>{console.error('DAMAGE RANGE PROBE FAIL',e&&e.stack||e);process.exit(1);});
+})().catch(e=>{console.error('DAMAGE RANGE PROBE FAIL',e&&e.stack||e,'navigations',navigationTrace);process.exit(1);});
