@@ -1,0 +1,45 @@
+name: Audit 456 damage range real browser QA
+on:
+  push:
+    branches:
+      - 'work/audit456-range/browser-qa'
+permissions:
+  contents: read
+jobs:
+  range:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/audit456-range-geometry-extraction
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install real Chromium/WebGL browser
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start local shipping battle PHP
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/audit456-range-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/audit456-range-php.log
+          exit 1
+      - name: Exercise FPS shots, UV wounds, clear, multiple targets and death
+        env:
+          DR_OUT: reports/audit456-range-browser
+        run: node scripts/probe_damage_range.cjs
+      - name: Preserve evidence screenshots and summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit456-range-browser-evidence
+          path: reports/audit456-range-browser/
+          if-no-files-found: warn
