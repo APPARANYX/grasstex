@@ -125,6 +125,7 @@ const summary = {
   coverRejectCounts: {},
   coverLaneOutcomes: [],
   lifecycle: [],
+  /* Observed independently per squad; a protected tactical hold is not a command failure. */
   squadLocal: [],
   navigationRegressions: []
 };
