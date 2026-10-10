@@ -344,23 +344,23 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     await pressMenu(true);
     await page.waitForTimeout(240);
     await pressMenu(false);
-    await page.waitForFunction(() => BattleDesktopCamera.current.player() != null,
+    await page.waitForFunction(() => (__battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer) || null) != null,
       null, {timeout: 15000});
     assert.equal(await page.locator('#battlePlayerSettings').isVisible(), false,
       'short Menu tap unexpectedly opened settings');
-    const firstGamepadPlayer = await page.evaluate(() => BattleDesktopCamera.current.player()?.id);
+    const firstGamepadPlayer = await page.evaluate(() => (__battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer) || null)?.id);
     // Hold opens once, before release, without firing a second tap on release.
     await pressMenu(true);
     await page.waitForFunction(() => {
       const p = document.getElementById('battlePlayerSettings');
       return p && getComputedStyle(p).display === 'flex';
     }, null, {timeout: 15000});
-    const heldPlayer = await page.evaluate(() => BattleDesktopCamera.current.player()?.id);
+    const heldPlayer = await page.evaluate(() => (__battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer) || null)?.id);
     await pressMenu(false);
     await page.waitForTimeout(230);
     assert.equal(await page.locator('#battlePlayerSettings').isVisible(), true,
       'hold release must not also close menu as a tap');
-    assert.equal(await page.evaluate(() => BattleDesktopCamera.current.player()?.id),
+    assert.equal(await page.evaluate(() => (__battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer) || null)?.id),
       heldPlayer, 'hold release must not switch soldier');
     // A subsequent short press intentionally closes an open menu.
     await pressMenu(true);
@@ -370,10 +370,10 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       const p = document.getElementById('battlePlayerSettings');
       return p && getComputedStyle(p).display === 'none';
     }, null, {timeout: 15000});
-    assert.equal(await page.evaluate(() => BattleDesktopCamera.current.player()?.id),
+    assert.equal(await page.evaluate(() => (__battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer) || null)?.id),
       heldPlayer, 'menu-close tap must retain possession');
     await page.keyboard.press('v');
-    await page.waitForFunction(() => BattleDesktopCamera.current.player() == null,
+    await page.waitForFunction(() => (__battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer) || null) == null,
       null, {timeout: 15000});
     await page.evaluate(() => {
       delete window.__qaGamepad;
