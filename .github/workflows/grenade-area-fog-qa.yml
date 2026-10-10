@@ -1,8 +1,6 @@
 name: Grenade Area Fog Browser QA
 on:
-  push:
-    branches:
-      - claude/grenade-sounds-r27grv
+  pull_request:
     paths:
       - battle/modules/24-grenade-fx.js
       - scripts/probes/probe_grenade_area_fog.cjs
@@ -12,7 +10,7 @@ on:
       preview_ref:
         description: 'Head ref to render'
         required: false
-        default: claude/grenade-sounds-r27grv
+        default: main
         type: string
 jobs:
   webgl:
@@ -26,5 +24,5 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Render instant area smoke in real WebGL
         env:
-          GRENADE_FOG_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ inputs.preview_ref || 'claude/grenade-sounds-r27grv' }}
+          GRENADE_FOG_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ inputs.preview_ref || github.head_ref || github.ref_name }}
         run: node scripts/probes/probe_grenade_area_fog.cjs
