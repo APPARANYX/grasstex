@@ -294,6 +294,32 @@
     );
   }
 
+  /* Shared stateless key normalization and focus guards; UI/controller state remains
+     owned by createDesktopFly. Do not coalesce player vs free-fly movement bindings. */
+  function keyName(event) {
+    return event.key === ' ' ? ' ' : event.key.toLowerCase();
+  }
+  function editableTarget(target) {
+    var tag = (target && target.tagName) || '';
+    return (
+      tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || !!(target && target.isContentEditable)
+    );
+  }
+  function movementKey(key) {
+    return (
+      key === 'w' ||
+      key === 'a' ||
+      key === 's' ||
+      key === 'd' ||
+      key === 'q' ||
+      key === 'e' ||
+      key === 'shift'
+    );
+  }
+  function playerMovementKey(key) {
+    return key === 'w' || key === 'a' || key === 's' || key === 'd' || key === 'shift';
+  }
+
   function createDesktopFly(scene, canvas, target, engine, battleSim, pose) {
     var startPosition =
       pose && pose.position ? pose.position : initialPosition(target, 720, -Math.PI / 2, 1.02);
@@ -361,29 +387,6 @@
       playerHapticsEnabled = true;
     function guarded() {
       return active || document.activeElement === canvas;
-    }
-    function keyName(event) {
-      return event.key === ' ' ? ' ' : event.key.toLowerCase();
-    }
-    function editableTarget(target) {
-      var tag = (target && target.tagName) || '';
-      return (
-        tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || !!(target && target.isContentEditable)
-      );
-    }
-    function movementKey(key) {
-      return (
-        key === 'w' ||
-        key === 'a' ||
-        key === 's' ||
-        key === 'd' ||
-        key === 'q' ||
-        key === 'e' ||
-        key === 'shift'
-      );
-    }
-    function playerMovementKey(key) {
-      return key === 'w' || key === 'a' || key === 's' || key === 'd' || key === 'shift';
     }
     function playerLabel() {
       if (!player) return null;
@@ -1395,214 +1398,163 @@
       updatePlayerReticle(point, b, Date.now());
       updateGrenadePreview(b, aiming && grenadeReady && !grenadePending, Date.now());
     }
-    canvas.addEventListener('click', function () {
-      canvas.focus();
-      if (document.pointerLockElement !== canvas) canvas.requestPointerLock && canvas.requestPointerLock();
-    });
-    document.addEventListener('pointerlockchange', function () {
-      active = document.pointerLockElement === canvas;
-      if (!active) {
+    function bindDesktopEvents() {
+      canvas.addEventListener('click', function () {
+        canvas.focus();
+        if (document.pointerLockElement !== canvas) canvas.requestPointerLock && canvas.requestPointerLock();
+      });
+      document.addEventListener('pointerlockchange', function () {
+        active = document.pointerLockElement === canvas;
+        if (!active) {
+          keys.clear();
+          mouseAim = false;
+          mouseFire = false;
+          grenadeKeyDown = false;
+          clearGrenadePreview();
+        }
+      });
+      document.addEventListener('mousemove', function (event) {
+        if (!active) return;
+        if (player) {
+          var aimingNow = mouseAim || buttonValue(activeGamepad(), 6) > 0.35,
+            sensitivity = aimingNow ? PLAYER_ADS_SENSITIVITY : 1;
+          playerYaw += event.movementX * LOOK_X * sensitivity;
+          playerPitch = clamp(playerPitch + event.movementY * LOOK_Y * sensitivity, -0.62, 0.78);
+          return;
+        }
+        yaw += event.movementX * LOOK_X;
+        pitch += event.movementY * LOOK_Y;
+        pitch = clamp(pitch, -PITCH_LIMIT, PITCH_LIMIT);
+        camera.rotation.y = yaw;
+        camera.rotation.x = pitch;
+      });
+      canvas.addEventListener('mousedown', function (event) {
+        if (!player) return;
+        if (event.button === 0) mouseFire = true;
+        else if (event.button === 2) mouseAim = true;
+        else return;
+        event.preventDefault();
+      });
+      window.addEventListener('mouseup', function (event) {
+        if (event.button === 0) mouseFire = false;
+        else if (event.button === 2) mouseAim = false;
+      });
+      canvas.addEventListener('contextmenu', function (event) {
+        if (player) event.preventDefault();
+      });
+      window.addEventListener(
+        'keydown',
+        function (event) {
+          var key = keyName(event);
+          if (key === 'o' && !event.repeat && (menuOpen || !editableTarget(event.target))) {
+            togglePlayerMenu();
+            event.preventDefault();
+            return;
+          }
+          if (menuOpen && key === 'escape') {
+            closePlayerMenu();
+            event.preventDefault();
+            return;
+          }
+          if (menuOpen) {
+            if ((key === 'q' || key === 'e') && !editableTarget(event.target)) {
+              showMenuTab(menuTab + (key === 'e' ? 1 : -1));
+              event.preventDefault();
+            }
+            /* Other keys remain in native fields. No movement or fire leaks into the modal. */
+            return;
+          }
+          if (editableTarget(event.target)) return;
+          if (key === 'p') {
+            if (!event.repeat) {
+              possessRandom();
+              canvas.focus();
+              if (document.pointerLockElement !== canvas && canvas.requestPointerLock)
+                try {
+                  canvas.requestPointerLock();
+                } catch (_) {}
+            }
+            event.preventDefault();
+            return;
+          }
+          if (player) {
+            var b = liveBattle();
+            if (key === 'g' && grenadesOn()) {
+              if (!event.repeat && !grenadeKeyDown) toggleGrenadeReady(activeGamepad());
+              grenadeKeyDown = true;
+              event.preventDefault();
+              return;
+            }
+            if (key === 'v') {
+              if (!event.repeat) leavePlayer('V key');
+              event.preventDefault();
+              return;
+            }
+            if (key === 'b') {
+              if (!event.repeat) cyclePlayerFireMode();
+              event.preventDefault();
+              return;
+            }
+            if (key === 'c') {
+              if (!event.repeat) togglePlayerCrouch(b);
+              event.preventDefault();
+              return;
+            }
+            if (key === 'z') {
+              if (!event.repeat) togglePlayerProne(b);
+              event.preventDefault();
+              return;
+            }
+            if (playerMovementKey(key)) {
+              keys.add(key);
+              event.preventDefault();
+            }
+            return;
+          }
+          if (!guarded() || !movementKey(key)) return;
+          keys.add(key);
+          event.preventDefault();
+        },
+        { passive: false }
+      );
+      window.addEventListener('keyup', function (event) {
+        keys.delete(keyName(event));
+        if (keyName(event) === 'g') grenadeKeyDown = false;
+      });
+      window.addEventListener('blur', function () {
         keys.clear();
         mouseAim = false;
         mouseFire = false;
         grenadeKeyDown = false;
         clearGrenadePreview();
-      }
-    });
-    document.addEventListener('mousemove', function (event) {
-      if (!active) return;
-      if (player) {
-        var aimingNow = mouseAim || buttonValue(activeGamepad(), 6) > 0.35,
-          sensitivity = aimingNow ? PLAYER_ADS_SENSITIVITY : 1;
-        playerYaw += event.movementX * LOOK_X * sensitivity;
-        playerPitch = clamp(playerPitch + event.movementY * LOOK_Y * sensitivity, -0.62, 0.78);
-        return;
-      }
-      yaw += event.movementX * LOOK_X;
-      pitch += event.movementY * LOOK_Y;
-      pitch = clamp(pitch, -PITCH_LIMIT, PITCH_LIMIT);
-      camera.rotation.y = yaw;
-      camera.rotation.x = pitch;
-    });
-    canvas.addEventListener('mousedown', function (event) {
-      if (!player) return;
-      if (event.button === 0) mouseFire = true;
-      else if (event.button === 2) mouseAim = true;
-      else return;
-      event.preventDefault();
-    });
-    window.addEventListener('mouseup', function (event) {
-      if (event.button === 0) mouseFire = false;
-      else if (event.button === 2) mouseAim = false;
-    });
-    canvas.addEventListener('contextmenu', function (event) {
-      if (player) event.preventDefault();
-    });
-    window.addEventListener(
-      'keydown',
-      function (event) {
-        var key = keyName(event);
-        if (key === 'o' && !event.repeat && (menuOpen || !editableTarget(event.target))) {
-          togglePlayerMenu();
-          event.preventDefault();
-          return;
-        }
-        if (menuOpen && key === 'escape') {
-          closePlayerMenu();
-          event.preventDefault();
-          return;
-        }
-        if (menuOpen) {
-          if ((key === 'q' || key === 'e') && !editableTarget(event.target)) {
-            showMenuTab(menuTab + (key === 'e' ? 1 : -1));
-            event.preventDefault();
-          }
-          /* Other keys remain in native fields. No movement or fire leaks into the modal. */
-          return;
-        }
-        if (editableTarget(event.target)) return;
-        if (key === 'p') {
-          if (!event.repeat) {
-            possessRandom();
-            canvas.focus();
-            if (document.pointerLockElement !== canvas && canvas.requestPointerLock)
-              try {
-                canvas.requestPointerLock();
-              } catch (_) {}
-          }
-          event.preventDefault();
-          return;
-        }
-        if (player) {
-          var b = liveBattle();
-          if (key === 'g' && grenadesOn()) {
-            if (!event.repeat && !grenadeKeyDown) toggleGrenadeReady(activeGamepad());
-            grenadeKeyDown = true;
-            event.preventDefault();
-            return;
-          }
-          if (key === 'v') {
-            if (!event.repeat) leavePlayer('V key');
-            event.preventDefault();
-            return;
-          }
-          if (key === 'b') {
-            if (!event.repeat) cyclePlayerFireMode();
-            event.preventDefault();
-            return;
-          }
-          if (key === 'c') {
-            if (!event.repeat) togglePlayerCrouch(b);
-            event.preventDefault();
-            return;
-          }
-          if (key === 'z') {
-            if (!event.repeat) togglePlayerProne(b);
-            event.preventDefault();
-            return;
-          }
-          if (playerMovementKey(key)) {
-            keys.add(key);
-            event.preventDefault();
-          }
-          return;
-        }
-        if (!guarded() || !movementKey(key)) return;
-        keys.add(key);
-        event.preventDefault();
-      },
-      { passive: false }
-    );
-    window.addEventListener('keyup', function (event) {
-      keys.delete(keyName(event));
-      if (keyName(event) === 'g') grenadeKeyDown = false;
-    });
-    window.addEventListener('blur', function () {
-      keys.clear();
-      mouseAim = false;
-      mouseFire = false;
-      grenadeKeyDown = false;
-      clearGrenadePreview();
-    });
-    window.addEventListener('gamepadconnected', function (e) {
-      padId = (e.gamepad && e.gamepad.id) || 'gamepad';
-      padButtons = {};
-      if (grenadesOn()) padButtons[5] = buttonValue(e.gamepad, 5) > 0.5;
-      updateHint(e.gamepad);
-      global.GTLog('[CAMERA] gamepad connected: ' + padId);
-    });
-    window.addEventListener('gamepaddisconnected', function (e) {
-      if (!e.gamepad || !padId || e.gamepad.id === padId) {
-        padId = null;
+      });
+      window.addEventListener('gamepadconnected', function (e) {
+        padId = (e.gamepad && e.gamepad.id) || 'gamepad';
         padButtons = {};
-        updateHint(null);
-      }
-      global.GTLog('[CAMERA] gamepad disconnected; keyboard controls remain active');
-    });
-    canvas.addEventListener(
-      'wheel',
-      function (event) {
-        if (!guarded() || player) return;
-        event.preventDefault();
-        var pixels = event.deltaY * (DELTA_UNIT_PX[event.deltaMode] || 1);
-        throttle = clamp(throttle * Math.exp(-pixels * THROTTLE_PER_PIXEL), THROTTLE_MIN, 1);
-      },
-      { passive: false }
-    );
-    scene.onBeforeRenderObservable.add(function () {
-      var dt = Math.min(0.05, engine.getDeltaTime() / 1000),
-        pad = activeGamepad();
-      if (pad && pad.id !== padId) {
-        padId = pad.id;
-        padButtons = {};
-        if (grenadesOn()) padButtons[5] = buttonValue(pad, 5) > 0.5;
-        updateHint(pad);
-        global.GTLog('[CAMERA] gamepad active: ' + padId);
-      }
-      if (!pad && padId) {
-        padId = null;
-        padButtons = {};
-        menuHoldState.down = false;
-        updateHint(null);
-      }
-      /* A quick Start release still enters/switches soldiers; holding opens the
-         settings panel once at 650 ms and cannot also invoke the tap on release. */
-      var menuGesture = menuHoldGesture(menuHoldState, !!pad && buttonValue(pad, 9) > 0.5, Date.now());
-      if (menuGesture === 'hold') {
-        togglePlayerMenu();
-        if (pad) refreshPadButtons(pad);
-        return;
-      }
-      if (menuGesture === 'tap') {
-        if (menuOpen) closePlayerMenu();
-        else possessRandom();
-        if (pad) refreshPadButtons(pad);
-        return;
-      }
-      if (menuOpen) {
-        if (pad) {
-          stepPlayerMenuPad(pad);
-          refreshPadButtons(pad);
+        if (grenadesOn()) padButtons[5] = buttonValue(e.gamepad, 5) > 0.5;
+        updateHint(e.gamepad);
+        global.GTLog('[CAMERA] gamepad connected: ' + padId);
+      });
+      window.addEventListener('gamepaddisconnected', function (e) {
+        if (!e.gamepad || !padId || e.gamepad.id === padId) {
+          padId = null;
+          padButtons = {};
+          updateHint(null);
         }
-        if (player) updatePlayerFeedback(pad);
-        return;
-      }
-      if (menuHoldState.down) {
-        if (pad) refreshPadButtons(pad);
-        return;
-      }
-      if (pad && player && padPressedOnce(pad, 8)) {
-        leavePlayer('View button');
-        refreshPadButtons(pad);
-        return;
-      }
-      if (player) {
-        stepPlayer(pad, dt);
-        updatePlayerFeedback(pad);
-        if (pad) refreshPadButtons(pad);
-        return;
-      }
-
+        global.GTLog('[CAMERA] gamepad disconnected; keyboard controls remain active');
+      });
+      canvas.addEventListener(
+        'wheel',
+        function (event) {
+          if (!guarded() || player) return;
+          event.preventDefault();
+          var pixels = event.deltaY * (DELTA_UNIT_PX[event.deltaMode] || 1);
+          throttle = clamp(throttle * Math.exp(-pixels * THROTTLE_PER_PIXEL), THROTTLE_MIN, 1);
+        },
+        { passive: false }
+      );
+    }
+    function stepFreeFly(pad, dt) {
       /* Keyboard fly controls are independent of gamepad presence. The old early return above this
          block recorded keydown state correctly but skipped every movement frame unless a pad existed. */
       var f = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0),
@@ -1656,7 +1608,65 @@
         battleSim.heightAt(camera.position.x, camera.position.z) + GROUND_CLEARANCE,
         MAX_HEIGHT
       );
-    });
+    }
+    function stepDesktopFrame() {
+      var dt = Math.min(0.05, engine.getDeltaTime() / 1000),
+        pad = activeGamepad();
+      if (pad && pad.id !== padId) {
+        padId = pad.id;
+        padButtons = {};
+        if (grenadesOn()) padButtons[5] = buttonValue(pad, 5) > 0.5;
+        updateHint(pad);
+        global.GTLog('[CAMERA] gamepad active: ' + padId);
+      }
+      if (!pad && padId) {
+        padId = null;
+        padButtons = {};
+        menuHoldState.down = false;
+        updateHint(null);
+      }
+      /* A quick Start release still enters/switches soldiers; holding opens the
+         settings panel once at 650 ms and cannot also invoke the tap on release. */
+      var menuGesture = menuHoldGesture(menuHoldState, !!pad && buttonValue(pad, 9) > 0.5, Date.now());
+      if (menuGesture === 'hold') {
+        togglePlayerMenu();
+        if (pad) refreshPadButtons(pad);
+        return;
+      }
+      if (menuGesture === 'tap') {
+        if (menuOpen) closePlayerMenu();
+        else possessRandom();
+        if (pad) refreshPadButtons(pad);
+        return;
+      }
+      if (menuOpen) {
+        if (pad) {
+          stepPlayerMenuPad(pad);
+          refreshPadButtons(pad);
+        }
+        if (player) updatePlayerFeedback(pad);
+        return;
+      }
+      if (menuHoldState.down) {
+        if (pad) refreshPadButtons(pad);
+        return;
+      }
+      if (pad && player && padPressedOnce(pad, 8)) {
+        leavePlayer('View button');
+        refreshPadButtons(pad);
+        return;
+      }
+      if (player) {
+        stepPlayer(pad, dt);
+        updatePlayerFeedback(pad);
+        if (pad) refreshPadButtons(pad);
+        return;
+      }
+
+      stepFreeFly(pad, dt);
+    }
+    bindDesktopEvents();
+    scene.onBeforeRenderObservable.add(stepDesktopFrame);
     updateHint(activeGamepad());
     return {
       camera: camera,

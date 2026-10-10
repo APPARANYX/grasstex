@@ -48,6 +48,34 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     await page.goto(destination, {waitUntil: 'load', timeout: 300000});
     await page.waitForFunction(() => window.__battle__ && window.BattleDesktopCamera?.current, null,
       {timeout: 300000, polling: 100});
+    // Free-fly keyboard movement is independent of gamepad; route through the
+    // scene frame observable, not a one-off synthetic API.
+    let flyDistance = 0;
+    let flySnapshot = null;
+    // Scene construction can precede the first reliable render on slow CI/WebGL.
+    // Exercise real keydown/keyup over several bounded frames instead of assuming
+    // the first 380 ms window always contains a rendered movement tick.
+    for (let attempt = 0; attempt < 8 && flyDistance <= 0.05; attempt++) {
+      await page.evaluate(() => {
+        const canvas = window.__battle__.scene.getEngine().getRenderingCanvas();
+        canvas.tabIndex = 0;
+        canvas.focus();
+      });
+      const before = await page.evaluate(() => BattleDesktopCamera.current.camera.position.asArray());
+      await page.keyboard.down('w');
+      await page.waitForTimeout(450);
+      await page.keyboard.up('w');
+      flySnapshot = await page.evaluate(() => ({
+        position: BattleDesktopCamera.current.camera.position.asArray(),
+        activeElement: document.activeElement?.tagName,
+        fps: window.__battle__.scene.getEngine().getFps(),
+        loadingDone: document.getElementById('loading')?.classList.contains('done') ?? null
+      }));
+      flyDistance = Math.hypot(...before.map((n, i) => n - flySnapshot.position[i]));
+      if (flyDistance <= 0.05) await page.waitForTimeout(250);
+    }
+    assert.ok(flyDistance > 0.05, 'W free-fly keyboard movement did not move the camera: ' + JSON.stringify(flySnapshot));
+    // Menu steals focus and should never leak WASD motion into free-flight.
     await page.keyboard.press('o');
     await page.waitForFunction(() => {
       const p = document.getElementById('battlePlayerSettings');
@@ -83,6 +111,21 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     assert.equal(await page.locator('#bpmHaptics').isChecked(), false, 'haptics preference lost on reopen');
     await page.keyboard.press('Escape');
     assert.equal(await page.locator('#battlePlayerSettings').isVisible(), false, 'Escape should close menu');
+    // P enters a real, living roster soldier; V returns to the free camera.
+    await page.evaluate(() => {
+      const canvas = BattleDesktopCamera.current.camera.getEngine().getRenderingCanvas();
+      canvas.focus();
+    });
+    await page.keyboard.press('p');
+    await page.waitForFunction(() => {
+      const b = window.__battle__;
+      return b && b._roster && (b._roster.us || []).some(s => s.isPlayer);
+    }, null, { timeout: 15000 });
+    await page.keyboard.press('v');
+    await page.waitForFunction(() => {
+      const b = window.__battle__;
+      return b && b._roster && !(b._roster.us || []).some(s => s.isPlayer);
+    }, null, { timeout: 15000 });
     const state = await page.evaluate(() => ({
       build: window.BATTLE_BUILD_DEPLOYED || null,
       camera: window.BattleDesktopCamera?.current?.camera?.name || null,
