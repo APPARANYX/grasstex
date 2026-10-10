@@ -6,6 +6,7 @@ on:
     paths:
       - 'battle/camera-controls.js'
       - 'scripts/probe_camera_menu.cjs'
+      - 'scripts/probe_camera_touch_gamepad.cjs'
       - '.github/workflows/player-settings-browser-qa.yml'
   workflow_dispatch:
 
@@ -48,6 +49,11 @@ jobs:
           CAMERA_MENU_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
           CAMERA_MENU_OUT: closeups/camera-menu-ci
         run: node scripts/probe_camera_menu.cjs
+      - name: Exercise touch-gamepad lifecycle and same-page restarts
+        env:
+          CAMERA_MENU_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          CAMERA_TOUCH_OUT: closeups/camera-touch-ci
+        run: node scripts/probe_camera_touch_gamepad.cjs
       - name: Preserve browser evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -56,4 +62,5 @@ jobs:
           if-no-files-found: warn
           path: |
             closeups/camera-menu-ci/
+            closeups/camera-touch-ci/
             ${{ runner.temp }}/player-settings-php.log
