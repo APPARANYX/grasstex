@@ -17,6 +17,14 @@
       objective:p(q.objective),anchor:p(q.orderAnchor),contact:!!q.inContact,
       members:m.map(function(s){
         var h=p(s.root&&s.root.position),dest=p(s.destination),nav=s._physicalPath,
+          N=root.BattleNavigation,wp=p(s._movementWaypoint),
+          wx=wp&&h?wp.x-h.x:0,wz=wp&&h?wp.z-h.z:0,
+          wd=Math.hypot(wx,wz),stride=wd?Math.min(wd,(+s.moveSpeed||0)*0.15):0,
+          forward=wd?{x:h.x+wx/wd*stride,z:h.z+wz/wd*stride}:null,
+          directLegal=!!(N&&N.movementClear&&forward&&N.movementClear(h,forward)),
+          standingLegal=!!(N&&N.movementClear&&h&&N.movementClear(h,h)),
+          staticNear=((sim.obstacles&&sim.obstacles.__physicalFootprints)||[]).filter(function(ob){return h&&Math.hypot(ob.x-h.x,ob.z-h.z)<5;}).slice(0,12).map(function(ob){return {id:ob.id,type:ob.type,shape:ob.shape,x:+ob.x.toFixed(3),z:+ob.z.toFixed(3),radius:ob.radius,hx:ob.hx,hz:ob.hz};}),
+          obstacleNear=((sim.obstacles)||[]).filter(function(ob){return h&&Math.hypot(ob.x-h.x,ob.z-h.z)<6;}).slice(0,15).map(function(ob){return {type:ob.type,x:+ob.x.toFixed(3),z:+ob.z.toFixed(3),radius:ob.radius};}),
           res=s._movementResolver, C=root.BattleCommandReception,
           rec=C&&C.peek&&C.peek(s,sim,'movement','soldier:'+s.id);
         return {id:s.id,position:h,goalDistance:d(h,p(q.objective)),
@@ -24,6 +32,8 @@
           waypointDistance:d(h,p(s._movementWaypoint)),order:p(s.orderDestination),
           fireteam:p(s._fireteamDestination),speed:+(+s.moveSpeed||0).toFixed(3),
           moving:!!s.moving,stop:s._movementStopReason||null,
+          directLegal:directLegal,standingLegal:standingLegal,physicalStep:p(forward),
+          footprints:staticNear,obstacles:obstacleNear,
           detour:p(s._fieldDetour),personalSpace:p(s._personalSpaceDestination),
           resolver:res&&res.last&&{owner:res.last.owner,kind:res.last.kind,point:p(res.last.point)},
           receipt:rec&&{phase:rec.phase,envelope:rec.envelopeId,point:p(rec.point)},
