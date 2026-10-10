@@ -61,6 +61,7 @@ const f32 = s => { const b = Buffer.from(s, 'base64'); return new Float32Array(b
 
   const fails = [];
   let rotMax = 0, posMax = 0, speedMax = 0, strideMax = 0, gripMax = 0, samples = 0;
+  if (!Object.keys(matrix.models).length) fails.push('No real FBX models were compared');
   for (const f of Object.keys(matrix.models)) {
     const a = matrix.models[f], b = quat.models[f];
     if (!b) { fails.push(`${f} missing from the shipped load`); continue; }
@@ -81,6 +82,10 @@ const f32 = s => { const b = Buffer.from(s, 'base64'); return new Float32Array(b
   }
   if (rotMax > MAX_ROT) fails.push(`rotation differs by ${rotMax.toExponential(2)} (limit ${MAX_ROT})`);
   if (posMax > MAX_POS) fails.push(`hips position differs by ${posMax.toExponential(2)} (limit ${MAX_POS})`);
+  if (!samples) fails.push('No loaded FBX animation rotation samples were compared');
+  if (speedMax > MAX_POS) fails.push(`clip speed differs by ${speedMax.toExponential(2)}`);
+  if (strideMax > MAX_POS) fails.push(`clip stride differs by ${strideMax.toExponential(2)}`);
+  if (gripMax > 1e-4) fails.push(`solved weapon grip matrices differ by ${gripMax.toExponential(2)}`);
   for (const [n, r] of [['fastRetarget=0', matrix], ['shipped', quat]]) if (r.errors.length) fails.push(`${n} page errors: ${r.errors.slice(0, 3).join(' | ')}`);
   console.log(`${Object.keys(matrix.models).length} models, ${samples} rotation samples; worst difference: rotation ${rotMax.toExponential(2)}, `
     + `position ${posMax.toExponential(2)}, speed ${speedMax.toExponential(2)} m/s, stride ${strideMax.toExponential(2)} m/s, grip matrix ${gripMax.toExponential(2)}`);
