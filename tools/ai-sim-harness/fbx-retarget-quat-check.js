@@ -95,6 +95,7 @@ const src = inputs.map(keys => {
   return out;
 });
 const before = src.map(a => (a ? Array.from(a) : null));
+const calibrationBefore = Array.from(K);
 const dst = [
   new Float32Array(frames * 4),
   new Float32Array(frames * 4),
@@ -123,7 +124,7 @@ for (let fr = 0; fr < frames; fr++) {
   }
 }
 assert.deepEqual(src.map(a => (a ? Array.from(a) : null)), before, 'source clip channels changed');
-assert.deepEqual(Array.from(K), Array.from(K), 'model rest calibration remains stable');
+assert.deepEqual(Array.from(K), calibrationBefore, 'model rest calibration changed during retarget');
 assert.equal(dst[3], null, 'missing model bone stays absent');
 
 // No retargeting needed: identity rest and identical clip rotations must stay byte-equivalent.
