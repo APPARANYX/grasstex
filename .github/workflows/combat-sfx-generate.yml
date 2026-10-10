@@ -85,7 +85,11 @@ jobs:
         if: steps.key.outputs.ok == 'true'
         run: bash scripts/fetch_private_audio.sh .runtime/private-audio
 
+      # A failed generation must not throw away the clips already paid for: the step records the failure
+      # and carries on, so the clips that did come back are mastered, published and committed (a rerun then
+      # generates only what is still missing), and the last step fails the run.
       - name: Generate the missing clips
+        id: generate
         if: steps.key.outputs.ok == 'true'
         env:
           GENERATE_MAX_NEW: ${{ inputs.max_new }}
@@ -93,13 +97,19 @@ jobs:
           ONLY: ${{ inputs.only }}
         run: |
           set -euo pipefail
+          status=0
           if [ -n "${ONLY:-}" ]; then
             # shellcheck disable=SC2086
-            python3 scripts/generate_combat_sfx.py --only $ONLY | tee "$RUNNER_TEMP/generate.log"
+            python3 scripts/generate_combat_sfx.py --only $ONLY 2>&1 | tee "$RUNNER_TEMP/generate.log" || status=$?
           else
-            python3 scripts/generate_combat_sfx.py | tee "$RUNNER_TEMP/generate.log"
+            python3 scripts/generate_combat_sfx.py 2>&1 | tee "$RUNNER_TEMP/generate.log" || status=$?
           fi
           tail -n 2 "$RUNNER_TEMP/generate.log" >> "$GITHUB_STEP_SUMMARY"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" -ne 0 ] && [ -z "$(find .runtime/combat-sfx -name '*.mp3' 2>/dev/null | head -1)" ]; then
+            echo "Generation failed and produced no clip." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit "$status"
+          fi
 
       - name: Onset check (one event per clip)
         if: steps.key.outputs.ok == 'true'
@@ -167,3 +177,9 @@ jobs:
           git commit -m "Audio: generate $n combat sound effects (ElevenLabs, mastered)"
           git push origin "HEAD:${GITHUB_REF_NAME}"
           echo "Committed $n new clips to ${GITHUB_REF_NAME}." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if any generation failed
+        if: steps.key.outputs.ok == 'true' && steps.generate.outputs.status != '0'
+        run: |
+          echo "Some clips failed to generate (see the generate step); the ones that succeeded were kept and committed. A rerun generates only what is missing." | tee -a "$GITHUB_STEP_SUMMARY"
+          exit 1
