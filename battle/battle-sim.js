@@ -701,6 +701,7 @@
             STEER_LEG ? desired : null,
             STEER_LEG ? d : 0
           );
+      var originalSteer = steered;
       steered = preserveClearNavigationLeg(
         steered,
         dirx,
@@ -709,6 +710,22 @@
         Math.min(d, soldier.moveSpeed * dt),
         soldier._physicalPath
       );
+      if (
+        self.time >= 125 &&
+        self.time <= 185 &&
+        soldier.squad &&
+        soldier.squad.id === 'ge-4' &&
+        (soldier.id === 92 || soldier.id === 98)
+      ) {
+        soldier._steer361Diag = {
+          at: self.time,
+          before: originalSteer ? { x: originalSteer.x, z: originalSteer.z } : null,
+          after: steered ? { x: steered.x, z: steered.z } : null,
+          heading: { x: dirx, z: dirz },
+          wanted: { x: desired.x, z: desired.z },
+          physicalGoal: soldier.destination ? { x: soldier.destination.x, z: soldier.destination.z } : null
+        };
+      }
       if (steered) {
         dirx = steered.x;
         dirz = steered.z;
