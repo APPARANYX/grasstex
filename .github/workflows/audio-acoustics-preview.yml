@@ -1,0 +1,22 @@
+name: Acoustic PR browser probe
+on:
+  push:
+    branches:
+      - work/lightweight-listener-acoustics
+    paths:
+      - battle/**
+      - tools/ai-sim-harness/listener-acoustics-check.js
+      - scripts/probes/probe_listener_acoustics.cjs
+      - .github/workflows/audio-acoustics-preview.yml
+jobs:
+  acoustic-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install browser
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Real browser audio compatibility
+        run: node scripts/probes/probe_listener_acoustics.cjs
