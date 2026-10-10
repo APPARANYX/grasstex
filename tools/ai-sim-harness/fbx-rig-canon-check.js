@@ -35,7 +35,7 @@ assert.equal(rig.rigScheme(['Spine01', 'Spine02', 'Spine']), 'legacy');
 assert.equal(rig.rigScheme(['SPINE02', 'mixamorig:Spine2']), 'legacy');
 const samples = [
   ['mixamorig:Spine', 'mixamo', 'spine0'],
-  ['MixamoRig_Spine1', 'mixamo', 'mixamorigspine1'],
+  ['MixamoRig_Spine1', 'mixamo', 'spine1'],
   ['mixamorig:Spine1', 'mixamo', 'spine1'],
   ['mixamorig:Spine2', 'mixamo', 'spine2'],
   ['Spine02', 'legacy', 'spine0'],
