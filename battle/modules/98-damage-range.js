@@ -67,6 +67,49 @@
         root.BattleEngagement.commitStance(s, sim, 'stand', 1e9);
     } catch (_) {}
   }
+  /* Pure damage-range geometry: independent of canvas, UI or controller state.
+     Keep the real shipped hit/through-shot shape (including entry/exit offsets). */
+  function rangeZonePoint(t, z, serial) {
+    var y = { head: 1.7, chest: 1.34, abdomen: 1.06, arm: 1.33, leg: 0.69 }[z] || 1.34,
+      side = serial & 1 ? 1 : -1,
+      xoff = z === 'arm' ? 0.28 * side : z === 'leg' ? 0.13 * side : 0;
+    return { x: t.root.position.x + xoff, y: t.root.position.y + y, z: t.root.position.z };
+  }
+
+  function rangeShot(t, z, p, dir, exit, backZ) {
+    var entry = { x: p.x, y: p.y, z: p.z - 0.22 },
+      leave = exit ? { x: p.x, y: p.y, z: p.z + 0.22 } : null,
+      pass = {
+      victim: t,
+      zone: z,
+      entry: entry,
+      exit: leave,
+      direction: dir,
+      exitDirection: leave ? dir : undefined
+      };
+    return {
+      mode: 'raycast',
+      stoppedBy: 'soldier',
+      surface: 'blood',
+      victim: t,
+      zone: z,
+      impact: entry,
+      normal: { x: 0, y: 0, z: -1 },
+      direction: dir,
+      delay: 0,
+      passes: [pass],
+      final: leave
+      ? {
+          stoppedBy: 'environment',
+          surface: 'cement',
+          blocker: 'wall',
+          impact: { x: p.x, y: p.y, z: backZ - 0.14 },
+          normal: { x: 0, y: 0, z: -1 }
+        }
+      : null
+    };
+  }
+
   function setup(sim) {
     var scene = sim.scene,
       canvas = scene.getEngine().getRenderingCanvas(),
@@ -252,46 +295,11 @@
     alignShooter();
 
     function zonePoint(t, z) {
-      var y = { head: 1.7, chest: 1.34, abdomen: 1.06, arm: 1.33, leg: 0.69 }[z] || 1.34,
-        side = serial & 1 ? 1 : -1,
-        xoff = z === 'arm' ? 0.28 * side : z === 'leg' ? 0.13 * side : 0;
-      return { x: t.root.position.x + xoff, y: t.root.position.y + y, z: t.root.position.z };
+      return rangeZonePoint(t, z, serial);
     }
     function makeShot(t, z, p, dir) {
       z = z || zone;
-      p = p || zonePoint(t, z);
-      dir = dir || { x: 0, y: 0, z: 1 };
-      var entry = { x: p.x, y: p.y, z: p.z - 0.22 },
-        leave = exit ? { x: p.x, y: p.y, z: p.z + 0.22 } : null,
-        pass = {
-          victim: t,
-          zone: z,
-          entry: entry,
-          exit: leave,
-          direction: dir,
-          exitDirection: leave ? dir : undefined
-        };
-      return {
-        mode: 'raycast',
-        stoppedBy: 'soldier',
-        surface: 'blood',
-        victim: t,
-        zone: z,
-        impact: entry,
-        normal: { x: 0, y: 0, z: -1 },
-        direction: dir,
-        delay: 0,
-        passes: [pass],
-        final: leave
-          ? {
-              stoppedBy: 'environment',
-              surface: 'cement',
-              blocker: 'wall',
-              impact: { x: p.x, y: p.y, z: backZ - 0.14 },
-              normal: { x: 0, y: 0, z: -1 }
-            }
-          : null
-      };
+      return rangeShot(t, z, p || zonePoint(t, z), dir || { x: 0, y: 0, z: 1 }, exit, backZ);
     }
     function aimAtTargetPlane() {
       var ray = fpsCam.getForwardRay(100),
