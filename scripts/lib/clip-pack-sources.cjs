@@ -86,4 +86,4 @@ function readHeader(file = path.join(ROOT, PACK)) {
   return { header: JSON.parse(buf.toString('utf8', 8, 8 + len)), bytes: buf.length, dataBytes: buf.length - 8 - len };
 }
 
-module.exports = { ROOT, PACK, expected, readHeader, sha256 };
+module.exports = { ROOT, PACK, expected, readHeader, sha256, converterText };
