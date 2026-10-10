@@ -25,8 +25,14 @@ assert.match(
   /holder\.onDisposeObservable\.add\(function \(\) \{[\s\S]{0,650}?detachedWeaponMeshes[\s\S]{0,300}?mesh\.dispose\(\)/,
   'soldier teardown disposes weapon meshes that were detached from the soldier hierarchy'
 );
+const surfaceOwner = fs.readFileSync(
+  path.join(__dirname, '..', '..', 'battle', 'modules', '52-fbx-surface-damage.js'),
+  'utf8'
+);
+assert.match(source, /clearSurfaceDamage = SURFACE\.clearSurfaceDamage/,
+  'backend delegates wound cleanup to the unique skin owner');
 assert.match(
-  source,
+  surfaceOwner,
   /function clearSurfaceDamage\(soldier\) \{\s*var fx = soldier && soldier\._fbx,\s*n = 0;\s*if \(!fx\) return n;/,
   'surface-damage cleanup owns and initializes its counter'
 );
