@@ -294,6 +294,7 @@
       menuSoldiers = [],
       menuFocus = 0,
       menuTab = 0,
+      menuPadTimer = null,
       menuHoldState = { down: false, since: 0, long: false },
       playerHapticsEnabled = true;
     function guarded() {
@@ -897,6 +898,10 @@
     function closePlayerMenu() {
       if (!menuOpen) return;
       menuOpen = false;
+      if (menuPadTimer !== null) {
+        clearInterval(menuPadTimer);
+        menuPadTimer = null;
+      }
       if (settingsMenu) settingsMenu.style.display = 'none';
       canvas.focus();
       var b = menuPauseOwner;
@@ -1043,6 +1048,17 @@
       menuOpen = true;
       settingsMenu.style.display = 'flex';
       settingsMenu.querySelector('#bpmFaction').focus();
+      /* Controller menu input must not disappear when a slow mobile/WebGL frame
+         takes longer than a quick bumper or D-pad press. Poll only while open. */
+      if (menuPadTimer === null)
+        menuPadTimer = setInterval(function () {
+          if (!menuOpen) return;
+          var pad = activeGamepad();
+          if (pad) {
+            stepPlayerMenuPad(pad);
+            refreshPadButtons(pad);
+          }
+        }, 33);
       mouseAim = false;
       mouseFire = false;
       keys.clear();
