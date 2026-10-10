@@ -4,8 +4,8 @@
  *
  * - clips: the CLIPS table from battle/modules/53-fbx-clip-table.js (key -> spec);
  * - sources: sha256 of each clip FBX the table plays;
- * - converter: sha256 of the backend code that turns an FBX into a packed clip (rig scheme,
- *   bone names, source rig, conversion, encoding, FPS and pack format), so editing any of it
+ * - converter: sha256 of the exact function/declarator bodies that produce the pack across
+ *   the rig-canonicalizer and FBX backend, so editing any of them
  *   asks for a rebuild while unrelated backend edits do not;
  * - babylon: the Babylon version the page pins (its FBX loader produced the samples).
  */
@@ -16,6 +16,7 @@ const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const TABLE = 'battle/modules/53-fbx-clip-table.js';
+const RIG_CANON = 'battle/modules/52-fbx-rig-canon.js';
 const BACKEND = 'battle/modules/53-fbx-soldier-backend.js';
 const PAGE = 'battle/battle_sim.html';
 const PACK = 'Assets/animations/prepared-clips.bin';
@@ -67,7 +68,11 @@ function expected(root = ROOT) {
   for (const file of [...new Set(Object.values(clips).map(spec => spec[0]))].sort()) {
     sources[file] = sha256(fs.readFileSync(path.join(root, 'Assets/animations', `${file}.fbx`)));
   }
-  const converter = sha256(converterText(fs.readFileSync(path.join(root, BACKEND), 'utf8')));
+  /* The rig canonicalizer moved out of the backend in #470. Read its real source as part
+   of the same deterministic converter hash rather than assuming every owner is in 53.
+   Extracted function/declarator bytes are unchanged; module wrappers are not hashed. */
+  const sources = [RIG_CANON, BACKEND].map(file => fs.readFileSync(path.join(root, file), 'utf8'));
+  const converter = sha256(converterText(sources.join('\n')));
   const pin = /babylonjs@([0-9][0-9A-Za-z.-]*)\/babylon\.js/.exec(fs.readFileSync(path.join(root, PAGE), 'utf8'));
   if (!pin) throw new Error(`${PAGE}: no pinned babylonjs@<version>/babylon.js`);
   return { clips, sources, converter, babylon: pin[1] };
