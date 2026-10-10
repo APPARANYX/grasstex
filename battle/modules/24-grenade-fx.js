@@ -214,7 +214,6 @@ void main(void) {
         }
       );
     mesh.parent = holder;
-    mesh.position.y = FOG_HALF_HEIGHT - 0.14;
     mesh.scaling.set(FOG_RADIUS, FOG_HALF_HEIGHT, FOG_RADIUS);
     mesh.material = mat;
     mesh.isPickable = false;
@@ -223,7 +222,7 @@ void main(void) {
     mesh.alphaIndex = -50;
     mat.backFaceCulling = false;
     mat.alphaMode = B.Engine.ALPHA_COMBINE;
-    mat.setVector3('center', new B.Vector3(g.to.x, g.to.y + FOG_HALF_HEIGHT - 0.06, g.to.z));
+    mat.setVector3('center', new B.Vector3(g.to.x, g.to.y, g.to.z));
     mat.setVector3('radii', new B.Vector3(FOG_RADIUS, FOG_HALF_HEIGHT, FOG_RADIUS));
     mat.setFloat('seed', ((g.id || 0) % 47) * 0.57);
     mat.setFloat('strength', 1);
@@ -269,14 +268,19 @@ void main(void) {
       holder = new B.TransformNode('grenadeBurst' + g.id, scene),
       flash = flashMaterial(st, g.id),
       quad = B.MeshBuilder.CreatePlane('grenadeBurstFlash', { size: 1 }, scene);
-    holder.position.set(g.to.x, g.to.y + 0.08, g.to.z);
+    // The fog proxy and its density field share the grenade's exact world-space center.
+    holder.position.set(g.to.x, g.to.y, g.to.z);
     quad.parent = holder;
     quad.billboardMode = B.Mesh.BILLBOARDMODE_ALL;
     quad.isPickable = false;
     quad.material = flash;
     quad.alphaIndex = 1000;
     var fog = fogVolume(st, g, holder);
-    var light = new B.PointLight('grenadeBurstLight', holder.position.clone(), scene);
+    var light = new B.PointLight(
+      'grenadeBurstLight',
+      new B.Vector3(g.to.x, g.to.y + 0.08, g.to.z),
+      scene
+    );
     light.diffuse = new B.Color3(1, 0.62, 0.24);
     light.specular = B.Color3.Black();
     light.range = 7;
@@ -303,7 +307,7 @@ void main(void) {
       }
       burst.flash.alpha = Math.max(0, 1 - age / 0.16);
       burst.quad.scaling.setAll(0.7 + Math.min(age, 0.16) * 7);
-      burst.quad.position.y = 0.12;
+      burst.quad.position.y = 0.2;
       burst.light.intensity = 4 * Math.max(0, 1 - age / 0.16);
       burst.light.setEnabled(age < 0.16);
       burst.quad.setEnabled(age < 0.16);
