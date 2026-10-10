@@ -20,14 +20,27 @@ const { header } = readHeader();
 assert.equal(sha256(checksumSource), want.converter, 'real owners must determine converter fingerprint');
 assert.equal(want.converter, header.converter, 'prepared clip converter fingerprint stale');
 assert.equal(want.babylon, header.babylon, 'Babylon FBX loader pin changed');
-assert.equal(JSON.stringify(want.clips), JSON.stringify(Object.fromEntries(header.clips.map(clip => [clip.key, clip.spec]))), 'prepared clip table changed');
+assert.equal(
+  JSON.stringify(want.clips),
+  JSON.stringify(Object.fromEntries(header.clips.map(clip => [clip.key, clip.spec]))),
+  'prepared clip table changed'
+);
 for (const [file, hash] of Object.entries(want.sources))
   assert.equal(header.sources[file], hash, 'packed animation source changed: ' + file);
-assert.ok(header.clips.length > 30 && Object.keys(want.sources).length > 15, 'unexpected empty prepared clip pack');
-assert.throws(() => converterText(rig.replace('function canon(', 'function movedCanon(') + '\n' + backend), /function canon not found/, 'missing canonicalizer must fail fingerprint extraction');
+assert.ok(
+  header.clips.length > 30 && Object.keys(want.sources).length > 15,
+  'unexpected empty prepared clip pack'
+);
+assert.throws(
+  () => converterText(rig.replace('function canon(', 'function movedCanon(') + '\n' + backend),
+  /function canon not found/,
+  'missing canonicalizer must fail fingerprint extraction'
+);
 assert.notEqual(
   sha256(converterText(rig.replace('function canon(', 'function canon(/* moved */') + '\n' + backend)),
   want.converter,
   'a changed rig converter must make the prepared pack stale'
 );
-console.log('PASS #456 R3 prepared clip hashes cover rig canon + backend converter, every FBX source and pinned Babylon version');
+console.log(
+  'PASS #456 R3 prepared clip hashes cover rig canon + backend converter, every FBX source and pinned Babylon version'
+);
