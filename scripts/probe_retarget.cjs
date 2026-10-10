@@ -73,7 +73,8 @@ async function load(browser, query) {
     }
     const snap = BattleAssetTimings.snapshot();
     const phase = id => { const p = snap.page && snap.page.phases.find(x => x.id === id); return p ? p.ms : null; };
-    return { models: res, retargetMs: snap.totals.retarget, soldiersPhaseMs: phase('soldiers'), libraryWallMs: snap.library.wallMs };
+    return { models: res, retargetMs: snap.totals.retarget, soldiersPhaseMs: phase('soldiers'), libraryWallMs: snap.library.wallMs,
+      pack: BattleFbxSoldier.clipPack.state(scene), restHelperInstalled: !!window.BattleFbxRetargetRest };
   });
   await context.close();
   return Object.assign(out, { errors });
@@ -92,6 +93,11 @@ const f32 = s => { const b = Buffer.from(s, 'base64'); return new Float32Array(b
   const fails = [];
   let rotMax = 0, posMax = 0, speedMax = 0, strideMax = 0, gripMax = 0, samples = 0;
   if (!Object.keys(matrix.models).length) fails.push('No real FBX models were compared');
+  for (const [mode, value] of [['matrix', matrix], ['quaternion', quat]]) {
+    if (!value.restHelperInstalled) fails.push(mode + ': retarget rest helper missing on shipping PHP loader');
+    if (!value.pack || !value.pack.loaded || value.pack.fromFbx !== 0 || value.pack.fromPack <= 0)
+      fails.push(mode + ': prepared clip pack was not used unchanged: ' + JSON.stringify(value.pack));
+  }
   for (const f of Object.keys(matrix.models)) {
     const a = matrix.models[f], b = quat.models[f];
     if (!b) { fails.push(`${f} missing from the shipped load`); continue; }
