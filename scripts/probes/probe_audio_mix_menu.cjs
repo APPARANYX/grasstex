@@ -68,12 +68,12 @@ const BASE = process.env.AUDIO_MENU_PREVIEW_URL ||
         window.__mixTestPad.buttons[n].pressed = true;
         window.__mixTestPad.buttons[n].value = 1;
       }, button);
-      await page.waitForTimeout(900);
+      await page.waitForTimeout(250);
       await page.evaluate(n => {
         window.__mixTestPad.buttons[n].pressed = false;
         window.__mixTestPad.buttons[n].value = 0;
       }, button);
-      await page.waitForTimeout(450);
+      await page.waitForTimeout(250);
     }
 
     await press(5); // RB
