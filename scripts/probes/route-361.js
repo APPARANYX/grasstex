@@ -98,7 +98,6 @@
           speed: +(+s.moveSpeed || 0).toFixed(3),
           moving: !!s.moving,
           stop: s._movementStopReason || null,
-          steer: s._steer361Diag || null,
           directLegal: directLegal,
           standingLegal: standingLegal,
           physicalStep: p(forward),
