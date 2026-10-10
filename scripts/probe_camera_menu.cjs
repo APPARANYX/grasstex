@@ -238,15 +238,24 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       const scene = __battle__.scene;
       const old = BattleDesktopCamera.current;
       const oldCam = old.camera;
-      const beforeObservers = scene.onBeforeRenderObservable.observers.slice();
+      const observable = scene.onBeforeRenderObservable;
+      const beforeObservers = observable.observers.slice();
       const observersBefore = beforeObservers.length;
+      const removes = [];
+      const originalRemove = observable.remove;
+      observable.remove = function (observer) {
+        const result = originalRemove.call(this, observer);
+        removes.push({ name: observer?.callback?.name, result, stillListed: this.observers.includes(observer) });
+        return result;
+      };
       const previousSettings = document.getElementById('battlePlayerSettings');
       const replacement = BattleDesktopCamera.create({
         scene, canvas: document.getElementById('renderCanvas'),
         engine: scene.getEngine(), battleSim: __battle__,
         scenario: { center: {x: 0, z: 0} }
       });
-      const afterObservers = scene.onBeforeRenderObservable.observers.slice();
+      observable.remove = originalRemove;
+      const afterObservers = observable.observers.slice();
       const observersAfter = afterObservers.length;
       const removedObservers = beforeObservers.filter(o => !afterObservers.includes(o))
         .map(o => o.callback?.name || '(anonymous)');
@@ -262,7 +271,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       ].filter(id => document.getElementById(id));
       old.stop();
       return {
-        observersBefore, observersAfter, removedObservers, addedObservers,
+        observersBefore, observersAfter, removes, removedObservers, addedObservers,
         framesBefore: framesBefore.length, framesAfter: framesAfter.length, staleFrameRetained,
         oldDisposed: oldCam.isDisposed(),
         oldSettingsDetached: !previousSettings || !previousSettings.isConnected,
@@ -272,7 +281,8 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       };
     });
     assert.equal(lifecycle.framesBefore, 1, 'initial scene should own one desktop frame observer');
-    assert.equal(lifecycle.framesAfter, 1, 'replacement should own one desktop frame observer');
+    assert.equal(lifecycle.framesAfter, 1,
+      'replacement should own one desktop frame observer: ' + JSON.stringify(lifecycle));
     assert.equal(lifecycle.staleFrameRetained, false,
       'old desktop frame observer still registered: ' + JSON.stringify(lifecycle));
     assert.equal(lifecycle.oldDisposed, true, 'previous desktop camera must be disposed');
