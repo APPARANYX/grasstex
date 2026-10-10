@@ -263,7 +263,15 @@
       }
     if (!e) {
       if (entries.length >= MAX_ACTIVE) {
-        // Preserve a working dry audio path when the CPU budget is exhausted.
+        // An already-filtered pooled Sound may be replayed after its slot expired.
+        // Restore its dry frequency and mute its wet send rather than leaving stale occlusion.
+        if (sound._battleAcousticFilter) {
+          try {
+            var f = sound._battleAcousticFilter;
+            f.frequency.setTargetAtTime(20000, f.context.currentTime, 0.025);
+            if (sound._battleAcousticSend) sound._battleAcousticSend.gain.value = 0;
+          } catch (_) {}
+        }
         return false;
       }
       e = { sound: sound };
@@ -273,7 +281,7 @@
     e.kind = kind || 'gun';
     e.scene = scene;
     e.gain = finite(baseGain, 0.18);
-    e.until = now() + (kind === 'voice' ? 8000 : kind === 'tail' ? 2800 : 1700);
+    e.until = now() + (kind === 'voice' ? 16000 : kind === 'tail' ? 2800 : 1700);
     e.serial = ++serial;
     stats.prepared++;
     sample(e);
