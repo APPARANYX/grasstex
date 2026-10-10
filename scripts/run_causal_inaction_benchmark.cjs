@@ -116,7 +116,8 @@ const summary = {
   coverDecisionCounts: {},
   coverRejectCounts: {},
   coverLaneOutcomes: [],
-  lifecycle: []
+  lifecycle: [],
+  navigationRegressions: []
 };
 function bump(obj, key, n = 1) {
   obj[key] = (obj[key] || 0) + n;
@@ -169,6 +170,35 @@ for (const b of record.battles) {
             recon: t.recon || null, mainBodyCentroid: t.mainBodyCentroid }))
       });
     }
+  }
+  /* A green observer/fingerprint control is not enough: the original real GE-4
+     CAPTURE battle passed that control while its two lead movers oscillated in
+     exactly the same 0.77m two-point loop for almost 300 seconds. This opt-in
+     exact-seed sentinel fails on the old gameplay and passes only on physical
+     progress toward the actual mission objective. Other seeds stay exploratory. */
+  if (process.env.CAUSAL_NAVTRACE === '1' && b.type === 'meeting' && b.seed === 'hill-0008') {
+    const trace = b.reports && b.reports['route-361'];
+    const frames = (trace && trace.samples || []).filter(x => x.t >= 126 && x.t <= 129.05);
+    const men = [92, 98].map(id => {
+      const entries = frames.map(x => (x.members || []).find(m => +m.id === id)).filter(Boolean);
+      const first = entries[0], last = entries[entries.length - 1];
+      return {
+        id,
+        samples: entries.length,
+        netMeters: first && last && first.position && last.position
+          ? +Math.hypot(last.position.x - first.position.x, last.position.z - first.position.z).toFixed(2)
+          : null,
+        closedGoalMeters: first && last && first.goalDistance != null && last.goalDistance != null
+          ? +(first.goalDistance - last.goalDistance).toFixed(2)
+          : null
+      };
+    });
+    const pass = men.every(m => m.samples >= 12 && m.netMeters >= 2 && m.closedGoalMeters >= 2);
+    summary.navigationRegressions.push({
+      type: b.type, seed: b.seed, squad: 'ge-4',
+      interval: '126-129s', men, pass
+    });
+    if (!pass) summary.failures.push(b.seed + ': #361 GE-4 net physical progress regression');
   }
   summary.episodesOmitted += r.episodesOmitted || 0;
   summary.directDenialsOmitted += r.directDenialsOmitted || 0;
@@ -308,6 +338,18 @@ for (const e of summary.episodes.slice(0, 30)) {
   );
 }
 if (!summary.episodes.length) md.push('No qualifying episodes were observed.');
+for (const check of summary.navigationRegressions) {
+  md.push(
+    '',
+    '## #361 GE-4 real physical progression sentinel',
+    '',
+    '- ' + check.type + ':' + check.seed + ' ' + check.squad + ' @ ' + check.interval +
+      ': **' + (check.pass ? 'PASS' : 'FAIL') + '**, requiring >=2m net motion AND >=2m objective closure per lead actor.'
+  );
+  for (const m of check.men)
+    md.push('- Soldier ' + m.id + ': ' + m.samples + ' samples, ' +
+      m.netMeters + 'm net, ' + m.closedGoalMeters + 'm closer to mission objective.');
+}
 if (process.env.CAUSAL_LIFECYCLE === '1') {
   md.push('', '## Read-only mission / recon / physical movement chain', '');
   for (const trace of summary.lifecycle) {
