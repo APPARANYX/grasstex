@@ -46,13 +46,13 @@ const make = (search = '') => {
     MeshBuilder: {
       CreateSphere(name, opts) {
         const m = { name, opts, position: new Vec(), scaling: new Vec(),
-          dispose() { calls.disposed++; } };
+          setEnabled() {}, dispose() { calls.disposed++; } };
         calls.spheres.push(m);
         return m;
       },
       CreatePlane(name) {
         const m = { name, position: new Vec(), scaling: new Vec(),
-          dispose() { calls.disposed++; } };
+          setEnabled() {}, dispose() { calls.disposed++; } };
         calls.planes.push(m);
         return m;
       }
