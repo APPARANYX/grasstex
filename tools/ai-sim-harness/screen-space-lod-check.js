@@ -53,14 +53,16 @@ const backend = fs.readFileSync(
   path.join(__dirname, '../../battle/modules/53-fbx-soldier-backend.js'),
   'utf8'
 );
-assert(/BattleScreenSpaceLod/.test(backend), 'FBX soldier backend consumes shared screen-space LOD');
-assert(/MESH_LOD\.far\s*\*\s*screenScale/.test(backend), 'mesh LOD threshold scales with screen space');
+const renderLod = fs.readFileSync(path.join(__dirname, '../../battle/modules/52-fbx-render-lod.js'), 'utf8');
+assert(/BattleFbxRenderLod\.create/.test(backend), 'FBX backend installs the live render LOD owner');
+assert(/BattleScreenSpaceLod/.test(renderLod), 'FBX render LOD consumes shared screen-space LOD');
+assert(/MESH_LOD\.far\s*\*\s*screenScale/.test(renderLod), 'mesh LOD threshold scales with screen space');
 assert(
-  /LOD\.near\s*\*\s*screenScale/.test(backend),
+  /LOD\.near\s*\*\s*screenScale/.test(renderLod),
   'full-rate animation threshold scales with screen space'
 );
 assert(
-  /LOD\.mid\s*\*\s*screenScale/.test(backend),
+  /LOD\.mid\s*\*\s*screenScale/.test(renderLod),
   'far animation cadence threshold scales with screen space'
 );
 
