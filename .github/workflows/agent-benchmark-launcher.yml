@@ -52,7 +52,7 @@ jobs:
               raise SystemExit('Full 300-battle matrix needs confirm_full_matrix: true')
           allowed = {
               'standard': ('seed', 'seeds', 'query_off', 'query_on', 'battle_type', 'windows', 'origin_agent', 'correlation_id', 'purpose'),
-              'causal': ('exact_seed', 'seeds', 'seconds', 'side', 'role', 'ids', 'squads', 'query', 'geometry', 'lifecycle'),
+              'causal': ('exact_seed', 'seeds', 'seconds', 'side', 'role', 'ids', 'squads', 'query', 'geometry', 'lifecycle', 'navtrace'),
               'targeted-fire': ('seeds', 'seconds', 'side', 'role', 'ids', 'squads'),
               'timescale': ('seed', 'seconds'),
               'matrix-smoke': (),
