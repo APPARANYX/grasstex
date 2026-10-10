@@ -11,7 +11,7 @@ const sourceRoot = process.env.GRASSTEX_SOURCE_ROOT || path.resolve(__dirname, '
 const H = require(path.join(sourceRoot, 'tools/ai-sim-harness/harness.js'));
 const variants = (
   process.env.COMMAND_AUDIT_VARIANTS ||
-  'scouts-alive,scouts-dead,three-men,prepared-garrison,secured-defender,blocked-recon,doctrine-defend'
+  'scouts-alive,scouts-dead,three-men,four-men,five-men,prepared-garrison,secured-defender,blocked-recon,doctrine-defend'
 ).split(',');
 const seconds = Math.max(420.5, +process.env.COMMAND_AUDIT_SECONDS || 425);
 const errors = [];
@@ -143,7 +143,14 @@ function world(variant) {
       z,
       objective: { x: 0, z },
       facing: side === 'us' ? 0 : Math.PI,
-      composition: variant === 'three-men' ? ['sergeant', 'rifleman', 'rifleman'] : undefined
+      composition:
+        variant === 'three-men'
+          ? ['sergeant', 'rifleman', 'rifleman']
+          : variant === 'four-men'
+            ? ['sergeant', 'scout', 'rifleman', 'rifleman']
+            : variant === 'five-men'
+              ? ['sergeant', 'scout', 'rifleman', 'rifleman', 'rifleman']
+              : undefined
     });
     q.commandRole = 'center';
     q.route = [{ x: 0, z }];
@@ -175,9 +182,16 @@ function world(variant) {
   // Install shipping victory accounting too: a defeated fixture stops where a real battle stops.
   // This mirrors harness.js's shipping-function extraction for stepMovement.
   const battleSource = fs.readFileSync(path.join(sourceRoot, 'battle/battle-sim.js'), 'utf8');
-  const stockCheck = battleSource.match(/BattleSim\.prototype\._checkWinner=(function\(\)\{[^\n]+\});/);
-  assert.ok(stockCheck, 'shipping base victory function must be found');
-  b._checkWinner = new Function('return ' + stockCheck[1])();
+  /* Formatting is not a simulation contract: extract the shipping function from its
+     assignment through the matching closing declaration, regardless of whitespace. */
+  const startWinner = battleSource.indexOf('BattleSim.prototype._checkWinner = function () {');
+  const endWinner = battleSource.indexOf('\n  };', startWinner);
+  assert.ok(startWinner >= 0 && endWinner > startWinner, 'shipping victory method declaration exists');
+  const sourceWinner = battleSource.slice(
+    battleSource.indexOf('function () {', startWinner),
+    endWinner + '\n  };'.length - 1
+  );
+  b._checkWinner = new Function('return (' + sourceWinner + ')')();
   b.timeLimit = seconds;
   const commanderSource = fs.readFileSync(path.join(sourceRoot, 'battle/commander-ai.js'), 'utf8');
   const declaration = commanderSource.slice(

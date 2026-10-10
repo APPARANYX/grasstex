@@ -6,6 +6,9 @@ on:
     paths:
       - '.github/workflows/causal-inaction-benchmark.yml'
       - 'scripts/probes/causal-inaction.cjs'
+      - 'scripts/probes/squad-local-starvation.js'
+      - 'scripts/probes/command-lifecycle.js'
+      - 'tools/ai-sim-harness/squad-local-starvation-check.js'
       - 'scripts/probes/crest-geometry.cjs'
       - 'scripts/run_causal_inaction_benchmark.cjs'
       - 'scripts/run_probe.cjs'
@@ -94,6 +97,8 @@ jobs:
       - name: Observer contract and syntax
         run: |
           node --check scripts/probes/causal-inaction.cjs
+          node --check scripts/probes/squad-local-starvation.js
+          node tools/ai-sim-harness/squad-local-starvation-check.js
           node --check scripts/probes/crest-geometry.cjs
           node --check scripts/run_causal_inaction_benchmark.cjs
           node --check scripts/probes/route-361.js
