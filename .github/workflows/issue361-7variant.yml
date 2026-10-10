@@ -1,0 +1,30 @@
+name: Issue 361 seven-variant shipping lifecycle replay
+on:
+  push:
+    branches:
+      - 'work/audit-issue361/**'
+permissions:
+  contents: read
+jobs:
+  lifecycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/issue361-ge4-rootcause
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Replay seven shipping command lifecycle variants
+        env:
+          COMMAND_AUDIT_OUTPUT: reports/issue361-seven-variant.json
+          COMMAND_AUDIT_SECONDS: '425'
+        run: |
+          mkdir -p reports
+          node scripts/run_command_lifecycle_audit.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: issue361-seven-variant-lifecycle
+          path: reports/issue361-seven-variant.json
+          if-no-files-found: warn
