@@ -891,10 +891,16 @@ before any effect is claimed.
   by period): a standing man in the open is a casualty about 95 % of the time at 2 m, half the time
   at 5 m and rarely at 15 m, and lying down cuts that by roughly two thirds. Ordinary suppression
   events reach 16 m. Friendly/self injuries retain attribution and earn no kill credit. Imported
-  Mk 2/M24 props, three stance-specific throw clips and bounded dust/flash are presentation only
-  (`24-grenade-fx.js`); player aim displays the owner's arc and landing point. Default-enabled in #442 after a
-  paired 100-seed benchmark (quiet: casualties +0.4 %, p 0.625) and owner review. Grenade-specific
-  audio is still outstanding.
+  Mk 2/M24 props, three stance-specific throw clips and a brief flash plus an **instant full-footprint
+  3D smoke density volume** are presentation only (`24-grenade-fx.js`). Smoke replaces the old
+  expanding dust billboards: one shader-integrated world-space field per explosion, no center-emitting
+  particle generator. The footprint is 5.5 m horizontally and 2.3 m half-height at the moment
+  of detonation; the density holds for ~3 simulated seconds, then dissipates by 10 seconds
+  (8 active volumes max, no screen-size postprocess). `?grenadeFog=off` or `grenadeFog=0`
+  disables only the fog, not flash, damage, audio or grenade behavior. Restart clears it.
+  Player aim displays the owner's arc and landing point. Default-enabled in #442 after a
+  paired 100-seed benchmark (quiet: casualties +0.4 %, p 0.625) and owner review. Arming, spoon
+  and burst audio are presentation only (`24a-grenade-audio.js`, `?grenadeAudio=0` off; see Audio).
 - **FG 42 balance.** The four-arm benchmark attributed the scout balance shift to the FG 42, not
   the perception cones. Test one lever at a time: Kar98k assignment, shorter practical FG 42 range,
   or wider dispersion/grouping at range. Use the existing `perception=0` / `geScout=carbine`

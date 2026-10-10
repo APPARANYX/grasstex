@@ -16,13 +16,6 @@ aircraft/strafing-02.mp3
 ambience/distant-battle-01.mp3
 ambience/distant-battle-02.mp3
 ambience/wind-01.mp3
-grenades/bounce-01.mp3
-grenades/bounce-02.mp3
-grenades/explosion-01.mp3
-grenades/explosion-02.mp3
-grenades/explosion-03.mp3
-grenades/pin-01.mp3
-grenades/throw-01.mp3
 vehicles/tank-cannon-01.mp3
 vehicles/tank-cannon-02.mp3
 vehicles/tank-destroyed-01.mp3

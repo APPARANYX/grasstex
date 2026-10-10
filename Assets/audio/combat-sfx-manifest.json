@@ -2,7 +2,7 @@
   "version": 1,
   "base": "Assets/audio/",
   "format": "mono MP3 48 kHz 128 kbps, mastered by scripts/normalize_audio.sh (combat/* targets)",
-  "purpose": "Combat presentation sounds that are not a weapon's own report: rounds passing the camera, ricochets, surface impacts, rounds striking a man, and the man's pain. Generated with ElevenLabs Sound Effects by scripts/generate_combat_sfx.py (.github/workflows/combat-sfx-generate.yml on a branch); played by battle/modules/15-combat-audio.js through Assets/audio/manifest.json categories flyby, ricochet, impacts, flesh and pain. Presentation only: no clip changes the battle.",
+  "purpose": "Combat presentation sounds that are not a weapon's own report: rounds passing the camera, ricochets, surface impacts, rounds striking a man, the man's pain, and grenades being armed and bursting. Generated with ElevenLabs Sound Effects by scripts/generate_combat_sfx.py (.github/workflows/combat-sfx-generate.yml on a branch); played by battle/modules/15-combat-audio.js through Assets/audio/manifest.json categories flyby, ricochet, impacts, flesh and pain, and by battle/modules/24a-grenade-audio.js through category grenades. Presentation only: no clip changes the battle.",
   "rules": {
     "oneSoundPerInstance": "A round plays at most one flyby clip, and its end point at most one impact or ricochet; a body it strikes one flesh hit; a man hit at most one pain clip. The runtime caps concurrent voices per group so a burst is a run of distinct sounds, never a wall of noise.",
     "singleShot": "A clip marked singleShot holds exactly one event (one onset): one crack, one hit, one ricochet.",
@@ -186,9 +186,63 @@
         ],
         "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. Voice allowed: one adult male WW2 infantry soldier, outdoors, shot and falling: a single choked cry that breaks into a groan as he goes down. No words, one man, one cry."
       }
+    },
+    "grenades": {
+      "explosion": {
+        "variations": 3,
+        "maxDurationS": 3.0,
+        "role": "explosion",
+        "singleShot": true,
+        "trigger": "a grenade bursts (US Mk 2 or German M24), within 800 m of the camera",
+        "files": [
+          "grenades/explosion-01.mp3",
+          "grenades/explosion-02.mp3",
+          "grenades/explosion-03.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. A single WW2 fragmentation hand grenade detonating on open ground about fifteen metres away, outdoors: one sharp, heavy, concussive crack-boom with a deep thump, dirt and fragments pattering down, and a short rolling echo off fields and distant buildings. One explosion only, no gunfire."
+      },
+      "pin": {
+        "variations": 3,
+        "maxDurationS": 0.8,
+        "role": "foley",
+        "singleShot": false,
+        "trigger": "a US soldier commits a Mk 2 throw (the wind-up), within 30 m of the camera",
+        "files": [
+          "grenades/pin-01.mp3",
+          "grenades/pin-02.mp3",
+          "grenades/pin-03.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. Close-up handling foley at arm's length, outdoors: the safety pin pulled from a WW2 US Mk 2 pineapple hand grenade: a finger hooks the steel ring, a short metallic scrape as the split cotter pin slides out of the fuze, and the small ring jingles once. Quiet, crisp, mechanical. No explosion, no throw, no voices."
+      },
+      "spoon": {
+        "variations": 3,
+        "maxDurationS": 1.0,
+        "role": "foley",
+        "singleShot": false,
+        "trigger": "a US Mk 2 leaves the thrower's hand, within 30 m of the camera",
+        "files": [
+          "grenades/spoon-01.mp3",
+          "grenades/spoon-02.mp3",
+          "grenades/spoon-03.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. Close-up handling foley, outdoors: the safety lever (the spoon) of a WW2 US Mk 2 hand grenade flying off as the grenade is thrown: a bright springy metallic ping as the lever snaps free and tumbles away, the striker's sharp click on the primer, then a faint short fuze hiss. Quiet and crisp. No explosion, no voices."
+      },
+      "igniter": {
+        "variations": 3,
+        "maxDurationS": 1.6,
+        "role": "foley",
+        "singleShot": false,
+        "trigger": "a German soldier commits an M24 stick grenade throw (the wind-up), within 30 m of the camera",
+        "files": [
+          "grenades/igniter-01.mp3",
+          "grenades/igniter-02.mp3",
+          "grenades/igniter-03.mp3"
+        ],
+        "prompt": "Photorealistic field-recorded sound effect, no music, no voices unless stated, no electronic or gamey tones, no gunshot report. Close-up handling foley, outdoors: a WW2 German Stielhandgranate 24 stick grenade armed: a metal cap unscrewed from the wooden handle in two quick gritty turns, a sharp tug on the pull cord, a scratchy friction-igniter rasp and a faint fizz. Quiet, mechanical. No explosion, no voices."
+      }
     }
   },
   "totals": {
-    "clips": 58
+    "clips": 70
   }
 }

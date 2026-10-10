@@ -48,6 +48,8 @@ AUDIO_ASSET_GLOBS = [("Assets/audio", "*.mp3"), ("Assets/audio/weapons", "*.mp3"
                      ("Assets/audio/footsteps/009-rubble", "*.mp3")]
 # Combat sound effects (combat-sfx-manifest.json), one flat folder per group.
 AUDIO_ASSET_GLOBS += [("Assets/audio/combat/"+g, "*.mp3") for g in ("flyby", "ricochet", "impacts", "flesh", "pain")]
+# Grenade arming foley and bursts (combat-sfx-manifest.json group grenades).
+AUDIO_ASSET_GLOBS += [("Assets/audio/grenades", "*.mp3")]
 # Per-model weapon folders (manifest categories weapon.<model>); weapons/foley is listed above.
 WEAPON_AUDIO = Path("Assets/audio/weapons")
 AUDIO_ASSET_GLOBS += [(d.as_posix(), "*.mp3") for d in sorted(WEAPON_AUDIO.iterdir() if WEAPON_AUDIO.is_dir() else [])

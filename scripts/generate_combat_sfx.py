@@ -28,6 +28,8 @@ import generate_weapon_sfx as sfx  # noqa: E402  (shares the API call and its re
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST_PATH = os.path.join(REPO, "Assets/audio/combat-sfx-manifest.json")
 OUT_ROOT = os.path.join(REPO, ".runtime/combat-sfx")
+# ElevenLabs Sound Effects rejects a longer prompt (HTTP 400 text_too_long).
+MAX_PROMPT_CHARS = 450
 
 
 def clips(man):
@@ -52,9 +54,9 @@ def main():
     man = json.load(open(MANIFEST_PATH, encoding="utf-8"))
     jobs = []
     declared = present = unforced = 0
+    # declared/present count the whole library, not just --only: they tell an overlaid library from a
+    # missing one, and a new group named with --only has nothing on disk yet.
     for group, cid, c in clips(man):
-        if not wanted(args.only, group, cid):
-            continue
         forced = bool(args.force) and wanted(args.force, group, cid)
         for rel in c["files"]:
             out_path = os.path.join(OUT_ROOT, rel)
@@ -62,6 +64,8 @@ def main():
                        for p in (out_path, os.path.join(REPO, "Assets/audio", rel)))
             declared += 1
             present += bool(have)
+            if not wanted(args.only, group, cid):
+                continue
             if have and not forced:
                 continue
             unforced += not forced
@@ -69,6 +73,9 @@ def main():
     if not jobs:
         print("No matching clips need generation.")
         return
+    long = sorted({f"{g}.{cid} ({len(c['prompt'])})" for g, cid, c, _, _ in jobs if len(c["prompt"]) > MAX_PROMPT_CHARS})
+    if long:
+        sys.exit(f"Prompts longer than {MAX_PROMPT_CHARS} characters, refusing before any ElevenLabs call: {', '.join(long)}")
     if not args.dry_run:
         generation_guard.check("combat SFX", declared, present, unforced, generation_guard.max_new(args.max_new))
     print(f"{'Would generate' if args.dry_run else 'Generating'} {len(jobs)} clip(s) into {OUT_ROOT}")

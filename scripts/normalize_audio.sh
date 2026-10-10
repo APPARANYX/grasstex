@@ -59,7 +59,7 @@ transient_target_for() {
   case "$1" in
     */weapons/foley/*.mp3) echo "-26.0" ;;
     # Handling a grenade is quiet mechanical foley; the detonation is not.
-    */grenades/pin-*.mp3|*/grenades/throw-*.mp3|*/grenades/bounce-*.mp3) echo "-26.0" ;;
+    */grenades/pin-*.mp3|*/grenades/spoon-*.mp3|*/grenades/igniter-*.mp3) echo "-26.0" ;;
     */footsteps/*.mp3) echo "-26.0" ;;
     # Flybys, ricochets, impacts and flesh hits sit under the shot itself; a cry of pain is a
     # voice, levelled near the callouts.

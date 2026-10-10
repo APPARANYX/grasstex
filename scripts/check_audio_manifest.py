@@ -20,8 +20,8 @@ PLACEHOLDERS = os.path.join(ROOT, '.manifest-placeholders.txt')
 # Directories whose clips are wired up through the manifest. voices/ is validated by
 # scripts/validate_voice_manifest.py instead, which understands the callout event map.
 MANAGED = ('weapons', 'vehicles', 'ambience', 'grenades', 'aircraft', 'footsteps', 'combat')
-# The combat sounds are declared (with their generation prompts) in combat-sfx-manifest.json; the
-# runtime manifest must carry exactly the same files.
+# The combat sounds and grenade sounds are declared (with their generation prompts) in
+# combat-sfx-manifest.json; the runtime manifest must carry exactly the same files.
 COMBAT = os.path.join(ROOT, 'combat-sfx-manifest.json')
 
 
@@ -62,7 +62,11 @@ def main():
         combat = json.load(open(COMBAT, encoding='utf-8'))
         declared = {f for group in combat['groups'].values()
                     for clip in group.values() for f in clip['files']}
-        runtime = {p for p in referenced if p.startswith('combat/')}
+        runtime = {p for p in referenced if p.startswith(('combat/', 'grenades/'))}
+        for group, clips in combat['groups'].items():
+            for cid, clip in clips.items():
+                if len(clip['prompt']) > 450:  # ElevenLabs Sound Effects rejects longer text
+                    errors.append(f'combat-sfx-manifest.json {group}.{cid} prompt is {len(clip["prompt"])} characters, over 450')
         for path in sorted(declared - runtime):
             errors.append(f'combat-sfx-manifest.json declares {path}, but manifest.json does not play it')
         for path in sorted(runtime - declared):

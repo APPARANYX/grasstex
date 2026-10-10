@@ -1,5 +1,6 @@
 /* Grenade presentation, gated by the core's `?grenades` switch. The core owns commitments, flight and blast resolution;
-   this module reads its records and draws imported, lit props plus a bounded dust burst.
+   this module reads its records and draws imported, lit props plus an instantaneous
+   *area-density fog volume*, not particles emitted from the detonation point.
    No inventory, navigation, damage, suppression or simulation RNG writes. */
 (function (root) {
   'use strict';
@@ -12,7 +13,14 @@
     STATES = new WeakMap(),
     BOUND = new WeakSet(),
     FILES = { us: 'us-mk2-grenade.glb', ge: 'ge-m24-grenade.glb' },
-    MAX_BURSTS = 14;
+    MAX_BURSTS = 8,
+    FOG_LIFETIME = 10,
+    FOG_RADIUS = 5.5,
+    FOG_HALF_HEIGHT = 2.3,
+    /* Low-spec escape hatch, independent of damage and of the audio flag. */
+    FOG_ON = !/(?:^|[?&])grenadeFog=(?:0|off)(?:&|$)/.test(
+      typeof location !== 'undefined' ? location.search || '' : ''
+    );
 
   function core() {
     return root.BattleGrenades;
@@ -137,9 +145,95 @@
     st.live.clear();
     st.bursts.splice(0).forEach(disposeBurst);
   }
-  function smokeTexture(st) {
+  /* A single proxy mesh bounds a spatial Beer-Lambert fog field. Its fragment
+     shader integrates a camera ray through the entire already-present density
+     region; it emits no particles, draws no radial billboards and allocates no
+     screen-sized postprocess. The low-detail volume is fixed at detonation time. */
+  function installFogShaders() {
+    if (B.Effect.ShadersStore.grenadeAreaFogVertexShader) return;
+    B.Effect.ShadersStore.grenadeAreaFogVertexShader = `
+precision highp float;
+attribute vec3 position;
+uniform mat4 world;
+uniform mat4 worldViewProjection;
+varying vec3 vWorldPos;
+void main(void) {
+  vWorldPos = (world * vec4(position, 1.0)).xyz;
+  gl_Position = worldViewProjection * vec4(position, 1.0);
+}`;
+    B.Effect.ShadersStore.grenadeAreaFogFragmentShader = `
+precision highp float;
+varying vec3 vWorldPos;
+uniform vec3 eye;
+uniform vec3 center;
+uniform vec3 radii;
+uniform float strength;
+uniform float drift;
+uniform float seed;
+void main(void) {
+  // Render precisely one surface: near/front outside, far/back when inside.
+  vec3 origin = (eye - center) / radii;
+  float inside = dot(origin, origin);
+  if ((inside < 1.0) == gl_FrontFacing) discard;
+  vec3 direction = normalize(vWorldPos - eye);
+  vec3 dir = direction / radii;
+  float a = dot(dir, dir);
+  float b = dot(origin, dir);
+  float discr = b * b - a * (inside - 1.0);
+  if (discr <= 0.0 || a < 0.000001) discard;
+  float delta = sqrt(discr);
+  float front = max(0.0, (-b - delta) / a);
+  float back = (-b + delta) / a;
+  float lengthInFog = max(0.0, back - front);
+  if (lengthInFog < 0.002 || strength <= 0.0) discard;
+  vec3 midpoint = eye + direction * (front + lengthInFog * 0.5);
+  vec3 local = midpoint - center;
+  // Two broad, drifting 3D density bands (not radial eruption sprites).
+  float w1 = sin(local.x * 1.13 + local.y * 0.93 + seed)
+           * sin(local.z * 0.81 - local.y * 1.17 - drift);
+  float w2 = sin(local.x * 0.48 - local.z * 0.62 + drift * 0.44 + seed * 0.7);
+  float density = (0.88 + 0.19 * w1 + 0.12 * w2) * strength;
+  float opacity = min(0.91, 1.0 - exp(-0.33 * density * lengthInFog));
+  vec3 dust = vec3(0.44, 0.42, 0.37) * (0.97 + 0.055 * w1);
+  gl_FragColor = vec4(dust, opacity);
+}`;
+  }
+  function fogVolume(st, g, holder) {
+    if (!FOG_ON || !B.ShaderMaterial || !B.Effect || !B.Effect.ShadersStore) return null;
+    installFogShaders();
+    var scene = st.battle.scene,
+      mesh = B.MeshBuilder.CreateSphere('grenadeAreaFog-' + g.id, { diameter: 2, segments: 12 }, scene),
+      mat = new B.ShaderMaterial(
+        'grenadeAreaFogMaterial-' + g.id,
+        scene,
+        { vertex: 'grenadeAreaFog', fragment: 'grenadeAreaFog' },
+        {
+          attributes: ['position'],
+          uniforms: ['world', 'worldViewProjection', 'eye', 'center', 'radii', 'strength', 'drift', 'seed'],
+          needAlphaBlending: true
+        }
+      );
+    mesh.parent = holder;
+    mesh.position.y = FOG_HALF_HEIGHT - 0.14;
+    mesh.scaling.set(FOG_RADIUS, FOG_HALF_HEIGHT, FOG_RADIUS);
+    mesh.material = mat;
+    mesh.isPickable = false;
+    mesh.alwaysSelectAsActiveMesh = false;
+    mesh.renderingGroupId = 0;
+    mesh.alphaIndex = -50;
+    mat.backFaceCulling = false;
+    mat.alphaMode = B.Engine.ALPHA_COMBINE;
+    mat.setVector3('center', new B.Vector3(g.to.x, g.to.y + FOG_HALF_HEIGHT - 0.06, g.to.z));
+    mat.setVector3('radii', new B.Vector3(FOG_RADIUS, FOG_HALF_HEIGHT, FOG_RADIUS));
+    mat.setFloat('seed', ((g.id || 0) % 47) * 0.57);
+    mat.setFloat('strength', 1);
+    mat.setFloat('drift', 0);
+    return { mesh: mesh, material: mat };
+  }
+  /* Only the <160 ms flash is billboarded; it is not a smoke emitter. */
+  function flashTexture(st) {
     if (st.texture) return st.texture;
-    var tex = new B.DynamicTexture('grenadeDustSprite', 64, st.battle.scene, false),
+    var tex = new B.DynamicTexture('grenadeFlashSprite', 64, st.battle.scene, false),
       ctx = tex.getContext(),
       gradient = ctx.createRadialGradient(32, 32, 2, 32, 32, 31);
     gradient.addColorStop(0, 'rgba(255,255,255,0.9)');
@@ -152,20 +246,20 @@
     st.texture = tex;
     return tex;
   }
-  function burstMaterial(st, name, color, additive) {
-    var mat = new B.StandardMaterial(name, st.battle.scene);
+  function flashMaterial(st, id) {
+    var mat = new B.StandardMaterial('grenadeFlash' + id, st.battle.scene);
     mat.diffuseColor = B.Color3.Black();
     mat.specularColor = B.Color3.Black();
-    mat.emissiveColor = B.Color3.FromArray(color);
-    mat.opacityTexture = smokeTexture(st);
+    mat.emissiveColor = new B.Color3(1, 0.67, 0.23);
+    mat.opacityTexture = flashTexture(st);
     mat.disableLighting = true;
     mat.backFaceCulling = false;
-    if (additive) mat.alphaMode = B.Engine.ALPHA_ADD;
+    mat.alphaMode = B.Engine.ALPHA_ADD;
     return mat;
   }
   function disposeBurst(burst) {
-    burst.node.dispose();
-    burst.dust.dispose();
+    burst.node.dispose(false, false);
+    if (burst.fog) burst.fog.material.dispose();
     burst.flash.dispose();
     burst.light.dispose();
   }
@@ -173,37 +267,60 @@
     while (st.bursts.length >= MAX_BURSTS) disposeBurst(st.bursts.shift());
     var scene = st.battle.scene,
       holder = new B.TransformNode('grenadeBurst' + g.id, scene),
-      dust = burstMaterial(st, 'grenadeDust' + g.id, [0.39, 0.33, 0.24], false),
-      flash = burstMaterial(st, 'grenadeFlash' + g.id, [1, 0.67, 0.23], true),
-      quads = [];
+      flash = flashMaterial(st, g.id),
+      quad = B.MeshBuilder.CreatePlane('grenadeBurstFlash', { size: 1 }, scene);
     holder.position.set(g.to.x, g.to.y + 0.08, g.to.z);
-    for (var i = 0; i < 13; i++) {
-      var quad = B.MeshBuilder.CreatePlane('grenadeBurstPuff', { size: 1 }, scene);
-      quad.parent = holder;
-      quad.billboardMode = B.Mesh.BILLBOARDMODE_ALL;
-      quad.isPickable = false;
-      quad.material = i ? dust : flash;
-      /* The ignition stays in front of the dense initial dust cloud. */
-      quad.alphaIndex = i ? 0 : 1000;
-      quads.push(quad);
-    }
+    quad.parent = holder;
+    quad.billboardMode = B.Mesh.BILLBOARDMODE_ALL;
+    quad.isPickable = false;
+    quad.material = flash;
+    quad.alphaIndex = 1000;
+    var fog = fogVolume(st, g, holder);
     var light = new B.PointLight('grenadeBurstLight', holder.position.clone(), scene);
     light.diffuse = new B.Color3(1, 0.62, 0.24);
     light.specular = B.Color3.Black();
     light.range = 7;
     st.bursts.push({
       node: holder,
-      quads: quads,
-      dust: dust,
+      quad: quad,
+      fog: fog,
       flash: flash,
       light: light,
       at: st.battle.time
     });
   }
+  function renderFog(st) {
+    var battle = st.battle,
+      cam = battle.scene.activeCamera,
+      eye = cam && (cam.globalPosition || cam.position);
+    for (var b = st.bursts.length - 1; b >= 0; b--) {
+      var burst = st.bursts[b],
+        age = Math.max(0, battle.time - burst.at);
+      if (age >= FOG_LIFETIME) {
+        disposeBurst(burst);
+        st.bursts.splice(b, 1);
+        continue;
+      }
+      burst.flash.alpha = Math.max(0, 1 - age / 0.16);
+      burst.quad.scaling.setAll(0.7 + Math.min(age, 0.16) * 7);
+      burst.quad.position.y = 0.12;
+      burst.light.intensity = 4 * Math.max(0, 1 - age / 0.16);
+      burst.light.setEnabled(age < 0.16);
+      burst.quad.setEnabled(age < 0.16);
+      if (burst.fog) {
+        var strength = Math.min(1, Math.max(0, (FOG_LIFETIME - age) / 7));
+        burst.fog.material.setFloat('strength', strength);
+        burst.fog.material.setFloat('drift', age * 0.16);
+        if (eye) burst.fog.material.setVector3('eye', eye);
+      }
+    }
+  }
   function render(st) {
     var api = core(),
       battle = st.battle;
-    if (!api || !api.on() || !st.ready) return;
+    if (!api || !api.on()) return;
+    renderFog(st);
+    if (!st.ready) return;
     var held = new Set(),
       live = new Set();
     root.BattleModules.unitsFor(battle).forEach(function (soldier) {
@@ -247,33 +364,8 @@
         st.live.delete(id);
       }
     });
-    for (var b = st.bursts.length - 1; b >= 0; b--) {
-      var burst = st.bursts[b],
-        age = battle.time - burst.at;
-      if (age >= 1.8) {
-        disposeBurst(burst);
-        st.bursts.splice(b, 1);
-        continue;
-      }
-      burst.flash.alpha = Math.max(0, 1 - age / 0.16);
-      burst.quads[0].scaling.setAll(0.7 + age * 7);
-      burst.quads[0].position.y = 0.12;
-      burst.light.intensity = 4 * Math.max(0, 1 - age / 0.16);
-      burst.light.setEnabled(age < 0.16);
-      burst.dust.alpha = 0.7 * Math.max(0, 1 - age / 1.8);
-      for (var j = 1; j < burst.quads.length; j++) {
-        var puff = burst.quads[j],
-          angle = j * 2.39996,
-          radius = age * (0.8 + (j % 3) * 0.28);
-        puff.position.set(
-          Math.sin(angle) * radius,
-          0.2 + age * (0.45 + (j % 4) * 0.17),
-          Math.cos(angle) * radius
-        );
-        puff.scaling.setAll(0.3 + age * (0.9 + (j % 3) * 0.2));
-      }
-    }
   }
+
   function start(battle) {
     var st = state(battle);
     clear(st);
@@ -291,6 +383,12 @@
       return ON;
     },
     files: FILES,
+    FOG_RADIUS: FOG_RADIUS,
+    FOG_HALF_HEIGHT: FOG_HALF_HEIGHT,
+    FOG_LIFETIME: FOG_LIFETIME,
+    fogEnabled: function () {
+      return FOG_ON;
+    },
     status: function (battle) {
       var st = battle && STATES.get(battle.scene);
       return st
@@ -299,9 +397,12 @@
             error: st.error,
             held: st.held.size,
             live: st.live.size,
-            bursts: st.bursts.length
+            bursts: st.bursts.length,
+            fogVolumes: st.bursts.filter(function (burst) {
+              return !!burst.fog;
+            }).length
           }
-        : { ready: false, error: null, held: 0, live: 0, bursts: 0 };
+        : { ready: false, error: null, held: 0, live: 0, bursts: 0, fogVolumes: 0 };
     }
   };
   if (ON)

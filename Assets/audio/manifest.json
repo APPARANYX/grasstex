@@ -27,20 +27,25 @@
       ]
     },
     "grenades": {
-      "pin": [
-        "grenades/pin-01.mp3"
-      ],
-      "throw": [
-        "grenades/throw-01.mp3"
-      ],
-      "bounce": [
-        "grenades/bounce-01.mp3",
-        "grenades/bounce-02.mp3"
-      ],
       "explosion": [
         "grenades/explosion-01.mp3",
         "grenades/explosion-02.mp3",
         "grenades/explosion-03.mp3"
+      ],
+      "pin": [
+        "grenades/pin-01.mp3",
+        "grenades/pin-02.mp3",
+        "grenades/pin-03.mp3"
+      ],
+      "spoon": [
+        "grenades/spoon-01.mp3",
+        "grenades/spoon-02.mp3",
+        "grenades/spoon-03.mp3"
+      ],
+      "igniter": [
+        "grenades/igniter-01.mp3",
+        "grenades/igniter-02.mp3",
+        "grenades/igniter-03.mp3"
       ]
     },
     "vehicles": {

@@ -91,6 +91,11 @@ into `manifest.json` categories `flyby`, `ricochet`, `impacts`, `flesh` and `pai
 `.github/workflows/combat-sfx-generate.yml`, started by hand only, generates the missing ones on a branch (never main; repo secret `ELEVEN_LABS_API`;
 `scripts/generate_combat_sfx.py`), masters them (`combat/*` targets: -22 dBFS, pain -18), pushes them to grasstex-audio and commits the lock; a rerun generates only
 what is missing. `battle/modules/15-combat-audio.js` plays them (see its harness row): one sound per instance, capped per group.
+The same manifest's group `grenades` (12 clips under `Assets/audio/grenades/`, manifest.json category `grenades`) is the
+grenade audio: `pin` (US Mk 2 pin pulled), `igniter` (German M24 cap unscrewed and cord pulled), `spoon` (the Mk 2's lever
+flying off on release), all foley at -26 dBFS, and `explosion` (-14 dBFS, one for both kinds). `battle/modules/24a-grenade-audio.js`
+plays them (`?grenadeAudio=0` off; see its harness row): arming when the throw is committed, the spoon at release, the
+burst where it lands; foley carries 30 m, the burst 800 m.
 
 **Audio tracker: CI and the deploy skip audio work when no audio changed.** `scripts/audio_tracker.py` lists the audio inputs
 (`Assets/audio/`, the audio scripts and recipes, `ci.yml`, the production deploy). CI's audio job asks it first (`diff` against the
