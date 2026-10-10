@@ -58,7 +58,9 @@
         acoustics.prepare(
           s,
           function () {
-            return typeof mesh.getAbsolutePosition === 'function' ? mesh.getAbsolutePosition() : mesh.position;
+            return typeof mesh.getAbsolutePosition === 'function'
+              ? mesh.getAbsolutePosition()
+              : mesh.position;
           },
           'voice',
           0.24,
