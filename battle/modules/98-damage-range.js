@@ -110,6 +110,48 @@
     };
   }
 
+  /* Immutable display templates; the range setup owns all stateful listeners and cameras. */
+  function rangePanelCss() {
+    return (
+      '#damageRangePanel{position:fixed;left:12px;bottom:12px;z-index:2147483000;box-sizing:border-box;width:min(560px,calc(100vw - 24px));' +
+      'font:13px/1.25 system-ui,-apple-system,sans-serif;background:rgba(18,18,18,.88);color:#fff;padding:10px 12px;' +
+      'border:1px solid rgba(255,255,255,.2);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.35)}' +
+      '#damageRangePanel .rangeHeader{display:flex;gap:8px;align-items:center;min-width:0}' +
+      '#damageRangePanel .rangeHeader h2{font-size:14px;margin:0;letter-spacing:.03em;white-space:nowrap}' +
+      '#rangeReadout{opacity:.82;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}' +
+      '#rangeCollapse{margin-left:auto;padding:3px 8px!important;line-height:1.1}' +
+      '#damageRangePanel .rangeRow{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:7px}' +
+      '#damageRangePanel button,#damageRangePanel select{font:inherit;padding:6px 9px}' +
+      '#damageRangePanel button.rangeFire{font-weight:700;padding-left:18px;padding-right:18px}' +
+      '#damageRangePanel label{display:flex;gap:4px;align-items:center}#damageRangePanel small{opacity:.72}' +
+      '#damageRangePanel.rangeCollapsed{width:min(430px,calc(100vw - 24px));padding:8px 10px}' +
+      '#damageRangePanel.rangeCollapsed #rangeControls{display:none}' +
+      '#rangeReticle{display:none;position:fixed;left:50%;top:50%;width:24px;height:24px;transform:translate(-50%,-50%);z-index:2147482998;pointer-events:none}' +
+      '#rangeReticle:before,#rangeReticle:after{content:"";position:absolute;background:rgba(255,255,255,.92);box-shadow:0 0 2px rgba(0,0,0,.9)}' +
+      '#rangeReticle:before{left:11px;top:2px;width:2px;height:20px}#rangeReticle:after{left:2px;top:11px;width:20px;height:2px}' +
+      '#rangeReticle i{position:absolute;left:9px;top:9px;width:6px;height:6px;border:1px solid rgba(255,255,255,.95);border-radius:50%;box-sizing:border-box}' +
+      '@media (max-width:900px) and (orientation:landscape){#damageRangePanel{left:10px;bottom:10px;width:min(400px,calc(100vw - 20px));font-size:12px;padding:8px 9px}' +
+      '#damageRangePanel.rangeCollapsed{width:min(360px,calc(100vw - 20px))}#damageRangePanel button,#damageRangePanel select{padding:5px 7px}}'
+    );
+  }
+
+  function rangePanelMarkup() {
+    return (
+      '<div class="rangeHeader"><h2>DAMAGE RANGE</h2><span id="rangeReadout"></span><button id="rangeCollapse" type="button" aria-label="Toggle range controls">▾</button></div>' +
+      '<div id="rangeControls">' +
+      '<div class="rangeRow"><button id="rangePrev">◀</button><select id="rangeTarget"></select><button id="rangeNext">▶</button>' +
+      '<select id="rangeZone"><option>head</option><option>chest</option><option>abdomen</option><option>arm</option><option>leg</option></select>' +
+      '<label><input id="rangeExit" type="checkbox"> exit</label><label><input id="rangeOrbit" type="checkbox"> orbit</label>' +
+      '<label><input id="rangeAuto" type="checkbox"> auto</label><label><input id="rangeFps" type="checkbox"> FPS aim</label></div>' +
+      '<div class="rangeRow"><button class="rangeFire" id="rangeFire">FIRE</button><button id="rangeBurst">3-shot</button>' +
+      '<button id="rangeKill">Kill</button><button id="rangeClear">Clear blood</button><button id="rangeReset">Reset range</button></div>' +
+      '<div class="rangeRow"><small>Keyboard: Space fire · ←/→ target · 1–5 zone · F FPS aim · E exit · O orbit · A auto · C clear</small></div>' +
+      '<div class="rangeRow"><small>FPS aim: drag/mouse to aim · centered reticle · shots follow the reticle</small></div>' +
+      '<div class="rangeRow"><small>Xbox: A/RT fire in FPS · X 3-shot · D-pad target/zone · Menu FPS · Y auto · B clear · LB exit · RB orbit · RS aim/orbit · LT ADS · R3 kill · View UI</small></div>' +
+      '</div>'
+    );
+  }
+
   function setup(sim) {
     var scene = sim.scene,
       canvas = scene.getEngine().getRenderingCanvas(),
@@ -636,26 +678,7 @@
 
     function makePanel() {
       var style = document.createElement('style');
-      style.textContent =
-        '#damageRangePanel{position:fixed;left:12px;bottom:12px;z-index:2147483000;box-sizing:border-box;width:min(560px,calc(100vw - 24px));' +
-        'font:13px/1.25 system-ui,-apple-system,sans-serif;background:rgba(18,18,18,.88);color:#fff;padding:10px 12px;' +
-        'border:1px solid rgba(255,255,255,.2);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.35)}' +
-        '#damageRangePanel .rangeHeader{display:flex;gap:8px;align-items:center;min-width:0}' +
-        '#damageRangePanel .rangeHeader h2{font-size:14px;margin:0;letter-spacing:.03em;white-space:nowrap}' +
-        '#rangeReadout{opacity:.82;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}' +
-        '#rangeCollapse{margin-left:auto;padding:3px 8px!important;line-height:1.1}' +
-        '#damageRangePanel .rangeRow{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:7px}' +
-        '#damageRangePanel button,#damageRangePanel select{font:inherit;padding:6px 9px}' +
-        '#damageRangePanel button.rangeFire{font-weight:700;padding-left:18px;padding-right:18px}' +
-        '#damageRangePanel label{display:flex;gap:4px;align-items:center}#damageRangePanel small{opacity:.72}' +
-        '#damageRangePanel.rangeCollapsed{width:min(430px,calc(100vw - 24px));padding:8px 10px}' +
-        '#damageRangePanel.rangeCollapsed #rangeControls{display:none}' +
-        '#rangeReticle{display:none;position:fixed;left:50%;top:50%;width:24px;height:24px;transform:translate(-50%,-50%);z-index:2147482998;pointer-events:none}' +
-        '#rangeReticle:before,#rangeReticle:after{content:"";position:absolute;background:rgba(255,255,255,.92);box-shadow:0 0 2px rgba(0,0,0,.9)}' +
-        '#rangeReticle:before{left:11px;top:2px;width:2px;height:20px}#rangeReticle:after{left:2px;top:11px;width:20px;height:2px}' +
-        '#rangeReticle i{position:absolute;left:9px;top:9px;width:6px;height:6px;border:1px solid rgba(255,255,255,.95);border-radius:50%;box-sizing:border-box}' +
-        '@media (max-width:900px) and (orientation:landscape){#damageRangePanel{left:10px;bottom:10px;width:min(400px,calc(100vw - 20px));font-size:12px;padding:8px 9px}' +
-        '#damageRangePanel.rangeCollapsed{width:min(360px,calc(100vw - 20px))}#damageRangePanel button,#damageRangePanel select{padding:5px 7px}}';
+      style.textContent = rangePanelCss();
       document.head.appendChild(style);
       var ret = document.createElement('div');
       ret.id = 'rangeReticle';
@@ -664,19 +687,7 @@
       document.body.appendChild(ret);
       var p = document.createElement('div');
       p.id = 'damageRangePanel';
-      p.innerHTML =
-        '<div class="rangeHeader"><h2>DAMAGE RANGE</h2><span id="rangeReadout"></span><button id="rangeCollapse" type="button" aria-label="Toggle range controls">▾</button></div>' +
-        '<div id="rangeControls">' +
-        '<div class="rangeRow"><button id="rangePrev">◀</button><select id="rangeTarget"></select><button id="rangeNext">▶</button>' +
-        '<select id="rangeZone"><option>head</option><option>chest</option><option>abdomen</option><option>arm</option><option>leg</option></select>' +
-        '<label><input id="rangeExit" type="checkbox"> exit</label><label><input id="rangeOrbit" type="checkbox"> orbit</label>' +
-        '<label><input id="rangeAuto" type="checkbox"> auto</label><label><input id="rangeFps" type="checkbox"> FPS aim</label></div>' +
-        '<div class="rangeRow"><button class="rangeFire" id="rangeFire">FIRE</button><button id="rangeBurst">3-shot</button>' +
-        '<button id="rangeKill">Kill</button><button id="rangeClear">Clear blood</button><button id="rangeReset">Reset range</button></div>' +
-        '<div class="rangeRow"><small>Keyboard: Space fire · ←/→ target · 1–5 zone · F FPS aim · E exit · O orbit · A auto · C clear</small></div>' +
-        '<div class="rangeRow"><small>FPS aim: drag/mouse to aim · centered reticle · shots follow the reticle</small></div>' +
-        '<div class="rangeRow"><small>Xbox: A/RT fire in FPS · X 3-shot · D-pad target/zone · Menu FPS · Y auto · B clear · LB exit · RB orbit · RS aim/orbit · LT ADS · R3 kill · View UI</small></div>' +
-        '</div>';
+      p.innerHTML = rangePanelMarkup();
       document.body.appendChild(p);
       api.panel = p;
       var ts = p.querySelector('#rangeTarget');
