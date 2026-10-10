@@ -58,8 +58,8 @@ assert.equal(a.gain('combat', 0.10).toFixed(3), '0.130', 'combat is less boosted
 assert.equal(a.gain('foley', 0.10).toFixed(3), '0.125', 'handling remains below reports');
 assert.equal(a.gain('weapon', 5), 1, 'no individual emitter exceeds unity');
 a.set('master', 50);
-assert.equal(a.gain('weapon', 0.1), 0.09, 'master affects weapons');
-assert.equal(a.gain('voice', 0.2), 0.165, 'master affects voices');
+assert.ok(Math.abs(a.gain('weapon', 0.1) - 0.09) < 1e-10, 'master affects weapons');
+assert.ok(Math.abs(a.gain('voice', 0.2) - 0.165) < 1e-10, 'master affects voices');
 a.set('weapons', 0);
 assert.equal(a.gain('weapon', 0.2), 0, 'weapons mute independently');
 assert.ok(JSON.parse(w.saved['grasstex.audioMix.v1']).weapons === 0, 'settings persist');
