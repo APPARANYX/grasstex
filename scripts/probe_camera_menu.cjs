@@ -333,6 +333,17 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       window.dispatchEvent(event);
     });
     await page.waitForTimeout(350);
+    // CI WebGL can skip render iterations; drive the shipping frame callback
+    // at every edge rather than relying on a 200 ms browser render window.
+    const tickDesktopFrame = async () => {
+      await page.evaluate(() => {
+        const frames = __battle__.scene.onBeforeRenderObservable.observers
+          .filter(o => o.callback?.name === 'stepDesktopFrame' && o._willBeUnregistered !== true);
+        if (frames.length !== 1) throw new Error('expected one desktop frame: ' + frames.length);
+        frames[0].callback();
+      });
+    };
+    await tickDesktopFrame();
     const pressMenu = async (pressed) => {
       await page.evaluate(down => {
         const button = __qaGamepad.buttons[9];
@@ -342,8 +353,10 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     };
     // Tap enters player mode; it must not accidentally open settings.
     await pressMenu(true);
+    await tickDesktopFrame();
     await page.waitForTimeout(240);
     await pressMenu(false);
+    await tickDesktopFrame();
     await page.waitForFunction(() => (__battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer) || null) != null,
       null, {timeout: 15000});
     assert.equal(await page.locator('#battlePlayerSettings').isVisible(), false,
@@ -351,12 +364,16 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     const firstGamepadPlayer = await page.evaluate(() => (__battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer) || null)?.id);
     // Hold opens once, before release, without firing a second tap on release.
     await pressMenu(true);
+    await tickDesktopFrame();
+    await page.waitForTimeout(800);
+    await tickDesktopFrame();
     await page.waitForFunction(() => {
       const p = document.getElementById('battlePlayerSettings');
       return p && getComputedStyle(p).display === 'flex';
     }, null, {timeout: 15000});
     const heldPlayer = await page.evaluate(() => (__battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer) || null)?.id);
     await pressMenu(false);
+    await tickDesktopFrame();
     await page.waitForTimeout(230);
     assert.equal(await page.locator('#battlePlayerSettings').isVisible(), true,
       'hold release must not also close menu as a tap');
@@ -364,8 +381,10 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       heldPlayer, 'hold release must not switch soldier');
     // A subsequent short press intentionally closes an open menu.
     await pressMenu(true);
+    await tickDesktopFrame();
     await page.waitForTimeout(230);
     await pressMenu(false);
+    await tickDesktopFrame();
     await page.waitForFunction(() => {
       const p = document.getElementById('battlePlayerSettings');
       return p && getComputedStyle(p).display === 'none';
