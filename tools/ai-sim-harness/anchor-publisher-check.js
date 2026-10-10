@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadSquadCommandStack } = require('./squad-command-stack');
 /* One publisher for the squad's anchor pair (`orderAnchor` and `rally`), and the writer-ping-pong that two
    publishers produced.
 
@@ -67,7 +68,7 @@ function world() {
     }
   };
   load(r, 'battle/movement-resolver.js');
-  load(r, 'battle/modules/15a-squad-leader-fire-control.js'); load(r, 'battle/modules/15b-squad-leader-buddy-pairs.js'); load(r, 'battle/modules/15c-squad-leader-scouts-forward.js'); load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/15g-squad-leader-formation.js');load(r,'battle/modules/15h-squad-leader-fireteams.js');load(r,'battle/modules/15i-squad-leader-clear-contact.js');load(r,'battle/modules/15j-squad-leader-fire-and-movement.js');load(r,'battle/modules/15k-squad-leader-reconstitution.js');load(r,'battle/modules/15l-squad-leader-mission-execution.js');load(r,'battle/modules/15m-squad-leader-cohesion-regroup.js');load(r,'battle/modules/16-squad-plan-stability.js');
+  loadSquadCommandStack(load, r);
   load(r, 'battle/modules/36-order-provenance.js');
   const b = H.makeBattle(r);
   const q = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 400 } });
