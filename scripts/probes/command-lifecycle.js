@@ -3,7 +3,31 @@
    Coordinates are diagnostic truth only; this probe never feeds them back into AI decisions. */
 (function (root) {
   'use strict';
-  var checkpoints = [0, 120, 180, 240, 300, 420],
+  /* The seven-variant synthetic fixture intentionally keeps its established checkpoints.
+     Real-battle probes may request denser post-recon windows by query string. */
+  var checkpointParam =
+      root.location && root.location.search
+        ? new URLSearchParams(root.location.search).get('probeLifecycleCheckpoints')
+        : null,
+    requested = checkpointParam
+      ? checkpointParam
+          .split(',')
+          .map(Number)
+          .filter(function (n) {
+            return isFinite(n) && n > 0 && n <= 1800;
+          })
+      : [],
+    checkpoints = requested.length
+      ? [0].concat(
+          requested
+            .filter(function (n, i) {
+              return requested.indexOf(n) === i;
+            })
+            .sort(function (a, b) {
+              return a - b;
+            })
+        )
+      : [0, 120, 180, 240, 300, 420],
     next,
     frames,
     positions,
