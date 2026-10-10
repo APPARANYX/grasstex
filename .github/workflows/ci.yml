@@ -120,6 +120,12 @@ jobs:
       # complied. A full one-shot reformat would break every in-flight branch, so instead every
       # JS file a pull request touches must be on-standard. Legacy files stay as they are and
       # converge as they get edited; nothing that was ever cleaned may regress.
+      - name: Diagnostic formatting diff for range input PR (temporary)
+        if: github.head_ref == 'work/audit456-range-input-actions'
+        run: |
+          npx --yes prettier@3.3.3 --write battle/modules/98-damage-range.js tools/ai-sim-harness/damage-range-input-check.js
+          git diff --no-ext-diff -- battle/modules/98-damage-range.js tools/ai-sim-harness/damage-range-input-check.js
+
       - name: Prettier ratchet
         run: |
           set -euo pipefail
