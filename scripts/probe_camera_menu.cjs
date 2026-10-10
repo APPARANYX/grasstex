@@ -264,6 +264,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       const framesBefore = beforeObservers.filter(o => o.callback?.name === 'stepDesktopFrame');
       const framesAfter = afterObservers.filter(o => o.callback?.name === 'stepDesktopFrame');
       const staleFrameRetained = framesBefore.some(o => afterObservers.includes(o));
+      window.__qaPreviousFrameObserver = framesBefore[0];
       const uiAfter = [
         'battlePlayerSettings','battlePlayerReticle','battlePlayerHud',
         'battlePlayerBoreDot','battlePlayerDamage','battlePlayerGrenadePreview',
@@ -281,10 +282,24 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       };
     });
     assert.equal(lifecycle.framesBefore, 1, 'initial scene should own one desktop frame observer');
-    assert.equal(lifecycle.framesAfter, 1,
-      'replacement should own one desktop frame observer: ' + JSON.stringify(lifecycle));
-    assert.equal(lifecycle.staleFrameRetained, false,
-      'old desktop frame observer still registered: ' + JSON.stringify(lifecycle));
+    assert.ok(lifecycle.removes.some(r => r.name === 'stepDesktopFrame' && r.result === true),
+      'Babylon did not accept removal of the prior controller observer: ' + JSON.stringify(lifecycle));
+    /* Babylon Observable.remove() returns true while marking an observer for
+       deferred unregistration; the old reference can remain in observers until
+       the next notification/render. Wait for actual removal, not immediate list length. */
+    await page.waitForFunction(() =>
+      !__battle__.scene.onBeforeRenderObservable.observers.includes(window.__qaPreviousFrameObserver),
+      null, {timeout: 10000}
+    );
+    const finalObserverState = await page.evaluate(() => {
+      const current = __battle__.scene.onBeforeRenderObservable.observers;
+      const frames = current.filter(o => o.callback?.name === 'stepDesktopFrame');
+      delete window.__qaPreviousFrameObserver;
+      return { frames: frames.length, total: current.length };
+    });
+    assert.equal(finalObserverState.frames, 1,
+      'old frame observer remained registered after a rendered frame: ' +
+      JSON.stringify({lifecycle, finalObserverState}));
     assert.equal(lifecycle.oldDisposed, true, 'previous desktop camera must be disposed');
     assert.equal(lifecycle.oldSettingsDetached, true, 'old menu must be removed');
     assert.deepEqual(lifecycle.uiAfter, [], 'transient old HUD/menu nodes survived recreation');
@@ -308,7 +323,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     }));
     fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({state, errors, notes: notes.slice(-20)}, null, 2));
     assert.equal(errors.length, 0, 'page errors: ' + errors.slice(0, 5).join(' | '));
-    console.log('PASS #456 R2 ownership, pointer lock (' + (realPointerLock ? 'real' : 'headless synthetic') + ') and same-page camera disposal ' + JSON.stringify({state,lifecycle}));
+    console.log('PASS #456 R2 ownership, pointer lock (' + (realPointerLock ? 'real' : 'headless synthetic') + ') and same-page camera disposal ' + JSON.stringify({state,lifecycle,finalObserverState}));
   } finally {
     await browser.close();
   }
