@@ -16,46 +16,76 @@ function fixture(query) {
     createDynamicsCompressor() {
       calls.push('compressor');
       return {
-        threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 },
-        attack: { value: 0 }, release: { value: 0 },
-        connect(to) { calls.push('compressor.connect'); this.to = to; },
-        disconnect() { calls.push('compressor.disconnect'); }
+        threshold: { value: 0 },
+        knee: { value: 0 },
+        ratio: { value: 0 },
+        attack: { value: 0 },
+        release: { value: 0 },
+        connect(to) {
+          calls.push('compressor.connect');
+          this.to = to;
+        },
+        disconnect() {
+          calls.push('compressor.disconnect');
+        }
       };
     }
   };
   const master = {};
   const track = {
-    disconnect(to) { assert.equal(to, master); calls.push('track.disconnect'); },
-    connect(to) { calls.push('track.connect'); this.to = to; }
+    disconnect(to) {
+      assert.equal(to, master);
+      calls.push('track.disconnect');
+    },
+    connect(to) {
+      calls.push('track.connect');
+      this.to = to;
+    }
   };
   const scene = { mainSoundTrack: { _outputAudioNode: null } };
   const win = {
     BABYLON: { Engine: { audioEngine: { audioContext: ctx, masterGain: master } } },
     location: { search: query || '' },
     localStorage: {
-      getItem(key) { return saved[key] || null; },
-      setItem(key, v) { saved[key] = v; }
+      getItem(key) {
+        return saved[key] || null;
+      },
+      setItem(key, v) {
+        saved[key] = v;
+      }
     },
-    setTimeout(fn) { timers.push(fn); },
+    setTimeout(fn) {
+      timers.push(fn);
+    },
     window: null
   };
   win.window = win;
   vm.createContext(win);
   vm.runInContext(code, win);
   return {
-    api: win.BattleAudioMix, calls, scene, track, ctx, master, saved,
-    supply() { scene.mainSoundTrack._outputAudioNode = track; },
+    api: win.BattleAudioMix,
+    calls,
+    scene,
+    track,
+    ctx,
+    master,
+    saved,
+    supply() {
+      scene.mainSoundTrack._outputAudioNode = track;
+    },
     timers,
-    flush() { while (timers.length) timers.shift()(); }
+    flush() {
+      while (timers.length) timers.shift()();
+    }
   };
 }
 const w = fixture();
 const a = w.api;
 assert.equal(a.get().master, 100, '100% is the louder default mix');
-assert.equal(a.gain('weapon', 0.10).toFixed(3), '0.180', 'near shots gain +5.1 dB');
-assert.equal(a.gain('voice', 0.10).toFixed(3), '0.165', 'voice presence rises');
-assert.equal(a.gain('combat', 0.10).toFixed(3), '0.130', 'combat is less boosted');
-assert.equal(a.gain('foley', 0.10).toFixed(3), '0.125', 'handling remains below reports');
+assert.equal(a.gain('weapon', 0.1).toFixed(3), '0.180', 'near shots gain +5.1 dB');
+assert.equal(a.gain('voice', 0.1).toFixed(3), '0.165', 'voice presence rises');
+assert.equal(a.gain('combat', 0.1).toFixed(3), '0.130', 'combat is less boosted');
+assert.equal(a.gain('foley', 0.1).toFixed(3), '0.125', 'handling remains below reports');
 assert.equal(a.gain('weapon', 5), 1, 'no individual emitter exceeds unity');
 a.set('master', 50);
 assert.ok(Math.abs(a.gain('weapon', 0.1) - 0.09) < 1e-10, 'master affects weapons');
