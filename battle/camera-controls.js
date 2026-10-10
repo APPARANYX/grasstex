@@ -293,6 +293,7 @@
       menuSquads = [],
       menuSoldiers = [],
       menuFocus = 0,
+      menuTab = 0,
       menuHoldState = { down: false, since: 0, long: false },
       playerHapticsEnabled = true;
     function guarded() {
@@ -846,10 +847,50 @@
       if (i >= 0) settingsMenu.querySelector('#bpmSquad').value = String(i);
       fillMenuSoldiers(soldier);
     }
+    function menuFields() {
+      return settingsMenu.querySelectorAll((menuTab === 0 ? '#bpmPlayerPane' : '#bpmAudioPane') + ' .bpm-field');
+    }
     function syncMenuFocus() {
       if (!settingsMenu) return;
       var rows = settingsMenu.querySelectorAll('.bpm-field');
-      for (var i = 0; i < rows.length; i++) rows[i].classList.toggle('active', menuFocus === i);
+      for (var i = 0; i < rows.length; i++) rows[i].classList.remove('active');
+      var active = menuFields();
+      for (var j = 0; j < active.length; j++) active[j].classList.toggle('active', menuFocus === j);
+    }
+    function showMenuTab(index) {
+      if (!settingsMenu) return;
+      menuTab = (index + 2) % 2;
+      var playerPane = settingsMenu.querySelector('#bpmPlayerPane');
+      var audioPane = settingsMenu.querySelector('#bpmAudioPane');
+      playerPane.style.display = menuTab === 0 ? 'block' : 'none';
+      audioPane.style.display = menuTab === 1 ? 'block' : 'none';
+      settingsMenu.querySelector('#bpmTabPlayer').classList.toggle('active', menuTab === 0);
+      settingsMenu.querySelector('#bpmTabAudio').classList.toggle('active', menuTab === 1);
+      settingsMenu.querySelector('#bpmTabPlayer').setAttribute('aria-selected', String(menuTab === 0));
+      settingsMenu.querySelector('#bpmTabAudio').setAttribute('aria-selected', String(menuTab === 1));
+      settingsMenu.querySelector('#bpmApply').style.display = menuTab === 0 ? '' : 'none';
+      settingsMenu.querySelector('#bpmHelpPlayer').style.display = menuTab === 0 ? '' : 'none';
+      settingsMenu.querySelector('#bpmHelpAudio').style.display = menuTab === 1 ? '' : 'none';
+      menuFocus = 0;
+      syncMenuFocus();
+      var field = menuFields()[0];
+      var focus = field && field.querySelector('select, input');
+      if (focus && menuOpen) focus.focus();
+    }
+    function syncMenuAudio() {
+      if (!settingsMenu) return;
+      var mix = global.BattleAudioMix;
+      var current = mix ? mix.get() : { master: 100, weapons: 100, voices: 100, effects: 100 };
+      ['master', 'weapons', 'voices', 'effects'].forEach(function (key) {
+        var name = key[0].toUpperCase() + key.slice(1);
+        settingsMenu.querySelector('#bpm' + name).value = current[key];
+        settingsMenu.querySelector('#bpm' + name + 'Value').textContent = current[key] + '%';
+      });
+    }
+    function changeMenuAudio(key, value) {
+      var mix = global.BattleAudioMix;
+      if (mix) mix.set(key, value);
+      syncMenuAudio();
     }
     function closePlayerMenu() {
       if (!menuOpen) return;
@@ -901,6 +942,12 @@
         '#battlePlayerSettings .bpm-field.active{border-color:#c8c78c;background:#344740}' +
         '#battlePlayerSettings select{box-sizing:border-box;display:block;width:100%;padding:9px;' +
         'margin-top:6px;background:#263a3c;border:1px solid #7a918a;border-radius:4px;color:white}' +
+        '#battlePlayerSettings .bpm-tabs{display:flex;gap:8px;margin:8px 0 12px}' +
+        '#battlePlayerSettings .bpm-tabs button{flex:1;background:#203638;border-color:#67786c}' +
+        '#battlePlayerSettings .bpm-tabs button.active{background:#668049;border-color:#c8c78c}' +
+        '#battlePlayerSettings .bpm-value{float:right;color:#cfdbb8;font-variant-numeric:tabular-nums}' +
+        '#battlePlayerSettings input[type=range]{display:block;width:100%;margin:11px 0 5px;' +
+        'accent-color:#bdd98b;cursor:pointer}' +
         '#battlePlayerSettings .bpm-field.check{display:flex;gap:10px;align-items:center}' +
         '#battlePlayerSettings .bpm-buttons{display:flex;gap:10px;margin-top:12px}' +
         '#battlePlayerSettings button{flex:1;padding:10px;border-radius:4px;cursor:pointer;' +
@@ -911,17 +958,34 @@
       settingsMenu = document.createElement('div');
       settingsMenu.id = 'battlePlayerSettings';
       settingsMenu.innerHTML =
-        '<section role="dialog" aria-modal="true" aria-label="Player settings">' +
-        '<h2>PLAYER SETTINGS</h2><p>Choose the faction, unit and soldier to control.</p>' +
+        '<section role="dialog" aria-modal="true" aria-label="Battle settings">' +
+        '<h2>BATTLE SETTINGS</h2>' +
+        '<nav class="bpm-tabs" aria-label="Settings pages">' +
+        '<button class="bpm-tab active" id="bpmTabPlayer" type="button" aria-selected="true">LB ◀ PLAYER</button>' +
+        '<button class="bpm-tab" id="bpmTabAudio" type="button" aria-selected="false">AUDIO ▶ RB</button></nav>' +
+        '<div id="bpmPlayerPane" class="bpm-pane">' +
+        '<p>Choose the faction, unit and soldier to control.</p>' +
         '<label class="bpm-field">FACTION<select id="bpmFaction">' +
         '<option value="us">United States</option><option value="ge">Germany</option></select></label>' +
         '<label class="bpm-field">UNIT / SQUAD<select id="bpmSquad"></select></label>' +
         '<label class="bpm-field">SOLDIER<select id="bpmSoldier"></select></label>' +
-        '<label class="bpm-field check"><input type="checkbox" id="bpmHaptics" checked> HAPTIC FEEDBACK</label>' +
+        '<label class="bpm-field check"><input type="checkbox" id="bpmHaptics" checked> HAPTIC FEEDBACK</label></div>' +
+        '<div id="bpmAudioPane" class="bpm-pane" style="display:none">' +
+        '<p>Mix volume. 100% uses the louder battlefield preset. Saved on this device.</p>' +
+        '<label class="bpm-field">MASTER <span class="bpm-value" id="bpmMasterValue">100%</span>' +
+        '<input type="range" id="bpmMaster" min="0" max="150" step="5" value="100"></label>' +
+        '<label class="bpm-field">GUNFIRE <span class="bpm-value" id="bpmWeaponsValue">100%</span>' +
+        '<input type="range" id="bpmWeapons" min="0" max="150" step="5" value="100"></label>' +
+        '<label class="bpm-field">SQUAD VOICES <span class="bpm-value" id="bpmVoicesValue">100%</span>' +
+        '<input type="range" id="bpmVoices" min="0" max="150" step="5" value="100"></label>' +
+        '<label class="bpm-field">EFFECTS / FOLEY <span class="bpm-value" id="bpmEffectsValue">100%</span>' +
+        '<input type="range" id="bpmEffects" min="0" max="150" step="5" value="100"></label>' +
+        '<button id="bpmResetAudio" type="button">RESET AUDIO MIX</button></div>' +
         '<div class="bpm-buttons"><button class="primary" id="bpmApply" type="button">DEPLOY</button>' +
         '<button id="bpmClose" type="button">BACK</button></div>' +
-        '<p>D-pad ↑↓ field · ←→ choice · A deploy / toggle haptics · B back · tap Menu close.' +
-        ' Mouse and touch supported. Click battlefield to resume mouse look.</p></section>';
+        '<p id="bpmHelpPlayer">LB/RB page · D-pad ↑↓ field · ←→ choice · A deploy/toggle · B back · tap Menu close.</p>' +
+        '<p id="bpmHelpAudio" style="display:none">LB/RB page · D-pad ↑↓ slider · ←→ ±5% · A resets selected slider · B back.' +
+        ' Mouse and touch supported. This changes the local playback mix only.</p></section>';
       document.body.appendChild(settingsMenu);
       settingsMenu.querySelector('#bpmFaction').addEventListener('change', function () {
         fillMenuSquads(null, null);
@@ -932,16 +996,36 @@
       settingsMenu.querySelector('#bpmHaptics').addEventListener('change', function (e) {
         playerHapticsEnabled = e.target.checked;
       });
+      settingsMenu.querySelector('#bpmTabPlayer').addEventListener('click', function () {
+        showMenuTab(0);
+      });
+      settingsMenu.querySelector('#bpmTabAudio').addEventListener('click', function () {
+        showMenuTab(1);
+      });
+      ['master', 'weapons', 'voices', 'effects'].forEach(function (key) {
+        var name = key[0].toUpperCase() + key.slice(1);
+        settingsMenu.querySelector('#bpm' + name).addEventListener('input', function (event) {
+          changeMenuAudio(key, event.target.value);
+        });
+      });
+      settingsMenu.querySelector('#bpmResetAudio').addEventListener('click', function () {
+        if (global.BattleAudioMix) global.BattleAudioMix.reset();
+        syncMenuAudio();
+      });
       settingsMenu.querySelector('#bpmApply').addEventListener('click', possessSelected);
       settingsMenu.querySelector('#bpmClose').addEventListener('click', closePlayerMenu);
-      var rows = settingsMenu.querySelectorAll('.bpm-field');
-      for (var i = 0; i < rows.length; i++)
-        (function (n) {
-          rows[n].addEventListener('pointerdown', function () {
-            menuFocus = n;
-            syncMenuFocus();
-          });
-        })(i);
+      for (var tab = 0; tab < 2; tab++)
+        (function (index) {
+          var rows = settingsMenu.querySelectorAll((index === 0 ? '#bpmPlayerPane' : '#bpmAudioPane') + ' .bpm-field');
+          for (var i = 0; i < rows.length; i++)
+            (function (n) {
+              rows[n].addEventListener('pointerdown', function () {
+                menuTab = index;
+                menuFocus = n;
+                syncMenuFocus();
+              });
+            })(i);
+        })(tab);
     }
     function openPlayerMenu() {
       ensurePlayerMenu();
@@ -950,8 +1034,8 @@
       settingsMenu.querySelector('#bpmFaction').value = player ? player.faction : playerFaction;
       settingsMenu.querySelector('#bpmHaptics').checked = playerHapticsEnabled;
       fillMenuSquads(player && player.squad, player);
-      menuFocus = 0;
-      syncMenuFocus();
+      syncMenuAudio();
+      showMenuTab(0);
       menuOpen = true;
       settingsMenu.style.display = 'flex';
       settingsMenu.querySelector('#bpmFaction').focus();
@@ -981,22 +1065,32 @@
         closePlayerMenu();
         return;
       }
-      if (padPressedOnce(pad, 12)) menuFocus = (menuFocus + 3) % 4;
-      if (padPressedOnce(pad, 13)) menuFocus = (menuFocus + 1) % 4;
+      if (padPressedOnce(pad, 4)) showMenuTab(menuTab - 1);
+      if (padPressedOnce(pad, 5)) showMenuTab(menuTab + 1);
+      var rows = menuFields();
+      if (padPressedOnce(pad, 12)) menuFocus = (menuFocus + rows.length - 1) % rows.length;
+      if (padPressedOnce(pad, 13)) menuFocus = (menuFocus + 1) % rows.length;
       var delta = (padPressedOnce(pad, 15) ? 1 : 0) - (padPressedOnce(pad, 14) ? 1 : 0);
-      var fields = ['#bpmFaction', '#bpmSquad', '#bpmSoldier'];
-      if (delta && menuFocus < 3) cycleMenuValue(settingsMenu.querySelector(fields[menuFocus]), delta);
-      if (delta && menuFocus === 3) {
-        var h = settingsMenu.querySelector('#bpmHaptics');
-        h.checked = !h.checked;
-        playerHapticsEnabled = h.checked;
-      }
-      if (padPressedOnce(pad, 0)) {
-        if (menuFocus === 3) {
-          var box = settingsMenu.querySelector('#bpmHaptics');
-          box.checked = !box.checked;
-          playerHapticsEnabled = box.checked;
-        } else possessSelected();
+      if (menuTab === 1) {
+        var keys = ['master', 'weapons', 'voices', 'effects'];
+        var key = keys[menuFocus];
+        if (delta) changeMenuAudio(key, Number(settingsMenu.querySelector('#bpm' + key[0].toUpperCase() + key.slice(1)).value) + delta * 5);
+        if (padPressedOnce(pad, 0)) changeMenuAudio(key, 100);
+      } else {
+        var fields = ['#bpmFaction', '#bpmSquad', '#bpmSoldier'];
+        if (delta && menuFocus < 3) cycleMenuValue(settingsMenu.querySelector(fields[menuFocus]), delta);
+        if (delta && menuFocus === 3) {
+          var h = settingsMenu.querySelector('#bpmHaptics');
+          h.checked = !h.checked;
+          playerHapticsEnabled = h.checked;
+        }
+        if (padPressedOnce(pad, 0)) {
+          if (menuFocus === 3) {
+            var box = settingsMenu.querySelector('#bpmHaptics');
+            box.checked = !box.checked;
+            playerHapticsEnabled = box.checked;
+          } else possessSelected();
+        }
       }
       syncMenuFocus();
     }
@@ -1324,8 +1418,11 @@
           return;
         }
         if (menuOpen) {
-          /* Keyboard users can operate the native dropdowns and buttons. No possession,
-             stance, movement or fire shortcuts leak through the settings modal. */
+          if ((key === 'q' || key === 'e') && !editableTarget(event.target)) {
+            showMenuTab(menuTab + (key === 'e' ? 1 : -1));
+            event.preventDefault();
+          }
+          /* Other keys remain in native fields. No movement or fire leaks into the modal. */
           return;
         }
         if (editableTarget(event.target)) return;
