@@ -330,6 +330,9 @@
         var dx = c.x - position.x,
           dz = c.z - position.z,
           d = Math.sqrt(dx * dx + dz * dz);
+        // Quality-off means the original dry presentation, including its legacy near/far switch.
+        if (root.BattleListenerAcoustics && root.BattleListenerAcoustics.quality === 'off')
+          return playOne(d >= DISTANT_FROM ? key + ':far' : key, position, gain, rate);
         if (d <= 70) return playOne(key, position, gain, rate);
         if (d >= 145) return playOne(key + ':far', position, gain, rate);
         /* Equal-power crossfade: only sources near the transition pay for both recordings. */ var t =
