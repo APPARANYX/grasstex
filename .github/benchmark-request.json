@@ -1,0 +1,8 @@
+{
+  "benchmark": "causal",
+  "ref": "main",
+  "exact_seed": "hill-0002",
+  "seeds": "1",
+  "seconds": "900",
+  "side": "all"
+}
