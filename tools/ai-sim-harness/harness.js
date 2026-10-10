@@ -12,6 +12,7 @@
    Everything else - perception, engagement states, stances, fire gating, squad orders - is the
    shipping code. */
 'use strict';
+const { loadSquadCommandStack } = require('./squad-command-stack');
 const fs = require('fs');
 const path = require('path');
 const REPO = path.resolve(__dirname, '..', '..');
@@ -167,20 +168,7 @@ function bootstrap(opts) {
     /* Soldier stats (module 10) are opt-in here: {stats:true}. Absent, every reader gets 1 and the checks keep testing the flat constants. */
     if (opts.stats) load(root, 'battle/modules/10-soldier-stats.js');
     /* One squad-command owner replaces the old stability/plan/command-lock/regroup stack. */
-    load(root, 'battle/modules/15a-squad-leader-fire-control.js');
-    load(root, 'battle/modules/15b-squad-leader-buddy-pairs.js');
-    load(root, 'battle/modules/15c-squad-leader-scouts-forward.js');
-    load(root, 'battle/modules/15d-squad-leader-leaderless-intent.js');
-    load(root, 'battle/modules/15e-squad-leader-morale-coa.js');
-    load(root, 'battle/modules/15f-squad-leader-retreat-anchor.js');
-    load(root, 'battle/modules/15g-squad-leader-formation.js');
-    load(root, 'battle/modules/15h-squad-leader-fireteams.js');
-    load(root, 'battle/modules/15i-squad-leader-clear-contact.js');
-    load(root, 'battle/modules/15j-squad-leader-fire-and-movement.js');
-    load(root, 'battle/modules/15k-squad-leader-reconstitution.js');
-    load(root, 'battle/modules/15l-squad-leader-mission-execution.js');
-    load(root, 'battle/modules/15m-squad-leader-cohesion-regroup.js');
-    load(root, 'battle/modules/16-squad-plan-stability.js');
+    loadSquadCommandStack(load, root);
     /* The wound model owns what a hit does (hit zone, incapacitation, bleeding). */
     load(root, 'battle/modules/14-wound-model.js');
     /* Grenade scatter uses the shipping scenario RNG stream; the weapon is inert under ?grenades=0. */

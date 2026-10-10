@@ -8,6 +8,7 @@
      node tools/ai-sim-harness/objective-nav-check.js
 */
 'use strict';
+const { loadSquadCommandStack } = require('./squad-command-stack');
 const fs = require('fs'),
   path = require('path');
 const REPO = path.resolve(__dirname, '..', '..');
@@ -450,20 +451,7 @@ function commandTick(r, sim, town) {
 section('an assigned objective mission survives approach-route and lease boundaries');
 {
   const { r, sq, sim, town } = commandFixture();
-  load(r, 'battle/modules/15a-squad-leader-fire-control.js');
-  load(r, 'battle/modules/15b-squad-leader-buddy-pairs.js');
-  load(r, 'battle/modules/15c-squad-leader-scouts-forward.js');
-  load(r, 'battle/modules/15d-squad-leader-leaderless-intent.js');
-  load(r, 'battle/modules/15e-squad-leader-morale-coa.js');
-  load(r, 'battle/modules/15f-squad-leader-retreat-anchor.js');
-  load(r, 'battle/modules/15g-squad-leader-formation.js');
-  load(r, 'battle/modules/15h-squad-leader-fireteams.js');
-  load(r, 'battle/modules/15i-squad-leader-clear-contact.js');
-  load(r, 'battle/modules/15j-squad-leader-fire-and-movement.js');
-  load(r, 'battle/modules/15k-squad-leader-reconstitution.js');
-  load(r, 'battle/modules/15l-squad-leader-mission-execution.js');
-  load(r, 'battle/modules/15m-squad-leader-cohesion-regroup.js');
-  load(r, 'battle/modules/16-squad-plan-stability.js');
+  loadSquadCommandStack(load, r);
   commandTick(r, sim, town);
   const mission = sq._macroMission;
   check(
@@ -607,20 +595,7 @@ section('regroup waits for cohesion, then returns to its mission');
 {
   const { r, sq, sim, town } = commandFixture();
   r.BattleTelemetry = { record() {} };
-  load(r, 'battle/modules/15a-squad-leader-fire-control.js');
-  load(r, 'battle/modules/15b-squad-leader-buddy-pairs.js');
-  load(r, 'battle/modules/15c-squad-leader-scouts-forward.js');
-  load(r, 'battle/modules/15d-squad-leader-leaderless-intent.js');
-  load(r, 'battle/modules/15e-squad-leader-morale-coa.js');
-  load(r, 'battle/modules/15f-squad-leader-retreat-anchor.js');
-  load(r, 'battle/modules/15g-squad-leader-formation.js');
-  load(r, 'battle/modules/15h-squad-leader-fireteams.js');
-  load(r, 'battle/modules/15i-squad-leader-clear-contact.js');
-  load(r, 'battle/modules/15j-squad-leader-fire-and-movement.js');
-  load(r, 'battle/modules/15k-squad-leader-reconstitution.js');
-  load(r, 'battle/modules/15l-squad-leader-mission-execution.js');
-  load(r, 'battle/modules/15m-squad-leader-cohesion-regroup.js');
-  load(r, 'battle/modules/16-squad-plan-stability.js');
+  loadSquadCommandStack(load, r);
   commandTick(r, sim, town);
   sq.members[3].root.position.x = -100;
   sq.commandPhase = 'regroup';
