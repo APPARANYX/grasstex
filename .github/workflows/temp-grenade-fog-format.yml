@@ -1,0 +1,19 @@
+name: Grenade fog temporary formatter
+on:
+  push:
+    branches: [claude/grenade-sounds-r27grv]
+    paths: [.github/workflows/temp-grenade-fog-format.yml]
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Emit Prettier formatting for two checks
+        run: |
+          npx --yes prettier@3.3.3 --write tools/ai-sim-harness/grenade-fog-check.js scripts/probes/probe_grenade_area_fog.cjs >/dev/null
+          for f in tools/ai-sim-harness/grenade-fog-check.js scripts/probes/probe_grenade_area_fog.cjs; do
+            echo "GT_FILE:$f"
+            base64 -w0 "$f"
+            echo
+            echo GT_END
+          done
