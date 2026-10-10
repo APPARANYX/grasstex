@@ -1,0 +1,28 @@
+name: Issue 361 isolated formatter
+on:
+  push:
+    branches:
+      - 'work/format-issue361/**'
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/issue361-ge4-rootcause
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Format only issue 361 files and push to the PR branch
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write battle/battle-sim.js scripts/probes/route-361.js tools/ai-sim-harness/steer-navigation-leg-check.js tools/ai-sim-harness/harness.js
+          git add battle/battle-sim.js scripts/probes/route-361.js tools/ai-sim-harness/steer-navigation-leg-check.js tools/ai-sim-harness/harness.js
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style: format issue 361 physical navigation regression'
+          git push origin HEAD:work/issue361-ge4-rootcause
