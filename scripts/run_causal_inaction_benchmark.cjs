@@ -67,7 +67,11 @@ for (const type of types) expectedByScenario[type] = 0;
 for (const pair of battles) expectedByScenario[pair.slice(0, pair.indexOf(':'))]++;
 const env = {
   ...process.env,
-  PROBE: process.env.CAUSAL_GEOMETRY === '1' ? 'causal-inaction,crest-geometry' : 'causal-inaction',
+  PROBE: [
+    'causal-inaction',
+    ...(process.env.CAUSAL_GEOMETRY === '1' ? ['crest-geometry'] : []),
+    ...(process.env.CAUSAL_LIFECYCLE === '1' ? ['command-lifecycle'] : [])
+  ].join(','),
   PROBE_BATTLES: battles.join(','),
   PROBE_SECONDS: String(seconds),
   PROBE_URL: url.toString(),
@@ -110,7 +114,8 @@ const summary = {
   coverDecisionsOmitted: 0,
   coverDecisionCounts: {},
   coverRejectCounts: {},
-  coverLaneOutcomes: []
+  coverLaneOutcomes: [],
+  lifecycle: []
 };
 function bump(obj, key, n = 1) {
   obj[key] = (obj[key] || 0) + n;
@@ -130,6 +135,39 @@ for (const b of record.battles) {
   if (!r || r.schema !== 'grasstex-causal-inaction-v1') {
     summary.failures.push(b.seed + ': missing causal probe');
     continue;
+  }
+  if (process.env.CAUSAL_LIFECYCLE === '1') {
+    const lifecycle = b.reports && b.reports['command-lifecycle'];
+    if (!lifecycle || !Array.isArray(lifecycle.transitions) || !Array.isArray(lifecycle.checkpoints)) {
+      summary.failures.push(b.seed + ': missing command-lifecycle probe');
+    } else {
+      const selected = String(process.env.CAUSAL_SQUADS || '').split(',').filter(Boolean);
+      const choose = sq => !selected.length || selected.includes(String(sq.id));
+      const one = snap => ({
+        t: +(+snap.time).toFixed(2),
+        squads: (snap.squads || []).filter(choose).map(q => ({
+          id: q.id, faction: q.faction, living: q.living, phase: q.phase,
+          mission: q.mission ? { version: q.mission.version, intent: q.mission.intent, status: q.mission.status } : null,
+          objective: q.objective, anchor: q.anchor, centroid: q.centroid,
+          displacement: +(+q.displacement).toFixed(2), recon: !!q.recon,
+          men: q.men.map(m => ({
+            id: m.id, travel: +(+m.travel).toFixed(2),
+            adopted: !!m.adopted, receipt: m.receipt && m.receipt.phase || null,
+            resolver: m.resolver && m.resolver.owner || null,
+            stop: m.stopReason, speed: m.speed
+          }))
+        }))
+      });
+      summary.lifecycle.push({
+        type: b.type, seed: b.seed,
+        checkpoints: lifecycle.checkpoints.map(one),
+        final: one(lifecycle.final),
+        transitions: lifecycle.transitions.filter(t => !selected.length || selected.includes(String(t.id)))
+          .map(t => ({ t: +(+t.time).toFixed(2), id: t.id, faction: t.faction,
+            missionVersion: t.version, intent: t.intent, status: t.status, phase: t.phase,
+            recon: t.recon || null, mainBodyCentroid: t.mainBodyCentroid }))
+      });
+    }
   }
   summary.episodesOmitted += r.episodesOmitted || 0;
   summary.directDenialsOmitted += r.directDenialsOmitted || 0;
@@ -269,6 +307,29 @@ for (const e of summary.episodes.slice(0, 30)) {
   );
 }
 if (!summary.episodes.length) md.push('No qualifying episodes were observed.');
+if (process.env.CAUSAL_LIFECYCLE === '1') {
+  md.push('', '## Read-only mission / recon / physical movement chain', '');
+  for (const trace of summary.lifecycle) {
+    md.push('### ' + trace.type + ':' + trace.seed);
+    for (const frame of [...trace.checkpoints, trace.final]) {
+      for (const sq of frame.squads) {
+        const travel = sq.men.reduce((v, m) => v + m.travel, 0);
+        const owners = [...new Set(sq.men.map(m => m.resolver || 'none'))].join('/');
+        md.push('- t=' + frame.t + ' ' + sq.faction + ':' + sq.id +
+          ' phase=' + sq.phase + ' mission=' +
+          (sq.mission ? sq.mission.intent + '/v' + sq.mission.version + '/' + sq.mission.status : 'none') +
+          ' living=' + sq.living + ' centroidDisplacement=' + sq.displacement.toFixed(1) +
+          'm livingMenTravel=' + travel.toFixed(1) + 'm reconActive=' + sq.recon +
+          ' resolverOwners=' + owners);
+      }
+    }
+    for (const t of trace.transitions.filter(t => t.recon).slice(-25))
+      md.push('- recon active @' + t.t + ' ' + t.faction + ':' + t.id +
+        ' mission v' + t.missionVersion + ' ' + t.intent + ' phase=' + t.phase);
+    md.push('- Transition records: ' + trace.transitions.length +
+      ' (full order/recon transitions and physical coordinates in summary.json).');
+  }
+}
 if (summary.episodesOmitted)
   md.push(
     '',
