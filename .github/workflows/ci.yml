@@ -116,14 +116,6 @@ jobs:
           done < <(git ls-files '*.json')
           echo "Parsed $count JSON files."
 
-      - name: TEMP render exact FBX retarget test format
-        run: |
-          npx --yes prettier@3.3.3 tools/ai-sim-harness/fbx-retarget-quat-check.js > "$RUNNER_TEMP/fbx-retarget-formatted.js"
-          echo 'RETARGET_PRETTIER_B64_START'
-          base64 -w0 "$RUNNER_TEMP/fbx-retarget-formatted.js"
-          echo
-          echo 'RETARGET_PRETTIER_B64_END'
-
       # Prettier ratchet: the repo's .prettierrc.json was dead config - most tracked JS never
       # complied. A full one-shot reformat would break every in-flight branch, so instead every
       # JS file a pull request touches must be on-standard. Legacy files stay as they are and
