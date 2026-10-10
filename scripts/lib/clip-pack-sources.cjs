@@ -71,8 +71,8 @@ function expected(root = ROOT) {
   /* The rig canonicalizer moved out of the backend in #470. Read its real source as part
    of the same deterministic converter hash rather than assuming every owner is in 53.
    Extracted function/declarator bytes are unchanged; module wrappers are not hashed. */
-  const sources = [RIG_CANON, BACKEND].map(file => fs.readFileSync(path.join(root, file), 'utf8'));
-  const converter = sha256(converterText(sources.join('\n')));
+  const converterOwners = [RIG_CANON, BACKEND].map(file => fs.readFileSync(path.join(root, file), 'utf8'));
+  const converter = sha256(converterText(converterOwners.join('\n')));
   const pin = /babylonjs@([0-9][0-9A-Za-z.-]*)\/babylon\.js/.exec(fs.readFileSync(path.join(root, PAGE), 'utf8'));
   if (!pin) throw new Error(`${PAGE}: no pinned babylonjs@<version>/babylon.js`);
   return { clips, sources, converter, babylon: pin[1] };
