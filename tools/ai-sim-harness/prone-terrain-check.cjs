@@ -85,7 +85,10 @@ function close(a, b, why) {
 
 // The animation must apply the slope exclusively to FBX holder, not physical root,
 // otherwise aiming, navigation and cover may all change as a side effect.
-const fbx = fs.readFileSync(path.join(H.REPO, 'battle/modules/53-fbx-soldier-backend.js'), 'utf8');
+const backend = fs.readFileSync(path.join(H.REPO, 'battle/modules/53-fbx-soldier-backend.js'), 'utf8');
+const fbx = fs.readFileSync(path.join(H.REPO, 'battle/modules/52-fbx-render-lod.js'), 'utf8');
+assert.match(backend, /hookRender = RENDER_LOD\.hookRender/,
+  'shipping backend still delegates terrain-follow visual pose scheduling to render LOD');
 assert.match(fbx, /BattleBallistics\.proneTerrainTilt\(fx\.soldier, battle\)/);
 assert.match(fbx, /fx\.holder\.rotation\.x \+=/);
 assert.match(fbx, /fx\.holder\.rotation\.z \+=/);
