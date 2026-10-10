@@ -16,6 +16,18 @@ function loadPlaywright(){
 const URL_=process.env.DR_URL||'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
 const SEED=process.env.DR_SEED||'damage-range-probe';
 const OUT=path.resolve(process.env.DR_OUT||'closeups/damage-range');
+/* Private audio is tested in the audio pipeline, not in this public-browser visual QA.
+ * Fulfill soundtrack requests with decodable PCM silence rather than false 404 pageerrors. */
+function silentWav(){
+  const samples=2205,b=Buffer.alloc(44+samples*2);
+  b.write('RIFF',0);b.writeUInt32LE(b.length-8,4);b.write('WAVE',8);b.write('fmt ',12);
+  b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);
+  b.writeUInt32LE(22050,24);b.writeUInt32LE(44100,28);
+  b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);
+  b.writeUInt32LE(samples*2,40);
+  return b;
+}
+const silentAudio=silentWav();
 const navigationTrace=[];
 const browserEvents=[];
 let diagnosticLogs=[];
@@ -38,6 +50,7 @@ let diagnosticPage=null;
   await page.route('**/*',route=>{
     const req=route.request();
     if(req.method()==='POST'||/battle_(policy|learning|log|metrics)[^/]*\.php/.test(req.url()))return route.fulfill({json:{}});
+    if(/\/Assets\/audio\/.*\.(?:mp3|wav|ogg)(?:[?#]|$)/i.test(req.url()))return route.fulfill({status:200,body:silentAudio,contentType:'audio/wav'});
     return route.continue();
   });
   const q='seed='+encodeURIComponent(SEED)+'&damageRange=1&rangeExit=1&rangeTarget=0&rangeZone=chest';
