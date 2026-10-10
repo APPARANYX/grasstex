@@ -127,7 +127,7 @@ for (const speed of [1, 4, 8]) {
   const replaySim = makeSim();
   replaySim.timeScale = speed;
   const clock = Clock.create(replaySim);
-  for (let i = 0; i < 60; i++) clock.frame((18 / speed) / 60);
+  for (let i = 0; i < 60; i++) clock.frame(18 / speed / 60);
   assert.equal(replaySim.steps, 120, speed + 'x: explicit frame() uses benchmark steps');
   assert.equal(replaySim.smoothDts.length, 0, speed + 'x: no variable step in benchmark clock');
   assert.deepEqual(replaySim.events, standard.sim.events, speed + 'x: fixed call order');
