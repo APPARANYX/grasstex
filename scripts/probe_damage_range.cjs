@@ -69,9 +69,11 @@ let diagnosticPage=null;
     if(!b||Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)>.002)fail.push('target root moved while AI should be frozen: '+a.id);
   }
 
+  // Do not return fire() to Playwright: the shot includes the full Babylon victim/scene graph.
+  // Serializing that graph over DevTools can invalidate the execution context.
   // An orbit-camera shot is the negative control for an FPS-only crash/navigation.
   console.log('STAGE: initial orbit shot');
-  await page.evaluate(()=>BattleDamageRange.fire());
+  await page.evaluate(()=>{BattleDamageRange.fire();});
   await page.waitForTimeout(400);
   const orbitShot=await snap();
   if(orbitShot.wounds<2)fail.push('orbit shot did not produce UV entry and exit wounds');
@@ -86,7 +88,7 @@ let diagnosticPage=null;
   });
   if(fpsCheck.state.camera!=='damageRangeFpsCam'||!fpsCheck.state.fps)fail.push('FPS aim camera did not activate');
   if(fpsCheck.reticle==='none'||!fpsCheck.reticle)fail.push('FPS aim reticle is not visible');
-  await page.evaluate(()=>BattleDamageRange.fire());
+  await page.evaluate(()=>{BattleDamageRange.fire();});
   await page.waitForTimeout(700);
   const fpsHit=await snap();
   if(fpsHit.wounds<2||fpsHit.uvWounds<2)fail.push('FPS reticle-centered shot did not create UV entry + exit wounds');
@@ -96,7 +98,7 @@ let diagnosticPage=null;
   if(orbitAgain.camera!=='damageRangeCam'||orbitAgain.fps)fail.push('leaving FPS aim did not restore orbit camera');
 
   // One through-shot should paint entry + exit into one private map, no fallback.
-  await page.evaluate(()=>BattleDamageRange.fire());
+  await page.evaluate(()=>{BattleDamageRange.fire();});
   await page.waitForTimeout(1100);
   const first=await snap();
   if(first.wounds<2)fail.push('first through-shot did not create entry + exit wound events');
