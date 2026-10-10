@@ -116,15 +116,6 @@ jobs:
           done < <(git ls-files '*.json')
           echo "Parsed $count JSON files."
 
-      - name: TEMP render exact R3 presentation format
-        run: |
-          for file in battle/modules/52-fbx-mesh-lod.js battle/modules/52-fbx-render-lod.js tools/ai-sim-harness/fbx-presentation-lod-check.js; do
-            echo "LOD_PRETTIER_FILE_START_$(basename "$file")"
-            npx --yes prettier@3.3.3 "$file" | base64 -w0
-            echo
-            echo "LOD_PRETTIER_FILE_END_$(basename "$file")"
-          done
-
       # Prettier ratchet: the repo's .prettierrc.json was dead config - most tracked JS never
       # complied. A full one-shot reformat would break every in-flight branch, so instead every
       # JS file a pull request touches must be on-standard. Legacy files stay as they are and
