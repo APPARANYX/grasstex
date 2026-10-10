@@ -224,6 +224,24 @@ if (!$moduleFiles) {
 }
 if (!$moduleFiles) { $moduleFiles = $moduleFallback; $moduleSource = 'emergency'; }
 
+/* #456 R4: safe production/QA module split. Keep all gameplay, recorder,
+   navigation, order-provenance and strategic-stall modules in the shipping set.
+   Only the inert/stashed graph UI and strictly opt-in QA pages are lazy-tagged.
+   Every discovered module remains available through ?devModules=1. */
+$graphUiOnlyModules = array('30-ai-graph-editor.js'=>true,'31-ai-graph-logic.js'=>true,'33-ai-graph-usability.js'=>true,'34-ai-timing-map.js'=>true,'37-lease-panel.js'=>true,'38-ai-diagnostics-export.js'=>true);
+$allDevModules = isset($_GET['devModules']) && $_GET['devModules'] === '1';
+$graphUiRequested = $allDevModules || (isset($_GET['editor']) && $_GET['editor'] === 'ai');
+$deviceBenchRequested = $allDevModules || (isset($_GET['bench']) && $_GET['bench'] === '1');
+$damageRangeRequested = $allDevModules || (isset($_GET['damageRange']) && $_GET['damageRange'] === '1');
+$moduleAllowed = static function ($name) use ($graphUiOnlyModules, $graphUiRequested, $deviceBenchRequested, $damageRangeRequested) {
+    if (isset($graphUiOnlyModules[$name])) return $graphUiRequested;
+    if ($name === '97-device-benchmark.js') return $deviceBenchRequested;
+    if ($name === '98-damage-range.js') return $damageRangeRequested;
+    return true;
+};
+
+$activeModuleFiles = array_values(array_filter($moduleFiles, $moduleAllowed));
+
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
 header('Pragma: no-cache');
@@ -232,7 +250,7 @@ header('Surrogate-Control: no-store');
 header('X-Grasstex-Asset-Sync: ' . $syncStatus);
 header('X-Grasstex-Texture-Bootstrap: ' . $textureBootstrapStatus);
 header('X-Grasstex-Pinned: ' . ($pinRequested ? '1' : '0'));
-header('X-Grasstex-Modules: ' . count($moduleFiles) . '/' . $moduleSource);
+header('X-Grasstex-Modules: ' . count($activeModuleFiles) . '/' . $moduleSource);
 header('X-Grasstex-Build: ' . $build);
 header('X-Grasstex-Build-Source: ' . $buildSource);
 header('X-Grasstex-Cache-Epoch: ' . $cacheEpoch);
@@ -266,7 +284,7 @@ if ($body !== false && strlen($body) > 100 && stripos($body, '<html') !== false)
     $body = preg_replace($cameraPattern, $cameraReplacement, $body, 1, $cameraCount);
     $extras = '';
     foreach (array('camera-controls.js','acoustics.js','scenario-generator.js','battle-navigation.js','town-objectives.js','module-registry.js','ai-policy.js','objective-system.js','battle-telemetry.js','commander-doctrine.js','commander-routes.js','commander-ai.js') as $file) $extras .= '<script src="'.$base.'battle/'.$file.'?v='.$version.'"></script>' . "\n";
-    foreach ($moduleFiles as $file) $extras .= '<script src="'.$base.'battle/modules/'.rawurlencode($file).'?v='.$version.'"></script>' . "\n";
+    foreach ($activeModuleFiles as $file) $extras .= '<script src="'.$base.'battle/modules/'.rawurlencode($file).'?v='.$version.'"></script>' . "\n";
     foreach (array('ai-trainer.js','battle-control.js') as $file) $extras .= '<script src="'.$base.'battle/'.$file.'?v='.$version.'"></script>' . "\n";
     $body = preg_replace('#<script>\s*/\* Extra runtimes[\s\S]*?</script>#', $extras, $body, 1, $replacementCount);
     if ($replacementCount === 1 && $cameraCount === 1) { header('X-Grasstex-Source: github-modular'); echo $body; exit; }
