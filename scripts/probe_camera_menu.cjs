@@ -66,6 +66,53 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       rigInstalled: true, backendInstalled: true, mixed: 'spine1',
       legacy: 'spine0', head: 'headend', upperFinger: true, lowerFoot: false
     }, 'FBX backend lost its rig-naming dependency on the shipping loader');
+    // R3 actual checked-out battle: calibration must feed loaded FBX model grips,
+    // attached weapon world matrices, and prepared mesh muzzles on both factions.
+    const fbIntegration = await page.evaluate(() => {
+      const c = window.BattleFbxWeaponCalibration;
+      const sim = window.__battle__;
+      const status = window.BattleFbxSoldier?.status(sim.scene);
+      const perFaction = ['us', 'ge'].map(faction => {
+        const soldiers = sim._roster?.[faction] || [];
+        const man = soldiers.find(s => s._fbx?.lib?.grips && s.weapon?.mesh &&
+          s.weapon?.muzzleLocal?.length === 3);
+        if (!man) return {faction, found: false};
+        const weapon = man.weapon, fx = man._fbx, key = weapon.model || weapon.kind;
+        const grip = fx.lib.grips[key] || fx.lib.grips[weapon.kind] || fx.lib.grips.rifle;
+        const matrix = weapon.mesh.getWorldMatrix();
+        const local = BABYLON.Vector3.FromArray(weapon.muzzleLocal);
+        const muzzle = BABYLON.Vector3.TransformCoordinates(local, matrix);
+        const valid = values => values.length > 0 && values.every(Number.isFinite);
+        return {
+          faction, found: true,
+          model: fx.lib.file, weapon: key,
+          gripFinite: !!grip && valid(Array.from(grip.m)),
+          weaponFinite: valid(Array.from(matrix.m)),
+          muzzleFinite: valid(muzzle.asArray()),
+          gripPresent: !!c?.pointsFor(fx.lib.file, key),
+          socketOffset: BABYLON.Vector3.Distance(muzzle, man.root.position)
+        };
+      });
+      return {
+        installed: !!c, ready: !!status?.ready, models: Object.keys(status?.sockets || {}).length,
+        garand: c?.pointsFor('us-paratrooper.fbx', 'm1-garand.fbx')?.grip,
+        mg42: c?.pointsFor('ge-gunner.fbx', 'mg42-bipod.fbx')?.grip,
+        m1919: c?.pointsFor('us-gunner.fbx', 'm1919a6-bipod.fbx')?.grip,
+        perFaction
+      };
+    });
+    assert.equal(fbIntegration.installed, true, 'weapon calibration module missing in PHP graph');
+    assert.equal(fbIntegration.ready, true, 'FBX models were not fully loaded');
+    assert.ok(fbIntegration.models >= 2, 'missing loaded faction models');
+    assert.deepEqual(fbIntegration.garand, [-0.011, -0.046, -0.076]);
+    assert.deepEqual(fbIntegration.mg42, [0.0196, -0.066, -0.094]);
+    assert.deepEqual(fbIntegration.m1919, [0.0196, -0.104, 0.0049]);
+    for (const sample of fbIntegration.perFaction) {
+      assert.ok(sample.found, 'no armed imported ' + sample.faction + ' soldier: ' + JSON.stringify(fbIntegration));
+      assert.ok(sample.gripFinite && sample.weaponFinite && sample.muzzleFinite &&
+        sample.gripPresent && Number.isFinite(sample.socketOffset) && sample.socketOffset > 0,
+        'invalid live FBX weapon grip/muzzle for ' + sample.faction + ': ' + JSON.stringify(sample));
+    }
     // Free-fly keyboard movement is independent of gamepad; route through the
     // scene frame observable, not a one-off synthetic API.
     let flyDistance = 0;
