@@ -32,7 +32,7 @@ function fingerprint(s) {
 const events = normalized(
   region('    function bindDesktopEvents() {\n', '    }\n    function stepFreeFly(')
 ).replace(
-  /\blisten\((canvas|document|window),\s*/g,
+  /\blisten\(\s*(canvas|document|window),\s*/g,
   (match, target) => target + '.addEventListener(' + (match.includes('\n') ? '\n' : '')
 );
 const freefly = normalized(
