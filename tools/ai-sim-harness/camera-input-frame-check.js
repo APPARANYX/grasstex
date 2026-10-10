@@ -29,7 +29,9 @@ function fingerprint(s) {
 /* Listener owners are now tracked by listen(target,...); reconstruct the old
    registration spelling (including split-line calls) to preserve the existing
    byte-level handler-order fingerprint rather than dropping the parity check. */
-const events = normalized(region('    function bindDesktopEvents() {\n', '    }\n    function stepFreeFly(')).replace(
+const events = normalized(
+  region('    function bindDesktopEvents() {\n', '    }\n    function stepFreeFly(')
+).replace(
   /\blisten\((canvas|document|window),\s*/g,
   (match, target) => target + '.addEventListener(' + (match.includes('\n') ? '\n' : '')
 );
