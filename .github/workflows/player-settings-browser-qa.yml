@@ -6,6 +6,9 @@ on:
     paths:
       - 'battle/camera-controls.js'
       - 'battle/modules/52-fbx-rig-canon.js'
+      - 'battle/modules/52-fbx-mesh-lod.js'
+      - 'battle/modules/52-fbx-render-lod.js'
+      - 'tools/ai-sim-harness/fbx-presentation-lod-check.js'
       - 'battle/modules/52-fbx-retarget-rest.js'
       - 'battle/modules/52-fbx-weapon-calibration.js'
       - 'tools/ai-sim-harness/fbx-weapon-calibration-check.js'
