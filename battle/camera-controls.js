@@ -1465,7 +1465,8 @@
       listen(canvas, 'contextmenu', function (event) {
         if (player) event.preventDefault();
       });
-      listen(window, 
+      listen(
+        window,
         'keydown',
         function (event) {
           var key = keyName(event);
@@ -1566,7 +1567,8 @@
         }
         global.GTLog('[CAMERA] gamepad disconnected; keyboard controls remain active');
       });
-      listen(canvas, 
+      listen(
+        canvas,
         'wheel',
         function (event) {
           if (!guarded() || player) return;
@@ -1706,8 +1708,7 @@
         menuPadTimer = null;
       }
       if (player) leavePlayer('camera disposed');
-      if (document.pointerLockElement === canvas && document.exitPointerLock)
-        document.exitPointerLock();
+      if (document.pointerLockElement === canvas && document.exitPointerLock) document.exitPointerLock();
       keys.clear();
       mouseAim = false;
       mouseFire = false;
@@ -1727,8 +1728,7 @@
       ].forEach(function (node) {
         if (node && node.parentNode) node.parentNode.removeChild(node);
       });
-      if (scene.activeCamera === playerCam || scene.activeCamera === camera)
-        scene.activeCamera = null;
+      if (scene.activeCamera === playerCam || scene.activeCamera === camera) scene.activeCamera = null;
       if (playerCam && playerCam.dispose) playerCam.dispose();
       if (camera && camera.dispose) camera.dispose();
     }
