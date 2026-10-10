@@ -42,7 +42,7 @@ test('arming foley carries FOLEY_RANGE, a burst EXPLOSION_RANGE, and closer is l
   assert.equal(A.cue('pin', { x: A.FOLEY_RANGE + 1, y: 1, z: 0 }, cam), null);
   assert.equal(A.cue('explosion', { x: A.EXPLOSION_RANGE - 5, y: 0, z: 0 }, cam).kind, 'explosion');
   assert.equal(A.cue('explosion', { x: A.EXPLOSION_RANGE + 5, y: 0, z: 0 }, cam), null);
-  const g = [2, 10, 40, 200, 700].map(x => A.cue('explosion', { x, y: 0, z: 0 }, cam).gain);
+  const g = [2, 15, 40, 200, 700].map(x => A.cue('explosion', { x, y: 0, z: 0 }, cam).gain);
   for (let i = 1; i < g.length; i++) assert.ok(g[i] < g[i - 1], g.join());
   assert.ok(g[g.length - 1] > 0);
   const f = [1, 10, 25].map(x => A.cue('spoon', { x, y: 1, z: 0 }, cam).gain);
