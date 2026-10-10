@@ -31,7 +31,8 @@ Module files load lexicographically before `battle/battle-control.js`. These sta
 1. `00-fixed-step-clock.js` wraps core start and installs the benchmark clock; live observer unchanged unless specifically opted in.
 2. `12-soldier-animation-events.js` wraps start to intercept fire/shot presentation and supply stripped-runtime fallback ammo events.
 3. `98-damage-range.js` registers **only with `?damageRange=1`**; its wrapper creates the QA range after calling the previously captured start.
-4. `battle-control.js` wraps last to install operator restart/telemetry/UI controls after the underlying start chain.
+4. `99-session-diagnostics-export.js` wraps start for the session export owner (without gameplay control).
+5. `battle-control.js` wraps last to install operator restart/telemetry/UI controls after the underlying start chain.
 
 This order is fragile: changing file order or replacing `root.BattleSim.start` rather than wrapping can bypass reload animation, the fixed clock, damage range or operator restart. Any new wrapper must capture the preceding function once, call it exactly once, and return the same sim instance; never add a second physics step/movement writer. If the chain is redesigned, migrate all wrappers in one tested PR, not by reordering files.
 
