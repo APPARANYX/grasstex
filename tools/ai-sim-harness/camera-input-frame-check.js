@@ -52,8 +52,8 @@ assert.equal(
   '8a4da01a',
   'the original menu/player frame/gesture ordering changed'
 );
-assert.match(src, /menuHoldState\\.long = false;/, 'disconnect clears the held Menu gesture');
-assert.match(src, /menuHoldState\\.since = 0;/, 'disconnect resets Menu hold duration');
+assert.match(src, /menuHoldState\.long = false;/, 'disconnect clears the held Menu gesture');
+assert.match(src, /menuHoldState\.since = 0;/, 'disconnect resets Menu hold duration');
 assert.equal(src.match(/bindDesktopEvents\(\);/g)?.length, 1, 'listeners must attach only once');
 assert.equal(src.match(/scene\.onBeforeRenderObservable\.add\(stepDesktopFrame\)/g)?.length, 1);
 assert.equal(src.match(/stepFreeFly\(pad, dt\);/g)?.length, 1);
