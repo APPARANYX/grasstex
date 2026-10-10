@@ -65,6 +65,13 @@ const battles = specified.length
 const expectedByScenario = {};
 for (const type of types) expectedByScenario[type] = 0;
 for (const pair of battles) expectedByScenario[pair.slice(0, pair.indexOf(':'))]++;
+/* Keep the fixed 7-variant timeline stable while observing the real post-recon
+   handback through 450–720 s, rather than inferring it from a 420→final gap. */
+if (process.env.CAUSAL_LIFECYCLE === '1' && !url.searchParams.has('probeLifecycleCheckpoints'))
+  url.searchParams.set(
+    'probeLifecycleCheckpoints',
+    '120,150,180,210,240,270,300,360,420,450,480,510,600,720,900'
+  );
 const env = {
   ...process.env,
   PROBE: [
