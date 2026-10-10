@@ -89,7 +89,13 @@ BABYLON.LoadAssetContainerAsync = async () => ({ meshes: [], dispose() {} });
     const result = await page.evaluate(async () => {
       const t = _fogTest,
         fx = BattleGrenadeFx;
-      const before = t.sample();
+      const points = [[320, 180], [260, 180], [380, 180], [320, 110], [320, 250]];
+      const grid = () => points.map(([x, y]) => {
+        const rgba = new Uint8Array(4);
+        t.engine._gl.readPixels(x, y, 1, 1, t.engine._gl.RGBA, t.engine._gl.UNSIGNED_BYTE, rgba);
+        return { x, y, rgba: Array.from(rgba) };
+      });
+      const before = t.sample(), beforePixels = grid();
       t.sim.onGrenadeBurst({ id: 123, to: { x: 0, y: 0, z: 0 }, kind: 'mk2' });
       const after = t.sample(),
         volumes = t.scene.meshes.filter(m => m.name.startsWith('grenadeAreaFog'));
@@ -98,17 +104,7 @@ BABYLON.LoadAssetContainerAsync = async () => ({ meshes: [], dispose() {} });
       const cameraPosition = t.camera.position.asArray();
       const volumePosition = volumes[0]?.getAbsolutePosition().asArray();
       const mat = volumes[0]?.material;
-      const pixels = [
-        [320, 180],
-        [260, 180],
-        [380, 180],
-        [320, 110],
-        [320, 250]
-      ].map(([x, y]) => {
-        const rgba = new Uint8Array(4);
-        t.engine._gl.readPixels(x, y, 1, 1, t.engine._gl.RGBA, t.engine._gl.UNSIGNED_BYTE, rgba);
-        return { x, y, rgba: Array.from(rgba) };
-      });
+      const pixels = grid();
       const ready = mat?.getEffect()?.isReady() || false;
       const transparency = mat?.needAlphaBlending();
       const present = fx.status(t.sim);
@@ -130,8 +126,8 @@ BABYLON.LoadAssetContainerAsync = async () => ({ meshes: [], dispose() {} });
         meshReady,
         cameraPosition,
         volumePosition,
-        pixels,
-        difference: Math.max(...after.slice(0, 3).map((v, i) => Math.abs(v - before[i])))
+        beforePixels, pixels,
+        difference: Math.max(...pixels.flatMap((p, idx) => p.rgba.slice(0, 3).map((v, i) => Math.abs(v - beforePixels[idx].rgba[i]))))
       };
     });
     console.log('GRENADE AREA FOG QA:', JSON.stringify(result));
@@ -141,6 +137,7 @@ BABYLON.LoadAssetContainerAsync = async () => ({ meshes: [], dispose() {} });
     assert.equal(result.present.fogVolumes, 1, 'fog exists on detonation frame');
     assert.equal(result.cleared.fogVolumes, 0, '10 simulated seconds clear the volume');
     assert.ok(result.difference > 5, 'actual framebuffer pixels changed inside fog');
+    assert.deepEqual(result.after, result.before, 'opaque object closer than fog still obscures fog');
     await page.goto(root + 'battle/grenade-fog-probe.html?grenades=1&grenadeFog=off', { waitUntil: 'load' });
     await page.waitForFunction(() => window._fogReady, { timeout: 45000 });
     const disabled = await page.evaluate(() => {
