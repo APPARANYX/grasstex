@@ -1,0 +1,61 @@
+name: Damage range browser QA
+
+# Run the real opt-in range against this PR's PHP loader and checked-in FBX assets.
+# Keep it separate from the fast simulation CI; this is an expensive browser smoke.
+on:
+  pull_request:
+    paths:
+      - 'battle/modules/98-damage-range.js'
+      - 'scripts/probe_damage_range.cjs'
+      - '.github/workflows/damage-range-browser-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: damage-range-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  range-browser:
+    name: Damage range / Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate PHP and probe syntax
+        run: |
+          php -l battle_sim_local.php
+          node --check scripts/probe_damage_range.cjs
+      - name: Install Playwright Chromium
+        run: |
+          npm install --global playwright@1.56.1
+          playwright install --with-deps chromium
+      - name: Serve this checkout, not deployed main
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/qa-site"
+          ln -s "$GITHUB_WORKSPACE" "$RUNNER_TEMP/qa-site/grasstex"
+          php -S 127.0.0.1:8765 -t "$RUNNER_TEMP/qa-site" > "$RUNNER_TEMP/damage-range-php.log" 2>&1 &
+          for attempt in {1..20}; do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?damageRange=1&seed=range-pr-smoke' -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/damage-range-php.log"
+          exit 1
+      - name: Run shooting, wound and Reset navigation QA
+        env:
+          DR_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          DR_SEED: range-pr-smoke
+          DR_OUT: closeups/damage-range-ci
+        run: node scripts/probe_damage_range.cjs
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: damage-range-browser-evidence
+          if-no-files-found: warn
+          path: |
+            closeups/damage-range-ci/
+            ${{ runner.temp }}/damage-range-php.log

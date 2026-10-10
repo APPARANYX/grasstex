@@ -1,0 +1,63 @@
+#!/usr/bin/env node
+'use strict';
+
+/* #456 R5: compare the extracted pure geometry against precise impact,
+   wounded-victim, entry/exit and no-through-shot contracts. */
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const source = fs.readFileSync(path.join(__dirname, '../../battle/modules/98-damage-range.js'), 'utf8');
+const first = source.indexOf('  function rangeZonePoint(');
+const last = source.indexOf('  function setup(sim)', first);
+assert.ok(first > 0 && last > first, 'pure geometry sits outside the stateful range setup');
+const geometry = new Function(
+  source.slice(first, last) + 'return { zone: rangeZonePoint, shot: rangeShot };'
+)();
+function assertPoint(actual, expected) {
+  for (const key of ['x', 'y', 'z'])
+    assert.ok(
+      Math.abs(actual[key] - expected[key]) < 1e-9,
+      key + ': ' + actual[key] + ' vs ' + expected[key]
+    );
+}
+const target = { id: 'ge-gunner', root: { position: { x: 2, y: 40, z: 100 } } };
+assertPoint(geometry.zone(target, 'head', 0), { x: 2, y: 41.7, z: 100 });
+assertPoint(geometry.zone(target, 'chest', 0), { x: 2, y: 41.34, z: 100 });
+assertPoint(geometry.zone(target, 'abdomen', 0), { x: 2, y: 41.06, z: 100 });
+assertPoint(geometry.zone(target, 'arm', 0), { x: 1.72, y: 41.33, z: 100 });
+assertPoint(geometry.zone(target, 'arm', 1), { x: 2.28, y: 41.33, z: 100 });
+assertPoint(geometry.zone(target, 'leg', 0), { x: 1.87, y: 40.69, z: 100 });
+assertPoint(geometry.zone(target, 'leg', 1), { x: 2.13, y: 40.69, z: 100 });
+const point = geometry.zone(target, 'chest', 0),
+  dir = { x: 0, y: 0, z: 1 };
+const through = geometry.shot(target, 'chest', point, dir, true, 111.2);
+assert.equal(through.mode, 'raycast');
+assert.equal(through.victim, target);
+assert.equal(through.zone, 'chest');
+assert.deepEqual(
+  through.passes.map(x => x.victim),
+  [target]
+);
+assertPoint(through.impact, { x: 2, y: 41.34, z: 99.78 });
+assertPoint(through.passes[0].exit, { x: 2, y: 41.34, z: 100.22 });
+assert.equal(through.passes[0].direction, dir);
+assertPoint(through.final.impact, { x: 2, y: 41.34, z: 111.06 });
+const stopped = geometry.shot(target, 'chest', point, dir, false, 111.2);
+assert.equal(stopped.passes[0].exit, null);
+assert.equal(stopped.passes[0].exitDirection, undefined);
+assert.equal(stopped.final, null);
+assertPoint(geometry.zone(target, 'unknown', 5), { x: 2, y: 41.34, z: 100 });
+assertPoint(geometry.zone(target, 'arm', 2), { x: 1.72, y: 41.33, z: 100 });
+assert.equal(through.stoppedBy, 'soldier');
+assert.equal(through.surface, 'blood');
+assert.equal(through.passes.length, 1);
+assert.equal(through.passes[0].entry, through.impact);
+assert.equal(through.passes[0].exitDirection, dir);
+assert.equal(through.final.blocker, 'wall');
+assert.equal(through.final.surface, 'cement');
+assert.equal(through.normal.z, -1);
+assert.equal(through.delay, 0);
+assert.equal(stopped.surface, 'blood');
+console.log(
+  'PASS #456 R5 pure body zones, alternating limbs and through-shot geometry match shipping contracts'
+);

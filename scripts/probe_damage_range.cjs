@@ -16,17 +16,41 @@ function loadPlaywright(){
 const URL_=process.env.DR_URL||'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
 const SEED=process.env.DR_SEED||'damage-range-probe';
 const OUT=path.resolve(process.env.DR_OUT||'closeups/damage-range');
+/* Private audio is tested in the audio pipeline, not in this public-browser visual QA.
+ * Fulfill soundtrack requests with decodable PCM silence rather than false 404 pageerrors. */
+function silentWav(){
+  const samples=2205,b=Buffer.alloc(44+samples*2);
+  b.write('RIFF',0);b.writeUInt32LE(b.length-8,4);b.write('WAVE',8);b.write('fmt ',12);
+  b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);
+  b.writeUInt32LE(22050,24);b.writeUInt32LE(44100,28);
+  b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);
+  b.writeUInt32LE(samples*2,40);
+  return b;
+}
+const silentAudio=silentWav();
+const navigationTrace=[];
+const browserEvents=[];
+let diagnosticLogs=[];
+let diagnosticErrors=[];
+let diagnosticPage=null;
 
 (async()=>{
   const {chromium}=loadPlaywright();fs.mkdirSync(OUT,{recursive:true});
   const browser=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--enable-webgl','--ignore-gpu-blocklist','--ignore-certificate-errors','--no-sandbox']});
   const page=await browser.newPage({ignoreHTTPSErrors:true,viewport:{width:1280,height:760}});
+  diagnosticPage=page;
+  page.on('crash',()=>browserEvents.push('page crashed'));
+  page.on('close',()=>browserEvents.push('page closed'));
+  page.on('framenavigated',frame=>{if(frame===page.mainFrame())navigationTrace.push(frame.url());});
   const errors=[],logs=[];
+  diagnosticLogs=logs;
+  diagnosticErrors=errors;
   page.on('pageerror',e=>errors.push(String(e&&e.stack||e).slice(0,500)));
   page.on('console',m=>logs.push('['+m.type()+'] '+m.text()));
   await page.route('**/*',route=>{
     const req=route.request();
     if(req.method()==='POST'||/battle_(policy|learning|log|metrics)[^/]*\.php/.test(req.url()))return route.fulfill({json:{}});
+    if(/\/Assets\/audio\/.*\.(?:mp3|wav|ogg)(?:[?#]|$)/i.test(req.url()))return route.fulfill({status:200,body:silentAudio,contentType:'audio/wav'});
     return route.continue();
   });
   const q='seed='+encodeURIComponent(SEED)+'&damageRange=1&rangeExit=1&rangeTarget=0&rangeZone=chest';
@@ -58,7 +82,18 @@ const OUT=path.resolve(process.env.DR_OUT||'closeups/damage-range');
     if(!b||Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)>.002)fail.push('target root moved while AI should be frozen: '+a.id);
   }
 
+  // Do not return fire() to Playwright: the shot includes the full Babylon victim/scene graph.
+  // Serializing that graph over DevTools can invalidate the execution context.
+  // An orbit-camera shot is the negative control for an FPS-only crash/navigation.
+  console.log('STAGE: initial orbit shot');
+  await page.evaluate(()=>{BattleDamageRange.fire();});
+  await page.waitForTimeout(400);
+  const orbitShot=await snap();
+  if(orbitShot.wounds<2)fail.push('orbit shot did not produce UV entry and exit wounds');
+  await page.evaluate(()=>BattleDamageRange.clear());
+
   // FPS aim should activate the first-person camera + reticle and still land a reticle-centered body hit.
+  console.log('STAGE: FPS activation and fire');
   const fpsCheck=await page.evaluate(()=>{
     BattleDamageRange.setFps(true);
     const ret=document.getElementById('rangeReticle');
@@ -66,7 +101,7 @@ const OUT=path.resolve(process.env.DR_OUT||'closeups/damage-range');
   });
   if(fpsCheck.state.camera!=='damageRangeFpsCam'||!fpsCheck.state.fps)fail.push('FPS aim camera did not activate');
   if(fpsCheck.reticle==='none'||!fpsCheck.reticle)fail.push('FPS aim reticle is not visible');
-  await page.evaluate(()=>BattleDamageRange.fire());
+  await page.evaluate(()=>{BattleDamageRange.fire();});
   await page.waitForTimeout(700);
   const fpsHit=await snap();
   if(fpsHit.wounds<2||fpsHit.uvWounds<2)fail.push('FPS reticle-centered shot did not create UV entry + exit wounds');
@@ -76,7 +111,7 @@ const OUT=path.resolve(process.env.DR_OUT||'closeups/damage-range');
   if(orbitAgain.camera!=='damageRangeCam'||orbitAgain.fps)fail.push('leaving FPS aim did not restore orbit camera');
 
   // One through-shot should paint entry + exit into one private map, no fallback.
-  await page.evaluate(()=>BattleDamageRange.fire());
+  await page.evaluate(()=>{BattleDamageRange.fire();});
   await page.waitForTimeout(1100);
   const first=await snap();
   if(first.wounds<2)fail.push('first through-shot did not create entry + exit wound events');
@@ -112,14 +147,24 @@ const OUT=path.resolve(process.env.DR_OUT||'closeups/damage-range');
   if(!death.targetDead)fail.push('Kill did not put selected target into death state');
   await page.screenshot({path:path.join(OUT,'death.png')});
 
+  // Reset intentionally reloads the range page. Wait for the navigation and fresh startup;
+  // evaluating old window globals during this reload would produce a false QA failure.
+  const resetNavigation=page.waitForNavigation({waitUntil:'load',timeout:300000});
+  await page.locator('#rangeReset').click();
+  await resetNavigation;
+  await page.waitForFunction(()=>window.__battle__&&window.BattleDamageRange&&BattleDamageRange.ready,null,{timeout:300000,polling:100});
+  const reset=await snap();
+  if(reset.targets.length!==10||reset.wounds!==0||reset.surfaceMaps!==0)fail.push('Reset reload did not restore clean range state');
+
   if(errors.length)fail.push('page errors: '+errors.slice(0,4).join(' | '));
-  const summary={url:URL_,seed:SEED,initial,stable,first,accumulated,second,cleared,death,errors,logs:logs.slice(-120),ok:fail.length===0,fail};
+  const summary={url:URL_,seed:SEED,initial,stable,first,accumulated,second,cleared,death,reset,navigationTrace,errors,logs:logs.slice(-120),ok:fail.length===0,fail};
   fs.writeFileSync(path.join(OUT,'summary.json'),JSON.stringify(summary,null,2));
   console.log('INITIAL '+JSON.stringify({targets:initial.targets,camera:initial.camera,enabled:initial.enabledSoldiers,baseY:initial.baseY}));
   console.log('FIRST '+JSON.stringify({wounds:first.wounds,uv:first.uvWounds,maps:first.surfaceMaps}));
   console.log('ACCUM '+JSON.stringify({wounds:accumulated.wounds,uv:accumulated.uvWounds,maps:accumulated.surfaceMaps}));
   console.log('SECOND '+JSON.stringify({wounds:second.wounds,uv:second.uvWounds,maps:second.surfaceMaps}));
+  console.log('RESET '+JSON.stringify({wounds:reset.wounds,maps:reset.surfaceMaps,navigations:navigationTrace.length}));
   console.log(fail.length?'FAIL '+fail.join('; '):'OK damage range: stationary 10-man lineup, UV-only wound accumulation, per-soldier maps, clear + death');
   await browser.close();
   process.exit(fail.length?1:0);
-})().catch(e=>{console.error('DAMAGE RANGE PROBE FAIL',e&&e.stack||e);process.exit(1);});
+})().catch(e=>{console.error('DAMAGE RANGE PROBE FAIL',e&&e.stack||e,'navigations',navigationTrace,'browserEvents',browserEvents,'url',diagnosticPage&&!diagnosticPage.isClosed()?diagnosticPage.url():'closed','pageErrors',diagnosticErrors.slice(-8),'consoleTail',diagnosticLogs.slice(-50));process.exit(1);});
