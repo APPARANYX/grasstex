@@ -30,6 +30,7 @@
     !root.BattleFbxRigCanon ||
     !root.BattleFbxWeaponCalibration ||
     !root.BattleFbxRetargetQuat ||
+    !root.BattleFbxRetargetRest ||
     root.BattleFbxSoldier
   )
     return;
@@ -1480,8 +1481,8 @@
   /* Pure quaternion multiplications and frame retargets live in the lexical 52 helper.
      Keep rest-pose preparation, fallback matrix math, clip channels and timing here. */
   var RETARGET_QUAT = root.BattleFbxRetargetQuat,
-    hamilton = RETARGET_QUAT.hamilton,
-    retargetRotations = RETARGET_QUAT.retargetRotations;
+    retargetRotations = RETARGET_QUAT.retargetRotations,
+    RETARGET_REST = root.BattleFbxRetargetRest;
   function retargetClips(lib, src, clips, bones) {
     var n = bones.length,
       parent = new Int32Array(n),
@@ -1498,63 +1499,19 @@
       restS[i] = src.rest[bones[i]].q;
       restT[i] = node ? node.rotationQuaternion || Q.FromEulerVector(node.rotation) : restS[i];
     }
-    /* Parents before children. */
-    var order = [],
-      depth = function (k) {
-        var d = 0;
-        while (parent[k] >= 0) {
-          k = parent[k];
-          d++;
-        }
-        return d;
-      };
-    for (i = 0; i < n; i++) order.push(i);
-    order.sort(function (a, b) {
-      return depth(a) - depth(b);
-    });
+    /* Stable parent-before-child order shared by matrix and quaternion retarget paths. */
+    var order = RETARGET_REST.planOrder(parent);
     var worst = 0;
     for (i = 0; i < n; i++) if (nodes[i]) worst = Math.max(worst, 1 - Math.abs(Q.Dot(restS[i], restT[i])));
     var hipsS = src.rest.hips.p,
       hipsT = lib.nodes.hips.position,
       k = hipsT.length() / Math.max(1e-6, hipsS.length());
     lib.speedScale = lib.hipsHeight / Math.max(1e-6, hipsS.z);
-    /* Quaternion form (the default): per bone, K = conj(S0)⊗T0 once per model. */
-    var rS = new Float64Array(n * 4),
-      rT = new Float64Array(n * 4),
-      K = new Float64Array(n * 4),
-      S0q = new Float64Array(n * 4),
-      T0q = new Float64Array(n * 4),
-      cq = new Float64Array(4);
-    for (i = 0; i < n; i++) {
-      var qs = restS[i],
-        qt = restT[i];
-      rS[i * 4] = qs.x;
-      rS[i * 4 + 1] = qs.y;
-      rS[i * 4 + 2] = qs.z;
-      rS[i * 4 + 3] = qs.w;
-      rT[i * 4] = qt.x;
-      rT[i * 4 + 1] = qt.y;
-      rT[i * 4 + 2] = qt.z;
-      rT[i * 4 + 3] = qt.w;
-    }
-    for (var oq = 0; oq < n; oq++) {
-      var iq = order[oq],
-        pq = parent[iq],
-        i4 = iq * 4;
-      if (pq >= 0) {
-        hamilton(S0q, i4, S0q, pq * 4, rS, i4);
-        hamilton(T0q, i4, T0q, pq * 4, rT, i4);
-      } else
-        for (var j4 = 0; j4 < 4; j4++) {
-          S0q[i4 + j4] = rS[i4 + j4];
-          T0q[i4 + j4] = rT[i4 + j4];
-        }
-      cq[0] = -S0q[i4];
-      cq[1] = -S0q[i4 + 1];
-      cq[2] = -S0q[i4 + 2];
-      cq[3] = S0q[i4 + 3];
-      hamilton(K, i4, cq, 0, T0q, i4);
-    }
+    /* Rest-to-model world quaternion correction is prepared once per imported model. */
+    var restPlan = RETARGET_REST.quatCalibration(parent, order, restS, restT),
+      rS = restPlan.rS,
+      rT = restPlan.rT,
+      K = restPlan.K;
     var out = {};
     Object.keys(clips).forEach(function (key) {
       var clip = clips[key],
