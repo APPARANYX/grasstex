@@ -1,4 +1,4 @@
-name: Audit 456 module-profile formatter
+name: Audit 456 module-profile and wrapper formatter
 on:
   push:
     branches:
@@ -19,8 +19,8 @@ jobs:
       - name: Format module-profile harness only
         run: |
           set -euo pipefail
-          npx --yes prettier@3.3.3 --write tools/ai-sim-harness/module-load-profile-check.js
-          git add tools/ai-sim-harness/module-load-profile-check.js
+          npx --yes prettier@3.3.3 --write tools/ai-sim-harness/module-load-profile-check.js tools/ai-sim-harness/start-wrapper-contract-check.js
+          git add tools/ai-sim-harness/module-load-profile-check.js tools/ai-sim-harness/start-wrapper-contract-check.js
           if git diff --cached --quiet; then exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
