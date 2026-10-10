@@ -17,13 +17,22 @@ const URL_=process.env.DR_URL||'http://127.0.0.1:8765/grasstex/battle_sim_local.
 const SEED=process.env.DR_SEED||'damage-range-probe';
 const OUT=path.resolve(process.env.DR_OUT||'closeups/damage-range');
 const navigationTrace=[];
+const browserEvents=[];
+let diagnosticLogs=[];
+let diagnosticErrors=[];
+let diagnosticPage=null;
 
 (async()=>{
   const {chromium}=loadPlaywright();fs.mkdirSync(OUT,{recursive:true});
   const browser=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--enable-webgl','--ignore-gpu-blocklist','--ignore-certificate-errors','--no-sandbox']});
   const page=await browser.newPage({ignoreHTTPSErrors:true,viewport:{width:1280,height:760}});
+  diagnosticPage=page;
+  page.on('crash',()=>browserEvents.push('page crashed'));
+  page.on('close',()=>browserEvents.push('page closed'));
   page.on('framenavigated',frame=>{if(frame===page.mainFrame())navigationTrace.push(frame.url());});
   const errors=[],logs=[];
+  diagnosticLogs=logs;
+  diagnosticErrors=errors;
   page.on('pageerror',e=>errors.push(String(e&&e.stack||e).slice(0,500)));
   page.on('console',m=>logs.push('['+m.type()+'] '+m.text()));
   await page.route('**/*',route=>{
@@ -60,7 +69,16 @@ const navigationTrace=[];
     if(!b||Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)>.002)fail.push('target root moved while AI should be frozen: '+a.id);
   }
 
+  // An orbit-camera shot is the negative control for an FPS-only crash/navigation.
+  console.log('STAGE: initial orbit shot');
+  await page.evaluate(()=>BattleDamageRange.fire());
+  await page.waitForTimeout(400);
+  const orbitShot=await snap();
+  if(orbitShot.wounds<2)fail.push('orbit shot did not produce UV entry and exit wounds');
+  await page.evaluate(()=>BattleDamageRange.clear());
+
   // FPS aim should activate the first-person camera + reticle and still land a reticle-centered body hit.
+  console.log('STAGE: FPS activation and fire');
   const fpsCheck=await page.evaluate(()=>{
     BattleDamageRange.setFps(true);
     const ret=document.getElementById('rangeReticle');
@@ -134,4 +152,4 @@ const navigationTrace=[];
   console.log(fail.length?'FAIL '+fail.join('; '):'OK damage range: stationary 10-man lineup, UV-only wound accumulation, per-soldier maps, clear + death');
   await browser.close();
   process.exit(fail.length?1:0);
-})().catch(e=>{console.error('DAMAGE RANGE PROBE FAIL',e&&e.stack||e,'navigations',navigationTrace);process.exit(1);});
+})().catch(e=>{console.error('DAMAGE RANGE PROBE FAIL',e&&e.stack||e,'navigations',navigationTrace,'browserEvents',browserEvents,'url',diagnosticPage&&!diagnosticPage.isClosed()?diagnosticPage.url():'closed','pageErrors',diagnosticErrors.slice(-8),'consoleTail',diagnosticLogs.slice(-50));process.exit(1);});
