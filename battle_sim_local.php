@@ -50,6 +50,24 @@ $pagePath=$root.'/battle/battle_sim.html';
 $runtimeFiles=array('battle/battle_sim.html','battle/core-runtime.js','battle/soldier.js','battle/weapons.js','battle/obstacle-field.js','battle/terrain-features.js','battle/squad-ai.js','battle/engagement.js','battle/battle-sim.js','battle/camera-controls.js','battle/acoustics.js','battle/scenario-generator.js','battle/battle-navigation.js','battle/town-objectives.js','battle/module-registry.js','battle/ai-policy.js','battle/objective-system.js','battle/battle-telemetry.js','battle/commander-doctrine.js','battle/commander-routes.js','battle/commander-ai.js','battle/ai-trainer.js','battle/battle-control.js');
 $modulePaths=glob($root.'/battle/modules/*.js');if($modulePaths===false)$modulePaths=array();sort($modulePaths,SORT_STRING);$moduleFiles=array();foreach($modulePaths as $modulePath){$name=basename($modulePath);$moduleFiles[]=$name;$runtimeFiles[]='battle/modules/'.$name;}
 if(!is_file($pagePath)||!is_readable($pagePath)){http_response_code(503);echo '<!doctype html><html><body><h1>Battle sim unavailable</h1><p>Local battle page is missing.</p></body></html>';exit;}
+/* #456 R4: safe production/QA module split. Keep all gameplay, recorder,
+   navigation, order-provenance and strategic-stall modules in the shipping set.
+   Only the inert/stashed graph UI and strictly opt-in QA pages are lazy-tagged.
+   Every discovered module remains available through ?devModules=1. */
+$graphUiOnlyModules = array('30-ai-graph-editor.js'=>true,'31-ai-graph-logic.js'=>true,'33-ai-graph-usability.js'=>true,'34-ai-timing-map.js'=>true,'37-lease-panel.js'=>true,'38-ai-diagnostics-export.js'=>true);
+$allDevModules = isset($_GET['devModules']) && $_GET['devModules'] === '1';
+$graphUiRequested = $allDevModules || (isset($_GET['editor']) && $_GET['editor'] === 'ai');
+$deviceBenchRequested = $allDevModules || (isset($_GET['bench']) && $_GET['bench'] === '1');
+$damageRangeRequested = $allDevModules || (isset($_GET['damageRange']) && $_GET['damageRange'] === '1');
+$moduleAllowed = static function ($name) use ($graphUiOnlyModules, $graphUiRequested, $deviceBenchRequested, $damageRangeRequested) {
+    if (isset($graphUiOnlyModules[$name])) return $graphUiRequested;
+    if ($name === '97-device-benchmark.js') return $deviceBenchRequested;
+    if ($name === '98-damage-range.js') return $damageRangeRequested;
+    return true;
+};
+
+$activeModuleFiles = array_values(array_filter($moduleFiles, $moduleAllowed));
+
 $deployId=0;foreach($runtimeFiles as $rel){$p=$root.'/'.$rel;if(is_file($p))$deployId=max($deployId,intval(@filemtime($p)));}if($deployId<=0)$deployId=time();
 $body=@file_get_contents($pagePath);if($body===false||stripos($body,'<html')===false){http_response_code(503);echo '<!doctype html><html><body><h1>Battle sim unavailable</h1><p>Local battle page could not be read.</p></body></html>';exit;}
 $apiBase='/grasstex/';
@@ -81,7 +99,7 @@ $body=preg_replace($cameraPattern,$cameraReplacement,$body,1,$cameraCount);if($c
 /* Separate execution contexts mean one extension failure cannot prevent later systems loading. */
 $preCommander=array('camera-controls.js','acoustics.js','scenario-generator.js','battle-navigation.js','town-objectives.js','module-registry.js','ai-policy.js','objective-system.js','battle-telemetry.js','commander-doctrine.js','commander-routes.js','commander-ai.js');$extras='';foreach($preCommander as $file)$extras.='<script src="'.$runtimeBase.'battle/'.$file.'?v='.$deployId.'&c='.rawurlencode($cacheEpoch).'"></script>'."\n";
 /* Modules load after commander: building hardpoints/armor/engineers may wrap generic behavior. */
-foreach($moduleFiles as $file)$extras.='<script src="'.$runtimeBase.'battle/modules/'.rawurlencode($file).'?v='.$deployId.'&c='.rawurlencode($cacheEpoch).'"></script>'."\n";
+foreach($activeModuleFiles as $file)$extras.='<script src="'.$runtimeBase.'battle/modules/'.rawurlencode($file).'?v='.$deployId.'&c='.rawurlencode($cacheEpoch).'"></script>'."\n";
 /* Benchmark/repro URLs may choose a prepared defender without relying on UI state. Defender UI
    installation runs while modules load, so apply this after the module tags and before the page
    creates/restarts the battle. Empty means the normal meeting engagement. */
@@ -91,5 +109,5 @@ foreach(array('ai-trainer.js','battle-control.js') as $file)$extras.='<script sr
 $pattern='#<script>\s*/\* Extra runtimes[\s\S]*?</script>#';$body=preg_replace($pattern,$extras,$body,1,$count);if($count!==1){http_response_code(500);echo '<!doctype html><html><body><h1>Battle sim deployment mismatch</h1><p>Extra-runtime block was not found.</p></body></html>';exit;}
 /* The page's load bar counts runtime scripts as they arrive; give it the total. */
 $body=str_replace($cdnTag,'<script>window.BATTLE_RUNTIME_SCRIPTS='.substr_count($body,'<script src=').';</script>'."\n".$cdnTag,$body);
-header('X-Grasstex-Deploy-Id: '.$deployId);header('X-Grasstex-Build: '.$build);header('X-Grasstex-Build-Source: '.$buildSource);header('X-Grasstex-Cache-Epoch: '.$cacheEpoch);header('X-Grasstex-Modules: '.count($moduleFiles));echo $body;
+header('X-Grasstex-Deploy-Id: '.$deployId);header('X-Grasstex-Build: '.$build);header('X-Grasstex-Build-Source: '.$buildSource);header('X-Grasstex-Cache-Epoch: '.$cacheEpoch);header('X-Grasstex-Modules: '.count($activeModuleFiles));echo $body;
 ?>
