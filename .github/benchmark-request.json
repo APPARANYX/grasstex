@@ -1,0 +1,10 @@
+{
+  "benchmark": "causal",
+  "ref": "work/issue361-natural-lifecycle-proof",
+  "exact_seed": "hill-0002",
+  "seeds": "1",
+  "seconds": "900",
+  "side": "us",
+  "squads": "us-3",
+  "lifecycle": "1"
+}
