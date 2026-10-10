@@ -14,9 +14,11 @@ const geometry = new Function(
   source.slice(first, last) + 'return { zone: rangeZonePoint, shot: rangeShot };'
 )();
 function assertPoint(actual, expected) {
-  for (const key of ['x','y','z'])
-    assert.ok(Math.abs(actual[key] - expected[key]) < 1e-9,
-      key + ': ' + actual[key] + ' vs ' + expected[key]);
+  for (const key of ['x', 'y', 'z'])
+    assert.ok(
+      Math.abs(actual[key] - expected[key]) < 1e-9,
+      key + ': ' + actual[key] + ' vs ' + expected[key]
+    );
 }
 const target = { id: 'ge-gunner', root: { position: { x: 2, y: 40, z: 100 } } };
 assertPoint(geometry.zone(target, 'head', 0), { x: 2, y: 41.7, z: 100 });
