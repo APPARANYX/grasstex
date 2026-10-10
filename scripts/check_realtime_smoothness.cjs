@@ -1,5 +1,5 @@
-/* Real-page check that live 1x playback advances soldiers every rendered frame while 4x/8x
- * stay on the fixed 0.15 s step (battle/modules/00-fixed-step-clock.js).
+/* Real-page check that live 1x/4x/8x retain the pre-clock observer behavior,
+ * and the explicit fixed-clock opt-in still uses 0.15 s steps.
  *
  * Frames run on a VIRTUAL wall clock (engine.getDeltaTime is pinned and the before-render
  * observers are notified directly), so the result does not depend on how fast software WebGL
@@ -9,7 +9,8 @@
  * Requires Playwright and the local battle PHP server:
  *   node scripts/check_realtime_smoothness.cjs
  * Env: CHECK_URL, CHECK_SEED, CHECK_FPS (60), CHECK_SECONDS (10), CHECK_CHROME (executable path)
- * Exits non-zero if default 1x is not smooth, the fixed-step arms are, or 4x leaves the fixed step. */
+ * Exits non-zero if the default live path differs from ?fixedClock=0 at 1x/4x/8x,
+ * or if the explicit parity clock stops running fixed steps. */
 'use strict';
 
 const path = require('node:path');
@@ -32,7 +33,11 @@ const ARMS = [
   { id: '1x default', query: '', speed: 1 },
   { id: '1x ?fixedClock=all', query: '&fixedClock=all', speed: 1 },
   { id: '1x ?fixedClock=0', query: '&fixedClock=0', speed: 1 },
-  { id: '4x default', query: '', speed: 4 }
+  { id: '4x default', query: '', speed: 4 },
+  { id: '4x ?fixedClock=0', query: '&fixedClock=0', speed: 4 },
+  { id: '4x ?fixedClock=all', query: '&fixedClock=all', speed: 4 },
+  { id: '8x default', query: '', speed: 8 },
+  { id: '8x ?fixedClock=0', query: '&fixedClock=0', speed: 8 }
 ];
 
 (async () => {
@@ -123,7 +128,7 @@ const ARMS = [
             motionShare: share,
             medianMaxJumpM: jumps.length ? jumps[jumps.length >> 1] : null,
             fixedSteps: clock ? clock.stats.totalSteps : null,
-            smoothFrames: clock ? clock.stats.smoothFrames : null
+            fixedClockInstalled: !!b._fixedClockInstalled
           };
         },
         { speed: arm.speed, fps: FPS, seconds: SECONDS }
@@ -138,21 +143,30 @@ const ARMS = [
   const by = id => results.find(r => r.arm === id);
   const smooth = by('1x default');
   const fixed = by('1x ?fixedClock=all');
-  const legacy = by('1x ?fixedClock=0');
-  const fast = by('4x default');
   const fail = [];
   if (!smooth.movers) fail.push('no soldier moved; the battle did not advance');
-  if (smooth.fixedSteps !== 0) fail.push('default 1x ran ' + smooth.fixedSteps + ' fixed steps');
-  if (smooth.smoothFrames !== smooth.frames)
-    fail.push('default 1x smooth frames ' + smooth.smoothFrames + '/' + smooth.frames);
+  if (smooth.fixedSteps !== 0 || smooth.fixedClockInstalled)
+    fail.push('default 1x unexpectedly installed or advanced the fixed clock');
   if (!(smooth.motionShare > 3 * fixed.motionShare))
-    fail.push('default 1x is not clearly smoother than the fixed step');
-  if (Math.abs(smooth.motionShare - legacy.motionShare) > 0.02)
-    fail.push('default 1x differs from the pre-clock path');
-  const expectSteps = fast.simAdvanced / STEP;
-  if (Math.abs(fast.fixedSteps - expectSteps) > 1.5)
-    fail.push('4x fixed steps ' + fast.fixedSteps + ' vs ' + expectSteps.toFixed(1));
-  if (fast.smoothFrames !== 0) fail.push('4x used per-frame stepping');
+    fail.push('default 1x is not clearly smoother than the forced fixed step');
+  for (const speed of [1, 4, 8]) {
+    const live = by(speed + 'x default');
+    const old = by(speed + 'x ?fixedClock=0');
+    if (!live.movers) fail.push(speed + 'x: no live movement');
+    if (live.fixedSteps !== 0 || live.fixedClockInstalled)
+      fail.push(speed + 'x: default live enabled benchmark-only fixed steps');
+    if (Math.abs(live.motionShare - old.motionShare) > 0.02)
+      fail.push(speed + 'x: default live movement differs from the original observer');
+    if (Math.abs(live.simAdvanced - old.simAdvanced) > 0.01)
+      fail.push(speed + 'x: default live sim time differs from original observer');
+  }
+  for (const speed of [1, 4]) {
+    const forced = by(speed + 'x ?fixedClock=all');
+    if (!forced.fixedClockInstalled || !(forced.fixedSteps > 0))
+      fail.push(speed + 'x: explicit benchmark observer did not run fixed steps');
+    if (Math.abs(forced.fixedSteps - forced.simAdvanced / STEP) > 1.5)
+      fail.push(speed + 'x: fixed step count differs from simulated time');
+  }
 
   console.log(JSON.stringify({ fps: FPS, seconds: SECONDS, results, fail }, null, 2));
   process.exit(fail.length ? 1 : 0);
