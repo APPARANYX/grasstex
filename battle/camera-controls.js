@@ -232,6 +232,68 @@
     }
     return { position: position, target: look };
   }
+  /* Immutable player-settings presentation; createDesktopFly retains the live state and handlers. */
+  function playerMenuStyles() {
+    return (
+      '#battlePlayerSettings{position:fixed;inset:0;z-index:45;display:none;align-items:center;' +
+      'justify-content:center;padding:16px;background:#000b;color:#f2f1df;font:12px Arial,sans-serif}' +
+      '#battlePlayerSettings section{width:min(420px,94vw);max-height:90vh;overflow:auto;padding:20px;' +
+      'border:1px solid #7c9384;border-radius:7px;background:#162426;box-shadow:0 14px 45px #0009}' +
+      '#battlePlayerSettings h2{margin:0 0 8px;font-size:20px}' +
+      '#battlePlayerSettings p{color:#b6c7c3;line-height:1.5}' +
+      '#battlePlayerSettings .bpm-field{display:block;margin:8px -6px;padding:6px;border:2px solid transparent;' +
+      'border-radius:5px;font-weight:bold}' +
+      '#battlePlayerSettings .bpm-field.active{border-color:#c8c78c;background:#344740}' +
+      '#battlePlayerSettings select{box-sizing:border-box;display:block;width:100%;padding:9px;' +
+      'margin-top:6px;background:#263a3c;border:1px solid #7a918a;border-radius:4px;color:white}' +
+      '#battlePlayerSettings .bpm-tabs{display:flex;gap:8px;margin:8px 0 12px}' +
+      '#battlePlayerSettings .bpm-tabs button{flex:1;background:#203638;border-color:#67786c}' +
+      '#battlePlayerSettings .bpm-tabs button.active{background:#668049;border-color:#c8c78c}' +
+      '#battlePlayerSettings .bpm-value{float:right;color:#cfdbb8;font-variant-numeric:tabular-nums}' +
+      '#battlePlayerSettings input[type=range]{display:block;width:100%;margin:11px 0 5px;' +
+      'accent-color:#bdd98b;cursor:pointer}' +
+      '#battlePlayerSettings .bpm-field.check{display:flex;gap:10px;align-items:center}' +
+      '#battlePlayerSettings .bpm-buttons{display:flex;gap:10px;margin-top:12px}' +
+      '#battlePlayerSettings button{flex:1;padding:10px;border-radius:4px;cursor:pointer;' +
+      'border:1px solid #8c9e93;color:white;background:#40564f;font-weight:bold}' +
+      '#battlePlayerSettings button.primary{background:#668049}' +
+      '#battlePlayerSettings button:disabled{opacity:.5;cursor:default}'
+    );
+  }
+
+  function playerMenuMarkup() {
+    return (
+      '<section role="dialog" aria-modal="true" aria-label="Battle settings">' +
+      '<h2>BATTLE SETTINGS</h2>' +
+      '<nav class="bpm-tabs" aria-label="Settings pages">' +
+      '<button class="bpm-tab active" id="bpmTabPlayer" type="button" aria-selected="true">LB ◀ PLAYER</button>' +
+      '<button class="bpm-tab" id="bpmTabAudio" type="button" aria-selected="false">AUDIO ▶ RB</button></nav>' +
+      '<div id="bpmPlayerPane" class="bpm-pane">' +
+      '<p>Choose the faction, unit and soldier to control.</p>' +
+      '<label class="bpm-field">FACTION<select id="bpmFaction">' +
+      '<option value="us">United States</option><option value="ge">Germany</option></select></label>' +
+      '<label class="bpm-field">UNIT / SQUAD<select id="bpmSquad"></select></label>' +
+      '<label class="bpm-field">SOLDIER<select id="bpmSoldier"></select></label>' +
+      '<label class="bpm-field check"><input type="checkbox" id="bpmHaptics" checked> HAPTIC FEEDBACK</label></div>' +
+      '<div id="bpmAudioPane" class="bpm-pane" style="display:none">' +
+      '<p>Mix volume. 100% uses the louder battlefield preset. Saved on this device.</p>' +
+      '<label class="bpm-field">MASTER <span class="bpm-value" id="bpmMasterValue">100%</span>' +
+      '<input type="range" id="bpmMaster" min="0" max="150" step="5" value="100"></label>' +
+      '<label class="bpm-field">GUNFIRE <span class="bpm-value" id="bpmWeaponsValue">100%</span>' +
+      '<input type="range" id="bpmWeapons" min="0" max="150" step="5" value="100"></label>' +
+      '<label class="bpm-field">SQUAD VOICES <span class="bpm-value" id="bpmVoicesValue">100%</span>' +
+      '<input type="range" id="bpmVoices" min="0" max="150" step="5" value="100"></label>' +
+      '<label class="bpm-field">EFFECTS / FOLEY <span class="bpm-value" id="bpmEffectsValue">100%</span>' +
+      '<input type="range" id="bpmEffects" min="0" max="150" step="5" value="100"></label>' +
+      '<button id="bpmResetAudio" type="button">RESET AUDIO MIX</button></div>' +
+      '<div class="bpm-buttons"><button class="primary" id="bpmApply" type="button">DEPLOY</button>' +
+      '<button id="bpmClose" type="button">BACK</button></div>' +
+      '<p id="bpmHelpPlayer">LB/RB page · D-pad ↑↓ field · ←→ choice · A deploy/toggle · B back · tap Menu close.</p>' +
+      '<p id="bpmHelpAudio" style="display:none">LB/RB page · D-pad ↑↓ slider · ←→ ±5% · A resets selected slider · B back.' +
+      ' Mouse and touch supported. This changes the local playback mix only.</p></section>'
+    );
+  }
+
   function createDesktopFly(scene, canvas, target, engine, battleSim, pose) {
     var startPosition =
       pose && pose.position ? pose.position : initialPosition(target, 720, -Math.PI / 2, 1.02);
@@ -937,62 +999,11 @@
       if (settingsMenu) return;
       var style = document.createElement('style');
       style.id = 'battlePlayerMenuStyles';
-      style.textContent =
-        '#battlePlayerSettings{position:fixed;inset:0;z-index:45;display:none;align-items:center;' +
-        'justify-content:center;padding:16px;background:#000b;color:#f2f1df;font:12px Arial,sans-serif}' +
-        '#battlePlayerSettings section{width:min(420px,94vw);max-height:90vh;overflow:auto;padding:20px;' +
-        'border:1px solid #7c9384;border-radius:7px;background:#162426;box-shadow:0 14px 45px #0009}' +
-        '#battlePlayerSettings h2{margin:0 0 8px;font-size:20px}' +
-        '#battlePlayerSettings p{color:#b6c7c3;line-height:1.5}' +
-        '#battlePlayerSettings .bpm-field{display:block;margin:8px -6px;padding:6px;border:2px solid transparent;' +
-        'border-radius:5px;font-weight:bold}' +
-        '#battlePlayerSettings .bpm-field.active{border-color:#c8c78c;background:#344740}' +
-        '#battlePlayerSettings select{box-sizing:border-box;display:block;width:100%;padding:9px;' +
-        'margin-top:6px;background:#263a3c;border:1px solid #7a918a;border-radius:4px;color:white}' +
-        '#battlePlayerSettings .bpm-tabs{display:flex;gap:8px;margin:8px 0 12px}' +
-        '#battlePlayerSettings .bpm-tabs button{flex:1;background:#203638;border-color:#67786c}' +
-        '#battlePlayerSettings .bpm-tabs button.active{background:#668049;border-color:#c8c78c}' +
-        '#battlePlayerSettings .bpm-value{float:right;color:#cfdbb8;font-variant-numeric:tabular-nums}' +
-        '#battlePlayerSettings input[type=range]{display:block;width:100%;margin:11px 0 5px;' +
-        'accent-color:#bdd98b;cursor:pointer}' +
-        '#battlePlayerSettings .bpm-field.check{display:flex;gap:10px;align-items:center}' +
-        '#battlePlayerSettings .bpm-buttons{display:flex;gap:10px;margin-top:12px}' +
-        '#battlePlayerSettings button{flex:1;padding:10px;border-radius:4px;cursor:pointer;' +
-        'border:1px solid #8c9e93;color:white;background:#40564f;font-weight:bold}' +
-        '#battlePlayerSettings button.primary{background:#668049}' +
-        '#battlePlayerSettings button:disabled{opacity:.5;cursor:default}';
+      style.textContent = playerMenuStyles();
       document.head.appendChild(style);
       settingsMenu = document.createElement('div');
       settingsMenu.id = 'battlePlayerSettings';
-      settingsMenu.innerHTML =
-        '<section role="dialog" aria-modal="true" aria-label="Battle settings">' +
-        '<h2>BATTLE SETTINGS</h2>' +
-        '<nav class="bpm-tabs" aria-label="Settings pages">' +
-        '<button class="bpm-tab active" id="bpmTabPlayer" type="button" aria-selected="true">LB ◀ PLAYER</button>' +
-        '<button class="bpm-tab" id="bpmTabAudio" type="button" aria-selected="false">AUDIO ▶ RB</button></nav>' +
-        '<div id="bpmPlayerPane" class="bpm-pane">' +
-        '<p>Choose the faction, unit and soldier to control.</p>' +
-        '<label class="bpm-field">FACTION<select id="bpmFaction">' +
-        '<option value="us">United States</option><option value="ge">Germany</option></select></label>' +
-        '<label class="bpm-field">UNIT / SQUAD<select id="bpmSquad"></select></label>' +
-        '<label class="bpm-field">SOLDIER<select id="bpmSoldier"></select></label>' +
-        '<label class="bpm-field check"><input type="checkbox" id="bpmHaptics" checked> HAPTIC FEEDBACK</label></div>' +
-        '<div id="bpmAudioPane" class="bpm-pane" style="display:none">' +
-        '<p>Mix volume. 100% uses the louder battlefield preset. Saved on this device.</p>' +
-        '<label class="bpm-field">MASTER <span class="bpm-value" id="bpmMasterValue">100%</span>' +
-        '<input type="range" id="bpmMaster" min="0" max="150" step="5" value="100"></label>' +
-        '<label class="bpm-field">GUNFIRE <span class="bpm-value" id="bpmWeaponsValue">100%</span>' +
-        '<input type="range" id="bpmWeapons" min="0" max="150" step="5" value="100"></label>' +
-        '<label class="bpm-field">SQUAD VOICES <span class="bpm-value" id="bpmVoicesValue">100%</span>' +
-        '<input type="range" id="bpmVoices" min="0" max="150" step="5" value="100"></label>' +
-        '<label class="bpm-field">EFFECTS / FOLEY <span class="bpm-value" id="bpmEffectsValue">100%</span>' +
-        '<input type="range" id="bpmEffects" min="0" max="150" step="5" value="100"></label>' +
-        '<button id="bpmResetAudio" type="button">RESET AUDIO MIX</button></div>' +
-        '<div class="bpm-buttons"><button class="primary" id="bpmApply" type="button">DEPLOY</button>' +
-        '<button id="bpmClose" type="button">BACK</button></div>' +
-        '<p id="bpmHelpPlayer">LB/RB page · D-pad ↑↓ field · ←→ choice · A deploy/toggle · B back · tap Menu close.</p>' +
-        '<p id="bpmHelpAudio" style="display:none">LB/RB page · D-pad ↑↓ slider · ←→ ±5% · A resets selected slider · B back.' +
-        ' Mouse and touch supported. This changes the local playback mix only.</p></section>';
+      settingsMenu.innerHTML = playerMenuMarkup();
       document.body.appendChild(settingsMenu);
       settingsMenu.querySelector('#bpmFaction').addEventListener('change', function () {
         fillMenuSquads(null, null);
