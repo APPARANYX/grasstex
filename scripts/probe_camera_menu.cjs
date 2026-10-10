@@ -175,13 +175,45 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       return b && b._roster && !(b._roster.us || []).some(s => s.isPlayer) &&
         !(b._roster.ge || []).some(s => s.isPlayer) && b.scene.activeCamera.name === 'cam';
     }, null, { timeout: 15000 });
-    // Pointer lock belongs to the desktop camera's current canvas. Opening
-    // settings releases it; a same-page camera replacement must do so too.
+    // Some headless Chromium environments deny real pointer lock despite a
+    // genuine click. Try the real API first; only if unavailable inject a
+    // document-level test double that exercises shipping change/exit handlers.
     await page.locator('#renderCanvas').click({force: true, position: {x: 250, y: 210}});
-    await page.waitForFunction(
-      () => document.pointerLockElement === document.getElementById('renderCanvas'),
-      null, {timeout: 10000}
+    await page.waitForTimeout(350);
+    const realPointerLock = await page.evaluate(() =>
+      document.pointerLockElement === document.getElementById('renderCanvas')
     );
+    if (!realPointerLock) {
+      await page.evaluate(() => {
+        const original = Object.getOwnPropertyDescriptor(document, 'pointerLockElement');
+        const originalExit = document.exitPointerLock;
+        const canvas = document.getElementById('renderCanvas');
+        let held = null;
+        Object.defineProperty(document, 'pointerLockElement', {
+          configurable: true, get: () => held
+        });
+        document.exitPointerLock = function () {
+          held = null;
+          document.dispatchEvent(new Event('pointerlockchange'));
+        };
+        window.__qaPointer = {
+          synthetic: true,
+          lock() {
+            held = canvas;
+            document.dispatchEvent(new Event('pointerlockchange'));
+          },
+          restore() {
+            if (original) Object.defineProperty(document, 'pointerLockElement', original);
+            else delete document.pointerLockElement;
+            document.exitPointerLock = originalExit;
+          }
+        };
+        window.__qaPointer.lock();
+      });
+    }
+    assert.equal(await page.evaluate(() =>
+      document.pointerLockElement === document.getElementById('renderCanvas')
+    ), true, 'pointer-lock test setup failed');
     await page.keyboard.press('o');
     await page.waitForFunction(() =>
       getComputedStyle(document.getElementById('battlePlayerSettings')).display === 'flex'
@@ -189,11 +221,15 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     assert.equal(await page.evaluate(() => document.pointerLockElement), null,
       'opening settings must release pointer lock');
     await page.keyboard.press('Escape');
-    await page.locator('#renderCanvas').click({force: true, position: {x: 250, y: 210}});
-    await page.waitForFunction(
-      () => document.pointerLockElement === document.getElementById('renderCanvas'),
-      null, {timeout: 10000}
-    );
+    if (realPointerLock) {
+      await page.locator('#renderCanvas').click({force: true, position: {x: 250, y: 210}});
+      await page.waitForFunction(
+        () => document.pointerLockElement === document.getElementById('renderCanvas'),
+        null, {timeout: 10000}
+      );
+    } else {
+      await page.evaluate(() => window.__qaPointer.lock());
+    }
 
     // Recreate on the same page and the SAME scene. Assert observer count stays
     // constant; previous camera, pointer lock and DOM controls are disposed;
@@ -232,6 +268,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     assert.equal(lifecycle.replacementCurrent, true);
     assert.equal(lifecycle.replacementAlive, true, 'old.stop must not dispose new camera');
     assert.equal(lifecycle.lockReleased, true, 'recreation must release old pointer lock');
+    if (!realPointerLock) await page.evaluate(() => window.__qaPointer.restore());
     await page.keyboard.press('o');
     await page.waitForFunction(() => {
       const p = document.getElementById('battlePlayerSettings');
@@ -248,7 +285,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     }));
     fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({state, errors, notes: notes.slice(-20)}, null, 2));
     assert.equal(errors.length, 0, 'page errors: ' + errors.slice(0, 5).join(' | '));
-    console.log('PASS #456 R2 ownership, pointer lock and same-page camera disposal ' + JSON.stringify({state,lifecycle}));
+    console.log('PASS #456 R2 ownership, pointer lock (' + (realPointerLock ? 'real' : 'headless synthetic') + ') and same-page camera disposal ' + JSON.stringify({state,lifecycle}));
   } finally {
     await browser.close();
   }
