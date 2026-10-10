@@ -848,7 +848,9 @@
       fillMenuSoldiers(soldier);
     }
     function menuFields() {
-      return settingsMenu.querySelectorAll((menuTab === 0 ? '#bpmPlayerPane' : '#bpmAudioPane') + ' .bpm-field');
+      return settingsMenu.querySelectorAll(
+        (menuTab === 0 ? '#bpmPlayerPane' : '#bpmAudioPane') + ' .bpm-field'
+      );
     }
     function syncMenuFocus() {
       if (!settingsMenu) return;
@@ -1016,7 +1018,9 @@
       settingsMenu.querySelector('#bpmClose').addEventListener('click', closePlayerMenu);
       for (var tab = 0; tab < 2; tab++)
         (function (index) {
-          var rows = settingsMenu.querySelectorAll((index === 0 ? '#bpmPlayerPane' : '#bpmAudioPane') + ' .bpm-field');
+          var rows = settingsMenu.querySelectorAll(
+            (index === 0 ? '#bpmPlayerPane' : '#bpmAudioPane') + ' .bpm-field'
+          );
           for (var i = 0; i < rows.length; i++)
             (function (n) {
               rows[n].addEventListener('pointerdown', function () {
@@ -1074,7 +1078,11 @@
       if (menuTab === 1) {
         var keys = ['master', 'weapons', 'voices', 'effects'];
         var key = keys[menuFocus];
-        if (delta) changeMenuAudio(key, Number(settingsMenu.querySelector('#bpm' + key[0].toUpperCase() + key.slice(1)).value) + delta * 5);
+        if (delta)
+          changeMenuAudio(
+            key,
+            Number(settingsMenu.querySelector('#bpm' + key[0].toUpperCase() + key.slice(1)).value) + delta * 5
+          );
         if (padPressedOnce(pad, 0)) changeMenuAudio(key, 100);
       } else {
         var fields = ['#bpmFaction', '#bpmSquad', '#bpmSoldier'];
