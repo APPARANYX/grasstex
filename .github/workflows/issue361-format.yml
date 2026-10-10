@@ -1,0 +1,28 @@
+name: #361 bounded source formatter
+on:
+  push:
+    branches:
+      - 'work/format-issue361/**'
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/issue361-complete-audit
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Format only issue 361 touched files
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write scripts/probes/command-lifecycle.js scripts/probes/squad-local-starvation.js tools/ai-sim-harness/squad-local-starvation-check.js scripts/run_command_lifecycle_audit.cjs scripts/run_causal_inaction_benchmark.cjs
+          git add scripts/probes/command-lifecycle.js scripts/probes/squad-local-starvation.js tools/ai-sim-harness/squad-local-starvation-check.js scripts/run_command_lifecycle_audit.cjs scripts/run_causal_inaction_benchmark.cjs
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style: format #361 lifecycle and squad-local diagnostics'
+          git push origin HEAD:work/issue361-complete-audit
