@@ -170,19 +170,25 @@ for (const b of record.battles) {
           living: q.living,
           phase: q.phase,
           mission: q.mission
-            ? { version: q.mission.version, intent: q.mission.intent, status: q.mission.status }
+            ? { version: q.mission.version, intent: q.mission.intent, status: q.mission.status,
+                point: q.mission.point, objectiveId: q.mission.objectiveId }
             : null,
           objective: q.objective,
           anchor: q.anchor,
           centroid: q.centroid,
+          distanceToMission: q.centroid && q.mission && q.mission.point
+            ? +Math.hypot(q.centroid.x - q.mission.point.x, q.centroid.z - q.mission.point.z).toFixed(2)
+            : null,
           displacement: +(+q.displacement).toFixed(2),
           recon: !!q.recon,
           men: q.men.map(m => ({
             id: m.id,
+            position: m.position, destination: m.destination, order: m.order,
             travel: +(+m.travel).toFixed(2),
             adopted: !!m.adopted,
             receipt: (m.receipt && m.receipt.phase) || null,
             resolver: (m.resolver && m.resolver.owner) || null,
+            resolverReason: (m.resolver && m.resolver.reason) || null,
             stop: m.stopReason,
             speed: m.speed
           }))
@@ -481,6 +487,7 @@ if (process.env.CAUSAL_LIFECYCLE === '1') {
             (sq.mission ? sq.mission.intent + '/v' + sq.mission.version + '/' + sq.mission.status : 'none') +
             ' living=' +
             sq.living +
+            ' missionGap=' + sq.distanceToMission + 'm' +
             ' centroidDisplacement=' +
             sq.displacement.toFixed(1) +
             'm livingMenTravel=' +
