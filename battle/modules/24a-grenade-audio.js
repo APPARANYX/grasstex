@@ -40,9 +40,11 @@
     var near = Math.max(0, 1 - d / FOLEY_RANGE);
     return KINDS.pin.gain * (0.1 + 0.9 * Math.pow(near, 1.3));
   }
-  /* Full within 5 m, then half per fourfold distance: a burst stays a burst across the field. */
+  /* Explosion stays full within 10 m, then halves each fourfold distance.
+     Relative to the earlier 5 m anchor this adds ~3 dB of presence at medium and
+     long ranges, without overdriving the close-range mix limiter or touching foley. */
   function explosionGain(d) {
-    return KINDS.explosion.gain * Math.pow(Math.max(5, d) / 5, -0.5);
+    return KINDS.explosion.gain * Math.pow(Math.max(10, d) / 10, -0.5);
   }
   /* The sound a grenade event makes for a listener at L, or null when it is out of earshot. */
   function cue(kind, point, L) {
