@@ -55,9 +55,7 @@
   function pos(s) {
     return s && s.root && s.root.position ? point(s.root.position) : null;
   }
-  function dist(a, b) {
-    return a && b ? Math.hypot(a.x - b.x, a.z - b.z) : Infinity;
-  }
+  var dist = root.GTMath.dist; /* same defensive shape: null end -> Infinity */
   function alive(sq) {
     return ((sq && sq.members) || []).filter(function (s) {
       return s && !s.dead;
