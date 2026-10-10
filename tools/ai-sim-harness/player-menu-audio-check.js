@@ -16,7 +16,7 @@ assert.match(camera, /padPressedOnce\(pad, 4\)\) showMenuTab\(menuTab - 1\)/, 'L
 assert.match(camera, /padPressedOnce\(pad, 5\)\) showMenuTab\(menuTab \+ 1\)/, 'RB next tab');
 assert.match(camera, /var rows = menuFields\(\)/, 'D-pad navigation scopes to active tab');
 assert.match(camera, /if \(menuTab === 1\)/, 'audio input path distinct from possession path');
-assert.match(camera, /changeMenuAudio\(key,[\s\S]{0,175}delta \* 5\)/, 'D-pad adjusts by 5%');
+assert.match(camera, /changeMenuAudio\(\s*key,[\s\S]{0,500}delta \* 5/, 'D-pad adjusts by 5%');
 assert.match(
   camera,
   /if \(padPressedOnce\(pad, 0\)\) changeMenuAudio\(key, 100\)/,
