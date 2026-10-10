@@ -35,7 +35,7 @@ assert.equal(fingerprint(orchestration), '8a4da01a', 'the original menu/player f
 assert.equal(src.match(/bindDesktopEvents\(\);/g)?.length, 1, 'listeners must attach only once');
 assert.equal(src.match(/scene\.onBeforeRenderObservable\.add\(stepDesktopFrame\)/g)?.length, 1);
 assert.equal(src.match(/stepFreeFly\(pad, dt\);/g)?.length, 1);
-const keyboard = region('  function keyName(event) {', '  function playerLabel() {');
+const keyboard = 'function keyName(event) {' + region('  function keyName(event) {', '  function createDesktopFly(');
 const input = new Function(keyboard + '\nreturn {keyName, editableTarget, movementKey, playerMovementKey};')();
 assert.equal(input.keyName({key: ' '}), ' ');
 assert.equal(input.keyName({key: 'W'}), 'w');
