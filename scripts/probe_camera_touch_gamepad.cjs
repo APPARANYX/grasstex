@@ -169,7 +169,7 @@ const OUT = path.resolve(process.env.CAMERA_TOUCH_OUT || 'closeups/camera-touch-
         old.stop();
         return {
           cycle, oldDisposed: oldCamera.isDisposed(),
-          old !== next,
+          newWrapper: old !== next,
           oldHasStop: typeof old.stop === 'function',
           nextDesktop: next.desktop,
           newDisposed: next.camera.isDisposed(),
@@ -191,9 +191,6 @@ const OUT = path.resolve(process.env.CAMERA_TOUCH_OUT || 'closeups/camera-touch-
     const poll = await page.evaluate(() => {
       const old = BattleDesktopCamera.current.camera;
       __qaPads = [__qaMakePad('poll-only pad')];
-      __battle__.scene.onBeforeRenderObservable.observers
-        .filter(o => o.callback?.name !== 'stepDesktopFrame')
-        .forEach(o => { /* leave real scene to notify its own poll observer */ });
       return {oldDisposed: old.isDisposed()};
     });
     await page.waitForFunction(() => BattleDesktopCamera.current.desktop, null, {timeout: 20000});
