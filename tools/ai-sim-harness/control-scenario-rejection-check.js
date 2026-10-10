@@ -14,7 +14,11 @@ console.error = (...args) => errors.push(args.join(' '));
 
 function api(trainer) {
   const root = {
-    BattleSim: { start() { return {}; } },
+    BattleSim: {
+      start() {
+        return {};
+      }
+    },
     BattleAITrainer: trainer,
     GTLog() {}
   };
@@ -26,18 +30,33 @@ function api(trainer) {
   assert.deepEqual(unavailable, { ok: false, reason: 'trainer-unavailable' });
 
   const expected = new Error('persist refused');
-  const rejected = await api({ train() { return Promise.reject(expected); } }).runScenarios({});
+  const rejected = await api({
+    train() {
+      return Promise.reject(expected);
+    }
+  }).runScenarios({});
   assert.equal(rejected.ok, false);
   assert.equal(rejected.reason, 'training-failed');
   assert.match(rejected.message, /persist refused/);
-  assert.ok(errors.some(text => text.includes('persist refused')), 'failure remains visible in console');
+  assert.ok(
+    errors.some(text => text.includes('persist refused')),
+    'failure remains visible in console'
+  );
 
-  const thrown = await api({ train() { throw expected; } }).runScenarios({});
+  const thrown = await api({
+    train() {
+      throw expected;
+    }
+  }).runScenarios({});
   assert.equal(thrown.ok, false, 'synchronous trainer errors are also settled');
 
   let seen = null;
-  const succeeded = await api({ train(sim, opts) { seen = opts; return Promise.resolve('saved'); } })
-    .runScenarios({});
+  const succeeded = await api({
+    train(sim, opts) {
+      seen = opts;
+      return Promise.resolve('saved');
+    }
+  }).runScenarios({});
   assert.equal(succeeded, 'saved', 'success result passes through unchanged');
   assert.deepEqual([seen.candidates, seen.scenarios, seen.headless], [4, 3, true]);
   console.error = oldLog;
