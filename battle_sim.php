@@ -257,12 +257,19 @@ if ($body !== false && strlen($body) > 100 && stripos($body, '<html') !== false)
     if (strpos($body, $cdnTag) !== false) $body = str_replace($cdnTag, $bootstrap."\n".$cdnTag, $body);
     $version = rawurlencode($resolvedRef) . '&c=' . rawurlencode($cacheEpoch);
     foreach (array('core-runtime.js','soldier.js','weapons.js','obstacle-field.js','terrain-features.js','squad-ai.js','movement-resolver.js','engagement.js','battle-sim.js') as $file) $body = str_replace('<script src="'.$file.'"></script>', '<script src="'.$base.'battle/'.$file.'?v='.$version.'"></script>', $body);
+    /* Keep the GitHub-served battle on the same controller/player camera as the local
+       deployed entry. The plain HTML has only an ArcRotate fallback, with no Start-hold
+       settings, gamepad possession or LB/RB menu. The camera patch must succeed before
+       we advertise a successful modular source; otherwise use the local fallback. */
+    $cameraPattern = "#  var target=new BABYLON\\.Vector3\\(scenario\\.center\\.x,4,scenario\\.center\\.z\\),camera=new BABYLON\\.ArcRotateCamera[\\s\\S]*?WASD pan enabled'\\);#";
+    $cameraReplacement = "  var cameraSetup=window.BattleDesktopCamera.create({canvas:canvas,scene:scene,scenario:scenario,engine:engine,battleSim:BattleSim}),camera=cameraSetup.camera;document.getElementById('cameraHint').textContent=cameraSetup.hint;";
+    $body = preg_replace($cameraPattern, $cameraReplacement, $body, 1, $cameraCount);
     $extras = '';
-    foreach (array('acoustics.js','scenario-generator.js','battle-navigation.js','town-objectives.js','module-registry.js','ai-policy.js','objective-system.js','battle-telemetry.js','commander-doctrine.js','commander-routes.js','commander-ai.js') as $file) $extras .= '<script src="'.$base.'battle/'.$file.'?v='.$version.'"></script>' . "\n";
+    foreach (array('camera-controls.js','acoustics.js','scenario-generator.js','battle-navigation.js','town-objectives.js','module-registry.js','ai-policy.js','objective-system.js','battle-telemetry.js','commander-doctrine.js','commander-routes.js','commander-ai.js') as $file) $extras .= '<script src="'.$base.'battle/'.$file.'?v='.$version.'"></script>' . "\n";
     foreach ($moduleFiles as $file) $extras .= '<script src="'.$base.'battle/modules/'.rawurlencode($file).'?v='.$version.'"></script>' . "\n";
     foreach (array('ai-trainer.js','battle-control.js') as $file) $extras .= '<script src="'.$base.'battle/'.$file.'?v='.$version.'"></script>' . "\n";
     $body = preg_replace('#<script>\s*/\* Extra runtimes[\s\S]*?</script>#', $extras, $body, 1, $replacementCount);
-    if ($replacementCount === 1) { header('X-Grasstex-Source: github-modular'); echo $body; exit; }
+    if ($replacementCount === 1 && $cameraCount === 1) { header('X-Grasstex-Source: github-modular'); echo $body; exit; }
 }
 
 /* A full local deployment can still render itself if GitHub is temporarily unavailable. */
