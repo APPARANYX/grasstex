@@ -76,6 +76,7 @@ const env = {
   ...process.env,
   PROBE: [
     'causal-inaction',
+    'squad-local-starvation',
     ...(process.env.CAUSAL_GEOMETRY === '1' ? ['crest-geometry'] : []),
     ...(process.env.CAUSAL_LIFECYCLE === '1' ? ['command-lifecycle'] : []),
     ...(process.env.CAUSAL_NAVTRACE === '1' ? ['route-361'] : [])
@@ -124,6 +125,7 @@ const summary = {
   coverRejectCounts: {},
   coverLaneOutcomes: [],
   lifecycle: [],
+  squadLocal: [],
   navigationRegressions: []
 };
 function bump(obj, key, n = 1) {
@@ -145,6 +147,11 @@ for (const b of record.battles) {
     summary.failures.push(b.seed + ': missing causal probe');
     continue;
   }
+  const local = b.reports && b.reports['squad-local-starvation'];
+  if (!local || local.schema !== 'squad-local-starvation-v1')
+    summary.failures.push(b.seed + ': missing squad-local starvation probe');
+  else for (const episode of local.episodes || [])
+    summary.squadLocal.push({type: b.type, seed: b.seed, ...episode});
   if (process.env.CAUSAL_LIFECYCLE === '1') {
     const lifecycle = b.reports && b.reports['command-lifecycle'];
     if (!lifecycle || !Array.isArray(lifecycle.transitions) || !Array.isArray(lifecycle.checkpoints)) {
@@ -344,7 +351,15 @@ for (const e of summary.episodes.slice(0, 30)) {
       e.interpretation
   );
 }
-if (!summary.episodes.length) md.push('No qualifying episodes were observed.');
+if (!summary.episodes.length) md.push('No qualifying soldier-level episodes were observed.');
+md.push('', '## Squad-local mission-starvation candidates (independent of faction progress)', '');
+if (!summary.squadLocal.length) md.push('No qualifying squad-level CAPTURE starvation windows were observed.');
+for (const e of summary.squadLocal.slice(0, 50))
+  md.push('- ' + e.type + ':' + e.seed + ' ' + e.squad + ' CAPTURE v' + e.missionVersion +
+    ' @' + e.at + 's: ' + e.seconds + 's without >2m objective closure; distance ' +
+    e.distanceToMission + 'm, net ' + e.netTravel + 'm; near-waypoint arrivals=' +
+    e.arrivedAtInterimWaypoint + ', unreachable recipients=' + e.unreachableRecipients.length +
+    ', protection=' + (e.protectedBy || 'none') + ', ' + e.conclusion + '.');
 for (const check of summary.navigationRegressions) {
   md.push(
     '',
