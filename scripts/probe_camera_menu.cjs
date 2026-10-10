@@ -315,6 +315,71 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     assert.equal(await page.locator('#battlePlayerSettings').count(), 1,
       'only replacement may create settings UI');
     await page.keyboard.press('Escape');
+    // A synthetic Gamepad API device drives the SHIPPING scene-frame handler,
+    // including the 650 ms Menu gesture. This is controller-event coverage,
+    // not a physical Xbox hardware or mobile Safari certification.
+    await page.evaluate(() => {
+      const pad = {
+        id: 'QA Xbox controller', index: 0, connected: true, mapping: 'standard',
+        axes: [0, 0, 0, 0],
+        buttons: Array.from({length: 17}, () => ({pressed: false, value: 0}))
+      };
+      window.__qaGamepad = pad;
+      Object.defineProperty(navigator, 'getGamepads', {
+        configurable: true, value: () => [pad]
+      });
+      const event = new Event('gamepadconnected');
+      Object.defineProperty(event, 'gamepad', {value: pad});
+      window.dispatchEvent(event);
+    });
+    await page.waitForTimeout(350);
+    const pressMenu = async (pressed) => {
+      await page.evaluate(down => {
+        const button = __qaGamepad.buttons[9];
+        button.pressed = down;
+        button.value = down ? 1 : 0;
+      }, pressed);
+    };
+    // Tap enters player mode; it must not accidentally open settings.
+    await pressMenu(true);
+    await page.waitForTimeout(240);
+    await pressMenu(false);
+    await page.waitForFunction(() => BattleDesktopCamera.current.player() != null,
+      null, {timeout: 15000});
+    assert.equal(await page.locator('#battlePlayerSettings').isVisible(), false,
+      'short Menu tap unexpectedly opened settings');
+    const firstGamepadPlayer = await page.evaluate(() => BattleDesktopCamera.current.player()?.id);
+    // Hold opens once, before release, without firing a second tap on release.
+    await pressMenu(true);
+    await page.waitForFunction(() => {
+      const p = document.getElementById('battlePlayerSettings');
+      return p && getComputedStyle(p).display === 'flex';
+    }, null, {timeout: 15000});
+    const heldPlayer = await page.evaluate(() => BattleDesktopCamera.current.player()?.id);
+    await pressMenu(false);
+    await page.waitForTimeout(230);
+    assert.equal(await page.locator('#battlePlayerSettings').isVisible(), true,
+      'hold release must not also close menu as a tap');
+    assert.equal(await page.evaluate(() => BattleDesktopCamera.current.player()?.id),
+      heldPlayer, 'hold release must not switch soldier');
+    // A subsequent short press intentionally closes an open menu.
+    await pressMenu(true);
+    await page.waitForTimeout(230);
+    await pressMenu(false);
+    await page.waitForFunction(() => {
+      const p = document.getElementById('battlePlayerSettings');
+      return p && getComputedStyle(p).display === 'none';
+    }, null, {timeout: 15000});
+    assert.equal(await page.evaluate(() => BattleDesktopCamera.current.player()?.id),
+      heldPlayer, 'menu-close tap must retain possession');
+    await page.keyboard.press('v');
+    await page.waitForFunction(() => BattleDesktopCamera.current.player() == null,
+      null, {timeout: 15000});
+    await page.evaluate(() => {
+      delete window.__qaGamepad;
+      delete navigator.getGamepads;
+    });
+    const gesture = { firstGamepadPlayer, heldPlayer, holdMs: 650 };
     const state = await page.evaluate(() => ({
       build: window.BATTLE_BUILD_DEPLOYED || null,
       camera: window.BattleDesktopCamera?.current?.camera?.name || null,
@@ -323,7 +388,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     }));
     fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({state, errors, notes: notes.slice(-20)}, null, 2));
     assert.equal(errors.length, 0, 'page errors: ' + errors.slice(0, 5).join(' | '));
-    console.log('PASS #456 R2 ownership, pointer lock (' + (realPointerLock ? 'real' : 'headless synthetic') + ') and same-page camera disposal ' + JSON.stringify({state,lifecycle,finalObserverState}));
+    console.log('PASS #456 R2 controller Menu tap/hold, presentation and camera disposal (' + (realPointerLock ? 'real pointer lock' : 'synthetic pointer lock') + ') ' + JSON.stringify({state,lifecycle,finalObserverState,gesture}));
   } finally {
     await browser.close();
   }
