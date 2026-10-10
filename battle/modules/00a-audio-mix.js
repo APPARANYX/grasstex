@@ -11,8 +11,15 @@
   var KEY = 'grasstex.audioMix.v1';
   var LIMIT = 150;
   var MIX = { weapon: 1.8, tail: 1.35, voice: 1.65, foley: 1.25, combat: 1.3 };
-  var CATEGORIES = { weapon: 'weapons', tail: 'weapons', voice: 'voices', foley: 'effects', combat: 'effects' };
-  var legacy = typeof location !== 'undefined' && /(?:^|[?&])audioMix=legacy(?:&|$)/.test(location.search || '');
+  var CATEGORIES = {
+    weapon: 'weapons',
+    tail: 'weapons',
+    voice: 'voices',
+    foley: 'effects',
+    combat: 'effects'
+  };
+  var legacy =
+    typeof location !== 'undefined' && /(?:^|[?&])audioMix=legacy(?:&|$)/.test(location.search || '');
   var defaults = { master: 100, weapons: 100, voices: 100, effects: 100 };
   var settings = {};
   var sceneLimiter = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
@@ -41,7 +48,8 @@
       if (typeof localStorage !== 'undefined') stored = JSON.parse(localStorage.getItem(KEY) || 'null');
     } catch (_) {}
     Object.keys(defaults).forEach(function (key) {
-      settings[key] = stored && Object.prototype.hasOwnProperty.call(stored, key) ? bounded(stored[key]) : defaults[key];
+      settings[key] =
+        stored && Object.prototype.hasOwnProperty.call(stored, key) ? bounded(stored[key]) : defaults[key];
     });
   }
   function set(key, value) {
@@ -63,7 +71,7 @@
     if (!Number.isFinite(base) || base <= 0) return 0;
     if (legacy) return base;
     var category = CATEGORIES[kind] || 'effects';
-    return Math.min(1, base * (MIX[kind] || 1) * settings.master / 100 * settings[category] / 100);
+    return Math.min(1, (((base * (MIX[kind] || 1) * settings.master) / 100) * settings[category]) / 100);
   }
   /* The SoundTrack bus already has a direct connection to masterGain in
      Babylon 9. Disconnect only that connection and reinsert one compressor
@@ -76,7 +84,14 @@
         ctx = ae && ae.audioContext,
         master = ae && ae.masterGain,
         track = scene.mainSoundTrack && scene.mainSoundTrack._outputAudioNode;
-      if (!ctx || !master || !track || typeof track.disconnect !== 'function' || !ctx.createDynamicsCompressor) return false;
+      if (
+        !ctx ||
+        !master ||
+        !track ||
+        typeof track.disconnect !== 'function' ||
+        !ctx.createDynamicsCompressor
+      )
+        return false;
       var compressor = ctx.createDynamicsCompressor();
       compressor.threshold.value = -16;
       compressor.knee.value = 12;
@@ -88,8 +103,12 @@
         track.disconnect(master);
         track.connect(compressor);
       } catch (err) {
-        try { track.connect(master); } catch (_) {}
-        try { compressor.disconnect(); } catch (_) {}
+        try {
+          track.connect(master);
+        } catch (_) {}
+        try {
+          compressor.disconnect();
+        } catch (_) {}
         throw err;
       }
       sceneLimiter.set(scene, compressor);
@@ -107,7 +126,11 @@
     var attempts = 0;
     pending.set(scene, true);
     function retry() {
-      if (install(scene) || ++attempts >= 20 || (typeof scene.isDisposed === 'function' && scene.isDisposed())) {
+      if (
+        install(scene) ||
+        ++attempts >= 20 ||
+        (typeof scene.isDisposed === 'function' && scene.isDisposed())
+      ) {
         pending.delete(scene);
         return;
       }
