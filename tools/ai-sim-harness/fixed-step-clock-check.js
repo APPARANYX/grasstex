@@ -139,16 +139,24 @@ function makeScene() {
   const observers = [];
   const engine = { getDeltaTime: () => 150 };
   return {
-    observers, engine,
+    observers,
+    engine,
     onBeforeRenderObservable: {
-      add(fn) { observers.push(fn); return fn; },
+      add(fn) {
+        observers.push(fn);
+        return fn;
+      },
       remove(fn) {
         const i = observers.indexOf(fn);
         if (i >= 0) observers.splice(i, 1);
       }
     },
-    getEngine() { return engine; },
-    render() { observers.slice().forEach(fn => fn()); }
+    getEngine() {
+      return engine;
+    },
+    render() {
+      observers.slice().forEach(fn => fn());
+    }
   };
 }
 function liveSample(search) {
@@ -160,7 +168,7 @@ function liveSample(search) {
     scene.engine.getDeltaTime = () => 150;
     scene.render(); // all speeds clamp to the legacy 0.25 sim-second frame
   }
-  return {sim, scene};
+  return { sim, scene };
 }
 
 const live = liveSample('');
