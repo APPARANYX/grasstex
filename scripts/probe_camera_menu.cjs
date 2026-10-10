@@ -66,6 +66,18 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       rigInstalled: true, backendInstalled: true, mixed: 'spine1',
       legacy: 'spine0', head: 'headend', upperFinger: true, lowerFoot: false
     }, 'FBX backend lost its rig-naming dependency on the shipping loader');
+    // R3 presentational owners must install from the real PHP loader and
+    // expose the exact live, tunable objects through the existing diagnostics.
+    const lodIntegration = await page.evaluate(() => ({
+      meshOwner: !!window.BattleFbxMeshLod,
+      renderOwner: !!window.BattleFbxRenderLod,
+      mesh: window.BattleFbxSoldier?.meshLod?.far,
+      anim: window.BattleFbxSoldier?.lod?.near,
+      culled: window.BattleFbxSoldier?.cull?.radius
+    }));
+    assert.deepEqual(lodIntegration, {
+      meshOwner: true, renderOwner: true, mesh: 45, anim: 35, culled: 3
+    }, 'real FBX battle lost presentation LOD or culling API after extraction');
     // R3 actual checked-out battle: calibration must feed loaded FBX model grips,
     // attached weapon world matrices, and prepared mesh muzzles on both factions.
     const fbIntegration = await page.evaluate(() => {

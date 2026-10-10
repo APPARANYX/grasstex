@@ -6,6 +6,8 @@ on:
   pull_request:
     paths:
       - 'battle/modules/52-fbx-retarget-quat.js'
+      - 'battle/modules/52-fbx-mesh-lod.js'
+      - 'battle/modules/52-fbx-render-lod.js'
       - 'battle/modules/52-fbx-retarget-rest.js'
       - 'tools/ai-sim-harness/fbx-retarget-rest-check.js'
       - 'battle/modules/53-fbx-soldier-backend.js'
@@ -33,6 +35,7 @@ jobs:
           node --check scripts/probe_retarget.cjs
           node tools/ai-sim-harness/fbx-retarget-quat-check.js
           node tools/ai-sim-harness/fbx-retarget-rest-check.js
+          node tools/ai-sim-harness/fbx-presentation-lod-check.js
           php -l battle_sim_local.php
       - name: Install Playwright Chromium
         run: |
