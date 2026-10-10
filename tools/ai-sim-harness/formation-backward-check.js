@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadSquadCommandStack } = require('./squad-command-stack');
 /* Formation orders never walk an advancing man backward (16-squad-plan-stability.js updateFireteams).
    Men who ran ahead of their fireteam's order anchor (assault rushes, cover bounds) used to be sent
    back to slots laid round that stale anchor when the fireteam's order was renewed or a teammate fell:
@@ -15,7 +16,7 @@ function root(){
   const r=H.bootstrap({modules:false}),systems={};
   r.BattleModules={registerSystem(id,s){systems[id]=s;},getSystem(id){return systems[id];},unitsFor:b=>(b._roster.us||[]).concat(b._roster.ge||[])};
   r.BattleCommanderDoctrine={policyFor(){return{cohesionRadius:34,captainlessCohesion:26,routeArrivalRadius:8,captureCommitRatio:.82};}};
-  load(r,'battle/movement-resolver.js');load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/15b-squad-leader-buddy-pairs.js');load(r,'battle/modules/15c-squad-leader-scouts-forward.js');load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/15g-squad-leader-formation.js');load(r,'battle/modules/15h-squad-leader-fireteams.js');load(r,'battle/modules/15i-squad-leader-clear-contact.js');load(r,'battle/modules/15j-squad-leader-fire-and-movement.js');load(r,'battle/modules/15k-squad-leader-reconstitution.js');load(r,'battle/modules/15l-squad-leader-mission-execution.js');load(r,'battle/modules/15m-squad-leader-cohesion-regroup.js');load(r,'battle/modules/16-squad-plan-stability.js');
+  load(r,'battle/movement-resolver.js');loadSquadCommandStack(load, r);
   return r;
 }
 const HEADINGS=[0,Math.PI/2,Math.PI,-Math.PI/3,2.4];
