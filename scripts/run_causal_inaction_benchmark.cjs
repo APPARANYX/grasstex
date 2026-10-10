@@ -150,38 +150,62 @@ for (const b of record.battles) {
   const local = b.reports && b.reports['squad-local-starvation'];
   if (!local || local.schema !== 'squad-local-starvation-v1')
     summary.failures.push(b.seed + ': missing squad-local starvation probe');
-  else for (const episode of local.episodes || [])
-    summary.squadLocal.push({type: b.type, seed: b.seed, ...episode});
+  else
+    for (const episode of local.episodes || [])
+      summary.squadLocal.push({ type: b.type, seed: b.seed, ...episode });
   if (process.env.CAUSAL_LIFECYCLE === '1') {
     const lifecycle = b.reports && b.reports['command-lifecycle'];
     if (!lifecycle || !Array.isArray(lifecycle.transitions) || !Array.isArray(lifecycle.checkpoints)) {
       summary.failures.push(b.seed + ': missing command-lifecycle probe');
     } else {
-      const selected = String(process.env.CAUSAL_SQUADS || '').split(',').filter(Boolean);
+      const selected = String(process.env.CAUSAL_SQUADS || '')
+        .split(',')
+        .filter(Boolean);
       const choose = sq => !selected.length || selected.includes(String(sq.id));
       const one = snap => ({
         t: +(+snap.time).toFixed(2),
         squads: (snap.squads || []).filter(choose).map(q => ({
-          id: q.id, faction: q.faction, living: q.living, phase: q.phase,
-          mission: q.mission ? { version: q.mission.version, intent: q.mission.intent, status: q.mission.status } : null,
-          objective: q.objective, anchor: q.anchor, centroid: q.centroid,
-          displacement: +(+q.displacement).toFixed(2), recon: !!q.recon,
+          id: q.id,
+          faction: q.faction,
+          living: q.living,
+          phase: q.phase,
+          mission: q.mission
+            ? { version: q.mission.version, intent: q.mission.intent, status: q.mission.status }
+            : null,
+          objective: q.objective,
+          anchor: q.anchor,
+          centroid: q.centroid,
+          displacement: +(+q.displacement).toFixed(2),
+          recon: !!q.recon,
           men: q.men.map(m => ({
-            id: m.id, travel: +(+m.travel).toFixed(2),
-            adopted: !!m.adopted, receipt: m.receipt && m.receipt.phase || null,
-            resolver: m.resolver && m.resolver.owner || null,
-            stop: m.stopReason, speed: m.speed
+            id: m.id,
+            travel: +(+m.travel).toFixed(2),
+            adopted: !!m.adopted,
+            receipt: (m.receipt && m.receipt.phase) || null,
+            resolver: (m.resolver && m.resolver.owner) || null,
+            stop: m.stopReason,
+            speed: m.speed
           }))
         }))
       });
       summary.lifecycle.push({
-        type: b.type, seed: b.seed,
+        type: b.type,
+        seed: b.seed,
         checkpoints: lifecycle.checkpoints.map(one),
         final: one(lifecycle.final),
-        transitions: lifecycle.transitions.filter(t => !selected.length || selected.includes(String(t.id)))
-          .map(t => ({ t: +(+t.time).toFixed(2), id: t.id, faction: t.faction,
-            missionVersion: t.version, intent: t.intent, status: t.status, phase: t.phase,
-            recon: t.recon || null, mainBodyCentroid: t.mainBodyCentroid }))
+        transitions: lifecycle.transitions
+          .filter(t => !selected.length || selected.includes(String(t.id)))
+          .map(t => ({
+            t: +(+t.time).toFixed(2),
+            id: t.id,
+            faction: t.faction,
+            missionVersion: t.version,
+            intent: t.intent,
+            status: t.status,
+            phase: t.phase,
+            recon: t.recon || null,
+            mainBodyCentroid: t.mainBodyCentroid
+          }))
       });
     }
   }
@@ -192,25 +216,32 @@ for (const b of record.battles) {
      progress toward the actual mission objective. Other seeds stay exploratory. */
   if (process.env.CAUSAL_NAVTRACE === '1' && b.type === 'meeting' && b.seed === 'hill-0008') {
     const trace = b.reports && b.reports['route-361'];
-    const frames = (trace && trace.samples || []).filter(x => x.t >= 126 && x.t <= 129.05);
+    const frames = ((trace && trace.samples) || []).filter(x => x.t >= 126 && x.t <= 129.05);
     const men = [92, 98].map(id => {
       const entries = frames.map(x => (x.members || []).find(m => +m.id === id)).filter(Boolean);
-      const first = entries[0], last = entries[entries.length - 1];
+      const first = entries[0],
+        last = entries[entries.length - 1];
       return {
         id,
         samples: entries.length,
-        netMeters: first && last && first.position && last.position
-          ? +Math.hypot(last.position.x - first.position.x, last.position.z - first.position.z).toFixed(2)
-          : null,
-        closedGoalMeters: first && last && first.goalDistance != null && last.goalDistance != null
-          ? +(first.goalDistance - last.goalDistance).toFixed(2)
-          : null
+        netMeters:
+          first && last && first.position && last.position
+            ? +Math.hypot(last.position.x - first.position.x, last.position.z - first.position.z).toFixed(2)
+            : null,
+        closedGoalMeters:
+          first && last && first.goalDistance != null && last.goalDistance != null
+            ? +(first.goalDistance - last.goalDistance).toFixed(2)
+            : null
       };
     });
     const pass = men.every(m => m.samples >= 12 && m.netMeters >= 2 && m.closedGoalMeters >= 2);
     summary.navigationRegressions.push({
-      type: b.type, seed: b.seed, squad: 'ge-4',
-      interval: '126-129s', men, pass
+      type: b.type,
+      seed: b.seed,
+      squad: 'ge-4',
+      interval: '126-129s',
+      men,
+      pass
     });
     if (!pass) summary.failures.push(b.seed + ': #361 GE-4 net physical progress regression');
   }
@@ -304,12 +335,28 @@ md.push(
 );
 const nearFatal = summary.coverLaneOutcomes.filter(x => x.status === 'killed-at-firing-position').length;
 const farFatal = summary.coverLaneOutcomes.filter(x => x.status === 'killed-before-arrival').length;
-md.push('- Fatal flank outcomes: ' + nearFatal + ' killed within 0.6m of the destination, ' +
-  farFatal + ' killed farther away; an unobserved living arrival is not a pathfinding failure.');
-for (const e of summary.coverLaneOutcomes.filter(x => x.observedDeadAt != null).slice(0,20))
-  md.push('- ' + e.actor + ': ' + e.status + ' @ observed t=' + e.observedDeadAt +
-    's, nearest ' + (+e.nearestMeters).toFixed(2) + 'm, last owner ' +
-    String(e.lastMovementOwner) + ', last movement stop ' + String(e.lastStop));
+md.push(
+  '- Fatal flank outcomes: ' +
+    nearFatal +
+    ' killed within 0.6m of the destination, ' +
+    farFatal +
+    ' killed farther away; an unobserved living arrival is not a pathfinding failure.'
+);
+for (const e of summary.coverLaneOutcomes.filter(x => x.observedDeadAt != null).slice(0, 20))
+  md.push(
+    '- ' +
+      e.actor +
+      ': ' +
+      e.status +
+      ' @ observed t=' +
+      e.observedDeadAt +
+      's, nearest ' +
+      (+e.nearestMeters).toFixed(2) +
+      'm, last owner ' +
+      String(e.lastMovementOwner) +
+      ', last movement stop ' +
+      String(e.lastStop)
+  );
 if (summary.coverDecisionsOmitted)
   md.push(
     '- Warning: ' +
@@ -353,24 +400,65 @@ for (const e of summary.episodes.slice(0, 30)) {
 }
 if (!summary.episodes.length) md.push('No qualifying soldier-level episodes were observed.');
 md.push('', '## Squad-local mission-starvation candidates (independent of faction progress)', '');
-if (!summary.squadLocal.length) md.push('No qualifying squad-level CAPTURE starvation windows were observed.');
+if (!summary.squadLocal.length)
+  md.push('No qualifying squad-level CAPTURE starvation windows were observed.');
 for (const e of summary.squadLocal.slice(0, 50))
-  md.push('- ' + e.type + ':' + e.seed + ' ' + e.squad + ' CAPTURE v' + e.missionVersion +
-    ' @' + e.at + 's: ' + e.seconds + 's without >2m objective closure; distance ' +
-    e.distanceToMission + 'm, net ' + e.netTravel + 'm; near-waypoint arrivals=' +
-    e.arrivedAtInterimWaypoint + ', unreachable recipients=' + e.unreachableRecipients.length +
-    ', protection=' + (e.protectedBy || 'none') + ', ' + e.conclusion + '.');
+  md.push(
+    '- ' +
+      e.type +
+      ':' +
+      e.seed +
+      ' ' +
+      e.squad +
+      ' CAPTURE v' +
+      e.missionVersion +
+      ' @' +
+      e.at +
+      's: ' +
+      e.seconds +
+      's without >2m objective closure; distance ' +
+      e.distanceToMission +
+      'm, net ' +
+      e.netTravel +
+      'm; near-waypoint arrivals=' +
+      e.arrivedAtInterimWaypoint +
+      ', unreachable recipients=' +
+      e.unreachableRecipients.length +
+      ', protection=' +
+      (e.protectedBy || 'none') +
+      ', ' +
+      e.conclusion +
+      '.'
+  );
 for (const check of summary.navigationRegressions) {
   md.push(
     '',
     '## #361 GE-4 real physical progression sentinel',
     '',
-    '- ' + check.type + ':' + check.seed + ' ' + check.squad + ' @ ' + check.interval +
-      ': **' + (check.pass ? 'PASS' : 'FAIL') + '**, requiring >=2m net motion AND >=2m objective closure per lead actor.'
+    '- ' +
+      check.type +
+      ':' +
+      check.seed +
+      ' ' +
+      check.squad +
+      ' @ ' +
+      check.interval +
+      ': **' +
+      (check.pass ? 'PASS' : 'FAIL') +
+      '**, requiring >=2m net motion AND >=2m objective closure per lead actor.'
   );
   for (const m of check.men)
-    md.push('- Soldier ' + m.id + ': ' + m.samples + ' samples, ' +
-      m.netMeters + 'm net, ' + m.closedGoalMeters + 'm closer to mission objective.');
+    md.push(
+      '- Soldier ' +
+        m.id +
+        ': ' +
+        m.samples +
+        ' samples, ' +
+        m.netMeters +
+        'm net, ' +
+        m.closedGoalMeters +
+        'm closer to mission objective.'
+    );
 }
 if (process.env.CAUSAL_LIFECYCLE === '1') {
   md.push('', '## Read-only mission / recon / physical movement chain', '');
@@ -380,19 +468,50 @@ if (process.env.CAUSAL_LIFECYCLE === '1') {
       for (const sq of frame.squads) {
         const travel = sq.men.reduce((v, m) => v + m.travel, 0);
         const owners = [...new Set(sq.men.map(m => m.resolver || 'none'))].join('/');
-        md.push('- t=' + frame.t + ' ' + sq.faction + ':' + sq.id +
-          ' phase=' + sq.phase + ' mission=' +
-          (sq.mission ? sq.mission.intent + '/v' + sq.mission.version + '/' + sq.mission.status : 'none') +
-          ' living=' + sq.living + ' centroidDisplacement=' + sq.displacement.toFixed(1) +
-          'm livingMenTravel=' + travel.toFixed(1) + 'm reconActive=' + sq.recon +
-          ' resolverOwners=' + owners);
+        md.push(
+          '- t=' +
+            frame.t +
+            ' ' +
+            sq.faction +
+            ':' +
+            sq.id +
+            ' phase=' +
+            sq.phase +
+            ' mission=' +
+            (sq.mission ? sq.mission.intent + '/v' + sq.mission.version + '/' + sq.mission.status : 'none') +
+            ' living=' +
+            sq.living +
+            ' centroidDisplacement=' +
+            sq.displacement.toFixed(1) +
+            'm livingMenTravel=' +
+            travel.toFixed(1) +
+            'm reconActive=' +
+            sq.recon +
+            ' resolverOwners=' +
+            owners
+        );
       }
     }
     for (const t of trace.transitions.filter(t => t.recon).slice(-25))
-      md.push('- recon active @' + t.t + ' ' + t.faction + ':' + t.id +
-        ' mission v' + t.missionVersion + ' ' + t.intent + ' phase=' + t.phase);
-    md.push('- Transition records: ' + trace.transitions.length +
-      ' (full order/recon transitions and physical coordinates in summary.json).');
+      md.push(
+        '- recon active @' +
+          t.t +
+          ' ' +
+          t.faction +
+          ':' +
+          t.id +
+          ' mission v' +
+          t.missionVersion +
+          ' ' +
+          t.intent +
+          ' phase=' +
+          t.phase
+      );
+    md.push(
+      '- Transition records: ' +
+        trace.transitions.length +
+        ' (full order/recon transitions and physical coordinates in summary.json).'
+    );
   }
 }
 if (summary.episodesOmitted)
