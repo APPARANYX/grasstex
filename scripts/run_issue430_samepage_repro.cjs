@@ -104,8 +104,8 @@ const hash = s => createHash('sha256').update(s).digest('hex');
         const engine = sim.scene.getEngine();
         engine.stopRenderLoop();
         sim.pause();
-        if (!sim._fixedClockInstalled || !sim._fixedClock || !sim._liveCommanderTick) {
-          throw new Error('Shipping fixed-step clock/commander hook is not installed');
+        if (!sim._fixedClock || !sim._liveCommanderTick) {
+          throw new Error('Explicit benchmark clock/commander hook is unavailable');
         }
 
         const telemetry = root.BattleTelemetry;
