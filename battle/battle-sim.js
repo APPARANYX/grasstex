@@ -505,7 +505,9 @@
   var STEER_LEG = !(typeof location !== 'undefined' && /[?&]steerLeg=0\b/.test(location.search || ''));
   /* Avoid backwards tactical-cover steering on an already validated, unobstructed physical waypoint leg.
      The old reverse push remains necessary if the real next step is blocked; ?steerNavForward=0 restores it. */
-  var STEER_NAV_FORWARD = !(typeof location !== 'undefined' && /[?&]steerNavForward=0\b/.test(location.search || ''));
+  var STEER_NAV_FORWARD = !(
+    typeof location !== 'undefined' && /[?&]steerNavForward=0\b/.test(location.search || '')
+  );
   /* A man who is genuinely boxed in re-plans on a timer rather than once per frame. Clearing
      the nav cache every blocked frame just recomputed the same unusable path 7 times a second. */
   var NAV_REPLAN_HOLD = 1.5;

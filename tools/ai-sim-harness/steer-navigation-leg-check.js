@@ -9,14 +9,16 @@ const path = require('node:path');
 const H = require('./harness');
 
 const source = fs.readFileSync(path.join(H.REPO, 'battle/battle-sim.js'), 'utf8');
-const body = source.slice(source.search(/  var AVOID_LOOKAHEAD\s*=/), source.indexOf('  function stepMovement('));
+const body = source.slice(
+  source.search(/  var AVOID_LOOKAHEAD\s*=/),
+  source.indexOf('  function stepMovement(')
+);
 assert.ok(body.includes('function preserveClearNavigationLeg('), 'shipping navigation-steering gate exists');
 function gate(clear, search) {
   const root = { BattleNavigation: { movementClear: () => clear } };
-  return new Function('root', 'location', body + '; return preserveClearNavigationLeg;')(
-    root,
-    { search: search || '' }
-  );
+  return new Function('root', 'location', body + '; return preserveClearNavigationLeg;')(root, {
+    search: search || ''
+  });
 }
 const from = { x: 608.38705, z: 382.54349 };
 const to = { x: 605.52658, z: 381.39134 };
