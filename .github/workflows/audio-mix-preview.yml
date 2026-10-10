@@ -4,6 +4,7 @@ on:
     branches:
       - work/player-menu-audio-mix
     paths:
+      - battle_sim.php
       - battle/camera-controls.js
       - battle/modules/00a-audio-mix.js
       - scripts/probes/probe_audio_mix_menu.cjs
