@@ -121,10 +121,59 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       const b = window.__battle__;
       return b && b._roster && (b._roster.us || []).some(s => s.isPlayer);
     }, null, { timeout: 15000 });
+    const first = await page.evaluate(() => {
+      const b = window.__battle__, man = b._roster.us.find(s => s.isPlayer);
+      return { id: man.id, faction: man.faction, camera: b.scene.activeCamera.name };
+    });
+    assert.equal(first.faction, 'us', 'first player should use default US faction');
+    assert.equal(first.camera, 'playerCam', 'possessing a soldier must activate player camera');
+
+    // Switch to an actual German squad through the shipping menu. The prior
+    // US soldier must immediately lose every player lease before GE acquires it.
+    await page.keyboard.press('o');
+    await page.waitForFunction(() => {
+      const p = document.getElementById('battlePlayerSettings');
+      return p && getComputedStyle(p).display === 'flex';
+    });
+    const menuPause = await page.evaluate(() => ({
+      paused: __battle__.paused,
+      winner: __battle__.winner
+    }));
+    if (!menuPause.winner) assert.equal(menuPause.paused, true, 'opening menu owns game pause');
+    await page.locator('#bpmFaction').selectOption('ge');
+    assert.equal(await page.locator('#bpmApply').isEnabled(), true, 'requires living German squad');
+    await page.locator('#bpmSquad').selectOption('0');
+    await page.locator('#bpmSoldier').selectOption('0');
+    await page.locator('#bpmApply').click();
+    await page.waitForFunction(() => {
+      const b = __battle__;
+      return b._roster.ge.some(s => s.isPlayer) && !b._roster.us.some(s => s.isPlayer) &&
+        b.scene.activeCamera.name === 'playerCam';
+    }, null, { timeout: 15000 });
+    const switched = await page.evaluate(() => ({
+      usLeases: __battle__._roster.us.filter(s => s.isPlayer).length,
+      geLeases: __battle__._roster.ge.filter(s => s.isPlayer).length,
+      paused: __battle__.paused,
+      winner: __battle__.winner
+    }));
+    assert.deepEqual([switched.usLeases, switched.geLeases], [0, 1], 'possession transfer must be exclusive');
+    if (!switched.winner) assert.equal(switched.paused, false, 'closing owned menu resumes battle');
+
+    // A battle paused before opening settings must NOT be resumed on close:
+    // only a pause owned by the menu may be released.
+    await page.evaluate(() => __battle__.pause());
+    await page.keyboard.press('o');
+    await page.waitForFunction(() => getComputedStyle(document.getElementById('battlePlayerSettings')).display === 'flex');
+    assert.equal(await page.evaluate(() => __battle__.paused), true);
+    await page.locator('#bpmClose').click();
+    assert.equal(await page.evaluate(() => __battle__.paused), true, 'external pause must survive menu close');
+    await page.evaluate(() => __battle__.resume());
+
     await page.keyboard.press('v');
     await page.waitForFunction(() => {
       const b = window.__battle__;
-      return b && b._roster && !(b._roster.us || []).some(s => s.isPlayer);
+      return b && b._roster && !(b._roster.us || []).some(s => s.isPlayer) &&
+        !(b._roster.ge || []).some(s => s.isPlayer) && b.scene.activeCamera.name === 'cam';
     }, null, { timeout: 15000 });
     const state = await page.evaluate(() => ({
       build: window.BATTLE_BUILD_DEPLOYED || null,
@@ -134,7 +183,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     }));
     fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({state, errors, notes: notes.slice(-20)}, null, 2));
     assert.equal(errors.length, 0, 'page errors: ' + errors.slice(0, 5).join(' | '));
-    console.log('PASS #456 R2 player menu: open/close, tab switching, native fields, haptics and live audio mix ' + JSON.stringify(state));
+    console.log('PASS #456 R2 player menu, US→GE lease handoff, pause ownership and V release ' + JSON.stringify(state));
   } finally {
     await browser.close();
   }
