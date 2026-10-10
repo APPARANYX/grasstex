@@ -1,0 +1,24 @@
+name: Audio mix preview QA
+on:
+  push:
+    branches:
+      - work/player-menu-audio-mix
+    paths:
+      - battle/camera-controls.js
+      - battle/modules/00a-audio-mix.js
+      - scripts/probes/probe_audio_mix_menu.cjs
+      - .github/workflows/audio-mix-preview.yml
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Exercise hosted gamepad menu and audio output
+        env:
+          AUDIO_MENU_PREVIEW_URL: https://test.ivandpopov.com/grasstex/preview.php?ref=work/player-menu-audio-mix
+        run: node scripts/probes/probe_audio_mix_menu.cjs
