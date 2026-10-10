@@ -164,8 +164,8 @@ const make = (search = '') => {
     observers,
     hooks,
     battle,
-    burst(i, x = 0) {
-      battle.onGrenadeBurst({ id: i, to: { x, y: 0, z: 0 } });
+    burst(i, point = { x: 0, y: 0, z: 0 }) {
+      battle.onGrenadeBurst({ id: i, to: point });
     },
     render(t) {
       battle.time = t;
@@ -184,6 +184,21 @@ assert.equal(a.calls.planes.length, 1, 'only the brief flash is a billboard');
 assert.equal(a.root.BattleGrenadeFx.status(a.battle).fogVolumes, 1);
 assert.equal(a.calls.spheres[0].opts.diameter, 2);
 assert.equal(a.calls.spheres[0].scaling.x, 5.5, 'full smoke footprint on the detonation frame');
+const grenadePoint = { x: 13, y: 2.75, z: -9 };
+a.burst(93, grenadePoint);
+const anchored = a.calls.spheres.at(-1);
+const proxyWorld = {
+  x: anchored.parent.position.x + anchored.position.x,
+  y: anchored.parent.position.y + anchored.position.y,
+  z: anchored.parent.position.z + anchored.position.z
+};
+assert.deepEqual(proxyWorld, grenadePoint, 'fog ellipsoid center coincides with grenade in world space');
+assert.deepEqual(
+  { x: anchored.material.center.x, y: anchored.material.center.y, z: anchored.material.center.z },
+  grenadePoint,
+  'shader density center matches grenade and proxy center'
+);
+assert.equal(anchored.scaling.y, 2.3, 'vertical radius unchanged');
 assert.match(
   a.shaders.grenadeAreaFogFragmentShader,
   /exp\(-0\.33 \* density \* lengthInFog\)/,
