@@ -47,9 +47,9 @@ async function load(browser, query) {
   const silence = silentWav();
   await page.route('**/*', route => {
     const request = route.request();
-    if (request.method() === 'POST' || /battle_(policy|learning|log|metrics)[^/]*\\.php/.test(request.url()))
+    if (request.method() === 'POST' || /battle_(policy|learning|log|metrics)[^/]*\.php/.test(request.url()))
       return route.fulfill({ json: {} });
-    if (/\\/Assets\\/audio\\/.*\\.(?:mp3|wav|ogg)(?:[?#]|$)/i.test(request.url()))
+    if (/\/Assets\/audio\/.*\.(?:mp3|wav|ogg)(?:[?#]|$)/i.test(request.url()))
       return route.fulfill({ status: 200, body: silence, contentType: 'audio/wav' });
     return route.continue();
   });
