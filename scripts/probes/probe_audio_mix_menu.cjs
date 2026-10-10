@@ -17,7 +17,7 @@ const BASE = process.env.AUDIO_MENU_PREVIEW_URL ||
   try {
     const page = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 1080, height: 740 } });
     const errors = [];
-    page.on('pageerror', e => errors.push(String(e)));
+    page.on('pageerror', e => errors.push(String(e.stack || e)));
     await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 90000 });
     try {
       await page.waitForFunction(() => window.__battle__ && window.BattleAudioMix &&
