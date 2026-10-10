@@ -1939,9 +1939,11 @@
     }
     function switchToGamepad(pad, source) {
       if (stopped || state.desktop) return;
-      /* Connected events can arrive late after disconnect. Only a pad exposed
-         by the current Gamepad API is eligible to wake a touch controller. */
-      pad = activeGamepad();
+      /* WebKit may report a newly connected Bluetooth pad via the event
+         before getGamepads() exposes it. Accept the live event device, but
+         reject an explicit disconnected/stale device. Poll as fallback. */
+      if (pad && pad.connected === false) return;
+      pad = pad || activeGamepad();
       if (!pad) return;
       var pose = cameraPose(state.camera, target);
       if (activeStop) activeStop();
