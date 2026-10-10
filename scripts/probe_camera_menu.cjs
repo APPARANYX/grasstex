@@ -78,6 +78,18 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     assert.deepEqual(lodIntegration, {
       meshOwner: true, renderOwner: true, mesh: 45, anim: 35, culled: 3
     }, 'real FBX battle lost presentation LOD or culling API after extraction');
+    const woundOwnership = await page.evaluate(() => ({
+      owner: !!window.BattleFbxSurfaceDamage,
+      resolution: window.BattleFbxSoldier?.surfaceDamageResolution,
+      anchor: typeof window.BattleFbxSoldier?.skinAnchor,
+      sample: typeof window.BattleFbxSoldier?.skinSample,
+      paint: typeof window.BattleFbxSoldier?.paintSurfaceWound,
+      clear: typeof window.BattleFbxSoldier?.clearSurfaceDamage
+    }));
+    assert.deepEqual(woundOwnership, {
+      owner: true, resolution: 512, anchor: 'function', sample: 'function',
+      paint: 'function', clear: 'function'
+    }, 'real FBX backend lost its skinned wound and UV surface presentation contract');
     // R3 actual checked-out battle: calibration must feed loaded FBX model grips,
     // attached weapon world matrices, and prepared mesh muzzles on both factions.
     const fbIntegration = await page.evaluate(() => {
