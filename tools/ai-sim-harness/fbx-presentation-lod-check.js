@@ -23,8 +23,13 @@ class SubMesh {
   }
 }
 class Vector3 {
-  constructor(x = 0, y = 0, z = 0) { Object.assign(this, { x, y, z }); }
-  copyFrom(other) { Object.assign(this, other); return this; }
+  constructor(x = 0, y = 0, z = 0) {
+    Object.assign(this, { x, y, z });
+  }
+  copyFrom(other) {
+    Object.assign(this, other);
+    return this;
+  }
 }
 class Matrix {}
 class Plane {}
@@ -39,7 +44,12 @@ vm.runInNewContext(read('52-fbx-mesh-lod.js'), ctx);
 vm.runInNewContext(read('52-fbx-render-lod.js'), ctx);
 assert.equal(ctx.window.BattleFbxMeshLod, meshFactory, 'mesh helper initialization idempotent');
 assert.equal(ctx.window.BattleFbxRenderLod, renderFactory, 'render helper initialization idempotent');
-const mesh = meshFactory.create({ BABYLON: Babylon, ASSET: { on: false }, perfNow: () => 0, assetAdd: () => {} });
+const mesh = meshFactory.create({
+  BABYLON: Babylon,
+  ASSET: { on: false },
+  perfNow: () => 0,
+  assetAdd: () => {}
+});
 assert.equal(mesh.MESH_LOD.far, 45);
 assert.equal(mesh.MESH_LOD.ratio, 0.12);
 assert.equal(mesh.MESH_LOD.error, 0.08);
@@ -67,12 +77,22 @@ assert.equal(fx._meshFar, false);
 assert.equal(inputMesh.subMeshes, sample[0].full);
 
 const t = renderFactory.create({
-  BABYLON: Babylon, MX: Matrix, V3: Vector3,
-  MESH_LOD: mesh.MESH_LOD, meshLodApply: mesh.meshLodApply, perfNow: () => 0,
-  POSE: { on: false }, poseMix: () => 0, poseClipSig: () => 0,
-  poseWeaponSig: () => 0, topEntry: () => null,
-  applyPose: () => { throw Error('empty scene must not pose'); },
-  poseSoldier: () => {}, poseFrame: () => {}
+  BABYLON: Babylon,
+  MX: Matrix,
+  V3: Vector3,
+  MESH_LOD: mesh.MESH_LOD,
+  meshLodApply: mesh.meshLodApply,
+  perfNow: () => 0,
+  POSE: { on: false },
+  poseMix: () => 0,
+  poseClipSig: () => 0,
+  poseWeaponSig: () => 0,
+  topEntry: () => null,
+  applyPose: () => {
+    throw Error('empty scene must not pose');
+  },
+  poseSoldier: () => {},
+  poseFrame: () => {}
 });
 assert.equal(t.LOD.near, 35);
 assert.equal(t.LOD.mid, 100);
@@ -94,4 +114,6 @@ assert.equal(observers.length, 1, 'a scene must have only one render observer');
 observers[0]();
 assert.equal(t.LOD.screenScale, 1);
 assert.equal(mesh.MESH_LOD.screenScale, 1);
-console.log('PASS #456 R3 rendering LOD config, instance mesh far/full switching, ownership, duplicate hook protection');
+console.log(
+  'PASS #456 R3 rendering LOD config, instance mesh far/full switching, ownership, duplicate hook protection'
+);
