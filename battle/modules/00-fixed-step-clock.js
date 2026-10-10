@@ -1,21 +1,22 @@
-/* Keep live 4x / 8x battles on the same 0.15s timeline as replay.
-   Slow frames accumulate debt instead of discarding simulation seconds.
-   Real-time (<=1x) playback keeps the original per-frame variable step: movement
-   is written every rendered frame, so it looks smooth instead of stair-stepping at
-   0.15s. ?fixedClock=all forces the fixed step at every speed (parity diagnostics),
-   ?fixedClock=0 opts out entirely for a controlled live A/B; benchmarks calling
-   sim.step() or clock.advance() explicitly retain their established fixed-step behavior. */
+/* Benchmark-only deterministic 0.15s clock.
+   Ordinary live battles (1x / 4x / 8x) keep the original BattleSim._frame
+   observer and commander observer: the browser advances movement every frame
+   and the existing AI accumulator still updates decisions every 0.15 sim-s.
+   No fixed-step debt/catch-up work is scheduled on live render frames.
+
+   Replay/parity/full-fidelity benchmark runners drive clock.advance() explicitly,
+   even though the default page does not install a fixed-step observer.
+   ?fixedClock=all opt-ins to fixed-step live rendering for parity debugging.
+   ?fixedClock=0 retains the unmodified legacy page without a benchmark clock. */
 (function (root) {
   'use strict';
   if (!root.BattleSim || root.BattleFixedStepClock) return;
 
   var STEP = root.BattleSim.AI_TICK || 0.15;
   var MAX_STEPS_PER_FRAME = 12;
-  var REALTIME_SCALE = 1;
-  var MAX_FRAME_DT = 0.25;
   var EPS = 1e-9;
 
-  function create(sim, options) {
+  function create(sim) {
     var debt = 0;
     var stats = {
       stepSeconds: STEP,
@@ -23,16 +24,7 @@
       pendingSeconds: 0,
       lastSteps: 0,
       backloggedFrames: 0,
-      totalSteps: 0,
-      smoothFrames: 0
-    };
-    var clock = {
-      advance: advance,
-      frame: frame,
-      reset: reset,
-      stats: stats,
-      /* true: run the fixed step even at <=1x (timescale parity diagnostics). */
-      fixedAtRealtime: !!(options && options.fixedAtRealtime)
+      totalSteps: 0
     };
 
     function reset() {
@@ -41,7 +33,6 @@
       stats.lastSteps = 0;
       stats.backloggedFrames = 0;
       stats.totalSteps = 0;
-      stats.smoothFrames = 0;
     }
 
     function advance(wallSeconds) {
@@ -70,39 +61,7 @@
       return steps;
     }
 
-    /* Live render-frame entry. <=1x advances the sim by this frame's own scaled
-       delta (the original observer pair: sim._frame, then the commander tick).
-       Faster speeds, and any backlog still left from a faster speed, go through the
-       fixed step so no simulation seconds are dropped when the player changes speed;
-       the sub-step remainder is folded into the first smooth frame. */
-    function frame(wallSeconds) {
-      var scale = +sim.timeScale;
-      var smooth =
-        !clock.fixedAtRealtime &&
-        isFinite(scale) &&
-        scale > 0 &&
-        scale <= REALTIME_SCALE + EPS &&
-        debt + EPS < STEP &&
-        typeof sim._frame === 'function';
-      if (!smooth) return advance(wallSeconds);
-
-      stats.lastSteps = 0;
-      if (sim.paused || sim.winner || sim._trainerStepActive) return 0;
-      var elapsed = +wallSeconds;
-      if (!isFinite(elapsed) || elapsed <= 0) return 0;
-
-      var dt = Math.min(MAX_FRAME_DT, debt + elapsed * scale);
-      debt = 0;
-      stats.pendingSeconds = 0;
-      sim._frame(dt);
-      if (!sim.winner && typeof sim._liveCommanderTick === 'function') {
-        sim._liveCommanderTick(dt);
-      }
-      stats.smoothFrames++;
-      return 0;
-    }
-
-    return clock;
+    return { advance: advance, frame: advance, reset: reset, stats: stats };
   }
 
   var oldStart = root.BattleSim.start;
@@ -111,13 +70,18 @@
     var search = (typeof location !== 'undefined' && location.search) || '';
     if (/[?&]fixedClock=0(?:&|$)/.test(search)) return sim;
 
-    var clock = create(sim, { fixedAtRealtime: /[?&]fixedClock=all(?:&|$)/.test(search) });
+    // The benchmark clock exists for explicit simulation drives, but does NOT
+    // touch either observer or consume per-render-frame time during normal play.
+    var clock = create(sim);
+    sim._fixedClock = clock;
+    if (!/[?&]fixedClock=all(?:&|$)/.test(search)) return sim;
+
+    // Deliberate live opt-in for debugging 1x/4x/8x parity with benchmark replays.
     var oldObserver = sim._renderObserver;
     if (oldObserver) scene.onBeforeRenderObservable.remove(oldObserver);
     sim._fixedClockInstalled = true;
-    sim._fixedClock = clock;
     sim._renderObserver = scene.onBeforeRenderObservable.add(function () {
-      clock.frame(scene.getEngine().getDeltaTime() / 1000);
+      clock.advance(scene.getEngine().getDeltaTime() / 1000);
     });
 
     var oldRestart = sim.restart;
@@ -131,7 +95,6 @@
   root.BattleFixedStepClock = {
     stepSeconds: STEP,
     maxStepsPerFrame: MAX_STEPS_PER_FRAME,
-    realtimeScale: REALTIME_SCALE,
     create: create
   };
 })(typeof window !== 'undefined' ? window : globalThis);
