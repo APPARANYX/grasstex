@@ -26,7 +26,15 @@ function fingerprint(s) {
   for (const ch of s) hash = Math.imul(hash ^ ch.charCodeAt(0), 0x01000193);
   return (hash >>> 0).toString(16);
 }
-const events = normalized(region('    function bindDesktopEvents() {\n', '    }\n    function stepFreeFly('));
+/* Listener owners are now tracked by listen(target,...); reconstruct the old
+   registration spelling (including split-line calls) to preserve the existing
+   byte-level handler-order fingerprint rather than dropping the parity check. */
+const events = normalized(
+  region('    function bindDesktopEvents() {\n', '    }\n    function stepFreeFly(')
+).replace(
+  /\blisten\(\s*(canvas|document|window),\s*/g,
+  (match, target) => target + '.addEventListener(' + (match.includes('\n') ? '\n' : '')
+);
 const freefly = normalized(
   region('    function stepFreeFly(pad, dt) {\n', '    }\n    function stepDesktopFrame()')
 );

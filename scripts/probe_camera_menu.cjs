@@ -175,6 +175,146 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       return b && b._roster && !(b._roster.us || []).some(s => s.isPlayer) &&
         !(b._roster.ge || []).some(s => s.isPlayer) && b.scene.activeCamera.name === 'cam';
     }, null, { timeout: 15000 });
+    // Some headless Chromium environments deny real pointer lock despite a
+    // genuine click. Try the real API first; only if unavailable inject a
+    // document-level test double that exercises shipping change/exit handlers.
+    await page.locator('#renderCanvas').click({force: true, position: {x: 250, y: 210}});
+    await page.waitForTimeout(350);
+    const realPointerLock = await page.evaluate(() =>
+      document.pointerLockElement === document.getElementById('renderCanvas')
+    );
+    if (!realPointerLock) {
+      await page.evaluate(() => {
+        const original = Object.getOwnPropertyDescriptor(document, 'pointerLockElement');
+        const originalExit = document.exitPointerLock;
+        const canvas = document.getElementById('renderCanvas');
+        let held = null;
+        Object.defineProperty(document, 'pointerLockElement', {
+          configurable: true, get: () => held
+        });
+        document.exitPointerLock = function () {
+          held = null;
+          document.dispatchEvent(new Event('pointerlockchange'));
+        };
+        window.__qaPointer = {
+          synthetic: true,
+          lock() {
+            held = canvas;
+            document.dispatchEvent(new Event('pointerlockchange'));
+          },
+          restore() {
+            if (original) Object.defineProperty(document, 'pointerLockElement', original);
+            else delete document.pointerLockElement;
+            document.exitPointerLock = originalExit;
+          }
+        };
+        window.__qaPointer.lock();
+      });
+    }
+    assert.equal(await page.evaluate(() =>
+      document.pointerLockElement === document.getElementById('renderCanvas')
+    ), true, 'pointer-lock test setup failed');
+    await page.keyboard.press('o');
+    await page.waitForFunction(() =>
+      getComputedStyle(document.getElementById('battlePlayerSettings')).display === 'flex'
+    );
+    assert.equal(await page.evaluate(() => document.pointerLockElement), null,
+      'opening settings must release pointer lock');
+    await page.keyboard.press('Escape');
+    if (realPointerLock) {
+      await page.locator('#renderCanvas').click({force: true, position: {x: 250, y: 210}});
+      await page.waitForFunction(
+        () => document.pointerLockElement === document.getElementById('renderCanvas'),
+        null, {timeout: 10000}
+      );
+    } else {
+      await page.evaluate(() => window.__qaPointer.lock());
+    }
+
+    // Recreate on the same page and the SAME scene. Assert observer count stays
+    // constant; previous camera, pointer lock and DOM controls are disposed;
+    // repeated stop on an old controller cannot interfere with the replacement.
+    const lifecycle = await page.evaluate(() => {
+      const scene = __battle__.scene;
+      const old = BattleDesktopCamera.current;
+      const oldCam = old.camera;
+      const observable = scene.onBeforeRenderObservable;
+      const beforeObservers = observable.observers.slice();
+      const observersBefore = beforeObservers.length;
+      const removes = [];
+      const originalRemove = observable.remove;
+      observable.remove = function (observer) {
+        const result = originalRemove.call(this, observer);
+        removes.push({ name: observer?.callback?.name, result, stillListed: this.observers.includes(observer) });
+        return result;
+      };
+      const previousSettings = document.getElementById('battlePlayerSettings');
+      const replacement = BattleDesktopCamera.create({
+        scene, canvas: document.getElementById('renderCanvas'),
+        engine: scene.getEngine(), battleSim: __battle__,
+        scenario: { center: {x: 0, z: 0} }
+      });
+      observable.remove = originalRemove;
+      const afterObservers = observable.observers.slice();
+      const observersAfter = afterObservers.length;
+      const removedObservers = beforeObservers.filter(o => !afterObservers.includes(o))
+        .map(o => o.callback?.name || '(anonymous)');
+      const addedObservers = afterObservers.filter(o => !beforeObservers.includes(o))
+        .map(o => o.callback?.name || '(anonymous)');
+      const framesBefore = beforeObservers.filter(o => o.callback?.name === 'stepDesktopFrame');
+      const framesAfter = afterObservers.filter(o => o.callback?.name === 'stepDesktopFrame');
+      const staleFrameRetained = framesBefore.some(o => afterObservers.includes(o));
+      window.__qaPreviousFrameObserver = framesBefore[0];
+      const uiAfter = [
+        'battlePlayerSettings','battlePlayerReticle','battlePlayerHud',
+        'battlePlayerBoreDot','battlePlayerDamage','battlePlayerGrenadePreview',
+        'battlePlayerMenuStyles','battlePlayerFeedbackStyles'
+      ].filter(id => document.getElementById(id));
+      old.stop();
+      return {
+        observersBefore, observersAfter, removes, removedObservers, addedObservers,
+        framesBefore: framesBefore.length, framesAfter: framesAfter.length, staleFrameRetained,
+        oldDisposed: oldCam.isDisposed(),
+        oldSettingsDetached: !previousSettings || !previousSettings.isConnected,
+        uiAfter, replacementCurrent: BattleDesktopCamera.current === replacement,
+        replacementAlive: !replacement.camera.isDisposed(),
+        lockReleased: document.pointerLockElement === null
+      };
+    });
+    assert.equal(lifecycle.framesBefore, 1, 'initial scene should own one desktop frame observer');
+    assert.ok(lifecycle.removes.some(r => r.name === 'stepDesktopFrame' && r.result === true),
+      'Babylon did not accept removal of the prior controller observer: ' + JSON.stringify(lifecycle));
+    /* Babylon Observable.remove() returns true while marking an observer for
+       deferred unregistration; the old reference can remain in observers until
+       the next notification/render. Wait for actual removal, not immediate list length. */
+    await page.waitForFunction(() =>
+      !__battle__.scene.onBeforeRenderObservable.observers.includes(window.__qaPreviousFrameObserver),
+      null, {timeout: 10000}
+    );
+    const finalObserverState = await page.evaluate(() => {
+      const current = __battle__.scene.onBeforeRenderObservable.observers;
+      const frames = current.filter(o => o.callback?.name === 'stepDesktopFrame');
+      delete window.__qaPreviousFrameObserver;
+      return { frames: frames.length, total: current.length };
+    });
+    assert.equal(finalObserverState.frames, 1,
+      'old frame observer remained registered after a rendered frame: ' +
+      JSON.stringify({lifecycle, finalObserverState}));
+    assert.equal(lifecycle.oldDisposed, true, 'previous desktop camera must be disposed');
+    assert.equal(lifecycle.oldSettingsDetached, true, 'old menu must be removed');
+    assert.deepEqual(lifecycle.uiAfter, [], 'transient old HUD/menu nodes survived recreation');
+    assert.equal(lifecycle.replacementCurrent, true);
+    assert.equal(lifecycle.replacementAlive, true, 'old.stop must not dispose new camera');
+    assert.equal(lifecycle.lockReleased, true, 'recreation must release old pointer lock');
+    if (!realPointerLock) await page.evaluate(() => window.__qaPointer.restore());
+    await page.keyboard.press('o');
+    await page.waitForFunction(() => {
+      const p = document.getElementById('battlePlayerSettings');
+      return p && getComputedStyle(p).display === 'flex';
+    });
+    assert.equal(await page.locator('#battlePlayerSettings').count(), 1,
+      'only replacement may create settings UI');
+    await page.keyboard.press('Escape');
     const state = await page.evaluate(() => ({
       build: window.BATTLE_BUILD_DEPLOYED || null,
       camera: window.BattleDesktopCamera?.current?.camera?.name || null,
@@ -183,7 +323,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     }));
     fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({state, errors, notes: notes.slice(-20)}, null, 2));
     assert.equal(errors.length, 0, 'page errors: ' + errors.slice(0, 5).join(' | '));
-    console.log('PASS #456 R2 player menu, US→GE lease handoff, pause ownership and V release ' + JSON.stringify(state));
+    console.log('PASS #456 R2 ownership, pointer lock (' + (realPointerLock ? 'real' : 'headless synthetic') + ') and same-page camera disposal ' + JSON.stringify({state,lifecycle,finalObserverState}));
   } finally {
     await browser.close();
   }

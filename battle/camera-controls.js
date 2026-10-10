@@ -440,7 +440,16 @@
       menuTab = 0,
       menuPadTimer = null,
       menuHoldState = { down: false, since: 0, long: false },
-      playerHapticsEnabled = true;
+      playerHapticsEnabled = true,
+      listeners = [],
+      frameObserver = null,
+      stopped = false;
+    /* Exact listener registration order is retained; each controller owns its
+       subscriptions and can release them when a new camera session starts. */
+    function listen(target, type, callback, options) {
+      target.addEventListener(type, callback, options);
+      listeners.push({ target: target, type: type, callback: callback, options: options });
+    }
     function guarded() {
       return active || document.activeElement === canvas;
     }
@@ -1413,11 +1422,11 @@
       updateGrenadePreview(b, aiming && grenadeReady && !grenadePending, Date.now());
     }
     function bindDesktopEvents() {
-      canvas.addEventListener('click', function () {
+      listen(canvas, 'click', function () {
         canvas.focus();
         if (document.pointerLockElement !== canvas) canvas.requestPointerLock && canvas.requestPointerLock();
       });
-      document.addEventListener('pointerlockchange', function () {
+      listen(document, 'pointerlockchange', function () {
         active = document.pointerLockElement === canvas;
         if (!active) {
           keys.clear();
@@ -1427,7 +1436,7 @@
           clearGrenadePreview();
         }
       });
-      document.addEventListener('mousemove', function (event) {
+      listen(document, 'mousemove', function (event) {
         if (!active) return;
         if (player) {
           var aimingNow = mouseAim || buttonValue(activeGamepad(), 6) > 0.35,
@@ -1442,21 +1451,22 @@
         camera.rotation.y = yaw;
         camera.rotation.x = pitch;
       });
-      canvas.addEventListener('mousedown', function (event) {
+      listen(canvas, 'mousedown', function (event) {
         if (!player) return;
         if (event.button === 0) mouseFire = true;
         else if (event.button === 2) mouseAim = true;
         else return;
         event.preventDefault();
       });
-      window.addEventListener('mouseup', function (event) {
+      listen(window, 'mouseup', function (event) {
         if (event.button === 0) mouseFire = false;
         else if (event.button === 2) mouseAim = false;
       });
-      canvas.addEventListener('contextmenu', function (event) {
+      listen(canvas, 'contextmenu', function (event) {
         if (player) event.preventDefault();
       });
-      window.addEventListener(
+      listen(
+        window,
         'keydown',
         function (event) {
           var key = keyName(event);
@@ -1531,25 +1541,25 @@
         },
         { passive: false }
       );
-      window.addEventListener('keyup', function (event) {
+      listen(window, 'keyup', function (event) {
         keys.delete(keyName(event));
         if (keyName(event) === 'g') grenadeKeyDown = false;
       });
-      window.addEventListener('blur', function () {
+      listen(window, 'blur', function () {
         keys.clear();
         mouseAim = false;
         mouseFire = false;
         grenadeKeyDown = false;
         clearGrenadePreview();
       });
-      window.addEventListener('gamepadconnected', function (e) {
+      listen(window, 'gamepadconnected', function (e) {
         padId = (e.gamepad && e.gamepad.id) || 'gamepad';
         padButtons = {};
         if (grenadesOn()) padButtons[5] = buttonValue(e.gamepad, 5) > 0.5;
         updateHint(e.gamepad);
         global.GTLog('[CAMERA] gamepad connected: ' + padId);
       });
-      window.addEventListener('gamepaddisconnected', function (e) {
+      listen(window, 'gamepaddisconnected', function (e) {
         if (!e.gamepad || !padId || e.gamepad.id === padId) {
           padId = null;
           padButtons = {};
@@ -1557,7 +1567,8 @@
         }
         global.GTLog('[CAMERA] gamepad disconnected; keyboard controls remain active');
       });
-      canvas.addEventListener(
+      listen(
+        canvas,
         'wheel',
         function (event) {
           if (!guarded() || player) return;
@@ -1679,8 +1690,50 @@
 
       stepFreeFly(pad, dt);
     }
+    function stopDesktop() {
+      if (stopped) return;
+      stopped = true;
+      /* Remove event callbacks before pointer-lock exit, which itself broadcasts an event. */
+      listeners.forEach(function (entry) {
+        entry.target.removeEventListener(entry.type, entry.callback, entry.options);
+      });
+      listeners.length = 0;
+      if (frameObserver) {
+        scene.onBeforeRenderObservable.remove(frameObserver);
+        frameObserver = null;
+      }
+      if (menuOpen) closePlayerMenu();
+      if (menuPadTimer !== null) {
+        clearInterval(menuPadTimer);
+        menuPadTimer = null;
+      }
+      if (player) leavePlayer('camera disposed');
+      if (document.pointerLockElement === canvas && document.exitPointerLock) document.exitPointerLock();
+      keys.clear();
+      mouseAim = false;
+      mouseFire = false;
+      grenadeKeyDown = false;
+      clearGrenadeReady();
+      /* Transient menu/HUD nodes belong to this camera instance, never to a
+         soldier or the battle sim. Only remove nodes this controller created. */
+      [
+        settingsMenu,
+        reticle,
+        playerBoreDot,
+        playerHud,
+        playerDamage,
+        grenadeOverlay,
+        document.getElementById('battlePlayerMenuStyles'),
+        document.getElementById('battlePlayerFeedbackStyles')
+      ].forEach(function (node) {
+        if (node && node.parentNode) node.parentNode.removeChild(node);
+      });
+      if (scene.activeCamera === playerCam || scene.activeCamera === camera) scene.activeCamera = null;
+      if (playerCam && playerCam.dispose) playerCam.dispose();
+      if (camera && camera.dispose) camera.dispose();
+    }
     bindDesktopEvents();
-    scene.onBeforeRenderObservable.add(stepDesktopFrame);
+    frameObserver = scene.onBeforeRenderObservable.add(stepDesktopFrame);
     updateHint(activeGamepad());
     return {
       camera: camera,
@@ -1692,7 +1745,8 @@
       exitPlayer: function () {
         leavePlayer('API');
       },
-      openPlayerSettings: openPlayerMenu
+      openPlayerSettings: openPlayerMenu,
+      stop: stopDesktop
     };
   }
   /* Normal-play presentation camera for visual testing. `?follow=1` follows the busiest living soldier from a close, persistent ArcRotate camera.
@@ -1831,13 +1885,36 @@
         ? createDesktopFly(scene, canvas, target, engine, battleSim)
         : createTouchOrbit(scene, canvas, target);
     var state = { camera: initial.camera, desktop: initial.desktop, hint: initial.hint };
-    var wakeObserver = null;
+    var wakeObserver = null,
+      wakeListener = null,
+      activeStop = initial.stop || null,
+      stopped = false;
+    function stopAdaptive() {
+      if (stopped) return;
+      stopped = true;
+      if (wakeObserver) {
+        scene.onBeforeRenderObservable.remove(wakeObserver);
+        wakeObserver = null;
+      }
+      if (wakeListener) {
+        global.removeEventListener('gamepadconnected', wakeListener);
+        wakeListener = null;
+      }
+      if (activeStop) activeStop();
+      else {
+        try {
+          if (state.camera && state.camera.detachControl) state.camera.detachControl(canvas);
+        } catch (_) {}
+        if (state.camera && state.camera.dispose) state.camera.dispose();
+      }
+    }
+    state.stop = stopAdaptive;
     function setHint(text) {
       var el = document.getElementById('cameraHint');
       if (el) el.textContent = text;
     }
     function switchToGamepad(pad, source) {
-      if (state.desktop) return;
+      if (stopped || state.desktop) return;
       pad = pad || activeGamepad();
       if (!pad) return;
       var old = state.camera,
@@ -1849,6 +1926,7 @@
         if (old && old.dispose) old.dispose();
       } catch (_) {}
       var next = createDesktopFly(scene, canvas, target, engine, battleSim, pose);
+      activeStop = next.stop;
       state.camera = next.camera;
       state.desktop = true;
       state.hint = next.hint;
@@ -1862,9 +1940,10 @@
       );
     }
     if (!state.desktop && hasGamepadAPI()) {
-      global.addEventListener('gamepadconnected', function (e) {
+      wakeListener = function (e) {
         switchToGamepad(e && e.gamepad, 'event');
-      });
+      };
+      global.addEventListener('gamepadconnected', wakeListener);
       /* iOS/WebKit can withhold a Bluetooth controller from getGamepads() until user input.
          Poll while touch-orbit is active so either a stick movement or button press that exposes
          the pad can hand control to the fly camera without a reload. */
@@ -1882,6 +1961,11 @@
     menuHoldGesture: menuHoldGesture,
     menuHoldMs: MENU_HOLD_MS,
     create: function (options) {
+      /* Same-page restarts must not retain the previous camera's global listeners,
+         scene observer, pointer-lock state or transient HUD/menu elements. */
+      var previous = global.BattleDesktopCamera.current;
+      if (previous && previous.stop) previous.stop();
+      global.BattleDesktopCamera.current = null;
       var target = new BABYLON.Vector3(options.scenario.center.x, 4, options.scenario.center.z);
       var result = createAdaptive(options, target);
       global.BattleDesktopCamera.current = result;
