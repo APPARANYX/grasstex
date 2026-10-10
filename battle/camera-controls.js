@@ -184,8 +184,21 @@
     camera.wheelPrecision = 3;
     camera.panningSensibility = 120;
     camera.attachControl(canvas, true);
-    var hint = TOUCH_HINT + (hasGamepadAPI() ? ' · ' + PAD_WAKE_HINT : '');
-    return { camera: camera, desktop: false, hint: hint };
+    var hint = TOUCH_HINT + (hasGamepadAPI() ? ' · ' + PAD_WAKE_HINT : ''),
+      stopped = false;
+    return {
+      camera: camera,
+      desktop: false,
+      hint: hint,
+      stop: function () {
+        if (stopped) return;
+        stopped = true;
+        try {
+          camera.detachControl(canvas);
+        } catch (_) {}
+        camera.dispose();
+      }
+    };
   }
   function shapedAxis(v) {
     v = isFinite(+v) ? +v : 0;
@@ -1575,6 +1588,11 @@
         if (!e.gamepad || !padId || e.gamepad.id === padId) {
           padId = null;
           padButtons = {};
+          /* A held Menu must never turn into a phantom tap when the pad
+             disappears and a different controller reconnects. */
+          menuHoldState.down = false;
+          menuHoldState.long = false;
+          menuHoldState.since = 0;
           updateHint(null);
         }
         global.GTLog('[CAMERA] gamepad disconnected; keyboard controls remain active');
@@ -1913,12 +1931,6 @@
         wakeListener = null;
       }
       if (activeStop) activeStop();
-      else {
-        try {
-          if (state.camera && state.camera.detachControl) state.camera.detachControl(canvas);
-        } catch (_) {}
-        if (state.camera && state.camera.dispose) state.camera.dispose();
-      }
     }
     state.stop = stopAdaptive;
     function setHint(text) {
@@ -1927,16 +1939,12 @@
     }
     function switchToGamepad(pad, source) {
       if (stopped || state.desktop) return;
-      pad = pad || activeGamepad();
+      /* Connected events can arrive late after disconnect. Only a pad exposed
+         by the current Gamepad API is eligible to wake a touch controller. */
+      pad = activeGamepad();
       if (!pad) return;
-      var old = state.camera,
-        pose = cameraPose(old, target);
-      try {
-        if (old && old.detachControl) old.detachControl(canvas);
-      } catch (_) {}
-      try {
-        if (old && old.dispose) old.dispose();
-      } catch (_) {}
+      var pose = cameraPose(state.camera, target);
+      if (activeStop) activeStop();
       var next = createDesktopFly(scene, canvas, target, engine, battleSim, pose);
       activeStop = next.stop;
       state.camera = next.camera;
@@ -1947,12 +1955,17 @@
         scene.onBeforeRenderObservable.remove(wakeObserver);
         wakeObserver = null;
       }
+      if (wakeListener) {
+        global.removeEventListener('gamepadconnected', wakeListener);
+        wakeListener = null;
+      }
       global.GTLog(
         '[CAMERA] gamepad wake switched touch orbit to fly (' + source + '): ' + (pad.id || 'gamepad')
       );
     }
     if (!state.desktop && hasGamepadAPI()) {
       wakeListener = function (e) {
+        if (e && e.gamepad && e.gamepad.connected === false) return;
         switchToGamepad(e && e.gamepad, 'event');
       };
       global.addEventListener('gamepadconnected', wakeListener);
