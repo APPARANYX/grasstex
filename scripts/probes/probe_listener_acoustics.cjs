@@ -52,13 +52,13 @@ async function run() {
       const src = { x: c.x + 14, y: c.y, z: c.z + 3 };
       snd.setPosition(new window.BABYLON.Vector3(src.x, src.y, src.z));
       const accepted = a.prepare(snd, src, 'gun', 0.18, scene);
-      const filtered = !!snd._battleAcousticFilter;
       snd.play();
       const probeStart = performance.now();
       while (performance.now() - probeStart < 9000) {
         if (snd.getSoundGain?.() && snd._battleAcousticFilter) break;
         await new Promise(resolve => setTimeout(resolve, 100));
       }
+      const filtered = !!snd._battleAcousticFilter;
       const gain = snd.getSoundGain?.();
       const original = snd._battleAcousticFilter;
       a.reset();
