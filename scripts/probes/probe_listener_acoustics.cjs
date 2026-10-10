@@ -40,7 +40,7 @@ async function run() {
       }
       const ctx = engine.audioContext;
       if (ctx.state === 'suspended') await ctx.resume();
-      const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.23), ctx.sampleRate);
+      const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 3.0), ctx.sampleRate);
       const samples = buffer.getChannelData(0);
       for (let i = 0; i < samples.length; i++)
         samples[i] = Math.sin(i * 2 * Math.PI * 240 / ctx.sampleRate) *
@@ -53,8 +53,13 @@ async function run() {
       snd.setPosition(new window.BABYLON.Vector3(src.x, src.y, src.z));
       const accepted = a.prepare(snd, src, 'gun', 0.18, scene);
       const filtered = !!snd._battleAcousticFilter;
-      const gain = snd.getSoundGain && snd.getSoundGain();
       snd.play();
+      const probeStart = performance.now();
+      while (performance.now() - probeStart < 9000) {
+        if (snd.getSoundGain?.() && snd._battleAcousticFilter) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      const gain = snd.getSoundGain?.();
       const original = snd._battleAcousticFilter;
       a.reset();
       a.prepare(snd, src, 'gun', 0.18, scene);
@@ -64,7 +69,10 @@ async function run() {
         quality: a.quality, accepted, filtered, reused,
         hasGain: !!gain, isAudioV2: !!snd._soundV2,
         active: a.active, sampled: a.stats.sampled,
-        graphNode: snd._battleAcousticFilter?.type || null
+        graphNode: snd._battleAcousticFilter?.type || null,
+        soundReady: snd.isReady?.(), sceneTrack: !!scene.mainSoundTrack?._outputAudioNode,
+        outputNode: !!snd._soundV2?._outNode,
+        audioState: ctx.state, elapsedWait: +(performance.now()-probeStart).toFixed(0)
       };
       snd.stop();
       a.reset();
