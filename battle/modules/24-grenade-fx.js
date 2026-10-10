@@ -306,6 +306,7 @@ void main(void) {
       burst.quad.position.y = 0.12;
       burst.light.intensity = 4 * Math.max(0, 1 - age / 0.16);
       burst.light.setEnabled(age < 0.16);
+      burst.quad.setEnabled(age < 0.16);
       if (burst.fog) {
         var strength = Math.min(1, Math.max(0, (FOG_LIFETIME - age) / 7));
         burst.fog.material.setFloat('strength', strength);
