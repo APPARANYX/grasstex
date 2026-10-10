@@ -113,6 +113,11 @@ BABYLON.LoadAssetContainerAsync = async () => ({ meshes: [], dispose() {} });
       t.sim.time = 10;
       t.sample();
       const cleared = fx.status(t.sim);
+      const displaced = { x: 2.5, y: 1.4, z: -1.75 };
+      t.sim.onGrenadeBurst({ id: 124, to: displaced, kind: 'm24' });
+      t.scene.render();
+      const elevated = t.scene.meshes.find(m => m.name === 'grenadeAreaFog-124');
+      const elevatedPosition = elevated?.getAbsolutePosition().asArray();
       return {
         before,
         after,
@@ -126,6 +131,7 @@ BABYLON.LoadAssetContainerAsync = async () => ({ meshes: [], dispose() {} });
         meshReady,
         cameraPosition,
         volumePosition,
+        elevatedPosition,
         beforePixels, pixels,
         difference: Math.max(...pixels.flatMap((p, idx) => p.rgba.slice(0, 3).map((v, i) => Math.abs(v - beforePixels[idx].rgba[i]))))
       };
@@ -134,8 +140,18 @@ BABYLON.LoadAssetContainerAsync = async () => ({ meshes: [], dispose() {} });
     assert.equal(result.ready, true, 'volume shader compiles in Babylon/WebGL');
     assert.equal(result.transparency, true, 'volume uses transparent compositing');
     assert.equal(result.volumeCount, 1, 'one fog volume, no emitted particles');
+    assert.ok(
+      result.volumePosition.every((value, i) => Math.abs(value - [0, 0, 0][i]) < 1e-5),
+      'fog mesh center is the grenade detonation point, not elevated'
+    );
     assert.equal(result.present.fogVolumes, 1, 'fog exists on detonation frame');
     assert.equal(result.cleared.fogVolumes, 0, '10 simulated seconds clear the volume');
+    assert.ok(
+      result.elevatedPosition?.every(
+        (value, i) => Math.abs(value - [2.5, 1.4, -1.75][i]) < 1e-5
+      ),
+      'off-origin fog center follows the grenade, including terrain height'
+    );
     assert.ok(result.difference > 5, 'actual framebuffer pixels changed inside fog');
     assert.deepEqual(result.after, result.before, 'opaque object closer than fog still obscures fog');
     await page.goto(root + 'battle/grenade-fog-probe.html?grenades=1&grenadeFog=off', { waitUntil: 'load' });
