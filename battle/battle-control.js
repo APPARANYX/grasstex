@@ -545,15 +545,22 @@
     newScenario: newScenario,
     continueAfterTimeLimit: continueAfterTimeLimit,
     runScenarios: function (sim) {
-      return (
-        root.BattleAITrainer &&
-        root.BattleAITrainer.train(sim, {
-          candidates: 4,
-          scenarios: 3,
-          headless: true,
-          renderLoop: root.__battleRenderLoop__
+      /* Console-only API: callers may ignore its promise. Always settle and report
+         a failed asynchronous persist/train, rather than leaking an unhandled rejection. */
+      return Promise.resolve()
+        .then(function () {
+          if (!root.BattleAITrainer) return { ok: false, reason: 'trainer-unavailable' };
+          return root.BattleAITrainer.train(sim, {
+            candidates: 4,
+            scenarios: 3,
+            headless: true,
+            renderLoop: root.__battleRenderLoop__
+          });
         })
-      );
+        .catch(function (error) {
+          console.error('[CONTROL] runScenarios failed', error);
+          return { ok: false, reason: 'training-failed', message: String((error && error.message) || error) };
+        });
     }
   };
   root.GTLog('[CONTROL] AI lab controls loaded · build ' + (root.BATTLE_BUILD || 'dev'));
