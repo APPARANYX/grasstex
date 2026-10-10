@@ -893,8 +893,8 @@ before any effect is claimed.
   events reach 16 m. Friendly/self injuries retain attribution and earn no kill credit. Imported
   Mk 2/M24 props, three stance-specific throw clips and bounded dust/flash are presentation only
   (`24-grenade-fx.js`); player aim displays the owner's arc and landing point. Default-enabled in #442 after a
-  paired 100-seed benchmark (quiet: casualties +0.4 %, p 0.625) and owner review. Grenade-specific
-  audio is still outstanding.
+  paired 100-seed benchmark (quiet: casualties +0.4 %, p 0.625) and owner review. Arming, spoon
+  and burst audio are presentation only (`24a-grenade-audio.js`, `?grenadeAudio=0` off; see Audio).
 - **FG 42 balance.** The four-arm benchmark attributed the scout balance shift to the FG 42, not
   the perception cones. Test one lever at a time: Kar98k assignment, shorter practical FG 42 range,
   or wider dispersion/grouping at range. Use the existing `perception=0` / `geScout=carbine`
