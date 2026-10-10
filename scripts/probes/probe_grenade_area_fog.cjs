@@ -95,9 +95,15 @@ BABYLON.LoadAssetContainerAsync = async () => ({ meshes: [], dispose() {} });
         t.engine._gl.readPixels(x, y, 1, 1, t.engine._gl.RGBA, t.engine._gl.UNSIGNED_BYTE, rgba);
         return { x, y, rgba: Array.from(rgba) };
       });
-      const before = t.sample(), beforePixels = grid();
+      const readFrame = () => {
+        t.scene.render();
+        const rgba = new Uint8Array(640 * 360 * 4);
+        t.engine._gl.readPixels(0, 0, 640, 360, t.engine._gl.RGBA, t.engine._gl.UNSIGNED_BYTE, rgba);
+        return rgba;
+      };
+      const before = t.sample(), beforePixels = grid(), baseline = readFrame();
       t.sim.onGrenadeBurst({ id: 123, to: { x: 0, y: 0, z: 0 }, kind: 'mk2' });
-      const after = t.sample(),
+      const after = t.sample(), framebuffer = readFrame(),
         volumes = t.scene.meshes.filter(m => m.name.startsWith('grenadeAreaFog'));
       const vertexCount = volumes[0]?.getTotalVertices();
       const meshReady = volumes[0]?.isReady();
@@ -105,6 +111,25 @@ BABYLON.LoadAssetContainerAsync = async () => ({ meshes: [], dispose() {} });
       const volumePosition = volumes[0]?.getAbsolutePosition().asArray();
       const mat = volumes[0]?.material;
       const pixels = grid();
+      let changedPixels = 0;
+      let maxDelta = 0;
+      let changedBounds = { left: 640, right: 0, top: 360, bottom: 0 };
+      for (let i = 0; i < framebuffer.length; i += 4) {
+        const delta = Math.max(
+          Math.abs(framebuffer[i] - baseline[i]),
+          Math.abs(framebuffer[i + 1] - baseline[i + 1]),
+          Math.abs(framebuffer[i + 2] - baseline[i + 2])
+        );
+        if (delta > maxDelta) maxDelta = delta;
+        if (delta > 5) {
+          changedPixels++;
+          const x = (i / 4) % 640, y = Math.floor(i / 4 / 640);
+          changedBounds.left = Math.min(changedBounds.left, x);
+          changedBounds.right = Math.max(changedBounds.right, x);
+          changedBounds.top = Math.min(changedBounds.top, y);
+          changedBounds.bottom = Math.max(changedBounds.bottom, y);
+        }
+      }
       const ready = mat?.getEffect()?.isReady() || false;
       const transparency = mat?.needAlphaBlending();
       const present = fx.status(t.sim);
@@ -133,6 +158,7 @@ BABYLON.LoadAssetContainerAsync = async () => ({ meshes: [], dispose() {} });
         volumePosition,
         elevatedPosition,
         beforePixels, pixels,
+        changedPixels, maxDelta, changedBounds,
         difference: Math.max(...pixels.flatMap((p, idx) => p.rgba.slice(0, 3).map((v, i) => Math.abs(v - beforePixels[idx].rgba[i]))))
       };
     });
@@ -152,7 +178,7 @@ BABYLON.LoadAssetContainerAsync = async () => ({ meshes: [], dispose() {} });
       ),
       'off-origin fog center follows the grenade, including terrain height'
     );
-    assert.ok(result.difference > 5, 'actual framebuffer pixels changed inside fog');
+    assert.ok(result.changedPixels > 100 && result.maxDelta > 5, 'fog changes actual framebuffer pixels across its visible footprint');
     assert.deepEqual(result.after, result.before, 'opaque object closer than fog still obscures fog');
     await page.goto(root + 'battle/grenade-fog-probe.html?grenades=1&grenadeFog=off', { waitUntil: 'load' });
     await page.waitForFunction(() => window._fogReady, { timeout: 45000 });
