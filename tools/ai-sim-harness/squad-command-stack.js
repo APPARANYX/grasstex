@@ -1,4 +1,5 @@
 'use strict';
+/* Regression fixture declaration; see squad-command-stack-check.js. */
 /* Canonical shipping Squad Leader submodule load stack, shared by the
    deterministic fixture family. Keep the exact order. Per-check doctrines,
    mock policies and optional supporting modules remain check-specific. */
