@@ -19,11 +19,41 @@ const URL = process.env.RT_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_loc
 const MAX_ROT = Number(process.env.RT_MAX_ROT || 1e-5);
 const MAX_POS = Number(process.env.RT_MAX_POS || 1e-5);
 
+// Private mastered audio is not checked into the public runtime repository.
+ // Replace only these audio fetches in visual/retarget QA, never in shipping code.
+function silentWav() {
+  const samples = 2205, b = Buffer.alloc(44 + samples * 2);
+  b.write('RIFF', 0);
+  b.writeUInt32LE(b.length - 8, 4);
+  b.write('WAVE', 8);
+  b.write('fmt ', 12);
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(22050, 24);
+  b.writeUInt32LE(44100, 28);
+  b.writeUInt16LE(2, 32);
+  b.writeUInt16LE(16, 34);
+  b.write('data', 36);
+  b.writeUInt32LE(samples * 2, 40);
+  return b;
+}
 async function load(browser, query) {
   const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 800, height: 600 } });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e).slice(0, 300)));
+  // Exactly the same private-audio isolation as the existing camera browser probe.
+  const silence = silentWav();
+  await page.route('**/*', route => {
+    const request = route.request();
+    if (request.method() === 'POST' || /battle_(policy|learning|log|metrics)[^/]*\.php/.test(request.url()))
+      return route.fulfill({ json: {} });
+    if (/\/Assets\/audio\/.*\.(?:mp3|wav|ogg)(?:[?#]|$)/i.test(request.url()))
+      return route.fulfill({ status: 200, body: silence, contentType: 'audio/wav' });
+    return route.continue();
+  });
+
   await page.goto(URL + (URL.includes('?') ? '&' : '?') + 'seed=retarget' + (query ? '&' + query : ''), { waitUntil: 'load', timeout: 90000 });
   await page.waitForFunction(() => window.__battle__ && window.BattleFbxSoldier && BattleFbxSoldier.status(__battle__.scene).ready, null, { timeout: 300000, polling: 250 });
   const out = await page.evaluate(() => {
@@ -61,6 +91,7 @@ const f32 = s => { const b = Buffer.from(s, 'base64'); return new Float32Array(b
 
   const fails = [];
   let rotMax = 0, posMax = 0, speedMax = 0, strideMax = 0, gripMax = 0, samples = 0;
+  if (!Object.keys(matrix.models).length) fails.push('No real FBX models were compared');
   for (const f of Object.keys(matrix.models)) {
     const a = matrix.models[f], b = quat.models[f];
     if (!b) { fails.push(`${f} missing from the shipped load`); continue; }
@@ -81,6 +112,10 @@ const f32 = s => { const b = Buffer.from(s, 'base64'); return new Float32Array(b
   }
   if (rotMax > MAX_ROT) fails.push(`rotation differs by ${rotMax.toExponential(2)} (limit ${MAX_ROT})`);
   if (posMax > MAX_POS) fails.push(`hips position differs by ${posMax.toExponential(2)} (limit ${MAX_POS})`);
+  if (!samples) fails.push('No loaded FBX animation rotation samples were compared');
+  if (speedMax > MAX_POS) fails.push(`clip speed differs by ${speedMax.toExponential(2)}`);
+  if (strideMax > MAX_POS) fails.push(`clip stride differs by ${strideMax.toExponential(2)}`);
+  if (gripMax > 1e-4) fails.push(`solved weapon grip matrices differ by ${gripMax.toExponential(2)}`);
   for (const [n, r] of [['fastRetarget=0', matrix], ['shipped', quat]]) if (r.errors.length) fails.push(`${n} page errors: ${r.errors.slice(0, 3).join(' | ')}`);
   console.log(`${Object.keys(matrix.models).length} models, ${samples} rotation samples; worst difference: rotation ${rotMax.toExponential(2)}, `
     + `position ${posMax.toExponential(2)}, speed ${speedMax.toExponential(2)} m/s, stride ${strideMax.toExponential(2)} m/s, grip matrix ${gripMax.toExponential(2)}`);
