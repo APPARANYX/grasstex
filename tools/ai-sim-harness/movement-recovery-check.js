@@ -7,6 +7,7 @@
  * across target flicker, retreat override, and cover hysteresis.
  */
 'use strict';
+const { loadSquadCommandStack } = require('./squad-command-stack');
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),H=require('./harness');
 let checks=0;
 function load(r,p){new Function('window','globalThis','console',fs.readFileSync(path.join(H.REPO,p),'utf8'))(r,r,{log(){},warn(){}});}
@@ -18,7 +19,7 @@ function bareFixture(){
   load(r,'battle/battle-navigation.js');load(r,'battle/movement-resolver.js');
   load(r,'battle/modules/44-combat-urgency.js');
   load(r,'battle/modules/52-survival-tactical-route.js');
-  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/15b-squad-leader-buddy-pairs.js');load(r,'battle/modules/15c-squad-leader-scouts-forward.js');load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/15g-squad-leader-formation.js');load(r,'battle/modules/15h-squad-leader-fireteams.js');load(r,'battle/modules/15i-squad-leader-clear-contact.js');load(r,'battle/modules/15j-squad-leader-fire-and-movement.js');load(r,'battle/modules/15k-squad-leader-reconstitution.js');load(r,'battle/modules/15l-squad-leader-mission-execution.js');load(r,'battle/modules/15m-squad-leader-cohesion-regroup.js');load(r,'battle/modules/16-squad-plan-stability.js'); // stepMovement ends a regroup-unstick record through it
+  loadSquadCommandStack(load, r); // stepMovement ends a regroup-unstick record through it
   const b=H.makeBattle(r);
   const q=H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:100},composition:['rifleman']});
   q.state='engaged';q.commandPhase='assault';q.inContact=true;
