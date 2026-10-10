@@ -14,9 +14,10 @@ const restFile = '52-fbx-retarget-rest.js';
 const backendFile = '53-fbx-soldier-backend.js';
 assert.ok(quaternionFile < restFile && restFile < backendFile, 'PHP alphabetical dependency order');
 const ctx = { window: {} };
-const run = file => vm.runInNewContext(fs.readFileSync(path.join(modules, file), 'utf8'), ctx, {
-  filename: file
-});
+const run = file =>
+  vm.runInNewContext(fs.readFileSync(path.join(modules, file), 'utf8'), ctx, {
+    filename: file
+  });
 run(quaternionFile);
 run(restFile);
 const rest = ctx.window.BattleFbxRetargetRest;
@@ -41,14 +42,20 @@ function equalVec(actual, expected, label) {
   for (let i = 0; i < expected.length; i++) close(actual[i], expected[i], label + '[' + i + ']');
 }
 function axis(deg, which) {
-  const a = deg * Math.PI / 360;
-  const s = Math.sin(a), c = Math.cos(a);
+  const a = (deg * Math.PI) / 360;
+  const s = Math.sin(a),
+    c = Math.cos(a);
   return which === 'x' ? [s, 0, 0, c] : which === 'y' ? [0, s, 0, c] : [0, 0, s, c];
 }
 function multiply(a, b) {
-  const [x, y, z, w] = a, [u, v, t, h] = b;
-  return [x * h + w * u + y * t - z * v, y * h + w * v + z * u - x * t,
-    z * h + w * t + x * v - y * u, w * h - x * u - y * v - z * t];
+  const [x, y, z, w] = a,
+    [u, v, t, h] = b;
+  return [
+    x * h + w * u + y * t - z * v,
+    y * h + w * v + z * u - x * t,
+    z * h + w * t + x * v - y * u,
+    w * h - x * u - y * v - z * t
+  ];
 }
 function quaternion(a) {
   return { x: a[0], y: a[1], z: a[2], w: a[3] };
@@ -61,18 +68,17 @@ assert.deepEqual(order, [1, 2, 3, 0, 4], 'parents precede children; same-depth s
 assert.deepEqual(Array.from(rest.planOrder(Int32Array.from([-1]))), [0], 'single root');
 assert.deepEqual(Array.from(rest.planOrder(Int32Array.from([]))), [], 'empty skeleton');
 
-const s = [
-  axis(15, 'x'), axis(-70, 'z'), axis(20, 'y'), axis(35, 'x'), axis(-45, 'z')
-];
-const t = [
-  axis(-30, 'z'), axis(40, 'y'), axis(-25, 'x'), axis(-60, 'z'), axis(90, 'x')
-];
+const s = [axis(15, 'x'), axis(-70, 'z'), axis(20, 'y'), axis(35, 'x'), axis(-45, 'z')];
+const t = [axis(-30, 'z'), axis(40, 'y'), axis(-25, 'x'), axis(-60, 'z'), axis(90, 'x')];
 // A missing model bone uses the source's rest orientation in backend retargetClips().
 t[4] = s[4];
-const sourceRest = s.map(quaternion), targetRest = t.map(quaternion);
-const beforeSource = JSON.stringify(sourceRest), beforeTarget = JSON.stringify(targetRest);
+const sourceRest = s.map(quaternion),
+  targetRest = t.map(quaternion);
+const beforeSource = JSON.stringify(sourceRest),
+  beforeTarget = JSON.stringify(targetRest);
 const plan = rest.quatCalibration(parent, order, sourceRest, targetRest);
-const worldSource = [], worldTarget = [];
+const worldSource = [],
+  worldTarget = [];
 for (const i of order) {
   const p = parent[i];
   worldSource[i] = p < 0 ? s[i] : multiply(worldSource[p], s[i]);
@@ -94,4 +100,6 @@ const same = rest.quatCalibration(parent, order, sourceRest, sourceRest);
 for (let i = 0; i < parent.length; i++) {
   equalVec(Array.from(same.K.subarray(i * 4, i * 4 + 4)), [0, 0, 0, 1], 'matching rest ' + i);
 }
-console.log('PASS #456 R3 ordered hierarchy, nontrivial world-rest quaternion goldens, missing model rest, identity retarget and immutable per-model plans');
+console.log(
+  'PASS #456 R3 ordered hierarchy, nontrivial world-rest quaternion goldens, missing model rest, identity retarget and immutable per-model plans'
+);
