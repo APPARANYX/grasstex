@@ -99,4 +99,6 @@ assert.ok(
   Math.hypot(position.x - from.x, position.z - from.z) >= 2.5,
   'clear physical waypoint makes genuine net progress instead of repeating the two-position loop'
 );
-console.log('PASS #361 clear physical waypoint defeats measured lateral steering; mild and blocked avoidance preserved');
+console.log(
+  'PASS #361 clear physical waypoint defeats measured lateral steering; mild and blocked avoidance preserved'
+);
