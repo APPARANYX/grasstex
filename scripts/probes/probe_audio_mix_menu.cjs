@@ -21,7 +21,7 @@ const BASE = process.env.AUDIO_MENU_PREVIEW_URL ||
     await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 90000 });
     try {
       await page.waitForFunction(() => window.__battle__ && window.BattleAudioMix &&
-        window.BattleDesktopCamera?.current?.openPlayerSettings, null, { timeout: 75000 });
+        window.BattleDesktopCamera?.current, null, { timeout: 75000 });
     } catch (err) {
       const diagnostics = await page.evaluate(() => ({
         url: location.href,
@@ -30,7 +30,7 @@ const BASE = process.env.AUDIO_MENU_PREVIEW_URL ||
         mixer: !!window.BattleAudioMix,
         camera: !!window.BattleDesktopCamera,
         cameraMode: window.BattleDesktopCamera?.current?.mode || null,
-        hasMenu: !!window.BattleDesktopCamera?.current?.openPlayerSettings,
+        hasMenu: !!window.BattleDesktopCamera?.current?.desktop,
         loadedScripts: Array.from(document.scripts).map(s => s.src).filter(s => /camera-controls|00a-audio-mix|battle-sim/.test(s)),
         body: (document.body?.innerText || '').slice(0, 900),
         loading: (document.querySelector('#loading')?.innerText || '').slice(0, 350)
@@ -49,8 +49,10 @@ const BASE = process.env.AUDIO_MENU_PREVIEW_URL ||
       Object.defineProperty(navigator, 'getGamepads', {
         configurable: true, value: () => [window.__mixTestPad]
       });
-      window.BattleDesktopCamera.current.openPlayerSettings();
+      window.dispatchEvent(new Event('gamepadconnected'));
     });
+    await page.waitForFunction(() => window.BattleDesktopCamera?.current?.desktop, null, { timeout: 8000 });
+    await page.keyboard.press('o');
     await page.waitForSelector('#battlePlayerSettings', { state: 'visible' });
     await page.waitForTimeout(140);
     const player = await page.evaluate(() => ({
