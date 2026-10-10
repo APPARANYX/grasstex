@@ -63,6 +63,10 @@ def main():
         declared = {f for group in combat['groups'].values()
                     for clip in group.values() for f in clip['files']}
         runtime = {p for p in referenced if p.startswith(('combat/', 'grenades/'))}
+        for group, clips in combat['groups'].items():
+            for cid, clip in clips.items():
+                if len(clip['prompt']) > 450:  # ElevenLabs Sound Effects rejects longer text
+                    errors.append(f'combat-sfx-manifest.json {group}.{cid} prompt is {len(clip["prompt"])} characters, over 450')
         for path in sorted(declared - runtime):
             errors.append(f'combat-sfx-manifest.json declares {path}, but manifest.json does not play it')
         for path in sorted(runtime - declared):
