@@ -1,14 +1,12 @@
-name: Audio mix preview QA
+name: Audio mix browser QA
 on:
-  push:
-    branches:
-      - work/player-menu-audio-mix
-    paths:
-      - battle_sim.php
-      - battle/camera-controls.js
-      - battle/modules/00a-audio-mix.js
-      - scripts/probes/probe_audio_mix_menu.cjs
-      - .github/workflows/audio-mix-preview.yml
+  workflow_dispatch:
+    inputs:
+      preview_ref:
+        description: 'Branch or ref to test in hosted preview'
+        required: true
+        default: main
+        type: string
 jobs:
   browser:
     runs-on: ubuntu-latest
@@ -21,5 +19,5 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Exercise hosted gamepad menu and audio output
         env:
-          AUDIO_MENU_PREVIEW_URL: https://test.ivandpopov.com/grasstex/preview.php?ref=work/player-menu-audio-mix
+          AUDIO_MENU_PREVIEW_URL: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ inputs.preview_ref }}
         run: node scripts/probes/probe_audio_mix_menu.cjs
