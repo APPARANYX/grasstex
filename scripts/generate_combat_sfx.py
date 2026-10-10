@@ -52,9 +52,9 @@ def main():
     man = json.load(open(MANIFEST_PATH, encoding="utf-8"))
     jobs = []
     declared = present = unforced = 0
+    # declared/present count the whole library, not just --only: they tell an overlaid library from a
+    # missing one, and a new group named with --only has nothing on disk yet.
     for group, cid, c in clips(man):
-        if not wanted(args.only, group, cid):
-            continue
         forced = bool(args.force) and wanted(args.force, group, cid)
         for rel in c["files"]:
             out_path = os.path.join(OUT_ROOT, rel)
@@ -62,6 +62,8 @@ def main():
                        for p in (out_path, os.path.join(REPO, "Assets/audio", rel)))
             declared += 1
             present += bool(have)
+            if not wanted(args.only, group, cid):
+                continue
             if have and not forced:
                 continue
             unforced += not forced
