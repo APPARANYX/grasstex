@@ -46,6 +46,18 @@ const stopped = geometry.shot(target, 'chest', point, dir, false, 111.2);
 assert.equal(stopped.passes[0].exit, null);
 assert.equal(stopped.passes[0].exitDirection, undefined);
 assert.equal(stopped.final, null);
+assertPoint(geometry.zone(target, 'unknown', 5), { x: 2, y: 41.34, z: 100 });
+assertPoint(geometry.zone(target, 'arm', 2), { x: 1.72, y: 41.33, z: 100 });
+assert.equal(through.stoppedBy, 'soldier');
+assert.equal(through.surface, 'blood');
+assert.equal(through.passes.length, 1);
+assert.equal(through.passes[0].entry, through.impact);
+assert.equal(through.passes[0].exitDirection, dir);
+assert.equal(through.final.blocker, 'wall');
+assert.equal(through.final.surface, 'cement');
+assert.equal(through.normal.z, -1);
+assert.equal(through.delay, 0);
+assert.equal(stopped.surface, 'blood');
 console.log(
   'PASS #456 R5 pure body zones, alternating limbs and through-shot geometry match shipping contracts'
 );
