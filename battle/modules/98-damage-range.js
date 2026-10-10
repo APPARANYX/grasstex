@@ -171,10 +171,7 @@
     if (code === 'ArrowRight') return 'nextTarget';
     if (/^Digit[1-5]$/.test(code)) return 'zone:' + ZONES[+code.slice(5) - 1];
     var k = (key || '').toLowerCase();
-    return (
-      { e: 'toggleExit', o: 'toggleOrbit', a: 'toggleAuto', f: 'toggleFps', c: 'clear' }[k] ||
-      null
-    );
+    return { e: 'toggleExit', o: 'toggleOrbit', a: 'toggleAuto', f: 'toggleFps', c: 'clear' }[k] || null;
   }
   function rangePadCommands(pad, inFps, previousButtons) {
     var buttons = {},
@@ -777,8 +774,7 @@
         if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
         var action = rangeKeyboardAction(e.code, e.key);
         if (!action) return;
-        if (e.code === 'Space' || e.code === 'ArrowLeft' || e.code === 'ArrowRight')
-          e.preventDefault();
+        if (e.code === 'Space' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') e.preventDefault();
         applyRangeAction(action);
       });
       canvas.addEventListener(
