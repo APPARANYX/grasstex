@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 'use strict';
 /* Live Babylon-9 compatibility smoke: one local listener, a synthetic spatial source,
-   AudioV2 filter hookup, same-page restart and disabled-quality baseline.
-   Run against the branch preview (not the localhost shader fallback).
-   AUDIO_PREVIEW_URL defaults to preview.php?ref=work/lightweight-listener-acoustics.
+   AudioV2 filter hookup and same-page restart reuse.
+   Run against a hosted branch preview (not the localhost shader fallback).
+   AUDIO_PREVIEW_URL overrides the default deployed game URL. The quality-off
+   mode is covered by tools/ai-sim-harness/listener-acoustics-check.js.
    The probe makes its own buffer; licensed audio clips are not needed. */
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
 const BASE = process.env.AUDIO_PREVIEW_URL ||
-  'https://test.ivandpopov.com/grasstex/preview.php?ref=work%2Flightweight-listener-acoustics';
+  'https://test.ivandpopov.com/grasstex/battle_sim.php?seed=acoustic-browser-qa';
 
 async function initialize(page) {
   await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 90000 });
