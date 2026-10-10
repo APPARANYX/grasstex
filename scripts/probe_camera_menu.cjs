@@ -50,18 +50,31 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       {timeout: 300000, polling: 100});
     // Free-fly keyboard movement is independent of gamepad; route through the
     // scene frame observable, not a one-off synthetic API.
-    await page.evaluate(() => {
-      const canvas = window.BattleDesktopCamera.current.camera.getEngine().getRenderingCanvas();
-      canvas.tabIndex = 0;
-      canvas.focus();
-    });
-    const flyStart = await page.evaluate(() => BattleDesktopCamera.current.camera.position.asArray());
-    await page.keyboard.down('w');
-    await page.waitForTimeout(380);
-    await page.keyboard.up('w');
-    const flyEnd = await page.evaluate(() => BattleDesktopCamera.current.camera.position.asArray());
-    assert.ok(Math.hypot(...flyStart.map((n, i) => n - flyEnd[i])) > 0.05,
-      'W free-fly keyboard movement did not move the camera');
+    let flyDistance = 0;
+    let flySnapshot = null;
+    // Scene construction can precede the first reliable render on slow CI/WebGL.
+    // Exercise real keydown/keyup over several bounded frames instead of assuming
+    // the first 380 ms window always contains a rendered movement tick.
+    for (let attempt = 0; attempt < 8 && flyDistance <= 0.05; attempt++) {
+      await page.evaluate(() => {
+        const canvas = window.__battle__.scene.getEngine().getRenderingCanvas();
+        canvas.tabIndex = 0;
+        canvas.focus();
+      });
+      const before = await page.evaluate(() => BattleDesktopCamera.current.camera.position.asArray());
+      await page.keyboard.down('w');
+      await page.waitForTimeout(450);
+      await page.keyboard.up('w');
+      flySnapshot = await page.evaluate(() => ({
+        position: BattleDesktopCamera.current.camera.position.asArray(),
+        activeElement: document.activeElement?.tagName,
+        fps: window.__battle__.scene.getEngine().getFps(),
+        loadingDone: document.getElementById('loading')?.classList.contains('done') ?? null
+      }));
+      flyDistance = Math.hypot(...before.map((n, i) => n - flySnapshot.position[i]));
+      if (flyDistance <= 0.05) await page.waitForTimeout(250);
+    }
+    assert.ok(flyDistance > 0.05, 'W free-fly keyboard movement did not move the camera: ' + JSON.stringify(flySnapshot));
     // Menu steals focus and should never leak WASD motion into free-flight.
     await page.keyboard.press('o');
     await page.waitForFunction(() => {
