@@ -95,7 +95,7 @@ calibration.applySidecarData('us-captain.fbx', {
       grip: customGrip,
       foreNear: null,
       foreFar: null,
-      leftGripR: [-0.0138, 0.0844, -0.0208],
+      leftGripR: [0.021, 0.031, -0.012],
       wristR: [0, 0, 3],
       armDeg: { shoulder: [0, 0, -8], elbow: [0, -60, 20], wrist: [-23, -34, 0] }
     }
@@ -108,7 +108,7 @@ equal(calibration.SIDE_CONTACTS['us-captain.fbx'], {
 });
 equal(points('us-captain.fbx', 'm1911a1.fbx').grip, customGrip);
 assert.equal(points('us-captain.fbx', 'm1911a1.fbx').fore, null, 'pistol has no support fore-end');
-equal(calibration.leftGripFor('us-captain.fbx', 'm1911a1.fbx'), [-0.0138, 0.0844, -0.0208]);
+equal(calibration.leftGripFor('us-captain.fbx', 'm1911a1.fbx'), [0.021, 0.031, -0.012]);
 equal(calibration.armDegFor('us-captain.fbx', 'm1911a1.fbx'), {
   shoulder: [0, 0, -8],
   elbow: [0, -60, 20],
@@ -117,7 +117,7 @@ equal(calibration.armDegFor('us-captain.fbx', 'm1911a1.fbx'), {
 equal(calibration.wristRFor('us-captain.fbx', 'm1911a1.fbx'), [0, 0, 3]);
 customGrip[0] = 9;
 equal(points('us-captain.fbx', 'm1911a1.fbx').grip, [0.0045, -0.0217, -0.027]);
-assert.equal(calibration.leftGripFor('us-paratrooper.fbx', 'm1911a1.fbx'), null);
+equal(\n  calibration.leftGripFor('us-paratrooper.fbx', 'm1911a1.fbx'),\n  [-0.0138, 0.0844, -0.0208],\n  'other models retain measured fallback pistol cup'\n);
 
 calibration.applySidecarData('us-engineer.fbx', {
   contacts: { right: [0, 0, NaN] },
