@@ -1,0 +1,27 @@
+name: Issue 361 final diagnostic formatting
+on:
+  push:
+    branches:
+      - 'work/format-issue361/**'
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/issue361-complete-audit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Format touched sources, commit only if changed
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write scripts/probes/squad-local-starvation.js tools/ai-sim-harness/squad-local-starvation-check.js scripts/run_command_lifecycle_audit.cjs
+          git add scripts/probes/squad-local-starvation.js tools/ai-sim-harness/squad-local-starvation-check.js scripts/run_command_lifecycle_audit.cjs
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style: format #361 final diagnostic protections'
+          git push origin HEAD:work/issue361-complete-audit
