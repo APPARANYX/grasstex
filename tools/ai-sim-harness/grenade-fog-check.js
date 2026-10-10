@@ -32,7 +32,7 @@ const make = (search = '') => {
   }
   const B = {
     Axis: { Z: new Vec(0, 0, 1) },
-    Quaternion: { RotationAxis: () => ({}) },
+    Quaternion: class Quaternion { static RotationAxis() { return {}; } },
     Vector3: Vec,
     Color3: class Color { constructor(r,g,b) { Object.assign(this,{r,g,b}); } static Black() { return {}; } },
     Engine: { ALPHA_ADD: 2, ALPHA_COMBINE: 1 },
