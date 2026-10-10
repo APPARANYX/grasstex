@@ -12,7 +12,9 @@ For ordinary battles, script tags omit **only eight opt-in/stashed presentation 
 | `?damageRange=1` | Restore damage-range visual QA and its optional `BattleSim.start` wrapper |
 | `?devModules=1` | Restore **all** discovered modules in their original ordering |
 
-Hash-only links to the former graph panel should be changed to `?editor=ai#ai-graph` if that editor is ever unstashed. The default behavior of the existing stashed graph editor is unchanged. This is a conservative first payload split, *not* the full originally estimated 9,525-line / 22% removal: the remaining diagnostic modules have gameplay, reporting or operator dependencies and need separate dependency-proof and browser parity before exclusion.
+Hash-only links to the former graph panel should be changed to `?editor=ai#ai-graph` if that editor is ever unstashed. The default behavior of the existing stashed graph editor is unchanged. The exact local-PHP fixture reports **82 production modules versus 90 with all development tools included**. The default still includes every known physical-navigation, timing, command, HUD and diagnostics owner.
+
+This is a conservative first payload split, *not* the full originally estimated 9,525-line / 22% removal: the remaining diagnostic modules have gameplay, reporting or operator dependencies and need separate dependency-proof and browser parity before exclusion.
 
 The first profile split is intentionally bounded: retaining the navigation-physicality module is mandatory after the #361 wall-oscillation fix, and retaining coordination health is mandatory while the strategic stall policy consumes its clocks. Other seemingly visual modules remain until their owners and default-user settings have browser parity tests.
 
