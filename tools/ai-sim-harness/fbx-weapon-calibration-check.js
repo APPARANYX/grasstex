@@ -31,7 +31,7 @@ const original = calibration;
 vm.runInNewContext(source, context, { filename: helperName });
 assert.equal(context.window.BattleFbxWeaponCalibration, original, 'helper install is idempotent');
 
-const plain = (value) => JSON.parse(JSON.stringify(value));
+const plain = value => JSON.parse(JSON.stringify(value));
 const equal = (actual, expected, label) => assert.deepEqual(plain(actual), expected, label);
 const points = (model, weapon) => calibration.pointsFor(model, weapon);
 const baseWeaponSnapshot = JSON.stringify(calibration.WEAPON_POINTS);
@@ -145,7 +145,7 @@ equal(points('us-engineer.fbx', 'fg42.fbx').grip, [0.01, 0.02, 0.03]);
    Numerical goldens were pinned from the pre-extraction seat tables (not derived here). */
 function worldFixture(model, weapon, palm, yaw, muzzleLocal) {
   const grip = points(model, weapon).grip;
-  const rotate = (v) => [
+  const rotate = v => [
     v[0] * Math.cos(yaw) + v[2] * Math.sin(yaw),
     v[1],
     -v[0] * Math.sin(yaw) + v[2] * Math.cos(yaw)
@@ -169,13 +169,13 @@ closeArray(geometry.muzzle, [3.011, 1.016, 2.776], 'US rifle muzzle');
 geometry = worldFixture('ge-gunner.fbx', 'mg42.fbx', [3, 1, 2], 0, [0, -0.03, 0.7]);
 closeArray(geometry.socket, [2.9804, 1.066, 2.094], 'GE MG42 socket');
 closeArray(geometry.muzzle, [2.9804, 1.036, 2.794], 'GE MG42 muzzle');
-geometry = worldFixture('us-gunner.fbx', 'm1919a6-bipod.fbx', [3, 1, 2], Math.PI / 2, [
-  0, -0.03, 0.7
-]);
+geometry = worldFixture('us-gunner.fbx', 'm1919a6-bipod.fbx', [3, 1, 2], Math.PI / 2, [0, -0.03, 0.7]);
 closeArray(geometry.socket, [2.9951, 1.104, 2.0196], 'US M1919 bipod socket');
 closeArray(geometry.muzzle, [3.6951, 1.074, 2.0196], 'US M1919 bipod muzzle');
 
 assert.equal(JSON.stringify(calibration.WEAPON_POINTS), baseWeaponSnapshot, 'base weapon values mutated');
 assert.equal(JSON.stringify(calibration.WEAPON_MODEL_POINTS), exceptionSnapshot, 'model exceptions mutated');
 assert.equal(calibration.SIDE_CONTACTS['ge-scout.fbx'], undefined, 'default seats never fabricate contacts');
-console.log('PASS #456 R3 weapon and model seats, sidecar overrides, fallbacks, pistol dials, bipod/US/GE socket and muzzle fixtures');
+console.log(
+  'PASS #456 R3 weapon and model seats, sidecar overrides, fallbacks, pistol dials, bipod/US/GE socket and muzzle fixtures'
+);
