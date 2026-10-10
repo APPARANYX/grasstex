@@ -49,6 +49,16 @@ test('arming foley carries FOLEY_RANGE, a burst EXPLOSION_RANGE, and closer is l
   for (let i = 1; i < f.length; i++) assert.ok(f[i] < f[i - 1], f.join());
   assert.equal(A.cue('throw', { x: 1, y: 1, z: 0 }, cam), null);
 });
+test('explosion loudness keeps close-range headroom and lifts midrange by about 3 dB', () => {
+  const gain = distance => A.cue('explosion', { x: distance, y: cam.y, z: 0 }, cam).gain;
+  const close = gain(5);
+  assert.ok(Math.abs(gain(10) - close) < 1e-9, 'full explosion level within 10 m');
+  assert.ok(Math.abs(gain(30) - 0.9 * Math.sqrt(10 / 30)) < 1e-9, 'medium-range gain');
+  const previous30 = 0.9 * Math.sqrt(5 / 30);
+  const addedDb = 20 * Math.log10(gain(30) / previous30);
+  assert.ok(addedDb > 2.9 && addedDb < 3.1, 'roughly +3 dB at 30 m');
+  assert.ok(gain(800) < gain(30), 'faraway blasts still attenuate');
+});
 test('the Mk 2 arms with its pin and throws its spoon; the M24 arms with its cord and has no lever', () => {
   assert.deepEqual(A.ARMING, { mk2: 'pin', m24: 'igniter' });
   assert.deepEqual(A.RELEASE, { mk2: 'spoon' });
