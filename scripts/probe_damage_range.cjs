@@ -110,6 +110,43 @@ let diagnosticPage=null;
   const orbitAgain=await snap();
   if(orbitAgain.camera!=='damageRangeCam'||orbitAgain.fps)fail.push('leaving FPS aim did not restore orbit camera');
 
+  // Keyboard actions use the same dispatcher as the gamepad, but focused form inputs
+  // must not trigger global range shortcuts. Restore original target/zone/exit afterward.
+  await page.keyboard.press('4');
+  if((await snap()).zone!=='arm')fail.push('keyboard 4 did not select arm');
+  await page.keyboard.press('ArrowRight');
+  if((await snap()).target!==1)fail.push('keyboard ArrowRight did not advance target');
+  await page.keyboard.press('ArrowLeft');
+  if((await snap()).target!==0)fail.push('keyboard ArrowLeft did not restore target');
+  await page.keyboard.press('e');
+  if((await snap()).exit)fail.push('keyboard E did not disable through-shot');
+  await page.locator('#rangeTarget').focus();
+  await page.keyboard.press('e');
+  if((await snap()).exit)fail.push('keyboard shortcut ran with select focused');
+  await page.evaluate(()=>document.activeElement&&document.activeElement.blur());
+  await page.keyboard.press('e');
+  if(!(await snap()).exit)fail.push('keyboard E did not restore through-shot');
+  await page.keyboard.press('f');
+  if(!(await snap()).fps)fail.push('keyboard F did not enable FPS');
+  await page.keyboard.press('f');
+  if((await snap()).fps)fail.push('keyboard F did not restore orbit mode');
+  await page.keyboard.press('2');
+  if((await snap()).zone!=='chest')fail.push('keyboard 2 did not restore chest');
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(250);
+  if((await snap()).wounds<2)fail.push('keyboard Space did not fire through-shot');
+  await page.keyboard.press('c');
+  if((await snap()).wounds!==0)fail.push('keyboard C did not clear wounds');
+
+  // Keyboard testing manipulates cameras, target and presentation state. Reload
+  // before the independent UV-wound accumulation experiment so it has the same
+  // clean baseline as the original probe, rather than carrying test history.
+  await page.reload({waitUntil:'load',timeout:300000});
+  await page.waitForFunction(()=>window.__battle__&&window.BattleDamageRange&&BattleDamageRange.ready,null,{timeout:300000,polling:100});
+  const afterKeyboard=await snap();
+  if(afterKeyboard.target!==0||afterKeyboard.zone!=='chest'||!afterKeyboard.exit||afterKeyboard.wounds!==0)
+    fail.push('keyboard test reload did not restore original clean range baseline');
+
   // One through-shot should paint entry + exit into one private map, no fallback.
   await page.evaluate(()=>{BattleDamageRange.fire();});
   await page.waitForTimeout(1100);

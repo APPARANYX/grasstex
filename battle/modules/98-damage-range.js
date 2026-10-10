@@ -152,6 +152,56 @@
     );
   }
 
+  /* Pure input decoding: do not read DOM, cameras or mutable range state here.
+     UI, keyboard and Xbox actions execute via the one stateful range dispatcher. */
+  function shapedAxis(v) {
+    v = isFinite(+v) ? +v : 0;
+    var a = Math.abs(v),
+      dead = 0.18;
+    if (a <= dead) return 0;
+    return (Math.sign(v) * (a - dead)) / (1 - dead);
+  }
+  function buttonValue(pad, index) {
+    var b = pad && pad.buttons && pad.buttons[index];
+    return b ? Math.max(b.pressed ? 1 : 0, +b.value || 0) : 0;
+  }
+  function rangeKeyboardAction(code, key) {
+    if (code === 'Space') return 'fire';
+    if (code === 'ArrowLeft') return 'previousTarget';
+    if (code === 'ArrowRight') return 'nextTarget';
+    if (/^Digit[1-5]$/.test(code)) return 'zone:' + ZONES[+code.slice(5) - 1];
+    var k = (key || '').toLowerCase();
+    return { e: 'toggleExit', o: 'toggleOrbit', a: 'toggleAuto', f: 'toggleFps', c: 'clear' }[k] || null;
+  }
+  function rangePadCommands(pad, inFps, previousButtons) {
+    var buttons = {},
+      actions = [],
+      previous = previousButtons || {};
+    for (var i = 0; i <= 16; i++) buttons[i] = buttonValue(pad, i) > 0.5;
+    /* This ordering is intentional: simultaneous A/RT fire twice before B,
+       exactly as the previous padOnce dispatch. RT fires only in FPS mode. */
+    var bindings = [
+      [0, 'fire'],
+      [7, inFps ? 'fire' : null],
+      [1, 'clear'],
+      [2, 'burst3'],
+      [3, 'toggleAuto'],
+      [4, 'toggleExit'],
+      [5, 'toggleOrbit'],
+      [8, 'togglePanel'],
+      [9, 'toggleFps'],
+      [11, 'kill'],
+      [12, 'previousZone'],
+      [13, 'nextZone'],
+      [14, 'previousTarget'],
+      [15, 'nextTarget']
+    ];
+    bindings.forEach(function (pair) {
+      if (pair[1] && buttons[pair[0]] && !previous[pair[0]]) actions.push(pair[1]);
+    });
+    return { actions: actions, buttons: buttons };
+  }
+
   function setup(sim) {
     var scene = sim.scene,
       canvas = scene.getEngine().getRenderingCanvas(),
@@ -561,17 +611,6 @@
       }
       updateUi();
     }
-    function shapedAxis(v) {
-      v = isFinite(+v) ? +v : 0;
-      var a = Math.abs(v),
-        dead = 0.18;
-      if (a <= dead) return 0;
-      return (Math.sign(v) * (a - dead)) / (1 - dead);
-    }
-    function buttonValue(pad, index) {
-      var b = pad && pad.buttons && pad.buttons[index];
-      return b ? Math.max(b.pressed ? 1 : 0, +b.value || 0) : 0;
-    }
     function activePad() {
       try {
         if (!root.navigator || typeof root.navigator.getGamepads !== 'function') return null;
@@ -588,11 +627,26 @@
         return null;
       }
     }
-    function padOnce(pad, index) {
-      var down = buttonValue(pad, index) > 0.5,
-        was = !!padButtons[index];
-      padButtons[index] = down;
-      return down && !was;
+    function applyRangeAction(action) {
+      if (action === 'fire') fire();
+      else if (action === 'clear') clear();
+      else if (action === 'burst3') burst3();
+      else if (action === 'kill') kill();
+      else if (action === 'toggleAuto') setAuto(!auto);
+      else if (action === 'toggleFps') setFps(!fps);
+      else if (action === 'togglePanel') setPanelCollapsed(!panelCollapsed);
+      else if (action === 'toggleExit') {
+        exit = !exit;
+        updateUi();
+      } else if (action === 'toggleOrbit') {
+        orbit = !orbit;
+        updateUi();
+      } else if (action === 'previousZone')
+        setZone(ZONES[(ZONES.indexOf(zone) + ZONES.length - 1) % ZONES.length]);
+      else if (action === 'nextZone') setZone(ZONES[(ZONES.indexOf(zone) + 1) % ZONES.length]);
+      else if (action === 'previousTarget') choose(rangeIndex - 1);
+      else if (action === 'nextTarget') choose(rangeIndex + 1);
+      else if (action.slice(0, 5) === 'zone:') setZone(action.slice(5));
     }
     function stepGamepad(dt) {
       var pad = activePad();
@@ -621,27 +675,9 @@
         var zoom = buttonValue(pad, 6) - buttonValue(pad, 7);
         if (zoom) cam.radius = clamp(cam.radius + zoom * 7 * dt, cam.lowerRadiusLimit, cam.upperRadiusLimit);
       }
-      if (padOnce(pad, 0)) fire();
-      if (fps && padOnce(pad, 7)) fire();
-      if (padOnce(pad, 1)) clear();
-      if (padOnce(pad, 2)) burst3();
-      if (padOnce(pad, 3)) setAuto(!auto);
-      if (padOnce(pad, 4)) {
-        exit = !exit;
-        updateUi();
-      }
-      if (padOnce(pad, 5)) {
-        orbit = !orbit;
-        updateUi();
-      }
-      if (padOnce(pad, 8)) setPanelCollapsed(!panelCollapsed);
-      if (padOnce(pad, 9)) setFps(!fps);
-      if (padOnce(pad, 11)) kill();
-      if (padOnce(pad, 12)) setZone(ZONES[(ZONES.indexOf(zone) + ZONES.length - 1) % ZONES.length]);
-      if (padOnce(pad, 13)) setZone(ZONES[(ZONES.indexOf(zone) + 1) % ZONES.length]);
-      if (padOnce(pad, 14)) choose(rangeIndex - 1);
-      if (padOnce(pad, 15)) choose(rangeIndex + 1);
-      for (var i = 0; i <= 16; i++) padButtons[i] = buttonValue(pad, i) > 0.5;
+      var commands = rangePadCommands(pad, fps, padButtons);
+      padButtons = commands.buttons;
+      commands.actions.forEach(applyRangeAction);
     }
 
     /* Keep particles, hit/death animation and decal expiry alive without ever stepping combat AI. */
@@ -736,25 +772,10 @@
       window.addEventListener('keydown', function (e) {
         var tag = document.activeElement && document.activeElement.tagName;
         if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-        if (e.code === 'Space') {
-          e.preventDefault();
-          fire();
-        } else if (e.code === 'ArrowLeft') {
-          e.preventDefault();
-          choose(rangeIndex - 1);
-        } else if (e.code === 'ArrowRight') {
-          e.preventDefault();
-          choose(rangeIndex + 1);
-        } else if (/^Digit[1-5]$/.test(e.code)) setZone(ZONES[+e.code.slice(5) - 1]);
-        else if (e.key.toLowerCase() === 'e') {
-          exit = !exit;
-          updateUi();
-        } else if (e.key.toLowerCase() === 'o') {
-          orbit = !orbit;
-          updateUi();
-        } else if (e.key.toLowerCase() === 'a') setAuto(!auto);
-        else if (e.key.toLowerCase() === 'f') setFps(!fps);
-        else if (e.key.toLowerCase() === 'c') clear();
+        var action = rangeKeyboardAction(e.code, e.key);
+        if (!action) return;
+        if (e.code === 'Space' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') e.preventDefault();
+        applyRangeAction(action);
       });
       canvas.addEventListener(
         'pointerdown',
