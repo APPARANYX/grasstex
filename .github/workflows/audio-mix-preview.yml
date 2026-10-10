@@ -1,4 +1,10 @@
 name: Audio mix browser QA
+
+# Read-only QA: checks out the repo and drives a hosted preview in a real browser;
+# needs no workflow secrets and no write access.
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:

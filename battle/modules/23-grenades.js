@@ -78,9 +78,7 @@
     prone: Object.freeze({ x: 0.16, y: 0.75, z: 0.27 })
   });
   var clamp = root.GTMath.clamp;
-  function dist(a, b) {
-    return Math.hypot(b.x - a.x, b.z - a.z);
-  }
+  var dist = root.GTMath.distStrict; /* plain form: no null guard, args are always {x,z} */
   function units(battle) {
     return root.BattleModules.unitsFor(battle);
   }
