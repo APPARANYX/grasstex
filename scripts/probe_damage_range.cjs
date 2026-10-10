@@ -138,6 +138,15 @@ let diagnosticPage=null;
   await page.keyboard.press('c');
   if((await snap()).wounds!==0)fail.push('keyboard C did not clear wounds');
 
+  // Keyboard testing manipulates cameras, target and presentation state. Reload
+  // before the independent UV-wound accumulation experiment so it has the same
+  // clean baseline as the original probe, rather than carrying test history.
+  await page.reload({waitUntil:'load',timeout:300000});
+  await page.waitForFunction(()=>window.__battle__&&window.BattleDamageRange&&BattleDamageRange.ready,null,{timeout:300000,polling:100});
+  const afterKeyboard=await snap();
+  if(afterKeyboard.target!==0||afterKeyboard.zone!=='chest'||!afterKeyboard.exit||afterKeyboard.wounds!==0)
+    fail.push('keyboard test reload did not restore original clean range baseline');
+
   // One through-shot should paint entry + exit into one private map, no fallback.
   await page.evaluate(()=>{BattleDamageRange.fire();});
   await page.waitForTimeout(1100);
