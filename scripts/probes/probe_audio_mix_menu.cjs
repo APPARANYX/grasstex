@@ -68,7 +68,10 @@ const BASE = process.env.AUDIO_MENU_PREVIEW_URL ||
     assert.equal(await page.locator('#bpmWeapons').inputValue(), '105', 'D-pad changes focused gunfire fader');
     await press(0); // A resets focused slider
     assert.equal(await page.locator('#bpmWeapons').inputValue(), '100', 'A resets focused fader');
-    await page.locator('#bpmMaster').fill('135');
+    await page.locator('#bpmMaster').evaluate(el => {
+      el.value = '135';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
     const values = await page.evaluate(() => ({
       storage: JSON.parse(localStorage.getItem('grasstex.audioMix.v1')),
       gain: window.BattleAudioMix.gain('weapon', 0.10),
