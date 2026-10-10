@@ -74,7 +74,7 @@ const OUT = path.resolve(process.env.CAMERA_TOUCH_OUT || 'closeups/camera-touch-
     });
     const destination = URL_ + (URL_.includes('?') ? '&' : '?') + 'seed=camera-touch-qa';
     await page.goto(destination, {waitUntil: 'load', timeout: 300000});
-    await page.waitForFunction(() => __battle__?.scene && BattleDesktopCamera?.current,
+    await page.waitForFunction(() => window.__battle__?.scene && window.BattleDesktopCamera?.current,
       null, {timeout: 300000, polling: 100});
     assert.equal(await page.evaluate(() => BattleDesktopCamera.current.desktop), false,
       'coarse pointer must start with touch orbit and no active gamepad');
