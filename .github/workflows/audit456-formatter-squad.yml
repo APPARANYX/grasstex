@@ -1,0 +1,28 @@
+name: Audit 456 squad formatting
+on:
+  push:
+    branches:
+      - 'work/format-audit456/squad'
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/audit456-squad-loader-dedup
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Format only reviewed PR source
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write tools/ai-sim-harness/harness.js tools/ai-sim-harness/tactical-fixture.js tools/ai-sim-harness/succession-check.js tools/ai-sim-harness/lease-check.js tools/ai-sim-harness/regroup-axis-check.js tools/ai-sim-harness/formation-backward-check.js tools/ai-sim-harness/forward-line-check.js tools/ai-sim-harness/lean-runtime-check.js tools/ai-sim-harness/anchor-publisher-check.js tools/ai-sim-harness/retreat-anchor-check.js tools/ai-sim-harness/objective-nav-check.js tools/ai-sim-harness/movement-recovery-check.js tools/ai-sim-harness/squad-command-stack.js tools/ai-sim-harness/squad-command-stack-check.js
+          git add tools/ai-sim-harness/harness.js tools/ai-sim-harness/tactical-fixture.js tools/ai-sim-harness/succession-check.js tools/ai-sim-harness/lease-check.js tools/ai-sim-harness/regroup-axis-check.js tools/ai-sim-harness/formation-backward-check.js tools/ai-sim-harness/forward-line-check.js tools/ai-sim-harness/lean-runtime-check.js tools/ai-sim-harness/anchor-publisher-check.js tools/ai-sim-harness/retreat-anchor-check.js tools/ai-sim-harness/objective-nav-check.js tools/ai-sim-harness/movement-recovery-check.js tools/ai-sim-harness/squad-command-stack.js tools/ai-sim-harness/squad-command-stack-check.js
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style: prettier audit 456 squad fixes'
+          git push origin HEAD:work/audit456-squad-loader-dedup
