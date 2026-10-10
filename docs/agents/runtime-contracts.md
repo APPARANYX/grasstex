@@ -45,6 +45,8 @@ This order is fragile: changing file order or replacing `root.BattleSim.start` r
 
 ## Test fixture mirrors
 
+The shared 14-file shipping Squad Leader harness stack now lives in `tools/ai-sim-harness/squad-command-stack.js` (PR #459); its own regression verifies it against the module directory. Loader consolidation does not remove case-specific doctrine fixtures.
+
 Several harness checks intentionally use *different literal commander-policy stubs* to model doctrinal boundary conditions. Those are not automatically duplication: preserve each exact set of values until the check is explicitly redesigned as a parameterized fixture. Deduplicate identical module-loading stacks and room geometry first, keep each test's doctrine assertions independent.
 
 ## Change gates
