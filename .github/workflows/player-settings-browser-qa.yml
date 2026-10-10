@@ -5,6 +5,9 @@ on:
   pull_request:
     paths:
       - 'battle/camera-controls.js'
+      - 'battle/modules/52-fbx-rig-canon.js'
+      - 'battle/modules/53-fbx-soldier-backend.js'
+      - 'tools/ai-sim-harness/fbx-rig-canon-check.js'
       - 'scripts/probe_camera_menu.cjs'
       - 'scripts/probe_camera_touch_gamepad.cjs'
       - '.github/workflows/player-settings-browser-qa.yml'
