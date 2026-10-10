@@ -1,0 +1,33 @@
+name: #361 Shipping command lifecycle acceptance
+on:
+  push:
+    branches:
+      - 'work/audit-issue361/**'
+permissions:
+  contents: read
+jobs:
+  lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/issue361-complete-audit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run full seven-variant shipping command and movement audit
+        env:
+          COMMAND_AUDIT_OUTPUT: reports/issue361-audit.json
+          COMMAND_AUDIT_SECONDS: '425'
+        run: |
+          mkdir -p reports
+          node --check scripts/run_command_lifecycle_audit.cjs
+          node scripts/run_command_lifecycle_audit.cjs
+      - name: Preserve complete transition evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: issue361-full-command-audit
+          path: reports/issue361-audit.json
+          if-no-files-found: warn
