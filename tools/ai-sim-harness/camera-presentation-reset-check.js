@@ -15,7 +15,8 @@ function region(start, end) {
   return source.slice(a, b);
 }
 const helpers = region('    function resetPlayerPresentation(next) {', '    function leavePlayer(reason) {');
-const run = new Function(`
+const run = new Function(
+  `
   var playerStamina = 7,
     playerExhausted = true,
     lastWoundCount = 18,
@@ -38,7 +39,9 @@ const run = new Function(`
     reticle = { style: { display: 'block' } };
   function clearGrenadeReady() { grenadeKeyDown = false; }
   function ensureReticle() { return reticle; }
-` + helpers + `
+` +
+    helpers +
+    `
   return {
     enter: resetPlayerPresentation,
     transient: hideTransientPlayerFeedback,
@@ -56,7 +59,8 @@ const run = new Function(`
       };
     }
   };
-`)();
+`
+)();
 const first = { wounds: [{}, {}], _playerConfirmedHits: 6, isPlayer: true };
 const second = { wounds: [{}], _playerConfirmedHits: 0, isPlayer: true };
 run.enter(first);
@@ -88,7 +92,10 @@ assert.equal(state.hud, 'none');
 assert.equal(state.boreDisplay, 'none');
 assert.equal(state.marker, '0');
 assert.equal(state.damage, '0');
-const transfer = region('    function possessSoldier(next, preservePause) {', '    function setPlayerStance(b, stance) {');
+const transfer = region(
+  '    function possessSoldier(next, preservePause) {',
+  '    function setPlayerStance(b, stance) {'
+);
 assert.ok(
   transfer.indexOf('resetPlayerPresentation(next);') < transfer.indexOf('commitPlayerOwnership(next, b);'),
   'feedback reset must precede new lease acquisition'
