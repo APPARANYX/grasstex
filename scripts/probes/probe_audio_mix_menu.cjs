@@ -19,8 +19,26 @@ const BASE = process.env.AUDIO_MENU_PREVIEW_URL ||
     const errors = [];
     page.on('pageerror', e => errors.push(String(e)));
     await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 90000 });
-    await page.waitForFunction(() => window.__battle__ && window.BattleAudioMix &&
-      window.BattleDesktopCamera?.current?.openPlayerSettings, null, { timeout: 120000 });
+    try {
+      await page.waitForFunction(() => window.__battle__ && window.BattleAudioMix &&
+        window.BattleDesktopCamera?.current?.openPlayerSettings, null, { timeout: 75000 });
+    } catch (err) {
+      const diagnostics = await page.evaluate(() => ({
+        url: location.href,
+        title: document.title,
+        battle: !!window.__battle__,
+        mixer: !!window.BattleAudioMix,
+        camera: !!window.BattleDesktopCamera,
+        cameraMode: window.BattleDesktopCamera?.current?.mode || null,
+        hasMenu: !!window.BattleDesktopCamera?.current?.openPlayerSettings,
+        loadedScripts: Array.from(document.scripts).map(s => s.src).filter(s => /camera-controls|00a-audio-mix|battle-sim/.test(s)),
+        body: (document.body?.innerText || '').slice(0, 900),
+        loading: (document.querySelector('#loading')?.innerText || '').slice(0, 350)
+      }));
+      console.error('PREVIEW BOOT DIAGNOSTICS:', JSON.stringify(diagnostics));
+      console.error('PAGE ERRORS:', errors.slice(0, 8));
+      throw err;
+    }
 
     await page.evaluate(() => {
       window.__mixTestPad = {
