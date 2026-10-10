@@ -19,15 +19,19 @@ assert.match(backendSource, /rigScheme = RIG\.rigScheme/);
 assert.match(backendSource, /canon = RIG\.canon/);
 assert.match(backendSource, /BONE = RIG\.BONE/);
 assert.match(backendSource, /isUpper = RIG\.isUpper/);
-assert.doesNotMatch(backendSource, /function canon\(name, scheme\)/, 'duplicate canonicalizer survived in the oversized backend');
+assert.doesNotMatch(
+  backendSource,
+  /function canon\(name, scheme\)/,
+  'duplicate canonicalizer survived in the oversized backend'
+);
 assert.doesNotMatch(backendSource, /function rigScheme\(names\)/, 'duplicate scheme scanner survived');
 
-const context = {window: {}};
-vm.runInNewContext(helperSource, context, {filename: helperName});
+const context = { window: {} };
+vm.runInNewContext(helperSource, context, { filename: helperName });
 const rig = context.window.BattleFbxRigCanon;
 assert.ok(rig, 'rig helper must install without Babylon or any game runtime');
 const original = rig;
-vm.runInNewContext(helperSource, context, {filename: helperName});
+vm.runInNewContext(helperSource, context, { filename: helperName });
 assert.equal(context.window.BattleFbxRigCanon, original, 'helper registration is idempotent');
 assert.equal(rig.rigScheme([]), 'mixamo');
 assert.equal(rig.rigScheme(['mixamorig:Spine', 'mixamorig:Spine1']), 'mixamo');
@@ -64,14 +68,40 @@ assert.equal(rig.BONE.leftHand, 'lefthand');
 assert.equal(rig.BONE.rightHand, 'righthand');
 assert.equal(rig.BONE.leftFoot, 'leftfoot');
 assert.equal(rig.BONE.rightFoot, 'rightfoot');
-for (const name of ['spine0', 'spine1', 'spine2', 'neck', 'head', 'headend',
-  'headfront', 'leftshoulder', 'leftarm', 'leftforearm', 'lefthand',
-  'rightshoulder', 'rightarm', 'rightforearm', 'righthand',
-  'lefthandindex1', 'righthandthumb2', 'lefthandpinky3']) {
+for (const name of [
+  'spine0',
+  'spine1',
+  'spine2',
+  'neck',
+  'head',
+  'headend',
+  'headfront',
+  'leftshoulder',
+  'leftarm',
+  'leftforearm',
+  'lefthand',
+  'rightshoulder',
+  'rightarm',
+  'rightforearm',
+  'righthand',
+  'lefthandindex1',
+  'righthandthumb2',
+  'lefthandpinky3'
+]) {
   assert.equal(rig.isUpper(name), true, name + ' must be upper-body overlay');
 }
-for (const name of ['hips', 'leftupleg', 'rightfoot', 'lefttoeend',
-  'rightleg', 'lefthandnonfinger', '', 'handindex1']) {
+for (const name of [
+  'hips',
+  'leftupleg',
+  'rightfoot',
+  'lefttoeend',
+  'rightleg',
+  'lefthandnonfinger',
+  '',
+  'handindex1'
+]) {
   assert.equal(rig.isUpper(name), false, name + ' must stay out of overlay');
 }
-console.log('PASS #456 R3 Mixamo/legacy spine, bone aliases, finger masks, helper load order and idempotent registration');
+console.log(
+  'PASS #456 R3 Mixamo/legacy spine, bone aliases, finger masks, helper load order and idempotent registration'
+);
