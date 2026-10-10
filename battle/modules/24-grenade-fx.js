@@ -202,11 +202,7 @@ void main(void) {
     if (!FOG_ON || !B.ShaderMaterial || !B.Effect || !B.Effect.ShadersStore) return null;
     installFogShaders();
     var scene = st.battle.scene,
-      mesh = B.MeshBuilder.CreateSphere(
-        'grenadeAreaFog-' + g.id,
-        { diameter: 2, segments: 12 },
-        scene
-      ),
+      mesh = B.MeshBuilder.CreateSphere('grenadeAreaFog-' + g.id, { diameter: 2, segments: 12 }, scene),
       mat = new B.ShaderMaterial(
         'grenadeAreaFogMaterial-' + g.id,
         scene,
@@ -389,7 +385,9 @@ void main(void) {
     FOG_RADIUS: FOG_RADIUS,
     FOG_HALF_HEIGHT: FOG_HALF_HEIGHT,
     FOG_LIFETIME: FOG_LIFETIME,
-    fogEnabled: function () { return FOG_ON; },
+    fogEnabled: function () {
+      return FOG_ON;
+    },
     status: function (battle) {
       var st = battle && STATES.get(battle.scene);
       return st
@@ -399,7 +397,9 @@ void main(void) {
             held: st.held.size,
             live: st.live.size,
             bursts: st.bursts.length,
-            fogVolumes: st.bursts.filter(function (burst) { return !!burst.fog; }).length
+            fogVolumes: st.bursts.filter(function (burst) {
+              return !!burst.fog;
+            }).length
           }
         : { ready: false, error: null, held: 0, live: 0, bursts: 0, fogVolumes: 0 };
     }
