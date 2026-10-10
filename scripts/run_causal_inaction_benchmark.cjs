@@ -70,7 +70,8 @@ const env = {
   PROBE: [
     'causal-inaction',
     ...(process.env.CAUSAL_GEOMETRY === '1' ? ['crest-geometry'] : []),
-    ...(process.env.CAUSAL_LIFECYCLE === '1' ? ['command-lifecycle'] : [])
+    ...(process.env.CAUSAL_LIFECYCLE === '1' ? ['command-lifecycle'] : []),
+    ...(process.env.CAUSAL_NAVTRACE === '1' ? ['route-361'] : [])
   ].join(','),
   PROBE_BATTLES: battles.join(','),
   PROBE_SECONDS: String(seconds),
