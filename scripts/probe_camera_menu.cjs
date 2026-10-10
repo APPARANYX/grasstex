@@ -48,6 +48,24 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     await page.goto(destination, {waitUntil: 'load', timeout: 300000});
     await page.waitForFunction(() => window.__battle__ && window.BattleDesktopCamera?.current, null,
       {timeout: 300000, polling: 100});
+    // R3 real-page loader acceptance: the lightweight canonicalizer must
+    // install before the FBX backend on the checked-out PHP module graph.
+    const rigIntegration = await page.evaluate(() => {
+      const rig = window.BattleFbxRigCanon, backend = window.BattleFbxSoldier;
+      return {
+        rigInstalled: !!rig,
+        backendInstalled: !!backend,
+        mixed: rig?.canon('mixamorig:Spine1', 'mixamo'),
+        legacy: rig?.canon('Spine02', 'legacy'),
+        head: rig?.canon('HeadTop_End'),
+        upperFinger: rig?.isUpper('lefthandindex1'),
+        lowerFoot: rig?.isUpper('leftfoot')
+      };
+    });
+    assert.deepEqual(rigIntegration, {
+      rigInstalled: true, backendInstalled: true, mixed: 'spine1',
+      legacy: 'spine0', head: 'headend', upperFinger: true, lowerFoot: false
+    }, 'FBX backend lost its rig-naming dependency on the shipping loader');
     // Free-fly keyboard movement is independent of gamepad; route through the
     // scene frame observable, not a one-off synthetic API.
     let flyDistance = 0;
