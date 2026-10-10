@@ -77,4 +77,6 @@ assert.equal(Object.keys(first.buttons).length, 17, 'unbound buttons are still t
 assert.match(source, /commands\.actions\.forEach\(applyRangeAction\)/, 'gamepad wired to dispatcher');
 assert.match(source, /applyRangeAction\(action\)/, 'keyboard wired to dispatcher');
 assert.ok(!source.includes('padOnce('), 'old mutable decoder removed');
-console.log('PASS #456 R5 keyboard, axes, Xbox edge leases, simultaneous command order and dispatcher wiring');
+console.log(
+  'PASS #456 R5 keyboard, axes, Xbox edge leases, simultaneous command order and dispatcher wiring'
+);
