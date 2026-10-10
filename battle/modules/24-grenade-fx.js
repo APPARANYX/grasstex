@@ -276,11 +276,7 @@ void main(void) {
     quad.material = flash;
     quad.alphaIndex = 1000;
     var fog = fogVolume(st, g, holder);
-    var light = new B.PointLight(
-      'grenadeBurstLight',
-      new B.Vector3(g.to.x, g.to.y + 0.08, g.to.z),
-      scene
-    );
+    var light = new B.PointLight('grenadeBurstLight', new B.Vector3(g.to.x, g.to.y + 0.08, g.to.z), scene);
     light.diffuse = new B.Color3(1, 0.62, 0.24);
     light.specular = B.Color3.Black();
     light.range = 7;
