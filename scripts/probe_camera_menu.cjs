@@ -175,6 +175,71 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       return b && b._roster && !(b._roster.us || []).some(s => s.isPlayer) &&
         !(b._roster.ge || []).some(s => s.isPlayer) && b.scene.activeCamera.name === 'cam';
     }, null, { timeout: 15000 });
+    // Pointer lock belongs to the desktop camera's current canvas. Opening
+    // settings releases it; a same-page camera replacement must do so too.
+    await page.locator('#renderCanvas').click({force: true, position: {x: 250, y: 210}});
+    await page.waitForFunction(
+      () => document.pointerLockElement === document.getElementById('renderCanvas'),
+      null, {timeout: 10000}
+    );
+    await page.keyboard.press('o');
+    await page.waitForFunction(() =>
+      getComputedStyle(document.getElementById('battlePlayerSettings')).display === 'flex'
+    );
+    assert.equal(await page.evaluate(() => document.pointerLockElement), null,
+      'opening settings must release pointer lock');
+    await page.keyboard.press('Escape');
+    await page.locator('#renderCanvas').click({force: true, position: {x: 250, y: 210}});
+    await page.waitForFunction(
+      () => document.pointerLockElement === document.getElementById('renderCanvas'),
+      null, {timeout: 10000}
+    );
+
+    // Recreate on the same page and the SAME scene. Assert observer count stays
+    // constant; previous camera, pointer lock and DOM controls are disposed;
+    // repeated stop on an old controller cannot interfere with the replacement.
+    const lifecycle = await page.evaluate(() => {
+      const scene = __battle__.scene;
+      const old = BattleDesktopCamera.current;
+      const oldCam = old.camera;
+      const observersBefore = scene.onBeforeRenderObservable.observers.length;
+      const previousSettings = document.getElementById('battlePlayerSettings');
+      const replacement = BattleDesktopCamera.create({
+        scene, canvas: document.getElementById('renderCanvas'),
+        engine: scene.getEngine(), battleSim: __battle__,
+        scenario: { center: {x: 0, z: 0} }
+      });
+      const observersAfter = scene.onBeforeRenderObservable.observers.length;
+      const uiAfter = [
+        'battlePlayerSettings','battlePlayerReticle','battlePlayerHud',
+        'battlePlayerBoreDot','battlePlayerDamage','battlePlayerGrenadePreview',
+        'battlePlayerMenuStyles','battlePlayerFeedbackStyles'
+      ].filter(id => document.getElementById(id));
+      old.stop();
+      return {
+        observersBefore, observersAfter, oldDisposed: oldCam.isDisposed(),
+        oldSettingsDetached: !previousSettings || !previousSettings.isConnected,
+        uiAfter, replacementCurrent: BattleDesktopCamera.current === replacement,
+        replacementAlive: !replacement.camera.isDisposed(),
+        lockReleased: document.pointerLockElement === null
+      };
+    });
+    assert.equal(lifecycle.observersAfter, lifecycle.observersBefore,
+      'same-page recreation must not duplicate the scene frame observer: ' + JSON.stringify(lifecycle));
+    assert.equal(lifecycle.oldDisposed, true, 'previous desktop camera must be disposed');
+    assert.equal(lifecycle.oldSettingsDetached, true, 'old menu must be removed');
+    assert.deepEqual(lifecycle.uiAfter, [], 'transient old HUD/menu nodes survived recreation');
+    assert.equal(lifecycle.replacementCurrent, true);
+    assert.equal(lifecycle.replacementAlive, true, 'old.stop must not dispose new camera');
+    assert.equal(lifecycle.lockReleased, true, 'recreation must release old pointer lock');
+    await page.keyboard.press('o');
+    await page.waitForFunction(() => {
+      const p = document.getElementById('battlePlayerSettings');
+      return p && getComputedStyle(p).display === 'flex';
+    });
+    assert.equal(await page.locator('#battlePlayerSettings').count(), 1,
+      'only replacement may create settings UI');
+    await page.keyboard.press('Escape');
     const state = await page.evaluate(() => ({
       build: window.BATTLE_BUILD_DEPLOYED || null,
       camera: window.BattleDesktopCamera?.current?.camera?.name || null,
@@ -183,7 +248,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     }));
     fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({state, errors, notes: notes.slice(-20)}, null, 2));
     assert.equal(errors.length, 0, 'page errors: ' + errors.slice(0, 5).join(' | '));
-    console.log('PASS #456 R2 player menu, US→GE lease handoff, pause ownership and V release ' + JSON.stringify(state));
+    console.log('PASS #456 R2 ownership, pointer lock and same-page camera disposal ' + JSON.stringify({state,lifecycle}));
   } finally {
     await browser.close();
   }
