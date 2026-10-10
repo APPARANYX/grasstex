@@ -9,7 +9,7 @@ name: ⭐ Generate combat sound effects
 #
 # Runs only when started by hand (Actions > Run workflow), never on a push: ElevenLabs is called only on a
 # person's say-so. It needs
-# the repository secret ELEVEN_LABS_API (ELEVENLABS_API_KEY also works); without it the run says so and stops
+# the repository secret ELEVEN_LABS_API; without it the run says so and stops
 # without failing. It never runs on main (main deploys to production on every push).
 #
 # Its commit is pushed with the workflow token, and GitHub starts no workflow for such a push, so CI does not run on
@@ -49,7 +49,7 @@ jobs:
       - name: Check the API key
         id: key
         env:
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVEN_LABS_API || secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVEN_LABS_API }}
         run: |
           if [ -z "$ELEVENLABS_API_KEY" ]; then
             echo "Repository secret ELEVEN_LABS_API is not set: nothing generated." | tee -a "$GITHUB_STEP_SUMMARY"
@@ -93,7 +93,7 @@ jobs:
         if: steps.key.outputs.ok == 'true'
         env:
           GENERATE_MAX_NEW: ${{ inputs.max_new }}
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVEN_LABS_API || secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVEN_LABS_API }}
           ONLY: ${{ inputs.only }}
         run: |
           set -euo pipefail
