@@ -48,7 +48,8 @@ for (const id of [
   'battlePlayerGrenadePreview',
   'battlePlayerMenuStyles',
   'battlePlayerFeedbackStyles'
-]) nodes[id] = element(id);
+])
+  nodes[id] = element(id);
 const canvas = { tag: 'canvas' };
 const document = {
   pointerLockElement: canvas,
@@ -157,8 +158,11 @@ for (const event of [
   'exitPointerLock',
   'dispose:playerCam',
   'dispose:camera'
-]) assert.ok(actions.includes(event), 'missing cleanup ' + event);
+])
+  assert.ok(actions.includes(event), 'missing cleanup ' + event);
 const count = actions.length;
 make.stop();
 assert.equal(actions.length, count, 'stop twice must not release resources twice');
-console.log('PASS #456 R2 tracked desktop listeners, observer, pause/timer, pointer lock, camera/HUD cleanup and idempotent stop');
+console.log(
+  'PASS #456 R2 tracked desktop listeners, observer, pause/timer, pointer lock, camera/HUD cleanup and idempotent stop'
+);
