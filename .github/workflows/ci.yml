@@ -120,12 +120,6 @@ jobs:
       # complied. A full one-shot reformat would break every in-flight branch, so instead every
       # JS file a pull request touches must be on-standard. Legacy files stay as they are and
       # converge as they get edited; nothing that was ever cleaned may regress.
-      - name: Print exact R3 rig harness Prettier diff (temporary)
-        if: github.head_ref == 'work/audit456-fbx-rig-canonicalization'
-        run: |
-          npx --yes prettier@3.3.3 --write tools/ai-sim-harness/fbx-rig-canon-check.js
-          git diff --no-ext-diff -- tools/ai-sim-harness/fbx-rig-canon-check.js
-
       - name: Prettier ratchet
         run: |
           set -euo pipefail
