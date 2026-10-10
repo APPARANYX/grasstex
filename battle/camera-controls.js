@@ -1236,6 +1236,38 @@
         d = ray.direction;
       return { x: o.x + d.x * 80, y: o.y + d.y * 80, z: o.z + d.z * 80 };
     }
+    /* Presentation state belongs to the possessed view, not to a soldier
+       or to the simulation. Clear wound/shot/easing history on transfer. */
+    function resetPlayerPresentation(next) {
+      playerStamina = 100;
+      playerExhausted = false;
+      lastWoundCount = (next.wounds && next.wounds.length) || 0;
+      damageAt = 0;
+      damageOrigin = null;
+      lastShotPulse = 0;
+      lastConfirmedHits = next._playerConfirmedHits || 0;
+      hitMarkerAt = 0;
+      shotImpactAt = 0;
+      shotImpact = null;
+      lastBorePreview = 0;
+      borePreview = null;
+      boreScreenPos = null;
+      borePaintAt = 0;
+      grenadeKeyDown = false;
+      clearGrenadeReady();
+    }
+    function hideTransientPlayerFeedback() {
+      if (playerBoreDot) playerBoreDot.style.display = 'none';
+      boreScreenPos = null;
+      borePaintAt = 0;
+      if (hitMarker) hitMarker.style.opacity = '0';
+      if (playerDamage) playerDamage.style.opacity = '0';
+    }
+    function hidePlayerPresentation() {
+      ensureReticle().style.display = 'none';
+      hideTransientPlayerFeedback();
+      if (playerHud) playerHud.style.display = 'none';
+    }
     function leavePlayer(reason) {
       if (!player) return;
       if (menuOpen) closePlayerMenu();
@@ -1249,13 +1281,7 @@
       keys.clear();
       grenadeKeyDown = false;
       clearGrenadeReady();
-      ensureReticle().style.display = 'none';
-      if (playerBoreDot) playerBoreDot.style.display = 'none';
-      boreScreenPos = null;
-      borePaintAt = 0;
-      if (hitMarker) hitMarker.style.opacity = '0';
-      if (playerHud) playerHud.style.display = 'none';
-      if (playerDamage) playerDamage.style.opacity = '0';
+      hidePlayerPresentation();
       if (playerCam) {
         camera.position.copyFrom(playerCam.position);
         try {
@@ -1282,22 +1308,8 @@
       playerFaction = next.faction;
       playerYaw = +next.root.rotation.y || 0;
       playerPitch = 0;
-      playerStamina = 100;
-      playerExhausted = false;
-      lastWoundCount = (next.wounds && next.wounds.length) || 0;
-      damageAt = 0;
-      damageOrigin = null;
-      lastShotPulse = 0;
-      lastConfirmedHits = next._playerConfirmedHits || 0;
-      hitMarkerAt = 0;
-      shotImpactAt = 0;
-      shotImpact = null;
-      lastBorePreview = 0;
-      borePreview = null;
-      boreScreenPos = null;
-      borePaintAt = 0;
-      grenadeKeyDown = false;
-      clearGrenadeReady();
+      resetPlayerPresentation(next);
+      hideTransientPlayerFeedback();
       commitPlayerOwnership(next, b);
       if (b.paused && b.resume && !preservePause) b.resume();
       var startBtn = document.getElementById('startBtn');
