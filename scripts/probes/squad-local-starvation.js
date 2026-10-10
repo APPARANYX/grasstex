@@ -37,8 +37,7 @@
     if (sq._reconTask) return 'active-recon';
     if (sq.inContact) return 'active-contact';
     /* Last-known enemies are not automatically a current tactical hold. */
-    if (sq.contact && isFinite(+sq.contact.at) && sim.time - +sq.contact.at <= 5)
-      return 'recent-contact';
+    if (sq.contact && isFinite(+sq.contact.at) && sim.time - +sq.contact.at <= 5) return 'recent-contact';
     if (sq._preparedDefenseRequest || sq._captureZoneDefenseRequest) return 'defensive-obligation';
     if (mission.action === 'hold' || mission.role === 'support') return 'intentional-support-hold';
     if (sq.commandPhase === 'regroup' || sq.commandPhase === 'reconstitute') return 'reconstitution';
@@ -133,8 +132,8 @@
               living: members.length,
               protectedBy: protectedBy,
               activeContact: !!sq.inContact,
-              lastContactAge: sq.contact && isFinite(+sq.contact.at)
-                ? +(sim.time - +sq.contact.at).toFixed(2) : null,
+              lastContactAge:
+                sq.contact && isFinite(+sq.contact.at) ? +(sim.time - +sq.contact.at).toFixed(2) : null,
               resolverOwners: owners,
               arrivedAtInterimWaypoint: arrived,
               unreachableRecipients: pending,

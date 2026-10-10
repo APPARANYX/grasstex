@@ -70,13 +70,19 @@ assert.equal(
 const stale = setup();
 stale.b.contact = { at: 1 };
 advance(stale, 49);
-assert.equal(stale.probe.report().episodes[0].protectedBy, null,
-  'last-known stale enemy report cannot silently legalize a stalled capture');
+assert.equal(
+  stale.probe.report().episodes[0].protectedBy,
+  null,
+  'last-known stale enemy report cannot silently legalize a stalled capture'
+);
 const active = setup();
 active.b.inContact = true;
 advance(active, 49);
-assert.equal(active.probe.report().episodes[0].protectedBy, 'active-contact',
-  'ongoing contact is explicitly protected');
+assert.equal(
+  active.probe.report().episodes[0].protectedBy,
+  'active-contact',
+  'ongoing contact is explicitly protected'
+);
 const defend = setup();
 defend.b._macroMission.intent = 'defend';
 advance(defend, 52);
