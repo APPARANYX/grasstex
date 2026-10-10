@@ -6,6 +6,8 @@ on:
     paths:
       - 'battle/camera-controls.js'
       - 'battle/modules/52-fbx-rig-canon.js'
+      - 'battle/modules/52-fbx-weapon-calibration.js'
+      - 'tools/ai-sim-harness/fbx-weapon-calibration-check.js'
       - 'battle/modules/53-fbx-soldier-backend.js'
       - 'tools/ai-sim-harness/fbx-rig-canon-check.js'
       - 'scripts/probe_camera_menu.cjs'
