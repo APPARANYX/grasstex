@@ -320,6 +320,62 @@
     return key === 'w' || key === 'a' || key === 's' || key === 'd' || key === 'shift';
   }
 
+  /* Pure roster membership checks; a menu's selected index is never an ownership lease.
+     Verify the live battle, faction and membership before touching any controller state. */
+  function playerSoldierEligible(b, next) {
+    return !!(
+      b &&
+      next &&
+      next.root &&
+      !next.dead &&
+      b.factions[next.faction] &&
+      b.factions[next.faction].squads.some(function (sq) {
+        return (sq.members || []).indexOf(next) >= 0;
+      })
+    );
+  }
+  function menuSoldierEligible(b, faction, sq, soldier) {
+    return !!(
+      b &&
+      sq &&
+      soldier &&
+      b.factions[faction] &&
+      b.factions[faction].squads.indexOf(sq) >= 0 &&
+      (sq.members || []).indexOf(soldier) >= 0 &&
+      !soldier.dead &&
+      soldier.root
+    );
+  }
+
+  /* The movement, aiming and tactical-position leases belong to the player controller,
+     not the rendered player camera. Release every owner when possession transfers or exits. */
+  function clearPlayerLease(man, b) {
+    if (!man) return;
+    man.isPlayer = false;
+    if (global.BattleMovementResolver && global.BattleMovementResolver.clearPlayer)
+      global.BattleMovementResolver.clearPlayer(man);
+    if (global.SquadAI && global.SquadAI.playerAim) global.SquadAI.playerAim(man, null);
+    if (global.BattleEngagement && global.BattleEngagement.playerFace)
+      global.BattleEngagement.playerFace(man, null);
+    if (global.BattleTacticalPositions && global.BattleTacticalPositions.release && b)
+      global.BattleTacticalPositions.release(man, b, 'player-release');
+  }
+  function commitPlayerOwnership(next, b) {
+    /* isPlayer, not a short movement lease, is the authority boundary for the whole possession. */
+    /* Possession starts from a neutral player-owned stance instead of inheriting a squad hold-fire posture. */
+    if (global.BattleEngagement && global.BattleEngagement.commitStance)
+      global.BattleEngagement.commitStance(next, b, 'stand', 0.45, 'player-possession');
+    if (global.BattleTacticalPositions && global.BattleTacticalPositions.release)
+      global.BattleTacticalPositions.release(next, b, 'player-control');
+    if (global.BattleMovementResolver && global.BattleMovementResolver.proposePlayer) {
+      var p = next.root.position;
+      global.BattleMovementResolver.proposePlayer(next, { x: p.x, z: p.z }, b, 0.6, {
+        speedScale: 1,
+        pace: 'walk'
+      });
+    }
+  }
+
   function createDesktopFly(scene, canvas, target, engine, battleSim, pose) {
     var startPosition =
       pose && pose.position ? pose.position : initialPosition(target, 720, -Math.PI / 2, 1.02);
@@ -981,16 +1037,7 @@
         sq = menuSquads[+settingsMenu.querySelector('#bpmSquad').value],
         soldier = menuSoldiers[+settingsMenu.querySelector('#bpmSoldier').value];
       /* Guard against stale/dead men after a battle restart. */
-      if (
-        !b ||
-        !sq ||
-        !soldier ||
-        !b.factions[faction] ||
-        b.factions[faction].squads.indexOf(sq) < 0 ||
-        (sq.members || []).indexOf(soldier) < 0 ||
-        soldier.dead ||
-        !soldier.root
-      ) {
+      if (!menuSoldierEligible(b, faction, sq, soldier)) {
         fillMenuSquads(null, null);
         return false;
       }
@@ -1180,17 +1227,6 @@
         d = ray.direction;
       return { x: o.x + d.x * 80, y: o.y + d.y * 80, z: o.z + d.z * 80 };
     }
-    function clearPlayerLease(man, b) {
-      if (!man) return;
-      man.isPlayer = false;
-      if (global.BattleMovementResolver && global.BattleMovementResolver.clearPlayer)
-        global.BattleMovementResolver.clearPlayer(man);
-      if (global.SquadAI && global.SquadAI.playerAim) global.SquadAI.playerAim(man, null);
-      if (global.BattleEngagement && global.BattleEngagement.playerFace)
-        global.BattleEngagement.playerFace(man, null);
-      if (global.BattleTacticalPositions && global.BattleTacticalPositions.release && b)
-        global.BattleTacticalPositions.release(man, b, 'player-release');
-    }
     function leavePlayer(reason) {
       if (!player) return;
       if (menuOpen) closePlayerMenu();
@@ -1228,18 +1264,8 @@
     }
     function possessSoldier(next, preservePause) {
       var b = liveBattle();
-      /* This is a possession transfer, never a spawn. Only current living members qualify. */
-      if (
-        !b ||
-        !next ||
-        !next.root ||
-        next.dead ||
-        !b.factions[next.faction] ||
-        !b.factions[next.faction].squads.some(function (sq) {
-          return (sq.members || []).indexOf(next) >= 0;
-        })
-      )
-        return false;
+      /* This is a possession transfer, never a spawn. */
+      if (!playerSoldierEligible(b, next)) return false;
       if (player) clearPlayerLease(player, playerBattle || b);
       player = next;
       playerBattle = b;
@@ -1263,19 +1289,7 @@
       borePaintAt = 0;
       grenadeKeyDown = false;
       clearGrenadeReady();
-      /* isPlayer, not a short movement lease, is the authority boundary for the whole possession. */
-      /* Possession starts from a neutral player-owned stance instead of inheriting a squad hold-fire posture. */
-      if (global.BattleEngagement && global.BattleEngagement.commitStance)
-        global.BattleEngagement.commitStance(next, b, 'stand', 0.45, 'player-possession');
-      if (global.BattleTacticalPositions && global.BattleTacticalPositions.release)
-        global.BattleTacticalPositions.release(next, b, 'player-control');
-      if (global.BattleMovementResolver && global.BattleMovementResolver.proposePlayer) {
-        var p = next.root.position;
-        global.BattleMovementResolver.proposePlayer(next, { x: p.x, z: p.z }, b, 0.6, {
-          speedScale: 1,
-          pace: 'walk'
-        });
-      }
+      commitPlayerOwnership(next, b);
       if (b.paused && b.resume && !preservePause) b.resume();
       var startBtn = document.getElementById('startBtn');
       if (startBtn) startBtn.hidden = true;

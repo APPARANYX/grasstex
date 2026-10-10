@@ -31,8 +31,13 @@ assert.match(
 );
 assert.match(
   cameraSource,
-  /soldier\.dead[\s\S]{0,100}!soldier\.root/,
-  'soldier selection rejects casualties'
+  /function menuSoldierEligible\(b, faction, sq, soldier\)[\s\S]*?!soldier\.dead[\s\S]{0,100}soldier\.root/,
+  'live-roster menu soldier eligibility rejects casualties and missing roots'
+);
+assert.match(
+  cameraSource,
+  /if \(!menuSoldierEligible\(b, faction, sq, soldier\)\)/,
+  'the selected soldier is revalidated through the shared live-roster guard before possession'
 );
 assert.match(cameraSource, /if \(menuOpen\) closePlayerMenu\(\)/, 'player release cleans up the menu');
 assert.match(cameraSource, /!b\.paused[\s\S]{0,100}typeof b\.pause/, 'settings pause only an active battle');
