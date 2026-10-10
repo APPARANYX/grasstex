@@ -32,10 +32,13 @@
       { x: 0, z: 0 }
     );
   }
-  function reason(sq, mission) {
+  function reason(sq, mission, sim) {
     if (sq.state === 'retreat' || sq.commandPhase === 'retreat') return 'retreat';
     if (sq._reconTask) return 'active-recon';
-    if (sq.inContact || sq.contact) return 'contact';
+    if (sq.inContact) return 'active-contact';
+    /* Last-known enemies are not automatically a current tactical hold. */
+    if (sq.contact && isFinite(+sq.contact.at) && sim.time - +sq.contact.at <= 5)
+      return 'recent-contact';
     if (sq._preparedDefenseRequest || sq._captureZoneDefenseRequest) return 'defensive-obligation';
     if (mission.action === 'hold' || mission.role === 'support') return 'intentional-support-hold';
     if (sq.commandPhase === 'regroup' || sq.commandPhase === 'reconstitute') return 'reconstitution';
@@ -94,7 +97,7 @@
           }
           if (track.reported || sim.time - track.since < WINDOW) return;
           track.reported = true;
-          var protectedBy = reason(sq, m),
+          var protectedBy = reason(sq, m, sim),
             pending = [],
             arrived = 0,
             owners = {};
@@ -129,6 +132,9 @@
               objectiveClosure: +(track.startGap - gap).toFixed(2),
               living: members.length,
               protectedBy: protectedBy,
+              activeContact: !!sq.inContact,
+              lastContactAge: sq.contact && isFinite(+sq.contact.at)
+                ? +(sim.time - +sq.contact.at).toFixed(2) : null,
               resolverOwners: owners,
               arrivedAtInterimWaypoint: arrived,
               unreachableRecipients: pending,
