@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadSquadCommandStack } = require('./squad-command-stack');
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),H=require('./harness');
 function load(r,p){new Function('window','globalThis','console',fs.readFileSync(path.join(H.REPO,p),'utf8'))(r,r,{log(){},warn(){}});}
 let n=0;function test(name,fn){fn();n++;console.log('PASS '+name);}
@@ -8,7 +9,7 @@ function root(){
   r.BattleModules={registerSystem(id,s){systems[id]=s;},getSystem(id){return systems[id];},unitsFor:b=>(b._roster.us||[]).concat(b._roster.ge||[])};
   r.BattleCommanderDoctrine={policyFor(){return{cohesionRadius:34,captainlessCohesion:26,routeArrivalRadius:8,captureCommitRatio:.82};}};
   load(r,'battle/obstacle-field.js');load(r,'battle/battle-navigation.js');load(r,'battle/movement-resolver.js');
-  load(r,'battle/modules/15a-squad-leader-fire-control.js');load(r,'battle/modules/15b-squad-leader-buddy-pairs.js');load(r,'battle/modules/15c-squad-leader-scouts-forward.js');load(r,'battle/modules/15d-squad-leader-leaderless-intent.js');load(r,'battle/modules/15e-squad-leader-morale-coa.js');load(r,'battle/modules/15f-squad-leader-retreat-anchor.js');load(r,'battle/modules/15g-squad-leader-formation.js');load(r,'battle/modules/15h-squad-leader-fireteams.js');load(r,'battle/modules/15i-squad-leader-clear-contact.js');load(r,'battle/modules/15j-squad-leader-fire-and-movement.js');load(r,'battle/modules/15k-squad-leader-reconstitution.js');load(r,'battle/modules/15l-squad-leader-mission-execution.js');load(r,'battle/modules/15m-squad-leader-cohesion-regroup.js');load(r,'battle/modules/16-squad-plan-stability.js');load(r,'battle/modules/44-combat-urgency.js');load(r,'battle/modules/52-survival-tactical-route.js');
+  loadSquadCommandStack(load, r);load(r,'battle/modules/44-combat-urgency.js');load(r,'battle/modules/52-survival-tactical-route.js');
   return{r,systems};
 }
 test('only one consolidated owner exists for each tactical layer',()=>{
