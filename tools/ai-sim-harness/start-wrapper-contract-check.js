@@ -25,7 +25,11 @@ for (const file of files) {
   const source = read(file);
   assert.match(source, /oldStart\s*=\s*root\.BattleSim\.start/, file + ' captures previous start');
   assert.match(source, /root\.BattleSim\.start\s*=\s*function/, file + ' installs wrapper');
-  assert.match(source, /oldStart(?:\(scene, opts\)|\.apply\(this, arguments\))/, file + ' forwards to predecessor');
+  assert.match(
+    source,
+    /oldStart(?:\(scene, opts\)|\.apply\(this, arguments\))/,
+    file + ' forwards to predecessor'
+  );
 }
 assert.match(
   read('battle/modules/98-damage-range.js'),
