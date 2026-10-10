@@ -80,12 +80,12 @@
     var entry = { x: p.x, y: p.y, z: p.z - 0.22 },
       leave = exit ? { x: p.x, y: p.y, z: p.z + 0.22 } : null,
       pass = {
-      victim: t,
-      zone: z,
-      entry: entry,
-      exit: leave,
-      direction: dir,
-      exitDirection: leave ? dir : undefined
+        victim: t,
+        zone: z,
+        entry: entry,
+        exit: leave,
+        direction: dir,
+        exitDirection: leave ? dir : undefined
       };
     return {
       mode: 'raycast',
@@ -99,14 +99,14 @@
       delay: 0,
       passes: [pass],
       final: leave
-      ? {
-          stoppedBy: 'environment',
-          surface: 'cement',
-          blocker: 'wall',
-          impact: { x: p.x, y: p.y, z: backZ - 0.14 },
-          normal: { x: 0, y: 0, z: -1 }
-        }
-      : null
+        ? {
+            stoppedBy: 'environment',
+            surface: 'cement',
+            blocker: 'wall',
+            impact: { x: p.x, y: p.y, z: backZ - 0.14 },
+            normal: { x: 0, y: 0, z: -1 }
+          }
+        : null
     };
   }
 
