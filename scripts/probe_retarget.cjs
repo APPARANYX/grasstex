@@ -19,11 +19,41 @@ const URL = process.env.RT_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_loc
 const MAX_ROT = Number(process.env.RT_MAX_ROT || 1e-5);
 const MAX_POS = Number(process.env.RT_MAX_POS || 1e-5);
 
+// Private mastered audio is not checked into the public runtime repository.
+ // Replace only these audio fetches in visual/retarget QA, never in shipping code.
+function silentWav() {
+  const samples = 2205, b = Buffer.alloc(44 + samples * 2);
+  b.write('RIFF', 0);
+  b.writeUInt32LE(b.length - 8, 4);
+  b.write('WAVE', 8);
+  b.write('fmt ', 12);
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(22050, 24);
+  b.writeUInt32LE(44100, 28);
+  b.writeUInt16LE(2, 32);
+  b.writeUInt16LE(16, 34);
+  b.write('data', 36);
+  b.writeUInt32LE(samples * 2, 40);
+  return b;
+}
 async function load(browser, query) {
   const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 800, height: 600 } });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e).slice(0, 300)));
+  // Exactly the same private-audio isolation as the existing camera browser probe.
+  const silence = silentWav();
+  await page.route('**/*', route => {
+    const request = route.request();
+    if (request.method() === 'POST' || /battle_(policy|learning|log|metrics)[^/]*\\.php/.test(request.url()))
+      return route.fulfill({ json: {} });
+    if (/\\/Assets\\/audio\\/.*\\.(?:mp3|wav|ogg)(?:[?#]|$)/i.test(request.url()))
+      return route.fulfill({ status: 200, body: silence, contentType: 'audio/wav' });
+    return route.continue();
+  });
+
   await page.goto(URL + (URL.includes('?') ? '&' : '?') + 'seed=retarget' + (query ? '&' + query : ''), { waitUntil: 'load', timeout: 90000 });
   await page.waitForFunction(() => window.__battle__ && window.BattleFbxSoldier && BattleFbxSoldier.status(__battle__.scene).ready, null, { timeout: 300000, polling: 250 });
   const out = await page.evaluate(() => {
