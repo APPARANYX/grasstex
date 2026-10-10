@@ -79,7 +79,16 @@ BABYLON.LoadAssetContainerAsync = async () => ({ meshes: [], dispose() {} });
       const before=t.sample();
       t.sim.onGrenadeBurst({id:123,to:{x:0,y:0,z:0},kind:'mk2'});
       const after=t.sample(), volumes=t.scene.meshes.filter(m=>m.name.startsWith('grenadeAreaFog'));
+      const vertexCount=volumes[0]?.getTotalVertices();
+      const meshReady=volumes[0]?.isReady();
+      const cameraPosition=t.camera.position.asArray();
+      const volumePosition=volumes[0]?.getAbsolutePosition().asArray();
       const mat=volumes[0]?.material;
+      const pixels=[[320,180],[260,180],[380,180],[320,110],[320,250]].map(([x,y])=>{
+        const rgba=new Uint8Array(4);
+        t.engine._gl.readPixels(x,y,1,1,t.engine._gl.RGBA,t.engine._gl.UNSIGNED_BYTE,rgba);
+        return {x,y,rgba:Array.from(rgba)};
+      });
       const ready=mat?.getEffect()?.isReady()||false;
       const transparency=mat?.needAlphaBlending();
       const present=fx.status(t.sim);
@@ -89,7 +98,7 @@ BABYLON.LoadAssetContainerAsync = async () => ({ meshes: [], dispose() {} });
       t.sample();
       const cleared=fx.status(t.sim);
       return {before,after,fade3,ready,transparency,present,cleared,
-        volumeCount:volumes.length,vertexCount:volumes[0]?.getTotalVertices(),
+        volumeCount:volumes.length,vertexCount,meshReady,cameraPosition,volumePosition,pixels,
         difference:Math.max(...after.slice(0,3).map((v,i)=>Math.abs(v-before[i])))};
     });
     console.log('GRENADE AREA FOG QA:',JSON.stringify(result));
