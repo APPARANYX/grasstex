@@ -116,16 +116,6 @@ jobs:
           done < <(git ls-files '*.json')
           echo "Parsed $count JSON files."
 
-      - name: TEMP exact skin-surface fixture and formatter diagnostics
-        run: |
-          node tools/ai-sim-harness/fbx-surface-damage-check.js || true
-          for file in battle/modules/52-fbx-surface-damage.js tools/ai-sim-harness/fbx-surface-damage-check.js; do
-            echo "SKIN_PRETTIER_START_$(basename "$file")"
-            npx --yes prettier@3.3.3 "$file" | base64 -w0
-            echo
-            echo "SKIN_PRETTIER_END_$(basename "$file")"
-          done
-
       # Prettier ratchet: the repo's .prettierrc.json was dead config - most tracked JS never
       # complied. A full one-shot reformat would break every in-flight branch, so instead every
       # JS file a pull request touches must be on-standard. Legacy files stay as they are and
