@@ -19,22 +19,41 @@ assert.doesNotMatch(backend, /function skinAnchor\(/);
 assert.doesNotMatch(backend, /function surfaceDamageMap\(/);
 const identity = Float32Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 class Vector3 {
-  constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
-  scaleInPlace(k) { this.x *= k; this.y *= k; this.z *= k; return this; }
+  constructor(x = 0, y = 0, z = 0) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+  }
+  scaleInPlace(k) {
+    this.x *= k;
+    this.y *= k;
+    this.z *= k;
+    return this;
+  }
   static TransformCoordinatesToRef(v, world, out) {
     const m = world.m;
-    const x = v.x, y = v.y, z = v.z;
+    const x = v.x,
+      y = v.y,
+      z = v.z;
     out.x = x * m[0] + y * m[4] + z * m[8] + m[12];
     out.y = x * m[1] + y * m[5] + z * m[9] + m[13];
     out.z = x * m[2] + y * m[6] + z * m[10] + m[14];
     return out;
   }
 }
-const VB = { PositionKind: 'position', NormalKind: 'normal', UVKind: 'uv',
-  MatricesIndicesKind: 'idx', MatricesIndicesExtraKind: 'idx2',
-  MatricesWeightsKind: 'weights', MatricesWeightsExtraKind: 'weights2' };
+const VB = {
+  PositionKind: 'position',
+  NormalKind: 'normal',
+  UVKind: 'uv',
+  MatricesIndicesKind: 'idx',
+  MatricesIndicesExtraKind: 'idx2',
+  MatricesWeightsKind: 'weights',
+  MatricesWeightsExtraKind: 'weights2'
+};
 let frame = 8;
-const pending = [], projections = [], cleared = [];
+const pending = [],
+  projections = [],
+  cleared = [];
 const scene = { getFrameId: () => frame, getEngine: () => ({}) };
 class Renderer {
   constructor(mesh, sceneArg, options) {
@@ -45,10 +64,16 @@ class Renderer {
     projections.length = projections.length;
   }
   renderTexture(stamp, pos, normal, size) {
-    projections.push({ stamp, pos: [pos.x, pos.y, pos.z], normal: [normal.x, normal.y, normal.z],
-      size: [size.x, size.y, size.z] });
+    projections.push({
+      stamp,
+      pos: [pos.x, pos.y, pos.z],
+      normal: [normal.x, normal.y, normal.z],
+      size: [size.x, size.y, size.z]
+    });
   }
-  clear() { cleared.push(true); }
+  clear() {
+    cleared.push(true);
+  }
 }
 class Color4 {}
 const B = { VertexBuffer: VB, MeshUVSpaceRenderer: Renderer, Color4 };
@@ -86,7 +111,8 @@ assert.equal(found.vertex, 1);
 assert.equal(found.distance < 0.002, true);
 assert.equal(posed, 1, 'sample pose updated exactly once at hit time');
 assert.equal(soldier._fbx.poseRef.serial, 3, 'wound event invalidated skeleton cache');
-const p = new Vector3(), normal = new Vector3();
+const p = new Vector3(),
+  normal = new Vector3();
 assert.equal(surface.skinSample(found, p, normal), true);
 assert.ok(Math.abs(p.x - 0.2) < 1e-6);
 assert.deepEqual([normal.x, normal.y, normal.z], [0, 1, 0]);
@@ -119,7 +145,14 @@ assert.equal(projections.length, 2, 'cleared stale wound must never reproject af
 // Force the phone path without installing DOM, texture APIs, or modifying gameplay.
 const phone = { window: { location: { search: '?woundMap=256' } } };
 vm.runInNewContext(source, phone);
-assert.equal(phone.window.BattleFbxSurfaceDamage.create({
-  BABYLON: B, V3: Vector3, applyPose: () => {}
-}).surfaceDamageResolution, 256);
-console.log('PASS #456 R3 skin weighted vertex anchor, deferred UV projection, shared renderer, cull/restart cleanup and phone resolution');
+assert.equal(
+  phone.window.BattleFbxSurfaceDamage.create({
+    BABYLON: B,
+    V3: Vector3,
+    applyPose: () => {}
+  }).surfaceDamageResolution,
+  256
+);
+console.log(
+  'PASS #456 R3 skin weighted vertex anchor, deferred UV projection, shared renderer, cull/restart cleanup and phone resolution'
+);
