@@ -1,0 +1,10 @@
+{
+  "benchmark": "causal",
+  "ref": "work/issue361-complete-audit",
+  "exact_seed": "hill-0008",
+  "seconds": 900,
+  "side": "ge",
+  "squads": "ge-4",
+  "lifecycle": "1",
+  "navtrace": "1"
+}
