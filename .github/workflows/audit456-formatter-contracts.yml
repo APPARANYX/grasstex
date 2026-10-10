@@ -1,0 +1,28 @@
+name: Audit 456 contracts formatting
+on:
+  push:
+    branches:
+      - 'work/format-audit456/contracts'
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/audit2-456-small-contract-fixes
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Format only reviewed PR source
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write battle/battle-control.js tools/ai-sim-harness/control-scenario-rejection-check.js tools/ai-sim-harness/start-wrapper-contract-check.js
+          git add battle/battle-control.js tools/ai-sim-harness/control-scenario-rejection-check.js tools/ai-sim-harness/start-wrapper-contract-check.js
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style: prettier audit 456 contracts fixes'
+          git push origin HEAD:work/audit2-456-small-contract-fixes
