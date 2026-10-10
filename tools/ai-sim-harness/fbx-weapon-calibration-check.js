@@ -117,7 +117,11 @@ equal(calibration.armDegFor('us-captain.fbx', 'm1911a1.fbx'), {
 equal(calibration.wristRFor('us-captain.fbx', 'm1911a1.fbx'), [0, 0, 3]);
 customGrip[0] = 9;
 equal(points('us-captain.fbx', 'm1911a1.fbx').grip, [0.0045, -0.0217, -0.027]);
-equal(\n  calibration.leftGripFor('us-paratrooper.fbx', 'm1911a1.fbx'),\n  [-0.0138, 0.0844, -0.0208],\n  'other models retain measured fallback pistol cup'\n);
+equal(
+  calibration.leftGripFor('us-paratrooper.fbx', 'm1911a1.fbx'),
+  [-0.0138, 0.0844, -0.0208],
+  'other models retain measured fallback pistol cup'
+);
 
 calibration.applySidecarData('us-engineer.fbx', {
   contacts: { right: [0, 0, NaN] },
