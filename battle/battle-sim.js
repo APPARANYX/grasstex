@@ -503,6 +503,11 @@
     AVOID_QUERY = 8;
   /* `?steerLeg=0`: steering as before (look 1.8 m ahead past the leg, only the destination's circles exempt), for a paired A/B. */
   var STEER_LEG = !(typeof location !== 'undefined' && /[?&]steerLeg=0\b/.test(location.search || ''));
+  /* Avoid large lateral/backwards soft steering deviations on an already validated physical waypoint leg.
+     The old reverse push remains necessary if the real next step is blocked; ?steerNavForward=0 restores it. */
+  var STEER_NAV_FORWARD = !(
+    typeof location !== 'undefined' && /[?&]steerNavForward=0\b/.test(location.search || '')
+  );
   /* A man who is genuinely boxed in re-plans on a timer rather than once per frame. Clearing
      the nav cache every blocked frame just recomputed the same unusable path 7 times a second. */
   var NAV_REPLAN_HOLD = 1.5;
@@ -554,6 +559,30 @@
       nz = dirz + pushZ * 0.9,
       len = Math.hypot(nx, nz);
     return len > 1e-4 ? { x: nx / len, z: nz / len } : null;
+  }
+  function preserveClearNavigationLeg(steered, dirx, dirz, from, step, path) {
+    if (
+      !STEER_NAV_FORWARD ||
+      !steered ||
+      !path ||
+      path.blocked ||
+      !path.points ||
+      !path.points.length ||
+      steered.x * dirx + steered.z * dirz >= 0.8
+    )
+      return steered;
+    var navigation = root.BattleNavigation;
+    /* The chosen waypoint is already a collision-cleared path segment. A cover-circle push
+       more than ~37 degrees off that direction can return a soldier to the previous waypoint
+       (meeting:hill-0008, GE-4 men #92/#98) on every 0.15 s step.
+       Do not disable avoidance globally: retain moderate steering and blocked-segment escape. */
+    if (
+      navigation &&
+      navigation.movementClear &&
+      navigation.movementClear(from, { x: from.x + dirx * step, z: from.z + dirz * step })
+    )
+      return null;
+    return steered;
   }
   function stepMovement(self, soldier, dt) {
     if (soldier.dead) {
@@ -672,6 +701,14 @@
             STEER_LEG ? desired : null,
             STEER_LEG ? d : 0
           );
+      steered = preserveClearNavigationLeg(
+        steered,
+        dirx,
+        dirz,
+        here,
+        Math.min(d, soldier.moveSpeed * dt),
+        soldier._physicalPath
+      );
       if (steered) {
         dirx = steered.x;
         dirz = steered.z;
