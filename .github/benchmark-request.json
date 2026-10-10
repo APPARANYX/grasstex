@@ -1,0 +1,13 @@
+{
+  "benchmark": "standard",
+  "ref": "work/issue361-ge4-rootcause",
+  "seed": "issue361-nav-us-defend",
+  "seeds": 20,
+  "query_off": "steerNavForward=0",
+  "query_on": "",
+  "battle_type": "us-defend",
+  "windows": "every60",
+  "origin_agent": "chatgpt",
+  "correlation_id": "issue361-ge4-clearleg",
+  "purpose": "Compare legacy 42-degree soft avoidance versus guard on 20 paired full battles"
+}
