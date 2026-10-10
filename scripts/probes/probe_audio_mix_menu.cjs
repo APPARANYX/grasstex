@@ -68,12 +68,12 @@ const BASE = process.env.AUDIO_MENU_PREVIEW_URL ||
         window.__mixTestPad.buttons[n].pressed = true;
         window.__mixTestPad.buttons[n].value = 1;
       }, button);
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(900);
       await page.evaluate(n => {
         window.__mixTestPad.buttons[n].pressed = false;
         window.__mixTestPad.buttons[n].value = 0;
       }, button);
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(450);
     }
 
     await press(5); // RB
@@ -85,6 +85,13 @@ const BASE = process.env.AUDIO_MENU_PREVIEW_URL ||
     assert.deepEqual(tab, { audio: 'block', player: 'none', selected: 'true' }, 'RB opens Audio tab');
     await press(13); // D-pad down chooses Gunfire
     await press(15); // D-pad right, +5
+    const padState = await page.evaluate(() => ({
+      activeRows: Array.from(document.querySelectorAll('#bpmAudioPane .bpm-field')).map(el =>
+        ({ name: el.textContent.trim(), active: el.classList.contains('active') })),
+      levels: BattleAudioMix.get(),
+      padButtons: window.__mixTestPad.buttons.map((b, i) => b.pressed ? i : -1).filter(i => i >= 0)
+    }));
+    console.log('GAMEPAD AUDIO FOCUS:', JSON.stringify(padState));
     assert.equal(await page.locator('#bpmWeapons').inputValue(), '105', 'D-pad changes focused gunfire fader');
     await press(0); // A resets focused slider
     assert.equal(await page.locator('#bpmWeapons').inputValue(), '100', 'A resets focused fader');
