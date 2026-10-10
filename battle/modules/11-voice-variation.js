@@ -216,6 +216,9 @@
         s.setPosition(p);
       }
       armEnded(entry, req);
+      var mix = root.BattleAudioMix;
+      var voiceGain = mix ? mix.gain('voice', 0.24, mesh && mesh.getScene && mesh.getScene()) : 0.24;
+      if (s.setVolume) s.setVolume(voiceGain);
       var acoustics = root.BattleListenerAcoustics;
       if (acoustics && mesh && mesh.position)
         acoustics.prepare(
@@ -226,7 +229,7 @@
               : mesh.position;
           },
           'voice',
-          0.24,
+          voiceGain,
           mesh.getScene()
         );
       s.play();

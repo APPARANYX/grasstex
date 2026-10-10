@@ -1,0 +1,23 @@
+name: Audio mix browser QA
+on:
+  workflow_dispatch:
+    inputs:
+      preview_ref:
+        description: 'Branch or ref to test in hosted preview'
+        required: true
+        default: main
+        type: string
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Exercise hosted gamepad menu and audio output
+        env:
+          AUDIO_MENU_PREVIEW_URL: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ inputs.preview_ref }}
+        run: node scripts/probes/probe_audio_mix_menu.cjs

@@ -8,9 +8,13 @@ casualties, wounds, shooting, and AI orders remain with their existing owners.
 ## HUD and damage feedback
 
 - Tap standard gamepad **Menu/Start** to enter player mode or switch to another living
-  soldier of your current faction; hold Menu for **650 ms** to open **Player Settings**.
+  soldier of your current faction; hold Menu for **650 ms** to open **Battle Settings**.
+  **LB/RB** changes the settings page between Player and Audio. On Audio, **D-pad up/down** selects
+  Master, Gunfire, Squad Voices or Effects/Foley; **D-pad left/right** adjusts in 5% increments,
+  and **A** resets the focused level to 100%. **B** backs out. All four faders can also be
+  dragged with a mouse or touch, and they persist on the device in localStorage.
   Desktop **P** still enters/switches soldiers; **O** opens the settings panel.
-  The menu supports faction (US/Germany), active unit/squad, and individual living soldier
+  The Player page supports faction (US/Germany), active unit/squad, and individual living soldier
   selection, plus a haptic feedback toggle. D-pad up/down changes fields, left/right changes
   selections, **A** deploys/toggles haptics, **B** backs out; keyboard, mouse and touch can
   operate the native selectors and buttons. Menu pauses a running battle while open,

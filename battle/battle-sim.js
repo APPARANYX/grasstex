@@ -312,6 +312,8 @@
       if (!voice) return;
       try {
         voice.setPosition(position);
+        var mix = root.BattleAudioMix;
+        if (mix) gain = mix.gain('weapon', gain, scene);
         var a = root.BattleListenerAcoustics;
         if (!a || !a.prepare(voice, position, k.indexOf(':far') >= 0 ? 'gunDistant' : 'gun', gain, scene)) {
           if (voice.setVolume) voice.setVolume(gain);

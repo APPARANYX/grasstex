@@ -295,6 +295,8 @@
           snd.setPosition(
             typeof BABYLON !== 'undefined' && BABYLON.Vector3 ? new BABYLON.Vector3(p.x, p.y, p.z) : p
           );
+        var mix = root.BattleAudioMix;
+        if (mix) s.gain = mix.gain(s.group === 'pain' ? 'voice' : 'combat', s.gain, scene);
         var acoustics = root.BattleListenerAcoustics;
         if (!acoustics || !acoustics.prepare(snd, p, s.group === 'pain' ? 'voice' : 'combat', s.gain, scene))
           if (snd.setVolume) snd.setVolume(s.gain);
