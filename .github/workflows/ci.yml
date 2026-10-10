@@ -116,13 +116,6 @@ jobs:
           done < <(git ls-files '*.json')
           echo "Parsed $count JSON files."
 
-      - name: TEMP render exact prepared-clip integrity fixture format
-        run: |
-          echo 'PACK_PRETTIER_B64_START'
-          npx --yes prettier@3.3.3 tools/ai-sim-harness/fbx-clip-pack-integrity-check.js | base64 -w0
-          echo
-          echo 'PACK_PRETTIER_B64_END'
-
       # Prettier ratchet: the repo's .prettierrc.json was dead config - most tracked JS never
       # complied. A full one-shot reformat would break every in-flight branch, so instead every
       # JS file a pull request touches must be on-standard. Legacy files stay as they are and
