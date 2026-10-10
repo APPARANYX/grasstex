@@ -1,0 +1,9 @@
+{
+  "benchmark": "causal",
+  "ref": "work/issue361-ge4-rootcause",
+  "exact_seed": "hill-0002",
+  "seconds": 900,
+  "side": "us",
+  "squads": "us-3",
+  "lifecycle": "1"
+}
