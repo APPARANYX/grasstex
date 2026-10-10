@@ -1,90 +1,74 @@
-# Live timescale parity (4x / 8x; 1x is per-frame)
+# Separate live playback from deterministic 0.15-second benchmark stepping
 
-Fast live playback (above 1x) uses the same **0.15 simulated-second step** as
-headless battle replays. The time multiplier changes how much simulated time
-enters an accumulator per wall-clock second; it **does not** change step size.
+## Live page: legacy frame-driven clock at 1x / 4x / 8x
 
-**Real-time playback (1x, and slower) is deliberately not on the fixed step.**
-It keeps the original per-frame variable step, so soldiers move every rendered
-frame. Stepping 0.15 s at a time showed as visible stair-stepping at 1x
-(a position update every ~9 frames at 60 fps), where a person is actually
-watching. Benchmarks and parity diagnostics still use the fixed step at every
-speed (see below).
+By default the battle page uses the **original** `BattleSim._frame()` observer and
+the companion `BattleCommanderAI` observer. The fixed-step module is loaded but
+**does not replace these observers or run on any live render frame**. This restores
+the measured mobile behavior of `?fixedClock=0`, including the observer ordering.
 
-- The live render observer lives in `battle/modules/00-fixed-step-clock.js`.
-  It replaces only the battle core's variable-step render observer. Explicit
-  `sim.step(dt)` calls used by the trainer and replay tools remain unchanged.
-- `clock.frame(wallSeconds)` is the live entry point. At `timeScale <= 1` it
-  runs `sim._frame(min(0.25, wall * scale))` then the commander tick, exactly
-  what the pre-clock observers did. Above 1x it calls `clock.advance()`, the
-  pure fixed-step accumulator that benchmarks and parity tools drive directly.
-- Changing speed is lossless in both directions. Dropping to 1x first drains
-  any fixed-step backlog, then folds the sub-step remainder into the first
-  per-frame dt; going up simply starts accumulating.
-- `?fixedClock=all` (or `clock.fixedAtRealtime = true`) forces the fixed step
-  at every speed. Use it when a live page must reproduce the benchmark
-  timeline at 1x.
-- Each completed simulation step first advances movement and soldier/squad AI,
-  then the command hook runs; the General gets one tick per 0.45 simulated
-  seconds (the same order as `scripts/run_probe.cjs`).
-- At most 12 steps execute during one rendered frame. Work exceeding that
-  budget remains as **pending simulated seconds** and drains on subsequent
-  frames. It is **not thrown away**. On a slow device, the effective speed
-  may fall below the selected 4x or 8x until it catches up.
-- `sim._fixedClock.stats` exposes `stepSeconds`, `pendingSeconds`,
-  `lastSteps`, `backloggedFrames`, `totalSteps`, `stepLimit` and
-  `smoothFrames` (per-frame 1x frames).
-- Pause does not add wall-clock time. Restart clears pending work. Changing
-  1x/4x/8x retains the fractional remainder of simulation time.
-- `?fixedClock=0` removes the clock entirely and restores the previous
-  variable-step render clock (and legacy command observer) at every speed,
-  for emergency comparison only.
+- The browser frame delta is multiplied by `timeScale` then capped to
+  **0.25 simulated seconds per rendered frame**. Positions and locomotion are
+  updated every frame. At low FPS/high speed, excess wall-clock time is not
+  replayed later; effective simulated speed may drop below the selected 4x/8x.
+- **Important distinction:** the original `BattleSim._frame` still accumulates
+  the scaled delta and evaluates squad/soldier AI in its existing **0.15
+  simulated-second internal ticks**. Those decision ticks do not require
+  movement/render frames to occur only every 0.15 simulated seconds.
+- The companion original Commander observer integrates the same capped frame
+  delta and schedules its 0.45 simulated-second decisions.
+- `?fixedClock=0` remains an A/B baseline: it skips even the dormant clock
+  object. With no extra flags, visible behavior is intentionally identical.
+- No deterministic cross-FPS or cross-speed state fingerprint is promised for
+  normal live playback. This is the historical, mobile-friendly compromise.
 
-## Evidence
+## Benchmarks: explicit deterministic fixed stepping
+
+`battle/modules/00-fixed-step-clock.js` exposes `BattleFixedStepClock.create(sim)`
+and attaches the **dormant** `sim._fixedClock` object to ordinary pages.
+Benchmark/parity runners stop the browser render loop and call
+`sim._fixedClock.advance(wallSeconds)` explicitly; that method retains the
+fixed 0.15-second step and ordered Commander tick at 1x/4x/8x.
+
+- Every completed fixed step advances `sim.step(0.15)` and then the Commander
+  hook, matching deterministic replay order.
+- At most 12 fixed steps execute per invocation; additional simulation time is
+  retained in `stats.pendingSeconds` for later explicit benchmark advances.
+- `clock.reset()` resets benchmark debt/counters. Pause, winner, and trainer
+  ownership guards remain intact.
+- `?fixedClock=all` is an **explicit debug opt-in** that installs the fixed
+  observer in a live page, at every speed, so a person can witness the benchmark
+  timeline. It is not enabled for normal play or mobile devices.
+- A browser/device rendering benchmark without explicit fixed-cadence mode
+  measures the **normal live clock**. Fixed-cadence and parity runners measure
+  the **benchmark clock**. These results must not be conflated.
+
+## Regression coverage
 
 ```sh
 node tools/ai-sim-harness/fixed-step-clock-check.js
-# Require a local battle PHP server and Playwright:
+# Requires a local PHP server and Playwright:
+node scripts/check_realtime_smoothness.cjs
 PARITY_SCENARIO=meeting PARITY_SECONDS=600 node scripts/run_timescale_parity_benchmark.cjs
-node scripts/check_realtime_smoothness.cjs   # live 1x per-frame, 4x fixed step
 ```
 
-The `⭐ Timescale Parity Benchmark` workflow runs real 600s firefights
-for meeting, US-defense and German-defense seeds, comparing the fixed 0.15s
-benchmark against six representative 1x/4x/8x × 20/30/60/120fps cases.
-**Every comparison uses a fresh browser page**; reusing a page and restarting
-the battle has independently observed squad/buddy-pair timing drift even when
-both runs use identical 0.15s stepping. This is a separate restart-isolation
-issue, not evidence against timescale parity. The unit test covers the full
-12-way speed/FPS grid. Any difference in isolated gameplay state fails; every
-full-length baseline must emit fire events.
+The fast clock unit test asserts 12-way fixed-step replay parity, ordered
+Commander execution, pause, debt preservation, and restart. It additionally
+asserts that ordinary 1x/4x/8x page observers match `?fixedClock=0` exactly,
+while `?fixedClock=all` remains an explicit deterministic opt-in.
 
-The full-fidelity performance benchmark's `FF_CADENCE` mode now also goes
-through the live accumulator, so CPU measurements include catch-up costs.
-Both it and the parity benchmark call `clock.advance()` directly, so they stay
-on the fixed step regardless of the live 1x routing.
+The real-page smoke test compares the old/default observer behavior at
+1x/4x/8x on the same seed and virtual FPS, and verifies that the opt-in fixed
+mode still takes 0.15-second steps. The 600-second parity workflow still
+compares isolated benchmark-fixed runs with real firefights; it does **not**
+assert live gameplay matches across frame rates. Each variant uses a fresh
+browser page to avoid unrelated same-page restart contamination (Issue #430).
 
-Live 1x smoothness is covered by the clock unit test (`frame()` advances the
-sim every rendered frame at <=1x, stays on the fixed step above it, and drains
-backlog on a speed drop) and by `scripts/check_realtime_smoothness.cjs`, a
-real-page check on a virtual 60 fps clock. It reports the share of frames in
-which a moving soldier's position changes: 85% at default 1x (bit-identical to
-`?fixedClock=0`) against 10% with `?fixedClock=all`, with the median per-frame
-jump 0.065 m against 0.58 m; 4x stayed on 0.15 s steps.
+## Precision trade-off
 
-## Deliberate limitations
-
-Live 1x is **not** guaranteed to reproduce the 4x/8x or benchmark timeline: it
-steps with the frame delta, so its result depends on the device's frame rate
-(as it did before the clock). Use `?fixedClock=all` when a 1x live run has to
-match the benchmark.
-
-This patch does **not** change combat or physical tick precision: movement
-continues at 0.15 simulated seconds per step in the fixed-step paths.
-Increasing physical precision to 0.05s needs a separate balance and
-performance study because it can alter navigation, firing and casualties. The
-presentation system (animation, projectiles, audio, wall-clock timers) is not
-itself a deterministic subframe interpolator; 4x/8x (and `?fixedClock=all` at
-1x) can display stair-stepping, and visual effects do not promise exact
-cross-speed equality. The guarantee here is a shared simulation-step sequence,
-provided gameplay code reads only simulation time for gameplay decisions.
+Normal live playback prioritizes responsive movement and avoids catch-up spirals
+on phones. Its existing 0.15s AI decision accumulator remains intact, but its
+frame-based movement/clock can drop simulated time under slow frames. Benchmarks
+retain fixed-step fidelity and deterministic timing at 1x/4x/8x. We deliberately
+do not use synthetic benchmark parity to claim that the variable-frame live
+path is bitwise deterministic.
