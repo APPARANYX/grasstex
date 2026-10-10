@@ -27,32 +27,49 @@ function fingerprint(s) {
   return (hash >>> 0).toString(16);
 }
 const events = normalized(region('    function bindDesktopEvents() {\n', '    }\n    function stepFreeFly('));
-const freefly = normalized(region('    function stepFreeFly(pad, dt) {\n', '    }\n    function stepDesktopFrame()'));
-const orchestration = normalized(region('    function stepDesktopFrame() {\n', '      stepFreeFly(pad, dt);'));
-assert.equal(fingerprint(events), '38cbbdb0', 'the original event/handler bodies or listener ordering changed');
+const freefly = normalized(
+  region('    function stepFreeFly(pad, dt) {\n', '    }\n    function stepDesktopFrame()')
+);
+const orchestration = normalized(
+  region('    function stepDesktopFrame() {\n', '      stepFreeFly(pad, dt);')
+);
+assert.equal(
+  fingerprint(events),
+  '38cbbdb0',
+  'the original event/handler bodies or listener ordering changed'
+);
 assert.equal(fingerprint(freefly), '5cb26236', 'the original free-fly movement, speed or geometry changed');
-assert.equal(fingerprint(orchestration), '8a4da01a', 'the original menu/player frame/gesture ordering changed');
+assert.equal(
+  fingerprint(orchestration),
+  '8a4da01a',
+  'the original menu/player frame/gesture ordering changed'
+);
 assert.equal(src.match(/bindDesktopEvents\(\);/g)?.length, 1, 'listeners must attach only once');
 assert.equal(src.match(/scene\.onBeforeRenderObservable\.add\(stepDesktopFrame\)/g)?.length, 1);
 assert.equal(src.match(/stepFreeFly\(pad, dt\);/g)?.length, 1);
-const keyboard = 'function keyName(event) {' + region('  function keyName(event) {', '  function createDesktopFly(');
-const input = new Function(keyboard + '\nreturn {keyName, editableTarget, movementKey, playerMovementKey};')();
-assert.equal(input.keyName({key: ' '}), ' ');
-assert.equal(input.keyName({key: 'W'}), 'w');
-assert.equal(input.keyName({key: 'Escape'}), 'escape');
-for (const tagName of ['INPUT','SELECT','TEXTAREA']) assert.equal(input.editableTarget({tagName}), true);
-assert.equal(input.editableTarget({tagName:'DIV',isContentEditable:true}), true);
-assert.equal(input.editableTarget({tagName:'DIV'}), false);
-for (const k of ['w','a','s','d','shift']) {
+const keyboard =
+  'function keyName(event) {' + region('  function keyName(event) {', '  function createDesktopFly(');
+const input = new Function(
+  keyboard + '\nreturn {keyName, editableTarget, movementKey, playerMovementKey};'
+)();
+assert.equal(input.keyName({ key: ' '}), ' ');
+assert.equal(input.keyName({ key: 'W'}), 'w');
+assert.equal(input.keyName({ key: 'Escape'}), 'escape');
+for (const tagName of ['INPUT', 'SELECT', 'TEXTAREA']) assert.equal(input.editableTarget({ tagName }), true);
+assert.equal(input.editableTarget({ tagName: 'DIV', isContentEditable: true }), true);
+assert.equal(input.editableTarget({ tagName: 'DIV' }), false);
+for (const k of ['w', 'a', 's', 'd', 'shift']) {
   assert.equal(input.movementKey(k), true, k);
   assert.equal(input.playerMovementKey(k), true, k);
 }
-for (const k of ['q','e']) {
+for (const k of ['q', 'e']) {
   assert.equal(input.movementKey(k), true, k);
   assert.equal(input.playerMovementKey(k), false, k);
 }
-for (const k of ['g','b','c','z','v','p','o','escape']) {
+for (const k of ['g', 'b', 'c', 'z', 'v', 'p', 'o', 'escape']) {
   assert.equal(input.movementKey(k), false, k);
   assert.equal(input.playerMovementKey(k), false, k);
 }
-console.log('PASS #456 R2 event order, free-fly frame parity, menu/possession ordering and focus/movement key guards');
+console.log(
+  'PASS #456 R2 event order, free-fly frame parity, menu/possession ordering and focus/movement key guards'
+);
