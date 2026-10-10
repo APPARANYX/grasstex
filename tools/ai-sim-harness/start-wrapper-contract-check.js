@@ -18,7 +18,11 @@ const owners = [
 const files = owners.map(name => 'battle/modules/' + name + '.js');
 const php = read('battle_sim.php');
 assert.match(php, /sort\(\$found, SORT_STRING\)/, 'PHP-discovered modules load sorted');
-assert.match(php, /foreach\s*\(\$(?:activeModuleFiles|moduleFiles) as \$file\)/, 'module scripts precede operator controls');
+assert.match(
+  php,
+  /foreach\s*\(\$(?:activeModuleFiles|moduleFiles) as \$file\)/,
+  'module scripts precede operator controls'
+);
 assert.match(php, /array\('ai-trainer\.js','battle-control\.js'\)/, 'battle-control installed last');
 assert.deepEqual([...owners].sort(), owners, 'wrapper files have a stable module-order suffix');
 for (const file of files) {
