@@ -49,7 +49,11 @@ const BASE = process.env.AUDIO_MENU_PREVIEW_URL ||
       Object.defineProperty(navigator, 'getGamepads', {
         configurable: true, value: () => [window.__mixTestPad]
       });
-      window.dispatchEvent(new Event('gamepadconnected'));
+      if (!window.BattleDesktopCamera.current.desktop) {
+        const event = new Event('gamepadconnected');
+        Object.defineProperty(event, 'gamepad', { value: window.__mixTestPad });
+        window.dispatchEvent(event);
+      }
     });
     await page.waitForFunction(() => window.BattleDesktopCamera?.current?.desktop, null, { timeout: 8000 });
     await page.keyboard.press('o');
