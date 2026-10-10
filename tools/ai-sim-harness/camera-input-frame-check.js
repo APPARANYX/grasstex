@@ -30,8 +30,8 @@ function fingerprint(s) {
    registration spelling (including split-line calls) to preserve the existing
    byte-level handler-order fingerprint rather than dropping the parity check. */
 const events = normalized(region('    function bindDesktopEvents() {\n', '    }\n    function stepFreeFly(')).replace(
-  /\\blisten\\((canvas|document|window),\\s*/g,
-  (match, target) => target + '.addEventListener(' + (match.includes('\\n') ? '\\n' : '')
+  /\blisten\((canvas|document|window),\s*/g,
+  (match, target) => target + '.addEventListener(' + (match.includes('\n') ? '\n' : '')
 );
 const freefly = normalized(
   region('    function stepFreeFly(pad, dt) {\n', '    }\n    function stepDesktopFrame()')
