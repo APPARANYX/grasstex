@@ -637,14 +637,20 @@ for (let i = 0; i < 4; i++) {
 }
 assert.equal(secondWitness.q._localTask.inputs.execution.structure.survey.observedSectors, 4);
 assert.equal(secondWitness.q._localTask.inputs.execution.structure.survey.contributors.length, 1);
-assert.equal(secondWitness.P.entrySatisfied(secondWitness.b, secondWitness.q, secondWitness.q.route[1]), false);
+assert.equal(
+  secondWitness.P.entrySatisfied(secondWitness.b, secondWitness.q, secondWitness.q.route[1]),
+  false
+);
 const reaffirm = surveyPoint(secondWitness, 0);
 face(secondWitness.buddy, reaffirm);
 secondWitness.leader.root.rotation.y = faceAway(secondWitness.leader, reaffirm);
 secondWitness.b.time += 0.45;
 secondWitness.P.update(secondWitness.b, secondWitness.q);
 assert.equal(secondWitness.q._localTask.inputs.execution.structure.survey.contributors.length, 2);
-assert.equal(secondWitness.P.entrySatisfied(secondWitness.b, secondWitness.q, secondWitness.q.route[1]), true);
+assert.equal(
+  secondWitness.P.entrySatisfied(secondWitness.b, secondWitness.q, secondWitness.q.route[1]),
+  true
+);
 
 const blocked = surveyFixture();
 blocked.buddy.root.position.x = 0;
