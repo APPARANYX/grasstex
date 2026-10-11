@@ -61,6 +61,26 @@ from the opposing live roster or exact enemy transforms. `?generalIntel=0` exist
 A/B control. Strategic stall/progress clocks are likewise per faction, so enemy progress cannot reset friendly
 decision timing.
 
+## Phase A observation contract (current runtime)
+
+`BattleTacticalSituation.compute(sim, faction)` is a pure, faction-local report reader.
+`?tacticalSituation=1` opts into collection at most once per simulated second;
+`?urbanPicture=1` opts into `BattleUrbanOperatingPicture` every five simulated seconds.
+Start and same-object restart clear both records. Neither observer refreshes perception,
+reads hidden enemy transforms/strength, draws combat RNG or publishes gameplay orders.
+
+Urban cells use the current Navigation scenario's rotated ground footprints. Friendly
+presence, reported threat positions and geometry LOS sample points remain separate evidence;
+none proves room/street clearance. Unsupported room/floor control stays unknown.
+
+Full, compact and focused diagnostic exports compute a detached current picture on demand.
+The existing timeline reads stored observations only, in an optional `observations` section,
+with simulation timestamps, explicit observation age and a 600-frame cap/omission count.
+Default battles have no automatic observation history. `ai_flow_live.html` renders imported
+pictures by faction and time and continues to accept older records without that section.
+Compact timeline JSONL preserves the picture as optional `tactical-snapshot`,
+`tactical-history` and `tactical-frame` rows; existing sample/marker rows retain their schema.
+
 ## Reference-to-AI ownership map
 
 Use each publication where its scope is strongest. Newer Marine Corps sources describe modern

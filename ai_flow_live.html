@@ -34,6 +34,7 @@ svg text{user-select:none}.laneLabel{font-size:13px;font-weight:800;fill:#8ea0b8
   .timelineTop select{max-width:none;text-overflow:ellipsis}.timelineMarkerText{order:10;width:100%;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .timelineCanvas{height:96px}.timelineScrub{height:30px}
 }
+.tacticalPanel{position:absolute;right:12px;top:12px;width:min(390px,calc(100% - 24px));max-height:45%;overflow:auto;z-index:4;background:#0d1621f5;border:1px solid #31465f;border-radius:10px;padding:10px;font-size:11px}.tacticalPanel[hidden]{display:none}.tacticalPanel summary{font-weight:800;cursor:pointer}.tacticalCard{padding:8px 0;border-top:1px solid #26394f;line-height:1.55}.tacticalNote{color:#92a3bb;margin:7px 0 0}.tacticalCard strong{color:#eaf0f8}
 </style>
 </head>
 <body>
@@ -66,6 +67,7 @@ svg text{user-select:none}.laneLabel{font-size:13px;font-weight:800;fill:#8ea0b8
         <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 z" fill="#7c90aa"/></marker></defs>
         <g id="viewport"></g>
       </svg>
+      <details class="tacticalPanel" id="tacticalPicturePanel" hidden open><summary>Tactical picture · read-only</summary><div id="tacticalPictureBody"></div></details>
       <div class="timelinePanel" id="timelinePanel" hidden>
         <div class="timelineTop">
           <span class="timelineTitle">Runtime timeline</span>
@@ -178,7 +180,7 @@ function normalizeTimeline(tl,meta={}){
   return {
     label:meta.label||meta.seed||tl.seed||'timeline',
     seed:meta.seed||tl.seed||null,type:meta.type||meta.battleType||null,winner:meta.winner||tl.winner||null,
-    build:meta.build||tl.build||null,ref:meta.ref||tl.ref||null,
+    build:meta.build||tl.build||null,ref:meta.ref||tl.ref||null,observations:meta.observations||null,
     timeline:Object.assign({},tl,{samples,markers:Array.isArray(tl.markers)?tl.markers.slice().sort((a,b)=>(+a.t||0)-(+b.t||0)):[]})
   };
 }
@@ -187,9 +189,9 @@ function extractTimelineRuns(payload,fileName='runtime.json'){
   const add=(tl,meta={})=>{const n=normalizeTimeline(tl,meta);if(n)runs.push(n)};
   if(!payload||typeof payload!=='object')return runs;
   if(payload.format==='grasstex-ai-timeline-v1')add(payload,{label:fileName});
-  if(payload.timeline)add(payload.timeline,{label:fileName,seed:payload.scenario&&payload.scenario.seed,winner:payload.battle&&payload.battle.winner,build:payload.build,ref:payload.ref});
+  if(payload.timeline)add(payload.timeline,{observations:payload.observations,label:fileName,seed:payload.scenario&&payload.scenario.seed,winner:payload.battle&&payload.battle.winner,build:payload.build,ref:payload.ref});
   else if(payload.format==='grasstex-battle-full-diagnostics-v1'){
-    const tl=diagnosticStaticTimeline(payload);if(tl)add(tl,{label:fileName});
+    const tl=diagnosticStaticTimeline(payload);if(tl)add(tl,{label:fileName,observations:payload.observations});
   }
   if(Array.isArray(payload.battles)){
     payload.battles.forEach((b,i)=>{
@@ -337,7 +339,42 @@ function runtimeEventsNear(t,windowSec=.55){
 function timelineMetricSeries(run,side,metric){
   return (run&&run.timeline.samples||[]).map(s=>[+s.t,+((s[side]&&s[side][metric])||0)]);
 }
+function tacticalFrameAt(run,t){
+  const history=run&&run.timeline&&run.timeline.observations;
+  const frames=history&&history.frames||[];let selected=null;
+  for(const f of frames){if(f.t>t+.001)break;selected=f}
+  if(selected)return {frame:selected,omitted:history.omitted||0};
+  const o=run&&run.observations;if(!o||o.time>t+.001)return null;
+  const frame={t:o.time};
+  for(const side of ['us','ge']){
+    const a=o.tacticalSituation&&o.tacticalSituation[side],b=o.urbanOperatingPicture&&o.urbanOperatingPicture[side];
+    frame[side]={tactical:a?{at:a.time,posture:a.forcePosture,contacts:a.contactCount,reserves:a.availableReserves}:null,urban:b?{at:b.time,buildings:b.buildings.length,reportedBuildings:b.buildings.filter(c=>c.reportedThreats>0).length,streets:b.streets.length,reportedStreets:b.streets.filter(r=>r.reports.length>0).length,clearProbes:b.sectorVisibility.filter(v=>v.clear===true).length,probes:b.sectorVisibility.length,control:'unknown'}:null};
+  }
+  return {frame,omitted:0};
+}
+function drawTacticalPicture(){
+  const panel=document.getElementById('tacticalPicturePanel'),body=document.getElementById('tacticalPictureBody');
+  const runs=['A','B'].map(slot=>({slot,run:activeRuntimeRun(slot)})).filter(x=>x.run);
+  panel.hidden=!runs.length;body.replaceChildren();
+  const age=at=>Math.max(0,runtimeOverlay.time-at).toFixed(1)+'s old';
+  for(const {slot,run} of runs){
+    const observed=tacticalFrameAt(run,runtimeOverlay.time);
+    if(!observed){const p=document.createElement('p');p.textContent=slot+': no tactical observation at this time';body.appendChild(p);continue}
+    for(const side of ['us','ge']){
+      const d=observed.frame[side]||{},a=d.tactical,b=d.urban,card=document.createElement('div');card.className='tacticalCard';
+      const title=document.createElement('strong');title.textContent=slot+' '+side.toUpperCase()+' · t='+observed.frame.t.toFixed(1)+'s';card.appendChild(title);
+      const line=text=>{const p=document.createElement('div');p.textContent=text;card.appendChild(p)};
+      line(a?'Tactical ('+age(a.at)+'): '+a.posture+' · '+a.contacts+' reported contacts · '+a.reserves+' reserves':'Tactical: not collected');
+      line(b?'Urban ('+age(b.at)+'): '+b.buildings+' footprints / '+b.reportedBuildings+' with reports · '+b.streets+' streets / '+b.reportedStreets+' with reports':'Urban: not collected');
+      if(b)line('LOS sample points: '+b.clearProbes+'/'+b.probes+' clear · structure control unknown');
+      if(observed.omitted)line(observed.omitted+' older observation frames omitted');
+      body.appendChild(card);
+    }
+  }
+  const note=document.createElement('p');note.className='tacticalNote';note.textContent='Reports retain faction knowledge. Presence and clear LOS samples do not prove enemy detection or cleared streets.';body.appendChild(note);
+}
 function drawRuntimeTimeline(){
+  drawTacticalPicture();
   const panel=document.getElementById('timelinePanel');if(!panel||panel.hidden)return;
   const canvas=document.getElementById('timelineCanvas'),ctx=canvas.getContext('2d'),dpr=window.devicePixelRatio||1,w=Math.max(300,canvas.clientWidth),h=Math.max(80,canvas.clientHeight);
   if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr)}

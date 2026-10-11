@@ -85,6 +85,8 @@
       nextSample: 0,
       nextFocusSample: 0,
       samples: [],
+      observations: [],
+      observationsOmitted: 0,
       markers: [],
       stall: new Map(),
       prevPhase: new Map(),
@@ -698,6 +700,56 @@
     });
     return out;
   }
+  /* Phase A3: compact observer history, separate from gameplay sample fields.
+     Read stored observations only: the recorder never triggers collection/LOS. */
+  function observationFrame(sim, t) {
+    var T = root.BattleTacticalSituation,
+      U = root.BattleUrbanOperatingPicture;
+    var ts = T && T.enabled() && sim._tacticalSituation;
+    var urban = U && U.enabled() && sim._urbanOperatingPicture;
+    if (!ts && !urban) return null;
+    var frame = { t: t };
+    ['us', 'ge'].forEach(function (f) {
+      var a = ts && ts[f],
+        b = urban && urban[f];
+      frame[f] = {
+        tactical: a
+          ? {
+              at: a.time,
+              age: Math.max(0, t - a.time),
+              posture: a.forcePosture,
+              contacts: a.contactCount,
+              contactsOmitted: a.contactsOmitted,
+              reserves: a.availableReserves,
+              sectors: Object.keys(a.threatSectors).map(function (k) {
+                var v = a.threatSectors[k];
+                return { sector: k, reports: v.reports, youngestAge: v.youngestAge };
+              })
+            }
+          : null,
+        urban: b
+          ? {
+              at: b.time,
+              age: Math.max(0, t - b.time),
+              buildings: b.buildings.length,
+              reportedBuildings: b.buildings.filter(function (c) {
+                return c.reportedThreats > 0;
+              }).length,
+              streets: b.streets.length,
+              reportedStreets: b.streets.filter(function (r) {
+                return r.reports.length > 0;
+              }).length,
+              clearProbes: b.sectorVisibility.filter(function (v) {
+                return v.clear === true;
+              }).length,
+              probes: b.sectorVisibility.length,
+              control: 'unknown'
+            }
+          : null
+      };
+    });
+    return frame;
+  }
   function sample(sim, st) {
     var oc = objectiveCounts(sim),
       t = rounded(sim.time, 2),
@@ -707,6 +759,16 @@
     ge.held = oc.held.ge;
     us.contested = ge.contested = oc.contested;
     st.samples.push({ t: t, us: us, ge: ge });
+    var observed = observationFrame(sim, t);
+    if (observed) {
+      var last = st.observations[st.observations.length - 1];
+      if (last && last.t === t) st.observations[st.observations.length - 1] = observed;
+      else st.observations.push(observed);
+      if (st.observations.length > 600) {
+        st.observations.shift();
+        st.observationsOmitted++;
+      }
+    }
   }
   function tick(sim) {
     if (!sim) return;
@@ -746,7 +808,7 @@
     var st = get(sim),
       last = st.samples[st.samples.length - 1];
     if (!last || Math.abs((+last.t || 0) - (+sim.time || 0)) > 0.51) sample(sim, st);
-    return {
+    var out = {
       format: 'grasstex-ai-timeline-v1',
       sampleSeconds: SAMPLE_SECONDS,
       build: root.BATTLE_BUILD || root.BATTLE_BUILD_DEPLOYED || 'dev',
@@ -758,6 +820,13 @@
       markers: st.markers.slice(),
       observer: focusSnapshot(st)
     };
+    if (st.observations.length)
+      out.observations = {
+        format: 'grasstex-tactical-history-v1',
+        omitted: st.observationsOmitted,
+        frames: JSON.parse(JSON.stringify(st.observations))
+      };
+    return out;
   }
   root.BattleAITimeline = {
     version: '1.2-observer',

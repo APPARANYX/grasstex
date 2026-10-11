@@ -595,6 +595,9 @@
     var st = settle(battle),
       prefix = squadKey(sq) + '|',
       out = [];
+    /* A diagnostics export can precede the first command or follow a restart.
+       Reading an empty history must not initialize command-reception state. */
+    if (!st) return out;
     Object.keys(st.current).forEach(function (k) {
       if (k.indexOf(prefix) !== 0) return;
       var e = st.current[k];

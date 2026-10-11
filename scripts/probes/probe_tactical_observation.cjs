@@ -28,10 +28,11 @@ const { chromium } = require('playwright');
     await page.waitForFunction(() => window.__battle__?.factions && window.BattleTacticalSituation, {
       timeout: 180000
     });
-    await page.waitForTimeout(5000);
+    await page.locator('#startBtn').click();
+    await page.waitForFunction(() => __battle__.time >= 6, null, { timeout: 120000 });
     const cdp = await context.newCDPSession(page);
     await page.evaluate(() => {
-      __battle__.paused = true;
+      __battle__.pause();
       for (let i = 0; i < 50; i++) {
         BattleTacticalSituation.sample(__battle__);
         if (window.BattleUrbanOperatingPicture) BattleUrbanOperatingPicture.sample(__battle__);
@@ -47,7 +48,7 @@ const { chromium } = require('playwright');
     const evidence = await page.evaluate(() => {
       const b = __battle__,
         T = BattleTacticalSituation;
-      b.paused = true;
+      b.pause();
       if (!T.enabled()) throw Error('query flag lost');
       const stable = JSON.stringify(T.compute(b, 'us')) === JSON.stringify(T.compute(b, 'us'));
       const loops = 1000,
@@ -98,10 +99,91 @@ const { chromium } = require('playwright');
       return n.selfSize + n.children.reduce((sum, c) => sum + allocated(c), 0);
     }
     evidence.sampledAllocationBytes = allocated(profile.head);
+    /* The viewer is not staged by preview.php. Serve this exact checkout HTML
+       on the pinned preview origin; its runtime/source requests use that stage. */
+    const exported = await page.evaluate(() => {
+      const start = performance.now();
+      const diagnostic = BattleDiagnosticsExport.snapshot('full', __battle__);
+      const fullMs = performance.now() - start;
+      const loops = 20,
+        compactStart = performance.now();
+      for (let i = 0; i < loops; i++) BattleDiagnosticsExport.compact(__battle__);
+      return {
+        diagnostic,
+        cost: {
+          fullMs,
+          compactMsPerExport: (performance.now() - compactStart) / loops,
+          fullSerializedBytes: JSON.stringify(diagnostic).length,
+          historyFrames: diagnostic.timeline.observations.frames.length,
+          time: __battle__.time
+        }
+      };
+    });
+    const diagnostic = exported.diagnostic;
+    evidence.diagnostics = exported.cost;
+    if (diagnostic.observations) {
+      assert.ok(diagnostic.timeline.observations.frames.length > 0, 'enabled history actually collected');
+      const flow = await context.newPage();
+      flow.on('pageerror', e => errors.push('flow: ' + String(e)));
+      const flowUrl = new URL('ai_flow_live.html', url);
+      flowUrl.searchParams.set('view', 'macro');
+      await flow.route(flowUrl.href.split('?')[0] + '*', route =>
+        route.fulfill({ body: fs.readFileSync('ai_flow_live.html', 'utf8'), contentType: 'text/html' })
+      );
+      await flow.goto(flowUrl.href, { waitUntil: 'load', timeout: 180000 });
+      await flow.waitForFunction(() => window.__flowHashes?.commander, { timeout: 180000 });
+      await flow.locator('#runtimeFileA').setInputFiles({
+        name: 'phase-a-diagnostics.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(JSON.stringify(diagnostic))
+      });
+      await flow.waitForFunction(
+        () =>
+          !document.getElementById('timelinePanel').hidden &&
+          +document.getElementById('timelineScrub').max >= 6
+      );
+      await flow.locator('#timelineScrub').evaluate(el => {
+        el.value = el.max;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await flow.waitForFunction(() => document.querySelectorAll('.tacticalCard').length === 2);
+      await flow.waitForTimeout(200);
+      const text = await flow.locator('#tacticalPictureBody').innerText();
+      assert.match(text, /A US/);
+      assert.match(text, /A GE/);
+      assert.match(text, /footprints/);
+      assert.match(text, /structure control unknown/);
+      assert.ok(
+        text.includes(diagnostic.observations.urbanOperatingPicture.us.buildings.length + ' footprints')
+      );
+      fs.mkdirSync('closeups/tactical-observation', { recursive: true });
+      await flow.screenshot({ path: 'closeups/tactical-observation/picture-desktop.png' });
+      await flow.setViewportSize({ width: 390, height: 844 });
+      await flow.screenshot({ path: 'closeups/tactical-observation/picture-mobile.png' });
+      const fits = await flow.locator('#tacticalPicturePanel').evaluate(el => {
+        const r = el.getBoundingClientRect();
+        return r.x >= 0 && r.right <= innerWidth + 1;
+      });
+      assert.equal(fits, true, 'picture fits narrow viewer');
+      const legacy = JSON.parse(JSON.stringify(diagnostic));
+      delete legacy.observations;
+      delete legacy.timeline.observations;
+      await flow.locator('#runtimeFileA').setInputFiles({
+        name: 'legacy.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(JSON.stringify(legacy))
+      });
+      await flow.waitForFunction(() =>
+        document.getElementById('tacticalPictureBody').textContent.includes('no tactical observation')
+      );
+      evidence.viewer = { imported: true, legacyCompatible: true, narrowFits: fits, text };
+      await flow.close();
+    }
     evidence.restart = await page.evaluate(() => {
       const b = __battle__,
         T = BattleTacticalSituation;
       b.restart();
+      const historyCleared = !BattleAITimeline.snapshot(b).observations;
       const U = window.BattleUrbanOperatingPicture;
       const urbanCleared = !U || U.summary(b).urbanOperatingPicture === null;
       if (U) U.sample(b);
@@ -111,6 +193,7 @@ const { chromium } = require('playwright');
       const cleared = T.summary(b).tacticalSituation === null;
       T.sample(b);
       return {
+        historyCleared,
         urbanCleared,
         urbanReports,
         cleared,
@@ -127,6 +210,7 @@ const { chromium } = require('playwright');
       assert.ok(evidence.urban.buildings > 0);
       assert.ok(evidence.urban.visibilityProbes > 0);
     }
+    assert.equal(evidence.restart.historyCleared, true);
     assert.equal(evidence.restart.urbanCleared, true);
     assert.equal(evidence.restart.urbanReports, 0);
     assert.equal(evidence.restart.cleared, true);
