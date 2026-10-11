@@ -487,7 +487,9 @@ assert.equal(gate.q._localTask.inputs.execution.structure.control, 'unknown');
 assert.equal(gate.q._localTask.inputs.execution.structure.clearance, 'not-assessed');
 const skipped = structureWorld(true, true, true);
 const skipLeader = skipped.r.SquadAI.leaderOf(skipped.q);
-skipped.q.members.forEach(s => { s.root.position.z = 196; });
+skipped.q.members.forEach(s => {
+  s.root.position.z = 196;
+});
 skipLeader.root.position.z = 200;
 skipped.P.update(skipped.b, skipped.q);
 skipped.S.executeMission(skipped.b, skipped.q, null);
@@ -511,7 +513,11 @@ staleApproach.leader.root.position.x = staleApproach.p.inside.x;
 staleApproach.leader.root.position.z = staleApproach.p.inside.z;
 staleGate.P.update(staleGate.b, staleGate.q);
 staleGate.q._macroMission.version++;
-assert.equal(staleGate.P.entrySatisfied(staleGate.b, staleGate.q, staleGate.q.route[1]), false, 'old mission evidence cannot advance new mission');
+assert.equal(
+  staleGate.P.entrySatisfied(staleGate.b, staleGate.q, staleGate.q.route[1]),
+  false,
+  'old mission evidence cannot advance new mission'
+);
 const retreatGate = structureWorld(true, true, true);
 const retreatApproach = routeApproach(retreatGate);
 retreatGate.P.update(retreatGate.b, retreatGate.q);
