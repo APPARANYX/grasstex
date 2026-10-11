@@ -302,8 +302,14 @@ const postureSource = fs.readFileSync(
   'utf8'
 );
 assert.match(postureSource, /!s\.isPlayer/, 'the last-known-threat aim posture must not aim a possessed man');
-const backendSource = fs.readFileSync(path.join(H.REPO, 'battle/modules/53-fbx-soldier-backend.js'), 'utf8');
-const animationSource = fs.readFileSync(path.join(H.REPO, 'battle/modules/52-fbx-animation-state.js'), 'utf8');
+const backendSource = fs.readFileSync(
+  path.join(H.REPO, 'battle/modules/53-fbx-soldier-backend.js'),
+  'utf8'
+);
+const animationSource = fs.readFileSync(
+  path.join(H.REPO, 'battle/modules/52-fbx-animation-state.js'),
+  'utf8'
+);
 assert.match(
   animationSource,
   /playerAt = \(soldier\.isPlayer && soldier\.playerAimPoint\) \|\| null/,
