@@ -365,8 +365,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     await page.screenshot({ path: path.join(OUT, 'death-killer.png') });
     await page.waitForFunction(
       () => {
-        const man = b._roster.us.concat(b._roster.ge).find(s => s.isPlayer);
-        window.__qaDeathVictim = man;
+        const man = __battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer);
         return (
           man &&
           !man.dead &&
@@ -415,7 +414,17 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     assert.equal(await page.locator('#bpmApply').isEnabled(), true, 'requires living German squad');
     await page.locator('#bpmSquad').selectOption('0');
     await page.locator('#bpmSoldier').selectOption('0');
-    await page.locator('#bpmApply').click();
+    const manualFlightStart = await page.locator('#bpmApply').evaluate(button => {
+      const scene = __battle__.scene,
+        before = scene.activeCamera.position.clone();
+      button.click();
+      return {
+        delta: BABYLON.Vector3.Distance(before, scene.activeCamera.position),
+        camera: scene.activeCamera.name
+      };
+    });
+    assert.ok(manualFlightStart.delta < 1e-8, 'manual possession must begin at the current camera pose');
+    assert.equal(manualFlightStart.camera, 'playerCam');
     await page.waitForFunction(
       () => {
         const b = __battle__;

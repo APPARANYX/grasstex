@@ -410,6 +410,7 @@
       playerBattle = null,
       playerCam = null,
       deathSequence = null,
+      possessionFlight = null,
       deathSkip = null,
       playerYaw = 0,
       playerPitch = 0,
@@ -1241,8 +1242,26 @@
       /* A shoulder camera is allowed to rise over a slope, never tunnel into it. */
       var ground = battleSim && battleSim.heightAt ? battleSim.heightAt(cam.position.x, cam.position.z) : p.y;
       if (isFinite(+ground)) cam.position.y = Math.max(cam.position.y, +ground + PLAYER_CAMERA_CLEARANCE);
-      cam.setTarget(cam.position.add(dir.scale(50)));
-      cam.fov = aiming ? 0.58 : 0.78;
+      var target = cam.position.add(dir.scale(50)),
+        fov = aiming ? 0.58 : 0.78;
+      if (possessionFlight) {
+        var flight = possessionFlight;
+        flight.elapsed += Math.max(0, engine.getDeltaTime() / 1000);
+        var t = clamp(flight.elapsed / flight.duration, 0, 1),
+          ease = t * t * (3 - 2 * t),
+          destination = cam.position.clone();
+        cam.position.copyFrom(BABYLON.Vector3.Lerp(flight.from, destination, ease));
+        cam.position.y += Math.sin(Math.PI * ease) * flight.lift;
+        var flyGround =
+          battleSim && battleSim.heightAt ? battleSim.heightAt(cam.position.x, cam.position.z) : p.y;
+        if (isFinite(+flyGround))
+          cam.position.y = Math.max(cam.position.y, +flyGround + PLAYER_CAMERA_CLEARANCE);
+        target = BABYLON.Vector3.Lerp(flight.lookFrom, target, ease);
+        fov = flight.fovFrom + (fov - flight.fovFrom) * ease;
+        if (t >= 1) possessionFlight = null;
+      }
+      cam.setTarget(target);
+      cam.fov = fov;
     }
     function aimPoint() {
       if (!playerCam) return null;
@@ -1285,6 +1304,7 @@
     }
     function leavePlayer(reason) {
       deathSequence = null;
+      possessionFlight = null;
       if (deathSkip) deathSkip.style.display = 'none';
       if (!player) return;
       if (menuOpen) closePlayerMenu();
@@ -1318,7 +1338,12 @@
       var b = liveBattle();
       /* This is a possession transfer, never a spawn. */
       if (!playerSoldierEligible(b, next)) return false;
+      var sourceCam = scene.activeCamera || camera,
+        flightFrom = sourceCam.position.clone(),
+        flightLook = sourceCam.getTarget().clone(),
+        flightFov = sourceCam.fov;
       deathSequence = null;
+      possessionFlight = null;
       if (deathSkip) deathSkip.style.display = 'none';
       mouseFire = false;
       mouseAim = false;
@@ -1341,6 +1366,20 @@
       playerHud.style.display = 'block';
       scene.activeCamera = ensurePlayerCamera();
       positionPlayerCamera(false);
+      var distance = BABYLON.Vector3.Distance(flightFrom, playerCam.position);
+      if (distance > 0.05) {
+        possessionFlight = {
+          from: flightFrom,
+          lookFrom: flightLook,
+          fovFrom: flightFov,
+          elapsed: 0,
+          duration: clamp(0.7 + distance / 90, 0.7, 2.4),
+          lift: distance > 12 ? Math.min(8, distance * 0.08) : 0
+        };
+        playerCam.position.copyFrom(flightFrom);
+        playerCam.setTarget(flightLook);
+        playerCam.fov = flightFov;
+      }
       updateHint(activeGamepad());
       global.GTLog('[PLAYER] controlling ' + playerLabel() + ' · faction locked ' + playerFaction);
       return true;
@@ -1429,6 +1468,7 @@
       }
       if (!killer || !killer.root || killer === player || killer.faction === player.faction) killer = null;
       clearPlayerLease(player, b);
+      possessionFlight = null;
       mouseAim = false;
       mouseFire = false;
       keys.clear();
@@ -1521,6 +1561,10 @@
       }
       if (player.dead) {
         stepDeathSequence(b, Math.max(0, engine.getDeltaTime() / 1000));
+        return;
+      }
+      if (possessionFlight) {
+        positionPlayerCamera(false);
         return;
       }
       var axes = (pad && pad.axes) || [],
