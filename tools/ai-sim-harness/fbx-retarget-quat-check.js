@@ -12,6 +12,7 @@ const helperName = '52-fbx-retarget-quat.js';
 const backendName = '53-fbx-soldier-backend.js';
 const helperText = fs.readFileSync(path.join(modules, helperName), 'utf8');
 const backendText = fs.readFileSync(path.join(modules, backendName), 'utf8');
+const modelText = fs.readFileSync(path.join(modules, '52-fbx-model-retarget.js'), 'utf8');
 assert.ok(helperName < backendName, 'PHP lexical loader must install the retarget kernel first');
 assert.match(backendText, /!root\.BattleFbxRetargetQuat\s*\|\|/);
 const restText = fs.readFileSync(path.join(modules, '52-fbx-retarget-rest.js'), 'utf8');
@@ -21,13 +22,13 @@ assert.match(
   'rest planner must use the same tested Hamilton kernel'
 );
 assert.match(
-  backendText,
+  modelText,
   /RETARGET_REST\.quatCalibration/,
-  'backend must consume the calibration computed with Hamilton'
+  'model owner must consume the calibration computed with Hamilton'
 );
-assert.match(backendText, /retargetRotations = RETARGET_QUAT\.retargetRotations/);
-assert.match(backendText, /if \(FAST_RETARGET\)/, 'keep the existing matrix-versus-fast switch');
-assert.match(backendText, /retargetRotations\(frames, n, order, parent, K, rS, rT, srcRot, dstRot\)/);
+assert.match(modelText, /retargetRotations = RETARGET_QUAT\.retargetRotations/);
+assert.match(modelText, /if \(FAST_RETARGET\)/, 'keep the existing matrix-versus-fast switch');
+assert.match(modelText, /retargetRotations\(frames, n, order, parent, K, rS, rT, srcRot, dstRot\)/);
 assert.doesNotMatch(backendText, /function retargetRotations\(/, 'kernel body duplicated in backend');
 
 const ctx = { window: {} };
