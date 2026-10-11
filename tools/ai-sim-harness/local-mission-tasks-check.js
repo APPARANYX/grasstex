@@ -334,9 +334,10 @@ assert.equal(approach.control, 'unknown');
 assert.equal(approach.clearance, 'not-assessed');
 assert.equal(approach.navigationVersion, nav.version);
 assert.equal(identity(structure), frozenStructure, 'handoff has no destination, fire or stance writer');
+const firstHandoff = JSON.stringify(structure.q._localTask);
 assert.equal(
   JSON.stringify(structure.P.update(structure.b, structure.q)),
-  JSON.stringify(structure.q._localTask),
+  firstHandoff,
   'same-time structure evidence is deterministic'
 );
 // The observation is physical presence, not fictional capture/clearance.
