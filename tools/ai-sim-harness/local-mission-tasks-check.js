@@ -326,26 +326,7 @@ const nav = structure.r.BattleNavigation;
 assert.equal(nav.doorPortals.length, 1, 'shipping Navigation supplies the actual door connector');
 assert.equal(structure.P.structuresOn, true);
 const frozenStructure = identity(structure);
-const handoff = structure.P.update(structure.b, structure.q);
-const port = nav.doorPortals[0];
-assert.equal(
-  handoff.kind,
-  'structure-handoff',
-  JSON.stringify({
-    on: structure.P.structuresOn,
-    mission: structure.q._macroMission.status,
-    leg: structure.q.routeIndex,
-    target: structure.q.route[structure.q.routeIndex],
-    navSame: nav.scenario === structure.scenario,
-    door: port,
-    leaderId: structure.q.leaderId,
-    leader: structure.r.SquadAI.leaderOf(structure.q)?.root.position,
-    a: nav.movementClear(structure.r.SquadAI.leaderOf(structure.q).root.position, port.outside),
-    b: nav.movementClear(port.outside, port.inside),
-    c: nav.movementClear(port.inside, { x: 0, z: 200 }),
-    exec: structure.P.execution(structure.b, structure.q)
-  })
-);
+assert.equal(structure.P.update(structure.b, structure.q).kind, 'structure-handoff');
 const approach = structure.q._localTask.inputs.execution.structure;
 assert.equal(approach.buildingId, 'farmhouse');
 assert.equal(approach.doorwayId, 'farm-door');
