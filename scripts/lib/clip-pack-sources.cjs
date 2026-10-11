@@ -69,9 +69,11 @@ function expected(root = ROOT) {
   for (const file of [...new Set(Object.values(clips).map(spec => spec[0]))].sort()) {
     sources[file] = sha256(fs.readFileSync(path.join(root, 'Assets/animations', `${file}.fbx`)));
   }
-  /* R3: rig naming (#470) and sourceRig/convertClip (#482) now have separate owners.
-     Preserve the original function/declarator hashing order; wrappers stay un-hashed. */
-  const converterOwners = [RIG_CANON, CLIP_CONVERTER, BACKEND].map(file =>
+  /* R3: rig naming (#470) and sourceRig/convertClip (#482) have separate owners.
+     The backend comes before the converter in this concatenation so the original
+     `FPS = 30` declarator is hashed, not the converter factory's `FPS = deps.FPS`.
+     The fixed function list still resolves to each actual owner; wrappers are un-hashed. */
+  const converterOwners = [RIG_CANON, BACKEND, CLIP_CONVERTER].map(file =>
     fs.readFileSync(path.join(root, file), 'utf8')
   );
   const converter = sha256(converterText(converterOwners.join('\n')));
