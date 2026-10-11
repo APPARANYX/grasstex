@@ -438,10 +438,7 @@
         (locked ? ' · PLAYER LOCKED' : '');
   }
   function isEditable(target) {
-    return !!(
-      target &&
-      (/^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName || '') || target.isContentEditable)
-    );
+    return !!(target && (/^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName || '') || target.isContentEditable));
   }
   /* M toggles the map without granting any enemy knowledge. Escape dismisses it.
      Capture before the desktop camera's bubble listener so player/flight controls
@@ -450,8 +447,14 @@
   function mapKeyDown(event) {
     if (!event) return;
     var key = String(event.key || '').toLowerCase();
-    if (key === 'm' && !event.repeat && !event.altKey && !event.ctrlKey && !event.metaKey &&
-        !isEditable(event.target)) {
+    if (
+      key === 'm' &&
+      !event.repeat &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !isEditable(event.target)
+    ) {
       setOpen(!opened);
       if (event.preventDefault) event.preventDefault();
       if (event.stopImmediatePropagation) event.stopImmediatePropagation();
@@ -478,8 +481,9 @@
     /* The pointer must leave FPS mouse capture so the map can be interacted with.
        Restore it only if this map released it, and only when play resumes. */
     if (typeof document !== 'undefined' && opened) {
-      previouslyLockedCanvas =
-        !!(document.pointerLockElement && document.pointerLockElement.id === 'renderCanvas');
+      previouslyLockedCanvas = !!(
+        document.pointerLockElement && document.pointerLockElement.id === 'renderCanvas'
+      );
       if (previouslyLockedCanvas && document.exitPointerLock) document.exitPointerLock();
     } else if (typeof document !== 'undefined' && previouslyLockedCanvas) {
       previouslyLockedCanvas = false;
@@ -631,7 +635,9 @@
     playerSide: playerSide,
     snapshot: snapshot,
     setOpen: setOpen,
-    isOpen: function () { return opened; },
+    isOpen: function () {
+      return opened;
+    },
     mapKeyDown: mapKeyDown,
     render: render,
     dispose: dispose,

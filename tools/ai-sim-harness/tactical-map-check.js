@@ -60,7 +60,7 @@ let system = null,
 const keyListeners = [];
 const cameraSource = fs.readFileSync(path.join(__dirname, '../../battle/camera-controls.js'), 'utf8');
 assert(
-  cameraSource.includes("padPressedOnce(pad, 15)") &&
+  cameraSource.includes('padPressedOnce(pad, 15)') &&
     cameraSource.includes('tacticalMap.isOpen()') &&
     cameraSource.includes('tacticalMap.setOpen(!tacticalMap.isOpen())'),
   'gamepad D-pad right toggles the map and stops FPS input while open'
@@ -216,8 +216,12 @@ function press(key, options = {}) {
     target: { tagName: 'CANVAS' },
     prevented: false,
     stopped: false,
-    preventDefault() { this.prevented = true; },
-    stopImmediatePropagation() { this.stopped = true; },
+    preventDefault() {
+      this.prevented = true;
+    },
+    stopImmediatePropagation() {
+      this.stopped = true;
+    },
     ...options
   };
   keyListeners[0](input);
