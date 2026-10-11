@@ -36,6 +36,14 @@
       RECON_LEDGER_ON = ctx.RECON_LEDGER_ON !== false,
       ROUTE_TRANSITION_ON = ctx.ROUTE_TRANSITION_ON !== false,
       URBAN_ARRIVAL_COHESION = ctx.URBAN_ARRIVAL_COHESION;
+    function entryGate(sim, sq, target) {
+      var local = ctx.localPlan && ctx.localPlan();
+      return !!(local && local.entryRequired && local.entryRequired(sim, sq, target));
+    }
+    function entryAccepted(sim, sq, target) {
+      var local = ctx.localPlan && ctx.localPlan();
+      return !!(local && local.entrySatisfied && local.entrySatisfied(sim, sq, target));
+    }
     function inTown(town, p) {
       return !!(town && town.center && p && dist(p, town.center) < (+town.radius || 250));
     }
@@ -91,7 +99,12 @@
           d.lastProgressAt = t;
           l.until = t + d.noProgressBudget;
         }
-        if (!why && d.distance < d.arrivalRadius) why = 'arrived';
+        if (
+          !why &&
+          d.distance < d.arrivalRadius &&
+          (!entryGate(sim, sq, d.target) || entryAccepted(sim, sq, d.target))
+        )
+          why = 'arrived';
       }
       if (!why && expired) why = 'stalled';
       d.pausedBy = sq._missionHold || null;
@@ -267,7 +280,7 @@
         limit = +(leaderAlive(sq) ? c.cohesionRadius : c.captainlessCohesion) || 34,
         urban = inTown(town, wp);
       var arrival = routeArrival(idx, axisEnd, town, wp, c, limit);
-      if (idx < last && dist(pos, wp) < arrival) {
+      if (idx < last && dist(pos, wp) < arrival && (!entryGate(sim, sq, wp) || entryAccepted(sim, sq, wp))) {
         var from = idx;
         sq.routeIndex = idx = idx + 1;
         wp = legs[idx];
