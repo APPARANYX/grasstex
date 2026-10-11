@@ -78,6 +78,8 @@ The existing timeline reads stored observations only, in an optional `observatio
 with simulation timestamps, explicit observation age and a 600-frame cap/omission count.
 Default battles have no automatic observation history. `ai_flow_live.html` renders imported
 pictures by faction and time and continues to accept older records without that section.
+Compact timeline JSONL preserves the picture as optional `tactical-snapshot`,
+`tactical-history` and `tactical-frame` rows; existing sample/marker rows retain their schema.
 
 ## Reference-to-AI ownership map
 
