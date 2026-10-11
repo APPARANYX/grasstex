@@ -58,4 +58,50 @@ b.time = 40;
 us.contact = c;
 assert.equal(T.compute(b, 'us').contactCount, 0);
 assert.strictEqual(us.contact, c, 'expired report is ignored without clearing gameplay state');
+
+b.time = 10;
+us.members[0]._beliefs = {
+  byKey: {
+    reported: {
+      x: 20,
+      z: 40,
+      observedAt: 8,
+      expiresAt: 20,
+      baseConfidence: 0.6,
+      source: 'told',
+      targetId: 'reported-target',
+      combatThreat: true
+    }
+  }
+};
+const belief = T.compute(b, 'us').contacts[0];
+assert.equal(belief.source, 'told');
+assert.equal(belief.provenance, 'member-belief');
+assert.equal(belief.targetId, 'reported-target');
+assert.equal(belief.sourceSoldier, us.members[0].id);
+assert.ok(belief.confidence > 0 && belief.confidence < 0.6);
+function stateJSON(value) {
+  const seen = new WeakSet();
+  return JSON.stringify(value, (key, v) => {
+    if (v && typeof v === 'object') {
+      if (seen.has(v)) return '[cycle]';
+      seen.add(v);
+    }
+    return v;
+  });
+}
+const owned = stateJSON(us);
+T.compute(b, 'us');
+assert.equal(stateJSON(us), owned, 'observer leaves all own squad/soldier state unchanged');
+b._objectives = [{ id: 'public-zone', def: { x: 20, z: 40, radius: 30 } }];
+b.objectiveControl = { sectors: { 'public-zone': { owner: 'neutral', us: 3, ge: 99, contested: true } } };
+const pressure = T.compute(b, 'us').objectivePressure;
+assert.equal(pressure[0].reportedThreats, 1);
+b.objectiveControl.sectors['public-zone'].ge = 0;
+assert.deepEqual(
+  T.compute(b, 'us').objectivePressure,
+  pressure,
+  'hidden capture-zone weights do not become intelligence'
+);
+
 console.log('PASS TacticalSituation stable read-only reports, faction isolation, cadence and restart');
