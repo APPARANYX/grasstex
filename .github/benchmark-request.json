@@ -1,0 +1,1 @@
+{"benchmark":"standard","ref":"work/tactics-b3-lease-precedence","seed":"phase-a-control","seeds":2,"battle_type":"us-defend","query_off":"leaseConflicts=0","query_on":"leaseConflicts=1","origin_agent":"codex","purpose":"B3 gated ownership conflict OFF/ON controls, causal cleanup proven in focused tests and Chromium; quality variance diagnostic"}
