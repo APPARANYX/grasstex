@@ -409,6 +409,9 @@
       player = null,
       playerBattle = null,
       playerCam = null,
+      deathSequence = null,
+      possessionFlight = null,
+      deathSkip = null,
       playerYaw = 0,
       playerPitch = 0,
       mouseAim = false,
@@ -865,7 +868,7 @@
       );
     }
     function updatePlayerFeedback(pad) {
-      if (!player || !playerHud) return;
+      if (!player || !playerHud || deathSequence) return;
       var wounds = (player.wounds && player.wounds.length) || 0;
       if (wounds > lastWoundCount) {
         damageAt = Date.now();
@@ -1239,8 +1242,26 @@
       /* A shoulder camera is allowed to rise over a slope, never tunnel into it. */
       var ground = battleSim && battleSim.heightAt ? battleSim.heightAt(cam.position.x, cam.position.z) : p.y;
       if (isFinite(+ground)) cam.position.y = Math.max(cam.position.y, +ground + PLAYER_CAMERA_CLEARANCE);
-      cam.setTarget(cam.position.add(dir.scale(50)));
-      cam.fov = aiming ? 0.58 : 0.78;
+      var target = cam.position.add(dir.scale(50)),
+        fov = aiming ? 0.58 : 0.78;
+      if (possessionFlight) {
+        var flight = possessionFlight;
+        flight.elapsed += Math.max(0, engine.getDeltaTime() / 1000);
+        var t = clamp(flight.elapsed / flight.duration, 0, 1),
+          ease = t * t * (3 - 2 * t),
+          destination = cam.position.clone();
+        cam.position.copyFrom(BABYLON.Vector3.Lerp(flight.from, destination, ease));
+        cam.position.y += Math.sin(Math.PI * ease) * flight.lift;
+        var flyGround =
+          battleSim && battleSim.heightAt ? battleSim.heightAt(cam.position.x, cam.position.z) : p.y;
+        if (isFinite(+flyGround))
+          cam.position.y = Math.max(cam.position.y, +flyGround + PLAYER_CAMERA_CLEARANCE);
+        target = BABYLON.Vector3.Lerp(flight.lookFrom, target, ease);
+        fov = flight.fovFrom + (fov - flight.fovFrom) * ease;
+        if (t >= 1) possessionFlight = null;
+      }
+      cam.setTarget(target);
+      cam.fov = fov;
     }
     function aimPoint() {
       if (!playerCam) return null;
@@ -1282,6 +1303,9 @@
       if (playerHud) playerHud.style.display = 'none';
     }
     function leavePlayer(reason) {
+      deathSequence = null;
+      possessionFlight = null;
+      if (deathSkip) deathSkip.style.display = 'none';
       if (!player) return;
       if (menuOpen) closePlayerMenu();
       var b = playerBattle || liveBattle(),
@@ -1314,6 +1338,17 @@
       var b = liveBattle();
       /* This is a possession transfer, never a spawn. */
       if (!playerSoldierEligible(b, next)) return false;
+      var restoreLock = deathSequence && deathSequence.restoreLock,
+        sourceCam = scene.activeCamera || camera,
+        flightFrom = sourceCam.position.clone(),
+        flightLook = sourceCam.getTarget().clone(),
+        flightFov = sourceCam.fov;
+      deathSequence = null;
+      possessionFlight = null;
+      if (deathSkip) deathSkip.style.display = 'none';
+      mouseFire = false;
+      mouseAim = false;
+      keys.clear();
       if (player) clearPlayerLease(player, playerBattle || b);
       player = next;
       playerBattle = b;
@@ -1332,12 +1367,39 @@
       playerHud.style.display = 'block';
       scene.activeCamera = ensurePlayerCamera();
       positionPlayerCamera(false);
+      var distance = BABYLON.Vector3.Distance(flightFrom, playerCam.position);
+      if (distance > 0.05) {
+        possessionFlight = {
+          from: flightFrom,
+          lookFrom: flightLook,
+          fovFrom: flightFov,
+          elapsed: 0,
+          duration: clamp(0.7 + distance / 90, 0.7, 2.4),
+          lift: distance > 12 ? Math.min(8, distance * 0.08) : 0
+        };
+        playerCam.position.copyFrom(flightFrom);
+        playerCam.setTarget(flightLook);
+        playerCam.fov = flightFov;
+      }
+      if (restoreLock && document.pointerLockElement !== canvas && canvas.requestPointerLock) {
+        try {
+          var lockRequest = canvas.requestPointerLock();
+          if (lockRequest && lockRequest.catch) lockRequest.catch(function () {});
+        } catch (_) {}
+      }
       updateHint(activeGamepad());
       global.GTLog('[PLAYER] controlling ' + playerLabel() + ' · faction locked ' + playerFaction);
       return true;
     }
     function setPlayerStance(b, stance) {
-      if (!player || !global.BattleEngagement || !global.BattleEngagement.commitStance) return;
+      if (
+        !player ||
+        player.dead ||
+        deathSequence ||
+        !global.BattleEngagement ||
+        !global.BattleEngagement.commitStance
+      )
+        return;
       global.BattleEngagement.commitStance(player, b, stance, 0.45, 'player');
     }
     function playerStance() {
@@ -1367,6 +1429,143 @@
       var st = playerStance();
       setPlayerStance(b, st === 'prone' || st === 'crawl' ? 'stand' : 'prone');
     }
+    /* Render-only death tour. No simulation clock, RNG, killer or destination ownership
+       is changed; the destination remains AI-controlled until the camera arrives. */
+    function deathSubject(man, height) {
+      return man.root.position.add(new BABYLON.Vector3(0, height, 0));
+    }
+    function deathStage(phase, subject) {
+      var cam = ensurePlayerCamera();
+      deathSequence.phase = phase;
+      deathSequence.subject = subject;
+      deathSequence.elapsed = 0;
+      deathSequence.from = cam.position.clone();
+      deathSequence.lookFrom = cam.getTarget().clone();
+      deathSequence.fovFrom = cam.fov;
+    }
+    function skipDeathSequence() {
+      if (!deathSequence) return;
+      if (playerBattle !== liveBattle()) {
+        leavePlayer('battle restarted');
+        return;
+      }
+      if (!possessRandom()) leavePlayer('no living ' + playerFaction + ' soldiers');
+    }
+    function showDeathSkip() {
+      if (!deathSkip) {
+        deathSkip = document.createElement('button');
+        deathSkip.id = 'battleDeathSkip';
+        deathSkip.type = 'button';
+        deathSkip.textContent = 'Skip · Space / Enter / controller A';
+        deathSkip.style.cssText =
+          'position:fixed;bottom:12%;left:50%;transform:translateX(-50%);z-index:22;padding:12px 20px;border:1px solid #aaa;border-radius:5px;background:#171b21e6;color:white;font:16px sans-serif;cursor:pointer';
+        listen(deathSkip, 'click', skipDeathSequence);
+        document.body.appendChild(deathSkip);
+      }
+      deathSkip.style.display = 'block';
+    }
+    function beginDeathSequence(b) {
+      var cam = ensurePlayerCamera(),
+        killer = player._lastHitBy;
+      // Casualty attribution is authoritative, including bleed-out and grenades.
+      if (player.casualty && player.casualty.by != null) {
+        killer = (b._roster.us || []).concat(b._roster.ge || []).find(function (man) {
+          return man.id === player.casualty.by;
+        });
+      }
+      if (!killer || !killer.root || killer === player || killer.faction === player.faction) killer = null;
+      clearPlayerLease(player, b);
+      possessionFlight = null;
+      mouseAim = false;
+      mouseFire = false;
+      keys.clear();
+      clearGrenadeReady();
+      hidePlayerPresentation();
+      deathSequence = {
+        killer: killer,
+        angle: playerYaw + Math.PI,
+        restoreLock: document.pointerLockElement === canvas
+      };
+      // A locked pointer routes clicks to the canvas, making the visible Skip
+      // button unreachable. Release it for the tour and restore it on handoff.
+      if (deathSequence.restoreLock && document.exitPointerLock) document.exitPointerLock();
+      scene.activeCamera = cam;
+      deathStage('body', player);
+      showDeathSkip();
+    }
+    function stepDeathSequence(b, dt) {
+      var tour = deathSequence,
+        cam = ensurePlayerCamera();
+      if (!tour) beginDeathSequence(b);
+      tour = deathSequence;
+      tour.elapsed += dt;
+      var man = tour.subject;
+      if (tour.phase === 'next' && !playerSoldierEligible(b, man)) {
+        man = pickPlayerSoldier(player);
+        if (!man) {
+          leavePlayer('no living ' + playerFaction + ' soldiers');
+          return;
+        }
+        deathStage('next', man);
+      }
+      if (!man.root || (man.root.isDisposed && man.root.isDisposed())) {
+        if (tour.phase === 'body') deathStage('next', pickPlayerSoldier(player));
+        else if (tour.phase === 'killer') deathStage('next', pickPlayerSoldier(player));
+        if (!tour.subject) {
+          leavePlayer('no living ' + playerFaction + ' soldiers');
+          return;
+        }
+        man = tour.subject;
+      }
+      var duration = tour.phase === 'body' ? 3.2 : tour.phase === 'killer' ? 2.2 : 2,
+        t = clamp(tour.elapsed / duration, 0, 1),
+        ease = t * t * (3 - 2 * t),
+        look = deathSubject(man, tour.phase === 'body' || man.dead ? 0.45 : 1.2),
+        angle = tour.phase === 'body' ? tour.angle + t * 1.15 : (+man.root.rotation.y || 0) + Math.PI,
+        dest = look.add(new BABYLON.Vector3(Math.sin(angle) * 4.2, 2.1, Math.cos(angle) * 4.2));
+      if (tour.phase === 'next') {
+        var heading = +man.root.rotation.y || 0,
+          flat = new BABYLON.Vector3(Math.sin(heading), 0, Math.cos(heading)),
+          right = new BABYLON.Vector3(Math.cos(heading), 0, -Math.sin(heading));
+        dest = man.root.position.add(flat.scale(-PLAYER_DISTANCE)).add(right.scale(0.72));
+        dest.y += man.prone ? 0.86 : man.crouching ? 1.25 : 1.62;
+        look = dest.add(flat.scale(50));
+      }
+      // Reach the killer early enough to hold a clear close-up before the next flight.
+      if (tour.phase === 'killer') {
+        var travel = clamp(tour.elapsed / 1.4, 0, 1);
+        ease = travel * travel * (3 - 2 * travel);
+      }
+      cam.position.copyFrom(BABYLON.Vector3.Lerp(tour.from, dest, ease));
+      if (tour.phase !== 'body') cam.position.y += Math.sin(Math.PI * ease) * 6;
+      var ground = b.heightAt ? b.heightAt(cam.position.x, cam.position.z) : cam.position.y - 1;
+      if (isFinite(+ground)) cam.position.y = Math.max(cam.position.y, +ground + PLAYER_CAMERA_CLEARANCE);
+      cam.setTarget(BABYLON.Vector3.Lerp(tour.lookFrom, look, ease));
+      cam.fov = tour.fovFrom + ((tour.phase === 'killer' ? 0.62 : 0.78) - tour.fovFrom) * ease;
+      if (t < 1) return;
+      // A long death clip may outlast the minimum orbit. Observe its presentation
+      // clock without advancing it; paused/finished battles must not strand the tour.
+      var entries = man._fbx && man._fbx.lower && man._fbx.lower.entries,
+        deathClip = entries && entries[entries.length - 1];
+      if (
+        tour.phase === 'body' &&
+        !b.paused &&
+        !b.winner &&
+        man._fbx &&
+        man._fbx.death &&
+        deathClip &&
+        deathClip.t < deathClip.clip.duration
+      )
+        return;
+      if (tour.phase === 'next') {
+        if (!possessSoldier(man)) leavePlayer('no living ' + playerFaction + ' soldiers');
+      } else if (tour.phase === 'body' && tour.killer) deathStage('killer', tour.killer);
+      else {
+        var next = pickPlayerSoldier(player);
+        if (next) deathStage('next', next);
+        else leavePlayer('no living ' + playerFaction + ' soldiers');
+      }
+    }
     function stepPlayer(pad, dt) {
       var b = liveBattle();
       if (!b || !player) return;
@@ -1375,7 +1574,11 @@
         return;
       }
       if (player.dead) {
-        if (!possessRandom()) leavePlayer('no living ' + playerFaction + ' soldiers');
+        stepDeathSequence(b, Math.max(0, engine.getDeltaTime() / 1000));
+        return;
+      }
+      if (possessionFlight) {
+        positionPlayerCamera(false);
         return;
       }
       var axes = (pad && pad.axes) || [],
@@ -1462,7 +1665,7 @@
         }
       });
       listen(document, 'mousemove', function (event) {
-        if (!active) return;
+        if (!active || deathSequence) return;
         if (player) {
           var aimingNow = mouseAim || buttonValue(activeGamepad(), 6) > 0.35,
             sensitivity = aimingNow ? PLAYER_ADS_SENSITIVITY : 1;
@@ -1477,7 +1680,7 @@
         camera.rotation.x = pitch;
       });
       listen(canvas, 'mousedown', function (event) {
-        if (!player) return;
+        if (!player || player.dead || deathSequence) return;
         if (event.button === 0) mouseFire = true;
         else if (event.button === 2) mouseAim = true;
         else return;
@@ -1513,6 +1716,11 @@
             /* Other keys remain in native fields. No movement or fire leaks into the modal. */
             return;
           }
+          if (deathSequence && (key === ' ' || key === 'enter')) {
+            if (!event.repeat) skipDeathSequence();
+            event.preventDefault();
+            return;
+          }
           if (editableTarget(event.target)) return;
           if (key === 'p') {
             if (!event.repeat) {
@@ -1526,6 +1734,7 @@
             event.preventDefault();
             return;
           }
+          if (player && player.dead && key !== 'v') return;
           if (player) {
             var b = liveBattle();
             if (key === 'g' && grenadesOn()) {
@@ -1706,6 +1915,11 @@
         if (pad) refreshPadButtons(pad);
         return;
       }
+      if (deathSequence && pad && padPressedOnce(pad, 0)) {
+        skipDeathSequence();
+        refreshPadButtons(pad);
+        return;
+      }
       if (pad && player && padPressedOnce(pad, 8)) {
         leavePlayer('View button');
         refreshPadButtons(pad);
@@ -1748,6 +1962,7 @@
          soldier or the battle sim. Only remove nodes this controller created. */
       [
         settingsMenu,
+        deathSkip,
         reticle,
         playerBoreDot,
         playerHud,

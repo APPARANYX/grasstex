@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-/* Audit #456 R2: protect the original input event registration order and
+/* Audit #456 R2: protect the input event registration order and
    free-fly/player frame ordering when splitting the desktop camera controller. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -43,14 +43,14 @@ const orchestration = normalized(
 );
 assert.equal(
   fingerprint(events),
-  '82cf8496',
-  'the original event/handler bodies or listener ordering changed'
+  '73ac680a',
+  'event/handler bodies or listener ordering changed since the death-tour input baseline'
 );
 assert.equal(fingerprint(freefly), '5cb26236', 'the original free-fly movement, speed or geometry changed');
 assert.equal(
   fingerprint(orchestration),
-  '8a4da01a',
-  'the original menu/player frame/gesture ordering changed'
+  'a5a33693',
+  'menu/player frame/gesture ordering changed since controller-A death skip was added'
 );
 assert.match(src, /menuHoldState\.long = false;/, 'disconnect clears the held Menu gesture');
 assert.match(src, /menuHoldState\.since = 0;/, 'disconnect resets Menu hold duration');
