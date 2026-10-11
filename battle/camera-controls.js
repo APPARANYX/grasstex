@@ -347,6 +347,20 @@
       })
     );
   }
+  /* A restart can replace the entire roster on the SAME BattleSim object.
+     Death tours intentionally retain a dead man in the roster until handoff;
+     identity membership, not !dead, is the ownership test. */
+  function playerRosterMember(b, man) {
+    return !!(
+      b &&
+      b._roster &&
+      man &&
+      man.root &&
+      !(man.root.isDisposed && man.root.isDisposed()) &&
+      b._roster[man.faction] &&
+      b._roster[man.faction].indexOf(man) >= 0
+    );
+  }
   function menuSoldierEligible(b, faction, sq, soldier) {
     return !!(
       b &&
@@ -1876,6 +1890,11 @@
     function stepDesktopFrame() {
       var dt = Math.min(0.05, engine.getDeltaTime() / 1000),
         pad = activeGamepad();
+      /* Restarts reuse the sim object but replace every soldier/root. Check
+         identity BEFORE menu/gamepad handling, so paused menus, death tours and
+         possession flights all release stale authority on the first frame. */
+      if (player && (playerBattle !== liveBattle() || !playerRosterMember(liveBattle(), player)))
+        leavePlayer('battle roster replaced');
       if (pad && pad.id !== padId) {
         padId = pad.id;
         padButtons = {};
