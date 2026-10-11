@@ -33,8 +33,22 @@ const deps = {
   Q: class Quat {},
   TAGS: tags,
   THROW_RELEASE: { throw: 0.5, throwCrouch: 0.4, throwProne: 0.6 },
-  REACTION_ANIM: { fade: 0.2, holds: ['reactionFreezeStanding'], dropSide: 0, dropBack: 0, dropLift: 0, dropYaw: 0 },
-  DEATH_POOLS: { side: ['deathSide'], prone: ['deathSide'], crouch: ['deathSide'], running: ['deathSide'], front: ['deathSide'], back: ['deathSide'] },
+  REACTION_ANIM: {
+    fade: 0.2,
+    holds: ['reactionFreezeStanding'],
+    dropSide: 0,
+    dropBack: 0,
+    dropLift: 0,
+    dropYaw: 0
+  },
+  DEATH_POOLS: {
+    side: ['deathSide'],
+    prone: ['deathSide'],
+    crouch: ['deathSide'],
+    running: ['deathSide'],
+    front: ['deathSide'],
+    back: ['deathSide']
+  },
   IDLE_VARIANTS: ['idle'],
   FLINCH_RATE: 1.3,
   setClip: (layer, clip, rate, fade, restart, phase) => {
@@ -49,14 +63,35 @@ assert.equal(typeof owner.update, 'function');
 assert.equal(typeof owner.advance, 'function');
 assert.equal(owner.update({ _fbx: null }, {}, 0.1), false, 'unbound soldier has no animation updates');
 const fx = {
-  lib: { clips: { throw: { duration: 1 }, throwCrouch: { duration: 1 }, throwProne: { duration: 1 }, deathSide: { duration: 1 } } },
-  fireShot: 0, hitShot: 0, reloadShot: 0, lower: {}, upper: {},
-  overlay: 0, overlayTarget: 1, aim: 0, aimWanted: true,
-  vx: 0, vz: 0, lastX: null, lastZ: null, stance: 'stand', moving: false
+  lib: {
+    clips: {
+      throw: { duration: 1 },
+      throwCrouch: { duration: 1 },
+      throwProne: { duration: 1 },
+      deathSide: { duration: 1 }
+    }
+  },
+  fireShot: 0,
+  hitShot: 0,
+  reloadShot: 0,
+  lower: {},
+  upper: {},
+  overlay: 0,
+  overlayTarget: 1,
+  aim: 0,
+  aimWanted: true,
+  vx: 0,
+  vz: 0,
+  lastX: null,
+  lastZ: null,
+  stance: 'stand',
+  moving: false
 };
 const soldier = {
-  _fbx: fx, root: { position: { x: 2, y: 0, z: 3 }, rotation: { y: 0 } },
-  dead: true, weapon: { kind: 'rifle', stats: { reloadTime: 3.4 } }
+  _fbx: fx,
+  root: { position: { x: 2, y: 0, z: 3 }, rotation: { y: 0 } },
+  dead: true,
+  weapon: { kind: 'rifle', stats: { reloadTime: 3.4 } }
 };
 owner.play(tags.fire, { delay: 0 }, soldier);
 assert.equal(fx.fireShot, 1);
@@ -93,6 +128,8 @@ fx.overlayTarget = 1;
 fx.aimWanted = true;
 owner.advance(fx, 0.11);
 assert.ok(Math.abs(fx.overlay - 0.5) < 1e-9);
-assert.ok(Math.abs(fx.aim - (0.11 / 0.3)) < 1e-9);
+assert.ok(Math.abs(fx.aim - 0.11 / 0.3) < 1e-9);
 assert.equal(clock.length, 4);
-console.log('PASS #456 R3 animation state tag triggers, burst and reload timing, stance-specific throw, death clip, deterministic layer clocks, overlay/aim blending and module ownership');
+console.log(
+  'PASS #456 R3 animation state tag triggers, burst and reload timing, stance-specific throw, death clip, deterministic layer clocks, overlay/aim blending and module ownership'
+);
