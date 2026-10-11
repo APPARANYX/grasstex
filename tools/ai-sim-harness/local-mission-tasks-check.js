@@ -9,7 +9,8 @@ function world(on = true, structures = false) {
       modules: false,
       search:
         '?localPlan=1&localResources=1&localDegrade=1&coa=0&fireControl=0&slStress=0&scoutsForward=0&stressAct=0&commandMovement=0' +
-        (on ? '&localTasks=1' : '') + (structures ? '&localStructures=1' : '')
+        (on ? '&localTasks=1' : '') +
+        (structures ? '&localStructures=1' : '')
     }),
     systems = {},
     events = [];
@@ -327,20 +328,24 @@ assert.equal(structure.P.structuresOn, true);
 const frozenStructure = identity(structure);
 const handoff = structure.P.update(structure.b, structure.q);
 const port = nav.doorPortals[0];
-assert.equal(handoff.kind, 'structure-handoff', JSON.stringify({
-  on: structure.P.structuresOn,
-  mission: structure.q._macroMission.status,
-  leg: structure.q.routeIndex,
-  target: structure.q.route[structure.q.routeIndex],
-  navSame: nav.scenario === structure.scenario,
-  door: port,
-  leaderId: structure.q.leaderId,
-  leader: structure.r.SquadAI.leaderOf(structure.q)?.root.position,
-  a: nav.movementClear(structure.r.SquadAI.leaderOf(structure.q).root.position, port.outside),
-  b: nav.movementClear(port.outside, port.inside),
-  c: nav.movementClear(port.inside, {x:0,z:200}),
-  exec: structure.P.execution(structure.b, structure.q)
-}));
+assert.equal(
+  handoff.kind,
+  'structure-handoff',
+  JSON.stringify({
+    on: structure.P.structuresOn,
+    mission: structure.q._macroMission.status,
+    leg: structure.q.routeIndex,
+    target: structure.q.route[structure.q.routeIndex],
+    navSame: nav.scenario === structure.scenario,
+    door: port,
+    leaderId: structure.q.leaderId,
+    leader: structure.r.SquadAI.leaderOf(structure.q)?.root.position,
+    a: nav.movementClear(structure.r.SquadAI.leaderOf(structure.q).root.position, port.outside),
+    b: nav.movementClear(port.outside, port.inside),
+    c: nav.movementClear(port.inside, { x: 0, z: 200 }),
+    exec: structure.P.execution(structure.b, structure.q)
+  })
+);
 const approach = structure.q._localTask.inputs.execution.structure;
 assert.equal(approach.buildingId, 'farmhouse');
 assert.equal(approach.doorwayId, 'farm-door');
@@ -398,7 +403,11 @@ for (const breakMap of [
 const restartStructure = structureWorld();
 restartStructure.P.update(restartStructure.b, restartStructure.q);
 restartStructure.systems['squad-command'].onBattleRestart(restartStructure.b);
-assert.equal(restartStructure.q._localTask, null, 'same-page restart clears nonempty structure handoff history');
+assert.equal(
+  restartStructure.q._localTask,
+  null,
+  'same-page restart clears nonempty structure handoff history'
+);
 
 const hidden = world(),
   own = JSON.stringify(hidden.P.read(hidden.b, hidden.q));
