@@ -243,23 +243,37 @@
     for (var row = 0; row < 7; row++)
       for (var col = 0; col < 12; col++) {
         var i = row * 12 + col;
-        var x = 30 + col * (940 / 12), y = 20 + row * 80;
+        var x = 30 + col * (940 / 12),
+          y = 20 + row * 80;
         var variation = shade(seed, i);
         add(paper, 'path', {
-          d: 'M' + x + ' ' + y + ' l' + (940 / 12) + ' 0 l' + (shade(seed, i + 144) * 16 - 8) +
-            ' 80 l-' + (940 / 12) + ' 0 Z',
+          d:
+            'M' +
+            x +
+            ' ' +
+            y +
+            ' l' +
+            940 / 12 +
+            ' 0 l' +
+            (shade(seed, i + 144) * 16 - 8) +
+            ' 80 l-' +
+            940 / 12 +
+            ' 0 Z',
           fill: palette[Math.floor(variation * palette.length)],
-          'fill-opacity': .42
+          'fill-opacity': 0.42
         });
-        if (variation > .45)
+        if (variation > 0.45)
           add(paper, 'path', {
             d: 'M' + (x + 8) + ' ' + (y + 20) + ' l' + (940 / 12 - 18) + ' -9',
-            stroke: '#4c5946', 'stroke-opacity': .09, 'stroke-width': 1, fill: 'none'
+            stroke: '#4c5946',
+            'stroke-opacity': 0.09,
+            'stroke-width': 1,
+            fill: 'none'
           });
       }
     /* Display the same actual physical hedge and tree placement used by the
        three-dimensional battlefield, if the clutter placement is available. */
-    var footprints = sim && sim.obstacles && sim.obstacles.__physicalFootprints || [];
+    var footprints = (sim && sim.obstacles && sim.obstacles.__physicalFootprints) || [];
     var cover = add(layer, 'g', { 'class': 'gtm-cover' });
     var drawn = 0;
     footprints.forEach(function (fp) {
@@ -269,15 +283,23 @@
       if (!p || p.x < 32 || p.x > 968 || p.y < 22 || p.y > 578) return;
       if (fp.type === 'tree') {
         add(cover, 'circle', {
-          cx: p.x, cy: p.y, r: 2.7,
-          fill: '#364f3e', stroke: '#738767', 'stroke-width': .65, opacity: .85
+          cx: p.x,
+          cy: p.y,
+          r: 2.7,
+          fill: '#364f3e',
+          stroke: '#738767',
+          'stroke-width': 0.65,
+          opacity: 0.85
         });
       } else if (fp.shape === 'obb') {
-        var ux = (+fp.ux || 0) * (+fp.hx || 0) * 940 / dimensions.width,
-          uz = (+fp.uz || 0) * (+fp.hx || 0) * -560 / dimensions.depth;
+        var ux = ((+fp.ux || 0) * (+fp.hx || 0) * 940) / dimensions.width,
+          uz = ((+fp.uz || 0) * (+fp.hx || 0) * -560) / dimensions.depth;
         add(cover, 'path', {
           d: 'M' + (p.x - ux) + ' ' + (p.y - uz) + ' L' + (p.x + ux) + ' ' + (p.y + uz),
-          stroke: '#415d46', 'stroke-width': 2.1, 'stroke-linecap': 'round', opacity: .78
+          stroke: '#415d46',
+          'stroke-width': 2.1,
+          'stroke-linecap': 'round',
+          opacity: 0.78
         });
       }
       drawn++;
@@ -287,13 +309,34 @@
         var a = project({ x: r.ax, z: r.az }, dimensions),
           b = project({ x: r.bx, z: r.bz }, dimensions);
         if (!a || !b) return;
-        var w = Math.max(2, (+r.width || 8) * 940 / dimensions.width);
-        add(layer, 'line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y,
-          stroke: '#515950', 'stroke-width': w + 2, 'stroke-opacity': .6 });
-        add(layer, 'line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y,
-          stroke: '#d1c7a8', 'stroke-width': w, 'stroke-opacity': .94 });
-        add(layer, 'line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y,
-          stroke: '#817f6c', 'stroke-width': .8, 'stroke-dasharray': '5 6' });
+        var w = Math.max(2, ((+r.width || 8) * 940) / dimensions.width);
+        add(layer, 'line', {
+          x1: a.x,
+          y1: a.y,
+          x2: b.x,
+          y2: b.y,
+          stroke: '#515950',
+          'stroke-width': w + 2,
+          'stroke-opacity': 0.6
+        });
+        add(layer, 'line', {
+          x1: a.x,
+          y1: a.y,
+          x2: b.x,
+          y2: b.y,
+          stroke: '#d1c7a8',
+          'stroke-width': w,
+          'stroke-opacity': 0.94
+        });
+        add(layer, 'line', {
+          x1: a.x,
+          y1: a.y,
+          x2: b.x,
+          y2: b.y,
+          stroke: '#817f6c',
+          'stroke-width': 0.8,
+          'stroke-dasharray': '5 6'
+        });
       });
       var city = add(layer, 'g', { 'class': 'gtm-buildings' });
       (sc.buildings || []).forEach(function (b) {
@@ -302,47 +345,119 @@
         var w = (b.w / dimensions.width) * 940,
           h = (b.d / dimensions.depth) * 560;
         var house = add(city, 'g', {
-          transform: 'translate(' + p.x + ' ' + p.y + ') rotate(' + (-(+b.rot || 0) * 180 / Math.PI) + ')'
+          transform: 'translate(' + p.x + ' ' + p.y + ') rotate(' + (-(+b.rot || 0) * 180) / Math.PI + ')'
         });
-        add(house, 'rect', { x: -w / 2, y: -h / 2, width: w, height: h,
-          fill: '#41433a', stroke: '#c4b99b', 'stroke-width': .8 });
+        add(house, 'rect', {
+          x: -w / 2,
+          y: -h / 2,
+          width: w,
+          height: h,
+          fill: '#41433a',
+          stroke: '#c4b99b',
+          'stroke-width': 0.8
+        });
       });
       if (sc.settlement) {
         var c = project({ x: sc.settlement.cx, z: sc.settlement.cz }, dimensions);
-        if (c) add(layer, 'text', {
-          x: c.x + 20, y: c.y + 32, fill: '#252b25', 'font-size': 13,
-          'font-weight': 700, 'letter-spacing': 1.4, 'paint-order': 'stroke',
-          stroke: '#d1c9a7', 'stroke-width': 3
-        }, 'CENTRAL SETTLEMENT');
+        if (c)
+          add(
+            layer,
+            'text',
+            {
+              x: c.x + 20,
+              y: c.y + 32,
+              fill: '#252b25',
+              'font-size': 13,
+              'font-weight': 700,
+              'letter-spacing': 1.4,
+              'paint-order': 'stroke',
+              stroke: '#d1c9a7',
+              'stroke-width': 3
+            },
+            'CENTRAL SETTLEMENT'
+          );
       }
     }
     /* The same 200 m world grid used by the scenario, shown as map squares. */
     var grid = add(layer, 'g', { 'class': 'gtm-coordinate-grid' });
     for (var ix = 0; ix <= 10; ix++) {
       var gx = 30 + 94 * ix;
-      add(grid, 'line', { x1: gx, y1: 20, x2: gx, y2: 580,
-        stroke: '#26352c', 'stroke-opacity': .3, 'stroke-width': ix % 5 === 0 ? 1.5 : .8 });
-      if (ix < 10) add(grid, 'text', {
-        x: gx + 47, y: 14, 'text-anchor': 'middle', fill: '#eee4c7', 'font-size': 12
-      }, 'ABCDEFGHIJ'.charAt(ix));
+      add(grid, 'line', {
+        x1: gx,
+        y1: 20,
+        x2: gx,
+        y2: 580,
+        stroke: '#26352c',
+        'stroke-opacity': 0.3,
+        'stroke-width': ix % 5 === 0 ? 1.5 : 0.8
+      });
+      if (ix < 10)
+        add(
+          grid,
+          'text',
+          {
+            x: gx + 47,
+            y: 14,
+            'text-anchor': 'middle',
+            fill: '#eee4c7',
+            'font-size': 12
+          },
+          'ABCDEFGHIJ'.charAt(ix)
+        );
     }
     for (var iy = 0; iy <= 6; iy++) {
       var gy = 20 + (560 / 6) * iy;
-      add(grid, 'line', { x1: 30, y1: gy, x2: 970, y2: gy,
-        stroke: '#26352c', 'stroke-opacity': .3, 'stroke-width': iy % 3 === 0 ? 1.5 : .8 });
-      if (iy < 6) add(grid, 'text', {
-        x: 16, y: gy + 560 / 12 + 4, 'text-anchor': 'middle',
-        fill: '#eee4c7', 'font-size': 12
-      }, String(iy + 1));
+      add(grid, 'line', {
+        x1: 30,
+        y1: gy,
+        x2: 970,
+        y2: gy,
+        stroke: '#26352c',
+        'stroke-opacity': 0.3,
+        'stroke-width': iy % 3 === 0 ? 1.5 : 0.8
+      });
+      if (iy < 6)
+        add(
+          grid,
+          'text',
+          {
+            x: 16,
+            y: gy + 560 / 12 + 4,
+            'text-anchor': 'middle',
+            fill: '#eee4c7',
+            'font-size': 12
+          },
+          String(iy + 1)
+        );
     }
-    add(layer, 'rect', { x: 30, y: 20, width: 940, height: 560,
-      fill: 'none', stroke: '#222b28', 'stroke-width': 2 });
-    add(layer, 'text', { x: 48, y: 47, fill: '#252b25', 'font-size': 18,
-      'font-weight': 700, 'paint-order': 'stroke', stroke: '#bdc4a4',
-      'stroke-width': 2.5 }, 'N ↑');
-    var meters = 200, px = meters * 940 / dimensions.width;
+    add(layer, 'rect', {
+      x: 30,
+      y: 20,
+      width: 940,
+      height: 560,
+      fill: 'none',
+      stroke: '#222b28',
+      'stroke-width': 2
+    });
+    add(
+      layer,
+      'text',
+      {
+        x: 48,
+        y: 47,
+        fill: '#252b25',
+        'font-size': 18,
+        'font-weight': 700,
+        'paint-order': 'stroke',
+        stroke: '#bdc4a4',
+        'stroke-width': 2.5
+      },
+      'N ↑'
+    );
+    var meters = 200,
+      px = (meters * 940) / dimensions.width;
     var bar = add(layer, 'g', { 'class': 'gtm-scale', transform: 'translate(62 555)' });
-    add(bar, 'rect', { x: -8, y: -19, width: px + 54, height: 30, fill: '#ddd3b4', opacity: .72 });
+    add(bar, 'rect', { x: -8, y: -19, width: px + 54, height: 30, fill: '#ddd3b4', opacity: 0.72 });
     add(bar, 'line', { x1: 0, y1: 0, x2: px, y2: 0, stroke: '#172820', 'stroke-width': 3 });
     [0, px / 2, px].forEach(function (x) {
       add(bar, 'line', { x1: x, y1: -4, x2: x, y2: 4, stroke: '#172820', 'stroke-width': 2 });
@@ -371,14 +486,20 @@
       item.appendChild(badge);
       var detail = document.createElement('div');
       var age = document.createElement('strong');
-      age.textContent = 'CONTACT ' + String(i + 1).padStart(2, '0') +
-        ' · ' + Math.floor(c.age) + 's AGO';
+      age.textContent = 'CONTACT ' + String(i + 1).padStart(2, '0') + ' · ' + Math.floor(c.age) + 's AGO';
       detail.appendChild(age);
       var explanation = document.createElement('small');
-      var source = /heard|sound|noise/i.test(c.source || '') ? 'HEARD' :
-        /relay|told|broadcast/i.test(c.source || '') ? 'RELAYED' : 'REPORTED';
-      explanation.textContent = source + ' · ' + (c.squad == null ? 'UNKNOWN SQUAD' : String(c.squad)) +
-        (c.movement ? ' · TWO FIXES' : '') + (c.age > FRESH_SECONDS ? ' · AGING' : '');
+      var source = /heard|sound|noise/i.test(c.source || '')
+        ? 'HEARD'
+        : /relay|told|broadcast/i.test(c.source || '')
+          ? 'RELAYED'
+          : 'REPORTED';
+      explanation.textContent =
+        source +
+        ' · ' +
+        (c.squad == null ? 'UNKNOWN SQUAD' : String(c.squad)) +
+        (c.movement ? ' · TWO FIXES' : '') +
+        (c.age > FRESH_SECONDS ? ' · AGING' : '');
       detail.appendChild(explanation);
       item.appendChild(detail);
       reportsNode.appendChild(item);
@@ -411,7 +532,17 @@
       add(
         g,
         'text',
-        { x: 0, y: 27, fill: '#f2eddb', 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700, 'paint-order': 'stroke', stroke: '#28322b', 'stroke-width': 3 },
+        {
+          x: 0,
+          y: 27,
+          fill: '#f2eddb',
+          'text-anchor': 'middle',
+          'font-size': 11,
+          'font-weight': 700,
+          'paint-order': 'stroke',
+          stroke: '#28322b',
+          'stroke-width': 3
+        },
         String(o.label || o.id)
       );
     });
@@ -526,15 +657,21 @@
     if (!situation) return;
     var contacts = reconcile(ledgers[faction], situation.contacts, +sim.time || 0);
     var dims = mapSize();
-    var sc = scenario(), footprints = sim.obstacles && sim.obstacles.__physicalFootprints;
+    var sc = scenario(),
+      footprints = sim.obstacles && sim.obstacles.__physicalFootprints;
     if (!staticLayer || backdropScenario !== sc || backdropFootprints !== footprints) {
       clear(svg);
       staticLayer = add(svg, 'g', { 'class': 'gtm-static-map' });
       dynamicLayer = add(svg, 'g', { 'class': 'gtm-dynamic-map' });
       var defs = add(staticLayer, 'defs');
       var marker = add(defs, 'marker', {
-        id: 'gtm-arrow', markerWidth: 7, markerHeight: 7, refX: 5,
-        refY: 3, orient: 'auto', markerUnits: 'strokeWidth'
+        id: 'gtm-arrow',
+        markerWidth: 7,
+        markerHeight: 7,
+        refX: 5,
+        refY: 3,
+        orient: 'auto',
+        markerUnits: 'strokeWidth'
       });
       add(marker, 'path', { d: 'M0 0 L6 3 L0 6 Z', fill: '#ffd2a6' });
       renderTerrain(staticLayer, sim, dims);
@@ -546,8 +683,16 @@
     renderFriendlies(dynamicLayer, sim, faction, dims);
     renderContacts(dynamicLayer, contacts, dims);
     renderReports(contacts, dims, sim);
-    if (headerInfo) headerInfo.textContent = (faction === 'us' ? 'UNITED STATES' : 'GERMANY') + ' / INTELLIGENCE VIEW';
-    if (operationalInfo) operationalInfo.textContent = (sc && sc.seed ? 'SCENARIO ' + String(sc.seed).slice(0, 34) : 'FIELD MAP') + ' · ' + dims.width + ' × ' + dims.depth + 'm';
+    if (headerInfo)
+      headerInfo.textContent = (faction === 'us' ? 'UNITED STATES' : 'GERMANY') + ' / INTELLIGENCE VIEW';
+    if (operationalInfo)
+      operationalInfo.textContent =
+        (sc && sc.seed ? 'SCENARIO ' + String(sc.seed).slice(0, 34) : 'FIELD MAP') +
+        ' · ' +
+        dims.width +
+        ' × ' +
+        dims.depth +
+        'm';
     if (caption)
       caption.textContent =
         faction.toUpperCase() +
@@ -599,7 +744,8 @@
   }
   function applyViewport() {
     if (!svg) return;
-    var w = 1000 / viewport.zoom, h = 600 / viewport.zoom;
+    var w = 1000 / viewport.zoom,
+      h = 600 / viewport.zoom;
     viewport.cx = Math.max(w / 2, Math.min(1000 - w / 2, viewport.cx));
     viewport.cy = Math.max(h / 2, Math.min(600 - h / 2, viewport.cy));
     svg.setAttribute('viewBox', [viewport.cx - w / 2, viewport.cy - h / 2, w, h].join(' '));
@@ -740,7 +886,9 @@
     var close = document.createElement('button');
     close.type = 'button';
     close.textContent = 'Close [M / Esc]';
-    close.onclick = function () { setOpen(false); };
+    close.onclick = function () {
+      setOpen(false);
+    };
     toolbar.appendChild(close);
     shell.appendChild(toolbar);
     var bodyWrap = document.createElement('div');
@@ -761,7 +909,8 @@
     svg = node('svg', {
       viewBox: '0 0 1000 600',
       role: 'img',
-      'aria-label': 'Zoomable top-down battlefield; actual roads, buildings, cover and reported enemy contacts'
+      'aria-label':
+        'Zoomable top-down battlefield; actual roads, buildings, cover and reported enemy contacts'
     });
     surface.appendChild(svg);
     mapColumn.appendChild(surface);
@@ -776,12 +925,30 @@
       actions.appendChild(action);
       return action;
     }
-    mapAction('−', function () { zoomTo(viewport.zoom / 1.3); }, 'Zoom out');
+    mapAction(
+      '−',
+      function () {
+        zoomTo(viewport.zoom / 1.3);
+      },
+      'Zoom out'
+    );
     zoomText = document.createElement('span');
     zoomText.className = 'gtm-zoom-label';
     actions.appendChild(zoomText);
-    mapAction('+', function () { zoomTo(viewport.zoom * 1.3); }, 'Zoom in');
-    mapAction('FIT', function () { resetViewport(); }, 'Fit whole battlefield');
+    mapAction(
+      '+',
+      function () {
+        zoomTo(viewport.zoom * 1.3);
+      },
+      'Zoom in'
+    );
+    mapAction(
+      'FIT',
+      function () {
+        resetViewport();
+      },
+      'Fit whole battlefield'
+    );
     mapColumn.appendChild(actions);
     bodyWrap.appendChild(mapColumn);
     var sidebar = document.createElement('aside');
@@ -826,7 +993,8 @@
     sideFoot.appendChild(caption);
     var note = document.createElement('p');
     note.className = 'gtm-legend';
-    note.textContent = 'No enemy radar. Only reported fixes appear. Stale reports fade and expire after 60 simulation seconds. Arrows link observed fixes; they do not predict movement.';
+    note.textContent =
+      'No enemy radar. Only reported fixes appear. Stale reports fade and expire after 60 simulation seconds. Arrows link observed fixes; they do not predict movement.';
     sideFoot.appendChild(note);
     sidebar.appendChild(sideFoot);
     bodyWrap.appendChild(sidebar);
@@ -852,10 +1020,14 @@
     });
     shell.appendChild(footer);
     panel.appendChild(shell);
-    svg.addEventListener('wheel', function (event) {
-      if (event.preventDefault) event.preventDefault();
-      zoomTo(viewport.zoom * (event.deltaY < 0 ? 1.13 : 1 / 1.13));
-    }, { passive: false });
+    svg.addEventListener(
+      'wheel',
+      function (event) {
+        if (event.preventDefault) event.preventDefault();
+        zoomTo(viewport.zoom * (event.deltaY < 0 ? 1.13 : 1 / 1.13));
+      },
+      { passive: false }
+    );
     svg.addEventListener('pointerdown', function (event) {
       if (event.button != null && event.button !== 0) return;
       drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
@@ -865,9 +1037,10 @@
     svg.addEventListener('pointermove', function (event) {
       if (!drag || drag.id !== event.pointerId) return;
       var rect = svg.getBoundingClientRect ? svg.getBoundingClientRect() : null;
-      var w = rect && rect.width || 1000, h = rect && rect.height || 600;
-      viewport.cx -= (event.clientX - drag.x) * 1000 / (viewport.zoom * w);
-      viewport.cy -= (event.clientY - drag.y) * 600 / (viewport.zoom * h);
+      var w = (rect && rect.width) || 1000,
+        h = (rect && rect.height) || 600;
+      viewport.cx -= ((event.clientX - drag.x) * 1000) / (viewport.zoom * w);
+      viewport.cy -= ((event.clientY - drag.y) * 600) / (viewport.zoom * h);
       drag.x = event.clientX;
       drag.y = event.clientY;
       applyViewport();
@@ -920,7 +1093,17 @@
     [panel, button, style].forEach(function (el) {
       if (el && el.parentNode) el.parentNode.removeChild(el);
     });
-    panel = button = style = svg = sideSelect = caption = reportsNode = headerInfo = operationalInfo = zoomText = null;
+    panel =
+      button =
+      style =
+      svg =
+      sideSelect =
+      caption =
+      reportsNode =
+      headerInfo =
+      operationalInfo =
+      zoomText =
+        null;
     backdropScenario = backdropFootprints = staticLayer = dynamicLayer = drag = null;
     simRef = null;
     resetLedgers();

@@ -291,8 +291,11 @@ assert(values.includes('Bridge Strongpoint'), 'labels use scenario objective met
 assert(values.includes('RECENT REPORTS'), 'full-screen intel rail is present');
 const previousStatic = all(body).find(n => n.attrs.class === 'gtm-static-map');
 M.render();
-assert.equal(all(body).find(n => n.attrs.class === 'gtm-static-map'), previousStatic,
-  'expensive paper/cartographic terrain is cached across report refreshes');
+assert.equal(
+  all(body).find(n => n.attrs.class === 'gtm-static-map'),
+  previousStatic,
+  'expensive paper/cartographic terrain is cached across report refreshes'
+);
 
 friendly.members[0].isPlayer = false;
 M.setOpen(false);
