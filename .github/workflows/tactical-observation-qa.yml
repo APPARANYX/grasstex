@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - battle/squad-ai.js
+      - battle/modules/15j-squad-leader-fire-and-movement.js
       - battle/modules/15l-squad-leader-mission-execution.js
       - battle/modules/16-squad-plan-stability.js
       - battle/commander-ai.js
