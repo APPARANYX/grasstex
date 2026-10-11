@@ -56,9 +56,9 @@ const URL_ = process.env.TACTICAL_MAP_URL || 'http://127.0.0.1:8765/grasstex/bat
     const silence = silentWav();
     await page.route('**/*', route => {
       const req = route.request();
-      if (req.method() === 'POST' || /battle_(policy|learning|log|metrics)[^/]*\\.php/.test(req.url()))
+      if (req.method() === 'POST' || /battle_(policy|learning|log|metrics)[^/]*\.php/.test(req.url()))
         return route.fulfill({ json: {} });
-      if (/\\/Assets\\/audio\\/.*\\.(?:mp3|wav|ogg)(?:[?#]|$)/i.test(req.url()))
+      if (/\/Assets\/audio\/.*\.(?:mp3|wav|ogg)(?:[?#]|$)/i.test(req.url()))
         return route.fulfill({ status: 200, body: silence, contentType: 'audio/wav' });
       return route.continue();
     });
