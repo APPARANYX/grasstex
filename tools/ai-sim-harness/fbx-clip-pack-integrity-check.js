@@ -10,11 +10,17 @@ const { expected, readHeader, sha256, converterText } = require('../../scripts/l
 
 const root = path.resolve(__dirname, '../..');
 const rig = fs.readFileSync(path.join(root, 'battle/modules/52-fbx-rig-canon.js'), 'utf8');
+const converter = fs.readFileSync(path.join(root, 'battle/modules/52-fbx-clip-converter.js'), 'utf8');
 const backend = fs.readFileSync(path.join(root, 'battle/modules/53-fbx-soldier-backend.js'), 'utf8');
 assert.match(rig, /function rigScheme\(/);
 assert.match(rig, /function canon\(/);
 assert.doesNotMatch(backend, /function rigScheme\(/);
-const checksumSource = converterText(rig + '\n' + backend);
+assert.match(converter, /function sourceRig\(/);
+assert.match(converter, /function convertClip\(/);
+assert.doesNotMatch(backend, /function sourceRig\(/);
+assert.doesNotMatch(backend, /function convertClip\(/);
+assert.match(backend, /function encodeClipPack\(/);
+const checksumSource = converterText(rig + '\n' + converter + '\n' + backend);
 const want = expected(root);
 const { header } = readHeader();
 assert.equal(sha256(checksumSource), want.converter, 'real owners must determine converter fingerprint');
@@ -32,15 +38,15 @@ assert.ok(
   'unexpected empty prepared clip pack'
 );
 assert.throws(
-  () => converterText(rig.replace('function canon(', 'function movedCanon(') + '\n' + backend),
+  () => converterText(rig.replace('function canon(', 'function movedCanon(') + '\n' + converter + '\n' + backend),
   /function canon not found/,
   'missing canonicalizer must fail fingerprint extraction'
 );
 assert.notEqual(
-  sha256(converterText(rig.replace('function canon(', 'function canon(/* moved */') + '\n' + backend)),
+  sha256(converterText(rig.replace('function canon(', 'function canon(/* moved */') + '\n' + converter + '\n' + backend)),
   want.converter,
   'a changed rig converter must make the prepared pack stale'
 );
 console.log(
-  'PASS #456 R3 prepared clip hashes cover rig canon + backend converter, every FBX source and pinned Babylon version'
+  'PASS #456 R3 prepared clip hashes cover rig canon + extracted clip converter + backend pack encoder, every FBX source and pinned Babylon version'
 );
