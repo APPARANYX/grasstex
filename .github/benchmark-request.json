@@ -1,0 +1,12 @@
+{
+  "benchmark": "standard",
+  "ref": "work/tactics-b1-intent-evidence",
+  "seed": "phase-a-control",
+  "seeds": 2,
+  "battle_type": "meeting",
+  "query_off": "",
+  "query_on": "",
+  "origin_agent": "codex",
+  "correlation_id": "phase-b1-meeting",
+  "purpose": "B1 metadata-only repeated controls and cross-commit comparison against accepted A3 OFF artifacts; measure default issue-time CPU/wall."
+}
