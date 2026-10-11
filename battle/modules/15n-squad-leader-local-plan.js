@@ -17,7 +17,8 @@
       tasksOn =
         on && /[?&]localTasks=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
       structuresOn =
-        tasksOn && /[?&]localStructures=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
+        tasksOn &&
+        /[?&]localStructures=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
       tuning = {
         pressureEnter: 0.45,
         pressureExit: 0.25,
@@ -43,8 +44,7 @@
         dz = p.z - b.z,
         c = Math.cos(+b.rot || 0),
         si = Math.sin(+b.rot || 0);
-      return Math.abs(dx * c - dz * si) < b.w / 2 - 0.05 &&
-        Math.abs(dx * si + dz * c) < b.d / 2 - 0.05;
+      return Math.abs(dx * c - dz * si) < b.w / 2 - 0.05 && Math.abs(dx * si + dz * c) < b.d / 2 - 0.05;
     }
     function structureInterface(sim, sq, target, men) {
       if (!structuresOn || !target || !men || men.length > tuning.resourceLimit) return null;
@@ -56,17 +56,27 @@
       if (!N || !scene || N.scenario !== scene || !N.movementClear) return null;
       var buildings = scene.buildings || [],
         portals = N.doorPortals;
-      if (!Array.isArray(buildings) || buildings.length > 32 || !Array.isArray(portals) || portals.length > 64) return null;
+      if (
+        !Array.isArray(buildings) ||
+        buildings.length > 32 ||
+        !Array.isArray(portals) ||
+        portals.length > 64
+      )
+        return null;
       var candidates = buildings.filter(function (b) {
         return b && typeof b.id === 'string' && b.id && insideBuilding(b, target);
       });
       if (candidates.length !== 1) return null;
       var b = candidates[0];
-      if (buildings.filter(function (entry) { return entry && entry.id === b.id; }).length !== 1) return null;
-      var
-        observer = men.filter(function (s) {
-          return s && !s.dead && s.id === sq.leaderId && s.root && point(s.root.position);
-        })[0];
+      if (
+        buildings.filter(function (entry) {
+          return entry && entry.id === b.id;
+        }).length !== 1
+      )
+        return null;
+      var observer = men.filter(function (s) {
+        return s && !s.dead && s.id === sq.leaderId && s.root && point(s.root.position);
+      })[0];
       if (!observer) return null;
       var pos = point(observer.root.position),
         within = insideBuilding(b, pos);
@@ -74,9 +84,15 @@
       var entry = null,
         cost = Infinity;
       portals.forEach(function (p) {
-        if (!p || p.building !== b.id || !point(p.inside) || !point(p.outside) ||
+        if (
+          !p ||
+          p.building !== b.id ||
+          !point(p.inside) ||
+          !point(p.outside) ||
           !N.movementClear(p.outside, p.inside) ||
-          !N.movementClear(p.inside, target)) return;
+          !N.movementClear(p.inside, target)
+        )
+          return;
         if (!N.movementClear(pos, within ? p.inside : p.outside)) return;
         var distance = Math.hypot(pos.x - p.outside.x, pos.z - p.outside.z);
         if (distance < cost) {
@@ -91,8 +107,15 @@
       /* Lack of reported contacts is NOT evidence that the room is clear. */
       if (!Array.isArray(reports) || reports.length > 32) return null;
       reports.slice(0, 32).forEach(function (c) {
-        if (c && point(c) && isFinite(c.at) && c.at <= now &&
-          now - c.at <= tuning.contactAge && insideBuilding(b, c)) threats++;
+        if (
+          c &&
+          point(c) &&
+          isFinite(c.at) &&
+          c.at <= now &&
+          now - c.at <= tuning.contactAge &&
+          insideBuilding(b, c)
+        )
+          threats++;
       });
       return {
         buildingId: b.id,
