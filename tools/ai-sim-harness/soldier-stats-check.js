@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* Soldier stats (module 10, `BattleSoldierStats`): six fixed traits per man and the numbers others read.
 
    - A man's stats are hash rolls of his faction and id: the same man is the same in every world, they do not
@@ -26,10 +27,7 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 function load(r, file) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, file, { console: quietConsole });
 }
 function world(search) {
   H.resetIds();

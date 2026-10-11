@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 'use strict';
+const { files: squadCommandFiles } = require('./squad-command-stack');
+const { loadModule, quietConsole } = require('./module-loader');
 /* 15m cohesion-regroup factory ctx + firing (16-squad-plan-stability.js bare-bones split 10/10).
    The dispersion state machine (cohesionState, markCatchup, endRegroup, updateCohesion) moved to
    15m-squad-leader-cohesion-regroup.js; 16 calls its factory with its closure utilities and
@@ -25,23 +27,7 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 const MODS = 'battle/modules/';
-const CHAIN = [
-  'battle/movement-resolver.js',
-  MODS + '15a-squad-leader-fire-control.js',
-  MODS + '15b-squad-leader-buddy-pairs.js',
-  MODS + '15c-squad-leader-scouts-forward.js',
-  MODS + '15d-squad-leader-leaderless-intent.js',
-  MODS + '15e-squad-leader-morale-coa.js',
-  MODS + '15f-squad-leader-retreat-anchor.js',
-  MODS + '15g-squad-leader-formation.js',
-  MODS + '15h-squad-leader-fireteams.js',
-  MODS + '15i-squad-leader-clear-contact.js',
-  MODS + '15j-squad-leader-fire-and-movement.js',
-  MODS + '15k-squad-leader-reconstitution.js',
-  MODS + '15l-squad-leader-mission-execution.js',
-  MODS + '15m-squad-leader-cohesion-regroup.js',
-  MODS + '16-squad-plan-stability.js'
-];
+const CHAIN = ['battle/movement-resolver.js', ...squadCommandFiles];
 const EXPECTED_CTX = [
   'root',
   'telemetry',
@@ -67,10 +53,7 @@ const EXPECTED_CTX = [
   'STRAGGLER_BYPASS'
 ];
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 let n = 0;
 function test(name, fn) {

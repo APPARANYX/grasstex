@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
 /* Leader succession (16-squad-plan-stability.js updateSuccession): when the squad leader is killed the
    squad is leaderless for the `succession` lease, then the most senior survivor (SquadAI.mostSenior)
@@ -10,10 +11,7 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 let n = 0;
 function test(name, fn) {

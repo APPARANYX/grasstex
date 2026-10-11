@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
 /* Owned command leases (squad-ai.js BattleLeases): every Squad Leader hold has one live lease with an
    owner, a reason and a release path, and ends with a recorded reason. */
@@ -8,10 +9,7 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 let n = 0;
 function test(name, fn) {

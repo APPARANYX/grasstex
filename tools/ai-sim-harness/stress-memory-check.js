@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* Stress memory (module 17, `?stressMem=lasting,floor,relief`): what a man carries from one moment of a fight
    to the next. All three producers are on by default; `?stressMem=0` is none and a list names exactly those that run.
 
@@ -27,10 +28,7 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 function load(r, file) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, file, { console: quietConsole });
 }
 const SEED = +(process.env.HARNESS_SEED || 12345);
 const near = (a, b, tol, what) =>

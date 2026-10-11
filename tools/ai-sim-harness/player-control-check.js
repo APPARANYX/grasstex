@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* Keyboard/Xbox battle-player control contract: isPlayer is the possession authority boundary. It gates the
    whole soldier Micro path, survives squad-plan/indoor routing churn, gives the player a true free-fire
    crosshair ray, and returns the soldier cleanly to AI only when possession ends. */
@@ -8,10 +9,7 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 const cameraSource = fs.readFileSync(path.join(H.REPO, 'battle/camera-controls.js'), 'utf8');
 new Function(cameraSource);

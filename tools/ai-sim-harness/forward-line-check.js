@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
 /* The forward line (16-squad-plan-stability.js forwardMajority / publishForwardLine) and the regroup
    rally point built on it. The line is where the forward majority of a group actually is along the
@@ -14,10 +15,7 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 /* CHECK_ONLY=<text> runs only tests whose name contains it (e.g. the regroup test against main). */
 let n = 0;

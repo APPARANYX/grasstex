@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* The player's trigger and fire selector. An automatic fires at its own cyclic rate for as long as the
    trigger is held: no burst length and no re-lay pause (those are a gunner's trigger discipline, the AI's
    to model). A weapon that really had a selector (Thompson M1A1, FG 42) answers to it; one that did not
@@ -16,10 +17,7 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 
 const r = H.bootstrap({ modules: false });

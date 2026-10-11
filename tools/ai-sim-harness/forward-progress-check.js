@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 
 const assert = require('node:assert/strict'),
   fs = require('fs'),
@@ -7,11 +8,7 @@ const assert = require('node:assert/strict'),
   H = require('./harness');
 
 function load(root, file) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(
-    root,
-    root,
-    { log() {}, warn() {} }
-  );
+  return loadModule(root, file, { console: quietConsole });
 }
 function fixture() {
   const systems = {},

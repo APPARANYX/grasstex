@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* Fire over a hill crest: permission to fire tests the line the round will fly.
 
    Sight runs eye to eye; the round flies eye to body centre (~0.7 m lower on a standing man) and
@@ -20,10 +21,7 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 const RANGE = 120; // inside the base rifle's 140 m
 /* A ridge across the line of fire: `top` metres high at z = `at`, flat within `half` of it and

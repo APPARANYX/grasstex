@@ -7,6 +7,7 @@
  * across target flicker, retreat override, and cover hysteresis.
  */
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
 const assert = require('node:assert/strict'),
   fs = require('fs'),
@@ -14,10 +15,7 @@ const assert = require('node:assert/strict'),
   H = require('./harness');
 let checks = 0;
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 function test(name, f) {
   H.resetIds();

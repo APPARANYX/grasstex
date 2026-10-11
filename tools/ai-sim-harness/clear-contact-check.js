@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* Clearing the last contact (module 16 `updateClearContact`, Engagement `alert`; on by default, `?alertAdvance=0`
    is the old hold).
 
@@ -24,14 +25,26 @@ const assert = require('node:assert/strict'),
 const SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/16-squad-plan-stability.js'), 'utf8');
 const FC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15a-squad-leader-fire-control.js'), 'utf8');
 const BP_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15b-squad-leader-buddy-pairs.js'), 'utf8');
-const SF_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15c-squad-leader-scouts-forward.js'), 'utf8');
-const LL_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15d-squad-leader-leaderless-intent.js'), 'utf8');
+const SF_SRC = fs.readFileSync(
+  path.join(H.REPO, 'battle/modules/15c-squad-leader-scouts-forward.js'),
+  'utf8'
+);
+const LL_SRC = fs.readFileSync(
+  path.join(H.REPO, 'battle/modules/15d-squad-leader-leaderless-intent.js'),
+  'utf8'
+);
 const ME_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15e-squad-leader-morale-coa.js'), 'utf8');
 const CC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15i-squad-leader-clear-contact.js'), 'utf8');
-const RA_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15f-squad-leader-retreat-anchor.js'), 'utf8');
+const RA_SRC = fs.readFileSync(
+  path.join(H.REPO, 'battle/modules/15f-squad-leader-retreat-anchor.js'),
+  'utf8'
+);
 const FG_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15g-squad-leader-formation.js'), 'utf8');
 const FT_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15h-squad-leader-fireteams.js'), 'utf8');
-const FAM_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15j-squad-leader-fire-and-movement.js'), 'utf8');
+const FAM_SRC = fs.readFileSync(
+  path.join(H.REPO, 'battle/modules/15j-squad-leader-fire-and-movement.js'),
+  'utf8'
+);
 const log = console.log;
 console.log = (...a) => (typeof a[0] === 'string' && a[0][0] === '[' ? undefined : log(...a));
 let n = 0;
@@ -41,10 +54,7 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 
 function world(search) {

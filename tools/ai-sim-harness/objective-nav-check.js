@@ -8,6 +8,7 @@
      node tools/ai-sim-harness/objective-nav-check.js
 */
 'use strict';
+const { files: squadCommandFiles } = require('./squad-command-stack');
 const { loadSquadCommandStack } = require('./squad-command-stack');
 const fs = require('fs'),
   path = require('path');
@@ -514,20 +515,7 @@ section('a single assigned squad can reach and capture an outer objective');
     'battle/commander-ai.js',
     'battle/modules/22-commander-reconstitution.js',
     'battle/modules/22a-commander-strategic-recovery.js',
-    'battle/modules/15a-squad-leader-fire-control.js',
-    'battle/modules/15b-squad-leader-buddy-pairs.js',
-    'battle/modules/15c-squad-leader-scouts-forward.js',
-    'battle/modules/15d-squad-leader-leaderless-intent.js',
-    'battle/modules/15e-squad-leader-morale-coa.js',
-    'battle/modules/15f-squad-leader-retreat-anchor.js',
-    'battle/modules/15g-squad-leader-formation.js',
-    'battle/modules/15h-squad-leader-fireteams.js',
-    'battle/modules/15i-squad-leader-clear-contact.js',
-    'battle/modules/15j-squad-leader-fire-and-movement.js',
-    'battle/modules/15k-squad-leader-reconstitution.js',
-    'battle/modules/15l-squad-leader-mission-execution.js',
-    'battle/modules/15m-squad-leader-cohesion-regroup.js',
-    'battle/modules/16-squad-plan-stability.js'
+    ...squadCommandFiles
   ])
     load(r, f);
   const sim = H.makeBattle(r, { seed: 12345 });

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* Sidearm switching (module 47, SquadAI `beforeSoldier` slot 'sidearm').
 
    A man with a holstered sidearm draws it when the target is within NEAR and his primary cannot
@@ -24,10 +25,7 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 function setup() {
   H.resetIds();
@@ -53,7 +51,7 @@ const tick = (r, b, s) => {
   r.BattleSidearm.step(s, b);
 };
 
-test('a machine gunner at arm\'s length draws his pistol, unemplaced, after the draw time', () => {
+test("a machine gunner at arm's length draws his pistol, unemplaced, after the draw time", () => {
   const { r, b, us, ge } = setup(),
     mg = role(us, 'gunner');
   const gun = mg.weapon;
@@ -64,7 +62,10 @@ test('a machine gunner at arm\'s length draws his pistol, unemplaced, after the 
   assert.equal(mg.weapon.kind, 'pistol');
   assert.equal(mg.secondary, gun, 'the gun is holstered, not lost');
   assert.equal(mg.setUp, false);
-  assert.ok(r.BattleEngagement.stateOf(mg).fireReadyAt >= t0 + r.BattleSidearm.tuning.DRAW - 1e-9, 'no shot before the draw is done');
+  assert.ok(
+    r.BattleEngagement.stateOf(mg).fireReadyAt >= t0 + r.BattleSidearm.tuning.DRAW - 1e-9,
+    'no shot before the draw is done'
+  );
   assert.equal(r.SquadAI.isMachineGun(mg), false);
 });
 test('the same gunner at 12 m keeps his gun; a sergeant with a working SMG never draws', () => {
@@ -85,7 +86,11 @@ test('a primary out of action within NEAR gives the sidearm to any carrier; beyo
     ['dry', s => ((s.weapon.ammo = 0), (s.weapon.reserveAmmo = 0))]
   ]) {
     var r0;
-    for (const [rl, near] of [['sergeant', 15], ['gunner', 15], ['sergeant', 30]]) {
+    for (const [rl, near] of [
+      ['sergeant', 15],
+      ['gunner', 15],
+      ['sergeant', 30]
+    ]) {
       const { r, b, us, ge } = setup();
       r0 = r;
       const s = role(us, rl);
@@ -93,7 +98,12 @@ test('a primary out of action within NEAR gives the sidearm to any carrier; beyo
       mutate(s, b);
       tick(r, b, s);
       assert.equal(s.weapon.kind === 'pistol', near <= 20, rl + ' ' + why + ' at ' + near + ' m');
-      if (near <= 20) assert.equal(!!(s.reloading || s.clearingStoppage), false, 'the abandoned cycle is not run on the pistol');
+      if (near <= 20)
+        assert.equal(
+          !!(s.reloading || s.clearingStoppage),
+          false,
+          'the abandoned cycle is not run on the pistol'
+        );
     }
   }
 });
@@ -130,7 +140,10 @@ test('the primary comes back after HOLD once the target is past LEAVE, with its 
   tick(r, b, mg);
   assert.equal(mg.weapon.kind, 'lmg');
   assert.equal(gun.jammed, false);
-  assert.ok(r.BattleEngagement.stateOf(mg).fireReadyAt > t + T.DRAW, 'clearing it while re-shouldering costs time');
+  assert.ok(
+    r.BattleEngagement.stateOf(mg).fireReadyAt > t + T.DRAW,
+    'clearing it while re-shouldering costs time'
+  );
 });
 test('a dry sidearm is put away for the primary even inside NEAR', () => {
   const { r, b, us, ge } = setup(),

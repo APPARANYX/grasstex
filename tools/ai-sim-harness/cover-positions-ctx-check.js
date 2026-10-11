@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* Engagement cover-positions factory ctx + firing (battle/engagement.js cover split 1/1).
    The cover subsystem (coverRegistry, buildCoverSlots, claim lifecycle, coverCandidates,
    findCover) moved verbatim to modules/19-engagement-cover-positions.js. The wiring is the
@@ -28,10 +29,7 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 let n = 0;
 function test(name, fn) {

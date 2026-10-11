@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -14,10 +15,7 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 function load(root, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(root, root, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(root, p, { console: quietConsole });
 }
 
 test('fireCooldown has one direct runtime writer and the owner API preserves clock semantics', () => {

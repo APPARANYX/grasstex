@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* Strategic-recovery review lifecycle (the strategic-freeze fix at the owning 22a layer).
    Both sides of the invariant, driven deterministically through the real commander tick and the
    module 40 sampler (which owns the stall clock the General reads):
@@ -21,10 +22,7 @@ const assert = require('node:assert/strict'),
   path = require('node:path'),
   H = require('./harness');
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 let n = 0;
 function test(name, fn) {
