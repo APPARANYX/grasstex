@@ -332,12 +332,18 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       return page.evaluate(() => ({
         id: window.__qaDeathVictim.id,
         time: __battle__.time,
+        pointerLocked: !!document.pointerLockElement,
         leases: __battle__._roster.us.filter(s => s.isPlayer).length,
         position: __battle__.scene.activeCamera.position.asArray()
       }));
     }
     const deathStart = await killPlayerForTour();
     assert.equal(deathStart.leases, 0, 'dead soldier releases player authority during the tour');
+    assert.equal(
+      deathStart.pointerLocked,
+      false,
+      'death tour must release pointer lock so Skip is clickable'
+    );
     await page.waitForTimeout(1800);
     await page.screenshot({ path: path.join(OUT, 'death-orbit.png') });
     const deathMid = await page.evaluate(() => ({

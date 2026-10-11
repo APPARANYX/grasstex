@@ -68,6 +68,7 @@ function fixture({ killer = true, empty = false } = {}) {
     `
     var player=victim, playerBattle=b, deathSequence=null, possessionFlight=null, deathSkip=null, playerYaw=0,
       playerFaction='us', mouseFire=true, mouseAim=true, keys=new Set(['w']),
+      canvas={}, document={pointerLockElement:null},
       scene={}, PLAYER_DISTANCE=3, PLAYER_CAMERA_CLEARANCE=0.5;
     function clamp(x,a,z){return Math.max(a,Math.min(z,x));}
     function ensurePlayerCamera(){return cam;}

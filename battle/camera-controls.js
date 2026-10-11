@@ -1338,7 +1338,8 @@
       var b = liveBattle();
       /* This is a possession transfer, never a spawn. */
       if (!playerSoldierEligible(b, next)) return false;
-      var sourceCam = scene.activeCamera || camera,
+      var restoreLock = deathSequence && deathSequence.restoreLock,
+        sourceCam = scene.activeCamera || camera,
         flightFrom = sourceCam.position.clone(),
         flightLook = sourceCam.getTarget().clone(),
         flightFov = sourceCam.fov;
@@ -1379,6 +1380,12 @@
         playerCam.position.copyFrom(flightFrom);
         playerCam.setTarget(flightLook);
         playerCam.fov = flightFov;
+      }
+      if (restoreLock && document.pointerLockElement !== canvas && canvas.requestPointerLock) {
+        try {
+          var lockRequest = canvas.requestPointerLock();
+          if (lockRequest && lockRequest.catch) lockRequest.catch(function () {});
+        } catch (_) {}
       }
       updateHint(activeGamepad());
       global.GTLog('[PLAYER] controlling ' + playerLabel() + ' · faction locked ' + playerFaction);
@@ -1474,7 +1481,14 @@
       keys.clear();
       clearGrenadeReady();
       hidePlayerPresentation();
-      deathSequence = { killer: killer, angle: playerYaw + Math.PI };
+      deathSequence = {
+        killer: killer,
+        angle: playerYaw + Math.PI,
+        restoreLock: document.pointerLockElement === canvas
+      };
+      // A locked pointer routes clicks to the canvas, making the visible Skip
+      // button unreachable. Release it for the tour and restore it on handoff.
+      if (deathSequence.restoreLock && document.exitPointerLock) document.exitPointerLock();
       scene.activeCamera = cam;
       deathStage('body', player);
       showDeathSkip();
