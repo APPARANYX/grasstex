@@ -1665,7 +1665,6 @@
     }
     function bindDesktopEvents() {
       listen(canvas, 'click', function () {
-        if (global.BattleTacticalMap && global.BattleTacticalMap.isOpen()) return;
         canvas.focus();
         if (document.pointerLockElement !== canvas) canvas.requestPointerLock && canvas.requestPointerLock();
       });
@@ -1680,7 +1679,7 @@
         }
       });
       listen(document, 'mousemove', function (event) {
-        if (!active || deathSequence || (global.BattleTacticalMap && global.BattleTacticalMap.isOpen())) return;
+        if (!active || deathSequence) return;
         if (player) {
           var aimingNow = mouseAim || buttonValue(activeGamepad(), 6) > 0.35,
             sensitivity = aimingNow ? PLAYER_ADS_SENSITIVITY : 1;
@@ -1695,7 +1694,7 @@
         camera.rotation.x = pitch;
       });
       listen(canvas, 'mousedown', function (event) {
-        if (!player || player.dead || deathSequence || (global.BattleTacticalMap && global.BattleTacticalMap.isOpen())) return;
+        if (!player || player.dead || deathSequence) return;
         if (event.button === 0) mouseFire = true;
         else if (event.button === 2) mouseAim = true;
         else return;
