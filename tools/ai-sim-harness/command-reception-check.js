@@ -207,6 +207,37 @@ test('shipping Meso publication is observed for both fire-control and fireteam m
   assert.ok(w.C.squadSnapshot(w.us, w.b).some(e => e.category === 'posture-fire'));
 });
 
+test('squad get-down posture cannot change a possessed soldier stance; player input still can', () => {
+  const w = world('?commandReception=1&commandPosture=1&commandMovement=0&commandRelay=0'),
+    player = w.us.members[3],
+    E = w.r.BattleEngagement;
+  player.isPlayer = true;
+  w.b.time = 10;
+  E.commitStance(player, w.b, 'stand', 0.45, 'player-possession');
+  const order = w.C.publish(w.us, w.b, 'posture-fire', w.us.members, {
+    scope: 'squad',
+    action: 'hold',
+    signature: 'get-down|hold',
+    data: { state: 'hold' }
+  });
+  assert.ok(order && order.recipients.length, 'other squad members still receive the order');
+  assert.ok(!order.recipients.includes(String(player.id)), 'player is never a posture-order recipient');
+  w.b.time = 20;
+  assert.equal(
+    w.C.adopted(player, w.b, 'posture-fire', 'squad'),
+    null,
+    'player cannot adopt the squad posture after the simulated voice/processing delay'
+  );
+  w.r.SquadAI.updateSoldier(player, w.b);
+  assert.equal(E.stateOf(player).stance, 'stand', 'the player stays upright after the squad posture order');
+  assert.equal(!!player.tacticalCrouch, false);
+  assert.equal(!!player.prone, false);
+  E.commitStance(player, w.b, 'crouch', 0.45, 'player');
+  w.r.SquadAI.updateSoldier(player, w.b);
+  assert.equal(E.stateOf(player).stance, 'crouch', 'only direct player input changes the possessed stance');
+  assert.equal(!!player.tacticalCrouch, true);
+});
+
 test('Phase 0A is behavior-neutral against commandReception=0 for the same Meso decisions', () => {
   /* Explicitly turn off movement and relay for both arms so the comparison
      isolates Phase 0A telemetry from Phase 0C/0D2 behavior. */
