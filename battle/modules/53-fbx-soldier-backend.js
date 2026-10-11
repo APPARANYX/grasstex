@@ -1387,7 +1387,9 @@
       weaponFiles: weaponFiles,
       WEAPON_POINTS: WEAPON_POINTS,
       solveGrips: solveGrips,
-      hookRender: function (scene, st) { return hookRender(scene, st); },
+      hookRender: function (scene, st) {
+        return hookRender(scene, st);
+      },
       meshLodInstall: meshLodInstall,
       MODEL_SET: MODEL_SET,
       SMOOTH_NORMALS: SMOOTH_NORMALS
