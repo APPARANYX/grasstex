@@ -12,13 +12,15 @@ const helperName = '52-fbx-weapon-calibration.js';
 const backendName = '53-fbx-soldier-backend.js';
 const source = fs.readFileSync(path.join(modules, helperName), 'utf8');
 const backend = fs.readFileSync(path.join(modules, backendName), 'utf8');
+const lifecycle = fs.readFileSync(path.join(modules, '52-fbx-library-lifecycle.js'), 'utf8');
 
 assert.ok('52-fbx-rig-canon.js' < helperName && helperName < backendName);
 assert.match(backend, /!root\.BattleFbxWeaponCalibration\s*\|\|/);
 assert.match(backend, /CALIB\.pointsFor/);
 assert.match(backend, /CALIB\.applySidecarData/);
 assert.match(backend, /CALIB\.applyDefaultSeats/);
-assert.match(backend, /var sideWork = loadSidecars\(base, Object\.keys\(files\)\)/);
+assert.match(lifecycle, /var sideWork = loadSidecars\(base, Object\.keys\(files\)\)/);
+assert.match(backend, /root\.BattleFbxLibraryLifecycle\.create/);
 assert.match(backend, /\.then\(function \(\) \{\s*applyDefaultSeats\(file\)/);
 assert.doesNotMatch(backend, /function pointsFor\(file, kind\)/);
 assert.doesNotMatch(backend, /function applySidecarData\(file, data\)/);
