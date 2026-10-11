@@ -34,6 +34,7 @@
       startRecon = ctx.startRecon,
       endRecon = ctx.endRecon,
       RECON_LEDGER_ON = ctx.RECON_LEDGER_ON !== false,
+      ROUTE_TRANSITION_ON = ctx.ROUTE_TRANSITION_ON !== false,
       URBAN_ARRIVAL_COHESION = ctx.URBAN_ARRIVAL_COHESION;
     function inTown(town, p) {
       return !!(town && town.center && p && dist(p, town.center) < (+town.radius || 250));
@@ -51,6 +52,7 @@
           : +c.routeArrivalRadius || 8;
     }
     function observeRouteTransition(sim, sq) {
+      if (!ROUTE_TRANSITION_ON) return;
       var l = L.get(sq, 'route-transition');
       if (!l) return;
       var d = l.data,
@@ -269,31 +271,33 @@
         var from = idx;
         sq.routeIndex = idx = idx + 1;
         wp = legs[idx];
-        var budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity,
-          remaining = dist(pos, wp);
-        L.grant(
-          sq,
-          'route-transition',
-          'squad-leader',
-          t,
-          t + budget,
-          'leg ' + from + ' -> ' + idx,
-          'arrival, contact, blocked, superseded, retreat or no progress',
-          {
-            from: from,
-            leg: idx,
-            missionVersion: missionVersion(sq),
-            target: copy(wp),
-            arrivalRadius: routeArrival(idx, axisEnd, town, wp, c, limit),
-            startDistance: remaining,
-            distance: remaining,
-            bestDistance: remaining,
-            traveled: 0,
-            lastPosition: copy(pos),
-            lastProgressAt: t,
-            noProgressBudget: budget
-          }
-        );
+        if (ROUTE_TRANSITION_ON) {
+          var budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity,
+            remaining = dist(pos, wp);
+          L.grant(
+            sq,
+            'route-transition',
+            'squad-leader',
+            t,
+            t + budget,
+            'leg ' + from + ' -> ' + idx,
+            'arrival, contact, blocked, superseded, retreat or no progress',
+            {
+              from: from,
+              leg: idx,
+              missionVersion: missionVersion(sq),
+              target: copy(wp),
+              arrivalRadius: routeArrival(idx, axisEnd, town, wp, c, limit),
+              startDistance: remaining,
+              distance: remaining,
+              bestDistance: remaining,
+              traveled: 0,
+              lastPosition: copy(pos),
+              lastProgressAt: t,
+              noProgressBudget: budget
+            }
+          );
+        }
         telemetry(sim, 'decision-route', {
           faction: sq.faction,
           squad: sq.id,
