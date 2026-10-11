@@ -1,0 +1,17 @@
+name: PR513 test formatting ratchet
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Format changed regression
+        run: npx --yes prettier@3.3.3 --write tools/ai-sim-harness/local-mission-tasks-check.js
+      - name: Export
+        run: |
+          echo PR513_FINAL_TEST_BEGIN
+          base64 -w0 tools/ai-sim-harness/local-mission-tasks-check.js
+          echo
+          echo PR513_FINAL_TEST_END
