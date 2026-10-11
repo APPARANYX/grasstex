@@ -29,7 +29,16 @@ const { chromium } = require('playwright');
     });
     await page.waitForTimeout(5000);
     const cdp = await context.newCDPSession(page);
+    await page.evaluate(() => {
+      __battle__.paused = true;
+      for (let i = 0; i < 50; i++) BattleTacticalSituation.sample(__battle__);
+    });
     await cdp.send('HeapProfiler.collectGarbage');
+    await cdp.send('HeapProfiler.startSampling', {
+      samplingInterval: 1024,
+      includeObjectsCollectedByMajorGC: true,
+      includeObjectsCollectedByMinorGC: true
+    });
     const before = await cdp.send('Runtime.getHeapUsage');
     const evidence = await page.evaluate(() => {
       const b = __battle__,
@@ -46,10 +55,6 @@ const { chromium } = require('playwright');
       }
       const totalMs = performance.now() - start;
       const sampled = T.summary(b);
-      b.restart();
-      const cleared = T.summary(b).tacticalSituation === null;
-      T.sample(b);
-      const fresh = T.summary(b);
       return {
         enabled: T.enabled(),
         stable,
@@ -58,8 +63,6 @@ const { chromium } = require('playwright');
         msPerSample: totalMs / loops,
         serializedBytes: bytes,
         beforeContacts: sampled.tacticalSituation.us.contactCount,
-        restartCleared: cleared,
-        restartContacts: fresh.tacticalSituation.us.contactCount,
         modules: performance.getEntriesByType('resource').filter(e => /battle\/modules\/.*\.js/.test(e.name))
           .length
       };
@@ -67,13 +70,26 @@ const { chromium } = require('playwright');
     await cdp.send('HeapProfiler.collectGarbage');
     const after = await cdp.send('Runtime.getHeapUsage');
     evidence.collectedHeapDeltaBytes = after.usedSize - before.usedSize;
+    const { profile } = await cdp.send('HeapProfiler.stopSampling');
+    function allocated(n) {
+      return n.selfSize + n.children.reduce((sum, c) => sum + allocated(c), 0);
+    }
+    evidence.sampledAllocationBytes = allocated(profile.head);
+    evidence.restart = await page.evaluate(() => {
+      const b = __battle__,
+        T = BattleTacticalSituation;
+      b.restart();
+      const cleared = T.summary(b).tacticalSituation === null;
+      T.sample(b);
+      return { cleared, contacts: T.summary(b).tacticalSituation.us.contactCount };
+    });
     evidence.errors = errors;
     fs.mkdirSync('closeups/tactical-observation', { recursive: true });
     fs.writeFileSync('closeups/tactical-observation/report.json', JSON.stringify(evidence, null, 2));
     console.log(JSON.stringify(evidence));
     assert.equal(evidence.stable, true);
-    assert.equal(evidence.restartCleared, true);
-    assert.equal(evidence.restartContacts, 0);
+    assert.equal(evidence.restart.cleared, true);
+    assert.equal(evidence.restart.contacts, 0);
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();
