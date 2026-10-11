@@ -19,12 +19,42 @@ function loadPlaywright() {
 const URL = process.env.CLIPPACK_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
 const OUT = process.env.CLIPPACK_OUT || '';
 
+// Private mastered audio is not checked into public runtime builds. Replace only these
+// missing samples with silence for browser animation parity, never in production.
+function silentWav() {
+  const samples = 2205, b = Buffer.alloc(44 + samples * 2);
+  b.write('RIFF', 0);
+  b.writeUInt32LE(b.length - 8, 4);
+  b.write('WAVE', 8);
+  b.write('fmt ', 12);
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(22050, 24);
+  b.writeUInt32LE(44100, 28);
+  b.writeUInt16LE(2, 32);
+  b.writeUInt16LE(16, 34);
+  b.write('data', 36);
+  b.writeUInt32LE(samples * 2, 40);
+  return b;
+}
+
 async function load(browser, query) {
   /* A fresh context per load: no HTTP cache or memory carried from the other one. */
   const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 800, height: 600 } });
   const page = await context.newPage();
   const errors = [], fetched = [];
   page.on('pageerror', e => errors.push(String(e).slice(0, 300)));
+  const silence = silentWav();
+  await page.route('**/*', route => {
+    const request = route.request();
+    if (request.method() === 'POST' || /battle_(policy|learning|log|metrics)[^/]*\.php/.test(request.url()))
+      return route.fulfill({ json: {} });
+    if (/\/Assets\/audio\/.*\.(?:mp3|wav|ogg)(?:[?#]|$)/i.test(request.url()))
+      return route.fulfill({ status: 200, body: silence, contentType: 'audio/wav' });
+    return route.continue();
+  });
+
   page.on('response', r => { const u = decodeURIComponent(r.url()); if (/\/Assets\/animations\//.test(u)) fetched.push(u.slice(u.lastIndexOf('/') + 1)); });
   const t0 = Date.now();
   await page.goto(URL + (URL.includes('?') ? '&' : '?') + 'seed=clip-pack' + (query ? '&' + query : ''), { waitUntil: 'load', timeout: 90000 });

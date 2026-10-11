@@ -35,6 +35,7 @@
     !root.BattleFbxRenderLod ||
     !root.BattleFbxSurfaceDamage ||
     !root.BattleFbxClipMixer ||
+    !root.BattleFbxPreparedPack ||
     root.BattleFbxSoldier
   )
     return;
@@ -1313,86 +1314,6 @@
     out.set(new Uint8Array(data.buffer), 8 + json.length + pad);
     return out;
   }
-  function decodeClipPack(buf) {
-    var bytes = new Uint8Array(buf),
-      len = buf.byteLength >= 8 ? new DataView(buf).getUint32(4, true) : 0;
-    if (!len || String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) !== 'GCP1' || len % 4)
-      throw new Error('not a clip pack');
-    var head = JSON.parse(new TextDecoder().decode(bytes.subarray(8, 8 + len)));
-    if (head.format !== CLIP_PACK_FORMAT || head.fps !== FPS)
-      throw new Error(
-        'clip pack format ' +
-          head.format +
-          ' at ' +
-          head.fps +
-          ' fps, runtime wants ' +
-          CLIP_PACK_FORMAT +
-          ' at ' +
-          FPS
-      );
-    var data = new Float32Array(buf, 8 + len, (buf.byteLength - 8 - len) >> 2),
-      rest = {},
-      clips = {};
-    Object.keys(head.src.rest).forEach(function (b) {
-      var r = head.src.rest[b];
-      rest[b] = { q: new Q(r.q[0], r.q[1], r.q[2], r.q[3]), p: new V3(r.p[0], r.p[1], r.p[2]) };
-    });
-    head.clips.forEach(function (c) {
-      var channels = new Array(head.src.bones.length);
-      c.channels.forEach(function (e) {
-        channels[e[0]] = {
-          rot: e[1] < 0 ? null : data.subarray(e[1], e[1] + c.frames * 4),
-          pos: e[2] < 0 ? null : data.subarray(e[2], e[2] + c.frames * 3)
-        };
-      });
-      clips[c.key] = {
-        spec: c.spec,
-        clip: {
-          key: c.key,
-          file: c.spec[0],
-          loop: c.loop,
-          frames: c.frames,
-          duration: c.duration,
-          travel: c.travel,
-          speed: 0,
-          turnRate: c.turnRate,
-          channels: channels
-        }
-      };
-    });
-    return {
-      src: { bones: head.src.bones, rest: rest, scheme: head.src.scheme },
-      clips: clips,
-      sources: head.sources || null
-    };
-  }
-  function fetchClipPack(base) {
-    if (!CLIP_PACK_ON || typeof fetch !== 'function') return Promise.resolve(null);
-    /* no-cache revalidates: an unchanged pack costs one 304, a regenerated one is never served stale. */
-    var url = base + 'animations/' + CLIP_PACK_FILE,
-      t0 = perfNow();
-    return fetch(url, { cache: 'no-cache' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.arrayBuffer();
-      })
-      .then(function (buf) {
-        if (ASSET.on) assetLoaded('pack', CLIP_PACK_FILE, url, t0);
-        var t1 = perfNow(),
-          pack = decodeClipPack(buf);
-        assetAdd('pack', CLIP_PACK_FILE, 'convert', perfNow() - t1);
-        if (ASSET.on && !assetEntry('pack', CLIP_PACK_FILE).bytes)
-          assetEntry('pack', CLIP_PACK_FILE).bytes = buf.byteLength;
-        return pack;
-      })
-      .catch(function (error) {
-        console.warn(
-          '[ANIM] prepared clips unavailable, clips load from FBX:',
-          (error && error.message) || error
-        );
-        return null;
-      });
-  }
   /* Load and convert clip FBX files ({file: [keys]}); resolves to the converted clips. */
   function loadClipFiles(scene, st, base, byFile, progress) {
     return Promise.all(
@@ -1430,32 +1351,32 @@
       return [].concat.apply([], groups);
     });
   }
-  function clipsByFile(keys) {
-    var byFile = {};
-    keys.forEach(function (key) {
-      (byFile[CLIPS[key][0]] || (byFile[CLIPS[key][0]] = [])).push(key);
-    });
-    return byFile;
-  }
   /* For scripts/build_clip_pack.cjs: every CLIPS entry converted from its FBX, encoded as a pack.
    Runs on its own state, so a live battle's library is untouched. */
-  function buildClipPack(scene, extra) {
-    var st = { src: null, bones: null };
-    return ensureLoader()
-      .then(function () {
-        return loadClipFiles(scene, st, assetBase(), clipsByFile(Object.keys(CLIPS)));
-      })
-      .then(function (list) {
-        var order = {};
-        Object.keys(CLIPS).forEach(function (k, i) {
-          order[k] = i;
-        });
-        list.sort(function (a, b) {
-          return order[a.key] - order[b.key];
-        });
-        return encodeClipPack(st.src, list, extra);
-      });
-  }
+  /* R3: prepared clip decode/fetch and offline build ownership stays in the pure
+     pack module; FBX conversion/encoding remain unchanged to preserve the pack hash. */
+  var PACK_OWNER = root.BattleFbxPreparedPack.create({
+      Q: Q,
+      V3: V3,
+      FPS: FPS,
+      CLIP_PACK_FORMAT: CLIP_PACK_FORMAT,
+      CLIP_PACK_FILE: CLIP_PACK_FILE,
+      CLIP_PACK_ON: CLIP_PACK_ON,
+      CLIPS: CLIPS,
+      ASSET: ASSET,
+      perfNow: perfNow,
+      assetLoaded: assetLoaded,
+      assetAdd: assetAdd,
+      assetEntry: assetEntry,
+      ensureLoader: ensureLoader,
+      loadClipFiles: loadClipFiles,
+      assetBase: assetBase,
+      encodeClipPack: encodeClipPack
+    }),
+    decodeClipPack = PACK_OWNER.decodeClipPack,
+    fetchClipPack = PACK_OWNER.fetchClipPack,
+    clipsByFile = PACK_OWNER.clipsByFile,
+    buildClipPack = PACK_OWNER.buildClipPack;
 
   /* Clips are authored on one skeleton; a model may share its bone names and hierarchy but not its
    rest orientations or units (the paratroopers differ by up to ~180 degrees per bone and use
