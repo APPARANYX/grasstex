@@ -1,7 +1,7 @@
-# Benchmark run #546 · 2 seeds from `phase-a-control` (ge-defend), windows `contact+120`
+# Benchmark run #575 · 2 seeds from `phase-a-control` (ge-defend), windows `contact+120`
 
-- **OFF** flags: `routeTransition=0` · **ON** flags: `none`
-- work/tactics-b2-route-lease @ cdd25fd · [run](https://github.com/APPARANYX/grasstex/actions/runs/38148767384) · build v29-dev
+- **OFF** flags: `localPlan=0&coveredBounds=0&localResources=0` · **ON** flags: `localPlan=0&coveredBounds=0&localResources=1`
+- work/tactics-c-local-resources @ e3825c5 · [run](https://github.com/APPARANYX/grasstex/actions/runs/38172719139) · build v29-dev
 
 ## Verdict
 
@@ -66,7 +66,7 @@ phase-a-control-0001 (identical) · phase-a-control-0002 (identical)
 
 ## Viewer
 
-[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=546&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/tactics-b2-route-lease/ai_flow_live.html?bench=546&view=brain3d) (it has the change before it reaches main)
+[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=575&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/tactics-c-local-resources/ai_flow_live.html?bench=575&view=brain3d) (it has the change before it reaches main)
 
-The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=546`); it opens the seed that parts earliest, and the dropdowns choose another.
+The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=575`); it opens the seed that parts earliest, and the dropdowns choose another.
 

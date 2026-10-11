@@ -1,18 +1,18 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "546",
-    "runId": "38148767384",
+    "run": "575",
+    "runId": "38172719139",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/tactics-b2-route-lease",
-    "sha": "cdd25fd1f88be8383215c5f3e9e5dd90551a4473",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38148767384",
+    "ref": "work/tactics-c-local-resources",
+    "sha": "e3825c5e6b1cd624399937b87fa23368b8f97dbf",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38172719139",
     "seed": "phase-a-control",
     "seeds": 2,
     "windows": "contact+120",
     "battleType": "ge-defend",
-    "queryOff": "routeTransition=0",
-    "queryOn": "",
+    "queryOff": "localPlan=0&coveredBounds=0&localResources=0",
+    "queryOn": "localPlan=0&coveredBounds=0&localResources=1",
     "build": "v29-dev"
   },
   "verdict": {
@@ -77,8 +77,8 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 10.3935,
-      "medianB": 10.1445,
+      "medianA": 8.9255,
+      "medianB": 8.708499999999999,
       "ratio": 0.976,
       "gate": 1.25
     },
@@ -465,8 +465,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=546&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/tactics-b2-route-lease/ai_flow_live.html?bench=546&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=575&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/tactics-c-local-resources/ai_flow_live.html?bench=575&view=brain3d",
     "seeds": [
       {
         "seed": "phase-a-control-0001",
