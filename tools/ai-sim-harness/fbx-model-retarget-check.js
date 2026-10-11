@@ -49,7 +49,7 @@ const model = {
   hipsHeight: 1
 };
 const deps = {
-  Q: { Dot: (a, b) => a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w },
+  Q: class { static Dot(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; } },
   V3: class {},
   MX: class {},
   FPS: 30,
