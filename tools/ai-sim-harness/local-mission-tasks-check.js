@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
-function world(on = true, structures = false, entry = false, entryGate = false) {
+function world(on = true, structures = false, entry = false, entryGate = false, survey = false) {
   H.resetIds();
   const r = H.bootstrap({
       modules: false,
@@ -12,7 +12,8 @@ function world(on = true, structures = false, entry = false, entryGate = false) 
         (on ? '&localTasks=1' : '') +
         (structures ? '&localStructures=1' : '') +
         (entry ? '&localEntry=1' : '') +
-        (entryGate ? '&localEntryGate=1' : '')
+        (entryGate ? '&localEntryGate=1' : '') +
+        (survey ? '&localSurvey=1' : '')
     }),
     systems = {},
     events = [];
@@ -298,8 +299,8 @@ assert.equal(
 
 // A real Navigation doorway, not an objective radius or a world-truth enemy,
 // supplies the optional structure handoff. No ownership/clearance is inferred.
-function structureWorld(structures = true, entry = false, entryGate = false) {
-  const x = world(true, structures, entry, entryGate);
+function structureWorld(structures = true, entry = false, entryGate = false, survey = false) {
+  const x = world(true, structures, entry, entryGate, survey);
   loadModule(x.r, 'battle/battle-navigation.js', { console: quietConsole, location: x.r.location });
   const house = {
     id: 'farmhouse',
@@ -534,6 +535,158 @@ gateReset.P.update(gateReset.b, gateReset.q);
 gateReset.systems['squad-command'].onBattleRestart(gateReset.b);
 assert.equal(gateReset.q._localTask, null);
 assert.equal(gateReset.P.entrySatisfied(gateReset.b, gateReset.q, gateReset.q.route[1]), false);
+
+// Two live witnesses must actually be inside and looking along clear
+// Navigation/terrain sightlines. A successful survey is evidence of ground
+// footprint observation only; neither contacts nor clearance are inferred.
+function surveyFixture() {
+  const x = structureWorld(true, true, true, true);
+  const door = x.r.BattleNavigation.doorPortals[0],
+    leader = x.r.SquadAI.leaderOf(x.q),
+    buddy = x.q.members.find(s => s !== leader),
+    others = x.q.members.filter(s => s !== leader && s !== buddy);
+  x.q.members.forEach(s => {
+    s.root.position.x = 0;
+    s.root.position.z = 196;
+  });
+  others.forEach(s => {
+    s.root.position.z = 180;
+  });
+  leader.root.position.x = door.outside.x;
+  leader.root.position.z = door.outside.z;
+  buddy.root.position.x = 0;
+  buddy.root.position.z = 180;
+  x.P.update(x.b, x.q);
+  x.b.time += 0.45;
+  leader.root.position.x = door.inside.x;
+  leader.root.position.z = door.inside.z;
+  x.P.update(x.b, x.q);
+  return { ...x, leader, buddy, door, others };
+}
+function surveyPoint(x, i) {
+  const xy = [
+    [-0.23, -0.23],
+    [0.23, -0.23],
+    [-0.23, 0.23],
+    [0.23, 0.23]
+  ][i];
+  const b = x.house,
+    c = Math.cos(b.rot),
+    si = Math.sin(b.rot);
+  return { x: b.x + xy[0] * b.w * c + xy[1] * b.d * si, z: b.z - xy[0] * b.w * si + xy[1] * b.d * c };
+}
+function face(s, p) {
+  s.root.rotation.y = Math.atan2(p.x - s.root.position.x, p.z - s.root.position.z);
+}
+const surveyOff = structureWorld(true, true, true, false);
+assert.equal(surveyOff.P.surveyOn, false);
+surveyOff.P.update(surveyOff.b, surveyOff.q);
+assert.equal(surveyOff.q._localTask.inputs.execution.structure.survey, undefined);
+const survey = surveyFixture();
+assert.equal(survey.P.surveyOn, true);
+assert.equal(survey.q._localTask.inputs.execution.structure.entryEvidence.entryVerified, true);
+assert.equal(survey.q._localTask.inputs.execution.structure.survey.status, 'insufficient-interior-observers');
+assert.equal(survey.P.entrySatisfied(survey.b, survey.q, survey.q.route[1]), false);
+survey.S.executeMission(survey.b, survey.q, null);
+assert.equal(survey.q.routeIndex, 1, 'crossing by one man cannot finish an interior survey');
+survey.buddy.root.position.x = 0;
+survey.buddy.root.position.z = 200;
+for (let i = 0; i < 4; i++) {
+  const target = surveyPoint(survey, i);
+  const witness = i < 2 ? survey.leader : survey.buddy;
+  const other = i < 2 ? survey.buddy : survey.leader;
+  face(witness, target);
+  other.root.rotation.y = faceAway(other, target);
+  survey.b.time += 0.45;
+  survey.P.update(survey.b, survey.q);
+}
+function faceAway(s, p) {
+  return Math.atan2(p.x - s.root.position.x, p.z - s.root.position.z) + Math.PI;
+}
+const done = survey.q._localTask.inputs.execution.structure.survey;
+assert.equal(done.observedSectors, 4, 'all four real inside rays were sampled');
+assert.equal(done.contributors.length, 2, 'two distinct live men actually looked into footprint sectors');
+assert.equal(done.complete, true);
+assert.equal(done.status, 'ground-footprint-surveyed');
+assert.equal(done.clearance, 'not-assessed');
+assert.equal(done.control, 'unknown');
+const surveyedIdentity = identity(survey);
+assert.equal(survey.P.entrySatisfied(survey.b, survey.q, survey.q.route[1]), true);
+assert.equal(
+  identity(survey),
+  surveyedIdentity,
+  'survey never writes fire, stance, movement or mission state'
+);
+survey.S.executeMission(survey.b, survey.q, null);
+assert.equal(survey.q.routeIndex, 2, 'single mission owner hands back only after actual survey');
+
+// Geometry/facing, own-team composition, contact and mission freshness cannot
+// be replaced by timers or presence. No enemies are read from world transforms.
+const secondWitness = surveyFixture();
+secondWitness.buddy.root.position.x = 0;
+secondWitness.buddy.root.position.z = 200;
+const nativeLOS = secondWitness.r.SquadAI.hasLineOfSight;
+secondWitness.r.SquadAI.hasLineOfSight = (a, b, c, d) => a !== secondWitness.buddy && nativeLOS(a, b, c, d);
+// A single sentry can visually inspect every sample, but that alone does not
+// establish corroboration. A later second witness may confirm an already
+// observed sector rather than requiring an artificial new fifth sector.
+for (let i = 0; i < 4; i++) {
+  const target = surveyPoint(secondWitness, i);
+  face(secondWitness.leader, target);
+  secondWitness.buddy.root.rotation.y = faceAway(secondWitness.buddy, target);
+  secondWitness.b.time += 0.45;
+  secondWitness.P.update(secondWitness.b, secondWitness.q);
+}
+assert.equal(secondWitness.q._localTask.inputs.execution.structure.survey.observedSectors, 4);
+assert.equal(secondWitness.q._localTask.inputs.execution.structure.survey.contributors.length, 1);
+secondWitness.r.SquadAI.hasLineOfSight = nativeLOS;
+assert.equal(
+  secondWitness.P.entrySatisfied(secondWitness.b, secondWitness.q, secondWitness.q.route[1]),
+  false
+);
+const reaffirm = surveyPoint(secondWitness, 0);
+face(secondWitness.buddy, reaffirm);
+secondWitness.leader.root.rotation.y = faceAway(secondWitness.leader, reaffirm);
+secondWitness.b.time += 0.45;
+secondWitness.P.update(secondWitness.b, secondWitness.q);
+assert.equal(secondWitness.q._localTask.inputs.execution.structure.survey.contributors.length, 2);
+assert.equal(
+  secondWitness.P.entrySatisfied(secondWitness.b, secondWitness.q, secondWitness.q.route[1]),
+  true
+);
+
+const blocked = surveyFixture();
+blocked.buddy.root.position.x = 0;
+blocked.buddy.root.position.z = 200;
+blocked.r.SquadAI.hasLineOfSight = () => false;
+for (let i = 0; i < 4; i++) {
+  face(blocked.leader, surveyPoint(blocked, i));
+  blocked.b.time += 0.5;
+  blocked.P.update(blocked.b, blocked.q);
+}
+assert.equal(blocked.q._localTask.inputs.execution.structure.survey.observedSectors, 0);
+assert.equal(blocked.P.entrySatisfied(blocked.b, blocked.q, blocked.q.route[1]), false);
+const contactSurvey = surveyFixture();
+contactSurvey.buddy.root.position.z = 200;
+contactSurvey.q.inContact = true;
+contactSurvey.P.update(contactSurvey.b, contactSurvey.q);
+assert.equal(
+  contactSurvey.P.entrySatisfied(contactSurvey.b, contactSurvey.q, contactSurvey.q.route[1]),
+  false
+);
+const staleSurvey = surveyFixture();
+staleSurvey.q._macroMission.version += 1;
+assert.equal(staleSurvey.P.entrySatisfied(staleSurvey.b, staleSurvey.q, staleSurvey.q.route[1]), false);
+const lostSurvey = surveyFixture();
+lostSurvey.leader.dead = true;
+assert.equal(lostSurvey.P.entrySatisfied(lostSurvey.b, lostSurvey.q, lostSurvey.q.route[1]), false);
+const restartedSurvey = surveyFixture();
+restartedSurvey.systems['squad-command'].onBattleRestart(restartedSurvey.b);
+assert.equal(restartedSurvey.q._localTask, null);
+assert.equal(
+  restartedSurvey.P.entrySatisfied(restartedSurvey.b, restartedSurvey.q, restartedSurvey.q.route[1]),
+  false
+);
 
 // Only own stored sightings at a valid age may annotate reported threats.
 structure.r.SquadAI.squadContactsMap = () => [
