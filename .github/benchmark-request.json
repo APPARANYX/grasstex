@@ -1,0 +1,13 @@
+{
+  "benchmark": "standard",
+  "ref": "work/tactics-c-local-resources",
+  "seed": "phase-a-control",
+  "seeds": "2",
+  "battle_type": "us-defend",
+  "query_off": "localPlan=1&coveredBounds=1&localResources=0",
+  "query_on": "localPlan=1&coveredBounds=1&localResources=1",
+  "windows": "contact+120",
+  "purpose": "Phase C bounded local resources resources",
+  "origin_agent": "chatgpt",
+  "correlation_id": "pr507-us-defend-resources"
+}
