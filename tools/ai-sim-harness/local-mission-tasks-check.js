@@ -382,15 +382,26 @@ assert.equal(entryWorld.q._localTask.inputs.execution.structure.control, 'unknow
 const priorConfirmed = JSON.stringify(entryWorld.q._localTask);
 assert.equal(JSON.stringify(entryWorld.P.update(entryWorld.b, entryWorld.q)), priorConfirmed);
 entryWorld.b.time += 0.45;
-assert.equal(entryWorld.P.update(entryWorld.b, entryWorld.q).inputs.execution.structure.entryEvidence.enteredAt, crossed.enteredAt);
+assert.equal(
+  entryWorld.P.update(entryWorld.b, entryWorld.q).inputs.execution.structure.entryEvidence.enteredAt,
+  crossed.enteredAt
+);
 entryLeader.root.position.x = exterior.x;
 entryLeader.root.position.z = exterior.z;
 entryWorld.b.time += 0.45;
-assert.equal(entryWorld.P.update(entryWorld.b, entryWorld.q).inputs.execution.structure.entryEvidence.entryVerified, false, 'leaving room revokes entry handoff');
+assert.equal(
+  entryWorld.P.update(entryWorld.b, entryWorld.q).inputs.execution.structure.entryEvidence.entryVerified,
+  false,
+  'leaving room revokes entry handoff'
+);
 const unverified = structureWorld(true, true);
 const unverifiedLeader = unverified.r.SquadAI.leaderOf(unverified.q);
 unverifiedLeader.root.position.z = 200;
-assert.equal(unverified.P.update(unverified.b, unverified.q).inputs.execution.structure.entryEvidence.entryVerified, false, 'first sighting inside is not proven entry');
+assert.equal(
+  unverified.P.update(unverified.b, unverified.q).inputs.execution.structure.entryEvidence.entryVerified,
+  false,
+  'first sighting inside is not proven entry'
+);
 for (const spoil of [
   x => {
     x.r.SquadAI.leaderOf(x.q).root.position.z = 200;
@@ -418,7 +429,11 @@ for (const spoil of [
     assert.equal(x.P.update(x.b, x.q).inputs.execution.structure.entryEvidence.entryVerified, false);
   } else {
     const task = x.P.update(x.b, x.q);
-    assert.ok(!task || task.kind !== 'structure-handoff' || !task.inputs.execution.structure.entryEvidence.entryVerified);
+    assert.ok(
+      !task ||
+        task.kind !== 'structure-handoff' ||
+        !task.inputs.execution.structure.entryEvidence.entryVerified
+    );
   }
 }
 const entryRestart = structureWorld(true, true);
