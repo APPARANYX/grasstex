@@ -23,6 +23,14 @@
   `AUDIO_ASSET_GLOBS` in `prepare_incremental_deploy.py`, or they 404 live.
 - **ElevenLabs is never called automatically.** The voice and combat-SFX generator workflows run only
   when a person starts them (`workflow_dispatch`); no push, schedule or other workflow triggers them.
+- **Safe key verification:** [⭐ Verify ElevenLabs connection](../../.github/workflows/elevenlabs-connection-check.yml)
+  is manually dispatched from Actions, makes **only** an authenticated read-only `GET /v1/user`,
+  and never requests generation, writes assets or prints the secret. HTTP 200 verifies the active
+  `ELEVEN_LABS_API` GitHub Actions secret; HTTP 403 may instead indicate a key scoped away from
+  account-read access or an IP restriction, so it does not prove TTS/SFX credentials are unusable.
+  The Python generator variable remains `ELEVENLABS_API_KEY` by design, supplied from
+  `secrets.ELEVEN_LABS_API`. Do not remove the current secret; inspect/delete the **old GitHub
+  secret record** only after confirming its existence separately in repository Settings.
 - **Voices:** generated with ElevenLabs `eleven_v3` via `scripts/generate_voice_callouts.py
   [--faction us|ge] [--force [EVENT]]`, which needs `ELEVENLABS_API_KEY` (never commit it).
   - Voice IDs: US `TxWZERZ5Hc6h9dGxVmXa`, GE `Z2yQ1EdlDmcIgh9Pn4Lw`. Prompt prefix
