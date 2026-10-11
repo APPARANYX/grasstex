@@ -1808,6 +1808,18 @@
     release: releaseCover,
     current: currentCover,
     snapshot: coverSnapshot,
+    boundThreats: function (s, battle) {
+      return coverImpl().boundThreats(s, battle);
+    },
+    boundRoute: function (s, battle, point, threats) {
+      return coverImpl().boundRoute(s, battle, point, threats);
+    },
+    coveredBoundsOn: function () {
+      return coverImpl().coveredBoundsOn();
+    },
+    boundTuning: function () {
+      return coverImpl().boundTuning;
+    },
     spacing: COVER_SPACING
   };
 
@@ -1821,6 +1833,21 @@
     updateSquad: updateSquad,
     orderBound: orderBound,
     clearBoundOrders: clearBoundOrders,
+    coveredBoundTelemetry: function (battle) {
+      if (!coverImpl().coveredBoundsOn()) return null;
+      var out = { attempts: 0, accepted: 0, rejected: 0, candidates: 0, samples: 0 },
+        rosters = battle._roster || {};
+      ['us', 'ge'].forEach(function (f) {
+        (rosters[f] || []).forEach(function (s) {
+          var c = s.eng && s.eng.coveredBound;
+          if (c)
+            Object.keys(out).forEach(function (key) {
+              out[key] += c[key] || 0;
+            });
+        });
+      });
+      return out;
+    },
     reacting: reacting,
     reactionState: reactionState,
     fledPhase: fledPhase,
