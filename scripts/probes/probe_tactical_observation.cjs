@@ -12,8 +12,12 @@ const { chromium } = require('playwright');
     const context = await browser.newContext({ ignoreHTTPSErrors: true });
     const entry = process.env.TACTICAL_PREVIEW;
     const res = await context.request.get(entry, { maxRedirects: 0, timeout: 180000 });
-    assert.equal(res.status(), 302);
+    assert.equal(res.status(), 302, (await res.text()).slice(-1500));
     const url = new URL(res.headers().location, entry);
+    assert.ok(
+      url.pathname.includes('ref-' + process.env.TACTICAL_SHA.slice(0, 12)),
+      'preview is final PR head'
+    );
     url.searchParams.set('seed', 'phase-a-observer');
     url.searchParams.set('tacticalSituation', '1');
     const page = await context.newPage();
