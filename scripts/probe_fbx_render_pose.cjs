@@ -49,7 +49,9 @@ const out = process.env.POSE_OUT || 'closeups/render-pose-ci';
     const saved=fx.nodes.map(n=>n&&[n.position.clone(),n.rotationQuaternion.clone()]);
     const restore=()=>{fx.nodes.forEach((n,i)=>{if(n){n.position.copyFrom(saved[i][0]);n.rotationQuaternion.copyFrom(saved[i][1]);}});scalar.forEach(k=>delete fx[k]);fx.cupRamp=0.7;fx.cupW=0.65;fx.cupReach=0.8;};
     const snapshot=()=>({nodes:fx.nodes.map(n=>n&&[...n.position.asArray(),...n.rotationQuaternion.asArray()]),socket:[...fx.socket.position.asArray(),...fx.socket.rotationQuaternion.asArray(),...fx.socket.scaling.asArray()],state:scalar.map(k=>fx[k]??null)});
-    for(const [key,clip] of Object.entries(fx.lib.clips))for(const phase of [0,0.37,0.83]){
+    const originalKind=fx.weaponKind,originalModel=fx.weaponModel;
+    for(const kind of ['rifle','pistol'])for(const [key,clip] of Object.entries(fx.lib.clips))for(const phase of [0,0.37,0.83]){
+     fx.weaponKind=kind;fx.weaponModel=kind==='pistol'?(s.faction==='ge'?'p38.fbx':'m1911a1.fbx'):originalModel;
      fx.lower={entries:[{clip,t:clip.duration*phase,rate:1,w:1}]};
      fx.upper={entries:[{clip:fx.lib.clips.aim,t:phase,rate:1,w:1}]};fx.overlay=phase;fx.aim=phase;fx.aimAt={x:fx.root.position.x+8,y:fx.root.position.y+1,z:fx.root.position.z+4};
      fx.death=key.startsWith('death')?key:null;fx.transition=/To/.test(key)?key:null;
@@ -58,12 +60,15 @@ const out = process.env.POSE_OUT || 'closeups/render-pose-ci';
      restore();previous.applyPose(fx);const a=snapshot();
      restore();current.applyPose(fx);const b=snapshot();
      const compare=(a,b)=>{if(typeof a==='number'){if(!Number.isFinite(a)||!Number.isFinite(b))throw Error('nonfinite '+file+'/'+key);worst=Math.max(worst,Math.abs(a-b));}else if(Array.isArray(a)){if(!Array.isArray(b)||a.length!==b.length)throw Error('shape mismatch');a.forEach((v,i)=>compare(v,b[i]));}else if(a!==b)throw Error('state mismatch '+file+'/'+key+': '+a+' vs '+b);};
-     compare(a.nodes,b.nodes);compare(a.socket,b.socket);compare(a.state,b.state);cases++;coverage[file]++;
+     compare(a.nodes,b.nodes);compare(a.socket,b.socket);compare(a.state,b.state);
+     if(kind==='pistol'&&deps.leftGripFor(fx.lib.file,fx.weaponModel)&&fx.cupMode==='off')throw Error('pistol cup was not exercised');
+     cases++;coverage[file]++;
     }
+    fx.weaponKind=originalKind;fx.weaponModel=originalModel;
    }
    return {models:models.size,cases,worst,coverage};
   },baseline);
-  assert.equal(result.models,10);assert.ok(result.cases>=3540);assert.equal(result.worst,0);assert.deepEqual(errors,[]);
+  assert.equal(result.models,10);assert.equal(result.cases,7080);assert.equal(result.worst,0);assert.deepEqual(errors,[]);
   const visual = await page.evaluate(async baseline => {
     const sim=__battle__,scene=sim.scene,engine=scene.getEngine();
     sim.pause();engine.stopRenderLoop();
@@ -88,9 +93,14 @@ const out = process.env.POSE_OUT || 'closeups/render-pose-ci';
         const fx=s._fbx,clip=fx.lib.clips[key];
         men.forEach(m=>{const on=m===s;m._fbx.meshes.forEach(mesh=>mesh.setEnabled(on));
           if(m.weapon?.mesh)m.weapon.mesh.setEnabled(on);if(m.weapon?.bipodMesh)m.weapon.bipodMesh.setEnabled(false);});
+        if(key==='pistolIdle'){
+          const pistol=BattleWeapons.attachWeapon(scene,fx.socket,'pistol');
+          s.weapon.mesh.setEnabled(false);fx.weapon=pistol;fx.weaponKind='pistol';fx.weaponModel=pistol.model;
+          if(!/m1911a1|p38/.test(pistol.model||'')||!__poseDeps.leftGripFor(fx.lib.file,pistol.model))throw Error('actual calibrated pistol missing');
+        }else{fx.weapon=s.weapon;fx.weaponKind=s.weapon.kind;fx.weaponModel=s.weapon.model;}
         const p=s.root.position,yaw=s.root.rotation.y||0;
         scene.activeCamera.position.set(p.x+Math.sin(yaw)*2.6-Math.cos(yaw)*1.2,p.y+1.6,p.z+Math.cos(yaw)*2.6+Math.sin(yaw)*1.2);
-        scene.activeCamera.setTarget(new BABYLON.Vector3(p.x,p.y+0.8,p.z));
+        scene.activeCamera.setTarget(new BABYLON.Vector3(p.x,p.y+(key==='proneIdle'?0.2:0.8),p.z));
         fx.lower={entries:[{clip,t:clip.duration*0.37,rate:1,w:1}]};fx.upper={entries:[]};fx.overlay=0;fx.aim=0;
         fx.throwing=null;fx.death=null;fx.transition=null;fx.supportReleased=key==='reload';fx.cupClipKey=null;
         const saved=fx.nodes.map(n=>n&&[n.position.clone(),n.rotationQuaternion.clone()]);
@@ -99,7 +109,8 @@ const out = process.env.POSE_OUT || 'closeups/render-pose-ci';
         const a=await render(previous),ctl=await render(previous),b=await render(current),back=await render(previous);
         const name=faction+'-'+key;images[name+'-before.png']=a.png;images[name+'-after.png']=b.png;
         const positiveX=s.root.position.x;s.root.position.x+=1;fx.poseRef.serial++;const positive=await shot();s.root.position.x=positiveX;
-        frames.push({name,control:diff(a.pixels,ctl.pixels),changed:diff(a.pixels,b.pixels),back:diff(a.pixels,back.pixels),positive:diff(a.pixels,positive.pixels)});
+        if(key==='pistolIdle'&&fx.cupMode==='off')throw Error('visual pistol cup not exercised');
+        frames.push({name,weapon:fx.weaponModel,cupMode:fx.cupMode,control:diff(a.pixels,ctl.pixels),changed:diff(a.pixels,b.pixels),back:diff(a.pixels,back.pixels),positive:diff(a.pixels,positive.pixels)});
       }
     } finally {scene.onBeforeRenderObservable.notifyObservers=oldNotify;}
     return {frames,images};
@@ -111,7 +122,7 @@ const out = process.env.POSE_OUT || 'closeups/render-pose-ci';
   // old/new on one runner. Warm caches first; keep timing advisory, output parity is the gate.
   const workload = await page.evaluate(baseline => {
     const old=(0,eval)(baseline)(__poseDeps), current=__poseOwner;
-    const sim=__battle__;sim.pause();sim.scene.getEngine().stopRenderLoop();
+    const sim=__battle__;sim.restart();sim.pause();sim.scene.getEngine().stopRenderLoop();
     const men=[...new Map([...sim._roster.us,...sim._roster.ge].filter(s=>s._fbx).map(s=>[s._fbx.lib.file,s])).values()];
     const run=(owner,frames)=>{
       const start=performance.now();
