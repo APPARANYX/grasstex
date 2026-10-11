@@ -1,0 +1,26 @@
+name: Temporary tactical map formatting
+on:
+  push:
+    branches:
+      - feat/reported-contact-tactical-map
+    paths:
+      - .github/workflows/temporary-tactical-map-format.yml
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/reported-contact-tactical-map
+      - name: Format scoped map source and probes
+        run: |
+          npx --yes prettier@3.3.3 --write battle/modules/55-reported-contact-tactical-map.js tools/ai-sim-harness/tactical-map-check.js scripts/probes/probe_tactical_map_ui.cjs
+          if ! git diff --quiet -- battle/modules/55-reported-contact-tactical-map.js tools/ai-sim-harness/tactical-map-check.js scripts/probes/probe_tactical_map_ui.cjs; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add battle/modules/55-reported-contact-tactical-map.js tools/ai-sim-harness/tactical-map-check.js scripts/probes/probe_tactical_map_ui.cjs
+            git commit -m "style(map): format cartography UI and QA probes"
+            git push origin HEAD:feat/reported-contact-tactical-map
+          fi
