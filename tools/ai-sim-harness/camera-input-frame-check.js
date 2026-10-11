@@ -51,8 +51,7 @@ assert.equal(fingerprint(freefly), '5cb26236', 'the original free-fly movement, 
    new roster guard. Do not simply rebaseline the entire function: everything
    after the guard (Menu, death skip, possession and frame handoff) must remain
    identical to the accepted controller-A baseline. */
-const restartGuard =
-  /\/\* Restarts reuse[\s\S]*?leavePlayer\('battle roster replaced'\);\n/;
+const restartGuard = /\/\* Restarts reuse[\s\S]*?leavePlayer\('battle roster replaced'\);\n/;
 assert.match(
   orchestration,
   restartGuard,
