@@ -130,6 +130,18 @@ f.api.step(3.2);
 f.enemy.root.isDisposed = () => true;
 f.api.step(0.1);
 assert.equal(f.api.state().tour.phase, 'next', 'disposed killer cannot strand the camera');
+f = fixture();
+f.victim._fbx = { death: 'deathSide', lower: { entries: [{ t: 3, clip: { duration: 4.5 } }] } };
+f.api.step(3.2);
+assert.equal(f.api.state().tour.phase, 'body', 'wait for the death animation to finish');
+f.victim._fbx.lower.entries[0].t = 4.5;
+f.api.step(0.1);
+assert.equal(f.api.state().tour.phase, 'killer');
+f = fixture();
+f.b.winner = 'ge';
+f.victim._fbx = { death: 'deathSide', lower: { entries: [{ t: 0, clip: { duration: 4.5 } }] } };
+f.api.step(3.2);
+assert.equal(f.api.state().tour.phase, 'killer', 'a frozen final death clip cannot strand a finished battle');
 assert.match(source, /deathSequence && pad && padPressedOnce\(pad, 0\)/, 'controller A skips');
 assert.match(source, /deathSequence && \(key === ' ' \|\| key === 'enter'\)/, 'Space and Enter skip');
 console.log(

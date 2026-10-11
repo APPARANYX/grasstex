@@ -1489,6 +1489,20 @@
       cam.setTarget(BABYLON.Vector3.Lerp(tour.lookFrom, look, ease));
       cam.fov = tour.fovFrom + ((tour.phase === 'killer' ? 0.62 : 0.78) - tour.fovFrom) * ease;
       if (t < 1) return;
+      // A long death clip may outlast the minimum orbit. Observe its presentation
+      // clock without advancing it; paused/finished battles must not strand the tour.
+      var entries = man._fbx && man._fbx.lower && man._fbx.lower.entries,
+        deathClip = entries && entries[entries.length - 1];
+      if (
+        tour.phase === 'body' &&
+        !b.paused &&
+        !b.winner &&
+        man._fbx &&
+        man._fbx.death &&
+        deathClip &&
+        deathClip.t < deathClip.clip.duration
+      )
+        return;
       if (tour.phase === 'next') {
         if (!possessSoldier(man)) leavePlayer('no living ' + playerFaction + ' soldiers');
       } else if (tour.phase === 'body' && tour.killer) deathStage('killer', tour.killer);

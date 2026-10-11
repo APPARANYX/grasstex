@@ -20,6 +20,15 @@ casualties, wounds, shooting, and AI orders remain with their existing owners.
   operate the native selectors and buttons. Menu pauses a running battle while open,
   resumes only if it initiated the pause, and blocks player movement/firing underneath.
   Selection never creates a soldier and refuses dead or stale roster entries.
+- **Death camera.** Death releases the player's leases and hides combat feedback, then the
+  camera orbits the body for at least 3.2 seconds (waiting for a longer rendered
+  death clip to finish while the battle runs), flies to the attributed enemy killer for a
+  2.2-second reveal, and flies into a living ally's shoulder view over 2 seconds.
+  The battle keeps running and the ally stays AI-controlled until arrival. Unknown
+  killers skip the reveal; dead destinations retarget to a surviving ally.
+  **Skip**, **Space/Enter**, or controller **A** immediately transfers to a living
+  soldier of the current faction. Manual switching/exiting, restart and controller
+  disposal cancel the tour and remove its feedback.
 - The lower-left HUD
   shows current soldier/faction, soldier `hp / maxHp`, stamina, and wound-model
   `bleedRate` with explicit bleeding/wounded/stable statuses.
@@ -114,6 +123,7 @@ offscreen border into empty sky. On-screen command movement remains unchanged.
 
 ## Regression checks
 
+- `node tools/ai-sim-harness/player-death-camera-check.js` (tour, arrival authority, skip and disappearing subjects)
 - `node tools/ai-sim-harness/player-control-check.js` (Menu tap/hold timing and roster safety)
 - `node tools/ai-sim-harness/player-fire-mode-check.js` (held full auto, selector, semi, climb, AI bursts untouched)
 - `node tools/ai-sim-harness/squad-status-overlay-check.js` (projected bearings,

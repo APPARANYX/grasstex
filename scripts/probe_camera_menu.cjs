@@ -321,7 +321,8 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     async function killPlayerForTour() {
       await page.evaluate(() => {
         const b = __battle__,
-          man = BattleDesktopCamera.current.player();
+          man = b._roster.us.concat(b._roster.ge).find(s => s.isPlayer);
+        window.__qaDeathVictim = man;
         const killer = b._roster[man.faction === 'us' ? 'ge' : 'us'].find(s => !s.dead);
         man._lastHitBy = killer;
         man.casualty = { by: killer.id, at: b.time, cause: 'probe' };
@@ -329,7 +330,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       });
       await page.waitForFunction(() => document.getElementById('battleDeathSkip')?.style.display === 'block');
       return page.evaluate(() => ({
-        id: BattleDesktopCamera.current.player().id,
+        id: window.__qaDeathVictim.id,
         time: __battle__.time,
         leases: __battle__._roster.us.filter(s => s.isPlayer).length,
         position: __battle__.scene.activeCamera.position.asArray()
@@ -340,11 +341,21 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     await page.waitForTimeout(1800);
     await page.screenshot({ path: path.join(OUT, 'death-orbit.png') });
     const deathMid = await page.evaluate(() => ({
-      id: BattleDesktopCamera.current.player().id,
+      id: window.__qaDeathVictim.id,
       time: __battle__.time,
       position: __battle__.scene.activeCamera.position.asArray()
     }));
-    assert.equal(deathMid.id, deathStart.id, 'body orbit must not immediately possess another man');
+    assert.equal(deathMid.id, deathStart.id, 'body orbit must follow the dead man');
+    assert.equal(
+      await page.locator('#battleDeathSkip').isVisible(),
+      true,
+      'tour must remain active during body orbit'
+    );
+    assert.equal(
+      await page.evaluate(() => __battle__._roster.us.concat(__battle__._roster.ge).some(s => s.isPlayer)),
+      false,
+      'no living man can acquire player authority during the orbit'
+    );
     assert.ok(deathMid.time > deathStart.time, 'presentation tour must leave the battle running');
     assert.ok(
       Math.hypot(...deathMid.position.map((v, i) => v - deathStart.position[i])) > 0.1,
@@ -354,7 +365,8 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     await page.screenshot({ path: path.join(OUT, 'death-killer.png') });
     await page.waitForFunction(
       () => {
-        const man = BattleDesktopCamera.current.player();
+        const man = b._roster.us.concat(b._roster.ge).find(s => s.isPlayer);
+        window.__qaDeathVictim = man;
         return (
           man &&
           !man.dead &&
@@ -374,13 +386,15 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       else await page.locator('#battleDeathSkip').click();
       await page.waitForFunction(
         () => {
-          const man = BattleDesktopCamera.current.player();
+          const man = __battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer);
           return man && !man.dead && man.isPlayer;
         },
         null,
         { timeout: 3000 }
       );
-      const survivor = await page.evaluate(() => BattleDesktopCamera.current.player().id);
+      const survivor = await page.evaluate(
+        () => __battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer).id
+      );
       assert.notEqual(survivor, killed.id, 'skip must select a surviving ally');
     }
     await page.evaluate(() => __battle__.scene.getEngine().getRenderingCanvas().focus());
@@ -687,6 +701,20 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       false,
       'short Menu tap unexpectedly opened settings'
     );
+    await killPlayerForTour();
+    await page.evaluate(() => {
+      __qaGamepad.buttons[0] = { pressed: true, value: 1 };
+    });
+    await tickDesktopFrame();
+    const padSkipped = await page.evaluate(() => ({
+      man: __battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer)?.id,
+      skipHidden: document.getElementById('battleDeathSkip').style.display === 'none'
+    }));
+    assert.ok(padSkipped.man != null && padSkipped.skipHidden, 'controller A must immediately skip the tour');
+    await page.evaluate(() => {
+      __qaGamepad.buttons[0] = { pressed: false, value: 0 };
+    });
+    await tickDesktopFrame();
     const firstGamepadPlayer = await page.evaluate(
       () => (__battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer) || null)?.id
     );
