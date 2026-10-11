@@ -873,6 +873,15 @@ existing General strategic no-progress budget bounds their lifetime. They never 
 or alter a route/order. Their bounded ended ledger is separate from gameplay leases, so added
 observations cannot evict existing outcomes. Battle restart clears both ledgers.
 
+B3 conflict enforcement is opt-in with `?leaseConflicts=1`; the default remains inert.
+A single Squad Leader policy releases an incompatible bound for current-version regroup or
+recon through Engagement's bound-order cleanup API, and prevents replacement bounds while
+the parent hold is live. Possessed soldiers and inherited bounds during succession retain
+their authority. Current shipping precedence is retained: an active/quiet tactical plan
+wins over a corner route pause; no firefight plan is canceled to honor an old route timer.
+The pure policy is queryable without writes. Applied decisions use a separate eight-row,
+simulation-time ledger exposed in full/focused diagnostics and cleared by battle restart.
+
 - Implement the `SquadIntent` contract from the command-hierarchy plan.
 - Convert plan holds, objective security, station claims, and route transitions to named leases with
   owner, priority, expiry, progress test, and release condition.
