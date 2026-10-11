@@ -804,7 +804,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       await page.keyboard.press('p');
       await page.waitForFunction(
         () =>
-          BattleDesktopCamera.current?.player()?.isPlayer &&
+          __battle__._roster.us.concat(__battle__._roster.ge).some(s => s.isPlayer) &&
           __battle__.scene.activeCamera?.name === 'playerCam',
         null,
         { timeout: 15000 }
@@ -819,7 +819,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       } else if (phase === 'death') {
         await page.evaluate(() => {
           const b = __battle__,
-            man = BattleDesktopCamera.current.player(),
+            man = b._roster.us.concat(b._roster.ge).find(s => s.isPlayer),
             killer = b._roster[man.faction === 'us' ? 'ge' : 'us'].find(s => !s.dead);
           man._lastHitBy = killer;
           man.casualty = { by: killer.id, at: b.time, cause: 'restart-qa' };
@@ -834,7 +834,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       const restart = await page.evaluate(() => {
         const b = __battle__,
           controller = BattleDesktopCamera.current,
-          prior = controller.player(),
+          prior = b._roster.us.concat(b._roster.ge).find(s => s.isPlayer),
           previousRoot = prior.root,
           previousFaction = prior.faction,
           previousRoster = b._roster.us.concat(b._roster.ge);
@@ -858,7 +858,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
           const b = __battle__,
             controller = BattleDesktopCamera.current;
           return (
-            controller?.player() == null &&
+            controller?.camera?.isDisposed() === false &&
             b.scene.activeCamera?.name === 'cam' &&
             !b._roster.us.concat(b._roster.ge).some(s => s.isPlayer)
           );
