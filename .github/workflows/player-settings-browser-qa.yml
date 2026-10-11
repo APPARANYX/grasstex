@@ -9,6 +9,8 @@ on:
       - 'tools/ai-sim-harness/fbx-clip-mixer-check.js'
       - 'battle/modules/52-fbx-prepared-pack.js'
       - 'tools/ai-sim-harness/fbx-prepared-pack-check.js'
+      - 'battle/modules/52-fbx-model-retarget.js'
+      - 'tools/ai-sim-harness/fbx-model-retarget-check.js'
       - 'battle/modules/52-fbx-rig-canon.js'
       - 'battle/modules/52-fbx-surface-damage.js'
       - 'tools/ai-sim-harness/fbx-surface-damage-check.js'
