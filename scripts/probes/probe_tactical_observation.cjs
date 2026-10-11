@@ -112,13 +112,11 @@ const { chromium } = require('playwright');
       );
       await flow.goto(flowUrl.href, { waitUntil: 'load', timeout: 180000 });
       await flow.waitForFunction(() => window.__flowHashes?.commander, { timeout: 180000 });
-      await flow
-        .locator('#runtimeFileA')
-        .setInputFiles({
-          name: 'phase-a-diagnostics.json',
-          mimeType: 'application/json',
-          buffer: Buffer.from(JSON.stringify(diagnostic))
-        });
+      await flow.locator('#runtimeFileA').setInputFiles({
+        name: 'phase-a-diagnostics.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(JSON.stringify(diagnostic))
+      });
       await flow.waitForFunction(() => document.querySelectorAll('.tacticalCard').length === 2);
       await flow.locator('#timelineScrub').evaluate(el => {
         el.value = el.max;
@@ -145,13 +143,11 @@ const { chromium } = require('playwright');
       const legacy = JSON.parse(JSON.stringify(diagnostic));
       delete legacy.observations;
       delete legacy.timeline.observations;
-      await flow
-        .locator('#runtimeFileA')
-        .setInputFiles({
-          name: 'legacy.json',
-          mimeType: 'application/json',
-          buffer: Buffer.from(JSON.stringify(legacy))
-        });
+      await flow.locator('#runtimeFileA').setInputFiles({
+        name: 'legacy.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(JSON.stringify(legacy))
+      });
       await flow.waitForFunction(() =>
         document.getElementById('tacticalPictureBody').textContent.includes('no tactical observation')
       );
