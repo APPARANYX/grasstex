@@ -633,6 +633,8 @@ try {
         if (leaderless) record.leaderless = leaderless;
         const localPlanning = root.BattleSquadStability?.localPlanTelemetry?.(sim);
         if (localPlanning) record.localPlanning = localPlanning;
+        const coveredBounds = root.BattleEngagement?.coveredBoundTelemetry?.(sim);
+        if (coveredBounds) record.coveredBounds = coveredBounds;
         if (root.BattleGrenades?.on?.()) {
           const current = root.BattleGrenades.summary(sim), start = diag.grenadeStart || {};
           record.grenades = Object.fromEntries(Object.entries(current).filter(([, v]) => typeof v === 'number').map(([k, v]) => [k, v - (start[k] || 0)]));
