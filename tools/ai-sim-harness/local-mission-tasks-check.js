@@ -1,0 +1,314 @@
+'use strict';
+const assert = require('node:assert/strict');
+const H = require('./harness');
+const { loadModule, quietConsole } = require('./module-loader');
+const { loadSquadCommandStack } = require('./squad-command-stack');
+function world(on = true) {
+  H.resetIds();
+  const r = H.bootstrap({
+      modules: false,
+      search:
+        '?localPlan=1&localResources=1&localDegrade=1&coa=0&fireControl=0&slStress=0&scoutsForward=0&stressAct=0&commandMovement=0' +
+        (on ? '&localTasks=1' : '')
+    }),
+    systems = {},
+    events = [];
+  r.BattleModules = {
+    registerSystem(id, s) {
+      systems[id] = s;
+    },
+    unitsFor: b => b._roster.us.concat(b._roster.ge)
+  };
+  r.BattleTelemetry = {
+    record(type, data) {
+      events.push({ type, data });
+    }
+  };
+  r.BattleCommanderDoctrine = {
+    policyFor() {
+      return { cohesionRadius: 34, captainlessCohesion: 26, routeArrivalRadius: 8 };
+    }
+  };
+  r.BattleCommanderAI = {
+    strategicStallReplan: 120,
+    acceptMission(b, q) {
+      q._macroMission.status = 'executing';
+    }
+  };
+  const load = f => loadModule(r, f, { console: quietConsole, location: r.location });
+  load('battle/movement-resolver.js');
+  load('battle/objective-system.js');
+  loadSquadCommandStack((root, f) => load(f), r);
+  load('battle/modules/46-ammunition-stoppages.js');
+  load('battle/modules/08-soldier-events.js');
+  load('battle/modules/17-soldier-mind.js');
+  const b = H.makeBattle(r),
+    q = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 400 } });
+  q.members.forEach(s => {
+    s.root.position.x = 0;
+    s.root.position.z = 0;
+    r.BattleAmmunition.initialize(s, b);
+  });
+  q._macroMission = {
+    version: 1,
+    status: 'issued',
+    intent: 'capture',
+    action: 'assault',
+    point: { x: 0, z: 400 },
+    route: [
+      { x: 0, z: 0 },
+      { x: 0, z: 200 }
+    ],
+    objectiveId: 'a'
+  };
+  b._objectiveById = { a: { id: 'a', def: { radius: 30 }, handler: {}, state: { owner: 'us' } } };
+  b._movementRoot = r;
+  b.time = 1;
+  const S = r.BattleSquadStability,
+    P = S.localPlan,
+    E = r.BattleEngagement,
+    L = r.BattleLeases;
+  S.executeMission(b, q, null);
+  return { r, b, q, S, P, E, L, systems, events };
+}
+function identity(w) {
+  return JSON.stringify([
+    w.q._macroMission,
+    w.q.commandPhase,
+    w.q.route,
+    w.q.routeIndex,
+    w.q.objective,
+    w.q.orderAnchor,
+    w.q.members.map(s => [s.destination, s.prone, s.crawling, s.tacticalCrouch])
+  ]);
+}
+const off = world(false);
+assert.equal(off.P.tasksOn, false);
+assert.equal(off.P.update(off.b, off.q).kind, 'approach');
+assert.equal(off.q._localTask.inputs.execution, undefined);
+const w = world();
+assert.equal(w.q.routeIndex, 1);
+const before = identity(w);
+assert.equal(w.P.update(w.b, w.q).kind, 'route-transition');
+assert.equal(identity(w), before, 'local planner cannot write strategic, movement or stance state');
+assert.equal(w.q._localTask.inputs.execution.clearance, 'not-assessed');
+const first = JSON.stringify(w.q._localTask);
+assert.equal(JSON.stringify(w.P.update(w.b, w.q)), first, 'stable same-time inputs');
+const start = w.q.members[1].root.position.z;
+H.run(w.r, w.b, 10, () => {
+  w.S.executeMission(w.b, w.q, null);
+  w.P.update(w.b, w.q);
+});
+const metres = w.q.members[1].root.position.z - start;
+assert.ok(metres > 5, 'shipping formation/resolver/execution physically traverses the mission route');
+const progressed = w.q._localTask.inputs.execution;
+assert.ok(
+  progressed && progressed.distanceMoved > 5 && progressed.distance < 200,
+  'actual route owner supplies progress'
+);
+for (const change of [
+  x => {
+    x.q._macroMission.version++;
+  },
+  x => {
+    x.q._macroMission.status = 'issued';
+  },
+  x => {
+    x.q.routeIndex = 0;
+  },
+  x => {
+    x.L.get(x.q, 'route-transition').data.target.z = 999;
+  },
+  x => {
+    x.b.time = 122;
+  },
+  x => {
+    x.L.get(x.q, 'route-transition').since = 99;
+  }
+]) {
+  const x = world();
+  change(x);
+  assert.equal(x.P.execution(x.b, x.q), null, 'invalid or unaccepted route cannot supply local execution');
+}
+const contact = world();
+contact.q.inContact = true;
+contact.r.SquadAI.squadContactsMap = () => [{ at: 1, confidence: 0.9, source: 'told' }];
+const r = {
+  underFire: 0,
+  fireSupport: contact.q.members.slice(2),
+  effective: 10,
+  pinned: 0,
+  fled: [],
+  contactStarted: false
+};
+assert.notEqual(
+  contact.P.update(contact.b, contact.q, r).kind,
+  'route-transition',
+  'contact yields to tactical arbitration'
+);
+assert.equal(contact.P.update(contact.b, contact.q, { ...r, underFire: 10 }).kind, 'protect');
+// Objective security requires real accepted defence, objective ownership and own presence.
+function defend(on = true) {
+  const x = world(on);
+  x.q._macroMission = {
+    version: 2,
+    status: 'issued',
+    intent: 'defend',
+    action: 'assault',
+    objectiveId: 'a',
+    point: { x: 0, z: 0 },
+    route: []
+  };
+  x.S.executeMission(x.b, x.q, null);
+  assert.equal(x.q.commandPhase, 'defend');
+  return x;
+}
+const d = defend();
+assert.equal(d.P.update(d.b, d.q).kind, 'objective-security');
+assert.equal(d.q._localTask.inputs.execution.control, 'owned');
+assert.equal(d.q._localTask.inputs.execution.clearance, 'not-assessed');
+assert.equal(d.q._localTask.reconAllowed, true, 'legitimate defender recon is not suppressed');
+const held = identity(d);
+d.E.orderBound(d.q.members);
+d.q.members[0].isPlayer = true;
+d.L.grant(d.q, 'bound', 'squad-leader', 1, 10, 'old bound', 'expiry');
+d.S.resolveLeaseConflicts(d.b, d.q);
+assert.equal(
+  d.L.get(d.q, 'bound'),
+  null,
+  'real lease/Engagement owners withdraw incompatible pending advance'
+);
+assert.ok(d.q.members.slice(1).every(s => !s.eng.boundOrder));
+assert.equal(d.q.members[0].eng.boundOrder, true, 'possession independent');
+assert.equal(identity(d), held);
+for (const change of [
+  x => {
+    x.b._objectiveById.a.state.owner = 'ge';
+  },
+  x => {
+    x.q.members.forEach(s => {
+      s.root.position.z = 100;
+    });
+  },
+  x => {
+    x.q._macroMission.status = 'issued';
+  },
+  x => {
+    x.q._missionExecution.mission = {};
+  },
+  x => {
+    delete x.r.BattleObjectiveSystem;
+  }
+]) {
+  const x = defend();
+  change(x);
+  assert.notEqual(x.P.execution(x.b, x.q)?.kind, 'objective-security');
+}
+// Existing defensive formation actually holds/fire; the policy creates no substitute firing owner.
+const fire = defend();
+const enemy = H.addSquad(fire.r, fire.b, {
+  id: 'ge-0',
+  faction: 'ge',
+  x: 0,
+  z: 40,
+  objective: { x: 0, z: 0 },
+  composition: ['rifleman']
+});
+fire.P.update(fire.b, fire.q);
+H.run(fire.r, fire.b, 8, () => fire.S.executeMission(fire.b, fire.q, null));
+assert.ok(fire.b.events.fired > 0, 'shipping defensive Engagement fires');
+assert.equal(fire.q._assaultAuthorized, false);
+assert.ok(
+  fire.q.members.every(s => !s.eng.boundOrder),
+  'security never publishes offensive bounds'
+);
+assert.equal(fire.q._macroMission.intent, 'defend');
+assert.equal(fire.q.commandPhase, 'defend');
+// Real rally-recovery lease and existing four-second physical reform dwell.
+const recover = world();
+Object.assign(recover.r.BattleSoldierMind, {
+  squadStress: () => 0.1,
+  teamStress: () => 0.1,
+  leadStress: () => 0.1
+});
+const leader = recover.r.SquadAI.leaderOf(recover.q);
+recover.q.members
+  .filter(s => s !== leader)
+  .slice(0, 4)
+  .forEach(s => {
+    s.dead = true;
+  });
+const survivors = recover.q.members.filter(s => !s.dead);
+survivors.forEach((s, i) => {
+  s.root.position.x = i % 2 ? -45 : 45;
+  s.root.position.z = 80 + Math.floor(i / 2) * 12;
+});
+recover.q.state = 'retreat';
+recover.q.inContact = false;
+recover.E.orderBound(survivors);
+recover.L.grant(recover.q, 'bound', 'squad-leader', 1, 10, 'old advance', 'expiry');
+recover.r.SquadAI.updateSquad(recover.q, recover.b);
+assert.equal(recover.q.state, 'retreat');
+assert.equal(recover.q._localTask.kind, 'recover');
+assert.equal(recover.q._localTask.inputs.execution.status, 'reforming');
+assert.equal(recover.L.get(recover.q, 'bound'), null);
+assert.ok(survivors.every(s => !s.eng.boundOrder));
+assert.equal(
+  recover.P.update(recover.b, recover.q, { underFire: survivors.length }).kind,
+  'recover',
+  'maximal pressure cannot replace the existing retreat owner with a tied protection choice'
+);
+const rally = { ...recover.q._moraleRallyPoint };
+survivors.forEach((s, i) => {
+  s.root.position.x = rally.x + ((i % 3) - 1) * 0.5;
+  s.root.position.z = rally.z + (Math.floor(i / 3) - 0.5) * 0.5;
+});
+recover.b.time = 10;
+recover.r.SquadAI.updateSquad(recover.q, recover.b);
+assert.equal(recover.q.state, 'retreat');
+recover.b.time = 13.9;
+recover.r.SquadAI.updateSquad(recover.q, recover.b);
+assert.equal(recover.q.state, 'retreat', 'planner cannot shortcut recovery dwell');
+recover.b.time = 14.2;
+recover.r.SquadAI.updateSquad(recover.q, recover.b);
+assert.equal(recover.q.state, 'advance', 'existing owner hands back after actual reform');
+assert.notEqual(recover.q._localTask.kind, 'recover');
+assert.equal(recover.q._macroMission.version, 1);
+const lost = world();
+lost.P.update(lost.b, lost.q);
+const inherited = lost.q._localTask;
+lost.r.SquadAI.leaderOf(lost.q).dead = true;
+assert.equal(lost.P.update(lost.b, lost.q), null);
+assert.equal(lost.q._localTask, inherited);
+assert.equal(
+  lost.P.degradation(lost.b, lost.q, { kind: inherited.kind, serial: inherited.serial, missionVersion: 1 })
+    .status,
+  'inherited',
+  'new route task uses existing succession validator'
+);
+lost.q._macroMission.version++;
+assert.equal(
+  lost.P.degradation(lost.b, lost.q, { kind: inherited.kind, serial: inherited.serial, missionVersion: 1 })
+    .reason,
+  'mission-replaced'
+);
+const hidden = world(),
+  own = JSON.stringify(hidden.P.read(hidden.b, hidden.q));
+H.addSquad(hidden.r, hidden.b, {
+  id: 'ge-hidden',
+  faction: 'ge',
+  x: 0,
+  z: 2,
+  objective: { x: 0, z: 0 }
+}).members.forEach(s => {
+  s.root.position.z = 10000;
+  s.dead = true;
+});
+assert.equal(JSON.stringify(hidden.P.read(hidden.b, hidden.q)), own);
+assert.ok(w.q._localTask.history.length);
+w.systems['squad-command'].onBattleRestart(w.b);
+assert.equal(w.q._localTask, null);
+console.log(
+  'PASS mission-linked execution, current-parent eligibility, actual route progress/defensive fire/recovery dwell, possession/succession/isolation/restart ' +
+    JSON.stringify({ routeMetres: metres, defensiveShots: fire.b.events.fired })
+);

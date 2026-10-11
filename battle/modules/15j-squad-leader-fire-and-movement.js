@@ -78,6 +78,10 @@
       if (r.fled && r.fled.length && sq.fledId == null) detachFled(sq, battle, r.fled);
       updateRecon(sq, battle, r);
       var localTask = localPlan && localPlan.on ? localPlan.update(battle, sq, r) : null;
+      if (localPlan && localPlan.tasksOn && sq.state === 'retreat') {
+        L.end(sq, 'bound', battle.time, 'retreat owns recovery');
+        E.clearBoundOrders(sq);
+      }
       if (LEASE_CONFLICTS_ON || (localPlan && localPlan.on)) resolveLeaseConflicts(battle, sq);
       if (leaderlessActive(sq) && sq.state !== 'retreat') {
         var validity = updateLeaderlessLocalTask(sq, battle, r);

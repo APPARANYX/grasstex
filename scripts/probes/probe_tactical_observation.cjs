@@ -25,6 +25,7 @@ const { chromium } = require('playwright');
     url.searchParams.set('localPlan', '1');
     url.searchParams.set('localResources', '1');
     url.searchParams.set('localDegrade', '1');
+    url.searchParams.set('localTasks', '1');
     url.searchParams.set('coveredBounds', '1');
     const page = await context.newPage();
     const errors = [];
@@ -364,7 +365,8 @@ const { chromium } = require('playwright');
           q = b.factions.us.squads.find(q => SquadAI.leaderOf(q)),
           E = BattleEngagement,
           L = BattleLeases;
-        if (!S.localPlanOn() || !P.resourcesOn || !q) throw Error('local policy flag/leader missing');
+        if (!S.localPlanOn() || !P.resourcesOn || !P.tasksOn || !q)
+          throw Error('local policy flag/leader missing');
         const natural = S.localPlanTelemetry(b);
         const snapshot = () =>
           JSON.stringify([
@@ -486,6 +488,91 @@ const { chromium } = require('playwright');
     const coveredAfter = await cdp.send('Runtime.getHeapUsage');
     evidence.coveredBounds.sampledAllocationBytes = allocated(coveredProfile.profile.head);
     evidence.coveredBounds.collectedHeapDeltaBytes = coveredAfter.usedSize - coveredBefore.usedSize;
+    await cdp.send('HeapProfiler.collectGarbage');
+    await cdp.send('HeapProfiler.startSampling', {
+      samplingInterval: 1024,
+      includeObjectsCollectedByMajorGC: true,
+      includeObjectsCollectedByMinorGC: true
+    });
+    const missionBefore = await cdp.send('Runtime.getHeapUsage');
+    evidence.localMissionTasks = await page.evaluate(() => {
+      const b = __battle__,
+        S = BattleSquadStability,
+        P = S.localPlan,
+        L = BattleLeases;
+      const q = b.factions.us.squads.find(
+        q =>
+          SquadAI.leaderOf(q) &&
+          q._missionExecution?.mission === q._macroMission &&
+          q._macroMission?.status === 'executing' &&
+          q.route?.length
+      );
+      if (!P.tasksOn || !q) throw Error('local mission task flag/accepted execution missing');
+      const wp = q.route[q.routeIndex],
+        version = q._macroMission.version;
+      const gameplay = JSON.stringify([
+        q._macroMission,
+        q.commandPhase,
+        q.route,
+        q.routeIndex,
+        q.objective,
+        q.orderAnchor
+      ]);
+      L.grant(
+        q,
+        'route-transition',
+        'squad-leader',
+        b.time,
+        b.time + 120,
+        'browser local task join',
+        'progress',
+        {
+          missionVersion: version,
+          leg: q.routeIndex,
+          target: { x: wp.x, z: wp.z },
+          distance: 50,
+          traveled: 0,
+          lastProgressAt: b.time
+        }
+      );
+      const loops = 1000,
+        start = performance.now();
+      for (let i = 0; i < loops; i++) P.execution(b, q);
+      const msPerExecution = (performance.now() - start) / loops,
+        first = P.execution(b, q);
+      if (first?.kind !== 'route-transition' || first.clearance !== 'not-assessed')
+        throw Error('route owner not integrated');
+      const stable = JSON.stringify(first) === JSON.stringify(P.execution(b, q));
+      L.get(q, 'route-transition').data.missionVersion++;
+      if (P.execution(b, q)) throw Error('stale parent execution accepted');
+      L.end(q, 'route-transition', b.time, 'browser join complete');
+      if (
+        JSON.stringify([
+          q._macroMission,
+          q.commandPhase,
+          q.route,
+          q.routeIndex,
+          q.objective,
+          q.orderAnchor
+        ]) !== gameplay
+      )
+        throw Error('execution join changed command authority');
+      return {
+        loops,
+        msPerExecution,
+        first,
+        stable,
+        staleRejected: true,
+        fixture:
+          'join on actual accepted real-page route; physical outcomes covered separately by shipping harness'
+      };
+    });
+    const missionProfile = await cdp.send('HeapProfiler.stopSampling');
+    await cdp.send('HeapProfiler.collectGarbage');
+    const missionAfter = await cdp.send('Runtime.getHeapUsage');
+    evidence.localMissionTasks.sampledAllocationBytes = allocated(missionProfile.profile.head);
+    evidence.localMissionTasks.collectedHeapDeltaBytes = missionAfter.usedSize - missionBefore.usedSize;
+    assert.equal(evidence.localMissionTasks.stable, true);
     evidence.localDegradation = await page.evaluate(() => {
       const b = __battle__,
         S = BattleSquadStability,

@@ -14,6 +14,8 @@
         /[?&]localResources=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
       degradationOn =
         on && /[?&]localDegrade=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
+      tasksOn =
+        on && /[?&]localTasks=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
       tuning = {
         pressureEnter: 0.45,
         pressureExit: 0.25,
@@ -23,6 +25,114 @@
         resourceLimit: 32,
         minimumSupport: 2
       };
+    function point(p) {
+      return p && typeof p.x === 'number' && typeof p.z === 'number' && isFinite(p.x) && isFinite(p.z)
+        ? { x: p.x, z: p.z }
+        : null;
+    }
+    /* Join actual execution, not a proximity-based substitute for its owner.
+       This does not claim that an observed route or objective is safe/cleared. */
+    function execution(sim, sq, ownMen) {
+      if (!tasksOn) return null;
+      var now = +sim.time || 0,
+        version = ctx.missionVersion(sq),
+        recovery = L.get(sq, 'rally-recovery');
+      if (sq.state === 'retreat') {
+        var rally = recovery && recovery.data && point(recovery.data.point);
+        return rally && recovery.since <= now && now < recovery.until
+          ? {
+              kind: 'recover',
+              owner: 'rally-recovery',
+              status: 'reforming',
+              target: rally,
+              stableSince: recovery.data.stableSince,
+              missionVersion: version
+            }
+          : {
+              kind: 'recover',
+              owner: 'retreat',
+              status: 'withdrawing',
+              target: point(A.retreatGoal(sq)),
+              missionVersion: version
+            };
+      }
+      var m = sq._macroMission,
+        ex = sq._missionExecution;
+      if (
+        !m ||
+        m.status !== 'executing' ||
+        !ex ||
+        ex.mission !== m ||
+        !isFinite(ex.acceptedAt) ||
+        ex.acceptedAt > now
+      )
+        return null;
+      var defending = m.intent === 'defend' && sq.commandPhase === 'defend',
+        O = root.BattleObjectiveSystem,
+        objective = defending && m.objectiveId && O && O.get && O.get(sim, m.objectiveId),
+        status = objective && O.status && O.status(sim, m.objectiveId),
+        target = point(m.point),
+        men = defending ? ownMen || ctx.commanded(sq) : [];
+      if (
+        m.intent === 'defend' &&
+        sq.commandPhase === 'defend' &&
+        status &&
+        status.owner === sq.faction &&
+        target &&
+        men.length &&
+        men.length <= tuning.resourceLimit &&
+        men.every(function (s) {
+          return s.root && point(s.root.position);
+        })
+      ) {
+        var x = 0,
+          z = 0;
+        men.forEach(function (s) {
+          x += s.root.position.x;
+          z += s.root.position.z;
+        });
+        var radius = +(objective.def && objective.def.radius) || 30;
+        if (Math.hypot(x / men.length - target.x, z / men.length - target.z) <= radius)
+          return {
+            kind: 'objective-security',
+            owner: 'mission-execution',
+            status: 'defending',
+            objectiveId: m.objectiveId,
+            target: target,
+            missionVersion: version,
+            control: 'owned',
+            clearance: 'not-assessed'
+          };
+      }
+      var route = L.get(sq, 'route-transition'),
+        d = route && route.data,
+        wp = point((sq.route || [])[+sq.routeIndex || 0]);
+      if (
+        route &&
+        route.since <= now &&
+        now < route.until &&
+        d &&
+        d.missionVersion === version &&
+        d.leg === +sq.routeIndex &&
+        wp &&
+        point(d.target) &&
+        wp.x === +d.target.x &&
+        wp.z === +d.target.z
+      )
+        return {
+          kind: 'route-transition',
+          owner: 'mission-execution',
+          status: 'traversing',
+          leg: d.leg,
+          target: wp,
+          missionVersion: version,
+          distance: d.distance,
+          distanceMoved: d.traveled,
+          lastProgressAt: d.lastProgressAt,
+          clearance: 'not-assessed'
+        };
+      return null;
+    }
     /* Bounded own-roster resources, not a second station/ammunition owner. A
        report names actual supporters; a cached count cannot survive roster or
        readiness changes. No geometric safety claim is made at this layer. */
@@ -171,6 +281,7 @@
               ? prior.supportObservedAt
               : null,
         resources: resource || undefined,
+        execution: tasksOn ? execution(sim, sq, men) : undefined,
         missionVersion: ctx.missionVersion(sq)
       };
     }
@@ -211,6 +322,23 @@
         inputs.supporting >= tuning.minimumSupport &&
         (!resourcesOn || (inputs.resources.status !== 'over-budget' && inputs.resources.moverIds.length > 0));
       scores.maneuver = 0.6 + 0.25 * inputs.confidence - inputs.pressure;
+      if (tasksOn) {
+        var active = inputs.execution;
+        eligible['route-transition'] =
+          !!active && active.kind === 'route-transition' && !inputs.contact && !pressured;
+        scores['route-transition'] = 0.55;
+        eligible['objective-security'] = !!active && active.kind === 'objective-security' && !pressured;
+        scores['objective-security'] = 0.8;
+        eligible.recover = !!active && active.kind === 'recover';
+        scores.recover = 2;
+        if (eligible['objective-security'] || eligible.recover) eligible.maneuver = false;
+        if (eligible.recover) {
+          eligible.approach = false;
+          // Retreat/rally already owns the response to pressure. Micro emergency
+          // protection stays independent; do not rename recovery on a score tie.
+          eligible.protect = false;
+        }
+      }
       var kind = 'approach',
         best = -Infinity;
       Object.keys(scores).forEach(function (k) {
@@ -236,7 +364,7 @@
         scores: scores,
         eligible: eligible,
         boundsAllowed: kind === 'maneuver',
-        reconAllowed: uncertain && !pressured && !eligible.regroup,
+        reconAllowed: uncertain && !pressured && !eligible.regroup && !eligible.recover,
         coverRoute: 'not-assessed'
       };
     }
@@ -285,7 +413,7 @@
       if (!on || !sim || !sq) return null;
       /* Existing succession/retreat owners retain their authority, including an
          inherited committed move. Never publish a new local command here. */
-      if (sq.state === 'retreat' || ctx.leaderlessActive(sq)) return null;
+      if (ctx.leaderlessActive(sq) || (sq.state === 'retreat' && !execution(sim, sq))) return null;
       var inputs = read(sim, sq, report),
         now = +sim.time || 0,
         choice = decide(sq, inputs, now),
@@ -341,6 +469,8 @@
       on: on,
       resourcesOn: resourcesOn,
       degradationOn: degradationOn,
+      tasksOn: tasksOn,
+      execution: execution,
       degradation: degradation,
       tuning: tuning,
       read: read,
