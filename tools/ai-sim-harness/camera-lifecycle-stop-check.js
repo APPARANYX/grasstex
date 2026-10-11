@@ -41,6 +41,7 @@ function element(id) {
 const nodes = {};
 for (const id of [
   'battlePlayerSettings',
+  'battleDeathSkip',
   'battlePlayerReticle',
   'battlePlayerBoreDot',
   'battlePlayerHud',
@@ -105,6 +106,7 @@ const make = new Function(
     scene = fixture.scene,
     camera = fixture.camera,
     playerCam = fixture.playerCam,
+    deathSkip = fixture.nodes.battleDeathSkip,
     reticle = fixture.nodes.battlePlayerReticle,
     playerBoreDot = fixture.nodes.battlePlayerBoreDot,
     playerHud = fixture.nodes.battlePlayerHud,
