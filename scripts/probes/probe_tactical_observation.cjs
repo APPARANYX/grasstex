@@ -24,6 +24,7 @@ const { chromium } = require('playwright');
     url.searchParams.set('leaseConflicts', '1');
     url.searchParams.set('localPlan', '1');
     url.searchParams.set('localResources', '1');
+    url.searchParams.set('localDegrade', '1');
     url.searchParams.set('coveredBounds', '1');
     const page = await context.newPage();
     const errors = [];
@@ -485,6 +486,60 @@ const { chromium } = require('playwright');
     const coveredAfter = await cdp.send('Runtime.getHeapUsage');
     evidence.coveredBounds.sampledAllocationBytes = allocated(coveredProfile.profile.head);
     evidence.coveredBounds.collectedHeapDeltaBytes = coveredAfter.usedSize - coveredBefore.usedSize;
+    evidence.localDegradation = await page.evaluate(() => {
+      const b = __battle__,
+        S = BattleSquadStability,
+        P = S.localPlan,
+        E = BattleEngagement,
+        L = BattleLeases;
+      const q = b.factions.us.squads.find(
+        q => q._macroMission && SquadAI.leaderOf(q) && q.members.filter(s => !s.dead).length > 4
+      );
+      if (!P.degradationOn || !q) throw Error('degradation flag/live leader missing');
+      const members = q.members.filter(s => !s.dead),
+        leader = SquadAI.leaderOf(q),
+        report = {
+          underFire: members.length,
+          effective: members.length,
+          fireSupport: [],
+          fled: [],
+          contactStarted: false
+        };
+      P.update(b, q, report);
+      if (q._localTask.kind !== 'protect') throw Error('real protective local task missing');
+      const task = JSON.stringify(q._localTask),
+        original = E.updateSquad;
+      leader.dead = true;
+      S.leaderDown(q);
+      E.updateSquad = () => report;
+      try {
+        SquadAI.updateSquad(q, b);
+        if (q._leaderlessIntent?.localValidity?.status !== 'inherited')
+          throw Error('valid protective task not inherited');
+        const inherited = q._leaderlessIntent.localTask,
+          loops = 1000,
+          start = performance.now();
+        for (let i = 0; i < loops; i++) P.degradation(b, q, inherited, report);
+        const msPerValidation = (performance.now() - start) / loops;
+        q._macroMission.version++;
+        L.grant(q, 'bound', 'squad-leader', b.time, b.time + 10, 'superseded leaderless fixture');
+        E.orderBound(members.filter(s => s !== leader));
+        S.fireAndMovement(q, b);
+        const validity = q._leaderlessIntent.localValidity;
+        if (
+          validity.status !== 'hold' ||
+          validity.reason !== 'mission-replaced' ||
+          L.get(q, 'bound') ||
+          members.some(s => !s.dead && !s.isPlayer && s.eng?.boundOrder)
+        )
+          throw Error('leaderless invalid task did not withdraw pending orders');
+        if (JSON.stringify(q._localTask) !== task)
+          throw Error('absent leader invented or changed local task');
+        return { loops, msPerValidation, validity, taskPreserved: true, cleanup: true };
+      } finally {
+        E.updateSquad = original;
+      }
+    });
     evidence.restart = await page.evaluate(() => {
       const b = __battle__,
         T = BattleTacticalSituation;
@@ -492,7 +547,9 @@ const { chromium } = require('playwright');
         .flatMap(f => b.factions[f].squads.map(q => q._macroMission))
         .filter(Boolean);
       // Exercise actual same-page restart with a NONEMPTY Micro audit, not a zero-to-zero check.
-      const q = b.factions.us.squads.find(q => q.members.some(s => !s.dead && !s.isPlayer && !SquadAI.isMachineGun(s))),
+      const q = b.factions.us.squads.find(q =>
+          q.members.some(s => !s.dead && !s.isPlayer && !SquadAI.isMachineGun(s))
+        ),
         s = q.members.find(s => !s.dead && !s.isPlayer && !SquadAI.isMachineGun(s));
       q._assaultAuthorized = true;
       BattleLeases.grant(q, 'bound', 'squad-leader', b.time, b.time + 10, 'covered restart fixture');
@@ -501,6 +558,8 @@ const { chromium } = require('playwright');
       BattleEngagement.updateSoldier(s, b);
       const coveredAttemptsBefore = BattleEngagement.coveredBoundTelemetry(b).attempts;
       if (!coveredAttemptsBefore) throw Error('restart fixture did not consume a real bound order');
+      const leaderlessBefore = b.factions.us.squads.filter(q => q._leaderlessIntent?.localValidity).length;
+      if (!leaderlessBefore) throw Error('restart needs nonempty local validity');
       b.restart();
       const historyCleared = !BattleAITimeline.snapshot(b).observations;
       const intentCleared = ['us', 'ge'].every(f =>
@@ -520,6 +579,8 @@ const { chromium } = require('playwright');
       T.sample(b);
       return {
         coveredAttemptsBefore,
+        leaderlessBefore,
+        localValidityCleared: ['us', 'ge'].every(f => b.factions[f].squads.every(q => !q._leaderlessIntent)),
         coveredBoundsCleared: BattleEngagement.coveredBoundTelemetry(b).attempts === 0,
         localTasksCleared: ['us', 'ge'].every(f => b.factions[f].squads.every(q => !q._localTask)),
         conflictsCleared: ['us', 'ge'].every(f =>
@@ -551,6 +612,7 @@ const { chromium } = require('playwright');
     assert.equal(evidence.restart.conflictsCleared, true);
     assert.equal(evidence.restart.coveredBoundsCleared, true);
     assert.equal(evidence.restart.localTasksCleared, true);
+    assert.equal(evidence.restart.localValidityCleared, true);
     assert.equal(evidence.restart.routeCleared, true);
     assert.equal(evidence.restart.historyCleared, true);
     assert.equal(evidence.restart.intentCleared, true);

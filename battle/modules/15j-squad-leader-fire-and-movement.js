@@ -27,6 +27,7 @@
       localPlan = ctx.localPlan,
       leaderlessActive = ctx.leaderlessActive,
       noteLeaderlessAction = ctx.noteLeaderlessAction,
+      updateLeaderlessLocalTask = ctx.updateLeaderlessLocalTask,
       updateClearContact = ctx.updateClearContact,
       updateCOA = ctx.updateCOA,
       updateFireControl = ctx.updateFireControl,
@@ -79,9 +80,16 @@
       var localTask = localPlan && localPlan.on ? localPlan.update(battle, sq, r) : null;
       if (LEASE_CONFLICTS_ON || (localPlan && localPlan.on)) resolveLeaseConflicts(battle, sq);
       if (leaderlessActive(sq) && sq.state !== 'retreat') {
+        var validity = updateLeaderlessLocalTask(sq, battle, r);
+        if (validity && !validity.finishBound) {
+          L.end(sq, 'bound', battle.time, 'leaderless ' + validity.reason);
+          E.clearBoundOrders(sq);
+        }
         var inheritedBound = L.get(sq, 'bound');
         if (!L.holds(sq, 'bound', battle.time)) E.clearBoundOrders(sq);
-        if (r.contactStarted || r.underFire > 0) {
+        if (validity && validity.status === 'hold')
+          noteLeaderlessAction(sq, battle, 'hold-local-task', validity.reason);
+        else if (r.contactStarted || r.underFire > 0) {
           /* Immediate contact remains a Micro fact/action. Perception and the existing tactical-callout
            channel already report what individual men actually saw/heard; do not turn ordinary contact
            during a six-second succession gap into an automatic General mission wake. */
@@ -284,9 +292,9 @@
           t + BOUND_DURATION,
           'fireteam ' + team + ' bounds',
           'window expiry or contact broken',
-          {
-            team: team
-          }
+          localPlan && localPlan.degradationOn
+            ? { team: team, missionVersion: localTask.missionVersion, localTaskSerial: localTask.serial }
+            : { team: team }
         );
         L.grant(
           sq,

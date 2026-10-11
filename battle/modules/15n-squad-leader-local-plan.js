@@ -12,6 +12,8 @@
       resourcesOn =
         on &&
         /[?&]localResources=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
+      degradationOn =
+        on && /[?&]localDegrade=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
       tuning = {
         pressureEnter: 0.45,
         pressureExit: 0.25,
@@ -238,6 +240,47 @@
         coverRoute: 'not-assessed'
       };
     }
+    /* Revalidate the frozen choice without choosing a replacement commander.
+       This only governs unconsumed authorization; Micro owns moves it adopted. */
+    function degradation(sim, sq, inherited, report) {
+      if (!degradationOn) return null;
+      var old = sq._localTask,
+        now = +sim.time || 0,
+        version = ctx.missionVersion(sq),
+        bound = L.get(sq, 'bound'),
+        reason = null;
+      if (sq.state === 'retreat') reason = 'retreat';
+      else if (!inherited || !old) reason = 'no-local-task';
+      else if (inherited.missionVersion !== version || old.missionVersion !== version)
+        reason = 'mission-replaced';
+      else if (old.serial !== inherited.serial || old.kind !== inherited.kind) reason = 'task-replaced';
+      else if (!isFinite(old.at) || old.at > now) reason = 'invalid-task-time';
+      else {
+        var inputs = read(sim, sq, report),
+          choice = decide(sq, inputs, now);
+        if (!choice.eligible[old.kind]) reason = choice.pressured ? 'pressure' : 'lost-eligibility';
+        else if (old.kind === 'maneuver') {
+          if (!bound || now < bound.since || now >= bound.until) reason = 'bound-expired';
+          else if (
+            !bound.data ||
+            bound.data.missionVersion !== version ||
+            bound.data.localTaskSerial !== old.serial
+          )
+            reason = 'unmatched-bound';
+        }
+      }
+      return {
+        kind: inherited ? inherited.kind : null,
+        serial: inherited ? inherited.serial : null,
+        missionVersion: inherited ? inherited.missionVersion : null,
+        status: reason ? 'hold' : 'inherited',
+        reason: reason || 'valid-task',
+        at: now,
+        finishBound: !reason && old.kind === 'maneuver',
+        boundsAllowed: false,
+        reconAllowed: false
+      };
+    }
     function update(sim, sq, report) {
       if (!on || !sim || !sq) return null;
       /* Existing succession/retreat owners retain their authority, including an
@@ -297,6 +340,8 @@
     return {
       on: on,
       resourcesOn: resourcesOn,
+      degradationOn: degradationOn,
+      degradation: degradation,
       tuning: tuning,
       read: read,
       supportMembers: supportMembers,
