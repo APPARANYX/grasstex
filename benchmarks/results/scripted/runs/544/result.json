@@ -1,32 +1,32 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "513",
-    "runId": "37967833097",
+    "run": "544",
+    "runId": "38148762680",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/fix437-isolated-retreat-fallback",
-    "sha": "8714f4be4233b53a9f9428f4aae3567081252e41",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/37967833097",
-    "seed": "fix437-retreat-20261009",
-    "seeds": 12,
+    "ref": "work/tactics-b2-route-lease",
+    "sha": "cdd25fd1f88be8383215c5f3e9e5dd90551a4473",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38148762680",
+    "seed": "phase-a-control",
+    "seeds": 2,
     "windows": "contact+120",
     "battleType": "meeting",
-    "queryOff": "retreatLostContact=0",
-    "queryOn": "retreatLostContact=1",
+    "queryOff": "routeTransition=0",
+    "queryOn": "",
     "build": "v29-dev"
   },
   "verdict": {
     "kind": "inert",
-    "headline": "INERT: all 12 pairs identical in every field",
+    "headline": "INERT: all 2 pairs identical in every field",
     "lines": []
   },
   "compare": {
-    "pairs": 12,
+    "pairs": 2,
     "unpaired": {
       "a": 0,
       "b": 0
     },
-    "identicalBattles": 12,
+    "identicalBattles": 2,
     "winners": {
       "a": {
         "us": 0,
@@ -65,8 +65,8 @@
       }
     },
     "captures": {
-      "a": 3.417,
-      "b": 3.417
+      "a": 4.5,
+      "b": 4.5
     },
     "movementStalls": {
       "a": 0,
@@ -77,15 +77,15 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 11.549,
-      "medianB": 11.2305,
-      "ratio": 0.972,
+      "medianA": 11.104,
+      "medianB": 10.805499999999999,
+      "ratio": 0.973,
       "gate": 1.25
     },
     "counters": {
       "casualties": {
-        "a": 346,
-        "b": 346,
+        "a": 46,
+        "b": 46,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -93,8 +93,8 @@
         "signP": 1
       },
       "usKills": {
-        "a": 165,
-        "b": 165,
+        "a": 21,
+        "b": 21,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -102,8 +102,8 @@
         "signP": 1
       },
       "geKills": {
-        "a": 181,
-        "b": 181,
+        "a": 25,
+        "b": 25,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -111,8 +111,8 @@
         "signP": 1
       },
       "fire.total": {
-        "a": 1682,
-        "b": 1682,
+        "a": 258,
+        "b": 258,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -120,8 +120,8 @@
         "signP": 1
       },
       "fire.hits": {
-        "a": 659,
-        "b": 659,
+        "a": 95,
+        "b": 95,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -129,8 +129,8 @@
         "signP": 1
       },
       "retreatSamples": {
-        "a": 1398,
-        "b": 1398,
+        "a": 214,
+        "b": 214,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -138,8 +138,80 @@
         "signP": 1
       },
       "movementResolver.changes": {
-        "a": 26231,
-        "b": 26231,
+        "a": 4635,
+        "b": 4635,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "grenades.throws": {
+        "a": 0,
+        "b": 0,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "grenades.bursts": {
+        "a": 0,
+        "b": 0,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "grenades.wounded": {
+        "a": 0,
+        "b": 0,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "grenades.casualties": {
+        "a": 0,
+        "b": 0,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "grenades.suppressed": {
+        "a": 0,
+        "b": 0,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "grenades.friendlyWounded": {
+        "a": 0,
+        "b": 0,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "grenades.friendlyCasualties": {
+        "a": 0,
+        "b": 0,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "grenades.aborted": {
+        "a": 0,
+        "b": 0,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -174,8 +246,8 @@
         "signP": 1
       },
       "vacantObjectiveStalls.length": {
-        "a": 5,
-        "b": 5,
+        "a": 0,
+        "b": 0,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -183,8 +255,8 @@
         "signP": 1
       },
       "loopAlerts.length": {
-        "a": 11,
-        "b": 11,
+        "a": 5,
+        "b": 5,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -201,8 +273,8 @@
         "signP": 1
       },
       "regroups.entries": {
-        "a": 13,
-        "b": 13,
+        "a": 7,
+        "b": 7,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -264,8 +336,8 @@
         "signP": 1
       },
       "recon.orders": {
-        "a": 245,
-        "b": 245,
+        "a": 45,
+        "b": 45,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -273,8 +345,8 @@
         "signP": 1
       },
       "recon.contacts": {
-        "a": 10,
-        "b": 10,
+        "a": 5,
+        "b": 5,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -282,8 +354,8 @@
         "signP": 1
       },
       "recon.noContact": {
-        "a": 167,
-        "b": 167,
+        "a": 29,
+        "b": 29,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -291,8 +363,8 @@
         "signP": 1
       },
       "recon.timeouts": {
-        "a": 6,
-        "b": 6,
+        "a": 0,
+        "b": 0,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -300,8 +372,8 @@
         "signP": 1
       },
       "recon.cancelled": {
-        "a": 61,
-        "b": 61,
+        "a": 11,
+        "b": 11,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -309,8 +381,8 @@
         "signP": 1
       },
       "recon.reportsDelivered": {
-        "a": 57,
-        "b": 57,
+        "a": 18,
+        "b": 18,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -318,8 +390,8 @@
         "signP": 1
       },
       "recon.retriggerBlocked": {
-        "a": 203,
-        "b": 203,
+        "a": 36,
+        "b": 36,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -327,8 +399,8 @@
         "signP": 1
       },
       "squadPerformance.meanOverall": {
-        "a": 1032.7,
-        "b": 1032.7,
+        "a": 169.9,
+        "b": 169.9,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -336,8 +408,8 @@
         "signP": 1
       },
       "squadPerformance.p10Overall": {
-        "a": 929.3000000000002,
-        "b": 929.3000000000002,
+        "a": 150.5,
+        "b": 150.5,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -354,8 +426,8 @@
         "signP": 1
       },
       "squadPerformance.meanMission": {
-        "a": 878.5,
-        "b": 878.5,
+        "a": 144.7,
+        "b": 144.7,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -363,8 +435,8 @@
         "signP": 1
       },
       "squadPerformance.meanMovement": {
-        "a": 1190.8999999999999,
-        "b": 1190.8999999999999,
+        "a": 197.39999999999998,
+        "b": 197.39999999999998,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -372,8 +444,8 @@
         "signP": 1
       },
       "squadPerformance.meanControl": {
-        "a": 1180.8999999999999,
-        "b": 1180.8999999999999,
+        "a": 193.7,
+        "b": 193.7,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -381,8 +453,8 @@
         "signP": 1
       },
       "squadPerformance.meanCohesion": {
-        "a": 1100.5,
-        "b": 1100.5,
+        "a": 178.5,
+        "b": 178.5,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -393,46 +465,16 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=513&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/fix437-isolated-retreat-fallback/ai_flow_live.html?bench=513&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=544&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/tactics-b2-route-lease/ai_flow_live.html?bench=544&view=brain3d",
     "seeds": [
       {
-        "seed": "fix437-retreat-20261009-0001",
+        "seed": "phase-a-control-0001",
         "firstDivergence": null,
         "what": null
       },
       {
-        "seed": "fix437-retreat-20261009-0002",
-        "firstDivergence": null,
-        "what": null
-      },
-      {
-        "seed": "fix437-retreat-20261009-0003",
-        "firstDivergence": null,
-        "what": null
-      },
-      {
-        "seed": "fix437-retreat-20261009-0004",
-        "firstDivergence": null,
-        "what": null
-      },
-      {
-        "seed": "fix437-retreat-20261009-0005",
-        "firstDivergence": null,
-        "what": null
-      },
-      {
-        "seed": "fix437-retreat-20261009-0006",
-        "firstDivergence": null,
-        "what": null
-      },
-      {
-        "seed": "fix437-retreat-20261009-0007",
-        "firstDivergence": null,
-        "what": null
-      },
-      {
-        "seed": "fix437-retreat-20261009-0008",
+        "seed": "phase-a-control-0002",
         "firstDivergence": null,
         "what": null
       }
