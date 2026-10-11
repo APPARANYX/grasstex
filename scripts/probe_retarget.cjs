@@ -91,7 +91,7 @@ async function load(browser, query) {
       }
     }
     return { models: res, retargetMs: snap.totals.retarget, soldiersPhaseMs: phase('soldiers'), libraryWallMs: snap.library.wallMs, mixerSample: mixerSample,
-      pack: BattleFbxSoldier.clipPack.state(scene), restHelperInstalled: !!window.BattleFbxRetargetRest };
+      pack: BattleFbxSoldier.clipPack.state(scene), restHelperInstalled: !!window.BattleFbxRetargetRest, packOwnerInstalled: !!window.BattleFbxPreparedPack };
   });
   await context.close();
   return Object.assign(out, { errors });
@@ -112,6 +112,7 @@ const f32 = s => { const b = Buffer.from(s, 'base64'); return new Float32Array(b
   if (!Object.keys(matrix.models).length) fails.push('No real FBX models were compared');
   for (const [mode, value] of [['matrix', matrix], ['quaternion', quat]]) {
     if (!value.restHelperInstalled) fails.push(mode + ': retarget rest helper missing on shipping PHP loader');
+    if (!value.packOwnerInstalled) fails.push(mode + ': prepared clip module missing on shipping PHP loader');
     if (!value.mixerSample || !value.mixerSample.installed || !value.mixerSample.checked || !value.mixerSample.finite)
       fails.push(mode + ': extracted clip mixer did not sample a real loaded clip: ' + JSON.stringify(value.mixerSample));
     if (!value.pack || !value.pack.loaded || value.pack.fromFbx !== 0 || value.pack.fromPack <= 0)
