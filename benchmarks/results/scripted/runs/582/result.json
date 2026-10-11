@@ -1,18 +1,18 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "547",
-    "runId": "38149567328",
+    "run": "582",
+    "runId": "38173939598",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/tactics-b3-lease-precedence",
-    "sha": "a65201ba5b52c8d06a14636698537ca6fbdd9b3a",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38149567328",
+    "ref": "work/tactics-c-leaderless-validity",
+    "sha": "8d96997db63a00835c94800b29ebc6f898970a74",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38173939598",
     "seed": "phase-a-control",
     "seeds": 2,
     "windows": "contact+120",
-    "battleType": "us-defend",
-    "queryOff": "leaseConflicts=0",
-    "queryOn": "leaseConflicts=1",
+    "battleType": "ge-defend",
+    "queryOff": "localPlan=1&localResources=1&coveredBounds=1&localDegrade=0",
+    "queryOn": "localPlan=1&localResources=1&coveredBounds=1&localDegrade=1",
     "build": "v29-dev"
   },
   "verdict": {
@@ -55,8 +55,8 @@
       }
     },
     "noCapture": {
-      "a": 1,
-      "b": 1,
+      "a": 0,
+      "b": 0,
       "mcnemar": {
         "aOnly": 0,
         "bOnly": 0,
@@ -65,8 +65,8 @@
       }
     },
     "captures": {
-      "a": 0.5,
-      "b": 0.5
+      "a": 1,
+      "b": 1
     },
     "movementStalls": {
       "a": 0,
@@ -77,15 +77,15 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 10.8855,
-      "medianB": 10.687999999999999,
-      "ratio": 0.982,
+      "medianA": 7.3135,
+      "medianB": 6.7105,
+      "ratio": 0.918,
       "gate": 1.25
     },
     "counters": {
       "casualties": {
-        "a": 51,
-        "b": 51,
+        "a": 43,
+        "b": 43,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -93,8 +93,8 @@
         "signP": 1
       },
       "usKills": {
-        "a": 22,
-        "b": 22,
+        "a": 19,
+        "b": 19,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -102,8 +102,8 @@
         "signP": 1
       },
       "geKills": {
-        "a": 29,
-        "b": 29,
+        "a": 24,
+        "b": 24,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -111,8 +111,8 @@
         "signP": 1
       },
       "fire.total": {
-        "a": 248,
-        "b": 248,
+        "a": 200,
+        "b": 200,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -120,8 +120,8 @@
         "signP": 1
       },
       "fire.hits": {
-        "a": 110,
-        "b": 110,
+        "a": 77,
+        "b": 77,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -138,8 +138,8 @@
         "signP": 1
       },
       "movementResolver.changes": {
-        "a": 2874,
-        "b": 2874,
+        "a": 2551,
+        "b": 2551,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -255,8 +255,8 @@
         "signP": 1
       },
       "loopAlerts.length": {
-        "a": 2,
-        "b": 2,
+        "a": 1,
+        "b": 1,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -273,8 +273,8 @@
         "signP": 1
       },
       "regroups.entries": {
-        "a": 4,
-        "b": 4,
+        "a": 3,
+        "b": 3,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -336,8 +336,8 @@
         "signP": 1
       },
       "recon.orders": {
-        "a": 25,
-        "b": 25,
+        "a": 29,
+        "b": 29,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -345,8 +345,8 @@
         "signP": 1
       },
       "recon.contacts": {
-        "a": 4,
-        "b": 4,
+        "a": 2,
+        "b": 2,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -354,8 +354,8 @@
         "signP": 1
       },
       "recon.noContact": {
-        "a": 17,
-        "b": 17,
+        "a": 22,
+        "b": 22,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -372,8 +372,8 @@
         "signP": 1
       },
       "recon.cancelled": {
-        "a": 4,
-        "b": 4,
+        "a": 5,
+        "b": 5,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -381,6 +381,15 @@
         "signP": 1
       },
       "recon.reportsDelivered": {
+        "a": 9,
+        "b": 9,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "recon.retriggerBlocked": {
         "a": 19,
         "b": 19,
         "meanDiff": 0,
@@ -389,18 +398,9 @@
         "fewer": 0,
         "signP": 1
       },
-      "recon.retriggerBlocked": {
-        "a": 15,
-        "b": 15,
-        "meanDiff": 0,
-        "battlesChanged": 0,
-        "more": 0,
-        "fewer": 0,
-        "signP": 1
-      },
       "squadPerformance.meanOverall": {
-        "a": 174.2,
-        "b": 174.2,
+        "a": 174.6,
+        "b": 174.6,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -408,8 +408,8 @@
         "signP": 1
       },
       "squadPerformance.p10Overall": {
-        "a": 150.89999999999998,
-        "b": 150.89999999999998,
+        "a": 153.1,
+        "b": 153.1,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -426,8 +426,8 @@
         "signP": 1
       },
       "squadPerformance.meanMission": {
-        "a": 149.3,
-        "b": 149.3,
+        "a": 152.2,
+        "b": 152.2,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -444,8 +444,8 @@
         "signP": 1
       },
       "squadPerformance.meanControl": {
-        "a": 198.1,
-        "b": 198.1,
+        "a": 198.89999999999998,
+        "b": 198.89999999999998,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -453,8 +453,8 @@
         "signP": 1
       },
       "squadPerformance.meanCohesion": {
-        "a": 191.9,
-        "b": 191.9,
+        "a": 181.2,
+        "b": 181.2,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -465,8 +465,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=547&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/tactics-b3-lease-precedence/ai_flow_live.html?bench=547&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=582&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/tactics-c-leaderless-validity/ai_flow_live.html?bench=582&view=brain3d",
     "seeds": [
       {
         "seed": "phase-a-control-0001",
