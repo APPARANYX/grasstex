@@ -29,27 +29,35 @@ vm.runInNewContext(code, sandbox, { filename: file });
 assert.equal(sandbox.window.BattleFbxClipConverter, owner, 'idempotent install');
 
 class Vec {
-  constructor(x = 0, y = 0, z = 0) { Object.assign(this, { x, y, z }); }
-  clone() { return new Vec(this.x, this.y, this.z); }
+  constructor(x = 0, y = 0, z = 0) {
+    Object.assign(this, { x, y, z });
+  }
+  clone() {
+    return new Vec(this.x, this.y, this.z);
+  }
 }
 class Quat {
-  constructor(x = 0, y = 0, z = 0, w = 1) { Object.assign(this, { x, y, z, w }); }
-  clone() { return new Quat(this.x, this.y, this.z, this.w); }
-  static FromEulerVector() { return new Quat(); }
+  constructor(x = 0, y = 0, z = 0, w = 1) {
+    Object.assign(this, { x, y, z, w });
+  }
+  clone() {
+    return new Quat(this.x, this.y, this.z, this.w);
+  }
+  static FromEulerVector() {
+    return new Quat();
+  }
 }
 const converter = owner.create({
   Q: Quat,
   V3: Vec,
   FPS: 2,
-  rigScheme: names => names.includes('hips') ? 'test-rig' : 'unknown',
+  rigScheme: names => (names.includes('hips') ? 'test-rig' : 'unknown'),
   canon: name => name
 });
 const hips = { name: 'hips', position: new Vec(0, 0, 2), rotationQuaternion: new Quat() };
 const arm = { name: 'leftarm', position: new Vec(0, 0, 1), rotationQuaternion: new Quat(0, 0, 0, 1) };
 const container = {
-  transformNodes: [
-    { name: '__fbx_root__' }, { name: '__fbx_inheritScale' }, hips, arm
-  ],
+  transformNodes: [{ name: '__fbx_root__' }, { name: '__fbx_inheritScale' }, hips, arm],
   animationGroups: []
 };
 const src = converter.sourceRig(container);
@@ -68,14 +76,11 @@ function animation(target, prop, values) {
     }
   };
 }
-const rot = [
-  new Quat(0, 0, 0, 1),
-  new Quat(0, 0, -Math.SQRT1_2, -Math.SQRT1_2),
-  new Quat(0, 0, 1, 0)
-];
+const rot = [new Quat(0, 0, 0, 1), new Quat(0, 0, -Math.SQRT1_2, -Math.SQRT1_2), new Quat(0, 0, 1, 0)];
 const pos = [new Vec(0, 0, 2), new Vec(1, 2, 2.2), new Vec(2, 4, 2.5)];
 const group = {
-  from: 0, to: 2,
+  from: 0,
+  to: 2,
   targetedAnimations: [
     animation(hips, 'position', pos),
     animation(hips, 'rotationQuaternion', rot),
@@ -110,6 +115,11 @@ assert.ok(Math.abs(inPlace.channels[0].pos[6]) < 1e-6, 'explicit in-place root d
 container.animationGroups = [];
 assert.throws(() => converter.convertClip(container, 'bad', ['bad', false], src.bones), /no animation/);
 container.animationGroups = [{ from: 0, to: 2, targetedAnimations: [] }];
-assert.throws(() => converter.convertClip(container, 'empty', ['empty', true], src.bones), /no usable channels/);
+assert.throws(
+  () => converter.convertClip(container, 'empty', ['empty', true], src.bones),
+  /no usable channels/
+);
 
-console.log('PASS #456 R3 source skeleton clone, canonical names, exact FPS interpolation, quaternion sign correction, loop/one-shot/in-place travel and fallback errors');
+console.log(
+  'PASS #456 R3 source skeleton clone, canonical names, exact FPS interpolation, quaternion sign correction, loop/one-shot/in-place travel and fallback errors'
+);
