@@ -37,6 +37,119 @@
       COVER_SPACING = ctx.COVER_SPACING,
       COVER_CELL = ctx.COVER_CELL;
     var coverClaims = new WeakMap();
+    var query = (root.location && root.location.search) || '',
+      COVERED_BOUNDS =
+        /[?&]coveredBounds=(1|on|true)\b/.test(query) && /[?&]localPlan=(1|on|true)\b/.test(query);
+    var boundTuning = {
+      maxDistance: 12,
+      sampleSpacing: 0.75,
+      maxExposure: 1.5,
+      contactAge: 10,
+      confidence: 0.5,
+      maxThreats: 3
+    };
+    // Detached reported coordinates only: never follow contact.unit or s.target into enemy truth.
+    function boundThreats(s, battle) {
+      var A = SA(),
+        c = A && A.soldierContact && A.soldierContact(s, battle),
+        out = [];
+      if (!c) return out;
+      var reports = [c];
+      if (c.secondary) reports.push(c.secondary);
+      var shared = A.squadContactsMap && A.squadContactsMap(s.squad, battle);
+      if (shared) reports = reports.concat(shared);
+      for (var i = 0; i < reports.length; i++) {
+        var r = reports[i],
+          age = battle.time - r.at;
+        if (
+          !Number.isFinite(r.x) ||
+          !Number.isFinite(r.z) ||
+          !Number.isFinite(age) ||
+          age < 0 ||
+          age > boundTuning.contactAge ||
+          !(r.confidence >= boundTuning.confidence)
+        )
+          continue;
+        if (
+          out.some(function (p) {
+            return p.x === r.x && p.z === r.z;
+          })
+        )
+          continue;
+        out.push({ x: r.x, z: r.z, at: r.at, confidence: r.confidence, source: r.source || 'reported' });
+        if (out.length > boundTuning.maxThreats) return []; // Unknown eligibility, not partial threat safety.
+      }
+      return out;
+    }
+    // Straight, short crouched segment only. LOS concealment is NOT ballistic protection.
+    // No route search, reservations, navigation cache, destination or stance writes here.
+    function boundRoute(s, battle, point, threats) {
+      var N = root.BattleNavigation,
+        F = field(),
+        p = posOf(s),
+        d = dist(p.x, p.z, point.x, point.z),
+        result = { eligible: false, reason: 'unknown-contact', distance: d, samples: 0, maxExposure: 0 };
+      if (!threats || !threats.length || threats.length > boundTuning.maxThreats) return result;
+      if (!N || !N.movementClear || !N.lineOfSightBlocked || !F || !F.sightBlocked || !battle.heightAt) {
+        result.reason = 'unknown-geometry';
+        return result;
+      }
+      if (!Number.isFinite(d) || d <= boundTuning.sampleSpacing || d > boundTuning.maxDistance) {
+        result.reason = 'bound-distance';
+        return result;
+      }
+      if (!N.movementClear(p, point)) {
+        result.reason = 'nonstraight-route';
+        return result;
+      }
+      var steps = Math.ceil(d / boundTuning.sampleSpacing),
+        step = d / steps,
+        exposed = 0;
+      for (var i = 0; i <= steps; i++) {
+        var t = i / steps,
+          at = { x: p.x + (point.x - p.x) * t, z: p.z + (point.z - p.z) * t },
+          concealed = true;
+        at.y = battle.heightAt(at.x, at.z) + 1.05;
+        if (!Number.isFinite(at.y)) {
+          result.reason = 'unknown-geometry';
+          return result;
+        }
+        for (var j = 0; j < threats.length; j++) {
+          var threat = {
+            x: threats[j].x,
+            z: threats[j].z,
+            y: battle.heightAt(threats[j].x, threats[j].z) + 1.45
+          };
+          result.samples++;
+          if (!Number.isFinite(threat.y)) {
+            result.reason = 'unknown-geometry';
+            return result;
+          }
+          if (
+            !N.lineOfSightBlocked(at, threat, at.y, threat.y) &&
+            !F.sightBlocked(battle.obstacles, at, threat)
+          ) {
+            concealed = false;
+            break;
+          }
+        }
+        if (!concealed && (i === 0 || i === steps)) {
+          result.reason = 'exposed-endpoint';
+          return result;
+        }
+        // Include the closing interval: sampled gaps must not understate exposure length.
+        exposed = !concealed || exposed > 0 ? exposed + step : 0;
+        result.maxExposure = Math.max(result.maxExposure, exposed);
+        if (exposed > boundTuning.maxExposure) {
+          result.reason = 'exposed-route';
+          return result;
+        }
+        if (concealed) exposed = 0;
+      }
+      result.eligible = true;
+      result.reason = 'covered-segment';
+      return result;
+    }
     function coverKey(p) {
       return Math.floor(p.x / COVER_CELL) + ',' + Math.floor(p.z / COVER_CELL);
     }
@@ -494,6 +607,16 @@
           rejected('unreachable-memory');
           continue;
         }
+        if (opts.coveredRoute) {
+          var assessment = boundRoute(s, battle, pt, opts.coveredRoute.threats);
+          opts.coveredRoute.candidates++;
+          opts.coveredRoute.samples += assessment.samples;
+          opts.coveredRoute.reason = assessment.reason;
+          if (!assessment.eligible) {
+            rejected(assessment.reason);
+            continue;
+          }
+        }
         var anchor = s.orderDestination || (s.squad && s.squad.orderAnchor);
         if (leads && anchor && dist(pt.x, pt.z, anchor.x, anchor.z) > 18) {
           rejected('leader-anchor-limit');
@@ -564,6 +687,12 @@
       coverCandidates: coverCandidates,
       coverSnapshot: coverSnapshot,
       findCover: findCover,
+      boundThreats: boundThreats,
+      boundRoute: boundRoute,
+      coveredBoundsOn: function () {
+        return COVERED_BOUNDS;
+      },
+      boundTuning: boundTuning,
       warm: warm
     };
   };
