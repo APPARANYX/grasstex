@@ -356,6 +356,7 @@ let diagnosticPage = null;
     scene.dispose();
     return {
       ready: R.ready,
+      released: !R.sim && !R.camera && !R.shooter && R.targets.length === 0 && !R.fire,
       panel: !!document.getElementById('damageRangePanel'),
       reticle: !!document.getElementById('rangeReticle'),
       style: [...document.querySelectorAll('style')].some(s => s.textContent.includes('#damageRangePanel')),
@@ -366,6 +367,7 @@ let diagnosticPage = null;
   disposed.lateFires = await page.evaluate(() => window.__rangeDisposalFires());
   if (
     disposed.ready ||
+    !disposed.released ||
     disposed.panel ||
     disposed.reticle ||
     disposed.style ||

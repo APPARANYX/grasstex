@@ -137,7 +137,24 @@
           backMat.dispose();
         });
         life.own(function () {
+          if (api.sim !== sim) return;
           api.ready = false;
+          api.sim = api.shooter = api.camera = null;
+          api.targets = [];
+          [
+            'state',
+            'fire',
+            'burst3',
+            'kill',
+            'clear',
+            'choose',
+            'setZone',
+            'setAuto',
+            'setPanelCollapsed',
+            'setFps'
+          ].forEach(function (key) {
+            delete api[key];
+          });
         });
         view = root.BattleDamageRangeView.create({
           scene: scene,
