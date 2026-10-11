@@ -795,6 +795,98 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       delete window.__qaGamepad;
       delete navigator.getGamepads;
     });
+    // The shipping BattleSim.restart() preserves the SAME sim object while
+    // disposing every old soldier and replacing the roster. Cover possession,
+    // a pause-owned settings menu and an active death tour, not merely a camera
+    // recreation or a different __battle__ identity.
+    const sameSimRestartCases = [];
+    for (const phase of ['possessed', 'menu', 'death']) {
+      await page.keyboard.press('p');
+      await page.waitForFunction(
+        () =>
+          BattleDesktopCamera.current?.player()?.isPlayer &&
+          __battle__.scene.activeCamera?.name === 'playerCam',
+        null,
+        { timeout: 15000 }
+      );
+      if (phase === 'menu') {
+        await page.keyboard.press('o');
+        await page.waitForFunction(
+          () => getComputedStyle(document.getElementById('battlePlayerSettings')).display === 'flex',
+          null,
+          { timeout: 10000 }
+        );
+      } else if (phase === 'death') {
+        await page.evaluate(() => {
+          const b = __battle__,
+            man = BattleDesktopCamera.current.player(),
+            killer = b._roster[man.faction === 'us' ? 'ge' : 'us'].find(s => !s.dead);
+          man._lastHitBy = killer;
+          man.casualty = { by: killer.id, at: b.time, cause: 'restart-qa' };
+          b.killSoldier(man, killer);
+        });
+        await page.waitForFunction(
+          () => document.getElementById('battleDeathSkip')?.style.display === 'block',
+          null,
+          { timeout: 10000 }
+        );
+      }
+      const restart = await page.evaluate(() => {
+        const b = __battle__,
+          controller = BattleDesktopCamera.current,
+          prior = controller.player(),
+          previousRoot = prior.root,
+          previousFaction = prior.faction,
+          previousRoster = b._roster.us.concat(b._roster.ge);
+        b.restart();
+        const freshRoster = b._roster.us.concat(b._roster.ge);
+        return {
+          sameBattleObject: b === __battle__,
+          oldRootDisposed: previousRoot.isDisposed(),
+          oldSoldierRemoved: !freshRoster.includes(prior),
+          freshRoster: freshRoster.length,
+          newSoldiers: freshRoster.every(s => !previousRoster.includes(s)),
+          previousFaction
+        };
+      });
+      assert.ok(restart.sameBattleObject, phase + ': restart replaced the sim object');
+      assert.ok(restart.oldRootDisposed, phase + ': old soldier root was not disposed');
+      assert.ok(restart.oldSoldierRemoved && restart.newSoldiers, phase + ': roster was not replaced');
+      assert.ok(restart.freshRoster > 0, phase + ': restart produced no soldiers');
+      await page.waitForFunction(
+        () => {
+          const b = __battle__,
+            controller = BattleDesktopCamera.current;
+          return (
+            controller?.player() == null &&
+            b.scene.activeCamera?.name === 'cam' &&
+            !b._roster.us.concat(b._roster.ge).some(s => s.isPlayer)
+          );
+        },
+        null,
+        { timeout: 20000 }
+      );
+      const settled = await page.evaluate(() => ({
+        frameObservers: __battle__.scene.onBeforeRenderObservable.observers.filter(
+          o => o.callback?.name === 'stepDesktopFrame'
+        ).length,
+        skipHidden: document.getElementById('battleDeathSkip')?.style.display !== 'block',
+        menuHidden: getComputedStyle(document.getElementById('battlePlayerSettings')).display === 'none',
+        currentController: BattleDesktopCamera.current?.camera?.isDisposed() === false,
+        activeCamera: __battle__.scene.activeCamera?.name,
+        paused: __battle__.paused
+      }));
+      assert.equal(settled.frameObservers, 1, phase + ': duplicate camera frame observers');
+      assert.equal(settled.skipHidden, true, phase + ': stale death skip control');
+      assert.equal(settled.menuHidden, true, phase + ': stale settings menu');
+      assert.equal(settled.currentController, true, phase + ': live desktop camera disposed');
+      assert.equal(settled.paused, false, phase + ': camera left restarted battle paused');
+      sameSimRestartCases.push({ phase, ...restart, ...settled });
+    }
+    fs.writeFileSync(
+      path.join(OUT, 'same-sim-restart.json'),
+      JSON.stringify(sameSimRestartCases, null, 2)
+    );
     const gesture = { firstGamepadPlayer, heldPlayer, holdMs: 650 };
     const state = await page.evaluate(() => ({
       build: window.BATTLE_BUILD_DEPLOYED || null,
@@ -804,7 +896,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
     }));
     fs.writeFileSync(
       path.join(OUT, 'summary.json'),
-      JSON.stringify({ state, errors, notes: notes.slice(-20) }, null, 2)
+      JSON.stringify({ state, sameSimRestartCases, errors, notes: notes.slice(-20) }, null, 2)
     );
     assert.equal(errors.length, 0, 'page errors: ' + errors.slice(0, 5).join(' | '));
     console.log(
