@@ -3,7 +3,14 @@ const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
-function world(on = true, structures = false, entry = false, entryGate = false, survey = false, watch = false) {
+function world(
+  on = true,
+  structures = false,
+  entry = false,
+  entryGate = false,
+  survey = false,
+  watch = false
+) {
   H.resetIds();
   const r = H.bootstrap({
       modules: false,
@@ -707,8 +714,11 @@ for (let i = 0; i < 4; i++) {
   security.P.update(security.b, security.q);
 }
 assert.equal(security.q._localTask.inputs.execution.structure.survey.complete, true);
-assert.equal(security.P.entrySatisfied(security.b, security.q, security.q.route[1]), false,
-  'full footprint survey alone cannot release watched doorway leg');
+assert.equal(
+  security.P.entrySatisfied(security.b, security.q, security.q.route[1]),
+  false,
+  'full footprint survey alone cannot release watched doorway leg'
+);
 security.S.executeMission(security.b, security.q, null);
 assert.equal(security.q.routeIndex, 1);
 const guardFacing = { x: security.door.outside.x, z: security.door.outside.z },
