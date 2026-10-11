@@ -35,6 +35,12 @@ class Vector {
     this.set(this.x / n, this.y / n, this.z / n);
     return this;
   }
+  static Distance(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+  }
+  static Lerp(a, b, t) {
+    return a.scale(1 - t).add(b.scale(t));
+  }
   static Project(p) {
     return { x: 400 + p.x * 4, y: 300 - p.y * 4, z: 0.5 };
   }
@@ -226,6 +232,8 @@ function setup(enabled) {
   }
   function key(value, repeat = false) {
     event('window', 'keydown', { key: value, repeat });
+    // Controls activate after the presentation-only possession flight arrives.
+    if (value === 'p' && !repeat) for (let i = 0; i < 151; i++) tick();
   }
   function tick() {
     now += 100;
