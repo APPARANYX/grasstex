@@ -1,0 +1,13 @@
+{
+  "benchmark": "standard",
+  "ref": "work/tactics-c-leaderless-validity",
+  "seed": "phase-a-control",
+  "seeds": "2",
+  "battle_type": "ge-defend",
+  "query_off": "localPlan=0&localResources=0&coveredBounds=0&localDegrade=0",
+  "query_on": "localPlan=0&localResources=0&coveredBounds=0&localDegrade=1",
+  "windows": "contact+120",
+  "purpose": "PR508 default inherited local validity exact-head paired control",
+  "origin_agent": "chatgpt",
+  "correlation_id": "pr508-default-ge-defend"
+}
