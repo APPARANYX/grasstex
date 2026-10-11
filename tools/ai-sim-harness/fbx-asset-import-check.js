@@ -94,7 +94,7 @@ assert.equal(api.assetBase(), '../Assets/');
   const st = { src: null, bones: null };
   const byFile = { 'moving-fbx': ['moving', 'alt'], 'idle-fbx': ['idle'] };
   const converted = await api.loadClipFiles('scene', st, '../Assets/', byFile, () => progress++);
-  assert.deepEqual(converted.map(c => c.key), ['moving', 'alt', 'idle']);
+  assert.deepEqual(Array.from(converted, c => c.key), ['moving', 'alt', 'idle']);
   assert.deepEqual(Array.from(st.bones), ['hips', 'arm']);
   assert.equal(rigCount, 1, 'first available animation establishes the source rig');
   assert.equal(parseCount, 3, 'one FBX load per file, not per clip key');
