@@ -64,12 +64,55 @@ const out = process.env.POSE_OUT || 'closeups/render-pose-ci';
    return {models:models.size,cases,worst,coverage};
   },baseline);
   assert.equal(result.models,10);assert.ok(result.cases>=3540);assert.equal(result.worst,0);assert.deepEqual(errors,[]);
+  const visual = await page.evaluate(async baseline => {
+    const sim=__battle__,scene=sim.scene,engine=scene.getEngine();
+    sim.pause();engine.stopRenderLoop();
+    const previous=(0,eval)(baseline)(__poseDeps),current=__poseOwner;
+    const men=[...sim._roster.us,...sim._roster.ge].filter(s=>s._fbx);
+    const oldNotify=scene.onBeforeRenderObservable.notifyObservers;
+    scene.onBeforeRenderObservable.notifyObservers=()=>true;
+    const frames=[],images={};
+    const width=engine.getRenderWidth(),height=engine.getRenderHeight();
+    const diff=(a,b)=>{let n=0;for(let i=0;i<a.length;i+=4)if(a[i]!==b[i]||a[i+1]!==b[i+1]||a[i+2]!==b[i+2])n++;return n;};
+    const shot=async()=>{
+      scene.render();scene.render();const pixels=new Uint8Array(await engine.readPixels(0,0,width,height));
+      const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+      const ctx=canvas.getContext('2d'),im=ctx.createImageData(width,height);
+      for(let y=0;y<height;y++)im.data.set(pixels.subarray(y*width*4,(y+1)*width*4),(height-y-1)*width*4);
+      ctx.putImageData(im,0,0);return {pixels,png:canvas.toDataURL('image/png').split(',')[1]};
+    };
+    try {
+      for(const faction of ['us','ge'])for(const key of ['aim','reload','crouchAim','proneIdle','pistolIdle']){
+        const s=men.find(s=>s.faction===faction&&s.role===(key==='pistolIdle'?'sergeant':'rifleman'));
+        if(!s)throw Error('missing visual soldier');
+        const fx=s._fbx,clip=fx.lib.clips[key];
+        men.forEach(m=>{const on=m===s;m._fbx.meshes.forEach(mesh=>mesh.setEnabled(on));
+          if(m.weapon?.mesh)m.weapon.mesh.setEnabled(on);if(m.weapon?.bipodMesh)m.weapon.bipodMesh.setEnabled(false);});
+        const p=s.root.position,yaw=s.root.rotation.y||0;
+        scene.activeCamera.position.set(p.x+Math.sin(yaw)*2.6-Math.cos(yaw)*1.2,p.y+1.6,p.z+Math.cos(yaw)*2.6+Math.sin(yaw)*1.2);
+        scene.activeCamera.setTarget(new BABYLON.Vector3(p.x,p.y+0.8,p.z));
+        fx.lower={entries:[{clip,t:clip.duration*0.37,rate:1,w:1}]};fx.upper={entries:[]};fx.overlay=0;fx.aim=0;
+        fx.throwing=null;fx.death=null;fx.transition=null;fx.supportReleased=key==='reload';fx.cupClipKey=null;
+        const saved=fx.nodes.map(n=>n&&[n.position.clone(),n.rotationQuaternion.clone()]);
+        const restore=()=>{fx.nodes.forEach((n,i)=>{if(n){n.position.copyFrom(saved[i][0]);n.rotationQuaternion.copyFrom(saved[i][1]);}});fx.cupRamp=fx.cupW=fx.cupReach=1;};
+        const render=async owner=>{restore();owner.applyPose(fx);fx.poseRef.serial++;return shot();};
+        const a=await render(previous),ctl=await render(previous),b=await render(current),back=await render(previous);
+        const name=faction+'-'+key;images[name+'-before.png']=a.png;images[name+'-after.png']=b.png;
+        const positiveX=s.root.position.x;s.root.position.x+=1;fx.poseRef.serial++;const positive=await shot();s.root.position.x=positiveX;
+        frames.push({name,control:diff(a.pixels,ctl.pixels),changed:diff(a.pixels,b.pixels),back:diff(a.pixels,back.pixels),positive:diff(a.pixels,positive.pixels)});
+      }
+    } finally {scene.onBeforeRenderObservable.notifyObservers=oldNotify;}
+    return {frames,images};
+  },baseline);
+  for(const frame of visual.frames){assert.equal(frame.control,0,frame.name+' unstable control');assert.equal(frame.changed,0,frame.name+' pixel change');assert.equal(frame.back,0);assert.ok(frame.positive>0,frame.name+' invisible positive control');}
+  for(const [name,png] of Object.entries(visual.images))fs.writeFileSync(path.join(out,name),Buffer.from(png,'base64'));
+  result.visual=visual.frames;
   // Repeated real pose workload (five minutes at 60 pose frames/s), alternating
   // old/new on one runner. Warm caches first; keep timing advisory, output parity is the gate.
   const workload = await page.evaluate(baseline => {
     const old=(0,eval)(baseline)(__poseDeps), current=__poseOwner;
     const sim=__battle__;sim.pause();sim.scene.getEngine().stopRenderLoop();
-    const men=[...sim._roster.us,...sim._roster.ge].filter(s=>s._fbx).slice(0,10);
+    const men=[...new Map([...sim._roster.us,...sim._roster.ge].filter(s=>s._fbx).map(s=>[s._fbx.lib.file,s])).values()];
     const run=(owner,frames)=>{
       const start=performance.now();
       for(let frame=0;frame<frames;frame++)for(const s of men){
@@ -95,7 +138,7 @@ const out = process.env.POSE_OUT || 'closeups/render-pose-ci';
   const restartCounts=[];
   for(let restart=0;restart<4;restart++){
     await page.evaluate(()=>{__battle__.restart();__battle__.pause();});
-    await page.waitForFunction(()=>__battle__._roster.us.every(s=>s._fbx),null,{timeout:60000});
+    await page.waitForFunction(()=>__battle__._roster.us.length>0&&__battle__._roster.us.every(s=>s._fbx),null,{timeout:60000});
     restartCounts.push(await page.evaluate(()=>{
       const sim=__battle__,scene=sim.scene,engine=scene.getEngine();
       for(let i=0;i<30;i++)scene.render();

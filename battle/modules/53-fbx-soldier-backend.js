@@ -1620,9 +1620,7 @@
     topEntry = MIXER.topEntry,
     sampleLayer = MIXER.sampleLayer;
 
-  /* The simulation decides animation tags and desired clips, never render pose IK.
-     Keep clamp here for render-side consumers; the semantic helper resolves it too. */
-  var clamp = root.GTMath.clamp;
+  /* The simulation decides animation tags and desired clips, never render pose IK. */
   var ANIM_STATE = root.BattleFbxAnimationState.create({
       Q: Q,
       TAGS: TAGS,
