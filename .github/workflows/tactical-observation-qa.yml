@@ -1,0 +1,33 @@
+name: Tactical Observation Browser QA
+on:
+  pull_request:
+    paths:
+      - battle/modules/54-tactical-situation.js
+      - battle/modules/54a-urban-operating-picture.js
+      - scripts/probes/probe_tactical_observation.cjs
+      - .github/workflows/tactical-observation-qa.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  observer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Probe current-head preview
+        env:
+          TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
+        run: node scripts/probes/probe_tactical_observation.cjs
+        # preview.php resolves branches, then the probe checks the staged head SHA.
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tactical-observation-evidence
+          path: closeups/tactical-observation/
