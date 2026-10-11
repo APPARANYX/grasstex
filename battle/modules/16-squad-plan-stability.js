@@ -1876,6 +1876,9 @@
         endRecon: endRecon,
         RECON_LEDGER_ON: RECON_LEDGER_ON,
         ROUTE_TRANSITION_ON: ROUTE_TRANSITION_ON,
+        localPlan: function () {
+          return _lp;
+        },
         URBAN_ARRIVAL_COHESION: URBAN_ARRIVAL_COHESION
       })
     : null;
