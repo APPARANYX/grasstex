@@ -40,7 +40,7 @@ vm.runInNewContext(helper, ctx, { filename: '52-fbx-model-retarget.js' });
 assert.equal(root.BattleFbxModelRetarget, first, 'module installation idempotent');
 
 const src = {
-  rest: { hips: { q: { x: 0, y: 0, z: 0, w: 1 }, p: { x: 0, y: 0, z: 1 } } }
+  rest: { hips: { q: { x: 0, y: 0, z: 0, w: 1 }, p: { x: 0, y: 0, z: 1, length: () => 1 } } }
 };
 const model = {
   nodes: { hips: { name: 'hips', parent: null, rotationQuaternion: { x: 0, y: 0, z: 0, w: 1 },
