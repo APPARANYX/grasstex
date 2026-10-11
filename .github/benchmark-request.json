@@ -1,0 +1,12 @@
+{
+  "benchmark": "standard",
+  "ref": "work/tactics-c-covered-bounds",
+  "seed": "phase-a-control",
+  "seeds": 2,
+  "battle_type": "ge-defend",
+  "query_off": "localPlan=0&coveredBounds=0",
+  "query_on": "localPlan=0&coveredBounds=1",
+  "origin_agent": "codex",
+  "correlation_id": "pr-504-accepted-default-ge-defend",
+  "purpose": "Exact final head fe18e53: default covered-bound isolation/activation and runtime cost; no score gate"
+}
