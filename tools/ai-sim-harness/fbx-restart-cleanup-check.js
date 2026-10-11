@@ -9,14 +9,18 @@ const source = fs.readFileSync(
   path.join(__dirname, '..', '..', 'battle', 'modules', '53-fbx-soldier-backend.js'),
   'utf8'
 );
+const state = fs.readFileSync(
+  path.join(__dirname, '..', '..', 'battle', 'modules', '52-fbx-animation-state.js'),
+  'utf8'
+);
 
 assert.match(
-  source,
+  state,
   /function trackDetachedWeapon\(fx, mesh\)[\s\S]{0,260}?list\.indexOf\(mesh\) < 0\) list\.push\(mesh\)/,
   'detached reaction/abandoned weapon meshes are retained by the owning FBX soldier'
 );
 assert.match(
-  source,
+  state,
   /function untrackDetachedWeapon\(fx, mesh\)[\s\S]{0,220}?list\.splice\(i, 1\)/,
   'a weapon picked back up leaves the detached-mesh cleanup set'
 );
