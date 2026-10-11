@@ -8,6 +8,7 @@ on:
       - battle/squad-ai.js
       - battle/modules/15j-squad-leader-fire-and-movement.js
       - battle/modules/15c-squad-leader-scouts-forward.js
+      - battle/modules/15d-squad-leader-leaderless-intent.js
       - battle/modules/15n-squad-leader-local-plan.js
       - battle/modules/15l-squad-leader-mission-execution.js
       - battle/modules/16-squad-plan-stability.js

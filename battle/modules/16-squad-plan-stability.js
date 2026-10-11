@@ -606,7 +606,10 @@
         copy: copy,
         teamKeyFor: teamKeyFor,
         missionVersion: missionVersion,
-        LEADERLESS_INTENT_ON: LEADERLESS_INTENT_ON
+        LEADERLESS_INTENT_ON: LEADERLESS_INTENT_ON,
+        localPlan: function () {
+          return _lp;
+        }
       })
     : null;
   var leaderlessActive = _ll
@@ -626,6 +629,11 @@
         },
     captureLeaderlessIntent = _ll
       ? _ll.captureLeaderlessIntent
+      : function () {
+          return null;
+        },
+    updateLeaderlessLocalTask = _ll
+      ? _ll.updateLeaderlessLocalTask
       : function () {
           return null;
         },
@@ -2009,6 +2017,7 @@
         localPlan: _lp,
         leaderlessActive: leaderlessActive,
         noteLeaderlessAction: noteLeaderlessAction,
+        updateLeaderlessLocalTask: updateLeaderlessLocalTask,
         updateClearContact: updateClearContact,
         updateCOA: updateCOA,
         updateFireControl: updateFireControl,

@@ -920,6 +920,21 @@ or new movement writers are added. Existing leaderless/retreat and committed Mic
 remain authoritative. Resources appear in the existing local-task diagnostic inputs and
 clear with that owner's restart. This is readiness eligibility, not a LOS or safety claim.
 
+Leaderless local-task validity (`?localPlan=1&localDegrade=1`, both required,
+default OFF) uses the existing leaderless-intent/six-second succession owner. At loss,
+it snapshots only the local task identity. The local policy revalidates that frozen
+choice against the current General version, own pressure and reported/readiness inputs;
+it does not select another task. A pending maneuver additionally needs a live bound
+lease stamped with the same mission version and local-task serial. Unknown, expired,
+superseded or ineligible authorization ends through the existing bound lease and
+Engagement cleanup. A conservative hold is terminal for that succession episode,
+retaining its original cause until the normal successor handback. There are no new
+Meso bounds/recon, strategic fields, movement/stance writers or fallback timer.
+Already-adopted Micro movement, firing, possession and retreat keep their owners.
+The inherited identity/current validity are bounded fields in the existing leaderless
+record and clear on restart. This is local-task validity, not geometric safety or full
+C2 acceptance of future structure/handoff/posture tasks.
+
 Covered-bound eligibility (`?localPlan=1&coveredBounds=1`, both required, default OFF)
 is an Engagement cover-owner gate on **new squad-authorized bounds**, not a new Meso
 movement publisher. Actual selected cover must have a short, physically clear straight
