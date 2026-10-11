@@ -22,6 +22,7 @@ const { chromium } = require('playwright');
     url.searchParams.set('tacticalSituation', '1');
     url.searchParams.set('urbanPicture', '1');
     url.searchParams.set('leaseConflicts', '1');
+    url.searchParams.set('localPlan', '1');
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(String(e)));
@@ -345,6 +346,71 @@ const { chromium } = require('playwright');
       evidence.conflicts.sampledAllocationBytes = allocated(conflictProfile.profile.head);
       evidence.conflicts.collectedHeapDeltaBytes = conflictAfter.usedSize - conflictBefore.usedSize;
     }
+    if (await page.evaluate(() => !!window.BattleSquadStability?.localPlan)) {
+      await cdp.send('HeapProfiler.collectGarbage');
+      await cdp.send('HeapProfiler.startSampling', {
+        samplingInterval: 1024,
+        includeObjectsCollectedByMajorGC: true,
+        includeObjectsCollectedByMinorGC: true
+      });
+      const localBefore = await cdp.send('Runtime.getHeapUsage');
+      evidence.localPlanning = await page.evaluate(() => {
+        const b = __battle__,
+          S = BattleSquadStability,
+          P = S.localPlan,
+          q = b.factions.us.squads.find(q => SquadAI.leaderOf(q)),
+          E = BattleEngagement,
+          L = BattleLeases;
+        if (!S.localPlanOn() || !q) throw Error('local policy flag/leader missing');
+        const natural = S.localPlanTelemetry(b);
+        const snapshot = () =>
+          JSON.stringify([
+            q._macroMission,
+            q.commandPhase,
+            q.route,
+            q.routeIndex,
+            q.members.map(s => [s.destination, s.prone, s.crawling, s.tacticalCrouch])
+          ]);
+        const before = snapshot(),
+          loops = 1000,
+          start = performance.now();
+        for (let i = 0; i < loops; i++) P.update(b, q);
+        const msPerUpdate = (performance.now() - start) / loops;
+        const stable = JSON.stringify(P.update(b, q)) === JSON.stringify(P.update(b, q));
+        const members = q.members.filter(s => !s.dead);
+        L.grant(q, 'bound', 'squad-leader', b.time, b.time + 10, 'local pressure fixture');
+        E.orderBound(members);
+        P.update(b, q, { underFire: members.length, fireSupport: members.slice(0, 2) });
+        S.resolveLeaseConflicts(b, q);
+        if (
+          q._localTask.kind !== 'protect' ||
+          L.get(q, 'bound') ||
+          members.some(s => !s.isPlayer && s.eng?.boundOrder)
+        )
+          throw Error('situational protection did not reach Engagement cleanup');
+        if (snapshot() !== before) throw Error('local policy changed strategic/route/stance state');
+        return {
+          natural,
+          loops,
+          msPerUpdate,
+          stable,
+          cleanup: true,
+          winner: q._localTask.kind,
+          fixture: 'own-squad pressure report through policy and existing lease/Engagement owners',
+          bytes: JSON.stringify(q._localTask).length
+        };
+      });
+      const localProfile = await cdp.send('HeapProfiler.stopSampling');
+      await cdp.send('HeapProfiler.collectGarbage');
+      const localAfter = await cdp.send('Runtime.getHeapUsage');
+      evidence.localPlanning.sampledAllocationBytes = allocated(localProfile.profile.head);
+      evidence.localPlanning.collectedHeapDeltaBytes = localAfter.usedSize - localBefore.usedSize;
+      assert.equal(evidence.localPlanning.stable, true);
+      assert.ok(
+        evidence.localPlanning.natural.transitions > 0,
+        'real commander hook activated before fixture'
+      );
+    }
     evidence.restart = await page.evaluate(() => {
       const b = __battle__,
         T = BattleTacticalSituation;
@@ -369,6 +435,7 @@ const { chromium } = require('playwright');
       const cleared = T.summary(b).tacticalSituation === null;
       T.sample(b);
       return {
+        localTasksCleared: ['us', 'ge'].every(f => b.factions[f].squads.every(q => !q._localTask)),
         conflictsCleared: ['us', 'ge'].every(f =>
           b.factions[f].squads.every(q => !q._leases?.conflicts?.length)
         ),
@@ -396,6 +463,7 @@ const { chromium } = require('playwright');
       assert.ok(evidence.urban.visibilityProbes > 0);
     }
     assert.equal(evidence.restart.conflictsCleared, true);
+    assert.equal(evidence.restart.localTasksCleared, true);
     assert.equal(evidence.restart.routeCleared, true);
     assert.equal(evidence.restart.historyCleared, true);
     assert.equal(evidence.restart.intentCleared, true);
