@@ -855,6 +855,15 @@ rather than overwriting the previous contact.
 
 ### Phase B — Versioned intent and leases
 
+Current B1 briefs retain their existing General-owned version/reason/lifecycle. On each
+new issue, `confidence` records maximum quantified support from own-faction reports,
+with frozen `observations` containing report provenance/age/confidence, public objective
+owner and own squad readiness. Zero means no quantified support, not proof of enemy absence
+or a mission success probability; unknown report confidence and truncation remain explicit.
+Metadata never participates in the brief key or mission selection. An unchanged brief keeps
+its issue-time evidence; no observer record is created and no perception is refreshed.
+Full, focused and compact diagnostics expose the contract; telemetry receives a detached copy.
+
 - Implement the `SquadIntent` contract from the command-hierarchy plan.
 - Convert plan holds, objective security, station claims, and route transitions to named leases with
   owner, priority, expiry, progress test, and release condition.

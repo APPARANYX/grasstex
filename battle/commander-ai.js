@@ -335,6 +335,46 @@
       spec.plannedObjectiveId
     ]);
   }
+  /* B1: frozen issue-time evidence, never a new decision input. The report reader
+     does not refresh perception or dereference enemies. Confidence means quantified
+     report support, not mission success probability; unknown reports remain explicit. */
+  function intentEvidence(sim, sq, spec) {
+    var T = root.BattleTacticalSituation,
+      picture = T && T.compute(sim, sq.faction),
+      contacts = picture ? picture.contacts : [],
+      confidence = 0,
+      quantified = 0;
+    contacts.forEach(function (c) {
+      if (c.confidence == null || !isFinite(c.confidence)) return;
+      quantified++;
+      confidence = Math.max(confidence, Math.max(0, Math.min(1, c.confidence)));
+    });
+    var objective = null;
+    if (picture && spec.objectiveId)
+      objective =
+        picture.objectivePressure.filter(function (o) {
+          return o.id === spec.objectiveId;
+        })[0] || null;
+    return {
+      confidence: confidence,
+      observations: {
+        format: 'grasstex-squad-intent-evidence-v1',
+        at: +sim.time || 0,
+        faction: sq.faction,
+        scope: 'faction-reports-at-issue',
+        available: !!picture,
+        confidenceBasis: 'maximum-quantified-retained-report-support',
+        quantifiedReports: quantified,
+        unknownConfidenceReports: contacts.length - quantified,
+        contacts: contacts,
+        contactsOmitted: picture ? picture.contactsOmitted : 0,
+        reportedContacts: picture ? picture.contactCount : null,
+        objective: objective,
+        squad: { alive: D.aliveMembers(sq).length, inContact: !!sq.inContact, position: point(D.avgPos(sq)) },
+        availableReserves: picture ? picture.availableReserves : null
+      }
+    };
+  }
   function issueMission(sim, sq, spec, reason) {
     var old = sq._macroMission,
       key = briefKey(spec),
@@ -347,20 +387,23 @@
       return old;
     }
     finishMission(sim, sq, 'superseded', reason);
-    var m = {
-      version: (old ? old.version : 0) + 1,
-      owner: 'force-command',
-      intent: spec.intent,
-      action: spec.action,
-      objectiveId: spec.objectiveId || null,
-      point: point(spec.point),
-      route: (spec.route || []).map(point),
-      role: spec.role,
-      requestKey: spec.requestKey || null,
-      plannedObjectiveId: spec.plannedObjectiveId || null,
-      reason: reason,
-      key: key
-    };
+    var evidence = intentEvidence(sim, sq, spec),
+      m = {
+        version: (old ? old.version : 0) + 1,
+        owner: 'force-command',
+        intent: spec.intent,
+        action: spec.action,
+        objectiveId: spec.objectiveId || null,
+        point: point(spec.point),
+        route: (spec.route || []).map(point),
+        role: spec.role,
+        requestKey: spec.requestKey || null,
+        plannedObjectiveId: spec.plannedObjectiveId || null,
+        reason: reason,
+        confidence: evidence.confidence,
+        observations: evidence.observations,
+        key: key
+      };
     sq._macroMission = m;
     transitionMission(sim, sq, 'issued', reason);
     sq._macroMissionObservation = missionObservation(sim, sq, m);
@@ -374,7 +417,9 @@
       version: m.version,
       intent: m.intent,
       objectiveId: m.objectiveId,
-      reason: reason
+      reason: reason,
+      confidence: m.confidence,
+      observations: JSON.parse(JSON.stringify(m.observations))
     });
     return m;
   }
@@ -722,6 +767,7 @@
   };
 
   root.BattleCommanderAI = {
+    intentEvidence: intentEvidence,
     missionStates: MISSION_STATES,
     transitionMission: transitionMission,
     acceptMission: acceptMission,

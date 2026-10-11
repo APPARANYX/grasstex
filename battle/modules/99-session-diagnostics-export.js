@@ -994,7 +994,9 @@
             action: mission.action || null,
             objectiveId: mission.objectiveId || null,
             status: mission.status || null,
-            reason: mission.reason || null
+            reason: mission.reason || null,
+            confidence: mission.confidence == null ? null : mission.confidence,
+            observations: safePlain(mission.observations, 6)
           }
         : null,
       fireControl: safePlain(sq.fireControl, 3),

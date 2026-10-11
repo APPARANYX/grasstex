@@ -2,6 +2,7 @@ name: Tactical Observation Browser QA
 on:
   pull_request:
     paths:
+      - battle/commander-ai.js
       - battle/modules/54-tactical-situation.js
       - battle/modules/54a-urban-operating-picture.js
       - battle/modules/97-ai-timeline-recorder.js
