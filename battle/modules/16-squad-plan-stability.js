@@ -131,6 +131,26 @@
   L.define('regroup-cooldown', { priority: 20, timer: true });
   L.define('bound-cycle', { priority: 15, timer: true });
   L.define('regroup-bypass', { priority: 10, timer: true });
+  /* B2: an observer lease, never an execution hold. Its owner records every end
+     explicitly; the existing strategic no-progress budget supplies its deadline. */
+  L.define('route-transition', {
+    priority: 5,
+    diagnostic: true,
+    progress: function (sq, l, t) {
+      var d = l.data;
+      return {
+        ok: d.distance < d.startDistance,
+        leg: d.leg,
+        missionVersion: d.missionVersion,
+        distanceRemaining: d.distance,
+        distanceMoved: d.traveled,
+        elapsed: Math.max(0, t - l.since),
+        noProgress: Math.max(0, t - d.lastProgressAt),
+        pausedBy: d.pausedBy || null,
+        detail: 'leg ' + d.from + ' -> ' + d.leg + '; ' + d.distance.toFixed(1) + ' m remaining'
+      };
+    }
+  });
   L.define('rally-recovery', {
     priority: 88,
     progress: function (sq, lease, t) {
@@ -2195,7 +2215,8 @@
     endUnstick: endUnstick,
     teamKeyFor: teamKeyFor,
     placeAtSlots: placeAtSlots,
-    executeMission: executeMission
+    executeMission: executeMission,
+    observeRouteTransition: _me && _me.observeRouteTransition
   };
   root.BattleEngagementPlans = {
     version: '1.5-m3c-mission-execution',
