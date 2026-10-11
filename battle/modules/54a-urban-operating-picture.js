@@ -16,7 +16,7 @@
       dz = p.z - b.z,
       co = Math.cos(+b.rot || 0),
       si = Math.sin(+b.rot || 0);
-    return Math.abs(dx * co + dz * si) <= b.w / 2 && Math.abs(-dx * si + dz * co) <= b.d / 2;
+    return Math.abs(dx * co - dz * si) <= b.w / 2 && Math.abs(dx * si + dz * co) <= b.d / 2;
   }
   function nearRoad(r, p) {
     var dx = r.bx - r.ax,
