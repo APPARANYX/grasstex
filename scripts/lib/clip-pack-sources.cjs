@@ -17,6 +17,7 @@ const vm = require('node:vm');
 const ROOT = path.resolve(__dirname, '..', '..');
 const TABLE = 'battle/modules/53-fbx-clip-table.js';
 const RIG_CANON = 'battle/modules/52-fbx-rig-canon.js';
+const CLIP_CONVERTER = 'battle/modules/52-fbx-clip-converter.js';
 const BACKEND = 'battle/modules/53-fbx-soldier-backend.js';
 const PAGE = 'battle/battle_sim.html';
 const PACK = 'Assets/animations/prepared-clips.bin';
@@ -68,10 +69,13 @@ function expected(root = ROOT) {
   for (const file of [...new Set(Object.values(clips).map(spec => spec[0]))].sort()) {
     sources[file] = sha256(fs.readFileSync(path.join(root, 'Assets/animations', `${file}.fbx`)));
   }
-  /* The rig canonicalizer moved out of the backend in #470. Read its real source as part
-   of the same deterministic converter hash rather than assuming every owner is in 53.
-   Extracted function/declarator bytes are unchanged; module wrappers are not hashed. */
-  const converterOwners = [RIG_CANON, BACKEND].map(file => fs.readFileSync(path.join(root, file), 'utf8'));
+  /* R3: rig naming (#470) and sourceRig/convertClip (#482) have separate owners.
+     The backend comes before the converter in this concatenation so the original
+     `FPS = 30` declarator is hashed, not the converter factory's `FPS = deps.FPS`.
+     The fixed function list still resolves to each actual owner; wrappers are un-hashed. */
+  const converterOwners = [RIG_CANON, BACKEND, CLIP_CONVERTER].map(file =>
+    fs.readFileSync(path.join(root, file), 'utf8')
+  );
   const converter = sha256(converterText(converterOwners.join('\n')));
   const pin = /babylonjs@([0-9][0-9A-Za-z.-]*)\/babylon\.js/.exec(fs.readFileSync(path.join(root, PAGE), 'utf8'));
   if (!pin) throw new Error(`${PAGE}: no pinned babylonjs@<version>/babylon.js`);

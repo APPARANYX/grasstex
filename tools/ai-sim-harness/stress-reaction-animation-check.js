@@ -8,6 +8,7 @@ const vm = require('node:vm');
 const ROOT = path.resolve(__dirname, '../..');
 const tableFile = path.join(ROOT, 'battle/modules/53-fbx-clip-table.js');
 const backendFile = path.join(ROOT, 'battle/modules/53-fbx-soldier-backend.js');
+const converterFile = path.join(ROOT, 'battle/modules/52-fbx-clip-converter.js');
 const context = {};
 context.globalThis = context;
 vm.runInNewContext(fs.readFileSync(tableFile, 'utf8'), context, { filename: tableFile });
@@ -42,10 +43,12 @@ for (const anchor of [
   "reaction === 'freeze' ? freezeHoldOf(soldier) : null",
   "return reaction === 'cower' || reaction === 'freeze';",
   'reactionWeapon(soldier, fx, reactionDropsWeapon(reaction) || fx.cowerExit);',
-  'left.droppedAt || standAt(soldier)',
-  "loop || spec[2] === 'inplace' || spec[2] === 'turn'"
+  'left.droppedAt || standAt(soldier)'
 ])
   if (!backend.includes(anchor)) throw new Error(`backend contract missing: ${anchor}`);
+const converter = fs.readFileSync(converterFile, 'utf8');
+if (!converter.includes("loop || spec[2] === 'inplace' || spec[2] === 'turn'"))
+  throw new Error('converter must suppress looping, in-place and turning hips drift');
 /* Presentation draws what the sim says and never writes it: the weapon a fled man left is Engagement's decision
    (BattleWeapons.abandon), the one he is issued at base is SquadAI.rearm's. */
 if (/\bsoldier\.weapon\s*=[^=]|\.abandon\s*\(|\.rearm\s*\(|\.secondary\s*=[^=]/.test(backend))

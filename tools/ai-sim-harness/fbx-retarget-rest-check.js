@@ -27,12 +27,18 @@ assert.equal(ctx.window.BattleFbxRetargetRest, rest, 'second install retains the
 assert.equal(Object.keys(rest).length, 2);
 const source = fs.readFileSync(path.join(modules, backendFile), 'utf8');
 const modelSource = fs.readFileSync(path.join(modules, '52-fbx-model-retarget.js'), 'utf8');
+const clipConverterSource = fs.readFileSync(path.join(modules, '52-fbx-clip-converter.js'), 'utf8');
 assert.match(source, /!root\.BattleFbxRetargetRest\s*\|\|/);
 assert.match(modelSource, /RETARGET_REST\.planOrder\(parent\)/);
 assert.match(modelSource, /RETARGET_REST\.quatCalibration\(parent, order, restS, restT\)/);
 assert.match(modelSource, /retargetRotations\(frames, n, order, parent, K, rS, rT, srcRot, dstRot\)/);
 assert.match(modelSource, /if \(FAST_RETARGET\)/, 'matrix fallback remains independently selectable');
-assert.match(source, /function convertClip\(container, key, spec, bones\)/, 'packed clip converter retained');
+assert.match(
+  clipConverterSource,
+  /function convertClip\(container, key, spec, bones\)/,
+  'prepared clip converter owned by lexical helper'
+);
+assert.doesNotMatch(source, /function convertClip\(/);
 assert.match(source, /function encodeClipPack\(src, clips, extra\)/, 'prepared clip codec retained');
 assert.doesNotMatch(modelSource, /hamilton\(K, i4/, 'correction-matrix loop must live in rest helper');
 

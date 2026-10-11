@@ -5,6 +5,9 @@ on:
   pull_request:
     paths:
       - 'battle/camera-controls.js'
+      - 'battle/modules/52-fbx-clip-converter.js'
+      - 'tools/ai-sim-harness/fbx-clip-converter-check.js'
+      - 'scripts/lib/clip-pack-sources.cjs'
       - 'battle/modules/52-fbx-clip-mixer.js'
       - 'tools/ai-sim-harness/fbx-clip-mixer-check.js'
       - 'battle/modules/52-fbx-prepared-pack.js'
