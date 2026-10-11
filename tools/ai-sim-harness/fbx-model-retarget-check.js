@@ -25,7 +25,13 @@ assert.match(helper, /lib\.clips = out/);
 assert.match(helper, /lib\.retargeted = /);
 assert.ok('52-fbx-model-retarget.js' < '53-fbx-soldier-backend.js');
 
-const root = {};
+const root = {
+  BattleFbxRetargetQuat: { retargetRotations: () => { throw Error('matching rig must skip conversion'); } },
+  BattleFbxRetargetRest: {
+    planOrder: () => [0],
+    quatCalibration: () => ({ rS: new Float64Array(4), rT: new Float64Array(4), K: new Float64Array(4) })
+  }
+};
 const ctx = { window: root };
 vm.runInNewContext(helper, ctx, { filename: '52-fbx-model-retarget.js' });
 const first = root.BattleFbxModelRetarget;
