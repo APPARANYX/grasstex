@@ -61,10 +61,40 @@ assert.ok(
   orchestration.indexOf("leavePlayer('battle roster replaced');") < orchestration.indexOf('menuHoldGesture('),
   'restart guard must execute before the menu/death/controller input branch'
 );
+/* Deliberately allow ONLY the map's non-gameplay gate. Reverse that exact
+   insertion before checking the death-tour-era frame-order fingerprint.
+   An unrelated Menu/possession/control change must still fail this ratchet. */
+const mapDeclaration = 'pad = activeGamepad(),\ntacticalMap = global.BattleTacticalMap;';
+assert.ok(
+  orchestration.includes(mapDeclaration),
+  'map gate must capture the currently loaded map presentation system'
+);
+const mapGuardStart = orchestration.indexOf('/* D-pad right toggles the full map');
+const mapGuardEnd = orchestration.indexOf('/* Restarts reuse', mapGuardStart);
+assert.ok(mapGuardStart > 0 && mapGuardEnd > mapGuardStart, 'map-only input guard precedes roster guard');
+const mapGuard = orchestration.slice(mapGuardStart, mapGuardEnd);
+assert.match(
+  mapGuard,
+  /if \(pad && tacticalMap && !menuOpen && padPressedOnce\(pad, 15\)\)/,
+  'D-pad right opens/closes the map without colliding with settings controls'
+);
+assert.match(
+  mapGuard,
+  /tacticalMap\.setOpen\(!tacticalMap\.isOpen\(\)\)/,
+  'map gamepad toggle must stay a presentation toggle'
+);
+assert.match(
+  mapGuard,
+  /if \(tacticalMap && tacticalMap\.isOpen\(\)\) {[\s\S]*?keys\.clear\(\);[\s\S]*?mouseFire = false;[\s\S]*?return;/,
+  'opening the map suppresses movement and weapon input'
+);
+const originalOrchestration = orchestration
+  .replace(mapDeclaration, 'pad = activeGamepad();')
+  .replace(mapGuard, '');
 assert.equal(
-  fingerprint(orchestration.replace(restartGuard, '')),
+  fingerprint(originalOrchestration.replace(restartGuard, '')),
   'a5a33693',
-  'previous menu/player frame/gesture ordering changed after excluding only the new restart guard'
+  'prior Menu/player frame ordering remains unchanged outside the audited tactical-map input gate'
 );
 assert.match(src, /menuHoldState\.long = false;/, 'disconnect clears the held Menu gesture');
 assert.match(src, /menuHoldState\.since = 0;/, 'disconnect resets Menu hold duration');
