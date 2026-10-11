@@ -333,4 +333,16 @@ test('a returning soldier with an old envelope is enrolled into the new unchange
   assert.equal(unchanged.issuedAt, stable.issuedAt);
 });
 
+test('squad diagnostics are safe before publication and after restart without creating state', () => {
+  const w = world();
+  delete w.b._commandReception;
+  assert.deepEqual(w.C.squadSnapshot(w.us, w.b), []);
+  assert.equal(w.b._commandReception, undefined);
+  w.C.publish(w.us, w.b, 'movement', w.us.members, { action: 'move', version: 1 });
+  assert.ok(w.C.squadSnapshot(w.us, w.b).length > 0);
+  w.C.reset(w.b);
+  assert.deepEqual(w.C.squadSnapshot(w.us, w.b), []);
+  assert.equal(w.b._commandReception, undefined);
+});
+
 console.log(n + ' command-reception checks passed');
