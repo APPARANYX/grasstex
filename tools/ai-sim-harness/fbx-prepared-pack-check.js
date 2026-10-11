@@ -12,11 +12,13 @@ const helperFile = '52-fbx-prepared-pack.js';
 const backendFile = '53-fbx-soldier-backend.js';
 const helper = fs.readFileSync(path.join(mod, helperFile), 'utf8');
 const backend = fs.readFileSync(path.join(mod, backendFile), 'utf8');
+const converter = fs.readFileSync(path.join(mod, '52-fbx-clip-converter.js'), 'utf8');
 assert.ok(helperFile < backendFile, 'module must load before backend');
 assert.match(backend, /!root\.BattleFbxPreparedPack\s*\|\|/);
 assert.match(backend, /root\.BattleFbxPreparedPack\.create\(/);
 assert.match(backend, /function encodeClipPack\(/, 'hashed encoder must remain in backend');
-assert.match(backend, /function convertClip\(/, 'hashed converter must remain in backend');
+assert.match(converter, /function convertClip\(/, 'hash must cover extracted converter owner');
+assert.doesNotMatch(backend, /function convertClip\(/, 'backend must delegate to extracted owner');
 assert.doesNotMatch(backend, /function decodeClipPack\(/, 'decoder now belongs only to pack module');
 
 const warnings = [],
