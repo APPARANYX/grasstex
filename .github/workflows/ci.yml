@@ -116,6 +116,15 @@ jobs:
           done < <(git ls-files '*.json')
           echo "Parsed $count JSON files."
 
+      - name: TEMP exact formatter for rebased retarget
+        run: |
+          for file in battle/modules/52-fbx-model-retarget.js battle/modules/53-fbx-soldier-backend.js tools/ai-sim-harness/fbx-model-retarget-check.js; do
+            echo "MODEL_REBASE_FORMAT_START_$(basename "$file")"
+            npx --yes prettier@3.3.3 "$file" | base64 -w0
+            echo
+            echo "MODEL_REBASE_FORMAT_END_$(basename "$file")"
+          done
+
       # Prettier ratchet: the repo's .prettierrc.json was dead config - most tracked JS never
       # complied. A full one-shot reformat would break every in-flight branch, so instead every
       # JS file a pull request touches must be on-standard. Legacy files stay as they are and
