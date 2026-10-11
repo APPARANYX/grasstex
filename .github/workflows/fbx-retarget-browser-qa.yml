@@ -6,6 +6,8 @@ on:
   pull_request:
     paths:
       - 'battle/modules/52-fbx-animation-state.js'
+      - 'battle/modules/52-fbx-render-pose.js'
+      - 'tools/ai-sim-harness/fbx-render-pose-check.js'
       - 'tools/ai-sim-harness/fbx-animation-state-check.js'
       - 'tools/ai-sim-harness/stress-reaction-animation-check.js'
       - 'battle/modules/52-fbx-library-lifecycle.js'
@@ -31,6 +33,7 @@ on:
       - 'battle/modules/53-fbx-soldier-backend.js'
       - 'tools/ai-sim-harness/fbx-retarget-quat-check.js'
       - 'scripts/probe_retarget.cjs'
+      - 'scripts/probe_fbx_render_pose.cjs'
       - '.github/workflows/fbx-retarget-browser-qa.yml'
   workflow_dispatch:
 
@@ -48,10 +51,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Validate actual retarget fixture
         run: |
           node --check scripts/probe_retarget.cjs
           node tools/ai-sim-harness/fbx-animation-state-check.js
+          node tools/ai-sim-harness/fbx-render-pose-check.js
           node tools/ai-sim-harness/fbx-library-lifecycle-check.js
           node tools/ai-sim-harness/fbx-asset-import-check.js
           node tools/ai-sim-harness/fbx-clip-converter-check.js
@@ -91,6 +97,19 @@ jobs:
         run: |
           mkdir -p closeups/clip-pack-ci
           node scripts/probe_clip_pack.cjs
+
+      - name: Compare live render pose and IK with pre-extraction owner
+        env:
+          POSE_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+        run: node scripts/probe_fbx_render_pose.cjs
+
+      - name: Preserve render pose evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fbx-render-pose-evidence
+          if-no-files-found: warn
+          path: closeups/render-pose-ci/
 
       - name: Preserve PHP loader diagnostics
         if: always()

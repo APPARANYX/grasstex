@@ -93,19 +93,16 @@ prepared outputs. Keep raw/source FBX for regeneration and Motion Lab/source wor
 do not make production clients repeat deterministic parsing, resampling or rig-preparation work that
 can be done once offline.
 
-**File-shape decision (2026-10-06):** the backend stays one file — do not split it as routine
-file-size work or as part of AI-file campaigns. It is presentation-only, single-owner behind the tag
-contract, invisible to the sim harness (`wire-map.js` loads only `53-fbx-clip-table.js`), and its
-data table is already extracted. When the runtime-format work above starts, its **first step** is
-extracting the ingest/conversion layer (`ensureLoader` → `solveGrips`: FBX loading, `prepareModel`,
-`convertClip`, the clip-pack codec, retargeting, stride and grip solve — the code
-`scripts/build_clip_pack.cjs` executes headless) into its own module; that is the layer the format
-change replaces. The runtime half (`bind`, `update`, pose writing, LOD/culling) is one state machine
-with no internal ownership boundary worth enforcing — leave it whole. Any such split must re-verify:
-the clip-pack gate (`scripts/check_clip_pack.cjs` in CI, `scripts/probe_clip_pack.cjs` bit-identity),
-the source-text assertions in `tools/ai-sim-harness/player-control-check.js` and
-`screen-space-lod-check.js` (repoint them at the file that keeps the code), and a
-`scripts/fbx-soldier-lineup.cjs` visual PASS.
+**R3 ownership update (audit #456, October 11):** the approved audit decomposes the backend
+behind its existing semantic tag contract. `52-fbx-animation-state.js` owns event/tag decisions,
+reaction presentation and simulation-time clip clocks. `52-fbx-render-pose.js` owns rendered bone
+poses, overlay composition, weapon support, spine aiming and pistol cup IK; its private scratch
+objects are per backend and its LOD clock dependency stays live. Import, conversion, retarget,
+prepared-pack, library lifecycle, calibration, wounds and render cadence have separate owners.
+The backend binds these modules and preserves the public `BattleFbxSoldier` interface.
+Any further split must retain clip-pack SHA integrity, packed/raw bit parity, real-model pose/IK
+parity (`scripts/probe_fbx_render_pose.cjs`), player/touch/restart QA and visual lineup acceptance.
+R3 overall requires dynamic visual and prolonged frame/heap acceptance before it can close.
 
 ```bash
 Blender -b --factory-startup --python tools/fix-soldier-model.py -- --input raw.fbx --output Assets/soldiers/<fac>-<name>.fbx --texture-name <fac>-<name>-albedo [--fit-skin]

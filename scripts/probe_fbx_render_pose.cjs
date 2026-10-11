@@ -1,0 +1,68 @@
+/* Real imported models: compare live pose/IK output against the frozen pre-extraction owner.
+   The baseline is read from Git, never copied into runtime. */
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+const assert = require('node:assert/strict');
+const { chromium } = require('playwright');
+const ref = '3fbf7dfda4c31eafe32baeacfb6e83d24c1f78ae';
+const original = execFileSync('git',['show',ref+':battle/modules/53-fbx-soldier-backend.js'],{encoding:'utf8'});
+const body = original.slice(original.indexOf('  /* ---- render-side pose writing'), original.indexOf('  /* R3: render cadence'));
+const names = ['Q','V3','MX','BONE','FPS','POSE','perfNow','poseLayer','poseInputs','sampleLayer','armDegFor','leftGripFor','wristRFor','pointsFor','WEAPON_POINTS'];
+const baseline = '(function(deps){var '+names.map(n=>n+'=deps.'+n).join(',')+',LOD={get on(){return deps.lodOn();}};'+body+';return {applyPose:applyPose};})';
+const url = process.env.POSE_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
+const out = process.env.POSE_OUT || 'closeups/render-pose-ci';
+(async()=>{
+ fs.mkdirSync(out,{recursive:true});
+ const browser=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']});
+ try {
+  const page=await browser.newPage({ignoreHTTPSErrors:true,viewport:{width:1100,height:780}});
+  const errors=[];page.on('pageerror',e=>errors.push(String(e)));
+  await page.addInitScript(()=>{
+   let owner;
+   Object.defineProperty(window,'BattleFbxRenderPose',{configurable:true,get:()=>owner,set(v){
+    const create=v.create;v.create=function(deps){window.__poseDeps=deps;const p=create(deps);window.__poseOwner=p;return p;};owner=v;
+   }});
+  });
+  const wav=Buffer.alloc(44+4410);wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVE',8);wav.write('fmt ',12);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(22050,24);wav.writeUInt32LE(44100,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(4410,40);
+  await page.route('**/*',route=>{
+   const r=route.request();if(r.method()==='POST')return route.fulfill({json:{}});
+   if(/\/Assets\/audio\/.*\.(mp3|wav|ogg)([?#]|$)/i.test(r.url()))return route.fulfill({body:wav,contentType:'audio/wav'});
+   return route.continue();
+  });
+  await page.goto(url+(url.includes('?')?'&':'?')+'seed=render-pose-acceptance',{waitUntil:'load',timeout:300000});
+  await page.waitForFunction(()=>window.__battle__&&window.__poseOwner&&BattleFbxSoldier.status(__battle__.scene).ready,null,{timeout:300000});
+  await page.locator('#startBtn').click();
+  await page.waitForFunction(()=>__battle__._roster?.us?.some(s=>s._fbx),null,{timeout:60000});
+  const result=await page.evaluate(baseline=>{
+   const sim=__battle__;sim.pause();const deps=__poseDeps;deps.POSE.on=false;
+   const previous=(0,eval)(baseline)(deps),current=__poseOwner;
+   const roster=[...sim._roster.us,...sim._roster.ge];
+   const models=new Map();for(const s of roster)if(s._fbx)models.set(s._fbx.lib.file,s);
+   let cases=0,worst=0;const coverage={};
+   const scalar=['cupRamp','cupW','cupReach','cupMode','leftGripErrorCm','twoHand','supportErrorCm','supportHandM','supportNearM','supportFarM','supportReason'];
+   for(const [file,s] of models){
+    const fx=s._fbx;coverage[file]=0;
+    const saved=fx.nodes.map(n=>n&&[n.position.clone(),n.rotationQuaternion.clone()]);
+    const restore=()=>{fx.nodes.forEach((n,i)=>{if(n){n.position.copyFrom(saved[i][0]);n.rotationQuaternion.copyFrom(saved[i][1]);}});scalar.forEach(k=>delete fx[k]);fx.cupRamp=0.7;fx.cupW=0.65;fx.cupReach=0.8;};
+    const snapshot=()=>({nodes:fx.nodes.map(n=>n&&[...n.position.asArray(),...n.rotationQuaternion.asArray()]),socket:[...fx.socket.position.asArray(),...fx.socket.rotationQuaternion.asArray(),...fx.socket.scaling.asArray()],state:scalar.map(k=>fx[k]??null)});
+    for(const [key,clip] of Object.entries(fx.lib.clips))for(const phase of [0,0.37,0.83]){
+     fx.lower={entries:[{clip,t:clip.duration*phase,rate:1,w:1}]};
+     fx.upper={entries:[{clip:fx.lib.clips.aim,t:phase,rate:1,w:1}]};fx.overlay=phase;fx.aim=phase;fx.aimAt={x:fx.root.position.x+8,y:fx.root.position.y+1,z:fx.root.position.z+4};
+     fx.death=key.startsWith('death')?key:null;fx.transition=/To/.test(key)?key:null;
+     fx.supportReleased=/reload|hit|flinch/i.test(key);fx.throwing=/^throw/.test(key)?{stance:key==='throwProne'?'prone':key==='throwCrouch'?'crouch':'stand'}:null;
+     fx.cupClipKey=/hit|flinch/i.test(key)?key:null;fx.cupClipT=phase*clip.duration;fx._poseDt=1/30;
+     restore();previous.applyPose(fx);const a=snapshot();
+     restore();current.applyPose(fx);const b=snapshot();
+     const compare=(a,b)=>{if(typeof a==='number'){if(!Number.isFinite(a)||!Number.isFinite(b))throw Error('nonfinite '+file+'/'+key);worst=Math.max(worst,Math.abs(a-b));}else if(Array.isArray(a)){if(!Array.isArray(b)||a.length!==b.length)throw Error('shape mismatch');a.forEach((v,i)=>compare(v,b[i]));}else if(a!==b)throw Error('state mismatch '+file+'/'+key+': '+a+' vs '+b);};
+     compare(a.nodes,b.nodes);compare(a.socket,b.socket);compare(a.state,b.state);cases++;coverage[file]++;
+    }
+   }
+   return {models:models.size,cases,worst,coverage};
+  },baseline);
+  assert.equal(result.models,10);assert.ok(result.cases>=3540);assert.equal(result.worst,0);assert.deepEqual(errors,[]);
+  await page.screenshot({path:path.join(out,'pose-parity.png')});
+  fs.writeFileSync(path.join(out,'summary.json'),JSON.stringify(result,null,2));console.log('PASS actual FBX pose/IK baseline parity',result);
+ } finally {await browser.close();}
+})().catch(e=>{console.error(e);process.exit(1);});

@@ -6,6 +6,8 @@ on:
     paths:
       - 'battle/camera-controls.js'
       - 'battle/modules/52-fbx-animation-state.js'
+      - 'battle/modules/52-fbx-render-pose.js'
+      - 'tools/ai-sim-harness/fbx-render-pose-check.js'
       - 'tools/ai-sim-harness/fbx-animation-state-check.js'
       - 'tools/ai-sim-harness/stress-reaction-animation-check.js'
       - 'battle/modules/52-fbx-library-lifecycle.js'
