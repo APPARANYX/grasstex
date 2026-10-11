@@ -866,7 +866,9 @@ Full, focused and compact diagnostics expose the contract; telemetry receives a 
 
 B2 route transitions are Squad Leader-owned diagnostic leases, granted by the existing leg
 advance. They record parent version, target, traveled/remaining distance and simulation age;
-arrival/contact/blocked/superseded/retreat/destruction/stall release them explicitly. The
+arrival/contact/blocked/superseded/retreat/destruction/stall and committed capture/defense/hold
+release them explicitly. `?routeTransition=0` disables only this observation collection for
+paired CPU/wall controls; route execution is identical. The
 existing General strategic no-progress budget bounds their lifetime. They never hold execution
 or alter a route/order. Their bounded ended ledger is separate from gameplay leases, so added
 observations cannot evict existing outcomes. Battle restart clears both ledgers.
