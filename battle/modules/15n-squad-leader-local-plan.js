@@ -125,7 +125,7 @@
             [0.23, 0.23]
           ];
         offsets.forEach(function (offset, i) {
-          if (mask & (1 << i)) return;
+          if ((mask & (1 << i)) && contributors.length >= 2) return;
           var lx = offset[0] * b.w,
             lz = offset[1] * b.d,
             p = { x: b.x + lx * co + lz * si, z: b.z - lx * si + lz * co };
@@ -139,6 +139,7 @@
               yaw = A.lookYaw(member, sim),
               off = Math.abs(Math.atan2(Math.sin(angle - yaw), Math.cos(angle - yaw)));
             if (
+              ((mask & (1 << i)) && contributors.indexOf(String(member.id)) >= 0) ||
               d < 1 ||
               d > 22 ||
               off > Math.PI / 3 ||
