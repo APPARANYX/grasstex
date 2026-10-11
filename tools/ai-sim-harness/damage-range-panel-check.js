@@ -38,6 +38,7 @@ for (const id of [
 ]) {
   assert.ok(templates.html.includes('id="' + id + '"'), 'missing range control ' + id);
 }
-assert.match(source, /style\.textContent = rangePanelCss\(\)/);
-assert.match(source, /p\.innerHTML = rangePanelMarkup\(\)/);
+const panel = fs.readFileSync(path.join(__dirname, '../../battle/modules/97z-damage-range-panel.js'), 'utf8');
+assert.match(panel, /style\.textContent = rangePanelCss\(\)/);
+assert.match(panel, /p\.innerHTML = rangePanelMarkup\(\)/);
 console.log('PASS #456 R5 panel templates match original CSS/HTML fingerprints and all control IDs');

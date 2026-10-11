@@ -18,7 +18,14 @@ const graph = [
   '37-lease-panel.js',
   '38-ai-diagnostics-export.js'
 ];
-const optional = graph.concat('97-device-benchmark.js', '98-damage-range.js');
+const range = [
+  '97z-damage-range-lifetime.js',
+  '97z-damage-range-panel.js',
+  '97z-damage-range-session.js',
+  '97z-damage-range-view.js',
+  '98-damage-range.js'
+];
+const optional = graph.concat('97-device-benchmark.js', range);
 const directory = path.join(repo, 'battle/modules');
 const available = fs
   .readdirSync(directory)
@@ -62,11 +69,7 @@ assert.deepEqual(
   normal.concat('97-device-benchmark.js').sort(),
   'device benchmark remains opt-in'
 );
-assert.deepEqual(
-  page('damageRange=1'),
-  normal.concat('98-damage-range.js').sort(),
-  'damage range remains opt-in'
-);
+assert.deepEqual(page('damageRange=1'), normal.concat(range).sort(), 'damage range remains opt-in');
 for (const nonoptional of [
   '32-ai-loop-watch.js',
   '36-order-provenance.js',

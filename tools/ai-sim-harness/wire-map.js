@@ -62,6 +62,7 @@ const EXCLUDED = new Set([
   'modules/53-fbx-clip-table.js',
   'modules/53-fbx-soldier-backend.js',
   'modules/97-device-benchmark.js',
+  'modules/97z-damage-range-session.js',
   'modules/98-damage-range.js',
   'modules/99-session-diagnostics-export.js'
 ]);
@@ -76,6 +77,13 @@ const EXCLUDED_WRITES = {
   'modules/38-ai-diagnostics-export.js': ['soldier.id'],
   'modules/47-contextual-voice-behavior.js': ['soldier.voiceCooldown'],
   'modules/53-fbx-soldier-backend.js': ['soldier._fbx'],
+  'modules/97z-damage-range-session.js': [
+    'soldier._faceHint',
+    'soldier.root.position',
+    'soldier.root.rotation',
+    'soldier.target',
+    'soldier.weapon'
+  ],
   'modules/98-damage-range.js': [
     'soldier._faceHint',
     'soldier.destination',
@@ -83,10 +91,7 @@ const EXCLUDED_WRITES = {
     'soldier.moving',
     'soldier.reloadUntil',
     'soldier.reloading',
-    'soldier.root.position',
-    'soldier.root.rotation',
-    'soldier.target',
-    'soldier.weapon'
+    'soldier.target'
   ]
 };
 const SQUAD_NAMES = new Set(['sq', 'squad']);
