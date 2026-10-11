@@ -5,6 +5,8 @@ name: FBX retarget browser QA
 on:
   pull_request:
     paths:
+      - 'battle/modules/52-fbx-clip-mixer.js'
+      - 'tools/ai-sim-harness/fbx-clip-mixer-check.js'
       - 'battle/modules/52-fbx-retarget-quat.js'
       - 'battle/modules/52-fbx-surface-damage.js'
       - 'battle/modules/52-fbx-mesh-lod.js'
@@ -34,6 +36,7 @@ jobs:
       - name: Validate actual retarget fixture
         run: |
           node --check scripts/probe_retarget.cjs
+          node tools/ai-sim-harness/fbx-clip-mixer-check.js
           node tools/ai-sim-harness/fbx-retarget-quat-check.js
           node tools/ai-sim-harness/fbx-retarget-rest-check.js
           node tools/ai-sim-harness/fbx-presentation-lod-check.js
