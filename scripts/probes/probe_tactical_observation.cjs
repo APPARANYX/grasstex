@@ -23,6 +23,7 @@ const { chromium } = require('playwright');
     url.searchParams.set('urbanPicture', '1');
     url.searchParams.set('leaseConflicts', '1');
     url.searchParams.set('localPlan', '1');
+    url.searchParams.set('localResources', '1');
     url.searchParams.set('coveredBounds', '1');
     const page = await context.newPage();
     const errors = [];
@@ -362,7 +363,7 @@ const { chromium } = require('playwright');
           q = b.factions.us.squads.find(q => SquadAI.leaderOf(q)),
           E = BattleEngagement,
           L = BattleLeases;
-        if (!S.localPlanOn() || !q) throw Error('local policy flag/leader missing');
+        if (!S.localPlanOn() || !P.resourcesOn || !q) throw Error('local policy flag/leader missing');
         const natural = S.localPlanTelemetry(b);
         const snapshot = () =>
           JSON.stringify([
@@ -378,6 +379,21 @@ const { chromium } = require('playwright');
         for (let i = 0; i < loops; i++) P.update(b, q);
         const msPerUpdate = (performance.now() - start) / loops;
         const stable = JSON.stringify(P.update(b, q)) === JSON.stringify(P.update(b, q));
+        const resourceReport = E.updateSquad(q, b),
+          resourceStart = performance.now();
+        for (let i = 0; i < loops; i++) P.read(b, q, resourceReport);
+        const resourceMsPerRead = (performance.now() - resourceStart) / loops;
+        const resource = P.read(b, q, resourceReport).resources;
+        if (!resource || resource.supportingIds.length > P.tuning.resourceLimit)
+          throw Error('bounded resource contract missing');
+        const ready = q.members.find(s => P.moverEligible(s, q, b));
+        if (ready) {
+          const owned = ready.isPlayer;
+          ready.isPlayer = true;
+          if (P.moverEligible(ready, q, b) || P.supportMembers(b, q, { fireSupport: [ready] }).length)
+            throw Error('possession became a tactical resource');
+          ready.isPlayer = owned;
+        }
         const members = q.members.filter(s => !s.dead);
         L.grant(q, 'bound', 'squad-leader', b.time, b.time + 10, 'local pressure fixture');
         E.orderBound(members);
@@ -394,6 +410,8 @@ const { chromium } = require('playwright');
           natural,
           loops,
           msPerUpdate,
+          resourceMsPerRead,
+          resource,
           stable,
           cleanup: true,
           winner: q._localTask.kind,
