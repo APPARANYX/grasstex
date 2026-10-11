@@ -19,12 +19,24 @@ assert.match(backend, /function encodeClipPack\(/, 'hashed encoder must remain i
 assert.match(backend, /function convertClip\(/, 'hashed converter must remain in backend');
 assert.doesNotMatch(backend, /function decodeClipPack\(/, 'decoder now belongs only to pack module');
 
-const warnings = [], requests = [], telemetry = [], sources = [];
-let mockResponse = null, loaderCalls = 0, builderCalls = 0, builderInput = null, t = 0;
+const warnings = [],
+  requests = [],
+  telemetry = [],
+  sources = [];
+let mockResponse = null,
+  loaderCalls = 0,
+  builderCalls = 0,
+  builderInput = null,
+  t = 0;
 const sandbox = {
-  window: {}, TextEncoder, TextDecoder,
+  window: {},
+  TextEncoder,
+  TextDecoder,
   console: { warn: (...items) => warnings.push(items.map(String).join(' ')) },
-  fetch: async (url, options) => { requests.push([url, options]); return mockResponse; }
+  fetch: async (url, options) => {
+    requests.push([url, options]);
+    return mockResponse;
+  }
 };
 vm.runInNewContext(helper, sandbox, { filename: helperFile });
 const factory = sandbox.window.BattleFbxPreparedPack;
@@ -32,18 +44,36 @@ assert.ok(factory && factory.create, 'pack module installs without Babylon or a 
 vm.runInNewContext(helper, sandbox, { filename: helperFile });
 assert.equal(sandbox.window.BattleFbxPreparedPack, factory, 'module must install idempotently');
 
-class Quaternion { constructor(x, y, z, w) { Object.assign(this, { x, y, z, w }); } }
-class Vector3 { constructor(x, y, z) { Object.assign(this, { x, y, z }); } }
+class Quaternion {
+  constructor(x, y, z, w) {
+    Object.assign(this, { x, y, z, w });
+  }
+}
+class Vector3 {
+  constructor(x, y, z) {
+    Object.assign(this, { x, y, z });
+  }
+}
 const specs = { walk: ['Walk', true], run: ['Walk', false], idle: ['Idle', true] };
 const config = {
-  Q: Quaternion, V3: Vector3, FPS: 30, CLIP_PACK_FORMAT: 1,
-  CLIP_PACK_FILE: 'prepared-clips.bin', CLIP_PACK_ON: true, CLIPS: specs,
+  Q: Quaternion,
+  V3: Vector3,
+  FPS: 30,
+  CLIP_PACK_FORMAT: 1,
+  CLIP_PACK_FILE: 'prepared-clips.bin',
+  CLIP_PACK_ON: true,
+  CLIPS: specs,
   ASSET: { on: true },
   perfNow: () => ++t,
   assetLoaded: (...args) => telemetry.push(['loaded', ...args]),
   assetAdd: (...args) => telemetry.push(['add', ...args]),
-  assetEntry: (...args) => { sources.push(args); return { bytes: 0 }; },
-  ensureLoader: async () => { loaderCalls++; },
+  assetEntry: (...args) => {
+    sources.push(args);
+    return { bytes: 0 };
+  },
+  ensureLoader: async () => {
+    loaderCalls++;
+  },
   assetBase: () => '../Assets/',
   loadClipFiles: async (scene, st, base, byFile) => {
     builderCalls++;
@@ -73,16 +103,38 @@ function gcp1(header, floatValues) {
   floatValues.forEach((v, i) => view.setFloat32(8 + padded + i * 4, v, true));
   return bytes.buffer;
 }
-const floatValues = [...Array(12).keys()].map(x => x / 10)
-  .concat([...Array(9).keys()].map(x => x / 3), [...Array(9).keys()].map(x => -x));
+const floatValues = [...Array(12).keys()]
+  .map(x => x / 10)
+  .concat(
+    [...Array(9).keys()].map(x => x / 3),
+    [...Array(9).keys()].map(x => -x)
+  );
 const header = {
-  format: 1, fps: 30,
-  src: { bones: ['hips', 'spine'], scheme: 'mixamo', rest: {
-    hips: { q: [0, 0, 0, 1], p: [0, 0, 2] },
-    spine: { q: [0, 0.5, 0, 0.866], p: [0, 0, 0.5] }
-  } },
-  clips: [{ key: 'walk', spec: specs.walk, loop: true, frames: 3, duration: 2 / 30,
-    travel: 0.7, turnRate: 0.2, channels: [[0, 0, 12], [1, -1, 21]] }],
+  format: 1,
+  fps: 30,
+  src: {
+    bones: ['hips', 'spine'],
+    scheme: 'mixamo',
+    rest: {
+      hips: { q: [0, 0, 0, 1], p: [0, 0, 2] },
+      spine: { q: [0, 0.5, 0, 0.866], p: [0, 0, 0.5] }
+    }
+  },
+  clips: [
+    {
+      key: 'walk',
+      spec: specs.walk,
+      loop: true,
+      frames: 3,
+      duration: 2 / 30,
+      travel: 0.7,
+      turnRate: 0.2,
+      channels: [
+        [0, 0, 12],
+        [1, -1, 21]
+      ]
+    }
+  ],
   sources: { Walk: 'test-sha' }
 };
 const binary = gcp1(header, floatValues);
@@ -124,7 +176,8 @@ assert.throws(() => pack.decodeClipPack(wrongPadding), /not a clip pack/);
   const downloaded = await pack.fetchClipPack('../Assets/');
   assert.deepEqual(JSON.parse(JSON.stringify(downloaded.sources)), { Walk: 'test-sha' });
   assert.deepEqual(JSON.parse(JSON.stringify(requests[0])), [
-    '../Assets/animations/prepared-clips.bin', { cache: 'no-cache' }
+    '../Assets/animations/prepared-clips.bin',
+    { cache: 'no-cache' }
   ]);
   assert.equal(telemetry[0][0], 'loaded');
   assert.deepEqual(telemetry[1].slice(0, 3), ['add', 'pack', 'prepared-clips.bin']);
@@ -138,7 +191,8 @@ assert.throws(() => pack.decodeClipPack(wrongPadding), /not a clip pack/);
   assert.equal(await disabled.fetchClipPack('../Assets/'), null);
   assert.equal(requests.length, count, 'explicit ?clipPack=0 must skip fetch');
   assert.deepEqual(JSON.parse(JSON.stringify(pack.clipsByFile(['idle', 'run', 'walk']))), {
-    Idle: ['idle'], Walk: ['run', 'walk']
+    Idle: ['idle'],
+    Walk: ['run', 'walk']
   });
   assert.equal(await pack.buildClipPack('scene', { converter: 'hash' }), 'GCP1-builder');
   assert.equal(loaderCalls, 1);
@@ -146,5 +200,10 @@ assert.throws(() => pack.decodeClipPack(wrongPadding), /not a clip pack/);
   assert.deepEqual(builderInput.keys, ['walk', 'run', 'idle'], 'builder must restore CLIPS table order');
   assert.equal(builderInput.extra.converter, 'hash');
   assert.deepEqual(builderInput.src.bones, ['hips']);
-  console.log('PASS #456 R3 GCP1 binary offsets, quaternion/rest reconstruction, full metadata, invalid pack/fps/format, no-cache fetch, raw-FBX fallback, pack-disabled switch and offline builder order');
-})().catch(e => { console.error(e); process.exitCode = 1; });
+  console.log(
+    'PASS #456 R3 GCP1 binary offsets, quaternion/rest reconstruction, full metadata, invalid pack/fps/format, no-cache fetch, raw-FBX fallback, pack-disabled switch and offline builder order'
+  );
+})().catch(e => {
+  console.error(e);
+  process.exitCode = 1;
+});
