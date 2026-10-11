@@ -1,26 +1,24 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "534",
-    "runId": "38145905634",
+    "run": "570",
+    "runId": "38166750975",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/tactics-a3-diagnostics",
-    "sha": "62076999a8134bec285d13435be8edf92b55fb82",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38145905634",
+    "ref": "work/tactics-c-covered-bounds",
+    "sha": "fe18e53cf98de96e24da890b6077e41e32cf7233",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38166750975",
     "seed": "phase-a-control",
     "seeds": 2,
     "windows": "contact+120",
     "battleType": "ge-defend",
-    "queryOff": "",
-    "queryOn": "tacticalSituation=1&urbanPicture=1",
+    "queryOff": "localPlan=0&coveredBounds=0",
+    "queryOn": "localPlan=0&coveredBounds=1",
     "build": "v29-dev"
   },
   "verdict": {
-    "kind": "quiet",
-    "headline": "QUIET: 2 of 2 pairs changed; 0 of 42 counters under p 0.05 (about 2.1 by chance); casualties +0.0% (p 1)",
-    "lines": [
-      "No counter has a sign test under 0.05: no detectable effect on these counters at this many seeds."
-    ]
+    "kind": "inert",
+    "headline": "INERT: all 2 pairs identical in every field",
+    "lines": []
   },
   "compare": {
     "pairs": 2,
@@ -28,7 +26,7 @@
       "a": 0,
       "b": 0
     },
-    "identicalBattles": 0,
+    "identicalBattles": 2,
     "winners": {
       "a": {
         "us": 0,
@@ -79,9 +77,9 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 9.039,
-      "medianB": 8.5685,
-      "ratio": 0.948,
+      "medianA": 7.955500000000001,
+      "medianB": 8.276499999999999,
+      "ratio": 1.04,
       "gate": 1.25
     },
     "counters": {
@@ -467,8 +465,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=534&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/tactics-a3-diagnostics/ai_flow_live.html?bench=534&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=570&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/tactics-c-covered-bounds/ai_flow_live.html?bench=570&view=brain3d",
     "seeds": [
       {
         "seed": "phase-a-control-0001",

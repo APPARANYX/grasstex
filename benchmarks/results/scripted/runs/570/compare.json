@@ -4,7 +4,7 @@
     "a": 0,
     "b": 0
   },
-  "identicalBattles": 0,
+  "identicalBattles": 2,
   "winners": {
     "a": {
       "us": 0,
@@ -55,9 +55,9 @@
     "b": 0
   },
   "wallSeconds": {
-    "medianA": 9.039,
-    "medianB": 8.5685,
-    "ratio": 0.948,
+    "medianA": 7.955500000000001,
+    "medianB": 8.276499999999999,
+    "ratio": 1.04,
     "gate": 1.25
   },
   "counters": {
