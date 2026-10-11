@@ -597,6 +597,24 @@
       if (event.preventDefault) event.preventDefault();
     }
   }
+  function applyViewport() {
+    if (!svg) return;
+    var w = 1000 / viewport.zoom, h = 600 / viewport.zoom;
+    viewport.cx = Math.max(w / 2, Math.min(1000 - w / 2, viewport.cx));
+    viewport.cy = Math.max(h / 2, Math.min(600 - h / 2, viewport.cy));
+    svg.setAttribute('viewBox', [viewport.cx - w / 2, viewport.cy - h / 2, w, h].join(' '));
+    if (zoomText) zoomText.textContent = Math.round(viewport.zoom * 100) + '%';
+  }
+  function zoomTo(amount) {
+    viewport.zoom = Math.max(1, Math.min(3.5, amount));
+    applyViewport();
+  }
+  function resetViewport() {
+    viewport.zoom = 1;
+    viewport.cx = 500;
+    viewport.cy = 300;
+    applyViewport();
+  }
   function setOpen(value) {
     var next = !!value;
     if (opened === next) return opened;
@@ -632,22 +650,49 @@
     style.textContent = [
       '#battleTacticalMapButton{position:fixed;left:12px;bottom:51px;z-index:59;padding:8px 11px;background:#233a31;color:#f0efdb;border:1px solid #9aa989;border-radius:6px;font:700 11px Arial;cursor:pointer}',
       '#battleTacticalMapButton.active{background:#52664b}',
-      '#battleTacticalMap{position:fixed;inset:3% 3%;z-index:60;display:flex;align-items:center;justify-content:center;pointer-events:none}',
+      '#battleTacticalMap{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:#0c1414e8;pointer-events:auto;color:#e8e5da;font-family:Arial,sans-serif}',
       '#battleTacticalMap[hidden]{display:none!important}',
-      '.gtm-shell{pointer-events:auto;width:min(96vw,960px);max-height:93vh;overflow:auto;box-sizing:border-box;padding:12px;background:#15231d;border:2px solid #8f9e82;border-radius:9px;box-shadow:0 8px 50px #000c;color:#efeddb;font:12px Arial}',
-      '.gtm-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px}',
-      '.gtm-toolbar strong{font-size:17px;letter-spacing:.05em;margin-right:auto}',
-      '.gtm-toolbar select,.gtm-toolbar button{font:700 12px Arial;padding:7px 10px;color:#eff3e7;background:#293e32;border:1px solid #9caa93;border-radius:5px;cursor:pointer}',
-      '.gtm-toolbar select:disabled{opacity:.6;cursor:default}',
-      '#battleTacticalMap svg{display:block;width:100%;height:auto;max-height:66vh;aspect-ratio:5/3;background:#28392f}',
-      '.gtm-friendly{color:#99c6f5}.gtm-enemy{color:#ff9989}.gtm-stale{opacity:.52}',
-      '#battleTacticalMap .sso-frame{fill:#192724;stroke:currentColor;stroke-width:2.6}',
+      '.gtm-shell{width:min(98vw,1570px);height:min(96vh,940px);min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:#17201e;border:1px solid #69766b;box-shadow:0 18px 80px #000e;overflow:hidden}',
+      '.gtm-toolbar{display:flex;align-items:center;gap:16px;padding:14px 22px;border-bottom:1px solid #526057;background:#17201f}',
+      '.gtm-brand{display:flex;flex-direction:column;gap:4px;min-width:0;margin-right:auto}',
+      '.gtm-toolbar strong{font:700 clamp(17px,2vw,26px) Arial;letter-spacing:.16em;color:#efe9d7}',
+      '.gtm-toolbar small{font:700 10px Arial;letter-spacing:.19em;color:#aebcae}',
+      '.gtm-toolbar select,.gtm-toolbar button,.gtm-map-actions button{font:700 12px Arial;padding:9px 13px;color:#e6eadf;background:#27352f;border:1px solid #849385;border-radius:2px;cursor:pointer}',
+      '.gtm-toolbar select:disabled{opacity:.55;cursor:not-allowed}',
+      '.gtm-body{display:grid;grid-template-columns:minmax(0,1fr) 290px;min-height:0}',
+      '.gtm-map-column{display:flex;flex-direction:column;min-height:0;min-width:0;background:#1d2925;padding:16px 15px 8px 16px}',
+      '.gtm-map-head{display:flex;justify-content:space-between;gap:10px;margin:0 4px 9px;color:#d3d6c5;font:700 11px Arial;letter-spacing:.1em}',
+      '.gtm-map-surface{min-width:0;min-height:0;flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#242d26}',
+      '#battleTacticalMap svg{display:block;max-width:100%;max-height:100%;width:100%;height:100%;aspect-ratio:5/3;cursor:grab;touch-action:none;user-select:none}',
+      '#battleTacticalMap svg.gtm-dragging{cursor:grabbing}',
+      '.gtm-friendly{color:#94c5fc}.gtm-enemy{color:#f5887c}.gtm-stale{opacity:.5}',
+      '#battleTacticalMap .sso-frame{fill:#20322d;stroke:currentColor;stroke-width:2.6}',
       '#battleTacticalMap .sso-symbol-stroke{stroke:currentColor;fill:none;stroke-width:2.3}',
       '#battleTacticalMap .sso-symbol-fill{fill:currentColor;stroke:currentColor}',
       '#battleTacticalMap .sso-symbol-text{fill:currentColor;font:700 13px Arial;text-anchor:middle}',
       '#battleTacticalMap .sso-echelon{fill:currentColor}',
-      '.gtm-caption{margin:8px 0 4px;font:700 11px Arial;color:#c5d5c0}',
-      '.gtm-legend{margin:5px 0 0;color:#b9c7b9;font:11px Arial;line-height:1.4}'
+      '.gtm-map-actions{display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-top:8px;color:#bfcbbe}',
+      '.gtm-map-actions button{padding:5px 10px;min-width:32px}',
+      '.gtm-zoom-label{font:700 10px Arial;min-width:42px;text-align:center}',
+      '.gtm-side{display:flex;flex-direction:column;gap:0;min-height:0;border-left:1px solid #68736a;background:#1a2222}',
+      '.gtm-side-section{padding:15px 15px 17px;border-bottom:1px solid #48534d}',
+      '.gtm-side h3{font:700 13px Arial;letter-spacing:.12em;color:#eeece0;margin:0 0 13px}',
+      '.gtm-legend-line{display:flex;align-items:center;gap:11px;margin:10px 0;color:#cbd2c6;font:12px Arial}',
+      '.gtm-swatch{display:inline-flex;align-items:center;justify-content:center;width:28px;min-width:28px;height:19px;font-size:17px;font-weight:700}',
+      '.gtm-swatch.friendly{color:#91c2fd}.gtm-swatch.hostile{color:#fb887b}.gtm-swatch.unknown{color:#e1d6af}',
+      '.gtm-swatch.road{height:3px;background:#c9bb99;margin:8px 0}.gtm-swatch.cover{height:9px;background:#496b4e;margin:5px 0}',
+      '.gtm-reports{flex:1;min-height:0;overflow:auto}',
+      '.gtm-report-row{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #39453f}',
+      '.gtm-report-marker{background:#3d3331;border:1px solid #a46d5d;color:#ffd6c9;font:700 12px Arial;padding:8px 6px;min-width:30px;text-align:center}',
+      '.gtm-report-row strong{display:block;color:#e2e3d8;font:700 11px Arial;margin-bottom:5px}',
+      '.gtm-report-row small{display:block;color:#9fac9f;font:10px Arial;line-height:1.5;overflow-wrap:anywhere}',
+      '.gtm-report-empty{color:#b1bbae;font:12px/1.5 Arial;margin:8px 0}',
+      '.gtm-caption{font:700 11px Arial;color:#c4d5c5;line-height:1.4;margin:12px 0}',
+      '.gtm-legend{font:11px/1.45 Arial;color:#aab9ad;margin:8px 0 0}',
+      '.gtm-footer{display:flex;align-items:center;flex-wrap:wrap;gap:18px;background:#101818;padding:10px 21px;border-top:1px solid #49574e;color:#c0cbc0;font:12px Arial}',
+      '.gtm-key{display:inline-block;padding:3px 7px;border:1px solid #b3bcb2;color:#e7e9df;background:#303b35;font-weight:700;margin-right:5px}',
+      '@media(max-width:900px){.gtm-body{grid-template-columns:minmax(0,1fr) 205px}.gtm-toolbar{padding:9px 12px}.gtm-map-column{padding:9px}.gtm-side-section{padding:10px}.gtm-footer{gap:9px;padding:8px 12px}.gtm-shell{height:98vh}}',
+      '@media(max-width:620px){.gtm-shell{width:100vw;height:100dvh;border:0}.gtm-toolbar strong{font-size:15px}.gtm-toolbar{gap:5px;flex-wrap:wrap}.gtm-toolbar small{font-size:8px}.gtm-body{display:flex;flex-direction:column;overflow:auto}.gtm-map-column{flex:none;height:min(61vw,360px);min-height:245px}.gtm-side{border-left:0;border-top:1px solid #68736a;display:grid;grid-template-columns:1fr 1fr}.gtm-side-section{border-bottom:0;min-width:0}.gtm-reports{max-height:200px}.gtm-footer{font-size:10px}.gtm-map-head{font-size:9px}}'
     ].join('');
     document.head.appendChild(style);
     button = document.createElement('button');
@@ -668,11 +713,17 @@
     panel.setAttribute('aria-label', 'Reported-contact tactical map');
     var shell = document.createElement('div');
     shell.className = 'gtm-shell';
-    var toolbar = document.createElement('div');
+    var toolbar = document.createElement('header');
     toolbar.className = 'gtm-toolbar';
+    var brand = document.createElement('div');
+    brand.className = 'gtm-brand';
     var heading = document.createElement('strong');
-    heading.textContent = 'TACTICAL MAP / CONTACT PICTURE';
-    toolbar.appendChild(heading);
+    heading.textContent = 'TACTICAL MAP';
+    brand.appendChild(heading);
+    headerInfo = document.createElement('small');
+    headerInfo.textContent = 'BATTLEFIELD INTELLIGENCE';
+    brand.appendChild(headerInfo);
+    toolbar.appendChild(brand);
     sideSelect = document.createElement('select');
     sideSelect.setAttribute('aria-label', 'Friendly intelligence perspective');
     ['us', 'ge'].forEach(function (side) {
@@ -689,26 +740,146 @@
     var close = document.createElement('button');
     close.type = 'button';
     close.textContent = 'Close [M / Esc]';
-    close.onclick = function () {
-      setOpen(false);
-    };
+    close.onclick = function () { setOpen(false); };
     toolbar.appendChild(close);
     shell.appendChild(toolbar);
+    var bodyWrap = document.createElement('div');
+    bodyWrap.className = 'gtm-body';
+    var mapColumn = document.createElement('div');
+    mapColumn.className = 'gtm-map-column';
+    var mapHead = document.createElement('div');
+    mapHead.className = 'gtm-map-head';
+    var theatre = document.createElement('span');
+    theatre.textContent = 'AREA OF OPERATIONS / FIELD MAP';
+    mapHead.appendChild(theatre);
+    operationalInfo = document.createElement('span');
+    operationalInfo.textContent = '2,000 × 1,200m';
+    mapHead.appendChild(operationalInfo);
+    mapColumn.appendChild(mapHead);
+    var surface = document.createElement('div');
+    surface.className = 'gtm-map-surface';
     svg = node('svg', {
       viewBox: '0 0 1000 600',
       role: 'img',
-      'aria-label': 'Top-down battlefield with friendly formations and reported enemy contacts'
+      'aria-label': 'Zoomable top-down battlefield; actual roads, buildings, cover and reported enemy contacts'
     });
-    shell.appendChild(svg);
+    surface.appendChild(svg);
+    mapColumn.appendChild(surface);
+    var actions = document.createElement('div');
+    actions.className = 'gtm-map-actions';
+    function mapAction(label, handler, description) {
+      var action = document.createElement('button');
+      action.type = 'button';
+      action.textContent = label;
+      action.title = description;
+      action.onclick = handler;
+      actions.appendChild(action);
+      return action;
+    }
+    mapAction('−', function () { zoomTo(viewport.zoom / 1.3); }, 'Zoom out');
+    zoomText = document.createElement('span');
+    zoomText.className = 'gtm-zoom-label';
+    actions.appendChild(zoomText);
+    mapAction('+', function () { zoomTo(viewport.zoom * 1.3); }, 'Zoom in');
+    mapAction('FIT', function () { resetViewport(); }, 'Fit whole battlefield');
+    mapColumn.appendChild(actions);
+    bodyWrap.appendChild(mapColumn);
+    var sidebar = document.createElement('aside');
+    sidebar.className = 'gtm-side';
+    var legend = document.createElement('section');
+    legend.className = 'gtm-side-section';
+    var legendTitle = document.createElement('h3');
+    legendTitle.textContent = 'MAP LEGEND';
+    legend.appendChild(legendTitle);
+    [
+      ['friendly', '▣', 'Friendly formation'],
+      ['hostile', '◇', 'Reported enemy position'],
+      ['unknown', '↗', 'Movement between reports'],
+      ['road', '', 'Actual road'],
+      ['cover', '', 'Placed trees / hedgerows'],
+      ['unknown', '◇', 'Capture objective']
+    ].forEach(function (entry) {
+      var line = document.createElement('div');
+      line.className = 'gtm-legend-line';
+      var swatch = document.createElement('span');
+      swatch.className = 'gtm-swatch ' + entry[0];
+      swatch.textContent = entry[1];
+      line.appendChild(swatch);
+      var text = document.createElement('span');
+      text.textContent = entry[2];
+      line.appendChild(text);
+      legend.appendChild(line);
+    });
+    sidebar.appendChild(legend);
+    var latest = document.createElement('section');
+    latest.className = 'gtm-side-section gtm-reports';
+    var latestTitle = document.createElement('h3');
+    latestTitle.textContent = 'RECENT REPORTS';
+    latest.appendChild(latestTitle);
+    reportsNode = document.createElement('div');
+    latest.appendChild(reportsNode);
+    sidebar.appendChild(latest);
+    var sideFoot = document.createElement('section');
+    sideFoot.className = 'gtm-side-section';
     caption = document.createElement('p');
     caption.className = 'gtm-caption';
-    shell.appendChild(caption);
-    var legend = document.createElement('p');
-    legend.className = 'gtm-legend';
-    legend.textContent =
-      'Blue: friendly units · Red: last reported enemy locations · Dashed/faded: old or uncertain reports · Tan arrows: movement between two reported fixes (not prediction). Reports disappear after 60 simulated seconds; this map never tracks unseen enemies.';
-    shell.appendChild(legend);
+    sideFoot.appendChild(caption);
+    var note = document.createElement('p');
+    note.className = 'gtm-legend';
+    note.textContent = 'No enemy radar. Only reported fixes appear. Stale reports fade and expire after 60 simulation seconds. Arrows link observed fixes; they do not predict movement.';
+    sideFoot.appendChild(note);
+    sidebar.appendChild(sideFoot);
+    bodyWrap.appendChild(sidebar);
+    shell.appendChild(bodyWrap);
+    var footer = document.createElement('footer');
+    footer.className = 'gtm-footer';
+    [
+      ['M', 'Close/open'],
+      ['Esc', 'Close'],
+      ['DRAG', 'Pan'],
+      ['SCROLL / + −', 'Zoom'],
+      ['D-PAD →', 'Gamepad toggle']
+    ].forEach(function (entry) {
+      var item = document.createElement('span');
+      var key = document.createElement('span');
+      key.className = 'gtm-key';
+      key.textContent = entry[0];
+      item.appendChild(key);
+      var name = document.createElement('span');
+      name.textContent = entry[1];
+      item.appendChild(name);
+      footer.appendChild(item);
+    });
+    shell.appendChild(footer);
     panel.appendChild(shell);
+    svg.addEventListener('wheel', function (event) {
+      if (event.preventDefault) event.preventDefault();
+      zoomTo(viewport.zoom * (event.deltaY < 0 ? 1.13 : 1 / 1.13));
+    }, { passive: false });
+    svg.addEventListener('pointerdown', function (event) {
+      if (event.button != null && event.button !== 0) return;
+      drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
+      if (svg.setPointerCapture) svg.setPointerCapture(event.pointerId);
+      if (svg.classList && svg.classList.add) svg.classList.add('gtm-dragging');
+    });
+    svg.addEventListener('pointermove', function (event) {
+      if (!drag || drag.id !== event.pointerId) return;
+      var rect = svg.getBoundingClientRect ? svg.getBoundingClientRect() : null;
+      var w = rect && rect.width || 1000, h = rect && rect.height || 600;
+      viewport.cx -= (event.clientX - drag.x) * 1000 / (viewport.zoom * w);
+      viewport.cy -= (event.clientY - drag.y) * 600 / (viewport.zoom * h);
+      drag.x = event.clientX;
+      drag.y = event.clientY;
+      applyViewport();
+    });
+    function endDrag(event) {
+      if (!drag || drag.id !== event.pointerId) return;
+      drag = null;
+      if (svg.classList && svg.classList.remove) svg.classList.remove('gtm-dragging');
+    }
+    svg.addEventListener('pointerup', endDrag);
+    svg.addEventListener('pointercancel', endDrag);
+    resetViewport();
     document.body.appendChild(panel);
     if (!keyListenerBound && root.addEventListener) {
       root.addEventListener('keydown', mapKeyDown, true);
@@ -727,11 +898,14 @@
     simRef = sim || root.__battle__ || null;
     resetLedgers();
     setOpen(false);
+    backdropScenario = backdropFootprints = staticLayer = dynamicLayer = null;
     install();
+    resetViewport();
     if (!raf && typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(loop);
   }
   function reset() {
     resetLedgers();
+    backdropScenario = backdropFootprints = staticLayer = dynamicLayer = null;
     setOpen(false);
   }
   function dispose() {
@@ -746,7 +920,8 @@
     [panel, button, style].forEach(function (el) {
       if (el && el.parentNode) el.parentNode.removeChild(el);
     });
-    panel = button = style = svg = sideSelect = caption = null;
+    panel = button = style = svg = sideSelect = caption = reportsNode = headerInfo = operationalInfo = zoomText = null;
+    backdropScenario = backdropFootprints = staticLayer = dynamicLayer = drag = null;
     simRef = null;
     resetLedgers();
   }
@@ -762,6 +937,9 @@
       return opened;
     },
     mapKeyDown: mapKeyDown,
+    gridRef: gridRef,
+    resetViewport: resetViewport,
+    zoomTo: zoomTo,
     render: render,
     dispose: dispose,
     retentionSeconds: RETAIN_SECONDS
