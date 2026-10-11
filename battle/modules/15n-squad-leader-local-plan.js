@@ -195,20 +195,34 @@
       var now = +sim.time || 0,
         N = root.BattleNavigation,
         eligible = !!(
-          evidence && evidence.entryVerified &&
-          survey && survey.complete &&
-          !sq.inContact && !threats &&
-          N && N.movementClear &&
+          evidence &&
+          evidence.entryVerified &&
+          survey &&
+          survey.complete &&
+          !sq.inContact &&
+          !threats &&
+          N &&
+          N.movementClear &&
           N.movementClear(entry.outside, entry.inside) &&
           typeof A.lookYaw === 'function' &&
           typeof A.hasLineOfSight === 'function' &&
           typeof sim.heightAt === 'function'
         ),
-        inside = eligible ? men.filter(function (s) {
-          return s && s.squad === sq && !s.dead && s.hp > 0 && !s.incapacitated &&
-            !s.isPlayer && s.root && point(s.root.position) &&
-            insideBuilding(b, s.root.position);
-        }) : [],
+        inside = eligible
+          ? men.filter(function (s) {
+              return (
+                s &&
+                s.squad === sq &&
+                !s.dead &&
+                s.hp > 0 &&
+                !s.incapacitated &&
+                !s.isPlayer &&
+                s.root &&
+                point(s.root.position) &&
+                insideBuilding(b, s.root.position)
+              );
+            })
+          : [],
         outer = { root: { position: entry.outside } },
         middle = { root: { position: { x: b.x, z: b.z } } },
         chosen = null;
@@ -219,8 +233,7 @@
         if (d < minDist || d > maxDist) return false;
         var aim = Math.atan2(q.x - p.x, q.z - p.z),
           off = Math.abs(Math.atan2(Math.sin(aim - A.lookYaw(s, sim)), Math.cos(aim - A.lookYaw(s, sim))));
-        return off <= Math.PI / 3 &&
-          A.hasLineOfSight(s, marker, sim.heightAt, sim.obstacles);
+        return off <= Math.PI / 3 && A.hasLineOfSight(s, marker, sim.heightAt, sim.obstacles);
       }
       if (inside.length >= 2) {
         for (var i = 0; i < inside.length && !chosen; i++) {
@@ -228,31 +241,52 @@
           if (!watching(doorGuard, outer, 1, 12)) continue;
           for (var j = 0; j < inside.length; j++) {
             var other = inside[j];
-            if (other === doorGuard ||
-              Math.hypot(other.root.position.x - doorGuard.root.position.x,
-                other.root.position.z - doorGuard.root.position.z) < 1.5 ||
-              !watching(other, middle, 1, 14)) continue;
+            if (
+              other === doorGuard ||
+              Math.hypot(
+                other.root.position.x - doorGuard.root.position.x,
+                other.root.position.z - doorGuard.root.position.z
+              ) < 1.5 ||
+              !watching(other, middle, 1, 14)
+            )
+              continue;
             chosen = [doorGuard, other];
             break;
           }
         }
       }
       var old = prior && prior.watch,
-        same = !!(chosen && old && old.status !== 'interrupted' &&
-          old.entryAt === evidence.enteredAt && old.doorwayId === entry.id &&
-          old.observedAt <= now && now - old.observedAt <= 2 &&
+        same = !!(
+          chosen &&
+          old &&
+          old.status !== 'interrupted' &&
+          old.entryAt === evidence.enteredAt &&
+          old.doorwayId === entry.id &&
+          old.observedAt <= now &&
+          now - old.observedAt <= 2 &&
           old.doorGuardId === String(chosen[0].id) &&
           old.interiorGuardId === String(chosen[1].id) &&
-          point(old.doorGuardPosition) && point(old.interiorGuardPosition) &&
-          Math.hypot(old.doorGuardPosition.x - chosen[0].root.position.x,
-            old.doorGuardPosition.z - chosen[0].root.position.z) < 1 &&
-          Math.hypot(old.interiorGuardPosition.x - chosen[1].root.position.x,
-            old.interiorGuardPosition.z - chosen[1].root.position.z) < 1),
+          point(old.doorGuardPosition) &&
+          point(old.interiorGuardPosition) &&
+          Math.hypot(
+            old.doorGuardPosition.x - chosen[0].root.position.x,
+            old.doorGuardPosition.z - chosen[0].root.position.z
+          ) < 1 &&
+          Math.hypot(
+            old.interiorGuardPosition.x - chosen[1].root.position.x,
+            old.interiorGuardPosition.z - chosen[1].root.position.z
+          ) < 1
+        ),
         since = same && isFinite(old.since) && old.since <= now ? old.since : now,
         ready = !!(chosen && now - since >= 0.6);
       return {
-        status: !eligible ? 'interrupted' : !chosen ? 'awaiting-posts' :
-          ready ? 'doorway-watch-confirmed' : 'observing-posts',
+        status: !eligible
+          ? 'interrupted'
+          : !chosen
+            ? 'awaiting-posts'
+            : ready
+              ? 'doorway-watch-confirmed'
+              : 'observing-posts',
         doorwayId: entry.id,
         entryAt: evidence && evidence.enteredAt,
         doorGuardId: chosen ? String(chosen[0].id) : null,
@@ -405,7 +439,9 @@
         provenance: 'navigation-door/own-position/reported-beliefs',
         entryEvidence: entryEvidence || undefined,
         survey: surveyed || undefined,
-        watch: watchOn ? doorwayWatch(sim, sq, b, entry, men, entryEvidence, surveyed, prior, threats) : undefined
+        watch: watchOn
+          ? doorwayWatch(sim, sq, b, entry, men, entryEvidence, surveyed, prior, threats)
+          : undefined
       };
     }
     /* Join actual execution, not a proximity-based substitute for its owner.
@@ -567,8 +603,7 @@
         endpoint.stage === 'friendly-inside-observed' &&
         (!surveyOn ||
           (structure.survey && structure.survey.complete && endpoint.survey && endpoint.survey.complete)) &&
-        (!watchOn ||
-          (structure.watch && structure.watch.ready && endpoint.watch && endpoint.watch.ready))
+        (!watchOn || (structure.watch && structure.watch.ready && endpoint.watch && endpoint.watch.ready))
       );
     }
     /* Bounded own-roster resources, not a second station/ammunition owner. A
