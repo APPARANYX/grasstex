@@ -294,6 +294,59 @@
       }
       return null;
     }
+    /* Route ownership stays with mission execution. This read-only bridge prevents
+       a structure-bound leg from being declared 'arrived' while its leader is
+       merely near the wall. Only previously confirmed, current-leg evidence
+       may permit the original Mission Execution owner to advance. */
+    function entryRequired(sim, sq, target) {
+      return !!(
+        entryOn &&
+        sq &&
+        sq.state !== 'retreat' &&
+        !ctx.leaderlessActive(sq) &&
+        structureInterface(sim, sq, point(target), ctx.commanded(sq))
+      );
+    }
+    function entrySatisfied(sim, sq, target) {
+      if (!entryRequired(sim, sq, target)) return false;
+      var N = root.BattleNavigation,
+        version = ctx.missionVersion(sq),
+        task = sq._localTask,
+        ex = task && task.inputs && task.inputs.execution,
+        structure = ex && ex.structure,
+        evidence = structure && structure.entryEvidence,
+        leader = A.leaderOf(sq),
+        now = +sim.time || 0,
+        endpoint = structureInterface(sim, sq, point(target), ctx.commanded(sq));
+      return !!(
+        task &&
+        task.kind === 'structure-handoff' &&
+        task.missionVersion === version &&
+        ex &&
+        ex.kind === 'structure-handoff' &&
+        ex.missionVersion === version &&
+        ex.leg === +sq.routeIndex &&
+        point(ex.target) &&
+        ex.target.x === target.x &&
+        ex.target.z === target.z &&
+        endpoint &&
+        structure &&
+        structure.buildingId === endpoint.buildingId &&
+        structure.doorwayId === endpoint.doorwayId &&
+        structure.navigationVersion === N.version &&
+        evidence &&
+        evidence.entryVerified === true &&
+        evidence.missionVersion === version &&
+        evidence.leg === +sq.routeIndex &&
+        evidence.observerId === String(leader && leader.id) &&
+        isFinite(evidence.enteredAt) &&
+        evidence.enteredAt <= now &&
+        isFinite(evidence.observedAt) &&
+        evidence.observedAt <= now &&
+        now - evidence.observedAt <= 3 &&
+        endpoint.stage === 'friendly-inside-observed'
+      );
+    }
     /* Bounded own-roster resources, not a second station/ammunition owner. A
        report names actual supporters; a cached count cannot survive roster or
        readiness changes. No geometric safety claim is made at this layer. */
@@ -637,6 +690,8 @@
       structuresOn: structuresOn,
       entryOn: entryOn,
       execution: execution,
+      entryRequired: entryRequired,
+      entrySatisfied: entrySatisfied,
       degradation: degradation,
       tuning: tuning,
       read: read,
