@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
-function world(on = true, structures = false, entry = false) {
+function world(on = true, structures = false, entry = false, entryGate = false) {
   H.resetIds();
   const r = H.bootstrap({
       modules: false,
@@ -11,7 +11,8 @@ function world(on = true, structures = false, entry = false) {
         '?localPlan=1&localResources=1&localDegrade=1&coa=0&fireControl=0&slStress=0&scoutsForward=0&stressAct=0&commandMovement=0' +
         (on ? '&localTasks=1' : '') +
         (structures ? '&localStructures=1' : '') +
-        (entry ? '&localEntry=1' : '')
+        (entry ? '&localEntry=1' : '') +
+        (entryGate ? '&localEntryGate=1' : '')
     }),
     systems = {},
     events = [];
@@ -297,8 +298,8 @@ assert.equal(
 
 // A real Navigation doorway, not an objective radius or a world-truth enemy,
 // supplies the optional structure handoff. No ownership/clearance is inferred.
-function structureWorld(structures = true, entry = false) {
-  const x = world(true, structures, entry);
+function structureWorld(structures = true, entry = false, entryGate = false) {
+  const x = world(true, structures, entry, entryGate);
   loadModule(x.r, 'battle/battle-navigation.js', { console: quietConsole, location: x.r.location });
   const house = {
     id: 'farmhouse',
@@ -440,6 +441,93 @@ const entryRestart = structureWorld(true, true);
 entryRestart.P.update(entryRestart.b, entryRestart.q);
 entryRestart.systems['squad-command'].onBattleRestart(entryRestart.b);
 assert.equal(entryRestart.q._localTask, null, 'nonempty entry evidence clears on same-page restart');
+
+// A known building route leg must not be consumed merely because the main
+// body is within the old generous route arrival radius of the exterior wall.
+function routeApproach(w, isNear = true) {
+  const p = w.r.BattleNavigation.doorPortals[0];
+  const leader = w.r.SquadAI.leaderOf(w.q);
+  w.q.members.forEach(s => {
+    s.root.position.x = 0;
+    s.root.position.z = isNear ? 196 : 180;
+  });
+  leader.root.position.x = p.outside.x;
+  leader.root.position.z = p.outside.z;
+  return { p, leader };
+}
+const legacyRoute = structureWorld(true, true, false);
+routeApproach(legacyRoute);
+assert.equal(legacyRoute.P.entryGateOn, false);
+legacyRoute.P.update(legacyRoute.b, legacyRoute.q);
+legacyRoute.S.executeMission(legacyRoute.b, legacyRoute.q, null);
+assert.equal(legacyRoute.q.routeIndex, 2, 'existing localEntry behavior remains unchanged without new gate');
+const gate = structureWorld(true, true, true);
+const gatePosition = routeApproach(gate);
+assert.equal(gate.P.entryGateOn, true);
+assert.equal(gate.P.entryRequired(gate.b, gate.q, gate.q.route[1]), true);
+assert.equal(gate.P.entrySatisfied(gate.b, gate.q, gate.q.route[1]), false);
+gate.P.update(gate.b, gate.q);
+const lockedLease = gate.L.get(gate.q, 'route-transition');
+gate.S.executeMission(gate.b, gate.q, null);
+assert.equal(gate.q.routeIndex, 1, 'exterior proximity cannot advance a building-bound route');
+assert.equal(gate.L.get(gate.q, 'route-transition'), lockedLease, 'mission owner preserves its route lease');
+assert.equal(gate.q.objective.z, 200, 'goal remains published by the existing mission owner');
+gatePosition.leader.root.position.x = gatePosition.p.inside.x;
+gatePosition.leader.root.position.z = gatePosition.p.inside.z;
+gate.b.time += 0.45;
+gate.P.update(gate.b, gate.q);
+assert.equal(gate.P.entrySatisfied(gate.b, gate.q, gate.q.route[1]), true);
+const accepted = gate.q._localTask.inputs.execution.structure.entryEvidence;
+assert.equal(accepted.entryVerified, true);
+gate.S.executeMission(gate.b, gate.q, null);
+assert.equal(gate.q.routeIndex, 2, 'valid crossing hands the leg back to the single mission owner');
+assert.equal(gate.L.get(gate.q, 'route-transition')?.data.leg, 2);
+assert.equal(gate.q._macroMission.version, 1, 'handoff does not invent a strategic mission');
+assert.equal(gate.q._localTask.inputs.execution.structure.control, 'unknown');
+assert.equal(gate.q._localTask.inputs.execution.structure.clearance, 'not-assessed');
+const skipped = structureWorld(true, true, true);
+const skipLeader = skipped.r.SquadAI.leaderOf(skipped.q);
+skipped.q.members.forEach(s => { s.root.position.z = 196; });
+skipLeader.root.position.z = 200;
+skipped.P.update(skipped.b, skipped.q);
+skipped.S.executeMission(skipped.b, skipped.q, null);
+assert.equal(skipped.q.routeIndex, 1, 'initial inside sighting is not a proven crossing');
+const teleport = structureWorld(true, true, true);
+routeApproach(teleport);
+teleport.P.update(teleport.b, teleport.q);
+teleport.b.time += 0.45;
+const jumper = teleport.r.SquadAI.leaderOf(teleport.q);
+jumper.root.position.x = 0;
+jumper.root.position.z = 200;
+teleport.P.update(teleport.b, teleport.q);
+assert.equal(teleport.P.entrySatisfied(teleport.b, teleport.q, teleport.q.route[1]), false);
+teleport.S.executeMission(teleport.b, teleport.q, null);
+assert.equal(teleport.q.routeIndex, 1, 'unphysical outside-to-interior jump cannot release route leg');
+const staleGate = structureWorld(true, true, true);
+const staleApproach = routeApproach(staleGate);
+staleGate.P.update(staleGate.b, staleGate.q);
+staleGate.b.time += 0.45;
+staleApproach.leader.root.position.x = staleApproach.p.inside.x;
+staleApproach.leader.root.position.z = staleApproach.p.inside.z;
+staleGate.P.update(staleGate.b, staleGate.q);
+staleGate.q._macroMission.version++;
+assert.equal(staleGate.P.entrySatisfied(staleGate.b, staleGate.q, staleGate.q.route[1]), false, 'old mission evidence cannot advance new mission');
+const retreatGate = structureWorld(true, true, true);
+const retreatApproach = routeApproach(retreatGate);
+retreatGate.P.update(retreatGate.b, retreatGate.q);
+retreatGate.b.time += 0.45;
+retreatApproach.leader.root.position.x = retreatApproach.p.inside.x;
+retreatApproach.leader.root.position.z = retreatApproach.p.inside.z;
+retreatGate.P.update(retreatGate.b, retreatGate.q);
+retreatGate.q.state = 'retreat';
+retreatGate.S.executeMission(retreatGate.b, retreatGate.q, null);
+assert.equal(retreatGate.q.routeIndex, 1, 'retreat cannot consume an offensive structure route');
+const gateReset = structureWorld(true, true, true);
+routeApproach(gateReset);
+gateReset.P.update(gateReset.b, gateReset.q);
+gateReset.systems['squad-command'].onBattleRestart(gateReset.b);
+assert.equal(gateReset.q._localTask, null);
+assert.equal(gateReset.P.entrySatisfied(gateReset.b, gateReset.q, gateReset.q.route[1]), false);
 
 // Only own stored sightings at a valid age may annotate reported threats.
 structure.r.SquadAI.squadContactsMap = () => [
