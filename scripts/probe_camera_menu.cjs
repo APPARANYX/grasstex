@@ -887,7 +887,9 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       assert.equal(settled.currentController, true, phase + ': live desktop camera disposed');
       assert.equal(settled.paused, false, phase + ': camera left restarted battle paused');
       sameSimRestartCases.push({ phase, ...restart, ...settled });
-      await page.evaluate(() => { delete window.__qaRestartPlayer; });
+      await page.evaluate(() => {
+        delete window.__qaRestartPlayer;
+      });
     }
     fs.writeFileSync(
       path.join(OUT, 'same-sim-restart.json'),
