@@ -38,12 +38,17 @@ assert.ok(
   'unexpected empty prepared clip pack'
 );
 assert.throws(
-  () => converterText(rig.replace('function canon(', 'function movedCanon(') + '\n' + converter + '\n' + backend),
+  () =>
+    converterText(rig.replace('function canon(', 'function movedCanon(') + '\n' + converter + '\n' + backend),
   /function canon not found/,
   'missing canonicalizer must fail fingerprint extraction'
 );
 assert.notEqual(
-  sha256(converterText(rig.replace('function canon(', 'function canon(/* moved */') + '\n' + converter + '\n' + backend)),
+  sha256(
+    converterText(
+      rig.replace('function canon(', 'function canon(/* moved */') + '\n' + converter + '\n' + backend
+    )
+  ),
   want.converter,
   'a changed rig converter must make the prepared pack stale'
 );
