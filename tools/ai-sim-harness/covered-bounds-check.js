@@ -104,6 +104,24 @@ assert.equal(e.coveredBound.accepted, 1);
 assert.ok(e.cover && w.C.current(w.s, w.b), 'one existing Engagement cover reservation');
 assert.equal(e.stance, 'crouch', 'existing bound executor owns stance');
 assert.ok(e.cover.z > w.s.root.position.z, 'actual selected goal advances');
+assert.equal(
+  w.s._movementResolver.combat.kind,
+  'cover-bound',
+  'existing resolver receives the actual Micro movement proposal'
+);
+assert.deepEqual(w.s._movementResolver.combat.point, { x: e.cover.x, z: e.cover.z });
+const unavailable = world();
+unavailable.q._assaultAuthorized = false;
+assert.equal(
+  order(unavailable).coveredBound,
+  undefined,
+  'no tactical authority without current squad authorization'
+);
+const possessed = world();
+possessed.s.isPlayer = true;
+possessed.E.orderBound([possessed.s]);
+assert.ok(!possessed.E.stateOf(possessed.s).boundOrder, 'shipping publisher never orders the possessed man');
+assert.equal(possessed.E.stateOf(possessed.s).coveredBound, undefined);
 // The exposed end-of-hedge flank is a negative control, not a rewarded lateral detour.
 assert.equal(assess(w, { x: 16, z: -4 }).eligible, false);
 Object.assign(w.s.root.position, { x: -18, z: 0 });
@@ -143,6 +161,14 @@ assert.equal(isolation.C.boundThreats(isolation.s, isolation.b).length, 0, 'futu
 isolation.contact.at = 5;
 isolation.contact.confidence = 0.1;
 assert.equal(isolation.C.boundThreats(isolation.s, isolation.b).length, 0);
+isolation.contact.confidence = 0.9;
+isolation.r.SquadAI.squadContactsMap = () =>
+  [0, 1, 2, 3].map(x => ({ x: x * 20, z: 60, at: 5, confidence: 0.9 }));
+assert.equal(
+  isolation.C.boundThreats(isolation.s, isolation.b).length,
+  0,
+  'over-budget known sectors cannot be silently dropped'
+);
 // Same-object restart: the existing Engagement reset removes nonempty decision counters.
 assert.ok(w.E.coveredBoundTelemetry(w.b).attempts > 0);
 w.q.members.forEach(s => w.E.resetSoldier(s));
