@@ -920,6 +920,20 @@ or new movement writers are added. Existing leaderless/retreat and committed Mic
 remain authoritative. Resources appear in the existing local-task diagnostic inputs and
 clear with that owner's restart. This is readiness eligibility, not a LOS or safety claim.
 
+Mission-linked local tasks (`?localPlan=1&localTasks=1`, both required, default OFF)
+join accepted current General missions to existing execution owners. A live matching route
+lease supplies route-transition target/progress; contact yields to normal tactical choices.
+An accepted defend phase, own objective ownership and own squad presence supply
+objective-security. This withdraws incompatible pending bounds through the existing
+lease/Engagement resolver, while legitimate defender recon and independent Micro firing
+remain available. Retreat supplies recover/withdrawing, and a real rally-recovery lease
+supplies recover/reforming; only the existing physical recovery owner can end the reform
+dwell. Pending offensive bounds are removed when retreat owns execution. No automatic
+rearming, room/street clearance, new route, strategic objective, stance or movement writer
+is added. Sources and progress are detached into the existing local-task inputs and clear
+with that owner on restart. Structural clearance and coordinated handoff remain separate
+dependencies, not inferred from a defend phase or route traversal.
+
 Leaderless local-task validity (`?localPlan=1&localDegrade=1`, both required,
 default OFF) uses the existing leaderless-intent/six-second succession owner. At loss,
 it snapshots only the local task identity. The local policy revalidates that frozen

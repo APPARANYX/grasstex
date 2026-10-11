@@ -177,7 +177,11 @@
       recon = L.get(sq, 'recon'),
       task = sq._reconTask;
     var local = _lp && _lp.on && sq._localTask;
-    if (local && local.missionVersion === version && (local.kind === 'protect' || local.kind === 'support'))
+    if (
+      local &&
+      local.missionVersion === version &&
+      (local.kind === 'protect' || local.kind === 'support' || local.kind === 'objective-security')
+    )
       return 'local-' + local.kind;
     if (regroup && regroup.data && regroup.data.missionVersion === version) return 'regroup';
     if (recon && task && task.missionVersion === version) return 'recon';
