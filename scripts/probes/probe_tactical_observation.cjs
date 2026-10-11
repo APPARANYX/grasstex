@@ -131,6 +131,13 @@ const { chromium } = require('playwright');
         assert.equal(mission.observations.at, mission.issuedAt);
         assert.ok(mission.confidence >= 0 && mission.confidence <= 1);
       }
+      await cdp.send('HeapProfiler.collectGarbage');
+      await cdp.send('HeapProfiler.startSampling', {
+        samplingInterval: 1024,
+        includeObjectsCollectedByMajorGC: true,
+        includeObjectsCollectedByMinorGC: true
+      });
+      const intentBefore = await cdp.send('Runtime.getHeapUsage');
       evidence.intent = await page.evaluate(() => {
         const b = __battle__,
           q = b.factions.us.squads[0],
@@ -148,6 +155,11 @@ const { chromium } = require('playwright');
           factions: ['us', 'ge'].map(f => b.factions[f].squads.length)
         };
       });
+      const intentProfile = await cdp.send('HeapProfiler.stopSampling');
+      await cdp.send('HeapProfiler.collectGarbage');
+      const intentAfter = await cdp.send('Runtime.getHeapUsage');
+      evidence.intent.sampledAllocationBytes = allocated(intentProfile.profile.head);
+      evidence.intent.collectedHeapDeltaBytes = intentAfter.usedSize - intentBefore.usedSize;
       assert.equal(evidence.intent.frozen, true);
     }
     if (diagnostic.observations) {
@@ -211,11 +223,16 @@ const { chromium } = require('playwright');
     evidence.restart = await page.evaluate(() => {
       const b = __battle__,
         T = BattleTacticalSituation;
+      const priorBriefs = ['us', 'ge']
+        .flatMap(f => b.factions[f].squads.map(q => q._macroMission))
+        .filter(Boolean);
       b.restart();
       const historyCleared = !BattleAITimeline.snapshot(b).observations;
       const intentCleared = ['us', 'ge'].every(f =>
         b.factions[f].squads.every(
-          q => !q._macroMission || !q._macroMission.observations || q._macroMission.observations.at <= b.time
+          q =>
+            !priorBriefs.includes(q._macroMission) &&
+            (!q._macroMission || !q._macroMission.observations || q._macroMission.observations.at <= b.time)
         )
       );
       const U = window.BattleUrbanOperatingPicture;
