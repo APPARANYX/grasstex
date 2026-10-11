@@ -121,6 +121,35 @@ const { chromium } = require('playwright');
     });
     const diagnostic = exported.diagnostic;
     evidence.diagnostics = exported.cost;
+    const missions = ['us', 'ge'].flatMap(side =>
+      diagnostic.factions[side].squads.map(q => ({ side, mission: q.mission }))
+    );
+    if (missions.some(q => q.mission && q.mission.observations)) {
+      for (const { side, mission } of missions) {
+        assert.ok(mission.observations, 'every issued brief has evidence');
+        assert.equal(mission.observations.faction, side);
+        assert.equal(mission.observations.at, mission.issuedAt);
+        assert.ok(mission.confidence >= 0 && mission.confidence <= 1);
+      }
+      evidence.intent = await page.evaluate(() => {
+        const b = __battle__,
+          q = b.factions.us.squads[0],
+          C = BattleCommanderAI;
+        const frozen = JSON.stringify(q._macroMission),
+          loops = 1000,
+          start = performance.now();
+        let out;
+        for (let i = 0; i < loops; i++) out = C.intentEvidence(b, q, q._macroMission);
+        return {
+          loops,
+          msPerSnapshot: (performance.now() - start) / loops,
+          serializedBytes: JSON.stringify(out).length,
+          frozen: JSON.stringify(q._macroMission) === frozen,
+          factions: ['us', 'ge'].map(f => b.factions[f].squads.length)
+        };
+      });
+      assert.equal(evidence.intent.frozen, true);
+    }
     if (diagnostic.observations) {
       assert.ok(diagnostic.timeline.observations.frames.length > 0, 'enabled history actually collected');
       const flow = await context.newPage();
@@ -184,6 +213,11 @@ const { chromium } = require('playwright');
         T = BattleTacticalSituation;
       b.restart();
       const historyCleared = !BattleAITimeline.snapshot(b).observations;
+      const intentCleared = ['us', 'ge'].every(f =>
+        b.factions[f].squads.every(
+          q => !q._macroMission || !q._macroMission.observations || q._macroMission.observations.at <= b.time
+        )
+      );
       const U = window.BattleUrbanOperatingPicture;
       const urbanCleared = !U || U.summary(b).urbanOperatingPicture === null;
       if (U) U.sample(b);
@@ -194,6 +228,7 @@ const { chromium } = require('playwright');
       T.sample(b);
       return {
         historyCleared,
+        intentCleared,
         urbanCleared,
         urbanReports,
         cleared,
@@ -211,6 +246,7 @@ const { chromium } = require('playwright');
       assert.ok(evidence.urban.visibilityProbes > 0);
     }
     assert.equal(evidence.restart.historyCleared, true);
+    assert.equal(evidence.restart.intentCleared, true);
     assert.equal(evidence.restart.urbanCleared, true);
     assert.equal(evidence.restart.urbanReports, 0);
     assert.equal(evidence.restart.cleared, true);
