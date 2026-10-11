@@ -33,7 +33,11 @@ assert.match(modelSource, /RETARGET_REST\.planOrder\(parent\)/);
 assert.match(modelSource, /RETARGET_REST\.quatCalibration\(parent, order, restS, restT\)/);
 assert.match(modelSource, /retargetRotations\(frames, n, order, parent, K, rS, rT, srcRot, dstRot\)/);
 assert.match(modelSource, /if \(FAST_RETARGET\)/, 'matrix fallback remains independently selectable');
-assert.match(clipConverterSource, /function convertClip\(container, key, spec, bones\)/, 'prepared clip converter owned by lexical helper');
+assert.match(
+  clipConverterSource,
+  /function convertClip\(container, key, spec, bones\)/,
+  'prepared clip converter owned by lexical helper'
+);
 assert.doesNotMatch(source, /function convertClip\(/);
 assert.match(source, /function encodeClipPack\(src, clips, extra\)/, 'prepared clip codec retained');
 assert.doesNotMatch(modelSource, /hamilton\(K, i4/, 'correction-matrix loop must live in rest helper');
