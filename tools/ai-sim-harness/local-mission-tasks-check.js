@@ -3,14 +3,15 @@ const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
-function world(on = true, structures = false) {
+function world(on = true, structures = false, entry = false) {
   H.resetIds();
   const r = H.bootstrap({
       modules: false,
       search:
         '?localPlan=1&localResources=1&localDegrade=1&coa=0&fireControl=0&slStress=0&scoutsForward=0&stressAct=0&commandMovement=0' +
         (on ? '&localTasks=1' : '') +
-        (structures ? '&localStructures=1' : '')
+        (structures ? '&localStructures=1' : '') +
+        (entry ? '&localEntry=1' : '')
     }),
     systems = {},
     events = [];
@@ -296,8 +297,8 @@ assert.equal(
 
 // A real Navigation doorway, not an objective radius or a world-truth enemy,
 // supplies the optional structure handoff. No ownership/clearance is inferred.
-function structureWorld(structures = true) {
-  const x = world(true, structures);
+function structureWorld(structures = true, entry = false) {
+  const x = world(true, structures, entry);
   loadModule(x.r, 'battle/battle-navigation.js', { console: quietConsole, location: x.r.location });
   const house = {
     id: 'farmhouse',
@@ -348,6 +349,84 @@ structureLeader.root.position.z = 200;
 assert.equal(structure.P.update(structure.b, structure.q).kind, 'structure-handoff');
 assert.equal(structure.q._localTask.inputs.execution.structure.stage, 'friendly-inside-observed');
 assert.equal(structure.q._localTask.inputs.execution.structure.control, 'unknown');
+// Entry evidence is a separate default-OFF gate. A time/proximity observation
+// cannot count as physical entry, and even real entry never asserts clearance.
+const entryOff = structureWorld(true);
+assert.equal(entryOff.P.entryOn, false);
+assert.equal(entryOff.P.update(entryOff.b, entryOff.q).inputs.execution.structure.entryEvidence, undefined);
+const entryWorld = structureWorld(true, true);
+assert.equal(entryWorld.P.entryOn, true);
+const entryNav = entryWorld.r.BattleNavigation;
+const entryDoor = entryNav.doorPortals[0];
+const entryLeader = entryWorld.r.SquadAI.leaderOf(entryWorld.q);
+entryLeader.root.position.x = entryDoor.outside.x;
+entryLeader.root.position.z = entryDoor.outside.z;
+assert.equal(entryWorld.P.update(entryWorld.b, entryWorld.q).kind, 'structure-handoff');
+assert.equal(
+  entryWorld.q._localTask.inputs.execution.structure.entryEvidence.entryVerified,
+  false,
+  'first exterior observation cannot claim entry'
+);
+const exterior = { ...entryLeader.root.position };
+assert.ok(entryNav.movementClear(entryDoor.outside, entryDoor.inside));
+assert.ok(!entryNav.movementClear(entryDoor.outside, { x: 8, z: 200 }), 'solid wall is not a doorway');
+entryWorld.b.time += 0.45;
+entryLeader.root.position.x = entryDoor.inside.x;
+entryLeader.root.position.z = entryDoor.inside.z;
+assert.equal(entryWorld.P.update(entryWorld.b, entryWorld.q).kind, 'structure-handoff');
+const crossed = entryWorld.q._localTask.inputs.execution.structure.entryEvidence;
+assert.equal(crossed.entryVerified, true, 'short real-portal crossing confirms entry');
+assert.equal(crossed.handoff, 'interior-observation-required');
+assert.equal(crossed.enteredAt, entryWorld.b.time);
+assert.equal(entryWorld.q._localTask.inputs.execution.structure.clearance, 'not-assessed');
+assert.equal(entryWorld.q._localTask.inputs.execution.structure.control, 'unknown');
+const priorConfirmed = JSON.stringify(entryWorld.q._localTask);
+assert.equal(JSON.stringify(entryWorld.P.update(entryWorld.b, entryWorld.q)), priorConfirmed);
+entryWorld.b.time += 0.45;
+assert.equal(entryWorld.P.update(entryWorld.b, entryWorld.q).inputs.execution.structure.entryEvidence.enteredAt, crossed.enteredAt);
+entryLeader.root.position.x = exterior.x;
+entryLeader.root.position.z = exterior.z;
+entryWorld.b.time += 0.45;
+assert.equal(entryWorld.P.update(entryWorld.b, entryWorld.q).inputs.execution.structure.entryEvidence.entryVerified, false, 'leaving room revokes entry handoff');
+const unverified = structureWorld(true, true);
+const unverifiedLeader = unverified.r.SquadAI.leaderOf(unverified.q);
+unverifiedLeader.root.position.z = 200;
+assert.equal(unverified.P.update(unverified.b, unverified.q).inputs.execution.structure.entryEvidence.entryVerified, false, 'first sighting inside is not proven entry');
+for (const spoil of [
+  x => {
+    x.r.SquadAI.leaderOf(x.q).root.position.z = 200;
+  },
+  x => {
+    x.q._macroMission.version++;
+  },
+  x => {
+    x.r.BattleNavigation.installScenario(x.scenario);
+  },
+  x => {
+    x.q.inContact = true;
+  }
+]) {
+  const x = structureWorld(true, true);
+  const port = x.r.BattleNavigation.doorPortals[0];
+  const actor = x.r.SquadAI.leaderOf(x.q);
+  actor.root.position.x = port.outside.x;
+  actor.root.position.z = port.outside.z;
+  x.P.update(x.b, x.q);
+  x.b.time += 0.45;
+  spoil(x);
+  if (!x.q.inContact && x.q._macroMission.version === 1 && x.r.BattleNavigation.version === 1) {
+    // World-distance jump from an exterior observation cannot qualify.
+    assert.equal(x.P.update(x.b, x.q).inputs.execution.structure.entryEvidence.entryVerified, false);
+  } else {
+    const task = x.P.update(x.b, x.q);
+    assert.ok(!task || task.kind !== 'structure-handoff' || !task.inputs.execution.structure.entryEvidence.entryVerified);
+  }
+}
+const entryRestart = structureWorld(true, true);
+entryRestart.P.update(entryRestart.b, entryRestart.q);
+entryRestart.systems['squad-command'].onBattleRestart(entryRestart.b);
+assert.equal(entryRestart.q._localTask, null, 'nonempty entry evidence clears on same-page restart');
+
 // Only own stored sightings at a valid age may annotate reported threats.
 structure.r.SquadAI.squadContactsMap = () => [
   { x: 0, z: 200, at: structure.b.time, confidence: 0.9, source: 'seen' }
