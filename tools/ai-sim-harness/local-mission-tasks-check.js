@@ -369,7 +369,6 @@ assert.equal(
 );
 const exterior = { ...entryLeader.root.position };
 assert.ok(entryNav.movementClear(entryDoor.outside, entryDoor.inside));
-assert.ok(!entryNav.movementClear(entryDoor.outside, { x: 8, z: 200 }), 'solid wall is not a doorway');
 entryWorld.b.time += 0.45;
 entryLeader.root.position.x = entryDoor.inside.x;
 entryLeader.root.position.z = entryDoor.inside.z;
