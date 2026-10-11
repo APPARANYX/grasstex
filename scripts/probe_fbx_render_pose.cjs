@@ -5,7 +5,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const assert = require('node:assert/strict');
-const { chromium } = require('playwright');
+let playwright;
+try { playwright=require('playwright'); } catch (_) { playwright=require(path.join(execFileSync('npm',['root','-g'],{encoding:'utf8'}).trim(),'playwright')); }
+const {chromium}=playwright;
 const ref = '3fbf7dfda4c31eafe32baeacfb6e83d24c1f78ae';
 const original = execFileSync('git',['show',ref+':battle/modules/53-fbx-soldier-backend.js'],{encoding:'utf8'});
 const body = original.slice(original.indexOf('  /* ---- render-side pose writing'), original.indexOf('  /* R3: render cadence'));
@@ -62,6 +64,53 @@ const out = process.env.POSE_OUT || 'closeups/render-pose-ci';
    return {models:models.size,cases,worst,coverage};
   },baseline);
   assert.equal(result.models,10);assert.ok(result.cases>=3540);assert.equal(result.worst,0);assert.deepEqual(errors,[]);
+  // Repeated real pose workload (five minutes at 60 pose frames/s), alternating
+  // old/new on one runner. Warm caches first; keep timing advisory, output parity is the gate.
+  const workload = await page.evaluate(baseline => {
+    const old=(0,eval)(baseline)(__poseDeps), current=__poseOwner;
+    const sim=__battle__;sim.pause();sim.scene.getEngine().stopRenderLoop();
+    const men=[...sim._roster.us,...sim._roster.ge].filter(s=>s._fbx).slice(0,10);
+    const run=(owner,frames)=>{
+      const start=performance.now();
+      for(let frame=0;frame<frames;frame++)for(const s of men){
+        const fx=s._fbx, clip=fx.lib.clips.walk0;
+        fx.lower={entries:[{clip,t:(frame/60)%clip.duration,rate:1,w:1}]};
+        fx.throwing=null;fx.death=null;fx.transition=null;fx.supportReleased=false;
+        owner.applyPose(fx);
+      }
+      return performance.now()-start;
+    };
+    run(old,100);run(current,100);
+    const oldMs=[],newMs=[];
+    for(let round=0;round<6;round++){
+      if(round%2){newMs.push(run(current,3000));oldMs.push(run(old,3000));}
+      else{oldMs.push(run(old,3000));newMs.push(run(current,3000));}
+    }
+    const median=a=>[...a].sort((a,b)=>a-b)[Math.floor(a.length/2)];
+    return {poseFrames:18000,soldiers:men.length,oldMs,newMs,medianRatio:median(newMs)/median(oldMs)};
+  },baseline);
+  const cdp=await page.context().newCDPSession(page);
+  await cdp.send('HeapProfiler.collectGarbage');
+  const heapBefore=await cdp.send('Runtime.getHeapUsage');
+  const restartCounts=[];
+  for(let restart=0;restart<4;restart++){
+    await page.evaluate(()=>{__battle__.restart();__battle__.pause();});
+    await page.waitForFunction(()=>__battle__._roster.us.every(s=>s._fbx),null,{timeout:60000});
+    restartCounts.push(await page.evaluate(()=>{
+      const sim=__battle__,scene=sim.scene,engine=scene.getEngine();
+      for(let i=0;i<30;i++)scene.render();
+      return {meshes:scene.meshes.length,skeletons:scene.skeletons.length,
+        observers:scene.onBeforeRenderObservable.observers.length,
+        soldiers:[...sim._roster.us,...sim._roster.ge].filter(s=>s._fbx).length};
+    }));
+    await cdp.send('HeapProfiler.collectGarbage');
+  }
+  const heapAfter=await cdp.send('Runtime.getHeapUsage');
+  assert.deepEqual(restartCounts[3],restartCounts[1],'scene allocations stabilized across restarts');
+  assert.ok(heapAfter.usedSize-heapBefore.usedSize<32*1024*1024,'retained heap grew by more than 32 MiB');
+  result.workload=workload;result.restartCounts=restartCounts;
+  result.heap={before:heapBefore.usedSize,after:heapAfter.usedSize,delta:heapAfter.usedSize-heapBefore.usedSize};
+  assert.deepEqual(errors,[]);
   await page.screenshot({path:path.join(out,'pose-parity.png')});
   fs.writeFileSync(path.join(out,'summary.json'),JSON.stringify(result,null,2));console.log('PASS actual FBX pose/IK baseline parity',result);
  } finally {await browser.close();}
