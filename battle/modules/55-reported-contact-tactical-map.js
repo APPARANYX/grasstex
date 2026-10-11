@@ -20,6 +20,7 @@
     caption = null,
     style = null,
     reportsNode = null,
+    objectivesNode = null,
     headerInfo = null,
     operationalInfo = null,
     zoomText = null,
@@ -357,26 +358,6 @@
           'stroke-width': 0.8
         });
       });
-      if (sc.settlement) {
-        var c = project({ x: sc.settlement.cx, z: sc.settlement.cz }, dimensions);
-        if (c)
-          add(
-            layer,
-            'text',
-            {
-              x: c.x + 20,
-              y: c.y + 32,
-              fill: '#252b25',
-              'font-size': 13,
-              'font-weight': 700,
-              'letter-spacing': 1.4,
-              'paint-order': 'stroke',
-              stroke: '#d1c9a7',
-              'stroke-width': 3
-            },
-            'CENTRAL SETTLEMENT'
-          );
-      }
     }
     /* The same 200 m world grid used by the scenario, shown as map squares. */
     var grid = add(layer, 'g', { 'class': 'gtm-coordinate-grid' });
@@ -511,40 +492,50 @@
       reportsNode.appendChild(more);
     }
   }
+  /* Objective letters stay at actual capture coordinates. Full labels and
+     grid references move to the rail so clustered strongpoints remain legible. */
   function renderObjectives(layer, sim, dimensions) {
-    var sc =
-      root.BattleScenarioGenerator && root.BattleScenarioGenerator.current
-        ? root.BattleScenarioGenerator.current()
-        : root.BATTLE_SCENARIO;
-    ((sc && sc.objectives) || []).forEach(function (o) {
+    var sc = scenario();
+    ((sc && sc.objectives) || []).forEach(function (o, i) {
       var p = project(o.point || o, dimensions);
       if (!p) return;
       var sector = sim.objectiveControl && sim.objectiveControl.sectors && sim.objectiveControl.sectors[o.id];
       var owner = sector && sector.owner;
       var color = owner === 'us' ? '#90bce9' : owner === 'ge' ? '#ef8e83' : '#f4e2a4';
-      var g = add(layer, 'g', { transform: 'translate(' + p.x + ' ' + p.y + ')' });
+      var key = String.fromCharCode(65 + (i % 26));
+      var g = add(layer, 'g', { 'class': 'gtm-objective', transform: 'translate(' + p.x + ' ' + p.y + ')' });
       add(g, 'path', {
-        d: 'M0 -13 L13 0 L0 13 L-13 0 Z',
-        fill: '#263329',
-        stroke: color,
-        'stroke-width': 2.2
+        d: 'M0 -15 L15 0 L0 15 L-15 0 Z',
+        fill: '#29312b', stroke: color, 'stroke-width': 2.4
       });
-      add(
-        g,
-        'text',
-        {
-          x: 0,
-          y: 27,
-          fill: '#f2eddb',
-          'text-anchor': 'middle',
-          'font-size': 11,
-          'font-weight': 700,
-          'paint-order': 'stroke',
-          stroke: '#28322b',
-          'stroke-width': 3
-        },
-        String(o.label || o.id)
-      );
+      add(g, 'text', {
+        x: 0, y: 5, fill: color, 'text-anchor': 'middle',
+        'font-size': 13, 'font-weight': 700
+      }, key);
+      add(g, 'title', {}, key + ': ' + String(o.label || o.id) + ' · ' + gridRef(o.point || o, dimensions));
+    });
+  }
+  function renderObjectiveList(sim, dimensions) {
+    if (!objectivesNode) return;
+    clear(objectivesNode);
+    var sc = scenario();
+    ((sc && sc.objectives) || []).forEach(function (o, i) {
+      var sector = sim.objectiveControl && sim.objectiveControl.sectors && sim.objectiveControl.sectors[o.id];
+      var owner = sector && sector.owner;
+      var color = owner === 'us' ? 'friendly' : owner === 'ge' ? 'hostile' : 'neutral';
+      var item = document.createElement('div');
+      item.className = 'gtm-objective-row';
+      var letter = document.createElement('span');
+      letter.className = 'gtm-obj-id ' + color;
+      letter.textContent = String.fromCharCode(65 + (i % 26));
+      item.appendChild(letter);
+      var description = document.createElement('span');
+      description.textContent = String(o.label || o.id);
+      item.appendChild(description);
+      var grid = document.createElement('small');
+      grid.textContent = gridRef(o.point || o, dimensions);
+      item.appendChild(grid);
+      objectivesNode.appendChild(item);
     });
   }
   function renderFriendlies(layer, sim, faction, dimensions) {
@@ -680,6 +671,7 @@
     }
     clear(dynamicLayer);
     renderObjectives(dynamicLayer, sim, dims);
+    renderObjectiveList(sim, dims);
     renderFriendlies(dynamicLayer, sim, faction, dims);
     renderContacts(dynamicLayer, contacts, dims);
     renderReports(contacts, dims, sim);
@@ -827,6 +819,11 @@
       '.gtm-swatch{display:inline-flex;align-items:center;justify-content:center;width:28px;min-width:28px;height:19px;font-size:17px;font-weight:700}',
       '.gtm-swatch.friendly{color:#91c2fd}.gtm-swatch.hostile{color:#fb887b}.gtm-swatch.unknown{color:#e1d6af}',
       '.gtm-swatch.road{height:3px;background:#c9bb99;margin:8px 0}.gtm-swatch.cover{height:9px;background:#496b4e;margin:5px 0}',
+      '.gtm-objectives{max-height:215px;overflow:auto}',
+      '.gtm-objective-row{display:flex;align-items:center;gap:9px;color:#cdd3c5;font:11px Arial;margin:7px 0}',
+      '.gtm-obj-id{width:23px;min-width:23px;height:23px;border:1px solid #ebdba7;display:inline-flex;align-items:center;justify-content:center;color:#ebdba7;font-weight:700;background:#28322a}',
+      '.gtm-obj-id.friendly{color:#94c5fc;border-color:#94c5fc}.gtm-obj-id.hostile{color:#f5887c;border-color:#f5887c}',
+      '.gtm-objective-row small{margin-left:auto;color:#adbcae;font-weight:700}',
       '.gtm-reports{flex:1;min-height:0;overflow:auto}',
       '.gtm-report-row{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #39453f}',
       '.gtm-report-marker{background:#3d3331;border:1px solid #a46d5d;color:#ffd6c9;font:700 12px Arial;padding:8px 6px;min-width:30px;text-align:center}',
@@ -978,6 +975,14 @@
       legend.appendChild(line);
     });
     sidebar.appendChild(legend);
+    var objectives = document.createElement('section');
+    objectives.className = 'gtm-side-section gtm-objectives';
+    var objectivesTitle = document.createElement('h3');
+    objectivesTitle.textContent = 'FIELD OBJECTIVES';
+    objectives.appendChild(objectivesTitle);
+    objectivesNode = document.createElement('div');
+    objectives.appendChild(objectivesNode);
+    sidebar.appendChild(objectives);
     var latest = document.createElement('section');
     latest.className = 'gtm-side-section gtm-reports';
     var latestTitle = document.createElement('h3');
@@ -1105,6 +1110,7 @@
       zoomText =
         null;
     backdropScenario = backdropFootprints = staticLayer = dynamicLayer = drag = null;
+    objectivesNode = null;
     simRef = null;
     resetLedgers();
   }
