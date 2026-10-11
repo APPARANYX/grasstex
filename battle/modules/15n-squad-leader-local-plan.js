@@ -25,6 +25,9 @@
       entryGateOn =
         entryOn &&
         /[?&]localEntryGate=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
+      surveyOn =
+        entryGateOn &&
+        /[?&]localSurvey=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
       tuning = {
         pressureEnter: 0.45,
         pressureExit: 0.25,
@@ -51,6 +54,131 @@
         c = Math.cos(+b.rot || 0),
         si = Math.sin(+b.rot || 0);
       return Math.abs(dx * c - dz * si) < b.w / 2 - 0.05 && Math.abs(dx * si + dz * c) < b.d / 2 - 0.05;
+    }
+    /* #299 C footprint-only security observation. Four inward ground-floor
+       sightline samples are NOT enemy detection, room clearance or control.
+       Require the original physical doorway crossing, two independent living
+       members inside, their actual look direction, and shipping terrain/obstacle
+       /Navigation LOS. Evidence is bounded in the current local-task snapshot:
+       no second commander, fire, position or mission writer. */
+    function interiorSurvey(sim, sq, b, men, entryEvidence, prior, threats) {
+      var now = +sim.time || 0,
+        verified = !!(entryEvidence && entryEvidence.entryVerified),
+        eligible =
+          verified &&
+          !sq.inContact &&
+          !threats &&
+          b.w >= 4 &&
+          b.w <= 30 &&
+          b.d >= 4 &&
+          b.d <= 30 &&
+          typeof sim.heightAt === 'function' &&
+          typeof A.lookYaw === 'function' &&
+          typeof A.hasLineOfSight === 'function',
+        inside = eligible
+          ? men.filter(function (s) {
+              return (
+                s &&
+                s.squad === sq &&
+                !s.dead &&
+                s.hp > 0 &&
+                !s.incapacitated &&
+                !s.isPlayer &&
+                s.root &&
+                s.root.position &&
+                point(s.root.position) &&
+                insideBuilding(b, s.root.position)
+              );
+            })
+          : [],
+        previous = prior && prior.survey,
+        previousEntry = prior && prior.entryEvidence,
+        continuity =
+          eligible &&
+          previous &&
+          previousEntry &&
+          previousEntry.entryVerified &&
+          previousEntry.enteredAt === entryEvidence.enteredAt &&
+          previous.observedAt <= now &&
+          now - previous.observedAt <= 3,
+        mask = continuity ? previous.sectorMask | 0 : 0,
+        contributors = continuity && Array.isArray(previous.contributors) ? previous.contributors.slice(0, 32) : [];
+      /* A lost or exited observer cannot carry a fictitious sector survey forward. */
+      if (
+        contributors.some(function (id) {
+          return !inside.some(function (s) {
+            return String(s.id) === id;
+          });
+        })
+      ) {
+        mask = 0;
+        contributors = [];
+      }
+      if (inside.length >= 2) {
+        var co = Math.cos(+b.rot || 0),
+          si = Math.sin(+b.rot || 0),
+          offsets = [
+            [-0.23, -0.23],
+            [0.23, -0.23],
+            [-0.23, 0.23],
+            [0.23, 0.23]
+          ];
+        offsets.forEach(function (offset, i) {
+          if (mask & (1 << i)) return;
+          var lx = offset[0] * b.w,
+            lz = offset[1] * b.d,
+            p = { x: b.x + lx * co + lz * si, z: b.z - lx * si + lz * co };
+          if (!insideBuilding(b, p)) return;
+          var marker = { root: { position: p } };
+          for (var j = 0; j < inside.length; j++) {
+            var member = inside[j],
+              pos = member.root.position,
+              d = Math.hypot(p.x - pos.x, p.z - pos.z),
+              angle = Math.atan2(p.x - pos.x, p.z - pos.z),
+              yaw = A.lookYaw(member, sim),
+              off = Math.abs(Math.atan2(Math.sin(angle - yaw), Math.cos(angle - yaw)));
+            if (
+              d < 1 ||
+              d > 22 ||
+              off > Math.PI / 3 ||
+              !A.hasLineOfSight(member, marker, sim.heightAt, sim.obstacles)
+            )
+              continue;
+            mask |= 1 << i;
+            var id = String(member.id);
+            if (contributors.indexOf(id) < 0) contributors.push(id);
+            break;
+          }
+        });
+      }
+      var observed = 0;
+      for (var n = 0; n < 4; n++) if (mask & (1 << n)) observed++;
+      var complete =
+        eligible &&
+        inside.length >= 2 &&
+        contributors.length >= 2 &&
+        mask === 15 &&
+        now - entryEvidence.enteredAt >= 0.45;
+      return {
+        status: !verified
+          ? 'awaiting-verified-entry'
+          : sq.inContact || threats
+            ? 'paused-by-contact'
+            : !eligible || inside.length < 2
+              ? 'insufficient-interior-observers'
+              : complete
+                ? 'ground-footprint-surveyed'
+                : 'observing',
+        sectorMask: eligible ? mask : 0,
+        observedSectors: eligible ? observed : 0,
+        observersInside: inside.length,
+        contributors: eligible ? contributors : [],
+        complete: !!complete,
+        observedAt: now,
+        scope: 'four-facing-and-los-ground-footprint-samples',
+        clearance: 'not-assessed',
+        control: 'unknown'
+      };
     }
     function structureInterface(sim, sq, target, men) {
       if (!structuresOn || !target || !men || men.length > tuning.resourceLimit) return null;
@@ -188,7 +316,8 @@
         control: 'unknown',
         clearance: 'not-assessed',
         provenance: 'navigation-door/own-position/reported-beliefs',
-        entryEvidence: entryEvidence || undefined
+        entryEvidence: entryEvidence || undefined,
+        survey: surveyOn ? interiorSurvey(sim, sq, b, men, entryEvidence, prior, threats) : undefined
       };
     }
     /* Join actual execution, not a proximity-based substitute for its owner.
@@ -347,7 +476,12 @@
         isFinite(evidence.observedAt) &&
         evidence.observedAt <= now &&
         now - evidence.observedAt <= 3 &&
-        endpoint.stage === 'friendly-inside-observed'
+        endpoint.stage === 'friendly-inside-observed' &&
+        (!surveyOn ||
+          (structure.survey &&
+            structure.survey.complete &&
+            endpoint.survey &&
+            endpoint.survey.complete))
       );
     }
     /* Bounded own-roster resources, not a second station/ammunition owner. A
@@ -693,6 +827,7 @@
       structuresOn: structuresOn,
       entryOn: entryOn,
       entryGateOn: entryGateOn,
+      surveyOn: surveyOn,
       execution: execution,
       entryRequired: entryRequired,
       entrySatisfied: entrySatisfied,
