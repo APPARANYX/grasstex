@@ -85,7 +85,7 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 
 ### 19-engagement-cover-positions.js — opt-in covered bounds
 
-- `localPlan=1&coveredBounds=1` (both required, default OFF); `BattleCoverPositions.boundTuning()` exposes maximum straight bound distance **12 m**, sample spacing **0.75 m**, maximum sampled exposed gap **1.5 m** (including the closing interval), reported-contact age **10 s**, confidence floor **0.5**, and maximum **3** distinct reported threat coordinates. Unknown or over-budget knowledge fails closed. LOS uses crouched bound height **1.05 m** and conservative reported-threat height **1.45 m** above terrain. Both endpoints must be concealed. These are concealment eligibility thresholds, not ballistic-protection claims; no new cooldown or movement writer.
+- `localPlan=1&coveredBounds=1` (both required, default OFF); `BattleCoverPositions.boundTuning()` exposes maximum straight bound distance **12 m**, sample spacing **0.75 m**, maximum sampled exposed gap **1.5 m** (including the closing interval), reported-contact age **10 s**, confidence floor **0.5**, and maximum **3** distinct reported threat coordinates. Unknown or over-budget knowledge fails closed. LOS uses the Perception owner's public `eyeHeight` API: crouched bound height **1.05 m** and standing reported-threat height **1.55 m** above terrain, never a hidden unit's current stance. Both endpoints must be concealed. These are concealment eligibility thresholds, not ballistic-protection claims; no new cooldown or movement writer.
 
 ### 17-soldier-mind.js
 
