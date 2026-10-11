@@ -906,6 +906,22 @@ and transition counts, cleared on battle restart and exported in full/compact di
 This is not full C acceptance: covered-route geometry, ambush/fire-and-maneuver postures,
 structure control and handoff remain separate work. `coverRoute: not-assessed` is explicit.
 
+Covered-bound eligibility (`?localPlan=1&coveredBounds=1`, both required, default OFF)
+is an Engagement cover-owner gate on **new squad-authorized bounds**, not a new Meso
+movement publisher. Actual selected cover must have a short, physically clear straight
+segment and crouched LOS concealment at both endpoints from fresh confident personal
+and reported squad contacts (at most three distinct reported coordinates). Intermediate
+LOS samples cap exposed gaps. Unknown geometry/contact, too many threats, long routes
+and physical detours fail closed. No safe slot consumes the pending order and keeps the
+ordinary Micro fight/survival logic, instead of the legacy objective-rush fallback.
+Micro survival moves, committed execution, possession and Navigation legality keep their
+existing owners. Geometry is recomputed at adoption; no cached safety claim is attached
+to `_localTask`, so its squad-wide `coverRoute: not-assessed` remains truthful.
+This is sampled concealment eligibility, **not ballistic shelter or guaranteed safety**.
+Per-soldier Engagement counters are bounded, reset by the existing soldier lifecycle,
+and aggregate only current roster members in opt-in benchmark records. Full postures,
+covered detour planning, structure control and handoff remain outstanding.
+
 - Create a `squad-leader-local-plan` module that consumes Force Intent plus `TacticalSituation`.
 - Implement local tasks: approach, support, route-transition, structure-control, objective-security,
   recover, and handoff.

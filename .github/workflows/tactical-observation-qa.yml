@@ -2,6 +2,9 @@ name: Tactical Observation Browser QA
 on:
   pull_request:
     paths:
+      - battle/engagement.js
+      - battle/modules/19-engagement-cover-positions.js
+      - battle/modules/19b-engagement-fire-stance.js
       - battle/squad-ai.js
       - battle/modules/15j-squad-leader-fire-and-movement.js
       - battle/modules/15c-squad-leader-scouts-forward.js

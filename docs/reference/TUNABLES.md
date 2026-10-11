@@ -83,7 +83,12 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 - `localPlan=1` (default OFF), `BattleSquadStability.localPlan.tuning = { pressureEnter: 0.45, pressureExit: 0.25, emergency: 0.75, contactAge: 10, confidence: 0.5 }` — C situational arbitration: pressure is the fraction of own commanded men pinned/under fire; protection hysteresis bypasses ordinary commitments. Eligible choices score approach `0.1`, regroup `0.7 + 0.25 * dispersed`, recon `0.6 + 0.3 * (1-confidence)`, support `0.4 + pressure`, maneuver `0.6 + 0.25 * confidence - pressure`, protect `1 + pressure`. A still-eligible choice holds for the existing `BOUND_DURATION` (4.5 s), unless pressured or superseded. Fresh recon requires no contact, insufficient reported confidence and no valid regroup. Maneuver still requires every existing fire-control/phase/COA/base-of-fire gate; covered-route safety is explicitly unassessed. No new movement, stance or strategic owner.
 - `RETREAT_ANCHOR_LEASE = 6`, `RETREAT_ANCHOR_ARRIVE = 5`, `RETREAT_PROGRESS_EPS = 0.75`, `RETREAT_GOAL_EPS = 6`, `RETREAT_NO_PROGRESS = 6`, `RETREAT_RECOVERY_STRIDE = 0.5` — Squad Leader retreat-anchor stability: one leased endpoint while useful progress continues; arrival advances it, material goal change / blocked-or-unsafe route / no-progress may rebase it; recovery uses half of `ORDER_STRIDE`.
 
+### 19-engagement-cover-positions.js — opt-in covered bounds
+
+- `localPlan=1&coveredBounds=1` (both required, default OFF); `BattleCoverPositions.boundTuning()` exposes maximum straight bound distance **12 m**, sample spacing **0.75 m**, maximum sampled exposed gap **1.5 m** (including the closing interval), reported-contact age **10 s**, confidence floor **0.5**, and maximum **3** distinct reported threat coordinates. Unknown or over-budget knowledge fails closed. LOS uses the Perception owner's public `eyeHeight` API: crouched bound height **1.05 m** and standing reported-threat height **1.55 m** above terrain, never a hidden unit's current stance. Both endpoints must be concealed. These are concealment eligibility thresholds, not ballistic-protection claims; no new cooldown or movement writer.
+
 ### 17-soldier-mind.js
+
 - `TAU = 22` — stress decay time constant (s)
 - `CASUALTY_RANGE = 30` — casualty observation range (m)
 - `LEADER_CALM = 0.65` — leader calming effect

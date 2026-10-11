@@ -23,6 +23,7 @@ const { chromium } = require('playwright');
     url.searchParams.set('urbanPicture', '1');
     url.searchParams.set('leaseConflicts', '1');
     url.searchParams.set('localPlan', '1');
+    url.searchParams.set('coveredBounds', '1');
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(String(e)));
@@ -411,12 +412,77 @@ const { chromium } = require('playwright');
         'real commander hook activated before fixture'
       );
     }
+    await cdp.send('HeapProfiler.collectGarbage');
+    await cdp.send('HeapProfiler.startSampling', {
+      samplingInterval: 1024,
+      includeObjectsCollectedByMajorGC: true,
+      includeObjectsCollectedByMinorGC: true
+    });
+    const coveredBefore = await cdp.send('Runtime.getHeapUsage');
+    evidence.coveredBounds = await page.evaluate(() => {
+      const C = BattleCoverPositions,
+        b = __battle__;
+      if (!C.coveredBoundsOn()) throw Error('covered bounds flag lost');
+      const obstacle = {
+        id: 'probe-mask',
+        physicalId: 'probe-mask',
+        shape: 'obb',
+        type: 'hedge',
+        x: 10000,
+        z: 10000,
+        hx: 14,
+        hz: 1,
+        ux: 1,
+        uz: 0,
+        vx: 0,
+        vz: 1,
+        radius: 1,
+        y: 0,
+        height: 2,
+        cover: 0.62
+      };
+      const fixture = { ...b, obstacles: [obstacle], heightAt: () => 0 },
+        soldier = { root: { position: { x: 10000, z: 9996 } } },
+        threats = [{ x: 10000, z: 10060, at: b.time, confidence: 0.9, source: 'reported' }],
+        goal = { x: 10006, z: 9996 },
+        exposed = { x: 10004, z: 10004 };
+      const safe = C.boundRoute(soldier, fixture, goal, threats),
+        unsafe = C.boundRoute(soldier, fixture, exposed, threats),
+        stable = JSON.stringify(safe) === JSON.stringify(C.boundRoute(soldier, fixture, goal, threats));
+      if (!safe.eligible || unsafe.eligible || !stable) throw Error('covered geometry causal fixture failed');
+      const loops = 1000,
+        start = performance.now();
+      for (let i = 0; i < loops; i++) C.boundRoute(soldier, fixture, goal, threats);
+      return {
+        safe,
+        unsafe,
+        stable,
+        loops,
+        msPerRoute: (performance.now() - start) / loops,
+        natural: BattleEngagement.coveredBoundTelemetry(b)
+      };
+    });
+    const coveredProfile = await cdp.send('HeapProfiler.stopSampling');
+    await cdp.send('HeapProfiler.collectGarbage');
+    const coveredAfter = await cdp.send('Runtime.getHeapUsage');
+    evidence.coveredBounds.sampledAllocationBytes = allocated(coveredProfile.profile.head);
+    evidence.coveredBounds.collectedHeapDeltaBytes = coveredAfter.usedSize - coveredBefore.usedSize;
     evidence.restart = await page.evaluate(() => {
       const b = __battle__,
         T = BattleTacticalSituation;
       const priorBriefs = ['us', 'ge']
         .flatMap(f => b.factions[f].squads.map(q => q._macroMission))
         .filter(Boolean);
+      // Exercise actual same-page restart with a NONEMPTY Micro audit, not a zero-to-zero check.
+      const q = b.factions.us.squads.find(q => q.members.some(s => !s.dead && !s.isPlayer && !SquadAI.isMachineGun(s))),
+        s = q.members.find(s => !s.dead && !s.isPlayer && !SquadAI.isMachineGun(s));
+      q._assaultAuthorized = true;
+      BattleLeases.grant(q, 'bound', 'squad-leader', b.time, b.time + 10, 'covered restart fixture');
+      BattleEngagement.stateOf(s).state = 'engage';
+      BattleEngagement.orderBound([s]);
+      BattleEngagement.updateSoldier(s, b);
+      const coveredAttemptsBefore = BattleEngagement.coveredBoundTelemetry(b).attempts;
+      if (!coveredAttemptsBefore) throw Error('restart fixture did not consume a real bound order');
       b.restart();
       const historyCleared = !BattleAITimeline.snapshot(b).observations;
       const intentCleared = ['us', 'ge'].every(f =>
@@ -435,6 +501,8 @@ const { chromium } = require('playwright');
       const cleared = T.summary(b).tacticalSituation === null;
       T.sample(b);
       return {
+        coveredAttemptsBefore,
+        coveredBoundsCleared: BattleEngagement.coveredBoundTelemetry(b).attempts === 0,
         localTasksCleared: ['us', 'ge'].every(f => b.factions[f].squads.every(q => !q._localTask)),
         conflictsCleared: ['us', 'ge'].every(f =>
           b.factions[f].squads.every(q => !q._leases?.conflicts?.length)
@@ -463,6 +531,7 @@ const { chromium } = require('playwright');
       assert.ok(evidence.urban.visibilityProbes > 0);
     }
     assert.equal(evidence.restart.conflictsCleared, true);
+    assert.equal(evidence.restart.coveredBoundsCleared, true);
     assert.equal(evidence.restart.localTasksCleared, true);
     assert.equal(evidence.restart.routeCleared, true);
     assert.equal(evidence.restart.historyCleared, true);

@@ -589,18 +589,48 @@
       var threat = s.target,
         known = knownThreat(s, battle);
       if (!threat && known) threat = { root: { position: known } };
+      var C = root.BattleCoverPositions,
+        covered = C.coveredBoundsOn(),
+        audit = null;
+      if (covered) {
+        var threats = C.boundThreats(s, battle);
+        audit = {
+          threats: threats,
+          candidates: 0,
+          samples: 0,
+          reason: threats.length ? 'no-viable-cover' : 'unknown-contact'
+        };
+        threat = threats.length ? { root: { position: threats[0] } } : null;
+      }
       /* A bound is a move forward: its cover may sit a little to the side or behind (BOUND_BACK_ALLOW)
        but never walk him back behind where he is. 44's forward guard only covers the `assault`
        phase, and bounds are also ordered in `capture` and `clear-town` (backward-orders probe: most
        backward authorized bounds). With no cover ahead he rushes toward the objective instead. */
       var fwd = boundForward(s),
-        cover = findCover(s, battle, {
-          maxRange: COVER_RANGE_UNDER_FIRE,
-          forward: fwd,
-          evade: s.suppressedUntil > battle.time,
-          notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null,
-          threat: threat
-        });
+        cover =
+          covered && !audit.threats.length
+            ? null
+            : findCover(s, battle, {
+                maxRange: covered ? C.boundTuning().maxDistance : COVER_RANGE_UNDER_FIRE,
+                forward: fwd,
+                evade: s.suppressedUntil > battle.time,
+                notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null,
+                threat: threat,
+                coveredRoute: audit
+              });
+      if (covered) {
+        var stats =
+          e.coveredBound ||
+          (e.coveredBound = { attempts: 0, accepted: 0, rejected: 0, candidates: 0, samples: 0 });
+        stats.attempts++;
+        stats[cover ? 'accepted' : 'rejected']++;
+        stats.candidates += audit.candidates;
+        stats.samples += audit.samples;
+        stats.at = battle.time;
+        stats.reason = cover ? 'covered-segment' : audit.reason;
+        // Consume this order, keep fighting here. No exposed objective-rush fallback.
+        if (!cover) return false;
+      }
       if (cover) {
         e.cover = cover;
         transition(
