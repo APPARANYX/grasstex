@@ -4,6 +4,9 @@ on:
     paths:
       - battle/modules/54-tactical-situation.js
       - battle/modules/54a-urban-operating-picture.js
+      - battle/modules/97-ai-timeline-recorder.js
+      - battle/modules/99-session-diagnostics-export.js
+      - ai_flow_live.html
       - scripts/probes/probe_tactical_observation.cjs
       - .github/workflows/tactical-observation-qa.yml
   workflow_dispatch:
