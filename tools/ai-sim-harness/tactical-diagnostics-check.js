@@ -109,6 +109,21 @@ U.sample(b);
 L.reset(b);
 hooks['ai-timeline-recorder'].onSimulationStep(b);
 const replay = L.snapshot(b).observations;
+const rows = D.timelineJsonl(D.compact(b)).trim().split('\n').map(JSON.parse);
+assert.equal(rows.find(x => x.type === 'tactical-history').omitted, 0);
+assert.deepEqual(
+  rows.filter(x => x.type === 'tactical-frame').map(x => x.data),
+  replay.frames
+);
+assert.equal(rows.find(x => x.type === 'tactical-snapshot').data.tacticalSituation.us.contactCount, 1);
+assert.deepEqual(
+  rows.filter(x => x.type === 'sample').map(x => x.data),
+  L.snapshot(b).samples
+);
+const legacy = D.compact(b);
+delete legacy.observations;
+delete legacy.timeline.observations;
+assert.equal(D.timelineJsonl(legacy).includes('tactical-'), false, 'legacy JSONL stays unchanged');
 T.sample(b);
 U.sample(b);
 L.reset(b);
