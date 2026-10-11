@@ -622,6 +622,30 @@ assert.equal(survey.q.routeIndex, 2, 'single mission owner hands back only after
 
 // Geometry/facing, own-team composition, contact and mission freshness cannot
 // be replaced by timers or presence. No enemies are read from world transforms.
+const secondWitness = surveyFixture();
+secondWitness.buddy.root.position.x = 0;
+secondWitness.buddy.root.position.z = 200;
+// A single sentry can visually inspect every sample, but that alone does not
+// establish corroboration. A later second witness may confirm an already
+// observed sector rather than requiring an artificial new fifth sector.
+for (let i = 0; i < 4; i++) {
+  const target = surveyPoint(secondWitness, i);
+  face(secondWitness.leader, target);
+  secondWitness.buddy.root.rotation.y = faceAway(secondWitness.buddy, target);
+  secondWitness.b.time += 0.45;
+  secondWitness.P.update(secondWitness.b, secondWitness.q);
+}
+assert.equal(secondWitness.q._localTask.inputs.execution.structure.survey.observedSectors, 4);
+assert.equal(secondWitness.q._localTask.inputs.execution.structure.survey.contributors.length, 1);
+assert.equal(secondWitness.P.entrySatisfied(secondWitness.b, secondWitness.q, secondWitness.q.route[1]), false);
+const reaffirm = surveyPoint(secondWitness, 0);
+face(secondWitness.buddy, reaffirm);
+secondWitness.leader.root.rotation.y = faceAway(secondWitness.leader, reaffirm);
+secondWitness.b.time += 0.45;
+secondWitness.P.update(secondWitness.b, secondWitness.q);
+assert.equal(secondWitness.q._localTask.inputs.execution.structure.survey.contributors.length, 2);
+assert.equal(secondWitness.P.entrySatisfied(secondWitness.b, secondWitness.q, secondWitness.q.route[1]), true);
+
 const blocked = surveyFixture();
 blocked.buddy.root.position.x = 0;
 blocked.buddy.root.position.z = 200;
