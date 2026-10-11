@@ -22,6 +22,9 @@
       entryOn =
         structuresOn &&
         /[?&]localEntry=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
+      entryGateOn =
+        entryOn &&
+        /[?&]localEntryGate=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
       tuning = {
         pressureEnter: 0.45,
         pressureExit: 0.25,
@@ -300,7 +303,7 @@
        may permit the original Mission Execution owner to advance. */
     function entryRequired(sim, sq, target) {
       return !!(
-        entryOn &&
+        entryGateOn &&
         sq &&
         sq.state !== 'retreat' &&
         !ctx.leaderlessActive(sq) &&
@@ -689,6 +692,7 @@
       tasksOn: tasksOn,
       structuresOn: structuresOn,
       entryOn: entryOn,
+      entryGateOn: entryGateOn,
       execution: execution,
       entryRequired: entryRequired,
       entrySatisfied: entrySatisfied,
