@@ -36,6 +36,10 @@ const { chromium } = require('playwright');
     });
     await page.locator('#startBtn').click();
     await page.waitForFunction(() => __battle__.time >= 6, null, { timeout: 120000 });
+    /* Capture the real live battle canvas as well as the tactical dashboard.
+       This is contextual gameplay evidence, NOT a claim of building clearing. */
+    fs.mkdirSync('closeups/tactical-observation', { recursive: true });
+    await page.screenshot({ path: 'closeups/tactical-observation/battle-gameplay.png' });
     const cdp = await context.newCDPSession(page);
     await page.evaluate(() => {
       __battle__.pause();

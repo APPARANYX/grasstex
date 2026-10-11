@@ -3,7 +3,14 @@ const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
-function world(on = true, structures = false, entry = false, entryGate = false, survey = false) {
+function world(
+  on = true,
+  structures = false,
+  entry = false,
+  entryGate = false,
+  survey = false,
+  watch = false
+) {
   H.resetIds();
   const r = H.bootstrap({
       modules: false,
@@ -13,7 +20,8 @@ function world(on = true, structures = false, entry = false, entryGate = false, 
         (structures ? '&localStructures=1' : '') +
         (entry ? '&localEntry=1' : '') +
         (entryGate ? '&localEntryGate=1' : '') +
-        (survey ? '&localSurvey=1' : '')
+        (survey ? '&localSurvey=1' : '') +
+        (watch ? '&localWatch=1' : '')
     }),
     systems = {},
     events = [];
@@ -299,8 +307,8 @@ assert.equal(
 
 // A real Navigation doorway, not an objective radius or a world-truth enemy,
 // supplies the optional structure handoff. No ownership/clearance is inferred.
-function structureWorld(structures = true, entry = false, entryGate = false, survey = false) {
-  const x = world(true, structures, entry, entryGate, survey);
+function structureWorld(structures = true, entry = false, entryGate = false, survey = false, watch = false) {
+  const x = world(true, structures, entry, entryGate, survey, watch);
   loadModule(x.r, 'battle/battle-navigation.js', { console: quietConsole, location: x.r.location });
   const house = {
     id: 'farmhouse',
@@ -539,8 +547,8 @@ assert.equal(gateReset.P.entrySatisfied(gateReset.b, gateReset.q, gateReset.q.ro
 // Two live witnesses must actually be inside and looking along clear
 // Navigation/terrain sightlines. A successful survey is evidence of ground
 // footprint observation only; neither contacts nor clearance are inferred.
-function surveyFixture() {
-  const x = structureWorld(true, true, true, true);
+function surveyFixture(watch = false) {
+  const x = structureWorld(true, true, true, true, watch);
   const door = x.r.BattleNavigation.doorPortals[0],
     leader = x.r.SquadAI.leaderOf(x.q),
     buddy = x.q.members.find(s => s !== leader),
@@ -687,6 +695,84 @@ assert.equal(
   restartedSurvey.P.entrySatisfied(restartedSurvey.b, restartedSurvey.q, restartedSurvey.q.route[1]),
   false
 );
+
+// Only the original mission owner releases a building leg when two separate
+// real men physically cover both the actual doorway and interior. A survey
+// alone or stationary timer alone is not security; combat always interrupts.
+const watchOff = surveyFixture();
+assert.equal(watchOff.P.watchOn, false);
+assert.equal(watchOff.q._localTask.inputs.execution.structure.watch, undefined);
+const security = surveyFixture(true);
+assert.equal(security.P.watchOn, true);
+security.buddy.root.position.x = 3;
+security.buddy.root.position.z = 200;
+for (let i = 0; i < 4; i++) {
+  const marker = surveyPoint(security, i),
+    actor = i < 2 ? security.leader : security.buddy;
+  face(actor, marker);
+  security.b.time += 0.45;
+  security.P.update(security.b, security.q);
+}
+assert.equal(security.q._localTask.inputs.execution.structure.survey.complete, true);
+assert.equal(
+  security.P.entrySatisfied(security.b, security.q, security.q.route[1]),
+  false,
+  'full footprint survey alone cannot release watched doorway leg'
+);
+security.S.executeMission(security.b, security.q, null);
+assert.equal(security.q.routeIndex, 1);
+const guardFacing = { x: security.door.outside.x, z: security.door.outside.z },
+  interiorFacing = { x: security.house.x, z: security.house.z };
+face(security.leader, guardFacing);
+face(security.buddy, interiorFacing);
+security.b.time += 0.45;
+security.P.update(security.b, security.q);
+const firstWatch = security.q._localTask.inputs.execution.structure.watch;
+assert.equal(firstWatch.doorGuardId, String(security.leader.id));
+assert.equal(firstWatch.interiorGuardId, String(security.buddy.id));
+assert.equal(firstWatch.ready, false);
+const watchIdentity = identity(security);
+security.b.time += 0.75;
+security.P.update(security.b, security.q);
+assert.equal(security.q._localTask.inputs.execution.structure.watch.ready, true);
+assert.equal(security.q._localTask.inputs.execution.structure.watch.status, 'doorway-watch-confirmed');
+assert.equal(security.q._localTask.inputs.execution.structure.watch.clearance, 'not-assessed');
+assert.equal(security.q._localTask.inputs.execution.structure.watch.control, 'unknown');
+assert.equal(identity(security), watchIdentity, 'security observation cannot write route, stance or fire');
+assert.equal(security.P.entrySatisfied(security.b, security.q, security.q.route[1]), true);
+security.S.executeMission(security.b, security.q, null);
+assert.equal(security.q.routeIndex, 2, 'existing Mission Execution handback after real watch');
+
+// No valid doorway LOS means no false security claim; no posed/stationary man
+// can authorize handback simply by waiting. Contact and changed map must deny.
+const watchBlocked = surveyFixture(true);
+watchBlocked.buddy.root.position.x = 3;
+watchBlocked.buddy.root.position.z = 200;
+const watchSight = watchBlocked.r.SquadAI.hasLineOfSight;
+watchBlocked.r.SquadAI.hasLineOfSight = (s, marker, h, obs) =>
+  marker.root.position.x === watchBlocked.door.outside.x &&
+  marker.root.position.z === watchBlocked.door.outside.z
+    ? false
+    : watchSight(s, marker, h, obs);
+for (let i = 0; i < 4; i++) {
+  face(i < 2 ? watchBlocked.leader : watchBlocked.buddy, surveyPoint(watchBlocked, i));
+  watchBlocked.b.time += 0.45;
+  watchBlocked.P.update(watchBlocked.b, watchBlocked.q);
+}
+face(watchBlocked.leader, watchBlocked.door.outside);
+face(watchBlocked.buddy, watchBlocked.house);
+watchBlocked.b.time += 1.5;
+watchBlocked.P.update(watchBlocked.b, watchBlocked.q);
+assert.equal(watchBlocked.q._localTask.inputs.execution.structure.watch.ready, false);
+assert.equal(watchBlocked.P.entrySatisfied(watchBlocked.b, watchBlocked.q, watchBlocked.q.route[1]), false);
+const contactWatch = surveyFixture(true);
+contactWatch.q.inContact = true;
+contactWatch.P.update(contactWatch.b, contactWatch.q);
+assert.equal(contactWatch.P.entrySatisfied(contactWatch.b, contactWatch.q, contactWatch.q.route[1]), false);
+const restartWatch = surveyFixture(true);
+restartWatch.systems['squad-command'].onBattleRestart(restartWatch.b);
+assert.equal(restartWatch.q._localTask, null);
+assert.equal(restartWatch.P.entrySatisfied(restartWatch.b, restartWatch.q, restartWatch.q.route[1]), false);
 
 // Only own stored sightings at a valid age may annotate reported threats.
 structure.r.SquadAI.squadContactsMap = () => [
