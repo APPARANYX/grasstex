@@ -125,27 +125,45 @@
            promoted to confirmed entry. One near-door pose or a timer is not
            a crossing; the physical delta must fit the same Navigation portal. */
         var old = sq._localTask,
-          prior = old && old.kind === 'structure-handoff' &&
-            old.inputs && old.inputs.execution && old.inputs.execution.structure,
+          prior =
+            old &&
+            old.kind === 'structure-handoff' &&
+            old.inputs &&
+            old.inputs.execution &&
+            old.inputs.execution.structure,
           evidence = prior && prior.entryEvidence,
           version = ctx.missionVersion(sq),
           leg = +sq.routeIndex,
-          same = evidence && old.missionVersion === version &&
-            evidence.missionVersion === version && evidence.leg === leg &&
+          same =
+            evidence &&
+            old.missionVersion === version &&
+            evidence.missionVersion === version &&
+            evidence.leg === leg &&
             prior.navigationVersion === N.version &&
-            prior.buildingId === b.id && prior.doorwayId === entry.id &&
+            prior.buildingId === b.id &&
+            prior.doorwayId === entry.id &&
             evidence.observerId === String(observer.id) &&
-            isFinite(evidence.observedAt) && evidence.observedAt <= now &&
+            isFinite(evidence.observedAt) &&
+            evidence.observedAt <= now &&
             now - evidence.observedAt <= 3,
           prev = same && point(evidence.observerPosition),
-          retain = !!(within && same && evidence.enteredAt != null &&
-            isFinite(evidence.enteredAt) && evidence.enteredAt <= now),
-          crossed = !!(within && prev && !insideBuilding(b, prev) &&
+          retain = !!(
+            within &&
+            same &&
+            evidence.enteredAt != null &&
+            isFinite(evidence.enteredAt) &&
+            evidence.enteredAt <= now
+          ),
+          crossed = !!(
+            within &&
+            prev &&
+            !insideBuilding(b, prev) &&
             now > evidence.observedAt &&
             Math.hypot(prev.x - entry.outside.x, prev.z - entry.outside.z) <= 2.5 &&
             Math.hypot(pos.x - entry.inside.x, pos.z - entry.inside.z) <= 2.5 &&
             Math.hypot(pos.x - prev.x, pos.z - prev.z) <= 4.5 &&
-            N.movementClear(prev, pos)),
+            N.movementClear(prev, pos)
+          ),
           confirmed = retain || crossed;
         entryEvidence = {
           observerId: String(observer.id),
