@@ -32,6 +32,21 @@ b.time = 10;
 us.contact = { x: 8, z: 0, at: 9, source: 'heard' };
 const first = U.compute(b, 'us');
 assert.equal(first.buildings[0].friendlyOccupants, 10, 'rotated half-extents match navigation schema');
+building.rot = Math.PI / 4;
+for (const s of us.members) {
+  s.root.position.x = 8 * Math.SQRT1_2;
+  s.root.position.z = 8 * Math.SQRT1_2;
+}
+assert.equal(
+  U.compute(b, 'us').buildings[0].friendlyOccupants,
+  10,
+  'arbitrary rotation uses Navigation transform handedness'
+);
+building.rot = Math.PI / 2;
+for (const s of us.members) {
+  s.root.position.x = 8;
+  s.root.position.z = 0;
+}
 assert.equal(first.buildings[0].reportedThreats, 1);
 assert.equal(first.buildings[0].control, 'unknown', 'presence is not cleared room control');
 assert.equal(first.buildings[0].reports[0].source, 'heard');
