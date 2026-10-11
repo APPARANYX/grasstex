@@ -1,0 +1,12 @@
+{
+  "benchmark": "standard",
+  "ref": "work/tactics-c1-situational-arbitration",
+  "seed": "phase-a-control",
+  "seeds": 2,
+  "battle_type": "us-defend",
+  "query_off": "localPlan=0",
+  "query_on": "localPlan=1",
+  "origin_agent": "codex",
+  "correlation_id": "pr-503",
+  "purpose": "Phase C situational arbitration: same-seed OFF/ON behavior, activation and overhead; quality variance diagnostic."
+}
