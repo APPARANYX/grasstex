@@ -445,7 +445,7 @@ const { chromium } = require('playwright');
         soldier = { root: { position: { x: 10000, z: 9996 } } },
         threats = [{ x: 10000, z: 10060, at: b.time, confidence: 0.9, source: 'reported' }],
         goal = { x: 10006, z: 9996 },
-        exposed = { x: 10009, z: 10000 };
+        exposed = { x: 10004, z: 10004 };
       const safe = C.boundRoute(soldier, fixture, goal, threats),
         unsafe = C.boundRoute(soldier, fixture, exposed, threats),
         stable = JSON.stringify(safe) === JSON.stringify(C.boundRoute(soldier, fixture, goal, threats));
