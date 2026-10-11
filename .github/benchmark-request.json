@@ -1,0 +1,12 @@
+{
+  "benchmark": "standard",
+  "ref": "work/tactics-c-covered-bounds",
+  "seed": "phase-a-control",
+  "seeds": 2,
+  "battle_type": "meeting",
+  "query_off": "localPlan=1&coveredBounds=0",
+  "query_on": "localPlan=1&coveredBounds=1",
+  "origin_agent": "codex",
+  "correlation_id": "pr-504-final-gate-meeting",
+  "purpose": "Final-head acceptance: gate covered bounds activation, isolation and wall cost; quality scores diagnostic"
+}
