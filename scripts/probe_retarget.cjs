@@ -73,7 +73,24 @@ async function load(browser, query) {
     }
     const snap = BattleAssetTimings.snapshot();
     const phase = id => { const p = snap.page && snap.page.phases.find(x => x.id === id); return p ? p.ms : null; };
-    return { models: res, retargetMs: snap.totals.retarget, soldiersPhaseMs: phase('soldiers'), libraryWallMs: snap.library.wallMs,
+    let mixerSample = { installed: !!window.BattleFbxClipMixer, checked: false, finite: false, channel: null };
+    if (window.BattleFbxClipMixer) {
+      for (const key of keys) {
+        const clip = BattleFbxSoldier.clip(scene, key);
+        if (!clip) continue;
+        const bone = clip.channels.findIndex(ch => ch && ch.rot);
+        if (bone < 0) continue;
+        const layer = { entries: [{ clip, t: Math.min(0.25, clip.duration / 2), w: 1 }] };
+        const q = new BABYLON.Quaternion(), p = new BABYLON.Vector3();
+        const got = BattleFbxClipMixer.create(30).sampleLayer(layer, bone, q, p);
+        mixerSample.checked = true;
+        mixerSample.channel = key + '/' + bone;
+        mixerSample.finite = got > 0 && [q.x, q.y, q.z, q.w, p.x, p.y, p.z].every(Number.isFinite)
+          && Math.abs(Math.hypot(q.x, q.y, q.z, q.w) - 1) < 1e-4;
+        break;
+      }
+    }
+    return { models: res, retargetMs: snap.totals.retarget, soldiersPhaseMs: phase('soldiers'), libraryWallMs: snap.library.wallMs, mixerSample: mixerSample,
       pack: BattleFbxSoldier.clipPack.state(scene), restHelperInstalled: !!window.BattleFbxRetargetRest };
   });
   await context.close();
@@ -95,6 +112,8 @@ const f32 = s => { const b = Buffer.from(s, 'base64'); return new Float32Array(b
   if (!Object.keys(matrix.models).length) fails.push('No real FBX models were compared');
   for (const [mode, value] of [['matrix', matrix], ['quaternion', quat]]) {
     if (!value.restHelperInstalled) fails.push(mode + ': retarget rest helper missing on shipping PHP loader');
+    if (!value.mixerSample || !value.mixerSample.installed || !value.mixerSample.checked || !value.mixerSample.finite)
+      fails.push(mode + ': extracted clip mixer did not sample a real loaded clip: ' + JSON.stringify(value.mixerSample));
     if (!value.pack || !value.pack.loaded || value.pack.fromFbx !== 0 || value.pack.fromPack <= 0)
       fails.push(mode + ': prepared clip pack was not used unchanged: ' + JSON.stringify(value.pack));
   }
