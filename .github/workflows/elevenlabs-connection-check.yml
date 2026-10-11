@@ -1,0 +1,53 @@
+name: ⭐ Verify ElevenLabs connection
+
+# Manual, read-only credential probe. Never synthesize audio or spend generation credits.
+# Keep existing voice/SFX generator workflows manual and their ELEVEN_LABS_API wiring unchanged.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Authenticate read-only against ElevenLabs
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVEN_LABS_API }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          key = os.environ.get("ELEVENLABS_API_KEY", "")
+          if not key.strip():
+              sys.exit("FAIL: ELEVEN_LABS_API is missing or empty. No audio was generated.")
+
+          request = urllib.request.Request(
+              "https://api.elevenlabs.io/v1/user",
+              headers={"xi-api-key": key, "accept": "application/json"},
+              method="GET",
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  if response.status != 200:
+                      sys.exit(f"FAIL: ElevenLabs returned HTTP {response.status}.")
+                  payload = json.load(response)
+          except urllib.error.HTTPError as error:
+              if error.code == 403:
+                  sys.exit("INCONCLUSIVE: HTTP 403; key scope or IP restrictions may block "
+                           "the read-only user endpoint even if generation is permitted.")
+              sys.exit(f"FAIL: ElevenLabs authentication probe returned HTTP {error.code}.")
+          except (urllib.error.URLError, TimeoutError) as error:
+              sys.exit("INCONCLUSIVE: ElevenLabs connection timed out or failed; "
+                       "no key value was logged.")
+          if not isinstance(payload, dict) or not payload.get("user_id"):
+              sys.exit("INCONCLUSIVE: authenticated endpoint returned no user record.")
+          print("PASS: ELEVEN_LABS_API authenticated using read-only GET /v1/user.")
+          print("No audio created, no generation credits used, no secrets printed.")
+          PY
