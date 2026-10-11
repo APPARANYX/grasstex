@@ -59,15 +59,17 @@
       var shared = A.squadContactsMap && A.squadContactsMap(s.squad, battle);
       if (shared) reports = reports.concat(shared);
       for (var i = 0; i < reports.length; i++) {
-        var r = reports[i],
-          age = battle.time - r.at;
+        var r = reports[i];
+        if (!r) continue;
+        var age = battle.time - r.at;
         if (
           !Number.isFinite(r.x) ||
           !Number.isFinite(r.z) ||
           !Number.isFinite(age) ||
           age < 0 ||
           age > boundTuning.contactAge ||
-          !(r.confidence >= boundTuning.confidence)
+          !Number.isFinite(r.confidence) ||
+          r.confidence < boundTuning.confidence
         )
           continue;
         if (
@@ -90,7 +92,15 @@
         d = dist(p.x, p.z, point.x, point.z),
         result = { eligible: false, reason: 'unknown-contact', distance: d, samples: 0, maxExposure: 0 };
       if (!threats || !threats.length || threats.length > boundTuning.maxThreats) return result;
-      if (!N || !N.movementClear || !N.lineOfSightBlocked || !F || !F.sightBlocked || !battle.heightAt) {
+      if (
+        !root.BattleNavigationPhysicality ||
+        !N ||
+        !N.movementClear ||
+        !N.lineOfSightBlocked ||
+        !F ||
+        !F.sightBlocked ||
+        !battle.heightAt
+      ) {
         result.reason = 'unknown-geometry';
         return result;
       }
@@ -652,6 +662,7 @@
       var incumbent = state(s).state === 'bound' && state(s).cover,
         claim = currentCover(s, battle);
       if (
+        !opts.coveredRoute &&
         best &&
         incumbent &&
         claim &&
