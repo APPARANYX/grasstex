@@ -39,8 +39,9 @@ if (context.BattleFbxClips.files.some(file => /^Praying 2$/i.test(file)))
 const backend = fs.readFileSync(backendFile, 'utf8');
 const animation = fs.readFileSync(animationFile, 'utf8');
 if (!backend.includes('BattleFbxAnimationState.create')) throw new Error('animation state owner missing');
+if (!backend.includes("holds: ['reactionFreezeStanding', 'reactionFreezeSitting', 'reactionFreezeFallen']"))
+  throw new Error('authored freeze hold pool missing in backend config');
 for (const anchor of [
-  "holds: ['reactionFreezeStanding', 'reactionFreezeSitting', 'reactionFreezeFallen']",
   "return k === 'cower' || k === 'flee' || k === 'freeze' || k === 'rage' ? k : null",
   "if (k === 'flee' && e.fledPhase === 'wait') return 'freeze';",
   "reaction === 'freeze' ? freezeHoldOf(soldier) : null",
