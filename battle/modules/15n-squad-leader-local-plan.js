@@ -102,7 +102,8 @@
           previous.observedAt <= now &&
           now - previous.observedAt <= 3,
         mask = continuity ? previous.sectorMask | 0 : 0,
-        contributors = continuity && Array.isArray(previous.contributors) ? previous.contributors.slice(0, 32) : [];
+        contributors =
+          continuity && Array.isArray(previous.contributors) ? previous.contributors.slice(0, 32) : [];
       /* A lost or exited observer cannot carry a fictitious sector survey forward. */
       if (
         contributors.some(function (id) {
@@ -478,10 +479,7 @@
         now - evidence.observedAt <= 3 &&
         endpoint.stage === 'friendly-inside-observed' &&
         (!surveyOn ||
-          (structure.survey &&
-            structure.survey.complete &&
-            endpoint.survey &&
-            endpoint.survey.complete))
+          (structure.survey && structure.survey.complete && endpoint.survey && endpoint.survey.complete))
       );
     }
     /* Bounded own-roster resources, not a second station/ammunition owner. A
