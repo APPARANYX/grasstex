@@ -196,9 +196,11 @@ When a squad clears a building:
 3. **Secure:** squad holds the building, marks it as controlled
 4. **Release:** squad hands off to another squad or moves on
 
-**Owner:** new module `37-structure-control.js`. Reads building graph, writes `battle._buildingGraph` cell states.
+During **Clear**, grenade employment is an execution-layer capability rather than a Force Command order. A soldier may use an available fragmentation grenade against a legitimately known or strongly suspected occupied cell/defended position when the throw is feasible and friendly-safety constraints permit it. Grenade use must consume the soldier's real inventory and degrade gracefully to ordinary clearing when none are available; structure control must never assume a grenade exists or infer hidden enemy truth to justify a throw. The same capability may be reused by later close-assault tasks (for example defended trenches/hard cover) without promoting individual weapon selection into commander planning.
 
-**Validation:** harness check. Benchmark: behavioral change (behind a flag `?structureControl=1`).
+**Owner:** new module `37-structure-control.js`. Reads building graph, writes `battle._buildingGraph` cell states. Grenade selection/execution remains with the existing soldier/combat layer; structure control supplies only the legitimate tactical context.
+
+**Validation:** harness check includes grenade-available, no-grenade, friendly-danger, and unknown/uncorroborated-threat cases; verify inventory consumption and that disabling/withholding grenades does not stall structure clearing. Benchmark: behavioral change (behind a flag `?structureControl=1`).
 
 ---
 
