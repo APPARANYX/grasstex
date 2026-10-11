@@ -549,7 +549,9 @@ function surveyFixture() {
     s.root.position.x = 0;
     s.root.position.z = 196;
   });
-  others.forEach(s => { s.root.position.z = 180; });
+  others.forEach(s => {
+    s.root.position.z = 180;
+  });
   leader.root.position.x = door.outside.x;
   leader.root.position.z = door.outside.z;
   buddy.root.position.x = 0;
@@ -562,10 +564,16 @@ function surveyFixture() {
   return { ...x, leader, buddy, door, others };
 }
 function surveyPoint(x, i) {
-  const xy = [[-0.23, -0.23], [0.23, -0.23], [-0.23, 0.23], [0.23, 0.23]][i];
-  const b = x.house, c = Math.cos(b.rot), si = Math.sin(b.rot);
-  return { x: b.x + xy[0] * b.w * c + xy[1] * b.d * si,
-           z: b.z - xy[0] * b.w * si + xy[1] * b.d * c };
+  const xy = [
+    [-0.23, -0.23],
+    [0.23, -0.23],
+    [-0.23, 0.23],
+    [0.23, 0.23]
+  ][i];
+  const b = x.house,
+    c = Math.cos(b.rot),
+    si = Math.sin(b.rot);
+  return { x: b.x + xy[0] * b.w * c + xy[1] * b.d * si, z: b.z - xy[0] * b.w * si + xy[1] * b.d * c };
 }
 function face(s, p) {
   s.root.rotation.y = Math.atan2(p.x - s.root.position.x, p.z - s.root.position.z);
@@ -604,7 +612,11 @@ assert.equal(done.clearance, 'not-assessed');
 assert.equal(done.control, 'unknown');
 const surveyedIdentity = identity(survey);
 assert.equal(survey.P.entrySatisfied(survey.b, survey.q, survey.q.route[1]), true);
-assert.equal(identity(survey), surveyedIdentity, 'survey never writes fire, stance, movement or mission state');
+assert.equal(
+  identity(survey),
+  surveyedIdentity,
+  'survey never writes fire, stance, movement or mission state'
+);
 survey.S.executeMission(survey.b, survey.q, null);
 assert.equal(survey.q.routeIndex, 2, 'single mission owner hands back only after actual survey');
 
@@ -625,7 +637,10 @@ const contactSurvey = surveyFixture();
 contactSurvey.buddy.root.position.z = 200;
 contactSurvey.q.inContact = true;
 contactSurvey.P.update(contactSurvey.b, contactSurvey.q);
-assert.equal(contactSurvey.P.entrySatisfied(contactSurvey.b, contactSurvey.q, contactSurvey.q.route[1]), false);
+assert.equal(
+  contactSurvey.P.entrySatisfied(contactSurvey.b, contactSurvey.q, contactSurvey.q.route[1]),
+  false
+);
 const staleSurvey = surveyFixture();
 staleSurvey.q._macroMission.version += 1;
 assert.equal(staleSurvey.P.entrySatisfied(staleSurvey.b, staleSurvey.q, staleSurvey.q.route[1]), false);
@@ -635,7 +650,10 @@ assert.equal(lostSurvey.P.entrySatisfied(lostSurvey.b, lostSurvey.q, lostSurvey.
 const restartedSurvey = surveyFixture();
 restartedSurvey.systems['squad-command'].onBattleRestart(restartedSurvey.b);
 assert.equal(restartedSurvey.q._localTask, null);
-assert.equal(restartedSurvey.P.entrySatisfied(restartedSurvey.b, restartedSurvey.q, restartedSurvey.q.route[1]), false);
+assert.equal(
+  restartedSurvey.P.entrySatisfied(restartedSurvey.b, restartedSurvey.q, restartedSurvey.q.route[1]),
+  false
+);
 
 // Only own stored sightings at a valid age may annotate reported threats.
 structure.r.SquadAI.squadContactsMap = () => [
