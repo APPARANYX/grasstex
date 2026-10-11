@@ -469,6 +469,7 @@
     }
     function startRecon(sq, battle, candidate) {
       if (!candidate || L.get(sq, 'recon')) return false;
+      if (ctx.localReconAllowed && !ctx.localReconAllowed(sq, battle)) return false;
       var scouts = selectReconScouts(sq, battle);
       if (!scouts.length || scouts.length >= commanded(sq).length) return false;
       /* The station manager is the sole owner of the reservation. Keep the original full recon
