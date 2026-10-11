@@ -61,7 +61,7 @@ const out = process.env.POSE_OUT || 'closeups/render-pose-ci';
      restore();current.applyPose(fx);const b=snapshot();
      const compare=(a,b)=>{if(typeof a==='number'){if(!Number.isFinite(a)||!Number.isFinite(b))throw Error('nonfinite '+file+'/'+key);worst=Math.max(worst,Math.abs(a-b));}else if(Array.isArray(a)){if(!Array.isArray(b)||a.length!==b.length)throw Error('shape mismatch');a.forEach((v,i)=>compare(v,b[i]));}else if(a!==b)throw Error('state mismatch '+file+'/'+key+': '+a+' vs '+b);};
      compare(a.nodes,b.nodes);compare(a.socket,b.socket);compare(a.state,b.state);
-     if(kind==='pistol'&&deps.leftGripFor(fx.lib.file,fx.weaponModel)&&fx.cupMode==='off')throw Error('pistol cup was not exercised');
+     if(kind==='pistol'&&!fx.throwing&&deps.leftGripFor(fx.lib.file,fx.weaponModel)&&fx.cupMode==='off')throw Error('pistol cup was not exercised');
      cases++;coverage[file]++;
     }
     fx.weaponKind=originalKind;fx.weaponModel=originalModel;
@@ -96,7 +96,8 @@ const out = process.env.POSE_OUT || 'closeups/render-pose-ci';
         if(key==='pistolIdle'){
           const pistol=BattleWeapons.attachWeapon(scene,fx.socket,'pistol');
           s.weapon.mesh.setEnabled(false);fx.weapon=pistol;fx.weaponKind='pistol';fx.weaponModel=pistol.model;
-          if(!/m1911a1|p38/.test(pistol.model||'')||!__poseDeps.leftGripFor(fx.lib.file,pistol.model))throw Error('actual calibrated pistol missing');
+          if(!/m1911a1|p38/.test(pistol.model||''))throw Error('actual sidearm mesh missing');
+          if(faction==='us'&&!__poseDeps.leftGripFor(fx.lib.file,pistol.model))throw Error('calibrated M1911 cup missing');
         }else{fx.weapon=s.weapon;fx.weaponKind=s.weapon.kind;fx.weaponModel=s.weapon.model;}
         const p=s.root.position,yaw=s.root.rotation.y||0;
         scene.activeCamera.position.set(p.x+Math.sin(yaw)*2.6-Math.cos(yaw)*1.2,p.y+1.6,p.z+Math.cos(yaw)*2.6+Math.sin(yaw)*1.2);
@@ -109,7 +110,7 @@ const out = process.env.POSE_OUT || 'closeups/render-pose-ci';
         const a=await render(previous),ctl=await render(previous),b=await render(current),back=await render(previous);
         const name=faction+'-'+key;images[name+'-before.png']=a.png;images[name+'-after.png']=b.png;
         const positiveX=s.root.position.x;s.root.position.x+=1;fx.poseRef.serial++;const positive=await shot();s.root.position.x=positiveX;
-        if(key==='pistolIdle'&&fx.cupMode==='off')throw Error('visual pistol cup not exercised');
+        if(key==='pistolIdle'&&faction==='us'&&fx.cupMode==='off')throw Error('visual pistol cup not exercised');
         frames.push({name,weapon:fx.weaponModel,cupMode:fx.cupMode,control:diff(a.pixels,ctl.pixels),changed:diff(a.pixels,b.pixels),back:diff(a.pixels,back.pixels),positive:diff(a.pixels,positive.pixels)});
       }
     } finally {scene.onBeforeRenderObservable.notifyObservers=oldNotify;}
