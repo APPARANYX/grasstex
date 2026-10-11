@@ -99,7 +99,11 @@
           d.lastProgressAt = t;
           l.until = t + d.noProgressBudget;
         }
-        if (!why && d.distance < d.arrivalRadius && (!entryGate(sim, sq, d.target) || entryAccepted(sim, sq, d.target)))
+        if (
+          !why &&
+          d.distance < d.arrivalRadius &&
+          (!entryGate(sim, sq, d.target) || entryAccepted(sim, sq, d.target))
+        )
           why = 'arrived';
       }
       if (!why && expired) why = 'stalled';
@@ -276,11 +280,7 @@
         limit = +(leaderAlive(sq) ? c.cohesionRadius : c.captainlessCohesion) || 34,
         urban = inTown(town, wp);
       var arrival = routeArrival(idx, axisEnd, town, wp, c, limit);
-      if (
-        idx < last &&
-        dist(pos, wp) < arrival &&
-        (!entryGate(sim, sq, wp) || entryAccepted(sim, sq, wp))
-      ) {
+      if (idx < last && dist(pos, wp) < arrival && (!entryGate(sim, sq, wp) || entryAccepted(sim, sq, wp))) {
         var from = idx;
         sq.routeIndex = idx = idx + 1;
         wp = legs[idx];
