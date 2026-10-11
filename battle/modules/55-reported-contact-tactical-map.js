@@ -20,7 +20,9 @@
     caption = null,
     style = null;
   var raf = 0,
-    lastFrame = 0;
+    lastFrame = 0,
+    keyListenerBound = false,
+    previouslyLockedCanvas = false;
   var ledgers = {
     us: { lastTime: null, byKey: Object.create(null) },
     ge: { lastTime: null, byKey: Object.create(null) }
@@ -435,8 +437,60 @@
         's' +
         (locked ? ' · PLAYER LOCKED' : '');
   }
+  function isEditable(target) {
+    return !!(
+      target &&
+      (/^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName || '') || target.isContentEditable)
+    );
+  }
+  /* M toggles the map without granting any enemy knowledge. Escape dismisses it.
+     Capture before the desktop camera's bubble listener so player/flight controls
+     cannot fire while the map has keyboard focus. Native select/close controls
+     continue to handle their own input. */
+  function mapKeyDown(event) {
+    if (!event) return;
+    var key = String(event.key || '').toLowerCase();
+    if (key === 'm' && !event.repeat && !event.altKey && !event.ctrlKey && !event.metaKey &&
+        !isEditable(event.target)) {
+      setOpen(!opened);
+      if (event.preventDefault) event.preventDefault();
+      if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+      return;
+    }
+    if (!opened) return;
+    if (key === 'escape') {
+      setOpen(false);
+      if (event.preventDefault) event.preventDefault();
+      if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+      return;
+    }
+    /* Keep arrows, typing and keyboard button activation working inside the
+       map, but stop the same events reaching camera/player controls. */
+    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    if (!isEditable(event.target) && !(panel && panel.contains && panel.contains(event.target))) {
+      if (event.preventDefault) event.preventDefault();
+    }
+  }
   function setOpen(value) {
-    opened = !!value;
+    var next = !!value;
+    if (opened === next) return opened;
+    opened = next;
+    /* The pointer must leave FPS mouse capture so the map can be interacted with.
+       Restore it only if this map released it, and only when play resumes. */
+    if (typeof document !== 'undefined' && opened) {
+      previouslyLockedCanvas =
+        !!(document.pointerLockElement && document.pointerLockElement.id === 'renderCanvas');
+      if (previouslyLockedCanvas && document.exitPointerLock) document.exitPointerLock();
+    } else if (typeof document !== 'undefined' && previouslyLockedCanvas) {
+      previouslyLockedCanvas = false;
+      var canvas = document.getElementById && document.getElementById('renderCanvas');
+      if (canvas && canvas.requestPointerLock) {
+        try {
+          var request = canvas.requestPointerLock();
+          if (request && request.catch) request.catch(function () {});
+        } catch (_) {}
+      }
+    }
     if (panel) panel.hidden = !opened;
     if (button) {
       button.setAttribute('aria-expanded', String(opened));
@@ -472,7 +526,8 @@
     button = document.createElement('button');
     button.id = 'battleTacticalMapButton';
     button.type = 'button';
-    button.textContent = 'Tactical Map';
+    button.textContent = 'Tactical Map [M]';
+    button.title = 'Press M to open or close the full tactical map';
     button.setAttribute('aria-controls', 'battleTacticalMap');
     button.setAttribute('aria-expanded', 'false');
     button.onclick = function () {
@@ -506,7 +561,7 @@
     toolbar.appendChild(sideSelect);
     var close = document.createElement('button');
     close.type = 'button';
-    close.textContent = 'Close ×';
+    close.textContent = 'Close [M / Esc]';
     close.onclick = function () {
       setOpen(false);
     };
@@ -528,6 +583,10 @@
     shell.appendChild(legend);
     panel.appendChild(shell);
     document.body.appendChild(panel);
+    if (!keyListenerBound && root.addEventListener) {
+      root.addEventListener('keydown', mapKeyDown, true);
+      keyListenerBound = true;
+    }
   }
   function loop(ms) {
     raf = 0;
@@ -551,6 +610,12 @@
   function dispose() {
     if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
     raf = 0;
+    if (keyListenerBound && root.removeEventListener) {
+      root.removeEventListener('keydown', mapKeyDown, true);
+      keyListenerBound = false;
+    }
+    setOpen(false);
+    previouslyLockedCanvas = false;
     [panel, button, style].forEach(function (el) {
       if (el && el.parentNode) el.parentNode.removeChild(el);
     });
@@ -566,6 +631,8 @@
     playerSide: playerSide,
     snapshot: snapshot,
     setOpen: setOpen,
+    isOpen: function () { return opened; },
+    mapKeyDown: mapKeyDown,
     render: render,
     dispose: dispose,
     retentionSeconds: RETAIN_SECONDS
