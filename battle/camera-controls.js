@@ -1665,6 +1665,7 @@
     }
     function bindDesktopEvents() {
       listen(canvas, 'click', function () {
+        if (global.BattleTacticalMap && global.BattleTacticalMap.isOpen()) return;
         canvas.focus();
         if (document.pointerLockElement !== canvas) canvas.requestPointerLock && canvas.requestPointerLock();
       });
@@ -1679,7 +1680,7 @@
         }
       });
       listen(document, 'mousemove', function (event) {
-        if (!active || deathSequence) return;
+        if (!active || deathSequence || (global.BattleTacticalMap && global.BattleTacticalMap.isOpen())) return;
         if (player) {
           var aimingNow = mouseAim || buttonValue(activeGamepad(), 6) > 0.35,
             sensitivity = aimingNow ? PLAYER_ADS_SENSITIVITY : 1;
@@ -1694,7 +1695,7 @@
         camera.rotation.x = pitch;
       });
       listen(canvas, 'mousedown', function (event) {
-        if (!player || player.dead || deathSequence) return;
+        if (!player || player.dead || deathSequence || (global.BattleTacticalMap && global.BattleTacticalMap.isOpen())) return;
         if (event.button === 0) mouseFire = true;
         else if (event.button === 2) mouseAim = true;
         else return;
@@ -1889,7 +1890,23 @@
     }
     function stepDesktopFrame() {
       var dt = Math.min(0.05, engine.getDeltaTime() / 1000),
-        pad = activeGamepad();
+        pad = activeGamepad(),
+        tacticalMap = global.BattleTacticalMap;
+      /* D-pad right toggles the full map on a controller. Do not steal View
+         (existing possession-exit) or the settings menu's D-pad navigation.
+         Suppress all movement, camera look and firing while the map is open. */
+      if (pad && tacticalMap && !menuOpen && padPressedOnce(pad, 15)) {
+        tacticalMap.setOpen(!tacticalMap.isOpen());
+        refreshPadButtons(pad);
+        return;
+      }
+      if (tacticalMap && tacticalMap.isOpen()) {
+        keys.clear();
+        mouseAim = false;
+        mouseFire = false;
+        if (pad) refreshPadButtons(pad);
+        return;
+      }
       /* Restarts reuse the sim object but replace every soldier/root. Check
          identity BEFORE menu/gamepad handling, so paused menus, death tours and
          possession flights all release stale authority on the first frame. */
