@@ -45,15 +45,32 @@ function setup(options = {}) {
   };
   if (!options.partial) packed.clips.pistolIdle = { spec: CLIPS.pistolIdle, clip: makeClip('pistolIdle') };
   const deps = {
-    sceneState: scene => { assert.equal(scene, options.scene || 'scene'); return st; },
+    sceneState: scene => {
+      assert.equal(scene, options.scene || 'scene');
+      return st;
+    },
     assetBase: () => '../Assets/',
-    assetMark: name => { ASSET.marks[name] = ++t; events.push(['mark', name]); },
+    assetMark: name => {
+      ASSET.marks[name] = ++t;
+      events.push(['mark', name]);
+    },
     meshoptReady: () => Promise.resolve({}),
-    fetchClipPack: async base => { events.push(['pack', base]); return packed; },
+    fetchClipPack: async base => {
+      events.push(['pack', base]);
+      return packed;
+    },
     MODELS: { us: { default: 'us.fbx' }, ge: { default: 'ge.fbx' } },
-    loadSidecars: async (base, files) => { events.push(['sidecars', base, files.length]); },
-    loadProgress: (kind, done, total) => { events.push(['progress', kind, done, total]); },
-    ensureLoader: options.fail ? async () => { throw new Error('FBX loader failed'); } : async () => {},
+    loadSidecars: async (base, files) => {
+      events.push(['sidecars', base, files.length]);
+    },
+    loadProgress: (kind, done, total) => {
+      events.push(['progress', kind, done, total]);
+    },
+    ensureLoader: options.fail
+      ? async () => {
+          throw new Error('FBX loader failed');
+        }
+      : async () => {},
     ASSET,
     wrapFbxParse: () => events.push(['parser wrapped']),
     loadContainer: async (scene, url, kind, file) => {
@@ -66,12 +83,17 @@ function setup(options = {}) {
       return { palms: {}, scale: 1, clips: null };
     },
     assetAdd: (kind, file, field) => events.push(['time', kind, file, field]),
-    loadWeapons: async (scene, state) => { state.weapons = { rifle: {} }; events.push(['weapons']); },
+    loadWeapons: async (scene, state) => {
+      state.weapons = { rifle: {} };
+      events.push(['weapons']);
+    },
     CLIPS,
     CLIP_PACK_ON: true,
     clipsByFile: keys => {
       const out = {};
-      keys.forEach(key => { (out[CLIPS[key][0]] || (out[CLIPS[key][0]] = [])).push(key); });
+      keys.forEach(key => {
+        (out[CLIPS[key][0]] || (out[CLIPS[key][0]] = [])).push(key);
+      });
       return out;
     },
     loadClipFiles: async (scene, state, base, byFile, progress) => {
@@ -90,7 +112,11 @@ function setup(options = {}) {
     isUpper: bone => bone === 'spine0',
     SIDE_CONTACTS: {},
     SOLDIER_CONTACTS: {},
-    V3: class Vec3 { constructor(x, y, z) { Object.assign(this, { x, y, z }); } },
+    V3: class Vec3 {
+      constructor(x, y, z) {
+        Object.assign(this, { x, y, z });
+      }
+    },
     weaponFiles: () => [],
     WEAPON_POINTS: { rifle: true },
     solveGrips: (lib, clip, bones, kinds) => {
@@ -108,7 +134,11 @@ function setup(options = {}) {
 (async () => {
   const one = setup();
   const promise = one.api.loadLibrary('scene');
-  assert.equal(one.api.loadLibrary('scene'), promise, 'concurrent callers must share identical scene promise');
+  assert.equal(
+    one.api.loadLibrary('scene'),
+    promise,
+    'concurrent callers must share identical scene promise'
+  );
   assert.equal(await promise, true);
   await Promise.resolve();
   assert.equal(one.state.ready, true);
@@ -145,8 +175,17 @@ function setup(options = {}) {
   assert.equal(await rejected, false, 'page-level FBX error resolves as not ready');
   assert.match(fail.state.error.message, /FBX loader failed/);
   assert.equal(fail.state.ready, false);
-  assert.equal(fail.api.loadLibrary('scene'), rejected, 'failed load promise must not start duplicate retries');
+  assert.equal(
+    fail.api.loadLibrary('scene'),
+    rejected,
+    'failed load promise must not start duplicate retries'
+  );
   assert.equal(await rejected, false);
   assert.equal(fail.events.filter(e => e[0] === 'hook render').length, 0);
-  console.log('PASS #456 R3 one-scene Promise reuse, pack/fallback arbitration, sidecar+model+weapon ordering, retarget/grip/render readiness, fatal FBX failure and no implicit retry');
-})().catch(e => { console.error(e); process.exitCode = 1; });
+  console.log(
+    'PASS #456 R3 one-scene Promise reuse, pack/fallback arbitration, sidecar+model+weapon ordering, retarget/grip/render readiness, fatal FBX failure and no implicit retry'
+  );
+})().catch(e => {
+  console.error(e);
+  process.exitCode = 1;
+});
