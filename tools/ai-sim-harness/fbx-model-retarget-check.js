@@ -26,7 +26,11 @@ assert.match(helper, /lib\.retargeted = /);
 assert.ok('52-fbx-model-retarget.js' < '53-fbx-soldier-backend.js');
 
 const root = {
-  BattleFbxRetargetQuat: { retargetRotations: () => { throw Error('matching rig must skip conversion'); } },
+  BattleFbxRetargetQuat: {
+    retargetRotations: () => {
+      throw Error('matching rig must skip conversion');
+    }
+  },
   BattleFbxRetargetRest: {
     planOrder: () => [0],
     quatCalibration: () => ({ rS: new Float64Array(4), rT: new Float64Array(4), K: new Float64Array(4) })
@@ -43,13 +47,23 @@ const src = {
   rest: { hips: { q: { x: 0, y: 0, z: 0, w: 1 }, p: { x: 0, y: 0, z: 1, length: () => 1 } } }
 };
 const model = {
-  nodes: { hips: { name: 'hips', parent: null, rotationQuaternion: { x: 0, y: 0, z: 0, w: 1 },
-    position: { x: 0, y: 0, z: 1, length: () => 1 } } },
+  nodes: {
+    hips: {
+      name: 'hips',
+      parent: null,
+      rotationQuaternion: { x: 0, y: 0, z: 0, w: 1 },
+      position: { x: 0, y: 0, z: 1, length: () => 1 }
+    }
+  },
   scheme: 'mixamo',
   hipsHeight: 1
 };
 const deps = {
-  Q: class { static Dot(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; } },
+  Q: class {
+    static Dot(a, b) {
+      return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+    }
+  },
   V3: class {},
   MX: class {},
   FPS: 30,
@@ -65,4 +79,6 @@ assert.equal(model.retargeted, false);
 assert.equal(model.clips, out);
 assert.equal(out.walk.channels, clips.walk.channels, 'matching rest reuses packed Float32 channels');
 assert.notEqual(out.walk, clips.walk, 'per-model wrapper is distinct');
-console.log('PASS #456 R3 model retarget preserves matching rest, clip channels, scale, stride, matrix switch, and lexical ownership');
+console.log(
+  'PASS #456 R3 model retarget preserves matching rest, clip channels, scale, stride, matrix switch, and lexical ownership'
+);
