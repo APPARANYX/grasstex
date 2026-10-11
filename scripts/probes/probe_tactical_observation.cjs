@@ -137,11 +137,16 @@ const { chromium } = require('playwright');
         mimeType: 'application/json',
         buffer: Buffer.from(JSON.stringify(diagnostic))
       });
-      await flow.waitForFunction(() => document.querySelectorAll('.tacticalCard').length === 2);
+      await flow.waitForFunction(
+        () =>
+          !document.getElementById('timelinePanel').hidden &&
+          +document.getElementById('timelineScrub').max >= 6
+      );
       await flow.locator('#timelineScrub').evaluate(el => {
         el.value = el.max;
         el.dispatchEvent(new Event('input', { bubbles: true }));
       });
+      await flow.waitForFunction(() => document.querySelectorAll('.tacticalCard').length === 2);
       await flow.waitForTimeout(200);
       const text = await flow.locator('#tacticalPictureBody').innerText();
       assert.match(text, /A US/);
