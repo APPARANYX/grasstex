@@ -253,6 +253,11 @@ assert.equal(recover.q._localTask.kind, 'recover');
 assert.equal(recover.q._localTask.inputs.execution.status, 'reforming');
 assert.equal(recover.L.get(recover.q, 'bound'), null);
 assert.ok(survivors.every(s => !s.eng.boundOrder));
+assert.equal(
+  recover.P.update(recover.b, recover.q, { underFire: survivors.length }).kind,
+  'recover',
+  'maximal pressure cannot replace the existing retreat owner with a tied protection choice'
+);
 const rally = { ...recover.q._moraleRallyPoint };
 survivors.forEach((s, i) => {
   s.root.position.x = rally.x + ((i % 3) - 1) * 0.5;

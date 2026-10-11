@@ -332,7 +332,12 @@
         eligible.recover = !!active && active.kind === 'recover';
         scores.recover = 2;
         if (eligible['objective-security'] || eligible.recover) eligible.maneuver = false;
-        if (eligible.recover) eligible.approach = false;
+        if (eligible.recover) {
+          eligible.approach = false;
+          // Retreat/rally already owns the response to pressure. Micro emergency
+          // protection stays independent; do not rename recovery on a score tie.
+          eligible.protect = false;
+        }
       }
       var kind = 'approach',
         best = -Infinity;
