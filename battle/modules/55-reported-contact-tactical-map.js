@@ -18,7 +18,17 @@
     button = null,
     sideSelect = null,
     caption = null,
-    style = null;
+    style = null,
+    reportsNode = null,
+    headerInfo = null,
+    operationalInfo = null,
+    zoomText = null,
+    staticLayer = null,
+    dynamicLayer = null,
+    backdropScenario = null,
+    backdropFootprints = null;
+  var viewport = { zoom: 1, cx: 500, cy: 300 },
+    drag = null;
   var raf = 0,
     lastFrame = 0,
     keyListenerBound = false,
@@ -202,76 +212,183 @@
     var T = root.BattleTacticalSituation;
     return T && typeof T.compute === 'function' ? T.compute(sim, faction) : null;
   }
+  function scenario() {
+    var gen = root.BattleScenarioGenerator;
+    return gen && gen.current ? gen.current() : root.BATTLE_SCENARIO;
+  }
+  function gridRef(point, dimensions) {
+    if (!finitePoint(point)) return '—';
+    var col = Math.max(0, Math.min(9, Math.floor((+point.x / dimensions.width + 0.5) * 10)));
+    var row = Math.max(0, Math.min(5, Math.floor((0.5 - +point.z / dimensions.depth) * 6)));
+    return 'ABCDEFGHIJ'.charAt(col) + (row + 1);
+  }
+  /* Cartographic decoration is deterministic and never reads tactical RNG.
+     Actual geographic claims (roads, buildings, hedges, trees, objectives)
+     come from the existing scenario and field footprint descriptors. */
+  function shade(seed, n) {
+    var v = (Math.imul((n + 3) ^ seed, 1664525) + 1013904223) | 0;
+    v = Math.imul(v ^ (v >>> 16), 2246822519);
+    return ((v ^ (v >>> 13)) >>> 0) / 4294967296;
+  }
   function renderTerrain(layer, sim, dimensions) {
-    var sc =
-      root.BattleScenarioGenerator && root.BattleScenarioGenerator.current
-        ? root.BattleScenarioGenerator.current()
-        : root.BATTLE_SCENARIO;
-    add(layer, 'rect', { x: 0, y: 0, width: 1000, height: 600, fill: '#28392f' });
-    add(layer, 'rect', {
-      x: 30,
-      y: 20,
-      width: 940,
-      height: 560,
-      fill: '#415144',
-      stroke: '#9ea994',
-      'stroke-width': 2
+    var sc = scenario();
+    var hash = root.BattleScenarioGenerator && root.BattleScenarioGenerator.hashSeed;
+    var seed = hash ? hash(sc && sc.seed) : 137;
+    add(layer, 'rect', { x: 0, y: 0, width: 1000, height: 600, fill: '#222b28' });
+    var paper = add(layer, 'g', { 'class': 'gtm-paper' });
+    add(paper, 'rect', { x: 30, y: 20, width: 940, height: 560, fill: '#96977a' });
+    /* Field-paper blocks provide subtle relief without implying non-existent
+       rivers, towns or roads. Their coordinates are strictly decorative. */
+    var palette = ['#839071', '#abb08d', '#a0a384', '#858d70', '#b1aa8e', '#929b79'];
+    for (var row = 0; row < 7; row++)
+      for (var col = 0; col < 12; col++) {
+        var i = row * 12 + col;
+        var x = 30 + col * (940 / 12), y = 20 + row * 80;
+        var variation = shade(seed, i);
+        add(paper, 'path', {
+          d: 'M' + x + ' ' + y + ' l' + (940 / 12) + ' 0 l' + (shade(seed, i + 144) * 16 - 8) +
+            ' 80 l-' + (940 / 12) + ' 0 Z',
+          fill: palette[Math.floor(variation * palette.length)],
+          'fill-opacity': .42
+        });
+        if (variation > .45)
+          add(paper, 'path', {
+            d: 'M' + (x + 8) + ' ' + (y + 20) + ' l' + (940 / 12 - 18) + ' -9',
+            stroke: '#4c5946', 'stroke-opacity': .09, 'stroke-width': 1, fill: 'none'
+          });
+      }
+    /* Display the same actual physical hedge and tree placement used by the
+       three-dimensional battlefield, if the clutter placement is available. */
+    var footprints = sim && sim.obstacles && sim.obstacles.__physicalFootprints || [];
+    var cover = add(layer, 'g', { 'class': 'gtm-cover' });
+    var drawn = 0;
+    footprints.forEach(function (fp) {
+      if (!fp || drawn >= 900 || !finitePoint(fp)) return;
+      if (fp.type !== 'tree' && fp.type !== 'hedge') return;
+      var p = project(fp, dimensions);
+      if (!p || p.x < 32 || p.x > 968 || p.y < 22 || p.y > 578) return;
+      if (fp.type === 'tree') {
+        add(cover, 'circle', {
+          cx: p.x, cy: p.y, r: 2.7,
+          fill: '#364f3e', stroke: '#738767', 'stroke-width': .65, opacity: .85
+        });
+      } else if (fp.shape === 'obb') {
+        var ux = (+fp.ux || 0) * (+fp.hx || 0) * 940 / dimensions.width,
+          uz = (+fp.uz || 0) * (+fp.hx || 0) * -560 / dimensions.depth;
+        add(cover, 'path', {
+          d: 'M' + (p.x - ux) + ' ' + (p.y - uz) + ' L' + (p.x + ux) + ' ' + (p.y + uz),
+          stroke: '#415d46', 'stroke-width': 2.1, 'stroke-linecap': 'round', opacity: .78
+        });
+      }
+      drawn++;
     });
-    for (var x = -dimensions.width / 2 + 200; x < dimensions.width / 2; x += 200) {
-      var px = project({ x: x, z: 0 }, dimensions).x;
-      add(layer, 'line', { x1: px, y1: 20, x2: px, y2: 580, stroke: '#9bb19a', 'stroke-opacity': 0.2 });
-    }
-    for (var z = -dimensions.depth / 2 + 200; z < dimensions.depth / 2; z += 200) {
-      var py = project({ x: 0, z: z }, dimensions).y;
-      add(layer, 'line', { x1: 30, y1: py, x2: 970, y2: py, stroke: '#9bb19a', 'stroke-opacity': 0.2 });
-    }
     if (sc) {
       (sc.roads || []).forEach(function (r) {
         var a = project({ x: r.ax, z: r.az }, dimensions),
           b = project({ x: r.bx, z: r.bz }, dimensions);
         if (!a || !b) return;
-        add(layer, 'line', {
-          x1: a.x,
-          y1: a.y,
-          x2: b.x,
-          y2: b.y,
-          stroke: '#a6a38d',
-          'stroke-width': 7,
-          'stroke-opacity': 0.65
-        });
-        add(layer, 'line', {
-          x1: a.x,
-          y1: a.y,
-          x2: b.x,
-          y2: b.y,
-          stroke: '#d1c9aa',
-          'stroke-width': 2,
-          'stroke-dasharray': '12 9'
-        });
+        var w = Math.max(2, (+r.width || 8) * 940 / dimensions.width);
+        add(layer, 'line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+          stroke: '#515950', 'stroke-width': w + 2, 'stroke-opacity': .6 });
+        add(layer, 'line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+          stroke: '#d1c7a8', 'stroke-width': w, 'stroke-opacity': .94 });
+        add(layer, 'line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+          stroke: '#817f6c', 'stroke-width': .8, 'stroke-dasharray': '5 6' });
       });
+      var city = add(layer, 'g', { 'class': 'gtm-buildings' });
       (sc.buildings || []).forEach(function (b) {
         var p = project(b, dimensions);
         if (!p || !(b.w > 0) || !(b.d > 0)) return;
         var w = (b.w / dimensions.width) * 940,
           h = (b.d / dimensions.depth) * 560;
-        add(layer, 'rect', {
-          x: p.x - w / 2,
-          y: p.y - h / 2,
-          width: w,
-          height: h,
-          fill: '#202d26',
-          stroke: '#9caa95',
-          'stroke-width': 0.9
+        var house = add(city, 'g', {
+          transform: 'translate(' + p.x + ' ' + p.y + ') rotate(' + (-(+b.rot || 0) * 180 / Math.PI) + ')'
         });
+        add(house, 'rect', { x: -w / 2, y: -h / 2, width: w, height: h,
+          fill: '#41433a', stroke: '#c4b99b', 'stroke-width': .8 });
       });
+      if (sc.settlement) {
+        var c = project({ x: sc.settlement.cx, z: sc.settlement.cz }, dimensions);
+        if (c) add(layer, 'text', {
+          x: c.x + 20, y: c.y + 32, fill: '#252b25', 'font-size': 13,
+          'font-weight': 700, 'letter-spacing': 1.4, 'paint-order': 'stroke',
+          stroke: '#d1c9a7', 'stroke-width': 3
+        }, 'CENTRAL SETTLEMENT');
+      }
     }
-    add(layer, 'text', { x: 52, y: 52, fill: '#e7ead2', 'font-size': 16, 'font-weight': 700 }, 'N ↑');
-    add(
-      layer,
-      'text',
-      { x: 950, y: 568, fill: '#d6ddc8', 'font-size': 11, 'text-anchor': 'end' },
-      dimensions.width + ' × ' + dimensions.depth + ' m'
-    );
+    /* The same 200 m world grid used by the scenario, shown as map squares. */
+    var grid = add(layer, 'g', { 'class': 'gtm-coordinate-grid' });
+    for (var ix = 0; ix <= 10; ix++) {
+      var gx = 30 + 94 * ix;
+      add(grid, 'line', { x1: gx, y1: 20, x2: gx, y2: 580,
+        stroke: '#26352c', 'stroke-opacity': .3, 'stroke-width': ix % 5 === 0 ? 1.5 : .8 });
+      if (ix < 10) add(grid, 'text', {
+        x: gx + 47, y: 14, 'text-anchor': 'middle', fill: '#eee4c7', 'font-size': 12
+      }, 'ABCDEFGHIJ'.charAt(ix));
+    }
+    for (var iy = 0; iy <= 6; iy++) {
+      var gy = 20 + (560 / 6) * iy;
+      add(grid, 'line', { x1: 30, y1: gy, x2: 970, y2: gy,
+        stroke: '#26352c', 'stroke-opacity': .3, 'stroke-width': iy % 3 === 0 ? 1.5 : .8 });
+      if (iy < 6) add(grid, 'text', {
+        x: 16, y: gy + 560 / 12 + 4, 'text-anchor': 'middle',
+        fill: '#eee4c7', 'font-size': 12
+      }, String(iy + 1));
+    }
+    add(layer, 'rect', { x: 30, y: 20, width: 940, height: 560,
+      fill: 'none', stroke: '#222b28', 'stroke-width': 2 });
+    add(layer, 'text', { x: 48, y: 47, fill: '#252b25', 'font-size': 18,
+      'font-weight': 700, 'paint-order': 'stroke', stroke: '#bdc4a4',
+      'stroke-width': 2.5 }, 'N ↑');
+    var meters = 200, px = meters * 940 / dimensions.width;
+    var bar = add(layer, 'g', { 'class': 'gtm-scale', transform: 'translate(62 555)' });
+    add(bar, 'rect', { x: -8, y: -19, width: px + 54, height: 30, fill: '#ddd3b4', opacity: .72 });
+    add(bar, 'line', { x1: 0, y1: 0, x2: px, y2: 0, stroke: '#172820', 'stroke-width': 3 });
+    [0, px / 2, px].forEach(function (x) {
+      add(bar, 'line', { x1: x, y1: -4, x2: x, y2: 4, stroke: '#172820', 'stroke-width': 2 });
+    });
+    add(bar, 'text', { x: 0, y: -8, 'font-size': 10, fill: '#172820' }, '0');
+    add(bar, 'text', { x: px, y: -8, 'font-size': 10, 'text-anchor': 'end', fill: '#172820' }, '200 m');
+  }
+  function renderReports(contacts, dims, sim) {
+    if (!reportsNode) return;
+    clear(reportsNode);
+    var ordered = contacts.slice().sort(function (a, b) {
+      return a.age - b.age || String(a.key).localeCompare(String(b.key));
+    });
+    if (!ordered.length) {
+      var empty = document.createElement('p');
+      empty.className = 'gtm-report-empty';
+      empty.textContent = 'No current reported enemy contacts. Unobserved enemy forces are not displayed.';
+      reportsNode.appendChild(empty);
+    }
+    ordered.slice(0, 8).forEach(function (c, i) {
+      var item = document.createElement('div');
+      item.className = 'gtm-report-row';
+      var badge = document.createElement('span');
+      badge.className = 'gtm-report-marker';
+      badge.textContent = gridRef(c, dims);
+      item.appendChild(badge);
+      var detail = document.createElement('div');
+      var age = document.createElement('strong');
+      age.textContent = 'CONTACT ' + String(i + 1).padStart(2, '0') +
+        ' · ' + Math.floor(c.age) + 's AGO';
+      detail.appendChild(age);
+      var explanation = document.createElement('small');
+      var source = /heard|sound|noise/i.test(c.source || '') ? 'HEARD' :
+        /relay|told|broadcast/i.test(c.source || '') ? 'RELAYED' : 'REPORTED';
+      explanation.textContent = source + ' · ' + (c.squad == null ? 'UNKNOWN SQUAD' : String(c.squad)) +
+        (c.movement ? ' · TWO FIXES' : '') + (c.age > FRESH_SECONDS ? ' · AGING' : '');
+      detail.appendChild(explanation);
+      item.appendChild(detail);
+      reportsNode.appendChild(item);
+    });
+    if (ordered.length > 8) {
+      var more = document.createElement('p');
+      more.className = 'gtm-report-empty';
+      more.textContent = '+' + (ordered.length - 8) + ' additional reports marked on map';
+      reportsNode.appendChild(more);
+    }
   }
   function renderObjectives(layer, sim, dimensions) {
     var sc =
@@ -294,8 +411,8 @@
       add(
         g,
         'text',
-        { x: 0, y: 27, fill: '#f2eddb', 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700 },
-        String(o.id)
+        { x: 0, y: 27, fill: '#f2eddb', 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700, 'paint-order': 'stroke', stroke: '#28322b', 'stroke-width': 3 },
+        String(o.label || o.id)
       );
     });
   }
@@ -409,22 +526,28 @@
     if (!situation) return;
     var contacts = reconcile(ledgers[faction], situation.contacts, +sim.time || 0);
     var dims = mapSize();
-    clear(svg);
-    var defs = add(svg, 'defs');
-    var marker = add(defs, 'marker', {
-      id: 'gtm-arrow',
-      markerWidth: 7,
-      markerHeight: 7,
-      refX: 5,
-      refY: 3,
-      orient: 'auto',
-      markerUnits: 'strokeWidth'
-    });
-    add(marker, 'path', { d: 'M0 0 L6 3 L0 6 Z', fill: '#ffd2a6' });
-    renderTerrain(svg, sim, dims);
-    renderObjectives(svg, sim, dims);
-    renderFriendlies(svg, sim, faction, dims);
-    renderContacts(svg, contacts, dims);
+    var sc = scenario(), footprints = sim.obstacles && sim.obstacles.__physicalFootprints;
+    if (!staticLayer || backdropScenario !== sc || backdropFootprints !== footprints) {
+      clear(svg);
+      staticLayer = add(svg, 'g', { 'class': 'gtm-static-map' });
+      dynamicLayer = add(svg, 'g', { 'class': 'gtm-dynamic-map' });
+      var defs = add(staticLayer, 'defs');
+      var marker = add(defs, 'marker', {
+        id: 'gtm-arrow', markerWidth: 7, markerHeight: 7, refX: 5,
+        refY: 3, orient: 'auto', markerUnits: 'strokeWidth'
+      });
+      add(marker, 'path', { d: 'M0 0 L6 3 L0 6 Z', fill: '#ffd2a6' });
+      renderTerrain(staticLayer, sim, dims);
+      backdropScenario = sc;
+      backdropFootprints = footprints;
+    }
+    clear(dynamicLayer);
+    renderObjectives(dynamicLayer, sim, dims);
+    renderFriendlies(dynamicLayer, sim, faction, dims);
+    renderContacts(dynamicLayer, contacts, dims);
+    renderReports(contacts, dims, sim);
+    if (headerInfo) headerInfo.textContent = (faction === 'us' ? 'UNITED STATES' : 'GERMANY') + ' / INTELLIGENCE VIEW';
+    if (operationalInfo) operationalInfo.textContent = (sc && sc.seed ? 'SCENARIO ' + String(sc.seed).slice(0, 34) : 'FIELD MAP') + ' · ' + dims.width + ' × ' + dims.depth + 'm';
     if (caption)
       caption.textContent =
         faction.toUpperCase() +
