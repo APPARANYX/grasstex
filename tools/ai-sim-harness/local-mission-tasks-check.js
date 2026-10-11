@@ -625,6 +625,9 @@ assert.equal(survey.q.routeIndex, 2, 'single mission owner hands back only after
 const secondWitness = surveyFixture();
 secondWitness.buddy.root.position.x = 0;
 secondWitness.buddy.root.position.z = 200;
+const nativeLOS = secondWitness.r.SquadAI.hasLineOfSight;
+secondWitness.r.SquadAI.hasLineOfSight = (a, b, c, d) =>
+  a !== secondWitness.buddy && nativeLOS(a, b, c, d);
 // A single sentry can visually inspect every sample, but that alone does not
 // establish corroboration. A later second witness may confirm an already
 // observed sector rather than requiring an artificial new fifth sector.
@@ -637,6 +640,7 @@ for (let i = 0; i < 4; i++) {
 }
 assert.equal(secondWitness.q._localTask.inputs.execution.structure.survey.observedSectors, 4);
 assert.equal(secondWitness.q._localTask.inputs.execution.structure.survey.contributors.length, 1);
+secondWitness.r.SquadAI.hasLineOfSight = nativeLOS;
 assert.equal(
   secondWitness.P.entrySatisfied(secondWitness.b, secondWitness.q, secondWitness.q.route[1]),
   false
