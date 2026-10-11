@@ -74,10 +74,9 @@
         }).length !== 1
       )
         return null;
-      var observer = men.filter(function (s) {
-        return s && !s.dead && s.id === sq.leaderId && s.root && point(s.root.position);
-      })[0];
-      if (!observer) return null;
+      var observer = A.leaderOf(sq);
+      if (!observer || men.indexOf(observer) < 0 || !observer.root || !point(observer.root.position))
+        return null;
       var pos = point(observer.root.position),
         within = insideBuilding(b, pos);
       if (!within && Math.hypot(pos.x - target.x, pos.z - target.z) > 80) return null;
