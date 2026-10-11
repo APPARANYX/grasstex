@@ -28,10 +28,11 @@ const { chromium } = require('playwright');
     await page.waitForFunction(() => window.__battle__?.factions && window.BattleTacticalSituation, {
       timeout: 180000
     });
-    await page.waitForTimeout(5000);
+    await page.locator('#startBtn').click();
+    await page.waitForFunction(() => __battle__.time >= 6, null, { timeout: 120000 });
     const cdp = await context.newCDPSession(page);
     await page.evaluate(() => {
-      __battle__.paused = true;
+      __battle__.pause();
       for (let i = 0; i < 50; i++) {
         BattleTacticalSituation.sample(__battle__);
         if (window.BattleUrbanOperatingPicture) BattleUrbanOperatingPicture.sample(__battle__);
@@ -47,7 +48,7 @@ const { chromium } = require('playwright');
     const evidence = await page.evaluate(() => {
       const b = __battle__,
         T = BattleTacticalSituation;
-      b.paused = true;
+      b.pause();
       if (!T.enabled()) throw Error('query flag lost');
       const stable = JSON.stringify(T.compute(b, 'us')) === JSON.stringify(T.compute(b, 'us'));
       const loops = 1000,
@@ -100,7 +101,26 @@ const { chromium } = require('playwright');
     evidence.sampledAllocationBytes = allocated(profile.head);
     /* The viewer is not staged by preview.php. Serve this exact checkout HTML
        on the pinned preview origin; its runtime/source requests use that stage. */
-    const diagnostic = await page.evaluate(() => BattleDiagnosticsExport.snapshot('full', __battle__));
+    const exported = await page.evaluate(() => {
+      const start = performance.now();
+      const diagnostic = BattleDiagnosticsExport.snapshot('full', __battle__);
+      const fullMs = performance.now() - start;
+      const loops = 20,
+        compactStart = performance.now();
+      for (let i = 0; i < loops; i++) BattleDiagnosticsExport.compact(__battle__);
+      return {
+        diagnostic,
+        cost: {
+          fullMs,
+          compactMsPerExport: (performance.now() - compactStart) / loops,
+          fullSerializedBytes: JSON.stringify(diagnostic).length,
+          historyFrames: diagnostic.timeline.observations.frames.length,
+          time: __battle__.time
+        }
+      };
+    });
+    const diagnostic = exported.diagnostic;
+    evidence.diagnostics = exported.cost;
     if (diagnostic.observations) {
       assert.ok(diagnostic.timeline.observations.frames.length > 0, 'enabled history actually collected');
       const flow = await context.newPage();
