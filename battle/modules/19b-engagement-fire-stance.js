@@ -594,7 +594,12 @@
         audit = null;
       if (covered) {
         var threats = C.boundThreats(s, battle);
-        audit = { threats: threats, candidates: 0, samples: 0, reason: 'no-viable-cover' };
+        audit = {
+          threats: threats,
+          candidates: 0,
+          samples: 0,
+          reason: threats.length ? 'no-viable-cover' : 'unknown-contact'
+        };
         threat = threats.length ? { root: { position: threats[0] } } : null;
       }
       /* A bound is a move forward: its cover may sit a little to the side or behind (BOUND_BACK_ALLOW)
