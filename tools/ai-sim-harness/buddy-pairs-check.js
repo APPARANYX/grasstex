@@ -4,13 +4,7 @@
    The Squad Leader owns pair state. Pairs may narrow an already-authorized fireteam bound so one
    already-firing buddy covers the other; they never write destinations or call Movement Resolver. */
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),H=require('./harness');
-const SRC=fs.readFileSync(path.join(H.REPO,'battle/modules/16-squad-plan-stability.js'),'utf8');
-const FC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15a-squad-leader-fire-control.js'), 'utf8');
-const BP_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15b-squad-leader-buddy-pairs.js'), 'utf8');
-const SF_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15c-squad-leader-scouts-forward.js'), 'utf8');
-const LL_SRC=fs.readFileSync(path.join(H.REPO,'battle/modules/15d-squad-leader-leaderless-intent.js'),'utf8');
-const ME_SRC=fs.readFileSync(path.join(H.REPO,'battle/modules/15e-squad-leader-morale-coa.js'),'utf8');
-const FAM_SRC=fs.readFileSync(path.join(H.REPO,'battle/modules/15j-squad-leader-fire-and-movement.js'),'utf8');
+const { loadSquadPlan } = require('./squad-plan-fixture');
 let n=0;function test(name,fn){fn();n++;console.log('PASS '+name);}
 function world(flag){
   H.resetIds();
@@ -21,9 +15,13 @@ function world(flag){
   r.BattleSoldierMind={teamStress(){return 0;},leadStress(){return 0;},squadStress(){return 0;}};
   r.BattleTacticalPositions={current(s){return s&&s._testPositional?{id:'test-position'}:null;}};
   const search='?fireControl=0&coa=0&slStress=0&'+(flag||'buddyPairs=1');
-  new Function('window','globalThis','console','location',FC_SRC)(r,r,{log(){},warn(){}},{search});
-  new Function('window','globalThis','console','location',BP_SRC)(r,r,{log(){},warn(){}},{search}); new Function('window','globalThis','console','location',SF_SRC)(r,r,{log(){},warn(){}},{search}); new Function('window','globalThis','console','location',LL_SRC)(r,r,{log(){},warn(){}},{search}); new Function('window','globalThis','console','location',ME_SRC)(r,r,{log(){},warn(){}},{search}); new Function('window','globalThis','console','location',FAM_SRC)(r,r,{log(){},warn(){}},{search});
-  new Function('window','globalThis','console','location',SRC)(r,r,{log(){},warn(){}},{search});
+  loadSquadPlan(r, {
+    withFireAndMovement: true,
+    submoduleConsole: { log() {}, warn() {} },
+    submoduleLocation: { search },
+    stabilityConsole: { log() {}, warn() {} },
+    stabilityLocation: { search }
+  });
   const b=H.makeBattle(r,{seed:12345}),report={inContact:true,effective:10,pinned:0,reacting:[]};
   r.BattleEngagement.updateSquad=function(sq){
     const was=!!sq.inContact;sq.inContact=report.inContact;
