@@ -1,0 +1,22 @@
+name: PR510 temporary formatter diagnostic
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  formatted-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Format exactly as CI
+        run: |
+          npx --yes prettier@3.3.3 --write battle/modules/15n-squad-leader-local-plan.js tools/ai-sim-harness/local-mission-tasks-check.js
+      - name: Export formatted source for manual review
+        run: |
+          echo 'PR510_SOURCE_BEGIN'
+          base64 -w0 battle/modules/15n-squad-leader-local-plan.js
+          echo
+          echo 'PR510_SOURCE_END'
+          echo 'PR510_TEST_BEGIN'
+          base64 -w0 tools/ai-sim-harness/local-mission-tasks-check.js
+          echo
+          echo 'PR510_TEST_END'
