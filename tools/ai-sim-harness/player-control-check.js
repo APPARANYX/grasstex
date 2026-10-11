@@ -303,8 +303,12 @@ const postureSource = fs.readFileSync(
 );
 assert.match(postureSource, /!s\.isPlayer/, 'the last-known-threat aim posture must not aim a possessed man');
 const backendSource = fs.readFileSync(path.join(H.REPO, 'battle/modules/53-fbx-soldier-backend.js'), 'utf8');
+const animationSource = fs.readFileSync(
+  path.join(H.REPO, 'battle/modules/52-fbx-animation-state.js'),
+  'utf8'
+);
 assert.match(
-  backendSource,
+  animationSource,
   /playerAt = \(soldier\.isPlayer && soldier\.playerAimPoint\) \|\| null/,
   'the FBX aim layer must follow the player crosshair'
 );

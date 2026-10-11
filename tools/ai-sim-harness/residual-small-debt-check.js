@@ -85,7 +85,7 @@ test('combat posture visual passes a static presentation aim point without touch
 test('presentation aim survives the gait wrapper and reaches both animation backends explicitly', () => {
   const individual = fs.readFileSync(path.join(H.REPO, 'battle/modules/11-soldier-individuality.js'), 'utf8');
   const soldier = fs.readFileSync(path.join(H.REPO, 'battle/soldier.js'), 'utf8');
-  const fbx = fs.readFileSync(path.join(H.REPO, 'battle/modules/53-fbx-soldier-backend.js'), 'utf8');
+  const fbx = fs.readFileSync(path.join(H.REPO, 'battle/modules/52-fbx-animation-state.js'), 'utf8');
   const posture = fs.readFileSync(path.join(H.REPO, 'battle/modules/52-combat-posture-visual.js'), 'utf8');
 
   assert.match(individual, /oldAnimate\.call\(this,\s*s,\s*dt,\s*speedFrac,\s*arguments\[3\]\)/);
