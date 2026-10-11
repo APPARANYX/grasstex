@@ -19,7 +19,14 @@ function element(tag) {
     parentNode: null,
     hidden: false,
     style: {},
-    classList: { toggle() {} },
+    classList: { toggle() {}, add() {}, remove() {} },
+    listeners: {},
+    addEventListener(name, listener) {
+      (this.listeners[name] ||= []).push(listener);
+    },
+    removeEventListener(name, listener) {
+      this.listeners[name] = (this.listeners[name] || []).filter(fn => fn !== listener);
+    },
     setAttribute(k, v) {
       this.attrs[k] = String(v);
     },
@@ -122,8 +129,10 @@ const ctx = {
   BATTLE_SCENARIO: {
     map: { width: 2000, depth: 1200 },
     roads: [{ ax: -100, az: 0, bx: 100, bz: 0, width: 10 }],
-    buildings: [{ x: 30, z: 20, w: 15, d: 9 }],
-    objectives: [{ id: 'A', x: 0, z: 100 }]
+    buildings: [{ x: 30, z: 20, w: 15, d: 9, rot: 0 }],
+    settlement: { cx: 0, cz: 10 },
+    seed: 'map-regression',
+    objectives: [{ id: 'A', x: 0, z: 100, label: 'Bridge Strongpoint' }]
   }
 };
 ctx.window = ctx;
@@ -201,6 +210,12 @@ const sim = {
   time: 10,
   factions: { us: { squads: [friendly] }, ge: { squads: [enemy] } },
   objectiveControl: { sectors: { A: { owner: 'ge' } } },
+  obstacles: {
+    __physicalFootprints: [
+      { x: -350, z: -130, shape: 'circle', type: 'tree', radius: 2 },
+      { x: 70, z: 40, shape: 'obb', type: 'hedge', ux: 1, uz: 0, hx: 20, hz: 2 }
+    ]
+  },
   reports: {
     us: [seen(10, 9)],
     ge: [{ squad: 'ge-1', targetId: 99, x: -100, z: -90, at: 8, source: 'heard' }]
@@ -241,8 +256,21 @@ assert.equal(M.isOpen(), true, 'M can reopen map');
 M.setOpen(true);
 assert.equal(viewCalls.at(-1), 'us', 'player possession locks enemy intel behind own side');
 assert(registeredSymbols > 0, 'friendly units draw from registered tactical symbol kit');
+assert.equal(M.gridRef({ x: -1000, z: 600 }, { width: 2000, depth: 1200 }), 'A1');
+assert.equal(M.gridRef({ x: 1000, z: -600 }, { width: 2000, depth: 1200 }), 'J6');
+assert.equal(M.gridRef({ x: 0, z: 0 }, { width: 2000, depth: 1200 }), 'F4');
+const tacticalSvg = allNode(body, 'svg');
+assert(tacticalSvg, 'full-screen map SVG is mounted');
+assert.equal(tacticalSvg.attrs.viewBox, '0 0 1000 600', 'full view fits the battlefield');
+M.zoomTo(2);
+assert.equal(tacticalSvg.attrs.viewBox, '250 150 500 300', 'zoom retains map orientation');
+M.resetViewport();
+assert.equal(tacticalSvg.attrs.viewBox, '0 0 1000 600', 'fit returns to complete map');
 function all(n) {
   return [n, ...n.children.flatMap(all)];
+}
+function allNode(n, tag) {
+  return all(n).find(node => node.tag === tag);
 }
 let values = all(body)
   .map(n => n.textContent)
@@ -253,6 +281,18 @@ const units = all(body).filter(n => n.tag === 'g' && /gtm-friendly/.test(n.attrs
 const reports = all(body).filter(n => n.tag === 'g' && /gtm-enemy/.test(n.attrs.class || ''));
 assert.equal(units.length, 1);
 assert.equal(reports.length, 1);
+const grid = all(body).filter(n => n.attrs.class === 'gtm-coordinate-grid');
+const cover = all(body).filter(n => n.attrs.class === 'gtm-cover');
+const reportRows = all(body).filter(n => n.className === 'gtm-report-row');
+assert.equal(grid.length, 1, 'grid was rendered from world scale');
+assert.equal(cover.length, 1, 'the actual terrain cover layer is rendered');
+assert.equal(reportRows.length, 1, 'real faction reports populate the sidebar');
+assert(values.includes('Bridge Strongpoint'), 'labels use scenario objective metadata');
+assert(values.includes('RECENT REPORTS'), 'full-screen intel rail is present');
+const previousStatic = all(body).find(n => n.attrs.class === 'gtm-static-map');
+M.render();
+assert.equal(all(body).find(n => n.attrs.class === 'gtm-static-map'), previousStatic,
+  'expensive paper/cartographic terrain is cached across report refreshes');
 
 friendly.members[0].isPlayer = false;
 M.setOpen(false);
