@@ -1201,6 +1201,33 @@
     payload.squads.forEach(function (sq) {
       lines.push('### ' + sq.faction.toUpperCase() + ' / ' + sq.id, '', markdownJson(sq));
     });
+    if (payload.observations) {
+      lines.push(
+        '',
+        '## Tactical observations',
+        '',
+        'On-demand at simulation time ' +
+          mdValue(payload.observations.time) +
+          ' s. Presence and LOS sample points do not establish clearance.',
+        '',
+        '| Side | Posture | Reported contacts | Reserves | Building footprints | Structure control |',
+        '| --- | --- | ---: | ---: | ---: | --- |'
+      );
+      ['us', 'ge'].forEach(function (side) {
+        var t = payload.observations.tacticalSituation && payload.observations.tacticalSituation[side],
+          u = payload.observations.urbanOperatingPicture && payload.observations.urbanOperatingPicture[side];
+        lines.push(
+          tableRow([
+            side.toUpperCase(),
+            t && t.forcePosture,
+            t && t.contactCount,
+            t && t.availableReserves,
+            u && u.buildings.length,
+            'unknown'
+          ])
+        );
+      });
+    }
     return lines.join('\n');
   }
   function timelineJsonl(payload) {
@@ -1223,6 +1250,20 @@
     (timeline.markers || []).forEach(function (marker) {
       rows.push(JSON.stringify({ type: 'marker', data: marker }));
     });
+    if (payload.observations)
+      rows.push(JSON.stringify({ type: 'tactical-snapshot', data: payload.observations }));
+    if (timeline.observations) {
+      rows.push(
+        JSON.stringify({
+          type: 'tactical-history',
+          format: timeline.observations.format,
+          omitted: timeline.observations.omitted
+        })
+      );
+      (timeline.observations.frames || []).forEach(function (frame) {
+        rows.push(JSON.stringify({ type: 'tactical-frame', data: frame }));
+      });
+    }
     var observer = timeline.observer || {};
     (observer.windows || []).forEach(function (window) {
       rows.push(
@@ -1390,6 +1431,7 @@
     snapshot: snapshot,
     download: download,
     downloadCompact: downloadCompact,
+    timelineJsonl: timelineJsonl,
     exportCurrent: function (sim) {
       return download('full', sim);
     },
