@@ -393,6 +393,7 @@
           handoff: confirmed ? 'interior-observation-required' : 'awaiting-physical-entry'
         };
       }
+      var surveyed = surveyOn ? interiorSurvey(sim, sq, b, men, entryEvidence, prior, threats) : null;
       return {
         buildingId: b.id,
         doorwayId: entry.id,
@@ -403,14 +404,8 @@
         clearance: 'not-assessed',
         provenance: 'navigation-door/own-position/reported-beliefs',
         entryEvidence: entryEvidence || undefined,
-        survey: surveyOn ? interiorSurvey(sim, sq, b, men, entryEvidence, prior, threats) : undefined,
-        watch: watchOn
-          ? doorwayWatch(
-              sim, sq, b, entry, men, entryEvidence,
-              interiorSurvey(sim, sq, b, men, entryEvidence, prior, threats),
-              prior, threats
-            )
-          : undefined
+        survey: surveyed || undefined,
+        watch: watchOn ? doorwayWatch(sim, sq, b, entry, men, entryEvidence, surveyed, prior, threats) : undefined
       };
     }
     /* Join actual execution, not a proximity-based substitute for its owner.
