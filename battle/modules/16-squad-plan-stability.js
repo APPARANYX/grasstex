@@ -47,6 +47,9 @@
     ROUTE_TRANSITION_ON = !/[?&]routeTransition=(?:0|off|false)(?:&|#|$)/i.test(
       typeof location !== 'undefined' ? location.search || '' : ''
     );
+  var LEASE_CONFLICTS_ON = /[?&]leaseConflicts=(?:1|on|true)(?:&|#|$)/i.test(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
   /* The Squad Leader's lease kinds. Priority orders them when several are live (what is holding the
      squad most); timer kinds are pure clocks that prune() may end once expired; progress tests are
      read-only answers to "is this hold getting anywhere?" for diagnostics and the AI Graph. */
@@ -165,6 +168,84 @@
     }
   });
 
+  /* One Meso policy. A tactical plan owns its child bounds; a corner pause is a
+     mission-route hold, never permission to cancel a committed firefight. */
+  function boundLeaseBlocker(sq) {
+    if (!sq || sq.state === 'retreat' || leaderlessActive(sq)) return null;
+    var version = missionVersion(sq),
+      regroup = L.get(sq, 'regroup'),
+      recon = L.get(sq, 'recon'),
+      task = sq._reconTask;
+    if (regroup && regroup.data && regroup.data.missionVersion === version) return 'regroup';
+    if (recon && task && task.missionVersion === version) return 'recon';
+    return null;
+  }
+  function leaseConflictDecision(sq, t) {
+    if (!sq || sq.state === 'retreat' || leaderlessActive(sq)) return [];
+    var decisions = [],
+      bound = L.get(sq, 'bound'),
+      blocker = boundLeaseBlocker(sq),
+      plan = sq._engagementPlan,
+      corner = L.get(sq, 'corner-hold');
+    if (blocker && bound && t < bound.until)
+      decisions.push({
+        winner: blocker,
+        loser: 'bound',
+        action: 'release-bound',
+        missionVersion: missionVersion(sq),
+        loserSince: bound.since
+      });
+    if (
+      corner &&
+      t < corner.until &&
+      L.get(sq, 'tactical-plan') &&
+      plan &&
+      (plan.status === 'active' || plan.status === 'quiet') &&
+      plan.missionVersion === missionVersion(sq)
+    )
+      decisions.push({
+        winner: 'tactical-plan',
+        loser: 'corner-hold',
+        action: 'defer-route-hold',
+        missionVersion: missionVersion(sq),
+        loserSince: corner.since,
+        planSerial: plan.serial
+      });
+    return decisions;
+  }
+  function resolveLeaseConflicts(sim, sq) {
+    if (!LEASE_CONFLICTS_ON || !sim || !sq) return [];
+    var decisions = leaseConflictDecision(sq, sim.time),
+      out = [];
+    for (var i = 0; i < decisions.length; i++) {
+      var d = decisions[i],
+        E = root.BattleEngagement;
+      if (d.action === 'release-bound') {
+        if (!E || !E.clearBoundOrders) continue;
+        if (!L.end(sq, 'bound', sim.time, d.winner + ' owns movement')) continue;
+        E.clearBoundOrders(sq);
+      }
+      var table = sq._leases,
+        history = table.conflicts || (table.conflicts = []),
+        last = history[history.length - 1];
+      if (
+        last &&
+        last.winner === d.winner &&
+        last.loser === d.loser &&
+        last.action === d.action &&
+        last.missionVersion === d.missionVersion &&
+        last.loserSince === d.loserSince &&
+        last.planSerial === d.planSerial
+      )
+        continue;
+      var record = Object.assign({ at: +sim.time || 0 }, d);
+      history.push(record);
+      if (history.length > 8) history.shift();
+      telemetry(sim, 'decision-lease-conflict', Object.assign({ faction: sq.faction, squad: sq.id }, record));
+      out.push(record);
+    }
+    return out;
+  }
   var ASSAULT_LEASE = 26,
     DEFENSE_LEASE = 38,
     QUIET_CLOSE = 9,
@@ -1903,6 +1984,9 @@
         telemetry: telemetry,
         detachFled: detachFled,
         updateRecon: updateRecon,
+        resolveLeaseConflicts: resolveLeaseConflicts,
+        boundLeaseBlocker: boundLeaseBlocker,
+        LEASE_CONFLICTS_ON: LEASE_CONFLICTS_ON,
         leaderlessActive: leaderlessActive,
         noteLeaderlessAction: noteLeaderlessAction,
         updateClearContact: updateClearContact,
@@ -2073,6 +2157,7 @@
       for (var i = 0; i < a.length; i++) {
         var q = a[i];
         updateCohesion(sim, q);
+        if (LEASE_CONFLICTS_ON) resolveLeaseConflicts(sim, q);
         executeMission(sim, q, town);
         updatePlan(sim, q);
         L.prune(q, sim.time);
@@ -2220,6 +2305,11 @@
     teamKeyFor: teamKeyFor,
     placeAtSlots: placeAtSlots,
     executeMission: executeMission,
+    leaseConflictsOn: function () {
+      return LEASE_CONFLICTS_ON;
+    },
+    leaseConflictDecision: leaseConflictDecision,
+    resolveLeaseConflicts: resolveLeaseConflicts,
     routeTransitionOn: function () {
       return ROUTE_TRANSITION_ON;
     },

@@ -21,6 +21,7 @@ const { chromium } = require('playwright');
     url.searchParams.set('seed', 'phase-a-observer');
     url.searchParams.set('tacticalSituation', '1');
     url.searchParams.set('urbanPicture', '1');
+    url.searchParams.set('leaseConflicts', '1');
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(String(e)));
@@ -291,6 +292,59 @@ const { chromium } = require('playwright');
       evidence.viewer = { imported: true, legacyCompatible: true, narrowFits: fits, text };
       await flow.close();
     }
+    if (await page.evaluate(() => !!window.BattleSquadStability?.resolveLeaseConflicts)) {
+      await cdp.send('HeapProfiler.collectGarbage');
+      await cdp.send('HeapProfiler.startSampling', {
+        samplingInterval: 1024,
+        includeObjectsCollectedByMajorGC: true,
+        includeObjectsCollectedByMinorGC: true
+      });
+      const conflictBefore = await cdp.send('Runtime.getHeapUsage');
+      evidence.conflicts = await page.evaluate(() => {
+        const b = __battle__,
+          q = b.factions.us.squads[0],
+          L = BattleLeases,
+          S = BattleSquadStability,
+          E = BattleEngagement;
+        if (!S.leaseConflictsOn()) throw Error('conflict flag lost');
+        const gameplay = () =>
+          JSON.stringify([
+            q._macroMission,
+            q.commandPhase,
+            q.route,
+            q.routeIndex,
+            q.objective,
+            q.members.map(s => [s.destination, s.prone, s.crawling, s.tacticalCrouch])
+          ]);
+        const before = gameplay();
+        L.grant(q, 'bound', 'squad-leader', b.time, b.time + 10, 'browser fixture');
+        L.grant(q, 'regroup', 'squad-leader', b.time, b.time + 20, 'browser fixture', 'release', {
+          missionVersion: q._macroMission?.version || 0
+        });
+        E.orderBound(q.members);
+        const loops = 1000,
+          start = performance.now();
+        for (let i = 0; i < loops; i++) S.leaseConflictDecision(q, b.time);
+        const msPerQuery = (performance.now() - start) / loops;
+        S.resolveLeaseConflicts(b, q);
+        if (L.get(q, 'bound') || q.members.some(s => !s.dead && !s.isPlayer && s.eng?.boundOrder))
+          throw Error('conflicting bound was not cleaned up');
+        if (gameplay() !== before) throw Error('resolution changed strategic/route/stance state');
+        return {
+          fixture: 'owner API lease/order fixture on paused real squad; no movement injection',
+          loops,
+          msPerQuery,
+          winner: q._leases.conflicts.at(-1).winner,
+          cleanup: true,
+          nonemptyHistory: q._leases.conflicts.length
+        };
+      });
+      const conflictProfile = await cdp.send('HeapProfiler.stopSampling');
+      await cdp.send('HeapProfiler.collectGarbage');
+      const conflictAfter = await cdp.send('Runtime.getHeapUsage');
+      evidence.conflicts.sampledAllocationBytes = allocated(conflictProfile.profile.head);
+      evidence.conflicts.collectedHeapDeltaBytes = conflictAfter.usedSize - conflictBefore.usedSize;
+    }
     evidence.restart = await page.evaluate(() => {
       const b = __battle__,
         T = BattleTacticalSituation;
@@ -315,6 +369,9 @@ const { chromium } = require('playwright');
       const cleared = T.summary(b).tacticalSituation === null;
       T.sample(b);
       return {
+        conflictsCleared: ['us', 'ge'].every(f =>
+          b.factions[f].squads.every(q => !q._leases?.conflicts?.length)
+        ),
         routeCleared: ['us', 'ge'].every(f =>
           b.factions[f].squads.every(
             q => !q._leases?.live?.['route-transition'] && !q._leases?.observedEnded?.length
@@ -338,6 +395,7 @@ const { chromium } = require('playwright');
       assert.ok(evidence.urban.buildings > 0);
       assert.ok(evidence.urban.visibilityProbes > 0);
     }
+    assert.equal(evidence.restart.conflictsCleared, true);
     assert.equal(evidence.restart.routeCleared, true);
     assert.equal(evidence.restart.historyCleared, true);
     assert.equal(evidence.restart.intentCleared, true);
