@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
-function world() {
+function world(search = '') {
   H.resetIds();
-  const r = H.bootstrap({ modules: false }),
+  const r = H.bootstrap({ modules: false, search }),
     systems = {},
     events = [];
   r.BattleModules = {
@@ -54,7 +54,7 @@ function world() {
   b.time = 1;
   r.BattleSquadStability.executeMission(b, q, null);
   assert.equal(q.routeIndex, 1, 'existing route advancement activates the observer');
-  assert.ok(r.BattleLeases.get(q, 'route-transition'));
+  assert.equal(!!r.BattleLeases.get(q, 'route-transition'), r.BattleSquadStability.routeTransitionOn());
   return { r, b, q, L: r.BattleLeases, S: r.BattleSquadStability, systems, events };
 }
 function gameplay(q) {
@@ -70,6 +70,9 @@ function gameplay(q) {
     }))
   });
 }
+const off = world('?routeTransition=0');
+assert.equal(off.q.routeIndex, 1, 'OFF still advances the real route');
+assert.equal(off.L.get(off.q, 'route-transition'), null);
 const w = world(),
   { r, b, q, L, S } = w;
 const live = L.get(q, 'route-transition');
