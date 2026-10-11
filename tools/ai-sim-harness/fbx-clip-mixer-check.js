@@ -30,16 +30,41 @@ const mixer = owner.create(2);
 assert.notEqual(owner.create(2), mixer, 'mixer state must be per caller');
 
 const S = Math.SQRT1_2;
-const q0 = [0, 0, 0, 1], q90 = [0, S, 0, S], q180 = [0, 1, 0, 0];
+const q0 = [0, 0, 0, 1],
+  q90 = [0, S, 0, S],
+  q180 = [0, 1, 0, 0];
 const flattened = items => Float32Array.from(items.flat());
 const clipA = {
-  key: 'walk', loop: true, duration: 1, frames: 3,
-  channels: [{ rot: flattened([q0, q90, q180]), pos: flattened([[0, 0, 0], [2, 0, 0], [4, 0, 0]]) }]
+  key: 'walk',
+  loop: true,
+  duration: 1,
+  frames: 3,
+  channels: [
+    {
+      rot: flattened([q0, q90, q180]),
+      pos: flattened([
+        [0, 0, 0],
+        [2, 0, 0],
+        [4, 0, 0]
+      ])
+    }
+  ]
 };
 const clipB = {
-  key: 'run', loop: true, duration: 2, frames: 3,
-  channels: [{ rot: flattened([q90.map(x => -x), q90.map(x => -x), q90.map(x => -x)]),
-    pos: flattened([[0, 2, 0], [0, 2, 0], [0, 2, 0]]) }]
+  key: 'run',
+  loop: true,
+  duration: 2,
+  frames: 3,
+  channels: [
+    {
+      rot: flattened([q90.map(x => -x), q90.map(x => -x), q90.map(x => -x)]),
+      pos: flattened([
+        [0, 2, 0],
+        [0, 2, 0],
+        [0, 2, 0]
+      ])
+    }
+  ]
 };
 const clipStop = { key: 'stop', loop: false, duration: 1, frames: 3, channels: [] };
 const layer = { entries: [], fade: 0 };
@@ -63,7 +88,14 @@ near(layer.entries[0].w, 0.75, 'fade-out weight');
 near(b.t, 0.8, 'new clip clock');
 assert.equal(mixer.topEntry(layer), b);
 for (let i = 0; i < 8; i++) {
-  mixer.setClip(layer, { key: 'oneShot' + i, loop: false, duration: 1, frames: 2, channels: [] }, 1, 0.1, true, false);
+  mixer.setClip(
+    layer,
+    { key: 'oneShot' + i, loop: false, duration: 1, frames: 2, channels: [] },
+    1,
+    0.1,
+    true,
+    false
+  );
 }
 assert.equal(layer.entries.length, 4, 'only four concurrent entries retained');
 const stopLayer = { entries: [], fade: 0 };
@@ -78,25 +110,47 @@ assert.equal(mixer.topEntry(stopLayer).w, 1, 'completed fade restores unit weigh
 
 function quat() {
   return {
-    x: 0, y: 0, z: 0, w: 1,
-    set(x, y, z, w) { this.x = x; this.y = y; this.z = z; this.w = w; },
+    x: 0,
+    y: 0,
+    z: 0,
+    w: 1,
+    set(x, y, z, w) {
+      this.x = x;
+      this.y = y;
+      this.z = z;
+      this.w = w;
+    },
     normalize() {
       const d = Math.hypot(this.x, this.y, this.z, this.w) || 1;
-      this.x /= d; this.y /= d; this.z /= d; this.w /= d;
+      this.x /= d;
+      this.y /= d;
+      this.z /= d;
+      this.w /= d;
     }
   };
 }
 function vector() {
   return {
-    x: 0, y: 0, z: 0,
-    set(x, y, z) { this.x = x; this.y = y; this.z = z; },
-    scaleInPlace(k) { this.x *= k; this.y *= k; this.z *= k; }
+    x: 0,
+    y: 0,
+    z: 0,
+    set(x, y, z) {
+      this.x = x;
+      this.y = y;
+      this.z = z;
+    },
+    scaleInPlace(k) {
+      this.x *= k;
+      this.y *= k;
+      this.z *= k;
+    }
   };
 }
 function near(actual, expected, message, epsilon = 1e-6) {
   assert.ok(Math.abs(actual - expected) < epsilon, message + ': ' + actual + ' != ' + expected);
 }
-let q = quat(), p = vector();
+let q = quat(),
+  p = vector();
 let single = { entries: [{ clip: clipA, t: 0.25, w: 1 }] };
 assert.equal(mixer.sampleLayer(single, 0, q, p), 2);
 near(q.y, Math.sin(Math.PI / 8), 'normalized nlerp yaw component', 2e-4);
@@ -105,10 +159,14 @@ near(p.x, 1, 'linear position interpolation');
 near(p.y, 0, 'position isolation');
 const sourceA = Array.from(clipA.channels[0].rot);
 const sourceB = Array.from(clipB.channels[0].rot);
-q = quat(); p = vector();
-const blend = { entries: [
-  { clip: clipA, t: 0.5, w: 0.5 }, { clip: clipB, t: 0.5, w: 0.5 }
-] };
+q = quat();
+p = vector();
+const blend = {
+  entries: [
+    { clip: clipA, t: 0.5, w: 0.5 },
+    { clip: clipB, t: 0.5, w: 0.5 }
+  ]
+};
 assert.equal(mixer.sampleLayer(blend, 0, q, p), 2);
 near(q.y, S, 'sign-aligned quaternion blend');
 near(q.w, S, 'sign-aligned quaternion blend scalar');
@@ -116,10 +174,13 @@ near(p.x, 1, 'weighted A translation');
 near(p.y, 1, 'weighted B translation');
 assert.deepEqual(Array.from(clipA.channels[0].rot), sourceA, 'sampling must not alter source clip A');
 assert.deepEqual(Array.from(clipB.channels[0].rot), sourceB, 'sampling must not alter source clip B');
-q = quat(); p = vector();
+q = quat();
+p = vector();
 assert.equal(mixer.sampleLayer({ entries: [{ clip: clipA, t: 0.3, w: 0 }] }, 0, q, p), 0);
 assert.equal(q.w, 0, 'empty sample must clear output quaternion');
 assert.equal(p.x, 0, 'empty sample must clear output position');
 assert.equal(mixer.sampleLayer({ entries: [{ clip: clipStop, t: 0, w: 1 }] }, 0, q, p), 0);
 
-console.log('PASS #456 R3 FBX clip clocks, phase-preserving transitions, fade normalization, cap, restart, interpolation, quaternion hemisphere, source immutability and empty-channel fallbacks');
+console.log(
+  'PASS #456 R3 FBX clip clocks, phase-preserving transitions, fade normalization, cap, restart, interpolation, quaternion hemisphere, source immutability and empty-channel fallbacks'
+);
