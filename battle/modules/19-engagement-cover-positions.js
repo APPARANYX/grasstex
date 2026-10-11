@@ -114,12 +114,14 @@
       }
       var steps = Math.ceil(d / boundTuning.sampleSpacing),
         step = d / steps,
-        exposed = 0;
+        exposed = 0,
+        boundEye = SA().eyeHeight({ crouching: true }),
+        threatEye = SA().eyeHeight({}); // Standing height from Perception, never a hidden unit's stance.
       for (var i = 0; i <= steps; i++) {
         var t = i / steps,
           at = { x: p.x + (point.x - p.x) * t, z: p.z + (point.z - p.z) * t },
           concealed = true;
-        at.y = battle.heightAt(at.x, at.z) + 1.05;
+        at.y = battle.heightAt(at.x, at.z) + boundEye;
         if (!Number.isFinite(at.y)) {
           result.reason = 'unknown-geometry';
           return result;
@@ -128,7 +130,7 @@
           var threat = {
             x: threats[j].x,
             z: threats[j].z,
-            y: battle.heightAt(threats[j].x, threats[j].z) + 1.45
+            y: battle.heightAt(threats[j].x, threats[j].z) + threatEye
           };
           result.samples++;
           if (!Number.isFinite(threat.y)) {
