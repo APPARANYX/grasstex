@@ -639,6 +639,7 @@
         ? safePlain(root.BattleLeases.active(sq, sq._battleSim ? +sq._battleSim.time || 0 : 0), 4)
         : null,
       recentLeases: safePlain(sq._leases && sq._leases.ended, 4),
+      recentObservedLeases: safePlain(sq._leases && sq._leases.observedEnded, 5),
       missionHeldBy: sq._missionHold || null,
       missionExecution: sq._missionExecution
         ? {
