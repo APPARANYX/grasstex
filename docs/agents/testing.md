@@ -339,3 +339,5 @@ node scripts/check_clip_pack.cjs               # prepared-clips.bin matches the 
 for r in scripts/recipes/*.json; do python3 scripts/slice_weapon_shots.py "$r" --check-only; done
 bash scripts/normalize_audio.sh Assets/audio && git diff --quiet -- Assets/audio   # needs ffmpeg
 ```
+
+**Damage range lifetime (audit #456 R5):** `98-damage-range.js` keeps opt-in bootstrap and pure helpers; `97z-damage-range-session.js` owns lineup, shipped shot dispatch and presentation ticks, `97z-damage-range-view.js` owns cameras and pointer/gamepad aim, `97z-damage-range-panel.js` owns live DOM controls, and `97z-damage-range-lifetime.js` cancels timers, listeners, observers and resources on scene disposal. Both PHP loaders gate the whole group behind `damageRange=1` (or `devModules=1`). `damage-range-lifecycle-check.js` checks cancellation and control leases; `probe_damage_range.cjs` exercises actual canvas aiming, UV wounds, reload reset and scene teardown in Chromium.

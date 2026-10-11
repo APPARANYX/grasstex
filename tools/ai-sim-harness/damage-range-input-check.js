@@ -74,8 +74,10 @@ assert.deepEqual(input.pad(pad(7), true, released.buttons).actions, ['fire'], 'R
 assert.deepEqual(input.pad(pad(0, 7), false, {}).actions, ['fire'], 'A fires in orbit');
 assert.deepEqual(input.pad(pad(0, 7), true, {}).actions, ['fire', 'fire'], 'A and RT both fire in FPS');
 assert.equal(Object.keys(first.buttons).length, 17, 'unbound buttons are still tracked every frame');
-assert.match(source, /commands\.actions\.forEach\(applyRangeAction\)/, 'gamepad wired to dispatcher');
-assert.match(source, /applyRangeAction\(action\)/, 'keyboard wired to dispatcher');
+const view = fs.readFileSync(path.join(__dirname, '../../battle/modules/97z-damage-range-view.js'), 'utf8');
+const panel = fs.readFileSync(path.join(__dirname, '../../battle/modules/97z-damage-range-panel.js'), 'utf8');
+assert.match(view, /commands\.actions\.forEach\(deps\.applyRangeAction\)/, 'gamepad wired to dispatcher');
+assert.match(panel, /applyRangeAction\(action\)/, 'keyboard wired to dispatcher');
 assert.ok(!source.includes('padOnce('), 'old mutable decoder removed');
 console.log(
   'PASS #456 R5 keyboard, axes, Xbox edge leases, simultaneous command order and dispatcher wiring'

@@ -62,7 +62,7 @@ $damageRangeRequested = $allDevModules || (isset($_GET['damageRange']) && $_GET[
 $moduleAllowed = static function ($name) use ($graphUiOnlyModules, $graphUiRequested, $deviceBenchRequested, $damageRangeRequested) {
     if (isset($graphUiOnlyModules[$name])) return $graphUiRequested;
     if ($name === '97-device-benchmark.js') return $deviceBenchRequested;
-    if ($name === '98-damage-range.js') return $damageRangeRequested;
+    if (in_array($name, array('97z-damage-range-lifetime.js','97z-damage-range-panel.js','97z-damage-range-session.js','97z-damage-range-view.js','98-damage-range.js'), true)) return $damageRangeRequested;
     return true;
 };
 
