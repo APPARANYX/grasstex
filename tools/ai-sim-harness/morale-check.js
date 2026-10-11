@@ -26,12 +26,7 @@ const assert = require('node:assert/strict'),
   fs = require('node:fs'),
   path = require('node:path'),
   H = require('./harness');
-const SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/16-squad-plan-stability.js'), 'utf8');
-const FC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15a-squad-leader-fire-control.js'), 'utf8');
-const BP_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15b-squad-leader-buddy-pairs.js'), 'utf8');
-const SF_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15c-squad-leader-scouts-forward.js'), 'utf8');
-const LL_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15d-squad-leader-leaderless-intent.js'), 'utf8');
-const ME_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15e-squad-leader-morale-coa.js'), 'utf8');
+const { loadSquadPlan } = require('./squad-plan-fixture');
 const SEED = +(process.env.HARNESS_SEED || 12345);
 let n = 0;
 function test(name, fn) {
@@ -58,12 +53,10 @@ function world(search) {
       return { cohesionRadius: 34, captainlessCohesion: 26 };
     }
   };
-  new Function('window', 'globalThis', 'console', 'location', FC_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', BP_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SF_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', LL_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', ME_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SRC)(
-    r,
-    r,
-    { log() {}, warn() {} },
-    search == null ? undefined : { search }
-  );
+  loadSquadPlan(r, {
+    stabilityConsole: { log() {}, warn() {} },
+    stabilityLocation: search == null ? undefined : { search }
+  });
   const b = H.makeBattle(r, { seed: SEED });
   return { r, b, S: r.BattleSquadStability, made: 0 };
 }
@@ -82,7 +75,8 @@ function decide(w, dead, stress, prior, opts) {
     s.dead = true;
   });
   sq.state = prior || 'advance';
-  if (stress != null) sq.mind = { mean: stress, max: opts && opts.max != null ? opts.max : stress, n: 10 - dead };
+  if (stress != null)
+    sq.mind = { mean: stress, max: opts && opts.max != null ? opts.max : stress, n: 10 - dead };
   w.r.SquadAI.updateSquad(sq, null);
   return sq.state;
 }
@@ -90,9 +84,18 @@ const flat = (dead, prior) => (dead / 10 >= 0.6 ? 'retreat' : 'advance');
 const STRESSES = [0, 0.05, 0.1, 0.15, 0.22, 0.34, 0.5, 0.7, 1];
 
 test('?morale=0 is the only flag that turns morale off, and it is on by default', () => {
-  const parsed = ['', '?seed=1', '?morale=1', '?x=1&morale=0', '?morale=0&x=1', '?morale=10', '?morale=0', '?xmorale=0', '?coa=1', '?coa=0'].map(
-    q => [world(q).S.moraleOn(), world(q).S.coaOn()]
-  );
+  const parsed = [
+    '',
+    '?seed=1',
+    '?morale=1',
+    '?x=1&morale=0',
+    '?morale=0&x=1',
+    '?morale=10',
+    '?morale=0',
+    '?xmorale=0',
+    '?coa=1',
+    '?coa=0'
+  ].map(q => [world(q).S.moraleOn(), world(q).S.coaOn()]);
   assert.deepEqual(parsed, [
     [true, true],
     [true, true],
@@ -105,7 +108,11 @@ test('?morale=0 is the only flag that turns morale off, and it is on by default'
     [true, true],
     [true, false]
   ]);
-  assert.equal(world(null).S.moraleOn(), true, 'with no location at all (the Node harness) it is on, like the page');
+  assert.equal(
+    world(null).S.moraleOn(),
+    true,
+    'with no location at all (the Node harness) it is on, like the page'
+  );
   assert.equal(world('').S.tuning.morale.breakBase, 0.6, 'the calm-men threshold is the flat 60%');
 });
 
@@ -156,8 +163,13 @@ test('flag on: where stress makes a squad break earlier than the flat rule (the 
     9: null,
     10: null
   });
-  assert.ok(w.S.moraleBreakAt(1) > w.S.tuning.morale.breakMin, 'breakMin (0.25) is below the lowest threshold (0.3), so it never binds');
-  console.log('     first mean stress at which morale breaks a squad the flat rule keeps: ' + JSON.stringify(first));
+  assert.ok(
+    w.S.moraleBreakAt(1) > w.S.tuning.morale.breakMin,
+    'breakMin (0.25) is below the lowest threshold (0.3), so it never binds'
+  );
+  console.log(
+    '     first mean stress at which morale breaks a squad the flat rule keeps: ' + JSON.stringify(first)
+  );
 });
 
 test('flag on: a squad the flat rule keeps is retreating from 5 casualties at mean stress 0.34, not at 0.33', () => {
@@ -174,7 +186,11 @@ test('flag on: rally needs calm men and a gap below the break threshold; a flat 
   const w = world('?morale=1');
   for (let dead = 6; dead <= 9; dead++)
     for (const s of [0, 0.05, 0.1, 0.14])
-      assert.equal(decide(w, dead, s, 'retreat'), 'retreat', `${dead} dead, calm (${s}): the flat rule broke it and only a merge undoes that`);
+      assert.equal(
+        decide(w, dead, s, 'retreat'),
+        'retreat',
+        `${dead} dead, calm (${s}): the flat rule broke it and only a merge undoes that`
+      );
   for (const dead of [4, 5]) {
     assert.equal(decide(w, dead, 0.1, 'retreat'), 'advance', `${dead} dead and calm: rallies`);
     assert.equal(decide(w, dead, 0.14, 'retreat'), 'advance');
@@ -206,7 +222,11 @@ test('no flip for any casualty count and stress: whatever rallies does not break
         after = decide(w, dead, s, 'retreat');
       if (after !== 'retreat') {
         rallies++;
-        assert.equal(decide(w, dead, s, after), after, `${dead} dead, stress ${s}: rallied and broke on the same inputs`);
+        assert.equal(
+          decide(w, dead, s, after),
+          after,
+          `${dead} dead, stress ${s}: rallied and broke on the same inputs`
+        );
       }
     }
   assert.ok(rallies > 0);
@@ -220,7 +240,8 @@ test('flag on: a merged squad (10 living on an establishment of 10) stays in ret
     assert.equal(decide(on, 0, s, 'retreat', { establishment: 10 }), 'retreat', 'flag on, stress ' + s);
     assert.equal(decide(off, 0, s, 'retreat', { establishment: 10 }), 'advance', 'flag off, stress ' + s);
   }
-  for (const s of [0, 0.05, 0.14]) assert.equal(decide(on, 0, s, 'retreat', { establishment: 10 }), 'advance', 'flag on, calm ' + s);
+  for (const s of [0, 0.05, 0.14])
+    assert.equal(decide(on, 0, s, 'retreat', { establishment: 10 }), 'advance', 'flag on, calm ' + s);
   /* A squad that was not merged (still on its old establishment) has the same rule: only casualties count. */
   assert.equal(decide(on, 0, 0.3, 'retreat'), 'retreat');
 });
@@ -234,12 +255,19 @@ test('the mean is the only stress read: the max, or an absent roll-up, changes n
 
 test('the numbers are the layer tuning, read live (BattleSquadStability.tuning.morale)', () => {
   const w = world('?morale=1');
-  assert.deepEqual(w.S.tuning.morale, { breakBase: 0.6, breakSlope: 0.3, breakMin: 0.25, rallyStress: 0.15, rallyGap: 0.05 });
+  assert.deepEqual(w.S.tuning.morale, {
+    breakBase: 0.6,
+    breakSlope: 0.3,
+    breakMin: 0.25,
+    rallyStress: 0.15,
+    rallyGap: 0.05
+  });
   assert.equal(decide(w, 4, 0.3, 'advance'), 'advance');
   w.S.tuning.morale.breakSlope = 0.9; /* the diagnostic arm's dose: a squad at stress 0.3 breaks at 0.33 */
   assert.equal(decide(w, 4, 0.3, 'advance'), 'retreat');
   const v = world('?morale=1');
-  v.S.tuning.morale.rallyGap = -0.2; /* a negative gap lifts the ceiling past the flat break: only a dose, never shipped */
+  v.S.tuning.morale.rallyGap =
+    -0.2; /* a negative gap lifts the ceiling past the flat break: only a dose, never shipped */
   assert.equal(decide(v, 6, 0.1, 'retreat'), 'advance');
 });
 

@@ -23,13 +23,7 @@ const assert = require('node:assert/strict'),
   fs = require('node:fs'),
   path = require('node:path'),
   H = require('./harness');
-const SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/16-squad-plan-stability.js'), 'utf8');
-const FC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15a-squad-leader-fire-control.js'), 'utf8');
-const BP_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15b-squad-leader-buddy-pairs.js'), 'utf8');
-const SF_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15c-squad-leader-scouts-forward.js'), 'utf8');
-const LL_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15d-squad-leader-leaderless-intent.js'), 'utf8');
-const ME_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15e-squad-leader-morale-coa.js'), 'utf8');
-const FAM_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15j-squad-leader-fire-and-movement.js'), 'utf8');
+const { loadSquadPlan } = require('./squad-plan-fixture');
 const SEED = +(process.env.HARNESS_SEED || 12345);
 const log = console.log;
 console.log = (...a) => (typeof a[0] === 'string' && a[0][0] === '[' ? undefined : log(...a));
@@ -74,9 +68,21 @@ function world(flags) {
     }
   };
   const search = '?fireControl=0' + (flags == null ? '' : '&' + flags);
-  new Function('window', 'globalThis', 'console', 'location', FC_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', BP_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SF_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', LL_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', ME_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', FAM_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SRC)(r, r, { log() {}, warn() {} }, { search });
+  loadSquadPlan(r, {
+    withFireAndMovement: true,
+    stabilityConsole: { log() {}, warn() {} },
+    stabilityLocation: { search }
+  });
   const b = H.makeBattle(r, { seed: SEED }),
-    w = { r, b, S: r.BattleSquadStability, events, sent, made: 0, report: { inContact: false, effective: 6, pinned: 0 } };
+    w = {
+      r,
+      b,
+      S: r.BattleSquadStability,
+      events,
+      sent,
+      made: 0,
+      report: { inContact: false, effective: 6, pinned: 0 }
+    };
   r.BattleEngagement.updateSquad = function (sq) {
     const was = !!sq.inContact;
     sq.inContact = w.report.inContact;
@@ -97,7 +103,13 @@ function world(flags) {
 /* A ten-man squad in fireteams alpha/bravo/charlie (member i in TEAMS[i % 3]), each team's men at `stress[team]`. */
 function squad(w, stress, opts) {
   opts = opts || {};
-  const sq = H.addSquad(w.r, w.b, { id: 'us-' + w.made++, faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 } });
+  const sq = H.addSquad(w.r, w.b, {
+    id: 'us-' + w.made++,
+    faction: 'us',
+    x: 0,
+    z: 0,
+    objective: { x: 0, z: 100 }
+  });
   sq.members.forEach((s, i) => {
     s._fireteamKey = TEAMS[i % 3];
     s.mind = { stress: (stress && stress[s._fireteamKey]) || 0 };
@@ -195,7 +207,13 @@ test('hold: every team at the shaken band holds the cycle; one under it and the 
 });
 
 function brief(sq, action, version) {
-  sq._macroMission = { version: version || 1, intent: action, action, point: { x: 0, z: 100 }, status: 'executing' };
+  sq._macroMission = {
+    version: version || 1,
+    intent: action,
+    action,
+    point: { x: 0, z: 100 },
+    status: 'executing'
+  };
 }
 const reviews = sq => (sq._macroMissionRequest && sq._macroMissionRequest.why === 'squad stress' ? 1 : 0);
 
