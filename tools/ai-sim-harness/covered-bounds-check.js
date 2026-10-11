@@ -110,6 +110,43 @@ assert.equal(
   'existing resolver receives the actual Micro movement proposal'
 );
 assert.deepEqual(w.s._movementResolver.combat.point, { x: e.cover.x, z: e.cover.z });
+const finish = { x: e.cover.x, z: e.cover.z },
+  start = { x: w.s.root.position.x, z: w.s.root.position.z };
+const enemy = H.addSquad(w.r, w.b, {
+  id: 'ge-fire',
+  faction: 'ge',
+  x: 0,
+  z: 60,
+  objective: { x: 0, z: -50 },
+  composition: ['rifleman']
+}).members[0];
+w.s.target = enemy;
+for (let i = 0; i < 80; i++) {
+  w.b.time += 0.15;
+  w.E.updateSoldier(w.s, w.b);
+  w.r.BattleMovementResolver.resolve(w.s, w.b);
+  H.stepMovement(w.b, w.s, 0.15);
+}
+assert.ok(
+  Math.hypot(w.s.root.position.x - finish.x, w.s.root.position.z - finish.z) < 0.45,
+  'shipping movement executor reaches the adopted cover'
+);
+assert.ok(
+  Math.hypot(w.s.root.position.x - start.x, w.s.root.position.z - start.z) > 0.75,
+  'positive fixture makes physical progress'
+);
+assert.ok(w.b.events.fired > 0, 'existing Engagement resumes real firing after the covered bound');
+console.log(
+  'covered bound causal execution: ' +
+    JSON.stringify({
+      metres: Math.hypot(w.s.root.position.x - start.x, w.s.root.position.z - start.z),
+      arrivedDistance: Math.hypot(w.s.root.position.x - finish.x, w.s.root.position.z - finish.z),
+      shots: w.b.events.fired,
+      state: e.state
+    })
+);
+// Restore simulation time/contact for subsequent independent geometry checks.
+w.b.time = 5;
 const unavailable = world();
 unavailable.q._assaultAuthorized = false;
 assert.equal(
