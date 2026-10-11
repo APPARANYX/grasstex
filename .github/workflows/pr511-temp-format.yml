@@ -1,0 +1,21 @@
+name: PR511 temporary format diagnostic
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Produce CI-standard formatted files
+        run: npx --yes prettier@3.3.3 --write battle/modules/15n-squad-leader-local-plan.js tools/ai-sim-harness/local-mission-tasks-check.js
+      - name: Export formatted source
+        run: |
+          echo 'PR511_SOURCE_BEGIN'
+          base64 -w0 battle/modules/15n-squad-leader-local-plan.js
+          echo
+          echo 'PR511_SOURCE_END'
+          echo 'PR511_TEST_BEGIN'
+          base64 -w0 tools/ai-sim-harness/local-mission-tasks-check.js
+          echo
+          echo 'PR511_TEST_END'
