@@ -36,6 +36,7 @@ on:
       - 'tools/ai-sim-harness/fbx-rig-canon-check.js'
       - 'scripts/probe_camera_menu.cjs'
       - 'scripts/probe_camera_touch_gamepad.cjs'
+      - 'scripts/probe_camera_soak.cjs'
       - '.github/workflows/player-settings-browser-qa.yml'
   workflow_dispatch:
 
@@ -57,6 +58,7 @@ jobs:
         run: |
           php -l battle_sim_local.php
           node --check scripts/probe_camera_menu.cjs
+          node --check scripts/probe_camera_soak.cjs
       - name: Install Playwright Chromium
         run: |
           npm install --global playwright@1.56.1
@@ -83,6 +85,11 @@ jobs:
           CAMERA_MENU_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
           CAMERA_TOUCH_OUT: closeups/camera-touch-ci
         run: node scripts/probe_camera_touch_gamepad.cjs
+      - name: Exercise live possession and restart heap/FPS soak
+        env:
+          CAMERA_SOAK_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          CAMERA_SOAK_OUT: closeups/camera-soak-ci
+        run: node scripts/probe_camera_soak.cjs
       - name: Preserve browser evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -92,4 +99,5 @@ jobs:
           path: |
             closeups/camera-menu-ci/
             closeups/camera-touch-ci/
+            closeups/camera-soak-ci/
             ${{ runner.temp }}/player-settings-php.log
