@@ -57,6 +57,14 @@ const doc = {
 let system = null,
   viewCalls = [],
   registeredSymbols = 0;
+const keyListeners = [];
+const cameraSource = fs.readFileSync(path.join(__dirname, '../../battle/camera-controls.js'), 'utf8');
+assert(
+  cameraSource.includes("padPressedOnce(pad, 15)") &&
+    cameraSource.includes('tacticalMap.isOpen()') &&
+    cameraSource.includes('tacticalMap.setOpen(!tacticalMap.isOpen())'),
+  'gamepad D-pad right toggles the map and stops FPS input while open'
+);
 const infantry = {
   frame: { tag: 'rect', attrs: { x: -27, y: -16, width: 54, height: 32, class: 'sso-frame' } },
   primitives: [{ tag: 'path', attrs: { d: 'M-24 -13 L24 13', class: 'sso-symbol-stroke' } }],
@@ -65,6 +73,13 @@ const infantry = {
 const ctx = {
   console,
   document: doc,
+  addEventListener(name, fn, capture) {
+    if (name === 'keydown' && capture) keyListeners.push(fn);
+  },
+  removeEventListener(name, fn) {
+    const index = keyListeners.indexOf(fn);
+    if (index >= 0) keyListeners.splice(index, 1);
+  },
   BattleModules: {
     registerSystem(id, spec) {
       system = { id, spec };
@@ -193,6 +208,32 @@ const sim = {
 };
 assert.equal(M.playerSide(sim), 'us');
 system.spec.onBattleStart(sim);
+assert.equal(M.isOpen(), false, 'the map defaults hidden: never a persistent minimap');
+assert.equal(keyListeners.length, 1, 'one global M-key listener');
+function press(key, options = {}) {
+  const input = {
+    key,
+    target: { tagName: 'CANVAS' },
+    prevented: false,
+    stopped: false,
+    preventDefault() { this.prevented = true; },
+    stopImmediatePropagation() { this.stopped = true; },
+    ...options
+  };
+  keyListeners[0](input);
+  return input;
+}
+assert.equal(press('m').prevented, true, 'M consumes keyboard default');
+assert.equal(M.isOpen(), true, 'M opens the full tactical map');
+assert.equal(press('p').stopped, true, 'player possession shortcuts cannot leak through map');
+assert.equal(press('m', { repeat: true }).stopped, true, 'key repeat does not close map');
+assert.equal(M.isOpen(), true);
+assert.equal(press('Escape').stopped, true, 'Escape closes map before camera handlers');
+assert.equal(M.isOpen(), false);
+press('m', { target: { tagName: 'INPUT' } });
+assert.equal(M.isOpen(), false, 'typing in editable field does not open the map');
+press('m');
+assert.equal(M.isOpen(), true, 'M can reopen map');
 M.setOpen(true);
 assert.equal(viewCalls.at(-1), 'us', 'player possession locks enemy intel behind own side');
 assert(registeredSymbols > 0, 'friendly units draw from registered tactical symbol kit');
@@ -223,5 +264,6 @@ system.spec.onBattleRestart(sim);
 M.setOpen(true);
 assert.equal(viewCalls.at(-1), 'ge', 'restart keeps selection, not stale sighting data');
 M.dispose();
+assert.equal(keyListeners.length, 0, 'map keyboard listener is removed on dispose');
 assert.equal(all(body).filter(n => n.tag === 'section').length, 0, 'dispose removes panel');
 console.log('tactical-map-check: PASS');
