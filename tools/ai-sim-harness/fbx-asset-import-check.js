@@ -22,8 +22,15 @@ for (const name of ['assetBase', 'ensureLoader', 'loadContainer', 'loadClipFiles
 const injected = [];
 let installed = false;
 const documents = {
-  createElement: type => { assert.equal(type, 'script'); return { async: false, src: '', onload: null }; },
-  head: { appendChild: el => { injected.push(el); } }
+  createElement: type => {
+    assert.equal(type, 'script');
+    return { async: false, src: '', onload: null };
+  },
+  head: {
+    appendChild: el => {
+      injected.push(el);
+    }
+  }
 };
 const sandbox = { window: {}, document: documents, console, Promise };
 vm.runInNewContext(source, sandbox, { filename: helperFile });
@@ -33,7 +40,10 @@ vm.runInNewContext(source, sandbox, { filename: helperFile });
 assert.equal(sandbox.window.BattleFbxAssetImport, ctor, 'module install must be idempotent');
 
 const timeline = [];
-let parseCount = 0, rigCount = 0, progress = 0, tick = 0;
+let parseCount = 0,
+  rigCount = 0,
+  progress = 0,
+  tick = 0;
 const objects = [];
 const babylon = {
   Engine: { Version: '7.55.0' },
@@ -44,7 +54,9 @@ const babylon = {
     timeline.push(['parse', url]);
     const c = {
       url,
-      dispose() { timeline.push(['dispose', url]); }
+      dispose() {
+        timeline.push(['dispose', url]);
+      }
     };
     objects.push(c);
     return c;
@@ -57,7 +69,10 @@ const api = ctor.create({
   assetLoaded: (kind, file, url, t0) => timeline.push(['loaded', kind, file, url, t0]),
   assetAdd: (...args) => timeline.push(['add', ...args]),
   CLIPS: { idle: ['idle-fbx', true], moving: ['moving-fbx', true], alt: ['moving-fbx', false] },
-  sourceRig: c => { rigCount++; return { bones: ['hips', 'arm'], file: c.url }; },
+  sourceRig: c => {
+    rigCount++;
+    return { bones: ['hips', 'arm'], file: c.url };
+  },
   convertClip: (c, key, spec, bones) => {
     timeline.push(['convert', key, spec[0], bones.length]);
     return { key, file: c.url };
@@ -89,12 +104,16 @@ assert.equal(api.assetBase(), '../Assets/');
   assert.equal(direct.url, '/test.fbx');
   assert.equal(parseCount, 1);
   assert.deepEqual(timeline.slice(0, 2), [
-    ['parse', '/test.fbx'], ['loaded', 'model', 'soldier.fbx', '/test.fbx', 1]
+    ['parse', '/test.fbx'],
+    ['loaded', 'model', 'soldier.fbx', '/test.fbx', 1]
   ]);
   const st = { src: null, bones: null };
   const byFile = { 'moving-fbx': ['moving', 'alt'], 'idle-fbx': ['idle'] };
   const converted = await api.loadClipFiles('scene', st, '../Assets/', byFile, () => progress++);
-  assert.deepEqual(Array.from(converted, c => c.key), ['moving', 'alt', 'idle']);
+  assert.deepEqual(
+    Array.from(converted, c => c.key),
+    ['moving', 'alt', 'idle']
+  );
   assert.deepEqual(Array.from(st.bones), ['hips', 'arm']);
   assert.equal(rigCount, 1, 'first available animation establishes the source rig');
   assert.equal(parseCount, 3, 'one FBX load per file, not per clip key');
@@ -114,17 +133,30 @@ assert.equal(api.assetBase(), '../Assets/');
     assetAdd: (...args) => timeline.push(['add', ...args]),
     CLIPS: { fail: ['broken', true] },
     sourceRig: () => ({ bones: ['hips'] }),
-    convertClip: () => { throw new Error('invalid animation'); }
+    convertClip: () => {
+      throw new Error('invalid animation');
+    }
   });
   let cleaned = 0;
   const oldLoad = babylon.LoadAssetContainerAsync;
-  babylon.LoadAssetContainerAsync = async () => ({ dispose() { cleaned++; } });
+  babylon.LoadAssetContainerAsync = async () => ({
+    dispose() {
+      cleaned++;
+    }
+  });
   let callback = 0;
-  await assert.rejects(broken.loadClipFiles('scene', { src: null }, '../Assets/', { broken: ['fail'] }, () => callback++),
-    /invalid animation/);
+  await assert.rejects(
+    broken.loadClipFiles('scene', { src: null }, '../Assets/', { broken: ['fail'] }, () => callback++),
+    /invalid animation/
+  );
   assert.equal(cleaned, 1, 'failed raw FBX converter must still dispose imported container');
   assert.equal(callback, 1, 'failed fallback still advances progress');
   babylon.LoadAssetContainerAsync = oldLoad;
 
-  console.log('PASS #456 R3 FBX loader promise dedup, exact Babylon loader URL, source fallback grouping/disposal, independent asset accounting and error cleanup');
-})().catch(e => { console.error(e); process.exitCode = 1; });
+  console.log(
+    'PASS #456 R3 FBX loader promise dedup, exact Babylon loader URL, source fallback grouping/disposal, independent asset accounting and error cleanup'
+  );
+})().catch(e => {
+  console.error(e);
+  process.exitCode = 1;
+});
