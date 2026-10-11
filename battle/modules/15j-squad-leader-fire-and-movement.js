@@ -24,6 +24,7 @@
       resolveLeaseConflicts = ctx.resolveLeaseConflicts,
       boundLeaseBlocker = ctx.boundLeaseBlocker,
       LEASE_CONFLICTS_ON = ctx.LEASE_CONFLICTS_ON === true,
+      localPlan = ctx.localPlan,
       leaderlessActive = ctx.leaderlessActive,
       noteLeaderlessAction = ctx.noteLeaderlessAction,
       updateClearContact = ctx.updateClearContact,
@@ -75,7 +76,8 @@
       if (!r) return;
       if (r.fled && r.fled.length && sq.fledId == null) detachFled(sq, battle, r.fled);
       updateRecon(sq, battle, r);
-      if (LEASE_CONFLICTS_ON) resolveLeaseConflicts(battle, sq);
+      var localTask = localPlan && localPlan.on ? localPlan.update(battle, sq, r) : null;
+      if (LEASE_CONFLICTS_ON || (localPlan && localPlan.on)) resolveLeaseConflicts(battle, sq);
       if (leaderlessActive(sq) && sq.state !== 'retreat') {
         var inheritedBound = L.get(sq, 'bound');
         if (!L.holds(sq, 'bound', battle.time)) E.clearBoundOrders(sq);
@@ -129,6 +131,8 @@
       if (COA_ON) updateCOA(sq);
       sq._assaultAuthorized = !!ASSAULT_PHASES[sq.commandPhase || ''];
       if (LEASE_CONFLICTS_ON && boundLeaseBlocker(sq)) sq._assaultAuthorized = false;
+      if (localPlan && localPlan.on && (!localTask || !localTask.boundsAllowed || boundLeaseBlocker(sq)))
+        sq._assaultAuthorized = false;
       /* 3c: the COA gates bounding. Defend holds position (no bounds); assault bounds only if the
        phase also allows. The explicit `?coa=0` control never sets sq.coa, so this is a no-op there. */
       if (COA_ON && sq.coa && COAS[sq.coa] && !COAS[sq.coa].bounds) sq._assaultAuthorized = false;

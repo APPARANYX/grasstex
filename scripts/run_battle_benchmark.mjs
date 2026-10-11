@@ -631,6 +631,8 @@ try {
         if (recon) record.recon = recon;
         const leaderless = root.BattleSquadStability?.leaderlessTelemetry?.(sim);
         if (leaderless) record.leaderless = leaderless;
+        const localPlanning = root.BattleSquadStability?.localPlanTelemetry?.(sim);
+        if (localPlanning) record.localPlanning = localPlanning;
         if (root.BattleGrenades?.on?.()) {
           const current = root.BattleGrenades.summary(sim), start = diag.grenadeStart || {};
           record.grenades = Object.fromEntries(Object.entries(current).filter(([, v]) => typeof v === 'number').map(([k, v]) => [k, v - (start[k] || 0)]));

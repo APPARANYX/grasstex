@@ -176,6 +176,9 @@
       regroup = L.get(sq, 'regroup'),
       recon = L.get(sq, 'recon'),
       task = sq._reconTask;
+    var local = _lp && _lp.on && sq._localTask;
+    if (local && local.missionVersion === version && (local.kind === 'protect' || local.kind === 'support'))
+      return 'local-' + local.kind;
     if (regroup && regroup.data && regroup.data.missionVersion === version) return 'regroup';
     if (recon && task && task.missionVersion === version) return 'recon';
     return null;
@@ -214,7 +217,7 @@
     return decisions;
   }
   function resolveLeaseConflicts(sim, sq) {
-    if (!LEASE_CONFLICTS_ON || !sim || !sq) return [];
+    if ((!LEASE_CONFLICTS_ON && !(_lp && _lp.on)) || !sim || !sq) return [];
     var decisions = leaseConflictDecision(sq, sim.time),
       out = [];
     for (var i = 0; i < decisions.length; i++) {
@@ -1659,6 +1662,10 @@
         point: point,
         copy: copy,
         commanded: commanded,
+        localReconAllowed: function (sq, sim) {
+          var task = _lp && _lp.update(sim, sq);
+          return !(_lp && _lp.on) || !!(task && task.reconAllowed);
+        },
         average: average,
         leaderAlive: leaderAlive,
         teamKeyFor: teamKeyFor,
@@ -1978,6 +1985,18 @@
      The factory is called after the clear-contact re-attach so every dependency is in
      scope. The returned functions are attached as closure variables so updateSquadState
      and the public API export see the same functions as before. */
+  var _lp = root._squadLeaderLocalPlan
+    ? root._squadLeaderLocalPlan({
+        root: root,
+        commanded: commanded,
+        policy: cfg,
+        cohesionAssessment: cohesionAssessment,
+        missionVersion: missionVersion,
+        leaderlessActive: leaderlessActive,
+        BOUND_DURATION: BOUND_DURATION,
+        telemetry: telemetry
+      })
+    : null;
   var _fa = root._squadLeaderFireAndMovement
     ? root._squadLeaderFireAndMovement({
         root: root,
@@ -1987,6 +2006,7 @@
         resolveLeaseConflicts: resolveLeaseConflicts,
         boundLeaseBlocker: boundLeaseBlocker,
         LEASE_CONFLICTS_ON: LEASE_CONFLICTS_ON,
+        localPlan: _lp,
         leaderlessActive: leaderlessActive,
         noteLeaderlessAction: noteLeaderlessAction,
         updateClearContact: updateClearContact,
@@ -2113,6 +2133,7 @@
       var a = (sim && sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
       for (var i = 0; i < a.length; i++) {
         var q = a[i];
+        if (_lp) _lp.reset(q);
         q._engagementPlan = null;
         q._stablePlan = null;
         q._engagementPlanSerial = 0;
@@ -2156,8 +2177,9 @@
       var a = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
       for (var i = 0; i < a.length; i++) {
         var q = a[i];
+        if (_lp && _lp.on) _lp.update(sim, q);
         updateCohesion(sim, q);
-        if (LEASE_CONFLICTS_ON) resolveLeaseConflicts(sim, q);
+        if (LEASE_CONFLICTS_ON || (_lp && _lp.on)) resolveLeaseConflicts(sim, q);
         executeMission(sim, q, town);
         updatePlan(sim, q);
         L.prune(q, sim.time);
@@ -2310,6 +2332,13 @@
     },
     leaseConflictDecision: leaseConflictDecision,
     resolveLeaseConflicts: resolveLeaseConflicts,
+    localPlanOn: function () {
+      return !!(_lp && _lp.on);
+    },
+    localPlan: _lp,
+    localPlanTelemetry: function (sim) {
+      return _lp ? _lp.summary(sim) : null;
+    },
     routeTransitionOn: function () {
       return ROUTE_TRANSITION_ON;
     },

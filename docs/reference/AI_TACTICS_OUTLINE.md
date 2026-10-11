@@ -891,6 +891,21 @@ simulation-time ledger exposed in full/focused diagnostics and cleared by battle
 
 ### Phase C — Squad Leader local planner
 
+First C foundation (`?localPlan=1`, default OFF): `15n-squad-leader-local-plan.js`
+is a factory inside the existing Squad Leader owner, not another registered commander.
+It reads the standing mission version, own-member pressure/cohesion and the same
+reported-belief API as TacticalSituation, without collecting a full faction snapshot on
+each hook. Scores and eligibility choose approach, existing recon/regroup, support,
+ordinary maneuver or protection. Existing recon and bound publishers consume the
+decision; incompatible bounds are released through the central Meso resolver and
+Engagement's cleanup API. Pressure hysteresis and the existing bound-duration commitment
+prevent trivial switching; emergency pressure, lost eligibility and mission replacement
+override that commitment. Succession/retreat preserve their existing authorities. The
+factory alone owns `_localTask`, including a bounded eight-row history, source/age/confidence
+and transition counts, cleared on battle restart and exported in full/compact diagnostics.
+This is not full C acceptance: covered-route geometry, ambush/fire-and-maneuver postures,
+structure control and handoff remain separate work. `coverRoute: not-assessed` is explicit.
+
 - Create a `squad-leader-local-plan` module that consumes Force Intent plus `TacticalSituation`.
 - Implement local tasks: approach, support, route-transition, structure-control, objective-security,
   recover, and handoff.

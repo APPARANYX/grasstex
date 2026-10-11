@@ -641,6 +641,7 @@
       recentLeases: safePlain(sq._leases && sq._leases.ended, 4),
       recentObservedLeases: safePlain(sq._leases && sq._leases.observedEnded, 5),
       leaseConflicts: safePlain(sq._leases && sq._leases.conflicts, 5),
+      localTask: safePlain(sq._localTask, 6),
       missionHeldBy: sq._missionHold || null,
       missionExecution: sq._missionExecution
         ? {
@@ -1004,6 +1005,7 @@
       fireControl: safePlain(sq.fireControl, 3),
       fireControlTrail: safePlain((sq._fireControlTrail || []).slice(-8), 3),
       regroup: safePlain(sq._regroupHysteresis, 2),
+      localTask: safePlain(sq._localTask, 6),
       assembly: safePlain(sq._assembly, 3),
       reconstitutionGroup: sq._reconGroup || null,
       retreatMen: retreatMen(sim, sq),

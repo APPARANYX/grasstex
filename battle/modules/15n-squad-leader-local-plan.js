@@ -1,0 +1,191 @@
+/* #299 C foundation: one opt-in Meso arbitration policy, not another command
+   system. Inputs are own men and reported beliefs, never enemy transforms.
+   Existing recon/cohesion/Engagement owners execute the result. This does not
+   assess covered routes or implement ambush/fire-and-maneuver postures. */
+(function (root) {
+  'use strict';
+  if (root._squadLeaderLocalPlan) return;
+  root._squadLeaderLocalPlan = function (ctx) {
+    var A = root.SquadAI,
+      L = root.BattleLeases,
+      on = /[?&]localPlan=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
+      tuning = { pressureEnter: 0.45, pressureExit: 0.25, emergency: 0.75, contactAge: 10, confidence: 0.5 };
+    function read(sim, sq, report) {
+      var men = ctx.commanded(sq),
+        pinned = 0,
+        firedOn = 0,
+        E = root.BattleEngagement,
+        now = +sim.time || 0;
+      men.forEach(function (s) {
+        if ((+s.suppressedUntil || 0) > now) pinned++;
+        if (E && E.underFireNow && E.underFireNow(s, sim)) firedOn++;
+      });
+      var contacts = A.squadContactsMap(sq, sim) || [],
+        confidence = 0,
+        youngestAge = null,
+        sources = {};
+      contacts.forEach(function (c) {
+        if (!isFinite(c.at) || c.at > now) return;
+        var age = now - c.at;
+        if (age > tuning.contactAge) return;
+        confidence = Math.max(confidence, Math.min(1, Math.max(0, +c.confidence || 0)));
+        youngestAge = youngestAge == null ? age : Math.min(youngestAge, age);
+        sources[c.source || 'unknown'] = true;
+      });
+      /* Legacy upward reports can establish contact, but cannot invent confidence. */
+      var c = sq.contact;
+      if (!contacts.length && c && isFinite(c.at) && now >= c.at && now - c.at <= tuning.contactAge) {
+        youngestAge = now - c.at;
+        sources[c.source || 'squad-report'] = true;
+      }
+      var limit = ctx.policy(sim, sq).cohesionRadius || 34,
+        cohesion = ctx.cohesionAssessment(sq, limit),
+        pressure = Math.max(pinned, firedOn, report ? +report.underFire || 0 : 0) / Math.max(1, men.length);
+      var prior = sq._localTask && sq._localTask.inputs,
+        currentSupport = report && report.fireSupport,
+        reuseSupport =
+          prior &&
+          prior.missionVersion === ctx.missionVersion(sq) &&
+          prior.supportObservedAt != null &&
+          now - prior.supportObservedAt <= ctx.BOUND_DURATION;
+      return {
+        pressure: Math.min(1, pressure),
+        confidence: confidence,
+        youngestAge: youngestAge,
+        sources: Object.keys(sources).sort(),
+        provenance: 'own-members/reported-beliefs',
+        dispersed: cohesion.dispersed,
+        contact: !!sq.inContact || youngestAge != null,
+        supporting: currentSupport ? currentSupport.length : reuseSupport ? prior.supporting : null,
+        supportObservedAt: currentSupport ? now : reuseSupport ? prior.supportObservedAt : null,
+        missionVersion: ctx.missionVersion(sq)
+      };
+    }
+    function decide(sq, inputs, now) {
+      var old = sq._localTask,
+        same = old && old.missionVersion === inputs.missionVersion,
+        pressured =
+          inputs.pressure >= tuning.pressureEnter ||
+          (same && old.pressured && inputs.pressure > tuning.pressureExit),
+        uncertain = inputs.confidence < tuning.confidence && !inputs.contact,
+        regroup = L.get(sq, 'regroup'),
+        recon = L.get(sq, 'recon'),
+        reconTask = sq._reconTask,
+        scores = { approach: 0.1 },
+        eligible = { approach: !inputs.contact };
+      eligible.protect = pressured;
+      scores.protect = 1 + inputs.pressure;
+      eligible.regroup =
+        !inputs.contact &&
+        !pressured &&
+        !!regroup &&
+        regroup.data &&
+        regroup.data.missionVersion === inputs.missionVersion;
+      scores.regroup = 0.7 + (inputs.dispersed ? 0.25 : 0);
+      eligible.recon =
+        uncertain &&
+        !pressured &&
+        !!recon &&
+        !!reconTask &&
+        reconTask.missionVersion === inputs.missionVersion;
+      scores.recon = 0.6 + (1 - inputs.confidence) * 0.3;
+      eligible.support = inputs.contact && !pressured;
+      scores.support = 0.4 + inputs.pressure;
+      eligible.maneuver = inputs.contact && !pressured && inputs.supporting != null && inputs.supporting >= 2;
+      scores.maneuver = 0.6 + 0.25 * inputs.confidence - inputs.pressure;
+      var kind = 'approach',
+        best = -Infinity;
+      Object.keys(scores).forEach(function (k) {
+        if (eligible[k] && scores[k] > best) {
+          kind = k;
+          best = scores[k];
+        }
+      });
+      /* Preserve a still-eligible commitment for the existing bound duration.
+         Mission replacement, lost eligibility and immediate pressure bypass it. */
+      if (
+        same &&
+        !pressured &&
+        eligible[old.kind] &&
+        now - old.since < ctx.BOUND_DURATION &&
+        !(old.inputs.contact && old.inputs.supporting == null && inputs.supporting != null)
+      )
+        kind = old.kind;
+      return {
+        kind: kind,
+        pressured: pressured,
+        emergency: inputs.pressure >= tuning.emergency,
+        scores: scores,
+        eligible: eligible,
+        boundsAllowed: kind === 'maneuver',
+        reconAllowed: uncertain && !pressured && !eligible.regroup,
+        coverRoute: 'not-assessed'
+      };
+    }
+    function update(sim, sq, report) {
+      if (!on || !sim || !sq) return null;
+      /* Existing succession/retreat owners retain their authority, including an
+         inherited committed move. Never publish a new local command here. */
+      if (sq.state === 'retreat' || ctx.leaderlessActive(sq)) return null;
+      var inputs = read(sim, sq, report),
+        now = +sim.time || 0,
+        choice = decide(sq, inputs, now),
+        old = sq._localTask,
+        changed = !old || old.kind !== choice.kind || old.missionVersion !== inputs.missionVersion,
+        history = old ? old.history.slice() : [],
+        serial = old ? old.serial : 0,
+        counts = Object.assign({}, old && old.counts);
+      if (changed) {
+        serial++;
+        counts[choice.kind] = (counts[choice.kind] || 0) + 1;
+        var event = { at: now, kind: choice.kind, missionVersion: inputs.missionVersion, serial: serial };
+        history.push(event);
+        if (history.length > 8) history.shift();
+        ctx.telemetry(
+          sim,
+          'decision-local-task',
+          Object.assign({ faction: sq.faction, squad: sq.id }, event)
+        );
+      }
+      sq._localTask = Object.assign(choice, {
+        missionVersion: inputs.missionVersion,
+        since: changed ? now : old.since,
+        at: now,
+        serial: serial,
+        inputs: inputs,
+        history: history,
+        counts: counts
+      });
+      return sq._localTask;
+    }
+    function reset(sq) {
+      sq._localTask = null;
+    }
+    function summary(sim) {
+      if (!on) return null;
+      var counts = {},
+        transitions = 0;
+      ['us', 'ge'].forEach(function (f) {
+        var squads = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
+        squads.forEach(function (sq) {
+          var task = sq._localTask;
+          if (!task) return;
+          transitions += task.serial;
+          Object.keys(task.counts).forEach(function (k) {
+            counts[k] = (counts[k] || 0) + task.counts[k];
+          });
+        });
+      });
+      return { transitions: transitions, choices: counts };
+    }
+    return {
+      on: on,
+      tuning: tuning,
+      read: read,
+      decide: decide,
+      update: update,
+      reset: reset,
+      summary: summary
+    };
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
