@@ -162,6 +162,77 @@ const { chromium } = require('playwright');
       evidence.intent.collectedHeapDeltaBytes = intentAfter.usedSize - intentBefore.usedSize;
       assert.equal(evidence.intent.frozen, true);
     }
+    if (await page.evaluate(() => !!window.BattleSquadStability?.observeRouteTransition)) {
+      evidence.route = await page.evaluate(() => {
+        const b = __battle__,
+          q = b.factions.us.squads[0],
+          L = BattleLeases,
+          S = BattleSquadStability,
+          members = q.members.filter(s => !s.dead),
+          position = () =>
+            members.reduce(
+              (p, s) => ({
+                x: p.x + s.root.position.x / members.length,
+                z: p.z + s.root.position.z / members.length
+              }),
+              { x: 0, z: 0 }
+            );
+        const pos = position(),
+          leg = +q.routeIndex || 0;
+        const gameplay = () =>
+          JSON.stringify({
+            phase: q.commandPhase,
+            route: q.route,
+            index: q.routeIndex,
+            mission: q._macroMission,
+            objective: q.objective,
+            members: members.map(s => [s.destination, s.prone, s.crawling, s.tacticalCrouch])
+          });
+        const before = gameplay();
+        L.grant(
+          q,
+          'route-transition',
+          'squad-leader',
+          b.time,
+          b.time + 120,
+          'browser diagnostic fixture',
+          'arrival',
+          {
+            from: leg - 1,
+            leg,
+            missionVersion: q._macroMission?.version || 0,
+            target: { x: pos.x, z: pos.z + 100 },
+            arrivalRadius: 8,
+            startDistance: 100,
+            distance: 100,
+            bestDistance: 100,
+            traveled: 0,
+            lastPosition: pos,
+            lastProgressAt: b.time,
+            noProgressBudget: 120
+          }
+        );
+        const loops = 1000,
+          start = performance.now();
+        for (let i = 0; i < loops; i++) S.observeRouteTransition(b, q);
+        const msPerTick = (performance.now() - start) / loops,
+          live = L.get(q, 'route-transition');
+        if (!live) throw Error('route observer fixture ended before arrival');
+        live.data.target = position();
+        S.observeRouteTransition(b, q);
+        const ended = q._leases.observedEnded.at(-1);
+        if (ended.endReason !== 'arrived') throw Error('route arrival not recorded');
+        if (gameplay() !== before) throw Error('route observer changed gameplay');
+        return {
+          fixture: 'diagnostic lease on paused real squad; no movement injection',
+          loops,
+          msPerTick,
+          endReason: ended.endReason,
+          gameplayUnchanged: true,
+          nonemptyHistory: q._leases.observedEnded.length
+        };
+      });
+    }
     if (diagnostic.observations) {
       assert.ok(diagnostic.timeline.observations.frames.length > 0, 'enabled history actually collected');
       const flow = await context.newPage();
@@ -244,6 +315,11 @@ const { chromium } = require('playwright');
       const cleared = T.summary(b).tacticalSituation === null;
       T.sample(b);
       return {
+        routeCleared: ['us', 'ge'].every(f =>
+          b.factions[f].squads.every(
+            q => !q._leases?.live?.['route-transition'] && !q._leases?.observedEnded?.length
+          )
+        ),
         historyCleared,
         intentCleared,
         urbanCleared,
@@ -262,6 +338,7 @@ const { chromium } = require('playwright');
       assert.ok(evidence.urban.buildings > 0);
       assert.ok(evidence.urban.visibilityProbes > 0);
     }
+    assert.equal(evidence.restart.routeCleared, true);
     assert.equal(evidence.restart.historyCleared, true);
     assert.equal(evidence.restart.intentCleared, true);
     assert.equal(evidence.restart.urbanCleared, true);

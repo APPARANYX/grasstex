@@ -2,6 +2,9 @@ name: Tactical Observation Browser QA
 on:
   pull_request:
     paths:
+      - battle/squad-ai.js
+      - battle/modules/15l-squad-leader-mission-execution.js
+      - battle/modules/16-squad-plan-stability.js
       - battle/commander-ai.js
       - battle/modules/54-tactical-situation.js
       - battle/modules/54a-urban-operating-picture.js

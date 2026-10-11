@@ -1415,6 +1415,7 @@
       LEASE_KINDS[kind] = {
         priority: +spec.priority || 0,
         timer: !!spec.timer,
+        diagnostic: !!spec.diagnostic,
         progress: spec.progress || null,
         label: spec.label || kind
       };
@@ -1463,8 +1464,11 @@
       delete table.live[kind];
       l.endedAt = t;
       l.endReason = why || 'released';
-      table.ended.push(l);
-      if (table.ended.length > LEASE_LOG) table.ended.shift();
+      /* Observer commitments must not evict the existing gameplay outcome ledger. */
+      var def = LEASE_KINDS[kind],
+        ended = def && def.diagnostic ? table.observedEnded || (table.observedEnded = []) : table.ended;
+      ended.push(l);
+      if (ended.length > LEASE_LOG) ended.shift();
       return l;
     },
     clear: function (sq) {

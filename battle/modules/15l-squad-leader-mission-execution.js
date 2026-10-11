@@ -34,6 +34,7 @@
       startRecon = ctx.startRecon,
       endRecon = ctx.endRecon,
       RECON_LEDGER_ON = ctx.RECON_LEDGER_ON !== false,
+      ROUTE_TRANSITION_ON = ctx.ROUTE_TRANSITION_ON !== false,
       URBAN_ARRIVAL_COHESION = ctx.URBAN_ARRIVAL_COHESION;
     function inTown(town, p) {
       return !!(town && town.center && p && dist(p, town.center) < (+town.radius || 250));
@@ -42,6 +43,71 @@
       var legs = (m.route || []).map(copy);
       if (m.point) legs.push(copy(m.point));
       return legs;
+    }
+    function routeArrival(idx, axisEnd, town, wp, c, limit) {
+      return idx === axisEnd
+        ? Math.max(+c.finalRouteRadius || 14, 32)
+        : inTown(town, wp)
+          ? Math.max(+c.routeArrivalRadius || 8, limit * URBAN_ARRIVAL_COHESION)
+          : +c.routeArrivalRadius || 8;
+    }
+    function observeRouteTransition(sim, sq) {
+      if (!ROUTE_TRANSITION_ON) return;
+      var l = L.get(sq, 'route-transition');
+      if (!l) return;
+      var d = l.data,
+        t = +sim.time || 0,
+        m = sq._macroMission,
+        pos = average(sq),
+        request = sq._macroMissionRequest,
+        why = null;
+      if (
+        missionVersion(sq) !== d.missionVersion ||
+        (sq._missionExecution && sq._missionExecution.mission !== m)
+      )
+        why = m && m.reason === 'execution-blocked' ? 'blocked' : 'superseded';
+      else if (sq.state === 'retreat') why = 'retreat';
+      else if (!alive(sq).length) why = 'destroyed';
+      else if (sq.inContact) why = 'contact';
+      else if (
+        request &&
+        request.missionVersion === d.missionVersion &&
+        request.reason === 'execution-blocked'
+      )
+        why = 'blocked';
+      else if (+sq.routeIndex !== d.leg) why = +sq.routeIndex > d.leg ? 'arrived' : 'superseded';
+      else if (d.leg === (sq.route || []).length - 1 && m && m.objectiveId) {
+        if (sq.commandPhase === 'capture') why = 'capture-committed';
+        else if (sq.commandPhase === 'defend') why = 'defense-committed';
+        else if (sq.commandPhase === 'hold' || sq.commandPhase === 'support-hold') why = 'doctrine-hold';
+      }
+      var expired = t >= l.until;
+      if (pos) {
+        d.traveled += dist(pos, d.lastPosition);
+        d.lastPosition = copy(pos);
+        d.distance = dist(pos, d.target);
+        if (!expired && d.distance < d.bestDistance) {
+          d.bestDistance = d.distance;
+          d.lastProgressAt = t;
+          l.until = t + d.noProgressBudget;
+        }
+        if (!why && d.distance < d.arrivalRadius) why = 'arrived';
+      }
+      if (!why && expired) why = 'stalled';
+      d.pausedBy = sq._missionHold || null;
+      if (why) {
+        var ended = L.end(sq, 'route-transition', t, why);
+        telemetry(sim, 'decision-route-transition-end', {
+          faction: sq.faction,
+          squad: sq.id,
+          missionVersion: d.missionVersion,
+          leg: d.leg,
+          reason: why,
+          elapsed: t - ended.since,
+          distanceMoved: d.traveled,
+          distanceRemaining: d.distance
+        });
+      }
     }
     function assaultCommitted(sim, sq) {
       var a = sim.factions[sq.faction].squads;
@@ -87,6 +153,7 @@
    objective point. Without a brief (Macro OFF) the Squad Leader walks the assigned approach route. */
     function executeMission(sim, sq, town) {
       if (!sim || !sq) return;
+      observeRouteTransition(sim, sq);
       /* Which lease, if any, is holding this squad's mission execution this tick (diagnostics). */
       sq._missionHold = null;
       if (sq.state === 'retreat' || !alive(sq).length) return;
@@ -199,16 +266,38 @@
       var axisEnd = m ? (m.route || []).length - 1 : last,
         limit = +(leaderAlive(sq) ? c.cohesionRadius : c.captainlessCohesion) || 34,
         urban = inTown(town, wp);
-      var arrival =
-        idx === axisEnd
-          ? Math.max(+c.finalRouteRadius || 14, 32)
-          : urban
-            ? Math.max(+c.routeArrivalRadius || 8, limit * URBAN_ARRIVAL_COHESION)
-            : +c.routeArrivalRadius || 8;
+      var arrival = routeArrival(idx, axisEnd, town, wp, c, limit);
       if (idx < last && dist(pos, wp) < arrival) {
         var from = idx;
         sq.routeIndex = idx = idx + 1;
         wp = legs[idx];
+        if (ROUTE_TRANSITION_ON) {
+          var budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity,
+            remaining = dist(pos, wp);
+          L.grant(
+            sq,
+            'route-transition',
+            'squad-leader',
+            t,
+            t + budget,
+            'leg ' + from + ' -> ' + idx,
+            'arrival, contact, blocked, superseded, retreat or no progress',
+            {
+              from: from,
+              leg: idx,
+              missionVersion: missionVersion(sq),
+              target: copy(wp),
+              arrivalRadius: routeArrival(idx, axisEnd, town, wp, c, limit),
+              startDistance: remaining,
+              distance: remaining,
+              bestDistance: remaining,
+              traveled: 0,
+              lastPosition: copy(pos),
+              lastProgressAt: t,
+              noProgressBudget: budget
+            }
+          );
+        }
         telemetry(sim, 'decision-route', {
           faction: sq.faction,
           squad: sq.id,
@@ -290,7 +379,8 @@
       missionLegs: missionLegs,
       assaultCommitted: assaultCommitted,
       objectivePhase: objectivePhase,
-      executeMission: executeMission
+      executeMission: executeMission,
+      observeRouteTransition: observeRouteTransition
     };
   };
 })(typeof window !== 'undefined' ? window : globalThis);
