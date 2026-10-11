@@ -6,6 +6,8 @@ on:
     paths:
       - 'battle/camera-controls.js'
       - 'battle/modules/52-fbx-rig-canon.js'
+      - 'battle/modules/52-fbx-model-retarget.js'
+      - 'tools/ai-sim-harness/fbx-model-retarget-check.js'
       - 'battle/modules/52-fbx-surface-damage.js'
       - 'tools/ai-sim-harness/fbx-surface-damage-check.js'
       - 'battle/modules/52-fbx-mesh-lod.js'
