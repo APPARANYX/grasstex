@@ -9,7 +9,102 @@
     var A = root.SquadAI,
       L = root.BattleLeases,
       on = /[?&]localPlan=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
-      tuning = { pressureEnter: 0.45, pressureExit: 0.25, emergency: 0.75, contactAge: 10, confidence: 0.5 };
+      resourcesOn =
+        on &&
+        /[?&]localResources=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
+      tuning = {
+        pressureEnter: 0.45,
+        pressureExit: 0.25,
+        emergency: 0.75,
+        contactAge: 10,
+        confidence: 0.5,
+        resourceLimit: 32,
+        minimumSupport: 2
+      };
+    /* Bounded own-roster resources, not a second station/ammunition owner. A
+       report names actual supporters; a cached count cannot survive roster or
+       readiness changes. No geometric safety claim is made at this layer. */
+    function ready(s, sq, sim) {
+      var E = root.BattleEngagement,
+        ammo = root.BattleAmmunition;
+      return !!(
+        s &&
+        sq.members.indexOf(s) >= 0 &&
+        s.squad === sq &&
+        !s.dead &&
+        s.hp > 0 &&
+        !s.incapacitated &&
+        !s.isPlayer &&
+        s.root &&
+        s.root.position &&
+        !(s.suppressedUntil > sim.time) &&
+        !s.reloading &&
+        !s.clearingStoppage &&
+        !s.outOfAmmo &&
+        !(E && E.reacting && E.reacting(s)) &&
+        !(E && E.fledPhase && E.fledPhase(s)) &&
+        ammo &&
+        ammo.available &&
+        ammo.available(s)
+      );
+    }
+    function moverEligible(s, sq, sim) {
+      return (
+        ready(s, sq, sim) &&
+        !A.isMachineGun(s) &&
+        !(root.BattleTacticalPositions && root.BattleTacticalPositions.current(s))
+      );
+    }
+    function supportMembers(sim, sq, report) {
+      if (!sq.members || sq.members.length > tuning.resourceLimit) return [];
+      var support = report && report.fireSupport;
+      if (!Array.isArray(support) || support.length > tuning.resourceLimit) return [];
+      return support.filter(function (s, i) {
+        return support.indexOf(s) === i && ready(s, sq, sim);
+      });
+    }
+    function resources(sim, sq, report) {
+      if (!sq.members || sq.members.length > tuning.resourceLimit)
+        return { status: 'over-budget', supportingIds: [], moverIds: [], observedAt: null };
+      var now = +sim.time || 0,
+        prior = sq._localTask,
+        cached = prior && prior.inputs.resources,
+        current = report && Array.isArray(report.fireSupport),
+        reusable =
+          cached &&
+          prior.missionVersion === ctx.missionVersion(sq) &&
+          cached.observedAt != null &&
+          now >= cached.observedAt &&
+          now - cached.observedAt <= ctx.BOUND_DURATION &&
+          cached.supportingIds.length <= tuning.resourceLimit,
+        support = current
+          ? supportMembers(sim, sq, report)
+          : reusable
+            ? sq.members.filter(function (s) {
+                return cached.supportingIds.indexOf(String(s.id)) >= 0 && ready(s, sq, sim);
+              })
+            : [],
+        movers = sq.members.filter(function (s) {
+          return moverEligible(s, sq, sim);
+        });
+      return {
+        status:
+          current && report.fireSupport.length > tuning.resourceLimit
+            ? 'over-budget'
+            : current
+              ? 'reported'
+              : reusable
+                ? 'revalidated'
+                : 'unknown',
+        supportingIds: support.map(function (s) {
+          return String(s.id);
+        }),
+        moverIds: movers.map(function (s) {
+          return String(s.id);
+        }),
+        observedAt: current ? now : reusable ? cached.observedAt : null
+      };
+    }
     function read(sim, sq, report) {
       var men = ctx.commanded(sq),
         pinned = 0,
@@ -41,7 +136,8 @@
       var limit = ctx.policy(sim, sq).cohesionRadius || 34,
         cohesion = ctx.cohesionAssessment(sq, limit),
         pressure = Math.max(pinned, firedOn, report ? +report.underFire || 0 : 0) / Math.max(1, men.length);
-      var prior = sq._localTask && sq._localTask.inputs,
+      var resource = resourcesOn ? resources(sim, sq, report) : null,
+        prior = sq._localTask && sq._localTask.inputs,
         currentSupport = report && report.fireSupport,
         reuseSupport =
           prior &&
@@ -56,8 +152,23 @@
         provenance: 'own-members/reported-beliefs',
         dispersed: cohesion.dispersed,
         contact: !!sq.inContact || youngestAge != null,
-        supporting: currentSupport ? currentSupport.length : reuseSupport ? prior.supporting : null,
-        supportObservedAt: currentSupport ? now : reuseSupport ? prior.supportObservedAt : null,
+        supporting: resource
+          ? resource.observedAt == null
+            ? null
+            : resource.supportingIds.length
+          : currentSupport
+            ? currentSupport.length
+            : reuseSupport
+              ? prior.supporting
+              : null,
+        supportObservedAt: resource
+          ? resource.observedAt
+          : currentSupport
+            ? now
+            : reuseSupport
+              ? prior.supportObservedAt
+              : null,
+        resources: resource || undefined,
         missionVersion: ctx.missionVersion(sq)
       };
     }
@@ -91,7 +202,12 @@
       scores.recon = 0.6 + (1 - inputs.confidence) * 0.3;
       eligible.support = inputs.contact && !pressured;
       scores.support = 0.4 + inputs.pressure;
-      eligible.maneuver = inputs.contact && !pressured && inputs.supporting != null && inputs.supporting >= 2;
+      eligible.maneuver =
+        inputs.contact &&
+        !pressured &&
+        inputs.supporting != null &&
+        inputs.supporting >= tuning.minimumSupport &&
+        (!resourcesOn || (inputs.resources.status !== 'over-budget' && inputs.resources.moverIds.length > 0));
       scores.maneuver = 0.6 + 0.25 * inputs.confidence - inputs.pressure;
       var kind = 'approach',
         best = -Infinity;
@@ -180,8 +296,11 @@
     }
     return {
       on: on,
+      resourcesOn: resourcesOn,
       tuning: tuning,
       read: read,
+      supportMembers: supportMembers,
+      moverEligible: moverEligible,
       decide: decide,
       update: update,
       reset: reset,

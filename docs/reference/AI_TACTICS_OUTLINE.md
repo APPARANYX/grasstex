@@ -906,6 +906,20 @@ and transition counts, cleared on battle restart and exported in full/compact di
 This is not full C acceptance: covered-route geometry, ambush/fire-and-maneuver postures,
 structure control and handoff remain separate work. `coverRoute: not-assessed` is explicit.
 
+Bounded local resources (`?localPlan=1&localResources=1`, both required, default OFF)
+revalidate reported supporter identities against the own current roster and the Ammunition
+owner's readiness API. Dead, incapacitated, possessed, pinned, reloading, jammed, dry,
+stress-reacting and fled men cannot resource a new bound; MGs and existing station holders
+remain support resources rather than movers. Duplicate/foreign report entries do not count.
+At most 32 roster/report entries are assessed; over-budget or missing readiness fails closed.
+Between reports, identities retain the original simulation timestamp for at most the existing
+4.5 s bound duration, never a refreshed scalar count; mission replacement/future evidence
+invalidate reuse. The existing publisher requires two eligible supporters outside the moving
+team and consumes current mover eligibility. No station claims, routes, stance/fire commands
+or new movement writers are added. Existing leaderless/retreat and committed Micro execution
+remain authoritative. Resources appear in the existing local-task diagnostic inputs and
+clear with that owner's restart. This is readiness eligibility, not a LOS or safety claim.
+
 Covered-bound eligibility (`?localPlan=1&coveredBounds=1`, both required, default OFF)
 is an Engagement cover-owner gate on **new squad-authorized bounds**, not a new Meso
 movement publisher. Actual selected cover must have a short, physically clear straight

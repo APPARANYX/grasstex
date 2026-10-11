@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
-function world(search = '?localPlan=1&coa=0&fireControl=0&slStress=0') {
+function world(search = '?localPlan=1&localResources=1&coa=0&fireControl=0&slStress=0') {
   H.resetIds();
   const r = H.bootstrap({ modules: false, search }),
     systems = {},
@@ -32,6 +32,8 @@ function world(search = '?localPlan=1&coa=0&fireControl=0&slStress=0') {
   );
   const b = H.makeBattle(r),
     q = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 200 } });
+  loadModule(r, 'battle/modules/46-ammunition-stoppages.js', { console: quietConsole, location: r.location });
+  q.members.forEach(s => r.BattleAmmunition.initialize(s, b));
   q._macroMission = { version: 1, intent: 'capture', status: 'executing', point: { x: 0, z: 200 } };
   q.commandPhase = 'assault';
   b.time = 5;
@@ -52,7 +54,7 @@ function report(w, underFire = 0, supports = 2) {
     underFire,
     effective: w.q.members.length,
     pinned: 0,
-    fireSupport: w.q.members.slice(0, supports),
+    fireSupport: w.q.members.filter(s => !s.isPlayer).slice(0, supports),
     fled: [],
     contactStarted: false
   };

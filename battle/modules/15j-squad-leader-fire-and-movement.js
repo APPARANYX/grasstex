@@ -184,7 +184,9 @@
         team,
         movers,
         holding,
-        buddy;
+        buddy,
+        support =
+          localPlan && localPlan.resourcesOn ? localPlan.supportMembers(battle, sq, r) : r.fireSupport;
       for (var k = 0; k < BOUND_TEAMS.length; k++) {
         turn = first + k;
         team = BOUND_TEAMS[turn % BOUND_TEAMS.length];
@@ -193,6 +195,7 @@
           s = members[i];
           if (s.dead || s.suppressedUntil > battle.time || s.reloading || s.clearingStoppage || s.outOfAmmo)
             continue;
+          if (localPlan && localPlan.resourcesOn && !localPlan.moverEligible(s, sq, battle)) continue;
           // Down, on the run or charging (Engagement's report): not his to bound.
           if (r.reacting && r.reacting.indexOf(s) >= 0) continue;
           if (
@@ -203,12 +206,15 @@
           if (s._fireteamKey && s._fireteamKey !== team) continue;
           movers.push(s);
         }
-        buddy = buddyBoundPreview(sq, team, movers, r.fireSupport, battle);
+        buddy = buddyBoundPreview(sq, team, movers, support, battle);
         movers = buddy.movers;
-        holding = r.fireSupport.filter(function (man) {
+        holding = support.filter(function (man) {
           return movers.indexOf(man) < 0;
         }).length;
-        if (movers.length && holding >= 2) {
+        if (
+          movers.length &&
+          holding >= (localPlan && localPlan.resourcesOn ? localPlan.tuning.minimumSupport : 2)
+        ) {
           if (!lead) break;
           candidates.push({
             turn: turn,
@@ -258,9 +264,18 @@
         holding = c.holding;
         buddy = c.buddy;
       }
-      if (!(movers.length && holding >= 2)) turn = first;
+      if (
+        !(
+          movers.length &&
+          holding >= (localPlan && localPlan.resourcesOn ? localPlan.tuning.minimumSupport : 2)
+        )
+      )
+        turn = first;
       sq._boundTurn = turn;
-      if (movers.length && holding >= 2) {
+      if (
+        movers.length &&
+        holding >= (localPlan && localPlan.resourcesOn ? localPlan.tuning.minimumSupport : 2)
+      ) {
         L.grant(
           sq,
           'bound',
