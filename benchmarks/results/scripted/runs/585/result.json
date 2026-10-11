@@ -1,26 +1,24 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "554",
-    "runId": "38166154166",
+    "run": "585",
+    "runId": "38176048092",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/tactics-c-covered-bounds",
-    "sha": "e6e6f4c95451b732d6059891f058f7395efedb92",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38166154166",
+    "ref": "work/tactics-c-mission-tasks",
+    "sha": "d729594a55960672c14285da39f0791e22f842ed",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38176048092",
     "seed": "phase-a-control",
     "seeds": 2,
     "windows": "contact+120",
-    "battleType": "meeting",
-    "queryOff": "localPlan=1&coveredBounds=0",
-    "queryOn": "localPlan=1&coveredBounds=1",
+    "battleType": "ge-defend",
+    "queryOff": "localPlan=0&localResources=0&coveredBounds=0&localDegrade=0&localTasks=0",
+    "queryOn": "localPlan=0&localResources=0&coveredBounds=0&localDegrade=0&localTasks=1",
     "build": "v29-dev"
   },
   "verdict": {
-    "kind": "quiet",
-    "headline": "QUIET: 2 of 2 pairs changed (median first part 275.1 s); 0 of 42 counters under p 0.05 (about 2.1 by chance); casualties +0.0% (p 1)",
-    "lines": [
-      "No counter has a sign test under 0.05: no detectable effect on these counters at this many seeds."
-    ]
+    "kind": "inert",
+    "headline": "INERT: all 2 pairs identical in every field",
+    "lines": []
   },
   "compare": {
     "pairs": 2,
@@ -28,7 +26,7 @@
       "a": 0,
       "b": 0
     },
-    "identicalBattles": 0,
+    "identicalBattles": 2,
     "winners": {
       "a": {
         "us": 0,
@@ -67,8 +65,8 @@
       }
     },
     "captures": {
-      "a": 3.5,
-      "b": 3.5
+      "a": 1,
+      "b": 1
     },
     "movementStalls": {
       "a": 0,
@@ -79,15 +77,15 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 11.9145,
-      "medianB": 11.676,
-      "ratio": 0.98,
+      "medianA": 10.517,
+      "medianB": 10.2825,
+      "ratio": 0.978,
       "gate": 1.25
     },
     "counters": {
       "casualties": {
-        "a": 65,
-        "b": 65,
+        "a": 43,
+        "b": 43,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -95,8 +93,8 @@
         "signP": 1
       },
       "usKills": {
-        "a": 34,
-        "b": 34,
+        "a": 23,
+        "b": 23,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -104,8 +102,8 @@
         "signP": 1
       },
       "geKills": {
-        "a": 31,
-        "b": 31,
+        "a": 20,
+        "b": 20,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -113,8 +111,8 @@
         "signP": 1
       },
       "fire.total": {
-        "a": 376,
-        "b": 376,
+        "a": 233,
+        "b": 233,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -122,8 +120,8 @@
         "signP": 1
       },
       "fire.hits": {
-        "a": 154,
-        "b": 154,
+        "a": 85,
+        "b": 85,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -131,8 +129,8 @@
         "signP": 1
       },
       "retreatSamples": {
-        "a": 224,
-        "b": 224,
+        "a": 400,
+        "b": 400,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -140,12 +138,12 @@
         "signP": 1
       },
       "movementResolver.changes": {
-        "a": 4763,
-        "b": 4760,
-        "meanDiff": -1.5,
-        "battlesChanged": 1,
+        "a": 2538,
+        "b": 2538,
+        "meanDiff": 0,
+        "battlesChanged": 0,
         "more": 0,
-        "fewer": 1,
+        "fewer": 0,
         "signP": 1
       },
       "grenades.throws": {
@@ -248,8 +246,8 @@
         "signP": 1
       },
       "vacantObjectiveStalls.length": {
-        "a": 1,
-        "b": 1,
+        "a": 0,
+        "b": 0,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -257,8 +255,8 @@
         "signP": 1
       },
       "loopAlerts.length": {
-        "a": 11,
-        "b": 11,
+        "a": 1,
+        "b": 1,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -275,8 +273,8 @@
         "signP": 1
       },
       "regroups.entries": {
-        "a": 4,
-        "b": 4,
+        "a": 3,
+        "b": 3,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -338,8 +336,8 @@
         "signP": 1
       },
       "recon.orders": {
-        "a": 42,
-        "b": 42,
+        "a": 37,
+        "b": 37,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -347,8 +345,8 @@
         "signP": 1
       },
       "recon.contacts": {
-        "a": 3,
-        "b": 3,
+        "a": 4,
+        "b": 4,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -356,8 +354,8 @@
         "signP": 1
       },
       "recon.noContact": {
-        "a": 29,
-        "b": 29,
+        "a": 21,
+        "b": 21,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -374,8 +372,8 @@
         "signP": 1
       },
       "recon.cancelled": {
-        "a": 10,
-        "b": 10,
+        "a": 11,
+        "b": 11,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -383,8 +381,8 @@
         "signP": 1
       },
       "recon.reportsDelivered": {
-        "a": 15,
-        "b": 15,
+        "a": 18,
+        "b": 18,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -392,8 +390,8 @@
         "signP": 1
       },
       "recon.retriggerBlocked": {
-        "a": 35,
-        "b": 35,
+        "a": 21,
+        "b": 21,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -401,8 +399,8 @@
         "signP": 1
       },
       "squadPerformance.meanOverall": {
-        "a": 169.2,
-        "b": 169.2,
+        "a": 170.7,
+        "b": 170.7,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -410,8 +408,8 @@
         "signP": 1
       },
       "squadPerformance.p10Overall": {
-        "a": 148.5,
-        "b": 148.5,
+        "a": 151,
+        "b": 151,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -428,8 +426,8 @@
         "signP": 1
       },
       "squadPerformance.meanMission": {
-        "a": 145.9,
-        "b": 145.9,
+        "a": 142.7,
+        "b": 142.7,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -437,8 +435,8 @@
         "signP": 1
       },
       "squadPerformance.meanMovement": {
-        "a": 197.60000000000002,
-        "b": 197.60000000000002,
+        "a": 199.8,
+        "b": 199.8,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -446,8 +444,8 @@
         "signP": 1
       },
       "squadPerformance.meanControl": {
-        "a": 190.2,
-        "b": 190.2,
+        "a": 198.8,
+        "b": 198.8,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -455,33 +453,30 @@
         "signP": 1
       },
       "squadPerformance.meanCohesion": {
-        "a": 179.4,
-        "b": 179.2,
-        "meanDiff": -0.1,
-        "battlesChanged": 1,
+        "a": 182.8,
+        "b": 182.8,
+        "meanDiff": 0,
+        "battlesChanged": 0,
         "more": 0,
-        "fewer": 1,
+        "fewer": 0,
         "signP": 1
       }
-    },
-    "firstDivergence": {
-      "battles": 1,
-      "min": 275.1,
-      "p10": 275.1,
-      "median": 275.1,
-      "p90": 275.1,
-      "max": 275.1
     },
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=554&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/tactics-c-covered-bounds/ai_flow_live.html?bench=554&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=585&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/tactics-c-mission-tasks/ai_flow_live.html?bench=585&view=brain3d",
     "seeds": [
       {
         "seed": "phase-a-control-0001",
-        "firstDivergence": 275.1,
-        "what": "timeline"
+        "firstDivergence": null,
+        "what": null
+      },
+      {
+        "seed": "phase-a-control-0002",
+        "firstDivergence": null,
+        "what": null
       }
     ]
   }
