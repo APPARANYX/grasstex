@@ -32,6 +32,14 @@ set for an A/B of a flag, and `seeds` (e.g. 100) when the flag needs a verdict a
 probes and single-seed replays only (the scripted benchmark is one seed, about two minutes: `BATTLE_BENCHMARK_WINDOWS=contact+60,every60
 BATTLE_BENCHMARK_COUNT=1 BATTLE_BENCHMARK_SEED=<seed> node scripts/run_battle_benchmark.mjs`).
 
+### ElevenLabs credential verification (zero generation credits)
+
+`elevenlabs-connection-check.yml` is a permanent **manual-only, read-only** workflow.
+Run it from GitHub Actions to validate the current `ELEVEN_LABS_API` binding using
+ElevenLabs `GET /v1/user`. It prints no key or account details, and does not generate audio.
+A 403 can reflect scoped access to the user endpoint rather than a disabled TTS/SFX key.
+The voice and combat generation workflows remain independently manual and unchanged.
+
 ### Agent-triggered benchmark dispatch (when GitHub connector lacks `workflow_dispatch`)
 
 Use the existing benchmark workflow, not a replacement benchmark implementation. For a one-off agent-triggered run:
