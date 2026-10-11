@@ -56,12 +56,14 @@
       if (!N || !scene || N.scenario !== scene || !N.movementClear) return null;
       var buildings = scene.buildings || [],
         portals = N.doorPortals;
-      if (!Array.isArray(buildings) || buildings.length > 32 || portals.length > 64) return null;
+      if (!Array.isArray(buildings) || buildings.length > 32 || !Array.isArray(portals) || portals.length > 64) return null;
       var candidates = buildings.filter(function (b) {
         return b && typeof b.id === 'string' && b.id && insideBuilding(b, target);
       });
       if (candidates.length !== 1) return null;
-      var b = candidates[0],
+      var b = candidates[0];
+      if (buildings.filter(function (entry) { return entry && entry.id === b.id; }).length !== 1) return null;
+      var
         observer = men.filter(function (s) {
           return s && !s.dead && s.id === sq.leaderId && s.root && point(s.root.position);
         })[0];
@@ -87,11 +89,11 @@
         now = +sim.time || 0,
         threats = 0;
       /* Lack of reported contacts is NOT evidence that the room is clear. */
+      if (!Array.isArray(reports) || reports.length > 32) return null;
       reports.slice(0, 32).forEach(function (c) {
         if (c && point(c) && isFinite(c.at) && c.at <= now &&
           now - c.at <= tuning.contactAge && insideBuilding(b, c)) threats++;
       });
-      if (reports.length > 32) return null;
       return {
         buildingId: b.id,
         doorwayId: entry.id,
