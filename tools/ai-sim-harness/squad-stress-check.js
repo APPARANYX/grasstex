@@ -74,7 +74,15 @@ function world(flags) {
     stabilityLocation: { search }
   });
   const b = H.makeBattle(r, { seed: SEED }),
-    w = { r, b, S: r.BattleSquadStability, events, sent, made: 0, report: { inContact: false, effective: 6, pinned: 0 } };
+    w = {
+      r,
+      b,
+      S: r.BattleSquadStability,
+      events,
+      sent,
+      made: 0,
+      report: { inContact: false, effective: 6, pinned: 0 }
+    };
   r.BattleEngagement.updateSquad = function (sq) {
     const was = !!sq.inContact;
     sq.inContact = w.report.inContact;
@@ -95,7 +103,13 @@ function world(flags) {
 /* A ten-man squad in fireteams alpha/bravo/charlie (member i in TEAMS[i % 3]), each team's men at `stress[team]`. */
 function squad(w, stress, opts) {
   opts = opts || {};
-  const sq = H.addSquad(w.r, w.b, { id: 'us-' + w.made++, faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 } });
+  const sq = H.addSquad(w.r, w.b, {
+    id: 'us-' + w.made++,
+    faction: 'us',
+    x: 0,
+    z: 0,
+    objective: { x: 0, z: 100 }
+  });
   sq.members.forEach((s, i) => {
     s._fireteamKey = TEAMS[i % 3];
     s.mind = { stress: (stress && stress[s._fireteamKey]) || 0 };
@@ -193,7 +207,13 @@ test('hold: every team at the shaken band holds the cycle; one under it and the 
 });
 
 function brief(sq, action, version) {
-  sq._macroMission = { version: version || 1, intent: action, action, point: { x: 0, z: 100 }, status: 'executing' };
+  sq._macroMission = {
+    version: version || 1,
+    intent: action,
+    action,
+    point: { x: 0, z: 100 },
+    status: 'executing'
+  };
 }
 const reviews = sq => (sq._macroMissionRequest && sq._macroMissionRequest.why === 'squad stress' ? 1 : 0);
 
