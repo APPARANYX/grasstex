@@ -1,7 +1,7 @@
-# Benchmark run #557 · 2 seeds from `phase-a-control` (ge-defend), windows `contact+120`
+# Benchmark run #587 · 2 seeds from `phase-a-control` (ge-defend), windows `contact+120`
 
-- **OFF** flags: `localPlan=1&coveredBounds=0` · **ON** flags: `localPlan=1&coveredBounds=1`
-- work/tactics-c-covered-bounds @ e6e6f4c · [run](https://github.com/APPARANYX/grasstex/actions/runs/38166160846) · build v29-dev
+- **OFF** flags: `localPlan=1&localResources=1&coveredBounds=1&localDegrade=1&localTasks=0` · **ON** flags: `localPlan=1&localResources=1&coveredBounds=1&localDegrade=1&localTasks=1`
+- work/tactics-c-mission-tasks @ d729594 · [run](https://github.com/APPARANYX/grasstex/actions/runs/38176053282) · build v29-dev
 
 ## Verdict
 
@@ -11,7 +11,7 @@
 
 ## Paired comparison (off against on)
 
-- **2** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x0.924 (gate 1.25)
+- **2** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x0.973 (gate 1.25)
 - no record has a timeline or stress series that parts
 
 | counter | off | on | mean diff per pair | pairs changed | on more | on fewer | sign p |
@@ -67,7 +67,7 @@ phase-a-control-0001 (identical) · phase-a-control-0002 (identical)
 
 ## Viewer
 
-[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=557&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/tactics-c-covered-bounds/ai_flow_live.html?bench=557&view=brain3d) (it has the change before it reaches main)
+[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=587&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/tactics-c-mission-tasks/ai_flow_live.html?bench=587&view=brain3d) (it has the change before it reaches main)
 
-The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=557`); it opens the seed that parts earliest, and the dropdowns choose another.
+The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=587`); it opens the seed that parts earliest, and the dropdowns choose another.
 

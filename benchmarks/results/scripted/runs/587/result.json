@@ -1,18 +1,18 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "557",
-    "runId": "38166160846",
+    "run": "587",
+    "runId": "38176053282",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/tactics-c-covered-bounds",
-    "sha": "e6e6f4c95451b732d6059891f058f7395efedb92",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38166160846",
+    "ref": "work/tactics-c-mission-tasks",
+    "sha": "d729594a55960672c14285da39f0791e22f842ed",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38176053282",
     "seed": "phase-a-control",
     "seeds": 2,
     "windows": "contact+120",
     "battleType": "ge-defend",
-    "queryOff": "localPlan=1&coveredBounds=0",
-    "queryOn": "localPlan=1&coveredBounds=1",
+    "queryOff": "localPlan=1&localResources=1&coveredBounds=1&localDegrade=1&localTasks=0",
+    "queryOn": "localPlan=1&localResources=1&coveredBounds=1&localDegrade=1&localTasks=1",
     "build": "v29-dev"
   },
   "verdict": {
@@ -79,9 +79,9 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 6.7615,
-      "medianB": 6.25,
-      "ratio": 0.924,
+      "medianA": 9.1125,
+      "medianB": 8.869499999999999,
+      "ratio": 0.973,
       "gate": 1.25
     },
     "counters": {
@@ -467,8 +467,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=557&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/tactics-c-covered-bounds/ai_flow_live.html?bench=557&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=587&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/tactics-c-mission-tasks/ai_flow_live.html?bench=587&view=brain3d",
     "seeds": [
       {
         "seed": "phase-a-control-0001",
