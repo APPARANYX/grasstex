@@ -54,7 +54,9 @@ if (!converter.includes("loop || spec[2] === 'inplace' || spec[2] === 'turn'"))
   throw new Error('converter must suppress looping, in-place and turning hips drift');
 /* Presentation draws what the sim says and never writes it: the weapon a fled man left is Engagement's decision
    (BattleWeapons.abandon), the one he is issued at base is SquadAI.rearm's. */
-if (/\bsoldier\.weapon\s*=[^=]|\.abandon\s*\(|\.rearm\s*\(|\.secondary\s*=[^=]/.test(backend + '\n' + animation))
+if (
+  /\bsoldier\.weapon\s*=[^=]|\.abandon\s*\(|\.rearm\s*\(|\.secondary\s*=[^=]/.test(backend + '\n' + animation)
+)
   throw new Error("the backend must not write the soldier's weapons: abandoning and issuing are the sim's");
 
 const freezePick = animation.slice(
