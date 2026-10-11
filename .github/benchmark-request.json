@@ -1,0 +1,13 @@
+{
+  "benchmark": "standard",
+  "ref": "work/tactics-c-mission-tasks",
+  "seed": "phase-a-control",
+  "seeds": "2",
+  "battle_type": "ge-defend",
+  "query_off": "localPlan=1&localResources=1&coveredBounds=1&localDegrade=1&localTasks=0",
+  "query_on": "localPlan=1&localResources=1&coveredBounds=1&localDegrade=1&localTasks=1",
+  "windows": "contact+120",
+  "purpose": "PR509 mission-linked local tasks: gate inertness/activation comparison",
+  "origin_agent": "chatgpt",
+  "correlation_id": "pr509-gate-ge-defend"
+}
