@@ -16,6 +16,9 @@
         on && /[?&]localDegrade=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
       tasksOn =
         on && /[?&]localTasks=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
+      structuresOn =
+        tasksOn &&
+        /[?&]localStructures=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
       tuning = {
         pressureEnter: 0.45,
         pressureExit: 0.25,
@@ -29,6 +32,100 @@
       return p && typeof p.x === 'number' && typeof p.z === 'number' && isFinite(p.x) && isFinite(p.z)
         ? { x: p.x, z: p.z }
         : null;
+    }
+
+    /* Navigation alone describes a doorway, not an occupied or cleared room.
+       Only annotate an already accepted, versioned route leg which terminates
+       inside a real ground-floor footprint. All coordinates are from the
+       shipping Navigation and own-roster/report owners, never enemy transforms. */
+    function insideBuilding(b, p) {
+      if (!b || !p || !point(b) || !(+b.w > 0) || !(+b.d > 0) || !isFinite(+b.rot || 0)) return false;
+      var dx = p.x - b.x,
+        dz = p.z - b.z,
+        c = Math.cos(+b.rot || 0),
+        si = Math.sin(+b.rot || 0);
+      return Math.abs(dx * c - dz * si) < b.w / 2 - 0.05 && Math.abs(dx * si + dz * c) < b.d / 2 - 0.05;
+    }
+    function structureInterface(sim, sq, target, men) {
+      if (!structuresOn || !target || !men || men.length > tuning.resourceLimit) return null;
+      var N = root.BattleNavigation,
+        meta = sim.scene && sim.scene.metadata,
+        scene = meta && (meta.battleScenario || meta.battleTown);
+      /* The navigation graph may survive a same-page scenario replacement;
+         a graph from a different map can never authorize an interface. */
+      if (!N || !scene || N.scenario !== scene || !N.movementClear) return null;
+      var buildings = scene.buildings || [],
+        portals = N.doorPortals;
+      if (
+        !Array.isArray(buildings) ||
+        buildings.length > 32 ||
+        !Array.isArray(portals) ||
+        portals.length > 64
+      )
+        return null;
+      var candidates = buildings.filter(function (b) {
+        return b && typeof b.id === 'string' && b.id && insideBuilding(b, target);
+      });
+      if (candidates.length !== 1) return null;
+      var b = candidates[0];
+      if (
+        buildings.filter(function (entry) {
+          return entry && entry.id === b.id;
+        }).length !== 1
+      )
+        return null;
+      var observer = A.leaderOf(sq);
+      if (!observer || men.indexOf(observer) < 0 || !observer.root || !point(observer.root.position))
+        return null;
+      var pos = point(observer.root.position),
+        within = insideBuilding(b, pos);
+      if (!within && Math.hypot(pos.x - target.x, pos.z - target.z) > 80) return null;
+      var entry = null,
+        cost = Infinity;
+      portals.forEach(function (p) {
+        if (
+          !p ||
+          p.building !== b.id ||
+          !point(p.inside) ||
+          !point(p.outside) ||
+          !N.movementClear(p.outside, p.inside) ||
+          !N.movementClear(p.inside, target)
+        )
+          return;
+        if (!N.movementClear(pos, within ? p.inside : p.outside)) return;
+        var distance = Math.hypot(pos.x - p.outside.x, pos.z - p.outside.z);
+        if (distance < cost) {
+          cost = distance;
+          entry = p;
+        }
+      });
+      if (!entry) return null;
+      var reports = root.SquadAI.squadContactsMap(sq, sim) || [],
+        now = +sim.time || 0,
+        threats = 0;
+      /* Lack of reported contacts is NOT evidence that the room is clear. */
+      if (!Array.isArray(reports) || reports.length > 32) return null;
+      reports.slice(0, 32).forEach(function (c) {
+        if (
+          c &&
+          point(c) &&
+          isFinite(c.at) &&
+          c.at <= now &&
+          now - c.at <= tuning.contactAge &&
+          insideBuilding(b, c)
+        )
+          threats++;
+      });
+      return {
+        buildingId: b.id,
+        doorwayId: entry.id,
+        navigationVersion: N.version,
+        stage: within ? 'friendly-inside-observed' : 'doorway-approach',
+        reportedThreats: threats,
+        control: 'unknown',
+        clearance: 'not-assessed',
+        provenance: 'navigation-door/own-position/reported-beliefs'
+      };
     }
     /* Join actual execution, not a proximity-based substitute for its owner.
        This does not claim that an observed route or objective is safe/cleared. */
@@ -118,9 +215,10 @@
         point(d.target) &&
         wp.x === +d.target.x &&
         wp.z === +d.target.z
-      )
+      ) {
+        var structure = structureInterface(sim, sq, wp, ownMen || ctx.commanded(sq));
         return {
-          kind: 'route-transition',
+          kind: structure ? 'structure-handoff' : 'route-transition',
           owner: 'mission-execution',
           status: 'traversing',
           leg: d.leg,
@@ -129,8 +227,10 @@
           distance: d.distance,
           distanceMoved: d.traveled,
           lastProgressAt: d.lastProgressAt,
-          clearance: 'not-assessed'
+          clearance: 'not-assessed',
+          structure: structure || undefined
         };
+      }
       return null;
     }
     /* Bounded own-roster resources, not a second station/ammunition owner. A
@@ -327,6 +427,9 @@
         eligible['route-transition'] =
           !!active && active.kind === 'route-transition' && !inputs.contact && !pressured;
         scores['route-transition'] = 0.55;
+        eligible['structure-handoff'] =
+          !!active && active.kind === 'structure-handoff' && !inputs.contact && !pressured;
+        scores['structure-handoff'] = 0.65;
         eligible['objective-security'] = !!active && active.kind === 'objective-security' && !pressured;
         scores['objective-security'] = 0.8;
         eligible.recover = !!active && active.kind === 'recover';
@@ -470,6 +573,7 @@
       resourcesOn: resourcesOn,
       degradationOn: degradationOn,
       tasksOn: tasksOn,
+      structuresOn: structuresOn,
       execution: execution,
       degradation: degradation,
       tuning: tuning,

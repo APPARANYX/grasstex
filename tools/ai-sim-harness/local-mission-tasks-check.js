@@ -3,13 +3,14 @@ const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
-function world(on = true) {
+function world(on = true, structures = false) {
   H.resetIds();
   const r = H.bootstrap({
       modules: false,
       search:
         '?localPlan=1&localResources=1&localDegrade=1&coa=0&fireControl=0&slStress=0&scoutsForward=0&stressAct=0&commandMovement=0' +
-        (on ? '&localTasks=1' : '')
+        (on ? '&localTasks=1' : '') +
+        (structures ? '&localStructures=1' : '')
     }),
     systems = {},
     events = [];
@@ -292,6 +293,103 @@ assert.equal(
     .reason,
   'mission-replaced'
 );
+
+// A real Navigation doorway, not an objective radius or a world-truth enemy,
+// supplies the optional structure handoff. No ownership/clearance is inferred.
+function structureWorld(structures = true) {
+  const x = world(true, structures);
+  loadModule(x.r, 'battle/battle-navigation.js', { console: quietConsole, location: x.r.location });
+  const house = {
+    id: 'farmhouse',
+    x: 0,
+    z: 200,
+    w: 16,
+    d: 14,
+    rot: 0.4,
+    openings: [{ id: 'farm-door', type: 'door', side: 'south', offset: 0, width: 2 }]
+  };
+  const scenario = { buildings: [house], roads: [] };
+  x.b.scene = { metadata: { battleScenario: scenario } };
+  x.r.BattleNavigation.installScenario(scenario);
+  x.q.members.forEach(s => {
+    s.root.position.x = 0;
+    s.root.position.z = 180;
+  });
+  return { ...x, house, scenario };
+}
+const structureOff = structureWorld(false);
+assert.equal(structureOff.P.structuresOn, false);
+assert.equal(structureOff.P.update(structureOff.b, structureOff.q).kind, 'route-transition');
+assert.equal(structureOff.q._localTask.inputs.execution.structure, undefined);
+const structure = structureWorld();
+const nav = structure.r.BattleNavigation;
+assert.equal(nav.doorPortals.length, 1, 'shipping Navigation supplies the actual door connector');
+assert.equal(structure.P.structuresOn, true);
+const frozenStructure = identity(structure);
+assert.equal(structure.P.update(structure.b, structure.q).kind, 'structure-handoff');
+const approach = structure.q._localTask.inputs.execution.structure;
+assert.equal(approach.buildingId, 'farmhouse');
+assert.equal(approach.doorwayId, 'farm-door');
+assert.equal(approach.stage, 'doorway-approach');
+assert.equal(approach.control, 'unknown');
+assert.equal(approach.clearance, 'not-assessed');
+assert.equal(approach.navigationVersion, nav.version);
+assert.equal(identity(structure), frozenStructure, 'handoff has no destination, fire or stance writer');
+const firstHandoff = JSON.stringify(structure.q._localTask);
+assert.equal(
+  JSON.stringify(structure.P.update(structure.b, structure.q)),
+  firstHandoff,
+  'same-time structure evidence is deterministic'
+);
+// The observation is physical presence, not fictional capture/clearance.
+const structureLeader = structure.r.SquadAI.leaderOf(structure.q);
+structureLeader.root.position.x = 0;
+structureLeader.root.position.z = 200;
+assert.equal(structure.P.update(structure.b, structure.q).kind, 'structure-handoff');
+assert.equal(structure.q._localTask.inputs.execution.structure.stage, 'friendly-inside-observed');
+assert.equal(structure.q._localTask.inputs.execution.structure.control, 'unknown');
+// Only own stored sightings at a valid age may annotate reported threats.
+structure.r.SquadAI.squadContactsMap = () => [
+  { x: 0, z: 200, at: structure.b.time, confidence: 0.9, source: 'seen' }
+];
+assert.equal(structure.P.execution(structure.b, structure.q).structure.reportedThreats, 1);
+assert.notEqual(
+  structure.P.update(structure.b, structure.q).kind,
+  'structure-handoff',
+  'reported contact hands tactical arbitration back to existing contact owners'
+);
+// Invalid topology, stale map installation, mission replacement and a blocked
+// connector all fail closed to the unchanged route-task semantics.
+for (const breakMap of [
+  x => {
+    x.r.BattleNavigation.installScenario({ buildings: [x.house] });
+  },
+  x => {
+    x.house.openings = [];
+    x.r.BattleNavigation.installScenario(x.scenario);
+  },
+  x => {
+    x.q._macroMission.version++;
+  },
+  x => {
+    x.q.members.forEach(s => {
+      s.root.position.z = 0;
+    });
+  }
+]) {
+  const x = structureWorld();
+  breakMap(x);
+  assert.notEqual(x.P.execution(x.b, x.q)?.kind, 'structure-handoff');
+}
+const restartStructure = structureWorld();
+restartStructure.P.update(restartStructure.b, restartStructure.q);
+restartStructure.systems['squad-command'].onBattleRestart(restartStructure.b);
+assert.equal(
+  restartStructure.q._localTask,
+  null,
+  'same-page restart clears nonempty structure handoff history'
+);
+
 const hidden = world(),
   own = JSON.stringify(hidden.P.read(hidden.b, hidden.q));
 H.addSquad(hidden.r, hidden.b, {
