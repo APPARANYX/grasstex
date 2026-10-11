@@ -116,13 +116,6 @@ jobs:
           done < <(git ls-files '*.json')
           echo "Parsed $count JSON files."
 
-      - name: TEMP Prettier player-control owner check
-        run: |
-          echo PLAYER_CONTROL_PRETTIER_START
-          npx --yes prettier@3.3.3 tools/ai-sim-harness/player-control-check.js | base64 -w0
-          echo
-          echo PLAYER_CONTROL_PRETTIER_END
-
       # Prettier ratchet: the repo's .prettierrc.json was dead config - most tracked JS never
       # complied. A full one-shot reformat would break every in-flight branch, so instead every
       # JS file a pull request touches must be on-standard. Legacy files stay as they are and
