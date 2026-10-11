@@ -1,0 +1,1 @@
+{"benchmark":"standard","ref":"work/tactics-b2-route-lease","seed":"phase-a-control","seeds":2,"battle_type":"ge-defend","query_off":"routeTransition=0","query_on":"","origin_agent":"codex","purpose":"B2 same-runner observer OFF/ON cost; preserve all combat records"}
