@@ -1,0 +1,13 @@
+{
+  "benchmark": "standard",
+  "ref": "work/tactics-c-mission-tasks",
+  "seed": "phase-a-control",
+  "seeds": "2",
+  "battle_type": "meeting",
+  "query_off": "localPlan=0&localResources=0&coveredBounds=0&localDegrade=0&localTasks=0",
+  "query_on": "localPlan=0&localResources=0&coveredBounds=0&localDegrade=0&localTasks=1",
+  "windows": "contact+120",
+  "purpose": "PR509 final maximal-pressure authority fix: default comparison",
+  "origin_agent": "chatgpt",
+  "correlation_id": "pr509-final-default-meeting"
+}
