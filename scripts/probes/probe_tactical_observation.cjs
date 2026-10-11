@@ -473,6 +473,16 @@ const { chromium } = require('playwright');
       const priorBriefs = ['us', 'ge']
         .flatMap(f => b.factions[f].squads.map(q => q._macroMission))
         .filter(Boolean);
+      // Exercise actual same-page restart with a NONEMPTY Micro audit, not a zero-to-zero check.
+      const q = b.factions.us.squads.find(q => q.members.some(s => !s.dead && !s.isPlayer && !SquadAI.isMachineGun(s))),
+        s = q.members.find(s => !s.dead && !s.isPlayer && !SquadAI.isMachineGun(s));
+      q._assaultAuthorized = true;
+      BattleLeases.grant(q, 'bound', 'squad-leader', b.time, b.time + 10, 'covered restart fixture');
+      BattleEngagement.stateOf(s).state = 'engage';
+      BattleEngagement.orderBound([s]);
+      BattleEngagement.updateSoldier(s, b);
+      const coveredAttemptsBefore = BattleEngagement.coveredBoundTelemetry(b).attempts;
+      if (!coveredAttemptsBefore) throw Error('restart fixture did not consume a real bound order');
       b.restart();
       const historyCleared = !BattleAITimeline.snapshot(b).observations;
       const intentCleared = ['us', 'ge'].every(f =>
@@ -491,6 +501,7 @@ const { chromium } = require('playwright');
       const cleared = T.summary(b).tacticalSituation === null;
       T.sample(b);
       return {
+        coveredAttemptsBefore,
         coveredBoundsCleared: BattleEngagement.coveredBoundTelemetry(b).attempts === 0,
         localTasksCleared: ['us', 'ge'].every(f => b.factions[f].squads.every(q => !q._localTask)),
         conflictsCleared: ['us', 'ge'].every(f =>
