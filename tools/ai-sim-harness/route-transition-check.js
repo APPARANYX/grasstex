@@ -32,7 +32,10 @@ function world(search = '') {
       q._macroMission.status = 'executing';
     }
   };
-  loadSquadCommandStack((root, file) => loadModule(root, file, { console: quietConsole }), r);
+  loadSquadCommandStack(
+    (root, file) => loadModule(root, file, { console: quietConsole, location: root.location }),
+    r
+  );
   const b = H.makeBattle(r),
     q = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 400 } });
   q.members.forEach(s => {
