@@ -809,6 +809,11 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
         null,
         { timeout: 15000 }
       );
+      // Preserve the pre-restart subject even when the death tour has already
+      // released its isPlayer authority flag.
+      await page.evaluate(() => {
+        window.__qaRestartPlayer = __battle__._roster.us.concat(__battle__._roster.ge).find(s => s.isPlayer);
+      });
       if (phase === 'menu') {
         await page.keyboard.press('o');
         await page.waitForFunction(
@@ -834,7 +839,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       const restart = await page.evaluate(() => {
         const b = __battle__,
           controller = BattleDesktopCamera.current,
-          prior = b._roster.us.concat(b._roster.ge).find(s => s.isPlayer),
+          prior = window.__qaRestartPlayer,
           previousRoot = prior.root,
           previousFaction = prior.faction,
           previousRoster = b._roster.us.concat(b._roster.ge);
@@ -882,6 +887,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       assert.equal(settled.currentController, true, phase + ': live desktop camera disposed');
       assert.equal(settled.paused, false, phase + ': camera left restarted battle paused');
       sameSimRestartCases.push({ phase, ...restart, ...settled });
+      await page.evaluate(() => { delete window.__qaRestartPlayer; });
     }
     fs.writeFileSync(
       path.join(OUT, 'same-sim-restart.json'),
