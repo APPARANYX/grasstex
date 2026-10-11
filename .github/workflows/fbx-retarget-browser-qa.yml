@@ -5,6 +5,8 @@ name: FBX retarget browser QA
 on:
   pull_request:
     paths:
+      - 'battle/modules/52-fbx-asset-import.js'
+      - 'tools/ai-sim-harness/fbx-asset-import-check.js'
       - 'battle/modules/52-fbx-clip-converter.js'
       - 'tools/ai-sim-harness/fbx-clip-converter-check.js'
       - 'scripts/lib/clip-pack-sources.cjs'
@@ -44,6 +46,7 @@ jobs:
       - name: Validate actual retarget fixture
         run: |
           node --check scripts/probe_retarget.cjs
+          node tools/ai-sim-harness/fbx-asset-import-check.js
           node tools/ai-sim-harness/fbx-clip-converter-check.js
           node tools/ai-sim-harness/fbx-clip-pack-integrity-check.js
           node tools/ai-sim-harness/fbx-clip-mixer-check.js
