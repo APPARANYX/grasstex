@@ -26,12 +26,7 @@ const assert = require('node:assert/strict'),
   fs = require('node:fs'),
   path = require('node:path'),
   H = require('./harness');
-const SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/16-squad-plan-stability.js'), 'utf8');
-const FC_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15a-squad-leader-fire-control.js'), 'utf8');
-const BP_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15b-squad-leader-buddy-pairs.js'), 'utf8');
-const SF_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15c-squad-leader-scouts-forward.js'), 'utf8');
-const LL_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15d-squad-leader-leaderless-intent.js'), 'utf8');
-const ME_SRC = fs.readFileSync(path.join(H.REPO, 'battle/modules/15e-squad-leader-morale-coa.js'), 'utf8');
+const { loadSquadPlan } = require('./squad-plan-fixture');
 const SEED = +(process.env.HARNESS_SEED || 12345);
 let n = 0;
 function test(name, fn) {
@@ -58,12 +53,10 @@ function world(search) {
       return { cohesionRadius: 34, captainlessCohesion: 26 };
     }
   };
-  new Function('window', 'globalThis', 'console', 'location', FC_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', BP_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SF_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', LL_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', ME_SRC)(r, r, console, r.location); new Function('window', 'globalThis', 'console', 'location', SRC)(
-    r,
-    r,
-    { log() {}, warn() {} },
-    search == null ? undefined : { search }
-  );
+  loadSquadPlan(r, {
+    stabilityConsole: { log() {}, warn() {} },
+    stabilityLocation: search == null ? undefined : { search }
+  });
   const b = H.makeBattle(r, { seed: SEED });
   return { r, b, S: r.BattleSquadStability, made: 0 };
 }
