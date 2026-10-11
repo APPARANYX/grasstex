@@ -1,0 +1,25 @@
+name: Temporary R1 fixture Prettier
+on:
+  push:
+    branches:
+      - work/audit456-r1-plan-fixture-family
+permissions:
+  contents: write
+jobs:
+  format-fixtures:
+    if: "!contains(github.event.head_commit.message, 'format(#456 R1): apply prettier')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply pinned repository formatter to touched fixtures
+        run: |
+          npx --yes prettier@3.3.3 --write tools/ai-sim-harness/squad-plan-fixture.js tools/ai-sim-harness/morale-check.js tools/ai-sim-harness/coa-check.js tools/ai-sim-harness/squad-stress-check.js tools/ai-sim-harness/buddy-pairs-check.js
+      - name: Commit formatting onto this PR branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tools/ai-sim-harness/squad-plan-fixture.js tools/ai-sim-harness/morale-check.js tools/ai-sim-harness/coa-check.js tools/ai-sim-harness/squad-stress-check.js tools/ai-sim-harness/buddy-pairs-check.js
+          if ! git diff --cached --quiet; then
+            git commit -m "format(#456 R1): apply prettier"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
