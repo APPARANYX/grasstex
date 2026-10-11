@@ -1,0 +1,25 @@
+name: PR514 temporary Prettier export
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Format changed files
+        run: npx --yes prettier@3.3.3 --write battle/modules/15n-squad-leader-local-plan.js tools/ai-sim-harness/local-mission-tasks-check.js scripts/probes/probe_tactical_observation.cjs
+      - name: Export formatting
+        run: |
+          echo 'PR514_0_BEGIN'
+          base64 -w0 battle/modules/15n-squad-leader-local-plan.js
+          echo
+          echo 'PR514_0_END'
+          echo 'PR514_1_BEGIN'
+          base64 -w0 tools/ai-sim-harness/local-mission-tasks-check.js
+          echo
+          echo 'PR514_1_END'
+          echo 'PR514_2_BEGIN'
+          base64 -w0 scripts/probes/probe_tactical_observation.cjs
+          echo
+          echo 'PR514_2_END'
