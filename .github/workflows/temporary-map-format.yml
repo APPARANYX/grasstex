@@ -1,0 +1,26 @@
+name: Temporary map formatting
+on:
+  push:
+    branches:
+      - feat/reported-contact-tactical-map
+    paths:
+      - .github/workflows/temporary-map-format.yml
+permissions:
+  contents: write
+jobs:
+  prettier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/reported-contact-tactical-map
+      - name: Format only the tactical map files
+        run: |
+          npx --yes prettier@3.3.3 --write battle/modules/55-reported-contact-tactical-map.js tools/ai-sim-harness/tactical-map-check.js
+          if ! git diff --quiet -- battle/modules/55-reported-contact-tactical-map.js tools/ai-sim-harness/tactical-map-check.js; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add battle/modules/55-reported-contact-tactical-map.js tools/ai-sim-harness/tactical-map-check.js
+            git commit -m "style(ui): format tactical map files with Prettier"
+            git push origin HEAD:feat/reported-contact-tactical-map
+          fi
