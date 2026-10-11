@@ -8,6 +8,7 @@ const vm = require('node:vm');
 const ROOT = path.resolve(__dirname, '../..');
 const tableFile = path.join(ROOT, 'battle/modules/53-fbx-clip-table.js');
 const backendFile = path.join(ROOT, 'battle/modules/53-fbx-soldier-backend.js');
+const animationFile = path.join(ROOT, 'battle/modules/52-fbx-animation-state.js');
 const converterFile = path.join(ROOT, 'battle/modules/52-fbx-clip-converter.js');
 const context = {};
 context.globalThis = context;
@@ -36,6 +37,8 @@ if (context.BattleFbxClips.files.some(file => /^Praying 2$/i.test(file)))
   throw new Error('the duplicate Praying 2 clip returned to the runtime table');
 
 const backend = fs.readFileSync(backendFile, 'utf8');
+const animation = fs.readFileSync(animationFile, 'utf8');
+if (!backend.includes('BattleFbxAnimationState.create')) throw new Error('animation state owner missing');
 for (const anchor of [
   "holds: ['reactionFreezeStanding', 'reactionFreezeSitting', 'reactionFreezeFallen']",
   "return k === 'cower' || k === 'flee' || k === 'freeze' || k === 'rage' ? k : null",
@@ -45,27 +48,27 @@ for (const anchor of [
   'reactionWeapon(soldier, fx, reactionDropsWeapon(reaction) || fx.cowerExit);',
   'left.droppedAt || standAt(soldier)'
 ])
-  if (!backend.includes(anchor)) throw new Error(`backend contract missing: ${anchor}`);
+  if (!animation.includes(anchor)) throw new Error(`animation contract missing: ${anchor}`);
 const converter = fs.readFileSync(converterFile, 'utf8');
 if (!converter.includes("loop || spec[2] === 'inplace' || spec[2] === 'turn'"))
   throw new Error('converter must suppress looping, in-place and turning hips drift');
 /* Presentation draws what the sim says and never writes it: the weapon a fled man left is Engagement's decision
    (BattleWeapons.abandon), the one he is issued at base is SquadAI.rearm's. */
-if (/\bsoldier\.weapon\s*=[^=]|\.abandon\s*\(|\.rearm\s*\(|\.secondary\s*=[^=]/.test(backend))
+if (/\bsoldier\.weapon\s*=[^=]|\.abandon\s*\(|\.rearm\s*\(|\.secondary\s*=[^=]/.test(backend + '\n' + animation))
   throw new Error("the backend must not write the soldier's weapons: abandoning and issuing are the sim's");
 
-const freezePick = backend.slice(
-  backend.indexOf('function freezeHoldOf'),
-  backend.indexOf('function reactionFullBody')
+const freezePick = animation.slice(
+  animation.indexOf('function freezeHoldOf'),
+  animation.indexOf('function reactionFullBody')
 );
 if (/Math\.random|battle\.random/.test(freezePick))
   throw new Error('freeze presentation variant must not draw an RNG');
-const lower = backend.slice(
-  backend.indexOf('function updateReactionLower'),
-  backend.indexOf('function update(soldier')
+const lower = animation.slice(
+  animation.indexOf('function updateReactionLower'),
+  animation.indexOf('function update(soldier')
 );
 if (/reaction==='rage'/.test(lower)) throw new Error('rage must retain ordinary fighting locomotion');
-if (/reactionRageStrike|rageStrikeHold/.test(backend))
+if (/reactionRageStrike|rageStrikeHold/.test(backend + '\n' + animation))
   throw new Error('rage must use its ordinary fighting clips; the broken bayonet overlay returned');
 
 console.log(
