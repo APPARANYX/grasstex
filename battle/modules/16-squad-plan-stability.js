@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 22170)
-Total output lines: 2253
-
 /* M3C meso-level squad-command owner.
    The General's mission brief (`_macroMission`) says what the squad must achieve; this module is
    the Squad Leader layer that executes it. The layer is this file plus its Squad Leader
@@ -948,7 +945,227 @@ Total output lines: 2253
       samePending =
         pending &&
         pending.phase !== 'adopted' &&
-        pendi…2170 tokens truncated…se.data.quietSince == null) {
+        pending.phase !== 'unreachable' &&
+        pending.data &&
+        String(pending.data.publishKey || '') === String(publishKey || '');
+
+    /* Freeze one replacement while this man is still processing it. Fireteam geometry may keep
+       sliding with the formation every Meso tick; that must not continuously replace the pending
+       envelope and make adoption impossible. A genuinely different publish key may supersede it. */
+    if (!samePending) {
+      CR.publish(sq, battle, 'movement', [s], {
+        scope: scope,
+        action: kind || 'formation',
+        signature: movementSignature(publishKey, next),
+        reason: reason || 'fireteam order',
+        spatial: opt.reference === 'none' ? false : true,
+        reference: opt.reference || 'point',
+        point: next,
+        data: {
+          publishKey: String(publishKey || ''),
+          urgent: !!urgent,
+          kind: kind || 'formation',
+          adoptHere: !!opt.adoptHere,
+          missionVersion: missionVersion(sq)
+        }
+      });
+      adopted = CR.adopted && CR.adopted(s, battle, 'movement', scope);
+    }
+
+    /* If survival fallback replaced the last adopted tactical order, do not resurrect that stale
+       order while the first post-extraction command is still pending. Only the newest personally
+       adopted envelope may take authority back from survival movement. */
+    if (
+      s._survivalMovementKey &&
+      (!adopted || !CR.executionCurrent(s, battle, 'movement', scope, adopted.envelopeId))
+    )
+      return false;
+    if (!adopted || !adopted.point || !adopted.data) return false;
+
+    /* A non-spatial HOLD means stop when the order reaches the man, not return to the coordinate
+       where he happened to be when the leader spoke. This matters only for commands that explicitly
+       opt in (currently recon main-body holds); fixed spatial orders still execute their published point. */
+    var appliedPoint = adopted.data.adoptHere ? point(s.root && s.root.position) : adopted.point,
+      adoptedKey = String(adopted.data.publishKey || ''),
+      previous = point(s._fireteamDestination);
+    if (!appliedPoint) return false;
+    if (
+      !s._survivalMovementKey &&
+      s._fireteamAdoptedEnvelope === adopted.envelopeId &&
+      previous &&
+      dist(previous, appliedPoint) <= ORDER_PUBLISH_EPS &&
+      s._fireteamPublishKey === adoptedKey
+    )
+      return false;
+
+    s._survivalMovementKey = null;
+    return commitPersonalMovement(
+      s,
+      appliedPoint,
+      adoptedKey,
+      battle,
+      !!adopted.data.urgent,
+      stats,
+      adopted.envelopeId
+    );
+  }
+
+  function tasksFor(phase) {
+    if (phase === 'defend' || phase === 'hold')
+      return { command: 'control', alpha: 'hold-left', bravo: 'hold-right', charlie: 'local-reserve' };
+    if (phase === 'flank')
+      return { command: 'control', alpha: 'support-by-fire', bravo: 'flank', charlie: 'follow-assault' };
+    if (phase === 'capture' || phase === 'clear-town')
+      return { command: 'control', alpha: 'support-by-fire', bravo: 'clear/maneuver', charlie: 'secure' };
+    if (phase === 'support-hold')
+      return { command: 'control', alpha: 'support-by-fire', bravo: 'support-by-fire', charlie: 'security' };
+    return { command: 'control', alpha: 'support-by-fire', bravo: 'maneuver', charlie: 'assault/reserve' };
+  }
+  function teamKeyFor(s) {
+    var i = +s.slotIndex || 0;
+    if (i <= 1) return 'command';
+    if (i === 2 || i === 4 || i === 5) return 'alpha';
+    if (i === 3 || i === 6 || i === 7) return 'bravo';
+    /* A re-formed squad can carry more than ten men: the extras are dealt round the three fireteams. */
+    if (i >= 10) return ['alpha', 'bravo', 'charlie'][(i - 10) % 3];
+    return 'charlie';
+  }
+  function syncTasks(sq, plan) {
+    var tasks = (plan && plan.tasks) || null,
+      a = (sq && sq.members) || [];
+    for (var i = 0; i < a.length; i++) {
+      var s = a[i],
+        key = s._fireteamKey || teamKeyFor(s);
+      s._engagementTask = tasks && key ? tasks[key] || null : null;
+      s._engagementPlanSerial = plan ? plan.serial : null;
+    }
+    sq._engagementTasks = tasks ? JSON.parse(JSON.stringify(tasks)) : null;
+  }
+  function planSnapshot(p) {
+    return p
+      ? {
+          serial: p.serial,
+          status: p.status,
+          phase: p.phase,
+          targetObjective: p.targetObjective,
+          objective: copy(p.objective),
+          createdAt: p.createdAt,
+          activatedAt: p.activatedAt,
+          lastContactAt: p.lastContactAt,
+          tasks: p.tasks
+        }
+      : null;
+  }
+  function closePlan(sim, sq, reason) {
+    var p = sq && sq._engagementPlan;
+    if (!p) return false;
+    sq._lastEngagementPlan = planSnapshot(p);
+    sq._lastEngagementPlan.closedAt = sim.time;
+    sq._lastEngagementPlan.closeReason = reason || 'closed';
+    L.end(sq, 'tactical-plan', sim.time, reason || 'closed');
+    sq._engagementPlan = null;
+    sq._stablePlan = null;
+    syncTasks(sq, null);
+    return true;
+  }
+  function stagePlan(sim, sq) {
+    var phase = String(sq.commandPhase || '');
+    if (!TACTICAL[phase] || sq.state === 'retreat' || EMERGENCY[phase]) return null;
+    var serial = (+sq._engagementPlanSerial || 0) + 1,
+      p = {
+        serial: serial,
+        status: sq.inContact ? 'active' : 'staged',
+        phase: phase,
+        targetObjective: sq.targetObjective || null,
+        objective: copy(sq.objective),
+        missionVersion: missionVersion(sq),
+        signature: signature(sq),
+        createdAt: sim.time,
+        activatedAt: sq.inContact ? sim.time : null,
+        lastContactAt: sq.inContact ? sim.time : null,
+        tasks: tasksFor(phase)
+      };
+    /* A staged plan lapses on the clock; contact holds it open; once contact stops it closes after
+       QUIET_CLOSE quiet seconds. */
+    L.grant(
+      sq,
+      'tactical-plan',
+      'squad-leader',
+      sim.time,
+      sim.time + leaseSeconds(phase),
+      phase + ' plan #' + serial,
+      'lease expiry, intent replaced, retreat, or ' + QUIET_CLOSE + ' s without contact',
+      { quietSince: null }
+    );
+    sq._engagementPlanSerial = serial;
+    sq._engagementPlan = p;
+    sq._stablePlan = p;
+    syncTasks(sq, p);
+    telemetry(sim, 'decision-plan-commit', {
+      faction: sq.faction,
+      squad: sq.id,
+      serial: serial,
+      phase: phase,
+      targetObjective: p.targetObjective,
+      seconds: leaseSeconds(phase)
+    });
+    return p;
+  }
+  function missionVersion(sq) {
+    return sq && sq._macroMission ? +sq._macroMission.version || 0 : 0;
+  }
+  /* A doctrine hold/support/regroup is a bounded commitment, not a new objective. When the Squad Leader's
+   plan for it ends (lease or contact closes) the Squad Leader reports back once instead of the General
+   re-evaluating doctrine on a timer. */
+  var REVIEW_ACTIONS = { hold: 1, support: 1, regroup: 1 };
+  function requestReview(sim, sq, why) {
+    var m = sq && sq._macroMission;
+    if (!m || !REVIEW_ACTIONS[m.action]) return;
+    var r = sq._macroMissionRequest;
+    if (r && r.missionVersion === m.version) return;
+    sq._macroMissionRequest = {
+      missionVersion: m.version,
+      reason: 'doctrine-review',
+      why: why,
+      at: sim.time
+    };
+    telemetry(sim, 'decision-captain-request', {
+      faction: sq.faction,
+      squad: sq.id,
+      version: m.version,
+      reason: 'doctrine-review',
+      why: why
+    });
+  }
+  function updatePlan(sim, sq) {
+    var p = sq._engagementPlan,
+      phase = String(sq.commandPhase || ''),
+      sig = signature(sq);
+    /* Preserve the last valid parent tactical plan during succession. Contact remains a Micro fact,
+       but there is nobody present to stage, replace, close or renew a Meso plan. */
+    if (leaderlessActive(sq) && sq.state !== 'retreat') {
+      if (p) sq._stablePlan = p;
+      return;
+    }
+    if (sq.state === 'retreat' || phase === 'retreat') {
+      closePlan(sim, sq, 'retreat');
+      sq._planDormantSignature = null;
+      return;
+    }
+    if (sq._planDormantSignature && sq._planDormantSignature !== sig) sq._planDormantSignature = null;
+    var lease = p && L.get(sq, 'tactical-plan');
+    if (p) {
+      if (sq.inContact) {
+        sq._planDormantSignature = null;
+        if (p.status !== 'active' && p.activatedAt == null) p.activatedAt = sim.time;
+        p.status = 'active';
+        p.lastContactAt = sim.time;
+        lease.data.quietSince = null;
+        lease.until = Infinity;
+        lease.reason = p.phase + ' plan #' + p.serial + ' in contact';
+        L.extend(sq, 'regroup-bypass', 'squad-leader', sim.time, sim.time + 1.25, 'firefight in progress');
+      } else if (p.status === 'active' || p.status === 'quiet') {
+        if (lease.data.quietSince == null) {
           lease.data.quietSince = sim.time;
           lease.until = sim.time + QUIET_CLOSE;
           lease.reason = p.phase + ' plan #' + p.serial + ' going quiet';
