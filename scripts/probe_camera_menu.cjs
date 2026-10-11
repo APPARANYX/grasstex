@@ -90,6 +90,13 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       owner: true, resolution: 512, anchor: 'function', sample: 'function',
       paint: 'function', clear: 'function'
     }, 'real FBX backend lost its skinned wound and UV surface presentation contract');
+    const modelRetargetOwnership = await page.evaluate(() => ({
+      installed: !!window.BattleFbxModelRetarget,
+      factory: typeof window.BattleFbxModelRetarget?.create,
+      ready: !!window.BattleFbxSoldier?.status(window.__battle__.scene)?.ready
+    }));
+    assert.deepEqual(modelRetargetOwnership, { installed: true, factory: 'function', ready: true },
+      'real FBX page lost per-model clip retarget helper or imported character readiness');
     // R3 actual checked-out battle: calibration must feed loaded FBX model grips,
     // attached weapon world matrices, and prepared mesh muzzles on both factions.
     const fbIntegration = await page.evaluate(() => {
