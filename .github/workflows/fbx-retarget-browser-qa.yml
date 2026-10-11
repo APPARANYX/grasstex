@@ -6,6 +6,8 @@ on:
   pull_request:
     paths:
       - 'battle/modules/52-fbx-retarget-quat.js'
+      - 'battle/modules/52-fbx-model-retarget.js'
+      - 'tools/ai-sim-harness/fbx-model-retarget-check.js'
       - 'battle/modules/52-fbx-surface-damage.js'
       - 'battle/modules/52-fbx-mesh-lod.js'
       - 'battle/modules/52-fbx-render-lod.js'
@@ -36,6 +38,7 @@ jobs:
           node --check scripts/probe_retarget.cjs
           node tools/ai-sim-harness/fbx-retarget-quat-check.js
           node tools/ai-sim-harness/fbx-retarget-rest-check.js
+          node tools/ai-sim-harness/fbx-model-retarget-check.js
           node tools/ai-sim-harness/fbx-presentation-lod-check.js
           node tools/ai-sim-harness/fbx-surface-damage-check.js
           php -l battle_sim_local.php
