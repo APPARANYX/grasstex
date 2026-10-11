@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - 'battle/camera-controls.js'
+      - 'battle/modules/52-fbx-clip-mixer.js'
+      - 'tools/ai-sim-harness/fbx-clip-mixer-check.js'
       - 'battle/modules/52-fbx-rig-canon.js'
       - 'battle/modules/52-fbx-surface-damage.js'
       - 'tools/ai-sim-harness/fbx-surface-damage-check.js'
