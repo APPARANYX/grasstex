@@ -12,6 +12,23 @@ function playwright() {
     return require(path.join(execSync('npm root -g').toString().trim(), 'playwright'));
   }
 }
+function silentWav() {
+  const samples = 2205, b = Buffer.alloc(44 + samples * 2);
+  b.write('RIFF', 0);
+  b.writeUInt32LE(b.length - 8, 4);
+  b.write('WAVE', 8);
+  b.write('fmt ', 12);
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(22050, 24);
+  b.writeUInt32LE(44100, 28);
+  b.writeUInt16LE(2, 32);
+  b.writeUInt16LE(16, 34);
+  b.write('data', 36);
+  b.writeUInt32LE(samples * 2, 40);
+  return b;
+}
 const OUT = path.resolve(process.env.TACTICAL_MAP_OUT || 'closeups/tactical-map-ui');
 const URL_ = process.env.TACTICAL_MAP_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
 (async () => {
@@ -36,7 +53,15 @@ const URL_ = process.env.TACTICAL_MAP_URL || 'http://127.0.0.1:8765/grasstex/bat
     const page = await context.newPage();
     page.on('pageerror', e => errors.push(String(e)));
     page.on('crash', () => errors.push('page crashed'));
-    await page.route('**/battle_(policy|learning|log|metrics)*.php', r => r.fulfill({ json: {} }));
+    const silence = silentWav();
+    await page.route('**/*', route => {
+      const req = route.request();
+      if (req.method() === 'POST' || /battle_(policy|learning|log|metrics)[^/]*\\.php/.test(req.url()))
+        return route.fulfill({ json: {} });
+      if (/\\/Assets\\/audio\\/.*\\.(?:mp3|wav|ogg)(?:[?#]|$)/i.test(req.url()))
+        return route.fulfill({ status: 200, body: silence, contentType: 'audio/wav' });
+      return route.continue();
+    });
     await page.goto(URL_ + '?seed=cartography-qa', { waitUntil: 'load', timeout: 300000 });
     await page.waitForFunction(() => window.BattleTacticalMap && window.__battle__?.factions, null, {
       timeout: 240000
@@ -59,7 +84,8 @@ const URL_ = process.env.TACTICAL_MAP_URL || 'http://127.0.0.1:8765/grasstex/bat
     assert((await page.locator('#battleTacticalMap .gtm-paper').count()) === 1);
     assert((await page.locator('#battleTacticalMap .gtm-coordinate-grid text').count()) >= 10);
     assert((await page.locator('#battleTacticalMap .gtm-buildings rect').count()) > 0);
-    assert((await page.locator('#battleTacticalMap .gtm-report-row').count()) >= 0);
+    assert((await page.locator('#battleTacticalMap .gtm-objective-row').count()) > 0,
+      'scenario objective names must appear in the field-objective roster');
     assert((await page.locator('#battleTacticalMap .gtm-side h3').count()) >= 2);
     const terrain = await page.evaluate(() => ({
       physicalCover: document.querySelectorAll('#battleTacticalMap .gtm-cover > *').length,
