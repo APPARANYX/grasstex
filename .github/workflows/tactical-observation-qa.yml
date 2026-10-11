@@ -21,8 +21,11 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Probe current-head preview
         env:
-          TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.event.pull_request.head.sha || github.sha }}
+          TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
         run: node scripts/probes/probe_tactical_observation.cjs
+        # preview.php resolves branches, then the probe checks the staged head SHA.
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
