@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: feat/reported-contact-tactical-map
-      - name: Format scoped changed files
+      - name: Format scoped changed files (final pass)
         run: |
           npx --yes prettier@3.3.3 --write battle/modules/55-reported-contact-tactical-map.js scripts/probes/probe_tactical_map_ui.cjs
           if ! git diff --quiet -- battle/modules/55-reported-contact-tactical-map.js scripts/probes/probe_tactical_map_ui.cjs; then
