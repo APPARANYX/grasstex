@@ -47,10 +47,24 @@ assert.equal(
   'event/handler bodies or listener ordering changed since the death-tour input baseline'
 );
 assert.equal(fingerprint(freefly), '5cb26236', 'the original free-fly movement, speed or geometry changed');
+/* Preserve the prior byte-level frame-order oracle after isolating the single
+   new roster guard. Do not simply rebaseline the entire function: everything
+   after the guard (Menu, death skip, possession and frame handoff) must remain
+   identical to the accepted controller-A baseline. */
+const restartGuard = /\/\* Restarts reuse[\s\S]*?leavePlayer\('battle roster replaced'\);\n/;
+assert.match(
+  orchestration,
+  restartGuard,
+  'stale player ownership must be checked before menu/gamepad dispatch'
+);
+assert.ok(
+  orchestration.indexOf("leavePlayer('battle roster replaced');") < orchestration.indexOf('menuHoldGesture('),
+  'restart guard must execute before the menu/death/controller input branch'
+);
 assert.equal(
-  fingerprint(orchestration),
+  fingerprint(orchestration.replace(restartGuard, '')),
   'a5a33693',
-  'menu/player frame/gesture ordering changed since controller-A death skip was added'
+  'previous menu/player frame/gesture ordering changed after excluding only the new restart guard'
 );
 assert.match(src, /menuHoldState\.long = false;/, 'disconnect clears the held Menu gesture');
 assert.match(src, /menuHoldState\.since = 0;/, 'disconnect resets Menu hold duration');

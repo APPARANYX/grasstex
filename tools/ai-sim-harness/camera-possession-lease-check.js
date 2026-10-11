@@ -26,7 +26,7 @@ const services = [],
 const lease = new Function(
   'global',
   src.slice(start, end) +
-    'return { eligible: playerSoldierEligible, menu: menuSoldierEligible, commit: commitPlayerOwnership, clear: clearPlayerLease };'
+    'return { eligible: playerSoldierEligible, roster: playerRosterMember, menu: menuSoldierEligible, commit: commitPlayerOwnership, clear: clearPlayerLease };'
 )(global);
 const us = {
   id: 1,
@@ -65,6 +65,24 @@ battle.factions.us.squads = [];
 assert.equal(lease.eligible(battle, us), false, 'squad removed by restart is not eligible');
 assert.equal(lease.menu(battle, 'us', squadUs, us), false, 'menu must revalidate current roster');
 battle.factions.us.squads = [squadUs];
+
+// A full BattleSim.restart() replaces _roster on the *same* battle object.
+battle._roster = { us: [us], ge: [ge] };
+assert.equal(lease.roster(battle, us), true, 'current player identity remains a valid lease');
+assert.equal(lease.roster(battle, ge), true, 'either faction can be possessed');
+assert.equal(lease.roster(battle, { ...us }), false, 'a cloned soldier id cannot retain possession');
+assert.equal(lease.roster(battle, null), false, 'missing player is never a roster lease');
+const deadTour = { ...us, dead: true };
+battle._roster.us.push(deadTour);
+assert.equal(lease.roster(battle, deadTour), true, 'dead man remains valid for the death tour until restart');
+battle._roster.us = [us];
+assert.equal(lease.roster(battle, deadTour), false, 'old death tour must exit when the roster is replaced');
+const disposed = { ...us, root: { ...us.root, isDisposed: () => true } };
+battle._roster.us.push(disposed);
+assert.equal(lease.roster(battle, disposed), false, 'a disposed root is never a live camera reference');
+battle._roster.us = [us];
+assert.equal(lease.roster({ ...battle, _roster: { us: [], ge: [] } }, us), false);
+assert.equal(lease.roster(null, us), false);
 
 lease.clear(us, battle);
 assert.equal(us.isPlayer, false, 'release ownership flag');
