@@ -20,6 +20,7 @@ const { chromium } = require('playwright');
     );
     url.searchParams.set('seed', 'phase-a-observer');
     url.searchParams.set('tacticalSituation', '1');
+    url.searchParams.set('urbanPicture', '1');
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(String(e)));
@@ -31,7 +32,10 @@ const { chromium } = require('playwright');
     const cdp = await context.newCDPSession(page);
     await page.evaluate(() => {
       __battle__.paused = true;
-      for (let i = 0; i < 50; i++) BattleTacticalSituation.sample(__battle__);
+      for (let i = 0; i < 50; i++) {
+        BattleTacticalSituation.sample(__battle__);
+        if (window.BattleUrbanOperatingPicture) BattleUrbanOperatingPicture.sample(__battle__);
+      }
     });
     await cdp.send('HeapProfiler.collectGarbage');
     await cdp.send('HeapProfiler.startSampling', {
@@ -55,7 +59,26 @@ const { chromium } = require('playwright');
       }
       const totalMs = performance.now() - start;
       const sampled = T.summary(b);
+      let urban = null;
+      if (window.BattleUrbanOperatingPicture) {
+        const U = BattleUrbanOperatingPicture;
+        if (!U.enabled()) throw Error('urban query flag lost');
+        const stable = JSON.stringify(U.compute(b, 'us')) === JSON.stringify(U.compute(b, 'us'));
+        const startUrban = performance.now();
+        for (let i = 0; i < 100; i++) U.sample(b);
+        const out = U.summary(b).urbanOperatingPicture;
+        urban = {
+          stable,
+          loops: 100,
+          msPerSample: (performance.now() - startUrban) / 100,
+          serializedBytes: JSON.stringify(out).length,
+          buildings: out.us.buildings.length,
+          streets: out.us.streets.length,
+          visibilityProbes: out.us.sectorVisibility.length
+        };
+      }
       return {
+        urban,
         enabled: T.enabled(),
         stable,
         loops,
@@ -79,15 +102,33 @@ const { chromium } = require('playwright');
       const b = __battle__,
         T = BattleTacticalSituation;
       b.restart();
+      const U = window.BattleUrbanOperatingPicture;
+      const urbanCleared = !U || U.summary(b).urbanOperatingPicture === null;
+      if (U) U.sample(b);
+      const urbanReports = U
+        ? U.summary(b).urbanOperatingPicture.us.buildings.reduce((n, c) => n + c.reportedThreats, 0)
+        : 0;
       const cleared = T.summary(b).tacticalSituation === null;
       T.sample(b);
-      return { cleared, contacts: T.summary(b).tacticalSituation.us.contactCount };
+      return {
+        urbanCleared,
+        urbanReports,
+        cleared,
+        contacts: T.summary(b).tacticalSituation.us.contactCount
+      };
     });
     evidence.errors = errors;
     fs.mkdirSync('closeups/tactical-observation', { recursive: true });
     fs.writeFileSync('closeups/tactical-observation/report.json', JSON.stringify(evidence, null, 2));
     console.log(JSON.stringify(evidence));
     assert.equal(evidence.stable, true);
+    if (evidence.urban) {
+      assert.equal(evidence.urban.stable, true);
+      assert.ok(evidence.urban.buildings > 0);
+      assert.ok(evidence.urban.visibilityProbes > 0);
+    }
+    assert.equal(evidence.restart.urbanCleared, true);
+    assert.equal(evidence.restart.urbanReports, 0);
     assert.equal(evidence.restart.cleared, true);
     assert.equal(evidence.restart.contacts, 0);
     assert.deepEqual(errors, []);
