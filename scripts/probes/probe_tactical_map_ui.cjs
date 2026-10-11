@@ -13,7 +13,8 @@ function playwright() {
   }
 }
 function silentWav() {
-  const samples = 2205, b = Buffer.alloc(44 + samples * 2);
+  const samples = 2205,
+    b = Buffer.alloc(44 + samples * 2);
   b.write('RIFF', 0);
   b.writeUInt32LE(b.length - 8, 4);
   b.write('WAVE', 8);
@@ -84,8 +85,10 @@ const URL_ = process.env.TACTICAL_MAP_URL || 'http://127.0.0.1:8765/grasstex/bat
     assert((await page.locator('#battleTacticalMap .gtm-paper').count()) === 1);
     assert((await page.locator('#battleTacticalMap .gtm-coordinate-grid text').count()) >= 10);
     assert((await page.locator('#battleTacticalMap .gtm-buildings rect').count()) > 0);
-    assert((await page.locator('#battleTacticalMap .gtm-objective-row').count()) > 0,
-      'scenario objective names must appear in the field-objective roster');
+    assert(
+      (await page.locator('#battleTacticalMap .gtm-objective-row').count()) > 0,
+      'scenario objective names must appear in the field-objective roster'
+    );
     assert((await page.locator('#battleTacticalMap .gtm-side h3').count()) >= 2);
     const terrain = await page.evaluate(() => ({
       physicalCover: document.querySelectorAll('#battleTacticalMap .gtm-cover > *').length,

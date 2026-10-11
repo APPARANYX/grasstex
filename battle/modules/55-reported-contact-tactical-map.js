@@ -506,12 +506,23 @@
       var g = add(layer, 'g', { 'class': 'gtm-objective', transform: 'translate(' + p.x + ' ' + p.y + ')' });
       add(g, 'path', {
         d: 'M0 -15 L15 0 L0 15 L-15 0 Z',
-        fill: '#29312b', stroke: color, 'stroke-width': 2.4
+        fill: '#29312b',
+        stroke: color,
+        'stroke-width': 2.4
       });
-      add(g, 'text', {
-        x: 0, y: 5, fill: color, 'text-anchor': 'middle',
-        'font-size': 13, 'font-weight': 700
-      }, key);
+      add(
+        g,
+        'text',
+        {
+          x: 0,
+          y: 5,
+          fill: color,
+          'text-anchor': 'middle',
+          'font-size': 13,
+          'font-weight': 700
+        },
+        key
+      );
       add(g, 'title', {}, key + ': ' + String(o.label || o.id) + ' · ' + gridRef(o.point || o, dimensions));
     });
   }
