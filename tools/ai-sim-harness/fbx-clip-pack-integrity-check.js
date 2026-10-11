@@ -20,7 +20,7 @@ assert.match(converter, /function convertClip\(/);
 assert.doesNotMatch(backend, /function sourceRig\(/);
 assert.doesNotMatch(backend, /function convertClip\(/);
 assert.match(backend, /function encodeClipPack\(/);
-const checksumSource = converterText(rig + '\n' + converter + '\n' + backend);
+const checksumSource = converterText(rig + '\n' + backend + '\n' + converter);
 const want = expected(root);
 const { header } = readHeader();
 assert.equal(sha256(checksumSource), want.converter, 'real owners must determine converter fingerprint');
