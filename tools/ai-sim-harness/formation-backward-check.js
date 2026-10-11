@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
 /* Formation orders never walk an advancing man backward (16-squad-plan-stability.js updateFireteams).
    Men who ran ahead of their fireteam's order anchor (assault rushes, cover bounds) used to be sent
@@ -14,10 +15,7 @@ const assert = require('node:assert/strict'),
   H = require('./harness');
 const ALLOW = 3;
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 let n = 0;
 function test(name, fn) {

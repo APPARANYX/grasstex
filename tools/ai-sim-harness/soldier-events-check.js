@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* The soldier event queue (module 08, `BattleSoldierEvents`): what happens to a man reaches the layer
    that reads it by one road, with one declared vocabulary and fixed priorities.
 
@@ -28,10 +29,7 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 function load(r, file) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, file, { console: quietConsole });
 }
 
 function world() {

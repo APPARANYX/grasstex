@@ -1,5 +1,6 @@
 'use strict';
 const { loadSquadCommandStack } = require('./squad-command-stack');
+const { loadModule, quietConsole } = require('./module-loader');
 /* Shared scenario fixture for the tactical-positions test family.
 
    One room with a window, one US squad outside it in a support-hold, and the
@@ -17,13 +18,7 @@ const assert = require('node:assert/strict'),
 const H = require('./harness');
 
 function load(r, file) {
-  new Function(
-    'window',
-    'globalThis',
-    'console',
-    'BABYLON',
-    fs.readFileSync(path.join(H.REPO, file), 'utf8')
-  )(r, r, { log() {}, warn() {}, error() {} }, r.BABYLON);
+  return loadModule(r, file, { console: { ...quietConsole, error() {} }, BABYLON: r.BABYLON });
 }
 
 const DEFAULT_COMPOSITION = ['rifleman', 'rifleman', 'sergeant', 'gunner'];

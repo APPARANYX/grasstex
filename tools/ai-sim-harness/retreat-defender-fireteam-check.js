@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* A squad in retreat is not defending. A prepared defender whose commandPhase is still `defend` when the squad falls back
    (or is briefed to a reconstitution rally) must be sent where the retreat goes, not back to the post it just left. */
 const assert = require('node:assert/strict'),
@@ -7,10 +8,7 @@ const assert = require('node:assert/strict'),
   path = require('node:path'),
   H = require('./harness');
 function load(r, file) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, file, { console: quietConsole });
 }
 function fixture() {
   const r = H.bootstrap({ modules: false });

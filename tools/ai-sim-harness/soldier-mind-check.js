@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* Soldier condition (module 17, `BattleSoldierMind`): stress from what happens to a man and around him.
 
    - A friend going down raises the stress of men who can see or hear it, more the closer he was and
@@ -18,10 +19,7 @@ const assert = require('node:assert/strict'),
   path = require('node:path'),
   H = require('./harness');
 function load(r, file) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, file, { console: quietConsole });
 }
 const log = console.log;
 console.log = (...a) => (typeof a[0] === 'string' && a[0][0] === '[' ? undefined : log(...a));

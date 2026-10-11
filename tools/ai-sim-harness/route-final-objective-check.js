@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* A squad with no targetObjective (Macro OFF, or a brief with no objective) walks sq.route and the Squad
    Leader parks sq.objective on the CURRENT leg waypoint. Modules 43 (forward progress) and 44 (assault
    cover axis) read `_routeFinalObjective` for the strategic goal, but nothing ever wrote it, so both
@@ -10,11 +11,7 @@ const assert = require('node:assert/strict'),
   H = require('./harness');
 
 function load(root, file) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(
-    root,
-    root,
-    { log() {}, warn() {} }
-  );
+  return loadModule(root, file, { console: quietConsole });
 }
 const FINAL = { x: 0, z: 200 },
   routeOf = () => [{ x: 100, z: 0 }, { x: 100, z: 100 }, { ...FINAL }];

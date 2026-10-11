@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 'use strict';
+const { files: squadCommandFiles } = require('./squad-command-stack');
+const { loadModule, quietConsole } = require('./module-loader');
 /* Two squads on either side of a low crest that shows heads and takes rounds.
 
    The crest in crest-fire-check.js (1.35 m, 120 m apart) lets every man see his enemy and refuses every
@@ -25,10 +27,7 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 const RANGE = 120;
 function ridge(at, top, half, skirt) {
@@ -68,20 +67,7 @@ function world(heightAt) {
     'battle/movement-resolver.js',
     'battle/modules/14-direct-fire-los-gate.js',
     'battle/modules/14-z-ballistic-raycast.js',
-    'battle/modules/15a-squad-leader-fire-control.js',
-    'battle/modules/15b-squad-leader-buddy-pairs.js',
-    'battle/modules/15c-squad-leader-scouts-forward.js',
-    'battle/modules/15d-squad-leader-leaderless-intent.js',
-    'battle/modules/15e-squad-leader-morale-coa.js',
-    'battle/modules/15f-squad-leader-retreat-anchor.js',
-    'battle/modules/15g-squad-leader-formation.js',
-    'battle/modules/15h-squad-leader-fireteams.js',
-    'battle/modules/15i-squad-leader-clear-contact.js',
-    'battle/modules/15j-squad-leader-fire-and-movement.js',
-    'battle/modules/15k-squad-leader-reconstitution.js',
-    'battle/modules/15l-squad-leader-mission-execution.js',
-    'battle/modules/15m-squad-leader-cohesion-regroup.js',
-    'battle/modules/16-squad-plan-stability.js',
+    ...squadCommandFiles,
     'battle/modules/44-combat-urgency.js',
     'battle/modules/52-survival-tactical-route.js'
   ].forEach(f => load(r, f));

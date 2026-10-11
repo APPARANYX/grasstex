@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* A man who fled with his pistol in his hands (BattleWeapons.abandon drops the primary and the holstered
    sidearm, whichever one is drawn) and is issued his loadout again at base (SquadAI.rearm) is a man with
    his primary in his hands and the pistol holstered. Module 47 kept `_sidearmSince` across the flight, so
@@ -12,10 +13,7 @@ const assert = require('node:assert/strict'),
 const log = console.log;
 console.log = (...a) => (typeof a[0] === 'string' && a[0][0] === '[' ? undefined : log(...a));
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 
 H.resetIds();

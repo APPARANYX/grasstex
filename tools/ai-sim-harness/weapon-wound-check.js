@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* Weapon cadence and wounds.
 
    - Each side is issued its own weapon for a kind (Garand/Kar98k, M1919A6/MG42, Thompson/MP40).
@@ -24,10 +25,7 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 function setup(opts) {
   opts = opts || {};

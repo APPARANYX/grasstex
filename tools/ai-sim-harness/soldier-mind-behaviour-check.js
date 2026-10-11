@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* What stress costs a man (module 17's levers, read by Engagement and the shot model).
 
    - react:    recognition takes longer (Engagement.reactTime and the orient window it opens);
@@ -24,10 +25,7 @@ function test(name, fn) {
 }
 const SEED = +(process.env.HARNESS_SEED || 12345);
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 /* One US rifleman and one German rifleman `gap` metres apart, facing each other, open ground. */
 function duel(mode, gap) {

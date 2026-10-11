@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 'use strict';
+const { loadSquadCommandStack } = require('./squad-command-stack');
+const { loadModule, quietConsole } = require('./module-loader');
 /* Commander strategic-recovery factory ctx + firing (battle/commander-ai.js split 2/2).
    The strategic-recovery machine (stall detection, effort pickers, the reconcile/release/
    main-effort/reset stage machine and the mission issuing it drives) moved verbatim to
@@ -24,7 +26,7 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, { log() {}, warn() {} });
+  return loadModule(r, p, { console: quietConsole });
 }
 let n = 0;
 function test(name, fn) {
@@ -33,9 +35,21 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 const CTX_KEYS = [
-  'COMMAND_TICK', 'D', 'STRATEGIC_STALL_RECOVERY', 'STRATEGIC_STALL_REPLAN',
-  'STRATEGIC_STALL_STAGES', 'catalogKey', 'defenseRequest', 'finishMission', 'generalFor',
-  'issueMission', 'missionState', 'recordMacroWake', 'reserveDue', 'root', 'telemetry'
+  'COMMAND_TICK',
+  'D',
+  'STRATEGIC_STALL_RECOVERY',
+  'STRATEGIC_STALL_REPLAN',
+  'STRATEGIC_STALL_STAGES',
+  'catalogKey',
+  'defenseRequest',
+  'finishMission',
+  'generalFor',
+  'issueMission',
+  'missionState',
+  'recordMacroWake',
+  'reserveDue',
+  'root',
+  'telemetry'
 ];
 /* A commander world with Macro on, one US assault squad that never takes its objective: the
    only thing that can move is the stall machine (stall-clock-check's fixture family). */
@@ -44,7 +58,11 @@ function world(events) {
   const r = H.bootstrap({ modules: false, search: '?morale=0&coa=0&fireControl=0' });
   r.BattleModules = { registerSystem() {}, unitsFor: b => (b._roster.us || []).concat(b._roster.ge || []) };
   r.BattleSim = { start() {} };
-  r.BattleTelemetry = { record(type, data) { events.push({ type, data }); } };
+  r.BattleTelemetry = {
+    record(type, data) {
+      events.push({ type, data });
+    }
+  };
   load(r, 'battle/commander-doctrine.js');
   load(r, 'battle/commander-routes.js');
   load(r, 'battle/commander-ai.js');
@@ -65,22 +83,46 @@ test('the module installs the verbatim set back into commander-ai.js through the
   assert.equal(typeof r._commanderStrategicRecovery, 'function', 'module factory global');
   assert.equal(r._commanderStrategicRecovery.length, 1, 'factory takes exactly the ctx');
   const ctx = r._commanderRecoveryCtx();
-  assert.deepEqual(Object.keys(ctx).sort(), CTX_KEYS, 'ctx carries exactly the utilities, lifecycle functions and clocks the moved bodies consume');
+  assert.deepEqual(
+    Object.keys(ctx).sort(),
+    CTX_KEYS,
+    'ctx carries exactly the utilities, lifecycle functions and clocks the moved bodies consume'
+  );
   Object.keys(ctx).forEach(k => assert.notEqual(ctx[k], undefined, 'ctx.' + k + ' defined at install time'));
   const api = r._commanderStrategicRecovery(ctx);
   assert.equal(typeof api.runStrategicRecovery, 'function', 'factory returns runStrategicRecovery');
   assert.equal(api.runStrategicRecovery.length, 4, 'runStrategicRecovery(sim, faction, squads, town)');
-  assert.equal(api.reconsiderMission.length, 6, 'reconsiderMission(sim, sq, town, reason, stalled, forcedObjective)');
+  assert.equal(
+    api.reconsiderMission.length,
+    6,
+    'reconsiderMission(sim, sq, town, reason, stalled, forcedObjective)'
+  );
   assert.equal(api.wakeReason.length, 2, 'wakeReason(sim, sq)');
 });
 test('the seam keeps the clocks and the export reads the parent constants', () => {
   const events = [],
     w = world(events),
     { C, r } = w;
-  assert.equal(C.strategicStallRecovery, r._commanderRecoveryCtx().STRATEGIC_STALL_RECOVERY, 'the export reads the parent-side recovery clocks');
-  assert.equal(C.strategicStallReplan, r._commanderRecoveryCtx().STRATEGIC_STALL_REPLAN, 'the export reads the parent-side replan clock');
-  assert.equal(C.commandTick, r._commanderRecoveryCtx().COMMAND_TICK, 'the export reads the parent command tick');
-  assert.equal(r._commanderRecoveryAttach({}), false, 'the attach sink rejects an api without runStrategicRecovery/reconsiderMission');
+  assert.equal(
+    C.strategicStallRecovery,
+    r._commanderRecoveryCtx().STRATEGIC_STALL_RECOVERY,
+    'the export reads the parent-side recovery clocks'
+  );
+  assert.equal(
+    C.strategicStallReplan,
+    r._commanderRecoveryCtx().STRATEGIC_STALL_REPLAN,
+    'the export reads the parent-side replan clock'
+  );
+  assert.equal(
+    C.commandTick,
+    r._commanderRecoveryCtx().COMMAND_TICK,
+    'the export reads the parent command tick'
+  );
+  assert.equal(
+    r._commanderRecoveryAttach({}),
+    false,
+    'the attach sink rejects an api without runStrategicRecovery/reconsiderMission'
+  );
   assert.equal(C.isMacroEnabled(w.b), true, 'the rejected attach did not disturb the installed api');
 });
 
@@ -91,15 +133,23 @@ function macroWorld(events, withRecovery) {
   const r = H.bootstrap({ modules: false, search: '?morale=0&coa=0&fireControl=0' }),
     systems = {};
   r.BattleModules = {
-    registerSystem(id, h) { systems[id] = h; },
-    getSystem(id) { return systems[id]; },
+    registerSystem(id, h) {
+      systems[id] = h;
+    },
+    getSystem(id) {
+      return systems[id];
+    },
     runHook() {},
     registerUnitType() {},
     registerObjectiveType() {},
     unitsFor: b => (b._roster.us || []).concat(b._roster.ge || [])
   };
   r.BattleSim = { start() {} };
-  r.BattleTelemetry = { record(type, data) { events.push({ type, data }); } };
+  r.BattleTelemetry = {
+    record(type, data) {
+      events.push({ type, data });
+    }
+  };
   load(r, 'battle/modules/08-soldier-events.js');
   load(r, 'battle/modules/17-soldier-mind.js');
   load(r, 'battle/commander-doctrine.js');
@@ -108,8 +158,8 @@ function macroWorld(events, withRecovery) {
   load(r, 'battle/modules/22-commander-reconstitution.js');
   if (withRecovery !== false) load(r, 'battle/modules/22a-commander-strategic-recovery.js');
   load(r, 'battle/movement-resolver.js');
-  for (const m of ['15a-squad-leader-fire-control', '15b-squad-leader-buddy-pairs', '15c-squad-leader-scouts-forward', '15d-squad-leader-leaderless-intent', '15e-squad-leader-morale-coa', '15f-squad-leader-retreat-anchor', '15g-squad-leader-formation', '15h-squad-leader-fireteams', '15i-squad-leader-clear-contact', '15j-squad-leader-fire-and-movement', '15k-squad-leader-reconstitution', '15l-squad-leader-mission-execution', '15m-squad-leader-cohesion-regroup', '16-squad-plan-stability', '46-ammunition-stoppages'])
-    load(r, 'battle/modules/' + m + '.js');
+  loadSquadCommandStack(load, r);
+  load(r, 'battle/modules/46-ammunition-stoppages.js');
   const b = H.makeBattle(r);
   b.macroCommandEnabled = true;
   b.scene = { metadata: {} };
@@ -120,7 +170,14 @@ function macroWorld(events, withRecovery) {
     s.root.position.z += 150;
     s.destination = { x: s.root.position.x, z: s.root.position.z };
   });
-  return { r, b, q, C: r.BattleCommanderAI, leader: systems['squad-command'], ammo: systems['ammunition-stoppages'] };
+  return {
+    r,
+    b,
+    q,
+    C: r.BattleCommanderAI,
+    leader: systems['squad-command'],
+    ammo: systems['ammunition-stoppages']
+  };
 }
 
 test('firing: a stalled commander tick runs the recovery machine through the seam', () => {
@@ -137,7 +194,8 @@ test('firing: a stalled commander tick runs the recovery machine through the sea
   assert.ok(events.length > quiet, 'the stalled tick still runs through the seam (no missing-module throw)');
   assert.ok(
     events.some(e => /stall|recovery|replan|decision|mission/.test(e.type)),
-    'the strategic machine recorded its decision telemetry: ' + JSON.stringify(events.map(e => e.type).slice(quiet))
+    'the strategic machine recorded its decision telemetry: ' +
+      JSON.stringify(events.map(e => e.type).slice(quiet))
   );
 });
 
@@ -148,14 +206,21 @@ test('commander-ai.js without the module fails loudly on the commander tick', ()
   if (ammo) ammo.onBattleStart(b);
   b.time += C.strategicStallReplan + 1;
   if (ammo) ammo.onSimulationStep(b, { dt: H.AI_TICK });
-  assert.throws(() => C.update(b, null, C.commandTick), /strategic recovery missing/, 'no silent never-recovering front: the tick reaches the recovery machine and says so');
+  assert.throws(
+    () => C.update(b, null, C.commandTick),
+    /strategic recovery missing/,
+    'no silent never-recovering front: the tick reaches the recovery machine and says so'
+  );
 });
 
 test('the module without commander-ai.js fails loudly at load', () => {
   const r = {};
   r.window = r;
-  assert.throws(() => load(r, 'battle/modules/22a-commander-strategic-recovery.js'), /commander-ai\.js must load before/, 'the reversed install needs its parent first');
+  assert.throws(
+    () => load(r, 'battle/modules/22a-commander-strategic-recovery.js'),
+    /commander-ai\.js must load before/,
+    'the reversed install needs its parent first'
+  );
 });
 
 console.log('PASS ' + n + ' strategic-recovery ctx checks');
-

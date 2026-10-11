@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* The fire pipeline is extended through SquadAI's declared slots, never by replacing SquadAI
    functions. 14-z-ballistic-raycast.js used to overwrite tryFire after 14-direct-fire-los-gate.js had
    wrapped it, silently discarding that gate; a module that replaced tryFire again would also drop
@@ -9,10 +10,7 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 let n = 0;
 function test(name, fn) {

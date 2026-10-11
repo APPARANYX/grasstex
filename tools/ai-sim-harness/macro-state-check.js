@@ -1,14 +1,12 @@
 /* Macro owns brief lifecycle writes, including the Squad Leader's acceptance request. */
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 const assert = require('node:assert/strict'),
   fs = require('fs'),
   path = require('path'),
   H = require('./harness');
 function load(r, file) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, file, { console: quietConsole });
 }
 const r = H.bootstrap({ modules: false }),
   events = [];

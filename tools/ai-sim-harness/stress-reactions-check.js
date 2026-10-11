@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* What stress does to a man (Engagement, `?stressAct=cower,flee,freeze,rage`): four declared states, each off unless
    named, the numbers from module 17 and the choice Engagement's.
 
@@ -35,10 +36,7 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 function load(r, file) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, file), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, file, { console: quietConsole });
 }
 const SEED = +(process.env.HARNESS_SEED || 12345);
 const load_tuning = () => H.bootstrap({ search: '' }).BattleEngagement.tuning.ACT_TUNING;
@@ -49,7 +47,8 @@ const load_tuning = () => H.bootstrap({ search: '' }).BattleEngagement.tuning.AC
    so a query that does not name a rage flag runs with it off (`=0`); the flag cases name theirs (`=1` is on). */
 function oldRage(q) {
   q = q == null ? '' : q;
-  for (const f of ['rageLock', 'rageGuard', 'rageTrance']) if (q.indexOf(f + '=') < 0) q += (q ? '&' : '?') + f + '=0';
+  for (const f of ['rageLock', 'rageGuard', 'rageTrance'])
+    if (q.indexOf(f + '=') < 0) q += (q ? '&' : '?') + f + '=0';
   return q;
 }
 function world(q, opts) {
@@ -357,7 +356,7 @@ test("flee: he leaves his weapons, runs to the squad's last safe point, never fi
   assert.equal(s.eng.fledPhase, 'run');
   assert.equal(s.state, 'retreat', 'shown as a man on the run (module 11 sprints him)');
   assert.equal(s.weapon, null, 'the weapon stays where he stood');
-  assert.ok(dist(s.eng.refuge, safe) < 5, "refuge near safe (with per-soldier offset)");
+  assert.ok(dist(s.eng.refuge, safe) < 5, 'refuge near safe (with per-soldier offset)');
   const p = here(s),
     threat = here(g);
   assert.ok(dist(s.destination, s.eng.refuge) < 1, 'his goal is his offset refuge');
@@ -395,7 +394,7 @@ test('flee: the goal stands until he is there, and a man who cannot get there wa
     s.mind.stress = 0.95;
     tick(ctx, s, 1);
   }
-  assert.ok(dist(s.eng.refuge, safe) < 5, "the goal stood while he ran to it (with per-soldier offset)");
+  assert.ok(dist(s.eng.refuge, safe) < 5, 'the goal stood while he ran to it (with per-soldier offset)');
   assert.equal(s.eng.refugeTries || 0, 0, 'headway, so no try');
   /* Stuck: no headway for FLEE_REPICK, FLEE_TRIES times over, and then he stays where he is. */
   const stuck = broke('?stressAct=flee', [0.9, 0, 0], 100, { safe }); // the enemy is beyond FLED_ENEMY_NEAR

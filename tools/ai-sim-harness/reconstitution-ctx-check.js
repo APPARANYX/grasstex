@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadModule, quietConsole } = require('./module-loader');
 /* Commander reconstitution factory ctx + firing (battle/commander-ai.js split 1/1).
    The General's survivor pool (reconState, formGroup, dissolveGroup, mergeGroup, reconstitute)
    and the fled pickup (pickUpFled) moved verbatim to modules/22-commander-reconstitution.js.
@@ -29,10 +30,7 @@ const assert = require('node:assert/strict'),
   path = require('path'),
   H = require('./harness');
 function load(r, p) {
-  new Function('window', 'globalThis', 'console', fs.readFileSync(path.join(H.REPO, p), 'utf8'))(r, r, {
-    log() {},
-    warn() {}
-  });
+  return loadModule(r, p, { console: quietConsole });
 }
 let n = 0;
 function test(name, fn) {

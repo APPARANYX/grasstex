@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { loadSquadCommandStack } = require('./squad-command-stack');
 /* Squad reconstitution (commander-ai.js reconstitute + the Squad Leader's assembly march): retreated squads
    form a survivor pool at home. Only true 1-4-man remnants enter it; 5+ survivors remain a viable squad
    and use normal morale recovery. Nearby remnants totaling at least six men may form an understrength squad.
@@ -57,25 +58,10 @@ function world(opts) {
   load(r, 'battle/modules/22-commander-reconstitution.js', opts.search);
   load(r, 'battle/modules/22a-commander-strategic-recovery.js');
   load(r, 'battle/movement-resolver.js');
-  load(r, 'battle/modules/15a-squad-leader-fire-control.js', opts.search);
-  load(
-    r,
-    'battle/modules/15b-squad-leader-buddy-pairs.js',
-    'battle/modules/15c-squad-leader-scouts-forward.js',
-    opts.search
+  loadSquadCommandStack(
+    (root, file) => load(root, file, /(?:15a-|15c-|16-)/.test(file) ? opts.search : undefined),
+    r
   );
-  load(r, 'battle/modules/15c-squad-leader-scouts-forward.js', opts.search);
-  load(r, 'battle/modules/15d-squad-leader-leaderless-intent.js');
-  load(r, 'battle/modules/15e-squad-leader-morale-coa.js');
-  load(r, 'battle/modules/15f-squad-leader-retreat-anchor.js');
-  load(r, 'battle/modules/15g-squad-leader-formation.js');
-  load(r, 'battle/modules/15h-squad-leader-fireteams.js');
-  load(r, 'battle/modules/15i-squad-leader-clear-contact.js');
-  load(r, 'battle/modules/15j-squad-leader-fire-and-movement.js');
-  load(r, 'battle/modules/15k-squad-leader-reconstitution.js');
-  load(r, 'battle/modules/15l-squad-leader-mission-execution.js');
-  load(r, 'battle/modules/15m-squad-leader-cohesion-regroup.js');
-  load(r, 'battle/modules/16-squad-plan-stability.js', opts.search);
   const b = H.makeBattle(r);
   b.macroCommandEnabled = opts.macro !== false;
   b.scene = { metadata: {} };

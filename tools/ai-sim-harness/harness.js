@@ -13,6 +13,7 @@
    shipping code. */
 'use strict';
 const { loadSquadCommandStack } = require('./squad-command-stack');
+const { loadModule } = require('./module-loader');
 const fs = require('fs');
 const path = require('path');
 const REPO = path.resolve(__dirname, '..', '..');
@@ -94,23 +95,11 @@ function stubBabylon(root) {
 }
 
 function load(root, rel) {
-  const code = fs.readFileSync(path.join(REPO, rel), 'utf8');
   /* A module sees the global `location` (some checks set one before bootstrapping) unless the bootstrap was given {search}. */
-  if (root.location)
-    new Function('window', 'globalThis', 'console', 'BABYLON', 'location', code + '\n//# sourceURL=' + rel)(
-      root,
-      root,
-      console,
-      root.BABYLON,
-      root.location
-    );
-  else
-    new Function('window', 'globalThis', 'console', 'BABYLON', code + '\n//# sourceURL=' + rel)(
-      root,
-      root,
-      console,
-      root.BABYLON
-    );
+  return loadModule(root, rel, {
+    BABYLON: root.BABYLON,
+    ...(root.location ? { location: root.location } : {})
+  });
 }
 function seededRandom(seed) {
   let a = seed >>> 0;
