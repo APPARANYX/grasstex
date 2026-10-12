@@ -1466,9 +1466,10 @@
 
   /* Micro alone owns a voluntary exposure break. Only a stationary rifleman
      at actual usable cover can lower after several *real* trigger pulls; open
-     ground, suppressed men, assigned stations and emplaced guns keep their
-     existing survival / suppression owners. The ID phase is deterministic and
-     different per soldier, not synchronized by the Squad Leader or combat RNG. */
+     ground, pinned men, assigned supporters/stations and emplaced guns retain
+     their existing survival/suppression owners. A recent personally experienced
+     incoming volley shortens the exposure and lengthens recovery; ID-based
+     jitter keeps it individual without Squad Leader clocks or combat RNG. */
   function fireCoverVariation(s) {
     var id = String(s && s.id != null ? s.id : ''),
       hash = 0;
@@ -1489,6 +1490,8 @@
       !(s.suppressedUntil > battle.time) &&
       PRONE_ROLES[s.role] &&
       !SA().isMachineGun(s) &&
+      !state(s).suppressOrder &&
+      !areaSupportOf(s, battle) &&
       !(root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) &&
       F &&
       F.coverAt &&
@@ -1521,10 +1524,11 @@
     if (!(+s.fireCooldown > Math.max(0, +priorCooldown || 0) + 0.001)) return false;
     e.fireCoverPulls = (+e.fireCoverPulls || 0) + 1;
     var phase = fireCoverVariation(s),
-      pulls = 2 + (phase % 3);
+      incoming = underFireNow(s, battle),
+      pulls = Math.max(1, 2 + (phase % 3) - (incoming ? 1 : 0));
     if (e.fireCoverPulls < pulls) return false;
     e.fireCoverPulls = 0;
-    e.fireCoverUntil = battle.time + 0.75 + ((phase >>> 2) % 5) * 0.15;
+    e.fireCoverUntil = battle.time + 0.75 + ((phase >>> 2) % 5) * 0.15 + (incoming ? 0.3 : 0);
     /* The rifleman chose to hide; its actual firing line must therefore cease
        until he comes back up and satisfies the normal aim/stance checks. */
     commitStance(s, battle, 'prone', e.fireCoverUntil - battle.time, 'individual-fire-cover');
