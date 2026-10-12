@@ -371,8 +371,32 @@ const { chromium } = require('playwright');
             validMover:S.localPlan.moverEligible(s,q,b)})),
           posture: P.current(b,q)
         }));
+      /* Engage the newly issued native order while the staged reported
+         contact is still fresh; the full browser simulation will integrate
+         that actual Movement Resolver destination on subsequent frames. */
+      const perceivedThreats = C.boundThreats(mover, b);
+      E.updateSoldier(mover, b);
+      BattleMovementResolver.resolve(mover, b);
+      const ordered = E.stateOf(mover),
+        nativeCover = ordered.cover && {
+          x: ordered.cover.x, z: ordered.cover.z,
+          slotId: ordered.cover.slotId
+        };
+      if (!nativeCover || ordered.state !== 'bound')
+        throw Error('native Engagement did not accept selected covered bound: ' + JSON.stringify({
+          perceivedThreats,
+          soldierContact: A.soldierContact(mover, b),
+          chosen: nativeCover,
+          coveredBound: ordered.coveredBound,
+          state: ordered.state,
+          destination: mover.destination,
+          fireteam:mover._fireteamKey,
+          boundLease:L.get(q,'bound'),
+          originalSlot:slot.id
+        }));
       b._coveredProof = {
         q, mover, support, hostile, start: startPos, target: threat, slot,
+        nativeCover,
         get shots() { return shots; },
         get duringMove() { return duringMove; },
         get earliest() { return earliest; }
@@ -387,6 +411,9 @@ const { chromium } = require('playwright');
         shotsBeforeMove: shots,
         boundOrder,
         boundLease: lease,
+        nativeCover,
+        nativeCoverDecision: ordered.coveredBound,
+        perceivedThreats,
         previewCover: C.candidates(mover, b, { root: { position: threat } }, 14).map(c => ({
           x: c.x, z: c.z, slotId: c.slotId
         })),
@@ -415,7 +442,8 @@ const { chromium } = require('playwright');
         const m = p.mover,
           e = E.stateOf(m),
           displacement = Math.hypot(m.root.position.x - p.start.x, m.root.position.z - p.start.z),
-          cover = e.cover && { x: e.cover.x, z: e.cover.z },
+          cover = p.nativeCover, // recorded once from native Engagement's own decision
+          liveCover = e.cover && { x: e.cover.x, z: e.cover.z },
           distanceToCover = cover
             ? Math.hypot(m.root.position.x - cover.x, m.root.position.z - cover.z)
             : null;
@@ -433,6 +461,9 @@ const { chromium } = require('playwright');
           displacement,
           distanceToCover,
           cover,
+          liveCover,
+          nativeBoundProof: e.coveredBound,
+          movementStop: m._movementStopReason,
           moverState: e.state,
           moverId: m.id,
           shots: p.shots,
