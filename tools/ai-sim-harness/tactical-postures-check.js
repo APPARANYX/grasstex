@@ -113,6 +113,43 @@ assert.ok(
   ),
   'no unnecessary repositioning'
 );
+/* Confidence >= 0.5 selects a new ambush, but a personally issued
+   preparation must not self-cancel only because the SAME still-live report's
+   deterministic confidence decay crosses that threshold during the required
+   four-second hold. The report identity and ten-second freshness cap remain
+   mandatory; explicit observation loss still cancels. */
+const confidenceContinuity = world();
+let continuityLive = true,
+  continuityConfidence = 0.6;
+confidenceContinuity.r.SquadAI.squadContactsMap = () =>
+  continuityLive
+    ? [{
+        x: 0, z: 20, at: 0, confidence: continuityConfidence,
+        targetId: 'continuity-threat', sector: 2, source: 'told'
+      }]
+    : [];
+const continuityPosture = confidenceContinuity.P.update(
+  confidenceContinuity.b,
+  confidenceContinuity.q
+);
+assert.ok(continuityPosture && continuityPosture.mode === 'ambush');
+continuityConfidence = 0.49;
+let continuityReady = null;
+H.run(confidenceContinuity.r, confidenceContinuity.b, 6, () => {
+  const state = confidenceContinuity.P.current(confidenceContinuity.b, confidenceContinuity.q);
+  if (state?.readyAt != null) continuityReady = state;
+});
+assert.ok(
+  continuityReady,
+  'same fresh underlying report survives confidence-floor crossing through the mandatory dwell'
+);
+continuityLive = false;
+assert.equal(
+  confidenceContinuity.P.update(confidenceContinuity.b, confidenceContinuity.q),
+  null,
+  'actual report loss still revokes the prepared posture immediately'
+);
+
 /* Full-battle Command Reception is enabled in production. Prove that the
    four-second hold follows the personally adopted ambush intent even when the
    physical movement owner legally displaces the final body endpoint. The
