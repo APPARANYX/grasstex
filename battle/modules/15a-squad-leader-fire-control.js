@@ -340,7 +340,13 @@
       var fc = sq.fireControl;
       var postures = ctx.tacticalPostures && ctx.tacticalPostures(),
         posture = postures && postures.current(battle, sq);
-      if (posture && posture.mode === 'ambush') {
+      var preparedPosture = !!(
+        posture &&
+        posture.readyAt != null &&
+        (posture.mode === 'ambush' ||
+          (posture.mode === 'hold' && posture.stage === 'pressure-hold' && posture.orders && posture.orders.length >= 3))
+      );
+      if (posture && (posture.mode === 'ambush' || preparedPosture)) {
         var contact = firstHandContact(sq, battle),
           ambushCounts = fireControlCounts(commanded(sq), battle, root.BattleEngagement),
           open =
