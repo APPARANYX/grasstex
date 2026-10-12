@@ -33,19 +33,56 @@
       return c && c.unit && (!d || d.combatThreat) && own ? c : null;
     }
     function supportAuthorityContact(sq, battle) {
-      var c = root.SquadAI.squadContact ? root.SquadAI.squadContact(sq, battle) : sq.contact;
-      if (!c || !isFinite(+c.x) || !isFinite(+c.z) || !isFinite(+c.at)) return null;
-      if (battle.time < +c.at || battle.time - +c.at > FIRE_CONTROL_TUNING.returnFireWindow) return null;
-      var direct = !!(c.seenBy != null && !c.heard && !c.relayedFrom),
-        incoming = !!(c.fireRevealed && c.precision === 'fire-origin' && !c.relayedFrom);
-      if (!direct && !incoming) return null;
-      return {
-        x: +c.x,
-        z: +c.z,
-        at: +c.at,
-        source: incoming ? 'incoming' : 'seen',
-        targetId: c.unit && c.unit.id != null ? String(c.unit.id) : null
-      };
+      var c = root.SquadAI.squadContact ? root.SquadAI.squadContact(sq, battle) : sq.contact,
+        windowSeconds = FIRE_CONTROL_TUNING.returnFireWindow,
+        direct = !!(c && c.seenBy != null && !c.heard && !c.relayedFrom),
+        incoming = !!(c && c.fireRevealed && c.precision === 'fire-origin' && !c.relayedFrom);
+      if (
+        c &&
+        isFinite(+c.x) &&
+        isFinite(+c.z) &&
+        isFinite(+c.at) &&
+        battle.time >= +c.at &&
+        battle.time - +c.at <= windowSeconds &&
+        (direct || incoming)
+      )
+        return {
+          x: +c.x,
+          z: +c.z,
+          at: +c.at,
+          source: incoming ? 'incoming' : 'seen',
+          targetId: c.unit && c.unit.id != null ? String(c.unit.id) : null
+        };
+      /* The legacy one-contact slot can prefer a newer relayed sighting over an
+         independent, still-fresh first-hand soldier belief. Consult the OWN
+         squad's multi-contact map rather than promoting the relayed coordinate
+         into fire authority. No live enemy transform or hearsay may enter here. */
+      var reports = root.SquadAI.squadContactsMap ? root.SquadAI.squadContactsMap(sq, battle) : null;
+      if (!Array.isArray(reports) || reports.length > 32) return null;
+      for (var i = 0; i < reports.length; i++) {
+        var r = reports[i];
+        if (
+          !r ||
+          r.source !== 'seen' ||
+          r.sourceSoldier == null ||
+          !isFinite(+r.x) ||
+          !isFinite(+r.z) ||
+          !isFinite(+r.at) ||
+          !isFinite(+r.confidence) ||
+          +r.confidence < 0.5 ||
+          battle.time < +r.at ||
+          battle.time - +r.at > windowSeconds
+        )
+          continue;
+        return {
+          x: +r.x,
+          z: +r.z,
+          at: +r.at,
+          source: 'seen',
+          targetId: r.targetId == null ? null : String(r.targetId)
+        };
+      }
+      return null;
     }
     function supportCandidates(sq, battle, point, prior) {
       if (!point) return [];
@@ -468,6 +505,7 @@
     return {
       mkm: mkm,
       firstHandContact: firstHandContact,
+      supportAuthorityContact: supportAuthorityContact,
       fireControlRange: fireControlRange,
       precisionShooter: precisionShooter,
       fireControlTelemetry: fireControlTelemetry,
