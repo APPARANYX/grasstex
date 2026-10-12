@@ -980,7 +980,8 @@ test('a squad that is already retreating is not reacted for', () => {
 });
 
 test('the squad report names the men reacting; they are not base of fire, not movers and not suppressors', () => {
-  const ctx = world('?stressAct=freeze'),
+  // Isolate the stress report/exclusion contract from C3 aiming/readiness gates.
+  const ctx = world('?stressAct=freeze&effectiveFire=0'),
     men = ctx.us.members.filter(s => s.role === 'rifleman').slice(0, 6),
     frozen = men[0];
   men.forEach(s => {

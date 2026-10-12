@@ -967,3 +967,12 @@ before any effect is claimed.
 
 - By design: Movement Progress ignores retreat (`movementStopReason` is the observable), and
   meeting engagements get no runtime engineer fortification (`engineerTick` exits early).
+
+**C3 effective fire capability.** Engagement's `supportReady(s, battle)` is a read-only
+capability query used by the upward `fireSupport` report and the Phase C resource/posture
+readers. It requires available stationary, nonreacting actors with an authorized in-range
+personal target and real firing line, or an authorized feasible personal suppression job;
+it does not manufacture targets or require a round on every cooldown tick. Out-of-range
+visual observation alone grants no combat hold. Incoming pressure and cover/pinning still
+retain protection authority. `?effectiveFire=0` restores the prior state-only support and
+range-hold behavior for paired benchmarks; weapon range settings are unchanged.

@@ -35,6 +35,14 @@
   /* See 11-voice-variation.js: attachToMesh tracks the soldier every frame instead of a
      one-time setPosition snapshot, so the emitter doesn't get left behind mid-line. */
   function playAt(entry, req) {
+    if (
+      !root.BattleVoiceEligibility.allows(req.soldier, req.handle.type) ||
+      req.soldier.squad !== req.squad ||
+      (req.squad && req.squad.disbanded)
+    ) {
+      finish(req);
+      return req.handle;
+    }
     try {
       var soldier = req.soldier,
         mesh = soldier.root,
@@ -79,6 +87,7 @@
     return req.handle;
   }
   function enqueue(soldier, type, cam, opts) {
+    if (!root.BattleVoiceEligibility.allows(soldier, type)) return false;
     opts = opts || {};
     var m = window.BATTLE_AUDIO_MANIFEST;
     if (!m || !m.callouts || !m.callouts[soldier.faction]) return false;
@@ -117,7 +126,7 @@
         file: file,
         priority: lane
       },
-      req = { soldier: soldier, opts: opts, handle: handle, lane: lane },
+      req = { soldier: soldier, squad: soldier.squad, opts: opts, handle: handle, lane: lane },
       entry = cache[file];
     if (entry) {
       if (entry.ready) return playAt(entry, req);

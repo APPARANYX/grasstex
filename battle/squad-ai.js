@@ -1362,7 +1362,7 @@
      cannot reach the position should be left to get on with the advance rather than stood in the
      open pointing at something 180 m away. The scout's eyes routinely mark contacts further out
      than a rifle will carry, so this is the common case, not the edge case. */
-  function canSuppress(shooter, point, battle) {
+  function canSuppress(shooter, point, battle, readOnly) {
     if (!point || !shooter || shooter.dead || !shooter.weapon) return false;
     var stats = shooter.weapon.stats,
       p = shooter.root.position,
@@ -1391,7 +1391,8 @@
       typeof B.pointLineBlocked === 'function' &&
       B.pointLineBlocked(shooter, point, battle, AREA_AIM_HEIGHT)
     ) {
-      shooter._terrainBlockedSuppressiveFire = (shooter._terrainBlockedSuppressiveFire || 0) + 1;
+      if (!readOnly)
+        shooter._terrainBlockedSuppressiveFire = (shooter._terrainBlockedSuppressiveFire || 0) + 1;
       return false;
     }
     return true;

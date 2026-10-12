@@ -1,11 +1,13 @@
 'use strict';
+// Policy-seam fixtures supply support reports; effective-fire truth is tested
+// separately by effective-fire-support and native covered-fire-maneuver checks.
 const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
 function world(search = '?localPlan=1&localResources=1&coa=0&fireControl=0&slStress=0') {
   H.resetIds();
-  const r = H.bootstrap({ modules: false, search }),
+  const r = H.bootstrap({ modules: false, search: search + '&effectiveFire=0' }),
     systems = {},
     events = [];
   r.BattleModules = {

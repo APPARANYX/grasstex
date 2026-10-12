@@ -303,10 +303,15 @@ section('bound authorisation needs a base of fire');
   us.members.forEach(s => {
     s.suppressedUntil = 0;
   });
-  H.run(root, battle, 1);
-  root.BattleLeases.end(us, 'bound-cycle', battle.time, 'test');
-  root.BattleLeases.end(us, 'bound', battle.time, 'test');
-  root.BattleSquadStability.fireAndMovement(us, battle);
+  // Unpinning is not instant firing readiness: allow native aim/facing/MG
+  // setup to recover, then require a real base before authorizing movement.
+  for (let i = 0; i < 30; i++) {
+    H.run(root, battle, 0.15);
+    root.BattleLeases.end(us, 'bound-cycle', battle.time, 'test');
+    root.BattleLeases.end(us, 'bound', battle.time, 'test');
+    root.BattleSquadStability.fireAndMovement(us, battle);
+    if (root.BattleLeases.holds(us, 'bound', battle.time)) break;
+  }
   const ordered = us.members.filter(s => !s.dead && root.BattleEngagement.stateOf(s).boundOrder).length;
   const holding = us.members.filter(s => !s.dead && !root.BattleEngagement.stateOf(s).boundOrder).length;
   check(

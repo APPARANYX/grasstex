@@ -27,6 +27,31 @@
   };
   root.GTMath = GTMath;
 
+  /* Presentation eligibility shared by producers and both playback schedulers.
+     Read the current Micro reaction; never change a soldier or draw combat RNG. */
+  root.BattleVoiceEligibility = {
+    allows: function (s, event) {
+      if (!s || s.dead || !s.root || (typeof s.root.isDisposed === 'function' && s.root.isDisposed()))
+        return false;
+      var e = s.eng || {},
+        reaction = e.state,
+        distress =
+          /^(?:dazed|breaking|cowering|berserk|wounded|down|pain|medic|takingFire|pinned|lastMan|needHelp)$/;
+      if (s.incapacitated || reaction === 'freeze' || reaction === 'flee' || e.fledPhase)
+        return distress.test(event);
+      if (reaction === 'cower' || reaction === 'rage') return distress.test(event);
+      if (
+        s.squad &&
+        s.squad.state === 'retreat' &&
+        /^(?:engage|takeTheShot|pushNow|teamMove|baseOfFire|movingCover|coverSet|scoutsForward|assault|advance|flankOrder|captureOrder|clearHouse|takeWindow)$/.test(
+          event
+        )
+      )
+        return false;
+      return true;
+    }
+  };
+
   /* Gated logging, repo flag convention (steerLeg/fxPrewarm/callouts): on by default,
      `?log=0` silences every GTLog site at once. Bound at load to whichever console this
      context was given (page console, or the harness/check stub). */

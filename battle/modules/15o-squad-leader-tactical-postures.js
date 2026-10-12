@@ -118,14 +118,9 @@
             !Number.isFinite(r.confidence)
           )
             return false;
-          if (old.targetId != null && r.targetId != null)
-            return String(r.targetId) === String(old.targetId);
-          if (old.sector != null && r.sector != null)
-            return String(r.sector) === String(old.sector);
-          return (
-            Math.abs((+r.at || 0) - (+old.at || 0)) <= 0.5 &&
-            Math.hypot(r.x - old.x, r.z - old.z) <= 20
-          );
+          if (old.targetId != null && r.targetId != null) return String(r.targetId) === String(old.targetId);
+          if (old.sector != null && r.sector != null) return String(r.sector) === String(old.sector);
+          return Math.abs((+r.at || 0) - (+old.at || 0)) <= 0.5 && Math.hypot(r.x - old.x, r.z - old.z) <= 20;
         });
         if (match) {
           /* A sub-threshold belief may prove that the original observation
@@ -151,7 +146,7 @@
        physicality-aware 0.75 m covered bound sampler for every candidate. */
     /* Engagement reports an identity-based base of fire. Duplicate entries,
        stale roster members and non-firing men cannot manufacture two rifles. */
-    function supportingCount(a, movers, support, now) {
+    function supportingCount(a, movers, support, now, battle) {
       if (!Array.isArray(support) || support.length > 32) return 0;
       var seen = [];
       return support.filter(function (s) {
@@ -164,7 +159,11 @@
           !s.reloading &&
           !s.outOfAmmo &&
           !(s.suppressedUntil > now) &&
-          !s.moving
+          !s.moving &&
+          (!root.BattleEngagement ||
+            !root.BattleEngagement.effectiveFireOn ||
+            !root.BattleEngagement.effectiveFireOn() ||
+            root.BattleEngagement.supportReady(s, battle))
         );
       }).length;
     }
@@ -184,9 +183,30 @@
             last = s._movementResolver && s._movementResolver.last,
             intent = last && point(last.intentPoint),
             CR = root.BattleCommandReception,
-            receivedMovement =
-              CR && CR.movementEnabled && CR.movementEnabled(),
+            receivedMovement = CR && CR.movementEnabled && CR.movementEnabled(),
             outcome = receivedMovement && O && O.man ? O.man(s, b) : null,
+            anchor = st.heldPositions && st.heldPositions[o.soldierId],
+            engagement = root.BattleEngagement && root.BattleEngagement.stateOf(s),
+            contactHold = !!(
+              st.readyAt != null &&
+              anchor &&
+              body &&
+              Math.hypot(body.x - anchor.x, body.z - anchor.z) <= 0.5 &&
+              last &&
+              last.owner === 'engagement' &&
+              last.kind === 'hold' &&
+              engagement &&
+              ['advance', 'alert', 'orient', 'engage', 'suppress'].indexOf(engagement.state) >= 0 &&
+              (!receivedMovement ||
+                (CR.executionCurrent &&
+                  CR.executionCurrent(
+                    s,
+                    b,
+                    'movement',
+                    'soldier:' + String(s.id),
+                    s._fireteamAdoptedEnvelope
+                  )))
+            ),
             completed = receivedMovement
               ? !!(
                   outcome &&
@@ -207,12 +227,13 @@
              man's REAL position before any dwell can accrue. */
           return !!(
             body &&
-            completed &&
-            last &&
-            last.owner === 'squad-stability' &&
-            last.kind === 'formation' &&
-            intent &&
-            Math.hypot(intent.x - o.point.x, intent.z - o.point.z) <= 0.05 &&
+            (contactHold ||
+              (completed &&
+                last &&
+                last.owner === 'squad-stability' &&
+                last.kind === 'formation' &&
+                intent &&
+                Math.hypot(intent.x - o.point.x, intent.z - o.point.z) <= 0.05)) &&
             C &&
             C.maskedPost(b, body, reports)
           );
@@ -252,7 +273,7 @@
         N.scenario !==
           (b.scene && b.scene.metadata && (b.scene.metadata.battleScenario || b.scene.metadata.battleTown)) ||
         !rs.length ||
-        supportingCount(a, movers, support, b.time) < tuning.minSupport
+        supportingCount(a, movers, support, b.time, b) < tuning.minSupport
       )
         return false;
       for (var i = 0; i < movers.length; i++) {
@@ -326,20 +347,34 @@
         nav = root.BattleNavigation,
         p = (sq.route || [])[+sq.routeIndex];
       if (!a) return 'too-few-uncommitted-riflemen';
-      if (fullRoster.length !== st.members.length || fullRoster.some(function (s, i) {
-        return s !== st.members[i] || epoch(s) !== st.epochs[i];
-      })) return 'squad-roster-or-possession';
+      if (
+        fullRoster.length !== st.members.length ||
+        fullRoster.some(function (s, i) {
+          return s !== st.members[i] || epoch(s) !== st.epochs[i];
+        })
+      )
+        return 'squad-roster-or-possession';
       if (m !== st.mission || !m || m.version !== st.version || m.status !== 'executing')
         return 'mission-changed';
       if (ex !== st.execution || !ex || ex.mission !== m) return 'execution-changed';
-      if (sq.route !== st.route || +sq.routeIndex !== st.leg || !p ||
-          p.x !== st.target.x || p.z !== st.target.z) return 'route-changed';
-      if (b.scene !== st.scene || !nav || nav.scenario !== st.scenario ||
-          nav.version !== st.navigationVersion) return 'navigation-changed';
-      if (A.leaderOf(sq) !== st.leader || !st.leader || st.leader.dead ||
-          ctx.leaderlessActive(sq)) return 'leader-changed';
-      if (sq.state === 'retreat' || L.get(sq, 'regroup') || L.get(sq, 'recon'))
-        return 'override-lease';
+      if (
+        sq.route !== st.route ||
+        +sq.routeIndex !== st.leg ||
+        !p ||
+        p.x !== st.target.x ||
+        p.z !== st.target.z
+      )
+        return 'route-changed';
+      if (
+        b.scene !== st.scene ||
+        !nav ||
+        nav.scenario !== st.scenario ||
+        nav.version !== st.navigationVersion
+      )
+        return 'navigation-changed';
+      if (A.leaderOf(sq) !== st.leader || !st.leader || st.leader.dead || ctx.leaderlessActive(sq))
+        return 'leader-changed';
+      if (sq.state === 'retreat' || L.get(sq, 'regroup') || L.get(sq, 'recon')) return 'override-lease';
       if (ctx.localPlan.structureOrdersOn && ctx.localPlan.currentStructureOrders(b, sq))
         return 'structure-override';
       return 'stale-time-or-authority';
@@ -441,7 +476,7 @@
         var coreReady = heldCore(b, st, a, rs),
           supportCount =
             report && Array.isArray(report.fireSupport)
-              ? supportingCount(a, null, report.fireSupport, now)
+              ? supportingCount(a, null, report.fireSupport, now, b)
               : 0,
           safeMovers = [];
         if (
@@ -517,7 +552,7 @@
            refresh actual support within a bounded observation window. */
         if (report && Array.isArray(report.fireSupport))
           st.lastSupportAt =
-            supportingCount(a, null, report.fireSupport, now) >= tuning.minSupport ? now : -Infinity;
+            supportingCount(a, null, report.fireSupport, now, b) >= tuning.minSupport ? now : -Infinity;
         if (
           !sq.inContact ||
           (task && task.emergency) ||
@@ -574,8 +609,7 @@
           /* Do not place this soldier at an exposed default slot. A masked
              fireteam is useful even when another eligible squad member has
              no concealed post; that man remains under his existing orders. */
-          if (candidate)
-            orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
+          if (candidate) orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
         }
         if (orders.length < 3) return null; // Never publish an understrength ambush element.
         var counts = counters.get(sq) || {
@@ -612,6 +646,7 @@
           threats: rs,
           heldSince: null,
           heldActorIds: [],
+          heldPositions: {},
           readyAt: null,
           stats: counts
         };
@@ -641,13 +676,19 @@
           st.heldActorIds.every(function (id) {
             return settled.indexOf(id) >= 0;
           });
-      if (!coreHeld && st.readyAt != null)
-        return end(b, sq, 'prepared fireteam left firing line');
+      if (!coreHeld && st.readyAt != null) return end(b, sq, 'prepared fireteam left firing line');
       if (!coreHeld) {
         /* Select three genuinely adopted masked posts ONCE, then measure the
            continuous hold by their stable IDs; newcomers cannot borrow dwell
            from one another. Other men keep trying their ordinary commands. */
         st.heldActorIds = settled.slice(0, 3);
+        st.heldPositions = {};
+        st.heldActorIds.forEach(function (id) {
+          var soldier = a.find(function (s) {
+            return String(s.id) === id;
+          });
+          st.heldPositions[id] = point(soldier.root.position);
+        });
         st.heldSince = st.heldActorIds.length >= 3 ? now : null;
         st.stage = st.heldSince == null ? 'assemble' : 'hold';
         if (st.heldSince == null && now - st.since > tuning.preparationBudget)
@@ -675,10 +716,13 @@
     function soldierOrder(s, b) {
       var st = s && s.squad && current(b, s.squad);
       if (!st || st.mode !== 'ambush') return null;
+      if (!men(s.squad) || men(s.squad).indexOf(s) < 0) return null;
       var o = st.orders.find(function (o) {
         return o.soldierId === String(s.id);
       });
-      return o && s._fireteamPublishKey === o.key ? Object.assign({ stage: st.stage }, o) : null;
+      return o && s._fireteamPublishKey === o.key
+        ? Object.assign({ stage: st.stage, arrivalPoint: st.heldPositions[o.soldierId] || null }, o)
+        : null;
     }
     return {
       on: on,

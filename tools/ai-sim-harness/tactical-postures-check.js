@@ -1,4 +1,6 @@
 'use strict';
+// Policy-seam fixtures supply support reports; effective-fire truth is tested
+// separately by effective-fire-support and native covered-fire-maneuver checks.
 const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
@@ -6,7 +8,9 @@ function world(on = true, terrain = true, maneuver = false, options = {}) {
   H.resetIds();
   const r = H.bootstrap({
     search:
-      '?localPlan=1&coa=0&commandMovement=' + (options.commandMovement ? '1' : '0') + '&slStress=0&scoutsForward=0&stressAct=0' +
+      '?effectiveFire=0&localPlan=1&coa=0&commandMovement=' +
+      (options.commandMovement ? '1' : '0') +
+      '&slStress=0&scoutsForward=0&stressAct=0' +
       (on ? '&localAmbush=1' : '') +
       (maneuver ? '&localManeuver=1&coveredBounds=1' : '')
   });
@@ -15,7 +19,10 @@ function world(on = true, terrain = true, maneuver = false, options = {}) {
   load('battle/battle-navigation.js');
   load('battle/modules/39-navigation-physicality-debug.js');
   const scene = { buildings: [], roads: [] },
-    b = H.makeBattle(r, { heightAt: (x, z) => (terrain ? 1.4 * Math.exp(-Math.pow((z - 8) / 1.4, 2)) : 0) });
+    b = H.makeBattle(r, {
+      heightAt: (x, z) => (terrain ? (options.crestHeight || 1.4) * Math.exp(-Math.pow((z - 8) / 1.4, 2)) : 0)
+    });
+  if (options.commandMovement) b._movementRoot = r;
   b.scene = { metadata: { battleScenario: scene } };
   r.BattleNavigation.installScenario(scene);
   const q = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 } });
@@ -124,15 +131,19 @@ let continuityLive = true,
   continuityZ = 20;
 confidenceContinuity.r.SquadAI.squadContactsMap = () =>
   continuityLive
-    ? [{
-        x: 0, z: continuityZ, at: 0, confidence: continuityConfidence,
-        targetId: 'continuity-threat', sector: 2, source: 'told'
-      }]
+    ? [
+        {
+          x: 0,
+          z: continuityZ,
+          at: 0,
+          confidence: continuityConfidence,
+          targetId: 'continuity-threat',
+          sector: 2,
+          source: 'told'
+        }
+      ]
     : [];
-const continuityPosture = confidenceContinuity.P.update(
-  confidenceContinuity.b,
-  confidenceContinuity.q
-);
+const continuityPosture = confidenceContinuity.P.update(confidenceContinuity.b, confidenceContinuity.q);
 assert.ok(continuityPosture && continuityPosture.mode === 'ambush');
 continuityConfidence = 0.49;
 continuityZ = -20; // sub-threshold motion cannot move the detached threat reference.
@@ -162,7 +173,7 @@ assert.equal(
    physical movement owner legally displaces the final body endpoint. The
    posture may not demand the Squad Leader's abstract point after Navigation /
    personal-space physicality has selected a different safe place to stand. */
-const physicalEndpoint = world(true, true, false, { commandMovement: true });
+const physicalEndpoint = world(true, true, false, { commandMovement: true, crestHeight: 1.3 });
 const physicalPosture = physicalEndpoint.P.update(physicalEndpoint.b, physicalEndpoint.q);
 assert.ok(physicalPosture && physicalPosture.orders.length >= 3);
 physicalEndpoint.r.BattleSoldierPersonalSpace = {
@@ -171,7 +182,18 @@ physicalEndpoint.r.BattleSoldierPersonalSpace = {
   }
 };
 let physicalReady = null;
-H.run(physicalEndpoint.r, physicalEndpoint.b, 10, () => {
+H.run(physicalEndpoint.r, physicalEndpoint.b, 14, () => {
+  // Keep the controlled report live while real receipt and movement settle.
+  // This fixture tests endpoints; stale-intel expiry has its own negative case.
+  physicalEndpoint.r.SquadAI.rememberReportedContact(physicalEndpoint.q.members[0], physicalEndpoint.b, {
+    x: 0,
+    z: 20,
+    observedAt: physicalEndpoint.b.time,
+    confidence: 1,
+    sourceSoldier: 999,
+    source: 'heard',
+    combatThreat: true
+  });
   const state = physicalEndpoint.P.current(physicalEndpoint.b, physicalEndpoint.q);
   if (state?.readyAt != null && physicalReady == null) physicalReady = state;
 });
@@ -182,8 +204,9 @@ const physicalHeld = physicalReady.heldActorIds.map(id => {
   return { soldier, order };
 });
 assert.ok(
-  physicalHeld.some(({ soldier, order }) =>
-    Math.hypot(soldier.root.position.x - order.point.x, soldier.root.position.z - order.point.z) > 0.5
+  physicalHeld.some(
+    ({ soldier, order }) =>
+      Math.hypot(soldier.root.position.x - order.point.x, soldier.root.position.z - order.point.z) > 0.5
   ),
   'regression must exercise a legal physical endpoint displaced from the abstract post'
 );
@@ -219,9 +242,21 @@ hostile.isPlayer = true;
 hostile.root.position.x = 0;
 hostile.root.position.z = 20;
 let firstShot = null;
+let contactHoldSamples = 0;
 H.run(combat.r, combat.b, 10, () => {
   if (combat.b.events.fired && firstShot == null) firstShot = combat.b.time;
   const st = combat.P.current(combat.b, combat.q);
+  if (
+    st?.readyAt != null &&
+    st.stage === 'contact' &&
+    combat.q.members.some(
+      s =>
+        s.eng?.state === 'engage' &&
+        s._movementResolver?.last?.owner === 'engagement' &&
+        s._movementResolver?.last?.kind === 'hold'
+    )
+  )
+    contactHoldSamples++;
   if (st && st.readyAt == null) {
     assert.equal(combat.b.events.fired, 0, 'no volley before minimum hold');
     assert.ok(
@@ -233,6 +268,12 @@ H.run(combat.r, combat.b, 10, () => {
 assert.ok(
   firstShot >= 4 && combat.b.events.fired > 0,
   'native personal LOS/contact, readiness and fire permission release actual shots'
+);
+assert.ok(contactHoldSamples > 0, 'a ready firing line survives the native Engagement aim/fire handoff');
+assert.equal(
+  combat.P.summary(combat.b).releaseReasons['prepared fireteam left firing line'] || 0,
+  0,
+  'holding and firing from the prepared line is not leaving it'
 );
 for (const spoil of [
   x => x.q._macroMission.version++,
@@ -257,13 +298,13 @@ for (const spoil of [
 const station = world();
 const stationedMan = station.q.members[0];
 station.r.BattleTacticalPositions = {
+  revision: () => 0,
+  station: () => null,
+  update: () => false,
   current: s => (s === stationedMan ? { owner: 'emplacement' } : null)
 };
 const stationedPosture = station.P.update(station.b, station.q);
-assert.ok(
-  stationedPosture,
-  'remaining riflemen may form a masked line without station-owned specialist'
-);
+assert.ok(stationedPosture, 'remaining riflemen may form a masked line without station-owned specialist');
 assert.ok(
   stationedPosture.orders.every(o => o.soldierId !== String(stationedMan.id)),
   'Squad Leader must not issue posture orders to the already committed station owner'
@@ -277,10 +318,15 @@ assert.equal(
 const assignedMan = station.q.members.find(s => String(s.id) === stationedPosture.orders[0].soldierId);
 station.r.BattleTacticalPositions.current = s => (s === assignedMan ? { owner: 'emplacement' } : null);
 assert.equal(
-  station.P.current(station.b, station.q),
+  station.P.soldierOrder(assignedMan, station.b),
   null,
-  'a reassigned ambush rifleman immediately revokes the existing posture'
+  'a separately committed actor cannot consume an old posture order'
 );
+assert.ok(
+  station.P.update(station.b, station.q),
+  'an extra actor reassignment retains the remaining element'
+);
+assert.ok(!stationedPosture.orders.some(o => o.soldierId === String(assignedMan.id)));
 
 /* One exposed rifleman must not cancel a real three-plus-rifle masked
    element, but never receives a fake covered order himself. Two viable masked
@@ -477,6 +523,12 @@ assert.equal(
    three is reassigned, however, the posture must fail closed rather than
    substitute a new identity into accrued dwell. */
 const actorReassign = world();
+actorReassign.r.BattleTacticalPositions = {
+  current: () => null,
+  revision: () => 0,
+  station: () => null,
+  update: () => false
+};
 const actorState = actorReassign.P.update(actorReassign.b, actorReassign.q);
 assert.ok(actorState && actorState.orders.length >= 4, 'reassignment fixture needs a spare ambush actor');
 const spareOrder = actorState.orders[actorState.orders.length - 1],
@@ -498,9 +550,7 @@ H.run(actorReassign.r, actorReassign.b, 7, () => {
   if (state?.readyAt != null) reassignedReady = state;
 });
 assert.ok(reassignedReady && reassignedReady.heldActorIds.length === 3);
-const heldReassigned = actorReassign.q.members.find(
-  s => String(s.id) === reassignedReady.heldActorIds[0]
-);
+const heldReassigned = actorReassign.q.members.find(s => String(s.id) === reassignedReady.heldActorIds[0]);
 actorReassign.r.BattleTacticalPositions.current = s =>
   s === spareActor || s === heldReassigned
     ? { id: 'separate-station', kind: 'firing-station' }
@@ -521,7 +571,9 @@ assert.equal(
 const partialCore = world();
 const core = partialCore.P.update(partialCore.b, partialCore.q);
 assert.ok(core && core.orders.length >= 4, 'fixture needs at least four masked posts');
-const lagging = partialCore.q.members.find(s => String(s.id) === core.orders[core.orders.length - 1].soldierId);
+const lagging = partialCore.q.members.find(
+  s => String(s.id) === core.orders[core.orders.length - 1].soldierId
+);
 let partialReady = null;
 for (let i = 0; i < 90; i++) {
   H.run(partialCore.r, partialCore.b, 0.15);
@@ -534,8 +586,14 @@ for (let i = 0; i < 90; i++) {
     break;
   }
 }
-assert.ok(partialReady && partialReady.heldActorIds.length === 3, 'three stationary adopted men form one held line');
-assert.ok(!partialReady.heldActorIds.includes(String(lagging.id)), 'lagging fourth cannot count toward readiness');
+assert.ok(
+  partialReady && partialReady.heldActorIds.length === 3,
+  'three stationary adopted men form one held line'
+);
+assert.ok(
+  !partialReady.heldActorIds.includes(String(lagging.id)),
+  'lagging fourth cannot count toward readiness'
+);
 const movingCore = partialCore.q.members.find(s => String(s.id) === partialReady.heldActorIds[0]);
 movingCore.moving = true;
 assert.equal(
