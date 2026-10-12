@@ -39,18 +39,18 @@
       return +(s.eng && s.eng.possessionEpoch) || 0;
     }
     function men(sq) {
-      var a = ctx.commanded(sq);
+      /* An occupied weapon emplacement or separate positional commitment
+         belongs to its own owner. Exclude that soldier rather than vetoing
+         the entire remainder of a squad; never issue a posture order to him.
+         If a station is adopted or released, member identity validation below
+         revokes the old posture before anything can act on stale membership. */
+      var a = ctx.commanded(sq).filter(function (s) {
+        return !(root.BattleTacticalPositions && root.BattleTacticalPositions.current(s));
+      });
       return a.length >= 3 &&
         a.length <= 32 &&
         a.every(function (s) {
-          return (
-            s.root &&
-            point(s.root.position) &&
-            !s.incapacitated &&
-            !s.isPlayer &&
-            s.hp > 0 &&
-            !(root.BattleTacticalPositions && root.BattleTacticalPositions.current(s))
-          );
+          return s.root && point(s.root.position) && !s.incapacitated && !s.isPlayer && s.hp > 0;
         })
         ? a
         : null;
@@ -138,6 +138,7 @@
     }
     function valid(b, sq, st) {
       var a = men(sq),
+        fullRoster = ctx.commanded(sq),
         m = sq._macroMission,
         ex = sq._missionExecution,
         nav = root.BattleNavigation;
@@ -169,9 +170,16 @@
         !L.get(sq, 'regroup') &&
         !L.get(sq, 'recon') &&
         !(ctx.localPlan.structureOrdersOn && ctx.localPlan.currentStructureOrders(b, sq)) &&
-        a.length === st.members.length &&
-        a.every(function (s, i) {
+        fullRoster.length === st.members.length &&
+        fullRoster.every(function (s, i) {
           return s === st.members[i] && epoch(s) === st.epochs[i];
+        }) &&
+        /* A non-participant may occupy/release his separately owned station.
+           The actual ambush actors must remain eligible and uncommitted. */
+        st.orders.every(function (o) {
+          return a.some(function (s) {
+            return String(s.id) === o.soldierId;
+          });
         })
       );
     }
@@ -180,9 +188,43 @@
       var st = states.get(sq);
       return valid(b, sq, st) ? st : null;
     }
+    function invalidReason(b, sq, st) {
+      var a = men(sq),
+        fullRoster = ctx.commanded(sq),
+        m = sq._macroMission,
+        ex = sq._missionExecution,
+        nav = root.BattleNavigation,
+        p = (sq.route || [])[+sq.routeIndex];
+      if (!a) return 'too-few-uncommitted-riflemen';
+      if (fullRoster.length !== st.members.length || fullRoster.some(function (s, i) {
+        return s !== st.members[i] || epoch(s) !== st.epochs[i];
+      })) return 'squad-roster-or-possession';
+      if (st.orders.some(function (o) {
+        return !a.some(function (s) {
+          return String(s.id) === o.soldierId;
+        });
+      })) return 'ambush-actor-reassigned';
+      if (m !== st.mission || !m || m.version !== st.version || m.status !== 'executing')
+        return 'mission-changed';
+      if (ex !== st.execution || !ex || ex.mission !== m) return 'execution-changed';
+      if (sq.route !== st.route || +sq.routeIndex !== st.leg || !p ||
+          p.x !== st.target.x || p.z !== st.target.z) return 'route-changed';
+      if (b.scene !== st.scene || !nav || nav.scenario !== st.scenario ||
+          nav.version !== st.navigationVersion) return 'navigation-changed';
+      if (A.leaderOf(sq) !== st.leader || !st.leader || st.leader.dead ||
+          ctx.leaderlessActive(sq)) return 'leader-changed';
+      if (sq.state === 'retreat' || L.get(sq, 'regroup') || L.get(sq, 'recon'))
+        return 'override-lease';
+      if (ctx.localPlan.structureOrdersOn && ctx.localPlan.currentStructureOrders(b, sq))
+        return 'structure-override';
+      return 'stale-time-or-authority';
+    }
     function end(b, sq, why) {
       var st = states.get(sq);
       if (st) {
+        var counts = st.stats;
+        if (!counts.releaseReasons) counts.releaseReasons = {};
+        counts.releaseReasons[why] = (counts.releaseReasons[why] || 0) + 1;
         ctx.telemetry(b, 'decision-tactical-posture', {
           squad: sq.id,
           faction: sq.faction,
@@ -207,7 +249,7 @@
         pressure = task && task.inputs ? task.inputs.pressure : 1,
         rs = threats(b, sq),
         now = b.time;
-      if (st && !valid(b, sq, st)) return end(b, sq, 'identity/authority lost');
+      if (st && !valid(b, sq, st)) return end(b, sq, invalidReason(b, sq, st));
       if (
         !a ||
         !m ||
@@ -329,15 +371,20 @@
               break;
             }
           }
-          if (!candidate) return null; // Do not put the remainder at unsafe default slots.
-          orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
+          /* Do not place this soldier at an exposed default slot. A masked
+             fireteam is useful even when another eligible squad member has
+             no concealed post; that man remains under his existing orders. */
+          if (candidate)
+            orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
         }
+        if (orders.length < 3) return null; // Never publish an understrength ambush element.
         var counts = counters.get(sq) || {
           ambushes: 0,
           pressureHolds: 0,
           coordinatedContacts: 0,
           coveredManeuvers: 0,
-          rejectedUnsafeBounds: 0
+          rejectedUnsafeBounds: 0,
+          releaseReasons: {}
         };
         counters.set(sq, counts);
         counts.ambushes++;
@@ -357,8 +404,10 @@
           scenario: nav.scenario,
           navigationVersion: nav.version,
           leader: A.leaderOf(sq),
-          members: a.slice(),
-          epochs: a.map(epoch),
+          /* Preserve the complete commanded roster to detect casualties
+             and possession, not temporary station claims by bystanders. */
+          members: ctx.commanded(sq).slice(),
+          epochs: ctx.commanded(sq).map(epoch),
           orders: orders,
           threats: rs,
           heldSince: null,
@@ -385,9 +434,14 @@
         })
       )
         return end(b, sq, 'firing station lost masking/ray');
-      var settled = st.orders.every(function (o, i) {
-        var s = a[i],
-          p = s.root.position;
+      var settled = st.orders.every(function (o) {
+        /* Orders are now a subset of the stable eligible roster; never index
+           a different rifleman's position by the order's array index. */
+        var s = a.find(function (man) {
+          return String(man.id) === o.soldierId;
+        });
+        if (!s) return false;
+        var p = s.root.position;
         return (
           s._fireteamPublishKey === o.key && !s.moving && Math.hypot(p.x - o.point.x, p.z - o.point.z) <= 0.5
         );
@@ -444,14 +498,19 @@
           coordinatedContacts: 0,
           coveredManeuvers: 0,
           rejectedUnsafeBounds: 0,
-          active: 0
+          active: 0,
+          releaseReasons: {}
         };
         ['us', 'ge'].forEach(function (f) {
           ((sim.factions[f] && sim.factions[f].squads) || []).forEach(function (sq) {
             var c = counters.get(sq);
             if (c)
               Object.keys(c).forEach(function (k) {
-                total[k] += c[k];
+                if (k === 'releaseReasons') {
+                  Object.keys(c[k]).forEach(function (why) {
+                    total.releaseReasons[why] = (total.releaseReasons[why] || 0) + c[k][why];
+                  });
+                } else total[k] += c[k];
               });
             if (current(sim, sq)) total.active++;
           });

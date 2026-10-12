@@ -159,6 +159,57 @@ for (const spoil of [
   spoil(x);
   assert.equal(x.P.current(x.b, x.q), null, 'stale evidence cannot authorize posture');
 }
+/* A different owner can reserve an MG/emplacement specialist without
+   suppressing the other riflemen's opt-in masked firing line. Membership
+   changes revoke stale fireteam and position evidence immediately. */
+const station = world();
+const stationedMan = station.q.members[0];
+station.r.BattleTacticalPositions = {
+  current: s => (s === stationedMan ? { owner: 'emplacement' } : null)
+};
+const stationedPosture = station.P.update(station.b, station.q);
+assert.ok(
+  stationedPosture,
+  'remaining riflemen may form a masked line without station-owned specialist'
+);
+assert.ok(
+  stationedPosture.orders.every(o => o.soldierId !== String(stationedMan.id)),
+  'Squad Leader must not issue posture orders to the already committed station owner'
+);
+station.r.BattleTacticalPositions.current = () => null;
+assert.equal(
+  station.P.current(station.b, station.q),
+  stationedPosture,
+  'nonparticipant station handback cannot cancel the prepared element'
+);
+const assignedMan = station.q.members.find(s => String(s.id) === stationedPosture.orders[0].soldierId);
+station.r.BattleTacticalPositions.current = s => (s === assignedMan ? { owner: 'emplacement' } : null);
+assert.equal(
+  station.P.current(station.b, station.q),
+  null,
+  'a reassigned ambush rifleman immediately revokes the existing posture'
+);
+
+/* One exposed rifleman must not cancel a real three-plus-rifle masked
+   element, but never receives a fake covered order himself. Two viable masked
+   stations are deliberately insufficient for an ambush. */
+const partialLine = world();
+const exposedMan = partialLine.q.members[0];
+exposedMan.root.position.z = 24;
+const partialPosture = partialLine.P.update(partialLine.b, partialLine.q);
+assert.ok(partialPosture, 'native terrain accepts a viable concealed subelement');
+assert.ok(partialPosture.orders.length >= 3, 'at least three masked riflemen required');
+assert.equal(
+  partialPosture.orders.some(o => o.soldierId === String(exposedMan.id)),
+  false,
+  'no unsafe firing-post fallback for the exposed rifleman'
+);
+const shortLine = world();
+shortLine.q.members.slice(2).forEach(s => {
+  s.root.position.z = 24;
+});
+assert.equal(shortLine.P.update(shortLine.b, shortLine.q), null, 'two masked stations fail closed');
+
 const pressure = world();
 pressure.P.update(pressure.b, pressure.q);
 pressure.b.time += 0.15;
