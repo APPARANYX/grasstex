@@ -236,6 +236,8 @@ move.P.tuning.maneuverWindow = 8.5;
 const staged = move.P.update(move.b, move.q, { underFire: 1, fireSupport: move.q.members.slice(1, 4) });
 assert.equal(staged.mode, 'maneuver', 'one existing Squad Leader posture transition');
 assert.equal(staged.stage, 'supporting-fire');
+assert.equal(staged.maneuverUntil - move.b.time, move.P.tuning.maneuverWindow,
+  'the one-owner posture has a bounded maneuver lease deadline');
 assert.equal(staged.orders.length, 0, 'posture does not become a second destination writer');
 assert.equal(move.r.BattleLeases.get(move.q, 'bound'), null, 'eligibility never directly grants a bound');
 assert.equal(move.P.current(move.b, move.q).mode, 'maneuver');
@@ -245,11 +247,11 @@ let finish = null;
 for (let i = 0; i < 45; i++) {
   move.b.time += 0.4;
   finish = move.P.update(move.b, move.q, { fireSupport: move.q.members.slice(1, 4) });
-  if (finish && finish.mode === 'hold') break;
+  if (!finish || finish.mode === 'hold') break;
 }
 assert.ok(
-  finish && finish.mode === 'hold',
-  'finite maneuver window closes to defensive hold under normal update cadence'
+  !finish || finish.mode === 'hold',
+  'a stale reported threat revokes the posture, or the finite maneuver window closes to hold'
 );
 const readGap = world(true, true, true),
   gap = readGap.P.update(readGap.b, readGap.q);
