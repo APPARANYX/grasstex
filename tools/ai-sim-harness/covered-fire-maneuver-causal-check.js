@@ -72,12 +72,17 @@ function world(withWall = true) {
   hostile.isPlayer = true;
   hostile.hp = 100000;
   hostile.root.position.set(0, 0, 60);
-  const positions = [0, -20, -24, -28];
+  const positions = [
+    { x: 0, z: -4 },
+    { x: -4, z: -36 },
+    { x: 0, z: -36 },
+    { x: 4, z: -36 }
+  ];
   q.members.forEach((s, i) => {
-    s.root.position.set(positions[i], 0, -4);
+    s.root.position.set(positions[i].x, 0, positions[i].z);
     s.root.rotation.y = 0;
-    s.destination = { x: positions[i], z: -4 };
-    s.orderDestination = { x: positions[i], z: -4 };
+    s.destination = { x: positions[i].x, z: positions[i].z };
+    s.orderDestination = { x: positions[i].x, z: positions[i].z };
     s.target = hostile;
     s._fireteamKey = i === 0 ? 'alpha' : 'bravo';
     const e = r.BattleEngagement.stateOf(s);
