@@ -120,11 +120,12 @@ assert.ok(
    mandatory; explicit observation loss still cancels. */
 const confidenceContinuity = world();
 let continuityLive = true,
-  continuityConfidence = 0.6;
+  continuityConfidence = 0.6,
+  continuityZ = 20;
 confidenceContinuity.r.SquadAI.squadContactsMap = () =>
   continuityLive
     ? [{
-        x: 0, z: 20, at: 0, confidence: continuityConfidence,
+        x: 0, z: continuityZ, at: 0, confidence: continuityConfidence,
         targetId: 'continuity-threat', sector: 2, source: 'told'
       }]
     : [];
@@ -134,6 +135,7 @@ const continuityPosture = confidenceContinuity.P.update(
 );
 assert.ok(continuityPosture && continuityPosture.mode === 'ambush');
 continuityConfidence = 0.49;
+continuityZ = -20; // sub-threshold motion cannot move the detached threat reference.
 let continuityReady = null;
 H.run(confidenceContinuity.r, confidenceContinuity.b, 6, () => {
   const state = confidenceContinuity.P.current(confidenceContinuity.b, confidenceContinuity.q);
@@ -142,6 +144,11 @@ H.run(confidenceContinuity.r, confidenceContinuity.b, 6, () => {
 assert.ok(
   continuityReady,
   'same fresh underlying report survives confidence-floor crossing through the mandatory dwell'
+);
+assert.equal(
+  continuityReady.threats[0].z,
+  20,
+  'sub-threshold belief motion cannot drag a prepared firing line away from its detached report'
 );
 continuityLive = false;
 assert.equal(
