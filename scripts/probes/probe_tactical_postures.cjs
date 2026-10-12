@@ -235,13 +235,14 @@ const { chromium } = require('playwright');
                 a = p.average,
                 cam = b.scene.activeCamera;
               cam.setTarget(new BABYLON.Vector3(a.x, b.heightAt(a.x, a.z) + 1, a.z));
-              cam.setPosition(
-                new BABYLON.Vector3(
-                  a.x - p.selected.dx * 18 + p.selected.dz * 15,
-                  b.heightAt(a.x, a.z) + 17,
-                  a.z - p.selected.dz * 18 - p.selected.dx * 15
-                )
+              const eye = new BABYLON.Vector3(
+                a.x - p.selected.dx * 18 + p.selected.dz * 15,
+                b.heightAt(a.x, a.z) + 17,
+                a.z - p.selected.dz * 18 - p.selected.dx * 15
               );
+              // Some battle cameras are FreeCamera instances with no setPosition().
+              if (typeof cam.setPosition === 'function') cam.setPosition(eye);
+              else cam.position.copyFrom(eye);
               let panel = document.getElementById('postureEvidence');
               if (!panel) {
                 panel = document.createElement('pre');
