@@ -1,0 +1,13 @@
+{
+  "benchmark": "standard",
+  "ref": "work/benchmark-source/299-c-ambush-e34abf24",
+  "seed": "c-structure-security-517",
+  "seeds": "6",
+  "battle_type": "ge-defend",
+  "query_off": "",
+  "query_on": "localPlan=1&localAmbush=1",
+  "windows": "0+180",
+  "origin_agent": "phase-c",
+  "correlation_id": "c-ambush-518-ge-defend",
+  "purpose": "Same-seed default-off baseline against prior checkpoint and ambush activation/cost; staged actual native preparation/contact is independent acceptance"
+}
