@@ -2,12 +2,13 @@
 const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
-function world(on = true, terrain = true) {
+function world(on = true, terrain = true, maneuver = false) {
   H.resetIds();
   const r = H.bootstrap({
     search:
       '?localPlan=1&coa=0&commandMovement=0&slStress=0&scoutsForward=0&stressAct=0' +
-      (on ? '&localAmbush=1' : '')
+      (on ? '&localAmbush=1' : '') +
+      (maneuver ? '&localManeuver=1&coveredBounds=1' : '')
   });
   const load = f => loadModule(r, f, { console: quietConsole, location: r.location });
   load('battle/movement-resolver.js');
@@ -170,6 +171,146 @@ assert.equal(
   'hold',
   'pressure hysteresis prevents immediate ambush rebound'
 );
+// The same posture owner may switch a fully prepared ambush to covered
+// maneuver under pressure, but only when the shipping physicality sampler
+// accepts a real short segment AND at least two other men can support.
+// Candidate enumeration is isolated here; the route/LOS verdict stays real.
+const man = world(true, true, true);
+assert.equal(man.P.maneuverOn, true);
+assert.equal(world().P.maneuverOn, false, 'maneuver flag remains default OFF');
+const mc = man.r.BattleCoverPositions,
+  me = man.q.members[0],
+  reported = [{ x: 0, z: 20, at: man.b.time, confidence: 1 }],
+  paths = [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 7, 8, 9, 10, 11],
+  safe = paths
+    .map(z => ({ x: me.root.position.x, z }))
+    .find(p => mc.boundRoute(me, man.b, p, reported).eligible);
+assert.ok(safe, 'real crest/Navigation geometry must provide an actual eligible covered segment');
+mc.candidates = () => [safe];
+const support = { underFire: 1, fireSupport: man.q.members.slice(1, 4) };
+assert.equal(man.P.coveredTeam(man.b, man.q, [me], support), true);
+assert.equal(
+  man.P.coveredTeam(man.b, man.q, [me], { fireSupport: [man.q.members[1]] }),
+  false,
+  'one remaining rifle cannot support a team bound'
+);
+mc.candidates = () => [{ x: me.root.position.x, z: 18 }];
+assert.equal(
+  man.P.coveredTeam(man.b, man.q, [me], support),
+  false,
+  'exposed/distant hedge end may not be accepted as cover'
+);
+mc.candidates = () => [];
+assert.equal(
+  man.P.coveredTeam(man.b, man.q, [me], support),
+  false,
+  'no-safe-route requires a tactical hold, not an exposed rush'
+);
+const holding = man.P.update(man.b, man.q);
+assert.ok(holding && holding.mode === 'ambush');
+holding.readyAt = man.b.time;
+holding.stage = 'ready';
+man.q.inContact = true;
+assert.equal(
+  man.P.update(man.b, man.q, support).mode,
+  'hold',
+  'pressure without any safe path cannot publish movement'
+);
+assert.equal(man.r.BattleLeases.get(man.q, 'bound'), null);
+const move = world(true, true, true);
+const mm = move.q.members[0],
+  cover = move.r.BattleCoverPositions;
+const moveSafe = paths
+  .map(z => ({ x: mm.root.position.x, z }))
+  .find(p => cover.boundRoute(mm, move.b, p, [{ x: 0, z: 20, at: 0, confidence: 1 }]).eligible);
+assert.ok(moveSafe);
+cover.candidates = () => [moveSafe];
+const ready = move.P.update(move.b, move.q);
+ready.readyAt = move.b.time;
+ready.stage = 'ready';
+move.q.inContact = true;
+/* Narrow only this expiry test's deadline below the ten-second unrefreshed
+   contact-memory age; otherwise the correct stale-threat fail-close ends
+   the posture before the independent maneuver-window branch can execute. */
+move.P.tuning.maneuverWindow = 8.5;
+const staged = move.P.update(move.b, move.q, { underFire: 1, fireSupport: move.q.members.slice(1, 4) });
+assert.equal(staged.mode, 'maneuver', 'one existing Squad Leader posture transition');
+assert.equal(staged.stage, 'supporting-fire');
+assert.equal(
+  staged.maneuverUntil - move.b.time,
+  move.P.tuning.maneuverWindow,
+  'the one-owner posture has a bounded maneuver lease deadline'
+);
+assert.equal(staged.orders.length, 0, 'posture does not become a second destination writer');
+assert.equal(move.r.BattleLeases.get(move.q, 'bound'), null, 'eligibility never directly grants a bound');
+assert.equal(move.P.current(move.b, move.q).mode, 'maneuver');
+/* Commander ticks refresh the evidence cadence, rather than skipping 14
+   seconds (which would correctly revoke an unobserved posture entirely). */
+let finish = null;
+for (let i = 0; i < 45; i++) {
+  move.b.time += 0.4;
+  finish = move.P.update(move.b, move.q, { fireSupport: move.q.members.slice(1, 4) });
+  if (!finish || finish.mode === 'hold') break;
+}
+assert.ok(
+  !finish || finish.mode === 'hold',
+  'a stale reported threat revokes the posture, or the finite maneuver window closes to hold'
+);
+const readGap = world(true, true, true),
+  gap = readGap.P.update(readGap.b, readGap.q);
+gap.readyAt = readGap.b.time;
+gap.stage = 'ready';
+readGap.r.BattleCoverPositions.candidates = () => [
+  { x: readGap.q.members[0].root.position.x, z: moveSafe.z }
+];
+readGap.q.inContact = true;
+assert.equal(
+  readGap.P.update(readGap.b, readGap.q, { underFire: 1, fireSupport: readGap.q.members.slice(1, 4) }).mode,
+  'maneuver'
+);
+readGap.b.time += 0.3;
+assert.equal(
+  readGap.P.update(readGap.b, readGap.q).mode,
+  'maneuver',
+  'read-only commander tick without a fresh report preserves bounded support evidence'
+);
+readGap.b.time += 0.4;
+assert.equal(
+  readGap.P.update(readGap.b, readGap.q).mode,
+  'hold',
+  'missing real Engagement support reports cannot silently persist'
+);
+const supportLoss = world(true, true, true),
+  supportLossStation = supportLoss.P.update(supportLoss.b, supportLoss.q);
+supportLossStation.readyAt = supportLoss.b.time;
+supportLossStation.stage = 'ready';
+supportLoss.q.inContact = true;
+supportLoss.r.BattleCoverPositions.candidates = () => [
+  { x: supportLoss.q.members[0].root.position.x, z: moveSafe.z }
+];
+assert.equal(
+  supportLoss.P.update(supportLoss.b, supportLoss.q, {
+    underFire: 1,
+    fireSupport: supportLoss.q.members.slice(1, 4)
+  }).mode,
+  'maneuver'
+);
+assert.equal(
+  supportLoss.P.update(supportLoss.b, supportLoss.q, { fireSupport: [] }).mode,
+  'hold',
+  'loss of native support cannot sustain a maneuver or authorize new displacement'
+);
+const noSupport = world(true, true, true);
+const nos = noSupport.P.update(noSupport.b, noSupport.q);
+nos.readyAt = noSupport.b.time;
+nos.stage = 'ready';
+noSupport.q.inContact = true;
+assert.equal(
+  noSupport.P.update(noSupport.b, noSupport.q, { underFire: 1, fireSupport: [] }).mode,
+  'hold',
+  'an unsupported exposed advance is denied'
+);
+
 console.log(
   'PASS masked ambush native preparation, minimum hold, unsafe stations, authority/lifecycle invalidation and pressure hysteresis',
   JSON.stringify({ holdAt, readyAt, firstShot, shots: combat.b.events.fired })
