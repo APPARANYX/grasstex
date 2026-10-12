@@ -110,21 +110,31 @@
           var body = point(s.root && s.root.position),
             last = s._movementResolver && s._movementResolver.last,
             intent = last && point(last.intentPoint),
-            outcome = O.man(s, b);
-          /* Command Reception + Movement Execution already own the definition of
-             a personally adopted formation order completing (including the
-             Resolver's 1.8 m formation-arrival tolerance). Reuse that derived
-             outcome rather than maintaining a second, stricter arrival rule.
-             The posture still independently requires the exact ambush publish
-             key, Squad Stability ownership, the original ambush intent, a
-             physically stationary body and concealment at the man's REAL
-             position before any dwell can accrue. */
+            CR = root.BattleCommandReception,
+            receivedMovement =
+              CR && CR.movementEnabled && CR.movementEnabled(),
+            outcome = receivedMovement && O && O.man ? O.man(s, b) : null,
+            completed = receivedMovement
+              ? !!(
+                  outcome &&
+                  outcome.current &&
+                  outcome.state === 'completed' &&
+                  outcome.publishKey === o.key
+                )
+              : !!(body && Math.hypot(body.x - o.point.x, body.z - o.point.z) <= 0.5);
+          /* With personal command reception enabled, Command Reception +
+             Movement Execution own the definition of an adopted formation
+             order completing (including the Resolver's 1.8 m arrival
+             tolerance). Reuse that canonical outcome rather than maintaining
+             a second, stricter production rule. When movement reception is
+             explicitly disabled, preserve the legacy direct-publish 0.5 m
+             behavior exactly. In both modes the posture still independently
+             requires the exact publish key, Squad Stability ownership, the
+             original ambush intent, a stationary body and concealment at the
+             man's REAL position before any dwell can accrue. */
           return !!(
             body &&
-            outcome &&
-            outcome.current &&
-            outcome.state === 'completed' &&
-            outcome.publishKey === o.key &&
+            completed &&
             last &&
             last.owner === 'squad-stability' &&
             last.kind === 'formation' &&
