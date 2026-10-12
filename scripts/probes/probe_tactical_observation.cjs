@@ -4,6 +4,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { chromium } = require('playwright');
+const { requestPreview } = require('./preview_request.cjs');
 (async () => {
   const browser = await chromium.launch({
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox']
@@ -11,7 +12,7 @@ const { chromium } = require('playwright');
   try {
     const context = await browser.newContext({ ignoreHTTPSErrors: true });
     const entry = process.env.TACTICAL_PREVIEW;
-    const res = await context.request.get(entry, { maxRedirects: 0, timeout: 180000 });
+    const res = await requestPreview(context, entry);
     assert.equal(res.status(), 302, (await res.text()).slice(-1500));
     const url = new URL(res.headers().location, entry);
     assert.ok(
