@@ -335,7 +335,16 @@ const { chromium } = require('playwright');
       if (!lease || !boundOrder)
         throw Error('native Squad Leader did not order physical bound: ' + JSON.stringify({
           lease, boundOrder, fireSupport: report.fireSupport.map(s => s.id),
-          effective: report.effective, phase: q.commandPhase
+          effective: report.effective, phase: q.commandPhase,
+          inContact: q.inContact, clearContact: q.clearContact,
+          fireControl: q.fireControl, assaultAuthorized: q._assaultAuthorized,
+          boundTurn: q._boundTurn, coa: q.coa,
+          localPlanOn: S.localPlan.on, resourcesOn: S.localPlan.resourcesOn,
+          realLocalPlan: S.localPlan.read && S.localPlan.read(q),
+          boundCycle: L.get(q,'bound-cycle'), bound: L.get(q,'bound'),
+          supportRoles: support.map(s=>({id:s.id, fireteam:s._fireteamKey,
+            validMover:S.localPlan.moverEligible(s,q,b)})),
+          posture: P.current(b,q)
         }));
       b._coveredProof = {
         q, mover, support, hostile, start: startPos, target: threat, slot,
