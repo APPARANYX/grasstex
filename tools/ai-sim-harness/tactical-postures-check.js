@@ -325,6 +325,99 @@ assert.equal(
   'an unsupported exposed advance is denied'
 );
 
+/* Natural posture lifecycle: unlike the earlier targeted policy-seam cases,
+   do not set readyAt/stage or substitute P.update/current. The real SquadAI
+   ticks must assemble and hold the firing line for the entire dwell first.
+   Only then is a pressure contact report and terrain-verified prospective
+   slot presented; no movement destination or bound lease is invented. */
+function preparedNaturalPressure() {
+  const x = world(true, true, true);
+  let ready = null;
+  for (let i = 0; i < 75; i++) {
+    H.run(x.r, x.b, 0.15);
+    const st = x.P.current(x.b, x.q);
+    if (st && st.readyAt != null) {
+      ready = st;
+      break;
+    }
+  }
+  assert.ok(ready && ready.stage === 'ready', 'native squad ticks must produce a prepared ambush');
+  assert.ok(x.b.time >= x.P.tuning.minimumHold, 'live masked firing-line dwell cannot be skipped');
+  assert.equal(x.b.events.fired, 0, 'precontact guns remain silent during natural preparation');
+  const mover = x.q.members[0];
+  const report = {
+    underFire: Math.ceil(x.q.members.length * 0.35),
+    fireSupport: x.q.members.slice(1, 5)
+  };
+  const contact = x.r.SquadAI.squadContactsMap(x.q, x.b)[0];
+  assert.ok(contact && contact.confidence >= 0.5, 'pressure transition needs fresh own reported evidence');
+  const covered = [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5.5, 6, 7, 8]
+    .map(z => ({ x: mover.root.position.x, z }))
+    .find(p => x.r.BattleCoverPositions.boundRoute(mover, x.b, p, [contact]).eligible);
+  assert.ok(covered, 'real Navigation and Perception must validate a concealed short route');
+  // This focused policy transition supplies a candidate, not a line-of-sight
+  // verdict or movement permission. The real-map physical candidate/arrival
+  // proof is the separate final-head Chromium #523 acceptance.
+  x.r.BattleCoverPositions.candidates = () => [covered];
+  x.q.inContact = true;
+  const local = x.S.localPlan.update(x.b, x.q, report);
+  assert.ok(local.pressured && !local.emergency, 'non-emergency pressure from native local-plan inputs');
+  const active = x.P.update(x.b, x.q, report);
+  assert.ok(active && active.mode === 'maneuver', 'native ready ambush changes to covered maneuver');
+  assert.equal(active.stats.coveredManeuvers, 1, 'one transition, no repeated orders');
+  assert.equal(x.r.BattleLeases.get(x.q, 'bound'), null, 'posture never authors movement');
+  return { ...x, mover, active, report };
+}
+const natural = preparedNaturalPressure();
+const urgentReport = {
+  underFire: natural.q.members.length,
+  fireSupport: natural.report.fireSupport
+};
+const urgentTask = natural.S.localPlan.update(natural.b, natural.q, urgentReport);
+assert.ok(urgentTask.emergency, 'local-plan owner identifies emergency pressure');
+const emergencyHold = natural.P.update(natural.b, natural.q, urgentReport);
+assert.equal(emergencyHold.mode, 'hold', 'emergency must preempt ongoing covered maneuver');
+assert.equal(emergencyHold.stage, 'emergency-hold');
+assert.equal(natural.r.BattleLeases.get(natural.q, 'bound'), null, 'no second movement owner');
+
+const urgentBefore = preparedNaturalPressure();
+urgentBefore.P.reset(urgentBefore.q);
+const initial = urgentBefore.P.update(urgentBefore.b, urgentBefore.q);
+assert.equal(initial, null, 'restart reset clears stale posture authority');
+
+/* The same *naturally prepared* posture must fail closed when any identity
+   or command context changes mid-maneuver; these are not merely pre-contact
+   validation tests. */
+for (const [name, spoil] of [
+  ['retreat', x => { x.q.state = 'retreat'; }],
+  ['leader-loss', x => { x.r.SquadAI.leaderOf(x.q).dead = true; }],
+  ['casualty', x => { x.q.members[1].dead = true; }],
+  ['possession', x => { x.mover.isPlayer = true; }],
+  ['mission-replacement', x => { x.q._macroMission.version++; }],
+  ['reported-contact-expired', x => { x.b.time += 11; }]
+]) {
+  const x = preparedNaturalPressure();
+  spoil(x);
+  assert.equal(x.P.current(x.b, x.q), null, name + ' must invalidate an active moving posture');
+}
+const lostSupport = preparedNaturalPressure();
+const supportHold = lostSupport.P.update(lostSupport.b, lostSupport.q, {
+  fireSupport: [lostSupport.q.members[1], lostSupport.q.members[1]]
+});
+assert.equal(supportHold.mode, 'hold', 'one duplicated rifle cannot sustain a naturally entered bound');
+console.log(
+  'PHASE_C_NATURAL_PRESSURE_ACCEPTANCE',
+  JSON.stringify({
+    preparedAt: natural.active.readyAt,
+    admittedAt: natural.active.since,
+    receivedPressure: natural.report.underFire,
+    afterEmergency: emergencyHold.stage,
+    cases: 7,
+    stagedCandidate: true,
+    physicalRouteVerified: true
+  })
+);
+
 console.log(
   'PASS masked ambush native preparation, minimum hold, unsafe stations, authority/lifecycle invalidation and pressure hysteresis',
   JSON.stringify({ holdAt, readyAt, firstShot, shots: combat.b.events.fired })
