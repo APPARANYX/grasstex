@@ -131,10 +131,7 @@
           return String(id) === String(ids[i]);
         }) &&
         ((!old && !point) ||
-          (old &&
-            point &&
-            Math.abs(+old.x - +point.x) < 1e-6 &&
-            Math.abs(+old.z - +point.z) < 1e-6))
+          (old && point && Math.abs(+old.x - +point.x) < 1e-6 && Math.abs(+old.z - +point.z) < 1e-6))
       );
     }
 
@@ -288,9 +285,7 @@
                   state: state,
                   targetId: fc.targetId == null ? null : String(fc.targetId),
                   shooterId: fc.shooterId == null ? null : String(fc.shooterId),
-                  supportPoint: fc.supportPoint
-                    ? { x: +fc.supportPoint.x, z: +fc.supportPoint.z }
-                    : null,
+                  supportPoint: fc.supportPoint ? { x: +fc.supportPoint.x, z: +fc.supportPoint.z } : null,
                   supporterIds: fc.supporterIds.slice(),
                   supportSource: fc.supportSource,
                   supportAt: fc.supportAt
@@ -344,7 +339,10 @@
         posture &&
         posture.readyAt != null &&
         (posture.mode === 'ambush' ||
-          (posture.mode === 'hold' && posture.stage === 'pressure-hold' && posture.orders && posture.orders.length >= 3))
+          (posture.mode === 'hold' &&
+            posture.stage === 'pressure-hold' &&
+            posture.orders &&
+            posture.orders.length >= 3))
       );
       if (posture && (posture.mode === 'ambush' || preparedPosture)) {
         var contact = firstHandContact(sq, battle),

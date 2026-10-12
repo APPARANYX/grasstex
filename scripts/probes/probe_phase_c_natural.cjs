@@ -427,6 +427,15 @@ const { chromium } = require('playwright');
                         decision: JSON.parse(JSON.stringify(current.lastManeuverDecision)),
                         coreIds: current.heldActorIds.slice(),
                         boundCycle: !!root.BattleLeases?.holds?.(sq, 'bound-cycle', b.time),
+                        fireControl: sq.fireControl
+                          ? {
+                              state: sq.fireControl.state || null,
+                              supportPoint: compactPoint(sq.fireControl.supportPoint),
+                              supporterIds: (sq.fireControl.supporterIds || []).slice(0, 2),
+                              supportSource: sq.fireControl.supportSource || null,
+                              supportAt: sq.fireControl.supportAt ?? null
+                            }
+                          : null,
                         members: (sq.members || []).slice(0, 12).map(s => {
                           const e = root.BattleEngagement?.stateOf?.(s);
                           const target = s.target?.root?.position;
@@ -450,6 +459,9 @@ const { chromium } = require('playwright');
                             knownDistance,
                             range: root.SquadAI.engageRange(s),
                             capability: !!root.BattleEngagement?.supportReady?.(s, b),
+                            areaSupport: compactPoint(root.BattleEngagement?.areaSupportOf?.(s, b) || null),
+                            setUp: !!s.setUp,
+                            isMachineGun: !!root.SquadAI?.isMachineGun?.(s),
                             ammunition: root.BattleAmmunition?.available?.(s) ?? null,
                             fireAuthorized: root.BattleEngagement?.fireAuthorized?.(s, b) ?? null,
                             fireReadyAt: e?.fireReadyAt,

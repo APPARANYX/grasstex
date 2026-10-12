@@ -1003,6 +1003,14 @@
     e.until = Math.max(+e.until || 0, battle.time + SUPPRESS_HOLD);
     commitStanceRespectHold(s, battle, 'crouch', 0.8, 'squad support-fire order');
     s._faceHint = { x: point.x, z: point.z };
+    /* An ordered machine gunner emplaces his gun on the held firing position exactly like a
+       station gunner: the emplacing clock runs while he delivers the sustained fire (the state
+       machine keeps it only across engage/station, and this path holds without a transition),
+       and he counts as capable support only once it completes. */
+    if (SA().isMachineGun(s)) {
+      if (!e.setUpSince) e.setUpSince = battle.time;
+      s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
+    }
     suppress(s, battle, point);
     return true;
   }
