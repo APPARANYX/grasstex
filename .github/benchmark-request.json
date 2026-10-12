@@ -1,0 +1,10 @@
+{
+  "benchmark": "standard",
+  "ref": "main",
+  "seed": "12345",
+  "seeds": "1",
+  "battle_type": "us-defend",
+  "query_off": "",
+  "query_on": "localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1",
+  "purpose": "Phase C v527 accepted native pressure-bound gate OFF/ON comparison"
+}
