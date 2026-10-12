@@ -431,25 +431,43 @@ const { chromium } = require('playwright');
                           const e = root.BattleEngagement?.stateOf?.(s);
                           const target = s.target?.root?.position;
                           const here = s.root?.position;
+                          const known = root.BattleEngagement?.knownThreat?.(s, b) || null;
                           const distance =
                             target && here ? Math.hypot(target.x - here.x, target.z - here.z) : null;
+                          const knownDistance =
+                            known && here ? Math.hypot(known.x - here.x, known.z - here.z) : null;
                           return {
                             id: String(s.id),
                             role: s.role,
-                            weapon: s.weapon?.name || s.weapon?.id || null,
+                            weapon: s.weapon?.name || s.weapon?.id || s.weapon?.kind || null,
+                            weaponReady: !!(s.weapon && s.weapon.stats && !s.weapon.jammed),
                             state: e?.state,
                             moving: !!s.moving,
+                            crawling: !!s.crawling,
                             targetId: s.target?.id ?? null,
                             distance,
+                            knownThreat: compactPoint(known),
+                            knownDistance,
                             range: root.SquadAI.engageRange(s),
                             capability: !!root.BattleEngagement?.supportReady?.(s, b),
                             ammunition: root.BattleAmmunition?.available?.(s) ?? null,
                             fireAuthorized: root.BattleEngagement?.fireAuthorized?.(s, b) ?? null,
                             fireReadyAt: e?.fireReadyAt,
+                            fireReady: Number.isFinite(e?.fireReadyAt) ? b.time >= e.fireReadyAt : null,
                             suppressed: s.suppressedUntil > b.time,
                             reloading: !!s.reloading,
+                            clearingStoppage: !!s.clearingStoppage,
+                            outOfAmmo: !!s.outOfAmmo,
                             incapacitated: !!s.incapacitated,
                             suppressOrder: !!e?.suppressOrder,
+                            canSuppress:
+                              known && root.SquadAI?.canSuppress
+                                ? !!root.SquadAI.canSuppress(s, known, b, true)
+                                : null,
+                            facingError:
+                              known && root.BattleEngagement?.facingError
+                                ? root.BattleEngagement.facingError(s, known)
+                                : null,
                             line: target
                               ? root.SquadAI.hasLineOfSight(s, s.target, b.heightAt, b.obstacles)
                               : null,
