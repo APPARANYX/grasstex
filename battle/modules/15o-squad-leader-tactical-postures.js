@@ -98,18 +98,50 @@
     /* Read-only proof of the SAME three adopted, stationary riflemen. A large
        squad may have additional men still finding cover; that cannot reset a
        genuine held fireteam or count a rotating set of arrivals as a 4s hold. */
-    function settledActors(st, a) {
+    function settledActors(b, st, a, reports) {
+      var C = root.BattleCoverPositions,
+        CR = root.BattleCommandReception;
       return st.orders
         .filter(function (o) {
           var s = a.find(function (man) {
             return String(man.id) === o.soldierId;
           });
-          if (!s) return false;
-          var p = s.root.position;
-          return (
-            s._fireteamPublishKey === o.key &&
-            !s.moving &&
-            Math.hypot(p.x - o.point.x, p.z - o.point.z) <= 0.5
+          if (!s || s._fireteamPublishKey !== o.key || s.moving) return false;
+          var body = point(s.root && s.root.position),
+            last = s._movementResolver && s._movementResolver.last,
+            endpoint = last && point(last.point),
+            intent = last && point(last.intentPoint),
+            adoptionCurrent =
+              !CR ||
+              !CR.movementEnabled ||
+              !CR.movementEnabled() ||
+              (CR.executionCurrent &&
+                CR.executionCurrent(
+                  s,
+                  b,
+                  'movement',
+                  'soldier:' + String(s.id),
+                  s._fireteamAdoptedEnvelope
+                ));
+          /* Navigation/Movement owns the physical endpoint. Formation legalization
+             and personal-space allocation may move a body-safe endpoint away from
+             the Squad Leader's abstract masked slot. Readiness therefore requires
+             the current adopted ambush INTENT plus an actually completed Movement
+             endpoint, then independently re-checks concealment at the man's real
+             body position. It never treats an intermediate waypoint as arrival. */
+          return !!(
+            adoptionCurrent &&
+            body &&
+            last &&
+            last.owner === 'squad-stability' &&
+            last.kind === 'formation' &&
+            endpoint &&
+            intent &&
+            Math.hypot(intent.x - o.point.x, intent.z - o.point.z) <= 0.05 &&
+            s._movementStopReason === 'arrived' &&
+            Math.hypot(body.x - endpoint.x, body.z - endpoint.z) <= 0.6 &&
+            C &&
+            C.maskedPost(b, body, reports)
           );
         })
         .map(function (o) {
@@ -117,17 +149,13 @@
         });
     }
     function heldCore(b, st, a, reports) {
-      var C = root.BattleCoverPositions,
-        settled = settledActors(st, a);
+      var settled = settledActors(b, st, a, reports);
       return !!(
         st.readyAt != null &&
         st.heldActorIds &&
         st.heldActorIds.length >= 3 &&
         st.heldActorIds.every(function (id) {
-          return settled.indexOf(id) >= 0 &&
-            st.orders.some(function (o) {
-              return o.soldierId === id && C.maskedPost(b, o.point, reports);
-            });
+          return settled.indexOf(id) >= 0;
         })
       );
     }
@@ -471,7 +499,7 @@
         })
       )
         return end(b, sq, 'firing station lost masking/ray');
-      var settled = settledActors(st, a),
+      var settled = settledActors(b, st, a, rs),
         coreHeld =
           st.heldActorIds.length >= 3 &&
           st.heldActorIds.every(function (id) {
