@@ -89,6 +89,21 @@ const { chromium } = require('playwright');
               failures[route.reason] = (failures[route.reason] || 0) + 1;
               continue;
             }
+            // The native cover chooser keeps the gun on a standing firing
+            // line at the endpoint. A crouch-masked route alone is not a
+            // viable bound if the soldier cannot stand and return fire.
+            // Probe reported coordinates only, never the hidden enemy actor.
+            const reportedTarget = {
+              combatThreat: true,
+              root: { position: {
+                x: threat.x, z: threat.z,
+                y: b.heightAt(threat.x, threat.z)
+              }}
+            };
+            if (!BattleEngagement.firingLineClear(s, reportedTarget, candidate, 'stand', b)) {
+              failures['no-standing-fire-line'] = (failures['no-standing-fire-line'] || 0) + 1;
+              continue;
+            }
             picked = { start, threat, slot, candidate, route, index: i, rear, range };
             scan.found++;
             break outer;
