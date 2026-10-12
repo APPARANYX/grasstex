@@ -1,0 +1,12 @@
+{
+  "benchmark": "standard",
+  "ref": "work/299-c3-effective-fire-voice",
+  "seed": "live-mv5apwx1-djrk",
+  "seeds": "1",
+  "battle_type": "ge-defend",
+  "query_off": "effectiveFire=0",
+  "query_on": "effectiveFire=1",
+  "origin_agent": "chatgpt",
+  "correlation_id": "phase-c3-pr528-final",
+  "purpose": "Final-head effective supporting fire and range response; weapon ranges unchanged"
+}
