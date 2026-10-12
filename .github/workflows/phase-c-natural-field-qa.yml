@@ -4,9 +4,12 @@ on:
     paths:
       - scripts/probes/probe_phase_c_natural.cjs
       - .github/workflows/phase-c-natural-field-qa.yml
+      - battle/modules/15a-squad-leader-fire-control.js
       - battle/modules/15o-squad-leader-tactical-postures.js
       - battle/modules/15j-squad-leader-fire-and-movement.js
       - battle/modules/19-engagement-cover-positions.js
+      - battle/modules/19b-engagement-fire-stance.js
+      - battle/engagement.js
   workflow_dispatch:
 permissions:
   contents: read
@@ -55,3 +58,35 @@ jobs:
       - name: Server diagnostics
         if: failure()
         run: tail -100 /tmp/phase-c-field-php.log || true
+
+  natural-chain-acceptance:
+    name: Complete natural fire-and-maneuver chain
+    needs: paired-natural
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download natural field observations
+        uses: actions/download-artifact@v4
+        with:
+          pattern: phase-c-natural-*
+          path: natural-field
+          merge-multiple: true
+      - name: Require same-squad preparation, support fire, movement and arrival
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),path=require('node:path');
+          const files=fs.readdirSync('natural-field').filter(f=>f.endsWith('.json'));
+          if(!files.length) throw new Error('no Phase C natural field observations downloaded');
+          let complete=0,attempts=0,prepared=0,maneuvers=0;
+          const rows=[];
+          for(const file of files){
+            const d=JSON.parse(fs.readFileSync(path.join('natural-field',file),'utf8'));
+            const on=d.arms&&d.arms.on||{};
+            complete+=+on.completedNaturalChains||0;
+            attempts+=+on.ambush||0;
+            prepared+=+on.prepared||0;
+            maneuvers+=+on.maneuvers||0;
+            rows.push({file,ambush:+on.ambush||0,prepared:+on.prepared||0,maneuvers:+on.maneuvers||0,completedNaturalChains:+on.completedNaturalChains||0});
+          }
+          console.log('PHASE_C_NATURAL_ACCEPTANCE',JSON.stringify({complete,attempts,prepared,maneuvers,rows}));
+          if(complete<1) throw new Error('Phase C requires at least one complete natural same-squad fire-and-maneuver chain');
+          NODE
