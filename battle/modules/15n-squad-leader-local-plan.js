@@ -614,7 +614,33 @@
         mask = continuity ? previous.sectorMask | 0 : 0,
         contributors =
           continuity && Array.isArray(previous.contributors) ? previous.contributors.slice(0, 32) : [],
-        epochs = continuityOn && continuity ? Object.assign({}, previous.observerEpochs) : {};
+        epochs = continuityOn && continuity ? Object.assign({}, previous.observerEpochs) : {},
+        sectorAt =
+          structureOrdersOn && continuity && Array.isArray(previous.sectorObservedAt)
+            ? previous.sectorObservedAt.slice(0, 4)
+            : [],
+        sectorObservers =
+          structureOrdersOn && continuity && Array.isArray(previous.sectorObservers)
+            ? previous.sectorObservers.slice(0, 4)
+            : [],
+        contributorAt =
+          structureOrdersOn && continuity ? Object.assign({}, previous.contributorObservedAt) : {};
+      if (structureOrdersOn) {
+        for (var sector = 0; sector < 4; sector++) {
+          if (
+            !isFinite(sectorAt[sector]) ||
+            sectorAt[sector] > now ||
+            now - sectorAt[sector] > 3 ||
+            !inside.some(function (s) {
+              return String(s.id) === sectorObservers[sector];
+            })
+          )
+            mask &= ~(1 << sector);
+        }
+        contributors = contributors.filter(function (id) {
+          return isFinite(contributorAt[id]) && contributorAt[id] <= now && now - contributorAt[id] <= 3;
+        });
+      }
       /* A lost or exited observer cannot carry a fictitious sector survey forward. */
       if (
         contributors.some(function (id) {
@@ -662,6 +688,11 @@
             var id = String(member.id);
             if (contributors.indexOf(id) < 0) contributors.push(id);
             if (continuityOn) epochs[id] = controlEpoch(member);
+            if (structureOrdersOn) {
+              sectorAt[i] = now;
+              sectorObservers[i] = id;
+              contributorAt[id] = now;
+            }
             break;
           }
         });
@@ -689,6 +720,9 @@
         observersInside: inside.length,
         contributors: eligible ? contributors : [],
         observerEpochs: continuityOn ? epochs : undefined,
+        sectorObservedAt: structureOrdersOn ? sectorAt : undefined,
+        sectorObservers: structureOrdersOn ? sectorObservers : undefined,
+        contributorObservedAt: structureOrdersOn ? contributorAt : undefined,
         complete: !!complete,
         observedAt: now,
         scope: 'four-facing-and-los-ground-footprint-samples',
@@ -738,6 +772,15 @@
         middle = { root: { position: { x: b.x, z: b.z } } },
         chosen = null;
       function watching(s, marker, minDist, maxDist) {
+        if (structureOrdersOn) {
+          var post = structureSoldierOrder(s, sim);
+          if (
+            !post ||
+            s.moving ||
+            Math.hypot(s.root.position.x - post.point.x, s.root.position.z - post.point.z) > 0.7
+          )
+            return false;
+        }
         var p = s.root.position,
           q = marker.root.position,
           d = Math.hypot(q.x - p.x, q.z - p.z);
@@ -783,12 +826,12 @@
           point(old.doorGuardPosition) &&
           point(old.interiorGuardPosition) &&
           Math.hypot(
-            old.doorGuardPosition.x - chosen[0].root.position.x,
-            old.doorGuardPosition.z - chosen[0].root.position.z
+            (old.doorGuardAnchorPosition || old.doorGuardPosition).x - chosen[0].root.position.x,
+            (old.doorGuardAnchorPosition || old.doorGuardPosition).z - chosen[0].root.position.z
           ) < 1 &&
           Math.hypot(
-            old.interiorGuardPosition.x - chosen[1].root.position.x,
-            old.interiorGuardPosition.z - chosen[1].root.position.z
+            (old.interiorGuardAnchorPosition || old.interiorGuardPosition).x - chosen[1].root.position.x,
+            (old.interiorGuardAnchorPosition || old.interiorGuardPosition).z - chosen[1].root.position.z
           ) < 1
         ),
         since = same && isFinite(old.since) && old.since <= now ? old.since : now,
@@ -809,6 +852,14 @@
         interiorGuardEpoch: continuityOn && chosen ? controlEpoch(chosen[1]) : undefined,
         doorGuardPosition: chosen ? point(chosen[0].root.position) : null,
         interiorGuardPosition: chosen ? point(chosen[1].root.position) : null,
+        doorGuardAnchorPosition:
+          structureOrdersOn && chosen
+            ? (same && old.doorGuardAnchorPosition) || point(chosen[0].root.position)
+            : undefined,
+        interiorGuardAnchorPosition:
+          structureOrdersOn && chosen
+            ? (same && old.interiorGuardAnchorPosition) || point(chosen[1].root.position)
+            : undefined,
         since: since,
         observedAt: now,
         ready: ready,

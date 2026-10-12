@@ -1260,6 +1260,37 @@ for (const role of ['leader', 'buddy']) {
   );
 }
 
+const arrivedPosts = structureWorld(true, true, true, true, true, true, true, true);
+for (let i = 0; i < 300; i++) {
+  H.run(arrivedPosts.r, arrivedPosts.b, 0.15, () => {
+    if (!arrivedPosts.q._localTask?.inputs.execution?.structure?.watch.ready)
+      arrivedPosts.S.executeMission(arrivedPosts.b, arrivedPosts.q, null);
+  });
+  if (arrivedPosts.q._localTask?.inputs.execution?.structure?.watch.ready) break;
+}
+const reachedWatch = arrivedPosts.q._localTask.inputs.execution.structure.watch;
+assert.equal(reachedWatch.ready, true);
+const inwardGuard = arrivedPosts.q.members.find(s => String(s.id) === reachedWatch.interiorGuardId);
+inwardGuard.moving = true;
+assert.equal(
+  arrivedPosts.P.entrySatisfied(arrivedPosts.b, arrivedPosts.q, arrivedPosts.q.route[1]),
+  false,
+  'a guard still walking cannot authorize a watched handback'
+);
+inwardGuard.moving = false;
+// Preserve actual watch poses while only updating observations: old sector
+// timestamps cannot be refreshed by a presence tick or absent contact reports.
+for (let i = 0; i < 10; i++) {
+  arrivedPosts.b.time += 0.45;
+  arrivedPosts.P.update(arrivedPosts.b, arrivedPosts.q);
+}
+assert.equal(
+  arrivedPosts.q._localTask.inputs.execution.structure.survey.complete,
+  false,
+  'stale sector observations must be gathered again, even with continuous presence'
+);
+assert.equal(arrivedPosts.P.entrySatisfied(arrivedPosts.b, arrivedPosts.q, arrivedPosts.q.route[1]), false);
+
 // Only own stored sightings at a valid age may annotate reported threats.
 structure.r.SquadAI.squadContactsMap = () => [
   { x: 0, z: 200, at: structure.b.time, confidence: 0.9, source: 'seen' }

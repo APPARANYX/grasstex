@@ -994,8 +994,11 @@ validates paths, and identical endpoints reuse only same-version geometry with
 plausible clear own-position deltas. Relevant fresh reported/seen threats select
 structure-security and reject new offensive bounds; reached posts/current
 positions are held rather than creating exposed contact moves. Combat reactions
-and firing remain with Engagement. Survey/watch evidence still comes from actual
-positions/facing/LOS, and Mission Execution alone advances the route. This is
+and firing remain with Engagement. Sector evidence retains original per-ray timestamps (3 s maximum age), and
+autonomous watch requires guards stopped at their personally adopted posts,
+with a fixed position anchor through the dwell. Rapid possession/release
+revokes provenance through Engagement's existing controller-entry epoch.
+Survey/watch evidence still comes from actual positions/facing/LOS, and Mission Execution alone advances the route. This is
 one-footprint observation/security, not multiroom or enemy-clearance proof.
 
 - Create a `squad-leader-local-plan` module that consumes Force Intent plus `TacticalSituation`.
