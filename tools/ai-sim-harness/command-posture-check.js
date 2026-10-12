@@ -183,6 +183,57 @@ test('precision permission is also personal: only the adopted designated shooter
   assert.equal(w.E.fireAuthorized(other, w.b), false);
 });
 
+test('fresh own-soldier sight can authorize support when the shared contact is relayed', () => {
+  const w = world(),
+    A = w.r.SquadAI,
+    man = w.us.members[2],
+    point = { x: 4, z: 85 },
+    firstHand = {
+      ...point,
+      at: w.b.time,
+      confidence: 1,
+      source: 'seen',
+      sourceSoldier: man.id,
+      targetId: String(w.foe.id)
+    };
+  A.squadContact = () => ({
+    x: 10,
+    z: 90,
+    at: w.b.time,
+    unit: w.foe,
+    relayedFrom: 'other-squad',
+    seenBy: null
+  });
+  A.squadContactsMap = () => [
+    {
+      x: 10,
+      z: 90,
+      at: w.b.time,
+      confidence: 1,
+      source: 'told',
+      sourceSoldier: man.id
+    },
+    firstHand
+  ];
+  const F = w.r._squadLeaderFireControl({
+    root: w.r,
+    FIRE_CONTROL_TUNING: { returnFireWindow: 3 }
+  });
+  assert.deepEqual(F.supportAuthorityContact(w.us, w.b), {
+    ...point,
+    at: w.b.time,
+    source: 'seen',
+    targetId: String(w.foe.id)
+  });
+  A.squadContactsMap = () => [{ ...firstHand, source: 'heard' }];
+  assert.equal(F.supportAuthorityContact(w.us, w.b), null, 'heard belief is not fire authority');
+  A.squadContactsMap = () => [{ ...firstHand, confidence: 0.2 }];
+  assert.equal(F.supportAuthorityContact(w.us, w.b), null, 'weak belief is not fire authority');
+  A.squadContactsMap = () => [firstHand];
+  w.b.time += 3.01;
+  assert.equal(F.supportAuthorityContact(w.us, w.b), null, 'expired sight is not fire authority');
+});
+
 test('explicit Squad Leader support fire is personally adopted and executed by Engagement', () => {
   const w = world(),
     gunner = w.us.members.find(s => s.role === 'gunner'),
