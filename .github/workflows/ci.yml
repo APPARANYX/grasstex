@@ -116,6 +116,13 @@ jobs:
           done < <(git ls-files '*.json')
           echo "Parsed $count JSON files."
 
+      - name: Temporary Phase C Prettier diff
+        run: |
+          npx --yes prettier@3.3.3 --write battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
+          echo C_FIELD_PRETTIER_DIFF_BEGIN
+          git diff -- battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
+          echo C_FIELD_PRETTIER_DIFF_END
+
       # Prettier ratchet: the repo's .prettierrc.json was dead config - most tracked JS never
       # complied. A full one-shot reformat would break every in-flight branch, so instead every
       # JS file a pull request touches must be on-standard. Legacy files stay as they are and
