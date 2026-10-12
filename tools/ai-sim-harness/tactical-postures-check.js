@@ -222,6 +222,16 @@ assert.equal(
   'hold',
   'pressure hysteresis prevents immediate ambush rebound'
 );
+function nativePreparedLine(x) {
+  /* Do not assign readyAt/stage in eligibility tests: the shipping commands,
+     physical movement and same-three-riflemen dwell must really complete. */
+  for (let i = 0; i < 85; i++) {
+    H.run(x.r, x.b, 0.15);
+    const st = x.P.current(x.b, x.q);
+    if (st?.readyAt != null) return st;
+  }
+  assert.fail('the shipping Squad Leader must naturally hold the concealed fireteam');
+}
 // The same posture owner may switch a fully prepared ambush to covered
 // maneuver under pressure, but only when the shipping physicality sampler
 // accepts a real short segment AND at least two other men can support.
@@ -269,10 +279,8 @@ assert.equal(
   false,
   'no-safe-route requires a tactical hold, not an exposed rush'
 );
-const holding = man.P.update(man.b, man.q);
-assert.ok(holding && holding.mode === 'ambush');
-holding.readyAt = man.b.time;
-holding.stage = 'ready';
+const holding = nativePreparedLine(man);
+assert.equal(holding.stage, 'ready');
 man.q.inContact = true;
 assert.equal(
   man.P.update(man.b, man.q, support).mode,
@@ -288,9 +296,8 @@ const moveSafe = paths
   .find(p => cover.boundRoute(mm, move.b, p, [{ x: 0, z: 20, at: 0, confidence: 1 }]).eligible);
 assert.ok(moveSafe);
 cover.candidates = () => [moveSafe];
-const ready = move.P.update(move.b, move.q);
-ready.readyAt = move.b.time;
-ready.stage = 'ready';
+const ready = nativePreparedLine(move);
+assert.equal(ready.stage, 'ready');
 move.q.inContact = true;
 /* Narrow only this expiry test's deadline below the ten-second unrefreshed
    contact-memory age; otherwise the correct stale-threat fail-close ends
@@ -320,9 +327,8 @@ assert.ok(
   'a stale reported threat revokes the posture, or the finite maneuver window closes to hold'
 );
 const readGap = world(true, true, true),
-  gap = readGap.P.update(readGap.b, readGap.q);
-gap.readyAt = readGap.b.time;
-gap.stage = 'ready';
+  gap = nativePreparedLine(readGap);
+assert.equal(gap.stage, 'ready');
 readGap.r.BattleCoverPositions.candidates = () => [
   { x: readGap.q.members[0].root.position.x, z: moveSafe.z }
 ];
@@ -344,9 +350,8 @@ assert.equal(
   'missing real Engagement support reports cannot silently persist'
 );
 const supportLoss = world(true, true, true),
-  supportLossStation = supportLoss.P.update(supportLoss.b, supportLoss.q);
-supportLossStation.readyAt = supportLoss.b.time;
-supportLossStation.stage = 'ready';
+  supportLossStation = nativePreparedLine(supportLoss);
+assert.equal(supportLossStation.stage, 'ready');
 supportLoss.q.inContact = true;
 supportLoss.r.BattleCoverPositions.candidates = () => [
   { x: supportLoss.q.members[0].root.position.x, z: moveSafe.z }
@@ -366,15 +371,44 @@ assert.equal(
   'duplicate native support identities cannot extend an authorized maneuver'
 );
 const noSupport = world(true, true, true);
-const nos = noSupport.P.update(noSupport.b, noSupport.q);
-nos.readyAt = noSupport.b.time;
-nos.stage = 'ready';
+const nos = nativePreparedLine(noSupport);
+assert.equal(nos.stage, 'ready');
 noSupport.q.inContact = true;
 assert.equal(
   noSupport.P.update(noSupport.b, noSupport.q, { underFire: 1, fireSupport: [] }).mode,
   'hold',
   'an unsupported exposed advance is denied'
 );
+
+/* One inaccessible/lagging fourth masked soldier cannot strand three
+   genuinely adopted riflemen, but borrowing hold time from changing identities
+   is impossible. This is a readiness rule, not a new movement owner. */
+const partialCore = world();
+const core = partialCore.P.update(partialCore.b, partialCore.q);
+assert.ok(core && core.orders.length >= 4, 'fixture needs at least four masked posts');
+const lagging = partialCore.q.members.find(s => String(s.id) === core.orders[core.orders.length - 1].soldierId);
+let partialReady = null;
+for (let i = 0; i < 90; i++) {
+  H.run(partialCore.r, partialCore.b, 0.15);
+  /* A failed adoption is not settled even if the rifleman is physically
+     standing in cover; keep just this soldier's publish identity foreign. */
+  lagging._fireteamPublishKey = 'unadopted/foreign';
+  const state = partialCore.P.current(partialCore.b, partialCore.q);
+  if (state && state.readyAt != null) {
+    partialReady = state;
+    break;
+  }
+}
+assert.ok(partialReady && partialReady.heldActorIds.length === 3, 'three stationary adopted men form one held line');
+assert.ok(!partialReady.heldActorIds.includes(String(lagging.id)), 'lagging fourth cannot count toward readiness');
+const movingCore = partialCore.q.members.find(s => String(s.id) === partialReady.heldActorIds[0]);
+movingCore.moving = true;
+assert.equal(
+  partialCore.P.update(partialCore.b, partialCore.q),
+  null,
+  'a broken ready core is revoked before the next pressure/contact order'
+);
+assert.equal(partialCore.P.summary(partialCore.b).releaseReasons['prepared fireteam left firing line'], 1);
 
 /* Natural posture lifecycle: unlike the earlier targeted policy-seam cases,
    do not set readyAt/stage or substitute P.update/current. The real SquadAI
