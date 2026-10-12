@@ -247,6 +247,7 @@
         st.orders = [];
         if (possible) {
           st.maneuverUntil = now + tuning.maneuverWindow;
+          st.lastSupportAt = now;
           st.stats.coveredManeuvers = (st.stats.coveredManeuvers || 0) + 1;
         } else st.stats.pressureHolds++;
         ctx.telemetry(b, 'decision-tactical-posture', {
@@ -259,12 +260,17 @@
       }
       if (st && st.mode === 'maneuver') {
         st.at = now;
+        /* The ordinary commander tick calls the posture before the next
+           Engagement report. Do not throw away an active covered maneuver
+           in that read-only gap; the subsequent fire-and-movement tick must
+           refresh actual support within a bounded observation window. */
+        if (report && Array.isArray(report.fireSupport)) st.lastSupportAt = now;
         if (
           !sq.inContact ||
           !maneuverOn ||
           now >= st.maneuverUntil ||
-          !report ||
-          !Array.isArray(report.fireSupport)
+          !isFinite(st.lastSupportAt) ||
+          now - st.lastSupportAt > 0.65
         ) {
           st.mode = 'hold';
           st.stage = 'maneuver-closed';
