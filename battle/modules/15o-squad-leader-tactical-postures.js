@@ -283,13 +283,6 @@
         fullRoster.length === st.members.length &&
         fullRoster.every(function (s, i) {
           return s === st.members[i] && epoch(s) === st.epochs[i];
-        }) &&
-        /* A non-participant may occupy/release his separately owned station.
-           The actual ambush actors must remain eligible and uncommitted. */
-        st.orders.every(function (o) {
-          return a.some(function (s) {
-            return String(s.id) === o.soldierId;
-          });
         })
       );
     }
@@ -309,11 +302,6 @@
       if (fullRoster.length !== st.members.length || fullRoster.some(function (s, i) {
         return s !== st.members[i] || epoch(s) !== st.epochs[i];
       })) return 'squad-roster-or-possession';
-      if (st.orders.some(function (o) {
-        return !a.some(function (s) {
-          return String(s.id) === o.soldierId;
-        });
-      })) return 'ambush-actor-reassigned';
       if (m !== st.mission || !m || m.version !== st.version || m.status !== 'executing')
         return 'mission-changed';
       if (ex !== st.execution || !ex || ex.mission !== m) return 'execution-changed';
@@ -361,6 +349,36 @@
         now = b.time;
       if (st && st.mode === 'ambush') rs = continuingThreats(b, sq, st, rs);
       if (st && !valid(b, sq, st)) return end(b, sq, invalidReason(b, sq, st));
+      if (st && st.mode === 'ambush' && a) {
+        var reassigned = st.orders.filter(function (o) {
+          return !a.some(function (s) {
+            return String(s.id) === o.soldierId;
+          });
+        });
+        if (reassigned.length) {
+          var held = st.heldActorIds || [];
+          if (
+            reassigned.some(function (o) {
+              return held.indexOf(o.soldierId) >= 0;
+            })
+          )
+            return end(b, sq, 'prepared fireteam actor reassigned');
+          /* A separately owned tactical station wins for that individual.
+             Before the stable three-man core exists, drop only that extra
+             participant instead of destroying an otherwise valid preparation.
+             The fireteam publisher reads this same orders array, so the
+             posture immediately stops publishing movement to the reassigned
+             man. A selected/held core actor is never silently substituted. */
+          var removed = Object.create(null);
+          reassigned.forEach(function (o) {
+            removed[o.soldierId] = 1;
+          });
+          st.orders = st.orders.filter(function (o) {
+            return !removed[o.soldierId];
+          });
+          if (st.orders.length < 3) return end(b, sq, 'ambush element lost eligibility');
+        }
+      }
       if (
         !a ||
         !m ||
