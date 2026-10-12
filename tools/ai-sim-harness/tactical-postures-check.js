@@ -183,6 +183,26 @@ assert.equal(
   'station ownership handoff revokes roster snapshot'
 );
 
+/* One exposed rifleman must not cancel a real three-plus-rifle masked
+   element, but never receives a fake covered order himself. Two viable masked
+   stations are deliberately insufficient for an ambush. */
+const partialLine = world();
+const exposedMan = partialLine.q.members[0];
+exposedMan.root.position.z = 24;
+const partialPosture = partialLine.P.update(partialLine.b, partialLine.q);
+assert.ok(partialPosture, 'native terrain accepts a viable concealed subelement');
+assert.ok(partialPosture.orders.length >= 3, 'at least three masked riflemen required');
+assert.equal(
+  partialPosture.orders.some(o => o.soldierId === String(exposedMan.id)),
+  false,
+  'no unsafe firing-post fallback for the exposed rifleman'
+);
+const shortLine = world();
+shortLine.q.members.slice(2).forEach(s => {
+  s.root.position.z = 24;
+});
+assert.equal(shortLine.P.update(shortLine.b, shortLine.q), null, 'two masked stations fail closed');
+
 const pressure = world();
 pressure.P.update(pressure.b, pressure.q);
 pressure.b.time += 0.15;
