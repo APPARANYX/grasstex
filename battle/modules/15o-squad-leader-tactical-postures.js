@@ -180,9 +180,36 @@
       var st = states.get(sq);
       return valid(b, sq, st) ? st : null;
     }
+    function invalidReason(b, sq, st) {
+      var a = men(sq),
+        m = sq._macroMission,
+        ex = sq._missionExecution,
+        nav = root.BattleNavigation,
+        p = (sq.route || [])[+sq.routeIndex];
+      if (!a || a.length !== st.members.length || a.some(function (s, i) {
+        return s !== st.members[i] || epoch(s) !== st.epochs[i];
+      })) return 'roster-or-possession';
+      if (m !== st.mission || !m || m.version !== st.version || m.status !== 'executing')
+        return 'mission-changed';
+      if (ex !== st.execution || !ex || ex.mission !== m) return 'execution-changed';
+      if (sq.route !== st.route || +sq.routeIndex !== st.leg || !p ||
+          p.x !== st.target.x || p.z !== st.target.z) return 'route-changed';
+      if (b.scene !== st.scene || !nav || nav.scenario !== st.scenario ||
+          nav.version !== st.navigationVersion) return 'navigation-changed';
+      if (A.leaderOf(sq) !== st.leader || !st.leader || st.leader.dead ||
+          ctx.leaderlessActive(sq)) return 'leader-changed';
+      if (sq.state === 'retreat' || L.get(sq, 'regroup') || L.get(sq, 'recon'))
+        return 'override-lease';
+      if (ctx.localPlan.structureOrdersOn && ctx.localPlan.currentStructureOrders(b, sq))
+        return 'structure-override';
+      return 'stale-time-or-authority';
+    }
     function end(b, sq, why) {
       var st = states.get(sq);
       if (st) {
+        var counts = st.stats;
+        if (!counts.releaseReasons) counts.releaseReasons = {};
+        counts.releaseReasons[why] = (counts.releaseReasons[why] || 0) + 1;
         ctx.telemetry(b, 'decision-tactical-posture', {
           squad: sq.id,
           faction: sq.faction,
@@ -207,7 +234,7 @@
         pressure = task && task.inputs ? task.inputs.pressure : 1,
         rs = threats(b, sq),
         now = b.time;
-      if (st && !valid(b, sq, st)) return end(b, sq, 'identity/authority lost');
+      if (st && !valid(b, sq, st)) return end(b, sq, invalidReason(b, sq, st));
       if (
         !a ||
         !m ||
@@ -341,7 +368,8 @@
           pressureHolds: 0,
           coordinatedContacts: 0,
           coveredManeuvers: 0,
-          rejectedUnsafeBounds: 0
+          rejectedUnsafeBounds: 0,
+          releaseReasons: {}
         };
         counters.set(sq, counts);
         counts.ambushes++;
@@ -453,14 +481,19 @@
           coordinatedContacts: 0,
           coveredManeuvers: 0,
           rejectedUnsafeBounds: 0,
-          active: 0
+          active: 0,
+          releaseReasons: {}
         };
         ['us', 'ge'].forEach(function (f) {
           ((sim.factions[f] && sim.factions[f].squads) || []).forEach(function (sq) {
             var c = counters.get(sq);
             if (c)
               Object.keys(c).forEach(function (k) {
-                total[k] += c[k];
+                if (k === 'releaseReasons') {
+                  Object.keys(c[k]).forEach(function (why) {
+                    total.releaseReasons[why] = (total.releaseReasons[why] || 0) + c[k][why];
+                  });
+                } else total[k] += c[k];
               });
             if (current(sim, sq)) total.active++;
           });
