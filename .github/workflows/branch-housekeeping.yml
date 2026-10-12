@@ -135,7 +135,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Preview/prune aged failed, skipped and cancelled runs
+      - name: Preview/prune merged-branch failed, skipped and cancelled runs
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -148,14 +148,9 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - name: Report historical workflow registrations for manual review
+      - uses: actions/checkout@v4
+      - name: Classify sidebar workflow registrations
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          echo '### Historical Actions sidebar registrations (review only)' >> "$GITHUB_STEP_SUMMARY"
-          gh api --paginate "repos/$REPO/actions/workflows?per_page=100" \
-            --jq '.workflows[] | select(.state != "active") | "- \(.name) (ID \(.id), state \(.state), path \(.path))"' \
-            >> "$GITHUB_STEP_SUMMARY"
-          echo 'No workflow files, history, or registrations were deleted by this audit.' >> "$GITHUB_STEP_SUMMARY"
+        run: python3 scripts/audit-actions-sidebar.py
