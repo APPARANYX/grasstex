@@ -1,0 +1,13 @@
+{
+  "benchmark": "standard",
+  "ref": "work/benchmark-source/299-c-structure-4977f796",
+  "seed": "c-structure-security-517",
+  "seeds": "6",
+  "battle_type": "us-defend",
+  "windows": "0+180",
+  "query_off": "",
+  "query_on": "localPlan=1&localResources=1&localDegrade=1&coveredBounds=1&localTasks=1&localStructures=1&localEntry=1&localEntryGate=1&localSurvey=1&localWatch=1&localContactResume=1&localContinuity=1&localStructureOrders=1",
+  "origin_agent": "chatgpt",
+  "correlation_id": "299-c-structure-517-us-defend",
+  "purpose": "Same-seed current building-slice flag OFF/ON outcomes and runtime; separate staged gameplay proves physical activation."
+}
