@@ -148,8 +148,9 @@ const { chromium } = require('playwright');
                   attempt.blockedSamples++;
                 if (s.moving) attempt.movingSamples++;
                 if (!masked) attempt.lostMaskSamples++;
+                const station = root.BattleTacticalPositions?.current?.(s) || null;
                 actorLast.push({
-                  id: String(s.id), pendingPhase: pendingMine ? pending?.phase || null : null,
+                  id: String(s.id), role: s.role || null, pendingPhase: pendingMine ? pending?.phase || null : null,
                   pendingEnvelope: pendingMine ? pending?.envelopeId || null : null,
                   adoptedMine, adoptedEnvelope: adoptedMine ? adopted?.envelopeId || null : null,
                   applied, execution, dist: Number.isFinite(dist) ? +dist.toFixed(2) : null,
@@ -160,7 +161,7 @@ const { chromium } = require('playwright');
                   fireteamDestination: compactPoint(s._fireteamDestination),
                   orderDestination: compactPoint(s.orderDestination),
                   post: compactPoint(o.point),
-                  tacticalStation: !!root.BattleTacticalPositions?.current?.(s),
+                  tacticalStation: station ? { kind: station.kind || station.type || null, id: station.id || station.stationId || null } : null,
                   target: s.target?.id || null,
                   engagement: root.BattleEngagement?.stateOf?.(s)?.state || s.eng?.state || null,
                   masked
@@ -223,8 +224,15 @@ const { chromium } = require('playwright');
                       ended.endAt = +b.time.toFixed(2);
                       ended.endMode = mode;
                       ended.endStage = current?.stage || null;
+                      const endReports = root.SquadAI?.squadContactsMap?.(sq, b) || [];
+                      const endFresh = Array.isArray(endReports) ? endReports.filter(r =>
+                        Number.isFinite(r?.at) && b.time >= r.at && b.time - r.at <= 10 &&
+                        Number.isFinite(r?.confidence) && r.confidence >= 0.5).length : 0;
                       ended.endContext = {
-                        contact: !!sq.inContact, pressure,
+                        contact: !!sq.inContact, pressure, freshReports: endFresh,
+                        reconLease: !!root.BattleLeases?.get?.(sq, 'recon'),
+                        regroupLease: !!root.BattleLeases?.get?.(sq, 'regroup'),
+                        localExecutionKind: sq._localTask?.inputs?.execution?.kind || null,
                         missionStatus: sq._macroMission?.status || null,
                         missionVersion: sq._macroMission?.version ?? null,
                         routeIndex: +sq.routeIndex || 0,
