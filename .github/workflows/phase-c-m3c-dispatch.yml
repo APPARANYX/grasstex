@@ -6,6 +6,11 @@ on:
   pull_request:
     paths:
       - .github/workflows/phase-c-m3c-dispatch.yml
+      - battle/modules/15o-squad-leader-tactical-postures.js
+      - battle/modules/15j-squad-leader-fire-and-movement.js
+      - battle/modules/19-engagement-cover-positions.js
+      - tools/ai-sim-harness/tactical-postures-check.js
+      - scripts/probes/probe_phase_c_natural.cjs
   workflow_dispatch:
 
 permissions:
