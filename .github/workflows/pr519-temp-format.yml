@@ -1,0 +1,25 @@
+name: PR519 temporary Prettier export
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prettier 3.3.3 changed files
+        run: npx --yes prettier@3.3.3 --write battle/modules/15o-squad-leader-tactical-postures.js battle/modules/15j-squad-leader-fire-and-movement.js tools/ai-sim-harness/tactical-postures-check.js
+      - name: Export exact formatted files
+        run: |
+          echo 'PR519_0_BEGIN'
+          base64 -w0 battle/modules/15o-squad-leader-tactical-postures.js
+          echo
+          echo 'PR519_0_END'
+          echo 'PR519_1_BEGIN'
+          base64 -w0 battle/modules/15j-squad-leader-fire-and-movement.js
+          echo
+          echo 'PR519_1_END'
+          echo 'PR519_2_BEGIN'
+          base64 -w0 tools/ai-sim-harness/tactical-postures-check.js
+          echo
+          echo 'PR519_2_END'
