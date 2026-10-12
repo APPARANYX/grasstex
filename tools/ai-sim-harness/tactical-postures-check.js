@@ -168,13 +168,20 @@ station.r.BattleTacticalPositions = {
   current: s => (s === stationedMan ? { owner: 'emplacement' } : null)
 };
 const stationedPosture = station.P.update(station.b, station.q);
-assert.ok(stationedPosture, 'remaining riflemen may form a masked line without station-owned specialist');
+assert.ok(
+  stationedPosture,
+  'remaining riflemen may form a masked line without station-owned specialist'
+);
 assert.ok(
   stationedPosture.orders.every(o => o.soldierId !== String(stationedMan.id)),
   'Squad Leader must not issue posture orders to the already committed station owner'
 );
 station.r.BattleTacticalPositions.current = () => null;
-assert.equal(station.P.current(station.b, station.q), null, 'station ownership handoff revokes roster snapshot');
+assert.equal(
+  station.P.current(station.b, station.q),
+  null,
+  'station ownership handoff revokes roster snapshot'
+);
 
 const pressure = world();
 pressure.P.update(pressure.b, pressure.q);
