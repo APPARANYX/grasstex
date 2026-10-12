@@ -116,13 +116,6 @@ jobs:
           done < <(git ls-files '*.json')
           echo "Parsed $count JSON files."
 
-      - name: Diagnostic format diff for Phase C regression
-        run: |
-          npx --yes prettier@3.3.3 --write tools/ai-sim-harness/tactical-postures-check.js
-          echo PHASE_C_PRETTIER_DIFF_START
-          git diff -- tools/ai-sim-harness/tactical-postures-check.js
-          echo PHASE_C_PRETTIER_DIFF_END
-
       # Prettier ratchet: the repo's .prettierrc.json was dead config - most tracked JS never
       # complied. A full one-shot reformat would break every in-flight branch, so instead every
       # JS file a pull request touches must be on-standard. Legacy files stay as they are and
