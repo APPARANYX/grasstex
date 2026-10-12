@@ -160,6 +160,15 @@ const { chromium } = require('playwright');
                   adoptedPublishKey: adopted?.data?.publishKey || null,
                   fireteamDestination: compactPoint(s._fireteamDestination),
                   orderDestination: compactPoint(s.orderDestination),
+                  physicalDestination: compactPoint(s.destination),
+                  resolverPoint: compactPoint(s._movementResolver?.last?.point),
+                  resolverIntent: compactPoint(s._movementResolver?.last?.intentPoint),
+                  resolverOwner: s._movementResolver?.last?.owner || null,
+                  endpointResolution: s._movementEndpointResolution ? {
+                    intent: compactPoint(s._movementEndpointResolution.intent),
+                    point: compactPoint(s._movementEndpointResolution.point)
+                  } : null,
+                  personalSpaceDestination: compactPoint(s._personalSpaceDestination),
                   post: compactPoint(o.point),
                   tacticalStation: station ? { kind: station.kind || station.type || null, id: station.id || station.stationId || null } : null,
                   target: s.target?.id || null,
@@ -380,7 +389,7 @@ const { chromium } = require('playwright');
           maxArrived: a.maxArrived, maxSettled: a.maxSettled, maxHeld: a.maxHeld,
           foreignPublishSamples: a.foreignPublishSamples, blockedSamples: a.blockedSamples,
           movingSamples: a.movingSamples, lostMaskSamples: a.lostMaskSamples,
-          actorLast: a.actorLast
+          endContext: a.endContext || null, actorLast: a.actorLast
         }))
       }))
     }));
