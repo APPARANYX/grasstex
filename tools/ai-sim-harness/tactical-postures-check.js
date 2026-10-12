@@ -229,6 +229,10 @@ const ready = move.P.update(move.b, move.q);
 ready.readyAt = move.b.time;
 ready.stage = 'ready';
 move.q.inContact = true;
+/* Narrow only this expiry test's deadline below the ten-second unrefreshed
+   contact-memory age; otherwise the correct stale-threat fail-close ends
+   the posture before the independent maneuver-window branch can execute. */
+move.P.tuning.maneuverWindow = 8.5;
 const staged = move.P.update(move.b, move.q, { underFire: 1, fireSupport: move.q.members.slice(1, 4) });
 assert.equal(staged.mode, 'maneuver', 'one existing Squad Leader posture transition');
 assert.equal(staged.stage, 'supporting-fire');
