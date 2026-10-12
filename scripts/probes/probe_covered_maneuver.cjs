@@ -268,7 +268,25 @@ const { chromium } = require('playwright');
           BattleMovementResolver.resolve(s, b);
         }
       }
-      if (!shots) throw Error('staged base of fire produced no real Engagement shots');
+      if (!shots)
+        throw Error('staged base of fire produced no real Engagement shots: ' + JSON.stringify({
+          at: b.time,
+          supports: support.map(s => ({
+            id: s.id,
+            state: E.stateOf(s).state,
+            targetId: s.target && s.target.id,
+            pose: {x:s.root.position.x,z:s.root.position.z},
+            yaw: s.root.rotation.y,
+            moving: s.moving,
+            isPlayer: s.isPlayer,
+            reloading: s.reloading,
+            fireAuthorized: E.fireAuthorized && E.fireAuthorized(s,b),
+            line: A.hasLineOfSight(s,hostile,b.heightAt,b.obstacles),
+            weapon: s.weapon && {ammo:s.weapon.ammo,jammed:s.weapon.jammed}
+          })),
+          fireControl:q.fireControl,
+          targetPos:{x:hostile.root.position.x,z:hostile.root.position.z}
+        }));
       // This policy seam models an already-qualified pressured posture. Every
       // physicality and Engagement gate remains the actual shipping implementation.
       const stagedPosture = {
