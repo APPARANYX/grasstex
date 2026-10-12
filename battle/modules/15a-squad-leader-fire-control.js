@@ -169,8 +169,13 @@
       return men.slice(0, 2);
     }
     function areaSupport(sq, battle, report, posture, prev) {
-      if (!posture || posture.readyAt == null || !report || !(report.underFire > 0)) return null;
-      var authority = supportAuthorityContact(sq, battle),
+      if (!posture || posture.readyAt == null || !report) return null;
+      var authority = supportAuthorityContact(sq, battle);
+      /* A directly observed threat can establish a lawful base of fire
+         BEFORE the first enemy volley. Being shot at isn't the sole way to
+         start support; heard/relayed contacts alone still have no authority. */
+      if (!(report.underFire > 0) && !authority) return null;
+      var
         oldPoint = prev && prev.supportPoint,
         point =
           oldPoint && isFinite(+oldPoint.x) && isFinite(+oldPoint.z)
