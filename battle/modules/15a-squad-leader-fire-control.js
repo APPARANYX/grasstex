@@ -147,7 +147,11 @@
         point = { x: authority.x, z: authority.z };
         men = supportCandidates(sq, battle, point, prev && prev.supporterIds);
       }
-      if (men.length < 2 || !point) return null;
+      /* One lawful gunner may establish a base of fire while a second man
+         recovers from suppression or finds a lane. This is NOT maneuver
+         authorization: supportReady plus the tactical posture still require
+         two distinct capable shooters before any covered bound is issued. */
+      if (!men.length || !point) return null;
       return {
         point: point,
         ids: men.map(function (s) {
@@ -506,6 +510,7 @@
       mkm: mkm,
       firstHandContact: firstHandContact,
       supportAuthorityContact: supportAuthorityContact,
+      areaSupport: areaSupport,
       fireControlRange: fireControlRange,
       precisionShooter: precisionShooter,
       fireControlTelemetry: fireControlTelemetry,
