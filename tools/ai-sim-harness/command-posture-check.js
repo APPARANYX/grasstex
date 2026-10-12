@@ -204,6 +204,7 @@ test('fresh own-soldier sight can authorize support when the shared contact is r
     relayedFrom: 'other-squad',
     seenBy: null
   });
+  A.soldierContact = () => null;
   A.squadContactsMap = () => [
     {
       x: 10,
