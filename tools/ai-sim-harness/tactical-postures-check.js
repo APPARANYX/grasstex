@@ -265,7 +265,7 @@ assert.equal(
   'maneuver',
   'read-only commander tick without a fresh report preserves bounded support evidence'
 );
-readGap.b.time += 0.7;
+readGap.b.time += 0.4;
 assert.equal(
   readGap.P.update(readGap.b, readGap.q).mode,
   'hold',
