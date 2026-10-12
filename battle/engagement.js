@@ -1078,6 +1078,8 @@
     if (fireControlPreparing(s, battle) && e.state !== 'bound' && e.state !== 'assault')
       return prepareFireControl(s, battle);
 
+    if (structureObservation(s, battle)) return;
+
     switch (e.state) {
       case 'orient':
         return orient(s, battle);
@@ -1137,6 +1139,41 @@
         low ? (lowNow ? 'advance:contact-low' : 'advance:contact-hold') : 'advance:quiet'
       );
     followOrders(s, battle, false);
+  }
+
+  /* A personally adopted Squad Leader observation post is quiet Micro work.
+     Targets, personal threat reports, suppression, shock, committed movement,
+     stations, grenades, stress reactions and retreat retain normal precedence.
+     Engagement alone chooses stance/facing; Meso movement keeps its resolver. */
+  function structureObservation(s, battle) {
+    var P = root.BattleSquadStability && root.BattleSquadStability.localPlan,
+      e = state(s),
+      o = P && P.structureOrdersOn && P.structureSoldierOrder(s, battle);
+    if (
+      !o ||
+      s.target ||
+      squadContact(s, battle) ||
+      e.suppressOrder ||
+      underFireNow(s, battle) ||
+      s.suppressedUntil > battle.time ||
+      battle.time < shockUntil(s) ||
+      ['bound', 'assault', 'pinned', 'withdraw'].indexOf(e.state) >= 0
+    )
+      return false;
+    var C = root.BattleCommandReception;
+    if (
+      C &&
+      C.movementEnabled &&
+      C.movementEnabled() &&
+      !C.executionCurrent(s, battle, 'movement', 'soldier:' + String(s.id), s._fireteamAdoptedEnvelope)
+    )
+      return false;
+    if (e.state !== 'advance') transition(s, battle, 'advance', 0, 'adopted structure observation');
+    s.state = 'advance';
+    if (!holdStance(s, battle)) commitStance(s, battle, 'crouch', 0.5, 'structure observation');
+    s._faceHint = Math.hypot(posOf(s).x - o.point.x, posOf(s).z - o.point.z) <= 0.7 ? o.watchPoint : null;
+    followOrders(s, battle, false);
+    return true;
   }
 
   /* Recognize, stop, face the threat, weapon up. No shooting during this window - this is the

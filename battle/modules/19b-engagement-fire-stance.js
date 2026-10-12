@@ -230,6 +230,9 @@
     }
     function commitStance(s, battle, stance, seconds, reason) {
       var e = state(s);
+      /* The controller's actual possession-entry API is a provenance barrier,
+         even when possession and release occur between simulation ticks. */
+      if (reason === 'player-possession') e.possessionEpoch = (+e.possessionEpoch || 0) + 1;
       if (e.stance !== stance) {
         var from = e.stance,
           ctx = stanceContext(s, battle, e),

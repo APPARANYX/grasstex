@@ -19,6 +19,8 @@ on:
       - battle/modules/99-session-diagnostics-export.js
       - ai_flow_live.html
       - scripts/probes/probe_tactical_observation.cjs
+      - scripts/probes/probe_structure_execution.cjs
+      - battle/modules/15h-squad-leader-fireteams.js
       - .github/workflows/tactical-observation-qa.yml
   workflow_dispatch:
 permissions:
@@ -39,6 +41,12 @@ jobs:
           TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
         run: node scripts/probes/probe_tactical_observation.cjs
         # preview.php resolves branches, then the probe checks the staged head SHA.
+
+      - name: Staged autonomous building execution
+        env:
+          TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
+        run: node scripts/probes/probe_structure_execution.cjs
 
       - uses: actions/upload-artifact@v4
         if: always()
