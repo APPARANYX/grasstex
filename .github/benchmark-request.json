@@ -1,0 +1,12 @@
+{
+  "benchmark": "causal",
+  "ref": "work/benchmark-launch/live-mv5apwx1-djrk-v530-causal-20261012",
+  "exact_seed": "live-mv5apwx1-djrk",
+  "seeds": "1",
+  "seconds": "1800",
+  "side": "ge",
+  "role": "all",
+  "geometry": "1",
+  "lifecycle": "1",
+  "query": ""
+}
