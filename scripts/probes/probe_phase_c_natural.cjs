@@ -415,6 +415,34 @@ const { chromium } = require('playwright');
                       b.time - (prev.lastPressureTrace ?? -Infinity) >= 0.9
                     ) {
                       prev.lastPressureTrace = b.time;
+                      const squadContact = root.SquadAI?.squadContact?.(sq, b) || null;
+                      const contactAge =
+                        squadContact && Number.isFinite(+squadContact.at)
+                          ? b.time - +squadContact.at
+                          : null;
+                      const seenAuthority = !!(
+                        squadContact &&
+                        squadContact.seenBy != null &&
+                        !squadContact.heard &&
+                        !squadContact.relayedFrom
+                      );
+                      const incomingAuthority = !!(
+                        squadContact &&
+                        squadContact.fireRevealed &&
+                        squadContact.precision === 'fire-origin' &&
+                        !squadContact.relayedFrom
+                      );
+                      const supportAuthority =
+                        squadContact &&
+                        Number.isFinite(+squadContact.x) &&
+                        Number.isFinite(+squadContact.z) &&
+                        contactAge != null &&
+                        contactAge >= 0 &&
+                        contactAge <=
+                          (root.BattleSquadStability?.tuning?.fireControl?.returnFireWindow ?? 3) &&
+                        (seenAuthority || incomingAuthority)
+                          ? { x: +squadContact.x, z: +squadContact.z }
+                          : null;
                       active.pressureTraces.push({
                         t: +b.time.toFixed(2),
                         squad: key,
@@ -425,6 +453,24 @@ const { chromium } = require('playwright');
                         coa: sq.coa,
                         assaultAuthorized: !!sq._assaultAuthorized,
                         decision: JSON.parse(JSON.stringify(current.lastManeuverDecision)),
+                        coreIds: current.heldActorIds.slice(),
+                        contactAuthority: squadContact
+                          ? {
+                              point: compactPoint(squadContact),
+                              age: contactAge,
+                              seenBy: squadContact.seenBy ?? null,
+                              heard: !!squadContact.heard,
+                              relayed: !!squadContact.relayedFrom,
+                              fireRevealed: !!squadContact.fireRevealed,
+                              precision: squadContact.precision || null,
+                              seenAuthority,
+                              incomingAuthority,
+                              authorizedPoint: compactPoint(supportAuthority),
+                              personalIncoming: (sq.members || []).filter(
+                                s => root.BattleEngagement?.underFireNow?.(s, b)
+                              ).length
+                            }
+                          : null,
                         coreIds: current.heldActorIds.slice(),
                         boundCycle: !!root.BattleLeases?.holds?.(sq, 'bound-cycle', b.time),
                         fireControl: sq.fireControl
@@ -462,6 +508,19 @@ const { chromium } = require('playwright');
                             areaSupport: compactPoint(root.BattleEngagement?.areaSupportOf?.(s, b) || null),
                             setUp: !!s.setUp,
                             isMachineGun: !!root.SquadAI?.isMachineGun?.(s),
+                            issuerStation: !!root.BattleTacticalPositions?.current?.(s),
+                            issuerCanSuppress:
+                              supportAuthority && root.SquadAI?.canSuppress
+                                ? !!root.SquadAI.canSuppress(s, supportAuthority, b, true)
+                                : null,
+                            issuerPointRange:
+                              supportAuthority && here
+                                ? +Math.hypot(
+                                    supportAuthority.x - here.x,
+                                    supportAuthority.z - here.z
+                                  ).toFixed(2)
+                                : null,
+                            underFireNow: !!root.BattleEngagement?.underFireNow?.(s, b),
                             ammunition: root.BattleAmmunition?.available?.(s) ?? null,
                             fireAuthorized: root.BattleEngagement?.fireAuthorized?.(s, b) ?? null,
                             fireReadyAt: e?.fireReadyAt,
