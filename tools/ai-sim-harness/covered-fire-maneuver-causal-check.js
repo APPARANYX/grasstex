@@ -138,17 +138,20 @@ for (let i = 0; i < 20; i++) {
 }
 assert.ok(b.events.fired > 0, 'live base must actually fire before mover authorization');
 const report = E.updateSquad(q, b);
-console.log('CAUSAL_SUPPORT_REPORT', JSON.stringify({
-  fired: b.events.fired,
-  supporters: report.fireSupport.map(s => s.id),
-  men: q.members.map(s => ({
-    id: s.id,
-    state: E.stateOf(s).state,
-    target: s.target && s.target.id,
-    reload: s.reloading,
-    shotClock: s.nextFireAt
-  }))
-}));
+console.log(
+  'CAUSAL_SUPPORT_REPORT',
+  JSON.stringify({
+    fired: b.events.fired,
+    supporters: report.fireSupport.map(s => s.id),
+    men: q.members.map(s => ({
+      id: s.id,
+      state: E.stateOf(s).state,
+      target: s.target && s.target.id,
+      reload: s.reloading,
+      shotClock: s.nextFireAt
+    }))
+  })
+);
 assert.ok(
   report.fireSupport.filter(s => support.includes(s)).length >= 2,
   'real Engagement must report at least two distinct supporting rifles'
