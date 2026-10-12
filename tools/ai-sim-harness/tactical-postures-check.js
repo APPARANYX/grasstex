@@ -643,6 +643,13 @@ function preparedNaturalPressure() {
     local.inputs.pressure >= 0.25 && !local.emergency,
     'non-emergency pressure from native local-plan inputs: ' + JSON.stringify(local)
   );
+  const observed = x.P.update(x.b, x.q);
+  assert.equal(observed.mode, 'ambush', 'commander report gap cannot destroy a ready firing line');
+  assert.equal(x.r.BattleLeases.get(x.q, 'bound'), null, 'missing support report never authorizes movement');
+  const awaiting = x.P.update(x.b, x.q, { ...report, fireSupport: [] });
+  assert.equal(awaiting.mode, 'hold', 'an actual empty support report denies maneuver');
+  assert.ok(awaiting.orders.length >= 3, 'prepared hold preserves adopted posts for native defensive fire');
+  assert.equal(x.r.BattleLeases.get(x.q, 'bound'), null);
   const active = x.P.update(x.b, x.q, report);
   assert.ok(active && active.mode === 'maneuver', 'native ready ambush changes to covered maneuver');
   assert.equal(active.stats.coveredManeuvers, 1, 'one transition, no repeated orders');

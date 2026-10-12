@@ -1181,7 +1181,7 @@
               (o.arrivalPoint && Math.hypot(posOf(s).x - endpoint.x, posOf(s).z - endpoint.z) <= 0.5))
           )
         : Math.hypot(posOf(s).x - endpoint.x, posOf(s).z - endpoint.z) <= 0.5;
-    var prepared = o.stage === 'ready' || o.stage === 'contact';
+    var prepared = o.readyAt != null || o.stage === 'ready' || o.stage === 'contact';
     if (s.target && prepared && e.state === 'orient' && battle.time < e.until) return false;
     if (s.target && arrived && prepared) {
       if (e.state !== 'engage') transition(s, battle, 'engage', 0, 'adopted ambush line');

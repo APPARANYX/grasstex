@@ -409,9 +409,10 @@
         pressure = task && task.inputs ? task.inputs.pressure : 1,
         rs = threats(b, sq),
         now = b.time;
-      if (st && st.mode === 'ambush') rs = continuingThreats(b, sq, st, rs);
+      if (st && (st.mode === 'ambush' || (st.mode === 'hold' && st.orders.length)))
+        rs = continuingThreats(b, sq, st, rs);
       if (st && !valid(b, sq, st)) return end(b, sq, invalidReason(b, sq, st));
-      if (st && st.mode === 'ambush' && a) {
+      if (st && st.orders.length && a) {
         var reassigned = st.orders.filter(function (o) {
           return !a.some(function (s) {
             return String(s.id) === o.soldierId;
@@ -467,7 +468,7 @@
         return end(b, sq, 'unknown evidence/override');
       if (
         st &&
-        st.mode === 'ambush' &&
+        (st.mode === 'ambush' || (st.mode === 'hold' && st.orders.length)) &&
         (pressure >= tuning.pressureEnter || (report && report.underFire > 0))
       ) {
         /* An already-held masked line may transition to ONE covered-maneuver
@@ -527,22 +528,37 @@
                         ? 'no-safe-covered-mover'
                         : 'authorized'
         };
+        /* Commander observation does not supply an Engagement report. Keep
+           a genuinely ready line in place until the native fire-and-movement
+           tick can evaluate its fresh base of fire. No report grants no move. */
+        if (coreReady && !(task && task.emergency) && !(report && Array.isArray(report.fireSupport))) {
+          st.at = now;
+          st.threats = rs;
+          return st;
+        }
+        st.threats = rs;
+        var previousMode = st.mode;
         st.mode = possible ? 'maneuver' : 'hold';
         st.stage = possible ? 'supporting-fire' : 'pressure-hold';
         st.pressureAt = now;
-        st.orders = [];
+        /* A prepared pressure hold keeps the same adopted posts while the
+           existing policy rechecks support/route conditions. Do not destroy
+           the firing line merely because rifles are still aiming/reloading.
+           Emergency/unprepared holds relinquish preparation immediately. */
+        if (possible || !coreReady || (task && task.emergency)) st.orders = [];
         if (possible) {
           st.maneuverUntil = now + tuning.maneuverWindow;
           st.lastSupportAt = now;
           st.stats.coveredManeuvers = (st.stats.coveredManeuvers || 0) + 1;
-        } else st.stats.pressureHolds++;
-        ctx.telemetry(b, 'decision-tactical-posture', {
-          squad: sq.id,
-          faction: sq.faction,
-          mode: st.mode,
-          reason: st.stage,
-          serial: st.serial
-        });
+        } else if (previousMode !== 'hold') st.stats.pressureHolds++;
+        if (previousMode !== st.mode)
+          ctx.telemetry(b, 'decision-tactical-posture', {
+            squad: sq.id,
+            faction: sq.faction,
+            mode: st.mode,
+            reason: st.stage,
+            serial: st.serial
+          });
       }
       if (st && st.mode === 'maneuver') {
         st.at = now;
@@ -715,13 +731,16 @@
     }
     function soldierOrder(s, b) {
       var st = s && s.squad && current(b, s.squad);
-      if (!st || st.mode !== 'ambush') return null;
+      if (!st || (st.mode !== 'ambush' && !(st.mode === 'hold' && st.orders.length))) return null;
       if (!men(s.squad) || men(s.squad).indexOf(s) < 0) return null;
       var o = st.orders.find(function (o) {
         return o.soldierId === String(s.id);
       });
       return o && s._fireteamPublishKey === o.key
-        ? Object.assign({ stage: st.stage, arrivalPoint: st.heldPositions[o.soldierId] || null }, o)
+        ? Object.assign(
+            { stage: st.stage, readyAt: st.readyAt, arrivalPoint: st.heldPositions[o.soldierId] || null },
+            o
+          )
         : null;
     }
     return {
