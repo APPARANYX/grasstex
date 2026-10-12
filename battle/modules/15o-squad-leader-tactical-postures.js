@@ -95,6 +95,42 @@
         );
       }).length;
     }
+    /* Read-only proof of the SAME three adopted, stationary riflemen. A large
+       squad may have additional men still finding cover; that cannot reset a
+       genuine held fireteam or count a rotating set of arrivals as a 4s hold. */
+    function settledActors(st, a) {
+      return st.orders
+        .filter(function (o) {
+          var s = a.find(function (man) {
+            return String(man.id) === o.soldierId;
+          });
+          if (!s) return false;
+          var p = s.root.position;
+          return (
+            s._fireteamPublishKey === o.key &&
+            !s.moving &&
+            Math.hypot(p.x - o.point.x, p.z - o.point.z) <= 0.5
+          );
+        })
+        .map(function (o) {
+          return o.soldierId;
+        });
+    }
+    function heldCore(b, st, a, reports) {
+      var C = root.BattleCoverPositions,
+        settled = settledActors(st, a);
+      return !!(
+        st.readyAt != null &&
+        st.heldActorIds &&
+        st.heldActorIds.length >= 3 &&
+        st.heldActorIds.every(function (id) {
+          return settled.indexOf(id) >= 0 &&
+            st.orders.some(function (o) {
+              return o.soldierId === id && C.maskedPost(b, o.point, reports);
+            });
+        })
+      );
+    }
     function coveredTeam(b, sq, movers, report) {
       var C = root.BattleCoverPositions,
         a = men(sq),
@@ -285,7 +321,7 @@
         var possible =
           maneuverOn &&
           !(task && task.emergency) &&
-          st.readyAt != null &&
+          heldCore(b, st, a, rs) &&
           sq.inContact &&
           report &&
           Array.isArray(report.fireSupport) &&
@@ -411,6 +447,7 @@
           orders: orders,
           threats: rs,
           heldSince: null,
+          heldActorIds: [],
           readyAt: null,
           stats: counts
         };
@@ -434,29 +471,26 @@
         })
       )
         return end(b, sq, 'firing station lost masking/ray');
-      var settled = st.orders.every(function (o) {
-        /* Orders are now a subset of the stable eligible roster; never index
-           a different rifleman's position by the order's array index. */
-        var s = a.find(function (man) {
-          return String(man.id) === o.soldierId;
-        });
-        if (!s) return false;
-        var p = s.root.position;
-        return (
-          s._fireteamPublishKey === o.key && !s.moving && Math.hypot(p.x - o.point.x, p.z - o.point.z) <= 0.5
-        );
-      });
-      if (!settled && st.stage !== 'contact') {
-        st.heldSince = null;
-        st.stage = 'assemble';
-        if (now - st.since > tuning.preparationBudget) return end(b, sq, 'preparation timed out');
-      } else if (st.stage === 'assemble' || st.stage === 'hold') {
-        if (st.heldSince == null) st.heldSince = now;
-        st.stage = 'hold';
-        if (now - st.heldSince >= tuning.minimumHold) {
-          st.stage = 'ready';
-          st.readyAt = now;
-        }
+      var settled = settledActors(st, a),
+        coreHeld =
+          st.heldActorIds.length >= 3 &&
+          st.heldActorIds.every(function (id) {
+            return settled.indexOf(id) >= 0;
+          });
+      if (!coreHeld && st.readyAt != null)
+        return end(b, sq, 'prepared fireteam left firing line');
+      if (!coreHeld) {
+        /* Select three genuinely adopted masked posts ONCE, then measure the
+           continuous hold by their stable IDs; newcomers cannot borrow dwell
+           from one another. Other men keep trying their ordinary commands. */
+        st.heldActorIds = settled.slice(0, 3);
+        st.heldSince = st.heldActorIds.length >= 3 ? now : null;
+        st.stage = st.heldSince == null ? 'assemble' : 'hold';
+        if (st.heldSince == null && now - st.since > tuning.preparationBudget)
+          return end(b, sq, 'preparation timed out');
+      } else if (st.readyAt == null && now - st.heldSince >= tuning.minimumHold) {
+        st.stage = 'ready';
+        st.readyAt = now;
       }
       if (
         st.readyAt != null &&
