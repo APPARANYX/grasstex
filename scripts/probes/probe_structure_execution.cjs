@@ -76,8 +76,10 @@ const { chromium } = require('playwright');
       if (!door) throw Error('staged real doorway unavailable');
       const house = scene.buildings.find(h => h.id === door.building),
         q = b.factions.us.squads.find(q => A.leaderOf(q)),
-        hostile = b._roster.ge.find(s => !s.dead);
-      if (!q || !hostile) throw Error('native scenario actors missing');
+        hostile = b._roster.ge.find(s => !s.dead),
+        reserve = b._roster.ge.find(s => !s.dead && s !== hostile),
+        reservePosition = reserve && { x: reserve.root.position.x, z: reserve.root.position.z };
+      if (!q || !hostile || !reserve) throw Error('native scenario actors missing');
       const dx = door.inside.x - door.outside.x,
         dz = door.inside.z - door.outside.z,
         len = Math.hypot(dx, dz),
@@ -108,6 +110,24 @@ const { chromium } = require('playwright');
         s.root.rotation.y = Math.atan2(dx, dz);
         s.isPlayer = false;
       });
+      // Reduce the simulation roster to the declared staged scenario. Keep a
+      // remote stationary reserve so killing the interior actor does not end
+      // the battle before the real quiet-plan/reassessment lifecycle can run.
+      const opposition = hostile.squad;
+      opposition.members = [hostile, reserve];
+      opposition.originalCount = 2;
+      reserve.squad = opposition;
+      reserve.root.position.set(
+        reservePosition.x,
+        b.heightAt(reservePosition.x, reservePosition.z),
+        reservePosition.z
+      );
+      b._roster.us = q.members;
+      b._roster.ge = opposition.members;
+      b.factions.us.squads = [q];
+      b.factions.ge.squads = [opposition];
+      b.factions.us.alive = q.members.filter(s => !s.dead).length;
+      b.factions.ge.alive = 2;
       BattleSquadStability.localPlan.reset(q);
       BattleLeases.clear(q);
       q._missionExecution = null;
@@ -136,7 +156,13 @@ const { chromium } = require('playwright');
       BattleSquadStability.publishAnchor(q, average);
       BattleSquadStability.executeMission(b, q, scene);
       SquadAI.updateSquad(q, b);
-      for (const f of ['us', 'ge']) for (const s of b._roster[f]) BattleMovementResolver.resolve(s, b);
+      for (const f of ['us', 'ge'])
+        for (const s of b._roster[f]) {
+          if (!s.destination)
+            SquadAI.setDestination(s, { x: s.root.position.x, z: s.root.position.z }, b, true);
+          BattleMovementResolver.resolve(s, b);
+          if (!s.destination) throw Error('staged initial destination unavailable: ' + s.id);
+        }
       b.timeLimit = 600;
       b.manualEnded = false;
       b.winner = null;
