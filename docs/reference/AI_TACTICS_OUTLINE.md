@@ -965,6 +965,23 @@ Per-soldier Engagement counters are bounded, reset by the existing soldier lifec
 and aggregate only current roster members in opt-in benchmark records. Full postures,
 covered detour planning, structure control and handoff remain outstanding.
 
+Post-contact reassessment (`?localContinuity=1`, default OFF; requires the full
+`localPlan/localTasks/localStructures/localEntry/localEntryGate/localSurvey/localWatch/localContactResume`
+chain) uses separate continuous-interior-presence provenance. Only a previously
+verified physical doorway crossing can seed it. The same living AI leader and
+one stable independent living AI witness must remain inside with current LOS,
+Navigation-clear plausible position deltas and observations no more than 1.5 s
+apart. Mission object/version, leg/target, scene and Navigation version remain
+fixed. Lost observation, impossible movement, possession, death, succession,
+retreat or restart revoke the chain; a returning witness cannot resurrect it.
+Active and quiet Engagement plans retain authority. After they close, the existing
+Mission Execution owner rearms its same route; a new survey epoch and a fresh
+stable doorway watch are required. Physical entry evidence stays distinguishable
+from presence provenance. Read-only arrival queries cannot refresh observations,
+and a known building target retains its arrival gate even when its interface
+cannot be validated. No clearance, room topology, threat behavior or mission
+advancement is inferred from interior presence or elapsed time.
+
 - Create a `squad-leader-local-plan` module that consumes Force Intent plus `TacticalSituation`.
 - Implement local tasks: approach, support, route-transition, structure-control, objective-security,
   recover, and handoff.
