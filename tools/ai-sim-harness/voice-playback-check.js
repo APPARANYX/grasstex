@@ -8,7 +8,7 @@ const vm = require('node:vm');
 
 const REPO = path.resolve(__dirname, '..', '..');
 
-function runModule(rel) {
+function runModule(rel, invalidate) {
   const ready = [];
   const sounds = [];
   const errors = [];
@@ -24,7 +24,7 @@ function runModule(rel) {
     location: { search: '' },
     BATTLE_AUDIO_BASE: '/audio/',
     BATTLE_AUDIO_MANIFEST: {
-      callouts: { us: { events: { test: ['voices/us/test.mp3'] } } },
+      callouts: { us: { events: { engage: ['voices/us/test.mp3'] } } },
       rules: {
         voice: {
           dropBeyondDistance: 120,
@@ -90,11 +90,19 @@ function runModule(rel) {
     root: mesh,
     squad: { id: 'us-0' }
   };
-  const handle = ctx.BattleVoiceScheduler.enqueue(soldier, 'test', null, { priority: 'tactical' });
+  const handle = ctx.BattleVoiceScheduler.enqueue(soldier, 'engage', null, { priority: 'tactical' });
   assert.ok(handle && handle.accepted, rel + ': request accepted');
   assert.equal(handle.started, false, rel + ': waits for sound readiness');
   assert.equal(ready.length, 1, rel + ': one sound load requested');
 
+  if (invalidate) {
+    invalidate(soldier);
+    ready[0]();
+    assert.equal(handle.started, false, rel + ': obsolete queued order must not start');
+    assert.equal(handle.ended, true, rel + ': cancelled handle is completed');
+    assert.equal(sounds[0].played, 0, rel + ': no obsolete Sound.play');
+    return;
+  }
   ready[0]();
 
   assert.equal(handle.started, true, rel + ': playback handle starts after ready');
@@ -106,4 +114,47 @@ function runModule(rel) {
 runModule('battle/modules/09-voice-runtime.js');
 runModule('battle/modules/11-voice-variation.js');
 
+for (const rel of ['battle/modules/09-voice-runtime.js', 'battle/modules/11-voice-variation.js']) {
+  for (const invalidate of [
+    s => {
+      s.eng = { state: 'freeze' };
+    },
+    s => {
+      s.eng = { state: 'flee' };
+    },
+    s => {
+      s.dead = true;
+    },
+    s => {
+      s.squad = { id: 'replacement' };
+    },
+    s => {
+      s.squad.state = 'retreat';
+    }
+  ])
+    runModule(rel, invalidate);
+}
+const ctx = { console, window: null };
+ctx.window = ctx;
+vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(path.join(REPO, 'battle/core-runtime.js'), 'utf8'), ctx);
+const man = { root: {}, eng: { state: 'freeze' }, squad: { state: 'advance' } };
+for (const state of ['freeze', 'flee', 'cower']) {
+  man.eng.state = state;
+  for (const ev of ['engage', 'contactFront', 'enemyAtWindow', 'takingCommand', 'teamMove'])
+    assert.equal(ctx.BattleVoiceEligibility.allows(man, ev), false, state + '/' + ev);
+  assert.equal(ctx.BattleVoiceEligibility.allows(man, state === 'freeze' ? 'dazed' : 'takingFire'), true);
+}
+man.eng.state = 'withdraw';
+man.squad.state = 'retreat';
+assert.equal(ctx.BattleVoiceEligibility.allows(man, 'fallBackByTeams'), true);
+assert.equal(ctx.BattleVoiceEligibility.allows(man, 'takingFire'), true);
+assert.equal(ctx.BattleVoiceEligibility.allows(man, 'engage'), false);
+man.eng.state = 'advance';
+man.squad.state = 'advance';
+assert.equal(
+  ctx.BattleVoiceEligibility.allows(man, 'engage'),
+  true,
+  'recovered/new battle soldier may speak'
+);
 console.log('voice-playback-check: PASS');

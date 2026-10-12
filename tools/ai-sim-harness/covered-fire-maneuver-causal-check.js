@@ -258,3 +258,23 @@ console.log(
     unsafeBoundRejections: negative.P.current().stats.rejectedUnsafeBounds
   })
 );
+
+// C3 causal denial: an armed/stationary ENGAGE state is insufficient when
+// every remaining supporter carries a short-range sidearm against this target.
+const incapable = world();
+for (const s of incapable.q.members.slice(1)) {
+  s.weapon = incapable.r.BattleWeapons.issue({ kind: 'pistol', mesh: null, ammo: 0 }, s.faction);
+}
+const deniedReport = incapable.r.BattleEngagement.updateSquad(incapable.q, incapable.b);
+assert.equal(
+  deniedReport.fireSupport.filter(s => incapable.q.members.slice(1).includes(s)).length,
+  0,
+  'out-of-range sidearms cannot report supporting fire'
+);
+incapable.S.fireAndMovement(incapable.q, incapable.b);
+assert.equal(
+  incapable.r.BattleLeases.holds(incapable.q, 'bound', incapable.b.time),
+  false,
+  'native Meso cannot authorize a covered bound on ineffective support'
+);
+console.log('PASS C3 native no-effective-support bound denial');

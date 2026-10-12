@@ -176,6 +176,13 @@
 
   function send(battle, sender, kind, fact) {
     if (!KINDS[kind] || !sender || sender.dead || !sender.root) return null;
+    var E = root.BattleEngagement;
+    if (
+      E &&
+      ((E.reactionState && (E.reactionState(sender) === 'freeze' || E.reactionState(sender) === 'flee')) ||
+        (E.fledPhase && E.fledPhase(sender)))
+    )
+      return null;
     var st = settle(battle),
       side = battle.rosterOf ? battle.rosterOf(sender.faction) : [],
       p = sender.root.position,

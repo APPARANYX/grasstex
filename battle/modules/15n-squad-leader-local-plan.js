@@ -1290,7 +1290,12 @@
       var support = report && report.fireSupport;
       if (!Array.isArray(support) || support.length > tuning.resourceLimit) return [];
       return support.filter(function (s, i) {
-        return support.indexOf(s) === i && ready(s, sq, sim);
+        var E = root.BattleEngagement;
+        return (
+          support.indexOf(s) === i &&
+          ready(s, sq, sim) &&
+          (!E || !E.effectiveFireOn || !E.effectiveFireOn() || E.supportReady(s, sim))
+        );
       });
     }
     function resources(sim, sq, report) {
@@ -1311,7 +1316,12 @@
           ? supportMembers(sim, sq, report)
           : reusable
             ? sq.members.filter(function (s) {
-                return cached.supportingIds.indexOf(String(s.id)) >= 0 && ready(s, sq, sim);
+                var E = root.BattleEngagement;
+                return (
+                  cached.supportingIds.indexOf(String(s.id)) >= 0 &&
+                  ready(s, sq, sim) &&
+                  (!E || !E.effectiveFireOn || !E.effectiveFireOn() || E.supportReady(s, sim))
+                );
               })
             : [],
         movers = sq.members.filter(function (s) {
