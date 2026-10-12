@@ -40,7 +40,7 @@ jobs:
       - name: Unmodified same-seed OFF/ON natural field replay
         env:
           C_FIELD_TYPE: ${{ matrix.battle_type }}
-          C_FIELD_COUNT: '3'
+          C_FIELD_COUNT: '6'
           C_FIELD_SECONDS: '600'
           C_FIELD_PREFIX: phase-c-natural-20261012
           C_FIELD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}

@@ -79,7 +79,12 @@ const { chromium } = require('playwright');
             active.shots++;
             if (!s?.squad || !root.BattleLeases?.holds?.(s.squad, 'bound', b.time)) return;
             const movers = (s.squad.members || []).filter(
-              m => m !== s && !m.dead && m.moving && root.BattleEngagement?.stateOf?.(m)?.boundOrder
+              m =>
+                m !== s &&
+                !m.dead &&
+                m.moving &&
+                root.BattleEngagement?.stateOf?.(m)?.boundOrder &&
+                root.BattleEngagement?.stateOf?.(m)?.state === 'bound'
             );
             if (movers.length) active.supportFireDuringMove++;
             const posture = root.BattleSquadStability?.tacticalPostures?.current?.(b, s.squad);
@@ -139,7 +144,8 @@ const { chromium } = require('playwright');
                 engagementOutcomes: {},
                 suppressedEpisodes: 0,
                 readinessAttempts: [],
-                maneuverChains: []
+                maneuverChains: [],
+                pressureTraces: []
               };
               const last = new Map();
               const readiness = new Map();
@@ -355,12 +361,19 @@ const { chromium } = require('playwright');
                       const pos = soldier?.root?.position;
                       const moveKey = key + '|' + soldier.id;
                       let tracked = movements.get(moveKey);
-                      if (chain && e?.boundOrder && e.cover && (!tracked || tracked.endedAt != null)) {
+                      if (
+                        chain &&
+                        e?.state === 'bound' &&
+                        e.boundOrder &&
+                        e.cover &&
+                        (!tracked || tracked.endedAt != null)
+                      ) {
                         tracked = {
                           id: String(soldier.id),
                           startAt: +b.time.toFixed(2),
-                          origin: compactPoint(pos),
-                          cover: compactPoint(e.cover),
+                          origin: { x: pos.x, z: pos.z },
+                          cover: { x: e.cover.x, z: e.cover.z },
+                          startState: e.state,
                           movedMetres: 0,
                           arrivalAt: null,
                           endedAt: null
@@ -395,6 +408,57 @@ const { chromium } = require('playwright');
                     const current = root.BattleSquadStability?.tacticalPostures?.current?.(b, sq);
                     const mode = current?.mode || 'none';
                     const attemptKey = inspectReadinessAttempt(sq, key, current);
+                    if (
+                      current?.readyAt != null &&
+                      current.lastManeuverDecision &&
+                      active.pressureTraces.length < 64 &&
+                      b.time - (prev.lastPressureTrace ?? -Infinity) >= 0.9
+                    ) {
+                      prev.lastPressureTrace = b.time;
+                      active.pressureTraces.push({
+                        t: +b.time.toFixed(2),
+                        squad: key,
+                        serial: current.serial,
+                        mode,
+                        stage: current.stage,
+                        phase: sq.commandPhase,
+                        coa: sq.coa,
+                        assaultAuthorized: !!sq._assaultAuthorized,
+                        decision: JSON.parse(JSON.stringify(current.lastManeuverDecision)),
+                        coreIds: current.heldActorIds.slice(),
+                        boundCycle: !!root.BattleLeases?.holds?.(sq, 'bound-cycle', b.time),
+                        members: (sq.members || []).slice(0, 12).map(s => {
+                          const e = root.BattleEngagement?.stateOf?.(s);
+                          const target = s.target?.root?.position;
+                          const here = s.root?.position;
+                          const distance =
+                            target && here ? Math.hypot(target.x - here.x, target.z - here.z) : null;
+                          return {
+                            id: String(s.id),
+                            role: s.role,
+                            weapon: s.weapon?.name || s.weapon?.id || null,
+                            state: e?.state,
+                            moving: !!s.moving,
+                            targetId: s.target?.id ?? null,
+                            distance,
+                            range: root.SquadAI.engageRange(s),
+                            capability: !!root.BattleEngagement?.supportReady?.(s, b),
+                            ammunition: root.BattleAmmunition?.available?.(s) ?? null,
+                            fireAuthorized: root.BattleEngagement?.fireAuthorized?.(s, b) ?? null,
+                            fireReadyAt: e?.fireReadyAt,
+                            suppressed: s.suppressedUntil > b.time,
+                            reloading: !!s.reloading,
+                            incapacitated: !!s.incapacitated,
+                            suppressOrder: !!e?.suppressOrder,
+                            line: target
+                              ? root.SquadAI.hasLineOfSight(s, s.target, b.heightAt, b.obstacles)
+                              : null,
+                            owner: s._movementResolver?.last?.owner,
+                            kind: s._movementResolver?.last?.kind
+                          };
+                        })
+                      });
+                    }
                     const task = sq._localTask;
                     const pressure = +task?.inputs?.pressure || 0;
                     const reports = root.SquadAI?.squadContactsMap?.(sq, b) || [];
@@ -661,6 +725,7 @@ const { chromium } = require('playwright');
               firstModes: x.modeEvents.slice(0, 8),
               summary: x.postures,
               maneuverChains: x.maneuverChains,
+              pressureTraces: x.pressureTraces,
               attempts: x.readinessAttempts.map(a => ({
                 squad: a.squad,
                 serial: a.serial,

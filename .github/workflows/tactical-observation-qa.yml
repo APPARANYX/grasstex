@@ -24,6 +24,7 @@ on:
       - scripts/probes/probe_tactical_postures.cjs
       - scripts/probes/probe_covered_maneuver.cjs
       - scripts/probes/probe_effective_fire.cjs
+      - scripts/probes/probe_phase_c_natural.cjs
       - battle/modules/15h-squad-leader-fireteams.js
       - .github/workflows/tactical-observation-qa.yml
   workflow_dispatch:
