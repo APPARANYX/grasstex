@@ -175,8 +175,7 @@
          BEFORE the first enemy volley. Being shot at isn't the sole way to
          start support; heard/relayed contacts alone still have no authority. */
       if (!(report.underFire > 0) && !authority) return null;
-      var
-        oldPoint = prev && prev.supportPoint,
+      var oldPoint = prev && prev.supportPoint,
         point =
           oldPoint && isFinite(+oldPoint.x) && isFinite(+oldPoint.z)
             ? { x: +oldPoint.x, z: +oldPoint.z }
