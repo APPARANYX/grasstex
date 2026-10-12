@@ -1249,6 +1249,17 @@ assert.equal(legacyOrders.P.structureOrdersOn, false);
 assert.equal(legacyOrders.P.currentStructureOrders(legacyOrders.b, legacyOrders.q), null);
 assert.equal(legacyOrders.P.update(legacyOrders.b, legacyOrders.q).inputs.structureExecution, undefined);
 
+for (const role of ['leader', 'buddy']) {
+  const rapid = continuityFixture();
+  rapid[role].isPlayer = true;
+  rapid.E.commitStance(rapid[role], rapid.b, 'stand', 0.45, 'player-possession');
+  rapid[role].isPlayer = false;
+  assert.ok(
+    !rearmContinuity(rapid).presenceEvidence,
+    'actual possession-entry epoch revokes presence even if release precedes the next AI tick'
+  );
+}
+
 // Only own stored sightings at a valid age may annotate reported threats.
 structure.r.SquadAI.squadContactsMap = () => [
   { x: 0, z: 200, at: structure.b.time, confidence: 0.9, source: 'seen' }

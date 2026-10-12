@@ -79,6 +79,9 @@
       var p = sq._engagementPlan;
       return !!sq.inContact || !!(continuityOn && p && (p.status === 'active' || p.status === 'quiet'));
     }
+    function controlEpoch(s) {
+      return s && s.eng ? +s.eng.possessionEpoch || 0 : 0;
+    }
     function presenceValid(sim, sq, state) {
       var N = root.BattleNavigation,
         leader = A.leaderOf(sq),
@@ -108,6 +111,7 @@
         sq.state === 'retreat' ||
         ctx.leaderlessActive(sq) ||
         leader !== state.leader ||
+        controlEpoch(leader) !== state.leaderEpoch ||
         !leader ||
         leader.dead ||
         leader.hp <= 0 ||
@@ -134,6 +138,7 @@
           witness.hp <= 0 ||
           witness.incapacitated ||
           witness.isPlayer ||
+          controlEpoch(witness) !== state.witnessEpoch ||
           !witness.root ||
           !point(witness.root.position) ||
           !insideBuilding(state.building, witness.root.position) ||
@@ -192,6 +197,7 @@
           navigationVersion: N.version,
           doorwayId: structure.doorwayId,
           leader: leader,
+          leaderEpoch: controlEpoch(leader),
           enteredAt: evidence.enteredAt,
           observedAt: now,
           position: point(leader.root.position),
@@ -225,6 +231,7 @@
       old.observedAt = now;
       old.position = point(leader.root.position);
       old.witnessId = String(witness.id);
+      old.witnessEpoch = controlEpoch(witness);
       old.witnessPosition = point(witness.root.position);
       if (combatHeld(sq)) {
         old.interrupted = true;
@@ -247,6 +254,7 @@
       return {
         provenance: 'continuous-interior-presence',
         observerId: String(state.leader.id),
+        observerEpoch: state.leaderEpoch,
         missionVersion: state.missionVersion,
         leg: state.leg,
         enteredAt: state.reassessmentAt,
@@ -488,6 +496,8 @@
         missionVersion: ctx.missionVersion(sq),
         leader: leader,
         buddy: buddy,
+        leaderEpoch: controlEpoch(leader),
+        buddyEpoch: controlEpoch(buddy),
         building: b,
         target: target,
         scene: scene,
@@ -526,6 +536,8 @@
         N &&
         N.scenario === scene &&
         st.leader === A.leaderOf(sq) &&
+        st.leaderEpoch === controlEpoch(st.leader) &&
+        st.buddyEpoch === controlEpoch(st.buddy) &&
         !st.leader.dead &&
         !st.leader.isPlayer &&
         st.leader.hp > 0 &&
@@ -601,17 +613,19 @@
           now - previous.observedAt <= 3,
         mask = continuity ? previous.sectorMask | 0 : 0,
         contributors =
-          continuity && Array.isArray(previous.contributors) ? previous.contributors.slice(0, 32) : [];
+          continuity && Array.isArray(previous.contributors) ? previous.contributors.slice(0, 32) : [],
+        epochs = continuityOn && continuity ? Object.assign({}, previous.observerEpochs) : {};
       /* A lost or exited observer cannot carry a fictitious sector survey forward. */
       if (
         contributors.some(function (id) {
           return !inside.some(function (s) {
-            return String(s.id) === id;
+            return String(s.id) === id && (!continuityOn || epochs[id] === controlEpoch(s));
           });
         })
       ) {
         mask = 0;
         contributors = [];
+        epochs = {};
       }
       if (inside.length >= 2) {
         var co = Math.cos(+b.rot || 0),
@@ -647,6 +661,7 @@
             mask |= 1 << i;
             var id = String(member.id);
             if (contributors.indexOf(id) < 0) contributors.push(id);
+            if (continuityOn) epochs[id] = controlEpoch(member);
             break;
           }
         });
@@ -673,6 +688,7 @@
         observedSectors: eligible ? observed : 0,
         observersInside: inside.length,
         contributors: eligible ? contributors : [],
+        observerEpochs: continuityOn ? epochs : undefined,
         complete: !!complete,
         observedAt: now,
         scope: 'four-facing-and-los-ground-footprint-samples',
@@ -761,6 +777,9 @@
           now - old.observedAt <= 2 &&
           old.doorGuardId === String(chosen[0].id) &&
           old.interiorGuardId === String(chosen[1].id) &&
+          (!continuityOn ||
+            (old.doorGuardEpoch === controlEpoch(chosen[0]) &&
+              old.interiorGuardEpoch === controlEpoch(chosen[1]))) &&
           point(old.doorGuardPosition) &&
           point(old.interiorGuardPosition) &&
           Math.hypot(
@@ -786,6 +805,8 @@
         entryAt: evidence && evidence.enteredAt,
         doorGuardId: chosen ? String(chosen[0].id) : null,
         interiorGuardId: chosen ? String(chosen[1].id) : null,
+        doorGuardEpoch: continuityOn && chosen ? controlEpoch(chosen[0]) : undefined,
+        interiorGuardEpoch: continuityOn && chosen ? controlEpoch(chosen[1]) : undefined,
         doorGuardPosition: chosen ? point(chosen[0].root.position) : null,
         interiorGuardPosition: chosen ? point(chosen[1].root.position) : null,
         since: since,
@@ -826,6 +847,7 @@
       var observer = A.leaderOf(sq);
       if (!observer || men.indexOf(observer) < 0 || !observer.root || !point(observer.root.position))
         return null;
+      if (continuityOn && (observer.isPlayer || observer.incapacitated || observer.hp <= 0)) return null;
       var pos = point(observer.root.position),
         within = insideBuilding(b, pos);
       if (!within && Math.hypot(pos.x - target.x, pos.z - target.z) > 80) return null;
@@ -889,6 +911,7 @@
             prior.buildingId === b.id &&
             prior.doorwayId === entry.id &&
             evidence.observerId === String(observer.id) &&
+            (!continuityOn || evidence.observerEpoch === controlEpoch(observer)) &&
             isFinite(evidence.observedAt) &&
             evidence.observedAt <= now &&
             now - evidence.observedAt <= 3,
@@ -913,6 +936,7 @@
           confirmed = retain || crossed;
         entryEvidence = {
           observerId: String(observer.id),
+          observerEpoch: continuityOn ? controlEpoch(observer) : undefined,
           observerPosition: pos,
           observedAt: now,
           missionVersion: version,
