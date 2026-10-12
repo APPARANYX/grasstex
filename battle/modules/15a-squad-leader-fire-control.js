@@ -53,6 +53,40 @@
           source: incoming ? 'incoming' : 'seen',
           targetId: c.unit && c.unit.id != null ? String(c.unit.id) : null
         };
+      /* An incoming bullet's observed firing origin is a first-hand personal
+         belief, even when the squad's single shared contact now holds a relay.
+         Select only this soldier's actual sight/fire-origin record; a heard
+         shot or a told coordinate never becomes fire authority. */
+      var men = commanded(sq),
+        personalAuthority = null;
+      if (root.SquadAI.soldierContact)
+        for (var j = 0; j < men.length; j++) {
+          var soldier = men[j],
+            r = soldier && !soldier.dead && root.SquadAI.soldierContact(soldier, battle),
+            ownSight = !!(r && r.source === 'seen' && String(r.seenBy) === String(soldier.id)),
+            ownFireOrigin = !!(r && r.source === 'incoming' && r.precision === 'fire-origin');
+          if (
+            !r ||
+            (!ownSight && !ownFireOrigin) ||
+            !isFinite(+r.x) ||
+            !isFinite(+r.z) ||
+            !isFinite(+r.at) ||
+            !isFinite(+r.confidence) ||
+            +r.confidence < 0.5 ||
+            battle.time < +r.at ||
+            battle.time - +r.at > windowSeconds
+          )
+            continue;
+          if (!personalAuthority || +r.at > personalAuthority.at)
+            personalAuthority = {
+              x: +r.x,
+              z: +r.z,
+              at: +r.at,
+              source: ownSight ? 'seen' : 'incoming',
+              targetId: r.knownUnitId == null ? null : String(r.knownUnitId)
+            };
+        }
+      if (personalAuthority) return personalAuthority;
       /* The legacy one-contact slot can prefer a newer relayed sighting over an
          independent, still-fresh first-hand soldier belief. Consult the OWN
          squad's multi-contact map rather than promoting the relayed coordinate
