@@ -1027,6 +1027,7 @@ without changing the strategic objective.
 
 ### Phase D — Streets and structures
 
+- **D0 first — AI visualization synchronization audit:** reconcile `ai_flow_live.html`'s Live Flow Map, Full Brain Map, 3D Brain Explorer and Deep Branch CFG against the current merged Phase A/B/C implementation. Audit source-file coverage, manually defined execution/state edges, ownership and call relationships; add source/parsing/drift regressions and desktop/mobile Chromium proof of navigation, source freshness and 3D details. Record a code-to-map parity checklist. Keep this tooling-only and complete it before street/structure work (D1).
 - Add street segment graph and layered building-cell graph from existing navigation/building data.
 - Model entrances, exits, layer connections, route ownership, and observation age. Do not claim a
   building or route is clear without current control evidence.

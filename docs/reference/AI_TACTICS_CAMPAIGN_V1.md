@@ -173,6 +173,19 @@ stay open until their own evidence is verified.
 
 ## Phase D — Streets and structures
 
+### D0 — AI visualization synchronization audit (first; prerequisite to D1)
+
+Bring the existing AI Live Flow Map, Full Brain Map, 3D Brain Explorer, and Deep Branch CFG in `ai_flow_live.html` into alignment with the **current merged AI implementation**, including accepted Phase A/B/C modules. This is an observability/tooling checkpoint, **not** a change to combat behavior.
+
+- Inventory runtime AI modules, entry points, update cadence, ownership boundaries, state transitions, and call edges; reconcile against the explorer's nine-file source loader, curated CFG function list, and manually defined execution spine/state maps. Explicitly include tactical situation, local planning/resources, building approach/entry/security, concealed ambush, effective fire, Engagement support eligibility and covered maneuver, where implemented.
+- Extend source discovery and function/edge coverage without fabricating relationships or implying that an unmapped module is absent from the game. Distinguish source-derived facts from manually annotated diagrams; provide a visible source-health/coverage report with missing functions, parse errors, outdated paths and origin (checkout versus GitHub fallback).
+- Check that 2D and 3D diagrams lead to the same current functions and branch semantics, including real short-circuits, returns, command/Engagement/Movement ownership handoffs, and linked source locations.
+- Add automated drift regressions that fail when mapped symbols are deleted/renamed, new declared AI ownership edges go unmapped, or source loading silently falls back to old code. Keep the health view usable when only some files load.
+- Run desktop/mobile Chromium acceptance of initial load, source freshness, pan/zoom/rotate, 3D slice detail, node selection, deep CFG navigation, back navigation and source drawer; retain screenshots and test artifacts.
+- Do not mark D0 complete merely because source files fetch or general CI is green. Capture a code-to-map parity checklist and verified browser evidence on the final merged head.
+
+**Acceptance:** Both live/2D and 3D maps accurately represent the verified merged A/B/C AI architecture with explicit documented coverage, no known stale edges, and passing drift/Chromium checks. Finish D0 before starting D1.
+
 **Goal:** Squads stop oscillating at corners/windows; can confirm structure control; can explain reroutes/aborts.
 
 ### D1 — Street segment graph
