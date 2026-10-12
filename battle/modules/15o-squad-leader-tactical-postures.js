@@ -329,9 +329,13 @@
               break;
             }
           }
-          if (!candidate) return null; // Do not put the remainder at unsafe default slots.
-          orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
+          /* Do not place this soldier at an exposed default slot. A masked
+             fireteam is useful even when another eligible squad member has
+             no concealed post; that man remains under his existing orders. */
+          if (candidate)
+            orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
         }
+        if (orders.length < 3) return null; // Never publish an understrength ambush element.
         var counts = counters.get(sq) || {
           ambushes: 0,
           pressureHolds: 0,
@@ -385,9 +389,14 @@
         })
       )
         return end(b, sq, 'firing station lost masking/ray');
-      var settled = st.orders.every(function (o, i) {
-        var s = a[i],
-          p = s.root.position;
+      var settled = st.orders.every(function (o) {
+        /* Orders are now a subset of the stable eligible roster; never index
+           a different rifleman's position by the order's array index. */
+        var s = a.find(function (man) {
+          return String(man.id) === o.soldierId;
+        });
+        if (!s) return false;
+        var p = s.root.position;
         return (
           s._fireteamPublishKey === o.key && !s.moving && Math.hypot(p.x - o.point.x, p.z - o.point.z) <= 0.5
         );
