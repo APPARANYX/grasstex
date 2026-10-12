@@ -264,7 +264,14 @@
            Engagement report. Do not throw away an active covered maneuver
            in that read-only gap; the subsequent fire-and-movement tick must
            refresh actual support within a bounded observation window. */
-        if (report && Array.isArray(report.fireSupport)) st.lastSupportAt = now;
+        if (report && Array.isArray(report.fireSupport))
+          st.lastSupportAt =
+            report.fireSupport.filter(function (s) {
+              return a.indexOf(s) >= 0 && !s.dead && !s.moving && !s.outOfAmmo &&
+                !s.reloading && !(s.suppressedUntil > now);
+            }).length >= tuning.minSupport
+              ? now
+              : -Infinity;
         if (
           !sq.inContact ||
           !maneuverOn ||
