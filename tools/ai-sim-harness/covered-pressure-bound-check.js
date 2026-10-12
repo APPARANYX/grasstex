@@ -87,7 +87,10 @@ function world(maneuver = true, opts = {}) {
 
 const accepted = world();
 assert.equal(accepted.P.maneuverOn, true);
-assert.ok(accepted.L.holds(accepted.q, 'bound', accepted.b.time), 'Meso issues exactly one native bound lease');
+assert.ok(
+  accepted.L.holds(accepted.q, 'bound', accepted.b.time),
+  'Meso issues exactly one native bound lease'
+);
 assert.ok(
   accepted.q.members.some(s => accepted.E.stateOf(s).boundOrder),
   'existing Engagement receives the physical team order'
@@ -120,4 +123,6 @@ for (const opts of [{}, { overBudget: true }]) {
   assert.equal(w.P.maneuverOn, false, 'flag-off remains incapable of pressured maneuver');
   assert.equal(w.L.get(w.q, 'bound'), null);
 }
-console.log('covered-pressure-bound-check: PASS non-emergency posture override, single owner, safety precedence and default OFF');
+console.log(
+  'covered-pressure-bound-check: PASS non-emergency posture override, single owner, safety precedence and default OFF'
+);
