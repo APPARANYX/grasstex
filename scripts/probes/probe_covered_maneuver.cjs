@@ -51,7 +51,7 @@ const { chromium } = require('playwright');
         q = b.factions.us.squads.find(q => A.leaderOf(q)),
         s = q.members.find(s => !s.dead && !s.isPlayer),
         p0 = s.root.position.clone(),
-        slots = C.coverSnapshot(b).filter(slot => slot.status === 'free'),
+        slots = C.snapshot(b).filter(slot => slot.status === 'free'),
         failures = {},
         max = Math.min(slots.length, 1500),
         scan = { tested: 0, found: 0, candidateCount: 0, slots: slots.length, byType: {} };
@@ -76,7 +76,7 @@ const { chromium } = require('playwright');
               confidence: 0.9
             };
             if (!N.movementClear(threat, threat)) continue;
-            const candidates = C.coverCandidates(s, b, { root: { position: threat } }, 14);
+            const candidates = C.candidates(s, b, { root: { position: threat } }, 14);
             scan.tested++;
             scan.candidateCount += candidates.length;
             const candidate = candidates.find(c => c.slotId === slot.id);
