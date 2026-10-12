@@ -125,6 +125,7 @@ const { chromium } = require('playwright');
                     if (mode === 'maneuver') active.maneuvers++;
                     if (active.modeEvents.length < 100) active.modeEvents.push({
                       t: +b.time.toFixed(2), squad: key, mode, stage: current?.stage || null,
+                      orderedRiflemen: current?.orders?.length || 0,
                       prior: prev.mode, contact: !!sq.inContact, pressure,
                       mission: sq._macroMission?.status || null
                     });
@@ -155,13 +156,12 @@ const { chromium } = require('playwright');
                   if (mode === 'none' && fresh && !sq.inContact) {
                     const commanded = (sq.members || []).filter(s => s && !s.dead && s.hp > 0 &&
                       !root.BattleEngagement?.fledPhase?.(s));
+                    const eligible = commanded.filter(s => !root.BattleTacticalPositions?.current?.(s));
                     const scenarioActive = b.scene?.metadata?.battleScenario || b.scene?.metadata?.battleTown;
-                    const reason = commanded.length < 3 || commanded.length > 32
-                      ? 'invalid-roster-size'
-                      : commanded.some(s => !s.root?.position || s.isPlayer || s.incapacitated)
+                    const reason = eligible.length < 3 || eligible.length > 32
+                      ? 'insufficient-free-riflemen'
+                      : eligible.some(s => !s.root?.position || s.isPlayer || s.incapacitated)
                         ? 'ineligible-member-player-or-injured'
-                      : commanded.some(s => root.BattleTacticalPositions?.current?.(s))
-                        ? 'stationed-member'
                       : !root.SquadAI?.leaderOf?.(sq)
                         ? 'no-leader'
                       : root.BattleNavigation?.scenario !== scenarioActive
@@ -175,7 +175,7 @@ const { chromium } = require('playwright');
                         ? 'prior-engagement-plan'
                         : sq.members?.some(s => s?.target) ? 'personal-target'
                         : pressure > 0.1 ? 'precontact-pressure'
-                        : 'masked-stations-or-other-geometry';
+                        : 'masked-subelement-or-other-geometry';
                     active.rejectionSamples[reason] = (active.rejectionSamples[reason] || 0) + 1;
                   }
                   prev.mode = mode; prev.prepared = current?.readyAt != null;
