@@ -232,6 +232,7 @@
       var first = sq._boundTurn == null ? 0 : sq._boundTurn + 1,
         lead = SL_STRESS.pick || SL_STRESS.hold,
         candidates = [],
+        safeCoveredCandidateFound = false,
         turn,
         team,
         movers,
@@ -267,6 +268,17 @@
           movers.length &&
           holding >= (localPlan && localPlan.resourcesOn ? localPlan.tuning.minimumSupport : 2)
         ) {
+          /* The first team in rotation can have support yet lack a physically
+             masked route. For the opt-in maneuver posture keep looking for a
+             different eligible team; never discard a safe bound merely because
+             the earlier team was correctly vetoed by terrain. */
+          if (posture && posture.mode === 'maneuver' && tacticalPostures.maneuverOn) {
+            if (!tacticalPostures.coveredTeam(battle, sq, movers, r)) {
+              posture.stats.rejectedUnsafeBounds++;
+              continue;
+            }
+            safeCoveredCandidateFound = true;
+          }
           if (!lead) break;
           candidates.push({
             turn: turn,
@@ -277,6 +289,18 @@
             buddy: buddy
           });
         }
+      }
+      /* Every candidate has already failed the independent physical route gate.
+         Retain the existing no-bound result; never fall back to an exposed rush. */
+      if (posture && posture.mode === 'maneuver' && !safeCoveredCandidateFound) {
+        sq._boundTurn = first;
+        telemetry(battle, 'decision-bound-held', {
+          faction: sq.faction,
+          squad: sq.id,
+          reason: 'no-safe-covered-team',
+          posture: 'maneuver'
+        });
+        return;
       }
       var pickedBy = null,
         rotation = null,
