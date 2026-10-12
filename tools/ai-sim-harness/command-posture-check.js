@@ -217,7 +217,8 @@ test('fresh own-soldier sight can authorize support when the shared contact is r
   ];
   const F = w.r._squadLeaderFireControl({
     root: w.r,
-    FIRE_CONTROL_TUNING: { returnFireWindow: 3 }
+    FIRE_CONTROL_TUNING: { returnFireWindow: 3 },
+    commanded: sq => sq.members
   });
   assert.deepEqual(F.supportAuthorityContact(w.us, w.b), {
     ...point,
