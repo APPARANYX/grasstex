@@ -106,7 +106,13 @@ const { chromium } = require('playwright');
                   stageEvents: [], samples: 0, maxPending: 0, maxAdopted: 0,
                   maxApplied: 0, maxArrived: 0, maxSettled: 0, maxMasked: 0,
                   maxHeld: 0, foreignPublishSamples: 0, blockedSamples: 0,
-                  movingSamples: 0, lostMaskSamples: 0, actorLast: []
+                  movingSamples: 0, lostMaskSamples: 0, actorLast: [],
+                  threatsAtStart: (current.threats || []).map(t => ({
+                    at: Number.isFinite(t?.at) ? +t.at.toFixed(2) : null,
+                    age: Number.isFinite(t?.at) ? +(b.time - t.at).toFixed(2) : null,
+                    confidence: Number.isFinite(t?.confidence) ? +t.confidence.toFixed(3) : null,
+                    point: compactPoint(t)
+                  }))
                 };
                 readiness.set(attemptKey, attempt);
                 active.readinessAttempts.push(attempt);
@@ -134,9 +140,16 @@ const { chromium } = require('playwright');
                 ));
                 const pos = s.root?.position;
                 const dist = pos ? Math.hypot(pos.x - o.point.x, pos.z - o.point.z) : Infinity;
-                const arrived = applied && dist <= 0.5;
+                const outcome = root.BattleExecutionOutcome?.man?.(s, b) || null;
+                const receivedMovement = !!CR?.movementEnabled?.();
+                const arrived = !!(
+                  applied &&
+                  (receivedMovement
+                    ? outcome?.current && outcome?.state === 'completed' && outcome?.publishKey === o.key
+                    : dist <= 0.5)
+                );
                 const settled = arrived && !s.moving;
-                const masked = !!C?.maskedPost?.(b, o.point, current.threats || []);
+                const masked = !!(pos && C?.maskedPost?.(b, pos, current.threats || []));
                 if (pendingMine && pending.phase !== 'unreachable') pendingCount++;
                 if (adoptedMine) adoptedCount++;
                 if (applied && execution) appliedCount++;
@@ -153,7 +166,15 @@ const { chromium } = require('playwright');
                   id: String(s.id), role: s.role || null, pendingPhase: pendingMine ? pending?.phase || null : null,
                   pendingEnvelope: pendingMine ? pending?.envelopeId || null : null,
                   adoptedMine, adoptedEnvelope: adoptedMine ? adopted?.envelopeId || null : null,
-                  applied, execution, dist: Number.isFinite(dist) ? +dist.toFixed(2) : null,
+                  applied, execution, canonicalOutcome: outcome ? {
+                    state: outcome.state || null,
+                    current: !!outcome.current,
+                    publishKey: outcome.publishKey || null,
+                    distance: Number.isFinite(outcome.distance) ? +outcome.distance.toFixed(2) : null,
+                    resolverOwner: outcome.resolverOwner || null,
+                    resolverKind: outcome.resolverKind || null
+                  } : null,
+                  dist: Number.isFinite(dist) ? +dist.toFixed(2) : null,
                   moving: !!s.moving, moveSpeed: +(+s.moveSpeed || 0).toFixed(2),
                   stopReason: s._movementStopReason || null,
                   publishKey: s._fireteamPublishKey || null,
@@ -389,6 +410,7 @@ const { chromium } = require('playwright');
           maxArrived: a.maxArrived, maxSettled: a.maxSettled, maxHeld: a.maxHeld,
           foreignPublishSamples: a.foreignPublishSamples, blockedSamples: a.blockedSamples,
           movingSamples: a.movingSamples, lostMaskSamples: a.lostMaskSamples,
+          threatsAtStart: a.threatsAtStart || [],
           endContext: a.endContext || null, actorLast: a.actorLast
         }))
       }))
