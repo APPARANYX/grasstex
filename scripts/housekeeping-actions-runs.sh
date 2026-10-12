@@ -33,12 +33,14 @@ prs=api("pulls?state=closed&per_page=100",paginate=True)
 merged={}
 for pr in prs:
     if not pr.get("merged_at"): continue
-    if (pr.get("head",{}).get("repo") or {}).get("full_name") != repo: continue
+    head=pr.get("head",{})
+    owner=repo.split("/")[0]
+    if (head.get("repo") or {}).get("full_name") != repo and not head.get("label","").startswith(owner+":"): continue
     branch=pr["head"]["ref"]
     merged.setdefault(branch,[]).append(pr)
 
 open_prs=api("pulls?state=open&per_page=100",paginate=True)
-open_branches={p["head"]["ref"] for p in open_prs if (p.get("head",{}).get("repo") or {}).get("full_name")==repo}
+open_branches={p["head"]["ref"] for p in open_prs if (p.get("head",{}).get("repo") or {}).get("full_name")==repo or p.get("head",{}).get("label","").startswith(repo.split("/")[0]+":")}
 open_shas={p["head"]["sha"] for p in open_prs}
 runs=api("actions/runs?per_page=100",paginate=True)
 # Only branches that no longer exist in the repository can be deleted.
