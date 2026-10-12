@@ -236,8 +236,11 @@ move.P.tuning.maneuverWindow = 8.5;
 const staged = move.P.update(move.b, move.q, { underFire: 1, fireSupport: move.q.members.slice(1, 4) });
 assert.equal(staged.mode, 'maneuver', 'one existing Squad Leader posture transition');
 assert.equal(staged.stage, 'supporting-fire');
-assert.equal(staged.maneuverUntil - move.b.time, move.P.tuning.maneuverWindow,
-  'the one-owner posture has a bounded maneuver lease deadline');
+assert.equal(
+  staged.maneuverUntil - move.b.time,
+  move.P.tuning.maneuverWindow,
+  'the one-owner posture has a bounded maneuver lease deadline'
+);
 assert.equal(staged.orders.length, 0, 'posture does not become a second destination writer');
 assert.equal(move.r.BattleLeases.get(move.q, 'bound'), null, 'eligibility never directly grants a bound');
 assert.equal(move.P.current(move.b, move.q).mode, 'maneuver');
