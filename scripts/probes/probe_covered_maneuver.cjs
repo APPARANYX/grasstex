@@ -340,7 +340,7 @@ const { chromium } = require('playwright');
           fireControl: q.fireControl, assaultAuthorized: q._assaultAuthorized,
           boundTurn: q._boundTurn, coa: q.coa,
           localPlanOn: S.localPlan.on, resourcesOn: S.localPlan.resourcesOn,
-          realLocalPlan: S.localPlan.read && S.localPlan.read(q),
+          realLocalPlan: S.localPlan.read && S.localPlan.read(b,q,report),
           boundCycle: L.get(q,'bound-cycle'), bound: L.get(q,'bound'),
           supportRoles: support.map(s=>({id:s.id, fireteam:s._fireteamKey,
             validMover:S.localPlan.moverEligible(s,q,b)})),
