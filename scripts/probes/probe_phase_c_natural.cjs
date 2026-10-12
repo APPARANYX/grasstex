@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
   const limit = Math.max(30, Number(process.env.C_FIELD_SECONDS || 210));
   const prefix = process.env.C_FIELD_PREFIX || 'phase-c-field';
   const base = process.env.C_FIELD_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
-  const flags = 'localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1';
+  const flags = 'localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1&fireCoverCycle=1';
   const dir = 'reports/phase-c-field';
   fs.mkdirSync(dir, { recursive: true });
   const browser = await chromium.launch({
