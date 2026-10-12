@@ -170,7 +170,7 @@ const { chromium } = require('playwright');
         s.root.position.set(900 + s.id * 2, b.heightAt(900 + s.id * 2, 550), 550);
       }
       const supportPositions = [],
-        eye = BattleSoldierAwareness.eyeHeight({});
+        eye = 1.6;
       for (const shift of [-30, -20, -12, 12, 20, 30])
         for (const rear of [32, 38, 44]) {
           const p = {
