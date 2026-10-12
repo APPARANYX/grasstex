@@ -280,6 +280,26 @@ assert.equal(
   'hold',
   'missing real Engagement support reports cannot silently persist'
 );
+const supportLoss = world(true, true, true),
+  supportLossStation = supportLoss.P.update(supportLoss.b, supportLoss.q);
+supportLossStation.readyAt = supportLoss.b.time;
+supportLossStation.stage = 'ready';
+supportLoss.q.inContact = true;
+supportLoss.r.BattleCoverPositions.candidates = () => [
+  { x: supportLoss.q.members[0].root.position.x, z: moveSafe.z }
+];
+assert.equal(
+  supportLoss.P.update(supportLoss.b, supportLoss.q, {
+    underFire: 1,
+    fireSupport: supportLoss.q.members.slice(1, 4)
+  }).mode,
+  'maneuver'
+);
+assert.equal(
+  supportLoss.P.update(supportLoss.b, supportLoss.q, { fireSupport: [] }).mode,
+  'hold',
+  'loss of native support cannot sustain a maneuver or authorize new displacement'
+);
 const noSupport = world(true, true, true);
 const nos = noSupport.P.update(noSupport.b, noSupport.q);
 nos.readyAt = noSupport.b.time;
