@@ -236,6 +236,10 @@ const { chromium } = require('playwright');
         s.orderDestination = { x: p.x, z: p.z };
         E.stateOf(s).state = 'engage';
         E.stateOf(s).fireReadyAt = 0;
+        // Placement occurs on a paused battle. Its regular per-frame cooldown
+        // tick is not running during the initial manual Engagement warm-up;
+        // start selected fixture rifles ready, then use native firing gates.
+        s.fireCooldown = 0;
       });
       A.rememberReportedContact(leader, b, {
         x: threat.x,
