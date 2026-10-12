@@ -342,7 +342,10 @@ function preparedNaturalPressure() {
     }
   }
   assert.ok(ready && ready.stage === 'ready', 'native squad ticks must produce a prepared ambush');
-  assert.ok(x.b.time >= x.P.tuning.minimumHold, 'live masked firing-line dwell cannot be skipped');
+  assert.ok(
+    x.b.time >= x.P.tuning.minimumHold,
+    'live masked firing-line dwell cannot be skipped'
+  );
   assert.equal(x.b.events.fired, 0, 'precontact guns remain silent during natural preparation');
   const mover = x.q.members[0];
   const report = {
@@ -350,7 +353,10 @@ function preparedNaturalPressure() {
     fireSupport: x.q.members.slice(1, 5)
   };
   const contact = x.r.SquadAI.squadContactsMap(x.q, x.b)[0];
-  assert.ok(contact && contact.confidence >= 0.5, 'pressure transition needs fresh own reported evidence');
+  assert.ok(
+    contact && contact.confidence >= 0.5,
+    'pressure transition needs fresh own reported evidence'
+  );
   const covered = [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5.5, 6, 7, 8]
     .map(z => ({ x: mover.root.position.x, z }))
     .find(p => x.r.BattleCoverPositions.boundRoute(mover, x.b, p, [contact]).eligible);
@@ -361,7 +367,10 @@ function preparedNaturalPressure() {
   x.r.BattleCoverPositions.candidates = () => [covered];
   x.q.inContact = true;
   const local = x.S.localPlan.update(x.b, x.q, report);
-  assert.ok(local.pressured && !local.emergency, 'non-emergency pressure from native local-plan inputs');
+  assert.ok(
+    local.pressured && !local.emergency,
+    'non-emergency pressure from native local-plan inputs: ' + JSON.stringify(local)
+  );
   const active = x.P.update(x.b, x.q, report);
   assert.ok(active && active.mode === 'maneuver', 'native ready ambush changes to covered maneuver');
   assert.equal(active.stats.coveredManeuvers, 1, 'one transition, no repeated orders');
@@ -389,12 +398,42 @@ assert.equal(initial, null, 'restart reset clears stale posture authority');
    or command context changes mid-maneuver; these are not merely pre-contact
    validation tests. */
 for (const [name, spoil] of [
-  ['retreat', x => { x.q.state = 'retreat'; }],
-  ['leader-loss', x => { x.r.SquadAI.leaderOf(x.q).dead = true; }],
-  ['casualty', x => { x.q.members[1].dead = true; }],
-  ['possession', x => { x.mover.isPlayer = true; }],
-  ['mission-replacement', x => { x.q._macroMission.version++; }],
-  ['reported-contact-expired', x => { x.b.time += 11; }]
+  [
+    'retreat',
+    x => {
+      x.q.state = 'retreat';
+    }
+  ],
+  [
+    'leader-loss',
+    x => {
+      x.r.SquadAI.leaderOf(x.q).dead = true;
+    }
+  ],
+  [
+    'casualty',
+    x => {
+      x.q.members[1].dead = true;
+    }
+  ],
+  [
+    'possession',
+    x => {
+      x.mover.isPlayer = true;
+    }
+  ],
+  [
+    'mission-replacement',
+    x => {
+      x.q._macroMission.version++;
+    }
+  ],
+  [
+    'reported-contact-expired',
+    x => {
+      x.b.time += 11;
+    }
+  ]
 ]) {
   const x = preparedNaturalPressure();
   spoil(x);
