@@ -44,6 +44,7 @@
       teamSlot = ctx.teamSlot,
       forward = ctx.forward,
       followTeamForward = ctx.followTeamForward,
+      localPlan = ctx.localPlan,
       /* Promoted after exact-seed recovery, red/green fixture and 36 paired
          default-inert regression controls; ?retreatLostContact=0 restores legacy. */
       LOST_CONTACT_RETREAT_ON = !/[?&]retreatLostContact=(?:0|off|false)(?:&|#|$)/i.test(
@@ -121,6 +122,40 @@
             'remnant extraction home',
             extractStats,
             { survivalFallback: true }
+          );
+        });
+        if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);
+        return;
+      }
+      var local = localPlan && localPlan(),
+        security = local && local.currentStructureOrders(battle, sq);
+      if (security) {
+        var securityStats = publishStats(battle);
+        security.orders.forEach(function (o) {
+          var s = (sq.members || []).find(function (s) {
+            return String(s.id) === o.soldierId;
+          });
+          if (!s || s.dead || s.incapacitated || s.isPlayer) return;
+          securityStats.intentChecks++;
+          if (
+            point(s._fireteamDestination) &&
+            dist(s._fireteamDestination, o.point) <= ORDER_PUBLISH_EPS &&
+            s._fireteamPublishKey === o.key &&
+            movementExecutionCurrent(s, battle)
+          ) {
+            securityStats.intentCoalesced++;
+            return;
+          }
+          publishPersonalMovement(
+            sq,
+            battle,
+            s,
+            o.point,
+            o.key,
+            false,
+            'structure-observation',
+            security.stage + ': ' + o.role,
+            securityStats
           );
         });
         if (BUDDY_PAIRS_ON) updateBuddyPairs(sq, battle);

@@ -11,7 +11,8 @@ function world(
   survey = false,
   watch = false,
   contactResume = false,
-  continuity = false
+  continuity = false,
+  structureOrders = false
 ) {
   H.resetIds();
   const r = H.bootstrap({
@@ -25,7 +26,8 @@ function world(
         (survey ? '&localSurvey=1' : '') +
         (watch ? '&localWatch=1' : '') +
         (contactResume ? '&localContactResume=1' : '') +
-        (continuity ? '&localContinuity=1' : '')
+        (continuity ? '&localContinuity=1' : '') +
+        (structureOrders ? '&localStructureOrders=1' : '')
     }),
     systems = {},
     events = [];
@@ -318,9 +320,20 @@ function structureWorld(
   survey = false,
   watch = false,
   contactResume = false,
-  continuity = false
+  continuity = false,
+  structureOrders = false
 ) {
-  const x = world(true, structures, entry, entryGate, survey, watch, contactResume, continuity);
+  const x = world(
+    true,
+    structures,
+    entry,
+    entryGate,
+    survey,
+    watch,
+    contactResume,
+    continuity,
+    structureOrders
+  );
   loadModule(x.r, 'battle/battle-navigation.js', { console: quietConsole, location: x.r.location });
   const house = {
     id: 'farmhouse',
@@ -559,8 +572,8 @@ assert.equal(gateReset.P.entrySatisfied(gateReset.b, gateReset.q, gateReset.q.ro
 // Two live witnesses must actually be inside and looking along clear
 // Navigation/terrain sightlines. A successful survey is evidence of ground
 // footprint observation only; neither contacts nor clearance are inferred.
-function surveyFixture(watch = false, contactResume = false, continuity = false) {
-  const x = structureWorld(true, true, true, true, watch, contactResume, continuity);
+function surveyFixture(watch = false, contactResume = false, continuity = false, structureOrders = false) {
+  const x = structureWorld(true, true, true, true, watch, contactResume, continuity, structureOrders);
   const door = x.r.BattleNavigation.doorPortals[0],
     leader = x.r.SquadAI.leaderOf(x.q),
     buddy = x.q.members.find(s => s !== leader),
@@ -1049,6 +1062,192 @@ assert.ok(
   'spawned-inside timer never creates provenance'
 );
 assert.equal(noEntry.P.entrySatisfied(noEntry.b, noEntry.q, noEntry.q.route[1]), false);
+
+// No position/facing injection after scenario setup: shipping fireteam orders,
+// Micro stance/facing, resolver and movement must execute the building lifecycle.
+const autonomous = structureWorld(true, true, true, true, true, true, true, true);
+assert.equal(autonomous.P.structureOrdersOn, true);
+const stages = new Set(),
+  physicalStart = autonomous.q.members.map(s => ({ ...s.root.position }));
+let physicalEntry = null,
+  naturalSurvey = null,
+  naturalWatch = null,
+  handedBackAt = null;
+H.run(autonomous.r, autonomous.b, 45, () => {
+  const q = autonomous.q,
+    t = q._localTask;
+  if (t?.inputs.structureExecution) stages.add(t.inputs.structureExecution.stage);
+  const st = t?.inputs.execution?.structure;
+  if (st?.entryEvidence.entryVerified && !physicalEntry) physicalEntry = { ...st.entryEvidence };
+  if (st?.survey.complete && !naturalSurvey) naturalSurvey = JSON.parse(JSON.stringify(st.survey));
+  if (st?.watch.ready && !naturalWatch) naturalWatch = JSON.parse(JSON.stringify(st.watch));
+  autonomous.S.executeMission(autonomous.b, q, null);
+  if (q.routeIndex === 2 && handedBackAt == null) handedBackAt = autonomous.b.time;
+});
+assert.ok(physicalEntry, 'shipping movement physically crosses the Navigation portal');
+assert.ok(naturalSurvey?.complete, 'AI actually turns two witnesses toward all four sectors');
+assert.ok(naturalWatch?.ready, 'AI actually establishes the doorway/interior watch');
+assert.ok(handedBackAt != null, 'original mission owner advances after actual security');
+assert.ok(
+  stages.has('approach-door') &&
+    stages.has('cross-door') &&
+    stages.has('observe-footprint') &&
+    stages.has('watch-doorway')
+);
+assert.equal(physicalEntry.entryVerified, true);
+assert.equal(autonomous.q._macroMission.version, 1);
+assert.ok(
+  autonomous.q.members.some(
+    (s, i) => Math.hypot(s.root.position.x - physicalStart[i].x, s.root.position.z - physicalStart[i].z) > 5
+  )
+);
+
+// A real own report engages the structure security task; hidden live world
+// movement cannot change the reported threat point or manufacture a rifle target.
+const reportedStructure = structureWorld(true, true, true, true, true, true, true, true);
+H.run(reportedStructure.r, reportedStructure.b, 10, () =>
+  reportedStructure.S.executeMission(reportedStructure.b, reportedStructure.q, null)
+);
+const reporter = reportedStructure.r.SquadAI.leaderOf(reportedStructure.q);
+reportedStructure.r.SquadAI.rememberReportedContact(reporter, reportedStructure.b, {
+  x: 0,
+  z: 200,
+  observedAt: reportedStructure.b.time,
+  confidence: 0.9,
+  sourceId: 'friendly-witness',
+  targetId: 'reported-interior',
+  otherFaction: 'ge',
+  reportId: 'valid-interior-report'
+});
+const reportTask = reportedStructure.P.update(reportedStructure.b, reportedStructure.q, {
+  fireSupport: reportedStructure.q.members.slice(3),
+  underFire: 0
+});
+assert.equal(reportTask.kind, 'structure-security');
+assert.equal(reportTask.boundsAllowed, false);
+assert.equal(reportTask.inputs.structureExecution.stage, 'contact-security');
+assert.ok(
+  reportTask.inputs.structureExecution.orders.every(o => {
+    const s = reportedStructure.q.members.find(s => String(s.id) === o.soldierId);
+    return Math.hypot(s.root.position.x - o.point.x, s.root.position.z - o.point.z) < 0.7;
+  }),
+  'contact retains reached posts/current positions rather than inventing exposed moves'
+);
+assert.equal(reporter.target, null, 'reported interior position is not a hidden target object');
+reportedStructure.E.orderBound(reportedStructure.q.members);
+reportedStructure.L.grant(
+  reportedStructure.q,
+  'bound',
+  'squad-leader',
+  reportedStructure.b.time,
+  reportedStructure.b.time + 10,
+  'incompatible bound'
+);
+reportedStructure.S.resolveLeaseConflicts(reportedStructure.b, reportedStructure.q);
+assert.equal(reportedStructure.L.get(reportedStructure.q, 'bound'), null);
+assert.ok(reportedStructure.q.members.every(s => !s.eng.boundOrder));
+// Shipping Perception/Engagement encounter an actual hostile in the footprint.
+const hostileStructure = structureWorld(true, true, true, true, true, true, true, true);
+H.run(hostileStructure.r, hostileStructure.b, 10, () =>
+  hostileStructure.S.executeMission(hostileStructure.b, hostileStructure.q, null)
+);
+const hostile = H.addSquad(hostileStructure.r, hostileStructure.b, {
+  id: 'ge-interior',
+  faction: 'ge',
+  x: 0,
+  z: 200,
+  objective: { x: 0, z: 200 },
+  composition: ['rifleman']
+});
+const enemyActor = hostile.members[0];
+// Scenario setup places the hostile in a real room footprint; no own tactical observation is injected.
+enemyActor.root.position.x = 0;
+enemyActor.root.position.z = 200;
+let ownShots = 0,
+  observedSecurity = false,
+  confirmedLOS = false;
+const originalFire = hostileStructure.b.onFire;
+hostileStructure.b.onFire = s => {
+  if (s.faction === 'us') ownShots++;
+  originalFire(s);
+};
+H.run(hostileStructure.r, hostileStructure.b, 5, () => {
+  hostileStructure.S.executeMission(hostileStructure.b, hostileStructure.q, null);
+  if (hostileStructure.q._localTask?.kind === 'structure-security') observedSecurity = true;
+  if (
+    hostileStructure.q.members.some(
+      s =>
+        s.target === enemyActor &&
+        hostileStructure.r.SquadAI.hasLineOfSight(
+          s,
+          enemyActor,
+          hostileStructure.b.heightAt,
+          hostileStructure.b.obstacles
+        )
+    )
+  )
+    confirmedLOS = true;
+});
+assert.ok(confirmedLOS, 'real inside hostile is witnessed through native LOS');
+assert.ok(ownShots > 0, 'Engagement reacts with actual shots, not a planner score');
+assert.ok(observedSecurity, 'reported/seen interior contact reaches structure security task');
+assert.equal(hostileStructure.q.routeIndex, 1, 'active hostile response cannot hand back the mission route');
+console.log(
+  'PASS autonomous structure movement/security and native hostile response',
+  JSON.stringify({
+    stages: [...stages],
+    enteredAt: physicalEntry.enteredAt,
+    surveyedAt: naturalSurvey.observedAt,
+    watchedAt: naturalWatch.observedAt,
+    handedBackAt,
+    ownShots,
+    confirmedLOS
+  })
+);
+
+for (const spoil of [
+  x => {
+    x.q._macroMission.version++;
+  },
+  x => {
+    x.q.route[1].z++;
+  },
+  x => {
+    x.r.BattleNavigation.installScenario(x.scenario);
+  },
+  x => {
+    x.r.SquadAI.leaderOf(x.q).isPlayer = true;
+  },
+  x => {
+    x.r.SquadAI.leaderOf(x.q).dead = true;
+  },
+  x => {
+    x.q.state = 'retreat';
+  },
+  x => {
+    x.b.time += 1;
+  },
+  x => {
+    x.systems['squad-command'].onBattleRestart(x.b);
+  }
+]) {
+  const x = structureWorld(true, true, true, true, true, true, true, true);
+  x.P.update(x.b, x.q);
+  assert.ok(x.P.currentStructureOrders(x.b, x.q));
+  spoil(x);
+  assert.equal(
+    x.P.currentStructureOrders(x.b, x.q),
+    null,
+    'stale/possessed/retreating structure orders are unreadable'
+  );
+}
+const pressureOrders = structureWorld(true, true, true, true, true, true, true, true);
+pressureOrders.P.update(pressureOrders.b, pressureOrders.q, { underFire: pressureOrders.q.members.length });
+assert.equal(pressureOrders.P.currentStructureOrders(pressureOrders.b, pressureOrders.q), null);
+const legacyOrders = structureWorld(true, true, true, true, true, true, true, false);
+assert.equal(legacyOrders.P.structureOrdersOn, false);
+assert.equal(legacyOrders.P.currentStructureOrders(legacyOrders.b, legacyOrders.q), null);
+assert.equal(legacyOrders.P.update(legacyOrders.b, legacyOrders.q).inputs.structureExecution, undefined);
 
 // Only own stored sightings at a valid age may annotate reported threats.
 structure.r.SquadAI.squadContactsMap = () => [

@@ -982,6 +982,22 @@ and a known building target retains its arrival gate even when its interface
 cannot be validated. No clearance, room topology, threat behavior or mission
 advancement is inferred from interior presence or elapsed time.
 
+Autonomous footprint observation/security (`?localStructureOrders=1`, default
+OFF, requires the full continuity flag chain) produces bounded local assignments
+inside the same Squad Leader factory. The existing fireteam publisher alone
+publishes doorway approach/crossing, two interior observation posts and separated
+doorway/interior watches through personally adopted movement orders. Engagement
+consumes current adopted assignments for quiet facing and crouching; direct
+contacts, personal reports, suppression, shock, committed bounds, stations,
+grenades, stress reactions, retreat and possession keep precedence. Navigation
+validates paths, and identical endpoints reuse only same-version geometry with
+plausible clear own-position deltas. Relevant fresh reported/seen threats select
+structure-security and reject new offensive bounds; reached posts/current
+positions are held rather than creating exposed contact moves. Combat reactions
+and firing remain with Engagement. Survey/watch evidence still comes from actual
+positions/facing/LOS, and Mission Execution alone advances the route. This is
+one-footprint observation/security, not multiroom or enemy-clearance proof.
+
 - Create a `squad-leader-local-plan` module that consumes Force Intent plus `TacticalSituation`.
 - Implement local tasks: approach, support, route-transition, structure-control, objective-security,
   recover, and handoff.

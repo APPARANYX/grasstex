@@ -180,7 +180,10 @@
     if (
       local &&
       local.missionVersion === version &&
-      (local.kind === 'protect' || local.kind === 'support' || local.kind === 'objective-security')
+      (local.kind === 'protect' ||
+        local.kind === 'support' ||
+        local.kind === 'objective-security' ||
+        local.kind === 'structure-security')
     )
       return 'local-' + local.kind;
     if (regroup && regroup.data && regroup.data.missionVersion === version) return 'regroup';
@@ -1785,7 +1788,10 @@
         desiredAnchor: desiredAnchor,
         teamSlot: teamSlot,
         forward: forward,
-        followTeamForward: followTeamForward
+        followTeamForward: followTeamForward,
+        localPlan: function () {
+          return _lp;
+        }
       })
     : null;
   var holdPost = _ft

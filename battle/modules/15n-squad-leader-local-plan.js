@@ -39,6 +39,12 @@
         /[?&]localContinuity=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
       presence = new WeakMap(),
       revokedPresence = new WeakMap(),
+      structureOrdersOn =
+        continuityOn &&
+        /[?&]localStructureOrders=(?:1|on|true)(?:&|#|$)/i.test(
+          (root.location && root.location.search) || ''
+        ),
+      structureOrders = new WeakMap(),
       tuning = {
         pressureEnter: 0.45,
         pressureExit: 0.25,
@@ -253,6 +259,299 @@
     }
     function authorizedEvidence(e) {
       return !!(e && (e.entryVerified || e.presenceVerified));
+    }
+    /* Tactical assignments are proposals consumed by the existing fireteam
+       publisher, never destinations or firing orders. Navigation describes one
+       footprint, so this is observation/security, not a room-clearing graph. */
+    function updateStructureOrders(sim, sq, inputs) {
+      if (!structureOrdersOn) return null;
+      var m = sq._macroMission,
+        ex = sq._missionExecution,
+        N = root.BattleNavigation,
+        leader = A.leaderOf(sq),
+        target = point((sq.route || [])[+sq.routeIndex]),
+        men = ctx.commanded(sq),
+        now = +sim.time || 0,
+        route = inputs.execution && inputs.execution.kind === 'structure-handoff',
+        resume = ex && ex.contactRouteResume;
+      if (
+        !m ||
+        m.status !== 'executing' ||
+        !ex ||
+        ex.mission !== m ||
+        !isFinite(ex.acceptedAt) ||
+        ex.acceptedAt > now ||
+        !target ||
+        !leader ||
+        leader.isPlayer ||
+        sq.state === 'retreat' ||
+        ctx.leaderlessActive(sq) ||
+        inputs.pressure >= tuning.pressureEnter ||
+        L.get(sq, 'regroup') ||
+        L.get(sq, 'recon') ||
+        (!route &&
+          !(
+            resume &&
+            resume.missionVersion === ctx.missionVersion(sq) &&
+            resume.leg === +sq.routeIndex &&
+            point(resume.target) &&
+            resume.target.x === target.x &&
+            resume.target.z === target.z &&
+            N &&
+            resume.navigationVersion === N.version &&
+            isFinite(resume.interruptedAt) &&
+            resume.interruptedAt <= now
+          ))
+      ) {
+        structureOrders.delete(sq);
+        return null;
+      }
+      var st = structureInterface(sim, sq, target, men),
+        meta = sim.scene && sim.scene.metadata,
+        scene = meta && (meta.battleScenario || meta.battleTown),
+        b =
+          st &&
+          scene.buildings.find(function (b) {
+            return b.id === st.buildingId;
+          }),
+        door =
+          st &&
+          N.doorPortals.find(function (p) {
+            return p.id === st.doorwayId && p.building === st.buildingId;
+          });
+      if (!st || !b || !door || b.w < 4 || b.w > 30 || b.d < 4 || b.d > 30) {
+        structureOrders.delete(sq);
+        return null;
+      }
+      var readyMen = men.filter(function (s) {
+          return (
+            s &&
+            s.hp > 0 &&
+            !s.incapacitated &&
+            !s.isPlayer &&
+            s.root &&
+            point(s.root.position) &&
+            !(s.suppressedUntil > now) &&
+            !(root.BattleTacticalPositions && root.BattleTacticalPositions.current(s))
+          );
+        }),
+        buddy = readyMen.find(function (s) {
+          return s !== leader && !A.isMachineGun(s);
+        });
+      if (readyMen.indexOf(leader) < 0 || !buddy) {
+        structureOrders.delete(sq);
+        return null;
+      }
+      var old = structureOrders.get(sq),
+        same =
+          old &&
+          old.mission === m &&
+          old.leader === leader &&
+          old.buddy === buddy &&
+          old.leg === +sq.routeIndex &&
+          old.navigationVersion === N.version &&
+          old.building === b,
+        held =
+          combatHeld(sq) ||
+          (A.squadContactsMap(sq, sim) || []).some(function (c) {
+            return (
+              point(c) &&
+              isFinite(c.at) &&
+              c.at <= now &&
+              now - c.at <= tuning.contactAge &&
+              c.confidence >= tuning.confidence &&
+              Math.hypot(c.x - b.x, c.z - b.z) <= Math.max(b.w, b.d) / 2 + 15
+            );
+          }),
+        entered = authorizedEvidence(st.presenceEvidence || st.entryEvidence),
+        stage = held
+          ? 'contact-security'
+          : !entered
+            ? Math.hypot(leader.root.position.x - door.outside.x, leader.root.position.z - door.outside.z) >
+                0.6 &&
+              !insideBuilding(b, leader.root.position) &&
+              !(same && old.stage === 'cross-door')
+              ? 'approach-door'
+              : 'cross-door'
+            : !st.survey.complete
+              ? 'observe-footprint'
+              : 'watch-doorway',
+        co = Math.cos(+b.rot || 0),
+        si = Math.sin(+b.rot || 0),
+        middlePost = { x: b.x + 0.2 * b.w * co, z: b.z - 0.2 * b.w * si },
+        mask = st.survey ? st.survey.sectorMask : 0,
+        sector = 0;
+      while (sector < 3 && mask & (1 << sector)) sector++;
+      function sectorPoint(i) {
+        var lx = (i % 2 ? 0.23 : -0.23) * b.w,
+          lz = (i >= 2 ? 0.23 : -0.23) * b.d;
+        return { x: b.x + lx * co + lz * si, z: b.z - lx * si + lz * co };
+      }
+      var dx = door.inside.x - door.outside.x,
+        dz = door.inside.z - door.outside.z,
+        len = Math.hypot(dx, dz),
+        orders = [];
+      readyMen.forEach(function (s, i) {
+        var role = s === leader ? 'door-guard' : s === buddy ? 'interior-observer' : 'exterior-security',
+          p =
+            s === leader
+              ? stage === 'approach-door'
+                ? door.outside
+                : door.inside
+              : s === buddy && entered
+                ? middlePost
+                : {
+                    x: door.outside.x - (dz / len) * (i % 2 ? -1 : 1) * (2 + i),
+                    z: door.outside.z + (dx / len) * (i % 2 ? -1 : 1) * (2 + i)
+                  },
+          watch =
+            s === leader
+              ? stage === 'observe-footprint'
+                ? sectorPoint(sector)
+                : door.outside
+              : s === buddy
+                ? stage === 'observe-footprint'
+                  ? sectorPoint((sector + 2) % 4)
+                  : { x: b.x, z: b.z }
+                : door.outside;
+        if (held) {
+          var prior =
+            same &&
+            old.orders.find(function (o) {
+              return o.soldierId === String(s.id);
+            });
+          // Do not manufacture a new exposed security move during contact.
+          p =
+            prior && Math.hypot(s.root.position.x - prior.point.x, s.root.position.z - prior.point.z) < 0.7
+              ? prior.point
+              : point(s.root.position);
+        }
+        if (!point(p) || !N.movementClear(p, p)) return;
+        var cached =
+            same &&
+            old.orders.find(function (o) {
+              return o.soldierId === String(s.id);
+            }),
+          here = point(s.root.position),
+          reused =
+            cached &&
+            cached.point.x === p.x &&
+            cached.point.z === p.z &&
+            N.movementClear(cached.observedPosition, here) &&
+            Math.hypot(cached.observedPosition.x - here.x, cached.observedPosition.z - here.z) <=
+              tuning.presenceSlack + tuning.presenceSpeed * (now - old.at),
+          path = reused ? [p] : N.findPath(here, p),
+          previous = here;
+        if (
+          !Array.isArray(path) ||
+          !path.length ||
+          path.length > 24 ||
+          (!reused &&
+            path.some(function (p) {
+              var clear = N.movementClear(previous, p);
+              previous = p;
+              return !clear;
+            }))
+        )
+          return;
+        orders.push({
+          soldierId: String(s.id),
+          role: role,
+          point: point(p),
+          observedPosition: here,
+          watchPoint: point(watch),
+          key: [
+            'structure',
+            ctx.missionVersion(sq),
+            +sq.routeIndex,
+            N.version,
+            b.id,
+            stage,
+            stage === 'observe-footprint' ? mask : '',
+            role
+          ].join('|')
+        });
+      });
+      if (
+        !orders.some(function (o) {
+          return o.soldierId === String(leader.id);
+        }) ||
+        !orders.some(function (o) {
+          return o.soldierId === String(buddy.id);
+        })
+      ) {
+        structureOrders.delete(sq);
+        return null;
+      }
+      structureOrders.set(sq, {
+        mission: m,
+        missionVersion: ctx.missionVersion(sq),
+        leader: leader,
+        buddy: buddy,
+        building: b,
+        target: target,
+        scene: scene,
+        leg: +sq.routeIndex,
+        navigationVersion: N.version,
+        at: now,
+        orders: orders,
+        stage: stage
+      });
+      return {
+        buildingId: b.id,
+        doorwayId: door.id,
+        stage: stage,
+        orders: orders,
+        missionVersion: ctx.missionVersion(sq),
+        leg: +sq.routeIndex,
+        at: now,
+        owner: 'squad-leader/fireteam-publisher',
+        clearance: 'not-assessed'
+      };
+    }
+    function currentStructureOrders(sim, sq) {
+      var st = structureOrdersOn && structureOrders.get(sq),
+        N = root.BattleNavigation,
+        target = point((sq.route || [])[+sq.routeIndex]),
+        meta = sim.scene && sim.scene.metadata,
+        scene = meta && (meta.battleScenario || meta.battleTown);
+      return st &&
+        st.mission === sq._macroMission &&
+        sq._macroMission.status === 'executing' &&
+        st.missionVersion === ctx.missionVersion(sq) &&
+        target &&
+        target.x === st.target.x &&
+        target.z === st.target.z &&
+        st.scene === scene &&
+        N &&
+        N.scenario === scene &&
+        st.leader === A.leaderOf(sq) &&
+        !st.leader.dead &&
+        !st.leader.isPlayer &&
+        st.leader.hp > 0 &&
+        !st.leader.incapacitated &&
+        !st.buddy.dead &&
+        !st.buddy.isPlayer &&
+        !st.buddy.incapacitated &&
+        st.leg === +sq.routeIndex &&
+        N &&
+        st.navigationVersion === N.version &&
+        sim.time >= st.at &&
+        sim.time - st.at <= 0.5 &&
+        sq.state !== 'retreat' &&
+        !ctx.leaderlessActive(sq) &&
+        !L.get(sq, 'regroup') &&
+        !L.get(sq, 'recon')
+        ? st
+        : null;
+    }
+    function structureSoldierOrder(s, sim) {
+      var st = s && s.squad && currentStructureOrders(sim, s.squad);
+      if (!st || s.dead || s.incapacitated || s.isPlayer || s.suppressedUntil > sim.time) return null;
+      var o = st.orders.find(function (o) {
+        return o.soldierId === String(s.id);
+      });
+      return o && s._fireteamPublishKey === o.key ? o : null;
     }
     /* #299 C footprint-only security observation. Four inward ground-floor
        sightline samples are NOT enemy detection, room clearance or control.
@@ -1017,6 +1316,14 @@
         eligible['structure-handoff'] =
           !!active && active.kind === 'structure-handoff' && !inputs.contact && !pressured;
         scores['structure-handoff'] = 0.65;
+        eligible['structure-security'] = !!(
+          structureOrdersOn &&
+          inputs.structureExecution &&
+          inputs.structureExecution.stage === 'contact-security' &&
+          !pressured
+        );
+        scores['structure-security'] = 0.9;
+        if (eligible['structure-security']) eligible.maneuver = false;
         eligible['objective-security'] = !!active && active.kind === 'objective-security' && !pressured;
         scores['objective-security'] = 0.8;
         eligible.recover = !!active && active.kind === 'recover';
@@ -1113,8 +1420,9 @@
         var target = point((sq.route || [])[+sq.routeIndex]);
         observePresence(sim, sq, target && structureInterface(sim, sq, target, ctx.commanded(sq)));
       }
-      var inputs = read(sim, sq, report),
-        now = +sim.time || 0,
+      var inputs = read(sim, sq, report);
+      if (structureOrdersOn) inputs.structureExecution = updateStructureOrders(sim, sq, inputs) || undefined;
+      var now = +sim.time || 0,
         choice = decide(sq, inputs, now),
         old = sq._localTask,
         changed = !old || old.kind !== choice.kind || old.missionVersion !== inputs.missionVersion,
@@ -1148,6 +1456,7 @@
       sq._localTask = null;
       presence.delete(sq);
       revokedPresence.delete(sq);
+      structureOrders.delete(sq);
     }
     function summary(sim) {
       if (!on) return null;
@@ -1178,6 +1487,9 @@
       watchOn: watchOn,
       contactResumeOn: contactResumeOn,
       continuityOn: continuityOn,
+      structureOrdersOn: structureOrdersOn,
+      currentStructureOrders: currentStructureOrders,
+      structureSoldierOrder: structureSoldierOrder,
       execution: execution,
       entryRequired: entryRequired,
       entrySatisfied: entrySatisfied,
