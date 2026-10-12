@@ -91,9 +91,22 @@
          underlying combat-threat belief must still exist, retain the same
          target/sector identity and remain inside the existing 10 s age cap.
          Any current >=0.5 report supersedes the preparation snapshot normally. */
-      if (selected.length) return selected;
       var raw = A.squadContactsMap(sq, b);
       if (!Array.isArray(raw) || raw.length > 32 || !st || !st.threats || !st.threats.length) return [];
+      var confidentCount = raw.filter(function (r) {
+        return (
+          point(r) &&
+          Number.isFinite(r.at) &&
+          b.time >= r.at &&
+          b.time - r.at <= 10 &&
+          Number.isFinite(r.confidence) &&
+          r.confidence >= 0.5
+        );
+      }).length;
+      /* More than three current confident sectors remains a hard ambiguity
+         veto. A normal new confident set supersedes the detached snapshot. */
+      if (confidentCount > 3) return [];
+      if (confidentCount > 0) return selected;
       var out = [];
       st.threats.forEach(function (old) {
         var match = raw.find(function (r) {
@@ -114,7 +127,21 @@
             Math.hypot(r.x - old.x, r.z - old.z) <= 20
           );
         });
-        if (match) out.push(threatCopy(match));
+        if (match) {
+          /* A sub-threshold belief may prove that the original observation
+             still exists, but it is not confident enough to drag a prepared
+             firing line toward a new coordinate. Retain the detached location
+             and original timestamp until a new >=0.5 report supersedes it. */
+          out.push({
+            x: old.x,
+            z: old.z,
+            at: old.at,
+            confidence: old.confidence,
+            targetId: old.targetId,
+            sector: old.sector,
+            source: old.source
+          });
+        }
       });
       return out.length && out.length <= 3 ? out : [];
     }
