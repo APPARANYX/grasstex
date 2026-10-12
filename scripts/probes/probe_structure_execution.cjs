@@ -60,6 +60,8 @@ const { chromium } = require('playwright');
         N = BattleNavigation,
         A = SquadAI;
       b.pause();
+      b.restart(); // exact seeded zero-time start, independent of preview/render warmup
+      b.pause();
       b._trainerStepActive = true;
       const scene = b.scene.metadata.battleScenario || b.scene.metadata.battleTown;
       const door = N.doorPortals.find(p => {
@@ -124,6 +126,7 @@ const { chromium } = require('playwright');
       );
       b._roster.us = q.members;
       b._roster.ge = opposition.members;
+      b._moduleUnits = b._roster.us.concat(b._roster.ge);
       b.factions.us.squads = [q];
       b.factions.ge.squads = [opposition];
       b.factions.us.alive = q.members.filter(s => !s.dead).length;
@@ -176,6 +179,7 @@ const { chromium } = require('playwright');
         buildingId: house.id,
         doorwayId: door.id,
         missionVersion: q._macroMission.version,
+        navigationVersion: N.version,
         leaderId: A.leaderOf(q).id,
         members: q.members.map(s => s.id),
         time: b.time,
@@ -262,6 +266,7 @@ const { chromium } = require('playwright');
           doorwayId: p.door.id,
           leaderId: SquadAI.leaderOf(q)?.id,
           missionVersion: q._macroMission?.version,
+          navigationVersion: BattleNavigation.version,
           routeIndex: q.routeIndex,
           mode,
           inContact: q.inContact,
@@ -307,6 +312,7 @@ const { chromium } = require('playwright');
       if (captured.has('mission-handback')) break;
       if (batch % 60 === 0) console.log('structure stage', JSON.stringify(state));
     }
+    evidence.runtime = await page.evaluate(() => BattleSquadStability.localPlan.summary(__battle__));
     evidence.errors = errors;
     fs.writeFileSync(`${dir}/structure-report.json`, JSON.stringify(evidence, null, 2));
     for (const name of [

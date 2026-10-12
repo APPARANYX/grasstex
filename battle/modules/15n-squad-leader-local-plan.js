@@ -45,6 +45,7 @@
           (root.location && root.location.search) || ''
         ),
       structureOrders = new WeakMap(),
+      structureStats = new WeakMap(),
       tuning = {
         pressureEnter: 0.45,
         pressureExit: 0.25,
@@ -564,6 +565,55 @@
         return o.soldierId === String(s.id);
       });
       return o && s._fireteamPublishKey === o.key ? o : null;
+    }
+    function trackStructure(sq, inputs) {
+      var st = inputs.execution && inputs.execution.structure,
+        m = sq._macroMission,
+        leg = +sq.routeIndex,
+        version = ctx.missionVersion(sq),
+        nav = root.BattleNavigation && root.BattleNavigation.version,
+        old = structureStats.get(sq) || {
+          physicalEntries: 0,
+          surveyCompletions: 0,
+          stableWatches: 0,
+          securityHolds: 0,
+          routeHandbacks: 0
+        },
+        same =
+          old.mission === m && old.version === version && old.leg === leg && old.navigationVersion === nav;
+      // Counts observe the original mission owner's next-leg fact after watch
+      // proof. They never grant tactical authorization or refresh observations.
+      if (
+        old.watched &&
+        old.mission === m &&
+        old.version === version &&
+        old.navigationVersion === nav &&
+        leg === old.leg + 1
+      )
+        old.routeHandbacks++;
+      var e = st && st.entryEvidence,
+        key =
+          e && e.entryVerified
+            ? [version, leg, nav, e.observerId, e.observerEpoch, e.enteredAt].join('|')
+            : null;
+      if (key && key !== old.entryKey) {
+        old.physicalEntries++;
+        old.entryKey = key;
+      }
+      var surveyed = !!(st && st.survey && st.survey.complete),
+        watched = !!(st && st.watch && st.watch.ready),
+        security = !!(inputs.structureExecution && inputs.structureExecution.stage === 'contact-security');
+      if (surveyed && !(same && old.surveyed)) old.surveyCompletions++;
+      if (watched && !(same && old.watched)) old.stableWatches++;
+      if (security && !(same && old.security)) old.securityHolds++;
+      old.mission = m;
+      old.version = version;
+      old.leg = leg;
+      old.navigationVersion = nav;
+      old.surveyed = surveyed;
+      old.watched = watched;
+      old.security = security;
+      structureStats.set(sq, old);
     }
     /* #299 C footprint-only security observation. Four inward ground-floor
        sightline samples are NOT enemy detection, room clearance or control.
@@ -1497,6 +1547,7 @@
       }
       var inputs = read(sim, sq, report);
       if (structureOrdersOn) inputs.structureExecution = updateStructureOrders(sim, sq, inputs) || undefined;
+      if (structureOrdersOn) trackStructure(sq, inputs);
       var now = +sim.time || 0,
         choice = decide(sq, inputs, now),
         old = sq._localTask,
@@ -1532,15 +1583,30 @@
       presence.delete(sq);
       revokedPresence.delete(sq);
       structureOrders.delete(sq);
+      structureStats.delete(sq);
     }
     function summary(sim) {
       if (!on) return null;
       var counts = {},
-        transitions = 0;
+        transitions = 0,
+        structures = structureOrdersOn
+          ? {
+              physicalEntries: 0,
+              surveyCompletions: 0,
+              stableWatches: 0,
+              securityHolds: 0,
+              routeHandbacks: 0
+            }
+          : null;
       ['us', 'ge'].forEach(function (f) {
         var squads = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
         squads.forEach(function (sq) {
           var task = sq._localTask;
+          var observed = structures && structureStats.get(sq);
+          if (observed)
+            Object.keys(structures).forEach(function (k) {
+              structures[k] += observed[k];
+            });
           if (!task) return;
           transitions += task.serial;
           Object.keys(task.counts).forEach(function (k) {
@@ -1548,7 +1614,9 @@
           });
         });
       });
-      return { transitions: transitions, choices: counts };
+      var out = { transitions: transitions, choices: counts };
+      if (structures) out.structures = structures;
+      return out;
     }
     return {
       on: on,

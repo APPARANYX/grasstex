@@ -1095,6 +1095,8 @@ assert.ok(
     stages.has('watch-doorway')
 );
 assert.equal(physicalEntry.entryVerified, true);
+assert.equal(autonomous.P.summary(autonomous.b).structures.physicalEntries, 1);
+assert.equal(autonomous.P.summary(autonomous.b).structures.routeHandbacks, 1);
 assert.equal(autonomous.q._macroMission.version, 1);
 assert.ok(
   autonomous.q.members.some(
