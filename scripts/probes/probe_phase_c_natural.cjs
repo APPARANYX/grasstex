@@ -267,7 +267,10 @@ const { chromium } = require('playwright');
                         missionVersion: sq._macroMission?.version ?? null,
                         routeIndex: +sq.routeIndex || 0,
                         routeTarget: compactPoint(sq.route?.[+sq.routeIndex]),
-                        engagementPlan: sq._engagementPlan?.status || null
+                        engagementPlan: sq._engagementPlan?.status || null,
+                        maneuverDecision: current?.lastManeuverDecision
+                          ? JSON.parse(JSON.stringify(current.lastManeuverDecision))
+                          : null
                       };
                     }
                   }
