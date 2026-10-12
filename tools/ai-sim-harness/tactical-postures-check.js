@@ -159,6 +159,23 @@ for (const spoil of [
   spoil(x);
   assert.equal(x.P.current(x.b, x.q), null, 'stale evidence cannot authorize posture');
 }
+/* A different owner can reserve an MG/emplacement specialist without
+   suppressing the other riflemen's opt-in masked firing line. Membership
+   changes revoke stale fireteam and position evidence immediately. */
+const station = world();
+const stationedMan = station.q.members[0];
+station.r.BattleTacticalPositions = {
+  current: s => (s === stationedMan ? { owner: 'emplacement' } : null)
+};
+const stationedPosture = station.P.update(station.b, station.q);
+assert.ok(stationedPosture, 'remaining riflemen may form a masked line without station-owned specialist');
+assert.ok(
+  stationedPosture.orders.every(o => o.soldierId !== String(stationedMan.id)),
+  'Squad Leader must not issue posture orders to the already committed station owner'
+);
+station.r.BattleTacticalPositions.current = () => null;
+assert.equal(station.P.current(station.b, station.q), null, 'station ownership handoff revokes roster snapshot');
+
 const pressure = world();
 pressure.P.update(pressure.b, pressure.q);
 pressure.b.time += 0.15;
