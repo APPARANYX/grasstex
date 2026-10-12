@@ -14,6 +14,10 @@
         ctx.FIRE_CONTROL_ON &&
         /[?&]localAmbush=(?:1|on|true)(?:&|#|$)/i.test(query)
       ),
+      maneuverOn =
+        on &&
+        /[?&]localManeuver=(?:1|on|true)(?:&|#|$)/i.test(query) &&
+        /[?&]coveredBounds=(?:1|on|true)(?:&|#|$)/i.test(query),
       states = new WeakMap(),
       cooldown = new WeakMap(),
       counters = new WeakMap(),
@@ -24,6 +28,8 @@
         pressureEnter: 0.25,
         pressureExit: 0.1,
         pressureDwell: 3,
+        maneuverWindow: 4.5,
+        minSupport: 2,
         readAge: 0.5
       };
     function point(p) {
@@ -65,6 +71,55 @@
           out.push({ x: r.x, z: r.z, at: r.at, confidence: r.confidence });
       });
       return out.length <= 3 ? out : [];
+    }
+    /* This is a read-only preflight. Actual move eligibility, reservations,
+       route selection and firing remain with native Engagement and Movement.
+       Never treat visibility masking as ballistic protection; reuse the
+       physicality-aware 0.75 m covered bound sampler for every candidate. */
+    function coveredTeam(b, sq, movers, report) {
+      var C = root.BattleCoverPositions,
+        a = men(sq),
+        rs = threats(b, sq),
+        support = report && report.fireSupport,
+        N = root.BattleNavigation;
+      if (
+        !maneuverOn ||
+        !a ||
+        !movers ||
+        !movers.length ||
+        !C ||
+        !C.coveredBoundsOn ||
+        !C.coveredBoundsOn() ||
+        !C.boundRoute ||
+        !C.candidates ||
+        !N ||
+        N.scenario !== (b.scene && b.scene.metadata && (b.scene.metadata.battleScenario || b.scene.metadata.battleTown)) ||
+        !rs.length ||
+        !Array.isArray(support) ||
+        support.filter(function (s) {
+          return a.indexOf(s) >= 0 && movers.indexOf(s) < 0 &&
+            !s.dead && !s.reloading && !s.outOfAmmo &&
+            !(s.suppressedUntil > b.time) && !s.moving;
+        }).length < tuning.minSupport
+      ) return false;
+      for (var i = 0; i < movers.length; i++) {
+        var s = movers[i];
+        if (a.indexOf(s) < 0 || s.moving || s.reloading ||
+            s.suppressedUntil > b.time || s.dead) return false;
+        var possible = C.candidates(s, b, { root: { position: rs[0] } }, C.boundTuning().maxDistance);
+        if (!Array.isArray(possible) || possible.length > 256) return false;
+        var eligible = possible.slice(0, 48).some(function (p) {
+          var here = s.root.position,
+            target = point(p);
+          return !!(
+            target &&
+            Math.hypot(target.x - here.x, target.z - here.z) > 1 &&
+            C.boundRoute(s, b, target, rs).eligible
+          );
+        });
+        if (!eligible) return false;
+      }
+      return true;
     }
     function valid(b, sq, st) {
       var a = men(sq),
@@ -162,21 +217,42 @@
         (ctx.localPlan.structureOrdersOn && ctx.localPlan.currentStructureOrders(b, sq))
       )
         return end(b, sq, 'unknown evidence/override');
-      if (st && (pressure >= tuning.pressureEnter || (report && report.underFire > 0))) {
-        if (st.mode !== 'hold') {
-          st.mode = 'hold';
-          st.stage = 'pressure-hold';
-          st.pressureAt = now;
-          // No new exposed displacement. Native Engagement owns emergency cover/fire.
-          st.orders = [];
-          st.stats.pressureHolds++;
-          ctx.telemetry(b, 'decision-tactical-posture', {
-            squad: sq.id,
-            faction: sq.faction,
-            mode: st.mode,
-            reason: st.stage,
-            serial: st.serial
+      if (st && st.mode === 'ambush' &&
+          (pressure >= tuning.pressureEnter || (report && report.underFire > 0))) {
+        /* An already-held masked line may transition to ONE covered-maneuver
+           posture, never a second command stream. Without real support and a
+           fully covered route, stay put and let Engagement fight defensively. */
+        var possible = maneuverOn && st.readyAt != null &&
+          sq.inContact && report && Array.isArray(report.fireSupport) &&
+          a.some(function (s) {
+            return coveredTeam(b, sq, [s], report);
           });
+        st.mode = possible ? 'maneuver' : 'hold';
+        st.stage = possible ? 'supporting-fire' : 'pressure-hold';
+        st.pressureAt = now;
+        st.orders = [];
+        if (possible) {
+          st.maneuverUntil = now + tuning.maneuverWindow;
+          st.stats.coveredManeuvers = (st.stats.coveredManeuvers || 0) + 1;
+        } else st.stats.pressureHolds++;
+        ctx.telemetry(b, 'decision-tactical-posture', {
+          squad: sq.id,
+          faction: sq.faction,
+          mode: st.mode,
+          reason: st.stage,
+          serial: st.serial
+        });
+      }
+      if (st && st.mode === 'maneuver') {
+        st.at = now;
+        if (!sq.inContact || !maneuverOn || now >= st.maneuverUntil ||
+            !report || !Array.isArray(report.fireSupport)) {
+          st.mode = 'hold';
+          st.stage = 'maneuver-closed';
+          st.pressureAt = now;
+        } else {
+          st.stage = L.holds(sq, 'bound', now) ? 'covered-bound' : 'supporting-fire';
+          return st;
         }
       }
       if (st && st.mode === 'hold') {
@@ -219,7 +295,13 @@
           if (!candidate) return null; // Do not put the remainder at unsafe default slots.
           orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
         }
-        var counts = counters.get(sq) || { ambushes: 0, pressureHolds: 0, coordinatedContacts: 0 };
+        var counts = counters.get(sq) || {
+          ambushes: 0,
+          pressureHolds: 0,
+          coordinatedContacts: 0,
+          coveredManeuvers: 0,
+          rejectedUnsafeBounds: 0
+        };
         counters.set(sq, counts);
         counts.ambushes++;
         st = {
@@ -311,13 +393,22 @@
     }
     return {
       on: on,
+      maneuverOn: maneuverOn,
       tuning: tuning,
+      coveredTeam: coveredTeam,
       update: update,
       current: current,
       soldierOrder: soldierOrder,
       summary: function (sim) {
         if (!on) return null;
-        var total = { ambushes: 0, pressureHolds: 0, coordinatedContacts: 0, active: 0 };
+        var total = {
+          ambushes: 0,
+          pressureHolds: 0,
+          coordinatedContacts: 0,
+          coveredManeuvers: 0,
+          rejectedUnsafeBounds: 0,
+          active: 0
+        };
         ['us', 'ge'].forEach(function (f) {
           ((sim.factions[f] && sim.factions[f].squads) || []).forEach(function (sq) {
             var c = counters.get(sq);
