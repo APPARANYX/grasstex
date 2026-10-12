@@ -39,18 +39,18 @@
       return +(s.eng && s.eng.possessionEpoch) || 0;
     }
     function men(sq) {
-      var a = ctx.commanded(sq);
+      /* An occupied weapon emplacement or separate positional commitment
+         belongs to its own owner. Exclude that soldier rather than vetoing
+         the entire remainder of a squad; never issue a posture order to him.
+         If a station is adopted or released, member identity validation below
+         revokes the old posture before anything can act on stale membership. */
+      var a = ctx.commanded(sq).filter(function (s) {
+        return !(root.BattleTacticalPositions && root.BattleTacticalPositions.current(s));
+      });
       return a.length >= 3 &&
         a.length <= 32 &&
         a.every(function (s) {
-          return (
-            s.root &&
-            point(s.root.position) &&
-            !s.incapacitated &&
-            !s.isPlayer &&
-            s.hp > 0 &&
-            !(root.BattleTacticalPositions && root.BattleTacticalPositions.current(s))
-          );
+          return s.root && point(s.root.position) && !s.incapacitated && !s.isPlayer && s.hp > 0;
         })
         ? a
         : null;
