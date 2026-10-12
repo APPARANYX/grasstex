@@ -320,6 +320,19 @@ const { chromium } = require('playwright');
           fireControl:q.fireControl,
           targetPos:{x:hostile.root.position.x,z:hostile.root.position.z}
         }));
+      /* The leader's squad report cannot stand in for a mover's own
+         Perception memory. Stage an explicit delivered squad callout through
+         the real Perception owner using only the reported threat coordinate
+         (not the hidden target transform). Engagement must still validate
+         confidence, age, cover slots and exposed-route safety itself. */
+      const moverReport = A.rememberReportedContact(mover, b, {
+        x: threat.x, z: threat.z, observedAt: b.time,
+        confidence: 0.95, sourceId: String(leader.id),
+        targetId: String(hostile.id), otherFaction: 'ge',
+        reportId: 'staged-covered-bound-shared-contact'
+      });
+      if (!moverReport || !C.boundThreats(mover, b).length)
+        throw Error('Perception did not deliver fresh reported contact to selected mover');
       // This policy seam models an already-qualified pressured posture. Every
       // physicality and Engagement gate remains the actual shipping implementation.
       const stagedPosture = {
