@@ -438,16 +438,60 @@
         /* An already-held masked line may transition to ONE covered-maneuver
            posture, never a second command stream. Without real support and a
            fully covered route, stay put and let Engagement fight defensively. */
-        var possible =
+        var coreReady = heldCore(b, st, a, rs),
+          supportCount =
+            report && Array.isArray(report.fireSupport)
+              ? supportingCount(a, null, report.fireSupport, now)
+              : 0,
+          safeMovers = [];
+        if (
           maneuverOn &&
           !(task && task.emergency) &&
-          heldCore(b, st, a, rs) &&
+          coreReady &&
           sq.inContact &&
           report &&
           Array.isArray(report.fireSupport) &&
-          a.some(function (s) {
-            return coveredTeam(b, sq, [s], report);
+          supportCount >= tuning.minSupport
+        )
+          a.forEach(function (s) {
+            if (coveredTeam(b, sq, [s], report)) safeMovers.push(String(s.id));
           });
+        var possible = !!(
+          maneuverOn &&
+          !(task && task.emergency) &&
+          coreReady &&
+          sq.inContact &&
+          report &&
+          Array.isArray(report.fireSupport) &&
+          supportCount >= tuning.minSupport &&
+          safeMovers.length
+        );
+        st.lastManeuverDecision = {
+          at: now,
+          possible: possible,
+          emergency: !!(task && task.emergency),
+          coreReady: coreReady,
+          inContact: !!sq.inContact,
+          reportPresent: !!report,
+          supportArray: !!(report && Array.isArray(report.fireSupport)),
+          supportCount: supportCount,
+          safeMoverIds: safeMovers,
+          reason: !maneuverOn
+            ? 'maneuver-disabled'
+            : task && task.emergency
+              ? 'emergency'
+              : !coreReady
+                ? 'held-core-invalid'
+                : !sq.inContact
+                  ? 'no-current-contact'
+                  : !(report && Array.isArray(report.fireSupport))
+                    ? 'no-fire-support-report'
+                    : supportCount < tuning.minSupport
+                      ? 'insufficient-support'
+                      : !safeMovers.length
+                        ? 'no-safe-covered-mover'
+                        : 'authorized'
+        };
         st.mode = possible ? 'maneuver' : 'hold';
         st.stage = possible ? 'supporting-fire' : 'pressure-hold';
         st.pressureAt = now;
