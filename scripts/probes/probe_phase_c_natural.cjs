@@ -85,9 +85,105 @@ const { chromium } = require('playwright');
               shots: 0, livingContactSamples: 0, reportSamples: 0, quietReportSamples: 0,
               precontactCleanSamples: 0, pressureSamples: 0, reportedPressureEvents: 0,
               modeEvents: [], rejectionSamples: {}, contactChangeEvents: 0,
-              squadSamples: 0, engagementOutcomes: {}, suppressedEpisodes: 0
+              squadSamples: 0, engagementOutcomes: {}, suppressedEpisodes: 0,
+              readinessAttempts: []
             };
             const last = new Map();
+            const readiness = new Map();
+            function compactPoint(p) {
+              return p && Number.isFinite(p.x) && Number.isFinite(p.z)
+                ? { x: +p.x.toFixed(2), z: +p.z.toFixed(2) }
+                : null;
+            }
+            function inspectReadinessAttempt(sq, key, current) {
+              if (!current || current.mode !== 'ambush') return null;
+              const attemptKey = key + '#' + current.serial;
+              let attempt = readiness.get(attemptKey);
+              if (!attempt) {
+                attempt = {
+                  key: attemptKey, squad: key, serial: current.serial,
+                  startAt: +b.time.toFixed(2), ordered: current.orders?.length || 0,
+                  stageEvents: [], samples: 0, maxPending: 0, maxAdopted: 0,
+                  maxApplied: 0, maxArrived: 0, maxSettled: 0, maxMasked: 0,
+                  maxHeld: 0, foreignPublishSamples: 0, blockedSamples: 0,
+                  movingSamples: 0, lostMaskSamples: 0, actorLast: []
+                };
+                readiness.set(attemptKey, attempt);
+                active.readinessAttempts.push(attempt);
+              }
+              attempt.samples++;
+              const CR = root.BattleCommandReception;
+              const C = root.BattleCoverPositions;
+              let pendingCount = 0, adoptedCount = 0, appliedCount = 0;
+              let arrivedCount = 0, settledCount = 0, maskedCount = 0;
+              const actorLast = [];
+              for (const o of current.orders || []) {
+                const s = (sq.members || []).find(m => String(m?.id) === o.soldierId);
+                if (!s) {
+                  actorLast.push({ id: o.soldierId, missing: true });
+                  continue;
+                }
+                const scope = 'soldier:' + String(s.id);
+                const pending = CR?.peek?.(s, b, 'movement', scope) || null;
+                const adopted = CR?.adopted?.(s, b, 'movement', scope) || null;
+                const pendingMine = !!(pending?.data && String(pending.data.publishKey || '') === String(o.key || ''));
+                const adoptedMine = !!(adopted?.data && String(adopted.data.publishKey || '') === String(o.key || ''));
+                const applied = s._fireteamPublishKey === o.key;
+                const execution = !!(applied && CR?.executionCurrent?.(
+                  s, b, 'movement', scope, s._fireteamAdoptedEnvelope
+                ));
+                const pos = s.root?.position;
+                const dist = pos ? Math.hypot(pos.x - o.point.x, pos.z - o.point.z) : Infinity;
+                const arrived = applied && dist <= 0.5;
+                const settled = arrived && !s.moving;
+                const masked = !!C?.maskedPost?.(b, o.point, current.threats || []);
+                if (pendingMine && pending.phase !== 'unreachable') pendingCount++;
+                if (adoptedMine) adoptedCount++;
+                if (applied && execution) appliedCount++;
+                if (arrived) arrivedCount++;
+                if (settled) settledCount++;
+                if (masked) maskedCount++;
+                if (s._fireteamPublishKey && s._fireteamPublishKey !== o.key) attempt.foreignPublishSamples++;
+                if (s._movementStopReason && !['arrived', 'none'].includes(s._movementStopReason))
+                  attempt.blockedSamples++;
+                if (s.moving) attempt.movingSamples++;
+                if (!masked) attempt.lostMaskSamples++;
+                actorLast.push({
+                  id: String(s.id), pendingPhase: pendingMine ? pending?.phase || null : null,
+                  pendingEnvelope: pendingMine ? pending?.envelopeId || null : null,
+                  adoptedMine, adoptedEnvelope: adoptedMine ? adopted?.envelopeId || null : null,
+                  applied, execution, dist: Number.isFinite(dist) ? +dist.toFixed(2) : null,
+                  moving: !!s.moving, moveSpeed: +(+s.moveSpeed || 0).toFixed(2),
+                  stopReason: s._movementStopReason || null,
+                  publishKey: s._fireteamPublishKey || null,
+                  adoptedPublishKey: adopted?.data?.publishKey || null,
+                  fireteamDestination: compactPoint(s._fireteamDestination),
+                  orderDestination: compactPoint(s.orderDestination),
+                  post: compactPoint(o.point),
+                  tacticalStation: !!root.BattleTacticalPositions?.current?.(s),
+                  target: s.target?.id || null,
+                  engagement: root.BattleEngagement?.stateOf?.(s)?.state || s.eng?.state || null,
+                  masked
+                });
+              }
+              attempt.maxPending = Math.max(attempt.maxPending, pendingCount);
+              attempt.maxAdopted = Math.max(attempt.maxAdopted, adoptedCount);
+              attempt.maxApplied = Math.max(attempt.maxApplied, appliedCount);
+              attempt.maxArrived = Math.max(attempt.maxArrived, arrivedCount);
+              attempt.maxSettled = Math.max(attempt.maxSettled, settledCount);
+              attempt.maxMasked = Math.max(attempt.maxMasked, maskedCount);
+              attempt.maxHeld = Math.max(attempt.maxHeld, current.heldActorIds?.length || 0);
+              const lastStage = attempt.stageEvents[attempt.stageEvents.length - 1]?.stage;
+              if (lastStage !== current.stage && attempt.stageEvents.length < 24)
+                attempt.stageEvents.push({
+                  t: +b.time.toFixed(2), stage: current.stage || null,
+                  pending: pendingCount, adopted: adoptedCount, applied: appliedCount,
+                  arrived: arrivedCount, settled: settledCount, held: current.heldActorIds?.length || 0
+                });
+              attempt.actorLast = actorLast;
+              attempt.lastAt = +b.time.toFixed(2);
+              return attemptKey;
+            }
             let commanderAccumulator = 0;
             const wallStart = performance.now();
             for (let tick = 0; tick < Math.ceil(limit / 0.15) && !b.winner; tick++) {
@@ -106,6 +202,7 @@ const { chromium } = require('playwright');
                   active.squadSamples++;
                   const current = root.BattleSquadStability?.tacticalPostures?.current?.(b, sq);
                   const mode = current?.mode || 'none';
+                  const attemptKey = inspectReadinessAttempt(sq, key, current);
                   const task = sq._localTask;
                   const pressure = +task?.inputs?.pressure || 0;
                   const reports = root.SquadAI?.squadContactsMap?.(sq, b) || [];
@@ -120,6 +217,22 @@ const { chromium } = require('playwright');
                   if (pressure >= 0.25) active.pressureSamples++;
                   if (sq.inContact && pressure >= 0.25 && !prev.pressure) active.reportedPressureEvents++;
                   if (sq.inContact !== prev.contact && prev.contact) active.contactChangeEvents++;
+                  if (prev.attemptKey && mode !== 'ambush') {
+                    const ended = readiness.get(prev.attemptKey);
+                    if (ended && ended.endAt == null) {
+                      ended.endAt = +b.time.toFixed(2);
+                      ended.endMode = mode;
+                      ended.endStage = current?.stage || null;
+                      ended.endContext = {
+                        contact: !!sq.inContact, pressure,
+                        missionStatus: sq._macroMission?.status || null,
+                        missionVersion: sq._macroMission?.version ?? null,
+                        routeIndex: +sq.routeIndex || 0,
+                        routeTarget: compactPoint(sq.route?.[+sq.routeIndex]),
+                        engagementPlan: sq._engagementPlan?.status || null
+                      };
+                    }
+                  }
                   if (mode !== prev.mode) {
                     if (mode === 'ambush') active.ambush++;
                     if (mode === 'maneuver') active.maneuvers++;
@@ -178,7 +291,7 @@ const { chromium } = require('playwright');
                         : 'masked-subelement-or-other-geometry';
                     active.rejectionSamples[reason] = (active.rejectionSamples[reason] || 0) + 1;
                   }
-                  prev.mode = mode; prev.prepared = current?.readyAt != null;
+                  prev.mode = mode; prev.prepared = current?.readyAt != null; prev.attemptKey = attemptKey || null;
                   prev.bound = bound; prev.contact = !!sq.inContact;
                   prev.pressure = sq.inContact && pressure >= 0.25;
                   last.set(key, prev);
@@ -190,6 +303,12 @@ const { chromium } = require('playwright');
             active.winner = b.winner || 'none';
             active.kills = { us: b.factions?.us?.kills || 0, ge: b.factions?.ge?.kills || 0 };
             active.postures = root.BattleSquadStability?.localPlanTelemetry?.(b)?.postures || null;
+            for (const attempt of active.readinessAttempts) {
+              if (attempt.endAt == null) {
+                attempt.endAt = +b.time.toFixed(2);
+                attempt.endMode = 'battle-end';
+              }
+            }
             active.coveredBounds = root.BattleEngagement?.coveredBoundTelemetry?.(b) || null;
             active.writerConflicts = root.BattleOrderProvenance?.conflicts?.(b)?.length || 0;
             out.push(JSON.parse(JSON.stringify(active)));
@@ -245,7 +364,16 @@ const { chromium } = require('playwright');
       type, count, off: summary.arms.off, on: summary.arms.on,
       onBlockers: summary.results.filter(x => x.arm === 'on').map(x => ({
         seed: x.seed, reasons: x.rejectionSamples, firstModes: x.modeEvents.slice(0, 8),
-        summary: x.postures
+        summary: x.postures,
+        attempts: x.readinessAttempts.map(a => ({
+          squad: a.squad, serial: a.serial, startAt: a.startAt, endAt: a.endAt,
+          endMode: a.endMode, ordered: a.ordered, stages: a.stageEvents,
+          maxPending: a.maxPending, maxAdopted: a.maxAdopted, maxApplied: a.maxApplied,
+          maxArrived: a.maxArrived, maxSettled: a.maxSettled, maxHeld: a.maxHeld,
+          foreignPublishSamples: a.foreignPublishSamples, blockedSamples: a.blockedSamples,
+          movingSamples: a.movingSamples, lostMaskSamples: a.lostMaskSamples,
+          actorLast: a.actorLast
+        }))
       }))
     }));
     assert.equal(summary.arms.off.ambush + summary.arms.off.maneuvers, 0, 'OFF arm remains inert');
