@@ -220,6 +220,10 @@ const { chromium } = require('playwright');
       b.factions.us.alive = 4;
       b.factions.ge.alive = 1;
       hostile.root.position.set(threat.x, b.heightAt(threat.x, threat.z), threat.z);
+      // Even a player-controlled static training target needs a valid
+      // physical destination for the native BattleSim movement integrator.
+      hostile.destination = { x: threat.x, z: threat.z };
+      hostile.orderDestination = { x: threat.x, z: threat.z };
       hostile.isPlayer = true;
       hostile.hp = 100000;
       /* This browser test proves fire/move physics, not casualty outcomes.
