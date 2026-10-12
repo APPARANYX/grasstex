@@ -100,46 +100,36 @@
        genuine held fireteam or count a rotating set of arrivals as a 4s hold. */
     function settledActors(b, st, a, reports) {
       var C = root.BattleCoverPositions,
-        CR = root.BattleCommandReception;
+        O = root.BattleExecutionOutcome;
       return st.orders
         .filter(function (o) {
           var s = a.find(function (man) {
             return String(man.id) === o.soldierId;
           });
-          if (!s || s._fireteamPublishKey !== o.key || s.moving) return false;
+          if (!s || s._fireteamPublishKey !== o.key || s.moving || !O || !O.man) return false;
           var body = point(s.root && s.root.position),
             last = s._movementResolver && s._movementResolver.last,
-            endpoint = last && point(last.point),
             intent = last && point(last.intentPoint),
-            adoptionCurrent =
-              !CR ||
-              !CR.movementEnabled ||
-              !CR.movementEnabled() ||
-              (CR.executionCurrent &&
-                CR.executionCurrent(
-                  s,
-                  b,
-                  'movement',
-                  'soldier:' + String(s.id),
-                  s._fireteamAdoptedEnvelope
-                ));
-          /* Navigation/Movement owns the physical endpoint. Formation legalization
-             and personal-space allocation may move a body-safe endpoint away from
-             the Squad Leader's abstract masked slot. Readiness therefore requires
-             the current adopted ambush INTENT plus an actually completed Movement
-             endpoint, then independently re-checks concealment at the man's real
-             body position. It never treats an intermediate waypoint as arrival. */
+            outcome = O.man(s, b);
+          /* Command Reception + Movement Execution already own the definition of
+             a personally adopted formation order completing (including the
+             Resolver's 1.8 m formation-arrival tolerance). Reuse that derived
+             outcome rather than maintaining a second, stricter arrival rule.
+             The posture still independently requires the exact ambush publish
+             key, Squad Stability ownership, the original ambush intent, a
+             physically stationary body and concealment at the man's REAL
+             position before any dwell can accrue. */
           return !!(
-            adoptionCurrent &&
             body &&
+            outcome &&
+            outcome.current &&
+            outcome.state === 'completed' &&
+            outcome.publishKey === o.key &&
             last &&
             last.owner === 'squad-stability' &&
             last.kind === 'formation' &&
-            endpoint &&
             intent &&
             Math.hypot(intent.x - o.point.x, intent.z - o.point.z) <= 0.05 &&
-            s._movementStopReason === 'arrived' &&
-            Math.hypot(body.x - endpoint.x, body.z - endpoint.z) <= 0.6 &&
             C &&
             C.maskedPost(b, body, reports)
           );
