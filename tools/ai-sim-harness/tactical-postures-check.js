@@ -2,11 +2,11 @@
 const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
-function world(on = true, terrain = true, maneuver = false) {
+function world(on = true, terrain = true, maneuver = false, options = {}) {
   H.resetIds();
   const r = H.bootstrap({
     search:
-      '?localPlan=1&coa=0&commandMovement=0&slStress=0&scoutsForward=0&stressAct=0' +
+      '?localPlan=1&coa=0&commandMovement=' + (options.commandMovement ? '1' : '0') + '&slStress=0&scoutsForward=0&stressAct=0' +
       (on ? '&localAmbush=1' : '') +
       (maneuver ? '&localManeuver=1&coveredBounds=1' : '')
   });
@@ -113,6 +113,48 @@ assert.ok(
   ),
   'no unnecessary repositioning'
 );
+/* Full-battle Command Reception is enabled in production. Prove that the
+   four-second hold follows the personally adopted ambush intent even when the
+   physical movement owner legally displaces the final body endpoint. The
+   posture may not demand the Squad Leader's abstract point after Navigation /
+   personal-space physicality has selected a different safe place to stand. */
+const physicalEndpoint = world(true, true, false, { commandMovement: true });
+const physicalPosture = physicalEndpoint.P.update(physicalEndpoint.b, physicalEndpoint.q);
+assert.ok(physicalPosture && physicalPosture.orders.length >= 3);
+physicalEndpoint.r.BattleSoldierPersonalSpace = {
+  resolveDestination(sim, soldier, goal, kind) {
+    return kind === 'formation' ? { x: goal.x + 0.9, z: goal.z } : goal;
+  }
+};
+let physicalReady = null;
+H.run(physicalEndpoint.r, physicalEndpoint.b, 10, () => {
+  const state = physicalEndpoint.P.current(physicalEndpoint.b, physicalEndpoint.q);
+  if (state?.readyAt != null && physicalReady == null) physicalReady = state;
+});
+assert.ok(physicalReady, 'personally adopted ambush reaches readiness at Movement-authoritative endpoints');
+const physicalHeld = physicalReady.heldActorIds.map(id => {
+  const soldier = physicalEndpoint.q.members.find(s => String(s.id) === id);
+  const order = physicalReady.orders.find(o => o.soldierId === id);
+  return { soldier, order };
+});
+assert.ok(
+  physicalHeld.some(({ soldier, order }) =>
+    Math.hypot(soldier.root.position.x - order.point.x, soldier.root.position.z - order.point.z) > 0.5
+  ),
+  'regression must exercise a legal physical endpoint displaced from the abstract post'
+);
+assert.ok(
+  physicalHeld.every(({ soldier }) =>
+    soldier._movementStopReason === 'arrived' &&
+    physicalEndpoint.r.BattleCoverPositions.maskedPost(
+      physicalEndpoint.b,
+      soldier.root.position,
+      physicalReady.threats
+    )
+  ),
+  'the stable core physically arrived and remains masked at its actual body positions'
+);
+
 const combat = world();
 combat.P.update(combat.b, combat.q);
 const hostile = H.addSquad(combat.r, combat.b, {
