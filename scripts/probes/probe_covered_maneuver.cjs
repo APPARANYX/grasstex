@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
+const { requestPreview } = require('./preview_request.cjs');
 
 (async () => {
   const browser = await chromium.launch({
@@ -17,10 +18,7 @@ const { chromium } = require('playwright');
       ignoreHTTPSErrors: true,
       viewport: { width: 1440, height: 960 }
     });
-    const res = await context.request.get(process.env.TACTICAL_PREVIEW, {
-      maxRedirects: 0,
-      timeout: 180000
-    });
+    const res = await requestPreview(context, process.env.TACTICAL_PREVIEW);
     assert.equal(res.status(), 302);
     const url = new URL(res.headers().location, process.env.TACTICAL_PREVIEW);
     assert.ok(url.pathname.includes('ref-' + process.env.TACTICAL_SHA.slice(0, 12)));
