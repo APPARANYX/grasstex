@@ -32,6 +32,112 @@
           : !!(c && !c.heard && !c.relayedFrom);
       return c && c.unit && (!d || d.combatThreat) && own ? c : null;
     }
+    function supportAuthorityContact(sq, battle) {
+      var c = root.SquadAI.squadContact ? root.SquadAI.squadContact(sq, battle) : sq.contact;
+      if (!c || !isFinite(+c.x) || !isFinite(+c.z) || !isFinite(+c.at)) return null;
+      if (battle.time < +c.at || battle.time - +c.at > FIRE_CONTROL_TUNING.returnFireWindow) return null;
+      var direct = !!(c.seenBy != null && !c.heard && !c.relayedFrom),
+        incoming = !!(c.fireRevealed && c.precision === 'fire-origin' && !c.relayedFrom);
+      if (!direct && !incoming) return null;
+      return {
+        x: +c.x,
+        z: +c.z,
+        at: +c.at,
+        source: incoming ? 'incoming' : 'seen',
+        targetId: c.unit && c.unit.id != null ? String(c.unit.id) : null
+      };
+    }
+    function supportCandidates(sq, battle, point, prior) {
+      if (!point) return [];
+      var E = root.BattleEngagement,
+        A = root.BattleAmmunition,
+        T = root.BattleTacticalPositions,
+        previous = Array.isArray(prior) ? prior.map(String) : [],
+        men = commanded(sq).filter(function (s) {
+          if (
+            !s ||
+            s.dead ||
+            s.hp <= 0 ||
+            s.incapacitated ||
+            s.isPlayer ||
+            !s.weapon ||
+            !s.weapon.stats ||
+            s.weapon.jammed ||
+            s.target ||
+            s.moving ||
+            s.crawling ||
+            s.reloading ||
+            s.clearingStoppage ||
+            s.outOfAmmo ||
+            s.suppressedUntil > battle.time ||
+            (A && !A.available(s)) ||
+            (T && T.current && T.current(s))
+          )
+            return false;
+          var es = E && E.stateOf ? E.stateOf(s) : null;
+          if (
+            es &&
+            (es.state === 'bound' ||
+              es.state === 'pinned' ||
+              es.state === 'withdraw' ||
+              es.state === 'assault' ||
+              (E.reacting && E.reacting(s)))
+          )
+            return false;
+          return !!(root.SquadAI.canSuppress && root.SquadAI.canSuppress(s, point, battle, true));
+        });
+      men.sort(function (a, b) {
+        var pa = previous.indexOf(String(a.id)) >= 0 ? 0 : 1,
+          pb = previous.indexOf(String(b.id)) >= 0 ? 0 : 1;
+        if (pa !== pb) return pa - pb;
+        var ga = root.SquadAI.isMachineGun(a) ? 0 : 1,
+          gb = root.SquadAI.isMachineGun(b) ? 0 : 1;
+        if (ga !== gb) return ga - gb;
+        return (+a.slotIndex || 0) - (+b.slotIndex || 0);
+      });
+      return men.slice(0, 2);
+    }
+    function areaSupport(sq, battle, report, posture, prev) {
+      if (!posture || posture.readyAt == null || !report || !(report.underFire > 0)) return null;
+      var authority = supportAuthorityContact(sq, battle),
+        oldPoint = prev && prev.supportPoint,
+        point =
+          oldPoint && isFinite(+oldPoint.x) && isFinite(+oldPoint.z)
+            ? { x: +oldPoint.x, z: +oldPoint.z }
+            : authority && { x: authority.x, z: authority.z },
+        men = supportCandidates(sq, battle, point, prev && prev.supporterIds);
+      if (men.length < 2 && authority) {
+        point = { x: authority.x, z: authority.z };
+        men = supportCandidates(sq, battle, point, prev && prev.supporterIds);
+      }
+      if (men.length < 2 || !point) return null;
+      return {
+        point: point,
+        ids: men.map(function (s) {
+          return String(s.id);
+        }),
+        source: authority ? authority.source : prev && prev.supportSource,
+        at: authority ? authority.at : prev && prev.supportAt
+      };
+    }
+    function sameAreaSupport(fc, support) {
+      var oldIds = (fc && fc.supporterIds) || [],
+        ids = (support && support.ids) || [],
+        old = fc && fc.supportPoint,
+        point = support && support.point;
+      return (
+        oldIds.length === ids.length &&
+        oldIds.every(function (id, i) {
+          return String(id) === String(ids[i]);
+        }) &&
+        ((!old && !point) ||
+          (old &&
+            point &&
+            Math.abs(+old.x - +point.x) < 1e-6 &&
+            Math.abs(+old.z - +point.z) < 1e-6))
+      );
+    }
+
     function fireControlRange(sq, c) {
       var p = average(sq);
       return p && c ? dist(p, c) : Infinity;
@@ -144,7 +250,17 @@
               ? +prev.terrainCrestBlocked || 0
               : 0
             : +data.terrainCrestBlocked || 0,
-        proneReady: data.proneReady == null ? (prev ? +prev.proneReady || 0 : 0) : +data.proneReady || 0
+        proneReady: data.proneReady == null ? (prev ? +prev.proneReady || 0 : 0) : +data.proneReady || 0,
+        supportPoint:
+          data.areaSupport && data.areaSupport.point
+            ? { x: +data.areaSupport.point.x, z: +data.areaSupport.point.z }
+            : null,
+        supporterIds:
+          data.areaSupport && Array.isArray(data.areaSupport.ids)
+            ? data.areaSupport.ids.slice(0, 2).map(String)
+            : [],
+        supportSource: data.areaSupport ? data.areaSupport.source || null : null,
+        supportAt: data.areaSupport && isFinite(+data.areaSupport.at) ? +data.areaSupport.at : null
       };
       sq.fireControl = fc;
       var CR = root.BattleCommandReception,
@@ -158,14 +274,26 @@
                   '|' +
                   String(fc.targetId == null ? '' : fc.targetId) +
                   '|' +
-                  String(fc.shooterId == null ? '' : fc.shooterId),
+                  String(fc.shooterId == null ? '' : fc.shooterId) +
+                  '|' +
+                  fc.supporterIds.join(',') +
+                  '|' +
+                  (fc.supportPoint
+                    ? (+fc.supportPoint.x).toFixed(2) + ',' + (+fc.supportPoint.z).toFixed(2)
+                    : ''),
                 reason: reason || null,
                 spatial: false,
                 reference: 'none',
                 data: {
                   state: state,
                   targetId: fc.targetId == null ? null : String(fc.targetId),
-                  shooterId: fc.shooterId == null ? null : String(fc.shooterId)
+                  shooterId: fc.shooterId == null ? null : String(fc.shooterId),
+                  supportPoint: fc.supportPoint
+                    ? { x: +fc.supportPoint.x, z: +fc.supportPoint.z }
+                    : null,
+                  supporterIds: fc.supporterIds.slice(),
+                  supportSource: fc.supportSource,
+                  supportAt: fc.supportAt
                 }
               })
             : null;
@@ -218,13 +346,21 @@
           open =
             (report && report.underFire > 0) ||
             (posture.readyAt != null && contact && ambushCounts.ready >= 2),
-          desired = open ? 'open' : 'hold';
-        if (fc && fc.state === desired && fc.reason === 'coordinated masked ambush') return fc;
+          desired = open ? 'open' : 'hold',
+          support = desired === 'open' ? areaSupport(sq, battle, report, posture, fc) : null;
+        if (
+          fc &&
+          fc.state === desired &&
+          fc.reason === 'coordinated masked ambush' &&
+          sameAreaSupport(fc, support)
+        )
+          return fc;
         return setFireControl(sq, battle, fc, desired, 'coordinated masked ambush', {
           targetId: contact && contact.unit.id,
           ready: ambushCounts.ready,
           requiredReady: 2,
-          living: posture.members.length
+          living: posture.members.length,
+          areaSupport: support
         });
       }
       if (fc && fc.state === 'reposition' && battle.time - fc.since >= FIRE_CONTROL_TUNING.repositionTimeout)
