@@ -10,7 +10,8 @@ function world(
   entryGate = false,
   survey = false,
   watch = false,
-  contactResume = false
+  contactResume = false,
+  continuity = false
 ) {
   H.resetIds();
   const r = H.bootstrap({
@@ -23,7 +24,8 @@ function world(
         (entryGate ? '&localEntryGate=1' : '') +
         (survey ? '&localSurvey=1' : '') +
         (watch ? '&localWatch=1' : '') +
-        (contactResume ? '&localContactResume=1' : '')
+        (contactResume ? '&localContactResume=1' : '') +
+        (continuity ? '&localContinuity=1' : '')
     }),
     systems = {},
     events = [];
@@ -315,9 +317,10 @@ function structureWorld(
   entryGate = false,
   survey = false,
   watch = false,
-  contactResume = false
+  contactResume = false,
+  continuity = false
 ) {
-  const x = world(true, structures, entry, entryGate, survey, watch, contactResume);
+  const x = world(true, structures, entry, entryGate, survey, watch, contactResume, continuity);
   loadModule(x.r, 'battle/battle-navigation.js', { console: quietConsole, location: x.r.location });
   const house = {
     id: 'farmhouse',
@@ -556,8 +559,8 @@ assert.equal(gateReset.P.entrySatisfied(gateReset.b, gateReset.q, gateReset.q.ro
 // Two live witnesses must actually be inside and looking along clear
 // Navigation/terrain sightlines. A successful survey is evidence of ground
 // footprint observation only; neither contacts nor clearance are inferred.
-function surveyFixture(watch = false, contactResume = false) {
-  const x = structureWorld(true, true, true, true, watch, contactResume);
+function surveyFixture(watch = false, contactResume = false, continuity = false) {
+  const x = structureWorld(true, true, true, true, watch, contactResume, continuity);
   const door = x.r.BattleNavigation.doorPortals[0],
     leader = x.r.SquadAI.leaderOf(x.q),
     buddy = x.q.members.find(s => s !== leader),
@@ -882,6 +885,170 @@ for (const spoil of [
     'superseded mission, target, map, route, retreat or restart cannot replay a contact leg'
   );
 }
+
+// Separate, continuously corroborated interior provenance survives contact;
+// no physical crossing or prior survey/watch completion is synthesized.
+function continuityFixture(presecured = false) {
+  const x = surveyFixture(true, true, true);
+  x.buddy.root.position.x = 0;
+  x.buddy.root.position.z = 200;
+  x.b.time += 0.45;
+  x.P.update(x.b, x.q);
+  // Seed and corroborate before Engagement takes ownership.
+  x.b.time += 0.45;
+  x.P.update(x.b, x.q);
+  if (presecured) {
+    for (let i = 0; i < 4; i++) {
+      face(i < 2 ? x.leader : x.buddy, surveyPoint(x, i));
+      x.b.time += 0.45;
+      x.P.update(x.b, x.q);
+    }
+    x.buddy.root.position.x = 3;
+    face(x.leader, x.door.outside);
+    face(x.buddy, x.house);
+    x.b.time += 0.45;
+    x.P.update(x.b, x.q);
+    x.b.time += 0.75;
+    x.P.update(x.b, x.q);
+    assert.equal(x.P.entrySatisfied(x.b, x.q, x.q.route[1]), true, 'pre-contact security actually complete');
+  }
+  x.q.inContact = true;
+  x.q._engagementPlan = { missionVersion: 1, status: 'active' };
+  // Exercise the real local-before-mission commander order.
+  for (let i = 0; i < 3; i++) {
+    x.b.time += 0.45;
+    x.P.update(x.b, x.q);
+    x.S.executeMission(x.b, x.q, null);
+  }
+  assert.equal(x.L.get(x.q, 'route-transition'), null);
+  assert.equal(x.q.routeIndex, 1);
+  return x;
+}
+function rearmContinuity(x) {
+  x.q.inContact = false;
+  x.q._engagementPlan.status = 'quiet';
+  x.b.time += 0.45;
+  x.P.update(x.b, x.q);
+  x.S.executeMission(x.b, x.q, null);
+  assert.equal(x.L.get(x.q, 'route-transition'), null);
+  assert.equal(x.P.entrySatisfied(x.b, x.q, x.q.route[1]), false);
+  x.q._engagementPlan = null;
+  x.b.time += 0.45;
+  x.P.update(x.b, x.q);
+  x.S.executeMission(x.b, x.q, null);
+  assert.equal(x.q.routeIndex, 1, 'rearm tick cannot approve from earlier survey');
+  x.b.time += 0.45;
+  x.P.update(x.b, x.q);
+  return x.q._localTask.inputs.execution.structure;
+}
+const continuity = continuityFixture(true);
+const resumedPresence = rearmContinuity(continuity);
+assert.equal(resumedPresence.entryEvidence.entryVerified, false, 'no new physical entry event');
+assert.equal(resumedPresence.presenceEvidence.presenceVerified, true);
+assert.equal(resumedPresence.presenceEvidence.provenance, 'continuous-interior-presence');
+assert.ok(resumedPresence.presenceEvidence.physicalEntryAt < resumedPresence.presenceEvidence.enteredAt);
+assert.equal(resumedPresence.survey.complete, false);
+assert.equal(resumedPresence.watch.ready, false);
+// Freshly execute the four facing samples, then independently re-establish posts.
+for (let i = 0; i < 4; i++) {
+  face(i < 2 ? continuity.leader : continuity.buddy, surveyPoint(continuity, i));
+  continuity.b.time += 0.45;
+  continuity.P.update(continuity.b, continuity.q);
+}
+assert.equal(continuity.q._localTask.inputs.execution.structure.survey.complete, true);
+continuity.buddy.root.position.x = 3;
+face(continuity.leader, continuity.door.outside);
+face(continuity.buddy, continuity.house);
+continuity.b.time += 0.45;
+continuity.P.update(continuity.b, continuity.q);
+assert.equal(continuity.q._localTask.inputs.execution.structure.watch.ready, false);
+continuity.b.time += 0.75;
+continuity.P.update(continuity.b, continuity.q);
+assert.equal(continuity.P.entrySatisfied(continuity.b, continuity.q, continuity.q.route[1]), true);
+continuity.S.executeMission(continuity.b, continuity.q, null);
+assert.equal(continuity.q.routeIndex, 2, 'same mission owner hands back with fresh security');
+for (const spoil of [
+  x => {
+    x.b.time += 2;
+  },
+  x => {
+    x.b.time -= 1;
+  },
+  x => {
+    x.leader.isPlayer = true;
+  },
+  x => {
+    x.leader.dead = true;
+  },
+  x => {
+    x.buddy.dead = true;
+  },
+  x => {
+    x.buddy.isPlayer = true;
+  },
+  x => {
+    x.buddy.root.position.z = 180;
+  },
+  x => {
+    x.leader.root.position.x = 5;
+  },
+  x => {
+    x.r.SquadAI.hasLineOfSight = () => false;
+  },
+  x => {
+    x.q._macroMission.version++;
+  },
+  x => {
+    x.q.route[1].z++;
+  },
+  x => {
+    x.r.BattleNavigation.installScenario(x.scenario);
+  },
+  x => {
+    x.q.state = 'retreat';
+  },
+  x => {
+    x.systems['squad-command'].onBattleRestart(x.b);
+  }
+]) {
+  const x = continuityFixture();
+  x.b.time += 0.05;
+  spoil(x);
+  x.P.update(x.b, x.q);
+  x.q.inContact = false;
+  x.q._engagementPlan = null;
+  x.b.time += 0.45;
+  x.S.executeMission(x.b, x.q, null);
+  x.P.update(x.b, x.q);
+  assert.ok(
+    !x.q._localTask?.inputs.execution?.structure?.presenceEvidence,
+    'lost continuity, identity, Navigation, possession or restart fails closed'
+  );
+  assert.equal(x.P.entrySatisfied(x.b, x.q, x.q.route[1]), false);
+}
+const loss = continuityFixture();
+loss.buddy.root.position.z = 180;
+loss.b.time += 0.45;
+loss.P.update(loss.b, loss.q);
+loss.buddy.root.position.z = 200;
+assert.ok(
+  !rearmContinuity(loss).presenceEvidence,
+  'returning witness cannot repair the lost observation chain'
+);
+const noEntry = structureWorld(true, true, true, true, true, true, true);
+noEntry.q.members.forEach(s => {
+  s.root.position.x = 0;
+  s.root.position.z = 200;
+});
+for (let i = 0; i < 5; i++) {
+  noEntry.b.time += 0.45;
+  noEntry.P.update(noEntry.b, noEntry.q);
+}
+assert.ok(
+  !noEntry.q._localTask.inputs.execution.structure.presenceEvidence,
+  'spawned-inside timer never creates provenance'
+);
+assert.equal(noEntry.P.entrySatisfied(noEntry.b, noEntry.q, noEntry.q.route[1]), false);
 
 // Only own stored sightings at a valid age may annotate reported threats.
 structure.r.SquadAI.squadContactsMap = () => [

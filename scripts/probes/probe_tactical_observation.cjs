@@ -26,6 +26,16 @@ const { chromium } = require('playwright');
     url.searchParams.set('localResources', '1');
     url.searchParams.set('localDegrade', '1');
     url.searchParams.set('localTasks', '1');
+    for (const flag of [
+      'localStructures',
+      'localEntry',
+      'localEntryGate',
+      'localSurvey',
+      'localWatch',
+      'localContactResume',
+      'localContinuity'
+    ])
+      url.searchParams.set(flag, '1');
     url.searchParams.set('coveredBounds', '1');
     const page = await context.newPage();
     const errors = [];
@@ -577,6 +587,132 @@ const { chromium } = require('playwright');
     evidence.localMissionTasks.sampledAllocationBytes = allocated(missionProfile.profile.head);
     evidence.localMissionTasks.collectedHeapDeltaBytes = missionAfter.usedSize - missionBefore.usedSize;
     assert.equal(evidence.localMissionTasks.stable, true);
+    evidence.interiorContinuity = await page.evaluate(() => {
+      const actual = __battle__,
+        S = BattleSquadStability,
+        P = S.localPlan,
+        N = BattleNavigation,
+        L = BattleLeases;
+      if (!P.continuityOn) throw Error('continuity query flag lost');
+      const scene = actual.scene.metadata.battleScenario || actual.scene.metadata.battleTown;
+      const door = N.doorPortals.find(p => {
+        const b = scene.buildings.find(b => b.id === p.building);
+        return b && b.w >= 4 && b.w <= 30 && b.d >= 4 && b.d <= 30 && N.movementClear(p.inside, b);
+      });
+      if (!door) throw Error('real Navigation footprint fixture missing');
+      const house = scene.buildings.find(b => b.id === door.building);
+      // Isolated contract fixture on real-page Navigation/terrain/LOS. These
+      // poses are controlled inputs, never autonomous or screenshot evidence.
+      const b = { ...actual, time: actual.time },
+        q = {
+          id: 'continuity-contract',
+          faction: 'us',
+          state: 'advance',
+          routeIndex: 1,
+          commandPhase: 'clear-town',
+          members: [],
+          contact: null,
+          inContact: false,
+          route: [{ ...door.outside }, { x: house.x, z: house.z }, { x: house.x, z: house.z + 80 }]
+        };
+      const m = (q._macroMission = {
+        version: 1,
+        status: 'executing',
+        intent: 'capture',
+        action: 'assault',
+        route: q.route.slice(0, 2),
+        point: q.route[2]
+      });
+      q._missionExecution = { mission: m, acceptedAt: b.time };
+      for (let i = 0; i < 2; i++)
+        q.members.push({
+          id: 900000 + i,
+          role: i ? 'rifleman' : 'sergeant',
+          faction: 'us',
+          squad: q,
+          hp: 100,
+          root: { position: i ? { x: house.x, z: house.z } : { ...door.outside }, rotation: { y: 0 } }
+        });
+      const leader = q.members[0],
+        witness = q.members[1];
+      L.grant(
+        q,
+        'route-transition',
+        'squad-leader',
+        b.time,
+        b.time + 120,
+        'browser contract',
+        'arrival/contact',
+        {
+          leg: 1,
+          missionVersion: 1,
+          target: q.route[1],
+          arrivalRadius: 8,
+          distance: 20,
+          bestDistance: 20,
+          traveled: 0,
+          lastPosition: { ...door.outside },
+          noProgressBudget: 120
+        }
+      );
+      P.update(b, q);
+      b.time += 0.45;
+      Object.assign(leader.root.position, door.inside);
+      P.update(b, q);
+      if (!q._localTask.inputs.execution.structure.entryEvidence.entryVerified)
+        throw Error('portal entry fixture rejected');
+      b.time += 0.45;
+      P.update(b, q);
+      q.inContact = true;
+      q._engagementPlan = { missionVersion: 1, status: 'active' };
+      for (let i = 0; i < 3; i++) {
+        b.time += 0.45;
+        P.update(b, q);
+        S.executeMission(b, q, scene);
+      }
+      if (L.get(q, 'route-transition') || q.routeIndex !== 1)
+        throw Error('contact did not yield route authority');
+      q.inContact = false;
+      q._engagementPlan.status = 'quiet';
+      b.time += 0.45;
+      P.update(b, q);
+      S.executeMission(b, q, scene);
+      if (L.get(q, 'route-transition')) throw Error('quiet plan was bypassed');
+      q._engagementPlan = null;
+      b.time += 0.45;
+      P.update(b, q);
+      S.executeMission(b, q, scene);
+      b.time += 0.45;
+      P.update(b, q);
+      const structure = q._localTask.inputs.execution.structure;
+      if (
+        structure.entryEvidence.entryVerified ||
+        !structure.presenceEvidence?.presenceVerified ||
+        structure.survey.complete ||
+        structure.watch.ready ||
+        q.routeIndex !== 1
+      )
+        throw Error('presence fabricated crossing/security or failed fresh reassessment');
+      const stable = JSON.stringify(P.update(b, q)) === JSON.stringify(P.update(b, q));
+      witness.dead = true;
+      if (P.entrySatisfied(b, q, q.route[1])) throw Error('lost witness query accepted');
+      b.time += 0.45;
+      P.update(b, q);
+      if (q._localTask.inputs.execution.structure.presenceEvidence)
+        throw Error('lost witness retained continuity');
+      P.reset(q);
+      return {
+        fixture:
+          'isolated controlled poses; shipping real-page Navigation/terrain/LOS and mission-owner APIs; not autonomous gameplay',
+        buildingId: house.id,
+        doorwayId: door.id,
+        provenance: structure.presenceEvidence,
+        freshSurveyRequired: true,
+        freshWatchRequired: true,
+        lostWitnessRejected: true,
+        stable
+      };
+    });
     evidence.localDegradation = await page.evaluate(() => {
       const b = __battle__,
         S = BattleSquadStability,

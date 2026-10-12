@@ -34,6 +34,11 @@
       contactResumeOn =
         watchOn &&
         /[?&]localContactResume=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
+      continuityOn =
+        contactResumeOn &&
+        /[?&]localContinuity=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
+      presence = new WeakMap(),
+      revokedPresence = new WeakMap(),
       tuning = {
         pressureEnter: 0.45,
         pressureExit: 0.25,
@@ -41,7 +46,10 @@
         contactAge: 10,
         confidence: 0.5,
         resourceLimit: 32,
-        minimumSupport: 2
+        minimumSupport: 2,
+        presenceGap: 1.5,
+        presenceSpeed: 7,
+        presenceSlack: 0.15
       };
     function point(p) {
       return p && typeof p.x === 'number' && typeof p.z === 'number' && isFinite(p.x) && isFinite(p.z)
@@ -61,6 +69,191 @@
         si = Math.sin(+b.rot || 0);
       return Math.abs(dx * c - dz * si) < b.w / 2 - 0.05 && Math.abs(dx * si + dz * c) < b.d / 2 - 0.05;
     }
+    function combatHeld(sq) {
+      var p = sq._engagementPlan;
+      return !!sq.inContact || !!(continuityOn && p && (p.status === 'active' || p.status === 'quiet'));
+    }
+    function presenceValid(sim, sq, state) {
+      var N = root.BattleNavigation,
+        leader = A.leaderOf(sq),
+        m = sq._macroMission,
+        ex = sq._missionExecution,
+        target = point((sq.route || [])[+sq.routeIndex]),
+        meta = sim.scene && sim.scene.metadata,
+        scene = meta && (meta.battleScenario || meta.battleTown),
+        now = +sim.time || 0;
+      if (
+        !state ||
+        !N ||
+        !m ||
+        !ex ||
+        ex.mission !== m ||
+        m.status !== 'executing' ||
+        state.mission !== m ||
+        state.missionVersion !== ctx.missionVersion(sq) ||
+        state.leg !== +sq.routeIndex ||
+        !target ||
+        target.x !== state.target.x ||
+        target.z !== state.target.z ||
+        ctx.commanded(sq).length > tuning.resourceLimit ||
+        state.scene !== scene ||
+        N.scenario !== scene ||
+        state.navigationVersion !== N.version ||
+        sq.state === 'retreat' ||
+        ctx.leaderlessActive(sq) ||
+        leader !== state.leader ||
+        !leader ||
+        leader.dead ||
+        leader.hp <= 0 ||
+        leader.incapacitated ||
+        leader.isPlayer ||
+        !leader.root ||
+        !point(leader.root.position) ||
+        !insideBuilding(state.building, leader.root.position) ||
+        now < state.observedAt ||
+        now - state.observedAt > tuning.presenceGap ||
+        !N.movementClear(state.position, leader.root.position) ||
+        Math.hypot(leader.root.position.x - state.position.x, leader.root.position.z - state.position.z) >
+          tuning.presenceSlack + tuning.presenceSpeed * (now - state.observedAt)
+      )
+        return false;
+      if (state.observations) {
+        var witness = ctx.commanded(sq).find(function (s) {
+          return String(s.id) === state.witnessId;
+        });
+        if (
+          !witness ||
+          witness === leader ||
+          witness.dead ||
+          witness.hp <= 0 ||
+          witness.incapacitated ||
+          witness.isPlayer ||
+          !witness.root ||
+          !point(witness.root.position) ||
+          !insideBuilding(state.building, witness.root.position) ||
+          !N.movementClear(state.witnessPosition, witness.root.position) ||
+          Math.hypot(
+            witness.root.position.x - state.witnessPosition.x,
+            witness.root.position.z - state.witnessPosition.z
+          ) >
+            tuning.presenceSlack + tuning.presenceSpeed * (now - state.observedAt) ||
+          typeof A.hasLineOfSight !== 'function' ||
+          typeof sim.heightAt !== 'function' ||
+          !A.hasLineOfSight(witness, leader, sim.heightAt, sim.obstacles)
+        )
+          return false;
+      }
+      return true;
+    }
+    /* Separate provenance, never a synthesized crossing. Only this update hook
+       advances the bounded observation chain. Read-only arrival queries cannot
+       refresh it. A missing tick, impossible delta or lost witness is terminal. */
+    function observePresence(sim, sq, structure) {
+      if (!continuityOn) return;
+      var old = presence.get(sq),
+        now = +sim.time || 0;
+      if (old && !presenceValid(sim, sq, old)) {
+        revokedPresence.set(sq, old);
+        presence.delete(sq);
+        return;
+      }
+      var evidence = structure && structure.entryEvidence,
+        N = root.BattleNavigation,
+        meta = sim.scene && sim.scene.metadata,
+        scene = meta && (meta.battleScenario || meta.battleTown),
+        leader = A.leaderOf(sq);
+      if (!old) {
+        if (!evidence || !evidence.entryVerified || combatHeld(sq) || !scene || !leader || leader.isPlayer)
+          return;
+        var revoked = revokedPresence.get(sq);
+        if (
+          revoked &&
+          revoked.mission === sq._macroMission &&
+          revoked.leader === leader &&
+          revoked.enteredAt === evidence.enteredAt
+        )
+          return;
+        var b = scene.buildings.find(function (b) {
+          return b.id === structure.buildingId;
+        });
+        old = {
+          mission: sq._macroMission,
+          missionVersion: ctx.missionVersion(sq),
+          leg: +sq.routeIndex,
+          target: point(sq.route[+sq.routeIndex]),
+          scene: scene,
+          building: b,
+          navigationVersion: N.version,
+          doorwayId: structure.doorwayId,
+          leader: leader,
+          enteredAt: evidence.enteredAt,
+          observedAt: now,
+          position: point(leader.root.position),
+          observations: 0,
+          interrupted: false,
+          reassessmentAt: null
+        };
+      }
+      var witness = ctx.commanded(sq).find(function (s) {
+        return (
+          s !== leader &&
+          (!old.observations || String(s.id) === old.witnessId) &&
+          !s.dead &&
+          s.hp > 0 &&
+          !s.incapacitated &&
+          !s.isPlayer &&
+          s.root &&
+          point(s.root.position) &&
+          insideBuilding(old.building, s.root.position) &&
+          typeof A.hasLineOfSight === 'function' &&
+          typeof sim.heightAt === 'function' &&
+          A.hasLineOfSight(s, leader, sim.heightAt, sim.obstacles)
+        );
+      });
+      if (!witness || !presenceValid(sim, sq, old)) {
+        if (old.observations) revokedPresence.set(sq, old);
+        presence.delete(sq);
+        return;
+      }
+      if (now > old.observedAt || !old.observations) old.observations = Math.min(8, old.observations + 1);
+      old.observedAt = now;
+      old.position = point(leader.root.position);
+      old.witnessId = String(witness.id);
+      old.witnessPosition = point(witness.root.position);
+      if (combatHeld(sq)) {
+        old.interrupted = true;
+        old.reassessmentAt = null;
+      } else if (old.interrupted && old.reassessmentAt == null) old.reassessmentAt = now;
+      presence.set(sq, old);
+    }
+    function reassessmentEvidence(sim, sq, b, entry) {
+      var state = continuityOn && presence.get(sq);
+      if (
+        !presenceValid(sim, sq, state) ||
+        state.building !== b ||
+        state.doorwayId !== entry.id ||
+        !state.interrupted ||
+        state.observations < 2 ||
+        state.reassessmentAt == null ||
+        combatHeld(sq)
+      )
+        return null;
+      return {
+        provenance: 'continuous-interior-presence',
+        observerId: String(state.leader.id),
+        missionVersion: state.missionVersion,
+        leg: state.leg,
+        enteredAt: state.reassessmentAt,
+        physicalEntryAt: state.enteredAt,
+        observedAt: state.observedAt,
+        witnessId: state.witnessId,
+        observations: state.observations,
+        presenceVerified: true
+      };
+    }
+    function authorizedEvidence(e) {
+      return !!(e && (e.entryVerified || e.presenceVerified));
+    }
     /* #299 C footprint-only security observation. Four inward ground-floor
        sightline samples are NOT enemy detection, room clearance or control.
        Require the original physical doorway crossing, two independent living
@@ -69,10 +262,10 @@
        no second commander, fire, position or mission writer. */
     function interiorSurvey(sim, sq, b, men, entryEvidence, prior, threats) {
       var now = +sim.time || 0,
-        verified = !!(entryEvidence && entryEvidence.entryVerified),
+        verified = authorizedEvidence(entryEvidence),
         eligible =
           verified &&
-          !sq.inContact &&
+          !combatHeld(sq) &&
           !threats &&
           b.w >= 4 &&
           b.w <= 30 &&
@@ -98,12 +291,12 @@
             })
           : [],
         previous = prior && prior.survey,
-        previousEntry = prior && prior.entryEvidence,
+        previousEntry = prior && (prior.presenceEvidence || prior.entryEvidence),
         continuity =
           eligible &&
           previous &&
           previousEntry &&
-          previousEntry.entryVerified &&
+          authorizedEvidence(previousEntry) &&
           previousEntry.enteredAt === entryEvidence.enteredAt &&
           previous.observedAt <= now &&
           now - previous.observedAt <= 3,
@@ -199,10 +392,10 @@
         N = root.BattleNavigation,
         eligible = !!(
           evidence &&
-          evidence.entryVerified &&
+          authorizedEvidence(evidence) &&
           survey &&
           survey.complete &&
-          !sq.inContact &&
+          !combatHeld(sq) &&
           !threats &&
           N &&
           N.movementClear &&
@@ -381,7 +574,7 @@
         var old = sq._localTask,
           prior =
             old &&
-            old.kind === 'structure-handoff' &&
+            (old.kind === 'structure-handoff' || continuityOn) &&
             old.inputs &&
             old.inputs.execution &&
             old.inputs.execution.structure,
@@ -430,7 +623,9 @@
           handoff: confirmed ? 'interior-observation-required' : 'awaiting-physical-entry'
         };
       }
-      var surveyed = surveyOn ? interiorSurvey(sim, sq, b, men, entryEvidence, prior, threats) : null;
+      var continuous = reassessmentEvidence(sim, sq, b, entry),
+        authorization = continuous || entryEvidence,
+        surveyed = surveyOn ? interiorSurvey(sim, sq, b, men, authorization, prior, threats) : null;
       return {
         buildingId: b.id,
         doorwayId: entry.id,
@@ -441,9 +636,10 @@
         clearance: 'not-assessed',
         provenance: 'navigation-door/own-position/reported-beliefs',
         entryEvidence: entryEvidence || undefined,
+        presenceEvidence: continuous || undefined,
         survey: surveyed || undefined,
         watch: watchOn
-          ? doorwayWatch(sim, sq, b, entry, men, entryEvidence, surveyed, prior, threats)
+          ? doorwayWatch(sim, sq, b, entry, men, authorization, surveyed, prior, threats)
           : undefined
       };
     }
@@ -558,6 +754,20 @@
        merely near the wall. Only previously confirmed, current-leg evidence
        may permit the original Mission Execution owner to advance. */
     function entryRequired(sim, sq, target) {
+      if (continuityOn && sq && point(target)) {
+        var meta = sim.scene && sim.scene.metadata,
+          scene = meta && (meta.battleScenario || meta.battleTown);
+        /* Loss of a usable portal/observer is failed authorization, never a
+           reason to remove the arrival gate for a known building target. */
+        if (
+          scene &&
+          Array.isArray(scene.buildings) &&
+          scene.buildings.some(function (b) {
+            return insideBuilding(b, target);
+          })
+        )
+          return true;
+      }
       return !!(
         entryGateOn &&
         sq &&
@@ -573,7 +783,7 @@
         task = sq._localTask,
         ex = task && task.inputs && task.inputs.execution,
         structure = ex && ex.structure,
-        evidence = structure && structure.entryEvidence,
+        evidence = structure && (structure.presenceEvidence || structure.entryEvidence),
         leader = A.leaderOf(sq),
         now = +sim.time || 0,
         endpoint = structureInterface(sim, sq, point(target), ctx.commanded(sq));
@@ -594,7 +804,8 @@
         structure.doorwayId === endpoint.doorwayId &&
         structure.navigationVersion === N.version &&
         evidence &&
-        evidence.entryVerified === true &&
+        authorizedEvidence(evidence) &&
+        !combatHeld(sq) &&
         evidence.missionVersion === version &&
         evidence.leg === +sq.routeIndex &&
         evidence.observerId === String(leader && leader.id) &&
@@ -833,6 +1044,7 @@
         !pressured &&
         eligible[old.kind] &&
         now - old.since < ctx.BOUND_DURATION &&
+        !(continuityOn && old.kind === 'approach' && eligible['structure-handoff']) &&
         !(old.inputs.contact && old.inputs.supporting == null && inputs.supporting != null)
       )
         kind = old.kind;
@@ -892,7 +1104,15 @@
       if (!on || !sim || !sq) return null;
       /* Existing succession/retreat owners retain their authority, including an
          inherited committed move. Never publish a new local command here. */
-      if (ctx.leaderlessActive(sq) || (sq.state === 'retreat' && !execution(sim, sq))) return null;
+      if (ctx.leaderlessActive(sq) || (sq.state === 'retreat' && !execution(sim, sq))) {
+        if (presence.has(sq)) revokedPresence.set(sq, presence.get(sq));
+        presence.delete(sq);
+        return null;
+      }
+      if (continuityOn) {
+        var target = point((sq.route || [])[+sq.routeIndex]);
+        observePresence(sim, sq, target && structureInterface(sim, sq, target, ctx.commanded(sq)));
+      }
       var inputs = read(sim, sq, report),
         now = +sim.time || 0,
         choice = decide(sq, inputs, now),
@@ -926,6 +1146,8 @@
     }
     function reset(sq) {
       sq._localTask = null;
+      presence.delete(sq);
+      revokedPresence.delete(sq);
     }
     function summary(sim) {
       if (!on) return null;
@@ -955,6 +1177,7 @@
       surveyOn: surveyOn,
       watchOn: watchOn,
       contactResumeOn: contactResumeOn,
+      continuityOn: continuityOn,
       execution: execution,
       entryRequired: entryRequired,
       entrySatisfied: entrySatisfied,
