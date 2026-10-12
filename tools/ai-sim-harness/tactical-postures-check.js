@@ -235,12 +235,32 @@ assert.equal(staged.stage, 'supporting-fire');
 assert.equal(staged.orders.length, 0, 'posture does not become a second destination writer');
 assert.equal(move.r.BattleLeases.get(move.q, 'bound'), null, 'eligibility never directly grants a bound');
 assert.equal(move.P.current(move.b, move.q).mode, 'maneuver');
-move.b.time += move.P.tuning.maneuverWindow;
-assert.equal(
-  move.P.update(move.b, move.q, { fireSupport: move.q.members.slice(1, 4) }).mode,
-  'hold',
-  'finite maneuver window closes without a permanent bound posture'
-);
+/* Commander ticks refresh the evidence cadence, rather than skipping 14
+   seconds (which would correctly revoke an unobserved posture entirely). */
+let finish = null;
+for (let i = 0; i < 45; i++) {
+  move.b.time += 0.4;
+  finish = move.P.update(move.b, move.q, { fireSupport: move.q.members.slice(1, 4) });
+  if (finish && finish.mode === 'hold') break;
+}
+assert.ok(finish && finish.mode === 'hold',
+  'finite maneuver window closes to defensive hold under normal update cadence');
+const readGap = world(true, true, true),
+  gap = readGap.P.update(readGap.b, readGap.q);
+gap.readyAt = readGap.b.time;
+gap.stage = 'ready';
+readGap.r.BattleCoverPositions.candidates = () => [
+  { x: readGap.q.members[0].root.position.x, z: moveSafe.z }
+];
+readGap.q.inContact = true;
+assert.equal(readGap.P.update(readGap.b, readGap.q,
+  { underFire: 1, fireSupport: readGap.q.members.slice(1, 4) }).mode, 'maneuver');
+readGap.b.time += 0.3;
+assert.equal(readGap.P.update(readGap.b, readGap.q).mode, 'maneuver',
+  'read-only commander tick without a fresh report preserves bounded support evidence');
+readGap.b.time += 0.7;
+assert.equal(readGap.P.update(readGap.b, readGap.q).mode, 'hold',
+  'missing real Engagement support reports cannot silently persist');
 const noSupport = world(true, true, true);
 const nos = noSupport.P.update(noSupport.b, noSupport.q);
 nos.readyAt = noSupport.b.time;
