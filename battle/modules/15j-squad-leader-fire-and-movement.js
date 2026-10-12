@@ -124,7 +124,7 @@
         L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'contact started', 'cycle expiry');
       }
       var posture = tacticalPostures && tacticalPostures.current(battle, sq);
-      if (posture) {
+      if (posture && posture.mode !== 'maneuver') {
         L.end(sq, 'bound', t, 'tactical posture holds');
         E.clearBoundOrders(sq);
         sq._assaultAuthorized = false;
@@ -298,6 +298,24 @@
         movers.length &&
         holding >= (localPlan && localPlan.resourcesOn ? localPlan.tuning.minimumSupport : 2)
       ) {
+        /* The only bounded movement command remains this Squad Leader
+           fireteam lease -> Engagement.orderBound. The new posture grants
+           neither a destination nor an exposed-route fallback. Validate
+           EVERY mover against real physicality before leasing the team; the
+           native coveredBounds gate independently rejects unsafe destinations. */
+        if (posture && posture.mode === 'maneuver' &&
+            (!tacticalPostures.coveredTeam(battle, sq, movers, r) ||
+              !root.BattleCoverPositions.coveredBoundsOn())) {
+          posture.stats.rejectedUnsafeBounds++;
+          telemetry(battle, 'decision-bound-held', {
+            faction: sq.faction,
+            squad: sq.id,
+            reason: 'no-safe-covered-team',
+            posture: 'maneuver',
+            team: team
+          });
+          return;
+        }
         L.grant(
           sq,
           'bound',
