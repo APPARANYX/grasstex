@@ -12,7 +12,8 @@ const { chromium } = require('playwright');
   fs.mkdirSync(dir, { recursive: true });
   const evidence = {
     fixture: 'staged reported approach on actual preview terrain; autonomous US soldiers; stationary hostile',
-    stages: []
+    stages: [],
+    shots: []
   };
   try {
     const context = await browser.newContext({
@@ -162,7 +163,18 @@ const { chromium } = require('playwright');
       b._postureProbe = { q, scene, selected, average, commandAccum: 0, ownShots: 0 };
       const fire = b.onFire;
       b.onFire = function (s) {
-        if (s.squad === q) b._postureProbe.ownShots++;
+        if (s.squad === q) {
+          b._postureProbe.ownShots++;
+          const posture = P.current(b, q);
+          b._postureProbe.lastShot = {
+            at: b.time,
+            shooterId: s.id,
+            stage: posture && posture.stage,
+            readyAt: posture && posture.readyAt,
+            incoming: BattleEngagement.underFireNow(s, b),
+            fireControl: q.fireControl && q.fireControl.state
+          };
+        }
         if (fire) fire.apply(this, arguments);
       };
       return {
@@ -203,6 +215,7 @@ const { chromium } = require('playwright');
           heldSince: st?.heldSince,
           readyAt: st?.readyAt,
           ownShots: p.ownShots,
+          lastShot: p.lastShot || null,
           fireControl: q.fireControl?.state,
           missionVersion: q._macroMission?.version,
           routeIndex: q.routeIndex,
@@ -221,11 +234,17 @@ const { chromium } = require('playwright');
         };
       });
       if (st.stage === 'hold' && holdAt == null) holdAt = st.time;
+      if (st.lastShot && !evidence.shots.some(e => e.at === st.lastShot.at))
+        evidence.shots.push(st.lastShot);
       evidence.last = st;
+      assert.ok(
+        st.ownShots === 0 || st.lastShot?.readyAt != null,
+        'no premature round before real four-second ambush preparation'
+      );
       const stages = [];
       if (st.stage === 'hold' && st.time >= 1) stages.push('masked-hold');
       if (st.stage === 'ready') stages.push('prepared-line');
-      if (st.ownShots > 0) stages.push('first-contact-volley');
+      if (st.ownShots > 0 && st.lastShot?.readyAt != null) stages.push('first-contact-volley');
       for (const name of stages)
         if (!captured.has(name)) {
           await page.evaluate(
