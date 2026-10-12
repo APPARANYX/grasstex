@@ -179,8 +179,15 @@ assert.ok(
 station.r.BattleTacticalPositions.current = () => null;
 assert.equal(
   station.P.current(station.b, station.q),
+  stationedPosture,
+  'nonparticipant station handback cannot cancel the prepared element'
+);
+const assignedMan = station.q.members.find(s => String(s.id) === stationedPosture.orders[0].soldierId);
+station.r.BattleTacticalPositions.current = s => (s === assignedMan ? { owner: 'emplacement' } : null);
+assert.equal(
+  station.P.current(station.b, station.q),
   null,
-  'station ownership handoff revokes roster snapshot'
+  'a reassigned ambush rifleman immediately revokes the existing posture'
 );
 
 /* One exposed rifleman must not cancel a real three-plus-rifle masked
