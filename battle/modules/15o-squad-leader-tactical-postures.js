@@ -267,8 +267,14 @@
         if (report && Array.isArray(report.fireSupport))
           st.lastSupportAt =
             report.fireSupport.filter(function (s) {
-              return a.indexOf(s) >= 0 && !s.dead && !s.moving && !s.outOfAmmo &&
-                !s.reloading && !(s.suppressedUntil > now);
+              return (
+                a.indexOf(s) >= 0 &&
+                !s.dead &&
+                !s.moving &&
+                !s.outOfAmmo &&
+                !s.reloading &&
+                !(s.suppressedUntil > now)
+              );
             }).length >= tuning.minSupport
               ? now
               : -Infinity;
