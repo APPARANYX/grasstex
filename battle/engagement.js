@@ -39,6 +39,11 @@
   var MOVE_FIRE_FRACTION = 0.12; // above this fraction of top speed the weapon stays down
   var ALERT_HOLD = 4.5; // hold the threat sector this long after losing sight
   var ENGAGE_REVIEW = 7.0; // re-open the cover question this often while holding
+  /* Phase C: experimental, per-soldier Micro fire/conceal cycle. The Squad Leader
+     neither schedules the pause nor receives a new command/ownership surface. */
+  var FIRE_COVER_CYCLE = /[?&]fireCoverCycle=(?:1|on|true)(?:&|#|$)/i.test(
+    (root.location && root.location.search) || ''
+  );
   var NO_LINE_GRACE = 6.0; // a held target the man cannot fire on this long is observed, not engaged
   /* On by default; `?fireLineContact=0` is the old rule (every held target is contact, however long it has been unshootable). */
   var FIRE_LINE_CONTACT = !(
@@ -124,6 +129,8 @@
         suppressOrder: false,
         burstLeft: SUPPRESS_BURST,
         burstPauseUntil: 0,
+        fireCoverPulls: 0,
+        fireCoverUntil: 0,
         freezeStartedAt: null,
         freezeUntil: 0,
         freezeDuration: 0,
@@ -770,6 +777,10 @@
       if (next !== 'withdraw') e.withdrawPoint = null;
       /* A gun that leaves its firing position has to be emplaced again before it counts as set up. */
       if (next !== 'engage' && next !== 'station') e.setUpSince = 0;
+      if (next !== 'engage') {
+        e.fireCoverPulls = 0;
+        e.fireCoverUntil = 0;
+      }
       e.state = next;
       e.since = battle.time;
       e.moveReason = why || next;
@@ -1448,6 +1459,73 @@
     move(s, battle, { x: cover.x, z: cover.z }, 'cover-bound');
   }
 
+  /* Micro alone owns a voluntary exposure break. Only a stationary rifleman
+     at actual usable cover can lower after several *real* trigger pulls; open
+     ground, suppressed men, assigned stations and emplaced guns keep their
+     existing survival / suppression owners. The ID phase is deterministic and
+     different per soldier, not synchronized by the Squad Leader or combat RNG. */
+  function fireCoverVariation(s) {
+    var id = String(s && s.id != null ? s.id : ''),
+      hash = 0;
+    for (var i = 0; i < id.length; i++) hash = (hash * 33 + id.charCodeAt(i)) % 997;
+    return hash;
+  }
+  function fireCoverEligible(s, battle, here) {
+    var F = field(),
+      p = posOf(s);
+    return !!(
+      FIRE_COVER_CYCLE &&
+      s.target &&
+      !s.dead &&
+      !s.isPlayer &&
+      !s.reloading &&
+      !s.crawling &&
+      !s.moving &&
+      !(s.suppressedUntil > battle.time) &&
+      PRONE_ROLES[s.role] &&
+      !SA().isMachineGun(s) &&
+      !(root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) &&
+      F &&
+      F.coverAt &&
+      here <= USEFUL_COVER &&
+      F.coverAt(battle.obstacles, p.x, p.z, 'prone') <= USEFUL_COVER &&
+      dist(p.x, p.z, posOf(s.target).x, posOf(s.target).z) > 20
+    );
+  }
+  function fireCoverRecovering(s, battle, here) {
+    var e = state(s),
+      until = +e.fireCoverUntil || 0;
+    if (!until) return false;
+    if (battle.time >= until || !fireCoverEligible(s, battle, here)) {
+      e.fireCoverUntil = 0;
+      e.fireCoverPulls = 0;
+      return false;
+    }
+    holdPosition(s, battle);
+    commitStanceRespectHold(s, battle, 'prone', Math.max(0.15, until - battle.time), 'individual-fire-cover');
+    return true;
+  }
+  function fireCoverAfterShot(s, battle, here, priorCooldown) {
+    var e = state(s);
+    if (!fireCoverEligible(s, battle, here)) {
+      e.fireCoverPulls = 0;
+      return false;
+    }
+    /* Only an actual pull that advanced the weapon's fire clock counts;
+       Engagement.tryFire() may report true without a round during cooldown. */
+    if (!(+s.fireCooldown > Math.max(0, +priorCooldown || 0) + 0.001)) return false;
+    e.fireCoverPulls = (+e.fireCoverPulls || 0) + 1;
+    var phase = fireCoverVariation(s),
+      pulls = 2 + (phase % 3);
+    if (e.fireCoverPulls < pulls) return false;
+    e.fireCoverPulls = 0;
+    e.fireCoverUntil = battle.time + 0.75 + ((phase >>> 2) % 5) * 0.15;
+    /* The rifleman chose to hide; its actual firing line must therefore cease
+       until he comes back up and satisfies the normal aim/stance checks. */
+    commitStance(s, battle, 'prone', e.fireCoverUntil - battle.time, 'individual-fire-cover');
+    return true;
+  }
+
   function engage(s, battle) {
     var e = state(s),
       p = posOf(s);
@@ -1466,6 +1544,7 @@
     }
 
     var d = dist(p.x, p.z, posOf(s.target).x, posOf(s.target).z);
+    if (fireCoverRecovering(s, battle, here)) return;
     /* A man who sees a head he cannot hit (fireLineLive) is observing, not fighting: he proposes no hold,
        so the Squad Leader's published order (the anchor's advance, a clearing move) takes him up to a
        position with a line instead of pinning him behind the crest for the rest of the battle. */
@@ -1483,7 +1562,9 @@
       if (!e.setUpSince) e.setUpSince = battle.time;
       s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
     } else s.setUp = false;
+    var fireClockBefore = +s.fireCooldown || 0;
     tryFire(s, battle);
+    fireCoverAfterShot(s, battle, here, fireClockBefore);
     if (battle.time >= (e.reviewAt || 0)) {
       e.reviewAt = battle.time + ENGAGE_REVIEW + jitter(s, 0.3);
       /* Also re-decide when the man has no LOS to his target — a man behind a hedgerow who
@@ -1828,6 +1909,7 @@
       reacting(s) ||
       fledPhase(s) ||
       battle.time < e.fireReadyAt ||
+      battle.time < (+e.fireCoverUntil || 0) ||
       !fireAuthorized(s, battle) ||
       battle.time < shockUntil(s) ||
       (ammo && !ammo.available(s))
@@ -2086,6 +2168,12 @@
     fireAuthorized: fireAuthorized,
     areaSupportOf: areaSupportOf,
     supportReady: supportReady,
+    fireCoverCycleOn: function () {
+      return FIRE_COVER_CYCLE;
+    },
+    fireCoverVariation: fireCoverVariation,
+    fireCoverRecovering: fireCoverRecovering,
+    fireCoverAfterShot: fireCoverAfterShot,
     effectiveFireOn: function () {
       return EFFECTIVE_FIRE;
     },
