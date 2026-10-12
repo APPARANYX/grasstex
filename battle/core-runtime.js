@@ -31,7 +31,8 @@
      Read the current Micro reaction; never change a soldier or draw combat RNG. */
   root.BattleVoiceEligibility = {
     allows: function (s, event) {
-      if (!s || s.dead || !s.root) return false;
+      if (!s || s.dead || !s.root || (typeof s.root.isDisposed === 'function' && s.root.isDisposed()))
+        return false;
       var e = s.eng || {},
         reaction = e.state,
         distress =

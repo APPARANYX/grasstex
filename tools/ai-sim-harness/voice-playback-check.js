@@ -126,6 +126,9 @@ for (const rel of ['battle/modules/09-voice-runtime.js', 'battle/modules/11-voic
       s.dead = true;
     },
     s => {
+      s.root.isDisposed = () => true;
+    },
+    s => {
       s.squad = { id: 'replacement' };
     },
     s => {

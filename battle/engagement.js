@@ -1774,6 +1774,7 @@
       !e ||
       !battle ||
       s.dead ||
+      s.hp <= 0 ||
       s.incapacitated ||
       s.isPlayer ||
       !s.weapon ||
