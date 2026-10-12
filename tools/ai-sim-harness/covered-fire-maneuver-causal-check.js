@@ -72,7 +72,7 @@ function world(withWall = true) {
   hostile.isPlayer = true;
   hostile.hp = 100000;
   hostile.root.position.set(0, 0, 60);
-  const positions = [0, -5, 5, 9];
+  const positions = [0, -20, -24, -28];
   q.members.forEach((s, i) => {
     s.root.position.set(positions[i], 0, -4);
     s.root.rotation.y = 0;
@@ -88,7 +88,13 @@ function world(withWall = true) {
   q.inContact = true;
   q.commandPhase = 'assault';
   q.fireControl = { state: 'open', since: 0, startedAt: 0 };
-  q._macroMission = { version: 1, status: 'executing', intent: 'capture', action: 'assault', point: { x: 0, z: 50 } };
+  q._macroMission = {
+    version: 1,
+    status: 'executing',
+    intent: 'capture',
+    action: 'assault',
+    point: { x: 0, z: 50 }
+  };
   const reportContact = { x: 0, z: 60, at: 5, confidence: 0.9, source: 'told' };
   r.SquadAI.soldierContact = () => reportContact;
   r.SquadAI.squadContactsMap = () => [reportContact];
@@ -110,10 +116,27 @@ function world(withWall = true) {
 }
 const w = world();
 const { r, b, q, S, P } = w;
-const C = r.BattleCoverPositions, E = r.BattleEngagement, L = r.BattleLeases;
-const mover = q.members[0], support = q.members.slice(1);
+const C = r.BattleCoverPositions,
+  E = r.BattleEngagement,
+  L = r.BattleLeases;
+const mover = q.members[0],
+  support = q.members.slice(1);
+/* The support element is on the wall's open flank and must first establish
+   genuine aiming and shot activity, not merely appear in a synthetic report. */
+for (let i = 0; i < 20; i++) {
+  b.time += 0.15;
+  for (const s of support) {
+    E.updateSoldier(s, b);
+    r.BattleMovementResolver.resolve(s, b);
+    H.stepMovement(b, s, 0.15);
+  }
+}
+assert.ok(b.events.fired > 0, 'live base must actually fire before mover authorization');
 const report = E.updateSquad(q, b);
-assert.ok(report.fireSupport.length >= 3, 'real Engagement must report independently viable supporting rifles');
+assert.ok(
+  report.fireSupport.length >= 3,
+  'real Engagement must report independently viable supporting rifles'
+);
 assert.ok(
   P.coveredTeam(b, q, [mover], report),
   'real Navigation, Perception and physical cover slot must allow the prospective moving rifleman'
@@ -122,8 +145,14 @@ const start = { x: mover.root.position.x, z: mover.root.position.z };
 S.fireAndMovement(q, b);
 assert.ok(L.holds(q, 'bound', b.time), 'shipping Squad Leader issued the single native bound lease');
 assert.equal(E.stateOf(mover).boundOrder, true, 'native Engagement received selected mover order');
-assert.ok(support.every(s => !E.stateOf(s).boundOrder), 'separate base of fire never receives bound order');
-let moved = 0, supportShotsDuringMove = 0, goal = null, firstMoveAt = null;
+assert.ok(
+  support.every(s => !E.stateOf(s).boundOrder),
+  'separate base of fire never receives bound order'
+);
+let moved = 0,
+  supportShotsDuringMove = 0,
+  goal = null,
+  firstMoveAt = null;
 const originalFire = b.onFire;
 b.onFire = function (s) {
   if (s && support.includes(s) && moved > 0.35 && moved < 12) supportShotsDuringMove++;
@@ -138,9 +167,13 @@ for (let i = 0; i < 120; i++) {
   }
   moved = Math.hypot(mover.root.position.x - start.x, mover.root.position.z - start.z);
   if (moved > 0.35 && firstMoveAt == null) firstMoveAt = b.time;
-  if (E.stateOf(mover).cover)
-    goal = { x: E.stateOf(mover).cover.x, z: E.stateOf(mover).cover.z };
-  if (goal && moved > 0.75 && Math.hypot(mover.root.position.x - goal.x, mover.root.position.z - goal.z) < 0.45) break;
+  if (E.stateOf(mover).cover) goal = { x: E.stateOf(mover).cover.x, z: E.stateOf(mover).cover.z };
+  if (
+    goal &&
+    moved > 0.75 &&
+    Math.hypot(mover.root.position.x - goal.x, mover.root.position.z - goal.z) < 0.45
+  )
+    break;
 }
 assert.ok(goal, 'native Engagement adopted physical cover without exposed fallback');
 assert.ok(moved > 0.75, 'moving fireteam physically displaced under shipping movement execution');
@@ -148,8 +181,25 @@ assert.ok(
   Math.hypot(mover.root.position.x - goal.x, mover.root.position.z - goal.z) < 0.45,
   'mover arrived at the actual selected covered slot'
 );
+console.log('CAUSAL_DIAGNOSTICS', JSON.stringify({
+  moved,
+  firstMoveAt,
+  goal,
+  shots: b.events.fired,
+  supportShotsDuringMove,
+  support: support.map(s => ({
+    id: s.id,
+    state: E.stateOf(s).state,
+    x: s.root.position.x,
+    z: s.root.position.z,
+    targetId: s.target && s.target.id
+  }))
+}));
 assert.ok(supportShotsDuringMove > 0, 'two-element evidence requires actual support fire while bound moves');
-assert.ok(support.every(s => !s.dead), 'supporting rifles remain viable');
+assert.ok(
+  support.every(s => !s.dead),
+  'supporting rifles remain viable'
+);
 const negative = world(false);
 const nr = negative.r.BattleEngagement.updateSquad(negative.q, negative.b);
 assert.equal(
@@ -159,12 +209,15 @@ assert.equal(
 );
 negative.S.fireAndMovement(negative.q, negative.b);
 assert.equal(negative.r.BattleLeases.get(negative.q, 'bound'), null);
-console.log('covered-fire-maneuver-causal-check: PASS', JSON.stringify({
-  moverId: mover.id,
-  supportIds: support.map(s => s.id),
-  firstMoveAt,
-  metres: +moved.toFixed(2),
-  supportShotsDuringMove,
-  cover: goal,
-  unsafeBoundRejections: negative.P.current().stats.rejectedUnsafeBounds
-}));
+console.log(
+  'covered-fire-maneuver-causal-check: PASS',
+  JSON.stringify({
+    moverId: mover.id,
+    supportIds: support.map(s => s.id),
+    firstMoveAt,
+    metres: +moved.toFixed(2),
+    supportShotsDuringMove,
+    cover: goal,
+    unsafeBoundRejections: negative.P.current().stats.rejectedUnsafeBounds
+  })
+);
