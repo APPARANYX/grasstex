@@ -225,6 +225,25 @@ test('fresh own-soldier sight can authorize support when the shared contact is r
     source: 'seen',
     targetId: String(w.foe.id)
   });
+  A.soldierContact = s =>
+    s === man
+      ? {
+          ...point,
+          at: w.b.time,
+          source: 'incoming',
+          precision: 'fire-origin',
+          confidence: 1,
+          knownUnitId: String(w.foe.id)
+        }
+      : null;
+  A.squadContactsMap = () => [];
+  assert.deepEqual(F.supportAuthorityContact(w.us, w.b), {
+    ...point,
+    at: w.b.time,
+    source: 'incoming',
+    targetId: String(w.foe.id)
+  });
+  A.soldierContact = () => null;
   A.squadContactsMap = () => [{ ...firstHand, source: 'heard' }];
   assert.equal(F.supportAuthorityContact(w.us, w.b), null, 'heard belief is not fire authority');
   A.squadContactsMap = () => [{ ...firstHand, confidence: 0.2 }];
