@@ -148,7 +148,9 @@ const { chromium } = require('playwright');
         C = BattleCoverPositions,
         q = b.factions.us.squads.find(q => A.leaderOf(q)),
         leader = A.leaderOf(q),
-        mover = q.members.find(s => s !== leader && !s.dead && !s.isPlayer),
+        mover = q.members.find(s => s !== leader && !s.dead && !s.isPlayer &&
+          !A.isMachineGun(s) &&
+          !(window.BattleTacticalPositions && BattleTacticalPositions.current(s))),
         support = [leader, ...q.members.filter(s => s !== leader && s !== mover)].slice(0, 3),
         hostile = b._roster.ge[0],
         opposition = hostile.squad,
@@ -342,6 +344,10 @@ const { chromium } = require('playwright');
           localPlanOn: S.localPlan.on, resourcesOn: S.localPlan.resourcesOn,
           realLocalPlan: S.localPlan.read && S.localPlan.read(b,q,report),
           boundCycle: L.get(q,'bound-cycle'), bound: L.get(q,'bound'),
+          selectedMover: {id:mover.id, role:mover.role, fireteam:mover._fireteamKey,
+            machineGun:A.isMachineGun(mover), eligible:S.localPlan.moverEligible(mover,q,b),
+            suppressedUntil:mover.suppressedUntil, reloading:mover.reloading,
+            reacting:report.reacting.map(s=>s.id)},
           supportRoles: support.map(s=>({id:s.id, fireteam:s._fireteamKey,
             validMover:S.localPlan.moverEligible(s,q,b)})),
           posture: P.current(b,q)
