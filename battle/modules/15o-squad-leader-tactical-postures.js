@@ -55,6 +55,17 @@
         ? a
         : null;
     }
+    function threatCopy(r) {
+      return {
+        x: r.x,
+        z: r.z,
+        at: r.at,
+        confidence: r.confidence,
+        targetId: r.targetId == null ? null : String(r.targetId),
+        sector: r.sector == null ? null : String(r.sector),
+        source: r.source || null
+      };
+    }
     function threats(b, sq) {
       var reports = A.squadContactsMap(sq, b),
         out = [];
@@ -68,9 +79,44 @@
           Number.isFinite(r.confidence) &&
           r.confidence >= 0.5
         )
-          out.push({ x: r.x, z: r.z, at: r.at, confidence: r.confidence });
+          out.push(threatCopy(r));
       });
       return out.length <= 3 ? out : [];
+    }
+    function continuingThreats(b, sq, st, selected) {
+      /* 0.5 is an ENTRY/selection threshold. Once the Squad Leader has
+         issued a preparation order from a valid report, deterministic belief
+         confidence decay must not revoke that same report before the mandatory
+         four-second dwell can finish. Continuity is still fail-closed: the
+         underlying combat-threat belief must still exist, retain the same
+         target/sector identity and remain inside the existing 10 s age cap.
+         Any current >=0.5 report supersedes the preparation snapshot normally. */
+      if (selected.length) return selected;
+      var raw = A.squadContactsMap(sq, b);
+      if (!Array.isArray(raw) || raw.length > 32 || !st || !st.threats || !st.threats.length) return [];
+      var out = [];
+      st.threats.forEach(function (old) {
+        var match = raw.find(function (r) {
+          if (
+            !point(r) ||
+            !Number.isFinite(r.at) ||
+            b.time < r.at ||
+            b.time - r.at > 10 ||
+            !Number.isFinite(r.confidence)
+          )
+            return false;
+          if (old.targetId != null && r.targetId != null)
+            return String(r.targetId) === String(old.targetId);
+          if (old.sector != null && r.sector != null)
+            return String(r.sector) === String(old.sector);
+          return (
+            Math.abs((+r.at || 0) - (+old.at || 0)) <= 0.5 &&
+            Math.hypot(r.x - old.x, r.z - old.z) <= 20
+          );
+        });
+        if (match) out.push(threatCopy(match));
+      });
+      return out.length && out.length <= 3 ? out : [];
     }
     /* This is a read-only preflight. Actual move eligibility, reservations,
        route selection and firing remain with native Engagement and Movement.
@@ -313,6 +359,7 @@
         pressure = task && task.inputs ? task.inputs.pressure : 1,
         rs = threats(b, sq),
         now = b.time;
+      if (st && st.mode === 'ambush') rs = continuingThreats(b, sq, st, rs);
       if (st && !valid(b, sq, st)) return end(b, sq, invalidReason(b, sq, st));
       if (
         !a ||
