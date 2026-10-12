@@ -1227,11 +1227,16 @@
       holdPosition(s, battle);
       commitStanceRespectHold(s, battle, seeingStance(s, battle, 'stand'), 0.5, 'ambush firing line');
       s._faceHint = posOf(s.target);
+      var F = field(),
+        here = F ? F.coverPotentialAt(battle.obstacles, posOf(s).x, posOf(s).z) : 1;
+      if (fireCoverRecovering(s, battle, here)) return true;
       if (SA().isMachineGun(s)) {
         if (!e.setUpSince) e.setUpSince = battle.time;
         s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
       } else s.setUp = false;
+      var fireClockBefore = +s.fireCooldown || 0;
       tryFire(s, battle);
+      fireCoverAfterShot(s, battle, here, fireClockBefore);
     } else {
       if (e.state === 'engage' || e.state === 'orient')
         transition(s, battle, 'alert', 0, 'ambush target not actionable');
