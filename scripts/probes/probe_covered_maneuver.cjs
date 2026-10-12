@@ -230,7 +230,9 @@ const { chromium } = require('playwright');
       b.killSoldier = function (victim) {
         if (victim === hostile) {
           hostile.hp = 100000;
-          delete hostile.casualty;
+          // WoundModel still reads its casualty record before returning.
+          // Clear it after the synchronous wound callback has completed.
+          queueMicrotask(() => { if (!hostile.dead) delete hostile.casualty; });
           return;
         }
         return originalKillSoldier.apply(this, arguments);
