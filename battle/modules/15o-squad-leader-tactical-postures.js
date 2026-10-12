@@ -242,6 +242,7 @@
            fully covered route, stay put and let Engagement fight defensively. */
         var possible =
           maneuverOn &&
+          !(task && task.emergency) &&
           st.readyAt != null &&
           sq.inContact &&
           report &&
@@ -277,13 +278,14 @@
             supportingCount(a, null, report.fireSupport, now) >= tuning.minSupport ? now : -Infinity;
         if (
           !sq.inContact ||
+          (task && task.emergency) ||
           !maneuverOn ||
           now >= st.maneuverUntil ||
           !isFinite(st.lastSupportAt) ||
           now - st.lastSupportAt > 0.65
         ) {
           st.mode = 'hold';
-          st.stage = 'maneuver-closed';
+          st.stage = task && task.emergency ? 'emergency-hold' : 'maneuver-closed';
           st.pressureAt = now;
         } else {
           st.stage = L.holds(sq, 'bound', now) ? 'covered-bound' : 'supporting-fire';
