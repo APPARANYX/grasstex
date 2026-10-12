@@ -118,7 +118,7 @@ const { chromium } = require('playwright');
         else cam.position.copyFrom(eye);
       }
       return {
-        source: BATTLE_BUILD,
+        source: location.pathname,
         navigationVersion: N.version,
         time: b.time,
         squadId: q.id,
