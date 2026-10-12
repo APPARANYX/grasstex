@@ -303,9 +303,12 @@
            neither a destination nor an exposed-route fallback. Validate
            EVERY mover against real physicality before leasing the team; the
            native coveredBounds gate independently rejects unsafe destinations. */
-        if (posture && posture.mode === 'maneuver' &&
-            (!tacticalPostures.coveredTeam(battle, sq, movers, r) ||
-              !root.BattleCoverPositions.coveredBoundsOn())) {
+        if (
+          posture &&
+          posture.mode === 'maneuver' &&
+          (!tacticalPostures.coveredTeam(battle, sq, movers, r) ||
+            !root.BattleCoverPositions.coveredBoundsOn())
+        ) {
           posture.stats.rejectedUnsafeBounds++;
           telemetry(battle, 'decision-bound-held', {
             faction: sq.faction,
