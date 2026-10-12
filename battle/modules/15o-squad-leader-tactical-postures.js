@@ -93,19 +93,26 @@
         !C.boundRoute ||
         !C.candidates ||
         !N ||
-        N.scenario !== (b.scene && b.scene.metadata && (b.scene.metadata.battleScenario || b.scene.metadata.battleTown)) ||
+        N.scenario !==
+          (b.scene && b.scene.metadata && (b.scene.metadata.battleScenario || b.scene.metadata.battleTown)) ||
         !rs.length ||
         !Array.isArray(support) ||
         support.filter(function (s) {
-          return a.indexOf(s) >= 0 && movers.indexOf(s) < 0 &&
-            !s.dead && !s.reloading && !s.outOfAmmo &&
-            !(s.suppressedUntil > b.time) && !s.moving;
+          return (
+            a.indexOf(s) >= 0 &&
+            movers.indexOf(s) < 0 &&
+            !s.dead &&
+            !s.reloading &&
+            !s.outOfAmmo &&
+            !(s.suppressedUntil > b.time) &&
+            !s.moving
+          );
         }).length < tuning.minSupport
-      ) return false;
+      )
+        return false;
       for (var i = 0; i < movers.length; i++) {
         var s = movers[i];
-        if (a.indexOf(s) < 0 || s.moving || s.reloading ||
-            s.suppressedUntil > b.time || s.dead) return false;
+        if (a.indexOf(s) < 0 || s.moving || s.reloading || s.suppressedUntil > b.time || s.dead) return false;
         var possible = C.candidates(s, b, { root: { position: rs[0] } }, C.boundTuning().maxDistance);
         if (!Array.isArray(possible) || possible.length > 256) return false;
         var eligible = possible.slice(0, 48).some(function (p) {
@@ -217,13 +224,20 @@
         (ctx.localPlan.structureOrdersOn && ctx.localPlan.currentStructureOrders(b, sq))
       )
         return end(b, sq, 'unknown evidence/override');
-      if (st && st.mode === 'ambush' &&
-          (pressure >= tuning.pressureEnter || (report && report.underFire > 0))) {
+      if (
+        st &&
+        st.mode === 'ambush' &&
+        (pressure >= tuning.pressureEnter || (report && report.underFire > 0))
+      ) {
         /* An already-held masked line may transition to ONE covered-maneuver
            posture, never a second command stream. Without real support and a
            fully covered route, stay put and let Engagement fight defensively. */
-        var possible = maneuverOn && st.readyAt != null &&
-          sq.inContact && report && Array.isArray(report.fireSupport) &&
+        var possible =
+          maneuverOn &&
+          st.readyAt != null &&
+          sq.inContact &&
+          report &&
+          Array.isArray(report.fireSupport) &&
           a.some(function (s) {
             return coveredTeam(b, sq, [s], report);
           });
@@ -245,8 +259,13 @@
       }
       if (st && st.mode === 'maneuver') {
         st.at = now;
-        if (!sq.inContact || !maneuverOn || now >= st.maneuverUntil ||
-            !report || !Array.isArray(report.fireSupport)) {
+        if (
+          !sq.inContact ||
+          !maneuverOn ||
+          now >= st.maneuverUntil ||
+          !report ||
+          !Array.isArray(report.fireSupport)
+        ) {
           st.mode = 'hold';
           st.stage = 'maneuver-closed';
           st.pressureAt = now;
