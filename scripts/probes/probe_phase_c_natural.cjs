@@ -153,14 +153,29 @@ const { chromium } = require('playwright');
                     }
                   }
                   if (mode === 'none' && fresh && !sq.inContact) {
-                    const reason = sq._macroMission?.status !== 'executing'
+                    const commanded = (sq.members || []).filter(s => s && !s.dead && s.hp > 0 &&
+                      !root.BattleEngagement?.fledPhase?.(s));
+                    const scenarioActive = b.scene?.metadata?.battleScenario || b.scene?.metadata?.battleTown;
+                    const reason = commanded.length < 3 || commanded.length > 32
+                      ? 'invalid-roster-size'
+                      : commanded.some(s => !s.root?.position || s.isPlayer || s.incapacitated)
+                        ? 'ineligible-member-player-or-injured'
+                      : commanded.some(s => root.BattleTacticalPositions?.current?.(s))
+                        ? 'stationed-member'
+                      : !root.SquadAI?.leaderOf?.(sq)
+                        ? 'no-leader'
+                      : root.BattleNavigation?.scenario !== scenarioActive
+                        ? 'nav-scenario-mismatch'
+                      : !(sq.route?.[+sq.routeIndex])
+                        ? 'no-route-leg'
+                      : sq._macroMission?.status !== 'executing'
                       ? 'no-executing-mission'
                       : !sq._missionExecution ? 'no-execution'
                       : sq._engagementPlan && ['active', 'quiet'].includes(sq._engagementPlan.status)
                         ? 'prior-engagement-plan'
                         : sq.members?.some(s => s?.target) ? 'personal-target'
                         : pressure > 0.1 ? 'precontact-pressure'
-                        : 'unresolved-quiet-eligibility';
+                        : 'masked-stations-or-other-geometry';
                     active.rejectionSamples[reason] = (active.rejectionSamples[reason] || 0) + 1;
                   }
                   prev.mode = mode; prev.prepared = current?.readyAt != null;
@@ -198,7 +213,12 @@ const { chromium } = require('playwright');
       }, { count, limit, prefix, arm });
       results.push(...observed);
       await page.close();
-      assert.deepEqual(errors, [], 'browser runtime errors during natural battle');
+      // The public repo intentionally omits private audio; its 404s are not
+      // simulation faults. Never suppress JS errors outside that exact path.
+      const audioNoise = errors.filter(e => /HTTP 404 loading [^\n]*\/Assets\/audio\//i.test(e));
+      const gameErrors = errors.filter(e => !/HTTP 404 loading [^\n]*\/Assets\/audio\//i.test(e));
+      console.log('PHASE_C_ASSET_NOISE', JSON.stringify({ type, arm, privateAudio404: audioNoise.length }));
+      assert.deepEqual(gameErrors, [], 'non-asset browser runtime errors during natural battle');
     }
     assert.equal(results.length, 2 * count);
     const summary = {
@@ -222,7 +242,11 @@ const { chromium } = require('playwright');
     };
     fs.writeFileSync(dir + '/' + type + '.json', JSON.stringify(summary, null, 2));
     console.log('PHASE_C_NATURAL_FIELD ' + JSON.stringify({
-      type, count, off: summary.arms.off, on: summary.arms.on
+      type, count, off: summary.arms.off, on: summary.arms.on,
+      onBlockers: summary.results.filter(x => x.arm === 'on').map(x => ({
+        seed: x.seed, reasons: x.rejectionSamples, firstModes: x.modeEvents.slice(0, 8),
+        summary: x.postures
+      }))
     }));
     assert.equal(summary.arms.off.ambush + summary.arms.off.maneuvers, 0, 'OFF arm remains inert');
     assert.equal(summary.arms.on.writerConflicts, 0, 'new tactical behavior cannot create writer conflicts');
