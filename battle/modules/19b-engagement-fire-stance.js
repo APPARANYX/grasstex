@@ -114,11 +114,31 @@
           state: data.state || null,
           targetId: data.targetId == null ? null : data.targetId,
           shooterId: data.shooterId == null ? null : data.shooterId,
+          supportPoint:
+            data.supportPoint && isFinite(+data.supportPoint.x) && isFinite(+data.supportPoint.z)
+              ? { x: +data.supportPoint.x, z: +data.supportPoint.z }
+              : null,
+          supporterIds: Array.isArray(data.supporterIds) ? data.supporterIds.slice(0, 2).map(String) : [],
+          supportSource: data.supportSource || null,
+          supportAt: isFinite(+data.supportAt) ? +data.supportAt : null,
           commandVersion: rec.version,
           commandEnvelopeId: rec.envelopeId
         };
       }
       return (s && s.squad && s.squad.fireControl) || null;
+    }
+    function areaSupportOf(s, battle) {
+      var f = fireControlOf(s, battle);
+      if (
+        !f ||
+        f.state !== 'open' ||
+        !f.supportPoint ||
+        (f.supportSource !== 'seen' && f.supportSource !== 'incoming') ||
+        !Array.isArray(f.supporterIds) ||
+        f.supporterIds.indexOf(String(s.id)) < 0
+      )
+        return null;
+      return { x: +f.supportPoint.x, z: +f.supportPoint.z };
     }
     function fireAuthorized(s, battle) {
       var f = fireControlOf(s, battle),
@@ -798,6 +818,8 @@
       engagementLive: engagementLive,
       squadOnHeels: squadOnHeels,
       underFireNow: underFireNow,
+      fireControlOf: fireControlOf,
+      areaSupportOf: areaSupportOf,
       fireAuthorized: fireAuthorized,
       fireControlPreparing: fireControlPreparing,
       canCrawlTo: canCrawlTo,
