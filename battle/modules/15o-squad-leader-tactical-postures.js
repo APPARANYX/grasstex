@@ -28,7 +28,7 @@
         pressureEnter: 0.25,
         pressureExit: 0.1,
         pressureDwell: 3,
-        maneuverWindow: 4.5,
+        maneuverWindow: 14,
         minSupport: 2,
         readAge: 0.5
       };
