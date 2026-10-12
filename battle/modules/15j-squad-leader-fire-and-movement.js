@@ -153,7 +153,37 @@
       if (COA_ON) updateCOA(sq);
       sq._assaultAuthorized = !!ASSAULT_PHASES[sq.commandPhase || ''];
       if (LEASE_CONFLICTS_ON && boundLeaseBlocker(sq)) sq._assaultAuthorized = false;
-      if (localPlan && localPlan.on && (!localTask || !localTask.boundsAllowed || boundLeaseBlocker(sq)))
+      /* Normal local-task protection denies movement under pressure. The one
+         opt-in, already-authorized covered posture is narrower: it may bound
+         under non-emergency pressure, but never override recovery, security,
+         retreat, local resource limits, lease conflicts or General phase. The
+         physical route and live base of fire remain independent native gates
+         below; this is not another movement-command writer. */
+      var coveredPressureBound = !!(
+        posture &&
+        posture.mode === 'maneuver' &&
+        tacticalPostures &&
+        tacticalPostures.maneuverOn &&
+        localTask &&
+        !localTask.emergency &&
+        sq.state !== 'retreat' &&
+        !(
+          localTask.eligible &&
+          (localTask.eligible.recover ||
+            localTask.eligible['structure-security'] ||
+            localTask.eligible['objective-security'])
+        ) &&
+        (!localPlan.resourcesOn ||
+          (localTask.inputs &&
+            localTask.inputs.resources &&
+            localTask.inputs.resources.status !== 'over-budget' &&
+            localTask.inputs.resources.moverIds.length > 0))
+      );
+      if (
+        localPlan &&
+        localPlan.on &&
+        (!localTask || (!localTask.boundsAllowed && !coveredPressureBound) || boundLeaseBlocker(sq))
+      )
         sq._assaultAuthorized = false;
       /* 3c: the COA gates bounding. Defend holds position (no bounds); assault bounds only if the
        phase also allows. The explicit `?coa=0` control never sets sq.coa, so this is a no-op there. */
