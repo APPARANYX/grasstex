@@ -1,0 +1,10 @@
+{
+  "benchmark": "causal",
+  "ref": "work/299-c3-effective-fire-voice",
+  "exact_seed": "live-mv5apwx1-djrk",
+  "seeds": "1",
+  "seconds": "1800",
+  "side": "ge",
+  "geometry": "1",
+  "lifecycle": "1"
+}
