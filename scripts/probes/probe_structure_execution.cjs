@@ -328,6 +328,12 @@ const { chromium } = require('playwright');
     assert.equal(evidence.last.missionVersion, evidence.setup.missionVersion);
     assert.equal(evidence.last.leaderId, evidence.setup.leaderId);
     assert.ok(evidence.last.ownShots > 0);
+    assert.equal(evidence.runtime.structures.physicalEntries, 1);
+    assert.equal(
+      evidence.runtime.structures.routeHandbacks,
+      1,
+      'actual owner handback is recorded on the accepting tick'
+    );
     assert.deepEqual(errors, []);
     console.log('PASS staged autonomous building execution', JSON.stringify(evidence));
   } finally {

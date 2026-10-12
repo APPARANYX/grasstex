@@ -363,6 +363,8 @@
       }
       var arrival = routeArrival(idx, axisEnd, town, wp, c, limit);
       if (idx < last && dist(pos, wp) < arrival && (!entryGate(sim, sq, wp) || entryAccepted(sim, sq, wp))) {
+        var local = ctx.localPlan && ctx.localPlan();
+        if (local && local.noteStructureHandback) local.noteStructureHandback(sim, sq, wp);
         var from = idx;
         sq.routeIndex = idx = idx + 1;
         wp = legs[idx];

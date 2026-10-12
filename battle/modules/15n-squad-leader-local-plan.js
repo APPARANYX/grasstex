@@ -581,16 +581,6 @@
         },
         same =
           old.mission === m && old.version === version && old.leg === leg && old.navigationVersion === nav;
-      // Counts observe the original mission owner's next-leg fact after watch
-      // proof. They never grant tactical authorization or refresh observations.
-      if (
-        old.watched &&
-        old.mission === m &&
-        old.version === version &&
-        old.navigationVersion === nav &&
-        leg === old.leg + 1
-      )
-        old.routeHandbacks++;
       var e = st && st.entryEvidence,
         key =
           e && e.entryVerified
@@ -614,6 +604,23 @@
       old.watched = watched;
       old.security = security;
       structureStats.set(sq, old);
+    }
+    function noteStructureHandback(sim, sq, target) {
+      if (!structureOrdersOn || !entrySatisfied(sim, sq, target)) return false;
+      var observed = structureStats.get(sq);
+      if (!observed) return false;
+      var key = [
+        ctx.missionVersion(sq),
+        +sq.routeIndex,
+        root.BattleNavigation.version,
+        target.x,
+        target.z
+      ].join('|');
+      if (observed.handoffMission === sq._macroMission && observed.handoffKey === key) return false;
+      observed.routeHandbacks++;
+      observed.handoffMission = sq._macroMission;
+      observed.handoffKey = key;
+      return true;
     }
     /* #299 C footprint-only security observation. Four inward ground-floor
        sightline samples are NOT enemy detection, room clearance or control.
@@ -1633,6 +1640,7 @@
       structureOrdersOn: structureOrdersOn,
       currentStructureOrders: currentStructureOrders,
       structureSoldierOrder: structureSoldierOrder,
+      noteStructureHandback: noteStructureHandback,
       execution: execution,
       entryRequired: entryRequired,
       entrySatisfied: entrySatisfied,
