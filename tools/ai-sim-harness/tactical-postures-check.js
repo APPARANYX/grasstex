@@ -190,6 +190,18 @@ mc.candidates = () => [safe];
 const support = { underFire: 1, fireSupport: man.q.members.slice(1, 4) };
 assert.equal(man.P.coveredTeam(man.b, man.q, [me], support), true);
 assert.equal(
+  man.P.coveredTeam(man.b, man.q, [me], {
+    fireSupport: [man.q.members[1], man.q.members[1]]
+  }),
+  false,
+  'one rifle listed twice is still only one live supporting rifle'
+);
+assert.equal(
+  man.P.coveredTeam(man.b, man.q, [me], { fireSupport: Array(33).fill(man.q.members[1]) }),
+  false,
+  'oversized support evidence fails closed'
+);
+assert.equal(
   man.P.coveredTeam(man.b, man.q, [me], { fireSupport: [man.q.members[1]] }),
   false,
   'one remaining rifle cannot support a team bound'
@@ -296,9 +308,11 @@ assert.equal(
   'maneuver'
 );
 assert.equal(
-  supportLoss.P.update(supportLoss.b, supportLoss.q, { fireSupport: [] }).mode,
+  supportLoss.P.update(supportLoss.b, supportLoss.q, {
+    fireSupport: [supportLoss.q.members[1], supportLoss.q.members[1]]
+  }).mode,
   'hold',
-  'loss of native support cannot sustain a maneuver or authorize new displacement'
+  'duplicate native support identities cannot extend an authorized maneuver'
 );
 const noSupport = world(true, true, true);
 const nos = noSupport.P.update(noSupport.b, noSupport.q);
