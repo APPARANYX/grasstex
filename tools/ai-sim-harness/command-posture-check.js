@@ -234,6 +234,39 @@ test('fresh own-soldier sight can authorize support when the shared contact is r
   assert.equal(F.supportAuthorityContact(w.us, w.b), null, 'expired sight is not fire authority');
 });
 
+test('a single capable gunner may start an authorized support fire task without a false second supporter', () => {
+  const w = world(),
+    gunner = { id: 'gunner', role: 'gunner', hp: 1, weapon: { stats: {} }, suppressedUntil: 0 },
+    rifle = { id: 'rifle', role: 'rifleman', hp: 1, weapon: { stats: {} }, suppressedUntil: 0 },
+    point = { x: 0, z: 100 },
+    battle = { time: 2 },
+    sq = { members: [gunner, rifle] },
+    root = {
+      SquadAI: {
+        squadContact: () => ({ ...point, at: 2, seenBy: gunner.id }),
+        canSuppress: s => s === gunner,
+        isMachineGun: s => s === gunner
+      },
+      BattleEngagement: { stateOf: () => ({ state: 'alert' }), reacting: () => false },
+      BattleAmmunition: { available: () => true },
+      BattleTacticalPositions: { current: () => null }
+    },
+    F = w.r._squadLeaderFireControl({
+      root,
+      FIRE_CONTROL_TUNING: { returnFireWindow: 3 },
+      commanded: s => s.members
+    });
+  const order = F.areaSupport(sq, battle, { underFire: 1 }, { readyAt: 1 }, null);
+  assert.deepEqual(order, { point, ids: [gunner.id], source: 'seen', at: 2 });
+  assert.equal(F.areaSupport(sq, battle, { underFire: 0 }, { readyAt: 1 }, null), null);
+  gunner.suppressedUntil = 4;
+  assert.equal(
+    F.areaSupport(sq, battle, { underFire: 1 }, { readyAt: 1 }, null),
+    null,
+    'no eligible firing-capable supporter produces no support order'
+  );
+});
+
 test('explicit Squad Leader support fire is personally adopted and executed by Engagement', () => {
   const w = world(),
     gunner = w.us.members.find(s => s.role === 'gunner'),
