@@ -222,6 +222,19 @@ const { chromium } = require('playwright');
       hostile.root.position.set(threat.x, b.heightAt(threat.x, threat.z), threat.z);
       hostile.isPlayer = true;
       hostile.hp = 100000;
+      /* This browser test proves fire/move physics, not casualty outcomes.
+         Real ballistic hits can instant-drop even a high-HP training target.
+         Keep ONLY this named target alive for the staged camera sequence;
+         all shots, fire authorization, movement and terrain remain native. */
+      const originalKillSoldier = b.killSoldier;
+      b.killSoldier = function (victim) {
+        if (victim === hostile) {
+          hostile.hp = 100000;
+          delete hostile.casualty;
+          return;
+        }
+        return originalKillSoldier.apply(this, arguments);
+      };
       BattleCommanderAI.setMacroEnabled(b, false);
       L.clear(q);
       S.localPlan.reset(q);
@@ -372,7 +385,8 @@ const { chromium } = require('playwright');
           x: c.x, z: c.z, slotId: c.slotId
         })),
         fixture: { start, threat, slotId: slot.id },
-        prequalifiedPolicySeam: true
+        prequalifiedPolicySeam: true,
+        nonlethalTargetFixture: true
       };
     }, {
       start: evidence.fixtureScan.picked.start,
@@ -459,6 +473,7 @@ const { chromium } = require('playwright');
             panel.textContent = [
               name,
               'Real preview geometry · qualified posture staged',
+              'Target casualty held for staged movement proof',
               `t=${st.time.toFixed(2)} · mover=${st.moverId}`,
               `displacement=${st.displacement.toFixed(2)}m · ${st.moverState}`,
               `support shots=${st.shots} · simultaneous=${st.duringMove}`,
