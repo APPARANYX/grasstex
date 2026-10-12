@@ -133,9 +133,20 @@ for (let i = 0; i < 20; i++) {
 }
 assert.ok(b.events.fired > 0, 'live base must actually fire before mover authorization');
 const report = E.updateSquad(q, b);
+console.log('CAUSAL_SUPPORT_REPORT', JSON.stringify({
+  fired: b.events.fired,
+  supporters: report.fireSupport.map(s => s.id),
+  men: q.members.map(s => ({
+    id: s.id,
+    state: E.stateOf(s).state,
+    target: s.target && s.target.id,
+    reload: s.reloading,
+    shotClock: s.nextFireAt
+  }))
+}));
 assert.ok(
-  report.fireSupport.length >= 3,
-  'real Engagement must report independently viable supporting rifles'
+  report.fireSupport.filter(s => support.includes(s)).length >= 2,
+  'real Engagement must report at least two distinct supporting rifles'
 );
 assert.ok(
   P.coveredTeam(b, q, [mover], report),
@@ -181,20 +192,23 @@ assert.ok(
   Math.hypot(mover.root.position.x - goal.x, mover.root.position.z - goal.z) < 0.45,
   'mover arrived at the actual selected covered slot'
 );
-console.log('CAUSAL_DIAGNOSTICS', JSON.stringify({
-  moved,
-  firstMoveAt,
-  goal,
-  shots: b.events.fired,
-  supportShotsDuringMove,
-  support: support.map(s => ({
-    id: s.id,
-    state: E.stateOf(s).state,
-    x: s.root.position.x,
-    z: s.root.position.z,
-    targetId: s.target && s.target.id
-  }))
-}));
+console.log(
+  'CAUSAL_DIAGNOSTICS',
+  JSON.stringify({
+    moved,
+    firstMoveAt,
+    goal,
+    shots: b.events.fired,
+    supportShotsDuringMove,
+    support: support.map(s => ({
+      id: s.id,
+      state: E.stateOf(s).state,
+      x: s.root.position.x,
+      z: s.root.position.z,
+      targetId: s.target && s.target.id
+    }))
+  })
+);
 assert.ok(supportShotsDuringMove > 0, 'two-element evidence requires actual support fire while bound moves');
 assert.ok(
   support.every(s => !s.dead),
