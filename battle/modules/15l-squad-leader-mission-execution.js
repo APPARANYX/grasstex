@@ -44,6 +44,10 @@
       var local = ctx.localPlan && ctx.localPlan();
       return !!(local && local.entrySatisfied && local.entrySatisfied(sim, sq, target));
     }
+    function contactResumeOn() {
+      var local = ctx.localPlan && ctx.localPlan();
+      return !!(local && local.contactResumeOn);
+    }
     function inTown(town, p) {
       return !!(town && town.center && p && dist(p, town.center) < (+town.radius || 250));
     }
@@ -109,6 +113,26 @@
       if (!why && expired) why = 'stalled';
       d.pausedBy = sq._missionHold || null;
       if (why) {
+        /* A firefight correctly ends the old route lease. For a gated
+           Navigation building leg, retain *only* the mission/leg/map identity
+           so this same owner can issue a fresh lease after Engagement goes
+           quiet. Never retain entry, survey or watch proof across combat. */
+        if (
+          why === 'contact' &&
+          contactResumeOn() &&
+          sq._missionExecution &&
+          sq._missionExecution.mission === m &&
+          +sq.routeIndex === d.leg &&
+          entryGate(sim, sq, d.target)
+        ) {
+          sq._missionExecution.contactRouteResume = {
+            missionVersion: d.missionVersion,
+            leg: d.leg,
+            target: copy(d.target),
+            navigationVersion: root.BattleNavigation.version,
+            interruptedAt: t
+          };
+        }
         var ended = L.end(sq, 'route-transition', t, why);
         telemetry(sim, 'decision-route-transition-end', {
           faction: sq.faction,
@@ -279,6 +303,64 @@
       var axisEnd = m ? (m.route || []).length - 1 : last,
         limit = +(leaderAlive(sq) ? c.cohesionRadius : c.captainlessCohesion) || 34,
         urban = inTown(town, wp);
+      /* Contact may end the original structure route lease while the General's
+         brief and route index remain unchanged. Reissue through THIS Mission
+         Execution owner only after the existing Engagement plan is closed.
+         This grants no automatic doorway/clearance credit: local evidence must
+         be gathered again on the new lease and can legitimately fail closed. */
+      var pending = ex && ex.contactRouteResume;
+      if (pending && contactResumeOn()) {
+        var N = root.BattleNavigation,
+          stale =
+            !m ||
+            m.status !== 'executing' ||
+            pending.missionVersion !== missionVersion(sq) ||
+            pending.leg !== idx ||
+            !pending.target ||
+            pending.target.x !== wp.x ||
+            pending.target.z !== wp.z ||
+            !N ||
+            pending.navigationVersion !== N.version ||
+            !isFinite(pending.interruptedAt) ||
+            t < pending.interruptedAt ||
+            !entryGate(sim, sq, wp);
+        if (stale || L.get(sq, 'route-transition')) ex.contactRouteResume = null;
+        else if (!sq.inContact && !L.get(sq, 'regroup') && !L.get(sq, 'recon')) {
+          var budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity,
+            remaining = dist(pos, wp);
+          L.grant(
+            sq,
+            'route-transition',
+            'squad-leader',
+            t,
+            t + budget,
+            'resuming structure leg ' + idx + ' after contact',
+            'arrival, contact, blocked, superseded, retreat or no progress',
+            {
+              from: idx - 1,
+              leg: idx,
+              missionVersion: missionVersion(sq),
+              target: copy(wp),
+              arrivalRadius: routeArrival(idx, axisEnd, town, wp, c, limit),
+              startDistance: remaining,
+              distance: remaining,
+              bestDistance: remaining,
+              traveled: 0,
+              lastPosition: copy(pos),
+              lastProgressAt: t,
+              noProgressBudget: budget
+            }
+          );
+          telemetry(sim, 'decision-route-transition-resume', {
+            faction: sq.faction,
+            squad: sq.id,
+            missionVersion: missionVersion(sq),
+            leg: idx,
+            interruptedAt: pending.interruptedAt
+          });
+          ex.contactRouteResume = null;
+        }
+      }
       var arrival = routeArrival(idx, axisEnd, town, wp, c, limit);
       if (idx < last && dist(pos, wp) < arrival && (!entryGate(sim, sq, wp) || entryAccepted(sim, sq, wp))) {
         var from = idx;

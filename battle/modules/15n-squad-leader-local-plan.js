@@ -31,6 +31,9 @@
       watchOn =
         surveyOn &&
         /[?&]localWatch=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
+      contactResumeOn =
+        watchOn &&
+        /[?&]localContactResume=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
       tuning = {
         pressureEnter: 0.45,
         pressureExit: 0.25,
@@ -951,6 +954,7 @@
       entryGateOn: entryGateOn,
       surveyOn: surveyOn,
       watchOn: watchOn,
+      contactResumeOn: contactResumeOn,
       execution: execution,
       entryRequired: entryRequired,
       entrySatisfied: entrySatisfied,
