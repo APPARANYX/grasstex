@@ -22,10 +22,15 @@ on:
         description: 'List what would be deleted without deleting it'
         type: boolean
         default: true
+      clean_action_runs:
+        description: 'Preview or delete aged failed/skipped/cancelled Actions runs'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
   pull-requests: read
+  actions: write
 
 env:
   # Never deleted: the default branch and the benchmark results store.
@@ -117,3 +122,38 @@ jobs:
             echo "### Kept"
             if [ ${#kept[@]} -eq 0 ]; then echo "- none"; else printf -- '- %s\n' "${kept[@]}"; fi
           } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  actions-retention:
+    name: Retain relevant Actions evidence
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.clean_action_runs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preview/prune aged failed, skipped and cancelled runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DRY_RUN: ${{ github.event_name == 'schedule' || inputs.dry_run }}
+          MIN_AGE_DAYS: 21
+          KEEP_PER_WORKFLOW: 3
+          MAX_DELETE: 50
+        run: bash scripts/housekeeping-actions-runs.sh
+
+  workflow-sidebar-audit:
+    name: Audit stale Actions sidebar registrations
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report historical workflow registrations for manual review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          echo '### Historical Actions sidebar registrations (review only)' >> "$GITHUB_STEP_SUMMARY"
+          gh api --paginate "repos/$REPO/actions/workflows?per_page=100" \
+            --jq '.workflows[] | select(.state != "active") | "- \(.name) (ID \(.id), state \(.state), path \(.path))"' \
+            >> "$GITHUB_STEP_SUMMARY"
+          echo 'No workflow files, history, or registrations were deleted by this audit.' >> "$GITHUB_STEP_SUMMARY"
