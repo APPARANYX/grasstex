@@ -182,34 +182,47 @@ const mc = man.r.BattleCoverPositions,
   me = man.q.members[0],
   reported = [{ x: 0, z: 20, at: man.b.time, confidence: 1 }],
   paths = [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 7, 8, 9, 10, 11],
-  safe = paths.map(z => ({ x: me.root.position.x, z })).find(p =>
-    mc.boundRoute(me, man.b, p, reported).eligible
-  );
+  safe = paths
+    .map(z => ({ x: me.root.position.x, z }))
+    .find(p => mc.boundRoute(me, man.b, p, reported).eligible);
 assert.ok(safe, 'real crest/Navigation geometry must provide an actual eligible covered segment');
 mc.candidates = () => [safe];
 const support = { underFire: 1, fireSupport: man.q.members.slice(1, 4) };
 assert.equal(man.P.coveredTeam(man.b, man.q, [me], support), true);
-assert.equal(man.P.coveredTeam(man.b, man.q, [me], { fireSupport: [man.q.members[1]] }), false,
-  'one remaining rifle cannot support a team bound');
+assert.equal(
+  man.P.coveredTeam(man.b, man.q, [me], { fireSupport: [man.q.members[1]] }),
+  false,
+  'one remaining rifle cannot support a team bound'
+);
 mc.candidates = () => [{ x: me.root.position.x, z: 18 }];
-assert.equal(man.P.coveredTeam(man.b, man.q, [me], support), false,
-  'exposed/distant hedge end may not be accepted as cover');
+assert.equal(
+  man.P.coveredTeam(man.b, man.q, [me], support),
+  false,
+  'exposed/distant hedge end may not be accepted as cover'
+);
 mc.candidates = () => [];
-assert.equal(man.P.coveredTeam(man.b, man.q, [me], support), false,
-  'no-safe-route requires a tactical hold, not an exposed rush');
+assert.equal(
+  man.P.coveredTeam(man.b, man.q, [me], support),
+  false,
+  'no-safe-route requires a tactical hold, not an exposed rush'
+);
 const holding = man.P.update(man.b, man.q);
 assert.ok(holding && holding.mode === 'ambush');
 holding.readyAt = man.b.time;
 holding.stage = 'ready';
 man.q.inContact = true;
-assert.equal(man.P.update(man.b, man.q, support).mode, 'hold',
-  'pressure without any safe path cannot publish movement');
+assert.equal(
+  man.P.update(man.b, man.q, support).mode,
+  'hold',
+  'pressure without any safe path cannot publish movement'
+);
 assert.equal(man.r.BattleLeases.get(man.q, 'bound'), null);
 const move = world(true, true, true);
-const mm = move.q.members[0], cover = move.r.BattleCoverPositions;
-const moveSafe = paths.map(z => ({ x: mm.root.position.x, z })).find(p =>
-  cover.boundRoute(mm, move.b, p, [{ x: 0, z: 20, at: 0, confidence: 1 }]).eligible
-);
+const mm = move.q.members[0],
+  cover = move.r.BattleCoverPositions;
+const moveSafe = paths
+  .map(z => ({ x: mm.root.position.x, z }))
+  .find(p => cover.boundRoute(mm, move.b, p, [{ x: 0, z: 20, at: 0, confidence: 1 }]).eligible);
 assert.ok(moveSafe);
 cover.candidates = () => [moveSafe];
 const ready = move.P.update(move.b, move.q);
@@ -223,15 +236,21 @@ assert.equal(staged.orders.length, 0, 'posture does not become a second destinat
 assert.equal(move.r.BattleLeases.get(move.q, 'bound'), null, 'eligibility never directly grants a bound');
 assert.equal(move.P.current(move.b, move.q).mode, 'maneuver');
 move.b.time += move.P.tuning.maneuverWindow;
-assert.equal(move.P.update(move.b, move.q, { fireSupport: move.q.members.slice(1, 4) }).mode, 'hold',
-  'finite maneuver window closes without a permanent bound posture');
+assert.equal(
+  move.P.update(move.b, move.q, { fireSupport: move.q.members.slice(1, 4) }).mode,
+  'hold',
+  'finite maneuver window closes without a permanent bound posture'
+);
 const noSupport = world(true, true, true);
 const nos = noSupport.P.update(noSupport.b, noSupport.q);
 nos.readyAt = noSupport.b.time;
 nos.stage = 'ready';
 noSupport.q.inContact = true;
-assert.equal(noSupport.P.update(noSupport.b, noSupport.q, { underFire: 1, fireSupport: [] }).mode,
-  'hold', 'an unsupported exposed advance is denied');
+assert.equal(
+  noSupport.P.update(noSupport.b, noSupport.q, { underFire: 1, fireSupport: [] }).mode,
+  'hold',
+  'an unsupported exposed advance is denied'
+);
 
 console.log(
   'PASS masked ambush native preparation, minimum hold, unsafe stations, authority/lifecycle invalidation and pressure hysteresis',
