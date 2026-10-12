@@ -162,6 +162,70 @@
       result.reason = 'covered-segment';
       return result;
     }
+    // Read-only pre-contact station evidence. Include terrain via shipping Perception,
+    // and require a standing firing ray from the same point: a concealed dead end is
+    // not a firing station. The threat is always a detached reported coordinate.
+    function maskedPost(battle, point, threats) {
+      var A = SA(),
+        N = root.BattleNavigation;
+      if (
+        !point ||
+        !threats ||
+        !threats.length ||
+        threats.length > 3 ||
+        !A ||
+        !A.hasLineOfSight ||
+        !battle.heightAt ||
+        !root.BattleNavigationPhysicality ||
+        !N ||
+        !N.movementClear ||
+        !N.movementClear(point, point)
+      )
+        return false;
+      var low = { root: { position: point }, crouching: true },
+        high = { root: { position: point } },
+        firingRay = false;
+      for (var i = 0; i < threats.length; i++) {
+        var r = threats[i],
+          age = battle.time - r.at;
+        if (
+          !Number.isFinite(r.x) ||
+          !Number.isFinite(r.z) ||
+          !Number.isFinite(age) ||
+          age < 0 ||
+          age > 10 ||
+          !(r.confidence >= 0.5)
+        )
+          return false;
+        var target = { root: { position: { x: r.x, z: r.z } } };
+        if (A.hasLineOfSight(low, target, battle.heightAt, battle.obstacles)) return false;
+        firingRay = firingRay || A.hasLineOfSight(high, target, battle.heightAt, battle.obstacles);
+      }
+      return firingRay;
+    }
+    function maskedApproach(s, battle, point, threats) {
+      var p = posOf(s),
+        N = root.BattleNavigation,
+        d = Math.hypot(p.x - point.x, p.z - point.z);
+      if (!Number.isFinite(d) || d > 6 || !N || !N.movementClear || !N.movementClear(p, point)) return false;
+      var steps = Math.max(1, Math.ceil(d / 0.5));
+      for (var i = 0; i <= steps; i++) {
+        var at = { x: p.x + ((point.x - p.x) * i) / steps, z: p.z + ((point.z - p.z) * i) / steps };
+        // Approach need only be masked; the final point separately needs a firing ray.
+        for (var j = 0; j < threats.length; j++) {
+          if (
+            SA().hasLineOfSight(
+              { root: { position: at }, crouching: true },
+              { root: { position: threats[j] } },
+              battle.heightAt,
+              battle.obstacles
+            )
+          )
+            return false;
+        }
+      }
+      return maskedPost(battle, point, threats);
+    }
     function coverKey(p) {
       return Math.floor(p.x / COVER_CELL) + ',' + Math.floor(p.z / COVER_CELL);
     }
@@ -702,6 +766,8 @@
       findCover: findCover,
       boundThreats: boundThreats,
       boundRoute: boundRoute,
+      maskedPost: maskedPost,
+      maskedApproach: maskedApproach,
       coveredBoundsOn: function () {
         return COVERED_BOUNDS;
       },

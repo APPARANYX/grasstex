@@ -210,6 +210,23 @@
     function updateFireControl(sq, battle, report) {
       if (!FIRE_CONTROL_ON || !sq || !battle) return null;
       var fc = sq.fireControl;
+      var postures = ctx.tacticalPostures && ctx.tacticalPostures(),
+        posture = postures && postures.current(battle, sq);
+      if (posture && posture.mode === 'ambush') {
+        var contact = firstHandContact(sq, battle),
+          ambushCounts = fireControlCounts(commanded(sq), battle, root.BattleEngagement),
+          open =
+            (report && report.underFire > 0) ||
+            (posture.readyAt != null && contact && ambushCounts.ready >= 2),
+          desired = open ? 'open' : 'hold';
+        if (fc && fc.state === desired && fc.reason === 'coordinated masked ambush') return fc;
+        return setFireControl(sq, battle, fc, desired, 'coordinated masked ambush', {
+          targetId: contact && contact.unit.id,
+          ready: ambushCounts.ready,
+          requiredReady: 2,
+          living: posture.members.length
+        });
+      }
       if (fc && fc.state === 'reposition' && battle.time - fc.since >= FIRE_CONTROL_TUNING.repositionTimeout)
         return setFireControl(sq, battle, fc, 'open', 'reposition timed out: resume maneuver fire');
       var c = firstHandContact(sq, battle);

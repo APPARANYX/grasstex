@@ -121,7 +121,15 @@
       return (s && s.squad && s.squad.fireControl) || null;
     }
     function fireAuthorized(s, battle) {
-      var f = fireControlOf(s, battle);
+      var f = fireControlOf(s, battle),
+        P = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
+        posture = P && s.squad && P.current(battle, s.squad);
+      /* The posture can be adopted before the first Squad Leader fire-control
+         order is received. Do not let an absent/old OPEN order fire the first
+         round during the four-second concealed hold. Actual incoming fire
+         still permits immediate self-defense under Engagement's authority. */
+      if (posture && posture.mode === 'ambush' && posture.readyAt == null && !underFireNow(s, battle))
+        return false;
       if (!f || f.state === 'open') return true;
       if (underFireNow(s, battle)) return true;
       return f.state === 'precision' && String(f.shooterId) === String(s.id);

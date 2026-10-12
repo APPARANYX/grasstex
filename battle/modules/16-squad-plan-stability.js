@@ -548,7 +548,10 @@
         leaderAlive: leaderAlive,
         FIRE_CONTROL_ON: FIRE_CONTROL_ON,
         FIRETEAM_SPLIT_ON: FIRETEAM_SPLIT_ON,
-        FIRE_CONTROL_TUNING: FIRE_CONTROL_TUNING
+        FIRE_CONTROL_TUNING: FIRE_CONTROL_TUNING,
+        tacticalPostures: function () {
+          return _postures;
+        }
       })
     : null;
   var mkm = _fc
@@ -2018,6 +2021,16 @@
         telemetry: telemetry
       })
     : null;
+  var _postures = root._squadLeaderTacticalPostures
+    ? root._squadLeaderTacticalPostures({
+        root: root,
+        localPlan: _lp,
+        commanded: commanded,
+        leaderlessActive: leaderlessActive,
+        FIRE_CONTROL_ON: FIRE_CONTROL_ON,
+        telemetry: telemetry
+      })
+    : null;
   var _fa = root._squadLeaderFireAndMovement
     ? root._squadLeaderFireAndMovement({
         root: root,
@@ -2028,6 +2041,7 @@
         boundLeaseBlocker: boundLeaseBlocker,
         LEASE_CONFLICTS_ON: LEASE_CONFLICTS_ON,
         localPlan: _lp,
+        tacticalPostures: _postures,
         leaderlessActive: leaderlessActive,
         noteLeaderlessAction: noteLeaderlessAction,
         updateLeaderlessLocalTask: updateLeaderlessLocalTask,
@@ -2138,6 +2152,7 @@
       }
     });
     sim._squadCommandSummary = out;
+    if (_postures && _postures.on) out.tacticalPostures = _postures.summary(sim);
     sim._engagementPlanSummary = { live: out.plans, active: out.active, quiet: out.quiet };
     sim._regroupHysteresisSummary = {
       active: out.regroups,
@@ -2156,6 +2171,7 @@
       for (var i = 0; i < a.length; i++) {
         var q = a[i];
         if (_lp) _lp.reset(q);
+        if (_postures) _postures.reset(q);
         q._engagementPlan = null;
         q._stablePlan = null;
         q._engagementPlanSerial = 0;
@@ -2200,6 +2216,7 @@
       for (var i = 0; i < a.length; i++) {
         var q = a[i];
         if (_lp && _lp.on) _lp.update(sim, q);
+        if (_postures && _postures.on) _postures.update(sim, q);
         updateCohesion(sim, q);
         if (LEASE_CONFLICTS_ON || (_lp && _lp.on)) resolveLeaseConflicts(sim, q);
         executeMission(sim, q, town);
@@ -2358,8 +2375,11 @@
       return !!(_lp && _lp.on);
     },
     localPlan: _lp,
+    tacticalPostures: _postures,
     localPlanTelemetry: function (sim) {
-      return _lp ? _lp.summary(sim) : null;
+      var out = _lp ? _lp.summary(sim) : null;
+      if (out && _postures && _postures.on) out.postures = _postures.summary(sim);
+      return out;
     },
     routeTransitionOn: function () {
       return ROUTE_TRANSITION_ON;

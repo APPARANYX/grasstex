@@ -1075,6 +1075,7 @@
     /* HOLD/PRECISION blocks new bounds at the Squad Leader, but a displacement already in motion
        is a commitment: finish it under HOLD FIRE instead of flipping bound -> prone prep -> bound
        whenever the shared contact blinks. Fire permission remains closed throughout. */
+    if (ambushPost(s, battle)) return;
     if (fireControlPreparing(s, battle) && e.state !== 'bound' && e.state !== 'assault')
       return prepareFireControl(s, battle);
 
@@ -1145,6 +1146,54 @@
      Targets, personal threat reports, suppression, shock, committed movement,
      stations, grenades, stress reactions and retreat retain normal precedence.
      Engagement alone chooses stance/facing; Meso movement keeps its resolver. */
+  function ambushPost(s, battle) {
+    var P = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
+      o = P && P.soldierOrder(s, battle),
+      e = state(s),
+      C = root.BattleCommandReception;
+    if (
+      !o ||
+      e.suppressOrder ||
+      underFireNow(s, battle) ||
+      s.suppressedUntil > battle.time ||
+      battle.time < shockUntil(s) ||
+      ['bound', 'assault', 'pinned', 'withdraw'].indexOf(e.state) >= 0 ||
+      (C &&
+        C.movementEnabled() &&
+        !C.executionCurrent(s, battle, 'movement', 'soldier:' + String(s.id), s._fireteamAdoptedEnvelope))
+    )
+      return false;
+    var arrived = Math.hypot(posOf(s).x - o.point.x, posOf(s).z - o.point.z) <= 0.5;
+    var prepared = o.stage === 'ready' || o.stage === 'contact';
+    if (s.target && prepared && e.state === 'orient' && battle.time < e.until) return false;
+    if (s.target && arrived && prepared) {
+      if (e.state !== 'engage') transition(s, battle, 'engage', 0, 'adopted ambush line');
+      s.state = 'engage';
+      holdPosition(s, battle);
+      commitStanceRespectHold(s, battle, seeingStance(s, battle, 'stand'), 0.5, 'ambush firing line');
+      s._faceHint = posOf(s.target);
+      if (SA().isMachineGun(s)) {
+        if (!e.setUpSince) e.setUpSince = battle.time;
+        s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
+      } else s.setUp = false;
+      tryFire(s, battle);
+    } else {
+      if (e.state === 'engage' || e.state === 'orient')
+        transition(s, battle, 'alert', 0, 'ambush target not actionable');
+      if (e.state !== 'advance') transition(s, battle, 'advance', 0, 'adopted ambush station');
+      s.state = 'advance';
+      commitStanceRespectHold(
+        s,
+        battle,
+        arrived && (o.stage === 'ready' || o.stage === 'contact') ? 'stand' : 'crouch',
+        0.5,
+        'masked ambush preparation'
+      );
+      s._faceHint = arrived ? o.watchPoint : null;
+      followOrders(s, battle, false);
+    }
+    return true;
+  }
   function structureObservation(s, battle) {
     var P = root.BattleSquadStability && root.BattleSquadStability.localPlan,
       e = state(s),
@@ -1850,6 +1899,12 @@
     },
     boundRoute: function (s, battle, point, threats) {
       return coverImpl().boundRoute(s, battle, point, threats);
+    },
+    maskedPost: function (battle, point, threats) {
+      return coverImpl().maskedPost(battle, point, threats);
+    },
+    maskedApproach: function (s, battle, point, threats) {
+      return coverImpl().maskedApproach(s, battle, point, threats);
     },
     coveredBoundsOn: function () {
       return coverImpl().coveredBoundsOn();

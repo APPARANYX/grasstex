@@ -25,6 +25,7 @@
       boundLeaseBlocker = ctx.boundLeaseBlocker,
       LEASE_CONFLICTS_ON = ctx.LEASE_CONFLICTS_ON === true,
       localPlan = ctx.localPlan,
+      tacticalPostures = ctx.tacticalPostures,
       leaderlessActive = ctx.leaderlessActive,
       noteLeaderlessAction = ctx.noteLeaderlessAction,
       updateLeaderlessLocalTask = ctx.updateLeaderlessLocalTask,
@@ -78,6 +79,7 @@
       if (r.fled && r.fled.length && sq.fledId == null) detachFled(sq, battle, r.fled);
       updateRecon(sq, battle, r);
       var localTask = localPlan && localPlan.on ? localPlan.update(battle, sq, r) : null;
+      if (tacticalPostures && tacticalPostures.on) tacticalPostures.update(battle, sq, r);
       if (localPlan && localPlan.tasksOn && sq.state === 'retreat') {
         L.end(sq, 'bound', battle.time, 'retreat owns recovery');
         E.clearBoundOrders(sq);
@@ -120,6 +122,14 @@
       if (r.contactStarted) {
         L.end(sq, 'bound', t, 'contact started');
         L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'contact started', 'cycle expiry');
+      }
+      var posture = tacticalPostures && tacticalPostures.current(battle, sq);
+      if (posture) {
+        L.end(sq, 'bound', t, 'tactical posture holds');
+        E.clearBoundOrders(sq);
+        sq._assaultAuthorized = false;
+        if (FIRE_CONTROL_ON) updateFireControl(sq, battle, r);
+        return;
       }
       if (!sq.inContact) {
         L.end(sq, 'bound', t, 'contact broken');

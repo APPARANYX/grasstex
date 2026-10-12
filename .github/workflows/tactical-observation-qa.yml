@@ -10,6 +10,7 @@ on:
       - battle/modules/15c-squad-leader-scouts-forward.js
       - battle/modules/15d-squad-leader-leaderless-intent.js
       - battle/modules/15n-squad-leader-local-plan.js
+      - battle/modules/15o-squad-leader-tactical-postures.js
       - battle/modules/15l-squad-leader-mission-execution.js
       - battle/modules/16-squad-plan-stability.js
       - battle/commander-ai.js
@@ -20,6 +21,7 @@ on:
       - ai_flow_live.html
       - scripts/probes/probe_tactical_observation.cjs
       - scripts/probes/probe_structure_execution.cjs
+      - scripts/probes/probe_tactical_postures.cjs
       - battle/modules/15h-squad-leader-fireteams.js
       - .github/workflows/tactical-observation-qa.yml
   workflow_dispatch:
@@ -47,6 +49,12 @@ jobs:
           TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
         run: node scripts/probes/probe_structure_execution.cjs
+
+      - name: Staged concealed ambush execution
+        env:
+          TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
+        run: node scripts/probes/probe_tactical_postures.cjs
 
       - uses: actions/upload-artifact@v4
         if: always()

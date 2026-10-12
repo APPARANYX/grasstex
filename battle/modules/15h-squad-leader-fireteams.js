@@ -128,7 +128,11 @@
         return;
       }
       var local = localPlan && localPlan(),
-        security = local && local.currentStructureOrders(battle, sq);
+        postures = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
+        posture = postures && postures.current(battle, sq),
+        security =
+          (local && local.currentStructureOrders(battle, sq)) ||
+          (posture && posture.mode === 'ambush' ? posture : null);
       if (security) {
         var securityStats = publishStats(battle);
         security.orders.forEach(function (o) {
