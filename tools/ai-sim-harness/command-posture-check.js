@@ -164,6 +164,99 @@ test('personal incoming fire bypasses an adopted HOLD immediately without rewrit
   assert.equal(adopted(w, man).data.state, 'hold', 'the personal reflex did not mutate Squad Leader intent');
 });
 
+test('teammate taking fire grants each squadmate immediate defensive authority on confirmed origin', () => {
+  const w = world('?stressAct=0&fireControl=1&commandPosture=1&squadReturnFire=1'),
+    A = w.r.SquadAI,
+    victim = w.us.members[2],
+    buddy = w.us.members[4],
+    third = w.us.members[5],
+    point = { x: 0, z: 100 };
+  command(w);
+  const when = Math.max(rec(w, buddy).adoptedAt, rec(w, third).adoptedAt) + 0.01;
+  w.b.time = when;
+  assert.equal(w.E.squadReturnFireOn(), true);
+  assert.equal(w.E.fireAuthorized(buddy, w.b), false, 'first sight without enemy fire obeys HOLD');
+
+  victim.suppressedUntil = when + 1.5;
+  A.soldierContact = s => s === victim ? {
+    ...point, at: when, source: 'incoming', precision: 'fire-origin', confidence: 1
+  } : null;
+  w.us.contact = { unit: w.foe, x: 200, z: 200, at: when, relayedFrom: 'foreign-squad' };
+  assert.deepEqual(w.E.squadDefensiveContact(buddy, w.b), {
+    ...point, at: when, source: 'incoming'
+  });
+  assert.equal(w.E.fireAuthorized(buddy, w.b), true, 'buddy can return fire despite HOLD');
+  assert.equal(w.E.fireAuthorized(third, w.b), true, 'same credible threat may be engaged by another squadmate');
+  assert.equal(adopted(w, buddy).data.state, 'hold', 'defensive reflex never rewrites SL orders');
+  A.soldierContact = s => s === victim ? {
+    ...point, at: when, source: 'heard', precision: 'imprecise-sound', confidence: 1
+  } : null;
+  assert.equal(w.E.squadDefensiveContact(buddy, w.b), null, 'gunshot sounds cannot establish a target');
+  assert.equal(w.E.fireAuthorized(buddy, w.b), false, 'heard-only contact retains HOLD');
+  A.soldierContact = s => s === victim ? {
+    ...point, at: when, source: 'told', precision: 'reported-position', confidence: 1
+  } : null;
+  assert.equal(w.E.squadDefensiveContact(buddy, w.b), null, 'relay cannot masquerade as firsthand origin');
+  A.soldierContact = s => s === victim ? {
+    ...point, at: when, source: 'seen', seenBy: 'non-witness', confidence: 1
+  } : null;
+  assert.equal(w.E.squadDefensiveContact(buddy, w.b), null, 'source identity matters');
+  A.soldierContact = s => s === victim ? {
+    ...point, at: when, source: 'incoming', precision: 'fire-origin', confidence: 0.1
+  } : null;
+  assert.equal(w.E.squadDefensiveContact(buddy, w.b), null, 'weak origin is not fire authority');
+  A.soldierContact = s => s === victim ? {
+    ...point, at: when, source: 'incoming', precision: 'fire-origin', confidence: 1
+  } : null;
+  w.b.time = when + 3.01;
+  victim.suppressedUntil = w.b.time + 1;
+  assert.equal(w.E.squadDefensiveContact(buddy, w.b), null, 'expired firsthand contact cannot sustain fire');
+  w.b.time = when + 0.2;
+  victim.suppressedUntil = 0;
+  victim.mind = victim.mind || {};
+  victim.mind.lastIncomingAt = -99;
+  assert.equal(w.E.squadDefensiveContact(buddy, w.b), null, 'without active incoming fire an ambush stays silent');
+});
+
+test('uninformed soldier suppresses independently only when its own ballistic lane permits', () => {
+  const w = world('?stressAct=0&fireControl=1&commandPosture=1&squadReturnFire=1'),
+    A = w.r.SquadAI,
+    victim = w.us.members[2],
+    buddy = w.us.members[4];
+  command(w);
+  w.b.time = rec(w, buddy).adoptedAt + 0.01;
+  victim.suppressedUntil = w.b.time + 2;
+  A.soldierContact = s => s === victim ? {
+    x: 0, z: 100, at: w.b.time, source: 'incoming',
+    precision: 'fire-origin', confidence: 1
+  } : null;
+  buddy.target = null;
+  buddy.moving = false;
+  buddy.root.rotation.y = 0;
+  w.us.contact = { x: 190, z: 190, at: w.b.time, relayedFrom: 'outside-squad' };
+  let fired = 0;
+  A.areaFire = (shooter, point) => {
+    if (shooter === buddy) {
+      fired++;
+      shooter.fireCooldown = 0.6;
+    }
+    return 0;
+  };
+  A.canSuppress = () => false;
+  w.E.updateSoldier(buddy, w.b);
+  assert.equal(fired, 0, 'cannot fire through a denied cover/terrain line');
+  A.canSuppress = () => true;
+  w.b.time += 0.6;
+  victim.suppressedUntil = w.b.time + 2;
+  A.soldierContact = s => s === victim ? {
+    x: 0, z: 100, at: w.b.time, source: 'incoming',
+    precision: 'fire-origin', confidence: 1
+  } : null;
+  w.E.updateSoldier(buddy, w.b);
+  assert.equal(w.E.stateOf(buddy).state === 'bound', false, 'defensive firing does not issue movement');
+  assert.equal(adopted(w, buddy).data.state, 'hold', 'response never changes SL intent');
+});
+
 test('precision permission is also personal: only the adopted designated shooter may fire', () => {
   const w = world(),
     shot = w.us.members[3],
