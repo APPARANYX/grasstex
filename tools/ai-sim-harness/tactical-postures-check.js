@@ -243,8 +243,10 @@ for (let i = 0; i < 45; i++) {
   finish = move.P.update(move.b, move.q, { fireSupport: move.q.members.slice(1, 4) });
   if (finish && finish.mode === 'hold') break;
 }
-assert.ok(finish && finish.mode === 'hold',
-  'finite maneuver window closes to defensive hold under normal update cadence');
+assert.ok(
+  finish && finish.mode === 'hold',
+  'finite maneuver window closes to defensive hold under normal update cadence'
+);
 const readGap = world(true, true, true),
   gap = readGap.P.update(readGap.b, readGap.q);
 gap.readyAt = readGap.b.time;
@@ -253,14 +255,22 @@ readGap.r.BattleCoverPositions.candidates = () => [
   { x: readGap.q.members[0].root.position.x, z: moveSafe.z }
 ];
 readGap.q.inContact = true;
-assert.equal(readGap.P.update(readGap.b, readGap.q,
-  { underFire: 1, fireSupport: readGap.q.members.slice(1, 4) }).mode, 'maneuver');
+assert.equal(
+  readGap.P.update(readGap.b, readGap.q, { underFire: 1, fireSupport: readGap.q.members.slice(1, 4) }).mode,
+  'maneuver'
+);
 readGap.b.time += 0.3;
-assert.equal(readGap.P.update(readGap.b, readGap.q).mode, 'maneuver',
-  'read-only commander tick without a fresh report preserves bounded support evidence');
+assert.equal(
+  readGap.P.update(readGap.b, readGap.q).mode,
+  'maneuver',
+  'read-only commander tick without a fresh report preserves bounded support evidence'
+);
 readGap.b.time += 0.7;
-assert.equal(readGap.P.update(readGap.b, readGap.q).mode, 'hold',
-  'missing real Engagement support reports cannot silently persist');
+assert.equal(
+  readGap.P.update(readGap.b, readGap.q).mode,
+  'hold',
+  'missing real Engagement support reports cannot silently persist'
+);
 const noSupport = world(true, true, true);
 const nos = noSupport.P.update(noSupport.b, noSupport.q);
 nos.readyAt = noSupport.b.time;
