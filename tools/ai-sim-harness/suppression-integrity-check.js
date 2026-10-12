@@ -149,6 +149,27 @@ function world() {
   assert.equal(E.fireCoverAfterShot(s, b, 0.55, 0), false, 'no actual protective cover, no fake concealment');
   s.target = null;
   assert.equal(E.fireCoverAfterShot(s, b, 0.55, 0), false, 'no target, no new cycle');
+  s.target = ge.members[0];
+  F.coverAt = () => 0.55;
+  e.suppressOrder = true;
+  assert.equal(
+    E.fireCoverAfterShot(s, b, 0.55, 0),
+    false,
+    'assigned base-of-fire rifleman never abandons his personal support task on a fixed timer'
+  );
+  e.suppressOrder = false;
+  const M = r.BattleSoldierMind,
+    originalIncoming = M.recentIncoming;
+  M.recentIncoming = () => true;
+  const threatenedPulls = Math.max(1, pulls - 1);
+  for (let i = 0; i < threatenedPulls; i++) {
+    s.fireCooldown = 0.75;
+    E.fireCoverAfterShot(s, b, 0.55, 0);
+    s.fireCooldown = 0;
+  }
+  assert.ok(e.fireCoverUntil > b.time, 'recent incoming fire shortens the individual exposure interval');
+  assert.ok(e.fireCoverUntil - b.time >= 1.05, 'incoming fire extends protected recovery');
+  M.recentIncoming = originalIncoming;
   assert.ok(
     E.fireCoverVariation(s) !== E.fireCoverVariation(us.members.find(m => m !== s)),
     'riflemen use their own stable identities rather than a shared squad clock'
