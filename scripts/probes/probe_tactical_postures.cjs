@@ -243,7 +243,9 @@ const { chromium } = require('playwright');
       );
       const stages = [];
       if (st.stage === 'hold' && st.time >= 1) stages.push('masked-hold');
-      if (st.stage === 'ready') stages.push('prepared-line');
+      // The native posture can enter 'contact' on the same tick it becomes
+      // ready; readiness itself, while the guns remain silent, is the frame.
+      if (st.readyAt != null && st.ownShots === 0) stages.push('prepared-line');
       if (st.ownShots > 0 && st.lastShot?.readyAt != null) stages.push('first-contact-volley');
       for (const name of stages)
         if (!captured.has(name)) {
