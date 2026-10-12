@@ -124,10 +124,14 @@ jobs:
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
   actions-retention:
-    name: Retain relevant Actions evidence
+    name: Clean non-green runs from merged branches
+    needs: [merged-head]
     if: >-
-      github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && inputs.clean_action_runs)
+      always() && (
+        github.event_name == 'schedule' ||
+        (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+        (github.event_name == 'workflow_dispatch' && inputs.clean_action_runs)
+      )
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -135,10 +139,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          DRY_RUN: ${{ github.event_name == 'schedule' || inputs.dry_run }}
-          MIN_AGE_DAYS: 21
-          KEEP_PER_WORKFLOW: 3
-          MAX_DELETE: 50
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          MAX_DELETE: 100
         run: bash scripts/housekeeping-actions-runs.sh
 
   workflow-sidebar-audit:
