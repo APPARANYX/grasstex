@@ -401,6 +401,15 @@ const { chromium } = require('playwright');
             : null;
         return {
           time: b.time,
+          winner: b.winner,
+          timeLimit: b.timeLimit,
+          alive: {us:b.factions.us.alive, ge:b.factions.ge.alive},
+          hostile: {id:p.hostile.id, dead:p.hostile.dead, hp:p.hostile.hp,
+            isPlayer:p.hostile.isPlayer},
+          moverDead: m.dead,
+          moverTarget: m.target && m.target.id,
+          boundLease: BattleLeases.holds(p.q, 'bound', b.time),
+          boundOrder: e.boundOrder,
           displacement,
           distanceToCover,
           cover,
@@ -415,6 +424,8 @@ const { chromium } = require('playwright');
         };
       });
       evidence.latest = st;
+      if (st.winner)
+        throw Error('battle terminated during covered-action proof: ' + JSON.stringify(st));
       const stages = [];
       if (st.displacement <= 0.3 && st.shots > 0) stages.push('support-base');
       if (st.displacement > 0.4 && st.displacement < 1.7) stages.push('bound-moving');
