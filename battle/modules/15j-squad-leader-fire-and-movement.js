@@ -167,10 +167,12 @@
         localTask &&
         !localTask.emergency &&
         sq.state !== 'retreat' &&
-        !(localTask.eligible &&
+        !(
+          localTask.eligible &&
           (localTask.eligible.recover ||
             localTask.eligible['structure-security'] ||
-            localTask.eligible['objective-security'])) &&
+            localTask.eligible['objective-security'])
+        ) &&
         (!localPlan.resourcesOn ||
           (localTask.inputs &&
             localTask.inputs.resources &&
