@@ -160,6 +160,21 @@ assert.ok(
   P.coveredTeam(b, q, [mover], report),
   'real Navigation, Perception and physical cover slot must allow the prospective moving rifleman'
 );
+/* The first candidate in rotation is Bravo: a superficially staffed
+   but unsafe bound. The second viable team (Alpha) has a real covered
+   route. Reject Bravo and keep scanning, without weakening any gate. */
+support[2]._fireteamKey = 'charlie';
+q._boundTurn = 0;
+assert.equal(
+  P.coveredTeam(b, q, [support[0], support[1]], report),
+  false,
+  'first rotating team has no authorized covered bound'
+);
+assert.equal(
+  P.coveredTeam(b, q, [mover], report),
+  true,
+  'later alpha rifleman has a physically safe covered bound'
+);
 const start = { x: mover.root.position.x, z: mover.root.position.z };
 S.fireAndMovement(q, b);
 assert.ok(L.holds(q, 'bound', b.time), 'shipping Squad Leader issued the single native bound lease');
