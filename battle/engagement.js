@@ -39,6 +39,9 @@
   var MOVE_FIRE_FRACTION = 0.12; // above this fraction of top speed the weapon stays down
   var ALERT_HOLD = 4.5; // hold the threat sector this long after losing sight
   var ENGAGE_REVIEW = 7.0; // re-open the cover question this often while holding
+  var SQUAD_RETURN_FIRE_ON = /[?&]squadReturnFire=(?:1|on|true)(?:&|#|$)/i.test(
+    (root.location && root.location.search) || ''
+  );
   /* Phase C: experimental, per-soldier Micro fire/conceal cycle. The Squad Leader
      neither schedules the pause nor receives a new command/ownership surface. */
   var FIRE_COVER_CYCLE = /[?&]fireCoverCycle=(?:1|on|true)(?:&|#|$)/i.test(
@@ -1003,6 +1006,75 @@
     if (s && battle && !s.dead && reactionState(s) !== 'freeze') EXT.run('afterDrill', s, battle);
     return result;
   }
+
+  /* Local Micro defense: a teammate taking fire opens an opportunity for other
+     soldiers to help, but only at a recent firsthand seen or verified incoming
+     firing-origin point. No outside relay, heard-only sector, unit transform,
+     fire-control order, or combat-RNG draw is consulted for this permission. */
+  function squadDefensiveContact(s, battle) {
+    var sq = s && s.squad, men = sq && sq.members, A = SA(),
+      now = battle && +battle.time, best = null, takingFire = false;
+    if (!SQUAD_RETURN_FIRE_ON || !s || s.dead || s.isPlayer || !battle ||
+        !sq || sq.state === 'retreat' || !A || !Array.isArray(men) ||
+        men.length > 32) return null;
+    for (var i = 0; i < men.length; i++)
+      if (men[i] && !men[i].dead && underFireNow(men[i], battle)) {
+        takingFire = true; break;
+      }
+    if (!takingFire) return null;
+    var c = A.squadContact && A.squadContact(sq, battle);
+    if (c && c.fireRevealed && c.precision === 'fire-origin' &&
+        !c.relayedFrom && isFinite(+c.x) && isFinite(+c.z) &&
+        isFinite(+c.at) && now >= +c.at && now - +c.at <= 3)
+      for (var j = 0; j < men.length; j++)
+        if (men[j] && !men[j].dead &&
+            String(men[j].id) === String(c.reportedBy) &&
+            underFireNow(men[j], battle)) {
+          best = { x: +c.x, z: +c.z, at: +c.at, source: 'incoming' };
+          break;
+        }
+    if (A.soldierContact) for (var k = 0; k < men.length; k++) {
+      var m = men[k];
+      if (!m || m.dead || m.isPlayer) continue;
+      var r = A.soldierContact(m, battle);
+      if (!r || !isFinite(+r.x) || !isFinite(+r.z) ||
+          !isFinite(+r.at) || !isFinite(+r.confidence) ||
+          +r.confidence < 0.5 || now < +r.at || now - +r.at > 3 ||
+          !((r.source === 'seen' && String(r.seenBy) === String(m.id)) ||
+            (r.source === 'incoming' && r.precision === 'fire-origin' &&
+             underFireNow(m, battle)))) continue;
+      if (!best || +r.at > best.at)
+        best = { x: +r.x, z: +r.z, at: +r.at, source: r.source };
+    }
+    return best;
+  }
+  function defensiveLine(s, battle, pt) {
+    return !!(pt && SA().canSuppress && SA().canSuppress(s, pt, battle, true));
+  }
+  function autonomousDefensiveSupport(s, battle) {
+    var e = state(s), pt = squadDefensiveContact(s, battle),
+      ammo = root.BattleAmmunition, post = root.BattleTacticalPositions;
+    if (!pt || combatThreat(s.target) || !s.weapon || !s.weapon.stats ||
+        s.moving || s.crawling || s.reloading || s.clearingStoppage ||
+        s.outOfAmmo || s.suppressedUntil > battle.time || e.boundOrder ||
+        (ammo && !ammo.available(s)) ||
+        (post && post.current && post.current(s)) ||
+        ['bound', 'pinned', 'withdraw', 'assault'].indexOf(e.state) >= 0 ||
+        !defensiveLine(s, battle, pt)) return false;
+    holdPosition(s, battle);
+    s.state = 'suppress';
+    if (ALERT_LATCH) e.engaged = true;
+    e.until = Math.max(+e.until || 0, battle.time + SUPPRESS_HOLD);
+    commitStanceRespectHold(s, battle, 'crouch', 0.8, 'individual defensive assist');
+    s._faceHint = { x: pt.x, z: pt.z };
+    if (SA().isMachineGun(s)) {
+      if (!e.setUpSince) e.setUpSince = battle.time;
+      s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
+    }
+    suppress(s, battle, pt);
+    return true;
+  }
+
   function orderedAreaSupport(s, battle) {
     var point = areaSupportOf(s, battle),
       e = state(s);
@@ -1121,6 +1193,7 @@
     if (ambushPost(s, battle)) return;
     if (fireControlPreparing(s, battle) && e.state !== 'bound' && e.state !== 'assault')
       return prepareFireControl(s, battle);
+    if (autonomousDefensiveSupport(s, battle)) return;
 
     if (structureObservation(s, battle)) return;
 
@@ -1198,6 +1271,7 @@
       !o ||
       e.suppressOrder ||
       underFireNow(s, battle) ||
+      squadDefensiveContact(s, battle) ||
       s.suppressedUntil > battle.time ||
       battle.time < shockUntil(s) ||
       ['bound', 'assault', 'pinned', 'withdraw'].indexOf(e.state) >= 0 ||
@@ -1264,6 +1338,7 @@
       squadContact(s, battle) ||
       e.suppressOrder ||
       underFireNow(s, battle) ||
+      squadDefensiveContact(s, battle) ||
       s.suppressedUntil > battle.time ||
       battle.time < shockUntil(s) ||
       ['bound', 'assault', 'pinned', 'withdraw'].indexOf(e.state) >= 0
@@ -1931,7 +2006,8 @@
         e.state === 'engage' ||
         (e.state === 'station' && post && post.occupiedAt != null) ||
         e.suppressOrder ||
-        areaSupport
+        areaSupport ||
+        squadDefensiveContact(s, battle)
       )
     )
       return false;
@@ -1956,6 +2032,10 @@
       )
         return true;
     }
+    var localDefence = squadDefensiveContact(s, battle);
+    if (!combatThreat(target) && localDefence)
+      return defensiveLine(s, battle, localDefence) &&
+        facingError(s, localDefence) <= AIM_CONE;
     return !!(
       combatThreat(target) &&
       dist(posOf(s).x, posOf(s).z, posOf(target).x, posOf(target).z) <= SA().engageRange(s) &&
@@ -2026,7 +2106,8 @@
           e.state === 'engage' ||
           (e.state === 'station' && position && position.occupiedAt != null) ||
           e.suppressOrder ||
-          areaSupportOf(s, battle)
+          areaSupportOf(s, battle) ||
+          squadDefensiveContact(s, battle)
         ) {
           if (!EFFECTIVE_FIRE || supportReady(s, battle)) {
             effective++;
@@ -2139,6 +2220,8 @@
     extensionOrder: EXT.order,
     updateSoldier: updateSoldier,
     updateSquad: updateSquad,
+    squadDefensiveContact: squadDefensiveContact,
+    squadReturnFireOn: function () { return SQUAD_RETURN_FIRE_ON; },
     orderBound: orderBound,
     clearBoundOrders: clearBoundOrders,
     coveredBoundTelemetry: function (battle) {
