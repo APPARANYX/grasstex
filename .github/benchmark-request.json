@@ -1,0 +1,10 @@
+{
+  "benchmark": "standard",
+  "ref": "work/299-phase-c-unique-fire-support-acceptance",
+  "seed": "12345",
+  "seeds": "1",
+  "battle_type": "ge-defend",
+  "query_off": "",
+  "query_on": "localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1",
+  "purpose": "phase C end-to-end gated tactical activation/off-on control"
+}
