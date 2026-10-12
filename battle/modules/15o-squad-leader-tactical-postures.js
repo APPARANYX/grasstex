@@ -76,6 +76,25 @@
        route selection and firing remain with native Engagement and Movement.
        Never treat visibility masking as ballistic protection; reuse the
        physicality-aware 0.75 m covered bound sampler for every candidate. */
+    /* Engagement reports an identity-based base of fire. Duplicate entries,
+       stale roster members and non-firing men cannot manufacture two rifles. */
+    function supportingCount(a, movers, support, now) {
+      if (!Array.isArray(support) || support.length > 32) return 0;
+      var seen = [];
+      return support.filter(function (s) {
+        if (!s || seen.indexOf(s) >= 0) return false;
+        seen.push(s);
+        return (
+          a.indexOf(s) >= 0 &&
+          (!movers || movers.indexOf(s) < 0) &&
+          !s.dead &&
+          !s.reloading &&
+          !s.outOfAmmo &&
+          !(s.suppressedUntil > now) &&
+          !s.moving
+        );
+      }).length;
+    }
     function coveredTeam(b, sq, movers, report) {
       var C = root.BattleCoverPositions,
         a = men(sq),
@@ -96,18 +115,7 @@
         N.scenario !==
           (b.scene && b.scene.metadata && (b.scene.metadata.battleScenario || b.scene.metadata.battleTown)) ||
         !rs.length ||
-        !Array.isArray(support) ||
-        support.filter(function (s) {
-          return (
-            a.indexOf(s) >= 0 &&
-            movers.indexOf(s) < 0 &&
-            !s.dead &&
-            !s.reloading &&
-            !s.outOfAmmo &&
-            !(s.suppressedUntil > b.time) &&
-            !s.moving
-          );
-        }).length < tuning.minSupport
+        supportingCount(a, movers, support, b.time) < tuning.minSupport
       )
         return false;
       for (var i = 0; i < movers.length; i++) {
@@ -266,18 +274,7 @@
            refresh actual support within a bounded observation window. */
         if (report && Array.isArray(report.fireSupport))
           st.lastSupportAt =
-            report.fireSupport.filter(function (s) {
-              return (
-                a.indexOf(s) >= 0 &&
-                !s.dead &&
-                !s.moving &&
-                !s.outOfAmmo &&
-                !s.reloading &&
-                !(s.suppressedUntil > now)
-              );
-            }).length >= tuning.minSupport
-              ? now
-              : -Infinity;
+            supportingCount(a, null, report.fireSupport, now) >= tuning.minSupport ? now : -Infinity;
         if (
           !sq.inContact ||
           !maneuverOn ||
