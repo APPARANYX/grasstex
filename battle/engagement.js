@@ -19,6 +19,11 @@
    tools/ai-sim-harness. */
 (function (root) {
   'use strict';
+  /* C3 correction; explicit legacy control for paired causal benchmarks. */
+  var EFFECTIVE_FIRE = !(
+    typeof location !== 'undefined' &&
+    /[?&]effectiveFire=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')
+  );
 
   /* ?retreatPosture=0 restores the old behavior: a retreat's end does not clear a man's withdraw state
      or void a posture order adopted before it ended. */
@@ -1324,7 +1329,7 @@
     var sq = s.squad,
       assaulting = sq && ADVANCING[sq.commandPhase],
       effectiveRange = SA().engageRange(s),
-      outOfRange = d > effectiveRange * 1.2,
+      outOfRange = d > effectiveRange * (EFFECTIVE_FIRE ? 1 : 1.2),
       anchor = sq && (sq.orderAnchor || sq.rally);
     if (!suppressed && outOfRange && !assaulting && anchor) {
       e.withdrawPoint = { x: +anchor.x, z: +anchor.z };
@@ -1624,7 +1629,7 @@
         );
         return advance(s, battle);
       }
-      if (targetDistance <= SA().engageRange(s) * 1.1) {
+      if (targetDistance <= SA().engageRange(s) * (EFFECTIVE_FIRE ? 1 : 1.1)) {
         transition(
           s,
           battle,
@@ -1743,6 +1748,12 @@
      the line closes (a stance change or a step behind a bush must not flap it) and again the moment
      the line opens; incoming fire and suppressors count as contact on their own, below. */
   function fireLineLive(s, e, battle) {
+    if (
+      EFFECTIVE_FIRE &&
+      combatThreat(s.target) &&
+      dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z) > SA().engageRange(s)
+    )
+      return false;
     var G = root.BattleDirectFireLOSGate;
     if (!FIRE_LINE_CONTACT || !G || !G.blockReason || !G.blockReason(s, battle)) {
       e.noLineSince = null;
@@ -1750,6 +1761,63 @@
     }
     if (e.noLineSince == null) e.noLineSince = battle.time;
     return battle.time - e.noLineSince < NO_LINE_GRACE;
+  }
+  /* Capability is not the Engagement state name. Count only a personally
+     acquired shot or a lawful suppression job that can actually reach its
+     reported point. This is a read, never a trigger pull or a target writer. */
+  function supportReady(s, battle) {
+    var e = s && s.eng,
+      ammo = root.BattleAmmunition,
+      G = root.BattleDirectFireLOSGate;
+    if (
+      !s ||
+      !e ||
+      !battle ||
+      s.dead ||
+      s.hp <= 0 ||
+      s.incapacitated ||
+      s.isPlayer ||
+      !s.weapon ||
+      s.outOfAmmo ||
+      s.reloading ||
+      s.clearingStoppage ||
+      s.weapon.stats == null ||
+      s.weapon.jammed ||
+      s.moving ||
+      s.crawling ||
+      s.suppressedUntil > battle.time ||
+      reacting(s) ||
+      fledPhase(s) ||
+      battle.time < e.fireReadyAt ||
+      !fireAuthorized(s, battle) ||
+      battle.time < shockUntil(s) ||
+      (ammo && !ammo.available(s))
+    )
+      return false;
+    var post = root.BattleTacticalPositions && root.BattleTacticalPositions.current(s);
+    if (
+      !(e.state === 'engage' || (e.state === 'station' && post && post.occupiedAt != null) || e.suppressOrder)
+    )
+      return false;
+    if (SA().isMachineGun(s) && !s.setUp) return false;
+    if (e.suppressOrder) {
+      var point = knownThreat(s, battle);
+      if (
+        point &&
+        SA().canSuppress &&
+        SA().canSuppress(s, point, battle, true) &&
+        facingError(s, point) <= AIM_CONE
+      )
+        return true;
+    }
+    var target = s.target;
+    return !!(
+      combatThreat(target) &&
+      dist(posOf(s).x, posOf(s).z, posOf(target).x, posOf(target).z) <= SA().engageRange(s) &&
+      facingError(s, posOf(target)) <= AIM_CONE &&
+      SA().hasLineOfSight(s, target, battle.heightAt, battle.obstacles) &&
+      !(G && G.blockReason && G.blockReason(s, battle))
+    );
   }
   /* Squad contact report. Micro state flows up: who can see the enemy, who is pinned, who is
      actually putting rounds out (the base of fire). The Squad Leader (16-squad-plan-stability.js) reads
@@ -1814,8 +1882,10 @@
           (e.state === 'station' && position && position.occupiedAt != null) ||
           e.suppressOrder
         ) {
-          effective++;
-          fireSupport.push(s);
+          if (!EFFECTIVE_FIRE || supportReady(s, battle)) {
+            effective++;
+            fireSupport.push(s);
+          }
         }
       }
     }
@@ -1959,6 +2029,10 @@
     facingError: facingError,
     fireAllowed: fireAllowed,
     fireAuthorized: fireAuthorized,
+    supportReady: supportReady,
+    effectiveFireOn: function () {
+      return EFFECTIVE_FIRE;
+    },
     underFireNow: underFireNow,
     fireControlReady: fireControlReady,
     fireControlObservation: fireControlObservation,

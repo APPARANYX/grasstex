@@ -145,7 +145,8 @@
   }
   function say(sim, soldier, event, opts) {
     opts = opts || {};
-    if (!voiceReady(sim) || !soldier || soldier.dead || !hasEvent(soldier, event)) return false;
+    if (!voiceReady(sim) || !root.BattleVoiceEligibility.allows(soldier, event) || !hasEvent(soldier, event))
+      return false;
     var sq = soldier.squad,
       ss = sq ? squadState(sim, sq) : null,
       t = +sim.time || 0;

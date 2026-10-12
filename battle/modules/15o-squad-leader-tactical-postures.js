@@ -78,7 +78,7 @@
        physicality-aware 0.75 m covered bound sampler for every candidate. */
     /* Engagement reports an identity-based base of fire. Duplicate entries,
        stale roster members and non-firing men cannot manufacture two rifles. */
-    function supportingCount(a, movers, support, now) {
+    function supportingCount(a, movers, support, now, battle) {
       if (!Array.isArray(support) || support.length > 32) return 0;
       var seen = [];
       return support.filter(function (s) {
@@ -91,7 +91,11 @@
           !s.reloading &&
           !s.outOfAmmo &&
           !(s.suppressedUntil > now) &&
-          !s.moving
+          !s.moving &&
+          (!root.BattleEngagement ||
+            !root.BattleEngagement.effectiveFireOn ||
+            !root.BattleEngagement.effectiveFireOn() ||
+            root.BattleEngagement.supportReady(s, battle))
         );
       }).length;
     }
@@ -124,10 +128,12 @@
         st.heldActorIds &&
         st.heldActorIds.length >= 3 &&
         st.heldActorIds.every(function (id) {
-          return settled.indexOf(id) >= 0 &&
+          return (
+            settled.indexOf(id) >= 0 &&
             st.orders.some(function (o) {
               return o.soldierId === id && C.maskedPost(b, o.point, reports);
-            });
+            })
+          );
         })
       );
     }
@@ -151,7 +157,7 @@
         N.scenario !==
           (b.scene && b.scene.metadata && (b.scene.metadata.battleScenario || b.scene.metadata.battleTown)) ||
         !rs.length ||
-        supportingCount(a, movers, support, b.time) < tuning.minSupport
+        supportingCount(a, movers, support, b.time, b) < tuning.minSupport
       )
         return false;
       for (var i = 0; i < movers.length; i++) {
@@ -232,25 +238,42 @@
         nav = root.BattleNavigation,
         p = (sq.route || [])[+sq.routeIndex];
       if (!a) return 'too-few-uncommitted-riflemen';
-      if (fullRoster.length !== st.members.length || fullRoster.some(function (s, i) {
-        return s !== st.members[i] || epoch(s) !== st.epochs[i];
-      })) return 'squad-roster-or-possession';
-      if (st.orders.some(function (o) {
-        return !a.some(function (s) {
-          return String(s.id) === o.soldierId;
-        });
-      })) return 'ambush-actor-reassigned';
+      if (
+        fullRoster.length !== st.members.length ||
+        fullRoster.some(function (s, i) {
+          return s !== st.members[i] || epoch(s) !== st.epochs[i];
+        })
+      )
+        return 'squad-roster-or-possession';
+      if (
+        st.orders.some(function (o) {
+          return !a.some(function (s) {
+            return String(s.id) === o.soldierId;
+          });
+        })
+      )
+        return 'ambush-actor-reassigned';
       if (m !== st.mission || !m || m.version !== st.version || m.status !== 'executing')
         return 'mission-changed';
       if (ex !== st.execution || !ex || ex.mission !== m) return 'execution-changed';
-      if (sq.route !== st.route || +sq.routeIndex !== st.leg || !p ||
-          p.x !== st.target.x || p.z !== st.target.z) return 'route-changed';
-      if (b.scene !== st.scene || !nav || nav.scenario !== st.scenario ||
-          nav.version !== st.navigationVersion) return 'navigation-changed';
-      if (A.leaderOf(sq) !== st.leader || !st.leader || st.leader.dead ||
-          ctx.leaderlessActive(sq)) return 'leader-changed';
-      if (sq.state === 'retreat' || L.get(sq, 'regroup') || L.get(sq, 'recon'))
-        return 'override-lease';
+      if (
+        sq.route !== st.route ||
+        +sq.routeIndex !== st.leg ||
+        !p ||
+        p.x !== st.target.x ||
+        p.z !== st.target.z
+      )
+        return 'route-changed';
+      if (
+        b.scene !== st.scene ||
+        !nav ||
+        nav.scenario !== st.scenario ||
+        nav.version !== st.navigationVersion
+      )
+        return 'navigation-changed';
+      if (A.leaderOf(sq) !== st.leader || !st.leader || st.leader.dead || ctx.leaderlessActive(sq))
+        return 'leader-changed';
+      if (sq.state === 'retreat' || L.get(sq, 'regroup') || L.get(sq, 'recon')) return 'override-lease';
       if (ctx.localPlan.structureOrdersOn && ctx.localPlan.currentStructureOrders(b, sq))
         return 'structure-override';
       return 'stale-time-or-authority';
@@ -353,7 +376,7 @@
            refresh actual support within a bounded observation window. */
         if (report && Array.isArray(report.fireSupport))
           st.lastSupportAt =
-            supportingCount(a, null, report.fireSupport, now) >= tuning.minSupport ? now : -Infinity;
+            supportingCount(a, null, report.fireSupport, now, b) >= tuning.minSupport ? now : -Infinity;
         if (
           !sq.inContact ||
           (task && task.emergency) ||
@@ -410,8 +433,7 @@
           /* Do not place this soldier at an exposed default slot. A masked
              fireteam is useful even when another eligible squad member has
              no concealed post; that man remains under his existing orders. */
-          if (candidate)
-            orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
+          if (candidate) orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
         }
         if (orders.length < 3) return null; // Never publish an understrength ambush element.
         var counts = counters.get(sq) || {
@@ -477,8 +499,7 @@
           st.heldActorIds.every(function (id) {
             return settled.indexOf(id) >= 0;
           });
-      if (!coreHeld && st.readyAt != null)
-        return end(b, sq, 'prepared fireteam left firing line');
+      if (!coreHeld && st.readyAt != null) return end(b, sq, 'prepared fireteam left firing line');
       if (!coreHeld) {
         /* Select three genuinely adopted masked posts ONCE, then measure the
            continuous hold by their stable IDs; newcomers cannot borrow dwell

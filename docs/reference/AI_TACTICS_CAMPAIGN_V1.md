@@ -148,6 +148,29 @@ When the Squad Leader is unavailable (dead, fled, succession gap):
 
 ---
 
+### C3 — Effective fire support, out-of-range response and stress-state voice
+
+Added October 12 from live v530 seed `live-mv5apwx1-djrk`; tracked in PR #299.
+Preserve the existing weapon range profiles. Engagement owns whether a personally
+acquired target or authorized reported suppression point can receive effective fire;
+state names alone cannot establish a base of fire. Local resources and covered-posture
+readers revalidate the same capability without acquiring hidden enemy information.
+A visible out-of-range target does not create a futile combat hold; lawful squad movement,
+cover/pinning and existing break-contact owners retain authority. `effectiveFire=0` is the
+explicit legacy benchmark control, not a range change.
+
+Dazed/frozen and broken/fleeing actors retain appropriate distress calls but cannot issue
+combat orders or fresh tactical callouts. Both voice schedulers revalidate at playback
+start, cancelling obsolete queued lines after death, reaction or squad replacement.
+Capable retreating leaders retain withdrawal warnings and orders. Presentation eligibility
+is read-only and never consumes combat RNG.
+
+Acceptance requires native returned fire and ineffective-support denial, range-boundary and
+pressure/ownership regressions, queued voice/recovery/restart tests, final-head CI and
+Chromium, and same-seed paired/causal evidence. Same-seed replay is not an exact live-battle
+reproduction unless configuration and outcomes also agree. C3 and full natural C acceptance
+stay open until their own evidence is verified.
+
 ## Phase D — Streets and structures
 
 **Goal:** Squads stop oscillating at corners/windows; can confirm structure control; can explain reroutes/aborts.

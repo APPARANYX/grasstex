@@ -205,6 +205,14 @@
     } catch (_) {}
   }
   function playAt(entry, req) {
+    if (
+      !root.BattleVoiceEligibility.allows(req.soldier, req.type) ||
+      req.soldier.squad !== req.squad ||
+      (req.squad && req.squad.disbanded)
+    ) {
+      finish(req);
+      return req.handle;
+    }
     try {
       var soldier = req.soldier,
         mesh = soldier.root,
@@ -244,6 +252,7 @@
     return req.handle;
   }
   function enqueue(soldier, type, cam, opts) {
+    if (!root.BattleVoiceEligibility.allows(soldier, type)) return false;
     opts = opts || {};
     var contact = null;
     if (type === 'contact') {
@@ -294,7 +303,7 @@
       tacticalSquadLast[squadId] = now;
     }
     var handle = handleFor(soldier, type, file, opts),
-      req = { soldier: soldier, type: type, opts: opts, handle: handle, lane: lane },
+      req = { soldier: soldier, squad: soldier.squad, type: type, opts: opts, handle: handle, lane: lane },
       entry = cache[file];
     if (entry) {
       if (entry.ready) return playAt(entry, req);

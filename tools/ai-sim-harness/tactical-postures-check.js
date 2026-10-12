@@ -1,4 +1,6 @@
 'use strict';
+// Policy-seam fixtures supply support reports; effective-fire truth is tested
+// separately by effective-fire-support and native covered-fire-maneuver checks.
 const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
@@ -6,7 +8,7 @@ function world(on = true, terrain = true, maneuver = false) {
   H.resetIds();
   const r = H.bootstrap({
     search:
-      '?localPlan=1&coa=0&commandMovement=0&slStress=0&scoutsForward=0&stressAct=0' +
+      '?effectiveFire=0&localPlan=1&coa=0&commandMovement=0&slStress=0&scoutsForward=0&stressAct=0' +
       (on ? '&localAmbush=1' : '') +
       (maneuver ? '&localManeuver=1&coveredBounds=1' : '')
   });
@@ -168,10 +170,7 @@ station.r.BattleTacticalPositions = {
   current: s => (s === stationedMan ? { owner: 'emplacement' } : null)
 };
 const stationedPosture = station.P.update(station.b, station.q);
-assert.ok(
-  stationedPosture,
-  'remaining riflemen may form a masked line without station-owned specialist'
-);
+assert.ok(stationedPosture, 'remaining riflemen may form a masked line without station-owned specialist');
 assert.ok(
   stationedPosture.orders.every(o => o.soldierId !== String(stationedMan.id)),
   'Squad Leader must not issue posture orders to the already committed station owner'
@@ -386,7 +385,9 @@ assert.equal(
 const partialCore = world();
 const core = partialCore.P.update(partialCore.b, partialCore.q);
 assert.ok(core && core.orders.length >= 4, 'fixture needs at least four masked posts');
-const lagging = partialCore.q.members.find(s => String(s.id) === core.orders[core.orders.length - 1].soldierId);
+const lagging = partialCore.q.members.find(
+  s => String(s.id) === core.orders[core.orders.length - 1].soldierId
+);
 let partialReady = null;
 for (let i = 0; i < 90; i++) {
   H.run(partialCore.r, partialCore.b, 0.15);
@@ -399,8 +400,14 @@ for (let i = 0; i < 90; i++) {
     break;
   }
 }
-assert.ok(partialReady && partialReady.heldActorIds.length === 3, 'three stationary adopted men form one held line');
-assert.ok(!partialReady.heldActorIds.includes(String(lagging.id)), 'lagging fourth cannot count toward readiness');
+assert.ok(
+  partialReady && partialReady.heldActorIds.length === 3,
+  'three stationary adopted men form one held line'
+);
+assert.ok(
+  !partialReady.heldActorIds.includes(String(lagging.id)),
+  'lagging fourth cannot count toward readiness'
+);
 const movingCore = partialCore.q.members.find(s => String(s.id) === partialReady.heldActorIds[0]);
 movingCore.moving = true;
 assert.equal(
