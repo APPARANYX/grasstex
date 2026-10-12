@@ -342,10 +342,7 @@ function preparedNaturalPressure() {
     }
   }
   assert.ok(ready && ready.stage === 'ready', 'native squad ticks must produce a prepared ambush');
-  assert.ok(
-    x.b.time >= x.P.tuning.minimumHold,
-    'live masked firing-line dwell cannot be skipped'
-  );
+  assert.ok(x.b.time >= x.P.tuning.minimumHold, 'live masked firing-line dwell cannot be skipped');
   assert.equal(x.b.events.fired, 0, 'precontact guns remain silent during natural preparation');
   const mover = x.q.members[0];
   const report = {
@@ -353,10 +350,7 @@ function preparedNaturalPressure() {
     fireSupport: x.q.members.slice(1, 5)
   };
   const contact = x.r.SquadAI.squadContactsMap(x.q, x.b)[0];
-  assert.ok(
-    contact && contact.confidence >= 0.5,
-    'pressure transition needs fresh own reported evidence'
-  );
+  assert.ok(contact && contact.confidence >= 0.5, 'pressure transition needs fresh own reported evidence');
   const covered = [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5.5, 6, 7, 8]
     .map(z => ({ x: mover.root.position.x, z }))
     .find(p => x.r.BattleCoverPositions.boundRoute(mover, x.b, p, [contact]).eligible);
