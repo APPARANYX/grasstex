@@ -383,6 +383,9 @@
   function underFireNow(s, battle) {
     return fireStanceImpl().underFireNow(s, battle);
   }
+  function areaSupportOf(s, battle) {
+    return fireStanceImpl().areaSupportOf(s, battle);
+  }
   function fireAuthorized(s, battle) {
     return fireStanceImpl().fireAuthorized(s, battle);
   }
@@ -989,6 +992,21 @@
     if (s && battle && !s.dead && reactionState(s) !== 'freeze') EXT.run('afterDrill', s, battle);
     return result;
   }
+  function orderedAreaSupport(s, battle) {
+    var point = areaSupportOf(s, battle),
+      e = state(s);
+    if (!point || combatThreat(s.target)) return false;
+    if (['bound', 'assault', 'pinned', 'withdraw'].indexOf(e.state) >= 0) return false;
+    holdPosition(s, battle);
+    s.state = 'suppress';
+    if (ALERT_LATCH) e.engaged = true;
+    e.until = Math.max(+e.until || 0, battle.time + SUPPRESS_HOLD);
+    commitStanceRespectHold(s, battle, 'crouch', 0.8, 'squad support-fire order');
+    s._faceHint = { x: point.x, z: point.z };
+    suppress(s, battle, point);
+    return true;
+  }
+
   function runDrill(s, battle) {
     var e = state(s),
       role = roleOf(s),
@@ -1067,6 +1085,7 @@
     if (ACT.any && reaction(s, battle)) return;
     if (root.BattleGrenades && root.BattleGrenades.on() && root.BattleGrenades.pendingOf(s, battle))
       return throwing(s, battle);
+    if (orderedAreaSupport(s, battle)) return;
     if (e.state === 'throw') {
       transition(s, battle, s.target ? 'engage' : 'alert', 0, 'grenade released');
     }
@@ -1806,12 +1825,28 @@
       (ammo && !ammo.available(s))
     )
       return false;
-    var post = root.BattleTacticalPositions && root.BattleTacticalPositions.current(s);
+    var post = root.BattleTacticalPositions && root.BattleTacticalPositions.current(s),
+      areaSupport = areaSupportOf(s, battle);
     if (
-      !(e.state === 'engage' || (e.state === 'station' && post && post.occupiedAt != null) || e.suppressOrder)
+      !(
+        e.state === 'engage' ||
+        (e.state === 'station' && post && post.occupiedAt != null) ||
+        e.suppressOrder ||
+        areaSupport
+      )
     )
       return false;
     if (SA().isMachineGun(s) && !s.setUp) return false;
+    var target = s.target;
+    if (!combatThreat(target) && areaSupport) {
+      if (
+        SA().canSuppress &&
+        SA().canSuppress(s, areaSupport, battle, true) &&
+        facingError(s, areaSupport) <= AIM_CONE
+      )
+        return true;
+      return false;
+    }
     if (e.suppressOrder) {
       var point = knownThreat(s, battle);
       if (
@@ -1822,7 +1857,6 @@
       )
         return true;
     }
-    var target = s.target;
     return !!(
       combatThreat(target) &&
       dist(posOf(s).x, posOf(s).z, posOf(target).x, posOf(target).z) <= SA().engageRange(s) &&
@@ -1892,7 +1926,8 @@
         if (
           e.state === 'engage' ||
           (e.state === 'station' && position && position.occupiedAt != null) ||
-          e.suppressOrder
+          e.suppressOrder ||
+          areaSupportOf(s, battle)
         ) {
           if (!EFFECTIVE_FIRE || supportReady(s, battle)) {
             effective++;
@@ -2041,6 +2076,7 @@
     facingError: facingError,
     fireAllowed: fireAllowed,
     fireAuthorized: fireAuthorized,
+    areaSupportOf: areaSupportOf,
     supportReady: supportReady,
     effectiveFireOn: function () {
       return EFFECTIVE_FIRE;
