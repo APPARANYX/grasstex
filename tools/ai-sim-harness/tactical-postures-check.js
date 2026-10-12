@@ -144,15 +144,21 @@ assert.ok(
   'regression must exercise a legal physical endpoint displaced from the abstract post'
 );
 assert.ok(
-  physicalHeld.every(({ soldier }) =>
-    soldier._movementStopReason === 'arrived' &&
-    physicalEndpoint.r.BattleCoverPositions.maskedPost(
-      physicalEndpoint.b,
-      soldier.root.position,
-      physicalReady.threats
-    )
-  ),
-  'the stable core physically arrived and remains masked at its actual body positions'
+  physicalHeld.every(({ soldier, order }) => {
+    const outcome = physicalEndpoint.r.BattleExecutionOutcome.man(soldier, physicalEndpoint.b);
+    return (
+      outcome.current &&
+      outcome.state === 'completed' &&
+      outcome.publishKey === order.key &&
+      !soldier.moving &&
+      physicalEndpoint.r.BattleCoverPositions.maskedPost(
+        physicalEndpoint.b,
+        soldier.root.position,
+        physicalReady.threats
+      )
+    );
+  }),
+  'the stable core has canonical movement completion and remains masked at its actual body positions'
 );
 
 const combat = world();
