@@ -137,9 +137,18 @@
             result.reason = 'unknown-geometry';
             return result;
           }
+          /* Perception's actual sight ray includes terrain silhouettes as
+             well as Navigation walls and field obstacles. A ridge must count
+             as concealment here; merely sampling walls ignores the ground
+             between a low mover and a reported enemy position. Never use a
+             hidden enemy actor's transform or actual stance. */
           if (
-            !N.lineOfSightBlocked(at, threat, at.y, threat.y) &&
-            !F.sightBlocked(battle.obstacles, at, threat)
+            SA().hasLineOfSight(
+              { root: { position: at }, crouching: true },
+              { root: { position: threat } },
+              battle.heightAt,
+              battle.obstacles
+            )
           ) {
             concealed = false;
             break;
