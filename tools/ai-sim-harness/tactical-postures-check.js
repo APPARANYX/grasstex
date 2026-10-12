@@ -465,6 +465,49 @@ assert.equal(
   'an unsupported exposed advance is denied'
 );
 
+/* A separately owned tactical station may remove an EXTRA participant
+   without invalidating three other concealed men. Once one of the stable held
+   three is reassigned, however, the posture must fail closed rather than
+   substitute a new identity into accrued dwell. */
+const actorReassign = world();
+const actorState = actorReassign.P.update(actorReassign.b, actorReassign.q);
+assert.ok(actorState && actorState.orders.length >= 4, 'reassignment fixture needs a spare ambush actor');
+const spareOrder = actorState.orders[actorState.orders.length - 1],
+  spareActor = actorReassign.q.members.find(s => String(s.id) === spareOrder.soldierId),
+  originalStationCurrent = actorReassign.r.BattleTacticalPositions.current.bind(
+    actorReassign.r.BattleTacticalPositions
+  );
+actorReassign.r.BattleTacticalPositions.current = s =>
+  s === spareActor ? { id: 'separate-station', kind: 'firing-station' } : originalStationCurrent(s);
+const pruned = actorReassign.P.update(actorReassign.b, actorReassign.q);
+assert.ok(pruned, 'one non-core station reassignment cannot destroy the whole ambush');
+assert.ok(
+  !pruned.orders.some(o => o.soldierId === String(spareActor.id)) && pruned.orders.length >= 3,
+  'the separately owned actor is removed from posture publishing while a full element remains'
+);
+let reassignedReady = null;
+H.run(actorReassign.r, actorReassign.b, 7, () => {
+  const state = actorReassign.P.current(actorReassign.b, actorReassign.q);
+  if (state?.readyAt != null) reassignedReady = state;
+});
+assert.ok(reassignedReady && reassignedReady.heldActorIds.length === 3);
+const heldReassigned = actorReassign.q.members.find(
+  s => String(s.id) === reassignedReady.heldActorIds[0]
+);
+actorReassign.r.BattleTacticalPositions.current = s =>
+  s === spareActor || s === heldReassigned
+    ? { id: 'separate-station', kind: 'firing-station' }
+    : originalStationCurrent(s);
+assert.equal(
+  actorReassign.P.update(actorReassign.b, actorReassign.q),
+  null,
+  'reassigning a stable held-core actor revokes the posture'
+);
+assert.equal(
+  actorReassign.P.summary(actorReassign.b).releaseReasons['prepared fireteam actor reassigned'],
+  1
+);
+
 /* One inaccessible/lagging fourth masked soldier cannot strand three
    genuinely adopted riflemen, but borrowing hold time from changing identities
    is impossible. This is a readiness rule, not a new movement owner. */
