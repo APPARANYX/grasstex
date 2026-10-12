@@ -65,14 +65,23 @@ const st = P.update(b, q);
 assert.ok(st, 'real terrain crest provides masked stations');
 assert.equal(st.mode, 'ambush');
 assert.equal(st.stage, 'assemble');
-assert.equal(r.BattleEngagement.fireAuthorized(q.members[0], b), false,
-  'an adopted masked-ambush position cannot fire before the first fire-control adoption');
+assert.equal(
+  r.BattleEngagement.fireAuthorized(q.members[0], b),
+  false,
+  'an adopted masked-ambush position cannot fire before the first fire-control adoption'
+);
 q.fireControl = { state: 'open' };
-assert.equal(r.BattleEngagement.fireAuthorized(q.members[0], b), false,
-  'an inherited/open fire order cannot bypass pre-contact masked hold');
+assert.equal(
+  r.BattleEngagement.fireAuthorized(q.members[0], b),
+  false,
+  'an inherited/open fire order cannot bypass pre-contact masked hold'
+);
 q.fireControl = null;
-assert.equal(off.r.BattleEngagement.fireAuthorized(off.q.members[0], off.b), true,
-  'ambush disabled preserves normal Engagement fire permission');
+assert.equal(
+  off.r.BattleEngagement.fireAuthorized(off.q.members[0], off.b),
+  true,
+  'ambush disabled preserves normal Engagement fire permission'
+);
 const original = JSON.stringify([q._macroMission, q.route, q.members.map(s => [s.destination, s.crouching])]);
 P.update(b, q);
 assert.equal(
