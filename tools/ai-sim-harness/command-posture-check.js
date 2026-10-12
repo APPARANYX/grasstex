@@ -114,6 +114,45 @@ test('precision permission is also personal: only the adopted designated shooter
   assert.equal(w.E.fireAuthorized(other,w.b),false);
 });
 
+test('explicit Squad Leader support fire is personally adopted and executed by Engagement',()=>{
+  const w=world(),gunner=w.us.members.find(s=>s.role==='gunner'),other=w.us.members.find(s=>s!==gunner);
+  assert.ok(gunner&&other);
+  w.us.members.forEach(s=>{s.target=null;s.moving=false;s.moveSpeed=0;s.suppressedUntil=0;});
+  const point={x:0,z:100},before=w.b.events.fired||0;
+  w.C.publish(w.us,w.b,'posture-fire',w.us.members,{
+    scope:'squad',action:'fire-control-open',signature:'open||support|'+gunner.id,
+    spatial:false,data:{
+      state:'open',targetId:null,shooterId:null,supportPoint:point,
+      supporterIds:[String(gunner.id)],supportSource:'incoming',supportAt:w.b.time
+    }
+  });
+  const pending=rec(w,gunner);
+  assert.ok(pending&&pending.adoptedAt>w.b.time);
+  assert.equal(w.E.areaSupportOf(gunner,w.b),null,'support fire is not psychic before adoption');
+  w.b.time=pending.adoptedAt+0.001;
+  assert.deepEqual(w.E.areaSupportOf(gunner,w.b),point);
+  assert.equal(w.E.areaSupportOf(other,w.b),null,'only the ordered supporter receives area-fire authority');
+  w.E.stateOf(gunner).fireReadyAt=0;
+  w.E.updateSoldier(gunner,w.b);
+  assert.equal(gunner.state,'suppress','Engagement executes the adopted Squad Leader order');
+  w.b.time+=1.7;
+  w.E.stateOf(gunner).fireReadyAt=0;
+  w.E.updateSoldier(gunner,w.b);
+  assert.equal(w.E.supportReady(gunner,w.b),true,'ordered supporter counts only after physical fire gates are ready');
+  assert.ok((w.b.events.fired||0)>before,'the adopted order produces real area-fire rounds');
+
+  w.C.publish(w.us,w.b,'posture-fire',w.us.members,{
+    scope:'squad',action:'fire-control-open',signature:'open||invalid-support|'+gunner.id,
+    spatial:false,data:{
+      state:'open',targetId:null,shooterId:null,supportPoint:point,
+      supporterIds:[String(gunner.id)],supportSource:'told',supportAt:w.b.time
+    }
+  });
+  const invalid=rec(w,gunner);
+  w.b.time=invalid.adoptedAt+0.001;
+  assert.equal(w.E.areaSupportOf(gunner,w.b),null,'relayed/heard authority cannot become explicit area fire');
+});
+
 test('legacy/control arm still reads shared squad fireControl immediately',()=>{
   const w=world('?stressAct=0&fireControl=1&commandPosture=0&commandMovement=0&commandRelay=0'),man=w.us.members[4];
   const fc=command(w);
