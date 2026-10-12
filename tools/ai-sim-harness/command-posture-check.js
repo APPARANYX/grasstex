@@ -279,7 +279,17 @@ test('a single capable gunner may start an authorized support fire task without 
     });
   const order = F.areaSupport(sq, battle, { underFire: 1 }, { readyAt: 1 }, null);
   assert.deepEqual(order, { point, ids: [gunner.id], source: 'seen', at: 2 });
-  assert.equal(F.areaSupport(sq, battle, { underFire: 0 }, { readyAt: 1 }, null), null);
+  assert.deepEqual(
+    F.areaSupport(sq, battle, { underFire: 0 }, { readyAt: 1 }, null),
+    order,
+    'first-hand sight initiates support before the first incoming volley'
+  );
+  root.SquadAI.squadContact = () => ({ ...point, at: 2, seenBy: null, relayedFrom: 'another-squad' });
+  assert.equal(
+    F.areaSupport(sq, battle, { underFire: 0 }, { readyAt: 1 }, null),
+    null,
+    'unverified relay never authorizes initial support'
+  );
   gunner.suppressedUntil = 4;
   assert.equal(
     F.areaSupport(sq, battle, { underFire: 1 }, { readyAt: 1 }, null),
