@@ -1001,6 +1001,21 @@ revokes provenance through Engagement's existing controller-entry epoch.
 Survey/watch evidence still comes from actual positions/facing/LOS, and Mission Execution alone advances the route. This is
 one-footprint observation/security, not multiroom or enemy-clearance proof.
 
+Concealed firing-line posture (`?localPlan=1&localAmbush=1`, default OFF;
+requires the existing fire-control owner enabled) is owned by the Squad Leader
+posture factory. Fresh own-faction reports supply detached coordinates only.
+Each post must mask a crouched soldier using real terrain/obstacle/Navigation
+LOS while permitting a standing firing ray. Short approaches also remain masked;
+unknown geometry, exposed hedge ends and incomplete lines are rejected. Existing
+personal movement commands establish separated posts without repeated relocation.
+After all men stop, a four-second masked hold precedes standing observation;
+only actual personal contact plus readiness releases the coordinated volley through
+existing fire control. Engagement owns stance, aim, shots and emergency reactions.
+Preparation/observation budgets prevent indefinite pre-contact mission holds.
+Pressure exits the ambush into a conservative hold with hysteresis; this slice
+does not yet select coordinated covered maneuvers. Mission/route/Navigation/leader,
+roster, possession, retreat, lost observations and restart invalidate the posture.
+
 - Create a `squad-leader-local-plan` module that consumes Force Intent plus `TacticalSituation`.
 - Implement local tasks: approach, support, route-transition, structure-control, objective-security,
   recover, and handoff.

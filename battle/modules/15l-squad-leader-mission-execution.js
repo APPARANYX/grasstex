@@ -230,6 +230,12 @@
         closePlan(sim, sq, 'mission superseded');
       }
       var legs = sq.route || [];
+      var postures = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
+        posture = postures && postures.current(sim, sq);
+      if (posture && posture.mode === 'ambush') {
+        sq._missionHold = 'masked-ambush';
+        return;
+      }
       if (!legs.length) return;
       var last = legs.length - 1,
         idx = Math.max(0, Math.min(last, +sq.routeIndex || 0)),
