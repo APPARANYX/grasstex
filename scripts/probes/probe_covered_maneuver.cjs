@@ -100,7 +100,17 @@ const { chromium } = require('playwright');
                 y: b.heightAt(threat.x, threat.z)
               }}
             };
-            if (!BattleEngagement.firingLineClear(s, reportedTarget, candidate, 'stand', b)) {
+            const standing = {
+              root: { position: {
+                x: candidate.x, z: candidate.z,
+                y: b.heightAt(candidate.x, candidate.z)
+              }, rotation: { y: s.root.rotation.y || 0 } },
+              weapon: s.weapon, role: s.role, squad: s.squad,
+              prone: false, crouching: false, tacticalCrouch: false
+            };
+            if (!A.hasLineOfSight(standing, reportedTarget, b.heightAt, b.obstacles) ||
+                (BattleBallistics && BattleBallistics.fireLineBlocked &&
+                  BattleBallistics.fireLineBlocked(standing, reportedTarget, b))) {
               failures['no-standing-fire-line'] = (failures['no-standing-fire-line'] || 0) + 1;
               continue;
             }
