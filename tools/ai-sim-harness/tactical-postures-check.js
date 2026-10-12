@@ -368,7 +368,7 @@ function preparedNaturalPressure() {
   x.q.inContact = true;
   const local = x.S.localPlan.update(x.b, x.q, report);
   assert.ok(
-    local.pressured && !local.emergency,
+    local.inputs.pressure >= 0.25 && !local.emergency,
     'non-emergency pressure from native local-plan inputs: ' + JSON.stringify(local)
   );
   const active = x.P.update(x.b, x.q, report);
