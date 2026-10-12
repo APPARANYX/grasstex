@@ -133,7 +133,10 @@ const { chromium } = require('playwright');
         'staged structure-security acceptance'
       );
       BattleCommanderAI.setMacroEnabled(b, false); // freeze the General's issued scenario intent
+      BattleSquadStability.publishAnchor(q, average);
       BattleSquadStability.executeMission(b, q, scene);
+      SquadAI.updateSquad(q, b);
+      for (const f of ['us', 'ge']) for (const s of b._roster[f]) BattleMovementResolver.resolve(s, b);
       b.timeLimit = 600;
       b.manualEnded = false;
       b.winner = null;
