@@ -1007,46 +1007,50 @@
     return result;
   }
 
-  /* Local Micro defense: a teammate taking fire opens an opportunity for other
-     soldiers to help, but only at a recent firsthand seen or verified incoming
-     firing-origin point. No outside relay, heard-only sector, unit transform,
-     fire-control order, or combat-RNG draw is consulted for this permission. */
+  /* A defensive opportunity is personal, never instant squad mind-sharing.
+     Self-observed locations and DELIVERED own-squad callouts are sufficient
+     evidence, but a teammate's unseen private belief / an outside relay is
+     not. The callout owner already simulates delivery delay, noise and misses. */
   function squadDefensiveContact(s, battle) {
     var sq = s && s.squad, men = sq && sq.members, A = SA(),
-      now = battle && +battle.time, best = null, takingFire = false;
+      now = battle && +battle.time, active = false;
     if (!SQUAD_RETURN_FIRE_ON || !s || s.dead || s.isPlayer || !battle ||
         !sq || sq.state === 'retreat' || !A || !Array.isArray(men) ||
         men.length > 32) return null;
     for (var i = 0; i < men.length; i++)
       if (men[i] && !men[i].dead && underFireNow(men[i], battle)) {
-        takingFire = true; break;
+        active = true; break;
       }
-    if (!takingFire) return null;
-    var c = A.squadContact && A.squadContact(sq, battle);
-    if (c && c.fireRevealed && c.precision === 'fire-origin' &&
-        !c.relayedFrom && isFinite(+c.x) && isFinite(+c.z) &&
-        isFinite(+c.at) && now >= +c.at && now - +c.at <= 3)
-      for (var j = 0; j < men.length; j++)
-        if (men[j] && !men[j].dead &&
-            String(men[j].id) === String(c.reportedBy) &&
-            underFireNow(men[j], battle)) {
-          best = { x: +c.x, z: +c.z, at: +c.at, source: 'incoming' };
-          break;
-        }
-    if (A.soldierContact) for (var k = 0; k < men.length; k++) {
-      var m = men[k];
-      if (!m || m.dead || m.isPlayer) continue;
-      var r = A.soldierContact(m, battle);
-      if (!r || !isFinite(+r.x) || !isFinite(+r.z) ||
-          !isFinite(+r.at) || !isFinite(+r.confidence) ||
-          +r.confidence < 0.5 || now < +r.at || now - +r.at > 3 ||
-          !((r.source === 'seen' && String(r.seenBy) === String(m.id)) ||
-            (r.source === 'incoming' && r.precision === 'fire-origin' &&
-             underFireNow(m, battle)))) continue;
-      if (!best || +r.at > best.at)
-        best = { x: +r.x, z: +r.z, at: +r.at, source: r.source };
-    }
-    return best;
+    if (!active) return null;
+    var own = A.soldierContact && A.soldierContact(s, battle),
+      first = !!(own &&
+        ((own.source === 'seen' && String(own.seenBy) === String(s.id)) ||
+         (own.source === 'incoming' && own.precision === 'fire-origin' &&
+          underFireNow(s, battle))));
+    if (first && isFinite(+own.x) && isFinite(+own.z) &&
+        isFinite(+own.at) && isFinite(+own.confidence) &&
+        +own.confidence >= 0.5 && now >= +own.at && now - +own.at <= 3)
+      return { x: +own.x, z: +own.z, at: +own.at, source: own.source };
+    var C = root.BattleCallouts,
+      delivery = C && C.heardBy && C.enabled && C.enabled() ? C.heardBy(battle, s) : null,
+      msg = delivery && delivery.msg,
+      fact = msg && msg.fact;
+    if (!msg || !fact || String(msg.fromSquad) !== String(sq.id) ||
+        (msg.kind !== 'contact' && msg.kind !== 'incomingFire') ||
+        (msg.kind === 'incomingFire' && fact.precision !== 'fire-origin') ||
+        !isFinite(+delivery.confidence) || +delivery.confidence < 0.5 ||
+        !isFinite(+fact.x) || !isFinite(+fact.z) || !isFinite(+fact.at) ||
+        now < +fact.at || now - +fact.at > 3) return null;
+    /* The sender is one of our currently known people, not an untrusted
+       foreign squad or a claimed source ID in an unrelated belief. */
+    for (var j = 0; j < men.length; j++)
+      if (men[j] && !men[j].dead &&
+          String(men[j].id) === String(msg.from))
+        return {
+          x: +fact.x, z: +fact.z, at: +fact.at,
+          source: msg.kind === 'incomingFire' ? 'incoming' : 'seen'
+        };
+    return null;
   }
   function defensiveLine(s, battle, pt) {
     return !!(pt && SA().canSuppress && SA().canSuppress(s, pt, battle, true));
