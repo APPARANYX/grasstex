@@ -309,7 +309,14 @@ assert.equal(
 
 // A real Navigation doorway, not an objective radius or a world-truth enemy,
 // supplies the optional structure handoff. No ownership/clearance is inferred.
-function structureWorld(structures = true, entry = false, entryGate = false, survey = false, watch = false, contactResume = false) {
+function structureWorld(
+  structures = true,
+  entry = false,
+  entryGate = false,
+  survey = false,
+  watch = false,
+  contactResume = false
+) {
   const x = world(true, structures, entry, entryGate, survey, watch, contactResume);
   loadModule(x.r, 'battle/battle-navigation.js', { console: quietConsole, location: x.r.location });
   const house = {
@@ -808,8 +815,11 @@ contactRearm.q.inContact = false;
 contactRearm.q._engagementPlan.status = 'quiet';
 contactRearm.b.time += 0.5;
 contactRearm.S.executeMission(contactRearm.b, contactRearm.q, null);
-assert.equal(contactRearm.L.get(contactRearm.q, 'route-transition'), null,
-  'a quiet tactical plan must finish before returning mission control');
+assert.equal(
+  contactRearm.L.get(contactRearm.q, 'route-transition'),
+  null,
+  'a quiet tactical plan must finish before returning mission control'
+);
 contactRearm.q._engagementPlan = null;
 contactRearm.b.time += 0.5;
 contactRearm.S.executeMission(contactRearm.b, contactRearm.q, null);
@@ -821,22 +831,44 @@ assert.equal(contactRearm.q._missionExecution.contactRouteResume, null);
 assert.equal(contactRearm.q.routeIndex, 1);
 assert.equal(contactRearm.q._macroMission.version, 1);
 contactRearm.P.update(contactRearm.b, contactRearm.q);
-assert.equal(contactRearm.q._localTask.inputs.execution.structure.entryEvidence.entryVerified, false,
-  'contact must never fabricate or restore an unobserved portal crossing');
+assert.equal(
+  contactRearm.q._localTask.inputs.execution.structure.entryEvidence.entryVerified,
+  false,
+  'contact must never fabricate or restore an unobserved portal crossing'
+);
 assert.equal(contactRearm.q._localTask.inputs.execution.structure.survey.complete, false);
 assert.equal(contactRearm.q._localTask.inputs.execution.structure.watch.ready, false);
 assert.equal(contactRearm.P.entrySatisfied(contactRearm.b, contactRearm.q, contactRearm.q.route[1]), false);
 assert.equal(contactRearm.events.filter(x => x.type === 'decision-route-transition-resume').length, 1);
 contactRearm.S.executeMission(contactRearm.b, contactRearm.q, null);
-assert.equal(contactRearm.q.routeIndex, 1, 'reissued lease needs independently fresh physical entry evidence');
+assert.equal(
+  contactRearm.q.routeIndex,
+  1,
+  'reissued lease needs independently fresh physical entry evidence'
+);
 for (const spoil of [
-  w => { w.q._macroMission.version++; },
-  w => { w.q.routeIndex = 2; },
-  w => { w.r.BattleNavigation.installScenario(w.scenario); },
-  w => { w.q._macroMission.status = 'issued'; },
-  w => { w.q._macroMission.route[1].z = 201; w.q.route[1].z = 201; },
-  w => { w.q.state = 'retreat'; },
-  w => { w.systems['squad-command'].onBattleRestart(w.b); }
+  w => {
+    w.q._macroMission.version++;
+  },
+  w => {
+    w.q.routeIndex = 2;
+  },
+  w => {
+    w.r.BattleNavigation.installScenario(w.scenario);
+  },
+  w => {
+    w.q._macroMission.status = 'issued';
+  },
+  w => {
+    w.q._macroMission.route[1].z = 201;
+    w.q.route[1].z = 201;
+  },
+  w => {
+    w.q.state = 'retreat';
+  },
+  w => {
+    w.systems['squad-command'].onBattleRestart(w.b);
+  }
 ]) {
   const w = interruptStructureRoute();
   w.q.inContact = false;
@@ -844,8 +876,11 @@ for (const spoil of [
   w.b.time += 0.5;
   spoil(w);
   w.S.executeMission(w.b, w.q, null);
-  assert.equal(w.L.get(w.q, 'route-transition'), null,
-    'superseded mission, target, map, route, retreat or restart cannot replay a contact leg');
+  assert.equal(
+    w.L.get(w.q, 'route-transition'),
+    null,
+    'superseded mission, target, map, route, retreat or restart cannot replay a contact leg'
+  );
 }
 
 // Only own stored sightings at a valid age may annotate reported threats.
