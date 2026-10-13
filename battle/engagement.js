@@ -1108,7 +1108,18 @@
     );
   }
   function defensiveFireStance(s, battle, pt) {
-    return SA().canSuppress && SA().canSuppress(s, pt, battle, true)
+    /* Choose the firing posture from its REAL ballistic ray, not from the
+       soldier's CURRENT stance. At a masked crest, crouch fails and stand
+       succeeds: probing the current pose makes each 0.15s support tick flip
+       stand -> crouch -> stand, continually restarting aim readiness. A
+       read-only crouched proxy uses the existing terrain/obstacle/ballistic
+       checks; the prepared-core standing exception stays just as narrow. */
+    var crouched = Object.assign({}, s, {
+      prone: false,
+      crouching: true,
+      tacticalCrouch: true
+    });
+    return SA().canSuppress && SA().canSuppress(crouched, pt, battle, true)
       ? 'crouch'
       : preparedStandingLine(s, battle, pt)
         ? 'stand'

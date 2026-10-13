@@ -201,6 +201,80 @@ secondSupport.reloading = true;
 stageReport = staged.E.updateSquad(staged.q, staged.b);
 assert.equal(stageReport.fireSupport.length, 0, 'reloading rifles are no base of fire');
 assert.equal(staged.q.inContact, false, 'two assigned but incapable rifles do not manufacture contact');
+/* Masked prepared support cannot toggle its stance every native soldier tick:
+   a crouched ray is blocked but a STANDING ray passes. The alternate ray
+   probes are read-only; we still use Engagement's actual stance/aim owner. */
+const masked = world('&commandPosture=0');
+const maskedMan = masked.q.members.find(s => s.role === 'rifleman');
+const maskedPoint = { x: masked.target.root.position.x, z: masked.target.root.position.z };
+masked.q.members.forEach(s => (s.target = null));
+masked.q.fireControl = {
+  state: 'open',
+  supporterIds: [String(maskedMan.id)],
+  supportSource: 'seen',
+  supportPoint: maskedPoint,
+  supportAt: masked.b.time
+};
+maskedMan.moving = false;
+maskedMan.prone = false;
+maskedMan.crouching = true;
+maskedMan.tacticalCrouch = true;
+maskedMan.eng.stance = 'crouch';
+maskedMan.eng.stanceUntil = 0;
+maskedMan.eng.fireReadyAt = 0;
+const canSuppressActual = masked.r.SquadAI.canSuppress;
+const standingActual = masked.r.SquadAI.canSuppressStanding;
+masked.r.SquadAI.canSuppress = s => !s.prone && !s.crouching && !s.tacticalCrouch;
+masked.r.SquadAI.canSuppressStanding = () => true;
+try {
+  let firstReady = null;
+  for (let tick = 0; tick < 9; tick++) {
+    masked.E.updateSoldier(maskedMan, masked.b);
+    if (firstReady == null) firstReady = maskedMan.eng.fireReadyAt;
+    assert.equal(maskedMan.eng.stance, 'stand', 'standing-only crest never switches back to blocked crouch');
+    assert.equal(
+      maskedMan.eng.fireReadyAt,
+      firstReady,
+      'an unchanged firing solution cannot restart the aim-settle timer'
+    );
+    masked.b.time += 0.15;
+  }
+  assert.ok(masked.b.time > firstReady, 'a stable genuine standing solution completes aim settling');
+  masked.r.SquadAI.canSuppress = () => false;
+  masked.r.SquadAI.canSuppressStanding = () => false;
+  assert.equal(
+    masked.E.supportReady(maskedMan, masked.b),
+    false,
+    'a fully blocked ray cannot be counted as fire support'
+  );
+} finally {
+  masked.r.SquadAI.canSuppress = canSuppressActual;
+  masked.r.SquadAI.canSuppressStanding = standingActual;
+}
+/* A physically available crouched ray should remain crouched instead of
+   standing simply because the previous tick happened to use stand. */
+const lowRay = world('&commandPosture=0');
+const lowMan = lowRay.q.members.find(s => s.role === 'rifleman');
+lowRay.q.members.forEach(s => (s.target = null));
+lowRay.q.fireControl = {
+  state: 'open',
+  supporterIds: [String(lowMan.id)],
+  supportSource: 'seen',
+  supportPoint: { x: lowRay.target.root.position.x, z: lowRay.target.root.position.z },
+  supportAt: lowRay.b.time
+};
+lowMan.eng.stanceUntil = 0;
+lowMan.eng.stance = 'stand';
+lowMan.prone = false;
+lowMan.crouching = false;
+lowMan.tacticalCrouch = false;
+lowRay.r.SquadAI.canSuppress = () => true;
+for (let tick = 0; tick < 5; tick++) {
+  lowRay.E.updateSoldier(lowMan, lowRay.b);
+  assert.equal(lowMan.eng.stance, 'crouch', 'viable crouched support does not stand unnecessarily');
+  lowRay.b.time += 0.15;
+}
+
 const legacy = world('&effectiveFire=0'),
   sl = legacy.q.members.find(s => s.role === 'sergeant');
 assert.ok(
