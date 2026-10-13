@@ -295,7 +295,7 @@
         );
       }
       if (pick.kind === 'assault-rush') mayStand = true;
-      var dash = d >= 7 && straight && mayStand && !s.outOfAmmo;
+      var dash = d >= 7 && straight && mayStand;
       return dash
         ? {
             stance: 'stand',
