@@ -224,6 +224,11 @@ maskedMan.eng.stanceUntil = 0;
 maskedMan.eng.fireReadyAt = 0;
 const canSuppressActual = masked.r.SquadAI.canSuppress;
 const standingActual = masked.r.SquadAI.canSuppressStanding;
+const postureCurrent = masked.r.BattleSquadStability.tacticalPostures.current;
+masked.r.BattleSquadStability.tacticalPostures.current = () => ({
+  readyAt: masked.b.time,
+  heldActorIds: [String(maskedMan.id)]
+});
 masked.r.SquadAI.canSuppress = s => !s.prone && !s.crouching && !s.tacticalCrouch;
 masked.r.SquadAI.canSuppressStanding = () => true;
 try {
@@ -250,6 +255,7 @@ try {
 } finally {
   masked.r.SquadAI.canSuppress = canSuppressActual;
   masked.r.SquadAI.canSuppressStanding = standingActual;
+  masked.r.BattleSquadStability.tacticalPostures.current = postureCurrent;
 }
 /* A physically available crouched ray should remain crouched instead of
    standing simply because the previous tick happened to use stand. */
