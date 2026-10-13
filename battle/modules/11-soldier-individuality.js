@@ -189,7 +189,21 @@
     if (crouched) {
       if (s.reloading || s.clearingStoppage) return 'crouchWalk';
       if (player) return player.pace === 'run' ? 'crouchRun' : 'crouchWalk';
-      return urgent || e.state === 'bound' || (s.squad && s.squad.inContact && d > 4)
+      /* The compact Phase C lab can compare native gait selection with purposeful
+         contact repositioning. A firing-station order is still a tactical move when
+         the fleeting contact flag drops during ingress; move at a crouch-run until
+         the final 1.5 m, then slow to place the weapon. A genuinely pinned man is
+         not promoted to this faster gait. Stance, route, and support authorization
+         remain owned by Engagement, Navigation and the Squad Leader respectively. */
+      var lab = root.PhaseCCombatLab,
+        purposeful = !!(lab && lab.movementPace === 'purposeful'),
+        goal = s._movementResolver && s._movementResolver.goal,
+        stationIngress = !!(goal && goal.kind === 'firing-station'),
+        safeToTransit = (+s.suppressedUntil || 0) <= now,
+        briskContact = purposeful && safeToTransit && d > 1.5 &&
+          (stationIngress || (s.squad && s.squad.inContact));
+      return urgent || e.state === 'bound' || briskContact ||
+        (s.squad && s.squad.inContact && d > 4)
         ? 'crouchRun'
         : 'crouchWalk';
     }
