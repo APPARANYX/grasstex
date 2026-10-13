@@ -1331,7 +1331,7 @@ const { chromium } = require('playwright');
     const first = results[0];
     assert.ok(first && first.lab && first.lab.initialPositions, 'Missing native initial positions');
     for (const run of results) {
-      assert.equal(run.scenarioFingerprint, first.scenarioFingerprint, 'Mismatched regenerated seed');
+      assert.deepEqual(run.scenarioFingerprint, first.scenarioFingerprint, 'Mismatched regenerated seed');
       assert.deepEqual(run.lab.initialPositions, first.lab.initialPositions,
         'Different initial physical placements across variants');
       if (['C','D','F'].includes(run.labVariant))
