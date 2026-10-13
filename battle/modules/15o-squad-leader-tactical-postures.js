@@ -796,10 +796,32 @@
           report &&
           Array.isArray(report.fireSupport) &&
           supportCount >= tuning.minSupport
-        )
-          a.forEach(function (s) {
-            if (coveredTeam(b, sq, [s], report)) safeMovers.push(String(s.id));
-          });
+        ) {
+          if (st.reserveTeam) {
+            /* The actual live covered-route gate must approve the entire
+               staged team; a safe-looking singleton cannot silently redirect
+               its base-of-fire partner into a different bounding rotation. */
+            var staged = a.filter(function (s) {
+              return st.reserveActorIds.indexOf(String(s.id)) >= 0 && s._fireteamKey === st.reserveTeam;
+            });
+            if (
+              staged.length >= 2 &&
+              staged.length === st.reserveActorIds.length &&
+              staged.every(function (s) {
+                return st.orders.some(function (o) {
+                  return o.reserve && o.soldierId === String(s.id);
+                });
+              }) &&
+              coveredTeam(b, sq, staged, report)
+            )
+              safeMovers = staged.map(function (s) {
+                return String(s.id);
+              });
+          } else
+            a.forEach(function (s) {
+              if (coveredTeam(b, sq, [s], report)) safeMovers.push(String(s.id));
+            });
+        }
         var possible = !!(
           maneuverOn &&
           phaseAllowsBound &&
@@ -823,6 +845,7 @@
           reportPresent: !!report,
           supportArray: !!(report && Array.isArray(report.fireSupport)),
           supportCount: supportCount,
+          stagedReserveTeam: st.reserveTeam || null,
           safeMoverIds: safeMovers,
           reason: !maneuverOn
             ? 'maneuver-disabled'
@@ -964,7 +987,10 @@
           if (candidate) orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
         }
         if (orders.length < 3) return null; // Never publish an understrength ambush element.
-        var reservePlan = reserveStage(b, sq, a, orders, rs);
+        var reservePlan = reserveStage(b, sq, a, orders, rs),
+          reserveTeam = /^whole-team-staged:(alpha|bravo|charlie)$/.test(reservePlan)
+            ? reservePlan.split(':')[1]
+            : null;
         var counts = counters.get(sq) || {
           ambushes: 0,
           pressureHolds: 0,
@@ -999,6 +1025,16 @@
           orders: orders,
           threats: rs,
           reservePlan: reservePlan,
+          /* Keep only Squad Leader intent through the posture-to-bound handoff.
+             Physical endpoints and bound commands remain Engagement/Resolver owned. */
+          reserveTeam: reserveTeam,
+          reserveActorIds: orders
+            .filter(function (o) {
+              return !!o.reserve;
+            })
+            .map(function (o) {
+              return o.soldierId;
+            }),
           heldSince: null,
           heldActorIds: [],
           heldPositions: {},

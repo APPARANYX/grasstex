@@ -233,6 +233,14 @@
         lead = SL_STRESS.pick || SL_STRESS.hold,
         candidates = [],
         safeCoveredCandidateFound = false,
+        preferredReserveTeam =
+          posture &&
+          posture.mode === 'maneuver' &&
+          tacticalPostures &&
+          tacticalPostures.maneuverOn &&
+          BOUND_TEAMS.indexOf(posture.reserveTeam) >= 0
+            ? posture.reserveTeam
+            : null,
         turn,
         team,
         movers,
@@ -243,6 +251,10 @@
       for (var k = 0; k < BOUND_TEAMS.length; k++) {
         turn = first + k;
         team = BOUND_TEAMS[turn % BOUND_TEAMS.length];
+        /* Consume the reserve the posture actually staged. Otherwise a blind
+           alpha-first rotation can pull the two-rifle firing base instead.
+           An ineligible reserve means HOLD, not a different exposed rush. */
+        if (preferredReserveTeam && team !== preferredReserveTeam) continue;
         movers = [];
         for (i = 0; i < members.length; i++) {
           s = members[i];
@@ -261,6 +273,15 @@
         }
         buddy = buddyBoundPreview(sq, team, movers, support, battle);
         movers = buddy.movers;
+        if (
+          preferredReserveTeam &&
+          (!Array.isArray(posture.reserveActorIds) ||
+            movers.length !== posture.reserveActorIds.length ||
+            !movers.every(function (man) {
+              return posture.reserveActorIds.indexOf(String(man.id)) >= 0;
+            }))
+        )
+          continue; // Never lease only part of the prepared native fireteam.
         holding = support.filter(function (man) {
           return movers.indexOf(man) < 0;
         }).length;
