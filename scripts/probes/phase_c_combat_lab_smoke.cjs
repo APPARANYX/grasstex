@@ -208,9 +208,10 @@ const { chromium } = require('playwright');
         const causal = await page.evaluate(() => {
           const b = window.__battle__, out = {
             preset: window.PhaseCCombatLab.preset,
-            totals: {}, byState: {}, byGoal: {}, reasons: {},
+            totals: {}, byState: {}, byGoal: {}, reasons: {}, stillByState: {}, stillByGoal: {},
             samples: [], movingTicks: 0, crawlingTicks: 0,
-            boundTicks: 0, sprintTicks: 0, time: 0
+            boundTicks: 0, boundSprintTicks: 0, boundCrouchRunTicks: 0,
+            sprintTicks: 0, time: 0
           };
           const add = (dst, label) => { dst[label] = (dst[label] || 0) + 1; };
           b.resume();
@@ -233,9 +234,15 @@ const { chromium } = require('playwright');
                 add(out.byGoal, kind + ':' + gait);
                 if (gait === 'sprint') out.sprintTicks++;
                 if (s.crawling) out.crawlingTicks++;
-                if (state === 'bound') out.boundTicks++;
-              } else if (d > 0.5) {
-                add(out.reasons, s._movementStopReason + ':' + stance + ':' + kind);
+                if (state === 'bound') {
+                  out.boundTicks++;
+                  if (gait === 'sprint') out.boundSprintTicks++;
+                  if (gait === 'crouchRun') out.boundCrouchRunTicks++;
+                }
+              } else {
+                add(out.stillByState, state + ':' + stance);
+                add(out.stillByGoal, kind + ':' + stance);
+                if (d > 0.5) add(out.reasons, s._movementStopReason + ':' + stance + ':' + kind);
               }
               if (out.samples.length < 35 &&
                   ((s.crawling && s.moving) ||
