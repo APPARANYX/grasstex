@@ -648,6 +648,12 @@
       tacticalReason: (routed && routed.reason) || null,
       tacticalStep: routed ? { index: routed.step, total: routed.total } : null
     };
+    /* Soldier-level body autonomy sees only the WINNING movement intent,
+       after all retreat/position/formation priority, route and physical
+       destination decisions. It cannot issue or change a destination. */
+    if (!soldier.isPlayer && root.BattleSoldierIndividuality &&
+        root.BattleSoldierIndividuality.applyTransit)
+      root.BattleSoldierIndividuality.applyTransit(soldier, battle, pick, actual);
     if (pick.owner === 'engagement' || pick.owner === 'tactical-positions') st.combatWins++;
     else st.orderWins++;
     return st.last;
@@ -660,6 +666,7 @@
       delete soldier._movementLegalGoalCache;
       delete soldier._movementEndpointResolution;
       delete soldier._personalSpaceDestination;
+      delete soldier._bodyAutonomyIntent;
     }
   }
   function summary(sim) {
