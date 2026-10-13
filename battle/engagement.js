@@ -1788,7 +1788,20 @@
        position with a line instead of pinning him behind the crest for the rest of the battle. */
     var fighting = fireLineLive(s, e, battle);
     if (fighting) holdPosition(s, battle);
-    if (!holdStance(s, battle))
+    /* A blocked firing ray deliberately releases Micro's hold so the man
+       can advance to a workable place. Do not repeatedly re-impose crouch
+       while his autonomous transit owns both stance and gait. */
+    var lastGoal = s._movementResolver && s._movementResolver.goal,
+      enRoute = !!(
+        root.PhaseCCombatLab &&
+        root.PhaseCCombatLab.movementPace === 'autonomous' &&
+        !fighting &&
+        lastGoal &&
+        lastGoal.kind === 'formation' &&
+        s.destination &&
+        Math.hypot(s.destination.x - p.x, s.destination.z - p.z) > 1.5
+      );
+    if (!enRoute && !holdStance(s, battle))
       commitStance(
         s,
         battle,
