@@ -121,6 +121,7 @@ jobs:
       # JS file a pull request touches must be on-standard. Legacy files stay as they are and
       # converge as they get edited; nothing that was ever cleaned may regress.
       - name: Prettier ratchet
+        id: prettier_ratchet
         run: |
           set -euo pipefail
           if [[ -z "$BASE_SHA" ]]; then
@@ -136,6 +137,34 @@ jobs:
           npx --yes prettier@3.3.3 --check "${files[@]}"
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+
+      # Preserve strict formatting CI while providing an actionable repair patch.
+      # Edits are only to the runner checkout; no PR branch write permissions.
+      - name: Export Prettier repair patch
+        if: ${{ failure() && steps.prettier_ratchet.outcome == 'failure' }}
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git diff --name-only "$BASE_SHA" HEAD -- '*.js' | while IFS= read -r f; do [[ -f "$f" ]] && printf '%s\n' "$f"; done)
+          [[ ${#files[@]} -gt 0 ]] || exit 0
+          npx --yes prettier@3.3.3 --write "${files[@]}"
+          mkdir -p reports/ci
+          git diff --binary -- "${files[@]}" > reports/ci/prettier-ratchet.patch
+          if [[ -s reports/ci/prettier-ratchet.patch ]]; then
+            echo "Repair artifact: prettier-ratchet-repair (git apply --check; git apply)"
+          else
+            rm -f reports/ci/prettier-ratchet.patch
+          fi
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+
+      - name: Upload Prettier repair patch
+        if: ${{ failure() && steps.prettier_ratchet.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: prettier-ratchet-repair
+          path: reports/ci/prettier-ratchet.patch
+          if-no-files-found: ignore
+          retention-days: 7
 
   audio:
     name: Audio library
