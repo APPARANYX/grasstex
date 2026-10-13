@@ -55,16 +55,16 @@
     "b": 0
   },
   "wallSeconds": {
-    "medianA": 13.965,
-    "medianB": 15.132,
-    "ratio": 1.084,
+    "medianA": 15.78,
+    "medianB": 17.413,
+    "ratio": 1.103,
     "gate": 1.25
   },
   "counters": {
     "casualties": {
       "a": 958,
-      "b": 861,
-      "meanDiff": -3.88,
+      "b": 862,
+      "meanDiff": -3.84,
       "battlesChanged": 25,
       "more": 8,
       "fewer": 17,
@@ -81,8 +81,8 @@
     },
     "geKills": {
       "a": 408,
-      "b": 353,
-      "meanDiff": -2.2,
+      "b": 354,
+      "meanDiff": -2.16,
       "battlesChanged": 23,
       "more": 8,
       "fewer": 15,
@@ -90,8 +90,8 @@
     },
     "fire.total": {
       "a": 1222,
-      "b": 905,
-      "meanDiff": -12.68,
+      "b": 907,
+      "meanDiff": -12.6,
       "battlesChanged": 22,
       "more": 9,
       "fewer": 13,
@@ -99,8 +99,8 @@
     },
     "fire.hits": {
       "a": 362,
-      "b": 315,
-      "meanDiff": -1.88,
+      "b": 317,
+      "meanDiff": -1.8,
       "battlesChanged": 22,
       "more": 8,
       "fewer": 14,
@@ -117,8 +117,8 @@
     },
     "movementResolver.changes": {
       "a": 45586,
-      "b": 44984,
-      "meanDiff": -24.08,
+      "b": 44977,
+      "meanDiff": -24.36,
       "battlesChanged": 24,
       "more": 9,
       "fewer": 15,
@@ -369,12 +369,12 @@
     },
     "recon.retriggerBlocked": {
       "a": 226,
-      "b": 225,
-      "meanDiff": -0.04,
-      "battlesChanged": 9,
-      "more": 3,
+      "b": 226,
+      "meanDiff": 0,
+      "battlesChanged": 10,
+      "more": 4,
       "fewer": 6,
-      "signP": 0.5078
+      "signP": 0.7539
     },
     "squadPerformance.meanOverall": {
       "a": 2187.8999999999996,
@@ -414,8 +414,8 @@
     },
     "squadPerformance.meanMovement": {
       "a": 2491,
-      "b": 2491,
-      "meanDiff": 0,
+      "b": 2490.9,
+      "meanDiff": -0.004,
       "battlesChanged": 15,
       "more": 9,
       "fewer": 6,
@@ -432,8 +432,8 @@
     },
     "squadPerformance.meanCohesion": {
       "a": 2206.4,
-      "b": 2207.1999999999994,
-      "meanDiff": 0.032,
+      "b": 2206.9999999999995,
+      "meanDiff": 0.024,
       "battlesChanged": 24,
       "more": 13,
       "fewer": 11,
