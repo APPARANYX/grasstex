@@ -15,7 +15,7 @@
     F: Object.freeze({ immortalGe: true, silentGe: true, harmlessGeToUs: false, stationaryGe: true })
   });
   const side = s => s && s.faction;
-  const round = (n) => Number.isFinite(+n) ? +(+n).toFixed(3) : null;
+  const round = n => (Number.isFinite(+n) ? +(+n).toFixed(3) : null);
 
   function install(battle, code) {
     const config = PRESETS[code];
@@ -26,33 +26,50 @@
     const W = root.BattleWounds;
     const G = root.BattleGrenades;
     const original = {
-      tryFire: SA.tryFire, areaFire: SA.areaFire, applyHit: SA.applyHit,
-      wound: W.wound, consider: G && G.consider, playerThrow: G && G.playerThrow
+      tryFire: SA.tryFire,
+      areaFire: SA.areaFire,
+      applyHit: SA.applyHit,
+      wound: W.wound,
+      consider: G && G.consider,
+      playerThrow: G && G.playerThrow
     };
-    if (Object.values(original).slice(0, 4).some(f => typeof f !== 'function'))
+    if (
+      Object.values(original)
+        .slice(0, 4)
+        .some(f => typeof f !== 'function')
+    )
       throw new Error('Combat lab missing required native interception point');
     const events = [];
     const tally = {
-      preventedAimedAttempts: 0, preventedAreaAttempts: 0,
-      preventedGrenadeAttempts: 0, physicallyRegisteredAbsorbedHits: 0,
-      physicallyRegisteredAbsorbedBlasts: 0, blockedGermanDamage: 0,
+      preventedAimedAttempts: 0,
+      preventedAreaAttempts: 0,
+      preventedGrenadeAttempts: 0,
+      physicallyRegisteredAbsorbedHits: 0,
+      physicallyRegisteredAbsorbedBlasts: 0,
+      blockedGermanDamage: 0,
       blockedAmericanDamage: 0
     };
     const capped = (kind, s, shooter, hit) => {
       tally[kind]++;
       if (events.length < 300)
         events.push({
-          t: round(battle.time), kind, victim: String(s && s.id),
-          faction: side(s), shooter: String(shooter && shooter.id),
-          zone: hit && hit.zone || null
+          t: round(battle.time),
+          kind,
+          victim: String(s && s.id),
+          faction: side(s),
+          shooter: String(shooter && shooter.id),
+          zone: (hit && hit.zone) || null
         });
     };
     let restored = false;
     const locked = [];
     const ge = (battle.rosterOf('ge') || []).slice();
     const geOrigin = ge.map(s => ({
-      id: String(s.id), x: round(s.root.position.x), y: round(s.root.position.y),
-      z: round(s.root.position.z), soldier: s
+      id: String(s.id),
+      x: round(s.root.position.x),
+      y: round(s.root.position.y),
+      z: round(s.root.position.z),
+      soldier: s
     }));
 
     // Registration of a physically struck body is still owned by the authentic
@@ -60,15 +77,19 @@
     // reproduced with the native pin writer (wound-model SHOCK = 1.2s).
     // No fake contact, wound record, casualties, or event is generated.
     function absorb(victim, shooter, b, hit, blast) {
-      capped(blast ? 'physicallyRegisteredAbsorbedBlasts' : 'physicallyRegisteredAbsorbedHits',
-        victim, shooter, hit);
+      capped(
+        blast ? 'physicallyRegisteredAbsorbedBlasts' : 'physicallyRegisteredAbsorbedHits',
+        victim,
+        shooter,
+        hit
+      );
       if (blast) {
         if (side(victim) === 'ge') tally.blockedGermanDamage++;
         else tally.blockedAmericanDamage++;
       } else if (side(victim) === 'ge') tally.blockedGermanDamage++;
       else tally.blockedAmericanDamage++;
       SA.pin(victim, b, 1.2);
-      return { zone: hit && hit.zone || null, outcome: 'combat-lab-absorbed', damage: 0 };
+      return { zone: (hit && hit.zone) || null, outcome: 'combat-lab-absorbed', damage: 0 };
     }
     const protectedRecipient = (shooter, victim) =>
       (config.immortalGe && side(victim) === 'ge') ||
@@ -121,27 +142,42 @@
     // that integrator from changing German transforms, rather than removing
     // Germans from the roster (which would also break perception and collision).
     // Intercept all writes, including Babylon Vector3 copyFrom, for the run.
-    if (config.stationaryGe) for (const s of ge) {
-      const pos = s.root.position;
-      for (const axis of ['x', 'y', 'z']) {
-        const old = Object.getOwnPropertyDescriptor(pos, axis);
-        if (old && old.configurable === false)
-          throw new Error('Cannot freeze German physical position.' + axis);
-        const at = +pos[axis];
-        Object.defineProperty(pos, axis, {
-          configurable: true, enumerable: true, get() { return at; }, set(_) {}
-        });
-        locked.push({ pos, axis, old, at });
+    if (config.stationaryGe)
+      for (const s of ge) {
+        const pos = s.root.position;
+        for (const axis of ['x', 'y', 'z']) {
+          const old = Object.getOwnPropertyDescriptor(pos, axis);
+          if (old && old.configurable === false)
+            throw new Error('Cannot freeze German physical position.' + axis);
+          const at = +pos[axis];
+          Object.defineProperty(pos, axis, {
+            configurable: true,
+            enumerable: true,
+            get() {
+              return at;
+            },
+            set(_) {}
+          });
+          locked.push({ pos, axis, old, at });
+        }
       }
-    }
     return {
-      code, config, tally, events, geOrigin: geOrigin.map(({soldier, ...p}) => p),
+      code,
+      config,
+      tally,
+      events,
+      geOrigin: geOrigin.map(({ soldier, ...p }) => p),
       assertInvariants() {
         if (config.immortalGe && ge.some(s => s.dead || s.hp <= 0))
           throw new Error('German invulnerability broken in variant ' + code);
-        if (config.stationaryGe && ge.some((s, i) =>
-          Math.abs(s.root.position.x - geOrigin[i].x) > 0.002 ||
-          Math.abs(s.root.position.z - geOrigin[i].z) > 0.002))
+        if (
+          config.stationaryGe &&
+          ge.some(
+            (s, i) =>
+              Math.abs(s.root.position.x - geOrigin[i].x) > 0.002 ||
+              Math.abs(s.root.position.z - geOrigin[i].z) > 0.002
+          )
+        )
           throw new Error('German stationary geometry drifted in variant F');
       },
       restore() {
