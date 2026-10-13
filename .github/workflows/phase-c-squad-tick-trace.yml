@@ -33,6 +33,27 @@ jobs:
             seconds: '305'
             trace_from: '285'
             trace_to: '300'
+          - label: meeting-us1-0001
+            battle_type: meeting
+            seed_index: '1'
+            squad: us:us-1
+            seconds: '205'
+            trace_from: '184'
+            trace_to: '200'
+          - label: attacker-us4-0015
+            battle_type: ge-defend
+            seed_index: '15'
+            squad: us:us-4
+            seconds: '305'
+            trace_from: '279'
+            trace_to: '300'
+          - label: attacker-us3-0015
+            battle_type: ge-defend
+            seed_index: '15'
+            squad: us:us-3
+            seconds: '540'
+            trace_from: '518'
+            trace_to: '535'
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
