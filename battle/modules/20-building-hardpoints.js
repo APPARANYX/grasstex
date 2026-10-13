@@ -362,8 +362,7 @@
       c.stats.structureEntryStationClaimsDeferred++;
       return null;
     }
-    var
-      here = s.root.position,
+    var here = s.root.position,
       range = root.SquadAI.isMachineGun(s) ? 78 : 62;
     var candidates = N.firingStations.filter(function (st) {
       if (distance(here, st) > range) return false;
