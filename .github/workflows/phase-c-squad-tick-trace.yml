@@ -1,4 +1,4 @@
-name: Phase C Focused Per-Tick Squad Trace
+name: ⭐ Phase C Focused Per-Tick Squad Trace
 on:
   pull_request:
     paths:
