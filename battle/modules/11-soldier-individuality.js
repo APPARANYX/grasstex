@@ -199,19 +199,39 @@
     return !!(root.PhaseCCombatLab && root.PhaseCCombatLab.movementPace === 'autonomous');
   }
   var MOVING_ORDERS = {
-    formation: 1, 'cover-bound': 1, 'assault-rush': 1, 'firing-station': 1,
-    withdraw: 1, retreat: 1, regroup: 1
+    formation: 1,
+    'cover-bound': 1,
+    'assault-rush': 1,
+    'firing-station': 1,
+    withdraw: 1,
+    retreat: 1,
+    regroup: 1
   };
   var SURVIVAL_STATES = {
-    pinned: 1, cower: 1, freeze: 1, flee: 1, rage: 1, throw: 1
+    pinned: 1,
+    cower: 1,
+    freeze: 1,
+    flee: 1,
+    rage: 1,
+    throw: 1
   };
   function authorizedAmbushIngress(s, sim) {
     var t = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures;
     return !!(t && t.soldierOrder && t.soldierOrder(s, sim));
   }
   function transitPlan(s, sim, pick, point) {
-    if (!autonomousOn() || !s || !sim || !s.root || s.dead || s.isPlayer ||
-        !pick || !MOVING_ORDERS[pick.kind] || !point) return null;
+    if (
+      !autonomousOn() ||
+      !s ||
+      !sim ||
+      !s.root ||
+      s.dead ||
+      s.isPlayer ||
+      !pick ||
+      !MOVING_ORDERS[pick.kind] ||
+      !point
+    )
+      return null;
     var e = s.eng || {},
       now = +sim.time || 0,
       current = s.root.position,
@@ -224,25 +244,36 @@
     /* No local body autonomy can create or resurrect a committed displacement.
        A surviving fire-support rifle, reload, and a pinned man keep their
        authority; the squad's personal ambush post is deliberately stealthy. */
-    if (stationary || (e.state === 'engage' && !bound && pick.kind !== 'firing-station') ||
-        (e.state === 'orient' && !bound && pick.kind !== 'firing-station')) return null;
+    if (
+      stationary ||
+      (e.state === 'engage' && !bound && pick.kind !== 'firing-station') ||
+      (e.state === 'orient' && !bound && pick.kind !== 'firing-station')
+    )
+      return null;
     if (pick.kind === 'formation' && e.state !== 'advance') return null;
     if (bound && e.state !== 'bound' && e.state !== 'assault') return null;
     if (pick.kind === 'firing-station' && d <= 1.5) return null;
     if (d <= 1.5) return null;
     var stealth = authorizedAmbushIngress(s, sim);
     if (stealth && !bound && pick.kind !== 'firing-station')
-      return { stance: 'crouch', gait: 'crouchWalk', reason: 'masked-ambush-ingress',
-        caution: 'concealment' };
+      return {
+        stance: 'crouch',
+        gait: 'crouchWalk',
+        reason: 'masked-ambush-ingress',
+        caution: 'concealment'
+      };
     if (pick.kind === 'firing-station')
-      return { stance: 'crouch', gait: 'crouchRun', reason: 'firing-station-ingress',
-        caution: 'final-approach-exempt' };
+      return {
+        stance: 'crouch',
+        gait: 'crouchRun',
+        reason: 'firing-station-ingress',
+        caution: 'final-approach-exempt'
+      };
     /* An already adopted crawl under direct suppression cannot be wished away
        by a speed floor. Covered movement is still explicitly permitted only
        by Engagement/Command Reception, and a short crawl remains a live choice. */
     if (bound && s.crawling && suppressed)
-      return { stance: 'crawl', gait: 'proneFast', reason: 'suppressed-short-crawl',
-        caution: 'suppressed' };
+      return { stance: 'crawl', gait: 'proneFast', reason: 'suppressed-short-crawl', caution: 'suppressed' };
     if (bound) {
       var N = root.BattleNavigation,
         straight = !!(N && N.movementClear && N.movementClear(current, point)),
@@ -254,32 +285,42 @@
          optimization would quietly invalidate the Squad Leader's safety gate. */
       if (ordered) {
         var reports = cover && cover.boundThreats && cover.boundThreats(s, sim);
-        mayStand = !!(cover && cover.boundRoute && reports && reports.length &&
-          cover.boundRoute(s, sim, point, reports, 'stand').eligible);
+        mayStand = !!(
+          cover &&
+          cover.boundRoute &&
+          reports &&
+          reports.length &&
+          cover.boundRoute(s, sim, point, reports, 'stand').eligible
+        );
       }
       if (pick.kind === 'assault-rush') mayStand = true;
       var dash = d >= 7 && straight && mayStand && !s.outOfAmmo;
       return dash
-        ? { stance: 'stand', gait: 'sprint', reason: 'committed-cover-dash',
-          caution: 'speed-reduces-exposure' }
-        : { stance: 'crouch', gait: 'crouchRun', reason: 'committed-low-bound',
-          caution: ordered ? 'covered-route' : 'contact' };
+        ? {
+            stance: 'stand',
+            gait: 'sprint',
+            reason: 'committed-cover-dash',
+            caution: 'speed-reduces-exposure'
+          }
+        : {
+            stance: 'crouch',
+            gait: 'crouchRun',
+            reason: 'committed-low-bound',
+            caution: ordered ? 'covered-route' : 'contact'
+          };
     }
     if (suppressed && !urgent) return null;
     /* A cautionary contact order is not "prone": assess actual local cover.
        Open terrain favors prompt upright transit; covered terrain favors a
        lower crouch-run. Short final placement is handled above. */
     var F = root.BattleObstacleField,
-      coverQuality = F && F.coverPotentialAt
-        ? F.coverPotentialAt(sim.obstacles || [], current.x, current.z)
-        : 1,
+      coverQuality =
+        F && F.coverPotentialAt ? F.coverPotentialAt(sim.obstacles || [], current.x, current.z) : 1,
       sheltered = coverQuality <= 0.88;
     if (contact || suppressed || urgent) {
       return sheltered || suppressed
-        ? { stance: 'crouch', gait: 'crouchRun', reason: 'cautious-contact-transit',
-          caution: 'local-cover' }
-        : { stance: 'stand', gait: 'run', reason: 'open-contact-transit',
-          caution: 'distance-and-exposure' };
+        ? { stance: 'crouch', gait: 'crouchRun', reason: 'cautious-contact-transit', caution: 'local-cover' }
+        : { stance: 'stand', gait: 'run', reason: 'open-contact-transit', caution: 'distance-and-exposure' };
     }
     return null; // quiet approaches keep existing native stance/gait policy
   }
@@ -295,8 +336,12 @@
        authorized transit, never for a hold or preparation. */
     E.commitStance(s, sim, plan.stance, 0.45, 'body-autonomy:' + plan.reason);
     s._bodyAutonomyIntent = {
-      at: sim.time, kind: pick.kind, stance: plan.stance, gait: plan.gait,
-      reason: plan.reason, caution: plan.caution
+      at: sim.time,
+      kind: pick.kind,
+      stance: plan.stance,
+      gait: plan.gait,
+      reason: plan.reason,
+      caution: plan.caution
     };
     return s._bodyAutonomyIntent;
   }
@@ -311,12 +356,19 @@
       player = R && R.playerIntent ? R.playerIntent(s, sim) : null;
     var urgent = now < (+s._combatUrgentUntil || 0) || s.state === 'retreat' || e.state === 'withdraw';
     var plan = autonomousOn() && s._bodyAutonomyIntent,
-      validPlan = !!(plan && now >= plan.at && now - plan.at < 0.6 &&
-        (s._movementResolver && s._movementResolver.goal &&
-         s._movementResolver.goal.kind === plan.kind) &&
-        (plan.stance === 'crawl' ? s.prone && s.crawling
-          : plan.stance === 'crouch' ? !s.prone && !!s.tacticalCrouch
-            : !s.prone && !s.tacticalCrouch));
+      validPlan = !!(
+        plan &&
+        now >= plan.at &&
+        now - plan.at < 0.6 &&
+        s._movementResolver &&
+        s._movementResolver.goal &&
+        s._movementResolver.goal.kind === plan.kind &&
+        (plan.stance === 'crawl'
+          ? s.prone && s.crawling
+          : plan.stance === 'crouch'
+            ? !s.prone && !!s.tacticalCrouch
+            : !s.prone && !s.tacticalCrouch)
+      );
     if (!player && validPlan) return plan.gait;
     if (s.prone) {
       if (!s.crawling) return 'proneNormal';
@@ -355,9 +407,15 @@
   }
   function stanceFactor(s, sim) {
     var now = sim ? +sim.time || 0 : 0;
-    if (autonomousOn() && s._bodyAutonomyIntent &&
-        sim && sim.time - s._bodyAutonomyIntent.at < 0.6 &&
-        s._bodyAutonomyIntent.stance === 'stand' && !s.prone && !s.tacticalCrouch)
+    if (
+      autonomousOn() &&
+      s._bodyAutonomyIntent &&
+      sim &&
+      sim.time - s._bodyAutonomyIntent.at < 0.6 &&
+      s._bodyAutonomyIntent.stance === 'stand' &&
+      !s.prone &&
+      !s.tacticalCrouch
+    )
       return 1;
     if (s.prone && s.crawling) return CRAWL_FACTOR;
     if (!s.prone && (s.tacticalCrouch || s.crouching || suppressedCrouch(s, now))) return CROUCH_FACTOR;

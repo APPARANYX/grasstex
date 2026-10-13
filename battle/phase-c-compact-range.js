@@ -13,8 +13,8 @@
      hearing, callout relay, damage and the 0.15 s step keep their native meanings. */
   var rangeScale = Number(params.get('labRange'));
   if (rangeScale !== 1 && rangeScale !== 0.5 && rangeScale !== 0.25) rangeScale = 0.5;
-  var movementPace = ['baseline', 'purposeful'].indexOf(params.get('labMove')) >= 0
-    ? params.get('labMove') : 'autonomous';
+  var movementPace =
+    ['baseline', 'purposeful'].indexOf(params.get('labMove')) >= 0 ? params.get('labMove') : 'autonomous';
   var scenarios = {
     ge15: { title: 'US assault vs German defense', seed: 'phase-c-natural-20261012-0015', defender: 'ge' },
     meeting: { title: 'Meeting engagement', seed: 'phase-c-natural-20261012-0001', defender: '' },
@@ -474,8 +474,7 @@
             s.eng && s.eng.stanceTrail && s.eng.stanceTrail.length
               ? s.eng.stanceTrail[s.eng.stanceTrail.length - 1].reason
               : null,
-          bodyAutonomy:
-            s._bodyAutonomyIntent && Object.assign({}, s._bodyAutonomyIntent) || null
+          bodyAutonomy: (s._bodyAutonomyIntent && Object.assign({}, s._bodyAutonomyIntent)) || null
         };
       }),
       events: history.slice()
