@@ -1,30 +1,315 @@
-/* Preview-only Phase C native combat lab. Loaded only by battle_sim_local.php in a branch preview.
-   Uses BattleSim's actual roster, 0.15s step, SquadAI and Engagement; no fake agents. */
-(function(root){
-'use strict';
-if (!root.BATTLE_PREVIEW || new URLSearchParams(location.search).get('combatLab')!=='1') return;
-var q=new URLSearchParams(location.search), preset=(q.get('labPreset')||'A').toUpperCase();
-if(!/^[A-F]$/.test(preset))preset='A';
-var scenarios={meeting:['Meeting engagement','meeting','phase-c-natural-20261012-0001'],ge15:['US attacks · GE defends · 0015','ge','phase-c-natural-20261012-0015'],us17:['GE attacks · US defends · 0017','us','phase-c-natural-20261012-0017']};
-var current=Object.keys(scenarios).find(k=>scenarios[k][2]===q.get('seed')&&((scenarios[k][1]==='meeting'&&!q.get('defender'))||scenarios[k][1]===q.get('defender')))||'ge15';
-var style=document.createElement('style');style.textContent='#phaseCLab{position:fixed;z-index:99999;right:12px;top:12px;width:min(380px,calc(100vw - 24px));background:#0c1622ed;color:#eaf2fa;border:1px solid #4c677e;border-radius:12px;padding:14px;font:12px/1.5 system-ui;box-shadow:0 12px 40px #0009}#phaseCLab h2{margin:0 0 8px;font-size:16px}#phaseCLab label{display:block;margin:8px 0 3px;color:#9bb7cb}#phaseCLab select,#phaseCLab button{background:#1c3043;color:white;border:1px solid #496176;border-radius:5px;padding:7px}#phaseCLab select{width:100%}#phaseCLab button{margin:7px 5px 0 0}#phaseCLab pre{font:11px/1.4 monospace;white-space:pre-wrap;max-height:210px;overflow:auto;color:#b9d8eb}#phaseCLab .hint{color:#b3c8d8}';document.head.appendChild(style);
-var panel=document.createElement('aside');panel.id='phaseCLab';panel.innerHTML='<h2>Phase C · Native Combat Lab</h2><div class="hint">Actual Grasstex battlefield / AI / physics. Preview only.</div><label>Scenario</label><select id="labScenario"></select><label>Combat isolation</label><select id="labPreset"><option value="A">A · Normal combat</option><option value="B">B · GE invulnerable</option><option value="C">C · GE cannot fire</option><option value="D">D · GE silent + invulnerable</option><option value="E">E · GE fires, US invulnerable, GE invulnerable</option><option value="F">F · GE stationary, silent + invulnerable</option></select><div><button id="labPlay">Play</button><button id="labStep">Step 0.15s</button><button id="labReset">Reset</button><button id="labExport">Export snapshot</button></div><pre id="labTelemetry">Waiting for native battle…</pre><div class="hint">Changing scenario/preset reloads the seeded native battle. Isolation changes causality and RNG; compare paired runs, not identical trajectories.</div>';document.body.appendChild(panel);
-var sc=panel.querySelector('#labScenario');Object.keys(scenarios).forEach(k=>{var o=document.createElement('option');o.value=k;o.textContent=scenarios[k][0];sc.appendChild(o)});sc.value=current;panel.querySelector('#labPreset').value=preset;
-function navigate(){var s=scenarios[sc.value],p=new URLSearchParams(location.search);p.set('combatLab','1');p.set('labPreset',panel.querySelector('#labPreset').value);p.set('seed',s[2]);if(s[1]==='meeting')p.delete('defender');else p.set('defender',s[1]);['localPlan','localAmbush','localManeuver','coveredBounds','fireCoverCycle','squadReturnFire'].forEach(k=>p.set(k,'1'));location.search=p.toString()}
-sc.onchange=navigate;panel.querySelector('#labPreset').onchange=navigate;
-var battle=null,originalFire=null,originalArea=null,originalHit=null,counts={blockedShots:0,interceptedHits:0},installed=false;
-function german(s){return !!s&&(s.faction==='ge'||s.side==='ge'||s.team==='ge'||(s.squad&&(s.squad.faction==='ge'||s.squad.side==='ge')))}
-function american(s){return !!s&&(s.faction==='us'||s.side==='us'||s.team==='us'||(s.squad&&(s.squad.faction==='us'||s.squad.side==='us')))}
-function attach(b){if(installed)return;installed=true;battle=b;originalFire=root.SquadAI.tryFire;originalArea=root.SquadAI.areaFire;originalHit=root.SquadAI.applyHit;
-if('CDF'.includes(preset)){root.SquadAI.tryFire=function(shooter){if(german(shooter)){counts.blockedShots++;return 0}return originalFire.apply(this,arguments)};root.SquadAI.areaFire=function(shooter){if(german(shooter)){counts.blockedShots++;return 0}return originalArea.apply(this,arguments)}}
-if('BDEF'.includes(preset)){root.SquadAI.applyHit=function(shooter,victim){if(german(victim)||(preset==='E'&&american(victim))){counts.interceptedHits++;if(root.SquadAI.pin)root.SquadAI.pin(victim,battle,1);return 0}return originalHit.apply(this,arguments)}}
-if(preset==='F'){b._roster.ge.forEach(s=>{s._phaseCLabOriginalSpeed=s.speed;s.speed=0;s.moveSpeed=0})}
-b.pause();b.timeLimit=600;render();}
-function snapshot(){if(!battle)return null;var roster=battle._roster;return {seed:q.get('seed'),preset,time:Number(battle.time.toFixed(2)),winner:battle.winner||null,paused:battle.paused,US:{alive:battle.factions.us.alive,total:roster.us.length},GE:{alive:battle.factions.ge.alive,total:roster.ge.length},blockedShots:counts.blockedShots,interceptedHits:counts.interceptedHits,actors:roster.us.concat(roster.ge).map(s=>({id:s.id,faction:s.faction||s.side||s.team,x:Number(s.root.position.x.toFixed(1)),z:Number(s.root.position.z.toFixed(1)),hp:s.hp,alive:!s.dead,suppressedUntil:s.suppressedUntil||0}))}}
-function render(){var v=snapshot();if(!v)return;panel.querySelector('#labPlay').textContent=battle.paused?'Play':'Pause';panel.querySelector('#labTelemetry').textContent=JSON.stringify({...v,actors:undefined},null,2)}
-panel.querySelector('#labPlay').onclick=function(){if(!battle)return;if(battle.paused)battle.resume();else battle.pause();render()};
-panel.querySelector('#labStep').onclick=function(){if(!battle)return;battle.pause();battle.step(.15);render()};
-panel.querySelector('#labReset').onclick=function(){if(!battle)return;counts={blockedShots:0,interceptedHits:0};battle.restart();if(preset==='F')battle._roster.ge.forEach(s=>{s.speed=0;s.moveSpeed=0});battle.pause();render()};
-panel.querySelector('#labExport').onclick=function(){var v=snapshot();if(!v)return;var a=document.createElement('a'),u=URL.createObjectURL(new Blob([JSON.stringify(v,null,2)],{type:'application/json'}));a.href=u;a.download='phase-c-lab-'+preset+'-'+(q.get('seed')||'seed')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),500)};
-var wait=setInterval(function(){if(root.__battle__&&root.SquadAI){clearInterval(wait);attach(root.__battle__)}},200);setInterval(render,400);
+/* Preview-only Phase C Combat Lab. Never loaded on production or in ordinary battle QA.
+ * Everything visible is generated by the real BattleSim, soldier models, AI, physics and ballistics.
+ * Interventions run at native fire/wound/movement owners, before the first simulation tick.
+ */
+(function (root) {
+  'use strict';
+  if (!root.BATTLE_PREVIEW || !root.PHASE_C_COMBAT_LAB) return;
+
+  var params = new URLSearchParams(root.location.search);
+  var preset = (params.get('labPreset') || 'C').toUpperCase();
+  if (!/^[A-F]$/.test(preset)) preset = 'C';
+  var scenarios = {
+    ge15: { title: 'US assault vs German defense', seed: 'phase-c-natural-20261012-0015', defender: 'ge' },
+    meeting: { title: 'Meeting engagement', seed: 'phase-c-natural-20261012-0001', defender: '' },
+    us17: { title: 'German assault vs US defense', seed: 'phase-c-natural-20261012-0017', defender: 'us' }
+  };
+  var scenarioKey = Object.keys(scenarios).find(function (k) {
+    return scenarios[k].seed === params.get('seed') && scenarios[k].defender === (params.get('defender') || '');
+  }) || 'ge15';
+  var battle = null, scene = null, camera = null, lastRenderAt = 0;
+  var counts = freshCounters(), history = [], lastDecision = Object.create(null);
+  var panel, output, events, playButton;
+  function freshCounters() {
+    return { shots: { us: 0, ge: 0 }, impacts: { us: 0, ge: 0 }, suppressive: { us: 0, ge: 0 },
+      blockedFireRequests: 0, absorbedWounds: { us: 0, ge: 0 }, blockedDeaths: 0, bounds: 0 };
+  }
+  function record(kind, detail, t) {
+    history.push({ at: +(+t || 0).toFixed(2), kind: kind, detail: detail });
+    if (history.length > 200) history.shift();
+  }
+  function blockShot(shooter, b, source) {
+    if (!shooter || shooter.faction !== 'ge' || 'CDF'.indexOf(preset) < 0) return false;
+    counts.blockedFireRequests++;
+    if (counts.blockedFireRequests === 1)
+      record('isolation', 'German fire refused at native ' + source + ' owner', b && b.time);
+    return true;
+  }
+  function preventWound(shooter, victim, b, hit) {
+    if (!victim || !('BDEF'.includes(preset) && victim.faction === 'ge' ||
+          preset === 'E' && victim.faction === 'us')) return false;
+    counts.absorbedWounds[victim.faction]++;
+    /* Ballistic hit recognition stays authentic. No wound, bleed, accuracy loss or casualty.
+       Short shock still pins the struck man through the native suppression owner. */
+    if (root.SquadAI && root.SquadAI.pin) root.SquadAI.pin(victim, b, 0.8);
+    if (counts.absorbedWounds[victim.faction] <= 3)
+      record('absorbed hit', victim.faction.toUpperCase() + ' soldier ' + victim.id +
+        ' (native hit, no damage)', b && b.time);
+    return true;
+  }
+  function preventDeath(soldier, killer, b) {
+    if (!soldier || !(('BDEF'.includes(preset) && soldier.faction === 'ge') ||
+          (preset === 'E' && soldier.faction === 'us'))) return false;
+    counts.blockedDeaths++;
+    soldier.hp = Math.max(1, soldier.hp);
+    record('absorbed death', soldier.faction.toUpperCase() + ' soldier ' + soldier.id, b && b.time);
+    return true;
+  }
+  function stationary(s) {
+    return preset === 'F' && !!s && s.faction === 'ge';
+  }
+
+  function makePanel() {
+    if (panel) return;
+    var css = document.createElement('style');
+    css.textContent = [
+      '#hud,#hudToggle,#animationLab,#animationLabToggle{display:none!important}',
+      '#phaseCLab{position:fixed;z-index:99999;right:12px;top:12px;width:min(390px,calc(100vw - 24px));',
+      'max-height:calc(100vh - 24px);overflow:auto;box-sizing:border-box;background:rgba(12,22,34,.94);',
+      'border:1px solid #4d708a;border-radius:12px;padding:13px;color:#e9f3ff;',
+      'font:12px/1.45 system-ui,-apple-system,sans-serif;box-shadow:0 12px 40px #0009}',
+      '#phaseCLab h2{font-size:17px;margin:0 0 4px;color:#fff}',
+      '#phaseCLab h3{font-size:12px;margin:12px 0 6px;color:#a9c5d9;letter-spacing:.09em;text-transform:uppercase}',
+      '#phaseCLab label{display:block;margin:9px 0 3px;color:#b7ccdd}',
+      '#phaseCLab select{display:block;width:100%;padding:8px;background:#15283a;color:#fff;',
+      'border:1px solid #47647c;border-radius:6px;box-sizing:border-box}',
+      '#phaseCLab button{padding:8px 12px;margin:9px 5px 0 0;background:#20394d;color:#fff;',
+      'border:1px solid #56738a;border-radius:6px;cursor:pointer;font-weight:650}',
+      '#phaseCLab button.primary{background:#285b45;border-color:#4ba879}',
+      '#phaseCLab .sub{color:#a1b6c8;font-size:11px;line-height:1.45}',
+      '#phaseCLab .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:9px}',
+      '#phaseCLab .kpi{border:1px solid #345168;border-radius:6px;padding:7px 5px;text-align:center}',
+      '#phaseCLab .kpi strong{display:block;font-size:17px;font-variant-numeric:tabular-nums;color:white}',
+      '#phaseCLab .kpi span{display:block;color:#a1bad0;font-size:10px}',
+      '#phaseCLab pre{margin:4px 0;max-height:160px;overflow:auto;font:11px/1.5 ui-monospace,monospace;',
+      'white-space:pre-wrap;color:#c7dcec}',
+      '#phaseCLab .good{color:#80d5ac}#phaseCLab .warn{color:#eccd7a}',
+      '@media(max-width:670px){#phaseCLab{top:auto;bottom:8px;left:8px;right:8px;width:auto;max-height:47vh}}'
+    ].join('');
+    document.head.appendChild(css);
+    panel = document.createElement('aside');
+    panel.id = 'phaseCLab';
+    panel.innerHTML =
+      '<h2>PHASE C · COMBAT LAB</h2>' +
+      '<div class="sub">280 × 240 m native arena · 2 US squads / 1 German squad · 0.15s AI ticks</div>' +
+      '<label for="labScenario">Scenario</label><select id="labScenario"></select>' +
+      '<label for="labPreset">Combat isolation preset</label><select id="labPreset">' +
+      '<option value="A">A · Normal: both sides fire and take damage</option>' +
+      '<option value="B">B · Germans cannot be wounded/killed</option>' +
+      '<option value="C">C · Germans cannot shoot (live mortality)</option>' +
+      '<option value="D">D · Germans silent and invulnerable</option>' +
+      '<option value="E">E · Both sides invulnerable; Germans still shoot</option>' +
+      '<option value="F">F · Germans stationary, silent, invulnerable</option>' +
+      '</select>' +
+      '<div><button class="primary" id="labPlay">▶ Play</button>' +
+      '<button id="labStep">Step 0.15s</button><button id="labSpeed">1×</button>' +
+      '<button id="labReset">↺ Reset</button><button id="labExport">Export JSON</button></div>' +
+      '<div id="labMode" class="sub" style="margin-top:8px"></div>' +
+      '<div class="kpis"><div class="kpi"><strong id="labTime">0.00</strong><span>SIM SECONDS</span></div>' +
+      '<div class="kpi"><strong id="labUsShots">0</strong><span>US SHOTS</span></div>' +
+      '<div class="kpi"><strong id="labGeShots">0</strong><span>GERMAN SHOTS</span></div>' +
+      '<div class="kpi"><strong id="labUS">20</strong><span>US ALIVE</span></div>' +
+      '<div class="kpi"><strong id="labGE">10</strong><span>GE ALIVE</span></div>' +
+      '<div class="kpi"><strong id="labSuppressed">0</strong><span>GE SUPPRESSED</span></div></div>' +
+      '<h3>Native fire control &amp; maneuver</h3><pre id="labStatus">Starting battle…</pre>' +
+      '<h3>Combat timeline</h3><pre id="labEvents">No shots yet.</pre>' +
+      '<div class="sub">Compact reproducible lab, not the unmodified 54-battle natural-acceptance scenario.' +
+      ' Isolation intentionally changes subsequent RNG consumption. Branch preview only.</div>';
+    document.body.appendChild(panel);
+    var select = panel.querySelector('#labScenario');
+    Object.keys(scenarios).forEach(function (k) {
+      var opt = document.createElement('option');
+      opt.value = k;
+      opt.textContent = scenarios[k].title;
+      select.appendChild(opt);
+    });
+    select.value = scenarioKey;
+    panel.querySelector('#labPreset').value = preset;
+    function navigate() {
+      var s = scenarios[select.value], p = new URLSearchParams(root.location.search);
+      p.set('combatLab', '1');
+      p.set('labPreset', panel.querySelector('#labPreset').value);
+      p.set('seed', s.seed);
+      if (s.defender) p.set('defender', s.defender);
+      else p.delete('defender');
+      ['localPlan','localAmbush','localManeuver','coveredBounds','fireCoverCycle','squadReturnFire']
+        .forEach(function (key) { p.set(key, '1'); });
+      root.location.search = p.toString();
+    }
+    select.onchange = navigate;
+    panel.querySelector('#labPreset').onchange = navigate;
+    playButton = panel.querySelector('#labPlay');
+    playButton.onclick = function () {
+      if (!battle || battle.winner) return;
+      if (battle.paused) battle.resume();
+      else battle.pause();
+      render();
+    };
+    panel.querySelector('#labStep').onclick = function () {
+      if (!battle || battle.winner) return;
+      battle.pause();
+      battle.step(0.15);
+      render();
+    };
+    panel.querySelector('#labSpeed').onclick = function () {
+      if (!battle) return;
+      var fast = battle.timeScale !== 4;
+      battle.setTimeScale(fast ? 4 : 1);
+      this.textContent = fast ? '4×' : '1×';
+    };
+    panel.querySelector('#labReset').onclick = function () {
+      if (!battle) return;
+      battle.pause();
+      counts = freshCounters(); history = []; lastDecision = Object.create(null);
+      battle.restart();
+      battle.timeLimit = 600;
+      record('reset', 'Native battle restarted, same scenario seed', 0);
+      render();
+    };
+    panel.querySelector('#labExport').onclick = function () {
+      var v = snapshot();
+      if (!v) return;
+      var blob = new Blob([JSON.stringify(v, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = 'phase-c-native-' + preset + '-' + v.seed + '.json';
+      a.click(); setTimeout(function () { URL.revokeObjectURL(url); }, 500);
+    };
+    output = panel.querySelector('#labStatus'); events = panel.querySelector('#labEvents');
+    panel.querySelector('#labMode').textContent = preset === 'A' ? 'Control: full lethal combat' :
+      preset === 'B' ? 'GE mortality OFF · German fire ON' :
+      preset === 'C' ? 'GE shooting OFF · normal mortality' :
+      preset === 'D' ? 'GE shooting OFF · GE mortality OFF' :
+      preset === 'E' ? 'GE shooting ON · damage to US & GE OFF' :
+      'GE movement OFF · shooting OFF · mortality OFF';
+  }
+
+  function installCamera(options) {
+    var previous = root.BattleDesktopCamera.current;
+    if (previous && previous.stop) previous.stop();
+    var c = new BABYLON.ArcRotateCamera('phase-c-overhead', -Math.PI / 2, 0.2, 265,
+      new BABYLON.Vector3(0, 0, 0), options.scene);
+    c.lowerRadiusLimit = 105; c.upperRadiusLimit = 430;
+    c.lowerBetaLimit = 0.09; c.upperBetaLimit = 1.2;
+    c.wheelPrecision = 6; c.panningSensibility = 240;
+    c.attachControl(options.canvas, true);
+    options.scene.activeCamera = c;
+    camera = c;
+    var setup = { camera: c, desktop: false, hint: 'Overhead tactical view · drag to orbit · wheel to zoom',
+      mode: 'combat-lab', stop: function () { c.detachControl(options.canvas); } };
+    root.BattleDesktopCamera.current = setup;
+    return setup;
+  }
+
+  function attachBattle(b, scn, cam) {
+    if (battle === b) return;
+    battle = b; scene = scn || b.scene; camera = cam || camera;
+    counts = freshCounters(); history = []; lastDecision = Object.create(null);
+    b.timeLimit = 600; b.pause(); b.setTimeScale(1);
+    var fire = b.onFire, shot = b.onShot, area = b.onSuppressiveShot;
+    b.onFire = function (s, delay) {
+      if (s && counts.shots[s.faction] != null) counts.shots[s.faction]++;
+      if (s && (counts.shots[s.faction] || 0) <= 4)
+        record('fire', s.faction.toUpperCase() + ' ' + s.id + ' fired', b.time + (+delay || 0));
+      if (fire) return fire.apply(this, arguments);
+    };
+    b.onShot = function (s, target, hit, d, meta) {
+      if (hit && s && counts.impacts[s.faction] != null) counts.impacts[s.faction]++;
+      if (hit && s && counts.impacts[s.faction] <= 8)
+        record('ballistic hit', s.faction.toUpperCase() + ' ' + s.id +
+          ' → ' + (meta && meta.victim ? meta.victim.id : target && target.id), b.time);
+      if (shot) return shot.apply(this, arguments);
+    };
+    b.onSuppressiveShot = function (s, point, recipients, rounds) {
+      if (s && counts.suppressive[s.faction] != null) counts.suppressive[s.faction] += rounds || 0;
+      if (s && (counts.suppressive[s.faction] || 0) <= 12)
+        record('area support', s.faction.toUpperCase() + ' ' + s.id +
+          ' · ' + (rounds || 0) + ' rounds / ' + recipients + ' pinned', b.time);
+      if (area) return area.apply(this, arguments);
+    };
+    record('native range', '20 US / 10 GE · real squads, cover and ballistics · ' + preset, 0);
+    render();
+    setInterval(render, 350);
+  }
+  function squadView(faction) {
+    if (!battle) return [];
+    return battle.factions[faction].squads.map(function (s) {
+      var fc = s.fireControl || {}, assigned = fc.supporterIds || [];
+      var effective = assigned.filter(function (id) {
+        return s.members.some(function (man) {
+          return String(man.id) === String(id) && root.BattleEngagement &&
+            root.BattleEngagement.supportReady && root.BattleEngagement.supportReady(man, battle);
+        });
+      }).length;
+      var posture = null;
+      if (root.BattleSquadLeader && root.BattleSquadLeader.tacticalPostures &&
+          root.BattleSquadLeader.tacticalPostures.current)
+        posture = root.BattleSquadLeader.tacticalPostures.current(battle, s);
+      var trail = (s._fireControlTrail || []);
+      var last = trail.length ? trail[trail.length-1] : null;
+      var status = { id:s.id, state:s.state, inContact:!!s.inContact,
+        fireControl:fc.state || 'none', assigned:assigned.length, effective:effective,
+        authorized:!!s._assaultAuthorized, bound:!!s._boundTurn,
+        posture:posture && posture.mode || null, lastReason:last && last.reason || null };
+      if (status.fireControl || status.bound)
+        if (JSON.stringify(status) !== lastDecision[s.id]) {
+          lastDecision[s.id] = JSON.stringify(status);
+          if (battle.time > 0) record('squad', s.id + ': ' + status.fireControl +
+            ' · ' + effective + '/' + assigned.length + ' effective/assigned · ' +
+            (status.authorized ? 'assault lawful' : 'assault denied'), battle.time);
+        }
+      return status;
+    });
+  }
+  function snapshot() {
+    if (!battle) return null;
+    var units = battle._roster.us.concat(battle._roster.ge);
+    return { lab: 'phase-c-native-v2', preview: root.BATTLE_PREVIEW,
+      seed: battle.scene.metadata && battle.scene.metadata.battleScenario &&
+        battle.scene.metadata.battleScenario.seed,
+      preset: preset, scenario: scenarioKey, simulationSeconds: +battle.time.toFixed(2),
+      winner: battle.winner || null, paused: battle.paused, boundsM: [280, 240],
+      counts: JSON.parse(JSON.stringify(counts)),
+      usAlive: battle.factions.us.alive, geAlive: battle.factions.ge.alive,
+      geSuppressed: battle._roster.ge.filter(function(s){return !s.dead && s.suppressedUntil>battle.time;}).length,
+      squads: { us: squadView('us'), ge: squadView('ge') },
+      soldiers: units.map(function (s) {
+        return { id: s.id, faction: s.faction, role: s.role,
+          squad: s.squad && s.squad.id, x: +s.root.position.x.toFixed(2),
+          z: +s.root.position.z.toFixed(2), hp: s.hp, dead:!!s.dead,
+          suppressedUntil: s.suppressedUntil || 0, moving:!!s.moving };
+      }), events: history.slice() };
+  }
+  function render() {
+    if (!battle || !panel) return;
+    var s = snapshot();
+    if (!s) return;
+    panel.querySelector('#labTime').textContent = s.simulationSeconds.toFixed(2);
+    panel.querySelector('#labUsShots').textContent = s.counts.shots.us;
+    panel.querySelector('#labGeShots').textContent = s.counts.shots.ge;
+    panel.querySelector('#labUS').textContent = s.usAlive;
+    panel.querySelector('#labGE').textContent = s.geAlive;
+    panel.querySelector('#labSuppressed').textContent = s.geSuppressed;
+    playButton.textContent = battle.paused ? '▶ Play' : 'Ⅱ Pause';
+    output.textContent = 'US squads:\n' + s.squads.us.map(function (v) {
+      return v.id + ' · ' + v.fireControl.toUpperCase() + ' · support ' +
+        v.effective + '/' + v.assigned + ' · ' + (v.authorized ? 'assault OK' : 'hold');
+    }).join('\n') + '\nGE squads:\n' + s.squads.ge.map(function (v) {
+      return v.id + ' · ' + v.fireControl.toUpperCase() + ' · support ' + v.effective + '/' + v.assigned;
+    }).join('\n') + '\nIsolated requests: ' + s.counts.blockedFireRequests +
+      ' · absorbed hits: US ' + s.counts.absorbedWounds.us + ' / GE ' + s.counts.absorbedWounds.ge +
+      (s.winner ? '\nWinner: ' + s.winner : '');
+    events.textContent = history.slice(-9).map(function (e) {
+      return e.at.toFixed(2) + 's · ' + e.kind + ': ' + e.detail;
+    }).join('\n') || 'No shots yet.';
+  }
+
+  makePanel();
+  /* The normal preview loader resolves every module before running the page bootstrap.
+     Install camera before the native page instantiates its camera, and attach the battle
+     immediately after BattleSim.start (the PHP preview loader inserts that call). */
+  if (root.BattleDesktopCamera && root.BattleDesktopCamera.create)
+    root.BattleDesktopCamera.create = installCamera;
+  root.PhaseCCombatLab = { preset: preset, blockShot: blockShot,
+    preventWound: preventWound, preventDeath: preventDeath, stationary: stationary,
+    attachBattle: attachBattle, snapshot: snapshot };
 })(window);
