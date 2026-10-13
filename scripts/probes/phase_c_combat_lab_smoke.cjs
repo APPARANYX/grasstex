@@ -87,6 +87,37 @@ const { chromium } = require('playwright');
         console.error('PHASE_C_LAB_BOOT_DIAG ' + JSON.stringify(diag));
         throw e;
       }
+      // The battlefield is the default view: the controls must begin
+      // collapsed and remain accessible on desktop and iPhone-sized screens.
+      assert.equal(await page.locator('#phaseCLab').isHidden(), true,
+        'lab drawer is default closed so it cannot obstruct the battlefield');
+      assert.equal(await page.locator('#phaseCLabToggle').isVisible(), true,
+        'collapsed lab has a visible controls launcher');
+      assert.equal(await page.locator('#phaseCLabToggle').getAttribute('aria-expanded'), 'false');
+      await page.locator('#phaseCLabToggle').click();
+      assert.equal(await page.locator('#phaseCLab').isVisible(), true, 'launcher opens the real lab controls');
+      assert.equal(await page.locator('#phaseCLabToggle').getAttribute('aria-expanded'), 'true');
+      await page.locator('#labClose').click();
+      assert.equal(await page.locator('#phaseCLab').isHidden(), true, 'close returns to the unobstructed field');
+      if (preset === 'C') {
+        await page.setViewportSize({ width: 390, height: 844 });
+        assert.equal(await page.locator('#phaseCLabToggle').isVisible(), true,
+          'mobile controls launcher remains visible');
+        await page.screenshot({ path: out + '/mobile-lab-closed.png' });
+        await page.locator('#phaseCLabToggle').click();
+        const mobileDrawer = await page.locator('#phaseCLab').boundingBox();
+        assert.ok(mobileDrawer && mobileDrawer.height <= 844 * 0.75,
+          'mobile drawer must leave battlefield visible rather than covering the full screen');
+        assert.ok(mobileDrawer.y >= 0 && mobileDrawer.y + mobileDrawer.height <= 844,
+          'open mobile drawer stays inside the visual viewport');
+        assert.equal(await page.locator('#labPlay').isVisible(), true,
+          'the Play control remains available within the opened drawer');
+        await page.screenshot({ path: out + '/mobile-lab-open.png' });
+        await page.keyboard.press('Escape');
+        assert.equal(await page.locator('#phaseCLab').isHidden(), true,
+          'mobile drawer closes on Escape');
+        await page.setViewportSize({ width: 1440, height: 900 });
+      }
       const initial = await page.evaluate(() => {
         const b = window.__battle__, lab = window.PhaseCCombatLab;
         return { preset: lab.preset, fieldW: BattleSim.FIELD_W, fieldD: BattleSim.FIELD_D,
