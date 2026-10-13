@@ -1084,8 +1084,31 @@
         };
     return null;
   }
+  /* The three continuously held ambush actors are concealed CROUCHED but
+     their original posts were physically validated for a STANDING sight ray.
+     At contact they may rise to deliver fire. This does not let a non-core
+     soldier fire over terrain or change the Squad Leader's movement orders. */
+  function preparedStandingLine(s, battle, pt) {
+    var P = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
+      posture = P && s && s.squad && P.current(battle, s.squad);
+    return !!(
+      pt && posture && posture.readyAt != null &&
+      Array.isArray(posture.heldActorIds) &&
+      posture.heldActorIds.indexOf(String(s.id)) >= 0 &&
+      SA().canSuppressStanding && SA().canSuppressStanding(s, pt, battle)
+    );
+  }
   function defensiveLine(s, battle, pt) {
-    return !!(pt && SA().canSuppress && SA().canSuppress(s, pt, battle, true));
+    return !!(
+      pt &&
+      ((SA().canSuppress && SA().canSuppress(s, pt, battle, true)) ||
+        preparedStandingLine(s, battle, pt))
+    );
+  }
+  function defensiveFireStance(s, battle, pt) {
+    return SA().canSuppress && SA().canSuppress(s, pt, battle, true)
+      ? 'crouch'
+      : preparedStandingLine(s, battle, pt) ? 'stand' : 'crouch';
   }
   function autonomousDefensiveSupport(s, battle) {
     var e = state(s),
@@ -1114,7 +1137,7 @@
     s.state = 'suppress';
     if (ALERT_LATCH) e.engaged = true;
     e.until = Math.max(+e.until || 0, battle.time + SUPPRESS_HOLD);
-    commitStanceRespectHold(s, battle, 'crouch', 0.8, 'individual defensive assist');
+    commitStanceRespectHold(s, battle, defensiveFireStance(s, battle, pt), 0.8, 'individual defensive assist');
     s._faceHint = { x: pt.x, z: pt.z };
     if (SA().isMachineGun(s)) {
       if (!e.setUpSince) e.setUpSince = battle.time;
@@ -1133,7 +1156,7 @@
     s.state = 'suppress';
     if (ALERT_LATCH) e.engaged = true;
     e.until = Math.max(+e.until || 0, battle.time + SUPPRESS_HOLD);
-    commitStanceRespectHold(s, battle, 'crouch', 0.8, 'squad support-fire order');
+    commitStanceRespectHold(s, battle, defensiveFireStance(s, battle, point), 0.8, 'squad support-fire order');
     s._faceHint = { x: point.x, z: point.z };
     /* An ordered machine gunner emplaces his gun on the held firing position exactly like a
        station gunner: the emplacing clock runs while he delivers the sustained fire (the state
