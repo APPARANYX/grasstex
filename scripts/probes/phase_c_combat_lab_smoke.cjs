@@ -35,7 +35,8 @@ const { chromium } = require('playwright');
     // Paired preset/range checks establish actual weapon and perception scaling.
     for (const [preset, rangeScale] of [['C', 0.5], ['F', 0.25], ['E', 1]]) {
       const params = new URLSearchParams({
-        combatLab: '1', labPreset: preset, labRange: String(rangeScale), defender: 'ge',
+        combatLab: '1', labPreset: preset, labRange: String(rangeScale),
+        labMove: 'purposeful', defender: 'ge',
         seed: 'phase-c-natural-20261012-0015', localPlan: '1', localAmbush: '1',
         localManeuver: '1', coveredBounds: '1', fireCoverCycle: '1', squadReturnFire: '1'
       });
@@ -93,6 +94,8 @@ const { chromium } = require('playwright');
           seed: b.scene.metadata.battleScenario.seed,
           metadataSize: b.scene.metadata.battleScenario.map,
           rangeScale: lab.rangeScale,
+          movementPace: lab.movementPace,
+          movementSelected: document.querySelector('#labMove').value,
           rangeSelected: document.querySelector('#labRange').value,
           weapon: (() => {
             const soldier = b._roster.us[0];
@@ -112,6 +115,8 @@ const { chromium } = require('playwright');
         };
       });
       assert.equal(initial.preset, preset, 'correct early native intervention');
+      assert.equal(initial.movementPace, 'purposeful', 'early native gait gate');
+      assert.equal(initial.movementSelected, 'purposeful', 'movement control is synchronized');
       assert.equal(initial.rangeScale, rangeScale, 'lab reads range scale before spawn');
       assert.equal(initial.rangeSelected, String(rangeScale), 'range dropdown remains in sync');
       assert.ok(Math.abs(initial.weapon.actualRange - initial.weapon.baseRange * rangeScale) < 1e-6,
@@ -135,6 +140,7 @@ const { chromium } = require('playwright');
       assert.equal(initial.seed, 'phase-c-natural-20261012-0015');
       const report = await page.evaluate(() => window.PhaseCCombatLab.snapshot());
       assert.equal(report.rangeScale, rangeScale, 'export preserves experimental range multiplier');
+      assert.equal(report.movementPace, 'purposeful', 'export carries native gait A/B provenance');
       assert.equal(report.soldiers[0].weaponRange, initial.weapon.actualRange,
         'export includes actual scaled weapon reach');
       const preCheck = await page.evaluate(() => {
