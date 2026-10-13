@@ -300,6 +300,7 @@ jobs:
           node scripts/check-physical-waypoint-refill.cjs
           # Native lab movement A/B: covered tactical ingress without bypassing suppression.
           node scripts/check-purposeful-contact-gait.cjs
+          node scripts/check-autonomous-contact-mobility.cjs
 
       - name: Engagement harness seeds
         run: |
