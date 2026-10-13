@@ -512,10 +512,12 @@ assert.equal(
 );
 assert.ok(followOnPosture.orders.filter(o => !o.reserve).length >= 3);
 assert.ok(
-  followOnPosture.orders.filter(o => !o.reserve).filter(o => {
-    const man = followOn.q.members.find(s => String(s.id) === o.soldierId);
-    return man?.role === 'rifleman';
-  }).length >= 2,
+  followOnPosture.orders
+    .filter(o => !o.reserve)
+    .filter(o => {
+      const man = followOn.q.members.find(s => String(s.id) === o.soldierId);
+      return man?.role === 'rifleman';
+    }).length >= 2,
   'a non-moving two-rifle support base remains available'
 );
 for (const order of followOnReserve) {
@@ -536,13 +538,14 @@ for (const order of followOnReserve) {
       Array.from({ length: 8 }, (_, i) => ({
         x: order.point.x + Math.sin((Math.PI * 2 * i) / 8) * step,
         z: order.point.z + Math.cos((Math.PI * 2 * i) / 8) * step
-      })).some(exit =>
-        followOn.r.BattleCoverPositions.boundRoute(
-          { ...man, root: { ...man.root, position: order.point } },
-          followOn.b,
-          exit,
-          reports
-        ).eligible
+      })).some(
+        exit =>
+          followOn.r.BattleCoverPositions.boundRoute(
+            { ...man, root: { ...man.root, position: order.point } },
+            followOn.b,
+            exit,
+            reports
+          ).eligible
       )
     ),
     'each reserve position retains a genuine native covered exit'
@@ -551,8 +554,7 @@ for (const order of followOnReserve) {
 const noPartialTeams = world(true, true, true);
 setReserveTeam(noPartialTeams);
 noPartialTeams.r.BattleTacticalPositions = {
-  current: s =>
-    [2, 5, 8].includes(s.slotIndex) ? { owner: 'tactical-station' } : null
+  current: s => ([2, 5, 8].includes(s.slotIndex) ? { owner: 'tactical-station' } : null)
 };
 noPartialTeams.r.SquadAI.canSuppressStanding = s => s.role === 'rifleman';
 const noPartialPosture = noPartialTeams.P.update(noPartialTeams.b, noPartialTeams.q);
