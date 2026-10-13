@@ -98,7 +98,9 @@ const { chromium } = require('playwright');
         const blocked = lab.blockShot(ge, b, 'smoke');
         const immortalGE = lab.preventWound(us, ge, b, { zone: 'chest' });
         const immortalUS = lab.preventWound(ge, us, b, { zone: 'chest' });
+        b.resume();
         for (let i = 0; i < 8; i++) b.step(0.15);
+        b.pause();
         const end = { x: ge.root.position.x, z: ge.root.position.z };
         return { blocked, immortalGE, immortalUS, start, end,
           shots: lab.snapshot().counts.shots, time: b.time };

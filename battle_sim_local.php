@@ -130,13 +130,13 @@ $body=str_replace($cdnTag,'<script>window.BATTLE_RUNTIME_SCRIPTS='.substr_count(
 /* Only preview deployments with an explicit lab URL load the intervention owners.
    The script precedes the page bootstrap, so its settings exist BEFORE scenario/spawn/first tick. */
 if ($labRequested) {
-    $labTag='<script src="'.$runtimeBase.'battle/phase-c-combat-lab.js?v='.$deployId.'&c='.rawurlencode($cacheEpoch).'"></script>';
+    $labTag='<script src="'.$runtimeBase.'battle/phase-c-compact-range.js?v='.$deployId.'&c='.rawurlencode($cacheEpoch).'"></script>';
     $bootMarker="<script>\n(async function(){";
     if(substr_count($body,$bootMarker)!==1){http_response_code(500);echo 'Combat lab boot anchor changed';exit;}
     $body=str_replace($bootMarker,$labTag."\n".$bootMarker,$body);
     $attachMarker='});battle.pause();';
     if(substr_count($body,$attachMarker)!==1){http_response_code(500);echo 'Combat lab sim anchor changed';exit;}
-    $body=str_replace($attachMarker,'});battle.pause();window.PhaseCCombatLab.attachBattle(battle,scene,camera);',$body);
+    $body=str_replace($attachMarker,'});battle.pause();if(!window.PhaseCCombatLab)throw new Error(\"Combat Lab controller failed to load\");window.PhaseCCombatLab.attachBattle(battle,scene,camera);',$body);
 }
 header('X-Grasstex-Deploy-Id: '.$deployId);header('X-Grasstex-Build: '.$build);header('X-Grasstex-Build-Source: '.$buildSource);header('X-Grasstex-Cache-Epoch: '.$cacheEpoch);header('X-Grasstex-Modules: '.count($activeModuleFiles));echo $body;
 ?>

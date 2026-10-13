@@ -151,7 +151,12 @@ jobs:
           grep -q "/grasstex/preview/$SLUG/battle/commander-ai.js" <<<"$body"
           lab="$(curl -fsSL "$url?combatLab=1")"
           grep -q 'window.PHASE_C_COMBAT_LAB=true' <<<"$lab"
-          grep -q "/grasstex/preview/$SLUG/battle/phase-c-combat-lab.js" <<<"$lab"
+          grep -q "/grasstex/preview/$SLUG/battle/phase-c-compact-range.js" <<<"$lab"
+          # Guard against FTP mirror exclusions: the browser module must actually exist.
+          module_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/battle/phase-c-compact-range.js"
+          curl --fail --silent --show-error --location "$module_url" -o /tmp/phase-c-preview-module.js
+          test "$(wc -c </tmp/phase-c-preview-module.js)" -gt 10000
+          grep -q 'Preview-only Phase C Combat Lab' /tmp/phase-c-preview-module.js
           grep -q 'window.PhaseCCombatLab.attachBattle(battle,scene,camera)' <<<"$lab"
           {
             echo "### Battle Sim preview"

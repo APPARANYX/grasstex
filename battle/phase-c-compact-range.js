@@ -180,7 +180,9 @@
     panel.querySelector('#labStep').onclick = function () {
       if (!battle || battle.winner) return;
       battle.pause();
+      battle.resume();
       battle.step(0.15);
+      battle.pause();
       render();
     };
     panel.querySelector('#labSpeed').onclick = function () {
