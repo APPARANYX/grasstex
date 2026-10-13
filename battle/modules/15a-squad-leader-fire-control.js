@@ -118,7 +118,7 @@
       }
       return null;
     }
-    function supportCandidates(sq, battle, point, prior) {
+    function supportCandidates(sq, battle, point, prior, posture) {
       if (!point) return [];
       var E = root.BattleEngagement,
         A = root.BattleAmmunition,
@@ -155,7 +155,21 @@
               (E.reacting && E.reacting(s)))
           )
             return false;
-          return !!(root.SquadAI.canSuppress && root.SquadAI.canSuppress(s, point, battle, true));
+          /* Concealment holds the man crouched behind a crest. A genuinely
+             held, prepared fireteam member can RISE to a standing firing
+             ray on contact; do not discard him because today's low stance
+             is intentionally masked. The prospective ray remains the
+             shipping physical/ballistic test, not assumed fire capability. */
+          var held = !!(
+            posture && posture.readyAt != null &&
+            Array.isArray(posture.heldActorIds) &&
+            posture.heldActorIds.indexOf(String(s.id)) >= 0
+          );
+          return !!(
+            (root.SquadAI.canSuppress && root.SquadAI.canSuppress(s, point, battle, true)) ||
+            (held && root.SquadAI.canSuppressStanding &&
+              root.SquadAI.canSuppressStanding(s, point, battle))
+          );
         });
       men.sort(function (a, b) {
         var pa = previous.indexOf(String(a.id)) >= 0 ? 0 : 1,
@@ -180,10 +194,10 @@
           oldPoint && isFinite(+oldPoint.x) && isFinite(+oldPoint.z)
             ? { x: +oldPoint.x, z: +oldPoint.z }
             : authority && { x: authority.x, z: authority.z },
-        men = supportCandidates(sq, battle, point, prev && prev.supporterIds);
+        men = supportCandidates(sq, battle, point, prev && prev.supporterIds, posture);
       if (men.length < 2 && authority) {
         point = { x: authority.x, z: authority.z };
-        men = supportCandidates(sq, battle, point, prev && prev.supporterIds);
+        men = supportCandidates(sq, battle, point, prev && prev.supporterIds, posture);
       }
       /* One lawful gunner may establish a base of fire while a second man
          recovers from suppression or finds a lane. This is NOT maneuver
