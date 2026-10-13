@@ -16,6 +16,10 @@
   var movementPace =
     ['baseline', 'purposeful'].indexOf(params.get('labMove')) >= 0 ? params.get('labMove') : 'autonomous';
   var interiorIngressRecovery = params.get('labInterior') !== '0';
+  /* These are #299's EXISTING guarded entry-observation permissions, not
+     clearance claims. They remain off unless explicitly enabled by the
+     user; simply running the window-ingress experiment cannot imply security. */
+  var structureObservation = params.get('localStructureOrders') === '1';
   var scenarios = {
     ge15: { title: 'US assault vs German defense', seed: 'phase-c-natural-20261012-0015', defender: 'ge' },
     meeting: { title: 'Meeting engagement', seed: 'phase-c-natural-20261012-0001', defender: '' },
@@ -157,6 +161,9 @@
       '<label for="labInterior">Building window ingress</label><select id="labInterior">' +
       '<option value="1">Smart · use interior shortcut after entry</option>' +
       '<option value="0">Legacy · follow original door route</option></select>' +
+      '<label for="labStructure">#299 building-entry observation</label><select id="labStructure">' +
+      '<option value="0">Off · navigation only (not cleared)</option>' +
+      '<option value="1">On · doorway, interior survey + watch (NOT room clearance)</option></select>' +
       '<label for="labPreset">Combat isolation preset</label><select id="labPreset">' +
       '<option value="A">A · Normal: both sides fire and take damage</option>' +
       '<option value="B">B · Germans cannot be wounded/killed</option>' +
@@ -211,6 +218,7 @@
     panel.querySelector('#labRange').value = String(rangeScale);
     panel.querySelector('#labMove').value = movementPace;
     panel.querySelector('#labInterior').value = interiorIngressRecovery ? '1' : '0';
+    panel.querySelector('#labStructure').value = structureObservation ? '1' : '0';
     function navigate() {
       var s = scenarios[select.value],
         p = new URLSearchParams(root.location.search);
@@ -219,6 +227,16 @@
       p.set('labRange', panel.querySelector('#labRange').value);
       p.set('labMove', panel.querySelector('#labMove').value);
       p.set('labInterior', panel.querySelector('#labInterior').value);
+      var entryOn = panel.querySelector('#labStructure').value === '1';
+      var gates = [
+        'localTasks', 'localStructures', 'localEntry', 'localEntryGate',
+        'localSurvey', 'localWatch', 'localContactResume',
+        'localContinuity', 'localStructureOrders'
+      ];
+      gates.forEach(function (name) {
+        if (entryOn) p.set(name, '1');
+        else p.delete(name);
+      });
       p.set('seed', s.seed);
       if (s.defender) p.set('defender', s.defender);
       else p.delete('defender');
@@ -239,6 +257,7 @@
     panel.querySelector('#labRange').onchange = navigate;
     panel.querySelector('#labMove').onchange = navigate;
     panel.querySelector('#labInterior').onchange = navigate;
+    panel.querySelector('#labStructure').onchange = navigate;
     playButton = panel.querySelector('#labPlay');
     playButton.onclick = function () {
       if (!battle || battle.winner) return;
@@ -463,6 +482,7 @@
       movementPace: movementPace,
       rangeScale: rangeScale,
       interiorIngressRecovery: interiorIngressRecovery,
+      structureEntryObservation: structureObservation,
       buildingIngress: battle._tacticalPositionSummary
         ? {
             interiorRebases: battle._tacticalPositionSummary.interiorIngressRebases || 0,
@@ -627,6 +647,7 @@
     rangeScale: rangeScale,
     movementPace: movementPace,
     interiorIngressRecovery: interiorIngressRecovery,
+    structureEntryObservation: structureObservation,
     blockShot: blockShot,
     preventWound: preventWound,
     preventDeath: preventDeath,
