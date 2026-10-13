@@ -143,6 +143,45 @@ const { chromium } = require('playwright');
       assert.equal(report.movementPace, 'purposeful', 'export carries native gait A/B provenance');
       assert.equal(report.soldiers[0].weaponRange, initial.weapon.actualRange,
         'export includes actual scaled weapon reach');
+      assert.equal(report.victoryRules.objectiveHold, false,
+        'the lab export must record that objective-hold victory is disabled');
+      assert.equal(report.victoryRules.elimination, true, 'elimination victory remains enabled');
+      assert.ok(report.objectiveControl && typeof report.objectiveControl.us === 'number',
+        'objective ownership continues to be tracked');
+      const holdGate = await page.evaluate(() => {
+        const b = window.__battle__;
+        const objective = window.BattleObjectiveSystem;
+        const previousTick = objective.tick;
+        const savedHold = Object.assign({}, b.objectiveHold);
+        const town = b.scene.metadata.battleScenario;
+        const result = { disabled: window.PhaseCCombatLab.disableObjectiveVictory,
+          limit: BattleCommanderAI.objectiveHoldWin, checks: [] };
+        try {
+          // Test the *real* Commander victory path with capture ticking held fixed.
+          // The artificial timer values exist only in this smoke run; production
+          // win logic and the battle's objective owner remain unchanged.
+          objective.tick = () => b.objectiveControl;
+          for (const side of ['us', 'ge']) {
+            b.objectiveHold.us = side === 'us' ? result.limit + 60 : 0;
+            b.objectiveHold.ge = side === 'ge' ? result.limit + 60 : 0;
+            BattleCommanderAI.update(b, town, BattleCommanderAI.commandTick);
+            result.checks.push({ side, winner: b.winner,
+              hold: b.objectiveHold[side],
+              ownership: b.objectiveControl.total });
+          }
+        } finally {
+          objective.tick = previousTick;
+          b.objectiveHold.us = savedHold.us;
+          b.objectiveHold.ge = savedHold.ge;
+        }
+        return result;
+      });
+      assert.equal(holdGate.disabled, true, 'objective victory gate is installed in the preview');
+      for (const check of holdGate.checks) {
+        assert.ok(check.hold > holdGate.limit, 'test must exceed real objective hold win threshold');
+        assert.equal(check.winner, null, 'holding every objective cannot finish the lab');
+        assert.ok(check.ownership > 0, 'real objective model stays attached and visible');
+      }
       const preCheck = await page.evaluate(() => {
         const b = window.__battle__, lab = window.PhaseCCombatLab;
         const ge = b._roster.ge[0], us = b._roster.us[0];
