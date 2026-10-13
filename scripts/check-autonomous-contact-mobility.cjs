@@ -84,6 +84,20 @@ root.BattleModules.system.onSimulationStep({ time: 9, units: [behind] });
 assert.ok(behind._locomotionGroundSpeed >= 2.5 && behind._locomotionGroundSpeed <= 3.5);
 assert.ok(Math.abs(behind.speed * 0.58 - behind._locomotionGroundSpeed) < 0.01);
 shelter = 1;
+const blockedEngage = soldier('formation', 12, {
+  eng: { state: 'engage' }, target: { id: 'ge-0' }
+});
+assert.equal(choose(blockedEngage, 'formation', 12).gait, 'run',
+  'when firing-line movement wins, an observing soldier must not walk');
+const followingContact = soldier('formation', 12, { eng: { state: 'alert' } });
+assert.equal(choose(followingContact, 'formation', 12).gait, 'run',
+  'an alert soldier following a legitimate order remains brisk');
+const personallyContacted = soldier('formation', 12, {
+  squad: { inContact: false, commandPhase: 'defend' },
+  target: { id: 'ge-personal' }
+});
+assert.equal(choose(personallyContacted, 'formation', 12).gait, 'run',
+  'personal contact must not wait for the Squad Leader contact tick');
 const ambush = soldier('formation', 10, { _masked: true });
 plan = choose(ambush, 'formation', 10);
 assert.equal(plan.gait, 'crouchWalk', 'masked ambush ingress is exempt from contact speed floor');
