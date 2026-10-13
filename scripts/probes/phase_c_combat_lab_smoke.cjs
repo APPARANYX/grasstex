@@ -32,9 +32,10 @@ const { chromium } = require('playwright');
       if (message.type() === 'error' && !/texture|audio|failed to load resource|fbx/i.test(message.text()))
         errors.push(message.text());
     });
-    for (const preset of ['C', 'F', 'E']) {
+    // Paired preset/range checks establish actual weapon and perception scaling.
+    for (const [preset, rangeScale] of [['C', 0.5], ['F', 0.25], ['E', 1]]) {
       const params = new URLSearchParams({
-        combatLab: '1', labPreset: preset, defender: 'ge',
+        combatLab: '1', labPreset: preset, labRange: String(rangeScale), defender: 'ge',
         seed: 'phase-c-natural-20261012-0015', localPlan: '1', localAmbush: '1',
         localManeuver: '1', coveredBounds: '1', fireCoverCycle: '1', squadReturnFire: '1'
       });
@@ -78,9 +79,38 @@ const { chromium } = require('playwright');
           us: b._roster.us.length, ge: b._roster.ge.length, paused: b.paused,
           camera: b.scene.activeCamera.name, preview: !!window.BATTLE_PREVIEW,
           seed: b.scene.metadata.battleScenario.seed,
-          metadataSize: b.scene.metadata.battleScenario.map };
+          metadataSize: b.scene.metadata.battleScenario.map,
+          rangeScale: lab.rangeScale,
+          rangeSelected: document.querySelector('#labRange').value,
+          weapon: (() => {
+            const soldier = b._roster.us[0];
+            const reference = BattleWeapons.profileStats(soldier.weapon.kind, soldier.faction);
+            return { kind: soldier.weapon.kind, actualRange: soldier.weapon.stats.range,
+              baseRange: reference.range, actualFalloff: soldier.weapon.stats.falloffStart,
+              baseFalloff: reference.falloffStart,
+              actualAutoWithin: soldier.weapon.stats.autoWithin || 0,
+              baseAutoWithin: reference.autoWithin || 0 };
+          })(),
+          vision: (() => {
+            const soldier = b._roster.us[0], target = b._roster.ge[0];
+            const actual = SquadAI.detectionRange(SquadAI.ROLES[soldier.role], target);
+            const ref = SquadAI.ROLES[soldier.role].visionRange;
+            return { actual, ref };
+          })()
+        };
       });
       assert.equal(initial.preset, preset, 'correct early native intervention');
+      assert.equal(initial.rangeScale, rangeScale, 'lab reads range scale before spawn');
+      assert.equal(initial.rangeSelected, String(rangeScale), 'range dropdown remains in sync');
+      assert.ok(Math.abs(initial.weapon.actualRange - initial.weapon.baseRange * rangeScale) < 1e-6,
+        'issued native weapon range scales without mutating shared profile');
+      assert.ok(Math.abs(initial.weapon.actualFalloff - initial.weapon.baseFalloff * rangeScale) < 1e-6,
+        'weapon accuracy falloff starts at scaled range');
+      if (initial.weapon.baseAutoWithin > 0)
+        assert.ok(Math.abs(initial.weapon.actualAutoWithin - initial.weapon.baseAutoWithin * rangeScale) < 1e-6,
+          'auto selector follows scaled engagement distance');
+      assert.ok(initial.vision.actual > 0 && initial.vision.actual <= initial.vision.ref * 1.25 * rangeScale,
+        'native visual detection respects range scale');
       assert.equal(initial.fieldW, 280, 'compact native geometry width');
       assert.equal(initial.fieldD, 240, 'compact native geometry depth');
       assert.equal(initial.metadataSize.width, 280);
@@ -91,6 +121,10 @@ const { chromium } = require('playwright');
       assert.match(initial.camera, /phase-c-overhead/);
       assert.equal(initial.preview, true);
       assert.equal(initial.seed, 'phase-c-natural-20261012-0015');
+      const report = await page.evaluate(() => window.PhaseCCombatLab.snapshot());
+      assert.equal(report.rangeScale, rangeScale, 'export preserves experimental range multiplier');
+      assert.equal(report.soldiers[0].weaponRange, initial.weapon.actualRange,
+        'export includes actual scaled weapon reach');
       const preCheck = await page.evaluate(() => {
         const b = window.__battle__, lab = window.PhaseCCombatLab;
         const ge = b._roster.ge[0], us = b._roster.us[0];
