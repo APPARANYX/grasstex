@@ -44,8 +44,30 @@ const { requestPreview } = require('./preview_request.cjs');
     ])
       url.searchParams.set(flag, '1');
     const page = await context.newPage();
-    const errors = [];
+    const errors = [],
+      networkFailures = [];
     page.on('pageerror', e => errors.push(String(e)));
+    /* Preserve the strict browser error gate and record the REQUEST origin
+       of intermittent unhandled fetch errors during the staged door crossing.
+       This observer never changes the game or simulates recovered responses. */
+    page.on('requestfailed', request => {
+      if (networkFailures.length < 64)
+        networkFailures.push({
+          url: request.url().split('?')[0],
+          resource: request.resourceType(),
+          method: request.method(),
+          failure: request.failure()?.errorText || 'requestfailed'
+        });
+    });
+    page.on('response', response => {
+      if (response.status() >= 500 && networkFailures.length < 64)
+        networkFailures.push({
+          url: response.url().split('?')[0],
+          resource: response.request().resourceType(),
+          method: response.request().method(),
+          status: response.status()
+        });
+    });
     await page.goto(url.href, { waitUntil: 'load', timeout: 300000 });
     await page.waitForFunction(
       () => window.__battle__?.factions && window.BattleSquadStability?.localPlan?.structureOrdersOn,
@@ -312,6 +334,8 @@ const { requestPreview } = require('./preview_request.cjs');
     }
     evidence.runtime = await page.evaluate(() => BattleSquadStability.localPlan.summary(__battle__));
     evidence.errors = errors;
+    evidence.networkFailures = networkFailures;
+    if (errors.length) console.error('STRUCTURE_PAGE_ERRORS', JSON.stringify({ errors, networkFailures }));
     fs.writeFileSync(`${dir}/structure-report.json`, JSON.stringify(evidence, null, 2));
     for (const name of [
       'approach',
