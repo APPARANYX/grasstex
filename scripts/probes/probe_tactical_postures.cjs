@@ -29,8 +29,31 @@ const { requestPreview } = require('./preview_request.cjs');
     url.searchParams.set('localPlan', '1');
     url.searchParams.set('localAmbush', '1');
     const page = await context.newPage(),
-      errors = [];
+      errors = [],
+      networkFailures = [];
     page.on('pageerror', e => errors.push(String(e)));
+    /* Playwright's generic 'Failed to fetch' pageerror drops the request URL.
+       Capture the actual failed transport (not a guessed game subsystem) so
+       a flaky preview network dependency is actionable without suppressing
+       QA errors or changing simulation behavior. */
+    page.on('requestfailed', request => {
+      if (networkFailures.length < 32)
+        networkFailures.push({
+          url: request.url().split('?')[0],
+          method: request.method(),
+          resource: request.resourceType(),
+          error: request.failure()?.errorText || 'requestfailed'
+        });
+    });
+    page.on('response', response => {
+      if (response.status() >= 500 && networkFailures.length < 32)
+        networkFailures.push({
+          url: response.url().split('?')[0],
+          method: response.request().method(),
+          resource: response.request().resourceType(),
+          status: response.status()
+        });
+    });
     await page.goto(url.href, { waitUntil: 'load', timeout: 300000 });
     await page.waitForFunction(
       () => window.__battle__?.factions && window.BattleSquadStability?.tacticalPostures?.on,
@@ -312,6 +335,8 @@ const { requestPreview } = require('./preview_request.cjs');
       if (captured.size === 3) break;
     }
     evidence.errors = errors;
+    evidence.networkFailures = networkFailures;
+    if (errors.length) console.error('AMBUSH_PAGE_ERRORS', JSON.stringify({ errors, networkFailures }));
     assert.deepEqual(errors, []);
     assert.equal(captured.size, 3, 'all real gameplay stages captured');
     const volley = evidence.stages.find(s => s.name === 'first-contact-volley');
