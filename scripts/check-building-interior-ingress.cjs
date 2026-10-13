@@ -63,6 +63,7 @@ fallback=[{x:7,z:1},{x:st.x,z:st.z}];
 assert.equal(R.rebaseIngress(s,b,st,old),null,
   'interior route cannot exit the building to claim a shortcut');
 fallback=[{x:3,z:3},{x:st.x,z:st.z}];
+b.time += 1.6; // A failed physical survey is retried only after its bounded 1.5s cooldown.
 assert.ok(R.rebaseIngress(s,b,st,old),'legal entirely indoor detour is permitted');
 directClear=true;fallback=null;
 root.PhaseCCombatLab.interiorIngressRecovery=false;
