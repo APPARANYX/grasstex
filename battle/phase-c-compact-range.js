@@ -9,6 +9,10 @@
   var params = new URLSearchParams(root.location.search);
   var preset = (params.get('labPreset') || 'C').toUpperCase();
   if (!/^[A-F]$/.test(preset)) preset = 'C';
+  /* Reduce issued weapon and direct visual recognition ranges together. Movement,
+     hearing, callout relay, damage and the 0.15 s step keep their native meanings. */
+  var rangeScale = Number(params.get('labRange'));
+  if (rangeScale !== 1 && rangeScale !== 0.5 && rangeScale !== 0.25) rangeScale = 0.5;
   var scenarios = {
     ge15: { title: 'US assault vs German defense', seed: 'phase-c-natural-20261012-0015', defender: 'ge' },
     meeting: { title: 'Meeting engagement', seed: 'phase-c-natural-20261012-0001', defender: '' },
@@ -116,6 +120,10 @@
       '<h2>PHASE C · COMBAT LAB</h2>' +
       '<div class="sub">280 × 240 m native arena · 2 US squads / 1 German squad · 0.15s AI ticks</div>' +
       '<label for="labScenario">Scenario</label><select id="labScenario"></select>' +
+      '<label for="labRange">Weapon + visual spotting range</label><select id="labRange">' +
+      '<option value="1">1× · native ranges (control)</option>' +
+      '<option value="0.5">½× · medium contact (recommended)</option>' +
+      '<option value="0.25">¼× · close contact</option></select>' +
       '<label for="labPreset">Combat isolation preset</label><select id="labPreset">' +
       '<option value="A">A · Normal: both sides fire and take damage</option>' +
       '<option value="B">B · Germans cannot be wounded/killed</option>' +
@@ -148,11 +156,13 @@
     });
     select.value = scenarioKey;
     panel.querySelector('#labPreset').value = preset;
+    panel.querySelector('#labRange').value = String(rangeScale);
     function navigate() {
       var s = scenarios[select.value],
         p = new URLSearchParams(root.location.search);
       p.set('combatLab', '1');
       p.set('labPreset', panel.querySelector('#labPreset').value);
+      p.set('labRange', panel.querySelector('#labRange').value);
       p.set('seed', s.seed);
       if (s.defender) p.set('defender', s.defender);
       else p.delete('defender');
@@ -170,6 +180,7 @@
     }
     select.onchange = navigate;
     panel.querySelector('#labPreset').onchange = navigate;
+    panel.querySelector('#labRange').onchange = navigate;
     playButton = panel.querySelector('#labPlay');
     playButton.onclick = function () {
       if (!battle || battle.winner) return;
@@ -315,7 +326,8 @@
         );
       if (area) return area.apply(this, arguments);
     };
-    record('native range', '20 US / 10 GE · real squads, cover and ballistics · ' + preset, 0);
+    record('native range', '20 US / 10 GE · real squads, cover and ballistics · ' +
+      preset + ' · weapon/sight ' + rangeScale + '×', 0);
     render();
     setInterval(render, 350);
   }
@@ -387,6 +399,8 @@
         battle.scene.metadata.battleScenario &&
         battle.scene.metadata.battleScenario.seed,
       preset: preset,
+      rangeScale: rangeScale,
+      rangeScaling: 'issued weapon range/falloff/autoWithin + visual detection/tracking; hearing unchanged',
       scenario: scenarioKey,
       simulationSeconds: +battle.time.toFixed(2),
       winner: battle.winner || null,
@@ -405,6 +419,7 @@
           faction: s.faction,
           role: s.role,
           squad: s.squad && s.squad.id,
+          weaponRange: s.weapon && s.weapon.stats ? s.weapon.stats.range : null,
           x: +s.root.position.x.toFixed(2),
           z: +s.root.position.z.toFixed(2),
           hp: s.hp,
@@ -428,7 +443,7 @@
     panel.querySelector('#labSuppressed').textContent = s.geSuppressed;
     playButton.textContent = battle.paused ? '▶ Play' : 'Ⅱ Pause';
     output.textContent =
-      'US squads:\n' +
+      'Range ' + rangeScale + '× (weapons + sight; hearing unchanged)\nUS squads:\n' +
       s.squads.us
         .map(function (v) {
           return (
@@ -474,6 +489,7 @@
     root.BattleDesktopCamera.create = installCamera;
   root.PhaseCCombatLab = {
     preset: preset,
+    rangeScale: rangeScale,
     blockShot: blockShot,
     preventWound: preventWound,
     preventDeath: preventDeath,
