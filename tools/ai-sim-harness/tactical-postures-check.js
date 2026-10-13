@@ -796,8 +796,7 @@ assert.ok(extraPosture && extraPosture.orders.length >= 4, 'fixture requires a r
 const extraOrder = extraPosture.orders[extraPosture.orders.length - 1];
 const originalMask = extraMask.r.BattleCoverPositions.maskedPost;
 extraMask.r.BattleCoverPositions.maskedPost = (battle, p, reports) =>
-  Math.hypot(p.x - extraOrder.point.x, p.z - extraOrder.point.z) > 0.05 &&
-  originalMask(battle, p, reports);
+  Math.hypot(p.x - extraOrder.point.x, p.z - extraOrder.point.z) > 0.05 && originalMask(battle, p, reports);
 const remainingLine = extraMask.P.update(extraMask.b, extraMask.q);
 assert.equal(remainingLine, extraPosture, 'uncompromised firing element stays in place');
 assert.equal(remainingLine.orders.length, extraPosture.members.length - 1);
