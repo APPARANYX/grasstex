@@ -160,18 +160,10 @@
              ray on contact; do not discard him because today's low stance
              is intentionally masked. The prospective ray remains the
              shipping physical/ballistic test, not assumed fire capability. */
-          var held = !!(
-            posture &&
-            posture.readyAt != null &&
-            Array.isArray(posture.heldActorIds) &&
-            posture.heldActorIds.indexOf(String(s.id)) >= 0
-          );
-          return !!(
-            (root.SquadAI.canSuppress && root.SquadAI.canSuppress(s, point, battle, true)) ||
-            (held &&
-              root.SquadAI.canSuppressStanding &&
-              root.SquadAI.canSuppressStanding(s, point, battle))
-          );
+          if (root.SquadAI.canSuppress && root.SquadAI.canSuppress(s, point, battle, true)) return true;
+          if (!posture || posture.readyAt == null || !Array.isArray(posture.heldActorIds)) return false;
+          if (posture.heldActorIds.indexOf(String(s.id)) < 0) return false;
+          return !!(root.SquadAI.canSuppressStanding && root.SquadAI.canSuppressStanding(s, point, battle));
         });
       men.sort(function (a, b) {
         var pa = previous.indexOf(String(a.id)) >= 0 ? 0 : 1,
