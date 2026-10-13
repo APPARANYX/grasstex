@@ -326,8 +326,11 @@
         );
       if (area) return area.apply(this, arguments);
     };
-    record('native range', '20 US / 10 GE · real squads, cover and ballistics · ' +
-      preset + ' · weapon/sight ' + rangeScale + '×', 0);
+    record(
+      'native range',
+      '20 US / 10 GE · real squads, cover and ballistics · ' + preset + ' · weapon/sight ' + rangeScale + '×',
+      0
+    );
     render();
     setInterval(render, 350);
   }
@@ -443,7 +446,9 @@
     panel.querySelector('#labSuppressed').textContent = s.geSuppressed;
     playButton.textContent = battle.paused ? '▶ Play' : 'Ⅱ Pause';
     output.textContent =
-      'Range ' + rangeScale + '× (weapons + sight; hearing unchanged)\nUS squads:\n' +
+      'Range ' +
+      rangeScale +
+      '× (weapons + sight; hearing unchanged)\nUS squads:\n' +
       s.squads.us
         .map(function (v) {
           return (
