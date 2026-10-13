@@ -50,6 +50,7 @@ function world(on = true, terrain = true, maneuver = false, options = {}) {
   const S = r.BattleSquadStability,
     P = S.tacticalPostures;
   S.executeMission(b, q, null);
+  q.commandPhase = 'assault'; // Capture-mission fixture: General has approved bounds.
   r.SquadAI.rememberReportedContact(q.members[0], b, {
     x: 0,
     z: 20,

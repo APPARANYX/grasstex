@@ -636,18 +636,18 @@
               : !coaAllowsBound
                 ? 'defensive-coa-holds'
                 : task && task.emergency
-              ? 'emergency'
-              : !coreReady
-                ? 'held-core-invalid'
-                : !sq.inContact
-                  ? 'no-current-contact'
-                  : !(report && Array.isArray(report.fireSupport))
-                    ? 'no-fire-support-report'
-                    : supportCount < tuning.minSupport
-                      ? 'insufficient-support'
-                      : !safeMovers.length
-                        ? 'no-safe-covered-mover'
-                        : 'authorized'
+                  ? 'emergency'
+                  : !coreReady
+                    ? 'held-core-invalid'
+                    : !sq.inContact
+                      ? 'no-current-contact'
+                      : !(report && Array.isArray(report.fireSupport))
+                        ? 'no-fire-support-report'
+                        : supportCount < tuning.minSupport
+                          ? 'insufficient-support'
+                          : !safeMovers.length
+                            ? 'no-safe-covered-mover'
+                            : 'authorized'
         };
         /* Commander observation does not supply an Engagement report. Keep
            a genuinely ready line in place until the native fire-and-movement
