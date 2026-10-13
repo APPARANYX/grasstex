@@ -429,6 +429,62 @@ function nativePreparedLine(x) {
   }
   assert.fail('the shipping Squad Leader must naturally hold the concealed fireteam');
 }
+/* Fire-and-maneuver formation: a WHOLE alpha fireteam may be staged as
+   actual pre-contact cover reserve only if independent physicality proves
+   masked origins with safe exits AND two shootable rifles remain in the
+   firing element. This is the shipping Squad Leader planning path on real
+   crest geometry; no actor positioning or acceptance metric is injected. */
+function setReserveTeam(x) {
+  x.q.members.forEach((s, i) => {
+    s._fireteamKey = i < 2 ? 'command' : i < 5 ? 'alpha' : i < 8 ? 'bravo' : 'charlie';
+  });
+}
+const reservePositive = world(true, true, true);
+setReserveTeam(reservePositive);
+const reservePosture = reservePositive.P.update(reservePositive.b, reservePositive.q);
+assert.ok(reservePosture, 'real masked firing-line plan is still produced');
+const reserveOrders = reservePosture.orders.filter(o => o.reserve);
+assert.equal(reserveOrders.length === 0 || reserveOrders.length === 3, true, 'never reserve a partial alpha team');
+assert.ok(
+  reservePosture.orders.filter(o => !o.reserve).length >= 3,
+  'reserve staging never steals the three firing posts'
+);
+if (reserveOrders.length) {
+  const reserveIds = reservePositive.q.members
+    .filter(s => s._fireteamKey === 'alpha')
+    .map(s => String(s.id));
+  assert.deepEqual(
+    reserveOrders.map(o => o.soldierId).sort(),
+    reserveIds.sort(),
+    'whole alpha fireteam is the sole reserve'
+  );
+  for (const order of reserveOrders) {
+    const soldier = reservePositive.q.members.find(s => String(s.id) === order.soldierId);
+    const threat = { x: 0, z: 20, at: 0, confidence: 1 };
+    assert.equal(
+      reservePositive.r.SquadAI.hasLineOfSight(
+        { root: { position: order.point }, crouching: true },
+        { root: { position: threat } },
+        reservePositive.b.heightAt,
+        reservePositive.b.obstacles
+      ),
+      false,
+      'reserve really starts behind terrain masking'
+    );
+    assert.equal(soldier._fireteamKey, 'alpha');
+  }
+}
+const reserveBlocked = world(true, true, true);
+setReserveTeam(reserveBlocked);
+reserveBlocked.r.BattleCoverPositions.boundRoute = () => ({ eligible: false });
+const blockedPosture = reserveBlocked.P.update(reserveBlocked.b, reserveBlocked.q);
+assert.ok(blockedPosture && blockedPosture.orders.length >= 3);
+assert.equal(
+  blockedPosture.orders.some(o => o.reserve),
+  false,
+  'physically invalid routes do not create reserve orders or steal the original firing plan'
+);
+
 // The same posture owner may switch a fully prepared ambush to covered
 // maneuver under pressure, but only when the shipping physicality sampler
 // accepts a real short segment AND at least two other men can support.
