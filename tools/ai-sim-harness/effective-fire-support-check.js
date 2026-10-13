@@ -182,12 +182,18 @@ assert.equal(staged.q.inContact, true, 'one effective area supporter preserves r
 staged.q.fireControl.supporterIds.push(String(secondSupport.id));
 stageReport = staged.E.updateSquad(staged.q, staged.b);
 assert.ok(stageReport.fireSupport.includes(firstSupport));
-assert.ok(stageReport.fireSupport.includes(secondSupport), 'the second effective supporter joins independently');
+assert.ok(
+  stageReport.fireSupport.includes(secondSupport),
+  'the second effective supporter joins independently'
+);
 assert.equal(stageReport.fireSupport.length, 2, 'no synthetic or duplicate supporter');
 secondSupport.suppressedUntil = staged.b.time + 1;
 stageReport = staged.E.updateSquad(staged.q, staged.b);
 assert.ok(stageReport.fireSupport.includes(firstSupport));
-assert.ok(!stageReport.fireSupport.includes(secondSupport), 'suppression removes genuine second-rifle readiness');
+assert.ok(
+  !stageReport.fireSupport.includes(secondSupport),
+  'suppression removes genuine second-rifle readiness'
+);
 assert.equal(staged.q.inContact, true, 'first rifle may continue even when the second is pinned');
 secondSupport.suppressedUntil = 0;
 firstSupport.reloading = true;

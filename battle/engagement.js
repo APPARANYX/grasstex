@@ -2223,7 +2223,8 @@
       fireSupport.some(function (man) {
         return !!areaSupportOf(man, battle);
       });
-    sq.inContact = contact > 0 || suppressing > 0 || underFireCount > 0 || preparingContact || actualAreaSupport;
+    sq.inContact =
+      contact > 0 || suppressing > 0 || underFireCount > 0 || preparingContact || actualAreaSupport;
     var started = sq.inContact && !wasInContact;
     if (started) {
       sq.contactSince = battle.time;
