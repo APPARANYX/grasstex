@@ -267,7 +267,7 @@ test('zero-line reposition times out even after the initiating contact ages out'
   assert.equal(fc.reason, 'reposition timed out: resume maneuver fire');
 });
 
-test('one lawful support rifle starts first, a second independently joins, and hearsay cannot open fire', () => {
+test('prepared first-hand support admits one rifle before a second joins', () => {
   const w = world('?stressAct=0&fireControl=1&commandPosture=0&coa=0', 100);
   const rifles = w.us.members.filter(s => s.role === 'rifleman');
   assert.ok(rifles.length >= 2, 'fixture requires two actual riflemen');
@@ -296,7 +296,11 @@ test('one lawful support rifle starts first, a second independently joins, and h
   let fc = w.Q.updateFireControl(w.us, w.b, { underFire: 0, fireSupport: [] });
   assert.equal(fc.state, 'open', 'first-hand sight opens a fully prepared line without two ready rifles');
   assert.deepEqual(fc.supporterIds, [String(first.id)], 'only one genuinely capable rifle begins support');
-  assert.deepEqual(w.E.areaSupportOf(first, w.b), point, 'first supporter independently receives his aim point');
+  assert.deepEqual(
+    w.E.areaSupportOf(first, w.b),
+    point,
+    'first supporter independently receives his aim point'
+  );
   assert.equal(w.E.areaSupportOf(second, w.b), null, 'a suppressed second man is not counted');
   second.suppressedUntil = 0;
   fc = w.Q.updateFireControl(w.us, w.b, { underFire: 0, fireSupport: [] });
@@ -307,7 +311,11 @@ test('one lawful support rifle starts first, a second independently joins, and h
     'second supporter joins only after he becomes physically available'
   );
   assert.deepEqual(w.E.areaSupportOf(second, w.b), point, 'second supporter receives his own fire order');
-  assert.equal(w.Q.tacticalPostures.tuning.minSupport, 2, 'covered maneuver still needs two effective supporters');
+  assert.equal(
+    w.Q.tacticalPostures.tuning.minSupport,
+    2,
+    'covered maneuver still needs two effective supporters'
+  );
   w.us.contact = {
     unit: null,
     x: point.x,
