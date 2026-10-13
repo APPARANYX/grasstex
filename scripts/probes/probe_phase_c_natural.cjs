@@ -479,7 +479,33 @@ const { chromium } = require('playwright');
                               return result.eligible;
                             }),
                             terrain = [],
-                            terrainReasons = {};
+                            terrainReasons = {},
+                            wideTerrainRoutes = [],
+                            wideTerrainReasons = {},
+                            originVisibleTo = threats
+                              .map((threat, index) => {
+                                const here = s.root.position;
+                                const low = {
+                                  x: here.x,
+                                  z: here.z,
+                                  y: b.heightAt(here.x, here.z) +
+                                    root.SquadAI.eyeHeight({ crouching: true })
+                                };
+                                const high = {
+                                  x: threat.x,
+                                  z: threat.z,
+                                  y: b.heightAt(threat.x, threat.z) + root.SquadAI.eyeHeight({})
+                                };
+                                return root.SquadAI.hasLineOfSight(
+                                  { root: { position: low }, crouching: true },
+                                  { root: { position: high } },
+                                  b.heightAt,
+                                  b.obstacles
+                                )
+                                  ? index
+                                  : -1;
+                              })
+                              .filter(index => index >= 0);
                           if (threats.length)
                             for (const distance of [1.5, 3, 4.5, 6])
                               for (let k = 0; k < 8; k++) {
@@ -493,6 +519,25 @@ const { chromium } = require('playwright');
                                   (terrainReasons[result.reason] || 0) + 1;
                                 if (result.eligible && terrain.length < 4) terrain.push(compactPoint(p));
                               }
+                          /* If the crouched launch position is already visible, the
+                             existing covered-route test correctly fails at its first
+                             sample regardless of how distant the endpoint is.
+                             Otherwise examine the REST of the unchanged 12 m range,
+                             with denser angles, without publishing any destination. */
+                          if (threats.length && !originVisibleTo.length && !s.moving)
+                            for (const distance of [7.5, 9, 10.5, 12])
+                              for (let k = 0; k < 16; k++) {
+                                const angle = (Math.PI * 2 * k) / 16;
+                                const p = {
+                                  x: s.root.position.x + Math.sin(angle) * distance,
+                                  z: s.root.position.z + Math.cos(angle) * distance
+                                };
+                                const result = C.boundRoute(s, b, p, threats);
+                                wideTerrainReasons[result.reason] =
+                                  (wideTerrainReasons[result.reason] || 0) + 1;
+                                if (result.eligible && wideTerrainRoutes.length < 4)
+                                  wideTerrainRoutes.push(compactPoint(p));
+                              }
                           return {
                             id: String(s.id),
                             role: s.role,
@@ -503,7 +548,10 @@ const { chromium } = require('playwright');
                             coverCandidates: possible.length,
                             coverRoutes: real.length,
                             coverReasons: reasons,
+                            originVisibleTo,
                             terrainRoutes: terrain,
+                            wideTerrainRoutes,
+                            wideTerrainReasons,
                             terrainReasons
                           };
                         })
