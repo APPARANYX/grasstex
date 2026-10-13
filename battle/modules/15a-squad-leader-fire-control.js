@@ -135,7 +135,8 @@
           options.some(function (p) {
             return Math.hypot(p.x - +r.x, p.z - +r.z) < 1;
           })
-        ) return;
+        )
+          return;
         options.push({ x: +r.x, z: +r.z, at: +r.at, source: r.source });
       }
       add(latest);
@@ -152,12 +153,16 @@
       if (Array.isArray(map) && map.length <= 32)
         map.forEach(function (r) {
           if (
-            r && r.source === 'seen' && r.sourceSoldier != null &&
+            r &&
+            r.source === 'seen' &&
+            r.sourceSoldier != null &&
             roster.some(function (s) {
               return s && !s.dead && String(s.id) === String(r.sourceSoldier);
             }) &&
-            isFinite(+r.confidence) && +r.confidence >= 0.5
-          ) add({ x: r.x, z: r.z, at: r.at, source: 'seen' });
+            isFinite(+r.confidence) &&
+            +r.confidence >= 0.5
+          )
+            add({ x: r.x, z: r.z, at: r.at, source: 'seen' });
         });
       return options.slice(0, 32);
     }
@@ -228,9 +233,10 @@
       if (!(report.underFire > 0) && !authority) return null;
       var oldPoint = prev && prev.supportPoint,
         options = supportAuthorityOptions(sq, battle),
-        point = oldPoint && isFinite(+oldPoint.x) && isFinite(+oldPoint.z)
-          ? { x: +oldPoint.x, z: +oldPoint.z }
-          : authority && { x: authority.x, z: authority.z },
+        point =
+          oldPoint && isFinite(+oldPoint.x) && isFinite(+oldPoint.z)
+            ? { x: +oldPoint.x, z: +oldPoint.z }
+            : authority && { x: authority.x, z: authority.z },
         men = supportCandidates(sq, battle, point, prev && prev.supporterIds, posture),
         chosen = authority;
       options.forEach(function (option) {
