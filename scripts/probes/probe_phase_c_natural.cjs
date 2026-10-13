@@ -199,6 +199,15 @@ const { chromium } = require('playwright');
                     reserveIds: (current.orders || []).filter(o => o.reserve).map(o => String(o.soldierId)),
                     maxReserveAdopted: 0,
                     maxReserveArrived: 0,
+                    firstFullReserveAt: null,
+                    fullReserveSamples: 0,
+                    fullReserveContactSamples: 0,
+                    fullReservePreparedSamples: 0,
+                    fullReserveAssaultSamples: 0,
+                    fullReserveTwoReadyRiflesSamples: 0,
+                    fullReserveDecisionSamples: 0,
+                    firstFullReserveSnapshot: null,
+                    lastFullReserveSnapshot: null,
                     stageEvents: [],
                     samples: 0,
                     maxPending: 0,
@@ -356,6 +365,62 @@ const { chromium } = require('playwright');
                 attempt.maxArrived = Math.max(attempt.maxArrived, arrivedCount);
                 attempt.maxReserveAdopted = Math.max(attempt.maxReserveAdopted, reserveAdoptedCount);
                 attempt.maxReserveArrived = Math.max(attempt.maxReserveArrived, reserveArrivedCount);
+                /* Observation only: whether a REAL complete reserve exists at
+                   the SAME sampled time as contact, authority and a ready base.
+                   Never turn these diagnostic hints into bound authorization. */
+                if (
+                  attempt.reserveIds.length >= 2 &&
+                  reserveArrivedCount === attempt.reserveIds.length
+                ) {
+                  const readyRifles = (sq.members || [])
+                    .filter(
+                      man =>
+                        man &&
+                        !man.dead &&
+                        man.hp > 0 &&
+                        man.role === 'rifleman' &&
+                        !attempt.reserveIds.includes(String(man.id)) &&
+                        !!root.BattleEngagement?.supportReady?.(man, b)
+                    )
+                    .map(man => String(man.id));
+                  const snapshot = {
+                    at: +b.time.toFixed(2),
+                    phase: sq.commandPhase || null,
+                    coa: sq.coa || null,
+                    inContact: !!sq.inContact,
+                    readyAt: current.readyAt ?? null,
+                    heldCoreIds: (current.heldActorIds || []).slice(),
+                    readyRifleIds: readyRifles,
+                    reportCount: (root.SquadAI?.squadContactsMap?.(sq, b) || []).filter(
+                      r =>
+                        r &&
+                        Number.isFinite(r.at) &&
+                        b.time >= r.at &&
+                        b.time - r.at <= 10 &&
+                        Number.isFinite(r.confidence) &&
+                        r.confidence >= 0.5
+                    ).length,
+                    decision: current.lastManeuverDecision
+                      ? {
+                          reason: current.lastManeuverDecision.reason,
+                          supportCount: current.lastManeuverDecision.supportCount,
+                          phaseAllowsBound: current.lastManeuverDecision.phaseAllowsBound,
+                          possible: current.lastManeuverDecision.possible
+                        }
+                      : null
+                  };
+                  if (attempt.firstFullReserveAt == null) {
+                    attempt.firstFullReserveAt = snapshot.at;
+                    attempt.firstFullReserveSnapshot = snapshot;
+                  }
+                  attempt.lastFullReserveSnapshot = snapshot;
+                  attempt.fullReserveSamples++;
+                  if (snapshot.inContact) attempt.fullReserveContactSamples++;
+                  if (snapshot.readyAt != null) attempt.fullReservePreparedSamples++;
+                  if (snapshot.phase === 'assault') attempt.fullReserveAssaultSamples++;
+                  if (readyRifles.length >= 2) attempt.fullReserveTwoReadyRiflesSamples++;
+                  if (snapshot.decision?.possible) attempt.fullReserveDecisionSamples++;
+                }
                 attempt.maxSettled = Math.max(attempt.maxSettled, settledCount);
                 attempt.maxMasked = Math.max(attempt.maxMasked, maskedCount);
                 attempt.maxHeld = Math.max(attempt.maxHeld, current.heldActorIds?.length || 0);
@@ -1237,6 +1302,15 @@ const { chromium } = require('playwright');
                 reserveIds: a.reserveIds,
                 maxReserveAdopted: a.maxReserveAdopted,
                 maxReserveArrived: a.maxReserveArrived,
+                firstFullReserveAt: a.firstFullReserveAt,
+                fullReserveSamples: a.fullReserveSamples,
+                fullReserveContactSamples: a.fullReserveContactSamples,
+                fullReservePreparedSamples: a.fullReservePreparedSamples,
+                fullReserveAssaultSamples: a.fullReserveAssaultSamples,
+                fullReserveTwoReadyRiflesSamples: a.fullReserveTwoReadyRiflesSamples,
+                fullReserveDecisionSamples: a.fullReserveDecisionSamples,
+                firstFullReserveSnapshot: a.firstFullReserveSnapshot,
+                lastFullReserveSnapshot: a.lastFullReserveSnapshot,
                 stages: a.stageEvents,
                 maxPending: a.maxPending,
                 maxAdopted: a.maxAdopted,
