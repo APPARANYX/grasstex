@@ -97,3 +97,81 @@ jobs:
       - name: Server diagnostics
         if: failure()
         run: tail -100 /tmp/phase-c-trace-php.log || true
+
+  # TEMPORARY six-preset isolation runs on a dedicated unmerged diagnostic branch.
+  # No new workflow, no natural 54-battle acceptance modification.
+  combat-lab:
+    if: ${{ github.event_name == 'pull_request' && github.head_ref == 'work/phase-c-combat-lab-cc32fa9' }}
+    name: Combat lab ${{ matrix.battle_type }} seed ${{ matrix.seed_index }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - battle_type: ge-defend
+            seed_index: '15'
+            seconds: '310'
+            squad: 'us:us-4'
+            trace_from: '279'
+            trace_to: '309'
+          - battle_type: meeting
+            seed_index: '1'
+            seconds: '250'
+            squad: 'us:us-1'
+            trace_from: '175'
+            trace_to: '240'
+          - battle_type: us-defend
+            seed_index: '7'
+            seconds: '550'
+            squad: 'us:us-4'
+            trace_from: '300'
+            trace_to: '545'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify lab syntax and strict A-F interception contract
+        run: |
+          node --check scripts/probes/phase_c_combat_lab_hooks.js
+          node --check scripts/probes/probe_phase_c_combat_lab.cjs
+          node tools/ai-sim-harness/phase-c-combat-lab-check.cjs
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start local native battle server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www > /tmp/phase-c-combat-lab-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=phase-c-health" > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/phase-c-combat-lab-php.log
+          exit 1
+      - name: Exact-seed paired A-F native combat experiment (non-acceptance)
+        env:
+          PHASE_C_COMBAT_LAB: '1'
+          C_LAB_VARIANTS: A,B,C,D,E,F
+          C_FIELD_TYPE: ${{ matrix.battle_type }}
+          C_FIELD_COUNT: '1'
+          C_FIELD_SECONDS: ${{ matrix.seconds }}
+          C_FIELD_PREFIX: phase-c-natural-20261012
+          C_FIELD_SEED_INDEX: ${{ matrix.seed_index }}
+          C_FIELD_TRACE_SQUAD: ${{ matrix.squad }}
+          C_FIELD_TRACE_FROM: ${{ matrix.trace_from }}
+          C_FIELD_TRACE_TO: ${{ matrix.trace_to }}
+          C_FIELD_DIR: reports/phase-c-combat-lab
+          C_FIELD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/probes/probe_phase_c_combat_lab.cjs
+      - name: Upload artificial combat trace
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase-c-combat-lab-${{ matrix.battle_type }}-${{ matrix.seed_index }}
+          path: reports/phase-c-combat-lab/*.json
+          retention-days: 7
+      - name: Server diagnostics
+        if: failure()
+        run: tail -100 /tmp/phase-c-combat-lab-php.log || true
