@@ -14,11 +14,20 @@ const { chromium } = require('playwright');
     args: ['--disable-dev-shm-usage', '--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist']
   });
   const errors = [];
+  const failedRequests = [];
+  const recentConsole = [];
   const results = [];
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true });
     page.setDefaultTimeout(180000);
     page.on('pageerror', e => errors.push(e.message));
+    page.on('requestfailed', request => {
+      if (failedRequests.length < 50) failedRequests.push({ url: request.url(), error: request.failure() });
+    });
+    page.on('console', message => {
+      if (recentConsole.length >= 80) recentConsole.shift();
+      recentConsole.push(message.type() + ': ' + message.text().slice(0, 400));
+    });
     page.on('console', message => {
       if (message.type() === 'error' && !/texture|audio|failed to load resource|fbx/i.test(message.text()))
         errors.push(message.text());
@@ -30,12 +39,39 @@ const { chromium } = require('playwright');
         localManeuver: '1', coveredBounds: '1', fireCoverCycle: '1', squadReturnFire: '1'
       });
       await page.goto(base + '?' + params.toString(), { waitUntil: 'domcontentloaded', timeout: 180000 });
-      await page.waitForFunction(() =>
-        !!(window.__battle__ && window.PhaseCCombatLab &&
-          document.getElementById('phaseCLab') &&
-          window.BattleDesktopCamera.current &&
-          window.__battle__._roster.us.length === 20 &&
-          window.__battle__._roster.ge.length === 10), null, { timeout: 180000 });
+      try {
+        await page.waitForFunction(() =>
+          !!(window.__battle__ && window.PhaseCCombatLab &&
+            document.getElementById('phaseCLab') &&
+            window.BattleDesktopCamera.current &&
+            window.__battle__._roster.us.length === 20 &&
+            window.__battle__._roster.ge.length === 10), null, { timeout: 75000 });
+      } catch (e) {
+        const boot = await page.evaluate(() => ({
+          href: location.href, title: document.title,
+          preview: window.BATTLE_PREVIEW || null,
+          earlyFlag: window.PHASE_C_COMBAT_LAB || null,
+          nativeWidth: window.BattleSim && BattleSim.FIELD_W,
+          nativeDepth: window.BattleSim && BattleSim.FIELD_D,
+          lab: !!window.PhaseCCombatLab, labPanel: !!document.getElementById('phaseCLab'),
+          camera: window.BattleDesktopCamera && BattleDesktopCamera.current &&
+            BattleDesktopCamera.current.camera && BattleDesktopCamera.current.camera.name,
+          battle: window.__battle__ ? {
+            time: window.__battle__.time,
+            us: window.__battle__._roster.us.length,
+            ge: window.__battle__._roster.ge.length
+          } : null,
+          loadError: document.getElementById('loadError') && document.getElementById('loadError').textContent,
+          debug: document.getElementById('debugConsole') &&
+            document.getElementById('debugConsole').textContent.slice(-10000),
+          body: document.body && document.body.innerText.slice(0, 1500)
+        }));
+        const diag = { error: String(e), preset, boot, errors, failedRequests, recentConsole };
+        fs.writeFileSync(out + '/failed-bootstrap-' + preset + '.json', JSON.stringify(diag, null, 2));
+        try { await page.screenshot({ path: out + '/failed-bootstrap-' + preset + '.png' }); } catch (_) {}
+        console.error('PHASE_C_LAB_BOOT_DIAG ' + JSON.stringify(diag));
+        throw e;
+      }
       const initial = await page.evaluate(() => {
         const b = window.__battle__, lab = window.PhaseCCombatLab;
         return { preset: lab.preset, fieldW: BattleSim.FIELD_W, fieldD: BattleSim.FIELD_D,
