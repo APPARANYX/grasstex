@@ -179,18 +179,35 @@ test('shared defensive ROE requires actual delivery: no telepathy, heard noise, 
   assert.equal(w.E.fireAuthorized(buddy, w.b), false, 'first sight without enemy fire obeys HOLD');
   victim.suppressedUntil = when + 1.5;
   w.us.contact = { x: 190, z: 190, at: when, relayedFrom: 'foreign-squad' };
-  A.soldierContact = s => s === victim ? {
-    ...point, at: when, source: 'incoming', precision: 'fire-origin', confidence: 1
-  } : null;
+  A.soldierContact = s =>
+    s === victim
+      ? {
+          ...point,
+          at: when,
+          source: 'incoming',
+          precision: 'fire-origin',
+          confidence: 1
+        }
+      : null;
   calls.heardBy = () => null;
-  assert.equal(w.E.squadDefensiveContact(buddy, w.b), null, 'private firing-origin belief must not teleport to buddy');
+  assert.equal(
+    w.E.squadDefensiveContact(buddy, w.b),
+    null,
+    'private firing-origin belief must not teleport to buddy'
+  );
   assert.equal(w.E.fireAuthorized(buddy, w.b), false, 'HOLD persists until the report is actually heard');
 
-  const msg = { kind: 'incomingFire', fromSquad: w.us.id, from: victim.id,
-    fact: { ...point, at: when, precision: 'fire-origin' } };
-  calls.heardBy = (b, s) => s === buddy || s === third ? { msg, confidence: 0.9 } : null;
+  const msg = {
+    kind: 'incomingFire',
+    fromSquad: w.us.id,
+    from: victim.id,
+    fact: { ...point, at: when, precision: 'fire-origin' }
+  };
+  calls.heardBy = (b, s) => (s === buddy || s === third ? { msg, confidence: 0.9 } : null);
   assert.deepEqual(w.E.squadDefensiveContact(buddy, w.b), {
-    ...point, at: when, source: 'incoming'
+    ...point,
+    at: when,
+    source: 'incoming'
   });
   assert.equal(w.E.fireAuthorized(buddy, w.b), true, 'buddy may respond upon hearing the report');
   assert.equal(w.E.fireAuthorized(third, w.b), true, 'a second actual listener also gains authority');
@@ -199,7 +216,11 @@ test('shared defensive ROE requires actual delivery: no telepathy, heard noise, 
   calls.heardBy = () => ({ msg: { ...msg, kind: 'gunfire' }, confidence: 1 });
   assert.equal(w.E.squadDefensiveContact(buddy, w.b), null, 'ambient gunfire is not a callout');
   calls.heardBy = () => ({ msg: { ...msg, fromSquad: 'foreign-squad' }, confidence: 1 });
-  assert.equal(w.E.squadDefensiveContact(buddy, w.b), null, 'outside relay does not become local defensive authority');
+  assert.equal(
+    w.E.squadDefensiveContact(buddy, w.b),
+    null,
+    'outside relay does not become local defensive authority'
+  );
   calls.heardBy = () => ({ msg: { ...msg, from: 'not-a-member' }, confidence: 1 });
   assert.equal(w.E.squadDefensiveContact(buddy, w.b), null, 'sender must belong to own squad');
   calls.heardBy = () => ({ msg, confidence: 0.2 });
@@ -224,9 +245,13 @@ test('a soldier may suppress without SL micro orders only along his own viable f
   command(w);
   w.b.time = rec(w, buddy).adoptedAt + 0.01;
   victim.suppressedUntil = w.b.time + 2;
-  const contact = { kind: 'incomingFire', fromSquad: w.us.id, from: victim.id,
-    fact: { x: 0, z: 100, at: w.b.time, precision: 'fire-origin' } };
-  calls.heardBy = (b, s) => s === buddy ? { msg: contact, confidence: 0.9 } : null;
+  const contact = {
+    kind: 'incomingFire',
+    fromSquad: w.us.id,
+    from: victim.id,
+    fact: { x: 0, z: 100, at: w.b.time, precision: 'fire-origin' }
+  };
+  calls.heardBy = (b, s) => (s === buddy ? { msg: contact, confidence: 0.9 } : null);
   A.soldierContact = () => null;
   buddy.target = null;
   buddy.moving = false;
@@ -234,7 +259,10 @@ test('a soldier may suppress without SL micro orders only along his own viable f
   w.us.contact = { x: 190, z: 190, at: w.b.time, relayedFrom: 'outside-squad' };
   let fired = 0;
   A.areaFire = (s, point) => {
-    if (s === buddy) { fired++; s.fireCooldown = 0.6; }
+    if (s === buddy) {
+      fired++;
+      s.fireCooldown = 0.6;
+    }
     return 0;
   };
   A.canSuppress = () => false;

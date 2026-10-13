@@ -1012,42 +1012,74 @@
      evidence, but a teammate's unseen private belief / an outside relay is
      not. The callout owner already simulates delivery delay, noise and misses. */
   function squadDefensiveContact(s, battle) {
-    var sq = s && s.squad, men = sq && sq.members, A = SA(),
-      now = battle && +battle.time, active = false;
-    if (!SQUAD_RETURN_FIRE_ON || !s || s.dead || s.isPlayer || !battle ||
-        !sq || sq.state === 'retreat' || !A || !Array.isArray(men) ||
-        men.length > 32) return null;
+    var sq = s && s.squad,
+      men = sq && sq.members,
+      A = SA(),
+      now = battle && +battle.time,
+      active = false;
+    if (
+      !SQUAD_RETURN_FIRE_ON ||
+      !s ||
+      s.dead ||
+      s.isPlayer ||
+      !battle ||
+      !sq ||
+      sq.state === 'retreat' ||
+      !A ||
+      !Array.isArray(men) ||
+      men.length > 32
+    )
+      return null;
     for (var i = 0; i < men.length; i++)
       if (men[i] && !men[i].dead && underFireNow(men[i], battle)) {
-        active = true; break;
+        active = true;
+        break;
       }
     if (!active) return null;
     var own = A.soldierContact && A.soldierContact(s, battle),
-      first = !!(own &&
+      first = !!(
+        own &&
         ((own.source === 'seen' && String(own.seenBy) === String(s.id)) ||
-         (own.source === 'incoming' && own.precision === 'fire-origin' &&
-          underFireNow(s, battle))));
-    if (first && isFinite(+own.x) && isFinite(+own.z) &&
-        isFinite(+own.at) && isFinite(+own.confidence) &&
-        +own.confidence >= 0.5 && now >= +own.at && now - +own.at <= 3)
+          (own.source === 'incoming' && own.precision === 'fire-origin' && underFireNow(s, battle)))
+      );
+    if (
+      first &&
+      isFinite(+own.x) &&
+      isFinite(+own.z) &&
+      isFinite(+own.at) &&
+      isFinite(+own.confidence) &&
+      +own.confidence >= 0.5 &&
+      now >= +own.at &&
+      now - +own.at <= 3
+    )
       return { x: +own.x, z: +own.z, at: +own.at, source: own.source };
     var C = root.BattleCallouts,
       delivery = C && C.heardBy && C.enabled && C.enabled() ? C.heardBy(battle, s) : null,
       msg = delivery && delivery.msg,
       fact = msg && msg.fact;
-    if (!msg || !fact || String(msg.fromSquad) !== String(sq.id) ||
-        (msg.kind !== 'contact' && msg.kind !== 'incomingFire') ||
-        (msg.kind === 'incomingFire' && fact.precision !== 'fire-origin') ||
-        !isFinite(+delivery.confidence) || +delivery.confidence < 0.5 ||
-        !isFinite(+fact.x) || !isFinite(+fact.z) || !isFinite(+fact.at) ||
-        now < +fact.at || now - +fact.at > 3) return null;
+    if (
+      !msg ||
+      !fact ||
+      String(msg.fromSquad) !== String(sq.id) ||
+      (msg.kind !== 'contact' && msg.kind !== 'incomingFire') ||
+      (msg.kind === 'incomingFire' && fact.precision !== 'fire-origin') ||
+      !isFinite(+delivery.confidence) ||
+      +delivery.confidence < 0.5 ||
+      !isFinite(+fact.x) ||
+      !isFinite(+fact.z) ||
+      !isFinite(+fact.at) ||
+      now < +fact.at ||
+      now - +fact.at > 3
+    )
+      return null;
     /* The sender is one of our currently known people, not an untrusted
        foreign squad or a claimed source ID in an unrelated belief. */
     for (var j = 0; j < men.length; j++)
-      if (men[j] && !men[j].dead &&
-          String(men[j].id) === String(msg.from))
+      if (men[j] && !men[j].dead && String(men[j].id) === String(msg.from))
         return {
-          x: +fact.x, z: +fact.z, at: +fact.at,
+          x: +fact.x,
+          z: +fact.z,
+          at: +fact.at,
           source: msg.kind === 'incomingFire' ? 'incoming' : 'seen'
         };
     return null;
@@ -1056,15 +1088,28 @@
     return !!(pt && SA().canSuppress && SA().canSuppress(s, pt, battle, true));
   }
   function autonomousDefensiveSupport(s, battle) {
-    var e = state(s), pt = squadDefensiveContact(s, battle),
-      ammo = root.BattleAmmunition, post = root.BattleTacticalPositions;
-    if (!pt || combatThreat(s.target) || !s.weapon || !s.weapon.stats ||
-        s.moving || s.crawling || s.reloading || s.clearingStoppage ||
-        s.outOfAmmo || s.suppressedUntil > battle.time || e.boundOrder ||
-        (ammo && !ammo.available(s)) ||
-        (post && post.current && post.current(s)) ||
-        ['bound', 'pinned', 'withdraw', 'assault'].indexOf(e.state) >= 0 ||
-        !defensiveLine(s, battle, pt)) return false;
+    var e = state(s),
+      pt = squadDefensiveContact(s, battle),
+      ammo = root.BattleAmmunition,
+      post = root.BattleTacticalPositions;
+    if (
+      !pt ||
+      combatThreat(s.target) ||
+      !s.weapon ||
+      !s.weapon.stats ||
+      s.moving ||
+      s.crawling ||
+      s.reloading ||
+      s.clearingStoppage ||
+      s.outOfAmmo ||
+      s.suppressedUntil > battle.time ||
+      e.boundOrder ||
+      (ammo && !ammo.available(s)) ||
+      (post && post.current && post.current(s)) ||
+      ['bound', 'pinned', 'withdraw', 'assault'].indexOf(e.state) >= 0 ||
+      !defensiveLine(s, battle, pt)
+    )
+      return false;
     holdPosition(s, battle);
     s.state = 'suppress';
     if (ALERT_LATCH) e.engaged = true;
@@ -2038,8 +2083,7 @@
     }
     var localDefence = squadDefensiveContact(s, battle);
     if (!combatThreat(target) && localDefence)
-      return defensiveLine(s, battle, localDefence) &&
-        facingError(s, localDefence) <= AIM_CONE;
+      return defensiveLine(s, battle, localDefence) && facingError(s, localDefence) <= AIM_CONE;
     return !!(
       combatThreat(target) &&
       dist(posOf(s).x, posOf(s).z, posOf(target).x, posOf(target).z) <= SA().engageRange(s) &&
@@ -2225,7 +2269,9 @@
     updateSoldier: updateSoldier,
     updateSquad: updateSquad,
     squadDefensiveContact: squadDefensiveContact,
-    squadReturnFireOn: function () { return SQUAD_RETURN_FIRE_ON; },
+    squadReturnFireOn: function () {
+      return SQUAD_RETURN_FIRE_ON;
+    },
     orderBound: orderBound,
     clearBoundOrders: clearBoundOrders,
     coveredBoundTelemetry: function (battle) {

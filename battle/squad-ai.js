@@ -1666,6 +1666,12 @@
       if (!threatDisposition(e).combatThreat) continue;
       if (dist2(e.root.position.x, e.root.position.z, point.x, point.z) > spread) continue;
       pin(e, battle, hold);
+      /* Area rounds are incoming fire for their actual recipients too. Pinning
+         without the normal first-hand origin observation left a concealed
+         squad under pressure but unable to report or answer its attackers.
+         Only this affected man learns the trigger-time origin; teammates
+         still depend on the existing delayed/fallible callout channel. */
+      noteIncomingFire(e, shooter, battle);
       hit++;
     }
     var rounds = discharge(shooter, battle, burstLength(stats, battle, d), function () {});
