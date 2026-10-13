@@ -217,8 +217,6 @@ masked.q.fireControl = {
 };
 maskedMan.moving = false;
 maskedMan.prone = false;
-maskedMan.crouching = true;
-maskedMan.tacticalCrouch = true;
 maskedMan.eng.stance = 'crouch';
 maskedMan.eng.stanceUntil = 0;
 maskedMan.eng.fireReadyAt = 0;
@@ -272,8 +270,6 @@ lowRay.q.fireControl = {
 lowMan.eng.stanceUntil = 0;
 lowMan.eng.stance = 'stand';
 lowMan.prone = false;
-lowMan.crouching = false;
-lowMan.tacticalCrouch = false;
 lowRay.r.SquadAI.canSuppress = () => true;
 for (let tick = 0; tick < 5; tick++) {
   lowRay.E.updateSoldier(lowMan, lowRay.b);
