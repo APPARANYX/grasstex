@@ -200,10 +200,9 @@
         goal = s._movementResolver && s._movementResolver.goal,
         stationIngress = !!(goal && goal.kind === 'firing-station'),
         safeToTransit = (+s.suppressedUntil || 0) <= now,
-        briskContact = purposeful && safeToTransit && d > 1.5 &&
-          (stationIngress || (s.squad && s.squad.inContact));
-      return urgent || e.state === 'bound' || briskContact ||
-        (s.squad && s.squad.inContact && d > 4)
+        briskContact =
+          purposeful && safeToTransit && d > 1.5 && (stationIngress || (s.squad && s.squad.inContact));
+      return urgent || e.state === 'bound' || briskContact || (s.squad && s.squad.inContact && d > 4)
         ? 'crouchRun'
         : 'crouchWalk';
     }

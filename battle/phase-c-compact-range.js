@@ -456,7 +456,9 @@
     output.textContent =
       'Range ' +
       rangeScale +
-      '× · movement ' + movementPace + ' (weapons + sight; hearing unchanged)\nUS squads:\n' +
+      '× · movement ' +
+      movementPace +
+      ' (weapons + sight; hearing unchanged)\nUS squads:\n' +
       s.squads.us
         .map(function (v) {
           return (
