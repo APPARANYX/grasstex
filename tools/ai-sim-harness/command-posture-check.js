@@ -276,6 +276,51 @@ test('a soldier may suppress without SL micro orders only along his own viable f
   assert.equal(adopted(w, buddy).data.state, 'hold', 'response never changes SL intent');
 });
 
+test('masked ambush can select two actual standing ballistic lanes without faking crouched fire', () => {
+  const w = world(),
+    one = { id: 'one', role: 'rifleman', hp: 100, weapon: { stats: {} }, suppressedUntil: 0 },
+    two = { id: 'two', role: 'gunner', hp: 100, weapon: { stats: {} }, suppressedUntil: 0 },
+    blocked = { id: 'blocked', role: 'rifleman', hp: 100, weapon: { stats: {} }, suppressedUntil: 0 },
+    squad = { members: [one, two, blocked] },
+    point = { x: 12, z: 85 },
+    battle = { time: 5 },
+    root = {
+      SquadAI: {
+        squadContact: () => ({ ...point, at: battle.time, seenBy: one.id }),
+        canSuppress: () => false,
+        canSuppressStanding: s => s === one || s === two,
+        isMachineGun: s => s === two
+      },
+      BattleEngagement: { stateOf: () => ({ state: 'alert' }), reacting: () => false },
+      BattleAmmunition: { available: () => true },
+      BattleTacticalPositions: { current: () => null }
+    },
+    F = w.r._squadLeaderFireControl({
+      root,
+      FIRE_CONTROL_TUNING: { returnFireWindow: 3 },
+      commanded: sq => sq.members
+    }),
+    ready = { readyAt: 4, heldActorIds: ['one', 'two', 'blocked'] };
+  const support = F.areaSupport(squad, battle, { underFire: 1 }, ready, null);
+  assert.deepEqual(support, {
+    point,
+    ids: ['two', 'one'],
+    source: 'seen',
+    at: 5
+  });
+  assert.equal(
+    F.areaSupport(squad, battle, { underFire: 1 }, { readyAt: null, heldActorIds: ready.heldActorIds }, null),
+    null,
+    'not yet prepared: no authority to unmask'
+  );
+  root.SquadAI.canSuppressStanding = () => false;
+  assert.equal(
+    F.areaSupport(squad, battle, { underFire: 1 }, ready, null),
+    null,
+    'two physically blocked lines cannot count as supporters'
+  );
+});
+
 test('precision permission is also personal: only the adopted designated shooter may fire', () => {
   const w = world(),
     shot = w.us.members[3],
