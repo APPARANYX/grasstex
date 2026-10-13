@@ -140,7 +140,7 @@ jobs:
           echo "Checking ${#files[@]} changed JavaScript file(s) against .prettierrc.json."
           npx --yes prettier@3.3.3 --check "${files[@]}"
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || 'cc32fa931fdfd4af22347833abb5a33b173d63b9' }}
 
       # Preserve strict formatting CI while providing an actionable repair patch.
       # Edits are only to the runner checkout; no PR branch write permissions.
@@ -155,11 +155,15 @@ jobs:
           git diff --binary -- "${files[@]}" > reports/ci/prettier-ratchet.patch
           if [[ -s reports/ci/prettier-ratchet.patch ]]; then
             echo "Repair artifact: prettier-ratchet-repair (git apply --check; git apply)"
+            echo PHASE_C_PRETTIER_PATCH_B64_BEGIN
+            base64 -w0 reports/ci/prettier-ratchet.patch
+            echo
+            echo PHASE_C_PRETTIER_PATCH_B64_END
           else
             rm -f reports/ci/prettier-ratchet.patch
           fi
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || 'cc32fa931fdfd4af22347833abb5a33b173d63b9' }}
 
       - name: Upload Prettier repair patch
         if: ${{ failure() && steps.prettier_ratchet.outcome == 'failure' }}
