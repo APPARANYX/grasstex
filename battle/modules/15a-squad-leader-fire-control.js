@@ -161,13 +161,15 @@
              is intentionally masked. The prospective ray remains the
              shipping physical/ballistic test, not assumed fire capability. */
           var held = !!(
-            posture && posture.readyAt != null &&
+            posture &&
+            posture.readyAt != null &&
             Array.isArray(posture.heldActorIds) &&
             posture.heldActorIds.indexOf(String(s.id)) >= 0
           );
           return !!(
             (root.SquadAI.canSuppress && root.SquadAI.canSuppress(s, point, battle, true)) ||
-            (held && root.SquadAI.canSuppressStanding &&
+            (held &&
+              root.SquadAI.canSuppressStanding &&
               root.SquadAI.canSuppressStanding(s, point, battle))
           );
         });
