@@ -47,7 +47,8 @@
       physicallyRegisteredAbsorbedHits: 0,
       physicallyRegisteredAbsorbedBlasts: 0,
       blockedGermanDamage: 0,
-      blockedAmericanDamage: 0
+      blockedAmericanDamage: 0,
+      preservedWoundRngDraws: 0
     };
     const capped = (kind, s, shooter, hit) => {
       tally[kind]++;
@@ -77,6 +78,22 @@
     // reproduced with the native pin writer (wound-model SHOCK = 1.2s).
     // No fake contact, wound record, casualties, or event is generated.
     function absorb(victim, shooter, b, hit, blast) {
+      // Native BattleWounds.wound draws one zone roll only when zone is
+      // unknown, then severity and drop rolls per impact (even for a fatal
+      // wound). Consume precisely those draws for physically intercepted
+      // hits so the combat RNG stream does not drift *merely* because this
+      // lab variant protects health. Different later shots still naturally
+      // cause legitimate branch-specific RNG evolution.
+      const knownZone =
+        hit && ['head', 'chest', 'abdomen', 'arm', 'leg'].includes(hit.zone);
+      const draw = b && typeof b.random === 'function' ? () => b.random() : Math.random;
+      if (!knownZone) {
+        draw();
+        tally.preservedWoundRngDraws++;
+      }
+      draw();
+      draw();
+      tally.preservedWoundRngDraws += 2;
       capped(
         blast ? 'physicallyRegisteredAbsorbedBlasts' : 'physicallyRegisteredAbsorbedHits',
         victim,
