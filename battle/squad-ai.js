@@ -1397,6 +1397,19 @@
     }
     return true;
   }
+  /* Read-only standing firing-ray probe. A masked ambush post deliberately
+     has NO crouched line but DOES have a standing line. Never mutate the live
+     soldier's stance while the Squad Leader is choosing supporting rifles:
+     physical terrain, obstacle, weapon and muzzle checks remain identical. */
+  function canSuppressStanding(soldier, point, battle) {
+    if (!soldier || !soldier.root || !soldier.weapon) return false;
+    var standing = Object.assign({}, soldier, {
+      prone: false,
+      crouching: false,
+      tacticalCrouch: false
+    });
+    return canSuppress(standing, point, battle, true);
+  }
   /* Owned command leases. A lease is a commitment that holds a squad's intent for a while: one
      table per squad (sq._leases) says which commitments are live, who owns each, why it was taken,
      when it lapses and what releases it early, so no hold is an anonymous `...Until` field.
@@ -2395,6 +2408,7 @@
     pin: pin,
     SUPPRESSION_TIME: SUPPRESSION_TIME,
     canSuppress: canSuppress,
+    canSuppressStanding: canSuppressStanding,
     shareContact: shareContact,
     squadContact: squadContact,
     squadContactsMap: squadContactsMap,
