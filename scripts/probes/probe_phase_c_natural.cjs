@@ -656,6 +656,7 @@ const { chromium } = require('playwright');
                             stage: posture.stage,
                             readyAt: posture.readyAt ?? null,
                             heldIds: (posture.heldActorIds || []).slice(),
+                            reservePlan: posture.reservePlan || null,
                             reserveIds: (posture.orders || [])
                               .filter(o => o.reserve)
                               .map(o => String(o.soldierId)),

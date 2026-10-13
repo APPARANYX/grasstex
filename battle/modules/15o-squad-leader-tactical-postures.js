@@ -369,7 +369,7 @@
         !reports.length ||
         reports.length > 3
       )
-        return;
+        return 'no-reliable-route-or-threat-geometry';
       /* Keep the existing alpha fireteam intact: native covered maneuver
          leases alpha/bravo/charlie teams, not individual safe-looking men.
          Never stage partial teams, remove the two-rifle supporting base, or
@@ -404,7 +404,8 @@
         other.length < 3 ||
         credibleRifles.length < 2
       )
-        return;
+        return 'reserve-team-or-firing-base-unavailable:' + reserve.length + ':' + other.length + ':' +
+          credibleRifles.length;
       var targets = [];
       for (var i = 0; i < reserve.length; i++) {
         var man = reserve[i],
@@ -456,7 +457,7 @@
             if (match) break;
           }
         }
-        if (!match) return; // All-or-nothing; original firing orders retained.
+        if (!match) return 'no-safe-precontact-stage:' + String(man.id); // Never stage part of a team.
         targets.push(match);
       }
       reserve.forEach(function (s, i) {
@@ -477,6 +478,7 @@
             role: 'maneuver-reserve'
           });
       });
+      return 'whole-team-staged';
     }
     function coveredTeam(b, sq, movers, report) {
       var C = root.BattleCoverPositions,
@@ -934,7 +936,7 @@
           if (candidate) orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
         }
         if (orders.length < 3) return null; // Never publish an understrength ambush element.
-        reserveStage(b, sq, a, orders, rs);
+        var reservePlan = reserveStage(b, sq, a, orders, rs);
         var counts = counters.get(sq) || {
           ambushes: 0,
           pressureHolds: 0,
@@ -968,6 +970,7 @@
           epochs: ctx.commanded(sq).map(epoch),
           orders: orders,
           threats: rs,
+          reservePlan: reservePlan,
           heldSince: null,
           heldActorIds: [],
           heldPositions: {},
