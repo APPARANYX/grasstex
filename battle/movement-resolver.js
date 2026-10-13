@@ -665,7 +665,9 @@
       delete soldier._movementLegalGoalCache;
       delete soldier._movementEndpointResolution;
       delete soldier._personalSpaceDestination;
-      delete soldier._bodyAutonomyIntent;
+      /* A reset requests the locomotion owner's own cleanup, never writes its fields. */
+      if (root.BattleSoldierIndividuality && root.BattleSoldierIndividuality.clearTransit)
+        root.BattleSoldierIndividuality.clearTransit(soldier);
     }
   }
   function summary(sim) {
