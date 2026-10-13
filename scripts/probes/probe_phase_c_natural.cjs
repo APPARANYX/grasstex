@@ -524,6 +524,66 @@ const { chromium } = require('playwright');
                              sample regardless of how distant the endpoint is.
                              Otherwise examine the REST of the unchanged 12 m range,
                              with denser angles, without publishing any destination. */
+                          /* Read-only lookahead: was a genuinely masked reserve post
+                             available before contact, with an independently safe bound
+                             from THAT hypothetical post? This is not movement authority.
+                             No body, orders, contacts, or terrain are mutated. */
+                          const staging = {
+                            surveyed: false,
+                            reachableMaskedOrigins: 0,
+                            coveredFromStaging: 0,
+                            example: null
+                          };
+                          if (
+                            active.routeAudits.length === 0 &&
+                            threats.length &&
+                            originVisibleTo.length &&
+                            !E.supportReady(s, b) &&
+                            root.BattleNavigation?.movementClear
+                          ) {
+                            staging.surveyed = true;
+                            const N = root.BattleNavigation;
+                            const A = root.SquadAI;
+                            const here = s.root.position;
+                            for (const distance of [3, 6, 9])
+                              for (let k = 0; k < 8; k++) {
+                                const angle = (Math.PI * 2 * k) / 8;
+                                const origin = {
+                                  x: here.x + Math.sin(angle) * distance,
+                                  z: here.z + Math.cos(angle) * distance
+                                };
+                                if (!N.movementClear(here, origin)) continue;
+                                const hidden = threats.every(r =>
+                                  !A.hasLineOfSight(
+                                    { root: { position: origin }, crouching: true },
+                                    { root: { position: r } },
+                                    b.heightAt,
+                                    b.obstacles
+                                  )
+                                );
+                                if (!hidden) continue;
+                                staging.reachableMaskedOrigins++;
+                                const proxy = Object.assign({}, s, {
+                                  root: Object.assign({}, s.root, { position: origin })
+                                });
+                                for (const step of [3, 6])
+                                  for (let direction = 0; direction < 8; direction++) {
+                                    const rad = (Math.PI * 2 * direction) / 8;
+                                    const dest = {
+                                      x: origin.x + Math.sin(rad) * step,
+                                      z: origin.z + Math.cos(rad) * step
+                                    };
+                                    if (!C.boundRoute(proxy, b, dest, threats).eligible) continue;
+                                    staging.coveredFromStaging++;
+                                    if (!staging.example)
+                                      staging.example = {
+                                        maskedOrigin: compactPoint(origin),
+                                        coveredEnd: compactPoint(dest),
+                                        distance: step
+                                      };
+                                  }
+                              }
+                          }
                           if (threats.length && !originVisibleTo.length && !s.moving)
                             for (const distance of [7.5, 9, 10.5, 12])
                               for (let k = 0; k < 16; k++) {
@@ -549,6 +609,7 @@ const { chromium } = require('playwright');
                             coverRoutes: real.length,
                             coverReasons: reasons,
                             originVisibleTo,
+                            staging,
                             terrainRoutes: terrain,
                             wideTerrainRoutes,
                             wideTerrainReasons,
