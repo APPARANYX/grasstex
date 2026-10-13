@@ -72,6 +72,8 @@ for (const [variant, [immortal, silent, harmless, stationary]] of Object.entries
   const initial = ge.root.position.x;
   ge.root.position.x += 8;
   assert.equal(ge.root.position.x, initial + (stationary ? 0 : 8), 'Stationary physical lock');
+  ge.moving = true;
+  assert.equal(ge.moving, stationary ? false : true, 'Stationary target has no false movement visibility');
   lab.assertInvariants();
   lab.restore();
   assert.strictEqual(root.SquadAI.tryFire, origFire);
