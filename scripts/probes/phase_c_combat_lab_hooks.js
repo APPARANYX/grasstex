@@ -160,6 +160,20 @@
           });
           locked.push({ pos, axis, old, at });
         }
+        // A geometrically fixed body must not retain a 'moving' visibility
+        // bonus or movement-state claim from attempted AI locomotion.
+        const oldMoving = Object.getOwnPropertyDescriptor(s, 'moving');
+        if (oldMoving && oldMoving.configurable === false)
+          throw new Error('Cannot freeze German movement flag');
+        Object.defineProperty(s, 'moving', {
+          configurable: true,
+          enumerable: true,
+          get() {
+            return false;
+          },
+          set(_) {}
+        });
+        locked.push({ pos: s, axis: 'moving', old: oldMoving, at: false });
       }
     return {
       code,
