@@ -301,7 +301,9 @@
   function detectionRange(observerRole, target) {
     var mult = VISIBILITY[stanceOf(target)] || 1;
     if (target.moving) mult += MOVING_VISIBILITY_BONUS;
-    return observerRole.visionRange * clamp(mult, 0.3, 1.25);
+    var lab = root.PhaseCCombatLab,
+      scale = (lab && lab.rangeScale) || 1;
+    return observerRole.visionRange * clamp(mult, 0.3, 1.25) * scale;
   }
   /* Range first, sight second: sorting the in-range enemies by distance and stopping at the first
      visible one turns a full O(enemies) sight sweep into one or two sight tests, which matters now
@@ -993,7 +995,10 @@
       p = soldier.root.position;
     if (
       dist2(p.x, p.z, t.root.position.x, t.root.position.z) >
-      role.visionRange * TRACK_MARGIN * sightScale(soldier)
+      role.visionRange *
+        ((root.PhaseCCombatLab && root.PhaseCCombatLab.rangeScale) || 1) *
+        TRACK_MARGIN *
+        sightScale(soldier)
     )
       return false;
     return hasLineOfSight(soldier, t, heightAt, obstacles);
