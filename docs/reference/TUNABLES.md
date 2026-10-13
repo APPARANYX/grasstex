@@ -104,6 +104,7 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 ### 15o-squad-leader-tactical-postures.js — opt-in concealed ambush
 
 - `localAmbush=1` requires `localPlan=1` and fire control enabled; default OFF. Minimum stopped masked hold **4 s**, preparation budget **12 s**, ready-without-contact budget **12 s**, pressure entry **0.25**, exit **0.1** with **3 s** low-pressure dwell, current-evidence read age **0.5 s**, rearm cooldown **8 s**. At most **32** own soldiers/reports and **3** fresh reported sectors (age **10 s**, confidence **0.5**); at most **16** candidate cover slots per soldier within **6 m**, masked approach sampling **0.5 m**, post separation **1.5 m**, settled arrival **0.5 m**. Native firing still requires personal LOS, existing readiness/aim/fire permission. Masking is concealment, not proof of ballistic protection.
+- With `localManeuver=1`, a newly effective rifle identity in a genuine two-rifle base can reopen a rejected reserve plan during prepared ambush/holding, within the original **12 s** observation budget after readiness. The same held core, posts, publication keys and dwell remain unchanged. Late staging requires an intact unclaimed native team outside that core, two effective rifles left behind, fresh reports, covered ingress and a native cover-slot exit. Revised reserve orders require their own adoption/completion; General, fire control and live covered-route validation still own bound authorization. No timer is renewed by reserve review.
 
 ### 17-soldier-mind.js
 

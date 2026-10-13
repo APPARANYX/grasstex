@@ -182,7 +182,8 @@ const { chromium } = require('playwright');
                   : null;
               }
               function inspectReadinessAttempt(sq, key, current) {
-                if (!current || current.mode !== 'ambush') return null;
+                if (!current || !['ambush', 'hold'].includes(current.mode) || !current.orders?.length)
+                  return null;
                 const attemptKey = key + '#' + current.serial;
                 let attempt = readiness.get(attemptKey);
                 if (!attempt) {
@@ -194,9 +195,8 @@ const { chromium } = require('playwright');
                     ordered: current.orders?.length || 0,
                     // Native planner verdict: no hypothetical moves or fabricated availability.
                     reservePlan: current.reservePlan || null,
-                    reserveIds: (current.orders || [])
-                      .filter(o => o.reserve)
-                      .map(o => String(o.soldierId)),
+                    reserveReviews: [],
+                    reserveIds: (current.orders || []).filter(o => o.reserve).map(o => String(o.soldierId)),
                     maxReserveAdopted: 0,
                     maxReserveArrived: 0,
                     stageEvents: [],
@@ -223,6 +223,13 @@ const { chromium } = require('playwright');
                   readiness.set(attemptKey, attempt);
                   active.readinessAttempts.push(attempt);
                 }
+                attempt.reservePlan = current.reservePlan || null;
+                if (current.reserveActorIds?.length) attempt.reserveIds = current.reserveActorIds.slice();
+                if (
+                  current.reserveReview &&
+                  !attempt.reserveReviews.some(r => r.at === current.reserveReview.at)
+                )
+                  attempt.reserveReviews.push(JSON.parse(JSON.stringify(current.reserveReview)));
                 attempt.samples++;
                 const CR = root.BattleCommandReception;
                 const C = root.BattleCoverPositions;
@@ -461,13 +468,14 @@ const { chromium } = require('playwright');
                     ) {
                       const C = root.BattleCoverPositions;
                       const raw = root.SquadAI.squadContactsMap(sq, b) || [];
-                      const fresh = raw.filter(r =>
-                        Number.isFinite(r?.x) &&
-                        Number.isFinite(r?.z) &&
-                        Number.isFinite(r?.at) &&
-                        b.time >= r.at &&
-                        b.time - r.at <= 10 &&
-                        r.confidence >= 0.5
+                      const fresh = raw.filter(
+                        r =>
+                          Number.isFinite(r?.x) &&
+                          Number.isFinite(r?.z) &&
+                          Number.isFinite(r?.at) &&
+                          b.time >= r.at &&
+                          b.time - r.at <= 10 &&
+                          r.confidence >= 0.5
                       );
                       const threats = fresh.length && fresh.length <= 3 ? fresh : [];
                       const maxDistance = C?.boundTuning?.().maxDistance || 0;
@@ -501,8 +509,7 @@ const { chromium } = require('playwright');
                                 const low = {
                                   x: here.x,
                                   z: here.z,
-                                  y: b.heightAt(here.x, here.z) +
-                                    root.SquadAI.eyeHeight({ crouching: true })
+                                  y: b.heightAt(here.x, here.z) + root.SquadAI.eyeHeight({ crouching: true })
                                 };
                                 const high = {
                                   x: threat.x,
@@ -528,8 +535,7 @@ const { chromium } = require('playwright');
                                   z: s.root.position.z + Math.cos(angle) * distance
                                 };
                                 const result = C.boundRoute(s, b, p, threats);
-                                terrainReasons[result.reason] =
-                                  (terrainReasons[result.reason] || 0) + 1;
+                                terrainReasons[result.reason] = (terrainReasons[result.reason] || 0) + 1;
                                 if (result.eligible && terrain.length < 4) terrain.push(compactPoint(p));
                               }
                           /* If the crouched launch position is already visible, the
@@ -566,13 +572,14 @@ const { chromium } = require('playwright');
                                   z: here.z + Math.cos(angle) * distance
                                 };
                                 if (!N.movementClear(here, origin)) continue;
-                                const hidden = threats.every(r =>
-                                  !A.hasLineOfSight(
-                                    { root: { position: origin }, crouching: true },
-                                    { root: { position: r } },
-                                    b.heightAt,
-                                    b.obstacles
-                                  )
+                                const hidden = threats.every(
+                                  r =>
+                                    !A.hasLineOfSight(
+                                      { root: { position: origin }, crouching: true },
+                                      { root: { position: r } },
+                                      b.heightAt,
+                                      b.obstacles
+                                    )
                                 );
                                 if (!hidden) continue;
                                 staging.reachableMaskedOrigins++;
@@ -670,6 +677,7 @@ const { chromium } = require('playwright');
                             readyAt: posture.readyAt ?? null,
                             heldIds: (posture.heldActorIds || []).slice(),
                             reservePlan: posture.reservePlan || null,
+                            reserveReview: posture.reserveReview || null,
                             reserveIds: (posture.orders || [])
                               .filter(o => o.reserve)
                               .map(o => String(o.soldierId)),
@@ -910,7 +918,7 @@ const { chromium } = require('playwright');
                     if (pressure >= 0.25) active.pressureSamples++;
                     if (sq.inContact && pressure >= 0.25 && !prev.pressure) active.reportedPressureEvents++;
                     if (sq.inContact !== prev.contact && prev.contact) active.contactChangeEvents++;
-                    if (prev.attemptKey && mode !== 'ambush') {
+                    if (prev.attemptKey && !attemptKey) {
                       const ended = readiness.get(prev.attemptKey);
                       if (ended && ended.endAt == null) {
                         ended.endAt = +b.time.toFixed(2);

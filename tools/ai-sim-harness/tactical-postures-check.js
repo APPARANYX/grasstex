@@ -576,6 +576,145 @@ assert.equal(
   'physically invalid routes do not create reserve orders or steal the original firing plan'
 );
 
+/* Late-base policy seam: native commands establish the same three-man hold.
+   Only the support report/candidate enumeration is supplied here; masking,
+   covered ingress/exit, core continuity and team ownership stay native. */
+function lateReserve() {
+  const x = world(true, true, true);
+  setReserveTeam(x);
+  x.r.SquadAI.canSuppressStanding = () => false;
+  const st = nativePreparedLine(x);
+  assert.equal(st.reserveTeam, null, 'first sighting has no shootable base');
+  const rifles = x.q.members.filter(s => s.role === 'rifleman' && s._fireteamKey !== 'charlie');
+  const report = { underFire: 0, fireSupport: rifles.slice(0, 2) };
+  assert.equal(report.fireSupport.length, 2);
+  x.r.BattleCoverPositions.candidates = s => [{ x: s.root.position.x, z: s.root.position.z + 3 }];
+  x.q.inContact = true;
+  return { ...x, st, report };
+}
+const late = lateReserve();
+const lateCore = JSON.stringify([
+  late.st.readyAt,
+  late.st.heldSince,
+  late.st.heldActorIds,
+  late.st.heldPositions
+]);
+const originalCoreOrders = late.st.orders.filter(o => late.st.heldActorIds.includes(o.soldierId));
+late.P.update(late.b, late.q, { underFire: 1, fireSupport: [] });
+assert.equal(late.st.mode, 'hold', 'late event is permitted during a real prepared pressure hold');
+late.P.update(late.b, late.q, late.report);
+assert.equal(late.st.reservePlan, 'whole-team-staged:charlie');
+assert.deepEqual(late.st.reserveReview.supportIds, late.report.fireSupport.map(s => String(s.id)).sort());
+assert.equal(
+  JSON.stringify([late.st.readyAt, late.st.heldSince, late.st.heldActorIds, late.st.heldPositions]),
+  lateCore
+);
+assert.deepEqual(
+  late.st.orders.filter(o => late.st.heldActorIds.includes(o.soldierId)),
+  originalCoreOrders,
+  'reserve revision never rewrites held firing posts or their publication keys'
+);
+assert.equal(late.st.mode, 'hold', 'old firing-post adoption cannot authorize revised reserve orders');
+assert.ok(late.st.orders.filter(o => o.reserve).every(o => o.key.includes('|reserve|')));
+assert.equal(late.r.BattleLeases.get(late.q, 'bound'), null, 'reserve selection is not movement authority');
+late.r.BattleEngagement.updateSquad = () => ({
+  ...late.report,
+  effective: 10,
+  pinned: 0,
+  reacting: [],
+  fled: []
+});
+for (let i = 0; i < 10 && late.st.mode !== 'maneuver'; i++) H.run(late.r, late.b, 0.15);
+const lateAuthorized = late.P.update(late.b, late.q, late.report);
+assert.equal(lateAuthorized.mode, 'maneuver', 'native publication consumes the revised in-place reserve');
+assert.equal(lateAuthorized.reserveTeam, 'charlie', 'selected identity survives authorization');
+assert.deepEqual(
+  lateAuthorized.reserveActorIds,
+  late.q.members.filter(s => s._fireteamKey === 'charlie').map(s => String(s.id))
+);
+late.r.BattleEngagement.updateSquad = () => ({
+  ...late.report,
+  effective: 10,
+  pinned: 0,
+  reacting: [],
+  fled: []
+});
+late.S.fireAndMovement(late.q, late.b);
+assert.equal(
+  late.r.BattleLeases.get(late.q, 'bound'),
+  null,
+  'native fire-control HOLD retains its independent veto after reserve authorization'
+);
+
+const lateNoSlots = lateReserve();
+lateNoSlots.r.BattleCoverPositions.candidates = () => [];
+lateNoSlots.P.update(lateNoSlots.b, lateNoSlots.q, lateNoSlots.report);
+assert.equal(
+  lateNoSlots.st.reserveTeam,
+  null,
+  'radial terrain exits alone cannot supply a native cover slot'
+);
+const deniedReview = lateNoSlots.st.reserveReview;
+lateNoSlots.P.update(lateNoSlots.b, lateNoSlots.q); // commander report gap
+lateNoSlots.P.update(lateNoSlots.b, lateNoSlots.q, lateNoSlots.report);
+assert.equal(lateNoSlots.st.reserveReview, deniedReview, 'unchanged base is not a per-tick planning retry');
+lateNoSlots.P.update(lateNoSlots.b, lateNoSlots.q, { fireSupport: [] });
+lateNoSlots.P.update(lateNoSlots.b, lateNoSlots.q, lateNoSlots.report);
+assert.notEqual(lateNoSlots.st.reserveReview, deniedReview, 'a genuinely re-established base is a new event');
+
+for (const spoil of [
+  x => {
+    x.report.fireSupport = [x.report.fireSupport[0], x.report.fireSupport[0]];
+  },
+  x => {
+    x.report.fireSupport[1].reloading = true;
+  },
+  x => {
+    x.r.BattleEngagement.effectiveFireOn = () => true;
+    x.r.BattleEngagement.supportReady = () => false;
+  },
+  x => {
+    x.r.SquadAI.squadContactsMap = () => [{ x: 0, z: 20, at: x.b.time - 11, confidence: 1 }];
+  },
+  x => {
+    x.r.SquadAI.squadContactsMap = () => [{ x: 0, z: 20, at: x.b.time, confidence: 0.49 }];
+  },
+  x => {
+    x.r.BattleCoverPositions.boundRoute = () => ({ eligible: false });
+  },
+  x => {
+    x.q._localTask.emergency = true;
+  },
+  x => {
+    x.report.fireSupport[1].dead = true;
+  },
+  x => {
+    x.r.BattleTacticalPositions = {
+      current: s => (s._fireteamKey === 'charlie' ? { owner: 'station' } : null)
+    };
+  }
+]) {
+  const x = lateReserve();
+  spoil(x);
+  x.P.update(x.b, x.q, x.report);
+  assert.equal(x.st.reserveTeam, null, 'invalid authority/support/geometry cannot stage a late reserve');
+  assert.equal(x.r.BattleLeases.get(x.q, 'bound'), null);
+}
+
+const lateDeadline = lateReserve();
+// Advance through normal cadence; review must not restart the observation budget.
+for (let i = 0; i < 90; i++) {
+  lateDeadline.b.time += 0.15;
+  lateDeadline.r.SquadAI.squadContactsMap = () => [{ x: 0, z: 20, at: lateDeadline.b.time, confidence: 1 }];
+  lateDeadline.P.update(lateDeadline.b, lateDeadline.q, { fireSupport: [] });
+}
+lateDeadline.P.update(lateDeadline.b, lateDeadline.q, lateDeadline.report);
+assert.equal(
+  lateDeadline.st.reserveReview,
+  undefined,
+  'late base cannot extend the original observation budget'
+);
+
 // The same posture owner may switch a fully prepared ambush to covered
 // maneuver under pressure, but only when the shipping physicality sampler
 // accepts a real short segment AND at least two other men can support.

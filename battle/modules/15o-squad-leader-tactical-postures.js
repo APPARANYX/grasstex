@@ -356,7 +356,7 @@
         })
       );
     }
-    function reserveStage(b, sq, a, orders, reports) {
+    function reserveStage(b, sq, a, orders, reports, held, support) {
       var C = root.BattleCoverPositions,
         N = root.BattleNavigation;
       if (
@@ -396,6 +396,7 @@
             var soldier = a.find(function (s) {
               return String(s.id) === o.soldierId;
             });
+            if (held) return !!(soldier && soldier.role === 'rifleman' && support.indexOf(soldier) >= 0);
             if (!soldier || soldier.role !== 'rifleman' || !root.SquadAI.canSuppressStanding) return false;
             var proxy = Object.assign({}, soldier, {
               root: Object.assign({}, soldier.root, { position: o.point })
@@ -419,6 +420,18 @@
               other.length +
               ':' +
               credibleRifles.length;
+          continue;
+        }
+        /* A late base may wake planning, but cannot borrow the verified
+           firing line's dwell or move either of its effective supporters. */
+        if (
+          held &&
+          (reserve.some(function (s) {
+            return held.indexOf(String(s.id)) >= 0;
+          }) ||
+            supportingCount(a, reserve, support, b.time, b) < tuning.minSupport)
+        ) {
+          if (!missingStage) missingStage = 'reserve-overlaps-held-line-or-support';
           continue;
         }
         /* Stage the selected team all-or-nothing. Every man must personally
@@ -445,6 +458,9 @@
               if (
                 !N.movementClear(here, origin) ||
                 !reserveMasked(b, origin, reports) ||
+                /* Once contact exists, even the staging approach must be
+                   covered from the actual body, not just from its endpoint. */
+                (held && radius > 0 && !C.boundRoute(man, b, origin, reports).eligible) ||
                 orders.some(function (o) {
                   return (
                     !reserve.some(function (s) {
@@ -460,6 +476,30 @@
               var proxy = Object.assign({}, man, {
                 root: Object.assign({}, man.root, { position: origin })
               });
+              if (held) {
+                /* Radial terrain exits do not imply an Engagement cover slot.
+                   The native owner still rechecks from the live body at bound time. */
+                var slots = C.candidates(
+                  proxy,
+                  b,
+                  { root: { position: reports[0] } },
+                  C.boundTuning().maxDistance
+                );
+                if (
+                  Array.isArray(slots) &&
+                  slots.length <= 256 &&
+                  slots.slice(0, 48).some(function (p) {
+                    return (
+                      point(p) &&
+                      Math.hypot(p.x - origin.x, p.z - origin.z) > 1 &&
+                      C.boundRoute(proxy, b, p, reports).eligible
+                    );
+                  })
+                )
+                  match = origin;
+                if (match) break;
+                continue;
+              }
               for (var step of [3, 6]) {
                 for (var direction = 0; direction < 8; direction++) {
                   var angle = (Math.PI * 2 * direction) / 8,
@@ -507,6 +547,64 @@
         return 'whole-team-staged:' + team;
       }
       return missingStage || missingBase || 'reserve-team-or-firing-base-unavailable:0:0:0';
+    }
+    function reviewReserve(b, sq, st, a, report) {
+      if (
+        !maneuverOn ||
+        st.reserveTeam ||
+        st.readyAt == null ||
+        !report ||
+        !Array.isArray(report.fireSupport) ||
+        report.fireSupport.length > 32
+      )
+        return;
+      var support = a.filter(function (s) {
+          return (
+            s.role === 'rifleman' &&
+            report.fireSupport.indexOf(s) >= 0 &&
+            supportingCount(a, null, [s], b.time, b) === 1
+          );
+        }),
+        ids = support
+          .map(function (s) {
+            return String(s.id);
+          })
+          .sort(),
+        previous = st.reserveSupportIds || [];
+      st.reserveSupportIds = ids;
+      /* Edge-triggered by a newly effective identity, never polling geometry
+         on every tick or treating a commander tick without a report as loss. */
+      if (
+        ids.length < tuning.minSupport ||
+        !ids.some(function (id) {
+          return previous.indexOf(id) < 0;
+        })
+      )
+        return;
+      var rs = threats(b, sq);
+      if (
+        !rs.length ||
+        st.readyAt == null ||
+        !heldCore(b, sq, st, a) ||
+        b.time - st.readyAt > tuning.observationBudget ||
+        (sq._localTask && sq._localTask.emergency)
+      )
+        return;
+      var orders = st.orders.map(function (o) {
+          return Object.assign({}, o);
+        }),
+        verdict = reserveStage(b, sq, a, orders, rs, st.heldActorIds, support);
+      st.reserveReview = { at: b.time, supportIds: ids, reason: verdict };
+      st.reservePlan = verdict;
+      if (!/^whole-team-staged:(alpha|bravo|charlie)$/.test(verdict)) return;
+      st.reserveTeam = verdict.split(':')[1];
+      st.reserveActorIds = [];
+      orders.forEach(function (o) {
+        if (!o.reserve) return;
+        st.reserveActorIds.push(o.soldierId);
+        o.key = 'tactical-posture|' + st.serial + '|reserve|' + o.soldierId;
+      });
+      st.orders = orders;
     }
     function coveredTeam(b, sq, movers, report) {
       var C = root.BattleCoverPositions,
@@ -764,6 +862,8 @@
         Array.isArray(report.fireSupport) &&
         supportingCount(a, null, report.fireSupport, now, b) >= tuning.minSupport
       );
+      if (st && (st.mode === 'ambush' || (st.mode === 'hold' && st.orders.length)))
+        reviewReserve(b, sq, st, a, report);
       if (
         st &&
         (st.mode === 'ambush' || (st.mode === 'hold' && st.orders.length)) &&
@@ -809,7 +909,21 @@
               staged.length === st.reserveActorIds.length &&
               staged.every(function (s) {
                 return st.orders.some(function (o) {
-                  return o.reserve && o.soldierId === String(s.id);
+                  if (!o.reserve || o.soldierId !== String(s.id)) return false;
+                  /* Late revisions need their own receipt and arrival, not a
+                     stationary body still obeying the previous firing post. */
+                  if (!st.reserveReview) return true;
+                  var CR = root.BattleCommandReception,
+                    outcome = root.BattleExecutionOutcome && root.BattleExecutionOutcome.man(s, b);
+                  return (
+                    s._fireteamPublishKey === o.key &&
+                    (CR && CR.movementEnabled && CR.movementEnabled()
+                      ? outcome &&
+                        outcome.current &&
+                        outcome.state === 'completed' &&
+                        outcome.publishKey === o.key
+                      : Math.hypot(s.root.position.x - o.point.x, s.root.position.z - o.point.z) <= 0.5)
+                  );
                 });
               }) &&
               coveredTeam(b, sq, staged, report)
