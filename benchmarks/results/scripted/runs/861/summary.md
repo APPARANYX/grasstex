@@ -1,18 +1,17 @@
-# Benchmark run #832 · 3 seeds from `phase-c-natural-20261012` (ge-defend), windows `contact+60,every60`
+# Benchmark run #861 · 3 seeds from `phase-c-natural-20261012` (ge-defend), windows `contact+60,every60`
 
 - **OFF** flags: `none` · **ON** flags: `localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1&fireCoverCycle=1&squadReturnFire=1`
-- work/phase-c-natural-readiness-diagnostics @ 355949c · [run](https://github.com/APPARANYX/grasstex/actions/runs/38388959364) · build v29-dev
+- work/phase-c-natural-readiness-diagnostics @ 6b2df53 · [run](https://github.com/APPARANYX/grasstex/actions/runs/38395723964) · build v29-dev
 
 ## Verdict
 
 **WEAK: 25 of 25 pairs changed (median first part 118.05 s); 4 of 42 counters under p 0.05 (about 2.1 by chance); casualties -14.6% (p 0.0227)**
 
 - Under 0.05 only: usKills 550 to 490 (-10.9%, p 0.0106); movementResolver.changes 45586 to 48378 (+6.1%, p 0.0146); casualties 958 to 818 (-14.6%, p 0.0227); geKills 408 to 328 (-19.6%, p 0.0347).
-- Wall time on/off x1.266 is over the 1.25 gate.
 
 ## Paired comparison (off against on)
 
-- **25** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x1.266 (gate 1.25)
+- **25** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x1.123 (gate 1.25)
 - the 25 changed records first part at simulated second: min 109.05, p10 109.05, median 118.05, p90 169.05, max 169.05
 
 | counter | off | on | mean diff per pair | pairs changed | on more | on fewer | sign p |
@@ -68,7 +67,7 @@ phase-c-natural-20261012-0003 109.05 s (timeline) · phase-c-natural-20261012-00
 
 ## Viewer
 
-[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=832&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/phase-c-natural-readiness-diagnostics/ai_flow_live.html?bench=832&view=brain3d) (it has the change before it reaches main)
+[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=861&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/phase-c-natural-readiness-diagnostics/ai_flow_live.html?bench=861&view=brain3d) (it has the change before it reaches main)
 
-The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=832`); it opens the seed that parts earliest, and the dropdowns choose another.
+The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=861`); it opens the seed that parts earliest, and the dropdowns choose another.
 

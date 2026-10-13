@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "832",
-    "runId": "38388959364",
+    "run": "861",
+    "runId": "38395723964",
     "repo": "APPARANYX/grasstex",
     "ref": "work/phase-c-natural-readiness-diagnostics",
-    "sha": "355949c9f38e93a635fdbee1dd24b644ea70490e",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38388959364",
+    "sha": "6b2df539f16645d2d107f2efce5e3a9efb16474b",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38395723964",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -19,8 +19,7 @@
     "kind": "weak",
     "headline": "WEAK: 25 of 25 pairs changed (median first part 118.05 s); 4 of 42 counters under p 0.05 (about 2.1 by chance); casualties -14.6% (p 0.0227)",
     "lines": [
-      "Under 0.05 only: usKills 550 to 490 (-10.9%, p 0.0106); movementResolver.changes 45586 to 48378 (+6.1%, p 0.0146); casualties 958 to 818 (-14.6%, p 0.0227); geKills 408 to 328 (-19.6%, p 0.0347).",
-      "Wall time on/off x1.266 is over the 1.25 gate."
+      "Under 0.05 only: usKills 550 to 490 (-10.9%, p 0.0106); movementResolver.changes 45586 to 48378 (+6.1%, p 0.0146); casualties 958 to 818 (-14.6%, p 0.0227); geKills 408 to 328 (-19.6%, p 0.0347)."
     ]
   },
   "compare": {
@@ -80,9 +79,9 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 11.267,
-      "medianB": 14.267,
-      "ratio": 1.266,
+      "medianA": 16.305,
+      "medianB": 18.309,
+      "ratio": 1.123,
       "gate": 1.25
     },
     "counters": {
@@ -473,11 +472,11 @@
       "p90": 169.05,
       "max": 169.05
     },
-    "pass": false
+    "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=832&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/phase-c-natural-readiness-diagnostics/ai_flow_live.html?bench=832&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=861&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/phase-c-natural-readiness-diagnostics/ai_flow_live.html?bench=861&view=brain3d",
     "seeds": [
       {
         "seed": "phase-c-natural-20261012-0003",

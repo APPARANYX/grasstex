@@ -55,9 +55,9 @@
     "b": 0
   },
   "wallSeconds": {
-    "medianA": 11.267,
-    "medianB": 14.267,
-    "ratio": 1.266,
+    "medianA": 16.305,
+    "medianB": 18.309,
+    "ratio": 1.123,
     "gate": 1.25
   },
   "counters": {
@@ -448,5 +448,5 @@
     "p90": 169.05,
     "max": 169.05
   },
-  "pass": false
+  "pass": true
 }
