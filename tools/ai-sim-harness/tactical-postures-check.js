@@ -476,6 +476,93 @@ if (reserveOrders.length) {
     assert.equal(soldier._fireteamKey, 'alpha');
   }
 }
+/* A follow-on team can stage while alpha's scout is legitimately owned by
+   another tactical station. Never steal that man, never splice a partial alpha
+   element, and retain three firing posts with two real rifle-capable actors.
+   Native Navigation, terrain masking and boundRoute validate every reserve
+   origin and exit; only the test's precontact SHOOTABILITY gate is isolated
+   to exercise this alternate-team Squad Leader selection policy. */
+const followOn = world(true, true, true);
+setReserveTeam(followOn);
+const claimedAlpha = followOn.q.members[2];
+followOn.r.BattleTacticalPositions = {
+  current: s => (s === claimedAlpha ? { owner: 'tactical-station' } : null)
+};
+followOn.r.SquadAI.canSuppressStanding = s => s.role === 'rifleman';
+const followOnPosture = followOn.P.update(followOn.b, followOn.q);
+assert.ok(followOnPosture && followOnPosture.orders.length >= 3);
+assert.equal(
+  followOnPosture.reservePlan,
+  'whole-team-staged:bravo',
+  'a fully available bravo can stage when alpha is station-owned'
+);
+const followOnReserve = followOnPosture.orders.filter(o => o.reserve);
+assert.deepEqual(
+  followOnReserve.map(o => o.soldierId).sort(),
+  followOn.q.members
+    .filter(s => s._fireteamKey === 'bravo')
+    .map(s => String(s.id))
+    .sort(),
+  'the reserve is one intact native fireteam, never selected individual movers'
+);
+assert.equal(
+  followOnPosture.orders.some(o => o.soldierId === String(claimedAlpha.id)),
+  false,
+  'a different station owner is never republished by reserve planning'
+);
+assert.ok(followOnPosture.orders.filter(o => !o.reserve).length >= 3);
+assert.ok(
+  followOnPosture.orders.filter(o => !o.reserve).filter(o => {
+    const man = followOn.q.members.find(s => String(s.id) === o.soldierId);
+    return man?.role === 'rifleman';
+  }).length >= 2,
+  'a non-moving two-rifle support base remains available'
+);
+for (const order of followOnReserve) {
+  const man = followOn.q.members.find(s => String(s.id) === order.soldierId);
+  const reports = [{ x: 0, z: 20, at: 0, confidence: 1 }];
+  assert.equal(
+    followOn.r.SquadAI.hasLineOfSight(
+      { root: { position: order.point }, crouching: true },
+      { root: { position: reports[0] } },
+      followOn.b.heightAt,
+      followOn.b.obstacles
+    ),
+    false,
+    'reserve origins are actually crouch-masked against the reported threat'
+  );
+  assert.ok(
+    [3, 6].some(step =>
+      Array.from({ length: 8 }, (_, i) => ({
+        x: order.point.x + Math.sin((Math.PI * 2 * i) / 8) * step,
+        z: order.point.z + Math.cos((Math.PI * 2 * i) / 8) * step
+      })).some(exit =>
+        followOn.r.BattleCoverPositions.boundRoute(
+          { ...man, root: { ...man.root, position: order.point } },
+          followOn.b,
+          exit,
+          reports
+        ).eligible
+      )
+    ),
+    'each reserve position retains a genuine native covered exit'
+  );
+}
+const noPartialTeams = world(true, true, true);
+setReserveTeam(noPartialTeams);
+noPartialTeams.r.BattleTacticalPositions = {
+  current: s =>
+    [2, 5, 8].includes(s.slotIndex) ? { owner: 'tactical-station' } : null
+};
+noPartialTeams.r.SquadAI.canSuppressStanding = s => s.role === 'rifleman';
+const noPartialPosture = noPartialTeams.P.update(noPartialTeams.b, noPartialTeams.q);
+assert.ok(noPartialPosture && noPartialPosture.orders.length >= 3);
+assert.equal(
+  noPartialPosture.orders.some(o => o.reserve),
+  false,
+  'no depleted/claimed alpha, bravo or charlie can be staged as a partial team'
+);
+
 const reserveBlocked = world(true, true, true);
 setReserveTeam(reserveBlocked);
 reserveBlocked.r.BattleCoverPositions.boundRoute = () => ({ eligible: false });
