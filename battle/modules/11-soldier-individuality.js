@@ -237,20 +237,21 @@
       current = s.root.position,
       d = Math.hypot((+point.x || 0) - current.x, (+point.z || 0) - current.z),
       suppressed = (+s.suppressedUntil || 0) > now,
-      contact = !!(s.squad && s.squad.inContact),
+      contact = !!((s.squad && s.squad.inContact) || s.target),
       urgent = !!pick.urgent || now < (+s._combatUrgentUntil || 0),
       bound = pick.kind === 'cover-bound' || pick.kind === 'assault-rush',
       stationary = !!SURVIVAL_STATES[e.state] || s.reloading || s.clearingStoppage;
     /* No local body autonomy can create or resurrect a committed displacement.
        A surviving fire-support rifle, reload, and a pinned man keep their
        authority; the squad's personal ambush post is deliberately stealthy. */
-    if (
-      stationary ||
-      (e.state === 'engage' && !bound && pick.kind !== 'firing-station') ||
-      (e.state === 'orient' && !bound && pick.kind !== 'firing-station')
-    )
+    if (stationary || (e.state === 'orient' && !bound && pick.kind !== 'firing-station'))
       return null;
-    if (pick.kind === 'formation' && e.state !== 'advance') return null;
+    /* Engage/alert sometimes relinquish a hold when the firing ray is blocked.
+       If the squad formation order actually wins, the individual is in TRANSIT,
+       not a stationed supporter. Suppressing this case left observable cautious
+       walking during contact even though nobody was firing from that post. */
+    if (pick.kind === 'formation' && ['advance', 'engage', 'alert'].indexOf(e.state) < 0)
+      return null;
     if (bound && e.state !== 'bound' && e.state !== 'assault') return null;
     if (pick.kind === 'firing-station' && d <= 1.5) return null;
     if (d <= 1.5) return null;
