@@ -301,6 +301,8 @@ jobs:
           # Native lab movement A/B: covered tactical ingress without bypassing suppression.
           node scripts/check-purposeful-contact-gait.cjs
           node scripts/check-autonomous-contact-mobility.cjs
+          # Window-ingress fixes cannot manufacture #299 structure clearance or displace live entry security.
+          node scripts/check-building-interior-ingress.cjs
 
       - name: Engagement harness seeds
         run: |
