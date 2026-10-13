@@ -421,9 +421,8 @@ test('squad leader picks a genuinely shootable fresh first-hand support coordina
     root = {
       SquadAI: {
         squadContact: () => ({ x: 20, z: 80, at: 8, seenBy: first.id }),
-        soldierContact: s => s === first
-          ? { x: 21, z: 80, at: 7.5, confidence: 0.95, source: 'seen', seenBy: first.id }
-          : null,
+        soldierContact: s =>
+          s === first ? { x: 21, z: 80, at: 7.5, confidence: 0.95, source: 'seen', seenBy: first.id } : null,
         squadContactsMap: () => [],
         canSuppress: (s, pt) => pt.x === 21,
         isMachineGun: () => false
@@ -437,17 +436,29 @@ test('squad leader picks a genuinely shootable fresh first-hand support coordina
       FIRE_CONTROL_TUNING: { returnFireWindow: 3 },
       commanded: sq => sq.members
     });
-  assert.deepEqual(F.areaSupport(squad, battle, { underFire: 1 }, { readyAt: 7 }, null), {
-    point: { x: 21, z: 80 },
-    ids: ['first', 'second'],
-    source: 'seen',
-    at: 7.5
-  }, 'two physically shootable rifles are stronger than a newer but blocked report');
+  assert.deepEqual(
+    F.areaSupport(squad, battle, { underFire: 1 }, { readyAt: 7 }, null),
+    {
+      point: { x: 21, z: 80 },
+      ids: ['first', 'second'],
+      source: 'seen',
+      at: 7.5
+    },
+    'two physically shootable rifles are stronger than a newer but blocked report'
+  );
   root.SquadAI.soldierContact = () => ({
-    x: 21, z: 80, at: 7.5, confidence: 0.95, source: 'heard', seenBy: first.id
+    x: 21,
+    z: 80,
+    at: 7.5,
+    confidence: 0.95,
+    source: 'heard',
+    seenBy: first.id
   });
-  assert.equal(F.areaSupport(squad, battle, { underFire: 1 }, { readyAt: 7 }, null), null,
-    'undelivered/heard-only contact never becomes fire-control authority');
+  assert.equal(
+    F.areaSupport(squad, battle, { underFire: 1 }, { readyAt: 7 }, null),
+    null,
+    'undelivered/heard-only contact never becomes fire-control authority'
+  );
 });
 
 test('a single capable gunner may start an authorized support fire task without a false second supporter', () => {
