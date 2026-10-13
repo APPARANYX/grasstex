@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "762",
-    "runId": "38332819727",
+    "run": "792",
+    "runId": "38340418745",
     "repo": "APPARANYX/grasstex",
     "ref": "work/phase-c-natural-readiness-diagnostics",
-    "sha": "0e550bdefdaecf39a3ccbdb5f42d9079f5568671",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38332819727",
+    "sha": "40534ed5a3cbe0944028704d93b599e7d9a492f8",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38340418745",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -17,7 +17,7 @@
   },
   "verdict": {
     "kind": "moved",
-    "headline": "MOVED: 25 of 25 pairs changed (median first part 146.1 s); 5 of 42 counters under p 0.05 (about 2.1 by chance), 2 under 0.0012; casualties -10.1% (p 0.1078)",
+    "headline": "MOVED: 25 of 25 pairs changed (median first part 146.1 s); 5 of 42 counters under p 0.05 (about 2.1 by chance), 2 under 0.0012; casualties -10.0% (p 0.1078)",
     "lines": [
       "Clears the Bonferroni line (p < 0.0012): regroups.entries 58 to 40 (-31.0%, p 0); recon.orders 444 to 400 (-9.9%, p 0.0009).",
       "Under 0.05 only: recon.cancelled 128 to 93 (-27.3%, p 0.0066); recon.timeouts 18 to 31 (+72.2%, p 0.0078); recon.contacts 45 to 26 (-42.2%, p 0.0225).",
@@ -81,16 +81,16 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 13.868,
-      "medianB": 14.506,
-      "ratio": 1.046,
+      "medianA": 18.266,
+      "medianB": 19.337,
+      "ratio": 1.059,
       "gate": 1.25
     },
     "counters": {
       "casualties": {
         "a": 958,
-        "b": 861,
-        "meanDiff": -3.88,
+        "b": 862,
+        "meanDiff": -3.84,
         "battlesChanged": 25,
         "more": 8,
         "fewer": 17,
@@ -107,8 +107,8 @@
       },
       "geKills": {
         "a": 408,
-        "b": 353,
-        "meanDiff": -2.2,
+        "b": 354,
+        "meanDiff": -2.16,
         "battlesChanged": 23,
         "more": 8,
         "fewer": 15,
@@ -116,8 +116,8 @@
       },
       "fire.total": {
         "a": 1222,
-        "b": 905,
-        "meanDiff": -12.68,
+        "b": 907,
+        "meanDiff": -12.6,
         "battlesChanged": 22,
         "more": 9,
         "fewer": 13,
@@ -125,8 +125,8 @@
       },
       "fire.hits": {
         "a": 362,
-        "b": 315,
-        "meanDiff": -1.88,
+        "b": 317,
+        "meanDiff": -1.8,
         "battlesChanged": 22,
         "more": 8,
         "fewer": 14,
@@ -143,8 +143,8 @@
       },
       "movementResolver.changes": {
         "a": 45586,
-        "b": 44984,
-        "meanDiff": -24.08,
+        "b": 44977,
+        "meanDiff": -24.36,
         "battlesChanged": 24,
         "more": 9,
         "fewer": 15,
@@ -395,12 +395,12 @@
       },
       "recon.retriggerBlocked": {
         "a": 226,
-        "b": 225,
-        "meanDiff": -0.04,
-        "battlesChanged": 9,
-        "more": 3,
+        "b": 226,
+        "meanDiff": 0,
+        "battlesChanged": 10,
+        "more": 4,
         "fewer": 6,
-        "signP": 0.5078
+        "signP": 0.7539
       },
       "squadPerformance.meanOverall": {
         "a": 2187.8999999999996,
@@ -440,8 +440,8 @@
       },
       "squadPerformance.meanMovement": {
         "a": 2491,
-        "b": 2491,
-        "meanDiff": 0,
+        "b": 2490.9,
+        "meanDiff": -0.004,
         "battlesChanged": 15,
         "more": 9,
         "fewer": 6,
@@ -458,8 +458,8 @@
       },
       "squadPerformance.meanCohesion": {
         "a": 2206.4,
-        "b": 2207.1999999999994,
-        "meanDiff": 0.032,
+        "b": 2206.9999999999995,
+        "meanDiff": 0.024,
         "battlesChanged": 24,
         "more": 13,
         "fewer": 11,
@@ -477,8 +477,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=762&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/phase-c-natural-readiness-diagnostics/ai_flow_live.html?bench=762&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=792&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/phase-c-natural-readiness-diagnostics/ai_flow_live.html?bench=792&view=brain3d",
     "seeds": [
       {
         "seed": "phase-c-natural-20261012-0001",
