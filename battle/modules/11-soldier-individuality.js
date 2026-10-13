@@ -482,7 +482,10 @@
     phenotype: phenotype,
     desiredGait: desiredGait,
     transitPlan: transitPlan,
-    applyTransit: applyTransit
+    applyTransit: applyTransit,
+    clearTransit: function (s) {
+      if (s) delete s._bodyAutonomyIntent;
+    }
   };
   if (typeof console !== 'undefined')
     root.GTLog('[INFANTRY] realistic walk/run/sprint + crouch/crawl gait bands active');
