@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "849",
-    "runId": "38393034310",
+    "run": "879",
+    "runId": "38403088657",
     "repo": "APPARANYX/grasstex",
     "ref": "work/phase-c-natural-readiness-diagnostics",
-    "sha": "448bedaa3165cd102dc7ba2e5b49c2032f23cbb1",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38393034310",
+    "sha": "26473ed58cc313e961e2f573f6c6fabfb0d40c90",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38403088657",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -79,9 +79,9 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 14.821,
-      "medianB": 16.743,
-      "ratio": 1.13,
+      "medianA": 14.963,
+      "medianB": 16.21,
+      "ratio": 1.083,
       "gate": 1.25
     },
     "counters": {
@@ -475,8 +475,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=849&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/phase-c-natural-readiness-diagnostics/ai_flow_live.html?bench=849&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=879&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/phase-c-natural-readiness-diagnostics/ai_flow_live.html?bench=879&view=brain3d",
     "seeds": [
       {
         "seed": "phase-c-natural-20261012-0003",
