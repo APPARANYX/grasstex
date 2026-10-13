@@ -2345,8 +2345,8 @@
     boundThreats: function (s, battle) {
       return coverImpl().boundThreats(s, battle);
     },
-    boundRoute: function (s, battle, point, threats) {
-      return coverImpl().boundRoute(s, battle, point, threats);
+    boundRoute: function (s, battle, point, threats, stance) {
+      return coverImpl().boundRoute(s, battle, point, threats, stance);
     },
     maskedPost: function (battle, point, threats) {
       return coverImpl().maskedPost(battle, point, threats);
