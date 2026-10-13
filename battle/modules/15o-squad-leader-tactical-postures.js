@@ -569,10 +569,31 @@
             ambiguousPicture(b, sq) ? 'ambiguous-threat-picture' : 'no-fresh-reported-threat'
           );
       }
+      /* A prepared assault that has established its own REAL two-rifle base
+         of fire need not wait to be hit before considering a covered bound.
+         This is not permission to move: the existing General, COA, held-core,
+         report, effective-support and physical route gates all recheck below.
+         Neither relayed pressure nor nominal/supporter assignments qualify. */
+      var liveAssaultSupport = !!(
+        st &&
+        st.readyAt != null &&
+        sq.inContact &&
+        rs.length &&
+        ctx.ASSAULT_PHASES &&
+        ctx.ASSAULT_PHASES[sq.commandPhase || ''] &&
+        (!ctx.COA_ON ||
+          !sq.coa ||
+          !ctx.COAS ||
+          !ctx.COAS[sq.coa] ||
+          ctx.COAS[sq.coa].bounds) &&
+        report &&
+        Array.isArray(report.fireSupport) &&
+        supportingCount(a, null, report.fireSupport, now, b) >= tuning.minSupport
+      );
       if (
         st &&
         (st.mode === 'ambush' || (st.mode === 'hold' && st.orders.length)) &&
-        (pressure >= tuning.pressureEnter || (report && report.underFire > 0))
+        (pressure >= tuning.pressureEnter || (report && report.underFire > 0) || liveAssaultSupport)
       ) {
         /* An already-held masked line may transition to ONE covered-maneuver
            posture, never a second command stream. Without real support and a

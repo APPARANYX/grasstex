@@ -504,6 +504,42 @@ assert.equal(defensiveHold.lastManeuverDecision.reason, 'general-phase-holds');
 assert.equal(defensive.P.summary(defensive.b).coveredManeuvers, 0);
 assert.equal(defensive.r.BattleLeases.get(defensive.q, 'bound'), null);
 
+/* An attacking Squad Leader may move behind an established, real base
+   of fire even if its own opening volley precedes enemy return fire.
+   Keep zero-pressure, fresh own-squad contact and genuine covered route.
+   Assigned-only/one-man support never starts the maneuver. */
+const initiative = world(true, true, true);
+const initiativeMan = initiative.q.members[0],
+  initiativeCover = initiative.r.BattleCoverPositions;
+const initiativeRoute = paths
+  .map(z => ({ x: initiativeMan.root.position.x, z }))
+  .find(p =>
+    initiativeCover.boundRoute(initiativeMan, initiative.b, p, [
+      { x: 0, z: 20, at: 0, confidence: 1 }
+    ]).eligible
+  );
+assert.ok(initiativeRoute, 'live terrain has a valid short covered route');
+initiativeCover.candidates = () => [initiativeRoute];
+const initiativeReady = nativePreparedLine(initiative);
+assert.equal(initiativeReady.stage, 'ready');
+initiative.q.inContact = true;
+assert.ok(
+  initiative.q._localTask.inputs.pressure < initiative.P.tuning.pressureEnter,
+  'the initiative scenario has no incoming tactical pressure'
+);
+const noBase = initiative.P.update(initiative.b, initiative.q, {
+  underFire: 0,
+  fireSupport: [initiative.q.members[1]]
+});
+assert.equal(noBase.mode, 'ambush', 'one effective rifle cannot authorize a proactive bound');
+const initiativeBound = initiative.P.update(initiative.b, initiative.q, {
+  underFire: 0,
+  fireSupport: initiative.q.members.slice(1, 4)
+});
+assert.equal(initiativeBound.mode, 'maneuver', 'two effective rifles permit a safe assault-bound review');
+assert.equal(initiativeBound.lastManeuverDecision.reason, 'authorized');
+assert.equal(initiative.r.BattleLeases.get(initiative.q, 'bound'), null, 'posture never writes bounds');
+
 const move = world(true, true, true);
 const mm = move.q.members[0],
   cover = move.r.BattleCoverPositions;
