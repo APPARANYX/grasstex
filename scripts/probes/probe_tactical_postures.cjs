@@ -192,6 +192,7 @@ const { requestPreview } = require('./preview_request.cjs');
     });
     const captured = new Set();
     let holdAt = null;
+    let verifiedPreparedAt = null;
     for (let tick = 0; tick < 140; tick++) {
       const st = await page.evaluate(() => {
         const b = __battle__,
@@ -235,11 +236,22 @@ const { requestPreview } = require('./preview_request.cjs');
         };
       });
       if (st.stage === 'hold' && holdAt == null) holdAt = st.time;
+      if (st.readyAt != null && st.heldSince != null && st.readyAt - st.heldSince >= 4 - 1e-6)
+        verifiedPreparedAt = st.readyAt;
       if (st.lastShot && !evidence.shots.some(e => e.at === st.lastShot.at))
         evidence.shots.push(st.lastShot);
       evidence.last = st;
+      /* A prepared posture can be released after contact ends. An autonomous
+         rifleman's later shot has no CURRENT posture.readyAt, but is not a
+         premature ambush volley: keep the verified readiness timestamp from
+         the earlier per-tick snapshots, never manufacture it after a shot. */
+      const shotAfterPreparation = !!(
+        st.lastShot &&
+        ((st.lastShot.readyAt != null && st.lastShot.at >= st.lastShot.readyAt) ||
+          (verifiedPreparedAt != null && st.lastShot.at >= verifiedPreparedAt))
+      );
       assert.ok(
-        st.ownShots === 0 || st.lastShot?.readyAt != null,
+        st.ownShots === 0 || shotAfterPreparation,
         'no premature round before real four-second ambush preparation'
       );
       const stages = [];
@@ -247,7 +259,7 @@ const { requestPreview } = require('./preview_request.cjs');
       // The native posture can enter 'contact' on the same tick it becomes
       // ready; readiness itself, while the guns remain silent, is the frame.
       if (st.readyAt != null && st.ownShots === 0) stages.push('prepared-line');
-      if (st.ownShots > 0 && st.lastShot?.readyAt != null) stages.push('first-contact-volley');
+      if (st.ownShots > 0 && shotAfterPreparation) stages.push('first-contact-volley');
       for (const name of stages)
         if (!captured.has(name)) {
           await page.evaluate(
