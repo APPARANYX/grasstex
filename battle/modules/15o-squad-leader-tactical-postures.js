@@ -370,122 +370,143 @@
         reports.length > 3
       )
         return 'no-reliable-route-or-threat-geometry';
-      /* Keep the existing alpha fireteam intact: native covered maneuver
-         leases alpha/bravo/charlie teams, not individual safe-looking men.
-         Never stage partial teams, remove the two-rifle supporting base, or
-         steal a held firing-core actor. The other fireteams must retain >=3
-         genuine firing posts, including >=2 ballistic-ready rifles. */
-      var reserve = a.filter(function (s) {
-          return s._fireteamKey === 'alpha' && !(root.SquadAI.isMachineGun && root.SquadAI.isMachineGun(s));
-        }),
-        other = orders.filter(function (o) {
-          return !reserve.some(function (s) {
-            return String(s.id) === o.soldierId;
-          });
-        }),
-        credibleRifles = other.filter(function (o) {
-          var soldier = a.find(function (s) {
-            return String(s.id) === o.soldierId;
-          });
-          if (!soldier || soldier.role !== 'rifleman' || !root.SquadAI.canSuppressStanding) return false;
-          var proxy = Object.assign({}, soldier, {
-            root: Object.assign({}, soldier.root, { position: o.point })
-          });
-          return reports.some(function (r) {
-            return root.SquadAI.canSuppressStanding(proxy, r, b);
-          });
-        });
-      if (
-        reserve.length < 2 ||
-        reserve.length > 4 ||
-        reserve.length !==
-          a.filter(function (s) {
-            return s._fireteamKey === 'alpha';
-          }).length ||
-        other.length < 3 ||
-        credibleRifles.length < 2
-      )
-        return (
-          'reserve-team-or-firing-base-unavailable:' +
-          reserve.length +
-          ':' +
-          other.length +
-          ':' +
-          credibleRifles.length
-        );
-      var targets = [];
-      for (var i = 0; i < reserve.length; i++) {
-        var man = reserve[i],
-          here = point(man.root && man.root.position),
-          match = null;
-        if (!here) return;
-        for (var distanceIndex = 0; distanceIndex < 4 && !match; distanceIndex++) {
-          var radius = [0, 3, 6, 9][distanceIndex];
-          for (var k = 0; k < (radius ? 8 : 1); k++) {
-            var theta = (Math.PI * 2 * k) / 8,
-              origin = {
-                x: here.x + Math.sin(theta) * radius,
-                z: here.z + Math.cos(theta) * radius
-              };
-            if (
-              !N.movementClear(here, origin) ||
-              !reserveMasked(b, origin, reports) ||
-              orders.some(function (o) {
-                return (
-                  !reserve.some(function (s) {
-                    return String(s.id) === o.soldierId;
-                  }) && Math.hypot(o.point.x - origin.x, o.point.z - origin.z) < 1.5
-                );
-              }) ||
-              targets.some(function (p) {
-                return Math.hypot(p.x - origin.x, p.z - origin.z) < 1.5;
-              })
-            )
-              continue;
-            var proxy = Object.assign({}, man, {
-              root: Object.assign({}, man.root, { position: origin })
+      /* A real fireteam, not a hand-picked individual, owns a covered bound.
+         Try alpha first, then intact follow-on teams if alpha is attrited or
+         separately station-owned. No team may lose a soldier to this posture,
+         and the non-moving element retains >=3 actual firing posts and >=2
+         independently shootable riflemen from the ordered positions. */
+      var teams = ['alpha', 'bravo', 'charlie'],
+        available = ctx.commanded(sq),
+        missingBase = null,
+        missingStage = null;
+      for (var teamIndex = 0; teamIndex < teams.length; teamIndex++) {
+        var team = teams[teamIndex],
+          roster = available.filter(function (s) {
+            return s._fireteamKey === team;
+          }),
+          reserve = a.filter(function (s) {
+            return s._fireteamKey === team && !(root.SquadAI.isMachineGun && root.SquadAI.isMachineGun(s));
+          }),
+          other = orders.filter(function (o) {
+            return !reserve.some(function (s) {
+              return String(s.id) === o.soldierId;
             });
-            /* Demand a real, naturally safe next bound BEFORE staging.
-               A hypothetical masked post without a safe covered exit would
-               strand the maneuver element; never select it by appearance. */
-            for (var step of [3, 6]) {
-              for (var direction = 0; direction < 8; direction++) {
-                var angle = (Math.PI * 2 * direction) / 8,
-                  exit = {
-                    x: origin.x + Math.sin(angle) * step,
-                    z: origin.z + Math.cos(angle) * step
-                  };
-                if (!C.boundRoute(proxy, b, exit, reports).eligible) continue;
-                match = origin;
-                break;
+          }),
+          credibleRifles = other.filter(function (o) {
+            var soldier = a.find(function (s) {
+              return String(s.id) === o.soldierId;
+            });
+            if (!soldier || soldier.role !== 'rifleman' || !root.SquadAI.canSuppressStanding) return false;
+            var proxy = Object.assign({}, soldier, {
+              root: Object.assign({}, soldier.root, { position: o.point })
+            });
+            return reports.some(function (r) {
+              return root.SquadAI.canSuppressStanding(proxy, r, b);
+            });
+          });
+        if (
+          reserve.length < 2 ||
+          reserve.length > 4 ||
+          reserve.length !== roster.length ||
+          other.length < 3 ||
+          credibleRifles.length < 2
+        ) {
+          if (!missingBase)
+            missingBase =
+              'reserve-team-or-firing-base-unavailable:' +
+              reserve.length +
+              ':' +
+              other.length +
+              ':' +
+              credibleRifles.length;
+          continue;
+        }
+        /* Stage the selected team all-or-nothing. Every man must personally
+           reach his own masked post with a real native covered next segment;
+           considering bravo does not alter alpha's own standing orders. */
+        var targets = [],
+          failedMan = null;
+        for (var i = 0; i < reserve.length; i++) {
+          var man = reserve[i],
+            here = point(man.root && man.root.position),
+            match = null;
+          if (!here) {
+            failedMan = String(man.id);
+            break;
+          }
+          for (var distanceIndex = 0; distanceIndex < 4 && !match; distanceIndex++) {
+            var radius = [0, 3, 6, 9][distanceIndex];
+            for (var k = 0; k < (radius ? 8 : 1); k++) {
+              var theta = (Math.PI * 2 * k) / 8,
+                origin = {
+                  x: here.x + Math.sin(theta) * radius,
+                  z: here.z + Math.cos(theta) * radius
+                };
+              if (
+                !N.movementClear(here, origin) ||
+                !reserveMasked(b, origin, reports) ||
+                orders.some(function (o) {
+                  return (
+                    !reserve.some(function (s) {
+                      return String(s.id) === o.soldierId;
+                    }) && Math.hypot(o.point.x - origin.x, o.point.z - origin.z) < 1.5
+                  );
+                }) ||
+                targets.some(function (p) {
+                  return Math.hypot(p.x - origin.x, p.z - origin.z) < 1.5;
+                })
+              )
+                continue;
+              var proxy = Object.assign({}, man, {
+                root: Object.assign({}, man.root, { position: origin })
+              });
+              for (var step of [3, 6]) {
+                for (var direction = 0; direction < 8; direction++) {
+                  var angle = (Math.PI * 2 * direction) / 8,
+                    exit = {
+                      x: origin.x + Math.sin(angle) * step,
+                      z: origin.z + Math.cos(angle) * step
+                    };
+                  if (!C.boundRoute(proxy, b, exit, reports).eligible) continue;
+                  match = origin;
+                  break;
+                }
+                if (match) break;
               }
               if (match) break;
             }
-            if (match) break;
           }
+          if (!match) {
+            failedMan = String(man.id);
+            break;
+          }
+          targets.push(match);
         }
-        if (!match) return 'no-safe-precontact-stage:' + String(man.id); // Never stage part of a team.
-        targets.push(match);
+        if (failedMan) {
+          if (!missingStage) missingStage = 'no-safe-precontact-stage:' + failedMan;
+          continue;
+        }
+        reserve.forEach(function (s, i) {
+          var id = String(s.id),
+            existing = orders.find(function (o) {
+              return o.soldierId === id;
+            });
+          if (existing) {
+            existing.point = targets[i];
+            existing.reserve = true;
+            existing.role = 'maneuver-reserve';
+          } else
+            orders.push({
+              soldierId: id,
+              point: targets[i],
+              watchPoint: point(reports[0]),
+              reserve: true,
+              role: 'maneuver-reserve'
+            });
+        });
+        return 'whole-team-staged:' + team;
       }
-      reserve.forEach(function (s, i) {
-        var id = String(s.id),
-          existing = orders.find(function (o) {
-            return o.soldierId === id;
-          });
-        if (existing) {
-          existing.point = targets[i];
-          existing.reserve = true;
-          existing.role = 'maneuver-reserve';
-        } else
-          orders.push({
-            soldierId: id,
-            point: targets[i],
-            watchPoint: point(reports[0]),
-            reserve: true,
-            role: 'maneuver-reserve'
-          });
-      });
-      return 'whole-team-staged';
+      return missingStage || missingBase || 'reserve-team-or-firing-base-unavailable:0:0:0';
     }
     function coveredTeam(b, sq, movers, report) {
       var C = root.BattleCoverPositions,
