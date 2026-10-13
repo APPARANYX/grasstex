@@ -331,6 +331,39 @@ assert.ok(!stationedPosture.orders.some(o => o.soldierId === String(assignedMan.
 /* One exposed rifleman must not cancel a real three-plus-rifle masked
    element, but never receives a fake covered order himself. Two viable masked
    stations are deliberately insufficient for an ambush. */
+/* A real masked approach post with a pop-up firing ray should win over
+   the first equally masked post that has no line of fire. Previewing must
+   neither mutate a soldier nor issue fire authority. */
+const popUpPosts = world(true, true, true);
+const popUpCover = popUpPosts.r.BattleCoverPositions;
+popUpCover.maskedPost = () => true;
+popUpCover.maskedApproach = () => true;
+popUpCover.candidates = s => [{ x: s.root.position.x, z: 2 }];
+popUpPosts.r.SquadAI.canSuppressStanding = s => Math.abs(s.root.position.z - 2) < 0.001;
+const popUpStart = popUpPosts.q.members.map(s => ({ x: s.root.position.x, z: s.root.position.z }));
+const popUp = popUpPosts.P.update(popUpPosts.b, popUpPosts.q);
+assert.ok(popUp && popUp.orders.length >= 3, 'the existing masked-post gate still applies');
+assert.ok(
+  popUp.orders.every(o => o.point.z === 2),
+  'a physically shootable standing ray wins over a blocked concealed first option'
+);
+assert.deepEqual(
+  popUpPosts.q.members.map(s => ({ x: s.root.position.x, z: s.root.position.z })),
+  popUpStart,
+  'the standing-ray preview never changes a soldier position'
+);
+const blockedPosts = world(true, true, true);
+blockedPosts.r.BattleCoverPositions.maskedPost = () => true;
+blockedPosts.r.BattleCoverPositions.maskedApproach = () => true;
+blockedPosts.r.BattleCoverPositions.candidates = s => [{ x: s.root.position.x, z: 2 }];
+blockedPosts.r.SquadAI.canSuppressStanding = () => false;
+const blocked = blockedPosts.P.update(blockedPosts.b, blockedPosts.q);
+assert.ok(blocked && blocked.orders.length >= 3, 'valid masked fallback remains eligible');
+assert.ok(
+  blocked.orders.every(o => o.point.z === 0),
+  'no shootable alternative retains the original concealed post'
+);
+
 const partialLine = world();
 const exposedMan = partialLine.q.members[0];
 exposedMan.root.position.z = 24;

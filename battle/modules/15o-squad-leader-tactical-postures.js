@@ -725,10 +725,25 @@
               })
             )
               continue;
-            if (C.maskedPost(b, p, rs) && C.maskedApproach(s, b, p, rs)) {
-              candidate = p;
-              break;
-            }
+            if (!C.maskedPost(b, p, rs) || !C.maskedApproach(s, b, p, rs)) continue;
+            /* A masked post can still be entirely unable to fire over its
+               crest. Prefer a second safe post with a physically viable
+               standing ray toward a detached squad report, but never
+               weaken masking, approach or fire-authorization gates. */
+            if (!candidate) candidate = p;
+            if (maneuverOn && A.canSuppressStanding) {
+              var proxy = Object.assign({}, s, {
+                root: Object.assign({}, s.root, { position: p })
+              });
+              if (
+                rs.some(function (r) {
+                  return A.canSuppressStanding(proxy, r, b);
+                })
+              ) {
+                candidate = p;
+                break;
+              }
+            } else break;
           }
           /* Do not place this soldier at an exposed default slot. A masked
              fireteam is useful even when another eligible squad member has
