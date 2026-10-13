@@ -44,7 +44,15 @@ for (const [variant, [immortal, silent, harmless, stationary]] of Object.entries
     BattleEngagement: {}
   };
   vm.runInNewContext(code, root, { filename: 'phase_c_combat_lab_hooks.js' });
-  const battle = { time: 10, rosterOf: f => f === 'ge' ? [ge] : [us] };
+  const battle = {
+    time: 10,
+    rngDraws: 0,
+    random() {
+      this.rngDraws++;
+      return 0.5;
+    },
+    rosterOf: f => (f === 'ge' ? [ge] : [us])
+  };
   const origFire = root.SquadAI.tryFire;
   const origArea = root.SquadAI.areaFire;
   const origHit = root.SquadAI.applyHit;
@@ -67,6 +75,11 @@ for (const [variant, [immortal, silent, harmless, stationary]] of Object.entries
     root.BattleWounds.wound(ge, us, battle, { blast: true, zone: 'leg' });
     assert.equal(us.hp, prior, 'German blast must be harmless to Americans in E');
   }
+  assert.equal(
+    battle.rngDraws,
+    (immortal ? 4 : 0) + (harmless ? 4 : 0),
+    'Absorbed projectile and melee/grenade hits preserve native wound RNG consumption'
+  );
   if (immortal) assert.ok(ge.suppressedUntil > battle.time, 'German hit still triggers native pin');
   if (harmless) assert.ok(us.suppressedUntil > battle.time, 'US hit still triggers native pin');
   const initial = ge.root.position.x;
