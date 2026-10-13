@@ -133,11 +133,7 @@ jobs:
             exit 0
           fi
           echo "Checking ${#files[@]} changed JavaScript file(s) against .prettierrc.json."
-          npx --yes prettier@3.3.3 --write "${files[@]}"
-          echo PHASE_C_FORMAT_DIFF_BEGIN
-          git diff -- battle/modules/15a-squad-leader-fire-control.js
-          echo PHASE_C_FORMAT_DIFF_END
-          git diff --exit-code -- "${files[@]}"
+          npx --yes prettier@3.3.3 --check "${files[@]}"
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
 
