@@ -84,8 +84,7 @@
       // hits so the combat RNG stream does not drift *merely* because this
       // lab variant protects health. Different later shots still naturally
       // cause legitimate branch-specific RNG evolution.
-      const knownZone =
-        hit && ['head', 'chest', 'abdomen', 'arm', 'leg'].includes(hit.zone);
+      const knownZone = hit && ['head', 'chest', 'abdomen', 'arm', 'leg'].includes(hit.zone);
       const draw = b && typeof b.random === 'function' ? () => b.random() : Math.random;
       if (!knownZone) {
         draw();
