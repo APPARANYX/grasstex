@@ -92,7 +92,7 @@ const { chromium } = require('playwright');
             active.shots++;
             if (active.lab) {
               active.lab.shotsBySide[s.faction]++;
-              if (active.lab.shotEvents.length < 600)
+              if (active.lab.shotEvents.length < 6000)
                 active.lab.shotEvents.push({ t: +b.time.toFixed(2), side: s.faction,
                   shooter: String(s.id), squad: s.squad?.id || null,
                   pinned: !!(s.suppressedUntil > b.time) });
@@ -137,7 +137,7 @@ const { chromium } = require('playwright');
               : hit && target ? [target] : [];
             for (const victim of victims) {
               active.lab.hitsBySide[shooter.faction]++;
-              if (active.lab.hitEvents.length < 400)
+              if (active.lab.hitEvents.length < 6000)
                 active.lab.hitEvents.push({ t: +b.time.toFixed(2), shooter: String(shooter.id),
                   side: shooter.faction, victim: String(victim.id), victimSide: victim.faction,
                   victimSquad: victim.squad?.id || null });
@@ -145,7 +145,7 @@ const { chromium } = require('playwright');
           };
           b.onSuppressiveShot = (shooter, point, recipients, rounds) => {
             if (!active?.lab) return;
-            if (active.lab.areaEvents.length < 400)
+            if (active.lab.areaEvents.length < 6000)
               active.lab.areaEvents.push({ t: +b.time.toFixed(2), side: shooter.faction,
                 soldier: String(shooter.id), recipients: +recipients || 0,
                 rounds: +rounds || 0, x: +point.x.toFixed(2), z: +point.z.toFixed(2) });
@@ -522,7 +522,7 @@ const { chromium } = require('playwright');
                     const before = previousState.get(key);
                     const nowPin = +s.suppressedUntil || 0;
                     if (before && nowPin > before.suppression + 1e-5 && nowPin > b.time) {
-                      if (active.lab.pinEvents.length < 500)
+                      if (active.lab.pinEvents.length < 6000)
                         active.lab.pinEvents.push({ t: +b.time.toFixed(2), side: faction,
                           soldier: String(s.id), squad: s.squad?.id,
                           until: +nowPin.toFixed(2), duration: +(nowPin - b.time).toFixed(2) });
@@ -1367,10 +1367,33 @@ const { chromium } = require('playwright');
           x.reserveIds.length && x.maxReserveArrived >= x.reserveIds.length).length,
         labEffects: run.lab.presetTally
       })),
-      results
+      // Preserve per-tick causal evidence without repeatedly serializing huge
+      // perception belief histories (six arms of 550s can exceed V8's 512 MB
+      // maximum JSON string). Soldier IDs, contact state, native decision and
+      // rejection reasons, firing and pin state are retained at 0.15s cadence.
+      results: results.map(run => ({
+        ...run,
+        tickTrace: run.tickTrace.map(t => ({
+          t: t.t, faction: t.faction, squad: t.squad, phase: t.phase,
+          coa: t.coa, inContact: t.inContact, assaultAuthorized: t.assaultAuthorized,
+          effectiveCount: t.effectiveCount, pinnedCount: t.pinnedCount,
+          contactCount: t.contactCount, contact: t.contact,
+          posture: t.posture, fireControl: t.fireControl,
+          boundLease: t.boundLease, boundCycle: t.boundCycle,
+          members: (t.members || []).map(m => ({
+            id: m.id, role: m.role, fireteam: m.fireteam,
+            dead: m.dead, position: m.position, state: m.state,
+            moving: m.moving, targetId: m.targetId,
+            underFire: m.underFire, suppressed: m.suppressed,
+            authorized: m.authorized, effectiveSupport: m.effectiveSupport,
+            areaSupport: m.areaSupport, boundOrder: m.boundOrder,
+            cover: m.cover, resolver: m.resolver, outcome: m.outcome
+          }))
+        }))
+      }))
     };
     fs.writeFileSync(dir + '/' + type + '-' + selectedSeed + '-combat-lab.json',
-      JSON.stringify(summary, null, 2));
+      JSON.stringify(summary));
     console.log('PHASE_C_COMBAT_LAB', JSON.stringify({
       commit: summary.commit, type, seedIndex: selectedSeed, runs: summary.runs
     }));
