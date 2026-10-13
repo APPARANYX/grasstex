@@ -118,6 +118,49 @@
       }
       return null;
     }
+    /* A prepared line may face several independently reported firing origins.
+       The freshest first-hand position is not necessarily shootable from the
+       real posts. Try the OWN squad's other fresh, first-hand records before
+       abandoning its base of fire. Never substitute hearsay, stale coordinates
+       or an enemy actor's current transform. */
+    function supportAuthorityOptions(sq, battle) {
+      var options = [],
+        latest = supportAuthorityContact(sq, battle),
+        windowSeconds = FIRE_CONTROL_TUNING.returnFireWindow,
+        roster = commanded(sq);
+      function add(r) {
+        if (!r || !isFinite(+r.x) || !isFinite(+r.z) || !isFinite(+r.at)) return;
+        if (battle.time < +r.at || battle.time - +r.at > windowSeconds) return;
+        if (
+          options.some(function (p) {
+            return Math.hypot(p.x - +r.x, p.z - +r.z) < 1;
+          })
+        ) return;
+        options.push({ x: +r.x, z: +r.z, at: +r.at, source: r.source });
+      }
+      add(latest);
+      if (root.SquadAI.soldierContact)
+        roster.forEach(function (s) {
+          if (!s || s.dead || s.isPlayer) return;
+          var r = root.SquadAI.soldierContact(s, battle),
+            sight = r && r.source === 'seen' && String(r.seenBy) === String(s.id),
+            incoming = r && r.source === 'incoming' && r.precision === 'fire-origin';
+          if (!r || (!sight && !incoming) || !isFinite(+r.confidence) || +r.confidence < 0.5) return;
+          add({ x: r.x, z: r.z, at: r.at, source: sight ? 'seen' : 'incoming' });
+        });
+      var map = root.SquadAI.squadContactsMap && root.SquadAI.squadContactsMap(sq, battle);
+      if (Array.isArray(map) && map.length <= 32)
+        map.forEach(function (r) {
+          if (
+            r && r.source === 'seen' && r.sourceSoldier != null &&
+            roster.some(function (s) {
+              return s && !s.dead && String(s.id) === String(r.sourceSoldier);
+            }) &&
+            isFinite(+r.confidence) && +r.confidence >= 0.5
+          ) add({ x: r.x, z: r.z, at: r.at, source: 'seen' });
+        });
+      return options.slice(0, 32);
+    }
     function supportCandidates(sq, battle, point, prior, posture) {
       if (!point) return [];
       var E = root.BattleEngagement,
@@ -184,15 +227,21 @@
          start support; heard/relayed contacts alone still have no authority. */
       if (!(report.underFire > 0) && !authority) return null;
       var oldPoint = prev && prev.supportPoint,
-        point =
-          oldPoint && isFinite(+oldPoint.x) && isFinite(+oldPoint.z)
-            ? { x: +oldPoint.x, z: +oldPoint.z }
-            : authority && { x: authority.x, z: authority.z },
-        men = supportCandidates(sq, battle, point, prev && prev.supporterIds, posture);
-      if (men.length < 2 && authority) {
-        point = { x: authority.x, z: authority.z };
-        men = supportCandidates(sq, battle, point, prev && prev.supporterIds, posture);
-      }
+        options = supportAuthorityOptions(sq, battle),
+        point = oldPoint && isFinite(+oldPoint.x) && isFinite(+oldPoint.z)
+          ? { x: +oldPoint.x, z: +oldPoint.z }
+          : authority && { x: authority.x, z: authority.z },
+        men = supportCandidates(sq, battle, point, prev && prev.supporterIds, posture),
+        chosen = authority;
+      options.forEach(function (option) {
+        if (men.length >= 2) return;
+        var capable = supportCandidates(sq, battle, option, prev && prev.supporterIds, posture);
+        if (capable.length > men.length) {
+          men = capable;
+          point = { x: option.x, z: option.z };
+          chosen = option;
+        }
+      });
       /* One lawful gunner may establish a base of fire while a second man
          recovers from suppression or finds a lane. This is NOT maneuver
          authorization: supportReady plus the tactical posture still require
@@ -203,8 +252,8 @@
         ids: men.map(function (s) {
           return String(s.id);
         }),
-        source: authority ? authority.source : prev && prev.supportSource,
-        at: authority ? authority.at : prev && prev.supportAt
+        source: chosen ? chosen.source : prev && prev.supportSource,
+        at: chosen ? chosen.at : prev && prev.supportAt
       };
     }
     function sameAreaSupport(fc, support) {
