@@ -418,7 +418,9 @@
       winner: battle.winner || null,
       winReason: battle.winReason || null,
       victoryRules: { objectiveHold: false, elimination: true, timeLimitSeconds: battle.timeLimit },
-      objectiveControl: battle.objectiveControl ? JSON.parse(JSON.stringify(battle.objectiveControl.counts)) : null,
+      objectiveControl: battle.objectiveControl
+        ? JSON.parse(JSON.stringify(battle.objectiveControl.counts))
+        : null,
       objectiveHold: battle.objectiveHold ? Object.assign({}, battle.objectiveHold) : null,
       paused: battle.paused,
       boundsM: [280, 240],
@@ -492,7 +494,9 @@
       ' / GE ' +
       s.counts.absorbedWounds.ge +
       '\nObjectives: ' +
-      (s.objectiveControl ? 'US ' + (s.objectiveControl.us || 0) + ' / GE ' + (s.objectiveControl.ge || 0) : '-') +
+      (s.objectiveControl
+        ? 'US ' + (s.objectiveControl.us || 0) + ' / GE ' + (s.objectiveControl.ge || 0)
+        : '-') +
       ' · hold win OFF' +
       (s.winner ? '\nWinner: ' + s.winner : '');
     events.textContent =
