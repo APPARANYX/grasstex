@@ -13,8 +13,26 @@ permissions:
   contents: read
 jobs:
   tick-trace:
-    name: Natural seed 0017 us-0 every 0.15s
+    name: Natural ${{ matrix.seed_index }} ${{ matrix.squad }} every 0.15s
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: defender-us0-0017
+            battle_type: us-defend
+            seed_index: '17'
+            squad: us:us-0
+            seconds: '465'
+            trace_from: '444'
+            trace_to: '456'
+          - label: attacker-ge2-0001
+            battle_type: us-defend
+            seed_index: '1'
+            squad: ge:ge-2
+            seconds: '305'
+            trace_from: '285'
+            trace_to: '300'
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -36,15 +54,15 @@ jobs:
           exit 1
       - name: Read-only exact-seed per-tick causality trace
         env:
-          C_FIELD_TYPE: us-defend
+          C_FIELD_TYPE: ${{ matrix.battle_type }}
           C_FIELD_COUNT: '1'
-          C_FIELD_SECONDS: '465'
+          C_FIELD_SECONDS: ${{ matrix.seconds }}
           C_FIELD_PREFIX: phase-c-natural-20261012
-          C_FIELD_SEED_INDEX: '17'
+          C_FIELD_SEED_INDEX: ${{ matrix.seed_index }}
           C_FIELD_ARMS: on
-          C_FIELD_TRACE_SQUAD: us:us-0
-          C_FIELD_TRACE_FROM: '444'
-          C_FIELD_TRACE_TO: '456'
+          C_FIELD_TRACE_SQUAD: ${{ matrix.squad }}
+          C_FIELD_TRACE_FROM: ${{ matrix.trace_from }}
+          C_FIELD_TRACE_TO: ${{ matrix.trace_to }}
           C_FIELD_DIR: reports/phase-c-tick-trace
           C_FIELD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/probes/probe_phase_c_natural.cjs
@@ -52,7 +70,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: phase-c-natural-0017-us0-tick-trace
+          name: phase-c-natural-${{ matrix.label }}-tick-trace
           path: reports/phase-c-tick-trace/*.json
           retention-days: 30
       - name: Server diagnostics
