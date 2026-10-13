@@ -4,8 +4,8 @@
 (function (root) {
   'use strict';
   if (typeof BABYLON === 'undefined') return;
-  var FIELD_W = 2000,
-    FIELD_D = 1200,
+  var FIELD_W = root.PHASE_C_COMBAT_LAB ? 280 : 2000,
+    FIELD_D = root.PHASE_C_COMBAT_LAB ? 240 : 1200,
     SPAWN_Z = 510,
     LANES = [-700, -350, 0, 350, 700];
   var AI_TICK = 0.15,
@@ -390,6 +390,7 @@
   };
   BattleSim.prototype.killSoldier = function (soldier, killer) {
     if (soldier.dead) return;
+    if (root.PhaseCCombatLab && root.PhaseCCombatLab.preventDeath(soldier, killer, this)) return;
     var led = !!(root.SquadAI && root.SquadAI.isLeader(soldier));
     if (root.BattleTacticalPositions) root.BattleTacticalPositions.release(soldier, this, 'death');
     BattleSoldierModel.kill(soldier);
@@ -585,6 +586,13 @@
     return steered;
   }
   function stepMovement(self, soldier, dt) {
+    if (root.PhaseCCombatLab && root.PhaseCCombatLab.stationary(soldier, self)) {
+      soldier.moving = false;
+      soldier.moveSpeed = 0;
+      soldier._movementStopReason = 'lab-stationary';
+      BattleSoldierModel.animateWalk(soldier, dt, 0);
+      return;
+    }
     if (soldier.dead) {
       if (root.BattleSquadStability) root.BattleSquadStability.endUnstick(soldier);
       soldier._movementStopReason = 'dead';
