@@ -1412,7 +1412,12 @@
         'masked ambush preparation'
       );
       s._faceHint = arrived ? o.watchPoint : null;
-      followOrders(s, battle, false);
+      /* Movement already verified this physical post. Once prepared,
+         observation holds here just as aiming at a visible target does.
+         Returning authority to the original formation destination can move
+         the man off this post during the observation handoff. */
+      if (arrived && prepared) holdPosition(s, battle);
+      else followOrders(s, battle, false);
     }
     return true;
   }

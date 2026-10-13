@@ -216,7 +216,7 @@ assert.ok(
     const outcome = physicalEndpoint.r.BattleExecutionOutcome.man(soldier, physicalEndpoint.b);
     return (
       outcome.current &&
-      outcome.state === 'completed' &&
+      (outcome.state === 'completed' || outcome.state === 'held') &&
       outcome.publishKey === order.key &&
       !soldier.moving &&
       physicalEndpoint.r.BattleCoverPositions.maskedPost(
@@ -228,6 +228,31 @@ assert.ok(
   }),
   'the stable core has canonical movement completion and remains masked at its actual body positions'
 );
+// Readiness hands the verified physical post to quiet Micro observation.
+// The old abstract destination is still offset, but must not restart a march
+// while these same men stand up to look for their own first-hand contact.
+const heldBodies = physicalHeld.map(({ soldier }) => ({
+  id: soldier.id,
+  x: soldier.root.position.x,
+  z: soldier.root.position.z
+}));
+H.run(physicalEndpoint.r, physicalEndpoint.b, 0.6);
+assert.ok(physicalEndpoint.P.current(physicalEndpoint.b, physicalEndpoint.q));
+assert.ok(
+  physicalHeld.every(({ soldier }, i) => {
+    const anchor = heldBodies[i];
+    const last = soldier._movementResolver?.last;
+    return (
+      Math.hypot(soldier.root.position.x - anchor.x, soldier.root.position.z - anchor.z) <= 0.05 &&
+      !soldier.moving &&
+      last?.owner === 'engagement' &&
+      last.kind === 'hold'
+    );
+  }),
+  'prepared observation holds the actual posts instead of resuming the offset formation destinations'
+);
+assert.equal(physicalEndpoint.b.events.fired, 0, 'quiet observation never invents fire authority');
+assert.equal(physicalEndpoint.r.BattleLeases.get(physicalEndpoint.q, 'bound'), null);
 
 const combat = world();
 combat.P.update(combat.b, combat.q);
