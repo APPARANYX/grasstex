@@ -147,6 +147,7 @@
       '<div class="kpi"><strong id="labUS">20</strong><span>US ALIVE</span></div>' +
       '<div class="kpi"><strong id="labGE">10</strong><span>GE ALIVE</span></div>' +
       '<div class="kpi"><strong id="labSuppressed">0</strong><span>GE SUPPRESSED</span></div></div>' +
+      '<h3>Movement &amp; posture (live)</h3><pre id="labMobility">Starting battle…</pre>' +
       '<h3>Native fire control &amp; maneuver</h3><pre id="labStatus">Starting battle…</pre>' +
       '<h3>Combat timeline</h3><pre id="labEvents">No shots yet.</pre>' +
       '<div class="sub">Compact reproducible lab, not the unmodified 54-battle natural-acceptance scenario.' +
@@ -427,6 +428,18 @@
       counts: JSON.parse(JSON.stringify(counts)),
       usAlive: battle.factions.us.alive,
       geAlive: battle.factions.ge.alive,
+      mobility: units.reduce(function (out, soldier) {
+        if (soldier.dead) return out;
+        var gait = soldier._locomotionGait || 'unset',
+          state = soldier.eng && soldier.eng.state;
+        if (soldier.moving) {
+          out.moving++;
+          out.byGait[gait] = (out.byGait[gait] || 0) + 1;
+          if (state === 'bound') out.movingBounds++;
+          if (state === 'bound' && gait === 'sprint') out.boundSprints++;
+        } else if (soldier.prone) out.stationaryProne++;
+        return out;
+      }, { moving: 0, movingBounds: 0, boundSprints: 0, stationaryProne: 0, byGait: {} }),
       geSuppressed: battle._roster.ge.filter(function (s) {
         return !s.dead && s.suppressedUntil > battle.time;
       }).length,
@@ -443,7 +456,17 @@
           hp: s.hp,
           dead: !!s.dead,
           suppressedUntil: s.suppressedUntil || 0,
-          moving: !!s.moving
+          moving: !!s.moving,
+          locomotionGait: s._locomotionGait || null,
+          movementGroundSpeed: s._locomotionGroundSpeed || 0,
+          physicalSpeed: s.moveSpeed || 0,
+          engagementState: s.eng && s.eng.state || null,
+          stance: s.prone ? s.crawling ? 'crawl' : 'prone' : s.tacticalCrouch ? 'crouch' : 'stand',
+          goalKind: s._movementResolver && s._movementResolver.goal &&
+            s._movementResolver.goal.kind || null,
+          movementStopReason: s._movementStopReason || null,
+          stanceReason: s.eng && s.eng.stanceTrail && s.eng.stanceTrail.length
+            ? s.eng.stanceTrail[s.eng.stanceTrail.length - 1].reason : null
         };
       }),
       events: history.slice()
@@ -460,6 +483,16 @@
     panel.querySelector('#labGE').textContent = s.geAlive;
     panel.querySelector('#labSuppressed').textContent = s.geSuppressed;
     playButton.textContent = battle.paused ? '▶ Play' : 'Ⅱ Pause';
+    var m = s.mobility;
+    panel.querySelector('#labMobility').textContent =
+      'Moving: ' + m.moving +
+      ' · sprint: ' + (m.byGait.sprint || 0) +
+      ' · crouch-run: ' + (m.byGait.crouchRun || 0) +
+      ' · crouch-walk: ' + (m.byGait.crouchWalk || 0) +
+      ' · prone crawl: ' + ((m.byGait.proneFast || 0) + (m.byGait.proneNormal || 0)) +
+      '\nCovered movers: ' + m.movingBounds +
+      ' · genuine bound sprints: ' + m.boundSprints +
+      ' · prone and stationary: ' + m.stationaryProne;
     output.textContent =
       'Range ' +
       rangeScale +
