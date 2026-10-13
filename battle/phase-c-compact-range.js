@@ -15,6 +15,7 @@
   if (rangeScale !== 1 && rangeScale !== 0.5 && rangeScale !== 0.25) rangeScale = 0.5;
   var movementPace =
     ['baseline', 'purposeful'].indexOf(params.get('labMove')) >= 0 ? params.get('labMove') : 'autonomous';
+  var interiorIngressRecovery = params.get('labInterior') !== '0';
   var scenarios = {
     ge15: { title: 'US assault vs German defense', seed: 'phase-c-natural-20261012-0015', defender: 'ge' },
     meeting: { title: 'Meeting engagement', seed: 'phase-c-natural-20261012-0001', defender: '' },
@@ -153,6 +154,9 @@
       '<option value="autonomous">Autonomous · joint stance + gait, no casual contact walking</option>' +
       '<option value="purposeful">Purposeful · earlier cover dash + station ingress</option>' +
       '<option value="baseline">Baseline · native cautious contact pace</option></select>' +
+      '<label for="labInterior">Building window ingress</label><select id="labInterior">' +
+      '<option value="1">Smart · use interior shortcut after entry</option>' +
+      '<option value="0">Legacy · follow original door route</option></select>' +
       '<label for="labPreset">Combat isolation preset</label><select id="labPreset">' +
       '<option value="A">A · Normal: both sides fire and take damage</option>' +
       '<option value="B">B · Germans cannot be wounded/killed</option>' +
@@ -206,6 +210,7 @@
     panel.querySelector('#labPreset').value = preset;
     panel.querySelector('#labRange').value = String(rangeScale);
     panel.querySelector('#labMove').value = movementPace;
+    panel.querySelector('#labInterior').value = interiorIngressRecovery ? '1' : '0';
     function navigate() {
       var s = scenarios[select.value],
         p = new URLSearchParams(root.location.search);
@@ -213,6 +218,7 @@
       p.set('labPreset', panel.querySelector('#labPreset').value);
       p.set('labRange', panel.querySelector('#labRange').value);
       p.set('labMove', panel.querySelector('#labMove').value);
+      p.set('labInterior', panel.querySelector('#labInterior').value);
       p.set('seed', s.seed);
       if (s.defender) p.set('defender', s.defender);
       else p.delete('defender');
@@ -232,6 +238,7 @@
     panel.querySelector('#labPreset').onchange = navigate;
     panel.querySelector('#labRange').onchange = navigate;
     panel.querySelector('#labMove').onchange = navigate;
+    panel.querySelector('#labInterior').onchange = navigate;
     playButton = panel.querySelector('#labPlay');
     playButton.onclick = function () {
       if (!battle || battle.winner) return;
@@ -455,6 +462,13 @@
       preset: preset,
       movementPace: movementPace,
       rangeScale: rangeScale,
+      interiorIngressRecovery: interiorIngressRecovery,
+      buildingIngress: battle._tacticalPositionSummary
+        ? {
+            interiorRebases: battle._tacticalPositionSummary.interiorIngressRebases || 0,
+            metersSaved: battle._tacticalPositionSummary.interiorIngressMetersSaved || 0
+          }
+        : null,
       rangeScaling: 'issued weapon range/falloff/autoWithin + visual detection/tracking; hearing unchanged',
       scenario: scenarioKey,
       simulationSeconds: +battle.time.toFixed(2),
@@ -548,7 +562,11 @@
       ' · genuine bound sprints: ' +
       m.boundSprints +
       ' · prone and stationary: ' +
-      m.stationaryProne;
+      m.stationaryProne +
+      '\nIndoor ingress shortcuts: ' +
+      ((s.buildingIngress && s.buildingIngress.interiorRebases) || 0) +
+      ' · estimated metres avoided: ' +
+      (((s.buildingIngress && s.buildingIngress.metersSaved) || 0).toFixed(1));
     output.textContent =
       'Range ' +
       rangeScale +
@@ -608,6 +626,7 @@
     preset: preset,
     rangeScale: rangeScale,
     movementPace: movementPace,
+    interiorIngressRecovery: interiorIngressRecovery,
     blockShot: blockShot,
     preventWound: preventWound,
     preventDeath: preventDeath,
