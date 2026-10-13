@@ -88,8 +88,10 @@ assert.equal(gait.desiredGait(dash, sim), 'crouchRun',
 dash.eng.state = 'pinned';
 dash.eng.stance = 'stand';
 dash.tacticalCrouch = false;
-assert.equal(gait.desiredGait(dash, sim), 'crouchWalk',
+assert.notEqual(gait.desiredGait(dash, sim), 'sprint',
   'an uncommitted upright pinned body cannot sprint under suppression');
+assert.equal(gait.desiredGait(dash, sim), 'crouchRun',
+  'existing in-contact crouch-run policy still applies when more than four metres remain');
 root.PhaseCCombatLab.movementPace = 'baseline';
 root.BattleModules.system.onSimulationStep({ time: 12, units: [s] });
 assert.equal(s._locomotionGait, 'crouchWalk');
