@@ -28,6 +28,8 @@
       reservedStationsSkipped: 0,
       ingressRoutesCreated: 0,
       ingressRoutesInvalidated: 0,
+      interiorIngressRebases: 0,
+      interiorIngressMetersSaved: 0,
       releasedLifetime: 0,
       assignmentsByRole: {},
       captainWindowAssignments: 0,
@@ -232,6 +234,23 @@
       }
       context(sim).stats.ingressRoutesCreated++;
       emit(sim, 'ingress', t, { door: t.route.door, reason: 'geometry-changed' });
+    }
+    /* Reconsider only an obsolete DOOR route after the man has actually
+       entered his assigned building. Route geometry is supplied by the
+       movement-execution owner; station reservation and task never change. */
+    if (t.route && R && R.rebaseIngress) {
+      var indoor = R.rebaseIngress(s, sim, t.position, t.route);
+      if (indoor) {
+        t.route = indoor;
+        context(sim).stats.interiorIngressRebases++;
+        context(sim).stats.interiorIngressMetersSaved += indoor.savedDistance;
+        emit(sim, 'ingress', t, {
+          door: null,
+          enteredDoor: indoor.enteredDoor,
+          reason: 'already-inside-shortcut',
+          savedMeters: indoor.savedDistance
+        });
+      }
     }
     var ingressDist = distance(s.root.position, anchorOf(t));
     if (t.lastIngressDist == null || ingressDist < t.lastIngressDist - 0.2) {
