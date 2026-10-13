@@ -189,10 +189,12 @@ stageReport = staged.E.updateSquad(staged.q, staged.b);
 assert.ok(stageReport.fireSupport.includes(firstSupport));
 assert.ok(!stageReport.fireSupport.includes(secondSupport), 'suppression removes genuine second-rifle readiness');
 assert.equal(staged.q.inContact, true, 'first rifle may continue even when the second is pinned');
-firstSupport.suppressedUntil = staged.b.time + 1;
+secondSupport.suppressedUntil = 0;
+firstSupport.reloading = true;
+secondSupport.reloading = true;
 stageReport = staged.E.updateSquad(staged.q, staged.b);
-assert.equal(stageReport.fireSupport.length, 0, 'no effective rifles means no base of fire');
-assert.equal(staged.q.inContact, false, 'two assigned but pinned rifles do not manufacture contact');
+assert.equal(stageReport.fireSupport.length, 0, 'reloading rifles are no base of fire');
+assert.equal(staged.q.inContact, false, 'two assigned but incapable rifles do not manufacture contact');
 const legacy = world('&effectiveFire=0'),
   sl = legacy.q.members.find(s => s.role === 'sergeant');
 assert.ok(
