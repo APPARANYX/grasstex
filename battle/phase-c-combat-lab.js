@@ -51,7 +51,6 @@
     if (!soldier || !(('BDEF'.includes(preset) && soldier.faction === 'ge') ||
           (preset === 'E' && soldier.faction === 'us'))) return false;
     counts.blockedDeaths++;
-    soldier.hp = Math.max(1, soldier.hp);
     record('absorbed death', soldier.faction.toUpperCase() + ' soldier ' + soldier.id, b && b.time);
     return true;
   }
