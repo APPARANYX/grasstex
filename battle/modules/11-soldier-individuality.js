@@ -236,8 +236,7 @@
   function stanceFactor(s, sim) {
     var now = sim ? +sim.time || 0 : 0;
     if (s.prone && s.crawling) return CRAWL_FACTOR;
-    if (!s.prone && (s.tacticalCrouch || s.crouching || suppressedCrouch(s, now)))
-      return CROUCH_FACTOR;
+    if (!s.prone && (s.tacticalCrouch || s.crouching || suppressedCrouch(s, now))) return CROUCH_FACTOR;
     return 1;
   }
   function updateSpeeds(sim) {

@@ -1651,8 +1651,7 @@
     var lab = root.PhaseCCombatLab,
       N = root.BattleNavigation,
       C = root.BattleCoverPositions,
-      orderedCovered =
-        !!e.moveReason && e.moveReason.indexOf('authorized fireteam bound: cover') === 0,
+      orderedCovered = !!e.moveReason && e.moveReason.indexOf('authorized fireteam bound: cover') === 0,
       dash =
         !!(lab && lab.movementPace === 'purposeful') &&
         !crawl &&
@@ -1663,8 +1662,13 @@
         !!(N && N.movementClear && N.movementClear(p, { x: cover.x, z: cover.z }));
     if (dash && orderedCovered) {
       var reports = C && C.boundThreats && C.boundThreats(s, battle);
-      dash = !!(C && C.boundRoute && reports && reports.length &&
-        C.boundRoute(s, battle, cover, reports, 'stand').eligible);
+      dash = !!(
+        C &&
+        C.boundRoute &&
+        reports &&
+        reports.length &&
+        C.boundRoute(s, battle, cover, reports, 'stand').eligible
+      );
     }
     commitStance(
       s,
