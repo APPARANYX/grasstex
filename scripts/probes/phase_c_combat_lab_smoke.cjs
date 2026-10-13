@@ -34,9 +34,10 @@ const { chromium } = require('playwright');
     });
     // Paired preset/range checks establish actual weapon and perception scaling.
     for (const [preset, rangeScale] of [['C', 0.5], ['F', 0.25], ['E', 1]]) {
+      const mode = preset === 'E' ? 'autonomous' : 'purposeful';
       const params = new URLSearchParams({
         combatLab: '1', labPreset: preset, labRange: String(rangeScale),
-        labMove: 'purposeful', defender: 'ge',
+        labMove: mode, defender: 'ge',
         seed: 'phase-c-natural-20261012-0015', localPlan: '1', localAmbush: '1',
         localManeuver: '1', coveredBounds: '1', fireCoverCycle: '1', squadReturnFire: '1'
       });
@@ -115,8 +116,8 @@ const { chromium } = require('playwright');
         };
       });
       assert.equal(initial.preset, preset, 'correct early native intervention');
-      assert.equal(initial.movementPace, 'purposeful', 'early native gait gate');
-      assert.equal(initial.movementSelected, 'purposeful', 'movement control is synchronized');
+      assert.equal(initial.movementPace, mode, 'early native gait gate');
+      assert.equal(initial.movementSelected, mode, 'movement control is synchronized');
       assert.equal(initial.rangeScale, rangeScale, 'lab reads range scale before spawn');
       assert.equal(initial.rangeSelected, String(rangeScale), 'range dropdown remains in sync');
       assert.ok(Math.abs(initial.weapon.actualRange - initial.weapon.baseRange * rangeScale) < 1e-6,
@@ -140,7 +141,7 @@ const { chromium } = require('playwright');
       assert.equal(initial.seed, 'phase-c-natural-20261012-0015');
       const report = await page.evaluate(() => window.PhaseCCombatLab.snapshot());
       assert.equal(report.rangeScale, rangeScale, 'export preserves experimental range multiplier');
-      assert.equal(report.movementPace, 'purposeful', 'export carries native gait A/B provenance');
+      assert.equal(report.movementPace, mode, 'export carries native gait A/B provenance');
       assert.equal(report.soldiers[0].weaponRange, initial.weapon.actualRange,
         'export includes actual scaled weapon reach');
       assert.equal(report.victoryRules.objectiveHold, false,
@@ -211,7 +212,7 @@ const { chromium } = require('playwright');
             totals: {}, byState: {}, byGoal: {}, reasons: {}, stillByState: {}, stillByGoal: {},
             samples: [], movingTicks: 0, crawlingTicks: 0,
             boundTicks: 0, boundSprintTicks: 0, boundCrouchRunTicks: 0,
-            sprintTicks: 0, time: 0
+            sprintTicks: 0, autonomousTicks: 0, autonomyReasons: {}, slowContactTransit: 0, time: 0
           };
           const add = (dst, label) => { dst[label] = (dst[label] || 0) + 1; };
           b.resume();
@@ -228,6 +229,14 @@ const { chromium } = require('playwright');
                   s.destination.z - s.root.position.z) || 0,
                 bucket = s.moving ? 'moving' : 'stopped';
               add(out.totals, bucket + ':' + stance + ':' + gait);
+              const autonomy = s._bodyAutonomyIntent;
+              if (autonomy && s.moving) {
+                out.autonomousTicks++;
+                add(out.autonomyReasons, autonomy.reason + ':' + gait);
+                if (['open-contact-transit', 'cautious-contact-transit'].includes(autonomy.reason) &&
+                    !['run', 'sprint', 'crouchRun'].includes(gait))
+                  out.slowContactTransit++;
+              }
               if (s.moving) {
                 out.movingTicks++;
                 add(out.byState, state + ':' + gait);
@@ -269,6 +278,12 @@ const { chromium } = require('playwright');
         fs.writeFileSync(out + '/movement-causality.json', JSON.stringify(causal, null, 2));
         console.log('PHASE_C_MOVEMENT_CAUSALITY ' + JSON.stringify(causal));
         assert.ok(causal.boundTicks > 0, 'real contact produced native cover-bound movement');
+        if (mode === 'autonomous') {
+          assert.ok(causal.autonomousTicks > 0,
+            'winning native movement orders must activate joint soldier stance/gait policy');
+          assert.equal(causal.slowContactTransit, 0,
+            'active open/cautious contact transit cannot move at a walk');
+        }
         assert.ok(causal.boundSprintTicks > 0,
           'a true Engagement cover bound, not rage, must reach the sprint gait');
         assert.ok(causal.boundCrouchRunTicks > 0,
