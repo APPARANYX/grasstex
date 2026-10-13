@@ -14,6 +14,7 @@ on:
     paths:
       - 'battle/**'
       - 'battle_sim_local.php'
+      - 'scripts/probes/phase_c_combat_lab_smoke.cjs'
       - '.github/workflows/deploy-50webs-preview.yml'
   workflow_dispatch:
     inputs:
