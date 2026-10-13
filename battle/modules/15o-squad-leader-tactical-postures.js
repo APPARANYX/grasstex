@@ -581,11 +581,7 @@
         rs.length &&
         ctx.ASSAULT_PHASES &&
         ctx.ASSAULT_PHASES[sq.commandPhase || ''] &&
-        (!ctx.COA_ON ||
-          !sq.coa ||
-          !ctx.COAS ||
-          !ctx.COAS[sq.coa] ||
-          ctx.COAS[sq.coa].bounds) &&
+        (!ctx.COA_ON || !sq.coa || !ctx.COAS || !ctx.COAS[sq.coa] || ctx.COAS[sq.coa].bounds) &&
         report &&
         Array.isArray(report.fireSupport) &&
         supportingCount(a, null, report.fireSupport, now, b) >= tuning.minSupport

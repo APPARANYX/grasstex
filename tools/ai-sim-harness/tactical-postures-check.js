@@ -511,13 +511,10 @@ assert.equal(defensive.r.BattleLeases.get(defensive.q, 'bound'), null);
 const initiative = world(true, true, true);
 const initiativeMan = initiative.q.members[0],
   initiativeCover = initiative.r.BattleCoverPositions;
+const initiativeThreats = [{ x: 0, z: 20, at: 0, confidence: 1 }];
 const initiativeRoute = paths
   .map(z => ({ x: initiativeMan.root.position.x, z }))
-  .find(p =>
-    initiativeCover.boundRoute(initiativeMan, initiative.b, p, [
-      { x: 0, z: 20, at: 0, confidence: 1 }
-    ]).eligible
-  );
+  .find(p => initiativeCover.boundRoute(initiativeMan, initiative.b, p, initiativeThreats).eligible);
 assert.ok(initiativeRoute, 'live terrain has a valid short covered route');
 initiativeCover.candidates = () => [initiativeRoute];
 const initiativeReady = nativePreparedLine(initiative);
