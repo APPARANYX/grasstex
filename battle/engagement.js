@@ -1639,7 +1639,40 @@
         PRONE_ROLES[s.role] &&
         !e.urgentBound &&
         (CRAWL_FIT ? canCrawlTo(s, battle, d) : d < 14);
-    commitStance(s, battle, crawl ? 'crawl' : 'crouch', Math.max(1, e.until - battle.time));
+    /* On a lab-only A/B trial, make a genuine committed cover displacement a
+       short DASH when it has a straight physically legal segment and enough
+       ground to justify standing up. Remaining crouched currently forces the
+       gait owner to choose crouchRun; no actual sprint can ever occur.
+       A Squad Leader's certified COVERED bound gets an additional stand-height
+       survey: crouch concealment alone is NOT permission to sprint upright.
+       Individual cover-seeking already committed here may dash over exposed
+       open ground rather than crouch-run 20m under direct pressure. There is
+       no new permission, supporter, or squad movement order. */
+    var lab = root.PhaseCCombatLab,
+      N = root.BattleNavigation,
+      C = root.BattleCoverPositions,
+      orderedCovered =
+        !!e.moveReason && e.moveReason.indexOf('authorized fireteam bound: cover') === 0,
+      dash =
+        !!(lab && lab.movementPace === 'purposeful') &&
+        !crawl &&
+        d > 6 &&
+        !s.reloading &&
+        !s.clearingStoppage &&
+        !SA().isMachineGun(s) &&
+        !!(N && N.movementClear && N.movementClear(p, { x: cover.x, z: cover.z }));
+    if (dash && orderedCovered) {
+      var reports = C && C.boundThreats && C.boundThreats(s, battle);
+      dash = !!(C && C.boundRoute && reports && reports.length &&
+        C.boundRoute(s, battle, cover, reports, 'stand').eligible);
+    }
+    commitStance(
+      s,
+      battle,
+      crawl ? 'crawl' : dash ? 'stand' : 'crouch',
+      Math.max(1, e.until - battle.time),
+      dash ? 'purposeful cover dash' : 'cover-bound'
+    );
     move(s, battle, { x: cover.x, z: cover.z }, 'cover-bound');
   }
 
