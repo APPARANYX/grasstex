@@ -171,6 +171,24 @@
           (+s.destination.z || 0) - (+s.root.position.z || 0)
         );
   }
+  /* Suppression usually enforces a low gait, but Engagement can expressly
+     commit a lab-only, short upright cover dash. Honor THAT stance decision
+     rather than silently converting the sprint back into crouchRun while
+     the outgoing suppression timer is still live. Engagement owns stance;
+     this gait owner still owns only speed and animation. */
+  function suppressedCrouch(s, now) {
+    if (!(+s.suppressedUntil > now)) return false;
+    var lab = root.PhaseCCombatLab,
+      e = s.eng || {};
+    return !(
+      lab &&
+      lab.movementPace === 'purposeful' &&
+      e.state === 'bound' &&
+      e.stance === 'stand' &&
+      !s.prone &&
+      !s.tacticalCrouch
+    );
+  }
   function desiredGait(s, sim) {
     if (!s || s.dead) return 'walk';
     var d = distanceToDestination(s),
@@ -185,7 +203,7 @@
       if (player) return player.pace === 'run' ? 'proneFast' : 'proneNormal';
       return urgent || e.state === 'bound' || d > 4 ? 'proneFast' : 'proneNormal';
     }
-    var crouched = !!(s.tacticalCrouch || s.crouching || (+s.suppressedUntil || 0) > now);
+    var crouched = !!(s.tacticalCrouch || s.crouching || suppressedCrouch(s, now));
     if (crouched) {
       if (s.reloading || s.clearingStoppage) return 'crouchWalk';
       if (player) return player.pace === 'run' ? 'crouchRun' : 'crouchWalk';
@@ -218,7 +236,7 @@
   function stanceFactor(s, sim) {
     var now = sim ? +sim.time || 0 : 0;
     if (s.prone && s.crawling) return CRAWL_FACTOR;
-    if (!s.prone && (s.tacticalCrouch || s.crouching || (+s.suppressedUntil || 0) > now))
+    if (!s.prone && (s.tacticalCrouch || s.crouching || suppressedCrouch(s, now)))
       return CROUCH_FACTOR;
     return 1;
   }
