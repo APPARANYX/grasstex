@@ -786,6 +786,50 @@ assert.equal(
   'an unready post that lost masking is abandoned'
 );
 assert.equal(unreadyMask.P.summary(unreadyMask.b).releaseReasons['firing station lost masking/ray'], 1);
+/* An extra rifleman losing his masked post must not cancel the three
+   independently safe members; he loses his order and cannot contribute to
+   the four-second held-core timer. Losing a held core member still fails
+   closed, even when the squad has spare concealed participants. */
+const extraMask = world();
+const extraPosture = extraMask.P.update(extraMask.b, extraMask.q);
+assert.ok(extraPosture && extraPosture.orders.length >= 4, 'fixture requires a real surplus post');
+const extraOrder = extraPosture.orders[extraPosture.orders.length - 1];
+const originalMask = extraMask.r.BattleCoverPositions.maskedPost;
+extraMask.r.BattleCoverPositions.maskedPost = (battle, p, reports) =>
+  Math.hypot(p.x - extraOrder.point.x, p.z - extraOrder.point.z) > 0.05 &&
+  originalMask(battle, p, reports);
+const remainingLine = extraMask.P.update(extraMask.b, extraMask.q);
+assert.equal(remainingLine, extraPosture, 'uncompromised firing element stays in place');
+assert.equal(remainingLine.orders.length, extraPosture.members.length - 1);
+assert.ok(
+  remainingLine.orders.every(o => o.soldierId !== extraOrder.soldierId),
+  'exposed surplus member no longer receives a posture order'
+);
+assert.equal(
+  extraMask.P.summary(extraMask.b).releaseReasons['firing station lost masking/ray'] || 0,
+  0,
+  'a single exposed surplus man is not a whole-line failure'
+);
+const heldMask = world();
+const heldPosture = heldMask.P.update(heldMask.b, heldMask.q);
+let heldMaskCore = null;
+for (let i = 0; i < 45 && !heldMaskCore; i++) {
+  H.run(heldMask.r, heldMask.b, 0.15);
+  const current = heldMask.P.current(heldMask.b, heldMask.q);
+  if (current && current.stage === 'hold' && current.heldActorIds.length === 3) heldMaskCore = current;
+}
+assert.ok(heldMaskCore && heldMaskCore.orders.length > 3, 'fixture needs a held core and an extra man');
+const threatenedOrder = heldMaskCore.orders.find(o => o.soldierId === heldMaskCore.heldActorIds[0]);
+const beforeMask = heldMask.r.BattleCoverPositions.maskedPost;
+heldMask.r.BattleCoverPositions.maskedPost = (battle, p, reports) =>
+  Math.hypot(p.x - threatenedOrder.point.x, p.z - threatenedOrder.point.z) > 0.05 &&
+  beforeMask(battle, p, reports);
+assert.equal(
+  heldMask.P.update(heldMask.b, heldMask.q),
+  null,
+  'a held core member losing concealment cannot silently borrow a spare man or his dwell'
+);
+
 const readyMask = world();
 const readyMaskLine = nativePreparedLine(readyMask);
 assert.equal(readyMaskLine.stage, 'ready');

@@ -805,21 +805,30 @@
       }
       st.at = now;
       st.threats = rs;
-      var masked =
-        rs.length > 0 &&
-        st.orders.every(function (o) {
-          return C.maskedPost(b, o.point, rs);
-        });
-      if (!masked) {
-        /* Concealment is the preparation criterion. Before the line is
-           ready, a post the fresh picture can now see is abandoned. A ready
-           line whose post is now visible from a reported coordinate is
-           compromised, not dissolved: the enemy has walked into the kill
-           zone or found the line, and standing the men up to march back into
-           formation is the exposed move. The observation budget, contact and
-           pressure rules below still decide what happens to it. */
-        if (st.readyAt == null) return end(b, sq, 'firing station lost masking/ray');
-        if (st.compromisedAt == null) {
+      var exposedOrders =
+        rs.length > 0
+          ? st.orders.filter(function (o) {
+              return !C.maskedPost(b, o.point, rs);
+            })
+          : st.orders.slice();
+      if (exposedOrders.length) {
+        /* Before readiness the selected three-man core must remain truly
+           concealed. But a fifth participant's exposed post is not a reason
+           to dissolve three other, independently concealed stations. Remove
+           only the extra orders; the existing publisher then stops issuing
+           them. Never substitute a held man or inherit his dwell time. */
+        if (st.readyAt == null) {
+          var coreCompromised = exposedOrders.some(function (o) {
+            return st.heldActorIds.indexOf(o.soldierId) >= 0;
+          });
+          if (coreCompromised || st.orders.length - exposedOrders.length < 3)
+            return end(b, sq, 'firing station lost masking/ray');
+          st.orders = st.orders.filter(function (o) {
+            return exposedOrders.indexOf(o) < 0;
+          });
+        } else if (st.compromisedAt == null) {
+          /* After readiness concealment can be lost to enemy contact, but
+             the same verified men hold their posts until combat resolves. */
           st.compromisedAt = now;
           st.stats.compromisedLines = (st.stats.compromisedLines || 0) + 1;
         }
