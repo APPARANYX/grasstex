@@ -39,7 +39,19 @@ const { chromium } = require('playwright');
         seed: 'phase-c-natural-20261012-0015', localPlan: '1', localAmbush: '1',
         localManeuver: '1', coveredBounds: '1', fireCoverCycle: '1', squadReturnFire: '1'
       });
-      await page.goto(base + '?' + params.toString(), { waitUntil: 'domcontentloaded', timeout: 180000 });
+      // 50webs occasionally refuses a connection between consecutive preview page loads.
+      // Retry only navigation-level transport failures, never a simulation assertion.
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        try {
+          await page.goto(base + '?' + params.toString(), {
+            waitUntil: 'domcontentloaded', timeout: 180000
+          });
+          break;
+        } catch (error) {
+          if (attempt === 4 || !/ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ERR_EMPTY_RESPONSE|ERR_TIMED_OUT/.test(String(error))) throw error;
+          await new Promise(resolve => setTimeout(resolve, attempt * 1600));
+        }
+      }
       try {
         await page.waitForFunction(() =>
           !!(window.__battle__ && window.PhaseCCombatLab &&
