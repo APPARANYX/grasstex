@@ -13,6 +13,7 @@
      hearing, callout relay, damage and the 0.15 s step keep their native meanings. */
   var rangeScale = Number(params.get('labRange'));
   if (rangeScale !== 1 && rangeScale !== 0.5 && rangeScale !== 0.25) rangeScale = 0.5;
+  var movementPace = params.get('labMove') === 'baseline' ? 'baseline' : 'purposeful';
   var scenarios = {
     ge15: { title: 'US assault vs German defense', seed: 'phase-c-natural-20261012-0015', defender: 'ge' },
     meeting: { title: 'Meeting engagement', seed: 'phase-c-natural-20261012-0001', defender: '' },
@@ -124,6 +125,9 @@
       '<option value="1">1× · native ranges (control)</option>' +
       '<option value="0.5">½× · medium contact (recommended)</option>' +
       '<option value="0.25">¼× · close contact</option></select>' +
+      '<label for="labMove">Movement into firing positions</label><select id="labMove">' +
+      '<option value="purposeful">Purposeful · crouch-run, settle near cover</option>' +
+      '<option value="baseline">Baseline · original cautious movement</option></select>' +
       '<label for="labPreset">Combat isolation preset</label><select id="labPreset">' +
       '<option value="A">A · Normal: both sides fire and take damage</option>' +
       '<option value="B">B · Germans cannot be wounded/killed</option>' +
@@ -157,12 +161,14 @@
     select.value = scenarioKey;
     panel.querySelector('#labPreset').value = preset;
     panel.querySelector('#labRange').value = String(rangeScale);
+    panel.querySelector('#labMove').value = movementPace;
     function navigate() {
       var s = scenarios[select.value],
         p = new URLSearchParams(root.location.search);
       p.set('combatLab', '1');
       p.set('labPreset', panel.querySelector('#labPreset').value);
       p.set('labRange', panel.querySelector('#labRange').value);
+      p.set('labMove', panel.querySelector('#labMove').value);
       p.set('seed', s.seed);
       if (s.defender) p.set('defender', s.defender);
       else p.delete('defender');
@@ -181,6 +187,7 @@
     select.onchange = navigate;
     panel.querySelector('#labPreset').onchange = navigate;
     panel.querySelector('#labRange').onchange = navigate;
+    panel.querySelector('#labMove').onchange = navigate;
     playButton = panel.querySelector('#labPlay');
     playButton.onclick = function () {
       if (!battle || battle.winner) return;
@@ -402,6 +409,7 @@
         battle.scene.metadata.battleScenario &&
         battle.scene.metadata.battleScenario.seed,
       preset: preset,
+      movementPace: movementPace,
       rangeScale: rangeScale,
       rangeScaling: 'issued weapon range/falloff/autoWithin + visual detection/tracking; hearing unchanged',
       scenario: scenarioKey,
@@ -448,7 +456,7 @@
     output.textContent =
       'Range ' +
       rangeScale +
-      '× (weapons + sight; hearing unchanged)\nUS squads:\n' +
+      '× · movement ' + movementPace + ' (weapons + sight; hearing unchanged)\nUS squads:\n' +
       s.squads.us
         .map(function (v) {
           return (
@@ -495,6 +503,7 @@
   root.PhaseCCombatLab = {
     preset: preset,
     rangeScale: rangeScale,
+    movementPace: movementPace,
     blockShot: blockShot,
     preventWound: preventWound,
     preventDeath: preventDeath,
