@@ -104,7 +104,7 @@
   function wound(shooter, victim, battle, hit) {
     /* Grenade fragments call this model directly, rather than via SquadAI.applyHit. */
     if (root.PhaseCCombatLab && root.PhaseCCombatLab.preventWound(shooter, victim, battle, hit))
-      return { zone: hit && hit.zone || 'unknown', outcome: 'lab-absorbed', damage: 0 };
+      return { zone: (hit && hit.zone) || 'unknown', outcome: 'lab-absorbed', damage: 0 };
     /* Fragment severity belongs to the released explosive, independent of the thrower's gun
        (which can be abandoned before the fuse expires). Ordinary rounds keep their existing rolls. */
     var blast = !!(hit && hit.blast),

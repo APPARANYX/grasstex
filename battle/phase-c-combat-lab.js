@@ -14,15 +14,30 @@
     meeting: { title: 'Meeting engagement', seed: 'phase-c-natural-20261012-0001', defender: '' },
     us17: { title: 'German assault vs US defense', seed: 'phase-c-natural-20261012-0017', defender: 'us' }
   };
-  var scenarioKey = Object.keys(scenarios).find(function (k) {
-    return scenarios[k].seed === params.get('seed') && scenarios[k].defender === (params.get('defender') || '');
-  }) || 'ge15';
-  var battle = null, scene = null, camera = null, lastRenderAt = 0;
-  var counts = freshCounters(), history = [], lastDecision = Object.create(null);
+  var scenarioKey =
+    Object.keys(scenarios).find(function (k) {
+      return (
+        scenarios[k].seed === params.get('seed') && scenarios[k].defender === (params.get('defender') || '')
+      );
+    }) || 'ge15';
+  var battle = null,
+    scene = null,
+    camera = null,
+    lastRenderAt = 0;
+  var counts = freshCounters(),
+    history = [],
+    lastDecision = Object.create(null);
   var panel, output, events, playButton;
   function freshCounters() {
-    return { shots: { us: 0, ge: 0 }, impacts: { us: 0, ge: 0 }, suppressive: { us: 0, ge: 0 },
-      blockedFireRequests: 0, absorbedWounds: { us: 0, ge: 0 }, blockedDeaths: 0, bounds: 0 };
+    return {
+      shots: { us: 0, ge: 0 },
+      impacts: { us: 0, ge: 0 },
+      suppressive: { us: 0, ge: 0 },
+      blockedFireRequests: 0,
+      absorbedWounds: { us: 0, ge: 0 },
+      blockedDeaths: 0,
+      bounds: 0
+    };
   }
   function record(kind, detail, t) {
     history.push({ at: +(+t || 0).toFixed(2), kind: kind, detail: detail });
@@ -36,20 +51,29 @@
     return true;
   }
   function preventWound(shooter, victim, b, hit) {
-    if (!victim || !('BDEF'.includes(preset) && victim.faction === 'ge' ||
-          preset === 'E' && victim.faction === 'us')) return false;
+    if (
+      !victim ||
+      !(('BDEF'.includes(preset) && victim.faction === 'ge') || (preset === 'E' && victim.faction === 'us'))
+    )
+      return false;
     counts.absorbedWounds[victim.faction]++;
     /* Ballistic hit recognition stays authentic. No wound, bleed, accuracy loss or casualty.
        Short shock still pins the struck man through the native suppression owner. */
     if (root.SquadAI && root.SquadAI.pin) root.SquadAI.pin(victim, b, 0.8);
     if (counts.absorbedWounds[victim.faction] <= 3)
-      record('absorbed hit', victim.faction.toUpperCase() + ' soldier ' + victim.id +
-        ' (native hit, no damage)', b && b.time);
+      record(
+        'absorbed hit',
+        victim.faction.toUpperCase() + ' soldier ' + victim.id + ' (native hit, no damage)',
+        b && b.time
+      );
     return true;
   }
   function preventDeath(soldier, killer, b) {
-    if (!soldier || !(('BDEF'.includes(preset) && soldier.faction === 'ge') ||
-          (preset === 'E' && soldier.faction === 'us'))) return false;
+    if (
+      !soldier ||
+      !(('BDEF'.includes(preset) && soldier.faction === 'ge') || (preset === 'E' && soldier.faction === 'us'))
+    )
+      return false;
     counts.blockedDeaths++;
     record('absorbed death', soldier.faction.toUpperCase() + ' soldier ' + soldier.id, b && b.time);
     return true;
@@ -125,14 +149,23 @@
     select.value = scenarioKey;
     panel.querySelector('#labPreset').value = preset;
     function navigate() {
-      var s = scenarios[select.value], p = new URLSearchParams(root.location.search);
+      var s = scenarios[select.value],
+        p = new URLSearchParams(root.location.search);
       p.set('combatLab', '1');
       p.set('labPreset', panel.querySelector('#labPreset').value);
       p.set('seed', s.seed);
       if (s.defender) p.set('defender', s.defender);
       else p.delete('defender');
-      ['localPlan','localAmbush','localManeuver','coveredBounds','fireCoverCycle','squadReturnFire']
-        .forEach(function (key) { p.set(key, '1'); });
+      [
+        'localPlan',
+        'localAmbush',
+        'localManeuver',
+        'coveredBounds',
+        'fireCoverCycle',
+        'squadReturnFire'
+      ].forEach(function (key) {
+        p.set(key, '1');
+      });
       root.location.search = p.toString();
     }
     select.onchange = navigate;
@@ -159,7 +192,9 @@
     panel.querySelector('#labReset').onclick = function () {
       if (!battle) return;
       battle.pause();
-      counts = freshCounters(); history = []; lastDecision = Object.create(null);
+      counts = freshCounters();
+      history = [];
+      lastDecision = Object.create(null);
       battle.restart();
       battle.timeLimit = 600;
       record('reset', 'Native battle restarted, same scenario seed', 0);
@@ -169,42 +204,78 @@
       var v = snapshot();
       if (!v) return;
       var blob = new Blob([JSON.stringify(v, null, 2)], { type: 'application/json' });
-      var url = URL.createObjectURL(blob), a = document.createElement('a');
-      a.href = url; a.download = 'phase-c-native-' + preset + '-' + v.seed + '.json';
-      a.click(); setTimeout(function () { URL.revokeObjectURL(url); }, 500);
+      var url = URL.createObjectURL(blob),
+        a = document.createElement('a');
+      a.href = url;
+      a.download = 'phase-c-native-' + preset + '-' + v.seed + '.json';
+      a.click();
+      setTimeout(function () {
+        URL.revokeObjectURL(url);
+      }, 500);
     };
-    output = panel.querySelector('#labStatus'); events = panel.querySelector('#labEvents');
-    panel.querySelector('#labMode').textContent = preset === 'A' ? 'Control: full lethal combat' :
-      preset === 'B' ? 'GE mortality OFF · German fire ON' :
-      preset === 'C' ? 'GE shooting OFF · normal mortality' :
-      preset === 'D' ? 'GE shooting OFF · GE mortality OFF' :
-      preset === 'E' ? 'GE shooting ON · damage to US & GE OFF' :
-      'GE movement OFF · shooting OFF · mortality OFF';
+    output = panel.querySelector('#labStatus');
+    events = panel.querySelector('#labEvents');
+    panel.querySelector('#labMode').textContent =
+      preset === 'A'
+        ? 'Control: full lethal combat'
+        : preset === 'B'
+          ? 'GE mortality OFF · German fire ON'
+          : preset === 'C'
+            ? 'GE shooting OFF · normal mortality'
+            : preset === 'D'
+              ? 'GE shooting OFF · GE mortality OFF'
+              : preset === 'E'
+                ? 'GE shooting ON · damage to US & GE OFF'
+                : 'GE movement OFF · shooting OFF · mortality OFF';
   }
 
   function installCamera(options) {
     var previous = root.BattleDesktopCamera.current;
     if (previous && previous.stop) previous.stop();
-    var c = new BABYLON.ArcRotateCamera('phase-c-overhead', -Math.PI / 2, 0.2, 265,
-      new BABYLON.Vector3(0, 0, 0), options.scene);
-    c.lowerRadiusLimit = 105; c.upperRadiusLimit = 430;
-    c.lowerBetaLimit = 0.09; c.upperBetaLimit = 1.2;
-    c.wheelPrecision = 6; c.panningSensibility = 240;
+    var c = new BABYLON.ArcRotateCamera(
+      'phase-c-overhead',
+      -Math.PI / 2,
+      0.2,
+      265,
+      new BABYLON.Vector3(0, 0, 0),
+      options.scene
+    );
+    c.lowerRadiusLimit = 105;
+    c.upperRadiusLimit = 430;
+    c.lowerBetaLimit = 0.09;
+    c.upperBetaLimit = 1.2;
+    c.wheelPrecision = 6;
+    c.panningSensibility = 240;
     c.attachControl(options.canvas, true);
     options.scene.activeCamera = c;
     camera = c;
-    var setup = { camera: c, desktop: false, hint: 'Overhead tactical view · drag to orbit · wheel to zoom',
-      mode: 'combat-lab', stop: function () { c.detachControl(options.canvas); } };
+    var setup = {
+      camera: c,
+      desktop: false,
+      hint: 'Overhead tactical view · drag to orbit · wheel to zoom',
+      mode: 'combat-lab',
+      stop: function () {
+        c.detachControl(options.canvas);
+      }
+    };
     root.BattleDesktopCamera.current = setup;
     return setup;
   }
 
   function attachBattle(b, scn, cam) {
     if (battle === b) return;
-    battle = b; scene = scn || b.scene; camera = cam || camera;
-    counts = freshCounters(); history = []; lastDecision = Object.create(null);
-    b.timeLimit = 600; b.pause(); b.setTimeScale(1);
-    var fire = b.onFire, shot = b.onShot, area = b.onSuppressiveShot;
+    battle = b;
+    scene = scn || b.scene;
+    camera = cam || camera;
+    counts = freshCounters();
+    history = [];
+    lastDecision = Object.create(null);
+    b.timeLimit = 600;
+    b.pause();
+    b.setTimeScale(1);
+    var fire = b.onFire,
+      shot = b.onShot,
+      area = b.onSuppressiveShot;
     b.onFire = function (s, delay) {
       if (s && counts.shots[s.faction] != null) counts.shots[s.faction]++;
       if (s && (counts.shots[s.faction] || 0) <= 4)
@@ -214,15 +285,32 @@
     b.onShot = function (s, target, hit, d, meta) {
       if (hit && s && counts.impacts[s.faction] != null) counts.impacts[s.faction]++;
       if (hit && s && counts.impacts[s.faction] <= 8)
-        record('ballistic hit', s.faction.toUpperCase() + ' ' + s.id +
-          ' → ' + (meta && meta.victim ? meta.victim.id : target && target.id), b.time);
+        record(
+          'ballistic hit',
+          s.faction.toUpperCase() +
+            ' ' +
+            s.id +
+            ' → ' +
+            (meta && meta.victim ? meta.victim.id : target && target.id),
+          b.time
+        );
       if (shot) return shot.apply(this, arguments);
     };
     b.onSuppressiveShot = function (s, point, recipients, rounds) {
       if (s && counts.suppressive[s.faction] != null) counts.suppressive[s.faction] += rounds || 0;
       if (s && (counts.suppressive[s.faction] || 0) <= 12)
-        record('area support', s.faction.toUpperCase() + ' ' + s.id +
-          ' · ' + (rounds || 0) + ' rounds / ' + recipients + ' pinned', b.time);
+        record(
+          'area support',
+          s.faction.toUpperCase() +
+            ' ' +
+            s.id +
+            ' · ' +
+            (rounds || 0) +
+            ' rounds / ' +
+            recipients +
+            ' pinned',
+          b.time
+        );
       if (area) return area.apply(this, arguments);
     };
     record('native range', '20 US / 10 GE · real squads, cover and ballistics · ' + preset, 0);
@@ -232,29 +320,56 @@
   function squadView(faction) {
     if (!battle) return [];
     return battle.factions[faction].squads.map(function (s) {
-      var fc = s.fireControl || {}, assigned = fc.supporterIds || [];
+      var fc = s.fireControl || {},
+        assigned = fc.supporterIds || [];
       var effective = assigned.filter(function (id) {
         return s.members.some(function (man) {
-          return String(man.id) === String(id) && root.BattleEngagement &&
-            root.BattleEngagement.supportReady && root.BattleEngagement.supportReady(man, battle);
+          return (
+            String(man.id) === String(id) &&
+            root.BattleEngagement &&
+            root.BattleEngagement.supportReady &&
+            root.BattleEngagement.supportReady(man, battle)
+          );
         });
       }).length;
       var posture = null;
-      if (root.BattleSquadLeader && root.BattleSquadLeader.tacticalPostures &&
-          root.BattleSquadLeader.tacticalPostures.current)
+      if (
+        root.BattleSquadLeader &&
+        root.BattleSquadLeader.tacticalPostures &&
+        root.BattleSquadLeader.tacticalPostures.current
+      )
         posture = root.BattleSquadLeader.tacticalPostures.current(battle, s);
-      var trail = (s._fireControlTrail || []);
-      var last = trail.length ? trail[trail.length-1] : null;
-      var status = { id:s.id, state:s.state, inContact:!!s.inContact,
-        fireControl:fc.state || 'none', assigned:assigned.length, effective:effective,
-        authorized:!!s._assaultAuthorized, bound:!!s._boundTurn,
-        posture:posture && posture.mode || null, lastReason:last && last.reason || null };
+      var trail = s._fireControlTrail || [];
+      var last = trail.length ? trail[trail.length - 1] : null;
+      var status = {
+        id: s.id,
+        state: s.state,
+        inContact: !!s.inContact,
+        fireControl: fc.state || 'none',
+        assigned: assigned.length,
+        effective: effective,
+        authorized: !!s._assaultAuthorized,
+        bound: !!s._boundTurn,
+        posture: (posture && posture.mode) || null,
+        lastReason: (last && last.reason) || null
+      };
       if (status.fireControl || status.bound)
         if (JSON.stringify(status) !== lastDecision[s.id]) {
           lastDecision[s.id] = JSON.stringify(status);
-          if (battle.time > 0) record('squad', s.id + ': ' + status.fireControl +
-            ' · ' + effective + '/' + assigned.length + ' effective/assigned · ' +
-            (status.authorized ? 'assault lawful' : 'assault denied'), battle.time);
+          if (battle.time > 0)
+            record(
+              'squad',
+              s.id +
+                ': ' +
+                status.fireControl +
+                ' · ' +
+                effective +
+                '/' +
+                assigned.length +
+                ' effective/assigned · ' +
+                (status.authorized ? 'assault lawful' : 'assault denied'),
+              battle.time
+            );
         }
       return status;
     });
@@ -262,21 +377,42 @@
   function snapshot() {
     if (!battle) return null;
     var units = battle._roster.us.concat(battle._roster.ge);
-    return { lab: 'phase-c-native-v2', preview: root.BATTLE_PREVIEW,
-      seed: battle.scene.metadata && battle.scene.metadata.battleScenario &&
+    return {
+      lab: 'phase-c-native-v2',
+      preview: root.BATTLE_PREVIEW,
+      seed:
+        battle.scene.metadata &&
+        battle.scene.metadata.battleScenario &&
         battle.scene.metadata.battleScenario.seed,
-      preset: preset, scenario: scenarioKey, simulationSeconds: +battle.time.toFixed(2),
-      winner: battle.winner || null, paused: battle.paused, boundsM: [280, 240],
+      preset: preset,
+      scenario: scenarioKey,
+      simulationSeconds: +battle.time.toFixed(2),
+      winner: battle.winner || null,
+      paused: battle.paused,
+      boundsM: [280, 240],
       counts: JSON.parse(JSON.stringify(counts)),
-      usAlive: battle.factions.us.alive, geAlive: battle.factions.ge.alive,
-      geSuppressed: battle._roster.ge.filter(function(s){return !s.dead && s.suppressedUntil>battle.time;}).length,
+      usAlive: battle.factions.us.alive,
+      geAlive: battle.factions.ge.alive,
+      geSuppressed: battle._roster.ge.filter(function (s) {
+        return !s.dead && s.suppressedUntil > battle.time;
+      }).length,
       squads: { us: squadView('us'), ge: squadView('ge') },
       soldiers: units.map(function (s) {
-        return { id: s.id, faction: s.faction, role: s.role,
-          squad: s.squad && s.squad.id, x: +s.root.position.x.toFixed(2),
-          z: +s.root.position.z.toFixed(2), hp: s.hp, dead:!!s.dead,
-          suppressedUntil: s.suppressedUntil || 0, moving:!!s.moving };
-      }), events: history.slice() };
+        return {
+          id: s.id,
+          faction: s.faction,
+          role: s.role,
+          squad: s.squad && s.squad.id,
+          x: +s.root.position.x.toFixed(2),
+          z: +s.root.position.z.toFixed(2),
+          hp: s.hp,
+          dead: !!s.dead,
+          suppressedUntil: s.suppressedUntil || 0,
+          moving: !!s.moving
+        };
+      }),
+      events: history.slice()
+    };
   }
   function render() {
     if (!battle || !panel) return;
@@ -289,17 +425,43 @@
     panel.querySelector('#labGE').textContent = s.geAlive;
     panel.querySelector('#labSuppressed').textContent = s.geSuppressed;
     playButton.textContent = battle.paused ? '▶ Play' : 'Ⅱ Pause';
-    output.textContent = 'US squads:\n' + s.squads.us.map(function (v) {
-      return v.id + ' · ' + v.fireControl.toUpperCase() + ' · support ' +
-        v.effective + '/' + v.assigned + ' · ' + (v.authorized ? 'assault OK' : 'hold');
-    }).join('\n') + '\nGE squads:\n' + s.squads.ge.map(function (v) {
-      return v.id + ' · ' + v.fireControl.toUpperCase() + ' · support ' + v.effective + '/' + v.assigned;
-    }).join('\n') + '\nIsolated requests: ' + s.counts.blockedFireRequests +
-      ' · absorbed hits: US ' + s.counts.absorbedWounds.us + ' / GE ' + s.counts.absorbedWounds.ge +
+    output.textContent =
+      'US squads:\n' +
+      s.squads.us
+        .map(function (v) {
+          return (
+            v.id +
+            ' · ' +
+            v.fireControl.toUpperCase() +
+            ' · support ' +
+            v.effective +
+            '/' +
+            v.assigned +
+            ' · ' +
+            (v.authorized ? 'assault OK' : 'hold')
+          );
+        })
+        .join('\n') +
+      '\nGE squads:\n' +
+      s.squads.ge
+        .map(function (v) {
+          return v.id + ' · ' + v.fireControl.toUpperCase() + ' · support ' + v.effective + '/' + v.assigned;
+        })
+        .join('\n') +
+      '\nIsolated requests: ' +
+      s.counts.blockedFireRequests +
+      ' · absorbed hits: US ' +
+      s.counts.absorbedWounds.us +
+      ' / GE ' +
+      s.counts.absorbedWounds.ge +
       (s.winner ? '\nWinner: ' + s.winner : '');
-    events.textContent = history.slice(-9).map(function (e) {
-      return e.at.toFixed(2) + 's · ' + e.kind + ': ' + e.detail;
-    }).join('\n') || 'No shots yet.';
+    events.textContent =
+      history
+        .slice(-9)
+        .map(function (e) {
+          return e.at.toFixed(2) + 's · ' + e.kind + ': ' + e.detail;
+        })
+        .join('\n') || 'No shots yet.';
   }
 
   makePanel();
@@ -308,7 +470,13 @@
      immediately after BattleSim.start (the PHP preview loader inserts that call). */
   if (root.BattleDesktopCamera && root.BattleDesktopCamera.create)
     root.BattleDesktopCamera.create = installCamera;
-  root.PhaseCCombatLab = { preset: preset, blockShot: blockShot,
-    preventWound: preventWound, preventDeath: preventDeath, stationary: stationary,
-    attachBattle: attachBattle, snapshot: snapshot };
+  root.PhaseCCombatLab = {
+    preset: preset,
+    blockShot: blockShot,
+    preventWound: preventWound,
+    preventDeath: preventDeath,
+    stationary: stationary,
+    attachBattle: attachBattle,
+    snapshot: snapshot
+  };
 })(window);

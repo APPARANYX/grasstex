@@ -1742,7 +1742,7 @@
   function applyHit(shooter, victim, battle, hit) {
     if (!victim || victim.dead) return null;
     if (root.PhaseCCombatLab && root.PhaseCCombatLab.preventWound(shooter, victim, battle, hit))
-      return { zone: hit && hit.zone || 'unknown', outcome: 'lab-absorbed', damage: 0 };
+      return { zone: (hit && hit.zone) || 'unknown', outcome: 'lab-absorbed', damage: 0 };
     return EXT.first('woundModel', flatDamage)(shooter, victim, battle, hit);
   }
 

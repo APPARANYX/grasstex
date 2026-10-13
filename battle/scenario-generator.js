@@ -283,7 +283,10 @@
       map: { width: MAP_W, depth: MAP_D, unitM: 20, source: 'ww2fps MAPW/MAPH' },
       terrain: { roughness: round(rr(r, 0.18, 0.78), 3) },
       settlement: { cx: round(cx, 1), cz: round(cz, 1), spanX: round(spanX, 1), spanZ: round(spanZ, 1) },
-      spawnZones: { us: { z: -spawnZ, lanes: lanes.slice() }, ge: { z: spawnZ, lanes: lab ? [0] : lanes.slice() } },
+      spawnZones: {
+        us: { z: -spawnZ, lanes: lanes.slice() },
+        ge: { z: spawnZ, lanes: lab ? [0] : lanes.slice() }
+      },
       roads: [
         { id: 'road-ns', ax: cx, az: cz - spanZ * 0.58, bx: cx, bz: cz + spanZ * 0.58, width: 10 },
         { id: 'road-ew', ax: cx - spanX * 0.58, az: cz, bx: cx + spanX * 0.58, bz: cz, width: 10 }
