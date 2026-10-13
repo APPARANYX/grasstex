@@ -67,6 +67,29 @@ assert.ok(s._locomotionGroundSpeed >= 2.5 && s._locomotionGroundSpeed <= 3.5,
   'ground speed is in the historically calibrated crouch-run band');
 assert.ok(Math.abs(s.speed * 0.58 - s._locomotionGroundSpeed) < 0.01,
   'the native integrator crouch factor does not slow the chosen gait twice');
+/* Only Engagement is allowed to raise a suppressed soldier. When it has
+ * already committed a real cover bound at standing height, locomotion must
+ * not silently replace that explicit dash with a crouch gait. */
+const dash = soldier(12, 'cover-bound', true, {
+  tacticalCrouch: false, suppressedUntil: 20,
+  eng: { state: 'bound', stance: 'stand' }
+});
+assert.equal(gait.desiredGait(dash, sim), 'sprint',
+  'a stand-height cover dash is not converted to crouchRun by suppression');
+root.BattleModules.system.onSimulationStep({ time: 12, units: [dash] });
+assert.equal(dash._locomotionGait, 'sprint');
+assert.ok(dash._locomotionGroundSpeed >= 5.5 && dash._locomotionGroundSpeed <= 6.7);
+assert.ok(Math.abs(dash.speed - dash._locomotionGroundSpeed) < 0.01,
+  'upright sprint speed is not compensated as crouch speed');
+dash.eng.stance = 'crouch';
+dash.tacticalCrouch = true;
+assert.equal(gait.desiredGait(dash, sim), 'crouchRun',
+  'Engagement crouched bound still requires crouch gait');
+dash.eng.state = 'pinned';
+dash.eng.stance = 'stand';
+dash.tacticalCrouch = false;
+assert.equal(gait.desiredGait(dash, sim), 'crouchWalk',
+  'an uncommitted upright pinned body cannot sprint under suppression');
 root.PhaseCCombatLab.movementPace = 'baseline';
 root.BattleModules.system.onSimulationStep({ time: 12, units: [s] });
 assert.equal(s._locomotionGait, 'crouchWalk');
