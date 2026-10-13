@@ -13,7 +13,8 @@
      hearing, callout relay, damage and the 0.15 s step keep their native meanings. */
   var rangeScale = Number(params.get('labRange'));
   if (rangeScale !== 1 && rangeScale !== 0.5 && rangeScale !== 0.25) rangeScale = 0.5;
-  var movementPace = params.get('labMove') === 'baseline' ? 'baseline' : 'purposeful';
+  var movementPace = ['baseline', 'purposeful'].indexOf(params.get('labMove')) >= 0
+    ? params.get('labMove') : 'autonomous';
   var scenarios = {
     ge15: { title: 'US assault vs German defense', seed: 'phase-c-natural-20261012-0015', defender: 'ge' },
     meeting: { title: 'Meeting engagement', seed: 'phase-c-natural-20261012-0001', defender: '' },
@@ -126,9 +127,10 @@
       '<option value="1">1× · native ranges (control)</option>' +
       '<option value="0.5">½× · medium contact (recommended)</option>' +
       '<option value="0.25">¼× · close contact</option></select>' +
-      '<label for="labMove">Movement into firing positions</label><select id="labMove">' +
-      '<option value="purposeful">Purposeful · crouch-run, settle near cover</option>' +
-      '<option value="baseline">Baseline · original cautious movement</option></select>' +
+      '<label for="labMove">Soldier body autonomy / contact pace</label><select id="labMove">' +
+      '<option value="autonomous">Autonomous · joint stance + gait, no casual contact walking</option>' +
+      '<option value="purposeful">Purposeful · earlier cover dash + station ingress</option>' +
+      '<option value="baseline">Baseline · native cautious contact pace</option></select>' +
       '<label for="labPreset">Combat isolation preset</label><select id="labPreset">' +
       '<option value="A">A · Normal: both sides fire and take damage</option>' +
       '<option value="B">B · Germans cannot be wounded/killed</option>' +
@@ -471,7 +473,9 @@
           stanceReason:
             s.eng && s.eng.stanceTrail && s.eng.stanceTrail.length
               ? s.eng.stanceTrail[s.eng.stanceTrail.length - 1].reason
-              : null
+              : null,
+          bodyAutonomy:
+            s._bodyAutonomyIntent && Object.assign({}, s._bodyAutonomyIntent) || null
         };
       }),
       events: history.slice()
