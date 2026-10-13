@@ -206,6 +206,8 @@ const { chromium } = require('playwright');
                     fullReserveAssaultSamples: 0,
                     fullReserveTwoReadyRiflesSamples: 0,
                     fullReserveDecisionSamples: 0,
+                    fullReserveCandidateWindowSamples: 0,
+                    firstFullReserveCandidateWindowAt: null,
                     firstFullReserveSnapshot: null,
                     lastFullReserveSnapshot: null,
                     stageEvents: [],
@@ -420,6 +422,19 @@ const { chromium } = require('playwright');
                   if (snapshot.phase === 'assault') attempt.fullReserveAssaultSamples++;
                   if (readyRifles.length >= 2) attempt.fullReserveTwoReadyRiflesSamples++;
                   if (snapshot.decision?.possible) attempt.fullReserveDecisionSamples++;
+                  /* This conjunction is only a candidate window, not proof of
+                     General/COA permission, physical cover or an issued bound. */
+                  if (
+                    snapshot.inContact &&
+                    snapshot.phase === 'assault' &&
+                    snapshot.readyAt != null &&
+                    snapshot.reportCount > 0 &&
+                    readyRifles.length >= 2
+                  ) {
+                    attempt.fullReserveCandidateWindowSamples++;
+                    if (attempt.firstFullReserveCandidateWindowAt == null)
+                      attempt.firstFullReserveCandidateWindowAt = snapshot.at;
+                  }
                 }
                 attempt.maxSettled = Math.max(attempt.maxSettled, settledCount);
                 attempt.maxMasked = Math.max(attempt.maxMasked, maskedCount);
@@ -1252,6 +1267,9 @@ const { chromium } = require('playwright');
                 a => a.reserveIds.length > 0 && a.maxReserveArrived >= a.reserveIds.length
               ).length,
               reserveReasons,
+              reserveFullArrivalWithCandidateWindow: reserveAttempts.filter(
+                a => a.fullReserveCandidateWindowSamples > 0
+              ).length,
               maneuvers: sum('maneuvers'),
               bounds: sum('bounds'),
               coveredArrivals: sum('coveredArrivals'),
@@ -1309,6 +1327,8 @@ const { chromium } = require('playwright');
                 fullReserveAssaultSamples: a.fullReserveAssaultSamples,
                 fullReserveTwoReadyRiflesSamples: a.fullReserveTwoReadyRiflesSamples,
                 fullReserveDecisionSamples: a.fullReserveDecisionSamples,
+                fullReserveCandidateWindowSamples: a.fullReserveCandidateWindowSamples,
+                firstFullReserveCandidateWindowAt: a.firstFullReserveCandidateWindowAt,
                 firstFullReserveSnapshot: a.firstFullReserveSnapshot,
                 lastFullReserveSnapshot: a.lastFullReserveSnapshot,
                 stages: a.stageEvents,
