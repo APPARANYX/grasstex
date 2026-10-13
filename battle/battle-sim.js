@@ -390,7 +390,10 @@
   };
   BattleSim.prototype.killSoldier = function (soldier, killer) {
     if (soldier.dead) return;
-    if (root.PhaseCCombatLab && root.PhaseCCombatLab.preventDeath(soldier, killer, this)) return;
+    if (root.PhaseCCombatLab && root.PhaseCCombatLab.preventDeath(soldier, killer, this)) {
+      soldier.hp = Math.max(1, soldier.hp);
+      return;
+    }
     var led = !!(root.SquadAI && root.SquadAI.isLeader(soldier));
     if (root.BattleTacticalPositions) root.BattleTacticalPositions.release(soldier, this, 'death');
     BattleSoldierModel.kill(soldier);
