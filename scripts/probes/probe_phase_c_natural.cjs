@@ -656,6 +656,12 @@ const { chromium } = require('playwright');
                             stage: posture.stage,
                             readyAt: posture.readyAt ?? null,
                             heldIds: (posture.heldActorIds || []).slice(),
+                            reserveIds: (posture.orders || [])
+                              .filter(o => o.reserve)
+                              .map(o => String(o.soldierId)),
+                            reservePosts: (posture.orders || [])
+                              .filter(o => o.reserve)
+                              .map(o => ({ id: String(o.soldierId), position: compactPoint(o.point) })),
                             decision: posture.lastManeuverDecision
                               ? JSON.parse(JSON.stringify(posture.lastManeuverDecision))
                               : null
