@@ -1,4 +1,4 @@
-name: Tactical map browser QA
+name: ⭐ Tactical map browser QA
 on:
   pull_request:
     paths:
