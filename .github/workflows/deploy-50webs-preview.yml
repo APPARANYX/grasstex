@@ -6,7 +6,15 @@ name: ⭐ Deploy Battle Sim Branch Preview
 # production assets, policy and scenario memory, and makes no telemetry, policy or learning writes.
 
 on:
-  # Preview uploads are opt-in. PR CI still validates the preview launcher without publishing.
+  # Temporary scope: redeploy ONLY this isolated lab branch when its native harness changes.
+  # All other branches remain opt-in, and production deployment is never invoked.
+  push:
+    branches:
+      - work/phase-c-native-combat-lab
+    paths:
+      - 'battle/**'
+      - 'battle_sim_local.php'
+      - '.github/workflows/deploy-50webs-preview.yml'
   workflow_dispatch:
     inputs:
       ref:
