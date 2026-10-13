@@ -601,6 +601,7 @@ const { chromium } = require('playwright');
                           return {
                             id: String(s.id),
                             role: s.role,
+                            fireteam: s._fireteamKey || null,
                             moving: !!s.moving,
                             suppressed: s.suppressedUntil > b.time,
                             reloading: !!s.reloading,
@@ -676,6 +677,7 @@ const { chromium } = require('playwright');
                         return {
                           id: String(s.id),
                           role: s.role || null,
+                          fireteam: s._fireteamKey || null,
                           dead: !!s.dead,
                           position: compactPoint(s.root?.position),
                           state: e?.state || null,
