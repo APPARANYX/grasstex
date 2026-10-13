@@ -192,6 +192,13 @@ const { chromium } = require('playwright');
                     serial: current.serial,
                     startAt: +b.time.toFixed(2),
                     ordered: current.orders?.length || 0,
+                    // Native planner verdict: no hypothetical moves or fabricated availability.
+                    reservePlan: current.reservePlan || null,
+                    reserveIds: (current.orders || [])
+                      .filter(o => o.reserve)
+                      .map(o => String(o.soldierId)),
+                    maxReserveAdopted: 0,
+                    maxReserveArrived: 0,
                     stageEvents: [],
                     samples: 0,
                     maxPending: 0,
@@ -224,7 +231,9 @@ const { chromium } = require('playwright');
                   appliedCount = 0;
                 let arrivedCount = 0,
                   settledCount = 0,
-                  maskedCount = 0;
+                  maskedCount = 0,
+                  reserveAdoptedCount = 0,
+                  reserveArrivedCount = 0;
                 const actorLast = [];
                 for (const o of current.orders || []) {
                   const s = (sq.members || []).find(m => String(m?.id) === o.soldierId);
@@ -259,8 +268,10 @@ const { chromium } = require('playwright');
                   const masked = !!(pos && C?.maskedPost?.(b, pos, current.threats || []));
                   if (pendingMine && pending.phase !== 'unreachable') pendingCount++;
                   if (adoptedMine) adoptedCount++;
+                  if (o.reserve && adoptedMine) reserveAdoptedCount++;
                   if (applied && execution) appliedCount++;
                   if (arrived) arrivedCount++;
+                  if (o.reserve && arrived) reserveArrivedCount++;
                   if (settled) settledCount++;
                   if (masked) maskedCount++;
                   if (s._fireteamPublishKey && s._fireteamPublishKey !== o.key)
@@ -324,6 +335,8 @@ const { chromium } = require('playwright');
                 attempt.maxAdopted = Math.max(attempt.maxAdopted, adoptedCount);
                 attempt.maxApplied = Math.max(attempt.maxApplied, appliedCount);
                 attempt.maxArrived = Math.max(attempt.maxArrived, arrivedCount);
+                attempt.maxReserveAdopted = Math.max(attempt.maxReserveAdopted, reserveAdoptedCount);
+                attempt.maxReserveArrived = Math.max(attempt.maxReserveArrived, reserveArrivedCount);
                 attempt.maxSettled = Math.max(attempt.maxSettled, settledCount);
                 attempt.maxMasked = Math.max(attempt.maxMasked, maskedCount);
                 attempt.maxHeld = Math.max(attempt.maxHeld, current.heldActorIds?.length || 0);
@@ -1127,11 +1140,26 @@ const { chromium } = require('playwright');
         ['off', 'on'].map(arm => {
           const a = results.filter(x => x.arm === arm);
           const sum = key => a.reduce((n, x) => n + (Number(x[key]) || 0), 0);
+          const reserveAttempts = a.flatMap(x => x.readinessAttempts || []);
+          const reserveReasons = {};
+          for (const attempt of reserveAttempts) {
+            const reason = String(attempt.reservePlan || 'not-evaluated').split(':')[0];
+            reserveReasons[reason] = (reserveReasons[reason] || 0) + 1;
+          }
           return [
             arm,
             {
               ambush: sum('ambush'),
               prepared: sum('prepared'),
+              reserveAttempts: reserveAttempts.length,
+              reserveStaged: reserveAttempts.filter(a => a.reserveIds.length > 0).length,
+              reserveFullyAdopted: reserveAttempts.filter(
+                a => a.reserveIds.length > 0 && a.maxReserveAdopted >= a.reserveIds.length
+              ).length,
+              reserveFullyArrived: reserveAttempts.filter(
+                a => a.reserveIds.length > 0 && a.maxReserveArrived >= a.reserveIds.length
+              ).length,
+              reserveReasons,
               maneuvers: sum('maneuvers'),
               bounds: sum('bounds'),
               coveredArrivals: sum('coveredArrivals'),
@@ -1178,6 +1206,10 @@ const { chromium } = require('playwright');
                 endAt: a.endAt,
                 endMode: a.endMode,
                 ordered: a.ordered,
+                reservePlan: a.reservePlan,
+                reserveIds: a.reserveIds,
+                maxReserveAdopted: a.maxReserveAdopted,
+                maxReserveArrived: a.maxReserveArrived,
                 stages: a.stageEvents,
                 maxPending: a.maxPending,
                 maxAdopted: a.maxAdopted,
