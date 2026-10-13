@@ -16,6 +16,10 @@ name: ⭐ CI
 # have no business on a pull request.
 
 on:
+  # Temporary isolation branch: run full ratchets on lab changes even with a stacked PR base.
+  push:
+    branches:
+      - work/phase-c-native-combat-lab
   pull_request:
   workflow_dispatch:
 
