@@ -170,7 +170,8 @@ const { chromium } = require('playwright');
                 maneuverChains: [],
                 pressureTraces: [],
                 tickTrace: [],
-                traceShots: []
+                traceShots: [],
+                routeAudits: []
               };
               const last = new Map();
               const readiness = new Map();
@@ -435,6 +436,79 @@ const { chromium } = require('playwright');
                     const posture = P?.current?.(b, sq);
                     const E = root.BattleEngagement;
                     const Leases = root.BattleLeases;
+                    /* One read-only physical-route audit per 0.9 s, at most
+                       three per battle, only after the actual Meso decision
+                       has recorded two effective supporters but no safe mover.
+                       Compare cover-slot discovery to the SAME real terrain
+                       sampler, never treat a grid point as a command. */
+                    if (
+                      tick % 6 === 0 &&
+                      active.routeAudits.length < 3 &&
+                      posture?.lastManeuverDecision?.reason === 'no-safe-covered-mover'
+                    ) {
+                      const C = root.BattleCoverPositions;
+                      const raw = root.SquadAI.squadContactsMap(sq, b) || [];
+                      const fresh = raw.filter(r =>
+                        Number.isFinite(r?.x) &&
+                        Number.isFinite(r?.z) &&
+                        Number.isFinite(r?.at) &&
+                        b.time >= r.at &&
+                        b.time - r.at <= 10 &&
+                        r.confidence >= 0.5
+                      );
+                      const threats = fresh.length && fresh.length <= 3 ? fresh : [];
+                      const maxDistance = C?.boundTuning?.().maxDistance || 0;
+                      active.routeAudits.push({
+                        t: +b.time.toFixed(2),
+                        squad: traceSquad,
+                        phase: sq.commandPhase,
+                        reason: posture.lastManeuverDecision.reason,
+                        supportCount: posture.lastManeuverDecision.supportCount,
+                        knownContacts: raw.length,
+                        freshThreats: fresh.length,
+                        threats: threats.map(compactPoint),
+                        boundTuning: C?.boundTuning?.() || null,
+                        soldiers: (sq.members || []).slice(0, 12).map(s => {
+                          const reasons = {},
+                            possible = threats.length
+                              ? C.candidates(s, b, { root: { position: threats[0] } }, maxDistance)
+                              : [],
+                            real = possible.slice(0, 48).filter(p => {
+                              const result = C.boundRoute(s, b, p, threats);
+                              reasons[result.reason] = (reasons[result.reason] || 0) + 1;
+                              return result.eligible;
+                            }),
+                            terrain = [],
+                            terrainReasons = {};
+                          if (threats.length)
+                            for (const distance of [1.5, 3, 4.5, 6])
+                              for (let k = 0; k < 8; k++) {
+                                const angle = (Math.PI * 2 * k) / 8;
+                                const p = {
+                                  x: s.root.position.x + Math.sin(angle) * distance,
+                                  z: s.root.position.z + Math.cos(angle) * distance
+                                };
+                                const result = C.boundRoute(s, b, p, threats);
+                                terrainReasons[result.reason] =
+                                  (terrainReasons[result.reason] || 0) + 1;
+                                if (result.eligible && terrain.length < 4) terrain.push(compactPoint(p));
+                              }
+                          return {
+                            id: String(s.id),
+                            role: s.role,
+                            moving: !!s.moving,
+                            suppressed: s.suppressedUntil > b.time,
+                            reloading: !!s.reloading,
+                            effectiveSupport: !!E.supportReady(s, b),
+                            coverCandidates: possible.length,
+                            coverRoutes: real.length,
+                            coverReasons: reasons,
+                            terrainRoutes: terrain,
+                            terrainReasons
+                          };
+                        })
+                      });
+                    }
                     const contactView = c =>
                       c
                         ? {
