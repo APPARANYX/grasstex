@@ -202,6 +202,66 @@ const { chromium } = require('playwright');
       if (preset === 'F') assert.deepEqual(preCheck.end, preCheck.start, 'German physically stationary');
       if (preset === 'C' || preset === 'F')
         assert.equal(preCheck.shots.ge, 0, 'no native German shot callback');
+      if (preset === 'E') {
+        // Read-only forensic sampling of REAL AI decisions in the small native battle.
+        // Do not inject movement orders, bypass squad support, or rewrite stance.
+        const causal = await page.evaluate(() => {
+          const b = window.__battle__, out = {
+            preset: window.PhaseCCombatLab.preset,
+            totals: {}, byState: {}, byGoal: {}, reasons: {},
+            samples: [], movingTicks: 0, crawlingTicks: 0,
+            boundTicks: 0, sprintTicks: 0, time: 0
+          };
+          const add = (dst, label) => { dst[label] = (dst[label] || 0) + 1; };
+          b.resume();
+          for (let i = 0; i < 340 && !b.winner; i++) {
+            b.step(0.15);
+            for (const s of b._roster.us.concat(b._roster.ge)) {
+              if (s.dead) continue;
+              const state = s.eng && s.eng.state || 'none',
+                goal = s._movementResolver && s._movementResolver.goal,
+                kind = goal && goal.kind || 'none',
+                gait = s._locomotionGait || 'unset',
+                stance = s.prone ? (s.crawling ? 'crawl' : 'prone') : s.tacticalCrouch ? 'crouch' : 'stand',
+                d = s.destination && Math.hypot(s.destination.x - s.root.position.x,
+                  s.destination.z - s.root.position.z) || 0,
+                bucket = s.moving ? 'moving' : 'stopped';
+              add(out.totals, bucket + ':' + stance + ':' + gait);
+              if (s.moving) {
+                out.movingTicks++;
+                add(out.byState, state + ':' + gait);
+                add(out.byGoal, kind + ':' + gait);
+                if (gait === 'sprint') out.sprintTicks++;
+                if (s.crawling) out.crawlingTicks++;
+                if (state === 'bound') out.boundTicks++;
+              } else if (d > 0.5) {
+                add(out.reasons, s._movementStopReason + ':' + stance + ':' + kind);
+              }
+              if (out.samples.length < 35 &&
+                  ((s.crawling && s.moving) ||
+                   (s.prone && !s.crawling && d > 0.5) ||
+                   (state === 'bound' && s.moving))) {
+                out.samples.push({
+                  t: +b.time.toFixed(2), soldier: s.id, side: s.faction,
+                  state, gait, stance, goal: kind, d: +d.toFixed(2),
+                  speed: s.moveSpeed, suppressed: s.suppressedUntil > b.time,
+                  fireControl: s.squad && s.squad.fireControl && s.squad.fireControl.state,
+                  reason: s.eng && s.eng.transition && s.eng.transition.reason,
+                  movementStop: s._movementStopReason,
+                  posture: s.eng && s.eng.stanceTrail && s.eng.stanceTrail.length &&
+                    s.eng.stanceTrail[s.eng.stanceTrail.length-1].reason
+                });
+              }
+            }
+          }
+          b.pause();
+          out.time = b.time;
+          out.winner = b.winner;
+          return out;
+        });
+        fs.writeFileSync(out + '/movement-causality.json', JSON.stringify(causal, null, 2));
+        console.log('PHASE_C_MOVEMENT_CAUSALITY ' + JSON.stringify(causal));
+      }
       const ui = await page.locator('#labStatus').textContent();
       assert.match(ui, /US squads/i);
       await page.screenshot({ path: out + '/native-' + preset + '.png', fullPage: false });
