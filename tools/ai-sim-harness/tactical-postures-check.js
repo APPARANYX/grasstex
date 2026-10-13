@@ -736,6 +736,127 @@ console.log(
   })
 );
 
+/* Concealment is a PREPARATION criterion. Before readiness a post the fresh
+   reported picture can see is abandoned; a READY line whose post becomes
+   visible from a reported coordinate is compromised, not dissolved, because
+   marching the men back into formation is the exposed move. The same rule
+   splits the old catch-all release into specific reasons. */
+const visibleWalker = x => [
+  { x: 0, z: 4, at: x.b.time, confidence: 1, targetId: 'walker', sector: '0:0', source: 'told' }
+];
+const unreadyMask = world();
+assert.ok(unreadyMask.P.update(unreadyMask.b, unreadyMask.q));
+unreadyMask.r.SquadAI.squadContactsMap = () => visibleWalker(unreadyMask);
+assert.equal(
+  unreadyMask.P.update(unreadyMask.b, unreadyMask.q),
+  null,
+  'an unready post that lost masking is abandoned'
+);
+assert.equal(unreadyMask.P.summary(unreadyMask.b).releaseReasons['firing station lost masking/ray'], 1);
+const readyMask = world();
+const readyMaskLine = nativePreparedLine(readyMask);
+assert.equal(readyMaskLine.stage, 'ready');
+assert.equal(readyMaskLine.compromisedAt, null);
+readyMask.r.SquadAI.squadContactsMap = () => visibleWalker(readyMask);
+const compromised = readyMask.P.update(readyMask.b, readyMask.q);
+assert.ok(
+  compromised && compromised.readyAt != null,
+  'a ready line keeps its posts when a reported coordinate can see them'
+);
+assert.ok(Number.isFinite(compromised.compromisedAt), 'the compromise is recorded on the posture');
+assert.equal(readyMask.P.summary(readyMask.b).compromisedLines, 1);
+assert.equal(readyMask.P.summary(readyMask.b).releaseReasons['firing station lost masking/ray'] || 0, 0);
+const staleUnready = world();
+assert.ok(staleUnready.P.update(staleUnready.b, staleUnready.q));
+staleUnready.r.SquadAI.squadContactsMap = () => [];
+assert.equal(staleUnready.P.update(staleUnready.b, staleUnready.q), null);
+assert.equal(
+  staleUnready.P.summary(staleUnready.b).releaseReasons['no-fresh-reported-threat'],
+  1,
+  'stale intel before readiness is a specific release, not an unknown override'
+);
+const ambiguousUnready = world();
+assert.ok(ambiguousUnready.P.update(ambiguousUnready.b, ambiguousUnready.q));
+ambiguousUnready.r.SquadAI.squadContactsMap = () =>
+  [0, 1, 2, 3].map(i => ({ x: i * 25, z: 20, at: ambiguousUnready.b.time, confidence: 1, sector: i + ':1' }));
+assert.equal(ambiguousUnready.P.update(ambiguousUnready.b, ambiguousUnready.q), null);
+assert.equal(ambiguousUnready.P.summary(ambiguousUnready.b).releaseReasons['ambiguous-threat-picture'], 1);
+assert.deepEqual(
+  ambiguousUnready.P.releases(ambiguousUnready.q).map(r => [r.serial, r.reason, r.prepared]),
+  [[1, 'ambiguous-threat-picture', false]],
+  'the bounded release log names the serial, reason and preparation state'
+);
+
+/* A prepared line that Engagement reports IN CONTACT is held by positional
+   continuity of the same three identities at their verified posts, not by
+   Engagement's movement labels or a one-tick `moving` flag. Its posts survive
+   a transient core failure under pressure; a man who actually leaves his
+   post still breaks the core, and an aged-out or ambiguous picture cannot
+   dissolve a line that is already fighting. */
+const contactLine = world(true, true, true);
+const contactReady = nativePreparedLine(contactLine);
+assert.equal(contactReady.stage, 'ready');
+contactLine.q.inContact = true;
+contactLine.S.localPlan.update(contactLine.b, contactLine.q, { underFire: 3, fireSupport: [] });
+const pressured = contactLine.P.update(contactLine.b, contactLine.q, { underFire: 3, fireSupport: [] });
+assert.equal(pressured.mode, 'hold');
+assert.equal(pressured.lastManeuverDecision.reason, 'insufficient-support');
+assert.ok(pressured.orders.length >= 3, 'the prepared hold keeps publishing its posts');
+const jitterMan = contactLine.q.members.find(s => String(s.id) === pressured.heldActorIds[0]);
+jitterMan.moving = true;
+jitterMan._movementResolver = { last: { owner: 'engagement', kind: 'contact-reaction' } };
+contactLine.b.time += 0.15;
+const jittered = contactLine.P.update(contactLine.b, contactLine.q, { underFire: 3, fireSupport: [] });
+assert.equal(jittered.mode, 'hold');
+assert.equal(
+  jittered.lastManeuverDecision.coreReady,
+  true,
+  'a stationary man at his post holds the line whatever Micro labels his hold'
+);
+assert.ok(jittered.orders.length >= 3, 'the posts are not wiped by Micro jitter');
+jitterMan.moving = false;
+jitterMan.root.position.x += 1.2;
+contactLine.b.time += 0.15;
+const walkedOff = contactLine.P.update(contactLine.b, contactLine.q, { underFire: 3, fireSupport: [] });
+assert.equal(walkedOff.mode, 'hold');
+assert.equal(walkedOff.lastManeuverDecision.reason, 'held-core-invalid', 'leaving the post breaks the core');
+assert.ok(
+  walkedOff.orders.length >= 3,
+  'the remaining posts stay published while the squad fights from them'
+);
+assert.equal(contactLine.r.BattleLeases.get(contactLine.q, 'bound'), null);
+jitterMan.root.position.x -= 1.2;
+contactLine.b.time += 0.15;
+contactLine.r.SquadAI.squadContactsMap = () => [];
+const agedOut = contactLine.P.update(contactLine.b, contactLine.q, { underFire: 3, fireSupport: [] });
+assert.ok(agedOut && agedOut.mode === 'hold', 'an aged-out picture cannot dissolve a line in contact');
+assert.equal(agedOut.lastManeuverDecision.coreReady, true);
+assert.deepEqual(agedOut.threats, [], 'without a fresh detached coordinate no route can be judged');
+contactLine.r.SquadAI.squadContactsMap = () =>
+  [0, 1, 2, 3].map(i => ({ x: i * 25, z: 20, at: contactLine.b.time, confidence: 1, sector: i + ':1' }));
+contactLine.b.time += 0.15;
+assert.ok(
+  contactLine.P.update(contactLine.b, contactLine.q, { underFire: 3, fireSupport: [] }),
+  'an ambiguous picture cannot dissolve a line in contact'
+);
+const quietContact = world();
+const quietReady = nativePreparedLine(quietContact);
+assert.equal(quietReady.stage, 'ready');
+quietContact.q.inContact = true;
+quietContact.b.time += 0.15;
+assert.equal(quietContact.P.update(quietContact.b, quietContact.q).stage, 'contact');
+quietContact.r.SquadAI.squadContactsMap = () => [];
+quietContact.b.time += 0.15;
+const contactKept = quietContact.P.update(quietContact.b, quietContact.q);
+assert.ok(
+  contactKept && contactKept.stage === 'contact',
+  'a coordinated contact outlives its triggering report'
+);
+quietContact.q.inContact = false;
+quietContact.b.time += 0.15;
+assert.equal(quietContact.P.update(quietContact.b, quietContact.q), null, 'contact ending releases the line');
+assert.equal(quietContact.P.summary(quietContact.b).releaseReasons['contact ended'], 1);
+
 console.log(
   'PASS masked ambush native preparation, minimum hold, unsafe stations, authority/lifecycle invalidation and pressure hysteresis',
   JSON.stringify({ holdAt, readyAt, firstShot, shots: combat.b.events.fired })

@@ -12,16 +12,22 @@ const { chromium } = require('playwright');
   const limit = Math.max(30, Number(process.env.C_FIELD_SECONDS || 210));
   const prefix = process.env.C_FIELD_PREFIX || 'phase-c-field';
   const base = process.env.C_FIELD_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
-  const flags = 'localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1&fireCoverCycle=1&squadReturnFire=1';
-  const dir = 'reports/phase-c-field';
+  const flags =
+    'localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1&fireCoverCycle=1&squadReturnFire=1';
+  const arms = String(process.env.C_FIELD_ARMS || 'off,on')
+    .split(',')
+    .map(a => a.trim())
+    .filter(a => a === 'off' || a === 'on');
+  const dir = process.env.C_FIELD_DIR || 'reports/phase-c-field';
   fs.mkdirSync(dir, { recursive: true });
   const browser = await chromium.launch({
     headless: true,
+    executablePath: process.env.C_FIELD_CHROMIUM || undefined,
     args: ['--disable-dev-shm-usage', '--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist']
   });
   const results = [];
   try {
-    for (const arm of ['off', 'on']) {
+    for (const arm of arms) {
       const query = new URLSearchParams(
         type === 'meeting' ? '' : 'defender=' + (type === 'us-defend' ? 'us' : 'ge')
       );
@@ -417,9 +423,7 @@ const { chromium } = require('playwright');
                       prev.lastPressureTrace = b.time;
                       const squadContact = root.SquadAI?.squadContact?.(sq, b) || null;
                       const contactAge =
-                        squadContact && Number.isFinite(+squadContact.at)
-                          ? b.time - +squadContact.at
-                          : null;
+                        squadContact && Number.isFinite(+squadContact.at) ? b.time - +squadContact.at : null;
                       const seenAuthority = !!(
                         squadContact &&
                         squadContact.seenBy != null &&
@@ -466,8 +470,8 @@ const { chromium } = require('playwright');
                               seenAuthority,
                               incomingAuthority,
                               authorizedPoint: compactPoint(supportAuthority),
-                              personalIncoming: (sq.members || []).filter(
-                                s => root.BattleEngagement?.underFireNow?.(s, b)
+                              personalIncoming: (sq.members || []).filter(s =>
+                                root.BattleEngagement?.underFireNow?.(s, b)
                               ).length
                             }
                           : null,
@@ -586,6 +590,8 @@ const { chromium } = require('playwright');
                                 r.confidence >= 0.5
                             ).length
                           : 0;
+                        const releases = root.BattleSquadStability?.tacticalPostures?.releases?.(sq) || [];
+                        ended.release = releases.find(x => x.serial === ended.serial) || null;
                         ended.endContext = {
                           contact: !!sq.inContact,
                           pressure,
@@ -715,6 +721,15 @@ const { chromium } = require('playwright');
               active.winner = b.winner || 'none';
               active.kills = { us: b.factions?.us?.kills || 0, ge: b.factions?.ge?.kills || 0 };
               active.postures = root.BattleSquadStability?.localPlanTelemetry?.(b)?.postures || null;
+              active.releasesByFaction = {};
+              for (const faction of ['us', 'ge'])
+                for (const sq of b.factions?.[faction]?.squads || [])
+                  for (const rel of root.BattleSquadStability?.tacticalPostures?.releases?.(sq) || []) {
+                    const bucket = (active.releasesByFaction[faction] =
+                      active.releasesByFaction[faction] || {});
+                    const key = (rel.prepared ? 'prepared:' : 'unprepared:') + rel.reason;
+                    bucket[key] = (bucket[key] || 0) + 1;
+                  }
               for (const attempt of active.readinessAttempts) {
                 if (attempt.endAt == null) {
                   attempt.endAt = +b.time.toFixed(2);
@@ -762,7 +777,7 @@ const { chromium } = require('playwright');
       console.log('PHASE_C_ASSET_NOISE', JSON.stringify({ type, arm, privateAudio404: audioNoise.length }));
       assert.deepEqual(gameErrors, [], 'non-asset browser runtime errors during natural battle');
     }
-    assert.equal(results.length, 2 * count);
+    assert.equal(results.length, arms.length * count);
     const summary = {
       type,
       commit: process.env.C_FIELD_SHA || 'local',
@@ -813,6 +828,7 @@ const { chromium } = require('playwright');
               reasons: x.rejectionSamples,
               firstModes: x.modeEvents.slice(0, 8),
               summary: x.postures,
+              releasesByFaction: x.releasesByFaction,
               maneuverChains: x.maneuverChains,
               pressureTraces: x.pressureTraces,
               attempts: x.readinessAttempts.map(a => ({
@@ -835,13 +851,20 @@ const { chromium } = require('playwright');
                 lostMaskSamples: a.lostMaskSamples,
                 threatsAtStart: a.threatsAtStart || [],
                 endContext: a.endContext || null,
+                release: a.release || null,
                 actorLast: a.actorLast
               }))
             }))
         })
     );
-    assert.equal(summary.arms.off.ambush + summary.arms.off.maneuvers, 0, 'OFF arm remains inert');
-    assert.equal(summary.arms.on.writerConflicts, 0, 'new tactical behavior cannot create writer conflicts');
+    if (arms.includes('off'))
+      assert.equal(summary.arms.off.ambush + summary.arms.off.maneuvers, 0, 'OFF arm remains inert');
+    if (arms.includes('on'))
+      assert.equal(
+        summary.arms.on.writerConflicts,
+        0,
+        'new tactical behavior cannot create writer conflicts'
+      );
   } finally {
     await browser.close();
   }

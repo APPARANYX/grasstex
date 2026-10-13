@@ -66,7 +66,7 @@
         source: r.source || null
       };
     }
-    function threats(b, sq) {
+    function freshReports(b, sq) {
       var reports = A.squadContactsMap(sq, b),
         out = [];
       if (!Array.isArray(reports) || reports.length > 32) return out;
@@ -81,7 +81,18 @@
         )
           out.push(threatCopy(r));
       });
+      return out;
+    }
+    /* More than three fresh confident sectors is an ambiguous picture: no
+       post or route can be judged against it. That is distinct from having no
+       fresh report at all; a prepared line in contact keeps its posts through
+       the former and the maneuver route simply stays unknown. */
+    function threats(b, sq) {
+      var out = freshReports(b, sq);
       return out.length <= 3 ? out : [];
+    }
+    function ambiguousPicture(b, sq) {
+      return freshReports(b, sq).length > 3;
     }
     function continuingThreats(b, sq, st, selected) {
       /* 0.5 is an ENTRY/selection threshold. Once the Squad Leader has
@@ -242,16 +253,50 @@
           return o.soldierId;
         });
     }
-    function heldCore(b, st, a, reports) {
-      var settled = settledActors(b, st, a, reports);
-      return !!(
-        st.readyAt != null &&
-        st.heldActorIds &&
-        st.heldActorIds.length >= 3 &&
-        st.heldActorIds.every(function (id) {
-          return settled.indexOf(id) >= 0;
-        })
-      );
+    /* Firing-line continuity once the prepared line is in contact. Engagement
+       owns each man's stance, aim, shots and short survival shuffles at his
+       post, so its movement labels and a one-tick `moving` flag are not
+       evidence that he left. The SAME verified identity must still be alive,
+       commanded, under his own posture order, within the settled tolerance of
+       his verified post and free of any committed displacement or retreat.
+       Concealment is not required here: the enemy who is shooting at a post
+       can see it, and the posture only ever reads detached reported points. */
+    function lineHolds(b, st, a, quiet) {
+      if (!st || st.readyAt == null || !st.heldActorIds || st.heldActorIds.length < 3) return false;
+      return st.heldActorIds.every(function (id) {
+        var o = st.orders.find(function (order) {
+            return order.soldierId === id;
+          }),
+          s = a.find(function (man) {
+            return String(man.id) === id;
+          }),
+          anchor = st.heldPositions && st.heldPositions[id],
+          body = s && point(s.root && s.root.position),
+          engagement = s && root.BattleEngagement && root.BattleEngagement.stateOf(s);
+        return !!(
+          o &&
+          s &&
+          anchor &&
+          body &&
+          !s.dead &&
+          s.hp > 0 &&
+          !s.isPlayer &&
+          s._fireteamPublishKey === o.key &&
+          /* A quiet ready line is silent and still: a man who starts moving
+             before contact is leaving it. In contact Engagement owns his
+             shuffles at the post, so only his position counts. */
+          !(quiet && s.moving) &&
+          Math.hypot(body.x - anchor.x, body.z - anchor.z) <= 0.5 &&
+          !(engagement && ['bound', 'assault', 'withdraw'].indexOf(engagement.state) >= 0) &&
+          !(root.BattleEngagement && root.BattleEngagement.fledPhase && root.BattleEngagement.fledPhase(s))
+        );
+      });
+    }
+    function inContactLine(sq, st) {
+      return !!(st && st.readyAt != null && (sq.inContact || st.stage === 'contact' || st.mode === 'hold'));
+    }
+    function heldCore(b, sq, st, a) {
+      return lineHolds(b, st, a, !inContactLine(sq, st));
     }
     function coveredTeam(b, sq, movers, report) {
       var C = root.BattleCoverPositions,
@@ -385,6 +430,17 @@
         var counts = st.stats;
         if (!counts.releaseReasons) counts.releaseReasons = {};
         counts.releaseReasons[why] = (counts.releaseReasons[why] || 0) + 1;
+        if (!counts.releases) counts.releases = [];
+        counts.releases.push({
+          serial: st.serial,
+          reason: why,
+          at: b.time,
+          mode: st.mode,
+          stage: st.stage,
+          prepared: st.readyAt != null,
+          compromisedAt: st.compromisedAt == null ? null : st.compromisedAt
+        });
+        if (counts.releases.length > 8) counts.releases.splice(0, counts.releases.length - 8);
         ctx.telemetry(b, 'decision-tactical-posture', {
           squad: sq.id,
           faction: sq.faction,
@@ -442,30 +498,45 @@
           if (st.orders.length < 3) return end(b, sq, 'ambush element lost eligibility');
         }
       }
-      if (
-        !a ||
-        !m ||
-        !ex ||
-        ex.mission !== m ||
-        m.status !== 'executing' ||
-        !A.leaderOf(sq) ||
-        A.leaderOf(sq).dead ||
-        ctx.leaderlessActive(sq) ||
-        sq.state === 'retreat' ||
-        L.get(sq, 'recon') ||
-        L.get(sq, 'regroup') ||
-        !nav ||
-        !b.scene ||
-        !b.scene.metadata ||
-        nav.scenario !== (b.scene.metadata.battleScenario || b.scene.metadata.battleTown) ||
-        !C ||
-        !point((sq.route || [])[+sq.routeIndex]) ||
-        (task && task.inputs.execution && task.inputs.execution.kind === 'structure-handoff') ||
-        !rs.length ||
-        !Number.isFinite(pressure) ||
-        (ctx.localPlan.structureOrdersOn && ctx.localPlan.currentStructureOrders(b, sq))
-      )
-        return end(b, sq, 'unknown evidence/override');
+      var blocker = !a
+        ? 'too-few-uncommitted-riflemen'
+        : !m || !ex || ex.mission !== m || m.status !== 'executing'
+          ? 'mission-not-executing'
+          : !A.leaderOf(sq) || A.leaderOf(sq).dead || ctx.leaderlessActive(sq)
+            ? 'leader-unavailable'
+            : sq.state === 'retreat' || L.get(sq, 'recon') || L.get(sq, 'regroup')
+              ? 'override-lease'
+              : !nav ||
+                  !b.scene ||
+                  !b.scene.metadata ||
+                  nav.scenario !== (b.scene.metadata.battleScenario || b.scene.metadata.battleTown)
+                ? 'navigation-unavailable'
+                : !C
+                  ? 'no-cover-owner'
+                  : !point((sq.route || [])[+sq.routeIndex])
+                    ? 'no-route-leg'
+                    : (task && task.inputs.execution && task.inputs.execution.kind === 'structure-handoff') ||
+                        (ctx.localPlan.structureOrdersOn && ctx.localPlan.currentStructureOrders(b, sq))
+                      ? 'structure-override'
+                      : !Number.isFinite(pressure)
+                        ? 'unknown-pressure'
+                        : null;
+      if (blocker) return end(b, sq, blocker);
+      if (!rs.length) {
+        /* A line that is already fighting keeps its posts when the fresh
+           picture is ambiguous (more than three confident sectors) or when
+           the triggering report has aged out while Engagement still reports
+           contact: the men are at verified posts under fire, and sending them
+           back into formation is the exposed move. Without a fresh detached
+           coordinate no route can be judged, so no maneuver follows from it.
+           A line that is not in contact still fails closed on stale intel. */
+        if (!(st && inContactLine(sq, st)))
+          return end(
+            b,
+            sq,
+            ambiguousPicture(b, sq) ? 'ambiguous-threat-picture' : 'no-fresh-reported-threat'
+          );
+      }
       if (
         st &&
         (st.mode === 'ambush' || (st.mode === 'hold' && st.orders.length)) &&
@@ -474,7 +545,7 @@
         /* An already-held masked line may transition to ONE covered-maneuver
            posture, never a second command stream. Without real support and a
            fully covered route, stay put and let Engagement fight defensively. */
-        var coreReady = heldCore(b, st, a, rs),
+        var coreReady = heldCore(b, sq, st, a),
           supportCount =
             report && Array.isArray(report.fireSupport)
               ? supportingCount(a, null, report.fireSupport, now, b)
@@ -543,9 +614,14 @@
         st.pressureAt = now;
         /* A prepared pressure hold keeps the same adopted posts while the
            existing policy rechecks support/route conditions. Do not destroy
-           the firing line merely because rifles are still aiming/reloading.
-           Emergency/unprepared holds relinquish preparation immediately. */
-        if (possible || !coreReady || (task && task.emergency)) st.orders = [];
+           the firing line merely because rifles are still aiming/reloading,
+           or because one held man's position reads unsettled for a tick:
+           the posts are where Engagement fights from, and once the publisher
+           stops reissuing them the formation order reclaims the men and the
+           line can never recover. Emergency and unprepared holds relinquish
+           preparation immediately; an authorized maneuver hands the posts to
+           the native bound/support owners. */
+        if (possible || st.readyAt == null || (task && task.emergency)) st.orders = [];
         if (possible) {
           st.maneuverUntil = now + tuning.maneuverWindow;
           st.lastSupportAt = now;
@@ -634,6 +710,7 @@
           coordinatedContacts: 0,
           coveredManeuvers: 0,
           rejectedUnsafeBounds: 0,
+          compromisedLines: 0,
           releaseReasons: {}
         };
         counters.set(sq, counts);
@@ -664,6 +741,7 @@
           heldActorIds: [],
           heldPositions: {},
           readyAt: null,
+          compromisedAt: null,
           stats: counts
         };
         st.orders.forEach(function (o) {
@@ -680,18 +758,35 @@
       }
       st.at = now;
       st.threats = rs;
-      if (
-        !st.orders.every(function (o) {
+      var masked =
+        rs.length > 0 &&
+        st.orders.every(function (o) {
           return C.maskedPost(b, o.point, rs);
-        })
-      )
-        return end(b, sq, 'firing station lost masking/ray');
+        });
+      if (!masked) {
+        /* Concealment is the preparation criterion. Before the line is
+           ready, a post the fresh picture can now see is abandoned. A ready
+           line whose post is now visible from a reported coordinate is
+           compromised, not dissolved: the enemy has walked into the kill
+           zone or found the line, and standing the men up to march back into
+           formation is the exposed move. The observation budget, contact and
+           pressure rules below still decide what happens to it. */
+        if (st.readyAt == null) return end(b, sq, 'firing station lost masking/ray');
+        if (st.compromisedAt == null) {
+          st.compromisedAt = now;
+          st.stats.compromisedLines = (st.stats.compromisedLines || 0) + 1;
+        }
+      }
+      /* Masked canonical completion establishes the hold; once the line is
+         ready, the same identities at their verified posts keep it. */
       var settled = settledActors(b, st, a, rs),
         coreHeld =
-          st.heldActorIds.length >= 3 &&
-          st.heldActorIds.every(function (id) {
-            return settled.indexOf(id) >= 0;
-          });
+          st.readyAt != null
+            ? heldCore(b, sq, st, a)
+            : st.heldActorIds.length >= 3 &&
+              st.heldActorIds.every(function (id) {
+                return settled.indexOf(id) >= 0;
+              });
       if (!coreHeld && st.readyAt != null) return end(b, sq, 'prepared fireteam left firing line');
       if (!coreHeld) {
         /* Select three genuinely adopted masked posts ONCE, then measure the
@@ -759,6 +854,7 @@
           coordinatedContacts: 0,
           coveredManeuvers: 0,
           rejectedUnsafeBounds: 0,
+          compromisedLines: 0,
           active: 0,
           releaseReasons: {}
         };
@@ -771,12 +867,17 @@
                   Object.keys(c[k]).forEach(function (why) {
                     total.releaseReasons[why] = (total.releaseReasons[why] || 0) + c[k][why];
                   });
-                } else total[k] += c[k];
+                } else if (k === 'releases') return;
+                else total[k] = (total[k] || 0) + c[k];
               });
             if (current(sim, sq)) total.active++;
           });
         });
         return total;
+      },
+      releases: function (sq) {
+        var c = counters.get(sq);
+        return c && c.releases ? c.releases.slice() : [];
       },
       reset: function (sq) {
         states.delete(sq);
