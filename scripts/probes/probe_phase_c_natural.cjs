@@ -278,7 +278,19 @@ const { chromium } = require('playwright');
                   if (o.reserve && adoptedMine) reserveAdoptedCount++;
                   if (applied && execution) appliedCount++;
                   if (arrived) arrivedCount++;
-                  if (o.reserve && arrived) reserveArrivedCount++;
+                  if (
+                    o.reserve &&
+                    (arrived ||
+                      (execution &&
+                        !s.moving &&
+                        dist <= 0.5 &&
+                        outcome?.current &&
+                        outcome?.publishKey === o.key &&
+                        outcome?.state === 'held' &&
+                        outcome?.owner === 'engagement' &&
+                        outcome?.kind === 'hold'))
+                  )
+                    reserveArrivedCount++;
                   if (settled) settledCount++;
                   if (masked) maskedCount++;
                   if (s._fireteamPublishKey && s._fireteamPublishKey !== o.key)

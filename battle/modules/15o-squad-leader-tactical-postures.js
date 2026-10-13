@@ -914,15 +914,28 @@
                      stationary body still obeying the previous firing post. */
                   if (!st.reserveReview) return true;
                   var CR = root.BattleCommandReception,
-                    outcome = root.BattleExecutionOutcome && root.BattleExecutionOutcome.man(s, b);
+                    outcome = root.BattleExecutionOutcome && root.BattleExecutionOutcome.man(s, b),
+                    atPost = Math.hypot(s.root.position.x - o.point.x, s.root.position.z - o.point.z) <= 0.5;
                   return (
                     s._fireteamPublishKey === o.key &&
                     (CR && CR.movementEnabled && CR.movementEnabled()
                       ? outcome &&
                         outcome.current &&
-                        outcome.state === 'completed' &&
-                        outcome.publishKey === o.key
-                      : Math.hypot(s.root.position.x - o.point.x, s.root.position.z - o.point.z) <= 0.5)
+                        outcome.publishKey === o.key &&
+                        (outcome.state === 'completed' ||
+                          (atPost &&
+                            outcome.state === 'held' &&
+                            outcome.owner === 'engagement' &&
+                            outcome.kind === 'hold' &&
+                            CR.executionCurrent &&
+                            CR.executionCurrent(
+                              s,
+                              b,
+                              'movement',
+                              'soldier:' + String(s.id),
+                              s._fireteamAdoptedEnvelope
+                            )))
+                      : atPost)
                   );
                 });
               }) &&

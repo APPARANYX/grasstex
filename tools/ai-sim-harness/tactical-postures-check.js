@@ -579,8 +579,9 @@ assert.equal(
 /* Late-base policy seam: native commands establish the same three-man hold.
    Only the support report/candidate enumeration is supplied here; masking,
    covered ingress/exit, core continuity and team ownership stay native. */
-function lateReserve() {
-  const x = world(true, true, true);
+function lateReserve(options = {}) {
+  const x = world(true, true, true, options);
+  x.r.SquadAI.squadContactsMap = () => [{ x: 0, z: 20, at: x.b.time, confidence: 1 }];
   setReserveTeam(x);
   x.r.SquadAI.canSuppressStanding = () => false;
   const st = nativePreparedLine(x);
@@ -592,60 +593,61 @@ function lateReserve() {
   x.q.inContact = true;
   return { ...x, st, report };
 }
-const late = lateReserve();
-const lateCore = JSON.stringify([
-  late.st.readyAt,
-  late.st.heldSince,
-  late.st.heldActorIds,
-  late.st.heldPositions
-]);
-const originalCoreOrders = late.st.orders.filter(o => late.st.heldActorIds.includes(o.soldierId));
-late.P.update(late.b, late.q, { underFire: 1, fireSupport: [] });
-assert.equal(late.st.mode, 'hold', 'late event is permitted during a real prepared pressure hold');
-late.P.update(late.b, late.q, late.report);
-assert.equal(late.st.reservePlan, 'whole-team-staged:charlie');
-assert.deepEqual(late.st.reserveReview.supportIds, late.report.fireSupport.map(s => String(s.id)).sort());
-assert.equal(
-  JSON.stringify([late.st.readyAt, late.st.heldSince, late.st.heldActorIds, late.st.heldPositions]),
-  lateCore
-);
-assert.deepEqual(
-  late.st.orders.filter(o => late.st.heldActorIds.includes(o.soldierId)),
-  originalCoreOrders,
-  'reserve revision never rewrites held firing posts or their publication keys'
-);
-assert.equal(late.st.mode, 'hold', 'old firing-post adoption cannot authorize revised reserve orders');
-assert.ok(late.st.orders.filter(o => o.reserve).every(o => o.key.includes('|reserve|')));
-assert.equal(late.r.BattleLeases.get(late.q, 'bound'), null, 'reserve selection is not movement authority');
-late.r.BattleEngagement.updateSquad = () => ({
-  ...late.report,
-  effective: 10,
-  pinned: 0,
-  reacting: [],
-  fled: []
-});
-for (let i = 0; i < 10 && late.st.mode !== 'maneuver'; i++) H.run(late.r, late.b, 0.15);
-const lateAuthorized = late.P.update(late.b, late.q, late.report);
-assert.equal(lateAuthorized.mode, 'maneuver', 'native publication consumes the revised in-place reserve');
-assert.equal(lateAuthorized.reserveTeam, 'charlie', 'selected identity survives authorization');
-assert.deepEqual(
-  lateAuthorized.reserveActorIds,
-  late.q.members.filter(s => s._fireteamKey === 'charlie').map(s => String(s.id))
-);
-late.r.BattleEngagement.updateSquad = () => ({
-  ...late.report,
-  effective: 10,
-  pinned: 0,
-  reacting: [],
-  fled: []
-});
-late.S.fireAndMovement(late.q, late.b);
-assert.equal(
-  late.r.BattleLeases.get(late.q, 'bound'),
-  null,
-  'native fire-control HOLD retains its independent veto after reserve authorization'
-);
-
+for (const commandMovement of [false, true]) {
+  const late = lateReserve({ commandMovement });
+  const lateCore = JSON.stringify([
+    late.st.readyAt,
+    late.st.heldSince,
+    late.st.heldActorIds,
+    late.st.heldPositions
+  ]);
+  const originalCoreOrders = late.st.orders.filter(o => late.st.heldActorIds.includes(o.soldierId));
+  late.P.update(late.b, late.q, { underFire: 1, fireSupport: [] });
+  assert.equal(late.st.mode, 'hold', 'late event is permitted during a real prepared pressure hold');
+  late.P.update(late.b, late.q, late.report);
+  assert.equal(late.st.reservePlan, 'whole-team-staged:charlie');
+  assert.deepEqual(late.st.reserveReview.supportIds, late.report.fireSupport.map(s => String(s.id)).sort());
+  assert.equal(
+    JSON.stringify([late.st.readyAt, late.st.heldSince, late.st.heldActorIds, late.st.heldPositions]),
+    lateCore
+  );
+  assert.deepEqual(
+    late.st.orders.filter(o => late.st.heldActorIds.includes(o.soldierId)),
+    originalCoreOrders,
+    'reserve revision never rewrites held firing posts or their publication keys'
+  );
+  assert.equal(late.st.mode, 'hold', 'old firing-post adoption cannot authorize revised reserve orders');
+  assert.ok(late.st.orders.filter(o => o.reserve).every(o => o.key.includes('|reserve|')));
+  assert.equal(late.r.BattleLeases.get(late.q, 'bound'), null, 'reserve selection is not movement authority');
+  late.r.BattleEngagement.updateSquad = () => ({
+    ...late.report,
+    effective: 10,
+    pinned: 0,
+    reacting: [],
+    fled: []
+  });
+  for (let i = 0; i < 25 && late.st.mode !== 'maneuver'; i++) H.run(late.r, late.b, 0.15);
+  const lateAuthorized = late.P.update(late.b, late.q, late.report);
+  assert.equal(lateAuthorized.mode, 'maneuver', 'native publication consumes the revised in-place reserve');
+  assert.equal(lateAuthorized.reserveTeam, 'charlie', 'selected identity survives authorization');
+  assert.deepEqual(
+    lateAuthorized.reserveActorIds,
+    late.q.members.filter(s => s._fireteamKey === 'charlie').map(s => String(s.id))
+  );
+  late.r.BattleEngagement.updateSquad = () => ({
+    ...late.report,
+    effective: 10,
+    pinned: 0,
+    reacting: [],
+    fled: []
+  });
+  late.S.fireAndMovement(late.q, late.b);
+  assert.equal(
+    late.r.BattleLeases.get(late.q, 'bound'),
+    null,
+    'native fire-control HOLD retains its independent veto after reserve authorization'
+  );
+}
 const lateNoSlots = lateReserve();
 lateNoSlots.r.BattleCoverPositions.candidates = () => [];
 lateNoSlots.P.update(lateNoSlots.b, lateNoSlots.q, lateNoSlots.report);
