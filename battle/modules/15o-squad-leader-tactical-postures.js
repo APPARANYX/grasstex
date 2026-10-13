@@ -578,6 +578,14 @@
            posture, never a second command stream. Without real support and a
            fully covered route, stay put and let Engagement fight defensively. */
         var coreReady = heldCore(b, sq, st, a),
+          phaseAllowsBound = !!(ctx.ASSAULT_PHASES && ctx.ASSAULT_PHASES[sq.commandPhase || '']),
+          coaAllowsBound = !(
+            ctx.COA_ON &&
+            sq.coa &&
+            ctx.COAS &&
+            ctx.COAS[sq.coa] &&
+            !ctx.COAS[sq.coa].bounds
+          ),
           supportCount =
             report && Array.isArray(report.fireSupport)
               ? supportingCount(a, null, report.fireSupport, now, b)
@@ -585,6 +593,8 @@
           safeMovers = [];
         if (
           maneuverOn &&
+          phaseAllowsBound &&
+          coaAllowsBound &&
           !(task && task.emergency) &&
           coreReady &&
           sq.inContact &&
@@ -597,6 +607,8 @@
           });
         var possible = !!(
           maneuverOn &&
+          phaseAllowsBound &&
+          coaAllowsBound &&
           !(task && task.emergency) &&
           coreReady &&
           sq.inContact &&
@@ -608,6 +620,8 @@
         st.lastManeuverDecision = {
           at: now,
           possible: possible,
+          phaseAllowsBound: phaseAllowsBound,
+          coaAllowsBound: coaAllowsBound,
           emergency: !!(task && task.emergency),
           coreReady: coreReady,
           inContact: !!sq.inContact,
@@ -617,7 +631,11 @@
           safeMoverIds: safeMovers,
           reason: !maneuverOn
             ? 'maneuver-disabled'
-            : task && task.emergency
+            : !phaseAllowsBound
+              ? 'general-phase-holds'
+              : !coaAllowsBound
+                ? 'defensive-coa-holds'
+                : task && task.emergency
               ? 'emergency'
               : !coreReady
                 ? 'held-core-invalid'

@@ -459,6 +459,25 @@ assert.equal(
   'pressure without any safe path cannot publish movement'
 );
 assert.equal(man.r.BattleLeases.get(man.q, 'bound'), null);
+/* A physically plausible covered maneuver is NOT authorization if the
+   General says defend. The upstream policy must agree with the native
+   fire-and-movement phase gate, rather than count a phantom maneuver. */
+const defensive = world(true, true, true);
+const preparedDefense = nativePreparedLine(defensive);
+assert.ok(preparedDefense.readyAt != null);
+defensive.q.commandPhase = 'defend';
+defensive.q.inContact = true;
+const defensiveSupport = {
+  underFire: 2,
+  fireSupport: defensive.q.members.slice(1, 4)
+};
+const defensiveHold = defensive.P.update(defensive.b, defensive.q, defensiveSupport);
+assert.ok(defensiveHold && defensiveHold.mode === 'hold');
+assert.equal(defensiveHold.lastManeuverDecision.phaseAllowsBound, false);
+assert.equal(defensiveHold.lastManeuverDecision.reason, 'general-phase-holds');
+assert.equal(defensive.P.summary(defensive.b).coveredManeuvers, 0);
+assert.equal(defensive.r.BattleLeases.get(defensive.q, 'bound'), null);
+
 const move = world(true, true, true);
 const mm = move.q.members[0],
   cover = move.r.BattleCoverPositions;

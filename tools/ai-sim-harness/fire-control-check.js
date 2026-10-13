@@ -271,7 +271,8 @@ test('prepared first-hand support admits one rifle before a second joins', () =>
   const w = world('?stressAct=0&fireControl=1&commandPosture=0&coa=0', 100);
   const rifles = w.us.members.filter(s => s.role === 'rifleman');
   assert.ok(rifles.length >= 2, 'fixture requires two actual riflemen');
-  const first = rifles[0], second = rifles[1];
+  const first = rifles[0],
+    second = rifles[1];
   const point = { x: w.us.contact.x, z: w.us.contact.z };
   w.us.members.forEach(s => {
     s.target = null;
