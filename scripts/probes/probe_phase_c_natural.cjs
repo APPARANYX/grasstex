@@ -1041,6 +1041,13 @@ const { chromium } = require('playwright');
                   chain.preparedAt != null &&
                   chain.preparedAt - chain.heldSince >= 4 - 1e-6 &&
                   chain.heldIds.length >= 3 &&
+                  // The native Squad Leader's same-serial authorization must
+                  // have independently counted >=2 effective supporters.
+                  // One shot during travel cannot prove that by itself.
+                  chain.decision?.possible === true &&
+                  chain.decision.phaseAllowsBound === true &&
+                  chain.decision.coaAllowsBound === true &&
+                  chain.decision.supportCount >= 2 &&
                   chain.movements.some(
                     move =>
                       move.arrivalAt != null &&
