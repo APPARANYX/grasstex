@@ -136,7 +136,7 @@ if ($labRequested) {
     $body=str_replace($bootMarker,$labTag."\n".$bootMarker,$body);
     $attachMarker='});battle.pause();';
     if(substr_count($body,$attachMarker)!==1){http_response_code(500);echo 'Combat lab sim anchor changed';exit;}
-    $body=str_replace($attachMarker,'});battle.pause();if(!window.PhaseCCombatLab)throw new Error(\"Combat Lab controller failed to load\");window.PhaseCCombatLab.attachBattle(battle,scene,camera);',$body);
+    $body=str_replace($attachMarker,'});battle.pause();if(!window.PhaseCCombatLab)throw new Error("Combat Lab controller failed to load");window.PhaseCCombatLab.attachBattle(battle,scene,camera);',$body);
 }
 header('X-Grasstex-Deploy-Id: '.$deployId);header('X-Grasstex-Build: '.$build);header('X-Grasstex-Build-Source: '.$buildSource);header('X-Grasstex-Cache-Epoch: '.$cacheEpoch);header('X-Grasstex-Modules: '.count($activeModuleFiles));echo $body;
 ?>
