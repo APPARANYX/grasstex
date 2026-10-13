@@ -292,6 +292,38 @@
         );
       });
     }
+    /* A man already selected into the held core stays held while he CLOSES
+       on his ordered post: Movement reports completion inside its own
+       arrival tolerance and then keeps closing the last metre, so his
+       `moving` flag flickers for ticks at a time. That is not leaving the
+       line and must not restart the dwell or rotate the core. He still needs
+       his own publish key, canonical completion, concealment at his real
+       body and may never be farther from the post than when he was chosen. */
+    function closingOnPost(b, st, a, id, reports) {
+      var C = root.BattleCoverPositions,
+        O = root.BattleExecutionOutcome,
+        CR = root.BattleCommandReception,
+        o = st.orders.find(function (order) {
+          return order.soldierId === id;
+        }),
+        s = a.find(function (man) {
+          return String(man.id) === id;
+        }),
+        anchor = st.heldPositions && st.heldPositions[id],
+        body = s && point(s.root && s.root.position);
+      if (!o || !s || !anchor || !body || !C || s._fireteamPublishKey !== o.key) return false;
+      var receivedMovement = CR && CR.movementEnabled && CR.movementEnabled(),
+        outcome = receivedMovement && O && O.man ? O.man(s, b) : null,
+        completed = receivedMovement
+          ? !!(outcome && outcome.current && outcome.state === 'completed' && outcome.publishKey === o.key)
+          : Math.hypot(body.x - o.point.x, body.z - o.point.z) <= 0.5,
+        allowed = Math.max(0.5, Math.hypot(anchor.x - o.point.x, anchor.z - o.point.z) + 0.25);
+      return !!(
+        completed &&
+        Math.hypot(body.x - o.point.x, body.z - o.point.z) <= allowed &&
+        C.maskedPost(b, body, reports)
+      );
+    }
     function inContactLine(sq, st) {
       return !!(st && st.readyAt != null && (sq.inContact || st.stage === 'contact' || st.mode === 'hold'));
     }
@@ -785,7 +817,7 @@
             ? heldCore(b, sq, st, a)
             : st.heldActorIds.length >= 3 &&
               st.heldActorIds.every(function (id) {
-                return settled.indexOf(id) >= 0;
+                return settled.indexOf(id) >= 0 || closingOnPost(b, st, a, id, rs);
               });
       if (!coreHeld && st.readyAt != null) return end(b, sq, 'prepared fireteam left firing line');
       if (!coreHeld) {
@@ -807,6 +839,14 @@
       } else if (st.readyAt == null && now - st.heldSince >= tuning.minimumHold) {
         st.stage = 'ready';
         st.readyAt = now;
+        /* The verified posts the line is held to from now on are where the
+           men actually stand at readiness, after any closing on the order. */
+        st.heldActorIds.forEach(function (id) {
+          var soldier = a.find(function (man) {
+            return String(man.id) === id;
+          });
+          if (soldier) st.heldPositions[id] = point(soldier.root.position);
+        });
       }
       if (
         st.readyAt != null &&

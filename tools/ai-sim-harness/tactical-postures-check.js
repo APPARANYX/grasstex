@@ -857,6 +857,44 @@ quietContact.b.time += 0.15;
 assert.equal(quietContact.P.update(quietContact.b, quietContact.q), null, 'contact ending releases the line');
 assert.equal(quietContact.P.summary(quietContact.b).releaseReasons['contact ended'], 1);
 
+/* During the pre-ready dwell a held man who is still CLOSING on his post
+   (Movement completes inside its own tolerance, then keeps closing, so his
+   `moving` flag flickers) stays held and the dwell keeps accruing; a held man
+   who moves away from his post beyond where he was chosen breaks the core. */
+const closing = world();
+assert.ok(closing.P.update(closing.b, closing.q));
+let holding3 = null;
+for (let i = 0; i < 40 && !holding3; i++) {
+  H.run(closing.r, closing.b, 0.15);
+  const st = closing.P.current(closing.b, closing.q);
+  if (st && st.stage === 'hold' && st.heldActorIds.length === 3) holding3 = st;
+}
+assert.ok(holding3 && holding3.readyAt == null, 'fixture needs a held, not yet ready, core');
+const heldSince = holding3.heldSince,
+  heldIds = holding3.heldActorIds.slice(),
+  closer = closing.q.members.find(s => String(s.id) === heldIds[0]),
+  closerOrder = holding3.orders.find(o => o.soldierId === heldIds[0]);
+closer.moving = true;
+closer.root.position.x = closerOrder.point.x + 0.3;
+closer.root.position.z = closerOrder.point.z;
+closing.b.time += 0.15;
+const stillHeld = closing.P.update(closing.b, closing.q);
+assert.ok(stillHeld && stillHeld.stage === 'hold', 'closing on the post keeps the line in hold');
+assert.deepEqual(stillHeld.heldActorIds, heldIds, 'the held core is not rotated by a closing man');
+assert.equal(stillHeld.heldSince, heldSince, 'the dwell is not restarted by a closing man');
+closer.moving = false;
+const leaver = closing.q.members.find(s => String(s.id) === heldIds[1]),
+  leaverOrder = holding3.orders.find(o => o.soldierId === heldIds[1]);
+leaver.root.position.x = leaverOrder.point.x + 0.9;
+leaver.root.position.z = leaverOrder.point.z;
+closing.b.time += 0.15;
+const broken = closing.P.update(closing.b, closing.q);
+assert.ok(broken, 'an unready line reselects rather than ends when a held man steps off his post');
+assert.ok(
+  broken.heldSince !== heldSince || broken.heldActorIds.indexOf(heldIds[1]) < 0,
+  'moving away from the post does break the held core'
+);
+
 console.log(
   'PASS masked ambush native preparation, minimum hold, unsafe stations, authority/lifecycle invalidation and pressure hysteresis',
   JSON.stringify({ holdAt, readyAt, firstShot, shots: combat.b.events.fired })
