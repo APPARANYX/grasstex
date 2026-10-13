@@ -298,6 +298,8 @@ jobs:
           node scripts/check-movement-order-ownership.cjs
           node scripts/check-meso-micro-movement-ownership.cjs
           node scripts/check-physical-waypoint-refill.cjs
+          # Native lab movement A/B: covered tactical ingress without bypassing suppression.
+          node scripts/check-purposeful-contact-gait.cjs
 
       - name: Engagement harness seeds
         run: |
