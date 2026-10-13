@@ -1,4 +1,4 @@
-name: Phase C Natural Full-Battle Acceptance
+name: ⭐ Phase C Natural Full-Battle Acceptance
 on:
   pull_request:
     paths:

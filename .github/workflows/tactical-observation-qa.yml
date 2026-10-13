@@ -1,4 +1,4 @@
-name: Tactical Observation Browser QA
+name: ⭐ Tactical Observation Browser QA
 on:
   pull_request:
     paths:

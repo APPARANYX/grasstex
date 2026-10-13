@@ -1,4 +1,4 @@
-name: Player settings browser QA
+name: ⭐ Player settings browser QA
 
 # Verify the desktop/player settings UI on the PR's real PHP/module graph.
 on:
