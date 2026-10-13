@@ -109,5 +109,10 @@ foreach(array('ai-trainer.js','battle-control.js') as $file)$extras.='<script sr
 $pattern='#<script>\s*/\* Extra runtimes[\s\S]*?</script>#';$body=preg_replace($pattern,$extras,$body,1,$count);if($count!==1){http_response_code(500);echo '<!doctype html><html><body><h1>Battle sim deployment mismatch</h1><p>Extra-runtime block was not found.</p></body></html>';exit;}
 /* The page's load bar counts runtime scripts as they arrive; give it the total. */
 $body=str_replace($cdnTag,'<script>window.BATTLE_RUNTIME_SCRIPTS='.substr_count($body,'<script src=').';</script>'."\n".$cdnTag,$body);
+/* Phase C lab: preview-only, explicit opt-in, never loaded in production. */
+if ($preview && isset($_GET['combatLab']) && $_GET['combatLab'] === '1') {
+    $labTag='<script src="'.$runtimeBase.'battle/phase-c-combat-lab.js?v='.$deployId.'&c='.rawurlencode($cacheEpoch).'"></script>';
+    $body=str_replace('</body>', $labTag."\n".'</body>', $body);
+}
 header('X-Grasstex-Deploy-Id: '.$deployId);header('X-Grasstex-Build: '.$build);header('X-Grasstex-Build-Source: '.$buildSource);header('X-Grasstex-Cache-Epoch: '.$cacheEpoch);header('X-Grasstex-Modules: '.count($activeModuleFiles));echo $body;
 ?>
