@@ -1,4 +1,4 @@
-name: Dispatch Phase C Standard Comparisons
+name: ⭐ Dispatch Phase C Standard Comparisons
 
 # This workflow uses GitHub's own Actions API so all three real M3C benchmark
 # runs appear under "M3C Standard Benchmark", not only our natural-field QA.
