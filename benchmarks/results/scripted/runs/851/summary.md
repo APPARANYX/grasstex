@@ -1,13 +1,13 @@
-# Benchmark run #823 · 3 seeds from `phase-c-natural-20261012` (ge-defend), windows `contact+60,every60`
+# Benchmark run #851 · 3 seeds from `phase-c-natural-20261012` (ge-defend), windows `contact+60,every60`
 
 - **OFF** flags: `none` · **ON** flags: `localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1&fireCoverCycle=1&squadReturnFire=1`
-- work/phase-c-natural-readiness-diagnostics @ 1113979 · [run](https://github.com/APPARANYX/grasstex/actions/runs/38384961325) · build v29-dev
+- work/phase-c-natural-readiness-diagnostics @ fc34223 · [run](https://github.com/APPARANYX/grasstex/actions/runs/38393437830) · build v29-dev
 
 ## Verdict
 
 **WEAK: 25 of 25 pairs changed (median first part 118.05 s); 4 of 42 counters under p 0.05 (about 2.1 by chance); casualties -14.6% (p 0.0227)**
 
-- Under 0.05 only: usKills 550 to 490 (-10.9%, p 0.0106); movementResolver.changes 45586 to 48385 (+6.1%, p 0.0146); casualties 958 to 818 (-14.6%, p 0.0227); geKills 408 to 328 (-19.6%, p 0.0347).
+- Under 0.05 only: usKills 550 to 490 (-10.9%, p 0.0106); movementResolver.changes 45586 to 48378 (+6.1%, p 0.0146); casualties 958 to 818 (-14.6%, p 0.0227); geKills 408 to 328 (-19.6%, p 0.0347).
 
 ## Paired comparison (off against on)
 
@@ -22,7 +22,7 @@
 | `fire.total` | 1222 | 1083 | -5.56 | 23 | 12 | 11 | 1 |
 | `fire.hits` | 362 | 309 | -2.12 | 22 | 8 | 14 | 0.2863 |
 | `retreatSamples` | 6160 | 6935 | 31 | 24 | 15 | 9 | 0.3075 |
-| `movementResolver.changes` | 45586 | 48385 | 111.96 | 25 | 19 | 6 | 0.0146 |
+| `movementResolver.changes` | 45586 | 48378 | 111.68 | 25 | 19 | 6 | 0.0146 |
 | `grenades.throws` | 0 | 1 | 0.04 | 1 | 1 | 0 | 1 |
 | `grenades.bursts` | 0 | 1 | 0.04 | 1 | 1 | 0 | 1 |
 | `grenades.wounded` | 0 | 1 | 0.04 | 1 | 1 | 0 | 1 |
@@ -67,7 +67,7 @@ phase-c-natural-20261012-0003 109.05 s (timeline) · phase-c-natural-20261012-00
 
 ## Viewer
 
-[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=823&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/phase-c-natural-readiness-diagnostics/ai_flow_live.html?bench=823&view=brain3d) (it has the change before it reaches main)
+[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=851&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/phase-c-natural-readiness-diagnostics/ai_flow_live.html?bench=851&view=brain3d) (it has the change before it reaches main)
 
-The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=823`); it opens the seed that parts earliest, and the dropdowns choose another.
+The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=851`); it opens the seed that parts earliest, and the dropdowns choose another.
 

@@ -55,8 +55,8 @@
     "b": 0
   },
   "wallSeconds": {
-    "medianA": 13.568,
-    "medianB": 15.2,
+    "medianA": 13.639,
+    "medianB": 15.27,
     "ratio": 1.12,
     "gate": 1.25
   },
@@ -117,8 +117,8 @@
     },
     "movementResolver.changes": {
       "a": 45586,
-      "b": 48385,
-      "meanDiff": 111.96,
+      "b": 48378,
+      "meanDiff": 111.68,
       "battlesChanged": 25,
       "more": 19,
       "fewer": 6,
