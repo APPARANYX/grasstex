@@ -87,7 +87,23 @@ $memoryState=array('version'=>1,'experiences'=>array());$memoryPath=$stateRoot.'
 $requestedSeed=isset($_GET['seed'])?substr(preg_replace('/[^a-zA-Z0-9_.-]/','-',strval($_GET['seed'])),0,100):'';
 $requestedDefender=(isset($_GET['defender'])&&in_array($_GET['defender'],array('us','ge'),true))?$_GET['defender']:'';
 $labRequested=!!$preview && isset($_GET['combatLab']) && $_GET['combatLab'] === '1';
-if($labRequested && $requestedSeed===''){$requestedSeed='phase-c-natural-20261012-0015';$requestedDefender='ge';}
+/* Canonicalize the lab BEFORE browser scripts parse their query parameters: all Phase C
+   feature flags must already be on for the first native AI tick. This is preview-only. */
+if ($labRequested) {
+    $labParams=$_GET;$changed=false;
+    foreach(array('localPlan','localAmbush','localManeuver','coveredBounds','fireCoverCycle','squadReturnFire') as $flag) {
+        if (!isset($labParams[$flag]) || $labParams[$flag] !== '1') {
+            $labParams[$flag]='1';$changed=true;
+        }
+    }
+    if (empty($labParams['seed'])) {
+        $labParams['seed']='phase-c-natural-20261012-0015';
+        $labParams['defender']='ge';$changed=true;
+    }
+    if (empty($labParams['labPreset'])) {$labParams['labPreset']='C';$changed=true;}
+    if ($changed) {header('Location: '.$_SERVER['SCRIPT_NAME'].'?'.http_build_query($labParams),true,302);exit;}
+    $requestedSeed=$labParams['seed'];
+}
 $bootstrap='<script>'.'window.BATTLE_BUILD_DEPLOYED='.json_encode($build).';'.'window.BATTLE_REF="local-'.$deployId.'";'.'window.BATTLE_ASSET_BASE='.json_encode($assetBase).';'.'window.BATTLE_SOLDIER_ASSET_BASE='.json_encode($soldierAssetBase).';'.'window.BATTLE_AUDIO_BASE='.json_encode($audioBase).';'.'window.BATTLE_API_BASE='.json_encode($apiBase).';'.'window.BATTLE_PREVIEW='.json_encode($preview).';'.'window.BATTLE_AUDIO_MANIFEST='.json_encode($manifest).';'.'window.BATTLE_AI_POLICY='.json_encode($policyState).';'.'window.BATTLE_AI_MEMORY='.json_encode($memoryState).';'.'window.BATTLE_SCENARIO_SEED='.json_encode($requestedSeed).';'.'window.PHASE_C_COMBAT_LAB='.json_encode($labRequested).';'.'</script>';
 $cdnTag='<script src="https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js"></script>';if(strpos($body,$cdnTag)===false){http_response_code(500);echo '<!doctype html><html><body><h1>Battle sim deployment mismatch</h1><p>Babylon bootstrap tag not found.</p></body></html>';exit;}$body=str_replace($cdnTag,$bootstrap."\n".$cdnTag,$body);
 $coreScripts=array('core-runtime.js','soldier.js','weapons.js','obstacle-field.js','terrain-features.js','squad-ai.js','movement-resolver.js','engagement.js','battle-sim.js');foreach($coreScripts as $file){$old='<script src="'.$file.'"></script>';$new='<script src="'.$runtimeBase.'battle/'.$file.'?v='.$deployId.'&c='.rawurlencode($cacheEpoch).'"></script>';$body=str_replace($old,$new,$body);}
