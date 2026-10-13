@@ -33,7 +33,7 @@
   var counts = freshCounters(),
     history = [],
     lastDecision = Object.create(null);
-  var panel, output, events, playButton;
+  var panel, drawerToggle, output, events, playButton;
   function freshCounters() {
     return {
       shots: { us: 0, ge: 0 },
@@ -113,13 +113,35 @@
       '#phaseCLab pre{margin:4px 0;max-height:160px;overflow:auto;font:11px/1.5 ui-monospace,monospace;',
       'white-space:pre-wrap;color:#c7dcec}',
       '#phaseCLab .good{color:#80d5ac}#phaseCLab .warn{color:#eccd7a}',
-      '@media(max-width:670px){#phaseCLab{top:auto;bottom:8px;left:8px;right:8px;width:auto;max-height:47vh}}'
+      '#phaseCLab[hidden],#phaseCLabToggle[hidden]{display:none!important}',
+      '#phaseCLabToggle{position:fixed;z-index:99999;top:12px;right:12px;',
+      'min-height:44px;padding:10px 16px;border:1px solid #56738a;border-radius:10px;',
+      'background:rgba(12,22,34,.94);color:#e9f3ff;font:600 13px system-ui,-apple-system,sans-serif;',
+      'box-shadow:0 8px 24px #0009;cursor:pointer;touch-action:manipulation}',
+      '#phaseCLab .drawerHeader{display:flex;justify-content:space-between;align-items:center;gap:12px}',
+      '#phaseCLab .drawerClose{margin:0;padding:8px 12px;min-width:44px;min-height:44px;',
+      'font-size:13px;touch-action:manipulation}',
+      '@media(max-width:670px){#phaseCLab{top:auto;bottom:calc(8px + env(safe-area-inset-bottom));',
+      'left:8px;right:8px;width:auto;max-height:min(72dvh,640px);overscroll-behavior:contain;',
+      '-webkit-overflow-scrolling:touch}',
+      '#phaseCLabToggle{top:auto;right:12px;bottom:calc(12px + env(safe-area-inset-bottom))}}'
     ].join('');
     document.head.appendChild(css);
+    drawerToggle = document.createElement('button');
+    drawerToggle.type = 'button';
+    drawerToggle.id = 'phaseCLabToggle';
+    drawerToggle.textContent = '⚙ Lab Controls';
+    drawerToggle.setAttribute('aria-controls', 'phaseCLab');
+    drawerToggle.setAttribute('aria-expanded', 'false');
+    drawerToggle.setAttribute('aria-label', 'Open Combat Lab controls');
+    document.body.appendChild(drawerToggle);
     panel = document.createElement('aside');
     panel.id = 'phaseCLab';
+    panel.setAttribute('aria-label', 'Combat Lab controls');
+    panel.hidden = true;
     panel.innerHTML =
-      '<h2>PHASE C · COMBAT LAB</h2>' +
+      '<div class="drawerHeader"><h2>PHASE C · COMBAT LAB</h2>' +
+      '<button type="button" class="drawerClose" id="labClose" aria-label="Close Combat Lab controls">✕ Close</button></div>' +
       '<div class="sub">280 × 240 m native arena · 2 US squads / 1 German squad · 0.15s AI ticks</div>' +
       '<div class="sub good">Objective-hold victory OFF · objective ownership tracked · 600s limit</div>' +
       '<label for="labScenario">Scenario</label><select id="labScenario"></select>' +
@@ -155,6 +177,24 @@
       '<div class="sub">Compact reproducible lab, not the unmodified 54-battle natural-acceptance scenario.' +
       ' Isolation intentionally changes subsequent RNG consumption. Branch preview only.</div>';
     document.body.appendChild(panel);
+    function setDrawerOpen(open) {
+      panel.hidden = !open;
+      drawerToggle.hidden = open;
+      drawerToggle.setAttribute('aria-expanded', String(open));
+      if (open) {
+        panel.scrollTop = 0;
+        panel.querySelector('#labClose').focus({ preventScroll: true });
+      } else drawerToggle.focus({ preventScroll: true });
+    }
+    drawerToggle.onclick = function () {
+      setDrawerOpen(true);
+    };
+    panel.querySelector('#labClose').onclick = function () {
+      setDrawerOpen(false);
+    };
+    panel.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') setDrawerOpen(false);
+    });
     var select = panel.querySelector('#labScenario');
     Object.keys(scenarios).forEach(function (k) {
       var opt = document.createElement('option');
