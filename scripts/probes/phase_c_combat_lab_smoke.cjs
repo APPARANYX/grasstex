@@ -268,6 +268,13 @@ const { chromium } = require('playwright');
         });
         fs.writeFileSync(out + '/movement-causality.json', JSON.stringify(causal, null, 2));
         console.log('PHASE_C_MOVEMENT_CAUSALITY ' + JSON.stringify(causal));
+        assert.ok(causal.boundTicks > 0, 'real contact produced native cover-bound movement');
+        assert.ok(causal.boundSprintTicks > 0,
+          'a true Engagement cover bound, not rage, must reach the sprint gait');
+        assert.ok(causal.boundCrouchRunTicks > 0,
+          'short/unsafe cover bounds must retain their lower-profile crouch-run alternative');
+        assert.equal(causal.boundSprintTicks, causal.byGoal['cover-bound:sprint'] || 0,
+          'sprinting bound ticks must be actual cover movement intents');
       }
       const ui = await page.locator('#labStatus').textContent();
       assert.match(ui, /US squads/i);
