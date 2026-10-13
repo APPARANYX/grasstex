@@ -120,6 +120,7 @@
     panel.innerHTML =
       '<h2>PHASE C · COMBAT LAB</h2>' +
       '<div class="sub">280 × 240 m native arena · 2 US squads / 1 German squad · 0.15s AI ticks</div>' +
+      '<div class="sub good">Objective-hold victory OFF · objective ownership tracked · 600s limit</div>' +
       '<label for="labScenario">Scenario</label><select id="labScenario"></select>' +
       '<label for="labRange">Weapon + visual spotting range</label><select id="labRange">' +
       '<option value="1">1× · native ranges (control)</option>' +
@@ -415,6 +416,10 @@
       scenario: scenarioKey,
       simulationSeconds: +battle.time.toFixed(2),
       winner: battle.winner || null,
+      winReason: battle.winReason || null,
+      victoryRules: { objectiveHold: false, elimination: true, timeLimitSeconds: battle.timeLimit },
+      objectiveControl: battle.objectiveControl ? JSON.parse(JSON.stringify(battle.objectiveControl.counts)) : null,
+      objectiveHold: battle.objectiveHold ? Object.assign({}, battle.objectiveHold) : null,
       paused: battle.paused,
       boundsM: [280, 240],
       counts: JSON.parse(JSON.stringify(counts)),
@@ -486,6 +491,9 @@
       s.counts.absorbedWounds.us +
       ' / GE ' +
       s.counts.absorbedWounds.ge +
+      '\nObjectives: ' +
+      (s.objectiveControl ? 'US ' + (s.objectiveControl.us || 0) + ' / GE ' + (s.objectiveControl.ge || 0) : '-') +
+      ' · hold win OFF' +
       (s.winner ? '\nWinner: ' + s.winner : '');
     events.textContent =
       history
@@ -503,6 +511,7 @@
   if (root.BattleDesktopCamera && root.BattleDesktopCamera.create)
     root.BattleDesktopCamera.create = installCamera;
   root.PhaseCCombatLab = {
+    disableObjectiveVictory: true,
     preset: preset,
     rangeScale: rangeScale,
     movementPace: movementPace,
