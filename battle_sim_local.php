@@ -86,7 +86,9 @@ $policyState=null;$policyPath=$stateRoot.'/state/ai-policy.json';if(is_file($pol
 $memoryState=array('version'=>1,'experiences'=>array());$memoryPath=$stateRoot.'/state/scenario-memory.json';if(is_file($memoryPath)&&is_readable($memoryPath)){$d=json_decode(@file_get_contents($memoryPath),true);if(is_array($d)&&isset($d['experiences'])&&is_array($d['experiences'])){$d['experiences']=array_slice($d['experiences'],-180);$memoryState=$d;}}
 $requestedSeed=isset($_GET['seed'])?substr(preg_replace('/[^a-zA-Z0-9_.-]/','-',strval($_GET['seed'])),0,100):'';
 $requestedDefender=(isset($_GET['defender'])&&in_array($_GET['defender'],array('us','ge'),true))?$_GET['defender']:'';
-$bootstrap='<script>'.'window.BATTLE_BUILD_DEPLOYED='.json_encode($build).';'.'window.BATTLE_REF="local-'.$deployId.'";'.'window.BATTLE_ASSET_BASE='.json_encode($assetBase).';'.'window.BATTLE_SOLDIER_ASSET_BASE='.json_encode($soldierAssetBase).';'.'window.BATTLE_AUDIO_BASE='.json_encode($audioBase).';'.'window.BATTLE_API_BASE='.json_encode($apiBase).';'.'window.BATTLE_PREVIEW='.json_encode($preview).';'.'window.BATTLE_AUDIO_MANIFEST='.json_encode($manifest).';'.'window.BATTLE_AI_POLICY='.json_encode($policyState).';'.'window.BATTLE_AI_MEMORY='.json_encode($memoryState).';'.'window.BATTLE_SCENARIO_SEED='.json_encode($requestedSeed).';'.'</script>';
+$labRequested=!!$preview && isset($_GET['combatLab']) && $_GET['combatLab'] === '1';
+if($labRequested && $requestedSeed===''){$requestedSeed='phase-c-natural-20261012-0015';$requestedDefender='ge';}
+$bootstrap='<script>'.'window.BATTLE_BUILD_DEPLOYED='.json_encode($build).';'.'window.BATTLE_REF="local-'.$deployId.'";'.'window.BATTLE_ASSET_BASE='.json_encode($assetBase).';'.'window.BATTLE_SOLDIER_ASSET_BASE='.json_encode($soldierAssetBase).';'.'window.BATTLE_AUDIO_BASE='.json_encode($audioBase).';'.'window.BATTLE_API_BASE='.json_encode($apiBase).';'.'window.BATTLE_PREVIEW='.json_encode($preview).';'.'window.BATTLE_AUDIO_MANIFEST='.json_encode($manifest).';'.'window.BATTLE_AI_POLICY='.json_encode($policyState).';'.'window.BATTLE_AI_MEMORY='.json_encode($memoryState).';'.'window.BATTLE_SCENARIO_SEED='.json_encode($requestedSeed).';'.'window.PHASE_C_COMBAT_LAB='.json_encode($labRequested).';'.'</script>';
 $cdnTag='<script src="https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js"></script>';if(strpos($body,$cdnTag)===false){http_response_code(500);echo '<!doctype html><html><body><h1>Battle sim deployment mismatch</h1><p>Babylon bootstrap tag not found.</p></body></html>';exit;}$body=str_replace($cdnTag,$bootstrap."\n".$cdnTag,$body);
 $coreScripts=array('core-runtime.js','soldier.js','weapons.js','obstacle-field.js','terrain-features.js','squad-ai.js','movement-resolver.js','engagement.js','battle-sim.js');foreach($coreScripts as $file){$old='<script src="'.$file.'"></script>';$new='<script src="'.$runtimeBase.'battle/'.$file.'?v='.$deployId.'&c='.rawurlencode($cacheEpoch).'"></script>';$body=str_replace($old,$new,$body);}
 /* The checked-in page keeps a touch-friendly ArcRotate fallback. Production swaps only that camera
@@ -109,10 +111,16 @@ foreach(array('ai-trainer.js','battle-control.js') as $file)$extras.='<script sr
 $pattern='#<script>\s*/\* Extra runtimes[\s\S]*?</script>#';$body=preg_replace($pattern,$extras,$body,1,$count);if($count!==1){http_response_code(500);echo '<!doctype html><html><body><h1>Battle sim deployment mismatch</h1><p>Extra-runtime block was not found.</p></body></html>';exit;}
 /* The page's load bar counts runtime scripts as they arrive; give it the total. */
 $body=str_replace($cdnTag,'<script>window.BATTLE_RUNTIME_SCRIPTS='.substr_count($body,'<script src=').';</script>'."\n".$cdnTag,$body);
-/* Phase C lab: preview-only, explicit opt-in, never loaded in production. */
-if ($preview && isset($_GET['combatLab']) && $_GET['combatLab'] === '1') {
+/* Only preview deployments with an explicit lab URL load the intervention owners.
+   The script precedes the page bootstrap, so its settings exist BEFORE scenario/spawn/first tick. */
+if ($labRequested) {
     $labTag='<script src="'.$runtimeBase.'battle/phase-c-combat-lab.js?v='.$deployId.'&c='.rawurlencode($cacheEpoch).'"></script>';
-    $body=str_replace('</body>', $labTag."\n".'</body>', $body);
+    $bootMarker="<script>\n(async function(){";
+    if(substr_count($body,$bootMarker)!==1){http_response_code(500);echo 'Combat lab boot anchor changed';exit;}
+    $body=str_replace($bootMarker,$labTag."\n".$bootMarker,$body);
+    $attachMarker='});battle.pause();';
+    if(substr_count($body,$attachMarker)!==1){http_response_code(500);echo 'Combat lab sim anchor changed';exit;}
+    $body=str_replace($attachMarker,'});battle.pause();window.PhaseCCombatLab.attachBattle(battle,scene,camera);',$body);
 }
 header('X-Grasstex-Deploy-Id: '.$deployId);header('X-Grasstex-Build: '.$build);header('X-Grasstex-Build-Source: '.$buildSource);header('X-Grasstex-Cache-Epoch: '.$cacheEpoch);header('X-Grasstex-Modules: '.count($activeModuleFiles));echo $body;
 ?>
