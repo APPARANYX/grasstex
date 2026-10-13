@@ -267,6 +267,64 @@ test('zero-line reposition times out even after the initiating contact ages out'
   assert.equal(fc.reason, 'reposition timed out: resume maneuver fire');
 });
 
+test('one lawful support rifle starts first, a second independently joins, and hearsay cannot open fire', () => {
+  const w = world('?stressAct=0&fireControl=1&commandPosture=0&coa=0', 100);
+  const rifles = w.us.members.filter(s => s.role === 'rifleman');
+  assert.ok(rifles.length >= 2, 'fixture requires two actual riflemen');
+  const first = rifles[0], second = rifles[1];
+  const point = { x: w.us.contact.x, z: w.us.contact.z };
+  w.us.members.forEach(s => {
+    s.target = null;
+    s.suppressedUntil = w.b.time + 10;
+    s.moving = false;
+    s.crawling = false;
+    s.reloading = false;
+  });
+  first.suppressedUntil = 0;
+  assert.ok(w.r.SquadAI.canSuppress(first, point, w.b, true), 'first rifle has a real ballistic lane');
+  assert.ok(w.r.SquadAI.canSuppress(second, point, w.b, true), 'second rifle has a real ballistic lane');
+  const posture = {
+    mode: 'ambush',
+    stage: 'ready',
+    readyAt: w.b.time,
+    heldActorIds: [String(first.id), String(second.id), String(rifles[2].id)],
+    members: w.us.members,
+    orders: []
+  };
+  w.Q.tacticalPostures.current = () => posture;
+  w.E.fireControlReady = () => false; // No two-rifle conventional preparation.
+  let fc = w.Q.updateFireControl(w.us, w.b, { underFire: 0, fireSupport: [] });
+  assert.equal(fc.state, 'open', 'first-hand sight opens a fully prepared line without two ready rifles');
+  assert.deepEqual(fc.supporterIds, [String(first.id)], 'only one genuinely capable rifle begins support');
+  assert.deepEqual(w.E.areaSupportOf(first, w.b), point, 'first supporter independently receives his aim point');
+  assert.equal(w.E.areaSupportOf(second, w.b), null, 'a suppressed second man is not counted');
+  second.suppressedUntil = 0;
+  fc = w.Q.updateFireControl(w.us, w.b, { underFire: 0, fireSupport: [] });
+  assert.equal(fc.state, 'open');
+  assert.deepEqual(
+    fc.supporterIds,
+    [String(first.id), String(second.id)],
+    'second supporter joins only after he becomes physically available'
+  );
+  assert.deepEqual(w.E.areaSupportOf(second, w.b), point, 'second supporter receives his own fire order');
+  assert.equal(w.Q.tacticalPostures.tuning.minSupport, 2, 'covered maneuver still needs two effective supporters');
+  w.us.contact = {
+    unit: null,
+    x: point.x,
+    z: point.z,
+    at: w.b.time,
+    heard: true,
+    relayedFrom: 'other-squad'
+  };
+  w.r.SquadAI.soldierContact = () => null;
+  w.r.SquadAI.squadContactsMap = () => [];
+  w.us.fireControl = null;
+  w.b.time += w.Q.tuning.fireControl.returnFireWindow + 0.1;
+  fc = w.Q.updateFireControl(w.us, w.b, { underFire: 0, fireSupport: [] });
+  assert.equal(fc.state, 'hold', 'stale or relayed contact alone must not authorize support fire');
+  assert.deepEqual(fc.supporterIds, []);
+});
+
 test('fireControl=0 preserves immediate-fire behavior', () => {
   const w = world('?stressAct=0&fireControl=0', 100);
   command(w);

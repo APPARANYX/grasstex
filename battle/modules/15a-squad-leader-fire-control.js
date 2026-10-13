@@ -489,9 +489,15 @@
       if (posture && (posture.mode === 'ambush' || preparedPosture)) {
         var contact = firstHandContact(sq, battle),
           ambushCounts = fireControlCounts(commanded(sq), battle, root.BattleEngagement),
+          /* A fully prepared line with fresh, first-hand fire authority
+             may send ONE genuinely shootable supporter before a second
+             rifleman finishes his setup. Incoming fire remains autonomous;
+             hearsay never opens fire. This changes fire permission, NOT
+             the independent two-effective-supporter maneuver gate. */
+          authority = posture.readyAt != null ? supportAuthorityContact(sq, battle) : null,
           open =
             (report && report.underFire > 0) ||
-            (posture.readyAt != null && contact && ambushCounts.ready >= 2),
+            (posture.readyAt != null && ((contact && ambushCounts.ready >= 2) || !!authority)),
           desired = open ? 'open' : 'hold',
           support = desired === 'open' ? areaSupport(sq, battle, report, posture, fc) : null;
         if (
