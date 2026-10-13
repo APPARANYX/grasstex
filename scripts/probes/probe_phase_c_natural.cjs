@@ -429,14 +429,28 @@ const { chromium } = require('playwright');
                    advance soldiers, set destinations or replace movement owners here. */
                 if (traceSquad && b.time >= traceFrom && b.time <= traceTo) {
                   const [wantedFaction, wantedId] = traceSquad.split(':');
-                  const sq = (b.factions?.[wantedFaction]?.squads || []).find(
-                    s => String(s.id) === wantedId
-                  );
+                  const sq = (b.factions?.[wantedFaction]?.squads || []).find(s => String(s.id) === wantedId);
                   if (sq) {
                     const P = root.BattleSquadStability?.tacticalPostures;
                     const posture = P?.current?.(b, sq);
                     const E = root.BattleEngagement;
                     const Leases = root.BattleLeases;
+                    const contactView = c =>
+                      c
+                        ? {
+                            point: compactPoint(c),
+                            at: c.at,
+                            age: b.time - c.at,
+                            source: c.source || null,
+                            seenBy: c.seenBy ?? null,
+                            heard: !!c.heard,
+                            relayedFrom: c.relayedFrom ?? null,
+                            fireRevealed: !!c.fireRevealed,
+                            precision: c.precision || null,
+                            confidence: c.confidence ?? null,
+                            callout: c.callout ?? null
+                          }
+                        : null;
                     active.tickTrace.push({
                       t: +b.time.toFixed(2),
                       faction: wantedFaction,
@@ -448,6 +462,8 @@ const { chromium } = require('playwright');
                       effectiveCount: sq.effectiveCount ?? null,
                       pinnedCount: sq.pinnedCount ?? null,
                       contactCount: sq.contactCount ?? null,
+                      contact: contactView(root.SquadAI.squadContact(sq, b)),
+                      contacts: root.SquadAI.squadContactsMap(sq, b),
                       engagementPlan: sq._engagementPlan?.status || null,
                       posture: posture
                         ? {
@@ -481,6 +497,11 @@ const { chromium } = require('playwright');
                           position: compactPoint(s.root?.position),
                           state: e?.state || null,
                           targetId: s.target?.id ?? null,
+                          contact: contactView(root.SquadAI.soldierContact(s, b)),
+                          beliefs: root.SquadAI.beliefSnapshot(s, b),
+                          fireObservation: E?.fireControlObservation?.(s, b),
+                          underFire: !!E?.underFireNow?.(s, b),
+                          stance: { prone: !!s.prone, crouched: !!s.tacticalCrouch },
                           moving: !!s.moving,
                           suppressed: (s.suppressedUntil || 0) > b.time,
                           readyAt: e?.fireReadyAt ?? null,
