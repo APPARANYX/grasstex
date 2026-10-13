@@ -151,6 +151,48 @@ def.target.root.position.z = 150;
 def.b.time += 0.15;
 def.E.updateSoldier(sd, def.b);
 assert.equal(sd.eng.state, 'orient', 'exact weapon boundary permits reorientation');
+/* A target may disappear behind a crest just as the first ordered rifle
+   starts suppressing its lawful reported position. That effective rifle is
+   real squad contact even when visible-target and incoming-fire counts are
+   both zero; the second joins independently when it can actually fire. */
+const staged = world('&commandPosture=0');
+const supporters = staged.q.members.filter(s => s.role === 'rifleman');
+const firstSupport = supporters[0];
+const secondSupport = supporters[1];
+assert.ok(firstSupport && secondSupport);
+staged.q.members.forEach(s => {
+  s.target = null;
+  s.suppressedUntil = 0;
+});
+const supportPoint = { x: staged.target.root.position.x, z: staged.target.root.position.z };
+assert.ok(staged.r.SquadAI.canSuppress(firstSupport, supportPoint, staged.b, true));
+assert.ok(staged.r.SquadAI.canSuppress(secondSupport, supportPoint, staged.b, true));
+staged.q.fireControl = {
+  state: 'open',
+  supportPoint,
+  supportSource: 'seen',
+  supporterIds: [String(firstSupport.id)],
+  supportAt: staged.b.time
+};
+let stageReport = staged.E.updateSquad(staged.q, staged.b);
+assert.ok(stageReport.fireSupport.includes(firstSupport), 'one independently effective rifle starts support');
+assert.ok(!stageReport.fireSupport.includes(secondSupport), 'the second rifle is not yet assigned');
+assert.equal(stageReport.underFire, 0);
+assert.equal(staged.q.inContact, true, 'one effective area supporter preserves real squad contact');
+staged.q.fireControl.supporterIds.push(String(secondSupport.id));
+stageReport = staged.E.updateSquad(staged.q, staged.b);
+assert.ok(stageReport.fireSupport.includes(firstSupport));
+assert.ok(stageReport.fireSupport.includes(secondSupport), 'the second effective supporter joins independently');
+assert.equal(stageReport.fireSupport.length, 2, 'no synthetic or duplicate supporter');
+secondSupport.suppressedUntil = staged.b.time + 1;
+stageReport = staged.E.updateSquad(staged.q, staged.b);
+assert.ok(stageReport.fireSupport.includes(firstSupport));
+assert.ok(!stageReport.fireSupport.includes(secondSupport), 'suppression removes genuine second-rifle readiness');
+assert.equal(staged.q.inContact, true, 'first rifle may continue even when the second is pinned');
+firstSupport.suppressedUntil = staged.b.time + 1;
+stageReport = staged.E.updateSquad(staged.q, staged.b);
+assert.equal(stageReport.fireSupport.length, 0, 'no effective rifles means no base of fire');
+assert.equal(staged.q.inContact, false, 'two assigned but pinned rifles do not manufacture contact');
 const legacy = world('&effectiveFire=0'),
   sl = legacy.q.members.find(s => s.role === 'sergeant');
 assert.ok(

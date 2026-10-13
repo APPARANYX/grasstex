@@ -2213,7 +2213,17 @@
        the Squad Leader's live hold/precision/reposition order. Recent first-hand contact keeps that preparation
        alive; heard/relayed word alone cannot freeze a squad in place. Incoming fire must keep contact live so
        the Squad Leader can escalate HOLD FIRE to OPEN FIRE instead of clearing the command before reading it. */
-    sq.inContact = contact > 0 || suppressing > 0 || underFireCount > 0 || preparingContact;
+    /* An independently adopted area-support job is real continuing contact
+       only when Engagement confirms that the man can actually fire now.
+       Neither an assigned name nor a suppressed or blocked gun maintains
+       contact. This lets one lawful rifle sustain the base of fire while
+       the second recovers, without inventing the two needed to bound. */
+    var actualAreaSupport =
+      EFFECTIVE_FIRE &&
+      fireSupport.some(function (man) {
+        return !!areaSupportOf(man, battle);
+      });
+    sq.inContact = contact > 0 || suppressing > 0 || underFireCount > 0 || preparingContact || actualAreaSupport;
     var started = sq.inContact && !wasInContact;
     if (started) {
       sq.contactSince = battle.time;
