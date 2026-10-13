@@ -1346,7 +1346,16 @@
     if (CONTACT_STANCE && lowNow)
       e.advanceLowUntil = Math.max(+e.advanceLowUntil || 0, battle.time + LOW_GAP_HOLD);
     var low = lowNow || (CONTACT_STANCE && battle.time < (+e.advanceLowUntil || 0));
-    if (!holdStance(s, battle))
+    /* During a live, received contact transit, the Movement Resolver's
+       soldier arbiter chooses stance WITH gait after selecting the actual
+       movement winner. This drill only sets an advance stance when no such
+       transit is active; ambush posts remain handled above. */
+    var autonomy = root.PhaseCCombatLab && root.PhaseCCombatLab.movementPace === 'autonomous',
+      posture = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
+      masked = posture && posture.soldierOrder && posture.soldierOrder(s, battle),
+      dest = s.destination,
+      movingTo = dest && Math.hypot(dest.x - posOf(s).x, dest.z - posOf(s).z) > 1.5;
+    if (!(autonomy && lowNow && movingTo && !masked) && !holdStance(s, battle))
       commitStance(
         s,
         battle,
@@ -1670,13 +1679,17 @@
         C.boundRoute(s, battle, cover, reports, 'stand').eligible
       );
     }
-    commitStance(
-      s,
-      battle,
-      crawl ? 'crawl' : dash ? 'stand' : 'crouch',
-      Math.max(1, e.until - battle.time),
-      dash ? 'purposeful cover dash' : 'cover-bound'
-    );
+    /* Autonomous locomotion will commit a single posture/gait plan AFTER
+       the Movement Resolver confirms that this cover-bound intent wins.
+       Avoid the old crouch -> sprint-stand flip every 0.15s. */
+    if (!(lab && lab.movementPace === 'autonomous'))
+      commitStance(
+        s,
+        battle,
+        crawl ? 'crawl' : dash ? 'stand' : 'crouch',
+        Math.max(1, e.until - battle.time),
+        dash ? 'purposeful cover dash' : 'cover-bound'
+      );
     move(s, battle, { x: cover.x, z: cover.z }, 'cover-bound');
   }
 
@@ -1840,7 +1853,8 @@
       hasTarget = combatThreat(s.target),
       t = hasTarget ? posOf(s.target) : null,
       d = t ? dist(p.x, p.z, t.x, t.z) : Infinity;
-    commitStance(s, battle, 'crouch', Math.max(1, e.until - battle.time));
+    if (!(root.PhaseCCombatLab && root.PhaseCCombatLab.movementPace === 'autonomous'))
+      commitStance(s, battle, 'crouch', Math.max(1, e.until - battle.time));
     if (!e.assaultGoal) {
       if (!t) {
         transition(s, battle, 'alert', ALERT_HOLD, 'assault target unavailable');
