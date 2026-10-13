@@ -11,6 +11,10 @@ const { chromium } = require('playwright');
   const count = Math.max(1, Number(process.env.C_FIELD_COUNT || 3));
   const limit = Math.max(30, Number(process.env.C_FIELD_SECONDS || 210));
   const prefix = process.env.C_FIELD_PREFIX || 'phase-c-field';
+  const selectedSeed = Math.max(0, Number(process.env.C_FIELD_SEED_INDEX || 0));
+  const traceSquad = String(process.env.C_FIELD_TRACE_SQUAD || '');
+  const traceFrom = Number(process.env.C_FIELD_TRACE_FROM || 0);
+  const traceTo = Number(process.env.C_FIELD_TRACE_TO || limit);
   const base = process.env.C_FIELD_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
   const flags =
     'localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1&fireCoverCycle=1&squadReturnFire=1';
@@ -58,7 +62,7 @@ const { chromium } = require('playwright');
         { timeout: 120000 }
       );
       const observed = await page.evaluate(
-        async ({ count, limit, prefix, arm }) => {
+        async ({ count, limit, prefix, arm, selectedSeed, traceSquad, traceFrom, traceTo }) => {
           const root = window;
           const b = root.__battle__;
           const engine = b.scene?.getEngine?.();
@@ -83,6 +87,18 @@ const { chromium } = require('playwright');
           b.onFire = s => {
             if (!active) return;
             active.shots++;
+            if (
+              traceSquad &&
+              b.time >= traceFrom &&
+              b.time <= traceTo &&
+              s?.squad &&
+              s.faction + ':' + s.squad.id === traceSquad
+            )
+              active.traceShots.push({
+                t: +b.time.toFixed(2),
+                soldier: String(s.id),
+                state: root.BattleEngagement?.stateOf?.(s)?.state || null
+              });
             if (!s?.squad || !root.BattleLeases?.holds?.(s.squad, 'bound', b.time)) return;
             const movers = (s.squad.members || []).filter(
               m =>
@@ -106,12 +122,13 @@ const { chromium } = require('playwright');
           };
           try {
             for (let index = 0; index < count; index++) {
-              const seed = prefix + '-' + String(index + 1).padStart(4, '0');
+              const scenarioIndex = selectedSeed > 0 ? selectedSeed - 1 : index;
+              const seed = prefix + '-' + String(scenarioIndex + 1).padStart(4, '0');
               const scenario = root.BattleTownObjectives.regenerate(
                 b.scene,
                 b.heightAt,
                 seed,
-                { benchmark: true, benchmarkIndex: index },
+                { benchmark: true, benchmarkIndex: scenarioIndex },
                 b
               );
               root.BattleAIPolicy.setMatchPolicies(b, genome, genome);
@@ -151,7 +168,9 @@ const { chromium } = require('playwright');
                 suppressedEpisodes: 0,
                 readinessAttempts: [],
                 maneuverChains: [],
-                pressureTraces: []
+                pressureTraces: [],
+                tickTrace: [],
+                traceShots: []
               };
               const last = new Map();
               const readiness = new Map();
@@ -403,6 +422,98 @@ const { chromium } = require('playwright');
                         tracked.endState = e?.state || null;
                       }
                     }
+                  }
+                }
+
+                /* Read-only, native 0.15 s squad causality trace. Never call updateSquad,
+                   advance soldiers, set destinations or replace movement owners here. */
+                if (traceSquad && b.time >= traceFrom && b.time <= traceTo) {
+                  const [wantedFaction, wantedId] = traceSquad.split(':');
+                  const sq = (b.factions?.[wantedFaction]?.squads || []).find(
+                    s => String(s.id) === wantedId
+                  );
+                  if (sq) {
+                    const P = root.BattleSquadStability?.tacticalPostures;
+                    const posture = P?.current?.(b, sq);
+                    const E = root.BattleEngagement;
+                    const Leases = root.BattleLeases;
+                    active.tickTrace.push({
+                      t: +b.time.toFixed(2),
+                      faction: wantedFaction,
+                      squad: String(sq.id),
+                      phase: sq.commandPhase || null,
+                      coa: sq.coa || null,
+                      inContact: !!sq.inContact,
+                      assaultAuthorized: !!sq._assaultAuthorized,
+                      effectiveCount: sq.effectiveCount ?? null,
+                      pinnedCount: sq.pinnedCount ?? null,
+                      contactCount: sq.contactCount ?? null,
+                      engagementPlan: sq._engagementPlan?.status || null,
+                      posture: posture
+                        ? {
+                            serial: posture.serial,
+                            mode: posture.mode,
+                            stage: posture.stage,
+                            readyAt: posture.readyAt ?? null,
+                            heldIds: (posture.heldActorIds || []).slice(),
+                            decision: posture.lastManeuverDecision
+                              ? JSON.parse(JSON.stringify(posture.lastManeuverDecision))
+                              : null
+                          }
+                        : null,
+                      fireControl: sq.fireControl
+                        ? {
+                            state: sq.fireControl.state,
+                            ids: (sq.fireControl.supporterIds || []).slice(),
+                            point: compactPoint(sq.fireControl.supportPoint),
+                            source: sq.fireControl.supportSource || null
+                          }
+                        : null,
+                      boundLease: Leases?.get?.(sq, 'bound') || null,
+                      boundCycle: !!Leases?.holds?.(sq, 'bound-cycle', b.time),
+                      members: (sq.members || []).map(s => {
+                        const e = E?.stateOf?.(s);
+                        const outcome = root.BattleExecutionOutcome?.man?.(s, b);
+                        return {
+                          id: String(s.id),
+                          role: s.role || null,
+                          dead: !!s.dead,
+                          position: compactPoint(s.root?.position),
+                          state: e?.state || null,
+                          targetId: s.target?.id ?? null,
+                          moving: !!s.moving,
+                          suppressed: (s.suppressedUntil || 0) > b.time,
+                          readyAt: e?.fireReadyAt ?? null,
+                          cooldown: +s.fireCooldown || 0,
+                          authorized: !!E?.fireAuthorized?.(s, b),
+                          areaSupport: compactPoint(E?.areaSupportOf?.(s, b)),
+                          effectiveSupport: !!E?.supportReady?.(s, b),
+                          boundOrder: e?.boundOrder
+                            ? {
+                                id: e.boundOrder.id ?? null,
+                                point: compactPoint(e.boundOrder.point || e.cover),
+                                kind: e.boundOrder.kind || null
+                              }
+                            : null,
+                          cover: compactPoint(e?.cover),
+                          resolver: s._movementResolver?.last
+                            ? {
+                                owner: s._movementResolver.last.owner || null,
+                                kind: s._movementResolver.last.kind || null,
+                                point: compactPoint(s._movementResolver.last.point)
+                              }
+                            : null,
+                          outcome: outcome
+                            ? {
+                                state: outcome.state || null,
+                                current: !!outcome.current,
+                                owner: outcome.resolverOwner || null,
+                                kind: outcome.resolverKind || null
+                              }
+                            : null
+                        };
+                      })
+                    });
                   }
                 }
                 if (tick % 3 !== 0) continue;
@@ -766,9 +877,25 @@ const { chromium } = require('playwright');
           }
           return out;
         },
-        { count, limit, prefix, arm }
+        { count, limit, prefix, arm, selectedSeed, traceSquad, traceFrom, traceTo }
       );
       results.push(...observed);
+      if (traceSquad)
+        observed.forEach(x =>
+          console.log(
+            'PHASE_C_TICK_TRACE',
+            JSON.stringify({
+              type,
+              seed: x.seed,
+              squad: traceSquad,
+              start: traceFrom,
+              end: traceTo,
+              ticks: x.tickTrace.length,
+              shotEvents: x.traceShots.length,
+              maneuverTicks: x.tickTrace.filter(t => t.posture?.mode === 'maneuver').length
+            })
+          )
+        );
       await page.close();
       // The public repo intentionally omits private audio; its 404s are not
       // simulation faults. Never suppress JS errors outside that exact path.
