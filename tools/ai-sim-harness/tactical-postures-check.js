@@ -444,15 +444,17 @@ setReserveTeam(reservePositive);
 const reservePosture = reservePositive.P.update(reservePositive.b, reservePositive.q);
 assert.ok(reservePosture, 'real masked firing-line plan is still produced');
 const reserveOrders = reservePosture.orders.filter(o => o.reserve);
-assert.equal(reserveOrders.length === 0 || reserveOrders.length === 3, true, 'never reserve a partial alpha team');
+assert.equal(
+  reserveOrders.length === 0 || reserveOrders.length === 3,
+  true,
+  'never reserve a partial alpha team'
+);
 assert.ok(
   reservePosture.orders.filter(o => !o.reserve).length >= 3,
   'reserve staging never steals the three firing posts'
 );
 if (reserveOrders.length) {
-  const reserveIds = reservePositive.q.members
-    .filter(s => s._fireteamKey === 'alpha')
-    .map(s => String(s.id));
+  const reserveIds = reservePositive.q.members.filter(s => s._fireteamKey === 'alpha').map(s => String(s.id));
   assert.deepEqual(
     reserveOrders.map(o => o.soldierId).sort(),
     reserveIds.sort(),

@@ -398,14 +398,21 @@
       if (
         reserve.length < 2 ||
         reserve.length > 4 ||
-        reserve.length !== a.filter(function (s) {
-          return s._fireteamKey === 'alpha';
-        }).length ||
+        reserve.length !==
+          a.filter(function (s) {
+            return s._fireteamKey === 'alpha';
+          }).length ||
         other.length < 3 ||
         credibleRifles.length < 2
       )
-        return 'reserve-team-or-firing-base-unavailable:' + reserve.length + ':' + other.length + ':' +
-          credibleRifles.length;
+        return (
+          'reserve-team-or-firing-base-unavailable:' +
+          reserve.length +
+          ':' +
+          other.length +
+          ':' +
+          credibleRifles.length
+        );
       var targets = [];
       for (var i = 0; i < reserve.length; i++) {
         var man = reserve[i],
@@ -995,9 +1002,7 @@
       var exposedOrders =
         rs.length > 0
           ? st.orders.filter(function (o) {
-              return o.reserve
-                ? !reserveMasked(b, o.point, rs)
-                : !C.maskedPost(b, o.point, rs);
+              return o.reserve ? !reserveMasked(b, o.point, rs) : !C.maskedPost(b, o.point, rs);
             })
           : st.orders.slice();
       if (exposedOrders.length) {
