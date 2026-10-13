@@ -30,6 +30,7 @@
       ingressRoutesInvalidated: 0,
       interiorIngressRebases: 0,
       interiorIngressMetersSaved: 0,
+      structureEntryStationClaimsDeferred: 0,
       releasedLifetime: 0,
       assignmentsByRole: {},
       captainWindowAssignments: 0,
@@ -339,8 +340,29 @@
     emit(sim, 'ingress', t, { door: t.route.door });
     return t;
   }
+  /* The #299 Squad Leader structure-order system and the legacy window
+     station system have different jobs. If the leader has ALREADY assigned
+     this man to doorway approach, observation, or security, do not let a new
+     window reservation displace that Meso task merely because the station is
+     geographically close. This is not a fictitious "cleared" flag: the
+     current structure order is checked live and defaults off. */
+  function structureEntryDuty(s, sim) {
+    var lab = root.PhaseCCombatLab,
+      LP = root.BattleSquadStability && root.BattleSquadStability.localPlan;
+    if (!lab || !lab.interiorIngressRecovery || !LP || !LP.structureOrdersOn ||
+        !LP.currentStructureOrders || !s || !s.squad) return false;
+    var assignment = LP.currentStructureOrders(sim, s.squad);
+    return !!(assignment && assignment.orders && assignment.orders.some(function (o) {
+      return o.soldierId === String(s.id);
+    }));
+  }
   function select(s, sim, threat) {
-    var c = context(sim),
+    var c = context(sim);
+    if (structureEntryDuty(s, sim)) {
+      c.stats.structureEntryStationClaimsDeferred++;
+      return null;
+    }
+    var
       here = s.root.position,
       range = root.SquadAI.isMachineGun(s) ? 78 : 62;
     var candidates = N.firingStations.filter(function (st) {
