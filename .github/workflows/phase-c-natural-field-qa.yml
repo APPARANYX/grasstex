@@ -5,6 +5,8 @@ on:
       - work/phase-c-credible-firing-base-20261014
     paths:
       - .github/workflows/phase-c-natural-field-qa.yml
+      - battle/modules/15o-squad-leader-tactical-postures.js
+      - tools/ai-sim-harness/tactical-postures-check.js
   pull_request:
     paths:
       - scripts/probes/probe_phase_c_natural.cjs
