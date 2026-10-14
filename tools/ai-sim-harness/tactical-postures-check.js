@@ -378,6 +378,22 @@ assert.deepEqual(
   popUpStart,
   'the standing-ray preview never changes a soldier position'
 );
+/* The original cover slot can conceal while hiding the actual ballistic
+   aim point behind the crest. A short nearby adjustment must retain masking
+   and approach safety while finding genuine physical shootability. */
+const refinedPosts = world(true, true, true);
+refinedPosts.r.BattleCoverPositions.maskedPost = () => true;
+refinedPosts.r.BattleCoverPositions.maskedApproach = () => true;
+refinedPosts.r.BattleCoverPositions.candidates = () => [];
+refinedPosts.r.SquadAI.canSuppressStanding = s => Math.abs(s.root.position.z - 0.75) < 0.001;
+const refinedPlan = refinedPosts.P.update(refinedPosts.b, refinedPosts.q);
+assert.ok(refinedPlan && refinedPlan.orders.length >= 3, 'masked near-crest trial remains eligible');
+assert.ok(
+  refinedPlan.orders.every(o => o.firingQualified && Math.abs(o.point.z - 0.75) < 0.001),
+  'the local crest refinement selects genuinely shootable posts rather than eye-only observers'
+);
+assert.ok(refinedPlan.plannedFireBaseRifles >= 2, 'two real potential supporters form a credible base');
+
 const blockedPosts = world(true, true, true);
 blockedPosts.r.BattleCoverPositions.maskedPost = () => true;
 blockedPosts.r.BattleCoverPositions.maskedApproach = () => true;
