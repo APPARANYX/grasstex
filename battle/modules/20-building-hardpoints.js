@@ -351,11 +351,12 @@
      geographically close. This is not a fictitious "cleared" flag: the
      current structure order is checked live and defaults off. */
   function structureEntryDuty(s, sim) {
-    var lab = root.PhaseCCombatLab,
+    var route = root.BattleTacticalRoute,
       LP = root.BattleSquadStability && root.BattleSquadStability.localPlan;
     if (
-      !lab ||
-      !lab.interiorIngressRecovery ||
+      !route ||
+      !route.interiorIngressOn ||
+      !route.interiorIngressOn() ||
       !LP ||
       !LP.structureOrdersOn ||
       !LP.currentStructureOrders ||
