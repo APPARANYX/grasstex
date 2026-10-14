@@ -86,7 +86,11 @@ jobs:
               return {seed:observed[0].seed,fingerprint:observed[0].scenarioFingerprint,summary:data.arms.on};
             };
             const off=load('0'),on=load('1');
-            if(off.seed!==on.seed||off.fingerprint!==on.fingerprint)throw Error('Scenario fingerprint changed: '+type);
+            // Regenerated fingerprints are structured objects. Compare their values,
+            // not JavaScript object identity, which differs after JSON.parse.
+            if(off.seed!==on.seed)throw Error('Seed mismatch: '+type);
+            if(!off.fingerprint || !on.fingerprint)throw Error('Missing scenario fingerprint: '+type);
+            require('node:assert/strict').deepStrictEqual(off.fingerprint,on.fingerprint,'Scenario fingerprint changed: '+type);
             results.push({type,seed:on.seed,fingerprint:on.fingerprint,off:off.summary,on:on.summary});
           }
           console.log('PHASE_C_LOCOMOTION_AB',JSON.stringify(results));
