@@ -37,7 +37,10 @@ sq._macroMission = {
   intent: 'capture',
   action: 'assault',
   point: { x: 0, z: 100 },
-  route: [{ x: 0, z: 0 }, { x: 0, z: 80 }]
+  route: [
+    { x: 0, z: 0 },
+    { x: 0, z: 80 }
+  ]
 };
 const S = r.BattleSquadStability;
 S.executeMission(b, sq, null);
@@ -88,4 +91,6 @@ assert.ok(displaced);
 displaced.root.position.z += 3;
 assert.equal(P.update(b, sq), null, 'an actually displaced core member revokes the stored operation');
 assert.equal(held.operation.phase, 'abort');
-console.log('phase-c-operation-continuity-check: PASS independent hold, safe observation, abort, no fake authority');
+console.log(
+  'phase-c-operation-continuity-check: PASS independent hold, safe observation, abort, no fake authority'
+);
