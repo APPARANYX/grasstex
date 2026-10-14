@@ -11,6 +11,17 @@ on:
 permissions:
   contents: read
 jobs:
+  formatter-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exact Prettier repair hunks
+        run: |
+          npx --yes prettier@3.3.3 --write battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
+          echo PRETTIER_PATCH_BEGIN
+          git diff --unified=3 -- battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
+          echo PRETTIER_PATCH_END
   regression:
     runs-on: ubuntu-latest
     timeout-minutes: 12
