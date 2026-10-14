@@ -148,5 +148,16 @@ assert.equal(choose(soldier(), 'formation', 12), null, 'purposeful control untou
 root.PhaseCCombatLab.movementPace = 'baseline';
 assert.equal(choose(soldier(), 'formation', 12), null, 'baseline untouched');
 root.PhaseCCombatLab = null;
-assert.equal(choose(soldier(), 'formation', 12), null, 'main game untouched before promotion');
+assert.equal(choose(soldier(), 'formation', 12), null,
+  'isolated headless harness with no bootstrap flag stays on legacy movement');
+root.BATTLE_BODY_AUTONOMY = true;
+assert.equal(choose(soldier(), 'formation', 12).gait, 'run',
+  'regular main-game bootstrap flag activates the contact speed floor');
+root.PhaseCCombatLab = { movementPace: 'baseline' };
+assert.equal(choose(soldier(), 'formation', 12), null,
+  'Lab Baseline overrides the normal-game default for A/B parity');
+root.PhaseCCombatLab = null;
+root.BATTLE_BODY_AUTONOMY = false;
+assert.equal(choose(soldier(), 'formation', 12), null,
+  'explicit regular-game emergency opt-out preserves legacy movement');
 console.log('PASS autonomous body selection: contact floor, stance, safety, covered bound and stealth');
