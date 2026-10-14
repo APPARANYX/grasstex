@@ -327,6 +327,26 @@ const { chromium } = require('playwright');
       await page.screenshot({ path: out + '/native-' + preset + '.png', fullPage: false });
       results.push({ ...initial, ...preCheck, uiPresent: true });
     }
+    /* Mainline deployment gate: the ordinary battle is NOT a Combat Lab.
+       Autonomy/indoor path correction are on by default, and both can be
+       explicitly rolled back without changing a real soldier's orders. */
+    for (const enabled of [true, false]) {
+      const query = enabled ? '?bodyAutonomy=1&smartIngress=1' :
+        '?bodyAutonomy=0&smartIngress=0';
+      await page.goto(base + query, { waitUntil: 'domcontentloaded', timeout: 180000 });
+      await page.waitForFunction(() =>
+        !!(window.BattleSoldierIndividuality && window.BattleTacticalRoute));
+      const prod = await page.evaluate(() => ({
+        isolated: !!window.PhaseCCombatLab,
+        autonomy: window.BattleSoldierIndividuality.autonomousOn(),
+        smartIngress: window.BattleTacticalRoute.interiorIngressOn(),
+        deployed: window.BATTLE_BUILD_DEPLOYED != null
+      }));
+      assert.equal(prod.isolated, false, 'ordinary battle must not instantiate Combat Lab');
+      assert.equal(prod.deployed, true, 'deployed PHP battle bootstrap enables guarded mainline policy');
+      assert.equal(prod.autonomy, enabled, 'live mobility obeys explicit A/B opt-out');
+      assert.equal(prod.smartIngress, enabled, 'live interior routing obeys explicit A/B opt-out');
+    }
     assert.deepEqual(errors, [], 'no browser page or console errors');
     fs.writeFileSync(out + '/smoke-result.json', JSON.stringify({ results, errors }, null, 2));
     console.log('PASS native compact lab three-preset browser smoke: ' + JSON.stringify(results));
