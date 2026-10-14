@@ -148,5 +148,13 @@ assert.equal(choose(soldier(), 'formation', 12), null, 'purposeful control untou
 root.PhaseCCombatLab.movementPace = 'baseline';
 assert.equal(choose(soldier(), 'formation', 12), null, 'baseline untouched');
 root.PhaseCCombatLab = null;
-assert.equal(choose(soldier(), 'formation', 12), null, 'main game untouched before promotion');
+assert.equal(choose(soldier(), 'formation', 12), null, 'headless fixtures without the PHP bootstrap retain legacy behavior');
+root.BATTLE_BUILD_DEPLOYED = 'integration';
+assert.equal(body.autonomousOn(), true, 'deployed battles enable autonomous stance and gait');
+assert.equal(choose(soldier(), 'formation', 12).gait, 'run', 'real game contact transit uses run floor');
+root.location = { search: '?bodyAutonomy=0' };
+assert.equal(body.autonomousOn(), false, 'shipping A/B rollback stops autonomous locomotion');
+assert.equal(choose(soldier(), 'formation', 12), null, 'rollback preserves earlier contact gait');
+root.location = { search: '?bodyAutonomy=1' };
+assert.equal(body.autonomousOn(), true, 'explicitly enabled production autonomy can be compared');
 console.log('PASS autonomous body selection: contact floor, stance, safety, covered bound and stealth');
