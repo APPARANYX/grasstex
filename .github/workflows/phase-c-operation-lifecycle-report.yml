@@ -1,0 +1,73 @@
+name: Phase C operation lifecycle forensic ledger
+
+on:
+  push:
+    branches:
+      - work/phase-c-operation-lifecycle-diagnostics-20261014
+    paths:
+      - scripts/probes/analyze_phase_c_lifecycle.cjs
+      - tools/ai-sim-harness/phase-c-lifecycle-report-check.js
+      - .github/workflows/phase-c-operation-lifecycle-report.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  ledger:
+    name: Read-only lifecycle comparison
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check script syntax and fail-closed fixture
+        run: |
+          set -euo pipefail
+          node --check scripts/probes/analyze_phase_c_lifecycle.cjs
+          node --check tools/ai-sim-harness/phase-c-lifecycle-report-check.js
+          node tools/ai-sim-harness/phase-c-lifecycle-report-check.js
+      - name: Enforce repository source formatting
+        run: |
+          npx --yes prettier@3.3.3 --check scripts/probes/analyze_phase_c_lifecycle.cjs tools/ai-sim-harness/phase-c-lifecycle-report-check.js
+      - name: Read exact 54-battle corrected-source artifacts
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 38581695964
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: phase-c-natural-*
+          merge-multiple: true
+          path: reports/phase-c-operation/current
+      - name: Read exact prior 54-battle control artifacts
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 38564569759
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: phase-c-natural-*
+          merge-multiple: true
+          path: reports/phase-c-operation/baseline
+      - name: Attribute every same-serial lifecycle termination
+        run: |
+          set -euo pipefail
+          node scripts/probes/analyze_phase_c_lifecycle.cjs \
+            reports/phase-c-operation/current/meeting.json \
+            reports/phase-c-operation/current/us-defend.json \
+            reports/phase-c-operation/current/ge-defend.json \
+            --baseline \
+            reports/phase-c-operation/baseline/meeting.json \
+            reports/phase-c-operation/baseline/us-defend.json \
+            reports/phase-c-operation/baseline/ge-defend.json \
+            > reports/phase-c-operation/lifecycle-comparison.json
+          node -e '
+          const r=require("./reports/phase-c-operation/lifecycle-comparison.json");
+          if(r.current.totals.battles!==54 || r.baseline.totals.battles!==54) throw Error("non-54 battle set");
+          console.log("PHASE_C_LIFECYCLE_COMPARISON",JSON.stringify({baseline:r.baseline.totals,current:r.current.totals,delta:r.delta,releases:r.current.terminationReasons}));
+          '
+      - name: Save provenance and operation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-c-operation-lifecycle-report
+          path: reports/phase-c-operation/lifecycle-comparison.json
+          if-no-files-found: ignore
+          retention-days: 30
