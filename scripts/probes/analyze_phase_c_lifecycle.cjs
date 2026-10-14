@@ -20,7 +20,7 @@ function readShards(paths) {
     if (!Array.isArray(data.results)) throw new Error('missing results: ' + file);
     const on = data.results.filter(x => x.arm === 'on');
     if (!on.length) throw new Error('no native ON battles: ' + file);
-    for (const row of on) {
+    for (const [index, row] of on.entries()) {
       if (!Array.isArray(row.readinessAttempts))
         throw new Error('missing readinessAttempts: ' + file + '/' + row.seed);
       if (!row.scenarioFingerprint) throw new Error('missing fingerprint: ' + file + '/' + row.seed);
@@ -28,6 +28,9 @@ function readShards(paths) {
         type: data.type,
         seed: row.seed,
         fingerprint: row.scenarioFingerprint,
+        /* This acceptance aggregate is already adjudicated by the native
+           probe across the entire shard. Store it once, not per seed. */
+        shardCompletedChains: index === 0 ? +(data.arms?.on?.completedNaturalChains || 0) : 0,
         row
       });
     }
@@ -109,7 +112,7 @@ function analyze(shards) {
       ambushes: sum('ambush'),
       prepared: sum('prepared'),
       authorizedManeuvers: sum('maneuvers'),
-      completeChains: shards.reduce((n, x) => n + (x.row.maneuverChains || []).length, 0),
+      completeChains: shards.reduce((n, x) => n + x.shardCompletedChains, 0),
       attempts: attempts.length,
       reserveStaged: count(attempts, a => a.reserveStaged),
       fullReserveAdopted: count(attempts, a => a.fullReserveAdopted),
