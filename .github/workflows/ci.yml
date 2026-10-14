@@ -144,18 +144,6 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
 
-      # Read-only formatter repair instructions; never push or rewrite the PR.
-      - name: Print Prettier repair
-        if: ${{ failure() }}
-        shell: bash
-        run: |
-          npx --yes prettier@3.3.3 --write battle/engagement.js
-          git diff --binary -- battle/engagement.js > /tmp/mobility-format.patch
-          echo INTEGRATION_PRETTIER_B64_BEGIN
-          base64 -w0 /tmp/mobility-format.patch
-          echo
-          echo INTEGRATION_PRETTIER_B64_END
-
   audio:
     name: Audio library
     needs: changes
