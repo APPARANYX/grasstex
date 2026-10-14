@@ -5,8 +5,8 @@
 (function (root) {
   'use strict';
 
-  var MAP_W = 2000,
-    MAP_D = 1200;
+  var MAP_W = root.PHASE_C_COMBAT_LAB ? 280 : 2000,
+    MAP_D = root.PHASE_C_COMBAT_LAB ? 240 : 1200;
   var FEATURE_KEYS = [
     'buildingDensity',
     'objectiveCount',
@@ -267,14 +267,15 @@
     opts = opts || {};
     seed = String(seed == null ? 'default' : seed);
     var r = rngFor(seed, 'scenario');
-    var spanX = rr(r, 430, 720),
-      spanZ = rr(r, 300, 500),
-      cx = rr(r, -180, 180),
-      cz = rr(r, -85, 85);
-    var buildingCount = Math.round(rr(r, 12, 28)),
-      objectiveCount = Math.round(rr(r, 3, 6));
-    var lanes = [-700, -350, 0, 350, 700],
-      spawnZ = MAP_D / 2 - 90;
+    var lab = !!root.PHASE_C_COMBAT_LAB,
+      spanX = lab ? 205 : rr(r, 430, 720),
+      spanZ = lab ? 166 : rr(r, 300, 500),
+      cx = lab ? 0 : rr(r, -180, 180),
+      cz = lab ? 0 : rr(r, -85, 85);
+    var buildingCount = lab ? 6 : Math.round(rr(r, 12, 28)),
+      objectiveCount = lab ? 1 : Math.round(rr(r, 3, 6));
+    var lanes = lab ? [-25, 25] : [-700, -350, 0, 350, 700],
+      spawnZ = MAP_D / 2 - (lab ? 30 : 90);
     var scenario = {
       version: 20,
       seed: seed,
@@ -282,7 +283,10 @@
       map: { width: MAP_W, depth: MAP_D, unitM: 20, source: 'ww2fps MAPW/MAPH' },
       terrain: { roughness: round(rr(r, 0.18, 0.78), 3) },
       settlement: { cx: round(cx, 1), cz: round(cz, 1), spanX: round(spanX, 1), spanZ: round(spanZ, 1) },
-      spawnZones: { us: { z: -spawnZ, lanes: lanes.slice() }, ge: { z: spawnZ, lanes: lanes.slice() } },
+      spawnZones: {
+        us: { z: -spawnZ, lanes: lanes.slice() },
+        ge: { z: spawnZ, lanes: lab ? [0] : lanes.slice() }
+      },
       roads: [
         { id: 'road-ns', ax: cx, az: cz - spanZ * 0.58, bx: cx, bz: cz + spanZ * 0.58, width: 10 },
         { id: 'road-ew', ax: cx - spanX * 0.58, az: cz, bx: cx + spanX * 0.58, bz: cz, width: 10 }
