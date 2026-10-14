@@ -287,6 +287,17 @@
   function issue(weapon, faction) {
     if (!weapon) return weapon;
     var stats = profileStats(weapon.kind, faction);
+    /* Branch-preview combat range experiment. Scale each *issued* weapon's practical
+       envelope, never the shared STATS/PROFILES calibration read by production or QA.
+       Bullet energy, dispersion, rates of fire and ammunition remain authentic. */
+    var lab = root.PhaseCCombatLab,
+      scale = lab && lab.rangeScale;
+    if (scale === 0.5 || scale === 0.25) {
+      stats = Object.create(stats);
+      stats.range *= scale;
+      stats.falloffStart *= scale;
+      if (stats.autoWithin > 0) stats.autoWithin *= scale;
+    }
     weapon.stats = stats;
     weapon.profile = stats.model || weapon.kind;
     weapon.magSize = stats.magazine || 8;
