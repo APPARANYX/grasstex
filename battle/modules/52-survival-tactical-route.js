@@ -112,15 +112,16 @@
     for (var i = 0; i < a.length; i++) if (String(a[i].id) === String(id)) return a[i];
     return null;
   }
-  function insideBuilding(p, b) {
+  function insideBuilding(p, b, inset) {
     if (!p || !b) return false;
+    inset = inset == null ? 0.15 : Math.max(0, +inset || 0);
     var dx = p.x - b.x,
       dz = p.z - b.z,
       c = Math.cos(b.rot || 0),
       sn = Math.sin(b.rot || 0),
       lx = dx * c - dz * sn,
       lz = dx * sn + dz * c;
-    return Math.abs(lx) <= b.w / 2 - 0.15 && Math.abs(lz) <= b.d / 2 - 0.15;
+    return Math.abs(lx) <= b.w / 2 - inset && Math.abs(lz) <= b.d / 2 - inset;
   }
   function threatCanSeePoint(threat, p, battle) {
     if (!threat || !p) return false;
@@ -213,13 +214,78 @@
       ((b.obstacles && b.obstacles.length) || 0)
     );
   }
+  function interiorIngressOn() {
+    /* The route change is confined to the native Combat Lab until a
+       production natural-battle comparison has been adjudicated. */
+    return !!(root.PhaseCCombatLab && root.PhaseCCombatLab.interiorIngressRecovery);
+  }
+  /* A committed door route can become stale once the soldier crosses a
+     different accessible threshold. Never enforce a forbidden-door zone:
+     a genuine obstructed room may need to exit through a door. Instead,
+     prefer an entirely indoor, physically legal route to the SAME station
+     after the soldier is securely inside its owning building. */
+  function rebaseIngress(s, b, st, route) {
+    if (
+      !interiorIngressOn() ||
+      !s ||
+      !b ||
+      !st ||
+      !route ||
+      !route.steps ||
+      route.index >= route.steps.length ||
+      route.interiorRebased
+    )
+      return null;
+    var building = buildingById(st.building),
+      here = pos(s);
+    /* The .55 m inset is larger than the soldier's .45 m physical radius:
+       standing just outside/on a doorway must not count as entering. */
+    if (!building || !insideBuilding(here, building, 0.55) || !insideBuilding(st, building)) return null;
+    var remaining = route.steps.slice(Math.max(0, route.index || 0)),
+      exitsBuilding = remaining.some(function (p) {
+        return !insideBuilding(p, building);
+      });
+    if (!exitsBuilding) return null;
+    if (route.lastInteriorProbeAt != null && b.time - route.lastInteriorProbeAt < 1.5) return null;
+    route.lastInteriorProbeAt = b.time;
+    var N = root.BattleNavigation,
+      indoor = N.movementClear(here, st) ? [clone(st)] : ingressPath(s, b, here, st);
+    /* A path touching exterior space, a blocked segment or an inaccessible
+       firing port is not an indoor shortcut. Preserve the old door route. */
+    if (
+      !indoor ||
+      !indoor.length ||
+      !indoor.every(function (p) {
+        return insideBuilding(p, building);
+      })
+    )
+      return null;
+    var previousDistance = pathLength(here, remaining),
+      indoorDistance = pathLength(here, indoor);
+    if (indoorDistance + 0.6 >= previousDistance) return null;
+    return {
+      steps: indoor.map(clone),
+      index: 0,
+      door: null,
+      enteredDoor: route.door || route.enteredDoor || null,
+      createdAt: b.time,
+      version: ingressVersion(b),
+      interiorRebased: true,
+      savedDistance: +(previousDistance - indoorDistance).toFixed(2)
+    };
+  }
+
   function createIngress(s, b, st, threat) {
     var building = buildingById(st.building),
       here = pos(s);
     if (!building || !here) return null;
     var steps = null,
       door = null;
-    if (insideBuilding(here, building)) steps = ingressPath(s, b, here, st);
+    if (insideBuilding(here, building))
+      steps =
+        interiorIngressOn() && root.BattleNavigation.movementClear(here, st)
+          ? [clone(st)]
+          : ingressPath(s, b, here, st);
     else {
       var candidates = (root.BattleNavigation.doorPortals || [])
         .filter(function (d) {
@@ -646,6 +712,7 @@
   root.BattleTacticalRoute = {
     version: '3.0-lean-execution',
     createIngress: createIngress,
+    rebaseIngress: rebaseIngress,
     ingressVersion: ingressVersion,
     cancel: function (s, b) {
       clearPlan(s, b, true);
