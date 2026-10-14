@@ -1,4 +1,4 @@
-name: Damage range browser QA
+name: ⭐ Damage range browser QA
 
 # Run the real opt-in range against this PR's PHP loader and checked-in FBX assets.
 # Keep it separate from the fast simulation CI; this is an expensive browser smoke.

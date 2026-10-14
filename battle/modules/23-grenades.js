@@ -254,6 +254,7 @@
     return path;
   }
   function commit(s, battle, aim, source) {
+    if (root.PhaseCCombatLab && root.PhaseCCombatLab.blockShot(s, battle, 'grenade')) return null;
     var plan = Object.freeze({
       s: s,
       aim: Object.freeze({ x: aim.x, z: aim.z }),

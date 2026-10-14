@@ -83,6 +83,32 @@
   function SA() {
     return root.SquadAI;
   }
+  function autonomousMobilityOn() {
+    var owner = root.BattleSoldierIndividuality;
+    return !!(owner && owner.autonomousOn && owner.autonomousOn());
+  }
+  /* Keep Micro's native movement posture until the resolver knows the actual
+     winning intent. A declined autonomy override must not discard that posture;
+     committing both before and after arbitration would restart aim every tick. */
+  function transitStance(s, battle, stance, seconds, reason) {
+    if (!autonomousMobilityOn() || !root.BattleMovementResolver) {
+      commitStance(s, battle, stance, seconds, reason);
+      return;
+    }
+    var e = state(s);
+    e.transitStance = { at: battle.time, state: e.state, stance: stance, seconds: seconds, reason: reason };
+  }
+  function transitStanceOf(s, battle) {
+    var e = s && s.eng,
+      pending = e && e.transitStance;
+    return pending && pending.at === battle.time && pending.state === e.state ? pending : null;
+  }
+  function settleTransitStance(s, battle, plan) {
+    var pending = transitStanceOf(s, battle);
+    if (s.eng) s.eng.transitStance = null;
+    if (plan) commitStance(s, battle, plan.stance, 0.45, 'body-autonomy:' + plan.reason);
+    else if (pending) commitStance(s, battle, pending.stance, pending.seconds, pending.reason);
+  }
   function combatThreat(unit) {
     var api = SA(),
       d = api && api.threatDisposition ? api.threatDisposition(unit) : null;
@@ -415,6 +441,7 @@
     return fireStanceImpl().applyStance(s, stance);
   }
   function commitStance(s, battle, stance, seconds, reason) {
+    state(s).transitStance = null;
     return fireStanceImpl().commitStance(s, battle, stance, seconds, reason);
   }
   function requestStance(s, battle, stance, seconds) {
@@ -1347,7 +1374,7 @@
       e.advanceLowUntil = Math.max(+e.advanceLowUntil || 0, battle.time + LOW_GAP_HOLD);
     var low = lowNow || (CONTACT_STANCE && battle.time < (+e.advanceLowUntil || 0));
     if (!holdStance(s, battle))
-      commitStance(
+      transitStance(
         s,
         battle,
         low ? 'crouch' : 'stand',
@@ -1639,7 +1666,46 @@
         PRONE_ROLES[s.role] &&
         !e.urgentBound &&
         (CRAWL_FIT ? canCrawlTo(s, battle, d) : d < 14);
-    commitStance(s, battle, crawl ? 'crawl' : 'crouch', Math.max(1, e.until - battle.time));
+    /* On a lab-only A/B trial, make a genuine committed cover displacement a
+       short DASH when it has a straight physically legal segment and enough
+       ground to justify standing up. Remaining crouched currently forces the
+       gait owner to choose crouchRun; no actual sprint can ever occur.
+       A Squad Leader's certified COVERED bound gets an additional stand-height
+       survey: crouch concealment alone is NOT permission to sprint upright.
+       Individual cover-seeking already committed here may dash over exposed
+       open ground rather than crouch-run 20m under direct pressure. There is
+       no new permission, supporter, or squad movement order. */
+    var lab = root.PhaseCCombatLab,
+      N = root.BattleNavigation,
+      C = root.BattleCoverPositions,
+      orderedCovered = !!e.moveReason && e.moveReason.indexOf('authorized fireteam bound: cover') === 0,
+      dash =
+        !!(lab && lab.movementPace === 'purposeful') &&
+        !crawl &&
+        d > 6 &&
+        !s.reloading &&
+        !s.clearingStoppage &&
+        !SA().isMachineGun(s) &&
+        !!(N && N.movementClear && N.movementClear(p, { x: cover.x, z: cover.z }));
+    if (dash && orderedCovered) {
+      var reports = C && C.boundThreats && C.boundThreats(s, battle);
+      dash = !!(
+        C &&
+        C.boundRoute &&
+        reports &&
+        reports.length &&
+        C.boundRoute(s, battle, cover, reports, 'stand').eligible
+      );
+    }
+    /* Defer the native fallback, including a viable suppression crawl. The
+       resolver may choose a faster safe plan, or decline at final placement. */
+    transitStance(
+      s,
+      battle,
+      crawl ? 'crawl' : dash ? 'stand' : 'crouch',
+      Math.max(1, e.until - battle.time),
+      dash ? 'purposeful cover dash' : 'cover-bound'
+    );
     move(s, battle, { x: cover.x, z: cover.z }, 'cover-bound');
   }
 
@@ -1738,7 +1804,19 @@
        position with a line instead of pinning him behind the crest for the rest of the battle. */
     var fighting = fireLineLive(s, e, battle);
     if (fighting) holdPosition(s, battle);
-    if (!holdStance(s, battle))
+    /* A blocked firing ray deliberately releases Micro's hold so the man
+       can advance to a workable place. Do not repeatedly re-impose crouch
+       while his autonomous transit owns both stance and gait. */
+    var lastGoal = s._movementResolver && s._movementResolver.goal,
+      enRoute = !!(
+        autonomousMobilityOn() &&
+        !fighting &&
+        lastGoal &&
+        lastGoal.kind === 'formation' &&
+        s.destination &&
+        Math.hypot(s.destination.x - p.x, s.destination.z - p.z) > 1.5
+      );
+    if (!enRoute && !holdStance(s, battle))
       commitStance(
         s,
         battle,
@@ -1803,7 +1881,7 @@
       hasTarget = combatThreat(s.target),
       t = hasTarget ? posOf(s.target) : null,
       d = t ? dist(p.x, p.z, t.x, t.z) : Infinity;
-    commitStance(s, battle, 'crouch', Math.max(1, e.until - battle.time));
+    if (!autonomousMobilityOn()) commitStance(s, battle, 'crouch', Math.max(1, e.until - battle.time));
     if (!e.assaultGoal) {
       if (!t) {
         transition(s, battle, 'alert', ALERT_HOLD, 'assault target unavailable');
@@ -2308,8 +2386,8 @@
     boundThreats: function (s, battle) {
       return coverImpl().boundThreats(s, battle);
     },
-    boundRoute: function (s, battle, point, threats) {
-      return coverImpl().boundRoute(s, battle, point, threats);
+    boundRoute: function (s, battle, point, threats, stance) {
+      return coverImpl().boundRoute(s, battle, point, threats, stance);
     },
     maskedPost: function (battle, point, threats) {
       return coverImpl().maskedPost(battle, point, threats);
@@ -2391,6 +2469,8 @@
     firingLineClear: firingLineClear,
     crestPrepPoint: crestPrepPoint,
     commitStance: commitStance,
+    transitStanceOf: transitStanceOf,
+    settleTransitStance: settleTransitStance,
     requestStance: requestStance,
     markUrgent: markUrgent,
     clearUrgent: clearUrgent,

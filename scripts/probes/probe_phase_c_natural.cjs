@@ -12,6 +12,8 @@ const { chromium } = require('playwright');
   const limit = Math.max(30, Number(process.env.C_FIELD_SECONDS || 210));
   const prefix = process.env.C_FIELD_PREFIX || 'phase-c-field';
   const selectedSeed = Math.max(0, Number(process.env.C_FIELD_SEED_INDEX || 0));
+  const autonomousMovement = process.env.C_FIELD_AUTONOMOUS_MOVEMENT === '0' ? '0' : '1';
+  const smartIndoorIngress = process.env.C_FIELD_SMART_INGRESS === '0' ? '0' : '1';
   const traceSquad = String(process.env.C_FIELD_TRACE_SQUAD || '');
   const traceFrom = Number(process.env.C_FIELD_TRACE_FROM || 0);
   const traceTo = Number(process.env.C_FIELD_TRACE_TO || limit);
@@ -37,7 +39,11 @@ const { chromium } = require('playwright');
       );
       if (arm === 'on') for (const [k, v] of new URLSearchParams(flags)) query.set(k, v);
       query.set('seed', prefix + '-bootstrap');
+      query.set('autonomousMovement', autonomousMovement);
+      query.set('smartIndoorIngress', smartIndoorIngress);
       const page = await browser.newPage({ ignoreHTTPSErrors: true });
+      if (process.env.C_FIELD_DISABLE_AUTO_FORMATION === '1')
+        await page.addInitScript(() => { window.BATTLE_DIAGNOSTIC_NO_AUTONOMOUS_FORMATION = true; });
       page.setDefaultTimeout(120000);
       const errors = [];
       page.on('pageerror', e => errors.push(String(e)));
@@ -808,6 +814,20 @@ const { chromium } = require('playwright');
                           underFire: !!E?.underFireNow?.(s, b),
                           stance: { prone: !!s.prone, crouched: !!s.tacticalCrouch },
                           moving: !!s.moving,
+                          hp: +s.hp || 0,
+                          morale: s.morale ?? null,
+                          gait: s._locomotionGait || null,
+                          groundSpeed: +(+s._locomotionGroundSpeed || 0).toFixed(3),
+                          bodyAutonomy: s._bodyAutonomyIntent
+                            ? {
+                                at: +(+s._bodyAutonomyIntent.at || 0).toFixed(2),
+                                kind: s._bodyAutonomyIntent.kind || null,
+                                stance: s._bodyAutonomyIntent.stance || null,
+                                gait: s._bodyAutonomyIntent.gait || null,
+                                reason: s._bodyAutonomyIntent.reason || null
+                              }
+                            : null,
+                          movementStopReason: s._movementStopReason || null,
                           suppressed: (s.suppressedUntil || 0) > b.time,
                           readyAt: e?.fireReadyAt ?? null,
                           cooldown: +s.fireCooldown || 0,
@@ -1243,6 +1263,9 @@ const { chromium } = require('playwright');
       commit: process.env.C_FIELD_SHA || 'local',
       count,
       limit,
+      autonomousMovement,
+      smartIndoorIngress,
+      disableAutonomousFormation: process.env.C_FIELD_DISABLE_AUTO_FORMATION === '1',
       arms: Object.fromEntries(
         ['off', 'on'].map(arm => {
           const a = results.filter(x => x.arm === arm);

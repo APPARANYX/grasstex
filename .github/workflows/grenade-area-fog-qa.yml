@@ -1,4 +1,4 @@
-name: Grenade Area Fog Browser QA
+name: ⭐ Grenade Area Fog Browser QA
 on:
   pull_request:
     paths:

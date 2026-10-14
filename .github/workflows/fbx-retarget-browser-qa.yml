@@ -1,4 +1,4 @@
-name: FBX retarget browser QA
+name: ⭐ FBX retarget browser QA
 
 # The pure quaternion kernel must still agree with Babylon's independent matrix retarget
 # on every actual imported model and clip in a checked-out PHP battle.
