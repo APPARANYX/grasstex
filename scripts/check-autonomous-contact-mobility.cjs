@@ -148,5 +148,16 @@ assert.equal(choose(soldier(), 'formation', 12), null, 'purposeful control untou
 root.PhaseCCombatLab.movementPace = 'baseline';
 assert.equal(choose(soldier(), 'formation', 12), null, 'baseline untouched');
 root.PhaseCCombatLab = null;
-assert.equal(choose(soldier(), 'formation', 12), null, 'main game untouched before promotion');
+assert.equal(choose(soldier(), 'formation', 12), null, 'no explicit live flag preserves compatibility in isolated harness');
+root.BATTLE_AUTONOMOUS_MOVEMENT = true;
+assert.equal(choose(soldier(), 'formation', 12).gait, 'run',
+  'production default-on policy selects a genuine run under contact');
+root.BATTLE_AUTONOMOUS_MOVEMENT = false;
+assert.equal(choose(soldier(), 'formation', 12), null,
+  'production diagnostic opt-out restores the legacy stance and gait decision');
+root.BATTLE_AUTONOMOUS_MOVEMENT = true;
+root.PhaseCCombatLab = { movementPace: 'baseline' };
+assert.equal(choose(soldier(), 'formation', 12), null,
+  'lab baseline overrides the globally enabled production policy');
+root.PhaseCCombatLab = null;
 console.log('PASS autonomous body selection: contact floor, stance, safety, covered bound and stealth');
