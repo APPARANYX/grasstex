@@ -290,6 +290,9 @@ jobs:
           node scripts/check-movement-order-ownership.cjs
           node scripts/check-meso-micro-movement-ownership.cjs
           node scripts/check-physical-waypoint-refill.cjs
+          node scripts/check-purposeful-contact-gait.cjs
+          node scripts/check-autonomous-contact-mobility.cjs
+          node scripts/check-building-interior-ingress.cjs
 
       - name: Engagement harness seeds
         run: |

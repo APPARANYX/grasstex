@@ -301,7 +301,9 @@
   function detectionRange(observerRole, target) {
     var mult = VISIBILITY[stanceOf(target)] || 1;
     if (target.moving) mult += MOVING_VISIBILITY_BONUS;
-    return observerRole.visionRange * clamp(mult, 0.3, 1.25);
+    var lab = root.PhaseCCombatLab,
+      scale = (lab && lab.rangeScale) || 1;
+    return observerRole.visionRange * clamp(mult, 0.3, 1.25) * scale;
   }
   /* Range first, sight second: sorting the in-range enemies by distance and stopping at the first
      visible one turns a full O(enemies) sight sweep into one or two sight tests, which matters now
@@ -993,7 +995,10 @@
       p = soldier.root.position;
     if (
       dist2(p.x, p.z, t.root.position.x, t.root.position.z) >
-      role.visionRange * TRACK_MARGIN * sightScale(soldier)
+      role.visionRange *
+        ((root.PhaseCCombatLab && root.PhaseCCombatLab.rangeScale) || 1) *
+        TRACK_MARGIN *
+        sightScale(soldier)
     )
       return false;
     return hasLineOfSight(soldier, t, heightAt, obstacles);
@@ -1615,6 +1620,7 @@
   /* Fires the rounds of one trigger pull through fire(round, delay); stops early if the weapon
      runs dry or stops, or fire() returns false. Returns the rounds that left the weapon. */
   function discharge(shooter, battle, rounds, fire) {
+    if (root.PhaseCCombatLab && root.PhaseCCombatLab.blockShot(shooter, battle, 'discharge')) return 0;
     var stats = shooter.weapon.stats,
       fired = 0;
     for (var i = 0; i < rounds; i++) {
@@ -1665,6 +1671,7 @@
   }
 
   function areaFire(shooter, point, battle) {
+    if (root.PhaseCCombatLab && root.PhaseCCombatLab.blockShot(shooter, battle, 'area')) return 0;
     if (!EXT.pass('areaFireGate', shooter, battle, point)) return 0;
     if (shooter.fireCooldown > 0 || !canSuppress(shooter, point, battle)) return 0;
     var stats = shooter.weapon.stats,
@@ -1739,6 +1746,8 @@
   }
   function applyHit(shooter, victim, battle, hit) {
     if (!victim || victim.dead) return null;
+    if (root.PhaseCCombatLab && root.PhaseCCombatLab.preventWound(shooter, victim, battle, hit))
+      return { zone: (hit && hit.zone) || 'unknown', outcome: 'lab-absorbed', damage: 0 };
     return EXT.first('woundModel', flatDamage)(shooter, victim, battle, hit);
   }
 
@@ -2260,7 +2269,8 @@
     return cap > 0 ? Math.min(cap, range) : range;
   }
   function tryFire(soldier, battle) {
-    if (!soldier.weapon) return false; // no weapon, no shot (he left it behind)
+    if (!soldier.weapon) return false;
+    if (root.PhaseCCombatLab && root.PhaseCCombatLab.blockShot(soldier, battle, 'aimed')) return false; // no weapon, no shot (he left it behind)
     if (!EXT.pass('fireGate', soldier, battle)) return false;
     if (soldier.fireCooldown > 0) return false;
     var stats = soldier.weapon.stats,
