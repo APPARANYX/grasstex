@@ -2,7 +2,7 @@ name: Phase C locomotion focused causal trace
 on:
   push:
     branches:
-      - work/phase-c-locomotion-ab-20261014
+      - work/phase-c-handoff-meeting-opportunity-20261014
     paths:
       - .github/workflows/phase-c-locomotion-trace.yml
   workflow_dispatch:
@@ -17,9 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - { label: us1-first-ambush, squad: 'us:us-1', from: '219', to: '263' }
-          - { label: us4-contact-line, squad: 'us:us-4', from: '262', to: '313' }
-          - { label: ge1-late-posture, squad: 'ge:ge-1', from: '438', to: '468' }
+          - { label: ge2-reserve-to-contact, squad: 'ge:ge-2', from: '210', to: '227' }
         autonomy: ['0', '1']
     steps:
       - uses: actions/checkout@v4
@@ -41,8 +39,8 @@ jobs:
           exit 1
       - name: Read-only 0.15s causal trace of native Phase C
         env:
-          C_FIELD_TYPE: ge-defend
-          C_FIELD_SEED_INDEX: '15'
+          C_FIELD_TYPE: meeting
+          C_FIELD_SEED_INDEX: '1'
           C_FIELD_COUNT: '1'
           C_FIELD_SECONDS: '600'
           C_FIELD_PREFIX: phase-c-natural-20261012
@@ -52,7 +50,7 @@ jobs:
           C_FIELD_TRACE_SQUAD: ${{ matrix.target.squad }}
           C_FIELD_TRACE_FROM: ${{ matrix.target.from }}
           C_FIELD_TRACE_TO: ${{ matrix.target.to }}
-          C_FIELD_DIR: reports/phase-c-locomotion-ticks
+          C_FIELD_DIR: reports/phase-c-meeting-window
           C_FIELD_SHA: ${{ github.sha }}
         run: node scripts/probes/probe_phase_c_natural.cjs
       - name: Save per-tick snapshot evidence
@@ -60,7 +58,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: phase-c-trace-${{ matrix.target.label }}-autonomy-${{ matrix.autonomy }}
-          path: reports/phase-c-locomotion-ticks/ge-defend.json
+          path: reports/phase-c-meeting-window/meeting.json
           retention-days: 30
       - name: Server diagnostics
         if: failure()
