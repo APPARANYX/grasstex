@@ -1,0 +1,67 @@
+name: Phase C locomotion focused causal trace
+on:
+  push:
+    branches:
+      - work/phase-c-locomotion-ab-20261014
+    paths:
+      - .github/workflows/phase-c-locomotion-trace.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tick:
+    name: ${{ matrix.target.label }} locomotion=${{ matrix.autonomy }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { label: us1-first-ambush, squad: 'us:us-1', from: '219', to: '263' }
+          - { label: us4-contact-line, squad: 'us:us-4', from: '262', to: '313' }
+          - { label: ge1-late-posture, squad: 'ge:ge-1', from: '438', to: '468' }
+        autonomy: ['0', '1']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start native full-battle server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www > /tmp/phase-c-locomotion-trace-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=phase-c-health" > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/phase-c-locomotion-trace-php.log
+          exit 1
+      - name: Read-only 0.15s causal trace of native Phase C
+        env:
+          C_FIELD_TYPE: ge-defend
+          C_FIELD_SEED_INDEX: '15'
+          C_FIELD_COUNT: '1'
+          C_FIELD_SECONDS: '600'
+          C_FIELD_PREFIX: phase-c-natural-20261012
+          C_FIELD_ARMS: on
+          C_FIELD_AUTONOMOUS_MOVEMENT: ${{ matrix.autonomy }}
+          C_FIELD_SMART_INGRESS: '0'
+          C_FIELD_TRACE_SQUAD: ${{ matrix.target.squad }}
+          C_FIELD_TRACE_FROM: ${{ matrix.target.from }}
+          C_FIELD_TRACE_TO: ${{ matrix.target.to }}
+          C_FIELD_DIR: reports/phase-c-locomotion-ticks
+          C_FIELD_SHA: ${{ github.sha }}
+        run: node scripts/probes/probe_phase_c_natural.cjs
+      - name: Save per-tick snapshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-c-trace-${{ matrix.target.label }}-autonomy-${{ matrix.autonomy }}
+          path: reports/phase-c-locomotion-ticks/ge-defend.json
+          retention-days: 30
+      - name: Server diagnostics
+        if: failure()
+        run: tail -100 /tmp/phase-c-locomotion-trace-php.log || true

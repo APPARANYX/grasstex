@@ -1,8 +1,5 @@
 name: Phase C locomotion paired seeds
 on:
-  push:
-    branches:
-      - work/phase-c-locomotion-ab-20261014
   workflow_dispatch:
 permissions:
   contents: read
