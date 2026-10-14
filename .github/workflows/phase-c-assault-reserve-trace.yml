@@ -1,0 +1,79 @@
+name: Phase C assault reserve contact forensic trace
+on:
+  push:
+    branches:
+      - work/phase-c-operation-continuity-20261014
+    paths:
+      - .github/workflows/phase-c-assault-reserve-trace.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  trace:
+    name: ${{ matrix.case_type }} targeted operation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - case_type: meeting
+            battle_type: meeting
+            seed_index: '15'
+            squad: 'us:us-0'
+            trace_from: '295'
+            trace_to: '317'
+            seconds: '330'
+          - case_type: ge-defend
+            battle_type: ge-defend
+            seed_index: '4'
+            squad: 'us:us-1'
+            trace_from: '210'
+            trace_to: '235'
+            seconds: '250'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start explicit branch-local simulation server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/phase-c-operation-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/phase-c-operation-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/phase-c-operation-www > /tmp/phase-c-trace-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=assault-trace-health" >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/phase-c-trace-php.log
+          exit 1
+      - name: Trace only genuine assault reserve overlap with physical arrivals
+        env:
+          C_FIELD_TYPE: ${{ matrix.battle_type }}
+          C_FIELD_COUNT: '1'
+          C_FIELD_SEED_INDEX: ${{ matrix.seed_index }}
+          C_FIELD_SECONDS: ${{ matrix.seconds }}
+          C_FIELD_PREFIX: phase-c-natural-20261012
+          C_FIELD_AUTONOMOUS_MOVEMENT: '1'
+          C_FIELD_SMART_INGRESS: '0'
+          C_FIELD_OPERATION: '1'
+          C_FIELD_ARMS: 'on'
+          C_FIELD_TRACE_SQUAD: ${{ matrix.squad }}
+          C_FIELD_TRACE_FROM: ${{ matrix.trace_from }}
+          C_FIELD_TRACE_TO: ${{ matrix.trace_to }}
+          C_FIELD_DIR: reports/phase-c-assault-trace
+          C_FIELD_SHA: ${{ github.sha }}
+        run: node scripts/probes/probe_phase_c_natural.cjs
+      - name: Upload exact 0.15-second Meso/physical trace
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase-c-assault-trace-${{ matrix.case_type }}
+          path: reports/phase-c-assault-trace/*.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Show branch-local server diagnostics on error
+        if: failure()
+        run: tail -100 /tmp/phase-c-trace-php.log || true
