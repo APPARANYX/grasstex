@@ -170,7 +170,7 @@ jobs:
 
   combat-lab-smoke:
     name: Native Combat Lab Chromium QA
-    if: github.ref_name == 'work/phase-c-native-combat-lab' && github.event_name == 'push'
+    if: (github.ref_name == 'work/phase-c-native-combat-lab' || github.ref_name == 'work/phase-c-mainline-integration') && github.event_name == 'push'
     needs: preview
     runs-on: ubuntu-latest
     timeout-minutes: 16
