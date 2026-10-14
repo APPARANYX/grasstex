@@ -18,6 +18,7 @@
         on &&
         /[?&]localManeuver=(?:1|on|true)(?:&|#|$)/i.test(query) &&
         /[?&]coveredBounds=(?:1|on|true)(?:&|#|$)/i.test(query),
+      operationOn = maneuverOn && /[?&]fireManeuverOperation=(?:1|on|true)(?:&|#|$)/i.test(query),
       states = new WeakMap(),
       cooldown = new WeakMap(),
       counters = new WeakMap(),
@@ -32,6 +33,54 @@
         minSupport: 2,
         readAge: 0.5
       };
+    /* One Meso-owned, serial-bound operation ledger. It records verified
+       phases but cannot write a soldier destination, shot or bound lease.
+       Actual authorization remains the current native fire/route gates. */
+    function operationTransition(b, sq, st, phase, reason) {
+      if (!operationOn || !st || !st.operation || st.operation.phase === phase) return;
+      var op = st.operation;
+      op.transitions.push({ from: op.phase, to: phase, at: b.time, reason: reason });
+      if (op.transitions.length > 24) op.transitions.shift();
+      op.phase = phase;
+      op.at = b.time;
+      ctx.telemetry(b, 'decision-fire-maneuver-operation', {
+        squad: sq.id,
+        faction: sq.faction,
+        serial: st.serial,
+        phase: phase,
+        reason: reason
+      });
+    }
+    /* A verified three-person line may keep QUIETLY OBSERVING under the
+       SAME valid mission after its original sighting expires. Only detached
+       geometry anchors are retained for a physical concealment check; no
+       stale report can grant firing or maneuver, and no expired coordinates
+       are passed to reserveStage, coveredTeam or fire control. */
+    function quietOperationSafe(b, sq, st, a) {
+      if (
+        !operationOn ||
+        !st ||
+        !st.operation ||
+        st.mode !== 'ambush' ||
+        st.readyAt == null ||
+        sq.inContact ||
+        ambiguousPicture(b, sq) ||
+        (sq._localTask && sq._localTask.emergency) ||
+        a.some(function (s) { return !!s.target; }) ||
+        !st.observationGeometry ||
+        !st.observationGeometry.length ||
+        st.compromisedAt != null ||
+        !heldCore(b, sq, st, a)
+      ) return false;
+      var C = root.BattleCoverPositions;
+      return !!(
+        C &&
+        st.heldActorIds.every(function (id) {
+          var s = a.find(function (man) { return String(man.id) === id; });
+          return s && C.maskedPost(b, s.root.position, st.observationGeometry);
+        })
+      );
+    }
     function point(p) {
       return p && Number.isFinite(p.x) && Number.isFinite(p.z) ? { x: p.x, z: p.z } : null;
     }
@@ -751,6 +800,7 @@
         if (!counts.releaseReasons) counts.releaseReasons = {};
         counts.releaseReasons[why] = (counts.releaseReasons[why] || 0) + 1;
         if (!counts.releases) counts.releases = [];
+        operationTransition(b, sq, st, 'abort', why);
         counts.releases.push({
           serial: st.serial,
           reason: why,
@@ -850,12 +900,17 @@
            back into formation is the exposed move. Without a fresh detached
            coordinate no route can be judged, so no maneuver follows from it.
            A line that is not in contact still fails closed on stale intel. */
-        if (!(st && inContactLine(sq, st)))
+        if (!(st && inContactLine(sq, st)) && !quietOperationSafe(b, sq, st, a))
           return end(
             b,
             sq,
             ambiguousPicture(b, sq) ? 'ambiguous-threat-picture' : 'no-fresh-reported-threat'
           );
+        /* A mission-owned quiet observer can retain actual verified posts,
+           but the report is STILL absent: downstream fire-control, support
+           and bound decisions must see rs=[] and cannot act on anchors. */
+        if (!rs.length && st && st.operation && quietOperationSafe(b, sq, st, a))
+          operationTransition(b, sq, st, 'observe', 'report-expired-observation-only');
       }
       /* A prepared assault that has established its own REAL two-rifle base
          of fire need not wait to be hit before considering a covered bound.
@@ -1018,6 +1073,11 @@
         var previousMode = st.mode;
         st.mode = possible ? 'maneuver' : 'hold';
         st.stage = possible ? 'supporting-fire' : 'pressure-hold';
+        operationTransition(
+          b, sq, st,
+          possible ? 'bound' : supportCount >= tuning.minSupport ? 'support' : 'contact',
+          possible ? 'native-covered-bound-authorized' : 'native-support-or-pressure-hold'
+        );
         st.pressureAt = now;
         /* A prepared pressure hold keeps the same adopted posts while the
            existing policy rechecks support/route conditions. Do not destroy
@@ -1228,6 +1288,18 @@
           threats: rs,
           reservePlan: reservePlan,
           plannedFireBaseRifles: plannedFireBaseRifles,
+          observationGeometry: rs.map(function (r) {
+            return { x: r.x, z: r.z };
+          }),
+          operation: operationOn
+            ? {
+                serial: counts.ambushes,
+                phase: 'stage',
+                at: now,
+                missionVersion: m.version,
+                transitions: [{ from: 'plan', to: 'stage', at: now, reason: 'native-ambush-selected' }]
+              }
+            : null,
           /* Keep only Squad Leader intent through the posture-to-bound handoff.
              Physical endpoints and bound commands remain Engagement/Resolver owned. */
           reserveTeam: reserveTeam,
@@ -1259,12 +1331,16 @@
       }
       st.at = now;
       st.threats = rs;
-      var exposedOrders =
-        rs.length > 0
-          ? st.orders.filter(function (o) {
-              return o.reserve ? !reserveMasked(b, o.point, rs) : !C.maskedPost(b, o.point, rs);
-            })
-          : st.orders.slice();
+      var observationSafe = !rs.length && quietOperationSafe(b, sq, st, a),
+        geometryReports = rs.length ? rs : observationSafe ? st.observationGeometry : [],
+        exposedOrders =
+          geometryReports.length > 0
+            ? st.orders.filter(function (o) {
+                return o.reserve
+                  ? !reserveMasked(b, o.point, geometryReports)
+                  : !C.maskedPost(b, o.point, geometryReports);
+              })
+            : st.orders.slice();
       if (exposedOrders.length) {
         /* Before readiness the selected three-man core must remain truly
            concealed. But a fifth participant's exposed post is not a reason
@@ -1315,11 +1391,13 @@
         });
         st.heldSince = st.heldActorIds.length >= 3 ? now : null;
         st.stage = st.heldSince == null ? 'assemble' : 'hold';
+        operationTransition(b, sq, st, st.heldSince == null ? 'stage' : 'prepare', 'real-core-held');
         if (st.heldSince == null && now - st.since > tuning.preparationBudget)
           return end(b, sq, 'preparation timed out');
       } else if (st.readyAt == null && now - st.heldSince >= tuning.minimumHold) {
         st.stage = 'ready';
         st.readyAt = now;
+        operationTransition(b, sq, st, 'observe', 'four-second-verified-core');
         /* The verified posts the line is held to from now on are where the
            men actually stand at readiness, after any closing on the order. */
         st.heldActorIds.forEach(function (id) {
@@ -1339,10 +1417,13 @@
         if (st.stage !== 'contact') {
           st.stats.coordinatedContacts++;
           st.stage = 'contact';
+          operationTransition(b, sq, st, 'contact', 'independent-contact');
         }
       } else if (st.stage === 'contact') return end(b, sq, 'contact ended');
-      if (st.stage === 'ready' && now - st.readyAt > tuning.observationBudget)
-        return end(b, sq, 'no firsthand contact');
+      if (st.stage === 'ready' && now - st.readyAt > tuning.observationBudget) {
+        if (!quietOperationSafe(b, sq, st, a)) return end(b, sq, 'no firsthand contact');
+        operationTransition(b, sq, st, 'observe', 'quiet-mission-continues-no-authorization');
+      }
       return st;
     }
     function soldierOrder(s, b) {
@@ -1362,6 +1443,7 @@
     return {
       on: on,
       maneuverOn: maneuverOn,
+      operationOn: operationOn,
       tuning: tuning,
       coveredTeam: coveredTeam,
       update: update,
