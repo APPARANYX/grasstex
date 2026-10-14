@@ -102,12 +102,14 @@
   }
   function eligible(s) {
     return !!(
-      s &&
-      !s.dead &&
-      s.hp > 0 &&
-      !s.incapacitated &&
-      (s.role === 'gunner' || s.role === 'rifleman') &&
-      !(root.BattleEngagement && root.BattleEngagement.reacting(s)) // not while he is down, running or charging
+      (
+        s &&
+        !s.dead &&
+        s.hp > 0 &&
+        !s.incapacitated &&
+        (s.role === 'gunner' || s.role === 'rifleman') &&
+        !(root.BattleEngagement && root.BattleEngagement.reacting(s))
+      ) // not while he is down, running or charging
     );
   }
   function job(s) {
@@ -270,7 +272,9 @@
     /* Ingress ends when the post is occupied. The old clock kept increasing for the entire successful
        station hold, making a five-minute firing position look like five minutes of failed pathfinding. */
     t.ingressStallFor =
-      t.occupiedAt == null ? Math.max(0, sim.time - (t.lastIngressAt != null ? t.lastIngressAt : t.assignedAt)) : 0;
+      t.occupiedAt == null
+        ? Math.max(0, sim.time - (t.lastIngressAt != null ? t.lastIngressAt : t.assignedAt))
+        : 0;
     t.ingressSeconds =
       t.occupiedAt == null ? Math.max(0, sim.time - t.assignedAt) : Math.max(0, t.occupiedAt - t.assignedAt);
     t.holdFor = t.occupiedAt == null ? 0 : Math.max(0, sim.time - t.occupiedAt);
@@ -349,12 +353,24 @@
   function structureEntryDuty(s, sim) {
     var lab = root.PhaseCCombatLab,
       LP = root.BattleSquadStability && root.BattleSquadStability.localPlan;
-    if (!lab || !lab.interiorIngressRecovery || !LP || !LP.structureOrdersOn ||
-        !LP.currentStructureOrders || !s || !s.squad) return false;
+    if (
+      !lab ||
+      !lab.interiorIngressRecovery ||
+      !LP ||
+      !LP.structureOrdersOn ||
+      !LP.currentStructureOrders ||
+      !s ||
+      !s.squad
+    )
+      return false;
     var assignment = LP.currentStructureOrders(sim, s.squad);
-    return !!(assignment && assignment.orders && assignment.orders.some(function (o) {
-      return o.soldierId === String(s.id);
-    }));
+    return !!(
+      assignment &&
+      assignment.orders &&
+      assignment.orders.some(function (o) {
+        return o.soldierId === String(s.id);
+      })
+    );
   }
   function select(s, sim, threat) {
     var c = context(sim);

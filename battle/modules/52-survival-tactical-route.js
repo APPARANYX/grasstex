@@ -225,29 +225,41 @@
      prefer an entirely indoor, physically legal route to the SAME station
      after the soldier is securely inside its owning building. */
   function rebaseIngress(s, b, st, route) {
-    if (!interiorIngressOn() || !s || !b || !st || !route || !route.steps ||
-        route.index >= route.steps.length || route.interiorRebased) return null;
+    if (
+      !interiorIngressOn() ||
+      !s ||
+      !b ||
+      !st ||
+      !route ||
+      !route.steps ||
+      route.index >= route.steps.length ||
+      route.interiorRebased
+    )
+      return null;
     var building = buildingById(st.building),
       here = pos(s);
     /* The .55 m inset is larger than the soldier's .45 m physical radius:
        standing just outside/on a doorway must not count as entering. */
-    if (!building || !insideBuilding(here, building, 0.55) ||
-        !insideBuilding(st, building)) return null;
+    if (!building || !insideBuilding(here, building, 0.55) || !insideBuilding(st, building)) return null;
     var remaining = route.steps.slice(Math.max(0, route.index || 0)),
       exitsBuilding = remaining.some(function (p) {
         return !insideBuilding(p, building);
       });
     if (!exitsBuilding) return null;
-    if (route.lastInteriorProbeAt != null && b.time - route.lastInteriorProbeAt < 1.5)
-      return null;
+    if (route.lastInteriorProbeAt != null && b.time - route.lastInteriorProbeAt < 1.5) return null;
     route.lastInteriorProbeAt = b.time;
     var N = root.BattleNavigation,
       indoor = N.movementClear(here, st) ? [clone(st)] : ingressPath(s, b, here, st);
     /* A path touching exterior space, a blocked segment or an inaccessible
        firing port is not an indoor shortcut. Preserve the old door route. */
-    if (!indoor || !indoor.length || !indoor.every(function (p) {
-      return insideBuilding(p, building);
-    })) return null;
+    if (
+      !indoor ||
+      !indoor.length ||
+      !indoor.every(function (p) {
+        return insideBuilding(p, building);
+      })
+    )
+      return null;
     var previousDistance = pathLength(here, remaining),
       indoorDistance = pathLength(here, indoor);
     if (indoorDistance + 0.6 >= previousDistance) return null;

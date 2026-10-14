@@ -229,9 +229,15 @@
       p.set('labInterior', panel.querySelector('#labInterior').value);
       var entryOn = panel.querySelector('#labStructure').value === '1';
       var gates = [
-        'localTasks', 'localStructures', 'localEntry', 'localEntryGate',
-        'localSurvey', 'localWatch', 'localContactResume',
-        'localContinuity', 'localStructureOrders'
+        'localTasks',
+        'localStructures',
+        'localEntry',
+        'localEntryGate',
+        'localSurvey',
+        'localWatch',
+        'localContactResume',
+        'localContinuity',
+        'localStructureOrders'
       ];
       gates.forEach(function (name) {
         if (entryOn) p.set(name, '1');
@@ -586,7 +592,7 @@
       '\nIndoor ingress shortcuts: ' +
       ((s.buildingIngress && s.buildingIngress.interiorRebases) || 0) +
       ' · estimated metres avoided: ' +
-      (((s.buildingIngress && s.buildingIngress.metersSaved) || 0).toFixed(1));
+      ((s.buildingIngress && s.buildingIngress.metersSaved) || 0).toFixed(1);
     output.textContent =
       'Range ' +
       rangeScale +
