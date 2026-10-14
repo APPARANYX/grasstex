@@ -6,7 +6,17 @@ name: ⭐ Deploy Battle Sim Branch Preview
 # production assets, policy and scenario memory, and makes no telemetry, policy or learning writes.
 
 on:
-  # Preview uploads are opt-in. PR CI still validates the preview launcher without publishing.
+  # Temporary scope: redeploy ONLY this isolated lab branch when its native harness changes.
+  # All other branches remain opt-in, and production deployment is never invoked.
+  push:
+    branches:
+      - work/phase-c-native-combat-lab
+      - work/phase-c-mainline-integration
+    paths:
+      - 'battle/**'
+      - 'battle_sim_local.php'
+      - 'scripts/probes/phase_c_combat_lab_smoke.cjs'
+      - '.github/workflows/deploy-50webs-preview.yml'
   workflow_dispatch:
     inputs:
       ref:
@@ -140,6 +150,15 @@ jobs:
           body="$(curl -fsS "$url")"
           grep -q "preview-${SHA:0:7}" <<<"$body"
           grep -q "/grasstex/preview/$SLUG/battle/commander-ai.js" <<<"$body"
+          lab="$(curl -fsSL "$url?combatLab=1")"
+          grep -q 'window.PHASE_C_COMBAT_LAB=true' <<<"$lab"
+          grep -q "/grasstex/preview/$SLUG/battle/phase-c-compact-range.js" <<<"$lab"
+          # Guard against FTP mirror exclusions: the browser module must actually exist.
+          module_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/battle/phase-c-compact-range.js"
+          curl --fail --silent --show-error --location "$module_url" -o /tmp/phase-c-preview-module.js
+          test "$(wc -c </tmp/phase-c-preview-module.js)" -gt 10000
+          grep -q 'Preview-only Phase C Combat Lab' /tmp/phase-c-preview-module.js
+          grep -q 'window.PhaseCCombatLab.attachBattle(battle,scene,camera)' <<<"$lab"
           {
             echo "### Battle Sim preview"
             echo "- Ref: \`${{ steps.id.outputs.ref }}\` @ \`${SHA:0:7}\`"
@@ -148,3 +167,27 @@ jobs:
             echo "- German defending: $url?defender=ge"
             echo "- Production untouched; preview makes no telemetry, policy or learning writes."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  combat-lab-smoke:
+    name: Native Combat Lab Chromium QA
+    if: github.ref_name == 'work/phase-c-native-combat-lab' && github.event_name == 'push'
+    needs: preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Verify native range and isolation in hosted browser
+        run: node scripts/probes/phase_c_combat_lab_smoke.cjs
+      - name: Publish screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-c-native-lab-smoke
+          path: reports/phase-c-lab/
+          if-no-files-found: ignore
