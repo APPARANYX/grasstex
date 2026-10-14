@@ -655,10 +655,16 @@
         }
       });
     }
-    if (sim.objectiveHold && sim.objectiveHold.us >= OBJECTIVE_HOLD_WIN)
-      declare(sim, 'us', 'held all objectives');
-    else if (sim.objectiveHold && sim.objectiveHold.ge >= OBJECTIVE_HOLD_WIN)
-      declare(sim, 'ge', 'held all objectives');
+    /* The preview-only combat lab records ownership and hold time but cannot win
+       on the objective timer. Otherwise a single captured point aborts the natural
+       contact/suppression/maneuver observation after ~35 s. Elimination and the
+       separate sim time limit remain native and unchanged. */
+    if (!(root.PhaseCCombatLab && root.PhaseCCombatLab.disableObjectiveVictory)) {
+      if (sim.objectiveHold && sim.objectiveHold.us >= OBJECTIVE_HOLD_WIN)
+        declare(sim, 'us', 'held all objectives');
+      else if (sim.objectiveHold && sim.objectiveHold.ge >= OBJECTIVE_HOLD_WIN)
+        declare(sim, 'ge', 'held all objectives');
+    }
   }
 
   function installVictory(sim) {
