@@ -69,7 +69,15 @@ directClear=true;fallback=null;
 root.PhaseCCombatLab.interiorIngressRecovery=false;
 assert.equal(R.rebaseIngress(s,b,st,old),null,'legacy A/B unchanged');
 root.PhaseCCombatLab=null;
-assert.equal(R.rebaseIngress(s,b,st,old),null,'production unaffected');
+assert.equal(R.rebaseIngress(s,b,st,old),null,
+  'headless harness with no production bootstrap flag remains legacy');
+root.BATTLE_INTERIOR_INGRESS=true;
+b.time+=1.6;
+assert.ok(R.rebaseIngress(s,b,st,old),
+  'normal main-game bootstrap enables verified indoor routing without the Lab');
+root.BATTLE_INTERIOR_INGRESS=false;
+assert.equal(R.rebaseIngress(s,b,st,old),null,
+  'production ?interiorIngress=0 rollback remains available');
 root.PhaseCCombatLab={interiorIngressRecovery:true};
 R.knownThreat=()=>({x:-30,z:3});
 R.createIngress=()=>({steps:[{x:st.x,z:st.z}],index:0,version:'test',door:null});
