@@ -384,10 +384,16 @@ blockedPosts.r.BattleCoverPositions.maskedApproach = () => true;
 blockedPosts.r.BattleCoverPositions.candidates = s => [{ x: s.root.position.x, z: 2 }];
 blockedPosts.r.SquadAI.canSuppressStanding = () => false;
 const blocked = blockedPosts.P.update(blockedPosts.b, blockedPosts.q);
+assert.ok(blocked && blocked.orders.length >= 3, 'concealed observers may still form a quiet line');
+assert.equal(blocked.plannedFireBaseRifles, 0);
 assert.equal(
-  blocked,
-  null,
-  'a concealed but completely unshootable observation line cannot pose as a maneuver firing base'
+  blocked.reservePlan,
+  'observation-only-no-two-ballistic-posts',
+  'the observation-only line cannot falsely claim a fire base or stage a maneuver reserve'
+);
+assert.ok(
+  blocked.orders.every(o => !o.firingQualified && o.point.z === 0),
+  'unshootable masked posts retain their location but are never labeled fire-qualified'
 );
 
 /* No role name grants fire support, but no arbitrary rifleman-only filter
@@ -682,6 +688,24 @@ for (const commandMovement of [false, true]) {
     'native fire-control HOLD retains its independent veto after reserve authorization'
   );
 }
+/* Even after the prepared line goes from observation-only to contact,
+   native effective support from a scout and a gunner is real supporting
+   fire; a rifleman-only review must not suppress whole-team staging. */
+const lateSpecialists = lateReserve();
+lateSpecialists.report.fireSupport[0].role = 'scout';
+lateSpecialists.report.fireSupport[1].role = 'gunner';
+lateSpecialists.P.update(lateSpecialists.b, lateSpecialists.q, { underFire: 1, fireSupport: [] });
+lateSpecialists.P.update(lateSpecialists.b, lateSpecialists.q, lateSpecialists.report);
+assert.equal(
+  lateSpecialists.st.reservePlan,
+  'whole-team-staged:charlie',
+  'genuinely effective specialist shooters can trigger the same real late reserve review'
+);
+assert.deepEqual(
+  lateSpecialists.st.reserveReview.supportIds,
+  lateSpecialists.report.fireSupport.map(s => String(s.id)).sort(),
+  'late review records independent specialist identities instead of inventing riflemen'
+);
 const lateNoSlots = lateReserve();
 lateNoSlots.r.BattleCoverPositions.candidates = () => [];
 lateNoSlots.P.update(lateNoSlots.b, lateNoSlots.q, lateNoSlots.report);
