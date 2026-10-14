@@ -576,7 +576,6 @@
         return;
       var support = a.filter(function (s) {
           return (
-            s.role === 'rifleman' &&
             report.fireSupport.indexOf(s) >= 0 &&
             supportingCount(a, null, [s], b.time, b) === 1
           );
@@ -1144,14 +1143,16 @@
            fire-and-maneuver. A concealed observation-only line must not be
            published as a three-man firing base that can never support a bound.
            The live support gate still needs two independently effective men. */
-        if (
-          maneuverOn &&
-          orders.filter(function (o) {
-            return o.firingQualified;
-          }).length < tuning.minSupport
-        )
-          return null;
-        var reservePlan = reserveStage(b, sq, a, orders, rs),
+        var plannedFireBaseRifles = orders.filter(function (o) {
+          return o.firingQualified;
+        }).length;
+        /* A masked observation line may legitimately become a firing base
+           after acquiring better firsthand geometry. Keep the native hold,
+           but NEVER stage a reserve based on two imaginary firing posts. */
+        var reservePlan =
+          maneuverOn && plannedFireBaseRifles < tuning.minSupport
+            ? 'observation-only-no-two-ballistic-posts'
+            : reserveStage(b, sq, a, orders, rs),
           reserveTeam = /^whole-team-staged:(alpha|bravo|charlie)$/.test(reservePlan)
             ? reservePlan.split(':')[1]
             : null;
@@ -1189,6 +1190,7 @@
           orders: orders,
           threats: rs,
           reservePlan: reservePlan,
+          plannedFireBaseRifles: plannedFireBaseRifles,
           /* Keep only Squad Leader intent through the posture-to-bound handoff.
              Physical endpoints and bound commands remain Engagement/Resolver owned. */
           reserveTeam: reserveTeam,
