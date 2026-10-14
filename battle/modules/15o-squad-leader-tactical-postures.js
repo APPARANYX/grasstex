@@ -396,8 +396,24 @@
             var soldier = a.find(function (s) {
               return String(s.id) === o.soldierId;
             });
-            if (held) return !!(soldier && soldier.role === 'rifleman' && support.indexOf(soldier) >= 0);
-            if (!soldier || soldier.role !== 'rifleman' || !root.SquadAI.canSuppressStanding) return false;
+            /* The support gate counts actual independent shooters, not an infantry
+               role label. A scout, gunner or engineer with a viable weapon and
+               real fire evidence can hold the base while an intact team stages.
+               Pre-contact geometry is only a potential: contact still requires
+               native effective fire from two separate stationary actors. */
+            if (
+              !soldier ||
+              soldier.dead ||
+              !(soldier.hp > 0) ||
+              soldier.isPlayer ||
+              soldier.reloading ||
+              soldier.outOfAmmo ||
+              soldier.suppressedUntil > b.time
+            )
+              return false;
+            if (held)
+              return support.indexOf(soldier) >= 0 && supportingCount(a, null, [soldier], b.time, b) === 1;
+            if (!root.SquadAI.canSuppressStanding) return false;
             var proxy = Object.assign({}, soldier, {
               root: Object.assign({}, soldier.root, { position: o.point })
             });
@@ -1078,6 +1094,7 @@
           var s = a[i],
             here = point(s.root.position),
             candidate = null,
+            firingQualified = false,
             options = [here].concat(C.candidates(s, b, { root: { position: rs[0] } }, 6).slice(0, 16));
           for (var j = 0; j < options.length; j++) {
             var p = point(options[j]);
@@ -1104,6 +1121,7 @@
                 })
               ) {
                 candidate = p;
+                firingQualified = true;
                 break;
               }
             } else break;
@@ -1111,9 +1129,28 @@
           /* Do not place this soldier at an exposed default slot. A masked
              fireteam is useful even when another eligible squad member has
              no concealed post; that man remains under his existing orders. */
-          if (candidate) orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
+          if (candidate)
+            orders.push({
+              soldierId: String(s.id),
+              point: candidate,
+              watchPoint: point(rs[0]),
+              /* This is a pre-contact ballistic preflight, NOT fire permission.
+                 Masked eye-line posts without a usable shot remain observers. */
+              firingQualified: firingQualified
+            });
         }
         if (orders.length < 3) return null; // Never publish an understrength ambush element.
+        /* Two physically shootable posts are the minimum potential base for
+           fire-and-maneuver. A concealed observation-only line must not be
+           published as a three-man firing base that can never support a bound.
+           The live support gate still needs two independently effective men. */
+        if (
+          maneuverOn &&
+          orders.filter(function (o) {
+            return o.firingQualified;
+          }).length < tuning.minSupport
+        )
+          return null;
         var reservePlan = reserveStage(b, sq, a, orders, rs),
           reserveTeam = /^whole-team-staged:(alpha|bravo|charlie)$/.test(reservePlan)
             ? reservePlan.split(':')[1]
