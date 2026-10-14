@@ -1,5 +1,13 @@
 name: Phase C locomotion paired seeds
 on:
+  push:
+    branches:
+      - work/phase-c-locomotion-fix-20261014
+    paths:
+      - battle/engagement.js
+      - battle/movement-resolver.js
+      - battle/modules/11-soldier-individuality.js
+      - .github/workflows/phase-c-locomotion-ab.yml
   workflow_dispatch:
 permissions:
   contents: read
@@ -44,6 +52,9 @@ jobs:
           C_FIELD_ARMS: on
           C_FIELD_AUTONOMOUS_MOVEMENT: ${{ matrix.locomotion }}
           C_FIELD_SMART_INGRESS: '0'
+          C_FIELD_TRACE_SQUAD: us:us-1
+          C_FIELD_TRACE_FROM: '120'
+          C_FIELD_TRACE_TO: '200'
           C_FIELD_DIR: reports/phase-c-locomotion
           C_FIELD_SHA: ${{ github.sha }}
         run: node scripts/probes/probe_phase_c_natural.cjs

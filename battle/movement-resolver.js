@@ -526,7 +526,11 @@
     if (!soldier || soldier.dead) return null;
     var st = state(soldier),
       pick = choose(soldier, battle);
-    if (!pick) return null;
+    if (!pick) {
+      if (root.BattleSoldierIndividuality && root.BattleSoldierIndividuality.applyTransit)
+        root.BattleSoldierIndividuality.applyTransit(soldier, battle, null, null);
+      return null;
+    }
     pick.signature = signature(soldier);
     var previous = st.goal,
       oldValid = previous && valid(soldier, previous, battle);

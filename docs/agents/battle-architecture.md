@@ -457,7 +457,12 @@ permission, Engagement owns stance/trigger execution, Ballistics owns the crest 
 owns the physical adjustment.
 
 **Stance has one writer: Engagement** (`commitStance`, with `STANCE_HOLD`/`PRONE_HOLD` holds and
-`AIM_SETTLE` after a change). `stepMovement` only shows the committed stance; another layer (the
+`AIM_SETTLE` after a change). With autonomous movement enabled, advance/bound retain their native
+stance proposal until the Movement Resolver selects the actual intent. Individuality may supply
+a valid stance/gait replacement; otherwise Engagement commits its native fallback, including a
+recent-warning crouch, final cover approach or viable suppression crawl. Only the chosen stance
+is committed, so arbitration cannot create an intermediate stance change or restart aim twice.
+`stepMovement` only shows the committed stance; another layer (the
 reload hook, module 44's drills) asks through `BattleEngagement.requestStance`, which only takes a man
 lower, or, as a drill running on Engagement's `afterDrill` slot, commits through `commitStance`
 (`stance-ownership-check.js`). A man advancing under fire or while his squad is in contact moves
