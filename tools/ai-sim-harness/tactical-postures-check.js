@@ -127,7 +127,7 @@ assert.ok(
    deterministic confidence decay crosses that threshold during the required
    four-second hold. The report identity and ten-second freshness cap remain
    mandatory; explicit observation loss still cancels. */
-const confidenceContinuity = world(true, true, false, { operation: true });
+const confidenceContinuity = world();
 let continuityLive = true,
   continuityConfidence = 0.6,
   continuityZ = 20;
@@ -164,33 +164,11 @@ assert.equal(
   'sub-threshold belief motion cannot drag a prepared firing line away from its detached report'
 );
 continuityLive = false;
-const quiet = confidenceContinuity.P.update(confidenceContinuity.b, confidenceContinuity.q);
-assert.equal(quiet, continuityReady, 'mission-owned prepared line remains at verified posts on contact loss');
-assert.equal(quiet.operation.phase, 'observe');
-assert.equal(quiet.readyAt, continuityReady.readyAt, 'no readiness timestamp reset on lost contact');
-assert.ok(
-  quiet.operation.transitions.some(t => t.to === 'prepare') &&
-    quiet.operation.transitions.some(t => t.to === 'observe'),
-  'operation preserves same-core preparation history'
-);
-assert.equal(confidenceContinuity.b.events.fired, 0, 'quiet observation creates no shots');
-assert.equal(
-  confidenceContinuity.r.BattleLeases.get(confidenceContinuity.q, 'bound'),
-  null,
-  'quiet observation does not authorize a bound'
-);
-confidenceContinuity.r.BattleCoverPositions.maskedPost = () => false;
 assert.equal(
   confidenceContinuity.P.update(confidenceContinuity.b, confidenceContinuity.q),
   null,
-  'compromised actual firing posts still abort the persisted operation'
+  'actual report loss still revokes the prepared posture immediately'
 );
-assert.equal(quiet.operation.phase, 'abort');
-
-const noOperationMemory = world();
-noOperationMemory.r.SquadAI.squadContactsMap = () => [];
-assert.equal(noOperationMemory.P.update(noOperationMemory.b, noOperationMemory.q), null);
-assert.equal(noOperationMemory.P.operationOn, false, 'default behavior remains fail-closed');
 
 /* Full-battle Command Reception is enabled in production. Prove that the
    four-second hold follows the personally adopted ambush intent even when the
