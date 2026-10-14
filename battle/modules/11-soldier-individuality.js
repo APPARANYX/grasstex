@@ -190,13 +190,20 @@
     );
   }
 
-  /* Preview-only soldier body autonomy. A Meso order names a destination and
+  /* Soldier body autonomy. A Meso order names a destination and
      urgency; it never specifies the soldier's body. The Resolver passes only
      the winning, legally routed intent. Engagement remains the SOLE stance
      writer, while this module chooses stance and gait as one physical plan.
      Baseline/purposeful and ordinary battles remain unmodified controls. */
   function autonomousOn() {
-    return !!(root.PhaseCCombatLab && root.PhaseCCombatLab.movementPace === 'autonomous');
+    /* Lab A/B takes precedence. Production uses the same proven Micro solver,
+       with an explicit per-battle rollback switch and no effect on standalone
+       fixtures that do not load the shipping PHP battle bootstrap. */
+    if (root.PhaseCCombatLab) return root.PhaseCCombatLab.movementPace === 'autonomous';
+    if (root.BATTLE_BUILD_DEPLOYED == null) return false;
+    return !/[?&]bodyAutonomy=(?:0|off|false)(?:&|#|$)/i.test(
+      (root.location && root.location.search) || ''
+    );
   }
   var MOVING_ORDERS = {
     formation: 1,
@@ -480,6 +487,7 @@
     runDistance: RUN_DISTANCE,
     phenotype: phenotype,
     desiredGait: desiredGait,
+    autonomousOn: autonomousOn,
     transitPlan: transitPlan,
     applyTransit: applyTransit,
     clearTransit: function (s) {
