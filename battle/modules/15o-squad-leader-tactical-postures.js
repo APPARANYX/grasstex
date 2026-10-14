@@ -575,10 +575,7 @@
       )
         return;
       var support = a.filter(function (s) {
-          return (
-            report.fireSupport.indexOf(s) >= 0 &&
-            supportingCount(a, null, [s], b.time, b) === 1
-          );
+          return report.fireSupport.indexOf(s) >= 0 && supportingCount(a, null, [s], b.time, b) === 1;
         }),
         ids = support
           .map(function (s) {
@@ -1190,9 +1187,9 @@
            after acquiring better firsthand geometry. Keep the native hold,
            but NEVER stage a reserve based on two imaginary firing posts. */
         var reservePlan =
-          maneuverOn && plannedFireBaseRifles < tuning.minSupport
-            ? 'observation-only-no-two-ballistic-posts'
-            : reserveStage(b, sq, a, orders, rs),
+            maneuverOn && plannedFireBaseRifles < tuning.minSupport
+              ? 'observation-only-no-two-ballistic-posts'
+              : reserveStage(b, sq, a, orders, rs),
           reserveTeam = /^whole-team-staged:(alpha|bravo|charlie)$/.test(reservePlan)
             ? reservePlan.split(':')[1]
             : null;
