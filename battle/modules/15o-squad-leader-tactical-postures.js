@@ -56,11 +56,19 @@
       var N = root.BattleNavigation,
         A = root.SquadAI;
       if (
-        !body || !anchors || !anchors.length || anchors.length > 3 ||
-        !A || !A.hasLineOfSight || !N || !N.movementClear ||
-        !root.BattleNavigationPhysicality || !b.heightAt ||
+        !body ||
+        !anchors ||
+        !anchors.length ||
+        anchors.length > 3 ||
+        !A ||
+        !A.hasLineOfSight ||
+        !N ||
+        !N.movementClear ||
+        !root.BattleNavigationPhysicality ||
+        !b.heightAt ||
         !N.movementClear(body, body)
-      ) return false;
+      )
+        return false;
       var lower = { root: { position: body }, crouching: true },
         upper = { root: { position: body } },
         viewing = false;
@@ -83,14 +91,19 @@
         sq.inContact ||
         ambiguousPicture(b, sq) ||
         (sq._localTask && sq._localTask.emergency) ||
-        a.some(function (s) { return !!s.target; }) ||
+        a.some(function (s) {
+          return !!s.target;
+        }) ||
         !st.observationGeometry ||
         !st.observationGeometry.length ||
         st.compromisedAt != null ||
         !heldCore(b, sq, st, a)
-      ) return false;
+      )
+        return false;
       return st.heldActorIds.every(function (id) {
-        var s = a.find(function (man) { return String(man.id) === id; });
+        var s = a.find(function (man) {
+          return String(man.id) === id;
+        });
         return s && physicalObservationMask(b, s.root.position, st.observationGeometry);
       });
     }
@@ -1087,7 +1100,9 @@
         st.mode = possible ? 'maneuver' : 'hold';
         st.stage = possible ? 'supporting-fire' : 'pressure-hold';
         operationTransition(
-          b, sq, st,
+          b,
+          sq,
+          st,
           possible ? 'bound' : supportCount >= tuning.minSupport ? 'support' : 'contact',
           possible ? 'native-covered-bound-authorized' : 'native-support-or-pressure-hold'
         );
