@@ -28,6 +28,9 @@
       reservedStationsSkipped: 0,
       ingressRoutesCreated: 0,
       ingressRoutesInvalidated: 0,
+      interiorIngressRebases: 0,
+      interiorIngressMetersSaved: 0,
+      structureEntryStationClaimsDeferred: 0,
       releasedLifetime: 0,
       assignmentsByRole: {},
       captainWindowAssignments: 0,
@@ -99,12 +102,14 @@
   }
   function eligible(s) {
     return !!(
-      s &&
-      !s.dead &&
-      s.hp > 0 &&
-      !s.incapacitated &&
-      (s.role === 'gunner' || s.role === 'rifleman') &&
-      !(root.BattleEngagement && root.BattleEngagement.reacting(s)) // not while he is down, running or charging
+      (
+        s &&
+        !s.dead &&
+        s.hp > 0 &&
+        !s.incapacitated &&
+        (s.role === 'gunner' || s.role === 'rifleman') &&
+        !(root.BattleEngagement && root.BattleEngagement.reacting(s))
+      ) // not while he is down, running or charging
     );
   }
   function job(s) {
@@ -233,6 +238,23 @@
       context(sim).stats.ingressRoutesCreated++;
       emit(sim, 'ingress', t, { door: t.route.door, reason: 'geometry-changed' });
     }
+    /* Reconsider only an obsolete DOOR route after the man has actually
+       entered his assigned building. Route geometry is supplied by the
+       movement-execution owner; station reservation and task never change. */
+    if (t.route && R && R.rebaseIngress) {
+      var indoor = R.rebaseIngress(s, sim, t.position, t.route);
+      if (indoor) {
+        t.route = indoor;
+        context(sim).stats.interiorIngressRebases++;
+        context(sim).stats.interiorIngressMetersSaved += indoor.savedDistance;
+        emit(sim, 'ingress', t, {
+          door: null,
+          enteredDoor: indoor.enteredDoor,
+          reason: 'already-inside-shortcut',
+          savedMeters: indoor.savedDistance
+        });
+      }
+    }
     var ingressDist = distance(s.root.position, anchorOf(t));
     if (t.lastIngressDist == null || ingressDist < t.lastIngressDist - 0.2) {
       t.lastIngressDist = ingressDist;
@@ -250,7 +272,9 @@
     /* Ingress ends when the post is occupied. The old clock kept increasing for the entire successful
        station hold, making a five-minute firing position look like five minutes of failed pathfinding. */
     t.ingressStallFor =
-      t.occupiedAt == null ? Math.max(0, sim.time - (t.lastIngressAt != null ? t.lastIngressAt : t.assignedAt)) : 0;
+      t.occupiedAt == null
+        ? Math.max(0, sim.time - (t.lastIngressAt != null ? t.lastIngressAt : t.assignedAt))
+        : 0;
     t.ingressSeconds =
       t.occupiedAt == null ? Math.max(0, sim.time - t.assignedAt) : Math.max(0, t.occupiedAt - t.assignedAt);
     t.holdFor = t.occupiedAt == null ? 0 : Math.max(0, sim.time - t.occupiedAt);
@@ -320,9 +344,41 @@
     emit(sim, 'ingress', t, { door: t.route.door });
     return t;
   }
+  /* The #299 Squad Leader structure-order system and the legacy window
+     station system have different jobs. If the leader has ALREADY assigned
+     this man to doorway approach, observation, or security, do not let a new
+     window reservation displace that Meso task merely because the station is
+     geographically close. This is not a fictitious "cleared" flag: the
+     current structure order is checked live and defaults off. */
+  function structureEntryDuty(s, sim) {
+    var lab = root.PhaseCCombatLab,
+      LP = root.BattleSquadStability && root.BattleSquadStability.localPlan;
+    if (
+      !lab ||
+      !lab.interiorIngressRecovery ||
+      !LP ||
+      !LP.structureOrdersOn ||
+      !LP.currentStructureOrders ||
+      !s ||
+      !s.squad
+    )
+      return false;
+    var assignment = LP.currentStructureOrders(sim, s.squad);
+    return !!(
+      assignment &&
+      assignment.orders &&
+      assignment.orders.some(function (o) {
+        return o.soldierId === String(s.id);
+      })
+    );
+  }
   function select(s, sim, threat) {
-    var c = context(sim),
-      here = s.root.position,
+    var c = context(sim);
+    if (structureEntryDuty(s, sim)) {
+      c.stats.structureEntryStationClaimsDeferred++;
+      return null;
+    }
+    var here = s.root.position,
       range = root.SquadAI.isMachineGun(s) ? 78 : 62;
     var candidates = N.firingStations.filter(function (st) {
       if (distance(here, st) > range) return false;
