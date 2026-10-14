@@ -384,10 +384,40 @@ blockedPosts.r.BattleCoverPositions.maskedApproach = () => true;
 blockedPosts.r.BattleCoverPositions.candidates = s => [{ x: s.root.position.x, z: 2 }];
 blockedPosts.r.SquadAI.canSuppressStanding = () => false;
 const blocked = blockedPosts.P.update(blockedPosts.b, blockedPosts.q);
-assert.ok(blocked && blocked.orders.length >= 3, 'valid masked fallback remains eligible');
+assert.equal(
+  blocked,
+  null,
+  'a concealed but completely unshootable observation line cannot pose as a maneuver firing base'
+);
+
+/* No role name grants fire support, but no arbitrary rifleman-only filter
+   can discard two non-rifle specialists whose ballistic-post preflight passes.
+   The reserve still has to be a complete original fireteam and may not
+   borrow a held support actor. Only this ballistic preflight is mocked here;
+   native live-effective support remains exercised in the causal checks. */
+const specialistBase = world(true, true, true);
+setReserveTeam(specialistBase);
+const specialistShooters = [specialistBase.q.members[3], specialistBase.q.members[4]];
+specialistShooters[0].role = 'scout';
+specialistShooters[1].role = 'gunner';
+specialistBase.r.SquadAI.canSuppressStanding = s =>
+  specialistShooters.some(man => String(man.id) === String(s.id));
+const specialistPosture = specialistBase.P.update(specialistBase.b, specialistBase.q);
+assert.ok(specialistPosture, 'a base with two valid specialist firing posts remains eligible');
+assert.equal(
+  specialistPosture.reservePlan,
+  'whole-team-staged:bravo',
+  'a full bravo reserve can stage behind two truly qualified non-rifleman support posts'
+);
+const specialistOrders = specialistPosture.orders.filter(o => o.reserve);
+assert.deepEqual(
+  specialistOrders.map(o => o.soldierId).sort(),
+  specialistBase.q.members.filter(s => s._fireteamKey === 'bravo').map(s => String(s.id)).sort(),
+  'non-rifleman credibility cannot split the native reserve team or steal a support man'
+);
 assert.ok(
-  blocked.orders.every(o => o.point.z === 0),
-  'no shootable alternative retains the original concealed post'
+  specialistPosture.orders.filter(o => !o.reserve && o.firingQualified).length >= 2,
+  'planner distinguishes ballistic firing stations from masked observation-only stations'
 );
 
 const partialLine = world();
@@ -511,6 +541,10 @@ assert.equal(
   'a different station owner is never republished by reserve planning'
 );
 assert.ok(followOnPosture.orders.filter(o => !o.reserve).length >= 3);
+assert.ok(
+  followOnPosture.orders.filter(o => !o.reserve && o.firingQualified).length >= 2,
+  'a staged native team must leave two potentially shootable, independently held support posts'
+);
 assert.ok(
   followOnPosture.orders
     .filter(o => !o.reserve)
