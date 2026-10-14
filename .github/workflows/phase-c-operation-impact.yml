@@ -1,0 +1,66 @@
+name: Phase C operation state isolated impact
+on:
+  push:
+    branches:
+      - work/phase-c-operation-continuity-20261014
+    paths:
+      - .github/workflows/phase-c-operation-impact.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  forensic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read post-fix pre-operation 54 battles
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 38581695964
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: phase-c-natural-*
+          merge-multiple: true
+          path: reports/operation-impact/before
+      - name: Read operation-enabled 54 battles
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 38602272226
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: phase-c-natural-*
+          merge-multiple: true
+          path: reports/operation-impact/after
+      - name: Compare by true seed, terrain fingerprint and operation serial
+        run: |
+          set -euo pipefail
+          node tools/ai-sim-harness/phase-c-lifecycle-report-check.js
+          node scripts/probes/analyze_phase_c_lifecycle.cjs \
+            reports/operation-impact/after/meeting.json \
+            reports/operation-impact/after/us-defend.json \
+            reports/operation-impact/after/ge-defend.json \
+            --baseline \
+            reports/operation-impact/before/meeting.json \
+            reports/operation-impact/before/us-defend.json \
+            reports/operation-impact/before/ge-defend.json \
+            > reports/operation-impact/comparison.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const d=JSON.parse(fs.readFileSync('reports/operation-impact/comparison.json','utf8'));
+          if(d.baseline.totals.battles !== 54 || d.current.totals.battles !== 54)
+            throw new Error('expected same 54 seeded natural battles');
+          console.log('OPERATION_IMPACT_BASELINE',JSON.stringify(d.baseline.totals));
+          console.log('OPERATION_IMPACT_ENABLED',JSON.stringify(d.current.totals));
+          console.log('OPERATION_IMPACT_DELTA',JSON.stringify(d.delta));
+          console.log('OPERATION_IMPACT_TERMINAL',JSON.stringify({before:d.baseline.terminalStages,after:d.current.terminalStages}));
+          console.log('OPERATION_IMPACT_REASONS',JSON.stringify({before:d.baseline.terminationReasons,after:d.current.terminationReasons}));
+          console.log('OPERATION_IMPACT_ARRIVED',JSON.stringify(d.current.arrivedCases));
+          NODE
+      - name: Preserve operation impact report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-c-operation-impact-54x54
+          path: reports/operation-impact/comparison.json
+          if-no-files-found: ignore
+          retention-days: 30
