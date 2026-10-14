@@ -1140,7 +1140,7 @@
        soldier arbiter chooses stance WITH gait after selecting the actual
        movement winner. This drill only sets an advance stance when no such
        transit is active; ambush posts remain handled above. */
-    var autonomy = root.PhaseCCombatLab && root.PhaseCCombatLab.movementPace === 'autonomous',
+    var autonomy = !!(root.BattleSoldierIndividuality && root.BattleSoldierIndividuality.autonomousOn && root.BattleSoldierIndividuality.autonomousOn()),
       posture = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
       masked = posture && posture.soldierOrder && posture.soldierOrder(s, battle),
       dest = s.destination,
@@ -1448,7 +1448,7 @@
     /* Autonomous locomotion will commit a single posture/gait plan AFTER
        the Movement Resolver confirms that this cover-bound intent wins.
        Avoid the old crouch -> sprint-stand flip every 0.15s. */
-    if (!(lab && lab.movementPace === 'autonomous'))
+    if (!(root.BattleSoldierIndividuality && root.BattleSoldierIndividuality.autonomousOn && root.BattleSoldierIndividuality.autonomousOn()))
       commitStance(
         s,
         battle,
@@ -1487,8 +1487,7 @@
        while his autonomous transit owns both stance and gait. */
     var lastGoal = s._movementResolver && s._movementResolver.goal,
       enRoute = !!(
-        root.PhaseCCombatLab &&
-        root.PhaseCCombatLab.movementPace === 'autonomous' &&
+        root.BattleSoldierIndividuality && root.BattleSoldierIndividuality.autonomousOn && root.BattleSoldierIndividuality.autonomousOn() &&
         !fighting &&
         lastGoal &&
         lastGoal.kind === 'formation' &&
@@ -1558,7 +1557,7 @@
       hasTarget = combatThreat(s.target),
       t = hasTarget ? posOf(s.target) : null,
       d = t ? dist(p.x, p.z, t.x, t.z) : Infinity;
-    if (!(root.PhaseCCombatLab && root.PhaseCCombatLab.movementPace === 'autonomous'))
+    if (!(root.BattleSoldierIndividuality && root.BattleSoldierIndividuality.autonomousOn && root.BattleSoldierIndividuality.autonomousOn()))
       commitStance(s, battle, 'crouch', Math.max(1, e.until - battle.time));
     if (!e.assaultGoal) {
       if (!t) {
