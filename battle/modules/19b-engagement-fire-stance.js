@@ -738,7 +738,11 @@
               ? t.threatSector
               : out;
       s._faceHint = face;
-      commitStanceRespectHold(s, battle, (pose && pose.stance) || port.stance, 2.0, 'station');
+      /* The opening dictates a firing pose ON ARRIVAL; it is not a command
+         to crawl the entire route to that opening. Transit posture belongs
+         to the soldier's joint movement decision in the diagnostic arm. */
+      if (!(root.PhaseCCombatLab && root.PhaseCCombatLab.movementPace === 'autonomous' && d > 1.5))
+        commitStanceRespectHold(s, battle, (pose && pose.stance) || port.stance, 2.0, 'station');
       move(s, battle, { x: anchor.x, z: anchor.z }, 'firing-station');
       if (d > 0.35) {
         s.setUp = false;
