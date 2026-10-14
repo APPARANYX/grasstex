@@ -270,7 +270,9 @@
     /* An already adopted crawl under direct suppression cannot be wished away
        by a speed floor. Covered movement is still explicitly permitted only
        by Engagement/Command Reception, and a short crawl remains a live choice. */
-    if (bound && s.crawling && suppressed)
+    var E = root.BattleEngagement,
+      nativeStance = E && E.transitStanceOf && E.transitStanceOf(s, sim);
+    if (bound && suppressed && (s.crawling || (nativeStance && nativeStance.stance === 'crawl')))
       return { stance: 'crawl', gait: 'proneFast', reason: 'suppressed-short-crawl', caution: 'suppressed' };
     if (bound) {
       var N = root.BattleNavigation,
@@ -327,12 +329,14 @@
     s._bodyAutonomyIntent = null;
     var plan = transitPlan(s, sim, pick, point),
       E = root.BattleEngagement;
-    if (!plan || !E || typeof E.commitStance !== 'function') return null;
+    if (!E || typeof E.commitStance !== 'function') return null;
     /* One stance writer, one locomotion plan. Engagement handles fire-ready
        resets and stance history; the gait owner reads the same decision.
        This replaces drill-specified locomotion posture only for genuine
        authorized transit, never for a hold or preparation. */
-    E.commitStance(s, sim, plan.stance, 0.45, 'body-autonomy:' + plan.reason);
+    if (E.settleTransitStance) E.settleTransitStance(s, sim, plan);
+    else if (plan) E.commitStance(s, sim, plan.stance, 0.45, 'body-autonomy:' + plan.reason);
+    if (!plan) return null;
     s._bodyAutonomyIntent = {
       at: sim.time,
       kind: pick.kind,

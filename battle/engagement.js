@@ -79,6 +79,28 @@
     var owner = root.BattleSoldierIndividuality;
     return !!(owner && owner.autonomousOn && owner.autonomousOn());
   }
+  /* Keep Micro's native movement posture until the resolver knows the actual
+     winning intent. A declined autonomy override must not discard that posture;
+     committing both before and after arbitration would restart aim every tick. */
+  function transitStance(s, battle, stance, seconds, reason) {
+    if (!autonomousMobilityOn() || !root.BattleMovementResolver) {
+      commitStance(s, battle, stance, seconds, reason);
+      return;
+    }
+    var e = state(s);
+    e.transitStance = { at: battle.time, state: e.state, stance: stance, seconds: seconds, reason: reason };
+  }
+  function transitStanceOf(s, battle) {
+    var e = s && s.eng,
+      pending = e && e.transitStance;
+    return pending && pending.at === battle.time && pending.state === e.state ? pending : null;
+  }
+  function settleTransitStance(s, battle, plan) {
+    var pending = transitStanceOf(s, battle);
+    if (s.eng) s.eng.transitStance = null;
+    if (plan) commitStance(s, battle, plan.stance, 0.45, 'body-autonomy:' + plan.reason);
+    else if (pending) commitStance(s, battle, pending.stance, pending.seconds, pending.reason);
+  }
   function combatThreat(unit) {
     var api = SA(),
       d = api && api.threatDisposition ? api.threatDisposition(unit) : null;
@@ -406,6 +428,7 @@
     return fireStanceImpl().applyStance(s, stance);
   }
   function commitStance(s, battle, stance, seconds, reason) {
+    state(s).transitStance = null;
     return fireStanceImpl().commitStance(s, battle, stance, seconds, reason);
   }
   function requestStance(s, battle, stance, seconds) {
@@ -1140,17 +1163,8 @@
     if (CONTACT_STANCE && lowNow)
       e.advanceLowUntil = Math.max(+e.advanceLowUntil || 0, battle.time + LOW_GAP_HOLD);
     var low = lowNow || (CONTACT_STANCE && battle.time < (+e.advanceLowUntil || 0));
-    /* During a live, received contact transit, the Movement Resolver's
-       soldier arbiter chooses stance WITH gait after selecting the actual
-       movement winner. This drill only sets an advance stance when no such
-       transit is active; ambush posts remain handled above. */
-    var autonomy = !!autonomousMobilityOn(),
-      posture = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
-      masked = posture && posture.soldierOrder && posture.soldierOrder(s, battle),
-      dest = s.destination,
-      movingTo = dest && Math.hypot(dest.x - posOf(s).x, dest.z - posOf(s).z) > 1.5;
-    if (!(autonomy && lowNow && movingTo && !masked) && !holdStance(s, battle))
-      commitStance(
+    if (!holdStance(s, battle))
+      transitStance(
         s,
         battle,
         low ? 'crouch' : 'stand',
@@ -1449,17 +1463,15 @@
         C.boundRoute(s, battle, cover, reports, 'stand').eligible
       );
     }
-    /* Autonomous locomotion will commit a single posture/gait plan AFTER
-       the Movement Resolver confirms that this cover-bound intent wins.
-       Avoid the old crouch -> sprint-stand flip every 0.15s. */
-    if (!autonomousMobilityOn())
-      commitStance(
-        s,
-        battle,
-        crawl ? 'crawl' : dash ? 'stand' : 'crouch',
-        Math.max(1, e.until - battle.time),
-        dash ? 'purposeful cover dash' : 'cover-bound'
-      );
+    /* Defer the native fallback, including a viable suppression crawl. The
+       resolver may choose a faster safe plan, or decline at final placement. */
+    transitStance(
+      s,
+      battle,
+      crawl ? 'crawl' : dash ? 'stand' : 'crouch',
+      Math.max(1, e.until - battle.time),
+      dash ? 'purposeful cover dash' : 'cover-bound'
+    );
     move(s, battle, { x: cover.x, z: cover.z }, 'cover-bound');
   }
 
@@ -2105,6 +2117,8 @@
     firingLineClear: firingLineClear,
     crestPrepPoint: crestPrepPoint,
     commitStance: commitStance,
+    transitStanceOf: transitStanceOf,
+    settleTransitStance: settleTransitStance,
     requestStance: requestStance,
     markUrgent: markUrgent,
     clearUrgent: clearUrgent,
