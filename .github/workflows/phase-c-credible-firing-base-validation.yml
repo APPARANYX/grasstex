@@ -1,8 +1,8 @@
-name: Phase C credible firing base surgical validation
+name: Phase C operation continuity validation
 on:
   push:
     branches:
-      - work/phase-c-credible-firing-base-20261014
+      - work/phase-c-operation-continuity-20261014
     paths:
       - battle/modules/15o-squad-leader-tactical-postures.js
       - tools/ai-sim-harness/tactical-postures-check.js
