@@ -23,8 +23,7 @@ function readShards(paths) {
     for (const row of on) {
       if (!Array.isArray(row.readinessAttempts))
         throw new Error('missing readinessAttempts: ' + file + '/' + row.seed);
-      if (!row.scenarioFingerprint)
-        throw new Error('missing fingerprint: ' + file + '/' + row.seed);
+      if (!row.scenarioFingerprint) throw new Error('missing fingerprint: ' + file + '/' + row.seed);
       rows.push({
         type: data.type,
         seed: row.seed,
@@ -76,10 +75,8 @@ function collect(shards) {
         arrivedCandidate: raw.fullReserveCandidateWindowSamples > 0,
         readyBeforeRelease:
           readyAt !== null || !!(raw.release && raw.release.prepared) || stageNames.includes('contact'),
-        holdTimeAtRelease:
-          holdAt !== null && endAt !== null ? +(endAt - holdAt).toFixed(2) : null,
-        arrivedTimeAtRelease:
-          arrivedAt !== null && endAt !== null ? +(endAt - arrivedAt).toFixed(2) : null,
+        holdTimeAtRelease: holdAt !== null && endAt !== null ? +(endAt - holdAt).toFixed(2) : null,
+        arrivedTimeAtRelease: arrivedAt !== null && endAt !== null ? +(endAt - arrivedAt).toFixed(2) : null,
         firstArrivalPhase: snapshot ? snapshot.phase : null,
         firstArrivalCOA: snapshot ? snapshot.coa : null,
         reportCountOnFirstArrival: snapshot ? snapshot.reportCount : null,
@@ -95,9 +92,7 @@ function histogram(items, attr) {
     const key = String(item[attr]);
     values[key] = (values[key] || 0) + 1;
   }
-  return Object.fromEntries(
-    Object.entries(values).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-  );
+  return Object.fromEntries(Object.entries(values).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])));
 }
 function analyze(shards) {
   const attempts = collect(shards);
@@ -130,7 +125,13 @@ function analyze(shards) {
     terminationReasons: histogram(attempts, 'reason'),
     terminalStages: histogram(attempts, 'terminal'),
     releaseReasonsByTerminal: Object.fromEntries(
-      stages.map(stage => [stage, histogram(attempts.filter(a => a.terminal === stage), 'reason')])
+      stages.map(stage => [
+        stage,
+        histogram(
+          attempts.filter(a => a.terminal === stage),
+          'reason'
+        )
+      ])
     ),
     arrivedCases: arrived.map(a => ({
       battle: a.battle,
@@ -148,13 +149,15 @@ function analyze(shards) {
     })),
     sampleCases: {
       lostMaskDuringPreparation: attempts
-        .filter(a => a.reason === 'firing station lost masking/ray' && a.holdAt !== null && !a.readyBeforeRelease)
+        .filter(
+          a => a.reason === 'firing station lost masking/ray' && a.holdAt !== null && !a.readyBeforeRelease
+        )
         .slice(0, 8)
-        .map(a => ({battle: a.battle, key: a.key, held: a.holdTimeAtRelease})),
+        .map(a => ({ battle: a.battle, key: a.key, held: a.holdTimeAtRelease })),
       reportExpiredAfterReady: attempts
         .filter(a => a.reason === 'no-fresh-reported-threat' && a.readyBeforeRelease)
         .slice(0, 8)
-        .map(a => ({battle: a.battle, key: a.key}))
+        .map(a => ({ battle: a.battle, key: a.key }))
     }
   };
 }
@@ -182,9 +185,7 @@ function main(argv) {
   const baseline = split < 0 ? [] : argv.slice(split + 1);
   if (!now.length || (split >= 0 && !baseline.length))
     throw new Error('usage: analyze_phase_c_lifecycle.cjs current*.json [--baseline old*.json]');
-  const report = baseline.length
-    ? compare(readShards(baseline), readShards(now))
-    : analyze(readShards(now));
+  const report = baseline.length ? compare(readShards(baseline), readShards(now)) : analyze(readShards(now));
   process.stdout.write(JSON.stringify(report, null, 2) + '\n');
 }
 if (require.main === module) {
@@ -195,4 +196,4 @@ if (require.main === module) {
     process.exitCode = 1;
   }
 }
-module.exports = {readShards, collect, analyze, compare, releaseReason};
+module.exports = { readShards, collect, analyze, compare, releaseReason };
