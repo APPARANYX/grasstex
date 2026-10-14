@@ -27,17 +27,6 @@ jobs:
           node --check scripts/probes/analyze_phase_c_lifecycle.cjs
           node --check tools/ai-sim-harness/phase-c-lifecycle-report-check.js
           node tools/ai-sim-harness/phase-c-lifecycle-report-check.js
-      - name: Inspect exact formatter output for branch source
-        run: |
-          npx --yes prettier@3.3.3 --write scripts/probes/analyze_phase_c_lifecycle.cjs tools/ai-sim-harness/phase-c-lifecycle-report-check.js
-          echo 'FORMAT_PAYLOAD_ANALYZER_BEGIN'
-          base64 -w0 scripts/probes/analyze_phase_c_lifecycle.cjs
-          echo
-          echo 'FORMAT_PAYLOAD_ANALYZER_END'
-          echo 'FORMAT_PAYLOAD_TEST_BEGIN'
-          base64 -w0 tools/ai-sim-harness/phase-c-lifecycle-report-check.js
-          echo
-          echo 'FORMAT_PAYLOAD_TEST_END'
       - name: Enforce repository source formatting
         run: |
           npx --yes prettier@3.3.3 --check scripts/probes/analyze_phase_c_lifecycle.cjs tools/ai-sim-harness/phase-c-lifecycle-report-check.js
