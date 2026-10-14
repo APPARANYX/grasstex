@@ -85,7 +85,9 @@
     }
     // Straight, short crouched segment only. LOS concealment is NOT ballistic protection.
     // No route search, reservations, navigation cache, destination or stance writes here.
-    function boundRoute(s, battle, point, threats) {
+    /* Optional stand-height survey is read-only and does not authorize a bound.
+       Default remains crouch-height for original covered-maneuver acceptance. */
+    function boundRoute(s, battle, point, threats, stance) {
       var N = root.BattleNavigation,
         F = field(),
         p = posOf(s),
@@ -115,7 +117,7 @@
       var steps = Math.ceil(d / boundTuning.sampleSpacing),
         step = d / steps,
         exposed = 0,
-        boundEye = SA().eyeHeight({ crouching: true }),
+        boundEye = SA().eyeHeight(stance === 'stand' ? {} : { crouching: true }),
         threatEye = SA().eyeHeight({}); // Standing height from Perception, never a hidden unit's stance.
       for (var i = 0; i <= steps; i++) {
         var t = i / steps,
@@ -144,7 +146,7 @@
              hidden enemy actor's transform or actual stance. */
           if (
             SA().hasLineOfSight(
-              { root: { position: at }, crouching: true },
+              { root: { position: at }, crouching: stance !== 'stand' },
               { root: { position: threat } },
               battle.heightAt,
               battle.obstacles
