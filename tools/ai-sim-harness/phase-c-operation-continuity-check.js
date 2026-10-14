@@ -75,7 +75,7 @@ assert.ok(held && held.operation.phase === 'observe');
 const ids = held.heldActorIds.slice();
 const posts = JSON.stringify(held.heldPositions);
 reporting = false;
-assert.equal(P.update(b, sq), held, 'expired/lost report does not dissolve safe observation');
+assert.ok(P.update(b, sq) === held, 'expired/lost report does not dissolve safe observation');
 assert.equal(held.operation.phase, 'observe');
 assert.deepEqual(held.heldActorIds, ids);
 assert.equal(JSON.stringify(held.heldPositions), posts);
