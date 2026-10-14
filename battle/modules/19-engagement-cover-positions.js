@@ -40,6 +40,7 @@
     var query = (root.location && root.location.search) || '',
       COVERED_BOUNDS =
         /[?&]coveredBounds=(1|on|true)\b/.test(query) && /[?&]localPlan=(1|on|true)\b/.test(query);
+    var labStart = /(^|,)start(,|$)/.test(decodeURIComponent((/[?&]cLab=([^&#]*)/i.exec(query) || [])[1] || ''));
     var boundTuning = {
       maxDistance: 12,
       sampleSpacing: 0.75,
@@ -156,7 +157,7 @@
             break;
           }
         }
-        if (!concealed && (i === 0 || i === steps)) {
+        if (!concealed && ((i === 0 && !labStart) || i === steps)) {
           result.reason = 'exposed-endpoint';
           return result;
         }

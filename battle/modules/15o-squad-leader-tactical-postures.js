@@ -18,6 +18,11 @@
         on &&
         /[?&]localManeuver=(?:1|on|true)(?:&|#|$)/i.test(query) &&
         /[?&]coveredBounds=(?:1|on|true)(?:&|#|$)/i.test(query),
+      /* Lab-only experiment switches (?cLab=wide,roles); absent in shipping URLs. */
+      cLab = decodeURIComponent((/[?&]cLab=([^&#]*)/i.exec(query) || [])[1] || ''),
+      labWide = /(^|,)wide(,|$)/.test(cLab),
+      labRoles = /(^|,)roles(,|$)/.test(cLab),
+      labWait = /(^|,)wait(,|$)/.test(cLab),
       states = new WeakMap(),
       cooldown = new WeakMap(),
       counters = new WeakMap(),
@@ -356,6 +361,8 @@
         })
       );
     }
+    /* Read-only diagnostic: every team's reserve/base composition at the last review. */
+    var lastReserveTeams = [];
     function reserveStage(b, sq, a, orders, reports, held, support) {
       var C = root.BattleCoverPositions,
         N = root.BattleNavigation;
@@ -379,6 +386,7 @@
         available = ctx.commanded(sq),
         missingBase = null,
         missingStage = null;
+      lastReserveTeams = [];
       for (var teamIndex = 0; teamIndex < teams.length; teamIndex++) {
         var team = teams[teamIndex],
           roster = available.filter(function (s) {
@@ -396,8 +404,9 @@
             var soldier = a.find(function (s) {
               return String(s.id) === o.soldierId;
             });
-            if (held) return !!(soldier && soldier.role === 'rifleman' && support.indexOf(soldier) >= 0);
-            if (!soldier || soldier.role !== 'rifleman' || !root.SquadAI.canSuppressStanding) return false;
+            var shooter = soldier && (labRoles ? soldier.role !== 'sergeant' : soldier.role === 'rifleman');
+            if (held) return !!(shooter && support.indexOf(soldier) >= 0);
+            if (!shooter || !root.SquadAI.canSuppressStanding) return false;
             var proxy = Object.assign({}, soldier, {
               root: Object.assign({}, soldier.root, { position: o.point })
             });
@@ -405,6 +414,39 @@
               return root.SquadAI.canSuppressStanding(proxy, r, b);
             });
           });
+        lastReserveTeams.push({
+          team: team,
+          roster: roster.map(function (s) {
+            return String(s.id) + ':' + s.role;
+          }),
+          reserve: reserve.length,
+          base: other.map(function (o) {
+            var soldier = a.find(function (s) {
+              return String(s.id) === o.soldierId;
+            });
+            if (!soldier) return o.soldierId + ':absent';
+            var why = 'ok';
+            if (held) why = support.indexOf(soldier) >= 0 ? 'support' : 'not-support';
+            else {
+              var proxy = Object.assign({}, soldier, {
+                  root: Object.assign({}, soldier.root, { position: o.point })
+                }),
+                range = soldier.weapon && soldier.weapon.stats ? soldier.weapon.stats.range * 0.95 : 0,
+                near = reports.some(function (r) {
+                  return Math.hypot(r.x - o.point.x, r.z - o.point.z) <= range;
+                });
+              why = !near
+                ? 'out-of-range'
+                : reports.some(function (r) {
+                      return root.SquadAI.canSuppressStanding(proxy, r, b);
+                    })
+                  ? 'ray'
+                  : 'blocked';
+            }
+            return o.soldierId + ':' + soldier.role + ':' + why;
+          }),
+          credible: credibleRifles.length
+        });
         if (
           reserve.length < 2 ||
           reserve.length > 4 ||
@@ -594,7 +636,7 @@
           return Object.assign({}, o);
         }),
         verdict = reserveStage(b, sq, a, orders, rs, st.heldActorIds, support);
-      st.reserveReview = { at: b.time, supportIds: ids, reason: verdict };
+      st.reserveReview = { at: b.time, supportIds: ids, reason: verdict, teams: lastReserveTeams };
       st.reservePlan = verdict;
       if (!/^whole-team-staged:(alpha|bravo|charlie)$/.test(verdict)) return;
       st.reserveTeam = verdict.split(':')[1];
@@ -830,6 +872,7 @@
                         ? 'unknown-pressure'
                         : null;
       if (blocker) return end(b, sq, blocker);
+      if (st && rs.length) st.freshAt = now;
       if (!rs.length) {
         /* A line that is already fighting keeps its posts when the fresh
            picture is ambiguous (more than three confident sectors) or when
@@ -838,7 +881,10 @@
            back into formation is the exposed move. Without a fresh detached
            coordinate no route can be judged, so no maneuver follows from it.
            A line that is not in contact still fails closed on stale intel. */
-        if (!(st && inContactLine(sq, st)))
+        if (
+          !(st && inContactLine(sq, st)) &&
+          !(labWait && st && st.readyAt != null && st.freshAt != null && now - st.freshAt <= 30)
+        )
           return end(
             b,
             sq,
@@ -1078,7 +1124,9 @@
           var s = a[i],
             here = point(s.root.position),
             candidate = null,
-            options = [here].concat(C.candidates(s, b, { root: { position: rs[0] } }, 6).slice(0, 16));
+            options = [here].concat(
+              C.candidates(s, b, { root: { position: rs[0] } }, labWide ? 12 : 6).slice(0, labWide ? 48 : 16)
+            );
           for (var j = 0; j < options.length; j++) {
             var p = point(options[j]);
             if (
@@ -1152,6 +1200,7 @@
           orders: orders,
           threats: rs,
           reservePlan: reservePlan,
+          reserveTeams: lastReserveTeams,
           /* Keep only Squad Leader intent through the posture-to-bound handoff.
              Physical endpoints and bound commands remain Engagement/Resolver owned. */
           reserveTeam: reserveTeam,

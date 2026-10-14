@@ -38,6 +38,7 @@ const { chromium } = require('playwright');
         type === 'meeting' ? '' : 'defender=' + (type === 'us-defend' ? 'us' : 'ge')
       );
       if (arm === 'on') for (const [k, v] of new URLSearchParams(flags)) query.set(k, v);
+      if (arm === 'on' && process.env.C_FIELD_LAB) query.set('cLab', process.env.C_FIELD_LAB);
       query.set('seed', prefix + '-bootstrap');
       query.set('autonomousMovement', autonomousMovement);
       query.set('smartIndoorIngress', smartIndoorIngress);
@@ -241,6 +242,8 @@ const { chromium } = require('playwright');
                   active.readinessAttempts.push(attempt);
                 }
                 attempt.reservePlan = current.reservePlan || null;
+                if (current.reserveTeams && !attempt.reserveTeams)
+                  attempt.reserveTeams = JSON.parse(JSON.stringify(current.reserveTeams));
                 if (current.reserveActorIds?.length) attempt.reserveIds = current.reserveActorIds.slice();
                 if (
                   current.reserveReview &&
