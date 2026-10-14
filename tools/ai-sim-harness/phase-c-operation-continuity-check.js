@@ -83,7 +83,9 @@ assert.equal(r.BattleLeases.get(sq, 'bound'), null, 'no report means no bound au
 assert.equal(b.events.fired, 0, 'no independent contact means no shots');
 assert.ok(held.operation.transitions.some(t => t.to === 'prepare'));
 assert.ok(held.operation.transitions.some(t => t.to === 'observe'));
-r.BattleCoverPositions.maskedPost = () => false;
-assert.equal(P.update(b, sq), null, 'exposed verified observation posts revoke the operation');
+const displaced = sq.members.find(man => String(man.id) === held.heldActorIds[0]);
+assert.ok(displaced);
+displaced.root.position.z += 3;
+assert.equal(P.update(b, sq), null, 'an actually displaced core member revokes the stored operation');
 assert.equal(held.operation.phase, 'abort');
 console.log('phase-c-operation-continuity-check: PASS independent hold, safe observation, abort, no fake authority');
