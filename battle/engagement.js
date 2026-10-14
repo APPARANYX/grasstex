@@ -75,6 +75,10 @@
   function SA() {
     return root.SquadAI;
   }
+  function autonomyActive() {
+    var owner = root.BattleSoldierIndividuality;
+    return !!(owner && owner.autonomousOn && owner.autonomousOn());
+  }
   function combatThreat(unit) {
     var api = SA(),
       d = api && api.threatDisposition ? api.threatDisposition(unit) : null;
@@ -1140,7 +1144,7 @@
        soldier arbiter chooses stance WITH gait after selecting the actual
        movement winner. This drill only sets an advance stance when no such
        transit is active; ambush posts remain handled above. */
-    var autonomy = root.PhaseCCombatLab && root.PhaseCCombatLab.movementPace === 'autonomous',
+    var autonomy = autonomyActive(),
       posture = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
       masked = posture && posture.soldierOrder && posture.soldierOrder(s, battle),
       dest = s.destination,
@@ -1448,7 +1452,7 @@
     /* Autonomous locomotion will commit a single posture/gait plan AFTER
        the Movement Resolver confirms that this cover-bound intent wins.
        Avoid the old crouch -> sprint-stand flip every 0.15s. */
-    if (!(lab && lab.movementPace === 'autonomous'))
+    if (!autonomyActive())
       commitStance(
         s,
         battle,
@@ -1488,7 +1492,7 @@
     var lastGoal = s._movementResolver && s._movementResolver.goal,
       enRoute = !!(
         root.PhaseCCombatLab &&
-        root.PhaseCCombatLab.movementPace === 'autonomous' &&
+        autonomyActive() &&
         !fighting &&
         lastGoal &&
         lastGoal.kind === 'formation' &&
@@ -1558,7 +1562,7 @@
       hasTarget = combatThreat(s.target),
       t = hasTarget ? posOf(s.target) : null,
       d = t ? dist(p.x, p.z, t.x, t.z) : Infinity;
-    if (!(root.PhaseCCombatLab && root.PhaseCCombatLab.movementPace === 'autonomous'))
+    if (!autonomyActive())
       commitStance(s, battle, 'crouch', Math.max(1, e.until - battle.time));
     if (!e.assaultGoal) {
       if (!t) {
