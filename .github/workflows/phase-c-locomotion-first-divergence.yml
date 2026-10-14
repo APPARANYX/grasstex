@@ -1,0 +1,63 @@
+name: Phase C locomotion first-divergence trace
+on:
+  push:
+    branches:
+      - work/phase-c-locomotion-ab-20261014
+    paths:
+      - .github/workflows/phase-c-locomotion-first-divergence.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  first-divergence:
+    name: us1 0-226s autonomy=${{ matrix.autonomy }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        autonomy: ['0', '1']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native browser
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start full battle
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www > /tmp/phase-c-first-divergence-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=phase-c-health" > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/phase-c-first-divergence-php.log
+          exit 1
+      - name: Exact-seed 0.15s soldier trace
+        env:
+          C_FIELD_TYPE: ge-defend
+          C_FIELD_SEED_INDEX: '15'
+          C_FIELD_COUNT: '1'
+          C_FIELD_SECONDS: '600'
+          C_FIELD_PREFIX: phase-c-natural-20261012
+          C_FIELD_ARMS: on
+          C_FIELD_AUTONOMOUS_MOVEMENT: ${{ matrix.autonomy }}
+          C_FIELD_SMART_INGRESS: '0'
+          C_FIELD_TRACE_SQUAD: us:us-1
+          C_FIELD_TRACE_FROM: '0'
+          C_FIELD_TRACE_TO: '226'
+          C_FIELD_DIR: reports/phase-c-first-divergence
+          C_FIELD_SHA: ${{ github.sha }}
+        run: node scripts/probes/probe_phase_c_natural.cjs
+      - name: Upload tick telemetry
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-c-first-divergence-autonomy-${{ matrix.autonomy }}
+          path: reports/phase-c-first-divergence/ge-defend.json
+          retention-days: 30
+      - name: Server diagnostics
+        if: failure()
+        run: tail -100 /tmp/phase-c-first-divergence-php.log || true

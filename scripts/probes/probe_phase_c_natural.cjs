@@ -812,6 +812,20 @@ const { chromium } = require('playwright');
                           underFire: !!E?.underFireNow?.(s, b),
                           stance: { prone: !!s.prone, crouched: !!s.tacticalCrouch },
                           moving: !!s.moving,
+                          hp: +s.hp || 0,
+                          morale: s.morale ?? null,
+                          gait: s._locomotionGait || null,
+                          groundSpeed: +(+s._locomotionGroundSpeed || 0).toFixed(3),
+                          bodyAutonomy: s._bodyAutonomyIntent
+                            ? {
+                                at: +(+s._bodyAutonomyIntent.at || 0).toFixed(2),
+                                kind: s._bodyAutonomyIntent.kind || null,
+                                stance: s._bodyAutonomyIntent.stance || null,
+                                gait: s._bodyAutonomyIntent.gait || null,
+                                reason: s._bodyAutonomyIntent.reason || null
+                              }
+                            : null,
+                          movementStopReason: s._movementStopReason || null,
                           suppressed: (s.suppressedUntil || 0) > b.time,
                           readyAt: e?.fireReadyAt ?? null,
                           cooldown: +s.fireCooldown || 0,
