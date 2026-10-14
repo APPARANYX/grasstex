@@ -60,9 +60,15 @@ r.SquadAI.squadContactsMap = () =>
 const initial = P.update(b, sq);
 assert.ok(initial && initial.operation && initial.operation.phase === 'stage');
 let reachedReady = false;
+let operationTicks = 0;
+console.log('operation-lifecycle-fixture: running native ticks');
 H.run(r, b, 6, () => {
+  operationTicks++;
+  if (operationTicks % 7 === 0)
+    console.log('operation-lifecycle-fixture: tick', operationTicks, b.time, P.current(b, sq)?.stage);
   if (P.current(b, sq)?.readyAt != null) reachedReady = true;
 });
+console.log('operation-lifecycle-fixture: native ticks completed', operationTicks);
 assert.equal(reachedReady, true, 'three real soldiers establish the entire 4-second stationary hold');
 const held = P.current(b, sq);
 assert.ok(held && held.operation.phase === 'observe');
