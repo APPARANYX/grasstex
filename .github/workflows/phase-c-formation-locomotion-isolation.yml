@@ -1,0 +1,62 @@
+name: Phase C formation locomotion isolation
+on:
+  push:
+    branches:
+      - work/phase-c-locomotion-ab-20261014
+    paths:
+      - .github/workflows/phase-c-formation-locomotion-isolation.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-arm:
+    name: ge-defense seed15 ${{ matrix.mode.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - { name: full-autonomy, disable: '0' }
+          - { name: no-formation-autonomy, disable: '1' }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native Chromium harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Launch original battle
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www > /tmp/phase-c-formation-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=phase-c-health" > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/phase-c-formation-php.log
+          exit 1
+      - name: Run natural tactical chain unchanged
+        env:
+          C_FIELD_TYPE: ge-defend
+          C_FIELD_SEED_INDEX: '15'
+          C_FIELD_COUNT: '1'
+          C_FIELD_SECONDS: '600'
+          C_FIELD_PREFIX: phase-c-natural-20261012
+          C_FIELD_ARMS: on
+          C_FIELD_AUTONOMOUS_MOVEMENT: '1'
+          C_FIELD_SMART_INGRESS: '0'
+          C_FIELD_DISABLE_AUTO_FORMATION: ${{ matrix.mode.disable }}
+          C_FIELD_DIR: reports/phase-c-formation-isolation
+        run: node scripts/probes/probe_phase_c_natural.cjs
+      - name: Upload full native comparison
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-c-formation-${{ matrix.mode.name }}
+          path: reports/phase-c-formation-isolation/ge-defend.json
+          retention-days: 30
+      - name: Server diagnostics
+        if: failure()
+        run: tail -100 /tmp/phase-c-formation-php.log || true

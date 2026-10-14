@@ -1354,7 +1354,9 @@
        soldier arbiter chooses stance WITH gait after selecting the actual
        movement winner. This drill only sets an advance stance when no such
        transit is active; ambush posts remain handled above. */
-    var autonomy = !!autonomousMobilityOn(),
+    /* Test-branch diagnostic only: isolate movement ownership while preserving
+       the ordinary low-contact stance when formation autonomy is disabled. */
+    var autonomy = !!autonomousMobilityOn() && !root.BATTLE_DIAGNOSTIC_NO_AUTONOMOUS_FORMATION,
       posture = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
       masked = posture && posture.soldierOrder && posture.soldierOrder(s, battle),
       dest = s.destination,

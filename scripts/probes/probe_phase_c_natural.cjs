@@ -42,6 +42,8 @@ const { chromium } = require('playwright');
       query.set('autonomousMovement', autonomousMovement);
       query.set('smartIndoorIngress', smartIndoorIngress);
       const page = await browser.newPage({ ignoreHTTPSErrors: true });
+      if (process.env.C_FIELD_DISABLE_AUTO_FORMATION === '1')
+        await page.addInitScript(() => { window.BATTLE_DIAGNOSTIC_NO_AUTONOMOUS_FORMATION = true; });
       page.setDefaultTimeout(120000);
       const errors = [];
       page.on('pageerror', e => errors.push(String(e)));
@@ -1263,6 +1265,7 @@ const { chromium } = require('playwright');
       limit,
       autonomousMovement,
       smartIndoorIngress,
+      disableAutonomousFormation: process.env.C_FIELD_DISABLE_AUTO_FORMATION === '1',
       arms: Object.fromEntries(
         ['off', 'on'].map(arm => {
           const a = results.filter(x => x.arm === arm);
