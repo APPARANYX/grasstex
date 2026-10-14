@@ -215,9 +215,11 @@
     );
   }
   function interiorIngressOn() {
-    /* The route change is confined to the native Combat Lab until a
-       production natural-battle comparison has been adjudicated. */
-    return !!(root.PhaseCCombatLab && root.PhaseCCombatLab.interiorIngressRecovery);
+    /* Native default-on collision-checked indoor routing. The Lab can still
+       compare Smart and Legacy independently. Production bootstrap provides
+       an emergency ?interiorIngress=0 rollback without altering route owners. */
+    var lab = root.PhaseCCombatLab;
+    return lab ? !!lab.interiorIngressRecovery : root.BATTLE_INTERIOR_INGRESS === true;
   }
   /* A committed door route can become stale once the soldier crosses a
      different accessible threshold. Never enforce a forbidden-door zone:
@@ -713,6 +715,7 @@
     version: '3.0-lean-execution',
     createIngress: createIngress,
     rebaseIngress: rebaseIngress,
+    interiorIngressOn: interiorIngressOn,
     ingressVersion: ingressVersion,
     cancel: function (s, b) {
       clearPlan(s, b, true);
