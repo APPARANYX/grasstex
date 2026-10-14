@@ -1125,6 +1125,46 @@
               }
             } else break;
           }
+          /* Cover-slot rings can all lie just behind a crest: a standing
+             eye sees the reported sector but the lower ballistic aim ray
+             cannot clear the same terrain. Before accepting observation
+             only, inspect a bounded 0.75/1.5 m adjustment about the selected
+             masked slot. Every alternative must independently pass the
+             SAME masking, safe-approach and native standing-shot predicates.
+             No terrain, target truth or movement ownership is bypassed. */
+          if (candidate && !firingQualified && maneuverOn && A.canSuppressStanding) {
+            var originalPost = candidate;
+            for (var ring = 0; ring < 2 && !firingQualified; ring++) {
+              var step = ring === 0 ? 0.75 : 1.5;
+              for (var bearing = 0; bearing < 8; bearing++) {
+                var angle = (Math.PI * 2 * bearing) / 8,
+                  trial = {
+                    x: originalPost.x + Math.sin(angle) * step,
+                    z: originalPost.z + Math.cos(angle) * step
+                  };
+                if (
+                  orders.some(function (o) {
+                    return Math.hypot(o.point.x - trial.x, o.point.z - trial.z) < 1.5;
+                  }) ||
+                  !C.maskedPost(b, trial, rs) ||
+                  !C.maskedApproach(s, b, trial, rs)
+                )
+                  continue;
+                var trialShooter = Object.assign({}, s, {
+                  root: Object.assign({}, s.root, { position: trial })
+                });
+                if (
+                  rs.some(function (r) {
+                    return A.canSuppressStanding(trialShooter, r, b);
+                  })
+                ) {
+                  candidate = trial;
+                  firingQualified = true;
+                  break;
+                }
+              }
+            }
+          }
           /* Do not place this soldier at an exposed default slot. A masked
              fireteam is useful even when another eligible squad member has
              no concealed post; that man remains under his existing orders. */
