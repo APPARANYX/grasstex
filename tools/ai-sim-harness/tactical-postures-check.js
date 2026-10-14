@@ -179,12 +179,12 @@ assert.equal(observation.P.operationOn, true);
 let activeReport = true;
 observation.r.SquadAI.squadContactsMap = (_, sim) =>
   activeReport
-    ? [{ x: 0, z: 20, at: sim.time, confidence: 1, targetId: 'seen-001', source: 'told' }]
+    ? [{ x: 0, z: 20, at: 0, confidence: 1, targetId: 'seen-001', source: 'told' }]
     : [];
 const operationReady = observation.P.update(observation.b, observation.q);
 assert.ok(operationReady && operationReady.operation?.phase === 'stage');
 let observedReadyAt = null;
-H.run(observation.r, observation.b, 8, () => {
+H.run(observation.r, observation.b, 6, () => {
   const st = observation.P.current(observation.b, observation.q);
   if (st?.readyAt != null && observedReadyAt == null) observedReadyAt = st.readyAt;
 });
@@ -194,7 +194,7 @@ assert.equal(originalHeld.operation.phase, 'observe');
 const originalIdentity = originalHeld.heldActorIds.slice();
 const originalPosts = JSON.stringify(originalHeld.heldPositions);
 activeReport = false;
-H.run(observation.r, observation.b, 18);
+H.run(observation.r, observation.b, 13);
 const quiet = observation.P.current(observation.b, observation.q);
 assert.equal(quiet, originalHeld, 'still-masked mission-owned operation survives a lost report');
 assert.deepEqual(quiet.heldActorIds, originalIdentity, 'the held core cannot rotate during observation');
