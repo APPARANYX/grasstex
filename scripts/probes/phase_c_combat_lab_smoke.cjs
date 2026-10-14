@@ -32,6 +32,44 @@ const { chromium } = require('playwright');
       if (message.type() === 'error' && !/texture|audio|failed to load resource|fbx/i.test(message.text()))
         errors.push(message.text());
     });
+    // Ordinary browser battles must receive the promoted movement policy,
+    // independent of any Lab object. The query opt-outs are real rollback
+    // controls, not the Lab's experimental intervention settings.
+    const ordinary = await browser.newPage({ viewport: { width: 1100, height: 700 }, ignoreHTTPSErrors: true });
+    ordinary.setDefaultTimeout(90000);
+    for (const [query, expected] of [
+      ['?bodyAutonomy=1&interiorIngress=1', true],
+      ['?bodyAutonomy=0&interiorIngress=0', false]
+    ]) {
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        try {
+          await ordinary.goto(base + query, { waitUntil: 'domcontentloaded', timeout: 120000 });
+          break;
+        } catch (e) {
+          if (attempt === 4 || !/ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ERR_EMPTY_RESPONSE|ERR_TIMED_OUT/.test(String(e)))
+            throw e;
+          await new Promise(resolve => setTimeout(resolve, attempt * 1200));
+        }
+      }
+      await ordinary.waitForFunction(() =>
+        !!(window.BattleSoldierIndividuality && window.BattleTacticalRoute &&
+          window.BattleSoldierIndividuality.autonomousOn &&
+          window.BattleTacticalRoute.interiorIngressOn), null, { timeout: 60000 });
+      const nativePolicies = await ordinary.evaluate(() => ({
+        lab: !!window.PhaseCCombatLab,
+        autonomy: window.BattleSoldierIndividuality.autonomousOn(),
+        ingress: window.BattleTacticalRoute.interiorIngressOn(),
+        bootstrapAutonomy: window.BATTLE_BODY_AUTONOMY,
+        bootstrapIngress: window.BATTLE_INTERIOR_INGRESS
+      }));
+      assert.equal(nativePolicies.lab, false, 'ordinary preview has no diagnostic Combat Lab overrides');
+      assert.equal(nativePolicies.autonomy, expected, 'ordinary soldier movement follows bootstrap/rollback');
+      assert.equal(nativePolicies.ingress, expected, 'ordinary indoor routing follows bootstrap/rollback');
+      assert.equal(nativePolicies.bootstrapAutonomy, expected);
+      assert.equal(nativePolicies.bootstrapIngress, expected);
+      console.log('NATIVE_ORDINARY_POLICIES ' + JSON.stringify({ query, ...nativePolicies }));
+    }
+    await ordinary.close();
     // Paired preset/range checks establish actual weapon and perception scaling.
     for (const [preset, rangeScale] of [['C', 0.5], ['F', 0.25], ['E', 1]]) {
       const mode = preset === 'E' ? 'autonomous' : 'purposeful';
