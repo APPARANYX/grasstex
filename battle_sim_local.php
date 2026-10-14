@@ -89,7 +89,10 @@ $requestedDefender=(isset($_GET['defender'])&&in_array($_GET['defender'],array('
 /* Default-on live policies; URL opt-outs preserve same-seed A/B controls. */
 $autonomousMovement=!(isset($_GET['autonomousMovement']) && $_GET['autonomousMovement'] === '0');
 $smartIndoorIngress=!(isset($_GET['smartIndoorIngress']) && $_GET['smartIndoorIngress'] === '0');
-$labRequested=!!$preview && isset($_GET['combatLab']) && $_GET['combatLab'] === '1';
+$labRequested=isset($_GET['combatLab']) && $_GET['combatLab'] === '1';
+/* An explicit live Combat Lab request uses the same no-write preview
+   protections, without changing the ordinary production battle path. */
+$isolatedLabState=$preview ?: ($labRequested ? array('isolatedLab'=>true) : null);
 /* Canonicalize the lab BEFORE browser scripts parse their query parameters: all Phase C
    feature flags must already be on for the first native AI tick. This is preview-only. */
 if ($labRequested) {
@@ -107,7 +110,7 @@ if ($labRequested) {
     if ($changed) {header('Location: '.$_SERVER['SCRIPT_NAME'].'?'.http_build_query($labParams),true,302);exit;}
     $requestedSeed=$labParams['seed'];
 }
-$bootstrap='<script>'.'window.BATTLE_BUILD_DEPLOYED='.json_encode($build).';'.'window.BATTLE_REF="local-'.$deployId.'";'.'window.BATTLE_ASSET_BASE='.json_encode($assetBase).';'.'window.BATTLE_SOLDIER_ASSET_BASE='.json_encode($soldierAssetBase).';'.'window.BATTLE_AUDIO_BASE='.json_encode($audioBase).';'.'window.BATTLE_API_BASE='.json_encode($apiBase).';'.'window.BATTLE_PREVIEW='.json_encode($preview).';'.'window.BATTLE_AUDIO_MANIFEST='.json_encode($manifest).';'.'window.BATTLE_AI_POLICY='.json_encode($policyState).';'.'window.BATTLE_AI_MEMORY='.json_encode($memoryState).';'.'window.BATTLE_SCENARIO_SEED='.json_encode($requestedSeed).';'.'window.PHASE_C_COMBAT_LAB='.json_encode($labRequested).';'.'window.BATTLE_AUTONOMOUS_MOVEMENT='.json_encode($autonomousMovement).';'.'window.BATTLE_SMART_INDOOR_INGRESS='.json_encode($smartIndoorIngress).';'.'</script>';
+$bootstrap='<script>'.'window.BATTLE_BUILD_DEPLOYED='.json_encode($build).';'.'window.BATTLE_REF="local-'.$deployId.'";'.'window.BATTLE_ASSET_BASE='.json_encode($assetBase).';'.'window.BATTLE_SOLDIER_ASSET_BASE='.json_encode($soldierAssetBase).';'.'window.BATTLE_AUDIO_BASE='.json_encode($audioBase).';'.'window.BATTLE_API_BASE='.json_encode($apiBase).';'.'window.BATTLE_PREVIEW='.json_encode($isolatedLabState).';'.'window.BATTLE_AUDIO_MANIFEST='.json_encode($manifest).';'.'window.BATTLE_AI_POLICY='.json_encode($policyState).';'.'window.BATTLE_AI_MEMORY='.json_encode($memoryState).';'.'window.BATTLE_SCENARIO_SEED='.json_encode($requestedSeed).';'.'window.PHASE_C_COMBAT_LAB='.json_encode($labRequested).';'.'window.BATTLE_AUTONOMOUS_MOVEMENT='.json_encode($autonomousMovement).';'.'window.BATTLE_SMART_INDOOR_INGRESS='.json_encode($smartIndoorIngress).';'.'</script>';
 $cdnTag='<script src="https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js"></script>';if(strpos($body,$cdnTag)===false){http_response_code(500);echo '<!doctype html><html><body><h1>Battle sim deployment mismatch</h1><p>Babylon bootstrap tag not found.</p></body></html>';exit;}$body=str_replace($cdnTag,$bootstrap."\n".$cdnTag,$body);
 $coreScripts=array('core-runtime.js','soldier.js','weapons.js','obstacle-field.js','terrain-features.js','squad-ai.js','movement-resolver.js','engagement.js','battle-sim.js');foreach($coreScripts as $file){$old='<script src="'.$file.'"></script>';$new='<script src="'.$runtimeBase.'battle/'.$file.'?v='.$deployId.'&c='.rawurlencode($cacheEpoch).'"></script>';$body=str_replace($old,$new,$body);}
 /* The checked-in page keeps a touch-friendly ArcRotate fallback. Production swaps only that camera
@@ -130,7 +133,7 @@ foreach(array('ai-trainer.js','battle-control.js') as $file)$extras.='<script sr
 $pattern='#<script>\s*/\* Extra runtimes[\s\S]*?</script>#';$body=preg_replace($pattern,$extras,$body,1,$count);if($count!==1){http_response_code(500);echo '<!doctype html><html><body><h1>Battle sim deployment mismatch</h1><p>Extra-runtime block was not found.</p></body></html>';exit;}
 /* The page's load bar counts runtime scripts as they arrive; give it the total. */
 $body=str_replace($cdnTag,'<script>window.BATTLE_RUNTIME_SCRIPTS='.substr_count($body,'<script src=').';</script>'."\n".$cdnTag,$body);
-/* Only preview deployments with an explicit lab URL load the intervention owners.
+/* Explicit Combat Lab URLs (preview or production) load isolated interventions.
    The script precedes the page bootstrap, so its settings exist BEFORE scenario/spawn/first tick. */
 if ($labRequested) {
     $labTag='<script src="'.$runtimeBase.'battle/phase-c-compact-range.js?v='.$deployId.'&c='.rawurlencode($cacheEpoch).'"></script>';
