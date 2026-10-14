@@ -12,6 +12,8 @@ const { chromium } = require('playwright');
   const limit = Math.max(30, Number(process.env.C_FIELD_SECONDS || 210));
   const prefix = process.env.C_FIELD_PREFIX || 'phase-c-field';
   const selectedSeed = Math.max(0, Number(process.env.C_FIELD_SEED_INDEX || 0));
+  const autonomousMovement = process.env.C_FIELD_AUTONOMOUS_MOVEMENT === '0' ? '0' : '1';
+  const smartIndoorIngress = process.env.C_FIELD_SMART_INGRESS === '0' ? '0' : '1';
   const traceSquad = String(process.env.C_FIELD_TRACE_SQUAD || '');
   const traceFrom = Number(process.env.C_FIELD_TRACE_FROM || 0);
   const traceTo = Number(process.env.C_FIELD_TRACE_TO || limit);
@@ -37,6 +39,8 @@ const { chromium } = require('playwright');
       );
       if (arm === 'on') for (const [k, v] of new URLSearchParams(flags)) query.set(k, v);
       query.set('seed', prefix + '-bootstrap');
+      query.set('autonomousMovement', autonomousMovement);
+      query.set('smartIndoorIngress', smartIndoorIngress);
       const page = await browser.newPage({ ignoreHTTPSErrors: true });
       page.setDefaultTimeout(120000);
       const errors = [];
@@ -1243,6 +1247,8 @@ const { chromium } = require('playwright');
       commit: process.env.C_FIELD_SHA || 'local',
       count,
       limit,
+      autonomousMovement,
+      smartIndoorIngress,
       arms: Object.fromEntries(
         ['off', 'on'].map(arm => {
           const a = results.filter(x => x.arm === arm);
