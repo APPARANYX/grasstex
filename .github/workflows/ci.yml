@@ -268,6 +268,10 @@ jobs:
           node scripts/check-movement-order-ownership.cjs
           node scripts/check-meso-micro-movement-ownership.cjs
           node scripts/check-physical-waypoint-refill.cjs
+          # Phase C soldier movement + building ingress: no Meso bypass, no fabricated clearance.
+          node scripts/check-purposeful-contact-gait.cjs
+          node scripts/check-autonomous-contact-mobility.cjs
+          node scripts/check-building-interior-ingress.cjs
 
       - name: Engagement harness seeds
         run: |
