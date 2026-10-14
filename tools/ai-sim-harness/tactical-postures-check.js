@@ -12,7 +12,8 @@ function world(on = true, terrain = true, maneuver = false, options = {}) {
       (options.commandMovement ? '1' : '0') +
       '&slStress=0&scoutsForward=0&stressAct=0' +
       (on ? '&localAmbush=1' : '') +
-      (maneuver ? '&localManeuver=1&coveredBounds=1' : '')
+      (maneuver ? '&localManeuver=1&coveredBounds=1' : '') +
+      (options.operation ? '&fireManeuverOperation=1' : '')
   });
   const load = f => loadModule(r, f, { console: quietConsole, location: r.location });
   load('battle/movement-resolver.js');
@@ -168,6 +169,56 @@ assert.equal(
   null,
   'actual report loss still revokes the prepared posture immediately'
 );
+
+/* Optional Squad Leader operation memory: a genuinely prepared mission
+   can keep a QUIET OBSERVATION POST after the reported target expires.
+   It never converts memory into a new target, shot, reserve movement or
+   permission to assault, and it must abandon exposed/ineligible posts. */
+const observation = world(true, true, true, { operation: true });
+assert.equal(observation.P.operationOn, true);
+let activeReport = true;
+observation.r.SquadAI.squadContactsMap = (_, sim) =>
+  activeReport
+    ? [{ x: 0, z: 20, at: sim.time, confidence: 1, targetId: 'seen-001', source: 'told' }]
+    : [];
+const operationReady = observation.P.update(observation.b, observation.q);
+assert.ok(operationReady && operationReady.operation?.phase === 'stage');
+let observedReadyAt = null;
+H.run(observation.r, observation.b, 8, () => {
+  const st = observation.P.current(observation.b, observation.q);
+  if (st?.readyAt != null && observedReadyAt == null) observedReadyAt = st.readyAt;
+});
+assert.ok(observedReadyAt != null, 'real soldiers must complete four-second hold before continuity');
+const originalHeld = observation.P.current(observation.b, observation.q);
+assert.equal(originalHeld.operation.phase, 'observe');
+const originalIdentity = originalHeld.heldActorIds.slice();
+const originalPosts = JSON.stringify(originalHeld.heldPositions);
+activeReport = false;
+H.run(observation.r, observation.b, 18);
+const quiet = observation.P.current(observation.b, observation.q);
+assert.equal(quiet, originalHeld, 'still-masked mission-owned operation survives a lost report');
+assert.deepEqual(quiet.heldActorIds, originalIdentity, 'the held core cannot rotate during observation');
+assert.equal(JSON.stringify(quiet.heldPositions), originalPosts, 'physical held posts remain immutable');
+assert.equal(quiet.operation.phase, 'observe');
+assert.equal(observation.r.BattleLeases.get(observation.q, 'bound'), null, 'no contact cannot grant movement');
+assert.equal(observation.b.events.fired, 0, 'stale contact cannot grant shots');
+assert.ok(
+  quiet.operation.transitions.some(t => t.to === 'prepare') &&
+    quiet.operation.transitions.some(t => t.to === 'observe'),
+  'the versioned operation records stage and four-second preparation'
+);
+observation.r.BattleCoverPositions.maskedPost = () => false;
+assert.equal(
+  observation.P.update(observation.b, observation.q),
+  null,
+  'a compromised real observation post cannot persist merely due to operation memory'
+);
+assert.equal(quiet.operation.phase, 'abort');
+
+const noOperationMemory = world(true, true, true);
+noOperationMemory.r.SquadAI.squadContactsMap = () => [];
+assert.equal(noOperationMemory.P.update(noOperationMemory.b, noOperationMemory.q), null);
+assert.equal(noOperationMemory.P.operationOn, false, 'flag off keeps old fail-closed missing-report rule');
 
 /* Full-battle Command Reception is enabled in production. Prove that the
    four-second hold follows the personally adopted ambush intent even when the
