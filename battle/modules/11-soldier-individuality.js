@@ -190,13 +190,12 @@
     );
   }
 
-  /* Preview-only soldier body autonomy. A Meso order names a destination and
-     urgency; it never specifies the soldier's body. The Resolver passes only
-     the winning, legally routed intent. Engagement remains the SOLE stance
-     writer, while this module chooses stance and gait as one physical plan.
-     Baseline/purposeful and ordinary battles remain unmodified controls. */
+  /* Squad Leader supplies movement intent, while each soldier jointly chooses
+     stance and gait. Lab A/B choices override the production default without
+     adding any new destination or command authority. */
   function autonomousOn() {
-    return !!(root.PhaseCCombatLab && root.PhaseCCombatLab.movementPace === 'autonomous');
+    var lab = root.PhaseCCombatLab;
+    return lab ? lab.movementPace === 'autonomous' : root.BATTLE_AUTONOMOUS_MOVEMENT === true;
   }
   var MOVING_ORDERS = {
     formation: 1,
@@ -480,6 +479,7 @@
     runDistance: RUN_DISTANCE,
     phenotype: phenotype,
     desiredGait: desiredGait,
+    autonomousOn: autonomousOn,
     transitPlan: transitPlan,
     applyTransit: applyTransit,
     clearTransit: function (s) {
