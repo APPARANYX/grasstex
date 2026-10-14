@@ -149,6 +149,27 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
 
+      # Emit an exact, applyable repair without modifying the PR's source branch.
+      # The strict ratchet above MUST fail first; this only helps diagnose and fix it.
+      - name: Prettier repair preview
+        if: failure()
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          [[ -n "$BASE_SHA" ]] || exit 0
+          mapfile -t files < <(git diff --name-only "$BASE_SHA" HEAD -- '*.js' | while IFS= read -r f; do [[ -f "$f" ]] && printf '%s\n' "$f"; done)
+          [[ ${#files[@]} -gt 0 ]] || exit 0
+          npx --yes prettier@3.3.3 --write "${files[@]}"
+          mkdir -p reports/ci
+          git diff --binary -- "${files[@]}" > reports/ci/mainline-prettier-repair.patch
+          if [[ -s reports/ci/mainline-prettier-repair.patch ]]; then
+            echo PHASE_C_PRETTIER_PATCH_B64_BEGIN
+            base64 -w0 reports/ci/mainline-prettier-repair.patch
+            echo
+            echo PHASE_C_PRETTIER_PATCH_B64_END
+          fi
+
   audio:
     name: Audio library
     needs: changes
