@@ -22,11 +22,9 @@ jobs:
           node --check battle/modules/15o-squad-leader-tactical-postures.js
           node --check tools/ai-sim-harness/tactical-postures-check.js
           node --check tools/ai-sim-harness/phase-c-operation-continuity-check.js
-      - name: Formatter standard for both changed source files
+      - name: Enforce exact source formatting (Prettier ratchet)
         run: |
-          npx --yes prettier@3.3.3 --write battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js tools/ai-sim-harness/phase-c-operation-continuity-check.js
-          git diff --unified=3 -- battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
-          echo FORMAT_REPAIR_RUNNER_ONLY
+          npx --yes prettier@3.3.3 --check battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js tools/ai-sim-harness/phase-c-operation-continuity-check.js scripts/probes/probe_phase_c_natural.cjs
       - name: Phase C tactical regression
         run: |
           set -euo pipefail
