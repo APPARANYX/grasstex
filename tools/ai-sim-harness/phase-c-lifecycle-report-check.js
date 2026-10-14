@@ -54,9 +54,9 @@ function row(seed, options = {}) {
     ]
   };
 }
-function write(name, rows) {
+function write(name, rows, completed = 0) {
   const file = path.join(dir, name);
-  fs.writeFileSync(file, JSON.stringify({ type: 'meeting', results: rows }));
+  fs.writeFileSync(file, JSON.stringify({ type: 'meeting', arms: { on: { completedNaturalChains: completed } }, results: rows }));
   return file;
 }
 try {
@@ -85,6 +85,14 @@ try {
   assert.equal(comparison.delta.arrivedContact, 1);
   assert.equal(comparison.delta.ambushes, 0);
   assert.equal(comparison.delta.completeChains, 0);
+  const unfinished = row('s002');
+  unfinished.maneuverChains = [{ stage: 'partial' }];
+  const adjudicated = readShards([write('adjudication.json', [row('s001'), unfinished], 1)]);
+  assert.equal(
+    analyze(adjudicated).totals.completeChains,
+    1,
+    'native shard acceptance is counted once, never incomplete per-seed trace entries'
+  );
   assert.throws(
     () => readShards([write('off.json', [{ ...row('s001'), arm: 'off' }])]),
     /no native ON battles/
