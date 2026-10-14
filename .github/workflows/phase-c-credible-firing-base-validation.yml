@@ -20,6 +20,8 @@ jobs:
         run: |
           node --check battle/modules/15o-squad-leader-tactical-postures.js
           node --check tools/ai-sim-harness/tactical-postures-check.js
+      - name: Formatter standard for both changed source files
+        run: npx --yes prettier@3.3.3 --check battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
       - name: Phase C tactical regression
         run: |
           set -euo pipefail
