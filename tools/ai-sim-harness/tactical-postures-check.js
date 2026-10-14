@@ -434,7 +434,10 @@ assert.equal(
 const specialistOrders = specialistPosture.orders.filter(o => o.reserve);
 assert.deepEqual(
   specialistOrders.map(o => o.soldierId).sort(),
-  specialistBase.q.members.filter(s => s._fireteamKey === 'bravo').map(s => String(s.id)).sort(),
+  specialistBase.q.members
+    .filter(s => s._fireteamKey === 'bravo')
+    .map(s => String(s.id))
+    .sort(),
   'non-rifleman credibility cannot split the native reserve team or steal a support man'
 );
 assert.ok(
