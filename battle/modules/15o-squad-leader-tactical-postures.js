@@ -43,13 +43,6 @@
       if (op.transitions.length > 24) op.transitions.shift();
       op.phase = phase;
       op.at = b.time;
-      ctx.telemetry(b, 'decision-fire-maneuver-operation', {
-        squad: sq.id,
-        faction: sq.faction,
-        serial: st.serial,
-        phase: phase,
-        reason: reason
-      });
     }
     /* A verified three-person line may keep QUIETLY OBSERVING under the
        SAME valid mission after its original sighting expires. Only detached
