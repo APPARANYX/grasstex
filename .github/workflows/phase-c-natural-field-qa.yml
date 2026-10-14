@@ -57,6 +57,9 @@ jobs:
           C_FIELD_AUTONOMOUS_MOVEMENT: '1'
           C_FIELD_SMART_INGRESS: '0'
           C_FIELD_OPERATION: '1'
+          # Run 54 ON natural battles against the same previously pinned OFF baseline.
+          # This changes runtime cost only; it never changes acceptance criteria.
+          C_FIELD_ARMS: 'on'
           C_FIELD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/probes/probe_phase_c_natural.cjs
       - name: Upload paired causal observation
