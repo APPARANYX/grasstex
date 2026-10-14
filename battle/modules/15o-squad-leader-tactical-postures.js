@@ -18,7 +18,7 @@
         on &&
         /[?&]localManeuver=(?:1|on|true)(?:&|#|$)/i.test(query) &&
         /[?&]coveredBounds=(?:1|on|true)(?:&|#|$)/i.test(query),
-      operationOn = maneuverOn && /[?&]fireManeuverOperation=(?:1|on|true)(?:&|#|$)/i.test(query),
+      operationOn = on && /[?&]fireManeuverOperation=(?:1|on|true)(?:&|#|$)/i.test(query),
       states = new WeakMap(),
       cooldown = new WeakMap(),
       counters = new WeakMap(),
