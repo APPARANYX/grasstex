@@ -239,6 +239,14 @@ const { requestPreview } = require('./preview_request.cjs');
         q.commandPhase = 'assault';
         q.objective = { x: threat.x, z: threat.z };
         q.orderAnchor = { x: start.x, z: start.z };
+        /* The staged mission has a NEW objective and anchor. The old
+           battle's Squad Leader forward-line axis cannot be carried into
+           this new controlled assault: that would cause the actual Micro
+           cover gate to reject genuinely forward cover as 'behind-order-line'.
+           Clear stale provenance, then let native boundForward derive its
+           direction from the explicitly staged Meso objective and anchor.
+           No gameplay route, cover gate or fire authority is bypassed. */
+        q._forwardLine = null;
         q.fireControl = { state: 'open', since: b.time, startedAt: b.time };
         q._macroMission = {
           version: 1,
