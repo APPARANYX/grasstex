@@ -86,6 +86,11 @@ $policyState=null;$policyPath=$stateRoot.'/state/ai-policy.json';if(is_file($pol
 $memoryState=array('version'=>1,'experiences'=>array());$memoryPath=$stateRoot.'/state/scenario-memory.json';if(is_file($memoryPath)&&is_readable($memoryPath)){$d=json_decode(@file_get_contents($memoryPath),true);if(is_array($d)&&isset($d['experiences'])&&is_array($d['experiences'])){$d['experiences']=array_slice($d['experiences'],-180);$memoryState=$d;}}
 $requestedSeed=isset($_GET['seed'])?substr(preg_replace('/[^a-zA-Z0-9_.-]/','-',strval($_GET['seed'])),0,100):'';
 $requestedDefender=(isset($_GET['defender'])&&in_array($_GET['defender'],array('us','ge'),true))?$_GET['defender']:'';
+/* Native physical movement policies are default-on for actual browser battles.
+   Diagnostics retain independent A/B selection; explicit zero is the rollback
+   switch for deterministic comparators and emergency production triage. */
+$bodyAutonomyEnabled=!isset($_GET['bodyAutonomy']) || $_GET['bodyAutonomy'] !== '0';
+$interiorIngressEnabled=!isset($_GET['interiorIngress']) || $_GET['interiorIngress'] !== '0';
 $labRequested=!!$preview && isset($_GET['combatLab']) && $_GET['combatLab'] === '1';
 /* Canonicalize the lab BEFORE browser scripts parse their query parameters: all Phase C
    feature flags must already be on for the first native AI tick. This is preview-only. */
@@ -104,7 +109,7 @@ if ($labRequested) {
     if ($changed) {header('Location: '.$_SERVER['SCRIPT_NAME'].'?'.http_build_query($labParams),true,302);exit;}
     $requestedSeed=$labParams['seed'];
 }
-$bootstrap='<script>'.'window.BATTLE_BUILD_DEPLOYED='.json_encode($build).';'.'window.BATTLE_REF="local-'.$deployId.'";'.'window.BATTLE_ASSET_BASE='.json_encode($assetBase).';'.'window.BATTLE_SOLDIER_ASSET_BASE='.json_encode($soldierAssetBase).';'.'window.BATTLE_AUDIO_BASE='.json_encode($audioBase).';'.'window.BATTLE_API_BASE='.json_encode($apiBase).';'.'window.BATTLE_PREVIEW='.json_encode($preview).';'.'window.BATTLE_AUDIO_MANIFEST='.json_encode($manifest).';'.'window.BATTLE_AI_POLICY='.json_encode($policyState).';'.'window.BATTLE_AI_MEMORY='.json_encode($memoryState).';'.'window.BATTLE_SCENARIO_SEED='.json_encode($requestedSeed).';'.'window.PHASE_C_COMBAT_LAB='.json_encode($labRequested).';'.'</script>';
+$bootstrap='<script>'.'window.BATTLE_BUILD_DEPLOYED='.json_encode($build).';'.'window.BATTLE_REF="local-'.$deployId.'";'.'window.BATTLE_ASSET_BASE='.json_encode($assetBase).';'.'window.BATTLE_SOLDIER_ASSET_BASE='.json_encode($soldierAssetBase).';'.'window.BATTLE_AUDIO_BASE='.json_encode($audioBase).';'.'window.BATTLE_API_BASE='.json_encode($apiBase).';'.'window.BATTLE_PREVIEW='.json_encode($preview).';'.'window.BATTLE_AUDIO_MANIFEST='.json_encode($manifest).';'.'window.BATTLE_AI_POLICY='.json_encode($policyState).';'.'window.BATTLE_AI_MEMORY='.json_encode($memoryState).';'.'window.BATTLE_SCENARIO_SEED='.json_encode($requestedSeed).';'.'window.BATTLE_BODY_AUTONOMY='.json_encode($bodyAutonomyEnabled).';'.'window.BATTLE_INTERIOR_INGRESS='.json_encode($interiorIngressEnabled).';'.'window.PHASE_C_COMBAT_LAB='.json_encode($labRequested).';'.'</script>';
 $cdnTag='<script src="https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js"></script>';if(strpos($body,$cdnTag)===false){http_response_code(500);echo '<!doctype html><html><body><h1>Battle sim deployment mismatch</h1><p>Babylon bootstrap tag not found.</p></body></html>';exit;}$body=str_replace($cdnTag,$bootstrap."\n".$cdnTag,$body);
 $coreScripts=array('core-runtime.js','soldier.js','weapons.js','obstacle-field.js','terrain-features.js','squad-ai.js','movement-resolver.js','engagement.js','battle-sim.js');foreach($coreScripts as $file){$old='<script src="'.$file.'"></script>';$new='<script src="'.$runtimeBase.'battle/'.$file.'?v='.$deployId.'&c='.rawurlencode($cacheEpoch).'"></script>';$body=str_replace($old,$new,$body);}
 /* The checked-in page keeps a touch-friendly ArcRotate fallback. Production swaps only that camera
