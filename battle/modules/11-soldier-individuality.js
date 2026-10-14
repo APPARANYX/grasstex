@@ -201,9 +201,7 @@
        fixtures that do not load the shipping PHP battle bootstrap. */
     if (root.PhaseCCombatLab) return root.PhaseCCombatLab.movementPace === 'autonomous';
     if (root.BATTLE_BUILD_DEPLOYED == null) return false;
-    return !/[?&]bodyAutonomy=(?:0|off|false)(?:&|#|$)/i.test(
-      (root.location && root.location.search) || ''
-    );
+    return !/[?&]bodyAutonomy=(?:0|off|false)(?:&|#|$)/i.test((root.location && root.location.search) || '');
   }
   var MOVING_ORDERS = {
     formation: 1,

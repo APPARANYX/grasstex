@@ -72,6 +72,7 @@ root.PhaseCCombatLab=null;
 assert.equal(R.rebaseIngress(s,b,st,old),null,'headless fixture without real game bootstrap is inert');
 root.BATTLE_BUILD_DEPLOYED='integration';
 assert.ok(R.interiorIngressOn(), 'production enables physically checked indoor approach recovery');
+b.time += 1.6; // Production A/B restaging reuses the sampled route only after its physical retry cooldown.
 assert.ok(R.rebaseIngress(s,b,st,old), 'production chooses valid interior shortcut');
 root.location={search:'?smartIngress=0'};
 assert.equal(R.interiorIngressOn(),false,'production rollback disables indoor rebase');

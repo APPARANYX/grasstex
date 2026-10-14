@@ -220,9 +220,7 @@
        ?smartIngress=0 preserves the prior navigation for rollback. */
     if (root.PhaseCCombatLab) return !!root.PhaseCCombatLab.interiorIngressRecovery;
     if (root.BATTLE_BUILD_DEPLOYED == null) return false;
-    return !/[?&]smartIngress=(?:0|off|false)(?:&|#|$)/i.test(
-      (root.location && root.location.search) || ''
-    );
+    return !/[?&]smartIngress=(?:0|off|false)(?:&|#|$)/i.test((root.location && root.location.search) || '');
   }
   /* A committed door route can become stale once the soldier crosses a
      different accessible threshold. Never enforce a forbidden-door zone:

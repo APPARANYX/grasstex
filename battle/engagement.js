@@ -1561,8 +1561,7 @@
       hasTarget = combatThreat(s.target),
       t = hasTarget ? posOf(s.target) : null,
       d = t ? dist(p.x, p.z, t.x, t.z) : Infinity;
-    if (!(autonomousBody()))
-      commitStance(s, battle, 'crouch', Math.max(1, e.until - battle.time));
+    if (!autonomousBody()) commitStance(s, battle, 'crouch', Math.max(1, e.until - battle.time));
     if (!e.assaultGoal) {
       if (!t) {
         transition(s, battle, 'alert', ALERT_HOLD, 'assault target unavailable');
