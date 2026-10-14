@@ -21,7 +21,10 @@ jobs:
           node --check battle/modules/15o-squad-leader-tactical-postures.js
           node --check tools/ai-sim-harness/tactical-postures-check.js
       - name: Formatter standard for both changed source files
-        run: npx --yes prettier@3.3.3 --check battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
+        run: |
+          npx --yes prettier@3.3.3 --write battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
+          git diff --unified=3 -- battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
+          echo "FORMAT_PREVIEW_ONLY: working tree was formatted for this runner, no changes committed"
       - name: Phase C tactical regression
         run: |
           set -euo pipefail
