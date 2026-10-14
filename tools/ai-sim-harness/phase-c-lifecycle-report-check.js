@@ -56,7 +56,14 @@ function row(seed, options = {}) {
 }
 function write(name, rows, completed = 0) {
   const file = path.join(dir, name);
-  fs.writeFileSync(file, JSON.stringify({ type: 'meeting', arms: { on: { completedNaturalChains: completed } }, results: rows }));
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      type: 'meeting',
+      arms: { on: { completedNaturalChains: completed } },
+      results: rows
+    })
+  );
   return file;
 }
 try {
