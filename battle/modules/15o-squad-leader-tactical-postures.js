@@ -49,6 +49,30 @@
        geometry anchors are retained for a physical concealment check; no
        stale report can grant firing or maneuver, and no expired coordinates
        are passed to reserveStage, coveredTeam or fire control. */
+    /* Geometry-only corroboration of a real post: deliberately distinct
+       from the time/confidence-sensitive maskedPost selection predicate.
+       Anchors never become contacts or fire/maneuver permissions. */
+    function physicalObservationMask(b, body, anchors) {
+      var N = root.BattleNavigation,
+        A = root.SquadAI;
+      if (
+        !body || !anchors || !anchors.length || anchors.length > 3 ||
+        !A || !A.hasLineOfSight || !N || !N.movementClear ||
+        !root.BattleNavigationPhysicality || !b.heightAt ||
+        !N.movementClear(body, body)
+      ) return false;
+      var lower = { root: { position: body }, crouching: true },
+        upper = { root: { position: body } },
+        viewing = false;
+      for (var i = 0; i < anchors.length; i++) {
+        var anchor = anchors[i];
+        if (!point(anchor)) return false;
+        var sighting = { root: { position: anchor } };
+        if (A.hasLineOfSight(lower, sighting, b.heightAt, b.obstacles)) return false;
+        viewing = viewing || A.hasLineOfSight(upper, sighting, b.heightAt, b.obstacles);
+      }
+      return viewing;
+    }
     function quietOperationSafe(b, sq, st, a) {
       if (
         !operationOn ||
@@ -65,14 +89,10 @@
         st.compromisedAt != null ||
         !heldCore(b, sq, st, a)
       ) return false;
-      var C = root.BattleCoverPositions;
-      return !!(
-        C &&
-        st.heldActorIds.every(function (id) {
-          var s = a.find(function (man) { return String(man.id) === id; });
-          return s && C.maskedPost(b, s.root.position, st.observationGeometry);
-        })
-      );
+      return st.heldActorIds.every(function (id) {
+        var s = a.find(function (man) { return String(man.id) === id; });
+        return s && physicalObservationMask(b, s.root.position, st.observationGeometry);
+      });
     }
     function point(p) {
       return p && Number.isFinite(p.x) && Number.isFinite(p.z) ? { x: p.x, z: p.z } : null;
@@ -1331,7 +1351,9 @@
             ? st.orders.filter(function (o) {
                 return o.reserve
                   ? !reserveMasked(b, o.point, geometryReports)
-                  : !C.maskedPost(b, o.point, geometryReports);
+                  : observationSafe
+                    ? !physicalObservationMask(b, o.point, geometryReports)
+                    : !C.maskedPost(b, o.point, geometryReports);
               })
             : st.orders.slice();
       if (exposedOrders.length) {
