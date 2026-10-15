@@ -45,13 +45,17 @@
     if (!isFinite(n)) n = DEFAULT_DURATION_MINUTES;
     return Math.max(MIN_DURATION_MINUTES, Math.min(MAX_DURATION_MINUTES, Math.round(n)));
   }
+  function durationStorageKey(sim) {
+    var sc = scenario(sim);
+    return sc && sc.profile === 'strategic' ? 'battleStrategicDurationMinutes' : 'battleDurationMinutes';
+  }
   function storedDurationMinutes(sim) {
     var fallback =
       isFinite(+sim.timeLimit) && sim.timeLimit > 0
         ? Math.round(sim.timeLimit / 60)
         : DEFAULT_DURATION_MINUTES;
     try {
-      var saved = localStorage.getItem('battleDurationMinutes');
+      var saved = localStorage.getItem(durationStorageKey(sim));
       if (saved != null) return clampDurationMinutes(saved);
     } catch (_) {}
     return clampDurationMinutes(fallback);
@@ -62,7 +66,7 @@
     sim._operatorTimeLimitSeconds = minutes * 60;
     sim.timeLimit = sim._operatorTimeLimitSeconds;
     try {
-      localStorage.setItem('battleDurationMinutes', String(minutes));
+      localStorage.setItem(durationStorageKey(sim), String(minutes));
     } catch (_) {}
     return minutes;
   }
