@@ -1364,13 +1364,14 @@
             });
         }
         if (orders.length < 3) return null; // Never publish an understrength ambush element.
-        /* APPROACH. An attacking squad with bound authority does not halt for
-           a line no rifle can fire from because every report lies beyond its
-           weapons' reach (natural run c15d5b9: most attacking observation-only
-           lines were 150-250 m from a 140/165 m rifle). The native mission
-           advance keeps moving the squad; selection is retried each tick, so
-           a real firing base is chosen once posts are in range. Terrain-blocked
-           lines within range, and defenders, keep their observation line. */
+        /* APPROACH. An attacking squad with bound authority does not halt on a
+           line where fewer than two posts have a physical standing shot at any
+           report: such a line can never be a base of fire for a bound (natural
+           run c15d5b9: attacking observation-only lines held 150-250 m out with
+           eye-line over a crest but no firing ray to the ground beyond it). The
+           native mission advance keeps moving the squad; selection is retried
+           each tick, so a real firing base is chosen once one exists.
+           Defenders, and squads without bound authority, keep the line. */
         if (
           operationOn &&
           maneuverOn &&
@@ -1379,16 +1380,7 @@
           !(ctx.COA_ON && sq.coa && ctx.COAS && ctx.COAS[sq.coa] && !ctx.COAS[sq.coa].bounds) &&
           orders.filter(function (o) {
             return o.firingQualified;
-          }).length < tuning.minSupport &&
-          orders.every(function (o) {
-            var man = a.find(function (s) {
-                return String(s.id) === o.soldierId;
-              }),
-              reach = man && man.weapon && man.weapon.stats ? +man.weapon.stats.range * 0.95 : 0;
-            return rs.every(function (r) {
-              return Math.hypot(r.x - o.point.x, r.z - o.point.z) > reach;
-            });
-          })
+          }).length < tuning.minSupport
         ) {
           approachDeferrals.set(sq, (approachDeferrals.get(sq) || 0) + 1);
           return null;

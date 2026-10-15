@@ -252,38 +252,38 @@ function exposing(flags) {
   assert.ok(w.P.update(w.b, w.sq) === null, 'no replan after the preparation budget');
   assert.ok(w.P.releases(w.sq).some(x => x.reason === 'firing station lost masking/ray'));
 }
-/* 5. APPROACH. Most attacking observation-only lines in the natural run lay
-   150-250 m from rifles of 140/165 m reach: halting them could never form a
-   base of fire. An attacking squad keeps advancing until a firing base is in
-   reach; a defender, or a line blocked by terrain within reach, still holds. */
-function observationOnly(flags, z, phase) {
+/* 5. APPROACH. Attacking observation-only lines in the natural run held
+   150-250 m out with an eye-line over a crest but no firing ray to the ground
+   beyond: halting there could never form a base of fire. An attacking squad
+   keeps advancing until two posts have a physical shot; a defender, or a line
+   with two firing posts, still holds. */
+function observationOnly(flags, phase, shot) {
   const w = world(0.5, flags);
-  w.r.SquadAI.squadContactsMap = () => [{ x: 0, z, at: w.b.time, confidence: 1 }];
+  w.r.SquadAI.squadContactsMap = () => [{ x: 0, z: 200, at: w.b.time, confidence: 1 }];
   w.C.maskedPost = () => true;
   w.C.maskedApproach = () => true;
   w.C.candidates = () => [];
-  w.r.SquadAI.canSuppressStanding = () => false;
+  w.r.SquadAI.canSuppressStanding = () => !!shot;
   w.sq.commandPhase = phase;
   return { ...w, st: w.P.update(w.b, w.sq) };
 }
 {
-  const reach = Math.max(...world(0.5).sq.members.map(s => +s.weapon.stats.range));
-  const far = 0.5 + reach + 20;
-  const attack = observationOnly('&fireManeuverOperation=1', far, 'assault');
-  assert.ok(attack.st === null, 'an attacker does not halt for a line beyond its weapons');
+  const attack = observationOnly('&fireManeuverOperation=1', 'assault');
+  assert.ok(attack.st === null, 'an attacker does not halt on a line with no firing posts');
   assert.equal(attack.P.approachDeferrals(attack.sq), 1);
   assert.ok(
     attack.P.update(attack.b, attack.sq) === null && attack.P.approachDeferrals(attack.sq) === 2,
     'no cooldown: selection is retried on the next tick'
   );
-  const defend = observationOnly('&fireManeuverOperation=1', far, 'defend');
+  const defend = observationOnly('&fireManeuverOperation=1', 'defend');
   assert.ok(
     defend.st && defend.st.reservePlan === 'observation-only-no-two-ballistic-posts',
     'a defender holds'
   );
-  const blocked = observationOnly('&fireManeuverOperation=1', 20, 'assault');
-  assert.ok(blocked.st && blocked.st.mode === 'ambush', 'a terrain-blocked line within reach still holds');
-  const legacy = observationOnly('', far, 'assault');
+  const firing = observationOnly('&fireManeuverOperation=1', 'assault', true);
+  assert.ok(firing.st && firing.st.mode === 'ambush', 'an attacker with two firing posts holds');
+  assert.equal(firing.P.approachDeferrals(firing.sq), 0);
+  const legacy = observationOnly('', 'assault');
   assert.ok(
     legacy.st && legacy.st.mode === 'ambush',
     'without the operation the observation line is unchanged'
