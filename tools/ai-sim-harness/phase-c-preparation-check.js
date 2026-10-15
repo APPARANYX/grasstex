@@ -348,11 +348,13 @@ function exposing(flags) {
 {
   const w = world(0.5, '&fireManeuverOperation=1');
   w.sq._engagementPlan = { status: 'quiet' };
-  assert.equal(w.P.update(w.b, w.sq), null,
-    'ordinary new ambush remains prohibited under quiet Engagement without a prior line');
+  assert.equal(
+    w.P.update(w.b, w.sq),
+    null,
+    'ordinary new ambush remains prohibited under quiet Engagement without a prior line'
+  );
   w.sq._engagementPlan = { status: 'active' };
-  assert.equal(w.P.update(w.b, w.sq), null,
-    'ordinary active-combat ambush remains prohibited');
+  assert.equal(w.P.update(w.b, w.sq), null, 'ordinary active-combat ambush remains prohibited');
 }
 {
   // Out of budget, exposure ends the posture with the normal cooldown.
