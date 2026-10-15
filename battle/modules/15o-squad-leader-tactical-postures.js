@@ -1693,15 +1693,17 @@
             return !o.reserve && exposedOrders.indexOf(o) < 0;
           });
           if (coreCompromised || realFiringPosts.length < 3) {
-            /* REPLAN: before any dwell exists, a newer fresh report that
-               exposes a post is new intelligence, not a reason to sit out a
-               cooldown. Reselect against it under a new serial; nothing is
-               inherited but the original preparation start, so the budget
-               still bounds every attempt. */
+            /* REPLAN BEFORE READINESS: new firsthand/relayed observations
+               that expose an actual firing post invalidate the old physical
+               dwell, even if a stable three-man core was already assembling.
+               Select a NEW serial against the fresh report, and restart the
+               whole 4-second dwell with verified positions and actor IDs.
+               Carry ONLY the original preparation start so the 12-second
+               budget is not renewed by moving targets or repeated replans.
+               No exposed man remains authorized to hold the old position. */
             if (
               operationOn &&
               !replanning &&
-              st.heldSince == null &&
               rs.length &&
               now - st.since <= tuning.preparationBudget
             ) {
