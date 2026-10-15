@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "971",
-    "runId": "38673764624",
+    "run": "1002",
+    "runId": "38680199518",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/phase-c-support-window-20261015",
-    "sha": "15be126afaba289192c22c7c5dd0c3d3b1b1be3e",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38673764624",
+    "ref": "work/recon-scout-observation-20261015",
+    "sha": "11570b052c6bebad31edcf7d0cb4a16030e60122",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38680199518",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -81,9 +81,9 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 14.381,
-      "medianB": 16.999,
-      "ratio": 1.182,
+      "medianA": 13.858,
+      "medianB": 15.339,
+      "ratio": 1.107,
       "gate": 1.25
     },
     "counters": {
@@ -477,8 +477,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=971&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/phase-c-support-window-20261015/ai_flow_live.html?bench=971&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1002&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/recon-scout-observation-20261015/ai_flow_live.html?bench=1002&view=brain3d",
     "seeds": [
       {
         "seed": "phase-c-natural-20261012-0002",
