@@ -789,6 +789,9 @@ const { chromium } = require('playwright');
                             readyAt: posture.readyAt ?? null,
                             heldIds: (posture.heldActorIds || []).slice(),
                             reservePlan: posture.reservePlan || null,
+                            /* Deliberately metadata only. The predicted point is never
+                               an acquisition, fire-control or safe-bound contact. */
+                            ambushPrediction: posture.ambushPrediction || null,
                             reserveReview: posture.reserveReview || null,
                             reserveIds: (posture.orders || [])
                               .filter(o => o.reserve)
