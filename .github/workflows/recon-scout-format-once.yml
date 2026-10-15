@@ -1,0 +1,26 @@
+name: One-Shot Recon Branch Format
+on:
+  push:
+    branches:
+      - work/recon-scout-observation-20261015
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Format read-only global scout probe
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write scripts/probes/probe_phase_c_natural.cjs
+          git diff --check
+          if git diff --quiet -- scripts/probes/probe_phase_c_natural.cjs; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/probes/probe_phase_c_natural.cjs
+          git commit -m 'style: format global scout observation diagnostic'
+          git push origin HEAD:refs/heads/work/recon-scout-observation-20261015
