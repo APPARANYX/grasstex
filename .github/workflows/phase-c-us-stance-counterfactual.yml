@@ -43,7 +43,7 @@ jobs:
         env:
           C_FIELD_TYPE: meeting
           C_FIELD_COUNT: '1'
-          C_FIELD_SECONDS: '230'
+          C_FIELD_SECONDS: '330'
           C_FIELD_PREFIX: phase-c-natural-20261012
           C_FIELD_SEED_INDEX: '1'
           C_FIELD_AUTONOMOUS_MOVEMENT: '1'
@@ -53,7 +53,7 @@ jobs:
           C_FIELD_EXTRA_QUERY: ${{ matrix.query }}
           C_FIELD_TRACE_SQUAD: ge:ge-2
           C_FIELD_TRACE_FROM: '185'
-          C_FIELD_TRACE_TO: '228'
+          C_FIELD_TRACE_TO: '325'
           C_FIELD_TRACE_VISIBILITY: '1'
           C_FIELD_DIR: reports/phase-c-us-stance
           C_FIELD_SHA: ${{ github.sha }}
