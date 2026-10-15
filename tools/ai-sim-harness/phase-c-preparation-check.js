@@ -307,6 +307,10 @@ function exposing(flags) {
     'the same three physical men have started—but not completed—the four-second hold'
   );
   const initialHold = first.heldSince;
+  /* A real squad may have transitioned from 'active' to 'quiet' while
+     its already-issued masked ambush core continues preparing. Quiet may
+     suppress NEW ambush selection but not this same-mission repair. */
+  w.sq._engagementPlan = { status: 'quiet' };
   report = { x: 50, z: 20 };
   w.b.time += 0.15;
   const replanned = w.P.update(w.b, w.sq);
@@ -340,6 +344,15 @@ function exposing(flags) {
     'the former core was explicitly invalidated'
   );
   assert.ok(initialHold >= first.since, 'the old observed dwell was legitimate');
+}
+{
+  const w = world(0.5, '&fireManeuverOperation=1');
+  w.sq._engagementPlan = { status: 'quiet' };
+  assert.equal(w.P.update(w.b, w.sq), null,
+    'ordinary new ambush remains prohibited under quiet Engagement without a prior line');
+  w.sq._engagementPlan = { status: 'active' };
+  assert.equal(w.P.update(w.b, w.sq), null,
+    'ordinary active-combat ambush remains prohibited');
 }
 {
   // Out of budget, exposure ends the posture with the normal cooldown.
