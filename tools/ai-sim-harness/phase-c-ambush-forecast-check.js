@@ -35,6 +35,7 @@ function world(flags = '', opts = {}) {
   const S=r.BattleSquadStability;
   S.executeMission(b,sq,null);
   sq.commandPhase='assault';
+  S.localPlan.update(b,sq); // Native local-task pressure inputs, as in preparation fixture.
   const scout=sq.members.find(s=>s.role==='scout');
   assert.ok(scout,'fixture has a native living scout');
   const other=sq.members.find(s=>s.role!=='scout');
