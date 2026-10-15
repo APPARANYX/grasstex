@@ -820,9 +820,8 @@ const { chromium } = require('playwright');
                          never used to drive a gameplay decision or inject enemy intel. */
                       usFirePrepOverrides: traceVisibility
                         ? (b._roster?.us || [])
-                            .filter(s => s && !s.dead && (
-                              root.BattleEngagement?.stateOf?.(s)?.stanceTrail || []
-                            ).some(x => x.reason === 'phase-c-test:fire-control-prep-no-prone'))
+                            .filter(s => s && !s.dead &&
+                              (root.BattleEngagement?.stateOf?.(s)?._phaseCUsFirePrepIntercepts || 0) > 0)
                             .map(s => String(s.id))
                         : undefined,
                       opponentResponses: traceVisibility
