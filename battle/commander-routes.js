@@ -22,7 +22,73 @@
           : ['left', 'center', 'support', 'center', 'right'];
     return cycle[index % cycle.length];
   }
+  /* Road-graph routing for widely separated 5 km bases. This is an ordinary
+     approach plan, not an interception prediction or privileged enemy position. */
+  function strategicRouteFor(sq, role, town) {
+    var home = sq.home,
+      nodes = Object.create(null),
+      edges = Object.create(null);
+    town.objectives.forEach(function (o) {
+      nodes[o.id] = o;
+      edges[o.id] = [];
+    });
+    (town.roads || []).forEach(function (r) {
+      var a = nodes[r.fromObjectiveId],
+        b = nodes[r.toObjectiveId];
+      if (!a || !b) return;
+      var cost = Math.hypot(a.x - b.x, a.z - b.z);
+      edges[a.id].push({ id: b.id, cost: cost });
+      edges[b.id].push({ id: a.id, cost: cost });
+    });
+    var start = nodes[sq.homeBaseObjectiveId];
+    if (!start) return [{ x: home.x, z: home.z }];
+    if (role === 'reserve') return [{ x: home.x, z: home.z }];
+    var wanted = town.objectives.filter(function (o) {
+      return !o.baseFaction && (sq.faction === 'us' ? o.z <= 0 : o.z >= 0);
+    });
+    if (!wanted.length) return [{ x: home.x, z: home.z }];
+    wanted.sort(function (a, b) {
+      function score(o) {
+        var flank = role === 'left' ? Math.max(0, o.x) : role === 'right' ? Math.max(0, -o.x) : 0;
+        var center = role === 'center' ? Math.abs(o.x) * 0.3 : 0;
+        return Math.hypot(o.x - home.x, o.z - home.z) + flank * 0.6 + center;
+      }
+      return score(a) - score(b) || a.id.localeCompare(b.id);
+    });
+    var goal = wanted[0].id,
+      distances = Object.create(null),
+      parent = Object.create(null),
+      seen = Object.create(null);
+    distances[start.id] = 0;
+    for (;;) {
+      var current = null;
+      Object.keys(distances).forEach(function (id) {
+        if (!seen[id] && (current === null || distances[id] < distances[current])) current = id;
+      });
+      if (current === null || current === goal) break;
+      seen[current] = true;
+      edges[current].forEach(function (edge) {
+        var cost = distances[current] + edge.cost;
+        if (distances[edge.id] == null || cost < distances[edge.id]) {
+          distances[edge.id] = cost;
+          parent[edge.id] = current;
+        }
+      });
+    }
+    if (distances[goal] == null) return [{ x: home.x, z: home.z }];
+    var ids = [goal];
+    while (ids[0] !== start.id) {
+      var previous = parent[ids[0]];
+      if (!previous) return [{ x: home.x, z: home.z }];
+      ids.unshift(previous);
+    }
+    return ids.map(function (id) {
+      return { x: nodes[id].x, z: nodes[id].z };
+    });
+  }
+
   function routeFor(sq, role, town, index) {
+    if (town && town.profile === 'strategic') return strategicRouteFor(sq, role, town);
     var source =
       town &&
       town.routes &&
