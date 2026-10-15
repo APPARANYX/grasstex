@@ -179,7 +179,12 @@
   }
   function createTouchOrbit(scene, canvas, target) {
     var camera = new BABYLON.ArcRotateCamera(
-      'cam', -Math.PI / 2, 1.02, global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 3200 : 720, target, scene
+      'cam',
+      -Math.PI / 2,
+      1.02,
+      global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 3200 : 720,
+      target,
+      scene
     );
     camera.lowerRadiusLimit = 90;
     camera.upperRadiusLimit = global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 5400 : 1850;
