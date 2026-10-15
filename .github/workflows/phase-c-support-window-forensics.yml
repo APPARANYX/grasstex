@@ -1,0 +1,126 @@
+name: Phase C Support Window Forensics (read-only)
+on:
+  push:
+    branches:
+      - work/phase-c-support-window-*
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  trace-support:
+    name: Meeting 0001 ge:ge-2 preparation to support, every 0.15s
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native Chromium harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start isolated checkout server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/phase-c-support-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/phase-c-support-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/phase-c-support-www > /tmp/phase-c-support-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=phase-c-health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/phase-c-support-php.log
+          exit 1
+      - name: Replay the actual fixed-seed battle without gameplay writes
+        env:
+          C_FIELD_TYPE: meeting
+          C_FIELD_COUNT: '1'
+          C_FIELD_SECONDS: '230'
+          C_FIELD_PREFIX: phase-c-natural-20261012
+          C_FIELD_SEED_INDEX: '1'
+          C_FIELD_AUTONOMOUS_MOVEMENT: '1'
+          C_FIELD_SMART_INGRESS: '0'
+          C_FIELD_OPERATION: '1'
+          C_FIELD_ARMS: 'on'
+          C_FIELD_TRACE_SQUAD: ge:ge-2
+          C_FIELD_TRACE_FROM: '197'
+          C_FIELD_TRACE_TO: '225'
+          C_FIELD_TRACE_VISIBILITY: '1'
+          C_FIELD_DIR: reports/phase-c-support-window
+          C_FIELD_SHA: ${{ github.sha }}
+        run: node scripts/probes/probe_phase_c_natural.cjs
+      - name: Report exact physical visibility, firsthand authority and effective support
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+          const d = JSON.parse(fs.readFileSync('reports/phase-c-support-window/meeting.json', 'utf8'));
+          const x = d.results.find(x => x.arm === 'on' && x.seed === 'phase-c-natural-20261012-0001');
+          assert.ok(x && x.tickTrace.length >= 100, 'native exact-seed trace exists');
+          const summarize = t => {
+            const alive = t.members.filter(s => !s.dead);
+            const freshReports = (t.contacts || []).filter(c =>
+              c && c.at != null && t.t >= c.at && t.t - c.at <= 10 && c.confidence >= 0.5);
+            const firsthand = alive.filter(s => {
+              const c = s.contact;
+              return c && c.at != null && t.t >= c.at && t.t - c.at <= 10 &&
+                c.confidence >= 0.5 && !c.heard && !c.relayedFrom &&
+                ((c.source === 'seen' && String(c.seenBy) === String(s.id)) ||
+                 (c.source === 'incoming' && c.precision === 'fire-origin'));
+            });
+            const visible = alive.filter(s => s.visibility?.enemies?.some(e =>
+              e.threat && e.distance <= e.coneRange && e.los));
+            const standVisible = alive.filter(s => s.visibility?.enemies?.some(e =>
+              e.threat && e.distance <= e.range && e.standingLos));
+            const actualSupport = alive.filter(s => s.effectiveSupport);
+            const assignedSupport = alive.filter(s => s.areaSupport);
+            const engaged = alive.filter(s => s.targetId != null);
+            const postInfo = (t.postureExplain || []).filter(p => !p.reserve);
+            return {
+              t: t.t, phase: t.phase, coa: t.coa,
+              posture: t.posture?.stage || null, readyAt: t.posture?.readyAt ?? null,
+              held: t.posture?.heldIds || [], reserve: t.posture?.reserveIds || [],
+              reports: freshReports.length, own: firsthand.map(s => s.id),
+              seen: visible.map(s => s.id), standingLOS: standVisible.map(s => s.id),
+              postedBallistic: postInfo.filter(p => p.firingQualified).map(p => p.id),
+              fire: t.fireControl?.state || null, reason: t.fireControl?.reason || null,
+              firePoint: t.fireControl?.point || null,
+              assigned: assignedSupport.map(s => s.id),
+              effective: actualSupport.map(s => s.id), target: engaged.map(s => s.id),
+              shots: (x.traceShots || []).filter(s => Math.abs(s.t - t.t) < 0.08).length
+            };
+          };
+          const rows = x.tickTrace.map(summarize);
+          const near = t => rows.reduce((best,row) =>
+            Math.abs(row.t-t) < Math.abs(best.t-t) ? row : best, rows[0]);
+          const stages = {};
+          for(const row of rows) {
+            const key = row.posture || 'none';
+            stages[key] = (stages[key] || 0) + 1;
+          }
+          const report = {
+            seed: x.seed, commit: d.commit, ticks: rows.length,
+            stageTicks: stages,
+            readyTicks: rows.filter(r=>r.readyAt!=null).length,
+            freshReportTicks: rows.filter(r=>r.reports>0).length,
+            ownFreshTicks: rows.filter(r=>r.own.length>0).length,
+            physicallyVisibleTicks: rows.filter(r=>r.seen.length>0).length,
+            standingLOSTicks: rows.filter(r=>r.standingLOS.length>0).length,
+            assignedSupportTicks: rows.filter(r=>r.assigned.length>0).length,
+            effectiveSupportTicks: rows.filter(r=>r.effective.length>0).length,
+            twoEffectiveSupportTicks: rows.filter(r=>r.effective.length>=2).length,
+            personalTargetTicks: rows.filter(r=>r.target.length>0).length,
+            shots: x.traceShots.length,
+            timeline: [197.25,199.95,203.55,204,207.3,208.5,212.4,215,218,220,224.25].map(near)
+          };
+          console.log('PHASE_C_SUPPORT_WINDOW_ADJUDICATION '+JSON.stringify(report));
+          fs.writeFileSync('reports/phase-c-support-window/forensic-summary.json',JSON.stringify(report,null,2));
+          NODE
+      - name: Preserve every actual tick and succinct verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-c-support-window-meeting-0001
+          path: reports/phase-c-support-window/*.json
+          retention-days: 30
+      - name: Local-server diagnostics on failure
+        if: failure()
+        run: tail -100 /tmp/phase-c-support-php.log || true
