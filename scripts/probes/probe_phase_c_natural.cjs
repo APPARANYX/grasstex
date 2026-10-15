@@ -816,6 +816,27 @@ const { chromium } = require('playwright');
                       /* Read-only reciprocal observation for the exact meeting-0001
                          target reaction. A German sighting says nothing about the
                          American's own perception or reason for changing stance. */
+                      usPerceptionAudit: traceVisibility
+                        ? (() => {
+                            const us = b._roster?.us || [];
+                            const usSquads = b.factions?.us?.squads || [];
+                            const contacts = us.map(s => ({ s, c: root.SquadAI?.soldierContact?.(s, b) }));
+                            return {
+                              targetIds: us.filter(s => !s.dead && s.target).map(s => String(s.id)),
+                              firsthandIds: contacts
+                                .filter(({ s, c }) =>
+                                  !s.dead && c && !c.heard && !c.relayedFrom &&
+                                  (c.source === 'seen' && String(c.seenBy) === String(s.id) ||
+                                    c.source === 'incoming' && c.precision === 'fire-origin'))
+                                .map(({ s }) => String(s.id)),
+                              toldIds: contacts.filter(({ s, c }) => !s.dead && c && c.source === 'told')
+                                .map(({ s }) => String(s.id)),
+                              squadContactIds: usSquads.filter(sq => !!root.SquadAI?.squadContact?.(sq, b))
+                                .map(sq => String(sq.id)),
+                              proneIds: us.filter(s => !s.dead && s.prone).map(s => String(s.id))
+                            };
+                          })()
+                        : undefined,
                       opponentResponses: traceVisibility
                         ? (b._roster?.[wantedFaction === 'ge' ? 'us' : 'ge'] || [])
                             .filter(s => s && !s.dead && ['12', '27'].includes(String(s.id)))
