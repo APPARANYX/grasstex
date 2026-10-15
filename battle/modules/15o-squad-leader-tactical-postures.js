@@ -1407,7 +1407,13 @@
         var cd = cooldown.get(sq);
         if (
           sq.inContact ||
-          (sq._engagementPlan && ['active', 'quiet'].indexOf(sq._engagementPlan.status) >= 0) ||
+          /* Quiet handoff cannot veto a SAME-MISSION, same-tick replan of
+             an already adopted, now physically exposed PRE-READY line.
+             Ordinary new ambushes still reject both active and quiet
+             engagement; actively fighting squads can never exploit this. */
+          (sq._engagementPlan &&
+            (sq._engagementPlan.status === 'active' ||
+              (sq._engagementPlan.status === 'quiet' && !replanning))) ||
           a.some(function (s) {
             return !!s.target;
           }) ||
