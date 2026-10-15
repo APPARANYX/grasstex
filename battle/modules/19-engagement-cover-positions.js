@@ -45,8 +45,12 @@
        the bound distance, so open and rolling ground could never be bounded. A terrain fold is a
        bound endpoint only where the GROUND alone hides a crouched man from every reported threat
        (terrain is a ballistic stopper; vegetation concealment is not counted), the same holds on
-       his arrival ring, and he can rise to a standing firing ray. Route, distance, exposure and
-       threat rules are unchanged: every fold still passes boundRoute like a slot. */
+       his arrival ring, and Perception cannot see him crouched there. Route, distance, exposure
+       and threat rules are unchanged: every fold still passes boundRoute like a slot.
+       Dead ground. Natural run 406ed6d: no point in front of a bounding man was hidden crouched
+       yet open standing; protected points were dead ground, and 15 obstacle slots were refused
+       only for lacking a standing line. A covered bound may therefore end in protected dead
+       ground; Engagement's existing crest preparation then finds the firing line. */
     var FOLD_BOUNDS =
       COVERED_BOUNDS &&
       /[?&]fireManeuverOperation=(1|on|true)\b/.test(query) &&
@@ -244,6 +248,14 @@
           return false;
       return true;
     }
+    function crouchHidden(battle, point, threats) {
+      var N = root.BattleNavigation,
+        low = { root: { position: point }, crouching: true };
+      if (!N || !N.movementClear || !N.movementClear(point, point)) return false;
+      return !threats.some(function (r) {
+        return SA().hasLineOfSight(low, { root: { position: r } }, battle.heightAt, battle.obstacles);
+      });
+    }
     function foldCandidates(s, battle, threats, forward) {
       var P = root.BattleNavigationPhysicality,
         ring = P && +P.goalArrival,
@@ -259,7 +271,7 @@
         for (var k = -3; k <= 3; k++) {
           var a = heading + (k * Math.PI) / 9,
             pt = { x: p.x + Math.sin(a) * d, z: p.z + Math.cos(a) * d };
-          if (!maskedPost(battle, pt, threats) || !groundHides(battle, pt, threats)) continue;
+          if (!crouchHidden(battle, pt, threats) || !groundHides(battle, pt, threats)) continue;
           var held = true;
           for (var r = 0; r < 8 && held; r++) {
             var q = {
@@ -801,7 +813,12 @@
           continue;
         }
         // Cover to fight from keeps a line to the threat (standing is the highest he can rise); evading takes any.
-        if (COVER_FIRE && !opts.evade && !seesFrom(pt, 'stand', target, battle)) {
+        if (
+          COVER_FIRE &&
+          !opts.evade &&
+          !(FOLD_BOUNDS && opts.coveredRoute) &&
+          !seesFrom(pt, 'stand', target, battle)
+        ) {
           rejected('no-standing-los');
           continue;
         }

@@ -3,7 +3,8 @@
    rock or tree slot within the bound distance, so open and rolling ground could never be
    bounded. With ?fireManeuverOperation=1 a terrain fold is a bound endpoint only where the
    ground stops a round from every reported threat to a crouched head (on the arrival ring
-   too), Perception cannot see him crouched, and he can rise to a standing firing ray.
+   too) and Perception cannot see him crouched. Dead ground counts: natural run 406ed6d
+   offered no masked band, and Engagement's crest preparation finds the firing line after.
    Route, distance and exposure rules are unchanged; ?foldBounds=0 restores slots only. */
 const assert = require('node:assert/strict');
 const H = require('./harness');
@@ -20,7 +21,7 @@ function world(search, height = 2) {
     'battle/modules/39-navigation-physicality-debug.js'
   ])
     loadModule(r, f, { console: quietConsole, location: r.location });
-  // A broad crest 14 m ahead: the reverse slope 8-9 m out is a fold for a 60 m threat.
+  // A broad crest 14 m ahead: its reverse slope is protected ground for a 60 m threat.
   const b = H.makeBattle(r, { heightAt: (x, z) => height * Math.exp(-Math.pow((z - 14) / 6, 2)) }),
     q = H.addSquad(r, b, {
       id: 'us-0',
@@ -69,13 +70,30 @@ function order(w) {
     folds = w.C.foldCandidates(w.s, w.b, threats, { x: 0, z: 1 });
   assert.ok(folds.length > 0, 'the reverse slope offers folds');
   for (const f of folds) {
-    assert.ok(w.C.maskedPost(w.b, f, threats), 'hidden crouched, firing ray standing');
-    assert.ok(f.distance <= w.C.boundTuning().maxDistance, 'within the unchanged bound distance');
+    assert.ok(
+      !w.r.SquadAI.hasLineOfSight(
+        { root: { position: f }, crouching: true },
+        { root: { position: threats[0] } },
+        w.b.heightAt,
+        w.b.obstacles
+      ),
+      'hidden crouched'
+    );
+    assert.ok(
+      w.r.BattleBallistics.pointLineBlocked(
+        { root: { position: threats[0] } },
+        f,
+        w.b,
+        w.r.SquadAI.eyeHeight({ crouching: true })
+      ),
+      'the ground stops a round to his crouched head'
+    );
+    assert.ok(f.distance <= w.C.boundTuning().maxDistance + 1e-6, 'within the unchanged bound distance');
   }
   const e = order(w);
   assert.equal(e.state, 'bound', 'a fold gives a covered bound on open ground');
   assert.ok(e.cover && e.cover.fold, 'the endpoint is a terrain fold');
-  assert.ok(e.cover.z > 6 && e.cover.z < 11, 'on the reverse slope, short of the crest');
+  assert.ok(e.cover.z > 0 && e.cover.z < 14, 'forward, short of the crest');
   assert.ok(w.C.boundRoute(w.s, w.b, e.cover, threats).eligible, 'route rules unchanged');
 }
 {
