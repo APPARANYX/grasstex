@@ -15,6 +15,7 @@ const { chromium } = require('playwright');
   const autonomousMovement = process.env.C_FIELD_AUTONOMOUS_MOVEMENT === '0' ? '0' : '1';
   const smartIndoorIngress = process.env.C_FIELD_SMART_INGRESS === '0' ? '0' : '1';
   const traceSquad = String(process.env.C_FIELD_TRACE_SQUAD || '');
+  const traceVisibility = process.env.C_FIELD_TRACE_VISIBILITY === '1';
   const traceFrom = Number(process.env.C_FIELD_TRACE_FROM || 0);
   const traceTo = Number(process.env.C_FIELD_TRACE_TO || limit);
   const base = process.env.C_FIELD_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
@@ -31,6 +32,7 @@ const { chromium } = require('playwright');
   const browser = await chromium.launch({
     headless: true,
     executablePath: process.env.C_FIELD_CHROMIUM || undefined,
+    proxy: process.env.C_FIELD_PROXY ? { server: process.env.C_FIELD_PROXY } : undefined,
     args: ['--disable-dev-shm-usage', '--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist']
   });
   const results = [];
@@ -72,7 +74,17 @@ const { chromium } = require('playwright');
         { timeout: 120000 }
       );
       const observed = await page.evaluate(
-        async ({ count, limit, prefix, arm, selectedSeed, traceSquad, traceFrom, traceTo }) => {
+        async ({
+          count,
+          limit,
+          prefix,
+          arm,
+          selectedSeed,
+          traceSquad,
+          traceVisibility,
+          traceFrom,
+          traceTo
+        }) => {
           const root = window;
           const b = root.__battle__;
           const engine = b.scene?.getEngine?.();
@@ -808,6 +820,67 @@ const { chromium } = require('playwright');
                           fireteam: s._fireteamKey || null,
                           dead: !!s.dead,
                           position: compactPoint(s.root?.position),
+                          visibility:
+                            traceVisibility && !s.dead
+                              ? (() => {
+                                  const A = root.SquadAI,
+                                    p = s.root.position,
+                                    look = A.lookYaw(s, b);
+                                  const enemies = b._roster?.[s.faction === 'ge' ? 'us' : 'ge'] || [];
+                                  const scale = root.BattleSoldierStats?.scale(s, 'sight') || 1;
+                                  return {
+                                    bodyYaw: s.root.rotation.y,
+                                    lookYaw: look,
+                                    eye: A.eyeHeight(s),
+                                    enemies: enemies
+                                      .filter(
+                                        t =>
+                                          !t.dead &&
+                                          t.root &&
+                                          Math.hypot(t.root.position.x - p.x, t.root.position.z - p.z) < 300
+                                      )
+                                      .map(t => {
+                                        const q = t.root.position,
+                                          distance = Math.hypot(q.x - p.x, q.z - p.z);
+                                        const angle = Math.abs(
+                                          Math.atan2(
+                                            Math.sin(Math.atan2(q.x - p.x, q.z - p.z) - look),
+                                            Math.cos(Math.atan2(q.x - p.x, q.z - p.z) - look)
+                                          )
+                                        );
+                                        const P = A.PERCEPTION;
+                                        const reach =
+                                          angle <= P.FOCUS_HALF
+                                            ? 1
+                                            : angle <= P.PERIPHERAL_HALF
+                                              ? t.moving
+                                                ? P.PERIPHERAL_MOVING
+                                                : P.PERIPHERAL_RANGE
+                                              : 0;
+                                        const range = A.detectionRange(A.ROLES[s.role], t) * scale;
+                                        const stand = Object.assign({}, s, {
+                                          prone: false,
+                                          crouching: false,
+                                          tacticalCrouch: false
+                                        });
+                                        return {
+                                          id: String(t.id),
+                                          position: compactPoint(q),
+                                          moving: !!t.moving,
+                                          stance: A.stanceOf(t),
+                                          eye: A.eyeHeight(t),
+                                          distance,
+                                          angle,
+                                          range,
+                                          coneRange: range * reach,
+                                          threat: A.threatDisposition(t).combatThreat,
+                                          los: A.hasLineOfSight(s, t, b.heightAt, b.obstacles),
+                                          standingLos: A.hasLineOfSight(stand, t, b.heightAt, b.obstacles)
+                                        };
+                                      })
+                                  };
+                                })()
+                              : undefined,
                           state: e?.state || null,
                           targetId: s.target?.id ?? null,
                           contact: contactView(root.SquadAI.soldierContact(s, b)),
@@ -1232,7 +1305,7 @@ const { chromium } = require('playwright');
           }
           return out;
         },
-        { count, limit, prefix, arm, selectedSeed, traceSquad, traceFrom, traceTo }
+        { count, limit, prefix, arm, selectedSeed, traceSquad, traceVisibility, traceFrom, traceTo }
       );
       results.push(...observed);
       if (traceSquad)
