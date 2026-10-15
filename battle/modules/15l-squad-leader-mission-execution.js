@@ -49,6 +49,10 @@
       return !!(local && local.contactResumeOn);
     }
     function inTown(town, p) {
+      /* The strategic scenario's 2.4 km radius bounds the entire open-country
+         region, not an urban settlement. Urban corner pauses, clearance phase,
+         and loose corner-arrival thresholds must not apply to road marches. */
+      if (town && town.profile === 'strategic') return false;
       return !!(town && town.center && p && dist(p, town.center) < (+town.radius || 250));
     }
     function missionLegs(m) {
