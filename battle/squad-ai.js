@@ -1068,7 +1068,7 @@
     return null;
   }
   /* Eyes already on a man stay on him past the point where he could have been spotted cold. */
-  function stillTracking(soldier, heightAt, obstacles) {
+  function stillTracking(soldier, heightAt, obstacles, battle) {
     var t = soldier.target;
     if (!threatDisposition(t).combatThreat) return false;
     var role = ROLES[soldier.role],
@@ -1078,7 +1078,7 @@
       role.visionRange *
         ((root.PhaseCCombatLab && root.PhaseCCombatLab.rangeScale) || 1) *
         TRACK_MARGIN *
-        sightScale(soldier, null)
+        sightScale(soldier, battle)
     )
       return false;
     return hasLineOfSight(soldier, t, heightAt, obstacles);
@@ -2223,7 +2223,7 @@
       return role;
     }
     var had = soldier.target;
-    if (had && !stillTracking(soldier, heightAt, obstacles)) soldier.target = null;
+    if (had && !stillTracking(soldier, heightAt, obstacles, battle)) soldier.target = null;
     if (!soldier.target && battle.time >= (soldier._scanAt || 0)) {
       soldier._scanAt = battle.time + SCAN_INTERVAL + ((+soldier.id || 0) % 5) * 0.04;
       soldier.target = findTarget(
