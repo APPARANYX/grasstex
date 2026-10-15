@@ -206,7 +206,10 @@
         confidence: r.confidence,
         targetId: r.targetId == null ? null : String(r.targetId),
         sector: r.sector == null ? null : String(r.sector),
-        source: r.source || null
+        source: r.source || null,
+        /* Witness provenance for PLANNING-ONLY scout motion; never a firing
+           authorization. Detached from any referenced enemy actor. */
+        sourceSoldier: r.sourceSoldier == null ? null : String(r.sourceSoldier)
       };
     }
     function freshReports(b, sq) {
