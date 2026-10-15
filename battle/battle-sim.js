@@ -454,7 +454,7 @@
           squad.homeBaseId = base.id;
           squad.homeBaseObjectiveId = base.objectiveId;
         }
-          dealt =
+        var dealt =
             root.BattleSoldierStats && root.BattleSoldierStats.deal
               ? root.BattleSoldierStats.deal(faction, nextId, SquadAI.COMPOSITION)
               : null;
