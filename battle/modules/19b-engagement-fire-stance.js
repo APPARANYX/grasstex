@@ -67,7 +67,13 @@
       STANCE_HOLD = ctx.STANCE_HOLD,
       SUPPRESS_BURST = ctx.SUPPRESS_BURST,
       SUPPRESS_PAUSE = ctx.SUPPRESS_PAUSE,
-      USEFUL_COVER = ctx.USEFUL_COVER;
+      USEFUL_COVER = ctx.USEFUL_COVER,
+      /* Read once: isolated test-only query, disabled by default. */
+      phaseCUsFirePrep =
+        typeof location !== 'undefined' &&
+        /[?&]phaseCUsFirePrep=(?:soldier12|all)(?:&|#|$)/.test(location.search || '')
+          ? new URLSearchParams(location.search).get('phaseCUsFirePrep')
+          : null;
 
     function engagementLive(s, battle) {
       var q = s.squad;
@@ -282,18 +288,14 @@
          We preserve crouch if already crouched; no forced upright transition.
          Other reasons (suppression, terrain, injury, reload) stay unchanged.
          The query flag is OFF by default and lives on a throwaway test branch. */
-      var experiment = typeof location !== 'undefined' &&
-          /[?&]phaseCUsFirePrep=(?:soldier12|all)(?:&|#|$)/.test(location.search || '')
-            ? (new URLSearchParams(location.search)).get('phaseCUsFirePrep')
-            : null;
       if (
-        experiment &&
+        phaseCUsFirePrep &&
         battle &&
         battle.time >= 197.35 &&
         battle.time <= 225 &&
         s &&
         s.faction === 'us' &&
-        (experiment === 'all' || (experiment === 'soldier12' && String(s.id) === '12')) &&
+        (phaseCUsFirePrep === 'all' || (phaseCUsFirePrep === 'soldier12' && String(s.id) === '12')) &&
         reason === 'fire-control-prep' &&
         stance === 'prone'
       ) {
