@@ -146,6 +146,18 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
     await page.waitForTimeout(5000);
     report.simTimeAfterFiveSeconds = await page.evaluate(() => window.__battle__.time);
     report.fpsAfterFiveSeconds = await page.evaluate(() => window.__battle__.scene.getEngine().getFps());
+    /* The software GPU advances simulation time slowly. Measure FPS after a
+       fixed five real seconds as before, but separately wait for a REAL
+       accepted Macro mission instead of assuming one exists at that point. */
+    await page.waitForFunction(() => {
+      const b = window.__battle__;
+      return ['us', 'ge'].some((f) => b.factions[f].squads.some((sq) => {
+        const m = sq._macroMission;
+        const start = m && m.observations && m.observations.squad && m.observations.squad.position;
+        return m && m.status === 'executing' && m.point && start &&
+          Math.hypot(m.point.x - start.x, m.point.z - start.z) > 650;
+      }));
+    }, null, { timeout: 90000 });
     /* The full 30-minute diagnostic exposed that generated spawn routes
        vanished on the first Macro brief. Assert the adopted, LIVE mission
        contains the road legs (and the Squad Leader retained them), rather
@@ -175,7 +187,8 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
     const liveMarches = report.liveMissionRoutes.filter((s) =>
       s.objectiveDistance != null && s.objectiveDistance > 650 && s.status === 'executing'
     );
-    assert.ok(liveMarches.length >= 1, 'at least one moving strategic brief was accepted');
+    assert.ok(liveMarches.length >= 1,
+      'at least one moving strategic brief was accepted: ' + JSON.stringify(report.liveMissionRoutes));
     assert.ok(liveMarches.every((s) =>
       s.followsRoad && s.squadRouteLegs === s.missionRoadLegs + 1
     ), 'Squad Leader adopts exactly the General brief and its expected public road legs: ' +
