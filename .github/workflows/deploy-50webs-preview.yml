@@ -6,7 +6,10 @@ name: ⭐ Deploy Battle Sim Branch Preview
 # production assets, policy and scenario memory, and makes no telemetry, policy or learning writes.
 
 on:
-  # Manual only: the production branch never deploys itself into a preview.
+  # Isolated attacker-garrison regression preview; no writes to main/production.
+  push:
+    branches:
+      - preview/strategic-attacker-garrison-fix-20261015
   workflow_dispatch:
     inputs:
       ref:
