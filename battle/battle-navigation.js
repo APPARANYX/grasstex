@@ -364,11 +364,9 @@
     if (s.profile === 'strategic') {
       strategicRoadNodes = Object.create(null);
       (s.objectives || []).forEach(function (o) {
-        strategicRoadNodes[o.id] = addNode(
-          { x: o.x, z: o.z },
-          'road-junction',
-          { objectiveId: o.id }
-        );
+        strategicRoadNodes[o.id] = addNode({ x: o.x, z: o.z }, 'road-junction', {
+          objectiveId: o.id
+        });
       });
     }
     for (var i = 0; i < nodes.length; i++)
