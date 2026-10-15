@@ -1,7 +1,7 @@
-# Benchmark run #966 · 3 seeds from `phase-c-natural-20261012` (meeting), windows `contact+60,every60`
+# Benchmark run #997 · 3 seeds from `phase-c-natural-20261012` (meeting), windows `contact+60,every60`
 
 - **OFF** flags: `none` · **ON** flags: `localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1&fireCoverCycle=1&squadReturnFire=1`
-- work/phase-c-visibility-20261015 @ 6ff473b · [run](https://github.com/APPARANYX/grasstex/actions/runs/38671775880) · build v29-dev
+- work/phase-c-predictive-ambush-20261015 @ c3ac013 · [run](https://github.com/APPARANYX/grasstex/actions/runs/38677546550) · build v29-dev
 
 ## Verdict
 
@@ -12,7 +12,7 @@
 
 ## Paired comparison (off against on)
 
-- **17** pairs (unpaired: off 5, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x1.179 (gate 1.25)
+- **17** pairs (unpaired: off 5, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x1.153 (gate 1.25)
 - the 17 changed records first part at simulated second: min 162, p10 162, median 168, p90 188.1, max 188.1
 
 | counter | off | on | mean diff per pair | pairs changed | on more | on fewer | sign p |
@@ -68,7 +68,7 @@ phase-c-natural-20261012-0003 162 s (timeline) · phase-c-natural-20261012-0002 
 
 ## Viewer
 
-[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=966&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/phase-c-visibility-20261015/ai_flow_live.html?bench=966&view=brain3d) (it has the change before it reaches main)
+[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=997&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/phase-c-predictive-ambush-20261015/ai_flow_live.html?bench=997&view=brain3d) (it has the change before it reaches main)
 
-The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=966`); it opens the seed that parts earliest, and the dropdowns choose another.
+The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=997`); it opens the seed that parts earliest, and the dropdowns choose another.
 
