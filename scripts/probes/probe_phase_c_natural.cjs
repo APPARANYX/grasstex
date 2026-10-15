@@ -813,6 +813,34 @@ const { chromium } = require('playwright');
                         : null,
                       boundLease: Leases?.get?.(sq, 'bound') || null,
                       boundCycle: !!Leases?.holds?.(sq, 'bound-cycle', b.time),
+                      /* Read-only reciprocal observation for the exact meeting-0001
+                         target reaction. A German sighting says nothing about the
+                         American's own perception or reason for changing stance. */
+                      opponentResponses: traceVisibility
+                        ? (b._roster?.[wantedFaction === 'ge' ? 'us' : 'ge'] || [])
+                            .filter(s => s && !s.dead && ['12', '27'].includes(String(s.id)))
+                            .map(s => {
+                              const e = E?.stateOf?.(s);
+                              const c = root.SquadAI?.soldierContact?.(s, b);
+                              const bc = s._bodyAutonomyIntent;
+                              return {
+                                id: String(s.id),
+                                squad: s.squad?.id || null,
+                                prone: !!s.prone,
+                                crouched: !!s.tacticalCrouch,
+                                moving: !!s.moving,
+                                targetId: s.target?.id == null ? null : String(s.target.id),
+                                contact: contactView(c),
+                                stance: e?.stance || null,
+                                stanceReason: e?.stanceTrail?.slice(-1)[0]?.reason || null,
+                                stanceTransition: e?.stanceTrail?.slice(-1)[0] || null,
+                                bodyReason: bc?.reason || null,
+                                underFire: !!E?.underFireNow?.(s, b),
+                                suppressed: (s.suppressedUntil || 0) > b.time,
+                                inContact: !!s.squad?.inContact
+                              };
+                            })
+                        : undefined,
                       members: (sq.members || []).map(s => {
                         const e = E?.stateOf?.(s);
                         const outcome = root.BattleExecutionOutcome?.man?.(s, b);
