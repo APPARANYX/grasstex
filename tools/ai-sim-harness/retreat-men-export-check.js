@@ -28,13 +28,12 @@ assert.equal(s0.retreatGate, null);
 b._sides = { meeting: true, defender: null, attacker: null };
 const meeting = r.BattleDiagnosticsExport.compact(b);
 assert.deepEqual(meeting.deployment, { mode: 'meeting', defender: null, attacker: null });
-assert.deepEqual(JSON.parse(r.BattleDiagnosticsExport.timelineJsonl(meeting).split('\n')[0]).deployment,
-  meeting.deployment);
+const timelineMode = snap => JSON.parse(r.BattleDiagnosticsExport.timelineJsonl(snap).split('\n')[0]).deployment;
+assert.deepEqual(timelineMode(meeting), meeting.deployment);
 b._sides = { meeting: false, defender: 'ge', attacker: 'us' };
 const prepared = r.BattleDiagnosticsExport.compact(b);
 assert.deepEqual(prepared.deployment, { mode: 'prepared-defender', defender: 'ge', attacker: 'us' });
-assert.deepEqual(JSON.parse(r.BattleDiagnosticsExport.timelineJsonl(prepared).split('\n')[0]).deployment,
-  prepared.deployment);
+assert.deepEqual(timelineMode(prepared), prepared.deployment);
 q.state = 'retreat';
 const man = q.members.find(m => !m.dead);
 man._movementResolver = { last: { owner: 'resolver', kind: 'retreat', reason: 'squad retreat' } };
