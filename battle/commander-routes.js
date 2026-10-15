@@ -87,6 +87,108 @@
     });
   }
 
+  /* A live strategic brief needs its own road legs. Spawn-time sq.route is replaced
+     by the Squad Leader on the first accepted Macro mission, so it cannot be
+     used as the live route. Build from the squad's CURRENT position to the
+     selected public objective; only static road geometry is consulted.
+     Intermediate points belong to the General's brief, not soldier orders. */
+  function missionRouteFor(sq, town, goalId, origin) {
+    if (!town || town.profile !== 'strategic' || !origin || !town.roads || !town.roads.length)
+      return [];
+    var nodes = Object.create(null),
+      edges = Object.create(null),
+      goal = null;
+    (town.objectives || []).forEach(function (obj) {
+      nodes[obj.id] = obj;
+      edges[obj.id] = [];
+    });
+    goal = nodes[goalId];
+    if (!goal || !isFinite(origin.x) || !isFinite(origin.z)) return [];
+    /* Near the destination, local Navigation/Engagement takes over on foot.
+       Do not drag a squad around a road loop to move a few metres. */
+    if (Math.hypot(goal.x - origin.x, goal.z - origin.z) <= 160) return [];
+    town.roads.forEach(function (road) {
+      var a = nodes[road.fromObjectiveId],
+        b = nodes[road.toObjectiveId];
+      if (!a || !b) return;
+      var length = Math.hypot(a.x - b.x, a.z - b.z);
+      if (length < 1) return;
+      edges[a.id].push({ id: b.id, cost: length });
+      edges[b.id].push({ id: a.id, cost: length });
+    });
+    /* Dijkstra from the target: the roads are undirected and each live
+       re-task can originate halfway down a corridor, not at a spawn base. */
+    var remaining = Object.create(null),
+      next = Object.create(null),
+      visited = Object.create(null);
+    remaining[goalId] = 0;
+    for (;;) {
+      var current = null;
+      Object.keys(remaining).forEach(function (id) {
+        if (!visited[id] && (current === null || remaining[id] < remaining[current]))
+          current = id;
+      });
+      if (current === null) break;
+      visited[current] = true;
+      edges[current].forEach(function (edge) {
+        var cost = remaining[current] + edge.cost;
+        if (remaining[edge.id] == null || cost < remaining[edge.id] - 0.001) {
+          remaining[edge.id] = cost;
+          next[edge.id] = current;
+        }
+      });
+    }
+    /* Join at the closest physically reachable road segment, not the
+       nearest objective node: a moving squad may be mid-road when re-tasked. */
+    var choice = null;
+    town.roads.forEach(function (road) {
+      var a = nodes[road.fromObjectiveId],
+        b = nodes[road.toObjectiveId];
+      if (!a || !b || remaining[a.id] == null || remaining[b.id] == null) return;
+      var dx = b.x - a.x,
+        dz = b.z - a.z,
+        length2 = dx * dx + dz * dz;
+      if (length2 < 1) return;
+      var t = Math.max(0, Math.min(1, ((origin.x - a.x) * dx + (origin.z - a.z) * dz) / length2)),
+        projection = { x: a.x + dx * t, z: a.z + dz * t },
+        offRoad = Math.hypot(origin.x - projection.x, origin.z - projection.z),
+        length = Math.sqrt(length2),
+        throughA = length * t + remaining[a.id],
+        throughB = length * (1 - t) + remaining[b.id],
+        enterId = throughA <= throughB ? a.id : b.id,
+        score = offRoad,
+        onward = Math.min(throughA, throughB);
+      if (
+        !choice ||
+        score < choice.offRoad - 0.001 ||
+        (Math.abs(score - choice.offRoad) <= 0.001 && onward < choice.onward - 0.001)
+      )
+        choice = { projection: projection, enterId: enterId, offRoad: score, onward: onward };
+    });
+    if (!choice) return [];
+    var route = [],
+      last = origin;
+    function add(p) {
+      if (Math.hypot(p.x - last.x, p.z - last.z) > 8) {
+        route.push({ x: p.x, z: p.z });
+        last = p;
+      }
+    }
+    add(choice.projection);
+    var id = choice.enterId,
+      guard = Object.keys(nodes).length + 1;
+    while (id !== goalId && guard-- > 0) {
+      add(nodes[id]);
+      id = next[id];
+      if (!id) return [];
+    }
+    if (guard <= 0) return [];
+    /* missionLegs appends the actual destination point exactly once. */
+    return route.filter(function (p) {
+      return Math.hypot(p.x - goal.x, p.z - goal.z) > 8;
+    });
+  }
+
   function routeFor(sq, role, town, index) {
     if (town && town.profile === 'strategic') return strategicRouteFor(sq, role, town);
     var source =
@@ -164,6 +266,7 @@
   root.BattleCommanderRoutes = {
     rolePlan: rolePlan,
     routeFor: routeFor,
+    missionRouteFor: missionRouteFor,
     assignSquad: assignSquad,
     ensureAssignments: ensureAssignments,
     initForce: initForce
