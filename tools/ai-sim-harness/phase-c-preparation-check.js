@@ -287,6 +287,42 @@ function exposing(flags) {
   assert.ok(plain.next === null, 'without the operation the posture still ends');
   assert.ok(plain.P.releases(plain.sq).some(x => x.reason === 'firing station lost masking/ray'));
 }
+/* 4b. A NEW masked-sector conflict during an incomplete physical dwell
+   must replan rather than discard an otherwise ordered squad. Never carry
+   the 4-second preparation credit or reset its bounded time budget. */
+{
+  const w = world(0.5, '&fireManeuverOperation=1');
+  let report = { x: 0, z: 20 };
+  w.r.SquadAI.squadContactsMap = () => [
+    { x: report.x, z: report.z, at: w.b.time, confidence: 1, targetId: 'moving-1', source: 'told' }
+  ];
+  const originalMask = w.C.maskedPost;
+  w.C.maskedPost = (b, p, rs) =>
+    originalMask(b, p, rs) && rs.every(r => (r.x === 0 ? p.x < 0 : p.x > 0));
+  w.C.candidates = () => [];
+  const first = w.P.update(w.b, w.sq);
+  assert.ok(first && first.serial === 1, 'valid initial masked posts before dwell');
+  H.run(w.r, w.b, 3);
+  assert.ok(first.heldSince != null && first.readyAt == null,
+    'the same three physical men have started—but not completed—the four-second hold');
+  const initialHold = first.heldSince;
+  report = { x: 50, z: 20 };
+  w.b.time += 0.15;
+  const replanned = w.P.update(w.b, w.sq);
+  assert.ok(replanned && replanned.serial === first.serial + 1,
+    'a fresh enemy sector exposing the incomplete line triggers a new serial');
+  assert.equal(replanned.since, first.since,
+    'replanning retains the original finite preparation budget');
+  assert.equal(replanned.heldSince, null,
+    'the original three-man dwell cannot transfer to new physical stations');
+  assert.equal(replanned.readyAt, null, 'no readiness from the old line');
+  assert.ok(replanned.orders.filter(o => !o.reserve).every(o => o.point.x > 0),
+    'replacement posts must independently mask against the new enemy position');
+  assert.ok(w.P.releases(w.sq).some(x =>
+    x.serial === first.serial && /^replan:/.test(x.reason)),
+    'the former core was explicitly invalidated');
+  assert.ok(initialHold >= first.since, 'the old observed dwell was legitimate');
+}
 {
   // Out of budget, exposure ends the posture with the normal cooldown.
   const w = world(0.5, '&fireManeuverOperation=1');
