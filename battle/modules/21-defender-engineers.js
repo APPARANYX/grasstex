@@ -412,7 +412,7 @@
      happens to pass through an owned objective with its engineer is not that objective's garrison:
      the standing request would take mission precedence over recovery (22a selectMission) and
      convert the attack into a permanent DEFEND. Its engineer still builds the works. */
-  function garrisonable(sq) {
+  function garrisonable(sq, sim) {
     var m = sq && sq._macroMission;
     /* ?engineerGarrison=0/off/false restores the old unconditional pin (the paired-benchmark control). */
     if (
@@ -420,6 +420,17 @@
       /[?&]engineerGarrison=(?:0|off|false)\b/i.test(location.search || '')
     )
       return true;
+    var scenario = scenarioOf(sim),
+      sides = sim && sim._sides;
+    /* On the 5 km attack/defense profile, engineers may build defensive
+       works for the ATTACKER but cannot convert the 18-second objective-
+       security brief into a permanent prepared garrison. The General may
+       still deliberately issue an unrequested DEFEND mission to garrison.
+       The chosen defender's initial and runtime garrisons are unaffected.
+       In the first user battle, three of five attackers were otherwise
+       pinned to their spawn objectives for the entire 1800-second match. */
+    if (scenario && scenario.profile === 'strategic' && sides && sq.faction === sides.attacker)
+      return !!(m && m.intent === 'defend' && !m.requestKey && m.status === 'executing');
     return !(
       m &&
       (m.intent === 'capture' || m.intent === 'reconstitute') &&
@@ -476,7 +487,7 @@
         radius: +g.obj.def.radius || 30,
         role: 'main'
       };
-      if (g.engineer.squad && garrisonable(g.engineer.squad))
+      if (g.engineer.squad && garrisonable(g.engineer.squad, sim))
         garrison(sim, g.engineer.squad, sector, sim._defensePlans[g.faction], false);
       telemetry(sim, 'engineer-fortification-built', {
         faction: g.faction,
