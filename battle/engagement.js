@@ -1399,20 +1399,30 @@
       e = state(s),
       now = battle.time;
     if (
-      !A || !A.reconScoutObserving || !A.reconScoutObserving(s, battle) ||
+      !A ||
+      !A.reconScoutObserving ||
+      !A.reconScoutObserving(s, battle) ||
       !observation ||
-      s.dead || s.isPlayer ||
-      !s.squad || s.squad.state === 'retreat' ||
-      e.boundOrder || e.suppressOrder ||
-      s.suppressedUntil > now || underFireNow(s, battle) ||
+      s.dead ||
+      s.isPlayer ||
+      !s.squad ||
+      s.squad.state === 'retreat' ||
+      e.boundOrder ||
+      e.suppressOrder ||
+      s.suppressedUntil > now ||
+      underFireNow(s, battle) ||
       now < shockUntil(s) ||
       ['bound', 'assault', 'pinned', 'withdraw', 'station'].indexOf(e.state) >= 0
     )
       return false;
     var direct = s.target && String(s.target.id) === observation.targetId,
       seen = direct && A.soldierContact && A.soldierContact(s, battle),
-      own = !!(seen && seen.source === 'seen' &&
-        String(seen.seenBy) === String(s.id) && now - seen.at <= 0.65),
+      own = !!(
+        seen &&
+        seen.source === 'seen' &&
+        String(seen.seenBy) === String(s.id) &&
+        now - seen.at <= 0.65
+      ),
       p = posOf(s),
       d = direct ? dist(p.x, p.z, posOf(s.target).x, posOf(s.target).z) : Infinity;
     /* A scout caught in near contact defends himself via normal Engagement. */

@@ -982,13 +982,14 @@
     return !!(
       task &&
       Array.isArray(task.scoutIds) &&
-      task.scoutIds.some(function (id) { return String(id) === String(soldier.id); }) &&
+      task.scoutIds.some(function (id) {
+        return String(id) === String(soldier.id);
+      }) &&
       task.missionVersion === (soldier.squad._macroMission && soldier.squad._macroMission.version)
     );
   }
   function reconScoutObserving(soldier, battle) {
-    if (!RECON_SCOUT_OBSERVE_ON || !soldier || !battle || soldier.dead || soldier.isPlayer)
-      return false;
+    if (!RECON_SCOUT_OBSERVE_ON || !soldier || !battle || soldier.dead || soldier.isPlayer) return false;
     var e = soldier._reconObservation;
     return !!(
       e &&
@@ -1002,8 +1003,12 @@
     var stats = root.BattleSoldierStats,
       basic = stats ? stats.scale(soldier, 'sight') : 1,
       deliberate = !soldier.moving && (+soldier.moveSpeed || 0) <= 0.16;
-    return basic * (deliberate && (reconScoutAssigned(soldier, battle) ||
-      reconScoutObserving(soldier, battle)) ? RECON_SCOUT_SIGHT_MULT : 1);
+    return (
+      basic *
+      (deliberate && (reconScoutAssigned(soldier, battle) || reconScoutObserving(soldier, battle))
+        ? RECON_SCOUT_SIGHT_MULT
+        : 1)
+    );
   }
   /* Last genuine direct sight only: no live enemy reference survives in this
      brief MICRO observation state. This can orient a scout to the last place
@@ -1018,8 +1023,7 @@
     var rec = soldier._reconObservation,
       now = battle.time,
       direct = soldier.target && threatDisposition(soldier.target).combatThreat;
-    if (rec && (now < rec.startedAt || now >= rec.until ||
-        now - rec.startedAt > RECON_SCOUT_OBSERVE_MAX)) {
+    if (rec && (now < rec.startedAt || now >= rec.until || now - rec.startedAt > RECON_SCOUT_OBSERVE_MAX)) {
       soldier._reconObservation = null;
       rec = null;
     }
@@ -1036,8 +1040,7 @@
       rec.lastSeenAt = now;
       rec.x = soldier.target.root.position.x;
       rec.z = soldier.target.root.position.z;
-      rec.until = Math.min(rec.startedAt + RECON_SCOUT_OBSERVE_MAX,
-        now + RECON_SCOUT_OBSERVE_HOLD);
+      rec.until = Math.min(rec.startedAt + RECON_SCOUT_OBSERVE_MAX, now + RECON_SCOUT_OBSERVE_HOLD);
     }
   }
   function findTarget(soldier, enemies, heightAt, obstacles, battle) {
