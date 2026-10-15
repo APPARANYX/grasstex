@@ -120,8 +120,9 @@
     return currentGround;
   }
   function buildSky(scene) {
-    var radius = STRATEGIC_FIELD ? 6800 : 1800,
+    var radius = 1800,
       offset = 0.11;
+    if (STRATEGIC_FIELD) radius = 6800;
     BABYLON.Effect.ShadersStore.battleSkyDomeVertexShader =
       'precision highp float;attribute vec3 position;uniform mat4 worldViewProjection;varying vec3 vDir;void main(){vDir=position;gl_Position=worldViewProjection*vec4(position,1.0);}';
     BABYLON.Effect.ShadersStore.battleSkyDomeFragmentShader =
