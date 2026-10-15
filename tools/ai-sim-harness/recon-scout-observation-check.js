@@ -103,7 +103,9 @@ function world(flags = '', geometry = () => 0) {
     true,'native Engagement retains posture owner');
   const e=E.stateOf(w.scout);
   assert.equal(e.stance,'stand');
-  assert.equal(e.stanceTrail?.at(-1)?.reason,'recon:observe-with-sight');
+  assert.equal(e.state,'alert','scout remains in deliberate observation');
+  assert.equal(w.scout._faceHint?.z,120,'scout faces personally spotted contact');
+  assert.equal(look('stand'),true,'retained stance has a real sightline');
   // At a flat location, lowest valid stance is prone.
   const flat=world('&reconScoutObserve=1'), B=flat.root.SquadAI,BE=flat.root.BattleEngagement;
   flat.enemy.root.position.z=120;
