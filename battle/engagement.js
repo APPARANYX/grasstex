@@ -1317,6 +1317,7 @@
        is a commitment: finish it under HOLD FIRE instead of flipping bound -> prone prep -> bound
        whenever the shared contact blinks. Fire permission remains closed throughout. */
     if (ambushPost(s, battle)) return;
+    if (reconContactObservation(s, battle)) return;
     if (fireControlPreparing(s, battle) && e.state !== 'bound' && e.state !== 'assault')
       return prepareFireControl(s, battle);
     if (autonomousDefensiveSupport(s, battle)) return;
@@ -1384,6 +1385,55 @@
     followOrders(s, battle, false);
   }
 
+  /* A scout who personally discovered an enemy WHILE on a real recon task
+     holds a bounded observation window after Meso ends the task on contact.
+     The first report already traveled through Perception's normal delayed
+     callout. Engagement is the ONLY stance/movement owner here: pick the
+     lowest height with real LOS to the personally observed enemy, not forced
+     prone behind a crest. No shooting or movement is fabricated for a stale
+     prediction. Suppression, withdrawal, shock, stations, supporting fire
+     and existing bound commitments outrank this quiet reconnaissance. */
+  function reconContactObservation(s, battle) {
+    var A = SA(),
+      observation = s && s._reconObservation,
+      e = state(s),
+      now = battle.time;
+    if (
+      !A || !A.reconScoutObserving || !A.reconScoutObserving(s, battle) ||
+      !observation ||
+      s.dead || s.isPlayer ||
+      !s.squad || s.squad.state === 'retreat' ||
+      e.boundOrder || e.suppressOrder ||
+      s.suppressedUntil > now || underFireNow(s, battle) ||
+      now < shockUntil(s) ||
+      ['bound', 'assault', 'pinned', 'withdraw', 'station'].indexOf(e.state) >= 0
+    )
+      return false;
+    var direct = s.target && String(s.target.id) === observation.targetId,
+      seen = direct && A.soldierContact && A.soldierContact(s, battle),
+      own = !!(seen && seen.source === 'seen' &&
+        String(seen.seenBy) === String(s.id) && now - seen.at <= 0.65),
+      p = posOf(s),
+      d = direct ? dist(p.x, p.z, posOf(s.target).x, posOf(s.target).z) : Infinity;
+    /* A scout caught in near contact defends himself via normal Engagement. */
+    if (direct && d < 35) return false;
+    if (direct && !own) return false;
+    if (s.target && !direct) return false;
+    var stance = 'crouch';
+    if (direct) {
+      if (seesFrom(p, 'prone', s.target, battle)) stance = 'prone';
+      else if (seesFrom(p, 'crouch', s.target, battle)) stance = 'crouch';
+      else if (seesFrom(p, 'stand', s.target, battle)) stance = 'stand';
+      else return false; /* The last known target is not a magic live sighting. */
+    }
+    if (e.state !== 'alert') transition(s, battle, 'alert', 0, 'recon: firsthand enemy observed');
+    s.state = 'alert';
+    s.setUp = false;
+    s._faceHint = { x: observation.x, z: observation.z };
+    holdPosition(s, battle);
+    commitStanceRespectHold(s, battle, stance, 0.45, 'recon:observe-with-sight');
+    return true;
+  }
   /* A personally adopted Squad Leader observation post is quiet Micro work.
      Targets, personal threat reports, suppression, shock, committed movement,
      stations, grenades, stress reactions and retreat retain normal precedence.
