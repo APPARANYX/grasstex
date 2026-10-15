@@ -70,6 +70,8 @@ jobs:
               e.threat && e.distance <= e.coneRange && e.los));
             const standVisible = alive.filter(s => s.visibility?.enemies?.some(e =>
               e.threat && e.distance <= e.range && e.standingLos));
+            const standWithinFacing = alive.filter(s => s.visibility?.enemies?.some(e =>
+              e.threat && e.distance <= e.coneRange && e.standingLos));
             const actualSupport = alive.filter(s => s.effectiveSupport);
             const assignedSupport = alive.filter(s => s.areaSupport);
             const engaged = alive.filter(s => s.targetId != null);
@@ -80,6 +82,7 @@ jobs:
               held: t.posture?.heldIds || [], reserve: t.posture?.reserveIds || [],
               reports: freshReports.length, own: firsthand.map(s => s.id),
               seen: visible.map(s => s.id), standingLOS: standVisible.map(s => s.id),
+              standingFacing: standWithinFacing.map(s => s.id),
               postedBallistic: postInfo.filter(p => p.firingQualified).map(p => p.id),
               fire: t.fireControl?.state || null, reason: t.fireControl?.reason || null,
               firePoint: t.fireControl?.point || null,
@@ -104,10 +107,21 @@ jobs:
             ownFreshTicks: rows.filter(r=>r.own.length>0).length,
             physicallyVisibleTicks: rows.filter(r=>r.seen.length>0).length,
             standingLOSTicks: rows.filter(r=>r.standingLOS.length>0).length,
+            standingFacingTicks: rows.filter(r=>r.standingFacing.length>0).length,
+            standingFacingReadyTicks: rows.filter(r=>r.readyAt!=null && r.standingFacing.length>0).length,
+            standingFacingPeople: [...new Set(rows.flatMap(r=>r.standingFacing))],
+            standingFacingWindows: rows.filter(r=>r.standingFacing.length>0).map(r=>r.t).filter((t,i,a)=>i===0||t-a[i-1]>0.3).slice(0,20),
             assignedSupportTicks: rows.filter(r=>r.assigned.length>0).length,
             effectiveSupportTicks: rows.filter(r=>r.effective.length>0).length,
             twoEffectiveSupportTicks: rows.filter(r=>r.effective.length>=2).length,
             personalTargetTicks: rows.filter(r=>r.target.length>0).length,
+            standingFacingSamples: x.tickTrace.flatMap(t=>(t.members||[]).flatMap(s=>
+              (s.visibility?.enemies||[]).filter(e=>
+                e.threat && e.standingLos && e.distance<=e.coneRange)
+              .map(e=>({t:t.t,observer:s.id,stance:s.stance,role:s.role,enemy:e.id,distance:+e.distance.toFixed(1),
+                coneRange:+e.coneRange.toFixed(1), angle:+e.angle.toFixed(2),
+                observedLOS:e.los, standingLOS:e.standingLos, prepared:t.posture?.readyAt!=null}))))
+              .filter((v,i,a)=>i===0 || v.t-a[i-1].t>0.45).slice(0,35),
             shots: x.traceShots.length,
             timeline: [197.25,199.95,203.55,204,207.3,208.5,212.4,215,218,220,224.25].map(near)
           };
