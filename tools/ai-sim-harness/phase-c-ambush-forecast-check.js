@@ -76,7 +76,15 @@ function track(w,base=0,z=80,custom={}) {
 {
   const w=world('&predictAmbush=1');
   const st=track(w);
-  assert.ok(st && st.mode==='ambush','a normal ambush is selected');
+  assert.ok(st && st.mode==='ambush','a normal ambush is selected: '+JSON.stringify({
+    inContact:w.sq.inContact,
+    pressure:w.sq._localTask?.inputs?.pressure,
+    engagement:w.sq._engagementPlan?.status,
+    phase:w.sq.commandPhase, mission:w.sq._macroMission?.status,
+    orders:st?.orders?.length, deferrals:w.P.approachDeferrals(w.sq),
+    aims:w.aims.slice(0,3),preflight:w.preflight.slice(0,3),
+    spread:w.sq.members.map(s=>[s.root.position.x,s.root.position.z])
+  }));
   assert.ok(st.ambushPrediction,'three consecutive firsthand moving scout reports produce forecast');
   assert.equal(st.ambushPrediction.scoutId,String(w.scout.id));
   assert.equal(st.ambushPrediction.targetId,'moving-1');
