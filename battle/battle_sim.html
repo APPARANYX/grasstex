@@ -125,6 +125,7 @@ window.BattleLoading=(function(){
 
   var firstLoad=BattleScenarioGenerator.initialLoadSeed(location.search,window.BATTLE_SCENARIO_SEED),
       liveSeed=firstLoad.seed,scenario=BattleScenarioGenerator.activate(liveSeed,{mode:'live'});
+  if(scenario.profile==='strategic')document.getElementById('hudTitle').querySelector('span').textContent='WW2FPS STRATEGIC 5 KM';
   document.getElementById('seedShort').textContent=liveSeed;document.getElementById('seedShort').title=liveSeed;
   /* Older builds wrote generated live-* seeds to the URL. Remove those stale pins
      on arrival, so refreshing the cleaned URL makes a new battlefield.
@@ -136,8 +137,8 @@ window.BattleLoading=(function(){
   console.log('[SCENARIO] live seed='+liveSeed+' id='+scenario.id+' fingerprint='+JSON.stringify(scenario.fingerprint.vector));
 
   var canvas=document.getElementById('renderCanvas'),engine=new BABYLON.Engine(canvas,true,{stencil:false,preserveDrawingBuffer:true,audioEngine:true});engine.renderEvenInBackground=true;console.log('legacyAudioEngine='+(BABYLON.Engine.audioEngine?'present':'missing')+' · background rendering enabled');
-  var scene=new BABYLON.Scene(engine);scene.skipPointerMovePicking=true;scene.clearColor=new BABYLON.Color4(.55,.62,.68,1);scene.fogMode=BABYLON.Scene.FOGMODE_LINEAR;scene.fogColor=new BABYLON.Color3(.72,.62,.52);scene.fogStart=850;scene.fogEnd=2250;
-  var target=new BABYLON.Vector3(scenario.center.x,4,scenario.center.z),camera=new BABYLON.ArcRotateCamera('cam',-Math.PI/2,1.02,720,target,scene);camera.lowerRadiusLimit=90;camera.upperRadiusLimit=1850;camera.lowerBetaLimit=.28;camera.upperBetaLimit=1.5;camera.wheelPrecision=3;camera.panningSensibility=120;camera.attachControl(canvas,true);
+  var scene=new BABYLON.Scene(engine);scene.skipPointerMovePicking=true;scene.clearColor=new BABYLON.Color4(.55,.62,.68,1);scene.fogMode=BABYLON.Scene.FOGMODE_LINEAR;scene.fogColor=new BABYLON.Color3(.72,.62,.52);scene.fogStart=scenario.profile==='strategic'?2100:850;scene.fogEnd=scenario.profile==='strategic'?8000:2250;
+  var target=new BABYLON.Vector3(scenario.center.x,4,scenario.center.z),camera=new BABYLON.ArcRotateCamera('cam',-Math.PI/2,1.02,720,target,scene);camera.lowerRadiusLimit=90;camera.upperRadiusLimit=scenario.profile==='strategic'?5400:1850;camera.radius=scenario.profile==='strategic'?3200:720;camera.maxZ=scenario.profile==='strategic'?9500:2600;camera.lowerBetaLimit=.28;camera.upperBetaLimit=1.5;camera.wheelPrecision=3;camera.panningSensibility=120;camera.attachControl(canvas,true);
 
   /* Smooth RTS-style keyboard pan. W/S follow the camera's ground-facing direction; A/D strafe. */
   var cameraKeys=Object.create(null);function cameraKey(code){return code==='KeyW'||code==='KeyA'||code==='KeyS'||code==='KeyD'||code==='ShiftLeft'||code==='ShiftRight';}
