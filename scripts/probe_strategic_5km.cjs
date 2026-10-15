@@ -22,6 +22,29 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
   });
   try {
     const page = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 1360, height: 820 } });
+    /* The public repository intentionally excludes private mastered audio. In
+       standalone CI only, serve a valid silent PCM WAV on .mp3 asset requests.
+       Preserve the strict zero-uncaught-errors assertion for all game code. */
+    const audioSamples = 2205;
+    const silentAudio = Buffer.alloc(44 + audioSamples * 2);
+    silentAudio.write('RIFF', 0);
+    silentAudio.writeUInt32LE(36 + audioSamples * 2, 4);
+    silentAudio.write('WAVE', 8);
+    silentAudio.write('fmt ', 12);
+    silentAudio.writeUInt32LE(16, 16);
+    silentAudio.writeUInt16LE(1, 20);
+    silentAudio.writeUInt16LE(1, 22);
+    silentAudio.writeUInt32LE(22050, 24);
+    silentAudio.writeUInt32LE(44100, 28);
+    silentAudio.writeUInt16LE(2, 32);
+    silentAudio.writeUInt16LE(16, 34);
+    silentAudio.write('data', 36);
+    silentAudio.writeUInt32LE(audioSamples * 2, 40);
+    let mockedPrivateAudio = 0;
+    await page.route(/\/Assets\/audio\/.*\.mp3(?:\?.*)?$/, (route) => {
+      mockedPrivateAudio++;
+      return route.fulfill({ status: 200, contentType: 'audio/wav', body: silentAudio });
+    });
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e && e.stack || e).slice(0, 900)));
     const url = base + (base.includes('?') ? '&' : '?') +
@@ -63,6 +86,8 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
       };
     });
     report.bootMs = bootMs;
+    report.audioFixture = 'silent PCM for private audio files omitted from public checkout';
+    report.mockedPrivateAudio = mockedPrivateAudio;
     assert.equal(report.profile, 'strategic');
     assert.equal(report.map.width, 5000);
     assert.equal(report.map.depth, 5000);
