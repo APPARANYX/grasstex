@@ -14,9 +14,9 @@
   var LOOK_X = 0.0022,
     LOOK_Y = 0.0018,
     PITCH_LIMIT = Math.PI * 0.46,
-    MAX_HEIGHT = 420,
+    MAX_HEIGHT = global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 1200 : 420,
     GROUND_CLEARANCE = 2,
-    CAMERA_FAR = 2600;
+    CAMERA_FAR = global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 9500 : 2600;
   var PAD_DEADZONE = 0.16,
     PAD_LOOK_RATE = 2.35,
     PAD_PRECISION = 0.28,
