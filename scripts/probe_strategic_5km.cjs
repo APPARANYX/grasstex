@@ -193,6 +193,44 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
       s.followsRoad && s.squadRouteLegs === s.missionRoadLegs + 1
     ), 'Squad Leader adopts exactly the General brief and its expected public road legs: ' +
       JSON.stringify(liveMarches));
+    /* Test-only forced long re-task AFTER performance sampling. Natural first
+       missions often use one direct road (correctly zero intermediate legs);
+       this proves the actual Macro issue -> Squad Leader adoption contract for
+       multi-hop travel without claiming the forced task is an AI decision. */
+    report.forcedRoadHandoff = await page.evaluate(() => {
+      const b = window.__battle__, s = window.__scenario__, sq = b.factions.us.squads[0];
+      const objective = window.BattleObjectiveSystem.get(b, 'strategic-obj-4');
+      if (!objective || !sq || !window._commanderStrategicRecovery)
+        throw new Error('Strategic QA handoff dependencies missing');
+      b.paused = true;
+      const before = sq._macroMission && sq._macroMission.objectiveId;
+      const recovery = window._commanderStrategicRecovery(window._commanderRecoveryCtx());
+      recovery.reconsiderMission(b, sq, s, 'qa-test-only-road-handoff', null, objective);
+      const m = sq._macroMission;
+      const origin = m.observations.squad.position;
+      const expected = window.BattleCommanderRoutes.missionRouteFor(sq, s, m.objectiveId, origin);
+      window.BattleSquadStability.executeMission(b, sq, s);
+      return {
+        label: 'test-only forced long re-task; not a natural AI decision',
+        before, target: m.objectiveId, status: m.status,
+        expectedRoadLegs: expected.length, actualRoadLegs: m.route.length,
+        roadPrefixMatches: expected.every((p, i) =>
+          m.route[i] && Math.hypot(p.x - m.route[i].x, p.z - m.route[i].z) < 0.01),
+        squadRouteLegs: sq.route.length, waypoint: sq.route[0],
+        firstRoadPoint: expected[0]
+      };
+    });
+    assert.equal(report.forcedRoadHandoff.target, 'strategic-obj-4');
+    assert.ok(report.forcedRoadHandoff.expectedRoadLegs >= 2,
+      'distant strategic test requires multiple intermediate road waypoints');
+    assert.ok(report.forcedRoadHandoff.roadPrefixMatches,
+      'General brief preserves the public road-graph path on forced re-task');
+    assert.equal(report.forcedRoadHandoff.actualRoadLegs,
+      report.forcedRoadHandoff.expectedRoadLegs);
+    assert.equal(report.forcedRoadHandoff.squadRouteLegs,
+      report.forcedRoadHandoff.actualRoadLegs + 1,
+      'Squad Leader retained every intermediate leg and appended final objective');
+    assert.equal(report.forcedRoadHandoff.status, 'executing');
     assert.deepEqual(errors, [], 'no uncaught page errors');
 
     /* Same Chromium version, soldier count, audio fixture, viewport, PHP loader,
