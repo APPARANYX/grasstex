@@ -1,0 +1,132 @@
+name: Recon Scout Observation (isolated)
+on:
+  push:
+    branches:
+      - work/recon-scout-observation-20261015
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    name: Scoped visibility, delayed reports and stance safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native syntax checks
+        run: |
+          node --check battle/squad-ai.js
+          node --check battle/engagement.js
+          node --check tools/ai-sim-harness/recon-scout-observation-check.js
+      - name: New recon Micro tests
+        run: node tools/ai-sim-harness/recon-scout-observation-check.js
+      - name: Existing predictive ambush tests
+        run: node tools/ai-sim-harness/phase-c-ambush-forecast-check.js
+      - name: Existing Phase C preparation
+        run: node tools/ai-sim-harness/phase-c-preparation-check.js
+  native:
+    name: Meeting 0001 ${{ matrix.mode }}
+    runs-on: ubuntu-latest
+    needs: regression
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: off
+            extra: 'predictAmbush=1'
+          - mode: on
+            extra: 'predictAmbush=1&reconScoutObserve=1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Chromium runtime
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Run this checkout on a private per-job server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/recon-scout-test
+          ln -s "$GITHUB_WORKSPACE" /tmp/recon-scout-test/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/recon-scout-test > /tmp/recon-scout-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=phase-c-health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/recon-scout-php.log
+          exit 1
+      - name: Real seed, operation and command architecture unchanged
+        env:
+          C_FIELD_TYPE: meeting
+          C_FIELD_COUNT: '1'
+          C_FIELD_SECONDS: '260'
+          C_FIELD_PREFIX: phase-c-natural-20261012
+          C_FIELD_SEED_INDEX: '1'
+          C_FIELD_AUTONOMOUS_MOVEMENT: '1'
+          C_FIELD_SMART_INGRESS: '0'
+          C_FIELD_OPERATION: '1'
+          C_FIELD_ARMS: 'on'
+          C_FIELD_EXTRA_QUERY: ${{ matrix.extra }}
+          C_FIELD_TRACE_SQUAD: ge:ge-2
+          C_FIELD_TRACE_FROM: '145'
+          C_FIELD_TRACE_TO: '245'
+          C_FIELD_DIR: reports/recon-scout
+          C_FIELD_SHA: ${{ github.sha }}
+        run: node scripts/probes/probe_phase_c_natural.cjs
+      - name: Print observation lifecycle and natural tactical outcomes
+        env:
+          MODE: ${{ matrix.mode }}
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const d=JSON.parse(fs.readFileSync('reports/recon-scout/meeting.json','utf8'));
+          const r=d.results.find(z=>z.arm==='on'&&z.seed==='phase-c-natural-20261012-0001');
+          assert.ok(r?.tickTrace?.length>200,'native full-battle trace');
+          const ticks=r.tickTrace;
+          const observed=ticks.flatMap(t=>(t.members||[]).filter(m=>m.reconObservation)
+            .map(m=>({t:t.t,id:m.id,state:m.state,stance:m.stance,underFire:m.underFire,
+              observation:m.reconObservation,source:m.contact?.source||null})));
+          const stats={
+            mode:process.env.MODE,seed:r.seed,observingSamples:observed.length,
+            observerIds:[...new Set(observed.map(x=>x.id))],
+            firstObservation:observed[0]||null,
+            firstTen:observed.slice(0,10),
+            scoutContacts:ticks.filter(t=>t.members.some(m=>m.role==='scout'&&m.contact?.source==='seen')).length,
+            forecastSamples:ticks.filter(t=>t.posture?.ambushPrediction).length,
+            ambush:r.ambush,prepared:r.prepared,maneuvers:r.maneuvers,bounds:r.bounds,
+            completedChains:(r.maneuverChains||[]).filter(x=>x.complete).length,
+            shots:r.shots,writerConflicts:r.writerConflicts
+          };
+          if(process.env.MODE==='off')assert.equal(stats.observingSamples,0,
+            'recon option OFF must not produce the new observation lifecycle');
+          console.log('RECON_SCOUT_NATIVE '+JSON.stringify(stats));
+          fs.writeFileSync('reports/recon-scout/verdict.json',JSON.stringify(stats,null,2));
+          NODE
+      - name: Archive native evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recon-scout-${{ matrix.mode }}
+          path: reports/recon-scout/*.json
+          retention-days: 30
+      - name: Server errors
+        if: failure()
+        run: tail -100 /tmp/recon-scout-php.log || true
+  compare:
+    name: Confirm same-seed result, no acceptance relaxation
+    runs-on: ubuntu-latest
+    needs: native
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: recon-scout-*
+          path: paired
+      - name: Compare effective scout observation and Phase C results
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const read=mode=>JSON.parse(fs.readFileSync('paired/recon-scout-'+mode+'/verdict.json','utf8'));
+          const off=read('off'),on=read('on');
+          assert.equal(off.seed,on.seed);
+          console.log('RECON_SCOUT_COMPARISON '+JSON.stringify({off,on}));
+          NODE
