@@ -1,0 +1,176 @@
+name: Phase C Opponent Stance Counterfactual (test only)
+on:
+  push:
+    branches:
+      - work/phase-c-us-stance-response-20261015
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  paired-meeting:
+    name: Meeting 0001 - ${{ matrix.arm }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arm: control
+            query: ''
+          - arm: soldier12
+            query: 'phaseCUsFirePrep=soldier12'
+          - arm: all
+            query: 'phaseCUsFirePrep=all'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install browser for genuine full-battle runtime
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Serve the selected isolated checkout
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/phase-c-stance-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/phase-c-stance-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/phase-c-stance-www > /tmp/phase-c-stance-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=phase-c-health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/phase-c-stance-php.log
+          exit 1
+      - name: Replay unchanged seed until precisely after 197.25 seconds
+        env:
+          C_FIELD_TYPE: meeting
+          C_FIELD_COUNT: '1'
+          C_FIELD_SECONDS: '230'
+          C_FIELD_PREFIX: phase-c-natural-20261012
+          C_FIELD_SEED_INDEX: '1'
+          C_FIELD_AUTONOMOUS_MOVEMENT: '1'
+          C_FIELD_SMART_INGRESS: '0'
+          C_FIELD_OPERATION: '1'
+          C_FIELD_ARMS: 'on'
+          C_FIELD_EXTRA_QUERY: ${{ matrix.query }}
+          C_FIELD_TRACE_SQUAD: ge:ge-2
+          C_FIELD_TRACE_FROM: '185'
+          C_FIELD_TRACE_TO: '228'
+          C_FIELD_TRACE_VISIBILITY: '1'
+          C_FIELD_DIR: reports/phase-c-us-stance
+          C_FIELD_SHA: ${{ github.sha }}
+        run: node scripts/probes/probe_phase_c_natural.cjs
+      - name: Audit actual opponent stance and German support behavior
+        env:
+          EXP_ARM: ${{ matrix.arm }}
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto'),assert=require('node:assert/strict');
+          const d=JSON.parse(fs.readFileSync('reports/phase-c-us-stance/meeting.json','utf8'));
+          const x=d.results.find(x=>x.arm==='on'&&x.seed==='phase-c-natural-20261012-0001');
+          assert.ok(x?.tickTrace?.length>250,'exact-seed 0.15-second native trace exists');
+          const ticks=x.tickTrace;
+          const before=ticks.filter(t=>t.t<=197.25);
+          const signature=before.map(t=>({
+            t:t.t,phase:t.phase,coa:t.coa,contact:t.contact?.at??null,
+            members:t.members.map(s=>({
+              id:s.id,position:s.position,stance:s.stance,
+              moving:s.moving,targetId:s.targetId,contactAt:s.contact?.at??null
+            })),
+            opponents:t.opponentResponses?.map(s=>({
+              id:s.id,prone:s.prone,crouched:s.crouched,moving:s.moving,
+              target:s.targetId,source:s.contact?.source??null,
+              at:s.contact?.at??null,stance:s.stance
+            }))||[]
+          }));
+          const sha=crypto.createHash('sha256').update(JSON.stringify(signature)).digest('hex');
+          const observations=ticks.map(t=>({
+            t:t.t,phase:t.phase,stage:t.posture?.stage||null,ready:t.posture?.readyAt!=null,
+            sight:(t.members||[]).filter(s=>s.visibility?.enemies?.some(e=>e.threat&&e.los&&e.distance<=e.coneRange)).map(s=>s.id),
+            effective:(t.members||[]).filter(s=>s.effectiveSupport).map(s=>s.id),
+            shots:(x.traceShots||[]).filter(e=>Math.abs(e.t-t.t)<0.08).length,
+            overrides:t.usFirePrepOverrides||[],
+            opponents:(t.opponentResponses||[]).map(s=>({
+              id:s.id,prone:s.prone,stanceReason:s.stanceReason,
+              lastStanceAt:s.stanceTransition?.at??null,
+              contactSource:s.contact?.source||null,
+              targetId:s.targetId
+            }))
+          }));
+          const window=observations.filter(t=>t.t>=197.4);
+          const changed12=window.filter(t=>t.overrides.includes('12')).length;
+          const altered=window.filter(t=>t.overrides.length>0);
+          const row={
+            arm:process.env.EXP_ARM,seed:x.seed,commit:d.commit,
+            ticks:ticks.length,preEventSamples:before.length,preEventHash:sha,
+            firstOverride:altered[0]?.t??null,
+            overriddenSoldiers:[...new Set(window.flatMap(t=>t.overrides))],
+            changed12Ticks:changed12,
+            us12ProneTicks:window.filter(t=>t.opponents.some(o=>o.id==='12'&&o.prone)).length,
+            us27ProneTicks:window.filter(t=>t.opponents.some(o=>o.id==='27'&&o.prone)).length,
+            geSightTicks:window.filter(t=>t.sight.length>0).length,
+            geSupportTicks:window.filter(t=>t.effective.length>0).length,
+            geTwoSupportTicks:window.filter(t=>t.effective.length>=2).length,
+            geReadyTicks:window.filter(t=>t.ready).length,
+            geShotEvents:(x.traceShots||[]).filter(s=>s.t>=197.4).length,
+            postureAttempts:x.ambush,prepared:x.prepared,maneuvers:x.maneuvers,
+            boundEvents:x.bounds,completedChains:(x.maneuverChains||[]).filter(c=>c.complete).length,
+            reserveArrivals:(x.readinessAttempts||[]).filter(a=>a.firstFullReserveAt!=null).length,
+            stanceAroundEvent:observations.filter(t=>t.t>=197.1&&t.t<=198).map(t=>({
+              t:t.t,overrides:t.overrides,opponents:t.opponents
+            })),
+            firstSupport:window.find(t=>t.effective.length>0)||null,
+            firstTwoSupport:window.find(t=>t.effective.length>=2)||null,
+            gePostureChanges:x.modeEvents?.filter(e=>e.squad==='ge:ge-2')||[]
+          };
+          if(row.arm==='control')assert.equal(row.overriddenSoldiers.length,0,'control must have no intercepted stance');
+          else {
+            assert.ok(row.changed12Ticks>0,'fire-control-prep stance actually intercepted for US soldier 12');
+            assert.ok(row.firstOverride>=197.35,'no early intervention');
+          }
+          if(row.arm==='soldier12')assert.deepEqual(row.overriddenSoldiers,['12'],'no other US soldier intercepted');
+          console.log('PHASE_C_STANCE_AB '+JSON.stringify(row));
+          fs.writeFileSync('reports/phase-c-us-stance/arm-verdict.json',JSON.stringify(row,null,2));
+          NODE
+      - name: Keep raw native tick trace and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-c-us-stance-${{ matrix.arm }}
+          path: reports/phase-c-us-stance/*.json
+          retention-days: 30
+      - name: Server diagnostics
+        if: failure()
+        run: tail -100 /tmp/phase-c-stance-php.log || true
+
+  compare:
+    name: Pre-intervention identity and three-arm outcome
+    needs: paired-meeting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: phase-c-us-stance-*
+          path: paired
+      - name: Verify truly identical pre-event timeline and compare
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const read=a=>JSON.parse(fs.readFileSync('paired/phase-c-us-stance-'+a+'/arm-verdict.json','utf8'));
+          const arms=['control','soldier12','all'],data=Object.fromEntries(arms.map(a=>[a,read(a)]));
+          for(const arm of arms){
+            assert.equal(data[arm].seed,data.control.seed,'same seed');
+            assert.equal(data[arm].preEventSamples,data.control.preEventSamples,'same pre-event ticks');
+            assert.equal(data[arm].preEventHash,data.control.preEventHash,
+              'pre-event gameplay trajectory must match control exactly; otherwise counterfactual invalid');
+          }
+          const keys=['us12ProneTicks','us27ProneTicks','geSightTicks','geSupportTicks',
+            'geTwoSupportTicks','geReadyTicks','geShotEvents','postureAttempts',
+            'prepared','maneuvers','boundEvents','completedChains','reserveArrivals'];
+          const rows=keys.map(metric=>({metric,...Object.fromEntries(arms.map(a=>[a,data[a][metric]]))}));
+          console.log('PHASE_C_STANCE_COMPARISON '+JSON.stringify({
+            seed:data.control.seed,preEventIdentical:true,
+            preEventHash:data.control.preEventHash,
+            firstInterventions:Object.fromEntries(arms.map(a=>[a,data[a].firstOverride])),
+            overridden:Object.fromEntries(arms.map(a=>[a,data[a].overriddenSoldiers])),
+            outcomes:rows
+          }));
+          NODE
