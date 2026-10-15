@@ -754,8 +754,14 @@ section('5 km attacker objective-security is temporary, not an engineer garrison
   sq._macroMission.requestKey = 'objective-security|outer|120|0';
   const tick = () => r.BattleModules.getSystem('defender-engineers').onCommanderTick(sim, { dt: 11 });
   tick();
-  check('temporary attacker security still permits engineering work', sim._engineerBuild.counts['us|outer'] === 1);
-  check('temporary attacker DEFEND does not become a permanent prepared request', !sq._preparedDefenseRequest);
+  check(
+    'temporary attacker security still permits engineering work',
+    sim._engineerBuild.counts['us|outer'] === 1
+  );
+  check(
+    'temporary attacker DEFEND does not become a permanent prepared request',
+    !sq._preparedDefenseRequest
+  );
   check('temporary attacker DEFEND does not assign a permanent garrison objective', !sq.garrisonObjective);
   sq._captureZoneDefenseRequest = null;
   sq._macroMission = { intent: 'capture', objectiveId: 'elsewhere', status: 'executing', version: 3 };
