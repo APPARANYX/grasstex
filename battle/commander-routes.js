@@ -93,8 +93,7 @@
      selected public objective; only static road geometry is consulted.
      Intermediate points belong to the General's brief, not soldier orders. */
   function missionRouteFor(sq, town, goalId, origin) {
-    if (!town || town.profile !== 'strategic' || !origin || !town.roads || !town.roads.length)
-      return [];
+    if (!town || town.profile !== 'strategic' || !origin || !town.roads || !town.roads.length) return [];
     var nodes = Object.create(null),
       edges = Object.create(null),
       goal = null;
@@ -125,8 +124,7 @@
     for (;;) {
       var current = null;
       Object.keys(remaining).forEach(function (id) {
-        if (!visited[id] && (current === null || remaining[id] < remaining[current]))
-          current = id;
+        if (!visited[id] && (current === null || remaining[id] < remaining[current])) current = id;
       });
       if (current === null) break;
       visited[current] = true;
