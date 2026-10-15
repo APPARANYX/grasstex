@@ -99,8 +99,24 @@ jobs:
             const key = row.posture || 'none';
             stages[key] = (stages[key] || 0) + 1;
           }
+          const opponent = x.tickTrace.flatMap(t => (t.opponentResponses || []).map(o => ({t:t.t,...o})));
+          const opponentEvents = opponent.filter((v,i) => {
+            const previous = opponent.slice(0,i).reverse().find(p=>p.id===v.id);
+            if(!previous) return true;
+            return previous.prone!==v.prone || previous.crouched!==v.crouched ||
+              previous.stanceReason!==v.stanceReason ||
+              previous.targetId!==v.targetId ||
+              previous.contact?.seenBy!==v.contact?.seenBy ||
+              previous.contact?.source!==v.contact?.source ||
+              previous.underFire!==v.underFire ||
+              previous.suppressed!==v.suppressed;
+          }).slice(0,65);
           const report = {
             seed: x.seed, commit: d.commit, ticks: rows.length,
+            opponentEvents,
+            opponentFirsthandSeenTicks: opponent.filter(o => o.contact?.source==='seen' &&
+              String(o.contact?.seenBy)===String(o.id)).length,
+            opponentTargetTicks: opponent.filter(o => o.targetId!=null).length,
             stageTicks: stages,
             readyTicks: rows.filter(r=>r.readyAt!=null).length,
             freshReportTicks: rows.filter(r=>r.reports>0).length,
