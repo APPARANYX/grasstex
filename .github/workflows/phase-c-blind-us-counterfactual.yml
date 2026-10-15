@@ -1,0 +1,133 @@
+name: Phase C Blind-US Counterfactual (test-only)
+on:
+  push:
+    branches:
+      - work/phase-c-blind-us-experiment-20261015
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  paired-meeting:
+    name: Meeting 0001 - ${{ matrix.arm }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arm: normal
+            extra_query: ''
+          - arm: blind-us
+            extra_query: 'phaseCBlindUS=1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Launch native simulation from THIS checkout
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/phase-c-blind-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/phase-c-blind-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/phase-c-blind-www > /tmp/phase-c-blind-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=phase-c-health' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/phase-c-blind-php.log
+          exit 1
+      - name: Exact identical meeting seed; change US sensory input only
+        env:
+          C_FIELD_TYPE: meeting
+          C_FIELD_COUNT: '1'
+          C_FIELD_SECONDS: '230'
+          C_FIELD_PREFIX: phase-c-natural-20261012
+          C_FIELD_SEED_INDEX: '1'
+          C_FIELD_AUTONOMOUS_MOVEMENT: '1'
+          C_FIELD_SMART_INGRESS: '0'
+          C_FIELD_OPERATION: '1'
+          C_FIELD_ARMS: 'on'
+          C_FIELD_EXTRA_QUERY: ${{ matrix.extra_query }}
+          C_FIELD_TRACE_SQUAD: ge:ge-2
+          C_FIELD_TRACE_FROM: '185'
+          C_FIELD_TRACE_TO: '228'
+          C_FIELD_TRACE_VISIBILITY: '1'
+          C_FIELD_DIR: reports/phase-c-blind-us
+          C_FIELD_SHA: ${{ github.sha }}
+        run: node scripts/probes/probe_phase_c_natural.cjs
+      - name: Print actual perception and tactical-chain evidence
+        env:
+          EXP_ARM: ${{ matrix.arm }}
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const d=JSON.parse(fs.readFileSync('reports/phase-c-blind-us/meeting.json','utf8'));
+          const x=d.results.find(r=>r.arm==='on' && r.seed==='phase-c-natural-20261012-0001');
+          assert.ok(x && x.tickTrace.length>200,'exact-seed real-battle per-tick trace exists');
+          const ts=x.tickTrace, u=ts.map(t=>t.usPerceptionAudit).filter(Boolean);
+          const any=(field)=>u.filter(s=>s[field]?.length>0).length;
+          const r={
+            arm:process.env.EXP_ARM,seed:x.seed,commit:d.commit,observedTicks:ts.length,
+            ambush:x.ambush,prepared:x.prepared,maneuvers:x.maneuvers,
+            bounds:x.bounds,completedNaturalChains:(x.maneuverChains||[]).filter(c=>c.complete).length,
+            reserveAttempts:(x.readinessAttempts||[]).length,
+            reserveArrivals:(x.readinessAttempts||[]).filter(a=>a.firstFullReserveAt!=null).length,
+            usFirsthandTicks:any('firsthandIds'),usTargetsTicks:any('targetIds'),
+            usToldTicks:any('toldIds'),usSquadReportTicks:any('squadContactIds'),
+            usProneTicks:any('proneIds'),gePreparedTicks:ts.filter(t=>t.posture?.readyAt!=null).length,
+            geFreshReportTicks:ts.filter(t=>t.contacts?.some(c=>c && c.at<=t.t && t.t-c.at<=10 && c.confidence>=0.5)).length,
+            gePersonalSightTicks:ts.filter(t=>t.members?.some(s=>s.contact?.source==='seen' && String(s.contact.seenBy)===String(s.id))).length,
+            geVisualTicks:ts.filter(t=>t.members?.some(s=>s.visibility?.enemies?.some(e=>e.threat && e.los && e.distance<=e.coneRange))).length,
+            geEffectiveSupportTicks:ts.filter(t=>t.members?.some(s=>s.effectiveSupport)).length,
+            geTwoSupportTicks:ts.filter(t=>t.members?.filter(s=>s.effectiveSupport).length>=2).length,
+            geFireOpenTicks:ts.filter(t=>t.fireControl?.state==='open').length,
+            geShotEvents:x.traceShots.length,
+            gePostureChanges:x.modeEvents?.filter(e=>e.squad==='ge:ge-2')||[],
+            geAttempt:(x.readinessAttempts||[]).find(a=>a.squad==='ge:ge-2')||null,
+            opposingSoldiersAt:[197.25,197.4,200,207.3,212.4,220].map(t=>{
+              const near=ts.reduce((best,v)=>Math.abs(v.t-t)<Math.abs(best.t-t)?v:best,ts[0]);
+              return {t:near.t,opponents:(near.opponentResponses||[]).map(o=>({
+                id:o.id,prone:o.prone,contactSource:o.contact?.source||null,reason:o.stanceReason,underFire:o.underFire
+              }))};
+            })
+          };
+          if(process.env.EXP_ARM==='blind-us') {
+            assert.equal(r.usFirsthandTicks,0,'blind side cannot personally observe enemy');
+            assert.equal(r.usTargetsTicks,0,'blind side cannot acquire target');
+            assert.equal(r.usToldTicks,0,'blind side cannot receive relayed target');
+            assert.equal(r.usSquadReportTicks,0,'blind side cannot develop shared contact');
+          }
+          console.log('PHASE_C_BLIND_US_AB '+JSON.stringify(r));
+          fs.writeFileSync('reports/phase-c-blind-us/arm-verdict.json',JSON.stringify(r,null,2));
+          NODE
+      - name: Keep both exact-seed artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase-c-blind-us-${{ matrix.arm }}
+          path: reports/phase-c-blind-us/*.json
+          retention-days: 30
+      - name: PHP diagnostic if failed
+        if: failure()
+        run: tail -100 /tmp/phase-c-blind-php.log || true
+  compare:
+    name: A/B comparison without relaxing acceptance
+    needs: paired-meeting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: phase-c-blind-us-*
+          path: paired
+      - name: Independent comparison verdict
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const read=arm=>JSON.parse(fs.readFileSync('paired/phase-c-blind-us-'+arm+'/arm-verdict.json','utf8'));
+          const a=read('normal'),b=read('blind-us');
+          const fields=['usFirsthandTicks','usTargetsTicks','usSquadReportTicks','usProneTicks','gePreparedTicks','geFreshReportTicks','gePersonalSightTicks','geVisualTicks','geEffectiveSupportTicks','geTwoSupportTicks','geFireOpenTicks','geShotEvents','maneuvers','completedNaturalChains'];
+          const changes={};for(const k of fields)changes[k]={control:a[k],blindUS:b[k],difference:b[k]-a[k]};
+          console.log('PHASE_C_BLIND_US_COMPARISON '+JSON.stringify({sameSeed:a.seed===b.seed,changes}));
+          if(a.seed!==b.seed) throw new Error('A/B seeds must match');
+          NODE
