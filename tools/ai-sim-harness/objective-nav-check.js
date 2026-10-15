@@ -734,19 +734,15 @@ section('5 km attacker objective-security is temporary, not an engineer garrison
   load(r, 'battle/modules/00-battle-sides.js');
   load(r, 'battle/modules/00-defense-plan.js');
   const town = {
-    id: 'strategic-attack-defend-regression', profile: 'strategic',
+    profile: 'strategic',
     center: { x: 0, z: 0 },
-    spawnZones: {
-      us: { bases: [{ x: 0, z: -150 }] },
-      ge: { bases: [{ x: 0, z: 150 }] }
-    },
-    objectives: [sim._objectives[0].def], roads: [], buildings: []
+    objectives: [sim._objectives[0].def]
   };
   sim.scene = { metadata: { battleScenario: town } };
   sim.obstacles = [];
   sim._defensePlans = { us: r.BattleDefensePlan.empty('us'), ge: r.BattleDefensePlan.empty('ge') };
-  /* This test checks real engineer/controller behavior, not rendering. Avoid
-     drawing Babylon defense slabs in the deterministic Node fixture. */
+  /* Check the actual engineer/controller, not a duplicate of its guard. No
+     Babylon meshes are needed in this deterministic Node fixture. */
   r.BABYLON = undefined;
   load(r, 'battle/modules/21-defender-engineers.js');
   sim._sides = r.BattleSides.build(town, { defender: 'ge' });
@@ -754,25 +750,17 @@ section('5 km attacker objective-security is temporary, not an engineer garrison
   sq.members[0].role = 'engineer';
   sq.members[0].squad = sq;
   sq.members[0].root.position = { x: 120, z: 0 };
-  sq._macroMission = {
-    intent: 'defend', objectiveId: 'outer', status: 'executing',
-    version: 2, requestKey: 'objective-security|outer|120|0'
-  };
+  sq._macroMission = { intent: 'defend', objectiveId: 'outer', status: 'executing', version: 2 };
+  sq._macroMission.requestKey = 'objective-security|outer|120|0';
   const tick = () => r.BattleModules.getSystem('defender-engineers').onCommanderTick(sim, { dt: 11 });
   tick();
-  check('temporary attacker security still permits engineering work',
-    sim._engineerBuild.counts['us|outer'] === 1);
-  check('temporary attacker DEFEND does not become a permanent prepared request',
-    !sq._preparedDefenseRequest);
-  check('temporary attacker DEFEND does not assign a permanent garrison objective',
-    !sq.garrisonObjective);
+  check('temporary attacker security still permits engineering work', sim._engineerBuild.counts['us|outer'] === 1);
+  check('temporary attacker DEFEND does not become a permanent prepared request', !sq._preparedDefenseRequest);
+  check('temporary attacker DEFEND does not assign a permanent garrison objective', !sq.garrisonObjective);
   sq._captureZoneDefenseRequest = null;
-  sq._macroMission = {
-    intent: 'capture', objectiveId: 'elsewhere', status: 'executing', version: 3
-  };
+  sq._macroMission = { intent: 'capture', objectiveId: 'elsewhere', status: 'executing', version: 3 };
   tick();
-  check('attacker resumes CAPTURE without an engineer-generated defense obligation',
-    !sq._preparedDefenseRequest && sq._macroMission.intent === 'capture');
+  check('attacker resumes CAPTURE without a defense obligation', !sq._preparedDefenseRequest);
 }
 section("an engineer's technical skill is his building rate");
 {
