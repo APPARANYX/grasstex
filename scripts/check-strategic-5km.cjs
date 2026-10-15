@@ -60,6 +60,51 @@ function check(seed, g, routes) {
     for (let i = 0; i < 5; i++) {
       const base = bases[i % 3];
       const sq = { faction, home: { x: base.x, z: base.z }, homeBaseObjectiveId: base.objectiveId };
+      /* Unlike the spawn-time role route, these routes must be encoded in
+         live Macro briefs after target selection. Exercise re-tasking from
+         every base to EVERY objective, not only the initial approach target. */
+      for (const objective of a.objectives) {
+        const origin = { x: base.x, z: base.z };
+        const route = routes.missionRouteFor(sq, a, objective.id, origin);
+        assert.equal(JSON.stringify(route),
+          JSON.stringify(routes.missionRouteFor(sq, a, objective.id, origin)),
+          'same origin, target and roads produce identical mission waypoints');
+        const steps = [origin, ...route, { x: objective.x, z: objective.z }];
+        for (const step of route) {
+          assert.ok(Math.abs(step.x) < 2500 && Math.abs(step.z) < 2500,
+            'road waypoint remains inside strategic battlefield');
+          assert.ok(a.roads.some((road) => segmentDistance(step, road) < 0.01),
+            'waypoint lies on a real generated road, not an invented shortcut');
+        }
+        for (let k = 1; k < steps.length; k++) {
+          assert.ok(distance(steps[k - 1], steps[k]) < 5000, 'no giant out-of-bounds leg');
+          if (distance(steps[k - 1], steps[k]) < 0.01) continue;
+          assert.ok(a.roads.some((road) =>
+            segmentDistance(steps[k - 1], road) < 0.01 && segmentDistance(steps[k], road) < 0.01
+          ), 'live mission uses connected road edges from base to objective');
+        }
+        if (distance(origin, objective) <= 160) assert.equal(route.length, 0,
+          'short approach must use local soldier navigation without a road detour');
+      }
+      /* A new General brief may arrive when a squad is halfway down a road:
+         the new route must start on that road, not march back to its base. */
+      const road = a.roads.find((r) => r.fromObjectiveId === base.objectiveId);
+      assert.ok(road, 'base has an outgoing road for en-route re-tasking');
+      const halfway = { x: (road.ax + road.bx) / 2, z: (road.az + road.bz) / 2 };
+      const newObjective = a.objectives.find((o) =>
+        o.id !== road.fromObjectiveId && o.id !== road.toObjectiveId &&
+        distance(o, halfway) > 700
+      );
+      assert.ok(newObjective);
+      const retask = routes.missionRouteFor(sq, a, newObjective.id, halfway);
+      assert.ok(retask.length >= 1, 'distant re-task includes live road approach');
+      const steps = [halfway, ...retask, newObjective];
+      for (let k = 1; k < steps.length; k++) {
+        assert.ok(a.roads.some((segment) =>
+          segmentDistance(steps[k - 1], segment) < 0.01 &&
+          segmentDistance(steps[k], segment) < 0.01
+        ), 'retasked squad follows connected roads from its actual position');
+      }
       for (const role of ['left', 'center', 'right', 'support', 'reserve']) {
         const route = routes.routeFor(sq, role, a, i);
         assert.ok(route.length > 0);
@@ -75,6 +120,14 @@ function check(seed, g, routes) {
       }
     }
   }
+  const legacyRouteResult = routes.missionRouteFor(
+    { faction: 'us' }, { ...a, profile: 'legacy' }, a.objectives[9].id, a.objectives[0]
+  );
+  assert.equal(legacyRouteResult.length, 0, 'live road-brief routing is strategic-only');
+  const missingGraph = routes.missionRouteFor(
+    { faction: 'us' }, { ...a, roads: [] }, a.objectives[9].id, a.objectives[0]
+  );
+  assert.equal(missingGraph.length, 0, 'missing road network does not invent waypoints');
   const connected = new Set([a.objectives[0].id]);
   for (let pass = 0; pass < 12; pass++) {
     a.roads.forEach((r) => {
@@ -109,4 +162,4 @@ assert.equal(query.BattleScenarioGenerator.create('url-opt-in').profile, 'strate
 const lab = runtime('?strategicInterception=1', true);
 assert.equal(lab.BattleScenarioGenerator.create('combat-lab', { profile: 'strategic' }).map.width, 280);
 for (let i = 0; i < 40; i++) check('strategic-seed-' + i, normal.BattleScenarioGenerator, normal.BattleCommanderRoutes);
-console.log('PASS strategic 5km: 40 deterministic seeds, 480 objectives, 240 bases, route topology, clear roads, URL opt-in, legacy and Combat Lab isolation');
+console.log('PASS strategic 5km: 40 deterministic seeds, 480 objectives, 240 bases, live/re-tasked road routes, route topology, clear roads, URL opt-in, legacy and Combat Lab isolation');
