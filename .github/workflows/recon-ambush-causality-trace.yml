@@ -1,0 +1,144 @@
+name: Recon Ambush Causality (read-only)
+on:
+  push:
+    branches:
+      - work/recon-ambush-causality-20261015
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  trace:
+    name: Meeting seed ${{ matrix.seed }} scout ${{ matrix.mode }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - seed: 1
+            mode: off
+            extra: predictAmbush=1
+          - seed: 1
+            mode: on
+            extra: predictAmbush=1&reconScoutObserve=1
+          - seed: 4
+            mode: off
+            extra: predictAmbush=1
+          - seed: 4
+            mode: on
+            extra: predictAmbush=1&reconScoutObserve=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install real Chromium harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Serve exact checkout
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/recon-causal-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/recon-causal-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/recon-causal-www > /tmp/recon-causal-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=phase-c-health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/recon-causal-php.log
+          exit 1
+      - name: Native unmodified operation with only recon flag toggled
+        env:
+          C_FIELD_TYPE: meeting
+          C_FIELD_COUNT: '1'
+          C_FIELD_SECONDS: '260'
+          C_FIELD_PREFIX: phase-c-natural-20261012
+          C_FIELD_SEED_INDEX: ${{ matrix.seed }}
+          C_FIELD_AUTONOMOUS_MOVEMENT: '1'
+          C_FIELD_SMART_INGRESS: '0'
+          C_FIELD_OPERATION: '1'
+          C_FIELD_ARMS: 'on'
+          C_FIELD_EXTRA_QUERY: ${{ matrix.extra }}
+          C_FIELD_TRACE_SQUAD: ge:ge-2
+          C_FIELD_TRACE_FROM: '115'
+          C_FIELD_TRACE_TO: '245'
+          C_FIELD_DIR: reports/recon-causal
+          C_FIELD_SHA: ${{ github.sha }}
+        run: node scripts/probes/probe_phase_c_natural.cjs
+      - name: Extract exact Squad Leader branch gate and physical posture evidence
+        env:
+          SEED: ${{ matrix.seed }}
+          MODE: ${{ matrix.mode }}
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'), assert=require('node:assert/strict');
+          const d=JSON.parse(fs.readFileSync('reports/recon-causal/meeting.json','utf8'));
+          const r=d.results.find(x=>x.arm==='on');
+          assert.ok(r?.tickTrace?.length>200,'native per-tick ge:ge-2 trace required');
+          const frames=r.tickTrace;
+          const compact=t=>{
+            const e=t.postureExplain||[];
+            const men=t.members||[];
+            const s=t.posture;
+            return {
+              t:t.t,missionPhase:t.phase,coa:t.coa,contact:!!t.inContact,
+              engagementPlan:t.engagementPlan,assault:t.assaultAuthorized,
+              direct:t.contact?.seenBy||null,
+              threat:t.contact?{x:t.contact.point?.x,z:t.contact.point?.z,at:t.contact.at,source:t.contact.source}:null,
+              fresh:(t.contacts||[]).filter(x=>t.t-x.at<=10&&x.confidence>=.5).map(x=>({
+                x:+x.x.toFixed(1),z:+x.z.toFixed(1),age:+(t.t-x.at).toFixed(1),
+                source:x.source,seenBy:x.sourceSoldier
+              })),
+              posture:s?{mode:s.mode,stage:s.stage,serial:s.serial,readyAt:s.readyAt,
+                held:s.heldIds.length,reserve:s.reservePlan,expected:s.reserveIds,
+                predicted:s.ambushPrediction?{point:s.ambushPrediction.point}:null}:null,
+              menTarget:men.filter(m=>m.targetId!=null).map(m=>m.id),
+              menMoving:men.filter(m=>m.moving).map(m=>m.id),
+              core:e.filter(x=>!x.reserve).map(x=>({
+                id:x.id,firing:x.firingQualified,masked:x.maskedAtBody,
+                settled:x.settled,held:x.held,dist:x.toPost,owner:x.resolver?.[0]||null
+              })),
+              coreAt:men.filter(m=>e.some(o=>!o.reserve&&o.id===m.id)).map(m=>({
+                id:m.id,position:m.position,stance:m.stance,owner:m.resolver?.owner||null
+              }))
+            };
+          };
+          const times=new Set();
+          for(const t of frames)
+            if(Math.abs((t.t%3))<.075 || Math.abs(t.t%3-3)<.075)times.add(t.t);
+          const selected=frames.filter(t=>times.has(t.t)).map(compact);
+          const release=(r.readinessAttempts||[])
+            .filter(a=>a.squad==='ge:ge-2')
+            .map(a=>({
+              start:a.startAt,end:a.endAt,endMode:a.endMode,
+              core:a.heldIds,ordered:a.ordered,maxSettled:a.maxSettled,
+              maxArrived:a.maxArrived,release:a.release,endContext:a.endContext,
+              lastActors:a.actorLast?.map(m=>({
+                id:m.id,toPost:m.dist,masked:m.masked,moving:m.moving,
+                owner:m.resolverOwner,execution:m.executionState,stop:m.stopReason
+              }))
+            }));
+          const summary={
+            mode:process.env.MODE,seed:process.env.SEED,
+            firstRecon:r.reconObserverFirst,globalReconSamples:r.reconObserverSamples,
+            recon:r.reconTelemetry,ambush:r.ambush,prepared:r.prepared,shots:r.shots,
+            pressureSamples:r.pressureSamples,precontactCleanSamples:r.precontactCleanSamples,
+            quietReportSamples:r.quietReportSamples,writerConflicts:r.writerConflicts,
+            releases:r.releasesByFaction,
+            geEvents:(r.modeEvents||[]).filter(x=>x.squad==='ge:ge-2'),
+            allAmbushes:(r.modeEvents||[]).filter(x=>x.mode==='ambush'),
+            geAttempt:release,firstFresh:frames.find(t=>(t.contacts||[]).some(x=>x.confidence>=.5)),
+            firstTarget:frames.find(t=>t.members.some(m=>m.targetId!=null))?.t||null
+          };
+          console.log('RECON_CAUSAL_SUMMARY '+JSON.stringify(summary));
+          console.log('RECON_CAUSAL_FRAMES '+JSON.stringify(selected));
+          fs.writeFileSync('reports/recon-causal/causal-summary.json',JSON.stringify({summary,selected},null,2));
+          NODE
+      - name: Native evidence artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recon-causal-seed-${{ matrix.seed }}-${{ matrix.mode }}
+          path: reports/recon-causal/*.json
+          retention-days: 21
+      - name: Check server on failure
+        if: failure()
+        run: tail -100 /tmp/recon-causal-php.log || true
