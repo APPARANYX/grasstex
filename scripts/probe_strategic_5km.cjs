@@ -154,24 +154,32 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
       const b = window.__battle__;
       return ['us', 'ge'].flatMap((faction) => b.factions[faction].squads.map((sq) => {
         const m = sq._macroMission;
+        const origin = m && m.observations && m.observations.squad && m.observations.squad.position;
+        const expectedRoad = origin && m.objectiveId
+          ? window.BattleCommanderRoutes.missionRouteFor(sq, window.__scenario__, m.objectiveId, origin)
+          : [];
+        const actual = m && m.route || [];
+        const followsRoad = expectedRoad.every((p, i) =>
+          actual[i] && Math.hypot(actual[i].x - p.x, actual[i].z - p.z) < 0.01);
         return {
           faction, squad: sq.id, mission: m && m.objectiveId,
-          status: m && m.status, missionRoadLegs: m && m.route && m.route.length || 0,
+          status: m && m.status, missionRoadLegs: actual.length,
+          expectedRoadLegs: expectedRoad.length, followsRoad,
           squadRouteLegs: sq.route && sq.route.length || 0,
-          objectiveDistance: m && m.point && sq.home
-            ? Math.hypot(m.point.x - sq.home.x, m.point.z - sq.home.z) : null
+          objectiveDistance: m && m.point && origin
+            ? Math.hypot(m.point.x - origin.x, m.point.z - origin.z) : null
         };
       }));
     });
     assert.ok(report.simTimeAfterFiveSeconds > 0, 'simulation advances under real Chromium');
-    const longMarches = report.liveMissionRoutes.filter((s) =>
-      s.objectiveDistance != null && s.objectiveDistance > 1800 &&
-      (s.status === 'issued' || s.status === 'executing')
+    const liveMarches = report.liveMissionRoutes.filter((s) =>
+      s.objectiveDistance != null && s.objectiveDistance > 650 && s.status === 'executing'
     );
-    assert.ok(longMarches.length >= 1, 'at least one distant strategic live brief was issued');
-    assert.ok(longMarches.some((s) => s.missionRoadLegs > 0 && s.squadRouteLegs > 1),
-      'live long-distance brief reaches Squad Leader with actual road waypoints: ' +
-      JSON.stringify(longMarches));
+    assert.ok(liveMarches.length >= 1, 'at least one moving strategic brief was accepted');
+    assert.ok(liveMarches.every((s) =>
+      s.followsRoad && s.squadRouteLegs === s.missionRoadLegs + 1
+    ), 'Squad Leader adopts exactly the General brief and its expected public road legs: ' +
+      JSON.stringify(liveMarches));
     assert.deepEqual(errors, [], 'no uncaught page errors');
 
     /* Same Chromium version, soldier count, audio fixture, viewport, PHP loader,
