@@ -804,9 +804,11 @@ const { chromium } = require('playwright');
                       fireControl: sq.fireControl
                         ? {
                             state: sq.fireControl.state,
+                            reason: sq.fireControl.reason || null,
                             ids: (sq.fireControl.supporterIds || []).slice(),
                             point: compactPoint(sq.fireControl.supportPoint),
-                            source: sq.fireControl.supportSource || null
+                            source: sq.fireControl.supportSource || null,
+                            supportAt: sq.fireControl.supportAt ?? null
                           }
                         : null,
                       boundLease: Leases?.get?.(sq, 'bound') || null,
