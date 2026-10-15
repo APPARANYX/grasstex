@@ -299,6 +299,11 @@
         reason === 'fire-control-prep' &&
         stance === 'prone'
       ) {
+        /* An unchanged 'stand' has no stanceTrail transition. Count attempted
+           interventions separately so the A/B does not infer one from a pose. */
+        e._phaseCUsFirePrepIntercepts = (e._phaseCUsFirePrepIntercepts || 0) + 1;
+        e._phaseCUsFirePrepFirstAt =
+          e._phaseCUsFirePrepFirstAt == null ? battle.time : e._phaseCUsFirePrepFirstAt;
         stance = e.stance === 'crouch' ? 'crouch' : 'stand';
         reason = 'phase-c-test:fire-control-prep-no-prone';
       }
