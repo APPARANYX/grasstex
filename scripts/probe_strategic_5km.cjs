@@ -41,10 +41,12 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
     silentAudio.write('data', 36);
     silentAudio.writeUInt32LE(audioSamples * 2, 40);
     let mockedPrivateAudio = 0;
-    await page.route(/\/Assets\/audio\/.*\.mp3(?:\?.*)?$/, (route) => {
+    const audioPattern = /\/Assets\/audio\/.*\.mp3(?:\?.*)?$/;
+    function mockPrivateAudio(route) {
       mockedPrivateAudio++;
       return route.fulfill({ status: 200, contentType: 'audio/wav', body: silentAudio });
-    });
+    }
+    await page.route(audioPattern, mockPrivateAudio);
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e && e.stack || e).slice(0, 900)));
     const url = base + (base.includes('?') ? '&' : '?') +
@@ -79,6 +81,27 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
         obstacles: b.obstacles.length,
         navScenario: !!(window.BattleNavigation && window.BattleNavigation.scenario === s),
         cameraMaxZ: b.scene.activeCamera.maxZ,
+        navPaths: ['us', 'ge'].flatMap((faction) =>
+          s.spawnZones[faction].bases.map((base) => {
+            const goal = s.objectives.filter((obj) => !obj.baseFaction).sort((a, b) =>
+              Math.hypot(a.x - base.x, a.z - base.z) - Math.hypot(b.x - base.x, b.z - base.z)
+            )[0];
+            const from = { x: base.x, z: base.z };
+            const to = { x: goal.x, z: goal.z };
+            const path = window.BattleNavigation.findPath(from, to);
+            const end = path[path.length - 1];
+            const allStepsClear = path.every((waypoint, i) =>
+              window.BattleNavigation.movementClear(i === 0 ? from : path[i - 1], waypoint)
+            );
+            return {
+              base: base.id, goal: goal.id, waypoints: path.length, allStepsClear,
+              reachesGoal: !!end && Math.hypot(end.x - to.x, end.z - to.z) < 0.01
+            };
+          })
+        ),
+        meshes: b.scene.meshes.length,
+        activeMeshes: b.scene.getActiveMeshes().length,
+        vertices: b.scene.getTotalVertices(),
         timeLimit: b.timeLimit,
         factions,
         fps: b.scene.getEngine().getFps(),
@@ -97,6 +120,9 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
     assert.ok(report.buildings >= 8);
     assert.ok(report.terrainVertices >= 80000);
     assert.ok(report.navScenario, 'installed same scenario in physics and navigation');
+    assert.equal(report.navPaths.length, 6);
+    assert.ok(report.navPaths.every((p) => p.reachesGoal && p.allStepsClear && p.waypoints > 0),
+      'all six bases have wall-clear physical navigation to a nearby neutral objective');
     assert.ok(report.terrainBounds.minX <= -2499 && report.terrainBounds.maxX >= 2499);
     assert.ok(report.terrainBounds.minZ <= -2499 && report.terrainBounds.maxZ >= 2499);
     assert.ok(report.cameraMaxZ >= 9000);
@@ -114,6 +140,50 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
     report.fpsAfterFiveSeconds = await page.evaluate(() => window.__battle__.scene.getEngine().getFps());
     assert.ok(report.simTimeAfterFiveSeconds > 0, 'simulation advances under real Chromium');
     assert.deepEqual(errors, [], 'no uncaught page errors');
+
+    /* Same Chromium version, soldier count, audio fixture, viewport, PHP loader,
+       and timed sampling as strategic. Software GPU FPS is not a hardware
+       performance guarantee; the ratio distinguishes a map-size regression. */
+    await page.close();
+    const legacy = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 1360, height: 820 } });
+    await legacy.route(audioPattern, mockPrivateAudio);
+    const legacyErrors = [];
+    legacy.on('pageerror', (e) => legacyErrors.push(String(e && e.stack || e).slice(0, 900)));
+    const legacyStart = Date.now();
+    await legacy.goto(base + (base.includes('?') ? '&' : '?') +
+      'seed=strategic-chromium-0001&log=0', { waitUntil: 'load', timeout: 180000 });
+    await legacy.waitForFunction(() => !!(window.__battle__ && window.__scenario__), null, { timeout: 180000 });
+    report.legacy = await legacy.evaluate(() => {
+      const b = window.__battle__, s = window.__scenario__;
+      return {
+        map: s.map,
+        objectives: s.objectives.length,
+        terrainVertices: b.scene.getMeshByName('battleField').getTotalVertices(),
+        meshes: b.scene.meshes.length,
+        activeMeshes: b.scene.getActiveMeshes().length,
+        vertices: b.scene.getTotalVertices(),
+        obstacles: b.obstacles.length,
+        fps: b.scene.getEngine().getFps(),
+        heap: performance.memory ? performance.memory.usedJSHeapSize : null,
+        soldiers: b._roster.us.length + b._roster.ge.length,
+        timeLimit: b.timeLimit
+      };
+    });
+    report.legacy.bootMs = Date.now() - legacyStart;
+    assert.equal(report.legacy.map.width, 2000);
+    assert.equal(report.legacy.map.depth, 1200);
+    assert.equal(report.legacy.soldiers, 100);
+    assert.equal(report.legacy.timeLimit, 600);
+    await legacy.screenshot({ path: path.join(out, 'legacy-overview.png') });
+    await legacy.evaluate(() => window.__battle__.resume());
+    await legacy.waitForTimeout(5000);
+    report.legacy.simTimeAfterFiveSeconds = await legacy.evaluate(() => window.__battle__.time);
+    report.legacy.fpsAfterFiveSeconds = await legacy.evaluate(() => window.__battle__.scene.getEngine().getFps());
+    assert.ok(report.legacy.simTimeAfterFiveSeconds > 0, 'unchanged legacy scenario advances');
+    assert.deepEqual(legacyErrors, [], 'no uncaught errors from comparison baseline');
+    report.fpsRatioStrategicToLegacy =
+      report.legacy.fpsAfterFiveSeconds > 0 ? report.fpsAfterFiveSeconds / report.legacy.fpsAfterFiveSeconds : null;
+    report.mockedPrivateAudio = mockedPrivateAudio;
     fs.writeFileSync(path.join(out, 'strategic-report.json'), JSON.stringify(report, null, 2) + '\n');
     console.log('STRATEGIC CHROMIUM PASS ' + JSON.stringify(report));
   } finally {
