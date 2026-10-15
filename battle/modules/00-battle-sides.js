@@ -29,6 +29,17 @@
     var zones = scenario && scenario.spawnZones,
       zone = zones && zones[faction],
       center = (scenario && scenario.center) || { x: 0, z: 0 };
+    /* Strategic deployments have three non-collinear bases, not one spawn row.
+       Use their centroid for attacker/defender depth; retain the legacy lane calculation. */
+    if (scenario && scenario.profile === 'strategic' && zone && zone.bases && zone.bases.length) {
+      var sumX = 0,
+        sumZ = 0;
+      zone.bases.forEach(function (base) {
+        sumX += base.x;
+        sumZ += base.z;
+      });
+      return { x: sumX / zone.bases.length, z: sumZ / zone.bases.length };
+    }
     var lanes = (zone && zone.lanes) || [],
       x = center.x || 0;
     if (lanes.length) {
