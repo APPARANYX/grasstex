@@ -4,14 +4,19 @@
 (function (root) {
   'use strict';
   if (typeof BABYLON === 'undefined') return;
-  var FIELD_W = root.PHASE_C_COMBAT_LAB ? 280 : 2000,
-    FIELD_D = root.PHASE_C_COMBAT_LAB ? 240 : 1200,
+  /* BattleSim loads before the extra scenario runtime on the hosted PHP page.
+     Read the opt-in directly; do not rely on load order or change legacy constants. */
+  var STRATEGIC_FIELD = !root.PHASE_C_COMBAT_LAB &&
+    (root.STRATEGIC_INTERCEPTION_ENABLED === true ||
+      (root.location && /[?&]strategicInterception=1(?:&|$)/.test(root.location.search || '')));
+  var FIELD_W = root.PHASE_C_COMBAT_LAB ? 280 : STRATEGIC_FIELD ? 5000 : 2000,
+    FIELD_D = root.PHASE_C_COMBAT_LAB ? 240 : STRATEGIC_FIELD ? 5000 : 1200,
     SPAWN_Z = 510,
     LANES = [-700, -350, 0, 350, 700];
   var AI_TICK = 0.15,
-    DEFAULT_TIME_LIMIT = 600,
-    SUB_X = 160,
-    SUB_Z = 96,
+    DEFAULT_TIME_LIMIT = STRATEGIC_FIELD ? 1800 : 600,
+    SUB_X = STRATEGIC_FIELD ? 288 : 160,
+    SUB_Z = STRATEGIC_FIELD ? 288 : 96,
     GRIDX = SUB_X + 1,
     GRIDZ = SUB_Z + 1,
     gridH = null,
@@ -114,7 +119,7 @@
     return currentGround;
   }
   function buildSky(scene) {
-    var radius = 1800,
+    var radius = STRATEGIC_FIELD ? 6800 : 1800,
       offset = 0.11;
     BABYLON.Effect.ShadersStore.battleSkyDomeVertexShader =
       'precision highp float;attribute vec3 position;uniform mat4 worldViewProjection;varying vec3 vDir;void main(){vDir=position;gl_Position=worldViewProjection*vec4(position,1.0);}';
@@ -428,15 +433,27 @@
       var zn = zone(faction),
         z = zn.z,
         lanes = zn.lanes || LANES,
+        strategicBases = scenario && scenario.profile === 'strategic' ? zn.bases : null,
+        count = strategicBases && strategicBases.length ? 5 : lanes.length,
         facingObjectiveZ = faction === 'us' ? Math.abs(z) : -Math.abs(z);
-      for (var li = 0; li < lanes.length; li++) {
-        var laneX = lanes[li],
-          home = { x: laneX, z: z },
-          objective = {
-            x: scenario && scenario.center ? scenario.center.x : laneX,
-            z: scenario && scenario.center ? scenario.center.z : facingObjectiveZ
-          },
-          squad = SquadAI.createSquad(faction + '-' + li, faction, home, objective),
+      for (var li = 0; li < count; li++) {
+        /* Five squads across three bases: first three one each, remaining two reinforce.
+           Future vehicle assets can attach to these same base/mission identities. */
+        var base = strategicBases && strategicBases.length ? strategicBases[li % strategicBases.length] : null,
+          laneX = base ? base.x : lanes[li],
+          laneZ = base ? base.z : z,
+          home = { x: laneX, z: laneZ },
+          objective = base
+            ? { x: laneX, z: laneZ }
+            : {
+                x: scenario && scenario.center ? scenario.center.x : laneX,
+                z: scenario && scenario.center ? scenario.center.z : facingObjectiveZ
+              },
+          squad = SquadAI.createSquad(faction + '-' + li, faction, home, objective);
+        if (base) {
+          squad.homeBaseId = base.id;
+          squad.homeBaseObjectiveId = base.objectiveId;
+        }
           dealt =
             root.BattleSoldierStats && root.BattleSoldierStats.deal
               ? root.BattleSoldierStats.deal(faction, nextId, SquadAI.COMPOSITION)
@@ -444,10 +461,10 @@
         for (var si = 0; si < SquadAI.COMPOSITION.length; si++) {
           var role = SquadAI.COMPOSITION[si],
             jx = laneX + (self.random() - 0.5) * 8,
-            jz = z + (self.random() - 0.5) * 6,
+            jz = laneZ + (self.random() - 0.5) * 6,
             model = BattleSoldierModel.createSoldier(scene, faction, role, null);
           model.root.position.set(jx, sampleAt(jx, jz), jz);
-          model.root.rotation.y = objective.z > z ? 0 : Math.PI;
+          model.root.rotation.y = faction === 'us' ? 0 : Math.PI;
           var deal = SquadAI.dealLoadout(scene, model.weaponSocket, role, faction),
             weapon = deal.weapon,
             soldier = SquadAI.createSoldier({
