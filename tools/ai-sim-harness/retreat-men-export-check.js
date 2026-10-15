@@ -28,7 +28,10 @@ assert.equal(s0.retreatGate, null);
 b._sides = { meeting: true, defender: null, attacker: null };
 const meeting = r.BattleDiagnosticsExport.compact(b);
 assert.deepEqual(meeting.deployment, { mode: 'meeting', defender: null, attacker: null });
-const timelineMode = snap => JSON.parse(r.BattleDiagnosticsExport.timelineJsonl(snap).split('\n')[0]).deployment;
+const timelineMode = snap => {
+  const firstRow = r.BattleDiagnosticsExport.timelineJsonl(snap).split('\n')[0];
+  return JSON.parse(firstRow).deployment;
+};
 assert.deepEqual(timelineMode(meeting), meeting.deployment);
 b._sides = { meeting: false, defender: 'ge', attacker: 'us' };
 const prepared = r.BattleDiagnosticsExport.compact(b);
