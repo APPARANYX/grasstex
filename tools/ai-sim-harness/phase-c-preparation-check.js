@@ -175,6 +175,15 @@ function dwelling(flags) {
   w.b.time += 0.15;
   assert.ok(w.P.update(w.b, w.sq) === st, 'ready observation keeps geometry-only safety');
   assert.ok(st.compromisedAt == null, 'missing intel does not fabricate exposed posts');
+  w.b.time += 0.15;
+  w.r.SquadAI.squadContactsMap = () => [
+    { x: 0, z: 20, at: w.b.time, confidence: 0.8, targetId: 'reported-002', source: 'told' }
+  ];
+  assert.ok(w.P.update(w.b, w.sq) === st, 'fresh delivered report can re-enter a retained observation');
+  assert.equal(st.threats.length, 1, 'empty prior intel cannot veto a fresh report');
+  assert.equal(st.threats[0].targetId, 'reported-002');
+  assert.ok(w.r.BattleLeases.get(w.sq, 'bound') == null, 'a new told report alone cannot authorize a bound');
+  assert.equal(w.b.events.fired, 0);
 }
 for (const reason of ['target', 'suppression', 'emergency', 'displacement']) {
   const w = world(0.5, '&fireManeuverOperation=1');

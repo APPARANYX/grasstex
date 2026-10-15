@@ -241,7 +241,7 @@
          target/sector identity and remain inside the existing 10 s age cap.
          Any current >=0.5 report supersedes the preparation snapshot normally. */
       var raw = A.squadContactsMap(sq, b);
-      if (!Array.isArray(raw) || raw.length > 32 || !st || !st.threats || !st.threats.length) return [];
+      if (!Array.isArray(raw) || raw.length > 32 || !st) return [];
       var confidentCount = raw.filter(function (r) {
         return (
           point(r) &&
@@ -256,6 +256,10 @@
          veto. A normal new confident set supersedes the detached snapshot. */
       if (confidentCount > 3) return [];
       if (confidentCount > 0) return selected;
+      /* A geometry-only observation intentionally has no retained intel.
+         That must not veto a newly delivered fresh report above. Only the
+         sub-threshold continuity fallback needs an earlier live snapshot. */
+      if (!st.threats || !st.threats.length) return [];
       var out = [];
       st.threats.forEach(function (old) {
         var match = raw.find(function (r) {
