@@ -462,8 +462,11 @@
             ? root.BattleSoldierStats.deal(faction, nextId, SquadAI.COMPOSITION)
             : null;
         for (var si = 0; si < SquadAI.COMPOSITION.length; si++) {
+          /* The two squads sharing a base use distinct 28 m assembly pads, rather
+             than occupying the same 8 x 6 m initial infantry footprint. */
+          var assemblyOffset = base ? (li >= strategicBases.length ? 28 : -28) : 0;
           var role = SquadAI.COMPOSITION[si],
-            jx = laneX + (self.random() - 0.5) * 8,
+            jx = laneX + assemblyOffset + (self.random() - 0.5) * 8,
             jz = laneZ + (self.random() - 0.5) * 6,
             model = BattleSoldierModel.createSoldier(scene, faction, role, null);
           model.root.position.set(jx, sampleAt(jx, jz), jz);
