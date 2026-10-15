@@ -121,6 +121,17 @@ const { chromium } = require('playwright');
                 soldier: String(s.id),
                 state: root.BattleEngagement?.stateOf?.(s)?.state || null
               });
+            /* Diagnostics only (does not feed any acceptance count): orderedBound consumes
+               boundOrder when the dash starts and the bound lease is a short window, so
+               the lease/boundOrder metrics below cannot see a bound in flight. */
+            if (
+              s?.squad &&
+              (s.squad.members || []).some(m => {
+                const e = m !== s && !m.dead && m.moving && root.BattleEngagement?.stateOf?.(m);
+                return e?.state === 'bound' && /^authorized fireteam bound/.test(e.transition?.reason || '');
+              })
+            )
+              active.supportFireDuringBoundState++;
             if (!s?.squad || !root.BattleLeases?.holds?.(s.squad, 'bound', b.time)) return;
             const movers = (s.squad.members || []).filter(
               m =>
@@ -175,6 +186,8 @@ const { chromium } = require('playwright');
                 coveredArrivals: 0,
                 movedMetres: 0,
                 supportFireDuringMove: 0,
+                supportFireDuringBoundState: 0,
+                coveredArrivalsByState: 0,
                 shots: 0,
                 livingContactSamples: 0,
                 reportSamples: 0,
@@ -1189,6 +1202,28 @@ const { chromium } = require('playwright');
                         }
                       }
                     }
+                    /* Diagnostics only: a covered bound tracked by the Engagement state that
+                       owns it, from entering 'bound' with a cover point to leaving it there. */
+                    prev.boundState = prev.boundState || {};
+                    for (const s of sq.members || []) {
+                      const e = root.BattleEngagement?.stateOf?.(s),
+                        p = s?.root?.position;
+                      if (!e || !p) continue;
+                      const was = prev.boundState[s.id];
+                      if (e.state === 'bound' && e.cover) {
+                        // Only the Squad Leader's authorized bound, not a self-preservation cover dash.
+                        if (!was && /^authorized fireteam bound/.test(e.transition?.reason || ''))
+                          prev.boundState[s.id] = { x: p.x, z: p.z, cover: { x: e.cover.x, z: e.cover.z } };
+                      } else if (was) {
+                        delete prev.boundState[s.id];
+                        if (
+                          !s.dead &&
+                          Math.hypot(p.x - was.x, p.z - was.z) > 0.75 &&
+                          Math.hypot(p.x - was.cover.x, p.z - was.cover.z) <= 1.2
+                        )
+                          active.coveredArrivalsByState++;
+                      }
+                    }
                     if (mode === 'none' && fresh && !sq.inContact) {
                       const commanded = (sq.members || []).filter(
                         s => s && !s.dead && s.hp > 0 && !root.BattleEngagement?.fledPhase?.(s)
@@ -1372,6 +1407,8 @@ const { chromium } = require('playwright');
               bounds: sum('bounds'),
               coveredArrivals: sum('coveredArrivals'),
               supportFireDuringMove: sum('supportFireDuringMove'),
+              supportFireDuringBoundState: sum('supportFireDuringBoundState'),
+              coveredArrivalsByState: sum('coveredArrivalsByState'),
               completedNaturalChains: a.reduce(
                 (n, x) => n + x.maneuverChains.filter(c => c.complete).length,
                 0
