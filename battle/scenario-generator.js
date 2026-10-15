@@ -263,7 +263,6 @@
     return clamp(1 - Math.sqrt(sum / Math.max(0.0001, weight)), 0, 1);
   }
 
-
   /* Separate deterministic 5 km profile. The legacy generator and RNG draw sequence stay intact. */
   function pointSegmentDistance(x, z, road) {
     var dx = road.bx - road.ax,
@@ -274,18 +273,36 @@
   }
   function createStrategic(seed, opts) {
     var r = rngFor(seed, 'strategic-5km-v1'),
-      jitter = function (n) { return round(rr(r, -n, n), 1); },
+      jitter = function (n) {
+        return round(rr(r, -n, n), 1);
+      },
       points = [
-        [-1710, -2060], [1600, -1950], [-100, -1530],
-        [-1640, 2040], [1690, 1980], [190, 1540],
-        [-1650, -620], [1510, -570], [-130, -410],
-        [-1590, 650], [1560, 720], [210, 510]
+        [-1710, -2060],
+        [1600, -1950],
+        [-100, -1530],
+        [-1640, 2040],
+        [1690, 1980],
+        [190, 1540],
+        [-1650, -620],
+        [1510, -570],
+        [-130, -410],
+        [-1590, 650],
+        [1560, 720],
+        [210, 510]
       ],
       names = [
-        'US western base', 'US eastern base', 'US inland base',
-        'German western base', 'German eastern base', 'German inland base',
-        'Western approach', 'Eastern approach', 'Southern crossroads',
-        'Northern ford', 'Eastern junction', 'Northern crossroads'
+        'US western base',
+        'US eastern base',
+        'US inland base',
+        'German western base',
+        'German eastern base',
+        'German inland base',
+        'Western approach',
+        'Eastern approach',
+        'Southern crossroads',
+        'Northern ford',
+        'Eastern junction',
+        'Northern crossroads'
       ],
       objectives = points.map(function (p, i) {
         return {
@@ -300,36 +317,78 @@
         };
       });
     var links = [
-      [0, 6], [1, 7], [2, 8], [3, 9], [4, 10], [5, 11],
-      [6, 8], [8, 7], [9, 11], [11, 10],
-      [6, 9], [8, 11], [7, 10],
-      [6, 11], [7, 11], [8, 9], [8, 10],
-      [0, 8], [1, 8], [3, 11], [4, 11]
+      [0, 6],
+      [1, 7],
+      [2, 8],
+      [3, 9],
+      [4, 10],
+      [5, 11],
+      [6, 8],
+      [8, 7],
+      [9, 11],
+      [11, 10],
+      [6, 9],
+      [8, 11],
+      [7, 10],
+      [6, 11],
+      [7, 11],
+      [8, 9],
+      [8, 10],
+      [0, 8],
+      [1, 8],
+      [3, 11],
+      [4, 11]
     ];
     var roads = links.map(function (pair, i) {
-      var a = objectives[pair[0]], b = objectives[pair[1]];
+      var a = objectives[pair[0]],
+        b = objectives[pair[1]];
       return {
-        id: 'strategic-road-' + i, fromObjectiveId: a.id, toObjectiveId: b.id,
-        ax: a.x, az: a.z, bx: b.x, bz: b.z, width: i < 13 ? 11 : 8
+        id: 'strategic-road-' + i,
+        fromObjectiveId: a.id,
+        toObjectiveId: b.id,
+        ax: a.x,
+        az: a.z,
+        bx: b.x,
+        bz: b.z,
+        width: i < 13 ? 11 : 8
       };
     });
-    var buildings = [], settlements = [];
+    var buildings = [],
+      settlements = [];
     /* Small hamlets flank approach junctions; neither roads nor spawn/capture hubs are blocked. */
     for (var c = 6; c < 12; c++) {
-      var hub = objectives[c], placed = 0, tries = 0;
+      var hub = objectives[c],
+        placed = 0,
+        tries = 0;
       settlements.push({ id: 'hamlet-' + c, x: hub.x, z: hub.z, objectiveId: hub.id });
       while (placed < 4 && tries++ < 140) {
         var angle = rr(r, 0, Math.PI * 2),
           distance = rr(r, 100, 175),
           x = round(hub.x + Math.cos(angle) * distance, 2),
           z = round(hub.z + Math.sin(angle) * distance, 2),
-          w = rr(r, 11, 21), d = rr(r, 9, 18),
+          w = rr(r, 11, 21),
+          d = rr(r, 9, 18),
           candidate = { x: x, z: z, w: w, d: d },
           radius = Math.hypot(w, d) / 2 + 6;
         if (Math.abs(x) > 2400 || Math.abs(z) > 2400) continue;
-        if (objectives.some(function (o) { return Math.hypot(o.x - x, o.z - z) < o.radius + radius; })) continue;
-        if (roads.some(function (road) { return pointSegmentDistance(x, z, road) < road.width / 2 + radius; })) continue;
-        if (buildings.some(function (b) { return overlaps(candidate, b, 12); })) continue;
+        if (
+          objectives.some(function (o) {
+            return Math.hypot(o.x - x, o.z - z) < o.radius + radius;
+          })
+        )
+          continue;
+        if (
+          roads.some(function (road) {
+            return pointSegmentDistance(x, z, road) < road.width / 2 + radius;
+          })
+        )
+          continue;
+        if (
+          buildings.some(function (b) {
+            return overlaps(candidate, b, 12);
+          })
+        )
+          continue;
         buildings.push(makeBuilding('SB' + (buildings.length + 1), x, z, w, d, r));
         placed++;
       }
@@ -351,8 +410,20 @@
       settlement: { cx: 0, cz: 0, spanX: 4500, spanZ: 4500 },
       settlements: settlements,
       spawnZones: {
-        us: { z: bases.us[2].z, lanes: bases.us.map(function (b) { return b.x; }), bases: bases.us },
-        ge: { z: bases.ge[2].z, lanes: bases.ge.map(function (b) { return b.x; }), bases: bases.ge }
+        us: {
+          z: bases.us[2].z,
+          lanes: bases.us.map(function (b) {
+            return b.x;
+          }),
+          bases: bases.us
+        },
+        ge: {
+          z: bases.ge[2].z,
+          lanes: bases.ge.map(function (b) {
+            return b.x;
+          }),
+          bases: bases.ge
+        }
       },
       roads: roads,
       buildings: buildings,
