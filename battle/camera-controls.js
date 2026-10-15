@@ -188,7 +188,7 @@
     );
     camera.lowerRadiusLimit = 90;
     camera.upperRadiusLimit = global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 5400 : 1850;
-    camera.maxZ = CAMERA_FAR;
+    camera.maxZ = global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 9500 : 2600;
     camera.lowerBetaLimit = 0.28;
     camera.upperBetaLimit = 1.5;
     camera.wheelPrecision = 3;
