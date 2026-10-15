@@ -297,36 +297,48 @@ function exposing(flags) {
     { x: report.x, z: report.z, at: w.b.time, confidence: 1, targetId: 'moving-1', source: 'told' }
   ];
   const originalMask = w.C.maskedPost;
-  w.C.maskedPost = (b, p, rs) =>
-    originalMask(b, p, rs) && rs.every(r => (r.x === 0 ? p.x < 0 : p.x > -5));
+  w.C.maskedPost = (b, p, rs) => originalMask(b, p, rs) && rs.every(r => (r.x === 0 ? p.x < 0 : p.x > -5));
   w.C.candidates = () => [];
   const first = w.P.update(w.b, w.sq);
   assert.ok(first && first.serial === 1, 'valid initial masked posts before dwell');
   H.run(w.r, w.b, 3);
-  assert.ok(first.heldSince != null && first.readyAt == null,
-    'the same three physical men have started—but not completed—the four-second hold');
+  assert.ok(
+    first.heldSince != null && first.readyAt == null,
+    'the same three physical men have started—but not completed—the four-second hold'
+  );
   const initialHold = first.heldSince;
   report = { x: 50, z: 20 };
   w.b.time += 0.15;
   const replanned = w.P.update(w.b, w.sq);
-  assert.ok(replanned && replanned.serial === first.serial + 1,
-    'a fresh enemy sector exposing the incomplete line triggers a new serial: ' + JSON.stringify({
-      now:w.b.time,oldSince:first.since,oldHeldSince:first.heldSince,
-      oldHeldIds:first.heldActorIds,releases:w.P.releases(w.sq),
-      oldPosts:first.orders.filter(o=>!o.reserve).map(o=>[o.soldierId,o.point.x]),
-      actors:w.sq.members.map(m=>[m.id,+m.root.position.x.toFixed(2)]),
-      deferrals:w.P.approachDeferrals(w.sq)
-    }));
-  assert.equal(replanned.since, first.since,
-    'replanning retains the original finite preparation budget');
-  assert.equal(replanned.heldSince, null,
-    'the original three-man dwell cannot transfer to new physical stations');
+  assert.ok(
+    replanned && replanned.serial === first.serial + 1,
+    'a fresh enemy sector exposing the incomplete line triggers a new serial: ' +
+      JSON.stringify({
+        now: w.b.time,
+        oldSince: first.since,
+        oldHeldSince: first.heldSince,
+        oldHeldIds: first.heldActorIds,
+        releases: w.P.releases(w.sq),
+        oldPosts: first.orders.filter(o => !o.reserve).map(o => [o.soldierId, o.point.x]),
+        actors: w.sq.members.map(m => [m.id, +m.root.position.x.toFixed(2)]),
+        deferrals: w.P.approachDeferrals(w.sq)
+      })
+  );
+  assert.equal(replanned.since, first.since, 'replanning retains the original finite preparation budget');
+  assert.equal(
+    replanned.heldSince,
+    null,
+    'the original three-man dwell cannot transfer to new physical stations'
+  );
   assert.equal(replanned.readyAt, null, 'no readiness from the old line');
-  assert.ok(replanned.orders.filter(o => !o.reserve).every(o => o.point.x > -5),
-    'replacement posts must independently mask against the new enemy position');
-  assert.ok(w.P.releases(w.sq).some(x =>
-    x.serial === first.serial && /^replan:/.test(x.reason)),
-    'the former core was explicitly invalidated');
+  assert.ok(
+    replanned.orders.filter(o => !o.reserve).every(o => o.point.x > -5),
+    'replacement posts must independently mask against the new enemy position'
+  );
+  assert.ok(
+    w.P.releases(w.sq).some(x => x.serial === first.serial && /^replan:/.test(x.reason)),
+    'the former core was explicitly invalidated'
+  );
   assert.ok(initialHold >= first.since, 'the old observed dwell was legitimate');
 }
 {

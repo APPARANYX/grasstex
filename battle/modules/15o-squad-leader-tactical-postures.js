@@ -21,8 +21,7 @@
       operationOn = on && /[?&]fireManeuverOperation=(?:1|on|true)(?:&|#|$)/i.test(query),
       /* Experimental placement ONLY. Predictive points never enter freshReports,
          fire-control authority, suppression, route threats, or bound eligibility. */
-      predictAmbushOn =
-        operationOn && /[?&]predictAmbush=(?:1|on|true)(?:&|#|$)/i.test(query),
+      predictAmbushOn = operationOn && /[?&]predictAmbush=(?:1|on|true)(?:&|#|$)/i.test(query),
       /* ?postArrival=0 restores selecting posts masked only at their exact point. */
       postArrivalOn = !/[?&]postArrival=(?:0|off|false)(?:&|#|$)/i.test(query),
       states = new WeakMap(),
@@ -283,8 +282,7 @@
           vx = dx / dt,
           vz = dz / dt,
           aligned =
-            !t.velocity ||
-            (vx * t.velocity.vx + vz * t.velocity.vz) / (speed * t.velocity.speed) >= 0.75;
+            !t.velocity || (vx * t.velocity.vx + vz * t.velocity.vz) / (speed * t.velocity.speed) >= 0.75;
         if (speed < 0.6 || speed > 7 || !aligned) {
           store.tracks[key] = { last: sample, velocity: null, stable: 0 };
           return;
@@ -1422,97 +1420,100 @@
           var orders = [],
             aim = lead ? lead.planningReport : rs[0],
             aimReports = lead ? [aim] : rs;
-        for (var i = 0; i < a.length; i++) {
-          var s = a[i],
-            here = point(s.root.position),
-            candidate = null,
-            firingQualified = false,
-            options = [here].concat(C.candidates(s, b, { root: { position: aim } }, 6).slice(0, 16));
-          for (var j = 0; j < options.length; j++) {
-            var p = point(options[j]);
-            if (
-              !p ||
-              orders.some(function (o) {
-                return Math.hypot(o.point.x - p.x, o.point.z - p.z) < 1.5;
-              })
-            )
-              continue;
-            if (!occupiablePost(b, p, rs) ||
-              !C.maskedApproach(s, b, p, rs) ||
-              (lead && (!occupiablePost(b, p, aimReports) || !C.maskedApproach(s, b, p, aimReports)))) continue;
-            /* A masked post can still be entirely unable to fire over its
+          for (var i = 0; i < a.length; i++) {
+            var s = a[i],
+              here = point(s.root.position),
+              candidate = null,
+              firingQualified = false,
+              options = [here].concat(C.candidates(s, b, { root: { position: aim } }, 6).slice(0, 16));
+            for (var j = 0; j < options.length; j++) {
+              var p = point(options[j]);
+              if (
+                !p ||
+                orders.some(function (o) {
+                  return Math.hypot(o.point.x - p.x, o.point.z - p.z) < 1.5;
+                })
+              )
+                continue;
+              if (
+                !occupiablePost(b, p, rs) ||
+                !C.maskedApproach(s, b, p, rs) ||
+                (lead && (!occupiablePost(b, p, aimReports) || !C.maskedApproach(s, b, p, aimReports)))
+              )
+                continue;
+              /* A masked post can still be entirely unable to fire over its
                crest. Prefer a second safe post with a physically viable
                standing ray toward a detached squad report, but never
                weaken masking, approach or fire-authorization gates. */
-            if (!candidate) candidate = p;
-            if (maneuverOn && A.canSuppressStanding) {
-              var proxy = Object.assign({}, s, {
-                root: Object.assign({}, s.root, { position: p })
-              });
-              if (
-                aimReports.some(function (r) {
-                  return A.canSuppressStanding(proxy, r, b);
-                })
-              ) {
-                candidate = p;
-                firingQualified = true;
-                break;
-              }
-            } else break;
-          }
-          /* Cover-slot rings can all lie just behind a crest: a standing
+              if (!candidate) candidate = p;
+              if (maneuverOn && A.canSuppressStanding) {
+                var proxy = Object.assign({}, s, {
+                  root: Object.assign({}, s.root, { position: p })
+                });
+                if (
+                  aimReports.some(function (r) {
+                    return A.canSuppressStanding(proxy, r, b);
+                  })
+                ) {
+                  candidate = p;
+                  firingQualified = true;
+                  break;
+                }
+              } else break;
+            }
+            /* Cover-slot rings can all lie just behind a crest: a standing
              eye sees the reported sector but the lower ballistic aim ray
              cannot clear the same terrain. Before accepting observation
              only, inspect a bounded 0.75/1.5 m adjustment about the selected
              masked slot. Every alternative must independently pass the
              SAME masking, safe-approach and native standing-shot predicates.
              No terrain, target truth or movement ownership is bypassed. */
-          if (candidate && !firingQualified && maneuverOn && A.canSuppressStanding) {
-            var originalPost = candidate;
-            for (var ring = 0; ring < 2 && !firingQualified; ring++) {
-              var step = ring === 0 ? 0.75 : 1.5;
-              for (var bearing = 0; bearing < 8; bearing++) {
-                var angle = (Math.PI * 2 * bearing) / 8,
-                  trial = {
-                    x: originalPost.x + Math.sin(angle) * step,
-                    z: originalPost.z + Math.cos(angle) * step
-                  };
-                if (
-                  orders.some(function (o) {
-                    return Math.hypot(o.point.x - trial.x, o.point.z - trial.z) < 1.5;
-                  }) ||
-                  !occupiablePost(b, trial, rs) ||
-                  !C.maskedApproach(s, b, trial, rs)
-                )
-                  continue;
-                var trialShooter = Object.assign({}, s, {
-                  root: Object.assign({}, s.root, { position: trial })
-                });
-                if (
-                  aimReports.some(function (r) {
-                    return A.canSuppressStanding(trialShooter, r, b);
-                  })
-                ) {
-                  candidate = trial;
-                  firingQualified = true;
-                  break;
+            if (candidate && !firingQualified && maneuverOn && A.canSuppressStanding) {
+              var originalPost = candidate;
+              for (var ring = 0; ring < 2 && !firingQualified; ring++) {
+                var step = ring === 0 ? 0.75 : 1.5;
+                for (var bearing = 0; bearing < 8; bearing++) {
+                  var angle = (Math.PI * 2 * bearing) / 8,
+                    trial = {
+                      x: originalPost.x + Math.sin(angle) * step,
+                      z: originalPost.z + Math.cos(angle) * step
+                    };
+                  if (
+                    orders.some(function (o) {
+                      return Math.hypot(o.point.x - trial.x, o.point.z - trial.z) < 1.5;
+                    }) ||
+                    !occupiablePost(b, trial, rs) ||
+                    !C.maskedApproach(s, b, trial, rs)
+                  )
+                    continue;
+                  var trialShooter = Object.assign({}, s, {
+                    root: Object.assign({}, s.root, { position: trial })
+                  });
+                  if (
+                    aimReports.some(function (r) {
+                      return A.canSuppressStanding(trialShooter, r, b);
+                    })
+                  ) {
+                    candidate = trial;
+                    firingQualified = true;
+                    break;
+                  }
                 }
               }
             }
-          }
-          /* Do not place this soldier at an exposed default slot. A masked
+            /* Do not place this soldier at an exposed default slot. A masked
              fireteam is useful even when another eligible squad member has
              no concealed post; that man remains under his existing orders. */
-          if (candidate)
-            orders.push({
-              soldierId: String(s.id),
-              point: candidate,
-              watchPoint: point(aim),
-              /* This is a pre-contact ballistic preflight, NOT fire permission.
+            if (candidate)
+              orders.push({
+                soldierId: String(s.id),
+                point: candidate,
+                watchPoint: point(aim),
+                /* This is a pre-contact ballistic preflight, NOT fire permission.
                  Masked eye-line posts without a usable shot remain observers. */
-              firingQualified: firingQualified
-            });
-        }
+                firingQualified: firingQualified
+              });
+          }
           return orders;
         }
         var orders = selectPosts(forecast);
@@ -1522,7 +1523,9 @@
           forecast &&
           (orders.length < 3 ||
             (maneuverOn &&
-              orders.filter(function (o) { return o.firingQualified; }).length < tuning.minSupport))
+              orders.filter(function (o) {
+                return o.firingQualified;
+              }).length < tuning.minSupport))
         ) {
           orders = selectPosts(null);
           forecast = null;
@@ -1701,12 +1704,7 @@
                Carry ONLY the original preparation start so the 12-second
                budget is not renewed by moving targets or repeated replans.
                No exposed man remains authorized to hold the old position. */
-            if (
-              operationOn &&
-              !replanning &&
-              rs.length &&
-              now - st.since <= tuning.preparationBudget
-            ) {
+            if (operationOn && !replanning && rs.length && now - st.since <= tuning.preparationBudget) {
               var carried = { since: st.since, from: st.serial };
               end(b, sq, 'replan: newer report exposed a firing post', true);
               replanning = carried;
