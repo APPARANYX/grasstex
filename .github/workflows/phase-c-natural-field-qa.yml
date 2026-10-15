@@ -16,10 +16,15 @@ on:
       - battle/modules/19b-engagement-fire-stance.js
       - battle/engagement.js
   workflow_dispatch:
+    inputs:
+      extra_query:
+        description: Extra page flags for a control arm (e.g. postArrival=0)
+        required: false
+        default: ''
 permissions:
   contents: read
 concurrency:
-  group: phase-c-operation-natural-${{ github.ref }}
+  group: phase-c-operation-natural-${{ github.ref }}-${{ inputs.extra_query }}
   cancel-in-progress: true
 jobs:
   paired-natural:
@@ -60,6 +65,7 @@ jobs:
           # Run 54 ON natural battles against the same previously pinned OFF baseline.
           # This changes runtime cost only; it never changes acceptance criteria.
           C_FIELD_ARMS: 'on'
+          C_FIELD_EXTRA_QUERY: ${{ inputs.extra_query }}
           C_FIELD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/probes/probe_phase_c_natural.cjs
       - name: Upload paired causal observation

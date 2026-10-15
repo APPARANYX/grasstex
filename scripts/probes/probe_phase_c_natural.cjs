@@ -20,7 +20,8 @@ const { chromium } = require('playwright');
   const base = process.env.C_FIELD_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
   const flags =
     'localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1&fireCoverCycle=1&squadReturnFire=1' +
-    (process.env.C_FIELD_OPERATION === '1' ? '&fireManeuverOperation=1' : '');
+    (process.env.C_FIELD_OPERATION === '1' ? '&fireManeuverOperation=1' : '') +
+    (process.env.C_FIELD_EXTRA_QUERY ? '&' + process.env.C_FIELD_EXTRA_QUERY : '');
   const arms = String(process.env.C_FIELD_ARMS || 'off,on')
     .split(',')
     .map(a => a.trim())
