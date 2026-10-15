@@ -182,6 +182,10 @@ const { chromium } = require('playwright');
                 precontactCleanSamples: 0,
                 pressureSamples: 0,
                 reportedPressureEvents: 0,
+                reconObserverTicks: 0,
+                reconObserverSamples: 0,
+                reconObserverFirst: [],
+                reconObserversBySide: { us: 0, ge: 0 },
                 modeEvents: [],
                 rejectionSamples: {},
                 contactChangeEvents: 0,
@@ -488,6 +492,27 @@ const { chromium } = require('playwright');
                   commanderAccumulator -= 0.45;
                   root.BattleCommanderAI.update(b, scenario, 0.45);
                 }
+                /* All-squad scouting diagnostic. A trace of one German squad
+                   can miss legitimate recon eyes elsewhere in the battle.
+                   No writes to combat state or Perception. */
+                let activeReconObservers = 0;
+                for (const faction of ['us', 'ge'])
+                  for (const scout of b._roster?.[faction] || []) {
+                    if (!root.SquadAI?.reconScoutObserving?.(scout, b)) continue;
+                    activeReconObservers++;
+                    active.reconObserverSamples++;
+                    active.reconObserversBySide[faction]++;
+                    if (active.reconObserverFirst.length < 8)
+                      active.reconObserverFirst.push({
+                        t: +b.time.toFixed(2),
+                        side: faction,
+                        id: String(scout.id),
+                        sight: !!scout.target,
+                        stance: scout.prone ? 'prone' : scout.tacticalCrouch ? 'crouch' : 'stand',
+                        point: compactPoint(scout._reconObservation)
+                      });
+                  }
+                if (activeReconObservers) active.reconObserverTicks++;
                 // Observe every native tick: a completed cover arrival can clear
                 // boundOrder before the slower diagnostic sample would see it.
                 for (const faction of ['us', 'ge']) {
@@ -1274,6 +1299,16 @@ const { chromium } = require('playwright');
               active.winner = b.winner || 'none';
               active.kills = { us: b.factions?.us?.kills || 0, ge: b.factions?.ge?.kills || 0 };
               active.postures = root.BattleSquadStability?.localPlanTelemetry?.(b)?.postures || null;
+              /* Existing Meso recon accounting, copied for comparison only. */
+              active.reconTelemetry = b._scoutsForwardStats
+                ? {
+                    orders: b._scoutsForwardStats.orders,
+                    contacts: b._scoutsForwardStats.contacts,
+                    reportsDelivered: b._scoutsForwardStats.reportsDelivered,
+                    reportedEpisodes: b._scoutsForwardStats.reportedEpisodes,
+                    scoutsSelected: b._scoutsForwardStats.scoutsSelected
+                  }
+                : null;
               active.releasesByFaction = {};
               for (const faction of ['us', 'ge'])
                 for (const sq of b.factions?.[faction]?.squads || [])
