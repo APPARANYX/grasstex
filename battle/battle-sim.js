@@ -6,7 +6,8 @@
   if (typeof BABYLON === 'undefined') return;
   /* BattleSim loads before the extra scenario runtime on the hosted PHP page.
      Read the opt-in directly; do not rely on load order or change legacy constants. */
-  var STRATEGIC_FIELD = !root.PHASE_C_COMBAT_LAB &&
+  var STRATEGIC_FIELD =
+    !root.PHASE_C_COMBAT_LAB &&
     (root.STRATEGIC_INTERCEPTION_ENABLED === true ||
       (root.location && /[?&]strategicInterception=1(?:&|$)/.test(root.location.search || '')));
   var FIELD_W = root.PHASE_C_COMBAT_LAB ? 280 : STRATEGIC_FIELD ? 5000 : 2000,
@@ -439,7 +440,8 @@
       for (var li = 0; li < count; li++) {
         /* Five squads across three bases: first three one each, remaining two reinforce.
            Future vehicle assets can attach to these same base/mission identities. */
-        var base = strategicBases && strategicBases.length ? strategicBases[li % strategicBases.length] : null,
+        var base =
+            strategicBases && strategicBases.length ? strategicBases[li % strategicBases.length] : null,
           laneX = base ? base.x : lanes[li],
           laneZ = base ? base.z : z,
           home = { x: laneX, z: laneZ },
@@ -455,9 +457,9 @@
           squad.homeBaseObjectiveId = base.objectiveId;
         }
         var dealt =
-            root.BattleSoldierStats && root.BattleSoldierStats.deal
-              ? root.BattleSoldierStats.deal(faction, nextId, SquadAI.COMPOSITION)
-              : null;
+          root.BattleSoldierStats && root.BattleSoldierStats.deal
+            ? root.BattleSoldierStats.deal(faction, nextId, SquadAI.COMPOSITION)
+            : null;
         for (var si = 0; si < SquadAI.COMPOSITION.length; si++) {
           var role = SquadAI.COMPOSITION[si],
             jx = laneX + (self.random() - 0.5) * 8,
