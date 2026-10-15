@@ -93,9 +93,12 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
             const allStepsClear = path.every((waypoint, i) =>
               window.BattleNavigation.movementClear(i === 0 ? from : path[i - 1], waypoint)
             );
+            const startDistance = Math.hypot(from.x - to.x, from.z - to.z);
+            const remainingDistance = end ? Math.hypot(end.x - to.x, end.z - to.z) : Infinity;
             return {
               base: base.id, goal: goal.id, waypoints: path.length, allStepsClear,
-              reachesGoal: !!end && Math.hypot(end.x - to.x, end.z - to.z) < 0.01
+              startDistance, remainingDistance,
+              rollingProgress: remainingDistance + 0.1 < startDistance
             };
           })
         ),
@@ -121,8 +124,12 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
     assert.ok(report.terrainVertices >= 80000);
     assert.ok(report.navScenario, 'installed same scenario in physics and navigation');
     assert.equal(report.navPaths.length, 6);
-    assert.ok(report.navPaths.every((p) => p.reachesGoal && p.allStepsClear && p.waypoints > 0),
-      'all six bases have wall-clear physical navigation to a nearby neutral objective: ' +
+    /* BattleNavigationPhysicality.findPath deliberately returns only the next
+       96 m of a multi-kilometre trip; the existing rolling-queue regressions
+       cover refill and destination retention. Every live route must move
+       toward its goal using segments clear of building walls. */
+    assert.ok(report.navPaths.every((p) => p.rollingProgress && p.allStepsClear && p.waypoints > 0),
+      'all six bases have forward, wall-clear physical route segments: ' +
         JSON.stringify(report.navPaths));
     assert.ok(report.terrainBounds.minX <= -2499 && report.terrainBounds.maxX >= 2499);
     assert.ok(report.terrainBounds.minZ <= -2499 && report.terrainBounds.maxZ >= 2499);
