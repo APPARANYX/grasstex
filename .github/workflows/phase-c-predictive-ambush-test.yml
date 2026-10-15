@@ -1,0 +1,127 @@
+name: Phase C Predictive Ambush Isolation (experimental)
+on:
+  push:
+    branches:
+      - work/phase-c-predictive-ambush-20261015
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    name: Prediction provenance / safety regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax of tactical posture and probe
+        run: |
+          node --check battle/modules/15o-squad-leader-tactical-postures.js
+          node --check tools/ai-sim-harness/phase-c-ambush-forecast-check.js
+          node --check scripts/probes/probe_phase_c_natural.cjs
+      - name: Original Phase C preparation regression (flag off)
+        run: node tools/ai-sim-harness/phase-c-preparation-check.js
+      - name: Firsthand scout track / prediction-only regression
+        run: node tools/ai-sim-harness/phase-c-ambush-forecast-check.js
+
+  natural:
+    name: Native meeting 0001 ${{ matrix.mode }}
+    runs-on: ubuntu-latest
+    needs: regression
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: original
+            extra: ''
+          - mode: predict
+            extra: 'predictAmbush=1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native Chromium harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start server serving actual SHA
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/phase-c-predict-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/phase-c-predict-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/phase-c-predict-www > /tmp/phase-c-predict-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=phase-c-health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/phase-c-predict-php.log
+          exit 1
+      - name: Unmodified battle with flag-only difference
+        env:
+          C_FIELD_TYPE: meeting
+          C_FIELD_COUNT: '1'
+          C_FIELD_SECONDS: '260'
+          C_FIELD_PREFIX: phase-c-natural-20261012
+          C_FIELD_SEED_INDEX: '1'
+          C_FIELD_AUTONOMOUS_MOVEMENT: '1'
+          C_FIELD_SMART_INGRESS: '0'
+          C_FIELD_OPERATION: '1'
+          C_FIELD_ARMS: 'on'
+          C_FIELD_EXTRA_QUERY: ${{ matrix.extra }}
+          C_FIELD_TRACE_SQUAD: ge:ge-2
+          C_FIELD_TRACE_FROM: '180'
+          C_FIELD_TRACE_TO: '250'
+          C_FIELD_DIR: reports/phase-c-predict
+          C_FIELD_SHA: ${{ github.sha }}
+        run: node scripts/probes/probe_phase_c_natural.cjs
+      - name: Emit source-only forecast accounting
+        env:
+          EXP_MODE: ${{ matrix.mode }}
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const data=JSON.parse(fs.readFileSync('reports/phase-c-predict/meeting.json','utf8'));
+          const x=data.results.find(r=>r.arm==='on'&&r.seed==='phase-c-natural-20261012-0001');
+          assert.ok(x&&x.tickTrace.length>150,'actual native battle and trace');
+          const predicted=x.tickTrace.filter(t=>t.posture?.ambushPrediction);
+          const predictions=predicted.filter((t,i)=>i===0||t.posture.serial!==predicted[i-1].posture.serial);
+          const report={
+            mode:process.env.EXP_MODE,commit:data.commit,seed:x.seed,
+            attempts:x.ambush,prepared:x.prepared,maneuvers:x.maneuvers,
+            bounds:x.bounds,chains:x.maneuverChains.filter(c=>c.complete).length,
+            shots:x.shots,writerConflicts:x.writerConflicts,
+            forecastTicks:predicted.length,
+            forecasts:predictions.map(t=>({t:t.t,serial:t.posture.serial,forecast:t.posture.ambushPrediction})),
+            realPostures:x.modeEvents.filter(z=>z.squad==='ge:ge-2')
+          };
+          if(process.env.EXP_MODE==='original')
+            assert.equal(report.forecastTicks,0,'default-off must never publish a prediction');
+          console.log('PHASE_C_PREDICTIVE_AMBUSH '+JSON.stringify(report));
+          fs.writeFileSync('reports/phase-c-predict/verdict.json',JSON.stringify(report,null,2));
+          NODE
+      - name: Preserve actual native evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-c-predict-${{ matrix.mode }}
+          path: reports/phase-c-predict/*.json
+          retention-days: 30
+      - name: Show server errors if failed
+        if: failure()
+        run: tail -100 /tmp/phase-c-predict-php.log || true
+  compare:
+    name: Same-seed physical outcome comparison
+    runs-on: ubuntu-latest
+    needs: natural
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: phase-c-predict-*
+          path: paired
+      - name: Compare without changing Phase C acceptance
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const get=n=>JSON.parse(fs.readFileSync('paired/phase-c-predict-'+n+'/verdict.json','utf8'));
+          const control=get('original'),prediction=get('predict');
+          assert.equal(control.seed,prediction.seed,'paired matching seed');
+          console.log('PHASE_C_PREDICTIVE_AB '+JSON.stringify({control,prediction}));
+          NODE
