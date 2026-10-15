@@ -816,6 +816,15 @@ const { chromium } = require('playwright');
                       /* Read-only reciprocal observation for the exact meeting-0001
                          target reaction. A German sighting says nothing about the
                          American's own perception or reason for changing stance. */
+                      /* Diagnostic only: Engagement's own stance transition history,
+                         never used to drive a gameplay decision or inject enemy intel. */
+                      usFirePrepOverrides: traceVisibility
+                        ? (b._roster?.us || [])
+                            .filter(s => s && !s.dead && (
+                              root.BattleEngagement?.stateOf?.(s)?.stanceTrail || []
+                            ).some(x => x.reason === 'phase-c-test:fire-control-prep-no-prone'))
+                            .map(s => String(s.id))
+                        : undefined,
                       opponentResponses: traceVisibility
                         ? (b._roster?.[wantedFaction === 'ge' ? 'us' : 'ge'] || [])
                             .filter(s => s && !s.dead && ['12', '27'].includes(String(s.id)))
