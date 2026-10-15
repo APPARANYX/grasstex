@@ -4,6 +4,9 @@
 const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
+/* The row stands inside the crest's masked band by more than Navigation's
+   arrival radius, so its posts are occupiable wherever a man settles. */
+const ROW_Z = 0.5;
 function world(on = true, terrain = true, maneuver = false, options = {}) {
   H.resetIds();
   const r = H.bootstrap({
@@ -13,7 +16,8 @@ function world(on = true, terrain = true, maneuver = false, options = {}) {
       '&slStress=0&scoutsForward=0&stressAct=0' +
       (on ? '&localAmbush=1' : '') +
       (maneuver ? '&localManeuver=1&coveredBounds=1' : '') +
-      (options.operation ? '&fireManeuverOperation=1' : '')
+      (options.operation ? '&fireManeuverOperation=1' : '') +
+      (options.flags || '')
   });
   const load = f => loadModule(r, f, { console: quietConsole, location: r.location });
   load('battle/movement-resolver.js');
@@ -29,8 +33,8 @@ function world(on = true, terrain = true, maneuver = false, options = {}) {
   const q = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 } });
   q.members.forEach((s, i) => {
     s.root.position.x = (i - 5) * 2;
-    s.root.position.z = 0;
-    s.root.position.y = b.heightAt(s.root.position.x, 0);
+    s.root.position.z = options.rowZ ?? ROW_Z;
+    s.root.position.y = b.heightAt(s.root.position.x, s.root.position.z);
   });
   r.BattleCommanderAI = {
     acceptMission(b, q) {
@@ -175,7 +179,15 @@ assert.equal(
    physical movement owner legally displaces the final body endpoint. The
    posture may not demand the Squad Leader's abstract point after Navigation /
    personal-space physicality has selected a different safe place to stand. */
-const physicalEndpoint = world(true, true, false, { commandMovement: true, crestHeight: 1.3 });
+/* Original knife-edge row, legacy post rule: this case isolates endpoint
+   displacement. Off that row a stale Engagement sticky hold walks a ready man
+   ~0.85 m away (a Resolver finding, not covered here). */
+const physicalEndpoint = world(true, true, false, {
+  commandMovement: true,
+  crestHeight: 1.3,
+  rowZ: 0,
+  flags: '&postArrival=0'
+});
 const physicalPosture = physicalEndpoint.P.update(physicalEndpoint.b, physicalEndpoint.q);
 assert.ok(physicalPosture && physicalPosture.orders.length >= 3);
 physicalEndpoint.r.BattleSoldierPersonalSpace = {
@@ -382,7 +394,7 @@ assert.deepEqual(
 /* The original cover slot can conceal while hiding the actual ballistic
    aim point behind the crest. A short nearby adjustment must retain masking
    and approach safety while finding genuine physical shootability. */
-const refinedPosts = world(true, true, true);
+const refinedPosts = world(true, true, true, { rowZ: 0 }); // masking mocked; fixed row
 refinedPosts.r.BattleCoverPositions.maskedPost = () => true;
 refinedPosts.r.BattleCoverPositions.maskedApproach = () => true;
 refinedPosts.r.BattleCoverPositions.candidates = () => [];
@@ -395,7 +407,7 @@ assert.ok(
 );
 assert.ok(refinedPlan.plannedFireBaseRifles >= 2, 'two real potential supporters form a credible base');
 
-const blockedPosts = world(true, true, true);
+const blockedPosts = world(true, true, true, { rowZ: 0 }); // masking mocked; fixed row
 blockedPosts.r.BattleCoverPositions.maskedPost = () => true;
 blockedPosts.r.BattleCoverPositions.maskedApproach = () => true;
 blockedPosts.r.BattleCoverPositions.candidates = s => [{ x: s.root.position.x, z: 2 }];
@@ -649,7 +661,7 @@ function lateReserve(options = {}) {
   const rifles = x.q.members.filter(s => s.role === 'rifleman' && s._fireteamKey !== 'charlie');
   const report = { underFire: 0, fireSupport: rifles.slice(0, 2) };
   assert.equal(report.fireSupport.length, 2);
-  x.r.BattleCoverPositions.candidates = s => [{ x: s.root.position.x, z: s.root.position.z + 3 }];
+  x.r.BattleCoverPositions.candidates = s => [{ x: s.root.position.x, z: 3 }];
   x.q.inContact = true;
   return { ...x, st, report };
 }
@@ -799,7 +811,7 @@ assert.equal(
 // maneuver under pressure, but only when the shipping physicality sampler
 // accepts a real short segment AND at least two other men can support.
 // Candidate enumeration is isolated here; the route/LOS verdict stays real.
-const man = world(true, true, true);
+const man = world(true, true, true, { rowZ: 0 }); // bound-geometry fixture from the original row
 assert.equal(man.P.maneuverOn, true);
 assert.equal(world().P.maneuverOn, false, 'maneuver flag remains default OFF');
 const mc = man.r.BattleCoverPositions,
@@ -1072,7 +1084,13 @@ assert.ok(
   'lagging fourth cannot count toward readiness'
 );
 const movingCore = partialCore.q.members.find(s => String(s.id) === partialReady.heldActorIds[0]);
+/* Leaving means moving toward somewhere other than his post. Settling at it
+   (Engagement hold, closing on his own order) is covered by
+   phase-c-preparation-check. */
 movingCore.moving = true;
+movingCore._movementResolver = {
+  last: { owner: 'squad-stability', kind: 'formation', point: { x: 0, z: 60 }, intentPoint: { x: 0, z: 60 } }
+};
 assert.equal(
   partialCore.P.update(partialCore.b, partialCore.q),
   null,

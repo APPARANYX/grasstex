@@ -19,6 +19,8 @@
         /[?&]localManeuver=(?:1|on|true)(?:&|#|$)/i.test(query) &&
         /[?&]coveredBounds=(?:1|on|true)(?:&|#|$)/i.test(query),
       operationOn = on && /[?&]fireManeuverOperation=(?:1|on|true)(?:&|#|$)/i.test(query),
+      /* ?postArrival=0 restores selecting posts masked only at their exact point. */
+      postArrivalOn = !/[?&]postArrival=(?:0|off|false)(?:&|#|$)/i.test(query),
       states = new WeakMap(),
       cooldown = new WeakMap(),
       counters = new WeakMap(),
@@ -105,6 +107,61 @@
           return String(man.id) === id;
         });
         return s && physicalObservationMask(b, s.root.position, st.observationGeometry);
+      });
+    }
+    /* A post is only as concealed as the ground a man can actually stand on
+       when he reaches it. Navigation consumes a goal inside its own arrival
+       radius and stops walking, so the body settles anywhere in that disc
+       (traced: 0.23-0.34 m short of crest posts that were masked only at
+       their exact point, so the held core never formed). settledActors judges
+       masking at the real body; select only posts masked across the whole
+       disc the man can settle in, using the same maskedPost predicate. */
+    function occupiablePost(b, p, rs) {
+      var C = root.BattleCoverPositions,
+        N = root.BattleNavigation,
+        P = root.BattleNavigationPhysicality,
+        radius = P && +P.goalArrival;
+      if (!C || !C.maskedPost(b, p, rs)) return false;
+      if (!postArrivalOn) return true;
+      if (!(radius > 0) || !N || !N.movementClear) return false;
+      for (var k = 0; k < 8; k++) {
+        var angle = (Math.PI * 2 * k) / 8,
+          q = { x: p.x + Math.sin(angle) * radius, z: p.z + Math.cos(angle) * radius };
+        /* Ground a body cannot occupy is not a place he can settle. */
+        if (N.movementClear(q, q) && !C.maskedPost(b, q, rs)) return false;
+      }
+      return true;
+    }
+    /* PREPARE is physical, not intelligence. A three-man core that was
+       selected against a fresh report and is already dwelling at its real
+       posts may finish its continuous four-second hold after that report
+       ages out, judged only against the detached geometry anchors. It gains
+       no fire, support or bound authority (rs stays empty for every gate),
+       and no NEW dwell may start without a fresh report. */
+    function quietPreparationSafe(b, sq, st, a) {
+      if (
+        !operationOn ||
+        !st ||
+        !st.operation ||
+        st.mode !== 'ambush' ||
+        st.readyAt != null ||
+        st.heldSince == null ||
+        !st.heldActorIds ||
+        st.heldActorIds.length < 3 ||
+        sq.inContact ||
+        ambiguousPicture(b, sq) ||
+        (sq._localTask && sq._localTask.emergency) ||
+        a.some(function (s) {
+          return !!s.target;
+        }) ||
+        !st.observationGeometry ||
+        !st.observationGeometry.length ||
+        st.compromisedAt != null
+      )
+        return false;
+      var settled = settledActors(b, st, a, [], true);
+      return st.heldActorIds.every(function (id) {
+        return settled.indexOf(id) >= 0 || closingOnPost(b, st, a, id, [], true);
       });
     }
     function point(p) {
@@ -256,7 +313,13 @@
     /* Read-only proof of the SAME three adopted, stationary riflemen. A large
        squad may have additional men still finding cover; that cannot reset a
        genuine held fireteam or count a rotating set of arrivals as a 4s hold. */
-    function settledActors(b, st, a, reports) {
+    function bodyMasked(b, st, body, reports, geometryOnly) {
+      var C = root.BattleCoverPositions;
+      return geometryOnly
+        ? physicalObservationMask(b, body, st.observationGeometry)
+        : !!(C && C.maskedPost(b, body, reports));
+    }
+    function settledActors(b, st, a, reports, geometryOnly) {
       var C = root.BattleCoverPositions,
         O = root.BattleExecutionOutcome;
       return st.orders
@@ -324,7 +387,7 @@
                 intent &&
                 Math.hypot(intent.x - o.point.x, intent.z - o.point.z) <= 0.05)) &&
             C &&
-            C.maskedPost(b, body, reports)
+            bodyMasked(b, st, body, reports, geometryOnly)
           );
         })
         .map(function (o) {
@@ -363,7 +426,12 @@
           /* A quiet ready line is silent and still: a man who starts moving
              before contact is leaving it. In contact Engagement owns his
              shuffles at the post, so only his position counts. */
-          !(quiet && s.moving) &&
+          /* Settling at the post is not leaving it: Movement keeps closing
+             the last centimetres on his own completed order, and Engagement's
+             hold keeps a man at his post with Micro adjustments (traced:
+             0.09 m, released 0.3 s after readiness). He still may not leave
+             0.5 m of his post or enter a bound/assault/withdraw below. */
+          !(quiet && s.moving && !(postArrivalOn && settlingAtPost(b, st, a, s, id))) &&
           Math.hypot(body.x - anchor.x, body.z - anchor.z) <= 0.5 &&
           !(engagement && ['bound', 'assault', 'withdraw'].indexOf(engagement.state) >= 0) &&
           !(root.BattleEngagement && root.BattleEngagement.fledPhase && root.BattleEngagement.fledPhase(s))
@@ -377,9 +445,18 @@
        line and must not restart the dwell or rotate the core. He still needs
        his own publish key, canonical completion, concealment at his real
        body and may never be farther from the post than when he was chosen. */
-    function closingOnPost(b, st, a, id, reports) {
+    function closingOnPost(b, st, a, id, reports, geometryOnly) {
       var C = root.BattleCoverPositions,
-        O = root.BattleExecutionOutcome,
+        s = a.find(function (man) {
+          return String(man.id) === id;
+        }),
+        body = s && point(s.root && s.root.position);
+      return !!(C && closingOwnOrder(b, st, a, id) && bodyMasked(b, st, body, reports, geometryOnly));
+    }
+    /* The physical half of closingOnPost: his own adopted order completed
+       and he is no farther from it than when he was chosen. */
+    function closingOwnOrder(b, st, a, id) {
+      var O = root.BattleExecutionOutcome,
         CR = root.BattleCommandReception,
         o = st.orders.find(function (order) {
           return order.soldierId === id;
@@ -389,17 +466,32 @@
         }),
         anchor = st.heldPositions && st.heldPositions[id],
         body = s && point(s.root && s.root.position);
-      if (!o || !s || !anchor || !body || !C || s._fireteamPublishKey !== o.key) return false;
+      if (!o || !s || !anchor || !body || s._fireteamPublishKey !== o.key) return false;
       var receivedMovement = CR && CR.movementEnabled && CR.movementEnabled(),
         outcome = receivedMovement && O && O.man ? O.man(s, b) : null,
         completed = receivedMovement
           ? !!(outcome && outcome.current && outcome.state === 'completed' && outcome.publishKey === o.key)
           : Math.hypot(body.x - o.point.x, body.z - o.point.z) <= 0.5,
         allowed = Math.max(0.5, Math.hypot(anchor.x - o.point.x, anchor.z - o.point.z) + 0.25);
+      return !!(completed && Math.hypot(body.x - o.point.x, body.z - o.point.z) <= allowed);
+    }
+    function settlingAtPost(b, st, a, s, id) {
+      var last = s._movementResolver && s._movementResolver.last,
+        intent = last && point(last.intentPoint || last.point),
+        o = st.orders.find(function (order) {
+          return order.soldierId === id;
+        });
+      var anchor = st.heldPositions && st.heldPositions[id],
+        goal = point(last && last.point);
+      if (!last || !intent || !o || !anchor || !goal) return false;
+      /* Only movement whose destination is at his own post is settling. */
+      if (Math.hypot(goal.x - anchor.x, goal.z - anchor.z) > 0.5) return false;
+      if (last.owner === 'engagement' && last.kind === 'hold') return true;
       return !!(
-        completed &&
-        Math.hypot(body.x - o.point.x, body.z - o.point.z) <= allowed &&
-        C.maskedPost(b, body, reports)
+        last.owner === 'squad-stability' &&
+        last.kind === 'formation' &&
+        Math.hypot(intent.x - o.point.x, intent.z - o.point.z) <= 0.05 &&
+        closingOwnOrder(b, st, a, id)
       );
     }
     function inContactLine(sq, st) {
@@ -926,7 +1018,11 @@
            back into formation is the exposed move. Without a fresh detached
            coordinate no route can be judged, so no maneuver follows from it.
            A line that is not in contact still fails closed on stale intel. */
-        if (!(st && inContactLine(sq, st)) && !quietOperationSafe(b, sq, st, a))
+        if (
+          !(st && inContactLine(sq, st)) &&
+          !quietOperationSafe(b, sq, st, a) &&
+          !quietPreparationSafe(b, sq, st, a)
+        )
           return end(
             b,
             sq,
@@ -1189,7 +1285,7 @@
               })
             )
               continue;
-            if (!C.maskedPost(b, p, rs) || !C.maskedApproach(s, b, p, rs)) continue;
+            if (!occupiablePost(b, p, rs) || !C.maskedApproach(s, b, p, rs)) continue;
             /* A masked post can still be entirely unable to fire over its
                crest. Prefer a second safe post with a physically viable
                standing ray toward a detached squad report, but never
@@ -1231,7 +1327,7 @@
                   orders.some(function (o) {
                     return Math.hypot(o.point.x - trial.x, o.point.z - trial.z) < 1.5;
                   }) ||
-                  !C.maskedPost(b, trial, rs) ||
+                  !occupiablePost(b, trial, rs) ||
                   !C.maskedApproach(s, b, trial, rs)
                 )
                   continue;
@@ -1359,7 +1455,8 @@
       }
       st.at = now;
       st.threats = rs;
-      var observationSafe = !rs.length && quietOperationSafe(b, sq, st, a),
+      var quietPreparation = !rs.length && quietPreparationSafe(b, sq, st, a),
+        observationSafe = !rs.length && (quietOperationSafe(b, sq, st, a) || quietPreparation),
         geometryReports = rs.length ? rs : observationSafe ? st.observationGeometry : [],
         exposedOrders =
           geometryReports.length > 0
@@ -1398,13 +1495,13 @@
       }
       /* Masked canonical completion establishes the hold; once the line is
          ready, the same identities at their verified posts keep it. */
-      var settled = settledActors(b, st, a, rs),
+      var settled = settledActors(b, st, a, rs, quietPreparation),
         coreHeld =
           st.readyAt != null
             ? heldCore(b, sq, st, a)
             : st.heldActorIds.length >= 3 &&
               st.heldActorIds.every(function (id) {
-                return settled.indexOf(id) >= 0 || closingOnPost(b, st, a, id, rs);
+                return settled.indexOf(id) >= 0 || closingOnPost(b, st, a, id, rs, quietPreparation);
               });
       if (!coreHeld && st.readyAt != null) return end(b, sq, 'prepared fireteam left firing line');
       if (!coreHeld) {
@@ -1470,10 +1567,47 @@
           )
         : null;
     }
+    /* Read-only diagnostic: why each posted man does or does not count
+       toward the held core this tick. Never consulted by any decision. */
+    function explain(b, sq) {
+      var st = states.get(sq),
+        a = men(sq) || [],
+        C = root.BattleCoverPositions,
+        O = root.BattleExecutionOutcome;
+      if (!st || !st.orders) return null;
+      var reports = st.threats || [],
+        settled = settledActors(b, st, a, reports);
+      return st.orders.map(function (o) {
+        var s = a.find(function (man) {
+            return String(man.id) === o.soldierId;
+          }),
+          body = s && point(s.root && s.root.position),
+          last = s && s._movementResolver && s._movementResolver.last,
+          intent = last && point(last.intentPoint),
+          outcome = s && O && O.man ? O.man(s, b) : null;
+        return {
+          id: o.soldierId,
+          reserve: !!o.reserve,
+          firingQualified: !!o.firingQualified,
+          commanded: !!s,
+          keyMatch: !!(s && s._fireteamPublishKey === o.key),
+          publishKey: (s && s._fireteamPublishKey) || null,
+          moving: !!(s && s.moving),
+          toPost: body ? +Math.hypot(body.x - o.point.x, body.z - o.point.z).toFixed(2) : null,
+          outcome: outcome ? [outcome.state || null, !!outcome.current, outcome.publishKey === o.key] : null,
+          resolver: last ? [last.owner || null, last.kind || null] : null,
+          intentOnPost: !!(intent && Math.hypot(intent.x - o.point.x, intent.z - o.point.z) <= 0.05),
+          maskedAtBody: !!(body && C && C.maskedPost(b, body, reports)),
+          settled: settled.indexOf(o.soldierId) >= 0,
+          held: (st.heldActorIds || []).indexOf(o.soldierId) >= 0
+        };
+      });
+    }
     return {
       on: on,
       maneuverOn: maneuverOn,
       operationOn: operationOn,
+      explain: explain,
       tuning: tuning,
       coveredTeam: coveredTeam,
       update: update,

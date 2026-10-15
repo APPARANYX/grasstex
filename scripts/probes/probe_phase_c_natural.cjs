@@ -767,6 +767,7 @@ const { chromium } = require('playwright');
                       contact: contactView(root.SquadAI.squadContact(sq, b)),
                       contacts: root.SquadAI.squadContactsMap(sq, b),
                       engagementPlan: sq._engagementPlan?.status || null,
+                      postureExplain: root.BattleSquadStability?.tacticalPostures?.explain?.(b, sq) || null,
                       posture: posture
                         ? {
                             serial: posture.serial,

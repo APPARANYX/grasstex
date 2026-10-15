@@ -23,8 +23,8 @@ r.BattleNavigation.installScenario(scenario);
 const sq = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 } });
 sq.members.forEach((man, i) => {
   man.root.position.x = (i - 5) * 2;
-  man.root.position.z = 0;
-  man.root.position.y = b.heightAt(man.root.position.x, 0);
+  man.root.position.z = 0.5; // inside the masked band by more than the arrival radius
+  man.root.position.y = b.heightAt(man.root.position.x, 0.5);
 });
 r.BattleCommanderAI = {
   acceptMission(sim, squad) {

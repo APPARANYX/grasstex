@@ -1276,6 +1276,7 @@
     hardTypes: Object.keys(HARD_TYPES),
     bodyRadius: BODY_RADIUS,
     bodyWidth: BODY_RADIUS * 2,
+    goalArrival: GOAL_ARRIVAL,
     navMargin: COLLISION_MARGIN,
     routeMargin: ROUTE_MARGIN,
     routeHorizon: ROUTE_HORIZON,
