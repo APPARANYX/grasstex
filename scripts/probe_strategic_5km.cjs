@@ -122,7 +122,8 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
     assert.ok(report.navScenario, 'installed same scenario in physics and navigation');
     assert.equal(report.navPaths.length, 6);
     assert.ok(report.navPaths.every((p) => p.reachesGoal && p.allStepsClear && p.waypoints > 0),
-      'all six bases have wall-clear physical navigation to a nearby neutral objective');
+      'all six bases have wall-clear physical navigation to a nearby neutral objective: ' +
+        JSON.stringify(report.navPaths));
     assert.ok(report.terrainBounds.minX <= -2499 && report.terrainBounds.maxX >= 2499);
     assert.ok(report.terrainBounds.minZ <= -2499 && report.terrainBounds.maxZ >= 2499);
     assert.ok(report.cameraMaxZ >= 9000);
