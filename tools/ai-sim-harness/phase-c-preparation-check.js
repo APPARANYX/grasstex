@@ -154,6 +154,47 @@ function dwelling(flags) {
   );
 }
 
+/* A retained fire-control preparation contact is not active combat. The
+   real arrived core may finish dwelling, but expired intel grants no fire. */
+{
+  const w = world(0.5, '&fireManeuverOperation=1');
+  w.P.update(w.b, w.sq);
+  H.run(w.r, w.b, 3);
+  const st = w.P.current(w.b, w.sq);
+  assert.ok(st && st.heldSince != null && st.readyAt == null, 'native core is dwelling');
+  w.report(false);
+  w.sq.inContact = true; // Engagement may retain this for HOLD preparation alone.
+  while (w.b.time - st.heldSince < 4.05) {
+    w.b.time += 0.15;
+    assert.ok(w.P.update(w.b, w.sq) === st, 'retained preparation contact does not erase physical dwell');
+  }
+  assert.ok(st.readyAt != null, 'the same core completes its full dwell');
+  assert.equal(st.threats.length, 0, 'geometry does not refresh a report');
+  assert.ok(w.r.BattleLeases.get(w.sq, 'bound') == null, 'no bound from preparation contact');
+  assert.equal(w.b.events.fired, 0);
+  w.b.time += 0.15;
+  assert.ok(w.P.update(w.b, w.sq) === st, 'ready observation keeps geometry-only safety');
+  assert.ok(st.compromisedAt == null, 'missing intel does not fabricate exposed posts');
+}
+for (const reason of ['target', 'suppression', 'emergency', 'displacement']) {
+  const w = world(0.5, '&fireManeuverOperation=1');
+  w.P.update(w.b, w.sq);
+  H.run(w.r, w.b, 3);
+  const st = w.P.current(w.b, w.sq);
+  assert.ok(st && st.heldSince != null && st.readyAt == null);
+  const man = w.sq.members.find(s => String(s.id) === st.heldActorIds[0]);
+  w.report(false);
+  w.sq.inContact = true;
+  if (reason === 'target') man.target = { id: 'visible-enemy' };
+  if (reason === 'suppression') man.suppressedUntil = w.b.time + 5;
+  if (reason === 'emergency') w.sq._localTask.emergency = true;
+  if (reason === 'displacement') man.root.position.z -= 3;
+  w.b.time += 0.15;
+  assert.ok(w.P.update(w.b, w.sq) === null, reason + ' still invalidates stale-report preparation');
+  assert.equal(st.readyAt, null);
+  assert.ok(w.r.BattleLeases.get(w.sq, 'bound') == null);
+}
+
 /* 3. Settling at the post is not leaving it. Movement keeps closing the last
    centimetres on a completed order, and Engagement's hold makes Micro
    adjustments; the traced line was released 0.3 s after readiness. */

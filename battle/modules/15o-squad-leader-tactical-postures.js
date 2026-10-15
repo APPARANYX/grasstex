@@ -84,6 +84,17 @@
       }
       return viewing;
     }
+    /* Engagement intentionally retains inContact for fire-control HOLD
+       preparation after losing sight. That aggregate is not proof of current
+       combat and cannot invalidate an otherwise continuous physical dwell.
+       Actual Micro combat still wins; anchors remain geometry, never intel. */
+    function activePersonalCombat(b, a) {
+      var E = root.BattleEngagement;
+      if (!E || !E.underFireNow || !E.supportReady) return true;
+      return a.some(function (s) {
+        return !!s.target || s.suppressedUntil > b.time || E.underFireNow(s, b) || E.supportReady(s, b);
+      });
+    }
     function quietOperationSafe(b, sq, st, a) {
       if (
         !operationOn ||
@@ -91,12 +102,9 @@
         !st.operation ||
         st.mode !== 'ambush' ||
         st.readyAt == null ||
-        sq.inContact ||
         ambiguousPicture(b, sq) ||
         (sq._localTask && sq._localTask.emergency) ||
-        a.some(function (s) {
-          return !!s.target;
-        }) ||
+        activePersonalCombat(b, a) ||
         !st.observationGeometry ||
         !st.observationGeometry.length ||
         st.compromisedAt != null ||
@@ -149,12 +157,9 @@
         st.heldSince == null ||
         !st.heldActorIds ||
         st.heldActorIds.length < 3 ||
-        sq.inContact ||
         ambiguousPicture(b, sq) ||
         (sq._localTask && sq._localTask.emergency) ||
-        a.some(function (s) {
-          return !!s.target;
-        }) ||
+        activePersonalCombat(b, a) ||
         !st.observationGeometry ||
         !st.observationGeometry.length ||
         st.compromisedAt != null
