@@ -146,7 +146,32 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
     await page.waitForTimeout(5000);
     report.simTimeAfterFiveSeconds = await page.evaluate(() => window.__battle__.time);
     report.fpsAfterFiveSeconds = await page.evaluate(() => window.__battle__.scene.getEngine().getFps());
+    /* The full 30-minute diagnostic exposed that generated spawn routes
+       vanished on the first Macro brief. Assert the adopted, LIVE mission
+       contains the road legs (and the Squad Leader retained them), rather
+       than merely testing the unused spawn-time route generator. */
+    report.liveMissionRoutes = await page.evaluate(() => {
+      const b = window.__battle__;
+      return ['us', 'ge'].flatMap((faction) => b.factions[faction].squads.map((sq) => {
+        const m = sq._macroMission;
+        return {
+          faction, squad: sq.id, mission: m && m.objectiveId,
+          status: m && m.status, missionRoadLegs: m && m.route && m.route.length || 0,
+          squadRouteLegs: sq.route && sq.route.length || 0,
+          objectiveDistance: m && m.point && sq.home
+            ? Math.hypot(m.point.x - sq.home.x, m.point.z - sq.home.z) : null
+        };
+      }));
+    });
     assert.ok(report.simTimeAfterFiveSeconds > 0, 'simulation advances under real Chromium');
+    const longMarches = report.liveMissionRoutes.filter((s) =>
+      s.objectiveDistance != null && s.objectiveDistance > 1800 &&
+      (s.status === 'issued' || s.status === 'executing')
+    );
+    assert.ok(longMarches.length >= 1, 'at least one distant strategic live brief was issued');
+    assert.ok(longMarches.some((s) => s.missionRoadLegs > 0 && s.squadRouteLegs > 1),
+      'live long-distance brief reaches Squad Leader with actual road waypoints: ' +
+      JSON.stringify(longMarches));
     assert.deepEqual(errors, [], 'no uncaught page errors');
 
     /* Same Chromium version, soldier count, audio fixture, viewport, PHP loader,
