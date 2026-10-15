@@ -164,6 +164,15 @@
      question: the FG 42 and the view cones shipped together). No view cone, no sector scan, nothing
      heard or relayed: a man sees every enemy in range and line of sight, whichever way he faces. */
   var PERCEPTION_ON = !(typeof location !== 'undefined' && /[?&]perception=0\b/.test(location.search || ''));
+  /* TEMPORARY PHASE C A/B ONLY: prevent the US side from acquiring enemy
+     information; German vision, normal stances, weapons, paths and combat
+     ownership remain untouched. The old ?perception=0 flag does NOT mean
+     blindness: it enables omnidirectional legacy sight. Default is OFF.
+     This test is deliberately isolated from main and Phase C #527. */
+  var PHASE_C_BLIND_US = !!(
+    typeof location !== 'undefined' &&
+    /[?&]phaseCBlindUS=1(?:&|#|$)/.test(location.search || '')
+  );
   /* Personal beliefs replace treating squad.contact as instant common knowledge. Perception owns
      soldier._beliefs; Engagement and its declared drills read only the public soldierContact /
      beliefSnapshot views. Shipped on after the 100-seed Slice 2 benchmark; ?soldierBeliefs=0/off/
@@ -1086,6 +1095,7 @@
     if (
       !INCOMING_FIRE_REVEAL_ON ||
       !PERCEPTION_ON ||
+      (PHASE_C_BLIND_US && victim && victim.faction === 'us') ||
       !victim ||
       victim.dead ||
       !victim.root ||
@@ -1191,7 +1201,7 @@
      can see the enemy, else enemy gunfire within HEAR_RANGE. Once per squad per tick, and only
      while it has no current sighting of its own; neither ever replaces one. */
   function squadSenses(sq, battle) {
-    if (!PERCEPTION_ON || !sq || sq._sensedAt === battle.time) return;
+    if (!PERCEPTION_ON || !sq || (PHASE_C_BLIND_US && sq.faction === 'us') || sq._sensedAt === battle.time) return;
     sq._sensedAt = battle.time;
     var held = squadContact(sq, battle),
       calls = root.BattleCallouts && root.BattleCallouts.enabled() ? root.BattleCallouts : null;
@@ -2135,6 +2145,12 @@
     var heightAt = battle.heightAt,
       obstacles = battle.obstacles,
       role = ROLES[soldier.role];
+    /* Blind-side isolation is scoped to the perception producer, not
+       locomotion or stance. Do not advance scan RNG or dispatch callouts. */
+    if (PHASE_C_BLIND_US && soldier.faction === 'us') {
+      clearTarget(soldier);
+      return role;
+    }
     if (SOLDIER_BELIEFS_ON) pruneBeliefs(soldier, battle);
     /* Frozen means dazed, not secretly scanning under the full-body clip. Clear both target and facing
        input here, before the ordinary tracking/acquisition path can refresh squad contact. */
