@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "987",
-    "runId": "38675768638",
+    "run": "1018",
+    "runId": "38722795424",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/phase-c-us-stance-response-20261015",
-    "sha": "31ab2b05122e0c7efb9c3cb32a473ed81eda4e62",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38675768638",
+    "ref": "work/recon-ambush-causality-20261015",
+    "sha": "75d181c2d50e361679fe7721d05ac7378796b9e8",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38722795424",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -81,9 +81,9 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 12.282,
-      "medianB": 13.853,
-      "ratio": 1.128,
+      "medianA": 14.641,
+      "medianB": 17.267,
+      "ratio": 1.179,
       "gate": 1.25
     },
     "counters": {
@@ -477,8 +477,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=987&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/phase-c-us-stance-response-20261015/ai_flow_live.html?bench=987&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1018&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/recon-ambush-causality-20261015/ai_flow_live.html?bench=1018&view=brain3d",
     "seeds": [
       {
         "seed": "phase-c-natural-20261012-0002",
