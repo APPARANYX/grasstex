@@ -298,7 +298,7 @@ function exposing(flags) {
   ];
   const originalMask = w.C.maskedPost;
   w.C.maskedPost = (b, p, rs) =>
-    originalMask(b, p, rs) && rs.every(r => (r.x === 0 ? p.x < 0 : p.x > 0));
+    originalMask(b, p, rs) && rs.every(r => (r.x === 0 ? p.x < 0 : p.x > -5));
   w.C.candidates = () => [];
   const first = w.P.update(w.b, w.sq);
   assert.ok(first && first.serial === 1, 'valid initial masked posts before dwell');
@@ -310,7 +310,13 @@ function exposing(flags) {
   w.b.time += 0.15;
   const replanned = w.P.update(w.b, w.sq);
   assert.ok(replanned && replanned.serial === first.serial + 1,
-    'a fresh enemy sector exposing the incomplete line triggers a new serial');
+    'a fresh enemy sector exposing the incomplete line triggers a new serial: ' + JSON.stringify({
+      now:w.b.time,oldSince:first.since,oldHeldSince:first.heldSince,
+      oldHeldIds:first.heldActorIds,releases:w.P.releases(w.sq),
+      oldPosts:first.orders.filter(o=>!o.reserve).map(o=>[o.soldierId,o.point.x]),
+      actors:w.sq.members.map(m=>[m.id,+m.root.position.x.toFixed(2)]),
+      deferrals:w.P.approachDeferrals(w.sq)
+    }));
   assert.equal(replanned.since, first.since,
     'replanning retains the original finite preparation budget');
   assert.equal(replanned.heldSince, null,
