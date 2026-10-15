@@ -551,12 +551,7 @@
         root.BattleCommanderRoutes &&
         root.BattleCommanderRoutes.missionRouteFor
       ) {
-        var roadLegs = root.BattleCommanderRoutes.missionRouteFor(
-          sq,
-          town,
-          chosen.instance.id,
-          D.avgPos(sq)
-        );
+        var roadLegs = root.BattleCommanderRoutes.missionRouteFor(sq, town, chosen.instance.id, D.avgPos(sq));
         if (roadLegs.length) spec.route = roadLegs.concat(spec.route);
       }
       return issueMission(sim, sq, spec, reason);
