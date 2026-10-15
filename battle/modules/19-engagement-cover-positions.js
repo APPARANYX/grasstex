@@ -40,6 +40,17 @@
     var query = (root.location && root.location.search) || '',
       COVERED_BOUNDS =
         /[?&]coveredBounds=(1|on|true)\b/.test(query) && /[?&]localPlan=(1|on|true)\b/.test(query);
+    /* Phase C fold bounds (?fireManeuverOperation=1; ?foldBounds=0 restores obstacle slots only).
+       Natural run c597c84: 13 of 17 covered-bound attempts found no wall, rock or tree slot within
+       the bound distance, so open and rolling ground could never be bounded. A terrain fold is a
+       bound endpoint only where the GROUND alone hides a crouched man from every reported threat
+       (terrain is a ballistic stopper; vegetation concealment is not counted), the same holds on
+       his arrival ring, and he can rise to a standing firing ray. Route, distance, exposure and
+       threat rules are unchanged: every fold still passes boundRoute like a slot. */
+    var FOLD_BOUNDS =
+      COVERED_BOUNDS &&
+      /[?&]fireManeuverOperation=(1|on|true)\b/.test(query) &&
+      !/[?&]foldBounds=(0|off|false)\b/.test(query);
     var boundTuning = {
       maxDistance: 12,
       sampleSpacing: 0.75,
@@ -213,6 +224,67 @@
         firingRay = firingRay || A.hasLineOfSight(high, target, battle.heightAt, battle.obstacles);
       }
       return firingRay;
+    }
+    function groundHides(battle, point, threats) {
+      /* Ballistic ground scan from a standing rifle at each reported coordinate to a crouched
+         head at the fold: the same terrain test real rounds use. Perception concealment alone
+         is checked separately (maskedPost) and is never treated as protection. */
+      var B = root.BattleBallistics,
+        head = SA().eyeHeight({ crouching: true });
+      if (!B || typeof B.pointLineBlocked !== 'function') return false;
+      for (var i = 0; i < threats.length; i++)
+        if (
+          !B.pointLineBlocked(
+            { root: { position: { x: threats[i].x, z: threats[i].z } } },
+            point,
+            battle,
+            head
+          )
+        )
+          return false;
+      return true;
+    }
+    function foldCandidates(s, battle, threats, forward) {
+      var P = root.BattleNavigationPhysicality,
+        ring = P && +P.goalArrival,
+        p = posOf(s),
+        out = [];
+      if (!threats.length || !(ring > 0) || !battle.heightAt || !root.BattleBallistics) return out;
+      var axis = forward || { x: threats[0].x - p.x, z: threats[0].z - p.z },
+        len = Math.hypot(axis.x, axis.z);
+      if (!(len > 0.01)) return out;
+      var heading = Math.atan2(axis.x / len, axis.z / len),
+        spacing = boundTuning.sampleSpacing * 2;
+      for (var d = spacing * 2; d <= boundTuning.maxDistance + 1e-6; d += spacing)
+        for (var k = -3; k <= 3; k++) {
+          var a = heading + (k * Math.PI) / 9,
+            pt = { x: p.x + Math.sin(a) * d, z: p.z + Math.cos(a) * d };
+          if (!maskedPost(battle, pt, threats) || !groundHides(battle, pt, threats)) continue;
+          var held = true;
+          for (var r = 0; r < 8 && held; r++) {
+            var q = {
+              x: pt.x + Math.cos((r * Math.PI) / 4) * ring,
+              z: pt.z + Math.sin((r * Math.PI) / 4) * ring
+            };
+            held = groundHides(battle, q, threats);
+          }
+          if (!held) continue;
+          var mine = posOf(s),
+            taken = (s.squad && s.squad.members ? s.squad.members : []).some(function (m) {
+              var c = m && m !== s && !m.dead && state(m).cover;
+              return !!(c && dist(c.x, c.z, pt.x, pt.z) < 1.5);
+            });
+          if (taken) continue;
+          out.push({
+            x: pt.x,
+            z: pt.z,
+            slotId: 'fold:' + pt.x.toFixed(2) + ',' + pt.z.toFixed(2),
+            fold: true,
+            quality: USEFUL_COVER,
+            distance: dist(mine.x, mine.z, pt.x, pt.z)
+          });
+        }
+      return out;
     }
     function maskedApproach(s, battle, point, threats) {
       var p = posOf(s),
@@ -679,7 +751,11 @@
       }
       var p = posOf(s),
         forward = opts.forward || null,
-        candidates = coverCandidates(s, battle, target, opts.maxRange || COVER_RANGE),
+        candidates = coverCandidates(s, battle, target, opts.maxRange || COVER_RANGE).concat(
+          FOLD_BOUNDS && opts.coveredRoute && opts.coveredRoute.threats && opts.coveredRoute.threats.length
+            ? foldCandidates(s, battle, opts.coveredRoute.threats, opts.forward)
+            : []
+        ),
         best = null,
         bestScore = -Infinity,
         leads = SA().isLeader(s);
@@ -753,7 +829,7 @@
           return incumbent;
         }
       }
-      if (best && !reserveCover(s, battle, best.slot, 'engagement')) {
+      if (best && !best.fold && !reserveCover(s, battle, best.slot, 'engagement')) {
         observed('reservation-failed');
         return null;
       }
@@ -783,6 +859,10 @@
         return COVERED_BOUNDS;
       },
       boundTuning: boundTuning,
+      foldBoundsOn: function () {
+        return FOLD_BOUNDS;
+      },
+      foldCandidates: foldCandidates,
       warm: warm
     };
   };

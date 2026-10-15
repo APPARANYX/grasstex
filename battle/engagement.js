@@ -2398,6 +2398,12 @@
     coveredBoundsOn: function () {
       return coverImpl().coveredBoundsOn();
     },
+    foldBoundsOn: function () {
+      return coverImpl().foldBoundsOn();
+    },
+    foldCandidates: function (s, battle, threats, forward) {
+      return coverImpl().foldCandidates(s, battle, threats, forward);
+    },
     boundTuning: function () {
       return coverImpl().boundTuning;
     },
