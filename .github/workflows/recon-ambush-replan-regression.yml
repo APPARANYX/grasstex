@@ -1,0 +1,24 @@
+name: Pre-ready Ambush Replan Contract
+on:
+  push:
+    branches:
+      - work/recon-ambush-causality-20261015
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Source syntax
+        run: |
+          node --check battle/modules/15o-squad-leader-tactical-postures.js
+          node --check tools/ai-sim-harness/phase-c-preparation-check.js
+      - name: Physical dwell and replanning contract
+        run: node tools/ai-sim-harness/phase-c-preparation-check.js
+      - name: Predictive ambush provenance unchanged
+        run: node tools/ai-sim-harness/phase-c-ambush-forecast-check.js
+      - name: Scout micro sight, reporting and stance unchanged
+        run: node tools/ai-sim-harness/recon-scout-observation-check.js
