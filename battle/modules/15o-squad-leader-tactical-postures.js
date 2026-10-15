@@ -19,12 +19,17 @@
         /[?&]localManeuver=(?:1|on|true)(?:&|#|$)/i.test(query) &&
         /[?&]coveredBounds=(?:1|on|true)(?:&|#|$)/i.test(query),
       operationOn = on && /[?&]fireManeuverOperation=(?:1|on|true)(?:&|#|$)/i.test(query),
+      /* Experimental placement ONLY. Predictive points never enter freshReports,
+         fire-control authority, suppression, route threats, or bound eligibility. */
+      predictAmbushOn =
+        operationOn && /[?&]predictAmbush=(?:1|on|true)(?:&|#|$)/i.test(query),
       /* ?postArrival=0 restores selecting posts masked only at their exact point. */
       postArrivalOn = !/[?&]postArrival=(?:0|off|false)(?:&|#|$)/i.test(query),
       states = new WeakMap(),
       cooldown = new WeakMap(),
       counters = new WeakMap(),
       approachDeferrals = new WeakMap(),
+      scoutMotion = new WeakMap(),
       tuning = {
         minimumHold: 4,
         preparationBudget: 12,
@@ -220,6 +225,132 @@
           out.push(threatCopy(r));
       });
       return out;
+    }
+    /* Predict the ENEMY'S INTERCEPTION AREA, not a shootable enemy. Only
+       repeated, own-squad SCOUT firsthand samples of the SAME ID qualify.
+       The squadContact map contains detached belief positions and observation
+       times, not a live enemy actor transform. Told/heard/incoming sources
+       are never promoted to a motion track. Every estimator reset is Meso-
+       owned and a prediction cannot renew the 10-second intel TTL. */
+    function recordScoutMotion(b, sq, a) {
+      if (!predictAmbushOn || !a) return;
+      var now = b.time,
+        mission = sq._macroMission,
+        store = scoutMotion.get(sq);
+      if (!store || now < store.lastTime || store.mission !== mission) {
+        store = { mission: mission, lastTime: now, tracks: Object.create(null) };
+        scoutMotion.set(sq, store);
+      }
+      store.lastTime = now;
+      var reports = A.squadContactsMap(sq, b);
+      if (!Array.isArray(reports) || reports.length > 32) return;
+      reports.forEach(function (r) {
+        if (
+          !r ||
+          r.source !== 'seen' ||
+          r.targetId == null ||
+          r.sourceSoldier == null ||
+          !point(r) ||
+          !Number.isFinite(r.at) ||
+          now < r.at ||
+          now - r.at > 0.65 ||
+          !Number.isFinite(r.confidence) ||
+          r.confidence < 0.85 ||
+          !a.some(function (s) {
+            return String(s.id) === String(r.sourceSoldier) && s.role === 'scout' && !s.dead;
+          })
+        )
+          return;
+        var key = String(r.sourceSoldier) + '|' + String(r.targetId),
+          t = store.tracks[key],
+          sample = { x: r.x, z: r.z, at: r.at };
+        if (!t) {
+          store.tracks[key] = { last: sample, velocity: null, stable: 0 };
+          return;
+        }
+        var dt = sample.at - t.last.at;
+        if (dt < 0.6) return; // Do not mistake repeated reads of one report for motion.
+        if (dt > 3) {
+          store.tracks[key] = { last: sample, velocity: null, stable: 0 };
+          return;
+        }
+        var dx = sample.x - t.last.x,
+          dz = sample.z - t.last.z,
+          speed = Math.hypot(dx, dz) / dt,
+          vx = dx / dt,
+          vz = dz / dt,
+          aligned =
+            !t.velocity ||
+            (vx * t.velocity.vx + vz * t.velocity.vz) / (speed * t.velocity.speed) >= 0.75;
+        if (speed < 0.6 || speed > 7 || !aligned) {
+          store.tracks[key] = { last: sample, velocity: null, stable: 0 };
+          return;
+        }
+        t.stable = Math.min(3, t.stable + 1);
+        t.velocity = { vx: vx, vz: vz, speed: speed };
+        t.last = sample;
+      });
+      /* Bounds memory: at most 32 enemy/reporter tracks, each limited by the
+         observation freshness requirement at use. */
+      var keys = Object.keys(store.tracks);
+      if (keys.length > 32)
+        keys
+          .sort(function (a, b) {
+            return store.tracks[a].last.at - store.tracks[b].last.at;
+          })
+          .slice(0, keys.length - 32)
+          .forEach(function (k) {
+            delete store.tracks[k];
+          });
+    }
+    function predictedAmbushPoint(b, sq, a, rs) {
+      if (!predictAmbushOn || !rs.length || rs.length > 3) return null;
+      var store = scoutMotion.get(sq),
+        now = b.time;
+      if (!store || !a || !a.length || !store.tracks) return null;
+      var here = a.reduce(
+          function (p, s) {
+            p.x += s.root.position.x / a.length;
+            p.z += s.root.position.z / a.length;
+            return p;
+          },
+          { x: 0, z: 0 }
+        ),
+        possible = [];
+      rs.forEach(function (r) {
+        if (r.source !== 'seen' || r.targetId == null || r.sourceSoldier == null) return;
+        var track = store.tracks[String(r.sourceSoldier) + '|' + String(r.targetId)];
+        if (!track || !track.velocity || track.stable < 2) return;
+        if (Math.abs(track.last.at - r.at) > 0.65 || now - track.last.at > 0.65) return;
+        var range = Math.hypot(r.x - here.x, r.z - here.z);
+        /* Too close to set up, or too far away for a reliable exact lead:
+           follow the original observed-sector/route planning unchanged. */
+        if (range < 25 || range > 170) return;
+        /* Four seconds of mandatory hold, plus at most two for a short
+           approach; cap displacement to 18 metres rather than pretending a
+           scout can predict arbitrarily distant movement. */
+        var horizon = Math.min(6, 4 + Math.min(2, range / 75)),
+          displacement = Math.min(18, horizon * track.velocity.speed),
+          forecast = {
+            x: r.x + (track.velocity.vx / track.velocity.speed) * displacement,
+            z: r.z + (track.velocity.vz / track.velocity.speed) * displacement
+          };
+        if (!point(forecast)) return;
+        possible.push({
+          point: forecast,
+          seenAt: track.last.at,
+          observer: String(r.sourceSoldier),
+          targetId: String(r.targetId),
+          speed: +track.velocity.speed.toFixed(2),
+          heading: +Math.atan2(track.velocity.vx, track.velocity.vz).toFixed(3),
+          leadSeconds: +horizon.toFixed(2),
+          projectedMeters: +displacement.toFixed(2),
+          /* A planning marker is NOT a contact. Pass it only into
+             geometric post/standing-shot preflight, never Engagement. */
+          planningReport: { x: forecast.x, z: forecast.z, at: now, confidence: r.confidence }
+        });
+      });
+      return possible.length === 1 ? possible[0] : null;
     }
     /* More than three fresh confident sectors is an ambiguous picture: no
        post or route can be judged against it. That is distinct from having no
@@ -968,6 +1099,7 @@
         now = b.time;
       if (st && (st.mode === 'ambush' || (st.mode === 'hold' && st.orders.length)))
         rs = continuingThreats(b, sq, st, rs);
+      if (!st) recordScoutMotion(b, sq, a);
       if (st && !valid(b, sq, st)) return end(b, sq, invalidReason(b, sq, st));
       if (st && st.orders.length && a) {
         var reassigned = st.orders.filter(function (o) {
@@ -1282,13 +1414,17 @@
           (cd && cd.mission === m && now < cd.until)
         )
           return null;
-        var orders = [];
+        var forecast = predictedAmbushPoint(b, sq, a, rs);
+        function selectPosts(lead) {
+          var orders = [],
+            aim = lead ? lead.planningReport : rs[0],
+            aimReports = lead ? [aim] : rs;
         for (var i = 0; i < a.length; i++) {
           var s = a[i],
             here = point(s.root.position),
             candidate = null,
             firingQualified = false,
-            options = [here].concat(C.candidates(s, b, { root: { position: rs[0] } }, 6).slice(0, 16));
+            options = [here].concat(C.candidates(s, b, { root: { position: aim } }, 6).slice(0, 16));
           for (var j = 0; j < options.length; j++) {
             var p = point(options[j]);
             if (
@@ -1298,7 +1434,9 @@
               })
             )
               continue;
-            if (!occupiablePost(b, p, rs) || !C.maskedApproach(s, b, p, rs)) continue;
+            if (!occupiablePost(b, p, rs) ||
+              !C.maskedApproach(s, b, p, rs) ||
+              (lead && (!occupiablePost(b, p, aimReports) || !C.maskedApproach(s, b, p, aimReports)))) continue;
             /* A masked post can still be entirely unable to fire over its
                crest. Prefer a second safe post with a physically viable
                standing ray toward a detached squad report, but never
@@ -1309,7 +1447,7 @@
                 root: Object.assign({}, s.root, { position: p })
               });
               if (
-                rs.some(function (r) {
+                aimReports.some(function (r) {
                   return A.canSuppressStanding(proxy, r, b);
                 })
               ) {
@@ -1348,7 +1486,7 @@
                   root: Object.assign({}, s.root, { position: trial })
                 });
                 if (
-                  rs.some(function (r) {
+                  aimReports.some(function (r) {
                     return A.canSuppressStanding(trialShooter, r, b);
                   })
                 ) {
@@ -1366,11 +1504,25 @@
             orders.push({
               soldierId: String(s.id),
               point: candidate,
-              watchPoint: point(rs[0]),
+              watchPoint: point(aim),
               /* This is a pre-contact ballistic preflight, NOT fire permission.
                  Masked eye-line posts without a usable shot remain observers. */
               firingQualified: firingQualified
             });
+        }
+          return orders;
+        }
+        var orders = selectPosts(forecast);
+        /* A prediction that has no viable concealed firing base cannot
+           displace a perfectly valid historical/report-sector ambush. */
+        if (
+          forecast &&
+          (orders.length < 3 ||
+            (maneuverOn &&
+              orders.filter(function (o) { return o.firingQualified; }).length < tuning.minSupport))
+        ) {
+          orders = selectPosts(null);
+          forecast = null;
         }
         if (orders.length < 3) return null; // Never publish an understrength ambush element.
         /* APPROACH. An attacking squad with bound authority does not halt on a
@@ -1446,6 +1598,19 @@
           threats: rs,
           reservePlan: reservePlan,
           plannedFireBaseRifles: plannedFireBaseRifles,
+          ambushPrediction: forecast
+            ? {
+                point: point(forecast.point),
+                observedAt: forecast.seenAt,
+                scoutId: forecast.observer,
+                targetId: forecast.targetId,
+                speed: forecast.speed,
+                heading: forecast.heading,
+                horizon: forecast.leadSeconds,
+                displacement: forecast.projectedMeters,
+                planningOnly: true
+              }
+            : null,
           observationGeometry: rs.map(function (r) {
             return { x: r.x, z: r.z };
           }),
