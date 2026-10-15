@@ -275,6 +275,31 @@
     }
     function commitStance(s, battle, stance, seconds, reason) {
       var e = state(s);
+      /* TEMPORARY CONTROLLED PHASE C EXPERIMENT: only after the real 197.4s
+         response in the pinned meeting seed, intercept the US fire-control-prep
+         request to drop prone. Engage remains the sole stance writer and all
+         perception, target selection, timing, path and cover owners are native.
+         We preserve crouch if already crouched; no forced upright transition.
+         Other reasons (suppression, terrain, injury, reload) stay unchanged.
+         The query flag is OFF by default and lives on a throwaway test branch. */
+      var experiment = typeof location !== 'undefined' &&
+          /[?&]phaseCUsFirePrep=(?:soldier12|all)(?:&|#|$)/.test(location.search || '')
+            ? (new URLSearchParams(location.search)).get('phaseCUsFirePrep')
+            : null;
+      if (
+        experiment &&
+        battle &&
+        battle.time >= 197.35 &&
+        battle.time <= 225 &&
+        s &&
+        s.faction === 'us' &&
+        (experiment === 'all' || (experiment === 'soldier12' && String(s.id) === '12')) &&
+        reason === 'fire-control-prep' &&
+        stance === 'prone'
+      ) {
+        stance = e.stance === 'crouch' ? 'crouch' : 'stand';
+        reason = 'phase-c-test:fire-control-prep-no-prone';
+      }
       /* The controller's actual possession-entry API is a provenance barrier,
          even when possession and release occur between simulation ticks. */
       if (reason === 'player-possession') e.possessionEpoch = (+e.possessionEpoch || 0) + 1;
