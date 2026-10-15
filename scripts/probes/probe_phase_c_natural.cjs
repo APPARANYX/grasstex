@@ -885,6 +885,17 @@ const { chromium } = require('playwright');
                                 })()
                               : undefined,
                           state: e?.state || null,
+                          /* Read only: real scout eyesight lifecycle after recon.
+                             Never used as a contact or combat authorization. */
+                          reconObservation: s._reconObservation
+                            ? {
+                                startedAt: s._reconObservation.startedAt,
+                                until: s._reconObservation.until,
+                                lastSeenAt: s._reconObservation.lastSeenAt,
+                                targetId: s._reconObservation.targetId,
+                                point: compactPoint(s._reconObservation)
+                              }
+                            : null,
                           targetId: s.target?.id ?? null,
                           contact: contactView(root.SquadAI.soldierContact(s, b)),
                           beliefs: root.SquadAI.beliefSnapshot(s, b),
