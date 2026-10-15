@@ -1049,6 +1049,14 @@
       build: root.BATTLE_BUILD || root.BATTLE_BUILD_DEPLOYED || 'dev',
       ref: root.BATTLE_REF || null,
       seed: scenario.seed || sim.seed || null,
+      /* Capture the ACTIVE battle-side doctrine, not the user-interface
+         checkbox or the seed. GE prepared defense and a meeting battle can
+         share the exact same scenario seed and produce incomparable results. */
+      deployment: {
+        mode: !sim._sides ? 'unknown' : sim._sides.meeting ? 'meeting' : 'prepared-defender',
+        defender: (sim._sides && sim._sides.defender) || null,
+        attacker: (sim._sides && sim._sides.attacker) || null
+      },
       battle: {
         time: finite(+sim.time),
         timeLimit: finite(+sim.timeLimit),
@@ -1122,6 +1130,13 @@
       '- Build: ' + mdValue(payload.build),
       '- Ref: ' + mdValue(payload.ref),
       '- Seed: ' + mdValue(payload.seed),
+      '- Deployment: ' +
+        (payload.deployment && payload.deployment.mode === 'prepared-defender'
+          ? String(payload.deployment.defender || '?').toUpperCase() + ' prepared defender; ' +
+            String(payload.deployment.attacker || '?').toUpperCase() + ' attacker'
+          : payload.deployment && payload.deployment.mode === 'meeting'
+            ? 'Meeting engagement (both sides attack)'
+            : 'Unknown'),
       '- Battle time: ' + mdValue(payload.battle.time) + ' s',
       '- Winner: ' + mdValue(payload.battle.winner),
       '- Win reason: ' + mdValue(payload.battle.winReason),
@@ -1246,6 +1261,7 @@
         build: payload.build,
         ref: payload.ref,
         seed: payload.seed,
+        deployment: payload.deployment || null,
         battle: payload.battle,
         sampleSeconds: timeline.sampleSeconds
       })
