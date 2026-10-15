@@ -150,6 +150,30 @@ test('a 1-4 man remnant extracts straight home and never recentres on a lagging 
   assert.ok(a[0].root.position.z < a[1].root.position.z, 'the leading survivor is allowed to stay far ahead');
   assert.equal(a[3].root.position.z, 156, 'the delayed survivor may lag without becoming a rally point');
 });
+test('five-man strategic prepared garrison retreats toward rear base, not forward post', () => {
+  const w = fixture(),
+    base = { x: 700, z: 1000 },
+    sectorFallback = { x: 5, z: 108 };
+  /* ge-4 replay: five survivors remain above the remnant cutoff; initial prepared
+     deployment rewrote tactical home near objective 11, 1+ km from the real base. */
+  w.q.home = sectorFallback;
+  w.q.baseHome = base;
+  w.q.homeBaseId = 'ge-base-1';
+  assert.equal(w.r.SquadAI.isExtractionToHome(w.q), false);
+  assert.deepEqual(p(w.r.SquadAI.retreatGoal(w.q)), base, 'ordinary strategic retreat goes to base');
+  const first = command(w);
+  const lease = w.L.get(w.q, 'retreat-anchor');
+  assert.ok(lease && lease.data);
+  assert.deepEqual(p(lease.data.goal), base, 'leased retreat path has rear-base destination');
+  assert.ok(first.x > 0 && first.z > 120, 'first physical stride moves rearward, not to forward fallback');
+
+  /* The existing compact-map contract remains a retreat to the prepared sector
+     fallback for ordinary squads; 1-4 man remnants extract to base separately. */
+  w.q.homeBaseId = null;
+  assert.deepEqual(p(w.r.SquadAI.retreatGoal(w.q)), sectorFallback);
+  command(w);
+  assert.deepEqual(p(w.L.get(w.q, 'retreat-anchor').data.goal), sectorFallback);
+});
 test('many retreat ticks keep one leased useful anchor and coalesce identical urgent intents', () => {
   const w = fixture(),
     T = w.S.tuning.retreatAnchor;
