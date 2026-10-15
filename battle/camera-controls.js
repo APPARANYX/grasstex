@@ -178,9 +178,12 @@
     );
   }
   function createTouchOrbit(scene, canvas, target) {
-    var camera = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, 1.02, 720, target, scene);
+    var camera = new BABYLON.ArcRotateCamera(
+      'cam', -Math.PI / 2, 1.02, global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 3200 : 720, target, scene
+    );
     camera.lowerRadiusLimit = 90;
-    camera.upperRadiusLimit = 1850;
+    camera.upperRadiusLimit = global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 5400 : 1850;
+    camera.maxZ = CAMERA_FAR;
     camera.lowerBetaLimit = 0.28;
     camera.upperBetaLimit = 1.5;
     camera.wheelPrecision = 3;
@@ -407,7 +410,9 @@
 
   function createDesktopFly(scene, canvas, target, engine, battleSim, pose) {
     var startPosition =
-      pose && pose.position ? pose.position : initialPosition(target, 720, -Math.PI / 2, 1.02);
+      pose && pose.position
+        ? pose.position
+        : initialPosition(target, battleSim.FIELD_W >= 5000 ? 3200 : 720, -Math.PI / 2, 1.02);
     var lookTarget = pose && pose.target ? pose.target : target;
     var camera = new BABYLON.UniversalCamera('cam', startPosition, scene);
     camera.inputs.clear();
