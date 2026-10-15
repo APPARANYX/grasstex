@@ -1,0 +1,43 @@
+name: Phase C operation continuity validation
+on:
+  push:
+    branches:
+      - work/phase-c-operation-continuity-20261014
+    paths:
+      - battle/modules/15o-squad-leader-tactical-postures.js
+      - tools/ai-sim-harness/tactical-postures-check.js
+      - tools/ai-sim-harness/phase-c-operation-continuity-check.js
+      - .github/workflows/phase-c-credible-firing-base-validation.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse surgical changes
+        run: |
+          node --check battle/modules/15o-squad-leader-tactical-postures.js
+          node --check tools/ai-sim-harness/tactical-postures-check.js
+          node --check tools/ai-sim-harness/phase-c-operation-continuity-check.js
+      - name: Enforce exact source formatting (Prettier ratchet)
+        run: |
+          npx --yes prettier@3.3.3 --check battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js tools/ai-sim-harness/phase-c-operation-continuity-check.js scripts/probes/probe_phase_c_natural.cjs
+      - name: Phase C tactical regression
+        run: |
+          set -euo pipefail
+          node tools/ai-sim-harness/phase-c-operation-continuity-check.js
+          node tools/ai-sim-harness/tactical-postures-check.js
+          node tools/ai-sim-harness/effective-fire-support-check.js
+          node tools/ai-sim-harness/covered-pressure-bound-check.js
+          node tools/ai-sim-harness/covered-fire-maneuver-causal-check.js
+          node tools/ai-sim-harness/covered-bounds-check.js
+      - name: All sim regressions
+        run: |
+          set -euo pipefail
+          for check in tools/ai-sim-harness/*-check.js; do
+            echo "--- $check"
+            node "$check"
+          done

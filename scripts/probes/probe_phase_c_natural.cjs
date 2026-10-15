@@ -19,7 +19,8 @@ const { chromium } = require('playwright');
   const traceTo = Number(process.env.C_FIELD_TRACE_TO || limit);
   const base = process.env.C_FIELD_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
   const flags =
-    'localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1&fireCoverCycle=1&squadReturnFire=1';
+    'localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1&fireCoverCycle=1&squadReturnFire=1' +
+    (process.env.C_FIELD_OPERATION === '1' ? '&fireManeuverOperation=1' : '');
   const arms = String(process.env.C_FIELD_ARMS || 'off,on')
     .split(',')
     .map(a => a.trim())
@@ -43,7 +44,9 @@ const { chromium } = require('playwright');
       query.set('smartIndoorIngress', smartIndoorIngress);
       const page = await browser.newPage({ ignoreHTTPSErrors: true });
       if (process.env.C_FIELD_DISABLE_AUTO_FORMATION === '1')
-        await page.addInitScript(() => { window.BATTLE_DIAGNOSTIC_NO_AUTONOMOUS_FORMATION = true; });
+        await page.addInitScript(() => {
+          window.BATTLE_DIAGNOSTIC_NO_AUTONOMOUS_FORMATION = true;
+        });
       page.setDefaultTimeout(120000);
       const errors = [];
       page.on('pageerror', e => errors.push(String(e)));
@@ -376,10 +379,7 @@ const { chromium } = require('playwright');
                 /* Observation only: whether a REAL complete reserve exists at
                    the SAME sampled time as contact, authority and a ready base.
                    Never turn these diagnostic hints into bound authorization. */
-                if (
-                  attempt.reserveIds.length >= 2 &&
-                  reserveArrivedCount === attempt.reserveIds.length
-                ) {
+                if (attempt.reserveIds.length >= 2 && reserveArrivedCount === attempt.reserveIds.length) {
                   const readyRifles = (sq.members || [])
                     .filter(
                       man =>

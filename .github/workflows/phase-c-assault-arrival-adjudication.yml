@@ -1,0 +1,40 @@
+name: Phase C assault arrival gate adjudication
+on:
+  push:
+    branches:
+      - work/phase-c-operation-continuity-20261014
+    paths:
+      - .github/workflows/phase-c-assault-arrival-adjudication.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  adjudicate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download pinned identical-scenario native per-tick combat traces
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 38616282081
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: phase-c-assault-trace-*
+          merge-multiple: true
+          path: reports/phase-c-assault-trace
+      - name: Check syntax and attribute same-squad real arrival gate windows
+        run: |
+          set -euo pipefail
+          node --check scripts/probes/summarize_phase_c_assault_trace.cjs
+          node scripts/probes/summarize_phase_c_assault_trace.cjs \
+            reports/phase-c-assault-trace/meeting.json \
+            reports/phase-c-assault-trace/ge-defend.json
+      - name: Preserve physically sampled gate evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase-c-assault-arrival-adjudication
+          path: reports/phase-c-assault-joined.json
+          if-no-files-found: ignore
+          retention-days: 30

@@ -12,7 +12,8 @@ function world(on = true, terrain = true, maneuver = false, options = {}) {
       (options.commandMovement ? '1' : '0') +
       '&slStress=0&scoutsForward=0&stressAct=0' +
       (on ? '&localAmbush=1' : '') +
-      (maneuver ? '&localManeuver=1&coveredBounds=1' : '')
+      (maneuver ? '&localManeuver=1&coveredBounds=1' : '') +
+      (options.operation ? '&fireManeuverOperation=1' : '')
   });
   const load = f => loadModule(r, f, { console: quietConsole, location: r.location });
   load('battle/movement-resolver.js');
@@ -378,16 +379,71 @@ assert.deepEqual(
   popUpStart,
   'the standing-ray preview never changes a soldier position'
 );
+/* The original cover slot can conceal while hiding the actual ballistic
+   aim point behind the crest. A short nearby adjustment must retain masking
+   and approach safety while finding genuine physical shootability. */
+const refinedPosts = world(true, true, true);
+refinedPosts.r.BattleCoverPositions.maskedPost = () => true;
+refinedPosts.r.BattleCoverPositions.maskedApproach = () => true;
+refinedPosts.r.BattleCoverPositions.candidates = () => [];
+refinedPosts.r.SquadAI.canSuppressStanding = s => Math.abs(s.root.position.z - 0.75) < 0.001;
+const refinedPlan = refinedPosts.P.update(refinedPosts.b, refinedPosts.q);
+assert.ok(refinedPlan && refinedPlan.orders.length >= 3, 'masked near-crest trial remains eligible');
+assert.ok(
+  refinedPlan.orders.every(o => o.firingQualified && Math.abs(o.point.z - 0.75) < 0.001),
+  'the local crest refinement selects genuinely shootable posts rather than eye-only observers'
+);
+assert.ok(refinedPlan.plannedFireBaseRifles >= 2, 'two real potential supporters form a credible base');
+
 const blockedPosts = world(true, true, true);
 blockedPosts.r.BattleCoverPositions.maskedPost = () => true;
 blockedPosts.r.BattleCoverPositions.maskedApproach = () => true;
 blockedPosts.r.BattleCoverPositions.candidates = s => [{ x: s.root.position.x, z: 2 }];
 blockedPosts.r.SquadAI.canSuppressStanding = () => false;
 const blocked = blockedPosts.P.update(blockedPosts.b, blockedPosts.q);
-assert.ok(blocked && blocked.orders.length >= 3, 'valid masked fallback remains eligible');
+assert.ok(blocked && blocked.orders.length >= 3, 'concealed observers may still form a quiet line');
+assert.equal(blocked.plannedFireBaseRifles, 0);
+assert.equal(
+  blocked.reservePlan,
+  'observation-only-no-two-ballistic-posts',
+  'the observation-only line cannot falsely claim a fire base or stage a maneuver reserve'
+);
 assert.ok(
-  blocked.orders.every(o => o.point.z === 0),
-  'no shootable alternative retains the original concealed post'
+  blocked.orders.every(o => !o.firingQualified && o.point.z === 0),
+  'unshootable masked posts retain their location but are never labeled fire-qualified'
+);
+
+/* No role name grants fire support, but no arbitrary rifleman-only filter
+   can discard two non-rifle specialists whose ballistic-post preflight passes.
+   The reserve still has to be a complete original fireteam and may not
+   borrow a held support actor. Only this ballistic preflight is mocked here;
+   native live-effective support remains exercised in the causal checks. */
+const specialistBase = world(true, true, true);
+setReserveTeam(specialistBase);
+const specialistShooters = [specialistBase.q.members[3], specialistBase.q.members[4]];
+specialistShooters[0].role = 'scout';
+specialistShooters[1].role = 'gunner';
+specialistBase.r.SquadAI.canSuppressStanding = s =>
+  specialistShooters.some(man => String(man.id) === String(s.id));
+const specialistPosture = specialistBase.P.update(specialistBase.b, specialistBase.q);
+assert.ok(specialistPosture, 'a base with two valid specialist firing posts remains eligible');
+assert.equal(
+  specialistPosture.reservePlan,
+  'whole-team-staged:bravo',
+  'a full bravo reserve can stage behind two truly qualified non-rifleman support posts'
+);
+const specialistOrders = specialistPosture.orders.filter(o => o.reserve);
+assert.deepEqual(
+  specialistOrders.map(o => o.soldierId).sort(),
+  specialistBase.q.members
+    .filter(s => s._fireteamKey === 'bravo')
+    .map(s => String(s.id))
+    .sort(),
+  'non-rifleman credibility cannot split the native reserve team or steal a support man'
+);
+assert.ok(
+  specialistPosture.orders.filter(o => !o.reserve && o.firingQualified).length >= 2,
+  'planner distinguishes ballistic firing stations from masked observation-only stations'
 );
 
 const partialLine = world();
@@ -511,6 +567,10 @@ assert.equal(
   'a different station owner is never republished by reserve planning'
 );
 assert.ok(followOnPosture.orders.filter(o => !o.reserve).length >= 3);
+assert.ok(
+  followOnPosture.orders.filter(o => !o.reserve && o.firingQualified).length >= 2,
+  'a staged native team must leave two potentially shootable, independently held support posts'
+);
 assert.ok(
   followOnPosture.orders
     .filter(o => !o.reserve)
@@ -648,6 +708,24 @@ for (const commandMovement of [false, true]) {
     'native fire-control HOLD retains its independent veto after reserve authorization'
   );
 }
+/* Even after the prepared line goes from observation-only to contact,
+   native effective support from a scout and a gunner is real supporting
+   fire; a rifleman-only review must not suppress whole-team staging. */
+const lateSpecialists = lateReserve();
+lateSpecialists.report.fireSupport[0].role = 'scout';
+lateSpecialists.report.fireSupport[1].role = 'gunner';
+lateSpecialists.P.update(lateSpecialists.b, lateSpecialists.q, { underFire: 1, fireSupport: [] });
+lateSpecialists.P.update(lateSpecialists.b, lateSpecialists.q, lateSpecialists.report);
+assert.equal(
+  lateSpecialists.st.reservePlan,
+  'whole-team-staged:charlie',
+  'genuinely effective specialist shooters can trigger the same real late reserve review'
+);
+assert.deepEqual(
+  lateSpecialists.st.reserveReview.supportIds,
+  lateSpecialists.report.fireSupport.map(s => String(s.id)).sort(),
+  'late review records independent specialist identities instead of inventing riflemen'
+);
 const lateNoSlots = lateReserve();
 lateNoSlots.r.BattleCoverPositions.candidates = () => [];
 lateNoSlots.P.update(lateNoSlots.b, lateNoSlots.q, lateNoSlots.report);

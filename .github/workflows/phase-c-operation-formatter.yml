@@ -1,0 +1,28 @@
+name: Phase C operation Prettier patch
+on:
+  push:
+    branches:
+      - work/phase-c-operation-continuity-20261014
+    paths:
+      - .github/workflows/phase-c-operation-formatter.yml
+permissions:
+  contents: read
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate exact source formatting changes
+        run: |
+          set -euo pipefail
+          files=(
+            battle/modules/15o-squad-leader-tactical-postures.js
+            tools/ai-sim-harness/tactical-postures-check.js
+            tools/ai-sim-harness/phase-c-operation-continuity-check.js
+            scripts/probes/probe_phase_c_natural.cjs
+          )
+          npx --yes prettier@3.3.3 --write "${files[@]}"
+          echo FORMAT_PATCH_BEGIN
+          git diff --unified=3 -- "${files[@]}"
+          echo FORMAT_PATCH_END

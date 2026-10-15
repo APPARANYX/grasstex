@@ -18,6 +18,7 @@
         on &&
         /[?&]localManeuver=(?:1|on|true)(?:&|#|$)/i.test(query) &&
         /[?&]coveredBounds=(?:1|on|true)(?:&|#|$)/i.test(query),
+      operationOn = on && /[?&]fireManeuverOperation=(?:1|on|true)(?:&|#|$)/i.test(query),
       states = new WeakMap(),
       cooldown = new WeakMap(),
       counters = new WeakMap(),
@@ -32,6 +33,80 @@
         minSupport: 2,
         readAge: 0.5
       };
+    /* One Meso-owned, serial-bound operation ledger. It records verified
+       phases but cannot write a soldier destination, shot or bound lease.
+       Actual authorization remains the current native fire/route gates. */
+    function operationTransition(b, sq, st, phase, reason) {
+      if (!operationOn || !st || !st.operation || st.operation.phase === phase) return;
+      var op = st.operation;
+      op.transitions.push({ from: op.phase, to: phase, at: b.time, reason: reason });
+      if (op.transitions.length > 24) op.transitions.shift();
+      op.phase = phase;
+      op.at = b.time;
+    }
+    /* A verified three-person line may keep QUIETLY OBSERVING under the
+       SAME valid mission after its original sighting expires. Only detached
+       geometry anchors are retained for a physical concealment check; no
+       stale report can grant firing or maneuver, and no expired coordinates
+       are passed to reserveStage, coveredTeam or fire control. */
+    /* Geometry-only corroboration of a real post: deliberately distinct
+       from the time/confidence-sensitive maskedPost selection predicate.
+       Anchors never become contacts or fire/maneuver permissions. */
+    function physicalObservationMask(b, body, anchors) {
+      var N = root.BattleNavigation,
+        A = root.SquadAI;
+      if (
+        !body ||
+        !anchors ||
+        !anchors.length ||
+        anchors.length > 3 ||
+        !A ||
+        !A.hasLineOfSight ||
+        !N ||
+        !N.movementClear ||
+        !root.BattleNavigationPhysicality ||
+        !b.heightAt ||
+        !N.movementClear(body, body)
+      )
+        return false;
+      var lower = { root: { position: body }, crouching: true },
+        upper = { root: { position: body } },
+        viewing = false;
+      for (var i = 0; i < anchors.length; i++) {
+        var anchor = anchors[i];
+        if (!point(anchor)) return false;
+        var sighting = { root: { position: anchor } };
+        if (A.hasLineOfSight(lower, sighting, b.heightAt, b.obstacles)) return false;
+        viewing = viewing || A.hasLineOfSight(upper, sighting, b.heightAt, b.obstacles);
+      }
+      return viewing;
+    }
+    function quietOperationSafe(b, sq, st, a) {
+      if (
+        !operationOn ||
+        !st ||
+        !st.operation ||
+        st.mode !== 'ambush' ||
+        st.readyAt == null ||
+        sq.inContact ||
+        ambiguousPicture(b, sq) ||
+        (sq._localTask && sq._localTask.emergency) ||
+        a.some(function (s) {
+          return !!s.target;
+        }) ||
+        !st.observationGeometry ||
+        !st.observationGeometry.length ||
+        st.compromisedAt != null ||
+        !heldCore(b, sq, st, a)
+      )
+        return false;
+      return st.heldActorIds.every(function (id) {
+        var s = a.find(function (man) {
+          return String(man.id) === id;
+        });
+        return s && physicalObservationMask(b, s.root.position, st.observationGeometry);
+      });
+    }
     function point(p) {
       return p && Number.isFinite(p.x) && Number.isFinite(p.z) ? { x: p.x, z: p.z } : null;
     }
@@ -396,8 +471,24 @@
             var soldier = a.find(function (s) {
               return String(s.id) === o.soldierId;
             });
-            if (held) return !!(soldier && soldier.role === 'rifleman' && support.indexOf(soldier) >= 0);
-            if (!soldier || soldier.role !== 'rifleman' || !root.SquadAI.canSuppressStanding) return false;
+            /* The support gate counts actual independent shooters, not an infantry
+               role label. A scout, gunner or engineer with a viable weapon and
+               real fire evidence can hold the base while an intact team stages.
+               Pre-contact geometry is only a potential: contact still requires
+               native effective fire from two separate stationary actors. */
+            if (
+              !soldier ||
+              soldier.dead ||
+              !(soldier.hp > 0) ||
+              soldier.isPlayer ||
+              soldier.reloading ||
+              soldier.outOfAmmo ||
+              soldier.suppressedUntil > b.time
+            )
+              return false;
+            if (held)
+              return support.indexOf(soldier) >= 0 && supportingCount(a, null, [soldier], b.time, b) === 1;
+            if (!root.SquadAI.canSuppressStanding) return false;
             var proxy = Object.assign({}, soldier, {
               root: Object.assign({}, soldier.root, { position: o.point })
             });
@@ -559,11 +650,7 @@
       )
         return;
       var support = a.filter(function (s) {
-          return (
-            s.role === 'rifleman' &&
-            report.fireSupport.indexOf(s) >= 0 &&
-            supportingCount(a, null, [s], b.time, b) === 1
-          );
+          return report.fireSupport.indexOf(s) >= 0 && supportingCount(a, null, [s], b.time, b) === 1;
         }),
         ids = support
           .map(function (s) {
@@ -739,6 +826,7 @@
         if (!counts.releaseReasons) counts.releaseReasons = {};
         counts.releaseReasons[why] = (counts.releaseReasons[why] || 0) + 1;
         if (!counts.releases) counts.releases = [];
+        operationTransition(b, sq, st, 'abort', why);
         counts.releases.push({
           serial: st.serial,
           reason: why,
@@ -838,12 +926,17 @@
            back into formation is the exposed move. Without a fresh detached
            coordinate no route can be judged, so no maneuver follows from it.
            A line that is not in contact still fails closed on stale intel. */
-        if (!(st && inContactLine(sq, st)))
+        if (!(st && inContactLine(sq, st)) && !quietOperationSafe(b, sq, st, a))
           return end(
             b,
             sq,
             ambiguousPicture(b, sq) ? 'ambiguous-threat-picture' : 'no-fresh-reported-threat'
           );
+        /* A mission-owned quiet observer can retain actual verified posts,
+           but the report is STILL absent: downstream fire-control, support
+           and bound decisions must see rs=[] and cannot act on anchors. */
+        if (!rs.length && st && st.operation && quietOperationSafe(b, sq, st, a))
+          operationTransition(b, sq, st, 'observe', 'report-expired-observation-only');
       }
       /* A prepared assault that has established its own REAL two-rifle base
          of fire need not wait to be hit before considering a covered bound.
@@ -1006,6 +1099,13 @@
         var previousMode = st.mode;
         st.mode = possible ? 'maneuver' : 'hold';
         st.stage = possible ? 'supporting-fire' : 'pressure-hold';
+        operationTransition(
+          b,
+          sq,
+          st,
+          possible ? 'bound' : supportCount >= tuning.minSupport ? 'support' : 'contact',
+          possible ? 'native-covered-bound-authorized' : 'native-support-or-pressure-hold'
+        );
         st.pressureAt = now;
         /* A prepared pressure hold keeps the same adopted posts while the
            existing policy rechecks support/route conditions. Do not destroy
@@ -1078,6 +1178,7 @@
           var s = a[i],
             here = point(s.root.position),
             candidate = null,
+            firingQualified = false,
             options = [here].concat(C.candidates(s, b, { root: { position: rs[0] } }, 6).slice(0, 16));
           for (var j = 0; j < options.length; j++) {
             var p = point(options[j]);
@@ -1104,17 +1205,79 @@
                 })
               ) {
                 candidate = p;
+                firingQualified = true;
                 break;
               }
             } else break;
           }
+          /* Cover-slot rings can all lie just behind a crest: a standing
+             eye sees the reported sector but the lower ballistic aim ray
+             cannot clear the same terrain. Before accepting observation
+             only, inspect a bounded 0.75/1.5 m adjustment about the selected
+             masked slot. Every alternative must independently pass the
+             SAME masking, safe-approach and native standing-shot predicates.
+             No terrain, target truth or movement ownership is bypassed. */
+          if (candidate && !firingQualified && maneuverOn && A.canSuppressStanding) {
+            var originalPost = candidate;
+            for (var ring = 0; ring < 2 && !firingQualified; ring++) {
+              var step = ring === 0 ? 0.75 : 1.5;
+              for (var bearing = 0; bearing < 8; bearing++) {
+                var angle = (Math.PI * 2 * bearing) / 8,
+                  trial = {
+                    x: originalPost.x + Math.sin(angle) * step,
+                    z: originalPost.z + Math.cos(angle) * step
+                  };
+                if (
+                  orders.some(function (o) {
+                    return Math.hypot(o.point.x - trial.x, o.point.z - trial.z) < 1.5;
+                  }) ||
+                  !C.maskedPost(b, trial, rs) ||
+                  !C.maskedApproach(s, b, trial, rs)
+                )
+                  continue;
+                var trialShooter = Object.assign({}, s, {
+                  root: Object.assign({}, s.root, { position: trial })
+                });
+                if (
+                  rs.some(function (r) {
+                    return A.canSuppressStanding(trialShooter, r, b);
+                  })
+                ) {
+                  candidate = trial;
+                  firingQualified = true;
+                  break;
+                }
+              }
+            }
+          }
           /* Do not place this soldier at an exposed default slot. A masked
              fireteam is useful even when another eligible squad member has
              no concealed post; that man remains under his existing orders. */
-          if (candidate) orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
+          if (candidate)
+            orders.push({
+              soldierId: String(s.id),
+              point: candidate,
+              watchPoint: point(rs[0]),
+              /* This is a pre-contact ballistic preflight, NOT fire permission.
+                 Masked eye-line posts without a usable shot remain observers. */
+              firingQualified: firingQualified
+            });
         }
         if (orders.length < 3) return null; // Never publish an understrength ambush element.
-        var reservePlan = reserveStage(b, sq, a, orders, rs),
+        /* Two physically shootable posts are the minimum potential base for
+           fire-and-maneuver. A concealed observation-only line must not be
+           published as a three-man firing base that can never support a bound.
+           The live support gate still needs two independently effective men. */
+        var plannedFireBaseRifles = orders.filter(function (o) {
+          return o.firingQualified;
+        }).length;
+        /* A masked observation line may legitimately become a firing base
+           after acquiring better firsthand geometry. Keep the native hold,
+           but NEVER stage a reserve based on two imaginary firing posts. */
+        var reservePlan =
+            maneuverOn && plannedFireBaseRifles < tuning.minSupport
+              ? 'observation-only-no-two-ballistic-posts'
+              : reserveStage(b, sq, a, orders, rs),
           reserveTeam = /^whole-team-staged:(alpha|bravo|charlie)$/.test(reservePlan)
             ? reservePlan.split(':')[1]
             : null;
@@ -1152,6 +1315,19 @@
           orders: orders,
           threats: rs,
           reservePlan: reservePlan,
+          plannedFireBaseRifles: plannedFireBaseRifles,
+          observationGeometry: rs.map(function (r) {
+            return { x: r.x, z: r.z };
+          }),
+          operation: operationOn
+            ? {
+                serial: counts.ambushes,
+                phase: 'stage',
+                at: now,
+                missionVersion: m.version,
+                transitions: [{ from: 'plan', to: 'stage', at: now, reason: 'native-ambush-selected' }]
+              }
+            : null,
           /* Keep only Squad Leader intent through the posture-to-bound handoff.
              Physical endpoints and bound commands remain Engagement/Resolver owned. */
           reserveTeam: reserveTeam,
@@ -1183,12 +1359,18 @@
       }
       st.at = now;
       st.threats = rs;
-      var exposedOrders =
-        rs.length > 0
-          ? st.orders.filter(function (o) {
-              return o.reserve ? !reserveMasked(b, o.point, rs) : !C.maskedPost(b, o.point, rs);
-            })
-          : st.orders.slice();
+      var observationSafe = !rs.length && quietOperationSafe(b, sq, st, a),
+        geometryReports = rs.length ? rs : observationSafe ? st.observationGeometry : [],
+        exposedOrders =
+          geometryReports.length > 0
+            ? st.orders.filter(function (o) {
+                return o.reserve
+                  ? !reserveMasked(b, o.point, geometryReports)
+                  : observationSafe
+                    ? !physicalObservationMask(b, o.point, geometryReports)
+                    : !C.maskedPost(b, o.point, geometryReports);
+              })
+            : st.orders.slice();
       if (exposedOrders.length) {
         /* Before readiness the selected three-man core must remain truly
            concealed. But a fifth participant's exposed post is not a reason
@@ -1239,11 +1421,13 @@
         });
         st.heldSince = st.heldActorIds.length >= 3 ? now : null;
         st.stage = st.heldSince == null ? 'assemble' : 'hold';
+        operationTransition(b, sq, st, st.heldSince == null ? 'stage' : 'prepare', 'real-core-held');
         if (st.heldSince == null && now - st.since > tuning.preparationBudget)
           return end(b, sq, 'preparation timed out');
       } else if (st.readyAt == null && now - st.heldSince >= tuning.minimumHold) {
         st.stage = 'ready';
         st.readyAt = now;
+        operationTransition(b, sq, st, 'observe', 'four-second-verified-core');
         /* The verified posts the line is held to from now on are where the
            men actually stand at readiness, after any closing on the order. */
         st.heldActorIds.forEach(function (id) {
@@ -1263,10 +1447,13 @@
         if (st.stage !== 'contact') {
           st.stats.coordinatedContacts++;
           st.stage = 'contact';
+          operationTransition(b, sq, st, 'contact', 'independent-contact');
         }
       } else if (st.stage === 'contact') return end(b, sq, 'contact ended');
-      if (st.stage === 'ready' && now - st.readyAt > tuning.observationBudget)
-        return end(b, sq, 'no firsthand contact');
+      if (st.stage === 'ready' && now - st.readyAt > tuning.observationBudget) {
+        if (!quietOperationSafe(b, sq, st, a)) return end(b, sq, 'no firsthand contact');
+        operationTransition(b, sq, st, 'observe', 'quiet-mission-continues-no-authorization');
+      }
       return st;
     }
     function soldierOrder(s, b) {
@@ -1286,6 +1473,7 @@
     return {
       on: on,
       maneuverOn: maneuverOn,
+      operationOn: operationOn,
       tuning: tuning,
       coveredTeam: coveredTeam,
       update: update,
