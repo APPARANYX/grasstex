@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "979",
-    "runId": "38674638200",
+    "run": "1007",
+    "runId": "38680905945",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/phase-c-blind-us-experiment-20261015",
-    "sha": "e63fb8dd30a996af5a539f5eb37c05d4c03a0201",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38674638200",
+    "ref": "work/recon-scout-observation-20261015",
+    "sha": "eba8d602cd5160e237bf99dad40aab8f30794488",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/38680905945",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -81,9 +81,9 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 15.4,
-      "medianB": 17.822,
-      "ratio": 1.157,
+      "medianA": 15.01,
+      "medianB": 18.44,
+      "ratio": 1.229,
       "gate": 1.25
     },
     "counters": {
@@ -477,8 +477,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=979&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/phase-c-blind-us-experiment-20261015/ai_flow_live.html?bench=979&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1007&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/recon-scout-observation-20261015/ai_flow_live.html?bench=1007&view=brain3d",
     "seeds": [
       {
         "seed": "phase-c-natural-20261012-0003",
