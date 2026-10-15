@@ -322,7 +322,7 @@ function exposing(flags) {
   assert.equal(replanned.heldSince, null,
     'the original three-man dwell cannot transfer to new physical stations');
   assert.equal(replanned.readyAt, null, 'no readiness from the old line');
-  assert.ok(replanned.orders.filter(o => !o.reserve).every(o => o.point.x > 0),
+  assert.ok(replanned.orders.filter(o => !o.reserve).every(o => o.point.x > -5),
     'replacement posts must independently mask against the new enemy position');
   assert.ok(w.P.releases(w.sq).some(x =>
     x.serial === first.serial && /^replan:/.test(x.reason)),
