@@ -131,6 +131,17 @@
      squad from acquiring the same target on the same frame. */
   var SCAN_INTERVAL = 0.3,
     TRACK_MARGIN = 1.15;
+  /* Opt-in recon MICRO experiment. Only a genuine, active Squad Leader recon
+     scout who has stopped to observe receives an extra 20% cold-detection
+     range. Perception still owns LOS, silhouette, facing and sight evidence.
+     No bonus to firearms, line of sight, squad contacts or other roles. */
+  var RECON_SCOUT_OBSERVE_ON = !!(
+      typeof location !== 'undefined' &&
+      /[?&]reconScoutObserve=(?:1|on|true)(?:&|#|$)/i.test(location.search || '')
+    ),
+    RECON_SCOUT_SIGHT_MULT = 1.2,
+    RECON_SCOUT_OBSERVE_MAX = 8,
+    RECON_SCOUT_OBSERVE_HOLD = 3;
   /* How much of a man each stance leaves visible. A low, still silhouette should matter without
      making prone infantry magically disappear: the shipping curve is the midpoint between the old
      72/45% values and the proposed 50/25% ambush curve. Movement gives some of the concealment back.
@@ -738,7 +749,7 @@
       p = soldier.root.position,
       u = unit.root.position,
       d = dist2(p.x, p.z, u.x, u.z),
-      sight = sightScale(soldier);
+      sight = sightScale(soldier, battle);
     if (d > detectionRange(role, unit) * sight) return false;
     if (PERCEPTION_ON && d > BEHIND_RANGE) {
       var reach = viewReach(angleBetween(Math.atan2(u.x - p.x, u.z - p.z), lookYaw(soldier, battle)), unit);
@@ -956,15 +967,84 @@
   }
   /* His awareness (module 10, BattleSoldierStats) stretches or shortens how far he spots: 1 for an average
      man, and when the module is absent or that lever is off. */
-  function sightScale(soldier) {
-    var stats = root.BattleSoldierStats;
-    return stats ? stats.scale(soldier, 'sight') : 1;
+  function reconScoutAssigned(soldier, battle) {
+    if (
+      !RECON_SCOUT_OBSERVE_ON ||
+      !soldier ||
+      soldier.dead ||
+      soldier.isPlayer ||
+      soldier.role !== 'scout' ||
+      !soldier.squad ||
+      !battle
+    )
+      return false;
+    var task = soldier.squad._reconTask;
+    return !!(
+      task &&
+      Array.isArray(task.scoutIds) &&
+      task.scoutIds.some(function (id) { return String(id) === String(soldier.id); }) &&
+      task.missionVersion === (soldier.squad._macroMission && soldier.squad._macroMission.version)
+    );
+  }
+  function reconScoutObserving(soldier, battle) {
+    if (!RECON_SCOUT_OBSERVE_ON || !soldier || !battle || soldier.dead || soldier.isPlayer)
+      return false;
+    var e = soldier._reconObservation;
+    return !!(
+      e &&
+      soldier.role === 'scout' &&
+      battle.time >= e.startedAt &&
+      battle.time < e.until &&
+      battle.time - e.startedAt <= RECON_SCOUT_OBSERVE_MAX
+    );
+  }
+  function sightScale(soldier, battle) {
+    var stats = root.BattleSoldierStats,
+      basic = stats ? stats.scale(soldier, 'sight') : 1,
+      deliberate = !soldier.moving && (+soldier.moveSpeed || 0) <= 0.16;
+    return basic * (deliberate && (reconScoutAssigned(soldier, battle) ||
+      reconScoutObserving(soldier, battle)) ? RECON_SCOUT_SIGHT_MULT : 1);
+  }
+  /* Last genuine direct sight only: no live enemy reference survives in this
+     brief MICRO observation state. This can orient a scout to the last place
+     seen but never produce a new belief, sighting, shot, relay or tactical
+     authorization. Reports still use the existing delayed callout channel. */
+  function updateReconScoutObservation(soldier, battle) {
+    if (!RECON_SCOUT_OBSERVE_ON || !soldier || !battle) return;
+    if (soldier.dead || soldier.isPlayer || (soldier.squad && soldier.squad.state === 'retreat')) {
+      soldier._reconObservation = null;
+      return;
+    }
+    var rec = soldier._reconObservation,
+      now = battle.time,
+      direct = soldier.target && threatDisposition(soldier.target).combatThreat;
+    if (rec && (now < rec.startedAt || now >= rec.until ||
+        now - rec.startedAt > RECON_SCOUT_OBSERVE_MAX)) {
+      soldier._reconObservation = null;
+      rec = null;
+    }
+    if (!rec && direct && reconScoutAssigned(soldier, battle)) {
+      rec = soldier._reconObservation = {
+        startedAt: now,
+        until: now + RECON_SCOUT_OBSERVE_HOLD,
+        lastSeenAt: now,
+        targetId: soldier.target.id == null ? null : String(soldier.target.id),
+        x: soldier.target.root.position.x,
+        z: soldier.target.root.position.z
+      };
+    } else if (rec && direct && String(soldier.target.id) === rec.targetId) {
+      rec.lastSeenAt = now;
+      rec.x = soldier.target.root.position.x;
+      rec.z = soldier.target.root.position.z;
+      rec.until = Math.min(rec.startedAt + RECON_SCOUT_OBSERVE_MAX,
+        now + RECON_SCOUT_OBSERVE_HOLD);
+    }
   }
   function findTarget(soldier, enemies, heightAt, obstacles, battle) {
     var role = ROLES[soldier.role],
       p = soldier.root.position,
       look = lookYaw(soldier, battle),
-      sight = sightScale(soldier),
+      sight = sightScale(soldier, battle),
       i;
     scanBuffer.length = 0;
     for (i = 0; i < enemies.length; i++) {
@@ -998,7 +1078,7 @@
       role.visionRange *
         ((root.PhaseCCombatLab && root.PhaseCCombatLab.rangeScale) || 1) *
         TRACK_MARGIN *
-        sightScale(soldier)
+        sightScale(soldier, null)
     )
       return false;
     return hasLineOfSight(soldier, t, heightAt, obstacles);
@@ -2158,6 +2238,7 @@
       if (SOLDIER_BELIEFS_ON) rememberSeen(soldier, soldier.target, battle, true, 'direct-sight');
       shareContact(soldier, battle);
     }
+    updateReconScoutObservation(soldier, battle);
     squadSenses(soldier.squad, battle);
     if (SOLDIER_BELIEFS_ON) {
       applyCalloutBelief(soldier, battle);
@@ -2368,6 +2449,8 @@
     findTarget: findTarget,
     threatDisposition: threatDisposition,
     lookYaw: lookYaw,
+    reconScoutAssigned: reconScoutAssigned,
+    reconScoutObserving: reconScoutObserving,
     squadSenses: squadSenses,
     resetPerceptionBattleState: resetPerceptionBattleState,
     parseSoldierBeliefs: parseSoldierBeliefs,
@@ -2408,7 +2491,9 @@
       BELIEF_TUNING: BELIEF_TUNING,
       STANCE_VIS_ON: STANCE_VIS_ON,
       VISIBILITY: VISIBILITY,
-      MOVING_VISIBILITY_BONUS: MOVING_VISIBILITY_BONUS
+      MOVING_VISIBILITY_BONUS: MOVING_VISIBILITY_BONUS,
+      RECON_SCOUT_OBSERVE_ON: RECON_SCOUT_OBSERVE_ON,
+      RECON_SCOUT_SIGHT_MULT: RECON_SCOUT_SIGHT_MULT
     },
     engageRange: engageRange,
     tryFire: tryFire,
