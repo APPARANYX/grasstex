@@ -22,6 +22,11 @@ function world(flags = '', opts = {}) {
   b.scene = { metadata: { battleScenario: scenario } };
   r.BattleNavigation.installScenario(scenario);
   const sq = H.addSquad(r,b,{id:'us-0',faction:'us',x:0,z:0,objective:{x:0,z:100}});
+  sq.members.forEach((s, i) => {
+    s.root.position.x = (i - 5) * 2;
+    s.root.position.z = 0.5;
+    s.root.position.y = b.heightAt(s.root.position.x, 0.5);
+  });
   r.BattleCommanderAI={acceptMission(sim, squad){squad._macroMission.status='executing';}};
   sq._macroMission={
     version:1,status:'issued',intent:'capture',action:'assault',
