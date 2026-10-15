@@ -24,6 +24,7 @@
       states = new WeakMap(),
       cooldown = new WeakMap(),
       counters = new WeakMap(),
+      approachDeferrals = new WeakMap(),
       tuning = {
         minimumHold: 4,
         preparationBudget: 12,
@@ -1363,6 +1364,35 @@
             });
         }
         if (orders.length < 3) return null; // Never publish an understrength ambush element.
+        /* APPROACH. An attacking squad with bound authority does not halt for
+           a line no rifle can fire from because every report lies beyond its
+           weapons' reach (natural run c15d5b9: most attacking observation-only
+           lines were 150-250 m from a 140/165 m rifle). The native mission
+           advance keeps moving the squad; selection is retried each tick, so
+           a real firing base is chosen once posts are in range. Terrain-blocked
+           lines within range, and defenders, keep their observation line. */
+        if (
+          operationOn &&
+          maneuverOn &&
+          ctx.ASSAULT_PHASES &&
+          ctx.ASSAULT_PHASES[sq.commandPhase || ''] &&
+          !(ctx.COA_ON && sq.coa && ctx.COAS && ctx.COAS[sq.coa] && !ctx.COAS[sq.coa].bounds) &&
+          orders.filter(function (o) {
+            return o.firingQualified;
+          }).length < tuning.minSupport &&
+          orders.every(function (o) {
+            var man = a.find(function (s) {
+                return String(s.id) === o.soldierId;
+              }),
+              reach = man && man.weapon && man.weapon.stats ? +man.weapon.stats.range * 0.95 : 0;
+            return rs.every(function (r) {
+              return Math.hypot(r.x - o.point.x, r.z - o.point.z) > reach;
+            });
+          })
+        ) {
+          approachDeferrals.set(sq, (approachDeferrals.get(sq) || 0) + 1);
+          return null;
+        }
         /* Two physically shootable posts are the minimum potential base for
            fire-and-maneuver. A concealed observation-only line must not be
            published as a three-man firing base that can never support a bound.
@@ -1675,6 +1705,9 @@
           });
         });
         return total;
+      },
+      approachDeferrals: function (sq) {
+        return approachDeferrals.get(sq) || 0;
       },
       releases: function (sq) {
         var c = counters.get(sq);
