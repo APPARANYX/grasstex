@@ -201,4 +201,57 @@ function readyLine(flags) {
   legacy.b.time += 0.15;
   assert.ok(legacy.P.update(legacy.b, legacy.sq) === null, '?postArrival=0 restores the old moving rule');
 }
-console.log('phase-c-preparation-check: PASS occupiable posts, physical dwell continuity, settling at post');
+/* 4. REPLAN. 34 of 78 natural attempts ended 1-3 s after selection, before
+   any hold, when a newer report of the moving enemy exposed one of the three
+   posts, then sat out an 8 s cooldown. Masking is mocked by report bearing so
+   the new picture exposes the western posts and still masks the eastern. */
+function exposing(flags) {
+  const w = world(0.5, flags);
+  let threat = { x: 0, z: 20 };
+  w.r.SquadAI.squadContactsMap = () => [{ x: threat.x, z: threat.z, at: w.b.time, confidence: 1 }];
+  const masked = w.C.maskedPost;
+  w.C.maskedPost = (b, p, rs) => masked(b, p, rs) && rs.every(r => (r.x === 0 ? p.x < 0 : p.x > 0));
+  w.C.candidates = () => [];
+  const first = w.P.update(w.b, w.sq);
+  assert.ok(first && first.orders.every(o => o.point.x < 0), 'first plan uses only western posts');
+  threat = { x: 50, z: 20 };
+  w.b.time += 0.15;
+  return { ...w, first, next: w.P.update(w.b, w.sq) };
+}
+{
+  const w = exposing('&fireManeuverOperation=1');
+  assert.ok(w.next && w.next.serial === w.first.serial + 1, 'the newer report triggers a REPLAN serial');
+  assert.ok(
+    w.next.orders.filter(o => !o.reserve).every(o => o.point.x > 0),
+    'replanned posts are masked against the current report'
+  );
+  assert.equal(w.next.since, w.first.since, 'the preparation budget spans the replan');
+  assert.ok(w.next.heldSince == null && w.next.readyAt == null, 'no dwell is inherited');
+  assert.equal(w.next.operation.transitions[0].from, 'replan');
+  assert.ok(
+    w.P.releases(w.sq).some(x => /^replan:/.test(x.reason)),
+    'the replan names its reason'
+  );
+
+  const plain = exposing('');
+  assert.ok(plain.next === null, 'without the operation the posture still ends');
+  assert.ok(plain.P.releases(plain.sq).some(x => x.reason === 'firing station lost masking/ray'));
+}
+{
+  // Out of budget, exposure ends the posture with the normal cooldown.
+  const w = world(0.5, '&fireManeuverOperation=1');
+  let threat = { x: 0, z: 20 };
+  w.r.SquadAI.squadContactsMap = () => [{ x: threat.x, z: threat.z, at: w.b.time, confidence: 1 }];
+  const masked = w.C.maskedPost;
+  w.C.maskedPost = (b, p, rs) => masked(b, p, rs) && rs.every(r => (r.x === 0 ? p.x < 0 : p.x > 0));
+  w.C.candidates = () => [];
+  const first = w.P.update(w.b, w.sq);
+  first.since -= 13;
+  threat = { x: 50, z: 20 };
+  w.b.time += 0.15;
+  assert.ok(w.P.update(w.b, w.sq) === null, 'no replan after the preparation budget');
+  assert.ok(w.P.releases(w.sq).some(x => x.reason === 'firing station lost masking/ray'));
+}
+console.log(
+  'phase-c-preparation-check: PASS occupiable posts, physical dwell continuity, settling at post, replan'
+);

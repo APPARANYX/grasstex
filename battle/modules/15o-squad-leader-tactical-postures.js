@@ -911,7 +911,10 @@
         return 'structure-override';
       return 'stale-time-or-authority';
     }
-    function end(b, sq, why) {
+    /* Set only while a REPLAN re-enters update(): carries the original
+       preparation start so the 12 s budget spans every replan. */
+    var replanning = null;
+    function end(b, sq, why, replan) {
       var st = states.get(sq);
       if (st) {
         var counts = st.stats;
@@ -936,7 +939,7 @@
           reason: why,
           serial: st.serial
         });
-        cooldown.set(sq, { mission: st.mission, until: b.time + 8 });
+        if (!replan) cooldown.set(sq, { mission: st.mission, until: b.time + 8 });
       }
       states.delete(sq);
       return null;
@@ -1393,7 +1396,7 @@
           stage: 'assemble',
           serial: counts.ambushes,
           at: now,
-          since: now,
+          since: replanning ? replanning.since : now,
           mission: m,
           version: m.version,
           execution: ex,
@@ -1421,7 +1424,16 @@
                 phase: 'stage',
                 at: now,
                 missionVersion: m.version,
-                transitions: [{ from: 'plan', to: 'stage', at: now, reason: 'native-ambush-selected' }]
+                transitions: [
+                  replanning
+                    ? {
+                        from: 'replan',
+                        to: 'stage',
+                        at: now,
+                        reason: 'replanned-from-serial-' + replanning.from
+                      }
+                    : { from: 'plan', to: 'stage', at: now, reason: 'native-ambush-selected' }
+                ]
               }
             : null,
           /* Keep only Squad Leader intent through the posture-to-bound handoff.
@@ -1481,8 +1493,30 @@
           var realFiringPosts = st.orders.filter(function (o) {
             return !o.reserve && exposedOrders.indexOf(o) < 0;
           });
-          if (coreCompromised || realFiringPosts.length < 3)
+          if (coreCompromised || realFiringPosts.length < 3) {
+            /* REPLAN: before any dwell exists, a newer fresh report that
+               exposes a post is new intelligence, not a reason to sit out a
+               cooldown. Reselect against it under a new serial; nothing is
+               inherited but the original preparation start, so the budget
+               still bounds every attempt. */
+            if (
+              operationOn &&
+              !replanning &&
+              st.heldSince == null &&
+              rs.length &&
+              now - st.since <= tuning.preparationBudget
+            ) {
+              var carried = { since: st.since, from: st.serial };
+              end(b, sq, 'replan: newer report exposed a firing post', true);
+              replanning = carried;
+              try {
+                return update(b, sq, report);
+              } finally {
+                replanning = null;
+              }
+            }
             return end(b, sq, 'firing station lost masking/ray');
+          }
           st.orders = st.orders.filter(function (o) {
             return exposedOrders.indexOf(o) < 0;
           });
