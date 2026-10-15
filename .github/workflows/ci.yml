@@ -144,17 +144,6 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
 
-      # Temporary read-only formatting diagnostics for the opt-in strategic field branch.
-      # The strict Prettier ratchet above still fails; this only provides repair bytes.
-      - name: Strategic formatting reference (temporary)
-        if: failure() && github.head_ref == 'work/strategic-interception-20261015'
-        run: |
-          for file in battle/scenario-generator.js battle/battle-sim.js battle/town-objectives.js battle/commander-routes.js battle/camera-controls.js; do
-            printf 'STRATEGIC_FORMAT:%s:' "$file"
-            npx --yes prettier@3.3.3 "$file" | base64 -w0
-            printf '\\n'
-          done
-
   audio:
     name: Audio library
     needs: changes
