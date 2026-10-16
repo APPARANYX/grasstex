@@ -406,12 +406,125 @@
     }
     return null;
   }
+  function screeningSquad(sim, faction) {
+    var st = state(sim)[faction].screen;
+    return st && (sim.factions[faction].squads || []).find(function (sq) {
+      return sq.id === st.squadId && sq._macroMission &&
+        sq._macroMission.intent === 'screen';
+    });
+  }
+  /* Upward ground reports only: BattleTacticalSituation reads stored
+     individual Soldier beliefs. No enemy actor access, no refreshed LOS,
+     no synthetic position, and no shared intelligence across factions. */
+  function maybeScreenReport(sim, faction, issue) {
+    if (!enabled(sim) || typeof issue !== 'function' || !root.BattleTacticalSituation) return null;
+    var st = state(sim)[faction].screen,
+      sq = screeningSquad(sim, faction),
+      onPost = sq && sq._missionExecution && sq._missionExecution.screenOnPostAt;
+    if (!st || !sq || !onPost) return null;
+    if (st.atPost == null) {
+      st.atPost = onPost;
+      event(sim, 'screen-established', { faction: faction, squad: sq.id, at: onPost,
+        roadId: st.roadId });
+    }
+    var picture = root.BattleTacticalSituation.compute(sim, faction);
+    if (!picture) return null;
+    var rows = picture.contacts.filter(function (c) {
+      return c && c.squad === sq.id && c.provenance === 'member-belief' &&
+        c.source === 'seen' && isFinite(c.at) &&
+        c.at >= onPost && sim.time - c.at <= 6 &&
+        isFinite(c.x) && isFinite(c.z) && c.targetId != null &&
+        c.confidence >= 0.5;
+    });
+    var tracks = [];
+    rows.forEach(function (c) {
+      var id = String(c.targetId), prior = st.observations[id];
+      if (!prior) {
+        st.observations[id] = { x: c.x, z: c.z, at: c.at };
+        st.reportCount++;
+        event(sim, 'screen-contact-relayed', {
+          faction: faction, squad: sq.id, targetId: id, at: c.at,
+          x: +c.x.toFixed(1), z: +c.z.toFixed(1), source: 'firsthand-soldier-belief'
+        });
+        return;
+      }
+      var elapsed = c.at - prior.at, travelled = d(c, prior);
+      if (elapsed < 3) return;
+      // Two actual firsthand reports are required to infer velocity.
+      st.observations[id] = { x: c.x, z: c.z, at: c.at };
+      if (elapsed > 16 || travelled < 5) return;
+      var speed = travelled / elapsed;
+      if (speed < 0.8 || speed > 14) return;
+      tracks.push({
+        squadId: id, source: 'forward-screen', observerSquadId: sq.id,
+        observedAt: c.at, validUntil: c.at + 30,
+        x: Math.round(c.x / 20) * 20,
+        z: Math.round(c.z / 20) * 20,
+        headingRadians: Math.round(Math.atan2(c.x - prior.x, c.z - prior.z) * 6 / Math.PI) *
+          Math.PI / 6,
+        speedMps: Math.round(speed * 2) / 2,
+        positionUncertaintyM: 35, speedUncertaintyMps: 0.8,
+        confidence: Math.min(0.85, c.confidence)
+      });
+    });
+    if (!tracks.length) return null;
+    var town = sim.scene.metadata.battleScenario,
+      men = (sq.members || []).filter(function (m) { return m && !m.dead && m.root && m.root.position; });
+    if (!men.length || sq.inContact) return null;
+    var pos = {
+      x: men.reduce(function (v, m) { return v + m.root.position.x; }, 0) / men.length,
+      z: men.reduce(function (v, m) { return v + m.root.position.z; }, 0) / men.length
+    };
+    var winner = null, evaluated = 0;
+    tracks.forEach(function (track) {
+      roadSightings(town, track, faction).forEach(function (road) {
+        evaluated++;
+        var metres = d(pos, road.point);
+        if (metres > 420 || metres < 55) return;
+        // On foot from a REAL observation post: slow conservative pace,
+        // setup interval, and additional uncertainty. No second truck spawn.
+        var friendlyETA = metres / 1.35 + 35 + 25,
+          margin = road.enemyETA - friendlyETA;
+        if (margin <= 25) return;
+        var result = { point: road.point, track: track, road: road,
+          friendlyETA: friendlyETA, margin: margin,
+          score: margin - metres * 0.03 + road.alignment * 25 };
+        if (!winner || result.score > winner.score) winner = result;
+      });
+    });
+    event(sim, 'screen-recon-assessed', { faction: faction, squad: sq.id,
+      targetTracks: tracks.length, corridors: evaluated,
+      result: winner ? 'feasible' : 'declined' });
+    if (!winner) return null;
+    var spec = {
+      owner: 'force-command', intent: 'intercept', action: 'intercept',
+      role: 'recon', point: winner.point, route: [], objectiveId: null,
+      intercept: {
+        source: 'forward-screen', mode: 'foot', contactId: winner.track.squadId,
+        observerSquadId: sq.id, roadId: winner.road.roadId,
+        likelyObjectiveId: winner.road.likelyObjectiveId,
+        observedAt: winner.track.observedAt, expiresAt: sim.time + Math.max(100, winner.road.enemyETA + 40),
+        enemyETA: +winner.road.enemyETA.toFixed(1),
+        friendlyETA: +winner.friendlyETA.toFixed(1),
+        margin: +winner.margin.toFixed(1), confidence: winner.track.confidence
+      }
+    };
+    var m = issue(sq, spec, 'forward-screen-report-intercept');
+    if (!m || m.intent !== 'intercept') return null;
+    st.intercept = { at: sim.time, contactId: winner.track.squadId,
+      roadId: winner.road.roadId, margin: +winner.margin.toFixed(1), missionVersion: m.version };
+    event(sim, 'forward-screen-intercept-ordered', { faction: faction, squad: sq.id, ...st.intercept });
+    return st.intercept;
+  }
   function event(sim, kind, data) {
     if (root.BattleTelemetry && root.BattleTelemetry.record)
       root.BattleTelemetry.record('strategic-interception-' + kind, data, sim);
   }
   function maybeIssue(sim, faction, issue) {
     if (!enabled(sim) || !root.BattleAerialRecon || typeof issue !== 'function') return null;
+    // Purpose-first: do not steal the designated second truck before it
+    // establishes a ground screen for the lead squad's secured objective.
+    if (reservePending(sim, faction)) return null;
     var observation = root.BattleAerialRecon.forGeneral(sim, faction);
     if (!observation) return null;
     var st = state(sim)[faction];
@@ -479,6 +592,7 @@
     pairs: pairs,
     screenOpportunity: screenOpportunity,
     maybeScreen: maybeScreen,
+    maybeScreenReport: maybeScreenReport,
     choose: choose,
     maybeIssue: maybeIssue,
     summary: function (sim) {
