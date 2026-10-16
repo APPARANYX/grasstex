@@ -273,7 +273,7 @@
       }
       if (playable) playable.start(true);
       entry.riders.push({ result: result, anchor: anchor, group: playable || null, soldier:member.soldier });
-      conceal(entry,member.soldier);
+      if (!entry.showcase) conceal(entry,member.soldier);
     } catch (err) {
       if (groups.length) groups.forEach(function (g) { try { g.dispose(); } catch (_) {} });
       if (result) disposeImport(result);
@@ -325,6 +325,36 @@
         }
       });
     });
+    // Optional spectator showroom: one stationary model per faction at its
+    // base. No transport authorization, AI actor or combat unit is created.
+    // This makes the shared truck testable before the first real Macro grant.
+    if (/(?:^|[?&])truckShowcase=1(?:&|$)/.test(root.location && root.location.search || '')) {
+      var scenario = sim.scene.metadata && sim.scene.metadata.battleScenario;
+      ['us','ge'].forEach(function (faction) {
+        var bases = scenario && scenario.spawnZones && scenario.spawnZones[faction] && scenario.spawnZones[faction].bases;
+        var sq = sim.factions[faction] && sim.factions[faction].squads && sim.factions[faction].squads[0];
+        if (!bases || !bases[0] || !sq) return;
+        var key = 'showcase/' + faction, base = bases[0], entry = st.trucks.get(key);
+        var t = {phase:'embarked',
+          position:{x:+base.x+12,z:+base.z+(faction==='us'?16:-16)},
+          heading:{x:0,z:faction==='us'?1:-1}};
+        active.add(key);
+        if (!entry) {
+          entry={id:key,faction:faction,root:null,visual:null,phase:t.phase,
+            members:seatsFor(sq),riders:[],nextRider:0,busy:false,token:0,
+            hidden:new Map(),finishedAt:null,showcase:true};
+          st.trucks.set(key,entry);
+        }
+        if (st.source && !entry.root) {
+          try { instantiateTruck(sim,st,entry); }
+          catch(err){recordError(st,'showcase '+key,err);}
+        }
+        if (entry.root) {
+          updateVehiclePose(sim,entry,t);
+          updateRiders(sim,st,entry,t);
+        }
+      });
+    }
     if (active.size && !st.source && !st.pending && !st.errors.some(function (e) {
       return e.indexOf('truck FBX:') === 0;
     })) loadTruckSource(sim,st);
