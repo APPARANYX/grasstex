@@ -31,7 +31,8 @@ def managed_asset(path: str) -> bool:
         and parts[0] == "Assets"
         and parts[1] in EXTENSIONS
         and Path(path).suffix.lower() in EXTENSIONS[parts[1]]
-        and all(part not in ("", ".", "..") and not any(ord(c) < 32 for c in part) for part in parts)
+        and bool(re.fullmatch(r"[A-Za-z0-9 ._()/-]+", path))
+        and all(part not in ("", ".", "..") for part in parts)
     )
 
 
@@ -79,6 +80,8 @@ def build_overlay(base_ref: str, destination: Path) -> dict:
             # other files from the repository through the public preview.
             continue
         src = Path(path)
+        if src.is_symlink():
+            raise RuntimeError(f"Refusing to stage a symlinked asset: {path}")
         if src.is_file():
             dst = destination / path
             dst.parent.mkdir(parents=True, exist_ok=True)
