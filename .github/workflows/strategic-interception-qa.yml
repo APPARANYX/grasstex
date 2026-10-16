@@ -1,0 +1,68 @@
+name: ⭐ Strategic Interception Native QA
+
+on:
+  pull_request:
+    paths:
+      - 'battle/commander-ai.js'
+      - 'battle/modules/15l-squad-leader-mission-execution.js'
+      - 'battle/modules/22a-commander-strategic-recovery.js'
+      - 'battle/modules/58-strategic-abstract-transport.js'
+      - 'battle/modules/59-strategic-aerial-recon.js'
+      - 'battle/modules/59b-strategic-interception.js'
+      - 'scripts/probe_strategic_interception.cjs'
+      - 'tools/ai-sim-harness/strategic-interception-check.js'
+      - '.github/workflows/strategic-interception-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: strategic-interception-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-interception:
+    name: Native 5km battle / interception ON-OFF
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate real causal transport and prediction
+        run: |
+          node --check scripts/probe_strategic_interception.cjs
+          node --check battle/modules/59b-strategic-interception.js
+          node tools/ai-sim-harness/strategic-interception-check.js
+          php -l battle_sim_local.php
+      - name: Install Chromium
+        run: |
+          npm install --global playwright@1.56.1
+          playwright install --with-deps chromium
+      - name: Start isolated source checkout
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/strategic-interception-site"
+          ln -s "$GITHUB_WORKSPACE" "$RUNNER_TEMP/strategic-interception-site/grasstex"
+          php -S 127.0.0.1:8765 -t "$RUNNER_TEMP/strategic-interception-site" \
+            > "$RUNNER_TEMP/strategic-interception-php.log" 2>&1 &
+          for attempt in {1..30}; do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1&seed=healthcheck' -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/strategic-interception-php.log"
+          exit 1
+      - name: Trace paired native battle decisions and physical arrival
+        env:
+          STRATEGIC_INTERCEPT_QA_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          STRATEGIC_INTERCEPT_QA_OUT: closeups/strategic-interception-ci
+          STRATEGIC_INTERCEPT_QA_SECONDS: 900
+        run: node scripts/probe_strategic_interception.cjs
+      - name: Preserve diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-strategic-interception-evidence
+          if-no-files-found: warn
+          path: |
+            closeups/strategic-interception-ci/
+            ${{ runner.temp }}/strategic-interception-php.log
