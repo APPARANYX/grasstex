@@ -21,9 +21,9 @@ for(const name of ['FrontWheels','RearWheels','SeatAnchor_','ImportAnimationsAsy
 const truckClips=['Truck - Driving.fbx','Truck - Sitting 1.fbx','Truck - Sitting 2.fbx','Truck - Sitting 3.fbx'];
 for(const file of truckClips){
   assert.ok(fs.statSync('Assets/animations/'+file).size>0,'Missing committed truck pose: '+file);
-  assert.match(file,/Truck.*\\.fbx$/,'Truck pose must be discoverable by the lab filename filter');
+  assert.ok(/truck/i.test(file) && /\.fbx$/i.test(file),'Truck pose must be discoverable by the lab filename filter');
 }
-assert.match(scripts[0],/function suggestSeatPoses\\(/,'Driver and passenger pose suggestion missing');
+assert.ok(scripts[0].includes('function suggestSeatPoses('),'Driver and passenger pose suggestion missing');
 const inventory=fs.readFileSync('labs/asset-list.php','utf8');
 assert.match(inventory,/'vehicles'\s*=>\s*'vehicles'/,'Asset inventory must expose vehicle directory');
 const deploy=fs.readFileSync('scripts/prepare_incremental_deploy.py','utf8');
