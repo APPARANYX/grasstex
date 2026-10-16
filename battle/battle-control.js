@@ -210,9 +210,17 @@
       if (text) text.textContent = 'Battle ended';
       if (sub)
         sub.textContent =
-          'US ' + sim.factions.us.alive + ' alive (' + sim.factions.us.kills +
-          ' kills) · GER ' + sim.factions.ge.alive + ' alive (' + sim.factions.ge.kills +
-          ' kills) · ' + Math.floor(sim.time / 60) + ':' +
+          'US ' +
+          sim.factions.us.alive +
+          ' alive (' +
+          sim.factions.us.kills +
+          ' kills) · GER ' +
+          sim.factions.ge.alive +
+          ' alive (' +
+          sim.factions.ge.kills +
+          ' kills) · ' +
+          Math.floor(sim.time / 60) +
+          ':' +
           String(Math.floor(sim.time % 60)).padStart(2, '0');
       if (banner) banner.style.display = 'flex';
     }

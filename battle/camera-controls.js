@@ -1078,7 +1078,15 @@
       canvas.focus();
       var b = menuPauseOwner;
       menuPauseOwner = null;
-      if (b && b === liveBattle() && b.paused && !b.manualEnded && !b.winner && typeof b.resume === 'function') b.resume();
+      if (
+        b &&
+        b === liveBattle() &&
+        b.paused &&
+        !b.manualEnded &&
+        !b.winner &&
+        typeof b.resume === 'function'
+      )
+        b.resume();
       updateHint(activeGamepad());
     }
     function possessSelected() {

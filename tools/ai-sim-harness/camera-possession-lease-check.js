@@ -122,8 +122,9 @@ const possession = controller.slice(
   controller.indexOf('    function setPlayerStance(')
 );
 assert.ok(
-  possession.indexOf('if (!b || b.manualEnded || b.winner || !playerSoldierEligible(b, next)) return false;') <
-    possession.indexOf('if (player) clearPlayerLease('),
+  possession.indexOf(
+    'if (!b || b.manualEnded || b.winner || !playerSoldierEligible(b, next)) return false;'
+  ) < possession.indexOf('if (player) clearPlayerLease('),
   'validate before relinquishing current soldier'
 );
 assert.ok(
