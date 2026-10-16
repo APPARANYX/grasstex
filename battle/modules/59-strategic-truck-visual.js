@@ -6,7 +6,8 @@
   'use strict';
   if (!root.BattleModules || root.BattleTransportVehicleVisual) return;
   var MODEL = 'german_transport.fbx';
-  var SOLDIER = { us: 'us-paratrooper.fbx', ge: 'ge-paratrooper.fbx' };
+  // Actual squad members already have role-specific FBX rigs and equipment.
+  // The truck never imports its own soldier model or creates a second unit.
   var SEATS = [
     ['Driver', 'driver', [-0.45, 0.95, 0.7], 0, 'Truck - Driving.fbx'],
     ['Right 1', 'passenger', [0.65, 1.3, -0.333], -90, 'Truck - Sitting 1.fbx'],
@@ -21,9 +22,7 @@
   ].map(function (s) {
     return { name: s[0], role: s[1], position: s[2], yaw: s[3], occupied: true, clip: s[4] };
   });
-  var TRUCK_LENGTH = 6.2,
-    RENDER_CREW_RADIUS = 230,
-    DROP_CREW_RADIUS = 310;
+  var TRUCK_LENGTH = 6.2;
   var stores = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
   var assetFiles = {};
   function enabled(sim) {
@@ -257,38 +256,103 @@
     if (!at) return false;
     return Math.hypot(at.x - entry.root.position.x, at.z - entry.root.position.z) <= radius;
   }
-  function originalVisual(soldier) {
-    // The FBX backend binds on the soldier actor, not on soldier.model.
-    return (soldier && soldier._fbx && soldier._fbx.holder) || null;
+  function clipFor(soldier, seat) {
+    return root.BattleFbxSoldier && root.BattleFbxSoldier.vehiclePoseClip
+      ? root.BattleFbxSoldier.vehiclePoseClip(soldier, seat.clip)
+      : null;
   }
-  function conceal(entry, soldier) {
-    var holder = originalVisual(soldier);
-    if (!holder || holder.isDisposed()) return;
-    if (!entry.hidden.has(soldier)) entry.hidden.set(soldier, { holder: holder, active: holder.isEnabled() });
-    holder.setEnabled(false);
+  function copyTransform(node) {
+    return { parent: node.parent, position: node.position.clone(),
+      rotation: node.rotation.clone(),
+      quaternion: node.rotationQuaternion ? node.rotationQuaternion.clone() : null,
+      scaling: node.scaling.clone() };
   }
-  function reveal(entry) {
-    entry.hidden.forEach(function (value) {
-      if (value.holder && !value.holder.isDisposed()) value.holder.setEnabled(value.active);
-    });
-    entry.hidden.clear();
+  function restoreTransform(node, snapshot) {
+    if (!node || node.isDisposed() || !snapshot) return;
+    node.parent = snapshot.parent;
+    node.position.copyFrom(snapshot.position);
+    node.rotation.copyFrom(snapshot.rotation);
+    if (snapshot.quaternion) {
+      if (!node.rotationQuaternion) node.rotationQuaternion = snapshot.quaternion.clone();
+      else node.rotationQuaternion.copyFrom(snapshot.quaternion);
+    } else node.rotationQuaternion = null;
+    node.scaling.copyFrom(snapshot.scaling);
+  }
+  var mixer = root.BattleFbxClipMixer && root.BattleFbxClipMixer.create(30);
+  function seatedPose(fx, presentation) {
+    var clip = presentation.clip, layer = presentation.layer;
+    // Start beyond the FBX's initial neutral/rest frame, so the first seated
+    // render never exposes a T-pose or a standing-to-sitting tween.
+    layer.entries[0].t = clip.duration > 0
+      ? ((presentation.sim.time - presentation.boardedAt + presentation.phaseOffset)
+        % clip.duration + clip.duration) % clip.duration : 0;
+    var bones = fx.st.animated, nodes = fx.nodes, q = presentation.q, p = presentation.p;
+    for (var j = 0; j < bones.length; j++) {
+      var i = bones[j], node = nodes[i];
+      if (!node || !clip.channels[i]) continue;
+      var channels = mixer.sampleLayer(layer, i, q, p);
+      if (channels) node.rotationQuaternion.copyFrom(q);
+      if (channels === 2) node.position.copyFrom(p);
+    }
+  }
+  function attachRealRider(sim, entry, member) {
+    var soldier = member.soldier, fx = soldier && soldier._fbx,
+      clip = clipFor(soldier, member.seat);
+    if (!fx || !clip || !fx.holder || fx.holder.isDisposed() || !mixer) return false;
+    if (fx._vehicleSeat) return fx._vehicleSeat.vehicleId === entry.id;
+    var scene = sim.scene,
+      anchor = new BABYLON.TransformNode('truckSeat-' + entry.id + '-' + member.index, scene),
+      seat = member.seat;
+    anchor.parent = entry.root;
+    anchor.position.set.apply(anchor.position, seat.position);
+    anchor.rotation.y = (seat.yaw * Math.PI) / 180;
+    // The soldier's real actor owns his role-based scale (gunner, engineer,
+    // captain etc.). The visual anchor inherits it without moving his root.
+    anchor.scaling.copyFrom(soldier.root.scaling);
+    var holderSnapshot = copyTransform(fx.holder), socketSnapshot = copyTransform(fx.socket);
+    var presentation = {
+      vehicleId: entry.id, seatIndex: member.index, seatName: seat.name,
+      animation: seat.clip, phase: 'embarked', soldierId: soldier.id,
+      originalModel: fx.lib.file, anchor: anchor, sim: sim, clip: clip,
+      boardedAt: sim.time, phaseOffset: Math.min(.35, clip.duration * .6),
+      q: new BABYLON.Quaternion(), p: new BABYLON.Vector3(),
+      layer: { entries: [{ clip: clip, t: 0, rate: 1, w: 1 }] },
+      holderSnapshot: holderSnapshot, socketSnapshot: socketSnapshot
+    };
+    presentation.applyPose = function (actual) { seatedPose(actual, presentation); };
+    // Set the target pose BEFORE revealing the actual actor inside the truck.
+    // No extra FBX models, skeletons, animation groups, or visible tween.
+    fx.holder.parent = anchor;
+    fx.holder.position.set(0, 0, 0);
+    fx.holder.rotation.set(0, 0, 0);
+    if (fx.holder.rotationQuaternion) fx.holder.rotationQuaternion.copyFrom(BABYLON.Quaternion.Identity());
+    // Keep the same issued rifle/weapon mesh with its real soldier. Park it
+    // across his lap while seated rather than leave it at the simulated root.
+    fx.socket.parent = anchor;
+    fx.socket.position.set(.08, .53, .23);
+    fx.socket.rotationQuaternion = BABYLON.Quaternion.FromEulerAngles(-.16, 1.48, .1);
+    fx.socket.scaling.setAll(1);
+    fx._vehicleSeat = presentation;
+    soldier._vehiclePresentation = presentation;
+    seatedPose(fx, presentation);
+    fx.poseRef.serial++;
+    entry.riders.push({ soldier: soldier, fx: fx, anchor: anchor, presentation: presentation });
+    return true;
+  }
+  function releaseRider(rider) {
+    var soldier = rider.soldier, fx = rider.fx, p = rider.presentation;
+    if (fx && fx._vehicleSeat === p) {
+      delete fx._vehicleSeat;
+      if (soldier && soldier._vehiclePresentation === p) delete soldier._vehiclePresentation;
+      restoreTransform(fx.holder, p.holderSnapshot);
+      restoreTransform(fx.socket, p.socketSnapshot);
+      fx.poseRef.serial++;
+    }
+    if (rider.anchor && !rider.anchor.isDisposed()) rider.anchor.dispose(false, false);
   }
   function disposeRiders(entry) {
-    entry.token++;
-    entry.riders.forEach(function (r) {
-      if (r.group) {
-        try {
-          r.group.stop();
-          r.group.dispose();
-        } catch (_) {}
-      }
-      disposeImport(r.result);
-      if (r.anchor && !r.anchor.isDisposed()) r.anchor.dispose(false, false);
-    });
+    entry.riders.forEach(releaseRider);
     entry.riders = [];
-    entry.busy = false;
-    entry.nextRider = 0;
-    reveal(entry);
   }
   function removeEntry(entry) {
     disposeRiders(entry);
@@ -308,358 +372,145 @@
     st.source = null;
     st.pending = null;
     st.errors = [];
+    st.poseReady = false;
+    st.poseLoading = null;
+    // Preparation runs asynchronously after the shared soldier library is
+    // ready, before any boarding grant. No FBX parse is performed at seat time.
+    prepareSharedSeatPoses(sim, st);
   }
-  function canonTarget(name) {
-    // FBX imports can prefix the same Mixamo bone with namespaces or
-    // transform-helper suffixes. Canonical names are a fallback to exact names.
-    return String(name || '')
-      .split(/[|:]/)
-      .pop()
-      .replace(/[^a-z0-9]/gi, '')
-      .toLowerCase()
-      .replace(/^mixamorig/, '');
+  function prepareSharedSeatPoses(sim, st) {
+    if (st.poseReady || st.poseLoading) return;
+    var api = root.BattleFbxSoldier;
+    if (!api || !api.prepareVehicleClips) return;
+    var generation = st.generation;
+    st.poseLoading = api.prepareVehicleClips(sim.scene).then(function () {
+      if (st.generation === generation) st.poseReady = true;
+    }).catch(function (err) {
+      if (st.generation === generation) recordError(st, 'truck-seat clips', err);
+    }).finally(function () { if (st.generation === generation) st.poseLoading = null; });
   }
-  function targetsFor(result) {
-    var targets = new Map(),
-      normalized = new Map();
-    function add(target) {
-      if (!target || !target.name) return;
-      targets.set(target.name, target);
-      var key = canonTarget(target.name);
-      if (key && !normalized.has(key)) normalized.set(key, target);
-    }
-    (result.meshes || []).forEach(function (mesh) {
-      add(mesh);
-      if (mesh.skeleton) mesh.skeleton.bones.forEach(add);
-    });
-    (result.transformNodes || []).forEach(add);
-    return {
-      get: function (name) {
-        return targets.get(name) || normalized.get(canonTarget(name)) || null;
-      },
-      size: targets.size
-    };
-  }
-  async function loadRider(sim, st, entry, member, token) {
-    var scene = sim.scene,
-      result = null,
-      anchor = null,
-      groups = [],
-      stage = 'fetch soldier FBX';
-    try {
-      var file = await fetchAsset('soldiers', SOLDIER[entry.faction]);
-      if (token !== entry.token || entry.phase !== 'embarked') return;
-      stage = 'import soldier FBX';
-      result = await BABYLON.SceneLoader.ImportMeshAsync('', 'file:', file, scene, undefined, '.fbx');
-      if (token !== entry.token || entry.phase !== 'embarked') {
-        disposeImport(result);
-        return;
-      }
-      stage = 'create seat anchor';
-      anchor = new BABYLON.TransformNode('truckSeat-' + entry.id + '-' + member.index, scene);
-      anchor.parent = entry.root;
-      anchor.position.set.apply(anchor.position, member.seat.position);
-      anchor.rotation.y = (member.seat.yaw * Math.PI) / 180;
-      var body = new BABYLON.TransformNode('truckPassenger-' + entry.id + '-' + member.index, scene);
-      body.parent = anchor;
-      // Measure the freshly imported FBX while it is still at its own
-      // unparented origin. Measuring after parenting to a truck at x=±1700m
-      // would bake battlefield coordinates into the seat's local offset and
-      // send the rider thousands of metres away from the vehicle.
-      var mesh = (result.meshes || []).filter(function (m) {
-        return m.getTotalVertices && m.getTotalVertices() > 0;
-      });
-      stage = 'measure and normalize soldier';
-      var b = bounds(mesh);
-      if (!b) throw new Error('empty soldier FBX');
-      mesh.forEach(function (m) {
-        m.isPickable = false;
-        m.checkCollisions = false;
-      });
-      var k = 1.8 / Math.max(0.1, b.height);
-      body.scaling.setAll(k);
-      body.position.set(-(b.low.x + b.high.x) * 0.5 * k, -b.low.y * k, -(b.low.z + b.high.z) * 0.5 * k);
-      attachImport(result, body);
-      var targets = targetsFor(result);
-      var mappedTargets = 0,
-        unmappedTargets = [];
-      stage = 'fetch Truck animation';
-      var clipFile = await fetchAsset('animations', member.seat.clip);
-      if (token !== entry.token || entry.phase !== 'embarked') {
-        disposeImport(result);
-        anchor.dispose(false, false);
-        return;
-      }
-      // SceneLoader inserts groups into a shared scene array. Serialize imports
-      // across ALL trucks: otherwise simultaneous US/GE imports could attach
-      // another rider's animation group to this soldier.
-      stage = 'import and retarget Truck animation';
-      var previous = st.animationQueue || Promise.resolve();
-      var importTask = previous
-        .catch(function () {})
-        .then(async function () {
-          if (token !== entry.token || entry.phase !== 'embarked') return [];
-          var before = new Set(scene.animationGroups);
-          await BABYLON.SceneLoader.ImportAnimationsAsync(
-            'file:',
-            clipFile,
-            scene,
-            false,
-            BABYLON.SceneLoaderAnimationGroupLoadingMode.NoSync,
-            function (target) {
-              var resolved = targets.get(target && target.name);
-              if (resolved) mappedTargets++;
-              else if (unmappedTargets.length < 8)
-                unmappedTargets.push((target && target.name) || '(unknown)');
-              return resolved;
-            }
-          );
-          return scene.animationGroups.filter(function (g) {
-            return !before.has(g);
-          });
-        });
-      st.animationQueue = importTask.catch(function () {});
-      groups = await importTask;
-      // Babylon does not tolerate targetedAnimations entries whose target is null:
-      // Animation._preparePath reads target.position and crashes on group.start.
-      // Drop only unresolved tracks; never synthesize substitute bone transforms.
-      groups.forEach(function (group) {
-        var tracks = group.targetedAnimations || [];
-        for (var i = tracks.length - 1; i >= 0; i--) {
-          if (!tracks[i] || !tracks[i].target) tracks.splice(i, 1);
-        }
-      });
-      var playable = groups.find(function (g) {
-        return g.targetedAnimations && g.targetedAnimations.length > 0;
-      });
-      groups
-        .filter(function (g) {
-          return g !== playable;
-        })
-        .forEach(function (g) {
-          g.dispose();
-        });
-      if (!playable)
-        throw new Error(
-          'No compatible Truck animation targets for ' +
-            SOLDIER[entry.faction] +
-            ' (rig nodes=' +
-            targets.size +
-            ', matched=' +
-            mappedTargets +
-            ', missing examples=' +
-            unmappedTargets.join(', ') +
-            ')'
-        );
-      if (token !== entry.token || entry.phase !== 'embarked') {
-        if (playable) playable.dispose();
-        disposeImport(result);
-        anchor.dispose(false, false);
-        return;
-      }
-      playable.start(true);
-      entry.riders.push({ result: result, anchor: anchor, group: playable, soldier: member.soldier });
-      if (!entry.showcase) conceal(entry, member.soldier);
-    } catch (err) {
-      if (groups.length)
-        groups.forEach(function (g) {
-          try {
-            g.dispose();
-          } catch (_) {}
-        });
-      if (result) disposeImport(result);
-      if (anchor && !anchor.isDisposed()) anchor.dispose(false, false);
-      recordError(st, 'seat ' + member.index + ' ' + entry.faction + ' [' + stage + ']', err);
-    }
-  }
-  function updateRiders(sim, st, entry, transport) {
-    if (transport.phase !== 'embarked') {
-      if (entry.riders.length || entry.busy) disposeRiders(entry);
+  function updateRiders(sim, st, entry) {
+    if (entry.showcase || entry.phase !== 'embarked') {
+      if (entry.riders.length) disposeRiders(entry);
       return;
     }
-    if (!cameraNear(sim.scene, entry, RENDER_CREW_RADIUS)) {
-      if (entry.riders.length && !cameraNear(sim.scene, entry, DROP_CREW_RADIUS)) disposeRiders(entry);
-      return;
-    }
-    if (
-      entry.busy ||
-      entry.nextRider >= entry.members.length ||
-      st.errors.some(function (e) {
-        return e.indexOf('seat ') === 0;
-      })
-    )
-      return;
-    var member = entry.members[entry.nextRider++];
-    var token = entry.token;
-    entry.busy = true;
-    loadRider(sim, st, entry, member, token).finally(function () {
-      if (token === entry.token) entry.busy = false;
+    if (!st.poseReady || !entry.root) return;
+    // All of the actual squad's already-loaded meshes snap into their seats
+    // in ONE render update. No per-seat FBX loading or staggered emergence.
+    entry.members.forEach(function (member) {
+      if (entry.riders.some(function (r) { return r.soldier === member.soldier; })) return;
+      if (!attachRealRider(sim, entry, member))
+        recordError(st, 'real seat ' + member.index, 'missing live role rig or compatible Truck pose');
     });
   }
   function step(sim) {
     if (!enabled(sim) || !root.BABYLON || !BABYLON.SceneLoader || !sim || !sim.scene) return;
-    var st = stateFor(sim),
-      active = new Set();
-    ['us', 'ge'].forEach(function (faction) {
+    var st = stateFor(sim), active = new Set();
+    if (!st.poseReady && !st.poseLoading) prepareSharedSeatPoses(sim, st);
+    ['us','ge'].forEach(function (faction) {
       ((sim.factions[faction] && sim.factions[faction].squads) || []).forEach(function (sq) {
-        var t = sq._transport;
-        if (!t) return;
+        var transport = sq._transport;
+        if (!transport) return;
         var key = faction + '/' + sq.id;
         active.add(key);
         var entry = st.trucks.get(key);
         if (!entry) {
-          entry = {
-            id: sq.id,
-            faction: faction,
-            root: null,
-            visual: null,
-            phase: t.phase,
-            members: seatsFor(sq),
-            riders: [],
-            nextRider: 0,
-            busy: false,
-            token: 0,
-            hidden: new Map(),
-            finishedAt: null
-          };
+          entry = { id: sq.id, faction: faction, root: null, visual: null,
+            phase: transport.phase, members: seatsFor(sq), riders: [],
+            finishedAt: null, showcase: false };
           st.trucks.set(key, entry);
         }
-        if (t.phase !== 'boarding' && t.phase !== 'embarked') {
+        if (transport.phase !== 'boarding' && transport.phase !== 'embarked') {
           if (entry.finishedAt == null) entry.finishedAt = sim.time;
-          if (entry.riders.length || entry.busy) disposeRiders(entry);
+          disposeRiders(entry);
         }
         if (st.source && !entry.root) {
-          try {
-            instantiateTruck(sim, st, entry);
-          } catch (err) {
-            recordError(st, 'instantiate ' + key, err);
-          }
+          try { instantiateTruck(sim, st, entry); }
+          catch (err) { recordError(st, 'instantiate ' + key, err); }
         }
         if (entry.root) {
-          updateVehiclePose(sim, entry, t);
-          if (t.phase === 'embarked' || t.phase === 'boarding') updateRiders(sim, st, entry, t);
+          updateVehiclePose(sim, entry, transport);
+          updateRiders(sim, st, entry);
         }
       });
     });
-    // Optional spectator showroom: one stationary model per faction at its
-    // base. No transport authorization, AI actor or combat unit is created.
-    // This makes the shared truck testable before the first real Macro grant.
+    // The showcase is a parked, EMPTY display vehicle. It deliberately
+    // does not borrow a live combat soldier from a different squad/location.
     if (/(?:^|[?&])truckShowcase=1(?:&|$)/.test((root.location && root.location.search) || '')) {
       var scenario = sim.scene.metadata && sim.scene.metadata.battleScenario;
-      ['us', 'ge'].forEach(function (faction) {
-        var bases =
-          scenario &&
-          scenario.spawnZones &&
-          scenario.spawnZones[faction] &&
+      ['us','ge'].forEach(function (faction) {
+        var bases = scenario && scenario.spawnZones && scenario.spawnZones[faction] &&
           scenario.spawnZones[faction].bases;
-        var sq = sim.factions[faction] && sim.factions[faction].squads && sim.factions[faction].squads[0];
-        if (!bases || !bases[0] || !sq) return;
-        var key = 'showcase/' + faction,
-          base = bases[0],
-          entry = st.trucks.get(key);
-        var t = {
-          phase: 'embarked',
+        if (!bases || !bases[0]) return;
+        var key = 'showcase/' + faction, base = bases[0], entry = st.trucks.get(key);
+        var display = { phase: 'showcase',
           position: { x: +base.x + 12, z: +base.z + (faction === 'us' ? 16 : -16) },
-          heading: { x: 0, z: faction === 'us' ? 1 : -1 }
-        };
+          heading: { x: 0, z: faction === 'us' ? 1 : -1 } };
         active.add(key);
         if (!entry) {
-          entry = {
-            id: key,
-            faction: faction,
-            root: null,
-            visual: null,
-            phase: t.phase,
-            members: seatsFor(sq),
-            riders: [],
-            nextRider: 0,
-            busy: false,
-            token: 0,
-            hidden: new Map(),
-            finishedAt: null,
-            showcase: true
-          };
+          entry = { id: key, faction: faction, root: null, visual: null, phase: display.phase,
+            members: [], riders: [], finishedAt: null, showcase: true };
           st.trucks.set(key, entry);
         }
         if (st.source && !entry.root) {
-          try {
-            instantiateTruck(sim, st, entry);
-          } catch (err) {
-            recordError(st, 'showcase ' + key, err);
-          }
+          try { instantiateTruck(sim, st, entry); }
+          catch(err) { recordError(st, 'showcase ' + key, err); }
         }
-        if (entry.root) {
-          updateVehiclePose(sim, entry, t);
-          updateRiders(sim, st, entry, t);
-        }
+        if (entry.root) updateVehiclePose(sim, entry, display);
       });
     }
-    if (
-      active.size &&
-      !st.source &&
-      !st.pending &&
-      !st.errors.some(function (e) {
-        return e.indexOf('truck FBX:') === 0;
-      })
-    )
+    if (active.size && !st.source && !st.pending &&
+      !st.errors.some(function (e) { return e.indexOf('truck FBX:') === 0; }))
       loadTruckSource(sim, st);
     st.trucks.forEach(function (entry, key) {
-      if (entry.phase === 'embarked')
-        entry.hidden.forEach(function (value) {
-          if (value.holder && !value.holder.isDisposed()) value.holder.setEnabled(false);
-        });
-      if (!active.has(key)) {
-        removeEntry(entry);
-        st.trucks.delete(key);
-      }
+      if (!active.has(key)) { removeEntry(entry); st.trucks.delete(key); }
     });
   }
   root.BattleModules.registerSystem('strategic-truck-visual', {
-    version: '0.1-shared-truck',
+    version: '0.2-live-squad-crew',
     onBattleStart: reset,
     onBattleRestart: reset,
     onSimulationStep: step
   });
   root.BattleTransportVehicleVisual = {
-    version: '0.1-shared-truck',
+    version: '0.2-live-squad-crew',
     vehicleForFaction: function (faction) {
       return faction === 'us' || faction === 'ge' ? MODEL : null;
     },
     soldierModelForFaction: function (faction) {
-      return SOLDIER[faction] || null;
+      var models = root.BattleFbxSoldier && root.BattleFbxSoldier.models;
+      return models && models[faction] ? models[faction].default : null;
+    },
+    modelForSoldier: function (soldier) {
+      return soldier && soldier._fbx && soldier._fbx.lib ? soldier._fbx.lib.file : null;
     },
     seats: function () {
       return SEATS.map(function (s) {
-        return {
-          name: s.name,
-          role: s.role,
-          position: s.position.slice(),
-          yaw: s.yaw,
-          occupied: s.occupied,
-          clip: s.clip
-        };
+        return { name: s.name, role: s.role, position: s.position.slice(),
+          yaw: s.yaw, occupied: s.occupied, clip: s.clip };
       });
     },
-    assignmentCount: function (squad) {
-      return seatsFor(squad).length;
+    assignmentCount: function (squad) { return seatsFor(squad).length; },
+    seatForSoldier: function (soldier) {
+      var p = soldier && soldier._vehiclePresentation;
+      return p ? { vehicleId: p.vehicleId, seatIndex: p.seatIndex,
+        seatName: p.seatName, animation: p.animation,
+        model: p.originalModel, phase: p.phase } : null;
     },
     enabled: enabled,
     summary: function (sim) {
       var st = stateFor(sim);
       return Array.from(st.trucks.values()).map(function (entry) {
-        return {
-          faction: entry.faction,
-          squad: entry.id,
-          phase: entry.phase,
-          model: MODEL,
-          seats: entry.members.length,
-          renderedRiders: entry.riders.length,
-          meshReady: !!entry.root,
-          errors: st.errors.slice(0, 8)
-        };
+        return { faction: entry.faction, squad: entry.id, phase: entry.phase,
+          model: MODEL, showcase: !!entry.showcase,
+          seats: entry.members.length, renderedRiders: entry.riders.length,
+          liveModels: entry.riders.map(function (r) { return r.fx.lib.file; }),
+          riderIds: entry.riders.map(function (r) { return r.soldier.id; }),
+          meshReady: !!entry.root, posesReady: !!st.poseReady,
+          errors: st.errors.slice(0, 8) };
       });
     }
   };
   if (typeof root.GTLog === 'function')
-    root.GTLog('[STRATEGIC] 5km shared German truck visual enabled with ten-seat calibration');
+    root.GTLog('[STRATEGIC] real squad soldiers and prewarmed Truck poses in 5km transport');
 })(typeof window !== 'undefined' ? window : globalThis);
