@@ -163,7 +163,12 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
         const info=originals.find(t=>t.faction===faction&&t.squad===sq.id);
         phases[faction]={initial:info.wheels};
         if(!info.wheels?.front||!info.wheels?.rear)
-          throw Error(faction+' missing FrontWheels/RearWheels FBX axle group: '+JSON.stringify(info.wheels));
+          throw Error(faction+' missing FrontWheels/RearWheels FBX axle group: '+
+            JSON.stringify({wheels:info.wheels,
+              transforms:b.scene.transformNodes.filter(n=>/wheel|axle|tire|tyre|truck/i.test(n.name)).map(n=>n.name).slice(0,75),
+              wheelMeshes:b.scene.meshes.filter(n=>/wheel|tire|tyre|rim/i.test(n.name)).map(n=>n.name).slice(0,90),
+              truckModelChildren:b.scene.transformNodes.filter(n=>n.name==='strategicTruckModel-'+sq.id)
+                .flatMap(n=>n.getDescendants(false).map(child=>child.name)).slice(0,90)}));
         const move=sq._transport.position;
         sq._transport.position={x:move.x,z:move.z+4};
       }
