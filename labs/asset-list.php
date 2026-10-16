@@ -10,15 +10,15 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('X-Grasstex-Source: fbx-lab-asset-list');
 $assetRoot = dirname(__DIR__) . '/Assets/';
-$folders = array('soldiers' => 'soldiers', 'animations' => 'animations', 'weapons' => 'weapons');
+$folders = array('soldiers' => 'soldiers', 'animations' => 'animations', 'weapons' => 'weapons', 'vehicles' => 'vehicles');
 $out = array();
 foreach ($folders as $key => $dir) {
     $out[$key] = array();
     $path = $assetRoot . $dir;
     if (!is_dir($path) || !is_readable($path)) continue;
     foreach (scandir($path) as $entry) {
-        /* Fixed directories, .fbx suffix only: no path traversal possible. */
-        if (substr($entry, -4) !== '.fbx' || strpos($entry, '/') !== false) continue;
+        /* Fixed directories; vehicles accept .fbx and .glb, others accept .fbx. */
+        if (!preg_match($key === 'vehicles' ? '/\.(?:fbx|glb)$/i' : '/\.fbx$/i', $entry) || strpos($entry, '/') !== false) continue;
         if ($entry[0] === '.') continue;
         $full = $path . '/' . $entry;
         if (!is_file($full) || !is_readable($full)) continue;
