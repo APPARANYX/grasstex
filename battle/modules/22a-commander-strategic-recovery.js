@@ -425,9 +425,13 @@
          Interception's opt-in command layer explicitly reserves one OWN squad
          at a real base until the sortie is evaluated. This is a normal Macro
          hold brief, not an artificial road spawn or a secret enemy reading. */
-      if (reason === 'initial-mission' && !request &&
-          root.BattleStrategicInterception &&
-          root.BattleStrategicInterception.reserveSquad(sim, sq)) {
+      var reservePlanner = root.BattleStrategicInterception;
+      if (!request && reservePlanner && reservePlanner.reservePending(sim, sq.faction) &&
+          reservePlanner.reserveSquad(sim, sq) && !sq._transportUsed && !sq.inContact &&
+          (!old || old.state !== 'retreat')) {
+        if (old && old.interceptReserve && (old.status === 'issued' || old.status === 'executing'))
+          return old;
+
         return issueMission(sim, sq, {
           intent: 'reserve', action: 'hold', role: 'reserve',
           objectiveId: null, point: sq.baseHome || sq.home || D.avgPos(sq),
