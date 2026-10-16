@@ -420,6 +420,20 @@
       var request = defenseRequest(sim, sq),
         old = sq._macroMission,
         role = sq.commandRole || 'center';
+      /* Without a held maneuver reserve, every home-base transport may already
+         be committed when the General receives its one aerial report at 120s.
+         Interception's opt-in command layer explicitly reserves one OWN squad
+         at a real base until the sortie is evaluated. This is a normal Macro
+         hold brief, not an artificial road spawn or a secret enemy reading. */
+      if (reason === 'initial-mission' && !request &&
+          root.BattleStrategicInterception &&
+          root.BattleStrategicInterception.reserveSquad(sim, sq)) {
+        return issueMission(sim, sq, {
+          intent: 'reserve', action: 'hold', role: 'reserve',
+          objectiveId: null, point: sq.baseHome || sq.home || D.avgPos(sq),
+          route: [], interceptReserve: true
+        }, 'aerial-maneuver-reserve');
+      }
       if (request)
         return issueMission(
           sim,
