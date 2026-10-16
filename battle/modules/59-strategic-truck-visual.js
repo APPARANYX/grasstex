@@ -1,0 +1,350 @@
+/* Opt-in 5 km troop-truck presentation. No movement, collision, knowledge,
+   fire, path, transport scheduling or soldier positions are written here.
+   Both factions temporarily share german_transport.fbx; seated riders use
+   their OWN faction's FBX model and the supplied 10-seat calibration. */
+(function (root) {
+  'use strict';
+  if (!root.BattleModules || root.BattleTransportVehicleVisual) return;
+  var MODEL = 'german_transport.fbx';
+  var SOLDIER = { us: 'us-paratrooper.fbx', ge: 'ge-paratrooper.fbx' };
+  var SEATS = [
+    ['Driver','driver',[-0.45,0.95,0.7],0,'Truck - Driving.fbx'],
+    ['Right 1','passenger',[0.65,1.3,-0.333],-90,'Truck - Sitting 1.fbx'],
+    ['Right 2','passenger',[0.9,1.3,-1.027],-90,'Truck - Sitting 2.fbx'],
+    ['Right 3','passenger',[0.9,1.3,-1.8],-90,'Truck - Sitting 3.fbx'],
+    ['Right 4','passenger',[0.55,1.3,-2.483],-90,'Truck - Sitting 1.fbx'],
+    ['Left 1','passenger',[-0.9,1.3,-0.335],90,'Truck - Sitting 3.fbx'],
+    ['Left 2','passenger',[-0.9,1.3,-1.053],90,'Truck - Sitting 2.fbx'],
+    ['Left 3','passenger',[-0.55,1.3,-1.875],90,'Truck - Sitting 1.fbx'],
+    ['Left 4','passenger',[-0.9,1.3,-2.565],90,'Truck - Sitting 3.fbx'],
+    ['Front','passenger',[0.4,0.95,0.7],0,'Truck - Sitting 3.fbx']
+  ].map(function (s) {
+    return { name: s[0], role: s[1], position: s[2], yaw: s[3], occupied: true, clip: s[4] };
+  });
+  var TRUCK_LENGTH = 6.2, RENDER_CREW_RADIUS = 230, DROP_CREW_RADIUS = 310;
+  var stores = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+  var assetFiles = {};
+  function enabled(sim) {
+    var scenario = sim && sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario;
+    var search = root.location && root.location.search || '';
+    return !!(scenario && scenario.profile === 'strategic' &&
+      /(?:^|[?&])strategicInterception=1(?:&|$)/.test(search) &&
+      /(?:^|[?&])motorTransport=1(?:&|$)/.test(search) &&
+      !/(?:^|[?&])truckVisual=0(?:&|$)/.test(search));
+  }
+  function seatsFor(squad) {
+    return (squad && squad.members || []).filter(function (s) { return !s.dead; })
+      .slice(0, SEATS.length).map(function (s, i) {
+        return { soldier: s, seat: SEATS[i], index: i };
+      });
+  }
+  function stateFor(sim) {
+    if (!stores) {
+      if (!sim._truckVisualState) sim._truckVisualState = { scene: sim.scene, trucks: new Map(), generation: 0, source: null, pending: null, errors: [] };
+      return sim._truckVisualState;
+    }
+    var st = stores.get(sim);
+    if (!st) {
+      st = { scene: sim.scene, trucks: new Map(), generation: 0, source: null, pending: null, errors: [] };
+      stores.set(sim, st);
+    }
+    return st;
+  }
+  function baseUrl() {
+    var base = root.BATTLE_SOLDIER_ASSET_BASE || root.BATTLE_ASSET_BASE || '/grasstex/Assets/';
+    return String(base).replace(/\/?$/, '/');
+  }
+  function fetchAsset(category, name) {
+    var key = baseUrl() + category + '/' + name;
+    if (!assetFiles[key]) {
+      assetFiles[key] = fetch(baseUrl() + category + '/' + encodeURIComponent(name))
+        .then(function (response) {
+          if (!response.ok) throw new Error('HTTP ' + response.status + ' loading ' + category + '/' + name);
+          return response.blob();
+        })
+        .then(function (blob) { return new File([blob], name); })
+        .catch(function (err) { delete assetFiles[key]; throw err; });
+    }
+    return assetFiles[key];
+  }
+  function membersOf(result) {
+    return (result.meshes || []).concat(result.transformNodes || []);
+  }
+  function attachImport(result, parent) {
+    var nodes = membersOf(result), owned = new Set(nodes);
+    nodes.filter(function (node) { return !node.parent || !owned.has(node.parent); })
+      .forEach(function (node) { node.parent = parent; });
+  }
+  function bounds(meshes) {
+    var low = { x: Infinity, y: Infinity, z: Infinity }, high = { x: -Infinity, y: -Infinity, z: -Infinity }, found = false;
+    meshes.forEach(function (mesh) {
+      if (!mesh.getTotalVertices || mesh.getTotalVertices() <= 0) return;
+      mesh.computeWorldMatrix(true);
+      var b = mesh.getBoundingInfo().boundingBox, min = b.minimumWorld, max = b.maximumWorld;
+      ['x','y','z'].forEach(function (axis) {
+        low[axis] = Math.min(low[axis], min[axis]); high[axis] = Math.max(high[axis], max[axis]);
+      });
+      found = true;
+    });
+    return found ? { low: low, high: high,
+      width: high.x - low.x, height: high.y - low.y, depth: high.z - low.z } : null;
+  }
+  function materialBothSides(meshes) {
+    var seen = new Set();
+    function visit(mat) {
+      if (!mat || seen.has(mat)) return;
+      seen.add(mat);
+      if (mat.subMaterials) mat.subMaterials.forEach(visit);
+      mat.backFaceCulling = false;
+      if ('twoSidedLighting' in mat) mat.twoSidedLighting = true;
+      if (typeof mat.markAsDirty === 'function') mat.markAsDirty(BABYLON.Material.AllDirtyFlag);
+    }
+    meshes.forEach(function (mesh) { visit(mesh.material); });
+  }
+  function disposeImport(result) {
+    if (!result) return;
+    (result.animationGroups || []).forEach(function (group) {
+      try { group.stop(); group.dispose(); } catch (_) {}
+    });
+    (result.meshes || []).forEach(function (mesh) { if (!mesh.isDisposed()) mesh.dispose(false, false); });
+    (result.transformNodes || []).forEach(function (node) { if (!node.isDisposed()) node.dispose(false, false); });
+    (result.skeletons || []).forEach(function (sk) { sk.dispose(); });
+  }
+  function recordError(st, label, err) {
+    var message = label + ': ' + String(err && err.message || err);
+    if (st.errors.indexOf(message) < 0) {
+      st.errors.push(message);
+      console.warn('[TRUCK VISUAL] ' + message);
+    }
+  }
+  async function loadTruckSource(sim, st) {
+    if (st.source) return st.source;
+    if (st.pending) return st.pending;
+    var generation = st.generation, scene = sim.scene;
+    st.pending = fetchAsset('vehicles', MODEL)
+      .then(function (file) {
+        return BABYLON.SceneLoader.ImportMeshAsync('', 'file:', file, scene, undefined, '.fbx');
+      })
+      .then(function (result) {
+        if (st.generation !== generation || st.scene !== scene) {
+          disposeImport(result); return null;
+        }
+        var template = new BABYLON.TransformNode('strategicTruckTemplate', scene);
+        attachImport(result, template);
+        var renderMeshes = (result.meshes || []).filter(function (m) {
+          return m.getTotalVertices && m.getTotalVertices() > 0;
+        });
+        var box = bounds(renderMeshes);
+        if (!box) { template.dispose(false, false); disposeImport(result); throw new Error('truck FBX contains no meshes'); }
+        materialBothSides(renderMeshes);
+        var scale = TRUCK_LENGTH / Math.max(box.width, box.depth, 0.001);
+        template.scaling.setAll(scale);
+        template.position.set(-(box.low.x + box.high.x) * 0.5 * scale, -box.low.y * scale,
+          -(box.low.z + box.high.z) * 0.5 * scale);
+        template.setEnabled(false);
+        st.source = { template: template, result: result, count: renderMeshes.length };
+        return st.source;
+      }).catch(function (err) { recordError(st,'truck FBX',err); return null; })
+      .finally(function () { st.pending = null; });
+    return st.pending;
+  }
+  function locationFor(sim, transport) {
+    var p = transport.position || transport.boardingCenter;
+    if (!p || !isFinite(p.x) || !isFinite(p.z)) return null;
+    return { x: +p.x, y: +sim.heightAt(+p.x, +p.z), z: +p.z };
+  }
+  function updateVehiclePose(sim, entry, transport) {
+    if (!entry.root || entry.root.isDisposed()) return;
+    var p = locationFor(sim, transport);
+    if (!p) return;
+    entry.root.position.set(p.x, p.y, p.z);
+    var h = transport.heading || { x: 0, z: 1 };
+    entry.root.rotation.y = Math.atan2(+h.x || 0, +h.z || 0);
+    entry.phase = transport.phase;
+  }
+  function instantiateTruck(sim, st, entry) {
+    if (entry.root || entry.pending || !st.source) return;
+    var scene = sim.scene, rootNode = new BABYLON.TransformNode('strategicTruck-'+entry.faction+'-'+entry.id, scene);
+    var clone = st.source.template.clone('strategicTruckModel-'+entry.id, rootNode, false);
+    if (!clone) { rootNode.dispose(false, false); throw new Error('could not clone truck FBX'); }
+    clone.setEnabled(true);
+    entry.root = rootNode;
+    entry.visual = clone;
+  }
+  function cameraNear(scene, entry, radius) {
+    var camera = scene.activeCamera;
+    if (!camera || !entry.root) return false;
+    var at = camera.globalPosition || camera.position;
+    if (!at) return false;
+    return Math.hypot(at.x - entry.root.position.x, at.z - entry.root.position.z) <= radius;
+  }
+  function originalVisual(soldier) {
+    var model = soldier && soldier.model;
+    return model && model._fbx && model._fbx.holder || null;
+  }
+  function conceal(entry, soldier) {
+    var holder = originalVisual(soldier);
+    if (!holder || holder.isDisposed()) return;
+    if (!entry.hidden.has(soldier)) entry.hidden.set(soldier, { holder: holder, active: holder.isEnabled() });
+    holder.setEnabled(false);
+  }
+  function reveal(entry) {
+    entry.hidden.forEach(function (value) {
+      if (value.holder && !value.holder.isDisposed()) value.holder.setEnabled(value.active);
+    });
+    entry.hidden.clear();
+  }
+  function disposeRiders(entry) {
+    entry.token++;
+    entry.riders.forEach(function (r) {
+      if (r.group) { try { r.group.stop(); r.group.dispose(); } catch (_) {} }
+      disposeImport(r.result);
+      if (r.anchor && !r.anchor.isDisposed()) r.anchor.dispose(false, false);
+    });
+    entry.riders = [];
+    entry.busy = false;
+    entry.nextRider = 0;
+    reveal(entry);
+  }
+  function removeEntry(entry) {
+    disposeRiders(entry);
+    if (entry.root && !entry.root.isDisposed()) entry.root.dispose(false, false);
+    entry.root = null;entry.visual = null;
+  }
+  function reset(sim) {
+    var st = stateFor(sim);
+    st.generation++;
+    st.trucks.forEach(removeEntry);
+    st.trucks.clear();
+    if (st.source) {
+      if (!st.source.template.isDisposed()) st.source.template.dispose(false, false);
+      disposeImport(st.source.result);
+    }
+    st.source = null;st.pending = null;st.errors = [];
+  }
+  function targetsFor(result) {
+    var targets = new Map();
+    (result.meshes || []).forEach(function (mesh) {
+      targets.set(mesh.name, mesh);
+      if (mesh.skeleton) mesh.skeleton.bones.forEach(function (bone) { targets.set(bone.name, bone); });
+    });
+    (result.transformNodes || []).forEach(function (n) { targets.set(n.name, n); });
+    return targets;
+  }
+  async function loadRider(sim, st, entry, member, token) {
+    var scene = sim.scene, result = null, anchor = null, groups = [];
+    try {
+      var file = await fetchAsset('soldiers', SOLDIER[entry.faction]);
+      if (token !== entry.token || entry.phase !== 'embarked') return;
+      result = await BABYLON.SceneLoader.ImportMeshAsync('', 'file:', file, scene, undefined, '.fbx');
+      if (token !== entry.token || entry.phase !== 'embarked') { disposeImport(result); return; }
+      anchor = new BABYLON.TransformNode('truckSeat-'+entry.id+'-'+member.index,scene);
+      anchor.parent = entry.root;
+      anchor.position.set.apply(anchor.position, member.seat.position);
+      anchor.rotation.y = member.seat.yaw * Math.PI / 180;
+      var body = new BABYLON.TransformNode('truckPassenger-'+entry.id+'-'+member.index,scene);
+      body.parent = anchor;
+      attachImport(result,body);
+      var mesh = (result.meshes || []).filter(function (m) { return m.getTotalVertices && m.getTotalVertices() > 0; });
+      var b = bounds(mesh);
+      if (!b) throw new Error('empty soldier FBX');
+      var k = 1.8 / Math.max(.1,b.height);
+      body.scaling.setAll(k);
+      body.position.set(-(b.low.x+b.high.x)*.5*k, -b.low.y*k, -(b.low.z+b.high.z)*.5*k);
+      var targets = targetsFor(result);
+      var clipFile = await fetchAsset('animations',member.seat.clip);
+      if (token !== entry.token || entry.phase !== 'embarked') { disposeImport(result);anchor.dispose(false,false);return; }
+      var before = new Set(scene.animationGroups);
+      await BABYLON.SceneLoader.ImportAnimationsAsync('file:',clipFile,scene,false,
+        BABYLON.SceneLoaderAnimationGroupLoadingMode.NoSync,
+        function (target) { return targets.get(target.name) || null; });
+      groups = scene.animationGroups.filter(function (g) { return !before.has(g); });
+      var playable = groups.find(function (g) { return g.targetedAnimations && g.targetedAnimations.length > 0; });
+      groups.filter(function (g) { return g !== playable; }).forEach(function (g) { g.dispose(); });
+      if (token !== entry.token || entry.phase !== 'embarked') {
+        if (playable) playable.dispose();disposeImport(result);anchor.dispose(false,false);return;
+      }
+      if (playable) playable.start(true);
+      entry.riders.push({ result: result, anchor: anchor, group: playable || null, soldier:member.soldier });
+      conceal(entry,member.soldier);
+    } catch (err) {
+      if (groups.length) groups.forEach(function (g) { try { g.dispose(); } catch (_) {} });
+      if (result) disposeImport(result);
+      if (anchor && !anchor.isDisposed()) anchor.dispose(false,false);
+      recordError(st,'seat '+member.index+' '+entry.faction,err);
+    }
+  }
+  function updateRiders(sim, st, entry, transport) {
+    if (transport.phase !== 'embarked') {
+      if (entry.riders.length || entry.busy) disposeRiders(entry);
+      return;
+    }
+    if (!cameraNear(sim.scene,entry,RENDER_CREW_RADIUS)) {
+      if (entry.riders.length && !cameraNear(sim.scene,entry,DROP_CREW_RADIUS)) disposeRiders(entry);
+      return;
+    }
+    if (entry.busy || entry.nextRider >= entry.members.length) return;
+    var member = entry.members[entry.nextRider++];
+    var token=entry.token;
+    entry.busy=true;
+    loadRider(sim,st,entry,member,token).finally(function () { if (token===entry.token) entry.busy=false; });
+  }
+  function step(sim) {
+    if (!enabled(sim) || !root.BABYLON || !BABYLON.SceneLoader || !sim || !sim.scene) return;
+    var st=stateFor(sim), active = new Set();
+    ['us','ge'].forEach(function (faction) {
+      (sim.factions[faction] && sim.factions[faction].squads || []).forEach(function (sq) {
+        var t=sq._transport;
+        if (!t) return;
+        var key=faction+'/'+sq.id;
+        active.add(key);
+        var entry=st.trucks.get(key);
+        if (!entry) {
+          entry={ id:sq.id,faction:faction,root:null,visual:null,phase:t.phase,
+            members:seatsFor(sq),riders:[],nextRider:0,busy:false,token:0,
+            hidden:new Map(),finishedAt:null };
+          st.trucks.set(key,entry);
+        }
+        if (t.phase!=='boarding' && t.phase!=='embarked') {
+          if (entry.finishedAt==null) entry.finishedAt=sim.time;
+          if (entry.riders.length || entry.busy) disposeRiders(entry);
+        }
+        if (st.source && !entry.root) {
+          try { instantiateTruck(sim,st,entry); } catch(err){recordError(st,'instantiate '+key,err);}
+        }
+        if (entry.root) {
+          updateVehiclePose(sim,entry,t);
+          if (t.phase==='embarked'||t.phase==='boarding') updateRiders(sim,st,entry,t);
+        }
+      });
+    });
+    if (active.size && !st.source && !st.pending) loadTruckSource(sim,st);
+    st.trucks.forEach(function (entry,key) {
+      if (!active.has(key)) { removeEntry(entry);st.trucks.delete(key); }
+    });
+  }
+  root.BattleModules.registerSystem('strategic-truck-visual',{
+    version:'0.1-shared-truck',
+    onBattleStart:reset,
+    onBattleRestart:reset,
+    onSimulationStep:step
+  });
+  root.BattleTransportVehicleVisual={
+    version:'0.1-shared-truck',
+    vehicleForFaction:function (faction){return faction==='us'||faction==='ge'?MODEL:null;},
+    soldierModelForFaction:function (faction){return SOLDIER[faction]||null;},
+    seats:function (){return SEATS.map(function(s){return {
+      name:s.name,role:s.role,position:s.position.slice(),yaw:s.yaw,occupied:s.occupied,clip:s.clip};});},
+    assignmentCount:function (squad){return seatsFor(squad).length;},
+    enabled:enabled,
+    summary:function (sim){
+      var st=stateFor(sim);
+      return Array.from(st.trucks.values()).map(function(entry){
+        return {faction:entry.faction,squad:entry.id,phase:entry.phase,
+          model:MODEL,seats:entry.members.length,renderedRiders:entry.riders.length,
+          meshReady:!!entry.root,errors:st.errors.slice(0,8)};
+      });
+    }
+  };
+  if (typeof root.GTLog === 'function') root.GTLog('[STRATEGIC] 5km shared German truck visual enabled with ten-seat calibration');
+})(typeof window !== 'undefined' ? window : globalThis);
