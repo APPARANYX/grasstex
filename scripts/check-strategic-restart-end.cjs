@@ -27,6 +27,8 @@ assert.match(camera,/if \(!b \|\| b\.manualEnded \|\| b\.winner \|\| !playerSold
   'P possession must not select another soldier after terminal stop');
 assert.match(camera,/!b\.manualEnded && !b\.winner && !preservePause/,
   'Player mode cannot resurrect terminal session');
+assert.match(camera,/if \(currentBattle && \(currentBattle\.manualEnded \|\| currentBattle\.winner\)\) \{/,
+  'P key must not request pointer lock while terminal diagnostics are open');
 assert.match(control,/function endBattle\(sim, reason\)[\s\S]*?sim\.manualEnded = true;[\s\S]*?sim\._showPostBattle/,
   'Both manual End controls need shared banner presentation');
 assert.match(html,/battle\._showPostBattle=showPostBattle/,
