@@ -615,8 +615,7 @@
      writer. The opt-in squad carrier may request a prevalidated passenger move
      through this API, never write root.position or locomotion fields itself. */
   function moveTransportPassenger(sim, soldier, next, reason) {
-    if (!sim || !soldier || !soldier.root || !next ||
-        !isFinite(+next.x) || !isFinite(+next.z)) return false;
+    if (!sim || !soldier || !soldier.root || !next || !isFinite(+next.x) || !isFinite(+next.z)) return false;
     soldier.root.position.x = +next.x;
     soldier.root.position.z = +next.z;
     soldier.root.position.y = sim.heightAt(+next.x, +next.z);

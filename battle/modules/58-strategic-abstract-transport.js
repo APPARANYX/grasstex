@@ -264,9 +264,11 @@
           ? { x: from.x + ((point.x - from.x) * step) / d, z: from.z + ((point.z - from.z) * step) / d }
           : from;
     if (!safe(sim, from, p)) return false;
-    return !!(root.BattleSim &&
+    return !!(
+      root.BattleSim &&
       root.BattleSim.moveTransportPassenger &&
-      root.BattleSim.moveTransportPassenger(sim, s, p, 'transport-boarding'));
+      root.BattleSim.moveTransportPassenger(sim, s, p, 'transport-boarding')
+    );
   }
   function board(sim, sq, dt) {
     var t = sq._transport,
