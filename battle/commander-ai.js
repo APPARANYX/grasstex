@@ -332,7 +332,8 @@
       spec.role,
       spec.route,
       spec.requestKey,
-      spec.plannedObjectiveId
+      spec.plannedObjectiveId,
+      spec.intercept || null
     ]);
   }
   /* B1: frozen issue-time evidence, never a new decision input. The report reader
@@ -399,6 +400,7 @@
         role: spec.role,
         requestKey: spec.requestKey || null,
         plannedObjectiveId: spec.plannedObjectiveId || null,
+        intercept: spec.intercept || null,
         reason: reason,
         confidence: evidence.confidence,
         observations: evidence.observations,
@@ -628,6 +630,16 @@
         macroCommandEnabled: macro,
         macroCommandWake: macroWake,
         macroWakeReasons: wakeReasons
+      });
+    /* After the independent one-shot aerial event, only Macro may publish
+       its derived corridor brief. The planner may quote but never issue,
+       move a soldier, or read hostile actor truth. */
+    if (macro && root.BattleStrategicInterception && root.BattleStrategicInterception.maybeIssue)
+      ['us', 'ge'].forEach(function (faction) {
+        root.BattleStrategicInterception.maybeIssue(sim, faction, function (sq, spec, reason) {
+          if (sq.faction !== faction) throw new Error('Cross-faction interception brief');
+          return issueMission(sim, sq, spec, reason);
+        });
       });
     var snapshotSeconds = policy(sim, 'us').decisionSnapshotSeconds || 5;
     if (!sim._nextDecisionSnapshot || sim.time >= sim._nextDecisionSnapshot) {
