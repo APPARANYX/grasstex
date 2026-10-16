@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GRASSTEX — Vehicle Animation Lab</title>
+<style>
+:root{color-scheme:dark;--ink:#eaf0f6;--muted:#9bacbf;--line:#304052;--panel:#101a24;--accent:#6ee7b7;--warn:#ffca82}
+*{box-sizing:border-box}
+body{margin:0;background:#081018;color:var(--ink);font:13px/1.5 system-ui,sans-serif;overflow:hidden}
+#app{display:grid;grid-template-columns:320px minmax(0,1fr) 320px;height:100vh}
+aside{background:#101a24;overflow:auto;padding:16px;border-right:1px solid var(--line)}
+#right{border-left:1px solid var(--line);border-right:0}
+h1{font-size:20px;margin:7px 0 3px}h2{font-size:12px;text-transform:uppercase;letter-spacing:.1em;margin:20px 0 8px;color:#cfdde8}
+p{margin:5px 0 10px;color:var(--muted)}
+a{color:var(--accent)}
+nav{display:flex;gap:5px}
+nav a{flex:1;text-align:center;padding:8px;border:1px solid var(--line);text-decoration:none;border-radius:7px}
+nav a[aria-current="page"]{background:#17382f;border-color:#5bba9b}
+label{display:block;margin:8px 0;color:var(--muted)}
+button,input,select{font:inherit;border:1px solid #385064;background:#182736;color:var(--ink);border-radius:7px;padding:8px;width:100%}
+input[type=checkbox]{width:auto}input[type=range]{padding:0}input[type=file]{max-width:100%}
+button{cursor:pointer}button:hover{background:#264153}
+button.primary{background:#287f68;border-color:#42aa8b}
+.row{display:flex;gap:6px;align-items:center}.row>*{flex:1;min-width:0}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+#viewport{position:relative;min-width:0;min-height:0}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#overlay{position:absolute;bottom:15px;left:15px;background:#081018cc;border:1px solid var(--line);border-radius:7px;padding:8px;pointer-events:none;font:11px monospace}
+#status{color:#bcd6d0;padding:8px 0;min-height:45px}
+#status.error{color:#ffa0a0}
+.help{font-size:11px;color:var(--muted)}
+.warn{color:var(--warn)}
+#seatList{display:grid;gap:5px}
+.seat{display:flex;align-items:center;gap:8px;text-align:left}
+.seat[aria-current="true"]{border-color:var(--accent);background:#17382f}
+.stat{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:5px 0}
+#seatFields input{font-family:monospace}
+#seatFields label{margin:0}
+code{color:var(--accent)}
+@media(max-width:940px){#app{grid-template-columns:270px 1fr}#right{position:absolute;right:0;top:0;bottom:0;width:290px;z-index:8;opacity:.96;transform:translateX(calc(100% - 25px));transition:transform .2s}#right:hover,#right:focus-within{transform:none}}
+</style>
+</head>
+<body>
+<div id="app">
+<aside id="left">
+  <nav aria-label="Motion Lab category"><a href="fbx-animation-lab.html">Soldier / Weapons</a><a href="vehicle-animation-lab.html" aria-current="page">Vehicles</a></nav>
+  <h1>Vehicle Animation Lab</h1>
+  <p>Author truck-local driver/passenger seat anchors and preview occupied positions with soldier FBX animations.</p>
+  <h2>1 — Vehicle</h2>
+  <label>Deployed model<select id="vehicleSelect"><option value="">Loading vehicles…</option></select></label>
+  <label>Or open local FBX/GLB<input id="vehicleFile" type="file" accept=".fbx,.glb"></label>
+  <button id="loadVehicle" class="primary">Load vehicle</button>
+  <div class="stat"><span>Renderable meshes</span><strong id="meshCount">—</strong></div>
+  <div class="stat"><span>FrontWheels nodes</span><strong id="frontCount">—</strong></div>
+  <div class="stat"><span>RearWheels nodes</span><strong id="rearCount">—</strong></div>
+  <p class="help">The two wheel groups are inspected, not blindly rotated: rotating a shared axle parent can orbit both wheels instead of spinning them.</p>
+  <h2>2 — Soldiers & truck clips</h2>
+  <label>Soldier model<select id="soldierSelect"><option value="">Loading soldiers…</option></select></label>
+  <label>Or open local soldier FBX<input id="soldierFile" type="file" accept=".fbx"></label>
+  <label>Truck animation library<select id="clipSelect"><option value="">No Truck clips discovered</option></select></label>
+  <label>Or open local Truck animations (multiple)<input id="clipsFile" type="file" accept=".fbx" multiple></label>
+  <p id="clipInfo" class="help">The deployed clip list is searched for filenames containing “Truck”.</p>
+  <button id="refreshOccupants">Refresh occupied soldiers</button>
+  <h2>3 — Movement diagnostic</h2>
+  <label class="row"><span>Move truck</span><input id="moving" type="checkbox"></label>
+  <label>Speed (m/s): <span id="speedLabel">3.0</span><input id="speed" type="range" min="0" max="20" step=".5" value="3"></label>
+  <label>Steering (°/s): <span id="steerLabel">0</span><input id="steer" type="range" min="-45" max="45" step="1" value="0"></label>
+  <div class="row"><button id="stopVehicle">Stop / reset</button><button id="frameVehicle">Frame vehicle</button></div>
+  <p class="help">Visual movement test only; vehicle dynamics and wheel-specific pivots belong in the later battlefield integration.</p>
+</aside>
+<section id="viewport"><div id="overlay">Load the truck to start · orbit: drag · zoom: wheel</div></section>
+<aside id="right">
+  <h2 style="margin-top:0">Seat authoring</h2>
+  <p>Positions are saved in <strong>vehicle-local metres</strong>, relative to the visual model's normalized ground center. Adjust each occupant until the hips, feet and back align.</p>
+  <div id="seatList"></div>
+  <div class="row" style="margin-top:8px"><button id="addSeat">+ Add seat</button><button id="removeSeat">Remove</button></div>
+  <div id="seatFields">
+    <label>Name<input id="seatName" placeholder="Passenger 1"></label>
+    <label>Role<select id="seatRole"><option value="passenger">Passenger</option><option value="driver">Driver</option></select></label>
+    <label>Pose<select id="seatPose"><option value="">None (bind pose)</option></select></label>
+    <label class="row"><span>Occupied</span><input id="seatOccupied" type="checkbox"></label>
+    <div class="cols3">
+      <label>X metres<input id="seatX" type="number" step=".05"></label>
+      <label>Y metres<input id="seatY" type="number" step=".05"></label>
+      <label>Z metres<input id="seatZ" type="number" step=".05"></label>
+    </div>
+    <label>Facing / yaw (degrees)<input id="seatYaw" type="number" step="5"></label>
+    <button id="pickSeat" class="primary" style="margin-top:9px">Click truck to position seat</button>
+    <p class="help">Clicking places the seat anchor at the hit point. The anchor is the soldier root, not an automatically detected hip bone; refine Y and yaw manually. Dragging still orbits.</p>
+  </div>
+  <h2>Persistence</h2>
+  <div class="row"><button id="saveLocal">Save in browser</button><button id="loadLocal">Restore</button></div>
+  <div class="row" style="margin-top:7px"><button id="exportJson">Download seats JSON</button><button id="importButton">Import JSON</button></div>
+  <input id="importJson" type="file" accept=".json" style="display:none">
+  <h2>Status</h2><div id="status" role="status">Ready.</div>
+  <p class="help">No gameplay changes are made here. Downloaded seat configurations can be committed for use by the future transport renderer after validation.</p>
+</aside>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js"></script>
+<script src="fbx-animation-compat.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const sceneViewport = $('viewport');
+const canvas = document.createElement('canvas');
+sceneViewport.prepend(canvas);
+const engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer:true,stencil:true});
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color4(.032,.06,.085,1);
+const camera = new BABYLON.ArcRotateCamera('vehicleCamera',-Math.PI/2.3,Math.PI/2.8,14,new BABYLON.Vector3(0,1.6,0),scene);
+camera.attachControl(canvas,true);
+camera.wheelDeltaPercentage=.015;
+camera.lowerRadiusLimit=1;
+camera.minZ=.01;
+const sky = new BABYLON.HemisphericLight('sky',new BABYLON.Vector3(0,1,0),scene);
+sky.intensity=.85;
+const sun = new BABYLON.DirectionalLight('sun',new BABYLON.Vector3(-.5,-1,-.4),scene);
+sun.intensity=.85;
+sun.position.set(5,12,7);
+const ground = BABYLON.MeshBuilder.CreateGround('ground',{width:70,height:70},scene);
+const groundMat = new BABYLON.StandardMaterial('groundMaterial',scene);
+groundMat.diffuseColor=new BABYLON.Color3(.045,.08,.09);
+groundMat.specularColor=BABYLON.Color3.Black();
+ground.material=groundMat;
+ground.isPickable=false;
+const gridLines=[];
+for(let i=-35;i<=35;i+=2){
+  gridLines.push([new BABYLON.Vector3(i,.01,-35),new BABYLON.Vector3(i,.01,35)]);
+  gridLines.push([new BABYLON.Vector3(-35,.01,i),new BABYLON.Vector3(35,.01,i)]);
+}
+const grid = BABYLON.MeshBuilder.CreateLineSystem('grid',{lines:gridLines},scene);
+grid.color=new BABYLON.Color3(.18,.29,.31);
+grid.isPickable=false;
+const state={
+  vehicleName:'',vehicleResult:null,vehicleRoot:null,vehicleVisual:null,
+  meshes:[],soldierName:'',soldierFile:null,
+  clips:new Map(),seats:[],selected:0,actorEpoch:0,loadEpoch:0,
+  markers:new Map(),picking:false,wheelGroups:{front:[],rear:[]}
+};
+function status(message,error=false){$('status').textContent=message;$('status').className=error?'error':'';if(error)console.warn('[Vehicle Lab]',message);}
+function vec(arr){return new BABYLON.Vector3(...arr);}
+function finite(v,defaultValue=0){const n=Number(v);return Number.isFinite(n)?n:defaultValue;}
+function localSeat(name,role,x,y,z,yaw,occupied=false,clip=''){
+  return {id:'seat-'+Math.random().toString(36).slice(2),name,role,position:[x,y,z],yaw,occupied,clip,actor:null};
+}
+function addOption(select,value,label){
+  const option=document.createElement('option');option.value=value;option.textContent=label;select.add(option);
+}
+function fill(select,values,placeholder){
+  select.replaceChildren();addOption(select,'',placeholder);
+  values.forEach(name=>addOption(select,name,name));
+}
+function disposeResult(result){
+  if(!result)return;
+  (result.animationGroups||[]).forEach(g=>{try{g.stop();g.dispose();}catch(e){}});
+  (result.meshes||[]).forEach(m=>{if(!m.isDisposed())m.dispose(false,true);});
+  (result.skeletons||[]).forEach(s=>s.dispose());
+  (result.transformNodes||[]).forEach(n=>{if(!n.isDisposed())n.dispose();});
+}
+function attachRoots(result,parent){
+  const nodes=[...(result.meshes||[]),...(result.transformNodes||[])];
+  const owned=new Set(nodes);
+  nodes.filter(node=>!node.parent||!owned.has(node.parent)).forEach(node=>{node.parent=parent;});
+}
+function bounds(meshes){
+  let lo=new BABYLON.Vector3(Infinity,Infinity,Infinity),hi=new BABYLON.Vector3(-Infinity,-Infinity,-Infinity);
+  let found=false;
+  meshes.forEach(m=>{
+    if(!m.getTotalVertices||!m.getTotalVertices())return;
+    m.computeWorldMatrix(true);
+    const b=m.getBoundingInfo().boundingBox;
+    lo=BABYLON.Vector3.Minimize(lo,b.minimumWorld);hi=BABYLON.Vector3.Maximize(hi,b.maximumWorld);found=true;
+  });
+  return found?{lo,hi,size:hi.subtract(lo),center:lo.add(hi).scale(.5)}:null;
+}
+function frameVehicle(){
+  if(!state.vehicleRoot)return;
+  const b=bounds(state.meshes);
+  if(!b)return;
+  const span=Math.max(b.size.x,b.size.y,b.size.z,2);
+  camera.target.copyFrom(b.center);
+  camera.radius=span*1.85;
+}
+function disposeActor(seat){
+  if(!seat.actor)return;
+  const actor=seat.actor;
+  seat.actor=null;
+  actor.groups.forEach(group=>{try{group.stop();group.dispose();}catch(e){}});
+  disposeResult(actor.result);
+  if(!actor.pivot.isDisposed())actor.pivot.dispose(false,false);
+}
+function clearVehicle(){
+  state.actorEpoch++;state.seats.forEach(disposeActor);
+  [...state.markers.values()].forEach(m=>m.dispose(false,true));
+  state.markers.clear();
+  disposeResult(state.vehicleResult);
+  if(state.vehicleRoot)state.vehicleRoot.dispose(false,false);
+  state.vehicleResult=null;state.vehicleRoot=null;state.vehicleVisual=null;
+  state.meshes=[];state.wheelGroups={front:[],rear:[]};
+}
+function ensureSeats(){
+  if(state.seats.length)return;
+  // Starting positions are editable guesses, not measured coordinates for this truck.
+  state.seats=[
+    localSeat('Driver','driver',-.65,1.1,1.55,0),
+    localSeat('Rear left','passenger',-.65,1.15,-.35,0),
+    localSeat('Rear right','passenger',.65,1.15,-.35,180),
+    localSeat('Rear center','passenger',-.65,1.15,-1.3,0)
+  ];
+  state.selected=0;
+}
+function findWheelGroups(result){
+  const nodes=[...(result.meshes||[]),...(result.transformNodes||[])];
+  const group=(name)=>nodes.filter(n=>n.name===name||n.name.startsWith(name+'_')||n.name.startsWith(name+'.'));
+  state.wheelGroups={front:group('FrontWheels'),rear:group('RearWheels')};
+  $('frontCount').textContent=state.wheelGroups.front.length;
+  $('rearCount').textContent=state.wheelGroups.rear.length;
+}
+async function importBinary(file,label,ext){
+  return BABYLON.SceneLoader.ImportMeshAsync('','file:',file,scene,undefined,ext);
+}
+async function chooseAsset(folder,name){
+  const url='../Assets/'+folder+'/'+encodeURIComponent(name);
+  const response=await fetch(url);
+  if(!response.ok)throw new Error('HTTP '+response.status+' '+url);
+  return new File([await response.blob()],name);
+}
+async function loadVehicle(){
+  const token=++state.loadEpoch;
+  const upload=$('vehicleFile').files[0];
+  const name=$('vehicleSelect').value;
+  if(!upload&&!name){status('Choose a vehicle FBX/GLB.',true);return;}
+  try{
+    status('Importing vehicle geometry…');
+    const file=upload||await chooseAsset('vehicles',name);
+    if(token!==state.loadEpoch)return;
+    const extension=/\.glb$/i.test(file.name)?'.glb':'.fbx';
+    clearVehicle();
+    const result=await importBinary(file,file.name,extension);
+    if(token!==state.loadEpoch){disposeResult(result);return;}
+    state.vehicleName=file.name;
+    state.vehicleResult=result;
+    state.meshes=(result.meshes||[]).filter(mesh=>mesh.getTotalVertices&&mesh.getTotalVertices()>0);
+    if(!state.meshes.length)throw new Error('Vehicle import returned no renderable meshes.');
+    state.vehicleRoot=new BABYLON.TransformNode('VehicleRoot',scene);
+    state.vehicleVisual=new BABYLON.TransformNode('VehicleVisual',scene);
+    state.vehicleVisual.parent=state.vehicleRoot;
+    attachRoots(result,state.vehicleVisual);
+    const b=bounds(state.meshes);
+    if(!b)throw new Error('Could not measure truck dimensions.');
+    // Visual normalization only: 6.2 m as a useful calibration reference, not a claim
+    // of the actual truck dimensions. Authored seat positions stay in root-local metres.
+    const originalLength=Math.max(b.size.x,b.size.z);
+    const scale=originalLength>0.0001?6.2/originalLength:1;
+    state.vehicleVisual.scaling.setAll(scale);
+    state.vehicleVisual.position.set(-b.center.x*scale,-b.lo.y*scale,-b.center.z*scale);
+    state.meshes.forEach(mesh=>{mesh.isPickable=true;mesh.computeWorldMatrix(true);});
+    findWheelGroups(result);
+    $('meshCount').textContent=state.meshes.length;
+    ensureSeats();
+    drawSeats();
+    frameVehicle();
+    $('overlay').textContent=file.name+' · vehicle visual normalized to 6.2 m · click seats to edit';
+    status('Loaded '+file.name+' with '+state.meshes.length+' meshes. Wheel group counts are displayed; adjust starter seat positions to fit this specific model.');
+  }catch(error){
+    console.error(error);
+    status('Vehicle import failed: '+error.message,true);
+  }
+}
+function marker(seat){
+  let mesh=state.markers.get(seat.id);
+  if(!mesh){
+    mesh=BABYLON.MeshBuilder.CreateSphere('seat-marker-'+seat.id,{diameter:.16},scene);
+    const material=new BABYLON.StandardMaterial('seat-material-'+seat.id,scene);
+    material.disableLighting=true;
+    material.emissiveColor=new BABYLON.Color3(.2,.75,.6);
+    mesh.material=material;
+    mesh.isPickable=false;
+    state.markers.set(seat.id,mesh);
+  }
+  mesh.parent=state.vehicleRoot;
+  mesh.position.copyFrom(vec(seat.position));
+  mesh.material.emissiveColor=state.seats[state.selected]===seat?
+    new BABYLON.Color3(1,.73,.21):new BABYLON.Color3(.25,.75,.57);
+  return mesh;
+}
+function drawSeats(){
+  $('seatList').replaceChildren();
+  const live=new Set(state.seats.map(s=>s.id));
+  for(const [id,m] of state.markers)if(!live.has(id)){m.dispose(false,true);state.markers.delete(id);}
+  state.seats.forEach((seat,i)=>{
+    const button=document.createElement('button');
+    button.className='seat';button.textContent=(i+1)+'. '+seat.name+' · '+seat.role+(seat.occupied?' ●':' ○');
+    button.setAttribute('aria-current',String(i===state.selected));
+    button.onclick=()=>{state.selected=i;drawSeats();};
+    $('seatList').append(button);
+    if(state.vehicleRoot)marker(seat);
+  });
+  const seat=state.seats[state.selected];
+  const fields=$('seatFields');
+  fields.style.display=seat?'block':'none';
+  if(!seat)return;
+  $('seatName').value=seat.name;
+  $('seatRole').value=seat.role;
+  $('seatPose').value=seat.clip;
+  $('seatOccupied').checked=seat.occupied;
+  ['X','Y','Z'].forEach((suffix,i)=>{$('seat'+suffix).value=seat.position[i].toFixed(3);});
+  $('seatYaw').value=seat.yaw;
+}
+function syncActorTransform(seat){
+  if(!seat.actor)return;
+  seat.actor.pivot.position.copyFrom(vec(seat.position));
+  seat.actor.pivot.rotation.y=seat.yaw*Math.PI/180;
+}
+function updateSelected(){
+  const seat=state.seats[state.selected];if(!seat)return;
+  const oldClip=seat.clip,oldOccupied=seat.occupied;
+  seat.name=$('seatName').value.trim().slice(0,80)||'Seat';
+  seat.role=$('seatRole').value;
+  seat.clip=$('seatPose').value;
+  seat.occupied=$('seatOccupied').checked;
+  seat.position=['seatX','seatY','seatZ'].map((id,i)=>finite($(id).value,seat.position[i]));
+  seat.yaw=finite($('seatYaw').value,seat.yaw);
+  syncActorTransform(seat);
+  if(seat.occupied!==oldOccupied){if(!seat.occupied)disposeActor(seat);else spawnSeat(seat);}
+  else if(seat.actor&&oldClip!==seat.clip)playSeatClip(seat);
+  drawSeats();
+}
+['seatName','seatRole','seatPose','seatOccupied','seatX','seatY','seatZ','seatYaw'].forEach(id=>{
+  $(id).addEventListener(id==='seatName'||id==='seatX'||id==='seatY'||id==='seatZ'||id==='seatYaw'?'change':'change',updateSelected);
+});
+$('addSeat').onclick=()=>{
+  const count=state.seats.length+1;
+  state.seats.push(localSeat('Passenger '+count,'passenger',0,1.1,0,0));
+  state.selected=state.seats.length-1;drawSeats();
+};
+$('removeSeat').onclick=()=>{
+  const seat=state.seats[state.selected];if(!seat)return;
+  disposeActor(seat);state.seats.splice(state.selected,1);
+  state.selected=Math.max(0,Math.min(state.selected,state.seats.length-1));drawSeats();
+};
+$('pickSeat').onclick=()=>{state.picking=!state.picking;$('pickSeat').textContent=state.picking?'Click a truck surface…':'Click truck to position seat';};
+let down=null;
+canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
+canvas.addEventListener('pointerup',e=>{
+  if(!state.picking||!state.vehicleRoot||!down)return;
+  const dx=e.clientX-down[0],dy=e.clientY-down[1];down=null;
+  if(dx*dx+dy*dy>25)return;
+  const rect=canvas.getBoundingClientRect();
+  const pick=scene.pick(e.clientX-rect.left,e.clientY-rect.top,m=>state.meshes.includes(m));
+  if(!pick.hit||!pick.pickedPoint){status('Click a visible truck surface.',true);return;}
+  const seat=state.seats[state.selected];if(!seat)return;
+  state.vehicleRoot.computeWorldMatrix(true);
+  const inverse=state.vehicleRoot.getWorldMatrix().clone().invert();
+  const p=BABYLON.Vector3.TransformCoordinates(pick.pickedPoint,inverse);
+  seat.position=[p.x,p.y,p.z].map(v=>Math.round(v*1000)/1000);
+  syncActorTransform(seat);state.picking=false;
+  $('pickSeat').textContent='Click truck to position seat';
+  drawSeats();status('Seat placed from truck-surface hit. Adjust Y and facing for the animation.');
+});
+async function selectedSoldierFile(){
+  if(state.soldierFile)return state.soldierFile;
+  if(!state.soldierName)throw new Error('Pick a soldier model before populating seats.');
+  state.soldierFile=await chooseAsset('soldiers',state.soldierName);
+  return state.soldierFile;
+}
+function targetsFor(result){
+  const targets=new Map();
+  (result.meshes||[]).forEach(mesh=>{
+    targets.set(mesh.name,mesh);
+    if(mesh.skeleton)mesh.skeleton.bones.forEach(b=>targets.set(b.name,b));
+  });
+  (result.transformNodes||[]).forEach(node=>targets.set(node.name,node));
+  return targets;
+}
+async function spawnSeat(seat,epoch=state.actorEpoch){
+  if(!seat.occupied||!state.vehicleRoot||seat.actor)return;
+  let result=null,pivot=null;
+  try{
+    const file=await selectedSoldierFile();
+    if(epoch!==state.actorEpoch||!seat.occupied||!state.vehicleRoot)return;
+    result=await importBinary(file,file.name,'.fbx');
+    if(epoch!==state.actorEpoch||!seat.occupied||!state.vehicleRoot){disposeResult(result);return;}
+    pivot=new BABYLON.TransformNode('SeatAnchor_'+seat.id,scene);
+    pivot.parent=state.vehicleRoot;
+    const modelRoot=new BABYLON.TransformNode('SoldierVisual_'+seat.id,scene);
+    modelRoot.parent=pivot;
+    attachRoots(result,modelRoot);
+    const meshes=(result.meshes||[]).filter(m=>m.getTotalVertices&&m.getTotalVertices()>0);
+    const b=bounds(meshes);
+    if(!b)throw new Error('Soldier import contains no visible meshes.');
+    const scale=b.size.y>0.001?1.8/b.size.y:1;
+    modelRoot.scaling.setAll(scale);
+    modelRoot.position.set(-b.center.x*scale,-b.lo.y*scale,-b.center.z*scale);
+    seat.actor={result,pivot,modelRoot,targets:targetsFor(result),groups:new Map()};
+    syncActorTransform(seat);
+    if(seat.clip)await playSeatClip(seat);
+    status('Loaded soldier for '+seat.name+'. Adjust seat Y/yaw and animation until aligned.');
+  }catch(error){
+    console.error(error);status('Could not populate '+seat.name+': '+error.message,true);
+    if(seat.actor)disposeActor(seat);
+    else{disposeResult(result);if(pivot)pivot.dispose(false,false);}
+  }
+}
+async function playSeatClip(seat){
+  const actor=seat.actor;if(!actor)return;
+  actor.groups.forEach(group=>group.stop());
+  if(!seat.clip)return;
+  const key=seat.clip;
+  try{
+    let group=actor.groups.get(key);
+    if(!group){
+      let file=state.clips.get(key);
+      if(!file){file=await chooseAsset('animations',key);state.clips.set(key,file);}
+      if(actor!==seat.actor)return;
+      const before=new Set(scene.animationGroups);
+      await BABYLON.SceneLoader.ImportAnimationsAsync('file:',file,scene,false,
+        BABYLON.SceneLoaderAnimationGroupLoadingMode.NoSync,
+        target=>actor.targets.get(target.name)||null);
+      const groups=scene.animationGroups.filter(g=>!before.has(g));
+      group=groups.find(g=>g.targetedAnimations&&g.targetedAnimations.length);
+      groups.filter(g=>g!==group).forEach(g=>g.dispose());
+      if(!group)throw new Error('No animation channels matched the loaded soldier rig.');
+      actor.groups.set(key,group);
+    }
+    if(actor!==seat.actor||seat.clip!==key)return;
+    group.start(true);
+  }catch(error){
+    console.warn(error);status('Clip '+key+' failed on '+seat.name+': '+error.message,true);
+  }
+}
+async function refreshActors(){
+  const epoch=++state.actorEpoch;
+  state.seats.forEach(disposeActor);
+  const active=state.seats.filter(seat=>seat.occupied);
+  if(!active.length){status('No seats marked occupied; enable Occupied on a seat.');return;}
+  if(!state.vehicleRoot){status('Load a vehicle first.',true);return;}
+  if(!$('soldierSelect').value&&!$('soldierFile').files.length&&!state.soldierFile){
+    status('Choose a soldier model to populate seats.',true);return;
+  }
+  for(const seat of active){if(epoch!==state.actorEpoch)return;await spawnSeat(seat,epoch);}
+}
+function refreshClipSelectors(){
+  const options=[...state.clips.keys()].sort((a,b)=>a.localeCompare(b));
+  const chosen=$('clipSelect').value;
+  fill($('clipSelect'),options,'Choose a Truck clip…');
+  if(options.includes(chosen))$('clipSelect').value=chosen;
+  const old=new Map(state.seats.map(s=>[s.id,s.clip]));
+  const pose=$('seatPose');fill(pose,options,'None (bind pose)');
+  const seat=state.seats[state.selected];
+  if(seat)pose.value=old.get(seat.id)||'';
+  $('clipInfo').textContent=options.length+' Truck clip(s) discovered. Assign a different clip per seat; driver and passenger poses are not interchangeable.';
+}
+async function library(){
+  try{
+    const res=await fetch('asset-list.php',{cache:'no-store'});
+    if(!res.ok)throw new Error('asset-list.php returned HTTP '+res.status);
+    const data=await res.json(),files=data.files||{};
+    const vehicles=(files.vehicles||[]).filter(n=>/\.(fbx|glb)$/i.test(n));
+    const soldiers=(files.soldiers||[]).filter(n=>/\.fbx$/i.test(n));
+    fill($('vehicleSelect'),vehicles,'Select a vehicle…');
+    fill($('soldierSelect'),soldiers,'Select a soldier…');
+    if(vehicles.length===1)$('vehicleSelect').value=vehicles[0];
+    for(const name of files.animations||[])if(/truck/i.test(name)&&/\.fbx$/i.test(name))state.clips.set(name,null);
+    refreshClipSelectors();
+    if(!state.clips.size)status('Truck model found; no Truck animation filenames found in the deployed library. Upload local clips or deploy them to Assets/animations.');
+    else status('Library loaded: '+vehicles.length+' vehicle(s), '+state.clips.size+' Truck clip(s).');
+  }catch(error){status('Asset inventory unavailable: '+error.message+'. Local file inputs remain usable.',true);}
+}
+$('vehicleSelect').onchange=()=>{$('vehicleFile').value='';};
+$('vehicleFile').onchange=()=>{$('vehicleSelect').value='';};
+$('loadVehicle').onclick=loadVehicle;
+$('frameVehicle').onclick=frameVehicle;
+$('soldierSelect').onchange=()=>{state.soldierName=$('soldierSelect').value;state.soldierFile=null;};
+$('soldierFile').onchange=()=>{state.soldierFile=$('soldierFile').files[0]||null;state.soldierName=state.soldierFile?.name||'';$('soldierSelect').value='';};
+$('clipsFile').onchange=async()=>{
+  for(const file of $('clipsFile').files)state.clips.set(file.name,file);
+  refreshClipSelectors();
+  status('Local truck clips added. Assign them through each seat Pose selector.');
+};
+$('clipSelect').onchange=()=>{
+  const seat=state.seats[state.selected];
+  if(!seat)return;
+  seat.clip=$('clipSelect').value;
+  $('seatPose').value=seat.clip;
+  playSeatClip(seat);
+};
+$('refreshOccupants').onclick=refreshActors;
+$('speed').oninput=()=>{$('speedLabel').textContent=(+$('speed').value).toFixed(1);};
+$('steer').oninput=()=>{$('steerLabel').textContent=$('steer').value;};
+$('stopVehicle').onclick=()=>{
+  $('moving').checked=false;
+  if(state.vehicleRoot){state.vehicleRoot.position.set(0,0,0);state.vehicleRoot.rotation.set(0,0,0);}
+};
+const STORAGE_KEY='grasstex.vehicle-seats.v1';
+function serialize(){
+  return {version:1,vehicle:state.vehicleName,units:'vehicle-local-metres',seats:state.seats.map(s=>({
+    name:s.name,role:s.role,position:s.position.map(n=>+n.toFixed(4)),
+    yaw:+s.yaw.toFixed(3),occupied:s.occupied,clip:s.clip
+  }))};
+}
+function validConfig(value){
+  if(!value||value.version!==1||!Array.isArray(value.seats)||value.seats.length>40)throw new Error('Invalid seat schema or >40 seats.');
+  const seats=value.seats.map((s,i)=>{
+    if(!Array.isArray(s.position)||s.position.length!==3||s.position.some(n=>typeof n!=='number'||!Number.isFinite(n)||Math.abs(n)>1000))
+      throw new Error('Seat '+(i+1)+' has invalid coordinates.');
+    if(!Number.isFinite(s.yaw)||Math.abs(s.yaw)>3600)throw new Error('Seat '+(i+1)+' has invalid yaw.');
+    if(s.role!=='driver'&&s.role!=='passenger')throw new Error('Seat '+(i+1)+' has invalid role.');
+    if(typeof s.clip!=='string'||s.clip.length>200||/[\/\\]/.test(s.clip))throw new Error('Seat '+(i+1)+' has invalid clip filename.');
+    return localSeat(String(s.name||'Seat').slice(0,80),s.role,...s.position,s.yaw,!!s.occupied,s.clip);
+  });
+  return seats;
+}
+function applyConfig(value){
+  const seats=validConfig(value);
+  if(value.vehicle&&state.vehicleName&&value.vehicle!==state.vehicleName)throw new Error('Calibration is for '+value.vehicle+', not '+state.vehicleName+'.');
+  state.actorEpoch++;state.seats.forEach(disposeActor);
+  state.seats=seats;state.selected=0;drawSeats();
+  status('Imported '+seats.length+' seat anchors. Use Refresh occupied soldiers to preview animation poses.');
+}
+$('saveLocal').onclick=()=>{
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(serialize()));status('Seat positions saved in this browser.');}
+  catch(e){status('Browser storage failed: '+e.message,true);}
+};
+$('loadLocal').onclick=()=>{
+  try{const raw=localStorage.getItem(STORAGE_KEY);if(!raw)throw new Error('No browser save exists.');applyConfig(JSON.parse(raw));}
+  catch(e){status('Could not restore seats: '+e.message,true);}
+};
+$('exportJson').onclick=()=>{
+  const json=JSON.stringify(serialize(),null,2)+'\n';
+  const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;a.download=(state.vehicleName||'vehicle').replace(/\.(fbx|glb)$/i,'')+'-seats.json';
+  a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  status('Seat JSON downloaded. This file is not automatically deployed.');
+};
+$('importButton').onclick=()=>$('importJson').click();
+$('importJson').onchange=async()=>{
+  const file=$('importJson').files[0];if(!file)return;
+  try{applyConfig(JSON.parse(await file.text()));}catch(e){status('Import failed: '+e.message,true);}
+  $('importJson').value='';
+};
+scene.onBeforeRenderObservable.add(()=>{
+  if(!$('moving').checked||!state.vehicleRoot)return;
+  const dt=Math.min(engine.getDeltaTime()/1000,.05);
+  const speed=finite($('speed').value),steer=finite($('steer').value)*Math.PI/180;
+  state.vehicleRoot.rotation.y+=steer*dt;
+  state.vehicleRoot.position.x+=Math.sin(state.vehicleRoot.rotation.y)*speed*dt;
+  state.vehicleRoot.position.z+=Math.cos(state.vehicleRoot.rotation.y)*speed*dt;
+});
+window.addEventListener('resize',()=>engine.resize());
+engine.runRenderLoop(()=>scene.render());
+ensureSeats();drawSeats();library();
+</script>
+</body>
+</html>
