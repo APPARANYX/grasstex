@@ -837,13 +837,35 @@ $('stopVehicle').onclick=()=>{
 };
 const STORAGE_KEY='grasstex.vehicle-seats.v1';
 function serialize(){
-  return {version:1,vehicle:state.vehicleName,units:'vehicle-local-metres',seats:state.seats.map(s=>({
-    name:s.name,role:s.role,position:s.position.map(n=>+n.toFixed(4)),
-    yaw:+s.yaw.toFixed(3),occupied:s.occupied,clip:s.clip
-  }))};
+  const axles={};
+  for(const side of ['front','rear']){
+    const cfg=state.axles[side];
+    if(cfg)axles[side]={center:cfg.center.map(v=>+v.toFixed(4)),axis:cfg.axis};
+  }
+  return {version:2,vehicle:state.vehicleName,units:'vehicle-local-metres',axles,
+    seats:state.seats.map(s=>({
+      name:s.name,role:s.role,position:s.position.map(n=>+n.toFixed(4)),
+      yaw:+s.yaw.toFixed(3),occupied:s.occupied,clip:s.clip
+    }))
+  };
 }
 function validConfig(value){
-  if(!value||value.version!==1||!Array.isArray(value.seats)||value.seats.length>40)throw new Error('Invalid seat schema or >40 seats.');
+  if(!value||![1,2].includes(value.version)||!Array.isArray(value.seats)||value.seats.length>40)
+    throw new Error('Invalid seat configuration schema or >40 seats.');
+  if(value.units&&value.units!=='vehicle-local-metres')throw new Error('Unexpected coordinate units.');
+  const axles={};
+  if(value.version===2&&value.axles!=null){
+    if(typeof value.axles!=='object'||Array.isArray(value.axles))throw new Error('Invalid axles object.');
+    for(const side of ['front','rear']){
+      const cfg=value.axles[side];
+      if(cfg==null)continue;
+      if(!Array.isArray(cfg.center)||cfg.center.length!==3||
+        cfg.center.some(v=>typeof v!=='number'||!Number.isFinite(v)||Math.abs(v)>1000))
+        throw new Error('Invalid '+side+' axle coordinates.');
+      if(cfg.axis!=='x'&&cfg.axis!=='z')throw new Error('Invalid '+side+' axle axis.');
+      axles[side]={center:cfg.center.slice(),axis:cfg.axis};
+    }
+  }
   const seats=value.seats.map((s,i)=>{
     if(!Array.isArray(s.position)||s.position.length!==3||s.position.some(n=>typeof n!=='number'||!Number.isFinite(n)||Math.abs(n)>1000))
       throw new Error('Seat '+(i+1)+' has invalid coordinates.');
@@ -852,14 +874,24 @@ function validConfig(value){
     if(typeof s.clip!=='string'||s.clip.length>200||/[\/\\]/.test(s.clip))throw new Error('Seat '+(i+1)+' has invalid clip filename.');
     return localSeat(String(s.name||'Seat').slice(0,80),s.role,...s.position,s.yaw,!!s.occupied,s.clip);
   });
-  return seats;
+  return {seats,axles};
 }
 function applyConfig(value){
-  const seats=validConfig(value);
-  if(value.vehicle&&state.vehicleName&&value.vehicle!==state.vehicleName)throw new Error('Calibration is for '+value.vehicle+', not '+state.vehicleName+'.');
+  const config=validConfig(value);
+  if(value.vehicle&&state.vehicleName&&value.vehicle!==state.vehicleName)
+    throw new Error('Calibration is for '+value.vehicle+', not '+state.vehicleName+'.');
+  if(Object.keys(config.axles).length&&!state.vehicleRoot)
+    throw new Error('Load the matching vehicle before importing axle calibration.');
   state.actorEpoch++;state.seats.forEach(disposeActor);
-  state.seats=seats;state.selected=0;drawSeats();
-  status('Imported '+seats.length+' seat anchors. Use Refresh occupied soldiers to preview animation poses.');
+  state.seats=config.seats;state.selected=0;
+  for(const [side,entry] of Object.entries(config.axles)){
+    if(state.axleRig[side]){
+      setAxleCenter(side,entry.center);
+      state.axles[side].axis=entry.axis;
+    }
+  }
+  showAxleEditor();drawSeats();
+  status('Imported '+config.seats.length+' seats and '+Object.keys(config.axles).length+' axle calibration(s). Refresh occupants to preview poses.');
 }
 $('saveLocal').onclick=()=>{
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify(serialize()));status('Seat positions saved in this browser.');}
@@ -874,7 +906,7 @@ $('exportJson').onclick=()=>{
   const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
   const a=document.createElement('a');a.href=url;a.download=(state.vehicleName||'vehicle').replace(/\.(fbx|glb)$/i,'')+'-seats.json';
   a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-  status('Seat JSON downloaded. This file is not automatically deployed.');
+  status('Vehicle calibration JSON downloaded (seats and axle pivots). This file is not automatically deployed.');
 };
 $('importButton').onclick=()=>$('importJson').click();
 $('importJson').onchange=async()=>{
