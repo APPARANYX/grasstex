@@ -19,7 +19,7 @@ STATIC_FILES = [
 # exact paths are the only lab files the deploy owns; it uploads them and never deletes them.
 # The sidecars it writes stay server-owned (protected below), so a deploy never clobbers a tuning.
 MANAGED_LAB = ["labs/fbx-animation-lab.html", "labs/fbx-animation-root-lock.js", "labs/fbx-animation-compat.js",
-               "labs/asset-list.php", "labs/save-calibration.php"]
+               "labs/asset-list.php", "labs/save-calibration.php", "labs/vehicle-animation-lab.html"]
 STATIC_FILES += [(path, path) for path in MANAGED_LAB]
 # Every runtime the page loads. A file missing from this list is simply never uploaded, so the
 # deployed loader ends up requesting a 404 - keep it in step with the script tags in
@@ -36,6 +36,7 @@ BATTLE_FILES = [
 # from the same-origin Assets/ directory.
 SOLDIER_ASSET_GLOBS = [("Assets/soldiers", "*.fbx"), ("Assets/animations", "*.fbx"), ("Assets/animations", "*.bin"),
                        ("Assets/weapons", "*.fbx"), ("Assets/weapons", "*.glb"),
+                       ("Assets/vehicles", "*.fbx"), ("Assets/vehicles", "*.glb"),
                        ("Assets/effects/muzzle-flash", "*.png"), ("Assets/effects/decals", "*.png")]
 # Non-voice audio: weapon reports, handling foley, vehicle and ambience beds. The voice
 # callouts are staged separately by the deploy workflow's pitch-variant step, but nothing

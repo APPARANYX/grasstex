@@ -83,6 +83,25 @@ never decides tactics, ammo, hits or paths.
   `scripts/probe_grenade_presentation.cjs` checks imported props, throw clips, attachment and restart.
   Not in the pack: sideways crawl, melee, limp, climb, window lean.
 
+**Vehicle Animation Lab (authoring only).** `labs/vehicle-animation-lab.html` is the
+Vehicles category reachable from the existing FBX Motion Lab. It imports deployed
+`Assets/vehicles/*.{fbx,glb}` through `labs/asset-list.php`, shares the pinned Babylon FBX
+loader with the soldier lab, and can load any matching `Assets/animations/*Truck*.fbx`
+as per-seat passenger or driver poses. The vehicle lab defaults to two-sided rendering of vehicle materials
+(`backFaceCulling=false`, `twoSidedLighting=true`; toggleable at runtime).
+That reveals inward-facing polygons but cannot repair absent faces or missing
+texture data. The **Show full crew** button selects a German paratrooper model
+when available, fills all four starter seats, and previews the available
+Driving/Sitting clips. The author places editable seat anchors
+(position in vehicle-local metres, yaw, role, occupied flag and animation filename)
+on the vehicle's normalized 6.2 m preview; `FrontWheels` and `RearWheels` hierarchy
+names are inspected but not blindly spun (a group containing both wheels may not
+have independent wheel pivots). JSON seat configs can be downloaded/imported or
+saved locally; no calibration is written to production, and no gameplay transport
+logic is changed. The preview's normalized length is a **calibration aid**, not a
+historically verified vehicle dimension; the transport renderer must adopt a
+confirmed transform and seat contract before consuming any sidecar.
+
 **Asset pipeline.** Use the Blender app bundle `/Applications/Blender.app/Contents/MacOS/Blender`, not the
 broken `blender` on PATH. Use lowercase filenames, since the host is case-sensitive (`git mv` to rename).
 

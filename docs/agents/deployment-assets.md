@@ -12,6 +12,7 @@
   `Assets/{soldiers,animations,weapons}` and re-uploads any FBX the hash state records but the host
   no longer has (`prune_missing_remote_assets.py`), so a folder can be cleared on the host and
   refilled by running the deploy (Actions → Deploy Battle Runtime → Run workflow).
+- Vehicle lab assets: the managed `labs/vehicle-animation-lab.html` is uploaded alongside the soldier Motion Lab; `Assets/vehicles/*.fbx` and `*.glb` are managed model assets for lab preview. The branch-preview workflow stages these paths too. Vehicle seat JSON remains locally exported / browser-owned and is not an automatically deployed sidecar.
 - **The deploy never deletes or overwrites server files the repo does not manage.** Hand-placed
   sidecar JSON (clip/model/lab metadata beside the FBX assets), the live FBX soldier-animation lab
   files and everything else unmanaged stay put. The planner may delete only a
