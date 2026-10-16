@@ -100,7 +100,13 @@ jobs:
           assert.equal(data.battles.length, expected, 'requested strategic seed coverage is incomplete');
           for (const b of data.battles) {
             assert.equal(b.objectiveCount, 12, b.seed + ': not the 5km 12-objective profile');
-            assert.equal(b.battleType, process.env.TYPE, b.seed + ': deployment mismatch');
+            assert.equal(b.battleType, process.env.TYPE, b.seed + ': benchmark mode label');
+            if (process.env.TYPE === 'meeting') {
+              assert.equal(b.deployment?.mode, 'meeting', b.seed + ': expected meeting deployment');
+            } else {
+              assert.equal(b.deployment?.mode, 'prepared-defender', b.seed + ': expected prepared defense');
+              assert.equal(b.deployment?.defender, process.env.TYPE.split('-')[0], b.seed + ': defending side mismatch');
+            }
             assert.equal(b.diagnosticAnalysis?.integrity?.ok, true, b.seed + ': diagnostic integrity');
             assert.ok(b.timeline?.samples?.length > 0, b.seed + ': no timeline');
           }
