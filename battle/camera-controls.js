@@ -1078,7 +1078,7 @@
       canvas.focus();
       var b = menuPauseOwner;
       menuPauseOwner = null;
-      if (b && b === liveBattle() && b.paused && !b.winner && typeof b.resume === 'function') b.resume();
+      if (b && b === liveBattle() && b.paused && !b.manualEnded && !b.winner && typeof b.resume === 'function') b.resume();
       updateHint(activeGamepad());
     }
     function possessSelected() {
@@ -1363,7 +1363,7 @@
     function possessSoldier(next, preservePause) {
       var b = liveBattle();
       /* This is a possession transfer, never a spawn. */
-      if (!playerSoldierEligible(b, next)) return false;
+      if (!b || b.manualEnded || b.winner || !playerSoldierEligible(b, next)) return false;
       var restoreLock = deathSequence && deathSequence.restoreLock,
         sourceCam = scene.activeCamera || camera,
         flightFrom = sourceCam.position.clone(),
@@ -1385,7 +1385,7 @@
       resetPlayerPresentation(next);
       hideTransientPlayerFeedback();
       commitPlayerOwnership(next, b);
-      if (b.paused && b.resume && !preservePause) b.resume();
+      if (b.paused && b.resume && !b.manualEnded && !b.winner && !preservePause) b.resume();
       var startBtn = document.getElementById('startBtn');
       if (startBtn) startBtn.hidden = true;
       ensureReticle().style.display = 'block';
