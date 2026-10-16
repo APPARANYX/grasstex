@@ -480,7 +480,7 @@
       roadSightings(town, track, faction).forEach(function (road) {
         evaluated++;
         var metres = d(pos, road.point);
-        if (metres > 420 || metres < 55) return;
+        if (metres > 420) return; // Existing screen post may already be the best ambush point.
         // On foot from a REAL observation post: slow conservative pace,
         // setup interval, and additional uncertainty. No second truck spawn.
         var friendlyETA = metres / 1.35 + 35 + 25,
