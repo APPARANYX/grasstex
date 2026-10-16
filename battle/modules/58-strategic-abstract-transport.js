@@ -278,7 +278,8 @@
       sq._preparedDefenseRequest ||
       sq._transportUsed ||
       (sq._transport && (sq._transport.phase === 'embarked' || sq._transport.phase === 'boarding'))
-    ) return null;
+    )
+      return null;
     var home = position(sq.baseHome || sq.home),
       center = middle(sq),
       members = alive(sq),
@@ -292,7 +293,8 @@
       members.some(function (s) {
         return s.isPlayer || s.suppressedUntil > sim.time || dist(position(s.root.position), center) > 32;
       })
-    ) return null;
+    )
+      return null;
     var fleet = sim._strategicTransportFleet,
       candidates = (fleet ? fleet.vehicles : [])
         .filter(function (v) {
@@ -318,13 +320,14 @@
         passable = safe(sim, previous, trial.path[i].point);
         previous = trial.path[i].point;
       }
-      if (passable) return {
-        vehicle: vehicle,
-        route: trial,
-        boardSeconds: Math.max(10, dist(center, vehicle.position) / BOARD_SPEED + 8),
-        dismountSeconds: DISEMBARK_METRES / 2,
-        setupSeconds: 25
-      };
+      if (passable)
+        return {
+          vehicle: vehicle,
+          route: trial,
+          boardSeconds: Math.max(10, dist(center, vehicle.position) / BOARD_SPEED + 8),
+          dismountSeconds: DISEMBARK_METRES / 2,
+          setupSeconds: 25
+        };
     }
     return null;
   }

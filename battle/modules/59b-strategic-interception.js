@@ -14,23 +14,37 @@
   function enabled(sim) {
     var town = sim && sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario;
     var search = (root.location && root.location.search) || '';
-    return !!(town && town.profile === 'strategic' && !root.PHASE_C_COMBAT_LAB &&
+    return !!(
+      town &&
+      town.profile === 'strategic' &&
+      !root.PHASE_C_COMBAT_LAB &&
       /(?:^|[?&])strategicInterception=1(?:&|$)/.test(search) &&
       /(?:^|[?&])motorTransport=1(?:&|$)/.test(search) &&
       /(?:^|[?&])aerialRecon=1(?:&|$)/.test(search) &&
-      /(?:^|[?&])interception=1(?:&|$)/.test(search));
+      /(?:^|[?&])interception=1(?:&|$)/.test(search)
+    );
   }
   function d(a, b) {
     return Math.hypot(a.x - b.x, a.z - b.z);
   }
   function objective(town, id) {
-    return (town.objectives || []).find(function (o) { return o.id === id; }) || null;
+    return (
+      (town.objectives || []).find(function (o) {
+        return o.id === id;
+      }) || null
+    );
   }
   function shortest(town, startId, targetId) {
-    var graph = {}, pending = {}, next = {}, marked = {};
-    (town.objectives || []).forEach(function (o) { graph[o.id] = []; });
+    var graph = {},
+      pending = {},
+      next = {},
+      marked = {};
+    (town.objectives || []).forEach(function (o) {
+      graph[o.id] = [];
+    });
     (town.roads || []).forEach(function (r) {
-      var a = objective(town, r.fromObjectiveId), b = objective(town, r.toObjectiveId);
+      var a = objective(town, r.fromObjectiveId),
+        b = objective(town, r.toObjectiveId);
       if (!a || !b) return;
       var cost = d(a, b);
       if (!(cost > 0)) return;
@@ -40,8 +54,13 @@
     if (!graph[startId] || !graph[targetId]) return null;
     pending[startId] = 0;
     for (;;) {
-      var at = Object.keys(pending).filter(function (id) { return !marked[id]; })
-        .sort(function (a, b) { return pending[a] - pending[b] || a.localeCompare(b); })[0];
+      var at = Object.keys(pending)
+        .filter(function (id) {
+          return !marked[id];
+        })
+        .sort(function (a, b) {
+          return pending[a] - pending[b] || a.localeCompare(b);
+        })[0];
       if (!at) break;
       if (at === targetId) break;
       marked[at] = true;
@@ -53,23 +72,30 @@
       });
     }
     if (pending[targetId] == null) return null;
-    var ids = [targetId], guard = Object.keys(graph).length;
+    var ids = [targetId],
+      guard = Object.keys(graph).length;
     while (ids[0] !== startId && guard-- > 0) {
       if (!next[ids[0]]) return null;
       ids.unshift(next[ids[0]]);
     }
     return ids[0] === startId
-      ? { metres: pending[targetId], points: ids.map(function (id) {
-          var o = objective(town, id);
-          return { x: o.x, z: o.z };
-        }) }
+      ? {
+          metres: pending[targetId],
+          points: ids.map(function (id) {
+            var o = objective(town, id);
+            return { x: o.x, z: o.z };
+          })
+        }
       : null;
   }
   function roadSightings(town, contact, faction) {
-    if (!(contact.confidence >= MIN_CONFIDENCE) ||
-        !(contact.speedMps >= 0.8) ||
-        !(contact.validUntil >= contact.observedAt) ||
-        !isFinite(contact.headingRadians)) return [];
+    if (
+      !(contact.confidence >= MIN_CONFIDENCE) ||
+      !(contact.speedMps >= 0.8) ||
+      !(contact.validUntil >= contact.observedAt) ||
+      !isFinite(contact.headingRadians)
+    )
+      return [];
     var p = { x: contact.x, z: contact.z },
       h = { x: Math.sin(contact.headingRadians), z: Math.cos(contact.headingRadians) },
       hostile = faction === 'us' ? 'ge' : 'us';
@@ -124,62 +150,83 @@
     if (!fleet || !transport.quoteMission) return null;
     var best = null;
     ((sim.factions[faction] && sim.factions[faction].squads) || []).forEach(function (sq) {
-      if (!sq || sq.state === 'retreat' || sq.inContact || sq.isPlayer ||
-          sq._transportUsed || sq._preparedDefenseRequest) return;
-      fleet.filter(function (v) {
-        return v.faction === faction && v.phase === 'parked';
-      }).forEach(function (v) {
-        var base = (town.spawnZones[faction].bases || [])[v.baseIndex];
-        if (!base) return;
-        track.anchorIds.forEach(function (anchorId) {
-        var path = shortest(town, base.objectiveId, anchorId);
-        if (!path) return;
-        // Base road point, then complete public graph edges to the watched edge.
-        var route = path.points;
-        var mission = {
-          owner: 'force-command',
-          status: 'issued',
-          intent: 'intercept',
-          point: track.point,
-          route: route
-        };
-        var quote = transport.quoteMission(sim, sq, mission);
-        if (!quote || quote.vehicle.id !== v.id) return;
-        var friendlyETA = quote.boardSeconds + quote.route.estimatedDriveSeconds +
-          quote.dismountSeconds + quote.setupSeconds + SETUP_MARGIN + EXTRA_UNCERTAINTY;
-        var margin = track.enemyETA - friendlyETA;
-        if (!(margin > 20)) return;
-        var score = margin * 0.3 + track.alignment * 55 +
-          track.contact.confidence * 35 - track.offRoad * 0.25;
-        var selection = {
-          squad: sq,
-          spec: mission,
-          vehicleId: v.id,
-          objectiveId: track.likelyObjectiveId,
-          roadId: track.roadId,
-          contactId: track.contact.squadId,
-          observedAt: track.contact.observedAt,
-          expiresAt: Math.min(track.contact.observedAt + 720,
-            sim.time + Math.max(180, track.enemyETA + 80)),
-          enemyETA: track.enemyETA,
-          friendlyETA: friendlyETA,
-          margin: margin,
-          score: score,
-          confidence: track.contact.confidence,
-          leadMetres: track.leadMetres
-        };
-        if (!best || selection.score > best.score + 0.001 ||
-          (Math.abs(selection.score - best.score) < 0.001 &&
-            String(sq.id).localeCompare(String(best.squad.id)) < 0)) best = selection;
+      if (
+        !sq ||
+        sq.state === 'retreat' ||
+        sq.inContact ||
+        sq.isPlayer ||
+        sq._transportUsed ||
+        sq._preparedDefenseRequest
+      )
+        return;
+      fleet
+        .filter(function (v) {
+          return v.faction === faction && v.phase === 'parked';
+        })
+        .forEach(function (v) {
+          var base = (town.spawnZones[faction].bases || [])[v.baseIndex];
+          if (!base) return;
+          track.anchorIds.forEach(function (anchorId) {
+            var path = shortest(town, base.objectiveId, anchorId);
+            if (!path) return;
+            // Base road point, then complete public graph edges to the watched edge.
+            var route = path.points;
+            var mission = {
+              owner: 'force-command',
+              status: 'issued',
+              intent: 'intercept',
+              point: track.point,
+              route: route
+            };
+            var quote = transport.quoteMission(sim, sq, mission);
+            if (!quote || quote.vehicle.id !== v.id) return;
+            var friendlyETA =
+              quote.boardSeconds +
+              quote.route.estimatedDriveSeconds +
+              quote.dismountSeconds +
+              quote.setupSeconds +
+              SETUP_MARGIN +
+              EXTRA_UNCERTAINTY;
+            var margin = track.enemyETA - friendlyETA;
+            if (!(margin > 20)) return;
+            var score =
+              margin * 0.3 + track.alignment * 55 + track.contact.confidence * 35 - track.offRoad * 0.25;
+            var selection = {
+              squad: sq,
+              spec: mission,
+              vehicleId: v.id,
+              objectiveId: track.likelyObjectiveId,
+              roadId: track.roadId,
+              contactId: track.contact.squadId,
+              observedAt: track.contact.observedAt,
+              expiresAt: Math.min(
+                track.contact.observedAt + 720,
+                sim.time + Math.max(180, track.enemyETA + 80)
+              ),
+              enemyETA: track.enemyETA,
+              friendlyETA: friendlyETA,
+              margin: margin,
+              score: score,
+              confidence: track.contact.confidence,
+              leadMetres: track.leadMetres
+            };
+            if (
+              !best ||
+              selection.score > best.score + 0.001 ||
+              (Math.abs(selection.score - best.score) < 0.001 &&
+                String(sq.id).localeCompare(String(best.squad.id)) < 0)
+            )
+              best = selection;
+          });
         });
-      });
     });
     return best;
   }
   function choose(sim, faction, ev) {
     var town = sim.scene.metadata.battleScenario;
     if (!ev || ev.faction !== faction || sim.time > ev.validUntil) return null;
-    var best = null, evaluated = 0;
+    var best = null,
+      evaluated = 0;
     ev.contacts.forEach(function (contact) {
       roadSightings(town, contact, faction).forEach(function (track) {
         evaluated++;
@@ -190,10 +237,13 @@
     return { best: best, evaluated: evaluated, contacts: ev.contacts.length };
   }
   function state(sim) {
-    return sim._strategicInterception || (sim._strategicInterception = {
-      us: { lastEventAt: null, last: null },
-      ge: { lastEventAt: null, last: null }
-    });
+    return (
+      sim._strategicInterception ||
+      (sim._strategicInterception = {
+        us: { lastEventAt: null, last: null },
+        ge: { lastEventAt: null, last: null }
+      })
+    );
   }
   function event(sim, kind, data) {
     if (root.BattleTelemetry && root.BattleTelemetry.record)
@@ -206,19 +256,27 @@
     var st = state(sim)[faction];
     if (st.lastEventAt === observation.observedAt) return null;
     st.lastEventAt = observation.observedAt;
-    var choice = choose(sim, faction, observation), selected = choice && choice.best;
+    var choice = choose(sim, faction, observation),
+      selected = choice && choice.best;
     if (!selected) {
-      st.last = { at: sim.time, result: 'declined', contacts: choice ? choice.contacts : 0,
-        corridors: choice ? choice.evaluated : 0 };
+      st.last = {
+        at: sim.time,
+        result: 'declined',
+        contacts: choice ? choice.contacts : 0,
+        corridors: choice ? choice.evaluated : 0
+      };
       event(sim, 'declined', { faction: faction, ...st.last });
       return null;
     }
     selected.spec.action = 'intercept';
     selected.spec.role = selected.squad.commandRole || 'maneuver';
     selected.spec.intercept = {
-      source: 'aerial', contactId: selected.contactId,
-      roadId: selected.roadId, likelyObjectiveId: selected.objectiveId,
-      observedAt: selected.observedAt, expiresAt: selected.expiresAt,
+      source: 'aerial',
+      contactId: selected.contactId,
+      roadId: selected.roadId,
+      likelyObjectiveId: selected.objectiveId,
+      observedAt: selected.observedAt,
+      expiresAt: selected.expiresAt,
       enemyETA: +selected.enemyETA.toFixed(1),
       friendlyETA: +selected.friendlyETA.toFixed(1),
       margin: +selected.margin.toFixed(1),
@@ -226,25 +284,38 @@
       vehicleId: selected.vehicleId
     };
     var m = issue(selected.squad, selected.spec, 'aerial-intercept-feasible');
-    var success = m && m.intent === 'intercept' &&
-      selected.squad._transport && selected.squad._transport.vehicleId === selected.vehicleId;
+    var success =
+      m &&
+      m.intent === 'intercept' &&
+      selected.squad._transport &&
+      selected.squad._transport.vehicleId === selected.vehicleId;
     st.last = {
-      at: sim.time, result: success ? 'dispatched' : 'grant-failed',
-      squadId: selected.squad.id, roadId: selected.roadId,
-      contactId: selected.contactId, vehicleId: selected.vehicleId,
-      margin: +selected.margin.toFixed(1), missionVersion: m && m.version
+      at: sim.time,
+      result: success ? 'dispatched' : 'grant-failed',
+      squadId: selected.squad.id,
+      roadId: selected.roadId,
+      contactId: selected.contactId,
+      vehicleId: selected.vehicleId,
+      margin: +selected.margin.toFixed(1),
+      missionVersion: m && m.version
     };
     event(sim, st.last.result, { faction: faction, ...st.last });
     return success ? st.last : null;
   }
-  function reset(sim) { sim._strategicInterception = null; }
+  function reset(sim) {
+    sim._strategicInterception = null;
+  }
   root.BattleModules.registerSystem('strategic-interception', {
     version: '0.1-general-corridor',
     onBattleStart: reset,
     onBattleRestart: reset
   });
   root.BattleStrategicInterception = {
-    enabled: enabled, choose: choose, maybeIssue: maybeIssue,
-    summary: function (sim) { return state(sim); }
+    enabled: enabled,
+    choose: choose,
+    maybeIssue: maybeIssue,
+    summary: function (sim) {
+      return state(sim);
+    }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -383,8 +383,7 @@
       if (m.intent === 'intercept') {
         // A genuine contact or ongoing intercept survives incidental objective
         // ownership changes; no second air snapshot is inferred at expiry.
-        if (m.intercept && sim.time >= m.intercept.expiresAt && !sq.inContact)
-          return 'intercept-expired';
+        if (m.intercept && sim.time >= m.intercept.expiresAt && !sq.inContact) return 'intercept-expired';
         return null;
       }
       /* A defense request is new information only when it changes the task: a squad already defending that

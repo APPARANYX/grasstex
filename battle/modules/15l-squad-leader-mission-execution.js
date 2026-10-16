@@ -274,12 +274,19 @@
           if (!ex.interceptOnPostAt) {
             ex.interceptOnPostAt = t;
             if (root.BattleTelemetry && root.BattleTelemetry.record)
-              root.BattleTelemetry.record('strategic-interception-on-post', {
-                faction: sq.faction, squad: sq.id, missionVersion: m.version,
-                vehicleId: m.intercept && m.intercept.vehicleId,
-                at: +t.toFixed(2), position: copy(pos),
-                roadId: m.intercept && m.intercept.roadId
-              }, sim);
+              root.BattleTelemetry.record(
+                'strategic-interception-on-post',
+                {
+                  faction: sq.faction,
+                  squad: sq.id,
+                  missionVersion: m.version,
+                  vehicleId: m.intercept && m.intercept.vehicleId,
+                  at: +t.toFixed(2),
+                  position: copy(pos),
+                  roadId: m.intercept && m.intercept.roadId
+                },
+                sim
+              );
           }
           setPhase(sim, sq, 'hold', 'intercept corridor reached');
         } else setPhase(sim, sq, 'approach', 'intercept corridor approach');
