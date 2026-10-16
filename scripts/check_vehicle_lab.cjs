@@ -24,6 +24,21 @@ for(const file of truckClips){
   assert.ok(/truck/i.test(file) && /\.fbx$/i.test(file),'Truck pose must be discoverable by the lab filename filter');
 }
 assert.ok(scripts[0].includes('function suggestSeatPoses('),'Driver and passenger pose suggestion missing');
+// User-facing vehicle controls: a complete crew should be previewable without
+// visiting four different seat forms, and back faces must be renderable.
+for(const id of ['showCrew','doubleSided','materialCount','refreshOccupants','seatPose','seatOccupied']){
+  assert.ok(ids.has(id),'Missing required vehicle lab control #'+id);
+}
+assert.ok(html.includes('id="doubleSided" type="checkbox" checked'),
+  'Double-sided rendering must default on in the Vehicle Lab');
+assert.ok(scripts[0].includes('material.backFaceCulling=enabled?false:original.backFaceCulling'),
+  'Vehicle material backface toggle missing');
+assert.ok(scripts[0].includes("material.twoSidedLighting=enabled?true:original.twoSidedLighting"),
+  'Vehicle backface lighting toggle missing');
+assert.ok(scripts[0].includes("$('showCrew').onclick=async()=>"),
+  'One-click full crew handler missing');
+assert.ok(scripts[0].includes("ensureSeats();\n    suggestSeatPoses();"),
+  'Vehicle import must assign Truck driving/sitting poses to new seats');
 const inventory=fs.readFileSync('labs/asset-list.php','utf8');
 assert.match(inventory,/'vehicles'\s*=>\s*'vehicles'/,'Asset inventory must expose vehicle directory');
 const deploy=fs.readFileSync('scripts/prepare_incremental_deploy.py','utf8');
