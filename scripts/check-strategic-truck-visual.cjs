@@ -79,6 +79,12 @@ assert.ok(backend.includes('prepareVehicleClips: prepareVehicleClips'));
 assert.ok(backend.includes('vehiclePoseClip: function (soldier, seatFile)'));
 assert.ok(backend.includes('retargetClips(targetLib, clipRigs[key]'),
   'Pose clips must be retargeted to existing models using source rest frames');
+assert.ok(code.includes('function wheelRoots(visual, name)'), 'Wheel groups must be explicitly named and independently located');
+assert.ok(code.includes('function attachAxlePivots(entry)'), 'Each truck instance owns its front and rear axle pivots');
+assert.ok(code.includes('node.setParent(pivot)'), 'Wheel meshes must retain their imported world pose during pivot setup');
+assert.ok(code.includes('function spinAxles(entry, transport, position)'), 'Wheel rotation must be driven by carrier movement');
+assert.ok(code.includes("transport.phase !== 'embarked'"), 'Stationary and dismounted vehicles must not rotate their wheels');
+assert.ok(code.includes('traveled / wheel.radius'), 'Wheel roll must use distance / tire radius, not arbitrary frame speed');
 assert.ok(render.includes('fx._vehicleSeat.applyPose(fx)'),
   'On-foot animation should not overwrite seated pose');
 for(const search of ['', '?strategicInterception=1','?motorTransport=1',
