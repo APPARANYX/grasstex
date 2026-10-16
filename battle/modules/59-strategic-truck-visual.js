@@ -185,8 +185,8 @@
     return Math.hypot(at.x - entry.root.position.x, at.z - entry.root.position.z) <= radius;
   }
   function originalVisual(soldier) {
-    var model = soldier && soldier.model;
-    return model && model._fbx && model._fbx.holder || null;
+    // The FBX backend binds on the soldier actor, not on soldier.model.
+    return soldier && soldier._fbx && soldier._fbx.holder || null;
   }
   function conceal(entry, soldier) {
     var holder = originalVisual(soldier);
@@ -228,14 +228,28 @@
     }
     st.source = null;st.pending = null;st.errors = [];
   }
+  function canonTarget(name) {
+    // FBX imports can prefix the same Mixamo bone with namespaces or
+    // transform-helper suffixes. Canonical names are a fallback to exact names.
+    return String(name || '').split(/[|:]/).pop().replace(/[^a-z0-9]/gi, '').toLowerCase()
+      .replace(/^mixamorig/, '');
+  }
   function targetsFor(result) {
-    var targets = new Map();
+    var targets = new Map(), normalized = new Map();
+    function add(target) {
+      if (!target || !target.name) return;
+      targets.set(target.name, target);
+      var key = canonTarget(target.name);
+      if (key && !normalized.has(key)) normalized.set(key, target);
+    }
     (result.meshes || []).forEach(function (mesh) {
-      targets.set(mesh.name, mesh);
-      if (mesh.skeleton) mesh.skeleton.bones.forEach(function (bone) { targets.set(bone.name, bone); });
+      add(mesh);
+      if (mesh.skeleton) mesh.skeleton.bones.forEach(add);
     });
-    (result.transformNodes || []).forEach(function (n) { targets.set(n.name, n); });
-    return targets;
+    (result.transformNodes || []).forEach(add);
+    return { get: function (name) {
+      return targets.get(name) || normalized.get(canonTarget(name)) || null;
+    }, size: targets.size };
   }
   async function loadRider(sim, st, entry, member, token) {
     var scene = sim.scene, result = null, anchor = null, groups = [], stage = 'fetch soldier FBX';
@@ -262,6 +276,7 @@
       body.scaling.setAll(k);
       body.position.set(-(b.low.x+b.high.x)*.5*k, -b.low.y*k, -(b.low.z+b.high.z)*.5*k);
       var targets = targetsFor(result);
+      var mappedTargets = 0, unmappedTargets = [];
       stage = 'fetch Truck animation';
       var clipFile = await fetchAsset('animations',member.seat.clip);
       if (token !== entry.token || entry.phase !== 'embarked') { disposeImport(result);anchor.dispose(false,false);return; }
@@ -275,18 +290,37 @@
         var before = new Set(scene.animationGroups);
         await BABYLON.SceneLoader.ImportAnimationsAsync('file:',clipFile,scene,false,
           BABYLON.SceneLoaderAnimationGroupLoadingMode.NoSync,
-          function (target) { return targets.get(target.name) || null; });
+          function (target) {
+            var resolved = targets.get(target && target.name);
+            if (resolved) mappedTargets++;
+            else if (unmappedTargets.length < 8) unmappedTargets.push(target && target.name || '(unknown)');
+            return resolved;
+          });
         return scene.animationGroups.filter(function (g) { return !before.has(g); });
       });
       st.animationQueue = importTask.catch(function () {});
       groups = await importTask;
+      // Babylon does not tolerate targetedAnimations entries whose target is null:
+      // Animation._preparePath reads target.position and crashes on group.start.
+      // Drop only unresolved tracks; never synthesize substitute bone transforms.
+      groups.forEach(function (group) {
+        var tracks = group.targetedAnimations || [];
+        for (var i = tracks.length - 1; i >= 0; i--) {
+          if (!tracks[i] || !tracks[i].target) tracks.splice(i, 1);
+        }
+      });
       var playable = groups.find(function (g) { return g.targetedAnimations && g.targetedAnimations.length > 0; });
       groups.filter(function (g) { return g !== playable; }).forEach(function (g) { g.dispose(); });
+      if (!playable) throw new Error(
+        'No compatible Truck animation targets for '+SOLDIER[entry.faction]+
+        ' (rig nodes='+targets.size+', matched='+mappedTargets+
+        ', missing examples='+unmappedTargets.join(', ')+')'
+      );
       if (token !== entry.token || entry.phase !== 'embarked') {
         if (playable) playable.dispose();disposeImport(result);anchor.dispose(false,false);return;
       }
-      if (playable) playable.start(true);
-      entry.riders.push({ result: result, anchor: anchor, group: playable || null, soldier:member.soldier });
+      playable.start(true);
+      entry.riders.push({ result: result, anchor: anchor, group: playable, soldier:member.soldier });
       if (!entry.showcase) conceal(entry,member.soldier);
     } catch (err) {
       if (groups.length) groups.forEach(function (g) { try { g.dispose(); } catch (_) {} });
