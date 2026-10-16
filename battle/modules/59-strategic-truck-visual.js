@@ -137,6 +137,12 @@
         var box = bounds(renderMeshes);
         if (!box) { template.dispose(false, false); disposeImport(result); throw new Error('truck FBX contains no meshes'); }
         materialBothSides(renderMeshes);
+        // Meshes are presentation only. No new ray-pickable armor, bullet
+        // blockers, AI vision occluders or colliders are introduced in V1.
+        renderMeshes.forEach(function (mesh) {
+          mesh.isPickable = false;
+          mesh.checkCollisions = false;
+        });
         var scale = TRUCK_LENGTH / Math.max(box.width, box.depth, 0.001);
         template.scaling.setAll(scale);
         template.position.set(-(box.low.x + box.high.x) * 0.5 * scale, -box.low.y * scale,
@@ -248,6 +254,7 @@
       var mesh = (result.meshes || []).filter(function (m) { return m.getTotalVertices && m.getTotalVertices() > 0; });
       var b = bounds(mesh);
       if (!b) throw new Error('empty soldier FBX');
+      mesh.forEach(function (m) { m.isPickable = false; m.checkCollisions = false; });
       var k = 1.8 / Math.max(.1,b.height);
       body.scaling.setAll(k);
       body.position.set(-(b.low.x+b.high.x)*.5*k, -b.low.y*k, -(b.low.z+b.high.z)*.5*k);
@@ -318,8 +325,13 @@
         }
       });
     });
-    if (active.size && !st.source && !st.pending) loadTruckSource(sim,st);
+    if (active.size && !st.source && !st.pending && !st.errors.some(function (e) {
+      return e.indexOf('truck FBX:') === 0;
+    })) loadTruckSource(sim,st);
     st.trucks.forEach(function (entry,key) {
+      if (entry.phase === 'embarked') entry.hidden.forEach(function (value) {
+        if (value.holder && !value.holder.isDisposed()) value.holder.setEnabled(false);
+      });
       if (!active.has(key)) { removeEntry(entry);st.trucks.delete(key); }
     });
   }
