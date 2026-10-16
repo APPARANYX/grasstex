@@ -168,7 +168,7 @@ assert.ok(unaccepted.api.considerMission(unaccepted.sim, unaccepted.squad, unacc
 unaccepted.run(36);
 assert.equal(unaccepted.squad._transport.phase, 'aborted');
 assert.equal(unaccepted.squad._transport.endReason, 'mission-not-accepted');
-assert.ok(unaccepted.members.every((m) => !unaccepted.api.isPassenger(m)));
+assert.ok(unaccepted.members.every(m => !unaccepted.api.isPassenger(m)));
 
 // If an obstacle develops after dispatch, the carrier stops on its last legal
 // road coordinate. It cannot phase through the obstruction to finish its trip.

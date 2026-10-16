@@ -376,8 +376,7 @@
         }
         if (t.phase === 'boarding') {
           if (m.status === 'executing') board(sim, sq, dt);
-          else if (sim.time - t.requestedAt > BOARD_TIMEOUT)
-            finish(sim, sq, 'mission-not-accepted');
+          else if (sim.time - t.requestedAt > BOARD_TIMEOUT) finish(sim, sq, 'mission-not-accepted');
         } else drive(sim, sq, dt);
       });
     });
