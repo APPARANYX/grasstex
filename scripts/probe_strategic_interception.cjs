@@ -69,7 +69,7 @@ const seeds=[
             commandAccum-=commandTick;root.BattleCommanderAI.update(sim,scene.metadata.battleScenario,commandTick);
           }
           steps++;
-          if(!reserveAudit.at && sim.time>=120.15) {
+          if(!reserveAudit.at && (enabled ? (sim._strategicInterception?.us?.lastEventAt!=null) : sim.time>=120.15)) {
             reserveAudit.at=+sim.time.toFixed(2);
             for(const side of ['us','ge']) {
               reserveAudit[side]=(sim.factions[side]?.squads||[]).map(sq=>{
