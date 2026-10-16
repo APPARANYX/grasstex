@@ -159,6 +159,25 @@
             rec.lastExecutionAt = now;
           }
         }
+        /* A valid motorized road leg may initially increase straight-line
+           distance to an objective while following an actual corridor.
+           The General must count measured carrier arc-length as execution
+           evidence, not mistake it for a frozen capture brief. The vehicle
+           itself owns its physical path and aborts on invalid road travel. */
+        var transport = sq._transport;
+        if (
+          transport &&
+          transport.phase === 'embarked' &&
+          transport.missionVersion === m.version &&
+          isFinite(+transport.travelled)
+        ) {
+          var metres = Math.max(0, +transport.travelled);
+          if (rec.transportMetres == null) rec.transportMetres = metres;
+          if (metres - rec.transportMetres >= STRATEGIC_STALL_RECOVERY.progressDistance) {
+            rec.transportMetres = metres;
+            rec.lastProgressAt = now;
+          }
+        }
         if (d < rec.bestDistance) rec.bestDistance = d;
         if (rec.checkpoint - rec.bestDistance >= STRATEGIC_STALL_RECOVERY.progressDistance) {
           rec.checkpoint = rec.bestDistance;
