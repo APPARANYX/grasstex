@@ -205,6 +205,8 @@ paired.root.BattleTacticalSituation.compute=()=>({contacts:[{
 }]});
 assert.equal(P.screenOpportunity(paired.sim,'us',P.pairs(paired.sim,'us')[0]),null,
   'reported enemy presence at objective blocks reckless forward deployment');
+assert.ok(P.supportOpportunity(paired.sim,'us',P.pairs(paired.sim,'us')[0]),
+  'contested objective gives second truck a real reinforcement purpose');
 paired.root.BattleTacticalSituation.compute=()=>({contacts:[]});
 const opp=P.screenOpportunity(paired.sim,'us',P.pairs(paired.sim,'us')[0]);
 assert.ok(opp&&opp.spec.intent==='screen','verified uncontested owner unlocks forward screen');
@@ -244,12 +246,37 @@ P.maybeScreenReport(paired.sim,'us',()=>{throw Error('secondhand intel may not a
 assert.equal(P.summary(paired.sim).us.screen.reportCount,0,'ignore hearsay');
 paired.root.BattleTacticalSituation.compute=()=>({contacts:[{
   squad:screen.id,provenance:'member-belief',source:'seen',
-  targetId:'hostile-1',at:134,age:0,x:0,z:500,confidence:.8
+  targetId:'hostile-1',at:134,age:0,x:0,z:1200,confidence:.8
 }]});
 P.maybeScreenReport(paired.sim,'us',()=>{throw Error('one snapshot is insufficient');});
 assert.equal(P.summary(paired.sim).us.screen.reportCount,1,'real sighting relayed upward');
 assert.ok(paired.events.some(e=>e.kind==='strategic-interception-screen-contact-relayed'),
   'friendly firsthand report reaches the General');
+paired.sim.time=139;
+paired.root.BattleTacticalSituation.compute=()=>({contacts:[{
+  squad:screen.id,provenance:'member-belief',source:'seen',
+  targetId:'hostile-1',at:139,age:0,x:0,z:1195,confidence:.8
+}]});
+let footOrders=0;
+const foot=P.maybeScreenReport(paired.sim,'us',(sq,spec,reason)=>{
+  footOrders++;
+  assert.equal(sq,screen);
+  assert.equal(reason,'forward-screen-report-intercept');
+  assert.equal(spec.intercept.mode,'foot',
+    'screen may redeploy itself on foot; it must not invent a replacement truck');
+  sq._macroMission={...spec,version:3,status:'issued'};
+  return sq._macroMission;
+});
+assert.ok(foot&&foot.margin>25,
+  'multiple firsthand sightings justify General-selected feasible interception');
+assert.equal(footOrders,1);
+assert.equal(screen._macroMission.intent,'intercept');
+assert.equal(screen._macroMission.intercept.source,'forward-screen');
+assert.equal(PT.fleetSummary(paired.sim).length,12,
+  'foot ambush never materializes new vehicles');
+assert.equal(P.maybeScreenReport(paired.sim,'us',()=>{throw Error('duplicate');}),null,
+  'superseded screen cannot repeat one-shot report');
+
 
 const denied = make('?strategicInterception=1&motorTransport=1&aerialRecon=1');
 denied.root.BattleAerialRecon.request(denied.sim, 'us');
