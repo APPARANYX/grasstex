@@ -1819,16 +1819,28 @@
     st.vehicleClipsLoading = Promise.resolve(loadLibrary(scene))
       .then(async function () {
         if (!st.ready || !st.src || !st.bones || !st.libs) throw new Error('FBX scene library is not ready');
-        var source = {}, clipRigs = {}, originals = Object.keys(VEHICLE_POSE_FILES), sourceRigBones = st.bones;
+        var source = {},
+          clipRigs = {},
+          originals = Object.keys(VEHICLE_POSE_FILES),
+          sourceRigBones = st.bones;
         for (var k = 0; k < originals.length; k++) {
-          var filename = originals[k], key = VEHICLE_POSE_FILES[filename];
+          var filename = originals[k],
+            key = VEHICLE_POSE_FILES[filename];
           var container = await loadContainer(
-            scene, assetBase() + 'animations/' + encodeURIComponent(filename), 'clip', filename
+            scene,
+            assetBase() + 'animations/' + encodeURIComponent(filename),
+            'clip',
+            filename
           );
           try {
             var imported = sourceRig(container);
-            if (!imported || !imported.rest ||
-                !sourceRigBones.every(function (name) { return imported.rest[name] && st.src.rest[name]; }))
+            if (
+              !imported ||
+              !imported.rest ||
+              !sourceRigBones.every(function (name) {
+                return imported.rest[name] && st.src.rest[name];
+              })
+            )
               throw new Error('Truck clip rig differs from prepared battle animation rig: ' + filename);
             clipRigs[key] = imported;
             source[key] = convertClip(container, key, [filename.slice(0, -4), 1, 'inplace'], sourceRigBones);
@@ -1838,7 +1850,8 @@
         }
         var models = {};
         Object.keys(st.libs).forEach(function (file) {
-          var original = st.libs[file], privateLib = Object.assign({}, original);
+          var original = st.libs[file],
+            privateLib = Object.assign({}, original);
           models[file] = {};
           // Imported sitting clips may have a different rest pose from the
           // battle's original rifle clips. Retarget each pose against its OWN
@@ -1871,7 +1884,7 @@
       var fx = soldier && soldier._fbx;
       if (!fx) return null;
       var ready = sceneState(fx.holder.getScene()).vehicleClipsReady;
-      return ready && ready[fx.lib.file] && ready[fx.lib.file][VEHICLE_POSE_FILES[seatFile]] || null;
+      return (ready && ready[fx.lib.file] && ready[fx.lib.file][VEHICLE_POSE_FILES[seatFile]]) || null;
     },
     load: loadLibrary,
     /* Read-only: the soldier's bone node by canonical name ('head', 'spine2', 'leftupleg'...), for
