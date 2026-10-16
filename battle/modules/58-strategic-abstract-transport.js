@@ -417,8 +417,10 @@
               embarkedAt: t.embarkedAt == null ? null : +t.embarkedAt.toFixed(2),
               endedAt: t.endedAt == null ? null : +t.endedAt.toFixed(2),
               expectedDriveSeconds: +t.estimatedDriveSeconds.toFixed(2),
-              actualDriveSeconds: t.embarkedAt == null ? null :
-                +Math.max(0, (t.endedAt == null ? sim.time : t.endedAt) - t.embarkedAt).toFixed(2),
+              actualDriveSeconds:
+                t.embarkedAt == null
+                  ? null
+                  : +Math.max(0, (t.endedAt == null ? sim.time : t.endedAt) - t.embarkedAt).toFixed(2),
               reason: t.endReason || null
             };
           });
