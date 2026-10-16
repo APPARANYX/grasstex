@@ -83,8 +83,35 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
     assert.ok(final.passengerOffsets.every(d=>d<8),
       'Every seated rider must be within 8m of the truck, not thousands of metres away: '+
       JSON.stringify(final.passengerOffsets));
+    // Repeat the seated-rider proof for GE, not just the shared truck mesh.
+    await page.evaluate(()=>{
+      const b=window.__battle__,c=b.scene.activeCamera;
+      const node=b.scene.transformNodes.find(n=>n.name==='strategicTruck-ge-showcase/ge');
+      if(!node)throw Error('German showcase truck transform missing');
+      c.position.set(node.position.x+15,node.position.y+13,node.position.z+19);
+      c.setTarget(new BABYLON.Vector3(node.position.x,node.position.y+2,node.position.z));
+    });
+    await page.waitForFunction(()=>{
+      const s=window.BattleTransportVehicleVisual.summary(window.__battle__);
+      return s.some(t=>t.faction==='ge'&&t.renderedRiders>=1);
+    },null,{timeout:120000});
+    const germanCrew=await page.evaluate(()=>{
+      const b=window.__battle__,scene=b.scene;
+      const truck=scene.transformNodes.find(n=>n.name==='strategicTruck-ge-showcase/ge');
+      const origin=truck.getAbsolutePosition();
+      const offsets=scene.transformNodes
+        .filter(n=>n.name.startsWith('truckPassenger-showcase/ge-'))
+        .map(n=>{const p=n.getAbsolutePosition();
+          return Math.hypot(p.x-origin.x,p.y-origin.y,p.z-origin.z);});
+      return {offsets,summary:window.BattleTransportVehicleVisual.summary(b)
+        .filter(t=>t.faction==='ge')};
+    });
+    assert.ok(germanCrew.offsets.length>=1,'German crew must load its own soldier FBX');
+    assert.ok(germanCrew.offsets.every(d=>d<8),
+      'German riders must be seated inside the shared truck: '+JSON.stringify(germanCrew.offsets));
+    await page.screenshot({path:path.join(out,'ge-truck-seated-crew.png')});
     assert.deepEqual(errors,[],'uncaught Chromium errors');
-    const report={baseline,both,nearby,final,elapsedMs:Date.now()-began,errors};
+    const report={baseline,both,nearby,final,germanCrew,elapsedMs:Date.now()-began,errors};
     fs.writeFileSync(path.join(out,'truck-visual-report.json'),JSON.stringify(report,null,2)+'\n');
     console.log('STRATEGIC TRUCK CHROMIUM PASS '+JSON.stringify({elapsedMs:report.elapsedMs,nearby,summary:final.trucks}));
   }catch(e){
