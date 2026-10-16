@@ -55,6 +55,9 @@ code{color:var(--accent)}
   <div class="stat"><span>Renderable meshes</span><strong id="meshCount">—</strong></div>
   <div class="stat"><span>FrontWheels nodes</span><strong id="frontCount">—</strong></div>
   <div class="stat"><span>RearWheels nodes</span><strong id="rearCount">—</strong></div>
+  <div class="stat"><span>Vehicle materials</span><strong id="materialCount">—</strong></div>
+  <label class="row"><span>Double-sided truck materials</span><input id="doubleSided" type="checkbox" checked></label>
+  <p class="help">Shows both sides of imported surfaces (including interior panels) and lights their backs. If an area remains black, inspect its material/texture or missing mesh faces.</p>
   <p class="help">Wheel groups are preserved. Optional rotation below is a pivot diagnostic: if the collections do not have axle-centered pivots, the wheels can orbit instead of spin.</p>
   <h2>2 — Soldiers & truck clips</h2>
   <label>Soldier model<select id="soldierSelect"><option value="">Loading soldiers…</option></select></label>
@@ -62,7 +65,9 @@ code{color:var(--accent)}
   <label>Truck animation library<select id="clipSelect"><option value="">No Truck clips discovered</option></select></label>
   <label>Or open local Truck animations (multiple)<input id="clipsFile" type="file" accept=".fbx" multiple></label>
   <p id="clipInfo" class="help">The deployed clip list is searched for filenames containing “Truck”.</p>
+  <button id="showCrew" class="primary">Show full crew (driver + 3 passengers)</button>
   <button id="refreshOccupants">Refresh occupied soldiers</button>
+  <p class="help">One click selects the German paratrooper model (if available), occupies the starter seats, and assigns Driving / Sitting 1–3. Use Seat authoring to adjust each person. Other soldier models can be selected above.</p>
   <h2>3 — Wheel/pivot diagnostic</h2>
   <label class="row"><span>Test group rotation</span><input id="spinWheels" type="checkbox"></label>
   <label>Rotation axis<select id="wheelAxis"><option value="x">X axle</option><option value="z">Z axle</option></select></label>
@@ -144,7 +149,8 @@ const state={
   meshes:[],soldierName:'',soldierFile:null,
   clips:new Map(),seats:[],selected:0,actorEpoch:0,loadEpoch:0,
   markers:new Map(),picking:false,wheelGroups:{front:[],rear:[]},
-  wheelBase:new Map(),wheelAngle:0
+  wheelBase:new Map(),wheelAngle:0,
+  vehicleMaterials:new Map()
 };
 function status(message,error=false){$('status').textContent=message;$('status').className=error?'error':'';if(error)console.warn('[Vehicle Lab]',message);}
 function vec(arr){return new BABYLON.Vector3(...arr);}
@@ -159,6 +165,29 @@ function fill(select,values,placeholder){
   select.replaceChildren();addOption(select,'',placeholder);
   values.forEach(name=>addOption(select,name,name));
 }
+function enumerateVehicleMaterials(meshes){
+  const materials=new Set();
+  function visit(material){
+    if(!material||materials.has(material))return;
+    materials.add(material);
+    if(Array.isArray(material.subMaterials))material.subMaterials.forEach(visit);
+  }
+  meshes.forEach(mesh=>visit(mesh.material));
+  return materials;
+}
+function setVehicleDoubleSided(enabled){
+  for(const [material,original] of state.vehicleMaterials){
+    if(material.isDisposed&&material.isDisposed())continue;
+    material.backFaceCulling=enabled?false:original.backFaceCulling;
+    if('twoSidedLighting' in material){
+      material.twoSidedLighting=enabled?true:original.twoSidedLighting;
+    }
+    if(typeof material.markAsDirty==='function'){
+      material.markAsDirty(BABYLON.Material.AllDirtyFlag);
+    }
+  }
+}
+$('doubleSided').onchange=()=>setVehicleDoubleSided($('doubleSided').checked);
 function disposeResult(result){
   if(!result)return;
   (result.animationGroups||[]).forEach(g=>{try{g.stop();g.dispose();}catch(e){}});
@@ -206,6 +235,7 @@ function clearVehicle(){
   if(state.vehicleRoot)state.vehicleRoot.dispose(false,false);
   state.vehicleResult=null;state.vehicleRoot=null;state.vehicleVisual=null;
   state.meshes=[];state.wheelGroups={front:[],rear:[]};state.wheelBase.clear();state.wheelAngle=0;
+  state.vehicleMaterials.clear();$('materialCount').textContent='—';
   $('spinWheels').checked=false;
   state.seats=[];state.selected=0;
 }
@@ -273,9 +303,20 @@ async function loadVehicle(){
     state.vehicleVisual.scaling.setAll(scale);
     state.vehicleVisual.position.set(-b.center.x*scale,-b.lo.y*scale,-b.center.z*scale);
     state.meshes.forEach(mesh=>{mesh.isPickable=true;mesh.computeWorldMatrix(true);});
+    state.vehicleMaterials.clear();
+    enumerateVehicleMaterials(state.meshes).forEach(material=>{
+      state.vehicleMaterials.set(material,{
+        backFaceCulling:material.backFaceCulling,
+        twoSidedLighting:material.twoSidedLighting
+      });
+    });
+    setVehicleDoubleSided($('doubleSided').checked);
+    $('materialCount').textContent=state.vehicleMaterials.size;
     findWheelGroups(result);
     $('meshCount').textContent=state.meshes.length;
     ensureSeats();
+    suggestSeatPoses();
+    refreshClipSelectors();
     drawSeats();
     frameVehicle();
     $('overlay').textContent=file.name+' · vehicle visual normalized to 6.2 m · click seats to edit';
@@ -516,6 +557,21 @@ $('clipSelect').onchange=()=>{
   playSeatClip(seat);
 };
 $('refreshOccupants').onclick=refreshActors;
+$('showCrew').onclick=async()=>{
+  if(!state.vehicleRoot){status('Load the vehicle before previewing its crew.',true);return;}
+  if(!state.soldierName&&!state.soldierFile){
+    const options=[...$('soldierSelect').options].map(o=>o.value).filter(Boolean);
+    const german=options.includes('ge-paratrooper.fbx')?'ge-paratrooper.fbx':options.find(n=>n.startsWith('ge-'))||options[0];
+    if(!german){status('No deployed soldier models were found. Upload a soldier FBX first.',true);return;}
+    $('soldierSelect').value=german;state.soldierName=german;state.soldierFile=null;
+  }
+  state.seats.forEach(s=>{s.occupied=true;});
+  suggestSeatPoses();
+  drawSeats();
+  $('showCrew').disabled=true;
+  try{await refreshActors();}
+  finally{$('showCrew').disabled=false;}
+};
 $('wheelRate').oninput=()=>{$('wheelRateLabel').textContent=$('wheelRate').value;};
 function resetWheelRotation(){
   state.wheelAngle=0;
