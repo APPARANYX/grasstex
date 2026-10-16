@@ -1,0 +1,25 @@
+name: One-shot input fingerprint formatting
+on:
+  push:
+    branches: [work/strategic-truck-restart-endbattle-20261016]
+    paths: ['.github/workflows/format-strategic-input-audit-once.yml']
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/strategic-truck-restart-endbattle-20261016
+      - name: Format only fingerprint regression
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write tools/ai-sim-harness/camera-input-frame-check.js
+          if git diff --quiet -- tools/ai-sim-harness/camera-input-frame-check.js; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tools/ai-sim-harness/camera-input-frame-check.js
+          git commit -m "Format narrowed terminal P-key input audit"
+          git push origin HEAD:work/strategic-truck-restart-endbattle-20261016
