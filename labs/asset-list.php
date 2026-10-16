@@ -1,30 +1,53 @@
 <?php
-/* Asset inventory for the FBX Motion Lab (labs/fbx-animation-lab.html). Lists the imported
-   soldier, animation and weapon FBX files already deployed beside this page, so the lab can
-   offer them in dropdowns instead of only accepting local file drops.
-   Layout-agnostic: reads ../Assets/ relative to THIS file, which is correct for a local
-   checkout (labs/../Assets), a branch preview (.preview/labs/../Assets) and production
-   (/grasstex/labs/../Assets). */
+/* Motion/Vehicle Lab asset inventory.
+   Production scans its own Assets/ directory. A branch preview stages only
+   modified assets; absent ones are served through Assets/.htaccess from
+   production. The inventory therefore merges production and preview filenames
+   while honoring branch-deleted assets from asset-overlay.json.
+   No directory paths, server internals, or preview credentials are returned. */
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('X-Grasstex-Source: fbx-lab-asset-list');
-$assetRoot = dirname(__DIR__) . '/Assets/';
+
+$previewRoot = dirname(__DIR__);
+$assetRoot = $previewRoot . '/Assets/';
+$previewManifest = $previewRoot . '/asset-overlay.json';
+$inPreview = false;
+$deleted = array();
+if (is_file($previewManifest) && is_readable($previewManifest)
+    && is_file($previewRoot . '/preview.json')) {
+    $meta = json_decode(@file_get_contents($previewManifest), true);
+    if (is_array($meta) && isset($meta['assetOverlay']) && $meta['assetOverlay'] === true
+        && isset($meta['version']) && $meta['version'] === 1) {
+        $inPreview = true;
+        foreach ((array)($meta['removedAssets'] ?? array()) as $path) {
+            if (is_string($path) && preg_match('#^(soldiers|animations|weapons|vehicles)/[^/]+\.(fbx|glb|bin)$#i', $path)) {
+                $deleted[$path] = true;
+            }
+        }
+    }
+}
+$productionAssets = dirname(dirname(dirname(__DIR__))) . '/Assets/';
 $folders = array('soldiers' => 'soldiers', 'animations' => 'animations', 'weapons' => 'weapons', 'vehicles' => 'vehicles');
 $out = array();
 foreach ($folders as $key => $dir) {
-    $out[$key] = array();
-    $path = $assetRoot . $dir;
-    if (!is_dir($path) || !is_readable($path)) continue;
-    foreach (scandir($path) as $entry) {
-        /* Fixed directories; vehicles accept .fbx and .glb, others accept .fbx. */
-        if (!preg_match($key === 'vehicles' ? '/\.(?:fbx|glb)$/i' : '/\.fbx$/i', $entry) || strpos($entry, '/') !== false) continue;
-        if ($entry[0] === '.') continue;
-        $full = $path . '/' . $entry;
-        if (!is_file($full) || !is_readable($full)) continue;
-        $out[$key][] = array('name' => $entry, 'bytes' => filesize($full));
+    $found = array();
+    $roots = $inPreview ? array($productionAssets, $assetRoot) : array($assetRoot);
+    foreach ($roots as $root) {
+        $path = $root . $dir;
+        if (!is_dir($path) || !is_readable($path)) continue;
+        foreach (scandir($path) as $entry) {
+            /* Asset categories are allowlisted; no nested or executable files. */
+            if (!preg_match($key === 'vehicles' ? '/\.(?:fbx|glb)$/i' : '/\.fbx$/i', $entry)
+                || strpos($entry, '/') !== false || $entry[0] === '.') continue;
+            if (isset($deleted[$dir . '/' . $entry])) continue;
+            $full = $path . '/' . $entry;
+            if (!is_file($full) || !is_readable($full)) continue;
+            $found[$entry] = true;
+        }
     }
-    usort($out[$key], function ($a, $b) { return strcasecmp($a['name'], $b['name']); });
-    $out[$key] = array_map(function ($e) { return $e['name']; }, $out[$key]);
+    $out[$key] = array_keys($found);
+    usort($out[$key], function ($a, $b) { return strcasecmp($a, $b); });
 }
-echo json_encode(array('assets' => $assetRoot, 'files' => $out));
+echo json_encode(array('assets' => '../Assets/', 'files' => $out));
