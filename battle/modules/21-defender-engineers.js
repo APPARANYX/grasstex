@@ -318,15 +318,36 @@
       }
     }
   }
+  /* Experimental 5 km defense screen. The original captain plan prepares three
+     fortified sectors, but pinning five squads to those three posts leaves the
+     remaining nine objectives uncontested. Keep one independently commanded
+     squad in each fortification and leave two as a General-controlled mobile
+     screen. Old tactical prepared-defense deployments remain unchanged. */
+  function strategicGarrisonCount(sim, sides) {
+    var scenario = scenarioOf(sim);
+    if (!scenario || scenario.profile !== 'strategic') return Infinity;
+    if (sides && sides.heldSectors) return sides.heldSectors.length;
+    return root.BattleSides.ECHELONS[root.BattleSides.DEFAULT_ECHELON].span;
+  }
   function deploy(sim, sides) {
     var held = sides.heldSectors.slice().sort(function (a, b) {
       return b.terrainValue - a.terrainValue;
     });
     if (!held.length) return 0;
     var squads = sim.factions[sides.defender].squads || [],
-      plan = sim._defensePlans[sides.defender];
-    for (var i = 0; i < squads.length; i++) garrison(sim, squads[i], held[i % held.length], plan, true);
-    return squads.length;
+      plan = sim._defensePlans[sides.defender],
+      preparedCount = Math.min(squads.length, strategicGarrisonCount(sim, sides));
+    for (var i = 0; i < squads.length; i++) {
+      if (i < preparedCount) {
+        garrison(sim, squads[i], held[i % held.length], plan, true);
+      } else {
+        /* No standing defense request: the General selects actual corridor
+           missions, the Squad Leader still owns squad maneuver, and soldiers
+           navigate independently. Never move these men to a fortified post. */
+        squads[i].commandRole = 'center';
+      }
+    }
+    return preparedCount;
   }
   function seedOwnership(sim, sides) {
     var api = root.BattleObjectiveSystem;
@@ -608,7 +629,11 @@
        Answerable before its own onBattleStart runs, so the Squad Leader leaves those men to it. */
     garrisons: function (sim, sq) {
       var d = defenderOf(sim);
-      return !!(d && sq && sq.faction === d);
+      if (!d || !sq || sq.faction !== d) return false;
+      var scenario = scenarioOf(sim);
+      if (!scenario || scenario.profile !== 'strategic') return true;
+      var all = (sim.factions[d] && sim.factions[d].squads) || [];
+      return all.indexOf(sq) >= 0 && all.indexOf(sq) < strategicGarrisonCount(sim, sim._sides);
     },
     planOf: function (sim, f) {
       return sim && sim._defensePlans ? sim._defensePlans[f] : null;
