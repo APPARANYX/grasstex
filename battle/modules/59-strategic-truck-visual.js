@@ -111,7 +111,7 @@
     (result.skeletons || []).forEach(function (sk) { sk.dispose(); });
   }
   function recordError(st, label, err) {
-    var message = label + ': ' + String(err && err.message || err);
+    var message = label + ': ' + String(err && (err.stack || err.message) || err).slice(0,1800);
     if (st.errors.indexOf(message) < 0) {
       st.errors.push(message);
       console.warn('[TRUCK VISUAL] ' + message);
@@ -238,12 +238,14 @@
     return targets;
   }
   async function loadRider(sim, st, entry, member, token) {
-    var scene = sim.scene, result = null, anchor = null, groups = [];
+    var scene = sim.scene, result = null, anchor = null, groups = [], stage = 'fetch soldier FBX';
     try {
       var file = await fetchAsset('soldiers', SOLDIER[entry.faction]);
       if (token !== entry.token || entry.phase !== 'embarked') return;
+      stage = 'import soldier FBX';
       result = await BABYLON.SceneLoader.ImportMeshAsync('', 'file:', file, scene, undefined, '.fbx');
       if (token !== entry.token || entry.phase !== 'embarked') { disposeImport(result); return; }
+      stage = 'create seat anchor';
       anchor = new BABYLON.TransformNode('truckSeat-'+entry.id+'-'+member.index,scene);
       anchor.parent = entry.root;
       anchor.position.set.apply(anchor.position, member.seat.position);
@@ -252,6 +254,7 @@
       body.parent = anchor;
       attachImport(result,body);
       var mesh = (result.meshes || []).filter(function (m) { return m.getTotalVertices && m.getTotalVertices() > 0; });
+      stage = 'measure and normalize soldier';
       var b = bounds(mesh);
       if (!b) throw new Error('empty soldier FBX');
       mesh.forEach(function (m) { m.isPickable = false; m.checkCollisions = false; });
@@ -259,11 +262,13 @@
       body.scaling.setAll(k);
       body.position.set(-(b.low.x+b.high.x)*.5*k, -b.low.y*k, -(b.low.z+b.high.z)*.5*k);
       var targets = targetsFor(result);
+      stage = 'fetch Truck animation';
       var clipFile = await fetchAsset('animations',member.seat.clip);
       if (token !== entry.token || entry.phase !== 'embarked') { disposeImport(result);anchor.dispose(false,false);return; }
       // SceneLoader inserts groups into a shared scene array. Serialize imports
       // across ALL trucks: otherwise simultaneous US/GE imports could attach
       // another rider's animation group to this soldier.
+      stage = 'import and retarget Truck animation';
       var previous = st.animationQueue || Promise.resolve();
       var importTask = previous.catch(function () {}).then(async function () {
         if (token !== entry.token || entry.phase !== 'embarked') return [];
@@ -287,7 +292,7 @@
       if (groups.length) groups.forEach(function (g) { try { g.dispose(); } catch (_) {} });
       if (result) disposeImport(result);
       if (anchor && !anchor.isDisposed()) anchor.dispose(false,false);
-      recordError(st,'seat '+member.index+' '+entry.faction,err);
+      recordError(st,'seat '+member.index+' '+entry.faction+' ['+stage+']',err);
     }
   }
   function updateRiders(sim, st, entry, transport) {
@@ -299,7 +304,8 @@
       if (entry.riders.length && !cameraNear(sim.scene,entry,DROP_CREW_RADIUS)) disposeRiders(entry);
       return;
     }
-    if (entry.busy || entry.nextRider >= entry.members.length) return;
+    if (entry.busy || entry.nextRider >= entry.members.length ||
+        st.errors.some(function (e) { return e.indexOf('seat ') === 0; })) return;
     var member = entry.members[entry.nextRider++];
     var token=entry.token;
     entry.busy=true;
