@@ -41,8 +41,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Compare complete git trees, not mtimes or sizes. This shallow fetch
-          # works for old, diverged and rebased branches.
+          # Compare complete git trees (not mtimes/sizes) even if this branch
+          # diverged or was created before the current main.
           git fetch --no-tags --depth=1 origin +refs/heads/main:refs/remotes/origin/main
 
       - name: Resolve preview identity
@@ -85,9 +85,8 @@ jobs:
           # The AI map viewer of this branch (reads the branch's own battle/*.js; ?a=<url>&b=<url> or ?bench=<run> loads benchmark results).
           cp ai_flow_live.html .preview/ai_flow_live.html
           cp battle/modules/*.js .preview/battle/modules/
-          # Stage only branch-owned asset differences. The preview's Assets/.htaccess
-          # routes absent files to the production Assets/ directory on the same host.
-          # Never upload all ~850 MB of unchanged soldier/animation FBX files.
+          # Git tree diff selects only changed branch assets. A preview-only
+          # .htaccess routes missing files to production's Assets/ tree.
           python3 scripts/prepare_preview_asset_overlay.py --base-ref origin/main --output .preview
           mkdir -p .preview/Assets/soldiers
           cp .preview/asset-overlay.htaccess .preview/Assets/.htaccess
@@ -124,13 +123,11 @@ jobs:
           : "${FTP_USER:?Missing repository secret FTP_USER}"
           : "${FTP_PASSWORD:?Missing repository secret FTP_PASS}"
           sudo apt-get update -qq && sudo apt-get install -y -qq lftp
-          # Runtime files are branch-specific. Assets/ is a thin override: only
-          # files whose git blob differs from main are staged. Always transfer staged
-          # files (including same-size edits), while --delete removes obsolete prior
-          # overrides only in THIS preview's Assets/ directory. Never delete sidecar
-          # calibration JSON or user-saved lab files.
-          # A preview's Assets/.htaccess transparently resolves all missing
-          # soldier, animation, weapon and vehicle assets to production.
+          # Runtime remains branch-specific. Assets contains only changed
+          # FBX/GLB/BIN/image overrides; unchanged files fall back to production
+          # via the preview's own .htaccess (uploaded explicitly below).
+          # --delete applies only to this preview directory; sidecar JSON and
+          # lab calibrations are never deleted. preview.json is uploaded last.
           lftp -u "$FTP_USER","$FTP_PASSWORD" "$FTP_HOST" <<LFTP
           set cmd:fail-exit yes
           set net:max-retries 2
@@ -143,7 +140,9 @@ jobs:
           lcd .preview
           mirror -R --delete --verbose=1 --exclude '\.json\$' --exclude '[Ll][Aa][Bb]' --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' battle battle
           mirror -R --verbose=1 labs labs
-          mirror -R --delete --verbose=1 --transfer-all --exclude '\.json\
+          mirror -R --delete --verbose=1 --transfer-all --exclude '\.json\$' --exclude '[Ll][Aa][Bb]' --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' Assets Assets
+          # lftp mirror omits hidden dotfiles; explicit upload is mandatory.
+          put Assets/.htaccess -o Assets/.htaccess
           put battle_sim.php
           put ai_flow_live.html
           put asset-overlay.json
@@ -162,8 +161,8 @@ jobs:
           body="$(curl -fsS "$url")"
           grep -q "preview-${SHA:0:7}" <<<"$body"
           grep -q "/grasstex/preview/$SLUG/battle/commander-ai.js" <<<"$body"
-          # Fail a green preview job if unchanged FBX assets cannot resolve
-          # through the preview overlay to the production copy.
+          # Check actual HTTP serving of an unchanged soldier FBX, not just
+          # inventory metadata; this fails if the rewrite overlay is missing.
           overlay_test_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/Assets/soldiers/ge-paratrooper.fbx"
           curl --fail --silent --show-error --location --head "$overlay_test_url" >/dev/null
           overlay_metadata_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/asset-overlay.json"
@@ -206,98 +205,7 @@ jobs:
             if [[ -f labs/vehicle-animation-lab.html ]]; then
               echo "- Vehicle Animation Lab: https://test.ivandpopov.com/grasstex/preview/$SLUG/labs/vehicle-animation-lab.html"
             fi
-            echo "- Asset upload: only branch-changed FBX/GLB/PNG/BIN; unchanged assets reused from production."
-            echo "- Production untouched; preview makes no telemetry, policy or learning writes."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  combat-lab-smoke:
-    name: Native Combat Lab Chromium QA
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.lab_qa == true }}
-    needs: preview
-    runs-on: ubuntu-latest
-    timeout-minutes: 16
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.ref || github.ref }}
-      - name: Resolve preview Combat Lab URL
-        shell: bash
-        env:
-          PREVIEW_REF: ${{ github.event.inputs.ref || github.ref_name }}
-        run: |
-          set -euo pipefail
-          slug="$(printf '%s' "$PREVIEW_REF" | tr '[:upper:]' '[:lower:]' | sed -E 's#^(work|preview)/##; s#[^a-z0-9]+#-#g; s#^-+|-+$##g' | cut -c1-48)"
-          test -n "$slug"
-          echo "PHASE_C_LAB_URL=https://test.ivandpopov.com/grasstex/preview/$slug/battle_sim.php" >> "$GITHUB_ENV"
-      - name: Install Chromium harness
-        run: |
-          npm install --no-save --no-package-lock playwright@1.58.2
-          npx playwright install --with-deps chromium
-      - name: Verify native range and isolation in hosted browser
-        run: node scripts/probes/phase_c_combat_lab_smoke.cjs
-      - name: Publish screenshots and diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: phase-c-native-lab-smoke
-          path: reports/phase-c-lab/
-          if-no-files-found: ignore
- --exclude '[Ll][Aa][Bb]' --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' Assets Assets
-          put battle_sim.php
-          put ai_flow_live.html
-          put preview.json
-          bye
-          LFTP
-
-      - name: Verify preview is serving this commit
-        shell: bash
-        env:
-          SLUG: ${{ steps.id.outputs.slug }}
-          SHA: ${{ steps.id.outputs.sha }}
-        run: |
-          set -euo pipefail
-          url="https://test.ivandpopov.com/grasstex/preview/$SLUG/battle_sim.php"
-          body="$(curl -fsS "$url")"
-          grep -q "preview-${SHA:0:7}" <<<"$body"
-          grep -q "/grasstex/preview/$SLUG/battle/commander-ai.js" <<<"$body"
-          # The battle page is not enough: check the exact vehicle-lab URL as well.
-          # This is conditional so an unrelated historical branch without the lab
-          # remains previewable using the same generic workflow.
-          if [[ -f labs/vehicle-animation-lab.html ]]; then
-            vehicle_lab_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/labs/vehicle-animation-lab.html"
-            vehicle_lab_html="$(curl -fsSL "$vehicle_lab_url")"
-            grep -q 'Vehicle Animation Lab' <<<"$vehicle_lab_html"
-            inventory_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/labs/asset-list.php"
-            inventory="$(curl -fsSL "$inventory_url")"
-            grep -q 'german_transport.fbx' <<<"$inventory"
-            for clip in 'Truck - Driving.fbx' 'Truck - Sitting 1.fbx' 'Truck - Sitting 2.fbx' 'Truck - Sitting 3.fbx'; do
-              if [[ -f "Assets/animations/$clip" ]]; then
-                grep -Fq "$clip" <<<"$inventory"
-              fi
-            done
-            echo "Vehicle Animation Lab preview and vehicle/animation inventory verified: $vehicle_lab_url"
-          fi
-          if [[ "${{ inputs.lab_qa }}" == "true" ]]; then
-            lab="$(curl -fsSL "$url?combatLab=1")"
-            grep -q 'window.PHASE_C_COMBAT_LAB=true' <<<"$lab"
-            grep -q "/grasstex/preview/$SLUG/battle/phase-c-compact-range.js" <<<"$lab"
-            module_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/battle/phase-c-compact-range.js"
-            curl --fail --silent --show-error --location "$module_url" -o /tmp/phase-c-preview-module.js
-            test "$(wc -c </tmp/phase-c-preview-module.js)" -gt 10000
-            grep -q 'Preview-only Phase C Combat Lab' /tmp/phase-c-preview-module.js
-            grep -q 'window.PhaseCCombatLab.attachBattle(battle,scene,camera)' <<<"$lab"
-          fi
-          {
-            echo "### Battle Sim preview"
-            echo "- Ref: \`${{ steps.id.outputs.ref }}\` @ \`${SHA:0:7}\`"
-            echo "- Meeting: $url"
-            echo "- US defending: $url?defender=us"
-            echo "- German defending: $url?defender=ge"
-            if [[ -f labs/vehicle-animation-lab.html ]]; then
-              echo "- Vehicle Animation Lab: https://test.ivandpopov.com/grasstex/preview/$SLUG/labs/vehicle-animation-lab.html"
-            fi
+            echo "- Asset upload: only branch-changed FBX/GLB/PNG/BIN; unchanged assets served from production."
             echo "- Production untouched; preview makes no telemetry, policy or learning writes."
           } >> "$GITHUB_STEP_SUMMARY"
 
