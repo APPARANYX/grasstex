@@ -270,7 +270,7 @@
       !sq ||
       !mission ||
       mission.owner !== 'force-command' ||
-      (mission.intent !== 'capture' && mission.intent !== 'intercept') ||
+      (mission.intent !== 'capture' && mission.intent !== 'intercept' && mission.intent !== 'screen') ||
       (mission.status && mission.status !== 'issued') ||
       sq.state === 'retreat' ||
       sq.inContact ||
