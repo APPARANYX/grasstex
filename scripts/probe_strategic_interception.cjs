@@ -148,7 +148,27 @@ const seeds=[
             return [f,{used:!!r?.used,contacts:r?.event?.contacts?.length||0}];
           })),
           general:Object.fromEntries(['us','ge'].map(f=>[f,stats[f]=dataSnapshot(f)])),
-          reserveAudit,interceptions:Object.values(observed),shots
+          reserveAudit,
+          forwardScreen:Object.fromEntries(['us','ge'].map(f=>{
+            const state=root.BattleStrategicInterception.summary(sim)[f];
+            return [f,{
+              screens:Object.values(state.screens||{}).map(item=>{
+                const sq=(sim.factions[f].squads||[]).find(s=>s.id===item.squadId),
+                  t=sq?._transport;
+                return {
+                  squadId:item.squadId,leadSquadId:item.leadSquadId,
+                  objectiveId:item.objectiveId,roadId:item.roadId,
+                  vehicleId:item.vehicleId,orderAt:item.orderAt,
+                  atPost:item.atPost,reportCount:item.reportCount,
+                  intercept:item.intercept||null,
+                  travelled:t?.travelled||0,phase:t?.phase||null,
+                  actualPostTime:sq?._missionExecution?.screenOnPostAt||null
+                };
+              }),
+              supports:state.supports||[]
+            }];
+          })),
+          interceptions:Object.values(observed),shots
         };
         function dataSnapshot(f){const x=root.BattleStrategicInterception.summary(sim)[f];
           return x&&x.last?{...x.last}:null;}
@@ -165,6 +185,12 @@ const seeds=[
       console.log('INTERCEPT_NATIVE',JSON.stringify({seed:record.seed,on:enabled,
         general:record.general,interceptions:record.interceptions.length,
         physicallyEarly:record.interceptions.filter(x=>x.physicallyEarly).length,
+        forwardScreens:Object.values(record.forwardScreen).reduce((n,f)=>n+f.screens.length,0),
+        forwardPosts:Object.values(record.forwardScreen).reduce((n,f)=>n+
+          f.screens.filter(x=>x.atPost!=null).length,0),
+        groundReports:Object.values(record.forwardScreen).reduce((n,f)=>n+
+          f.screens.reduce((k,x)=>k+x.reportCount,0),0),
+        secondTruckSupport:Object.values(record.forwardScreen).reduce((n,f)=>n+f.supports.length,0),
         shots:record.shots.total,seconds:record.seconds,
         reserveAudit:enabled?record.reserveAudit:null}));
       await page.close();
