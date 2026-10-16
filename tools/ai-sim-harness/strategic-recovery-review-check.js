@@ -447,4 +447,44 @@ test('General preserves a capture brief with verified carrier road-progress puls
   );
 });
 
+/* A 240 s faction-wide main-effort review must not interrupt a lawful motor trip.
+   A carrier that is progressing along its committed road still has an unfinished
+   original brief; other squads remain eligible for strategic concentration. */
+test('strategic main-effort preserves a progressing carrier bound for a different objective', () => {
+  const events = [],
+    w = world(events, [{ id: 'obj-road', type: 'capture-zone', x: 0, z: 300, radius: 30, value: 1 }]);
+  const q = H.addSquad(w.r, w.b, {
+    id: 'us-carrier',
+    faction: 'us',
+    x: 0,
+    z: 0,
+    objective: { x: 0, z: 300 }
+  });
+  Object.assign(q, { commandRole: 'center', commandPhase: 'approach', route: [] });
+  drive(w, 4);
+  const original = q._macroMission;
+  assert.ok(original && original.intent === 'capture' && original.objectiveId === 'obj-road');
+  w.C.acceptMission(w.b, q, false);
+  q._transport = { phase: 'embarked', missionVersion: original.version, travelled: 0 };
+  /* A much more valuable nearby objective becomes available while the vehicle
+     is en route; a faction-wide stall can pick it, but cannot interrupt the
+     independently verified movement for an unrelated strategic reshuffle. */
+  w.r.BattleObjectiveSystem.attach(
+    w.b,
+    [
+      { id: 'obj-road', type: 'capture-zone', x: 0, z: 300, radius: 30, value: 1 },
+      { id: 'obj-high', type: 'capture-zone', x: 15, z: 80, radius: 30, value: 100 }
+    ],
+    {}
+  );
+  drive(w, 280, () => {
+    q._transport.travelled += 12;
+  });
+  const main = history(w, 'us').find(h => h.stage === 'main-effort');
+  assert.ok(main, 'the global strategic main-effort stage actually executed');
+  assert.equal(main.mainEffort, 'obj-high', 'a competing new objective is selected');
+  assert.equal(q._macroMission, original, 'live verified carrier keeps the original General brief');
+  assert.equal(strategicWakes(events, q.id).length, 0, 'no strategic re-task of the moving vehicle');
+});
+
 console.log('PASS ' + n + ' strategic-recovery review checks');
