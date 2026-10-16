@@ -1819,7 +1819,7 @@
     st.vehicleClipsLoading = Promise.resolve(loadLibrary(scene))
       .then(async function () {
         if (!st.ready || !st.src || !st.bones || !st.libs) throw new Error('FBX scene library is not ready');
-        var source = {}, originals = Object.keys(VEHICLE_POSE_FILES), sourceRigBones = st.bones;
+        var source = {}, clipRigs = {}, originals = Object.keys(VEHICLE_POSE_FILES), sourceRigBones = st.bones;
         for (var k = 0; k < originals.length; k++) {
           var filename = originals[k], key = VEHICLE_POSE_FILES[filename];
           var container = await loadContainer(
@@ -1830,6 +1830,7 @@
             if (!imported || !imported.rest ||
                 !sourceRigBones.every(function (name) { return imported.rest[name] && st.src.rest[name]; }))
               throw new Error('Truck clip rig differs from prepared battle animation rig: ' + filename);
+            clipRigs[key] = imported;
             source[key] = convertClip(container, key, [filename.slice(0, -4), 1, 'inplace'], sourceRigBones);
           } finally {
             container.dispose();
@@ -1838,7 +1839,17 @@
         var models = {};
         Object.keys(st.libs).forEach(function (file) {
           var original = st.libs[file], privateLib = Object.assign({}, original);
-          models[file] = retargetClips(privateLib, st.src, source, sourceRigBones);
+          models[file] = {};
+          // Imported sitting clips may have a different rest pose from the
+          // battle's original rifle clips. Retarget each pose against its OWN
+          // source rig, not the unrelated prepared rifle-clip rest pose.
+          Object.keys(source).forEach(function (key) {
+            var oneClip = {};
+            oneClip[key] = source[key];
+            var targetLib = Object.assign({}, privateLib);
+            var mapped = retargetClips(targetLib, clipRigs[key], oneClip, sourceRigBones);
+            models[file][key] = mapped[key];
+          });
         });
         st.vehicleClipsReady = models;
         return models;
