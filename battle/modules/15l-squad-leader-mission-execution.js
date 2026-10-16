@@ -266,6 +266,26 @@
           return;
         }
       }
+      if (m && m.intent === 'intercept' && idx === last) {
+        // Reach the ACTUAL corridor with the usual movement/Engagement owners.
+        // The General cannot grant sighting, suppression, or first shots.
+        var onPost = dist(pos, wp) <= 38;
+        if (onPost) {
+          if (!ex.interceptOnPostAt) {
+            ex.interceptOnPostAt = t;
+            if (root.BattleTelemetry && root.BattleTelemetry.record)
+              root.BattleTelemetry.record('strategic-interception-on-post', {
+                faction: sq.faction, squad: sq.id, missionVersion: m.version,
+                vehicleId: m.intercept && m.intercept.vehicleId,
+                at: +t.toFixed(2), position: copy(pos),
+                roadId: m.intercept && m.intercept.roadId
+              }, sim);
+          }
+          setPhase(sim, sq, 'hold', 'intercept corridor reached');
+        } else setPhase(sim, sq, 'approach', 'intercept corridor approach');
+        sq.objective = copy(wp);
+        return;
+      }
       if ((m && m.intent === 'reserve') || (!m && sq.commandRole === 'reserve')) {
         setPhase(sim, sq, 'reserve', 'holding reserve');
         sq.objective = copy(legs[last]);
