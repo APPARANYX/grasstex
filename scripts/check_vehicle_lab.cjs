@@ -123,5 +123,14 @@ for(const path of ['("Assets/vehicles", "*.fbx")','("Assets/vehicles", "*.glb")'
 }
 const preview=fs.readFileSync('.github/workflows/deploy-50webs-preview.yml','utf8');
 assert.ok(preview.includes('labs/vehicle-animation-lab.html'),'Branch preview missing vehicle page');
-assert.ok(preview.includes('soldiers animations weapons vehicles'),'Branch preview missing vehicle FBX models');
+// Current previews use a git-diff asset overlay rather than the old list-copy command.
+assert.ok(preview.includes('scripts/prepare_preview_asset_overlay.py'),
+  'Branch preview must stage changed assets via the overlay generator');
+assert.ok(preview.includes('cp .preview/asset-overlay.htaccess .preview/Assets/.htaccess'),
+  'Branch preview must install the production fallback rewrite');
+const assetOverlay=fs.readFileSync('scripts/prepare_preview_asset_overlay.py','utf8');
+assert.ok(assetOverlay.includes('"vehicles": {".fbx", ".glb"}'),
+  'Branch preview asset overlay must include vehicle FBX/GLB files');
+assert.ok(assetOverlay.includes('soldiers|animations|weapons|vehicles|effects|terrain'),
+  'Branch preview fallback must serve unchanged vehicle models from production');
 console.log('Vehicle lab static validation: script syntax, control IDs, hierarchy names, seat persistence, animation import, and deployment paths PASS');
