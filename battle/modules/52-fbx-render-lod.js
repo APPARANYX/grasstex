@@ -261,6 +261,16 @@
               continue;
             }
             if (!fx.root.isEnabled()) continue;
+            /* A seated passenger is the same squad soldier, with the same rig,
+               skin damage and role model. The seat owns his PRESENTATION pose
+               while the transport system still owns his authoritative root.
+               Never apply ground locomotion/aim on top of a driving/sitting pose. */
+            if (fx._vehicleSeat && typeof fx._vehicleSeat.applyPose === 'function') {
+              cullApply(fx, false);
+              fx._vehicleSeat.applyPose(fx);
+              fx.poseRef.serial++;
+              continue;
+            }
             /* Terrain-follow is presentation-only. Keep active on animation-LOD hold frames
              and after death clips finish so fallen men do not lie horizontally across hills.
              The authoritative root yaw, physics, shot origin, and navigation remain upright. */
