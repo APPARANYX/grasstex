@@ -241,6 +241,7 @@
       phase: 'boarding',
       requestedAt: +sim.time || 0,
       boardingCenter: center,
+      initialPassengerCount: members.length,
       position: position(center),
       initialPosition: position(center),
       heading: heading(center, route.path[0].point),
@@ -361,16 +362,20 @@
           !m ||
           m.version !== t.missionVersion ||
           sq.state === 'retreat' ||
-          !alive(sq).length ||
+          alive(sq).length !== t.initialPassengerCount ||
           alive(sq).some(function (s) {
-            return s.isPlayer || s.dead;
+            return s.isPlayer;
           })
         ) {
           finish(sim, sq, 'mission-changed-or-retreat');
           return;
         }
+        if (sq.inContact) {
+          finish(sim, sq, 'contact');
+          return;
+        }
         if (t.phase === 'boarding') {
-          if (m.status === 'executing' && !sq.inContact) board(sim, sq, dt);
+          if (m.status === 'executing') board(sim, sq, dt);
         } else drive(sim, sq, dt);
       });
     });
