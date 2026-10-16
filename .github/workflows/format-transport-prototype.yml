@@ -1,0 +1,34 @@
+name: Temporary transport source formatting
+on:
+  push:
+    branches:
+      - work/strategic-abstract-transport-20261016
+    paths:
+      - .github/workflows/format-transport-prototype.yml
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/strategic-abstract-transport-20261016
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply repository Prettier
+        run: |
+          npx --yes prettier@3.3.3 --write \
+            battle/modules/58-strategic-abstract-transport.js \
+            tools/ai-sim-harness/strategic-transport-check.js
+      - name: Commit formatting changes
+        run: |
+          if ! git diff --quiet -- battle/modules/58-strategic-abstract-transport.js tools/ai-sim-harness/strategic-transport-check.js; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add battle/modules/58-strategic-abstract-transport.js tools/ai-sim-harness/strategic-transport-check.js
+            git commit -m 'style(transport): enforce repository Prettier on transport prototype'
+            git push origin HEAD:work/strategic-abstract-transport-20261016
+          fi
