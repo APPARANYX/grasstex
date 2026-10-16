@@ -4,20 +4,20 @@ on:
     branches:
       - work/strategic-motorized-transport-core-20261015
 permissions:
-  contents: read
+  contents: write
 jobs:
   formatter:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Format transport source and regression
+      - name: Format and commit transport-only code
         run: |
+          set -euo pipefail
           npx --yes prettier@3.3.3 --write battle/strategic-transport-core.js tools/ai-sim-harness/strategic-transport-core-check.js
-          mkdir -p formatted/battle formatted/tools/ai-sim-harness
-          cp battle/strategic-transport-core.js formatted/battle/
-          cp tools/ai-sim-harness/strategic-transport-core-check.js formatted/tools/ai-sim-harness/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: transport-prettier-snapshot
-          path: formatted/
-          retention-days: 1
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add battle/strategic-transport-core.js tools/ai-sim-harness/strategic-transport-core-check.js
+          if ! git diff --cached --quiet; then
+            git commit -m "style(transport): normalize core and regression with repository Prettier"
+            git push origin HEAD:work/strategic-motorized-transport-core-20261015
+          fi
