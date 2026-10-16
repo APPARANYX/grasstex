@@ -1,0 +1,31 @@
+name: One-shot truck visual formatting
+on:
+  push:
+    branches:
+      - work/strategic-truck-live-crew-20261016
+    paths:
+      - '.github/workflows/format-live-truck-visual.yml'
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/strategic-truck-live-crew-20261016
+          persist-credentials: true
+      - name: Format only truck visual
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write battle/modules/59-strategic-truck-visual.js
+          if git diff --quiet -- battle/modules/59-strategic-truck-visual.js; then
+            echo "Already formatted"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add battle/modules/59-strategic-truck-visual.js
+          git commit -m "Format live truck presentation and clip retry guard"
+          git push origin HEAD:work/strategic-truck-live-crew-20261016
