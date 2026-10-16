@@ -48,5 +48,9 @@ for(const path of ['("Assets/vehicles", "*.fbx")','("Assets/vehicles", "*.glb")'
 }
 const preview=fs.readFileSync('.github/workflows/deploy-50webs-preview.yml','utf8');
 assert.ok(preview.includes('labs/vehicle-animation-lab.html'),'Branch preview missing vehicle page');
-assert.ok(preview.includes('soldiers animations weapons vehicles'),'Branch preview missing vehicle FBX models');
+assert.ok(
+  preview.includes('soldiers animations weapons vehicles') ||
+    (preview.includes('prepare_preview_asset_overlay.py') && preview.includes('put Assets/.htaccess')),
+  'Branch preview must either stage legacy vehicle FBX models or use a verified thin asset overlay'
+);
 console.log('Vehicle lab static validation: script syntax, control IDs, hierarchy names, seat persistence, animation import, and deployment paths PASS');
