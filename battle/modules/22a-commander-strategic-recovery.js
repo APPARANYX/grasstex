@@ -380,6 +380,13 @@
       if (!m) return 'initial-mission';
       if (m.status === 'failed' || m.status === 'invalid' || m.status === 'completed')
         return 'mission-resume';
+      if (m.intent === 'screen') {
+        /* A real second-truck observation post is an explicit ongoing
+           mission, not an objective-less idle brief. Hold and report until
+           superseded or combat requires local action. */
+        return m.screen && sim.time > m.screen.orderedAt + 720 && !sq.inContact
+          ? 'screen-window-expired' : null;
+      }
       if (m.intent === 'intercept') {
         // A genuine contact or ongoing intercept survives incidental objective
         // ownership changes; no second air snapshot is inferred at expiry.
