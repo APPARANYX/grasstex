@@ -150,11 +150,11 @@
       return candidates;
     }, []);
   }
-  function quoteFor(sim, faction, track) {
+  function quoteFor(sim, faction, track, diag) {
     var town = sim.scene.metadata.battleScenario,
       transport = root.BattleSquadTransport,
       fleet = transport && transport.fleetSummary && transport.fleetSummary(sim);
-    if (!fleet || !transport.quoteMission) return null;
+    if (!fleet || !transport.quoteMission) { diag.noFleet++; return null; }
     var best = null;
     ((sim.factions[faction] && sim.factions[faction].squads) || []).forEach(function (sq) {
       if (
@@ -164,8 +164,8 @@
         sq.isPlayer ||
         sq._transportUsed ||
         sq._preparedDefenseRequest
-      )
-        return;
+      ) { diag.unavailableSquads++; return; }
+      diag.eligibleSquadEvaluations++;
       fleet
         .filter(function (v) {
           return v.faction === faction && v.phase === 'parked';
@@ -175,7 +175,8 @@
           if (!base) return;
           track.anchorIds.forEach(function (anchorId) {
             var path = shortest(town, base.objectiveId, anchorId);
-            if (!path) return;
+            if (!path) { diag.noRoadGraphPath++; return; }
+            diag.pathEvaluations++;
             // Base road point, then complete public graph edges to the watched edge.
             var route = path.points;
             var mission = {
@@ -186,7 +187,8 @@
               route: route
             };
             var quote = transport.quoteMission(sim, sq, mission);
-            if (!quote || quote.vehicle.id !== v.id) return;
+            if (!quote || quote.vehicle.id !== v.id) { diag.failedTransportQuotes++; return; }
+            diag.viableTransportQuotes++;
             var friendlyETA =
               quote.boardSeconds +
               quote.route.estimatedDriveSeconds +
@@ -195,7 +197,8 @@
               SETUP_MARGIN +
               EXTRA_UNCERTAINTY;
             var margin = track.enemyETA - friendlyETA;
-            if (!(margin > 20)) return;
+            diag.bestMarginSeconds = Math.max(diag.bestMarginSeconds, margin);
+            if (!(margin > 20)) { diag.arrivalTooLate++; return; }
             var score =
               margin * 0.3 + track.alignment * 55 + track.contact.confidence * 35 - track.offRoad * 0.25;
             var selection = {
@@ -233,15 +236,23 @@
     var town = sim.scene.metadata.battleScenario;
     if (!ev || ev.faction !== faction || sim.time > ev.validUntil) return null;
     var best = null,
-      evaluated = 0;
+      evaluated = 0,
+      diagnostic = {
+        noFleet: 0, unavailableSquads: 0, eligibleSquadEvaluations: 0,
+        noRoadGraphPath: 0, pathEvaluations: 0, failedTransportQuotes: 0,
+        viableTransportQuotes: 0, arrivalTooLate: 0,
+        bestMarginSeconds: -Infinity
+      };
     ev.contacts.forEach(function (contact) {
       roadSightings(town, contact, faction).forEach(function (track) {
         evaluated++;
-        var proposal = quoteFor(sim, faction, track);
+        var proposal = quoteFor(sim, faction, track, diagnostic);
         if (proposal && (!best || proposal.score > best.score)) best = proposal;
       });
     });
-    return { best: best, evaluated: evaluated, contacts: ev.contacts.length };
+    diagnostic.bestMarginSeconds = isFinite(diagnostic.bestMarginSeconds)
+      ? +diagnostic.bestMarginSeconds.toFixed(1) : null;
+    return { best: best, evaluated: evaluated, contacts: ev.contacts.length, diagnostic: diagnostic };
   }
   function state(sim) {
     return (
@@ -270,7 +281,8 @@
         at: sim.time,
         result: 'declined',
         contacts: choice ? choice.contacts : 0,
-        corridors: choice ? choice.evaluated : 0
+        corridors: choice ? choice.evaluated : 0,
+        rejectionEvidence: choice && choice.diagnostic
       };
       event(sim, 'declined', { faction: faction, ...st.last });
       return null;
