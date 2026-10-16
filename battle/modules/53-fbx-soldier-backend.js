@@ -1800,12 +1800,68 @@
     clearSurfaceDamage = SURFACE.clearSurfaceDamage,
     SURFACE_DAMAGE_SIZE = SURFACE.surfaceDamageResolution;
 
+  /* Strategic truck seating uses the ACTUAL scene-bound soldier meshes. Prewarm
+     the four Truck FBX clips ONCE per scene and retarget them to each already
+     loaded role model using the same converter/retargeter as on-foot motion.
+     No soldier FBX instances, Babylon AnimationGroups or replacement rigs are
+     allocated when a passenger boards. Import each clip serially to avoid
+     stalling the renderer with simultaneous expensive FBX parses. */
+  var VEHICLE_POSE_FILES = {
+    'Truck - Driving.fbx': 'truckDriving',
+    'Truck - Sitting 1.fbx': 'truckSitting1',
+    'Truck - Sitting 2.fbx': 'truckSitting2',
+    'Truck - Sitting 3.fbx': 'truckSitting3'
+  };
+  function prepareVehicleClips(scene) {
+    var st = sceneState(scene);
+    if (st.vehicleClipsReady) return Promise.resolve(st.vehicleClipsReady);
+    if (st.vehicleClipsLoading) return st.vehicleClipsLoading;
+    st.vehicleClipsLoading = Promise.resolve(loadLibrary(scene))
+      .then(async function () {
+        if (!st.ready || !st.src || !st.bones || !st.libs) throw new Error('FBX scene library is not ready');
+        var source = {}, originals = Object.keys(VEHICLE_POSE_FILES), sourceRigBones = st.bones;
+        for (var k = 0; k < originals.length; k++) {
+          var filename = originals[k], key = VEHICLE_POSE_FILES[filename];
+          var container = await loadContainer(
+            scene, assetBase() + 'animations/' + encodeURIComponent(filename), 'clip', filename
+          );
+          try {
+            var imported = sourceRig(container);
+            if (!imported || !imported.rest ||
+                !sourceRigBones.every(function (name) { return imported.rest[name] && st.src.rest[name]; }))
+              throw new Error('Truck clip rig differs from prepared battle animation rig: ' + filename);
+            source[key] = convertClip(container, key, [filename.slice(0, -4), 1, 'inplace'], sourceRigBones);
+          } finally {
+            container.dispose();
+          }
+        }
+        var models = {};
+        Object.keys(st.libs).forEach(function (file) {
+          var original = st.libs[file], privateLib = Object.assign({}, original);
+          models[file] = retargetClips(privateLib, st.src, source, sourceRigBones);
+        });
+        st.vehicleClipsReady = models;
+        return models;
+      })
+      .catch(function (error) {
+        st.vehicleClipsLoading = null;
+        throw error;
+      });
+    return st.vehicleClipsLoading;
+  }
   root.BattleFbxSoldier = {
     version: '1.5-uv-surface-damage',
     backend: BACKEND,
     clips: CLIPS,
     models: MODELS,
     modelSet: MODEL_SET,
+    prepareVehicleClips: prepareVehicleClips,
+    vehiclePoseClip: function (soldier, seatFile) {
+      var fx = soldier && soldier._fbx;
+      if (!fx) return null;
+      var ready = sceneState(fx.holder.getScene()).vehicleClipsReady;
+      return ready && ready[fx.lib.file] && ready[fx.lib.file][VEHICLE_POSE_FILES[seatFile]] || null;
+    },
     load: loadLibrary,
     /* Read-only: the soldier's bone node by canonical name ('head', 'spine2', 'leftupleg'...), for
      presentation that rides the body (wound decals). Null on the procedural rig. */
