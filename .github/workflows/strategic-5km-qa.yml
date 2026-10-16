@@ -13,6 +13,9 @@ on:
       - 'battle/camera-controls.js'
       - 'battle/battle-control.js'
       - 'scripts/check-strategic-5km.cjs'
+      - 'battle/modules/59-strategic-truck-visual.js'
+      - 'scripts/check-strategic-truck-visual.cjs'
+      - 'docs/reference/german_transport-seats.json'
       - 'scripts/probe_strategic_5km.cjs'
       - '.github/workflows/strategic-5km-qa.yml'
   workflow_dispatch:
@@ -36,6 +39,7 @@ jobs:
           php -l battle_sim_local.php
           node --check scripts/probe_strategic_5km.cjs
           node scripts/check-strategic-5km.cjs
+          node scripts/check-strategic-truck-visual.cjs
       - name: Install Playwright Chromium
         run: |
           npm install --global playwright@1.56.1
