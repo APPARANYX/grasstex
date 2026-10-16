@@ -235,7 +235,11 @@
         label === name ||
         label.indexOf(name + '_') === 0 ||
         label.indexOf(name + '.') === 0 ||
-        label.indexOf(name + '(') === 0
+        label.indexOf(name + '(') === 0 ||
+        // Babylon prefixes descendants with the clone's full FBX path:
+        // strategicTruckModel-us-0.__fbx_root__.FrontWheels.Geom3D.362
+        // Collections survived export; only their runtime names changed.
+        label.indexOf('.' + name) >= 0
       );
     });
     var named = new Set(matches);
