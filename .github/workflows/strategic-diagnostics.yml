@@ -10,6 +10,7 @@ on:
       - 'battle/modules/21-defender-engineers.js'
       - 'battle/modules/43-squad-forward-progress.js'
       - 'scripts/triage_battle_diagnostics.cjs'
+      - 'scripts/probes/strategic-mission-trace.js'
       - 'tools/ai-sim-harness/diagnostic-triage-check.cjs'
       - '.github/workflows/strategic-diagnostics.yml'
   workflow_dispatch:
@@ -18,6 +19,10 @@ on:
         description: Replay seed prefix
         required: false
         default: 'strategic-diag-001'
+      battles_per_scenario:
+        description: Number of complete 5 km battles per scenario
+        required: false
+        default: '5'
       seconds:
         description: Simulated seconds (minimum 60)
         required: false
@@ -34,7 +39,7 @@ jobs:
   diagnostic-replay:
     name: ${{ matrix.type }} · forensic browser replay
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 65
     strategy:
       fail-fast: false
       matrix:
@@ -69,7 +74,7 @@ jobs:
         env:
           TYPE: ${{ matrix.type }}
           SEED_PREFIX: ${{ github.event.inputs.seed || 'strategic-diag-001' }}
-          BATTLE_BENCHMARK_COUNT: '1'
+          BATTLE_BENCHMARK_COUNT: ${{ github.event.inputs.battles_per_scenario || '5' }}
           BATTLE_BENCHMARK_TIME_LIMIT: ${{ github.event.inputs.seconds || '1800' }}
           BATTLE_BENCHMARK_STEP: '0.15'
           BATTLE_BENCHMARK_OUTPUT: reports
@@ -86,11 +91,86 @@ jobs:
           export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1${extra}"
           export BATTLE_BENCHMARK_SEED="${SEED_PREFIX}-${TYPE}"
           node scripts/run_battle_benchmark.mjs
+      - name: Enforce seed coverage and the actual 12-objective strategic profile
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs'), assert = require('node:assert/strict');
+          const data = JSON.parse(fs.readFileSync('reports/battle-benchmark.json', 'utf8'));
+          const expected = Number(process.env.REQUESTED || '5');
+          assert.equal(data.battles.length, expected, 'requested strategic seed coverage is incomplete');
+          for (const b of data.battles) {
+            assert.equal(b.objectiveCount, 12, b.seed + ': not the 5km 12-objective profile');
+            assert.equal(b.battleType, process.env.TYPE, b.seed + ': deployment mismatch');
+            assert.equal(b.diagnosticAnalysis?.integrity?.ok, true, b.seed + ': diagnostic integrity');
+            assert.ok(b.timeline?.samples?.length > 0, b.seed + ': no timeline');
+          }
+          console.log('PASS', expected, 'actual strategic browser battles, complete diagnostics');
+          NODE
+        env:
+          REQUESTED: ${{ github.event.inputs.battles_per_scenario || '5' }}
+          TYPE: ${{ matrix.type }}
       - name: Triage the highest-risk seeds, orders and stalls
         if: success()
         run: |
           node scripts/triage_battle_diagnostics.cjs reports/battle-benchmark.json reports
           cat reports/diagnostic-triage.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Automatically choose the worst complete diagnostic seed
+        if: success()
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const triage = JSON.parse(fs.readFileSync('reports/diagnostic-triage.json', 'utf8'));
+          const worst = triage.top.find(b => b.evidenceValid && b.seed);
+          if (!worst) throw new Error('No diagnostically valid seed available for forensic replay');
+          fs.appendFileSync(process.env.GITHUB_ENV, 'FOCUS_SEED=' + worst.seed + '\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '\n### Targeted forensic replay\n\nSelected: \`' + worst.seed + '\` (' + worst.battleType +
+            '), priority ' + worst.score + '. This is a triage ranking, not causal proof.\n');
+          console.log('FOCUS_SEED ' + worst.seed, worst.counts);
+          NODE
+      - name: Per-squad forensic replay plus no-probe control
+        if: success()
+        env:
+          TYPE: ${{ matrix.type }}
+          PROBE: strategic-mission-trace,squad-idle
+          PROBE_SECONDS: ${{ github.event.inputs.seconds || '1800' }}
+          PROBE_STEP: '0.15'
+          PROBE_CONTROL: '1'
+          PROBE_OUTPUT: reports/worst-seed-forensic.json
+        run: |
+          set -euo pipefail
+          export PROBE_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1"
+          export PROBE_BATTLES="${TYPE}:${FOCUS_SEED}"
+          node scripts/run_probe.cjs > /dev/null
+          node <<'NODE'
+          const fs = require('node:fs'), assert = require('node:assert/strict');
+          const report = JSON.parse(fs.readFileSync('reports/worst-seed-forensic.json', 'utf8'));
+          assert.equal(report.battles.length, 1);
+          const b = report.battles[0];
+          assert.equal(b.sameBattle, true, 'forensic probe changed the simulated outcome/state');
+          const trace = b.reports['strategic-mission-trace'];
+          assert.equal(trace?.schema, 'grasstex-strategic-forensic-v1');
+          assert.ok(trace.squadSamples.length > 50);
+          const defects = trace.invariantViolations || [];
+          fs.writeFileSync('reports/forensic-findings.md', [
+            '# Targeted strategic forensic replay',
+            '',
+            '- Seed: \`' + b.seed + '\`',
+            '- Scenario: ' + b.type,
+            '- Simulated: ' + b.simSeconds + ' seconds',
+            '- Fingerprint matched uninstrumented control: **' + b.sameBattle + '**',
+            '- Squad snapshots: ' + trace.squadSamples.length,
+            '- Potential strategic invariant violations: **' + defects.length + '**',
+            '',
+            '## Findings',
+            '',
+            defects.length ? defects.map(d => '- ' + d.code + ' at ' + d.firstSeen + 's for ' + d.squad).join('\n') : 'No monitored strategic invariant violations observed.',
+            '',
+            'See worst-seed-forensic.json for exact per-squad spatial and mission evidence.'
+          ].join('\n') + '\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '\n- Probe/control fingerprints identical: **yes**\n- Strategic invariant alerts: **' + defects.length + '**\n');
+          NODE
       - name: Archive all forensic evidence
         if: always()
         uses: actions/upload-artifact@v4
