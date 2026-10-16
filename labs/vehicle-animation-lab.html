@@ -304,7 +304,12 @@ function clearVehicle(){
   for(const rig of Object.values(state.axleRig)){
     if(rig?.pivot&&!rig.pivot.isDisposed())rig.pivot.dispose(false,false);
   }
-  for(const marker of state.axleMarkers.values())if(!marker.isDisposed())marker.dispose(false,true);
+  for(const marker of state.axleMarkers.values()){
+    if(marker.isDisposed())continue;
+    const material=marker.material;
+    marker.dispose(false,false); // includes the attached axle guide line
+    if(material&&!material.isDisposed())material.dispose();
+  }
   state.axleMarkers.clear();state.axleRig={front:null,rear:null};state.axles={front:null,rear:null};
   [...state.markers.values()].forEach(m=>m.dispose(false,true));
   state.markers.clear();
