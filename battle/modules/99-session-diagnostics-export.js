@@ -709,6 +709,21 @@
       };
     });
   }
+  /* Transport telemetry belongs in BOTH downloads so an apparent half-route
+     dismount can be distinguished from the planned 180 m final foot approach,
+     a contact abort or a blocked road. Read-only: never invokes planning. */
+  function strategicTransportSnapshot(sim) {
+    var transport = root.BattleSquadTransport;
+    if (!transport || typeof transport.summary !== 'function') return null;
+    try {
+      return {
+        tuning: transport.tuning || null,
+        squads: safePlain(transport.summary(sim), 5)
+      };
+    } catch (_) {
+      return null;
+    }
+  }
   function diagnosticFields(sim) {
     var out = {},
       deny = {
@@ -807,6 +822,7 @@
       },
       modules: systems,
       objectives: objectives(sim),
+      strategicTransport: strategicTransportSnapshot(sim),
       objectiveControl: safePlain(sim.objectiveControl, 6),
       objectiveHold: safePlain(sim.objectiveHold, 4),
       ammunition: ammo,
@@ -1088,6 +1104,7 @@
         }
       },
       objectives: objectives(sim),
+      strategicTransport: strategicTransportSnapshot(sim),
       reconstitution: safePlain(sim._macroMissionState && sim._macroMissionState.reconstitution, 5),
       commandReception:
         root.BattleCommandReception && root.BattleCommandReception.telemetry

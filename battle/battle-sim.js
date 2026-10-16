@@ -523,7 +523,12 @@
     this.paused = true;
   };
   BattleSim.prototype.resume = function () {
+    // Terminal sessions are immutable until restart (or the explicit
+    // time-limit Continue action resets winner and end flags). In particular
+    // pressing P for player possession must not resurrect an ended battle.
+    if (this.manualEnded || this.winner) return false;
     this.paused = false;
+    return true;
   };
   var AVOID_LOOKAHEAD = 1.8,
     AVOID_MARGIN = 0.5,

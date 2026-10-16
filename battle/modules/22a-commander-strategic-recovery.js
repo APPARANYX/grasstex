@@ -664,6 +664,22 @@
       if (!plan || !plan.instance) return { affected: 0, mainEffort: null };
       var objective = plan.instance,
         reachable = plan.active.filter(function (sq) {
+          var m = sq._macroMission,
+            carrier = sq._transport;
+          /* Faction-wide concentration is not permission to abandon a healthy
+             physical road mission. Stalled carriers remain eligible, as do
+             ordinary foot squads; local contact, retreat and mission validity
+             still take precedence in the regular General/Squad Leader path. */
+          if (
+            m &&
+            m.intent === 'capture' &&
+            m.status === 'executing' &&
+            carrier &&
+            carrier.phase === 'embarked' &&
+            carrier.missionVersion === m.version &&
+            makingMissionProgress(sim, faction, sq)
+          )
+            return false;
           return objectiveReachable(sim, sq, objective);
         });
       reachable.sort(function (a, b) {

@@ -1078,7 +1078,15 @@
       canvas.focus();
       var b = menuPauseOwner;
       menuPauseOwner = null;
-      if (b && b === liveBattle() && b.paused && !b.winner && typeof b.resume === 'function') b.resume();
+      if (
+        b &&
+        b === liveBattle() &&
+        b.paused &&
+        !b.manualEnded &&
+        !b.winner &&
+        typeof b.resume === 'function'
+      )
+        b.resume();
       updateHint(activeGamepad());
     }
     function possessSelected() {
@@ -1363,7 +1371,7 @@
     function possessSoldier(next, preservePause) {
       var b = liveBattle();
       /* This is a possession transfer, never a spawn. */
-      if (!playerSoldierEligible(b, next)) return false;
+      if (!b || b.manualEnded || b.winner || !playerSoldierEligible(b, next)) return false;
       var restoreLock = deathSequence && deathSequence.restoreLock,
         sourceCam = scene.activeCamera || camera,
         flightFrom = sourceCam.position.clone(),
@@ -1385,7 +1393,7 @@
       resetPlayerPresentation(next);
       hideTransientPlayerFeedback();
       commitPlayerOwnership(next, b);
-      if (b.paused && b.resume && !preservePause) b.resume();
+      if (b.paused && b.resume && !b.manualEnded && !b.winner && !preservePause) b.resume();
       var startBtn = document.getElementById('startBtn');
       if (startBtn) startBtn.hidden = true;
       ensureReticle().style.display = 'block';
@@ -1749,6 +1757,13 @@
           }
           if (editableTarget(event.target)) return;
           if (key === 'p') {
+            // Do not request pointer lock or possession for a finished battle:
+            // the operator must restart explicitly to return to live play.
+            var currentBattle = liveBattle();
+            if (currentBattle && (currentBattle.manualEnded || currentBattle.winner)) {
+              event.preventDefault();
+              return;
+            }
             if (!event.repeat) {
               possessRandom();
               canvas.focus();
