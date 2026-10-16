@@ -116,8 +116,10 @@ function make(search = '?strategicInterception=1&motorTransport=1&aerialRecon=1&
 const w = make(),
   T = w.root.BattleSquadTransport,
   I = w.root.BattleStrategicInterception;
-assert.equal(I.reserveSquad(w.sim, w.us), true, 'reserve is chosen from our own deployable squads');
-assert.equal(I.reservePending(w.sim, 'us'), true, 'reserve waits for aerial opportunity');
+assert.equal(I.reserveSquad(w.sim, w.us), false,
+  'no second squad at this base: lone lead must NOT be held in reserve');
+assert.equal(I.reservePending(w.sim, 'us'), false,
+  'a lone base must not block independent aerial interception');
 const early = make();
 early.sim.time = 39;
 assert.equal(early.root.BattleAerialRecon.request(early.sim, 'us'), null,
@@ -157,7 +159,7 @@ const issue = (sq, spec, reason) => {
 const dispatched = I.maybeIssue(w.sim, 'us', issue);
 assert.ok(dispatched && dispatched.result === 'dispatched');
 assert.equal(issued, 1);
-assert.equal(I.reservePending(w.sim, 'us'), false, 'reservation released on recon evaluation');
+assert.equal(I.reservePending(w.sim, 'us'), false, 'single-base squad has no screen reservation');
 assert.equal(w.us._macroMission.intent, 'intercept');
 assert.equal(w.us._macroMission.action, 'intercept', 'explicit corridor-hold action, never synthetic fire');
 assert.equal(w.us._macroMission.intercept.source, 'aerial');
@@ -174,6 +176,80 @@ assert.equal(
   'executing',
   'harness does not secretly modify previous mission lifecycle'
 );
+
+// Purpose-first screen: each base owns two trucks, but ONLY an actual
+// second squad at the SAME base is held for the uncontested forward mission.
+const paired=make(), P=paired.root.BattleStrategicInterception, PT=paired.root.BattleSquadTransport;
+const lead=paired.us;
+lead.homeBaseObjectiveId='u0';
+lead._macroMission={owner:'force-command',intent:'capture',status:'executing',
+  objectiveId:'crossing',point:{x:0,z:500},version:1};
+const screen={...lead,id:'us-screen',homeBaseObjectiveId:'u0',_macroMission:{
+  owner:'force-command',intent:'reserve',action:'hold',interceptReserve:true,
+  status:'executing',version:1},_transportUsed:false,_transport:null,
+  members:lead.members.map((m,i)=>({...m,id:'screen-'+i,
+    root:{position:{x:0,z:-300+i*.03},rotation:{y:0}}}))};
+screen.members.forEach(m=>{m.squad=screen;});
+paired.sim.factions.us.squads.push(screen);
+paired.root.BattleTacticalSituation={compute:()=>({contacts:[]})};
+paired.sim.objectiveControl={sectors:{crossing:{owner:'neutral'}}};
+lead.members.forEach(m=>{m.root.position={x:0,z:500};});
+assert.equal(P.reserveSquad(paired.sim,screen),true);
+assert.equal(P.reserveSquad(paired.sim,lead),false);
+assert.equal(P.reservePending(paired.sim,'us'),true);
+assert.equal(P.screenOpportunity(paired.sim,'us',P.pairs(paired.sim,'us')[0]),null,
+  'do not send the second truck past an unsecured objective');
+paired.sim.objectiveControl.sectors.crossing.owner='us';
+paired.root.BattleTacticalSituation.compute=()=>({contacts:[{
+  squad:'us-main',source:'seen',age:1,x:0,z:520
+}]});
+assert.equal(P.screenOpportunity(paired.sim,'us',P.pairs(paired.sim,'us')[0]),null,
+  'reported enemy presence at objective blocks reckless forward deployment');
+paired.root.BattleTacticalSituation.compute=()=>({contacts:[]});
+const opp=P.screenOpportunity(paired.sim,'us',P.pairs(paired.sim,'us')[0]);
+assert.ok(opp&&opp.spec.intent==='screen','verified uncontested owner unlocks forward screen');
+assert.ok(opp.spec.point.z>500+200,'second squad screens past objective, not on it');
+assert.equal(opp.quote.vehicle.faction,'us');
+assert.equal(PT.fleetSummary(paired.sim).length,12,'screen quote does not invent a vehicle');
+let screenCalls=0;
+const publish=(sq,spec,reason)=>{
+  screenCalls++;
+  assert.equal(sq,screen);
+  assert.equal(reason,'forward-screen-uncontested');
+  const m={...spec,status:'issued',version:2};
+  sq._macroMission=m;
+  assert.ok(PT.considerMission(paired.sim,sq,m),'second physical truck must be admitted');
+  return m;
+};
+const issuedScreen=P.maybeScreen(paired.sim,'us',publish);
+assert.ok(issuedScreen&&issuedScreen.vehicleId,'second truck launches forward screen');
+assert.equal(screenCalls,1);
+assert.equal(screen._macroMission.screen.securedObjectiveId,'crossing');
+assert.equal(screen._transport.vehicleId,issuedScreen.vehicleId);
+assert.equal(PT.fleetSummary(paired.sim).filter(v=>v.phase==='assigned').length,1);
+assert.equal(PT.fleetSummary(paired.sim).length,12,'cannot spawn extra trucks during screening');
+assert.equal(P.maybeScreen(paired.sim,'us',publish),null,
+  'screen assignment does not repeat each commander tick');
+assert.equal(P.reservePending(paired.sim,'us'),false,'screen has purpose, no idle reserve remaining');
+// Firsthand contact is relayed only after the squad physically reaches its post.
+screen._macroMission.status='executing';
+screen._missionExecution={screenOnPostAt:130};
+screen.members.forEach(m=>{m.root.position={...opp.spec.point};});
+paired.sim.time=134;
+paired.root.BattleTacticalSituation.compute=()=>({contacts:[{
+  squad:screen.id,provenance:'member-belief',source:'told',
+  targetId:'hostile-1',at:134,age:0,x:0,z:500,confidence:.95
+}]});
+P.maybeScreenReport(paired.sim,'us',()=>{throw Error('secondhand intel may not authorize intercept');});
+assert.equal(P.summary(paired.sim).us.screen.reportCount,0,'ignore hearsay');
+paired.root.BattleTacticalSituation.compute=()=>({contacts:[{
+  squad:screen.id,provenance:'member-belief',source:'seen',
+  targetId:'hostile-1',at:134,age:0,x:0,z:500,confidence:.8
+}]});
+P.maybeScreenReport(paired.sim,'us',()=>{throw Error('one snapshot is insufficient');});
+assert.equal(P.summary(paired.sim).us.screen.reportCount,1,'real sighting relayed upward');
+assert.ok(paired.events.some(e=>e.kind==='strategic-interception-screen-contact-relayed'),
+  'friendly firsthand report reaches the General');
 
 const denied = make('?strategicInterception=1&motorTransport=1&aerialRecon=1');
 denied.root.BattleAerialRecon.request(denied.sim, 'us');
