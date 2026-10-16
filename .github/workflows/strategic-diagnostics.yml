@@ -1,0 +1,103 @@
+name: ⭐ Strategic Diagnostic Replay
+
+# Browser benchmark evidence, not a synthetic harness. Does not alter AI decisions.
+on:
+  pull_request:
+    paths:
+      - 'battle/squad-ai.js'
+      - 'battle/commander-routes.js'
+      - 'battle/modules/15f-squad-leader-retreat-anchor.js'
+      - 'battle/modules/21-defender-engineers.js'
+      - 'battle/modules/43-squad-forward-progress.js'
+      - 'scripts/triage_battle_diagnostics.cjs'
+      - 'tools/ai-sim-harness/diagnostic-triage-check.cjs'
+      - '.github/workflows/strategic-diagnostics.yml'
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: Replay seed prefix
+        required: false
+        default: 'strategic-diag-001'
+      seconds:
+        description: Simulated seconds (minimum 60)
+        required: false
+        default: '1800'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: strategic-diagnostics-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diagnostic-replay:
+    name: ${{ matrix.type }} · forensic browser replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        type: [meeting, us-defend, ge-defend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate read-only triage
+        run: |
+          node --check scripts/triage_battle_diagnostics.cjs
+          node tools/ai-sim-harness/diagnostic-triage-check.cjs
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start isolated 5 km simulation server
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/strategic-diagnostics-site"
+          ln -s "$GITHUB_WORKSPACE" "$RUNNER_TEMP/strategic-diagnostics-site/grasstex"
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 \
+            -t "$RUNNER_TEMP/strategic-diagnostics-site" >"$RUNNER_TEMP/strategic-diagnostics-php.log" 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1&seed=healthcheck' -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/strategic-diagnostics-php.log"
+          exit 1
+      - name: Replay the real strategic battle and collect diagnostic evidence
+        env:
+          TYPE: ${{ matrix.type }}
+          SEED_PREFIX: ${{ github.event.inputs.seed || 'strategic-diag-001' }}
+          BATTLE_BENCHMARK_COUNT: '1'
+          BATTLE_BENCHMARK_TIME_LIMIT: ${{ github.event.inputs.seconds || '1800' }}
+          BATTLE_BENCHMARK_STEP: '0.15'
+          BATTLE_BENCHMARK_OUTPUT: reports
+          BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BATTLE_BENCHMARK_POLICY_URL: http://127.0.0.1:8765/grasstex/battle_policy.php
+        run: |
+          set -euo pipefail
+          case "$TYPE" in
+            meeting) extra='' ;;
+            us-defend) extra='&defender=us' ;;
+            ge-defend) extra='&defender=ge' ;;
+            *) exit 2 ;;
+          esac
+          export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1${extra}"
+          export BATTLE_BENCHMARK_SEED="${SEED_PREFIX}-${TYPE}"
+          node scripts/run_battle_benchmark.mjs
+      - name: Triage the highest-risk seeds, orders and stalls
+        if: success()
+        run: |
+          node scripts/triage_battle_diagnostics.cjs reports/battle-benchmark.json reports
+          cat reports/diagnostic-triage.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive all forensic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: strategic-diagnostics-${{ matrix.type }}-${{ github.run_number }}
+          path: |
+            reports/
+            ${{ runner.temp }}/strategic-diagnostics-php.log
+          if-no-files-found: warn
+          retention-days: 21
