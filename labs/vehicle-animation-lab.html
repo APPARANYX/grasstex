@@ -55,7 +55,7 @@ code{color:var(--accent)}
   <div class="stat"><span>Renderable meshes</span><strong id="meshCount">—</strong></div>
   <div class="stat"><span>FrontWheels nodes</span><strong id="frontCount">—</strong></div>
   <div class="stat"><span>RearWheels nodes</span><strong id="rearCount">—</strong></div>
-  <p class="help">The two wheel groups are inspected, not blindly rotated: rotating a shared axle parent can orbit both wheels instead of spinning them.</p>
+  <p class="help">Wheel groups are preserved. Optional rotation below is a pivot diagnostic: if the collections do not have axle-centered pivots, the wheels can orbit instead of spin.</p>
   <h2>2 — Soldiers & truck clips</h2>
   <label>Soldier model<select id="soldierSelect"><option value="">Loading soldiers…</option></select></label>
   <label>Or open local soldier FBX<input id="soldierFile" type="file" accept=".fbx"></label>
@@ -63,7 +63,12 @@ code{color:var(--accent)}
   <label>Or open local Truck animations (multiple)<input id="clipsFile" type="file" accept=".fbx" multiple></label>
   <p id="clipInfo" class="help">The deployed clip list is searched for filenames containing “Truck”.</p>
   <button id="refreshOccupants">Refresh occupied soldiers</button>
-  <h2>3 — Movement diagnostic</h2>
+  <h2>3 — Wheel/pivot diagnostic</h2>
+  <label class="row"><span>Test group rotation</span><input id="spinWheels" type="checkbox"></label>
+  <label>Rotation axis<select id="wheelAxis"><option value="x">X axle</option><option value="z">Z axle</option></select></label>
+  <label>Spin (°/s): <span id="wheelRateLabel">180</span><input id="wheelRate" type="range" min="0" max="900" step="30" value="180"></label>
+  <p class="help warn">Diagnostic only. Turn off if the assemblies orbit instead of spin: each wheel assembly then needs corrected pivots in Blender.</p>
+  <h2>4 — Movement diagnostic</h2>
   <label class="row"><span>Move truck</span><input id="moving" type="checkbox"></label>
   <label>Speed (m/s): <span id="speedLabel">3.0</span><input id="speed" type="range" min="0" max="20" step=".5" value="3"></label>
   <label>Steering (°/s): <span id="steerLabel">0</span><input id="steer" type="range" min="-45" max="45" step="1" value="0"></label>
@@ -138,7 +143,8 @@ const state={
   vehicleName:'',vehicleResult:null,vehicleRoot:null,vehicleVisual:null,
   meshes:[],soldierName:'',soldierFile:null,
   clips:new Map(),seats:[],selected:0,actorEpoch:0,loadEpoch:0,
-  markers:new Map(),picking:false,wheelGroups:{front:[],rear:[]}
+  markers:new Map(),picking:false,wheelGroups:{front:[],rear:[]},
+  wheelBase:new Map(),wheelAngle:0
 };
 function status(message,error=false){$('status').textContent=message;$('status').className=error?'error':'';if(error)console.warn('[Vehicle Lab]',message);}
 function vec(arr){return new BABYLON.Vector3(...arr);}
@@ -199,7 +205,8 @@ function clearVehicle(){
   disposeResult(state.vehicleResult);
   if(state.vehicleRoot)state.vehicleRoot.dispose(false,false);
   state.vehicleResult=null;state.vehicleRoot=null;state.vehicleVisual=null;
-  state.meshes=[];state.wheelGroups={front:[],rear:[]};
+  state.meshes=[];state.wheelGroups={front:[],rear:[]};state.wheelBase.clear();state.wheelAngle=0;
+  $('spinWheels').checked=false;
   state.seats=[];state.selected=0;
 }
 function ensureSeats(){
@@ -217,6 +224,13 @@ function findWheelGroups(result){
   const nodes=[...(result.meshes||[]),...(result.transformNodes||[])];
   const group=(name)=>nodes.filter(n=>n.name===name||n.name.startsWith(name+'_')||n.name.startsWith(name+'.'));
   state.wheelGroups={front:group('FrontWheels'),rear:group('RearWheels')};
+  state.wheelBase.clear();
+  for(const node of [...state.wheelGroups.front,...state.wheelGroups.rear]){
+    const base=node.rotationQuaternion?
+      node.rotationQuaternion.clone():
+      BABYLON.Quaternion.RotationYawPitchRoll(node.rotation.y,node.rotation.x,node.rotation.z);
+    state.wheelBase.set(node,base);
+  }
   $('frontCount').textContent=state.wheelGroups.front.length;
   $('rearCount').textContent=state.wheelGroups.rear.length;
 }
@@ -502,6 +516,22 @@ $('clipSelect').onchange=()=>{
   playSeatClip(seat);
 };
 $('refreshOccupants').onclick=refreshActors;
+$('wheelRate').oninput=()=>{$('wheelRateLabel').textContent=$('wheelRate').value;};
+function resetWheelRotation(){
+  state.wheelAngle=0;
+  for(const [node,base] of state.wheelBase){
+    if(node.isDisposed())continue;
+    node.rotationQuaternion=base.clone();
+  }
+}
+$('spinWheels').onchange=()=>{
+  if(!$('spinWheels').checked)resetWheelRotation();
+  else if(!state.wheelBase.size){
+    $('spinWheels').checked=false;
+    status('No named FrontWheels or RearWheels transform nodes were imported. Verify the export hierarchy.',true);
+  }
+};
+$('wheelAxis').onchange=resetWheelRotation;
 $('speed').oninput=()=>{$('speedLabel').textContent=(+$('speed').value).toFixed(1);};
 $('steer').oninput=()=>{$('steerLabel').textContent=$('steer').value;};
 $('stopVehicle').onclick=()=>{
@@ -556,8 +586,16 @@ $('importJson').onchange=async()=>{
   $('importJson').value='';
 };
 scene.onBeforeRenderObservable.add(()=>{
-  if(!$('moving').checked||!state.vehicleRoot)return;
   const dt=Math.min(engine.getDeltaTime()/1000,.05);
+  if($('spinWheels').checked&&state.wheelBase.size){
+    state.wheelAngle+=finite($('wheelRate').value)*Math.PI/180*dt;
+    const axis=$('wheelAxis').value==='z'?BABYLON.Axis.Z:BABYLON.Axis.X;
+    const turn=BABYLON.Quaternion.RotationAxis(axis,state.wheelAngle);
+    for(const [node,base] of state.wheelBase){
+      if(!node.isDisposed())node.rotationQuaternion=base.multiply(turn);
+    }
+  }
+  if(!$('moving').checked||!state.vehicleRoot)return;
   const speed=finite($('speed').value),steer=finite($('steer').value)*Math.PI/180;
   state.vehicleRoot.rotation.y+=steer*dt;
   state.vehicleRoot.position.x+=Math.sin(state.vehicleRoot.rotation.y)*speed*dt;
