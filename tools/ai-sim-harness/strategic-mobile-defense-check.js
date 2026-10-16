@@ -126,6 +126,8 @@ function fixture(profile) {
     }
   }
   const mobile = squads[3];
+  /* Simulate capture of the mobile base; seedOwnership leaves unprepared bases neutral. */
+  sim._objectives.find(x => x.id === 'mobile-home').state.owner = 'ge';
   mobile.members[0].root.position.x = 0;
   mobile._macroMission = {
     intent: 'defend',
