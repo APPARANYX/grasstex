@@ -1757,6 +1757,13 @@
           }
           if (editableTarget(event.target)) return;
           if (key === 'p') {
+            // Do not request pointer lock or possession for a finished battle:
+            // the operator must restart explicitly to return to live play.
+            var currentBattle = liveBattle();
+            if (currentBattle && (currentBattle.manualEnded || currentBattle.winner)) {
+              event.preventDefault();
+              return;
+            }
             if (!event.repeat) {
               possessRandom();
               canvas.focus();
