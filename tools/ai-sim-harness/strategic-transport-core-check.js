@@ -31,7 +31,14 @@ assert.ok(Math.abs(plan.travelSeconds - (1000 / 12 + 80 / 3.2)) < 1e-6);
 assert.ok(plan.readySeconds > plan.travelSeconds + 70);
 assert.equal(T.plan(scenario, points, { clearance: () => false }).reason, 'blocked');
 assert.equal(
-  T.plan(scenario, [{ x: 0, z: 0 }, { x: 1000, z: 300 }], { clearance: clear }).reason,
+  T.plan(
+    scenario,
+    [
+      { x: 0, z: 0 },
+      { x: 1000, z: 300 }
+    ],
+    { clearance: clear }
+  ).reason,
   'offroad-detour-too-long'
 );
 const first = T.step(plan, null, 10);

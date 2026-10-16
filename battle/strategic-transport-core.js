@@ -36,8 +36,7 @@
   }
   function onRoad(a, b, roads) {
     return roads.some(function (r) {
-      return segmentDistance(a, r.a, r.b) <= ROAD_TOLERANCE &&
-        segmentDistance(b, r.a, r.b) <= ROAD_TOLERANCE;
+      return segmentDistance(a, r.a, r.b) <= ROAD_TOLERANCE && segmentDistance(b, r.a, r.b) <= ROAD_TOLERANCE;
     });
   }
   function failure(reason) {
@@ -48,12 +47,16 @@
   function plan(scenario, points, opts) {
     opts = opts || {};
     if (!scenario || scenario.profile !== 'strategic') return failure('profile-required');
-    if (!Array.isArray(points) || points.length < 2 || points.length > 80)
-      return failure('invalid-route');
+    if (!Array.isArray(points) || points.length < 2 || points.length > 80) return failure('invalid-route');
     if (typeof opts.clearance !== 'function') return failure('clearance-required');
     var nodes = points.map(point),
       roads = publicRoads(scenario);
-    if (nodes.some(function (p) { return !p; })) return failure('invalid-waypoint');
+    if (
+      nodes.some(function (p) {
+        return !p;
+      })
+    )
+      return failure('invalid-waypoint');
     if (!roads.length) return failure('missing-roads');
     var legs = [],
       meters = 0,
@@ -76,9 +79,11 @@
     var dismount = opts.dismountSeconds == null ? 12 : +opts.dismountSeconds,
       setup = opts.setupSeconds == null ? 35 : +opts.setupSeconds,
       uncertainty = opts.uncertaintySeconds == null ? 30 : +opts.uncertaintySeconds;
-    if (![dismount, setup, uncertainty].every(function (n) {
-      return isFinite(n) && n >= 0 && n <= 600;
-    }))
+    if (
+      ![dismount, setup, uncertainty].every(function (n) {
+        return isFinite(n) && n >= 0 && n <= 600;
+      })
+    )
       return failure('invalid-time-budget');
     return {
       ok: true,
