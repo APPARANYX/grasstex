@@ -401,4 +401,90 @@ test('initial defender progress timestamp zero still ages into strategic recover
     'the idle defender is eventually re-tasked instead of being protected forever by falsy timestamp zero'
   );
 });
+test('General preserves a capture brief with verified carrier road-progress pulses', () => {
+  const events = [];
+  const w = world(events, [{ id: 'obj-road', type: 'capture-zone', x: 0, z: 300, radius: 30, value: 1 }]);
+  const q = H.addSquad(w.r, w.b, {
+    id: 'us-transport',
+    faction: 'us',
+    x: 0,
+    z: 0,
+    objective: { x: 0, z: 300 }
+  });
+  Object.assign(q, {
+    commandRole: 'center',
+    commandPhase: 'approach',
+    route: []
+  });
+  drive(w, 4);
+  const mission = q._macroMission;
+  assert.ok(mission && mission.intent === 'capture');
+  w.C.acceptMission(w.b, q, false);
+  q._transport = {
+    phase: 'embarked',
+    missionVersion: mission.version,
+    travelled: 0
+  };
+  /* Isolate the Macro read of authoritative carrier arc-length. The transport
+     owner in real browser battles independently integrates actual positions. */
+  drive(w, 150, () => {
+    q._transport.travelled += 12;
+  });
+  const rec = w.C.generalFor(w.b, 'us').stallRecovery.progress[String(q.id)];
+  assert.ok(
+    rec && rec.lastProgressAt >= 130,
+    'legally travelled road distance pulses the General progress record'
+  );
+  assert.equal(
+    q._macroMission,
+    mission,
+    'faction stall must not reissue a brief while its vehicle makes road progress'
+  );
+  assert.equal(
+    strategicWakes(events, q.id).length,
+    0,
+    'no spurious strategic-reset or strategic-reconcile of a progressing vehicle'
+  );
+});
+
+/* A 240 s faction-wide main-effort review must not interrupt a lawful motor trip.
+   A carrier that is progressing along its committed road still has an unfinished
+   original brief; other squads remain eligible for strategic concentration. */
+test('strategic main-effort preserves a progressing carrier bound for a different objective', () => {
+  const events = [],
+    w = world(events, [{ id: 'obj-road', type: 'capture-zone', x: 0, z: 300, radius: 30, value: 1 }]);
+  const q = H.addSquad(w.r, w.b, {
+    id: 'us-carrier',
+    faction: 'us',
+    x: 0,
+    z: 0,
+    objective: { x: 0, z: 300 }
+  });
+  Object.assign(q, { commandRole: 'center', commandPhase: 'approach', route: [] });
+  drive(w, 4);
+  const original = q._macroMission;
+  assert.ok(original && original.intent === 'capture' && original.objectiveId === 'obj-road');
+  w.C.acceptMission(w.b, q, false);
+  q._transport = { phase: 'embarked', missionVersion: original.version, travelled: 0 };
+  /* A much more valuable nearby objective becomes available while the vehicle
+     is en route; a faction-wide stall can pick it, but cannot interrupt the
+     independently verified movement for an unrelated strategic reshuffle. */
+  w.r.BattleObjectiveSystem.attach(
+    w.b,
+    [
+      { id: 'obj-road', type: 'capture-zone', x: 0, z: 300, radius: 30, value: 1 },
+      { id: 'obj-high', type: 'capture-zone', x: 15, z: 80, radius: 30, value: 100 }
+    ],
+    {}
+  );
+  drive(w, 280, () => {
+    q._transport.travelled += 12;
+  });
+  const main = history(w, 'us').find(h => h.stage === 'main-effort');
+  assert.ok(main, 'the global strategic main-effort stage actually executed');
+  assert.equal(main.mainEffort, 'obj-high', 'a competing new objective is selected');
+  assert.equal(q._macroMission, original, 'live verified carrier keeps the original General brief');
+  assert.equal(strategicWakes(events, q.id).length, 0, 'no strategic re-task of the moving vehicle');
+});
+
 console.log('PASS ' + n + ' strategic-recovery review checks');

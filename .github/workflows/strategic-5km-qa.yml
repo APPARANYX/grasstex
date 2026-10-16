@@ -13,7 +13,13 @@ on:
       - 'battle/camera-controls.js'
       - 'battle/battle-control.js'
       - 'scripts/check-strategic-5km.cjs'
+      - 'battle/modules/59-strategic-truck-visual.js'
+      - 'scripts/check-strategic-truck-visual.cjs'
+      - 'scripts/check-strategic-restart-end.cjs'
+      - 'battle/modules/99-session-diagnostics-export.js'
+      - 'docs/reference/german_transport-seats.json'
       - 'scripts/probe_strategic_5km.cjs'
+      - 'scripts/probe_strategic_truck_visual.cjs'
       - '.github/workflows/strategic-5km-qa.yml'
   workflow_dispatch:
 
@@ -28,14 +34,17 @@ jobs:
   strategic-field:
     name: Strategic 5km / Chromium
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
       - name: Validate browser probe and PHP loader
         run: |
           php -l battle_sim_local.php
           node --check scripts/probe_strategic_5km.cjs
+          node --check scripts/probe_strategic_truck_visual.cjs
           node scripts/check-strategic-5km.cjs
+          node scripts/check-strategic-truck-visual.cjs
+          node scripts/check-strategic-restart-end.cjs
       - name: Install Playwright Chromium
         run: |
           npm install --global playwright@1.56.1
@@ -57,6 +66,11 @@ jobs:
           STRATEGIC_QA_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
           STRATEGIC_QA_OUT: closeups/strategic-5km-ci
         run: node scripts/probe_strategic_5km.cjs
+      - name: Validate both faction trucks and seated rider preview
+        env:
+          STRATEGIC_QA_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          STRATEGIC_TRUCK_QA_OUT: closeups/strategic-truck-ci
+        run: node scripts/probe_strategic_truck_visual.cjs
       - name: Preserve image and runtime evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -65,4 +79,5 @@ jobs:
           if-no-files-found: warn
           path: |
             closeups/strategic-5km-ci/
+            closeups/strategic-truck-ci/
             ${{ runner.temp }}/strategic-php.log

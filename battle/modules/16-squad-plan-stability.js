@@ -2215,6 +2215,10 @@
       var a = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
       for (var i = 0; i < a.length; i++) {
         var q = a[i];
+        /* A completed embark grants the carrier sole movement/post ownership;
+           do not rewrite fireteam and soldier destinations during road travel.
+           Boarding still runs this Meso loop to accept the Macro brief. */
+        if (q._transport && q._transport.phase === 'embarked') continue;
         if (_lp && _lp.on) _lp.update(sim, q);
         if (_postures && _postures.on) _postures.update(sim, q);
         updateCohesion(sim, q);

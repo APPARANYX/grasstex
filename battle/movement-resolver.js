@@ -661,6 +661,22 @@
     else st.orderWins++;
     return st.last;
   }
+  /* The movement resolver, not the transport module, restores soldier foot
+     destinations when a vehicle dismounts or aborts. Releasing the stale
+     proposal ensures the first normal AI update can select a fresh route. */
+  function restoreAfterTransport(soldier) {
+    if (!soldier || !soldier.root || !soldier.root.position) return;
+    var pos = {
+      x: +soldier.root.position.x,
+      z: +soldier.root.position.z
+    };
+    resetSoldier(soldier);
+    soldier.destination = { x: pos.x, z: pos.z };
+    soldier.orderDestination = { x: pos.x, z: pos.z };
+    soldier._destinationCommitUntil = 0;
+    if (root.BattleNavigation && root.BattleNavigation.invalidateNavPath)
+      root.BattleNavigation.invalidateNavPath(soldier);
+  }
   function resetSoldier(soldier) {
     if (soldier) {
       delete soldier._movementResolver;
@@ -771,6 +787,7 @@
       s._destinationCommitUntil = 0;
     },
     resolve: resolve,
+    restoreAfterTransport: restoreAfterTransport,
     resetSoldier: resetSoldier,
     summary: summary
   };

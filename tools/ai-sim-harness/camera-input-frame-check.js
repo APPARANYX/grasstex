@@ -41,10 +41,20 @@ const freefly = normalized(
 const orchestration = normalized(
   region('    function stepDesktopFrame() {\n', '      stepFreeFly(pad, dt);')
 );
+/* Exclude only the new terminal-session P-key guard. Keep the accepted
+   fingerprint for every pre-existing event and listener in the controller. */
+const pGuard =
+  /\/\/ Do not request pointer lock or possession for a finished battle:[\s\S]*?if \(currentBattle && \(currentBattle\.manualEnded \|\| currentBattle\.winner\)\) \{\n.*?\n.*?\n\}\n/;
+assert.match(events, pGuard, 'terminal P-key guard must be present before possession');
+assert.ok(
+  events.indexOf('if (currentBattle && (currentBattle.manualEnded || currentBattle.winner))') <
+    events.indexOf('possessRandom();'),
+  'terminal guard must precede possession'
+);
 assert.equal(
-  fingerprint(events),
+  fingerprint(events.replace(pGuard, '')),
   '73ac680a',
-  'event/handler bodies or listener ordering changed since the death-tour input baseline'
+  'pre-existing event/handler bodies or listener ordering changed since death-tour input baseline'
 );
 assert.equal(fingerprint(freefly), '5cb26236', 'the original free-fly movement, speed or geometry changed');
 /* Preserve the prior byte-level frame-order oracle after isolating the single

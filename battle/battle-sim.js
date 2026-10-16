@@ -523,7 +523,12 @@
     this.paused = true;
   };
   BattleSim.prototype.resume = function () {
+    // Terminal sessions are immutable until restart (or the explicit
+    // time-limit Continue action resets winner and end flags). In particular
+    // pressing P for player possession must not resurrect an ended battle.
+    if (this.manualEnded || this.winner) return false;
     this.paused = false;
+    return true;
   };
   var AVOID_LOOKAHEAD = 1.8,
     AVOID_MARGIN = 0.5,
@@ -611,7 +616,31 @@
       return null;
     return steered;
   }
+  /* Physical integrator remains the only actor-position and locomotion-state
+     writer. The opt-in squad carrier may request a prevalidated passenger move
+     through this API, never write root.position or locomotion fields itself. */
+  function moveTransportPassenger(sim, soldier, next, reason) {
+    if (!sim || !soldier || !soldier.root || !next || !isFinite(+next.x) || !isFinite(+next.z)) return false;
+    soldier.root.position.x = +next.x;
+    soldier.root.position.z = +next.z;
+    soldier.root.position.y = sim.heightAt(+next.x, +next.z);
+    soldier._movementStopReason = reason || 'embarked-passenger';
+    soldier.moveSpeed = 0;
+    soldier.moving = false;
+    return true;
+  }
   function stepMovement(self, soldier, dt) {
+    if (root.BattleSquadTransport && root.BattleSquadTransport.isPassenger(soldier)) {
+      /* The carrier, not the foot integrator, moves embarked men. Preserve the
+         ordinary combat cooldown clock while animation remains stationary. */
+      if (!soldier.dead && root.SquadAI && root.SquadAI.tickFireCooldown)
+        root.SquadAI.tickFireCooldown(soldier, dt);
+      soldier.moving = false;
+      soldier.moveSpeed = 0;
+      soldier._movementStopReason = 'embarked-passenger';
+      BattleSoldierModel.animateWalk(soldier, dt, 0);
+      return;
+    }
     if (root.PhaseCCombatLab && root.PhaseCCombatLab.stationary(soldier, self)) {
       soldier.moving = false;
       soldier.moveSpeed = 0;
@@ -917,6 +946,7 @@
     buildSky: buildSky,
     applyScenarioTerrain: applyScenarioTerrain,
     start: start,
+    moveTransportPassenger: moveTransportPassenger,
     AI_TICK: AI_TICK
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -88,7 +88,7 @@ jobs:
             ge-defend) extra='&defender=ge' ;;
             *) exit 2 ;;
           esac
-          export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1${extra}"
+          export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1&motorTransport=1${extra}"
           export BATTLE_BENCHMARK_SEED="${SEED_PREFIX}-${TYPE}"
           node scripts/run_battle_benchmark.mjs
       - name: Enforce seed coverage and the actual 12-objective strategic profile
@@ -100,6 +100,7 @@ jobs:
           assert.equal(data.battles.length, expected, 'requested strategic seed coverage is incomplete');
           for (const b of data.battles) {
             assert.equal(b.objectiveCount, 12, b.seed + ': not the 5km 12-objective profile');
+            assert.equal(b.motorTransport?.enabled, true, b.seed + ': motor transport flag did not reach browser');
             assert.equal(b.battleType, process.env.TYPE, b.seed + ': benchmark mode label');
             if (process.env.TYPE === 'meeting') {
               assert.equal(b.deployment?.mode, 'meeting', b.seed + ': expected meeting deployment');
@@ -145,7 +146,7 @@ jobs:
           PROBE_OUTPUT: reports/worst-seed-forensic.json
         run: |
           set -euo pipefail
-          export PROBE_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1"
+          export PROBE_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1&motorTransport=1"
           export PROBE_BATTLES="${TYPE}:${FOCUS_SEED}"
           node scripts/run_probe.cjs > /dev/null
           node <<'NODE'
@@ -255,6 +256,12 @@ jobs:
               sampleCount: trace?.squadSamples?.length || 0, alerts });
           }
           const incident = report.summary?.issueCounts || {};
+          const journeys = report.battles.flatMap(b => (b.motorTransport?.journeys || []).map(j => ({
+            seed: b.seed, ...j
+          })));
+          const completedTrips = journeys.filter(j => j.phase === 'dismounted' && j.travelled >= 650);
+          if (journeys.length === 0) problems.push('No Macro-granted road transport tasks observed');
+          if (completedTrips.length === 0) problems.push('No physically verified long-distance road arrival observed');
           const verdict = problems.length ? 'REVIEW REQUIRED' : 'BASELINE VERIFIED';
           const out = {
             schema: 'grasstex-strategic-evidence-gate-v1',
@@ -266,7 +273,13 @@ jobs:
               type, count: report.battles.filter(b => b.battleType === type).length
             })),
             forensic,
-            caveat: 'Passing validates diagnostic coverage and inspected invariants, not all AI behavior. Known 5km road-aligned low-progress warnings require route-aware diagnosis before vehicle acceptance.'
+            motorTransport: {
+              granted: journeys.length,
+              completedLongRoadTrips: completedTrips.length,
+              aborted: journeys.filter(j => j.phase === 'aborted').length,
+              journeySamples: journeys.slice(0, 60)
+            },
+            caveat: 'Passing validates the sampled real motorized trips and controls, not tactical superiority or interception behavior.'
           };
           fs.writeFileSync('reports/all/strategic-evidence-gate.json',
             JSON.stringify(out, null, 2) + '\n');
@@ -279,6 +292,9 @@ jobs:
             '- Diagnostic integrity: **' + (out.diagnosticIntegrity ? 'PASS' : 'FAIL') + '**',
             '- Forensic controls: **' + forensic.filter(f => f.parity).length +
               '/3 identical replay fingerprints**',
+            '- Motorized journeys: **' + journeys.length +
+              '**; physically completed >=650m: **' + completedTrips.length +
+              '**; aborted: **' + journeys.filter(j => j.phase === 'aborted').length + '**',
             '- Writer conflicts: ' + (incident.writerConflicts || 0) +
               ', route stalls: ' + (incident.routeStalls || 0) +
               ', movement stalls: ' + (incident.movementStalls || 0) +

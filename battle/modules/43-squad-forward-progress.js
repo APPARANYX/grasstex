@@ -201,6 +201,14 @@
   }
   function tickSquad(sim, sq) {
     if (!sq || sq.state === 'retreat') return;
+    /* A real transport is measured by the carrier's road arc-length and
+       physical-path collision gate, not the infantry centroid's distance
+       to the final objective. A lawful road detour can move away from it.
+       Drop the old infantry window so dismount begins a fresh foot track. */
+    if (sq._transport && (sq._transport.phase === 'boarding' || sq._transport.phase === 'embarked')) {
+      delete state(sim).tracks[key(sq)];
+      return;
+    }
     var ph = phase(sq);
     if (!ADVANCE[ph]) return;
     var p = centroid(sq),

@@ -421,6 +421,11 @@
       confidence: m.confidence,
       observations: JSON.parse(JSON.stringify(m.observations))
     });
+    /* Only Force Command can grant a vehicle to a fresh strategic brief.
+       The transport owner subsequently waits for Squad Leader acceptance,
+       boards actual men, drives the public road, and returns them to foot AI. */
+    if (root.BattleSquadTransport && root.BattleSquadTransport.considerMission)
+      root.BattleSquadTransport.considerMission(sim, sq, m);
     return m;
   }
   function recordMacroWake(sim, sq, reason) {

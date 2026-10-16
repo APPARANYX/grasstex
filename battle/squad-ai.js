@@ -2083,6 +2083,10 @@
     if (battle && root.BattleEngagement) root.BattleEngagement.updateSquad(squad, battle);
   }
   function updateSquad(squad, battle) {
+    /* The Squad Leader has accepted the road-transport brief. While embarked
+       the vehicle owns travel; the normal formation solver must not issue
+       competing infantry posts. Boarding still allows the Meso mission handoff. */
+    if (squad && squad._transport && squad._transport.phase === 'embarked') return;
     return EXT.first('squadCommand', squadStatus)(squad, battle);
   }
 
@@ -2170,6 +2174,10 @@
   }
 
   function updateSoldier(soldier, battle) {
+    /* Passengers cannot acquire/shoot targets or select foot destinations until
+       Meso atomically hands them back at dismount. The physical carrier moves
+       their actual actors, not cloned vehicles or a fake faster infantry gait. */
+    if (root.BattleSquadTransport && root.BattleSquadTransport.isPassenger(soldier)) return;
     var resolver = root.BattleMovementResolver;
     /* isPlayer gates the entire soldier Micro branch. Do not run soldier-mind/sidearm before hooks,
        Perception, Engagement, or after hooks while possessed; only resolve the player's physical move. */
