@@ -60,6 +60,34 @@ function forwardProgress() {
   assert.equal(s.trackResets.goal, 0, 'a route leg advancing must not restart the progress track');
   assert.ok(s.totalAlerts >= 1, 'the out-and-back still alerts');
   assert.deepEqual(s.alerts[0].goal, FINAL, 'progress is measured against the end of the route');
+  /* A legitimate carrier follows road arc-length even when a route heads away
+     from the objective. The infantry-only efficiency alarm must not fire for
+     its moving passengers; real foot loops after dismount remain detectable. */
+  const baselineAlerts = s.totalAlerts;
+  sq._transport = { phase: 'embarked', travelled: 0 };
+  for (let i = 31; i <= 80; i++) {
+    const x = i <= 55 ? (i - 30) * 2 : (80 - i) * 2;
+    for (const m of members) m.root.position.x = x;
+    sq._transport.travelled += 6;
+    sim.time = i * 0.5;
+    system.onCommanderTick(sim);
+  }
+  assert.equal(
+    root.BattleSquadForwardProgress.summary(sim).totalAlerts,
+    baselineAlerts,
+    'vehicle road detours are not counted as looping infantry'
+  );
+  sq._transport.phase = 'dismounted';
+  for (let i = 81; i <= 135; i++) {
+    const x = i <= 108 ? (i - 80) * 2 : (135 - i) * 2;
+    for (const m of members) m.root.position.x = x;
+    sim.time = i * 0.5;
+    system.onCommanderTick(sim);
+  }
+  assert.ok(
+    root.BattleSquadForwardProgress.summary(sim).totalAlerts > baselineAlerts,
+    'a real stationary-goal infantry loop still alerts after dismount'
+  );
 }
 
 /* Module 44: assault cover must be "forward" along the route's end, not the current leg. */
