@@ -401,4 +401,37 @@ test('initial defender progress timestamp zero still ages into strategic recover
     'the idle defender is eventually re-tasked instead of being protected forever by falsy timestamp zero'
   );
 });
+test('General preserves a capture brief with verified carrier road-progress pulses', () => {
+  const events = [];
+  const w = world(events, [
+    { id: 'obj-road', type: 'capture-zone', x: 0, z: 300, radius: 30, value: 1 }
+  ]);
+  const q = H.addSquad(w.r, w.b, {
+    id: 'us-transport', faction: 'us', x: 0, z: 0,
+    objective: { x: 0, z: 300 }
+  });
+  Object.assign(q, {
+    commandRole: 'center', commandPhase: 'approach', route: []
+  });
+  drive(w, 4);
+  const mission = q._macroMission;
+  assert.ok(mission && mission.intent === 'capture');
+  w.C.acceptMission(w.b, q, false);
+  q._transport = {
+    phase: 'embarked', missionVersion: mission.version, travelled: 0
+  };
+  /* Isolate the Macro read of authoritative carrier arc-length. The transport
+     owner in real browser battles independently integrates actual positions. */
+  drive(w, 150, () => {
+    q._transport.travelled += 12;
+  });
+  const rec = w.C.generalFor(w.b, 'us').stallRecovery.progress[String(q.id)];
+  assert.ok(rec && rec.lastProgressAt >= 130,
+    'legally travelled road distance pulses the General progress record');
+  assert.equal(q._macroMission, mission,
+    'faction stall must not reissue a brief while its vehicle makes road progress');
+  assert.equal(strategicWakes(events, q.id).length, 0,
+    'no spurious strategic-reset or strategic-reconcile of a progressing vehicle');
+});
+
 console.log('PASS ' + n + ' strategic-recovery review checks');
