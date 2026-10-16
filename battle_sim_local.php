@@ -78,9 +78,11 @@ $apiBase='/grasstex/';
    exception. Same-origin is also correct for the deployed copy, where /grasstex/Assets/ is the
    same directory this loader lives beside. */
 $assetBase=$apiBase.'Assets/';$audioBase=$assetBase.'audio/';
-/* Imported soldier models/clips ship with the runtime they belong to: a branch preview carries its
-   own copy (its directory has Assets/soldiers), production reads the shared Assets/ directory. */
-$soldierAssetBase=is_dir($root.'/Assets/soldiers')?$runtimeBase.'Assets/':$assetBase;
+/* A preview Assets/ tree is a thin overlay: changed soldier/clip files live
+   beside the branch runtime while all other assets are resolved to production
+   through the preview-only .htaccess. Old full-asset previews keep working. */
+$thinAssetOverlay=$preview && is_file($root.'/asset-overlay.json') && is_file($root.'/Assets/.htaccess');
+$soldierAssetBase=($thinAssetOverlay || is_dir($root.'/Assets/soldiers'))?$runtimeBase.'Assets/':$assetBase;
 $manifest=null;$manifestPath=$stateRoot.'/Assets/audio/manifest.json';if(is_file($manifestPath)&&is_readable($manifestPath)){$d=json_decode(@file_get_contents($manifestPath),true);if(is_array($d))$manifest=$d;}
 $policyState=null;$policyPath=$stateRoot.'/state/ai-policy.json';if(is_file($policyPath)&&is_readable($policyPath)){$d=json_decode(@file_get_contents($policyPath),true);if(is_array($d))$policyState=$d;}
 $memoryState=array('version'=>1,'experiences'=>array());$memoryPath=$stateRoot.'/state/scenario-memory.json';if(is_file($memoryPath)&&is_readable($memoryPath)){$d=json_decode(@file_get_contents($memoryPath),true);if(is_array($d)&&isset($d['experiences'])&&is_array($d['experiences'])){$d['experiences']=array_slice($d['experiences'],-180);$memoryState=$d;}}
