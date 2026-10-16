@@ -151,7 +151,7 @@
       town = sim.scene.metadata.battleScenario,
       seed = String(town.seed || 'default'),
       at = round(+sim.time, 2),
-      contacts = (sim.factions[hostile] && sim.factions[hostile].squads || [])
+      contacts = ((sim.factions[hostile] && sim.factions[hostile].squads) || [])
         .map(function (sq) {
           return sampleSquad(sq, faction, seed, at);
         })
