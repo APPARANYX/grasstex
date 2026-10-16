@@ -162,6 +162,14 @@ changed.run(0.15);
 assert.equal(changed.squad._transport.phase, 'aborted');
 assert.equal(changed.squad._transport.endReason, 'mission-changed-or-retreat');
 
+// An issued but never accepted order cannot freeze its squad in boarding forever.
+const unaccepted = make();
+assert.ok(unaccepted.api.considerMission(unaccepted.sim, unaccepted.squad, unaccepted.brief()));
+unaccepted.run(36);
+assert.equal(unaccepted.squad._transport.phase, 'aborted');
+assert.equal(unaccepted.squad._transport.endReason, 'mission-not-accepted');
+assert.ok(unaccepted.members.every((m) => !unaccepted.api.isPassenger(m)));
+
 // If an obstacle develops after dispatch, the carrier stops on its last legal
 // road coordinate. It cannot phase through the obstruction to finish its trip.
 const blocked = make();
