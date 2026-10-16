@@ -288,12 +288,19 @@
     return oldScatter(
       scene,
       heightAt,
-      Object.assign({}, opts, {
-        seed: seedInt,
-        fieldW: scenario.map.width,
-        fieldD: scenario.map.depth,
-        keepoutZ: scenario.map.depth * 0.44
-      })
+      Object.assign(
+        {},
+        opts,
+        {
+          seed: seedInt,
+          fieldW: scenario.map.width,
+          fieldD: scenario.map.depth,
+          keepoutZ: scenario.map.depth * 0.44
+        },
+        scenario.profile === 'strategic'
+          ? { clumpCount: 180, lowCoverCount: 580, hedgeRowGap: 700, hedgeColGap: 950 }
+          : {}
+      )
     );
   }
   function wireBase(base, rendered) {

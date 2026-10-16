@@ -14,9 +14,11 @@
   var LOOK_X = 0.0022,
     LOOK_Y = 0.0018,
     PITCH_LIMIT = Math.PI * 0.46,
-    MAX_HEIGHT = 420,
+    MAX_HEIGHT = global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 1200 : 420,
     GROUND_CLEARANCE = 2,
     CAMERA_FAR = 2600;
+  /* Keep one authoritative far-plane value for every camera mode. */
+  if (global.BattleSim && global.BattleSim.FIELD_W >= 5000) CAMERA_FAR = 9500;
   var PAD_DEADZONE = 0.16,
     PAD_LOOK_RATE = 2.35,
     PAD_PRECISION = 0.28,
@@ -176,9 +178,17 @@
     );
   }
   function createTouchOrbit(scene, canvas, target) {
-    var camera = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, 1.02, 720, target, scene);
+    var camera = new BABYLON.ArcRotateCamera(
+      'cam',
+      -Math.PI / 2,
+      1.02,
+      global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 3200 : 720,
+      target,
+      scene
+    );
     camera.lowerRadiusLimit = 90;
-    camera.upperRadiusLimit = 1850;
+    camera.upperRadiusLimit = global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 5400 : 1850;
+    camera.maxZ = global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 9500 : 2600;
     camera.lowerBetaLimit = 0.28;
     camera.upperBetaLimit = 1.5;
     camera.wheelPrecision = 3;
@@ -405,7 +415,9 @@
 
   function createDesktopFly(scene, canvas, target, engine, battleSim, pose) {
     var startPosition =
-      pose && pose.position ? pose.position : initialPosition(target, 720, -Math.PI / 2, 1.02);
+      pose && pose.position
+        ? pose.position
+        : initialPosition(target, battleSim.FIELD_W >= 5000 ? 3200 : 720, -Math.PI / 2, 1.02);
     var lookTarget = pose && pose.target ? pose.target : target;
     var camera = new BABYLON.UniversalCamera('cam', startPosition, scene);
     camera.inputs.clear();

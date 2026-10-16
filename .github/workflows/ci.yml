@@ -271,6 +271,7 @@ jobs:
           node scripts/check-purposeful-contact-gait.cjs
           node scripts/check-autonomous-contact-mobility.cjs
           node scripts/check-building-interior-ingress.cjs
+          node scripts/check-strategic-5km.cjs
 
       - name: Engagement harness seeds
         run: |

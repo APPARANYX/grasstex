@@ -23,6 +23,20 @@ const snap0 = r.BattleDiagnosticsExport.compact(b);
 const s0 = snap0.squads.find(s => s.id === 'us-1');
 assert.equal(s0.retreatMen, null, 'a squad not in retreat has no retreat list');
 assert.equal(s0.retreatGate, null);
+/* Exported scenario mode is runtime evidence, never inferred from the seed:
+   a meeting battle and GE prepared defense intentionally use the same map. */
+b._sides = { meeting: true, defender: null, attacker: null };
+const meeting = r.BattleDiagnosticsExport.compact(b);
+assert.deepEqual(meeting.deployment, { mode: 'meeting', defender: null, attacker: null });
+const timelineMode = snap => {
+  const firstRow = r.BattleDiagnosticsExport.timelineJsonl(snap).split('\n')[0];
+  return JSON.parse(firstRow).deployment;
+};
+assert.deepEqual(timelineMode(meeting), meeting.deployment);
+b._sides = { meeting: false, defender: 'ge', attacker: 'us' };
+const prepared = r.BattleDiagnosticsExport.compact(b);
+assert.deepEqual(prepared.deployment, { mode: 'prepared-defender', defender: 'ge', attacker: 'us' });
+assert.deepEqual(timelineMode(prepared), prepared.deployment);
 q.state = 'retreat';
 const man = q.members.find(m => !m.dead);
 man._movementResolver = { last: { owner: 'resolver', kind: 'retreat', reason: 'squad retreat' } };

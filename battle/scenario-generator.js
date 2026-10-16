@@ -263,9 +263,196 @@
     return clamp(1 - Math.sqrt(sum / Math.max(0.0001, weight)), 0, 1);
   }
 
+  /* Separate deterministic 5 km profile. The legacy generator and RNG draw sequence stay intact. */
+  function pointSegmentDistance(x, z, road) {
+    var dx = road.bx - road.ax,
+      dz = road.bz - road.az,
+      d2 = dx * dx + dz * dz || 1,
+      t = clamp(((x - road.ax) * dx + (z - road.az) * dz) / d2, 0, 1);
+    return Math.hypot(x - road.ax - t * dx, z - road.az - t * dz);
+  }
+  function createStrategic(seed, opts) {
+    var r = rngFor(seed, 'strategic-5km-v1'),
+      jitter = function (n) {
+        return round(rr(r, -n, n), 1);
+      },
+      points = [
+        [-1710, -2060],
+        [1600, -1950],
+        [-100, -1530],
+        [-1640, 2040],
+        [1690, 1980],
+        [190, 1540],
+        [-1650, -620],
+        [1510, -570],
+        [-130, -410],
+        [-1590, 650],
+        [1560, 720],
+        [210, 510]
+      ],
+      names = [
+        'US western base',
+        'US eastern base',
+        'US inland base',
+        'German western base',
+        'German eastern base',
+        'German inland base',
+        'Western approach',
+        'Eastern approach',
+        'Southern crossroads',
+        'Northern ford',
+        'Eastern junction',
+        'Northern crossroads'
+      ],
+      objectives = points.map(function (p, i) {
+        return {
+          id: 'strategic-obj-' + i,
+          type: 'capture-zone',
+          x: p[0] + jitter(42),
+          z: p[1] + jitter(42),
+          radius: i < 6 ? 66 : 55,
+          label: names[i],
+          value: i < 6 ? 1.1 : round(rr(r, 1.1, 1.5), 2),
+          baseFaction: i < 3 ? 'us' : i < 6 ? 'ge' : null
+        };
+      });
+    var links = [
+      [0, 6],
+      [1, 7],
+      [2, 8],
+      [3, 9],
+      [4, 10],
+      [5, 11],
+      [6, 8],
+      [8, 7],
+      [9, 11],
+      [11, 10],
+      [6, 9],
+      [8, 11],
+      [7, 10],
+      [6, 11],
+      [7, 11],
+      [8, 9],
+      [8, 10],
+      [0, 8],
+      [1, 8],
+      [3, 11],
+      [4, 11]
+    ];
+    var roads = links.map(function (pair, i) {
+      var a = objectives[pair[0]],
+        b = objectives[pair[1]];
+      return {
+        id: 'strategic-road-' + i,
+        fromObjectiveId: a.id,
+        toObjectiveId: b.id,
+        ax: a.x,
+        az: a.z,
+        bx: b.x,
+        bz: b.z,
+        width: i < 13 ? 11 : 8
+      };
+    });
+    var buildings = [],
+      settlements = [];
+    /* Small hamlets flank approach junctions; neither roads nor spawn/capture hubs are blocked. */
+    for (var c = 6; c < 12; c++) {
+      var hub = objectives[c],
+        placed = 0,
+        tries = 0;
+      settlements.push({ id: 'hamlet-' + c, x: hub.x, z: hub.z, objectiveId: hub.id });
+      while (placed < 4 && tries++ < 140) {
+        var angle = rr(r, 0, Math.PI * 2),
+          distance = rr(r, 100, 175),
+          x = round(hub.x + Math.cos(angle) * distance, 2),
+          z = round(hub.z + Math.sin(angle) * distance, 2),
+          w = rr(r, 11, 21),
+          d = rr(r, 9, 18),
+          candidate = { x: x, z: z, w: w, d: d },
+          radius = Math.hypot(w, d) / 2 + 6;
+        if (Math.abs(x) > 2400 || Math.abs(z) > 2400) continue;
+        if (
+          objectives.some(function (o) {
+            return Math.hypot(o.x - x, o.z - z) < o.radius + radius;
+          })
+        )
+          continue;
+        if (
+          roads.some(function (road) {
+            return pointSegmentDistance(x, z, road) < road.width / 2 + radius;
+          })
+        )
+          continue;
+        if (
+          buildings.some(function (b) {
+            return overlaps(candidate, b, 12);
+          })
+        )
+          continue;
+        buildings.push(makeBuilding('SB' + (buildings.length + 1), x, z, w, d, r));
+        placed++;
+      }
+    }
+    var bases = { us: [], ge: [] };
+    ['us', 'ge'].forEach(function (faction, fi) {
+      for (var b = 0; b < 3; b++) {
+        var o = objectives[fi * 3 + b];
+        bases[faction].push({ id: faction + '-base-' + b, objectiveId: o.id, x: o.x, z: o.z });
+      }
+    });
+    var scenario = {
+      version: 21,
+      profile: 'strategic',
+      seed: seed,
+      id: 'strategic-' + hashSeed(seed).toString(16),
+      map: { width: 5000, depth: 5000, unitM: 20, source: 'strategic-5km' },
+      terrain: { roughness: round(rr(r, 0.22, 0.52), 3) },
+      settlement: { cx: 0, cz: 0, spanX: 4500, spanZ: 4500 },
+      settlements: settlements,
+      spawnZones: {
+        us: {
+          z: bases.us[2].z,
+          lanes: bases.us.map(function (b) {
+            return b.x;
+          }),
+          bases: bases.us
+        },
+        ge: {
+          z: bases.ge[2].z,
+          lanes: bases.ge.map(function (b) {
+            return b.x;
+          }),
+          bases: bases.ge
+        }
+      },
+      roads: roads,
+      buildings: buildings,
+      objectives: objectives,
+      center: { x: 0, z: 0 },
+      radius: 2400,
+      timeLimitSeconds: 1800,
+      metadata: {
+        trainingSeed: opts.trainingSeed || null,
+        scenarioIndex: opts.scenarioIndex == null ? null : opts.scenarioIndex,
+        strategicProfile: true
+      }
+    };
+    scenario.sectors = scenario.objectives;
+    scenario.fingerprint = fingerprint(scenario);
+    return scenario;
+  }
+
+  /* Query is read here before battle-sim.js loads; Combat Lab always wins isolation. */
+  root.STRATEGIC_INTERCEPTION_ENABLED =
+    !root.PHASE_C_COMBAT_LAB &&
+    ((typeof location !== 'undefined' && /[?&]strategicInterception=1(?:&|$)/.test(location.search || '')) ||
+      root.STRATEGIC_INTERCEPTION_ENABLED === true);
+
   function create(seed, opts) {
     opts = opts || {};
     seed = String(seed == null ? 'default' : seed);
+    if (!root.PHASE_C_COMBAT_LAB && (opts.profile === 'strategic' || root.STRATEGIC_INTERCEPTION_ENABLED))
+      return createStrategic(seed, opts);
     var r = rngFor(seed, 'scenario');
     var lab = !!root.PHASE_C_COMBAT_LAB,
       spanX = lab ? 205 : rr(r, 430, 720),
@@ -361,6 +548,7 @@
     hashSeed: hashSeed,
     rngFor: rngFor,
     create: create,
+    createStrategic: createStrategic,
     activate: activate,
     setActive: setActive,
     current: current,

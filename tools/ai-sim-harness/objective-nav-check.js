@@ -728,6 +728,46 @@ section('a squad on a live capture brief is not pinned as a garrison by its engi
     sq._preparedDefenseRequest && sq._preparedDefenseRequest.objectiveId === 'outer'
   );
 }
+section('5 km attacker objective-security is temporary, not an engineer garrison lock');
+{
+  const { r, sq, sim } = commandFixture();
+  load(r, 'battle/modules/00-battle-sides.js');
+  load(r, 'battle/modules/00-defense-plan.js');
+  const town = {
+    profile: 'strategic',
+    center: { x: 0, z: 0 },
+    objectives: [sim._objectives[0].def]
+  };
+  sim.scene = { metadata: { battleScenario: town } };
+  sim.obstacles = [];
+  sim._defensePlans = { us: r.BattleDefensePlan.empty('us'), ge: r.BattleDefensePlan.empty('ge') };
+  /* Check the actual engineer/controller, not a duplicate of its guard. No
+     Babylon meshes are needed in this deterministic Node fixture. */
+  r.BABYLON = undefined;
+  load(r, 'battle/modules/21-defender-engineers.js');
+  sim._sides = r.BattleSides.build(town, { defender: 'ge' });
+  sim._objectives[0].state.owner = 'us';
+  sq.members[0].role = 'engineer';
+  sq.members[0].squad = sq;
+  sq.members[0].root.position = { x: 120, z: 0 };
+  sq._macroMission = { intent: 'defend', objectiveId: 'outer', status: 'executing', version: 2 };
+  sq._macroMission.requestKey = 'objective-security|outer|120|0';
+  const tick = () => r.BattleModules.getSystem('defender-engineers').onCommanderTick(sim, { dt: 11 });
+  tick();
+  check(
+    'temporary attacker security still permits engineering work',
+    sim._engineerBuild.counts['us|outer'] === 1
+  );
+  check(
+    'temporary attacker DEFEND does not become a permanent prepared request',
+    !sq._preparedDefenseRequest
+  );
+  check('temporary attacker DEFEND does not assign a permanent garrison objective', !sq.garrisonObjective);
+  sq._captureZoneDefenseRequest = null;
+  sq._macroMission = { intent: 'capture', objectiveId: 'elsewhere', status: 'executing', version: 3 };
+  tick();
+  check('attacker resumes CAPTURE without a defense obligation', !sq._preparedDefenseRequest);
+}
 section("an engineer's technical skill is his building rate");
 {
   /* dt 4 s per tick against the 10 s BUILD_SECONDS: x1.4 builds on the 2nd tick, x1 on the 3rd, x0.6 on the 5th. */

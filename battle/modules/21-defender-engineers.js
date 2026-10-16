@@ -318,15 +318,36 @@
       }
     }
   }
+  /* Experimental 5 km defense screen. The original captain plan prepares three
+     fortified sectors, but pinning five squads to those three posts leaves the
+     remaining nine objectives uncontested. Keep one independently commanded
+     squad in each fortification and leave two as a General-controlled mobile
+     screen. Old tactical prepared-defense deployments remain unchanged. */
+  function strategicGarrisonCount(sim, sides) {
+    var scenario = scenarioOf(sim);
+    if (!scenario || scenario.profile !== 'strategic') return Infinity;
+    if (sides && sides.heldSectors) return sides.heldSectors.length;
+    return root.BattleSides.ECHELONS[root.BattleSides.DEFAULT_ECHELON].span;
+  }
   function deploy(sim, sides) {
     var held = sides.heldSectors.slice().sort(function (a, b) {
       return b.terrainValue - a.terrainValue;
     });
     if (!held.length) return 0;
     var squads = sim.factions[sides.defender].squads || [],
-      plan = sim._defensePlans[sides.defender];
-    for (var i = 0; i < squads.length; i++) garrison(sim, squads[i], held[i % held.length], plan, true);
-    return squads.length;
+      plan = sim._defensePlans[sides.defender],
+      preparedCount = Math.min(squads.length, strategicGarrisonCount(sim, sides));
+    for (var i = 0; i < squads.length; i++) {
+      if (i < preparedCount) {
+        garrison(sim, squads[i], held[i % held.length], plan, true);
+      } else {
+        /* No standing defense request: the General selects actual corridor
+           missions, the Squad Leader still owns squad maneuver, and soldiers
+           navigate independently. Never move these men to a fortified post. */
+        squads[i].commandRole = 'center';
+      }
+    }
+    return preparedCount;
   }
   function seedOwnership(sim, sides) {
     var api = root.BattleObjectiveSystem;
@@ -412,7 +433,7 @@
      happens to pass through an owned objective with its engineer is not that objective's garrison:
      the standing request would take mission precedence over recovery (22a selectMission) and
      convert the attack into a permanent DEFEND. Its engineer still builds the works. */
-  function garrisonable(sq) {
+  function garrisonable(sq, sim) {
     var m = sq && sq._macroMission;
     /* ?engineerGarrison=0/off/false restores the old unconditional pin (the paired-benchmark control). */
     if (
@@ -420,6 +441,26 @@
       /[?&]engineerGarrison=(?:0|off|false)\b/i.test(location.search || '')
     )
       return true;
+    var scenario = scenarioOf(sim),
+      sides = sim && sim._sides;
+    /* On the 5 km attack/defense profile, engineers may build defensive
+       works for the ATTACKER but cannot convert the 18-second objective-
+       security brief into a permanent prepared garrison. The General may
+       still deliberately issue an unrequested DEFEND mission to garrison.
+       The chosen defender's initial and runtime garrisons are unaffected.
+       In the first user battle, three of five attackers were otherwise
+       pinned to their spawn objectives for the entire 1800-second match. */
+    if (scenario && scenario.profile === 'strategic' && sides) {
+      if (sq.faction === sides.attacker)
+        return !!(m && m.intent === 'defend' && !m.requestKey && m.status === 'executing');
+      /* An opt-in strategic mobile defender may capture its own spawn base and
+         receive an 18-second objective-security DEFEND brief. Engineering the
+         capture must not promote that temporary request into a permanent
+         prepared garrison. Initial prepared squads retain their assigned posts;
+         a later explicit, unrequested General DEFEND brief can still garrison. */
+      if (sq.faction === sides.defender && !sq._strategicDefenseObjective)
+        return !!(m && m.intent === 'defend' && !m.requestKey && m.status === 'executing');
+    }
     return !(
       m &&
       (m.intent === 'capture' || m.intent === 'reconstitute') &&
@@ -476,7 +517,7 @@
         radius: +g.obj.def.radius || 30,
         role: 'main'
       };
-      if (g.engineer.squad && garrisonable(g.engineer.squad))
+      if (g.engineer.squad && garrisonable(g.engineer.squad, sim))
         garrison(sim, g.engineer.squad, sector, sim._defensePlans[g.faction], false);
       telemetry(sim, 'engineer-fortification-built', {
         faction: g.faction,
@@ -597,7 +638,11 @@
        Answerable before its own onBattleStart runs, so the Squad Leader leaves those men to it. */
     garrisons: function (sim, sq) {
       var d = defenderOf(sim);
-      return !!(d && sq && sq.faction === d);
+      if (!d || !sq || sq.faction !== d) return false;
+      var scenario = scenarioOf(sim);
+      if (!scenario || scenario.profile !== 'strategic') return true;
+      var all = (sim.factions[d] && sim.factions[d].squads) || [];
+      return all.indexOf(sq) >= 0 && all.indexOf(sq) < strategicGarrisonCount(sim, sim._sides);
     },
     planOf: function (sim, f) {
       return sim && sim._defensePlans ? sim._defensePlans[f] : null;

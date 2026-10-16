@@ -5,6 +5,12 @@ on:
   pull_request:
     paths:
       - 'battle/camera-controls.js'
+      - 'battle/scenario-generator.js'
+      - 'battle/battle-sim.js'
+      - 'battle/commander-routes.js'
+      - 'battle/town-objectives.js'
+      - 'scripts/check-strategic-5km.cjs'
+      - 'scripts/probe_strategic_5km.cjs'
       - 'battle/modules/52-fbx-animation-state.js'
       - 'battle/modules/52-fbx-render-pose.js'
       - 'tools/ai-sim-harness/fbx-render-pose-check.js'
@@ -90,6 +96,11 @@ jobs:
           CAMERA_SOAK_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
           CAMERA_SOAK_OUT: closeups/camera-soak-ci
         run: node scripts/probe_camera_soak.cjs
+      - name: Verify strategic 5km terrain and spawn topology in Chromium
+        env:
+          STRATEGIC_QA_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          STRATEGIC_QA_OUT: closeups/strategic-5km-ci
+        run: node scripts/probe_strategic_5km.cjs
       - name: Preserve browser evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -100,4 +111,5 @@ jobs:
             closeups/camera-menu-ci/
             closeups/camera-touch-ci/
             closeups/camera-soak-ci/
+            closeups/strategic-5km-ci/
             ${{ runner.temp }}/player-settings-php.log

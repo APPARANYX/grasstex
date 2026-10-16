@@ -1800,9 +1800,16 @@
       m = squad._macroMission;
     if (isExtractionToHome(squad)) return extractionHome(squad);
     if (squad._moraleRallyPoint) return squad._moraleRallyPoint;
+    /* The opt-in 5 km profile assigns a real rear base (homeBaseId/baseHome).
+       Prepared defense can later rewrite home to a forward sector fallback;
+       the assembly/reconstitution lifecycle still requires the rear base.
+       Retire the ordinary retreat there as well, not just 1-4 man remnants.
+       Existing tactical scenarios have no homeBaseId and keep their fallback. */
     return a && a.phase === 'to-rally' && m && m.version === a.missionVersion && m.point
       ? m.point
-      : squad.home;
+      : squad.homeBaseId
+        ? extractionHome(squad)
+        : squad.home;
   }
   function formationDirection(squad) {
     var anchor = squad.orderAnchor || squad.rally,

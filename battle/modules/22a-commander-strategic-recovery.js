@@ -468,9 +468,9 @@
        issueMission dedup returns the old brief unchanged, and the squad never moves. */
       if ((reason === 'strategic-stall-release' || reason === 'strategic-reset') && intent === 'defend')
         intent = 'capture';
-      /* Doctrine is decided once per brief, when it is issued - never re-evaluated per tick. The brief goes
-       straight for the objective: walking the old approach route first cost captures (12-seed replay
-       3.2 vs 3.8/battle) and on main a shadow writer had already abandoned it within the first minute. */
+      /* Doctrine is decided once per brief, never per tick. Legacy tactical briefs go
+         straight to the objective (previously measured to improve capture rate).
+         The opt-in 5 km scenario uses mission-owned road legs below instead. */
       var p = D.avgPos(sq),
         enemy = D.nearestEnemyToSquad(sim, sq),
         context = D.buildContext(sim, sq, chosen, enemy, p),
@@ -539,6 +539,20 @@
         var flank = D.flankPoint(sq, chosen, town);
         if (flank && isFinite(+flank.x) && isFinite(+flank.z))
           spec.route = [{ x: +flank.x || 0, z: +flank.z || 0 }];
+      }
+      /* Phase 1 strategic profile: public road-network waypoints are part of
+         THIS Macro mission. The Squad Leader adopts them with the brief,
+         rather than losing the spawn route on its first mission. Keep any
+         doctrine flank/reset final approach after the road corridor.
+         Local combat, navigation and individual movement remain unchanged. */
+      if (
+        town &&
+        town.profile === 'strategic' &&
+        root.BattleCommanderRoutes &&
+        root.BattleCommanderRoutes.missionRouteFor
+      ) {
+        var roadLegs = root.BattleCommanderRoutes.missionRouteFor(sq, town, chosen.instance.id, D.avgPos(sq));
+        if (roadLegs.length) spec.route = roadLegs.concat(spec.route);
       }
       return issueMission(sim, sq, spec, reason);
     }
