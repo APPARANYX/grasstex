@@ -594,6 +594,12 @@ try {
           return out;
         };
         const record = {
+          battleType,
+          deployment: {
+            mode: !sim._sides ? 'unknown' : sim._sides.meeting ? 'meeting' : 'prepared-defender',
+            defender: sim._sides?.defender || null,
+            attacker: sim._sides?.attacker || null
+          },
           index: index + 1, seed, scenarioId: scenario?.id || null, fingerprint: scenario?.fingerprint || null,
           winner: sim.winner || 'none', winReason: sim.winReason || null, simulatedSeconds: +(+sim.time || 0).toFixed(2), wallSeconds: +((performance.now() - wallStart) / 1000).toFixed(3), steps,
           timeoutReached: (+sim.time || 0) >= timeLimit - fixedDt,
