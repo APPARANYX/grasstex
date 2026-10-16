@@ -394,20 +394,21 @@
         event(sim, 'screen-grant-failed', { faction: faction, squad: pair.screen.id });
         continue;
       }
-      stateForFaction.screen = {
+      stateForFaction.screens = stateForFaction.screens || {};
+      stateForFaction.screens[pair.screen.id] = {
         squadId: pair.screen.id, leadSquadId: pair.lead.id,
         objectiveId: opportunity.spec.screen.securedObjectiveId,
         vehicleId: t.vehicleId, roadId: opportunity.spec.screen.roadId,
         orderAt: sim.time, post: opportunity.spec.point,
         reportCount: 0, atPost: null, observations: {}
       };
+      stateForFaction.screen = stateForFaction.screens[pair.screen.id]; // last dispatch for UI
       event(sim, 'screen-ordered', { faction: faction, ...stateForFaction.screen });
       return stateForFaction.screen;
     }
     return null;
   }
-  function screeningSquad(sim, faction) {
-    var st = state(sim)[faction].screen;
+  function screeningSquad(sim, faction, st) {
     return st && (sim.factions[faction].squads || []).find(function (sq) {
       return sq.id === st.squadId && sq._macroMission &&
         sq._macroMission.intent === 'screen';
@@ -418,8 +419,15 @@
      no synthetic position, and no shared intelligence across factions. */
   function maybeScreenReport(sim, faction, issue) {
     if (!enabled(sim) || typeof issue !== 'function' || !root.BattleTacticalSituation) return null;
-    var st = state(sim)[faction].screen,
-      sq = screeningSquad(sim, faction),
+    var records = Object.values(state(sim)[faction].screens || {});
+    for (var i = 0; i < records.length; i++) {
+      var issued = screenReportOne(sim, faction, issue, records[i]);
+      if (issued) return issued;
+    }
+    return null;
+  }
+  function screenReportOne(sim, faction, issue, st) {
+    var sq = screeningSquad(sim, faction, st),
       onPost = sq && sq._missionExecution && sq._missionExecution.screenOnPostAt;
     if (!st || !sq || !onPost) return null;
     if (st.atPost == null) {
