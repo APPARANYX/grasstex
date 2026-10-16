@@ -20,6 +20,21 @@ Acceptance requires a real paused-at-load browser capture of all twelve empty tr
 
 ---
 
+## Phase 3B implementation checkpoint — event-driven interception proposal
+
+**Draft child [#559](https://github.com/APPARANYX/grasstex/pull/559); not yet accepted or merged.** Opt in to `?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1`. Default-off behavior and parked #527 are unchanged.
+
+- Aerial module #549 remains the **sole permitted hostile-truth sampler**, runs at most once per General and exposes only expiring, uncertain, faction-specific observation DTOs.
+- The General ranks public road edges near moving, sufficiently confident aerial sightings. Contact direction identifies the approaching road segment; potential objectives are **inferred**, never obtained from the enemy's hidden mission. Watch positions lie ahead of the observed enemy and before the next road fork where feasible.
+- Access can use either road endpoint; a base truck cannot shortcut through terrain. A **side-effect-free quote** in the existing #558 transport allocator tests available parked vehicle, actual road path, obstacle clearance and minimum 650 m driving distance. Quote uses actual 12 m/s road travel, boarding, 180 m foot dismount approach, preparation, and conservative uncertainty margin. Rejection if the friendly squad cannot arrive first.
+- Only the Macro / General mission owner issues `intent=intercept, action=intercept` via its normal lifecycle. The Squad Leader adopts the road legs and records a physical on-post position before holding. Soldiers retain their own LOS, combat decisions, animations, and fire; no automated first shot or artificial enemy coordinates.
+- The one aerial event is evaluated only once per faction; no artificial reruns. Expired intercepts return to normal General mission choice without assuming repeated reconnaissance.
+- **Evidence needed before acceptance:** deterministic causal quote/selection/decline tests; full CI and tactical/strategic browser compatibility; paired native seed runs with real vehicle dispatch, vehicle journey, on-post arrival and enemy corridor arrival (arrival lead must be genuine), firsthand enemy reacquisition and ordinary independent firing. No forced scenario, forged intelligence, scored tactical success, or relaxed casualty/mission acceptance metric.
+
+This slice intentionally does not add garages, vehicle respawns, replacement soldiers, airborne insertion or a new infantry fighting system.
+
+---
+
 ## New primary scenario
 
 Model deliberate **General-directed route interception** in a large open-country battlefield. A friendly General optionally calls a one-time aerial reconnaissance event. Based on a time-stamped snapshot of enemy squads' positions, headings, and speeds, it evaluates plausible objective routes, chooses an interception corridor **between the enemy and its plausible objective(s)**, and allocates an available motorized squad only when it can dismount and occupy that corridor *before* the enemy is expected to reach it. The Squad Leader receives a high-level intercept mission; soldiers independently establish observation/firing posts and engage under ordinary combat rules.
