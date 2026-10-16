@@ -263,23 +263,148 @@
       })
     );
   }
-  /* Designate exactly one physical home-base maneuver reserve for the one-shot
-     aerial opportunity. This choice is from OUR OWN roster only; enemy movement
-     or hidden mission data never enters this selection. */
-  function reserveSquad(sim, sq) {
-    if (!enabled(sim) || !sq || !sim.factions || !sim.factions[sq.faction]) return false;
-    var squads = sim.factions[sq.faction].squads || [];
-    var selected = squads.slice().reverse().find(function (candidate) {
-      return candidate && candidate.state !== 'retreat' && !candidate.isPlayer &&
-        !candidate._preparedDefenseRequest &&
-        candidate.members && candidate.members.some(function (s) { return s && !s.dead; });
+  /* Pair actual squads by their assigned starting base. A single squad at a
+     base must never be held back for a hypothetical second truck. The first
+     available squad takes normal objective orders; the second has a clear
+     follow-on screen task once that actual objective is secured. */
+  function baseKey(sq, town) {
+    if (!sq || !town || !town.spawnZones || !town.spawnZones[sq.faction]) return null;
+    if (sq.homeBaseObjectiveId) return String(sq.homeBaseObjectiveId);
+    var home = sq.baseHome || sq.home;
+    if (!home) return null;
+    var matches = (town.spawnZones[sq.faction].bases || []).slice().sort(function (a, b) {
+      return d(home, a) - d(home, b);
     });
-    return selected === sq;
+    return matches.length && d(home, matches[0]) <= 100 ? matches[0].objectiveId : null;
+  }
+  function pairs(sim, faction) {
+    var town = sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario;
+    if (!town) return [];
+    var byBase = {};
+    ((sim.factions[faction] && sim.factions[faction].squads) || []).forEach(function (sq) {
+      var key = baseKey(sq, town);
+      if (!key || sq.state === 'retreat' || sq.isPlayer ||
+        sq._preparedDefenseRequest || !(sq.members || []).some(function (m) { return m && !m.dead; }))
+        return;
+      (byBase[key] || (byBase[key] = [])).push(sq);
+    });
+    return Object.keys(byBase).sort().filter(function (key) {
+      return byBase[key].length >= 2;
+    }).map(function (key) {
+      return { baseId: key, lead: byBase[key][0], screen: byBase[key][1] };
+    });
+  }
+  function pairFor(sim, sq) {
+    return pairs(sim, sq.faction).find(function (pair) { return pair.screen === sq; }) || null;
+  }
+  function reserveSquad(sim, sq) {
+    return !!(enabled(sim) && sq && pairFor(sim, sq));
   }
   function reservePending(sim, faction) {
-    if (!enabled(sim) || !(sim.time < 180)) return false;
-    var own = state(sim)[faction];
-    return own.lastEventAt == null;
+    return enabled(sim) && pairs(sim, faction).some(function (pair) {
+      var m = pair.screen._macroMission;
+      return m && m.intent === 'reserve' && m.interceptReserve;
+    });
+  }
+  function screeningPoint(town, objectiveId, faction) {
+    var obj = objective(town, objectiveId);
+    if (!obj) return null;
+    var sign = faction === 'us' ? 1 : -1;
+    var options = (town.roads || []).reduce(function (out, road) {
+      var id = road.fromObjectiveId === objectiveId ? road.toObjectiveId :
+        road.toObjectiveId === objectiveId ? road.fromObjectiveId : null;
+      if (!id) return out;
+      var other = objective(town, id);
+      if (!other || (other.z - obj.z) * sign < 100) return out;
+      var length = d(obj, other);
+      if (length < 240) return out;
+      var travel = Math.min(340, Math.max(215, length * 0.36));
+      return out.concat([{
+        objective: obj,
+        roadId: road.id || String(objectiveId) + ':' + id,
+        point: { x: obj.x + (other.x - obj.x) * travel / length,
+          z: obj.z + (other.z - obj.z) * travel / length },
+        forwardM: travel,
+        length: length
+      }]);
+    }, []);
+    return options.sort(function (a, b) {
+      return b.forwardM - a.forwardM || String(a.roadId).localeCompare(String(b.roadId));
+    })[0] || null;
+  }
+  function screenOpportunity(sim, faction, pair) {
+    var lead = pair.lead, screen = pair.screen,
+      mission = lead && (lead._macroMission && lead._macroMission.intent === 'capture'
+        ? lead._macroMission : lead._lastMacroMission),
+      town = sim.scene.metadata.battleScenario;
+    if (!mission || !mission.objectiveId || !screen ||
+      !(screen._macroMission && screen._macroMission.intent === 'reserve' &&
+        screen._macroMission.interceptReserve) ||
+      lead.inContact || screen.inContact || screen._transportUsed) return null;
+    var obj = objective(town, mission.objectiveId);
+    if (!obj || obj.baseFaction) return null;
+    var status = sim.objectiveControl && sim.objectiveControl.sectors &&
+      sim.objectiveControl.sectors[obj.id];
+    // Public ownership plus no known fresh report is the operational gate.
+    // Lack of a report does NOT assert that the enemy is absent.
+    if (!status || status.owner !== faction) return null;
+    var picture = root.BattleTacticalSituation && root.BattleTacticalSituation.compute(sim, faction);
+    if (!picture) return null;
+    var danger = picture.contacts.some(function (c) {
+      return c && c.age <= 12 && isFinite(c.x) && isFinite(c.z) &&
+        d(c, obj) < 180;
+    });
+    if (danger) return null;
+    var leadPos = lead.members.filter(function (m) {
+      return m && !m.dead && m.root && m.root.position;
+    });
+    if (!leadPos.length) return null;
+    var center = { x: leadPos.reduce(function (v, m) { return v + m.root.position.x; }, 0) / leadPos.length,
+      z: leadPos.reduce(function (v, m) { return v + m.root.position.z; }, 0) / leadPos.length };
+    if (d(center, obj) > (+obj.radius || 55) + 40) return null;
+    var post = screeningPoint(town, obj.id, faction);
+    if (!post) return null;
+    if (picture.contacts.some(function (c) {
+      return c && c.age <= 12 && isFinite(c.x) && isFinite(c.z) &&
+        d(c, post.point) < 160;
+    })) return null;
+    var route = root.BattleCommanderRoutes && root.BattleCommanderRoutes.missionRouteFor
+      ? root.BattleCommanderRoutes.missionRouteFor(screen, town, obj.id, screen.baseHome || screen.home)
+      : [];
+    route = route.concat([{ x: obj.x, z: obj.z }]);
+    var spec = {
+      owner: 'force-command', intent: 'screen', action: 'screen', status: 'issued',
+      objectiveId: null, point: post.point, route: route, role: 'recon',
+      screen: { leadSquadId: lead.id, securedObjectiveId: obj.id, roadId: post.roadId,
+        forwardM: +post.forwardM.toFixed(1), orderedAt: sim.time }
+    };
+    var transport = root.BattleSquadTransport;
+    var quote = transport && transport.quoteMission && transport.quoteMission(sim, screen, spec);
+    return quote ? { spec: spec, squad: screen, quote: quote, lead: lead } : null;
+  }
+  function maybeScreen(sim, faction, issue) {
+    if (!enabled(sim) || typeof issue !== 'function') return null;
+    var stateForFaction = state(sim)[faction];
+    for (var pair of pairs(sim, faction)) {
+      var opportunity = screenOpportunity(sim, faction, pair);
+      if (!opportunity) continue;
+      var m = issue(opportunity.squad, opportunity.spec, 'forward-screen-uncontested');
+      var t = opportunity.squad._transport;
+      if (!m || m.intent !== 'screen' || !t || t.vehicleId !== opportunity.quote.vehicle.id) {
+        event(sim, 'screen-grant-failed', { faction: faction, squad: pair.screen.id });
+        continue;
+      }
+      stateForFaction.screen = {
+        squadId: pair.screen.id, leadSquadId: pair.lead.id,
+        objectiveId: opportunity.spec.screen.securedObjectiveId,
+        vehicleId: t.vehicleId, roadId: opportunity.spec.screen.roadId,
+        orderAt: sim.time, post: opportunity.spec.point,
+        reportCount: 0, atPost: null, observations: {}
+      };
+      event(sim, 'screen-ordered', { faction: faction, ...stateForFaction.screen });
+      return stateForFaction.screen;
+    }
+    return null;
   }
   function event(sim, kind, data) {
     if (root.BattleTelemetry && root.BattleTelemetry.record)
@@ -351,6 +476,9 @@
     enabled: enabled,
     reserveSquad: reserveSquad,
     reservePending: reservePending,
+    pairs: pairs,
+    screenOpportunity: screenOpportunity,
+    maybeScreen: maybeScreen,
     choose: choose,
     maybeIssue: maybeIssue,
     summary: function (sim) {
