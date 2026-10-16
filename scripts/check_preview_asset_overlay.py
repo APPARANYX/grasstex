@@ -49,6 +49,7 @@ with tempfile.TemporaryDirectory(prefix="grasstex-preview-overlay-") as folder:
         run("git", "add", ".")
         run("git", "commit", "-qm", "base")
         run("git", "branch", "-M", "main")
+        run("git", "checkout", "-qb", "feature")
         Path("Assets/vehicles/same-size.fbx").write_bytes(b"BBBB")
         Path("Assets/animations/Removed.fbx").unlink()
         Path("Assets/animations/Truck - Sitting 1.fbx").write_bytes(b"NEW_CLIP")
