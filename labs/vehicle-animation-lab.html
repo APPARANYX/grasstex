@@ -204,6 +204,61 @@ function setVehicleDoubleSided(enabled){
   }
 }
 $('doubleSided').onchange=()=>setVehicleDoubleSided($('doubleSided').checked);
+function setVehicleUnlit(enabled){
+  // Diagnostic only: preserve each imported material's original lighting mode.
+  for(const [material,original] of state.vehicleMaterials){
+    if(material.isDisposed&&material.isDisposed())continue;
+    if('disableLighting' in material)material.disableLighting=enabled?true:original.disableLighting;
+    if('unlit' in material)material.unlit=enabled?true:original.unlit;
+    if(typeof material.markAsDirty==='function')material.markAsDirty(BABYLON.Material.AllDirtyFlag);
+  }
+}
+$('unlitVehicle').onchange=()=>setVehicleUnlit($('unlitVehicle').checked);
+$('contrastGaps').onchange=()=>{
+  if($('contrastGaps').checked){
+    scene.clearColor=new BABYLON.Color4(.32,.09,.26,1);
+    groundMat.diffuseColor=new BABYLON.Color3(.3,.075,.23);
+  }else{
+    scene.clearColor=new BABYLON.Color4(.032,.06,.085,1);
+    groundMat.diffuseColor=new BABYLON.Color3(.045,.08,.09);
+  }
+};
+function inspectTruckPick(pick){
+  const target=$('surfaceReport');
+  if(!pick.hit||!pick.pickedMesh){
+    target.textContent='No truck triangle hit at this location. This is likely an open gap, a culled/transparent surface, or the visible background.';
+    status('No truck surface at selected pixel. Try Contrast background for holes.');
+    return;
+  }
+  const mesh=pick.pickedMesh,source=mesh.material;
+  const submesh=mesh.subMeshes?.[pick.subMeshId];
+  const material=Array.isArray(source?.subMaterials)?
+    source.subMaterials[submesh?.materialIndex??0]||source:source;
+  const color=material?.diffuseColor||material?.albedoColor;
+  const names=(material?.getActiveTextures?.()||[]).map(t=>t.name||t.url||'unnamed').filter(Boolean);
+  const hasUv=mesh.isVerticesDataPresent?.(BABYLON.VertexBuffer.UVKind);
+  const hasNormals=mesh.isVerticesDataPresent?.(BABYLON.VertexBuffer.NormalKind);
+  target.textContent=[
+    'Mesh: '+mesh.name,
+    'Material: '+(material?.name||'(none)')+' / '+(material?.getClassName?.()||'unknown'),
+    'Diffuse/albedo: '+(color?.toHexString?.()||'not set'),
+    'Albedo texture: '+(material?.albedoTexture?.name||material?.diffuseTexture?.name||'none'),
+    'All textures: '+(names.join(', ')||'none'),
+    'UV coordinates: '+(hasUv?'yes':'NO'),
+    'Vertex normals: '+(hasNormals?'yes':'NO'),
+    'Transparency: '+(material?.alpha??'none'),
+    'Backface culling: '+(material?.backFaceCulling??'unknown'),
+    'Unlit diagnostic: '+($('unlitVehicle').checked?'ON':'off')
+  ].join('\n');
+  status('Surface inspected: '+mesh.name+'. Review material and UV details.');
+}
+$('inspectSurface').onclick=()=>{
+  if(!state.vehicleRoot){status('Load the truck before inspecting surfaces.',true);return;}
+  state.inspectSurface=!state.inspectSurface;state.picking=false;state.pickingAxle=false;
+  $('pickSeat').textContent='Click truck to position seat';
+  $('pickAxle').textContent='Pick on wheel';
+  $('inspectSurface').textContent=state.inspectSurface?'Click dark truck surface…':'Inspect dark surface';
+};
 function disposeResult(result){
   if(!result)return;
   (result.animationGroups||[]).forEach(g=>{try{g.stop();g.dispose();}catch(e){}});
@@ -428,10 +483,14 @@ async function loadVehicle(){
     enumerateVehicleMaterials(state.meshes).forEach(material=>{
       state.vehicleMaterials.set(material,{
         backFaceCulling:material.backFaceCulling,
-        twoSidedLighting:material.twoSidedLighting
+        twoSidedLighting:material.twoSidedLighting,
+        disableLighting:material.disableLighting,
+        unlit:material.unlit
       });
     });
     setVehicleDoubleSided($('doubleSided').checked);
+    setVehicleUnlit($('unlitVehicle').checked);
+    $('surfaceReport').textContent='Click Inspect and then a dark surface. No hit indicates open space or a non-pickable polygon.';
     $('materialCount').textContent=state.vehicleMaterials.size;
     findWheelGroups(result);
     $('meshCount').textContent=state.meshes.length;
