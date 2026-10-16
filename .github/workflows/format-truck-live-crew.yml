@@ -1,0 +1,33 @@
+name: One-shot formatting of live truck crew
+on:
+  push:
+    branches: [work/strategic-truck-live-crew-20261016]
+    paths:
+      - '.github/workflows/format-truck-live-crew.yml'
+      - 'battle/modules/52-fbx-render-lod.js'
+      - 'battle/modules/53-fbx-soldier-backend.js'
+      - 'battle/modules/59-strategic-truck-visual.js'
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/strategic-truck-live-crew-20261016
+          persist-credentials: true
+      - name: Format only the changed runtime files
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write battle/modules/52-fbx-render-lod.js battle/modules/53-fbx-soldier-backend.js battle/modules/59-strategic-truck-visual.js
+          if git diff --quiet -- battle/modules/; then
+            echo "Already formatted"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add battle/modules/52-fbx-render-lod.js battle/modules/53-fbx-soldier-backend.js battle/modules/59-strategic-truck-visual.js
+          git commit -m "Format live-squad truck pose integration"
+          git push origin HEAD:work/strategic-truck-live-crew-20261016
