@@ -134,7 +134,7 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
           })
         };
       }
-      return {per,initialFleet,parkedAfterBoard:all.filter(x=>x.parked).length,
+      return {per,parkedAfterBoard:all.filter(x=>x.parked).length,
         skeletonsBefore:qaBefore().skeletons,skeletonsAfter:b.scene.skeletons.length,
         animationGroupsBefore:qaBefore().groups,animationGroupsAfter:b.scene.animationGroups.length,
         meshesBefore:qaBefore().meshes,meshesAfter:b.scene.meshes.length,
