@@ -29,7 +29,7 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
   await page.route(/\/Assets\/audio\/.*\.mp3(?:\?.*)?$/,route=>
     route.fulfill({status:200,contentType:'audio/wav',body:wav}));
   const url=base+(base.includes('?')?'&':'?')+
-    'strategicInterception=1&motorTransport=1&truckShowcase=1&seed=strategic-truck-live-crew-qa-0001&log=0';
+    'strategicInterception=1&motorTransport=1&seed=strategic-truck-live-crew-qa-0001&log=0';
   const began=Date.now();
   try{
     await page.goto(url,{waitUntil:'load',timeout:180000});
@@ -45,15 +45,23 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
         skeletons:b.scene.skeletons.length};
     });
     assert.equal(initial.profile,'strategic');assert.equal(initial.us,5);assert.equal(initial.ge,5);
-    await page.evaluate(()=>window.__battle__.resume());
+    // Validate all fleet meshes BEFORE resuming the battle or issuing missions.
     await page.waitForFunction(()=>{
-      const s=window.BattleTransportVehicleVisual.summary(window.__battle__);
-      return s.filter(x=>x.showcase&&x.meshReady).length===2;
+      const b=window.__battle__,s=window.BattleTransportVehicleVisual.summary(b);
+      return s.length===12&&s.every(v=>v.parked&&v.meshReady);
     },null,{timeout:120000});
-    const showcases=await page.evaluate(()=>
-      window.BattleTransportVehicleVisual.summary(window.__battle__).filter(x=>x.showcase));
-    assert.ok(showcases.every(x=>x.renderedRiders===0&&x.seats===0),
-      'The parked showcase must NOT borrow active soldiers from a combat squad');
+    const initialFleet=await page.evaluate(()=>{
+      const b=window.__battle__;
+      return {time:b.time,visual:window.BattleTransportVehicleVisual.summary(b),
+        actual:window.BattleSquadTransport.fleetSummary(b)};
+    });
+    assert.equal(initialFleet.actual.length,12);
+    assert.equal(new Set(initialFleet.visual.map(v=>v.vehicleId)).size,12);
+    for(const faction of ['us','ge'])for(let i=0;i<3;i++)
+      assert.equal(initialFleet.visual.filter(v=>v.faction===faction&&
+        v.baseId===faction+'-base-'+i).length,2);
+    assert.ok(initialFleet.visual.every(v=>v.parked&&v.seats===0&&v.renderedRiders===0),
+      'Twelve distinct empty trucks must exist before transport allocation');
     await page.waitForFunction(()=>{
       const b=window.__battle__,model=window.BattleFbxSoldier;
       return !!model.vehiclePoseClip(b.factions.us.squads[0].members[0],'Truck - Driving.fbx') &&
@@ -65,16 +73,20 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
       b.pause();
       const transportSystem=window.BattleModules.getSystem('strategic-truck-visual');
       if(!transportSystem)throw Error('Truck system not registered');
-      window.__truckQa={squads:{},soldiers:{},roots:{},system:transportSystem};
+      window.__truckQa={squads:{},soldiers:{},roots:{},vehicleIds:{},system:transportSystem};
       for(const faction of ['us','ge']){
         const squad=b.factions[faction].squads.find(s=>!s._transport&&s.members.length>0);
         if(!squad)throw Error('No available '+faction+' squad for isolated passenger test');
         window.__truckQa.squads[faction]=squad;
         window.__truckQa.soldiers[faction]=squad.members.slice(0,10);
         window.__truckQa.roots[faction]=squad.members.map(s=>s.root.position.clone());
-        const p=squad.members[0].root.position;
-        squad._transport={phase:'embarked',position:{x:p.x,z:p.z},
-          heading:{x:0,z:faction==='us'?1:-1}};
+        const vehicle=b._strategicTransportFleet.vehicles.find(v=>
+          v.faction===faction&&v.baseIndex===0&&v.slot===0);
+        if(!vehicle||vehicle.phase!=='parked')throw Error('Missing parked '+faction+' fleet truck');
+        window.__truckQa.vehicleIds[faction]=vehicle.id;
+        vehicle.phase='assigned';vehicle.squadId=squad.id;
+        squad._transport={vehicleId:vehicle.id,phase:'embarked',
+          position:{...vehicle.position},heading:{...vehicle.heading}};
       }
       const scene=b.scene;
       window.__truckQaBefore={skeletons:scene.skeletons.length,
@@ -101,7 +113,7 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
       for(const faction of ['us','ge']){
         const sq=qa.squads[faction],soldiers=qa.soldiers[faction];
         const truck=b.scene.transformNodes.find(n=>
-          n.name==='strategicTruck-'+faction+'-'+sq.id);
+          n.name==='strategicTruck-'+faction+'-'+qa.vehicleIds[faction]);
         if(!truck)throw Error('Missing '+faction+' truck root');
         const p=truck.getAbsolutePosition();
         per[faction]={
@@ -115,14 +127,14 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
               seat:presentation?.seatIndex??null,
               clip:presentation?.animation||null,
               sameObject:qa.soldiers[faction][index]===soldier,
-              inAnchor:anchor?.name==='truckSeat-'+sq.id+'-'+index,
+              inAnchor:anchor?.name==='truckSeat-'+qa.vehicleIds[faction]+'-'+index,
               dist:anchorPos?Math.hypot(p.x-anchorPos.x,p.y-anchorPos.y,p.z-anchorPos.z):null,
               rootUnchanged:soldier.root.position.equals(qa.roots[faction][index])
             };
           })
         };
       }
-      return {per,showcases:all.filter(x=>x.showcase),
+      return {per,initialFleet,parkedAfterBoard:all.filter(x=>x.parked).length,
         skeletonsBefore:qaBefore().skeletons,skeletonsAfter:b.scene.skeletons.length,
         animationGroupsBefore:qaBefore().groups,animationGroupsAfter:b.scene.animationGroups.length,
         meshesBefore:qaBefore().meshes,meshesAfter:b.scene.meshes.length,
@@ -143,7 +155,7 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
         faction+' real seat assignment with one Truck animation each');
       await page.evaluate((side)=>{
         const b=window.__battle__,sq=window.__truckQa.squads[side];
-        const node=b.scene.transformNodes.find(n=>n.name==='strategicTruck-'+side+'-'+sq.id);
+        const node=b.scene.transformNodes.find(n=>n.name==='strategicTruck-'+side+'-'+window.__truckQa.vehicleIds[side]);
         const cam=b.scene.activeCamera;
         cam.position.set(node.position.x+14,node.position.y+12,node.position.z+17);
         cam.setTarget(new BABYLON.Vector3(node.position.x,node.position.y+2,node.position.z));
@@ -167,7 +179,7 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
             JSON.stringify({wheels:info.wheels,
               transforms:b.scene.transformNodes.filter(n=>/wheel|axle|tire|tyre|truck/i.test(n.name)).map(n=>n.name).slice(0,75),
               wheelMeshes:b.scene.meshes.filter(n=>/wheel|tire|tyre|rim/i.test(n.name)).map(n=>n.name).slice(0,90),
-              truckModelChildren:b.scene.transformNodes.filter(n=>n.name==='strategicTruckModel-'+sq.id)
+              truckModelChildren:b.scene.transformNodes.filter(n=>n.name==='strategicTruckModel-'+qa.vehicleIds[faction])
                 .flatMap(n=>n.getDescendants(false).map(child=>child.name)).slice(0,90)}));
         const move=sq._transport.position;
         sq._transport.position={x:move.x,z:move.z+4};
@@ -213,6 +225,8 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
           socketBack:s._fbx?.socket?.parent===s.root
         }));
         qa.squads[faction]._transport=null;
+        const vehicle=b._strategicTransportFleet.vehicles.find(v=>v.id===qa.vehicleIds[faction]);
+        vehicle.phase='stopped';vehicle.squadId=null;
       }
       qa.system.onSimulationStep(b,{dt:0});
       return results;
@@ -227,9 +241,11 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
     const restartCleanup=await page.evaluate(()=>{
       const b=window.__battle__,qa=window.__truckQa;
       for(const faction of ['us','ge']){
-        const squad=qa.squads[faction],p=squad.members[0].root.position;
-        squad._transport={phase:'embarked',position:{x:p.x,z:p.z},
-          heading:{x:0,z:faction==='us'?1:-1}};
+        const squad=qa.squads[faction],
+          vehicle=b._strategicTransportFleet.vehicles.find(v=>v.id===qa.vehicleIds[faction]);
+        vehicle.phase='assigned';vehicle.squadId=squad.id;
+        squad._transport={vehicleId:vehicle.id,phase:'embarked',
+          position:{...vehicle.position},heading:{...vehicle.heading}};
       }
       qa.system.onSimulationStep(b,{dt:0});
       const previous=['us','ge'].flatMap(f=>qa.soldiers[f]);
@@ -293,7 +309,7 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
       });
     }
     assert.deepEqual(errors,[],'Browser JavaScript errors');
-    const data={initial,setup,report,wheelEvidence,dismount,restartCleanup,postBattle,
+    const data={initial,initialFleet,setup,report,wheelEvidence,dismount,restartCleanup,postBattle,
       elapsedMs:Date.now()-began,errors};
     fs.writeFileSync(path.join(out,'truck-visual-report.json'),JSON.stringify(data,null,2)+'\n');
     console.log('STRATEGIC TRUCK CHROMIUM PASS '+JSON.stringify({
@@ -302,7 +318,7 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
       geModels:report.per.ge.riders.map(x=>x.model),
       skeletonIncrease:report.skeletonsAfter-report.skeletonsBefore,
       animationGroupIncrease:report.animationGroupsAfter-report.animationGroupsBefore,
-      dismountRestored:true,orphanWeapons:restartCleanup.ghostWeaponMeshNames.length,
+      loadTimeTrucks:initialFleet.visual.length,dismountRestored:true,orphanWeapons:restartCleanup.ghostWeaponMeshNames.length,
       postBattleEndCycles:postBattle.length,pGuarded:true,wheelMotionVerified:true
     }));
   }catch(e){
