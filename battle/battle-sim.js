@@ -612,6 +612,17 @@
     return steered;
   }
   function stepMovement(self, soldier, dt) {
+    if (root.BattleSquadTransport && root.BattleSquadTransport.isPassenger(soldier)) {
+      /* The carrier, not the foot integrator, moves embarked men. Preserve the
+         ordinary combat cooldown clock while animation remains stationary. */
+      if (!soldier.dead && root.SquadAI && root.SquadAI.tickFireCooldown)
+        root.SquadAI.tickFireCooldown(soldier, dt);
+      soldier.moving = false;
+      soldier.moveSpeed = 0;
+      soldier._movementStopReason = 'embarked-passenger';
+      BattleSoldierModel.animateWalk(soldier, dt, 0);
+      return;
+    }
     if (root.PhaseCCombatLab && root.PhaseCCombatLab.stationary(soldier, self)) {
       soldier.moving = false;
       soldier.moveSpeed = 0;
