@@ -120,24 +120,31 @@
         if (dot < ALIGNMENT || remaining < 300) continue;
         // Do not claim that a hostile squad intends to capture its own base.
         if (node.baseFaction === hostile) continue;
-        // Aim well ahead of the reported enemy, before the next graph fork.
-        var lead = Math.min(remaining * 0.77, Math.max(320, contact.speedMps * 185));
-        if (remaining - lead < 80) lead = remaining - 80;
-        if (lead < 200) continue;
-        var fraction = dir > 0 ? t + lead / len : t - lead / len;
-        var point = { x: a.x + (b.x - a.x) * fraction, z: a.z + (b.z - a.z) * fraction };
-        var enemyFast = Math.max(0.8, contact.speedMps + (contact.speedUncertaintyMps || 0));
-        var eta = Math.max(0, lead - (contact.positionUncertaintyM || 40)) / enemyFast;
-        candidates.push({
-          contact: contact,
-          roadId: road.id,
-          point: point,
-          anchorIds: [a.id, b.id],
-          likelyObjectiveId: node.id,
-          alignment: dot,
-          offRoad: off,
-          enemyETA: eta,
-          leadMetres: lead
+        // Try graduated road positions. A near point may be physically too
+        // late for our truck while a farther watch point on the SAME shared
+        // corridor remains feasible, especially before a downstream fork.
+        var leads = [320, 550, Math.min(remaining * 0.77, remaining - 80)],
+          used = {};
+        leads.forEach(function (raw) {
+          var lead = Math.min(remaining - 80, raw);
+          var key = Math.round(lead / 20);
+          if (lead < 200 || used[key]) return;
+          used[key] = true;
+          var fraction = dir > 0 ? t + lead / len : t - lead / len;
+          var point = { x: a.x + (b.x - a.x) * fraction, z: a.z + (b.z - a.z) * fraction };
+          var enemyFast = Math.max(0.8, contact.speedMps + (contact.speedUncertaintyMps || 0));
+          var eta = Math.max(0, lead - (contact.positionUncertaintyM || 40)) / enemyFast;
+          candidates.push({
+            contact: contact,
+            roadId: road.id,
+            point: point,
+            anchorIds: [a.id, b.id],
+            likelyObjectiveId: node.id,
+            alignment: dot,
+            offRoad: off,
+            enemyETA: eta,
+            leadMetres: lead
+          });
         });
       }
       return candidates;
