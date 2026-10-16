@@ -262,23 +262,23 @@
     }
     log(sim, sq, t.phase, { why: why, meters: +t.travelled.toFixed(2), vehicleId: t.vehicleId });
   }
-  function considerMission(sim, sq, mission) {
+  /* Pure, side-effect-free transport admission/ETA used by Macro before
+     publication. Same real parked vehicle, same road/obstacle checks as grant. */
+  function quoteMission(sim, sq, mission) {
     if (
       !enabled(sim) ||
       !sq ||
       !mission ||
       mission.owner !== 'force-command' ||
-      mission.intent !== 'capture' ||
-      mission.status !== 'issued' ||
+      (mission.intent !== 'capture' && mission.intent !== 'intercept') ||
+      (mission.status && mission.status !== 'issued') ||
       sq.state === 'retreat' ||
       sq.inContact ||
       sq.isPlayer ||
       sq._preparedDefenseRequest ||
-      sq._transportUsed
-    )
-      return false;
-    if (sq._transport && (sq._transport.phase === 'embarked' || sq._transport.phase === 'boarding'))
-      finish(sim, sq, 'new-general-mission');
+      sq._transportUsed ||
+      (sq._transport && (sq._transport.phase === 'embarked' || sq._transport.phase === 'boarding'))
+    ) return null;
     var home = position(sq.baseHome || sq.home),
       center = middle(sq),
       members = alive(sq),
@@ -286,15 +286,15 @@
     if (
       !center ||
       !home ||
+      !town ||
       members.length < 3 ||
       dist(center, home) > 95 ||
       members.some(function (s) {
         return s.isPlayer || s.suppressedUntil > sim.time || dist(position(s.root.position), center) > 32;
       })
-    )
-      return false;
-    var fleet = sim._strategicTransportFleet || initializeFleet(sim),
-      candidates = fleet.vehicles
+    ) return null;
+    var fleet = sim._strategicTransportFleet,
+      candidates = (fleet ? fleet.vehicles : [])
         .filter(function (v) {
           var base = ((town.spawnZones[v.faction] && town.spawnZones[v.faction].bases) || [])[v.baseIndex];
           return (
@@ -307,25 +307,33 @@
         })
         .sort(function (a, b) {
           return dist(center, a.position) - dist(center, b.position) || a.id.localeCompare(b.id);
-        }),
-      vehicle = null,
-      route = null;
+        });
     for (var c = 0; c < candidates.length; c++) {
-      var trial = parkingRoute(town, candidates[c], mission);
+      var vehicle = candidates[c],
+        trial = parkingRoute(town, vehicle, mission);
       if (!trial || !trial.path.length) continue;
-      var previous = candidates[c].position,
-        passable = safe(sim, center, candidates[c].position);
+      var previous = vehicle.position,
+        passable = safe(sim, center, vehicle.position);
       for (var i = 0; passable && i < trial.path.length; i++) {
         passable = safe(sim, previous, trial.path[i].point);
         previous = trial.path[i].point;
       }
-      if (passable) {
-        vehicle = candidates[c];
-        route = trial;
-        break;
-      }
+      if (passable) return {
+        vehicle: vehicle,
+        route: trial,
+        boardSeconds: Math.max(10, dist(center, vehicle.position) / BOARD_SPEED + 8),
+        dismountSeconds: DISEMBARK_METRES / 2,
+        setupSeconds: 25
+      };
     }
-    if (!vehicle) return false;
+    return null;
+  }
+  function considerMission(sim, sq, mission) {
+    var quote = quoteMission(sim, sq, mission);
+    if (!quote || mission.status !== 'issued') return false;
+    var vehicle = quote.vehicle,
+      route = quote.route,
+      members = alive(sq);
     var ledger = sim._strategicTransport || (sim._strategicTransport = { us: 0, ge: 0 });
     ledger[sq.faction]++;
     vehicle.phase = 'assigned';
@@ -503,6 +511,7 @@
   root.BattleSquadTransport = {
     version: '0.1-isolated',
     considerMission: considerMission,
+    quoteMission: quoteMission,
     isPassenger: function (s) {
       var t = s && s.squad && s.squad._transport;
       return !!(t && (t.phase === 'boarding' || t.phase === 'embarked'));
