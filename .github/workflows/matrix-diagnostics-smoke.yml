@@ -10,6 +10,8 @@ on:
       - 'scripts/run_battle_benchmark.mjs'
       - 'scripts/merge_battle_benchmarks.mjs'
       - 'scripts/lib/matrix-diagnostic-audit.cjs'
+      - 'scripts/triage_battle_diagnostics.cjs'
+      - 'tools/ai-sim-harness/diagnostic-triage-check.cjs'
       - 'scripts/lib/benchmark-evidence.cjs'
       - 'tools/ai-sim-harness/matrix-diagnostics-check.js'
       - 'tools/ai-sim-harness/matrix-diagnostics-merge-check.js'
@@ -67,6 +69,8 @@ jobs:
               BATTLE_BENCHMARK_OUTPUT="reports/$type" \
               node scripts/run_battle_benchmark.mjs
           done
+      - name: Validate read-only forensic triage
+        run: node tools/ai-sim-harness/diagnostic-triage-check.cjs
       - name: Merge and enforce current evidence schema
         run: |
           set -euo pipefail
@@ -86,6 +90,10 @@ jobs:
           assert.equal(r.summary.diagnosticEvidence.integrityOk, true);
           console.log('PASS matrix smoke: all three scenarios, timeline + observer + evidence schemas, integration merger');
           NODE
+      - name: Build automatic diagnostic investigation queue
+        run: |
+          node scripts/triage_battle_diagnostics.cjs reports/merged/battle-benchmark.json reports/merged
+          cat reports/merged/diagnostic-triage.md >> "$GITHUB_STEP_SUMMARY"
       - name: Attach diagnostic smoke reports
         if: always()
         uses: actions/upload-artifact@v4
