@@ -32,7 +32,27 @@ function make(scenario = 'strategic', flag = '?motorTransport=1', road = true) {
       },
       invalidateNavPath() {}
     },
-    BattleTelemetry: { record: (type, item) => events.push({ type, item }) }
+    BattleTelemetry: { record: (type, item) => events.push({ type, item }) },
+    /* Unit harness substitutes the declared physical and destination owners.
+       The CI wire-map ratchet independently verifies that the shipping module
+       does not bypass either owner. */
+    BattleSim: {
+      moveTransportPassenger(sim, s, at, reason) {
+        s.root.position.x = at.x;
+        s.root.position.z = at.z;
+        s.root.position.y = sim.heightAt(at.x, at.z);
+        s.moveSpeed = 0;
+        s.moving = false;
+        s._movementStopReason = reason;
+        return true;
+      }
+    },
+    BattleMovementResolver: {
+      restoreAfterTransport(s) {
+        s.destination = { x: s.root.position.x, z: s.root.position.z };
+        s.orderDestination = { ...s.destination };
+      }
+    }
   };
   loadModule(root, 'battle/modules/58-strategic-abstract-transport.js');
   const system = hooks['strategic-abstract-transport'];
