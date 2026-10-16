@@ -48,7 +48,35 @@ if ($preview && isset($preview['sha']) && preg_match('/^[0-9a-f]{7,40}$/i', $pre
 
 $pagePath=$root.'/battle/battle_sim.html';
 $runtimeFiles=array('battle/battle_sim.html','battle/core-runtime.js','battle/soldier.js','battle/weapons.js','battle/obstacle-field.js','battle/terrain-features.js','battle/squad-ai.js','battle/engagement.js','battle/battle-sim.js','battle/camera-controls.js','battle/acoustics.js','battle/scenario-generator.js','battle/battle-navigation.js','battle/town-objectives.js','battle/module-registry.js','battle/ai-policy.js','battle/objective-system.js','battle/battle-telemetry.js','battle/commander-doctrine.js','battle/commander-routes.js','battle/commander-ai.js','battle/ai-trainer.js','battle/battle-control.js');
-$modulePaths=glob($root.'/battle/modules/*.js');if($modulePaths===false)$modulePaths=array();sort($modulePaths,SORT_STRING);$moduleFiles=array();foreach($modulePaths as $modulePath){$name=basename($modulePath);$moduleFiles[]=$name;$runtimeFiles[]='battle/modules/'.$name;}
+/* Thin preview code overlay: the modules that belong to this branch must
+   come from the branch's complete tracked-file manifest. Glob() on the
+   preview directory would only find modified overrides and silently omit
+   every unchanged production module. Historic full-copy previews still use
+   their original glob path when no overlay manifest exists. */
+$runtimeOverlayPath=$root.'/runtime-overlay.json';
+$moduleFiles=array();
+if ($preview && is_file($runtimeOverlayPath)) {
+    $manifest=@json_decode(@file_get_contents($runtimeOverlayPath),true);
+    if (!is_array($manifest) || ($manifest['version']??null)!==1 ||
+        ($manifest['runtimeOverlay']??null)!==true ||
+        !isset($manifest['modules']) || !is_array($manifest['modules'])) {
+        http_response_code(503);echo 'Invalid branch runtime manifest';exit;
+    }
+    foreach ($manifest['modules'] as $name) {
+        if (!is_string($name) || !preg_match('/^[A-Za-z0-9._-]+\\.js$/D',$name) ||
+            strpos($name,'..')!==false) {
+            http_response_code(503);echo 'Invalid branch module entry';exit;
+        }
+        $moduleFiles[$name]=true;
+    }
+    $moduleFiles=array_keys($moduleFiles);sort($moduleFiles,SORT_STRING);
+} else {
+    $modulePaths=glob($root.'/battle/modules/*.js');
+    if ($modulePaths===false)$modulePaths=array();
+    sort($modulePaths,SORT_STRING);
+    foreach ($modulePaths as $modulePath) $moduleFiles[]=basename($modulePath);
+}
+foreach($moduleFiles as $name)$runtimeFiles[]='battle/modules/'.$name;
 if(!is_file($pagePath)||!is_readable($pagePath)){http_response_code(503);echo '<!doctype html><html><body><h1>Battle sim unavailable</h1><p>Local battle page is missing.</p></body></html>';exit;}
 /* #456 R4: safe production/QA module split. Keep all gameplay, recorder,
    navigation, order-provenance and strategic-stall modules in the shipping set.
