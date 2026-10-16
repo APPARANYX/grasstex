@@ -13,6 +13,22 @@
   no longer has (`prune_missing_remote_assets.py`), so a folder can be cleared on the host and
   refilled by running the deploy (Actions → Deploy Battle Runtime → Run workflow).
 - Vehicle lab assets: the managed `labs/vehicle-animation-lab.html` is uploaded alongside the soldier Motion Lab; `Assets/vehicles/*.fbx` and `*.glb` are managed model assets for lab preview. The branch-preview workflow stages these paths too. Vehicle seat JSON remains locally exported / browser-owned and is not an automatically deployed sidecar.
+- **Branch preview assets are incremental too.** The manual preview workflow compares the
+  exact branch tree against current `origin/main` and stages **only changed**
+  `Assets/{soldiers,animations,weapons,vehicles,effects,terrain}` model/image/clip files.
+  `scripts/prepare_preview_asset_overlay.py` produces a preview-only
+  `Assets/.htaccess` that serves unchanged assets from `/grasstex/Assets/`
+  on the same origin, without duplicating ~850 MB of FBX per preview. The preview
+  loader retains its own `BATTLE_SOLDIER_ASSET_BASE`, and the lab's
+  `asset-list.php` inventories both preview overrides and production fallback.
+  Branch deletions return HTTP 410 instead of falling back. The deploy uploads
+  `preview.json` last and probes real hosted FBX fallback; if Apache does not
+  honor `mod_rewrite` or `.htaccess`, the verification **must fail**.
+  Sidecar JSON and host-owned metadata remain protected from overlay uploads
+  and deletion. `scripts/check_preview_asset_overlay.py` checks the Git-diff
+  transfer rule and same-size edits. When previewing an older branch, run its
+  *current workflow definition* with the branch in both the workflow selector
+  and `ref` input; a workflow selected from old `main` may still use bulk FTP.
 - **The deploy never deletes or overwrites server files the repo does not manage.** Hand-placed
   sidecar JSON (clip/model/lab metadata beside the FBX assets), the live FBX soldier-animation lab
   files and everything else unmanaged stay put. The planner may delete only a
