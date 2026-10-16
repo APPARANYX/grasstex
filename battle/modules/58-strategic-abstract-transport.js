@@ -171,15 +171,10 @@
       );
   }
   function clearPassenger(s, sim) {
-    s._movementStopReason = 'transport-dismounted';
-    s.moveSpeed = 0;
-    s.moving = false;
-    s.destination = position(s.root.position);
-    s.orderDestination = position(s.root.position);
-    if (root.BattleNavigation && root.BattleNavigation.invalidateNavPath)
-      root.BattleNavigation.invalidateNavPath(s);
-    if (root.BattleMovementResolver && root.BattleMovementResolver.release)
-      root.BattleMovementResolver.release(s, 'strategic-transport');
+    if (root.BattleSim && root.BattleSim.moveTransportPassenger)
+      root.BattleSim.moveTransportPassenger(sim, s, position(s.root.position), 'transport-dismounted');
+    if (root.BattleMovementResolver && root.BattleMovementResolver.restoreAfterTransport)
+      root.BattleMovementResolver.restoreAfterTransport(s);
   }
   function finish(sim, sq, why) {
     var t = sq._transport;
@@ -269,13 +264,9 @@
           ? { x: from.x + ((point.x - from.x) * step) / d, z: from.z + ((point.z - from.z) * step) / d }
           : from;
     if (!safe(sim, from, p)) return false;
-    s.root.position.x = p.x;
-    s.root.position.z = p.z;
-    s.root.position.y = sim.heightAt(p.x, p.z);
-    s._movementStopReason = 'transport-boarding';
-    s.moveSpeed = 0;
-    s.moving = false;
-    return true;
+    return !!(root.BattleSim &&
+      root.BattleSim.moveTransportPassenger &&
+      root.BattleSim.moveTransportPassenger(sim, s, p, 'transport-boarding'));
   }
   function board(sim, sq, dt) {
     var t = sq._transport,
@@ -335,12 +326,7 @@
         }
       }
       seats.forEach(function (seat) {
-        seat.s.root.position.x = seat.next.x;
-        seat.s.root.position.z = seat.next.z;
-        seat.s.root.position.y = sim.heightAt(seat.next.x, seat.next.z);
-        seat.s._movementStopReason = 'embarked-passenger';
-        seat.s.moveSpeed = 0;
-        seat.s.moving = false;
+        root.BattleSim.moveTransportPassenger(sim, seat.s, seat.next, 'embarked-passenger');
       });
       t.heading = newHeading;
       t.position = next;
