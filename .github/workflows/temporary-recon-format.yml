@@ -1,0 +1,20 @@
+name: Temporary recon formatter diff
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Print exact formatter patch
+        run: |
+          npx --yes prettier@3.3.3 --write tools/ai-sim-harness/strategic-aerial-recon-check.js
+          echo RECON_FORMAT_DIFF_BEGIN
+          git diff -- tools/ai-sim-harness/strategic-aerial-recon-check.js
+          echo RECON_FORMAT_DIFF_END
