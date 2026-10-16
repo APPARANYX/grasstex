@@ -22,7 +22,7 @@ on:
       battles_per_scenario:
         description: Number of complete 5 km battles per scenario
         required: false
-        default: '5'
+        default: '10'
       seconds:
         description: Simulated seconds (minimum 60)
         required: false
@@ -74,7 +74,7 @@ jobs:
         env:
           TYPE: ${{ matrix.type }}
           SEED_PREFIX: ${{ github.event.inputs.seed || 'strategic-diag-001' }}
-          BATTLE_BENCHMARK_COUNT: ${{ github.event.inputs.battles_per_scenario || '5' }}
+          BATTLE_BENCHMARK_COUNT: ${{ github.event.inputs.battles_per_scenario || '10' }}
           BATTLE_BENCHMARK_TIME_LIMIT: ${{ github.event.inputs.seconds || '1800' }}
           BATTLE_BENCHMARK_STEP: '0.15'
           BATTLE_BENCHMARK_OUTPUT: reports
@@ -96,7 +96,7 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs'), assert = require('node:assert/strict');
           const data = JSON.parse(fs.readFileSync('reports/battle-benchmark.json', 'utf8'));
-          const expected = Number(process.env.REQUESTED || '5');
+          const expected = Number(process.env.REQUESTED || '10');
           assert.equal(data.battles.length, expected, 'requested strategic seed coverage is incomplete');
           for (const b of data.battles) {
             assert.equal(b.objectiveCount, 12, b.seed + ': not the 5km 12-objective profile');
@@ -107,7 +107,7 @@ jobs:
           console.log('PASS', expected, 'actual strategic browser battles, complete diagnostics');
           NODE
         env:
-          REQUESTED: ${{ github.event.inputs.battles_per_scenario || '5' }}
+          REQUESTED: ${{ github.event.inputs.battles_per_scenario || '10' }}
           TYPE: ${{ matrix.type }}
       - name: Triage the highest-risk seeds, orders and stalls
         if: success()
@@ -181,3 +181,113 @@ jobs:
             ${{ runner.temp }}/strategic-diagnostics-php.log
           if-no-files-found: warn
           retention-days: 21
+
+  acceptance-report:
+    name: Aggregate strategic diagnostic acceptance
+    needs: diagnostic-replay
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download evidence from all deployment modes
+        uses: actions/download-artifact@v4
+        with:
+          pattern: strategic-diagnostics-*-${{ github.run_number }}
+          path: shard-reports
+      - name: Merge all 30 evidence streams
+        env:
+          EXPECTED_PER_MODE: ${{ github.event.inputs.battles_per_scenario || '10' }}
+        run: |
+          set -euo pipefail
+          BATTLE_BENCHMARK_MERGE_INPUT=shard-reports \
+            BATTLE_BENCHMARK_OUTPUT=reports/all \
+            node scripts/merge_battle_benchmarks.mjs
+          node scripts/triage_battle_diagnostics.cjs reports/all/battle-benchmark.json reports/all
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const report = JSON.parse(fs.readFileSync('reports/all/battle-benchmark.json', 'utf8'));
+          const diagnostic = report.summary?.diagnosticAudit || {};
+          const expected = Number(process.env.EXPECTED_PER_MODE || 10);
+          const types = ['meeting', 'us-defend', 'ge-defend'];
+          const problems = [];
+          if (report.battles.length !== expected * types.length)
+            problems.push('Incomplete sample: ' + report.battles.length + '/' + expected * types.length);
+          if (!diagnostic.ok) problems.push('Diagnostic evidence audit failed');
+          for (const type of types) {
+            const count = report.battles.filter(b => b.battleType === type).length;
+            if (count !== expected) problems.push(type + ' has only ' + count + '/' + expected + ' seeds');
+          }
+          const forensic = [];
+          for (const type of types) {
+            const file = path.join('shard-reports',
+              'strategic-diagnostics-' + type + '-' + process.env.GITHUB_RUN_NUMBER,
+              'worst-seed-forensic.json');
+            if (!fs.existsSync(file)) {
+              problems.push(type + ' is missing controlled forensic replay');
+              continue;
+            }
+            const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+            const r = data.battles?.[0], trace = r?.reports?.['strategic-mission-trace'];
+            if (!r || r.sameBattle !== true || !trace)
+              problems.push(type + ' probe/control divergence or missing trace');
+            const alerts = trace?.invariantViolations || [];
+            if (alerts.length) problems.push(type + ' has ' + alerts.length + ' strategic invariant alert(s)');
+            forensic.push({ type, seed: r?.seed || null, parity: r?.sameBattle === true,
+              sampleCount: trace?.squadSamples?.length || 0, alerts });
+          }
+          const incident = report.summary?.issueCounts || {};
+          const verdict = problems.length ? 'REVIEW REQUIRED' : 'BASELINE VERIFIED';
+          const out = {
+            schema: 'grasstex-strategic-evidence-gate-v1',
+            verdict, complete: !problems.length, problems,
+            expectedBattles: expected * types.length,
+            actualBattles: report.battles.length,
+            diagnosticIntegrity: !!diagnostic.ok, issueCounts: incident,
+            scenarioCoverage: types.map(type => ({
+              type, count: report.battles.filter(b => b.battleType === type).length
+            })),
+            forensic,
+            caveat: 'Passing validates diagnostic coverage and inspected invariants, not all AI behavior. Known 5km road-aligned low-progress warnings require route-aware diagnosis before vehicle acceptance.'
+          };
+          fs.writeFileSync('reports/all/strategic-evidence-gate.json',
+            JSON.stringify(out, null, 2) + '\n');
+          const md = [
+            '# Strategic Interception Phase 1 — automated evidence gate',
+            '',
+            '## ' + verdict,
+            '',
+            '- Completed: **' + out.actualBattles + '/' + out.expectedBattles + '**',
+            '- Diagnostic integrity: **' + (out.diagnosticIntegrity ? 'PASS' : 'FAIL') + '**',
+            '- Forensic controls: **' + forensic.filter(f => f.parity).length +
+              '/3 identical replay fingerprints**',
+            '- Writer conflicts: ' + (incident.writerConflicts || 0) +
+              ', route stalls: ' + (incident.routeStalls || 0) +
+              ', movement stalls: ' + (incident.movementStalls || 0) +
+              ', loop alerts: ' + (incident.loopAlerts || 0),
+            '',
+            '### Outstanding blockers',
+            '',
+            ...(problems.length ? problems.map(x => '- ' + x) :
+              ['- No missing data or sampled strategic invariant violations. Road-progress false positives remain a separate investigation.']),
+            '',
+            'A good score is not evidence of a good tactical decision. Inspect the ranked seed traces.',
+            ''
+          ].join('\n');
+          fs.writeFileSync('reports/all/strategic-evidence-gate.md', md);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
+          console.log('STRATEGIC_EVIDENCE_GATE', verdict, 'seed count', out.actualBattles);
+          if (problems.length) process.exitCode = 1;
+          NODE
+      - name: Publish consolidated acceptance and forensic artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: strategic-acceptance-all-${{ github.run_number }}
+          path: reports/all/
+          retention-days: 21
+          if-no-files-found: warn
