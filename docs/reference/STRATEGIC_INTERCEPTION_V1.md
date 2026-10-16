@@ -20,6 +20,23 @@ Acceptance requires a real paused-at-load browser capture of all twelve empty tr
 
 ---
 
+## Purpose-first lead and forward-screen doctrine — October 16, 2026
+
+This is the intended strategic sequence for opt-in Phase 3B in [draft #559](https://github.com/APPARANYX/grasstex/pull/559). **Do not merge into main or claim natural ambush acceptance without real-seed proof.** Keep the already verified **two existing trucks per base** (six bases, twelve trucks total), parked and visible at load. No random-spawn vehicles, new garage mechanic, or scripted enemy contact.
+
+1. **Lead, first:** The first combat-ready squad at a base accepts a normal capture/secure objective brief. It takes one real parked transport and travels to the assigned objective using the existing 12 m/s road carrier and 180 m pre-goal dismount.
+2. **Second squad has a conditional purpose:** If a distinct second squad actually started at the **same** base, assign it a genuine short-term forward-screen follow-on brief; a lone squad cannot be idled under a fictitious reserve. Its own second truck must already exist.
+3. **If the objective is contested:** If friendly physical contact or recent *friendly-reported* enemies near the lead objective establish resistance, use the available second truck to **reinforce the contested capture**, not blindly pass the threat. Normal Squad Leader movement/combat authority applies.
+4. **If secure and no known contact:** Only after the objective's public control is friendly, the lead is physically near it, and no recent credible friendly report identifies local enemy pressure, send the second squad down a connected forward road roughly **215–340 metres beyond that objective**. An absence of reports is *not* omniscient proof of safety.
+5. **Physically establish the screen:** The second squad drives, dismounts, walks the final leg, sets a real post, and observes from there. No virtual scouts or scripted ambush occupancy. Infantry retains independent LOS and weapons.
+6. **Report before ambush planning:** The actual Soldiers' **firsthand** stored contact observations move upward through the faction-local tactical report reader. Hearing/secondhand reports do not count as fresh firsthand motion evidence. A direction/speed inference needs **two observed positions at distinct times**; sightings without sufficient motion remain useful reported sightings, **not valid future-route predictions**.
+7. **General chooses:** Using only those reports and public roads, the General scores a future intercept point, actual friendly foot travel from the screen, setup budget and uncertainty, and predicted enemy ETA. **Only issue an interception if the friendly squad can arrive first**; the physically established screen can itself hold an already advantageous watch position. Existing aerial recon may supplement intelligence but cannot steal the second squad from its intended mission.
+8. **Authority and limits:** General owns mission intent, Squad Leader owns road/foot execution and post establishment, Soldier/Engagement owns perception, aim and firing. No automatic LOS, magical enemy destination, new truck generation, respawn, garage, or covert target-order injection.
+
+**Acceptance to collect:** Per-base lead/screen assignment; second real vehicle ownership; evidence-backed contested vs secured branch; forward post ahead of objective; actual traveled/dismount/on-post stamps; provenance-separated contact relay; two-sighting route inference; physical intercept before enemy; normal combat acquisition; zero duplicate vehicles or hidden intelligence; seed-matched OFF control and restart cleanup. Existing green CI for basic Phase 3B does not establish these additional native outcomes.
+
+---
+
 ## Phase 3B implementation checkpoint — event-driven interception proposal
 
 **Draft child [#559](https://github.com/APPARANYX/grasstex/pull/559); not yet accepted or merged.** Opt in to `?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1`. Default-off behavior and parked #527 are unchanged.
