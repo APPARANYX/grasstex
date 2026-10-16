@@ -118,6 +118,17 @@ const w = make(),
   I = w.root.BattleStrategicInterception;
 assert.equal(I.reserveSquad(w.sim, w.us), true, 'reserve is chosen from our own deployable squads');
 assert.equal(I.reservePending(w.sim, 'us'), true, 'reserve waits for aerial opportunity');
+const early = make();
+early.sim.time = 39;
+assert.equal(early.root.BattleAerialRecon.request(early.sim, 'us'), null,
+  'General cannot launch an interception sortie before its early briefing clock');
+early.sim.time = 40.5;
+assert.ok(early.root.BattleAerialRecon.request(early.sim, 'us'),
+  'opt-in General launches early enough to see outbound transports');
+const standalone = make('?strategicInterception=1&aerialRecon=1&motorTransport=1');
+standalone.sim.time = 40.5;
+assert.equal(standalone.root.BattleAerialRecon.request(standalone.sim, 'us'), null,
+  'standalone aerial reconnaissance still waits to the original 120-second gate');
 const before = T.fleetSummary(w.sim);
 assert.equal(before.length, 12);
 assert.ok(before.every(v => v.phase === 'parked'));
