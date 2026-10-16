@@ -213,6 +213,7 @@
       event(sim, 'declined', { faction: faction, ...st.last });
       return null;
     }
+    selected.spec.action = 'intercept';
     selected.spec.role = selected.squad.commandRole || 'maneuver';
     selected.spec.intercept = {
       source: 'aerial', contactId: selected.contactId,
