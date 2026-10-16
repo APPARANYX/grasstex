@@ -333,6 +333,7 @@
       spec.route,
       spec.requestKey,
       spec.plannedObjectiveId,
+      spec.interceptReserve || false,
       spec.intercept || null
     ]);
   }
@@ -400,6 +401,7 @@
         role: spec.role,
         requestKey: spec.requestKey || null,
         plannedObjectiveId: spec.plannedObjectiveId || null,
+        interceptReserve: !!spec.interceptReserve,
         intercept: spec.intercept || null,
         reason: reason,
         confidence: evidence.confidence,
