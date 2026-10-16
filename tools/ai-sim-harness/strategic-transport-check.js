@@ -17,16 +17,20 @@ function make(scenario = 'strategic', flag = '?motorTransport=1', road = true) {
       { id: 'b', x: 0, z: 1400 }
     ],
     spawnZones: {
-      us: { bases: [
-        { id: 'us-base-0', objectiveId: 'a', x: 0, z: 0 },
-        { id: 'us-base-1', objectiveId: 'us-base-one', x: -1000, z: -1700 },
-        { id: 'us-base-2', objectiveId: 'us-base-two', x: 1000, z: -1700 }
-      ] },
-      ge: { bases: [
-        { id: 'ge-base-0', objectiveId: 'ge-base-zero', x: 0, z: 1700 },
-        { id: 'ge-base-1', objectiveId: 'ge-base-one', x: -1000, z: 1700 },
-        { id: 'ge-base-2', objectiveId: 'ge-base-two', x: 1000, z: 1700 }
-      ] }
+      us: {
+        bases: [
+          { id: 'us-base-0', objectiveId: 'a', x: 0, z: 0 },
+          { id: 'us-base-1', objectiveId: 'us-base-one', x: -1000, z: -1700 },
+          { id: 'us-base-2', objectiveId: 'us-base-two', x: 1000, z: -1700 }
+        ]
+      },
+      ge: {
+        bases: [
+          { id: 'ge-base-0', objectiveId: 'ge-base-zero', x: 0, z: 1700 },
+          { id: 'ge-base-1', objectiveId: 'ge-base-one', x: -1000, z: 1700 },
+          { id: 'ge-base-2', objectiveId: 'ge-base-two', x: 1000, z: 1700 }
+        ]
+      }
     },
     roads: road
       ? [
@@ -38,8 +42,13 @@ function make(scenario = 'strategic', flag = '?motorTransport=1', road = true) {
             ['ge-base-one', -1000, 1700, 1350],
             ['ge-base-two', 1000, 1700, 1350]
           ].map(([id, x, z, farZ]) => ({
-            fromObjectiveId: id, toObjectiveId: id + '-road',
-            ax: x, az: z, bx: x, bz: farZ, width: 14
+            fromObjectiveId: id,
+            toObjectiveId: id + '-road',
+            ax: x,
+            az: z,
+            bx: x,
+            bz: farZ,
+            width: 14
           }))
         ]
       : []
@@ -149,7 +158,10 @@ assert.equal(new Set(initialFleet.map(v => v.id)).size, 12, 'every truck has a s
 for (const f of ['us', 'ge']) {
   assert.equal(initialFleet.filter(v => v.faction === f).length, 6);
   for (let b = 0; b < 3; b++) {
-    assert.equal(initialFleet.filter(v => v.baseIndex === b && v.faction === f && v.phase === 'parked').length, 2);
+    assert.equal(
+      initialFleet.filter(v => v.baseIndex === b && v.faction === f && v.phase === 'parked').length,
+      2
+    );
   }
 }
 assert.equal(w.api.tuning.vehiclesPerBase, 2);
@@ -159,8 +171,10 @@ assert.equal(w.squad._transport.owner, 'squad-leader');
 assert.equal(w.squad._transport.grantedBy, 'force-command');
 assert.equal(w.squad._transport.path.length, 2, 'parked truck joins its real base road');
 assert.equal(w.squad._transport.vehicleId, 'us-base-0-truck-0');
-assert.ok(Math.hypot(w.squad._transport.position.x, w.squad._transport.position.z) > 10,
-  'transport starts at its parked vehicle, not an on-demand truck at the squad');
+assert.ok(
+  Math.hypot(w.squad._transport.position.x, w.squad._transport.position.z) > 10,
+  'transport starts at its parked vehicle, not an on-demand truck at the squad'
+);
 assert.equal(w.api.fleetSummary(w.sim).find(v => v.id === w.squad._transport.vehicleId).phase, 'assigned');
 assert.ok(w.squad._transport.total >= 1200 && w.squad._transport.total <= 1230);
 const original = w.members.map(m => ({ ...m.root.position }));
@@ -199,9 +213,13 @@ assert.equal(w.squad._transport.endReason, 'arrival');
 const usedTruck = w.api.fleetSummary(w.sim).find(v => v.id === w.squad._transport.vehicleId);
 assert.equal(usedTruck.phase, 'stopped', 'completed truck remains in the world');
 assert.equal(usedTruck.squadId, null);
-assert.ok(Math.hypot(usedTruck.position.x - w.squad._transport.position.x,
-  usedTruck.position.z - w.squad._transport.position.z) < 0.01,
-  'the dismounted truck stays at its final location, not a fresh garage spawn');
+assert.ok(
+  Math.hypot(
+    usedTruck.position.x - w.squad._transport.position.x,
+    usedTruck.position.z - w.squad._transport.position.z
+  ) < 0.01,
+  'the dismounted truck stays at its final location, not a fresh garage spawn'
+);
 assert.ok(
   Math.abs(w.squad._transport.travelled - 1220) < 0.1,
   'actual carrier path distance and 180m infantry approach'
@@ -215,39 +233,68 @@ assert.equal(
   'one-way allocated transport cannot be spawned again at the destination'
 );
 
-
 // Fleet ownership is per-base, not a random or faction-wide two-task spawn cap.
 const pool = make();
 const recruit = id => {
-  const sq = { ...pool.squad, id, members: pool.members.map(m => ({
-    ...m, id: id + '-' + m.id,
-    root: { position: { ...m.root.position } }
-  })), _transport: null, _transportUsed: false, _macroMission: null };
-  sq.members.forEach(m => { m.squad = sq; });
+  const sq = {
+    ...pool.squad,
+    id,
+    members: pool.members.map(m => ({
+      ...m,
+      id: id + '-' + m.id,
+      root: { position: { ...m.root.position } }
+    })),
+    _transport: null,
+    _transportUsed: false,
+    _macroMission: null
+  };
+  sq.members.forEach(m => {
+    m.squad = sq;
+  });
   pool.sim.factions.us.squads.push(sq);
   return sq;
 };
 const second = recruit('us-2');
 const third = recruit('us-3');
 const capture = sq => {
-  sq._macroMission = { owner:'force-command', intent:'capture', status:'issued',
-    version:1, point:{x:0,z:1400}, route:[] };
+  sq._macroMission = {
+    owner: 'force-command',
+    intent: 'capture',
+    status: 'issued',
+    version: 1,
+    point: { x: 0, z: 1400 },
+    route: []
+  };
   return sq._macroMission;
 };
 assert.ok(pool.api.considerMission(pool.sim, pool.squad, capture(pool.squad)));
 assert.ok(pool.api.considerMission(pool.sim, second, capture(second)));
-assert.notEqual(pool.squad._transport.vehicleId, second._transport.vehicleId,
-  'two simultaneous squads cannot claim the same pre-existing truck');
-assert.equal(pool.api.considerMission(pool.sim, third, capture(third)), false,
-  'a base cannot conjure a third parked truck on demand');
+assert.notEqual(
+  pool.squad._transport.vehicleId,
+  second._transport.vehicleId,
+  'two simultaneous squads cannot claim the same pre-existing truck'
+);
+assert.equal(
+  pool.api.considerMission(pool.sim, third, capture(third)),
+  false,
+  'a base cannot conjure a third parked truck on demand'
+);
 pool.api.finish(pool.sim, second, 'mission-not-accepted');
-assert.equal(pool.api.fleetSummary(pool.sim).find(v => v.id === second._transport.vehicleId).phase,
-  'parked', 'cancelled pre-departure reservation releases the physical truck');
-assert.ok(pool.api.considerMission(pool.sim, third, capture(third)),
-  'released parking slot is reclaimed without creating a vehicle');
+assert.equal(
+  pool.api.fleetSummary(pool.sim).find(v => v.id === second._transport.vehicleId).phase,
+  'parked',
+  'cancelled pre-departure reservation releases the physical truck'
+);
+assert.ok(
+  pool.api.considerMission(pool.sim, third, capture(third)),
+  'released parking slot is reclaimed without creating a vehicle'
+);
 pool.system.onBattleRestart(pool.sim);
-assert.equal(pool.api.fleetSummary(pool.sim).filter(v => v.phase === 'parked').length, 12,
-  'restart re-establishes exactly two trucks per base, never duplicates');
+assert.equal(
+  pool.api.fleetSummary(pool.sim).filter(v => v.phase === 'parked').length,
+  12,
+  'restart re-establishes exactly two trucks per base, never duplicates'
+);
 
 // A new General brief invalidates the carrier task and returns native infantry control.
 const changed = make();

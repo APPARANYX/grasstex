@@ -209,7 +209,12 @@
   }
   function vehicleFor(sim, id) {
     var fleet = sim._strategicTransportFleet;
-    return fleet && fleet.vehicles.find(function (v) { return v.id === id; });
+    return (
+      fleet &&
+      fleet.vehicles.find(function (v) {
+        return v.id === id;
+      })
+    );
   }
   function parkingRoute(town, vehicle, mission) {
     return plan(town, vehicle.position, {
@@ -289,18 +294,20 @@
     )
       return false;
     var fleet = sim._strategicTransportFleet || initializeFleet(sim),
-      candidates = fleet.vehicles.filter(function (v) {
-        var base = ((town.spawnZones[v.faction] && town.spawnZones[v.faction].bases) || [])[v.baseIndex];
-        return (
-          v.faction === sq.faction &&
-          v.phase === 'parked' &&
-          base &&
-          dist(center, base) <= 95 &&
-          dist(center, v.position) <= 65
-        );
-      }).sort(function (a, b) {
-        return dist(center, a.position) - dist(center, b.position) || a.id.localeCompare(b.id);
-      }),
+      candidates = fleet.vehicles
+        .filter(function (v) {
+          var base = ((town.spawnZones[v.faction] && town.spawnZones[v.faction].bases) || [])[v.baseIndex];
+          return (
+            v.faction === sq.faction &&
+            v.phase === 'parked' &&
+            base &&
+            dist(center, base) <= 95 &&
+            dist(center, v.position) <= 65
+          );
+        })
+        .sort(function (a, b) {
+          return dist(center, a.position) - dist(center, b.position) || a.id.localeCompare(b.id);
+        }),
       vehicle = null,
       route = null;
     for (var c = 0; c < candidates.length; c++) {
@@ -536,14 +543,22 @@
     },
     fleetSummary: function (sim) {
       var fleet = sim && sim._strategicTransportFleet;
-      return fleet ? fleet.vehicles.map(function (v) {
-        return {
-          id: v.id, faction: v.faction, baseId: v.baseId, baseIndex: v.baseIndex,
-          slot: v.slot, position: position(v.position), parking: position(v.parking),
-          heading: { x: v.heading.x, z: v.heading.z },
-          phase: v.phase, squadId: v.squadId
-        };
-      }) : [];
+      return fleet
+        ? fleet.vehicles.map(function (v) {
+            return {
+              id: v.id,
+              faction: v.faction,
+              baseId: v.baseId,
+              baseIndex: v.baseIndex,
+              slot: v.slot,
+              position: position(v.position),
+              parking: position(v.parking),
+              heading: { x: v.heading.x, z: v.heading.z },
+              phase: v.phase,
+              squadId: v.squadId
+            };
+          })
+        : [];
     },
     tuning: {
       vehiclesPerBase: VEHICLES_PER_BASE,

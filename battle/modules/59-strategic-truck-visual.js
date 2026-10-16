@@ -582,9 +582,7 @@
         squad = (sim.factions[vehicle.faction].squads || []).find(function (sq) {
           return sq.id === vehicle.squadId;
         });
-        task = squad && squad._transport && squad._transport.vehicleId === key
-          ? squad._transport
-          : null;
+        task = squad && squad._transport && squad._transport.vehicleId === key ? squad._transport : null;
       }
       active.add(key);
       var entry = st.trucks.get(key);
@@ -636,7 +634,8 @@
       !st.errors.some(function (e) {
         return e.indexOf('truck FBX:') === 0;
       })
-    ) loadTruckSource(sim, st);
+    )
+      loadTruckSource(sim, st);
   }
   root.BattleModules.registerSystem('strategic-truck-visual', {
     version: '0.3-persistent-depot-fleet',
