@@ -45,6 +45,7 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
         skeletons:b.scene.skeletons.length};
     });
     assert.equal(initial.profile,'strategic');assert.equal(initial.us,5);assert.equal(initial.ge,5);
+    await page.evaluate(()=>window.__battle__.resume());
     await page.waitForFunction(()=>{
       const s=window.BattleTransportVehicleVisual.summary(window.__battle__);
       return s.filter(x=>x.showcase&&x.meshReady).length===2;
