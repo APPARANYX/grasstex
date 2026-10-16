@@ -362,7 +362,10 @@
       anchor.rotation.y = (member.seat.yaw * Math.PI) / 180;
       var body = new BABYLON.TransformNode('truckPassenger-' + entry.id + '-' + member.index, scene);
       body.parent = anchor;
-      attachImport(result, body);
+      // Measure the freshly imported FBX while it is still at its own
+      // unparented origin. Measuring after parenting to a truck at x=±1700m
+      // would bake battlefield coordinates into the seat's local offset and
+      // send the rider thousands of metres away from the vehicle.
       var mesh = (result.meshes || []).filter(function (m) {
         return m.getTotalVertices && m.getTotalVertices() > 0;
       });
@@ -376,6 +379,7 @@
       var k = 1.8 / Math.max(0.1, b.height);
       body.scaling.setAll(k);
       body.position.set(-(b.low.x + b.high.x) * 0.5 * k, -b.low.y * k, -(b.low.z + b.high.z) * 0.5 * k);
+      attachImport(result, body);
       var targets = targetsFor(result);
       var mappedTargets = 0,
         unmappedTargets = [];
