@@ -87,7 +87,12 @@ never decides tactics, ammo, hits or paths.
 Vehicles category reachable from the existing FBX Motion Lab. It imports deployed
 `Assets/vehicles/*.{fbx,glb}` through `labs/asset-list.php`, shares the pinned Babylon FBX
 loader with the soldier lab, and can load any matching `Assets/animations/*Truck*.fbx`
-as per-seat passenger or driver poses. The author places editable seat anchors
+as per-seat passenger or driver poses. The vehicle lab defaults to two-sided rendering of vehicle materials
+(`backFaceCulling=false`, `twoSidedLighting=true`; toggleable at runtime).
+That reveals inward-facing polygons but cannot repair absent faces or missing
+texture data. The **Show full crew** button selects a German paratrooper model
+when available, fills all four starter seats, and previews the available
+Driving/Sitting clips. The author places editable seat anchors
 (position in vehicle-local metres, yaw, role, occupied flag and animation filename)
 on the vehicle's normalized 6.2 m preview; `FrontWheels` and `RearWheels` hierarchy
 names are inspected but not blindly spun (a group containing both wheels may not
