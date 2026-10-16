@@ -17,6 +17,13 @@ const context={window:win,console,Set,Map,WeakMap,Math,Array,Promise,isFinite};
 vm.runInNewContext(code,context,{filename:path});
 const api=win.BattleTransportVehicleVisual;
 assert.ok(api,'Truck visual must register a testable read-only API');
+assert.ok(
+  code.indexOf('var b = bounds(mesh);') >= 0 &&
+    code.indexOf('var b = bounds(mesh);') < code.indexOf('attachImport(result, body);'),
+  'Soldier FBX must be normalized before parenting: world-space offsets displace riders kilometres'
+);
+assert.ok(code.includes('if (!tracks[i] || !tracks[i].target) tracks.splice(i, 1);'),
+  'Null animation targets must be rejected before Babylon starts a Truck pose');
 assert.ok(system['strategic-truck-visual'],'Only a visual system may be registered');
 assert.equal(api.vehicleForFaction('us'),'german_transport.fbx');
 assert.equal(api.vehicleForFaction('ge'),'german_transport.fbx');
