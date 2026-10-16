@@ -106,7 +106,7 @@
           contact: contact,
           roadId: road.id,
           point: point,
-          anchorId: anchor.id,
+          anchorIds: [a.id, b.id],
           likelyObjectiveId: node.id,
           alignment: dot,
           offRoad: off,
@@ -131,7 +131,8 @@
       }).forEach(function (v) {
         var base = (town.spawnZones[faction].bases || [])[v.baseIndex];
         if (!base) return;
-        var path = shortest(town, base.objectiveId, track.anchorId);
+        track.anchorIds.forEach(function (anchorId) {
+        var path = shortest(town, base.objectiveId, anchorId);
         if (!path) return;
         // Base road point, then complete public graph edges to the watched edge.
         var route = path.points;
@@ -170,6 +171,7 @@
         if (!best || selection.score > best.score + 0.001 ||
           (Math.abs(selection.score - best.score) < 0.001 &&
             String(sq.id).localeCompare(String(best.squad.id)) < 0)) best = selection;
+        });
       });
     });
     return best;
