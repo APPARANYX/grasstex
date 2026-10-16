@@ -266,6 +266,27 @@
           return;
         }
       }
+      if (m && m.intent === 'screen' && idx === last) {
+        /* The second truck's Squad Leader establishes an observation screen
+           beyond the publicly secured objective. No invented enemy contact,
+           firing order or passive teleport: ordinary infantry movement owns
+           the last physical metres after dismount. */
+        if (dist(pos, wp) <= 38) {
+          if (!ex.screenOnPostAt) {
+            ex.screenOnPostAt = t;
+            if (root.BattleTelemetry && root.BattleTelemetry.record)
+              root.BattleTelemetry.record('strategic-forward-screen-on-post', {
+                faction: sq.faction, squad: sq.id, missionVersion: m.version,
+                securedObjectiveId: m.screen && m.screen.securedObjectiveId,
+                roadId: m.screen && m.screen.roadId,
+                at: +t.toFixed(2), position: copy(pos)
+              }, sim);
+          }
+          setPhase(sim, sq, 'hold', 'forward observation established');
+        } else setPhase(sim, sq, 'approach', 'moving past secured objective');
+        sq.objective = copy(wp);
+        return;
+      }
       if (m && m.intent === 'intercept' && idx === last) {
         // Reach the ACTUAL corridor with the usual movement/Engagement owners.
         // The General cannot grant sighting, suppression, or first shots.
@@ -318,7 +339,7 @@
         sq.objective = copy(wp);
         return;
       }
-      var recon = reconCandidate(sq, sim, wp);
+      var recon = m && m.intent === 'screen' ? null : reconCandidate(sq, sim, wp);
       /* Don't start a recon task when the squad is already at the objective (idx === last and
        inside the capture radius). The recon candidate looks at distance from the goal, but
        when the squad is ON the goal, recon should not fire — the squad should transition
