@@ -94,7 +94,7 @@ const dispatched=I.maybeIssue(w.sim,'us',issue);
 assert.ok(dispatched&&dispatched.result==='dispatched');
 assert.equal(issued,1);
 assert.equal(w.us._macroMission.intent,'intercept');
-assert.equal(w.us._macroMission.action,undefined,'planner never fabricates combat commands');
+assert.equal(w.us._macroMission.action,'intercept','explicit corridor-hold action, never synthetic fire');
 assert.equal(w.us._macroMission.intercept.source,'aerial');
 assert.equal(w.us._transport.phase,'boarding');
 assert.equal(w.us._transport.vehicleId,dispatched.vehicleId);
