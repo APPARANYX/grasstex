@@ -69,7 +69,7 @@
   }
   function memberSeat(i, n, center, heading) {
     var across = { x: -heading.z, z: heading.x },
-      lateral = (i % 2 ? 0.8 : -0.8),
+      lateral = i % 2 ? 0.8 : -0.8,
       longitudinal = (Math.floor(i / 2) - (Math.ceil(n / 2) - 1) * 0.5) * 1.35;
     return {
       x: center.x + across.x * lateral + heading.x * longitudinal,
@@ -89,7 +89,13 @@
       points = [position(origin)].concat((mission.route || []).map(position)).concat([goal]),
       legs = [],
       i;
-    if (!goal || points.some(function (p) { return !p; })) return null;
+    if (
+      !goal ||
+      points.some(function (p) {
+        return !p;
+      })
+    )
+      return null;
     for (i = 1; i < points.length; i++) {
       var a = points[i - 1],
         b = points[i],
@@ -101,7 +107,9 @@
       if (!road && (legs.length > 0 || length > JOIN_MAX)) return null;
       legs.push({ a: a, b: b, length: length, speed: road ? SPEED_ROAD : SPEED_JOIN });
     }
-    var total = legs.reduce(function (n, leg) { return n + leg.length; }, 0);
+    var total = legs.reduce(function (n, leg) {
+      return n + leg.length;
+    }, 0);
     if (total < MIN_TRIP + DISEMBARK_METRES) return null;
     var travel = total - DISEMBARK_METRES,
       used = 0,
@@ -113,36 +121,54 @@
       if (remaining <= EPS) break;
       if (remaining < leg.length - EPS) {
         var t = remaining / leg.length;
-        path.push({ point: { x: leg.a.x + (leg.b.x - leg.a.x) * t,
-          z: leg.a.z + (leg.b.z - leg.a.z) * t }, speed: leg.speed });
+        path.push({
+          point: { x: leg.a.x + (leg.b.x - leg.a.x) * t, z: leg.a.z + (leg.b.z - leg.a.z) * t },
+          speed: leg.speed
+        });
         used = travel;
         break;
       }
       path.push({ point: position(leg.b), speed: leg.speed });
       used += leg.length;
     }
-    return path.length ? {
-      path: path, destination: path[path.length - 1].point, goal: goal,
-      pathMetres: travel, totalRoadMetres: total,
-      estimatedDriveSeconds: legs.reduce(function (sec, leg, index) {
-        var before = legs.slice(0, index).reduce(function (d, q) { return d + q.length; }, 0);
-        return sec + Math.max(0, Math.min(leg.length, travel - before)) / leg.speed;
-      }, 0),
-      origin: originPoint
-    } : null;
+    return path.length
+      ? {
+          path: path,
+          destination: path[path.length - 1].point,
+          goal: goal,
+          pathMetres: travel,
+          totalRoadMetres: total,
+          estimatedDriveSeconds: legs.reduce(function (sec, leg, index) {
+            var before = legs.slice(0, index).reduce(function (d, q) {
+              return d + q.length;
+            }, 0);
+            return sec + Math.max(0, Math.min(leg.length, travel - before)) / leg.speed;
+          }, 0),
+          origin: originPoint
+        }
+      : null;
   }
   function enabled(sim) {
     var scenario = sim && sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario,
       params = root.location && root.location.search;
-    return !!(scenario && scenario.profile === 'strategic' &&
-      /(?:^|[?&])motorTransport=1(?:&|$)/.test(params || ''));
+    return !!(
+      scenario &&
+      scenario.profile === 'strategic' &&
+      /(?:^|[?&])motorTransport=1(?:&|$)/.test(params || '')
+    );
   }
   function log(sim, sq, type, detail) {
     if (root.BattleTelemetry && root.BattleTelemetry.record)
-      root.BattleTelemetry.record('strategic-transport-' + type, {
-        faction: sq.faction, squad: sq.id, at: +(+sim.time || 0).toFixed(2),
-        detail: detail || null
-      }, sim);
+      root.BattleTelemetry.record(
+        'strategic-transport-' + type,
+        {
+          faction: sq.faction,
+          squad: sq.id,
+          at: +(+sim.time || 0).toFixed(2),
+          detail: detail || null
+        },
+        sim
+      );
   }
   function clearPassenger(s, sim) {
     s._movementStopReason = 'transport-dismounted';
@@ -161,24 +187,42 @@
     t.phase = why === 'arrival' ? 'dismounted' : 'aborted';
     t.endedAt = +sim.time || 0;
     t.endReason = why;
-    alive(sq).forEach(function (s) { clearPassenger(s, sim); });
+    alive(sq).forEach(function (s) {
+      clearPassenger(s, sim);
+    });
     log(sim, sq, t.phase, { why: why, meters: +t.travelled.toFixed(2) });
   }
   function considerMission(sim, sq, mission) {
-    if (!enabled(sim) || !sq || !mission || mission.owner !== 'force-command' ||
-      mission.intent !== 'capture' || mission.status !== 'issued' ||
-      sq.state === 'retreat' || sq.inContact || sq.isPlayer ||
-      sq._preparedDefenseRequest || sq._transportUsed) return false;
+    if (
+      !enabled(sim) ||
+      !sq ||
+      !mission ||
+      mission.owner !== 'force-command' ||
+      mission.intent !== 'capture' ||
+      mission.status !== 'issued' ||
+      sq.state === 'retreat' ||
+      sq.inContact ||
+      sq.isPlayer ||
+      sq._preparedDefenseRequest ||
+      sq._transportUsed
+    )
+      return false;
     if (sq._transport && (sq._transport.phase === 'embarked' || sq._transport.phase === 'boarding'))
       finish(sim, sq, 'new-general-mission');
     var home = position(sq.baseHome || sq.home),
       center = middle(sq),
       members = alive(sq),
       town = sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario;
-    if (!center || !home || members.length < 3 || dist(center, home) > 95 ||
+    if (
+      !center ||
+      !home ||
+      members.length < 3 ||
+      dist(center, home) > 95 ||
       members.some(function (s) {
         return s.isPlayer || s.suppressedUntil > sim.time || dist(position(s.root.position), center) > 32;
-      })) return false;
+      })
+    )
+      return false;
     var ledger = sim._strategicTransport || (sim._strategicTransport = { us: 0, ge: 0 });
     if ((ledger[sq.faction] || 0) >= PER_FACTION) return false;
     var route = plan(town, center, mission);
@@ -208,16 +252,21 @@
       dismountPoint: route.destination,
       goal: route.goal
     };
-    log(sim, sq, 'granted', { missionVersion: mission.version,
-      routeMetres: +route.pathMetres.toFixed(1), eta: +route.estimatedDriveSeconds.toFixed(1) });
+    log(sim, sq, 'granted', {
+      missionVersion: mission.version,
+      routeMetres: +route.pathMetres.toFixed(1),
+      eta: +route.estimatedDriveSeconds.toFixed(1)
+    });
     return true;
   }
   function advancePassenger(sim, s, point, dt) {
     var from = position(s.root.position),
       d = dist(from, point),
       step = Math.min(d, BOARD_SPEED * dt),
-      p = d > EPS ? { x: from.x + (point.x - from.x) * step / d,
-        z: from.z + (point.z - from.z) * step / d } : from;
+      p =
+        d > EPS
+          ? { x: from.x + ((point.x - from.x) * step) / d, z: from.z + ((point.z - from.z) * step) / d }
+          : from;
     if (!safe(sim, from, p)) return false;
     s.root.position.x = p.x;
     s.root.position.z = p.z;
@@ -261,7 +310,10 @@
       var to = t.path[t.leg],
         from = t.position,
         d = dist(from, to.point);
-      if (d <= EPS) { t.leg++; continue; }
+      if (d <= EPS) {
+        t.leg++;
+        continue;
+      }
       var elapsed = Math.min(remaining, d / to.speed),
         dx = (to.point.x - from.x) / d,
         dz = (to.point.z - from.z) / d,
@@ -305,8 +357,15 @@
         var t = sq._transport;
         if (!t || (t.phase !== 'boarding' && t.phase !== 'embarked')) return;
         var m = sq._macroMission;
-        if (!m || m.version !== t.missionVersion || sq.state === 'retreat' ||
-          !alive(sq).length || alive(sq).some(function (s) { return s.isPlayer || s.dead; })) {
+        if (
+          !m ||
+          m.version !== t.missionVersion ||
+          sq.state === 'retreat' ||
+          !alive(sq).length ||
+          alive(sq).some(function (s) {
+            return s.isPlayer || s.dead;
+          })
+        ) {
           finish(sim, sq, 'mission-changed-or-retreat');
           return;
         }
@@ -346,19 +405,31 @@
     summary: function (sim) {
       return ['us', 'ge'].flatMap(function (f) {
         var force = sim.factions && sim.factions[f];
-        return (force ? force.squads : []).filter(function (sq) {
-          return !!sq._transport;
-        }).map(function (sq) {
-          var t = sq._transport;
-          return { faction: f, squad: sq.id, phase: t.phase, owner: t.owner,
-            missionVersion: t.missionVersion, travelled: +t.travelled.toFixed(1),
-            total: +t.total.toFixed(1), reason: t.endReason || null };
-        });
+        return (force ? force.squads : [])
+          .filter(function (sq) {
+            return !!sq._transport;
+          })
+          .map(function (sq) {
+            var t = sq._transport;
+            return {
+              faction: f,
+              squad: sq.id,
+              phase: t.phase,
+              owner: t.owner,
+              missionVersion: t.missionVersion,
+              travelled: +t.travelled.toFixed(1),
+              total: +t.total.toFixed(1),
+              reason: t.endReason || null
+            };
+          });
       });
     },
     tuning: {
-      roadSpeed: SPEED_ROAD, joinSpeed: SPEED_JOIN, dismountMetres: DISEMBARK_METRES,
-      minimumTrip: MIN_TRIP, vehiclesPerFaction: PER_FACTION
+      roadSpeed: SPEED_ROAD,
+      joinSpeed: SPEED_JOIN,
+      dismountMetres: DISEMBARK_METRES,
+      minimumTrip: MIN_TRIP,
+      vehiclesPerFaction: PER_FACTION
     }
   };
   if (typeof root.GTLog === 'function') root.GTLog('[STRATEGIC] opt-in abstract motor transport ready');

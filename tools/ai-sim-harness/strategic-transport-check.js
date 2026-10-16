@@ -6,17 +6,23 @@ const assert = require('node:assert/strict');
 const { loadModule } = require('./module-loader');
 
 function make(scenario = 'strategic', flag = '?motorTransport=1', road = true) {
-  const hooks = {}, events = [], walls = { after: Infinity };
+  const hooks = {},
+    events = [],
+    walls = { after: Infinity };
   const town = {
-    profile: scenario, map: { width: 5000, depth: 5000 },
+    profile: scenario,
+    map: { width: 5000, depth: 5000 },
     objectives: [
-      { id: 'a', x: 0, z: 0 }, { id: 'b', x: 0, z: 1400 }
+      { id: 'a', x: 0, z: 0 },
+      { id: 'b', x: 0, z: 1400 }
     ],
-    roads: road ? [{ fromObjectiveId: 'a', toObjectiveId: 'b',
-      ax: 0, az: 0, bx: 0, bz: 1400, width: 14 }] : []
+    roads: road
+      ? [{ fromObjectiveId: 'a', toObjectiveId: 'b', ax: 0, az: 0, bx: 0, bz: 1400, width: 14 }]
+      : []
   };
   const root = {
-    location: { search: flag }, GTLog() {},
+    location: { search: flag },
+    GTLog() {},
     BattleModules: {
       registerSystem: (name, hooksForSystem) => (hooks[name] = hooksForSystem)
     },
@@ -31,19 +37,31 @@ function make(scenario = 'strategic', flag = '?motorTransport=1', road = true) {
   loadModule(root, 'battle/modules/58-strategic-abstract-transport.js');
   const system = hooks['strategic-abstract-transport'];
   const members = Array.from({ length: 10 }, (_, i) => ({
-    id: i, speed: 2.5, dead: false, moving: false,
+    id: i,
+    speed: 2.5,
+    dead: false,
+    moving: false,
     root: { position: { x: i % 2 ? 1 : -1, z: i - 4.5, y: 0 } },
-    suppressedUntil: 0, destination: { x: 0, z: 1400 }
+    suppressedUntil: 0,
+    destination: { x: 0, z: 1400 }
   }));
   const squad = {
-    id: 'us-1', faction: 'us', home: { x: 0, z: 0 },
-    baseHome: { x: 0, z: 0 }, members, state: 'advance',
-    commandPhase: 'approach', inContact: false,
+    id: 'us-1',
+    faction: 'us',
+    home: { x: 0, z: 0 },
+    baseHome: { x: 0, z: 0 },
+    members,
+    state: 'advance',
+    commandPhase: 'approach',
+    inContact: false,
     _macroMission: null
   };
-  members.forEach(m => { m.squad = squad; });
+  members.forEach(m => {
+    m.squad = squad;
+  });
   const sim = {
-    time: 0, scene: { metadata: { battleScenario: town } },
+    time: 0,
+    scene: { metadata: { battleScenario: town } },
     factions: { us: { squads: [squad] }, ge: { squads: [] } },
     heightAt: () => 0
   };
@@ -51,8 +69,12 @@ function make(scenario = 'strategic', flag = '?motorTransport=1', road = true) {
   const api = root.BattleSquadTransport;
   function brief(version = 1) {
     squad._macroMission = {
-      owner: 'force-command', version, status: 'issued',
-      intent: 'capture', objectiveId: 'b', point: { x: 0, z: 1400 },
+      owner: 'force-command',
+      version,
+      status: 'issued',
+      intent: 'capture',
+      objectiveId: 'b',
+      point: { x: 0, z: 1400 },
       route: []
     };
     return squad._macroMission;
@@ -67,8 +89,11 @@ function make(scenario = 'strategic', flag = '?motorTransport=1', road = true) {
 }
 
 // Flag and scenario isolation. A transport mission cannot be assumed authorized.
-for (const args of [['tactical', '?motorTransport=1', true],
-  ['strategic', '', true], ['strategic', '?motorTransport=1', false]]) {
+for (const args of [
+  ['tactical', '?motorTransport=1', true],
+  ['strategic', '', true],
+  ['strategic', '?motorTransport=1', false]
+]) {
   const w = make(...args);
   assert.equal(w.api.considerMission(w.sim, w.squad, w.brief()), false);
   assert.equal(w.squad._transport, null);
@@ -82,9 +107,15 @@ assert.equal(w.squad._transport.path.length, 1);
 assert.ok(w.squad._transport.total >= 1200 && w.squad._transport.total <= 1230);
 const original = w.members.map(m => ({ ...m.root.position }));
 w.run(2);
-assert.equal(w.squad._transport.phase, 'boarding',
-  'soldiers do not embark or depart before accepting Macro orders');
-assert.deepEqual(w.members.map(m => ({ ...m.root.position })), original);
+assert.equal(
+  w.squad._transport.phase,
+  'boarding',
+  'soldiers do not embark or depart before accepting Macro orders'
+);
+assert.deepEqual(
+  w.members.map(m => ({ ...m.root.position })),
+  original
+);
 w.squad._macroMission.status = 'executing';
 w.run(12);
 assert.equal(w.squad._transport.phase, 'embarked', 'real boarding converges seats');
@@ -98,21 +129,27 @@ while (w.squad._transport.phase === 'embarked' && w.sim.time < 160) {
   last = z;
   if (w.squad._transport.phase === 'embarked') {
     const p = w.members.map(m => m.root.position);
-    assert.ok(Math.max(...p.map(v => v.z)) - Math.min(...p.map(v => v.z)) < 6,
-      'actual passengers remain a compact vehicle formation');
+    assert.ok(
+      Math.max(...p.map(v => v.z)) - Math.min(...p.map(v => v.z)) < 6,
+      'actual passengers remain a compact vehicle formation'
+    );
     assert.ok(w.api.isPassenger(w.members[1]));
   }
 }
 assert.equal(w.squad._transport.phase, 'dismounted');
 assert.equal(w.squad._transport.endReason, 'arrival');
-assert.ok(Math.abs(w.squad._transport.travelled - 1220) < 0.1,
-  'actual carrier path distance and 180m infantry approach');
+assert.ok(
+  Math.abs(w.squad._transport.travelled - 1220) < 0.1,
+  'actual carrier path distance and 180m infantry approach'
+);
 assert.ok(maxStep < 2.1 && maxStep > 1.5, 'road speed 12m/s on a 0.15s integrator');
 assert.ok(w.sim.time - embarkedAt > 95 && w.sim.time - embarkedAt < 110, 'physical 12m/s travel time');
-assert.ok(w.members.every(m => !w.api.isPassenger(m) &&
-  m._movementStopReason === 'transport-dismounted'));
-assert.equal(w.api.considerMission(w.sim, w.squad, w.brief(2)), false,
-  'one-way allocated transport cannot be spawned again at the destination');
+assert.ok(w.members.every(m => !w.api.isPassenger(m) && m._movementStopReason === 'transport-dismounted'));
+assert.equal(
+  w.api.considerMission(w.sim, w.squad, w.brief(2)),
+  false,
+  'one-way allocated transport cannot be spawned again at the destination'
+);
 
 // A new General brief invalidates the carrier task and returns native infantry control.
 const changed = make();
@@ -143,4 +180,6 @@ assert.ok(blocked.members.every(m => !blocked.api.isPassenger(m)));
 const contact = make();
 contact.squad.inContact = true;
 assert.equal(contact.api.considerMission(contact.sim, contact.squad, contact.brief()), false);
-console.log('PASS opt-in General grant, physical boarding, 12m/s real road travel, compact passengers, safe dismount, dynamic road block and legacy isolation');
+console.log(
+  'PASS opt-in General grant, physical boarding, 12m/s real road travel, compact passengers, safe dismount, dynamic road block and legacy isolation'
+);
