@@ -15,12 +15,12 @@ import subprocess
 from pathlib import Path
 
 EXTENSIONS = {
-    "soldiers": {".fbx", ".json"},
-    "animations": {".fbx", ".bin", ".json"},
-    "weapons": {".fbx", ".glb", ".json"},
-    "vehicles": {".fbx", ".glb", ".json"},
+    "soldiers": {".fbx"},
+    "animations": {".fbx", ".bin"},
+    "weapons": {".fbx", ".glb"},
+    "vehicles": {".fbx", ".glb"},
     "effects": {".png", ".webp", ".jpg", ".jpeg"},
-    "terrain": {".png", ".bin", ".json"},
+    "terrain": {".png", ".bin"},
 }
 
 
@@ -75,7 +75,7 @@ def build_overlay(base_ref: str, destination: Path) -> dict:
     copied, removed = [], []
     for path in changed_assets(base_ref):
         if not managed_asset(path):
-            # Do not accidentally expose private audio, state, arbitrary PHP, or
+            # Do not expose private audio, host-owned calibration JSON, PHP, or
             # other files from the repository through the public preview.
             continue
         src = Path(path)
