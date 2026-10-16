@@ -5,6 +5,21 @@
 **Feature flag:** future opt-in `?strategicInterception=1`; OFF preserves existing generated scenarios and benchmark behavior.
 **Legacy tactical work:** [PR #527](https://github.com/APPARANYX/grasstex/pull/527) remains a **draft, parked for dense urban/tactical combat**, not discarded. Related experiments [#542](https://github.com/APPARANYX/grasstex/pull/542), [#543](https://github.com/APPARANYX/grasstex/pull/543), and [#544](https://github.com/APPARANYX/grasstex/pull/544) remain independent and **must not be cherry-picked or merged as prerequisites**.
 
+## Vehicle persistence and future garages — October 16, 2026
+
+Implementation proposal in [#558](https://github.com/APPARANYX/grasstex/pull/558), targeting the draft strategic parent #545:
+
+- **Six base-owned depots, two trucks per base (twelve total)** are allocated deterministically during the strategic battle's initial reset, before the General issues any transport brief.
+- Each vehicle has a permanent `baseId`, `slot`, and `vehicleId`; empty trucks are visible at their parking pads and do not instantiate in response to a randomly timed transport request. Until garage geometry exists, pads sit alongside the base's first connected public road.
+- Macro may claim an **already parked truck at the squad's actual home base**; the squad walks to that parked position, transitions through real boarding, and follows the existing carrier movement authority. No overlapping claims or a magically conjured third truck at the same base.
+- A truck remains in the world where it stopped after an ordinary dismount, obstacle, contact, or mission interruption. An unused reservation abandoned before boarding releases the same parking slot. No instant return to base and no respawning replacement in V1.
+- The **future garage system** should use these base/vehicle identities as its interface, adding physical garage structures, visible doors, drive-out/return-to-depot tasks, and explicit repair/resupply before any replacement truck exists. A replacement should never appear mid-battle without a modeled source/route.
+- Still a presentation-only FBX vehicle (the existing transport/path and weapon/LOS authority remain unchanged), and both factions temporarily display the existing German model. Preserve the original soldier FBX rigs and independently centered wheel axle animation.
+
+Acceptance requires a real paused-at-load browser capture of all twelve empty trucks, deterministic fleet-count/claim/reset tests, 5 km render and 30-battle transport non-regression, and no default tactical or combat-lab leakage.
+
+---
+
 ## New primary scenario
 
 Model deliberate **General-directed route interception** in a large open-country battlefield. A friendly General optionally calls a one-time aerial reconnaissance event. Based on a time-stamped snapshot of enemy squads' positions, headings, and speeds, it evaluates plausible objective routes, chooses an interception corridor **between the enemy and its plausible objective(s)**, and allocates an available motorized squad only when it can dismount and occupy that corridor *before* the enemy is expected to reach it. The Squad Leader receives a high-level intercept mission; soldiers independently establish observation/firing posts and engage under ordinary combat rules.
