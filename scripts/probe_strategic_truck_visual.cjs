@@ -66,11 +66,23 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
     await page.waitForTimeout(800);
     const final=await page.evaluate(()=>{
       const b=window.__battle__,a=window.BattleTransportVehicleVisual.summary(b);
-      return {trucks:a,vertices:b.scene.getTotalVertices(),
+      const truck=b.scene.transformNodes.find(n=>n.name==='strategicTruck-us-showcase/us');
+      if(!truck)throw Error('US showcase truck disappeared during crew rendering');
+      const origin=truck.getAbsolutePosition();
+      const passengerNodes=b.scene.transformNodes.filter(n=>n.name.startsWith('truckPassenger-showcase/us-'));
+      const passengerOffsets=passengerNodes.map(node=>{
+        const pos=node.getAbsolutePosition();
+        return Math.hypot(pos.x-origin.x,pos.y-origin.y,pos.z-origin.z);
+      });
+      return {trucks:a,passengerOffsets,vertices:b.scene.getTotalVertices(),
         meshes:b.scene.meshes.length,renderFps:b.scene.getEngine().getFps()};
     });
     await page.screenshot({path:path.join(out,'us-truck-seated-crew.png')});
     assert.ok(final.trucks.find(t=>t.faction==='us').renderedRiders>=1);
+    assert.ok(final.passengerOffsets.length>=1,'Imported seated soldier transforms must exist');
+    assert.ok(final.passengerOffsets.every(d=>d<8),
+      'Every seated rider must be within 8m of the truck, not thousands of metres away: '+
+      JSON.stringify(final.passengerOffsets));
     assert.deepEqual(errors,[],'uncaught Chromium errors');
     const report={baseline,both,nearby,final,elapsedMs:Date.now()-began,errors};
     fs.writeFileSync(path.join(out,'truck-visual-report.json'),JSON.stringify(report,null,2)+'\n');
