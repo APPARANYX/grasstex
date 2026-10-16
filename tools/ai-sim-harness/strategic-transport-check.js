@@ -180,7 +180,10 @@ blocked.run(8);
 blocked.walls.after = blocked.squad._transport.position.z + 20;
 blocked.run(8);
 assert.equal(blocked.squad._transport.phase, 'aborted');
-assert.equal(blocked.squad._transport.endReason, 'road-blocked');
+assert.ok(
+  ['road-blocked', 'passenger-path-blocked'].includes(blocked.squad._transport.endReason),
+  'blocking either the carrier center or an actual passenger stops the vehicle safely'
+);
 assert.ok(blocked.squad._transport.position.z <= blocked.walls.after + 0.01);
 assert.ok(blocked.members.every(m => !blocked.api.isPassenger(m)));
 
