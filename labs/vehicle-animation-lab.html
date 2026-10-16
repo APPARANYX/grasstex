@@ -200,6 +200,7 @@ function clearVehicle(){
   if(state.vehicleRoot)state.vehicleRoot.dispose(false,false);
   state.vehicleResult=null;state.vehicleRoot=null;state.vehicleVisual=null;
   state.meshes=[];state.wheelGroups={front:[],rear:[]};
+  state.seats=[];state.selected=0;
 }
 function ensureSeats(){
   if(state.seats.length)return;
@@ -305,6 +306,7 @@ function drawSeats(){
   if(!seat)return;
   $('seatName').value=seat.name;
   $('seatRole').value=seat.role;
+  if(seat.clip&&![...$('seatPose').options].some(o=>o.value===seat.clip))addOption($('seatPose'),seat.clip,seat.clip+' (not deployed)');
   $('seatPose').value=seat.clip;
   $('seatOccupied').checked=seat.occupied;
   ['X','Y','Z'].forEach((suffix,i)=>{$('seat'+suffix).value=seat.position[i].toFixed(3);});
@@ -443,6 +445,17 @@ async function refreshActors(){
   }
   for(const seat of active){if(epoch!==state.actorEpoch)return;await spawnSeat(seat,epoch);}
 }
+function suggestSeatPoses(){
+  const names=[...state.clips.keys()];
+  const driver=names.find(n=>/driv/i.test(n));
+  const passengers=names.filter(n=>/sitt|sitting|seated|sit\b/i.test(n));
+  let n=0;
+  state.seats.forEach(seat=>{
+    if(seat.clip)return;
+    if(seat.role==='driver'&&driver)seat.clip=driver;
+    else if(seat.role==='passenger'&&passengers.length)seat.clip=passengers[n++%passengers.length];
+  });
+}
 function refreshClipSelectors(){
   const options=[...state.clips.keys()].sort((a,b)=>a.localeCompare(b));
   const chosen=$('clipSelect').value;
@@ -465,7 +478,7 @@ async function library(){
     fill($('soldierSelect'),soldiers,'Select a soldier…');
     if(vehicles.length===1)$('vehicleSelect').value=vehicles[0];
     for(const name of files.animations||[])if(/truck/i.test(name)&&/\.fbx$/i.test(name))state.clips.set(name,null);
-    refreshClipSelectors();
+    suggestSeatPoses();refreshClipSelectors();drawSeats();
     if(!state.clips.size)status('Truck model found; no Truck animation filenames found in the deployed library. Upload local clips or deploy them to Assets/animations.');
     else status('Library loaded: '+vehicles.length+' vehicle(s), '+state.clips.size+' Truck clip(s).');
   }catch(error){status('Asset inventory unavailable: '+error.message+'. Local file inputs remain usable.',true);}
@@ -478,7 +491,7 @@ $('soldierSelect').onchange=()=>{state.soldierName=$('soldierSelect').value;stat
 $('soldierFile').onchange=()=>{state.soldierFile=$('soldierFile').files[0]||null;state.soldierName=state.soldierFile?.name||'';$('soldierSelect').value='';};
 $('clipsFile').onchange=async()=>{
   for(const file of $('clipsFile').files)state.clips.set(file.name,file);
-  refreshClipSelectors();
+  suggestSeatPoses();refreshClipSelectors();drawSeats();
   status('Local truck clips added. Assign them through each seat Pose selector.');
 };
 $('clipSelect').onchange=()=>{
