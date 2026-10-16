@@ -450,8 +450,17 @@
        The chosen defender's initial and runtime garrisons are unaffected.
        In the first user battle, three of five attackers were otherwise
        pinned to their spawn objectives for the entire 1800-second match. */
-    if (scenario && scenario.profile === 'strategic' && sides && sq.faction === sides.attacker)
-      return !!(m && m.intent === 'defend' && !m.requestKey && m.status === 'executing');
+    if (scenario && scenario.profile === 'strategic' && sides) {
+      if (sq.faction === sides.attacker)
+        return !!(m && m.intent === 'defend' && !m.requestKey && m.status === 'executing');
+      /* An opt-in strategic mobile defender may capture its own spawn base and
+         receive an 18-second objective-security DEFEND brief. Engineering the
+         capture must not promote that temporary request into a permanent
+         prepared garrison. Initial prepared squads retain their assigned posts;
+         a later explicit, unrequested General DEFEND brief can still garrison. */
+      if (sq.faction === sides.defender && !sq._strategicDefenseObjective)
+        return !!(m && m.intent === 'defend' && !m.requestKey && m.status === 'executing');
+    }
     return !(
       m &&
       (m.intent === 'capture' || m.intent === 'reconstitute') &&
