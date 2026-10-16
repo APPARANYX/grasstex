@@ -263,6 +263,24 @@
       })
     );
   }
+  /* Designate exactly one physical home-base maneuver reserve for the one-shot
+     aerial opportunity. This choice is from OUR OWN roster only; enemy movement
+     or hidden mission data never enters this selection. */
+  function reserveSquad(sim, sq) {
+    if (!enabled(sim) || !sq || !sim.factions || !sim.factions[sq.faction]) return false;
+    var squads = sim.factions[sq.faction].squads || [];
+    var selected = squads.slice().reverse().find(function (candidate) {
+      return candidate && candidate.state !== 'retreat' && !candidate.isPlayer &&
+        !candidate._preparedDefenseRequest &&
+        candidate.members && candidate.members.some(function (s) { return s && !s.dead; });
+    });
+    return selected === sq;
+  }
+  function reservePending(sim, faction) {
+    if (!enabled(sim) || !(sim.time < 180)) return false;
+    var own = state(sim)[faction];
+    return own.lastEventAt == null;
+  }
   function event(sim, kind, data) {
     if (root.BattleTelemetry && root.BattleTelemetry.record)
       root.BattleTelemetry.record('strategic-interception-' + kind, data, sim);
@@ -331,6 +349,8 @@
   });
   root.BattleStrategicInterception = {
     enabled: enabled,
+    reserveSquad: reserveSquad,
+    reservePending: reservePending,
     choose: choose,
     maybeIssue: maybeIssue,
     summary: function (sim) {
