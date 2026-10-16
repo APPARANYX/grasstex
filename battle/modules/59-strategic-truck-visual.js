@@ -222,6 +222,104 @@
       });
     return st.pending;
   }
+  // Wheels are presentation-only, like the truck mesh: this module never
+  // changes movement, collision, formation or transport mission decisions.
+  // The FBX exporter preserves Blender's FrontWheels / RearWheels groups.
+  // A single pivot per axle turns both tyres around the shared axle line.
+  function wheelRoots(visual, name) {
+    var matches = (visual.getDescendants ? visual.getDescendants(false) : []).filter(function (n) {
+      var label = String(n.name || '')
+        .split(/[|/]/)
+        .pop();
+      return (
+        label === name ||
+        label.indexOf(name + '_') === 0 ||
+        label.indexOf(name + '.') === 0 ||
+        label.indexOf(name + '(') === 0 ||
+        // Babylon prefixes descendants with the clone's full FBX path:
+        // strategicTruckModel-us-0.__fbx_root__.FrontWheels.Geom3D.362
+        // Collections survived export; only their runtime names changed.
+        label.indexOf('.' + name) >= 0
+      );
+    });
+    var named = new Set(matches);
+    return matches.filter(function (node) {
+      for (var p = node.parent; p; p = p.parent) if (named.has(p)) return false;
+      return true;
+    });
+  }
+  function wheelBounds(roots) {
+    var meshes = [];
+    roots.forEach(function (node) {
+      if (node.getTotalVertices && node.getTotalVertices() > 0) meshes.push(node);
+      if (node.getChildMeshes)
+        node.getChildMeshes(false).forEach(function (mesh) {
+          if (mesh.getTotalVertices && mesh.getTotalVertices() > 0 && meshes.indexOf(mesh) < 0)
+            meshes.push(mesh);
+        });
+    });
+    return meshes.length ? bounds(meshes) : null;
+  }
+  function attachAxlePivots(entry) {
+    entry.axles = {};
+    entry.lastWheelPosition = null;
+    if (!entry.root || !entry.visual) return;
+    entry.root.computeWorldMatrix(true);
+    var inv = entry.root.getWorldMatrix().clone().invert();
+    ['front', 'rear'].forEach(function (side) {
+      var roots = wheelRoots(entry.visual, side === 'front' ? 'FrontWheels' : 'RearWheels');
+      if (!roots.length) return;
+      var box = wheelBounds(roots);
+      if (!box) return;
+      var centerWorld = new BABYLON.Vector3(
+        (box.low.x + box.high.x) * 0.5,
+        (box.low.y + box.high.y) * 0.5,
+        (box.low.z + box.high.z) * 0.5
+      );
+      var center = BABYLON.Vector3.TransformCoordinates(centerWorld, inv);
+      var pivot = new BABYLON.TransformNode('truckAxle-' + side + '-' + entry.id, entry.root.getScene());
+      pivot.parent = entry.root;
+      pivot.position.copyFrom(center);
+      pivot.rotationQuaternion = BABYLON.Quaternion.Identity();
+      pivot.computeWorldMatrix(true);
+      // setParent preserves the original imported wheel pose, including
+      // the truck template's normalization scale and Blender mesh transforms.
+      roots.forEach(function (node) {
+        node.setParent(pivot);
+      });
+      var radius = Math.max(0.25, Math.min(0.95, Math.min(box.height, box.depth) * 0.5));
+      entry.axles[side] = {
+        pivot: pivot,
+        roots: roots,
+        axis: 'x',
+        radius: radius,
+        angle: 0,
+        center: [center.x, center.y, center.z]
+      };
+    });
+  }
+  function spinAxles(entry, transport, position) {
+    if (!entry.axles) return;
+    // Initial placement, restart and teleport never introduce an arbitrary
+    // rotation; only measured carrier translation counts as driving.
+    var prev = entry.lastWheelPosition;
+    entry.lastWheelPosition = { x: position.x, z: position.z };
+    if (!prev || transport.phase !== 'embarked') return;
+    var dx = position.x - prev.x,
+      dz = position.z - prev.z;
+    var traveled = Math.hypot(dx, dz);
+    if (!isFinite(traveled) || traveled < 0.00001 || traveled > 30) return;
+    var h = transport.heading || { x: 0, z: 1 };
+    var sign = dx * (+h.x || 0) + dz * (+h.z || 0) < 0 ? -1 : 1;
+    ['front', 'rear'].forEach(function (side) {
+      var wheel = entry.axles[side];
+      if (!wheel || !wheel.pivot || wheel.pivot.isDisposed()) return;
+      wheel.angle =
+        (((wheel.angle + (sign * traveled) / wheel.radius) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      var vector = wheel.axis === 'z' ? BABYLON.Axis.Z : BABYLON.Axis.X;
+      wheel.pivot.rotationQuaternion = BABYLON.Quaternion.RotationAxis(vector, wheel.angle);
+    });
+  }
   function locationFor(sim, transport) {
     var p = transport.position || transport.boardingCenter;
     if (!p || !isFinite(p.x) || !isFinite(p.z)) return null;
@@ -234,6 +332,7 @@
     entry.root.position.set(p.x, p.y, p.z);
     var h = transport.heading || { x: 0, z: 1 };
     entry.root.rotation.y = Math.atan2(+h.x || 0, +h.z || 0);
+    spinAxles(entry, transport, p);
     entry.phase = transport.phase;
   }
   function instantiateTruck(sim, st, entry) {
@@ -248,6 +347,7 @@
     clone.setEnabled(true);
     entry.root = rootNode;
     entry.visual = clone;
+    attachAxlePivots(entry);
   }
   function cameraNear(scene, entry, radius) {
     var camera = scene.activeCamera;
@@ -386,6 +486,8 @@
     if (entry.root && !entry.root.isDisposed()) entry.root.dispose(false, false);
     entry.root = null;
     entry.visual = null;
+    entry.axles = null;
+    entry.lastWheelPosition = null;
   }
   function teardown(sim) {
     // BattleSim.restart disposes the OLD soldier roots before spawning a new
@@ -629,6 +731,25 @@
             return r.soldier.id;
           }),
           meshReady: !!entry.root,
+          wheels: Object.fromEntries(
+            ['front', 'rear'].map(function (side) {
+              var axle = entry.axles && entry.axles[side];
+              return [
+                side,
+                axle
+                  ? {
+                      nodes: axle.roots.length,
+                      radius: +axle.radius.toFixed(3),
+                      rotation: +axle.angle.toFixed(3),
+                      axis: axle.axis,
+                      center: axle.center.map(function (n) {
+                        return +n.toFixed(3);
+                      })
+                    }
+                  : null
+              ];
+            })
+          ),
           posesReady: !!st.poseReady,
           errors: st.errors.slice(0, 8)
         };
