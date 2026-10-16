@@ -273,6 +273,7 @@ jobs:
           node scripts/check-building-interior-ingress.cjs
           node scripts/check-strategic-5km.cjs
           node scripts/check-strategic-truck-visual.cjs
+          node scripts/check-strategic-restart-end.cjs
 
       - name: Engagement harness seeds
         run: |

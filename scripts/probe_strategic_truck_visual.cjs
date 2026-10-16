@@ -174,8 +174,81 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
     for(const faction of ['us','ge'])
       assert.ok(dismount[faction].every(x=>!x.seat&&!x.fxSeat&&x.parentBack&&x.socketBack),
         faction+' dismount restores original FBX root and weapon hierarchy');
+    // Re-embark the very same live actors, then restart WHILE OCCUPIED.
+    // Old truck-seat parents must be restored in beforeBattleRestart, before
+    // BattleSim disposes the old soldier roots. Otherwise their detached
+    // weapon sockets remain parented to a truck and form orphan gun piles.
+    const restartCleanup=await page.evaluate(()=>{
+      const b=window.__battle__,qa=window.__truckQa;
+      for(const faction of ['us','ge']){
+        const squad=qa.squads[faction],p=squad.members[0].root.position;
+        squad._transport={phase:'embarked',position:{x:p.x,z:p.z},
+          heading:{x:0,z:faction==='us'?1:-1}};
+      }
+      qa.system.onSimulationStep(b,{dt:0});
+      const previous=['us','ge'].flatMap(f=>qa.soldiers[f]);
+      if(!previous.every(s=>s._vehiclePresentation && s._fbx?._vehicleSeat))
+        throw Error('Could not re-embark real squads for occupied restart QA');
+      const old=previous.map(s=>({soldier:s,fx:s._fbx,
+        held:s.weapon?.mesh||null,weaponSocket:s.weaponSocket,
+        poseRoot:s.poseRoot}));
+      b.restart();
+      return {
+        oldActors:old.length,
+        allSeatsCleared:old.every(x=>!x.soldier._vehiclePresentation&&!x.fx._vehicleSeat),
+        allSocketsDisposed:old.every(x=>x.weaponSocket.isDisposed()),
+        allHoldersDisposed:old.every(x=>x.fx.holder.isDisposed()),
+        oldWeaponsDisposed:old.every(x=>!x.held||x.held.isDisposed()),
+        currentRoster:b._roster.us.length+b._roster.ge.length,
+        oldActorRootsDisposed:old.every(x=>x.soldier.root.isDisposed()),
+        ghostWeaponMeshNames:b.scene.meshes.filter(m=>m.name.startsWith('weapon.')&&
+          old.some(x=>x.held===m)).map(m=>m.name)
+      };
+    });
+    assert.equal(restartCleanup.oldActors,20);
+    assert.ok(restartCleanup.allSeatsCleared&&restartCleanup.allSocketsDisposed&&
+      restartCleanup.allHoldersDisposed&&restartCleanup.oldWeaponsDisposed&&
+      restartCleanup.oldActorRootsDisposed,
+      'Occupied restart must clean old actor FBX holders and all rifle sockets: '+
+        JSON.stringify(restartCleanup));
+    assert.deepEqual(restartCleanup.ghostWeaponMeshNames,[],
+      'No detached rifle meshes may survive occupied restart');
+    assert.equal(restartCleanup.currentRoster,initial.soldiers);
+
+    // End, try P (possession must not resume a terminal session), then
+    // restart and end again using the *other* End battle control. Both
+    // routes must show the complete diagnostic export choices.
+    const postBattle=[];
+    for(const selector of ['#restartBtn','#endBattleBtn','#restartBtn']){
+      await page.locator(selector).click();
+      await page.waitForFunction(()=>{
+        const b=window.__battle__,banner=document.getElementById('banner');
+        return b.manualEnded&&b.paused&&banner.style.display==='flex';
+      });
+      const state=await page.evaluate(()=>{
+        const b=window.__battle__,ids=['bannerExportCompactDiagnostics','bannerExportDiagnostics'];
+        return {ended:b.manualEnded,paused:b.paused,
+          buttons:ids.map(id=>!!document.getElementById(id)),
+          bannerVisible:document.getElementById('banner').style.display==='flex'};
+      });
+      assert.ok(state.bannerVisible && state.buttons.every(Boolean),
+        'Each end route must show both diagnostic export actions: '+JSON.stringify(state));
+      await page.keyboard.press('p');
+      const stillEnded=await page.evaluate(()=>{
+        const b=window.__battle__;
+        return b.manualEnded&&b.paused&&document.getElementById('banner').style.display==='flex';
+      });
+      assert.ok(stillEnded,'P must not resume after battle is ended');
+      postBattle.push({selector, ...state,pGuarded:stillEnded});
+      await page.locator('#bannerRestart').click();
+      await page.waitForFunction(()=>{
+        const b=window.__battle__;
+        return !b.manualEnded&&!b.winner&&document.getElementById('banner').style.display==='none';
+      });
+    }
     assert.deepEqual(errors,[],'Browser JavaScript errors');
-    const data={initial,setup,report,dismount,elapsedMs:Date.now()-began,errors};
+    const data={initial,setup,report,dismount,restartCleanup,postBattle,
+      elapsedMs:Date.now()-began,errors};
     fs.writeFileSync(path.join(out,'truck-visual-report.json'),JSON.stringify(data,null,2)+'\n');
     console.log('STRATEGIC TRUCK CHROMIUM PASS '+JSON.stringify({
       elapsedMs:data.elapsedMs,
@@ -183,7 +256,8 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
       geModels:report.per.ge.riders.map(x=>x.model),
       skeletonIncrease:report.skeletonsAfter-report.skeletonsBefore,
       animationGroupIncrease:report.animationGroupsAfter-report.animationGroupsBefore,
-      dismountRestored:true
+      dismountRestored:true,orphanWeapons:restartCleanup.ghostWeaponMeshNames.length,
+      postBattleEndCycles:postBattle.length,pGuarded:true
     }));
   }catch(e){
     try{await page.screenshot({path:path.join(out,'truck-visual-failure.png')});}catch(_){}

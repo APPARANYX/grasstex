@@ -387,7 +387,11 @@
     entry.root = null;
     entry.visual = null;
   }
-  function reset(sim) {
+  function teardown(sim) {
+    // BattleSim.restart disposes the OLD soldier roots before spawning a new
+    // roster. Release seats in beforeBattleRestart, otherwise the real soldier
+    // FBX holder and weapon socket remain parented to the truck and survive
+    // root.dispose(), leaving a pile of floating guns/stray rig meshes.
     var st = stateFor(sim);
     st.generation++;
     st.trucks.forEach(removeEntry);
@@ -401,10 +405,14 @@
     st.errors = [];
     st.poseReady = false;
     st.poseLoading = null;
+  }
+  function reset(sim) {
+    teardown(sim);
     // Only strategic motor-transport scenes incur Truck FBX work. Prewarm the
     // shared vehicle and all four poses during battle setup, not on the first
     // live boarding frame, so first-use GPU/FBX stalls are amortized.
     if (enabled(sim)) {
+      var st = stateFor(sim);
       prepareSharedSeatPoses(sim, st);
       loadTruckSource(sim, st);
     }
@@ -558,6 +566,7 @@
   root.BattleModules.registerSystem('strategic-truck-visual', {
     version: '0.2-live-squad-crew',
     onBattleStart: reset,
+    beforeBattleRestart: teardown,
     onBattleRestart: reset,
     onSimulationStep: step
   });
