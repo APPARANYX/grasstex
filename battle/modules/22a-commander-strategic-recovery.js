@@ -380,6 +380,13 @@
       if (!m) return 'initial-mission';
       if (m.status === 'failed' || m.status === 'invalid' || m.status === 'completed')
         return 'mission-resume';
+      if (m.intent === 'intercept') {
+        // A genuine contact or ongoing intercept survives incidental objective
+        // ownership changes; no second air snapshot is inferred at expiry.
+        if (m.intercept && sim.time >= m.intercept.expiresAt && !sq.inContact)
+          return 'intercept-expired';
+        return null;
+      }
       /* A defense request is new information only when it changes the task: a squad already defending that
        objective keeps its brief while pressure comes and goes; releasing a request-bound brief is reassessed. */
       var request = defenseRequest(sim, sq);
