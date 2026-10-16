@@ -116,6 +116,8 @@ function make(search = '?strategicInterception=1&motorTransport=1&aerialRecon=1&
 const w = make(),
   T = w.root.BattleSquadTransport,
   I = w.root.BattleStrategicInterception;
+assert.equal(I.reserveSquad(w.sim, w.us), true, 'reserve is chosen from our own deployable squads');
+assert.equal(I.reservePending(w.sim, 'us'), true, 'reserve waits for aerial opportunity');
 const before = T.fleetSummary(w.sim);
 assert.equal(before.length, 12);
 assert.ok(before.every(v => v.phase === 'parked'));
@@ -144,6 +146,7 @@ const issue = (sq, spec, reason) => {
 const dispatched = I.maybeIssue(w.sim, 'us', issue);
 assert.ok(dispatched && dispatched.result === 'dispatched');
 assert.equal(issued, 1);
+assert.equal(I.reservePending(w.sim, 'us'), false, 'reservation released on recon evaluation');
 assert.equal(w.us._macroMission.intent, 'intercept');
 assert.equal(w.us._macroMission.action, 'intercept', 'explicit corridor-hold action, never synthetic fire');
 assert.equal(w.us._macroMission.intercept.source, 'aerial');
