@@ -17,7 +17,7 @@ const seeds=[
   {seed:'strategic-diag-001-meeting-0001',type:'meeting'},
   {seed:'strategic-diag-001-ge-defend-0001',type:'ge-defend'},
   {seed:'strategic-diag-001-us-defend-0005',type:'us-defend'}
-];
+].slice(0,Math.max(1,Math.min(3,+process.env.STRATEGIC_INTERCEPT_QA_CASES||3)));
 (async()=>{
   fs.mkdirSync(dir,{recursive:true});
   const {chromium}=playwright(),browser=await chromium.launch({args:[
