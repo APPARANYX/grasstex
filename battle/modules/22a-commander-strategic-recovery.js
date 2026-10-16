@@ -396,6 +396,11 @@
       var escalation = sq._macroMissionRequest;
       if (escalation && escalation.missionVersion === m.version)
         return escalation.reason || 'captain-request';
+      if (m.intent === 'reserve' && m.interceptReserve) {
+        var interception = root.BattleStrategicInterception;
+        return interception && interception.reservePending(sim, sq.faction)
+          ? null : 'reserve-commit';
+      }
       if (m.intent === 'reserve') return reserveDue(sim, sq) ? 'reserve-commit' : null;
       if (!m.objectiveId)
         return catalogKey(sim) !== (sq._macroMissionObservation || {}).catalog
