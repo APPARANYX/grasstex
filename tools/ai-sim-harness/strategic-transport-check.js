@@ -132,11 +132,11 @@ blocked.api.considerMission(blocked.sim, blocked.squad, blocked.brief());
 blocked.squad._macroMission.status = 'executing';
 blocked.run(12);
 blocked.run(8);
-blocked.walls.after = 120;
+blocked.walls.after = blocked.squad._transport.position.z + 20;
 blocked.run(8);
 assert.equal(blocked.squad._transport.phase, 'aborted');
 assert.equal(blocked.squad._transport.endReason, 'road-blocked');
-assert.ok(blocked.squad._transport.position.z <= 120.01);
+assert.ok(blocked.squad._transport.position.z <= blocked.walls.after + 0.01);
 assert.ok(blocked.members.every(m => !blocked.api.isPassenger(m)));
 
 // A squad already in contact cannot mount up in an arbitrary hidden fast mode.
