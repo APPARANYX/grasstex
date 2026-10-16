@@ -579,24 +579,91 @@ $('removeSeat').onclick=()=>{
   disposeActor(seat);state.seats.splice(state.selected,1);
   state.selected=Math.max(0,Math.min(state.selected,state.seats.length-1));drawSeats();
 };
-$('pickSeat').onclick=()=>{state.picking=!state.picking;$('pickSeat').textContent=state.picking?'Click a truck surface…':'Click truck to position seat';};
+function cancelPickTools(){
+  state.picking=false;state.pickingAxle=false;state.inspectSurface=false;
+  $('pickSeat').textContent='Click truck to position seat';
+  $('pickAxle').textContent='Pick on wheel';
+  $('inspectSurface').textContent='Inspect dark surface';
+}
+$('pickSeat').onclick=()=>{
+  const enable=!state.picking;
+  cancelPickTools();
+  state.picking=enable;
+  $('pickSeat').textContent=enable?'Click truck surface…':'Click truck to position seat';
+};
+$('pickAxle').onclick=()=>{
+  if(!state.axles[$('axleSelect').value]){
+    status('Selected wheel group has no imported meshes or named nodes.',true);return;
+  }
+  const enable=!state.pickingAxle;
+  cancelPickTools();
+  state.pickingAxle=enable;
+  $('pickAxle').textContent=enable?'Click an axle hub…':'Pick on wheel';
+};
+$('axleSelect').onchange=showAxleEditor;
+$('showAxleMarkers').onchange=updateAxleMarkers;
+$('axleAxis').onchange=()=>{
+  const cfg=state.axles[$('axleSelect').value];if(!cfg)return;
+  resetWheelRotation();
+  cfg.axis=$('axleAxis').value;
+  updateAxleMarkers();
+  status('Updated '+$('axleSelect').value+' axle axis to '+cfg.axis.toUpperCase()+'.');
+};
+for(const id of ['axleX','axleY','axleZ']){
+  $(id).onchange=()=>{
+    const side=$('axleSelect').value;
+    const center=['axleX','axleY','axleZ'].map(key=>Number($(key).value));
+    if(!center.every(Number.isFinite)||!setAxleCenter(side,center)){
+      status('Invalid axle center. Enter three finite metre coordinates.',true);return;
+    }
+    showAxleEditor();
+    status('Calibrated '+side+' axle center; wheel geometry remains in place.');
+  };
+}
+$('resetAxle').onclick=()=>{
+  const side=$('axleSelect').value,cfg=state.axles[side];
+  if(!cfg)return;
+  setAxleCenter(side,cfg.autoCenter);
+  showAxleEditor();
+  status('Restored '+side+' axle to its measured geometry center.');
+};
 let down=null;
 canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
 canvas.addEventListener('pointerup',e=>{
-  if(!state.picking||!state.vehicleRoot||!down)return;
+  if(!(state.picking||state.pickingAxle||state.inspectSurface)||!state.vehicleRoot||!down)return;
   const dx=e.clientX-down[0],dy=e.clientY-down[1];down=null;
-  if(dx*dx+dy*dy>25)return;
+  if(dx*dx+dy*dy>25)return; // camera orbit, not a selection
   const rect=canvas.getBoundingClientRect();
   const pick=scene.pick(e.clientX-rect.left,e.clientY-rect.top,m=>state.meshes.includes(m));
-  if(!pick.hit||!pick.pickedPoint){status('Click a visible truck surface.',true);return;}
-  const seat=state.seats[state.selected];if(!seat)return;
+  if(state.inspectSurface){
+    inspectTruckPick(pick);
+    cancelPickTools();
+    return;
+  }
+  if(!pick.hit||!pick.pickedPoint){status('No visible truck triangle at this click.',true);return;}
   state.vehicleRoot.computeWorldMatrix(true);
   const inverse=state.vehicleRoot.getWorldMatrix().clone().invert();
-  const p=BABYLON.Vector3.TransformCoordinates(pick.pickedPoint,inverse);
-  seat.position=[p.x,p.y,p.z].map(v=>Math.round(v*1000)/1000);
-  syncActorTransform(seat);state.picking=false;
-  $('pickSeat').textContent='Click truck to position seat';
-  drawSeats();status('Seat placed from truck-surface hit. Adjust Y and facing for the animation.');
+  const point=BABYLON.Vector3.TransformCoordinates(pick.pickedPoint,inverse);
+  const local=[point.x,point.y,point.z].map(v=>Math.round(v*1000)/1000);
+  if(state.pickingAxle){
+    const side=$('axleSelect').value,rig=state.axleRig[side];
+    if(!rig)return;
+    const selectedWheel=rig.roots.some(root=>pick.pickedMesh===root||pick.pickedMesh.isDescendantOf(root));
+    if(!selectedWheel){
+      status('That surface is not in '+side+' wheel group. Click a wheel hub to calibrate this axle.',true);
+      return;
+    }
+    setAxleCenter(side,local);
+    cancelPickTools();showAxleEditor();
+    status('Picked '+side+' wheel surface; adjust X/Y/Z to the exact axle center.');
+    return;
+  }
+  const seat=state.seats[state.selected];if(!seat)return;
+  seat.position=local;
+  syncActorTransform(seat);
+  cancelPickTools();
+  drawSeats();
+  status('Seat placed on truck surface; adjust Y/yaw for the animation.');
 });
 async function selectedSoldierFile(){
   if(state.soldierFile)return state.soldierFile;
@@ -753,21 +820,15 @@ $('showCrew').onclick=async()=>{
   finally{$('showCrew').disabled=false;}
 };
 $('wheelRate').oninput=()=>{$('wheelRateLabel').textContent=$('wheelRate').value;};
-function resetWheelRotation(){
-  state.wheelAngle=0;
-  for(const [node,base] of state.wheelBase){
-    if(node.isDisposed())continue;
-    node.rotationQuaternion=base.clone();
-  }
-}
 $('spinWheels').onchange=()=>{
-  if(!$('spinWheels').checked)resetWheelRotation();
-  else if(!state.wheelBase.size){
+  if(!$('spinWheels').checked){
+    resetWheelRotation();return;
+  }
+  if(!Object.values(state.axleRig).some(Boolean)){
     $('spinWheels').checked=false;
-    status('No named FrontWheels or RearWheels transform nodes were imported. Verify the export hierarchy.',true);
+    status('No axle pivot available. Confirm the truck contains FrontWheels or RearWheels.',true);
   }
 };
-$('wheelAxis').onchange=resetWheelRotation;
 $('speed').oninput=()=>{$('speedLabel').textContent=(+$('speed').value).toFixed(1);};
 $('steer').oninput=()=>{$('steerLabel').textContent=$('steer').value;};
 $('stopVehicle').onclick=()=>{
@@ -823,12 +884,13 @@ $('importJson').onchange=async()=>{
 };
 scene.onBeforeRenderObservable.add(()=>{
   const dt=Math.min(engine.getDeltaTime()/1000,.05);
-  if($('spinWheels').checked&&state.wheelBase.size){
-    state.wheelAngle+=finite($('wheelRate').value)*Math.PI/180*dt;
-    const axis=$('wheelAxis').value==='z'?BABYLON.Axis.Z:BABYLON.Axis.X;
-    const turn=BABYLON.Quaternion.RotationAxis(axis,state.wheelAngle);
-    for(const [node,base] of state.wheelBase){
-      if(!node.isDisposed())node.rotationQuaternion=base.multiply(turn);
+  if($('spinWheels').checked){
+    state.wheelAngle=(state.wheelAngle+finite($('wheelRate').value)*Math.PI/180*dt)%(Math.PI*2);
+    for(const side of ['front','rear']){
+      const rig=state.axleRig[side],cfg=state.axles[side];
+      if(!rig||!cfg||rig.pivot.isDisposed())continue;
+      const axis=cfg.axis==='z'?BABYLON.Axis.Z:BABYLON.Axis.X;
+      rig.pivot.rotationQuaternion=BABYLON.Quaternion.RotationAxis(axis,state.wheelAngle);
     }
   }
   if(!$('moving').checked||!state.vehicleRoot)return;
