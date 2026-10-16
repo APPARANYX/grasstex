@@ -49,7 +49,7 @@ const seeds=[
         root.BattleSoldierModel?.setImportedEnabled?.(scene,false);
         sim.trainingMode=true;sim.paused=false;sim.timeScale=1;sim.timeLimit=limit;
         const fleetStart=root.BattleSquadTransport.fleetSummary(sim);
-        const stats={us:null,ge:null},observed={},shots={total:0,byFaction:{}},
+        const reserveAudit={},stats={us:null,ge:null},observed={},shots={total:0,byFaction:{}},
           before=sim.onShot,fireBefore=sim.onFire;
         sim.onFire=function(s){shots.total++;const f=s?.faction||s?.squad?.faction;
           if(f)shots.byFaction[f]=(shots.byFaction[f]||0)+1;
@@ -69,6 +69,29 @@ const seeds=[
             commandAccum-=commandTick;root.BattleCommanderAI.update(sim,scene.metadata.battleScenario,commandTick);
           }
           steps++;
+          if(!reserveAudit.at && sim.time>=120.15) {
+            reserveAudit.at=+sim.time.toFixed(2);
+            for(const side of ['us','ge']) {
+              reserveAudit[side]=(sim.factions[side]?.squads||[]).map(sq=>{
+                const p=center(sq),home=sq.baseHome||sq.home;
+                return {
+                  id:sq.id,role:sq.commandRole,phase:sq.commandPhase,
+                  state:sq.state,macro:sq._macroMission?.intent||null,
+                  macroReason:sq._macroMission?.reason||null,
+                  macroStatus:sq._macroMission?.status||null,
+                  interceptReserve:!!sq._macroMission?.interceptReserve,
+                  selectedByPlanner:root.BattleStrategicInterception.reserveSquad(sim,sq),
+                  used:!!sq._transportUsed,
+                  currentVehicle:sq._transport?.phase||null,
+                  preparedDefense:!!sq._preparedDefenseRequest,
+                  contact:!!sq.inContact,
+                  metersFromHome:p&&home?+Math.hypot(p.x-home.x,p.z-home.z).toFixed(1):null,
+                  fleetParked:root.BattleSquadTransport.fleetSummary(sim)
+                    .filter(v=>v.faction===side&&v.phase==='parked').length
+                };
+              });
+            }
+          }
           if(sim.time+1e-9<nextSample)continue;
           nextSample+=.75;
           const data=root.BattleStrategicInterception.summary(sim);
@@ -125,7 +148,7 @@ const seeds=[
             return [f,{used:!!r?.used,contacts:r?.event?.contacts?.length||0}];
           })),
           general:Object.fromEntries(['us','ge'].map(f=>[f,stats[f]=dataSnapshot(f)])),
-          interceptions:Object.values(observed),shots
+          reserveAudit,interceptions:Object.values(observed),shots
         };
         function dataSnapshot(f){const x=root.BattleStrategicInterception.summary(sim)[f];
           return x&&x.last?{...x.last}:null;}
@@ -142,7 +165,8 @@ const seeds=[
       console.log('INTERCEPT_NATIVE',JSON.stringify({seed:record.seed,on:enabled,
         general:record.general,interceptions:record.interceptions.length,
         physicallyEarly:record.interceptions.filter(x=>x.physicallyEarly).length,
-        shots:record.shots.total,seconds:record.seconds}));
+        shots:record.shots.total,seconds:record.seconds,
+        reserveAudit:enabled?record.reserveAudit:null}));
       await page.close();
     }
     fs.writeFileSync(path.join(dir,'native-interception-evidence.json'),
