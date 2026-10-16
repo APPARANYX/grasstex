@@ -35,6 +35,12 @@ assert.match(html,/function endBattle\(\)\{if\(typeof battle\.endBattle==='funct
   'HUD End button must not use a second incompatible manual-stop implementation');
 assert.match(diag,/bannerExportCompactDiagnostics/);
 assert.match(diag,/bannerExportDiagnostics/);
+assert.match(diag,/function strategicTransportSnapshot\(sim\)/,
+  'Transport must be present as read-only contextual data in diagnostics');
+assert.match(diag,/tuning: transport.tuning \|\| null/,
+  'Export planned foot approach distance alongside outcomes');
+assert.equal((diag.match(/strategicTransport: strategicTransportSnapshot\(sim\)/g)||[]).length,2,
+  'Compact and full exports both include squad transport outcome/abort reasons');
 const display={};
 for(const id of ['banner','bannerText','bannerSub']){
   display[id]={style:{display:id==='banner'?'none':''},textContent:''};
