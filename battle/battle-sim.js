@@ -611,6 +611,20 @@
       return null;
     return steered;
   }
+  /* Physical integrator remains the only actor-position and locomotion-state
+     writer. The opt-in squad carrier may request a prevalidated passenger move
+     through this API, never write root.position or locomotion fields itself. */
+  function moveTransportPassenger(sim, soldier, next, reason) {
+    if (!sim || !soldier || !soldier.root || !next ||
+        !isFinite(+next.x) || !isFinite(+next.z)) return false;
+    soldier.root.position.x = +next.x;
+    soldier.root.position.z = +next.z;
+    soldier.root.position.y = sim.heightAt(+next.x, +next.z);
+    soldier._movementStopReason = reason || 'embarked-passenger';
+    soldier.moveSpeed = 0;
+    soldier.moving = false;
+    return true;
+  }
   function stepMovement(self, soldier, dt) {
     if (root.BattleSquadTransport && root.BattleSquadTransport.isPassenger(soldier)) {
       /* The carrier, not the foot integrator, moves embarked men. Preserve the
@@ -928,6 +942,7 @@
     buildSky: buildSky,
     applyScenarioTerrain: applyScenarioTerrain,
     start: start,
+    moveTransportPassenger: moveTransportPassenger,
     AI_TICK: AI_TICK
   };
 })(typeof window !== 'undefined' ? window : globalThis);
