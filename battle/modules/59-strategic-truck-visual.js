@@ -40,12 +40,12 @@
   }
   function stateFor(sim) {
     if (!stores) {
-      if (!sim._truckVisualState) sim._truckVisualState = { scene: sim.scene, trucks: new Map(), generation: 0, source: null, pending: null, errors: [] };
+      if (!sim._truckVisualState) sim._truckVisualState = { scene: sim.scene, trucks: new Map(), generation: 0, source: null, pending: null, animationQueue: Promise.resolve(), errors: [] };
       return sim._truckVisualState;
     }
     var st = stores.get(sim);
     if (!st) {
-      st = { scene: sim.scene, trucks: new Map(), generation: 0, source: null, pending: null, errors: [] };
+      st = { scene: sim.scene, trucks: new Map(), generation: 0, source: null, pending: null, animationQueue: Promise.resolve(), errors: [] };
       stores.set(sim, st);
     }
     return st;
@@ -261,11 +261,20 @@
       var targets = targetsFor(result);
       var clipFile = await fetchAsset('animations',member.seat.clip);
       if (token !== entry.token || entry.phase !== 'embarked') { disposeImport(result);anchor.dispose(false,false);return; }
-      var before = new Set(scene.animationGroups);
-      await BABYLON.SceneLoader.ImportAnimationsAsync('file:',clipFile,scene,false,
-        BABYLON.SceneLoaderAnimationGroupLoadingMode.NoSync,
-        function (target) { return targets.get(target.name) || null; });
-      groups = scene.animationGroups.filter(function (g) { return !before.has(g); });
+      // SceneLoader inserts groups into a shared scene array. Serialize imports
+      // across ALL trucks: otherwise simultaneous US/GE imports could attach
+      // another rider's animation group to this soldier.
+      var previous = st.animationQueue || Promise.resolve();
+      var importTask = previous.catch(function () {}).then(async function () {
+        if (token !== entry.token || entry.phase !== 'embarked') return [];
+        var before = new Set(scene.animationGroups);
+        await BABYLON.SceneLoader.ImportAnimationsAsync('file:',clipFile,scene,false,
+          BABYLON.SceneLoaderAnimationGroupLoadingMode.NoSync,
+          function (target) { return targets.get(target.name) || null; });
+        return scene.animationGroups.filter(function (g) { return !before.has(g); });
+      });
+      st.animationQueue = importTask.catch(function () {});
+      groups = await importTask;
       var playable = groups.find(function (g) { return g.targetedAnimations && g.targetedAnimations.length > 0; });
       groups.filter(function (g) { return g !== playable; }).forEach(function (g) { g.dispose(); });
       if (token !== entry.token || entry.phase !== 'embarked') {
