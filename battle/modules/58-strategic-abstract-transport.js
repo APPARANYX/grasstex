@@ -12,7 +12,7 @@
     MIN_TRIP = 650,
     JOIN_MAX = 65,
     BOARD_TIMEOUT = 35,
-    PER_FACTION = 2,
+    VEHICLES_PER_BASE = 2,
     SEAT_TOLERANCE = 0.2,
     EPS = 0.00001;
   function position(p) {
@@ -157,6 +157,71 @@
       /(?:^|[?&])motorTransport=1(?:&|$)/.test(params || '')
     );
   }
+  /* Vehicles belong to bases and exist at battle initialization, not at
+     mission grant. The parking bays are future garage doors: replacing the
+     location provider must not change mission or passenger ownership. */
+  function initializeFleet(sim) {
+    var town = sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario,
+      fleet = { version: 1, vehicles: [] };
+    if (!enabled(sim) || !town || !town.spawnZones) {
+      sim._strategicTransportFleet = fleet;
+      return fleet;
+    }
+    ['us', 'ge'].forEach(function (faction) {
+      var bases = (town.spawnZones[faction] && town.spawnZones[faction].bases) || [];
+      bases.forEach(function (base, baseIndex) {
+        var road = (town.roads || []).find(function (r) {
+          return r.fromObjectiveId === base.objectiveId || r.toObjectiveId === base.objectiveId;
+        });
+        if (!road) return;
+        var start = road.fromObjectiveId === base.objectiveId,
+          dx = start ? road.bx - road.ax : road.ax - road.bx,
+          dz = start ? road.bz - road.az : road.az - road.bz,
+          length = Math.hypot(dx, dz);
+        if (length < 1) return;
+        var h = { x: dx / length, z: dz / length },
+          lateral = { x: -h.z, z: h.x };
+        for (var slot = 0; slot < VEHICLES_PER_BASE; slot++) {
+          // Parking is deliberately outside the public carriageway; no
+          // traffic blocker, AI occluder or garage object is conjured here.
+          var along = slot === 0 ? 12 : 24,
+            side = slot === 0 ? 1 : -1,
+            join = { x: +base.x + h.x * along, z: +base.z + h.z * along },
+            parking = { x: join.x + lateral.x * side * 12, z: join.z + lateral.z * side * 12 };
+          fleet.vehicles.push({
+            id: faction + '-base-' + baseIndex + '-truck-' + slot,
+            faction: faction,
+            baseId: base.id,
+            baseIndex: baseIndex,
+            slot: slot,
+            parking: parking,
+            join: join,
+            position: position(parking),
+            heading: h,
+            phase: 'parked',
+            squadId: null
+          });
+        }
+      });
+    });
+    sim._strategicTransportFleet = fleet;
+    return fleet;
+  }
+  function vehicleFor(sim, id) {
+    var fleet = sim._strategicTransportFleet;
+    return (
+      fleet &&
+      fleet.vehicles.find(function (v) {
+        return v.id === id;
+      })
+    );
+  }
+  function parkingRoute(town, vehicle, mission) {
+    return plan(town, vehicle.position, {
+      point: mission.point,
+      route: [vehicle.join].concat(mission.route || [])
+    });
+  }
   function log(sim, sq, type, detail) {
     if (root.BattleTelemetry && root.BattleTelemetry.record)
       root.BattleTelemetry.record(
@@ -185,7 +250,17 @@
     alive(sq).forEach(function (s) {
       clearPassenger(s, sim);
     });
-    log(sim, sq, t.phase, { why: why, meters: +t.travelled.toFixed(2) });
+    var vehicle = vehicleFor(sim, t.vehicleId);
+    if (vehicle) {
+      // A cancelled order while still in its bay frees the SAME parked truck.
+      // Once driven away, it remains physically stopped at its real location.
+      var unused = t.travelled <= EPS && t.embarkedAt == null;
+      vehicle.phase = unused ? 'parked' : 'stopped';
+      vehicle.squadId = null;
+      vehicle.position = unused ? position(vehicle.parking) : position(t.position);
+      vehicle.heading = t.heading;
+    }
+    log(sim, sq, t.phase, { why: why, meters: +t.travelled.toFixed(2), vehicleId: t.vehicleId });
   }
   function considerMission(sim, sq, mission) {
     if (
@@ -218,16 +293,43 @@
       })
     )
       return false;
-    var ledger = sim._strategicTransport || (sim._strategicTransport = { us: 0, ge: 0 });
-    if ((ledger[sq.faction] || 0) >= PER_FACTION) return false;
-    var route = plan(town, center, mission);
-    if (!route || !route.path.length) return false;
-    var previous = center;
-    for (var i = 0; i < route.path.length; i++) {
-      if (!safe(sim, previous, route.path[i].point)) return false;
-      previous = route.path[i].point;
+    var fleet = sim._strategicTransportFleet || initializeFleet(sim),
+      candidates = fleet.vehicles
+        .filter(function (v) {
+          var base = ((town.spawnZones[v.faction] && town.spawnZones[v.faction].bases) || [])[v.baseIndex];
+          return (
+            v.faction === sq.faction &&
+            v.phase === 'parked' &&
+            base &&
+            dist(center, base) <= 95 &&
+            dist(center, v.position) <= 65
+          );
+        })
+        .sort(function (a, b) {
+          return dist(center, a.position) - dist(center, b.position) || a.id.localeCompare(b.id);
+        }),
+      vehicle = null,
+      route = null;
+    for (var c = 0; c < candidates.length; c++) {
+      var trial = parkingRoute(town, candidates[c], mission);
+      if (!trial || !trial.path.length) continue;
+      var previous = candidates[c].position,
+        passable = safe(sim, center, candidates[c].position);
+      for (var i = 0; passable && i < trial.path.length; i++) {
+        passable = safe(sim, previous, trial.path[i].point);
+        previous = trial.path[i].point;
+      }
+      if (passable) {
+        vehicle = candidates[c];
+        route = trial;
+        break;
+      }
     }
+    if (!vehicle) return false;
+    var ledger = sim._strategicTransport || (sim._strategicTransport = { us: 0, ge: 0 });
     ledger[sq.faction]++;
+    vehicle.phase = 'assigned';
+    vehicle.squadId = sq.id;
     sq._transportUsed = true;
     sq._transport = {
       owner: 'squad-leader',
@@ -235,11 +337,13 @@
       missionVersion: mission.version,
       phase: 'boarding',
       requestedAt: +sim.time || 0,
-      boardingCenter: center,
+      vehicleId: vehicle.id,
+      baseId: vehicle.baseId,
+      boardingCenter: position(vehicle.position),
       initialPassengerCount: members.length,
-      position: position(center),
-      initialPosition: position(center),
-      heading: heading(center, route.path[0].point),
+      position: position(vehicle.position),
+      initialPosition: position(vehicle.position),
+      heading: heading(vehicle.position, route.path[0].point),
       path: route.path,
       leg: 0,
       travelled: 0,
@@ -250,6 +354,8 @@
     };
     log(sim, sq, 'granted', {
       missionVersion: mission.version,
+      vehicleId: vehicle.id,
+      baseId: vehicle.baseId,
       routeMetres: +route.pathMetres.toFixed(1),
       eta: +route.estimatedDriveSeconds.toFixed(1)
     });
@@ -332,6 +438,12 @@
       });
       t.heading = newHeading;
       t.position = next;
+      var vehicle = vehicleFor(sim, t.vehicleId);
+      if (vehicle) {
+        vehicle.position = position(next);
+        vehicle.heading = newHeading;
+        vehicle.phase = 'moving';
+      }
       t.travelled += amount;
       remaining -= elapsed;
       if (d - amount <= 0.02) t.leg++;
@@ -371,6 +483,7 @@
   }
   function reset(sim) {
     sim._strategicTransport = { us: 0, ge: 0 };
+    initializeFleet(sim);
     ['us', 'ge'].forEach(function (f) {
       var force = sim.factions && sim.factions[f];
       (force ? force.squads : []).forEach(function (sq) {
@@ -411,6 +524,8 @@
               phase: t.phase,
               owner: t.owner,
               missionVersion: t.missionVersion,
+              vehicleId: t.vehicleId,
+              baseId: t.baseId,
               travelled: +t.travelled.toFixed(1),
               total: +t.total.toFixed(1),
               requestedAt: +t.requestedAt.toFixed(2),
@@ -426,12 +541,32 @@
           });
       });
     },
+    fleetSummary: function (sim) {
+      var fleet = sim && sim._strategicTransportFleet;
+      return fleet
+        ? fleet.vehicles.map(function (v) {
+            return {
+              id: v.id,
+              faction: v.faction,
+              baseId: v.baseId,
+              baseIndex: v.baseIndex,
+              slot: v.slot,
+              position: position(v.position),
+              parking: position(v.parking),
+              heading: { x: v.heading.x, z: v.heading.z },
+              phase: v.phase,
+              squadId: v.squadId
+            };
+          })
+        : [];
+    },
     tuning: {
+      vehiclesPerBase: VEHICLES_PER_BASE,
       roadSpeed: SPEED_ROAD,
       joinSpeed: SPEED_JOIN,
       dismountMetres: DISEMBARK_METRES,
       minimumTrip: MIN_TRIP,
-      vehiclesPerFaction: PER_FACTION
+      vehiclesPerFaction: VEHICLES_PER_BASE * 3
     }
   };
   if (typeof root.GTLog === 'function') root.GTLog('[STRATEGIC] opt-in abstract motor transport ready');

@@ -516,7 +516,11 @@
     if (enabled(sim)) {
       var st = stateFor(sim);
       prepareSharedSeatPoses(sim, st);
-      loadTruckSource(sim, st);
+      loadTruckSource(sim, st).then(function () {
+        // Parked vehicles materialize as soon as their shared asset is ready,
+        // not as a side effect of a mission grant or passenger boarding.
+        if (st.scene === sim.scene && enabled(sim)) step(sim);
+      });
     }
   }
   function prepareSharedSeatPoses(sim, st) {
@@ -565,92 +569,66 @@
   function step(sim) {
     if (!enabled(sim) || !root.BABYLON || !BABYLON.SceneLoader || !sim || !sim.scene) return;
     var st = stateFor(sim),
+      fleet = root.BattleSquadTransport && root.BattleSquadTransport.fleetSummary(sim),
       active = new Set();
     if (!st.poseReady && !st.poseLoading) prepareSharedSeatPoses(sim, st);
-    ['us', 'ge'].forEach(function (faction) {
-      ((sim.factions[faction] && sim.factions[faction].squads) || []).forEach(function (sq) {
-        var transport = sq._transport;
-        if (!transport) return;
-        var key = faction + '/' + sq.id;
-        active.add(key);
-        var entry = st.trucks.get(key);
-        if (!entry) {
-          entry = {
-            id: sq.id,
-            faction: faction,
-            root: null,
-            visual: null,
-            phase: transport.phase,
-            members: seatsFor(sq),
-            riders: [],
-            finishedAt: null,
-            showcase: false
-          };
-          st.trucks.set(key, entry);
-        }
-        if (transport.phase !== 'boarding' && transport.phase !== 'embarked') {
-          if (entry.finishedAt == null) entry.finishedAt = sim.time;
-          disposeRiders(entry);
-        }
-        if (st.source && !entry.root) {
-          try {
-            instantiateTruck(sim, st, entry);
-          } catch (err) {
-            recordError(st, 'instantiate ' + key, err);
-          }
-        }
-        if (entry.root) {
-          updateVehiclePose(sim, entry, transport);
-          updateRiders(sim, st, entry);
-        }
-      });
-    });
-    // The showcase is a parked, EMPTY display vehicle. It deliberately
-    // does not borrow a live combat soldier from a different squad/location.
-    if (/(?:^|[?&])truckShowcase=1(?:&|$)/.test((root.location && root.location.search) || '')) {
-      var scenario = sim.scene.metadata && sim.scene.metadata.battleScenario;
-      ['us', 'ge'].forEach(function (faction) {
-        var bases =
-          scenario &&
-          scenario.spawnZones &&
-          scenario.spawnZones[faction] &&
-          scenario.spawnZones[faction].bases;
-        if (!bases || !bases[0]) return;
-        var key = 'showcase/' + faction,
-          base = bases[0],
-          entry = st.trucks.get(key);
-        var display = {
-          phase: 'showcase',
-          position: { x: +base.x + 12, z: +base.z + (faction === 'us' ? 16 : -16) },
-          heading: { x: 0, z: faction === 'us' ? 1 : -1 }
+    // Every vehicle has a stable base-owned identity, even if no General
+    // has ever granted a journey. Occupancy changes; truck identity does not.
+    (fleet || []).forEach(function (vehicle) {
+      var key = vehicle.id,
+        squad = null,
+        task = null;
+      if (vehicle.squadId && sim.factions && sim.factions[vehicle.faction]) {
+        squad = (sim.factions[vehicle.faction].squads || []).find(function (sq) {
+          return sq.id === vehicle.squadId;
+        });
+        task = squad && squad._transport && squad._transport.vehicleId === key ? squad._transport : null;
+      }
+      active.add(key);
+      var entry = st.trucks.get(key);
+      if (!entry) {
+        entry = {
+          id: key,
+          faction: vehicle.faction,
+          baseId: vehicle.baseId,
+          root: null,
+          visual: null,
+          phase: 'parked',
+          members: [],
+          riders: [],
+          finishedAt: null,
+          showcase: false,
+          squadId: null
         };
-        active.add(key);
-        if (!entry) {
-          entry = {
-            id: key,
-            faction: faction,
-            root: null,
-            visual: null,
-            phase: display.phase,
-            members: [],
-            riders: [],
-            finishedAt: null,
-            showcase: true
-          };
-          st.trucks.set(key, entry);
+        st.trucks.set(key, entry);
+      }
+      entry.phase = task ? task.phase : vehicle.phase;
+      entry.squadId = task ? squad.id : null;
+      entry.members = task ? seatsFor(squad) : [];
+      if (entry.phase !== 'embarked' && entry.riders.length) disposeRiders(entry);
+      if (st.source && !entry.root) {
+        try {
+          instantiateTruck(sim, st, entry);
+        } catch (err) {
+          recordError(st, 'instantiate ' + key, err);
         }
-        if (st.source && !entry.root) {
-          try {
-            instantiateTruck(sim, st, entry);
-          } catch (err) {
-            recordError(st, 'showcase ' + key, err);
-          }
-        }
-        if (entry.root) updateVehiclePose(sim, entry, display);
-      });
-    }
+      }
+      if (entry.root) {
+        updateVehiclePose(sim, entry, task || vehicle);
+        updateRiders(sim, st, entry);
+      }
+    });
+    // Preserve scene teardown safety if a later garage system genuinely
+    // decommissions a vehicle. Never delete a truck simply because its squad
+    // dismounted or received a replacement mission.
+    st.trucks.forEach(function (entry, key) {
+      if (!active.has(key)) {
+        removeEntry(entry);
+        st.trucks.delete(key);
+      }
+    });
     if (
-      active.size &&
+      (fleet || []).length &&
       !st.source &&
       !st.pending &&
       !st.errors.some(function (e) {
@@ -658,22 +636,16 @@
       })
     )
       loadTruckSource(sim, st);
-    st.trucks.forEach(function (entry, key) {
-      if (!active.has(key)) {
-        removeEntry(entry);
-        st.trucks.delete(key);
-      }
-    });
   }
   root.BattleModules.registerSystem('strategic-truck-visual', {
-    version: '0.2-live-squad-crew',
+    version: '0.3-persistent-depot-fleet',
     onBattleStart: reset,
     beforeBattleRestart: teardown,
     onBattleRestart: reset,
     onSimulationStep: step
   });
   root.BattleTransportVehicleVisual = {
-    version: '0.2-live-squad-crew',
+    version: '0.3-persistent-depot-fleet',
     vehicleForFaction: function (faction) {
       return faction === 'us' || faction === 'ge' ? MODEL : null;
     },
@@ -718,10 +690,13 @@
       return Array.from(st.trucks.values()).map(function (entry) {
         return {
           faction: entry.faction,
-          squad: entry.id,
+          squad: entry.squadId,
+          vehicleId: entry.id,
+          baseId: entry.baseId,
           phase: entry.phase,
           model: MODEL,
-          showcase: !!entry.showcase,
+          showcase: false,
+          parked: entry.phase === 'parked',
           seats: entry.members.length,
           renderedRiders: entry.riders.length,
           liveModels: entry.riders.map(function (r) {
@@ -757,5 +732,5 @@
     }
   };
   if (typeof root.GTLog === 'function')
-    root.GTLog('[STRATEGIC] real squad soldiers and prewarmed Truck poses in 5km transport');
+    root.GTLog('[STRATEGIC] persistent base trucks, original crews and prewarmed vehicle poses');
 })(typeof window !== 'undefined' ? window : globalThis);
