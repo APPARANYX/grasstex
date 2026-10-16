@@ -6,6 +6,7 @@
   if (!root.BattleModules || root.BattleAerialRecon) return;
 
   var MIN_REQUEST_AT = 120,
+    INTERCEPTION_RECON_AT = 40,
     VALID_SECONDS = 45,
     MIN_GROUND_SPEED = 0.8,
     POSITION_GRID = 35,
@@ -136,7 +137,15 @@
   }
   function request(sim, faction) {
     if (!enabled(sim) || !validFaction(faction) || !sim.factions || !sim.factions[faction]) return null;
-    if (!(sim.time >= MIN_REQUEST_AT) || sim.macroCommandEnabled === false) return null;
+    /* With an explicit interception mission, reconnaissance must occur while
+       an opponent is still outbound. This is a clock/doctrine decision by
+       our General, not a hostile-motion trigger or privileged enemy lookup.
+       Standalone aerialRecon retains its original 120s behavior. */
+    var strategicEarly = /(?:^|[?&])interception=1(?:&|$)/.test(
+      (root.location && root.location.search) || ''
+    );
+    var earliest = strategicEarly ? INTERCEPTION_RECON_AT : MIN_REQUEST_AT;
+    if (!(sim.time >= earliest) || sim.macroCommandEnabled === false) return null;
     var own = state(sim)[faction];
     if (own.used) return null;
     /* Only the General's own active strategic briefs can trigger a sortie.
@@ -198,7 +207,7 @@
     version: '0.1-independent',
     request: request,
     forGeneral: forGeneral,
-    tuning: Object.freeze({ earliestRequestSeconds: MIN_REQUEST_AT, validitySeconds: VALID_SECONDS })
+    tuning: Object.freeze({ earliestRequestSeconds: MIN_REQUEST_AT, interceptionRequestSeconds: INTERCEPTION_RECON_AT, validitySeconds: VALID_SECONDS })
   };
   if (typeof root.GTLog === 'function') root.GTLog('[STRATEGIC] one-shot aerial recon ready');
 })(typeof window !== 'undefined' ? window : globalThis);
