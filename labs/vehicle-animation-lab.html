@@ -57,8 +57,13 @@ code{color:var(--accent)}
   <div class="stat"><span>RearWheels nodes</span><strong id="rearCount">—</strong></div>
   <div class="stat"><span>Vehicle materials</span><strong id="materialCount">—</strong></div>
   <label class="row"><span>Double-sided truck materials</span><input id="doubleSided" type="checkbox" checked></label>
-  <p class="help">Shows both sides of imported surfaces (including interior panels) and lights their backs. If an area remains black, inspect its material/texture or missing mesh faces.</p>
-  <p class="help">Wheel groups are preserved. Optional rotation below is a pivot diagnostic: if the collections do not have axle-centered pivots, the wheels can orbit instead of spin.</p>
+  <p class="help">Displays both sides of panels. Use the surface diagnostic below to distinguish unlit polygons from gaps and texture issues.</p>
+  <h2>Surface diagnostics</h2>
+  <label class="row"><span>Unlit truck preview</span><input id="unlitVehicle" type="checkbox"></label>
+  <label class="row"><span>Contrast background for holes</span><input id="contrastGaps" type="checkbox"></label>
+  <button id="inspectSurface">Inspect dark surface</button>
+  <pre id="surfaceReport" class="help" style="white-space:pre-wrap;word-break:break-word">Click Inspect and then a dark area of the truck to identify its mesh, material, UV and texture data.</pre>
+  <p class="help">Calibrate the front and rear axle centers below to spin both wheel groups around their own axle lines.</p>
   <h2>2 — Soldiers & truck clips</h2>
   <label>Soldier model<select id="soldierSelect"><option value="">Loading soldiers…</option></select></label>
   <label>Or open local soldier FBX<input id="soldierFile" type="file" accept=".fbx"></label>
@@ -68,11 +73,20 @@ code{color:var(--accent)}
   <button id="showCrew" class="primary">Show full crew (driver + 3 passengers)</button>
   <button id="refreshOccupants">Refresh occupied soldiers</button>
   <p class="help">One click selects the German paratrooper model (if available), occupies the starter seats, and assigns Driving / Sitting 1–3. Use Seat authoring to adjust each person. Other soldier models can be selected above.</p>
-  <h2>3 — Wheel/pivot diagnostic</h2>
-  <label class="row"><span>Test group rotation</span><input id="spinWheels" type="checkbox"></label>
-  <label>Rotation axis<select id="wheelAxis"><option value="x">X axle</option><option value="z">Z axle</option></select></label>
+  <h2>3 — Axle pivot calibration</h2>
+  <p class="help">Auto-estimated from each wheel group's geometry. Adjust the hub location in truck-local metres while keeping the visible wheels stationary.</p>
+  <label>Axle<select id="axleSelect"><option value="front">Front axle</option><option value="rear">Rear axle</option></select></label>
+  <div class="cols3">
+    <label>X metres<input id="axleX" type="number" step=".025"></label>
+    <label>Y metres<input id="axleY" type="number" step=".025"></label>
+    <label>Z metres<input id="axleZ" type="number" step=".025"></label>
+  </div>
+  <label>Rotation axis<select id="axleAxis"><option value="x">X (left-right axle)</option><option value="z">Z (front-back axle)</option></select></label>
+  <div class="row"><button id="pickAxle">Pick on wheel</button><button id="resetAxle">Auto-center</button></div>
+  <label class="row"><span>Show axle markers</span><input id="showAxleMarkers" type="checkbox" checked></label>
+  <label class="row"><span>Test wheel rotation</span><input id="spinWheels" type="checkbox"></label>
   <label>Spin (°/s): <span id="wheelRateLabel">180</span><input id="wheelRate" type="range" min="0" max="900" step="30" value="180"></label>
-  <p class="help warn">Diagnostic only. Turn off if the assemblies orbit instead of spin: each wheel assembly then needs corrected pivots in Blender.</p>
+  <p class="help">Clicking a wheel gives a surface point; fine-tune Y/Z (and X if needed) to put the center at the true axle. Export JSON to preserve both calibrated axles.</p>
   <h2>4 — Movement diagnostic</h2>
   <label class="row"><span>Move truck</span><input id="moving" type="checkbox"></label>
   <label>Speed (m/s): <span id="speedLabel">3.0</span><input id="speed" type="range" min="0" max="20" step=".5" value="3"></label>
