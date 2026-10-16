@@ -401,9 +401,13 @@
     st.errors = [];
     st.poseReady = false;
     st.poseLoading = null;
-    // Preparation runs asynchronously after the shared soldier library is
-    // ready, before any boarding grant. No FBX parse is performed at seat time.
-    prepareSharedSeatPoses(sim, st);
+    // Only strategic motor-transport scenes incur Truck FBX work. Prewarm the
+    // shared vehicle and all four poses during battle setup, not on the first
+    // live boarding frame, so first-use GPU/FBX stalls are amortized.
+    if (enabled(sim)) {
+      prepareSharedSeatPoses(sim, st);
+      loadTruckSource(sim, st);
+    }
   }
   function prepareSharedSeatPoses(sim, st) {
     if (st.poseReady || st.poseLoading) return;
