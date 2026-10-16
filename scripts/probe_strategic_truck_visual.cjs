@@ -151,6 +151,47 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
       await page.waitForTimeout(800);
       await page.screenshot({path:path.join(out,faction+'-actual-squad-seated.png')});
     }
+    // Measure actual axle groups and the change in wheel rotation from a
+    // controlled 4 m carrier move. No translation == no spin; stopping the
+    // carrier == no spin. Original soldier roots remain gameplay-authoritative.
+    const wheelEvidence=await page.evaluate(()=>{
+      const qa=window.__truckQa,b=window.__battle__,api=window.BattleTransportVehicleVisual;
+      const originals=api.summary(b).filter(t=>!t.showcase);
+      const phases={};
+      for(const faction of ['us','ge']){
+        const sq=qa.squads[faction];
+        const info=originals.find(t=>t.faction===faction&&t.squad===sq.id);
+        phases[faction]={initial:info.wheels};
+        if(!info.wheels?.front||!info.wheels?.rear)
+          throw Error(faction+' missing FrontWheels/RearWheels FBX axle group: '+JSON.stringify(info.wheels));
+        const move=sq._transport.position;
+        sq._transport.position={x:move.x,z:move.z+4};
+      }
+      qa.system.onSimulationStep(b,{dt:0});
+      for(const faction of ['us','ge']){
+        const sq=qa.squads[faction];
+        phases[faction].moved=api.summary(b).find(t=>t.faction===faction&&t.squad===sq.id).wheels;
+      }
+      qa.system.onSimulationStep(b,{dt:0});
+      for(const faction of ['us','ge']){
+        const sq=qa.squads[faction];
+        phases[faction].stationary=api.summary(b).find(t=>t.faction===faction&&t.squad===sq.id).wheels;
+      }
+      return phases;
+    });
+    for(const side of ['us','ge']){
+      for(const axle of ['front','rear']){
+        const before=wheelEvidence[side].initial[axle];
+        const moved=wheelEvidence[side].moved[axle];
+        const stopped=wheelEvidence[side].stationary[axle];
+        assert.ok(before.nodes>0 && moved.radius>=.25,
+          side+' '+axle+' axle must use named wheel geometry and measured radius');
+        assert.notEqual(moved.rotation,before.rotation,
+          side+' '+axle+' wheel group must rotate after traveling 4 m');
+        assert.equal(stopped.rotation,moved.rotation,
+          side+' '+axle+' wheel group must stop rotating when truck is stationary');
+      }
+    }
     assert.equal(report.skeletonsAfter,report.skeletonsBefore,
       'No new skinned soldier models can be created at boarding');
     assert.equal(report.animationGroupsAfter,report.animationGroupsBefore,
@@ -247,7 +288,7 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
       });
     }
     assert.deepEqual(errors,[],'Browser JavaScript errors');
-    const data={initial,setup,report,dismount,restartCleanup,postBattle,
+    const data={initial,setup,report,wheelEvidence,dismount,restartCleanup,postBattle,
       elapsedMs:Date.now()-began,errors};
     fs.writeFileSync(path.join(out,'truck-visual-report.json'),JSON.stringify(data,null,2)+'\n');
     console.log('STRATEGIC TRUCK CHROMIUM PASS '+JSON.stringify({
@@ -257,7 +298,7 @@ const out=path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT||'closeups/strategic-t
       skeletonIncrease:report.skeletonsAfter-report.skeletonsBefore,
       animationGroupIncrease:report.animationGroupsAfter-report.animationGroupsBefore,
       dismountRestored:true,orphanWeapons:restartCleanup.ghostWeaponMeshNames.length,
-      postBattleEndCycles:postBattle.length,pGuarded:true
+      postBattleEndCycles:postBattle.length,pGuarded:true,wheelMotionVerified:true
     }));
   }catch(e){
     try{await page.screenshot({path:path.join(out,'truck-visual-failure.png')});}catch(_){}
