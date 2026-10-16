@@ -21,16 +21,16 @@ jobs:
       - name: Run exact repository formatter
         run: |
           npx --yes prettier@3.3.3 --write \
-            battle/modules/22a-commander-strategic-recovery.js \
+            battle/modules/58-strategic-abstract-transport.js battle/modules/22a-commander-strategic-recovery.js \
             battle/modules/43-squad-forward-progress.js \
             tools/ai-sim-harness/strategic-recovery-review-check.js \
             tools/ai-sim-harness/route-final-objective-check.js
       - name: Commit formatted source
         run: |
-          if ! git diff --quiet -- battle/modules/22a-commander-strategic-recovery.js battle/modules/43-squad-forward-progress.js tools/ai-sim-harness/strategic-recovery-review-check.js tools/ai-sim-harness/route-final-objective-check.js; then
+          if ! git diff --quiet -- battle/modules/58-strategic-abstract-transport.js battle/modules/22a-commander-strategic-recovery.js battle/modules/43-squad-forward-progress.js tools/ai-sim-harness/strategic-recovery-review-check.js tools/ai-sim-harness/route-final-objective-check.js; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add battle/modules/22a-commander-strategic-recovery.js battle/modules/43-squad-forward-progress.js tools/ai-sim-harness/strategic-recovery-review-check.js tools/ai-sim-harness/route-final-objective-check.js
+            git add battle/modules/58-strategic-abstract-transport.js battle/modules/22a-commander-strategic-recovery.js battle/modules/43-squad-forward-progress.js tools/ai-sim-harness/strategic-recovery-review-check.js tools/ai-sim-harness/route-final-objective-check.js
             git commit -m 'style(transport): format road-progress diagnostics and regression tests'
             git push origin HEAD:work/strategic-abstract-transport-20261016
           fi
