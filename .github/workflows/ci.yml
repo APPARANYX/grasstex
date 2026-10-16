@@ -89,6 +89,9 @@ jobs:
       - name: Vehicle animation lab contract
         run: node scripts/check_vehicle_lab.cjs
 
+      - name: Preview asset overlay contract
+        run: python3 scripts/check_preview_asset_overlay.py
+
       - name: Preview launcher
         run: python3 scripts/check-preview-launcher.py
 
