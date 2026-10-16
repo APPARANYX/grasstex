@@ -84,7 +84,7 @@ assert.ok(code.includes('function attachAxlePivots(entry)'), 'Each truck instanc
 assert.ok(code.includes('node.setParent(pivot)'), 'Wheel meshes must retain their imported world pose during pivot setup');
 assert.ok(code.includes('function spinAxles(entry, transport, position)'), 'Wheel rotation must be driven by carrier movement');
 assert.ok(code.includes("transport.phase !== 'embarked'"), 'Stationary and dismounted vehicles must not rotate their wheels');
-assert.ok(code.includes('traveled / wheel.radius'), 'Wheel roll must use distance / tire radius, not arbitrary frame speed');
+assert.match(code, /traveled\)\s*\/\s*wheel\.radius/, 'Wheel roll must use distance / tire radius, not arbitrary frame speed');
 assert.ok(render.includes('fx._vehicleSeat.applyPose(fx)'),
   'On-foot animation should not overwrite seated pose');
 for(const search of ['', '?strategicInterception=1','?motorTransport=1',
