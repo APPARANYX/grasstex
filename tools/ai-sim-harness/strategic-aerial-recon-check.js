@@ -15,7 +15,10 @@ function make(search = '?strategicInterception=1&aerialRecon=1', profile = 'stra
     BattleModules: { registerSystem: (name, api) => (hooks[name] = api) },
     BattleTelemetry: { record: (type, payload) => events.push({ type, payload }) }
   };
-  const source = fs.readFileSync(path.join(__dirname, '../../battle/modules/59-strategic-aerial-recon.js'), 'utf8');
+  const source = fs.readFileSync(
+    path.join(__dirname, '../../battle/modules/59-strategic-aerial-recon.js'),
+    'utf8'
+  );
   new Function('window', 'globalThis', 'console', source)(root, root, console);
   function squad(id, faction, z, opts = {}) {
     const members = Array.from({ length: 10 }, (_, i) => ({
