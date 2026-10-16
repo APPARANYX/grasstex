@@ -230,11 +230,19 @@ jobs:
           }
           const forensic = [];
           for (const type of types) {
-            const file = path.join('shard-reports',
-              'strategic-diagnostics-' + type + '-' + process.env.GITHUB_RUN_NUMBER,
-              'worst-seed-forensic.json');
-            if (!fs.existsSync(file)) {
-              problems.push(type + ' is missing controlled forensic replay');
+            const shard = path.join('shard-reports',
+              'strategic-diagnostics-' + type + '-' + process.env.GITHUB_RUN_NUMBER);
+            /* upload-artifact receives both reports/ and $RUNNER_TEMP/log.
+               Its common-parent directory nests reports under
+               grasstex/grasstex/reports/, not the artifact root. */
+            const paths = [
+              path.join(shard, 'grasstex', 'grasstex', 'reports', 'worst-seed-forensic.json'),
+              path.join(shard, 'reports', 'worst-seed-forensic.json'),
+              path.join(shard, 'worst-seed-forensic.json')
+            ];
+            const file = paths.find(p => fs.existsSync(p));
+            if (!file) {
+              problems.push(type + ' is missing controlled forensic replay at ' + paths.join(' or '));
               continue;
             }
             const data = JSON.parse(fs.readFileSync(file, 'utf8'));
