@@ -43,10 +43,14 @@ const orchestration = normalized(
 );
 /* Exclude only the new terminal-session P-key guard. Keep the accepted
    fingerprint for every pre-existing event and listener in the controller. */
-const pGuard = /\/\/ Do not request pointer lock or possession for a finished battle:[\s\S]*?if \(currentBattle && \(currentBattle\.manualEnded \|\| currentBattle\.winner\)\) \{\n.*?\n.*?\n\}\n/;
+const pGuard =
+  /\/\/ Do not request pointer lock or possession for a finished battle:[\s\S]*?if \(currentBattle && \(currentBattle\.manualEnded \|\| currentBattle\.winner\)\) \{\n.*?\n.*?\n\}\n/;
 assert.match(events, pGuard, 'terminal P-key guard must be present before possession');
-assert.ok(events.indexOf('if (currentBattle && (currentBattle.manualEnded || currentBattle.winner))') <
-  events.indexOf('possessRandom();'), 'terminal guard must precede possession');
+assert.ok(
+  events.indexOf('if (currentBattle && (currentBattle.manualEnded || currentBattle.winner))') <
+    events.indexOf('possessRandom();'),
+  'terminal guard must precede possession'
+);
 assert.equal(
   fingerprint(events.replace(pGuard, '')),
   '73ac680a',
