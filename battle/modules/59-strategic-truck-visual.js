@@ -410,7 +410,9 @@
     }
   }
   function prepareSharedSeatPoses(sim, st) {
-    if (st.poseReady || st.poseLoading) return;
+    if (st.poseReady || st.poseLoading || st.errors.some(function (e) {
+      return e.indexOf('truck-seat clips:') === 0;
+    })) return;
     var api = root.BattleFbxSoldier;
     if (!api || !api.prepareVehicleClips) return;
     var generation = st.generation;
