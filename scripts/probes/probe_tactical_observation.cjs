@@ -39,7 +39,31 @@ const { requestPreview } = require('./preview_request.cjs');
       url.searchParams.set(flag, '1');
     url.searchParams.set('coveredBounds', '1');
     const page = await context.newPage();
-    const errors = [];
+    const errors = [],
+      networkFailures = [];
+    function attachNetworkAudit(p, label) {
+      p.on('requestfailed', request => {
+        if (networkFailures.length < 32)
+          networkFailures.push({
+            page: label,
+            method: request.method(),
+            resource: request.resourceType(),
+            url: request.url().split('?')[0],
+            failure: request.failure()?.errorText || 'requestfailed'
+          });
+      });
+      p.on('response', response => {
+        if (response.status() >= 500 && networkFailures.length < 32)
+          networkFailures.push({
+            page: label,
+            method: response.request().method(),
+            resource: response.request().resourceType(),
+            url: response.url().split('?')[0],
+            status: response.status()
+          });
+      });
+    }
+    attachNetworkAudit(page, 'battle');
     page.on('pageerror', e => errors.push(String(e)));
     await page.goto(url.href, { waitUntil: 'load', timeout: 300000 });
     await page.waitForFunction(() => window.__battle__?.factions && window.BattleTacticalSituation, {
@@ -257,6 +281,7 @@ const { requestPreview } = require('./preview_request.cjs');
     if (diagnostic.observations) {
       assert.ok(diagnostic.timeline.observations.frames.length > 0, 'enabled history actually collected');
       const flow = await context.newPage();
+      attachNetworkAudit(flow, 'flow');
       flow.on('pageerror', e => errors.push('flow: ' + String(e)));
       const flowUrl = new URL('ai_flow_live.html', url);
       flowUrl.searchParams.set('view', 'macro');
@@ -828,6 +853,8 @@ const { requestPreview } = require('./preview_request.cjs');
       };
     });
     evidence.errors = errors;
+    evidence.networkFailures = networkFailures;
+    if (errors.length) console.error('TACTICAL_PAGE_ERRORS', JSON.stringify({ errors, networkFailures }));
     fs.mkdirSync('closeups/tactical-observation', { recursive: true });
     fs.writeFileSync('closeups/tactical-observation/report.json', JSON.stringify(evidence, null, 2));
     console.log(JSON.stringify(evidence));

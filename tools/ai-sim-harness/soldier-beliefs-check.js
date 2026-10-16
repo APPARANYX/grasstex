@@ -298,6 +298,60 @@ test('aimed fire reveals a distant prone shooter origin and reports it to the sq
   );
 });
 
+test('suppressive rounds inform only actual recipients, then delivered squad callouts', () => {
+  const w = world(),
+    victim = w.A,
+    shooter = w.enemy;
+  w.us.members.forEach(s => {
+    s.target = null;
+    s.root.position.x = s === victim ? 0 : 12;
+    s.root.position.z = 0;
+  });
+  w.b.time = 2;
+  shooter.fireCooldown = 0;
+  const before = victim.hp;
+  assert.equal(w.S.areaFire(shooter, { x: 0, z: 0 }, w.b), 1);
+  assert.equal(victim.hp, before, 'area fire remains suppression, never through-cover damage');
+  assert.ok(victim.suppressedUntil > w.b.time);
+  const own = active(w, victim);
+  assert.ok(own && own.source === 'incoming', 'suppressed recipient perceives the firing origin');
+  assert.equal(own.precision, 'fire-origin');
+  assert.equal(own.z, 40);
+  const mates = w.us.members.filter(s => s !== victim);
+  assert.ok(
+    mates.every(s => !active(w, s)),
+    'no instant squad propagation'
+  );
+  shooter.root.position.z = 90;
+  assert.equal(active(w, victim).z, 40, 'observed origin does not follow a hidden shooter');
+  w.b.time = 3.5;
+  const heard = mates.find(s => w.C.heardBy(w.b, s));
+  assert.ok(heard, 'the same delayed, fallible callout channel delivers the report');
+  w.S.applyCalloutBelief(heard, w.b);
+  assert.equal(active(w, heard).source, 'told');
+  assert.equal(active(w, heard).precision, 'fire-origin');
+  assert.equal(active(w, heard).z, 40);
+  assert.equal(heard.target, null, 'a report is a coordinate, not visual target acquisition');
+});
+
+test('suppressive origin reveal respects disabled perception, distance and failed discharge', () => {
+  for (const suffix of ['&incomingFireReveal=0', '&perception=0']) {
+    const w = world('?soldierBeliefs=1&callouts=1' + suffix);
+    w.A.target = null;
+    w.S.areaFire(w.enemy, { x: 0, z: 0 }, w.b);
+    assert.equal(active(w, w.A), null);
+    assert.equal(w.A.target, null);
+  }
+  const w = world();
+  w.A.target = null;
+  w.enemy.fireCooldown = 5;
+  assert.equal(w.S.areaFire(w.enemy, { x: 0, z: 0 }, w.b), 0);
+  assert.equal(active(w, w.A), null, 'no actual shot means no incoming report');
+  w.enemy.fireCooldown = 0;
+  w.S.areaFire(w.enemy, { x: 0, z: 20 }, w.b);
+  assert.equal(active(w, w.A), null, 'a bystander outside the suppression footprint learns no exact origin');
+});
+
 test('incoming-fire reveal has a complete legacy control arm', () => {
   const w = world('?soldierBeliefs=1&callouts=1&incomingFireReveal=0');
   w.A.target = null;

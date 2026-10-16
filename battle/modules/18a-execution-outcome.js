@@ -130,6 +130,21 @@
     var last = s._movementResolver && s._movementResolver.last,
       goal = point(rec.point),
       here = pos(s);
+    /* Navigation/body spacing may legalize the final formation endpoint.
+       Measure the endpoint Movement actually owns, only for this applied
+       intent. A routed intermediate waypoint or a different intent cannot
+       complete the personal command. */
+    if (
+      last &&
+      last.owner === 'squad-stability' &&
+      last.kind === 'formation' &&
+      !last.tacticalStep &&
+      point(last.intentPoint) &&
+      goal &&
+      dist(last.intentPoint, goal) <= 0.05 &&
+      point(last.point)
+    )
+      goal = point(last.point);
     out.distance = goal && here ? +dist(here, goal).toFixed(1) : null;
     if (last) {
       out.owner = last.owner;
