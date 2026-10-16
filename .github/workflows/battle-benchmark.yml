@@ -217,6 +217,12 @@ jobs:
           fs.writeFileSync('reports/battle-benchmark.md', md);
           NODE
 
+      - name: Generate automatic diagnostic investigation queue
+        if: success()
+        run: |
+          node scripts/triage_battle_diagnostics.cjs reports/battle-benchmark.json reports
+          cat reports/diagnostic-triage.md >> "$GITHUB_STEP_SUMMARY"
+
       - name: Prepare persistent report bundle
         if: success()
         run: |
@@ -225,6 +231,8 @@ jobs:
           mkdir -p persistent-result
           cp reports/battle-benchmark.md persistent-result/
           cp reports/battle-benchmark.csv persistent-result/
+          cp reports/diagnostic-triage.md persistent-result/
+          cp reports/diagnostic-triage.json persistent-result/
           node <<'NODE'
           const fs = require('fs');
           const report = JSON.parse(fs.readFileSync('reports/battle-benchmark.json', 'utf8'));
