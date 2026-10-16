@@ -382,10 +382,64 @@
     var quote = transport && transport.quoteMission && transport.quoteMission(sim, screen, spec);
     return quote ? { spec: spec, squad: screen, quote: quote, lead: lead } : null;
   }
+  function supportOpportunity(sim, faction, pair) {
+    var lead = pair.lead, screen = pair.screen,
+      mission = lead && lead._macroMission,
+      town = sim.scene.metadata.battleScenario;
+    if (!lead || !screen || !mission || mission.intent !== 'capture' ||
+      !mission.objectiveId || !(screen._macroMission &&
+      screen._macroMission.intent === 'reserve' && screen._macroMission.interceptReserve) ||
+      screen.inContact || screen._transportUsed) return null;
+    var obj = objective(town, mission.objectiveId);
+    if (!obj || obj.baseFaction) return null;
+    var men = lead.members.filter(function (m) {
+      return m && !m.dead && m.root && m.root.position;
+    });
+    if (!men.length) return null;
+    var pos = { x: men.reduce(function (v, m) { return v + m.root.position.x; }, 0) / men.length,
+      z: men.reduce(function (v, m) { return v + m.root.position.z; }, 0) / men.length };
+    if (d(pos, obj) > 250) return null;
+    var picture = root.BattleTacticalSituation && root.BattleTacticalSituation.compute(sim, faction);
+    if (!picture) return null;
+    var reports = picture.contacts.filter(function (c) {
+      return c && c.age <= 12 && isFinite(c.x) && isFinite(c.z) && d(c, obj) <= 200;
+    });
+    if (!lead.inContact && !reports.length) return null;
+    var route = root.BattleCommanderRoutes && root.BattleCommanderRoutes.missionRouteFor
+      ? root.BattleCommanderRoutes.missionRouteFor(screen, town, obj.id, screen.baseHome || screen.home)
+      : [];
+    var spec = {
+      owner: 'force-command', intent: 'capture', action: 'assault',
+      status: 'issued', objectiveId: obj.id,
+      point: { x: obj.x, z: obj.z }, role: 'support',
+      route: route
+    };
+    var transport = root.BattleSquadTransport;
+    var quote = transport && transport.quoteMission && transport.quoteMission(sim, screen, spec);
+    return quote ? { spec: spec, squad: screen, lead: lead, quote: quote,
+      reportCount: reports.length, leadInContact: !!lead.inContact } : null;
+  }
   function maybeScreen(sim, faction, issue) {
     if (!enabled(sim) || typeof issue !== 'function') return null;
     var stateForFaction = state(sim)[faction];
     for (var pair of pairs(sim, faction)) {
+      // Existing frontline resistance changes the second truck's purpose:
+      // assist the real lead squad, never overrun it into an alleged ambush.
+      var support = supportOpportunity(sim, faction, pair);
+      if (support) {
+        var reinforcement = issue(support.squad, support.spec, 'second-truck-support-contested'),
+          carrier = support.squad._transport;
+        if (reinforcement && reinforcement.intent === 'capture' && carrier &&
+            carrier.vehicleId === support.quote.vehicle.id) {
+          var supportRecord = { at: sim.time, leadSquadId: pair.lead.id,
+            supportSquadId: pair.screen.id, objectiveId: support.spec.objectiveId,
+            vehicleId: carrier.vehicleId, reportedContacts: support.reportCount,
+            leadInContact: support.leadInContact };
+          (stateForFaction.supports || (stateForFaction.supports = [])).push(supportRecord);
+          event(sim, 'second-truck-reinforcement', { faction: faction, ...supportRecord });
+          return supportRecord;
+        }
+      }
       var opportunity = screenOpportunity(sim, faction, pair);
       if (!opportunity) continue;
       var m = issue(opportunity.squad, opportunity.spec, 'forward-screen-uncontested');
@@ -599,6 +653,7 @@
     reservePending: reservePending,
     pairs: pairs,
     screenOpportunity: screenOpportunity,
+    supportOpportunity: supportOpportunity,
     maybeScreen: maybeScreen,
     maybeScreenReport: maybeScreenReport,
     choose: choose,
