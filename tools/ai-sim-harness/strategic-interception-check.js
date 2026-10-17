@@ -198,6 +198,18 @@ const paired = make(),
   PT = paired.root.BattleSquadTransport;
 const lead = paired.us;
 lead.homeBaseObjectiveId = 'u0';
+// This forward objective needs a legal >=830 m round trip to leave 180 m
+// for infantry dismount; keep the production transport-distance gate intact.
+const sampleTown = paired.sim.scene.metadata.battleScenario;
+sampleTown.objectives.find(o => o.id === 'u0').z = -650;
+sampleTown.spawnZones.us.bases[0].z = -650;
+sampleTown.roads.forEach(road => {
+  if (road.fromObjectiveId === 'u0') road.az = -650;
+  if (road.toObjectiveId === 'u0') road.bz = -650;
+});
+lead.baseHome = { x: 0, z: -650 };
+lead.home = { x: 0, z: -650 };
+paired.hooks['strategic-abstract-transport'].onBattleStart(paired.sim);
 lead._macroMission = {
   owner: 'force-command',
   intent: 'capture',
@@ -223,7 +235,7 @@ const screen = {
   members: lead.members.map((m, i) => ({
     ...m,
     id: 'screen-' + i,
-    root: { position: { x: 0, z: -300 + i * 0.03 }, rotation: { y: 0 } }
+    root: { position: { x: 0, z: -650 + i * 0.03 }, rotation: { y: 0 } }
   }))
 };
 screen.members.forEach(m => {
