@@ -385,7 +385,8 @@
            mission, not an objective-less idle brief. Hold and report until
            superseded or combat requires local action. */
         return m.screen && sim.time > m.screen.orderedAt + 720 && !sq.inContact
-          ? 'screen-window-expired' : null;
+          ? 'screen-window-expired'
+          : null;
       }
       if (m.intent === 'intercept') {
         // A genuine contact or ongoing intercept survives incidental objective
@@ -405,8 +406,7 @@
         return escalation.reason || 'captain-request';
       if (m.intent === 'reserve' && m.interceptReserve) {
         var interception = root.BattleStrategicInterception;
-        return interception && interception.reservePending(sim, sq.faction)
-          ? null : 'reserve-commit';
+        return interception && interception.reservePending(sim, sq.faction) ? null : 'reserve-commit';
       }
       if (m.intent === 'reserve') return reserveDue(sim, sq) ? 'reserve-commit' : null;
       if (!m.objectiveId)
@@ -433,17 +433,32 @@
          at a real base until the sortie is evaluated. This is a normal Macro
          hold brief, not an artificial road spawn or a secret enemy reading. */
       var reservePlanner = root.BattleStrategicInterception;
-      if (!request && reservePlanner && reservePlanner.reservePending(sim, sq.faction) &&
-          reservePlanner.reserveSquad(sim, sq) && !sq._transportUsed && !sq.inContact &&
-          (!old || old.state !== 'retreat')) {
+      if (
+        !request &&
+        reservePlanner &&
+        reservePlanner.reservePending(sim, sq.faction) &&
+        reservePlanner.reserveSquad(sim, sq) &&
+        !sq._transportUsed &&
+        !sq.inContact &&
+        (!old || old.state !== 'retreat')
+      ) {
         if (old && old.interceptReserve && (old.status === 'issued' || old.status === 'executing'))
           return old;
 
-        return issueMission(sim, sq, {
-          intent: 'reserve', action: 'hold', role: 'reserve',
-          objectiveId: null, point: sq.baseHome || sq.home || D.avgPos(sq),
-          route: [], interceptReserve: true
-        }, 'aerial-maneuver-reserve');
+        return issueMission(
+          sim,
+          sq,
+          {
+            intent: 'reserve',
+            action: 'hold',
+            role: 'reserve',
+            objectiveId: null,
+            point: sq.baseHome || sq.home || D.avgPos(sq),
+            route: [],
+            interceptReserve: true
+          },
+          'aerial-maneuver-reserve'
+        );
       }
       if (request)
         return issueMission(

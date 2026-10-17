@@ -275,12 +275,19 @@
           if (!ex.screenOnPostAt) {
             ex.screenOnPostAt = t;
             if (root.BattleTelemetry && root.BattleTelemetry.record)
-              root.BattleTelemetry.record('strategic-forward-screen-on-post', {
-                faction: sq.faction, squad: sq.id, missionVersion: m.version,
-                securedObjectiveId: m.screen && m.screen.securedObjectiveId,
-                roadId: m.screen && m.screen.roadId,
-                at: +t.toFixed(2), position: copy(pos)
-              }, sim);
+              root.BattleTelemetry.record(
+                'strategic-forward-screen-on-post',
+                {
+                  faction: sq.faction,
+                  squad: sq.id,
+                  missionVersion: m.version,
+                  securedObjectiveId: m.screen && m.screen.securedObjectiveId,
+                  roadId: m.screen && m.screen.roadId,
+                  at: +t.toFixed(2),
+                  position: copy(pos)
+                },
+                sim
+              );
           }
           setPhase(sim, sq, 'hold', 'forward observation established');
         } else setPhase(sim, sq, 'approach', 'moving past secured objective');
