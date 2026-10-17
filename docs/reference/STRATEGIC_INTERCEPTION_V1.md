@@ -37,6 +37,19 @@ This is the intended strategic sequence for opt-in Phase 3B in [draft #559](http
 
 ---
 
+### Native 40-second mission-ownership correction
+
+Earlier meeting-seed triage found that two squads were *eligible* for forward-screen duty but every squad had already been committed to a capture truck by 40.05 s. The block was not a late ETA or route obstacle: ordinary `request-changed` and `reserve-commit` reconsiderations displaced the intended second-truck reservation. The corrected opt-in command path now:
+
+- assigns the purpose-first screen brief on the second squad's **initial** Macro mission (not only after a reserve already exists);
+- protects the explicit second-truck reserve *ahead of* ordinary catalog/request wake reasons;
+- uses the reserve only after the lead reaches a genuinely uncontested objective, or uses its truck to reinforce a genuinely contested lead;
+- releases an unfulfilled reserve to normal General reconsideration after 600 simulated seconds to avoid permanent idling.
+
+**Evidence status:** dedicated deterministic mission checks cover the physical 12-vehicle inventory and report provenance. The *native* long-horizon screen, intercept and contact chain remains subject to ON/OFF browser proof; do not convert diagnostic CI green into an accepted natural ambush claim.
+
+---
+
 ## Phase 3B implementation checkpoint — event-driven interception proposal
 
 **Draft child [#559](https://github.com/APPARANYX/grasstex/pull/559); not yet accepted or merged.** Opt in to `?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1`. Default-off behavior and parked #527 are unchanged.
