@@ -28,13 +28,13 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
 @media(max-width:700px){.grid,.grid3{grid-template-columns:1fr}.panel{padding:16px}main{padding:15px}}
 </style></head><body>
 <header><small>GRASSTEX / RESEARCH TOOLS</small><h1>Commander Ideation Exchange</h1>
-<p class="intro">Two commanders. One sealed turn each. One impartial referee. Site-hosted strategy wargames for discovering missing game-command capabilities—without running the soldier simulator or using paid AI APIs.</p></header>
+<p class="intro">Two commanders. One sealed turn each. One deterministic referee. Site-hosted strategy wargames for discovering missing game-command capabilities—without running the soldier simulator or using paid AI APIs.</p></header>
 <main>
 <div class="panel">
   <h2>Open a match <span class="badge" id="phase">No match loaded</span></h2>
   <div class="grid3">
     <div><label for="match">Match ID</label><input id="match" autocomplete="off" spellcheck="false" placeholder="24-character match ID"></div>
-    <div><label for="role">View as</label><select id="role"><option value="public">Public spectator</option><option value="us">US commander</option><option value="ge">German commander</option><option value="umpire">Neutral referee</option></select></div>
+    <div><label for="role">View as</label><select id="role"><option value="public">Public spectator</option><option value="us">US commander</option><option value="ge">German commander</option></select></div>
     <div><label for="key">Role key (not needed for public)</label><input id="key" type="password" autocomplete="off" placeholder="Keep role keys private"></div>
   </div>
   <button class="primary" id="load">Load / refresh match</button>
@@ -57,25 +57,10 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
 
 <div class="panel hidden" id="commander">
   <h2>Submit sealed orders</h2>
-  <p class="quiet">One submission per side per round. It cannot be edited afterward. Orders are only revealed after both sides submit. Keep your role key private.</p>
-  <label for="orders">Your orders (intent, mission assignments, contingencies, missing capabilities)</label>
-  <textarea id="orders" class="tall" maxlength="15000" placeholder="TURN: 1&#10;SIDE: US / GE&#10;INTENT: ...&#10;COMMANDS: ...&#10;PROPOSED CAPABILITIES: ..."></textarea>
+  <p class="quiet">One structured JSON order per side per turn. It cannot be edited afterward. When the second order is received, the site automatically resolves both and publishes the result. Keep your role key private.</p>
+  <label for="orders">Structured JSON order — move / transport / hold / reserve; propose missing actions separately</label>
+  <textarea id="orders" class="tall" maxlength="15000" placeholder='{"turn":1,"side":"us","intent":"Secure the junction","actions":[{"squad":"US-1","type":"move","target":"central"}],"support":"none","proposals":[{"name":"Conditional reserve","reason":"Need objective-triggered commitment"}]}'></textarea>
   <button class="primary" id="submit">Seal my orders</button>
-</div>
-
-<div class="panel hidden" id="referee">
-  <h2>Resolve both committed orders</h2>
-  <p class="notice">Only adjudicate after the site confirms BOTH sides submitted. The umpire preserves hidden information and records hypothetical outcomes explicitly.</p>
-  <label for="resolution">Public resolution / objective changes</label><textarea id="resolution" class="tall" maxlength="18000"></textarea>
-  <label for="nextPublic">Next public turn briefing</label><textarea id="nextPublic" maxlength="10000"></textarea>
-  <div class="grid">
-    <div><label for="usNext">Next US-private briefing</label><textarea id="usNext" maxlength="10000"></textarea></div>
-    <div><label for="geNext">Next GE-private briefing</label><textarea id="geNext" maxlength="10000"></textarea></div>
-  </div>
-  <label for="umpireNotes">Umpire-only state checkpoint</label><textarea id="umpireNotes" maxlength="18000"></textarea>
-  <label for="capabilities">New capabilities (one per line)</label><textarea id="capabilities"></textarea>
-  <label for="winner">Turn outcome</label><select id="winner"><option value="ongoing">Continue next turn</option><option value="us">US victory</option><option value="ge">German victory</option><option value="draw">Draw</option></select>
-  <button class="primary" id="resolve">Publish resolution + advance turn</button>
 </div>
 
 <details class="panel" id="createDetails"><summary>Create a new match (administrator)</summary>
@@ -89,8 +74,7 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <label for="newPublic">Initial public briefing</label><textarea id="newPublic"></textarea>
   <div class="grid"><div><label for="newUS">Initial US-only briefing</label><textarea id="newUS"></textarea></div>
   <div><label for="newGE">Initial German-only briefing</label><textarea id="newGE"></textarea></div></div>
-  <label for="newUmpire">Initial umpire-only state/notes</label><textarea id="newUmpire"></textarea>
-  <button class="primary" id="create">Create match + generate role keys</button>
+  <button class="primary" id="create">Create match + generate two faction keys</button>
   <div id="created" class="hidden"><p class="notice">Copy and save these keys now. They cannot be retrieved later. Never paste one side's key into the other side's chat.</p><pre id="createdOutput" class="key"></pre></div>
 </details>
 </main><footer>GRASSTEX Commander Ideation Lab · Qualitative design exercise, not a runtime battle benchmark</footer>
