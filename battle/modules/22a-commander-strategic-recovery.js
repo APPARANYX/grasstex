@@ -394,6 +394,13 @@
         if (m.intercept && sim.time >= m.intercept.expiresAt && !sq.inContact) return 'intercept-expired';
         return null;
       }
+      /* An intentionally held second-truck team cannot be swallowed by
+         ordinary request-changed/catalog churn before it screens or supports
+         the lead. Emergency combat stays under Squad Leader/Engagement. */
+      if (m.intent === 'reserve' && m.interceptReserve) {
+        var interception = root.BattleStrategicInterception;
+        return interception && interception.reservePending(sim, sq.faction) ? null : 'reserve-commit';
+      }
       /* A defense request is new information only when it changes the task: a squad already defending that
        objective keeps its brief while pressure comes and goes; releasing a request-bound brief is reassessed. */
       var request = defenseRequest(sim, sq);
@@ -404,10 +411,6 @@
       var escalation = sq._macroMissionRequest;
       if (escalation && escalation.missionVersion === m.version)
         return escalation.reason || 'captain-request';
-      if (m.intent === 'reserve' && m.interceptReserve) {
-        var interception = root.BattleStrategicInterception;
-        return interception && interception.reservePending(sim, sq.faction) ? null : 'reserve-commit';
-      }
       if (m.intent === 'reserve') return reserveDue(sim, sq) ? 'reserve-commit' : null;
       if (!m.objectiveId)
         return catalogKey(sim) !== (sq._macroMissionObservation || {}).catalog
@@ -434,13 +437,12 @@
          hold brief, not an artificial road spawn or a secret enemy reading. */
       var reservePlanner = root.BattleStrategicInterception;
       if (
-        !request &&
         reservePlanner &&
-        reservePlanner.reservePending(sim, sq.faction) &&
         reservePlanner.reserveSquad(sim, sq) &&
         !sq._transportUsed &&
         !sq.inContact &&
-        (!old || old.state !== 'retreat')
+        reason !== 'reserve-commit' &&
+        (!old || old.interceptReserve)
       ) {
         if (old && old.interceptReserve && (old.status === 'issued' || old.status === 'executing'))
           return old;
@@ -457,7 +459,7 @@
             route: [],
             interceptReserve: true
           },
-          'aerial-maneuver-reserve'
+          'purpose-first-forward-screen'
         );
       }
       if (request)
