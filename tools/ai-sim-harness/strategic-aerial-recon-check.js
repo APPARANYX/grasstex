@@ -68,7 +68,11 @@ tick(w);
 const usEvent = A.forGeneral(w.sim, 'us');
 assert.ok(usEvent && Object.isFrozen(usEvent) && Object.isFrozen(usEvent.contacts));
 assert.equal(usEvent.faction, 'us');
-assert.equal(usEvent.contacts.length, 2, 'moving plus exposed stationary; hidden ambush groups stay unreported');
+assert.equal(
+  usEvent.contacts.length,
+  2,
+  'moving plus exposed stationary; hidden ambush groups stay unreported'
+);
 const target = usEvent.contacts.find(c => c.squadId === 'ge-0');
 const stationary = usEvent.contacts.find(c => c.squadId === 'ge-stationary');
 assert.ok(stationary, 'exposed stationary formation yields an uncertain position-only fix');
@@ -103,7 +107,11 @@ w.ge.members.forEach(s => {
   s.moveSpeed = 2;
 });
 tick(w);
-assert.equal(A.forGeneral(w.sim, 'us').contacts.length, 2, 'restart restores moving and stationary sightings');
+assert.equal(
+  A.forGeneral(w.sim, 'us').contacts.length,
+  2,
+  'restart restores moving and stationary sightings'
+);
 const identical = make();
 identical.sim.time = 120;
 tick(identical);
@@ -131,8 +139,10 @@ incoherent.ge.members.forEach((s, i) => {
 });
 tick(incoherent);
 const incoherentContacts = incoherent.root.BattleAerialRecon.forGeneral(incoherent.sim, 'us').contacts;
-assert.ok(incoherentContacts.every(c => c.speedMps === 0 && c.headingRadians === null),
-  'disagreeing directions never produce a fake movement track');
+assert.ok(
+  incoherentContacts.every(c => c.speedMps === 0 && c.headingRadians === null),
+  'disagreeing directions never produce a fake movement track'
+);
 const player = make();
 const P = player.root.BattleAerialRecon;
 player.sim.time = 3;
