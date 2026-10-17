@@ -47,6 +47,12 @@
   function corridorsOn() {
     return interceptionOn() && !flagOff('reconCorridors');
   }
+  /* Ambushes sit between the column and the objective it is heading for:
+     corridors stop at that objective. ?ambushBeforeObjective=0 restores the
+     forks beyond it. */
+  function beforeObjectiveOn() {
+    return !flagOff('ambushBeforeObjective');
+  }
   function overflightOn() {
     return interceptionOn() && !flagOff('reconOverflight');
   }
@@ -144,7 +150,7 @@
     function latest(metres) {
       return round((metres + slack) / slow, 1);
     }
-    function emit(edge, from, to, fraction, travelled, hop, likelihood, alignment, offRoad) {
+    function emit(edge, from, to, fraction, travelled, hop, likelihood, alignment, offRoad, toward) {
       if (eta(travelled) > CORRIDOR_HORIZON_SECONDS) return;
       var point = {
         x: round(from.x + (to.x - from.x) * fraction, 1),
@@ -154,7 +160,7 @@
         Object.freeze({
           roadId: edge.road.id,
           anchorIds: Object.freeze([edge.a.id, edge.b.id]),
-          likelyObjectiveId: to.id,
+          likelyObjectiveId: (toward || to).id,
           point: Object.freeze(point),
           leadMetres: round(travelled, 0),
           enemyEtaSeconds: eta(travelled),
@@ -202,7 +208,11 @@
         if (dot < CORRIDOR_ALIGNMENT) continue;
         // A column is not predicted to drive into its own home base.
         if (node.baseFaction === hostile) continue;
-        var leads = [320, 550, Math.min(remaining * 0.77, remaining - 80)],
+        var before = beforeObjectiveOn(),
+          leads = before
+            ? // Watch points along the approach, the last just short of the objective.
+              [320, 550, remaining * 0.5, remaining * 0.77, remaining - 80]
+            : [320, 550, Math.min(remaining * 0.77, remaining - 80)],
           used = {};
         leads.forEach(function (raw) {
           var lead = Math.min(remaining - 80, raw),
@@ -210,9 +220,9 @@
           if (lead < 200 || used[key]) return;
           used[key] = true;
           var along = dir > 0 ? t + lead / e.len : t - lead / e.len;
-          emit(e, e.a, e.b, along, lead, 0, 1, dot, off);
+          emit(e, e.a, e.b, along, lead, 0, 1, dot, off, node);
         });
-        downstream(node, e.road, remaining, 1, 1, dot, off);
+        if (!before) downstream(node, e.road, remaining, 1, 1, dot, off);
       }
     });
     return out;

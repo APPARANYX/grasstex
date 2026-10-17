@@ -217,6 +217,30 @@
     });
     return best ? best.id : null;
   }
+  /* ?contestedPost=0 drops the check below. A post is contested when the
+     same report puts another hostile formation on that ground before the
+     squad would be set up: stationary there, or a corridor of its own that
+     reaches it first. Radius: the truck's dismount distance plus the fix's
+     position uncertainty, the ground the squad must cross on foot. */
+  function contestedPostOn() {
+    return !/(?:^|[?&])contestedPost=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
+  function contestedBy(track, friendlyETA, age) {
+    var transport = root.BattleSquadTransport,
+      dismount = (transport && transport.tuning && transport.tuning.dismountMetres) || 180,
+      contacts = (track.report && track.report.contacts) || [];
+    for (var i = 0; i < contacts.length; i++) {
+      var c = contacts[i];
+      if (!c || c === track.contact) continue;
+      var radius = dismount + (c.positionUncertaintyM || 40);
+      if (d(c, track.point) <= radius) return c.squadId;
+      var list = c.corridors || [];
+      for (var k = 0; k < list.length; k++)
+        if (d(list[k].point, track.point) <= radius && list[k].enemyEtaSeconds - age <= friendlyETA)
+          return c.squadId;
+    }
+    return null;
+  }
   function quoteFor(sim, faction, track, diag) {
     var town = sim.scene.metadata.battleScenario,
       transport = root.BattleSquadTransport,
@@ -293,6 +317,10 @@
           /* Report-fed: margin beyond the setup and uncertainty allowance buys
              nothing, and a later watch point is a less certain forecast, so the
              earliest feasible corridor wins. */
+          if (reportFed && contestedPostOn() && contestedBy(track, friendlyETA, age)) {
+            diag.contestedPost = (diag.contestedPost || 0) + 1;
+            return;
+          }
           var score = reportFed
             ? Math.min(margin, SETUP_MARGIN + EXTRA_UNCERTAINTY) * 0.3 -
               (track.enemyETA - age) * 0.3 +
@@ -356,6 +384,7 @@
       };
     ev.contacts.forEach(function (contact) {
       corridorTracks(town, contact, faction).forEach(function (track) {
+        track.report = ev;
         evaluated++;
         var proposal = quoteFor(sim, faction, track, diagnostic);
         if (proposal && (!best || proposal.score > best.score)) best = proposal;

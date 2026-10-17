@@ -479,12 +479,69 @@ assert.ok(
   'the projection stops at the observer base instead of routing through it'
 );
 assert.equal(forecast.best.enemyETA, 419.3, 'earliest feasible corridor, not the longest margin');
+assert.ok(
+  fed.corridors.every(c => c.hop === 0 && c.likelyObjectiveId === 'crossing'),
+  'every watch point lies between the column and the objective it is heading for'
+);
+assert.ok(
+  fed.corridors.some(c => c.point.z > 500 && c.point.z < 600),
+  'the last watch point sits just short of that objective'
+);
+const pastObjective = make(
+  '?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&reconOverflight=0&ambushBeforeObjective=0'
+);
+// A faster column reaches the far side of the crossing inside the horizon.
+pastObjective.ge.members.forEach(m => {
+  m.moveSpeed = 3;
+});
+assert.ok(
+  pastObjective.root.BattleAerialRecon.request(pastObjective.sim, 'us').contacts[0].corridors.some(
+    c => c.hop > 0
+  ),
+  '?ambushBeforeObjective=0 restores corridors past the objective'
+);
 const picked = fed.corridors.find(c => c.point.z === forecast.best.spec.point.z);
 assert.ok(picked.enemyLatestSeconds > picked.enemyEtaSeconds, 'report gives earliest and latest arrival');
 assert.ok(
   forecast.best.expiresAt >= fed.observedAt + Math.min(720, picked.enemyLatestSeconds),
   'the post is held until the slowest plausible arrival'
 );
+// A post another reported formation already holds is not an ambush.
+const held = search => {
+  const x = make(search);
+  const guard = { ...x.ge, id: 'ge-guard', members: [] };
+  guard.members = x.ge.members.map((m, i) => ({
+    ...m,
+    id: 'guard-' + i,
+    moving: false,
+    moveSpeed: 0,
+    squad: guard,
+    root: { position: { x: (i % 2) * 0.1, z: 720 + i * 0.1 }, rotation: { y: 0 } }
+  }));
+  x.sim.factions.ge.squads.push(guard);
+  return x;
+};
+const contested = held();
+const contestedEv = contested.root.BattleAerialRecon.request(contested.sim, 'us');
+const contestedPick = contested.root.BattleStrategicInterception.choose(contested.sim, 'us', contestedEv);
+assert.ok(
+  contestedPick.diagnostic.contestedPost > 0,
+  'posts on ground another reported formation holds are refused'
+);
+assert.ok(
+  !contestedPick.best ||
+    Math.hypot(contestedPick.best.spec.point.x, contestedPick.best.spec.point.z - 720) > 220,
+  'the General never sends a truck onto a held post'
+);
+const uncontested = held(
+  '?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&reconOverflight=0&contestedPost=0'
+);
+const uncontestedPick = uncontested.root.BattleStrategicInterception.choose(
+  uncontested.sim,
+  'us',
+  uncontested.root.BattleAerialRecon.request(uncontested.sim, 'us')
+);
+assert.equal(uncontestedPick.best.spec.point.z, 731.2, '?contestedPost=0 restores the unchecked pick');
 const aged = make();
 const agedEv = aged.root.BattleAerialRecon.request(aged.sim, 'us');
 aged.sim.time += 20;
