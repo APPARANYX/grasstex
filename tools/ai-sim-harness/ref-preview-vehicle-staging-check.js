@@ -21,16 +21,26 @@ for (const asset of [
   'Assets/animations/Truck - Driving.fbx',
   'Assets/weapons/rifle.glb',
   'Assets/effects/smoke.png'
-]) assert.ok(regex.test(asset), 'missing allowed preview asset: ' + asset);
+])
+  assert.ok(regex.test(asset), 'missing allowed preview asset: ' + asset);
 for (const rejected of [
   'Assets/vehicles/../../state/private.php',
   'Assets/vehicles/truck.php',
   'Assets/audio/private.mp3',
   'Assets/terrain/secret.json',
   'Assets/vehicles/truck.json'
-]) assert.equal(regex.test(rejected), false, 'must not stage unauthorized asset: ' + rejected);
-assert.match(source, /foreach \(array\('soldiers', 'animations', 'weapons', 'vehicles'\) as \$d\)/,
-  'vehicle sidecar JSON from the hosting server should be preserved');
-assert.match(source, /if \(blob_sha\(\$prod, \$hashes\) === \$e\['sha'\]\)/,
-  'identical assets must be reused via verified hard links');
-console.log('PASS ref preview stages real vehicles alongside soldiers without expanding private asset access');
+])
+  assert.equal(regex.test(rejected), false, 'must not stage unauthorized asset: ' + rejected);
+assert.match(
+  source,
+  /foreach \(array\('soldiers', 'animations', 'weapons', 'vehicles'\) as \$d\)/,
+  'vehicle sidecar JSON from the hosting server should be preserved'
+);
+assert.match(
+  source,
+  /if \(blob_sha\(\$prod, \$hashes\) === \$e\['sha'\]\)/,
+  'identical assets must be reused via verified hard links'
+);
+console.log(
+  'PASS ref preview stages real vehicles alongside soldiers without expanding private asset access'
+);
