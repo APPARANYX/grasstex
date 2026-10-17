@@ -315,17 +315,16 @@ pickup.town.roads.push({
   bz: 2450,
   width: 14
 });
-const originalTruck = pickup.sim._strategicTransportFleet.vehicles.find(
-  v => v.id === 'us-base-0-truck-0'
-);
+const originalTruck = pickup.sim._strategicTransportFleet.vehicles.find(v => v.id === 'us-base-0-truck-0');
 originalTruck.phase = 'stopped';
 originalTruck.position = { x: 11, z: 1000 };
 originalTruck.heading = { x: 0, z: 1 };
 pickup.squad._transport = { vehicleId: originalTruck.id, phase: 'dismounted' };
-const advanceGroup = z => pickup.members.forEach(m => {
-  m.root.position.x = 0;
-  m.root.position.z = z;
-});
+const advanceGroup = z =>
+  pickup.members.forEach(m => {
+    m.root.position.x = 0;
+    m.root.position.z = z;
+  });
 const onward = {
   owner: 'force-command',
   status: 'issued',
@@ -347,9 +346,7 @@ assert.ok(nearQuote, '180m objective dismount must allow pickup at about 200m');
 assert.equal(nearQuote.vehicle.id, originalTruck.id);
 assert.ok(nearQuote.boardSeconds > 35, 'real 200m walk requires a longer boarding window');
 // A nearer unclaimed vehicle does not displace the squad's original truck.
-const alternateTruck = pickup.sim._strategicTransportFleet.vehicles.find(
-  v => v.id === 'us-base-0-truck-1'
-);
+const alternateTruck = pickup.sim._strategicTransportFleet.vehicles.find(v => v.id === 'us-base-0-truck-1');
 alternateTruck.phase = 'stopped';
 alternateTruck.position = { x: -11, z: 1190 };
 assert.equal(
@@ -362,11 +359,17 @@ assert.ok(pickup.api.considerMission(pickup.sim, pickup.squad, onward));
 assert.ok(pickup.squad._transport.boardTimeoutSeconds > 35);
 pickup.squad._macroMission.status = 'executing';
 pickup.run(40);
-assert.equal(pickup.squad._transport.phase, 'boarding',
-  'a 200m pickup must not abort at the former 35-second boarding timeout');
+assert.equal(
+  pickup.squad._transport.phase,
+  'boarding',
+  'a 200m pickup must not abort at the former 35-second boarding timeout'
+);
 pickup.run(80);
-assert.equal(pickup.squad._transport.phase, 'embarked',
-  'soldiers physically walk to the truck and board in order without spawning');
+assert.equal(
+  pickup.squad._transport.phase,
+  'embarked',
+  'soldiers physically walk to the truck and board in order without spawning'
+);
 assert.equal(pickup.api.fleetSummary(pickup.sim).length, 12);
 
 // Fleet ownership is per-base, not a random or faction-wide two-task spawn cap.
