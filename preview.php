@@ -316,6 +316,7 @@ function stage($branch, $sha, $root, $previewRoot, &$error) {
     $tree = gh_json('git/trees/' . $sha . '?recursive=1', $error);
     if (!$tree || !isset($tree['tree']) || !empty($tree['truncated'])) { $error = 'commit tree: ' . ($error ?: 'incomplete GitHub tree'); if ($lock) fclose($lock); return null; }
     $files = array(); $assets = array(); $branchLoaderSha = null;
+    /* Include vehicle FBX/GLB with soldier files: truck visuals fetch both from BATTLE_SOLDIER_ASSET_BASE. */
     foreach ($tree['tree'] as $e) {
         if (!isset($e['type'], $e['path'], $e['sha']) || $e['type'] !== 'blob') continue;
         $path = $e['path'];
