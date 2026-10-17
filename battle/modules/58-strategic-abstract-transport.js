@@ -231,11 +231,11 @@
   function nearestRoadEntry(town, where) {
     var result = null;
     (town.roads || []).forEach(function (road) {
-      var dx = road.bx - road.ax, dz = road.bz - road.az,
+      var dx = road.bx - road.ax,
+        dz = road.bz - road.az,
         length2 = dx * dx + dz * dz;
       if (length2 < 1) return;
-      var t = Math.max(0, Math.min(1,
-        ((where.x - road.ax) * dx + (where.z - road.az) * dz) / length2)),
+      var t = Math.max(0, Math.min(1, ((where.x - road.ax) * dx + (where.z - road.az) * dz) / length2)),
         point = { x: road.ax + dx * t, z: road.az + dz * t },
         distance = dist(where, point);
       if (!result || distance < result.distance) result = { point: point, distance: distance };
