@@ -405,6 +405,7 @@
         interceptReserve: !!spec.interceptReserve,
         screen: spec.screen || null,
         intercept: spec.intercept || null,
+        approachRoadId: spec.approachRoadId || null,
         reason: reason,
         confidence: evidence.confidence,
         observations: evidence.observations,

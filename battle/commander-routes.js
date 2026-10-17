@@ -189,6 +189,40 @@
     });
   }
 
+  /* The road route to goalId that enters it from entryId: the road route to entryId, then the
+     entry point; the final leg is the road from entryId to goalId. Null when that route would
+     pass through the goal first (an approach from the far side) or no road reaches the entry. */
+  function onRoadTo(town, p, id) {
+    return (town.roads || []).some(function (r) {
+      if (r.fromObjectiveId !== id && r.toObjectiveId !== id) return false;
+      var dx = r.bx - r.ax,
+        dz = r.bz - r.az,
+        l2 = dx * dx + dz * dz || 1,
+        t = Math.max(0, Math.min(1, ((p.x - r.ax) * dx + (p.z - r.az) * dz) / l2));
+      return Math.hypot(p.x - r.ax - t * dx, p.z - r.az - t * dz) <= 8;
+    });
+  }
+  function missionRouteVia(sq, town, goalId, origin, entryId) {
+    var find = function (id) {
+        return (
+          ((town && town.objectives) || []).find(function (o) {
+            return o.id === id;
+          }) || null
+        );
+      },
+      goal = find(goalId),
+      entry = find(entryId);
+    if (!goal || !entry || !origin || !isFinite(origin.x) || !isFinite(origin.z)) return null;
+    var near = Math.hypot(entry.x - origin.x, entry.z - origin.z) <= 160,
+      legs = near ? [] : missionRouteFor(sq, town, entryId, origin);
+    // No legs: the squad already stands on a road that runs straight to the entry.
+    if (!near && !legs.length && !onRoadTo(town, origin, entryId)) return null;
+    var through = legs.some(function (p) {
+      return Math.hypot(p.x - goal.x, p.z - goal.z) <= 8;
+    });
+    return through ? null : legs.concat([{ x: entry.x, z: entry.z }]);
+  }
+
   function routeFor(sq, role, town, index) {
     if (town && town.profile === 'strategic') return strategicRouteFor(sq, role, town);
     var source =
@@ -267,6 +301,7 @@
     rolePlan: rolePlan,
     routeFor: routeFor,
     missionRouteFor: missionRouteFor,
+    missionRouteVia: missionRouteVia,
     assignSquad: assignSquad,
     ensureAssignments: ensureAssignments,
     initForce: initForce

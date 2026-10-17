@@ -1,12 +1,14 @@
 /* Front-lines rules for the 5 km ?frontLines=1 layout (scenario.frontLines, scenario-generator.js).
-   One owner for three things:
+   One owner for four things:
    - which line a side may attack: only the first line, counted from its own rear, that it does not
      fully hold (so a lost rear line is retaken before anything further forward);
    - the start ownership of every line (bases belong to their side; the battle type decides the
      centre);
    - each squad's rear assembly point: the nearest objective of the frontmost line its side fully
      holds. Retreat, extraction and reconstitution keep their owners and read this point through
-     SquadAI.extractionHome; nothing here moves a soldier.
+     SquadAI.extractionHome; nothing here moves a soldier;
+   - which road into a line a capture brief takes (approachFor, read by the General when he
+     writes the brief's road route), so a side's attack uses the main and the side road.
    Reads ownership from BattleObjectiveSystem. Writes only the start ownership and
    squad._frontLineRear. Without scenario.frontLines every function is inert. */
 (function (root) {
@@ -96,6 +98,87 @@
     });
     return best ? { x: best.x, z: best.z, objectiveId: best.id, line: line.index } : null;
   }
+  /* ?splitRoads=0 sends every squad by the shortest road, as before. */
+  function splitOn() {
+    return !/(?:^|[?&])splitRoads=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
+  function routeLength(origin, route, goal) {
+    var total = 0,
+      last = origin;
+    route.concat([goal]).forEach(function (p) {
+      total += Math.hypot(p.x - last.x, p.z - last.z);
+      last = p;
+    });
+    return total;
+  }
+  /* A capture brief against a line enters it by one of the roads from ground this side holds
+     (the main road and the side road). Each brief takes the road fewest of the side's other
+     live capture briefs on that objective use, the shorter on a tie; a brief re-issued on the
+     same objective keeps its road. Null (shortest road, unchanged) when no road from held
+     ground leads in. */
+  function approachFor(sim, sq, goalId, origin) {
+    var town = layout(sim),
+      routes = root.BattleCommanderRoutes;
+    if (!town || !splitOn() || !sq || !routes || !routes.missionRouteVia) return null;
+    var goal = objective(town, goalId);
+    if (!goal || goal.baseFaction) return null;
+    var options = [];
+    (town.roads || []).forEach(function (road) {
+      var entryId =
+        road.fromObjectiveId === goalId
+          ? road.toObjectiveId
+          : road.toObjectiveId === goalId
+            ? road.fromObjectiveId
+            : null;
+      if (!entryId || owner(sim, entryId) !== sq.faction) return;
+      var route = routes.missionRouteVia(sq, town, goalId, origin, entryId);
+      if (route)
+        options.push({
+          roadId: road.id,
+          entryId: entryId,
+          route: route,
+          length: routeLength(origin, route, goal)
+        });
+    });
+    // A route that passes another road's entry would drive past that road to reach its own.
+    options = options.filter(function (o) {
+      return !options.some(function (other) {
+        var e = other !== o && objective(town, other.entryId);
+        return (
+          e &&
+          o.route.slice(0, -1).some(function (p) {
+            return Math.hypot(p.x - e.x, p.z - e.z) <= 8;
+          })
+        );
+      });
+    });
+    if (!options.length) return null;
+    // One road from here: take it, and count it, so squads with a choice balance against it.
+    if (options.length === 1) return options[0];
+    var old = sq._macroMission;
+    if (old && old.objectiveId === goalId && old.approachRoadId)
+      for (var k = 0; k < options.length; k++)
+        if (options[k].roadId === old.approachRoadId) return options[k];
+    var load = {};
+    ((sim.factions && sim.factions[sq.faction] && sim.factions[sq.faction].squads) || []).forEach(
+      function (other) {
+        var m = other && other !== sq && other._macroMission;
+        if (
+          m &&
+          m.intent === 'capture' &&
+          m.objectiveId === goalId &&
+          m.approachRoadId &&
+          (m.status === 'issued' || m.status === 'executing') &&
+          other.state !== 'retreat'
+        )
+          load[m.approachRoadId] = (load[m.approachRoadId] || 0) + 1;
+      }
+    );
+    options.sort(function (a, b) {
+      return (load[a.roadId] || 0) - (load[b.roadId] || 0) || a.length - b.length;
+    });
+    return options[0];
+  }
   function telemetry(sim, kind, data) {
     if (root.BattleTelemetry && root.BattleTelemetry.record) root.BattleTelemetry.record(kind, data, sim);
   }
@@ -164,6 +247,7 @@
     },
     attackable: attackable,
     rearFor: rearFor,
+    approachFor: approachFor,
     summary: summary,
     seed: seed
   };

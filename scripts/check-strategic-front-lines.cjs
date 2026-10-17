@@ -240,6 +240,62 @@ assert.ok(S && S.build, 'battle sides loaded');
   );
 }
 
+// Split roads: a side's capture briefs on a line use both roads into it.
+function splitWorld(search) {
+  const w = world(null, search);
+  w.root.BattleCommanderRoutes = routes;
+  return w;
+}
+{
+  const w = splitWorld('?strategicInterception=1&frontLines=1'),
+    base = w.town.objectives.find(o => o.id === 'strategic-obj-2'),
+    from = { x: base.x, z: base.z },
+    a = { id: 'us-a', faction: 'us', state: 'advance' },
+    b = { id: 'us-b', faction: 'us', state: 'advance' };
+  w.sim.factions.us.squads = [a, b];
+  const first = w.F.approachFor(w.sim, a, L2, from);
+  assert.ok(first, 'two roads into the centre from US ground');
+  a._macroMission = { intent: 'capture', objectiveId: L2, approachRoadId: first.roadId, status: 'executing' };
+  const second = w.F.approachFor(w.sim, b, L2, from);
+  assert.ok(second && second.roadId !== first.roadId, 'the next squad takes the other road');
+  const entries = new Set([first.entryId, second.entryId]);
+  assert.ok(
+    entries.has(L1) && entries.has('strategic-obj-2'),
+    'main road from line 1 and side road from the base'
+  );
+  for (const v of [first, second]) {
+    assert.ok(
+      !v.route.some(
+        p =>
+          Math.hypot(
+            p.x - w.town.objectives.find(o => o.id === L2).x,
+            p.z - w.town.objectives.find(o => o.id === L2).z
+          ) < 8
+      ),
+      'never through the goal'
+    );
+    for (const p of v.route)
+      assert.ok(
+        w.town.roads.some(r => segmentDistance(p, r) < 0.01),
+        'split route stays on roads'
+      );
+  }
+  assert.equal(w.F.approachFor(w.sim, a, L2, from).roadId, first.roadId, 'a re-issued brief keeps its road');
+  assert.equal(
+    w.F.approachFor(w.sim, a, L3, from).entryId,
+    L1,
+    'one road from held ground into line 3: taken and counted'
+  );
+  const far = w.town.objectives.find(o => o.id === 'strategic-obj-0');
+  assert.equal(
+    w.F.approachFor(w.sim, b, L2, { x: far.x, z: far.z }).entryId,
+    L1,
+    'a squad that passes line 1 is not sent back to the side road'
+  );
+  const off = splitWorld('?strategicInterception=1&frontLines=1&splitRoads=0');
+  assert.equal(off.F.approachFor(off.sim, a, L2, from), null, '?splitRoads=0 keeps the shortest road');
+}
+
 // Air-recon corridors: a watch point where the column leaves its trucks short of the next line.
 function corridors(search, layout) {
   const r = { location: { search }, GTLog() {}, BattleModules: { registerSystem() {} } };
@@ -287,5 +343,5 @@ function corridors(search, layout) {
   assert.ok(!plain.list.some(c => near(c, plain.dismount)), 'the ring layout is untouched');
 }
 console.log(
-  'PASS front-lines layout, next-line rule, start ownership, held-line rear point, prepared lines, line approach posts'
+  'PASS front-lines layout, next-line rule, start ownership, held-line rear point, prepared lines, line approach posts, split roads'
 );

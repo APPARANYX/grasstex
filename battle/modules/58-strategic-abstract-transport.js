@@ -242,6 +242,19 @@
     });
     return result && result.distance <= 32 ? result.point : null;
   }
+  /* A brief that names its road into the objective (front lines, approachRoadId) is re-planned
+     through that road's far end; otherwise the shortest road, as before. */
+  function briefRoute(town, sq, mission, goalId, from, planner) {
+    var via = root.BattleCommanderRoutes.missionRouteVia,
+      road =
+        mission.approachRoadId &&
+        (town.roads || []).find(function (r) {
+          return r.id === mission.approachRoadId;
+        }),
+      entryId = road && (road.fromObjectiveId === goalId ? road.toObjectiveId : road.fromObjectiveId),
+      routed = entryId && via ? via(sq, town, goalId, from, entryId) : null;
+    return routed || planner(sq, town, goalId, from);
+  }
   function parkingRoute(town, sq, vehicle, mission) {
     var goalId = mission.objectiveId || (mission.screen && mission.screen.securedObjectiveId),
       roadStart = vehicle.phase === 'parked' ? vehicle.join : vehicle.position,
@@ -251,7 +264,7 @@
       // The General may have briefed from the base before a truck was
       // assigned. Re-plan from the CURRENT truck/road join to prevent an
       // immediate 180-degree turn back toward that stale base waypoint.
-      regenerated = goalId && planner ? planner(sq, town, goalId, roadStart) : null,
+      regenerated = goalId && planner ? briefRoute(town, sq, mission, goalId, roadStart, planner) : null,
       stops =
         regenerated && regenerated.length
           ? vehicle.phase === 'parked'

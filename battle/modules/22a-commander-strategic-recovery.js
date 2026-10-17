@@ -655,7 +655,15 @@
         root.BattleCommanderRoutes &&
         root.BattleCommanderRoutes.missionRouteFor
       ) {
-        var roadLegs = root.BattleCommanderRoutes.missionRouteFor(sq, town, chosen.instance.id, D.avgPos(sq));
+        // Front lines: the rules owner splits a side's capture briefs over the roads into a line.
+        var via =
+            spec.intent === 'capture' && root.BattleFrontLines && root.BattleFrontLines.approachFor
+              ? root.BattleFrontLines.approachFor(sim, sq, chosen.instance.id, D.avgPos(sq))
+              : null,
+          roadLegs = via
+            ? via.route
+            : root.BattleCommanderRoutes.missionRouteFor(sq, town, chosen.instance.id, D.avgPos(sq));
+        if (via) spec.approachRoadId = via.roadId;
         if (roadLegs.length) spec.route = roadLegs.concat(spec.route);
       }
       return issueMission(sim, sq, spec, reason);
