@@ -14,6 +14,10 @@
     BOARD_TIMEOUT = 35,
     VEHICLES_PER_BASE = 2,
     SEAT_TOLERANCE = 0.2,
+    BOARD_STAGGER = 0.8,
+    TURNOUT_METRES = 11,
+    SCREEN_STANDOFF = 25,
+    NEARBY_TRUCK_METRES = 90,
     EPS = 0.00001;
   function position(p) {
     return p && isFinite(+p.x) && isFinite(+p.z) ? { x: +p.x, z: +p.z } : null;
@@ -84,8 +88,11 @@
   }
   /* Cut exactly the final 180 m of a REAL road path: passengers approach
      within walking reach and never drive across the defended objective. */
-  function plan(town, origin, mission) {
-    var goal = position(mission.point),
+  function plan(town, origin, mission, minimumTrip) {
+    var standoff = mission.intent === 'screen'
+        ? Math.min(60, Math.max(15, +((mission.screen && mission.screen.standoffMetres) || SCREEN_STANDOFF)))
+        : DISEMBARK_METRES,
+      goal = position(mission.point),
       points = [position(origin)].concat((mission.route || []).map(position)).concat([goal]),
       legs = [],
       i;
@@ -110,8 +117,8 @@
     var total = legs.reduce(function (n, leg) {
       return n + leg.length;
     }, 0);
-    if (total < MIN_TRIP + DISEMBARK_METRES) return null;
-    var travel = total - DISEMBARK_METRES,
+    if (total < (minimumTrip == null ? MIN_TRIP : minimumTrip) + standoff) return null;
+    var travel = total - standoff,
       used = 0,
       path = [],
       originPoint = points[0];
@@ -144,7 +151,8 @@
             }, 0);
             return sec + Math.max(0, Math.min(leg.length, travel - before)) / leg.speed;
           }, 0),
-          origin: originPoint
+          origin: originPoint,
+          standoffMetres: standoff
         }
       : null;
   }
@@ -216,11 +224,42 @@
       })
     );
   }
-  function parkingRoute(town, vehicle, mission) {
+  function parkingRoute(town, sq, vehicle, mission) {
+    var stops = vehicle.phase === 'parked'
+      ? [vehicle.join].concat(mission.route || [])
+      : (mission.objectiveId && root.BattleCommanderRoutes &&
+          root.BattleCommanderRoutes.missionRouteFor
+        ? root.BattleCommanderRoutes.missionRouteFor(sq, town, mission.objectiveId, vehicle.position)
+        : (mission.route || []));
+    // Re-task from the truck's REAL location, not its original home base.
     return plan(town, vehicle.position, {
-      point: mission.point,
-      route: [vehicle.join].concat(mission.route || [])
-    });
+      intent: mission.intent, screen: mission.screen, point: mission.point, route: stops
+    }, vehicle.phase === 'stopped' ? 120 : MIN_TRIP);
+  }
+  function pullOff(sim, town, route, vehicle) {
+    // Preserve the public road until the last waypoint, then park on a
+    // physically clear shoulder; no silent roadside teleport or traffic stop.
+    var path = route.path,
+      last = path[path.length - 1].point,
+      previous = path.length > 1 ? path[path.length - 2].point : vehicle.position,
+      dx = last.x - previous.x, dz = last.z - previous.z,
+      length = Math.hypot(dx, dz);
+    if (length < 1) return null;
+    var side = { x: -dz / length, z: dx / length };
+    for (var direction of [vehicle.faction === 'us' ? 1 : -1, vehicle.faction === 'us' ? -1 : 1]) {
+      var shoulder = {
+        x: last.x + side.x * TURNOUT_METRES * direction,
+        z: last.z + side.z * TURNOUT_METRES * direction
+      };
+      if (!safe(sim, last, shoulder)) continue;
+      path.push({ point: shoulder, speed: SPEED_JOIN });
+      route.destination = shoulder;
+      route.pathMetres += TURNOUT_METRES;
+      route.estimatedDriveSeconds += TURNOUT_METRES / SPEED_JOIN;
+      route.roadExit = last;
+      return route;
+    }
+    return null;
   }
   function log(sim, sq, type, detail) {
     if (root.BattleTelemetry && root.BattleTelemetry.record)
