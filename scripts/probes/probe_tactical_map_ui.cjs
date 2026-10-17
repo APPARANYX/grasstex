@@ -32,6 +32,7 @@ function silentWav() {
 }
 const OUT = path.resolve(process.env.TACTICAL_MAP_OUT || 'closeups/tactical-map-ui');
 const URL_ = process.env.TACTICAL_MAP_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
+const strategic = process.env.TACTICAL_MAP_MODE === 'strategic';
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const browser = await playwright().chromium.launch({
@@ -63,7 +64,10 @@ const URL_ = process.env.TACTICAL_MAP_URL || 'http://127.0.0.1:8765/grasstex/bat
         return route.fulfill({ status: 200, body: silence, contentType: 'audio/wav' });
       return route.continue();
     });
-    await page.goto(URL_ + '?seed=cartography-qa', { waitUntil: 'load', timeout: 300000 });
+    const flags = strategic ? '?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1' : '';
+    await page.goto(URL_ + (flags || '?') + (flags ? '&' : '') + 'seed=cartography-qa', {
+      waitUntil: 'load', timeout: 300000
+    });
     await page.waitForFunction(() => window.BattleTacticalMap && window.__battle__?.factions, null, {
       timeout: 240000
     });
@@ -80,6 +84,15 @@ const URL_ = process.env.TACTICAL_MAP_URL || 'http://127.0.0.1:8765/grasstex/bat
       missing.map && missing.scenario && missing.sectors > 0,
       'shipping loader did not wire scenario or tactical map: ' + JSON.stringify(missing)
     );
+    if (strategic) {
+      const checks = await page.evaluate(() => ({
+        strategic: window.__battle__?.scene?.metadata?.battleScenario?.profile === 'strategic',
+        removedMinimap: !document.getElementById('strategicMapPanel'),
+        reconLoaded: !!window.BattleAerialRecon
+      }));
+      assert.ok(checks.strategic && checks.removedMinimap && checks.reconLoaded,
+        'strategic world must load full map and aerial recon without legacy minimap');
+    }
     await page.keyboard.press('m');
     await page.waitForFunction(() => BattleTacticalMap.isOpen(), null, { timeout: 10000 });
     assert((await page.locator('#battleTacticalMap .gtm-paper').count()) === 1);
@@ -96,6 +109,32 @@ const URL_ = process.env.TACTICAL_MAP_URL || 'http://127.0.0.1:8765/grasstex/bat
       reports: document.querySelectorAll('#battleTacticalMap .gtm-enemy').length
     }));
     assert(terrain.friendlyMarks > 0, 'friendly force cannot be plotted');
+    if (strategic) {
+      assert.equal(await page.locator('#battleRequestAirRecon').count(), 1,
+        'player-visible General air recon action exists');
+      assert.equal(await page.locator('#battleRequestAirRecon').isDisabled(), true,
+        'paused battle cannot silently waste a sortie');
+      await page.evaluate(() => document.getElementById('startBtn').click());
+      await page.waitForFunction(() => window.__battle__?.time >= 8, null, { timeout: 35000 });
+      await page.waitForFunction(() => !document.getElementById('battleRequestAirRecon').disabled, null,
+        { timeout: 12000 });
+      await page.locator('#battleRequestAirRecon').click();
+      const data = await page.evaluate(() => {
+        const sim = window.__battle__, A = window.BattleAerialRecon,
+          faction = document.querySelector('select[aria-label="Friendly intelligence perspective"]').value;
+        return {used: A.status(sim,faction).used, live: !!A.forGeneral(sim,faction),
+          observed: A.status(sim,faction).observedAt,
+          button: document.getElementById('battleRequestAirRecon').textContent,
+          spots: document.querySelectorAll('#battleTacticalMap .gtm-air-fix').length};
+      });
+      assert.ok(data.used && data.live && data.observed < 40 &&
+        data.button.includes('EXPENDED'), 'map order must spend one real early General sortie');
+      const after = await page.evaluate(() => window.BattleAerialRecon.status(
+        window.__battle__,document.querySelector('select[aria-label="Friendly intelligence perspective"]').value
+      ).used);
+      assert.equal(after,true,'cannot request a second flight');
+      console.log('STRATEGIC AIR RECON UI',JSON.stringify(data));
+    }
     await page.screenshot({ path: path.join(OUT, 'desktop.png'), fullPage: false });
     const before = await page.locator('#battleTacticalMap svg').getAttribute('viewBox');
     await page.getByTitle('Zoom in').click();
