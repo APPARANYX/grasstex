@@ -20,6 +20,12 @@ Acceptance requires a real paused-at-load browser capture of all twelve empty tr
 
 ---
 
+## 5 km player QA camera travel — October 16, 2026
+
+To navigate and inspect the larger strategic map in **free-fly spectator mode** without changing infantry movement or smaller-map controls, keyboard **Shift** and gamepad **RB** share the strategic fast-flight speed of **420 world units per second** (previously 175). Normal free-flight remains 68; smaller maps' fast-flight remains 175; existing wheel/D-pad throttle and LB precision controls stay as before. A dedicated `camera-strategic-fast-flight-check.js` asserts these distinctions. This is a player-camera presentation/control change, not a gameplay transport or soldier-speed change.
+
+---
+
 ## Purpose-first lead and forward-screen doctrine — October 16, 2026
 
 This is the intended strategic sequence for opt-in Phase 3B in [draft #559](https://github.com/APPARANYX/grasstex/pull/559). **Do not merge into main or claim natural ambush acceptance without real-seed proof.** Keep the already verified **two existing trucks per base** (six bases, twelve trucks total), parked and visible at load. No random-spawn vehicles, new garage mechanic, or scripted enemy contact.
