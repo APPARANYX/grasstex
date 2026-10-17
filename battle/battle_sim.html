@@ -31,9 +31,6 @@ html,body{height:100%;margin:0;padding:0;overflow:hidden;background:#0f141c;font
 #loadPhases li b{width:14px;flex:none;text-align:center;font-weight:400}#loadPhases li span{flex:1}#loadPhases li small{color:#8f967f;font-size:10.5px;font-variant-numeric:tabular-nums;text-align:right}
 #loadPhases li.active{color:#e7e7dc}#loadPhases li.active b{color:#c9d98f}#loadPhases li.ok{color:#a8ab8e}#loadPhases li.ok b{color:#8aa85a}#loadPhases li.fail{color:#f1b4b4}#loadPhases li.fail b{color:#e06a6a}
 #loadError{margin:10px 0 0;color:#f1b4b4;font-size:11px;white-space:pre-wrap}#loadError:empty{display:none}
-#strategicMapPanel{position:fixed;right:12px;bottom:46px;z-index:9;width:252px;padding:8px;background:rgba(16,24,20,.91);color:#dce5d4;border:1px solid rgba(205,220,178,.3);border-radius:7px;box-shadow:0 6px 23px rgba(0,0,0,.32);pointer-events:none}
-#strategicMapPanel[hidden]{display:none}#strategicMapPanel strong{display:block;font:700 10px/1.4 Arial,sans-serif;letter-spacing:.1em;margin-bottom:4px;color:#f4f2d2}#strategicMap{width:252px;height:252px;display:block;background:#27352a;border:1px solid rgba(255,255,255,.15);box-sizing:border-box}#strategicMapPanel small{display:block;margin-top:5px;font:10px Arial,sans-serif;color:#bcc5af}
-@media(max-width:650px){#strategicMapPanel{width:164px;bottom:43px;right:7px;padding:5px}#strategicMap{width:164px;height:164px}#strategicMapPanel small{font-size:8px}}
 @media(max-width:650px){#hud{width:min(300px,calc(100vw - 28px));top:7px;left:7px;max-height:calc(100vh - 14px)}#hudToggle{top:9px;left:9px}}
 </style>
 </head>
@@ -91,7 +88,6 @@ window.BattleLoading=(function(){
   <details id="debugPanel"><summary>Console</summary><div id="debugConsole"></div></details>
 </div>
 <button id="hudToggle" type="button">&#9776; AI LAB</button>
-<section id="strategicMapPanel" hidden aria-label="Strategic battlefield observer map"><strong>STRATEGIC MAP · 5 KM</strong><canvas id="strategicMap" width="252" height="252" aria-label="Roads, objectives, and squad positions"></canvas><small><span style="color:#7bb6ec">● US</span> &nbsp; <span style="color:#f1b778">● GER</span> · observer view</small></section>
 <aside id="animationLab" hidden><h2>Motion Lab <button id="animationLabClose" type="button" title="Close motion lab">&#10005;</button></h2><canvas id="animationLabCanvas"></canvas><select id="animationLabPose" aria-label="Preview soldier pose"><optgroup label="Standing"><option value="idle">Idle</option><option value="aim">Rifle aim</option><option value="fire">Rifle fire</option><option value="reload">Rifle reload</option><option value="walk">Walk</option><option value="walk-aim">Walk + aim (layered)</option><option value="strafe">Walk — strafe right</option><option value="run">Run</option><option value="sprint">Sprint</option></optgroup><optgroup label="Crouched / prone"><option value="crouch">Crouch</option><option value="crouch-aim">Crouch aim</option><option value="crouch-walk">Crouch walk</option><option value="prone">Prone</option><option value="prone-aim">Prone aim</option><option value="prone-crawl">Prone crawl</option></optgroup><optgroup label="Transitions"><option value="stand>prone">Stand → prone</option><option value="prone>stand">Prone → stand</option><option value="stand>crouch">Stand → crouch</option></optgroup><optgroup label="Deaths"><option value="death.front">Death — front</option><option value="death.back">Death — back</option><option value="death.side">Death — side</option></optgroup></select><div class="frame-controls"><button id="animationLabPause" type="button">Pause</button><input id="animationLabFrame" type="range" min="0" max="120" step="1" value="0" aria-label="Animation frame"><output id="animationLabFrameValue">0 / 120</output></div><small id="animationLabSource">Loading imported FBX soldier…</small></aside>
 <button id="animationLabToggle" type="button">Motion Lab</button>
 <div id="banner"><div class="card"><div id="bannerText">—</div><small id="bannerSub"></small><div><button id="bannerRestart" type="button">Run it again</button></div></div></div>
@@ -159,46 +155,8 @@ window.BattleLoading=(function(){
   var features=BattleTerrainFeatures.scatter(scene,BattleSim.heightAt,{fieldW:BattleSim.FIELD_W,fieldD:BattleSim.FIELD_D,scenarioSeed:liveSeed});
   loading.done('cover',features.obstacles.length+' obstacles');loading.start('battle');await loading.frame();
   var audioBase=window.BATTLE_AUDIO_BASE||'audio/',battle=BattleSim.start(scene,{timeScale:4,obstacles:features.obstacles,audioBase:audioBase});battle.pause();
-  /* Overview is spectator-only rendering. It publishes no contacts, objectives, or
-     positions back to either General's faction-local intelligence. */
-  if(scenario.profile==='strategic'){
-    (function(){
-      var panel=document.getElementById('strategicMapPanel'),canvas=document.getElementById('strategicMap'),ctx=canvas.getContext('2d');
-      panel.hidden=false;
-      function draw(){
-        var map=(battle.scene.metadata&&battle.scene.metadata.battleScenario)||scenario;
-        if(!map||map.profile!=='strategic')return;
-        var size=canvas.width,pad=12,span=size-pad*2,halfW=map.map.width/2,halfD=map.map.depth/2;
-        function x(v){return pad+(v+halfW)/map.map.width*span;}
-        function z(v){return pad+(halfD-v)/map.map.depth*span;}
-        ctx.clearRect(0,0,size,size);
-        ctx.fillStyle='#283a30';ctx.fillRect(pad,pad,span,span);
-        ctx.strokeStyle='#5a6853';ctx.lineWidth=1;ctx.strokeRect(pad,pad,span,span);
-        ctx.strokeStyle='#7d806d';ctx.lineWidth=1.8;ctx.beginPath();
-        (map.roads||[]).forEach(function(r){ctx.moveTo(x(r.ax),z(r.az));ctx.lineTo(x(r.bx),z(r.bz));});
-        ctx.stroke();
-        var owners=(battle.objectiveControl&&battle.objectiveControl.objectives)||{};
-        (map.objectives||[]).forEach(function(o){
-          var owner=owners[o.id]&&owners[o.id].owner;
-          ctx.fillStyle=owner==='us'?'#7bb6ec':owner==='ge'?'#f1b778':o.baseFaction==='us'?'#729ab8':o.baseFaction==='ge'?'#b99a6b':'#d9d3a4';
-          ctx.beginPath();ctx.arc(x(o.x),z(o.z),o.baseFaction?4.4:3.2,0,Math.PI*2);ctx.fill();
-          ctx.strokeStyle='#1e2924';ctx.lineWidth=1;ctx.stroke();
-        });
-        [['us','#7bb6ec'],['ge','#f1b778']].forEach(function(info){
-          ((battle.factions[info[0]]&&battle.factions[info[0]].squads)||[]).forEach(function(sq){
-            var sx=0,sz=0,n=0;
-            (sq.members||[]).forEach(function(soldier){
-              if(!soldier.dead&&soldier.root&&soldier.root.position){sx+=soldier.root.position.x;sz+=soldier.root.position.z;n++;}
-            });
-            if(!n)return;
-            ctx.fillStyle=info[1];ctx.fillRect(x(sx/n)-2,z(sz/n)-2,4,4);
-          });
-        });
-      }
-      draw();setInterval(draw,1200);
-    })();
-  }
-
+  /* Strategic overview moved to the full-screen reported-contact tactical map.
+     The old always-on spectator radar is removed: no privileged enemy roster. */
 
   var usNums=document.getElementById('usNums'),geNums=document.getElementById('geNums'),squadsLeft=document.getElementById('squadsLeft'),objectiveStatus=document.getElementById('objectiveStatus'),clock=document.getElementById('clock'),seedShort=document.getElementById('seedShort'),banner=document.getElementById('banner'),bannerText=document.getElementById('bannerText'),bannerSub=document.getElementById('bannerSub');function fmtClock(t){var m=Math.floor(t/60),s=Math.floor(t%60);return m+':'+(s<10?'0':'')+s;}function aliveSquads(faction){return faction.squads.filter(function(sq){return sq.aliveCount>0;}).length;}
   battle.onUpdate=function(sim){var us=sim.factions.us,ge=sim.factions.ge;usNums.textContent=us.alive+' alive · '+us.kills+' kills';geNums.textContent=ge.alive+' alive · '+ge.kills+' kills';squadsLeft.textContent=aliveSquads(us)+' / '+aliveSquads(ge)+' (US/GER)';clock.textContent=fmtClock(sim.time);var sc=sim.scene.metadata&&sim.scene.metadata.battleScenario;if(sc){seedShort.textContent=sc.seed;seedShort.title=sc.seed;}if(sim.objectiveControl){var c=sim.objectiveControl.counts||{},u=c.us||0,g=c.ge||0,total=sim.objectiveControl.total||Object.keys(sim.objectiveControl.objectives||{}).length;objectiveStatus.textContent=total&&u===total?'US held':total&&g===total?'GER held':u>g?'US '+u+' / '+g:u<g?'GER '+g+' / '+u:'contested '+u+' / '+g;}};
