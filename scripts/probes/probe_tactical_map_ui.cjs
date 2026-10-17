@@ -144,7 +144,7 @@ const strategic = process.env.TACTICAL_MAP_MODE === 'strategic';
         };
       });
       assert.ok(
-        data.used && data.live && data.observed < 40 && data.button.includes('EXPENDED'),
+        data.used && data.live && data.observed < 40 && data.spots > 0 && data.button.includes('EXPENDED'),
         'map order must spend one real early General sortie'
       );
       const after = await page.evaluate(
