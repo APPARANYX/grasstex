@@ -487,17 +487,33 @@ assert.ok(
   fed.corridors.some(c => c.point.z > 500 && c.point.z < 600),
   'the last watch point sits just short of that objective'
 );
-const pastObjective = make(
-  '?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&reconOverflight=0&ambushBeforeObjective=0'
-);
 // A faster column reaches the far side of the crossing inside the horizon.
-pastObjective.ge.members.forEach(m => {
-  m.moveSpeed = 3;
-});
+const fastCorridors = query => {
+  const x = make(
+    '?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&reconOverflight=0' + query
+  );
+  x.ge.members.forEach(m => {
+    m.moveSpeed = 3;
+  });
+  return x.root.BattleAerialRecon.request(x.sim, 'us').contacts[0].corridors;
+};
+const nextObjective = fastCorridors('');
 assert.ok(
-  pastObjective.root.BattleAerialRecon.request(pastObjective.sim, 'us').contacts[0].corridors.some(
-    c => c.hop > 0
-  ),
+  nextObjective.some(c => c.hop === 1) && nextObjective.every(c => c.hop <= 1),
+  'watch points cover the road on to the next objective, and no further'
+);
+assert.ok(
+  nextObjective
+    .filter(c => c.hop === 1)
+    .every(c => c.likelyObjectiveId === 'u0' && c.point.z < 500 && c.point.z > -300),
+  'each onward watch point lies between the first objective and the next one'
+);
+assert.ok(
+  fastCorridors('&ambushNextObjective=0').every(c => c.hop === 0),
+  '?ambushNextObjective=0 keeps only the approach to the first objective'
+);
+assert.ok(
+  fastCorridors('&ambushBeforeObjective=0').some(c => c.hop > 0),
   '?ambushBeforeObjective=0 restores corridors past the objective'
 );
 const picked = fed.corridors.find(c => c.point.z === forecast.best.spec.point.z);

@@ -53,6 +53,14 @@
   function beforeObjectiveOn() {
     return !flagOff('ambushBeforeObjective');
   }
+  /* With ambushes before an objective, the report covers the approach to the
+     column's first objective and the road on from it to the next one it is
+     heading for: each watch point stands between the column and an
+     objective. ?ambushNextObjective=0 keeps only the first approach. */
+  function corridorHopLimit() {
+    if (!beforeObjectiveOn()) return CORRIDOR_HOPS;
+    return flagOff('ambushNextObjective') ? 0 : 1;
+  }
   function overflightOn() {
     return interceptionOn() && !flagOff('reconOverflight');
   }
@@ -143,6 +151,7 @@
           return e && e.len > 1;
         }),
       out = [];
+    var hopLimit = corridorHopLimit();
     function eta(metres) {
       return round(Math.max(0, metres - slack) / fast, 1);
     }
@@ -175,7 +184,7 @@
     /* Continue along the graph from the node the column is heading for. */
     function downstream(node, cameFrom, travelled, hop, likelihood, alignment, offRoad) {
       // The observer's own base is the column's destination, not a waypoint.
-      if (hop > CORRIDOR_HOPS || node.baseFaction === observer) return;
+      if (hop > hopLimit || node.baseFaction === observer) return;
       if (eta(travelled) > CORRIDOR_HORIZON_SECONDS) return;
       var next = roads.filter(function (e) {
         if (e.road === cameFrom || e.len < CORRIDOR_MIN_EDGE) return false;
@@ -222,7 +231,7 @@
           var along = dir > 0 ? t + lead / e.len : t - lead / e.len;
           emit(e, e.a, e.b, along, lead, 0, 1, dot, off, node);
         });
-        if (!before) downstream(node, e.road, remaining, 1, 1, dot, off);
+        downstream(node, e.road, remaining, 1, 1, dot, off);
       }
     });
     return out;
