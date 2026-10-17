@@ -225,13 +225,20 @@
     );
   }
   function parkingRoute(town, sq, vehicle, mission) {
-    var stops = vehicle.phase === 'parked'
-      ? [vehicle.join].concat(mission.route || [])
-      : (mission.objectiveId && root.BattleCommanderRoutes &&
-          root.BattleCommanderRoutes.missionRouteFor
-        ? root.BattleCommanderRoutes.missionRouteFor(sq, town, mission.objectiveId, vehicle.position)
-        : (mission.route || []));
-    // Re-task from the truck's REAL location, not its original home base.
+    var goalId = mission.objectiveId || (mission.screen && mission.screen.securedObjectiveId),
+      roadStart = vehicle.phase === 'parked' ? vehicle.join : vehicle.position,
+      planner = root.BattleCommanderRoutes && root.BattleCommanderRoutes.missionRouteFor,
+      supplied = vehicle.phase === 'parked'
+        ? [vehicle.join].concat(mission.route || [])
+        : (mission.route || []),
+      // The General may have briefed from the base before a truck was
+      // assigned. Re-plan from the CURRENT truck/road join to prevent an
+      // immediate 180-degree turn back toward that stale base waypoint.
+      regenerated = goalId && planner
+        ? planner(sq, town, goalId, roadStart) : null,
+      stops = regenerated && regenerated.length
+        ? (vehicle.phase === 'parked' ? [vehicle.join].concat(regenerated) : regenerated)
+        : supplied;
     return plan(town, vehicle.position, {
       intent: mission.intent, screen: mission.screen, point: mission.point, route: stops
     }, vehicle.phase === 'stopped' ? 120 : MIN_TRIP);
