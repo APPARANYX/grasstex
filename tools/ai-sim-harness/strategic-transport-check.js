@@ -169,7 +169,11 @@ assert.equal(w.api.considerMission(w.sim, w.squad, w.brief()), true, 'Macro gran
 assert.equal(w.squad._transport.phase, 'boarding');
 assert.equal(w.squad._transport.owner, 'squad-leader');
 assert.equal(w.squad._transport.grantedBy, 'force-command');
-assert.equal(w.squad._transport.path.length, 3, 'parked truck joins the road then uses a physical shoulder turnout');
+assert.equal(
+  w.squad._transport.path.length,
+  3,
+  'parked truck joins the road then uses a physical shoulder turnout'
+);
 assert.equal(w.squad._transport.vehicleId, 'us-base-0-truck-0');
 assert.ok(
   Math.hypot(w.squad._transport.position.x, w.squad._transport.position.z) > 10,
@@ -177,9 +181,14 @@ assert.ok(
 );
 assert.equal(w.api.fleetSummary(w.sim).find(v => v.id === w.squad._transport.vehicleId).phase, 'assigned');
 assert.ok(w.squad._transport.total >= 1230 && w.squad._transport.total <= 1245);
-const parkedHeading = { ...w.api.fleetSummary(w.sim).find(v => v.id === w.squad._transport.vehicleId).heading };
-assert.deepEqual(w.squad._transport.heading, parkedHeading,
-  'driver mounting cannot flip a stationary truck to face the road join');
+const parkedHeading = {
+  ...w.api.fleetSummary(w.sim).find(v => v.id === w.squad._transport.vehicleId).heading
+};
+assert.deepEqual(
+  w.squad._transport.heading,
+  parkedHeading,
+  'driver mounting cannot flip a stationary truck to face the road join'
+);
 const original = w.members.map(m => ({ ...m.root.position }));
 w.run(2);
 assert.equal(
@@ -193,16 +202,20 @@ assert.deepEqual(
 );
 w.squad._macroMission.status = 'executing';
 w.run(3);
-assert.equal(w.squad._transport.phase,'boarding','seats fill individually, not as a group');
+assert.equal(w.squad._transport.phase, 'boarding', 'seats fill individually, not as a group');
 const earlyCount = w.squad._transport.boardedCount;
 w.run(0.9);
-assert.ok(w.squad._transport.boardedCount - earlyCount <= 2,
-  'one driver/seat per boarding interval, no ten-person pop-in');
+assert.ok(
+  w.squad._transport.boardedCount - earlyCount <= 2,
+  'one driver/seat per boarding interval, no ten-person pop-in'
+);
 let previousBoarded = w.squad._transport.boardedCount;
 while (w.squad._transport.phase === 'boarding' && w.sim.time < 38) {
   w.run(0.15);
-  assert.ok(w.squad._transport.boardedCount >= previousBoarded &&
-    w.squad._transport.boardedCount - previousBoarded <= 1);
+  assert.ok(
+    w.squad._transport.boardedCount >= previousBoarded &&
+      w.squad._transport.boardedCount - previousBoarded <= 1
+  );
   previousBoarded = w.squad._transport.boardedCount;
 }
 assert.equal(w.squad._transport.phase, 'embarked', 'driver-to-rear boarding converges');
@@ -240,38 +253,52 @@ assert.ok(
   'carrier completes 180m assault standoff plus physical roadside turnout'
 );
 assert.ok(maxStep < 2.1 && maxStep > 1.5, 'road speed 12m/s on a 0.15s integrator');
-assert.ok(w.sim.time - embarkedAt > 95 && w.sim.time - embarkedAt < 115, '12m/s road plus slower shoulder turn-in');
-assert.ok(Math.abs(usedTruck.position.x) >= 10,
-  'truck actually parks 11m off the public road rather than blocking it');
+assert.ok(
+  w.sim.time - embarkedAt > 95 && w.sim.time - embarkedAt < 115,
+  '12m/s road plus slower shoulder turn-in'
+);
+assert.ok(
+  Math.abs(usedTruck.position.x) >= 10,
+  'truck actually parks 11m off the public road rather than blocking it'
+);
 assert.ok(w.members.every(m => !w.api.isPassenger(m) && m._movementStopReason === 'transport-dismounted'));
 // A new objective needs a real nearby vehicle, not a second spawn. Use a
 // further public road objective and the same parked-offroad truck.
 w.town.objectives.push({ id: 'c', x: 0, z: 2450 });
-w.town.roads.push({ fromObjectiveId: 'b', toObjectiveId: 'c',
-  ax: 0, az: 1400, bx: 0, bz: 2450, width: 14 });
+w.town.roads.push({ fromObjectiveId: 'b', toObjectiveId: 'c', ax: 0, az: 1400, bx: 0, bz: 2450, width: 14 });
 w.squad._macroMission = {
-  owner: 'force-command', status: 'issued', version: 2,
-  intent: 'capture', objectiveId: 'c', point: {x:0,z:2450},
-  route: [{x:0,z:1400}]
+  owner: 'force-command',
+  status: 'issued',
+  version: 2,
+  intent: 'capture',
+  objectiveId: 'c',
+  point: { x: 0, z: 2450 },
+  route: [{ x: 0, z: 1400 }]
 };
-assert.ok(w.api.considerMission(w.sim,w.squad,w.squad._macroMission),
-  'original abandoned truck can be reused at the next objective if physically nearby');
-assert.equal(w.squad._transport.vehicleId, usedTruck.id,
-  'prefer the very same original truck for onward transport');
-assert.equal(w.api.fleetSummary(w.sim).length,12,
-  'reuse cannot conjure a thirteenth vehicle');
+assert.ok(
+  w.api.considerMission(w.sim, w.squad, w.squad._macroMission),
+  'original abandoned truck can be reused at the next objective if physically nearby'
+);
+assert.equal(
+  w.squad._transport.vehicleId,
+  usedTruck.id,
+  'prefer the very same original truck for onward transport'
+);
+assert.equal(w.api.fleetSummary(w.sim).length, 12, 'reuse cannot conjure a thirteenth vehicle');
 
 // A forward screening trip should dismount just short of the *forward
 // post*, not 180 metres before it (which can be before the held objective).
 const screenTrip = make();
 const screenBrief = screenTrip.brief();
 screenBrief.intent = 'screen';
-screenBrief.point = {x:0,z:1400};
-screenBrief.screen = {standoffMetres:25, securedObjectiveId:'b'};
-assert.ok(screenTrip.api.considerMission(screenTrip.sim,screenTrip.squad,screenBrief));
-assert.equal(screenTrip.squad._transport.standoffMetres,25);
-assert.ok(screenTrip.squad._transport.dismountPoint.z >= 1370,
-  'forward screen drives almost to its watch point, then pulls over');
+screenBrief.point = { x: 0, z: 1400 };
+screenBrief.screen = { standoffMetres: 25, securedObjectiveId: 'b' };
+assert.ok(screenTrip.api.considerMission(screenTrip.sim, screenTrip.squad, screenBrief));
+assert.equal(screenTrip.squad._transport.standoffMetres, 25);
+assert.ok(
+  screenTrip.squad._transport.dismountPoint.z >= 1370,
+  'forward screen drives almost to its watch point, then pulls over'
+);
 assert.ok(Math.abs(screenTrip.squad._transport.dismountPoint.x) >= 10);
 
 // Fleet ownership is per-base, not a random or faction-wide two-task spawn cap.

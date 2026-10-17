@@ -89,9 +89,13 @@
   /* Cut exactly the final 180 m of a REAL road path: passengers approach
      within walking reach and never drive across the defended objective. */
   function plan(town, origin, mission, minimumTrip) {
-    var standoff = mission.intent === 'screen'
-        ? Math.min(60, Math.max(15, +((mission.screen && mission.screen.standoffMetres) || SCREEN_STANDOFF)))
-        : DISEMBARK_METRES,
+    var standoff =
+        mission.intent === 'screen'
+          ? Math.min(
+              60,
+              Math.max(15, +((mission.screen && mission.screen.standoffMetres) || SCREEN_STANDOFF))
+            )
+          : DISEMBARK_METRES,
       goal = position(mission.point),
       points = [position(origin)].concat((mission.route || []).map(position)).concat([goal]),
       legs = [],
@@ -228,20 +232,29 @@
     var goalId = mission.objectiveId || (mission.screen && mission.screen.securedObjectiveId),
       roadStart = vehicle.phase === 'parked' ? vehicle.join : vehicle.position,
       planner = root.BattleCommanderRoutes && root.BattleCommanderRoutes.missionRouteFor,
-      supplied = vehicle.phase === 'parked'
-        ? [vehicle.join].concat(mission.route || [])
-        : (mission.route || []),
+      supplied =
+        vehicle.phase === 'parked' ? [vehicle.join].concat(mission.route || []) : mission.route || [],
       // The General may have briefed from the base before a truck was
       // assigned. Re-plan from the CURRENT truck/road join to prevent an
       // immediate 180-degree turn back toward that stale base waypoint.
-      regenerated = goalId && planner
-        ? planner(sq, town, goalId, roadStart) : null,
-      stops = regenerated && regenerated.length
-        ? (vehicle.phase === 'parked' ? [vehicle.join].concat(regenerated) : regenerated)
-        : supplied;
-    return plan(town, vehicle.position, {
-      intent: mission.intent, screen: mission.screen, point: mission.point, route: stops
-    }, vehicle.phase === 'stopped' ? 120 : MIN_TRIP);
+      regenerated = goalId && planner ? planner(sq, town, goalId, roadStart) : null,
+      stops =
+        regenerated && regenerated.length
+          ? vehicle.phase === 'parked'
+            ? [vehicle.join].concat(regenerated)
+            : regenerated
+          : supplied;
+    return plan(
+      town,
+      vehicle.position,
+      {
+        intent: mission.intent,
+        screen: mission.screen,
+        point: mission.point,
+        route: stops
+      },
+      vehicle.phase === 'stopped' ? 120 : MIN_TRIP
+    );
   }
   function pullOff(sim, town, route, vehicle) {
     // Preserve the public road until the last waypoint, then park on a
@@ -249,7 +262,8 @@
     var path = route.path,
       last = path[path.length - 1].point,
       previous = path.length > 1 ? path[path.length - 2].point : vehicle.position,
-      dx = last.x - previous.x, dz = last.z - previous.z,
+      dx = last.x - previous.x,
+      dz = last.z - previous.z,
       length = Math.hypot(dx, dz);
     if (length < 1) return null;
     var side = { x: -dz / length, z: dx / length };
@@ -342,9 +356,13 @@
       previousVehicleId = sq._transport && sq._transport.vehicleId,
       candidates = (fleet ? fleet.vehicles : [])
         .filter(function (v) {
-          if (v.faction !== sq.faction || v.squadId ||
-              (v.phase !== 'parked' && v.phase !== 'stopped') ||
-              dist(center, v.position) > NEARBY_TRUCK_METRES) return false;
+          if (
+            v.faction !== sq.faction ||
+            v.squadId ||
+            (v.phase !== 'parked' && v.phase !== 'stopped') ||
+            dist(center, v.position) > NEARBY_TRUCK_METRES
+          )
+            return false;
           if (v.phase === 'parked') {
             var base = ((town.spawnZones[v.faction] && town.spawnZones[v.faction].bases) || [])[v.baseIndex];
             return base && dist(center, base) <= 95;
@@ -354,8 +372,11 @@
         .sort(function (a, b) {
           var preferredA = a.id === previousVehicleId ? 0 : 1,
             preferredB = b.id === previousVehicleId ? 0 : 1;
-          return preferredA - preferredB || dist(center, a.position) - dist(center, b.position) ||
-            a.id.localeCompare(b.id);
+          return (
+            preferredA - preferredB ||
+            dist(center, a.position) - dist(center, b.position) ||
+            a.id.localeCompare(b.id)
+          );
         });
     for (var c = 0; c < candidates.length; c++) {
       var vehicle = candidates[c],
@@ -373,8 +394,10 @@
         return {
           vehicle: vehicle,
           route: trial,
-          boardSeconds: Math.max(10, dist(center, vehicle.position) / BOARD_SPEED + 8 +
-            Math.max(0, members.length - 1) * BOARD_STAGGER),
+          boardSeconds: Math.max(
+            10,
+            dist(center, vehicle.position) / BOARD_SPEED + 8 + Math.max(0, members.length - 1) * BOARD_STAGGER
+          ),
           dismountSeconds: trial.standoffMetres / 2,
           setupSeconds: 25
         };
@@ -403,7 +426,9 @@
       baseId: vehicle.baseId,
       boardingCenter: position(vehicle.position),
       initialPassengerCount: members.length,
-      boardingOrder: members.map(function (member) { return member.id; }),
+      boardingOrder: members.map(function (member) {
+        return member.id;
+      }),
       boardedCount: 0,
       nextBoardAt: +sim.time || 0,
       position: position(vehicle.position),
@@ -470,7 +495,9 @@
     }
     if (t.boardedCount < seats.length && sim.time + EPS >= t.nextBoardAt) {
       var nextId = seats[t.boardedCount],
-        passenger = members.find(function (m) { return m.id === nextId; });
+        passenger = members.find(function (m) {
+          return m.id === nextId;
+        });
       if (!passenger) {
         finish(sim, sq, 'boarding-roster-changed');
         return;
@@ -480,7 +507,8 @@
         t.boardedCount++;
         t.nextBoardAt = sim.time + BOARD_STAGGER;
         log(sim, sq, 'seat-occupied', {
-          vehicleId: t.vehicleId, soldierId: passenger.id,
+          vehicleId: t.vehicleId,
+          soldierId: passenger.id,
           seatIndex: t.boardedCount - 1
         });
       }

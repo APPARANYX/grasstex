@@ -281,14 +281,19 @@ assert.ok(
 );
 paired.root.BattleTacticalSituation.compute = () => ({ contacts: [] });
 const opp = P.screenOpportunity(paired.sim, 'us', P.pairs(paired.sim, 'us')[0]);
-assert.ok(opp && opp.spec.intent === 'screen', 'no recent reported threat permits second-truck departure BEFORE capture');
+assert.ok(
+  opp && opp.spec.intent === 'screen',
+  'no recent reported threat permits second-truck departure BEFORE capture'
+);
 assert.ok(opp.spec.point.z > 500 + 200, 'second squad screens past objective, not on it');
-assert.equal(opp.spec.screen.launchedBeforeCapture,true,
-  'the objective is still neutral when the delayed second truck is dispatched');
-assert.equal(opp.spec.screen.standoffMetres,25);
-assert.equal(opp.quote.route.standoffMetres,25);
-assert.ok(opp.quote.route.destination.z > 500,
-  'screen dismount occurs on the far side of the objective');
+assert.equal(
+  opp.spec.screen.launchedBeforeCapture,
+  true,
+  'the objective is still neutral when the delayed second truck is dispatched'
+);
+assert.equal(opp.spec.screen.standoffMetres, 25);
+assert.equal(opp.quote.route.standoffMetres, 25);
+assert.ok(opp.quote.route.destination.z > 500, 'screen dismount occurs on the far side of the objective');
 assert.equal(opp.quote.vehicle.faction, 'us');
 assert.equal(PT.fleetSummary(paired.sim).length, 12, 'screen quote does not invent a vehicle');
 let screenCalls = 0;

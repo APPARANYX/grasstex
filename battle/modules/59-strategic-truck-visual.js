@@ -607,7 +607,7 @@
       entry.phase = task ? task.phase : vehicle.phase;
       entry.squadId = task ? squad.id : null;
       entry.members = task ? seatsFor(squad) : [];
-      entry.boardedCount = task ? (task.boardedCount || 0) : 0;
+      entry.boardedCount = task ? task.boardedCount || 0 : 0;
       if (entry.phase !== 'boarding' && entry.phase !== 'embarked' && entry.riders.length)
         disposeRiders(entry);
       if (st.source && !entry.root) {
