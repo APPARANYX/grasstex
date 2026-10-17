@@ -1,7 +1,9 @@
 (function (global) {
   'use strict';
   var FLY_SPEED = 68,
-    FLY_SPRINT = 175,
+    /* Large strategic map only: Shift (keyboard) and RB (gamepad) share
+       this fast-flight speed. Keep normal fly speed and small maps unchanged. */
+    FLY_SPRINT = global.BattleSim && global.BattleSim.FIELD_W >= 5000 ? 420 : 175,
     THROTTLE_MIN = 0.01,
     THROTTLE_PER_PIXEL = 0.00288,
     DELTA_UNIT_PX = [1, 16, 400];
