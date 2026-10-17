@@ -38,7 +38,7 @@ assert.match(
 );
 assert.match(
   source,
-  /if \(blob_sha\(\$prod, \$hashes\) === \$e\['sha'\]\)/,
+  /is_file\(\$prod\) && blob_sha\(\$prod, \$hashes\) === \$e\['sha'\]/,
   'identical assets must be reused via verified hard links'
 );
 console.log(
