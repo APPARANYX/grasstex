@@ -4,6 +4,7 @@
  * Shared-hosting PHP/JSON thought-game; no calls to real battle simulation or LLM APIs.
  * The hosting site is canonical for rules, scenario, orders, private briefs and history.
  */
+require_once __DIR__.'/engine.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, max-age=0');
 header('X-Content-Type-Options: nosniff');
@@ -39,7 +40,7 @@ function header_key() {
     return $key;
 }
 function check_role($g,$role) {
-    if (!in_array($role,array('us','ge','umpire'),true)) fail_api(400,'Invalid role');
+    if (!in_array($role,array('us','ge'),true)) fail_api(400,'Invalid role');
     $stored=isset($g['key_hashes'][$role])?$g['key_hashes'][$role]:'';
     if (!is_string($stored) || !match_secret(header_key(),$stored)) fail_api(401,'Invalid role key');
 }
@@ -97,13 +98,13 @@ function public_game($g) {
     foreach ($g['history'] as $round) $history[]=array(
         'turn'=>$round['turn'],'orders'=>$round['orders'],'resolution'=>$round['resolution'],
         'capabilities'=>$round['capabilities'],'winner'=>$round['winner'],'resolved_at'=>$round['resolved_at']);
-    $ready=$g['phase']==='adjudication';
+    $ready=false;
     $count=array('us'=>$g['current']['us']!==null,'ge'=>$g['current']['ge']!==null);
     return array('ok'=>true,'id'=>$g['id'],'title'=>$g['title'],'rules'=>$g['rules'],
         'scenario'=>$g['scenario'],'mode'=>$g['mode'],'turn_limit'=>$g['turn_limit'],
         'turn'=>$g['turn'],'phase'=>$g['phase'],'winner'=>$g['winner'],
         'public_brief'=>$g['public_brief'],'submitted'=>$count,
-        'current_orders'=>$ready?array('us'=>$g['current']['us']['text'],'ge'=>$g['current']['ge']['text']):null,
+        'current_orders'=>null, 'public_world'=>ie_public_world($g['world']),
         'history'=>$history,'revision'=>$g['revision'],'updated_at'=>$g['updated_at']);
 }
 function request_value($body,$field,$max,$required=true) {
@@ -140,19 +141,11 @@ if ($method==='GET') {
             $public=public_game($g);
             $public['side']=$role;
             $public['private_brief']=$g['private_briefs'][$role];
-            $public['own_pending_order']=$g['current'][$role]===null?null:$g['current'][$role]['text'];
+            $public['own_state']=ie_side_view($g['world'],$role);
+            $public['own_pending_order']=$g['current'][$role]===null?null:$g['current'][$role]['order'];
             return array('body'=>$public);
         }));
     }
-    if ($op==='umpire') reply(200,with_game($id,function(&$g){
-        check_role($g,'umpire');
-        $public=public_game($g);
-        $public['private_briefs']=$g['private_briefs'];
-        $public['umpire_notes']=$g['umpire_notes'];
-        $public['current_orders']=$g['phase']==='adjudication'?
-            array('us'=>$g['current']['us']['text'],'ge'=>$g['current']['ge']['text']):null;
-        return array('body'=>$public);
-    }));
     fail_api(404,'Unknown GET operation');
 }
 if ($method!=='POST') fail_api(405,'GET or POST required');
@@ -166,20 +159,19 @@ if ($op==='create') {
     if ($limit<2 || $limit>15) fail_api(400,'Turn limit must be 2-15');
     $mode=isset($body['mode'])?$body['mode']:'discovery';
     if (!in_array($mode,array('discovery','native_only'),true)) fail_api(400,'Invalid mode');
-    $tokens=array('us'=>bin2hex(random_bytes(24)),'ge'=>bin2hex(random_bytes(24)),
-      'umpire'=>bin2hex(random_bytes(24)));
+    $tokens=array('us'=>bin2hex(random_bytes(24)),'ge'=>bin2hex(random_bytes(24)));
     $g=array('id'=>bin2hex(random_bytes(12)),'v'=>1,
       'title'=>request_value($body,'title',180),
+      'config'=>isset($body['config'])?$body['config']:$tpl['config'],
+      'world'=>ie_world(isset($body['config'])?$body['config']:$tpl['config']),
       'rules'=>isset($body['rules'])?request_value($body,'rules',18000):$tpl['rules'],
       'scenario'=>isset($body['scenario'])?request_value($body,'scenario',20000):$tpl['scenario'],
       'mode'=>$mode,'turn_limit'=>$limit,'turn'=>1,'phase'=>'orders','winner'=>null,
       'public_brief'=>isset($body['public_brief'])?request_value($body,'public_brief',10000):$tpl['public_brief'],
       'private_briefs'=>array('us'=>request_value($body,'us_brief',10000,false),
                               'ge'=>request_value($body,'ge_brief',10000,false)),
-      'umpire_notes'=>request_value($body,'umpire_notes',18000,false),
       'current'=>array('us'=>null,'ge'=>null),'history'=>array(),'revision'=>0,
-      'key_hashes'=>array('us'=>hash('sha256',$tokens['us']),'ge'=>hash('sha256',$tokens['ge']),
-                          'umpire'=>hash('sha256',$tokens['umpire'])),
+      'key_hashes'=>array('us'=>hash('sha256',$tokens['us']),'ge'=>hash('sha256',$tokens['ge'])),
       'updated_at'=>gmdate('c'));
     $path=game_path($g['id']);
     $f=@fopen($path,'x');
@@ -197,55 +189,25 @@ if ($op==='submit') {
     if (!in_array($side,array('us','ge'),true)) fail_api(400,'Invalid side');
     $result=with_game($id,function(&$g)use($body,$side){
         check_role($g,$side);validate_turn($g,$body);
-        if ($g['phase']!=='orders' && $g['phase']!=='adjudication') fail_api(409,'Turn not accepting orders');
-        $order=request_value($body,'order',15000);
-        $existing=$g['current'][$side];
-        if ($existing!==null) {
-            if (hash_equals($existing['digest'],hash('sha256',$order)))
-                return array('body'=>array('ok'=>true,'accepted'=>true,'duplicate'=>true,
-                    'turn'=>$g['turn'],'both_ready'=>$g['phase']==='adjudication'));
-            fail_api(409,'Your orders are already sealed and cannot be changed');
+        if ($g['phase']!=='orders') fail_api(409,'Turn no longer accepting orders');
+        $order=ie_validate_order(isset($body['order'])?$body['order']:null,
+            $side,$g['turn'],$g['world'],$g['mode']);
+        $digest=hash('sha256',json_encode($order,JSON_UNESCAPED_SLASHES));
+        if ($g['current'][$side]!==null) {
+            if (hash_equals($g['current'][$side]['digest'],$digest))
+                return array('body'=>array('ok'=>true,'accepted'=>true,
+                    'duplicate'=>true,'turn'=>$g['turn'],'both_ready'=>false));
+            fail_api(409,'Orders sealed; changes are prohibited');
         }
-        if ($g['phase']!=='orders') fail_api(409,'Turn already sealed');
-        $g['current'][$side]=array('text'=>$order,'digest'=>hash('sha256',$order),
-          'submitted_at'=>gmdate('c'));
-        if ($g['current']['us']!==null && $g['current']['ge']!==null) $g['phase']='adjudication';
+        $g['current'][$side]=array('order'=>$order,'digest'=>$digest,
+            'submitted_at'=>gmdate('c'));
+        $resolved=null;
+        if ($g['current']['us']!==null && $g['current']['ge']!==null)
+            $resolved=ie_resolve($g);
         $g['revision']++;$g['updated_at']=gmdate('c');
-        return array('updated'=>true,'body'=>array('ok'=>true,'accepted'=>true,'turn'=>$g['turn'],
-            'both_ready'=>$g['phase']==='adjudication','phase'=>$g['phase']));
-    });
-    reply(200,$result);
-}
-if ($op==='resolve') {
-    $id=isset($body['id'])?$body['id']:'';
-    $result=with_game($id,function(&$g)use($body){
-        check_role($g,'umpire');validate_turn($g,$body);
-        if ($g['phase']!=='adjudication') fail_api(409,'Both sealed orders required');
-        $resolution=request_value($body,'resolution',18000);
-        $nextPublic=request_value($body,'next_public_brief',10000);
-        $usNext=request_value($body,'us_brief',10000,false);
-        $geNext=request_value($body,'ge_brief',10000,false);
-        $notes=request_value($body,'umpire_notes',18000,false);
-        $caps=isset($body['capabilities'])?$body['capabilities']:array();
-        if (!is_array($caps) || count($caps)>16) fail_api(400,'Capabilities must be an array of at most 16 entries');
-        foreach ($caps as $entry) if (!is_string($entry) || strlen($entry)>1000)
-            fail_api(400,'Each capability must be a short string');
-        $winner=isset($body['winner'])?$body['winner']:'ongoing';
-        if (!in_array($winner,array('ongoing','us','ge','draw'),true)) fail_api(400,'Invalid winner');
-        $g['history'][]=array('turn'=>$g['turn'],
-          'orders'=>array('us'=>$g['current']['us']['text'],'ge'=>$g['current']['ge']['text']),
-          'resolution'=>$resolution,'capabilities'=>$caps,'winner'=>$winner,
-          'resolved_at'=>gmdate('c'));
-        $g['private_briefs']=array('us'=>$usNext,'ge'=>$geNext);
-        $g['umpire_notes']=$notes;
-        $g['public_brief']=$nextPublic;
-        $g['current']=array('us'=>null,'ge'=>null);
-        if ($winner!=='ongoing' || $g['turn'] >= $g['turn_limit']) {
-            $g['phase']='complete';$g['winner']=$winner==='ongoing'?'draw':$winner;
-        } else { $g['turn']++;$g['phase']='orders'; }
-        $g['revision']++;$g['updated_at']=gmdate('c');
-        return array('updated'=>true,'body'=>array('ok'=>true,'phase'=>$g['phase'],
-            'turn'=>$g['turn'],'winner'=>$g['winner'],'revision'=>$g['revision']));
+        return array('updated'=>true,'body'=>array('ok'=>true,'accepted'=>true,
+            'resolved'=>$resolved!==null,'resolution'=>$resolved,
+            'turn'=>$g['turn'],'phase'=>$g['phase'],'winner'=>$g['winner']));
     });
     reply(200,$result);
 }
