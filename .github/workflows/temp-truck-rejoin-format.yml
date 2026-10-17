@@ -1,0 +1,27 @@
+name: TEMP Format Truck Rejoin
+on:
+  push:
+    branches: [work/truck-lifecycle-cleanup-20261016]
+    paths: [.github/workflows/temp-truck-rejoin-format.yml]
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Format changed truck rejoin and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write battle/modules/58-strategic-abstract-transport.js
+          git rm .github/workflows/temp-truck-rejoin-format.yml
+          git add battle/modules/58-strategic-abstract-transport.js
+          git config user.name grasstex-ci
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "style(trucks): format safe stopped-vehicle road rejoin; remove formatter"
+          git push origin HEAD:work/truck-lifecycle-cleanup-20261016
