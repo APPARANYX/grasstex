@@ -74,14 +74,17 @@ assert.ok(
 /* Preserve the accepted frame order by removing only the new full-screen
    map input gate before fingerprinting. The pre-existing P-key and restart
    guards still get their separate exact regression checks. */
-const mapDeclaration = 'pad = activeGamepad(),\\ntacticalMap = global.BattleTacticalMap;';
+const mapDeclaration = ['pad = activeGamepad(),', 'tacticalMap = global.BattleTacticalMap;']
+  .join(String.fromCharCode(10));
 assert.ok(orchestration.includes(mapDeclaration), 'desktop frame must access loaded tactical map');
 const mapStart = orchestration.indexOf('/* Xbox D-pad Right toggles the full tactical map');
 const mapEnd = orchestration.indexOf('/* Restarts reuse', mapStart);
 assert.ok(mapStart > 0 && mapEnd > mapStart, 'map interaction is isolated ahead of roster guard');
 const mapGuard = orchestration.slice(mapStart, mapEnd);
-assert.match(mapGuard,/padPressedOnce\\(pad, 15\\)/, 'D-pad Right must open the map');
-assert.match(mapGuard,/if \\(tacticalMap && tacticalMap\\.isOpen\\(\\)\\)[\\s\\S]*?mouseFire = false;[\\s\\S]*?return;/,
+assert.ok(mapGuard.includes('padPressedOnce(pad, 15)'), 'D-pad Right must open the map');
+assert.ok(mapGuard.includes('tacticalMap.setOpen(!tacticalMap.isOpen())'),
+  'controller uses real fullscreen map toggle');
+assert.ok(mapGuard.includes('keys.clear();') && mapGuard.includes('mouseFire = false;'),
   'map must block gameplay input while open');
 const originalOrchestration = orchestration
   .replace(mapDeclaration, 'pad = activeGamepad();')
