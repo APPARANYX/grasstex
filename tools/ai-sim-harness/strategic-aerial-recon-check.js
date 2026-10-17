@@ -125,4 +125,28 @@ incoherent.ge.members.forEach((s, i) => {
 });
 tick(incoherent);
 assert.equal(incoherent.root.BattleAerialRecon.forGeneral(incoherent.sim, 'us').contacts.length, 0);
+const player = make();
+const P = player.root.BattleAerialRecon;
+player.sim.time = 3;
+assert.equal(P.request(player.sim, 'us', { playerOrdered: true }), null,
+  'a player cannot spend the sortie before deployment');
+assert.equal(P.status(player.sim,'us').used, false);
+player.sim.time = 9;
+player.sim.paused = true;
+assert.equal(P.request(player.sim,'us',{ playerOrdered:true }),null,
+  'paused pre-battle UI cannot burn the one reconnaissance sortie');
+player.sim.paused = false;
+const manual = P.request(player.sim, 'us', { playerOrdered: true });
+assert.ok(manual && manual.faction === 'us' && manual.contacts.length === 1,
+  'early human-authorized General recon returns a genuine bounded enemy-side observation');
+assert.equal(P.status(player.sim,'us').used,true);
+assert.equal(P.status(player.sim,'us').live,true);
+assert.equal(P.request(player.sim,'us',{playerOrdered:true}),null,
+  'the same player cannot spend a second sortie');
+player.sim.time = 55;
+assert.equal(P.forGeneral(player.sim,'us'),null);
+assert.equal(P.status(player.sim,'us').live,false);
+assert.equal(P.status(player.sim,'us').contacts,1,
+  'post-expiry summary does not silently refund the sortie');
+assert.equal(P.forGeneral(player.sim,'ge'),null,'German observations cannot leak through US request');
 console.log('Strategic aerial recon: one-shot, isolation, uncertainty, expiry, restart and flags PASS');
