@@ -73,8 +73,10 @@ assert.ok(code.includes('delete fx._vehicleSeat'),
 assert.ok(code.includes('restoreTransform(fx.holder'),
   'Original rig must be reparented back after dismount');
 assert.ok(code.includes('seatIndex: member.index'), 'Seat association must be explicit');
-assert.ok(code.includes('if (entry.showcase || entry.phase !=='),
-  'Showcase must not borrow active combat actors');
+assert.ok(code.includes("entry.phase !== 'boarding' && entry.phase !== 'embarked'"),
+  'Only genuine active boarding or seated passengers may be attached');
+assert.ok(code.includes("member.index >= entry.boardedCount"),
+  'Original soldiers must enter one verified seat at a time');
 assert.ok(backend.includes('prepareVehicleClips: prepareVehicleClips'));
 assert.ok(backend.includes('vehiclePoseClip: function (soldier, seatFile)'));
 assert.ok(backend.includes('retargetClips(targetLib, clipRigs[key]'),
