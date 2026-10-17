@@ -436,7 +436,12 @@
         return trackContact(id, faction, seed, before.positions[id], last.positions[id], interval, last.at);
       }),
       last.at,
-      { sortieStartedAt: pass.startedAt, overflightSeconds: round(last.at - pass.startedAt, 2) }
+      {
+        sortieStartedAt: pass.startedAt,
+        overflightSeconds: round(last.at - pass.startedAt, 2),
+        // A sortie after the first was earned by a line changing hands (front lines).
+        sortie: own.sorties || 1
+      }
     );
   }
   function request(sim, faction, options) {
@@ -455,7 +460,8 @@
     if (!(sim.time >= earliest) || sim.macroCommandEnabled === false || (playerOrdered && sim.paused))
       return null;
     var own = state(sim)[faction];
-    if (own.used) return null;
+    var again = own.used ? frontMoved(sim, own) : null;
+    if (own.used && !again) return null;
     /* Only the General's own active strategic briefs can trigger a sortie.
        This decision never inspects hostile actor state. */
     var ready = (sim.factions[faction].squads || []).some(function (sq) {
@@ -463,7 +469,9 @@
       return sq.state !== 'retreat' && m && m.owner === 'force-command' && m.status === 'executing';
     });
     if (!ready) return null;
+    if (again) rearm(sim, faction, own, again);
     own.used = true;
+    own.frontKey = frontKey(sim, own);
     var at = round(+sim.time, 2);
     if (overflightOn() && !playerOrdered) {
       own.pass = { startedAt: at, fixes: [{ at: at, positions: fix(sim, faction) }] };
@@ -486,6 +494,42 @@
       }),
       at
     );
+  }
+  /* Front lines: a line changing hands earns each side one new sortie (the report of the old
+     front is superseded when the new pass launches). ?lineSortie=0 keeps one per battle. */
+  /* A line changes hands when an objective gets a new owner; an objective that is only being
+     neutralised keeps the owner it had, so a capture earns one sortie, not two. */
+  function frontKey(sim, own) {
+    var lines = root.BattleFrontLines,
+      summary = lines && lines.active(sim) ? lines.summary(sim) : null;
+    if (!summary) return null;
+    var held = (own.heldOwners = own.heldOwners || {});
+    return summary.lines
+      .map(function (l, li) {
+        return l.owners
+          .map(function (o, k) {
+            var key = li + ':' + k;
+            if (o !== 'neutral') held[key] = o;
+            return held[key] || 'neutral';
+          })
+          .join(',');
+      })
+      .join('|');
+  }
+  function frontMoved(sim, own) {
+    if (flagOff('lineSortie') || own.pass || own.frontKey == null) return null;
+    var key = frontKey(sim, own);
+    return key != null && key !== own.frontKey ? key : null;
+  }
+  function rearm(sim, faction, own, key) {
+    own.event = null;
+    own.sorties = (own.sorties || 1) + 1;
+    if (root.BattleTelemetry && root.BattleTelemetry.record)
+      root.BattleTelemetry.record(
+        'strategic-aerial-recon-rearmed',
+        { faction: faction, at: round(+sim.time, 2), sortie: own.sorties, front: key },
+        sim
+      );
   }
   function forGeneral(sim, faction) {
     if (!enabled(sim) || !validFaction(faction)) return null;

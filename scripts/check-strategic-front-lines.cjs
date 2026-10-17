@@ -296,6 +296,47 @@ function splitWorld(search) {
   assert.equal(off.F.approachFor(off.sim, a, L2, from), null, '?splitRoads=0 keeps the shortest road');
 }
 
+// A line changing hands earns each General one new sortie.
+function sortieWorld(search) {
+  const w = world(null, search);
+  loadModule(w.root, 'battle/modules/59-strategic-aerial-recon.js', { console: quietConsole });
+  w.sim.time = 80;
+  w.sim.macroCommandEnabled = true;
+  w.sim.factions.us.squads[0]._macroMission = {
+    owner: 'force-command',
+    status: 'executing',
+    intent: 'capture'
+  };
+  return w;
+}
+{
+  const w = sortieWorld('?strategicInterception=1&frontLines=1&aerialRecon=1&interception=1'),
+    R = w.root.BattleAerialRecon,
+    own = () => w.sim._strategicAerialRecon.us;
+  R.request(w.sim, 'us');
+  assert.ok(own().used && own().pass, 'the first sortie launches');
+  own().pass = null;
+  R.request(w.sim, 'us');
+  assert.ok(!own().pass, 'no second sortie while the front stands');
+  w.own(L1, 'neutral');
+  R.request(w.sim, 'us');
+  assert.ok(!own().pass, 'a line being neutralised has not changed hands yet');
+  w.own(L1, 'us');
+  w.own(L2, 'us');
+  R.request(w.sim, 'us');
+  assert.ok(own().pass && own().sorties === 2, 'the centre changing hands earns a new sortie');
+  assert.ok(w.events.some(e => e.kind === 'strategic-aerial-recon-rearmed'));
+  own().pass = null;
+  R.request(w.sim, 'us');
+  assert.ok(!own().pass, 'one sortie per change');
+  const off = sortieWorld('?strategicInterception=1&frontLines=1&aerialRecon=1&interception=1&lineSortie=0');
+  off.root.BattleAerialRecon.request(off.sim, 'us');
+  off.sim._strategicAerialRecon.us.pass = null;
+  off.own(L2, 'us');
+  off.root.BattleAerialRecon.request(off.sim, 'us');
+  assert.ok(!off.sim._strategicAerialRecon.us.pass, '?lineSortie=0 keeps one sortie per battle');
+}
+
 // Air-recon corridors: a watch point where the column leaves its trucks short of the next line.
 function corridors(search, layout) {
   const r = { location: { search }, GTLog() {}, BattleModules: { registerSystem() {} } };
@@ -343,5 +384,5 @@ function corridors(search, layout) {
   assert.ok(!plain.list.some(c => near(c, plain.dismount)), 'the ring layout is untouched');
 }
 console.log(
-  'PASS front-lines layout, next-line rule, start ownership, held-line rear point, prepared lines, line approach posts, split roads'
+  'PASS front-lines layout, next-line rule, start ownership, held-line rear point, prepared lines, line approach posts, split roads, line sorties'
 );

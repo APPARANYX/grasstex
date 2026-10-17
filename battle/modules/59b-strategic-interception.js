@@ -192,6 +192,22 @@
       (t.phase === 'dismounted' || t.phase === 'aborted')
     );
   }
+  /* A report from a sortie a line change earned (front lines): a squad that has finished its
+     ride and stands on ground it holds (defending, holding, or done) with its truck stopped
+     beside it may answer it. A squad still driving to or fighting for an objective may not. */
+  function reusableAfterLine(sq, track) {
+    var m = sq._macroMission,
+      t = sq._transport,
+      ev = track && track.report;
+    return !!(
+      ev &&
+      ev.sortie > 1 &&
+      m &&
+      (m.intent === 'defend' || m.intent === 'hold' || m.status === 'completed') &&
+      t &&
+      (t.phase === 'dismounted' || t.phase === 'aborted')
+    );
+  }
   /* The public road node nearest the squad, for routing a truck it re-boards. */
   function nearestNode(town, sq) {
     var men = (sq.members || []).filter(function (m) {
@@ -260,7 +276,7 @@
         sq.state === 'retreat' ||
         sq.inContact ||
         sq.isPlayer ||
-        (sq._transportUsed && !(reportFed && reusableScreen(sq))) ||
+        (sq._transportUsed && !(reportFed && (reusableScreen(sq) || reusableAfterLine(sq, track)))) ||
         sq._preparedDefenseRequest
       ) {
         diag.unavailableSquads++;
