@@ -10,7 +10,20 @@
     VALID_SECONDS = 45,
     MIN_GROUND_SPEED = 0.8,
     POSITION_GRID = 35,
-    HEADING_STEP = Math.PI / 12;
+    HEADING_STEP = Math.PI / 12,
+    // Air-intelligence corridor analysis (the report's own road projection).
+    CORRIDOR_ROAD_PROXIMITY = 110,
+    CORRIDOR_ALIGNMENT = 0.58,
+    CORRIDOR_MIN_EDGE = 300,
+    CORRIDOR_HOPS = 2,
+    // A single pass forecasts no further than the report's interception
+    // horizon; beyond it the column has had time to turn off any road.
+    CORRIDOR_HORIZON_SECONDS = 600,
+    // Time over target of the General's doctrine sortie: three fixes, the
+    // track taken from the last two, so a column that set off during the
+    // pass is reported with its real road speed.
+    OVERFLIGHT_SECONDS = 30,
+    OVERFLIGHT_FIXES = 3;
 
   function enabled(sim) {
     var town = sim && sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario,
@@ -22,6 +35,20 @@
       /(?:^|[?&])strategicInterception=1(?:&|$)/.test(search) &&
       /(?:^|[?&])aerialRecon=1(?:&|$)/.test(search)
     );
+  }
+  function flagOff(name) {
+    return new RegExp('(?:^|[?&])' + name + '=0(?:&|$)').test((root.location && root.location.search) || '');
+  }
+  function interceptionOn() {
+    return /(?:^|[?&])interception=1(?:&|$)/.test((root.location && root.location.search) || '');
+  }
+  /* ?reconCorridors=0 restores reports without corridors (the General then
+     projects roads itself); ?reconOverflight=0 restores the instant snapshot. */
+  function corridorsOn() {
+    return interceptionOn() && !flagOff('reconCorridors');
+  }
+  function overflightOn() {
+    return interceptionOn() && !flagOff('reconOverflight');
   }
   function validFaction(f) {
     return f === 'us' || f === 'ge';
@@ -67,6 +94,128 @@
     return living.some(function (s) {
       return s.hidden || s.isHidden || s.concealed || s._concealed || s._ambushTask || s._ambushPlan;
     });
+  }
+  /* The reporting branch's own analysis, delivered with the report: every
+     moving fix is projected onto the PUBLIC road net from the report's own
+     rounded position, heading and speed (never the hostile actor). Each
+     corridor names the road it is on or will reach, a watch point, how far
+     the column must travel to it and a conservative arrival estimate. Forks
+     downstream split the likelihood. The General is handed these; he does
+     not re-derive them. Stationary fixes have no direction and no corridor. */
+  function objectiveById(town, id) {
+    return (
+      (town.objectives || []).find(function (o) {
+        return o.id === id;
+      }) || null
+    );
+  }
+  function dist(a, b) {
+    return Math.hypot(a.x - b.x, a.z - b.z);
+  }
+  function corridorsFor(town, contact, observer) {
+    if (
+      !town ||
+      !contact ||
+      !(contact.speedMps >= MIN_GROUND_SPEED) ||
+      contact.headingRadians == null ||
+      !isFinite(contact.headingRadians)
+    )
+      return [];
+    var hostile = observer === 'us' ? 'ge' : 'us',
+      p = { x: +contact.x, z: +contact.z },
+      h = { x: Math.sin(contact.headingRadians), z: Math.cos(contact.headingRadians) },
+      fast = Math.max(MIN_GROUND_SPEED, contact.speedMps + (contact.speedUncertaintyMps || 0)),
+      slack = contact.positionUncertaintyM || 40,
+      roads = (town.roads || [])
+        .map(function (road) {
+          var a = objectiveById(town, road.fromObjectiveId),
+            b = objectiveById(town, road.toObjectiveId);
+          return a && b ? { road: road, a: a, b: b, len: dist(a, b) } : null;
+        })
+        .filter(function (e) {
+          return e && e.len > 1;
+        }),
+      out = [];
+    function eta(metres) {
+      return round(Math.max(0, metres - slack) / fast, 1);
+    }
+    function emit(edge, from, to, fraction, travelled, hop, likelihood, alignment, offRoad) {
+      if (eta(travelled) > CORRIDOR_HORIZON_SECONDS) return;
+      var point = {
+        x: round(from.x + (to.x - from.x) * fraction, 1),
+        z: round(from.z + (to.z - from.z) * fraction, 1)
+      };
+      out.push(
+        Object.freeze({
+          roadId: edge.road.id,
+          anchorIds: Object.freeze([edge.a.id, edge.b.id]),
+          likelyObjectiveId: to.id,
+          point: Object.freeze(point),
+          leadMetres: round(travelled, 0),
+          enemyEtaSeconds: eta(travelled),
+          hop: hop,
+          likelihood: round(likelihood, 2),
+          alignment: round(alignment, 2),
+          offRoadM: round(offRoad, 0)
+        })
+      );
+    }
+    /* Continue along the graph from the node the column is heading for. */
+    function downstream(node, cameFrom, travelled, hop, likelihood, alignment, offRoad) {
+      // The observer's own base is the column's destination, not a waypoint.
+      if (hop > CORRIDOR_HOPS || node.baseFaction === observer) return;
+      if (eta(travelled) > CORRIDOR_HORIZON_SECONDS) return;
+      var next = roads.filter(function (e) {
+        if (e.road === cameFrom || e.len < CORRIDOR_MIN_EDGE) return false;
+        if (e.a.id !== node.id && e.b.id !== node.id) return false;
+        var far = e.a.id === node.id ? e.b : e.a;
+        return far.baseFaction !== hostile;
+      });
+      next.forEach(function (e) {
+        var far = e.a.id === node.id ? e.b : e.a,
+          share = likelihood / next.length;
+        [1 / 3, 2 / 3].forEach(function (f) {
+          emit(e, node, far, f, travelled + e.len * f, hop, share, alignment, offRoad);
+        });
+        downstream(far, e.road, travelled + e.len, hop + 1, share, alignment, offRoad);
+      });
+    }
+    roads.forEach(function (e) {
+      if (e.len <= CORRIDOR_MIN_EDGE) return;
+      var vx = (e.b.x - e.a.x) / e.len,
+        vz = (e.b.z - e.a.z) / e.len,
+        t = Math.max(0, Math.min(1, ((p.x - e.a.x) * vx + (p.z - e.a.z) * vz) / e.len)),
+        foot = { x: e.a.x + vx * e.len * t, z: e.a.z + vz * e.len * t },
+        off = dist(p, foot),
+        alignment = vx * h.x + vz * h.z;
+      if (off > CORRIDOR_ROAD_PROXIMITY + slack) return;
+      for (var dir = -1; dir <= 1; dir += 2) {
+        var dot = alignment * dir,
+          node = dir > 0 ? e.b : e.a,
+          remaining = dir > 0 ? e.len * (1 - t) : e.len * t;
+        if (dot < CORRIDOR_ALIGNMENT) continue;
+        // A column is not predicted to drive into its own home base.
+        if (node.baseFaction === hostile) continue;
+        var leads = [320, 550, Math.min(remaining * 0.77, remaining - 80)],
+          used = {};
+        leads.forEach(function (raw) {
+          var lead = Math.min(remaining - 80, raw),
+            key = Math.round(lead / 20);
+          if (lead < 200 || used[key]) return;
+          used[key] = true;
+          var along = dir > 0 ? t + lead / e.len : t - lead / e.len;
+          emit(e, e.a, e.b, along, lead, 0, 1, dot, off);
+        });
+        downstream(node, e.road, remaining, 1, 1, dot, off);
+      }
+    });
+    return out;
+  }
+  function withCorridors(contact, town, observer) {
+    if (!contact || !corridorsOn()) return contact;
+    var copy = Object.assign({}, contact);
+    copy.corridors = Object.freeze(corridorsFor(town, contact, observer));
+    return Object.freeze(copy);
   }
   function sampleSquad(sq, faction, seed, at) {
     if (!sq || hidden(sq)) return null;
@@ -141,6 +290,118 @@
       confidence: confidence
     });
   }
+  /* One overflight fix: where each exposed hostile formation stood. */
+  function fix(sim, faction) {
+    var hostile = faction === 'us' ? 'ge' : 'us',
+      out = {};
+    ((sim.factions[hostile] && sim.factions[hostile].squads) || []).forEach(function (sq) {
+      if (!sq || hidden(sq)) return;
+      var men = (sq.members || []).filter(function (s) {
+        return s && !s.dead && s.root && s.root.position;
+      });
+      if (men.length < 2) return;
+      var x = 0,
+        z = 0;
+      for (var i = 0; i < men.length; i++) {
+        x += +men[i].root.position.x;
+        z += +men[i].root.position.z;
+      }
+      if (!isFinite(x) || !isFinite(z)) return;
+      out[String(sq.id)] = { x: x / men.length, z: z / men.length };
+    });
+    return out;
+  }
+  /* Report entry from the last two fixes of the pass: displacement over the
+     interval is the observed track. Nothing reads intent, brief or vehicle. */
+  function trackContact(id, faction, seed, before, last, interval, at) {
+    if (!last) return null;
+    if ((faction === 'us' && last.z < 0) || (faction === 'ge' && last.z > 0)) return null;
+    var vx = before ? (last.x - before.x) / interval : 0,
+      vz = before ? (last.z - before.z) / interval : 0,
+      speedMps = Math.hypot(vx, vz),
+      moving = speedMps >= MIN_GROUND_SPEED,
+      headingRadians = moving ? Math.atan2(vx, vz) : null;
+    return Object.freeze({
+      squadId: id,
+      source: 'aerial',
+      observedAt: at,
+      validUntil: at + VALID_SECONDS,
+      x: Math.round((last.x + uncertainty(seed, faction, id, 'x')) / POSITION_GRID) * POSITION_GRID,
+      z: Math.round((last.z + uncertainty(seed, faction, id, 'z')) / POSITION_GRID) * POSITION_GRID,
+      observation: moving ? 'moving' : 'stationary',
+      headingRadians: moving ? round(Math.round(headingRadians / HEADING_STEP) * HEADING_STEP, 3) : null,
+      speedMps: moving ? round(Math.round(speedMps * 2) / 2, 1) : 0,
+      positionUncertaintyM: 40,
+      headingUncertaintyRadians: round(HEADING_STEP, 3),
+      speedUncertaintyMps: 0.75,
+      confidence: moving ? 0.8 : 0.48
+    });
+  }
+  function publish(sim, faction, contacts, at, extra) {
+    var own = state(sim)[faction],
+      town = sim.scene.metadata.battleScenario;
+    contacts = contacts
+      .filter(Boolean)
+      .map(function (c) {
+        return withCorridors(c, town, faction);
+      })
+      .sort(function (a, b) {
+        return a.squadId.localeCompare(b.squadId);
+      });
+    own.event = Object.freeze(
+      Object.assign(
+        {
+          source: 'aerial',
+          faction: faction,
+          observedAt: at,
+          validUntil: at + VALID_SECONDS,
+          contacts: Object.freeze(contacts)
+        },
+        extra || {}
+      )
+    );
+    if (root.BattleTelemetry && root.BattleTelemetry.record)
+      root.BattleTelemetry.record(
+        'strategic-aerial-recon',
+        {
+          faction: faction,
+          at: at,
+          contacts: contacts.length,
+          corridors: contacts.reduce(function (n, c) {
+            return n + ((c.corridors && c.corridors.length) || 0);
+          }, 0),
+          expiresAt: at + VALID_SECONDS
+        },
+        sim
+      );
+    return own.event;
+  }
+  /* The doctrine sortie's pass continues on the General's own command tick;
+     the report reaches him when the pass ends. */
+  function advanceSortie(sim, faction) {
+    var own = state(sim)[faction],
+      pass = own.pass;
+    if (!pass || own.event) return null;
+    var step = OVERFLIGHT_SECONDS / (OVERFLIGHT_FIXES - 1),
+      due = pass.startedAt + step * pass.fixes.length;
+    if (!(+sim.time >= due - 1e-6)) return null;
+    pass.fixes.push({ at: round(+sim.time, 2), positions: fix(sim, faction) });
+    if (pass.fixes.length < OVERFLIGHT_FIXES) return null;
+    var last = pass.fixes[pass.fixes.length - 1],
+      before = pass.fixes[pass.fixes.length - 2],
+      interval = Math.max(1, last.at - before.at),
+      seed = String(sim.scene.metadata.battleScenario.seed || 'default');
+    own.pass = null;
+    return publish(
+      sim,
+      faction,
+      Object.keys(last.positions).map(function (id) {
+        return trackContact(id, faction, seed, before.positions[id], last.positions[id], interval, last.at);
+      }),
+      last.at,
+      { sortieStartedAt: pass.startedAt, overflightSeconds: round(last.at - pass.startedAt, 2) }
+    );
+  }
   function request(sim, faction, options) {
     if (!enabled(sim) || !validFaction(faction) || !sim.factions || !sim.factions[faction]) return null;
     /* With an explicit interception mission, reconnaissance must occur while
@@ -166,32 +427,28 @@
     });
     if (!ready) return null;
     own.used = true;
+    var at = round(+sim.time, 2);
+    if (overflightOn() && !playerOrdered) {
+      own.pass = { startedAt: at, fixes: [{ at: at, positions: fix(sim, faction) }] };
+      if (root.BattleTelemetry && root.BattleTelemetry.record)
+        root.BattleTelemetry.record(
+          'strategic-aerial-recon-launched',
+          { faction: faction, at: at, reportDueAt: at + OVERFLIGHT_SECONDS },
+          sim
+        );
+      return null;
+    }
     var hostile = faction === 'us' ? 'ge' : 'us',
       town = sim.scene.metadata.battleScenario,
-      seed = String(town.seed || 'default'),
-      at = round(+sim.time, 2),
-      contacts = ((sim.factions[hostile] && sim.factions[hostile].squads) || [])
-        .map(function (sq) {
-          return sampleSquad(sq, faction, seed, at);
-        })
-        .filter(Boolean)
-        .sort(function (a, b) {
-          return a.squadId.localeCompare(b.squadId);
-        });
-    own.event = Object.freeze({
-      source: 'aerial',
-      faction: faction,
-      observedAt: at,
-      validUntil: at + VALID_SECONDS,
-      contacts: Object.freeze(contacts)
-    });
-    if (root.BattleTelemetry && root.BattleTelemetry.record)
-      root.BattleTelemetry.record(
-        'strategic-aerial-recon',
-        { faction: faction, at: at, contacts: contacts.length, expiresAt: at + VALID_SECONDS },
-        sim
-      );
-    return own.event;
+      seed = String(town.seed || 'default');
+    return publish(
+      sim,
+      faction,
+      ((sim.factions[hostile] && sim.factions[hostile].squads) || []).map(function (sq) {
+        return sampleSquad(sq, faction, seed, at);
+      }),
+      at
+    );
   }
   function forGeneral(sim, faction) {
     if (!enabled(sim) || !validFaction(faction)) return null;
@@ -211,7 +468,9 @@
       observedAt: event ? event.observedAt : null,
       expiresAt: event ? event.validUntil : null,
       contacts: event ? event.contacts.length : 0,
-      live: !!(event && sim.time <= event.validUntil)
+      live: !!(event && sim.time <= event.validUntil),
+      inFlight: !!own.pass,
+      reportDueAt: own.pass ? own.pass.startedAt + OVERFLIGHT_SECONDS : null
     });
   }
   function reset(sim) {
@@ -225,6 +484,8 @@
       if (!p || !p.macroCommandEnabled || !enabled(sim)) return;
       request(sim, 'us');
       request(sim, 'ge');
+      advanceSortie(sim, 'us');
+      advanceSortie(sim, 'ge');
     }
   });
   root.BattleAerialRecon = {
@@ -232,10 +493,12 @@
     request: request,
     forGeneral: forGeneral,
     status: status,
+    corridorsFor: corridorsFor,
     tuning: Object.freeze({
       earliestRequestSeconds: MIN_REQUEST_AT,
       interceptionRequestSeconds: INTERCEPTION_RECON_AT,
-      validitySeconds: VALID_SECONDS
+      validitySeconds: VALID_SECONDS,
+      overflightSeconds: OVERFLIGHT_SECONDS
     })
   };
   if (typeof root.GTLog === 'function') root.GTLog('[STRATEGIC] one-shot aerial recon ready');
