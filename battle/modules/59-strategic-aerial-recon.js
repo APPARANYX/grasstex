@@ -460,7 +460,7 @@
     if (!(sim.time >= earliest) || sim.macroCommandEnabled === false || (playerOrdered && sim.paused))
       return null;
     var own = state(sim)[faction];
-    var again = own.used ? frontMoved(sim, own) : null;
+    var again = own.used ? frontMoved(sim, own, faction) : null;
     if (own.used && !again) return null;
     /* Only the General's own active strategic briefs can trigger a sortie.
        This decision never inspects hostile actor state. */
@@ -471,7 +471,7 @@
     if (!ready) return null;
     if (again) rearm(sim, faction, own, again);
     own.used = true;
-    own.frontKey = frontKey(sim, own);
+    own.frontKey = frontKey(sim, own, faction);
     var at = round(+sim.time, 2);
     if (overflightOn() && !playerOrdered) {
       own.pass = { startedAt: at, fixes: [{ at: at, positions: fix(sim, faction) }] };
@@ -499,26 +499,33 @@
      front is superseded when the new pass launches). ?lineSortie=0 keeps one per battle. */
   /* A line changes hands when an objective gets a new owner; an objective that is only being
      neutralised keeps the owner it had, so a capture earns one sortie, not two. */
-  function frontKey(sim, own) {
+  /* A fresh reinforcement squad of this side (21c-strategic-reinforcements.js) also earns a
+     sortie: the key counts them. */
+  function frontKey(sim, own, faction) {
     var lines = root.BattleFrontLines,
       summary = lines && lines.active(sim) ? lines.summary(sim) : null;
     if (!summary) return null;
-    var held = (own.heldOwners = own.heldOwners || {});
-    return summary.lines
-      .map(function (l, li) {
-        return l.owners
-          .map(function (o, k) {
-            var key = li + ':' + k;
-            if (o !== 'neutral') held[key] = o;
-            return held[key] || 'neutral';
-          })
-          .join(',');
-      })
-      .join('|');
+    var held = (own.heldOwners = own.heldOwners || {}),
+      R = root.BattleStrategicReinforcements,
+      fresh = R && R.sortiesEarned ? R.sortiesEarned(sim, faction) : 0;
+    return (
+      (fresh ? 'r' + fresh + '|' : '') +
+      summary.lines
+        .map(function (l, li) {
+          return l.owners
+            .map(function (o, k) {
+              var key = li + ':' + k;
+              if (o !== 'neutral') held[key] = o;
+              return held[key] || 'neutral';
+            })
+            .join(',');
+        })
+        .join('|')
+    );
   }
-  function frontMoved(sim, own) {
+  function frontMoved(sim, own, faction) {
     if (flagOff('lineSortie') || own.pass || own.frontKey == null) return null;
-    var key = frontKey(sim, own);
+    var key = frontKey(sim, own, faction);
     return key != null && key !== own.frontKey ? key : null;
   }
   function rearm(sim, faction, own, key) {

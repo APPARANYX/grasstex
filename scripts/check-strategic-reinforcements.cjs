@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { loadModule } = require('../tools/ai-sim-harness/module-loader');
+const { loadModule, quietConsole } = require('../tools/ai-sim-harness/module-loader');
 const repo = path.resolve(__dirname, '..');
 
 function generator() {
@@ -67,6 +67,8 @@ function world(search = '?strategicInterception=1&frontLines=1&reinforcements=1'
   };
   loadModule(root, 'battle/modules/21b-strategic-front-lines.js');
   loadModule(root, 'battle/modules/21c-strategic-reinforcements.js');
+  if (/aerialRecon=1/.test(search))
+    loadModule(root, 'battle/modules/59-strategic-aerial-recon.js', { console: quietConsole });
   hooks['strategic-front-lines'].onBattleStart(sim);
   hooks['strategic-reinforcements'].onBattleStart(sim);
   const kill = (faction, n) => {
@@ -192,6 +194,63 @@ const base = (town, f, i) => town.spawnZones[f].bases[i];
   w.sim.winner = null;
   w.tick();
   assert.equal(w.spawned.length, 1);
+}
+
+// Each fresh squad earns its General a sortie, and waits for it before its first brief.
+function sortieWorld(extra = '') {
+  const w = world(
+    '?strategicInterception=1&frontLines=1&reinforcements=1&aerialRecon=1&interception=1' + extra
+  );
+  w.sim.macroCommandEnabled = true;
+  w.sim.factions.us.squads.push({
+    id: 'us-0',
+    faction: 'us',
+    members: [],
+    _macroMission: { owner: 'force-command', status: 'executing', intent: 'capture' }
+  });
+  return w;
+}
+{
+  const w = sortieWorld(),
+    A = w.root.BattleAerialRecon,
+    own = () => w.sim._strategicAerialRecon.us;
+  A.request(w.sim, 'us');
+  assert.ok(own().used && own().pass, 'the first sortie flies');
+  own().pass = null;
+  A.request(w.sim, 'us');
+  assert.ok(!own().pass, 'no second sortie without a reason');
+  w.kill('us', SIZE);
+  w.tick();
+  const fresh = w.spawned[0].squad;
+  assert.ok(own().pass && own().sorties === 2, 'the fresh squad earns a sortie at once');
+  assert.ok(w.events.some(e => e.kind === 'strategic-aerial-recon-rearmed'));
+  assert.equal(w.R.awaitingReport(w.sim, fresh), true, 'the fresh squad waits while its sortie flies');
+  own().pass = null;
+  assert.equal(w.R.awaitingReport(w.sim, fresh), false, 'the report is in: brief it');
+  fresh._macroMission = { intent: 'capture' };
+  assert.equal(w.R.awaitingReport(w.sim, fresh), false, 'a briefed squad is never held');
+  A.request(w.sim, 'us');
+  assert.ok(!own().pass, 'one sortie per fresh squad');
+  assert.equal(
+    w.R.awaitingReport(w.sim, w.sim.factions.us.squads[0]),
+    false,
+    'opening squads are never held'
+  );
+
+  const off = sortieWorld('&reinforcementSortie=0'),
+    ownOff = () => off.sim._strategicAerialRecon.us;
+  off.root.BattleAerialRecon.request(off.sim, 'us');
+  ownOff().pass = null;
+  off.kill('us', SIZE);
+  off.tick();
+  assert.equal(off.spawned.length, 1);
+  assert.ok(!ownOff().pass, '?reinforcementSortie=0: no sortie for a fresh squad');
+  ownOff().pass = { startedAt: 100, fixes: [] };
+  assert.equal(
+    off.R.awaitingReport(off.sim, off.spawned[0].squad),
+    false,
+    '?reinforcementSortie=0: briefed at once'
+  );
 }
 
 console.log('strategic reinforcements: ok');

@@ -26,6 +26,33 @@
   function active(sim) {
     return !!(flagOn() && layout(sim) && root.BattleFrontLines && root.SquadAI);
   }
+  /* ?reinforcementSortie=0: a fresh squad earns its General no sortie and is briefed at once. */
+  function sortieOn() {
+    return !/(?:^|[?&])reinforcementSortie=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
+  /* Fresh squads this side has received, as the aerial-recon owner counts them for a new
+     sortie (59-strategic-aerial-recon.js frontKey); 0 when the trial or the sortie is off. */
+  function sortiesEarned(sim, faction) {
+    return active(sim) && sortieOn() && sim._reinforcements && sim._reinforcements[faction]
+      ? sim._reinforcements[faction].sent.length
+      : 0;
+  }
+  /* A fresh squad waits for the sortie its arrival earned before its first brief, so the
+     report can send it to an ambush post; only while that sortie is in the air, so a sortie
+     that never launches holds nobody. */
+  function awaitingReport(sim, sq) {
+    var recon = root.BattleAerialRecon,
+      status = recon && recon.status ? recon.status(sim, sq.faction) : null;
+    return !!(
+      sq &&
+      sq._reinforcement &&
+      !sq._macroMission &&
+      sortieOn() &&
+      active(sim) &&
+      status &&
+      status.inFlight
+    );
+  }
   function telemetry(sim, kind, data) {
     if (root.BattleTelemetry && root.BattleTelemetry.record) root.BattleTelemetry.record(kind, data, sim);
   }
@@ -109,6 +136,9 @@
       waitedSeconds: own.blockedSince == null ? 0 : (+sim.time || 0) - own.blockedSince
     });
     own.blockedSince = null;
+    // The arrival earns its General a sortie (59 frontKey); ask for it now, before any brief.
+    if (sortieOn() && root.BattleAerialRecon && root.BattleAerialRecon.request)
+      root.BattleAerialRecon.request(sim, faction);
     telemetry(sim, 'strategic-reinforcement', {
       faction: faction,
       wave: wave + 1,
@@ -150,5 +180,11 @@
     },
     onCommanderTick: tick
   });
-  root.BattleStrategicReinforcements = { active: active, summary: summary, reinforce: reinforce };
+  root.BattleStrategicReinforcements = {
+    active: active,
+    summary: summary,
+    reinforce: reinforce,
+    sortiesEarned: sortiesEarned,
+    awaitingReport: awaitingReport
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

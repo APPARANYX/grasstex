@@ -399,7 +399,11 @@
           finishMission(sim, sq, 'failed', sq.state === 'retreat' ? 'squad-retreat' : 'squad-destroyed');
         return null;
       }
-      if (!m) return 'initial-mission';
+      if (!m) {
+        // A fresh reinforcement squad waits for the sortie its arrival earned (21c).
+        var R = root.BattleStrategicReinforcements;
+        return R && R.awaitingReport && R.awaitingReport(sim, sq) ? null : 'initial-mission';
+      }
       if (m.status === 'failed' || m.status === 'invalid' || m.status === 'completed')
         return 'mission-resume';
       if (m.intent === 'screen') {
