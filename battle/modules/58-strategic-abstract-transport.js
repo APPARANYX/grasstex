@@ -228,6 +228,20 @@
       })
     );
   }
+  function nearestRoadEntry(town, where) {
+    var result = null;
+    (town.roads || []).forEach(function (road) {
+      var dx = road.bx - road.ax, dz = road.bz - road.az,
+        length2 = dx * dx + dz * dz;
+      if (length2 < 1) return;
+      var t = Math.max(0, Math.min(1,
+        ((where.x - road.ax) * dx + (where.z - road.az) * dz) / length2)),
+        point = { x: road.ax + dx * t, z: road.az + dz * t },
+        distance = dist(where, point);
+      if (!result || distance < result.distance) result = { point: point, distance: distance };
+    });
+    return result && result.distance <= 32 ? result.point : null;
+  }
   function parkingRoute(town, sq, vehicle, mission) {
     var goalId = mission.objectiveId || (mission.screen && mission.screen.securedObjectiveId),
       roadStart = vehicle.phase === 'parked' ? vehicle.join : vehicle.position,
@@ -244,6 +258,11 @@
             ? [vehicle.join].concat(regenerated)
             : regenerated
           : supplied;
+    if (vehicle.phase === 'stopped') {
+      var entry = nearestRoadEntry(town, vehicle.position);
+      if (!entry) return null;
+      if (!stops.length || dist(stops[0], entry) > 3) stops = [entry].concat(stops);
+    }
     return plan(
       town,
       vehicle.position,
