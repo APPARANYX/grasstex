@@ -1,0 +1,40 @@
+name: TEMP Publish Interception Play Preview (self-removing)
+on:
+  push:
+    branches:
+      - work/strategic-interception-macro-20261016
+    paths:
+      - .github/workflows/temp-interception-play-preview.yml
+permissions:
+  contents: write
+  actions: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Self-remove dispatcher before deploying exact branch tip
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -- .github/workflows/temp-interception-play-preview.yml
+          git config user.name "grasstex-ci"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "ci(preview): remove one-shot interception publisher"
+          git push origin HEAD:work/strategic-interception-macro-20261016
+          echo "Preview source HEAD $(git rev-parse HEAD)"
+      - name: Dispatch existing isolated 50webs preview workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run deploy-50webs-preview.yml \
+            --ref main \
+            -f ref=work/strategic-interception-macro-20261016 \
+            -f lab_qa=false
+          echo "Dispatched existing branch preview workflow (NOT main production deploy)."
