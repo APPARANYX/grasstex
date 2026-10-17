@@ -135,7 +135,7 @@
       confidence: confidence
     });
   }
-  function request(sim, faction) {
+  function request(sim, faction, options) {
     if (!enabled(sim) || !validFaction(faction) || !sim.factions || !sim.factions[faction]) return null;
     /* With an explicit interception mission, reconnaissance must occur while
        an opponent is still outbound. This is a clock/doctrine decision by
@@ -144,8 +144,11 @@
     var strategicEarly = /(?:^|[?&])interception=1(?:&|$)/.test(
       (root.location && root.location.search) || ''
     );
-    var earliest = strategicEarly ? INTERCEPTION_RECON_AT : MIN_REQUEST_AT;
-    if (!(sim.time >= earliest) || sim.macroCommandEnabled === false) return null;
+    var playerOrdered = options && options.playerOrdered === true;
+    // A player may spend their single reconnaissance sortie early, after
+    // deployment starts. AI doctrine still retains its conservative clock.
+    var earliest = playerOrdered ? 5 : strategicEarly ? INTERCEPTION_RECON_AT : MIN_REQUEST_AT;
+    if (!(sim.time >= earliest) || sim.macroCommandEnabled === false || (playerOrdered && sim.paused)) return null;
     var own = state(sim)[faction];
     if (own.used) return null;
     /* Only the General's own active strategic briefs can trigger a sortie.
@@ -190,6 +193,19 @@
     if (!ev || sim.time > ev.validUntil) return null;
     return ev;
   }
+  function status(sim, faction) {
+    if (!enabled(sim) || !validFaction(faction)) return { enabled: false, used: false };
+    var own = state(sim)[faction], event = own.event;
+    return Object.freeze({
+      enabled: true,
+      used: !!own.used,
+      readyAt: 5,
+      observedAt: event ? event.observedAt : null,
+      expiresAt: event ? event.validUntil : null,
+      contacts: event ? event.contacts.length : 0,
+      live: !!(event && sim.time <= event.validUntil)
+    });
+  }
   function reset(sim) {
     sim._strategicAerialRecon = null;
   }
@@ -207,6 +223,7 @@
     version: '0.1-independent',
     request: request,
     forGeneral: forGeneral,
+    status: status,
     tuning: Object.freeze({
       earliestRequestSeconds: MIN_REQUEST_AT,
       interceptionRequestSeconds: INTERCEPTION_RECON_AT,
