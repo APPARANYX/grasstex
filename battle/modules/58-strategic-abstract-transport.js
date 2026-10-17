@@ -17,7 +17,7 @@
     BOARD_STAGGER = 0.8,
     TURNOUT_METRES = 11,
     SCREEN_STANDOFF = 25,
-    NEARBY_TRUCK_METRES = 90,
+    NEARBY_TRUCK_METRES = 200,
     EPS = 0.00001;
   function position(p) {
     return p && isFinite(+p.x) && isFinite(+p.z) ? { x: +p.x, z: +p.z } : null;
