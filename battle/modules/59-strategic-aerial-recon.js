@@ -111,14 +111,19 @@
         vz += Math.cos(yaw) * speedNow;
         measured++;
       }
-      if (measured < Math.ceil(n * 0.6)) return null;
-      vx /= measured;
-      vz /= measured;
+      if (measured >= Math.ceil(n * 0.6)) {
+        vx /= measured;
+        vz /= measured;
+      } else {
+        // A stationary, exposed formation is observable from the air even
+        // when no direction/speed can be inferred. Never forge a velocity.
+        vx = vz = 0;
+      }
     }
-    var speedMps = Math.hypot(vx, vz);
-    if (speedMps < MIN_GROUND_SPEED) return null;
-    var headingRadians = Math.atan2(vx, vz),
-      confidence = round(Math.min(0.85, 0.55 + 0.3 * (measured / n)), 2),
+    var speedMps = Math.hypot(vx, vz),
+      moving = speedMps >= MIN_GROUND_SPEED,
+      headingRadians = moving ? Math.atan2(vx, vz) : null,
+      confidence = moving ? round(Math.min(0.85, 0.55 + 0.3 * (measured / n)), 2) : 0.48,
       id = String(sq.id);
     return Object.freeze({
       squadId: id,
@@ -127,8 +132,9 @@
       validUntil: at + VALID_SECONDS,
       x: Math.round((x + uncertainty(seed, faction, id, 'x')) / POSITION_GRID) * POSITION_GRID,
       z: Math.round((z + uncertainty(seed, faction, id, 'z')) / POSITION_GRID) * POSITION_GRID,
-      headingRadians: round(Math.round(headingRadians / HEADING_STEP) * HEADING_STEP, 3),
-      speedMps: round(Math.round(speedMps * 2) / 2, 1),
+      observation: moving ? 'moving' : 'stationary',
+      headingRadians: moving ? round(Math.round(headingRadians / HEADING_STEP) * HEADING_STEP, 3) : null,
+      speedMps: moving ? round(Math.round(speedMps * 2) / 2, 1) : 0,
       positionUncertaintyM: 40,
       headingUncertaintyRadians: round(HEADING_STEP, 3),
       speedUncertaintyMps: 0.75,
