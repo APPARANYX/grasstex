@@ -123,8 +123,10 @@ const strategic = process.env.TACTICAL_MAP_MODE === 'strategic';
         true,
         'paused battle cannot silently waste a sortie'
       );
-      await page.evaluate(() => document.getElementById('startBtn').click());
-      await page.waitForFunction(() => window.__battle__?.time >= 8, null, { timeout: 35000 });
+      await page.keyboard.press('m'); // Close map so Start receives a real trusted gesture.
+      await page.locator('#startBtn').click();
+      await page.waitForFunction(() => window.__battle__?.time >= 8, null, { timeout: 60000 });
+      await page.keyboard.press('m');
       await page.waitForFunction(() => !document.getElementById('battleRequestAirRecon').disabled, null, {
         timeout: 12000
       });
