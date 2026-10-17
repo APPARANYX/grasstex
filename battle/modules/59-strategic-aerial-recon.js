@@ -207,7 +207,11 @@
     version: '0.1-independent',
     request: request,
     forGeneral: forGeneral,
-    tuning: Object.freeze({ earliestRequestSeconds: MIN_REQUEST_AT, interceptionRequestSeconds: INTERCEPTION_RECON_AT, validitySeconds: VALID_SECONDS })
+    tuning: Object.freeze({
+      earliestRequestSeconds: MIN_REQUEST_AT,
+      interceptionRequestSeconds: INTERCEPTION_RECON_AT,
+      validitySeconds: VALID_SECONDS
+    })
   };
   if (typeof root.GTLog === 'function') root.GTLog('[STRATEGIC] one-shot aerial recon ready');
 })(typeof window !== 'undefined' ? window : globalThis);
