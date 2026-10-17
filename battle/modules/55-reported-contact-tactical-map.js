@@ -672,7 +672,7 @@
         ? event
           ? 'REPORT RECEIVED · ' +
             status.contacts +
-            ' moving contacts · expires in ' +
+            ' sightings · expires in ' +
             Math.max(0, Math.ceil(event.validUntil - sim.time)) +
             's'
           : 'SORTIE COMPLETE · INTELLIGENCE EXPIRED'
@@ -698,20 +698,20 @@
         'stroke-width': 1.6,
         'stroke-dasharray': '5 4'
       });
-      add(group, 'path', {
-        d: 'M0 -10 L8 7 L0 3 L-8 7 Z',
-        fill: '#f4cf91',
-        stroke: '#403527',
-        'stroke-width': 1,
-        transform: 'rotate(' + ((c.headingRadians || 0) * 180) / Math.PI + ')'
-      });
+      var stationary = c.observation === 'stationary' || c.headingRadians == null;
+      add(group, 'path', stationary
+        ? { d: 'M0 -9 L9 0 L0 9 L-9 0 Z', fill: '#f4cf91', stroke: '#403527', 'stroke-width': 1 }
+        : { d: 'M0 -10 L8 7 L0 3 L-8 7 Z', fill: '#f4cf91',
+          stroke: '#403527', 'stroke-width': 1,
+          transform: 'rotate(' + (c.headingRadians * 180 / Math.PI) + ')' });
       add(
         group,
         'title',
         {},
         'AIR RECON · approximate fix · ' +
           gridRef(c, dimensions) +
-          ' · heading and speed uncertain · observation ' +
+          (stationary ? ' · stationary/unknown heading' : ' · approximate heading/speed') +
+          ' · observation ' +
           event.observedAt +
           's'
       );
@@ -724,9 +724,8 @@
         gridRef(c, dimensions) +
         ' · ' +
         age +
-        's OLD · ~' +
-        c.speedMps +
-        'm/s' +
+        's OLD · ' +
+        (stationary ? 'POSITION ONLY' : '~' + c.speedMps + 'm/s') +
         ' · CONF ' +
         Math.round(100 * c.confidence) +
         '%' +
@@ -738,7 +737,7 @@
     if (airReportsNode && !event.contacts.length) {
       var empty = document.createElement('p');
       empty.className = 'gtm-report-empty';
-      empty.textContent = 'No qualifying moving enemy formations observed on this sortie.';
+      empty.textContent = 'No qualifying exposed formations observed on this sortie.';
       airReportsNode.appendChild(empty);
     }
   }
