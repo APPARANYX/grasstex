@@ -125,6 +125,7 @@
       p = { x: +contact.x, z: +contact.z },
       h = { x: Math.sin(contact.headingRadians), z: Math.cos(contact.headingRadians) },
       fast = Math.max(MIN_GROUND_SPEED, contact.speedMps + (contact.speedUncertaintyMps || 0)),
+      slow = Math.max(MIN_GROUND_SPEED, contact.speedMps - (contact.speedUncertaintyMps || 0)),
       slack = contact.positionUncertaintyM || 40,
       roads = (town.roads || [])
         .map(function (road) {
@@ -138,6 +139,10 @@
       out = [];
     function eta(metres) {
       return round(Math.max(0, metres - slack) / fast, 1);
+    }
+    // The slowest plausible arrival: how long a watch point must be held.
+    function latest(metres) {
+      return round((metres + slack) / slow, 1);
     }
     function emit(edge, from, to, fraction, travelled, hop, likelihood, alignment, offRoad) {
       if (eta(travelled) > CORRIDOR_HORIZON_SECONDS) return;
@@ -153,6 +158,7 @@
           point: Object.freeze(point),
           leadMetres: round(travelled, 0),
           enemyEtaSeconds: eta(travelled),
+          enemyLatestSeconds: latest(travelled),
           hop: hop,
           likelihood: round(likelihood, 2),
           alignment: round(alignment, 2),

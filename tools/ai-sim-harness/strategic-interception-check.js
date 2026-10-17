@@ -479,6 +479,12 @@ assert.ok(
   'the projection stops at the observer base instead of routing through it'
 );
 assert.equal(forecast.best.enemyETA, 419.3, 'earliest feasible corridor, not the longest margin');
+const picked = fed.corridors.find(c => c.point.z === forecast.best.spec.point.z);
+assert.ok(picked.enemyLatestSeconds > picked.enemyEtaSeconds, 'report gives earliest and latest arrival');
+assert.ok(
+  forecast.best.expiresAt >= fed.observedAt + Math.min(720, picked.enemyLatestSeconds),
+  'the post is held until the slowest plausible arrival'
+);
 const aged = make();
 const agedEv = aged.root.BattleAerialRecon.request(aged.sim, 'us');
 aged.sim.time += 20;

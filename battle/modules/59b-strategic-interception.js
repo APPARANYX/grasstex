@@ -47,6 +47,7 @@
         alignment: c.alignment * (c.likelihood == null ? 1 : c.likelihood),
         offRoad: c.offRoadM || 0,
         enemyETA: c.enemyEtaSeconds,
+        enemyLatest: c.enemyLatestSeconds,
         leadMetres: c.leadMetres,
         hop: c.hop || 0
       };
@@ -307,9 +308,16 @@
             roadId: track.roadId,
             contactId: track.contact.squadId,
             observedAt: track.contact.observedAt,
+            /* Report-fed: hold the post until the column's slowest plausible
+               arrival, not its earliest; an early expiry abandons the ambush
+               just before the column arrives. */
             expiresAt: Math.min(
               track.contact.observedAt + 720,
-              sim.time + Math.max(180, track.enemyETA - age + 80)
+              sim.time +
+                Math.max(
+                  180,
+                  (reportFed && track.enemyLatest != null ? track.enemyLatest : track.enemyETA) - age + 80
+                )
             ),
             enemyETA: track.enemyETA - age,
             friendlyETA: friendlyETA,
