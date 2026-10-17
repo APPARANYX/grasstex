@@ -414,6 +414,20 @@
         // A genuine contact or ongoing intercept survives incidental objective
         // ownership changes; no second air snapshot is inferred at expiry.
         if (m.intercept && sim.time >= m.intercept.expiresAt && !sq.inContact) return 'intercept-expired';
+        /* Front lines: a lone garrison squad out at an ambush post goes back once the enemy may
+           attack the line it left; its prepared-defense request re-briefs it to that line. */
+        if (
+          m.intercept &&
+          m.intercept.loneGarrison &&
+          m.intercept.garrisonObjectiveId &&
+          root.BattleFrontLines &&
+          root.BattleFrontLines.attackable(
+            sim,
+            sq.faction === 'us' ? 'ge' : 'us',
+            m.intercept.garrisonObjectiveId
+          )
+        )
+          return 'garrison-line-threatened';
         return null;
       }
       /* An intentionally held second-truck team cannot be swallowed by

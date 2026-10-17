@@ -303,4 +303,18 @@ test('front lines: a capture brief on a line that is no longer attackable is rep
 test('front lines: without the rules module the old brief is kept',()=>{
   const f=fixture();f.tick();const old=f.sq._macroMission;for(let i=0;i<5;i++)f.tick();assert.strictEqual(f.sq._macroMission,old);
 });
+test('front lines: a lone garrison squad at an ambush post is recalled once its line may be attacked',()=>{
+  const f=fixture();let open=false;f.r.BattleFrontLines={attackable:(sim,faction,id)=>id==='a'?open:true};
+  f.sim._objectives[0].state.owner='us';f.sq._preparedDefenseRequest={objectiveId:'a',point:{x:100,z:0}};f.tick();
+  assert.equal(f.sq._macroMission.intent,'defend');
+  const v=f.sq._macroMission.version;
+  f.sq._macroMission={...f.sq._macroMission,version:v+1,intent:'intercept',action:'intercept',objectiveId:null,status:'executing',key:'ambush',intercept:{garrisonObjectiveId:'a',loneGarrison:true,expiresAt:9999}};
+  const out=f.sq._macroMission;for(let i=0;i<5;i++)f.tick();
+  assert.strictEqual(f.sq._macroMission,out,'the post is held while the line is safe');
+  open=true;f.tick();
+  assert.equal(f.sq._macroMission.intent,'defend','back to its garrison');assert.equal(f.sq._macroMission.objectiveId,'a');
+  const kept=fixture();kept.r.BattleFrontLines={attackable:()=>true};kept.sim._objectives[0].state.owner='us';kept.sq._preparedDefenseRequest={objectiveId:'a',point:{x:100,z:0}};kept.tick();
+  kept.sq._macroMission={...kept.sq._macroMission,intent:'intercept',action:'intercept',objectiveId:null,status:'executing',key:'ambush',intercept:{garrisonObjectiveId:'a',loneGarrison:false,expiresAt:9999}};
+  const held=kept.sq._macroMission;kept.tick();assert.strictEqual(kept.sq._macroMission,held,'a squad whose line kept a garrison holds its post');
+});
 console.log(`macro-mission-command: ${passed} passed, ${failed} failed`);if(failed)process.exitCode=1;

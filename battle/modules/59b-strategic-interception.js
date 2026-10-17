@@ -242,11 +242,11 @@
       else if (r && r.objectiveId === request.objectiveId) stays++;
     });
     if (out) return false;
-    if (stays >= 1) return true;
+    if (stays >= 1) return 'kept';
     // A lone garrison may leave only a line the enemy cannot attack yet (the next-line rule).
     var lines = root.BattleFrontLines,
       enemy = sq.faction === 'us' ? 'ge' : 'us';
-    return !!(lines && lines.active(sim) && !lines.attackable(sim, enemy, request.objectiveId));
+    return lines && lines.active(sim) && !lines.attackable(sim, enemy, request.objectiveId) ? 'lone' : false;
   }
   function centreOf(sq) {
     var men = (sq.members || []).filter(function (m) {
@@ -371,8 +371,10 @@
       // counts from the observation, not from this decision.
       age = reportFed ? Math.max(0, (+sim.time || 0) - (+track.contact.observedAt || 0)) : 0;
     ((sim.factions[faction] && sim.factions[faction].squads) || []).forEach(function (sq) {
-      if (reportFed && garrisonAmbush(sim, sq, track)) {
+      var garrison = reportFed && garrisonAmbush(sim, sq, track);
+      if (garrison) {
         var foot = footQuote(sim, sq, track, age, diag);
+        if (foot) foot.loneGarrison = garrison === 'lone';
         if (foot && (!best || foot.score > best.score + 0.001)) best = foot;
         return;
       }
@@ -1054,6 +1056,8 @@
     if (selected.mode === 'foot') {
       selected.spec.intercept.mode = 'foot';
       selected.spec.intercept.garrisonObjectiveId = selected.garrisonObjectiveId;
+      // The squad left its line empty: the General recalls it once the enemy may attack that line.
+      selected.spec.intercept.loneGarrison = !!selected.loneGarrison;
     }
     var m = issue(selected.squad, selected.spec, 'aerial-intercept-feasible');
     var success =

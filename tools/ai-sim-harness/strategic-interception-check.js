@@ -674,6 +674,7 @@ function garrisonWorld(search, count) {
     'a line-change report lets one garrison squad walk out'
   );
   assert.ok(pick.margin > 25 && pick.vehicleId === null, 'on foot, ahead of the column');
+  assert.equal(pick.loneGarrison, false, 'its line kept a garrison squad');
   pick.squad._macroMission = { intent: 'intercept', intercept: { garrisonObjectiveId: 'crossing' } };
   assert.equal(
     G.choose(g.sim, 'us', line).best,
@@ -698,6 +699,7 @@ function garrisonWorld(search, count) {
     rearPick && rearPick.mode === 'foot',
     'a lone garrison of a line the enemy cannot attack yet may walk out'
   );
+  assert.equal(rearPick.loneGarrison, true, 'marked lone, so the General recalls it if the line opens');
   rear.g.root.BattleFrontLines = { active: () => true, attackable: () => true };
   assert.equal(
     rear.g.root.BattleStrategicInterception.choose(rear.g.sim, 'us', Object.freeze({ ...rear.ev, sortie: 2 }))
