@@ -68,8 +68,14 @@ tick(w);
 const usEvent = A.forGeneral(w.sim, 'us');
 assert.ok(usEvent && Object.isFrozen(usEvent) && Object.isFrozen(usEvent.contacts));
 assert.equal(usEvent.faction, 'us');
-assert.equal(usEvent.contacts.length, 1, 'enemy-only, moving, enemy-half, unconcealed');
-const target = usEvent.contacts[0];
+assert.equal(usEvent.contacts.length, 2, 'moving plus exposed stationary; hidden ambush groups stay unreported');
+const target = usEvent.contacts.find(c => c.squadId === 'ge-0');
+const stationary = usEvent.contacts.find(c => c.squadId === 'ge-stationary');
+assert.ok(stationary, 'exposed stationary formation yields an uncertain position-only fix');
+assert.equal(stationary.speedMps, 0);
+assert.equal(stationary.headingRadians, null, 'no invented route or direction');
+assert.equal(stationary.observation, 'stationary');
+assert.ok(stationary.confidence < target.confidence);
 assert.equal(target.squadId, 'ge-0');
 assert.equal(target.source, 'aerial');
 assert.ok(target.positionUncertaintyM > 0 && target.headingUncertaintyRadians > 0);
@@ -97,7 +103,7 @@ w.ge.members.forEach(s => {
   s.moveSpeed = 2;
 });
 tick(w);
-assert.equal(A.forGeneral(w.sim, 'us').contacts.length, 1, 'restart restores sortie allocation');
+assert.equal(A.forGeneral(w.sim, 'us').contacts.length, 2, 'restart restores moving and stationary sightings');
 const identical = make();
 identical.sim.time = 120;
 tick(identical);
@@ -124,7 +130,9 @@ incoherent.ge.members.forEach((s, i) => {
   s.root.rotation.y = i % 2 ? Math.PI / 2 : -Math.PI / 2;
 });
 tick(incoherent);
-assert.equal(incoherent.root.BattleAerialRecon.forGeneral(incoherent.sim, 'us').contacts.length, 0);
+const incoherentContacts = incoherent.root.BattleAerialRecon.forGeneral(incoherent.sim, 'us').contacts;
+assert.ok(incoherentContacts.every(c => c.speedMps === 0 && c.headingRadians === null),
+  'disagreeing directions never produce a fake movement track');
 const player = make();
 const P = player.root.BattleAerialRecon;
 player.sim.time = 3;
@@ -144,7 +152,7 @@ assert.equal(
 player.sim.paused = false;
 const manual = P.request(player.sim, 'us', { playerOrdered: true });
 assert.ok(
-  manual && manual.faction === 'us' && manual.contacts.length === 1,
+  manual && manual.faction === 'us' && manual.contacts.length === 2,
   'early human-authorized General recon returns a genuine bounded enemy-side observation'
 );
 assert.equal(P.status(player.sim, 'us').used, true);
@@ -159,7 +167,7 @@ assert.equal(P.forGeneral(player.sim, 'us'), null);
 assert.equal(P.status(player.sim, 'us').live, false);
 assert.equal(
   P.status(player.sim, 'us').contacts,
-  1,
+  2,
   'post-expiry summary does not silently refund the sortie'
 );
 assert.equal(P.forGeneral(player.sim, 'ge'), null, 'German observations cannot leak through US request');
