@@ -14,6 +14,10 @@
     BOARD_TIMEOUT = 35,
     VEHICLES_PER_BASE = 2,
     SEAT_TOLERANCE = 0.2,
+    BOARD_STAGGER = 0.8,
+    TURNOUT_METRES = 11,
+    SCREEN_STANDOFF = 25,
+    NEARBY_TRUCK_METRES = 200,
     EPS = 0.00001;
   function position(p) {
     return p && isFinite(+p.x) && isFinite(+p.z) ? { x: +p.x, z: +p.z } : null;
@@ -84,8 +88,15 @@
   }
   /* Cut exactly the final 180 m of a REAL road path: passengers approach
      within walking reach and never drive across the defended objective. */
-  function plan(town, origin, mission) {
-    var goal = position(mission.point),
+  function plan(town, origin, mission, minimumTrip) {
+    var standoff =
+        mission.intent === 'screen'
+          ? Math.min(
+              60,
+              Math.max(15, +((mission.screen && mission.screen.standoffMetres) || SCREEN_STANDOFF))
+            )
+          : DISEMBARK_METRES,
+      goal = position(mission.point),
       points = [position(origin)].concat((mission.route || []).map(position)).concat([goal]),
       legs = [],
       i;
@@ -110,8 +121,8 @@
     var total = legs.reduce(function (n, leg) {
       return n + leg.length;
     }, 0);
-    if (total < MIN_TRIP + DISEMBARK_METRES) return null;
-    var travel = total - DISEMBARK_METRES,
+    if (total < (minimumTrip == null ? MIN_TRIP : minimumTrip) + standoff) return null;
+    var travel = total - standoff,
       used = 0,
       path = [],
       originPoint = points[0];
@@ -144,7 +155,8 @@
             }, 0);
             return sec + Math.max(0, Math.min(leg.length, travel - before)) / leg.speed;
           }, 0),
-          origin: originPoint
+          origin: originPoint,
+          standoffMetres: standoff
         }
       : null;
   }
@@ -216,11 +228,78 @@
       })
     );
   }
-  function parkingRoute(town, vehicle, mission) {
-    return plan(town, vehicle.position, {
-      point: mission.point,
-      route: [vehicle.join].concat(mission.route || [])
+  function nearestRoadEntry(town, where) {
+    var result = null;
+    (town.roads || []).forEach(function (road) {
+      var dx = road.bx - road.ax,
+        dz = road.bz - road.az,
+        length2 = dx * dx + dz * dz;
+      if (length2 < 1) return;
+      var t = Math.max(0, Math.min(1, ((where.x - road.ax) * dx + (where.z - road.az) * dz) / length2)),
+        point = { x: road.ax + dx * t, z: road.az + dz * t },
+        distance = dist(where, point);
+      if (!result || distance < result.distance) result = { point: point, distance: distance };
     });
+    return result && result.distance <= 32 ? result.point : null;
+  }
+  function parkingRoute(town, sq, vehicle, mission) {
+    var goalId = mission.objectiveId || (mission.screen && mission.screen.securedObjectiveId),
+      roadStart = vehicle.phase === 'parked' ? vehicle.join : vehicle.position,
+      planner = root.BattleCommanderRoutes && root.BattleCommanderRoutes.missionRouteFor,
+      supplied =
+        vehicle.phase === 'parked' ? [vehicle.join].concat(mission.route || []) : mission.route || [],
+      // The General may have briefed from the base before a truck was
+      // assigned. Re-plan from the CURRENT truck/road join to prevent an
+      // immediate 180-degree turn back toward that stale base waypoint.
+      regenerated = goalId && planner ? planner(sq, town, goalId, roadStart) : null,
+      stops =
+        regenerated && regenerated.length
+          ? vehicle.phase === 'parked'
+            ? [vehicle.join].concat(regenerated)
+            : regenerated
+          : supplied;
+    if (vehicle.phase === 'stopped') {
+      var entry = nearestRoadEntry(town, vehicle.position);
+      if (!entry) return null;
+      if (!stops.length || dist(stops[0], entry) > 3) stops = [entry].concat(stops);
+    }
+    return plan(
+      town,
+      vehicle.position,
+      {
+        intent: mission.intent,
+        screen: mission.screen,
+        point: mission.point,
+        route: stops
+      },
+      vehicle.phase === 'stopped' ? 120 : MIN_TRIP
+    );
+  }
+  function pullOff(sim, town, route, vehicle) {
+    // Preserve the public road until the last waypoint, then park on a
+    // physically clear shoulder; no silent roadside teleport or traffic stop.
+    var path = route.path,
+      last = path[path.length - 1].point,
+      previous = path.length > 1 ? path[path.length - 2].point : vehicle.position,
+      dx = last.x - previous.x,
+      dz = last.z - previous.z,
+      length = Math.hypot(dx, dz);
+    if (length < 1) return null;
+    var side = { x: -dz / length, z: dx / length };
+    for (var direction of [vehicle.faction === 'us' ? 1 : -1, vehicle.faction === 'us' ? -1 : 1]) {
+      var shoulder = {
+        x: last.x + side.x * TURNOUT_METRES * direction,
+        z: last.z + side.z * TURNOUT_METRES * direction
+      };
+      if (!safe(sim, last, shoulder)) continue;
+      path.push({ point: shoulder, speed: SPEED_JOIN });
+      route.destination = shoulder;
+      route.pathMetres += TURNOUT_METRES;
+      route.estimatedDriveSeconds += TURNOUT_METRES / SPEED_JOIN;
+      route.roadExit = last;
+      return route;
+    }
+    return null;
   }
   function log(sim, sq, type, detail) {
     if (root.BattleTelemetry && root.BattleTelemetry.record)
@@ -262,72 +341,97 @@
     }
     log(sim, sq, t.phase, { why: why, meters: +t.travelled.toFixed(2), vehicleId: t.vehicleId });
   }
-  function considerMission(sim, sq, mission) {
+  /* Pure, side-effect-free transport admission/ETA used by Macro before
+     publication. Same real parked vehicle, same road/obstacle checks as grant. */
+  function quoteMission(sim, sq, mission) {
     if (
       !enabled(sim) ||
       !sq ||
       !mission ||
       mission.owner !== 'force-command' ||
-      mission.intent !== 'capture' ||
-      mission.status !== 'issued' ||
+      (mission.intent !== 'capture' && mission.intent !== 'intercept' && mission.intent !== 'screen') ||
+      (mission.status && mission.status !== 'issued') ||
       sq.state === 'retreat' ||
       sq.inContact ||
       sq.isPlayer ||
       sq._preparedDefenseRequest ||
-      sq._transportUsed
+      (sq._transport && (sq._transport.phase === 'embarked' || sq._transport.phase === 'boarding'))
     )
-      return false;
-    if (sq._transport && (sq._transport.phase === 'embarked' || sq._transport.phase === 'boarding'))
-      finish(sim, sq, 'new-general-mission');
+      return null;
     var home = position(sq.baseHome || sq.home),
       center = middle(sq),
       members = alive(sq),
       town = sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario;
     if (
       !center ||
-      !home ||
+      !town ||
       members.length < 3 ||
-      dist(center, home) > 95 ||
       members.some(function (s) {
         return s.isPlayer || s.suppressedUntil > sim.time || dist(position(s.root.position), center) > 32;
       })
     )
-      return false;
-    var fleet = sim._strategicTransportFleet || initializeFleet(sim),
-      candidates = fleet.vehicles
+      return null;
+    var fleet = sim._strategicTransportFleet,
+      previousVehicleId = sq._transport && sq._transport.vehicleId,
+      candidates = (fleet ? fleet.vehicles : [])
         .filter(function (v) {
-          var base = ((town.spawnZones[v.faction] && town.spawnZones[v.faction].bases) || [])[v.baseIndex];
-          return (
-            v.faction === sq.faction &&
-            v.phase === 'parked' &&
-            base &&
-            dist(center, base) <= 95 &&
-            dist(center, v.position) <= 65
-          );
+          if (
+            v.faction !== sq.faction ||
+            v.squadId ||
+            (v.phase !== 'parked' && v.phase !== 'stopped') ||
+            dist(center, v.position) > NEARBY_TRUCK_METRES
+          )
+            return false;
+          if (v.phase === 'parked') {
+            var base = ((town.spawnZones[v.faction] && town.spawnZones[v.faction].bases) || [])[v.baseIndex];
+            return base && dist(center, base) <= 95;
+          }
+          return true;
         })
         .sort(function (a, b) {
-          return dist(center, a.position) - dist(center, b.position) || a.id.localeCompare(b.id);
-        }),
-      vehicle = null,
-      route = null;
+          var preferredA = a.id === previousVehicleId ? 0 : 1,
+            preferredB = b.id === previousVehicleId ? 0 : 1;
+          return (
+            preferredA - preferredB ||
+            dist(center, a.position) - dist(center, b.position) ||
+            a.id.localeCompare(b.id)
+          );
+        });
     for (var c = 0; c < candidates.length; c++) {
-      var trial = parkingRoute(town, candidates[c], mission);
+      var vehicle = candidates[c],
+        trial = parkingRoute(town, sq, vehicle, mission);
       if (!trial || !trial.path.length) continue;
-      var previous = candidates[c].position,
-        passable = safe(sim, center, candidates[c].position);
+      trial = pullOff(sim, town, trial, vehicle);
+      if (!trial) continue;
+      var previous = vehicle.position,
+        passable = safe(sim, center, vehicle.position);
       for (var i = 0; passable && i < trial.path.length; i++) {
         passable = safe(sim, previous, trial.path[i].point);
         previous = trial.path[i].point;
       }
-      if (passable) {
-        vehicle = candidates[c];
-        route = trial;
-        break;
-      }
+      if (passable)
+        return {
+          vehicle: vehicle,
+          route: trial,
+          boardSeconds: Math.max(
+            10,
+            dist(center, vehicle.position) / BOARD_SPEED + 8 + Math.max(0, members.length - 1) * BOARD_STAGGER
+          ),
+          dismountSeconds: trial.standoffMetres / 2,
+          setupSeconds: 25
+        };
     }
-    if (!vehicle) return false;
+    return null;
+  }
+  function considerMission(sim, sq, mission) {
+    var quote = quoteMission(sim, sq, mission);
+    if (!quote || mission.status !== 'issued') return false;
+    var vehicle = quote.vehicle,
+      route = quote.route,
+      members = alive(sq);
     var ledger = sim._strategicTransport || (sim._strategicTransport = { us: 0, ge: 0 });
     ledger[sq.faction]++;
+    var reusedTruck = vehicle.phase === 'stopped';
     vehicle.phase = 'assigned';
     vehicle.squadId = sq.id;
     sq._transportUsed = true;
@@ -341,15 +445,26 @@
       baseId: vehicle.baseId,
       boardingCenter: position(vehicle.position),
       initialPassengerCount: members.length,
+      boardingOrder: members.map(function (member) {
+        return member.id;
+      }),
+      boardedCount: 0,
+      nextBoardAt: +sim.time || 0,
+      // A 200m pickup takes longer than the old base-only 35s boarding cap.
+      // Preserve that 35s cap for unaccepted orders; give accepted teams
+      // enough physical approach + serial-seat time to finish boarding.
+      boardTimeoutSeconds: Math.max(BOARD_TIMEOUT, Math.ceil(quote.boardSeconds + 15)),
       position: position(vehicle.position),
       initialPosition: position(vehicle.position),
-      heading: heading(vehicle.position, route.path[0].point),
+      // No snap-turn when first passenger touches the stopped truck.
+      heading: { x: vehicle.heading.x, z: vehicle.heading.z },
       path: route.path,
       leg: 0,
       travelled: 0,
       total: route.pathMetres,
       estimatedDriveSeconds: route.estimatedDriveSeconds,
       dismountPoint: route.destination,
+      standoffMetres: route.standoffMetres,
       goal: route.goal
     };
     log(sim, sq, 'granted', {
@@ -357,6 +472,8 @@
       vehicleId: vehicle.id,
       baseId: vehicle.baseId,
       routeMetres: +route.pathMetres.toFixed(1),
+      standoffMetres: route.standoffMetres,
+      reusedTruck: reusedTruck,
       eta: +route.estimatedDriveSeconds.toFixed(1)
     });
     return true;
@@ -379,23 +496,50 @@
   function board(sim, sq, dt) {
     var t = sq._transport,
       members = alive(sq),
-      allReady = true;
-    if (sim.time - t.requestedAt > BOARD_TIMEOUT) {
+      seats = t.boardingOrder;
+    if (sim.time - t.requestedAt > (t.boardTimeoutSeconds || BOARD_TIMEOUT)) {
       finish(sim, sq, 'boarding-timeout');
       return;
     }
+    // Real actors can approach together, but driver then seats 1..9 enter
+    // individually. The renderer may show each seat as it is occupied.
     for (var i = 0; i < members.length; i++) {
-      var seat = memberSeat(i, members.length, t.boardingCenter, t.heading);
-      if (!advancePassenger(sim, members[i], seat, dt)) {
+      var index = seats.indexOf(members[i].id);
+      if (index < 0) {
+        finish(sim, sq, 'boarding-roster-changed');
+        return;
+      }
+      if (index < t.boardedCount) continue;
+      var target = memberSeat(index, seats.length, t.boardingCenter, t.heading);
+      if (!advancePassenger(sim, members[i], target, dt)) {
         finish(sim, sq, 'boarding-blocked');
         return;
       }
-      if (dist(position(members[i].root.position), seat) > SEAT_TOLERANCE) allReady = false;
     }
-    if (allReady) {
+    if (t.boardedCount < seats.length && sim.time + EPS >= t.nextBoardAt) {
+      var nextId = seats[t.boardedCount],
+        passenger = members.find(function (m) {
+          return m.id === nextId;
+        });
+      if (!passenger) {
+        finish(sim, sq, 'boarding-roster-changed');
+        return;
+      }
+      var seat = memberSeat(t.boardedCount, seats.length, t.boardingCenter, t.heading);
+      if (dist(position(passenger.root.position), seat) <= SEAT_TOLERANCE) {
+        t.boardedCount++;
+        t.nextBoardAt = sim.time + BOARD_STAGGER;
+        log(sim, sq, 'seat-occupied', {
+          vehicleId: t.vehicleId,
+          soldierId: passenger.id,
+          seatIndex: t.boardedCount - 1
+        });
+      }
+    }
+    if (t.boardedCount >= seats.length) {
       t.phase = 'embarked';
       t.embarkedAt = +sim.time || 0;
-      log(sim, sq, 'embarked', { passengers: members.length });
+      log(sim, sq, 'embarked', { passengers: seats.length, vehicleId: t.vehicleId });
     }
   }
   function drive(sim, sq, dt) {
@@ -503,6 +647,7 @@
   root.BattleSquadTransport = {
     version: '0.1-isolated',
     considerMission: considerMission,
+    quoteMission: quoteMission,
     isPassenger: function (s) {
       var t = s && s.squad && s.squad._transport;
       return !!(t && (t.phase === 'boarding' || t.phase === 'embarked'));
@@ -527,6 +672,8 @@
               vehicleId: t.vehicleId,
               baseId: t.baseId,
               travelled: +t.travelled.toFixed(1),
+              boardedCount: t.boardedCount,
+              standoffMetres: t.standoffMetres,
               total: +t.total.toFixed(1),
               requestedAt: +t.requestedAt.toFixed(2),
               embarkedAt: t.embarkedAt == null ? null : +t.embarkedAt.toFixed(2),
@@ -565,6 +712,9 @@
       roadSpeed: SPEED_ROAD,
       joinSpeed: SPEED_JOIN,
       dismountMetres: DISEMBARK_METRES,
+      screenDismountMetres: SCREEN_STANDOFF,
+      turnoutMetres: TURNOUT_METRES,
+      boardingStaggerSeconds: BOARD_STAGGER,
       minimumTrip: MIN_TRIP,
       vehiclesPerFaction: VEHICLES_PER_BASE * 3
     }

@@ -332,7 +332,10 @@
       spec.role,
       spec.route,
       spec.requestKey,
-      spec.plannedObjectiveId
+      spec.plannedObjectiveId,
+      spec.interceptReserve || false,
+      spec.screen || null,
+      spec.intercept || null
     ]);
   }
   /* B1: frozen issue-time evidence, never a new decision input. The report reader
@@ -399,6 +402,9 @@
         role: spec.role,
         requestKey: spec.requestKey || null,
         plannedObjectiveId: spec.plannedObjectiveId || null,
+        interceptReserve: !!spec.interceptReserve,
+        screen: spec.screen || null,
+        intercept: spec.intercept || null,
         reason: reason,
         confidence: evidence.confidence,
         observations: evidence.observations,
@@ -628,6 +634,23 @@
         macroCommandEnabled: macro,
         macroCommandWake: macroWake,
         macroWakeReasons: wakeReasons
+      });
+    /* After the independent one-shot aerial event, only Macro may publish
+       its derived corridor brief. The planner may quote but never issue,
+       move a soldier, or read hostile actor truth. */
+    if (macro && root.BattleStrategicInterception)
+      ['us', 'ge'].forEach(function (faction) {
+        var interception = root.BattleStrategicInterception;
+        var publish = function (sq, spec, reason) {
+          if (sq.faction !== faction) throw new Error('Cross-faction interception brief');
+          return issueMission(sim, sq, spec, reason);
+        };
+        /* Purpose-first: secure an objective, send the second available
+           truck squad beyond it as a physical screen, collect real reports,
+           THEN assess an intercept. Aerial intelligence remains supplementary. */
+        if (interception.maybeScreen) interception.maybeScreen(sim, faction, publish);
+        if (interception.maybeScreenReport) interception.maybeScreenReport(sim, faction, publish);
+        if (interception.maybeIssue) interception.maybeIssue(sim, faction, publish);
       });
     var snapshotSeconds = policy(sim, 'us').decisionSnapshotSeconds || 5;
     if (!sim._nextDecisionSnapshot || sim.time >= sim._nextDecisionSnapshot) {

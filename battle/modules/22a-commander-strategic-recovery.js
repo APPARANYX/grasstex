@@ -94,6 +94,22 @@
         (+sim.time || 0) - (+m.issuedAt || 0) >= STRATEGIC_STALL_REPLAN - COMMAND_TICK / 2
       );
     }
+    /* A live forward-screen or intercept brief (opt-in ?interception=1) is an explicit physical
+     mission without an objectiveId: the squad is driving a real truck to its post or holding it.
+     Its own lifecycle ends it (wakeReason: screen window, intercept expiry, contact). A faction-wide
+     objective stall is not new information about that post, so the stall stages leave it alone
+     instead of re-briefing it as targetless and aborting the truck mid-road. ?screenStallHold=0
+     restores the old re-brief. */
+    function heldPostMission(sq) {
+      var m = sq && sq._macroMission;
+      if (/(?:^|[?&])screenStallHold=0(?:&|$)/.test((root.location && root.location.search) || ''))
+        return false;
+      return !!(
+        m &&
+        (m.intent === 'screen' || m.intent === 'intercept') &&
+        (m.status === 'issued' || m.status === 'executing')
+      );
+    }
     function activeSquads(squads) {
       return (squads || []).filter(function (sq) {
         return sq && sq.state !== 'retreat' && D.aliveMembers(sq).length > 0;
@@ -292,7 +308,12 @@
     function chooseMainEffort(sim, squads, stalled) {
       var active = activeSquads(squads).filter(function (sq) {
           var m = sq._macroMission;
-          return !usefulDefender(sim, sq) && !(m && m.intent === 'reserve') && sq.commandRole !== 'reserve';
+          return (
+            !usefulDefender(sim, sq) &&
+            !heldPostMission(sq) &&
+            !(m && m.intent === 'reserve') &&
+            sq.commandRole !== 'reserve'
+          );
         }),
         votes = {},
         choices = {},
@@ -380,6 +401,27 @@
       if (!m) return 'initial-mission';
       if (m.status === 'failed' || m.status === 'invalid' || m.status === 'completed')
         return 'mission-resume';
+      if (m.intent === 'screen') {
+        /* A real second-truck observation post is an explicit ongoing
+           mission, not an objective-less idle brief. Hold and report until
+           superseded or combat requires local action. */
+        return m.screen && sim.time > m.screen.orderedAt + 720 && !sq.inContact
+          ? 'screen-window-expired'
+          : null;
+      }
+      if (m.intent === 'intercept') {
+        // A genuine contact or ongoing intercept survives incidental objective
+        // ownership changes; no second air snapshot is inferred at expiry.
+        if (m.intercept && sim.time >= m.intercept.expiresAt && !sq.inContact) return 'intercept-expired';
+        return null;
+      }
+      /* An intentionally held second-truck team cannot be swallowed by
+         ordinary request-changed/catalog churn before it screens or supports
+         the lead. Emergency combat stays under Squad Leader/Engagement. */
+      if (m.intent === 'reserve' && m.interceptReserve) {
+        var interception = root.BattleStrategicInterception;
+        return interception && interception.reservePending(sim, sq.faction) ? null : 'reserve-commit';
+      }
       /* A defense request is new information only when it changes the task: a squad already defending that
        objective keeps its brief while pressure comes and goes; releasing a request-bound brief is reassessed. */
       var request = defenseRequest(sim, sq);
@@ -409,6 +451,38 @@
       var request = defenseRequest(sim, sq),
         old = sq._macroMission,
         role = sq.commandRole || 'center';
+      /* Without a held maneuver reserve, every home-base transport may already
+         be committed when the General receives its one aerial report at 120s.
+         Interception's opt-in command layer explicitly reserves one OWN squad
+         at a real base until the sortie is evaluated. This is a normal Macro
+         hold brief, not an artificial road spawn or a secret enemy reading. */
+      var reservePlanner = root.BattleStrategicInterception;
+      if (
+        reservePlanner &&
+        reservePlanner.reserveSquad(sim, sq) &&
+        !sq._transportUsed &&
+        !sq.inContact &&
+        reason !== 'reserve-commit' &&
+        (!old || old.interceptReserve)
+      ) {
+        if (old && old.interceptReserve && (old.status === 'issued' || old.status === 'executing'))
+          return old;
+
+        return issueMission(
+          sim,
+          sq,
+          {
+            intent: 'reserve',
+            action: 'hold',
+            role: 'reserve',
+            objectiveId: null,
+            point: sq.baseHome || sq.home || D.avgPos(sq),
+            route: [],
+            interceptReserve: true
+          },
+          'purpose-first-forward-screen'
+        );
+      }
       if (request)
         return issueMission(
           sim,
@@ -600,7 +674,7 @@
         var sq = squads[i],
           living = D.aliveMembers(sq).length,
           m = sq._macroMission;
-        if (!living || sq.state === 'retreat') continue;
+        if (!living || sq.state === 'retreat' || heldPostMission(sq)) continue;
         /* Objective-control stall is faction-wide. A squad that is still making
          measurable progress on its existing capture brief is not itself stalled;
          leave that valid brief alone instead of turning slower command adoption
@@ -648,7 +722,13 @@
       for (var i = 0; i < squads.length; i++) {
         var sq = squads[i],
           m = sq._macroMission;
-        if (!D.aliveMembers(sq).length || sq.state === 'retreat' || usefulDefender(sim, sq)) continue;
+        if (
+          !D.aliveMembers(sq).length ||
+          sq.state === 'retreat' ||
+          usefulDefender(sim, sq) ||
+          heldPostMission(sq)
+        )
+          continue;
         var targetless =
             sq.commandRole !== 'reserve' && !(m && m.intent === 'reserve') && !sq.targetObjective,
           stale = staleHoldOrSupport(sim, sq);
@@ -718,6 +798,7 @@
         if (!D.aliveMembers(sq).length || sq.state === 'retreat') continue;
         if (usefulDefender(sim, sq) || makingMissionProgress(sim, faction, sq)) continue;
         if (m && (m.intent === 'reserve' || m.intent === 'reconstitute')) continue;
+        if (heldPostMission(sq)) continue;
         candidates.push(sq);
         if (m && m.objectiveId) resetStalled[m.objectiveId] = true;
       }

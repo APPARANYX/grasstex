@@ -48,6 +48,38 @@
       var local = ctx.localPlan && ctx.localPlan();
       return !!(local && local.contactResumeOn);
     }
+    /* ?transportHandoff=0 restores the old route index after a truck dismount. */
+    function transportHandoffOn() {
+      return !/(?:^|[?&])transportHandoff=0(?:&|$)/.test((root.location && root.location.search) || '');
+    }
+    /* While embarked the carrier, not this owner, moves the squad (squad-ai updateSquad returns early),
+       so route legs the truck drove past were never advanced. On the arrival dismount of THIS brief the
+       Squad Leader skips, once, the legs that lie farther from the brief's final point than the squad
+       already stands: they are behind it. A forward screen otherwise turned its men back toward the
+       secured objective 215-340 m behind its post. Legs still ahead are kept and walked normally. */
+    function adoptTransportArrival(sim, sq, m, ex, legs) {
+      var tr = sq._transport;
+      if (!transportHandoffOn() || !m || !tr || ex.transportHandoff) return;
+      if (tr.phase !== 'dismounted' || tr.endReason !== 'arrival' || tr.missionVersion !== m.version) return;
+      ex.transportHandoff = true;
+      var pos = average(sq),
+        last = legs.length - 1,
+        goal = legs[last],
+        from = Math.max(0, +sq.routeIndex || 0),
+        idx = from;
+      if (!pos || !goal) return;
+      while (idx < last && dist(legs[idx], goal) > dist(pos, goal)) idx++;
+      if (idx === from) return;
+      sq.routeIndex = idx;
+      telemetry(sim, 'decision-route-transport-handoff', {
+        faction: sq.faction,
+        squad: sq.id,
+        missionVersion: m.version,
+        from: from,
+        to: idx,
+        vehicleId: tr.vehicleId || null
+      });
+    }
     function inTown(town, p) {
       /* The strategic scenario's 2.4 km radius bounds the entire open-country
          region, not an urban settlement. Urban corner pauses, clearance phase,
@@ -234,6 +266,7 @@
         closePlan(sim, sq, 'mission superseded');
       }
       var legs = sq.route || [];
+      adoptTransportArrival(sim, sq, m, ex, legs);
       var postures = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
         posture = postures && postures.current(sim, sq);
       if (posture && posture.mode === 'ambush') {
@@ -266,6 +299,61 @@
           return;
         }
       }
+      if (m && m.intent === 'screen' && idx === last) {
+        /* The second truck's Squad Leader establishes an observation screen
+           beyond the publicly secured objective. No invented enemy contact,
+           firing order or passive teleport: ordinary infantry movement owns
+           the last physical metres after dismount. */
+        if (dist(pos, wp) <= 38) {
+          if (!ex.screenOnPostAt) {
+            ex.screenOnPostAt = t;
+            if (root.BattleTelemetry && root.BattleTelemetry.record)
+              root.BattleTelemetry.record(
+                'strategic-forward-screen-on-post',
+                {
+                  faction: sq.faction,
+                  squad: sq.id,
+                  missionVersion: m.version,
+                  securedObjectiveId: m.screen && m.screen.securedObjectiveId,
+                  roadId: m.screen && m.screen.roadId,
+                  at: +t.toFixed(2),
+                  position: copy(pos)
+                },
+                sim
+              );
+          }
+          setPhase(sim, sq, 'hold', 'forward observation established');
+        } else setPhase(sim, sq, 'approach', 'moving past secured objective');
+        sq.objective = copy(wp);
+        return;
+      }
+      if (m && m.intent === 'intercept' && idx === last) {
+        // Reach the ACTUAL corridor with the usual movement/Engagement owners.
+        // The General cannot grant sighting, suppression, or first shots.
+        var onPost = dist(pos, wp) <= 38;
+        if (onPost) {
+          if (!ex.interceptOnPostAt) {
+            ex.interceptOnPostAt = t;
+            if (root.BattleTelemetry && root.BattleTelemetry.record)
+              root.BattleTelemetry.record(
+                'strategic-interception-on-post',
+                {
+                  faction: sq.faction,
+                  squad: sq.id,
+                  missionVersion: m.version,
+                  vehicleId: m.intercept && m.intercept.vehicleId,
+                  at: +t.toFixed(2),
+                  position: copy(pos),
+                  roadId: m.intercept && m.intercept.roadId
+                },
+                sim
+              );
+          }
+          setPhase(sim, sq, 'hold', 'intercept corridor reached');
+        } else setPhase(sim, sq, 'approach', 'intercept corridor approach');
+        sq.objective = copy(wp);
+        return;
+      }
       if ((m && m.intent === 'reserve') || (!m && sq.commandRole === 'reserve')) {
         setPhase(sim, sq, 'reserve', 'holding reserve');
         sq.objective = copy(legs[last]);
@@ -291,7 +379,7 @@
         sq.objective = copy(wp);
         return;
       }
-      var recon = reconCandidate(sq, sim, wp);
+      var recon = m && m.intent === 'screen' ? null : reconCandidate(sq, sim, wp);
       /* Don't start a recon task when the squad is already at the objective (idx === last and
        inside the capture radius). The recon candidate looks at distance from the goal, but
        when the squad is ON the goal, recon should not fire — the squad should transition
