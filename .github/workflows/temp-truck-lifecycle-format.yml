@@ -1,0 +1,38 @@
+name: TEMP Truck Lifecycle Formatter
+on:
+  push:
+    branches: [work/truck-lifecycle-cleanup-20261016]
+    paths: [.github/workflows/temp-truck-lifecycle-format.yml]
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Format affected JS and remove this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write \
+            battle/modules/58-strategic-abstract-transport.js \
+            battle/modules/59-strategic-truck-visual.js \
+            battle/modules/59b-strategic-interception.js \
+            tools/ai-sim-harness/strategic-interception-check.js \
+            tools/ai-sim-harness/strategic-transport-check.js \
+            scripts/check-strategic-truck-visual.cjs
+          git rm -- .github/workflows/temp-truck-lifecycle-format.yml
+          git add -- battle/modules/58-strategic-abstract-transport.js \
+            battle/modules/59-strategic-truck-visual.js \
+            battle/modules/59b-strategic-interception.js \
+            tools/ai-sim-harness/strategic-interception-check.js \
+            tools/ai-sim-harness/strategic-transport-check.js \
+            scripts/check-strategic-truck-visual.cjs
+          git config user.name grasstex-ci
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "style(trucks): format lifecycle changes and self-remove formatter"
+          git push origin HEAD:work/truck-lifecycle-cleanup-20261016
