@@ -13,6 +13,12 @@ STATIC_FILES = [
     ("battle_metrics.php", "battle_metrics.php"),
     # Branch preview launcher: stages a branch's runtime into preview/ref-<sha>/ on request.
     ("preview.php", "preview.php"),
+    # Site-hosted two-commander sealed-order exchange; files updated by hash, state stays server-owned.
+    ("wargame/index.html", "wargame/index.html"),
+    ("wargame/app.js", "wargame/app.js"),
+    ("wargame/api.php", "wargame/api.php"),
+    ("wargame/engine.php", "wargame/engine.php"),
+    ("wargame/scenario.json", "wargame/scenario.json"),
 ]
 # The repo's FBX Motion Lab (labs/): workbench, asset inventory and the endpoint that saves
 # per-model sidecar calibrations (Assets/soldiers/<model>.json) the game reads at load. These
@@ -81,7 +87,7 @@ GENERATED_FILES = ["build-version.json"]
 # Server-side files this deploy must never delete or overwrite: hand-placed sidecar JSON (clip,
 # model and lab metadata beside the FBX assets), the FBX soldier-animation lab, and anything else
 # the repo does not manage. The only JSON the deploy owns are the two it generates below.
-MANAGED_JSON = {"battle/build-version.json", "Assets/audio/manifest.json"}
+MANAGED_JSON = {"battle/build-version.json", "Assets/audio/manifest.json", "wargame/scenario.json"}
 PROTECTED = [re.compile(r"\.json$", re.I), re.compile(r"lab", re.I), re.compile(r"sidecar", re.I)]
 # The only remote files a deploy may delete: a battle module it deployed itself that left the repo.
 DELETABLE = re.compile(r"^battle/modules/[A-Za-z0-9._-]+\.js$")
