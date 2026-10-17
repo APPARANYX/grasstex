@@ -1918,7 +1918,23 @@
     }
     function stepDesktopFrame() {
       var dt = Math.min(0.05, engine.getDeltaTime() / 1000),
-        pad = activeGamepad();
+        pad = activeGamepad(),
+        tacticalMap = global.BattleTacticalMap;
+      /* Xbox D-pad Right toggles the full tactical map; while it is open,
+         movement, look and firing are suspended, not just hidden visually.
+         Preserve the View button's separate player-possession function. */
+      if (pad && tacticalMap && !menuOpen && padPressedOnce(pad, 15)) {
+        tacticalMap.setOpen(!tacticalMap.isOpen());
+        refreshPadButtons(pad);
+        return;
+      }
+      if (tacticalMap && tacticalMap.isOpen()) {
+        keys.clear();
+        mouseAim = false;
+        mouseFire = false;
+        if (pad) refreshPadButtons(pad);
+        return;
+      }
       /* Restarts reuse the sim object but replace every soldier/root. Check
          identity BEFORE menu/gamepad handling, so paused menus, death tours and
          possession flights all release stale authority on the first frame. */
