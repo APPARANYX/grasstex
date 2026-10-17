@@ -48,6 +48,38 @@
       var local = ctx.localPlan && ctx.localPlan();
       return !!(local && local.contactResumeOn);
     }
+    /* ?transportHandoff=0 restores the old route index after a truck dismount. */
+    function transportHandoffOn() {
+      return !/(?:^|[?&])transportHandoff=0(?:&|$)/.test((root.location && root.location.search) || '');
+    }
+    /* While embarked the carrier, not this owner, moves the squad (squad-ai updateSquad returns early),
+       so route legs the truck drove past were never advanced. On the arrival dismount of THIS brief the
+       Squad Leader skips, once, the legs that lie farther from the brief's final point than the squad
+       already stands: they are behind it. A forward screen otherwise turned its men back toward the
+       secured objective 215-340 m behind its post. Legs still ahead are kept and walked normally. */
+    function adoptTransportArrival(sim, sq, m, ex, legs) {
+      var tr = sq._transport;
+      if (!transportHandoffOn() || !m || !tr || ex.transportHandoff) return;
+      if (tr.phase !== 'dismounted' || tr.endReason !== 'arrival' || tr.missionVersion !== m.version) return;
+      ex.transportHandoff = true;
+      var pos = average(sq),
+        last = legs.length - 1,
+        goal = legs[last],
+        from = Math.max(0, +sq.routeIndex || 0),
+        idx = from;
+      if (!pos || !goal) return;
+      while (idx < last && dist(legs[idx], goal) > dist(pos, goal)) idx++;
+      if (idx === from) return;
+      sq.routeIndex = idx;
+      telemetry(sim, 'decision-route-transport-handoff', {
+        faction: sq.faction,
+        squad: sq.id,
+        missionVersion: m.version,
+        from: from,
+        to: idx,
+        vehicleId: tr.vehicleId || null
+      });
+    }
     function inTown(town, p) {
       /* The strategic scenario's 2.4 km radius bounds the entire open-country
          region, not an urban settlement. Urban corner pauses, clearance phase,
@@ -234,6 +266,7 @@
         closePlan(sim, sq, 'mission superseded');
       }
       var legs = sq.route || [];
+      adoptTransportArrival(sim, sq, m, ex, legs);
       var postures = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
         posture = postures && postures.current(sim, sq);
       if (posture && posture.mode === 'ambush') {

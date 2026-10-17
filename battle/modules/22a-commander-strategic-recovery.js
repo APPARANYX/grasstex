@@ -94,6 +94,22 @@
         (+sim.time || 0) - (+m.issuedAt || 0) >= STRATEGIC_STALL_REPLAN - COMMAND_TICK / 2
       );
     }
+    /* A live forward-screen or intercept brief (opt-in ?interception=1) is an explicit physical
+     mission without an objectiveId: the squad is driving a real truck to its post or holding it.
+     Its own lifecycle ends it (wakeReason: screen window, intercept expiry, contact). A faction-wide
+     objective stall is not new information about that post, so the stall stages leave it alone
+     instead of re-briefing it as targetless and aborting the truck mid-road. ?screenStallHold=0
+     restores the old re-brief. */
+    function heldPostMission(sq) {
+      var m = sq && sq._macroMission;
+      if (/(?:^|[?&])screenStallHold=0(?:&|$)/.test((root.location && root.location.search) || ''))
+        return false;
+      return !!(
+        m &&
+        (m.intent === 'screen' || m.intent === 'intercept') &&
+        (m.status === 'issued' || m.status === 'executing')
+      );
+    }
     function activeSquads(squads) {
       return (squads || []).filter(function (sq) {
         return sq && sq.state !== 'retreat' && D.aliveMembers(sq).length > 0;
@@ -292,7 +308,12 @@
     function chooseMainEffort(sim, squads, stalled) {
       var active = activeSquads(squads).filter(function (sq) {
           var m = sq._macroMission;
-          return !usefulDefender(sim, sq) && !(m && m.intent === 'reserve') && sq.commandRole !== 'reserve';
+          return (
+            !usefulDefender(sim, sq) &&
+            !heldPostMission(sq) &&
+            !(m && m.intent === 'reserve') &&
+            sq.commandRole !== 'reserve'
+          );
         }),
         votes = {},
         choices = {},
@@ -653,7 +674,7 @@
         var sq = squads[i],
           living = D.aliveMembers(sq).length,
           m = sq._macroMission;
-        if (!living || sq.state === 'retreat') continue;
+        if (!living || sq.state === 'retreat' || heldPostMission(sq)) continue;
         /* Objective-control stall is faction-wide. A squad that is still making
          measurable progress on its existing capture brief is not itself stalled;
          leave that valid brief alone instead of turning slower command adoption
@@ -701,7 +722,13 @@
       for (var i = 0; i < squads.length; i++) {
         var sq = squads[i],
           m = sq._macroMission;
-        if (!D.aliveMembers(sq).length || sq.state === 'retreat' || usefulDefender(sim, sq)) continue;
+        if (
+          !D.aliveMembers(sq).length ||
+          sq.state === 'retreat' ||
+          usefulDefender(sim, sq) ||
+          heldPostMission(sq)
+        )
+          continue;
         var targetless =
             sq.commandRole !== 'reserve' && !(m && m.intent === 'reserve') && !sq.targetObjective,
           stale = staleHoldOrSupport(sim, sq);
@@ -771,6 +798,7 @@
         if (!D.aliveMembers(sq).length || sq.state === 'retreat') continue;
         if (usefulDefender(sim, sq) || makingMissionProgress(sim, faction, sq)) continue;
         if (m && (m.intent === 'reserve' || m.intent === 'reconstitute')) continue;
+        if (heldPostMission(sq)) continue;
         candidates.push(sq);
         if (m && m.objectiveId) resetStalled[m.objectiveId] = true;
       }
