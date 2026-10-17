@@ -668,17 +668,19 @@
       airButton.title = 'One authorized air survey per General; no exact enemy targeting information';
     }
     if (airStatus) {
-      airStatus.textContent = status.used
-        ? event
-          ? 'REPORT RECEIVED · ' +
-            status.contacts +
-            ' sightings · expires in ' +
-            Math.max(0, Math.ceil(event.validUntil - sim.time)) +
-            's'
-          : 'SORTIE COMPLETE · INTELLIGENCE EXPIRED'
-        : sim.paused || sim.time < 5
-          ? 'AVAILABLE AFTER DEPLOYMENT · ONE SORTIE'
-          : 'ONE SORTIE AVAILABLE · REPORTS LAST 45s';
+      airStatus.textContent = status.inFlight
+        ? 'SORTIE AIRBORNE · REPORT DUE IN ' + Math.max(0, Math.ceil(status.reportDueAt - sim.time)) + 's'
+        : status.used
+          ? event
+            ? 'REPORT RECEIVED · ' +
+              status.contacts +
+              ' sightings · expires in ' +
+              Math.max(0, Math.ceil(event.validUntil - sim.time)) +
+              's'
+            : 'SORTIE COMPLETE · INTELLIGENCE EXPIRED'
+          : sim.paused || sim.time < 5
+            ? 'AVAILABLE AFTER DEPLOYMENT · ONE SORTIE'
+            : 'ONE SORTIE AVAILABLE · REPORTS LAST 45s';
     }
     if (airReportsNode) clear(airReportsNode);
     if (!event) return;
@@ -699,6 +701,35 @@
         'stroke-dasharray': '5 4'
       });
       var stationary = c.observation === 'stationary' || c.headingRadians == null;
+      /* Corridors are the air branch's own projection delivered in the
+         report: watch points with the column's estimated arrival. */
+      (c.corridors || []).forEach(function (k) {
+        var q = project(k.point, dimensions);
+        if (!q || q.x < 30 || q.x > 970 || q.y < 20 || q.y > 580) return;
+        var mark = add(layer, 'g', {
+          'class': 'gtm-air-corridor',
+          transform: 'translate(' + q.x + ' ' + q.y + ')'
+        });
+        add(mark, 'circle', {
+          r: 4,
+          fill: 'none',
+          stroke: '#f7c37c',
+          'stroke-width': 1.4,
+          'stroke-opacity': 0.4 + 0.5 * k.likelihood
+        });
+        add(
+          mark,
+          'title',
+          {},
+          'AIR CORRIDOR · ' +
+            gridRef(k.point, dimensions) +
+            ' · enemy in ~' +
+            Math.max(0, Math.round(k.enemyEtaSeconds - (sim.time - event.observedAt))) +
+            's · ' +
+            Math.round(100 * k.likelihood) +
+            '% likely'
+        );
+      });
       add(
         group,
         'path',
@@ -739,7 +770,8 @@
         '%' +
         ' · ±' +
         c.positionUncertaintyM +
-        'm';
+        'm' +
+        (c.corridors && c.corridors.length ? ' · ' + c.corridors.length + ' CORRIDORS' : '');
       airReportsNode.appendChild(item);
     });
     if (airReportsNode && !event.contacts.length) {

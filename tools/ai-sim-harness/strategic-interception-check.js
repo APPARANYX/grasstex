@@ -6,7 +6,9 @@
 const assert = require('node:assert/strict');
 const { loadModule } = require('./module-loader');
 
-function make(search = '?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1') {
+function make(
+  search = '?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&reconOverflight=0'
+) {
   const hooks = {},
     events = [];
   const objs = [
@@ -423,8 +425,12 @@ assert.equal(
 );
 const noFleet = make();
 noFleet.root.BattleAerialRecon.request(noFleet.sim, 'us');
+// Every truck is committed to another squad. (An idle stopped truck beside a
+// squad is a real ride the transport owner may grant; see the report-fed
+// section below and its ?reconCorridors=0 control.)
 noFleet.sim._strategicTransportFleet.vehicles.forEach(v => {
-  v.phase = 'stopped';
+  v.phase = 'assigned';
+  v.squadId = 'us-elsewhere';
 });
 assert.equal(
   noFleet.root.BattleStrategicInterception.choose(
@@ -459,6 +465,92 @@ assert.equal(
     throw Error('hidden');
   }),
   null
+);
+// Report-fed corridors: the air branch hands the General position, speed,
+// heading and the road corridors approximated from those three alone.
+const fed = ev.contacts[0];
+assert.ok(fed.corridors.length > 0, 'a moving fix arrives with its corridors');
+assert.ok(
+  fed.corridors.every(c => c.enemyEtaSeconds <= 600 && c.likelihood > 0 && c.likelihood <= 1),
+  'corridors stay inside the report horizon with a split likelihood'
+);
+assert.ok(
+  fed.corridors.every(c => !['u1', 'u2'].includes(c.likelyObjectiveId)),
+  'the projection stops at the observer base instead of routing through it'
+);
+assert.equal(forecast.best.enemyETA, 419.3, 'earliest feasible corridor, not the longest margin');
+const aged = make();
+const agedEv = aged.root.BattleAerialRecon.request(aged.sim, 'us');
+aged.sim.time += 20;
+const agedBest = aged.root.BattleStrategicInterception.choose(aged.sim, 'us', agedEv).best;
+assert.ok(
+  agedBest &&
+    Math.abs(
+      agedBest.enemyETA -
+        (agedEv.contacts[0].corridors.find(c => c.point.z === agedBest.spec.point.z).enemyEtaSeconds - 20)
+    ) < 1e-6,
+  'enemy ETA counts from the observation, so a 20 s old report gives 20 s less'
+);
+const parkedOnly = make();
+parkedOnly.ge.members.forEach(m => {
+  m.moving = false;
+  m.moveSpeed = 0;
+});
+const still = parkedOnly.root.BattleAerialRecon.request(parkedOnly.sim, 'us');
+assert.equal(still.contacts[0].corridors.length, 0, 'a stationary fix has no direction and no corridor');
+const selfProjected = make(
+  '?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&reconOverflight=0&reconCorridors=0'
+);
+const plain = selfProjected.root.BattleAerialRecon.request(selfProjected.sim, 'us');
+assert.equal(plain.contacts[0].corridors, undefined, '?reconCorridors=0 restores corridor-free reports');
+assert.ok(
+  selfProjected.root.BattleStrategicInterception.choose(selfProjected.sim, 'us', plain).best,
+  '?reconCorridors=0 General still projects roads himself'
+);
+selfProjected.sim._strategicTransportFleet.vehicles.forEach(v => {
+  v.phase = 'stopped';
+});
+assert.equal(
+  selfProjected.root.BattleStrategicInterception.choose(selfProjected.sim, 'us', plain).best,
+  null,
+  '?reconCorridors=0 keeps the old parked-depot-only quote'
+);
+// Overflight: the doctrine sortie takes three fixes over 30 s and reports the
+// track from the last two, so a column that set off mid-pass is reported moving.
+const pass = make('?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1');
+const tick = pass.hooks['strategic-aerial-recon'].onCommanderTick;
+pass.ge.members.forEach(m => {
+  m.moving = false;
+  m.moveSpeed = 0;
+});
+assert.equal(
+  pass.root.BattleAerialRecon.request(pass.sim, 'us'),
+  null,
+  'AI sortie is airborne, no instant report'
+);
+assert.equal(pass.root.BattleAerialRecon.status(pass.sim, 'us').inFlight, true);
+assert.equal(pass.root.BattleAerialRecon.status(pass.sim, 'us').reportDueAt, 150);
+assert.equal(
+  pass.root.BattleAerialRecon.forGeneral(pass.sim, 'us'),
+  null,
+  'nothing reaches the General mid-pass'
+);
+for (const at of [135, 150]) {
+  pass.sim.time = at;
+  // The column moves off at 1.2 m/s after the first fix (south, toward z < 1500).
+  pass.ge.members.forEach(m => {
+    m.root.position.z -= 18;
+  });
+  tick(pass.sim, { macroCommandEnabled: true });
+}
+const passed = pass.root.BattleAerialRecon.forGeneral(pass.sim, 'us');
+assert.ok(passed && passed.observedAt === 150 && passed.overflightSeconds === 30, 'report lands at pass end');
+assert.equal(passed.contacts[0].observation, 'moving', 'track is from displacement, not intent');
+assert.ok(Math.abs(passed.contacts[0].headingRadians - Math.PI) < 0.3, 'observed heading is south');
+assert.ok(passed.contacts[0].corridors.length > 0, 'moving track arrives with corridors');
+assert.ok(
+  pass.events.some(e => e.kind === 'strategic-aerial-recon' && e.payload.corridors > 0),
+  'telemetry counts delivered corridors'
 );
 assert.ok(!w.events.some(e => /fire|hit|shot/.test(e.kind)), 'No fabricated shots or targeting');
 console.log(

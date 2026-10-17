@@ -24,6 +24,34 @@
       /(?:^|[?&])interception=1(?:&|$)/.test(search)
     );
   }
+  /* ?reconCorridors=0 restores the General's own road projection. */
+  function reportCorridorsOn() {
+    return !/(?:^|[?&])reconCorridors=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
+  /* Corridors come with the report: the air branch (or the screen's report,
+     through the same analysis) projects the track onto the public roads.
+     The General reads them as delivered. */
+  function corridorTracks(town, contact, faction) {
+    if (!reportCorridorsOn()) return roadSightings(town, contact, faction);
+    var list = contact.corridors;
+    if (!list && root.BattleAerialRecon && root.BattleAerialRecon.corridorsFor)
+      list = root.BattleAerialRecon.corridorsFor(town, contact, faction);
+    if (!list || !(contact.confidence >= MIN_CONFIDENCE)) return [];
+    return list.map(function (c) {
+      return {
+        contact: contact,
+        roadId: c.roadId,
+        point: c.point,
+        anchorIds: c.anchorIds,
+        likelyObjectiveId: c.likelyObjectiveId,
+        alignment: c.alignment * (c.likelihood == null ? 1 : c.likelihood),
+        offRoad: c.offRoadM || 0,
+        enemyETA: c.enemyEtaSeconds,
+        leadMetres: c.leadMetres,
+        hop: c.hop || 0
+      };
+    });
+  }
   function d(a, b) {
     return Math.hypot(a.x - b.x, a.z - b.z);
   }
@@ -150,6 +178,44 @@
       return candidates;
     }, []);
   }
+  /* A forward screen that has dismounted (or was cut short) is a real team
+     with its own stopped truck nearby; it may be re-briefed by a report. */
+  function reusableScreen(sq) {
+    var m = sq._macroMission,
+      t = sq._transport;
+    return !!(
+      m &&
+      m.intent === 'screen' &&
+      (m.status === 'issued' || m.status === 'executing') &&
+      t &&
+      (t.phase === 'dismounted' || t.phase === 'aborted')
+    );
+  }
+  /* The public road node nearest the squad, for routing a truck it re-boards. */
+  function nearestNode(town, sq) {
+    var men = (sq.members || []).filter(function (m) {
+      return m && !m.dead && m.root && m.root.position;
+    });
+    if (!men.length) return null;
+    var c = {
+        x:
+          men.reduce(function (v, m) {
+            return v + m.root.position.x;
+          }, 0) / men.length,
+        z:
+          men.reduce(function (v, m) {
+            return v + m.root.position.z;
+          }, 0) / men.length
+      },
+      best = null;
+    (town.objectives || []).forEach(function (o) {
+      var on = (town.roads || []).some(function (r) {
+        return r.fromObjectiveId === o.id || r.toObjectiveId === o.id;
+      });
+      if (on && (!best || d(c, o) < d(c, best))) best = o;
+    });
+    return best ? best.id : null;
+  }
   function quoteFor(sim, faction, track, diag) {
     var town = sim.scene.metadata.battleScenario,
       transport = root.BattleSquadTransport,
@@ -158,92 +224,109 @@
       diag.noFleet++;
       return null;
     }
-    var best = null;
+    var best = null,
+      reportFed = reportCorridorsOn(),
+      // The report ages while it waits for the General; its arrival estimate
+      // counts from the observation, not from this decision.
+      age = reportFed ? Math.max(0, (+sim.time || 0) - (+track.contact.observedAt || 0)) : 0;
     ((sim.factions[faction] && sim.factions[faction].squads) || []).forEach(function (sq) {
       if (
         !sq ||
         sq.state === 'retreat' ||
         sq.inContact ||
         sq.isPlayer ||
-        sq._transportUsed ||
+        (sq._transportUsed && !(reportFed && reusableScreen(sq))) ||
         sq._preparedDefenseRequest
       ) {
         diag.unavailableSquads++;
         return;
       }
       diag.eligibleSquadEvaluations++;
-      fleet
-        .filter(function (v) {
-          return v.faction === faction && v.phase === 'parked';
-        })
-        .forEach(function (v) {
-          var base = (town.spawnZones[faction].bases || [])[v.baseIndex];
-          if (!base) return;
-          track.anchorIds.forEach(function (anchorId) {
-            var path = shortest(town, base.objectiveId, anchorId);
-            if (!path) {
-              diag.noRoadGraphPath++;
-              return;
-            }
-            diag.pathEvaluations++;
-            // Base road point, then complete public graph edges to the watched edge.
-            var route = path.points;
-            var mission = {
-              owner: 'force-command',
-              status: 'issued',
-              intent: 'intercept',
-              point: track.point,
-              route: route
-            };
-            var quote = transport.quoteMission(sim, sq, mission);
-            if (!quote || quote.vehicle.id !== v.id) {
-              diag.failedTransportQuotes++;
-              return;
-            }
-            diag.viableTransportQuotes++;
-            var friendlyETA =
-              quote.boardSeconds +
-              quote.route.estimatedDriveSeconds +
-              quote.dismountSeconds +
-              quote.setupSeconds +
-              SETUP_MARGIN +
-              EXTRA_UNCERTAINTY;
-            var margin = track.enemyETA - friendlyETA;
-            diag.bestMarginSeconds = Math.max(diag.bestMarginSeconds, margin);
-            if (!(margin > 20)) {
-              diag.arrivalTooLate++;
-              return;
-            }
-            var score =
-              margin * 0.3 + track.alignment * 55 + track.contact.confidence * 35 - track.offRoad * 0.25;
-            var selection = {
-              squad: sq,
-              spec: mission,
-              vehicleId: v.id,
-              objectiveId: track.likelyObjectiveId,
-              roadId: track.roadId,
-              contactId: track.contact.squadId,
-              observedAt: track.contact.observedAt,
-              expiresAt: Math.min(
-                track.contact.observedAt + 720,
-                sim.time + Math.max(180, track.enemyETA + 80)
-              ),
-              enemyETA: track.enemyETA,
-              friendlyETA: friendlyETA,
-              margin: margin,
-              score: score,
-              confidence: track.contact.confidence,
-              leadMetres: track.leadMetres
-            };
-            if (
-              !best ||
-              selection.score > best.score + 0.001 ||
-              (Math.abs(selection.score - best.score) < 0.001 &&
-                String(sq.id).localeCompare(String(best.squad.id)) < 0)
-            )
-              best = selection;
-          });
+      /* Report-fed: one quote per squad and anchor. The transport owner picks
+         the real truck (parked at this squad's base, or its own stopped truck
+         within reach); iterating every depot vehicle only counted mismatches. */
+      (reportFed
+        ? [null]
+        : fleet.filter(function (v) {
+            return v.faction === faction && v.phase === 'parked';
+          })
+      ).forEach(function (v) {
+        var base = v ? (town.spawnZones[faction].bases || [])[v.baseIndex] : null;
+        if (v && !base) return;
+        track.anchorIds.forEach(function (anchorId) {
+          var startId = base ? base.objectiveId : nearestNode(town, sq);
+          var path = startId && shortest(town, startId, anchorId);
+          if (!path) {
+            diag.noRoadGraphPath++;
+            return;
+          }
+          diag.pathEvaluations++;
+          // Base road point, then complete public graph edges to the watched edge.
+          var route = path.points;
+          var mission = {
+            owner: 'force-command',
+            status: 'issued',
+            intent: 'intercept',
+            point: track.point,
+            route: route
+          };
+          var quote = transport.quoteMission(sim, sq, mission);
+          if (!quote || (v && quote.vehicle.id !== v.id)) {
+            diag.failedTransportQuotes++;
+            return;
+          }
+          diag.viableTransportQuotes++;
+          var friendlyETA =
+            quote.boardSeconds +
+            quote.route.estimatedDriveSeconds +
+            quote.dismountSeconds +
+            quote.setupSeconds +
+            SETUP_MARGIN +
+            EXTRA_UNCERTAINTY;
+          var margin = track.enemyETA - age - friendlyETA;
+          diag.bestMarginSeconds = Math.max(diag.bestMarginSeconds, margin);
+          if (!(margin > 20)) {
+            diag.arrivalTooLate++;
+            return;
+          }
+          /* Report-fed: margin beyond the setup and uncertainty allowance buys
+             nothing, and a later watch point is a less certain forecast, so the
+             earliest feasible corridor wins. */
+          var score = reportFed
+            ? Math.min(margin, SETUP_MARGIN + EXTRA_UNCERTAINTY) * 0.3 -
+              (track.enemyETA - age) * 0.3 +
+              track.alignment * 55 +
+              track.contact.confidence * 35 -
+              track.offRoad * 0.25
+            : margin * 0.3 + track.alignment * 55 + track.contact.confidence * 35 - track.offRoad * 0.25;
+          var selection = {
+            squad: sq,
+            spec: mission,
+            vehicleId: quote.vehicle.id,
+            objectiveId: track.likelyObjectiveId,
+            roadId: track.roadId,
+            contactId: track.contact.squadId,
+            observedAt: track.contact.observedAt,
+            expiresAt: Math.min(
+              track.contact.observedAt + 720,
+              sim.time + Math.max(180, track.enemyETA - age + 80)
+            ),
+            enemyETA: track.enemyETA - age,
+            friendlyETA: friendlyETA,
+            margin: margin,
+            score: score,
+            confidence: track.contact.confidence,
+            leadMetres: track.leadMetres
+          };
+          if (
+            !best ||
+            selection.score > best.score + 0.001 ||
+            (Math.abs(selection.score - best.score) < 0.001 &&
+              String(sq.id).localeCompare(String(best.squad.id)) < 0)
+          )
+            best = selection;
         });
+      });
     });
     return best;
   }
@@ -264,7 +347,7 @@
         bestMarginSeconds: -Infinity
       };
     ev.contacts.forEach(function (contact) {
-      roadSightings(town, contact, faction).forEach(function (track) {
+      corridorTracks(town, contact, faction).forEach(function (track) {
         evaluated++;
         var proposal = quoteFor(sim, faction, track, diagnostic);
         if (proposal && (!best || proposal.score > best.score)) best = proposal;
@@ -705,7 +788,7 @@
     var winner = null,
       evaluated = 0;
     tracks.forEach(function (track) {
-      roadSightings(town, track, faction).forEach(function (road) {
+      corridorTracks(town, track, faction).forEach(function (road) {
         evaluated++;
         var metres = d(pos, road.point);
         if (metres > 420) return; // Existing screen post may already be the best ambush point.
