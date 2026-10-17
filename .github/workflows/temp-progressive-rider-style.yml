@@ -1,0 +1,27 @@
+name: TEMP Progressive Rider Test Formatting
+on:
+  push:
+    branches: [work/truck-lifecycle-cleanup-20261016]
+    paths: [.github/workflows/temp-progressive-rider-style.yml]
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Format browser test and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes prettier@3.3.3 --write scripts/probe_strategic_truck_visual.cjs
+          git rm .github/workflows/temp-progressive-rider-style.yml
+          git add scripts/probe_strategic_truck_visual.cjs
+          git config user.name grasstex-ci
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "style(trucks): format progressive seat browser probe and remove temp workflow"
+          git push origin HEAD:work/truck-lifecycle-cleanup-20261016
