@@ -71,10 +71,25 @@ assert.ok(
   orchestration.indexOf("leavePlayer('battle roster replaced');") < orchestration.indexOf('menuHoldGesture('),
   'restart guard must execute before the menu/death/controller input branch'
 );
+/* Preserve the accepted frame order by removing only the new full-screen
+   map input gate before fingerprinting. The pre-existing P-key and restart
+   guards still get their separate exact regression checks. */
+const mapDeclaration = 'pad = activeGamepad(),\\ntacticalMap = global.BattleTacticalMap;';
+assert.ok(orchestration.includes(mapDeclaration), 'desktop frame must access loaded tactical map');
+const mapStart = orchestration.indexOf('/* Xbox D-pad Right toggles the full tactical map');
+const mapEnd = orchestration.indexOf('/* Restarts reuse', mapStart);
+assert.ok(mapStart > 0 && mapEnd > mapStart, 'map interaction is isolated ahead of roster guard');
+const mapGuard = orchestration.slice(mapStart, mapEnd);
+assert.match(mapGuard,/padPressedOnce\\(pad, 15\\)/, 'D-pad Right must open the map');
+assert.match(mapGuard,/if \\(tacticalMap && tacticalMap\\.isOpen\\(\\)\\)[\\s\\S]*?mouseFire = false;[\\s\\S]*?return;/,
+  'map must block gameplay input while open');
+const originalOrchestration = orchestration
+  .replace(mapDeclaration, 'pad = activeGamepad();')
+  .replace(mapGuard, '');
 assert.equal(
-  fingerprint(orchestration.replace(restartGuard, '')),
+  fingerprint(originalOrchestration.replace(restartGuard, '')),
   'a5a33693',
-  'previous menu/player frame/gesture ordering changed after excluding only the new restart guard'
+  'menu/player frame order changed beyond the narrowly audited fullscreen map gate'
 );
 assert.match(src, /menuHoldState\.long = false;/, 'disconnect clears the held Menu gesture');
 assert.match(src, /menuHoldState\.since = 0;/, 'disconnect resets Menu hold duration');
