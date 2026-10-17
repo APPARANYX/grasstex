@@ -441,23 +441,47 @@
   function board(sim, sq, dt) {
     var t = sq._transport,
       members = alive(sq),
-      allReady = true;
+      seats = t.boardingOrder;
     if (sim.time - t.requestedAt > BOARD_TIMEOUT) {
       finish(sim, sq, 'boarding-timeout');
       return;
     }
+    // Real actors can approach together, but driver then seats 1..9 enter
+    // individually. The renderer may show each seat as it is occupied.
     for (var i = 0; i < members.length; i++) {
-      var seat = memberSeat(i, members.length, t.boardingCenter, t.heading);
-      if (!advancePassenger(sim, members[i], seat, dt)) {
+      var index = seats.indexOf(members[i].id);
+      if (index < 0) {
+        finish(sim, sq, 'boarding-roster-changed');
+        return;
+      }
+      if (index < t.boardedCount) continue;
+      var target = memberSeat(index, seats.length, t.boardingCenter, t.heading);
+      if (!advancePassenger(sim, members[i], target, dt)) {
         finish(sim, sq, 'boarding-blocked');
         return;
       }
-      if (dist(position(members[i].root.position), seat) > SEAT_TOLERANCE) allReady = false;
     }
-    if (allReady) {
+    if (t.boardedCount < seats.length && sim.time + EPS >= t.nextBoardAt) {
+      var nextId = seats[t.boardedCount],
+        passenger = members.find(function (m) { return m.id === nextId; });
+      if (!passenger) {
+        finish(sim, sq, 'boarding-roster-changed');
+        return;
+      }
+      var seat = memberSeat(t.boardedCount, seats.length, t.boardingCenter, t.heading);
+      if (dist(position(passenger.root.position), seat) <= SEAT_TOLERANCE) {
+        t.boardedCount++;
+        t.nextBoardAt = sim.time + BOARD_STAGGER;
+        log(sim, sq, 'seat-occupied', {
+          vehicleId: t.vehicleId, soldierId: passenger.id,
+          seatIndex: t.boardedCount - 1
+        });
+      }
+    }
+    if (t.boardedCount >= seats.length) {
       t.phase = 'embarked';
       t.embarkedAt = +sim.time || 0;
-      log(sim, sq, 'embarked', { passengers: members.length });
+      log(sim, sq, 'embarked', { passengers: seats.length, vehicleId: t.vehicleId });
     }
   }
   function drive(sim, sq, dt) {
@@ -590,6 +614,8 @@
               vehicleId: t.vehicleId,
               baseId: t.baseId,
               travelled: +t.travelled.toFixed(1),
+              boardedCount: t.boardedCount,
+              standoffMetres: t.standoffMetres,
               total: +t.total.toFixed(1),
               requestedAt: +t.requestedAt.toFixed(2),
               embarkedAt: t.embarkedAt == null ? null : +t.embarkedAt.toFixed(2),
