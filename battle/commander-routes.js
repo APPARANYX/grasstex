@@ -44,6 +44,8 @@
     if (!start) return [{ x: home.x, z: home.z }];
     if (role === 'reserve') return [{ x: home.x, z: home.z }];
     var wanted = town.objectives.filter(function (o) {
+      // Front-lines layout: every squad opens on the centre line, the first contestable one.
+      if (town.frontLines) return o.frontLine === 2;
       return !o.baseFaction && (sq.faction === 'us' ? o.z <= 0 : o.z >= 0);
     });
     if (!wanted.length) return [{ x: home.x, z: home.z }];

@@ -105,6 +105,44 @@
     );
   }
 
+  /* Front-lines layout: the defender holds the lines its start ownership gives it. Prepared
+     sectors are those lines from the front back, up to the echelon's span, each falling back to
+     the one behind it; the frontmost is the security line, the next the main line. */
+  function frontLineSectors(sides, scenario, sectors) {
+    var owners = scenario.frontLines.startOwners[sides.defender] || [],
+      lineOf = {};
+    (scenario.objectives || []).forEach(function (o) {
+      lineOf[o.id] = o.frontLine;
+    });
+    var held = sectors
+      .filter(function (s) {
+        return owners[lineOf[s.objectiveId]] === sides.defender;
+      })
+      .sort(function (a, b) {
+        var la = lineOf[a.objectiveId],
+          lb = lineOf[b.objectiveId];
+        return (sides.defender === 'ge' ? la - lb : lb - la) || a.objectiveId.localeCompare(b.objectiveId);
+      })
+      .slice(0, sides.echelon.span);
+    var keep = {};
+    held.forEach(function (s, i) {
+      keep[s.objectiveId] = 1;
+      s.active = true;
+      s.role = s.doctrinalRole = i === 0 ? 'security' : i === 1 ? 'main' : 'depth';
+      s.reason = '';
+      s.fallbackSectorId = held[i + 1] ? held[i + 1].id : null;
+    });
+    sectors.forEach(function (s) {
+      if (keep[s.objectiveId]) return;
+      s.active = false;
+      s.role = 'unoccupied';
+      s.reason = 'Front lines: not a line this side holds at the start, or beyond its span of control.';
+    });
+    sides.reserveSectorId =
+      sides.echelon.coordination >= 0.82 && held.length ? held[held.length - 1].id : null;
+    sides.heldSectors = held;
+    return sectors;
+  }
   function buildSectors(sides, scenario) {
     var bands = BANDS[sides.defender] || BANDS.ge,
       echelon = sides.echelon,
@@ -146,6 +184,7 @@
             : ''
       };
     });
+    if (scenario.frontLines && sides.defender) return frontLineSectors(sides, scenario, sectors);
     var candidates = sectors
       .filter(function (s) {
         return s.active;

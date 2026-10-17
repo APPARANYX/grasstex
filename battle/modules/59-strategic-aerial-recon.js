@@ -61,6 +61,15 @@
     if (!beforeObjectiveOn()) return CORRIDOR_HOPS;
     return flagOff('ambushNextObjective') ? 0 : 1;
   }
+  /* Front-lines layout: on the road from a line to the next, also watch the point where the
+     column must leave its trucks short of that next line (the transport's own dismount
+     distance). It lies between the line behind and the contested one, and is reached earlier
+     by the defender of that ground. ?lineApproachPost=0 keeps the 1/3 and 2/3 points only. */
+  function lineApproachMetres(town) {
+    if (!town || !town.frontLines || flagOff('lineApproachPost')) return 0;
+    var transport = root.BattleSquadTransport;
+    return (transport && transport.tuning && transport.tuning.dismountMetres) || 180;
+  }
   function overflightOn() {
     return interceptionOn() && !flagOff('reconOverflight');
   }
@@ -151,7 +160,8 @@
           return e && e.len > 1;
         }),
       out = [];
-    var hopLimit = corridorHopLimit();
+    var hopLimit = corridorHopLimit(),
+      approach = lineApproachMetres(town);
     function eta(metres) {
       return round(Math.max(0, metres - slack) / fast, 1);
     }
@@ -195,7 +205,9 @@
       next.forEach(function (e) {
         var far = e.a.id === node.id ? e.b : e.a,
           share = likelihood / next.length;
-        [1 / 3, 2 / 3].forEach(function (f) {
+        var fractions = [1 / 3, 2 / 3];
+        if (approach && (e.len - approach) / e.len > 2 / 3) fractions.push((e.len - approach) / e.len);
+        fractions.forEach(function (f) {
           emit(e, node, far, f, travelled + e.len * f, hop, share, alignment, offRoad);
         });
         downstream(far, e.road, travelled + e.len, hop + 1, share, alignment, offRoad);

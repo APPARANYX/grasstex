@@ -364,6 +364,14 @@
       point = objectivePoint(obj, sim, sq);
     if (wantOwned && owner !== sq.faction) return null;
     if (!wantOwned && owner === sq.faction && doc.defenseCommitment < 0.58) return null;
+    // Front-lines layout: only the side's next line may be attacked (21b-strategic-front-lines.js).
+    if (
+      !wantOwned &&
+      owner !== sq.faction &&
+      root.BattleFrontLines &&
+      !root.BattleFrontLines.attackable(sim, sq.faction, obj.id)
+    )
+      return null;
     return { obj: obj, index: index, status: status, owner: owner, point: point };
   }
   /* Squad fit.

@@ -13,6 +13,8 @@ on:
       - 'battle/camera-controls.js'
       - 'battle/battle-control.js'
       - 'scripts/check-strategic-5km.cjs'
+      - 'scripts/check-strategic-front-lines.cjs'
+      - 'battle/modules/21b-strategic-front-lines.js'
       - 'battle/modules/59-strategic-truck-visual.js'
       - 'scripts/check-strategic-truck-visual.cjs'
       - 'scripts/check-strategic-restart-end.cjs'
@@ -43,6 +45,7 @@ jobs:
           node --check scripts/probe_strategic_5km.cjs
           node --check scripts/probe_strategic_truck_visual.cjs
           node scripts/check-strategic-5km.cjs
+          node scripts/check-strategic-front-lines.cjs
           node scripts/check-strategic-truck-visual.cjs
           node scripts/check-strategic-restart-end.cjs
       - name: Install Playwright Chromium

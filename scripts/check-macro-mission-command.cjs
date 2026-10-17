@@ -292,4 +292,15 @@ test('?transportHandoff=0 restores the old route index after a dismount',()=>{
   assert.equal(f.sq.routeIndex,0);assert.equal(f.sq.objective.x,100,'flag-off control did not walk back to the secured objective');
   assert.ok(!f.sq._missionExecution.screenOnPostAt);
 });
+test('front lines: a capture brief on a line that is no longer attackable is replaced once',()=>{
+  const f=fixture();let open=['a','b'];f.r.BattleFrontLines={attackable:(sim,faction,id)=>open.includes(id)};
+  f.tick();const old=f.sq._macroMission;assert.equal(old.objectiveId,'a');
+  open=['b'];f.tick();
+  assert.equal(f.sq._macroMission.objectiveId,'b','the General re-tasks onto the attackable line');
+  assert.ok(f.events.some(e=>e.type==='decision-macro-wake'?e.data&&e.data.reason==='front-line-moved':JSON.stringify(e.data||{}).includes('front-line-moved')),'wake recorded with its reason');
+  const next=f.sq._macroMission;for(let i=0;i<10;i++)f.tick();assert.strictEqual(f.sq._macroMission,next,'no churn once the brief is legal');
+});
+test('front lines: without the rules module the old brief is kept',()=>{
+  const f=fixture();f.tick();const old=f.sq._macroMission;for(let i=0;i<5;i++)f.tick();assert.strictEqual(f.sq._macroMission,old);
+});
 console.log(`macro-mission-command: ${passed} passed, ${failed} failed`);if(failed)process.exitCode=1;

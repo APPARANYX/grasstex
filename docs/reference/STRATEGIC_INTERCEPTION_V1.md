@@ -5,6 +5,14 @@
 **Feature flag:** future opt-in `?strategicInterception=1`; OFF preserves existing generated scenarios and benchmark behavior.
 **Legacy tactical work:** [PR #527](https://github.com/APPARANYX/grasstex/pull/527) remains a **draft, parked for dense urban/tactical combat**, not discarded. Related experiments [#542](https://github.com/APPARANYX/grasstex/pull/542), [#543](https://github.com/APPARANYX/grasstex/pull/543), and [#544](https://github.com/APPARANYX/grasstex/pull/544) remain independent and **must not be cherry-picked or merged as prerequisites**.
 
+## Front lines layout and the ww2fps merge point — October 17, 2026
+
+`?frontLines=1` (with `?strategicInterception=1`) swaps the 12-point ring for a chain of five lines from base line to base line, modelled on Hell Let Loose sectors: the US base line (3 bases), line 1, the centre line 2, line 3, and the German base line. `createFrontLines` in `battle/scenario-generator.js` builds it from the seed: each middle line has one point on one of three seeded sites, typed `town` (with a settlement from the grasstex town generator), `forest` or `open`. Main roads run base to line 1 to centre to line 3 to base; side roads give every line a second road in. `scenario.frontLines` lists the lines and the start owners per battle type (meeting: both forward lines held, centre neutral; a defender also holds the centre).
+
+`battle/modules/21b-strategic-front-lines.js` is the one owner of the line rules: start ownership; which objectives a side may attack (only the first line from its own rear that it does not fully hold, so a lost rear objective is retaken first; `?frontLineRule=0` lifts this); and each squad's rear point, the nearest objective of the line behind the front. When the front moves, a capture brief against a line that is no longer attackable wakes the General (`front-line-moved`). Retreat, extraction and reconstitution keep their owners and read the rear point through `SquadAI.extractionHome`. Engineers fortify the lines their side holds with the usual limits (sandbags then foxholes, two works per objective; none in meeting battles, as before). A defender's prepared sectors are its held lines, front first, each falling back to the one behind.
+
+**Merge point.** The output is shaped like the ww2fps map generator's (ordered control points typed town, forest or open, a main road through them plus side roads, defensive sectors that name their fallback) so its generator can replace `createFrontLines` later without touching the AI: it has to produce `objectives` with `frontLine`, `roads` with `fromObjectiveId`/`toObjectiveId`, `settlements` and `scenario.frontLines`. No ww2fps code is copied here. That swap needs the owner's word, since ww2fps is private and this repository is public.
+
 ## Vehicle persistence and future garages — October 16, 2026
 
 Implementation proposal in [#558](https://github.com/APPARANYX/grasstex/pull/558), targeting the draft strategic parent #545:

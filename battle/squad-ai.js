@@ -115,6 +115,9 @@
      `baseHome` is the squad's immutable rear/base point from creation and is the destination
      for permanent fled/extraction lifecycles. */
   function extractionHome(squad) {
+    /* Front-lines layout: the frontmost line the side fully holds is the rear base
+       (published by 21b-strategic-front-lines.js); otherwise the spawn base. */
+    if (squad && squad._frontLineRear) return squad._frontLineRear;
     return squad && (squad.baseHome || squad.home) ? squad.baseHome || squad.home : null;
   }
 

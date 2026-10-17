@@ -352,6 +352,8 @@
   function seedOwnership(sim, sides) {
     var api = root.BattleObjectiveSystem;
     if (!api) return;
+    // The front-lines layout seeds every line itself (21b-strategic-front-lines.js).
+    if (root.BattleFrontLines && root.BattleFrontLines.active(sim)) return;
     (sim._objectives || []).forEach(function (o) {
       if (o.state) {
         o.state.owner = null;

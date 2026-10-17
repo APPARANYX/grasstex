@@ -300,6 +300,7 @@
           st = D.objectiveStatus(sim, obj) || {},
           owner = st.owner || 'neutral';
         if (owner === sq.faction) continue;
+        if (root.BattleFrontLines && !root.BattleFrontLines.attackable(sim, sq.faction, obj.id)) continue;
         if (preferContested && owner !== 'neutral' && !st.active) continue;
         if (objectiveReachable(sim, sq, obj)) map[String(obj.id)] = true;
       }
@@ -442,6 +443,13 @@
       var st = D.objectiveStatus(sim, obj) || {},
         obs = sq._macroMissionObservation || {};
       if (m.intent === 'capture' && st.owner === sq.faction) return 'mission-complete';
+      // Front lines: the line this squad was sent against is no longer the one its side may attack.
+      if (
+        m.intent === 'capture' &&
+        root.BattleFrontLines &&
+        !root.BattleFrontLines.attackable(sim, sq.faction, m.objectiveId)
+      )
+        return 'front-line-moved';
       if (m.intent === 'defend' && st.owner !== obs.owner) return 'objective-control-changed';
       if (m.intent === 'capture' && !!st.vacantOwner !== obs.vacant && st.vacantOwner)
         return 'objective-vacated';
@@ -529,7 +537,10 @@
         chosen = forcedObjective ? forcedCandidate(sim, sq, forcedObjective) : null;
       if (assigned && !forcedObjective && !stalled && reason !== 'mission-complete') {
         var status = D.objectiveStatus(sim, assigned) || {};
-        if (status.owner !== sq.faction)
+        if (
+          status.owner !== sq.faction &&
+          !(root.BattleFrontLines && !root.BattleFrontLines.attackable(sim, sq.faction, assigned.id))
+        )
           chosen = { instance: assigned, point: D.objectivePoint(assigned, sim, sq), status: status };
       }
       /* Pass an `allowed` reachability map to chooseObjective for capture briefs, the same gate
