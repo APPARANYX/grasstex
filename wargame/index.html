@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>GRASSTEX | Commander Ideation Exchange</title>
+<style>
+:root{color-scheme:dark;--bg:#0b111b;--panel:#162234;--muted:#a6b5cc;--line:#2b4059;--gold:#e5c889;--light:#f2f6fd;--red:#ed9b95;--blue:#91b9ed}
+*{box-sizing:border-box}body{margin:0;color:var(--light);background:var(--bg);font:15px/1.5 system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+header{border-bottom:1px solid var(--line);padding:27px max(24px,calc((100vw - 1100px)/2));background:linear-gradient(120deg,#182b42,#0c1421)}
+header small{letter-spacing:.17em;color:var(--gold);font-weight:700}h1{font-size:clamp(25px,4vw,38px);margin:4px 0}h2{font-size:19px;margin:0 0 12px}h3{font-size:16px;margin:16px 0 7px}
+main{max-width:1120px;padding:24px;margin:auto}.intro{color:var(--muted);max-width:790px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.grid3{display:grid;grid-template-columns:1.3fr 1fr 1.3fr;gap:12px}
+label{font-size:13px;color:var(--muted);font-weight:600;display:block;margin:10px 0 5px}
+input,textarea,select,button{font:inherit}input,textarea,select{display:block;width:100%;background:#0c1624;border:1px solid #46607c;color:var(--light);border-radius:7px;padding:10px 12px}
+textarea{min-height:105px;resize:vertical;font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+textarea.tall{min-height:210px}
+button{border:1px solid #57708a;background:#233d56;color:white;padding:10px 17px;border-radius:8px;cursor:pointer;margin-top:12px}
+button.primary{background:#d2b474;color:#16202c;border-color:#d2b474;font-weight:700}button:hover{filter:brightness(1.15)}
+button:disabled{opacity:.5;cursor:not-allowed}button.inline{margin-top:0}
+p{margin:8px 0 14px}small,.muted{color:var(--muted)}.quiet{font-size:13px;color:var(--muted)}
+pre{padding:14px;border:1px solid var(--line);border-radius:8px;background:#0b1626;white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto;font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}
+p.notice{padding:11px 13px;border-left:3px solid var(--gold);background:#262c32;color:#f5e2b8}
+#message{min-height:25px;font-size:14px}#message.error{color:var(--red)}#message.good{color:#a6ddb5}
+.badge{display:inline-block;padding:4px 10px;border-radius:20px;border:1px solid #55708d;margin-left:8px;font-size:12px;color:var(--muted)}
+details{margin:10px 0}summary{cursor:pointer;color:var(--gold);font-weight:600}
+.hidden{display:none!important}.key{color:#f0d1a5}hr{border:0;border-top:1px solid var(--line);margin:18px 0}
+footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12px}
+@media(max-width:700px){.grid,.grid3{grid-template-columns:1fr}.panel{padding:16px}main{padding:15px}}
+</style></head><body>
+<header><small>GRASSTEX / RESEARCH TOOLS</small><h1>Commander Ideation Exchange</h1>
+<p class="intro">Two commanders. One sealed turn each. One impartial referee. Site-hosted strategy wargames for discovering missing game-command capabilities—without running the soldier simulator or using paid AI APIs.</p></header>
+<main>
+<div class="panel">
+  <h2>Open a match <span class="badge" id="phase">No match loaded</span></h2>
+  <div class="grid3">
+    <div><label for="match">Match ID</label><input id="match" autocomplete="off" spellcheck="false" placeholder="24-character match ID"></div>
+    <div><label for="role">View as</label><select id="role"><option value="public">Public spectator</option><option value="us">US commander</option><option value="ge">German commander</option><option value="umpire">Neutral referee</option></select></div>
+    <div><label for="key">Role key (not needed for public)</label><input id="key" type="password" autocomplete="off" placeholder="Keep role keys private"></div>
+  </div>
+  <button class="primary" id="load">Load / refresh match</button>
+  <button id="copyPacket">Copy briefing for your AI chat</button>
+  <p id="message" role="status" aria-live="polite"></p>
+  <div class="quiet">The page refreshes public status periodically while open. ChatGPT and Claude chat sessions do not automatically wake up to take turns.</div>
+</div>
+
+<div class="panel hidden" id="dashboard">
+  <h2 id="matchTitle">Match</h2>
+  <div id="meta" class="quiet"></div>
+  <div class="grid">
+    <div><h3>Current public briefing</h3><pre id="publicBrief"></pre></div>
+    <div><h3 id="privateTitle">Faction-private briefing</h3><pre id="privateBrief"></pre></div>
+  </div>
+  <details><summary>Full rules and starting scenario (site-hosted)</summary><h3>Rules</h3><pre id="rules"></pre><h3>Scenario</h3><pre id="scenario"></pre></details>
+  <h3>Current orders</h3><div id="orderStatus" class="quiet"></div><pre id="currentOrders"></pre>
+  <details><summary>Completed round history</summary><pre id="history"></pre></details>
+</div>
+
+<div class="panel hidden" id="commander">
+  <h2>Submit sealed orders</h2>
+  <p class="quiet">One submission per side per round. It cannot be edited afterward. Orders are only revealed after both sides submit. Keep your role key private.</p>
+  <label for="orders">Your orders (intent, mission assignments, contingencies, missing capabilities)</label>
+  <textarea id="orders" class="tall" maxlength="15000" placeholder="TURN: 1&#10;SIDE: US / GE&#10;INTENT: ...&#10;COMMANDS: ...&#10;PROPOSED CAPABILITIES: ..."></textarea>
+  <button class="primary" id="submit">Seal my orders</button>
+</div>
+
+<div class="panel hidden" id="referee">
+  <h2>Resolve both committed orders</h2>
+  <p class="notice">Only adjudicate after the site confirms BOTH sides submitted. The umpire preserves hidden information and records hypothetical outcomes explicitly.</p>
+  <label for="resolution">Public resolution / objective changes</label><textarea id="resolution" class="tall" maxlength="18000"></textarea>
+  <label for="nextPublic">Next public turn briefing</label><textarea id="nextPublic" maxlength="10000"></textarea>
+  <div class="grid">
+    <div><label for="usNext">Next US-private briefing</label><textarea id="usNext" maxlength="10000"></textarea></div>
+    <div><label for="geNext">Next GE-private briefing</label><textarea id="geNext" maxlength="10000"></textarea></div>
+  </div>
+  <label for="umpireNotes">Umpire-only state checkpoint</label><textarea id="umpireNotes" maxlength="18000"></textarea>
+  <label for="capabilities">New capabilities (one per line)</label><textarea id="capabilities"></textarea>
+  <label for="winner">Turn outcome</label><select id="winner"><option value="ongoing">Continue next turn</option><option value="us">US victory</option><option value="ge">German victory</option><option value="draw">Draw</option></select>
+  <button class="primary" id="resolve">Publish resolution + advance turn</button>
+</div>
+
+<details class="panel" id="createDetails"><summary>Create a new match (administrator)</summary>
+  <p class="quiet">A reusable ruleset and starter scenario are served from this 50web installation. Edit them for your new match; this creates a private match record on the host.</p>
+  <label for="adminKey">Administrator password</label><input id="adminKey" type="password" autocomplete="off">
+  <label for="newTitle">Match title</label><input id="newTitle" value="Junction Corridor — ChatGPT vs Claude">
+  <div class="grid"><div><label for="newLimit">Turn limit (2–15)</label><input id="newLimit" type="number" min="2" max="15" value="8"></div>
+  <div><label for="newMode">Mode</label><select id="newMode"><option value="discovery">Discovery (hypothetical actions allowed)</option><option value="native_only">Native only (proposals logged)</option></select></div></div>
+  <label for="newRules">Rules</label><textarea id="newRules" class="tall"></textarea>
+  <label for="newScenario">Scenario and victory conditions</label><textarea id="newScenario" class="tall"></textarea>
+  <label for="newPublic">Initial public briefing</label><textarea id="newPublic"></textarea>
+  <div class="grid"><div><label for="newUS">Initial US-only briefing</label><textarea id="newUS"></textarea></div>
+  <div><label for="newGE">Initial German-only briefing</label><textarea id="newGE"></textarea></div></div>
+  <label for="newUmpire">Initial umpire-only state/notes</label><textarea id="newUmpire"></textarea>
+  <button class="primary" id="create">Create match + generate role keys</button>
+  <div id="created" class="hidden"><p class="notice">Copy and save these keys now. They cannot be retrieved later. Never paste one side's key into the other side's chat.</p><pre id="createdOutput" class="key"></pre></div>
+</details>
+</main><footer>GRASSTEX Commander Ideation Lab · Qualitative design exercise, not a runtime battle benchmark</footer>
+<script src="./app.js"></script></body></html>
