@@ -450,6 +450,10 @@
       }),
       boardedCount: 0,
       nextBoardAt: +sim.time || 0,
+      // A 200m pickup takes longer than the old base-only 35s boarding cap.
+      // Preserve that 35s cap for unaccepted orders; give accepted teams
+      // enough physical approach + serial-seat time to finish boarding.
+      boardTimeoutSeconds: Math.max(BOARD_TIMEOUT, Math.ceil(quote.boardSeconds + 15)),
       position: position(vehicle.position),
       initialPosition: position(vehicle.position),
       // No snap-turn when first passenger touches the stopped truck.
@@ -493,7 +497,7 @@
     var t = sq._transport,
       members = alive(sq),
       seats = t.boardingOrder;
-    if (sim.time - t.requestedAt > BOARD_TIMEOUT) {
+    if (sim.time - t.requestedAt > (t.boardTimeoutSeconds || BOARD_TIMEOUT)) {
       finish(sim, sq, 'boarding-timeout');
       return;
     }
