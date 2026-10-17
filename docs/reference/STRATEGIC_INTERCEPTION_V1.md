@@ -13,6 +13,18 @@
 
 **Merge point.** The output is shaped like the ww2fps map generator's (ordered control points typed town, forest or open, a main road through them plus side roads, defensive sectors that name their fallback) so its generator can replace `createFrontLines` later without touching the AI: it has to produce `objectives` with `frontLine`, `roads` with `fromObjectiveId`/`toObjectiveId`, `settlements` and `scenario.frontLines`. No ww2fps code is copied here. That swap needs the owner's word, since ww2fps is private and this repository is public.
 
+## Reinforcement trial on the front lines — October 17, 2026
+
+The owner asked for a small, controlled respawn trial, because one life per squad leaves ambushes nothing to hit: every squad races to the centre once and is then busy holding or capturing. `?reinforcements=1` (front-lines layout only; the 12-point map keeps one life) adds fresh whole squads, nothing more:
+
+- **Pool:** one fresh squad per base of the side (three each).
+- **Trigger:** the side's own losses. Each time its dead reach another full squad's worth (`SquadAI.COMPOSITION`, ten men) beyond the squads already sent, one squad is due. There is no wave clock; the check rides the General's existing tick.
+- **Where:** a held objective of the rearmost line the side holds any of (normally a base, `BattleFrontLines.rearmostHeld`), in turn. Never one with a live enemy soldier inside its capture radius (the true position, as invariant 8 of `docs/plans/reinforcement-forward-spawns.md` asks); with none clear the squad stays due and the block is reported once (`strategic-reinforcement-blocked`).
+- **What it is:** an ordinary squad built by the infantry-squad unit module. The General briefs it like any squad without a mission; it takes a truck only if one is parked or stopped nearby, otherwise it walks the roads. No new movement writer, order path or timer.
+- **Not in the trial:** individual soldier respawns, the reinforcing/rejoin lifecycle, forward hardpoints, HLL-style tickets or a different battle end (the time-limit score and a side with no men still decide it). Those stay in the reinforcement plan.
+
+`battle/modules/21c-strategic-reinforcements.js` is the one owner; `scripts/check-strategic-reinforcements.cjs` covers it. Telemetry: `strategic-reinforcement` (faction, wave, squad, objective, losses) and `BattleStrategicReinforcements.summary(sim)`.
+
 ## Vehicle persistence and future garages — October 16, 2026
 
 Implementation proposal in [#558](https://github.com/APPARANYX/grasstex/pull/558), targeting the draft strategic parent #545:
@@ -160,4 +172,4 @@ Each step is a separate reviewable commit/PR checkpoint on the **new main-based 
 
 ## Non-goals
 
-Do **not** modify/merge legacy #527 or its experiments, normalize their acceptance metrics, add respawns, route-memory ground-scout ambushes, parachute insertion, full vehicle physics, free tactical map reveals, scripted enemy movement, or any hidden actor-position access outside the one bounded aerial observation event.
+Do **not** modify/merge legacy #527 or its experiments, normalize their acceptance metrics, add respawns (beyond the flagged reinforcement trial above), route-memory ground-scout ambushes, parachute insertion, full vehicle physics, free tactical map reveals, scripted enemy movement, or any hidden actor-position access outside the one bounded aerial observation event.

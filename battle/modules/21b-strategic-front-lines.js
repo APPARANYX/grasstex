@@ -98,6 +98,25 @@
     });
     return best ? { x: best.x, z: best.z, objectiveId: best.id, line: line.index } : null;
   }
+  /* The objectives this side holds on the rearmost line it holds any of (normally its bases):
+     where a fresh reinforcement squad enters (21c-strategic-reinforcements.js). */
+  function rearmostHeld(sim, faction) {
+    var town = layout(sim);
+    if (!town || (faction !== 'us' && faction !== 'ge')) return [];
+    var lines = ordered(town, faction);
+    for (var i = 0; i < lines.length; i++) {
+      var held = lines[i].objectiveIds.filter(function (id) {
+        return owner(sim, id) === faction;
+      });
+      if (held.length)
+        return held
+          .map(function (id) {
+            return objective(town, id);
+          })
+          .filter(Boolean);
+    }
+    return [];
+  }
   /* ?splitRoads=0 sends every squad by the shortest road, as before. */
   function splitOn() {
     return !/(?:^|[?&])splitRoads=0(?:&|$)/.test((root.location && root.location.search) || '');
@@ -247,6 +266,7 @@
     },
     attackable: attackable,
     rearFor: rearFor,
+    rearmostHeld: rearmostHeld,
     approachFor: approachFor,
     summary: summary,
     seed: seed
