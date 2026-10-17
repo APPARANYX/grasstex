@@ -20,6 +20,10 @@
     caption = null,
     style = null,
     reportsNode = null,
+    airSection = null,
+    airButton = null,
+    airStatus = null,
+    airReportsNode = null,
     objectivesNode = null,
     headerInfo = null,
     operationalInfo = null,
@@ -643,6 +647,80 @@
       }
     });
   }
+  /* Air reconnaissance is a bounded General-owned observation, not a second
+     perception system. Only the selected faction's immutable, still-valid
+     BattleAerialRecon.forGeneral DTO may be plotted or described. */
+  function aerialView(sim, faction) {
+    var A = root.BattleAerialRecon,
+      status = A && A.status ? A.status(sim, faction) : { enabled: false, used: false },
+      event = A && A.forGeneral ? A.forGeneral(sim, faction) : null;
+    return { status: status, event: event };
+  }
+  function renderAerial(layer, reports, dimensions, sim, faction) {
+    var view = aerialView(sim, faction), status = view.status, event = view.event;
+    if (airSection) airSection.hidden = !status.enabled;
+    if (!status.enabled) return;
+    if (airButton) {
+      airButton.disabled = !!status.used || sim.paused || (+sim.time || 0) < 5;
+      airButton.textContent = status.used ? 'SORTIE EXPENDED' : 'REQUEST AIR RECON';
+      airButton.title = 'One authorized air survey per General; no exact enemy targeting information';
+    }
+    if (airStatus) {
+      airStatus.textContent = status.used
+        ? event
+          ? 'REPORT RECEIVED · ' + status.contacts + ' moving contacts · expires in ' +
+            Math.max(0, Math.ceil(event.validUntil - sim.time)) + 's'
+          : 'SORTIE COMPLETE · INTELLIGENCE EXPIRED'
+        : sim.paused || sim.time < 5
+          ? 'AVAILABLE AFTER DEPLOYMENT · ONE SORTIE'
+          : 'ONE SORTIE AVAILABLE · REPORTS LAST 45s';
+    }
+    if (airReportsNode) clear(airReportsNode);
+    if (!event) return;
+    (event.contacts || []).forEach(function (c) {
+      var p = project(c, dimensions);
+      if (!p || p.x < 30 || p.x > 970 || p.y < 20 || p.y > 580) return;
+      var ring = Math.max(5, (c.positionUncertaintyM || 40) * 940 / dimensions.width),
+        group = add(layer, 'g', {
+          'class': 'gtm-air-fix',
+          transform: 'translate(' + p.x + ' ' + p.y + ')'
+        });
+      add(group, 'circle', {
+        r: ring, fill: '#ecbc71', 'fill-opacity': .09, stroke: '#f7c37c',
+        'stroke-width': 1.6, 'stroke-dasharray': '5 4'
+      });
+      add(group, 'path', { d: 'M0 -10 L8 7 L0 3 L-8 7 Z',
+        fill: '#f4cf91', stroke: '#403527', 'stroke-width': 1,
+        transform: 'rotate(' + ((c.headingRadians || 0) * 180 / Math.PI) + ')'
+      });
+      add(group, 'title', {},
+        'AIR RECON · approximate fix · ' + gridRef(c, dimensions) +
+        ' · heading and speed uncertain · observation ' + event.observedAt + 's');
+      if (!airReportsNode) return;
+      var item = document.createElement('div');
+      item.className = 'gtm-air-contact';
+      var age = Math.max(0, Math.floor(sim.time - event.observedAt));
+      item.textContent = 'AIR FIX ' + gridRef(c, dimensions) +
+        ' · ' + age + 's OLD · ~' + c.speedMps + 'm/s' +
+        ' · CONF ' + Math.round(100 * c.confidence) + '%' +
+        ' · ±' + c.positionUncertaintyM + 'm';
+      airReportsNode.appendChild(item);
+    });
+    if (airReportsNode && !event.contacts.length) {
+      var empty = document.createElement('p');
+      empty.className = 'gtm-report-empty';
+      empty.textContent = 'No qualifying moving enemy formations observed on this sortie.';
+      airReportsNode.appendChild(empty);
+    }
+  }
+  function requestAerialRecon() {
+    if (!simRef || !opened) return null;
+    var A = root.BattleAerialRecon, faction = playerSide(simRef) || viewFaction;
+    if (!A || !A.request) return null;
+    var event = A.request(simRef, faction, { playerOrdered: true });
+    render();
+    return event;
+  }
   function render() {
     if (!opened || !svg || !simRef) return;
     var sim = simRef;
@@ -686,6 +764,7 @@
     renderFriendlies(dynamicLayer, sim, faction, dims);
     renderContacts(dynamicLayer, contacts, dims);
     renderReports(contacts, dims, sim);
+    renderAerial(dynamicLayer, contacts, dims, sim, faction);
     if (headerInfo)
       headerInfo.textContent = (faction === 'us' ? 'UNITED STATES' : 'GERMANY') + ' / INTELLIGENCE VIEW';
     if (operationalInfo)
@@ -841,6 +920,12 @@
       '.gtm-report-row strong{display:block;color:#e2e3d8;font:700 11px Arial;margin-bottom:5px}',
       '.gtm-report-row small{display:block;color:#9fac9f;font:10px Arial;line-height:1.5;overflow-wrap:anywhere}',
       '.gtm-report-empty{color:#b1bbae;font:12px/1.5 Arial;margin:8px 0}',
+      '.gtm-air-section{background:#293028;border-bottom:1px solid #60654c}',
+      '.gtm-air-section[hidden]{display:none!important}',
+      '.gtm-air-section button{display:block;width:100%;padding:9px 8px;margin:8px 0;color:#efe9d7;background:#3e5142;border:1px solid #9baa82;border-radius:3px;font:700 11px Arial;cursor:pointer}',
+      '.gtm-air-section button:disabled{opacity:.57;cursor:default}',
+      '.gtm-air-status{font:11px/1.4 Arial;color:#efcb8b;margin:8px 0}',
+      '.gtm-air-contact{font:10px/1.5 Arial;color:#efd9b1;padding:7px 0;border-top:1px solid #626455}',
       '.gtm-caption{font:700 11px Arial;color:#c4d5c5;line-height:1.4;margin:12px 0}',
       '.gtm-legend{font:11px/1.45 Arial;color:#aab9ad;margin:8px 0 0}',
       '.gtm-footer{display:flex;align-items:center;flex-wrap:wrap;gap:18px;background:#101818;padding:10px 21px;border-top:1px solid #49574e;color:#c0cbc0;font:12px Arial}',
@@ -986,6 +1071,26 @@
       legend.appendChild(line);
     });
     sidebar.appendChild(legend);
+    airSection = document.createElement('section');
+    airSection.className = 'gtm-side-section gtm-air-section';
+    airSection.hidden = true;
+    var airHeading = document.createElement('h3');
+    airHeading.textContent = 'AERIAL RECONNAISSANCE';
+    airSection.appendChild(airHeading);
+    airStatus = document.createElement('p');
+    airStatus.className = 'gtm-air-status';
+    airStatus.textContent = 'One sortie per General';
+    airSection.appendChild(airStatus);
+    airButton = document.createElement('button');
+    airButton.type = 'button';
+    airButton.id = 'battleRequestAirRecon';
+    airButton.textContent = 'REQUEST AIR RECON';
+    airButton.onclick = requestAerialRecon;
+    airSection.appendChild(airButton);
+    airReportsNode = document.createElement('div');
+    airReportsNode.id = 'battleAirReconReports';
+    airSection.appendChild(airReportsNode);
+    sidebar.appendChild(airSection);
     var objectives = document.createElement('section');
     objectives.className = 'gtm-side-section gtm-objectives';
     var objectivesTitle = document.createElement('h3');
@@ -1116,6 +1221,10 @@
       sideSelect =
       caption =
       reportsNode =
+      airSection =
+      airButton =
+      airStatus =
+      airReportsNode =
       headerInfo =
       operationalInfo =
       zoomText =
@@ -1141,6 +1250,8 @@
     resetViewport: resetViewport,
     zoomTo: zoomTo,
     render: render,
+    aerialView: aerialView,
+    requestAerialRecon: requestAerialRecon,
     dispose: dispose,
     retentionSeconds: RETAIN_SECONDS
   };
