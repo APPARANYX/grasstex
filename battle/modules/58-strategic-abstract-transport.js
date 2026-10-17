@@ -315,7 +315,6 @@
       sq.inContact ||
       sq.isPlayer ||
       sq._preparedDefenseRequest ||
-      sq._transportUsed ||
       (sq._transport && (sq._transport.phase === 'embarked' || sq._transport.phase === 'boarding'))
     )
       return null;
@@ -325,34 +324,38 @@
       town = sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario;
     if (
       !center ||
-      !home ||
       !town ||
       members.length < 3 ||
-      dist(center, home) > 95 ||
       members.some(function (s) {
         return s.isPlayer || s.suppressedUntil > sim.time || dist(position(s.root.position), center) > 32;
       })
     )
       return null;
     var fleet = sim._strategicTransportFleet,
+      previousVehicleId = sq._transport && sq._transport.vehicleId,
       candidates = (fleet ? fleet.vehicles : [])
         .filter(function (v) {
-          var base = ((town.spawnZones[v.faction] && town.spawnZones[v.faction].bases) || [])[v.baseIndex];
-          return (
-            v.faction === sq.faction &&
-            v.phase === 'parked' &&
-            base &&
-            dist(center, base) <= 95 &&
-            dist(center, v.position) <= 65
-          );
+          if (v.faction !== sq.faction || v.squadId ||
+              (v.phase !== 'parked' && v.phase !== 'stopped') ||
+              dist(center, v.position) > NEARBY_TRUCK_METRES) return false;
+          if (v.phase === 'parked') {
+            var base = ((town.spawnZones[v.faction] && town.spawnZones[v.faction].bases) || [])[v.baseIndex];
+            return base && dist(center, base) <= 95;
+          }
+          return true;
         })
         .sort(function (a, b) {
-          return dist(center, a.position) - dist(center, b.position) || a.id.localeCompare(b.id);
+          var preferredA = a.id === previousVehicleId ? 0 : 1,
+            preferredB = b.id === previousVehicleId ? 0 : 1;
+          return preferredA - preferredB || dist(center, a.position) - dist(center, b.position) ||
+            a.id.localeCompare(b.id);
         });
     for (var c = 0; c < candidates.length; c++) {
       var vehicle = candidates[c],
-        trial = parkingRoute(town, vehicle, mission);
+        trial = parkingRoute(town, sq, vehicle, mission);
       if (!trial || !trial.path.length) continue;
+      trial = pullOff(sim, town, trial, vehicle);
+      if (!trial) continue;
       var previous = vehicle.position,
         passable = safe(sim, center, vehicle.position);
       for (var i = 0; passable && i < trial.path.length; i++) {
@@ -363,8 +366,9 @@
         return {
           vehicle: vehicle,
           route: trial,
-          boardSeconds: Math.max(10, dist(center, vehicle.position) / BOARD_SPEED + 8),
-          dismountSeconds: DISEMBARK_METRES / 2,
+          boardSeconds: Math.max(10, dist(center, vehicle.position) / BOARD_SPEED + 8 +
+            Math.max(0, members.length - 1) * BOARD_STAGGER),
+          dismountSeconds: trial.standoffMetres / 2,
           setupSeconds: 25
         };
     }
@@ -378,6 +382,7 @@
       members = alive(sq);
     var ledger = sim._strategicTransport || (sim._strategicTransport = { us: 0, ge: 0 });
     ledger[sq.faction]++;
+    var reusedTruck = vehicle.phase === 'stopped';
     vehicle.phase = 'assigned';
     vehicle.squadId = sq.id;
     sq._transportUsed = true;
@@ -391,15 +396,20 @@
       baseId: vehicle.baseId,
       boardingCenter: position(vehicle.position),
       initialPassengerCount: members.length,
+      boardingOrder: members.map(function (member) { return member.id; }),
+      boardedCount: 0,
+      nextBoardAt: +sim.time || 0,
       position: position(vehicle.position),
       initialPosition: position(vehicle.position),
-      heading: heading(vehicle.position, route.path[0].point),
+      // No snap-turn when first passenger touches the stopped truck.
+      heading: { x: vehicle.heading.x, z: vehicle.heading.z },
       path: route.path,
       leg: 0,
       travelled: 0,
       total: route.pathMetres,
       estimatedDriveSeconds: route.estimatedDriveSeconds,
       dismountPoint: route.destination,
+      standoffMetres: route.standoffMetres,
       goal: route.goal
     };
     log(sim, sq, 'granted', {
@@ -407,6 +417,8 @@
       vehicleId: vehicle.id,
       baseId: vehicle.baseId,
       routeMetres: +route.pathMetres.toFixed(1),
+      standoffMetres: route.standoffMetres,
+      reusedTruck: reusedTruck,
       eta: +route.estimatedDriveSeconds.toFixed(1)
     });
     return true;
@@ -616,6 +628,9 @@
       roadSpeed: SPEED_ROAD,
       joinSpeed: SPEED_JOIN,
       dismountMetres: DISEMBARK_METRES,
+      screenDismountMetres: SCREEN_STANDOFF,
+      turnoutMetres: TURNOUT_METRES,
+      boardingStaggerSeconds: BOARD_STAGGER,
       minimumTrip: MIN_TRIP,
       vehiclesPerFaction: VEHICLES_PER_BASE * 3
     }
