@@ -338,6 +338,7 @@
   function reservePending(sim, faction) {
     return (
       enabled(sim) &&
+      sim.time < 600 &&
       pairs(sim, faction).some(function (pair) {
         var m = pair.screen._macroMission;
         return m && m.intent === 'reserve' && m.interceptReserve;
