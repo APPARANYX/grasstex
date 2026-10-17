@@ -548,14 +548,16 @@
       });
   }
   function updateRiders(sim, st, entry) {
-    if (entry.showcase || entry.phase !== 'embarked') {
+    if (entry.showcase || (entry.phase !== 'boarding' && entry.phase !== 'embarked')) {
       if (entry.riders.length) disposeRiders(entry);
       return;
     }
     if (!st.poseReady || !entry.root) return;
-    // All of the actual squad's already-loaded meshes snap into their seats
-    // in ONE render update. No per-seat FBX loading or staggered emergence.
+    // Only the occupants already admitted by the transport controller can
+    // switch into their ORIGINAL animated seat rig. Driver first, one seat
+    // at a time; no ten-soldier pop-in when the final member is ready.
     entry.members.forEach(function (member) {
+      if (entry.phase === 'boarding' && member.index >= entry.boardedCount) return;
       if (
         entry.riders.some(function (r) {
           return r.soldier === member.soldier;
@@ -605,7 +607,9 @@
       entry.phase = task ? task.phase : vehicle.phase;
       entry.squadId = task ? squad.id : null;
       entry.members = task ? seatsFor(squad) : [];
-      if (entry.phase !== 'embarked' && entry.riders.length) disposeRiders(entry);
+      entry.boardedCount = task ? task.boardedCount || 0 : 0;
+      if (entry.phase !== 'boarding' && entry.phase !== 'embarked' && entry.riders.length)
+        disposeRiders(entry);
       if (st.source && !entry.root) {
         try {
           instantiateTruck(sim, st, entry);
@@ -698,6 +702,7 @@
           showcase: false,
           parked: entry.phase === 'parked',
           seats: entry.members.length,
+          boardedCount: entry.boardedCount || 0,
           renderedRiders: entry.riders.length,
           liveModels: entry.riders.map(function (r) {
             return r.fx.lib.file;

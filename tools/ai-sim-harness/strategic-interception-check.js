@@ -216,7 +216,8 @@ lead._macroMission = {
   status: 'executing',
   objectiveId: 'crossing',
   point: { x: 0, z: 500 },
-  version: 1
+  version: 1,
+  observations: { at: 0 }
 };
 const screen = {
   ...lead,
@@ -244,6 +245,7 @@ screen.members.forEach(m => {
 paired.sim.factions.us.squads.push(screen);
 paired.root.BattleTacticalSituation = { compute: () => ({ contacts: [] }) };
 paired.sim.objectiveControl = { sectors: { crossing: { owner: 'neutral' } } };
+paired.sim.time = 20;
 lead.members.forEach(m => {
   m.root.position = { x: 0, z: 500 };
 });
@@ -253,9 +255,10 @@ assert.equal(P.reservePending(paired.sim, 'us'), true);
 assert.equal(
   P.screenOpportunity(paired.sim, 'us', P.pairs(paired.sim, 'us')[0]),
   null,
-  'do not send the second truck past an unsecured objective'
+  'hold the second truck until the 35-second departure delay'
 );
-paired.sim.objectiveControl.sectors.crossing.owner = 'us';
+paired.sim.time = 40;
+paired.sim.objectiveControl.sectors.crossing.owner = 'neutral';
 paired.root.BattleTacticalSituation.compute = () => ({
   contacts: [
     {
@@ -278,8 +281,19 @@ assert.ok(
 );
 paired.root.BattleTacticalSituation.compute = () => ({ contacts: [] });
 const opp = P.screenOpportunity(paired.sim, 'us', P.pairs(paired.sim, 'us')[0]);
-assert.ok(opp && opp.spec.intent === 'screen', 'verified uncontested owner unlocks forward screen');
+assert.ok(
+  opp && opp.spec.intent === 'screen',
+  'no recent reported threat permits second-truck departure BEFORE capture'
+);
 assert.ok(opp.spec.point.z > 500 + 200, 'second squad screens past objective, not on it');
+assert.equal(
+  opp.spec.screen.launchedBeforeCapture,
+  true,
+  'the objective is still neutral when the delayed second truck is dispatched'
+);
+assert.equal(opp.spec.screen.standoffMetres, 25);
+assert.equal(opp.quote.route.standoffMetres, 25);
+assert.ok(opp.quote.route.destination.z > 500, 'screen dismount occurs on the far side of the objective');
 assert.equal(opp.quote.vehicle.faction, 'us');
 assert.equal(PT.fleetSummary(paired.sim).length, 12, 'screen quote does not invent a vehicle');
 let screenCalls = 0;

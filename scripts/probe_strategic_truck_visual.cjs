@@ -146,7 +146,8 @@ const out = path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT || 'closeups/strateg
         vehicle.squadId = squad.id;
         squad._transport = {
           vehicleId: vehicle.id,
-          phase: 'embarked',
+          phase: 'boarding',
+          boardedCount: 0,
           position: { ...vehicle.position },
           heading: { ...vehicle.heading }
         };
@@ -163,6 +164,47 @@ const out = path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT || 'closeups/strateg
         models: ['us', 'ge'].map(f => window.__truckQa.soldiers[f].map(s => s._fbx?.lib?.file || null))
       };
     });
+    // Real seat rigs appear in the same 0..9 driver-first sequence that the
+    // transport controller reports, not as a ten-person model pop-in.
+    await page.waitForFunction(
+      () => {
+        const b = window.__battle__;
+        return window.BattleTransportVehicleVisual.summary(b).every(x => x.posesReady);
+      },
+      null,
+      { timeout: 120000 }
+    );
+    const sequential = await page.evaluate(() => {
+      const b = window.__battle__,
+        qa = window.__truckQa,
+        samples = [];
+      for (let seatCount = 0; seatCount <= 10; seatCount++) {
+        for (const side of ['us', 'ge']) qa.squads[side]._transport.boardedCount = seatCount;
+        qa.system.onSimulationStep(b, { dt: 0 });
+        const visual = window.BattleTransportVehicleVisual.summary(b);
+        samples.push(
+          Object.fromEntries(
+            ['us', 'ge'].map(side => {
+              const truck = visual.find(v => v.squad === qa.squads[side].id);
+              return [side, truck?.renderedRiders ?? -1];
+            })
+          )
+        );
+      }
+      for (const side of ['us', 'ge']) qa.squads[side]._transport.phase = 'embarked';
+      qa.system.onSimulationStep(b, { dt: 0 });
+      return samples;
+    });
+    assert.deepEqual(
+      sequential.map(row => row.us),
+      [...Array(11).keys()],
+      'US original rigs attach exactly one per seat in driver-first order'
+    );
+    assert.deepEqual(
+      sequential.map(row => row.ge),
+      [...Array(11).keys()],
+      'German original rigs attach exactly one per seat in driver-first order'
+    );
     // No additional soldier FBX model parse occurs at boarding.
     await page.waitForFunction(
       () => {

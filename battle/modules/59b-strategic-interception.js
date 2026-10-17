@@ -381,6 +381,7 @@
       })[0] || null
     );
   }
+  var SCREEN_LAUNCH_DELAY = 35;
   function screenOpportunity(sim, faction, pair) {
     var lead = pair.lead,
       screen = pair.screen,
@@ -401,15 +402,19 @@
       ) ||
       lead.inContact ||
       screen.inContact ||
-      screen._transportUsed
+      screen._transportUsed ||
+      !(mission.observations && isFinite(mission.observations.at)) ||
+      sim.time - mission.observations.at < SCREEN_LAUNCH_DELAY
     )
       return null;
     var obj = objective(town, mission.objectiveId);
     if (!obj || obj.baseFaction) return null;
     var status = sim.objectiveControl && sim.objectiveControl.sectors && sim.objectiveControl.sectors[obj.id];
-    // Public ownership plus no known fresh report is the operational gate.
-    // Lack of a report does NOT assert that the enemy is absent.
-    if (!status || status.owner !== faction) return null;
+    // Do NOT wait until the lead captures the objective. The real second
+    // truck rolls after a short General-issued delay while the first truck
+    // approaches. A known hostile-held objective is not a safe bypass.
+    // No reports is uncertainty, not a claim that the road is empty.
+    if (status && status.owner && status.owner !== 'neutral' && status.owner !== faction) return null;
     var picture = root.BattleTacticalSituation && root.BattleTacticalSituation.compute(sim, faction);
     if (!picture) return null;
     var danger = picture.contacts.some(function (c) {
@@ -430,7 +435,8 @@
           return v + m.root.position.z;
         }, 0) / leadPos.length
     };
-    if (d(center, obj) > (+obj.radius || 55) + 40) return null;
+    // Lead must have an active approach, not necessarily already be on point.
+    if (mission.status !== 'issued' && mission.status !== 'executing') return null;
     var post = screeningPoint(town, obj.id, faction);
     if (!post) return null;
     if (
@@ -458,6 +464,8 @@
         securedObjectiveId: obj.id,
         roadId: post.roadId,
         forwardM: +post.forwardM.toFixed(1),
+        standoffMetres: 25,
+        launchedBeforeCapture: !status || status.owner !== faction,
         orderedAt: sim.time
       }
     };
