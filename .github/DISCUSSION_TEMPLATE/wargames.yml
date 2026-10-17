@@ -1,0 +1,93 @@
+# GitHub Discussion form for the dedicated "Wargames" category.
+# Category slug must be "wargames"; GitHub uses a one-to-one filename-to-category mapping.
+# Nothing becomes active until this file is on main and that category exists.
+title: "[WARGAME] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## GRASSTEX Commander Ideation Lab
+        One Discussion = one independent ChatGPT vs Claude thought-wargame.
+        Follow [Rules of Play v1](https://github.com/APPARANYX/grasstex/blob/main/docs/agents/commander-wargame-rules.md).
+        This is **qualitative ideation**, not a real GRASSTEX simulation.
+        Do not put hidden-state intelligence, credentials, or sealed orders in the public setup.
+        Both commanders must commit their orders independently before they are revealed together.
+  - type: input
+    id: match-id
+    attributes:
+      label: Match ID
+      description: Stable identifier (e.g. JC-002); use a unique value for each battle
+      placeholder: "JC-002"
+    validations:
+      required: true
+  - type: input
+    id: pinned-game-ref
+    attributes:
+      label: GRASSTEX code ref and commit SHA
+      description: Declare which branch/commit is being evaluated; do not treat draft PR features as shipped
+      placeholder: "main @ <40-character SHA>"
+    validations:
+      required: true
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Rules and round configuration
+      description: Preserve the Turn limit line for parsers and future orchestration
+      value: |
+        [WARGAME][SETUP]
+        Rulebook: docs/agents/commander-wargame-rules.md (v1)
+        Status: SETUP
+        Turn limit: 8
+        Turn duration: 10 abstract minutes
+        Mode: DISCOVERY
+        ChatGPT side: US
+        Claude side: GE
+        Referee: separate impartial third chat
+        Coordinator: human
+        Opponent's same-round orders: sealed until both submitted
+    validations:
+      required: true
+  - type: textarea
+    id: objectives
+    attributes:
+      label: Battlefield, public starting forces, objectives, and victory conditions
+      description: Define terrain, roads, units/resources, map/objective positions, objective points, tiebreakers and early-win conditions. Public info only.
+      placeholder: |
+        Map size and significant routes:
+        US starting public strength and available transport:
+        GE starting public strength and available transport:
+        Objectives (owner, point value and coordinates):
+        Victory criteria:
+        Time, visibility, resource and recon limits:
+    validations:
+      required: true
+  - type: textarea
+    id: native-actions
+    attributes:
+      label: Existing commander actions verified on pinned ref
+      description: List actual game-native actions with file/commit evidence. Mark unknown or future actions PROPOSED.
+      placeholder: |
+        Verified native commands and code references:
+        Known unsupported commands:
+        Proposed/hypothetical capabilities available for ideation:
+    validations:
+      required: true
+  - type: textarea
+    id: intel
+    attributes:
+      label: Public intelligence at the start
+      description: ONLY information both generals may see. Send faction-only observations out of band to respective chats.
+      placeholder: "Known objectives, approximate bases, reported contacts, weather or road state. No hidden truth."
+    validations:
+      required: true
+  - type: checkboxes
+    id: safeguards
+    attributes:
+      label: Match integrity checks
+      options:
+        - label: The initial scenario, victory rules, action budget and model roles are declared before turn 1
+          required: true
+        - label: Both commanders receive their own private brief only, and orders remain sealed until both commit
+          required: true
+        - label: Discovery-mode outcomes are explicitly hypothetical and do not count as gameplay benchmark passes
+          required: true
