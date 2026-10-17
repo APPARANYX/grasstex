@@ -20,6 +20,16 @@ Acceptance requires a real paused-at-load browser capture of all twelve empty tr
 
 ---
 
+## Full-screen tactical map and actionable aerial reconnaissance (draft #562)
+
+- Reuse the **full-screen WWII command map** developed in draft [PR #499](https://github.com/APPARANYX/grasstex/pull/499): field-paper public terrain/roads/buildings/cover, objective labels, blue friendly symbols, red **reported-only** enemy contacts, confidence/age/source sidebar, zoom/pan and mobile view. **M** or gamepad **D-pad Right** opens it, **Escape** closes it; opening suppresses soldier firing and fly controls.
+- Remove the always-visible 252 px strategic minimap and its direct enemy-squad transform sampling. Never show both armies' exact live positions just because the player is spectating.
+- On a strategic battle with `aerialRecon=1`, the map offers a **Request Air Recon** action after deployment begins (5 simulated seconds). It spends **the same one authorized sortie** as the General's automatic doctrinal reconnaissance; a used sortie never refreshes or refunds on expiry. The AI General continues to obtain the same frozen, faction-local report if its authorized opportunity occurs before player action.
+- The reported map displays only `BattleAerialRecon.forGeneral(sim,faction)` for the chosen/possessed perspective. An air fix is **35 m quantized**, carries a **40 m uncertainty halo**, measured speed and approximate heading, and expires after **45 simulated seconds**. Hidden/ambush, stationary and otherwise unsuited formations remain unobserved. Air sightings are intelligence, never automatic targeting or a combat command.
+- **Acceptance:** on actual 5 km browser build the minimap DOM is absent; the full map opens/closes, scales to 5 km, renders ordinary faction reports without actor truth, obeys player faction lock, and an early human action spends a single genuinely sampled sortie with a visible fading report. Preserve OFF-mode, existing aerial General decisions and restart privacy. No physical aircraft visual, new fuel economy or reusable flight budget is asserted.
+
+---
+
 ## 5 km player QA camera travel — October 16, 2026
 
 To navigate and inspect the larger strategic map in **free-fly spectator mode** without changing infantry movement or smaller-map controls, keyboard **Shift** and gamepad **RB** share the strategic fast-flight speed of **420 world units per second** (previously 175). Normal free-flight remains 68; smaller maps' fast-flight remains 175; existing wheel/D-pad throttle and LB precision controls stay as before. A dedicated `camera-strategic-fast-flight-check.js` asserts these distinctions. This is a player-camera presentation/control change, not a gameplay transport or soldier-speed change.
