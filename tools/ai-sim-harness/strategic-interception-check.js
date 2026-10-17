@@ -632,6 +632,90 @@ assert.ok(
   'telemetry counts delivered corridors'
 );
 assert.ok(!w.events.some(e => /fire|hit|shot/.test(e.kind)), 'No fabricated shots or targeting');
+// Front lines: after a line-change sortie, one squad of a held line's garrison may walk out.
+function garrisonWorld(search, count) {
+  const g = make(search);
+  const squads = Array.from({ length: count }, (_, i) => {
+    const sq = {
+      id: 'us-garrison-' + i,
+      faction: 'us',
+      state: 'advance',
+      inContact: false,
+      _preparedDefenseRequest: { objectiveId: 'crossing', point: { x: 0, z: 500 } },
+      _macroMission: {
+        owner: 'force-command',
+        status: 'executing',
+        intent: 'defend',
+        objectiveId: 'crossing',
+        version: 1
+      }
+    };
+    sq.members = Array.from({ length: 8 }, (_, k) => ({
+      id: sq.id + '-' + k,
+      dead: false,
+      suppressedUntil: 0,
+      root: { position: { x: 30 * i + (k % 2), z: 260 + k }, rotation: { y: 0 } },
+      squad: sq
+    }));
+    return sq;
+  });
+  g.sim.factions.us.squads = squads;
+  const ev = g.root.BattleAerialRecon.request(g.sim, 'us');
+  return { g, squads, ev };
+}
+{
+  const { g, squads, ev } = garrisonWorld(undefined, 2),
+    G = g.root.BattleStrategicInterception;
+  assert.equal(G.choose(g.sim, 'us', ev).best, null, 'the first sortie never pulls a garrison');
+  const line = Object.freeze({ ...ev, sortie: 2 }),
+    pick = G.choose(g.sim, 'us', line).best;
+  assert.ok(
+    pick && pick.mode === 'foot' && squads.includes(pick.squad),
+    'a line-change report lets one garrison squad walk out'
+  );
+  assert.ok(pick.margin > 25 && pick.vehicleId === null, 'on foot, ahead of the column');
+  pick.squad._macroMission = { intent: 'intercept', intercept: { garrisonObjectiveId: 'crossing' } };
+  assert.equal(
+    G.choose(g.sim, 'us', line).best,
+    null,
+    'a garrison already sending one squad sends no second'
+  );
+  const lone = garrisonWorld(undefined, 1);
+  assert.equal(
+    lone.g.root.BattleStrategicInterception.choose(lone.g.sim, 'us', Object.freeze({ ...lone.ev, sortie: 2 }))
+      .best,
+    null,
+    'the last garrison squad never leaves a line the enemy may attack'
+  );
+  const rear = garrisonWorld(undefined, 1);
+  rear.g.root.BattleFrontLines = { active: () => true, attackable: () => false };
+  const rearPick = rear.g.root.BattleStrategicInterception.choose(
+    rear.g.sim,
+    'us',
+    Object.freeze({ ...rear.ev, sortie: 2 })
+  ).best;
+  assert.ok(
+    rearPick && rearPick.mode === 'foot',
+    'a lone garrison of a line the enemy cannot attack yet may walk out'
+  );
+  rear.g.root.BattleFrontLines = { active: () => true, attackable: () => true };
+  assert.equal(
+    rear.g.root.BattleStrategicInterception.choose(rear.g.sim, 'us', Object.freeze({ ...rear.ev, sortie: 2 }))
+      .best,
+    null,
+    'but not from the line the enemy may attack'
+  );
+  const off = garrisonWorld(
+    '?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&reconOverflight=0&garrisonAmbush=0',
+    2
+  );
+  assert.equal(
+    off.g.root.BattleStrategicInterception.choose(off.g.sim, 'us', Object.freeze({ ...off.ev, sortie: 2 }))
+      .best,
+    null,
+    '?garrisonAmbush=0 keeps every garrison in place'
+  );
+}
 console.log(
   'PASS report-only General corridor inference, real base road quote, 12-truck exclusive dispatch, actual ETA advantage, expiry, hidden and flag-off controls'
 );

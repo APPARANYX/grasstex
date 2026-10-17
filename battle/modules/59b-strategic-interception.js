@@ -9,7 +9,11 @@
     ROAD_PROXIMITY = 110,
     ALIGNMENT = 0.58,
     SETUP_MARGIN = 35,
-    EXTRA_UNCERTAINTY = 30;
+    EXTRA_UNCERTAINTY = 30,
+    // A squad walking to a post: how far it goes, how fast, and its extra allowance.
+    FOOT_REACH = 420,
+    FOOT_SPEED = 1.35,
+    FOOT_EXTRA = 25;
 
   function enabled(sim) {
     var town = sim && sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario;
@@ -208,6 +212,102 @@
       (t.phase === 'dismounted' || t.phase === 'aborted')
     );
   }
+  /* After a line-change sortie (front lines), one squad of a held line's garrison may walk out
+     to a post in front of its line. The line keeps at least one other garrison squad, unless
+     the enemy may not attack that line yet; a garrison already sending a squad out sends no
+     second. ?garrisonAmbush=0 keeps every
+     garrison in place. */
+  function garrisonAmbushOn() {
+    return !/(?:^|[?&])garrisonAmbush=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
+  function garrisonAmbush(sim, sq, track) {
+    var request = sq && sq._preparedDefenseRequest,
+      ev = track && track.report;
+    if (!request || !ev || !(ev.sortie > 1) || !garrisonAmbushOn()) return false;
+    if (sq.state === 'retreat' || sq.inContact || sq.isPlayer || !centreOf(sq)) return false;
+    if (sq._macroMission && sq._macroMission.intent === 'intercept') return false;
+    var stays = 0,
+      out = 0;
+    ((sim.factions[sq.faction] && sim.factions[sq.faction].squads) || []).forEach(function (other) {
+      if (other === sq || other.state === 'retreat' || !centreOf(other)) return;
+      var m = other._macroMission,
+        r = other._preparedDefenseRequest;
+      if (
+        m &&
+        m.intent === 'intercept' &&
+        m.intercept &&
+        m.intercept.garrisonObjectiveId === request.objectiveId
+      )
+        out++;
+      else if (r && r.objectiveId === request.objectiveId) stays++;
+    });
+    if (out) return false;
+    if (stays >= 1) return true;
+    // A lone garrison may leave only a line the enemy cannot attack yet (the next-line rule).
+    var lines = root.BattleFrontLines,
+      enemy = sq.faction === 'us' ? 'ge' : 'us';
+    return !!(lines && lines.active(sim) && !lines.attackable(sim, enemy, request.objectiveId));
+  }
+  function centreOf(sq) {
+    var men = (sq.members || []).filter(function (m) {
+      return m && !m.dead && m.root && m.root.position;
+    });
+    if (!men.length) return null;
+    return {
+      x:
+        men.reduce(function (v, m) {
+          return v + m.root.position.x;
+        }, 0) / men.length,
+      z:
+        men.reduce(function (v, m) {
+          return v + m.root.position.z;
+        }, 0) / men.length
+    };
+  }
+  /* The garrison squad walks: the same pace, setup and allowance as a screen's foot intercept. */
+  function footQuote(sim, sq, track, age, diag) {
+    var metres = d(centreOf(sq), track.point);
+    diag.eligibleSquadEvaluations++;
+    if (metres > FOOT_REACH) return null;
+    var friendlyETA = metres / FOOT_SPEED + SETUP_MARGIN + FOOT_EXTRA,
+      margin = track.enemyETA - age - friendlyETA;
+    diag.bestMarginSeconds = Math.max(diag.bestMarginSeconds, margin);
+    if (!(margin > FOOT_EXTRA)) {
+      diag.arrivalTooLate++;
+      return null;
+    }
+    if (contestedPostOn() && contestedBy(track, friendlyETA, age)) {
+      diag.contestedPost = (diag.contestedPost || 0) + 1;
+      return null;
+    }
+    diag.garrisonFootQuotes = (diag.garrisonFootQuotes || 0) + 1;
+    return {
+      squad: sq,
+      spec: { owner: 'force-command', status: 'issued', intent: 'intercept', point: track.point, route: [] },
+      vehicleId: null,
+      mode: 'foot',
+      garrisonObjectiveId: sq._preparedDefenseRequest.objectiveId,
+      objectiveId: track.likelyObjectiveId,
+      roadId: track.roadId,
+      contactId: track.contact.squadId,
+      observedAt: track.contact.observedAt,
+      expiresAt: Math.min(
+        track.contact.observedAt + 720,
+        sim.time + Math.max(180, (track.enemyLatest != null ? track.enemyLatest : track.enemyETA) - age + 80)
+      ),
+      enemyETA: track.enemyETA - age,
+      friendlyETA: friendlyETA,
+      margin: margin,
+      score:
+        Math.min(margin, SETUP_MARGIN + EXTRA_UNCERTAINTY) * 0.3 -
+        (track.enemyETA - age) * 0.3 +
+        track.alignment * 55 +
+        track.contact.confidence * 35 -
+        track.offRoad * 0.25,
+      confidence: track.contact.confidence,
+      leadMetres: track.leadMetres
+    };
+  }
   /* The public road node nearest the squad, for routing a truck it re-boards. */
   function nearestNode(town, sq) {
     var men = (sq.members || []).filter(function (m) {
@@ -271,6 +371,11 @@
       // counts from the observation, not from this decision.
       age = reportFed ? Math.max(0, (+sim.time || 0) - (+track.contact.observedAt || 0)) : 0;
     ((sim.factions[faction] && sim.factions[faction].squads) || []).forEach(function (sq) {
+      if (reportFed && garrisonAmbush(sim, sq, track)) {
+        var foot = footQuote(sim, sq, track, age, diag);
+        if (foot && (!best || foot.score > best.score + 0.001)) best = foot;
+        return;
+      }
       if (
         !sq ||
         sq.state === 'retreat' ||
@@ -844,10 +949,10 @@
       corridorTracks(town, track, faction).forEach(function (road) {
         evaluated++;
         var metres = d(pos, road.point);
-        if (metres > 420) return; // Existing screen post may already be the best ambush point.
+        if (metres > FOOT_REACH) return; // Existing screen post may already be the best ambush point.
         // On foot from a REAL observation post: slow conservative pace,
         // setup interval, and additional uncertainty. No second truck spawn.
-        var friendlyETA = metres / 1.35 + 35 + 25,
+        var friendlyETA = metres / FOOT_SPEED + SETUP_MARGIN + FOOT_EXTRA,
           margin = road.enemyETA - friendlyETA;
         if (margin <= 25) return;
         var result = {
@@ -946,12 +1051,16 @@
       confidence: selected.confidence,
       vehicleId: selected.vehicleId
     };
+    if (selected.mode === 'foot') {
+      selected.spec.intercept.mode = 'foot';
+      selected.spec.intercept.garrisonObjectiveId = selected.garrisonObjectiveId;
+    }
     var m = issue(selected.squad, selected.spec, 'aerial-intercept-feasible');
     var success =
       m &&
       m.intent === 'intercept' &&
-      selected.squad._transport &&
-      selected.squad._transport.vehicleId === selected.vehicleId;
+      (selected.mode === 'foot' ||
+        (selected.squad._transport && selected.squad._transport.vehicleId === selected.vehicleId));
     st.last = {
       at: sim.time,
       result: success ? 'dispatched' : 'grant-failed',
