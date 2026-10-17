@@ -253,7 +253,7 @@ function blob_sha($file, &$cache) {
     return $sha;
 }
 
-/* Soldier models, clips, weapons and effect sprites. The runtime reads them all from one base
+/* Soldier models, clips, weapons, vehicles and effect sprites. The runtime reads them all from one base
    (BATTLE_SOLDIER_ASSET_BASE), which is the preview's own Assets/ once it has Assets/soldiers, so a
    preview carries the full set: files identical to production are hard links to the production
    copy (no extra disk), new or changed ones are downloaded from the branch. Production's
@@ -282,7 +282,7 @@ function stage_assets($sha, $treeEntries, $root, $tmp, $previewRoot) {
         if ($failed) $problem = 'asset download failed for ' . implode(', ', array_slice($failed, 0, 3));
     }
     if (!$problem) {
-        foreach (array('soldiers', 'animations', 'weapons') as $d) {
+        foreach (array('soldiers', 'animations', 'weapons', 'vehicles') as $d) {
             foreach ((array)glob($root . '/Assets/' . $d . '/*.json') as $json) {
                 $to = $tmp . '/Assets/' . $d . '/' . basename($json);
                 if (!is_file($to) && is_dir(dirname($to)) && !@link($json, $to)) @copy($json, $to);
@@ -321,7 +321,7 @@ function stage($branch, $sha, $root, $previewRoot, &$error) {
         $path = $e['path'];
         if ($path === 'battle_sim_local.php') $branchLoaderSha = $e['sha'];
         if (preg_match('#^battle/(battle_sim\.html|[A-Za-z0-9._-]+\.js|modules/[A-Za-z0-9._-]+\.js)$#', $path)) $files[$path] = $e;
-        elseif (preg_match('#^Assets/((soldiers|animations|weapons)/[^/]+\.fbx|weapons/[^/]+\.glb|animations/[^/]+\.bin|effects/.+\.png)$#', $path)
+        elseif (preg_match('#^Assets/((soldiers|animations|weapons|vehicles)/[^/]+\.fbx|(weapons|vehicles)/[^/]+\.glb|animations/[^/]+\.bin|effects/.+\.png)$#', $path)
             && strpos($path, '..') === false && strpos($path, '/.') === false && preg_match('#^[A-Za-z0-9 ._()/-]+$#', $path)) $assets[] = $e;
     }
     if (!isset($files['battle/battle_sim.html'])) { $error = 'this commit has no battle/battle_sim.html'; if ($lock) fclose($lock); return null; }
