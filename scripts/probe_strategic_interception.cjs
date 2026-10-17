@@ -273,6 +273,10 @@ const seeds = [
         if (!enabled) {
           assert.equal(record.interceptions.length, 0, 'flag-off cannot dispatch interception');
           assert.ok(!record.general.us && !record.general.ge, 'flag-off leaves planner idle');
+          assert.ok(
+            Object.values(record.forwardScreen).every(f => !f.screens.length && !f.supports.length),
+            'flag-off must not issue forward screens or second-truck reinforcement'
+          );
         }
         results.push(record);
         console.log(
