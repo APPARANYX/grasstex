@@ -176,6 +176,13 @@ async function main() {
     return;
   }
   const prior = latest(thread.comments, process.env.WARGAME_STATE_KEY);
+  const commandId = eventName === 'discussion_comment' ?
+    'comment:' + String(event.comment?.id || '') :
+    'dispatch:' + String(process.env.GITHUB_RUN_ID || 'manual');
+  if (prior?.commandId === commandId) {
+    console.log('Already processed this command; no additional round');
+    return;
+  }
   if (prior?.outcome && prior.outcome !== 'ongoing') {
     console.log('Already concluded: ' + prior.outcome);
     return;
@@ -203,7 +210,7 @@ async function main() {
   const ref = checkUmpire(await model(REFEREE, {
     round: n, scenario: thread.body, prior_state: state, us_orders: us, ge_orders: ge
   }), n);
-  const record = { turn: n, outcome: ref.outcome, state: ref.state,
+  const record = { turn: n, commandId, outcome: ref.outcome, state: ref.state,
     orders: { us, ge }, reports: { us: ref.us_report, ge: ref.ge_report } };
   const url = await publish(thread.id, postBody(n, limit, us, ge, ref,
     encrypt(record, process.env.WARGAME_STATE_KEY)));
