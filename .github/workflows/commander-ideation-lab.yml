@@ -1,0 +1,56 @@
+name: Commander Ideation Lab
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/commander-ideation-lab.yml
+      - scripts/ideation-wargame-discussion.cjs
+      - scripts/check-ideation-wargame.cjs
+      - docs/agents/commander-ideation-lab.md
+  discussion_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      discussion_number:
+        description: 'Existing [WARGAME] GitHub Discussion number'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  test-protocol:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test scripts/check-ideation-wargame.cjs
+
+  play-one-round:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'discussion_comment' && startsWith(github.event.discussion.title, '[WARGAME]') && (github.event.comment.body == '!wargame start' || github.event.comment.body == '!wargame next'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      discussions: write
+    concurrency:
+      group: commander-ideation-${{ github.event.discussion.number || inputs.discussion_number }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Advance one isolated US/GE/umpire round
+        run: node scripts/ideation-wargame-discussion.cjs
+        env:
+          DISCUSSION_NUMBER: ${{ inputs.discussion_number || github.event.discussion.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          WARGAME_STATE_KEY: ${{ secrets.WARGAME_STATE_KEY }}
+          WARGAME_MODEL: ${{ vars.WARGAME_MODEL || 'gpt-5-mini' }}
