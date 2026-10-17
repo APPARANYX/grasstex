@@ -133,6 +133,8 @@ const REFEREE = [
   'A proposed new command can have a hypothetical effect only with sensible costs and delay.',
   'Keep fog of war. State.public has SHARED information only; state.us_intel is US-only,',
   'state.ge_intel GE-only; state.hidden contains confidential ground truth.',
+  'Preserve relevant scenario constraints and game resources through future rounds.',
+  'Keep world state compact, avoid unsupported exact enemy detections, and distinguish guesses.',
   'Respond with JSON keys: public_report (string), us_report (string), ge_report (string),',
   'outcome (ongoing|us_win|ge_win|draw), capability_findings (array), rationale (string),',
   'state (object containing public, us_intel, ge_intel, hidden). Be consistent and concise.'
@@ -188,16 +190,21 @@ async function main() {
     us_intel: {}, ge_intel: {}, hidden: {} };
   const [us, ge] = await Promise.all([
     model(COMMON + '\nYou command ONLY the US faction.', {
-      round: n, side: 'US', public_state: state.public, own_intel: state.us_intel
+      round: n, scenario: thread.body, side: 'US', public_state: state.public,
+      own_intel: state.us_intel, own_previous_order: prior?.orders?.us,
+      own_previous_report: prior?.reports?.us
     }).then(checkOrder),
     model(COMMON + '\nYou command ONLY the GE faction.', {
-      round: n, side: 'GE', public_state: state.public, own_intel: state.ge_intel
+      round: n, scenario: thread.body, side: 'GE', public_state: state.public,
+      own_intel: state.ge_intel, own_previous_order: prior?.orders?.ge,
+      own_previous_report: prior?.reports?.ge
     }).then(checkOrder)
   ]);
   const ref = checkUmpire(await model(REFEREE, {
-    round: n, prior_state: state, us_orders: us, ge_orders: ge
+    round: n, scenario: thread.body, prior_state: state, us_orders: us, ge_orders: ge
   }), n);
-  const record = { turn: n, outcome: ref.outcome, state: ref.state };
+  const record = { turn: n, outcome: ref.outcome, state: ref.state,
+    orders: { us, ge }, reports: { us: ref.us_report, ge: ref.ge_report } };
   const url = await publish(thread.id, postBody(n, limit, us, ge, ref,
     encrypt(record, process.env.WARGAME_STATE_KEY)));
   console.log('Round ' + n + ' published: ' + url);
