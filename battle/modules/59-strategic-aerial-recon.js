@@ -148,7 +148,8 @@
     // A player may spend their single reconnaissance sortie early, after
     // deployment starts. AI doctrine still retains its conservative clock.
     var earliest = playerOrdered ? 5 : strategicEarly ? INTERCEPTION_RECON_AT : MIN_REQUEST_AT;
-    if (!(sim.time >= earliest) || sim.macroCommandEnabled === false || (playerOrdered && sim.paused)) return null;
+    if (!(sim.time >= earliest) || sim.macroCommandEnabled === false || (playerOrdered && sim.paused))
+      return null;
     var own = state(sim)[faction];
     if (own.used) return null;
     /* Only the General's own active strategic briefs can trigger a sortie.
@@ -195,7 +196,8 @@
   }
   function status(sim, faction) {
     if (!enabled(sim) || !validFaction(faction)) return { enabled: false, used: false };
-    var own = state(sim)[faction], event = own.event;
+    var own = state(sim)[faction],
+      event = own.event;
     return Object.freeze({
       enabled: true,
       used: !!own.used,

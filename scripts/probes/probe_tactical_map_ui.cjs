@@ -66,7 +66,8 @@ const strategic = process.env.TACTICAL_MAP_MODE === 'strategic';
     });
     const flags = strategic ? '?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1' : '';
     await page.goto(URL_ + (flags || '?') + (flags ? '&' : '') + 'seed=cartography-qa', {
-      waitUntil: 'load', timeout: 300000
+      waitUntil: 'load',
+      timeout: 300000
     });
     await page.waitForFunction(() => window.BattleTacticalMap && window.__battle__?.factions, null, {
       timeout: 240000
@@ -90,8 +91,10 @@ const strategic = process.env.TACTICAL_MAP_MODE === 'strategic';
         removedMinimap: !document.getElementById('strategicMapPanel'),
         reconLoaded: !!window.BattleAerialRecon
       }));
-      assert.ok(checks.strategic && checks.removedMinimap && checks.reconLoaded,
-        'strategic world must load full map and aerial recon without legacy minimap');
+      assert.ok(
+        checks.strategic && checks.removedMinimap && checks.reconLoaded,
+        'strategic world must load full map and aerial recon without legacy minimap'
+      );
     }
     await page.keyboard.press('m');
     await page.waitForFunction(() => BattleTacticalMap.isOpen(), null, { timeout: 10000 });
@@ -110,30 +113,47 @@ const strategic = process.env.TACTICAL_MAP_MODE === 'strategic';
     }));
     assert(terrain.friendlyMarks > 0, 'friendly force cannot be plotted');
     if (strategic) {
-      assert.equal(await page.locator('#battleRequestAirRecon').count(), 1,
-        'player-visible General air recon action exists');
-      assert.equal(await page.locator('#battleRequestAirRecon').isDisabled(), true,
-        'paused battle cannot silently waste a sortie');
+      assert.equal(
+        await page.locator('#battleRequestAirRecon').count(),
+        1,
+        'player-visible General air recon action exists'
+      );
+      assert.equal(
+        await page.locator('#battleRequestAirRecon').isDisabled(),
+        true,
+        'paused battle cannot silently waste a sortie'
+      );
       await page.evaluate(() => document.getElementById('startBtn').click());
       await page.waitForFunction(() => window.__battle__?.time >= 8, null, { timeout: 35000 });
-      await page.waitForFunction(() => !document.getElementById('battleRequestAirRecon').disabled, null,
-        { timeout: 12000 });
+      await page.waitForFunction(() => !document.getElementById('battleRequestAirRecon').disabled, null, {
+        timeout: 12000
+      });
       await page.locator('#battleRequestAirRecon').click();
       const data = await page.evaluate(() => {
-        const sim = window.__battle__, A = window.BattleAerialRecon,
+        const sim = window.__battle__,
+          A = window.BattleAerialRecon,
           faction = document.querySelector('select[aria-label="Friendly intelligence perspective"]').value;
-        return {used: A.status(sim,faction).used, live: !!A.forGeneral(sim,faction),
-          observed: A.status(sim,faction).observedAt,
+        return {
+          used: A.status(sim, faction).used,
+          live: !!A.forGeneral(sim, faction),
+          observed: A.status(sim, faction).observedAt,
           button: document.getElementById('battleRequestAirRecon').textContent,
-          spots: document.querySelectorAll('#battleTacticalMap .gtm-air-fix').length};
+          spots: document.querySelectorAll('#battleTacticalMap .gtm-air-fix').length
+        };
       });
-      assert.ok(data.used && data.live && data.observed < 40 &&
-        data.button.includes('EXPENDED'), 'map order must spend one real early General sortie');
-      const after = await page.evaluate(() => window.BattleAerialRecon.status(
-        window.__battle__,document.querySelector('select[aria-label="Friendly intelligence perspective"]').value
-      ).used);
-      assert.equal(after,true,'cannot request a second flight');
-      console.log('STRATEGIC AIR RECON UI',JSON.stringify(data));
+      assert.ok(
+        data.used && data.live && data.observed < 40 && data.button.includes('EXPENDED'),
+        'map order must spend one real early General sortie'
+      );
+      const after = await page.evaluate(
+        () =>
+          window.BattleAerialRecon.status(
+            window.__battle__,
+            document.querySelector('select[aria-label="Friendly intelligence perspective"]').value
+          ).used
+      );
+      assert.equal(after, true, 'cannot request a second flight');
+      console.log('STRATEGIC AIR RECON UI', JSON.stringify(data));
     }
     await page.screenshot({ path: path.join(OUT, 'desktop.png'), fullPage: false });
     const before = await page.locator('#battleTacticalMap svg').getAttribute('viewBox');

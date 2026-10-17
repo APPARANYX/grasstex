@@ -657,7 +657,9 @@
     return { status: status, event: event };
   }
   function renderAerial(layer, reports, dimensions, sim, faction) {
-    var view = aerialView(sim, faction), status = view.status, event = view.event;
+    var view = aerialView(sim, faction),
+      status = view.status,
+      event = view.event;
     if (airSection) airSection.hidden = !status.enabled;
     if (!status.enabled) return;
     if (airButton) {
@@ -668,8 +670,11 @@
     if (airStatus) {
       airStatus.textContent = status.used
         ? event
-          ? 'REPORT RECEIVED · ' + status.contacts + ' moving contacts · expires in ' +
-            Math.max(0, Math.ceil(event.validUntil - sim.time)) + 's'
+          ? 'REPORT RECEIVED · ' +
+            status.contacts +
+            ' moving contacts · expires in ' +
+            Math.max(0, Math.ceil(event.validUntil - sim.time)) +
+            's'
           : 'SORTIE COMPLETE · INTELLIGENCE EXPIRED'
         : sim.paused || sim.time < 5
           ? 'AVAILABLE AFTER DEPLOYMENT · ONE SORTIE'
@@ -680,30 +685,54 @@
     (event.contacts || []).forEach(function (c) {
       var p = project(c, dimensions);
       if (!p || p.x < 30 || p.x > 970 || p.y < 20 || p.y > 580) return;
-      var ring = Math.max(5, (c.positionUncertaintyM || 40) * 940 / dimensions.width),
+      var ring = Math.max(5, ((c.positionUncertaintyM || 40) * 940) / dimensions.width),
         group = add(layer, 'g', {
           'class': 'gtm-air-fix',
           transform: 'translate(' + p.x + ' ' + p.y + ')'
         });
       add(group, 'circle', {
-        r: ring, fill: '#ecbc71', 'fill-opacity': .09, stroke: '#f7c37c',
-        'stroke-width': 1.6, 'stroke-dasharray': '5 4'
+        r: ring,
+        fill: '#ecbc71',
+        'fill-opacity': 0.09,
+        stroke: '#f7c37c',
+        'stroke-width': 1.6,
+        'stroke-dasharray': '5 4'
       });
-      add(group, 'path', { d: 'M0 -10 L8 7 L0 3 L-8 7 Z',
-        fill: '#f4cf91', stroke: '#403527', 'stroke-width': 1,
-        transform: 'rotate(' + ((c.headingRadians || 0) * 180 / Math.PI) + ')'
+      add(group, 'path', {
+        d: 'M0 -10 L8 7 L0 3 L-8 7 Z',
+        fill: '#f4cf91',
+        stroke: '#403527',
+        'stroke-width': 1,
+        transform: 'rotate(' + ((c.headingRadians || 0) * 180) / Math.PI + ')'
       });
-      add(group, 'title', {},
-        'AIR RECON · approximate fix · ' + gridRef(c, dimensions) +
-        ' · heading and speed uncertain · observation ' + event.observedAt + 's');
+      add(
+        group,
+        'title',
+        {},
+        'AIR RECON · approximate fix · ' +
+          gridRef(c, dimensions) +
+          ' · heading and speed uncertain · observation ' +
+          event.observedAt +
+          's'
+      );
       if (!airReportsNode) return;
       var item = document.createElement('div');
       item.className = 'gtm-air-contact';
       var age = Math.max(0, Math.floor(sim.time - event.observedAt));
-      item.textContent = 'AIR FIX ' + gridRef(c, dimensions) +
-        ' · ' + age + 's OLD · ~' + c.speedMps + 'm/s' +
-        ' · CONF ' + Math.round(100 * c.confidence) + '%' +
-        ' · ±' + c.positionUncertaintyM + 'm';
+      item.textContent =
+        'AIR FIX ' +
+        gridRef(c, dimensions) +
+        ' · ' +
+        age +
+        's OLD · ~' +
+        c.speedMps +
+        'm/s' +
+        ' · CONF ' +
+        Math.round(100 * c.confidence) +
+        '%' +
+        ' · ±' +
+        c.positionUncertaintyM +
+        'm';
       airReportsNode.appendChild(item);
     });
     if (airReportsNode && !event.contacts.length) {
@@ -715,7 +744,8 @@
   }
   function requestAerialRecon() {
     if (!simRef || !opened) return null;
-    var A = root.BattleAerialRecon, faction = playerSide(simRef) || viewFaction;
+    var A = root.BattleAerialRecon,
+      faction = playerSide(simRef) || viewFaction;
     if (!A || !A.request) return null;
     var event = A.request(simRef, faction, { playerOrdered: true });
     render();
