@@ -67,7 +67,7 @@ try:
         time.sleep(0.1)
     assert code == 200 and template["ok"] and template["template"]["config"], template
     code, version = call("version")
-    assert code == 200 and version["api_version"] == "0.6.0", version
+    assert code == 200 and version["api_version"] == "0.7.0", version
     code, new = call("create", "POST", {"title": "Automated contract smoke", "turn_limit": 3}, PASSWORD)
     assert code == 201 and new["ok"], new
     match_id = new["id"]
@@ -76,7 +76,10 @@ try:
     us_key, ge_key = new["keys"]["us"], new["keys"]["ge"]
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["phase"] == "orders" and public["turn"] == 1
-    assert public["api_version"] == "0.6.0"
+    assert public["api_version"] == "0.7.0"
+    assert public["rules_revision"] == 5
+    assert public["effective_rules"]["neutral_contested_siege"] is True
+    assert public["effective_rules"]["contested_attrition"] is True
     assert public["current_orders"] is None and "key_hashes" not in public
     assert "units" not in public and "intel" not in public
     code, wrong = call("brief", key=ge_key, query=f"&id={match_id}&side=us")
@@ -222,6 +225,10 @@ try:
     assert code == 200 and older_public["history"][1]["public_snapshot"], older_public
     assert older_public["history"][1]["public_snapshot"]["snapshot_kind"] == "legacy_public_capture_reconstruction"
     assert "units" not in json.dumps(older_public["history"])
+    assert older_public["rules_revision"] == 1
+    assert older_public["effective_rules"]["contested_attrition"] is False
+    assert older_public["effective_rules"]["neutral_contested_siege"] is False
+    assert "LEGACY V1 MATCH" in older_public["effective_rules"]["notice"]
     code, older_admin = call("observer", key=PASSWORD, query=f"&id={match_id}")
     assert code == 200 and older_admin["replay_source"] == "reconstructed_verified_v1", older_admin.get("replay_note")
     assert len(older_admin["history"]) == 3
