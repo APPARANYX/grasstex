@@ -498,7 +498,7 @@
           ['Defense', String(stats.defense_strength || 0) + ' pts'],
           ['Blocks fire', stats.blocks_fire ? 'Yes' : 'Not simulated'],
           ['Duration', stats.duration_turns ? stats.duration_turns + ' turns' : 'Persistent'],
-          ['Status', contact.status || (contact.active ? 'Active' : 'Unconfirmed / building')]
+          ['Status', contact.effects_enabled === false ? 'Informational only (legacy rules)' : contact.status || (contact.active ? 'Active' : 'Unconfirmed / building')]
         ];
         for (const [key, value] of items) {
           const dt = document.createElement('dt');
