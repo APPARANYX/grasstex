@@ -164,13 +164,14 @@ function ie_field_speed($world,$u,$goal,$base,$turn,$vehicle) {
     }
     return $base;
 }
-function ie_field_damage(&$world,$turn,&$events) {
+function ie_field_damage(&$world,$turn,$priorPositions,&$events) {
     foreach ($world['field_objects'] as $id=>$object) {
         if (!ie_field_active($object,$turn) || $object['kind']!=='minefield') continue;
         $stats=ie_field_stats($object['kind']);
         foreach ($world['units'] as $uid=>&$u) {
             if ($u['side']===$object['side'] || $u['strength']<=0 ||
-                ie_distance($u,$object)>$stats['range_m']) continue;
+                !ie_near_path(isset($priorPositions[$uid])?$priorPositions[$uid]:$u,
+                    $u,$object,$stats['range_m'])) continue;
             // One trigger per squad per object; avoid indefinite damage while
             // standing in the same hazard. Damage is strength, never HP.
             if (!isset($world['field_triggers'][$id])) $world['field_triggers'][$id]=array();
@@ -298,6 +299,7 @@ function ie_resolve(&$g) {
         }
     }
     $w['clock_minutes']+=10;
+    $priorPositions=$w['units'];
     // Gameplay abstraction: foot 800 m/turn; truck up to 2500 m/turn. Truck dismounts
     // around 180 m from an objective; the remaining approach needs foot travel.
     foreach ($w['units'] as $id=>&$u) {
@@ -349,7 +351,7 @@ function ie_resolve(&$g) {
     }
     unset($u);
     if (isset($g['rules_revision']) && intval($g['rules_revision'])>=4)
-        ie_field_damage($w,$turn,$events);
+        ie_field_damage($w,$turn,$priorPositions,$events);
     // For matches created under rules V2, contested positions suffer fixed-rule
     // abstract strength losses. This represents declining combat effectiveness,
     // NOT simulated casualties or historical weapons modeling. V1 matches are
@@ -374,10 +376,10 @@ function ie_resolve(&$g) {
             foreach (array('us','ge') as $side) {
                 $remaining=$losses[$side];$participants=$here[$side];
                 if (intval($g['rules_revision'])>=4) {
-                    foreach ($participants as $uid) {
-                        $remaining=max(0,$remaining-ie_field_defense($w,$w['units'][$uid],$o,$turn));
-                        if ($remaining===0) break;
-                    }
+                    $protection=0;
+                    foreach ($participants as $uid)
+                        $protection=max($protection,ie_field_defense($w,$w['units'][$uid],$o,$turn));
+                    $remaining=max(0,$remaining-$protection);
                 }
                 $actualLoss=$remaining;
                 // Round-robin distributes pressure without targeting any one
