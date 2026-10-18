@@ -50,7 +50,10 @@
       headers: admin
         ? {
             'Content-Type': 'application/json',
-            'X-Ideation-Key': el('role').value === 'admin' ? el('key').value || storedAdmin() : storedAdmin() || el('key').value
+            'X-Ideation-Key':
+              el('role').value === 'admin'
+                ? el('key').value || storedAdmin()
+                : storedAdmin() || el('key').value
           }
         : Object.assign({ 'Accept': 'application/json' }, roleHeaders())
     };
@@ -298,8 +301,16 @@
       if (!unchanged) render(data);
       lastPollAt = Date.now();
       el('liveStatus').textContent =
-        (data.archive_view ? 'ARCHIVED · read-only' : data.phase === 'complete' ? 'LIVE · match complete · watching for rematch' : 'LIVE · watching for new rounds') +
-        ' · revision ' + data.revision + ' · checked ' + new Date().toLocaleTimeString() + ' · 2-second polling';
+        (data.archive_view
+          ? 'ARCHIVED · read-only'
+          : data.phase === 'complete'
+            ? 'LIVE · match complete · watching for rematch'
+            : 'LIVE · watching for new rounds') +
+        ' · revision ' +
+        data.revision +
+        ' · checked ' +
+        new Date().toLocaleTimeString() +
+        ' · 2-second polling';
       el('buildDiagnostic').textContent =
         'Browser v' + CLIENT_VERSION + ' · API ' + (data.api_version || 'legacy/unversioned');
       if (data.api_version !== CLIENT_VERSION) {
@@ -495,11 +506,15 @@
   el('rememberAdmin').checked = !!storedAdmin();
   el('rememberAdmin').addEventListener('change', checked => {
     if (!el('rememberAdmin').checked) {
-      try { localStorage.removeItem(ADMIN_STORAGE); } catch (_) {}
+      try {
+        localStorage.removeItem(ADMIN_STORAGE);
+      } catch (_) {}
     } else rememberAdmin();
   });
   el('clearAdmin').addEventListener('click', () => {
-    try { localStorage.removeItem(ADMIN_STORAGE); } catch (_) {}
+    try {
+      localStorage.removeItem(ADMIN_STORAGE);
+    } catch (_) {}
     el('rememberAdmin').checked = false;
     if (el('role').value === 'admin') el('key').value = '';
     status('Saved administrator password cleared from this browser.');
