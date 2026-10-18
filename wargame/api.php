@@ -6,7 +6,7 @@
  */
 require_once __DIR__.'/engine.php';
 // Increment for client/server contract releases, independently of match rules.
-const IDEATION_API_VERSION = '1.1.0';
+const IDEATION_API_VERSION = '1.2.0';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, max-age=0');
 header('X-Ideation-API-Version: '.IDEATION_API_VERSION);
@@ -294,6 +294,42 @@ function public_game($g,$side=null,$admin=false) {
         'revision'=>$g['revision'],
         'updated_at'=>$g['updated_at']);
 }
+// Voluntary commander reflections, never raw chat transcripts or private reasoning.
+function debrief_record($body) {
+    $notes=array();
+    foreach (array('learned','worked','failed','capability_gaps','next_time') as $field)
+        $notes[$field]=request_value($body,$field,3000,$field==='learned');
+    return $notes;
+}
+function debrief_rows($g,$side=null) {
+    $rows=array();
+    foreach (array('us','ge') as $faction) {
+        if ($side!==null && $faction!==$side) continue;
+        foreach ((array)($g['debriefs'][$faction]??array()) as $round=>$record) {
+            if (!is_array($record)) continue;
+            $rows[]=array_merge(array(
+                'id'=>$g['id'],
+                'attempt'=>(int)($g['series']['attempt']??1),
+                'game_number'=>(int)($g['series']['game_number']??1),
+                'side'=>$faction,
+                'player'=>isset($g['series'][$faction.'_player'])?$g['series'][$faction.'_player']:null,
+                'turn'=>(int)$round),$record);
+        }
+    }
+    usort($rows,function($a,$b) {
+        if ($a['turn']===$b['turn']) return strcmp($a['side'],$b['side']);
+        return $a['turn']<$b['turn']?-1:1;
+    });
+    return $rows;
+}
+function archive_for_export($id,$attempt) {
+    $raw=@file_get_contents(archive_path($id,$attempt));
+    if (!is_string($raw)) fail_api(500,'Missing archived game for debrief export');
+    $g=decode_game($raw);
+    if ($g['id']!==$id || (int)($g['series']['attempt']??1)!==$attempt)
+        fail_api(500,'Archived game mismatch');
+    return $g;
+}
 function request_value($body,$field,$max,$required=true) {
     return limited(isset($body[$field])?$body[$field]:'',$max,$field,$required);
 }
@@ -318,6 +354,38 @@ if ($method==='GET') {
         reply(200,array('ok'=>true,'template'=>$tpl));
     }
     $id=isset($_GET['id'])?$_GET['id']:'';
+    if ($op==='debrief') {
+        $side=isset($_GET['side'])?$_GET['side']:'';
+        reply(200,with_view_game($id,function(&$g)use($side) {
+            if ($side==='all') check_admin();
+            else check_role($g,$side);
+            return array('body'=>array('ok'=>true,'id'=>$g['id'],
+                'attempt'=>(int)($g['series']['attempt']??1),
+                'side'=>$side,'debriefs'=>debrief_rows($g,$side==='all'?null:$side)));
+        }));
+    }
+    if ($op==='debrief_export') {
+        check_admin();
+        reply(200,with_game($id,function(&$g) {
+            $games=array();
+            foreach ((array)($g['archived_attempts']??array()) as $entry) {
+                $attempt=(int)($entry['attempt']??0);
+                $old=archive_for_export($g['id'],$attempt);
+                $games[]=array('attempt'=>$attempt,
+                    'game_number'=>(int)($old['series']['game_number']??1),
+                    'phase'=>$old['phase'],'winner'=>$old['winner'],
+                    'debriefs'=>debrief_rows($old));
+            }
+            $games[]=array('attempt'=>(int)($g['series']['attempt']??1),
+                'game_number'=>(int)($g['series']['game_number']??1),
+                'phase'=>$g['phase'],'winner'=>$g['winner'],
+                'debriefs'=>debrief_rows($g));
+            return array('body'=>array('ok'=>true,'id'=>$g['id'],
+                'title'=>$g['title'],'series'=>series_info($g),
+                'exported_at'=>gmdate('c'),'games'=>$games,
+                'notice'=>'Voluntary commander summaries only; not chat transcripts or private reasoning.'));
+        }));
+    }
     if ($op==='public') reply(200,with_view_game($id,function(&$g){
         return array('body'=>public_game($g));
     }));
@@ -390,7 +458,8 @@ if ($op==='create') {
       'public_brief'=>isset($body['public_brief'])?request_value($body,'public_brief',10000):$tpl['public_brief'],
       'private_briefs'=>array('us'=>request_value($body,'us_brief',10000,false),
                               'ge'=>request_value($body,'ge_brief',10000,false)),
-      'current'=>array('us'=>null,'ge'=>null),'history'=>array(),'revision'=>0,
+      'current'=>array('us'=>null,'ge'=>null),'history'=>array(),
+       'debriefs'=>array('us'=>array(),'ge'=>array()),'revision'=>0,
       'rules_revision'=>6,
       'initial_public_brief'=>isset($body['public_brief'])?request_value($body,'public_brief',10000):$tpl['public_brief'],
       'series'=>array('id'=>null,'game_number'=>1,'attempt'=>1,
@@ -450,6 +519,7 @@ if ($op==='rematch') {
             $g['initial_public_brief']:$tpl['public_brief'];
         $g['current']=array('us'=>null,'ge'=>null);
         $g['history']=array();
+        $g['debriefs']=array('us'=>array(),'ge'=>array());
         $g['series']=$newSeries;
         $g['archived_attempts']=$archives;
         $g['stable_identity']=true;
@@ -464,6 +534,35 @@ if ($op==='rematch') {
             'notice'=>'Same match ID and commander keys. Commanders swap sides; use the existing key under the opposite faction. Previous attempts remain available in read-only archives.'));
     });
     reply(201,$result);
+}
+if ($op==='debrief') {
+    $id=isset($body['id'])?$body['id']:'';
+    $side=isset($body['side'])?$body['side']:'';
+    if (!in_array($side,array('us','ge'),true)) fail_api(400,'Invalid debrief side');
+    $result=with_game($id,function(&$g)use($body,$side) {
+        check_role($g,$side);
+        $turn=isset($body['turn']) && is_int($body['turn'])?$body['turn']:0;
+        if ($turn<1 || $turn>count($g['history']))
+            fail_api(409,'Debrief requires an already resolved round');
+        $notes=debrief_record($body);
+        $prior=$g['debriefs'][$side][(string)$turn]??null;
+        if (is_array($prior)) {
+            $priorNotes=$prior;
+            unset($priorNotes['submitted_at']);
+            if ($priorNotes===$notes)
+                return array('body'=>array('ok'=>true,'duplicate'=>true,
+                    'id'=>$g['id'],'side'=>$side,'turn'=>$turn));
+            fail_api(409,'Debrief already submitted for this side and round');
+        }
+        if (!isset($g['debriefs'])) $g['debriefs']=array('us'=>array(),'ge'=>array());
+        $g['debriefs'][$side][(string)$turn]=array_merge($notes,array('submitted_at'=>gmdate('c')));
+        $g['revision']++;
+        $g['updated_at']=gmdate('c');
+        return array('updated'=>true,'body'=>array('ok'=>true,
+            'accepted'=>true,'id'=>$g['id'],'side'=>$side,'turn'=>$turn,
+            'attempt'=>(int)($g['series']['attempt']??1)));
+    });
+    reply(200,$result);
 }
 if ($op==='submit') {
     $id=isset($body['id'])?$body['id']:'';

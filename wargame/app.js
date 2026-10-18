@@ -1,7 +1,7 @@
 'use strict';
 /* No LLM API or browser-side referee. The site stores all state in the PHP backend. */
 (function () {
-  const CLIENT_VERSION = '1.1.0';
+  const CLIENT_VERSION = '1.2.0';
   const el = id => document.getElementById(id);
   let last = null,
     template = null,
@@ -73,8 +73,11 @@
     return data;
   }
   function render(data) {
+    const previousAttempt = last?.series?.attempt;
+    const previousId = last?.id;
     last = data;
     renderSeries(data);
+    renderDebrief(data, previousId !== data.id || previousAttempt !== data.series?.attempt);
     el('dashboard').classList.remove('hidden');
     if (window.GRASSTEXIdeationMap) window.GRASSTEXIdeationMap.refresh(data, el('role').value);
     el('copyPacket').disabled = el('role').value === 'admin';
@@ -427,6 +430,141 @@
       status('Submission failed: ' + e.message, true);
     }
   }
+  function debriefStatus(message, error = false) {
+    el('debriefStatus').textContent = message;
+    el('debriefStatus').className = error ? 'error' : 'quiet';
+  }
+  function renderDebrief(data, newAttempt) {
+    const role = el('role').value;
+    const isCommander = role === 'us' || role === 'ge';
+    el('debriefPanel').classList.toggle('hidden', role === 'public');
+    el('debriefCommander').classList.toggle('hidden', !isCommander);
+    el('debriefAdmin').classList.toggle('hidden', role !== 'admin');
+    const completed = (data.history || []).length;
+    el('debriefTurn').max = Math.max(1, completed);
+    if (newAttempt) {
+      el('debriefTurn').value = Math.max(1, completed);
+      el('debriefInput').value = '';
+      el('debriefOutput').classList.add('hidden');
+      debriefStatus('');
+    } else if (Number(el('debriefTurn').value) > completed) {
+      el('debriefTurn').value = Math.max(1, completed);
+    }
+    el('copyDebriefPrompt').disabled = !isCommander || !completed;
+    el('submitDebrief').disabled = !isCommander || !completed || !!data.archive_view;
+    el('viewDebriefs').disabled = !isCommander;
+  }
+  function selectedDebriefRound() {
+    const round = Number(el('debriefTurn').value);
+    if (!Number.isInteger(round) || round < 1 || round > (last?.history || []).length)
+      throw Error('Select an already resolved round.');
+    return round;
+  }
+  async function copyDebriefPrompt() {
+    try {
+      if (!last || !['us', 'ge'].includes(el('role').value)) throw Error('Unlock a commander view first.');
+      const round = selectedDebriefRound();
+      const side = el('role').value;
+      const safeRound = (last.history || []).find(r => Number(r.turn) === round);
+      const prompt = {
+        task: 'GRASSTEX COMMANDER AFTER-ACTION DEBRIEF',
+        instructions:
+          'Reflect on the decisions and observed results for this completed round. Provide voluntary, concise findings and concrete game-design gaps, NOT hidden chain-of-thought, private reasoning traces, invented opponent intelligence, or secrets. Respond ONLY with the five-field JSON object below. The user will paste it into the site debrief form.',
+        match_id: last.id,
+        attempt: last.series?.attempt || 1,
+        side,
+        round,
+        authorized_round_result: safeRound || null,
+        response_format: {
+          learned: 'What I learned about the scenario, tactics or referee',
+          worked: 'What worked and evidence from the resolved round',
+          failed: 'What failed, surprised me, or was poorly modeled',
+          capability_gaps: 'Missing commands, information, or game systems',
+          next_time: 'One specific change I would make next round'
+        }
+      };
+      await navigator.clipboard.writeText(json(prompt));
+      debriefStatus('Faction-safe debrief prompt copied. Paste into that commander’s AI chat.');
+    } catch (e) {
+      debriefStatus('Could not copy debrief prompt: ' + e.message, true);
+    }
+  }
+  async function submitDebrief() {
+    try {
+      if (!last || !['us', 'ge'].includes(el('role').value)) throw Error('Unlock a commander view first.');
+      if (last.archive_view) throw Error('Archived attempts are read-only.');
+      const turn = selectedDebriefRound();
+      const side = el('role').value;
+      const notes = JSON.parse(el('debriefInput').value);
+      if (!notes || Array.isArray(notes) || typeof notes !== 'object')
+        throw Error('The debrief must be a JSON object.');
+      const fields = ['learned', 'worked', 'failed', 'capability_gaps', 'next_time'];
+      if (fields.some(k => typeof notes[k] !== 'string'))
+        throw Error('All five debrief fields must be strings.');
+      const result = await request(
+        'debrief',
+        {},
+        {
+          id: last.id,
+          side,
+          turn,
+          ...Object.fromEntries(fields.map(k => [k, notes[k]]))
+        }
+      );
+      debriefStatus(
+        result.duplicate
+          ? 'This debrief was already saved.'
+          : 'Debrief saved for ' + side.toUpperCase() + ' round ' + turn + '.'
+      );
+      if (!result.duplicate) await load(true);
+    } catch (e) {
+      debriefStatus('Debrief not saved: ' + e.message, true);
+    }
+  }
+  async function viewDebriefs() {
+    try {
+      if (!last || !['us', 'ge'].includes(el('role').value)) throw Error('Commander view required.');
+      const result = await request('debrief', {
+        id: last.id,
+        side: el('role').value,
+        ...(archiveAttempt ? { attempt: archiveAttempt } : {})
+      });
+      el('debriefOutput').textContent = json(result.debriefs);
+      el('debriefOutput').classList.remove('hidden');
+      debriefStatus(result.debriefs.length + ' saved debrief(s) for this commander and game.');
+    } catch (e) {
+      debriefStatus('Could not load debriefs: ' + e.message, true);
+    }
+  }
+  async function getDebriefExport() {
+    if (!last || el('role').value !== 'admin') throw Error('Protected observer access required.');
+    return request('debrief_export', { id: last.id }, null, true);
+  }
+  async function exportDebriefs(download) {
+    try {
+      const result = await getDebriefExport();
+      const content = json(result);
+      el('debriefOutput').textContent = content;
+      el('debriefOutput').classList.remove('hidden');
+      if (download) {
+        const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'grasstex-debriefs-' + result.id + '.json';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        debriefStatus('Downloaded debriefs from ' + result.games.length + ' game attempt(s).');
+      } else {
+        await navigator.clipboard.writeText(content);
+        debriefStatus('Copied debriefs from ' + result.games.length + ' game attempt(s).');
+      }
+    } catch (e) {
+      debriefStatus('Could not export debriefs: ' + e.message, true);
+    }
+  }
   function packet() {
     if (!last) {
       status('Load a match first.', true);
@@ -494,6 +632,11 @@
     el('mapPanel').classList.add('hidden');
     if (el('match').value) load();
   });
+  el('copyDebriefPrompt').addEventListener('click', copyDebriefPrompt);
+  el('submitDebrief').addEventListener('click', submitDebrief);
+  el('viewDebriefs').addEventListener('click', viewDebriefs);
+  el('exportDebriefs').addEventListener('click', () => exportDebriefs(true));
+  el('copyDebriefs').addEventListener('click', () => exportDebriefs(false));
   el('copyPacket').addEventListener('click', packet);
   el('submit').addEventListener('click', submit);
   el('rematchButton').addEventListener('click', createRematch);
