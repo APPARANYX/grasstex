@@ -15,11 +15,12 @@ assert f"const CLIENT_VERSION = '{version}'" in app, "app.js version must match 
 assert f"const IDEATION_API_VERSION = '{version}'" in api, "PHP API version must match HTML"
 assert 'id="buildDiagnostic"' in page, "Browser/API diagnostics missing"
 assert 'id="liveStatus"' in page, "Live polling status indicator missing"
-assert "}, 5000);" in app, "Live match must poll every 5 seconds"
+assert "}, 2000);" in app, "Live match must poll every 2 seconds"
 assert "autoPollInFlight" in app, "Live polling must avoid overlapping requests"
 assert "if (!unchanged) render(data);" in app, "Unchanged polls must not redraw map"
 assert "!document.hidden" in app, "Background tabs must not poll continuously"
-assert "last.phase !== 'complete'" in app, "Finished matches must stop polling"
+assert "!archiveAttempt" in app, "Read-only archives must not poll continuously"
+assert "last.series?.champion" not in app, "Live matches must keep polling through rematches and completed rounds"
 assert "effective_rules: last.effective_rules" in app, "Commander packet must disclose actual match rules"
 for name in ("map.js", "app.js"):
     data = (root / "wargame" / name).read_bytes()

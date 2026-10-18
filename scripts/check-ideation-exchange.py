@@ -67,7 +67,7 @@ try:
         time.sleep(0.1)
     assert code == 200 and template["ok"] and template["template"]["config"], template
     code, version = call("version")
-    assert code == 200 and version["api_version"] == "0.9.0", version
+    assert code == 200 and version["api_version"] == "1.1.0", version
     # Preserve the original three-objective smoke fixture; the default
     # template below separately exercises the new nine-objective V6 board.
     legacy_config = {"objectives": [
@@ -108,7 +108,7 @@ try:
     us_key, ge_key = new["keys"]["us"], new["keys"]["ge"]
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["phase"] == "orders" and public["turn"] == 1
-    assert public["api_version"] == "0.9.0"
+    assert public["api_version"] == "1.1.0"
     assert public["rules_revision"] == 6
     assert public["effective_rules"]["neutral_contested_siege"] is True
     assert public["effective_rules"]["contested_attrition"] is True
@@ -286,18 +286,32 @@ try:
     assert nextgame["series"]["score"] == {"a": 1, "b": 0}
     assert nextgame["series"]["players"] == {"a": "Sol", "b": "Opus"}
     next_id = nextgame["id"]
+    assert next_id == match_id, "A rematch must preserve the exact match ID"
+    assert nextgame["keys_reused"] is True and "keys" not in nextgame
     code, rematch_public = call("public", query=f"&id={next_id}")
     assert code == 200 and rematch_public["rules_revision"] == 1
     assert rematch_public["effective_rules"]["contested_attrition"] is False
     assert "LEGACY V1 MATCH" in rematch_public["effective_rules"]["notice"]
-    match_ids.append(next_id)
-    assert nextgame["keys"]["us"] != us_key
-    assert nextgame["keys"]["ge"] != ge_key
+    assert rematch_public["turn"] == 1 and rematch_public["phase"] == "orders"
+    assert rematch_public["series"]["stable_identity"] is True
+    assert rematch_public["series"]["archive_attempts"] == [{"attempt": 1, "game_number": 1}]
+    assert rematch_public["series"]["next_match_id"] is None
+    # Original US commander's key is now valid for Germany, and vice versa.
+    assert call("brief", key=us_key, query=f"&id={next_id}&side=ge")[0] == 200
+    assert call("brief", key=ge_key, query=f"&id={next_id}&side=us")[0] == 200
+    assert call("brief", key=us_key, query=f"&id={next_id}&side=us")[0] == 401
+    assert call("brief", key=ge_key, query=f"&id={next_id}&side=ge")[0] == 401
+    # Archived Game 1 is immutable, replayable, and retains the OLD key mapping.
+    code, previous = call("public", query=f"&id={match_id}&attempt=1")
+    assert code == 200 and previous["archive_view"] and previous["phase"] == "complete"
+    assert previous["winner"] == "us" and len(previous["history"]) == 3
+    assert call("brief", key=us_key, query=f"&id={match_id}&attempt=1&side=us")[0] == 200
+    assert call("brief", key=ge_key, query=f"&id={match_id}&attempt=1&side=us")[0] == 401
+    assert call("observer", key=PASSWORD, query=f"&id={match_id}&attempt=1")[0] == 200
+    assert call("public", query=f"&id={match_id}&attempt=2")[0] == 404
+    assert call("public", query=f"&id={match_id}&attempt=../../private")[0] == 400
     duplicate_code, _ = call("rematch", "POST", {"id": match_id}, PASSWORD)
     assert duplicate_code == 409
-    code, parent = call("public", query=f"&id={match_id}")
-    assert code == 200 and parent["series"]["next_match_id"] == next_id
-    assert not parent["series"]["can_rematch"]
     # Game 2: with US idle, GE (now Sol) captures South on turn 3.
     for turn in (1, 2, 3):
         u = {"turn": turn, "side": "us", "intent": "Hold the home bases",
@@ -306,9 +320,9 @@ try:
              "actions": [{"squad": "GE-1", "type": "move", "target": "south"}],
              "support": "none", "proposals": []}
         assert call("submit", "POST", {"id": next_id, "turn": turn, "side": "us",
-            "order": u}, nextgame["keys"]["us"])[0] == 200
+            "order": u}, ge_key)[0] == 200
         assert call("submit", "POST", {"id": next_id, "turn": turn, "side": "ge",
-            "order": g}, nextgame["keys"]["ge"])[0] == 200
+            "order": g}, us_key)[0] == 200
     code, champion = call("public", query=f"&id={next_id}")
     assert code == 200 and champion["winner"] == "ge", champion
     assert champion["series"]["champion"] == "a" and champion["series"]["score"]["a"] == 2
@@ -329,7 +343,8 @@ try:
     code, repeat = call("rematch", "POST", {"id": drawn["id"]}, PASSWORD)
     assert code == 201 and repeat["game_number"] == 1
     assert repeat["series"]["assignments"] == {"us": "b", "ge": "a"}
-    original_layout = call("public", query=f"&id={drawn['id']}")[1]["objective_candidates"]
+    assert repeat["id"] == drawn["id"] and repeat["keys_reused"] is True
+    original_layout = call("public", query=f"&id={drawn['id']}&attempt=1")[1]["objective_candidates"]
     repeat_layout = call("public", query=f"&id={repeat['id']}")[1]["objective_candidates"]
     assert original_layout == repeat_layout, "Side-swap rematch changed the objective geometry"
     match_ids.append(repeat["id"])
@@ -338,7 +353,7 @@ try:
     record = STATE / "ideation-v1" / (match_id + ".php")
     assert record.exists() and record.read_text().startswith("<?php http_response_code(404); exit; ?>")
     print("PASS: isolated sealed orders, redacted submit and historical events, admin observer, "
-          "private replay, automatic referee, rematch keys, faction swaps, best-of-three winner, "
+          "private replay, automatic referee, stable rematch ID and commander keys, faction swaps, best-of-three winner, "
           "and draw replay")
 finally:
     if server is not None:
@@ -349,4 +364,6 @@ finally:
             server.kill()
     for path_id in match_ids:
         (STATE / "ideation-v1" / (path_id + ".php")).unlink(missing_ok=True)
+        for archived in (STATE / "ideation-v1").glob(path_id + "-attempt-*.php"):
+            archived.unlink(missing_ok=True)
     ADMIN.unlink(missing_ok=True)

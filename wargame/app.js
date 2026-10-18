@@ -1,13 +1,31 @@
 'use strict';
 /* No LLM API or browser-side referee. The site stores all state in the PHP backend. */
 (function () {
-  const CLIENT_VERSION = '0.9.0';
+  const CLIENT_VERSION = '1.1.0';
   const el = id => document.getElementById(id);
   let last = null,
     template = null,
     timer = null,
     viewEpoch = 0,
-    autoPollInFlight = false;
+    autoPollInFlight = false,
+    archiveAttempt = new URL(location.href).searchParams.get('attempt'),
+    lastPollAt = 0;
+  const ADMIN_STORAGE = 'grasstex-wargame-admin-key-v1';
+  function storedAdmin() {
+    try {
+      return localStorage.getItem(ADMIN_STORAGE) || '';
+    } catch (_) {
+      return '';
+    }
+  }
+  function rememberAdmin() {
+    if (el('role').value !== 'admin' || !el('rememberAdmin').checked) return;
+    try {
+      localStorage.setItem(ADMIN_STORAGE, el('key').value);
+    } catch (_) {
+      status('Browser blocked password storage. The password works for this session.', true);
+    }
+  }
   function status(message, error = false) {
     el('message').textContent = message || '';
     el('message').className = error ? 'error' : 'good';
@@ -32,7 +50,10 @@
       headers: admin
         ? {
             'Content-Type': 'application/json',
-            'X-Ideation-Key': op === 'rematch' ? el('rematchPassword').value : el('adminKey').value
+            'X-Ideation-Key':
+              el('role').value === 'admin'
+                ? el('key').value || storedAdmin()
+                : storedAdmin() || el('key').value
           }
         : Object.assign({ 'Accept': 'application/json' }, roleHeaders())
     };
@@ -58,7 +79,13 @@
     if (window.GRASSTEXIdeationMap) window.GRASSTEXIdeationMap.refresh(data, el('role').value);
     el('copyPacket').disabled = el('role').value === 'admin';
     el('matchTitle').textContent = data.title;
-    el('phase').textContent = data.phase.toUpperCase() + ' · Round ' + data.turn + '/' + data.turn_limit;
+    el('phase').textContent =
+      (data.archive_view ? 'ARCHIVED · ' : '') +
+      data.phase.toUpperCase() +
+      ' · Round ' +
+      data.turn +
+      '/' +
+      data.turn_limit;
     el('meta').textContent =
       'Match ID ' +
       data.id +
@@ -98,7 +125,7 @@
       privateInfo && data.own_pending_order
         ? 'Your submitted order (sealed):\n' + json(data.own_pending_order)
         : 'No orders are publicly visible until resolution.';
-    const canSubmit = privateInfo && data.phase === 'orders' && !data.submitted[role];
+    const canSubmit = privateInfo && !data.archive_view && data.phase === 'orders' && !data.submitted[role];
     el('commander').classList.toggle('hidden', !canSubmit);
     if (canSubmit) {
       let prev = null;
@@ -148,7 +175,19 @@
         (r.winner_player ? named[r.winner_player] + ' won' : 'draw')
     );
     el('seriesResults').textContent = games.join('   |   ') || 'First game in the series';
-    el('rematchControls').classList.toggle('hidden', !s.can_rematch);
+    const archiveLinks = el('seriesArchives');
+    archiveLinks.replaceChildren();
+    for (const entry of s.archive_attempts || []) {
+      const link = document.createElement('a');
+      const url = new URL('./index.html', location.href);
+      url.searchParams.set('id', data.id);
+      url.searchParams.set('attempt', entry.attempt);
+      link.href = url.toString();
+      link.textContent = 'View Game ' + entry.game_number + ' (attempt ' + entry.attempt + ')';
+      link.style.marginRight = '14px';
+      archiveLinks.appendChild(link);
+    }
+    el('rematchControls').classList.toggle('hidden', !s.can_rematch || data.archive_view);
     el('seriesNext').classList.toggle('hidden', !s.next_match_id);
     if (s.can_rematch && s.attempt > 1) {
       el('seriesPlayerA').value = named.a;
@@ -164,10 +203,17 @@
   }
   function openMatch(id) {
     if (!/^[a-f0-9]{24}$/.test(id)) return;
+    const changed = el('match').value !== id;
     el('match').value = id;
-    el('key').value = '';
-    el('role').value = 'public';
-    el('orders').value = '';
+    archiveAttempt = null;
+    const url = new URL(location.href);
+    url.searchParams.delete('attempt');
+    history.replaceState(null, '', url.toString());
+    if (changed) {
+      el('key').value = '';
+      el('role').value = 'public';
+      el('orders').value = '';
+    }
     el('rematchIssued').classList.add('hidden');
     load();
   }
@@ -176,11 +222,16 @@
       status('This game does not need a rematch.', true);
       return;
     }
-    if (!el('rematchPassword').value) {
-      status('Enter the administrator password before creating a rematch.', true);
+    if (!el('key').value && !storedAdmin()) {
+      status('Unlock as Protected observer with your administrator password first.', true);
       return;
     }
-    if (!confirm('Create the next best-of-three game with the commanders on OPPOSITE sides?')) return;
+    if (
+      !confirm(
+        'Start the next game on this SAME match ID? Commanders switch sides and keep their existing keys. The completed game will be archived.'
+      )
+    )
+      return;
     el('rematchButton').disabled = true;
     try {
       const payload = {
@@ -189,6 +240,7 @@
         player_b: el('seriesPlayerB').value.trim()
       };
       const result = await request('rematch', {}, payload, true);
+      rememberAdmin();
       const players = result.series.players;
       const assignments = result.series.assignments;
       el('rematchIssued').classList.remove('hidden');
@@ -197,13 +249,12 @@
         game: result.game_number,
         scoreboard: result.series.score,
         us_commander: players[assignments.us],
-        us_key: result.keys.us,
         german_commander: players[assignments.ge],
-        ge_key: result.keys.ge,
+        keys: 'UNCHANGED: each commander uses their original key on their NEW side',
         browser_url: new URL('./index.html?id=' + result.id, location.href).toString()
       });
       el('rematchOpen').dataset.nextId = result.id;
-      status('New game created with sides switched. Save both NEW keys before opening it.');
+      status('Rematch started on the SAME match ID. Commanders swap sides and KEEP their original keys.');
       await load(true);
     } catch (e) {
       status('Rematch failed: ' + e.message, true);
@@ -225,7 +276,11 @@
     const op = role === 'public' ? 'public' : role === 'admin' ? 'observer' : 'brief';
     if (automatic) autoPollInFlight = true;
     try {
-      const data = await request(op, { id, ...(role === 'us' || role === 'ge' ? { side: role } : {}) });
+      const data = await request(op, {
+        id,
+        ...(archiveAttempt ? { attempt: archiveAttempt } : {}),
+        ...(role === 'us' || role === 'ge' ? { side: role } : {})
+      });
       if (
         epoch !== viewEpoch ||
         id !== el('match').value.trim() ||
@@ -244,11 +299,18 @@
       // Don't rebuild the SVG on every unchanged poll: preserve animation,
       // selected markers, replay position and expanded-map interactions.
       if (!unchanged) render(data);
+      lastPollAt = Date.now();
       el('liveStatus').textContent =
-        data.phase === 'complete'
-          ? 'Match complete · live polling stopped · use Load / refresh match to check again'
-          : 'LIVE · checking every 5 seconds while this tab is visible · last checked ' +
-            new Date().toLocaleTimeString();
+        (data.archive_view
+          ? 'ARCHIVED · read-only'
+          : data.phase === 'complete'
+            ? 'LIVE · match complete · watching for rematch'
+            : 'LIVE · watching for new rounds') +
+        ' · revision ' +
+        data.revision +
+        ' · checked ' +
+        new Date().toLocaleTimeString() +
+        ' · 2-second polling';
       el('buildDiagnostic').textContent =
         'Browser v' + CLIENT_VERSION + ' · API ' + (data.api_version || 'legacy/unversioned');
       if (data.api_version !== CLIENT_VERSION) {
@@ -259,9 +321,12 @@
       } else if (!silent) {
         status('Match loaded. Latest revision ' + data.revision + '.');
       }
+      if (role === 'admin') rememberAdmin();
       if (!automatic) {
         const url = new URL(location.href);
         url.searchParams.set('id', id);
+        if (archiveAttempt) url.searchParams.set('attempt', archiveAttempt);
+        else url.searchParams.delete('attempt');
         history.replaceState(null, '', url.toString());
       }
     } catch (e) {
@@ -302,6 +367,8 @@
       };
       const data = await request('create', {}, body, true);
       el('match').value = data.id;
+      archiveAttempt = null;
+      if (el('key').value) rememberAdmin();
       el('created').classList.remove('hidden');
       el('createdOutput').textContent = json({
         match_id: data.id,
@@ -377,6 +444,7 @@
       guide:
         'GRASSTEX hypothetical board-game benchmark. Your action is to produce JSON orders only. Do not infer hidden opponent information.',
       match_id: last.id,
+      series: last.series,
       round: last.turn,
       role: role === 'public' ? 'spectator' : role,
       mode: last.mode,
@@ -418,6 +486,8 @@
   }
   el('load').addEventListener('click', () => load());
   el('role').addEventListener('change', () => {
+    if (el('role').value === 'admin' && storedAdmin()) el('key').value = storedAdmin();
+    else el('key').value = '';
     last = null;
     el('dashboard').classList.add('hidden');
     el('commander').classList.add('hidden');
@@ -433,6 +503,27 @@
   );
 
   el('create').addEventListener('click', create);
+  el('rememberAdmin').checked = !!storedAdmin();
+  el('rememberAdmin').addEventListener('change', checked => {
+    if (!el('rememberAdmin').checked) {
+      try {
+        localStorage.removeItem(ADMIN_STORAGE);
+      } catch (_) {}
+    } else rememberAdmin();
+  });
+  el('clearAdmin').addEventListener('click', () => {
+    try {
+      localStorage.removeItem(ADMIN_STORAGE);
+    } catch (_) {}
+    el('rememberAdmin').checked = false;
+    if (el('role').value === 'admin') el('key').value = '';
+    status('Saved administrator password cleared from this browser.');
+  });
+  el('key').addEventListener('change', rememberAdmin);
+  if (storedAdmin()) {
+    el('role').value = 'admin';
+    el('key').value = storedAdmin();
+  }
   const urlid = new URL(location.href).searchParams.get('id');
   if (urlid && /^[0-9a-f]{24}$/.test(urlid)) el('match').value = urlid;
   templateLoad();
@@ -442,14 +533,14 @@
   timer = setInterval(() => {
     if (
       last &&
-      last.phase !== 'complete' &&
+      !archiveAttempt &&
       last.id === el('match').value.trim() &&
       el('dashboard').offsetParent !== null &&
       !document.hidden
     )
       load(true, true);
-  }, 5000);
+  }, 2000);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && last && last.phase !== 'complete') load(true, true);
+    if (!document.hidden && last && !archiveAttempt) load(true, true);
   });
 })();
