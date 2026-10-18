@@ -59,7 +59,13 @@
     if (window.GRASSTEXIdeationMap) window.GRASSTEXIdeationMap.refresh(data, el('role').value);
     el('copyPacket').disabled = el('role').value === 'admin';
     el('matchTitle').textContent = data.title;
-    el('phase').textContent = (data.archive_view ? 'ARCHIVED · ' : '') + data.phase.toUpperCase() + ' · Round ' + data.turn + '/' + data.turn_limit;
+    el('phase').textContent =
+      (data.archive_view ? 'ARCHIVED · ' : '') +
+      data.phase.toUpperCase() +
+      ' · Round ' +
+      data.turn +
+      '/' +
+      data.turn_limit;
     el('meta').textContent =
       'Match ID ' +
       data.id +
@@ -200,7 +206,12 @@
       status('Enter the administrator password before creating a rematch.', true);
       return;
     }
-    if (!confirm('Start the next game on this SAME match ID? Commanders switch sides and keep their existing keys. The completed game will be archived.')) return;
+    if (
+      !confirm(
+        'Start the next game on this SAME match ID? Commanders switch sides and keep their existing keys. The completed game will be archived.'
+      )
+    )
+      return;
     el('rematchButton').disabled = true;
     try {
       const payload = {
