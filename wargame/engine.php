@@ -173,15 +173,55 @@ function ie_resolve(&$g) {
         }
     }
     unset($u);
-    // Board-game control: no actual combat or casualties are being simulated.
+    // For matches created under rules V2, contested positions suffer fixed-rule
+    // abstract strength losses. This represents declining combat effectiveness,
+    // NOT simulated casualties or historical weapons modeling. V1 matches are
+    // immutable and never acquire attrition retrospectively.
+    $v2=isset($g['rules_revision']) && intval($g['rules_revision'])>=2;
+    if ($v2) {
+        foreach ($w['objectives'] as $oid=>$o) {
+            $here=array('us'=>array(),'ge'=>array());
+            $totals=array('us'=>0,'ge'=>0);
+            foreach ($w['units'] as $id=>$u) {
+                if ($u['strength']>0 && ie_distance($u,$o)<=150) {
+                    $here[$u['side']][]=$id;
+                    $totals[$u['side']]+=$u['strength'];
+                }
+            }
+            if ($totals['us']===0 || $totals['ge']===0) continue;
+            // Simultaneous losses calculated from strengths BEFORE this
+            // objective's losses; no arbitrary advantage from faction order.
+            $losses=array(
+                'us'=>min($totals['us'],max(1,(int)floor($totals['ge']/15))),
+                'ge'=>min($totals['ge'],max(1,(int)floor($totals['us']/15))));
+            foreach (array('us','ge') as $side) {
+                $remaining=$losses[$side];$participants=$here[$side];
+                // Round-robin distributes pressure without targeting any one
+                // squad beyond those actually inside the contested objective.
+                while ($remaining>0) {
+                    $changed=false;
+                    foreach ($participants as $id) {
+                        if ($remaining===0) break;
+                        if ($w['units'][$id]['strength']<=0) continue;
+                        $w['units'][$id]['strength']--;
+                        $remaining--;$changed=true;
+                    }
+                    if (!$changed) break;
+                }
+                $events[]=strtoupper($side).'-1: abstract effectiveness loss '.
+                    $losses[$side].' at contested '.$o['name'].
+                    ' (distributed among friendly squads; inspect your squad strengths)';
+            }
+        }
+    }
+    // Board-game control: no actual projectile combat is being simulated.
     // Version 1 is preserved for *existing* games, so an in-progress match is
     // not silently altered by new capture rules partway through a competition.
     // V2: sustained superiority eventually breaks a contested garrison even
     // when the attacker is <1.5x the defender; an even split cannot win by waiting.
-    $v2=isset($g['rules_revision']) && intval($g['rules_revision'])>=2;
     foreach ($w['objectives'] as $oid=>&$o) {
         $presence=array('us'=>0,'ge'=>0);
-        foreach ($w['units'] as $u) if (ie_distance($u,$o)<=150)
+        foreach ($w['units'] as $u) if ($u['strength']>0 && ie_distance($u,$o)<=150)
             $presence[$u['side']]+=$u['strength'];
         $previous=$o['owner'];$new=$previous;
         $o['contested']=$presence['us']>0 && $presence['ge']>0;
@@ -269,4 +309,33 @@ function ie_resolve(&$g) {
     $g['public_brief']='Round '.$turn.' resolved; objective points US '.$control['us'].
       ' / GE '.$control['ge'].'. Consult the objective board and your faction briefing.';
     return $result;
+}
+
+/* Legacy V1 games predate the private replay snapshots. Reconstruct them only
+   for admin observers from sealed historical orders, verify the resulting
+   world against saved current state, and refuse to show a misleading trace if
+   the historic referee cannot be reproduced. Never rewrite the match. */
+function ie_legacy_replay($g) {
+    if (!$g['history'] || isset($g['history'][0]['world_snapshot']))
+        return array('ok'=>false,'reason'=>'snapshots already stored or no turns');
+    $sandbox=array('world'=>ie_world($g['config']), 'turn'=>1,
+        'turn_limit'=>$g['turn_limit'], 'mode'=>$g['mode'],
+        'phase'=>'orders', 'history'=>array(), 'winner'=>null,
+        'current'=>array('us'=>null,'ge'=>null));
+    $trace=array();
+    foreach ($g['history'] as $entry) {
+        if (!isset($entry['orders']['us'],$entry['orders']['ge']))
+            return array('ok'=>false,'reason'=>'missing historical orders');
+        $sandbox['current']['us']=array('order'=>$entry['orders']['us']);
+        $sandbox['current']['ge']=array('order'=>$entry['orders']['ge']);
+        $sandbox['turn']=(int)$entry['turn'];
+        ie_resolve($sandbox);
+        $trace[]=$sandbox['history'][count($sandbox['history'])-1]['world_snapshot'];
+    }
+    foreach (array('units','trucks','objectives') as $kind) {
+        $a=$sandbox['world'][$kind];$b=$g['world'][$kind];
+        if (json_encode($a)!==json_encode($b))
+            return array('ok'=>false,'reason'=>'historical world diverged: '.$kind);
+    }
+    return array('ok'=>true,'snapshots'=>$trace);
 }
