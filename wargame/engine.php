@@ -45,7 +45,8 @@ function ie_world($config) {
     }
     return array('objectives'=>$objectives,'units'=>$units,'trucks'=>$trucks,
         'recon_used'=>array('us'=>false,'ge'=>false),'intel'=>$intel,
-        'history'=>array(),'clock_minutes'=>0,'outcome'=>'ongoing');
+        'history'=>array(),'clock_minutes'=>0,'outcome'=>'ongoing',
+        'field_objects'=>array(),'field_contacts'=>array('us'=>array(),'ge'=>array()));
 }
 function ie_validate_order($order,$side,$turn,$world,$mode) {
     if (!is_array($order) || ($order['side']??null)!==$side ||
@@ -76,10 +77,30 @@ function ie_validate_order($order,$side,$turn,$world,$mode) {
             !is_string($p['reason']) || strlen($p['reason'])<4 || strlen($p['reason'])>600)
             ie_fail('Proposals must have a short name and reason');
     }
+    // Activities are observational proposals, not simulated engineering abilities.
+    // The location is always the squad's referee-owned position after movement.
+    $activities=isset($order['activities'])?$order['activities']:array();
+    if (!is_array($activities) || count($activities)>3) ie_fail('Maximum three field activities per turn');
+    $activitySeen=array();
+    foreach ($activities as $activity) {
+        if (!is_array($activity) || !isset($activity['squad'],$activity['kind']) ||
+            !is_string($activity['squad']) || !is_string($activity['kind']) ||
+            !isset($world['units'][$activity['squad']]) ||
+            $world['units'][$activity['squad']]['side']!==$side ||
+            isset($activitySeen[$activity['squad']]) ||
+            !in_array($activity['kind'],array('wire','roadblock','fortification',
+                'smoke','minefield','vehicle','other'),true) ||
+            !isset($activity['description']) || !is_string($activity['description']) ||
+            strlen(trim($activity['description']))<8 ||
+            strlen($activity['description'])>180)
+            ie_fail('Invalid field activity; use own squad, known kind and 8-180 character description');
+        $activitySeen[$activity['squad']]=true;
+    }
     $support=isset($order['support'])?$order['support']:'none';
     if (!in_array($support,array('none','recon'),true)) ie_fail('Only none/recon support is implemented');
     return array('turn'=>$turn,'side'=>$side,'intent'=>trim($order['intent']),
-      'actions'=>$actions,'support'=>$support,'proposals'=>$proposals,
+      'actions'=>$actions,'activities'=>$activities,
+      'support'=>$support,'proposals'=>$proposals,
       'contingency'=>isset($order['contingency'])?substr((string)$order['contingency'],0,800):'');
 }
 function ie_distance($a,$b) {
@@ -93,6 +114,60 @@ function ie_move(&$u,$goal,$meters) {
     $u['z']+=(($goal['z']-$u['z'])/$d)*$step;
     return $step;
 }
+function ie_field_contacts(&$world,$orders,$turn,&$events) {
+    if (!isset($world['field_objects'])) $world['field_objects']=array();
+    if (!isset($world['field_contacts'])) $world['field_contacts']=array('us'=>array(),'ge'=>array());
+    $names=array('wire'=>'possible wire obstacle','roadblock'=>'possible roadblock',
+        'fortification'=>'possible defensive works','smoke'=>'smoke activity',
+        'minefield'=>'possible mine hazard','vehicle'=>'vehicle activity',
+        'other'=>'unclassified field activity');
+    foreach (array('us','ge') as $side) {
+        foreach (isset($orders[$side]['activities'])?$orders[$side]['activities']:array() as $a) {
+            $u=$world['units'][$a['squad']];
+            $id='F-'.str_pad((string)(count($world['field_objects'])+1),4,'0',STR_PAD_LEFT);
+            $world['field_objects'][$id]=array('id'=>$id,'side'=>$side,
+                'squad'=>$u['id'],'x'=>$u['x'],'z'=>$u['z'],
+                'kind'=>$a['kind'],'description'=>trim($a['description']),
+                'created_turn'=>$turn,'status'=>'reported_activity_only',
+                'gameplay_effect'=>'none');
+            $events[]=$u['id'].': field activity '.$a['kind'].' recorded (no automatic gameplay effect)';
+        }
+    }
+    foreach (array('us','ge') as $side) {
+        $other=$side==='us'?'ge':'us';
+        foreach ($world['field_objects'] as $id=>$object) {
+            if ($object['side']===$side) {
+                $world['field_contacts'][$side][$id]=array('id'=>$id,'kind'=>$object['kind'],
+                    'x'=>$object['x'],'z'=>$object['z'],'confidence'=>'confirmed_friendly',
+                    'source'=>'own_report','first_seen_turn'=>$object['created_turn'],
+                    'last_seen_turn'=>$turn,'description'=>$object['description']);
+                continue;
+            }
+            $source=null;
+            foreach ($world['units'] as $u) {
+                if ($u['side']===$side && $u['strength']>0 &&
+                    ie_distance($u,$object)<=300) { $source='ground';break; }
+            }
+            // The single-use aerial report observes current objects, but does
+            // not grant omniscient tracking on later turns.
+            if ($orders[$side]['support']==='recon' &&
+                isset($world['recon_used'][$side]) && $world['recon_used'][$side] &&
+                count($world['intel'][$side]) &&
+                end($world['intel'][$side])['turn']===$turn) $source='aerial';
+            if ($source===null) continue;
+            $previous=isset($world['field_contacts'][$side][$id])?
+                $world['field_contacts'][$side][$id]:null;
+            $world['field_contacts'][$side][$id]=array('id'=>$id,'kind'=>$object['kind'],
+                'x'=>round($object['x']/250)*250,'z'=>round($object['z']/250)*250,
+                'confidence'=>$source==='ground'?'probable':'coarse',
+                'source'=>$source,'first_seen_turn'=>$previous?
+                    $previous['first_seen_turn']:$turn,'last_seen_turn'=>$turn,
+                'description'=>$names[$object['kind']]);
+            if ($previous===null) $events[]=$side.': field contact '.$id.
+                ' detected; consult private intelligence';
+        }
+    }
+}
 function ie_side_view($world,$side) {
     $squads=array();$trucks=array();
     foreach ($world['units'] as $id=>$u) if ($u['side']===$side) $squads[$id]=$u;
@@ -100,6 +175,8 @@ function ie_side_view($world,$side) {
     return array('squads'=>$squads,'trucks'=>$trucks,
         'recon_remaining'=>!$world['recon_used'][$side],
         'intel_reports'=>$world['intel'][$side],
+        'field_contacts'=>isset($world['field_contacts'][$side])?
+            array_values($world['field_contacts'][$side]):array(),
         'clock_minutes'=>$world['clock_minutes']);
 }
 function ie_public_world($world) {
@@ -271,6 +348,7 @@ function ie_resolve(&$g) {
             'contacts'=>$contacts,'expires_note'=>'stale next turn; no perfect tracking');
         $events[]=$side.': bounded aerial report delivered privately';
     }
+    ie_field_contacts($w,$orders,$turn,$events);
     $control=array('us'=>0,'ge'=>0);
     foreach ($w['objectives'] as $o) if (isset($control[$o['owner']]))
         $control[$o['owner']]+=$o['points'];
@@ -297,7 +375,9 @@ function ie_resolve(&$g) {
     // authenticated observer can replay them. Public timeline gets objectives.
     $g['history'][]=array('turn'=>$turn,
         'world_snapshot'=>array('units'=>$w['units'],'trucks'=>$w['trucks'],
-            'objectives'=>$w['objectives'],'clock_minutes'=>$w['clock_minutes']),
+            'objectives'=>$w['objectives'],'clock_minutes'=>$w['clock_minutes'],
+            'field_objects'=>$w['field_objects']),
+        'field_contact_snapshots'=>$w['field_contacts'],
         'public_snapshot'=>ie_public_world($w),
         'orders'=>array('us'=>$orders['us'],'ge'=>$orders['ge']),
         'resolution'=>$result,'capabilities'=>$proposals,
