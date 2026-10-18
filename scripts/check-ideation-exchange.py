@@ -121,6 +121,10 @@ try:
     code, us = call("brief", key=us_key, query=f"&id={match_id}&side=us")
     assert code == 200 and len(us["own_state"]["squads"]) == 5, us
     assert all(x["side"] == "us" for x in us["own_state"]["squads"].values())
+    early_debrief = {"id": match_id, "side": "us", "turn": 1,
+        "learned": "Cannot learn before adjudication", "worked": "", "failed": "",
+        "capability_gaps": "", "next_time": ""}
+    assert call("debrief", "POST", early_debrief, us_key)[0] == 409
     us_order = {"turn": 1, "side": "us", "intent": "Advance from south",
         "actions": [{"squad": "US-1", "type": "transport", "target": "south"}],
         "support": "recon",
