@@ -479,7 +479,40 @@
       });
       shape.appendChild(make('title', {}, label + ': ' + detail));
       const show = () => {
-        el('fieldDetails').textContent = label + ' — ' + detail;
+        const panel = el('fieldDetails');
+        panel.replaceChildren();
+        const title = document.createElement('strong');
+        title.textContent = label;
+        panel.appendChild(title);
+        const desc = document.createElement('p');
+        desc.textContent = detail;
+        panel.appendChild(desc);
+        const stats = contact.stats || {};
+        const grid = document.createElement('dl');
+        grid.className = 'fieldStats';
+        const items = [
+          ['Effect', stats.effect || 'Not simulated'],
+          ['Range', (stats.range_m || 0) + ' m'],
+          ['Strength damage', String(stats.damage_strength || 0) + ' pts'],
+          ['Move speed', Math.round((stats.speed_multiplier ?? 1) * 100) + '%'],
+          ['Defense', String(stats.defense_strength || 0) + ' pts'],
+          ['Blocks fire', stats.blocks_fire ? 'Yes' : 'Not simulated'],
+          ['Duration', stats.duration_turns ? stats.duration_turns + ' turns' : 'Persistent'],
+          ['Status', contact.status || (contact.active ? 'Active' : 'Unconfirmed / building')]
+        ];
+        for (const [key, value] of items) {
+          const dt = document.createElement('dt');
+          dt.textContent = key;
+          const dd = document.createElement('dd');
+          dd.textContent = value;
+          grid.append(dt, dd);
+        }
+        panel.appendChild(grid);
+        const note = document.createElement('small');
+        note.textContent =
+          'Abstract referee effects only; no projectile fire or individual HP simulation. ' +
+          (isExact ? 'Exact observer record.' : 'Enemy reports may be stale.');
+        panel.appendChild(note);
       };
       shape.addEventListener('click', show);
       shape.addEventListener('keydown', event => {
