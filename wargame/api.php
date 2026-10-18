@@ -304,9 +304,9 @@ if ($op==='rematch') {
             'id'=>$g['id'],'attempt'=>1,'game_number'=>1,
             'base_title'=>$g['title'],'player_a'=>'Player A','player_b'=>'Player B',
             'us_player'=>'a','ge_player'=>'b','prior_results'=>array());
-        if (!isset($g['series'])) {
-            $s['player_a']=isset($body['player_a'])?request_value($body,'player_a',60):'Player A';
-            $s['player_b']=isset($body['player_b'])?request_value($body,'player_b',60):'Player B';
+        if (!isset($g['series']) || ($s['attempt']===1 && !$s['prior_results'])) {
+            $s['player_a']=isset($body['player_a'])?request_value($body,'player_a',60):$s['player_a'];
+            $s['player_b']=isset($body['player_b'])?request_value($body,'player_b',60):$s['player_b'];
         }
         $tokens=array('us'=>bin2hex(random_bytes(24)),'ge'=>bin2hex(random_bytes(24)));
         $tpl=json_decode(@file_get_contents(__DIR__.'/scenario.json'),true);
