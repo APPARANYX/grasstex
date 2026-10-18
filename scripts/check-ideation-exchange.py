@@ -91,6 +91,14 @@ try:
     assert sum(o["owner"] == "neutral" for o in board) == 3
     assert {o["id"] for o in board if o["owner"] == "neutral"} == {"line2", "line3", "line4"}
     assert sum(o["points"] for o in board) == 9
+    assert {o["id"] for o in board if o["owner"] == "us"} == {"us-left", "us-center", "us-right"}
+    assert {o["id"] for o in board if o["owner"] == "ge"} == {"ge-left", "ge-center", "ge-right"}
+    bad_inactive = {"turn": 1, "side": "us", "intent": "Try inactive candidate",
+        "actions": [{"squad": "US-1", "type": "move", "target": "line2-left"}]}
+    code, rejected = call("submit", "POST",
+        {"id": layout_game["id"], "turn": 1, "side": "us", "order": bad_inactive},
+        layout_game["keys"]["us"])
+    assert code == 400 and "Unknown target objective" in rejected["error"], rejected
     code, new = call("create", "POST",
         {"title": "Automated contract smoke", "turn_limit": 3, "config": legacy_config}, PASSWORD)
     assert code == 201 and new["ok"], new
@@ -321,6 +329,9 @@ try:
     code, repeat = call("rematch", "POST", {"id": drawn["id"]}, PASSWORD)
     assert code == 201 and repeat["game_number"] == 1
     assert repeat["series"]["assignments"] == {"us": "b", "ge": "a"}
+    original_layout = call("public", query=f"&id={drawn['id']}")[1]["objective_candidates"]
+    repeat_layout = call("public", query=f"&id={repeat['id']}")[1]["objective_candidates"]
+    assert original_layout == repeat_layout, "Side-swap rematch changed the objective geometry"
     match_ids.append(repeat["id"])
     code, bad = call("resolve", "POST", {"id": match_id}, us_key)
     assert code == 404, bad
