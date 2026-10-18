@@ -413,7 +413,24 @@ function ie_resolve(&$g) {
             $presence[$u['side']]+=$u['strength'];
         $previous=$o['owner'];$new=$previous;
         $o['contested']=$presence['us']>0 && $presence['ge']>0;
-        if ($v2 && $o['contested'] && $previous!=='neutral') {
+        // V5: neutral objectives also resolve after two consecutive turns
+        // of numerical superiority. Earlier revisions remain unchanged.
+        if ($v2 && intval($g['rules_revision'])>=5 && $o['contested'] &&
+            $previous==='neutral') {
+            $leader=$presence['us']>$presence['ge']?'us':
+                ($presence['ge']>$presence['us']?'ge':null);
+            if ($leader!==null) {
+                if (!isset($o['siege_side']) || $o['siege_side']!==$leader) {
+                    $o['siege_side']=$leader;
+                    $o['siege_turns']=0;
+                }
+                $o['siege_turns']++;
+                if ($presence[$leader]>$presence[$leader==='us'?'ge':'us']*1.5 ||
+                    $o['siege_turns']>=2) $new=$leader;
+            } else {
+                $o['siege_side']=null;$o['siege_turns']=0;
+            }
+        } elseif ($v2 && $o['contested'] && $previous!=='neutral') {
             $challenger=$previous==='us'?'ge':'us';
             if ($presence[$challenger]>$presence[$previous]) {
                 if (!isset($o['siege_side']) || $o['siege_side']!==$challenger) {
