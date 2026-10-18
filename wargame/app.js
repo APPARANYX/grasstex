@@ -1,7 +1,7 @@
 'use strict';
 /* No LLM API or browser-side referee. The site stores all state in the PHP backend. */
 (function () {
-  const CLIENT_VERSION = '0.6.0';
+  const CLIENT_VERSION = '0.7.0';
   const el = id => document.getElementById(id);
   let last = null,
     template = null,
@@ -64,7 +64,11 @@
       data.mode +
       ' · Revision ' +
       data.revision +
+      ' · REFEREE V' + (data.rules_revision || 1) +
       (data.winner ? ' · Result ' + data.winner.toUpperCase() : '');
+    const mechanics = data.effective_rules || {};
+    el('effectiveRules').textContent = mechanics.notice || 'Referee rules revision unavailable.';
+    el('effectiveRules').classList.toggle('warning', (data.rules_revision || 1) < 5);
     el('publicBrief').textContent = data.public_brief + '\n\n' + json(data.public_world || {});
     const role = el('role').value,
       privateInfo = role === 'us' || role === 'ge';
@@ -74,7 +78,9 @@
     el('privateBrief').textContent = privateInfo
       ? (data.private_brief || '') + '\n\n' + json(data.own_state || {})
       : 'Choose US or GE and enter that side’s role key to view its own private briefing.';
-    el('rules').textContent = data.rules;
+    el('rules').textContent =
+      'AUTHORITATIVE MATCH MECHANICS: ' + json(mechanics) +
+      '\n\nSTORED RULES PROSE (may describe a later version):\n' + data.rules;
     el('scenario').textContent = data.scenario;
     el('history').textContent = (data.history || []).length ? json(data.history) : 'No completed rounds yet.';
     el('orderStatus').textContent =
