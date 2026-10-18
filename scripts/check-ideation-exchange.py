@@ -357,10 +357,10 @@ try:
     assert call("brief", key=ge_key, query=f"&id={match_id}&attempt=1&side=us")[0] == 401
     assert call("observer", key=PASSWORD, query=f"&id={match_id}&attempt=1")[0] == 200
     code, archived_notes = call("debrief", key=us_key, query=f"&id={match_id}&attempt=1&side=us")
-    assert code == 200 and len(archived_notes["debriefs"]) == 1
+    assert code == 200 and len(archived_notes["debriefs"]) == 2
     code, archived_export = call("debrief_export", key=PASSWORD, query=f"&id={match_id}")
     assert code == 200 and len(archived_export["games"]) == 2
-    assert len(archived_export["games"][0]["debriefs"]) == 2
+    assert len(archived_export["games"][0]["debriefs"]) == 3
     assert archived_export["games"][1]["debriefs"] == []
     assert call("debrief", "POST", us_debrief, us_key)[0] == 401  # key changed sides
 
