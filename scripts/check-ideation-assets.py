@@ -32,6 +32,10 @@ for name in ("map.js", "app.js"):
     )
 assert 'id="mapPanel"' in page, "Map viewer panel missing"
 assert 'id="seriesPanel"' in page, "Best-of-three series panel missing"
+assert 'id="debriefPanel"' in page and 'id="debriefInput"' in page, "AI debrief UI missing"
+assert 'id="exportDebriefs"' in page and 'id="copyDebriefPrompt"' in page, "AI debrief controls missing"
+assert "if ($op==='debrief_export')" in api, "Admin debrief export endpoint missing"
+assert "if ($op==='debrief')" in api, "Commander debrief endpoint missing"
 assert 'id="mapExpand"' in page, "Tactical map expand button missing"
 assert 'class="tacticalLayout"' in page, "Tactical layout missing"
 assert 'Field parcels and hedgerows are illustrative' in page, "Do not imply simulator terrain is loaded"
