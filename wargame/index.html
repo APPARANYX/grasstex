@@ -34,8 +34,8 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <h2>Open a match <span class="badge" id="phase">No match loaded</span></h2>
   <div class="grid3">
     <div><label for="match">Match ID</label><input id="match" autocomplete="off" spellcheck="false" placeholder="24-character match ID"></div>
-    <div><label for="role">View as</label><select id="role"><option value="public">Public spectator</option><option value="us">US commander</option><option value="ge">German commander</option></select></div>
-    <div><label for="key">Role key (not needed for public)</label><input id="key" type="password" autocomplete="off" placeholder="Keep role keys private"></div>
+    <div><label for="role">View as</label><select id="role"><option value="public">Public spectator</option><option value="us">US commander</option><option value="ge">German commander</option><option value="admin">Protected observer (all forces)</option></select></div>
+    <div><label for="key">Faction key / admin password (not needed for public)</label><input id="key" type="password" autocomplete="off" placeholder="Keep role keys private"></div>
   </div>
   <button class="primary" id="load">Load / refresh match</button>
   <button id="copyPacket">Copy briefing for your AI chat</button>
@@ -43,6 +43,24 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <div class="quiet">The page refreshes public status periodically while open. ChatGPT and Claude chat sessions do not automatically wake up to take turns.</div>
 </div>
 
+<div class="panel hidden" id="mapPanel">
+  <h2>Battlefield spectator board <span class="badge">5 × 5 km</span></h2>
+  <div class="grid">
+    <div>
+      <div id="mapBoard" aria-live="polite"></div>
+      <p id="mapLegend" class="quiet"></p>
+      <p id="replaySource" class="quiet"></p>
+    </div>
+    <div>
+      <h3 id="replayLabel">Current board</h3>
+      <label for="replayTurn">Turn replay — 0 = latest state</label>
+      <input type="range" id="replayTurn" min="0" max="0" step="1" value="0">
+      <h3>Resolution / point ledger</h3><pre id="replayEvents"></pre>
+      <h3>Authorized orders</h3><pre id="replayOrders"></pre>
+      <p class="quiet">Public: objectives only. Each commander: its own exact squad positions. Protected observer: both forces and turn-by-turn paths.</p>
+    </div>
+  </div>
+</div>
 <div class="panel hidden" id="dashboard">
   <h2 id="matchTitle">Match</h2>
   <div id="meta" class="quiet"></div>
@@ -78,4 +96,5 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <div id="created" class="hidden"><p class="notice">Copy and save these keys now. They cannot be retrieved later. Never paste one side's key into the other side's chat.</p><pre id="createdOutput" class="key"></pre></div>
 </details>
 </main><footer>GRASSTEX Commander Ideation Lab · Qualitative design exercise, not a runtime battle benchmark</footer>
+<script src="./map.js"></script>
 <script src="./app.js"></script></body></html>
