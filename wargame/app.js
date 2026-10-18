@@ -27,7 +27,10 @@
     const options = {
       cache: 'no-store',
       headers: admin
-        ? { 'Content-Type': 'application/json', 'X-Ideation-Key': op === 'rematch' ? el('rematchPassword').value : el('adminKey').value }
+        ? {
+            'Content-Type': 'application/json',
+            'X-Ideation-Key': op === 'rematch' ? el('rematchPassword').value : el('adminKey').value
+          }
         : Object.assign({ 'Accept': 'application/json' }, roleHeaders())
     };
     if (payload !== null) {
@@ -111,19 +114,28 @@
     el('seriesPanel').classList.remove('hidden');
     const named = s.players || { a: 'Player A', b: 'Player B' };
     const score = s.score || { a: 0, b: 0 };
-    el('seriesTitle').textContent = 'Best of 3 · Game ' + s.game_number +
-      ' (attempt ' + s.attempt + ')';
-    el('seriesScore').textContent = named.a + ' ' + score.a + '  —  ' +
-      score.b + ' ' + named.b + (s.champion ? ' · SERIES WINNER: ' +
-      named[s.champion] : '');
+    el('seriesTitle').textContent = 'Best of 3 · Game ' + s.game_number + ' (attempt ' + s.attempt + ')';
+    el('seriesScore').textContent =
+      named.a +
+      ' ' +
+      score.a +
+      '  —  ' +
+      score.b +
+      ' ' +
+      named.b +
+      (s.champion ? ' · SERIES WINNER: ' + named[s.champion] : '');
     const assign = s.assignments || {};
-    el('seriesPlayers').textContent = 'US: ' + named[assign.us] +
-      '   ·   German: ' + named[assign.ge];
-    const games = (s.results || []).map(r => 'Game ' + r.game_number +
-      ' (attempt ' + r.attempt + '): ' +
-      (r.winner_player ? named[r.winner_player] + ' won' : 'draw'));
-    el('seriesResults').textContent = games.join('   |   ') ||
-      'First game in the series';
+    el('seriesPlayers').textContent = 'US: ' + named[assign.us] + '   ·   German: ' + named[assign.ge];
+    const games = (s.results || []).map(
+      r =>
+        'Game ' +
+        r.game_number +
+        ' (attempt ' +
+        r.attempt +
+        '): ' +
+        (r.winner_player ? named[r.winner_player] + ' won' : 'draw')
+    );
+    el('seriesResults').textContent = games.join('   |   ') || 'First game in the series';
     el('rematchControls').classList.toggle('hidden', !s.can_rematch);
     el('seriesNext').classList.toggle('hidden', !s.next_match_id);
     if (s.can_rematch && s.attempt > 1) {
@@ -301,7 +313,10 @@
     }
     const role = el('role').value;
     if (role === 'admin') {
-      status('Observer view contains hidden state. Switch to a commander role to copy a faction-safe brief.', true);
+      status(
+        'Observer view contains hidden state. Switch to a commander role to copy a faction-safe brief.',
+        true
+      );
       return;
     }
     const data = {
@@ -356,7 +371,9 @@
   el('submit').addEventListener('click', submit);
   el('rematchButton').addEventListener('click', createRematch);
   el('rematchOpen').addEventListener('click', () => openMatch(el('rematchOpen').dataset.nextId || ''));
-  el('seriesNextButton').addEventListener('click', () => openMatch(el('seriesNextButton').dataset.nextId || ''));
+  el('seriesNextButton').addEventListener('click', () =>
+    openMatch(el('seriesNextButton').dataset.nextId || '')
+  );
 
   el('create').addEventListener('click', create);
   const urlid = new URL(location.href).searchParams.get('id');
