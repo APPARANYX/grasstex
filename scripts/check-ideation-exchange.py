@@ -67,7 +67,7 @@ try:
         time.sleep(0.1)
     assert code == 200 and template["ok"] and template["template"]["config"], template
     code, version = call("version")
-    assert code == 200 and version["api_version"] == "1.2.0", version
+    assert code == 200 and version["api_version"] == "1.3.0", version
     # Preserve the original three-objective smoke fixture; the default
     # template below separately exercises the new nine-objective V6 board.
     legacy_config = {"objectives": [
@@ -125,6 +125,7 @@ try:
         "learned": "Cannot learn before adjudication", "worked": "", "failed": "",
         "capability_gaps": "", "next_time": ""}
     assert call("debrief", "POST", early_debrief, us_key)[0] == 409
+    assert call("debrief", "POST", {**early_debrief, "turn": 0}, us_key)[0] == 409
     us_order = {"turn": 1, "side": "us", "intent": "Advance from south",
         "actions": [{"squad": "US-1", "type": "transport", "target": "south"}],
         "support": "recon",
@@ -277,6 +278,16 @@ try:
     code, final = call("public", query=f"&id={match_id}")
     assert code == 200 and final["phase"] == "complete" and final["winner"] == "us", final
     assert final["series"]["game_number"] == 1 and final["series"]["can_rematch"], final
+    assert "final match debrief (round 0)" in final["referee_debrief_notice"]
+    assert "REFEREE:" in final["public_brief"]
+    code, us_final = call("brief", key=us_key, query=f"&id={match_id}&side=us")
+    assert code == 200 and us_final["match_debrief_due"] is True
+    assert call("debrief", "POST", {
+        "id": match_id, "side": "us", "turn": 0,
+        "learned": "Final match lesson", "worked": "", "failed": "",
+        "capability_gaps": "", "next_time": "",
+    }, us_key)[0] == 200
+    assert call("brief", key=us_key, query=f"&id={match_id}&side=us")[1]["match_debrief_due"] is False
     assert final["series"]["score"]["a"] == 1
     # Emulate an archived, pre-snapshot V1 match without touching real host data.
     # Old public history must still reconstruct objective ownership while hiding
@@ -397,9 +408,95 @@ try:
     assert code == 404, bad
     record = STATE / "ideation-v1" / (match_id + ".php")
     assert record.exists() and record.read_text().startswith("<?php http_response_code(404); exit; ?>")
+    # An admin may cancel before any round resolves. Keep the one sealed order,
+    # but never adjudicate, award a game, or leak it to spectators/opponents.
+    code, halted = call("create", "POST",
+        {"title": "Incomplete benchmark preservation", "turn_limit": 8}, PASSWORD)
+    assert code == 201
+    halted_id = halted["id"]
+    match_ids.append(halted_id)
+    halted_us = halted["keys"]["us"]
+    halted_ge = halted["keys"]["ge"]
+    one_order = {"turn": 1, "side": "us", "intent": "SECRET HOLD ORDER",
+        "actions": [], "support": "none", "proposals": []}
+    assert call("submit", "POST", {"id": halted_id, "turn": 1, "side": "us",
+        "order": one_order}, halted_us)[0] == 200
+    assert call("finish", "POST", {"id": halted_id, "kind": "cancelled"}, halted_us)[0] == 401
+    assert call("finish", "POST", {"id": halted_id, "kind": "invalid"}, PASSWORD)[0] == 400
+    assert call("finish", "POST", {"id": halted_id, "kind": "early_scored"}, PASSWORD)[0] == 409
+    assert call("debrief", "POST", {"id": halted_id, "side": "us", "turn": 0,
+        "learned": "Too early", "worked": "", "failed": "",
+        "capability_gaps": "", "next_time": ""}, halted_us)[0] == 409
+    code, stopped = call("finish", "POST", {"id": halted_id, "kind": "cancelled",
+        "reason": "Session interrupted"}, PASSWORD)
+    assert code == 200 and stopped["phase"] == "complete" and stopped["winner"] is None
+    assert stopped["termination"]["last_resolved_turn"] == 0
+    assert stopped["termination"]["sealed_orders"] == {"us": True, "ge": False}
+    code, public_stop = call("public", query=f"&id={halted_id}")
+    assert code == 200 and public_stop["termination"]["kind"] == "cancelled"
+    assert public_stop["history"] == [] and public_stop["series"]["score"] == {"a": 0, "b": 0}
+    assert public_stop["series"]["can_rematch"] and "final match debrief" in public_stop["referee_debrief_notice"]
+    assert "SECRET HOLD ORDER" not in json.dumps(public_stop)
+    assert "pending_sealed_orders" not in public_stop
+    assert "SECRET HOLD ORDER" not in json.dumps(call("brief", key=halted_ge,
+        query=f"&id={halted_id}&side=ge")[1])
+    code, admin_stop = call("observer", key=PASSWORD, query=f"&id={halted_id}")
+    assert code == 200 and admin_stop["pending_sealed_orders"]["us"]["intent"] == "SECRET HOLD ORDER"
+    assert admin_stop["pending_sealed_orders"]["ge"] is None
+    assert call("submit", "POST", {"id": halted_id, "turn": 1, "side": "ge",
+        "order": {"turn": 1, "side": "ge", "intent": "too late",
+            "actions": [], "support": "none", "proposals": []}}, halted_ge)[0] == 409
+    assert call("finish", "POST", {"id": halted_id, "kind": "cancelled"}, PASSWORD)[0] == 409
+    final_notes = {"id": halted_id, "side": "us", "turn": 0,
+        "learned": "A cancelled match still needs an after-action reflection.",
+        "worked": "The one submitted order remains privately recorded.",
+        "failed": "The round could not resolve.",
+        "capability_gaps": "Need session interrupt and resume signals.",
+        "next_time": "Retain snapshots and debrief immediately."}
+    assert call("debrief", "POST", final_notes, halted_us)[0] == 200
+    assert call("debrief", "POST", final_notes, halted_us)[1]["duplicate"]
+    assert call("debrief", "POST", {**final_notes, "learned": "Changed"},
+        halted_us)[0] == 409
+    assert call("brief", key=halted_us, query=f"&id={halted_id}&side=us")[1]["match_debrief_due"] is False
+    code, fresh = call("rematch", "POST", {"id": halted_id}, PASSWORD)
+    assert code == 201 and fresh["id"] == halted_id and fresh["game_number"] == 1
+    assert fresh["series"]["score"] == {"a": 0, "b": 0}
+    assert fresh["series"]["results"][0]["winner_side"] == "cancelled"
+    assert fresh["series"]["results"][0]["finish_kind"] == "cancelled"
+    code, archived_stop = call("observer", key=PASSWORD,
+        query=f"&id={halted_id}&attempt=1")
+    assert code == 200 and archived_stop["termination"]["kind"] == "cancelled"
+    assert archived_stop["pending_sealed_orders"]["us"]["intent"] == "SECRET HOLD ORDER"
+    assert len(call("debrief_export", key=PASSWORD,
+        query=f"&id={halted_id}")[1]["games"][0]["debriefs"]) == 1
+    assert call("public", query=f"&id={halted_id}")[1]["termination"] is None
+    # An early score uses only the last referee-owned state: no fictional
+    # final round, no fabricated combat or objective turnover.
+    code, scored = call("create", "POST",
+        {"title": "Admin early scoring", "turn_limit": 8}, PASSWORD)
+    assert code == 201
+    scored_id = scored["id"]
+    match_ids.append(scored_id)
+    for side in ("us", "ge"):
+        noop = {"turn": 1, "side": side, "intent": "Hold",
+                "actions": [], "support": "none", "proposals": []}
+        assert call("submit", "POST", {"id": scored_id, "side": side,
+            "turn": 1, "order": noop}, scored["keys"][side])[0] == 200
+    before = call("public", query=f"&id={scored_id}")[1]
+    assert before["phase"] == "orders" and len(before["history"]) == 1
+    code, early = call("finish", "POST", {"id": scored_id,
+        "kind": "early_scored", "reason": "Scenario coverage sufficient"}, PASSWORD)
+    assert code == 200 and early["termination"]["kind"] == "early_scored"
+    after = call("public", query=f"&id={scored_id}")[1]
+    assert after["phase"] == "complete" and len(after["history"]) == 1
+    assert after["winner"] == "draw"
+    assert after["termination"]["objective_points"] == {"us": 3, "ge": 3}
+    assert "ADMIN" not in json.dumps(after["history"])
+    assert call("debrief", "POST", {**final_notes, "id": scored_id,
+        "side": "ge", "turn": 0}, scored["keys"]["ge"])[0] == 200
     print("PASS: isolated sealed orders, redacted submit and historical events, admin observer, "
           "private replay, automatic referee, stable rematch ID and commander keys, faction swaps, best-of-three winner, "
-          "and draw replay, private AI debriefs and full-series export")
+          "and draw replay, private AI debriefs, full-series export, and admin early finish with referee debrief reminder")
 finally:
     if server is not None:
         server.terminate()
