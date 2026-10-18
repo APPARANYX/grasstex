@@ -468,7 +468,8 @@
       const safeRound = (last.history || []).find(r => Number(r.turn) === round);
       const prompt = {
         task: 'GRASSTEX COMMANDER AFTER-ACTION DEBRIEF',
-        instructions: 'Reflect on the decisions and observed results for this completed round. Provide voluntary, concise findings and concrete game-design gaps, NOT hidden chain-of-thought, private reasoning traces, invented opponent intelligence, or secrets. Respond ONLY with the five-field JSON object below. The user will paste it into the site debrief form.',
+        instructions:
+          'Reflect on the decisions and observed results for this completed round. Provide voluntary, concise findings and concrete game-design gaps, NOT hidden chain-of-thought, private reasoning traces, invented opponent intelligence, or secrets. Respond ONLY with the five-field JSON object below. The user will paste it into the site debrief form.',
         match_id: last.id,
         attempt: last.series?.attempt || 1,
         side,
@@ -500,13 +501,21 @@
       const fields = ['learned', 'worked', 'failed', 'capability_gaps', 'next_time'];
       if (fields.some(k => typeof notes[k] !== 'string'))
         throw Error('All five debrief fields must be strings.');
-      const result = await request('debrief', {}, {
-        id: last.id,
-        side,
-        turn,
-        ...Object.fromEntries(fields.map(k => [k, notes[k]]))
-      });
-      debriefStatus(result.duplicate ? 'This debrief was already saved.' : 'Debrief saved for ' + side.toUpperCase() + ' round ' + turn + '.');
+      const result = await request(
+        'debrief',
+        {},
+        {
+          id: last.id,
+          side,
+          turn,
+          ...Object.fromEntries(fields.map(k => [k, notes[k]]))
+        }
+      );
+      debriefStatus(
+        result.duplicate
+          ? 'This debrief was already saved.'
+          : 'Debrief saved for ' + side.toUpperCase() + ' round ' + turn + '.'
+      );
       if (!result.duplicate) await load(true);
     } catch (e) {
       debriefStatus('Debrief not saved: ' + e.message, true);
