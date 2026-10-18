@@ -6,7 +6,7 @@
  */
 require_once __DIR__.'/engine.php';
 // Increment for client/server contract releases, independently of match rules.
-const IDEATION_API_VERSION = '1.2.0';
+const IDEATION_API_VERSION = '1.3.0';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, max-age=0');
 header('X-Ideation-API-Version: '.IDEATION_API_VERSION);
@@ -220,11 +220,13 @@ function series_info($g) {
         'us_player'=>'a','ge_player'=>'b','prior_results'=>array());
     $results=isset($s['prior_results'])?$s['prior_results']:array();
     if ($g['phase']==='complete') {
-        $winner=isset($g['winner'])?$g['winner']:'draw';
+        $winner=($g['termination']['kind']??'')==='cancelled' ? 'cancelled' :
+            (isset($g['winner'])?$g['winner']:'draw');
         $player=($winner==='us' || $winner==='ge')?
             $s[$winner.'_player']:null;
         $results[]=array('match_id'=>$g['id'],'game_number'=>$s['game_number'],
-            'attempt'=>$s['attempt'],'winner_side'=>$winner,'winner_player'=>$player);
+            'attempt'=>$s['attempt'],'winner_side'=>$winner,'winner_player'=>$player,
+            'finish_kind'=>$g['termination']['kind']??'normal');
     }
     $scores=array('a'=>0,'b'=>0);
     foreach ($results as $r) {
@@ -286,6 +288,9 @@ function public_game($g,$side=null,$admin=false) {
         'rules_revision'=>match_rules_revision($g),'effective_rules'=>effective_rules($g),
         'scenario'=>$g['scenario'],'mode'=>$g['mode'],'turn_limit'=>$g['turn_limit'],
         'turn'=>$g['turn'],'phase'=>$g['phase'],'winner'=>$g['winner'],
+        'termination'=>$g['termination']??null,
+        'referee_debrief_notice'=>$g['phase']==='complete'?
+            'REFEREE: Match concluded. Both commanders, submit your final match debrief (round 0) using your own keys. All resolved rounds are preserved.':null,
         'public_brief'=>$g['public_brief'],'submitted'=>$count,
         'current_orders'=>null,'public_world'=>ie_public_world($g['world']),
         'objective_candidates'=>isset($g['config']['objective_candidates'])?$g['config']['objective_candidates']:array(),
@@ -374,11 +379,13 @@ if ($method==='GET') {
                 $games[]=array('attempt'=>$attempt,
                     'game_number'=>(int)($old['series']['game_number']??1),
                     'phase'=>$old['phase'],'winner'=>$old['winner'],
+                    'termination'=>$old['termination']??null,
                     'debriefs'=>debrief_rows($old));
             }
             $games[]=array('attempt'=>(int)($g['series']['attempt']??1),
                 'game_number'=>(int)($g['series']['game_number']??1),
                 'phase'=>$g['phase'],'winner'=>$g['winner'],
+                'termination'=>$g['termination']??null,
                 'debriefs'=>debrief_rows($g));
             return array('body'=>array('ok'=>true,'id'=>$g['id'],
                 'title'=>$g['title'],'series'=>series_info($g),
@@ -400,6 +407,8 @@ if ($method==='GET') {
             $public['private_brief']=$g['private_briefs'][$role];
             $public['own_state']=ie_side_view($g['world'],$role);
             $public['own_pending_order']=$g['current'][$role]===null?null:$g['current'][$role]['order'];
+            $public['match_debrief_due']=$g['phase']==='complete' &&
+                !isset($g['debriefs'][$role]['0']);
             return array('body'=>$public);
         }));
     }
@@ -474,6 +483,46 @@ if ($op==='create') {
     reply(201,array('ok'=>true,'id'=>$g['id'],'keys'=>$tokens,'turn'=>1,
       'notice'=>'Copy these keys now. They cannot be retrieved later. Never post them publicly.'));
 }
+// Administrator-only administrative conclusion. Do NOT resolve or fabricate a round.
+// An early score uses the last referee-owned objective state; cancellation is unscored.
+if ($op==='finish') {
+    check_admin();
+    $id=isset($body['id'])?$body['id']:'';
+    $kind=isset($body['kind'])?$body['kind']:'';
+    if (!in_array($kind,array('cancelled','early_scored'),true))
+        fail_api(400,'Invalid early finish kind');
+    $reason=isset($body['reason'])?request_value($body,'reason',400,false):'';
+    $result=with_game($id,function(&$g)use($kind,$reason) {
+        if ($g['phase']!=='orders') fail_api(409,'Match already concluded');
+        if ($kind==='early_scored' && count($g['history'])<1)
+            fail_api(409,'Score-based early finish requires a resolved round');
+        $points=array('us'=>0,'ge'=>0);
+        foreach ($g['world']['objectives'] as $objective)
+            if (isset($points[$objective['owner']]))
+                $points[$objective['owner']]+=(int)$objective['points'];
+        $winner=$kind==='early_scored'?
+            ($points['us']===$points['ge']?'draw':($points['us']>$points['ge']?'us':'ge')):null;
+        $g['termination']=array('kind'=>$kind,'at'=>gmdate('c'),
+            'reason'=>$reason,'last_resolved_turn'=>count($g['history']),
+            'unresolved_turn'=>$g['turn'],'objective_points'=>$points,
+            'sealed_orders'=>array('us'=>$g['current']['us']!==null,
+                'ge'=>$g['current']['ge']!==null));
+        $g['phase']='complete';$g['winner']=$winner;
+        $g['world']['outcome']=$kind==='cancelled'?'cancelled':$winner;
+        $g['public_brief']='REFEREE: '.($kind==='cancelled'?
+            'Match cancelled without a winner or series point.':
+            'Match ended early; administrative score from last resolved position: US '.
+                $points['us'].' / GE '.$points['ge'].'. Result '.strtoupper($winner).'.').
+            ' Completed rounds and sealed unadjudicated orders remain recorded. '.
+            'Both commanders: submit a final match debrief (round 0).';
+        $g['revision']++;$g['updated_at']=gmdate('c');
+        return array('updated'=>true,'body'=>array('ok'=>true,'id'=>$g['id'],
+            'phase'=>$g['phase'],'winner'=>$g['winner'],
+            'termination'=>$g['termination'],'series'=>series_info($g),
+            'referee_debrief_notice'=>'Both commanders: submit your final match debrief (round 0).'));
+    });
+    reply(200,$result);
+}
 if ($op==='rematch') {
     check_admin();
     $id=isset($body['id'])?$body['id']:'';
@@ -515,6 +564,7 @@ if ($op==='rematch') {
         $g['turn']=1;
         $g['phase']='orders';
         $g['winner']=null;
+        unset($g['termination']);
         $g['public_brief']=isset($g['initial_public_brief'])?
             $g['initial_public_brief']:$tpl['public_brief'];
         $g['current']=array('us'=>null,'ge'=>null);
@@ -542,8 +592,11 @@ if ($op==='debrief') {
     $result=with_game($id,function(&$g)use($body,$side) {
         check_role($g,$side);
         $turn=isset($body['turn']) && is_int($body['turn'])?$body['turn']:0;
-        if ($turn<1 || $turn>count($g['history']))
-            fail_api(409,'Debrief requires an already resolved round');
+        // Round zero is the final match debrief, including a match cancelled
+        // before its first adjudicated round. Positive numbers remain round notes.
+        if (($turn===0 && $g['phase']!=='complete') || $turn<0 ||
+            $turn>count($g['history']))
+            fail_api(409,'Debrief requires a completed match (round 0) or resolved round');
         $notes=debrief_record($body);
         $prior=$g['debriefs'][$side][(string)$turn]??null;
         if (is_array($prior)) {
