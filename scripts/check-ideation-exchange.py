@@ -254,6 +254,10 @@ try:
     assert nextgame["series"]["score"] == {"a": 1, "b": 0}
     assert nextgame["series"]["players"] == {"a": "Sol", "b": "Opus"}
     next_id = nextgame["id"]
+    code, rematch_public = call("public", query=f"&id={next_id}")
+    assert code == 200 and rematch_public["rules_revision"] == 1
+    assert rematch_public["effective_rules"]["contested_attrition"] is False
+    assert "LEGACY V1 MATCH" in rematch_public["effective_rules"]["notice"]
     match_ids.append(next_id)
     assert nextgame["keys"]["us"] != us_key
     assert nextgame["keys"]["ge"] != ge_key
