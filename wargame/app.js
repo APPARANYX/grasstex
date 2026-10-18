@@ -1,14 +1,31 @@
 'use strict';
 /* No LLM API or browser-side referee. The site stores all state in the PHP backend. */
 (function () {
-  const CLIENT_VERSION = '1.0.0';
+  const CLIENT_VERSION = '1.1.0';
   const el = id => document.getElementById(id);
   let last = null,
     template = null,
     timer = null,
     viewEpoch = 0,
     autoPollInFlight = false,
-    archiveAttempt = new URL(location.href).searchParams.get('attempt');
+    archiveAttempt = new URL(location.href).searchParams.get('attempt'),
+    lastPollAt = 0;
+  const ADMIN_STORAGE = 'grasstex-wargame-admin-key-v1';
+  function storedAdmin() {
+    try {
+      return localStorage.getItem(ADMIN_STORAGE) || '';
+    } catch (_) {
+      return '';
+    }
+  }
+  function rememberAdmin() {
+    if (el('role').value !== 'admin' || !el('rememberAdmin').checked) return;
+    try {
+      localStorage.setItem(ADMIN_STORAGE, el('key').value);
+    } catch (_) {
+      status('Browser blocked password storage. The password works for this session.', true);
+    }
+  }
   function status(message, error = false) {
     el('message').textContent = message || '';
     el('message').className = error ? 'error' : 'good';
@@ -33,7 +50,7 @@
       headers: admin
         ? {
             'Content-Type': 'application/json',
-            'X-Ideation-Key': op === 'rematch' ? el('rematchPassword').value : el('adminKey').value
+            'X-Ideation-Key': el('key').value || storedAdmin()
           }
         : Object.assign({ 'Accept': 'application/json' }, roleHeaders())
     };
@@ -202,8 +219,8 @@
       status('This game does not need a rematch.', true);
       return;
     }
-    if (!el('rematchPassword').value) {
-      status('Enter the administrator password before creating a rematch.', true);
+    if (!el('key').value && !storedAdmin()) {
+      status('Unlock as Protected observer with your administrator password first.', true);
       return;
     }
     if (
@@ -220,6 +237,7 @@
         player_b: el('seriesPlayerB').value.trim()
       };
       const result = await request('rematch', {}, payload, true);
+      rememberAdmin();
       const players = result.series.players;
       const assignments = result.series.assignments;
       el('rematchIssued').classList.remove('hidden');
@@ -278,11 +296,10 @@
       // Don't rebuild the SVG on every unchanged poll: preserve animation,
       // selected markers, replay position and expanded-map interactions.
       if (!unchanged) render(data);
+      lastPollAt = Date.now();
       el('liveStatus').textContent =
-        data.phase === 'complete'
-          ? 'Match complete · awaiting rematch or series finish'
-          : 'LIVE · checking every 5 seconds while this tab is visible · last checked ' +
-            new Date().toLocaleTimeString();
+        (data.archive_view ? 'ARCHIVED · read-only' : data.phase === 'complete' ? 'LIVE · match complete · watching for rematch' : 'LIVE · watching for new rounds') +
+        ' · revision ' + data.revision + ' · checked ' + new Date().toLocaleTimeString() + ' · 2-second polling';
       el('buildDiagnostic').textContent =
         'Browser v' + CLIENT_VERSION + ' · API ' + (data.api_version || 'legacy/unversioned');
       if (data.api_version !== CLIENT_VERSION) {
@@ -293,6 +310,7 @@
       } else if (!silent) {
         status('Match loaded. Latest revision ' + data.revision + '.');
       }
+      if (role === 'admin') rememberAdmin();
       if (!automatic) {
         const url = new URL(location.href);
         url.searchParams.set('id', id);
@@ -339,6 +357,7 @@
       const data = await request('create', {}, body, true);
       el('match').value = data.id;
       archiveAttempt = null;
+      if (el('key').value) rememberAdmin();
       el('created').classList.remove('hidden');
       el('createdOutput').textContent = json({
         match_id: data.id,
@@ -456,6 +475,8 @@
   }
   el('load').addEventListener('click', () => load());
   el('role').addEventListener('change', () => {
+    if (el('role').value === 'admin' && storedAdmin()) el('key').value = storedAdmin();
+    else el('key').value = '';
     last = null;
     el('dashboard').classList.add('hidden');
     el('commander').classList.add('hidden');
@@ -471,6 +492,23 @@
   );
 
   el('create').addEventListener('click', create);
+  el('rememberAdmin').checked = !!storedAdmin();
+  el('rememberAdmin').addEventListener('change', checked => {
+    if (!el('rememberAdmin').checked) {
+      try { localStorage.removeItem(ADMIN_STORAGE); } catch (_) {}
+    } else rememberAdmin();
+  });
+  el('clearAdmin').addEventListener('click', () => {
+    try { localStorage.removeItem(ADMIN_STORAGE); } catch (_) {}
+    el('rememberAdmin').checked = false;
+    if (el('role').value === 'admin') el('key').value = '';
+    status('Saved administrator password cleared from this browser.');
+  });
+  el('key').addEventListener('change', rememberAdmin);
+  if (storedAdmin()) {
+    el('role').value = 'admin';
+    el('key').value = storedAdmin();
+  }
   const urlid = new URL(location.href).searchParams.get('id');
   if (urlid && /^[0-9a-f]{24}$/.test(urlid)) el('match').value = urlid;
   templateLoad();
@@ -481,14 +519,13 @@
     if (
       last &&
       !archiveAttempt &&
-      !last.series?.champion &&
       last.id === el('match').value.trim() &&
       el('dashboard').offsetParent !== null &&
       !document.hidden
     )
       load(true, true);
-  }, 5000);
+  }, 2000);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && last && !archiveAttempt && !last.series?.champion) load(true, true);
+    if (!document.hidden && last && !archiveAttempt) load(true, true);
   });
 })();
