@@ -4,9 +4,53 @@
    No network access, code execution, or autonomous LLM calls. */
 
 function ie_fail($message) { fail_api(400, $message); }
+// V6: five east-west progression lines, three candidate locations per line.
+// Outer lines are all active home objectives. One deterministic slot is active
+// on each interior line. The resolved layout is stored for exact side-swap replays.
+function ie_prepare_config($config,$seed) {
+    if (!is_array($config) || !isset($config['objective_lines'])) return $config;
+    $lines=$config['objective_lines'];
+    if (!is_array($lines) || count($lines)!==5) ie_fail('Five objective lines required');
+    $objectives=array();$candidates=array();$previousX=null;
+    $slots=array('left','center','right');
+    foreach ($lines as $row=>$line) {
+        if (!is_array($line) || count($line)!==3) ie_fail('Each objective line requires three slots');
+        $selected=($row===0 || $row===4)?null:
+            (hexdec(substr(hash('sha256',(string)$seed.'|line|'.$row),0,8))%3);
+        foreach ($line as $col=>$position) {
+            if (!is_array($position) || !isset($position['x'],$position['z']) ||
+                !is_numeric($position['x']) || !is_numeric($position['z']) ||
+                (float)$position['x']<100 || (float)$position['x']>4900 ||
+                (float)$position['z']<100 || (float)$position['z']>4900)
+                ie_fail('Invalid objective candidate');
+            if ($col===0) {
+                if ($previousX!==null && (float)$position['x']<=$previousX)
+                    ie_fail('Objective lines must progress west to east');
+                $previousX=(float)$position['x'];
+            }
+            $active=$selected===null || $selected===$col;
+            $id=$row===0?'us-'.$slots[$col]:($row===4?'ge-'.$slots[$col]:'line'.($row+1));
+            $candidates[]=array('line'=>$row+1,'slot'=>$slots[$col],
+                'x'=>(float)$position['x'],'z'=>(float)$position['z'],
+                'active'=>$active,'objective_id'=>$active?$id:null);
+            if (!$active) continue;
+            $objectives[]=array('id'=>$id,
+                'name'=>$row===0?'US Home '.ucfirst($slots[$col]):
+                    ($row===4?'GE Home '.ucfirst($slots[$col]):
+                        'Line '.($row+1).' '.ucfirst($slots[$col])),
+                'x'=>(float)$position['x'],'z'=>(float)$position['z'],
+                'points'=>1,'initial_owner'=>$row===0?'us':($row===4?'ge':'neutral'));
+        }
+    }
+    $config['objectives']=$objectives;
+    $config['objective_candidates']=$candidates;
+    $config['layout_version']='five_lines_v1';
+    unset($config['objective_lines']);
+    return $config;
+}
 function ie_config($config) {
     if (!is_array($config) || !isset($config['objectives']) || !is_array($config['objectives']) ||
-        count($config['objectives']) < 2 || count($config['objectives']) > 8) ie_fail('2-8 configured objectives required');
+        count($config['objectives']) < 2 || count($config['objectives']) > 12) ie_fail('2-12 configured objectives required');
     $seen = array(); $objectives = array();
     foreach ($config['objectives'] as $o) {
         if (!is_array($o) || !isset($o['id'], $o['x'], $o['z'], $o['points']) ||
@@ -20,7 +64,8 @@ function ie_config($config) {
         $seen[$o['id']] = true;
         $objectives[$o['id']] = array('id'=>$o['id'], 'name'=>isset($o['name'])?substr((string)$o['name'],0,80):$o['id'],
             'x'=>(float)$o['x'],'z'=>(float)$o['z'],'points'=>$o['points'],
-            'owner'=>'neutral','streak'=>0,'contested'=>false,
+            'owner'=>in_array($o['initial_owner']??'neutral',array('us','ge','neutral'),true)?($o['initial_owner']??'neutral'):'neutral',
+             'streak'=>($o['initial_owner']??'neutral')==='neutral'?0:1,'contested'=>false,
             'siege_side'=>null,'siege_turns'=>0);
     }
     return $objectives;
@@ -47,7 +92,7 @@ function ie_world($config) {
         'recon_used'=>array('us'=>false,'ge'=>false),'intel'=>$intel,
         'history'=>array(),'clock_minutes'=>0,'outcome'=>'ongoing',
         'field_objects'=>array(),'field_contacts'=>array('us'=>array(),'ge'=>array()),
-        'field_effects_enabled'=>false);
+        'field_effects_enabled'=>false,'majority_streak'=>array('us'=>0,'ge'=>0));
 }
 function ie_validate_order($order,$side,$turn,$world,$mode) {
     if (!is_array($order) || ($order['side']??null)!==$side ||
@@ -482,8 +527,21 @@ function ie_resolve(&$g) {
         $control[$o['owner']]+=$o['points'];
     $central=isset($w['objectives']['central'])?$w['objectives']['central']:null;
     $win='ongoing';
+    $fiveLines=($g['config']['layout_version']??'')==='five_lines_v1' &&
+        intval($g['rules_revision']??1)>=6;
+    if ($fiveLines) {
+        $required=intdiv(count($w['objectives']),2)+1;
+        foreach (array('us','ge') as $side) {
+            $secured=0;
+            foreach ($w['objectives'] as $o)
+                if ($o['owner']===$side && !$o['contested']) $secured++;
+            $w['majority_streak'][$side]=$secured >= $required?
+                ($w['majority_streak'][$side]??0)+1:0;
+            if ($w['majority_streak'][$side]>=2) $win=$side;
+        }
+    }
     foreach (array('us','ge') as $side) {
-        if ($central && $central['owner']===$side && $central['streak']>=2) {
+        if (!$fiveLines && $central && $central['owner']===$side && $central['streak']>=2) {
             $other=false;
             foreach ($w['objectives'] as $o) if ($o['id']!=='central' &&
                 $o['owner']===$side && $o['streak']>=2) $other=true;

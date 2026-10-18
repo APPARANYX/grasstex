@@ -75,4 +75,39 @@ check($v5['world']['units']['GE-1']['strength']<10 &&
     'V5 contested attrition must apply to both factions');
 check($r2['objective_points']['us']===3,
     'V5 neutral contested objective must score correctly');
-echo "PASS: V1 frozen, V2 frozen, V5 neutral siege, balanced attrition and snapshots\n";
+// V6: 15 public candidate slots, 9 active objectives, deterministic side-swap
+// board, and a sustained uncontested majority of 5/9 for victory.
+$lines=array();
+foreach (array(450,1450,2500,3550,4550) as $x) {
+    $line=array();
+    foreach (array(1200,2500,3800) as $z) $line[]=array('x'=>$x,'z'=>$z);
+    $lines[]=$line;
+}
+$config=ie_prepare_config(array('objective_lines'=>$lines),'fixed-seed');
+$repeat=ie_prepare_config(array('objective_lines'=>$lines),'fixed-seed');
+check($config===$repeat,'V6 seed must reproduce exactly the same board');
+check(count($config['objectives'])===9 && count($config['objective_candidates'])===15,
+    'V6 requires nine active objectives from 15 candidates');
+check(count(array_filter($config['objective_candidates'],function($p){return !$p['active'];}))===6,
+    'V6 must leave exactly six inactive interior slots');
+$w=ie_world($config);
+check(count(array_filter($w['objectives'],function($o){return $o['owner']==='us';}))===3,
+    'US must own its three spawn-line objectives at start');
+check(count(array_filter($w['objectives'],function($o){return $o['owner']==='ge';}))===3,
+    'GE must own its three spawn-line objectives at start');
+check(count(array_filter($w['objectives'],function($o){return $o['owner']==='neutral';}))===3,
+    'Each interior line must have exactly one neutral objective');
+$g=array('config'=>$config,'world'=>$w,'turn'=>1,'turn_limit'=>8,
+    'phase'=>'orders','history'=>array(),'mode'=>'discovery',
+    'winner'=>null,'rules_revision'=>6,
+    'current'=>array('us'=>null,'ge'=>null));
+step($g);
+check($g['winner']===null,'V6 must not win from three starting home objectives');
+$g['world']['objectives']['line2']['owner']='us';
+$g['world']['objectives']['line3']['owner']='us';
+step($g);
+check($g['winner']===null && $g['world']['majority_streak']['us']===1,
+    'V6 majority needs two consecutive turns');
+step($g);
+check($g['winner']==='us','V6 uncontested 5/9 majority must win after two turns');
+echo "PASS: V1/V2/V5 frozen, V6 five-line seeded board, home ownership, 5/9 majority and snapshots\n";
