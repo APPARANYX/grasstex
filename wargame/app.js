@@ -607,7 +607,7 @@
       debriefStatus(
         result.duplicate
           ? 'This debrief was already saved.'
-          : 'Debrief saved for ' + side.toUpperCase() + (turn === 0 ? ' match summary.' : ' round ' + turn + '.')'
+          : 'Debrief saved for ' + side.toUpperCase() + (turn === 0 ? ' match summary.' : ' round ' + turn + '.')
       );
       if (!result.duplicate) await load(true);
     } catch (e) {
@@ -673,7 +673,9 @@
     }
     const data = {
       guide:
-        'GRASSTEX hypothetical board-game benchmark. Your action is to produce JSON orders only. Do not infer hidden opponent information.',
+        last.phase === 'complete'
+          ? 'REFEREE FINAL REPORT: This match has concluded. Do not issue orders. Submit a final match debrief for round 0 using the five debrief fields. Do not invent enemy intelligence.'
+          : 'GRASSTEX hypothetical board-game benchmark. Your action is to produce JSON orders only. Do not infer hidden opponent information.',
       match_id: last.id,
       series: last.series,
       round: last.turn,
@@ -684,6 +686,9 @@
       effective_rules: last.effective_rules,
       scenario: last.scenario,
       public_brief: last.public_brief,
+      referee_debrief_notice: last.referee_debrief_notice,
+      match_debrief_due: last.match_debrief_due,
+      termination: last.termination,
       public_world: last.public_world,
       objective_candidates: last.objective_candidates || [],
       past_resolved_rounds: last.history,
