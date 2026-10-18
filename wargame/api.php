@@ -6,7 +6,7 @@
  */
 require_once __DIR__.'/engine.php';
 // Increment for client/server contract releases, independently of match rules.
-const IDEATION_API_VERSION = '0.7.0';
+const IDEATION_API_VERSION = '0.8.0';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, max-age=0');
 header('X-Ideation-API-Version: '.IDEATION_API_VERSION);
