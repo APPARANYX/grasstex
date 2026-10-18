@@ -16,6 +16,7 @@ STATIC_FILES = [
     # Site-hosted two-commander sealed-order exchange; files updated by hash, state stays server-owned.
     ("wargame/index.html", "wargame/index.html"),
     ("wargame/app.js", "wargame/app.js"),
+    ("wargame/map.js", "wargame/map.js"),
     ("wargame/api.php", "wargame/api.php"),
     ("wargame/engine.php", "wargame/engine.php"),
     ("wargame/scenario.json", "wargame/scenario.json"),
