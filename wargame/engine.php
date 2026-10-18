@@ -78,7 +78,7 @@ function ie_validate_order($order,$side,$turn,$world,$mode) {
             !is_string($p['reason']) || strlen($p['reason'])<4 || strlen($p['reason'])>600)
             ie_fail('Proposals must have a short name and reason');
     }
-    // Activities are observational proposals, not simulated engineering abilities.
+    // V4 activities use fixed abstract effects; older rules remain observational.
     // The location is always the squad's referee-owned position after movement.
     $activities=isset($order['activities'])?$order['activities']:array();
     if (!is_array($activities) || count($activities)>3) ie_fail('Maximum three field activities per turn');
