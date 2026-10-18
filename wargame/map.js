@@ -167,16 +167,26 @@
         const x = 40 + col * 88.6;
         const y = 40 + row * 88.6;
         const n = (row * 13 + col * 19 + row * col * 3) % 5;
-        svg.appendChild(make('rect', {
-          x, y, width: 89, height: 89, fill: parcels[n],
-          opacity: 0.62
-        }));
+        svg.appendChild(
+          make('rect', {
+            x,
+            y,
+            width: 89,
+            height: 89,
+            fill: parcels[n],
+            opacity: 0.62
+          })
+        );
         if ((row + col) % 3 === 0) {
-          svg.appendChild(make('path', {
-            d: 'M' + (x + 12) + ' ' + (y + 10) + 'l63 -7 M' +
-              (x + 8) + ' ' + (y + 72) + 'l69 6',
-            stroke: '#7f8f76', 'stroke-width': 1, opacity: 0.33, fill: 'none'
-          }));
+          svg.appendChild(
+            make('path', {
+              d: 'M' + (x + 12) + ' ' + (y + 10) + 'l63 -7 M' + (x + 8) + ' ' + (y + 72) + 'l69 6',
+              stroke: '#7f8f76',
+              'stroke-width': 1,
+              opacity: 0.33,
+              fill: 'none'
+            })
+          );
         }
       }
     }
@@ -191,9 +201,15 @@
       const x = 48 + ((i * 173 + i * i * 17) % 602);
       const y = 48 + ((i * 229 + i * i * 11) % 602);
       const radius = 1.8 + (i % 3) * 0.45;
-      svg.appendChild(make('circle', {
-        cx: x, cy: y, r: radius, fill: '#3c6551', opacity: 0.64
-      }));
+      svg.appendChild(
+        make('circle', {
+          cx: x,
+          cy: y,
+          r: radius,
+          fill: '#3c6551',
+          opacity: 0.64
+        })
+      );
     }
     // Scenario-defined conceptual junction roads, not physical sim geometry.
     for (const [a, b, thickness] of [
@@ -209,25 +225,64 @@
       segment(svg, [p, 40], [p, 660], '#3f5548', 0.75);
       segment(svg, [40, p], [660, p], '#3f5548', 0.75);
       if (i < 7) {
-        svg.appendChild(make('text', {
-          x: p + 44.3, y: 29, 'text-anchor': 'middle',
-          fill: '#eee3bd', 'font-size': 12, 'font-weight': 700
-        }, 'ABCDEFG'[i]));
-        svg.appendChild(make('text', {
-          x: 29, y: p + 48, 'text-anchor': 'middle',
-          fill: '#eee3bd', 'font-size': 12, 'font-weight': 700
-        }, String(i + 1)));
+        svg.appendChild(
+          make(
+            'text',
+            {
+              x: p + 44.3,
+              y: 29,
+              'text-anchor': 'middle',
+              fill: '#eee3bd',
+              'font-size': 12,
+              'font-weight': 700
+            },
+            'ABCDEFG'[i]
+          )
+        );
+        svg.appendChild(
+          make(
+            'text',
+            {
+              x: 29,
+              y: p + 48,
+              'text-anchor': 'middle',
+              fill: '#eee3bd',
+              'font-size': 12,
+              'font-weight': 700
+            },
+            String(i + 1)
+          )
+        );
       }
     }
-    svg.appendChild(make('text', {
-      x: 55, y: 68, fill: '#172e2d', 'font-size': 19, 'font-weight': 700
-    }, 'N ↑'));
+    svg.appendChild(
+      make(
+        'text',
+        {
+          x: 55,
+          y: 68,
+          fill: '#172e2d',
+          'font-size': 19,
+          'font-weight': 700
+        },
+        'N ↑'
+      )
+    );
     segment(svg, [54, 638], [116, 638], '#172e2d', 3);
     segment(svg, [54, 634], [54, 642], '#172e2d', 2);
     segment(svg, [116, 634], [116, 642], '#172e2d', 2);
-    svg.appendChild(make('text', {
-      x: 55, y: 630, fill: '#172e2d', 'font-size': 10
-    }, '0                 500 m'));
+    svg.appendChild(
+      make(
+        'text',
+        {
+          x: 55,
+          y: 630,
+          fill: '#172e2d',
+          'font-size': 10
+        },
+        '0                 500 m'
+      )
+    );
   }
 
   function render(animate = false, sourceWorld = null) {
