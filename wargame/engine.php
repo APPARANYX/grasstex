@@ -232,7 +232,8 @@ function ie_field_contacts(&$world,$orders,$turn,&$events) {
                     'source'=>'own_report','first_seen_turn'=>$object['created_turn'],
                     'last_seen_turn'=>$turn,'description'=>$object['description'],
                     'stats'=>ie_field_stats($object['kind']),
-                    'active'=>ie_field_active($object,$turn));
+                    'effects_enabled'=>!empty($world['field_effects_enabled']),
+                    'active'=>!empty($world['field_effects_enabled']) && ie_field_active($object,$turn));
                 continue;
             }
             $source=null;
@@ -256,7 +257,8 @@ function ie_field_contacts(&$world,$orders,$turn,&$events) {
                     $previous['first_seen_turn']:$turn,'last_seen_turn'=>$turn,
                 'description'=>$names[$object['kind']],
                 'stats'=>ie_field_stats($object['kind']),
-                'active'=>ie_field_active($object,$turn));
+                'effects_enabled'=>!empty($world['field_effects_enabled']),
+                'active'=>!empty($world['field_effects_enabled']) && ie_field_active($object,$turn));
             if ($previous===null) $events[]=$side.': field contact '.$id.
                 ' detected; consult private intelligence';
         }
