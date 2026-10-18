@@ -1,7 +1,7 @@
 'use strict';
 /* No LLM API or browser-side referee. The site stores all state in the PHP backend. */
 (function () {
-  const CLIENT_VERSION = '0.3.1';
+  const CLIENT_VERSION = '0.4.0';
   const el = id => document.getElementById(id);
   let last = null,
     template = null,
