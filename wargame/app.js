@@ -1,11 +1,13 @@
 'use strict';
 /* No LLM API or browser-side referee. The site stores all state in the PHP backend. */
 (function () {
-  const CLIENT_VERSION = '0.7.0';
+  const CLIENT_VERSION = '0.8.0';
   const el = id => document.getElementById(id);
   let last = null,
     template = null,
-    timer = null;
+    timer = null,
+    viewEpoch = 0,
+    autoPollInFlight = false;
   function status(message, error = false) {
     el('message').textContent = message || '';
     el('message').className = error ? 'error' : 'good';
@@ -206,17 +208,43 @@
       el('rematchButton').disabled = false;
     }
   }
-  async function load(silent = false) {
+  async function load(silent = false, automatic = false) {
     const id = el('match').value.trim();
     if (!/^[0-9a-f]{24}$/.test(id)) {
       if (!silent) status('Enter a 24-character match ID.', true);
       return;
     }
+    if (automatic && autoPollInFlight) return;
+    // A manual load, match switch or role switch invalidates any older response.
+    const epoch = automatic ? viewEpoch : ++viewEpoch;
     const role = el('role').value;
+    const key = el('key').value;
     const op = role === 'public' ? 'public' : role === 'admin' ? 'observer' : 'brief';
+    if (automatic) autoPollInFlight = true;
     try {
       const data = await request(op, { id, ...(role === 'us' || role === 'ge' ? { side: role } : {}) });
-      render(data);
+      if (
+        epoch !== viewEpoch ||
+        id !== el('match').value.trim() ||
+        role !== el('role').value ||
+        (role !== 'public' && key !== el('key').value)
+      ) return;
+      const unchanged =
+        automatic &&
+        last?.id === data.id &&
+        last.revision === data.revision &&
+        last.turn === data.turn &&
+        last.phase === data.phase &&
+        last.submitted?.us === data.submitted?.us &&
+        last.submitted?.ge === data.submitted?.ge;
+      // Don't rebuild the SVG on every unchanged poll: preserve animation,
+      // selected markers, replay position and expanded-map interactions.
+      if (!unchanged) render(data);
+      el('liveStatus').textContent =
+        data.phase === 'complete'
+          ? 'Match complete · live polling stopped · use Load / refresh match to check again'
+          : 'LIVE · checking every 5 seconds while this tab is visible · last checked ' +
+            new Date().toLocaleTimeString();
       el('buildDiagnostic').textContent =
         'Browser v' + CLIENT_VERSION + ' · API ' + (data.api_version || 'legacy/unversioned');
       if (data.api_version !== CLIENT_VERSION) {
@@ -227,11 +255,16 @@
       } else if (!silent) {
         status('Match loaded. Latest revision ' + data.revision + '.');
       }
-      const url = new URL(location.href);
-      url.searchParams.set('id', id);
-      history.replaceState(null, '', url.toString());
+      if (!automatic) {
+        const url = new URL(location.href);
+        url.searchParams.set('id', id);
+        history.replaceState(null, '', url.toString());
+      }
     } catch (e) {
-      if (!silent) status(e.message, true);
+      if (automatic) el('liveStatus').textContent = 'LIVE · update failed: ' + e.message + ' · retrying in 5 seconds';
+      else if (!silent) status(e.message, true);
+    } finally {
+      if (automatic) autoPollInFlight = false;
     }
   }
   async function templateLoad() {
@@ -343,6 +376,8 @@
       role: role === 'public' ? 'spectator' : role,
       mode: last.mode,
       rules: last.rules,
+      rules_revision: last.rules_revision,
+      effective_rules: last.effective_rules,
       scenario: last.scenario,
       public_brief: last.public_brief,
       public_world: last.public_world,
@@ -396,7 +431,18 @@
   if (urlid && /^[0-9a-f]{24}$/.test(urlid)) el('match').value = urlid;
   templateLoad();
   if (urlid) load();
+  // HTTP polling, not a full page reload. Keep the observer's map, keys,
+  // selected replay round and unsent commander order editor intact.
   timer = setInterval(() => {
-    if (last && el('dashboard').offsetParent !== null) load(true);
-  }, 12000);
+    if (
+      last &&
+      last.phase !== 'complete' &&
+      last.id === el('match').value.trim() &&
+      el('dashboard').offsetParent !== null &&
+      !document.hidden
+    ) load(true, true);
+  }, 5000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && last && last.phase !== 'complete') load(true, true);
+  });
 })();
