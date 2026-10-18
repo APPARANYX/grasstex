@@ -21,13 +21,15 @@ jobs:
           php -l wargame/engine.php
       - name: Check sealed order and automatic referee workflow
         run: python3 scripts/check-ideation-exchange.py
+      - name: Check V1/V2 contested-referee behavior
+        run: php scripts/check-ideation-referee.php
       - name: Check managed deploy inventory
         run: |
           python3 - <<'PY'
           import sys
           sys.path.insert(0, 'scripts')
           import prepare_incremental_deploy as p
-          expected = ['wargame/index.html', 'wargame/app.js', 'wargame/api.php', 'wargame/engine.php', 'wargame/scenario.json']
+          expected = ['wargame/index.html', 'wargame/app.js', 'wargame/map.js', 'wargame/api.php', 'wargame/engine.php', 'wargame/scenario.json']
           for name in expected:
               assert (name, name) in p.STATIC_FILES, name
               assert not p.is_protected(name), name

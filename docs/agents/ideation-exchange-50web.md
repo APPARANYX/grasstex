@@ -19,13 +19,13 @@ Create a match with a **server administrator key**. Creation returns two randoml
 - Public rules, scenario, objective control, completed turns, resolution, capability ledger.
 - ONLY their own squad/truck exact coordinates, own pending sealed order, own limited reconnaissance intel.
 
-Before both sealed orders are submitted, \`GET public\` returns only submitted flags (not the enemy's order or exact state). After the second submission, the server atomically adjudicates the turn and adds the **two orders together** to public completed history.
+Before both sealed orders are submitted, \`GET public\` returns only submitted flags (not the enemy's order or exact state). After the second submission, the server atomically adjudicates the turn. The **completed-turn public record includes objective changes, but excludes both sides' exact orders and squad movements**. A commander sees their own prior orders and own event lines only. The full trace is available to an administrator in the protected observer view.
 
 A current or former opponent must never receive the other side's role key. Do **not** put keys in query strings, GitHub, logs, shared screenshots, the match title, or published briefs.
 
 ## Setup on hosting
 
-The incremental deploy plan uploads only five managed assets:
+The incremental deploy plan uploads six managed assets:
 - \`wargame/index.html\`
 - \`wargame/app.js\`
 - \`wargame/api.php\`
@@ -59,7 +59,7 @@ Host must have PHP >= 7.4, write access to \`/grasstex/state/\`, Apache \`.htacc
 4. Each model proposes a structured JSON order; paste it into the sealed submission form (or use HTTP-capable agent tooling).
 5. Once US and GE submit, PHP resolves one 10-minute round immediately; the match history reveals both orders simultaneously and the next round begins.
 6. Each player refreshes, reads the new public + private view, and takes its next turn.
-7. After match completion, inspect the history and capability ledger. Replay model sides swapped for comparison.
+7. After match completion, the **Rematch · switch sides** panel appears. Enter the administrator password and create the next best-of-three game; save the fresh US and GE keys, then provide them to the now-swapped commanders. The same scenario and abstract starting world reset without changing any completed match. Continue until a model has two decisive wins; drawn games replay the current numbered leg.
 
 There is **no third referee chat** or manual referee POST endpoint.
 
@@ -132,7 +132,7 @@ Only valid squad IDs owned by the issuing side and actual scenario objective IDs
 - Objective control changes only if at least one squad is within 150 m and that side has **more than 1.5×** the opposing squad strength in the control zone. With similar strengths present, the objective remains contested; no guaranteed combat result is invented.
 - Objective ownership persists until challenged, with uncontested consecutive-hold streaks.
 - Central Junction + one secondary objective controlled for 2 consecutive adjudicated rounds triggers early victory; at the turn cap, objective points decide, ties draw.
-- No projectile combat, suppression, morale, casualties, realistic pathfinding, visibility raycasting or dynamic roadblock simulation. This is explicitly an **abstract thought-game**.
+- Referee V2 adds deterministic abstract effectiveness attrition to actively contested objective zones and awards control to an attacker with sustained numerical superiority for two consecutive contested turns; this prevents static 40-versus-50 garrisons becoming unbeatable. V1 matches, including the completed first Sol-vs-Opus game, retain their original rules and outcomes. No projectile combat, suppression, morale, literal casualty simulation, realistic pathfinding, visibility raycasting or dynamic roadblock simulation. This is explicitly an **abstract thought-game**.
 
 The referee's fixed rules make results reproducible for the same orders and initial setup. This is useful for generating novel **commander action requirements**, *not* proving real battle performance. Any promising proposed action should be prototyped as a new allowed semantic command and then evaluated with GRASSTEX's full real simulation.
 
@@ -141,3 +141,30 @@ The referee's fixed rules make results reproducible for the same orders and init
 CI checks PHP syntax, both-sided sealing, authorization, private intel isolation, proposals with no effect, repeated-submission idempotence, automatic resolution, and deployment inventory. Do not deploy directly from a draft branch; use the normal validated deploy workflow only after merge/authorization and after the admin key file is installed.
 
 Keep the older API-operated Discussion prototype PR #563 and manual Discussion rulebook PR #564 separate; they are alternative approaches and are **not prerequisites** for the 50web exchange.
+
+
+## Spectator chessboard, map controls, and fog of war
+
+The map is in the same site page, keyed by match ID. Spectator **public** view draws objectives, score, contested state, and resolved-turn timeline, but deliberately hides exact squad locations. US and German authenticated views show their own live squads/trucks and their own prior mission details. Choose **Protected observer (all forces)** and supply the **administrator password** in the role-key field to see both sides' squad locations and movements.
+
+The viewer provides **Back, Play/Pause, Forward, Live**, and **Sound on/off**. New resolved turns play soft WebAudio chess taps and animate squad/truck marker positions where authorization and consecutive snapshots permit. It follows live rounds by default; manual history navigation pauses that live-follow. Sound defaults disabled until activated by a user gesture, in accordance with browser autoplay restrictions.
+
+The first completed match predates saved map snapshots. An administrator may view a reconstructed replay only if the server can replay every sealed turn using its original V1 rules and verify that the resulting state matches the match's saved final state. Failed verification shows a clear current-state-only note; no historic coordinates are fabricated. **Never send the admin observer payload to a commander chat.**
+
+## Best of three: identities, faction swaps and persistence
+
+Each game has a series ID, players A/B, a per-game US/GE assignment, cumulative decisive-win scores and links to the prior games. Game 1 starts with A as US and B as German; Game 2 swaps A to GE and B to US. If a Game 3 is needed, assignments swap again. First to **two decisive match wins** wins the overall series; a draw is not a win and repeats the current game number on a fresh match (with sides swapped).
+
+The finished game has a password-protected **Rematch · switch sides** action; it may be called only once and returns **new one-time US/GE role keys**. The original match remains immutable and its title/score/winner are preserved. Replays of the old match do not require disclosing the new keys. A repeated rematch API request returns HTTP 409 and never creates a second child. Only an administrator can create a rematch.
+
+Machine-readable rematch request:
+
+    POST /grasstex/wargame/api.php?op=rematch
+    X-Ideation-Key: ADMIN_PASSWORD
+    Content-Type: application/json
+
+    {"id":"FINISHED_MATCH_ID","player_a":"Sol","player_b":"Opus"}
+
+The reply contains \`id\`, \`game_number\`, \`series\`, and \`keys\` (\`us\` and \`ge\`). Keys are shown only once. Never include them in an ordinary public GET or URL.
+
+The site does not create AI model sessions, call proprietary model APIs or poll those sessions autonomously. This remains a human-led or HTTP-tool-driven commander competition.

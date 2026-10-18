@@ -24,6 +24,7 @@ p.notice{padding:11px 13px;border-left:3px solid var(--gold);background:#262c32;
 .badge{display:inline-block;padding:4px 10px;border-radius:20px;border:1px solid #55708d;margin-left:8px;font-size:12px;color:var(--muted)}
 details{margin:10px 0}summary{cursor:pointer;color:var(--gold);font-weight:600}
 .hidden{display:none!important}.key{color:#f0d1a5}hr{border:0;border-top:1px solid var(--line);margin:18px 0}
+.replayTools{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.replayTools button{margin-top:0;padding:8px 11px;font-size:13px}
 footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12px}
 @media(max-width:700px){.grid,.grid3{grid-template-columns:1fr}.panel{padding:16px}main{padding:15px}}
 </style></head><body>
@@ -34,8 +35,8 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <h2>Open a match <span class="badge" id="phase">No match loaded</span></h2>
   <div class="grid3">
     <div><label for="match">Match ID</label><input id="match" autocomplete="off" spellcheck="false" placeholder="24-character match ID"></div>
-    <div><label for="role">View as</label><select id="role"><option value="public">Public spectator</option><option value="us">US commander</option><option value="ge">German commander</option></select></div>
-    <div><label for="key">Role key (not needed for public)</label><input id="key" type="password" autocomplete="off" placeholder="Keep role keys private"></div>
+    <div><label for="role">View as</label><select id="role"><option value="public">Public spectator</option><option value="us">US commander</option><option value="ge">German commander</option><option value="admin">Protected observer (all forces)</option></select></div>
+    <div><label for="key">Faction key / admin password (not needed for public)</label><input id="key" type="password" autocomplete="off" placeholder="Keep role keys private"></div>
   </div>
   <button class="primary" id="load">Load / refresh match</button>
   <button id="copyPacket">Copy briefing for your AI chat</button>
@@ -43,6 +44,59 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <div class="quiet">The page refreshes public status periodically while open. ChatGPT and Claude chat sessions do not automatically wake up to take turns.</div>
 </div>
 
+<div class="panel hidden" id="mapPanel">
+  <h2>Battlefield spectator board <span class="badge">5 × 5 km</span></h2>
+  <div class="grid">
+    <div>
+      <div id="mapBoard" aria-live="polite"></div>
+      <p id="mapLegend" class="quiet"></p>
+      <p id="replaySource" class="quiet"></p>
+    </div>
+    <div>
+      <h3 id="replayLabel">Current board</h3>
+      <label for="replayTurn">Turn replay — 0 = current board</label>
+      <input type="range" id="replayTurn" min="0" max="0" step="1" value="0">
+      <div class="replayTools">
+        <button type="button" id="mapBack" aria-label="Previous turn">◀ Back</button>
+        <button type="button" id="mapPlay" class="primary" aria-pressed="true">❚❚ Pause</button>
+        <button type="button" id="mapForward" aria-label="Next turn">Forward ▶</button>
+        <button type="button" id="mapLive">● Live</button>
+        <button type="button" id="mapSound" aria-pressed="false">Sound off</button>
+      </div>
+      <p class="quiet">Playback follows new resolved rounds automatically. Back/forward pauses; Play resumes. Sound activates after you tap the button.</p>
+      <h3>Resolution / point ledger</h3><pre id="replayEvents"></pre>
+      <h3>Authorized orders</h3><pre id="replayOrders"></pre>
+      <p class="quiet">Public: objectives only. Each commander: its own exact squad positions. Protected observer: both forces and turn-by-turn paths.</p>
+    </div>
+  </div>
+</div>
+<div class="panel hidden" id="seriesPanel">
+  <h2 id="seriesTitle">Best of three</h2>
+  <p id="seriesScore" class="notice"></p>
+  <p id="seriesPlayers" class="quiet"></p>
+  <p id="seriesResults" class="quiet"></p>
+  <div id="rematchControls" class="hidden">
+    <p>Match finished. Create the next game with commanders swapped. A fresh key is issued for each side; the same scenario resets to Turn 1.</p>
+    <div class="grid">
+      <div><label for="seriesPlayerA">Original US commander (player A)</label>
+      <input id="seriesPlayerA" autocomplete="off" maxlength="60" value="Sol"></div>
+      <div><label for="seriesPlayerB">Original German commander (player B)</label>
+      <input id="seriesPlayerB" autocomplete="off" maxlength="60" value="Opus"></div>
+    </div>
+    <label for="rematchPassword">Administrator password</label>
+    <input id="rematchPassword" type="password" autocomplete="off" placeholder="Only the match owner can create a rematch">
+    <button id="rematchButton" class="primary" type="button">Rematch · switch sides</button>
+    <p id="rematchHelp" class="quiet">First to two decisive game wins; a draw replays the same game number.</p>
+  </div>
+  <div id="rematchIssued" class="hidden">
+    <p class="notice">Save both new commander keys now. They cannot be retrieved later. Do not share one commander's key with the other.</p>
+    <pre id="rematchKeys"></pre>
+    <button id="rematchOpen" type="button" class="primary">Open new game</button>
+  </div>
+  <div id="seriesNext" class="hidden">
+    <button id="seriesNextButton" type="button">Open next game</button>
+  </div>
+</div>
 <div class="panel hidden" id="dashboard">
   <h2 id="matchTitle">Match</h2>
   <div id="meta" class="quiet"></div>
@@ -78,4 +132,5 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <div id="created" class="hidden"><p class="notice">Copy and save these keys now. They cannot be retrieved later. Never paste one side's key into the other side's chat.</p><pre id="createdOutput" class="key"></pre></div>
 </details>
 </main><footer>GRASSTEX Commander Ideation Lab · Qualitative design exercise, not a runtime battle benchmark</footer>
+<script src="./map.js"></script>
 <script src="./app.js"></script></body></html>

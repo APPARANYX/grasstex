@@ -30,6 +30,7 @@ PASSWORD = "example-test-admin-secret-not-for-production"
 ADMIN.write_text("<?php return '" + hashlib.sha256(PASSWORD.encode()).hexdigest() + "';\n", encoding="utf8")
 server = None
 match_id = None
+match_ids = []
 
 
 def call(op, method="GET", data=None, key=None, query=""):
@@ -68,6 +69,7 @@ try:
     code, new = call("create", "POST", {"title": "Automated contract smoke", "turn_limit": 3}, PASSWORD)
     assert code == 201 and new["ok"], new
     match_id = new["id"]
+    match_ids.append(match_id)
     assert len(new["keys"]) == 2
     us_key, ge_key = new["keys"]["us"], new["keys"]["ge"]
     code, public = call("public", query=f"&id={match_id}")
@@ -101,20 +103,127 @@ try:
     assert code == 200 and resolved["resolved"] and resolved["turn"] == 2, resolved
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["turn"] == 2 and len(public["history"]) == 1, public
-    assert public["history"][0]["orders"]["us"]["intent"] == us_order["intent"]
-    assert public["history"][0]["orders"]["ge"]["intent"] == ge_order["intent"]
-    assert public["history"][0]["capabilities"][0]["status"] == "PROPOSED_NO_AUTOMATIC_EFFECT"
+    # No enemy order, capability or movement may be delivered to public or side-private views.
+    assert "orders" not in public["history"][0], public["history"][0]
+    assert not public["history"][0]["capabilities"]
+    assert "US-1:" not in json.dumps(public["history"])
+    assert "GE-1:" not in json.dumps(public["history"])
+    assert "Conditional reserve" not in json.dumps(public["history"])
     assert public["public_world"]["clock_minutes"] == 10
     code, intel = call("brief", key=us_key, query=f"&id={match_id}&side=us")
     assert code == 200 and intel["own_state"]["intel_reports"][0]["source"] == "limited_aerial"
     code, hidden = call("brief", key=ge_key, query=f"&id={match_id}&side=ge")
     assert code == 200 and not hidden["own_state"]["intel_reports"]
+    assert "own_order" in intel["history"][0]
+    assert "own_order" in hidden["history"][0]
+    assert "GE-1:" not in json.dumps(intel["history"][0])
+    assert "US-1:" not in json.dumps(hidden["history"][0])
+    assert "transport" not in json.dumps(hidden["history"][0])
+    # The operator-only view has full orders and private snapshots.
+    code, forbidden = call("observer", key=ge_key, query=f"&id={match_id}")
+    assert code == 401, forbidden
+    code, observer = call("observer", key=PASSWORD, query=f"&id={match_id}")
+    assert code == 200 and observer["observer_world"]["units"], observer
+    assert "orders" in observer["history"][0]
+    assert observer["history"][0]["world_snapshot"]["units"]
+    # Second-order response must never return other-side events.
+    assert "resolution" not in resolved and "public_result" in resolved, resolved
+    assert "events" not in json.dumps(resolved), resolved
+    assert "Conditional reserve" not in json.dumps(resolved), resolved
+
+    # Finish game 1 with US still controlling the south objective.
+    for turn in (2, 3):
+        u = {"turn": turn, "side": "us", "intent": "Stay and secure",
+             "actions": [{"squad": "US-1", "type": "move", "target": "south"}],
+             "support": "none", "proposals": []}
+        g = {"turn": turn, "side": "ge", "intent": "Hold east",
+             "actions": [{"squad": "GE-1", "type": "reserve"}],
+             "support": "none", "proposals": []}
+        assert call("submit", "POST", {"id": match_id, "turn": turn,
+            "side": "us", "order": u}, us_key)[0] == 200
+        assert call("submit", "POST", {"id": match_id, "turn": turn,
+            "side": "ge", "order": g}, ge_key)[0] == 200
+    code, final = call("public", query=f"&id={match_id}")
+    assert code == 200 and final["phase"] == "complete" and final["winner"] == "us", final
+    assert final["series"]["game_number"] == 1 and final["series"]["can_rematch"], final
+    assert final["series"]["score"]["a"] == 1
+    # Emulate an archived, pre-snapshot V1 match without touching real host data.
+    # Old public history must still reconstruct objective ownership while hiding
+    # all unit positions. Admin may see exact positions ONLY if replay verified.
+    archive_path = STATE / "ideation-v1" / (match_id + ".php")
+    guard, archive_json = archive_path.read_text().split("\n", 1)
+    archived = json.loads(archive_json)
+    archived.pop("rules_revision", None)
+    archived.pop("series", None)
+    for row in archived["history"]:
+        row.pop("world_snapshot", None)
+        row.pop("public_snapshot", None)
+    archive_path.write_text(guard + "\n" + json.dumps(archived))
+    code, older_public = call("public", query=f"&id={match_id}")
+    assert code == 200 and older_public["history"][1]["public_snapshot"], older_public
+    assert older_public["history"][1]["public_snapshot"]["snapshot_kind"] == "legacy_public_capture_reconstruction"
+    assert "units" not in json.dumps(older_public["history"])
+    code, older_admin = call("observer", key=PASSWORD, query=f"&id={match_id}")
+    assert code == 200 and older_admin["replay_source"] == "reconstructed_verified_v1", older_admin.get("replay_note")
+    assert len(older_admin["history"]) == 3
+    assert all("world_snapshot" in row for row in older_admin["history"])
+    # A bot key cannot spawn a series; admin alone may.
+    bad_code, _ = call("rematch", "POST", {"id": match_id}, ge_key)
+    assert bad_code == 401
+    code, nextgame = call("rematch", "POST",
+        {"id": match_id, "player_a": "Sol", "player_b": "Opus"}, PASSWORD)
+    assert code == 201 and nextgame["game_number"] == 2, nextgame
+    assert nextgame["series"]["assignments"] == {"us": "b", "ge": "a"}
+    assert nextgame["series"]["score"] == {"a": 1, "b": 0}
+    assert nextgame["series"]["players"] == {"a": "Sol", "b": "Opus"}
+    next_id = nextgame["id"]
+    match_ids.append(next_id)
+    assert nextgame["keys"]["us"] != us_key
+    assert nextgame["keys"]["ge"] != ge_key
+    duplicate_code, _ = call("rematch", "POST", {"id": match_id}, PASSWORD)
+    assert duplicate_code == 409
+    code, parent = call("public", query=f"&id={match_id}")
+    assert code == 200 and parent["series"]["next_match_id"] == next_id
+    assert not parent["series"]["can_rematch"]
+    # Game 2: with US idle, GE (now Sol) captures South on turn 3.
+    for turn in (1, 2, 3):
+        u = {"turn": turn, "side": "us", "intent": "Hold the home bases",
+             "actions": [], "support": "none", "proposals": []}
+        g = {"turn": turn, "side": "ge", "intent": "Secure south crossing",
+             "actions": [{"squad": "GE-1", "type": "move", "target": "south"}],
+             "support": "none", "proposals": []}
+        assert call("submit", "POST", {"id": next_id, "turn": turn, "side": "us",
+            "order": u}, nextgame["keys"]["us"])[0] == 200
+        assert call("submit", "POST", {"id": next_id, "turn": turn, "side": "ge",
+            "order": g}, nextgame["keys"]["ge"])[0] == 200
+    code, champion = call("public", query=f"&id={next_id}")
+    assert code == 200 and champion["winner"] == "ge", champion
+    assert champion["series"]["champion"] == "a" and champion["series"]["score"]["a"] == 2
+    assert not champion["series"]["can_rematch"]
+    assert call("rematch", "POST", {"id": next_id}, PASSWORD)[0] == 409
+    # A drawn match does not consume a decisive game slot.
+    code, drawn = call("create", "POST",
+        {"title": "Draw replay", "turn_limit": 2}, PASSWORD)
+    assert code == 201
+    match_ids.append(drawn["id"])
+    for turn in (1, 2):
+        for side in ("us", "ge"):
+            noop = {"turn": turn, "side": side, "intent": "Hold",
+                    "actions": [], "support": "none", "proposals": []}
+            assert call("submit", "POST", {"id": drawn["id"], "turn": turn,
+                "side": side, "order": noop}, drawn["keys"][side])[0] == 200
+    assert call("public", query=f"&id={drawn['id']}")[1]["winner"] == "draw"
+    code, repeat = call("rematch", "POST", {"id": drawn["id"]}, PASSWORD)
+    assert code == 201 and repeat["game_number"] == 1
+    assert repeat["series"]["assignments"] == {"us": "b", "ge": "a"}
+    match_ids.append(repeat["id"])
     code, bad = call("resolve", "POST", {"id": match_id}, us_key)
     assert code == 404, bad
     record = STATE / "ideation-v1" / (match_id + ".php")
     assert record.exists() and record.read_text().startswith("<?php http_response_code(404); exit; ?>")
-    print("PASS: sealed one-sided order, no secret leakage, idempotent submit, automatic referee,"
-          " faction isolation, capability-only proposals, two-sided turn reveal")
+    print("PASS: isolated sealed orders, redacted submit and historical events, admin observer, "
+          "private replay, automatic referee, rematch keys, faction swaps, best-of-three winner, "
+          "and draw replay")
 finally:
     if server is not None:
         server.terminate()
@@ -122,6 +231,6 @@ finally:
             server.wait(timeout=5)
         except subprocess.TimeoutExpired:
             server.kill()
-    if match_id:
-        (STATE / "ideation-v1" / (match_id + ".php")).unlink(missing_ok=True)
+    for path_id in match_ids:
+        (STATE / "ideation-v1" / (path_id + ".php")).unlink(missing_ok=True)
     ADMIN.unlink(missing_ok=True)
