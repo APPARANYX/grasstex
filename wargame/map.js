@@ -605,8 +605,7 @@
         const lastTrailTruck = lastPriorSnapshot?.trucks?.[truck.id];
         if (lastTrailTruck && role === 'admin') {
           const prev = xy(lastTrailTruck.x, lastTrailTruck.z);
-          if (Math.hypot(prev[0] - x, prev[1] - y) > 3)
-            segment(svg, prev, [x, y], '#e9ca79', 2, '5 5');
+          if (Math.hypot(prev[0] - x, prev[1] - y) > 3) segment(svg, prev, [x, y], '#e9ca79', 2, '5 5');
         }
         const from = lastTruck ? xy(lastTruck.x, lastTruck.z) : null;
         const truckNode = make('rect', {
