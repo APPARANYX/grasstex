@@ -108,7 +108,7 @@ try:
     us_key, ge_key = new["keys"]["us"], new["keys"]["ge"]
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["phase"] == "orders" and public["turn"] == 1
-    assert public["api_version"] == "1.2.0"
+    assert public["api_version"] == "1.3.0"
     assert public["rules_revision"] == 6
     assert public["effective_rules"]["neutral_contested_siege"] is True
     assert public["effective_rules"]["contested_attrition"] is True
