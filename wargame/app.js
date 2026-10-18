@@ -1,7 +1,7 @@
 'use strict';
 /* No LLM API or browser-side referee. The site stores all state in the PHP backend. */
 (function () {
-  const CLIENT_VERSION = '0.8.0';
+  const CLIENT_VERSION = '0.9.0';
   const el = id => document.getElementById(id);
   let last = null,
     template = null,
@@ -386,6 +386,7 @@
       scenario: last.scenario,
       public_brief: last.public_brief,
       public_world: last.public_world,
+      objective_candidates: last.objective_candidates || [],
       past_resolved_rounds: last.history,
       ...(role === 'us' || role === 'ge'
         ? {
