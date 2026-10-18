@@ -67,8 +67,32 @@ try:
         time.sleep(0.1)
     assert code == 200 and template["ok"] and template["template"]["config"], template
     code, version = call("version")
-    assert code == 200 and version["api_version"] == "0.8.0", version
-    code, new = call("create", "POST", {"title": "Automated contract smoke", "turn_limit": 3}, PASSWORD)
+    assert code == 200 and version["api_version"] == "0.9.0", version
+    # Preserve the original three-objective smoke fixture; the default
+    # template below separately exercises the new nine-objective V6 board.
+    legacy_config = {"objectives": [
+        {"id": "central", "x": 2500, "z": 2500, "points": 3},
+        {"id": "north", "x": 2500, "z": 3750, "points": 1},
+        {"id": "south", "x": 2500, "z": 1250, "points": 1},
+    ]}
+    code, layout_game = call("create", "POST",
+        {"title": "Five-line V6 board", "turn_limit": 2}, PASSWORD)
+    assert code == 201, layout_game
+    match_ids.append(layout_game["id"])
+    code, layout = call("public", query=f"&id={layout_game['id']}")
+    assert code == 200 and layout["rules_revision"] == 6
+    assert layout["effective_rules"]["five_line_layout"] is True
+    assert layout["effective_rules"]["majority_victory"] is True
+    assert len(layout["objective_candidates"]) == 15
+    assert sum(not p["active"] for p in layout["objective_candidates"]) == 6
+    board = layout["public_world"]["objectives"]
+    assert len(board) == 9 and sum(o["owner"] == "us" for o in board) == 3
+    assert sum(o["owner"] == "ge" for o in board) == 3
+    assert sum(o["owner"] == "neutral" for o in board) == 3
+    assert {o["id"] for o in board if o["owner"] == "neutral"} == {"line2", "line3", "line4"}
+    assert sum(o["points"] for o in board) == 9
+    code, new = call("create", "POST",
+        {"title": "Automated contract smoke", "turn_limit": 3, "config": legacy_config}, PASSWORD)
     assert code == 201 and new["ok"], new
     match_id = new["id"]
     match_ids.append(match_id)
@@ -76,8 +100,8 @@ try:
     us_key, ge_key = new["keys"]["us"], new["keys"]["ge"]
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["phase"] == "orders" and public["turn"] == 1
-    assert public["api_version"] == "0.8.0"
-    assert public["rules_revision"] == 5
+    assert public["api_version"] == "0.9.0"
+    assert public["rules_revision"] == 6
     assert public["effective_rules"]["neutral_contested_siege"] is True
     assert public["effective_rules"]["contested_attrition"] is True
     assert public["current_orders"] is None and "key_hashes" not in public
@@ -166,7 +190,7 @@ try:
 
     # Ground detection requires actual post-movement proximity, not public omniscience.
     code, ground_game = call("create", "POST",
-        {"title": "Ground contact discovery", "turn_limit": 3}, PASSWORD)
+        {"title": "Ground contact discovery", "turn_limit": 3, "config": legacy_config}, PASSWORD)
     assert code == 201, ground_game
     ground_id = ground_game["id"]
     match_ids.append(ground_id)
