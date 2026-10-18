@@ -64,7 +64,8 @@
       data.mode +
       ' · Revision ' +
       data.revision +
-      ' · REFEREE V' + (data.rules_revision || 1) +
+      ' · REFEREE V' +
+      (data.rules_revision || 1) +
       (data.winner ? ' · Result ' + data.winner.toUpperCase() : '');
     const mechanics = data.effective_rules || {};
     el('effectiveRules').textContent = mechanics.notice || 'Referee rules revision unavailable.';
@@ -79,8 +80,10 @@
       ? (data.private_brief || '') + '\n\n' + json(data.own_state || {})
       : 'Choose US or GE and enter that side’s role key to view its own private briefing.';
     el('rules').textContent =
-      'AUTHORITATIVE MATCH MECHANICS: ' + json(mechanics) +
-      '\n\nSTORED RULES PROSE (may describe a later version):\n' + data.rules;
+      'AUTHORITATIVE MATCH MECHANICS: ' +
+      json(mechanics) +
+      '\n\nSTORED RULES PROSE (may describe a later version):\n' +
+      data.rules;
     el('scenario').textContent = data.scenario;
     el('history').textContent = (data.history || []).length ? json(data.history) : 'No completed rounds yet.';
     el('orderStatus').textContent =
