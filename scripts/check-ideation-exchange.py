@@ -147,6 +147,26 @@ try:
     assert code == 200 and final["phase"] == "complete" and final["winner"] == "us", final
     assert final["series"]["game_number"] == 1 and final["series"]["can_rematch"], final
     assert final["series"]["score"]["a"] == 1
+    # Emulate an archived, pre-snapshot V1 match without touching real host data.
+    # Old public history must still reconstruct objective ownership while hiding
+    # all unit positions. Admin may see exact positions ONLY if replay verified.
+    archive_path = STATE / "ideation-v1" / (match_id + ".php")
+    guard, archive_json = archive_path.read_text().split("\n", 1)
+    archived = json.loads(archive_json)
+    archived.pop("rules_revision", None)
+    archived.pop("series", None)
+    for row in archived["history"]:
+        row.pop("world_snapshot", None)
+        row.pop("public_snapshot", None)
+    archive_path.write_text(guard + "\n" + json.dumps(archived))
+    code, older_public = call("public", query=f"&id={match_id}")
+    assert code == 200 and older_public["history"][1]["public_snapshot"], older_public
+    assert older_public["history"][1]["public_snapshot"]["snapshot_kind"] == "legacy_public_capture_reconstruction"
+    assert "units" not in json.dumps(older_public["history"])
+    code, older_admin = call("observer", key=PASSWORD, query=f"&id={match_id}")
+    assert code == 200 and older_admin["replay_source"] == "reconstructed_verified_v1", older_admin.get("replay_note")
+    assert len(older_admin["history"]) == 3
+    assert all("world_snapshot" in row for row in older_admin["history"])
     # A bot key cannot spawn a series; admin alone may.
     bad_code, _ = call("rematch", "POST", {"id": match_id}, ge_key)
     assert bad_code == 401
