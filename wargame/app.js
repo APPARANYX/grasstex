@@ -111,16 +111,15 @@
           : '') +
       (data.termination?.kind === 'early_scored' ? ' · ADMIN EARLY SCORE' : '');
     el('refereeDebriefNotice').classList.toggle('hidden', data.phase !== 'complete');
-    el('refereeDebriefNotice').textContent = data.phase === 'complete'
-      ? data.match_debrief_due === false
-        ? 'REFEREE: Your final match debrief is saved.'
-        : data.referee_debrief_notice || 'REFEREE: Submit a final match debrief (round 0).'
-      : '';
+    el('refereeDebriefNotice').textContent =
+      data.phase === 'complete'
+        ? data.match_debrief_due === false
+          ? 'REFEREE: Your final match debrief is saved.'
+          : data.referee_debrief_notice || 'REFEREE: Submit a final match debrief (round 0).'
+        : '';
     el('pendingSealedPanel').classList.toggle('hidden', el('role').value !== 'admin' || !data.termination);
     el('pendingSealedOrders').textContent =
-      el('role').value === 'admin' && data.termination
-        ? json(data.pending_sealed_orders || {})
-        : '';
+      el('role').value === 'admin' && data.termination ? json(data.pending_sealed_orders || {}) : '';
     const finish = data.termination;
     el('terminationSummary').classList.toggle('hidden', !finish);
     if (finish) {
@@ -247,10 +246,7 @@
   }
   function renderEarlyFinish(data) {
     const admin = el('role').value === 'admin';
-    el('endMatchPanel').classList.toggle(
-      'hidden',
-      !admin || data.archive_view || data.phase !== 'orders'
-    );
+    el('endMatchPanel').classList.toggle('hidden', !admin || data.archive_view || data.phase !== 'orders');
     el('endMatchButton').disabled = !admin || data.archive_view || data.phase !== 'orders';
     el('endMatchScore').disabled = !(data.history || []).length;
     if (!(data.history || []).length && el('endMatchKind').value === 'early_scored')
@@ -567,7 +563,9 @@
       const prompt = {
         task: 'GRASSTEX COMMANDER AFTER-ACTION DEBRIEF',
         instructions:
-          'Reflect on this ' + (round === 0 ? 'completed match' : 'resolved round') + '. Provide voluntary, concise findings and concrete game-design gaps, NOT hidden chain-of-thought, private reasoning traces, invented opponent intelligence, or secrets. Respond ONLY with the five-field JSON object below. The user will paste it into the site debrief form.',
+          'Reflect on this ' +
+          (round === 0 ? 'completed match' : 'resolved round') +
+          '. Provide voluntary, concise findings and concrete game-design gaps, NOT hidden chain-of-thought, private reasoning traces, invented opponent intelligence, or secrets. Respond ONLY with the five-field JSON object below. The user will paste it into the site debrief form.',
         match_id: last.id,
         attempt: last.series?.attempt || 1,
         side,
@@ -622,7 +620,9 @@
       debriefStatus(
         result.duplicate
           ? 'This debrief was already saved.'
-          : 'Debrief saved for ' + side.toUpperCase() + (turn === 0 ? ' match summary.' : ' round ' + turn + '.')
+          : 'Debrief saved for ' +
+              side.toUpperCase() +
+              (turn === 0 ? ' match summary.' : ' round ' + turn + '.')
       );
       if (!result.duplicate) await load(true);
     } catch (e) {
