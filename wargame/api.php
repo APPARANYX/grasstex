@@ -5,8 +5,11 @@
  * The hosting site is canonical for rules, scenario, orders, private briefs and history.
  */
 require_once __DIR__.'/engine.php';
+// Increment for client/server contract releases, independently of match rules.
+const IDEATION_API_VERSION = '0.3.1';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, max-age=0');
+header('X-Ideation-API-Version: '.IDEATION_API_VERSION);
 header('X-Content-Type-Options: nosniff');
 header('X-Robots-Tag: noindex');
 header('Referrer-Policy: no-referrer');
@@ -210,7 +213,8 @@ function write_new_game($g) {
 
 function public_game($g,$side=null,$admin=false) {
     $count=array('us'=>$g['current']['us']!==null,'ge'=>$g['current']['ge']!==null);
-    return array('ok'=>true,'id'=>$g['id'],'title'=>$g['title'],'rules'=>$g['rules'],
+    return array('ok'=>true,'api_version'=>IDEATION_API_VERSION,
+        'id'=>$g['id'],'title'=>$g['title'],'rules'=>$g['rules'],
         'scenario'=>$g['scenario'],'mode'=>$g['mode'],'turn_limit'=>$g['turn_limit'],
         'turn'=>$g['turn'],'phase'=>$g['phase'],'winner'=>$g['winner'],
         'public_brief'=>$g['public_brief'],'submitted'=>$count,
@@ -236,6 +240,7 @@ function valid_origin() {
 $method=isset($_SERVER['REQUEST_METHOD'])?$_SERVER['REQUEST_METHOD']:'GET';
 $op=isset($_GET['op'])?strval($_GET['op']):'public';
 if ($method==='GET') {
+    if ($op==='version') reply(200,array('ok'=>true,'api_version'=>IDEATION_API_VERSION));
     if ($op==='template') {
         $tpl=json_decode(@file_get_contents(__DIR__.'/scenario.json'),true);
         if (!is_array($tpl)) fail_api(500,'Missing scenario template');
@@ -248,6 +253,7 @@ if ($method==='GET') {
     if ($op==='brief') {
         $role=isset($_GET['side'])?$_GET['side']:'';
         reply(200,with_game($id,function(&$g)use($role){
+            if ($role==='admin') fail_api(426,'Outdated spectator script. Reload the latest wargame page and use Protected observer; administrator credentials belong in X-Ideation-Key.');
             if (!in_array($role,array('us','ge'),true)) fail_api(400,'Invalid side');
             check_role($g,$role);
             $public=public_game($g,$role);

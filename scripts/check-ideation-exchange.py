@@ -66,6 +66,8 @@ try:
             pass
         time.sleep(0.1)
     assert code == 200 and template["ok"] and template["template"]["config"], template
+    code, version = call("version")
+    assert code == 200 and version["api_version"] == "0.3.1", version
     code, new = call("create", "POST", {"title": "Automated contract smoke", "turn_limit": 3}, PASSWORD)
     assert code == 201 and new["ok"], new
     match_id = new["id"]
@@ -74,10 +76,13 @@ try:
     us_key, ge_key = new["keys"]["us"], new["keys"]["ge"]
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["phase"] == "orders" and public["turn"] == 1
+    assert public["api_version"] == "0.3.1"
     assert public["current_orders"] is None and "key_hashes" not in public
     assert "units" not in public and "intel" not in public
     code, wrong = call("brief", key=ge_key, query=f"&id={match_id}&side=us")
     assert code == 401, wrong
+    code, stale = call("brief", key=PASSWORD, query=f"&id={match_id}&side=admin")
+    assert code == 426 and "Outdated spectator script" in stale["error"], stale
     code, us = call("brief", key=us_key, query=f"&id={match_id}&side=us")
     assert code == 200 and len(us["own_state"]["squads"]) == 5, us
     assert all(x["side"] == "us" for x in us["own_state"]["squads"].values())
