@@ -6,7 +6,7 @@
  */
 require_once __DIR__.'/engine.php';
 // Increment for client/server contract releases, independently of match rules.
-const IDEATION_API_VERSION = '0.8.0';
+const IDEATION_API_VERSION = '0.9.0';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, max-age=0');
 header('X-Ideation-API-Version: '.IDEATION_API_VERSION);
@@ -228,11 +228,15 @@ function effective_rules($g) {
         'neutral_contested_siege'=>$rev>=5,
         'owned_contested_siege'=>$attrition,
         'field_effects'=>$rev>=4,
+        'five_line_layout'=>($g['config']['layout_version']??'')==='five_lines_v1',
+        'majority_victory'=>($g['config']['layout_version']??'')==='five_lines_v1' && $rev>=6,
         'notice'=>$rev===1
             ? 'LEGACY V1 MATCH: No contested-objective attrition or sustained siege. The stored rules text may describe later mechanics, but those do NOT apply to this match. A contested neutral objective requires more than 1.5x opposing strength to capture.'
             : ($rev<5
                 ? 'PINNED V'.$rev.' MATCH: Contested attrition applies from V2 onward, but neutral contested objectives do not use the V5 two-turn superiority rule. Rules are not upgraded during a match or rematch.'
-                : 'V5 MATCH: Contested attrition and two-turn superiority resolve both neutral and owned contested objectives. Rules remain pinned throughout the series.'));
+                : ($rev>=6 && ($g['config']['layout_version']??'')==='five_lines_v1'
+                    ? 'V6 MATCH: Five lines of three candidates; all six home objectives active and owned, one neutral objective per interior line (9 active). Secure 5 of 9 uncontested objectives for two consecutive rounds to win; otherwise points at the turn limit. Rematches reuse identical positions.'
+                    : 'V5+ MATCH: Contested attrition and two-turn superiority resolve both neutral and owned contested objectives. Rules remain pinned throughout the series.')));
 }
 function public_game($g,$side=null,$admin=false) {
     $count=array('us'=>$g['current']['us']!==null,'ge'=>$g['current']['ge']!==null);
@@ -243,6 +247,7 @@ function public_game($g,$side=null,$admin=false) {
         'turn'=>$g['turn'],'phase'=>$g['phase'],'winner'=>$g['winner'],
         'public_brief'=>$g['public_brief'],'submitted'=>$count,
         'current_orders'=>null,'public_world'=>ie_public_world($g['world']),
+        'objective_candidates'=>isset($g['config']['objective_candidates'])?$g['config']['objective_candidates']:array(),
         'history'=>history_for($g,$side,$admin),'series'=>series_info($g),
         'revision'=>$g['revision'],
         'updated_at'=>$g['updated_at']);
@@ -331,7 +336,9 @@ if ($op==='create') {
     $mode=isset($body['mode'])?$body['mode']:'discovery';
     if (!in_array($mode,array('discovery','native_only'),true)) fail_api(400,'Invalid mode');
     $tokens=array('us'=>bin2hex(random_bytes(24)),'ge'=>bin2hex(random_bytes(24)));
-    $g=array('id'=>bin2hex(random_bytes(12)),'v'=>1,
+    $matchId=bin2hex(random_bytes(12));
+    $config=ie_prepare_config(isset($body['config'])?$body['config']:$tpl['config'],$matchId);
+    $g=array('id'=>$matchId,'v'=>1,
       'title'=>request_value($body,'title',180),
       'config'=>isset($body['config'])?$body['config']:$tpl['config'],
       'world'=>ie_world(isset($body['config'])?$body['config']:$tpl['config']),
@@ -342,7 +349,7 @@ if ($op==='create') {
       'private_briefs'=>array('us'=>request_value($body,'us_brief',10000,false),
                               'ge'=>request_value($body,'ge_brief',10000,false)),
       'current'=>array('us'=>null,'ge'=>null),'history'=>array(),'revision'=>0,
-      'rules_revision'=>5,
+      'rules_revision'=>6,
       'initial_public_brief'=>isset($body['public_brief'])?request_value($body,'public_brief',10000):$tpl['public_brief'],
       'series'=>array('id'=>null,'game_number'=>1,'attempt'=>1,
         'base_title'=>request_value($body,'title',180),
