@@ -161,11 +161,12 @@
     const { chosen, round, prior, publicWorld, completeWorld, ownWorld } = state;
     el('replayLabel').textContent =
       chosen === 0 ? 'Current board · Turn ' + data.turn : 'After round ' + chosen;
-    el('replaySource').textContent =
-      (data.replay_source === 'reconstructed_verified_v1'
+    const replayStatus =
+      data.replay_source === 'reconstructed_verified_v1'
         ? 'Older match positions verified by deterministic replay'
-        : data.replay_note || '') +
-      (publicWorld?.note ? ' · ' + publicWorld.note : '');
+        : data.replay_note || '';
+    const publicNote = publicWorld?.note ? ' · ' + publicWorld.note : '';
+    el('replaySource').textContent = replayStatus + publicNote;
     const svg = make('svg', {
       viewBox: '0 0 700 700',
       role: 'img',
