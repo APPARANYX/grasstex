@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow"><meta http-equiv="Cache-Control" content="no-cache, must-revalidate"><meta name="referrer" content="no-referrer">
 <title>GRASSTEX | Commander Ideation Exchange</title>
 <style>
 :root{color-scheme:dark;--bg:#0b111b;--panel:#162234;--muted:#a6b5cc;--line:#2b4059;--gold:#e5c889;--light:#f2f6fd;--red:#ed9b95;--blue:#91b9ed}
@@ -28,7 +28,7 @@ details{margin:10px 0}summary{cursor:pointer;color:var(--gold);font-weight:600}
 footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12px}
 @media(max-width:700px){.grid,.grid3{grid-template-columns:1fr}.panel{padding:16px}main{padding:15px}}
 </style></head><body>
-<header><small>GRASSTEX / RESEARCH TOOLS</small><h1>Commander Ideation Exchange</h1>
+<header><small>GRASSTEX / RESEARCH TOOLS · WARGAME v0.3.1</small><h1>Commander Ideation Exchange</h1>
 <p class="intro">Two commanders. One sealed turn each. One deterministic referee. Site-hosted strategy wargames for discovering missing game-command capabilities—without running the soldier simulator or using paid AI APIs.</p></header>
 <main>
 <div class="panel">
@@ -41,7 +41,8 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <button class="primary" id="load">Load / refresh match</button>
   <button id="copyPacket">Copy briefing for your AI chat</button>
   <p id="message" role="status" aria-live="polite"></p>
-  <div class="quiet">The page refreshes public status periodically while open. ChatGPT and Claude chat sessions do not automatically wake up to take turns.</div>
+  <p id="buildDiagnostic" class="quiet">Browser v0.3.1 · API not yet checked</p>
+  <div class="quiet">Public spectator needs no key; Protected observer requires your administrator password. This page refreshes automatically while open. Chat sessions do not automatically wake up to take turns.</div>
 </div>
 
 <div class="panel hidden" id="mapPanel">
@@ -132,5 +133,5 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <div id="created" class="hidden"><p class="notice">Copy and save these keys now. They cannot be retrieved later. Never paste one side's key into the other side's chat.</p><pre id="createdOutput" class="key"></pre></div>
 </details>
 </main><footer>GRASSTEX Commander Ideation Lab · Qualitative design exercise, not a runtime battle benchmark</footer>
-<script src="./map.js"></script>
-<script src="./app.js"></script></body></html>
+<script src="./map.js?v=bfc5958ba8b0"></script>
+<script src="./app.js?v=c020c6bd63cc"></script></body></html>
