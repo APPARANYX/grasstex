@@ -340,8 +340,8 @@ if ($op==='create') {
     $config=ie_prepare_config(isset($body['config'])?$body['config']:$tpl['config'],$matchId);
     $g=array('id'=>$matchId,'v'=>1,
       'title'=>request_value($body,'title',180),
-      'config'=>isset($body['config'])?$body['config']:$tpl['config'],
-      'world'=>ie_world(isset($body['config'])?$body['config']:$tpl['config']),
+      'config'=>$config,
+      'world'=>ie_world($config),
       'rules'=>isset($body['rules'])?request_value($body,'rules',18000):$tpl['rules'],
       'scenario'=>isset($body['scenario'])?request_value($body,'scenario',20000):$tpl['scenario'],
       'mode'=>$mode,'turn_limit'=>$limit,'turn'=>1,'phase'=>'orders','winner'=>null,
