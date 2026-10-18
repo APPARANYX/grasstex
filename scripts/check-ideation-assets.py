@@ -24,4 +24,12 @@ for name in ("map.js", "app.js"):
     )
 assert 'id="mapPanel"' in page, "Map viewer panel missing"
 assert 'id="seriesPanel"' in page, "Best-of-three series panel missing"
+assert 'id="mapExpand"' in page, "Tactical map expand button missing"
+assert 'class="tacticalLayout"' in page, "Tactical layout missing"
+assert 'Field parcels and hedgerows are illustrative' in page, "Do not imply simulator terrain is loaded"
+map_script = (root / "wargame/map.js").read_text(encoding="utf-8")
+assert 'function cartography(svg)' in map_script, "Tactical cartography missing"
+assert "panel.classList.toggle('expanded')" in map_script, "Expanded tactical map control missing"
+assert 'historical unit coordinates' in map_script, "Legacy replay limitation not explained"
+assert "role === 'admin'" in map_script, "Observer-only historical unit data guard missing"
 print(f"PASS: Wargame v{version} matches browser and PHP, asset URLs match Git blobs")
