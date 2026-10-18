@@ -19,6 +19,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify browser/API versions and cache-busted asset URLs
         run: python3 scripts/check-ideation-assets.py
+      - name: Temporary formatting capture
+        run: |
+          npx --yes prettier@3.3.3 --write wargame/app.js wargame/map.js
+          echo APP_FORMATTED_BEGIN
+          base64 -w0 wargame/app.js
+          echo
+          echo APP_FORMATTED_END
+          echo MAP_FORMATTED_BEGIN
+          base64 -w0 wargame/map.js
+          echo
+          echo MAP_FORMATTED_END
       - name: Check PHP syntax
         run: |
           php -l wargame/api.php
