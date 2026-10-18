@@ -46,7 +46,8 @@ function ie_world($config) {
     return array('objectives'=>$objectives,'units'=>$units,'trucks'=>$trucks,
         'recon_used'=>array('us'=>false,'ge'=>false),'intel'=>$intel,
         'history'=>array(),'clock_minutes'=>0,'outcome'=>'ongoing',
-        'field_objects'=>array(),'field_contacts'=>array('us'=>array(),'ge'=>array()));
+        'field_objects'=>array(),'field_contacts'=>array('us'=>array(),'ge'=>array()),
+        'field_effects_enabled'=>false);
 }
 function ie_validate_order($order,$side,$turn,$world,$mode) {
     if (!is_array($order) || ($order['side']??null)!==$side ||
@@ -209,7 +210,8 @@ function ie_field_contacts(&$world,$orders,$turn,&$events) {
                 'squad'=>$u['id'],'x'=>$u['x'],'z'=>$u['z'],
                 'kind'=>$a['kind'],'description'=>trim($a['description']),
                 'created_turn'=>$turn,'status'=>'building',
-                'stats'=>ie_field_stats($a['kind']));
+                'stats'=>ie_field_stats($a['kind']),
+                'effects_enabled'=>isset($world['field_effects_enabled']) && $world['field_effects_enabled']);
             $events[]=$u['id'].': field activity '.$a['kind'].' recorded; effect begins next turn';
         }
     }
@@ -277,6 +279,7 @@ function ie_public_world($world) {
 }
 function ie_resolve(&$g) {
     $w=&$g['world'];
+    $w['field_effects_enabled']=isset($g['rules_revision']) && intval($g['rules_revision'])>=4;
     $turn=$g['turn'];
     $orders=array('us'=>$g['current']['us']['order'],'ge'=>$g['current']['ge']['order']);
     $events=array();$proposals=array();
@@ -320,7 +323,8 @@ function ie_resolve(&$g) {
         if ($usingTruck) {
             $dx=$u['x']-$o['x']; $dz=$u['z']-$o['z']; $len=max(0.0001,hypot($dx,$dz));
             $stop=array('x'=>$o['x']+$dx/$len*180,'z'=>$o['z']+$dz/$len*180);
-            $speed=ie_field_speed($w,$u,$stop,2500,$turn,true);
+            $speed=(isset($g['rules_revision']) && intval($g['rules_revision'])>=4)?
+                ie_field_speed($w,$u,$stop,2500,$turn,true):2500;
             $distance=ie_move($u,$stop,$speed);
             $w['trucks'][$truckId]['x']=$u['x'];$w['trucks'][$truckId]['z']=$u['z'];
             if (ie_distance($u,$stop)<1) {
@@ -332,7 +336,8 @@ function ie_resolve(&$g) {
                 $events[]=$id.': vehicle advance '.(int)$distance.' m toward '.$target;
             }
         } else {
-            $speed=ie_field_speed($w,$u,$o,800,$turn,false);
+            $speed=(isset($g['rules_revision']) && intval($g['rules_revision'])>=4)?
+                ie_field_speed($w,$u,$o,800,$turn,false):800;
             $distance=ie_move($u,$o,$speed);
             if (ie_distance($u,$o)<=150) {
                 $u['arrived']=true;
