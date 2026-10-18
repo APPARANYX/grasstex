@@ -48,6 +48,8 @@
   function render(data) {
     last = data;
     el('dashboard').classList.remove('hidden');
+    if (window.GRASSTEXIdeationMap) window.GRASSTEXIdeationMap.refresh(data, el('role').value);
+    el('copyPacket').disabled = el('role').value === 'admin';
     el('matchTitle').textContent = data.title;
     el('phase').textContent = data.phase.toUpperCase() + ' · Round ' + data.turn + '/' + data.turn_limit;
     el('meta').textContent =
@@ -106,9 +108,9 @@
       return;
     }
     const role = el('role').value;
-    const op = role === 'public' ? 'public' : 'brief';
+    const op = role === 'public' ? 'public' : role === 'admin' ? 'observer' : 'brief';
     try {
-      const data = await request(op, { id, ...(role === 'public' ? {} : { side: role }) });
+      const data = await request(op, { id, ...(role === 'us' || role === 'ge' ? { side: role } : {}) });
       render(data);
       if (!silent) status('Match loaded. Latest revision ' + data.revision + '.');
       const url = new URL(location.href);
@@ -212,6 +214,10 @@
       return;
     }
     const role = el('role').value;
+    if (role === 'admin') {
+      status('Observer view contains hidden state. Switch to a commander role to copy a faction-safe brief.', true);
+      return;
+    }
     const data = {
       guide:
         'GRASSTEX hypothetical board-game benchmark. Your action is to produce JSON orders only. Do not infer hidden opponent information.',
@@ -257,6 +263,7 @@
     last = null;
     el('dashboard').classList.add('hidden');
     el('commander').classList.add('hidden');
+    el('mapPanel').classList.add('hidden');
     if (el('match').value) load();
   });
   el('copyPacket').addEventListener('click', packet);
