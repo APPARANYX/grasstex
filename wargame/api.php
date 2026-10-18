@@ -140,6 +140,51 @@ function with_game($id,$mutator) {
     flock($f,LOCK_UN);fclose($f);
     return $result['body'];
 }
+
+/* A best-of-three series counts decisive results only. Draws replay the same
+   numbered leg, and faction assignments alternate after every match attempt.
+   Admin-only rematches never mutate a completed game's winner or world state. */
+function series_info($g) {
+    $s=isset($g['series']) && is_array($g['series'])?$g['series']:array(
+        'id'=>$g['id'], 'attempt'=>1, 'game_number'=>1,
+        'base_title'=>$g['title'], 'player_a'=>'Player A', 'player_b'=>'Player B',
+        'us_player'=>'a','ge_player'=>'b','prior_results'=>array());
+    $results=isset($s['prior_results'])?$s['prior_results']:array();
+    if ($g['phase']==='complete') {
+        $winner=isset($g['winner'])?$g['winner']:'draw';
+        $player=($winner==='us' || $winner==='ge')?
+            $s[$winner.'_player']:null;
+        $results[]=array('match_id'=>$g['id'],'game_number'=>$s['game_number'],
+            'attempt'=>$s['attempt'],'winner_side'=>$winner,'winner_player'=>$player);
+    }
+    $scores=array('a'=>0,'b'=>0);
+    foreach ($results as $r) {
+        if (isset($r['winner_player']) && isset($scores[$r['winner_player']]))
+            $scores[$r['winner_player']]++;
+    }
+    $champion=$scores['a']>=2?'a':($scores['b']>=2?'b':null);
+    return array('id'=>$s['id'],'best_of'=>3,'game_number'=>$s['game_number'],
+        'attempt'=>$s['attempt'], 'players'=>array('a'=>$s['player_a'],'b'=>$s['player_b']),
+        'assignments'=>array('us'=>$s['us_player'],'ge'=>$s['ge_player']),
+        'score'=>$scores,'results'=>$results,'champion'=>$champion,
+        'next_match_id'=>isset($g['next_match_id'])?$g['next_match_id']:null,
+        'can_rematch'=>$g['phase']==='complete' && $champion===null &&
+            empty($g['next_match_id']));
+}
+function write_new_game($g) {
+    $path=game_path($g['id']);
+    $f=@fopen($path,'x');
+    if (!$f) fail_api(500,'Could not create match');
+    $encoded=encode_game($g);
+    $written=fwrite($f,$encoded);
+    fclose($f);
+    if ($written!==strlen($encoded)) {
+        @unlink($path);
+        fail_api(500,'Could not save match');
+    }
+    @chmod($path,0600);
+}
+
 function public_game($g,$side=null,$admin=false) {
     $count=array('us'=>$g['current']['us']!==null,'ge'=>$g['current']['ge']!==null);
     return array('ok'=>true,'id'=>$g['id'],'title'=>$g['title'],'rules'=>$g['rules'],
@@ -147,7 +192,8 @@ function public_game($g,$side=null,$admin=false) {
         'turn'=>$g['turn'],'phase'=>$g['phase'],'winner'=>$g['winner'],
         'public_brief'=>$g['public_brief'],'submitted'=>$count,
         'current_orders'=>null,'public_world'=>ie_public_world($g['world']),
-        'history'=>history_for($g,$side,$admin),'revision'=>$g['revision'],
+        'history'=>history_for($g,$side,$admin),'series'=>series_info($g),
+        'revision'=>$g['revision'],
         'updated_at'=>$g['updated_at']);
 }
 function request_value($body,$field,$max,$required=true) {
@@ -234,17 +280,76 @@ if ($op==='create') {
                               'ge'=>request_value($body,'ge_brief',10000,false)),
       'current'=>array('us'=>null,'ge'=>null),'history'=>array(),'revision'=>0,
       'rules_revision'=>2,
+      'initial_public_brief'=>isset($body['public_brief'])?request_value($body,'public_brief',10000):$tpl['public_brief'],
+      'series'=>array('id'=>null,'game_number'=>1,'attempt'=>1,
+        'base_title'=>request_value($body,'title',180),
+        'player_a'=>isset($body['player_a'])?request_value($body,'player_a',60):'Player A',
+        'player_b'=>isset($body['player_b'])?request_value($body,'player_b',60):'Player B',
+        'us_player'=>'a','ge_player'=>'b','prior_results'=>array()),
       'key_hashes'=>array('us'=>hash('sha256',$tokens['us']),'ge'=>hash('sha256',$tokens['ge'])),
       'updated_at'=>gmdate('c'));
-    $path=game_path($g['id']);
-    $f=@fopen($path,'x');
-    if (!$f) fail_api(500,'Could not create match');
-    $text=encode_game($g);
-    $ok=fwrite($f,$text)===strlen($text); fclose($f);
-    if (!$ok) { @unlink($path); fail_api(500,'Could not write match'); }
-    @chmod($path,0600);
+    $g['series']['id']=$g['id'];
+    write_new_game($g);
     reply(201,array('ok'=>true,'id'=>$g['id'],'keys'=>$tokens,'turn'=>1,
       'notice'=>'Copy these keys now. They cannot be retrieved later. Never post them publicly.'));
+}
+if ($op==='rematch') {
+    check_admin();
+    $id=isset($body['id'])?$body['id']:'';
+    $result=with_game($id,function(&$g)use($body){
+        if ($g['phase']!=='complete') fail_api(409,'Finish this game before requesting a rematch');
+        $info=series_info($g);
+        if (!$info['can_rematch']) fail_api(409,'Series already won or rematch already created');
+        $s=isset($g['series'])?$g['series']:array(
+            'id'=>$g['id'],'attempt'=>1,'game_number'=>1,
+            'base_title'=>$g['title'],'player_a'=>'Player A','player_b'=>'Player B',
+            'us_player'=>'a','ge_player'=>'b','prior_results'=>array());
+        if (!isset($g['series'])) {
+            $s['player_a']=isset($body['player_a'])?request_value($body,'player_a',60):'Player A';
+            $s['player_b']=isset($body['player_b'])?request_value($body,'player_b',60):'Player B';
+        }
+        $tokens=array('us'=>bin2hex(random_bytes(24)),'ge'=>bin2hex(random_bytes(24)));
+        $tpl=json_decode(@file_get_contents(__DIR__.'/scenario.json'),true);
+        if (!is_array($tpl)) fail_api(500,'No site rules template available');
+        $decisive=0;
+        foreach ($info['results'] as $r) if ($r['winner_player']!==null) $decisive++;
+        $newNumber=1+$decisive;
+        if ($newNumber>3) fail_api(409,'The best-of-three series has ended');
+        $newSeries=array(
+            'id'=>$s['id'],'attempt'=>$s['attempt']+1,'game_number'=>$newNumber,
+            'base_title'=>$s['base_title'],
+            'player_a'=>$s['player_a'],'player_b'=>$s['player_b'],
+            'us_player'=>$s['ge_player'],'ge_player'=>$s['us_player'],
+            'prior_results'=>$info['results']);
+        // Deterministically reset the same scenario, not the completed battle.
+        // Upgrading a legacy V1 match to new V2 rules happens only on rematch.
+        $new=array('id'=>bin2hex(random_bytes(12)),'v'=>1,
+            'title'=>$s['base_title'].' — Game '.$newNumber.'/3',
+            'config'=>$g['config'],'world'=>ie_world($g['config']),
+            'rules'=>$tpl['rules'],'scenario'=>$g['scenario'],
+            'mode'=>$g['mode'],'turn_limit'=>$g['turn_limit'],
+            'turn'=>1,'phase'=>'orders','winner'=>null,
+            'public_brief'=>isset($g['initial_public_brief'])?
+                $g['initial_public_brief']:$tpl['public_brief'],
+            'initial_public_brief'=>isset($g['initial_public_brief'])?
+                $g['initial_public_brief']:$tpl['public_brief'],
+            'private_briefs'=>isset($g['private_briefs'])?$g['private_briefs']:
+                array('us'=>'','ge'=>''),
+            'current'=>array('us'=>null,'ge'=>null),'history'=>array(),
+            'revision'=>0,'rules_revision'=>2,'series'=>$newSeries,
+            'key_hashes'=>array('us'=>hash('sha256',$tokens['us']),
+                'ge'=>hash('sha256',$tokens['ge'])),
+            'updated_at'=>gmdate('c'));
+        $g['series']=$s;
+        $g['next_match_id']=$new['id'];
+        $g['revision']++;
+        $g['updated_at']=gmdate('c');
+        write_new_game($new);
+        return array('updated'=>true,'body'=>array('ok'=>true,'id'=>$new['id'],
+            'game_number'=>$newNumber,'series'=>series_info($new),
+            'keys'=>$tokens,'notice'=>'Save new role keys now; they cannot be recovered.'));
+    });
+    reply(201,$result);
 }
 if ($op==='submit') {
     $id=isset($body['id'])?$body['id']:'';
