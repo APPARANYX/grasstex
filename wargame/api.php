@@ -379,7 +379,7 @@ if ($op==='rematch') {
             'private_briefs'=>isset($g['private_briefs'])?$g['private_briefs']:
                 array('us'=>'','ge'=>''),
             'current'=>array('us'=>null,'ge'=>null),'history'=>array(),
-            'revision'=>0,'rules_revision'=>4,'series'=>$newSeries,
+            'revision'=>0,'rules_revision'=>isset($g['rules_revision'])?$g['rules_revision']:1,'series'=>$newSeries,
             'key_hashes'=>array('us'=>hash('sha256',$tokens['us']),
                 'ge'=>hash('sha256',$tokens['ge'])),
             'updated_at'=>gmdate('c'));
