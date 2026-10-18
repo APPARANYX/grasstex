@@ -50,7 +50,7 @@
       headers: admin
         ? {
             'Content-Type': 'application/json',
-            'X-Ideation-Key': el('key').value || storedAdmin()
+            'X-Ideation-Key': el('role').value === 'admin' ? el('key').value || storedAdmin() : storedAdmin() || el('key').value
           }
         : Object.assign({ 'Accept': 'application/json' }, roleHeaders())
     };
