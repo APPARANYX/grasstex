@@ -1,7 +1,7 @@
 'use strict';
 /* No LLM API or browser-side referee. The site stores all state in the PHP backend. */
 (function () {
-  const CLIENT_VERSION = '1.2.0';
+  const CLIENT_VERSION = '1.3.0';
   const el = id => document.getElementById(id);
   let last = null,
     template = null,
@@ -75,9 +75,15 @@
   function render(data) {
     const previousAttempt = last?.series?.attempt;
     const previousId = last?.id;
+    const previousPhase = last?.phase;
     last = data;
     renderSeries(data);
-    renderDebrief(data, previousId !== data.id || previousAttempt !== data.series?.attempt);
+    renderDebrief(
+      data,
+      previousId !== data.id || previousAttempt !== data.series?.attempt,
+      previousPhase !== 'complete' && data.phase === 'complete'
+    );
+    renderEarlyFinish(data);
     el('dashboard').classList.remove('hidden');
     if (window.GRASSTEXIdeationMap) window.GRASSTEXIdeationMap.refresh(data, el('role').value);
     el('copyPacket').disabled = el('role').value === 'admin';
@@ -98,7 +104,23 @@
       data.revision +
       ' · REFEREE V' +
       (data.rules_revision || 1) +
-      (data.winner ? ' · Result ' + data.winner.toUpperCase() : '');
+      (data.termination?.kind === 'cancelled'
+        ? ' · CANCELLED / UNSCORED'
+        : data.winner
+          ? ' · Result ' + data.winner.toUpperCase()
+          : '') +
+      (data.termination?.kind === 'early_scored' ? ' · ADMIN EARLY SCORE' : '');
+    el('refereeDebriefNotice').classList.toggle('hidden', data.phase !== 'complete');
+    el('refereeDebriefNotice').textContent = data.phase === 'complete'
+      ? data.match_debrief_due === false
+        ? 'REFEREE: Your final match debrief is saved.'
+        : data.referee_debrief_notice || 'REFEREE: Submit a final match debrief (round 0).'
+      : '';
+    el('pendingSealedPanel').classList.toggle('hidden', el('role').value !== 'admin' || !data.termination);
+    el('pendingSealedOrders').textContent =
+      el('role').value === 'admin' && data.termination
+        ? json(data.pending_sealed_orders || {})
+        : '';
     const mechanics = data.effective_rules || {};
     el('effectiveRules').textContent = mechanics.notice || 'Referee rules revision unavailable.';
     el('effectiveRules').classList.toggle('warning', (data.rules_revision || 1) < 5);
@@ -175,7 +197,11 @@
         ' (attempt ' +
         r.attempt +
         '): ' +
-        (r.winner_player ? named[r.winner_player] + ' won' : 'draw')
+        (r.finish_kind === 'cancelled'
+          ? 'cancelled (unscored)'
+          : r.winner_player
+            ? named[r.winner_player] + ' won'
+            : 'draw')
     );
     el('seriesResults').textContent = games.join('   |   ') || 'First game in the series';
     const archiveLinks = el('seriesArchives');
@@ -203,6 +229,51 @@
     }
     if (s.next_match_id) el('seriesNextButton').dataset.nextId = s.next_match_id;
     if (s.champion) el('rematchIssued').classList.add('hidden');
+  }
+  function renderEarlyFinish(data) {
+    const admin = el('role').value === 'admin';
+    el('endMatchPanel').classList.toggle(
+      'hidden',
+      !admin || data.archive_view || data.phase !== 'orders'
+    );
+    el('endMatchButton').disabled = !admin || data.archive_view || data.phase !== 'orders';
+    el('endMatchScore').disabled = !(data.history || []).length;
+    if (!(data.history || []).length && el('endMatchKind').value === 'early_scored')
+      el('endMatchKind').value = 'cancelled';
+  }
+  async function finishMatch() {
+    if (!last || last.archive_view || last.phase !== 'orders' || el('role').value !== 'admin') {
+      status('Unlock the active match as Protected observer to end it.', true);
+      return;
+    }
+    const kind = el('endMatchKind').value;
+    const reason = el('endMatchReason').value.trim();
+    const label =
+      kind === 'early_scored'
+        ? 'END AND SCORE the current board without resolving pending orders'
+        : 'CANCEL the match without awarding either commander a win';
+    if (
+      !confirm(
+        label +
+          '?\n\nThe full completed-round history, existing debriefs, and any sealed but unresolved orders are retained. This action cannot be undone.'
+      )
+    )
+      return;
+    el('endMatchButton').disabled = true;
+    try {
+      const finished = await request('finish', {}, { id: last.id, kind, reason }, true);
+      rememberAdmin();
+      status(
+        finished.termination.kind === 'cancelled'
+          ? 'Match cancelled, unscored. Referee requested final debriefs from both commanders.'
+          : 'Match ended on the last referee-owned score. Referee requested final debriefs.'
+      );
+      await load(true);
+    } catch (e) {
+      status('Could not end match: ' + e.message, true);
+    } finally {
+      el('endMatchButton').disabled = false;
+    }
   }
   function openMatch(id) {
     if (!/^[a-f0-9]{24}$/.test(id)) return;
@@ -434,30 +505,42 @@
     el('debriefStatus').textContent = message;
     el('debriefStatus').className = error ? 'error' : 'quiet';
   }
-  function renderDebrief(data, newAttempt) {
+  function renderDebrief(data, newAttempt, justFinished) {
     const role = el('role').value;
     const isCommander = role === 'us' || role === 'ge';
     el('debriefPanel').classList.toggle('hidden', role === 'public');
     el('debriefCommander').classList.toggle('hidden', !isCommander);
     el('debriefAdmin').classList.toggle('hidden', role !== 'admin');
     const completed = (data.history || []).length;
-    el('debriefTurn').max = Math.max(1, completed);
+    const matchEnded = data.phase === 'complete';
+    el('debriefTurn').min = matchEnded ? 0 : 1;
+    el('debriefTurn').max = Math.max(matchEnded ? 0 : 1, completed);
     if (newAttempt) {
-      el('debriefTurn').value = Math.max(1, completed);
+      el('debriefTurn').value = matchEnded ? 0 : Math.max(1, completed);
       el('debriefInput').value = '';
       el('debriefOutput').classList.add('hidden');
       debriefStatus('');
-    } else if (Number(el('debriefTurn').value) > completed) {
-      el('debriefTurn').value = Math.max(1, completed);
+    } else if (justFinished) {
+      el('debriefTurn').value = 0;
+    } else if (
+      Number(el('debriefTurn').value) > completed ||
+      (Number(el('debriefTurn').value) === 0 && !matchEnded)
+    ) {
+      el('debriefTurn').value = matchEnded ? 0 : Math.max(1, completed);
     }
-    el('copyDebriefPrompt').disabled = !isCommander || !completed;
-    el('submitDebrief').disabled = !isCommander || !completed || !!data.archive_view;
+    el('copyDebriefPrompt').disabled = !isCommander || (!completed && !matchEnded);
+    el('submitDebrief').disabled = !isCommander || (!completed && !matchEnded) || !!data.archive_view;
     el('viewDebriefs').disabled = !isCommander;
   }
   function selectedDebriefRound() {
     const round = Number(el('debriefTurn').value);
-    if (!Number.isInteger(round) || round < 1 || round > (last?.history || []).length)
-      throw Error('Select an already resolved round.');
+    if (
+      !Number.isInteger(round) ||
+      round < 0 ||
+      (round === 0 && last?.phase !== 'complete') ||
+      round > (last?.history || []).length
+    )
+      throw Error('Choose round 0 for a finished match summary, or a resolved round.');
     return round;
   }
   async function copyDebriefPrompt() {
@@ -465,16 +548,26 @@
       if (!last || !['us', 'ge'].includes(el('role').value)) throw Error('Unlock a commander view first.');
       const round = selectedDebriefRound();
       const side = el('role').value;
-      const safeRound = (last.history || []).find(r => Number(r.turn) === round);
+      const safeRound = round ? (last.history || []).find(r => Number(r.turn) === round) : null;
       const prompt = {
         task: 'GRASSTEX COMMANDER AFTER-ACTION DEBRIEF',
         instructions:
-          'Reflect on the decisions and observed results for this completed round. Provide voluntary, concise findings and concrete game-design gaps, NOT hidden chain-of-thought, private reasoning traces, invented opponent intelligence, or secrets. Respond ONLY with the five-field JSON object below. The user will paste it into the site debrief form.',
+          'Reflect on this ' + (round === 0 ? 'completed match' : 'resolved round') + '. Provide voluntary, concise findings and concrete game-design gaps, NOT hidden chain-of-thought, private reasoning traces, invented opponent intelligence, or secrets. Respond ONLY with the five-field JSON object below. The user will paste it into the site debrief form.',
         match_id: last.id,
         attempt: last.series?.attempt || 1,
         side,
         round,
+        match_summary: round === 0,
         authorized_round_result: safeRound || null,
+        authorized_match_results:
+          round === 0
+            ? {
+                completed_rounds: last.history || [],
+                public_world: last.public_world,
+                winner: last.winner,
+                termination: last.termination
+              }
+            : null,
         response_format: {
           learned: 'What I learned about the scenario, tactics or referee',
           worked: 'What worked and evidence from the resolved round',
@@ -514,7 +607,7 @@
       debriefStatus(
         result.duplicate
           ? 'This debrief was already saved.'
-          : 'Debrief saved for ' + side.toUpperCase() + ' round ' + turn + '.'
+          : 'Debrief saved for ' + side.toUpperCase() + (turn === 0 ? ' match summary.' : ' round ' + turn + '.')'
       );
       if (!result.duplicate) await load(true);
     } catch (e) {
@@ -640,6 +733,7 @@
   el('copyPacket').addEventListener('click', packet);
   el('submit').addEventListener('click', submit);
   el('rematchButton').addEventListener('click', createRematch);
+  el('endMatchButton').addEventListener('click', finishMatch);
   el('rematchOpen').addEventListener('click', () => openMatch(el('rematchOpen').dataset.nextId || ''));
   el('seriesNextButton').addEventListener('click', () =>
     openMatch(el('seriesNextButton').dataset.nextId || '')
