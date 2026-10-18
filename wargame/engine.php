@@ -573,7 +573,8 @@ function ie_resolve(&$g) {
     if ($win==='ongoing') $g['turn']++;
     $g['current']=array('us'=>null,'ge'=>null);
     $g['public_brief']='Round '.$turn.' resolved; objective points US '.$control['us'].
-      ' / GE '.$control['ge'].'. Consult the objective board and your faction briefing.';
+      ' / GE '.$control['ge'].'. Consult the objective board and your faction briefing.'.
+      ($g['phase']==='complete'?' REFEREE: Match concluded. Both commanders must submit their final match debrief (round 0) before moving to the next game.':'');
     return $result;
 }
 
