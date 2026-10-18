@@ -436,10 +436,7 @@
           ? round?.field_contacts || []
           : ownWorld?.field_contacts || []
         : [];
-    const markers =
-      role === 'admin'
-        ? Object.values(exactObjects)
-        : contacts;
+    const markers = role === 'admin' ? Object.values(exactObjects) : contacts;
     const contactLines = [];
     for (const contact of markers) {
       if (!Number.isFinite(Number(contact.x)) || !Number.isFinite(Number(contact.z))) continue;
@@ -447,15 +444,32 @@
       const isExact = role === 'admin';
       const label = contact.id + ' · ' + contact.kind;
       const detail = isExact
-        ? contact.squad + ': ' + contact.description + ' (turn ' + contact.created_turn + '; no gameplay effect)'
-        : contact.description +
-          ' · ' +
-          contact.confidence +
-          ' · last seen turn ' +
-          contact.last_seen_turn;
+        ? contact.squad +
+          ': ' +
+          contact.description +
+          ' (turn ' +
+          contact.created_turn +
+          '; no gameplay effect)'
+        : contact.description + ' · ' + contact.confidence + ' · last seen turn ' + contact.last_seen_turn;
       const shape = make('path', {
-        d: 'M' + cx + ' ' + (cy - 10) + 'L' + (cx + 10) + ' ' + cy +
-          'L' + cx + ' ' + (cy + 10) + 'L' + (cx - 10) + ' ' + cy + 'Z',
+        d:
+          'M' +
+          cx +
+          ' ' +
+          (cy - 10) +
+          'L' +
+          (cx + 10) +
+          ' ' +
+          cy +
+          'L' +
+          cx +
+          ' ' +
+          (cy + 10) +
+          'L' +
+          (cx - 10) +
+          ' ' +
+          cy +
+          'Z',
         fill: isExact ? '#f2d283' : '#f9d58c',
         stroke: '#24392d',
         'stroke-width': 2,
