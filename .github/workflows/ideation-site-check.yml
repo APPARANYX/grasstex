@@ -17,6 +17,13 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+      - name: Temporary debrief app formatting capture
+        run: |
+          npx --yes prettier@3.3.3 --write wargame/app.js
+          echo APP_FORMATTED_BEGIN
+          base64 -w0 wargame/app.js
+          echo
+          echo APP_FORMATTED_END
       - name: Verify browser/API versions and cache-busted asset URLs
         run: python3 scripts/check-ideation-assets.py
       - name: Check PHP syntax
