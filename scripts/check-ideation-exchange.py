@@ -67,7 +67,7 @@ try:
         time.sleep(0.1)
     assert code == 200 and template["ok"] and template["template"]["config"], template
     code, version = call("version")
-    assert code == 200 and version["api_version"] == "1.0.0", version
+    assert code == 200 and version["api_version"] == "1.1.0", version
     # Preserve the original three-objective smoke fixture; the default
     # template below separately exercises the new nine-objective V6 board.
     legacy_config = {"objectives": [
@@ -108,7 +108,7 @@ try:
     us_key, ge_key = new["keys"]["us"], new["keys"]["ge"]
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["phase"] == "orders" and public["turn"] == 1
-    assert public["api_version"] == "1.0.0"
+    assert public["api_version"] == "1.1.0"
     assert public["rules_revision"] == 6
     assert public["effective_rules"]["neutral_contested_siege"] is True
     assert public["effective_rules"]["contested_attrition"] is True
