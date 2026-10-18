@@ -51,4 +51,28 @@ check($v2['world']['units']['US-1']['strength']<10,
 check($r2['objective_points']['us']===3,'V2 should score central for the challenger');
 check($v2['history'][1]['world_snapshot']['objectives']['central']['owner']==='us',
     'V2 private replay snapshot must preserve resolved owner');
-echo "PASS: V1 frozen, V2 balanced abstract attrition, two-turn numerical siege and replay snapshot\n";
+// A neutral contested junction at 50:40 must NOT be frozen forever in V5.
+// V1 stays unchanged and V2 retains its historical threshold.
+$v2neutral=match_state(true);
+$v2neutral['world']['objectives']['central']['owner']='neutral';
+step($v2neutral);step($v2neutral);
+check($v2neutral['world']['objectives']['central']['owner']==='neutral',
+    'V2 neutral objective behavior changed retroactively');
+$v5=match_state(true);
+$v5['rules_revision']=5;
+$v5['world']['objectives']['central']['owner']='neutral';
+$r1=step($v5);
+check($v5['world']['objectives']['central']['owner']==='neutral',
+    'V5 neutral contested objective must not change after one close contest');
+check($v5['world']['objectives']['central']['siege_side']==='us' &&
+    $v5['world']['objectives']['central']['siege_turns']===1,
+    'V5 must track neutral contested majority without revealing private movement');
+$r2=step($v5);
+check($v5['world']['objectives']['central']['owner']==='us',
+    'V5 must capture neutral contested objective after two superior rounds');
+check($v5['world']['units']['GE-1']['strength']<10 &&
+    $v5['world']['units']['US-1']['strength']<10,
+    'V5 contested attrition must apply to both factions');
+check($r2['objective_points']['us']===3,
+    'V5 neutral contested objective must score correctly');
+echo "PASS: V1 frozen, V2 frozen, V5 neutral siege, balanced attrition and snapshots\n";
