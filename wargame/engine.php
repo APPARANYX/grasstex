@@ -20,7 +20,8 @@ function ie_config($config) {
         $seen[$o['id']] = true;
         $objectives[$o['id']] = array('id'=>$o['id'], 'name'=>isset($o['name'])?substr((string)$o['name'],0,80):$o['id'],
             'x'=>(float)$o['x'],'z'=>(float)$o['z'],'points'=>$o['points'],
-            'owner'=>'neutral','streak'=>0,'contested'=>false);
+            'owner'=>'neutral','streak'=>0,'contested'=>false,
+            'siege_side'=>null,'siege_turns'=>0);
     }
     return $objectives;
 }
@@ -172,21 +173,42 @@ function ie_resolve(&$g) {
         }
     }
     unset($u);
-    // Objective occupation is abstract: no weapon/damage simulation.
-    // No control transfer when similarly sized forces contest the same objective.
+    // Board-game control: no actual combat or casualties are being simulated.
+    // Version 1 is preserved for *existing* games, so an in-progress match is
+    // not silently altered by new capture rules partway through a competition.
+    // V2: sustained superiority eventually breaks a contested garrison even
+    // when the attacker is <1.5x the defender; an even split cannot win by waiting.
+    $v2=isset($g['rules_revision']) && intval($g['rules_revision'])>=2;
     foreach ($w['objectives'] as $oid=>&$o) {
         $presence=array('us'=>0,'ge'=>0);
         foreach ($w['units'] as $u) if (ie_distance($u,$o)<=150)
             $presence[$u['side']]+=$u['strength'];
         $previous=$o['owner'];$new=$previous;
-        if ($presence['us']>0 || $presence['ge']>0) {
+        $o['contested']=$presence['us']>0 && $presence['ge']>0;
+        if ($v2 && $o['contested'] && $previous!=='neutral') {
+            $challenger=$previous==='us'?'ge':'us';
+            if ($presence[$challenger]>$presence[$previous]) {
+                if (!isset($o['siege_side']) || $o['siege_side']!==$challenger) {
+                    $o['siege_side']=$challenger;
+                    $o['siege_turns']=0;
+                }
+                $o['siege_turns']++;
+                // Superiority > 1.5x resolves within the round. Lesser but
+                // sustained numerical advantage requires 2 contested rounds.
+                if ($presence[$challenger]>$presence[$previous]*1.5 ||
+                    $o['siege_turns']>=2) $new=$challenger;
+            } else {
+                $o['siege_side']=null;$o['siege_turns']=0;
+            }
+        } elseif ($presence['us']>0 || $presence['ge']>0) {
             if ($presence['us']>$presence['ge']*1.5) $new='us';
             elseif ($presence['ge']>$presence['us']*1.5) $new='ge';
-        }
-        $o['contested']=$presence['us']>0 && $presence['ge']>0;
+            if ($v2) { $o['siege_side']=null;$o['siege_turns']=0; }
+        } else if ($v2) { $o['siege_side']=null;$o['siege_turns']=0; }
         if ($new!==$previous) {
             $events[]=$o['name'].': abstract control '.$previous.' -> '.$new;
             $o['owner']=$new;$o['streak']=$new==='neutral'?0:1;
+            if ($v2) { $o['siege_side']=null;$o['siege_turns']=0; }
         } else if ($new!=='neutral' && !$o['contested']) $o['streak']++;
         else if ($o['contested']) $o['streak']=0;
     }
@@ -231,7 +253,12 @@ function ie_resolve(&$g) {
        'events'=>$events,'objective_points'=>$control,'outcome'=>$win,
        'note'=>'Fixed-rule abstract referee. No real combat, navigation or kill simulation.');
     $w['history'][]=$result;
+    // Snapshot positions only in the server-owned record; only a password-
+    // authenticated observer can replay them. Public timeline gets objectives.
     $g['history'][]=array('turn'=>$turn,
+        'world_snapshot'=>array('units'=>$w['units'],'trucks'=>$w['trucks'],
+            'objectives'=>$w['objectives'],'clock_minutes'=>$w['clock_minutes']),
+        'public_snapshot'=>ie_public_world($w),
         'orders'=>array('us'=>$orders['us'],'ge'=>$orders['ge']),
         'resolution'=>$result,'capabilities'=>$proposals,
         'winner'=>$win,'resolved_at'=>gmdate('c'));
