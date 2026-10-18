@@ -32,4 +32,8 @@ assert 'function cartography(svg)' in map_script, "Tactical cartography missing"
 assert "panel.classList.toggle('expanded')" in map_script, "Expanded tactical map control missing"
 assert 'historical unit coordinates' in map_script, "Legacy replay limitation not explained"
 assert "role === 'admin'" in map_script, "Observer-only historical unit data guard missing"
+assert 'id="fieldContacts"' in page, "Field contact sidebar missing"
+assert 'id="fieldDetails"' in page, "Field marker detail panel missing"
+assert "role === 'admin' ? completeWorld?.field_objects" in map_script, "Field truth must be observer-only"
+assert "round?.field_contacts || []" in map_script, "Replay must use per-turn authorized contacts"
 print(f"PASS: Wargame v{version} matches browser and PHP, asset URLs match Git blobs")
