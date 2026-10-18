@@ -47,16 +47,19 @@ function check_role($g,$role) {
 function check_admin() {
     if (!match_secret(header_key(),host_key())) fail_api(401,'Invalid administrator key');
 }
-function public_events($events,$side=null) {
+function public_events($events,$side=null,$admin=false) {
+    if ($admin) return array_values((array)$events);
     $safe=array();
     foreach ((array)$events as $event) {
         if (!is_string($event)) continue;
-        if (preg_match('/^(US|GE)-[0-9]+:/', $event, $m)) {
-            if ($side===null || strtoupper($side)!==$m[1]) continue;
-        } elseif (preg_match('/^(us|ge):/', $event, $m)) {
-            if ($side===null || $side!==$m[1]) continue;
-        }
-        $safe[]=$event;
+        if ($side!==null && preg_match('/^(US|GE)-[0-9]+:/', $event, $m) &&
+            strtoupper($side)===$m[1]) { $safe[]=$event; continue; }
+        if ($side!==null && preg_match('/^(us|ge):/', $event, $m) &&
+            $side===$m[1]) { $safe[]=$event; continue; }
+        // Explicit allowlist: only objective transfers are global events.
+        // Unknown new event types stay private until deliberately classified.
+        if (preg_match('/^[A-Za-z0-9 _-]{1,90}: abstract control (?:neutral|us|ge) -> (?:neutral|us|ge)$/D',$event))
+            $safe[]=$event;
     }
     return $safe;
 }
@@ -65,8 +68,7 @@ function history_for($g,$side=null,$admin=false) {
     foreach ($g['history'] as $round) {
         $r=isset($round['resolution']) && is_array($round['resolution'])?$round['resolution']:array();
         // All pre-V2 historical events and orders MUST pass through this filter too.
-        $r['events']=public_events(isset($r['events'])?$r['events']:array(),$admin?'all':$side);
-        if ($admin) $r['events']=isset($round['resolution']['events'])?$round['resolution']['events']:array();
+        $r['events']=public_events(isset($r['events'])?$r['events']:array(),$side,$admin);
         $item=array('turn'=>$round['turn'],'resolution'=>$r,
             'capabilities'=>array_values(array_filter(
                 isset($round['capabilities'])?$round['capabilities']:array(),
@@ -191,6 +193,19 @@ if ($method==='GET') {
         check_admin();
         $data=public_game($g,null,true);
         $data['observer_world']=$g['world'];
+        $replay=ie_legacy_replay($g);
+        if ($replay['ok']) {
+            foreach ($data['history'] as $index=>&$turn)
+                if (!isset($turn['world_snapshot']) && isset($replay['snapshots'][$index]))
+                    $turn['world_snapshot']=$replay['snapshots'][$index];
+            unset($turn);
+            $data['replay_source']='reconstructed_verified_v1';
+        } else {
+            $data['replay_source']=isset($g['history'][0]['world_snapshot'])?
+                'stored_snapshots':'latest_only';
+            if ($data['replay_source']==='latest_only')
+                $data['replay_note']=$replay['reason'];
+        }
         return array('body'=>$data);
     }));
     fail_api(404,'Unknown GET operation');
