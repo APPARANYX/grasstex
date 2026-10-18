@@ -70,6 +70,33 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
     </div>
   </div>
 </div>
+<div class="panel hidden" id="seriesPanel">
+  <h2 id="seriesTitle">Best of three</h2>
+  <p id="seriesScore" class="notice"></p>
+  <p id="seriesPlayers" class="quiet"></p>
+  <p id="seriesResults" class="quiet"></p>
+  <div id="rematchControls" class="hidden">
+    <p>Match finished. Create the next game with commanders swapped. A fresh key is issued for each side; the same scenario resets to Turn 1.</p>
+    <div class="grid">
+      <div><label for="seriesPlayerA">Original US commander (player A)</label>
+      <input id="seriesPlayerA" autocomplete="off" maxlength="60" value="Sol"></div>
+      <div><label for="seriesPlayerB">Original German commander (player B)</label>
+      <input id="seriesPlayerB" autocomplete="off" maxlength="60" value="Opus"></div>
+    </div>
+    <label for="rematchPassword">Administrator password</label>
+    <input id="rematchPassword" type="password" autocomplete="off" placeholder="Only the match owner can create a rematch">
+    <button id="rematchButton" class="primary" type="button">Rematch · switch sides</button>
+    <p id="rematchHelp" class="quiet">First to two decisive game wins; a draw replays the same game number.</p>
+  </div>
+  <div id="rematchIssued" class="hidden">
+    <p class="notice">Save both new commander keys now. They cannot be retrieved later. Do not share one commander's key with the other.</p>
+    <pre id="rematchKeys"></pre>
+    <button id="rematchOpen" type="button" class="primary">Open new game</button>
+  </div>
+  <div id="seriesNext" class="hidden">
+    <button id="seriesNextButton" type="button">Open next game</button>
+  </div>
+</div>
 <div class="panel hidden" id="dashboard">
   <h2 id="matchTitle">Match</h2>
   <div id="meta" class="quiet"></div>
