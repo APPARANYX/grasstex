@@ -366,6 +366,25 @@
       )
     );
 
+    // Public V6 candidate grid: show the six inactive possibilities as small
+    // hollow circles. Only active diamond objectives have capture zones.
+    const candidates = Array.isArray(data.objective_candidates) ? data.objective_candidates : [];
+    for (const candidate of candidates) {
+      if (candidate.active) continue;
+      const [cx, cy] = xy(candidate.x, candidate.z);
+      const ghost = make('circle', {
+        cx,
+        cy,
+        r: 6,
+        fill: 'none',
+        stroke: '#4b6459',
+        'stroke-width': 1.4,
+        'stroke-dasharray': '2 3',
+        opacity: 0.75
+      });
+      ghost.appendChild(make('title', {}, 'Inactive candidate · line ' + candidate.line + ' · ' + candidate.slot));
+      svg.appendChild(ghost);
+    }
     const objectiveList = publicWorld?.objectives || [];
     const objectives = Array.isArray(objectiveList) ? objectiveList : Object.values(objectiveList);
     for (const o of objectives) {
