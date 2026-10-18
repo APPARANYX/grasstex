@@ -67,7 +67,7 @@ try:
         time.sleep(0.1)
     assert code == 200 and template["ok"] and template["template"]["config"], template
     code, version = call("version")
-    assert code == 200 and version["api_version"] == "1.1.0", version
+    assert code == 200 and version["api_version"] == "1.2.0", version
     # Preserve the original three-objective smoke fixture; the default
     # template below separately exercises the new nine-objective V6 board.
     legacy_config = {"objectives": [
@@ -108,7 +108,7 @@ try:
     us_key, ge_key = new["keys"]["us"], new["keys"]["ge"]
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["phase"] == "orders" and public["turn"] == 1
-    assert public["api_version"] == "1.1.0"
+    assert public["api_version"] == "1.2.0"
     assert public["rules_revision"] == 6
     assert public["effective_rules"]["neutral_contested_siege"] is True
     assert public["effective_rules"]["contested_attrition"] is True
@@ -146,6 +146,39 @@ try:
     code, resolved = call("submit", "POST",
         {"id": match_id, "turn": 1, "side": "ge", "order": ge_order}, ge_key)
     assert code == 200 and resolved["resolved"] and resolved["turn"] == 2, resolved
+    # Debriefs require a resolved round and the issuing commander's key.
+    us_debrief = {"id": match_id, "side": "us", "turn": 1,
+        "learned": "Recon should influence movement before commitment.",
+        "worked": "US-1 moved toward the crossing.",
+        "failed": "No conditional reserves.",
+        "capability_gaps": "Trigger-based reserve orders.",
+        "next_time": "Delay transport until reconnaissance."}
+    ge_debrief = {"id": match_id, "side": "ge", "turn": 1,
+        "learned": "Roadblocks can slow enemy transport.",
+        "worked": "Held defensive position.", "failed": "",
+        "capability_gaps": "Fortification duration.", "next_time": "Fortify first."}
+    assert call("debrief", "POST", us_debrief, ge_key)[0] == 401
+    assert call("debrief", "POST", {**us_debrief, "turn": 2}, us_key)[0] == 409
+    assert call("debrief", "POST", {**us_debrief, "learned": ""}, us_key)[0] == 400
+    code, saved = call("debrief", "POST", us_debrief, us_key)
+    assert code == 200 and saved["accepted"] and saved["turn"] == 1, saved
+    assert call("debrief", "POST", us_debrief, us_key)[1]["duplicate"]
+    assert call("debrief", "POST", {**us_debrief, "learned": "tamper"}, us_key)[0] == 409
+    assert call("debrief", "POST", ge_debrief, ge_key)[0] == 200
+    assert call("debrief", query=f"&id={match_id}&side=us")[0] == 401
+    assert call("debrief", key=ge_key, query=f"&id={match_id}&side=us")[0] == 401
+    code, us_notes = call("debrief", key=us_key, query=f"&id={match_id}&side=us")
+    assert code == 200 and len(us_notes["debriefs"]) == 1
+    assert us_notes["debriefs"][0]["learned"] == us_debrief["learned"]
+    assert "Roadblocks" not in json.dumps(us_notes)
+    assert call("debrief", key=us_key, query=f"&id={match_id}&side=all")[0] == 401
+    assert call("debrief_export", query=f"&id={match_id}")[0] == 401
+    assert call("debrief_export", key=us_key, query=f"&id={match_id}")[0] == 401
+    code, exported = call("debrief_export", key=PASSWORD, query=f"&id={match_id}")
+    assert code == 200 and len(exported["games"]) == 1
+    assert len(exported["games"][0]["debriefs"]) == 2
+    assert "key_hashes" not in json.dumps(exported) and "private_briefs" not in json.dumps(exported)
+    assert "SECRET GE" not in json.dumps(exported)
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["turn"] == 2 and len(public["history"]) == 1, public
     # No enemy order, capability or movement may be delivered to public or side-private views.
@@ -308,6 +341,14 @@ try:
     assert call("brief", key=us_key, query=f"&id={match_id}&attempt=1&side=us")[0] == 200
     assert call("brief", key=ge_key, query=f"&id={match_id}&attempt=1&side=us")[0] == 401
     assert call("observer", key=PASSWORD, query=f"&id={match_id}&attempt=1")[0] == 200
+    code, archived_notes = call("debrief", key=us_key, query=f"&id={match_id}&attempt=1&side=us")
+    assert code == 200 and len(archived_notes["debriefs"]) == 1
+    code, archived_export = call("debrief_export", key=PASSWORD, query=f"&id={match_id}")
+    assert code == 200 and len(archived_export["games"]) == 2
+    assert len(archived_export["games"][0]["debriefs"]) == 2
+    assert archived_export["games"][1]["debriefs"] == []
+    assert call("debrief", "POST", us_debrief, us_key)[0] == 401  # key changed sides
+
     assert call("public", query=f"&id={match_id}&attempt=2")[0] == 404
     assert call("public", query=f"&id={match_id}&attempt=../../private")[0] == 400
     duplicate_code, _ = call("rematch", "POST", {"id": match_id}, PASSWORD)
@@ -354,7 +395,7 @@ try:
     assert record.exists() and record.read_text().startswith("<?php http_response_code(404); exit; ?>")
     print("PASS: isolated sealed orders, redacted submit and historical events, admin observer, "
           "private replay, automatic referee, stable rematch ID and commander keys, faction swaps, best-of-three winner, "
-          "and draw replay")
+          "and draw replay, private AI debriefs and full-series export")
 finally:
     if server is not None:
         server.terminate()
