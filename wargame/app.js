@@ -183,9 +183,11 @@
     const url = new URL(location.href);
     url.searchParams.delete('attempt');
     history.replaceState(null, '', url.toString());
-    if (changed) el('key').value = '';
-    el('role').value = 'public';
-    el('orders').value = '';
+    if (changed) {
+      el('key').value = '';
+      el('role').value = 'public';
+      el('orders').value = '';
+    }
     el('rematchIssued').classList.add('hidden');
     load();
   }
@@ -325,6 +327,7 @@
       };
       const data = await request('create', {}, body, true);
       el('match').value = data.id;
+      archiveAttempt = null;
       el('created').classList.remove('hidden');
       el('createdOutput').textContent = json({
         match_id: data.id,
