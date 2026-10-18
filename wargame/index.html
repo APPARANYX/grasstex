@@ -50,7 +50,7 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
 .tacticalPanel.expanded #mapBoard svg{max-height:calc(100dvh - 140px)}
 @media(max-width:700px){.tacticalLayout,.tacticalPanel.expanded .tacticalLayout{grid-template-columns:1fr}.tacticalSidebar{border-left:0;border-top:1px solid #536b60}.tacticalPanel.expanded #mapBoard svg{max-height:70dvh}.tacticalHeader h2{font-size:15px}}
 </style></head><body>
-<header><small>GRASSTEX / RESEARCH TOOLS · WARGAME v1.0.0</small><h1>Commander Ideation Exchange</h1>
+<header><small>GRASSTEX / RESEARCH TOOLS · WARGAME v1.1.0</small><h1>Commander Ideation Exchange</h1>
 <p class="intro">Two commanders. One sealed turn each. One deterministic referee. Site-hosted strategy wargames for discovering missing game-command capabilities—without running the soldier simulator or using paid AI APIs.</p></header>
 <main>
 <div class="panel">
@@ -58,14 +58,17 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <div class="grid3">
     <div><label for="match">Match ID</label><input id="match" autocomplete="off" spellcheck="false" placeholder="24-character match ID"></div>
     <div><label for="role">View as</label><select id="role"><option value="public">Public spectator</option><option value="us">US commander</option><option value="ge">German commander</option><option value="admin">Protected observer (all forces)</option></select></div>
-    <div><label for="key">Faction key / admin password (not needed for public)</label><input id="key" type="password" autocomplete="off" placeholder="Keep role keys private"></div>
+    <div><label for="key">One unlock field · commander key or administrator password</label><input id="key" type="password" autocomplete="off" placeholder="Enter key for selected role"></div>
   </div>
   <button class="primary" id="load">Load / refresh match</button>
+  <label style="display:inline-flex;align-items:center;gap:8px;margin:12px 8px 8px 0"><input id="rememberAdmin" type="checkbox" style="width:auto">Remember administrator password on this device</label>
+  <button type="button" id="clearAdmin">Forget saved password</button>
+  <p class="quiet">Optional: browser storage keeps the administrator password on this device, unencrypted. Use only on a private, trusted browser. Commander keys remain separate and are never saved automatically.</p>
   <div id="liveStatus" class="quiet" role="status" aria-live="polite">Load a match to begin live updates.</div>
   <button id="copyPacket">Copy briefing for your AI chat</button>
   <p id="message" role="status" aria-live="polite"></p>
-  <p id="buildDiagnostic" class="quiet">Browser v1.0.0 · API not yet checked</p>
-  <div class="quiet">Public spectator needs no key; Protected observer requires your administrator password. The match and map update every 5 seconds while this tab is visible; the page itself does not reload. Chat sessions do not automatically wake up to take turns.</div>
+  <p id="buildDiagnostic" class="quiet">Browser v1.1.0 · API not yet checked</p>
+  <div class="quiet">Public spectator needs no key; Protected observer requires your administrator password. The match and map check for updates every 2 seconds while this tab is visible; the page itself does not reload. Chat sessions do not automatically wake up to take turns.</div>
 </div>
 
 <div class="panel hidden tacticalPanel" id="mapPanel">
@@ -97,7 +100,7 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
         <button type="button" id="mapLive">● Live</button>
         <button type="button" id="mapSound" aria-pressed="false">Sound off</button>
       </div>
-      <p class="quiet">Playback follows new resolved rounds automatically. Back/forward pauses; Play resumes. Sound activates after you tap the button.</p>
+      <p class="quiet">Playback follows resolved rounds automatically. Back/forward pauses; Play resumes. Tap Sound once to unlock audio; your preference is remembered. Movement trails remain visible after animation.</p>
       <h3>Resolution / point ledger</h3><pre id="replayEvents"></pre>
       <h3>Authorized orders</h3><pre id="replayOrders"></pre>
       <p class="quiet">Public: objectives only. Each commander: its own exact squad positions. Protected observer: both forces and turn-by-turn paths.</p>
@@ -118,8 +121,7 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
       <div><label for="seriesPlayerB">Original German commander (player B)</label>
       <input id="seriesPlayerB" autocomplete="off" maxlength="60" value="Opus"></div>
     </div>
-    <label for="rematchPassword">Administrator password</label>
-    <input id="rematchPassword" type="password" autocomplete="off" placeholder="Only the match owner can create a rematch">
+    <p class="quiet">Rematch uses your saved administrator unlock or the password in the top field.</p>
     <button id="rematchButton" class="primary" type="button">Rematch · switch sides</button>
     <p id="rematchHelp" class="quiet">First to two decisive game wins; a draw replays the same game number.</p>
   </div>
@@ -155,7 +157,7 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
 
 <details class="panel" id="createDetails"><summary>Create a new match (administrator)</summary>
   <p class="quiet">A reusable ruleset and starter scenario are served from this 50web installation. Edit them for your new match; this creates a private match record on the host.</p>
-  <label for="adminKey">Administrator password</label><input id="adminKey" type="password" autocomplete="off">
+  <p class="quiet">Creating a match uses the administrator password from the top unlock field (or your remembered administrator password).</p>
   <label for="newTitle">Match title</label><input id="newTitle" value="Junction Corridor — ChatGPT vs Claude">
   <div class="grid"><div><label for="newLimit">Turn limit (2–15)</label><input id="newLimit" type="number" min="2" max="15" value="8"></div>
   <div><label for="newMode">Mode</label><select id="newMode"><option value="discovery">Discovery (hypothetical actions allowed)</option><option value="native_only">Native only (proposals logged)</option></select></div></div>
@@ -169,4 +171,4 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
 </details>
 </main><footer>GRASSTEX Commander Ideation Lab · Qualitative design exercise, not a runtime battle benchmark</footer>
 <script src="./map.js?v=ea16a15bc735"></script>
-<script src="./app.js?v=a20107c51acf"></script></body></html>
+<script src="./app.js?v=3765005697b8"></script></body></html>
