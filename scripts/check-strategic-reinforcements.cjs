@@ -211,7 +211,7 @@ function sortieWorld(extra = '') {
   return w;
 }
 {
-  const w = sortieWorld(),
+  const w = sortieWorld('&reinforcementSortie=1'),
     A = w.root.BattleAerialRecon,
     own = () => w.sim._strategicAerialRecon.us;
   A.request(w.sim, 'us');
@@ -237,19 +237,19 @@ function sortieWorld(extra = '') {
     'opening squads are never held'
   );
 
-  const off = sortieWorld('&reinforcementSortie=0'),
+  const off = sortieWorld(),
     ownOff = () => off.sim._strategicAerialRecon.us;
   off.root.BattleAerialRecon.request(off.sim, 'us');
   ownOff().pass = null;
   off.kill('us', SIZE);
   off.tick();
   assert.equal(off.spawned.length, 1);
-  assert.ok(!ownOff().pass, '?reinforcementSortie=0: no sortie for a fresh squad');
+  assert.ok(!ownOff().pass, 'without ?reinforcementSortie=1: no sortie for a fresh squad');
   ownOff().pass = { startedAt: 100, fixes: [] };
   assert.equal(
     off.R.awaitingReport(off.sim, off.spawned[0].squad),
     false,
-    '?reinforcementSortie=0: briefed at once'
+    'without ?reinforcementSortie=1: briefed at once'
   );
 }
 
