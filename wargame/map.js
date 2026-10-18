@@ -162,9 +162,10 @@
     el('replayLabel').textContent =
       chosen === 0 ? 'Current board · Turn ' + data.turn : 'After round ' + chosen;
     el('replaySource').textContent =
-      data.replay_source === 'reconstructed_verified_v1'
+      (data.replay_source === 'reconstructed_verified_v1'
         ? 'Older match positions verified by deterministic replay'
-        : data.replay_note || '';
+        : data.replay_note || '') +
+      (publicWorld?.note ? ' · ' + publicWorld.note : '');
     const svg = make('svg', {
       viewBox: '0 0 700 700',
       role: 'img',
