@@ -65,7 +65,24 @@ function public_events($events,$side=null,$admin=false) {
 }
 function history_for($g,$side=null,$admin=false) {
     $history=array();
+    $legacyObjectives=ie_config($g['config']);
     foreach ($g['history'] as $round) {
+        // Legacy V1 games did not persist a per-round objective snapshot.
+        // Rebuild ONLY publicly reported captures from the original log;
+        // never infer historic enemy coordinates or contested status.
+        $events=isset($round['resolution']['events'])?$round['resolution']['events']:array();
+        foreach ($events as $event) {
+            if (!is_string($event)) continue;
+            foreach ($legacyObjectives as &$obj) {
+                $prefix=$obj['name'].': abstract control ';
+                if (strncmp($event,$prefix,strlen($prefix))!==0) continue;
+                if (preg_match('/^(?:neutral|us|ge) -> (neutral|us|ge)$/D',
+                    substr($event,strlen($prefix)),$m)) {
+                    $obj['owner']=$m[1];
+                }
+            }
+            unset($obj);
+        }
         $r=isset($round['resolution']) && is_array($round['resolution'])?$round['resolution']:array();
         // All pre-V2 historical events and orders MUST pass through this filter too.
         $r['events']=public_events(isset($r['events'])?$r['events']:array(),$side,$admin);
@@ -87,6 +104,12 @@ function history_for($g,$side=null,$admin=false) {
             if (isset($round['world_snapshot'])) $item['world_snapshot']=$round['world_snapshot'];
         }
         if (isset($round['public_snapshot'])) $item['public_snapshot']=$round['public_snapshot'];
+        else $item['public_snapshot']=array(
+            'objectives'=>array_values($legacyObjectives),
+            'clock_minutes'=>10*(int)$round['turn'],
+            'outcome'=>isset($r['outcome'])?$r['outcome']:'ongoing',
+            'snapshot_kind'=>'legacy_public_capture_reconstruction',
+            'note'=>'Historic objective ownership only; contested state is unavailable.');
         $history[]=$item;
     }
     return $history;
