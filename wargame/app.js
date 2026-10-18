@@ -1,6 +1,7 @@
 'use strict';
 /* No LLM API or browser-side referee. The site stores all state in the PHP backend. */
 (function () {
+  const CLIENT_VERSION = '0.3.1';
   const el = id => document.getElementById(id);
   let last = null,
     template = null,
@@ -210,7 +211,16 @@
     try {
       const data = await request(op, { id, ...(role === 'us' || role === 'ge' ? { side: role } : {}) });
       render(data);
-      if (!silent) status('Match loaded. Latest revision ' + data.revision + '.');
+      el('buildDiagnostic').textContent =
+        'Browser v' + CLIENT_VERSION + ' · API ' + (data.api_version || 'legacy/unversioned');
+      if (data.api_version !== CLIENT_VERSION) {
+        status(
+          'Browser/server version mismatch. Refresh the wargame page after deployment (the new page uses versioned scripts).',
+          true
+        );
+      } else if (!silent) {
+        status('Match loaded. Latest revision ' + data.revision + '.');
+      }
       const url = new URL(location.href);
       url.searchParams.set('id', id);
       history.replaceState(null, '', url.toString());
