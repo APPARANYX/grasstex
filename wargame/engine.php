@@ -334,6 +334,13 @@ function ie_legacy_replay($g) {
     }
     foreach (array('units','trucks','objectives') as $kind) {
         $a=$sandbox['world'][$kind];$b=$g['world'][$kind];
+        // New optional rule fields must not invalidate a verified V1 replay.
+        if ($kind==='objectives') {
+            foreach ($a as &$obj) { unset($obj['siege_side'],$obj['siege_turns']); }
+            unset($obj);
+            foreach ($b as &$obj) { unset($obj['siege_side'],$obj['siege_turns']); }
+            unset($obj);
+        }
         if (json_encode($a)!==json_encode($b))
             return array('ok'=>false,'reason'=>'historical world diverged: '.$kind);
     }
