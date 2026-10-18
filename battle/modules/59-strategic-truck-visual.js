@@ -23,6 +23,95 @@
     return { name: s[0], role: s[1], position: s[2], yaw: s[3], occupied: true, clip: s[4] };
   });
   var TRUCK_LENGTH = 6.2;
+  /* Phone memory and draw calls (owner's iPhone reloads after a few minutes): the truck FBX is 191
+     meshes with 138 materials and 136 textures, and a full clone per truck made 12 x 191 draws.
+     Light trucks (default; ?truckLite=0 restores full clones):
+     - every truck is an instance of the one imported model, so each of its meshes is one draw for
+       the whole fleet, not one per truck;
+     - on a phone (coarse primary pointer) its textures are capped at TRUCK_TEXTURE_PHONE px
+       (?truckTex=<px> sets the cap, 2048 keeps them full size), like the soldiers' ?soldierTex=;
+     - a truck model too far from the camera to cover MIN_TRUCK_PIXELS on screen is not drawn
+       (its riders and the vehicle itself are untouched).
+     Presentation only: no movement, transport, sight or fire reads any of it. */
+  var MIN_TRUCK_PIXELS = 3,
+    TRUCK_TEXTURE_PHONE = 256;
+  var TEXTURE_SLOTS = [
+    'diffuseTexture',
+    'albedoTexture',
+    'bumpTexture',
+    'emissiveTexture',
+    'opacityTexture',
+    'specularTexture',
+    'ambientTexture',
+    'metallicTexture',
+    'reflectivityTexture',
+    'lightmapTexture'
+  ];
+  function liteOn() {
+    return !/(?:^|[?&])truckLite=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
+  function textureCap() {
+    if (!liteOn()) return 0;
+    var q = /[?&]truckTex=(\d+)/.exec((root.location && root.location.search) || '');
+    if (q) return +q[1] >= 2048 ? 0 : Math.max(32, +q[1]);
+    return root.matchMedia && root.matchMedia('(pointer:coarse)').matches ? TRUCK_TEXTURE_PHONE : 0;
+  }
+  /* A resized copy replaces each oversized texture once it is ready, as the soldiers' textures do
+     (53-fbx-soldier-backend.js shrinkSoldierTexture); the original is then freed. */
+  function shrinkTextures(meshes, cap) {
+    var TT = root.BABYLON && BABYLON.TextureTools,
+      done = new Set();
+    if (!cap || !TT || !TT.CreateResizedCopy) return;
+    meshes.forEach(function (mesh) {
+      var mat = mesh.material;
+      if (!mat || done.has(mat)) return;
+      done.add(mat);
+      TEXTURE_SLOTS.forEach(function (slot) {
+        var t = mat[slot];
+        if (!t || typeof t.getSize !== 'function' || t.isCube) return;
+        function go() {
+          var size = t.getSize(),
+            k = Math.min(1, cap / Math.max(size.width, size.height));
+          if (!(k < 1) || mat[slot] !== t) return;
+          var copy;
+          try {
+            copy = TT.CreateResizedCopy(t, Math.round(size.width * k), Math.round(size.height * k), true);
+          } catch (e) {
+            return;
+          }
+          copy.name = t.name + '@' + Math.round(size.width * k);
+          copy.gammaSpace = t.gammaSpace;
+          copy.hasAlpha = t.hasAlpha;
+          copy.wrapU = t.wrapU;
+          copy.wrapV = t.wrapV;
+          copy.coordinatesIndex = t.coordinatesIndex;
+          var scene = t.getScene(),
+            obs = scene.onBeforeRenderObservable.add(function () {
+              var it = copy.getInternalTexture();
+              if (!it || !it.isReady) return;
+              scene.onBeforeRenderObservable.remove(obs);
+              if (mat[slot] !== t) {
+                copy.dispose();
+                return;
+              }
+              mat[slot] = copy;
+              t.dispose();
+            });
+        }
+        if (t.isReady()) go();
+        else if (t.onLoadObservable) t.onLoadObservable.addOnce(go);
+      });
+    });
+  }
+  /* Farthest distance at which the truck still covers MIN_TRUCK_PIXELS of the render height. */
+  function drawDistance(scene) {
+    var camera = scene.activeCamera,
+      engine = scene.getEngine && scene.getEngine(),
+      height = engine && engine.getRenderHeight ? engine.getRenderHeight() : 0,
+      fov = camera && camera.fov;
+    if (!camera || !height || !(fov > 0) || camera.mode === 1) return Infinity;
+    return (TRUCK_LENGTH * height) / (2 * Math.tan(fov / 2) * MIN_TRUCK_PIXELS);
+  }
   var stores = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
   var assetFiles = {};
   function enabled(sim) {
@@ -210,7 +299,13 @@
           -(box.low.z + box.high.z) * 0.5 * scale
         );
         template.setEnabled(false);
-        st.source = { template: template, result: result, count: renderMeshes.length };
+        shrinkTextures(renderMeshes, textureCap());
+        st.source = { template: template, result: result, count: renderMeshes.length, lite: liteOn() };
+        // Every frame, so a paused battle with a moving camera still shows the near trucks.
+        if (st.source.lite)
+          st.visibility = scene.onBeforeRenderObservable.add(function () {
+            showNear(scene, st);
+          });
         return st.source;
       })
       .catch(function (err) {
@@ -339,15 +434,39 @@
     if (entry.root || entry.pending || !st.source) return;
     var scene = sim.scene,
       rootNode = new BABYLON.TransformNode('strategicTruck-' + entry.faction + '-' + entry.id, scene);
-    var clone = st.source.template.clone('strategicTruckModel-' + entry.id, rootNode, false);
+    var clone = st.source.lite
+      ? st.source.template.instantiateHierarchy(rootNode, undefined, function (source, made) {
+          made.name = source.name;
+          if ('isPickable' in made) made.isPickable = false;
+        })
+      : st.source.template.clone('strategicTruckModel-' + entry.id, rootNode, false);
     if (!clone) {
       rootNode.dispose(false, false);
       throw new Error('could not clone truck FBX');
+    }
+    if (st.source.lite) {
+      clone.name = 'strategicTruckModel-' + entry.id;
+      // The copied nodes keep the hidden template's disabled flag; the clone itself decides.
+      clone.getDescendants(false).forEach(function (node) {
+        node.setEnabled(true);
+      });
     }
     clone.setEnabled(true);
     entry.root = rootNode;
     entry.visual = clone;
     attachAxlePivots(entry);
+  }
+  function showNear(scene, st) {
+    var far = drawDistance(scene);
+    st.trucks.forEach(function (entry) {
+      if (!entry.visual || entry.visual.isDisposed()) return;
+      var near = !scene.activeCamera || cameraNear(scene, entry, far);
+      if (entry.visual.isEnabled(false) === near) return;
+      entry.visual.setEnabled(near);
+      Object.keys(entry.axles || {}).forEach(function (side) {
+        entry.axles[side].pivot.setEnabled(near);
+      });
+    });
   }
   function cameraNear(scene, entry, radius) {
     var camera = scene.activeCamera;
@@ -502,6 +621,8 @@
       if (!st.source.template.isDisposed()) st.source.template.dispose(false, false);
       disposeImport(st.source.result);
     }
+    if (st.visibility) st.scene.onBeforeRenderObservable.remove(st.visibility);
+    st.visibility = null;
     st.source = null;
     st.pending = null;
     st.errors = [];
@@ -689,6 +810,7 @@
         : null;
     },
     enabled: enabled,
+    lite: { on: liteOn, textureCap: textureCap, drawDistance: drawDistance },
     summary: function (sim) {
       var st = stateFor(sim);
       return Array.from(st.trucks.values()).map(function (entry) {

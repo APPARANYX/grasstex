@@ -19,6 +19,7 @@ on:
       - 'scripts/check-strategic-reinforcements.cjs'
       - 'battle/modules/59-strategic-truck-visual.js'
       - 'scripts/check-strategic-truck-visual.cjs'
+      - 'scripts/check-strategic-truck-lite.cjs'
       - 'scripts/check-strategic-restart-end.cjs'
       - 'battle/modules/99-session-diagnostics-export.js'
       - 'docs/reference/german_transport-seats.json'
@@ -50,6 +51,7 @@ jobs:
           node scripts/check-strategic-front-lines.cjs
           node scripts/check-strategic-reinforcements.cjs
           node scripts/check-strategic-truck-visual.cjs
+          node scripts/check-strategic-truck-lite.cjs
           node scripts/check-strategic-restart-end.cjs
       - name: Install Playwright Chromium
         run: |

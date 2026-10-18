@@ -276,6 +276,7 @@ jobs:
           node scripts/check-strategic-reinforcements.cjs
           node scripts/check_vehicle_lab.cjs
           node scripts/check-strategic-truck-visual.cjs
+          node scripts/check-strategic-truck-lite.cjs
           node scripts/check-strategic-restart-end.cjs
 
       - name: Engagement harness seeds

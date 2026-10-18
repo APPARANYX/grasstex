@@ -26,6 +26,16 @@ The owner asked for a small, controlled respawn trial, because one life per squa
 
 `battle/modules/21c-strategic-reinforcements.js` is the one owner; `scripts/check-strategic-reinforcements.cjs` covers it. Telemetry: `strategic-reinforcement` (faction, wave, squad, objective, losses) and `BattleStrategicReinforcements.summary(sim)`.
 
+## Light trucks for phones — October 18, 2026
+
+The owner's iPhone reloads the page after a few minutes. Measured under phone emulation, the truck model (191 meshes, 138 materials, 136 textures) was copied whole for each of the 12 trucks. Light trucks are the default; `?truckLite=0` restores the full copies. Presentation only: no movement, transport, sight or fire reads any of it, and a battle plays out the same with the flag on or off.
+
+- Each truck is an instance of the one imported model, so each mesh of it is one draw for the whole fleet.
+- On a phone (coarse primary pointer) the truck's textures are capped at 256 px (`?truckTex=<px>` sets the cap, 2048 keeps them full size), like the soldiers' `?soldierTex=`.
+- A truck too far away to cover 3 pixels of the screen is not drawn; its riders and the vehicle itself are untouched.
+
+Phone emulation, start of a meeting battle: 1,893 draws to 365, truck textures about 101 MB to 19 MB.
+
 ## Vehicle persistence and future garages — October 16, 2026
 
 Implementation proposal in [#558](https://github.com/APPARANYX/grasstex/pull/558), targeting the draft strategic parent #545:
